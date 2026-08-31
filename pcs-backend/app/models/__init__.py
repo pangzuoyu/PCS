@@ -8,3 +8,4 @@ Task 3-7 完成后，最终形态：
     from app.models.project import *        # noqa: F401,F403
     from app.models.calc import *           # noqa: F401,F403
 """
+from app.models.project import *  # noqa: F401,F403
