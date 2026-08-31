@@ -330,3 +330,54 @@
 | 20:56 | Created pcs-backend/app/models/system.py | — | ~2249 |
 | 20:56 | Edited pcs-backend/app/models/__init__.py | added 1 import(s) | ~104 |
 | 20:57 | Edited pcs-backend/app/models/system.py | 13→12 lines | ~45 |
+| 20:58 | Created pcs-backend/alembic/env.py | — | ~424 |
+| 20:58 | Edited pcs-backend/alembic.ini | inline fix | ~21 |
+| 21:01 | Edited pcs-backend/app/models/mixins.py | modified TaggedRecordMixin() | ~98 |
+| 21:01 | Edited pcs-backend/app/models/mixins.py | 11→10 lines | ~36 |
+| 21:02 | Edited pcs-backend/app/models/equipment.py | modified EquipmentList() | ~455 |
+| 21:02 | Edited pcs-backend/app/models/equipment.py | 12→12 lines | ~46 |
+| 21:02 | Edited pcs-backend/app/models/equipment.py | 12→13 lines | ~52 |
+| 21:04 | Created pcs-backend/tests/test_schema.py | — | ~1212 |
+| 21:06 | Created pcs-backend/app/core/security.py | — | ~453 |
+| 21:07 | Created pcs-backend/app/services/ldap_client.py | — | ~669 |
+| 21:07 | Created pcs-backend/app/services/__init__.py | — | ~5 |
+| 21:07 | Created pcs-backend/app/api/v1/auth.py | — | ~919 |
+| 21:07 | Created pcs-backend/app/api/v1/__init__.py | — | ~47 |
+| 21:07 | Created pcs-backend/app/api/__init__.py | — | ~18 |
+| 21:07 | Created pcs-backend/app/api/v1/auth.py | — | ~942 |
+| 21:08 | Created pcs-backend/tests/test_auth.py | — | ~998 |
+| 21:08 | Edited pcs-backend/app/api/v1/auth.py | 2→2 lines | ~34 |
+| 21:08 | Edited pcs-backend/app/api/v1/auth.py | modified startswith() | ~154 |
+| 21:08 | Edited pcs-backend/app/api/v1/auth.py | 6→6 lines | ~77 |
+| 21:09 | Edited pcs-backend/app/api/v1/auth.py | modified current_user() | ~80 |
+| 21:09 | Edited pcs-backend/tests/test_auth.py | 2→5 lines | ~52 |
+| 21:10 | Edited pcs-backend/app/api/v1/auth.py | modified LoginRequest() | ~41 |
+| 21:10 | Created pcs-backend/app/api/v1/__init__.py | — | ~74 |
+| 21:10 | Edited pcs-backend/pyproject.toml | 3→4 lines | ~16 |
+| 21:11 | Created docker-compose.yml | — | ~309 |
+| 21:11 | Created infra/ldap/seed.ldif | — | ~330 |
+| 21:11 | Edited infra/ldap/seed.ldif | 6→6 lines | ~34 |
+| 21:11 | Created pcs-backend/app/api/v1/mock_auth.py | — | ~452 |
+| 21:11 | Edited pcs-backend/app/main.py | modified lifespan() | ~380 |
+| 21:11 | Created pcs-backend/tests/test_mock_auth.py | — | ~602 |
+| 21:12 | Edited pcs-backend/tests/test_mock_auth.py | added 1 import(s) | ~124 |
+| 21:12 | Edited pcs-backend/tests/test_mock_auth.py | 11→8 lines | ~72 |
+| 00:22 | Edited pcs-backend/tests/test_mock_auth.py | modified test_main_create_app_skips_mock_in_production() | ~233 |
+| 00:23 | Created pcs-frontend/package.json | — | ~197 |
+| 00:23 | Created pcs-frontend/tsconfig.json | — | ~146 |
+| 00:23 | Created pcs-frontend/vite.config.ts | — | ~81 |
+| 00:23 | Created pcs-frontend/index.html | — | ~81 |
+| 00:23 | Created pcs-frontend/src/main.tsx | — | ~101 |
+| 00:23 | Created pcs-frontend/src/App.tsx | — | ~173 |
+| 00:23 | Created pcs-frontend/src/store/auth.ts | — | ~234 |
+| 00:23 | Created pcs-frontend/src/api/client.ts | — | ~335 |
+| 00:23 | Created pcs-frontend/src/pages/LoginPage.tsx | — | ~609 |
+| 00:23 | Created pcs-frontend/src/layouts/MainLayout.tsx | — | ~373 |
+| 00:23 | Created pcs-frontend/src/pages/DashboardPage.tsx | — | ~182 |
+| 00:23 | Created pcs-frontend/src/components/RequireAuth.tsx | — | ~126 |
+| 00:23 | Created pcs-frontend/.gitignore | — | ~10 |
+
+## 2026-08-31T16:26:10.192007Z — P0 完成验收
+- 14 任务全部 completed；26/26 测试通过；ruff+mypy 清洁；alembic head；前端 tsc 0 错 vite build 通过
+- pcs 库 + pcs_test 库均 54 表（53 + alembic_version）；ADR-0023 复合 PK/FK schema 测试断言
+- 5 commit：① ADR-0023 修正 ② 项目/枚举 ③ 配置域 ④ 计算+集成层 ⑤ 交付+系统 ⑥ alembic+schema 测试 ⑦ JWT+LDAP ⑧ mock+AD ⑨ 前端
