@@ -1,0 +1,54 @@
+{
+  "version": 1,
+  "bugs": [
+    {
+      "id": "bug-001",
+      "timestamp": "2026-08-31T12:48:24.663Z",
+      "error_message": "Wrong reference: RecordMixin should be TimestampMixin",
+      "file": "pcs-backend/app/models/project.py",
+      "root_cause": "Used \"RecordMixin\" instead of \"TimestampMixin\"",
+      "fix": "Changed RecordMixin → TimestampMixin",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T12:48:24.663Z"
+    },
+    {
+      "id": "bug-002",
+      "timestamp": "2026-08-31T12:52:34.861Z",
+      "error_message": "Incorrect value in code",
+      "file": "pcs-backend/app/models/calc.py",
+      "root_cause": "Had \"SHELL_TUBE/AIR_COOL/PLATE/etc\"",
+      "fix": "Changed to \"SHELL_TUBE/AIR_COOL/PLATE\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T12:52:34.861Z"
+    },
+    {
+      "id": "bug-003",
+      "timestamp": "2026-08-31T13:30:00.000Z",
+      "error_message": "psycopg.errors.DuplicateTable: relation \"uq_flash_results_project_id\" already exists; then equipment_list FK InvalidForeignKey",
+      "file": "pcs-backend/app/models/mixins.py + equipment.py",
+      "root_cause": "mixin UniqueConstraint + naming convention uq_%(table_name)s_%(column_0_name)s 在 declared_attr + autogenerate 下跨表错挂；equipment_list 两个独立 FK 无法满足 equipment_type_codes 复合 PK",
+      "fix": "从 TaggedRecordMixin 移除 UniqueConstraint（由服务层强制）；equipment_list 改用 ForeignKeyConstraint 复合键 (equipment_type_project_id, type_code) → equipment_type_codes(project_id, type_code)",
+      "tags": [
+        "auto-detected",
+        "sqlalchemy",
+        "migration",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T13:30:00.000Z"
+    }
+  ]
+}

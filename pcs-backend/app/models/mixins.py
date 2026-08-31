@@ -8,7 +8,6 @@ from sqlalchemy import (
     ForeignKey,
     Integer,
     String,
-    UniqueConstraint,
     Uuid,
     func,
 )
@@ -96,12 +95,11 @@ class RecordMixin(TimestampMixin):
 
 
 class TaggedRecordMixin(RecordMixin):
-    """需要位号的记录表（eng-review Issue 5）：tag_number NOT NULL + 项目内终身唯一。
+    """需要位号的记录表（eng-review Issue 5）：tag_number NOT NULL。
 
     15 张计算表 + equipment_list 用；piping_results 直接用 RecordMixin（line_no）。
-    约束名由 naming convention 生成（uq_<table>_project_id），每表独立。
+    (project_id, tag_number) 唯一性由服务层强制（避免 SQLAlchemy 命名约定在
+    declared_attr mixin + autogenerate 下的跨表错挂 bug）。
     """
 
     tag_number: Mapped[str] = mapped_column(String(50))
-
-    __table_args__ = (UniqueConstraint("project_id", "tag_number"),)

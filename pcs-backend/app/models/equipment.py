@@ -6,6 +6,7 @@ from sqlalchemy import (
     Date,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Integer,
     Numeric,
     String,
@@ -51,20 +52,15 @@ class EquipmentList(TaggedRecordMixin, Base):
 
     __tablename__ = "equipment_list"
     __table_args__ = (
-        UniqueConstraint(
-            "project_id",
-            "type_code",
-            "equipment_type_project_id",
-            name="uq_equipment_list_project_type_compat",
+        ForeignKeyConstraint(
+            ["equipment_type_project_id", "type_code"],
+            ["equipment_type_codes.project_id", "equipment_type_codes.type_code"],
+            name="fk_equipment_list_type_code",
         ),
     )
     equipment_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    equipment_type_project_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("equipment_type_codes.project_id")
-    )
-    type_code: Mapped[str] = mapped_column(
-        ForeignKey("equipment_type_codes.type_code")
-    )
+    equipment_type_project_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    type_code: Mapped[str] = mapped_column(String(5))
     equipment_name: Mapped[str] = mapped_column(String(200))
     description: Mapped[str | None] = mapped_column(String(500))
     source_record_id: Mapped[uuid.UUID | None] = mapped_column(
