@@ -1,0 +1,55 @@
+dn: ou=Groups,dc=test,dc=local
+objectClass: organizationalUnit
+ou: Groups
+
+dn: ou=Users,dc=test,dc=local
+objectClass: organizationalUnit
+ou: Users
+
+dn: cn=DESIGNER_GROUP,ou=Groups,dc=test,dc=local
+objectClass: groupOfNames
+cn: DESIGNER_GROUP
+member: cn=alice,ou=Users,dc=test,dc=local
+
+dn: cn=CHECKER_GROUP,ou=Groups,dc=test,dc=local
+objectClass: groupOfNames
+cn: CHECKER_GROUP
+member: cn=bob,ou=Users,dc=test,dc=local
+
+dn: cn=APPROVER_GROUP,ou=Groups,dc=test,dc=local
+objectClass: groupOfNames
+cn: APPROVER_GROUP
+member: cn=carol,ou=Users,dc=test,dc=local
+
+dn: cn=ADMIN_GROUP,ou=Groups,dc=test,dc=local
+objectClass: groupOfNames
+cn: ADMIN_GROUP
+member: cn=dan,ou=Users,dc=test,dc=local
+
+dn: cn=alice,ou=Users,dc=test,dc=local
+objectClass: inetOrgPerson
+cn: alice
+sn: Designer
+displayName: Alice Designer
+userPassword: alice_pw
+
+dn: cn=bob,ou=Users,dc=test,dc=local
+objectClass: inetOrgPerson
+cn: bob
+sn: Checker
+displayName: Bob Checker
+userPassword: bob_pw
+
+dn: cn=carol,ou=Users,dc=test,dc=local
+objectClass: inetOrgPerson
+cn: carol
+sn: Approver
+displayName: Carol Approver
+userPassword: carol_pw
+
+dn: cn=dan,ou=Users,dc=test,dc=local
+objectClass: inetOrgPerson
+cn: dan
+sn: Admin
+displayName: Dan Admin
+userPassword: dan_pw

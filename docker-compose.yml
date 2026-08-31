@@ -15,5 +15,27 @@ services:
   redis:
     image: redis:7-alpine
     ports: ["6379:6379"]
+  openldap:
+    # 测试用 AD/LDAP 容器。生产环境替换为客户域 LDAP_URL（env 注入）。
+    image: osixia/openldap:1.5.0
+    environment:
+      LDAP_ORGANISATION: PCS Test
+      LDAP_DOMAIN: test.local
+      LDAP_ADMIN_PASSWORD: admin
+    ports: ["389:389"]
+    volumes:
+      - ldap-seed:/container/service/slapd/assets/test
+  openldap-seed:
+    # 用一次性容器把 seed.ldif 灌入 openldap，完成后退出
+    image: osixia/openldap:1.5.0
+    depends_on: [openldap]
+    command: >
+      sh -c "sleep 5 &&
+             ldapadd -x -H ldap://openldap:389 -D 'cn=admin,dc=test,dc=local' -w admin
+             -f /test/seed.ldif || true"
+    volumes:
+      - ./infra/ldap:/test:ro
+    restart: "no"
 volumes:
   pgdata:
+  ldap-seed:

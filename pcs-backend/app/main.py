@@ -5,14 +5,22 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 
 from app.api import api_router
-from app.core.config import get_settings
+from app.api.v1.mock_auth import router as mock_auth_router
+from app.core.config import assert_secret_key_configured, get_settings
 from app.core.errors import install_exception_handlers
 from app.core.logging import setup_logging
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    # Task 10 注入: assert_mock_not_enabled(app) + assert_secret_key_configured()
+    settings = get_settings()
+    assert_secret_key_configured()
+    if settings.is_production:
+        for route in app.routes:
+            if getattr(route, "path", "").endswith("/mock-login"):
+                raise RuntimeError(
+                    "mock-login route MUST NOT be mounted in production"
+                )
     yield
 
 
@@ -29,8 +37,7 @@ def create_app() -> FastAPI:
     install_exception_handlers(app)
     app.include_router(api_router)
     if not settings.is_production:
-        # Task 10 注入 mock 路由
-        pass
+        app.include_router(mock_auth_router)
     return app
 
 
