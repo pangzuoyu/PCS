@@ -36,3 +36,4 @@ class WorkspaceType(str, enum.Enum):
 class UserStatus(str, enum.Enum):
     ACTIVE = "ACTIVE"
     DISABLED = "DISABLED"
+

@@ -30,6 +30,7 @@ target-version = "py312"
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B"]
+ignore = ["UP042"]  # str, enum.Enum 是 SQLAlchemy 2.0 习惯写法，不强制 StrEnum
 
 [tool.mypy]
 python_version = "3.12"

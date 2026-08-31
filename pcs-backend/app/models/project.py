@@ -17,7 +17,7 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
 from app.models.enums import StreamSignStatus, UserStatus
-from app.models.mixins import RecordMixin, TimestampMixin
+from app.models.mixins import TimestampMixin
 
 
 class Project(TimestampMixin, Base):
@@ -86,7 +86,7 @@ class User(Base):
     roles: Mapped[list[str]] = mapped_column(
         JSONB,
         default=list,
-        comment="ApprovalRole 7 值：DESIGNER/CHECKER/REVIEWER/APPROVER/SYSADMIN/PROCESS_CONTROLLER/DATA_ADMIN",
+        comment="ApprovalRole 7 值：DESIGNER/CHECKER/REVIEWER/APPROVER/SYSADMIN/PROCESS_CONTROLLER/DATA_ADMIN",  # noqa: E501
     )
     ad_groups: Mapped[list[str]] = mapped_column(JSONB, default=list)
     status: Mapped[str] = mapped_column(String(20), default=UserStatus.ACTIVE.value)
