@@ -195,3 +195,31 @@ class AuditAction(str, enum.Enum):
     CONFIG_ASSET_REJECTED = "CONFIG_ASSET_REJECTED"
     CONFIG_VERSION_DIFF_VIEWED = "CONFIG_VERSION_DIFF_VIEWED"
 
+
+class ConfigStatus(str, enum.Enum):
+    """配置资产状态（P2 Sprint 1.2 / SUP-001 §2.1 锁定）。
+
+    5 态：DRAFT → PENDING → APPROVED → PUBLISHED → OBSOLETE。
+    DRAFT 和 APPROVED 支持跳过审批的 OBSOLETE。
+    """
+
+    DRAFT = "DRAFT"
+    PENDING = "PENDING"
+    APPROVED = "APPROVED"
+    PUBLISHED = "PUBLISHED"
+    OBSOLETE = "OBSOLETE"
+
+
+class ConfigTransition(str, enum.Enum):
+    """配置资产状态机事件（P2 Sprint 1.2）。
+
+    SUBMIT/APPROVE/REJECT/PUBLISH/OBSOLETE 5 项；与 ConfigStatus 一一映射（除 OBSOLETE
+    多入口）。单一来源：本枚举 + ConfigStateMachine.TRANSITIONS 是状态转移真理。
+    """
+
+    SUBMIT = "SUBMIT"
+    APPROVE = "APPROVE"
+    REJECT = "REJECT"
+    PUBLISH = "PUBLISH"
+    OBSOLETE = "OBSOLETE"
+
