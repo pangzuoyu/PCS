@@ -16,9 +16,10 @@ from __future__ import annotations
 from typing import Any, Protocol
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.config_domain import ConfigAsset, ConfigVersion
+from app.models.config_domain import ConfigApproval, ConfigAsset, ConfigVersion
 from app.models.enums import AuditAction, ConfigStatus, ConfigTransition
 from app.services.audit_service import AuditService
 
@@ -62,6 +63,9 @@ class ConfigStateMachine:
         ConfigStatus.PUBLISHED.value: {ConfigTransition.OBSOLETE},
         ConfigStatus.OBSOLETE.value: set(),
     }
+
+    # 双段签（CATEGORY_2）：两段签均 APPROVED → APPROVED，任一 REJECTED → DRAFT
+    DOUBLE_SIGNOFF_CATEGORIES: set[str] = {"CATEGORY_2"}
 
     def __init__(self, session: AsyncSession):
         self.session = session
@@ -115,6 +119,91 @@ class ConfigStateMachine:
             detail=detail,
         )
         return version
+
+    async def record_approval(
+        self,
+        asset: ConfigAsset,
+        version: ConfigVersion,
+        *,
+        approver_id: UUID,
+        role: str,
+        decision: str,  # "APPROVED" | "REJECTED"
+        actor: _ActorLike,
+        reason: str | None = None,
+    ) -> ConfigApproval:
+        """插入 config_approvals 行 + 状态判定 + 审计落库。
+
+        双段签（CATEGORY_2）：两段签均 APPROVED → APPROVED；任一 REJECTED → DRAFT。
+        单层（CATEGORY_3 等）：单行 APPROVED → APPROVED；REJECTED → DRAFT。
+        caller 负责 session.commit()。
+        """
+        approval = ConfigApproval(
+            version_id=version.version_id,
+            approver_id=approver_id,
+            approver_role=role,
+            decision=decision,
+        )
+        self.session.add(approval)
+        await self.session.flush()  # 让 approval 立即可查，避免脏读
+
+        # 重新查询该 version 下所有 approvals（确保包含本行）
+        approvals = (
+            await self.session.execute(
+                select(ConfigApproval).where(
+                    ConfigApproval.version_id == version.version_id
+                )
+            )
+        ).scalars().all()
+
+        old_status = asset.status
+        if asset.category in self.DOUBLE_SIGNOFF_CATEGORIES:
+            # 双段签：任一驳回即回 DRAFT；全部批准才进 APPROVED
+            if any(a.decision == "REJECTED" for a in approvals):
+                asset.status = ConfigStatus.DRAFT.value
+            elif (
+                len(approvals) >= 2
+                and all(a.decision == "APPROVED" for a in approvals)
+            ):
+                asset.status = ConfigStatus.APPROVED.value
+            # 否则保持 PENDING（等下一段签）
+        else:
+            # 单层：单行决定
+            if decision == "REJECTED":
+                asset.status = ConfigStatus.DRAFT.value
+            elif decision == "APPROVED":
+                asset.status = ConfigStatus.APPROVED.value
+
+        await self.session.flush()
+
+        # 审计落库（D20 一致 — AuditService.write 真实签名）
+        audit_action = (
+            AuditAction.CONFIG_ASSET_REJECTED
+            if decision == "REJECTED"
+            else AuditAction.CONFIG_ASSET_APPROVED
+        )
+        detail: dict[str, Any] = {
+            "from": old_status,
+            "to": asset.status,
+            "approver_role": role,
+            "approver_id": str(approver_id),
+            "approval_id": str(approval.approval_id),
+            "category": asset.category,
+            "signoff_mode": (
+                "DOUBLE" if asset.category in self.DOUBLE_SIGNOFF_CATEGORIES
+                else "SINGLE"
+            ),
+        }
+        if reason is not None:
+            detail["reason"] = reason
+
+        await self.audit.write(
+            action=audit_action,
+            resource_type="CONFIG",
+            resource_id=str(asset.asset_id),
+            user_id=actor.user_id,
+            detail=detail,
+        )
+        return approval
 
 
 # transition → next status（如果需要"中间不变"的 OBSOLETE / 拒绝等也唯一确定）
