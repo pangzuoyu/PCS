@@ -9,7 +9,12 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from app.schemas.formula import FormulaParameter, FormulaParametersSchema
+from app.schemas.formula import (
+    FormulaParameter,
+    FormulaParametersSchema,
+    UnitTestCase,
+    UnitTestsSchema,
+)
 
 
 def test_parameters_json_schema_valid():
@@ -27,4 +32,23 @@ def test_parameters_json_schema_rejects_missing_name():
     with pytest.raises(ValidationError):
         FormulaParametersSchema.model_validate({
             "parameters": [{"unit": "x"}]
+        })
+
+
+def test_unit_tests_json_schema_valid():
+    schema = UnitTestsSchema.model_validate({
+        "unit_tests": [
+            {"params": {"a": 1.0, "b": 2.0}, "expected": 3.0, "tolerance": 0.001}
+        ]
+    })
+    assert schema.unit_tests[0].expected == 3.0
+    assert schema.unit_tests[0].tolerance == 0.001
+    assert schema.unit_tests[0].params == {"a": 1.0, "b": 2.0}
+    assert isinstance(schema.unit_tests[0], UnitTestCase)
+
+
+def test_unit_tests_json_schema_rejects_missing_expected():
+    with pytest.raises(ValidationError):
+        UnitTestsSchema.model_validate({
+            "unit_tests": [{"params": {"a": 1.0}}]
         })
