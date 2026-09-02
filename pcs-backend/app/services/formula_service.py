@@ -68,6 +68,45 @@ class FormulaService:
         )
         return UnitTestResult(passed=passed, total=total)
 
+    @classmethod
+    def run_unit_tests_with_preconditions(
+        cls,
+        expression: str,
+        parameters: dict,
+        unit_tests: list[dict],
+        preconditions: list[dict] | None = None,
+        trace_table: dict[str, str | None] | None = None,
+    ) -> tuple[int, int]:
+        """扩展 run_unit_tests：先 evaluate_preconditions(pre)，再 unit_test，最后 evaluate_preconditions(post)。"""
+        if preconditions:
+            # pre 阶段：仅校验 input.*/params.*
+            FormulaEngine.evaluate_preconditions(
+                preconditions,
+                {"input": {}, "params": parameters},
+                phase="pre",
+                trace_table=trace_table,
+            )
+        fn = FormulaEngine.parse(expression, parameters)
+        passed = 0
+        results_for_post: list[dict] = []
+        for tc in unit_tests:
+            try:
+                result = fn(tc["params"])
+                if abs(result - tc["expected"]) <= tc.get("tolerance", 0.01):
+                    passed += 1
+                results_for_post.append({"result": result, "params": tc["params"]})
+            except Exception:
+                pass
+        if preconditions:
+            # post 阶段：校验 result.*
+            for ctx in results_for_post:
+                FormulaEngine.evaluate_preconditions(
+                    preconditions,
+                    ctx,
+                    phase="post",
+                )
+        return passed, len(unit_tests)
+
     async def _current_version(self, asset: ConfigAsset) -> ConfigVersion | None:
         result = await self.session.execute(
             select(ConfigVersion).where(
