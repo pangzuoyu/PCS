@@ -19,6 +19,7 @@ import pytest
 import pytest_asyncio
 
 from app.models.config_domain import ConfigAsset, ConfigVersion
+from app.models.enums import ConfigStatus
 
 
 class _AuthUser(NamedTuple):
@@ -81,3 +82,53 @@ async def make_asset(db):
         return _AssetBundle(asset=asset, version=version)
 
     return _make
+
+
+# ---------------------------------------------------------------------------
+# Task 5.1 fixture（ReportService.config_asset_status 专用）
+# ---------------------------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def sample_assets_and_versions(db, make_asset):
+    """Task 5.1 测试夹具：覆盖按 category × status 聚合的所有维度。
+
+    数据规模：
+    - CATEGORY_2: 3 个独立 asset × 各 1 个 PUBLISHED version → 3 PUBLISHED
+    - CATEGORY_3: 1 个 asset × 5 个 version（DRAFT/PENDING/APPROVED/
+      PUBLISHED/OBSOLETE 各 1）→ 每个状态各 1
+
+    注：报告按 VERSION 聚合（不取 latest），所以 1 个 asset 多 version 自然
+    计数 5 次。
+    """
+    for _ in range(3):
+        await make_asset(
+            status=ConfigStatus.PUBLISHED.value,
+            category="CATEGORY_2",
+        )
+    # CATEGORY_3: 1 个 asset，5 个 version 各 status
+    asset = ConfigAsset(
+        category="CATEGORY_3",
+        name=f"cat3-{uuid.uuid4()}",
+        current_version="v1",
+        status=ConfigStatus.DRAFT.value,
+        content_json={},
+    )
+    db.add(asset)
+    await db.flush()
+    statuses_in_order = [
+        ConfigStatus.DRAFT.value,
+        ConfigStatus.PENDING.value,
+        ConfigStatus.APPROVED.value,
+        ConfigStatus.PUBLISHED.value,
+        ConfigStatus.OBSOLETE.value,
+    ]
+    for i, s in enumerate(statuses_in_order, start=1):
+        version = ConfigVersion(
+            asset_id=asset.asset_id,
+            version_code=f"v{i}",
+            content_json={},
+            status=s,
+        )
+        db.add(version)
+        await db.flush()

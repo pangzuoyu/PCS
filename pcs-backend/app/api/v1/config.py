@@ -72,6 +72,7 @@ from app.services.config_state_machine import (
 )
 from app.services.formula_engine import FormulaEngine
 from app.services.formula_service import FormulaService
+from app.services.report_service import ConfigAssetReport, ReportService
 
 router = APIRouter(prefix="/config", tags=["config"])
 
@@ -333,6 +334,20 @@ async def obsolete(
         except InvalidTransitionError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
     return AssetResponse.model_validate(asset)
+
+
+@router.get("/assets/status-report", response_model=list[ConfigAssetReport])
+async def asset_status_report(
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[ConfigAssetReport]:
+    """配置资产按 category × status 分布报表（P2 Sprint 3 Task 5.1）。
+
+    按 version 聚合（不取 latest）；按 category 字母序；空 DB 返回 ``[]``。
+    ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN。
+    """
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await ReportService(db).config_asset_status()
 
 
 @router.get("/assets/{asset_id}/diff", response_model=DiffResponse)
