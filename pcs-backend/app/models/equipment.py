@@ -4,6 +4,7 @@ from datetime import date
 from sqlalchemy import (
     Boolean,
     Date,
+    Enum,
     Float,
     ForeignKey,
     ForeignKeyConstraint,
@@ -18,6 +19,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.models.enums import ActualDataStatus, CalcStatus, EquipmentStatus
 from app.models.mixins import TaggedRecordMixin, TimestampMixin
 
 
@@ -55,28 +57,46 @@ class EquipmentList(TaggedRecordMixin, Base):
         ForeignKeyConstraint(
             ["equipment_type_project_id", "type_code"],
             ["equipment_type_codes.project_id", "equipment_type_codes.type_code"],
-            name="fk_equipment_list_type_code",
+            name="fk_equipment_list_type_code_composite",
         ),
     )
     equipment_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     equipment_type_project_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     type_code: Mapped[str] = mapped_column(String(5))
     equipment_name: Mapped[str] = mapped_column(String(200))
-    description: Mapped[str | None] = mapped_column(String(500))
+    equipment_description: Mapped[str | None] = mapped_column(String(500))
     source_record_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, comment="多态 source"
     )
     source_module: Mapped[str | None] = mapped_column(String(30))
-    vendor_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    vendor: Mapped[str | None] = mapped_column(String(200))
     vendor_model: Mapped[str | None] = mapped_column(String(100))
     design_parameters_json: Mapped[dict | None] = mapped_column(JSONB)
     procurement_status: Mapped[str | None] = mapped_column(String(30))
-    drawing_no: Mapped[str | None] = mapped_column(String(100))
+    flowsheet_drawing_number: Mapped[str | None] = mapped_column(String(100))
     deliverable_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
-    install_location: Mapped[str | None] = mapped_column(String(200))
-    weight_kg: Mapped[float | None] = mapped_column(Float)
-    paint_spec: Mapped[str | None] = mapped_column(String(100))
-    engineering_notes: Mapped[str | None] = mapped_column(Text)
+    installation_location: Mapped[str | None] = mapped_column(String(200))
+    net_weight: Mapped[float | None] = mapped_column(Float)
+    paint: Mapped[str | None] = mapped_column(String(100))
+    process_engineering_remarks: Mapped[str | None] = mapped_column(Text)
+    equipment_status: Mapped[str] = mapped_column(
+        String(1),
+        nullable=False,
+        server_default=EquipmentStatus.N.value,
+        comment="设备生命周期分类：N=New新建/E=Existing已有/D=Delete删除/M=Modified修改/F=Future预留",
+    )
+    calc_status: Mapped[str] = mapped_column(
+        Enum(CalcStatus, name="calcstatus", native_enum=True),
+        nullable=False,
+        server_default=CalcStatus.NOT_CALCULATED.value,
+        comment="设备计算状态：NOT_CALCULATED/CALCULATING/COMPLETED/NEED_RECALC",
+    )
+    actual_data_status: Mapped[str] = mapped_column(
+        Enum(ActualDataStatus, name="actualdatastatus", native_enum=True),
+        nullable=False,
+        server_default=ActualDataStatus.NOT_ENTERED.value,
+        comment="供应商实际数据录入：NOT_ENTERED/PENDING_CONFIRM/CONFIRMED/NEED_RECALC（ADR-0025）",
+    )
 
 
 class EquipmentLib(TimestampMixin, Base):
