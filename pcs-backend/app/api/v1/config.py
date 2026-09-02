@@ -46,6 +46,7 @@ from uuid import UUID
 
 import jwt as _jwt
 from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -70,6 +71,7 @@ from app.services.config_state_machine import (
     ConfigStateMachine,
     InvalidTransitionError,
 )
+from app.services.export_service import ExportService
 from app.services.formula_engine import FormulaEngine
 from app.services.formula_service import FormulaService
 from app.services.report_service import ConfigAssetReport, ReportService
@@ -348,6 +350,28 @@ async def asset_status_report(
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await ReportService(db).config_asset_status()
+
+
+@router.get("/assets/status-report/export")
+async def asset_status_report_export(
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> StreamingResponse:
+    """配置资产状态分布 Excel 导出（P2 Sprint 3 Task 5.3）。
+
+    调 ``ReportService.config_asset_status()`` → 转 dict → ``ExportService.to_excel`` →
+    ``StreamingResponse`` 返回 ``.xlsx``。ACL 与 status-report 同。
+    """
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    report = await ReportService(db).config_asset_status()
+    data = [r.model_dump() for r in report]
+    headers = ["category", "draft", "pending", "approved", "published", "obsolete"]
+    buf = await ExportService.to_excel(data, headers=headers, sheet_name="Config Asset Status")
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=config_asset_status.xlsx"},
+    )
 
 
 @router.get("/assets/{asset_id}/diff", response_model=DiffResponse)
