@@ -112,6 +112,31 @@ class EquipmentList(TaggedRecordMixin, Base):
     empty_weight: Mapped[float | None] = mapped_column(Float)
     full_weight: Mapped[float | None] = mapped_column(Float)
     weigh_cells: Mapped[bool | None] = mapped_column(Boolean)
+    # §一 来源（p2_sprint2_equipment_engineering，items 1-4）
+    in_package: Mapped[bool | None] = mapped_column(Boolean)
+    data_sources: Mapped[str | None] = mapped_column(String(200))
+    tag_in_3d: Mapped[bool | None] = mapped_column(Boolean)
+    tag_in_esr: Mapped[bool | None] = mapped_column(Boolean)
+    # §二 标识（items 5-9；item 10 equipment_description 已存在，跳过）
+    equipment_name_cn: Mapped[str | None] = mapped_column(String(100))
+    package_no: Mapped[str | None] = mapped_column(String(50))
+    sub_project: Mapped[str | None] = mapped_column(String(20))
+    unit_no: Mapped[str | None] = mapped_column(String(20))
+    unit_name: Mapped[str | None] = mapped_column(String(100))
+    # §三 类型（items 11-14）
+    equipment_sub_type: Mapped[str | None] = mapped_column(String(50))
+    equipment_category: Mapped[str | None] = mapped_column(String(30))
+    is_pressure_vessel: Mapped[bool | None] = mapped_column(Boolean)
+    pressure_vessel_category: Mapped[str | None] = mapped_column(String(10))
+    # §九 工程（items 44-45, 47-52；items 46/53 已存在，跳过）
+    process_engineer: Mapped[str | None] = mapped_column(String(100))
+    detail_engineer: Mapped[str | None] = mapped_column(String(100))
+    pid_drawing_number: Mapped[str | None] = mapped_column(String(100))
+    pid_status: Mapped[str | None] = mapped_column(String(10))
+    dimensions: Mapped[str | None] = mapped_column(String(100))
+    registration_number: Mapped[str | None] = mapped_column(String(100))
+    emts_number: Mapped[str | None] = mapped_column(String(100))
+    mst_number: Mapped[str | None] = mapped_column(String(100))
     equipment_status: Mapped[str] = mapped_column(
         String(1),
         nullable=False,
