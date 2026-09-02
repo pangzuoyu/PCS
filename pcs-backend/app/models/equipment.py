@@ -79,6 +79,39 @@ class EquipmentList(TaggedRecordMixin, Base):
     net_weight: Mapped[float | None] = mapped_column(Float)
     paint: Mapped[str | None] = mapped_column(String(100))
     process_engineering_remarks: Mapped[str | None] = mapped_column(Text)
+    # §四 采购（p2_sprint2_equipment_procurement_delivery，items 16-25）
+    alternate_vendor: Mapped[str | None] = mapped_column(String(200))
+    order_date: Mapped[date | None] = mapped_column(Date)
+    purchase_order_number: Mapped[str | None] = mapped_column(String(100))
+    cost: Mapped[float | None] = mapped_column(Numeric(18, 2))
+    cost_currency: Mapped[str | None] = mapped_column(String(10))
+    cost_source: Mapped[str | None] = mapped_column(String(200))
+    cost_year: Mapped[int | None] = mapped_column(Integer)
+    gpe_spec_number: Mapped[str | None] = mapped_column(String(100))
+    gpe_spec_status: Mapped[str | None] = mapped_column(String(20))
+    specification_priority: Mapped[str | None] = mapped_column(String(100))
+    # §五 图纸（items 26-28）
+    approval_drawing_received_date: Mapped[date | None] = mapped_column(Date)
+    approval_drawing_return_date: Mapped[date | None] = mapped_column(Date)
+    certified_drawing_received_date: Mapped[date | None] = mapped_column(Date)
+    # §六 交付（items 29-33）
+    delivery_date: Mapped[date | None] = mapped_column(Date)
+    actual_received_date: Mapped[date | None] = mapped_column(Date)
+    forecast_on_site: Mapped[date | None] = mapped_column(Date)
+    actual_on_site: Mapped[date | None] = mapped_column(Date)
+    storage_location: Mapped[str | None] = mapped_column(String(200))
+    # §七 安装（items 34-38；item 39 installation_location 已存在，跳过）
+    installation_contract_number: Mapped[str | None] = mapped_column(String(100))
+    installation_notes: Mapped[str | None] = mapped_column(String(500))
+    installation: Mapped[str | None] = mapped_column(
+        String(50), comment="安装方式（MEI/吊装/现场组装）"
+    )
+    unloading: Mapped[str | None] = mapped_column(String(200))
+    loading_by: Mapped[str | None] = mapped_column(String(100))
+    # §八 重量（items 40-42；item 43 net_weight 已存在，跳过）
+    empty_weight: Mapped[float | None] = mapped_column(Float)
+    full_weight: Mapped[float | None] = mapped_column(Float)
+    weigh_cells: Mapped[bool | None] = mapped_column(Boolean)
     equipment_status: Mapped[str] = mapped_column(
         String(1),
         nullable=False,
