@@ -65,3 +65,47 @@ def test_compute_version_hash_different_expression_differ():
     h1 = FormulaEngine.compute_version_hash("a + b", {"a": 1.0})
     h2 = FormulaEngine.compute_version_hash("a * b", {"a": 1.0})
     assert h1 != h2
+
+
+# === Task 2.4: run_unit_tests 100% pass 硬门槛 ===
+
+
+def test_run_unit_tests_all_pass():
+    """3 个用例全部通过 → (3, 3)。"""
+    passed, total = FormulaEngine.run_unit_tests(
+        "a + b",
+        {"a": 0.0, "b": 0.0},
+        [
+            {"params": {"a": 1.0, "b": 2.0}, "expected": 3.0},
+            {"params": {"a": 0.0, "b": 0.0}, "expected": 0.0},
+            {"params": {"a": -1.0, "b": 1.0}, "expected": 0.0},
+        ],
+    )
+    assert (passed, total) == (3, 3)
+
+
+def test_run_unit_tests_some_fail():
+    """1 个通过 + 1 个期望值错误 → (1, 2)。"""
+    passed, total = FormulaEngine.run_unit_tests(
+        "a + b",
+        {"a": 0.0, "b": 0.0},
+        [
+            {"params": {"a": 1.0, "b": 2.0}, "expected": 3.0},
+            {"params": {"a": 1.0, "b": 2.0}, "expected": 999.0},  # 错误期望
+        ],
+    )
+    assert (passed, total) == (1, 2)
+
+
+def test_run_unit_tests_exception_counted_as_fail():
+    """用例求值抛异常 → 不计入 passed。"""
+    # 公式只用 a + b，但用例缺 a 键（evaluator 合并 namespace 后仍缺 a）
+    passed, total = FormulaEngine.run_unit_tests(
+        "a + b",
+        {"a": 0.0, "b": 0.0},
+        [
+            {"params": {"a": 1.0, "b": 2.0}, "expected": 3.0},  # 通过
+            {"params": {"b": 2.0}, "expected": 0.0},  # 缺 a → KeyError → 不计 passed
+        ],
+    )
+    assert (passed, total) == (1, 2)

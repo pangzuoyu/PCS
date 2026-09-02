@@ -104,3 +104,19 @@ class FormulaEngine:
         )
         payload = f"{expression.strip()}\x1f{params_repr}".encode()
         return hashlib.sha256(payload).hexdigest()[:16]
+
+    @classmethod
+    def run_unit_tests(
+        cls, expression: str, parameters: dict, unit_tests: list[dict]
+    ) -> tuple[int, int]:
+        """返回 (passed, total)。PUBLISH 端点断言 passed == total。"""
+        fn = cls.parse(expression, parameters)
+        passed = 0
+        for tc in unit_tests:
+            try:
+                result = fn(tc["params"])
+                if abs(result - tc["expected"]) <= tc.get("tolerance", 0.01):
+                    passed += 1
+            except Exception:
+                pass
+        return passed, len(unit_tests)
