@@ -19,11 +19,14 @@ import math
 from collections.abc import Callable
 from typing import Any
 
-from app.services.exceptions import PreconditionViolation
+from app.services.exceptions import PreconditionViolation, PcsError
 
 
-class FormulaSecurityError(Exception):
-    """公式包含禁止的 AST 节点或名称时抛出。"""
+class FormulaSecurityError(PcsError):
+    """公式包含禁止的 AST 节点或名称时抛出。code=FORMULA_SECURITY, status=422."""
+
+    code = "FORMULA_SECURITY"
+    status = 422
 
 
 class FormulaEngine:
