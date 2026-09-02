@@ -18,7 +18,7 @@ from typing import NamedTuple
 import pytest
 import pytest_asyncio
 
-from app.models.config_domain import ConfigAsset, ConfigVersion
+from app.models.config_domain import ConfigAsset, ConfigVersion, DocNoSequence, NumberingTemplate
 from app.models.enums import ConfigStatus
 
 
@@ -132,3 +132,74 @@ async def sample_assets_and_versions(db, make_asset):
         )
         db.add(version)
         await db.flush()
+
+
+# ---------------------------------------------------------------------------
+# Task 5.2 fixture（ReportService.doc_no_sequence_usage 专用）
+# ---------------------------------------------------------------------------
+
+
+@pytest_asyncio.fixture
+async def sample_doc_no_sequences(db) -> list[DocNoSequence]:
+    """Task 5.2 测试夹具：2 个 NumberingTemplate × 各自 1 个 DocNoSequence。
+
+    数据规模：
+    - Template-A（name 字母序在前）：current_value=50
+    - Template-B：current_value=30
+
+    返回 list 供 ``sample_doc_no_sequences[0].template_id`` 索引。
+    """
+    template_a = NumberingTemplate(
+        template_name="Template-A",
+        description="fixture template A",
+        segments_json={"segments": []},
+    )
+    template_b = NumberingTemplate(
+        template_name="Template-B",
+        description="fixture template B",
+        segments_json={"segments": []},
+    )
+    db.add_all([template_a, template_b])
+    await db.flush()
+
+    seq_a = DocNoSequence(
+        project_id=uuid.uuid4(),
+        template_id=template_a.template_id,
+        scope_key="scope_A",
+        current_value=50,
+    )
+    seq_b = DocNoSequence(
+        project_id=uuid.uuid4(),
+        template_id=template_b.template_id,
+        scope_key="scope_B",
+        current_value=30,
+    )
+    db.add_all([seq_a, seq_b])
+    await db.flush()
+    return [seq_a, seq_b]
+
+
+@pytest_asyncio.fixture
+async def sample_template_with_zero_counter(db) -> DocNoSequence:
+    """Task 5.2 零计数 fixture：1 个 Template + 1 个 DocNoSequence(current_value=0)。
+
+    用于验证 ``HAVING SUM(...) > 0`` 把零计数模板过滤掉 → 该 template 不
+    应出现在 doc_no_sequence_usage 结果中。
+    """
+    template = NumberingTemplate(
+        template_name="ZeroCounter",
+        description="fixture zero counter",
+        segments_json={"segments": []},
+    )
+    db.add(template)
+    await db.flush()
+
+    seq = DocNoSequence(
+        project_id=uuid.uuid4(),
+        template_id=template.template_id,
+        scope_key="scope_zero",
+        current_value=0,
+    )
+    db.add(seq)
+    await db.flush()
+    return seq
