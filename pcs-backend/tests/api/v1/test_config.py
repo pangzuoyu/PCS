@@ -20,6 +20,7 @@ from __future__ import annotations
 
 from sqlalchemy import select
 
+from app.core.security import create_access_token
 from app.models.config_domain import ConfigVersion
 
 # ---------------------------------------------------------------------------
@@ -253,3 +254,38 @@ async def test_diff_same_version_returns_400(
         headers={"Authorization": f"Bearer {sample_pc_token}"},
     )
     assert r.status_code == 400
+
+
+# ---------------------------------------------------------------------------
+# GET /assets/status-report
+# ---------------------------------------------------------------------------
+
+
+async def test_status_report_returns_200_for_designer(client, sample_user_token):
+    """GET /config/assets/status-report — DESIGNER 角色可访问；空 DB 返回 []。"""
+    r = await client.get(
+        "/api/v1/config/assets/status-report",
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+    )
+    assert r.status_code == 200
+    assert r.json() == []
+
+
+async def test_status_report_forbidden_for_non_allowed_role(client):
+    """非 DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN 角色 → 403。"""
+    token = create_access_token(subject="test-viewer", role="VIEWER")
+    r = await client.get(
+        "/api/v1/config/assets/status-report",
+        headers={"Authorization": f"Bearer {token}"},
+    )
+    assert r.status_code == 403
+
+
+async def test_status_report_empty_db_returns_empty_list(client, sample_pc_token):
+    """PROCESS_CONTROLLER 角色访问；空 DB 返回 []。"""
+    r = await client.get(
+        "/api/v1/config/assets/status-report",
+        headers={"Authorization": f"Bearer {sample_pc_token}"},
+    )
+    assert r.status_code == 200
+    assert r.json() == []
