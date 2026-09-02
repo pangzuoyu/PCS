@@ -1,10 +1,10 @@
 P4 核心计算引擎（第一批）开发规格说明书
 文件标识	PCS-REQ-2026-002-SPEC-P4
-当前版本	V1.3
-发布日期	2026-08-27（V1.2 修订 2026-08-29，incorporate SUP-007 + ADR-0020/0022；V1.3 修订 2026-09-03，对齐 PCS 本体论 V1.6 §5 Task 0 范围）
+当前版本	V1.4
+发布日期	2026-08-27（V1.2 修订 2026-08-29，incorporate SUP-007 + ADR-0020/0022；V1.3 修订 2026-09-03，对齐 PCS 本体论 V1.6 §5；V1.4 修订 2026-09-03，incorporate SUP-008 V1.1：PIPE/PUMP 输出字段扩展 + two_phase_results 表 + flow_pattern 枚举 + 设计阶段双模板 design_stage）
 编制部门	工艺部 / 信息化联合项目组
 适用对象	内部开发团队（后端/前端/测试/数据库）
-关联文档	PCS-REQ-2026-002 V2.2 §3.2.3/§3.2.4、SUP-003 §3.2.20/§3.2.23、SUP-007、管道一览表数据字典、离心泵计算数据字典、SPEC-P0/P1/P2/P3、DF-001、**PCS 本体论与语义关系研究说明（V1.6）§5（P4 Task 0 正式范围）**
+关联文档	PCS-REQ-2026-002 V2.2 §3.2.3/§3.2.4、SUP-003 §3.2.20/§3.2.23、SUP-007、SUP-008 V1.1、管道一览表数据字典、离心泵计算数据字典、SPEC-P0/P1/P2/P3、DF-001、**PCS 本体论与语义关系研究说明（V1.6）§5**
 第一部分：引言
 1.1 目的
 本文档定义P4阶段（核心计算引擎第一批）的完整需求规格，明确FLASH闪蒸与相平衡、PIPE管道计算、PIPE_NET管道网络水力学和PUMP机泵计算四个核心计算模块的详细功能需求、算法规格、输入输出定义和验收标准。
@@ -437,6 +437,8 @@ P4-OPEN-004	管道粗糙度默认值来源？	PIPE压降精度	从CONFIG读取�
 P4-OPEN-005	[P4 Task 0-Design 范围确认] 详见 PCS 本体论 V1.6 §5.1：CIA 传播 API 形状、`@lineage` 最终签名（D4+D5，不暴露 physical_semantics）、RECORD_TYPE_REGISTRY 完整映射、physical_semantics 列声明、审计字段 JSON Schema（stale_resolution_path / hash_changed / changed_fields）、diff 采集与传递链路（A/B 方案）、RuleCollector 接口预留、ADR 记录	Task 0-Design 启动门	架构委员会按 V1.6 §5.1 清单逐项 approve；changed_fields diff 采集方案 A/B 在 ADR 中裁决	待启动
 P4-OPEN-006	[P4 Task 0-Code 范围确认] 详见 PCS 本体论 V1.6 §5.2：Alembic 迁移加 physical_semantics 列（含 `@P7-eval-point` 注释）、装饰器 D4/D5 实现、importlinter D8、StateMachineService 审计字段强制写入、**RECORD_TYPE_REGISTRY 三方比对 CI（与 SQLAlchemy metadata + 状态机配置）**、**Pydantic ↔ ORM 同步 CI（V1.6 新增，硬性）**	Task 0-Code 启动门	按 V1.6 §5.2 清单逐项落地；DICT-ALL-003 升至 V4.0 标注 physical_semantics	待启动
 P4-OPEN-007	[认知负荷检查] PCS 本体论 V1.6 §2.6 / §5.1 末段提示：domain_model.md 产出后由未参与 P4 开发的开发者（如 P5 负责人）10 分钟理解"物流从 SIM 导入到被 PIPE 引用"的完整状态转换与校验链。**该检查点为软建议**，非硬验收项；硬验收仍为架构委员会批准。	P4 Task 0-Design 软指标	若 10 分钟内讲不清则迭代 domain_model.md；架构委员会评审时关注总量可读性	软建议
+P4-OPEN-008	[PIPE/PUMP 输出字段 + 两相流管径] 详见 SUP-008 V1.1 §2.2/§2.3 + §8.3.4：① piping_results 新增 12 字段（line_description / pipe_type 枚举 PUMP_SUCTION/PUMP_DISCHARGE/SELF_FLOW/HEATING_STEAM/TWO_PHASE / max_flow_factor / selected_diameter / liquid_velocity_max / gas_velocity_max / pressure_drop_per_100m / selected_pipe_size / recommended_pipe_size / check_result 枚举 PASS/FAIL/WARNING / velocity_range_reference）；② pump_results 新增 4 字段（selected_pump_model / selected_motor_model / selected_motor_power / pump_operation 枚举 NORMAL/STANDBY/OFF）；③ 新增 two_phase_results 表 13 字段（含 Bx/By、flow_pattern 枚举 ANNULAR/MIST/BUBBLE/SLUG/STRATIFIED/WAVE、two_phase_check 枚举 PASS/WARNING/FAIL）。验收：管径/泵选型输出与 Excel 偏差 ≤ 5%。	P4 结果表扩展迁移	按 SUP-008 §3.2.2/§3.2.3 ALTER TABLE + §8.3.4 CREATE TABLE；列入 DICT V3.7	待启动
+P4-OPEN-009	[设计阶段双模板 design_stage] 详见 SUP-008 V1.1 §8.4：pump_results/vessel_results/psv_results 三个表新增 `design_stage` 字段（BASIC/DETAIL，默认 BASIC），用于区分基础设计（≤30 列简化表头）与详细设计（PUMP 684 行 × 43 列 / PSV 88 列 / VESSEL 83 列 完整字段）两套模板。建议新建 ADR-0026 记录此裁决。	P4 数据模型迁移	三表 ALTER TABLE + ADR-0026 起草	待启动
 
 ## 版本历史
 
@@ -446,4 +448,5 @@ P4-OPEN-007	[认知负荷检查] PCS 本体论 V1.6 §2.6 / §5.1 末段提示�
 | V1.1 | 2026-08-28 | incorporate SUP-007：记录生命周期约束（9 态门禁/record_hash/无 version 字段/弃用操作/物流 CHECKED 引用/交付物外置）；文件标识改 PCS 前缀 | 联合项目组 |
 | V1.2 | 2026-08-29 | incorporate ADR-0020/0022：FLASH 与状态点联动（自动计算气液组成）；PIPE/PIPE_NET/PUMP/CV 计算完成自动创建出口物流（独立物流链，DEVICE_CALCULATED→DRAFT 待校对） | 联合项目组 |
 | V1.3 | 2026-09-03 | 对齐 PCS 本体论 V1.6：关联文档加 V1.6 §5（P4 Task 0 正式范围）+ DF-001；新增 P4-OPEN-005/006/007（Task 0-Design 范围确认、Task 0-Code 范围确认、认知负荷软建议）；本版本不修改 §3.2/§4 等已交付计算模块需求，仅补充前置 Task 0 启动门与 CI 硬性项 | 联合项目组 |
+| V1.4 | 2026-09-03 | incorporate SUP-008 V1.1：关联文档加 SUP-008；新增 P4-OPEN-008（piping_results 12 字段 + pump_results 4 字段 + two_phase_results 新表 + flow_pattern 枚举 ANNULAR/MIST/BUBBLE/SLUG/STRATIFIED/WAVE）；新增 P4-OPEN-009（design_stage 双模板字段 PUMP/VESSEL/PSV）；主体 §3.2 算法规格不动，仅扩结果表输出字段与新表 | 联合项目组 |
 
