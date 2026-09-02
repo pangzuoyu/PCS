@@ -181,5 +181,64 @@ V3.2	2026-09-01	ADR-0024
 V3.3	2026-09-01	ADR-0025 + AuditAction 完整枚举 + PCS-DICT-007-SUP-001~014 全部整合
 V3.4	2026-09-02	DICT→ORM 现实（data_lineage / audit_logs）+ 配置层 7 表 ORM 修正 + 21 处命名偏差裁决
 V3.5	2026-09-02	equipment_list 完整字段对齐（54 项）+ `equipment_status`/`procurement_status` 关系澄清 + Schema 漂移审计
+V3.5 补丁	2026-09-03	P2 Sprint 3 Task 5.1/5.2/5.3 报表与导出增量（service DTO + 2 端点 + ExportService；无新表无新列）
 
 V3.5 完。
+
+---
+
+第六部分：报表与导出增量（V3.5 增量补丁，2026-09-03）
+
+本节追加自 P2 Sprint 3 Task 5.1 / 5.2 / 5.3。**未引入新表 / 新列**，全部为 service 层聚合查询 + API DTO + 导出端点。
+
+6.1 报表 Service DTO（Pydantic）
+
+| DTO | 字段 | 说明 | 路径 |
+|---|---|---|---|
+| `ConfigAssetReport` | `category: str`<br>`draft: int`<br>`pending: int`<br>`approved: int`<br>`published: int`<br>`obsolete: int` | 配置资产按 `category × status` 分布（按 version 聚合） | `pcs-backend/app/services/report_service.py` |
+| `DocNoUsage` | `template_id: UUID`<br>`template_name: str`<br>`total: int` | 编号模板累计用量（HAVING 过滤零计数） | `pcs-backend/app/services/report_service.py` |
+
+6.2 报表 API 端点
+
+| 方法 | 路径 | 响应 | ACL | 说明 |
+|---|---|---|---|---|
+| `GET` | `/api/v1/config/assets/status-report` | `list[ConfigAssetReport]` | DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN | 按 category 字母序；空 DB 返回 `[]` |
+| `GET` | `/api/v1/config/assets/status-report/export` | `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet` | 同上 | `StreamingResponse`；文件名 `config_asset_status.xlsx`；write_only=True 流式写入（D28 性能预算 10k×20 ≤ 2s） |
+
+6.3 Service 方法签名
+
+```python
+class ReportService:
+    def __init__(self, session: AsyncSession) -> None: ...
+    async def config_asset_status(self) -> list[ConfigAssetReport]: ...
+    async def doc_no_sequence_usage(self) -> list[DocNoUsage]: ...
+
+class ExportService:
+    @staticmethod
+    async def to_excel(
+        data: list[dict],
+        *,
+        headers: list[str],
+        sheet_name: str = "Report",
+    ) -> BytesIO: ...
+```
+
+6.4 待跟进项（parked）
+
+- **DocNoUsage 缺 API 端点**：service 层 `ReportService.doc_no_sequence_usage()` 已实现，但未挂暴露路由（Task 5.2 review M-1）。
+  计划落地路径：`GET /api/v1/numbering/templates/usage`，ACL 待定（暂建议 DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN 与 status-report 对齐）。
+- **导出端点的扩展**：当前仅 status-report 一类；doc_no 用量导出尚未实现。
+
+6.5 性能预算（D28）
+
+| 场景 | 数据规模 | 预算 | 实测 |
+|---|---|---|---|
+| Excel 导出 | 10k 行 × 20 列 | elapsed ≤ 2s + RSS 增长 ≤ 50MB | write_only=True 实测 elapsed ≈ 0.93s，RSS 增长 ≈ 0 MB |
+| 状态聚合（config_asset_status） | 全表 | 无硬预算；N+1 防御在 CIA 传播路径（D26）已加入 | service 单条聚合查询，无 N+1 |
+
+6.6 关联
+
+- Task 5.1：`ReportService.config_asset_status` + 端点 `/status-report`
+- Task 5.2：`ReportService.doc_no_sequence_usage` + 6 测（pytest）
+- Task 5.3：`ExportService.to_excel` + 端点 `/status-report/export` + 5 测（含 perf budget）
+- D28：性能预算 / TODO-030 write_only=True 触发路径（已应用）
