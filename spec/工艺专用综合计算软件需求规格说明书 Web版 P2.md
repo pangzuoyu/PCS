@@ -1,11 +1,11 @@
 
 P2 CONFIG配置中枢开发规格说明书
 文件标识	PCS-REQ-2026-002-SPEC-P2
-当前版本	V1.3
-发布日期	2026-08-27（V1.2 修订 2026-08-29，incorporate SUP-004/005/007 + ADR-0019；V1.3 修订 2026-09-03，对齐 PCS 本体论 V1.6 §2.3 preconditions 治理）
+当前版本	V1.4
+发布日期	2026-08-27（V1.2 修订 2026-08-29；V1.3 修订 2026-09-03，对齐本体论 V1.6 §2.3；V1.4 修订 2026-09-03，incorporate SUP-008 V1.1 + SUP-010 V1.1：CONFIG CATEGORY_3 新增折标煤系数组 + CATEGORY_4 描述扩展 DETAIL 模板与 HTRI 解析模板）
 编制部门	工艺部 / 信息化联合项目组
 适用对象	内部开发团队（后端/前端/测试/数据库）
-关联文档	PCS-REQ-2026-002 V2.2、SUP-001 §3.2.17、SUP-002 §3.2.19、SUP-003~007、SPEC-P0、SPEC-P1、**PCS 本体论与语义关系研究说明（V1.6）§2.3**
+关联文档	PCS-REQ-2026-002 V2.2、SUP-001 §3.2.17、SUP-002 §3.2.19、SUP-003~007、SUP-008 V1.1、SUP-010 V1.1、SPEC-P0、SPEC-P1、SPEC-P5、SPEC-P7、SPEC-P8、**PCS 本体论与语义关系研究说明（V1.6）§2.3**
 第一部分：引言
 1.1 目的
 本文档定义P2阶段（CONFIG配置中枢）的完整需求规格，明确公式管理、经验系数管理、模板管理、标准数据库管理、复用设备库管理和项目模板管理六大类配置资产的详细功能需求、审批流程、版本规则和调用方式。
@@ -495,6 +495,7 @@ P2-OPEN-001	公司级管道等级库初始数据由谁提供？	P3阶段PIPE计�
 P2-OPEN-002	公式版本升级后，历史计算结果是否自动标记？	变更影响分析	是，P1阶段已实现自动标记	已确认
 P2-OPEN-003	配置审批是否需要会签（多人同时审批）？	审批流程设计	P2阶段暂不支持会签，单人审批即可	已确认
 P2-OPEN-004	[preconditions 范围核对] 详见 PCS 本体论 V1.6 §2.3：是否需要引入跨字段算术约束（如 design_press - operating_press >= 0.5）？V1.6 §2.3 表达力边界声明"暂不支持跨字段约束"。若 P2 Sprint 1.2 实施期间发现刚需，按 fallback：① 记录需求到需求文档（含路径/约束/示例）；② P2 期间调用方临时检查代码须标注 `@legacy-P4`；③ P4 Task 0 启动守卫函数落地。	P2 Sprint 1.2 启动前必备	按 V1.6 §2.3 表达力边界声明核对；刚需时走 fallback 流程	待启动
+P2-OPEN-005	[CONFIG 折标煤系数组 + DETAIL/HTRI 模板扩展] 详见 SUP-008 V1.1 §2.5（auxiliary_consumption 4 字段）+ SUP-010 V1.1 §3.3.4（utility_energy_summary）+ 偏差审查结论：① CATEGORY_3 经验系数管理新增"折标煤系数组"配置资产，含 2 项系数（toe_conversion_factor — 吨油当量折算系数；standard_coal_factor — 标煤折算系数），支持按燃料类型/年度调整；CONFIG 端维护入口，UTIL 端读取引用；② CATEGORY_4 报表与导入模板管理描述扩展：明确 DETAIL 设计阶段模板（如 121-A-101.xls、131-E-102-EOR.xls）作为标准模板资产入库；HTRI 输出文件解析模板（121-A-101.xls 空冷器 33 列、131-E-102-EOR.xls 管壳式 23 列）作为导入模板资产入库；模板版本号字段纳入 CONFIG 模板版本序列。建议新建 ADR-0029 记录 CATEGORY_3/4 一次性收敛裁决。验收：UTIL 折标煤计算与蜡油加氢—综合能耗.xlsx 实例偏差 ≤ 2%。	P2 CONFIG 数据模型扩展	CATEGORY_3 新增折标煤系数组；CATEGORY_4 描述扩展 + 模板资产入库；ADR-0029 起草；列入 DICT V3.9	待启动
 
 ## 版本历史
 
@@ -504,4 +505,5 @@ P2-OPEN-004	[preconditions 范围核对] 详见 PCS 本体论 V1.6 §2.3：是�
 | V1.1 | 2026-08-28 | incorporate SUP-004/005/007：项目模板（CATEGORY_1）扩展版本序列、签署矩阵绑定、记录批准深度、物流校对深度、编号模板、客户代录配置、撤销批准角色；文件标识改 PCS 前缀 | 联合项目组 |
 | V1.2 | 2026-08-29 | incorporate ADR-0019：CONFIG（CATEGORY_3/5）新增炼油物性关联式（Riazi-Daubert 等）、物性估算参数配置、虚拟组分切割规则 | 联合项目组 |
 | V1.3 | 2026-09-03 | 对齐 PCS 本体论 V1.6 §2.3：关联文档加 V1.6；新增 §3.2.2a 公式前置条件 preconditions（变量白名单 input.*/params.*/result、禁止 context.*、常量溯源 CoefficientTables、pre/post 求值顺序、REJECT-only、复用受限 AST、跨字段约束 fallback 流程）；新增 P2-OPEN-004（preconditions 跨字段约束范围核对）；本版本不修改六类配置资产框架主体需求 | 联合项目组 |
+| V1.4 | 2026-09-03 | incorporate SUP-008 V1.1 + SUP-010 V1.1：关联文档加 SUP-008 V1.1 + SUP-010 V1.1；新增 P2-OPEN-005（CATEGORY_3 新增折标煤系数组 toe/standard_coal 配套 auxiliary_consumption 4 字段 + utility_energy_summary；CATEGORY_4 描述扩展 DETAIL 模板 + HTRI 解析模板；ADR-0029 起草）；主体 §3.2.2a/§3.2.3/§3.2.4/§3.2.5 不动，仅扩 CONFIG 数据模型 | 联合项目组 |
 
