@@ -1,10 +1,10 @@
 P3 基础数据层开发规格说明书
 文件标识	PCS-REQ-2026-002-SPEC-P3
-当前版本	V1.3
-发布日期	2026-08-27（V1.2 修订 2026-08-29，incorporate SUP-007 + ADR-0019~0022；V1.3 修订 2026-09-03，对齐 PCS 本体论 V1.6 §2.5 / §5.3 元数据驱动表单）
+当前版本	V1.4
+发布日期	2026-08-27（V1.2 修订 2026-08-29，incorporate SUP-007 + ADR-0019~0022；V1.3 修订 2026-09-03，对齐 PCS 本体论 V1.6 §2.5 / §5.3；V1.4 修订 2026-09-03，incorporate SUP-008 V1.1 + SUP-010 V1.1：SIM Excel 导入 + streams 16 字段 + viscosity_temperature_curve + 多案例支持）
 编制部门	工艺部 / 信息化联合项目组
 适用对象	内部开发团队（后端/前端/测试/数据库）
-关联文档	PCS-REQ-2026-002 V2.2 §3.2.1/§3.2.2/§3.2.10/§3.2.15、SUP-001~007、DICT-001、SPEC-P0/P1/P2/P4、**PCS 本体论与语义关系研究说明（V1.6）§2.5 / §5.3**
+关联文档	PCS-REQ-2026-002 V2.2 §3.2.1/§3.2.2/§3.2.10/§3.2.15、SUP-001~007、DICT-001、SPEC-P0/P1/P2/P4、**PCS 本体论与语义关系研究说明（V1.6）§2.5 / §5.3、SUP-008 V1.1、SUP-010 V1.1**
 第一部分：引言
 1.1 目的
 本文档定义P3阶段（基础数据层）的完整需求规格，明确PMS项目基本信息、SIM工艺模拟数据、COMMON工艺常用数据库和PIPE_CLASS管道等级库四个基础数据子系统的详细功能需求、接口规范和验收标准。
@@ -389,6 +389,9 @@ P3-OPEN-001	HYSYS XML格式的具体版本？	解析器兼容性	收集实际项
 P3-OPEN-002	公司现有管道等级数据格式？	PIPE_CLASS初始数据导入	需工艺负责人提供现有等级表	待确认
 P3-OPEN-003	BEDD中是否有新增的特定业主格式要求？	BEDD结构	基于DICT-001定义的结构，后续可按需扩展JSON字段	已确认
 P3-OPEN-004	[Pydantic Schema 覆盖核对] 详见 PCS 本体论 V1.6 §5.3：P3 开发期间需确认每个需表单的 ORM 模型（streams、equipment_list、projects 等）均有对应 Pydantic Schema，且包含 `Field(description=...)` 注解。需同步确定 `uiSchema` 格式（x-rjsf-* 扩展 or 自定义 `ui:` 字段）。表单 ↔ Pydantic Schema 静态对比 CI 漂移即 fail（V1.6 §6 规则 11）。	P3 开发期间必备	逐模型核对 + 配置前端 CI	待启动
+P3-OPEN-005	[SIM Excel 导入] 详见 SUP-008 V1.1 §3.1：P3 SIM 增加 Excel 导入能力（流程序列：上传 → Sheet 识别 → 列映射确认 → 预览 → 写入 DRAFT → 走 StreamSignStatus 门禁）。覆盖 streams / 摩尔组成 / 管径核算 / 机泵选型 / 能耗 5 类 Sheet；列映射模板库支持用户自定义；新增 API 端点 6 个。streams 表扩展 16 字段（surface_tension / api_gravity / critical_temp / critical_press / enthalpy / entropy / vapor_* / actual_vol_flow）+ import_source_type 枚举（SIM/MANUAL/EXCEL/LAB）+ import_original_row JSONB。验收：30 条物流 ≤ 5 秒导入 + 物性字段完整度 ≥ 90% + 组成归一化 100±0.5%。	P3 开发期间必备	按 SUP-008 §3.1.2 解析策略 + §3.1.4 映射配置实现	待启动
+P3-OPEN-006	[viscosity_temperature_curve] 详见 SUP-008 V1.1 §8.3.7：streams 表新增 `viscosity_temperature_curve` JSONB 字段，存储原料油常压下温度-粘度对应表（如 `{"50": 213.2, "80": 56.8, "100": 28.4, ...}`），用于蜡油加氢实例原料油粘度。	P3 数据模型迁移	新增字段 nullable；现有物流历史数据不受影响	待启动
+P3-OPEN-007	[多案例 stream_case_type] 详见 SUP-008 V1.1 §2.1：streams 表新增 `case_type` 字段（NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN），Excel 包含"末期"工况（摩尔组成0(末期)）需多案例切换支持。	P3 数据模型迁移 + SIM 切换功能	按枚举值实现 SIM 案例切换 UI	待启动
 
 ## 版本历史
 
@@ -398,4 +401,5 @@ P3-OPEN-004	[Pydantic Schema 覆盖核对] 详见 PCS 本体论 V1.6 §5.3：P3 
 | V1.1 | 2026-08-28 | incorporate SUP-007：SIM 增加物流校对门禁（StreamSignStatus 4 态，DRAFT 不可引用，修改走限权+原因+影响预览）；文件标识改 PCS 前缀 | 联合项目组 |
 | V1.2 | 2026-08-29 | incorporate ADR-0019~0022：手动创建向导（三模式/虚拟组分/物性估算）；状态点管理（多工况快照、两相流气液组成）；设备连接字段与出口物流（独立物流链）；新增状态点/物流链 API | 联合项目组 |
 | V1.3 | 2026-09-03 | 对齐 PCS 本体论 V1.6 §2.5 / §5.3：关联文档加 V1.6；新增 §3.2.5 元数据驱动表单（Pydantic Schema 覆盖、UI Schema 层预留、条件显示策略、表单 ↔ Schema 静态对比 CI）；新增 P3-OPEN-004（Pydantic Schema 覆盖核对 + uiSchema 格式确定）；本版本不修改 PMS/SIM/COMMON/PIPE_CLASS 四大子系统主体需求 | 联合项目组 |
+| V1.4 | 2026-09-03 | incorporate SUP-008 V1.1 + SUP-010 V1.1：关联文档加 SUP-008/SUP-010；新增 P3-OPEN-005（SIM Excel 导入引擎 + streams 16 字段扩展 + 多案例 stream_case_type 枚举）；新增 P3-OPEN-006（viscosity_temperature_curve JSONB 字段，蜡油加氢实例）；新增 P3-OPEN-007（case_type NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN 案例切换）；主体 PMS/COMMON/PIPE_CLASS 不动 | 联合项目组 |
 
