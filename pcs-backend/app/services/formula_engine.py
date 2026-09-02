@@ -1,0 +1,106 @@
+"""FormulaEngine — 公式解析与版本指纹。
+
+Task 2.3 设计要点：
+- 解析路径：Python ast.parse(mode="eval") + AST 白名单 -> compile -> 闭包持 code object，
+  运行时 eval 在受限命名空间（{"__builtins__": {}}）下求值。
+- 安全边界：白名单 + FORBIDDEN_NODES/NAMES；ast.Attribute.attr 也必须经禁止子串检查
+  （否则 "".__class__ 等可绕过 ast.Name 检查）。
+- 版本指纹（D33）：SHA-256(payload) hex[:16]，payload 为 expression.strip() + \\x1f +
+  JSON(sort_keys=True, ensure_ascii=False)。
+"""
+
+from __future__ import annotations
+
+import ast
+import builtins
+import hashlib
+import json
+import math
+from collections.abc import Callable
+from typing import Any
+
+
+class FormulaSecurityError(Exception):
+    """公式包含禁止的 AST 节点或名称时抛出。"""
+
+
+class FormulaEngine:
+    ALLOWED_FUNCS = {"sqrt", "log", "exp", "sin", "cos", "tan", "pow", "abs", "min", "max"}
+    ALLOWED_NAMES = {"math"} | ALLOWED_FUNCS
+    FORBIDDEN_NODES = (
+        ast.Import,
+        ast.ImportFrom,
+        ast.Global,
+        ast.Nonlocal,
+        ast.Lambda,
+        ast.FunctionDef,
+        ast.ClassDef,
+        ast.Try,
+        ast.With,
+        ast.AsyncFor,
+        ast.AsyncWith,
+    )
+    FORBIDDEN_NAMES = {"__", "open", "eval", "exec", "compile", "globals", "locals", "vars"}
+
+    @classmethod
+    def _build_namespace(cls) -> dict[str, Any]:
+        """构建公式可用命名空间。
+
+        math.* 函数按白名单注入。`min`/`max` 在 `math` 模块下不存在
+        （属 builtins），需显式补齐，否则 ALLOWED_FUNCS 形同虚设。
+        """
+        ns: dict[str, Any] = {
+            name: getattr(math, name) for name in cls.ALLOWED_FUNCS if hasattr(math, name)
+        }
+        ns.setdefault("min", builtins.min)
+        ns.setdefault("max", builtins.max)
+        ns["math"] = math
+        return ns
+
+    @classmethod
+    def parse(cls, expression: str, parameters: dict[str, float]) -> Callable[[dict], float]:
+        tree = ast.parse(expression, mode="eval")
+        cls._validate_ast(tree)
+        namespace = cls._build_namespace()
+        namespace.update(parameters)
+        code = compile(tree, "<formula>", "eval")
+
+        def evaluator(p: dict[str, float]) -> float:
+            merged = {**namespace, **p}
+            return float(eval(code, {"__builtins__": {}}, merged))  # noqa: S307 — 已通过 AST 白名单
+
+        return evaluator
+
+    @classmethod
+    def _validate_ast(cls, tree: ast.AST) -> None:
+        for node in ast.walk(tree):
+            if isinstance(node, cls.FORBIDDEN_NODES):
+                raise FormulaSecurityError(f"禁止节点: {type(node).__name__}")
+            if isinstance(node, ast.Name) and any(f in node.id for f in cls.FORBIDDEN_NAMES):
+                raise FormulaSecurityError(f"禁止名称: {node.id}")
+            # 防御性：ast.Attribute 的 attr 字段也必须经禁止子串检查，
+            # 否则 `().__class__.__bases__[0].__subclasses__()` 这类攻击
+            # 可绕过 Name 检查（因 `__class__` 不是 Name 而是 Attribute.attr）。
+            if isinstance(node, ast.Attribute) and any(
+                f in node.attr for f in cls.FORBIDDEN_NAMES
+            ):
+                raise FormulaSecurityError(f"禁止属性: {node.attr}")
+
+    @staticmethod
+    def compute_version_hash(expression: str, parameters: dict | None = None) -> str:
+        """公式版本指纹（SHA-256 截前 16 位，D33 决议）。
+
+        Payload 格式：`f"{expression.strip()}\\x1f{params_repr}"`，
+        其中 params_repr 是 `json.dumps(parameters, sort_keys=True, ensure_ascii=False,
+        separators=(",", ":"))`。
+
+        调用方：ConfigVersion 创建时自动调用填充 formula_version 列。
+        """
+        params_repr = json.dumps(
+            parameters or {},
+            sort_keys=True,
+            ensure_ascii=False,
+            separators=(",", ":"),
+        )
+        payload = f"{expression.strip()}\x1f{params_repr}".encode()
+        return hashlib.sha256(payload).hexdigest()[:16]
