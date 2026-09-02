@@ -64,6 +64,7 @@ from app.schemas.config import (
     ForkVersionRequest,
     VersionResponse,
 )
+from app.services.cia_engine import CIAEngine
 from app.services.config_service import ConfigService
 from app.services.config_state_machine import (
     ConfigStateMachine,
@@ -300,6 +301,10 @@ async def publish(
                 current,
                 action=ConfigTransition.PUBLISH,
                 actor=user,
+            )
+            # Sprint 3 反向传播：PUBLISH 后把依赖该版本的下游记录标 STALE
+            await CIAEngine(db).propagate_from_source(
+                "config_version", current.version_id
             )
         except InvalidTransitionError as exc:
             raise HTTPException(status_code=409, detail=str(exc)) from exc
