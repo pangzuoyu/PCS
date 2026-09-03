@@ -1,7 +1,7 @@
 """Tests for FormulaSecurityError inheritance from PcsError (Task 1.8.2)."""
 
-from app.services.formula_engine import FormulaSecurityError
 from app.services.exceptions import PcsError
+from app.services.formula_engine import FormulaSecurityError
 
 
 def test_formula_security_error_inherits_pcs_error():

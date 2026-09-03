@@ -10,7 +10,6 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import delete, select
 
-import app.db.session as db_session
 from app.db.session import dispose_engines_async, get_async_session_factory
 from app.models.config_domain import CoefficientTable
 from app.services.coefficient_service import CoefficientService

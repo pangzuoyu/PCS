@@ -26,7 +26,7 @@ P2 V1.4 P2-OPEN-005 增补要求：
 
 ### 决策 3：HTRI schema 独立表 htri_template_schemas
 - **理由**：列级 schema 需 JSONB 灵活扩展 + 独立版本序列 + 与 TemplateFile 弱耦合
-- **替代方案**：塞入 TemplateFile.columns_json JSONB——否决，TemplateFile 主键是模板文件元数据，HTRI schema 主键是列级 schema 元数据，混淆会破坏可追溯性
+- **替代方案**：塞入 TemplateFile.placeholders_json JSONB——否决，TemplateFile 主键是模板文件元数据，HTRI schema 主键是列级 schema 元数据，混淆会破坏可追溯性
 
 ## 影响
 

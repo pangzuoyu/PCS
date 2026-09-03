@@ -1,6 +1,9 @@
 from __future__ import annotations
-from pydantic import BaseModel, Field, field_validator
+
 from typing import Literal
+
+from pydantic import BaseModel, Field
+
 
 class ApprovalStep(BaseModel):
     role: str = Field(..., min_length=1)
@@ -34,7 +37,9 @@ class SignatureMatrixBinding(BaseModel):
 
 class VersionSequenceConfig(BaseModel):
     skip_alpha_versions: bool = False
-    allowed_purposes: list[Literal["DRAFT", "PUBLISHED", "CHANGE_NOTICE"]] = Field(default_factory=lambda: ["DRAFT", "PUBLISHED"])
+    allowed_purposes: list[Literal["DRAFT", "PUBLISHED", "CHANGE_NOTICE"]] = Field(
+        default_factory=lambda: ["DRAFT", "PUBLISHED"]
+    )
 
 class ReversalRoleConfig(BaseModel):
     reversal_approver_role: str

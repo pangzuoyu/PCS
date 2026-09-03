@@ -1,9 +1,17 @@
 import pytest
+from pydantic import ValidationError
+
 from app.schemas.project_template import (
-    ProjectTemplateConfig, RecordApprovalConfig, StreamApprovalConfig,
-    NumberingConfig, CustomerApprovalConfig, SignatureMatrixBinding,
-    VersionSequenceConfig, ReversalRoleConfig,
+    CustomerApprovalConfig,
+    NumberingConfig,
+    ProjectTemplateConfig,
+    RecordApprovalConfig,
+    ReversalRoleConfig,
+    SignatureMatrixBinding,
+    StreamApprovalConfig,
+    VersionSequenceConfig,
 )
+
 
 def test_record_approval_config_valid():
     cfg = RecordApprovalConfig(steps=[{"role": "审核", "level": 1}, {"role": "审定", "level": 2}])
@@ -12,11 +20,13 @@ def test_record_approval_config_valid():
 def test_stream_approval_config_levels_1_to_2():
     cfg = StreamApprovalConfig(max_depth=2)
     assert cfg.max_depth == 2
-    with pytest.raises(Exception):
+    with pytest.raises(ValidationError):
         StreamApprovalConfig(max_depth=3)  # 越界
 
 def test_numbering_config_segments():
-    cfg = NumberingConfig(segments=[{"type": "PREFIX", "value": "PRJ"}, {"type": "SEQ"}], separator="-")
+    cfg = NumberingConfig(
+        segments=[{"type": "PREFIX", "value": "PRJ"}, {"type": "SEQ"}], separator="-"
+    )
     assert len(cfg.segments) == 2
 
 def test_customer_approval_config_attachment_required():
@@ -24,7 +34,9 @@ def test_customer_approval_config_attachment_required():
     assert cfg.proxy_allowed
 
 def test_signature_matrix_binding_steps():
-    cfg = SignatureMatrixBinding(matrix_name="DEFAULT_2_LEVEL", steps=[{"role": "DESIGNER"}, {"role": "REVIEWER"}])
+    cfg = SignatureMatrixBinding(
+        matrix_name="DEFAULT_2_LEVEL", steps=[{"role": "DESIGNER"}, {"role": "REVIEWER"}]
+    )
     assert cfg.steps[1].role == "REVIEWER"
 
 def test_version_sequence_config_skip_alpha():
@@ -41,7 +53,9 @@ def test_full_project_template_config_loads():
         stream_approval=StreamApprovalConfig(max_depth=1),
         numbering=NumberingConfig(segments=[{"type": "SEQ"}], separator="-"),
         customer_approval=CustomerApprovalConfig(proxy_allowed=False),
-        signature_matrix=SignatureMatrixBinding(matrix_name="DEFAULT_1_LEVEL", steps=[{"role": "DESIGNER"}]),
+        signature_matrix=SignatureMatrixBinding(
+            matrix_name="DEFAULT_1_LEVEL", steps=[{"role": "DESIGNER"}]
+        ),
         version_sequence=VersionSequenceConfig(allowed_purposes=["DRAFT"]),
         reversal_role=ReversalRoleConfig(reversal_approver_role="DESIGNER"),
     )

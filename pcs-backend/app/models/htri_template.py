@@ -15,7 +15,7 @@ class HtriTemplateSchema(TimestampMixin, Base):
     schema_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     device_type: Mapped[str] = mapped_column(String(20), comment="ACHE/SHELL_TUBE")
     column_count: Mapped[int] = mapped_column(Integer)
-    columns_json: Mapped[dict] = mapped_column(JSONB,
+    columns_json: Mapped[list] = mapped_column(JSONB,
         comment="[{name, type, required, unit}, ...]")
     tema_type: Mapped[str | None] = mapped_column(String(10), nullable=True,
         comment="BEM/AES/AKT（仅 SHELL_TUBE 适用）")

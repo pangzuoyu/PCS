@@ -105,7 +105,7 @@ class TemplateService:
         device_type: str,
         column_count: int,
         version: str = "HTRI-V1.0",
-        columns_json: dict | None = None,
+        columns_json: list | None = None,
         source_file_ref: str | None = None,
         tema_type: str | None = None,
     ) -> HtriTemplateSchema:
@@ -119,7 +119,7 @@ class TemplateService:
             )
         schema = HtriTemplateSchema(
             device_type=device_type, column_count=column_count,
-            columns_json=columns_json or {}, version=version,
+            columns_json=columns_json or [], version=version,
             source_file_ref=source_file_ref, tema_type=tema_type,
         )
         self.session.add(schema)
@@ -130,9 +130,10 @@ class TemplateService:
 # 模块级函数（非实例方法），用于加载 JSON seed 元数据
 def load_seed_metadata(template_id: str) -> dict:
     """加载 DETAIL 模板元数据（V1.4 P2-OPEN-005）"""
+    seeds_dir = Path(__file__).parent.parent / "seeds" / "templates"
     file_map = {
-        "detail_121_a_101": Path(__file__).parent.parent / "seeds" / "templates" / "detail_121_a_101.json",
-        "detail_131_e_102_eor": Path(__file__).parent.parent / "seeds" / "templates" / "detail_131_e_102_eor.json",
+        "detail_121_a_101": seeds_dir / "detail_121_a_101.json",
+        "detail_131_e_102_eor": seeds_dir / "detail_131_e_102_eor.json",
     }
     if template_id not in file_map:
         raise PcsError(f"未知 DETAIL 模板：{template_id}", code="TEMPLATE_NOT_FOUND", status=404)

@@ -7,6 +7,8 @@ from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
+from app.services.exceptions import PcsError as ServicePcsError
+
 
 class PcsError(Exception):
     def __init__(
@@ -34,6 +36,20 @@ def install_exception_handlers(app: FastAPI) -> None:
                 code=exc.code,
                 message=exc.message,
                 detail=exc.detail,
+                trace_id=getattr(request.state, "trace_id", ""),
+            ).model_dump(),
+        )
+
+    @app.exception_handler(ServicePcsError)
+    async def _service_pcs(request: Request, exc: ServicePcsError) -> JSONResponse:
+        # app/services/exceptions.PcsError 与 core.PcsError 是两个类；
+        # message 走 str(exc)、details(dict) 映射到信封的 detail 字段。
+        return JSONResponse(
+            status_code=getattr(exc, "status", 422),
+            content=ErrorResponse(
+                code=getattr(exc, "code", "PCS_ERROR"),
+                message=str(exc),
+                detail=getattr(exc, "details", None) or None,
                 trace_id=getattr(request.state, "trace_id", ""),
             ).model_dump(),
         )
