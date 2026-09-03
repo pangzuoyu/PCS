@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.config_domain import TemplateFile
 from app.models.enums import AuditAction
+from app.models.htri_template import VALID_HTRI_DEVICE_TYPES, HtriTemplateSchema
 from app.services.audit_service import AuditService
 from app.services.exceptions import PcsError
 
@@ -97,6 +98,33 @@ class TemplateService:
             resource_id=str(template_id),
         )
         return tpl
+
+    async def register_htri_schema(
+        self,
+        *,
+        device_type: str,
+        column_count: int,
+        version: str = "HTRI-V1.0",
+        columns_json: dict | None = None,
+        source_file_ref: str | None = None,
+        tema_type: str | None = None,
+    ) -> HtriTemplateSchema:
+        """注册 HTRI 解析模板 schema（V1.4 P2-OPEN-005，async instance method 匹配现有签名）"""
+        if device_type not in VALID_HTRI_DEVICE_TYPES:
+            raise PcsError(
+                f"未知 HTRI device_type: {device_type}",
+                code="HTRI_INVALID_DEVICE_TYPE",
+                status=422,
+                details={"valid_types": sorted(VALID_HTRI_DEVICE_TYPES)},
+            )
+        schema = HtriTemplateSchema(
+            device_type=device_type, column_count=column_count,
+            columns_json=columns_json or {}, version=version,
+            source_file_ref=source_file_ref, tema_type=tema_type,
+        )
+        self.session.add(schema)
+        await self.session.flush()
+        return schema
 
 
 # 模块级函数（非实例方法），用于加载 JSON seed 元数据
