@@ -1,0 +1,71 @@
+{
+  "souders_brown_k": {
+    "applicable_range": "气液分离器（VESSEL 模块）",
+    "std_source": "附录F / Perry's Handbook 8ed Table 14-23",
+    "rows": [
+      {"equipment_type": "立式分离器", "with_mist_eliminator": true,  "K_min": 0.06, "K_max": 0.16, "K_default": 0.11},
+      {"equipment_type": "立式分离器", "with_mist_eliminator": false, "K_min": 0.03, "K_max": 0.06, "K_default": 0.045},
+      {"equipment_type": "卧式分离器", "with_mist_eliminator": true,  "K_min": 0.10, "K_max": 0.30, "K_default": 0.20},
+      {"equipment_type": "分液罐",     "with_mist_eliminator": false, "K_min": 0.02, "K_max": 0.06, "K_default": 0.04}
+    ]
+  },
+  "recommended_velocity": {
+    "applicable_range": "管道推荐流速（PIPE 模块，HG/T 20570.6-95）",
+    "std_source": "HG/T 20570.6-95 表 5.1",
+    "rows": [
+      {"service": "一般液体",       "velocity_min": 0.5, "velocity_max": 2.5, "unit": "m/s"},
+      {"service": "粘稠液体",       "velocity_min": 0.5, "velocity_max": 1.5, "unit": "m/s"},
+      {"service": "饱和蒸汽",       "velocity_min": 20,  "velocity_max": 40,  "unit": "m/s"},
+      {"service": "过热蒸汽",       "velocity_min": 30,  "velocity_max": 60,  "unit": "m/s"},
+      {"service": "一般气体",       "velocity_min": 10,  "velocity_max": 30,  "unit": "m/s"},
+      {"service": "两相流（气液）", "velocity_min": 3,   "velocity_max": 15,  "unit": "m/s"}
+    ]
+  },
+  "pump_power_safety_factor": {
+    "applicable_range": "泵功率安全系数（PUMP 模块，API 610）",
+    "std_source": "API 610 11ed Annex C",
+    "rows": [
+      {"service": "一般离心泵",       "safety_factor": 1.10},
+      {"service": "高温油泵",         "safety_factor": 1.15},
+      {"service": "高粘度泵",         "safety_factor": 1.20},
+      {"service": "立式泵",           "safety_factor": 1.10},
+      {"service": "锅炉给水泵",       "safety_factor": 1.15}
+    ]
+  },
+  "pipe_roughness_default": {
+    "applicable_range": "管道粗糙度默认值（PIPE 模块）",
+    "std_source": "工程经验 / Crane TP-410",
+    "rows": [
+      {"material": "碳钢（新管）",     "roughness_mm": 0.045},
+      {"material": "碳钢（使用中）",   "roughness_mm": 0.20},
+      {"material": "不锈钢",           "roughness_mm": 0.015},
+      {"material": "合金钢",           "roughness_mm": 0.045},
+      {"material": "铜/铜合金",        "roughness_mm": 0.0015},
+      {"material": "玻璃/陶瓷衬里",   "roughness_mm": 0.0015}
+    ]
+  },
+  "heat_exchanger_weight_factor": {
+    "applicable_range": "换热器重量估算系数（HEAT 模块）",
+    "std_source": "工程经验 / GPSA 12ed Sec 13",
+    "rows": [
+      {"type": "BEM",  "factor_per_m2": 0.045, "unit": "ton/m²"},
+      {"type": "AES",  "factor_per_m2": 0.040, "unit": "ton/m²"},
+      {"type": "AKT",  "factor_per_m2": 0.060, "unit": "ton/m²"},
+      {"type": "ACHE", "factor_per_m2": 0.035, "unit": "ton/m²"}
+    ]
+  },
+  "fitting_resistance_mapping": {
+    "applicable_range": "管件阻力系数映射表（PIPE 模块，fluids.fittings）",
+    "std_source": "fluids.fittings / Crane TP-410",
+    "rows": [
+      {"fitting_type": "elbow_90_long",   "K": 0.2,  "L_over_D": 30},
+      {"fitting_type": "elbow_90_short",  "K": 0.9,  "L_over_D": 0},
+      {"fitting_type": "elbow_45_long",   "K": 0.4,  "L_over_D": 16},
+      {"fitting_type": "tee_line",        "K": 0.4,  "L_over_D": 20},
+      {"fitting_type": "tee_branch",      "K": 1.0,  "L_over_D": 60},
+      {"fitting_type": "valve_gate_full", "K": 0.15, "L_over_D": 8},
+      {"fitting_type": "valve_globe",     "K": 6.0,  "L_over_D": 340},
+      {"fitting_type": "valve_check",     "K": 2.5,  "L_over_D": 140}
+    ]
+  }
+}

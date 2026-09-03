@@ -6,8 +6,11 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.config_domain import CoefficientTable
@@ -65,3 +68,39 @@ class CoefficientService:
         if table is None:
             raise CoefficientNotFoundError(f"未找到 table_id={table_id}")
         return table
+
+    @classmethod
+    async def seed_default_tables(cls, session: AsyncSession) -> list[str]:
+        """幂等 seed：CATEGORY_3 默认 6 张表。仅在未 seed 时插入。
+
+        使用 direct ORM add 而非 cls.create_table：seed 表无业务 asset 归属，
+        asset_id 传 None（model 字段已 nullable）。
+        """
+        seed_file = Path(__file__).parent.parent / "seeds" / "category3_defaults.json"
+        defaults = json.loads(seed_file.read_text(encoding="utf-8"))
+        created: list[str] = []
+        for table_name, payload in defaults.items():
+            # 幂等：先查是否已有同名 SEED-V1.0 行
+            result = await session.execute(
+                select(CoefficientTable).where(
+                    CoefficientTable.name == table_name,
+                    CoefficientTable.version == "SEED-V1.0",
+                )
+            )
+            if result.scalar_one_or_none():
+                continue
+            session.add(
+                CoefficientTable(
+                    asset_id=None,  # seed 表无业务资产归属
+                    name=table_name,
+                    applicable_range=payload["applicable_range"],
+                    std_source=payload["std_source"],
+                    data_json={"rows": payload["rows"]},
+                    version="SEED-V1.0",
+                    status="PUBLISHED",  # 默认 seed 直接发布
+                )
+            )
+            created.append(table_name)
+        if created:
+            await session.commit()
+        return created
