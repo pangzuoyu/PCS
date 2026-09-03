@@ -50,7 +50,7 @@ def mock_login(body: MockLoginRequest) -> MockLoginResponse:
         )
     return MockLoginResponse(
         access_token=create_access_token(subject=body.username, role=role),
-        refresh_token=create_refresh_token(subject=body.username),
+        refresh_token=create_refresh_token(subject=body.username, role=role),
         role=role,
         username=body.username,
     )

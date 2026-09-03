@@ -48,7 +48,11 @@ class DataLineage(Base):
 
 
 class ProjectInputChecklist(TimestampMixin, Base):
-    """项目级输入清单（前置完整性门禁，SUP-006 必备）。"""
+    """项目级输入清单（前置完整性门禁，SUP-006 必备）。
+
+    Sprint 1 升级：DICT-ALL-003 V3.1 表44 对齐——status 5态、source_type、
+    verified_by/verified_at、assumption_reason、input_category、input_value_json。
+    """
 
     __tablename__ = "project_input_checklist"
     checklist_id: Mapped[uuid.UUID] = mapped_column(
@@ -60,10 +64,22 @@ class ProjectInputChecklist(TimestampMixin, Base):
     item_key: Mapped[str] = mapped_column(String(100))
     item_label: Mapped[str] = mapped_column(String(200))
     required: Mapped[bool] = mapped_column(Boolean, default=True)
-    status: Mapped[str] = mapped_column(
-        String(20), default="PENDING", comment="PENDING/READY/BLOCKED"
-    )
     note: Mapped[str | None] = mapped_column(Text)
+    # === Sprint 1 新增字段（DICT-ALL-003 V3.1 表44 对齐）===
+    module: Mapped[str | None] = mapped_column(String(30))
+    input_category: Mapped[str | None] = mapped_column(
+        String(20), comment="REQUIRED/CONDITIONAL/OPTIONAL"
+    )
+    input_value_json: Mapped[dict | None] = mapped_column(JSONB)
+    source_type: Mapped[str | None] = mapped_column(String(20))
+    status: Mapped[str] = mapped_column(
+        String(20),
+        default="NOT_STARTED",
+        comment="NOT_STARTED/IN_PROGRESS/VERIFIED/ASSUMED/NOT_APPLICABLE",
+    )
+    verified_by: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    verified_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    assumption_reason: Mapped[str | None] = mapped_column(Text)
 
 
 class AuditLog(Base):

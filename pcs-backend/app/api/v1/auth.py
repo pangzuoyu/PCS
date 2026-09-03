@@ -80,7 +80,7 @@ def login(body: LoginRequest) -> TokenResponse:
     role = resolve_role(user.groups)
     return TokenResponse(
         access_token=create_access_token(subject=user.username, role=role),
-        refresh_token=create_refresh_token(subject=user.username),
+        refresh_token=create_refresh_token(subject=user.username, role=role),
         role=role,
         username=user.username,
     )
@@ -104,7 +104,9 @@ def refresh(body: RefreshRequest) -> RefreshResponse:
             code="WRONG_TOKEN_TYPE", message="not a refresh token", status=401
         )
     return RefreshResponse(
-        access_token=create_access_token(subject=payload["sub"], role="DESIGNER")
+        access_token=create_access_token(
+            subject=payload["sub"], role=payload.get("role", "DESIGNER")
+        )
     )
 
 

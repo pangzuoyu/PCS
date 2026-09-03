@@ -40,10 +40,16 @@ def create_access_token(*, subject: str, role: str, extra: dict[str, Any] | None
     return jwt.encode(payload, settings.secret_key, algorithm="HS256")
 
 
-def create_refresh_token(*, subject: str) -> str:
+def create_refresh_token(*, subject: str, role: str) -> str:
     settings = get_settings()
     expire = _now() + timedelta(days=settings.refresh_token_expire_days)
-    payload = {"sub": subject, "type": "refresh", "exp": expire, "iat": _now()}
+    payload = {
+        "sub": subject,
+        "role": role,
+        "type": "refresh",
+        "exp": expire,
+        "iat": _now(),
+    }
     return jwt.encode(payload, settings.secret_key, algorithm="HS256")
 
 

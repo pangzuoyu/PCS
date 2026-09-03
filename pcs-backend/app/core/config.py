@@ -9,6 +9,8 @@ class Settings(BaseSettings):
     env: str = "development"
     secret_key: str = "dev-secret-key-not-for-production--"
     database_url: str = "postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs"
+    redis_url: str = "redis://localhost:6379/0"
+    cors_allow_origins: str = "http://localhost:5173"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
     ldap_url: str = "ldap://localhost:389"

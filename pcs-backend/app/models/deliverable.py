@@ -210,7 +210,8 @@ class RecordChangeSnapshot(Base):
     record_hash: Mapped[str] = mapped_column(String(64))
     data_snapshot_json: Mapped[dict] = mapped_column(JSONB)
     snapshot_reason: Mapped[str] = mapped_column(
-        String(20), comment="BEFORE_CHANGE/BEFORE_STALE/BEFORE_DRAFT"
+        String(20),
+        comment="BEFORE_CHANGE/BEFORE_DRAFT（BEFORE_STALE 保留枚举值不写）",
     )
     snapshot_source: Mapped[str] = mapped_column(
         String(20), comment="MANUAL_CHANGE/UPSTREAM_CHANGE/MANUAL_ROLLBACK"
@@ -219,3 +220,6 @@ class RecordChangeSnapshot(Base):
         DateTime(timezone=True), server_default=func.now()
     )
     created_by: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    snapshot_status: Mapped[str | None] = mapped_column(
+        String(20), index=True, comment="ADR-0024：ACTIVE/CONSUMED/ABANDONED"
+    )

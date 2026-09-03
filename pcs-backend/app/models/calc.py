@@ -2,6 +2,7 @@ import uuid
 
 from sqlalchemy import (
     Boolean,
+    DateTime,
     Float,
     ForeignKey,
     Integer,
@@ -220,4 +221,4 @@ class CostEstResult(Base):
     estimated_cost: Mapped[float] = mapped_column(Numeric(18, 2))
     currency: Mapped[str] = mapped_column(String(10), default="USD")
     cost_index_year: Mapped[int] = mapped_column(Integer)
-    created_at = mapped_column(__import__("sqlalchemy").DateTime(timezone=True))
+    created_at = mapped_column(DateTime(timezone=True))

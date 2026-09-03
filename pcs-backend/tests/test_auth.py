@@ -5,6 +5,7 @@ from __future__ import annotations
 import pytest
 from fastapi.testclient import TestClient
 
+import app.api.v1.auth as auth_mod
 import app.services.ldap_client as ldap_mod
 from app.core.security import create_access_token, create_refresh_token
 from app.main import app
@@ -35,7 +36,6 @@ def patched_ldap(monkeypatch):
         )
 
     monkeypatch.setattr(ldap_mod, "authenticate", fake_auth)
-    import app.api.v1.auth as auth_mod
 
     monkeypatch.setattr(auth_mod, "authenticate", fake_auth)
     return fake_auth
@@ -89,17 +89,48 @@ def test_me_invalid_token_401(client):
 
 
 def test_me_with_refresh_token_rejected(client):
-    rt = create_refresh_token(subject="alice")
+    rt = create_refresh_token(subject="alice", role="DESIGNER")
     r = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {rt}"})
     assert r.status_code == 401
     assert r.json()["code"] == "WRONG_TOKEN_TYPE"
 
 
 def test_refresh_returns_new_access_token(client):
-    rt = create_refresh_token(subject="alice")
+    rt = create_refresh_token(subject="alice", role="DESIGNER")
     r = client.post("/api/v1/auth/refresh", json={"refresh_token": rt})
     assert r.status_code == 200
     assert r.json()["access_token"].count(".") == 2
+
+
+def test_refresh_preserves_roles(client, monkeypatch):
+    """防回归（P0-2 审查发现）：refresh 后原角色保留，不降权为 DESIGNER。"""
+
+    def approver_auth(username: str, password: str) -> ldap_mod.LdapUser:
+        return ldap_mod.LdapUser(
+            username=username,
+            dn=f"cn={username},CN=Users,DC=test,DC=local",
+            groups=("cn=APPROVER_GROUP,ou=Groups,dc=test,dc=local",),
+            display_name=username.title(),
+        )
+
+    monkeypatch.setattr(ldap_mod, "authenticate", approver_auth)
+    monkeypatch.setattr(auth_mod, "authenticate", approver_auth)
+
+    login = client.post(
+        "/api/v1/auth/login",
+        json={"username": "approver01", "password": "x"},
+    ).json()
+    assert login["role"] == "APPROVER", login
+
+    refreshed = client.post(
+        "/api/v1/auth/refresh",
+        json={"refresh_token": login["refresh_token"]},
+    ).json()
+    me = client.get(
+        "/api/v1/auth/me",
+        headers={"Authorization": f"Bearer {refreshed['access_token']}"},
+    ).json()
+    assert me["role"] == "APPROVER", me
 
 
 def test_refresh_with_access_token_rejected(client):

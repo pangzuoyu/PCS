@@ -3,7 +3,13 @@ from fastapi.testclient import TestClient
 from app.main import create_app
 
 
-def test_health_returns_ok() -> None:
+def test_health_returns_ok(monkeypatch) -> None:
+    import app.api.v1.health as health_mod
+
+    async def _ok() -> bool:
+        return True
+
+    monkeypatch.setattr(health_mod, "check_database_async", _ok)
     client = TestClient(create_app())
     resp = client.get("/api/v1/health")
     assert resp.status_code == 200
@@ -15,7 +21,10 @@ def test_health_returns_ok() -> None:
 def test_health_db_down(monkeypatch) -> None:
     import app.api.v1.health as health_mod
 
-    monkeypatch.setattr(health_mod, "check_database", lambda: False)
+    async def _down() -> bool:
+        return False
+
+    monkeypatch.setattr(health_mod, "check_database_async", _down)
     resp = TestClient(create_app()).get("/api/v1/health")
     assert resp.status_code == 200
     body = resp.json()
@@ -25,10 +34,10 @@ def test_health_db_down(monkeypatch) -> None:
 def test_unhandled_exception_500_envelope(monkeypatch) -> None:
     import app.api.v1.health as health_mod
 
-    def _boom() -> bool:
+    async def _boom() -> bool:
         raise RuntimeError("boom")
 
-    monkeypatch.setattr(health_mod, "check_database", _boom)
+    monkeypatch.setattr(health_mod, "check_database_async", _boom)
     resp = TestClient(create_app(), raise_server_exceptions=False).get(
         "/api/v1/health"
     )
