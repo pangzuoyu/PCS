@@ -2,6 +2,7 @@ import datetime
 import uuid
 
 from sqlalchemy import (
+    JSON,
     Boolean,
     Date,
     Float,
@@ -62,7 +63,8 @@ class ConfigApproval(TimestampMixin, Base):
     )
     approver_role: Mapped[str] = mapped_column(String(30))
     decision: Mapped[str] = mapped_column(String(20))
-    comments: Mapped[str | None] = mapped_column(Text)
+    comment: Mapped[str | None] = mapped_column(Text)
+    approver_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
 
 
 class FormulaDefinition(TimestampMixin, Base):
@@ -74,10 +76,14 @@ class FormulaDefinition(TimestampMixin, Base):
     module: Mapped[str] = mapped_column(String(30))
     category: Mapped[str] = mapped_column(String(30))
     expression: Mapped[str] = mapped_column(Text)
-    variables_json: Mapped[dict] = mapped_column(JSONB)
+    parameters_json: Mapped[dict] = mapped_column(JSONB)
     unit_tests_json: Mapped[dict | None] = mapped_column(JSONB)
     version: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
+    asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("config_assets.asset_id"), nullable=True
+    )
+    std_source: Mapped[str | None] = mapped_column(String(200))
 
 
 class CoefficientTable(TimestampMixin, Base):
@@ -86,10 +92,14 @@ class CoefficientTable(TimestampMixin, Base):
         Uuid, primary_key=True, default=uuid.uuid4
     )
     name: Mapped[str] = mapped_column(String(200))
-    domain: Mapped[str] = mapped_column(String(50))
+    applicable_range: Mapped[str] = mapped_column(String(50))
     data_json: Mapped[dict] = mapped_column(JSONB)
     version: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
+    asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("config_assets.asset_id"), nullable=True
+    )
+    std_source: Mapped[str | None] = mapped_column(String(200))
 
 
 class TemplateFile(TimestampMixin, Base):
@@ -129,6 +139,10 @@ class ProjectTemplate(TimestampMixin, Base):
     )
     version: Mapped[str] = mapped_column(String(50))
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
+    asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("config_assets.asset_id"), nullable=True
+    )
+    checklist_json: Mapped[dict | None] = mapped_column(JSON)
 
 
 class PipeClass(TimestampMixin, Base):
@@ -176,8 +190,8 @@ class NumberingTemplate(TimestampMixin, Base):
     template_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
     )
-    name: Mapped[str] = mapped_column(String(200))
-    scope: Mapped[str] = mapped_column(String(30), comment="PIPE/EQUIP/DELIVERABLE/...")
+    template_name: Mapped[str] = mapped_column(String(200))
+    description: Mapped[str] = mapped_column(String(30), comment="PIPE/EQUIP/DELIVERABLE/...")
     segments_json: Mapped[dict] = mapped_column(JSONB)
     separator: Mapped[str] = mapped_column(String(5), default="-")
     revision_separate: Mapped[bool] = mapped_column(Boolean, default=True)
@@ -187,8 +201,17 @@ class NumberingTemplate(TimestampMixin, Base):
 
 class DocNoSequence(TimestampMixin, Base):
     __tablename__ = "doc_no_sequences"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id", "template_id", "scope_key",
+            name="uq_doc_no_sequences_proj_template_scope",
+        ),
+    )
     sequence_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
+    )
+    project_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("projects.project_id")
     )
     template_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("numbering_templates.template_id"), index=True

@@ -14,10 +14,19 @@ def inspector():
     eng.dispose()
 
 
-def test_table_count_is_53(inspector):
+@pytest.fixture(scope="module")
+def engine():
+    eng = create_engine(get_settings().database_url)
+    yield eng
+    eng.dispose()
+
+
+def test_table_count(inspector):
     tables = inspector.get_table_names()
     assert "alembic_version" in tables
-    assert len(tables) == 54, f"expected 54 incl. alembic_version, got {len(tables)}"
+    # 53（V3.1 基线）+ pcs_toe_conversion_factors + htri_template_schemas
+    # + alembic_version = 56
+    assert len(tables) == 56, f"expected 56 incl. alembic_version, got {len(tables)}"
 
 
 def test_required_tables_present(inspector):
@@ -81,10 +90,11 @@ def test_required_tables_present(inspector):
     assert not missing, f"missing tables: {missing}"
 
 
-def test_equipment_type_codes_composite_pk(inspector):
-    """ADR-0023: equipment_type_codes 必须有复合 PK (project_id, type_code)。"""
-    pk = inspector.get_pk_constraint("equipment_type_codes")
-    assert sorted(pk["constrained_columns"]) == ["project_id", "type_code"], pk
+def test_equipment_type_codes_composite_unique(inspector):
+    """Sprint 3: PK → UNIQUE（允许 project_id NULL）。约束列必须是 (project_id, type_code)。"""
+    uqs = inspector.get_unique_constraints("equipment_type_codes")
+    target = [u for u in uqs if sorted(u["column_names"]) == ["project_id", "type_code"]]
+    assert len(target) == 1, f"expected 1 UNIQUE on (project_id, type_code), got {uqs}"
 
 
 def test_equipment_list_composite_fk_to_equipment_type_codes(inspector):
@@ -137,3 +147,22 @@ def test_recordsignstatus_enum_has_9_values(inspector):
     }
     missing = expected - vals
     assert not missing, f"missing enum values: {missing} (got {sorted(vals)})"
+
+
+def test_fk_violation_raises(engine):
+    """端到端验证：FK 约束被强制执行（非仅声明）。
+    插入带不存在 project_id 的 stream 应被 DB 拒绝（IntegrityError）。
+    防止 ADR-0023 复合 FK 声明丢失但实际不生效的回归。
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    with pytest.raises(IntegrityError):
+        with engine.begin() as conn:
+            conn.execute(
+                text(
+                    "INSERT INTO streams "
+                    "(stream_id, project_id, workspace_id, stream_name, data_mode) "
+                    "VALUES (gen_random_uuid(), gen_random_uuid(), "
+                    "gen_random_uuid(), 'FK_TEST', 'CHEMICAL')"
+                )
+            )
