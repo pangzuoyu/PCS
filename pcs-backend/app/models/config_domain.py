@@ -107,6 +107,9 @@ class TemplateFile(TimestampMixin, Base):
         comment="V1.4 P2-OPEN-005：模板版本号字段纳入 CONFIG 模板版本序列（自增）",
     )
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
+    asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("config_assets.asset_id"), nullable=True
+    )
 
 
 class ProjectTemplate(TimestampMixin, Base):
