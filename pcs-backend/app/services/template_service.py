@@ -12,15 +12,18 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from pathlib import Path
 from uuid import UUID
 
 from jinja2 import Environment, StrictUndefined, TemplateError
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.config_domain import TemplateFile
 from app.models.enums import AuditAction
 from app.services.audit_service import AuditService
+from app.services.exceptions import PcsError
 
 
 class TemplateRenderError(Exception):
@@ -46,13 +49,19 @@ class TemplateService:
         sha = hashlib.sha256(file_bytes).hexdigest()
         path = self.storage_root / f"{sha}.{file_name}"
         path.write_bytes(file_bytes)
+        # V1.4 P2-OPEN-005：自动续 template_version_seq
+        result = await self.session.execute(
+            select(func.coalesce(func.max(TemplateFile.template_version_seq), 0))
+        )
+        next_seq = (result.scalar() or 0) + 1
         tpl = TemplateFile(
             asset_id=asset_id,
             name=file_name,
             file_type=file_type,
             file_path=str(path),
             placeholders_json={"vars": []},
-            version="v1",  # 防御性：model.version NOT NULL String(50) — brief 未指定
+            version="v1",
+            template_version_seq=next_seq,
             status="DRAFT",
         )
         self.session.add(tpl)
@@ -88,3 +97,15 @@ class TemplateService:
             resource_id=str(template_id),
         )
         return tpl
+
+
+# 模块级函数（非实例方法），用于加载 JSON seed 元数据
+def load_seed_metadata(template_id: str) -> dict:
+    """加载 DETAIL 模板元数据（V1.4 P2-OPEN-005）"""
+    file_map = {
+        "detail_121_a_101": Path(__file__).parent.parent / "seeds" / "templates" / "detail_121_a_101.json",
+        "detail_131_e_102_eor": Path(__file__).parent.parent / "seeds" / "templates" / "detail_131_e_102_eor.json",
+    }
+    if template_id not in file_map:
+        raise PcsError(f"未知 DETAIL 模板：{template_id}", code="TEMPLATE_NOT_FOUND", status=404)
+    return json.loads(file_map[template_id].read_text(encoding="utf-8"))

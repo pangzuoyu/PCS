@@ -102,6 +102,10 @@ class TemplateFile(TimestampMixin, Base):
     file_path: Mapped[str] = mapped_column(String(500))
     placeholders_json: Mapped[dict] = mapped_column(JSONB)
     version: Mapped[str] = mapped_column(String(50))
+    template_version_seq: Mapped[int] = mapped_column(
+        Integer, default=0,
+        comment="V1.4 P2-OPEN-005：模板版本号字段纳入 CONFIG 模板版本序列（自增）",
+    )
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
 
 
