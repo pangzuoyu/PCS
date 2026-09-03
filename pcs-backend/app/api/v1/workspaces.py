@@ -1,0 +1,62 @@
+"""Workspace API（Sprint 1）。
+
+POST /workspaces/import 已推迟到 P1.2（设计缺陷6裁决）。
+"""
+
+from __future__ import annotations
+
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException
+from fastapi import status as http_status
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.session import get_db
+from app.models.enums import WorkspaceType
+from app.schemas.workspace import WorkspaceCreate, WorkspaceOut
+from app.services.workspace_service import WorkspaceService
+
+router = APIRouter(prefix="/workspaces", tags=["workspaces"])
+
+
+@router.post("", response_model=WorkspaceOut, status_code=http_status.HTTP_201_CREATED)
+async def create_workspace(
+    payload: WorkspaceCreate,
+    owner_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+) -> WorkspaceOut:
+    svc = WorkspaceService(session)
+    ws = await svc.create(
+        owner_id=owner_id,
+        workspace_type=WorkspaceType(payload.workspace_type),
+        name=payload.name,
+        project_id=payload.project_id,
+        retention_days=payload.retention_days,
+        user_id=owner_id,
+    )
+    await session.commit()
+    return WorkspaceOut.model_validate(ws)
+
+
+@router.get("", response_model=list[WorkspaceOut])
+async def list_workspaces(
+    owner_id: uuid.UUID | None = None,
+    session: AsyncSession = Depends(get_db),
+) -> list[WorkspaceOut]:
+    svc = WorkspaceService(session)
+    rows = await svc.list_for_user(owner_id=owner_id)
+    return [WorkspaceOut.model_validate(r) for r in rows]
+
+
+@router.get("/{workspace_id}", response_model=WorkspaceOut)
+async def get_workspace(
+    workspace_id: uuid.UUID,
+    session: AsyncSession = Depends(get_db),
+) -> WorkspaceOut:
+    svc = WorkspaceService(session)
+    ws = await svc.get(workspace_id)
+    if ws is None:
+        raise HTTPException(status_code=404, detail="workspace not found")
+    await svc.touch(workspace_id)
+    await session.commit()
+    return WorkspaceOut.model_validate(ws)
