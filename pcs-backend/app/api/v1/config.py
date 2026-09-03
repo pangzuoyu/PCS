@@ -75,6 +75,7 @@ from app.services.export_service import ExportService
 from app.services.formula_engine import FormulaEngine
 from app.services.formula_service import FormulaService
 from app.services.report_service import ConfigAssetReport, ReportService
+from app.services.toe_conversion_service import ToeConversionService
 
 router = APIRouter(prefix="/config", tags=["config"])
 
@@ -394,6 +395,23 @@ async def diff(
             actor=user.user_id,
         )
     return DiffResponse(**delta)
+
+
+@router.get("/toe-conversion")
+async def get_toe_conversion(
+    fuel_type: str,
+    year: int,
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, Any]:
+    """按 fuel_type + year 查询折标煤系数（V1.4 P2-OPEN-005）。"""
+    row = await ToeConversionService.query_by_fuel_year(db, fuel_type, year)
+    return {
+        "fuel_type": row.fuel_type,
+        "toe_conversion_factor": float(row.toe_conversion_factor),
+        "standard_coal_factor": float(row.standard_coal_factor),
+        "effective_year": row.effective_year,
+        "source": row.source,
+    }
 
 
 # ---------------------------------------------------------------------------

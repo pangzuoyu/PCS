@@ -1,12 +1,16 @@
+import datetime
 import uuid
 
 from sqlalchemy import (
     Boolean,
+    Date,
     Float,
     ForeignKey,
     Integer,
+    Numeric,
     String,
     Text,
+    UniqueConstraint,
     Uuid,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -184,3 +188,27 @@ class DocNoSequence(TimestampMixin, Base):
     )
     scope_key: Mapped[str] = mapped_column(String(50), comment="如 PE-LST")
     current_value: Mapped[int] = mapped_column(Integer, default=0)
+
+
+class ToeConversionFactor(TimestampMixin, Base):
+    """折标煤系数组（V1.4 P2-OPEN-005，配套 auxiliary_consumption + utility_energy_summary）。
+
+    fuel_type 枚举：GAS/DIESEL/COAL/STEAM/ELECTRICITY/OTHER。
+    effective_year + effective_from / effective_to 控制生效区间。
+    """
+    __tablename__ = "pcs_toe_conversion_factors"
+    __table_args__ = (
+        UniqueConstraint("fuel_type", "effective_year", name="uq_toe_fuel_year"),
+    )
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    fuel_type: Mapped[str] = mapped_column(String(30), index=True,
+        comment="GAS/DIESEL/COAL/STEAM/ELECTRICITY/OTHER")
+    toe_conversion_factor: Mapped[float] = mapped_column(Numeric(10, 4),
+        comment="吨油当量折算系数")
+    standard_coal_factor: Mapped[float] = mapped_column(Numeric(10, 4),
+        comment="标煤折算系数")
+    effective_year: Mapped[int] = mapped_column(Integer, index=True)
+    effective_from: Mapped[datetime.date] = mapped_column(Date)
+    effective_to: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
+    source: Mapped[str | None] = mapped_column(String(200))
+    version: Mapped[str] = mapped_column(String(50), default="TOE-V1.0")
