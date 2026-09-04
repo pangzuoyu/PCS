@@ -1131,3 +1131,5 @@
 | 07:49 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版 P2.md | inline fix | ~65 |
 | 07:49 | Edited docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | modified test_import_bep_seed() | ~317 |
 | 07:49 | Edited docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | 6→7 lines | ~198 |
+| 07:58 | Edited docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | modified test_import_bep_seed() | ~452 |
+| 09-05 10:00 | kaimen SPC-0004（215页PDF+PSI.xls）提取 54 等级种子（含 12 夹套组合 core 设计条件）+ 重生成脚本入 scripts/ | app/seeds/pipe_classes_kaimen_20048a.{json,xlsx}, scripts/extract_pipe_classes_kaimen.py | plan Step 5 扩双源导入测试 | ~60k |
