@@ -1,23 +1,39 @@
-import { Card, Statistic, Typography } from 'antd';
+import { useState } from 'react';
+import { Card, Col, Row, Typography } from 'antd';
+import { ChecklistDashboard } from '../components/ChecklistDashboard';
+import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher';
+import { useAuth } from '../store/auth';
+import type { Workspace } from '../types/workspace';
+
+function workspaceProjectId(ws: Workspace): string {
+  return ws.project_id ?? '00000000-0000-0000-0000-000000000001';
+}
 
 export default function DashboardPage() {
+  const userId = useAuth((s) => s.userId);
+  const [selected, setSelected] = useState<Workspace | null>(null);
+
+  if (!userId) {
+    return <Typography.Text>请先登录</Typography.Text>;
+  }
+
+  const projectId = selected ? workspaceProjectId(selected) : '00000000-0000-0000-0000-000000000001';
+
   return (
     <div>
       <Typography.Title level={3}>仪表盘</Typography.Title>
-      <div style={{ display: 'flex', gap: 16 }}>
-        <Card>
-          <Statistic title="项目" value={0} />
-        </Card>
-        <Card>
-          <Statistic title="记录" value={0} />
-        </Card>
-        <Card>
-          <Statistic title="交付物" value={0} />
-        </Card>
-      </div>
-      <Typography.Paragraph type="secondary" style={{ marginTop: 24 }}>
-        P0 骨架占位：仪表盘、计算模块、交付物模块、变更管理将在后续 P1–P10 阶段填充。
-      </Typography.Paragraph>
+      <Row gutter={16}>
+        <Col span={8}>
+          <Card>
+            <WorkspaceSwitcher ownerId={userId} onSelect={setSelected} />
+          </Card>
+        </Col>
+        <Col span={16}>
+          <Card title={selected ? `项目 ${projectId.slice(0, 8)}…` : '选择工作区后查看清单'}>
+            <ChecklistDashboard projectId={projectId} />
+          </Card>
+        </Col>
+      </Row>
     </div>
   );
 }

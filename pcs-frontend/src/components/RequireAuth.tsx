@@ -1,16 +1,11 @@
-import { ReactNode, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { ReactNode } from 'react';
+import { Navigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 
 export default function RequireAuth({ children }: { children: ReactNode }) {
   const token = useAuth((s) => s.accessToken);
-  const nav = useNavigate();
-
-  useEffect(() => {
-    if (!token) {
-      nav('/login', { replace: true });
-    }
-  }, [token, nav]);
-
-  return token ? <>{children}</> : null;
+  if (!token) {
+    return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
 }
