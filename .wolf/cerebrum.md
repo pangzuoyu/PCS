@@ -47,3 +47,10 @@
 - [2026-09-04] 外科切割已提交代码（如切 ORM 字段）后必须复跑依赖该代码的测试——R14 切 asset_id 时测试在切割前跑的，切割后 d71fe10 自带测试就是挂的。
 - [2026-09-04] 文件级 git add 手术（soft-reset + 选择性重暂存）会系统性制造"提交不自持"：提交代码依赖的基建留在工作树。手术完成后用干净 worktree 检出验证 import + alembic + pytest，是唯一可信证据；工作树全绿不算数。
 - [2026-09-04] 派发评审时要附账本（progress.md）路径——裁决写在那儿，评审看不到就会把有裁决的改动当违规报 Important。
+
+## Key Learnings（2026-09-05 会话）
+
+- [2026-09-05] 公司级管道等级数据源 = 用户 NAS 的 Worley BEP Template 4.3 Piping Material Classification Rev 0（.doc）。等级编码：压力字(A=150Lb,G=1500Lb)+序号+材料字(B=20#,E=304SS,F=塑料)。已提取 6 等级种子 app/seeds/pipe_classes_bep_rev0.{json,xlsx}。
+- [2026-09-05] .doc 提取流程：文件名含空格&括号时 libreoffice 转换会静默失败——先 cp 成短名再转 docx，然后 unzip + ElementTree 解析 w:tbl；单元格多值用段落聚合（cells 里空段是 Word 纵向合并的延续）。
+- [2026-09-05] vendor/（chemicals 1.5.2/fluids 1.3.1/thermo 0.6.1/CoolProp/ht，P0 入库）零接线至今；chemicals 官方定位纯组分库，无馏分表征（RD80 需自写）；Tb+SG→粘度用 chemicals.viscosity.Twu_1985_internal；水蒸气用 chemicals.iapws（无需 CoolProp）。
+- [2026-09-05] 工程常数禁止凭记忆写：先查文献（HAL/期刊 PDF 可拿到原式），再用已知纯组分（n-癸烷 Tb 447.3K SG 0.73）数值闭环验证后才入计划。查不到可靠来源就明确排除（Vc/Zc 先例）。

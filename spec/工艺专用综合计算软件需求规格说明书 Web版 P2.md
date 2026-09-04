@@ -491,7 +491,7 @@ text
                     (自动创建新版本)
 4.2 待确定问题列表
 编号	问题	影响	建议解决方案	状态
-P2-OPEN-001	公司级管道等级库初始数据由谁提供？	P3阶段PIPE计算数据源	需工艺负责人整理现有等级数据	待确认
+P2-OPEN-001	公司级管道等级库初始数据由谁提供？	P3阶段PIPE计算数据源	用户提供 Worley BEP Template 4.3 Piping Material Classification Rev 0（2026-09-05）；已提取 6 等级（A1B/A1E/A2B/G1E/A1F/A2F）为种子 pcs-backend/app/seeds/pipe_classes_bep_rev0.{json,xlsx}，Sprint 1.9 Task 1.9.6 导入	已确认
 P2-OPEN-002	公式版本升级后，历史计算结果是否自动标记？	变更影响分析	是，P1阶段已实现自动标记	已确认
 P2-OPEN-003	配置审批是否需要会签（多人同时审批）？	审批流程设计	P2阶段暂不支持会签，单人审批即可	已确认
 P2-OPEN-004	[preconditions 范围核对] 详见 PCS 本体论 V1.6 §2.3：是否需要引入跨字段算术约束（如 design_press - operating_press >= 0.5）？V1.6 §2.3 表达力边界声明"暂不支持跨字段约束"。若 P2 Sprint 1.2 实施期间发现刚需，按 fallback：① 记录需求到需求文档（含路径/约束/示例）；② P2 期间调用方临时检查代码须标注 `@legacy-P4`；③ P4 Task 0 启动守卫函数落地。	P2 Sprint 1.2 启动前必备	按 V1.6 §2.3 表达力边界声明核对；刚需时走 fallback 流程	待启动

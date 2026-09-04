@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-04T13:44:10.378Z
-> Files: 265 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-04T23:49:45.745Z
+> Files: 266 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -109,6 +109,7 @@
 - `2026-09-01-p1-cross-cutting-framework.md` — P1 横切关注点框架 实施计划 (~6155 tok)
 - `2026-09-02-p2-implementation-plan.md` — P2 Implementation Plan (~20209 tok)
 - `2026-09-03-p2-sprint-1.8-and-1.10.md` — P2 Sprint 1.8 闭环 + Sprint 1.10 V1.4 收敛实施计划 (~16448 tok)
+- `2026-09-04-p2-sprint-1.9.md` — P2 Sprint 1.9（配置层收尾）Implementation Plan (~12806 tok)
 
 ## docs/superpowers/specs/
 
@@ -368,7 +369,7 @@
 - `工艺专用综合计算软件需求规格说明书 Web版 P0.md` (~5120 tok)
 - `工艺专用综合计算软件需求规格说明书 Web版 P1.md` (~4020 tok)
 - `工艺专用综合计算软件需求规格说明书 Web版 P10.md` — app/api/v1/ai/__init__.py (~3524 tok)
-- `工艺专用综合计算软件需求规格说明书 Web版 P2.md` (~3080 tok)
+- `工艺专用综合计算软件需求规格说明书 Web版 P2.md` (~3125 tok)
 - `工艺专用综合计算软件需求规格说明书 Web版 P3.md` (~2630 tok)
 - `工艺专用综合计算软件需求规格说明书 Web版 P4.md` (~3300 tok)
 - `工艺专用综合计算软件需求规格说明书 Web版 P5.md` (~2512 tok)

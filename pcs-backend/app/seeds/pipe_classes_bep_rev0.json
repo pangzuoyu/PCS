@@ -1,0 +1,215 @@
+{
+ "meta": {
+  "source": "Worley BEP Template 4.3 Piping Material Classification Rev 0",
+  "source_path": "/media/pangzy/F8A6CB1CA6CAD9F01/nas/work/worley/e/EM Handbook/BEP Template/4_Piping & EQ Layout---Rev 0/4.3 Piping Material Classification Rev 0/4.3_Piping Material Classification Rev 0.doc",
+  "version": "BEP4.3-Rev0",
+  "class_code_rule": "压力字(A=150Lb,G=1500Lb) + 序号 + 材料字(B=20#,E=304SS,F=塑料)",
+  "extracted": "2026-09-05"
+ },
+ "pipe_classes": [
+  {
+   "class_id": "A1B",
+   "class_name": "A1B 20#碳钢 150Lb 水/废水/工艺水系统",
+   "material_standard": "GB/T 8163 (20#)",
+   "corrosion_allowance": 1.5,
+   "design_pressure": 0.6,
+   "design_temperature": 60.0,
+   "fluid_service": "WW1,WW2,WW3,WW4,CWS,CWR,Z,R,BRS,BRR,PR,FW,PW1",
+   "dn_series_json": {
+    "min": 15,
+    "max": 350
+   },
+   "sch_series_json": {
+    "15": "SCH80",
+    "20": "SCH80",
+    "25": "SCH80",
+    "32": "SCH80",
+    "40": "SCH80",
+    "50": "SCH40",
+    "65": "SCH40",
+    "80": "SCH40",
+    "100": "SCH40",
+    "150": "SCH20",
+    "200": "SCH20",
+    "250": "SCH20",
+    "300": "SCH20"
+   },
+   "flange_class": "150Lb/RF",
+   "fitting_type": "SW/BW",
+   "branch_table_json": {
+    "source": "BEP4.3 Rev0 Branch Connection Table"
+   },
+   "p_t_rating": {
+    "-19~38": 1.58,
+    "50": 1.53,
+    "100": 1.42,
+    "150": 1.35
+   },
+   "pwht": false,
+   "note": "index: 1/2\"~14\"；T 下限 -15°C"
+  },
+  {
+   "class_id": "A1E",
+   "class_name": "A1E 304SS 150Lb 工艺物料/化学品系统",
+   "material_standard": "GB/T 14976 (304SS)",
+   "corrosion_allowance": 0.0,
+   "design_pressure": 1.3,
+   "design_temperature": 200.0,
+   "fluid_service": "PM1,PM2,PW,RW,VG1,S,C,DF,NaOH,WM,CIP",
+   "dn_series_json": {
+    "min": 15,
+    "max": 200
+   },
+   "sch_series_json": {
+    "15": "SCH40S",
+    "20": "SCH40S",
+    "25": "SCH40S",
+    "32": "SCH40S",
+    "40": "SCH40S",
+    "50": "SCH10S",
+    "65": "SCH10S",
+    "80": "SCH10S",
+    "100": "SCH10S"
+   },
+   "flange_class": "150Lb/RF",
+   "fitting_type": "BW",
+   "branch_table_json": {
+    "source": "BEP4.3 Rev0 Branch Connection Table"
+   },
+   "p_t_rating": {
+    "-19~38": 1.9,
+    "50": 1.81,
+    "100": 1.57,
+    "150": 1.39,
+    "200": 1.26
+   },
+   "pwht": true,
+   "note": "T 下限 -5°C；真空段 -0.1MPa"
+  },
+  {
+   "class_id": "A2B",
+   "class_name": "A2B Q235-A 镀锌 150Lb 仪表空气系统",
+   "material_standard": "GB/T 3091 (Q235-A 镀锌)",
+   "corrosion_allowance": 0.0,
+   "design_pressure": 0.72,
+   "design_temperature": 50.0,
+   "fluid_service": "IA",
+   "dn_series_json": {
+    "min": 15,
+    "max": 150
+   },
+   "sch_series_json": {
+    "15": "XS",
+    "20": "XS",
+    "25": "XS",
+    "32": "XS",
+    "40": "XS"
+   },
+   "flange_class": "150Lb/RF",
+   "fitting_type": "SW",
+   "branch_table_json": {
+    "source": "BEP4.3 Rev0 Branch Connection Table"
+   },
+   "p_t_rating": {
+    "-19~38": 1.58,
+    "50": 1.53
+   },
+   "pwht": false,
+   "note": "≤1 1/2\" 螺纹（Th），2\"~6\" SO"
+  },
+  {
+   "class_id": "G1E",
+   "class_name": "G1E 304SS 1500Lb 高压工艺物料系统",
+   "material_standard": "GB/T 14976 (304SS)",
+   "corrosion_allowance": 0.0,
+   "design_pressure": 10.0,
+   "design_temperature": 80.0,
+   "fluid_service": "PM",
+   "dn_series_json": {
+    "min": 15,
+    "max": 100
+   },
+   "sch_series_json": {
+    "15": "SCH80S",
+    "20": "SCH80S",
+    "25": "SCH80S",
+    "32": "SCH80S",
+    "40": "SCH80S",
+    "50": "SCH80S",
+    "65": "SCH80S",
+    "80": "SCH80S",
+    "100": "SCH80S"
+   },
+   "flange_class": "1500Lb/RJ",
+   "fitting_type": "BW",
+   "branch_table_json": {
+    "source": "BEP4.3 Rev0 Branch Connection Table"
+   },
+   "p_t_rating": {
+    "-19~38": 26.0
+   },
+   "pwht": true,
+   "note": "RJ 密封面；HG20617"
+  },
+  {
+   "class_id": "A1F",
+   "class_name": "A1F CPVC 150Lb 通风/酸碱/加药系统",
+   "material_standard": "CPVC (连接尺寸 ANSI B16.5)",
+   "corrosion_allowance": 0.0,
+   "design_pressure": 0.5,
+   "design_temperature": 50.0,
+   "fluid_service": "VG2,HCl,CIP,NaClO,F(Drug Feed)",
+   "dn_series_json": {
+    "min": 15,
+    "max": 200
+   },
+   "sch_series_json": {
+    "15": "2.3mm",
+    "20": "2.8mm",
+    "25": "2.4mm",
+    "32": "3.0mm",
+    "40": "3.7mm",
+    "50": "4.7mm",
+    "65": "3.6mm",
+    "80": "4.3mm",
+    "100": "5.3mm",
+    "150": "7.7mm",
+    "200": "10.8mm"
+   },
+   "flange_class": "150Lb/RF",
+   "fitting_type": "SOCKET",
+   "branch_table_json": {
+    "source": "BEP4.3 Rev0 Branch Connection Table"
+   },
+   "p_t_rating": {
+    "0~30": 0.5,
+    "40": 0.4,
+    "50": 0.36
+   },
+   "pwht": false,
+   "note": "壁厚为塑料管 mm 值；文档含 315/0.3 条目疑为 31.5°C，按保守 50°C 上限"
+  },
+  {
+   "class_id": "A2F",
+   "class_name": "A2F UPVC 重力排水/雨水系统",
+   "material_standard": "UPVC",
+   "corrosion_allowance": 0.0,
+   "design_pressure": 0.1,
+   "design_temperature": 38.0,
+   "fluid_service": "W(Sanitary Sewer),Y(Rain Water)",
+   "dn_series_json": {
+    "min": 50,
+    "max": 600
+   },
+   "sch_series_json": {},
+   "flange_class": "N/A",
+   "fitting_type": "SOCKET",
+   "branch_table_json": {
+    "source": "BEP4.3 Rev0 Branch Connection Table"
+   },
+   "p_t_rating": {},
+   "pwht": false,
+   "note": "常压重力流，design_pressure 取 0.1MPa 占位；2\"~24\""
+  }
+ ]
+}

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-09-04T13:44:10.378Z",
-    "fileCount": 265,
+    "lastScanned": "2026-09-04T23:49:45.745Z",
+    "fileCount": 266,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "8dc616a6b02e81d10e9d30977b7171030501df2bab967c26a86799b09d23ab17",
-    "storeUpdatedAt": "2026-09-04T13:44:10.385Z",
-    "rootHash": "18b6e59a858a82ad"
+    "renderedHash": "ba3b2bdff76e707965d6d8a2eccb91f55978223689efb42dcc3f15c9eab08341",
+    "storeUpdatedAt": "2026-09-04T23:49:45.753Z",
+    "rootHash": "2ab631f5a1b354e4"
   },
   "files": {
     "CLAUDE.md": {
@@ -72,11 +72,11 @@
     },
     "spec/工艺专用综合计算软件需求规格说明书 Web版 P2.md": {
       "description": "",
-      "tokens": 3080,
-      "hash": "786b4d6b994da905",
-      "size": 22595,
-      "mtimeMs": 1788390295618.4927,
-      "updatedAt": "2026-09-02T23:04:55.670Z",
+      "tokens": 3125,
+      "hash": "5be6b8558ff97cd4",
+      "size": 22788,
+      "mtimeMs": 1788565765619.354,
+      "updatedAt": "2026-09-04T23:49:25.661Z",
       "source": "hook"
     },
     "spec/工艺专用综合计算软件需求规格说明书 Web版 P3.md": {
@@ -6209,6 +6209,15 @@
       "size": 6118,
       "mtimeMs": 1788478641164.9358,
       "updatedAt": "2026-09-03T23:37:21.211Z",
+      "source": "hook"
+    },
+    "docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md": {
+      "description": "P2 Sprint 1.9（配置层收尾）Implementation Plan",
+      "tokens": 12806,
+      "hash": "dc4600e9b225aa1a",
+      "size": 57523,
+      "mtimeMs": 1788565785704.294,
+      "updatedAt": "2026-09-04T23:49:45.745Z",
       "source": "hook"
     }
   }
