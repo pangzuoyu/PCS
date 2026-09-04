@@ -61,10 +61,11 @@ class FormulaService:
                 continue
             default = p.get("default", 0.0)
             params[str(name)] = float(default) if default is not None else 0.0
-        passed, total = FormulaEngine.run_unit_tests(
+        passed, total = self.run_unit_tests_with_preconditions(
             expression=expression,
             parameters=params,
             unit_tests=unit_tests_list,
+            preconditions=content.get("preconditions") or [],
         )
         return UnitTestResult(passed=passed, total=total)
 
@@ -77,7 +78,8 @@ class FormulaService:
         preconditions: list[dict] | None = None,
         trace_table: dict[str, str | None] | None = None,
     ) -> tuple[int, int]:
-        """扩展 run_unit_tests：先 evaluate_preconditions(pre)，再 unit_test，最后 evaluate_preconditions(post)。"""
+        """扩展 run_unit_tests：先 evaluate_preconditions(pre)，再 unit_test，
+        最后 evaluate_preconditions(post)。"""
         if preconditions:
             # pre 阶段：仅校验 input.*/params.*
             FormulaEngine.evaluate_preconditions(

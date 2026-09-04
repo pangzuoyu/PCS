@@ -268,9 +268,9 @@ P4（FLASH / PIPE / PUMP / PIPE_NET 计算模块接入）
 
 
 ## TODO-031: preconditions 接入 run_unit_tests 发布门禁
-- **状态**: Sprint 1.12 | **来源**: 终审 Important#4（R22 裁决 2026-09-04）
+- **状态**: ✅ 已完成（2026-09-04，用户裁决提前至本窗口，不等 Sprint 1.12）| **来源**: 终审 Important#4（R22 裁决 2026-09-04）
 - **What**: FormulaService.run_unit_tests 读 content_json["preconditions"]，调用已实现的 run_unit_tests_with_preconditions（~10 行 + 2 测试）；当前该方法零调用方，V1.4 §3.2.2a 仅引擎层闭环
-- **Depends on**: Sprint 1.12（formula test/preview 端点同窗）
+- **Depends on**: ~~Sprint 1.12（formula test/preview 端点同窗）~~ 已接线：PUBLISH 端点经 run_unit_tests 自动触发 pre/post 校验，PreconditionViolation → 全局 handler 422 信封；2 测试入 tests/api/v1/test_config.py
 
 ## TODO-032: 四个真库测试文件迁 conftest SQLite fixtures
 - **状态**: 随 P1.2 doc_no 原子分配波 | **来源**: 终审 Important#5（2026-09-04）

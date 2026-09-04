@@ -264,6 +264,52 @@ async def sample_approved_formula_asset(db, make_asset) -> ConfigAsset:
 
 
 @pytest_asyncio.fixture
+async def sample_approved_formula_with_preconditions(db, make_asset) -> ConfigAsset:
+    """公式资产 APPROVED + preconditions 通过 + unit_tests 通过（TODO-031）。"""
+    asset = await make_asset(status=ConfigStatus.APPROVED.value, category="CATEGORY_2")
+    version = await _latest_version(db, asset.asset_id)
+    version.content_json = {
+        "expression": "a + b",
+        "parameters_json": {
+            "parameters": [{"name": "a", "default": 1.0}, {"name": "b", "default": 2.0}]
+        },
+        "unit_tests_json": {
+            "unit_tests": [
+                {"params": {"a": 1, "b": 2}, "expected": 3, "tolerance": 0.01}
+            ]
+        },
+        "preconditions": [
+            {"id": "PC-001", "target": "params.a", "expression": "value > 0"}
+        ],
+    }
+    await db.flush()
+    return asset
+
+
+@pytest_asyncio.fixture
+async def sample_approved_formula_failing_precondition(db, make_asset) -> ConfigAsset:
+    """公式资产 APPROVED + unit_tests 通过但 precondition 违规（TODO-031）。"""
+    asset = await make_asset(status=ConfigStatus.APPROVED.value, category="CATEGORY_2")
+    version = await _latest_version(db, asset.asset_id)
+    version.content_json = {
+        "expression": "a + b",
+        "parameters_json": {
+            "parameters": [{"name": "a", "default": 1.0}, {"name": "b", "default": 2.0}]
+        },
+        "unit_tests_json": {
+            "unit_tests": [
+                {"params": {"a": 1, "b": 2}, "expected": 3, "tolerance": 0.01}
+            ]
+        },
+        "preconditions": [
+            {"id": "PC-001", "target": "params.a", "expression": "value > 100"}
+        ],
+    }
+    await db.flush()
+    return asset
+
+
+@pytest_asyncio.fixture
 async def sample_approved_formula_with_failing_test(db, make_asset) -> ConfigAsset:
     """公式资产 APPROVED + unit_tests 含一条失败。"""
     asset = await make_asset(status=ConfigStatus.APPROVED.value, category="CATEGORY_2")

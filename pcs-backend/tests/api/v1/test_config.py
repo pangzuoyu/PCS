@@ -153,6 +153,30 @@ async def test_publish_fails_when_unit_tests_incomplete(
     assert "unit_tests" in r.json()["message"]
 
 
+async def test_publish_approved_with_preconditions(
+    client, sample_pc_token, sample_approved_formula_with_preconditions
+):
+    """TODO-031：preconditions 通过 + unit_tests 通过 → PUBLISH 200。"""
+    r = await client.post(
+        f"/api/v1/config/assets/{sample_approved_formula_with_preconditions.asset_id}/publish",
+        headers={"Authorization": f"Bearer {sample_pc_token}"},
+    )
+    assert r.status_code == 200
+    assert r.json()["status"] == "PUBLISHED"
+
+
+async def test_publish_fails_on_precondition_violation(
+    client, sample_pc_token, sample_approved_formula_failing_precondition
+):
+    """TODO-031：unit_tests 通过但 precondition 违规 → 422 信封。"""
+    r = await client.post(
+        f"/api/v1/config/assets/{sample_approved_formula_failing_precondition.asset_id}/publish",
+        headers={"Authorization": f"Bearer {sample_pc_token}"},
+    )
+    assert r.status_code == 422
+    assert "precondition" in r.json()["message"]
+
+
 # ---------------------------------------------------------------------------
 # POST /assets/{id}/obsolete
 # ---------------------------------------------------------------------------
