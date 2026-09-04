@@ -1114,3 +1114,17 @@
 | 21:41 | Edited pcs-backend/app/services/formula_service.py | added 1 import(s) | ~34 |
 | 21:43 | Edited pcs-backend/app/services/formula_service.py | 1→2 lines | ~33 |
 | 21:44 | Edited TODOS.md | 4→4 lines | ~131 |
+| 21:54 | Created docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | — | ~12353 |
+| 21:54 | Edited docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | modified _xlsx() | ~286 |
+| 21:55 | Edited docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | 5→3 lines | ~31 |
+| 22:02 | 三裁决落地（ADR-0029 接受/TODO-031 preconditions 接线+2 测试/仓库全量入库 6 commits）+ Sprint 1.9 计划入库 | formula_service/conftest/test_config/plans/2026-09-04-p2-sprint-1.9.md | 260 passed, tree clean | ~90k |
+| 22:05 | 核查 vendor（chemicals/thermo/CoolProp/fluids/ht, 355M, P0 起入库但零接线）：无 RD80 馏分表征；Twu_1985_internal 提供 Tb+SG→粘度 | vendor/*/ | 待裁决接线方案 | ~8k |
+| 22:00 | Edited docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | modified test_vendored_versions() | ~722 |
+| 22:00 | Edited docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | 6→7 lines | ~151 |
+| 22:00 | Edited docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | modified test_estimate_n_decane() | ~110 |
+| 22:01 | Edited docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | modified estimate() | ~279 |
+| 22:01 | Edited docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | 6→7 lines | ~84 |
+| 22:01 | Edited docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | 9→10 lines | ~160 |
+| 07:44 | Edited docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | 3→3 lines | ~137 |
+| 07:44 | Edited docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | 5→5 lines | ~156 |
+| 07:44 | Edited docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | inline fix | ~35 |
