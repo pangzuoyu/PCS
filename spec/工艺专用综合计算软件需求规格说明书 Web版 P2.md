@@ -351,6 +351,8 @@ CoolProp高精度物性（水蒸气等）
 
 管道等级库（重点）：
 
+等级绑定语义（2026-09-05 用户裁决）：管道计算选等级时按项目绑定——每个项目从 project_pipe_classes 启用清单中选等级，可自建 PROJECT 级等级（source=PROJECT）导入或新建；等级编码不跨项目归一（各项目沿用自身编码体系），class_id 全局唯一（字典表11 PK），项目自建编码需自行避免与他项目冲突。
+
 字段组	字段	说明
 基本信息	ClassID, ClassName, MaterialStandard	等级标识
 腐蚀	CorrosionAllowance	腐蚀裕量mm
