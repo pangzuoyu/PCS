@@ -6,6 +6,7 @@ from app.api.v1.checklist import router as checklist_router
 from app.api.v1.config import router as config_router
 from app.api.v1.health import router as health_router
 from app.api.v1.lineage import router as lineage_router
+from app.api.v1.pipe_classes import router as pipe_classes_router
 from app.api.v1.records import router as records_router
 from app.api.v1.workspaces import router as workspaces_router
 
@@ -18,3 +19,4 @@ api_router.include_router(records_router)
 api_router.include_router(lineage_router)
 api_router.include_router(change_impact_router)
 api_router.include_router(config_router)
+api_router.include_router(pipe_classes_router)
