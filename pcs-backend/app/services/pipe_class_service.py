@@ -17,6 +17,12 @@ from app.services.exceptions import PcsError
 
 _STATUS_OK = {"DRAFT", "ACTIVE", "OBSOLETE"}
 
+IMPORT_HEADERS = [
+    "class_id", "class_name", "material_standard", "corrosion_allowance",
+    "design_pressure", "design_temperature", "dn_min", "dn_max",
+    "sch_series(JSON)", "flange_class", "source", "version",
+]
+
 
 class PipeClassService:
     @classmethod
@@ -116,3 +122,59 @@ class PipeClassService:
             .order_by(ProjectPipeClass.class_id)
         )
         return list((await session.execute(stmt)).scalars())
+
+    # ------------------------------------------------------------------
+    # Excel 批量导入（Task 1.9.6 / P2-STD-001）
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def build_import_template(cls) -> bytes:
+        import io
+
+        from openpyxl import Workbook
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "pipe_classes"
+        ws.append(IMPORT_HEADERS)
+        buf = io.BytesIO()
+        wb.save(buf)
+        return buf.getvalue()
+
+    @classmethod
+    async def import_from_excel(cls, session, fileobj) -> dict:
+        import json
+
+        from openpyxl import load_workbook
+
+        wb = load_workbook(fileobj, read_only=True, data_only=True)
+        ws = wb["pipe_classes"] if "pipe_classes" in wb.sheetnames else wb.active
+        rows = list(ws.iter_rows(values_only=True))
+        if not rows or [str(c) for c in rows[0]] != IMPORT_HEADERS:
+            raise PcsError("表头不符（须用 /pipe-classes/import-template 模板）",
+                           code="IMPORT_BAD_HEADER", status=422)
+        imported = skipped = 0
+        errors: list[str] = []
+        for i, row in enumerate(rows[1:], start=2):
+            if not row or not row[0]:
+                continue
+            try:
+                sch = json.loads(row[8]) if row[8] else {}
+                payload = PipeClassCreate(
+                    class_id=str(row[0]), class_name=str(row[1]), material_standard=str(row[2]),
+                    corrosion_allowance=float(row[3]), design_pressure=float(row[4]),
+                    design_temperature=float(row[5]),
+                    dn_series_json={"min": int(row[6]), "max": int(row[7])},
+                    sch_series_json={str(k): str(v) for k, v in sch.items()},
+                    flange_class=str(row[9]), source=str(row[10]), version=str(row[11]),
+                )
+                await cls.create(session, payload=payload)
+                imported += 1
+            except PcsError as e:
+                if e.code == "PIPE_CLASS_DUP":
+                    skipped += 1
+                else:
+                    errors.append(f"行{i}: {e}")
+            except (ValueError, TypeError, json.JSONDecodeError) as e:
+                errors.append(f"行{i}: 解析失败 {e}")
+        return {"imported": imported, "skipped": skipped, "errors": errors}

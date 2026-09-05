@@ -11,7 +11,7 @@ from __future__ import annotations
 from typing import Annotated
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
@@ -46,6 +46,30 @@ async def create_pipe_class(
 ):
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeClassService.create(db, payload=payload)
+
+
+@router.get("/pipe-classes/import-template")
+async def download_import_template(
+    user: Annotated[_Actor, Depends(current_actor)],
+):
+    """导入模板下载（Task 1.9.6）。静态段：须注册在 /pipe-classes/{class_id} 之前。"""
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return Response(
+        content=PipeClassService.build_import_template(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=pipe_classes_template.xlsx"},
+    )
+
+
+@router.post("/pipe-classes/import")
+async def import_pipe_classes(
+    file: UploadFile,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """Excel 批量导入（Task 1.9.6）。静态段：须注册在 /pipe-classes/{class_id} 之前。"""
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeClassService.import_from_excel(db, file.file)
 
 
 @router.get("/pipe-classes/{class_id}", response_model=PipeClassResponse)
