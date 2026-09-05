@@ -20,6 +20,9 @@ dependencies = [
     "pyjwt>=2.8",
     "openpyxl>=3.1.5",
     "jinja2>=3.1",
+    "chemicals>=1.5.2",
+    "fluids>=1.3.1",
+    "thermo>=0.6.1",
 ]
 
 [dependency-groups]
@@ -52,3 +55,8 @@ check_untyped_defs = true
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+
+[tool.uv.sources]
+fluids = { path = "vendor/fluids", editable = true }
+chemicals = { path = "vendor/chemicals", editable = true }
+thermo = { path = "vendor/thermo", editable = true }
