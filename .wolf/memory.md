@@ -1151,3 +1151,7 @@
 | 16:08 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版开发计划.md | 10→12 lines | ~99 |
 | 16:08 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版开发计划.md | 12→14 lines | ~86 |
 | 09-05 11:20 | SUP-002 升 V1.1（§0 实施对齐：绑定裁决+三源现状+schema 差异表+修补评估）；PPG 种子 V2 重生成（NPS26-34 映射补齐）；开发计划 P2§2.5/P3§3.4 增补 | spec/PCS-SPEC-P2-SUP-002*.md, app/seeds/pipe_classes_ppg.*, 开发计划.md | 新增 PC-OPEN-06/07 待裁决 | ~30k |
+| 16:23 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | 5→5 lines | ~52 |
+| 16:23 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | expanded (+12 lines) | ~380 |
+| 16:24 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | 6→7 lines | ~130 |
+| 09-05 16:30 | SUP-002 V1.2 定稿（七裁决落 §0.5 与正文三表）+ neqsim/ 入 .gitignore | SUP-002*.md, .gitignore, cerebrum.md | 待裁决清零 | ~15k |

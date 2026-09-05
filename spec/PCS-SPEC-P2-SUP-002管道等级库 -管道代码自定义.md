@@ -1,8 +1,8 @@
 P2 增补 Spec——管道等级库 + 管道代码自定义（合并版）
 文档编号：PCS-SPEC-P2-SUP-002
-版本：V1.1（2026-09-05 修订：综合 Sprint 1.9 实施现状、三源种子数据、用户绑定裁决，新增 §0 实施对齐；原 V1.0 正文模型保持目标态定义）
+版本：V1.2（2026-09-05 定稿：七项待裁决全部落定——PC-OPEN-06/07、SYM/FMT/INT-OPEN，见 §0.5；V1.1 为实施对齐版，V1.0 为初稿）
 日期：2026-09-05
-状态：待评审（V1.1 增 PC-OPEN-06/07 两项待裁决）
+状态：已定稿（作为 P2 追加 Sprint 实施依据）
 依赖：SPEC-P2 V1.4、Plan Design 主文档、D29–D34 裁决、P2 Sprint 1.9 计划（docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md）、三源种子（pcs-backend/app/seeds/pipe_classes_*.json）
 范围：管道等级库（CATEGORY_5 子集）+ 管道代码（物流符号表 + 格式模板）项目级自定义
 
@@ -59,6 +59,18 @@ P2 增补 Spec——管道等级库 + 管道代码自定义（合并版）
 - **P2 Sprint 1.9（进行中）**：不返工。其 3 态 + assign 模型是 PC-3/PC-4/PC-6 的薄实现；SUP Sprint 到位后将 assign 语义升级为 fork/快照、3 态并入 5 态（迁移兼容：DRAFT/ACTIVE→DRAFT、OBSOLETE→OBSOLETE，PENDING/APPROVED 新增）。
 - **P1（状态机框架）**：无涉，可直接复用 ConfigStateMachine。
 
+0.5 裁决落定（V1.2，用户 2026-09-05）
+
+| 编号 | 裁决 | 要点 |
+|---|---|---|
+| PC-OPEN-06 | **5 态接入选 a：pipe_classes 挂 ConfigAsset** | 复用 ConfigStateMachine 与 submit/approve/publish/obsolete 端点（CATEGORY_5）；审计枚举复用 CONFIG_ASSET_*，前版草案的 PIPE_CLASS_CREATED/IMPORTED 两枚取消 |
+| PC-OPEN-07 | **保留 class_id 自然码 + 新增 asset_id UUID FK → config_assets** | piping_results FK 不破坏；ConfigAsset.name 存 class_name（或 class_id - class_name）；**pipe_classes.status 为镜像列**——ConfigStateMachine 在 transition 落库时同事务同步写，保证免 join 直查；class_id 放宽为 varchar(50) |
+| 3 态→5 态迁移 | PC-1 一次收口 | 薄层实际 3 态 DRAFT/ACTIVE/OBSOLETE → DRAFT/PUBLISHED/OBSOLETE（PENDING/APPROVED 迁移后为空集）；ACTIVE→PUBLISHED |
+| SYM-OPEN-01 | 符号表走 5 态审批（挂 ConfigAsset，CATEGORY_5） | 项目级符号表亦 5 态，审批链为项目内角色 |
+| FMT-OPEN-01 | auto_increment 默认 scope = project_id + stream_symbol | 同项目同介质独立递增（P 从 001、WA 也从 001，互不干扰） |
+| FMT-OPEN-02 | 管道代码格式变更触发下游 STALE（data_lineage 传播） | 影响所有已生成代码的解释，必须标记 |
+| INT-OPEN-01 | 符号表 + 格式模板均归 CATEGORY_5 | ConfigAsset 增 asset_subtype 区分（PIPE_CLASS / STREAM_SYMBOL / PIPE_CODE_TEMPLATE；若不增列则用 name 前缀） |
+
 第一部分：管道等级库（Pipe Classes）
 1. 范围与定位
 管道等级库是 CATEGORY_5 标准数据库的首个落地子集。本部分定义其两层结构（公司级标准库 + 项目级覆写）、输入方式、验证引擎和审批流程。
@@ -77,10 +89,11 @@ text
 项目 fork 时完整复制公司级 PUBLISHED 字段到 snapshot_json。公司级后续变更不影响已 fork 的项目。完全继承模式始终引用公司级当前 PUBLISHED 版本。
 
 2. 数据模型
-（V1.1 注：下表为目标态定义；与 P0 已入库 schema 的差异及迁移处置见 §0.3——allowable_stress/branch_table 建议保留 JSONB、PK 建议保留自然码，均待 PC-OPEN-06/07 裁决后定稿。）
+（V1.2 注：下表已按 §0.5 裁决修订——class_id 保留自然码 PK、新增 asset_id FK 挂 ConfigAsset、status 为 5 态镜像列；allowable_stress/branch_table 按 §0.3 建议保留 JSONB。与 P0 已入库 schema 的差异迁移见 §0.3。）
 2.1 公司级 pipe_classes
 字段	类型	约束	说明
-class_id	UUID PK	—	等级唯一标识
+class_id	varchar(50) PK	—	等级自然码（U1、A1B、150C10F01RF），piping_results.material_class FK 引用
+asset_id	UUID FK → config_assets	新增（PC-OPEN-07）	状态机挂靠：category=CATEGORY_5，asset_subtype=PIPE_CLASS（INT-OPEN-01）；ConfigAsset.name 存 class_name
 class_name	varchar(100)	UNIQUE（全局）	等级名称，如 A1A、U4
 material_standard	varchar(50)	NOT NULL	设计标准，如 ASME B31.3
 base_material	varchar(100)	NOT NULL	材料牌号，如 A106 Gr.B，支持斜杠分隔组合
@@ -95,7 +108,7 @@ fitting_type	varchar(200)	自由文本	斜杠分隔枚举组合
 branch_table	varchar(100)	引用 COMMON	分支表名
 source	varchar(200)	—	来源说明
 version	int	—	版本号
-status	varchar(20)	5 态	DRAFT→PENDING→APPROVED→PUBLISHED→OBSOLETE
+status	varchar(20)	5 态镜像列	DRAFT→PENDING→APPROVED→PUBLISHED→OBSOLETE；与 config_assets.status 同事务同步（ConfigStateMachine transition 落库时写）
 created_by/at	—	—	审计字段
 2.2 项目级 project_pipe_classes
 字段	类型	约束	说明
@@ -226,6 +239,7 @@ GET    /api/v1/projects/{project_id}/pipe-classes/effective/{class_name}
 7.1 公司级 stream_symbols
 字段	类型	约束	说明
 symbol_id	UUID PK	—	唯一标识
+asset_id	UUID FK → config_assets	新增（SYM-OPEN-01/INT-OPEN-01）	状态机挂靠：CATEGORY_5，asset_subtype=STREAM_SYMBOL
 symbol	varchar(10)	UNIQUE（全局）	符号，如 P、WA、WRr
 name	varchar(200)	NOT NULL	含义，如 PROCESS FLUID
 category	varchar(50)	—	分类（PROCESS/UTILITY/WASTE/VENT/...）
@@ -289,6 +303,7 @@ POST   /api/v1/projects/{project_id}/stream-symbols/{id}/obsolete
 11.1 公司级 pipe_code_templates
 字段	类型	约束	说明
 template_id	UUID PK	—	唯一标识
+asset_id	UUID FK → config_assets	新增（INT-OPEN-01）	状态机挂靠：CATEGORY_5，asset_subtype=PIPE_CODE_TEMPLATE；格式变更经 data_lineage 触发下游 STALE（FMT-OPEN-02）
 template_name	varchar(100)	UNIQUE	模板名称
 description	varchar(500)	—	说明
 format_definition_json	json	NOT NULL	分段定义（见 §11.3）
@@ -378,7 +393,7 @@ text
 1. 解析项目级 format_definition_json（若无则用公司级）
 2. 按 position 顺序拼接各段
 3. stream_symbol 段：从项目级符号表（或公司级）取值验证
-4. auto_increment 段：按 scope（同一项目+同一 symbol 或全局）递增
+4. auto_increment 段：默认 scope = project_id + stream_symbol（FMT-OPEN-01 裁决），可配置
 5. 返回完整代码 + 各段解析结果
 13.2 并发保障
 auto_increment 段在事务内 SELECT ... FOR UPDATE 行锁，保证同一项目内不重复。UNIQUE(project_id, pipe_code) 兜底。
@@ -460,12 +475,12 @@ PC-OPEN-02	项目级全新创建双审适用范围	统一双审，后续按规�
 PC-OPEN-03	完全继承模式自动跟随公司级更新	是，始终引用当前 PUBLISHED	已裁决 D32
 PC-OPEN-04	等级库与 CATEGORY_1 默认列表联动	项目创建时自动 fork	已裁决 D33
 PC-OPEN-05	base_material 多材料存储	varchar 斜杠分隔，P3 结构化	已裁决 D34
-PC-OPEN-06	公司级 5 态接入方式	a) pipe_classes 挂 ConfigAsset（CATEGORY_5）复用 ConfigStateMachine 与 submit/approve/publish 端点（与 CATEGORY_2~4 一致，推荐）；b) pipe_classes 直接扩 PENDING/APPROVED 两态列值	待确认（V1.1 新增）
-PC-OPEN-07	公司级 PK 形态	建议保留 class_id String(20) 自然码（piping_results FK 已引用、三源种子按码入库、字典表11 权威），class_name 加全局唯一索引；迁 UUID 收益低破坏面大	待确认（V1.1 新增）
-SYM-OPEN-01	符号表是否需要审批流，还是项目内自由维护	建议走 5 态审批	待确认
-FMT-OPEN-01	auto_increment 递增 scope 默认值	建议默认按 project+symbol 独立递增	待确认
-FMT-OPEN-02	管道代码变更是否触发下游 STALE	建议是，通过 data_lineage 传播	待确认
-INT-OPEN-01	管道等级库与物流符号表是否都并入 CATEGORY_5，还是符号表独立成类	建议符号表和格式模板均归 CATEGORY_5	待确认
+PC-OPEN-06	公司级 5 态接入方式	a) pipe_classes 挂 ConfigAsset（CATEGORY_5）复用 ConfigStateMachine 与 submit/approve/publish 端点	已裁决 2026-09-05（选 a；审计复用 CONFIG_ASSET_*，PIPE_CLASS_* 两枚取消）
+PC-OPEN-07	公司级 PK 形态	保留 class_id 自然码（varchar(50)），新增 asset_id UUID FK → config_assets；status 为镜像列同事务同步	已裁决 2026-09-05
+SYM-OPEN-01	符号表是否需要审批流，还是项目内自由维护	走 5 态审批（挂 ConfigAsset CATEGORY_5；项目级审批链为项目内角色）	已裁决 2026-09-05
+FMT-OPEN-01	auto_increment 递增 scope 默认值	默认 scope = project_id + stream_symbol（同介质独立递增）	已裁决 2026-09-05
+FMT-OPEN-02	管道代码变更是否触发下游 STALE	是，通过 data_lineage 传播	已裁决 2026-09-05
+INT-OPEN-01	管道等级库与物流符号表是否都并入 CATEGORY_5，还是符号表独立成类	均归 CATEGORY_5，ConfigAsset 以 asset_subtype 区分（PIPE_CLASS/STREAM_SYMBOL/PIPE_CODE_TEMPLATE）	已裁决 2026-09-05
 附录 A：管道等级索引总表
 （V1.1：PPG MRQ-0001 样表，已按源文档核对修正；完整三源 71 等级见 `pcs-backend/app/seeds/pipe_classes_{bep_rev0,kaimen_20048a,ppg}.json`。Status 列为 SUP 目标态语义——种子导入 1.9.6 后初始为 DRAFT。）
 Piping Class	Service	Design Press. (MPa)	Design Temp. (°C)	Flange Class	Base Material	Corr. Allow. (mm)	DN 系列	Sch 系列（简写）	Branch Table	Status

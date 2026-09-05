@@ -56,3 +56,5 @@
 - [2026-09-05] 工程常数禁止凭记忆写：先查文献（HAL/期刊 PDF 可拿到原式），再用已知纯组分（n-癸烷 Tb 447.3K SG 0.73）数值闭环验证后才入计划。查不到可靠来源就明确排除（Vc/Zc 先例）。
 - [2026-09-05] 用户裁决：管道计算选等级按项目绑定，每个项目可自建管道库（source=PROJECT）；等级编码不跨项目归一，class_id 全局唯一 PK。遗留边界：跨项目同码不同值需复合 PK 迁移，P3 复核。
 - [2026-09-05] P2-OPEN-001 三源数据：BEP 4.3 Rev0（6, COMPANY_STD）/ Kaimen ABS IFC SPC-0004-C1（54, PROJECT）/ PPG MRQ-0001（11, PROJECT）。NAS 源路径见各 seed JSON meta。
+- [2026-09-05] SUP-002 V1.2 定稿七裁决：5 态挂 ConfigAsset（CATEGORY_5，asset_subtype 区分 PIPE_CLASS/STREAM_SYMBOL/PIPE_CODE_TEMPLATE）；pipe_classes 保留自然码 PK + asset_id FK + status 镜像列（同事务同步）；薄层 ACTIVE→PUBLISHED 迁移映射；符号表同挂 5 态；auto_increment scope=project+symbol；格式变更 data_lineage 传播 STALE；审计枚举复用 CONFIG_ASSET_*。
+- [2026-09-05] neqsim/ 用户裁不入库，已加 .gitignore。
