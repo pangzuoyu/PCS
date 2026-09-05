@@ -1,0 +1,393 @@
+{
+ "meta": {
+  "source": "Worley PPG 项目压力反应器（with Agitators）MRQ-0001：08-CC07121065B-00-PI-SPC-0002 0 Piping Material Classification",
+  "source_path": "/media/pangzy/F8A6CB1CA6CAD9F01/nas/work/worley/f/ppg/detaildesign/详细设计图纸目录/PPG/Datasheet and specification/9.0 Vessel/PPG-Vessel-ITB/MRQ-0001 3 Pressure Vessels Reactor (with Agitators)/08-CC07121065B-00-PI-SPC-0002 0 Piping Material Classification.doc",
+  "version": "CC07121065B-SPC-0002-0",
+  "extracted": "2026-09-05"
+ },
+ "pipe_classes": [
+  {
+   "class_id": "U1",
+   "class_name": "U1 A106Gr.B/GALV Compressure air (Instrument ai",
+   "material_standard": "A106 Gr.B / GALV",
+   "corrosion_allowance": 0.0,
+   "design_pressure": 1.0,
+   "design_temperature": 60.0,
+   "fluid_service": "IA,PA",
+   "dn_series_json": {
+    "min": 15,
+    "max": 200
+   },
+   "sch_series_json": {
+    "15": "XS",
+    "20": "XS",
+    "25": "XS",
+    "32": "XS",
+    "40": "XS",
+    "50": "XS",
+    "80": "STD",
+    "100": "STD",
+    "150": "STD",
+    "200": "STD"
+   },
+   "flange_class": "150LbThread SO",
+   "fitting_type": "BW",
+   "branch_table_json": {
+    "source": "CC07121065B-PI-SPC-0002-0",
+    "pt_rating": "-29 38 50 100"
+   },
+   "note": "Compressure; air; (Instrument; air; and; Plant; air); N2/air"
+  },
+  {
+   "class_id": "U2",
+   "class_name": "U2 A106 Gr.B Natural Gas",
+   "material_standard": "A106 Gr.B",
+   "corrosion_allowance": 1.6,
+   "design_pressure": 1.6,
+   "design_temperature": 60.0,
+   "fluid_service": "NG",
+   "dn_series_json": {
+    "min": 15,
+    "max": 150
+   },
+   "sch_series_json": {
+    "15": "XS",
+    "20": "XS",
+    "25": "XS",
+    "32": "XS",
+    "40": "XS",
+    "50": "STD",
+    "65": "STD",
+    "80": "STD",
+    "100": "STD",
+    "150": "STD"
+   },
+   "flange_class": "150Lb SW 150Lb WN",
+   "fitting_type": "BW",
+   "branch_table_json": {
+    "source": "CC07121065B-PI-SPC-0002-0",
+    "pt_rating": "-29 38 50 100"
+   },
+   "note": "Natural; Gas"
+  },
+  {
+   "class_id": "U3",
+   "class_name": "U3 A106 Gr.B Steam Condensate",
+   "material_standard": "A106 Gr.B",
+   "corrosion_allowance": 1.6,
+   "design_pressure": 1.6,
+   "design_temperature": 220.0,
+   "fluid_service": "LPS,,LCS",
+   "dn_series_json": {
+    "min": 15,
+    "max": 300
+   },
+   "sch_series_json": {
+    "15": "XS",
+    "20": "XS",
+    "25": "XS",
+    "32": "XS",
+    "40": "XS",
+    "50": "STD",
+    "65": "STD",
+    "80": "STD",
+    "100": "STD",
+    "150": "STD",
+    "200": "STD",
+    "250": "STD",
+    "300": "STD"
+   },
+   "flange_class": "300Lb SW 300Lb WN",
+   "fitting_type": "BW",
+   "branch_table_json": {
+    "source": "CC07121065B-PI-SPC-0002-0",
+    "pt_rating": "-29/38 50 100 150"
+   },
+   "note": "Steam; Condensate"
+  },
+  {
+   "class_id": "U4",
+   "class_name": "U4 A106 Gr.B Cooling water Chilled water Ni",
+   "material_standard": "A106 Gr.B",
+   "corrosion_allowance": 1.6,
+   "design_pressure": 1.0,
+   "design_temperature": 110.0,
+   "fluid_service": "CW,RWR,N,IW",
+   "dn_series_json": {
+    "min": 15,
+    "max": 900
+   },
+   "sch_series_json": {
+    "15": "XS",
+    "20": "XS",
+    "25": "XS",
+    "32": "XS",
+    "40": "XS",
+    "50": "STD",
+    "65": "STD",
+    "80": "STD",
+    "100": "STD",
+    "150": "STD",
+    "200": "STD",
+    "250": "STD",
+    "300": "STD",
+    "350": "STD",
+    "400": "STD",
+    "450": "STD",
+    "500": "STD",
+    "600": "STD",
+    "900": "STD"
+   },
+   "flange_class": "150Lb SW 150Lb SO",
+   "fitting_type": "BW",
+   "branch_table_json": {
+    "source": "CC07121065B-PI-SPC-0002-0",
+    "pt_rating": "-29 38 50 100"
+   },
+   "note": "Cooling; water; Chilled; water; Nitrogen; Industry; water"
+  },
+  {
+   "class_id": "U5",
+   "class_name": "U5 A106 Gr.B Hot oil supply/return",
+   "material_standard": "A106 Gr.B",
+   "corrosion_allowance": 1.6,
+   "design_pressure": 1.6,
+   "design_temperature": 390.0,
+   "fluid_service": "HF,HFS,,HFR",
+   "dn_series_json": {
+    "min": 15,
+    "max": 300
+   },
+   "sch_series_json": {
+    "15": "XS",
+    "20": "XS",
+    "25": "XS",
+    "32": "XS",
+    "40": "XS",
+    "50": "STD",
+    "65": "STD",
+    "80": "STD",
+    "100": "STD",
+    "150": "STD",
+    "200": "STD",
+    "250": "STD",
+    "300": "Sch40"
+   },
+   "flange_class": "300Lb SW 300Lb WN",
+   "fitting_type": "BW",
+   "branch_table_json": {
+    "source": "CC07121065B-PI-SPC-0002-0",
+    "pt_rating": "-29 50 100 150"
+   },
+   "note": "Hot; oil; supply/return"
+  },
+  {
+   "class_id": "U6",
+   "class_name": "U6 A106 Gr.B Steam Condensate",
+   "material_standard": "A106 Gr.B",
+   "corrosion_allowance": 1.6,
+   "design_pressure": 1.2,
+   "design_temperature": 220.0,
+   "fluid_service": "HPS,HCS",
+   "dn_series_json": {
+    "min": 15,
+    "max": 300
+   },
+   "sch_series_json": {
+    "15": "XS",
+    "20": "XS",
+    "25": "XS",
+    "32": "XS",
+    "40": "XS",
+    "50": "STD",
+    "65": "STD",
+    "80": "STD",
+    "100": "STD",
+    "150": "STD",
+    "200": "STD",
+    "250": "STD",
+    "300": "STD"
+   },
+   "flange_class": "150Lb SW 150Lb WN",
+   "fitting_type": "BW",
+   "branch_table_json": {
+    "source": "CC07121065B-PI-SPC-0002-0",
+    "pt_rating": "-29/38 50 100 150"
+   },
+   "note": "Steam; Condensate"
+  },
+  {
+   "class_id": "U7",
+   "class_name": "U7 A106Gr.B/GALV Fire water",
+   "material_standard": "A106 Gr.B / GALV",
+   "corrosion_allowance": 0.0,
+   "design_pressure": 1.6,
+   "design_temperature": 60.0,
+   "fluid_service": "FW",
+   "dn_series_json": {
+    "min": 15,
+    "max": 200
+   },
+   "sch_series_json": {
+    "15": "XS",
+    "20": "XS",
+    "25": "XS",
+    "32": "XS",
+    "40": "XS",
+    "50": "XS",
+    "80": "STD",
+    "100": "STD",
+    "150": "STD",
+    "200": "STD"
+   },
+   "flange_class": "150LbThread 150Lb SO",
+   "fitting_type": "BW",
+   "branch_table_json": {
+    "source": "CC07121065B-PI-SPC-0002-0",
+    "pt_rating": "-29 38 50 100"
+   },
+   "note": "Fire; water"
+  },
+  {
+   "class_id": "U8",
+   "class_name": "U8 A106 Gr.B Fire water",
+   "material_standard": "A106 Gr.B",
+   "corrosion_allowance": 1.6,
+   "design_pressure": 1.6,
+   "design_temperature": 60.0,
+   "fluid_service": "FW",
+   "dn_series_json": {
+    "min": 15,
+    "max": 300
+   },
+   "sch_series_json": {
+    "15": "XS",
+    "20": "XS",
+    "25": "XS",
+    "32": "XS",
+    "40": "XS",
+    "50": "STD",
+    "65": "STD",
+    "80": "STD",
+    "100": "STD",
+    "150": "STD",
+    "200": "STD",
+    "250": "STD",
+    "300": "STD"
+   },
+   "flange_class": "150Lb SW 150Lb SO",
+   "fitting_type": "BW",
+   "branch_table_json": {
+    "source": "CC07121065B-PI-SPC-0002-0",
+    "pt_rating": "-29 38 50 100"
+   },
+   "note": "Fire; water"
+  },
+  {
+   "class_id": "P1",
+   "class_name": "P1 A312  Tp316L Di-tert-amyl peroxide Luperox ",
+   "material_standard": "A312  TP316L",
+   "corrosion_allowance": 0.0,
+   "design_pressure": 1.5,
+   "design_temperature": 60.0,
+   "fluid_service": null,
+   "dn_series_json": {
+    "min": 15,
+    "max": 300
+   },
+   "sch_series_json": {
+    "15": "SCH40s",
+    "20": "SCH40s",
+    "25": "SCH40s",
+    "32": "SCH40s",
+    "40": "SCH40s",
+    "50": "SCH10s",
+    "65": "SCH10s",
+    "80": "SCH10s",
+    "100": "SCH10s",
+    "150": "SCH10s",
+    "200": "SCH10s",
+    "250": "SCH10s",
+    "300": "SCH10s"
+   },
+   "flange_class": "150Lb WN",
+   "fitting_type": "BW",
+   "branch_table_json": {
+    "source": "CC07121065B-PI-SPC-0002-0",
+    "pt_rating": "-29 38 50 100"
+   },
+   "note": "Di-tert-amyl; peroxide; Luperox; DAT; Phosphoric; acid"
+  },
+  {
+   "class_id": "P2",
+   "class_name": "P2 A312  Tp304L Vent of resin  production Vacu",
+   "material_standard": "A312  TP304L",
+   "corrosion_allowance": 0.0,
+   "design_pressure": 1.0,
+   "design_temperature": 200.0,
+   "fluid_service": "RPV,VAC,VT,DIW,RP,DR,DW,RE,V19,V21,V29,V30,V33,V34,V40,V41,V42,V43,V44,N",
+   "dn_series_json": {
+    "min": 15,
+    "max": 900
+   },
+   "sch_series_json": {
+    "15": "SCH40s",
+    "20": "SCH40s",
+    "25": "SCH40s",
+    "32": "SCH40s",
+    "40": "SCH40s",
+    "50": "SCH10s",
+    "65": "SCH10s",
+    "80": "SCH10s",
+    "100": "SCH10s",
+    "150": "SCH10s",
+    "200": "SCH10s",
+    "250": "SCH10s",
+    "300": "SCH10s",
+    "350": "SCH10s",
+    "400": "SCH10s",
+    "450": "SCH10s",
+    "500": "SCH10s",
+    "600": "SCH10s"
+   },
+   "flange_class": "150Lb SW 150Lb SO",
+   "fitting_type": "BW",
+   "branch_table_json": {
+    "source": "CC07121065B-PI-SPC-0002-0",
+    "pt_rating": "-29 50 100 150"
+   },
+   "note": "Vent; of; resin; production; Vacuum; Vent; Drain; Portable; Water; DI; Water; Resin; VT，V19; V21，V29; V30，V33; V34,V40; V41,V42; V43,V44; Nitrogen"
+  },
+  {
+   "class_id": "P3",
+   "class_name": "P3 A312  Tp304L Tempered water",
+   "material_standard": "A312  TP304L",
+   "corrosion_allowance": 0.0,
+   "design_pressure": 1.9,
+   "design_temperature": 200.0,
+   "fluid_service": "TWR",
+   "dn_series_json": {
+    "min": 15,
+    "max": 100
+   },
+   "sch_series_json": {
+    "15": "SCH40s",
+    "20": "SCH40s",
+    "25": "SCH40s",
+    "32": "SCH40s",
+    "40": "SCH40s",
+    "50": "SCH40s",
+    "65": "SCH40s",
+    "80": "SCH40s",
+    "100": "SCH40s"
+   },
+   "flange_class": "300Lb SW 300Lb SO",
+   "fitting_type": "BW",
+   "branch_table_json": {
+    "source": "CC07121065B-PI-SPC-0002-0",
+    "pt_rating": "-29 50 100 150"
+   },
+   "note": "Tempered; water"
+  }
+ ]
+}
