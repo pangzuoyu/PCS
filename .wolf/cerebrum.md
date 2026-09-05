@@ -58,3 +58,4 @@
 - [2026-09-05] P2-OPEN-001 三源数据：BEP 4.3 Rev0（6, COMPANY_STD）/ Kaimen ABS IFC SPC-0004-C1（54, PROJECT）/ PPG MRQ-0001（11, PROJECT）。NAS 源路径见各 seed JSON meta。
 - [2026-09-05] SUP-002 V1.2 定稿七裁决：5 态挂 ConfigAsset（CATEGORY_5，asset_subtype 区分 PIPE_CLASS/STREAM_SYMBOL/PIPE_CODE_TEMPLATE）；pipe_classes 保留自然码 PK + asset_id FK + status 镜像列（同事务同步）；薄层 ACTIVE→PUBLISHED 迁移映射；符号表同挂 5 态；auto_increment scope=project+symbol；格式变更 data_lineage 传播 STALE；审计枚举复用 CONFIG_ASSET_*。
 - [2026-09-05] neqsim/ 用户裁不入库，已加 .gitignore。
+- [2026-09-05] 用户复核裁决：pipe_classes.version 保留 str50 不迁 int（版本号多为 Rev 0/IFC 文本；权威链在 config_versions）；SUP V1.3 修正 7 处（JSONB 字段名/尾部状态/附录 A 注释/INT-2 前端并入 P2 Sprint 2）。

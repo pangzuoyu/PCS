@@ -1,6 +1,6 @@
 P2 增补 Spec——管道等级库 + 管道代码自定义（合并版）
 文档编号：PCS-SPEC-P2-SUP-002
-版本：V1.2（2026-09-05 定稿：七项待裁决全部落定——PC-OPEN-06/07、SYM/FMT/INT-OPEN，见 §0.5；V1.1 为实施对齐版，V1.0 为初稿）
+版本：V1.3（2026-09-05 复核修正：§2.1 allowable_stress/branch_table 改 JSONB 字段名、version 列裁决保留 str50、尾部状态行对齐、附录 A Status 注释澄清、INT-2 前端延后标注；V1.2 为七裁决定稿版，V1.1 实施对齐，V1.0 初稿）
 日期：2026-09-05
 状态：已定稿（作为 P2 追加 Sprint 实施依据）
 依赖：SPEC-P2 V1.4、Plan Design 主文档、D29–D34 裁决、P2 Sprint 1.9 计划（docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md）、三源种子（pcs-backend/app/seeds/pipe_classes_*.json）
@@ -48,7 +48,7 @@ P2 增补 Spec——管道等级库 + 管道代码自定义（合并版）
 | base_material | 无（material_standard str100 承载） | 独立列 | 增列迁移，种子回填 |
 | allowable_stress | `allowable_stress_json` JSONB | varchar 引用 COMMON 表名 | **建议保留 JSONB**（可内嵌引用表名 + 覆写值，信息量更大），SUP §2.1 相应放宽 |
 | branch_table | `branch_table_json` JSONB | varchar 引用 | 同上，保留 JSONB |
-| version | str50 | int | 增列 version_seq int 或保留 str50（PC-1 定） |
+| version | str50 | int | **已裁决保留 str50，不迁移**（2026-09-05）：版本号多为「Rev 0/IFC」文本；权威版本链在 config_versions，此列仅源文档镜像 |
 | status | 3 态 | 5 态 | 接入方式待裁决（PC-OPEN-06） |
 | 项目级表 | `project_pipe_classes` 复合 PK(project_id,class_id) + enabled + custom_override_json，轻量关联 | 独立 UUID PK + source_class_id FK 可空 + 项目内 class_name 唯一 + override/snapshot 双 JSON + 项目级 5 态 | 结构迁移：扩列（class_name/snapshot_json/status）+ 现复合 PK 行回填（source_class_id=原 class_id，override 迁自 custom_override_json）；`enabled` 语义并入 status |
 | 项目创建 fork | 无（1.9.2 仅手工 assign） | 模板默认列表自动 fork + 快照 | PC-4 + INT-1 |
@@ -100,12 +100,12 @@ base_material	varchar(100)	NOT NULL	材料牌号，如 A106 Gr.B，支持斜杠�
 corrosion_allowance	numeric(4,2)	≥ 0，≤ 6.5，NOT NULL	腐蚀裕量 mm，0 = 工程判断无腐蚀
 design_pressure	numeric(8,2)	> 0，≤ 42	设计压力 MPa
 design_temperature	numeric(8,2)	-196 ~ 650	设计温度 °C
-allowable_stress_table	varchar(100)	引用 COMMON	许用应力表名
+allowable_stress_json	JSONB	可内嵌引用 + 覆写	{"table": "COMMON_ASME_B31_3_TABLE_A1", "overrides": {...}}——与 P0 现状一致，§0.3 建议采纳
 dn_series_json	json	NOT NULL	{"min":15, "max":900, "series":[...]}
 sch_series_json	json	NOT NULL	{"DN15":[40,80,160], ...}
 flange_class	varchar(20)	枚举	150#~2500#
 fitting_type	varchar(200)	自由文本	斜杠分隔枚举组合
-branch_table	varchar(100)	引用 COMMON	分支表名
+branch_table_json	JSONB	可内嵌引用 + 覆写	同上——与 P0 现状一致
 source	varchar(200)	—	来源说明
 version	int	—	版本号
 status	varchar(20)	5 态镜像列	DRAFT→PENDING→APPROVED→PUBLISHED→OBSOLETE；与 config_assets.status 同事务同步（ConfigStateMachine transition 落库时写）
@@ -141,7 +141,8 @@ json
   "sch_series_json": {"DN15":[40,80,160], ...},
   "flange_class": "150#",
   "fitting_type": "对焊",
-  "branch_table": "COMMON_BRANCH_TABLE_01"
+  "allowable_stress_json": {"table": "COMMON_ASME_B31_3_TABLE_A1"},
+  "branch_table_json": {"table": "COMMON_BRANCH_TABLE_01"}
 }
 2.4 有效值解析
 text
@@ -442,7 +443,7 @@ text
 16. 任务分解
 （V1.1 注：P2 Sprint 1.9 已落地薄层——1.9.1 service（3 态 CRUD/作废/在用保护）≈ PC-3 子集、1.9.2 API ≈ PC-6 子集、1.9.6 Excel 导入（单 Sheet 12 列）+ 三源 71 等级种子 ≈ PC-5 子集；下表为 SUP Sprint 增量口径。）
 任务 ID	内容	依赖	工时
-PC-1	管道等级差异迁移 + ORM（按 §0.3 差异表：base_material/version 扩列、项目级表重构 + 现有行回填；PC-OPEN-06/07 裁决后定稿）	无	0.5 天
+PC-1	管道等级差异迁移 + ORM（按 §0.3 差异表：base_material 扩列 + asset_id FK、项目级表重构 + 现有行回填；version 保留 str50 已裁决，不迁 int）	无	0.5 天
 PC-2	管道等级验证引擎（22 条规则）	PC-1	1 天
 PC-3	管道等级公司级 CRUD + 5 态接入	PC-1	1 天
 PC-4	管道等级项目级 fork + 快照 + 有效值解析	PC-3	1 天
@@ -456,7 +457,7 @@ FMT-2	格式模板 CRUD + 验证规则（FMT 系列）	FMT-1	1 天
 FMT-3	代码生成器 + 验证器 + 并发保障	FMT-1, SYM-2	1.5 天
 FMT-4	管道代码 API + 测试	FMT-2, FMT-3	1 天
 INT-1	CATEGORY_1 项目模板集成（3 个新字段）	PC-3, SYM-2, FMT-2	0.5 天
-INT-2	前端表单组件（等级编辑 + 符号表管理 + 格式设计器）	PC-3, SYM-2, FMT-2	2.5 天
+INT-2	前端表单组件（等级编辑 + 符号表管理 + 格式设计器）【延后：与 P2 Sprint 2 前端波合并，SUP Sprint 后端先行时本项移出】	PC-3, SYM-2, FMT-2	2.5 天
 INT-3	端到端集成测试	全部	1 天
 合计			15.5 天（约 3 周）
 第五部分：测试策略
@@ -482,7 +483,7 @@ FMT-OPEN-01	auto_increment 递增 scope 默认值	默认 scope = project_id + st
 FMT-OPEN-02	管道代码变更是否触发下游 STALE	是，通过 data_lineage 传播	已裁决 2026-09-05
 INT-OPEN-01	管道等级库与物流符号表是否都并入 CATEGORY_5，还是符号表独立成类	均归 CATEGORY_5，ConfigAsset 以 asset_subtype 区分（PIPE_CLASS/STREAM_SYMBOL/PIPE_CODE_TEMPLATE）	已裁决 2026-09-05
 附录 A：管道等级索引总表
-（V1.1：PPG MRQ-0001 样表，已按源文档核对修正；完整三源 71 等级见 `pcs-backend/app/seeds/pipe_classes_{bep_rev0,kaimen_20048a,ppg}.json`。Status 列为 SUP 目标态语义——种子导入 1.9.6 后初始为 DRAFT。）
+（V1.3：PPG MRQ-0001 样表，已按源文档核对修正；完整三源 71 等级见 `pcs-backend/app/seeds/pipe_classes_{bep_rev0,kaimen_20048a,ppg}.json`。Status 列展示的是三源种子在 P2 完成后的目标态（PUBLISHED）——实际经 1.9.6 导入后初始为 DRAFT，须走 CONFIG 审批流发布。）
 Piping Class	Service	Design Press. (MPa)	Design Temp. (°C)	Flange Class	Base Material	Corr. Allow. (mm)	DN 系列	Sch 系列（简写）	Branch Table	Status
 U1	Compressor Air	1.0	60	150#	A106 Gr.B / GALV（DN≥80 为 A53 Gr.B/GALV）	0	15~200	DN15~50: XS; DN80~200: STD	Branch 2	PUBLISHED
 U4	Cooling Water	1.0	110	150#	A106 Gr.B（DN≥350 为 API 5L Gr.B SAW）	1.6	15~900	DN15~40: XS; DN50~900: STD	Branch 1	PUBLISHED
@@ -532,4 +533,4 @@ LA	VENT	VENT
 VA	VACUUM	VENT
 FH	FILTER AID	OTHER
 KB	ACTIVATED CARBON	OTHER
-本增补 Spec 状态：待评审（V1.1）。确认后作为 P2 追加 Sprint（约 3 周）的实施依据；PC-OPEN-06/07 与既有 SYM/FMT/INT-OPEN 各项裁决完成后进入 writing-plans。
+本增补 Spec 状态：已定稿（V1.3）。作为 P2 追加 Sprint（约 3 周，INT-2 前端可并入 P2 Sprint 2 时约 13 天）的 writing-plans 输入。
