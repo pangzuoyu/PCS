@@ -1135,3 +1135,19 @@
 | 09-05 10:00 | kaimen SPC-0004（215页PDF+PSI.xls）提取 54 等级种子（含 12 夹套组合 core 设计条件）+ 重生成脚本入 scripts/ | app/seeds/pipe_classes_kaimen_20048a.{json,xlsx}, scripts/extract_pipe_classes_kaimen.py | plan Step 5 扩双源导入测试 | ~60k |
 | 09-05 10:30 | PPG MRQ-0001（CC07121065B-SPC-0002-0）第三源：11 等级 U1-U8/P1-P3 种子（续行跟踪修复大口径段） | app/seeds/pipe_classes_ppg.{json,xlsx} | 三源共 71 等级 | ~25k |
 | 08:03 | Edited docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | modified test_import_bep_seed() | ~650 |
+| 08:05 | Edited docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md | 7→8 lines | ~256 |
+| 08:08 | Created pcs-backend/tests/test_vendor_smoke.py | — | ~204 |
+| 08:09 | Edited pcs-backend/pyproject.toml | 3→6 lines | ~30 |
+| 08:09 | Edited pcs-backend/pyproject.toml | 4→9 lines | ~81 |
+| 08:11 | Edited pcs-backend/tests/test_vendor_smoke.py | modified test_twu_petroleum_viscosity_available() | ~181 |
+| 08:13 | Created .superpowers/sdd/2026-09-04-p2-sprint-1.9/task-1.9.0-report.md | — | ~685 |
+| 16:05 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | 7→7 lines | ~108 |
+| 16:05 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | expanded (+36 lines) | ~684 |
+| 16:05 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | 3→4 lines | ~45 |
+| 16:06 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | 6→7 lines | ~199 |
+| 16:07 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | 1→3 lines | ~104 |
+| 16:07 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | 4→5 lines | ~79 |
+| 16:07 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | inline fix | ~30 |
+| 16:08 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版开发计划.md | 10→12 lines | ~99 |
+| 16:08 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版开发计划.md | 12→14 lines | ~86 |
+| 09-05 11:20 | SUP-002 升 V1.1（§0 实施对齐：绑定裁决+三源现状+schema 差异表+修补评估）；PPG 种子 V2 重生成（NPS26-34 映射补齐）；开发计划 P2§2.5/P3§3.4 增补 | spec/PCS-SPEC-P2-SUP-002*.md, app/seeds/pipe_classes_ppg.*, 开发计划.md | 新增 PC-OPEN-06/07 待裁决 | ~30k |

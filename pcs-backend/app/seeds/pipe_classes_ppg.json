@@ -3,7 +3,8 @@
   "source": "Worley PPG 项目压力反应器（with Agitators）MRQ-0001：08-CC07121065B-00-PI-SPC-0002 0 Piping Material Classification",
   "source_path": "/media/pangzy/F8A6CB1CA6CAD9F01/nas/work/worley/f/ppg/detaildesign/详细设计图纸目录/PPG/Datasheet and specification/9.0 Vessel/PPG-Vessel-ITB/MRQ-0001 3 Pressure Vessels Reactor (with Agitators)/08-CC07121065B-00-PI-SPC-0002 0 Piping Material Classification.doc",
   "version": "CC07121065B-SPC-0002-0",
-  "extracted": "2026-09-05"
+  "extracted": "2026-09-05",
+  "fix": "V2 重生成：NPS 26/28/30/32/34→DN650-850 映射补齐（V1 的 U4 DN700-850 与 P2 DN650-900 大口径段丢失已修复）；pipe_segments 记录分段材料"
  },
  "pipe_classes": [
   {
@@ -27,6 +28,7 @@
     "50": "XS",
     "80": "STD",
     "100": "STD",
+    "125": "STD",
     "150": "STD",
     "200": "STD"
    },
@@ -34,7 +36,11 @@
    "fitting_type": "BW",
    "branch_table_json": {
     "source": "CC07121065B-PI-SPC-0002-0",
-    "pt_rating": "-29 38 50 100"
+    "pt_rating": "-29 38 50 100",
+    "pipe_segments": [
+     "DN15-50:XS(A106)",
+     "DN80-200:STD(A53)"
+    ]
    },
    "note": "Compressure; air; (Instrument; air; and; Plant; air); N2/air"
   },
@@ -60,13 +66,18 @@
     "65": "STD",
     "80": "STD",
     "100": "STD",
+    "125": "STD",
     "150": "STD"
    },
    "flange_class": "150Lb SW 150Lb WN",
    "fitting_type": "BW",
    "branch_table_json": {
     "source": "CC07121065B-PI-SPC-0002-0",
-    "pt_rating": "-29 38 50 100"
+    "pt_rating": "-29 38 50 100",
+    "pipe_segments": [
+     "DN15-40:XS(A106)",
+     "DN50-150:STD(A106)"
+    ]
    },
    "note": "Natural; Gas"
   },
@@ -92,6 +103,7 @@
     "65": "STD",
     "80": "STD",
     "100": "STD",
+    "125": "STD",
     "150": "STD",
     "200": "STD",
     "250": "STD",
@@ -101,7 +113,11 @@
    "fitting_type": "BW",
    "branch_table_json": {
     "source": "CC07121065B-PI-SPC-0002-0",
-    "pt_rating": "-29/38 50 100 150"
+    "pt_rating": "-29/38 50 100 150",
+    "pipe_segments": [
+     "DN15-40:XS(A106)",
+     "DN50-300:STD(A106)"
+    ]
    },
    "note": "Steam; Condensate"
   },
@@ -127,6 +143,7 @@
     "65": "STD",
     "80": "STD",
     "100": "STD",
+    "125": "STD",
     "150": "STD",
     "200": "STD",
     "250": "STD",
@@ -136,13 +153,23 @@
     "450": "STD",
     "500": "STD",
     "600": "STD",
+    "650": "STD",
+    "700": "STD",
+    "750": "STD",
+    "800": "STD",
+    "850": "STD",
     "900": "STD"
    },
    "flange_class": "150Lb SW 150Lb SO",
    "fitting_type": "BW",
    "branch_table_json": {
     "source": "CC07121065B-PI-SPC-0002-0",
-    "pt_rating": "-29 38 50 100"
+    "pt_rating": "-29 38 50 100",
+    "pipe_segments": [
+     "DN15-40:XS(A106)",
+     "DN50-300:STD(A106)",
+     "DN350-900:STD(API)"
+    ]
    },
    "note": "Cooling; water; Chilled; water; Nitrogen; Industry; water"
   },
@@ -168,6 +195,7 @@
     "65": "STD",
     "80": "STD",
     "100": "STD",
+    "125": "STD",
     "150": "STD",
     "200": "STD",
     "250": "STD",
@@ -177,7 +205,12 @@
    "fitting_type": "BW",
    "branch_table_json": {
     "source": "CC07121065B-PI-SPC-0002-0",
-    "pt_rating": "-29 50 100 150"
+    "pt_rating": "-29 50 100 150",
+    "pipe_segments": [
+     "DN15-40:XS(A106)",
+     "DN50-250:STD(A106)",
+     "DN300-300:Sch40(A106)"
+    ]
    },
    "note": "Hot; oil; supply/return"
   },
@@ -203,6 +236,7 @@
     "65": "STD",
     "80": "STD",
     "100": "STD",
+    "125": "STD",
     "150": "STD",
     "200": "STD",
     "250": "STD",
@@ -212,7 +246,11 @@
    "fitting_type": "BW",
    "branch_table_json": {
     "source": "CC07121065B-PI-SPC-0002-0",
-    "pt_rating": "-29/38 50 100 150"
+    "pt_rating": "-29/38 50 100 150",
+    "pipe_segments": [
+     "DN15-40:XS(A106)",
+     "DN50-300:STD(A106)"
+    ]
    },
    "note": "Steam; Condensate"
   },
@@ -237,6 +275,7 @@
     "50": "XS",
     "80": "STD",
     "100": "STD",
+    "125": "STD",
     "150": "STD",
     "200": "STD"
    },
@@ -244,7 +283,11 @@
    "fitting_type": "BW",
    "branch_table_json": {
     "source": "CC07121065B-PI-SPC-0002-0",
-    "pt_rating": "-29 38 50 100"
+    "pt_rating": "-29 38 50 100",
+    "pipe_segments": [
+     "DN15-50:XS(A106)",
+     "DN80-200:STD(A53)"
+    ]
    },
    "note": "Fire; water"
   },
@@ -270,6 +313,7 @@
     "65": "STD",
     "80": "STD",
     "100": "STD",
+    "125": "STD",
     "150": "STD",
     "200": "STD",
     "250": "STD",
@@ -279,7 +323,11 @@
    "fitting_type": "BW",
    "branch_table_json": {
     "source": "CC07121065B-PI-SPC-0002-0",
-    "pt_rating": "-29 38 50 100"
+    "pt_rating": "-29 38 50 100",
+    "pipe_segments": [
+     "DN15-40:XS(A106)",
+     "DN50-300:STD(A106)"
+    ]
    },
    "note": "Fire; water"
   },
@@ -305,6 +353,7 @@
     "65": "SCH10s",
     "80": "SCH10s",
     "100": "SCH10s",
+    "125": "SCH10s",
     "150": "SCH10s",
     "200": "SCH10s",
     "250": "SCH10s",
@@ -314,7 +363,11 @@
    "fitting_type": "BW",
    "branch_table_json": {
     "source": "CC07121065B-PI-SPC-0002-0",
-    "pt_rating": "-29 38 50 100"
+    "pt_rating": "-29 38 50 100",
+    "pipe_segments": [
+     "DN15-40:SCH40s(A312)",
+     "DN50-300:SCH10s(A312)"
+    ]
    },
    "note": "Di-tert-amyl; peroxide; Luperox; DAT; Phosphoric; acid"
   },
@@ -340,6 +393,7 @@
     "65": "SCH10s",
     "80": "SCH10s",
     "100": "SCH10s",
+    "125": "SCH10s",
     "150": "SCH10s",
     "200": "SCH10s",
     "250": "SCH10s",
@@ -348,13 +402,25 @@
     "400": "SCH10s",
     "450": "SCH10s",
     "500": "SCH10s",
-    "600": "SCH10s"
+    "600": "SCH10s",
+    "650": "SCH10s",
+    "700": "SCH10s",
+    "750": "SCH10s",
+    "800": "SCH10",
+    "850": "SCH10",
+    "900": "SCH10"
    },
    "flange_class": "150Lb SW 150Lb SO",
    "fitting_type": "BW",
    "branch_table_json": {
     "source": "CC07121065B-PI-SPC-0002-0",
-    "pt_rating": "-29 50 100 150"
+    "pt_rating": "-29 50 100 150",
+    "pipe_segments": [
+     "DN15-40:SCH40s(A312)",
+     "DN50-600:SCH10s(A312)",
+     "DN650-750:SCH10s(A312)",
+     "DN800-900:SCH10(A312)"
+    ]
    },
    "note": "Vent; of; resin; production; Vacuum; Vent; Drain; Portable; Water; DI; Water; Resin; VT，V19; V21，V29; V30，V33; V34,V40; V41,V42; V43,V44; Nitrogen"
   },
@@ -385,7 +451,11 @@
    "fitting_type": "BW",
    "branch_table_json": {
     "source": "CC07121065B-PI-SPC-0002-0",
-    "pt_rating": "-29 50 100 150"
+    "pt_rating": "-29 50 100 150",
+    "pipe_segments": [
+     "DN15-40:SCH40s(A312)",
+     "DN50-100:SCH40s(A312)"
+    ]
    },
    "note": "Tempered; water"
   }

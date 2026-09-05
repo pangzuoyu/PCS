@@ -279,6 +279,8 @@ PipeClasses模型和API
 
 Excel批量导入接口
 
+（2026-09-05 增补：管道等级库深化实施依据 = PCS-SPEC-P2-SUP-002 V1.1（追加 Sprint 约 3 周，含验证引擎 22 条/fork 快照/5 态接入/物流符号表/管道代码格式模板）。Sprint 1.9 已落薄层：service + 5 端点 + Excel 导入 + 三源 71 等级种子（BEP 6/Kaimen 54/PPG 11，app/seeds/）。等级绑定语义：管道计算选等级按项目绑定，项目可自建 PROJECT 级库。）
+
 2.6 复用设备库管理（CATEGORY_6）
 关联：EQUIP_LIB子系统（沉淀、审批、检索）
 
@@ -352,6 +354,8 @@ PipeClasses模型（含DNSeries_JSON, SchSeries_JSON等）
 公司级/项目级数据混合读取
 
 与COMMON的许用应力引用关系
+
+（2026-09-05 增补：等级选择按项目绑定（project_pipe_classes 启用清单，用户裁决）；混合读取按 SUP-002 §2.4 有效值解析（snapshot ⊕ override）；管道代码（物流符号 + 格式模板 + 生成/校验）依赖 SUP-002 第二/三部分——若 P2 追加 Sprint 未先行完成，本节为其阻塞项。）
 
 P4：核心计算引擎（第一批）（第8-12周）
 目标
