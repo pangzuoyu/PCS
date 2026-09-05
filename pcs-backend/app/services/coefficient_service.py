@@ -71,7 +71,7 @@ class CoefficientService:
 
     @classmethod
     async def seed_default_tables(cls, session: AsyncSession) -> list[str]:
-        """幂等 seed：CATEGORY_3 默认 6 张表。仅在未 seed 时插入。
+        """幂等 seed：CATEGORY_3 默认表（JSON 驱动，按 name 增量：缺失才插）。
 
         使用 direct ORM add 而非 cls.create_table：seed 表无业务 asset 归属，
         asset_id 传 None（model 字段已 nullable）。

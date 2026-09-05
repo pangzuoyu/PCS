@@ -1,6 +1,6 @@
-"""CATEGORY_3 默认 6 张系数表 seed 测试（Task 1.8.3）。
+"""CATEGORY_3 默认系数表 seed 测试（Task 1.8.3 六表 + Task 1.9.4 炼油三表）。
 
-幂等 seed：首次写入 6 张表；二次调用 no-op。
+幂等 seed：按 name 增量写入缺失表；二次调用 no-op。
 """
 from __future__ import annotations
 
@@ -21,6 +21,12 @@ EXPECTED_TABLES = [
     "pipe_roughness_default",
     "heat_exchanger_weight_factor",
     "fitting_resistance_mapping",
+]
+
+V12_PETROLEUM_TABLES = [
+    "petroleum_correlations",
+    "property_estimation_params",
+    "pseudo_component_cutting",
 ]
 
 
@@ -53,7 +59,7 @@ async def test_seed_default_tables_creates_six(clean_seed_tables):
     factory = get_async_session_factory()
     async with factory() as session:
         created = await CoefficientService.seed_default_tables(session)
-    assert len(created) == 6
+    assert len(created) == len(EXPECTED_TABLES) + len(V12_PETROLEUM_TABLES)
     for name in EXPECTED_TABLES:
         assert name in created
 
@@ -82,3 +88,14 @@ async def test_seed_table_queryable(clean_seed_tables, table_name):
         row = result.scalar_one()
     assert row.applicable_range
     assert len(row.data_json["rows"]) >= 1
+
+
+@pytest.mark.asyncio
+async def test_seed_adds_v12_petroleum_tables(clean_seed_tables):
+    factory = get_async_session_factory()
+    async with factory() as session:
+        await CoefficientService.seed_default_tables(session)
+        names = {n for (n,) in await session.execute(select(CoefficientTable.name))}
+    assert "petroleum_correlations" in names
+    assert "property_estimation_params" in names
+    assert "pseudo_component_cutting" in names

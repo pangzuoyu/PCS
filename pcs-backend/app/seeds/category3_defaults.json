@@ -67,5 +67,43 @@
       {"fitting_type": "valve_globe",     "K": 6.0,  "L_over_D": 340},
       {"fitting_type": "valve_check",     "K": 2.5,  "L_over_D": 140}
     ]
+  },
+  "petroleum_correlations": {
+    "applicable_range": "PETROLEUM",
+    "std_source": "Riazi-Daubert 1980 / Kesler-Lee 1975（ADR-0019）",
+    "rows": {
+      "description": "炼油物性关联式（V1.2 ADR-0019）：馏程/比重→分子量/临界参数/偏心因子/蒸汽压",
+      "method": "Riazi-Daubert (1980) generalized θ=a·Tb(°R)^b·SG^c + Kesler-Lee (1975) f0/f1",
+      "constants": {
+        "mw": {"a": 4.5673e-05, "b": 2.1962, "c": -1.0164, "unit": "g/mol"},
+        "tc": {"a": 24.078, "b": 0.58848, "c": 0.35936, "unit": "degR"},
+        "pc": {"a": 3.1228e+09, "b": -2.3125, "c": 2.3201, "unit": "psia"}
+      },
+      "kessler_lee": {
+        "f0": [5.92714, -6.09648, -1.28862, 0.169347],
+        "f1": [15.2518, -15.6875, -13.4721, 0.43577],
+        "form": "f = c0 + c1/Tr + c2·lnTr + c3·Tr^6"
+      },
+      "viscosity": {"method": "chemicals.viscosity.Twu_1985_internal (vendor)", "unit": "cSt@20°C"},
+      "out_of_scope": ["vc", "zc"]
+    }
+  },
+  "property_estimation_params": {
+    "applicable_range": "PETROLEUM",
+    "std_source": "ADR-0019 / chemicals·thermo（vendor）",
+    "rows": {
+      "default_method": "chemicals/thermo",
+      "estimated_flag_rule": "estimated=true",
+      "group_contribution": "UNIFAC"
+    }
+  },
+  "pseudo_component_cutting": {
+    "applicable_range": "PETROLEUM",
+    "std_source": "ADR-0019（V1.2 切割裁决）",
+    "rows": {
+      "default_cut_width_c": 25.0,
+      "boundary_rule": "last_cut_absorbs_remainder",
+      "default_sg": 0.85
+    }
   }
 }
