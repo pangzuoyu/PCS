@@ -1,6 +1,6 @@
 工艺专用综合计算软件——Claude Code分步开发计划
-文档版本：V1.2（V1.1 为 SUP-006 许可任务嵌入版，未单独发布；V1.2 incorporate SUP-007 两层签署与变更管理，2026-08-28）
-编制日期：2026-08-27
+文档版本：V1.3（V1.2 incorporate SUP-007 两层签署与变更管理，2026-08-28；V1.3 align SUP-002 V1.4 管道等级库/物流符号/管道代码 + P3-SIM V1.1 五样例与炼油扩展单元，2026-09-06）
+编制日期：2026-08-27（V1.3 增量更新 2026-09-06）
 开发工具：Claude Code（Anthropic）
 人类职责：架构决策、公式验证、代码审查、验收
 
@@ -279,7 +279,25 @@ PipeClasses模型和API
 
 Excel批量导入接口
 
-（2026-09-05 增补：管道等级库深化实施依据 = PCS-SPEC-P2-SUP-002 V1.1（追加 Sprint 约 3 周，含验证引擎 22 条/fork 快照/5 态接入/物流符号表/管道代码格式模板）。Sprint 1.9 已落薄层：service + 5 端点 + Excel 导入 + 三源 71 等级种子（BEP 6/Kaimen 54/PPG 11，app/seeds/）。等级绑定语义：管道计算选等级按项目绑定，项目可自建 PROJECT 级库。）
+（2026-09-06 增补 V1.3：管道等级库深化实施依据 = PCS-SPEC-P2-SUP-002 V1.4（追加 Sprint 17.5 天，约 3.5 周，详见 docs/PCS-PLAN-SUP-002-SPRINT）。
+
+**已落地**（P2 Sprint 1.9 薄层）：pipe_classes service + 5 端点 + Excel 12 列模板导入 + 三源 71 等级种子（BEP 6 COMPANY_STD / Kaimen 54 PROJECT 含 12 夹套 / PPG 11 PROJECT，app/seeds/pipe_classes_*.json + xlsx + scripts/extract_pipe_classes_kaimen.py）。
+
+**增量**（SUP Sprint）：
+- 数据模型：pipe_classes 保留自然码 class_id varchar(50) PK + 新增 asset_id FK → config_assets（CATEGORY_5，asset_subtype=PIPE_CLASS），status 5 态镜像列同事务同步；新增 base_material varchar(100) NOT NULL；version 保留 str50 不迁 int（V1.4 修正）；project_pipe_classes 重构为 UUID PK + source_class_id + class_name UNIQUE(project_id, class_name) + override_json + snapshot_json + status 5 态
+- 验证引擎：22 条规则（PC-V11 + PC-E7 + PC-C4），PC-E04 注入 common_tables 校验表名、PC-E06 fork 时 override 压力未覆写法兰 WARN、PC-V10 source_class_id 有效性（service 层）、PC-C04 is_in_use classmethod（查 piping_results.material_class FK）
+- 5 态接入：公司级 pipe_classes 挂 ConfigAsset 复用 ConfigStateMachine + submit/approve/publish/obsolete 端点（审计复用 CONFIG_ASSET_*，PIPE_CLASS_* 两枚取消）；项目级不挂 ConfigAsset，使用轻量状态列 + ProjectPipeClassStateMachine + config_approvals.project_class_id 可空列写入审批记录
+- 三种模式：完全继承（不建项目级行，直接引用公司级 PUBLISHED）/ 基于公司级 fork（snapshot_json + override_json 双 JSON 深层覆写）/ 项目全新创建（source_class_id=NULL，override_json 含全部字段）
+- 物流符号表（第二部分）：公司级 stream_symbols + 项目级 project_stream_symbols（symbol_id UUID + asset_id FK，UNIQUE(project_id, symbol)，override_json 与等级对齐），6 条 SYM 验证规则
+- 管道代码格式模板（第三部分）：公司级 pipe_code_templates + 项目级 project_pipe_code_configs，format_definition_json 含 segments（enum/stream_symbol/auto_increment/free_text/constant/delimiter 六型），9 条 FMT 验证规则
+- 格式代码生成器（FMT-3）：auto_increment 段 scope 默认 project+symbol（同介质独立递增），事务内 SELECT FOR UPDATE 行锁 + UNIQUE(project_id, pipe_code) 兜底，FMT-SEQ-01 复用既有 NumberingService/DocNoSequence（不新建序列表）
+- CATEGORY_1 项目模板集成（INT-1）：项目模板新增 pipe_code_template_id FK + project_template_pipe_classes 关联表（template_id, class_id）替换 default_pipe_class_ids FK[]
+- 实施约束（V1.4 §0.6 裁决）：PC-FMT-01 dn_series_json.series 可选键；PC-FMT-02 sch_series_json 键=裸 DN 数字串+SchEntry；PC-FMT-03 flange_class 接受 150#/150Lb/PN25 三形式（PN 系合法但跳过 E02/E03 评估）；PC-FMT-04 列宽保持现状不收窄；EXCEL-01 Excel Sheet1 沿用 1.9.6 十二列模板（base_material 可选第 13 列）；INT-DROP-01 项目模板不增 stream_symbol_table_id 列（公司符号表无聚合实体，项目级走完全继承+按需 fork）
+- 等级绑定语义（用户 2026-09-05 裁决）：管道计算选等级按项目绑定；项目可自建 PROJECT 级库；等级编码不跨项目归一，class_id 全局唯一 PK
+- 三态→五态迁移（PC-1 一次收口）：DRAFT→DRAFT、ACTIVE→PUBLISHED、OBSOLETE→OBSOLETE，PENDING/APPROVED 迁移后为空集；新表迁移含 TimestampMixin 三列（created_by/created_at/updated_at）——见 .wolf/cerebrum Do-Not-Repeat
+- 前端：INT-2 3.5 天（管道等级表单 + 符号表管理 + 拖拽式格式设计器），与 P2 Sprint 2 前端波合并
+
+Sprint 执行顺序：PC-1 → PC-2 → PC-3 → PC-4 → PC-6 → SYM-1 → SYM-2 → SYM-3 → FMT-1 → FMT-2 → FMT-3 → FMT-4 → INT-1 → INT-3；INT-2 可后置；写作计划见 docs/PCS-PLAN-SUP-002-SPRINT。）
 
 2.6 复用设备库管理（CATEGORY_6）
 关联：EQUIP_LIB子系统（沉淀、审批、检索）
@@ -307,21 +325,45 @@ BEDD_JSON的Pydantic模型（完整的BEDD数据结构，包括气象、水文�
 前端：项目创建表单、BEDD数据录入界面
 
 3.2 SIM工艺模拟数据
-SPEC参考：3.2.2节 + Streams表完整字段
+SPEC参考：3.2.2节 + Streams表完整字段 + PCS-SPEC-P3-SIM V1.1（2026-09-06 五样例 + PRO/II 8.x 炼油版）
 
 Claude Code生成：
 
-HYSYS/Aspen Plus/PRO II/HTRI解析器
+PRO/II 双文件解析器（.inp 关键字驱动 + .out 固定宽度表格）
 
-物流数据表API
+HYSYS/Aspen Plus/HTRI 解析器（P3/P4 补，仅预留路由）
 
-组成归一化校核
+物流数据表 API（Streams + composition_json + estimated/simulation_status/unreliable/tear_stream/zero_flow 标志位）
 
-物性缺失自动估算（调用COMMON）
+统一校验引擎（SIM-V 10 条 + SIM-E 4 条 + PR-V 14 条 + PRX-V 8 条 = 36 条；含 PRO/II 结构验证、双文件交叉验证、收敛状态分层导入）
 
-手动修改记录
+组成归一化校核（容差 0.001）+ 物性缺失自动估算（COMMON 库：MW、临界 Tc/Pc、ω、标准密度；CoolProp：焓/粘度/导热系数；缺失估算 estimated=True 标记）
 
-前端：物流数据表格、导入向导
+手动修改记录（user_provided_properties_json + calculated_properties_json + effective_properties_json 三 JSON，user 优先于 calculated；CALCULATED_PRIORITY_FIELDS 例外：molecular_weight/total_mass_flow/total_molar_flow 始终取 calculated）
+
+反应数据存储（sim_reactions_defs 集 + REACTOR/CSTR SUMMARY）+ 扩展单元操作结果（REACTOR/CSTR/COMPRESSOR/SPLITTER/STCA/CALCULATOR 各自结果表 + sim_unit_op_results 基表）
+
+冲突解决引擎（ConflictSeverity BLOCK/WARN/INFO + PropertyConflictResolver：硬冲突阻止保存、用户值优先物性类、计算值优先派生类）
+
+物流校核状态（sign_status 5 态：DRAFT→PENDING→APPROVED→PUBLISHED→OBSOLETE）+ 引用追踪（DataLineage 反向查询）+ CIA 联动（上游 PUBLISHED 修改触发下游 STALE）
+
+前端：物流数据表格、Excel 双 Sheet 上传向导、PRO/II 文件上传向导、物性对比展示、冲突展示组件、状态标记（🟢/🔵/🟡/⚪/⚫）、引用面板（📎×N）
+
+（2026-09-06 增补 V1.3：
+
+**已落地**（P2 Sprint 1.9 薄层）：石油分馏/NH3吸收/混合精馏/酸性水汽提四样例 PRO/II 解析基座、Streams 基础字段。
+
+**增量**（P3.2 SIM Sprint）：
+- PRO/II 五样例基线：①石油分馏 34 组分（24+10 PETRO）、②NH3/H2O 未收敛 20 ERRORS、③混合精馏 38 组分含侧线、④酸性水汽提含 FLASH/VALVE/HX、⑤FCC 催化裂化 41 组分（26+15 PETRO）含 SIDESTRIPPER/COMPRESSOR×2/SPLITTER×7/FLASH×4/VALVE/CONTROLLER/HX×25
+- PRO/II 8.x 新语法：ASSAY/D86/TBP/LIGHTEND/REFSTREAM/NAME/SIDESTRIPPER/COMPRESSOR/SPLITTER/CONTROLLER 九类 .inp 段；ASSAY 切割点 (30, 650, 23)、D86/TBP 蒸馏曲线 8 种组合、NAME 物流重命名映射
+- .out 新增提取器：SPLITTER SUMMARY（含烃类液相/自由水/分子量固体分数）、COMPRESSOR SUMMARY（绝热/多变效率、压头、功、后冷器三段数据）、TRAY SIZING（P5 延后）、REFINERY PROCESSOR PROPERTIES SET（P5 延后含 RVP/TVP/Watson K/Flash Point/LIQUID-DRY BASIS 双套）、STREAM TBP/ASTM CURVES（P5 延后 8 种曲线）
+- PCS 数据模型：Streams 表扩展 6 字段（estimated/simulation_status/unreliable/tear_stream/zero_flow/stream_properties_json）；新增 9 表（sim_imports/sim_import_warnings/sim_tower_results/sim_reaction_defs/sim_unit_op_results 基表 + sim_reactor_results/sim_cstr_results/sim_compressor_results/sim_splitter_results/sim_stca_results/sim_calculator_results）
+- 收敛分层导入：CONVERGED/WARNINGS 全量导入；NOT_CONVERGED/ABORTED SOLVED 单元产品 unreliable=True 仅存档；循环撕裂 tear_stream=True
+- 增补 Spec（待评审）：PCS-SPEC-P3-SIM-ADD-001 手工输入字段完整清单（PRO/II STREAM SUMMARY + REFINERY PROPERTIES SET 全字段对齐，三级分类 R/O/C）；PCS-SPEC-P3-SIM-ADD-002 校核状态 + 引用追踪 + 冲突分类（BLOCK/WARN/INFO 三级，硬冲突阻止保存）
+- 工时：基线 26.5 天 + ADD-001 增量 2.5 天 + ADD-002 增量 6.5 天 = 35.5 天，约 7 周；V1.1 炼油增量 24.5 天（独立 Sprint）；P5 延后项（TRAY 详细 + TRAY SIZING + REFINERY PROPERTIES + TBP/ASTM）约 4 天
+- 实施顺序：SIM-1~9 + PR-1~16 + INT-1 + ADD-001（SIM-2b/4b/7b）+ ADD-002（SIM-S1~5 + SIM-C1~3）
+
+P3 阶段的 SIM 子系统是 P4+ 计算模块的物流数据来源，需在 FLASH/PIPE/PUMP 等计算前完成交付。）
 
 3.3 COMMON工艺常用数据库
 包含：
@@ -343,19 +385,21 @@ Claude Code生成：
 版本管理
 
 3.4 PIPE_CLASS管道等级库
-SPEC参考：3.2.15节
+SPEC参考：3.2.15节 + PCS-SPEC-P2-SUP-002 V1.4（§0.6 实施裁决 + 第一部分）
 
 Claude Code生成：
 
-PipeClasses模型（含DNSeries_JSON, SchSeries_JSON等）
+PipeClasses模型（含DNSeries_JSON, SchSeries_JSON, AllowableStress_JSON, BranchTable_JSON, asset_id FK → config_assets，5 态 status 镜像列）
 
-项目级管道等级分配
+ProjectPipeClasses模型（UUID PK + source_class_id FK + class_name UNIQUE(project_id) + override_json + snapshot_json + 5 态 status）
 
-公司级/项目级数据混合读取
+公司级/项目级数据混合读取（get_effective：snapshot ⊕ override 递归深合并；JSON 字段逐键合并，标量字段直接覆写）
 
-与COMMON的许用应力引用关系
+与COMMON的许用应力/branch table 引用关系（PC-E04 校验引用的表名存在于 COMMON 库）
 
-（2026-09-05 增补：等级选择按项目绑定（project_pipe_classes 启用清单，用户裁决）；混合读取按 SUP-002 §2.4 有效值解析（snapshot ⊕ override）；管道代码（物流符号 + 格式模板 + 生成/校验）依赖 SUP-002 第二/三部分——若 P2 追加 Sprint 未先行完成，本节为其阻塞项。）
+项目模板集成（project_template_pipe_classes 关联表，template_id + class_id 复合 PK）
+
+（2026-09-06 增补 V1.3：本节交付依赖 SUP-002 追加 Sprint 先完成 PIPE_CLASS 库本体（PC-1~PC-6）+ 物流符号表（SYM-1~SYM-3）+ 管道代码格式模板（FMT-1~FMT-4）；P4.2 PIPE 计算读取 pipe_classes 时直接消费 project_pipe_classes 的 effective 值；项目模板创建时（INT-1）从 project_template_pipe_classes 拷贝默认等级 + fork 模板格式配置 → project_pipe_code_configs。阻塞关系：SUP Sprint 全部后端就绪 + INT-2 前端契约冻结后，P3.4 视为完全解锁。）
 
 P4：核心计算引擎（第一批）（第8-12周）
 目标
@@ -838,4 +882,17 @@ P7完成	设备表正确汇聚各模块结果、UTIL能耗汇总正确
 P8完成	报表生成格式正确、自定义报表可用
 P9完成	签署流程完整走通、变更影响分析正确触发
 P10完成	全流程E2E测试通过、性能达标、部署文档完整
+
+---
+
+## 未解决问题（V1.3 增量）
+
+1. **P3.2 SIM 工时 vs P3 周期（6-8 周）**：基线 26.5 天 + ADD-001 增量 2.5 天 + ADD-002 增量 6.5 天 = 35.5 天已超 P3 整个阶段 14 天窗口。两种处理路径：(a) P3 SIM 只交付 SIM-1~9 + PR-1~12（基线 26.5 天仍超 14 天，需拆分到 P4 早期补完），ADD-001/002 推后；(b) P3 阶段延长或 SIM 拆分两波。需裁决后调整 P3-P4 时间盒。
+2. **P5 延后项归属**：TRAY COMPOSITIONS/LOADING/RATING + TRAY SIZING + REFINERY PROPERTIES SET + STREAM TBP/ASTM CURVES 共约 4 天，归入 P5 设备计算模块阶段或单列 P3.5 炼油增强 Sprint？需与 P5 计划主理对齐。
+3. **P3-SIM-ADD-001/002 待评审状态**：两个增补 Spec 文档当前「待评审」（2026-09-06），合并入 PCS-SPEC-P3-SIM V1.2 后再实施；用户验收前 SIM-S1~5 + SIM-C1~3 三组任务暂不启动。
+4. **PIPE_CLASS Sprint 工期 17.5 天 vs 现状**：Sprint 1.9 已交付 1.9.1~1.9.6 薄层（service + 5 端点 + Excel 导入 + 71 等级种子），SUP Sprint 增量 17.5 天（PC-1~PC-6 + SYM-1~SYM-3 + FMT-1~FMT-4 + INT-1 + INT-3），合计进入 P2.5 增量约 3.5 周。P2 阶段原预算 3 周（4-6 周），需把 SUP Sprint 显式从 P2.5 切出作为 P2.5b 追加 Sprint，或压缩 P2 阶段其他模块（P2.1~P2.4 + P2.6）。
+5. **pcs_test 库 schema 漂移**：矫正迁移（PC-1/SIM-1/SYM-1/FMT-1/新增表）历史上只对 pcs 库生效，pcs_test 库需手动 `alembic upgrade head` 对齐再跑 schema 敏感测试（已记 .wolf/cerebrum Do-Not-Repeat）。Sprint 启动前需 CI 步骤加自动 alembic upgrade。
+6. **TimestampMixin 三列纪律**（.wolf/cerebrum Do-Not-Repeat）：新表迁移必须含 created_by/created_at/updated_at（created_at timezone+server_default，updated_at nullable）——SUP Sprint 内 PC-1/SYM-1/FMT-1/INT-1 关联表新增时需逐表核对，缺列需在迁移脚本显式补齐。
+7. **前端契约已冻结但实施未排期**：ProjectPipeClassResponse.pipe_class 恒 null（Sprint 2 前端契约）；equip-lib limit>200 返 422（TODO-033）。这两个契约在本计划外落定，需 P2 Sprint 2 前端波启动时确认沿用。
+
 本计划供项目组内部使用，具体执行中可根据实际进展和资源情况进行调整。

@@ -1,6 +1,6 @@
 P2 增补 Spec——管道等级库 + 管道代码自定义（合并版）
 文档编号：PCS-SPEC-P2-SUP-002
-版本：V1.3（2026-09-05 复核修正：§2.1 allowable_stress/branch_table 改 JSONB 字段名、version 列裁决保留 str50、尾部状态行对齐、附录 A Status 注释澄清、INT-2 前端延后标注；V1.2 为七裁决定稿版，V1.1 实施对齐，V1.0 初稿）
+版本：V1.4（2026-09-06 计划定稿审查修正：§2.1/§7.1 version 统一 str50、§0.4 迁移映射统一 ACTIVE→PUBLISHED、§7.2 增 override_json、§11.3 auto_increment 增 scope、§4.2 E04 笔误、新增 §0.6 数据形态与实施裁决补遗；V1.3 为复核修正版，V1.2 七裁决定稿，V1.1 实施对齐，V1.0 初稿）
 日期：2026-09-05
 状态：已定稿（作为 P2 追加 Sprint 实施依据）
 依赖：SPEC-P2 V1.4、Plan Design 主文档、D29–D34 裁决、P2 Sprint 1.9 计划（docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md）、三源种子（pcs-backend/app/seeds/pipe_classes_*.json）
@@ -56,7 +56,7 @@ P2 增补 Spec——管道等级库 + 管道代码自定义（合并版）
 0.4 已完成阶段修补评估（结论）
 
 - **P0（schema）**：不回修。上述差异统一由本 SUP Sprint 的 PC-1 一次迁移收口（含 TimestampMixin 三列纪律，见 .wolf/cerebrum Do-Not-Repeat）。
-- **P2 Sprint 1.9（进行中）**：不返工。其 3 态 + assign 模型是 PC-3/PC-4/PC-6 的薄实现；SUP Sprint 到位后将 assign 语义升级为 fork/快照、3 态并入 5 态（迁移兼容：DRAFT/ACTIVE→DRAFT、OBSOLETE→OBSOLETE，PENDING/APPROVED 新增）。
+- **P2 Sprint 1.9（进行中）**：不返工。其 3 态 + assign 模型是 PC-3/PC-4/PC-6 的薄实现；SUP Sprint 到位后将 assign 语义升级为 fork/快照、3 态并入 5 态（迁移兼容：DRAFT→DRAFT、**ACTIVE→PUBLISHED**、OBSOLETE→OBSOLETE，PENDING/APPROVED 迁移后为空集）。
 - **P1（状态机框架）**：无涉，可直接复用 ConfigStateMachine。
 
 0.5 裁决落定（V1.2，用户 2026-09-05）
@@ -70,6 +70,24 @@ P2 增补 Spec——管道等级库 + 管道代码自定义（合并版）
 | FMT-OPEN-01 | auto_increment 默认 scope = project_id + stream_symbol | 同项目同介质独立递增（P 从 001、WA 也从 001，互不干扰） |
 | FMT-OPEN-02 | 管道代码格式变更触发下游 STALE（data_lineage 传播） | 影响所有已生成代码的解释，必须标记 |
 | INT-OPEN-01 | 符号表 + 格式模板均归 CATEGORY_5 | ConfigAsset 增 asset_subtype 区分（PIPE_CLASS / STREAM_SYMBOL / PIPE_CODE_TEMPLATE；若不增列则用 name 前缀） |
+
+0.6 数据形态与实施裁决（V1.4 新增——计划定稿审查落定，PC/FMT 系列实现的绑定约束）
+
+计划审查发现草稿测试自造的数据形态与三源 71 等级种子实态相悖，且既有代码资产可复用。以下裁决为 spec 级约束：
+
+| 编号 | 裁决 | 要点 |
+|---|---|---|
+| PC-FMT-01 | **dn_series_json.series 为可选键** | 现状/种子为 {min,max}；series 缺省时 DN 成员判定按 min ≤ DN ≤ max。不迁移不改种子 |
+| PC-FMT-02 | **sch_series_json 键=裸 DN 数字串、值=list[SchEntry]** | SchEntry = int 或 {"STD","XS","XXS","10S","40S",…} 白名单串；兼容读取 "DN15" 前缀键与裸 str 值（种子 {"15":"40","350":"STD"}）。PC-V04 只校验数值项 > 0 |
+| PC-FMT-03 | **flange_class 接受三种书写形式** | `150#`/`150Lb`（含 `/RJ` 等面形式后缀）/`PN25`；前两类规范化到 ASME class 参与E02/E03 压力评估，PN 系合法但无可靠 rating 映射→跳过 E02/E03（不虚构工程常数）。不可识别格式才 PC-V08 ERROR |
+| PC-FMT-04 | **列宽保持现状** | class_name str200 / material_standard str100 / fitting_type str50 / source str20——均为现状超集，不做收窄迁移（§2.1 标注值为目标语义） |
+| PC-FMT-05 | **项目级审批不挂 ConfigAsset、不动 config_approvals** | 项目级三域（等级/符号/代码配置）统一轻量状态列 + service 层流转 + AuditService 审计记录；config_approvals 零 schema 变更（其 version_id NOT NULL 语义不破坏） |
+| PC-FMT-06 | **公司级资产补挂由 PC-1 增量迁移完成** | ConfigAsset 增 asset_subtype str30 可空列；既有 71 等级种子由 PC-3 迁移补建 ConfigAsset（DRAFT），走既有 /config/assets 审批链发布；pipe-classes 域 4 端点为薄委托别名 |
+| FMT-SEQ-01 | **auto_increment 复用 NumberingService/DocNoSequence** | 不新建序列表：FMT-1 seed 一条全局 NumberingTemplate（PIPE_CODE 锚行），scope_key=`{config_id}:{symbol}`，复用既有 SELECT FOR UPDATE + UNIQUE 兜底（FMT-OPEN-01 scope 语义不变） |
+| INT-DROP-01 | **项目模板不设 stream_symbol_table_id 列** | 公司符号表无聚合实体（行为级）；项目级符号走「完全继承（始终可引用公司级 PUBLISHED）+ 按需 fork」，§15 三字段落地为 pipe_code_template_id FK + default_pipe_class_ids 关联表两件 |
+| EXCEL-01 | **Excel Sheet1 沿用 1.9.6 十二列模板** | base_material 为可选第 13 列（表头校验接受 12/13 列两种）；Sheet2（Sch 长表）可选且覆盖 Sheet1 sch 列。三源种子 xlsx 不重新生成，71 等级导入验收锁保持有效 |
+
+第一部分：管道等级库（Pipe Classes）
 
 第一部分：管道等级库（Pipe Classes）
 1. 范围与定位
@@ -107,7 +125,7 @@ flange_class	varchar(20)	枚举	150#~2500#
 fitting_type	varchar(200)	自由文本	斜杠分隔枚举组合
 branch_table_json	JSONB	可内嵌引用 + 覆写	同上——与 P0 现状一致
 source	varchar(200)	—	来源说明
-version	int	—	版本号
+version	str50	—	版本号（保留 str50，§0.3 裁决；权威版本链在 config_versions；§7.1/§11.1 同）
 status	varchar(20)	5 态镜像列	DRAFT→PENDING→APPROVED→PUBLISHED→OBSOLETE；与 config_assets.status 同事务同步（ConfigStateMachine transition 落库时写）
 created_by/at	—	—	审计字段
 2.2 项目级 project_pipe_classes
@@ -188,7 +206,7 @@ ID	规则	严重度	时机
 PC-E01	碳钢且温度 > 400°C	WARN	提交/发布
 PC-E02	150# 且压力 > 1.96 MPa	WARN	提交/发布
 PC-E03	压力 > 法兰等级最大允许压力	ERROR	提交/发布
-PC-E04	引用表不存在于 COMMON	ERROR	发布
+PC-E04	allowable_stress_json.table 或 branch_table_json.table 引用的表名不存在于 COMMON 库时 ERROR	发布
 PC-E05	DN > 600	WARN	提交/发布
 PC-E06	fork 时覆写压力但未覆写法兰等级	WARN	输入/提交/发布
 PC-E07	Sch 系列空但 DN 非空	ERROR	输入/提交/发布
@@ -246,7 +264,7 @@ name	varchar(200)	NOT NULL	含义，如 PROCESS FLUID
 category	varchar(50)	—	分类（PROCESS/UTILITY/WASTE/VENT/...）
 is_active	boolean	DEFAULT true	是否启用
 status	varchar(20)	5 态	审批状态
-version	int	—	版本号
+version	str50	—	版本号（V1.4：与 §2.1 统一）
 created_by/at	—	—	审计字段
 7.2 项目级 project_stream_symbols
 字段	类型	约束	说明
@@ -258,6 +276,7 @@ name	varchar(200)	NOT NULL	项目内含义
 category	varchar(50)	—	分类
 is_active	boolean	DEFAULT true	是否启用
 snapshot_json	json	fork 时	快照公司级原始值
+override_json	json	NOT NULL	V1.4 新增：仅存被覆写字段（与管道等级覆写机制对齐）；新增符号时为空对象
 status	varchar(20)	5 态	项目级审批状态
 7.3 覆写规则
 项目可增删符号、改含义、改符号本身
@@ -309,7 +328,7 @@ template_name	varchar(100)	UNIQUE	模板名称
 description	varchar(500)	—	说明
 format_definition_json	json	NOT NULL	分段定义（见 §11.3）
 status	varchar(20)	5 态	审批状态
-version	int	—	版本号
+version	str50	—	源文档版本镜像（如 "Rev 0"/"IFC"），不迁移为 int（§0.3 裁决
 created_by/at	—	—	审计字段
 11.2 项目级 project_pipe_code_configs
 字段	类型	约束	说明
@@ -351,7 +370,8 @@ json
       "step": 1,
       "padding": "zero",
       "required": true,
-      "position": 3
+      "position": 3,
+      "scope": "project+symbol"
     },
     {
       "key": "phase",
@@ -533,4 +553,4 @@ LA	VENT	VENT
 VA	VACUUM	VENT
 FH	FILTER AID	OTHER
 KB	ACTIVATED CARBON	OTHER
-本增补 Spec 状态：已定稿（V1.3）。作为 P2 追加 Sprint（约 3 周，INT-2 前端可并入 P2 Sprint 2 时约 13 天）的 writing-plans 输入。
+本增补 Spec 状态：已定稿（V1.4，2026-09-06）。作为 P2 追加 Sprint（后端 14 天，INT-2 前端 3.5 天并入 P2 Sprint 2）的 writing-plans 输入；配套计划 `docs/PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md`（已定稿，§0.6 裁决与计划 Global Constraints 一致）。
