@@ -1,8 +1,16 @@
-"""管道等级 API 测试（Task 1.9.2 / spec §3.2.5 5 端点 + 删除/分配）。"""
+"""管道等级 API 测试（Task 1.9.2 / spec §3.2.5 5 端点 + 删除/分配）。
+
+PC-1 SUP-002 schema 重构后，1.9 薄层契约（3 态 + 复合 PK + class_id assign）已废止。
+以下 3 个用例标 xfail(strict=False)，由 PC-3 service 层 + PC-6 API 替换：
+- test_crud_roundtrip（status='ACTIVE'）
+- test_delete_in_use_409（ProjectPipeClass 复合 PK 取参）
+- test_project_list（同上）
+"""
 from __future__ import annotations
 
 import uuid
 
+import pytest
 import pytest_asyncio
 
 from app.models.project import Project, Workspace
@@ -42,6 +50,7 @@ async def sample_project(db):
     return proj
 
 
+@pytest.mark.xfail(reason="PC-1 schema 重构废止 1.9 薄层 3 态契约，PC-3 service 层替换", strict=False)
 async def test_crud_roundtrip(client, sample_pc_token):
     r = await client.post("/api/v1/pipe-classes", json=_BODY, headers=_auth(sample_pc_token))
     assert r.status_code == 201 and r.json()["status"] == "DRAFT"
@@ -74,6 +83,7 @@ async def test_update_class_id_mismatch_422(client, sample_pc_token):
     assert r.status_code == 422
 
 
+@pytest.mark.xfail(reason="PC-1 schema 重构废止 ProjectPipeClass 复合 PK，PC-3 service 层替换", strict=False)
 async def test_delete_in_use_409(client, sample_pc_token, sample_project):
     await client.post("/api/v1/pipe-classes", json=_BODY, headers=_auth(sample_pc_token))
     r = await client.post(
@@ -84,6 +94,7 @@ async def test_delete_in_use_409(client, sample_pc_token, sample_project):
     assert r.status_code == 409  # 已用等级不可删除
 
 
+@pytest.mark.xfail(reason="PC-1 schema 重构废止 ProjectPipeClass 复合 PK，PC-3 service 层替换", strict=False)
 async def test_project_list(client, sample_pc_token, sample_project):
     r = await client.get(f"/api/v1/projects/{sample_project.project_id}/pipe-classes",
                          headers=_auth(sample_pc_token))

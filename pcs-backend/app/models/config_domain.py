@@ -65,6 +65,10 @@ class ConfigApproval(TimestampMixin, Base):
     decision: Mapped[str] = mapped_column(String(20))
     comment: Mapped[str | None] = mapped_column(Text)
     approver_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
+    # SUP-002 PC-1：项目级三域（等级/符号/代码配置）审批关联占位（V1.4 §五、#1）
+    project_class_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("project_pipe_classes.project_class_id"), nullable=True,
+    )
 
 
 class FormulaDefinition(TimestampMixin, Base):
@@ -146,12 +150,23 @@ class ProjectTemplate(TimestampMixin, Base):
 
 
 class PipeClass(TimestampMixin, Base):
-    """管道等级。class_id=等级代码（string PK，字典表11）。"""
+    """管道等级（SUP-002 PC-1）。
+
+    class_id=等级代码（自然码 PK，varchar(50)，piping_results FK 引用）。
+    asset_id 挂 ConfigAsset（CATEGORY_5，asset_subtype=PIPE_CLASS），状态机由 ConfigStateMachine 驱动。
+    status 为 5 态镜像列：DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE。
+    """
 
     __tablename__ = "pipe_classes"
-    class_id: Mapped[str] = mapped_column(String(20), primary_key=True)
+    class_id: Mapped[str] = mapped_column(String(50), primary_key=True)
+    asset_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("config_assets.asset_id"), nullable=True,
+    )
     class_name: Mapped[str] = mapped_column(String(200))
     material_standard: Mapped[str] = mapped_column(String(100))
+    base_material: Mapped[str | None] = mapped_column(
+        String(100), comment="材料牌号；migration 已回填 material_standard"
+    )
     corrosion_allowance: Mapped[float] = mapped_column(Float, comment="mm")
     design_pressure: Mapped[float] = mapped_column(Float, comment="MPaG")
     design_temperature: Mapped[float] = mapped_column(Float, comment="°C")
@@ -159,7 +174,7 @@ class PipeClass(TimestampMixin, Base):
     allowable_stress_json: Mapped[dict] = mapped_column(
         JSONB, comment="引用 COMMON 可覆写"
     )
-    dn_series_json: Mapped[dict] = mapped_column(JSONB, comment="{min,max}")
+    dn_series_json: Mapped[dict] = mapped_column(JSONB, comment="{min,max,series?}")
     sch_series_json: Mapped[list] = mapped_column(JSONB)
     flange_class: Mapped[str] = mapped_column(String(20))
     fitting_type: Mapped[str | None] = mapped_column(String(50), comment="FittingType")
@@ -168,21 +183,40 @@ class PipeClass(TimestampMixin, Base):
     version: Mapped[str] = mapped_column(
         String(50), comment="配置版本（非记录层 Rev）"
     )
-    status: Mapped[str] = mapped_column(String(20), comment="DRAFT/ACTIVE/OBSOLETE")
+    status: Mapped[str] = mapped_column(
+        String(20), default="DRAFT",
+        comment="DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE",
+    )
 
 
 class ProjectPipeClass(TimestampMixin, Base):
-    """项目启用管道等级（复合 PK project_id+class_id）。"""
+    """项目级管道等级（SUP-002 PC-1，独立 UUID PK，5 态轻量审批）。
+
+    snapshot_json 完整复制公司级 PUBLISHED 字段（fork 时锁定）；
+    override_json 仅存被覆写字段；status 为项目级 5 态。
+    """
 
     __tablename__ = "project_pipe_classes"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id", "class_name",
+            name="uq_project_pipe_classes_project_id_class_name",
+        ),
+    )
+    project_class_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4,
+    )
     project_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("projects.project_id"), primary_key=True
+        Uuid, ForeignKey("projects.project_id"), index=True,
     )
-    class_id: Mapped[str] = mapped_column(
-        ForeignKey("pipe_classes.class_id"), primary_key=True
+    source_class_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    class_name: Mapped[str] = mapped_column(String(100))
+    override_json: Mapped[dict] = mapped_column(JSONB, default=dict)
+    snapshot_json: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    status: Mapped[str] = mapped_column(
+        String(20), default="DRAFT",
+        comment="DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE",
     )
-    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-    custom_override_json: Mapped[dict | None] = mapped_column(JSONB)
 
 
 class NumberingTemplate(TimestampMixin, Base):

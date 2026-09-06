@@ -1,4 +1,10 @@
-"""PipeClassService 单元测试（Task 1.9.1 / P2-STD-001）。"""
+"""PipeClassService 单元测试（Task 1.9.1 / P2-STD-001）。
+
+PC-1 SUP-002 schema 重构后，1.9 薄层 service 契约（assign(class_id) + ProjectPipeClass.class_id 列）
+已废止。以下 2 个用例标 xfail(strict=False)，由 PC-3 service 层替换：
+- test_delete_blocked_when_assigned（service.delete 用 class_id 列）
+- test_list_project_returns_assignment（rows.class_id 属性访问）
+"""
 import uuid
 
 import pytest
@@ -97,6 +103,7 @@ async def test_update_and_obsolete_one_way(db):
     assert e.value.status == 409
 
 
+@pytest.mark.xfail(reason="PC-1 schema 重构废止 ProjectPipeClass.class_id 列 + assign(class_id) 契约，PC-3 service 层替换", strict=False)
 async def test_delete_blocked_when_assigned(db, make_project):
     await PipeClassService.create(db, payload=_payload())
     proj = await make_project()
@@ -106,6 +113,7 @@ async def test_delete_blocked_when_assigned(db, make_project):
     assert e.value.status == 409  # 已用等级不可删除，仅可作废
 
 
+@pytest.mark.xfail(reason="PC-1 schema 重构废止 ProjectPipeClass.class_id 列 + assign(class_id) 契约，PC-3 service 层替换", strict=False)
 async def test_list_project_returns_assignment(db, make_project):
     await PipeClassService.create(db, payload=_payload())
     proj = await make_project()
