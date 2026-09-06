@@ -175,6 +175,6 @@ class PipeClassService:
                     skipped += 1
                 else:
                     errors.append(f"行{i}: {e}")
-            except (ValueError, TypeError, json.JSONDecodeError) as e:
+            except (ValueError, TypeError, IndexError, json.JSONDecodeError) as e:
                 errors.append(f"行{i}: 解析失败 {e}")
         return {"imported": imported, "skipped": skipped, "errors": errors}

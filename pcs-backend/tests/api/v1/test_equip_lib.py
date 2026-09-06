@@ -56,6 +56,23 @@ async def test_search_returns_only_published(client, sample_pc_token, db, make_a
     assert str(pub.asset_id) in ids and str(draft.asset_id) not in ids
 
 
+async def test_settle_truncates_name_to_column_limit(client, sample_pc_token):
+    """name = equipment_name(≤200) + " []" + tag(≤50) 可达 253 > ConfigAsset.name(200) → 截断。"""
+    payload = {**_SETTLE, "equipment_name": "泵" * 200, "original_tag": "T" * 50}
+    r = await client.post(
+        "/api/v1/equip-lib/settle", json=payload, headers=await _h(sample_pc_token)
+    )
+    assert r.status_code == 201
+    assert len(r.json()["name"]) <= 200
+
+
+async def test_search_limit_lower_bound(client, sample_pc_token):
+    r = await client.get(
+        "/api/v1/equip-lib/search", params={"limit": -1}, headers=await _h(sample_pc_token)
+    )
+    assert r.status_code == 422  # limit ge=1
+
+
 async def test_full_settle_lifecycle_publishes(client, sample_pc_token, db):
     """沉淀申请 → CONFIG 审批链 submit/approve/publish → 入库生效。"""
     r = await client.post(

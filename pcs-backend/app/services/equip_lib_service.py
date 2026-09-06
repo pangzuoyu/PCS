@@ -35,7 +35,7 @@ class EquipLibService:
         standard_info["source_project_id"] = src_proj
         asset = ConfigAsset(
             category="CATEGORY_6",
-            name=f"{payload.equipment_name} [{payload.original_tag}]",
+            name=f"{payload.equipment_name} [{payload.original_tag}]"[:200],  # name 列 String(200)
             description=f"{payload.equipment_type} 沉淀快照（源位号 {payload.original_tag}）",
             current_version="settle-v1",
             status="DRAFT",

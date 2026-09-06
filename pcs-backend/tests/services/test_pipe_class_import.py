@@ -1,5 +1,7 @@
 """Excel 批量导入测试（Task 1.9.6 / P2-STD-001 验收「Excel导入正常」）。"""
 import io
+import re
+import zipfile
 from pathlib import Path
 
 from openpyxl import Workbook
@@ -27,6 +29,19 @@ def _xlsx(rows: list[list]) -> bytes:
     return buf.getvalue()
 
 
+def _strip_dimension(xlsx_bytes: bytes) -> bytes:
+    """去掉 sheet 的 dimension 记录 → openpyxl 不再补 None，行取实际长度（畸形 xlsx）。"""
+    zin = zipfile.ZipFile(io.BytesIO(xlsx_bytes))
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w") as zout:
+        for item in zin.namelist():
+            content = zin.read(item)
+            if item.endswith("sheet1.xml"):
+                content = re.sub(rb"<dimension[^/]*/>", b"", content)
+            zout.writestr(item, content)
+    return out.getvalue()
+
+
 def _make_create(class_id: str):
     from app.schemas.pipe_class import PipeClassCreate
     return PipeClassCreate(
@@ -50,6 +65,13 @@ async def test_import_two_rows_one_dup(db):
 async def test_import_bad_json_reports_error(db):
     bad = [_ROW[:8] + ["not-json"] + _ROW[9:]]
     result = await PipeClassService.import_from_excel(db, io.BytesIO(_xlsx(bad)))
+    assert result["imported"] == 0 and len(result["errors"]) == 1
+
+
+async def test_import_short_row_reports_error(db):
+    """畸形短行（2 列 < 12 列）行级上报，不抛 IndexError（500）。"""
+    malformed = _strip_dimension(_xlsx([["A1", "等级A1"]]))
+    result = await PipeClassService.import_from_excel(db, io.BytesIO(malformed))
     assert result["imported"] == 0 and len(result["errors"]) == 1
 
 

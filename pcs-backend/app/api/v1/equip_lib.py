@@ -29,7 +29,7 @@ async def search(
     db: Annotated[AsyncSession, Depends(get_db)],
     keyword: str | None = Query(None),
     equipment_type: str | None = Query(None),
-    limit: int = Query(50),
+    limit: int = Query(50, ge=1, le=200),
 ):
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await EquipLibService.search(
