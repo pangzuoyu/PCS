@@ -34,6 +34,10 @@ class ConfigAsset(TimestampMixin, Base):
         String(20), default="DRAFT", comment="ConfigStatus"
     )
     content_json: Mapped[dict | None] = mapped_column(JSONB)
+    asset_subtype: Mapped[str | None] = mapped_column(
+        String(30), nullable=True,
+        comment="PIPE_CLASS/STREAM_SYMBOL/PIPE_CODE_TEMPLATE（V1.4 §0.5/PC-3）",
+    )
 
 
 class ConfigVersion(TimestampMixin, Base):

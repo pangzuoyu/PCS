@@ -44,8 +44,13 @@ async def create_pipe_class(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """PC-3：公司级管道等级创建（同步挂 ConfigAsset + ConfigVersion v1）。
+
+    Excel 批量导入端点 ``/pipe-classes/import`` 仍走 1.9 3 态契约 ``create()``
+    （向后兼容 1.9 客户）。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    return await PipeClassService.create(db, payload=payload)
+    return await PipeClassService.create_with_config_asset(db, payload=payload, actor=user)
 
 
 @router.get("/pipe-classes/import-template")
@@ -106,6 +111,56 @@ async def delete_pipe_class(
 ):
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     await PipeClassService.delete(db, class_id)
+
+
+# ---------------------------------------------------------------------------
+# SUP-002 PC-3：5 态 transition 端点（公司级；ConfigAsset 驱动）
+# ACL：
+#   /submit   PROCESS_CONTROLLER, SYSTEM_ADMIN
+#   /approve  REVIEWER,         SYSTEM_ADMIN
+#   /publish  APPROVER,         SYSTEM_ADMIN
+#   /obsolete PROCESS_CONTROLLER, REVIEWER, APPROVER, SYSTEM_ADMIN
+# ---------------------------------------------------------------------------
+
+
+@router.post("/pipe-classes/{class_id}/submit", response_model=PipeClassResponse)
+async def submit_pipe_class(
+    class_id: str,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeClassService.submit(db, class_id, actor=user)
+
+
+@router.post("/pipe-classes/{class_id}/approve", response_model=PipeClassResponse)
+async def approve_pipe_class(
+    class_id: str,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "REVIEWER", "SYSTEM_ADMIN")
+    return await PipeClassService.approve(db, class_id, actor=user)
+
+
+@router.post("/pipe-classes/{class_id}/publish", response_model=PipeClassResponse)
+async def publish_pipe_class(
+    class_id: str,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "APPROVER", "SYSTEM_ADMIN")
+    return await PipeClassService.publish(db, class_id, actor=user)
+
+
+@router.post("/pipe-classes/{class_id}/obsolete", response_model=PipeClassResponse)
+async def obsolete_pipe_class(
+    class_id: str,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "REVIEWER", "APPROVER", "SYSTEM_ADMIN")
+    return await PipeClassService.obsolete(db, class_id, actor=user)
 
 
 @router.get(

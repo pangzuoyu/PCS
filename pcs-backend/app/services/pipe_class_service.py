@@ -2,18 +2,41 @@
 
 规则（spec §3.2.5 验收）：已用等级不可删除（仅可作废）。
 在用判定：project_pipe_classes 存在关联行 或 piping_results.material_class 引用。
+
+SUP-002 PC-3（V1.4 §0.5/§2.1/§3.1）：增加 5 态 transition 流（submit/approve/publish/
+obsolete），状态机驱动 ConfigAsset.status；pipe_classes.status 为 ConfigAsset.status
+的镜像。CRUD 与 Excel 导入仍走旧 3 态契约（向后兼容 1.9 客户 + xfail 测试）。
 """
 from __future__ import annotations
 
 import uuid
+from typing import Any, Protocol
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.calc import PipingResult
-from app.models.config_domain import PipeClass, ProjectPipeClass
+from app.models.config_domain import (
+    ConfigAsset,
+    ConfigVersion,
+    PipeClass,
+    ProjectPipeClass,
+)
+from app.models.enums import AuditAction, ConfigTransition
 from app.schemas.pipe_class import PipeClassCreate, PipeClassUpdate
+from app.services.audit_service import AuditService
+from app.services.config_state_machine import (
+    ConfigStateMachine,
+    InvalidTransitionError,
+)
 from app.services.exceptions import PcsError
+
+
+class _ActorLike(Protocol):
+    """最小 actor 协议 — ConfigStateMachine.record_approval 需要 .user_id/role."""
+
+    user_id: Any
+    role: str | None
 
 _STATUS_OK = {"DRAFT", "ACTIVE", "OBSOLETE"}
 
@@ -178,3 +201,206 @@ class PipeClassService:
             except (ValueError, TypeError, IndexError, json.JSONDecodeError) as e:
                 errors.append(f"行{i}: 解析失败 {e}")
         return {"imported": imported, "skipped": skipped, "errors": errors}
+
+    # ------------------------------------------------------------------
+    # SUP-002 PC-3：5 态 transition 流（公司级）
+    # 状态机驱动 ConfigAsset（CATEGORY_5，asset_subtype=PIPE_CLASS）；pipe_classes.status
+    # 是 ConfigAsset.status 的镜像列（cerebrum Do-Not-Repeat：双写必须同事务）。
+    # ------------------------------------------------------------------
+
+    @classmethod
+    async def create_with_config_asset(
+        cls,
+        session: AsyncSession,
+        *,
+        payload: PipeClassCreate,
+        actor: _ActorLike,
+    ) -> PipeClass:
+        """创建 PipeClass + ConfigAsset + ConfigVersion v1（同事务）。
+
+        PC-3 唯一入口（替换 1.9 的 ``create``）：
+
+        - PipeClass DRAFT（5 态起点）
+        - ConfigAsset CATEGORY_5 + asset_subtype=PIPE_CLASS（DRAFT）
+        - ConfigVersion v1（DRAFT，content_json 镜像 PipeClass 字段）
+        - pipe_classes.asset_id 反向指 ConfigAsset
+        - audit：CONFIG_ASSET_CREATED
+
+        Excel 导入继续走 ``create``（3 态契约，1.9 兼容）。
+        """
+        if await session.get(PipeClass, payload.class_id):
+            raise PcsError(
+                f"管道等级 {payload.class_id} 已存在",
+                code="PIPE_CLASS_DUP", status=409,
+            )
+        pc = PipeClass(**payload.model_dump(), status="DRAFT")
+        session.add(pc)
+        await session.flush()
+
+        version_code = pc.version or "v1"
+        asset = ConfigAsset(
+            category="CATEGORY_5",
+            asset_subtype="PIPE_CLASS",
+            name=payload.class_name,
+            current_version=version_code,
+            status="DRAFT",
+            content_json={
+                "class_id": pc.class_id,
+                "class_name": pc.class_name,
+                "material_standard": pc.material_standard,
+                "design_pressure": pc.design_pressure,
+                "design_temperature": pc.design_temperature,
+                "dn_series_json": pc.dn_series_json,
+                "sch_series_json": pc.sch_series_json,
+                "flange_class": pc.flange_class,
+            },
+        )
+        session.add(asset)
+        await session.flush()
+
+        version = ConfigVersion(
+            asset_id=asset.asset_id,
+            version_code=version_code,
+            content_json=asset.content_json,
+            status="DRAFT",
+        )
+        session.add(version)
+        await session.flush()
+
+        pc.asset_id = asset.asset_id
+        await session.flush()
+
+        await AuditService(session).write(
+            action=AuditAction.CONFIG_ASSET_CREATED,
+            resource_type="CONFIG",
+            resource_id=str(asset.asset_id),
+            user_id=getattr(actor, "user_id", None),
+            detail={
+                "class_id": pc.class_id,
+                "asset_subtype": "PIPE_CLASS",
+                "version_code": version_code,
+            },
+        )
+        await session.commit()
+        return pc
+
+    @classmethod
+    async def _resolve_asset_and_version(
+        cls, session: AsyncSession, pc: PipeClass
+    ) -> tuple[ConfigAsset, ConfigVersion]:
+        """取 pc.asset_id 对应 ConfigAsset 与最新 ConfigVersion（按 created_at desc）。"""
+        if not pc.asset_id:
+            raise PcsError(
+                f"等级 {pc.class_id} 未挂 ConfigAsset（PC-3 漏建）",
+                code="PIPE_CLASS_NO_ASSET", status=409,
+            )
+        asset = await session.get(ConfigAsset, pc.asset_id)
+        if asset is None:
+            raise PcsError(
+                f"ConfigAsset {pc.asset_id} 不存在",
+                code="PIPE_CLASS_NO_ASSET", status=409,
+            )
+        version = (
+            await session.execute(
+                select(ConfigVersion)
+                .where(ConfigVersion.asset_id == asset.asset_id)
+                .order_by(ConfigVersion.created_at.desc())
+                .limit(1)
+            )
+        ).scalar_one_or_none()
+        if version is None:
+            raise PcsError(
+                f"ConfigAsset {asset.asset_id} 缺 ConfigVersion（PC-3 漏建）",
+                code="PIPE_CLASS_NO_VERSION", status=409,
+            )
+        return asset, version
+
+    @classmethod
+    async def _mirror_status(
+        cls,
+        session: AsyncSession,
+        pc: PipeClass,
+        asset: ConfigAsset,
+    ) -> None:
+        """pipe_classes.status = asset.status（同步 commit）。"""
+        pc.status = asset.status
+        await session.commit()
+
+    @classmethod
+    async def submit(
+        cls, session: AsyncSession, class_id: str, *, actor: _ActorLike
+    ) -> PipeClass:
+        """DRAFT → PENDING。ConfigStateMachine.transition 转移 + 镜像同步。"""
+        pc = await cls.get(session, class_id)
+        asset, version = await cls._resolve_asset_and_version(session, pc)
+        sm = ConfigStateMachine(session)
+        try:
+            await sm.transition(
+                asset, version, action=ConfigTransition.SUBMIT, actor=actor,
+            )
+        except InvalidTransitionError as e:
+            raise PcsError(str(e), code="PIPE_CLASS_BAD_TRANSITION", status=409) from e
+        await cls._mirror_status(session, pc, asset)
+        return pc
+
+    @classmethod
+    async def approve(
+        cls,
+        session: AsyncSession,
+        class_id: str,
+        *,
+        actor: _ActorLike,
+        role: str | None = None,
+    ) -> PipeClass:
+        """PENDING → APPROVED。CATEGORY_5 单层签：reviewer 一次性 APPROVED。"""
+        pc = await cls.get(session, class_id)
+        asset, version = await cls._resolve_asset_and_version(session, pc)
+        sm = ConfigStateMachine(session)
+        approver_role = role or getattr(actor, "role", None) or "REVIEWER"
+        try:
+            await sm.record_approval(
+                asset,
+                version,
+                approver_id=getattr(actor, "user_id", None),
+                role=approver_role,
+                decision="APPROVED",
+                actor=actor,
+            )
+        except Exception as e:  # noqa: BLE001
+            raise PcsError(str(e), code="PIPE_CLASS_BAD_TRANSITION", status=409) from e
+        await cls._mirror_status(session, pc, asset)
+        return pc
+
+    @classmethod
+    async def publish(
+        cls, session: AsyncSession, class_id: str, *, actor: _ActorLike
+    ) -> PipeClass:
+        """APPROVED → PUBLISHED。"""
+        pc = await cls.get(session, class_id)
+        asset, version = await cls._resolve_asset_and_version(session, pc)
+        sm = ConfigStateMachine(session)
+        try:
+            await sm.transition(
+                asset, version, action=ConfigTransition.PUBLISH, actor=actor,
+            )
+        except InvalidTransitionError as e:
+            raise PcsError(str(e), code="PIPE_CLASS_BAD_TRANSITION", status=409) from e
+        await cls._mirror_status(session, pc, asset)
+        return pc
+
+    @classmethod
+    async def obsolete(
+        cls, session: AsyncSession, class_id: str, *, actor: _ActorLike
+    ) -> PipeClass:
+        """→ OBSOLETE（DRAFT / APPROVED / PUBLISHED 都可经 OBSOLETE 直接出局）。"""
+        pc = await cls.get(session, class_id)
+        asset, version = await cls._resolve_asset_and_version(session, pc)
+        sm = ConfigStateMachine(session)
+        try:
+            await sm.transition(
+                asset, version, action=ConfigTransition.OBSOLETE, actor=actor,
+            )
+        except InvalidTransitionError as e:
+            raise PcsError(str(e), code="PIPE_CLASS_BAD_TRANSITION", status=409) from e
+        await cls._mirror_status(session, pc, asset)
+        return pc
