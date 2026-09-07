@@ -1,8 +1,8 @@
 PCS-SPEC-P3-SIM
 文档编号： PCS-SPEC-P3-SIM
-版本： V1.2（完整版）
+版本： V1.3（完整版）
 日期： 2026-09-08
-状态： 已定稿（V1.2 增量：整合 ADD-001 手工输入完整字段清单 + ADD-002 校核/引用/冲突分类与处理策略；基于 V1.1 PRO/II 8.x 炼油版基线）
+状态： 已定稿（V1.3 增量：校核状态机从 5 态 CONFIG 层纠正为 4 态记录层 P3 活跃子集 + P4 阶段扩展 5 态；架构裁决记录于 §第一部分 1.1；解决 P3.md V1.5 与本 spec V1.2 的内部矛盾。V1.2 增量：整合 ADD-001 手工输入完整字段清单 + ADD-002 校核/引用/冲突分类与处理策略；基于 V1.1 PRO/II 8.x 炼油版基线）
 依赖： SPEC-P2 V1.4、开发计划 V1.2 §3.2、D29–D34 裁决
 范围： 物流数据的四种输入方式（手工输入、Excel 批量导入、PRO/II 双文件解析、HYSYS/Aspen/HTRI 解析预留）+ 统一校验 + PCS 数据映射 + 扩展单元操作与反应数据解析 + 完整字段清单 + 校核状态/引用追踪/冲突解决
 说明： 本文档整合了实际 PRO/II 项目（含反应器、压缩机、简捷塔、计算器等）的解析需求，作为 P3.2 SIM 模块的最终实施依据。
@@ -878,7 +878,7 @@ PCS-SPEC-P3-SIM V1.1 → V1.2 增量 Diff（2026-09-08）
 合并 ADD-001：手工输入完整字段清单（§第二部分附录 A — 字段三级分类 R/O/C）
 合并 ADD-002：物流校核状态 / 引用追踪 / 冲突分类与处理（§第二部分附录 B — 校核状态 / §附录 C — 引用追踪 / §附录 D — 冲突解决引擎）
 数据库增量（ADD-002 §3.6）：streams 表增加 sign_status / user_provided_properties_json / calculated_properties_json / effective_properties_json / conflict_resolutions_json 五列（参见 §校核/引用/冲突章节）
-状态机：SIM 物流走标准 5 态 DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE（参见 §校核状态）
+状态机：SIM 物流走记录层 9 态全集（DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED/STALE/CHANGE_PENDING/CHANGED/REVERSAL_PENDING/OBSOLETE，P1 SUP-007）。P3 阶段活跃子集 4 态：DRAFT → IN_APPROVAL → CHECKED → OBSOLETE；P4 阶段激活 STALE/CHANGE_PENDING/CHANGED/REVERSAL_PENDING。PIPE_CLASS 5 态不涉及——管道等级是 CATEGORY_5 CONFIG 资产，走 CONFIG 状态机。
 
 PCS-SPEC-P3-SIM V1.0 → V1.1 增量 Diff
 变更摘要：新增 5 类 .out 提取器（SPLITTER/COMPRESSOR/TRAY SIZING/REFINERY PROPERTIES/TBP-ASTM）+ 9 类 .inp 新语法（ASSAY/D86/TBP/LIGHTEND/REFSTREAM/NAME/SIDESTRIPPER/COMPRESSOR/SPLITTER/CONTROLLER）+ 总工时 21.5→24.5 天
@@ -1501,25 +1501,37 @@ PCS-SPEC-P3-SIM 增补——物流校核状态、引用追踪与冲突解决
 
 第 1 部分：物流校核状态
 1.1 需求
-物流列表中每条物流需显示校核状态。SIM 物流作为记录层实体，走标准 5 态：
+物流列表中每条物流需显示校核状态。SIM 物流作为记录层实体，走 P1 记录层 9 态全集
+（DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED/STALE/CHANGE_PENDING/CHANGED/REVERSAL_PENDING/OBSOLETE）。
 
+P3 阶段活跃子集（4 态）：
 text
-DRAFT → PENDING → APPROVED → PUBLISHED → OBSOLETE
-         ↑ 驳回                    │
-         └────────────────────────┘
-1.2 状态定义
+DRAFT → IN_APPROVAL → CHECKED → OBSOLETE
+         ↑ 驳回（经 CHECK_REJECTED 过渡）
+
+P4 阶段激活（5 态，由 CIA 变更传播触发）：
+text
+CHECKED → STALE（CIA 变更传播触发）
+CHECKED → CHANGE_PENDING → CHANGED（变更管理）
+CHANGED → REVERSAL_PENDING → CHECKED（撤销审批）
+
+⚠️ 架构裁决（2026-09-08）：SIM 物流走记录层而非 CONFIG 层。PIPE_CLASS 的 5 态
+（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）是 CATEGORY_5 CONFIG 资产走 CONFIG
+状态机，与本记录层 9 态是两套独立状态机，不可混用。
+1.2 状态定义（P3 阶段活跃子集）
 状态	含义	可见操作
-DRAFT	新建/导入，未提交校核	编辑、删除、提交
-PENDING	已提交，等待校核	撤回、校核通过/驳回
-APPROVED	校核通过	发布、编辑（触发新版本）
-PUBLISHED	已发布，计算模块可使用	作废、fork 新版本
+DRAFT	新建/导入，未提交校核	编辑、删除、提交校核
+IN_APPROVAL	已提交，等待校核	撤回（→ DRAFT）、校核通过（→ CHECKED）、校核驳回（→ CHECK_REJECTED）
+CHECKED	校核通过，计算模块可使用	作废（→ OBSOLETE）
+CHECK_REJECTED	校核驳回（瞬态过渡）	修改后重新提交（→ IN_APPROVAL）
 OBSOLETE	已作废	仅查看
+（P4 阶段扩展：STALE / CHANGE_PENDING / CHANGED / REVERSAL_PENDING — 详见 §校核状态 P4 增补）
 1.3 修改限制
 状态	可编辑？	可删除？
 DRAFT	✅	✅
-PENDING	❌（需撤回）	❌
-APPROVED	❌（需 fork）	❌
-PUBLISHED	❌（需 fork）	❌
+IN_APPROVAL	❌（需撤回）	❌
+CHECKED	❌（需 CIA 走 CHANGE_PENDING）	❌
+CHECK_REJECTED	✅	✅
 OBSOLETE	❌	❌
 1.4 校核通过条件
 条件	说明
@@ -1548,15 +1560,15 @@ psv_result	P5.3 PSV	安全阀计算引用了该物流
 equipment_record	P7.1 EQUIP_LIST	设备表引用了该物流
 2.4 引用保护规则
 规则	处理
-in_use=True 且 sign_status=PUBLISHED	禁止修改。需先 fork 新版本
+in_use=True 且 sign_status=CHECKED	禁止修改。需先经 CIA 走 CHANGE_PENDING 流程
 in_use=True 且 sign_status=DRAFT	禁止删除。修改不阻塞但需提醒
-上游 PUBLISHED 物流被修改（fork 后发布新版本）	下游引用旧版本的记录经 CIA 传播标 STALE
+上游 CHECKED 物流被修改（经 CIA CHANGE_PENDING 审批）	下游引用旧版本的记录经 CIA 传播标 STALE
 2.5 API 响应扩展
 json
 {
   "stream_id": "...",
   "stream_name": "FEED-001",
-  "sign_status": "PUBLISHED",
+  "sign_status": "CHECKED",
   "reference_count": 3,
   "references": [
     {"source_type": "pump_result", "source_id": "...", "module": "PUMP", "label": "P-101"},
@@ -1565,14 +1577,16 @@ json
   "in_use": true
 }
 2.6 前端展示
-物流列表状态标记：
+物流列表状态标记（P3 阶段活跃子集）：
 
 标记	含义
-🟢 已发布	PUBLISHED
-🔵 已通过	APPROVED
-🟡 待校核	PENDING
-⚪ 草稿	DRAFT
+🟢 已通过		CHECKED
+🟡 待校核		IN_APPROVAL
+⚪ 草稿		DRAFT
+🟠 校核驳回	CHECK_REJECTED
 ⚫ 已作废	OBSOLETE
+🔵 失效（仅 P4）	STALE
+🟣 变更审批中（仅 P4）	CHANGE_PENDING
 📎 ×N	被 N 个计算引用
 第 3 部分：冲突分类与处理策略
 3.1 冲突的本质

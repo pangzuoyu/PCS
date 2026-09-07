@@ -1,10 +1,10 @@
 P3 基础数据层开发规格说明书
 文件标识	PCS-REQ-2026-002-SPEC-P3
-当前版本	V1.5
-发布日期	2026-08-27（V1.2 修订 2026-08-29，incorporate SUP-007 + ADR-0019~0022；V1.3 修订 2026-09-03，对齐 PCS 本体论 V1.6 §2.5 / §5.3；V1.4 修订 2026-09-03，incorporate SUP-008 V1.1 + SUP-010 V1.1：SIM Excel 导入 + streams 16 字段 + viscosity_temperature_curve + 多案例支持；**V1.5 修订 2026-09-08，对齐 P2 close 现状：SUP-002 V1.4 全部落地 + PCS-SPEC-P3-SIM V1.2 已合并 ADD-001/002 + TODOS.md TODO-024~033 + 代码现状 §第五部分 实施遗漏清单**）
+当前版本	V1.6
+发布日期	2026-08-27（V1.2 修订 2026-08-29，incorporate SUP-007 + ADR-0019~0022；V1.3 修订 2026-09-03，对齐 PCS 本体论 V1.6 §2.5 / §5.3；V1.4 修订 2026-09-03，incorporate SUP-008 V1.1 + SUP-010 V1.1：SIM Excel 导入 + streams 16 字段 + viscosity_temperature_curve + 多案例支持；V1.5 修订 2026-09-08，对齐 P2 close 现状：SUP-002 V1.4 全部落地 + PCS-SPEC-P3-SIM V1.2 已合并 ADD-001/002 + TODOS.md TODO-024~033 + 代码现状 §第五部分 实施遗漏清单；**V1.6 修订 2026-09-08，三 CRITICAL 裁决落地：①StreamSignStatus 走 P1 记录层 9 态全集（P3 活跃 4 态：P3-SIM V1.3 已对齐）②case_type 双层语义明确（streams 物流级 + stream_state_points 状态点级，互不合并）③P3 启动顺序 P3.3 COMMON → P3.2 SIM → P3.1 PMS 串行，SIM 仅做 PRO/II + 手工 + Excel**）
 编制部门	工艺部 / 信息化联合项目组
 适用对象	内部开发团队（后端/前端/测试/数据库）
-关联文档	PCS-REQ-2026-002 V2.2 §3.2.1/§3.2.2/§3.2.10/§3.2.15、SUP-001~007、SUP-008 V1.1、SUP-010 V1.1、**PCS 本体论与语义关系研究说明（V1.6）§2.5 / §5.3、PCS-SPEC-P3-SIM V1.2（2026-09-08 已合并 ADD-001 完整字段清单 + ADD-002 校核/引用/冲突）、PCS-SPEC-P2-SUP-002 V1.4（2026-09-06 定稿，PC-1~6/SYM-1~3/FMT-1~4 全部落地）、主开发计划 V1.3、TODOS.md**
+关联文档	PCS-REQ-2026-002 V2.2 §3.2.1/§3.2.2/§3.2.10/§3.2.15、SUP-001~007、SUP-008 V1.1、SUP-010 V1.1、**PCS 本体论与语义关系研究说明（V1.6）§2.5 / §5.3、PCS-SPEC-P3-SIM V1.3（2026-09-08 校核状态机从 5 态 CONFIG 层纠正为 4 态记录层 P3 活跃子集 + P4 阶段扩展 5 态）、PCS-SPEC-P2-SUP-002 V1.4（2026-09-06 定稿，PC-1~6/SYM-1~3/FMT-1~4 全部落地）、主开发计划 V1.3、TODOS.md、SPEC-P1（记录层 9 态门禁 DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED/STALE/CHANGE_PENDING/CHANGED/REVERSAL_PENDING/OBSOLETE）**
 第一部分：引言
 1.1 目的
 本文档定义P3阶段（基础数据层）的完整需求规格，明确PMS项目基本信息、SIM工艺模拟数据、COMMON工艺常用数据库和PIPE_CLASS管道等级库四个基础数据子系统的详细功能需求、接口规范和验收标准。
@@ -208,6 +208,27 @@ CHECKED 物流的后续修改不重新校对：限权（DESIGNER+项目负责人
 状态点管理（V1.2）：一条物流按工况（NORMAL/MIN/MAX/ALTERNATE）维护多个状态点（stream_state_points），T/P 变化新建状态点、不修改原状态点；两相流须保存气液分率与气液相组成（可由 FLASH 计算填充）
 
 设备连接（V1.2，ADR-0022）：物流是管段的标识，经过设备后物流号更换。streams 表携带 upstream_stream_id / upstream_equipment_type / upstream_equipment_id / change_type；设备计算完成后系统自动创建出口物流（source_type=DEVICE_CALCULATED，sign_status=DRAFT，需校对）
+
+**工况与状态点 双层语义（V1.6 明确，2026-09-08 裁决）**：
+两个 `case_type` 字段语义不同，分属两层：
+
+字段	所属表	枚举	语义	层级
+streams.case_type	streams	NORMAL / END_OF_RUN / START_OF_RUN / TURN_DOWN	物流所属设计工况（正常 / 开车 / 停车 / 调节）	物流级（粗粒度：哪种工况）
+stream_state_points.case_type	stream_state_points	NORMAL / MIN / MAX / ALTERNATE	同一物流的数据点类型（设计值 / 最小值 / 最大值 / 备选值）	状态点级（细粒度：哪种边界）
+
+关系（一条物流（stream）的内部结构）：
+text
+stream (case_type = NORMAL —— 正常工况)
+└── 多个状态点（state_points）
+    ├── case_type = NORMAL（设计值）
+    ├── case_type = MIN（最小操作边界）
+    └── case_type = MAX（最大操作边界）
+
+同一条 stream 也可有开车工况 / 停车工况 / 调节工况的副本（不同 stream_id + 各自 case_type）。
+典型场景：一条物流在正常工况下，流量有设计值 / 最小值 / 最大值三个状态点；
+另一条同名物流在开车工况（不同 stream_id，case_type=START_OF_RUN）下也有自己的 NORMAL/MIN/MAX 三个状态点。
+
+不合并。前端：物流列表按工况过滤（streams.case_type），物流详情展示多个状态点（state_points.case_type）。
 
 物流数据字段（完整Streams表字段）：
 包括但不限于：温度、压力、质量流量、摩尔流量、体积流量、标准状态气体流量、密度、粘度、导热系数、比热容、分子量、压缩因子、汽化分率、组成（摩尔/质量/体积分率）、堆积密度、真密度、粒径、休止角、馏程、四组分分析、元素分析、金属含量、原料/产品规格。
@@ -543,3 +564,4 @@ P3-OPEN-011	[Pydantic Schema 覆盖 + 表单 CI 漂移校验 — §3.2.5 实施�
 | V1.4 | 2026-09-03 | incorporate SUP-008 V1.1 + SUP-010 V1.1：关联文档加 SUP-008/SUP-010；新增 P3-OPEN-005（SIM Excel 导入引擎 + streams 16 字段扩展 + 多案例 stream_case_type 枚举）；新增 P3-OPEN-006（viscosity_temperature_curve JSONB 字段，蜡油加氢实例）；新增 P3-OPEN-007（case_type NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN 案例切换）；主体 PMS/COMMON/PIPE_CLASS 不动 | 联合项目组 |
 | V1.5 | 2026-09-08 | 对齐 P2 close 现状：关联文档加 PCS-SPEC-P3-SIM V1.2（ADD-001/002 合并）+ PCS-SPEC-P2-SUP-002 V1.4（PC-1~6/SYM-1~3/FMT-1~4 全部落地）+ 主开发计划 V1.3 + TODOS.md；新增 §第五部分 实施遗漏清单（5.1 PMS 0% / 5.2 SIM ~5% / 5.3 COMMON 0% / 5.4 PIPE_CLASS 100% / 5.5 总览 / 5.6 P2 close 后续待办）；新增 P3-OPEN-008（PMS 全缺）/ P3-OPEN-009（SIM service/API 全缺）/ P3-OPEN-010（COMMON service/API 全缺）/ P3-OPEN-011（Pydantic Schema 覆盖 + 表单 CI 漂移校验现状）；标记 StreamSignStatus 4 态 vs 5 态内部矛盾待 P3 启动时统一裁决；P3 启动总工时估算约 40~45 天 | 联合项目组 |
 
+| V1.6 | 2026-09-08 | 三 CRITICAL 裁决落地：①StreamSignStatus 走 SPEC-P1 记录层 9 态全集（DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED/STALE/CHANGE_PENDING/CHANGED/REVERSAL_PENDING/OBSOLETE），P3 活跃 4 态子集 P3-SIM V1.3 已对齐；②P3 §3.2.2 明确 streams.case_type（物流级 NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN）与 stream_state_points.case_type（状态点级 NORMAL/MIN/MAX/ALTERNATE）双层语义，不合并；③P3 启动顺序 P3.3 COMMON → P3.2 SIM → P3.1 PMS 串行，SIM 仅做 PRO/II（spec V1.1）+ 手工 + Excel，HYSYS/Aspen/HTRI 解析器后置 P4；P3-SIM V1.2 → V1.3 | 联合项目组 |

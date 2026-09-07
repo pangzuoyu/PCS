@@ -1,10 +1,10 @@
 P4 核心计算引擎（第一批）开发规格说明书
 文件标识	PCS-REQ-2026-002-SPEC-P4
-当前版本	V1.4
-发布日期	2026-08-27（V1.2 修订 2026-08-29，incorporate SUP-007 + ADR-0020/0022；V1.3 修订 2026-09-03，对齐 PCS 本体论 V1.6 §5；V1.4 修订 2026-09-03，incorporate SUP-008 V1.1：PIPE/PUMP 输出字段扩展 + two_phase_results 表 + flow_pattern 枚举 + 设计阶段双模板 design_stage）
+当前版本	V1.5
+发布日期	2026-08-27（V1.2 修订 2026-08-29，incorporate SUP-007 + ADR-0020/0022；V1.3 修订 2026-09-03，对齐 PCS 本体论 V1.6 §5；V1.4 修订 2026-09-03，incorporate SUP-008 V1.1：PIPE/PUMP 输出字段扩展 + two_phase_results 表 + flow_pattern 枚举 + 设计阶段双模板 design_stage；**V1.5 修订 2026-09-08，三 CRITICAL 裁决落地：①StreamSignStatus 走 SPEC-P1 记录层 9 态全集，P4 阶段激活 STALE/CHANGE_PENDING/CHANGED/REVERSAL_PENDING/CHECK_REJECTED 5 态扩展；②case_type 双层语义明确（streams 物流级 vs stream_state_points 状态点级）；③P3 启动顺序 P3.3 COMMON → P3.2 SIM → P3.1 PMS 串行**）
 编制部门	工艺部 / 信息化联合项目组
 适用对象	内部开发团队（后端/前端/测试/数据库）
-关联文档	PCS-REQ-2026-002 V2.2 §3.2.3/§3.2.4、SUP-003 §3.2.20/§3.2.23、SUP-007、SUP-008 V1.1、管道一览表数据字典、离心泵计算数据字典、SPEC-P0/P1/P2/P3、DF-001、**PCS 本体论与语义关系研究说明（V1.6）§5**
+关联文档	PCS-REQ-2026-002 V2.2 §3.2.3/§3.2.4、SUP-003 §3.2.20/§3.2.23、SUP-007、SUP-008 V1.1、管道一览表数据字典、离心泵计算数据字典、SPEC-P0/P1/P2/**P3 V1.6**、DF-001、**PCS 本体论与语义关系研究说明（V1.6）§5、PCS-SPEC-P3-SIM V1.3、P3 §3.2.2 双层 case_type 语义、TODOS.md**
 第一部分：引言
 1.1 目的
 本文档定义P4阶段（核心计算引擎第一批）的完整需求规格，明确FLASH闪蒸与相平衡、PIPE管道计算、PIPE_NET管道网络水力学和PUMP机泵计算四个核心计算模块的详细功能需求、算法规格、输入输出定义和验收标准。
@@ -439,6 +439,9 @@ P4-OPEN-006	[P4 Task 0-Code 范围确认] 详见 PCS 本体论 V1.6 §5.2：Alem
 P4-OPEN-007	[认知负荷检查] PCS 本体论 V1.6 §2.6 / §5.1 末段提示：domain_model.md 产出后由未参与 P4 开发的开发者（如 P5 负责人）10 分钟理解"物流从 SIM 导入到被 PIPE 引用"的完整状态转换与校验链。**该检查点为软建议**，非硬验收项；硬验收仍为架构委员会批准。	P4 Task 0-Design 软指标	若 10 分钟内讲不清则迭代 domain_model.md；架构委员会评审时关注总量可读性	软建议
 P4-OPEN-008	[PIPE/PUMP 输出字段 + 两相流管径] 详见 SUP-008 V1.1 §2.2/§2.3 + §8.3.4：① piping_results 新增 12 字段（line_description / pipe_type 枚举 PUMP_SUCTION/PUMP_DISCHARGE/SELF_FLOW/HEATING_STEAM/TWO_PHASE / max_flow_factor / selected_diameter / liquid_velocity_max / gas_velocity_max / pressure_drop_per_100m / selected_pipe_size / recommended_pipe_size / check_result 枚举 PASS/FAIL/WARNING / velocity_range_reference）；② pump_results 新增 4 字段（selected_pump_model / selected_motor_model / selected_motor_power / pump_operation 枚举 NORMAL/STANDBY/OFF）；③ 新增 two_phase_results 表 13 字段（含 Bx/By、flow_pattern 枚举 ANNULAR/MIST/BUBBLE/SLUG/STRATIFIED/WAVE、two_phase_check 枚举 PASS/WARNING/FAIL）。验收：管径/泵选型输出与 Excel 偏差 ≤ 5%。	P4 结果表扩展迁移	按 SUP-008 §3.2.2/§3.2.3 ALTER TABLE + §8.3.4 CREATE TABLE；列入 DICT V3.7	待启动
 P4-OPEN-009	[设计阶段双模板 design_stage] 详见 SUP-008 V1.1 §8.4：pump_results/vessel_results/psv_results 三个表新增 `design_stage` 字段（BASIC/DETAIL，默认 BASIC），用于区分基础设计（≤30 列简化表头）与详细设计（PUMP 684 行 × 43 列 / PSV 88 列 / VESSEL 83 列 完整字段）两套模板。建议新建 ADR-0026 记录此裁决。	P4 数据模型迁移	三表 ALTER TABLE + ADR-0026 起草	待启动
+P4-OPEN-010	[StreamSignStatus P4 阶段 5 态扩展] 详见 P3-SIM V1.3 §第一部分 1.1 + P3.md V1.6 §3.2.2 裁决：P3 活跃 4 态（DRAFT/IN_APPROVAL/CHECKED/OBSOLETE）已落代码（PG native enum `streamsignstatus`），P4 阶段需扩展 5 态：CHECK_REJECTED（瞬态驳回）、STALE（CIA 传播触发）、CHANGE_PENDING（变更审批）、CHANGED（变更完成）、REVERSAL_PENDING（撤销审批）。**P4 启动首件事**：Alembic 迁移 `ALTER TYPE streamsignstatus ADD VALUE 'CHECK_REJECTED', 'STALE', 'CHANGE_PENDING', 'CHANGED', 'REVERSAL_PENDING'`（PG enum value add 不可逆；改名/删除需重命名类型）。同时为 CHECKED 状态记录添加 5 态转换所需的 record_hash、stale_resolution_path、hash_changed 审计字段（P4-OPEN-005/006 落地）。	P4 Task 0-Code 必做	ALTER TYPE + 审计字段同步；CHECK_REJECTED 由 CIA 驳回路径触发；STALE 由 hash 不匹配 + CIA 传播触发	待启动
+P4-OPEN-011	[P4 计算记录 STALE 自动传播] 详见 SPEC-P1 V1.1 §4.1 记录层 9 态门禁 + P3.md V1.6 §3.2.2：P4 PIPE/PIPE_NET/PUMP/FLASH 计算记录引用 SIM 物流（sign_status=CHECKED）后，若上游物流经 CHANGE_PENDING → CHANGED（hash 变化），下游计算记录须自动转 STALE 状态，存快照，提供「重算」按钮（hash 不变免凭证回 CHECKED；hash 变进入 CHANGE_PENDING）。**CIA propagation perf budget**：≤ 1000 下游记录 ≤ 30 秒（TODO-029 测试已纳入 P2 Sprint 4）。	P4 计算模块 PIPE/PUMP/FLASH 必备	CIAEngine STALE 路径已落（V3.1 full_schema + CIAEngine.py），扩展支持 9 态 CHANGE_PENDING 审批流；UI 「重算」按钮走 record_change_snapshots 表	待启动
+P4-OPEN-012	[P3 启动前置依赖清单] 详见 P3.md V1.6 §第五部分 + 本 spec V1.5 启动序列：P4 模块开工前须确认 P3 已交付 — ①P3.3 COMMON 4~5 天（物性查询 + CoolProp + ASME B31.3 许用应力 + 毒性/爆炸极限）②P3.2 SIM 30~35 天（PRO/II + 手工 + Excel，HYSYS/Aspen/HTRI 后置 P4）③P3.1 PMS 5 天（项目 CRUD + 向导 + 复制 + 单位制联动）。串行总计 40~45 天。P4 PIPE 模块无 SIM 物流可引时无法运行压降计算；PUMP 模块无 SIM 流量+扬程边界时无法选型。	P4 启动硬前置	按 P3 启动顺序开工；P4 启动前由架构委员会验收 P3.3/3.2/3.1 全部 Pydantic Schema 覆盖（P3-OPEN-011）	待启动
 
 ## 版本历史
 
@@ -449,4 +452,5 @@ P4-OPEN-009	[设计阶段双模板 design_stage] 详见 SUP-008 V1.1 §8.4：pum
 | V1.2 | 2026-08-29 | incorporate ADR-0020/0022：FLASH 与状态点联动（自动计算气液组成）；PIPE/PIPE_NET/PUMP/CV 计算完成自动创建出口物流（独立物流链，DEVICE_CALCULATED→DRAFT 待校对） | 联合项目组 |
 | V1.3 | 2026-09-03 | 对齐 PCS 本体论 V1.6：关联文档加 V1.6 §5（P4 Task 0 正式范围）+ DF-001；新增 P4-OPEN-005/006/007（Task 0-Design 范围确认、Task 0-Code 范围确认、认知负荷软建议）；本版本不修改 §3.2/§4 等已交付计算模块需求，仅补充前置 Task 0 启动门与 CI 硬性项 | 联合项目组 |
 | V1.4 | 2026-09-03 | incorporate SUP-008 V1.1：关联文档加 SUP-008；新增 P4-OPEN-008（piping_results 12 字段 + pump_results 4 字段 + two_phase_results 新表 + flow_pattern 枚举 ANNULAR/MIST/BUBBLE/SLUG/STRATIFIED/WAVE）；新增 P4-OPEN-009（design_stage 双模板字段 PUMP/VESSEL/PSV）；主体 §3.2 算法规格不动，仅扩结果表输出字段与新表 | 联合项目组 |
+| V1.5 | 2026-09-08 | 三 CRITICAL 裁决落地：①StreamSignStatus P4 扩展 5 态（CHECK_REJECTED/STALE/CHANGE_PENDING/CHANGED/REVERSAL_PENDING，ALTER TYPE streamsignstatus）P3-SIM V1.3 已对齐；②case_type 双层语义（streams 物流级 vs stream_state_points 状态点级）；③P3 启动顺序 P3.3 COMMON → P3.2 SIM → P3.1 PMS 串行；新增 P4-OPEN-010（StreamSignStatus P4 5 态扩展）/ P4-OPEN-011（计算记录 STALE 自动传播 + CIA perf budget）/ P4-OPEN-012（P3 启动前置依赖清单 40~45 天） | 联合项目组 |
 
