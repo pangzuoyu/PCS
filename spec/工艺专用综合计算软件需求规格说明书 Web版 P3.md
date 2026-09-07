@@ -1,10 +1,10 @@
 P3 基础数据层开发规格说明书
 文件标识	PCS-REQ-2026-002-SPEC-P3
-当前版本	V1.4
-发布日期	2026-08-27（V1.2 修订 2026-08-29，incorporate SUP-007 + ADR-0019~0022；V1.3 修订 2026-09-03，对齐 PCS 本体论 V1.6 §2.5 / §5.3；V1.4 修订 2026-09-03，incorporate SUP-008 V1.1 + SUP-010 V1.1：SIM Excel 导入 + streams 16 字段 + viscosity_temperature_curve + 多案例支持）
+当前版本	V1.5
+发布日期	2026-08-27（V1.2 修订 2026-08-29，incorporate SUP-007 + ADR-0019~0022；V1.3 修订 2026-09-03，对齐 PCS 本体论 V1.6 §2.5 / §5.3；V1.4 修订 2026-09-03，incorporate SUP-008 V1.1 + SUP-010 V1.1：SIM Excel 导入 + streams 16 字段 + viscosity_temperature_curve + 多案例支持；**V1.5 修订 2026-09-08，对齐 P2 close 现状：SUP-002 V1.4 全部落地 + PCS-SPEC-P3-SIM V1.2 已合并 ADD-001/002 + TODOS.md TODO-024~033 + 代码现状 §第五部分 实施遗漏清单**）
 编制部门	工艺部 / 信息化联合项目组
 适用对象	内部开发团队（后端/前端/测试/数据库）
-关联文档	PCS-REQ-2026-002 V2.2 §3.2.1/§3.2.2/§3.2.10/§3.2.15、SUP-001~007、DICT-001、SPEC-P0/P1/P2/P4、**PCS 本体论与语义关系研究说明（V1.6）§2.5 / §5.3、SUP-008 V1.1、SUP-010 V1.1**
+关联文档	PCS-REQ-2026-002 V2.2 §3.2.1/§3.2.2/§3.2.10/§3.2.15、SUP-001~007、SUP-008 V1.1、SUP-010 V1.1、**PCS 本体论与语义关系研究说明（V1.6）§2.5 / §5.3、PCS-SPEC-P3-SIM V1.2（2026-09-08 已合并 ADD-001 完整字段清单 + ADD-002 校核/引用/冲突）、PCS-SPEC-P2-SUP-002 V1.4（2026-09-06 定稿，PC-1~6/SYM-1~3/FMT-1~4 全部落地）、主开发计划 V1.3、TODOS.md**
 第一部分：引言
 1.1 目的
 本文档定义P3阶段（基础数据层）的完整需求规格，明确PMS项目基本信息、SIM工艺模拟数据、COMMON工艺常用数据库和PIPE_CLASS管道等级库四个基础数据子系统的详细功能需求、接口规范和验收标准。
@@ -392,6 +392,145 @@ P3-OPEN-004	[Pydantic Schema 覆盖核对] 详见 PCS 本体论 V1.6 §5.3：P3 
 P3-OPEN-005	[SIM Excel 导入] 详见 SUP-008 V1.1 §3.1：P3 SIM 增加 Excel 导入能力（流程序列：上传 → Sheet 识别 → 列映射确认 → 预览 → 写入 DRAFT → 走 StreamSignStatus 门禁）。覆盖 streams / 摩尔组成 / 管径核算 / 机泵选型 / 能耗 5 类 Sheet；列映射模板库支持用户自定义；新增 API 端点 6 个。streams 表扩展 16 字段（surface_tension / api_gravity / critical_temp / critical_press / enthalpy / entropy / vapor_* / actual_vol_flow）+ import_source_type 枚举（SIM/MANUAL/EXCEL/LAB）+ import_original_row JSONB。验收：30 条物流 ≤ 5 秒导入 + 物性字段完整度 ≥ 90% + 组成归一化 100±0.5%。	P3 开发期间必备	按 SUP-008 §3.1.2 解析策略 + §3.1.4 映射配置实现	待启动
 P3-OPEN-006	[viscosity_temperature_curve] 详见 SUP-008 V1.1 §8.3.7：streams 表新增 `viscosity_temperature_curve` JSONB 字段，存储原料油常压下温度-粘度对应表（如 `{"50": 213.2, "80": 56.8, "100": 28.4, ...}`），用于蜡油加氢实例原料油粘度。	P3 数据模型迁移	新增字段 nullable；现有物流历史数据不受影响	待启动
 P3-OPEN-007	[多案例 stream_case_type] 详见 SUP-008 V1.1 §2.1：streams 表新增 `case_type` 字段（NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN），Excel 包含"末期"工况（摩尔组成0(末期)）需多案例切换支持。	P3 数据模型迁移 + SIM 切换功能	按枚举值实现 SIM 案例切换 UI	待启动
+P3-OPEN-008	[PMS 项目管理服务/API 全部 0%] 详见 §第五部分 5.1：P3 §3.1.2 PMS 5 端点（POST/GET/PUT /projects、PUT /bedd、POST /copy）+ §3.2.1 项目创建向导（4 步）+ §3.2.1 项目复制功能 + §3.2.1 单位制联动（SI/Metric/Imperial 实时转换）**后端实现率 0%**。Project 模型字段（含 bedd_json）已就位；缺 `app/services/project_service.py` + `app/api/v1/projects.py` + `app/schemas/project.py`。	P3 启动必备	按 §3.1.2 + §3.2.1 落地；Pydantic Schema 同步覆盖（P3-OPEN-004）	待启动
+P3-OPEN-009	[SIM 物流管理服务/API 全部 0%] 详见 §第五部分 5.2：P3 §3.1.2 SIM 9 端点（import/streams×3/state-points×2/chain/composition）+ §3.2.2 三模式手动创建（CHEMICAL/PETROLEUM/SOLID）+ §3.2.2 物流校对门禁（StreamSignStatus 状态机）+ §3.2.2 设备连接字段 + §3.2.2 物性补全（chemicals/thermo 自动估算）**后端实现率约 5%**（Stream 模型 + StreamStatePoint + StreamSignStatus enum + V3.1 migration 已落）。缺 `app/services/stream_service.py` + `app/api/v1/streams.py` + `app/schemas/stream.py` + 全部解析器（HYSYS XML/CSV、Aspen Plus、PRO/II、HTRI）+ Excel 导入（P3-OPEN-005）+ 物性补全服务 + PropertyConflictResolver（P3-SIM V1.2 §3）。	P3 启动必备	按 PCS-SPEC-P3-SIM V1.2 落地	待启动
+P3-OPEN-010	[COMMON 物性数据库服务/API 全部 0%] 详见 §第五部分 5.3：P3 §3.1.2 COMMON 3 端点（materials/{id}/search/allowable-stress）+ §3.2.3 物性查询（chemicals + CoolProp IAPWS-IF97）+ §3.2.3 许用应力（ASME B31.3 Table A-1 插值）+ §3.2.3 毒性/爆炸极限**后端实现率 0%**。缺 `app/services/common_service.py` + `app/api/v1/common.py` + `app/schemas/common.py`。chemicals/fluids/thermo vendor 三件已接线（Task 1.9.0）。	P3 启动必备	按 §3.2.3 落地；Pydantic Schema 同步覆盖（P3-OPEN-004）	待启动
+P3-OPEN-011	[Pydantic Schema 覆盖 + 表单 CI 漂移校验 — §3.2.5 实施现状] PCS 本体论 V1.6 §5.3 / §6 规则 11 要求「表单 ↔ Pydantic Schema 静态对比 CI」。当前已实现 schemas：checklist / config / equip_lib / formula / pipe_class / project_template / records / workspace（共 8 个）。**待补 schemas（与未实现 ORM/服务同步）**：project（P3-OPEN-008）、stream + state_point + composition（P3-OPEN-009）、common.material + allowable_stress（P3-OPEN-010）。	阻塞 §3.2.5 验收	先建 Pydantic Schema，再建前端 CI 漂移校验；与 P3-OPEN-008/009/010 同窗口落地	待启动
+
+## 第五部分：实施现状与遗漏（V1.5 新增，2026-09-08 P2 close 同步）
+
+> 本部分基于 P2 close 后仓库代码现状（`pcs-backend/` + `pcs-frontend/`），与本文档 §3 需求规格逐项核对。
+> 用于 P3 启动时识别具体缺口。
+
+### 5.1 P3.1 PMS 项目管理
+
+**规格来源**：§3.1.2 PMS 端点（POST/GET/PUT /projects、PUT /bedd、POST /copy）+ §3.2.1 项目创建向导 4 步 + §3.2.1 项目复制 + §3.2.1 单位制联动 + §3.2.4 引用 PIPE 计算 + §3.3.1 性能 ≤3 秒。
+
+**已实现**（代码层）：
+- `app/models/project.py` Project 模型（含 `project_no`/`project_name`/`owner_company`/`location`/`project_type`/`design_phase`/`unit_system`/`bedd_json`/`workspace_id` 等）；V3.1 full_schema migration 已建表
+- `app/models/project.py` Workspace 模型 + `app/services/workspace_service.py` + `app/api/v1/workspaces.py`（3 端点 POST/GET/GET by id）
+- `app/services/checklist_service.py` + `app/api/v1/checklist.py`（项目输入清单生成 + GET/POST/PUT 端点）
+- `app/services/project_template_service.py`（项目模板创建 fork default_config_json → INT-1 落地）
+
+**遗漏**：
+1. ❌ `app/services/project_service.py` 不存在 — 缺 create/get/update/copy/bedd_update 业务方法
+2. ❌ `app/api/v1/projects.py` 路由不存在 — 缺 §3.1.2 PMS 全部 5 端点
+3. ❌ `app/schemas/project.py` 不存在 — P3-OPEN-004 Pydantic Schema 覆盖阻塞
+4. ❌ §3.2.1 项目创建向导 4 步（模板选择 / 基本信息 / BEDD 录入 / 确认）业务逻辑无 service 层
+5. ❌ §3.2.1 项目复制功能（POST /copy + 复制 BEDD/物流/计算结果 + 计算结果标「未重新计算」）无实现
+6. ❌ §3.2.1 单位制联动（SI/Metric/Imperial 实时转换 + 转换基准提示）无实现
+7. ❌ §3.2.4 「已用于计算的等级不可删除」业务规则（已在 PIPE_CLASS §3.2.4 落地，本项 OK）
+
+**工时估算**：项目 CRUD + BEDD JSON 写入 + 复制 + 单位制联动 + 5 端点 + Schema = **约 5 天**。
+
+### 5.2 P3.2 SIM 工艺模拟数据
+
+**规格来源**：§3.1.2 SIM 端点（POST /streams/import、GET/POST/PUT /streams、GET/POST /state-points、GET /chain）+ §3.2.2 多格式解析（HYSYS XML/CSV、Aspen Plus、PRO/II、HTRI）+ §3.2.2 三模式手动创建（CHEMICAL/PETROLEUM/SOLID）+ §3.2.2 物流校对门禁（4 态）+ §3.2.2 设备连接字段 + §3.2.2 物性补全 + P3-SIM V1.2 §3 PropertyConflictResolver + P3-OPEN-005/006/007 字段扩展。
+
+**已实现**（代码层）：
+- `app/models/project.py` Stream 模型（含 ADR-0019 全部 16 字段 + sign_status + approval_step + approval_depth + checked_by/at + record_hash + last_change_reason/note/changed_by/at + upstream_* 设备连接字段 + data_mode + source_type）
+- `app/models/project.py` StreamStatePoint 模型（含 case_type NORMAL/MIN/MAX/ALTERNATE + T/P/phase/组成/vapor_composition/liquid_composition + record_hash + profile_json）
+- `app/models/enums.py` StreamSignStatus 枚举（DRAFT/IN_APPROVAL/CHECKED/OBSOLETE — 4 态）
+- V3.1 full_schema migration 已建 streams + stream_state_points 两表
+- `app/schemas/project_template.py` StreamApprovalConfig（stream_approval_depth 1~2 配置）
+
+**遗漏**：
+1. ❌ `app/services/stream_service.py` 不存在 — 缺 create/get/update/import/state_point CRUD/chain/校核状态机/物性补全全部业务方法
+2. ❌ `app/api/v1/streams.py` 路由不存在 — 缺 §3.1.2 SIM 全部 9 端点
+3. ❌ `app/schemas/stream.py` 不存在 — P3-OPEN-004 阻塞
+4. ❌ §3.2.2 多格式解析器全部缺失（HYSYS XML / HYSYS CSV / Aspen Plus / PRO/II / HTRI） — 须按 P3-SIM V1.2 §第二部分落地
+5. ❌ §3.2.2 Excel 导入（P3-OPEN-005） — 6 个新 API + 列映射模板库
+6. ❌ P3-OPEN-006 `viscosity_temperature_curve JSONB` 字段未加 streams 表
+7. ❌ P3-OPEN-007 streams.case_type 字段未加（与 state_point.case_type 语义不同）
+8. ❌ P3-OPEN-005 16 字段扩展部分缺失：`surface_tension` / `api_gravity` / `critical_temp` / `critical_press` / `vapor_*` / `actual_vol_flow`（`enthalpy` / `entropy` 已存在）
+9. ❌ P3-OPEN-005 `import_source_type` 枚举 + `import_original_row` JSONB 字段未加（现有 `source_type` 复用 SIM_IMPORT/MANUAL_ENTRY 等 5 枚举，需扩展到 SIM/MANUAL/EXCEL/LAB 4 值并加 `import_original_row`）
+10. ❌ §3.2.2 §3.2.2 三模式手动创建（CHEMICAL/PETROLEUM/SOLID）业务逻辑未实现（数据模式 enum 已定义）
+11. ❌ §3.2.2 物流校对门禁状态机（StreamSignStatus 4 态 DRAFT/IN_APPROVAL/CHECKED/OBSOLETE 转移表 + 限权 + 引用保护）未实现
+12. ❌ §3.2.2 设备连接字段生效（设备计算完成后自动创建出口物流 source_type=DEVICE_CALCULATED，sign_status=DRAFT）未接线
+13. ❌ §3.2.2 物性补全服务（chemicals/thermo/petroleum 自动估算 + estimated=true 标记）未实现
+14. ❌ P3-SIM V1.2 §3 PropertyConflictResolver（硬冲突 BLOCK / 软冲突 WARN / 蒸馏曲线冲突 / 第一/二/三类分类）未实现
+15. ⚠️ StreamSignStatus 4 态 vs 5 态对齐：本 spec §3.2.2 写 4 态 DRAFT/IN_APPROVAL/CHECKED/OBSOLETE；P3-SIM V1.2 §1.2 写 5 态 DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE；代码 = 4 态 — **两 spec 内部矛盾，待 P3 启动时对齐裁决**
+16. ❌ P3-OPEN-005 验收指标（30 条物流 ≤ 5 秒 + 物性完整度 ≥ 90% + 组成归一化 100±0.5%）性能基线未测
+17. ❌ §3.3.1 性能 HYSYS 文件解析 100 条 ≤ 10 秒 / 物性查询 ≤ 300ms 未测
+
+**工时估算**：stream_service + 9 端点 + schema + 5 解析器 + 状态机 + 物性补全 + 冲突解决 + Excel 导入 + 字段扩展 = **约 30~35 天**（含 P3-SIM V1.2 §1-4 全量）。
+
+### 5.3 P3.3 COMMON 工艺常用数据库
+
+**规格来源**：§3.1.2 COMMON 端点（GET materials/{id}/search/allowable-stress）+ §3.2.3 物性查询（chemicals + CoolProp IAPWS-IF97）+ §3.2.3 许用应力（ASME B31.3 Table A-1 插值）+ §3.2.3 毒性/爆炸极限。
+
+**已实现**（代码层）：
+- `pcs-backend/vendor/chemicals/fluids/thermo` vendor 三件接线（Task 1.9.0，commit 337bc30）— 提供纯物质物性查询底层
+- CATEGORY_3 seed 13 张系数表（含 Riazi-Daubert 物性估算参数 + 切割规则，P2 Sprint 1.9.4 落地）
+
+**遗漏**：
+1. ❌ `app/services/common_service.py` 不存在 — 缺 material_query / allowable_stress_query / toxicity_query / explosion_limit_query 业务方法
+2. ❌ `app/api/v1/common.py` 路由不存在 — 缺 §3.1.2 COMMON 全部 3 端点
+3. ❌ `app/schemas/common.py` 不存在 — P3-OPEN-004 阻塞
+4. ❌ §3.2.3 数据来源标记（实验值/估算值/标准值）业务方法未实现
+5. ❌ §3.2.3 ASME B31.3 Table A-1 许用应力按温度插值逻辑未实现
+6. ❌ §3.2.3 毒性数据（剧毒/高毒/中毒/低毒分类）+ 爆炸极限（上限/下限）内置数据库未建
+7. ❌ §3.3.1 物性查询 ≤ 300ms 性能基线未测
+
+**工时估算**：common_service + 3 端点 + schema + 物性封装 + 应力插值 + 毒性与爆炸数据库 = **约 4~5 天**。
+
+### 5.4 P3.4 PIPE_CLASS 管道等级库 — 已 100% 落地
+
+**规格来源**：§3.2.4 PIPE_CLASS 全部 + D29~D34 裁决 + PC-OPEN-06/07 + SYM-OPEN-01 + FMT-OPEN-01/02 + INT-OPEN-01 + PC-FMT-01~06 + EXCEL-01 + FMT-SEQ-01。
+
+**已实现**（代码层，P2 Sprint 1.9 + SUP-002 后端全部落地，commits ad25700..f59233d）：
+
+| 模块 | 内容 | 提交 |
+|------|------|------|
+| PC-1 | pipe_classes/project_pipe_classes schema 升级 + ORM | f7778d4 |
+| PC-2 | 管道等级验证引擎 22 条规则 + 接口契约 | 6f32a7e |
+| PC-3 | 公司级 CRUD 接 ConfigAsset + 5 态审批流 | fc8487c |
+| PC-4 | 项目级 fork + 快照 + 5 态轻量状态机 | 453c144 |
+| PC-5 | Excel 双 Sheet 导入 + import_id 暂存 | 0b2acb8 |
+| PC-6 | 管道等级 API 端到端收口 + 6 集成测试 | 8b1fd20 |
+| SYM-1~3 | 物流符号表 migration+ORM+service+API+V01~V06 验证规则 | 40b0415 |
+| FMT-1~4 | 管道代码模板 migration+ORM+service+generator+... | 651e2bc |
+| INT-1 | 项目模板集成 + INT-3 端到端测试 | ade6111 |
+| FMT-OPEN-02 | 模板 PUBLISH 触发 CIAEngine STALE 传播 | f59233d |
+| P2 close | 删 assign_to_project + 2 schema + 1 端点（bug-051 收口） | 57f7b0f |
+
+**测试**：463 passed（46 service + 12 API pipe_class + 16 pipe_code_template + 16 stream_symbol + INT-1 + 修复波），ruff 0 新增错误。
+
+**遗漏**（仅 INT-2 前端波延后，非后端）：
+- INT-2 前端表单组件（等级编辑 + 符号表管理 + 格式设计器）— 与 P2 Sprint 2 前端波合并，详见 P2 close 报告 §4
+- bug-051 已收口；ProjectPipeClassResponse.pipe_class 恒 null（Sprint 2 前端契约遗留）→ P3 兑现
+- equip-lib search limit>200 返 422（TODO-033 终审 DEFER）→ P3 兑现
+
+**结论**：P3.4 视为完全解锁（依赖 SUP-002 追加 Sprint 先完成 PIPE_CLASS 库本体 + 物流符号表 + 管道代码格式模板；P4.2 PIPE 计算读取时直接消费 project_pipe_classes effective 值；项目模板创建 fork 模板格式配置 → project_pipe_code_configs — INT-1 已落地）。
+
+### 5.5 P3 实施遗漏总览
+
+| 子系统 | 规格需求 | 后端实现率 | 工时估算 | 阻塞项 |
+|--------|---------|-----------|---------|--------|
+| P3.1 PMS | §3.1.2 5 端点 + §3.2.1 向导/复制/单位制 | 0% | 5 天 | P3-OPEN-008 |
+| P3.2 SIM | §3.1.2 9 端点 + §3.2.2 解析/创建/校对/补全 + P3-SIM V1.2 §3 + P3-OPEN-005/006/007 | ~5% | 30~35 天 | P3-OPEN-009 + P3-OPEN-005 + 4 态 vs 5 态对齐 |
+| P3.3 COMMON | §3.1.2 3 端点 + §3.2.3 物性/应力/毒性 | 0% | 4~5 天 | P3-OPEN-010 |
+| P3.4 PIPE_CLASS | §3.2.4 + D29~D34 + PC-OPEN-06/07 | **100%** | 0 天（已 closed） | 无 |
+| P3-OPEN-004 元数据表单 CI | §3.2.5 + V1.6 §5.3 | 0%（需先建 schemas） | 含在 5.1~5.3 内 | 依赖 5.1~5.3 Pydantic Schema |
+| P3-OPEN-011 Pydantic Schema 覆盖 | 阻塞 §3.2.5 验收 | 8 schemas 已建 / 缺 3 套 | 含在 5.1~5.3 内 | 同 P3-OPEN-004 |
+
+**P3 启动总工时估算**：约 **40~45 天**（不含 P3.4 已 closed 部分）。
+
+### 5.6 P2 close 后续待办（跨入 P3 / P2 Sprint 2 前端波）
+
+| 编号 | 内容 | 落点 |
+|------|------|------|
+| P2 close §4 INT-2 | 等级编辑 + 符号表管理 + 格式设计器前端组件 | P2 Sprint 2 前端波 / P3 前端 |
+| TODO-024 | equipment_list 补 ~56 列对齐 DICT V3.3 | P3 集成层启动前 |
+| TODO-025 | pump_results 补 6 列 | P4 Task 0 |
+| TODO-026 | P5 模块平铺字段/data_sheet_json 展开（9 表） | P5 各模块开发期 |
+| TODO-027 | cost_est_results 补 RecordMixin + cost_estimate_json | P7 启动时 |
+| TODO-028 | 10 张计算表主键 rename 落地 | P5 各模块开发时 |
+| TODO-029 | CIA propagation perf budget 测试 | P2 Sprint 4 启动时 |
+| TODO-030 | openpyxl 流式导出 | 条件触发 |
+| TODO-031 ✅ | preconditions 接入 PUBLISH 门禁 | 已完成 2026-09-04 |
+| TODO-032 | 4 个真库测试迁 conftest fixtures | P1.2 |
+| TODO-033 | Sprint 1.9 终审 DEFER 清单 | 各自窗口 |
 
 ## 版本历史
 
@@ -402,4 +541,5 @@ P3-OPEN-007	[多案例 stream_case_type] 详见 SUP-008 V1.1 §2.1：streams 表
 | V1.2 | 2026-08-29 | incorporate ADR-0019~0022：手动创建向导（三模式/虚拟组分/物性估算）；状态点管理（多工况快照、两相流气液组成）；设备连接字段与出口物流（独立物流链）；新增状态点/物流链 API | 联合项目组 |
 | V1.3 | 2026-09-03 | 对齐 PCS 本体论 V1.6 §2.5 / §5.3：关联文档加 V1.6；新增 §3.2.5 元数据驱动表单（Pydantic Schema 覆盖、UI Schema 层预留、条件显示策略、表单 ↔ Schema 静态对比 CI）；新增 P3-OPEN-004（Pydantic Schema 覆盖核对 + uiSchema 格式确定）；本版本不修改 PMS/SIM/COMMON/PIPE_CLASS 四大子系统主体需求 | 联合项目组 |
 | V1.4 | 2026-09-03 | incorporate SUP-008 V1.1 + SUP-010 V1.1：关联文档加 SUP-008/SUP-010；新增 P3-OPEN-005（SIM Excel 导入引擎 + streams 16 字段扩展 + 多案例 stream_case_type 枚举）；新增 P3-OPEN-006（viscosity_temperature_curve JSONB 字段，蜡油加氢实例）；新增 P3-OPEN-007（case_type NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN 案例切换）；主体 PMS/COMMON/PIPE_CLASS 不动 | 联合项目组 |
+| V1.5 | 2026-09-08 | 对齐 P2 close 现状：关联文档加 PCS-SPEC-P3-SIM V1.2（ADD-001/002 合并）+ PCS-SPEC-P2-SUP-002 V1.4（PC-1~6/SYM-1~3/FMT-1~4 全部落地）+ 主开发计划 V1.3 + TODOS.md；新增 §第五部分 实施遗漏清单（5.1 PMS 0% / 5.2 SIM ~5% / 5.3 COMMON 0% / 5.4 PIPE_CLASS 100% / 5.5 总览 / 5.6 P2 close 后续待办）；新增 P3-OPEN-008（PMS 全缺）/ P3-OPEN-009（SIM service/API 全缺）/ P3-OPEN-010（COMMON service/API 全缺）/ P3-OPEN-011（Pydantic Schema 覆盖 + 表单 CI 漂移校验现状）；标记 StreamSignStatus 4 态 vs 5 态内部矛盾待 P3 启动时统一裁决；P3 启动总工时估算约 40~45 天 | 联合项目组 |
 
