@@ -26,7 +26,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy import select
 
-from app.models.config_domain import ConfigApproval, PipeClass, ProjectPipeClass
+from app.models.config_domain import ConfigApproval, PipeClass
 from app.models.project import Project, Workspace
 from app.schemas.pipe_class import PipeClassCreate
 from app.services.exceptions import PcsError
@@ -36,7 +36,6 @@ from app.services.pipe_class_service import (
     _build_snapshot,
     _deep_merge,
 )
-
 
 # ---------------------------------------------------------------------------
 # Fixtures（本地：与 test_pipe_class_service.make_project 同模式）
@@ -85,14 +84,12 @@ async def make_project(db):
 async def make_company_class(db):
     """建一个公司级 PipeClass（DRAFT），含 base_material=20#。
 
-    注：PipeClassBase schema 当前不含 base_material（P2 Sprint 1 旧契约），
-    所以 create() 不会自动写入；fixture 内 flush 后单独补 base_material 字段，
-    保证 snapshot_json["base_material"] 真实反映公司级值。
+    PipeClassBase schema 已含 base_material（P2 Sprint 2 修复），
+    _payload() 直接传入即可，无需手动 flush 后补字段。
     """
 
     async def _make(class_id="A1"):
         pc = await PipeClassService.create(db, payload=_payload(class_id=class_id))
-        pc.base_material = "20#"
         await db.flush()
         return pc
 
@@ -408,3 +405,30 @@ async def test_project_approval_writes_config_approvals(
     assert a.approver_role == "REVIEWER"
     assert a.decision == "APPROVED"
     assert a.approver_id == actor.user_id
+
+# ---------------------------------------------------------------------------
+# Sprint 2 修复回归：base_material 不再被 Pydantic extra='ignore' 静默丢弃
+# ---------------------------------------------------------------------------
+
+
+async def test_base_material_propagates_through_create_and_fork(
+    db, actor, make_project, make_company_class,
+):
+    """P0 修复：PipeClassCreate 现在含 base_material → ORM 列 → snapshot → effective 全链路。"""
+    proj = await make_project()
+    pc = await make_company_class(class_id="BM-A1")
+
+    # 1. ORM 直接读取
+    assert pc.base_material == "20#"
+
+    # 2. fork 后 snapshot 含 base_material
+    ppc = await PipeClassService.fork_to_project(
+        db, project_id=proj.project_id, class_id=pc.class_id, actor=actor,
+    )
+    assert ppc.snapshot_json["base_material"] == "20#"
+
+    # 3. effective 合并值含 base_material
+    effective = await PipeClassService.get_effective(
+        db, project_id=proj.project_id, class_name=ppc.class_name,
+    )
+    assert effective["base_material"] == "20#"

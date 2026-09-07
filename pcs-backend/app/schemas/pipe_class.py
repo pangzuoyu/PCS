@@ -11,6 +11,7 @@ class PipeClassBase(BaseModel):
     class_id: str = Field(..., min_length=1, max_length=20)
     class_name: str = Field(..., min_length=1, max_length=200)
     material_standard: str = Field(..., min_length=1, max_length=100)
+    base_material: str | None = Field(None, max_length=100, description="材料牌号")
     corrosion_allowance: float = Field(..., ge=0, description="腐蚀裕量 mm")
     design_pressure: float = Field(..., gt=0, description="MPaG")
     design_temperature: float = Field(..., description="°C")
@@ -42,6 +43,7 @@ class PipeClassUpdate(PipeClassBase):
 
 class PipeClassResponse(PipeClassBase):
     status: str
+    base_material: str | None = None  # 重复声明：响应体明确返回
     model_config = {"from_attributes": True}
 
 
