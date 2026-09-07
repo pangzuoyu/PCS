@@ -62,8 +62,9 @@ class ConfigApproval(TimestampMixin, Base):
     approval_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
     )
-    version_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("config_versions.version_id"), index=True
+    version_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("config_versions.version_id"), index=True, nullable=True,
+        comment="公司级 ConfigVersion 审批；项目级审批（PC-4）为 NULL",
     )
     approver_role: Mapped[str] = mapped_column(String(30))
     decision: Mapped[str] = mapped_column(String(20))

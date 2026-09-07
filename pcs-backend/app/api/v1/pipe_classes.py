@@ -5,6 +5,11 @@ spec §3.2.5 API 表 5 端点 + 验收派生的 DELETE（在用 409 仅可作废
 ACL：读（list/get/project list）= DESIGNER + PROCESS_CONTROLLER + SYSTEM_ADMIN；
 写（create/update/delete/assign）= PROCESS_CONTROLLER + SYSTEM_ADMIN。
 `current_actor / require_roles / _Actor` 与 config.py 同源（该模块 `__all__` 导出）。
+
+SUP-002 PC-4（V1.4 §2.4）：项目级 fork + 5 态轻量状态机端点：
+- fork / create-new / override / submit / publish / obsolete → PROCESS_CONTROLLER + SYSTEM_ADMIN
+- approve / reject                                        → REVIEWER + SYSTEM_ADMIN
+- get_effective（读）                                      → DESIGNER + PROCESS_CONTROLLER + SYSTEM_ADMIN
 """
 from __future__ import annotations
 
@@ -12,6 +17,7 @@ from typing import Annotated
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFile
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
@@ -26,6 +32,41 @@ from app.schemas.pipe_class import (
 from app.services.pipe_class_service import PipeClassService
 
 router = APIRouter(tags=["pipe-classes"])
+
+
+# ---------------------------------------------------------------------------
+# SUP-002 PC-4 request/response schemas（项目级 fork）
+# ---------------------------------------------------------------------------
+
+
+class ProjectPipeClassForkRequest(BaseModel):
+    class_id: str = Field(..., min_length=1, max_length=50)
+
+
+class ProjectPipeClassCreateRequest(BaseModel):
+    class_name: str = Field(..., min_length=1, max_length=100)
+    data: dict = Field(default_factory=dict)
+
+
+class ProjectPipeClassOverrideRequest(BaseModel):
+    override: dict = Field(default_factory=dict)
+
+
+class ProjectPipeClassFullResponse(BaseModel):
+    project_class_id: UUID
+    project_id: UUID
+    source_class_id: str | None
+    class_name: str
+    snapshot_json: dict | None
+    override_json: dict
+    status: str
+    model_config = {"from_attributes": True}
+
+
+class ProjectPipeClassEffectiveResponse(BaseModel):
+    project_id: UUID
+    class_name: str
+    effective: dict
 
 
 @router.get("/pipe-classes", response_model=list[PipeClassResponse])
@@ -188,4 +229,168 @@ async def assign_project_pipe_class(
     return await PipeClassService.assign_to_project(
         db, project_id, payload.class_id,
         enabled=payload.enabled, override=payload.custom_override_json,
+    )
+
+
+# ---------------------------------------------------------------------------
+# SUP-002 PC-4：项目级 fork + 5 态 transition 端点（V1.4 §2.4）
+# ACL：
+#   fork / create-new / override / submit / publish / obsolete → PC + SA
+#   approve / reject                                            → REVIEWER + SA
+#   effective (读)                                              → DESIGNER + PC + SA
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/projects/{project_id}/pipe-classes/fork",
+    response_model=ProjectPipeClassFullResponse, status_code=201,
+)
+async def fork_project_pipe_class(
+    project_id: UUID, payload: ProjectPipeClassForkRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """项目级 fork：从公司级等级创建 ProjectPipeClass + snapshot_json 快照。"""
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeClassService.fork_to_project(
+        db, project_id=project_id, class_id=payload.class_id, actor=user,
+    )
+
+
+@router.post(
+    "/projects/{project_id}/pipe-classes/new",
+    response_model=ProjectPipeClassFullResponse, status_code=201,
+)
+async def create_project_pipe_class(
+    project_id: UUID, payload: ProjectPipeClassCreateRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """项目全新创建管道等级（source_class_id=NULL）。"""
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeClassService.create_project_class(
+        db,
+        project_id=project_id,
+        class_name=payload.class_name,
+        data=payload.data,
+        actor=user,
+    )
+
+
+@router.put(
+    "/projects/{project_id}/pipe-classes/{project_class_id}/override",
+    response_model=ProjectPipeClassFullResponse,
+)
+async def update_project_pipe_class_override(
+    project_id: UUID, project_class_id: UUID,
+    payload: ProjectPipeClassOverrideRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """修改项目级 override_json（仅 DRAFT/PENDING 可改）。"""
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeClassService.update_project_override(
+        db,
+        project_class_id=project_class_id,
+        override=payload.override,
+        actor=user,
+    )
+
+
+@router.post(
+    "/projects/{project_id}/pipe-classes/{project_class_id}/submit",
+    response_model=ProjectPipeClassFullResponse,
+)
+async def submit_project_pipe_class(
+    project_id: UUID, project_class_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """DRAFT → PENDING。"""
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeClassService.submit_project_class(
+        db, project_class_id=project_class_id, actor=user,
+    )
+
+
+@router.post(
+    "/projects/{project_id}/pipe-classes/{project_class_id}/approve",
+    response_model=ProjectPipeClassFullResponse,
+)
+async def approve_project_pipe_class(
+    project_id: UUID, project_class_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """PENDING → APPROVED（CATEGORY_5 单层签）。"""
+    require_roles(user, "REVIEWER", "SYSTEM_ADMIN")
+    return await PipeClassService.approve_project_class(
+        db, project_class_id=project_class_id, actor=user,
+    )
+
+
+@router.post(
+    "/projects/{project_id}/pipe-classes/{project_class_id}/reject",
+    response_model=ProjectPipeClassFullResponse,
+)
+async def reject_project_pipe_class(
+    project_id: UUID, project_class_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """PENDING → DRAFT（拒绝，写 ConfigApproval decision=REJECTED）。"""
+    require_roles(user, "REVIEWER", "SYSTEM_ADMIN")
+    return await PipeClassService.reject_project_class(
+        db, project_class_id=project_class_id, actor=user,
+    )
+
+
+@router.post(
+    "/projects/{project_id}/pipe-classes/{project_class_id}/publish",
+    response_model=ProjectPipeClassFullResponse,
+)
+async def publish_project_pipe_class(
+    project_id: UUID, project_class_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """APPROVED → PUBLISHED。"""
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeClassService.publish_project_class(
+        db, project_class_id=project_class_id, actor=user,
+    )
+
+
+@router.post(
+    "/projects/{project_id}/pipe-classes/{project_class_id}/obsolete",
+    response_model=ProjectPipeClassFullResponse,
+)
+async def obsolete_project_pipe_class(
+    project_id: UUID, project_class_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """→ OBSOLETE（DRAFT/APPROVED/PUBLISHED 都可经 OBSOLETE 出局）。"""
+    require_roles(user, "PROCESS_CONTROLLER", "REVIEWER", "SYSTEM_ADMIN")
+    return await PipeClassService.obsolete_project_class(
+        db, project_class_id=project_class_id, actor=user,
+    )
+
+
+@router.get(
+    "/projects/{project_id}/pipe-classes/{class_name}/effective",
+    response_model=ProjectPipeClassEffectiveResponse,
+)
+async def get_project_pipe_class_effective(
+    project_id: UUID, class_name: str,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    """返回项目级有效值（snapshot_json ⊕ override_json 递归深合并）。"""
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    effective = await PipeClassService.get_effective(
+        db, project_id=project_id, class_name=class_name,
+    )
+    return ProjectPipeClassEffectiveResponse(
+        project_id=project_id, class_name=class_name, effective=effective,
     )
