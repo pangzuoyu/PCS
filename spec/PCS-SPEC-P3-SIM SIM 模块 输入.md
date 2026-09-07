@@ -1,10 +1,10 @@
 PCS-SPEC-P3-SIM
 文档编号： PCS-SPEC-P3-SIM
-版本： V1.0（完整版）
-日期： 2026-09-06
-状态： 已定稿（P3.2 SIM 工艺模拟数据模块完整实施依据）
+版本： V1.2（完整版）
+日期： 2026-09-08
+状态： 已定稿（V1.2 增量：整合 ADD-001 手工输入完整字段清单 + ADD-002 校核/引用/冲突分类与处理策略；基于 V1.1 PRO/II 8.x 炼油版基线）
 依赖： SPEC-P2 V1.4、开发计划 V1.2 §3.2、D29–D34 裁决
-范围： 物流数据的四种输入方式（手工输入、Excel 批量导入、PRO/II 双文件解析、HYSYS/Aspen/HTRI 解析预留）+ 统一校验 + PCS 数据映射 + 扩展单元操作与反应数据解析
+范围： 物流数据的四种输入方式（手工输入、Excel 批量导入、PRO/II 双文件解析、HYSYS/Aspen/HTRI 解析预留）+ 统一校验 + PCS 数据映射 + 扩展单元操作与反应数据解析 + 完整字段清单 + 校核状态/引用追踪/冲突解决
 说明： 本文档整合了实际 PRO/II 项目（含反应器、压缩机、简捷塔、计算器等）的解析需求，作为 P3.2 SIM 模块的最终实施依据。
 
 目录
@@ -873,6 +873,13 @@ CALCULATOR SUMMARY
 
 变量值可能以科学计数法表示。
 
+PCS-SPEC-P3-SIM V1.1 → V1.2 增量 Diff（2026-09-08）
+
+合并 ADD-001：手工输入完整字段清单（§第二部分附录 A — 字段三级分类 R/O/C）
+合并 ADD-002：物流校核状态 / 引用追踪 / 冲突分类与处理（§第二部分附录 B — 校核状态 / §附录 C — 引用追踪 / §附录 D — 冲突解决引擎）
+数据库增量（ADD-002 §3.6）：streams 表增加 sign_status / user_provided_properties_json / calculated_properties_json / effective_properties_json / conflict_resolutions_json 五列（参见 §校核/引用/冲突章节）
+状态机：SIM 物流走标准 5 态 DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE（参见 §校核状态）
+
 PCS-SPEC-P3-SIM V1.0 → V1.1 增量 Diff
 变更摘要：新增 5 类 .out 提取器（SPLITTER/COMPRESSOR/TRAY SIZING/REFINERY PROPERTIES/TBP-ASTM）+ 9 类 .inp 新语法（ASSAY/D86/TBP/LIGHTEND/REFSTREAM/NAME/SIDESTRIPPER/COMPRESSOR/SPLITTER/CONTROLLER）+ 总工时 21.5→24.5 天
 
@@ -1299,8 +1306,8 @@ diff
 +**状态**：已定稿（V1.1 增量：PRO/II 8.x 炼油版 SPLITTER/COMPRESSOR/TRAY SIZING/REFINERY PROPERTIES/TBP-ASTM）
 PCS-SPEC-P3-SIM 增补——手工输入字段完整清单（基于 PRO/II 字段对齐）
 文档编号：PCS-SPEC-P3-SIM-ADD-001
-关联：PCS-SPEC-P3-SIM V1.1 §第一部分（手工输入）
-状态：待评审
+关联：PCS-SPEC-P3-SIM V1.2 §第一部分（手工输入）
+状态：已合并入 V1.2（2026-09-08）
 日期：2026-09-06
 
 1. 目标
@@ -1478,9 +1485,9 @@ SIM-7b	前端完整表单（折叠式分组）	1 天
 总增量		2.5 天
 PCS-SPEC-P3-SIM 增补——物流校核状态、引用追踪与冲突解决
 文档编号：PCS-SPEC-P3-SIM-ADD-002
-版本：V1.1（在原 V1.0 校核+引用基础上，整合冲突分类与处理策略）
-关联：PCS-SPEC-P3-SIM V1.1
-状态：待评审
+版本：V1.2（在 V1.1 校核+引用基础上，整合冲突分类与处理策略；已合并入主文档 §校核/引用/冲突）
+关联：PCS-SPEC-P3-SIM V1.2
+状态：已合并入 V1.2（2026-09-08）
 日期：2026-09-06
 
 目录
@@ -1759,4 +1766,4 @@ SIM-C1	ConflictResolver 引擎（硬冲突 + 软冲突 + 蒸馏曲线冲突）	1
 SIM-C2	Stream 表增加 effective/conflict JSON 字段	0.5 天
 SIM-C3	前端冲突展示组件 + 状态标记	1 天
 总增量		6.5 天
-增补 Spec 状态：待评审。确认后合并入 PCS-SPEC-P3-SIM V1.2。
+增补 Spec 状态：已合并入 PCS-SPEC-P3-SIM V1.2（2026-09-08）。后续如需修订，按 V1.2.x 增量增补（参见 §V1.1→V1.2 Diff）。
