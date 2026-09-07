@@ -1,0 +1,219 @@
+"""物流符号表端点（SYM-3 / SUP-002 §8）。"""
+from __future__ import annotations
+
+from typing import Annotated
+from uuid import UUID
+
+from fastapi import APIRouter, Depends
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.v1.config import _Actor, current_actor, require_roles
+from app.db.session import get_db
+from app.services.stream_symbol_service import StreamSymbolService
+
+router = APIRouter(tags=["stream-symbols"])
+
+
+class CreateSymbolRequest(BaseModel):
+    symbol: str
+    name: str
+    category: str | None = None
+    version: str | None = "1"
+
+
+class UpdateSymbolRequest(BaseModel):
+    name: str | None = None
+    category: str | None = None
+
+
+class ProjectSymbolRequest(BaseModel):
+    symbol: str
+    name: str
+    category: str | None = None
+
+
+class ProjectSymbolUpdateRequest(BaseModel):
+    override: dict = {}
+    name: str | None = None
+    category: str | None = None
+    is_active: bool | None = None
+
+
+class ForkProjectSymbolRequest(BaseModel):
+    symbol_id: UUID | None = None
+
+
+# ---------- 公司级 ----------
+@router.get("/stream-symbols")
+async def list_company_symbols(
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await StreamSymbolService.list_company(db)
+
+
+@router.post("/stream-symbols", status_code=201)
+async def create_company_symbol(
+    payload: CreateSymbolRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await StreamSymbolService.create_company(
+        db, data=payload.model_dump(), actor=user,
+    )
+
+
+@router.get("/stream-symbols/{symbol_id}")
+async def get_company_symbol(
+    symbol_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await StreamSymbolService.get(db, symbol_id)
+
+
+@router.put("/stream-symbols/{symbol_id}")
+async def update_company_symbol(
+    symbol_id: UUID,
+    payload: UpdateSymbolRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await StreamSymbolService.update_company(
+        db, symbol_id, data=payload.model_dump(exclude_none=True), actor=user,
+    )
+
+
+@router.delete("/stream-symbols/{symbol_id}", status_code=204)
+async def delete_company_symbol(
+    symbol_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await StreamSymbolService.delete_company(db, symbol_id, actor=user)
+
+
+@router.post("/stream-symbols/{symbol_id}/submit")
+async def submit_symbol(
+    symbol_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await StreamSymbolService.submit(db, symbol_id, actor=user)
+
+
+@router.post("/stream-symbols/{symbol_id}/approve")
+async def approve_symbol(
+    symbol_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "REVIEWER", "SYSTEM_ADMIN")
+    return await StreamSymbolService.approve(db, symbol_id, actor=user)
+
+
+@router.post("/stream-symbols/{symbol_id}/publish")
+async def publish_symbol(
+    symbol_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "APPROVER", "SYSTEM_ADMIN")
+    return await StreamSymbolService.publish(db, symbol_id, actor=user)
+
+
+@router.post("/stream-symbols/{symbol_id}/obsolete")
+async def obsolete_symbol(
+    symbol_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "REVIEWER", "SYSTEM_ADMIN")
+    return await StreamSymbolService.obsolete(db, symbol_id, actor=user)
+
+
+# ---------- 项目级 ----------
+@router.post("/projects/{project_id}/stream-symbols/fork", status_code=201)
+async def fork_project_symbols(
+    project_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    payload: ForkProjectSymbolRequest | None = None,
+):
+    """symbol_id 缺省 → 复制全部公司级符号；指定时只 fork 一个。"""
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    symbol_id = payload.symbol_id if payload else None
+    return await StreamSymbolService.fork_to_project(
+        db,
+        project_id=project_id,
+        symbol_id=symbol_id,
+        actor=user,
+    )
+
+
+@router.get("/projects/{project_id}/stream-symbols")
+async def list_project_symbols(
+    project_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    include_company: bool = True,
+):
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await StreamSymbolService.list_project(
+        db, project_id=project_id, include_company=include_company,
+    )
+
+
+@router.post("/projects/{project_id}/stream-symbols", status_code=201)
+async def add_project_symbol(
+    project_id: UUID,
+    payload: ProjectSymbolRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await StreamSymbolService.add_project_symbol(
+        db,
+        project_id=project_id,
+        symbol=payload.symbol,
+        name=payload.name,
+        category=payload.category,
+        actor=user,
+    )
+
+
+@router.put("/projects/{project_id}/stream-symbols/{project_symbol_id}")
+async def update_project_symbol(
+    project_id: UUID,
+    project_symbol_id: UUID,
+    payload: ProjectSymbolUpdateRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await StreamSymbolService.update_project_symbol(
+        db,
+        project_symbol_id=project_symbol_id,
+        data=payload.model_dump(exclude_none=True),
+        actor=user,
+    )
+
+
+@router.delete("/projects/{project_id}/stream-symbols/{project_symbol_id}", status_code=204)
+async def delete_project_symbol(
+    project_id: UUID,
+    project_symbol_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await StreamSymbolService.delete_project_symbol(
+        db, project_symbol_id=project_symbol_id, actor=user,
+    )
