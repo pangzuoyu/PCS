@@ -11,7 +11,8 @@ SUP-002 PC-4（V1.4 §2.4）：项目级 fork + 快照绑定 + 有效值解析 +
 项目级 ProjectPipeClass 不挂 ConfigAsset（CATEGORY_5 公司级专属），仅以 5 态轻量
 status 列走 ProjectPipeClassStateMachine；approve/reject 写 config_approvals.
 project_class_id（PC-1 列）。fork_to_project / get_effective / submit/approve/
-reject/publish/obsolete 等是 PC-4 主入口；1.9 兼容保留 assign_to_project（已弃用）。
+reject/publish/obsolete 是 PC-4 唯一入口；1.9 兼容层 assign_to_project 已删
+（bug-051 收口，2026-09-08 P2 close）。
 """
 from __future__ import annotations
 
@@ -196,32 +197,6 @@ class PipeClassService:
             PipeClass.__table__.delete().where(PipeClass.class_id == class_id)
         )
         await session.commit()
-
-    @classmethod
-    async def assign_to_project(
-        cls, session: AsyncSession, project_id: uuid.UUID, class_id: str,
-        *, enabled: bool = True, override: dict | None = None,
-    ) -> ProjectPipeClass:
-        """1.9 兼容薄层 — DEPRECATED（SUP-002 PC-4）。
-
-        PC-1 schema 重构已删 project_pipe_classes.class_id 列 + enabled 列；
-        ProjectPipeClass 现仅走 fork_to_project / create_project_class 入口，
-        含 snapshot_json + override_json + 5 态 status。本方法仅用于 1.9 旧
-        客户回退路径（已被 test_pipe_class_service.py 标 xfail），请勿新调用。
-        """
-        await cls.get(session, class_id)
-        row = await session.get(ProjectPipeClass, {"project_id": project_id, "class_id": class_id})
-        if row:
-            row.enabled = enabled
-            row.custom_override_json = override
-        else:
-            row = ProjectPipeClass(
-                project_id=project_id, class_id=class_id,
-                enabled=enabled, custom_override_json=override,
-            )
-            session.add(row)
-        await session.commit()
-        return row
 
     @classmethod
     async def list_project(

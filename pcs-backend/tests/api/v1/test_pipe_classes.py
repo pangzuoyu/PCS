@@ -93,6 +93,24 @@ async def test_delete_in_use_409(client, sample_pc_token, sample_project):
     旧 assign(class_id) 端点（POST /projects/{p}/pipe-classes）走已废止的
     assign_to_project 路径，列已不存在；改用 PC-4 fork 端点构造引用。
     """
+
+
+async def test_assign_endpoint_removed(client, sample_pc_token, sample_project):
+    """bug-051 收口：1.9 兼容 POST /projects/{p}/pipe-classes 已删除（→ 405/404）。
+
+    SUP-002 PC-4 后项目级入口仅 /pipe-classes/fork 与 /pipe-classes/{id}/override；
+    旧 assign_to_project 写入的 .class_id/.enabled/.custom_override_json 三列
+    在 PC-1 schema 重构时已删。继续走旧路径会立刻 AttributeError，故彻底删除。
+    """
+    r = await client.post(
+        f"/api/v1/projects/{sample_project.project_id}/pipe-classes",
+        json={"class_id": "A1", "enabled": True},
+        headers=_auth(sample_pc_token),
+    )
+    assert r.status_code in (404, 405), (
+        f"deprecated assign 端点未删除（status={r.status_code}）"
+        f" — bug-051 重新出现"
+    )
     await client.post("/api/v1/pipe-classes", json=_BODY, headers=_auth(sample_pc_token))
     r = await client.post(
         f"/api/v1/projects/{sample_project.project_id}/pipe-classes/fork",

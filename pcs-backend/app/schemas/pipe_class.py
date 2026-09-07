@@ -1,8 +1,12 @@
-"""PipeClass API schemas（Pydantic v2；Task 1.9.1 / P2-STD-001）。"""
+"""PipeClass API schemas（Pydantic v2；Task 1.9.1 / P2-STD-001）。
+
+公司级 PipeClass：3 态 DRAFT/ACTIVE/OBSOLETE。
+项目级 ProjectPipeClass：SUP-002 PC-4 schemas 集中在
+``app/api/v1/pipe_classes.py``；本模块不再放已废止的 1.9 兼容 schema。
+"""
 from __future__ import annotations
 
 from typing import Any, Literal
-from uuid import UUID
 
 from pydantic import BaseModel, Field, model_validator
 
@@ -44,19 +48,4 @@ class PipeClassUpdate(PipeClassBase):
 class PipeClassResponse(PipeClassBase):
     status: str
     base_material: str | None = None  # 重复声明：响应体明确返回
-    model_config = {"from_attributes": True}
-
-
-class ProjectAssignRequest(BaseModel):
-    class_id: str = Field(..., min_length=1, max_length=20)
-    enabled: bool = True
-    custom_override_json: dict[str, Any] | None = None
-
-
-class ProjectPipeClassResponse(BaseModel):
-    project_id: UUID
-    class_id: str
-    enabled: bool
-    custom_override_json: dict[str, Any] | None = None
-    pipe_class: PipeClassResponse | None = None
     model_config = {"from_attributes": True}

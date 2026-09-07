@@ -26,8 +26,6 @@ from app.schemas.pipe_class import (
     PipeClassCreate,
     PipeClassResponse,
     PipeClassUpdate,
-    ProjectAssignRequest,
-    ProjectPipeClassResponse,
 )
 from app.services.pipe_class_service import PipeClassService
 
@@ -205,7 +203,7 @@ async def obsolete_pipe_class(
 
 
 @router.get(
-    "/projects/{project_id}/pipe-classes", response_model=list[ProjectPipeClassResponse]
+    "/projects/{project_id}/pipe-classes", response_model=list[ProjectPipeClassFullResponse]
 )
 async def list_project_pipe_classes(
     project_id: UUID,
@@ -214,22 +212,6 @@ async def list_project_pipe_classes(
 ):
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeClassService.list_project(db, project_id)
-
-
-@router.post(
-    "/projects/{project_id}/pipe-classes",
-    response_model=ProjectPipeClassResponse, status_code=201,
-)
-async def assign_project_pipe_class(
-    project_id: UUID, payload: ProjectAssignRequest,
-    user: Annotated[_Actor, Depends(current_actor)],
-    db: Annotated[AsyncSession, Depends(get_db)],
-):
-    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    return await PipeClassService.assign_to_project(
-        db, project_id, payload.class_id,
-        enabled=payload.enabled, override=payload.custom_override_json,
-    )
 
 
 # ---------------------------------------------------------------------------
