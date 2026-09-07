@@ -5,9 +5,11 @@ from sqlalchemy import (
     JSON,
     Boolean,
     Date,
+    DateTime,
     Float,
     ForeignKey,
     Integer,
+    LargeBinary,
     Numeric,
     String,
     Text,
@@ -281,3 +283,26 @@ class ToeConversionFactor(TimestampMixin, Base):
     effective_to: Mapped[datetime.date | None] = mapped_column(Date, nullable=True)
     source: Mapped[str | None] = mapped_column(String(200))
     version: Mapped[str] = mapped_column(String(50), default="TOE-V1.0")
+
+
+class PipeClassImportPreview(TimestampMixin, Base):
+    """管道等级 Excel 导入预览暂存（SUP-002 PC-5，V1.4 §0.6/§三、#6）。
+
+    服务端 preview 后存本表，返 import_id；前端确认时携带 import_id，service 层
+    据 import_id 取预览结果重放 commit_import。TTL 24h 后 expires_at 过期，service
+    层按 expires_at 过滤。consumed_at 首次 commit 写入，防止重复消费。
+    """
+
+    __tablename__ = "pipe_class_import_previews"
+    import_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4,
+    )
+    actor_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+    file_bytes: Mapped[bytes] = mapped_column(LargeBinary)
+    parsed_json: Mapped[dict] = mapped_column(JSON)
+    error_count: Mapped[int] = mapped_column(Integer, default=0)
+    warning_count: Mapped[int] = mapped_column(Integer, default=0)
+    expires_at: Mapped[datetime.datetime] = mapped_column(DateTime(timezone=True))
+    consumed_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+    )

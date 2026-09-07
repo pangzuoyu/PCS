@@ -25,8 +25,8 @@ def test_table_count(inspector):
     tables = inspector.get_table_names()
     assert "alembic_version" in tables
     # 53（V3.1 基线）+ pcs_toe_conversion_factors + htri_template_schemas
-    # + alembic_version = 56
-    assert len(tables) == 56, f"expected 56 incl. alembic_version, got {len(tables)}"
+    # + pipe_class_import_previews（SUP-002 PC-5）+ alembic_version = 57
+    assert len(tables) == 57, f"expected 57 incl. alembic_version, got {len(tables)}"
 
 
 def test_required_tables_present(inspector):
