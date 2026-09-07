@@ -1,689 +1,797 @@
 {
- "version": 1,
- "bugs": [
-  {
-   "id": "bug-001",
-   "timestamp": "2026-08-31T12:48:24.663Z",
-   "error_message": "Wrong reference: RecordMixin should be TimestampMixin",
-   "file": "pcs-backend/app/models/project.py",
-   "root_cause": "Used \"RecordMixin\" instead of \"TimestampMixin\"",
-   "fix": "Changed RecordMixin → TimestampMixin",
-   "tags": [
-    "auto-detected",
-    "wrong-reference",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-08-31T12:48:24.663Z"
-  },
-  {
-   "id": "bug-002",
-   "timestamp": "2026-08-31T12:52:34.861Z",
-   "error_message": "Incorrect value in code",
-   "file": "pcs-backend/app/models/calc.py",
-   "root_cause": "Had \"SHELL_TUBE/AIR_COOL/PLATE/etc\"",
-   "fix": "Changed to \"SHELL_TUBE/AIR_COOL/PLATE\"",
-   "tags": [
-    "auto-detected",
-    "wrong-value",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-08-31T12:52:34.861Z"
-  },
-  {
-   "id": "bug-003",
-   "timestamp": "2026-08-31T13:30:00.000Z",
-   "error_message": "psycopg.errors.DuplicateTable: relation \"uq_flash_results_project_id\" already exists; then equipment_list FK InvalidForeignKey",
-   "file": "pcs-backend/app/models/mixins.py + equipment.py",
-   "root_cause": "mixin UniqueConstraint + naming convention uq_%(table_name)s_%(column_0_name)s 在 declared_attr + autogenerate 下跨表错挂；equipment_list 两个独立 FK 无法满足 equipment_type_codes 复合 PK",
-   "fix": "从 TaggedRecordMixin 移除 UniqueConstraint（由服务层强制）；equipment_list 改用 ForeignKeyConstraint 复合键 (equipment_type_project_id, type_code) → equipment_type_codes(project_id, type_code)",
-   "tags": [
-    "auto-detected",
-    "sqlalchemy",
-    "migration",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-08-31T13:30:00.000Z"
-  },
-  {
-   "id": "bug-004",
-   "timestamp": "2026-08-31T13:11:32.351Z",
-   "error_message": "Significant refactor of main.py",
-   "file": "pcs-backend/app/main.py",
-   "root_cause": "4 lines replaced/restructured",
-   "fix": "Rewrote 37→44 lines (4 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-08-31T13:11:32.351Z"
-  },
-  {
-   "id": "bug-005",
-   "timestamp": "2026-08-31T16:22:18.015Z",
-   "error_message": "Significant refactor of test_mock_auth.py",
-   "file": "pcs-backend/tests/test_mock_auth.py",
-   "root_cause": "3 lines replaced/restructured",
-   "fix": "Rewrote 10→21 lines (3 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-08-31T16:22:18.015Z"
-  },
-  {
-   "id": "bug-006",
-   "timestamp": "2026-08-31T23:43:51.855Z",
-   "error_message": "Significant refactor of test_auth.py",
-   "file": "pcs-backend/tests/test_auth.py",
-   "root_cause": "2 lines replaced/restructured",
-   "fix": "Rewrote 19→52 lines (2 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-08-31T23:43:51.855Z"
-  },
-  {
-   "id": "bug-007",
-   "timestamp": "2026-08-31T23:44:39.570Z",
-   "error_message": "Incorrect value in code",
-   "file": "pcs-backend/app/models/equipment.py",
-   "root_cause": "Had \"fk_equipment_list_type_code\"",
-   "fix": "Changed to \"fk_equipment_list_type_code_composite\"",
-   "tags": [
-    "auto-detected",
-    "wrong-value",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-08-31T23:44:39.570Z"
-  },
-  {
-   "id": "bug-008",
-   "timestamp": "2026-09-01T02:20:54.704Z",
-   "error_message": "Significant refactor of system.py",
-   "file": "pcs-backend/app/models/system.py",
-   "root_cause": "2 lines replaced/restructured",
-   "fix": "Rewrote 17→33 lines (2 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T02:20:54.704Z"
-  },
-  {
-   "id": "bug-009",
-   "timestamp": "2026-09-01T04:35:00.000Z",
-   "error_message": "P0 project_input_checklist 偏离 DICT-ALL-003 V3.1 表44：缺 module/input_category/input_value_json/source_type/verified_by/verified_at/assumption_reason；status 只 3 态（PENDING/READY/BLOCKED）而非 5 态（NOT_STARTED/IN_PROGRESS/VERIFIED/ASSUMED/NOT_APPLICABLE）",
-   "file": "pcs-backend/app/models/system.py + alembic P0 baseline",
-   "root_cause": "P0 baseline（dd47298c9c38）实施时按经验减字段，未严格对齐 V3.1 表44",
-   "fix": "Sprint 1 增加 p1sprint1_checklist_schema_upgrade migration：add_column module String(30)、input_category String(20)、input_value_json JSONB、source_type String(20)、verified_by Uuid、verified_at DateTime(tz)、assumption_reason Text；status default NOT_STARTED（兼容旧 PENDING/READY/BLOCKED，Pydantic 校验层归一化）",
-   "tags": [
-    "schema-deviation",
-    "dict-v3.1",
-    "p0-leftover",
-    "sprint1-fix",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T04:35:00.000Z"
-  },
-  {
-   "id": "bug-010",
-   "timestamp": "2026-09-01T02:23:49.547Z",
-   "error_message": "Wrong reference: ProjectInputCheckList should be ProjectInputChecklist",
-   "file": "pcs-backend/app/services/checklist_service.py",
-   "root_cause": "Used \"ProjectInputCheckList\" instead of \"ProjectInputChecklist\"",
-   "fix": "Changed ProjectInputCheckList → ProjectInputChecklist",
-   "tags": [
-    "auto-detected",
-    "wrong-reference",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T02:23:49.547Z"
-  },
-  {
-   "id": "bug-011",
-   "timestamp": "2026-09-01T02:28:11.297Z",
-   "error_message": "Function not marked async",
-   "file": "pcs-backend/tests/conftest.py",
-   "root_cause": "Function uses await but wasn't declared async",
-   "fix": "Added async modifier",
-   "tags": [
-    "auto-detected",
-    "async-fix",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T02:28:11.297Z"
-  },
-  {
-   "id": "bug-012",
-   "timestamp": "2026-09-01T02:28:43.663Z",
-   "error_message": "Missing error handling in def()",
-   "file": "pcs-backend/tests/conftest.py",
-   "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
-   "fix": "Added try/catch block",
-   "tags": [
-    "auto-detected",
-    "error-handling",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T02:28:43.663Z"
-  },
-  {
-   "id": "bug-013",
-   "timestamp": "2026-09-01T02:29:52.482Z",
-   "error_message": "Significant refactor of test_arq_failure.py",
-   "file": "pcs-backend/tests/test_arq_failure.py",
-   "root_cause": "3 lines replaced/restructured",
-   "fix": "Rewrote 6→10 lines (3 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T02:29:52.482Z"
-  },
-  {
-   "id": "bug-014",
-   "timestamp": "2026-09-01T02:30:57.237Z",
-   "error_message": "Function not marked async",
-   "file": "pcs-backend/tests/test_health.py",
-   "root_cause": "Function uses await but wasn't declared async",
-   "fix": "Added async modifier",
-   "tags": [
-    "auto-detected",
-    "async-fix",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T02:30:57.237Z"
-  },
-  {
-   "id": "bug-015",
-   "timestamp": "2026-09-01T03:10:41.006Z",
-   "error_message": "Significant refactor of test_workspace.py",
-   "file": "pcs-backend/tests/test_workspace.py",
-   "root_cause": "17 lines replaced/restructured",
-   "fix": "Rewrote 24→5 lines (17 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T03:10:41.006Z"
-  },
-  {
-   "id": "bug-016",
-   "timestamp": "2026-09-01T03:14:31.831Z",
-   "error_message": "Significant refactor of test_state_machine.py",
-   "file": "pcs-backend/tests/test_state_machine.py",
-   "root_cause": "7 lines replaced/restructured",
-   "fix": "Rewrote 29→45 lines (7 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T03:14:31.831Z"
-  },
-  {
-   "id": "bug-017",
-   "timestamp": "2026-09-01T03:20:59.713Z",
-   "error_message": "Significant refactor of state_machine.py",
-   "file": "pcs-backend/app/services/state_machine.py",
-   "root_cause": "21 lines replaced/restructured",
-   "fix": "Rewrote 39→18 lines (21 removed) | Also: resource_type=record.__tablename__,; resource_id=getattr(record, \"pipe_id\", None)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 2,
-   "last_seen": "2026-09-01T03:21:00.068Z"
-  },
-  {
-   "id": "bug-018",
-   "timestamp": "2026-09-01T03:49:31.672Z",
-   "error_message": "Incorrect value in code",
-   "file": "pcs-backend/app/services/state_machine.py",
-   "root_cause": "Had \"CHECKER\"",
-   "fix": "Changed to \"SYSADMIN\"",
-   "tags": [
-    "auto-detected",
-    "wrong-value",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T03:49:31.672Z"
-  },
-  {
-   "id": "bug-019",
-   "timestamp": "2026-09-01T03:49:32.382Z",
-   "error_message": "Significant refactor of state_machine.py",
-   "file": "pcs-backend/app/services/state_machine.py",
-   "root_cause": "2 lines replaced/restructured",
-   "fix": "Rewrote 6→14 lines (2 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T03:49:32.382Z"
-  },
-  {
-   "id": "bug-020",
-   "timestamp": "2026-09-01T03:49:44.637Z",
-   "error_message": "Missing await",
-   "file": "pcs-backend/app/services/state_machine.py",
-   "root_cause": "Async call without await — returned Promise instead of value",
-   "fix": "Added await to async call",
-   "tags": [
-    "auto-detected",
-    "async-fix",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T03:49:44.637Z"
-  },
-  {
-   "id": "bug-021",
-   "timestamp": "2026-09-01T03:51:06.655Z",
-   "error_message": "Significant refactor of test_records.py",
-   "file": "pcs-backend/tests/test_records.py",
-   "root_cause": "5 lines replaced/restructured",
-   "fix": "Rewrote 16→6 lines (5 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T03:51:06.655Z"
-  },
-  {
-   "id": "bug-022",
-   "timestamp": "2026-09-01T03:55:54.093Z",
-   "error_message": "Significant refactor of state_machine.py",
-   "file": "pcs-backend/app/services/state_machine.py",
-   "root_cause": "2 lines replaced/restructured",
-   "fix": "Rewrote 6→4 lines (2 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T03:55:54.093Z"
-  },
-  {
-   "id": "bug-023",
-   "timestamp": "2026-09-01T07:44:13.299Z",
-   "error_message": "Significant refactor of test_schema.py",
-   "file": "pcs-backend/tests/test_schema.py",
-   "root_cause": "4 lines replaced/restructured",
-   "fix": "Rewrote 4→5 lines (4 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T07:44:13.299Z"
-  },
-  {
-   "id": "bug-024",
-   "timestamp": "2026-09-01T07:48:57.556Z",
-   "error_message": "Significant refactor of worker.py",
-   "file": "pcs-backend/app/workers/worker.py",
-   "root_cause": "2 lines replaced/restructured",
-   "fix": "Rewrote 45→56 lines (2 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T07:48:57.556Z"
-  },
-  {
-   "id": "bug-025",
-   "timestamp": "2026-09-01T07:57:54.640Z",
-   "error_message": "Significant refactor of lineage.py",
-   "file": "pcs-backend/app/services/lineage.py",
-   "root_cause": "8 lines replaced/restructured",
-   "fix": "Rewrote 37→27 lines (8 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T07:57:54.640Z"
-  },
-  {
-   "id": "bug-026",
-   "timestamp": "2026-09-01T07:59:04.656Z",
-   "error_message": "Missing error handling in _record_pk()",
-   "file": "pcs-backend/app/services/lineage.py",
-   "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
-   "fix": "Added try/catch block",
-   "tags": [
-    "auto-detected",
-    "error-handling",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T07:59:04.656Z"
-  },
-  {
-   "id": "bug-027",
-   "timestamp": "2026-09-01T08:00:13.578Z",
-   "error_message": "Missing await",
-   "file": "pcs-backend/app/services/lineage.py",
-   "root_cause": "Async call without await — returned Promise instead of value",
-   "fix": "Added await to async call",
-   "tags": [
-    "auto-detected",
-    "async-fix",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T08:00:13.578Z"
-  },
-  {
-   "id": "bug-028",
-   "timestamp": "2026-09-01T08:02:58.093Z",
-   "error_message": "Significant refactor of lineage.py",
-   "file": "pcs-backend/app/services/lineage.py",
-   "root_cause": "2 lines replaced/restructured",
-   "fix": "Rewrote 8→22 lines (2 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T08:02:58.093Z"
-  },
-  {
-   "id": "bug-029",
-   "timestamp": "2026-09-01T08:07:03.888Z",
-   "error_message": "Function not marked async",
-   "file": "pcs-backend/app/services/lineage.py",
-   "root_cause": "Function uses await but wasn't declared async",
-   "fix": "Added async modifier",
-   "tags": [
-    "auto-detected",
-    "async-fix",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T08:07:03.888Z"
-  },
-  {
-   "id": "bug-030",
-   "timestamp": "2026-09-01T08:17:27.072Z",
-   "error_message": "Missing await",
-   "file": "pcs-backend/tests/test_cia.py",
-   "root_cause": "Async call without await — returned Promise instead of value",
-   "fix": "Added await to async call",
-   "tags": [
-    "auto-detected",
-    "async-fix",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T08:17:27.072Z"
-  },
-  {
-   "id": "bug-031",
-   "timestamp": "2026-09-01T08:18:10.245Z",
-   "error_message": "Wrong operator: == should be >=",
-   "file": "pcs-backend/tests/test_cia.py",
-   "root_cause": "Used \"==\" instead of \">=\"",
-   "fix": "Changed operator == → >=",
-   "tags": [
-    "auto-detected",
-    "operator-fix",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T08:18:10.245Z"
-  },
-  {
-   "id": "bug-032",
-   "timestamp": "2026-09-01T08:24:38.515Z",
-   "error_message": "Wrong reference: refresh should be flush",
-   "file": "pcs-backend/tests/test_cia.py",
-   "root_cause": "Used \"refresh\" instead of \"flush\"",
-   "fix": "Changed refresh → flush",
-   "tags": [
-    "auto-detected",
-    "wrong-reference",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T08:24:38.515Z"
-  },
-  {
-   "id": "bug-033",
-   "timestamp": "2026-09-01T08:28:23.385Z",
-   "error_message": "Significant refactor of test_cia.py",
-   "file": "pcs-backend/tests/test_cia.py",
-   "root_cause": "10 lines replaced/restructured",
-   "fix": "Rewrote 17→35 lines (10 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T08:28:23.385Z"
-  },
-  {
-   "id": "bug-034",
-   "timestamp": "2026-09-01T12:08:30.572Z",
-   "error_message": "Significant refactor of test_cia.py",
-   "file": "pcs-backend/tests/test_cia.py",
-   "root_cause": "5 lines replaced/restructured",
-   "fix": "Rewrote 16→9 lines (5 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T12:08:30.572Z"
-  },
-  {
-   "id": "bug-035",
-   "timestamp": "2026-09-01T12:08:33.783Z",
-   "error_message": "Function not marked async",
-   "file": "pcs-backend/tests/test_cia.py",
-   "root_cause": "Function uses await but wasn't declared async",
-   "fix": "Added async modifier",
-   "tags": [
-    "auto-detected",
-    "async-fix",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T12:08:33.783Z"
-  },
-  {
-   "id": "bug-036",
-   "timestamp": "2026-09-01T12:10:30.915Z",
-   "error_message": "Significant refactor of test_lineage_api.py",
-   "file": "pcs-backend/tests/test_lineage_api.py",
-   "root_cause": "7 lines replaced/restructured",
-   "fix": "Rewrote 22→48 lines (7 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T12:10:30.915Z"
-  },
-  {
-   "id": "bug-037",
-   "timestamp": "2026-09-01T12:11:20.602Z",
-   "error_message": "Incorrect value in code",
-   "file": "pcs-backend/tests/test_lineage.py",
-   "root_cause": "Had \"PipingResult\"",
-   "fix": "Changed to \"构造满足 NOT NULL 约束的 PipingResult。\"",
-   "tags": [
-    "auto-detected",
-    "wrong-value",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T12:11:20.602Z"
-  },
-  {
-   "id": "bug-038",
-   "timestamp": "2026-09-01T12:17:25.256Z",
-   "error_message": "Significant refactor of test_lineage.py",
-   "file": "pcs-backend/tests/test_lineage.py",
-   "root_cause": "19 lines replaced/restructured",
-   "fix": "Rewrote 39→19 lines (19 removed)",
-   "tags": [
-    "auto-detected",
-    "refactor",
-    "py"
-   ],
-   "related_bugs": [],
-   "occurrences": 1,
-   "last_seen": "2026-09-01T12:17:25.256Z"
-  },
-  {
-   "id": "bug-031",
-   "timestamp": "2026-09-01T13:01:09Z",
-   "error_message": "alembic upgrade head failed with NameError: name Enum is not defined",
-   "root_cause": "added native enum columns in equipment.py without importing Enum from sqlalchemy",
-   "fix": "added Enum to sqlalchemy import list in app/models/equipment.py",
-   "tags": [
-    "alembic",
-    "enum",
-    "sprint3",
-    "import"
-   ]
-  },
-  {
-   "id": "bug-040",
-   "timestamp": "2026-09-03T17:57:04Z",
-   "error_message": "asyncpg UndefinedColumnError: column created_by of relation htri_template_schemas does not exist",
-   "root_cause": "brief 手写 CREATE TABLE 迁移假设 TimestampMixin 只有时间戳列，实际含 created_by/created_at/updated_at 三列（app/models/mixins.py）",
-   "fix": "重写迁移按仓库既有渲染约定（dd47298c 样式）：+created_by、created_at timezone=True + server_default now()、updated_at nullable",
-   "tags": [
-    "alembic",
-    "timestampmixin",
-    "sdd-brief-defect"
-   ]
-  },
-  {
-   "id": "bug-041",
-   "timestamp": "2026-09-03T17:57:04Z",
-   "error_message": "RuntimeError: Task got Future attached to a different loop (pytest 第二个真库测试)",
-   "root_cause": "get_async_session_factory() 是模块级单例，asyncpg 池化连接绑定首个 event loop；pytest-asyncio function-scope 每测试新 loop",
-   "fix": "autouse fixture 前后 dispose_engines_async()（仓库既有 _reset_async_engine 模式，copy 自 test_toe_conversion_service.py）",
-   "tags": [
-    "pytest-asyncio",
-    "asyncpg",
-    "event-loop"
-   ]
-  },
-  {
-   "id": "bug-042",
-   "timestamp": "2026-09-03T17:57:04Z",
-   "error_message": "TypeError: asset_id is an invalid keyword argument for TemplateFile（已提交测试 test_upload_auto_increments_seq 挂）",
-   "root_cause": "R14 手术切除 ORM asset_id 字段时依据不实——p2_sprint1_config_layer_fix 迁移已建 DB 列+FK；切割后未复跑测试",
-   "fix": "恢复 ORM 字段与 DB 对齐（c802181）；教训：手术切割后必须复跑相关测试",
-   "tags": [
-    "orm-db-drift",
-    "sdd-surgery",
-    "r14"
-   ]
-  },
-  {
-   "id": "bug-043",
-   "timestamp": "2026-09-03T17:57:04Z",
-   "error_message": "干净检出：ImportError get_async_session_factory / alembic KeyError p2_sprint1_config_layer_fix / 24 test failed",
-   "root_cause": "R10/R12/R14 文件级 git add 手术的系统性副作用：已提交代码依赖的基建（async session、pytest-asyncio、7 迁移、P1 服务层）只在工作树，git 历史从未自持",
-   "fix": "R19 四步落库（a781a11→1a08056→d9825fc→7edb7e1），干净 worktree 检出验证 256 passed 与工作树一致",
-   "tags": [
-    "git-hygiene",
-    "commit-integrity",
-    "sdd-surgery"
-   ]
-  },
-  {
-   "id": "bug-044",
-   "timestamp": "2026-09-04T14:00:00Z",
-   "error_message": "NameError: name 'FormulaEngine' is not defined（formula_service.py:89，4 个 publish 测试 FAIL）",
-   "root_cause": "接线 preconditions 时删了 FormulaEngine import，只查了 run_unit_tests 内引用，漏了 run_unit_tests_with_preconditions（classmethod）里的 FormulaEngine.parse",
-   "fix": "恢复 import；教训：删 import 前必须全文件 grep 该符号（含其它方法体）",
-   "tags": [
-    "import-hygiene",
-    "tdd-red-green",
-    "preconditions"
-   ]
-  }
- ]
+  "version": 1,
+  "bugs": [
+    {
+      "id": "bug-001",
+      "timestamp": "2026-08-31T12:48:24.663Z",
+      "error_message": "Wrong reference: RecordMixin should be TimestampMixin",
+      "file": "pcs-backend/app/models/project.py",
+      "root_cause": "Used \"RecordMixin\" instead of \"TimestampMixin\"",
+      "fix": "Changed RecordMixin → TimestampMixin",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T12:48:24.663Z"
+    },
+    {
+      "id": "bug-002",
+      "timestamp": "2026-08-31T12:52:34.861Z",
+      "error_message": "Incorrect value in code",
+      "file": "pcs-backend/app/models/calc.py",
+      "root_cause": "Had \"SHELL_TUBE/AIR_COOL/PLATE/etc\"",
+      "fix": "Changed to \"SHELL_TUBE/AIR_COOL/PLATE\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T12:52:34.861Z"
+    },
+    {
+      "id": "bug-003",
+      "timestamp": "2026-08-31T13:30:00.000Z",
+      "error_message": "psycopg.errors.DuplicateTable: relation \"uq_flash_results_project_id\" already exists; then equipment_list FK InvalidForeignKey",
+      "file": "pcs-backend/app/models/mixins.py + equipment.py",
+      "root_cause": "mixin UniqueConstraint + naming convention uq_%(table_name)s_%(column_0_name)s 在 declared_attr + autogenerate 下跨表错挂；equipment_list 两个独立 FK 无法满足 equipment_type_codes 复合 PK",
+      "fix": "从 TaggedRecordMixin 移除 UniqueConstraint（由服务层强制）；equipment_list 改用 ForeignKeyConstraint 复合键 (equipment_type_project_id, type_code) → equipment_type_codes(project_id, type_code)",
+      "tags": [
+        "auto-detected",
+        "sqlalchemy",
+        "migration",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T13:30:00.000Z"
+    },
+    {
+      "id": "bug-004",
+      "timestamp": "2026-08-31T13:11:32.351Z",
+      "error_message": "Significant refactor of main.py",
+      "file": "pcs-backend/app/main.py",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 37→44 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T13:11:32.351Z"
+    },
+    {
+      "id": "bug-005",
+      "timestamp": "2026-08-31T16:22:18.015Z",
+      "error_message": "Significant refactor of test_mock_auth.py",
+      "file": "pcs-backend/tests/test_mock_auth.py",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 10→21 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T16:22:18.015Z"
+    },
+    {
+      "id": "bug-006",
+      "timestamp": "2026-08-31T23:43:51.855Z",
+      "error_message": "Significant refactor of test_auth.py",
+      "file": "pcs-backend/tests/test_auth.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 19→52 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T23:43:51.855Z"
+    },
+    {
+      "id": "bug-007",
+      "timestamp": "2026-08-31T23:44:39.570Z",
+      "error_message": "Incorrect value in code",
+      "file": "pcs-backend/app/models/equipment.py",
+      "root_cause": "Had \"fk_equipment_list_type_code\"",
+      "fix": "Changed to \"fk_equipment_list_type_code_composite\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-08-31T23:44:39.570Z"
+    },
+    {
+      "id": "bug-008",
+      "timestamp": "2026-09-01T02:20:54.704Z",
+      "error_message": "Significant refactor of system.py",
+      "file": "pcs-backend/app/models/system.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 17→33 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T02:20:54.704Z"
+    },
+    {
+      "id": "bug-009",
+      "timestamp": "2026-09-01T04:35:00.000Z",
+      "error_message": "P0 project_input_checklist 偏离 DICT-ALL-003 V3.1 表44：缺 module/input_category/input_value_json/source_type/verified_by/verified_at/assumption_reason；status 只 3 态（PENDING/READY/BLOCKED）而非 5 态（NOT_STARTED/IN_PROGRESS/VERIFIED/ASSUMED/NOT_APPLICABLE）",
+      "file": "pcs-backend/app/models/system.py + alembic P0 baseline",
+      "root_cause": "P0 baseline（dd47298c9c38）实施时按经验减字段，未严格对齐 V3.1 表44",
+      "fix": "Sprint 1 增加 p1sprint1_checklist_schema_upgrade migration：add_column module String(30)、input_category String(20)、input_value_json JSONB、source_type String(20)、verified_by Uuid、verified_at DateTime(tz)、assumption_reason Text；status default NOT_STARTED（兼容旧 PENDING/READY/BLOCKED，Pydantic 校验层归一化）",
+      "tags": [
+        "schema-deviation",
+        "dict-v3.1",
+        "p0-leftover",
+        "sprint1-fix",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T04:35:00.000Z"
+    },
+    {
+      "id": "bug-010",
+      "timestamp": "2026-09-01T02:23:49.547Z",
+      "error_message": "Wrong reference: ProjectInputCheckList should be ProjectInputChecklist",
+      "file": "pcs-backend/app/services/checklist_service.py",
+      "root_cause": "Used \"ProjectInputCheckList\" instead of \"ProjectInputChecklist\"",
+      "fix": "Changed ProjectInputCheckList → ProjectInputChecklist",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T02:23:49.547Z"
+    },
+    {
+      "id": "bug-011",
+      "timestamp": "2026-09-01T02:28:11.297Z",
+      "error_message": "Function not marked async",
+      "file": "pcs-backend/tests/conftest.py",
+      "root_cause": "Function uses await but wasn't declared async",
+      "fix": "Added async modifier",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T02:28:11.297Z"
+    },
+    {
+      "id": "bug-012",
+      "timestamp": "2026-09-01T02:28:43.663Z",
+      "error_message": "Missing error handling in def()",
+      "file": "pcs-backend/tests/conftest.py",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T02:28:43.663Z"
+    },
+    {
+      "id": "bug-013",
+      "timestamp": "2026-09-01T02:29:52.482Z",
+      "error_message": "Significant refactor of test_arq_failure.py",
+      "file": "pcs-backend/tests/test_arq_failure.py",
+      "root_cause": "3 lines replaced/restructured",
+      "fix": "Rewrote 6→10 lines (3 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T02:29:52.482Z"
+    },
+    {
+      "id": "bug-014",
+      "timestamp": "2026-09-01T02:30:57.237Z",
+      "error_message": "Function not marked async",
+      "file": "pcs-backend/tests/test_health.py",
+      "root_cause": "Function uses await but wasn't declared async",
+      "fix": "Added async modifier",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T02:30:57.237Z"
+    },
+    {
+      "id": "bug-015",
+      "timestamp": "2026-09-01T03:10:41.006Z",
+      "error_message": "Significant refactor of test_workspace.py",
+      "file": "pcs-backend/tests/test_workspace.py",
+      "root_cause": "17 lines replaced/restructured",
+      "fix": "Rewrote 24→5 lines (17 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T03:10:41.006Z"
+    },
+    {
+      "id": "bug-016",
+      "timestamp": "2026-09-01T03:14:31.831Z",
+      "error_message": "Significant refactor of test_state_machine.py",
+      "file": "pcs-backend/tests/test_state_machine.py",
+      "root_cause": "7 lines replaced/restructured",
+      "fix": "Rewrote 29→45 lines (7 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T03:14:31.831Z"
+    },
+    {
+      "id": "bug-017",
+      "timestamp": "2026-09-01T03:20:59.713Z",
+      "error_message": "Significant refactor of state_machine.py",
+      "file": "pcs-backend/app/services/state_machine.py",
+      "root_cause": "21 lines replaced/restructured",
+      "fix": "Rewrote 39→18 lines (21 removed) | Also: resource_type=record.__tablename__,; resource_id=getattr(record, \"pipe_id\", None)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-09-01T03:21:00.068Z"
+    },
+    {
+      "id": "bug-018",
+      "timestamp": "2026-09-01T03:49:31.672Z",
+      "error_message": "Incorrect value in code",
+      "file": "pcs-backend/app/services/state_machine.py",
+      "root_cause": "Had \"CHECKER\"",
+      "fix": "Changed to \"SYSADMIN\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T03:49:31.672Z"
+    },
+    {
+      "id": "bug-019",
+      "timestamp": "2026-09-01T03:49:32.382Z",
+      "error_message": "Significant refactor of state_machine.py",
+      "file": "pcs-backend/app/services/state_machine.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 6→14 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T03:49:32.382Z"
+    },
+    {
+      "id": "bug-020",
+      "timestamp": "2026-09-01T03:49:44.637Z",
+      "error_message": "Missing await",
+      "file": "pcs-backend/app/services/state_machine.py",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T03:49:44.637Z"
+    },
+    {
+      "id": "bug-021",
+      "timestamp": "2026-09-01T03:51:06.655Z",
+      "error_message": "Significant refactor of test_records.py",
+      "file": "pcs-backend/tests/test_records.py",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 16→6 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T03:51:06.655Z"
+    },
+    {
+      "id": "bug-022",
+      "timestamp": "2026-09-01T03:55:54.093Z",
+      "error_message": "Significant refactor of state_machine.py",
+      "file": "pcs-backend/app/services/state_machine.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 6→4 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T03:55:54.093Z"
+    },
+    {
+      "id": "bug-023",
+      "timestamp": "2026-09-01T07:44:13.299Z",
+      "error_message": "Significant refactor of test_schema.py",
+      "file": "pcs-backend/tests/test_schema.py",
+      "root_cause": "4 lines replaced/restructured",
+      "fix": "Rewrote 4→5 lines (4 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T07:44:13.299Z"
+    },
+    {
+      "id": "bug-024",
+      "timestamp": "2026-09-01T07:48:57.556Z",
+      "error_message": "Significant refactor of worker.py",
+      "file": "pcs-backend/app/workers/worker.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 45→56 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T07:48:57.556Z"
+    },
+    {
+      "id": "bug-025",
+      "timestamp": "2026-09-01T07:57:54.640Z",
+      "error_message": "Significant refactor of lineage.py",
+      "file": "pcs-backend/app/services/lineage.py",
+      "root_cause": "8 lines replaced/restructured",
+      "fix": "Rewrote 37→27 lines (8 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T07:57:54.640Z"
+    },
+    {
+      "id": "bug-026",
+      "timestamp": "2026-09-01T07:59:04.656Z",
+      "error_message": "Missing error handling in _record_pk()",
+      "file": "pcs-backend/app/services/lineage.py",
+      "root_cause": "Code path had no error handling — exceptions would propagate uncaught",
+      "fix": "Added try/catch block",
+      "tags": [
+        "auto-detected",
+        "error-handling",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T07:59:04.656Z"
+    },
+    {
+      "id": "bug-027",
+      "timestamp": "2026-09-01T08:00:13.578Z",
+      "error_message": "Missing await",
+      "file": "pcs-backend/app/services/lineage.py",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T08:00:13.578Z"
+    },
+    {
+      "id": "bug-028",
+      "timestamp": "2026-09-01T08:02:58.093Z",
+      "error_message": "Significant refactor of lineage.py",
+      "file": "pcs-backend/app/services/lineage.py",
+      "root_cause": "2 lines replaced/restructured",
+      "fix": "Rewrote 8→22 lines (2 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T08:02:58.093Z"
+    },
+    {
+      "id": "bug-029",
+      "timestamp": "2026-09-01T08:07:03.888Z",
+      "error_message": "Function not marked async",
+      "file": "pcs-backend/app/services/lineage.py",
+      "root_cause": "Function uses await but wasn't declared async",
+      "fix": "Added async modifier",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T08:07:03.888Z"
+    },
+    {
+      "id": "bug-030",
+      "timestamp": "2026-09-01T08:17:27.072Z",
+      "error_message": "Missing await",
+      "file": "pcs-backend/tests/test_cia.py",
+      "root_cause": "Async call without await — returned Promise instead of value",
+      "fix": "Added await to async call",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T08:17:27.072Z"
+    },
+    {
+      "id": "bug-031",
+      "timestamp": "2026-09-01T08:18:10.245Z",
+      "error_message": "Wrong operator: == should be >=",
+      "file": "pcs-backend/tests/test_cia.py",
+      "root_cause": "Used \"==\" instead of \">=\"",
+      "fix": "Changed operator == → >=",
+      "tags": [
+        "auto-detected",
+        "operator-fix",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T08:18:10.245Z"
+    },
+    {
+      "id": "bug-032",
+      "timestamp": "2026-09-01T08:24:38.515Z",
+      "error_message": "Wrong reference: refresh should be flush",
+      "file": "pcs-backend/tests/test_cia.py",
+      "root_cause": "Used \"refresh\" instead of \"flush\"",
+      "fix": "Changed refresh → flush",
+      "tags": [
+        "auto-detected",
+        "wrong-reference",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T08:24:38.515Z"
+    },
+    {
+      "id": "bug-033",
+      "timestamp": "2026-09-01T08:28:23.385Z",
+      "error_message": "Significant refactor of test_cia.py",
+      "file": "pcs-backend/tests/test_cia.py",
+      "root_cause": "10 lines replaced/restructured",
+      "fix": "Rewrote 17→35 lines (10 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T08:28:23.385Z"
+    },
+    {
+      "id": "bug-034",
+      "timestamp": "2026-09-01T12:08:30.572Z",
+      "error_message": "Significant refactor of test_cia.py",
+      "file": "pcs-backend/tests/test_cia.py",
+      "root_cause": "5 lines replaced/restructured",
+      "fix": "Rewrote 16→9 lines (5 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T12:08:30.572Z"
+    },
+    {
+      "id": "bug-035",
+      "timestamp": "2026-09-01T12:08:33.783Z",
+      "error_message": "Function not marked async",
+      "file": "pcs-backend/tests/test_cia.py",
+      "root_cause": "Function uses await but wasn't declared async",
+      "fix": "Added async modifier",
+      "tags": [
+        "auto-detected",
+        "async-fix",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T12:08:33.783Z"
+    },
+    {
+      "id": "bug-036",
+      "timestamp": "2026-09-01T12:10:30.915Z",
+      "error_message": "Significant refactor of test_lineage_api.py",
+      "file": "pcs-backend/tests/test_lineage_api.py",
+      "root_cause": "7 lines replaced/restructured",
+      "fix": "Rewrote 22→48 lines (7 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T12:10:30.915Z"
+    },
+    {
+      "id": "bug-037",
+      "timestamp": "2026-09-01T12:11:20.602Z",
+      "error_message": "Incorrect value in code",
+      "file": "pcs-backend/tests/test_lineage.py",
+      "root_cause": "Had \"PipingResult\"",
+      "fix": "Changed to \"构造满足 NOT NULL 约束的 PipingResult。\"",
+      "tags": [
+        "auto-detected",
+        "wrong-value",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T12:11:20.602Z"
+    },
+    {
+      "id": "bug-038",
+      "timestamp": "2026-09-01T12:17:25.256Z",
+      "error_message": "Significant refactor of test_lineage.py",
+      "file": "pcs-backend/tests/test_lineage.py",
+      "root_cause": "19 lines replaced/restructured",
+      "fix": "Rewrote 39→19 lines (19 removed)",
+      "tags": [
+        "auto-detected",
+        "refactor",
+        "py"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-01T12:17:25.256Z"
+    },
+    {
+      "id": "bug-031",
+      "timestamp": "2026-09-01T13:01:09Z",
+      "error_message": "alembic upgrade head failed with NameError: name Enum is not defined",
+      "root_cause": "added native enum columns in equipment.py without importing Enum from sqlalchemy",
+      "fix": "added Enum to sqlalchemy import list in app/models/equipment.py",
+      "tags": [
+        "alembic",
+        "enum",
+        "sprint3",
+        "import"
+      ]
+    },
+    {
+      "id": "bug-040",
+      "timestamp": "2026-09-03T17:57:04Z",
+      "error_message": "asyncpg UndefinedColumnError: column created_by of relation htri_template_schemas does not exist",
+      "root_cause": "brief 手写 CREATE TABLE 迁移假设 TimestampMixin 只有时间戳列，实际含 created_by/created_at/updated_at 三列（app/models/mixins.py）",
+      "fix": "重写迁移按仓库既有渲染约定（dd47298c 样式）：+created_by、created_at timezone=True + server_default now()、updated_at nullable",
+      "tags": [
+        "alembic",
+        "timestampmixin",
+        "sdd-brief-defect"
+      ]
+    },
+    {
+      "id": "bug-041",
+      "timestamp": "2026-09-03T17:57:04Z",
+      "error_message": "RuntimeError: Task got Future attached to a different loop (pytest 第二个真库测试)",
+      "root_cause": "get_async_session_factory() 是模块级单例，asyncpg 池化连接绑定首个 event loop；pytest-asyncio function-scope 每测试新 loop",
+      "fix": "autouse fixture 前后 dispose_engines_async()（仓库既有 _reset_async_engine 模式，copy 自 test_toe_conversion_service.py）",
+      "tags": [
+        "pytest-asyncio",
+        "asyncpg",
+        "event-loop"
+      ]
+    },
+    {
+      "id": "bug-042",
+      "timestamp": "2026-09-03T17:57:04Z",
+      "error_message": "TypeError: asset_id is an invalid keyword argument for TemplateFile（已提交测试 test_upload_auto_increments_seq 挂）",
+      "root_cause": "R14 手术切除 ORM asset_id 字段时依据不实——p2_sprint1_config_layer_fix 迁移已建 DB 列+FK；切割后未复跑测试",
+      "fix": "恢复 ORM 字段与 DB 对齐（c802181）；教训：手术切割后必须复跑相关测试",
+      "tags": [
+        "orm-db-drift",
+        "sdd-surgery",
+        "r14"
+      ]
+    },
+    {
+      "id": "bug-043",
+      "timestamp": "2026-09-03T17:57:04Z",
+      "error_message": "干净检出：ImportError get_async_session_factory / alembic KeyError p2_sprint1_config_layer_fix / 24 test failed",
+      "root_cause": "R10/R12/R14 文件级 git add 手术的系统性副作用：已提交代码依赖的基建（async session、pytest-asyncio、7 迁移、P1 服务层）只在工作树，git 历史从未自持",
+      "fix": "R19 四步落库（a781a11→1a08056→d9825fc→7edb7e1），干净 worktree 检出验证 256 passed 与工作树一致",
+      "tags": [
+        "git-hygiene",
+        "commit-integrity",
+        "sdd-surgery"
+      ]
+    },
+    {
+      "id": "bug-044",
+      "timestamp": "2026-09-04T14:00:00Z",
+      "error_message": "NameError: name 'FormulaEngine' is not defined（formula_service.py:89，4 个 publish 测试 FAIL）",
+      "root_cause": "接线 preconditions 时删了 FormulaEngine import，只查了 run_unit_tests 内引用，漏了 run_unit_tests_with_preconditions（classmethod）里的 FormulaEngine.parse",
+      "fix": "恢复 import；教训：删 import 前必须全文件 grep 该符号（含其它方法体）",
+      "tags": [
+        "import-hygiene",
+        "tdd-red-green",
+        "preconditions"
+      ]
+    },
+    {
+      "id": "bug-045",
+      "timestamp": "2026-09-05T16:40:00Z",
+      "error_message": "pydantic_core.ValidationError: dn_series_json 需 {min,max} 且 0<min<max（test_create_invalid_dn_range_422 期望 PcsError 422，实抛 ValidationError）",
+      "root_cause": "brief 内部矛盾：dn 区间校验在 schema model_validator（PipeClassCreate 构造即抛 pydantic ValidationError），非法 payload 根本到不了 service 层，不可能抛 PcsError",
+      "fix": "测试改为断言构造期 ValidationError 并检查 dn_series_json 消息（FastAPI 层天然映射 422）；教训：service 测试只测 service 可达路径，schema 校验属 API 边界",
+      "tags": [
+        "tdd-red-green",
+        "schema-vs-service-layer",
+        "brief-deviation"
+      ]
+    },
+    {
+      "id": "bug-046",
+      "timestamp": "2026-09-05T23:15:49+00:00",
+      "error_message": "RuntimeError: Form data requires \"python-multipart\" to be installed.（import api_router 即抛，全仓 pytest ImportError）",
+      "file": "pcs-backend/app/api/v1/pipe_classes.py",
+      "root_cause": "FastAPI 0.141.1 定义含 UploadFile 的路由时 import 期检查 python-multipart，而该包未在 pyproject/uv.lock/venv 声明（brief 指定 multipart 接口但漏列依赖）",
+      "fix": "uv add python-multipart（0.0.32），pyproject+uv.lock 并入 Task 1.9.6 commit 4917d01",
+      "tags": [
+        "missing-dependency",
+        "fastapi",
+        "multipart",
+        "p2-s1.9"
+      ],
+      "related_bugs": [],
+      "occurrences": 1
+    },
+    {
+      "id": "bug-047",
+      "timestamp": "2026-09-06T11:45:39+08:00",
+      "error_message": "PipeClassCreate dn_series_json={min:25, max:25} 被 _check_dn 拒绝（ValueError: dn_series_json 需 {min,max} 且 0<min<max）——Kaimen 种子 40BA92G12E 夹套芯管 53/54 导入",
+      "file": "pcs-backend/app/schemas/pipe_class.py",
+      "root_cause": "validator 用严格小于 0<min<max，未考虑单口径等级（真实工程形态：某等级仅一种 DN 规格，xlsx/JSON 伴生/IFC 源文件三方一致）",
+      "fix": "放宽为 0 < min <= max（倒挂/零/负仍拒），错误文案注明单口径合法（commit 4917d01）",
+      "tags": [
+        "schema-validation",
+        "pipe-class",
+        "edge-case",
+        "p2-s1.9"
+      ],
+      "related_bugs": [],
+      "occurrences": 1
+    },
+    {
+      "id": "bug-048",
+      "timestamp": "2026-09-06T21:30:00+08:00",
+      "error_message": "settle name=f\"{equipment_name} [{original_tag}]\" 可达 253 字符 > ConfigAsset.name String(200)，PG 上确定性 500",
+      "file": "pcs-backend/app/services/equip_lib_service.py",
+      "root_cause": "schema 上限 name=200 + tag=50 + ' []' 拼接后未截断，超出列宽",
+      "fix": "name 构造后 [:200] 截断（终审 commit）",
+      "tags": [
+        "db-column-limit",
+        "equip-lib",
+        "settle",
+        "p2-s1.9"
+      ],
+      "related_bugs": [],
+      "occurrences": 1
+    },
+    {
+      "id": "bug-049",
+      "timestamp": "2026-09-06T21:30:00+08:00",
+      "error_message": "import_from_excel 畸形 xlsx 行 <12 列时 row[3] 抛 IndexError，except 元组只捕 ValueError/TypeError/JSONDecodeError → 500 且前序行已 commit",
+      "file": "pcs-backend/app/services/pipe_class_service.py",
+      "root_cause": "openpyxl 正常文件按 dimension 补 None（走 TypeError），但 dimension 记录缺失/错乱的畸形文件行取实际长度 → IndexError 未捕获",
+      "fix": "except 元组补 IndexError，归入行级 errors 上报（终审 commit）",
+      "tags": [
+        "excel-import",
+        "pipe-class",
+        "unhandled-exception",
+        "p2-s1.9"
+      ],
+      "related_bugs": [],
+      "occurrences": 1
+    },
+    {
+      "id": "bug-050",
+      "timestamp": "2026-09-06T21:30:00+08:00",
+      "error_message": "equip-lib search limit 无下界，limit=-1 经 min(limit,200) 仍为 -1 → SQL LIMIT 负=无界",
+      "file": "pcs-backend/app/api/v1/equip_lib.py",
+      "root_cause": "Query(50) 未加 ge/le 约束，服务层 min() 只封顶不封底",
+      "fix": "Query(50, ge=1, le=200)（终审 commit）",
+      "tags": [
+        "query-param-validation",
+        "equip-lib",
+        "search",
+        "p2-s1.9"
+      ],
+      "related_bugs": [],
+      "occurrences": 1
+    },
+    {
+      "id": "bug-051",
+      "timestamp": "2026-09-08T10:30:00+08:00",
+      "error_message": "PipeClassService.delete() AttributeError: ProjectPipeClass.class_id 列不存在；xfail 测试掩盖 1.9→SUP-002 schema 重构遗留",
+      "file": "pcs-backend/app/services/pipe_class_service.py",
+      "root_cause": "PC-1 删 ProjectPipeClass.class_id/enabled/custom_override_json 列；delete() 仍引用 .class_id；list_project() 仍按 .class_id 排序；assign_to_project() 仍写 .class_id/.enabled/.custom_override_json 三个已删列（运行时立刻报 AttributeError）",
+      "fix": "delete() 引用检查改 .source_class_id；list_project() 改按 .class_name 排序；xfail 5 个全转 pass，1 个测试改用 fork 端点构造引用；assign_to_project/ProjectAssignRequest/ProjectPipeClassResponse 三个 schema+service 入口仍指向已删列 → 进入 P2 close 报告待办",
+      "tags": [
+        "schema-refactor-leftover",
+        "sup-002",
+        "pipe-class",
+        "xfail-mask"
+      ],
+      "related_bugs": [],
+      "occurrences": 1
+    }
+  ]
 }

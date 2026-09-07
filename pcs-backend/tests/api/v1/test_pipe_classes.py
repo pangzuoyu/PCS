@@ -1,10 +1,7 @@
 """管道等级 API 测试（Task 1.9.2 / spec §3.2.5 5 端点 + 删除/分配）。
 
-PC-1 SUP-002 schema 重构后，1.9 薄层契约（3 态 + 复合 PK + class_id assign）已废止。
-以下 3 个用例标 xfail(strict=False)，由 PC-3 service 层 + PC-6 API 替换：
-- test_crud_roundtrip（status='ACTIVE'）
-- test_delete_in_use_409（ProjectPipeClass 复合 PK 取参）
-- test_project_list（同上）
+公司级 PipeClass 走 DRAFT/ACTIVE/OBSOLETE 三态（PipeClassUpdate.status 字面量）；
+项目级 fork 走 5 态。SUP-002 后端点保留 1.9 三态契约（公司级），项目级走 fork 端点。
 """
 from __future__ import annotations
 
@@ -58,7 +55,6 @@ async def sample_project(db):
     return proj
 
 
-@pytest.mark.xfail(reason="PC-1 schema 重构废止 1.9 薄层 3 态契约，PC-3 service 层替换", strict=False)
 async def test_crud_roundtrip(client, sample_pc_token):
     r = await client.post("/api/v1/pipe-classes", json=_BODY, headers=_auth(sample_pc_token))
     assert r.status_code == 201 and r.json()["status"] == "DRAFT"
@@ -91,19 +87,23 @@ async def test_update_class_id_mismatch_422(client, sample_pc_token):
     assert r.status_code == 422
 
 
-@pytest.mark.xfail(reason="PC-1 schema 重构废止 ProjectPipeClass 复合 PK，PC-3 service 层替换", strict=False)
 async def test_delete_in_use_409(client, sample_pc_token, sample_project):
+    """fork 出的项目级等级 → 删公司级应 409（PC-1 引用检查已修复 source_class_id 列）。
+
+    旧 assign(class_id) 端点（POST /projects/{p}/pipe-classes）走已废止的
+    assign_to_project 路径，列已不存在；改用 PC-4 fork 端点构造引用。
+    """
     await client.post("/api/v1/pipe-classes", json=_BODY, headers=_auth(sample_pc_token))
     r = await client.post(
-        f"/api/v1/projects/{sample_project.project_id}/pipe-classes",
+        f"/api/v1/projects/{sample_project.project_id}/pipe-classes/fork",
         json={"class_id": "A1"}, headers=_auth(sample_pc_token))
     assert r.status_code == 201
     r = await client.delete("/api/v1/pipe-classes/A1", headers=_auth(sample_pc_token))
     assert r.status_code == 409  # 已用等级不可删除
 
 
-@pytest.mark.xfail(reason="PC-1 schema 重构废止 ProjectPipeClass 复合 PK，PC-3 service 层替换", strict=False)
 async def test_project_list(client, sample_pc_token, sample_project):
+    """空项目列表端点 → []（list_project 走 ProjectPipeClass.class_name 排序）。"""
     r = await client.get(f"/api/v1/projects/{sample_project.project_id}/pipe-classes",
                          headers=_auth(sample_pc_token))
     assert r.status_code == 200 and r.json() == []

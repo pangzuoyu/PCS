@@ -178,8 +178,11 @@ class PipeClassService:
     @classmethod
     async def delete(cls, session: AsyncSession, class_id: str) -> None:
         await cls.get(session, class_id)
+        # SUP-002 PC-1：ProjectPipeClass 不再存 class_id FK，改存 source_class_id。
         assigned = (await session.execute(
-            select(ProjectPipeClass.class_id).where(ProjectPipeClass.class_id == class_id)
+            select(ProjectPipeClass.project_class_id).where(
+                ProjectPipeClass.source_class_id == class_id,
+            )
         )).first()
         lined = (await session.execute(
             select(PipingResult.pipe_id).where(PipingResult.material_class == class_id).limit(1)
@@ -227,7 +230,7 @@ class PipeClassService:
         stmt = (
             select(ProjectPipeClass)
             .where(ProjectPipeClass.project_id == project_id)
-            .order_by(ProjectPipeClass.class_id)
+            .order_by(ProjectPipeClass.class_name)
         )
         return list((await session.execute(stmt)).scalars())
 

@@ -1,9 +1,8 @@
 """PipeClassService 单元测试（Task 1.9.1 / P2-STD-001）。
 
-PC-1 SUP-002 schema 重构后，1.9 薄层 service 契约（assign(class_id) + ProjectPipeClass.class_id 列）
-已废止。以下 2 个用例标 xfail(strict=False)，由 PC-3 service 层替换：
-- test_delete_blocked_when_assigned（service.delete 用 class_id 列）
-- test_list_project_returns_assignment（rows.class_id 属性访问）
+覆盖：service 层 delete（已分配→409）+ list_project（fork 后列出）。
+SUP-002 后改用 fork_to_project 路径构造 ProjectPipeClass 行（service.delete 通过
+ProjectPipeClass.class_id 列做引用检查；旧 assign_to_project(class_id) 已弃用）。
 """
 import uuid
 
@@ -103,21 +102,31 @@ async def test_update_and_obsolete_one_way(db):
     assert e.value.status == 409
 
 
-@pytest.mark.xfail(reason="PC-1 schema 重构废止 ProjectPipeClass.class_id 列 + assign(class_id) 契约，PC-3 service 层替换", strict=False)
-async def test_delete_blocked_when_assigned(db, make_project):
+async def test_delete_blocked_when_assigned(db, make_project, actor):
+    """fork 出的 ProjectPipeClass.class_id 引用 → delete 应抛 409（不可删，仅可作废）。
+
+    SUP-002：原 1.9 assign_to_project(class_id) 已弃用，改走 fork_to_project 入口。
+    fork 在 ProjectPipeClass.class_id 上落行，与 service.delete 的引用检查匹配。
+    """
     await PipeClassService.create(db, payload=_payload())
     proj = await make_project()
-    await PipeClassService.assign_to_project(db, proj.project_id, "A1")
+    await PipeClassService.fork_to_project(
+        db, project_id=proj.project_id, class_id="A1", actor=actor,
+    )
     with pytest.raises(PcsError) as e:
         await PipeClassService.delete(db, "A1")
     assert e.value.status == 409  # 已用等级不可删除，仅可作废
 
 
-@pytest.mark.xfail(reason="PC-1 schema 重构废止 ProjectPipeClass.class_id 列 + assign(class_id) 契约，PC-3 service 层替换", strict=False)
-async def test_list_project_returns_assignment(db, make_project):
+async def test_list_project_returns_assignment(db, make_project, actor):
+    """fork 后 list_project 应返回该行的 class_name（SUP-002 PC-4：class_id 不再是列）。"""
     await PipeClassService.create(db, payload=_payload())
     proj = await make_project()
-    row = await PipeClassService.assign_to_project(db, proj.project_id, "A1")
+    row = await PipeClassService.fork_to_project(
+        db, project_id=proj.project_id, class_id="A1", actor=actor,
+    )
     rows = await PipeClassService.list_project(db, proj.project_id)
-    assert [r.class_id for r in rows] == ["A1"]
+    # SUP-002 PC-1：ProjectPipeClass.class_id 列已废；fork 写入 class_name（来自公司级）
+    assert [r.class_name for r in rows] == ["管道等级 A1"]
+    assert row.source_class_id == "A1"
     assert isinstance(row, ProjectPipeClass)
