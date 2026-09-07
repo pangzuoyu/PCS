@@ -179,7 +179,18 @@ class PipeCodeTemplateService:
     async def publish(
         cls, db: AsyncSession, template_id: uuid.UUID, *, actor: Any,
     ) -> PipeCodeTemplate:
-        return await cls._transition(db, template_id, ConfigTransition.PUBLISH, actor)
+        t = await cls._transition(db, template_id, ConfigTransition.PUBLISH, actor)
+        # FMT-OPEN-02：模板 PUBLISH 后扫描下游 fork，snapshot 与新内容发散者 → OBSOLETE。
+        # _transition 已 commit；CIAEngine 走新事务。
+        from app.services.cia_engine import CIAEngine
+
+        n = await CIAEngine(db).propagate_from_source(
+            source_type="pipe_code_template",
+            source_id=str(template_id),
+        )
+        if n:
+            await db.commit()
+        return t
 
     @classmethod
     async def obsolete(

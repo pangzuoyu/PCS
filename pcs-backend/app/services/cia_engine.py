@@ -7,10 +7,17 @@
 - 设备联动（ADR-0025）：来源 record STALE → 关联 equipment STALE
 
 实现约束：MVP 阶段只扫描 PipingResult 表；FLASH 通过血统矩阵判定，不在 CIA 扫描范围。
+
+FMT-OPEN-02 扩展：propagate_from_source 新增 pipe_code_template 分支：
+上游 pipe_code_template 发布后，扫描下游 fork 出的 PUBLISHED ProjectPipeCodeConfig
+（5 态机，无 sign_status 字段），按 snapshot_json 与新 format_definition_json 的
+SHA-256 短前缀比对，发散者 → OBSOLETE。
 """
 
 from __future__ import annotations
 
+import hashlib
+import json as _json
 import uuid
 from collections.abc import Iterable, Sequence
 
@@ -44,6 +51,16 @@ REGISTRY: dict[str, type] = {
 
 # 系统占位 actor UUID（CIA/SYSADMIN 触发的转移无 actor；填占位 UUID）
 SYSADMIN_ACTOR = uuid.UUID("00000000-0000-0000-0000-000000000000")
+
+# 内容哈希前缀长度（16 hex = 64 bit；冲突概率可忽略；省去 dict 大对象比对开销）
+_CONTENT_HASH_PREFIX = 16
+
+
+def _content_hash(content: dict | None) -> str:
+    if not content:
+        return ""
+    raw = _json.dumps(content, sort_keys=True, default=str)
+    return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:_CONTENT_HASH_PREFIX]
 
 
 class CIAEngine:
@@ -246,11 +263,64 @@ class CIAEngine:
     async def propagate_from_source(
         self, source_type: str, source_id: uuid.UUID
     ) -> int:
-        """反向传播：以 (source_type, source_id) 为起点，沿 data_lineage 反向传播
-        （按 source_ref_type/source_ref_id 查询），把所有下游 record 标 STALE。
+        """反向传播：以 (source_type, source_id) 为起点，标记所有下游 record STALE。
 
-        返回被标 STALE 的下游 record 数（含递归产生的）。
+        路由：
+        - pipe_code_template → 直接 ORM 查 ProjectPipeCodeConfig（snapshot 发散 → OBSOLETE）
+          原因：ProjectPipeCodeConfig 用 5 态机，无 sign_status 字段，data_lineage 路径
+          不适用；本路径是 FMT-OPEN-02 引入的特例。
+        - 其他 source_type → 沿 data_lineage.source_ref_type/source_ref_id 反向传播，
+          把下游 record 标 sign_status=STALE（递归 + cycle/depth 防护）。
         """
+        if source_type == "pipe_code_template":
+            return await self._propagate_pipe_code_template(uuid.UUID(source_id))
+        return await self._propagate_from_lineage(source_type, source_id)
+
+    async def _propagate_pipe_code_template(self, template_id: uuid.UUID) -> int:
+        """FMT-OPEN-02：上游 pipe_code_template PUBLISHED → 下游 fork 出的 PUBLISHED
+        ProjectPipeCodeConfig，snapshot_json 与新 format_definition_json 发散者 → OBSOLETE。
+
+        仅动作于 status=PUBLISHED 的下游；DRAFT/PENDING/APPROVED/OBSOLETE 不动。
+
+        延迟 import pipe_code_template 模型：避免 conftest SAUuid patch 之前触发
+        模型加载导致 Uuid 列捕获默认 __visit_name__，进而 SQLite 编译失败。
+        """
+        from app.models.pipe_code_template import (
+            PipeCodeTemplate,
+            ProjectPipeCodeConfig,
+        )
+
+        tpl = await self.session.get(PipeCodeTemplate, template_id)
+        if tpl is None:
+            return 0
+        new_hash = _content_hash(tpl.format_definition_json)
+        configs = (
+            (
+                await self.session.execute(
+                    select(ProjectPipeCodeConfig).where(
+                        ProjectPipeCodeConfig.source_template_id == template_id,
+                        ProjectPipeCodeConfig.status == "PUBLISHED",
+                    )
+                )
+            )
+            .scalars()
+            .all()
+        )
+        n = 0
+        for cfg in configs:
+            if _content_hash(cfg.snapshot_json) != new_hash:
+                cfg.status = "OBSOLETE"
+                n += 1
+        if n:
+            await self.session.flush()
+        return n
+
+    async def _propagate_from_lineage(
+        self,
+        source_type: str,
+        source_id: uuid.UUID,
+    ) -> int:
+        """沿 data_lineage 反向传播（lineage 路径，9 态机适用）。"""
         marked = 0
         visited: set[tuple[str, uuid.UUID]] = set()
         async for _ in self._iter_propagate(source_type, source_id, depth=0, visited=visited):
