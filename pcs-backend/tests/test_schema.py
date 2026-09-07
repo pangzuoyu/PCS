@@ -29,7 +29,8 @@ def test_table_count(inspector):
     # SUP-002 SYM-1 新增 stream_symbols + project_stream_symbols = 59
     # SUP-002 FMT-1+FMT-3 新增 pipe_code_templates + project_pipe_code_configs
     #   + project_pipe_code_sequences = 62
-    assert len(tables) == 62, f"expected 62 incl. alembic_version, got {len(tables)}"
+    # SUP-002 INT-1 新增 project_template_pipe_classes = 63
+    assert len(tables) == 63, f"expected 63 incl. alembic_version, got {len(tables)}"
 
 
 def test_required_tables_present(inspector):

@@ -154,6 +154,9 @@ class ProjectTemplate(TimestampMixin, Base):
         Uuid, ForeignKey("config_assets.asset_id"), nullable=True
     )
     checklist_json: Mapped[dict | None] = mapped_column(JSON)
+    pipe_code_template_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("pipe_code_templates.template_id"), nullable=True,
+    )
 
 
 class PipeClass(TimestampMixin, Base):
