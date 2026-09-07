@@ -1,0 +1,341 @@
+"""管道代码 API（FMT-4 / SUP-002 §11.5/§12）。
+
+端点布局：
+- 公司级模板 CRUD + 5 态流：``/pipe-code-templates``
+- 项目级配置 CRUD + fork + 5 态流：``/projects/{project_id}/pipe-code-configs``
+- 生成/验证：``/pipe-codes/generate`` ``/pipe-codes/validate``
+"""
+from __future__ import annotations
+
+from typing import Annotated
+from uuid import UUID
+
+from fastapi import APIRouter, Depends, HTTPException
+from pydantic import BaseModel
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.api.v1.config import _Actor, current_actor, require_roles
+from app.db.session import get_db
+from app.services.pipe_code_generator import PipeCodeGenerator
+from app.services.pipe_code_template_service import PipeCodeTemplateService
+
+router = APIRouter(tags=["pipe-codes"])
+
+
+# ---------- 请求/响应模型 ----------
+
+
+class CreateTemplateRequest(BaseModel):
+    template_name: str
+    description: str | None = None
+    format_definition_json: dict
+    version: str | None = "1"
+
+
+class UpdateTemplateRequest(BaseModel):
+    description: str | None = None
+    format_definition_json: dict | None = None
+    version: str | None = None
+
+
+class ForkProjectConfigRequest(BaseModel):
+    template_id: UUID
+    config_name: str
+
+
+class CreateProjectConfigRequest(BaseModel):
+    config_name: str
+    format_definition_json: dict
+
+
+class UpdateProjectConfigRequest(BaseModel):
+    format_definition_json: dict
+
+
+class GenerateRequest(BaseModel):
+    project_id: UUID
+    input_segments: dict = {}
+
+
+class ValidateRequest(BaseModel):
+    project_id: UUID
+    code: str
+
+
+# ---------- 公司级模板 ----------
+
+
+@router.get("/pipe-code-templates")
+async def list_templates(
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.list_company(db)
+
+
+@router.post("/pipe-code-templates", status_code=201)
+async def create_template(
+    payload: CreateTemplateRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.create_company(
+        db, data=payload.model_dump(), actor=user,
+    )
+
+
+@router.get("/pipe-code-templates/{template_id}")
+async def get_template(
+    template_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.get(db, template_id)
+
+
+@router.put("/pipe-code-templates/{template_id}")
+async def update_template(
+    template_id: UUID,
+    payload: UpdateTemplateRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.update_company(
+        db, template_id, data=payload.model_dump(exclude_none=True), actor=user,
+    )
+
+
+@router.delete("/pipe-code-templates/{template_id}", status_code=204)
+async def delete_template(
+    template_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await PipeCodeTemplateService.delete_company(db, template_id, actor=user)
+
+
+@router.post("/pipe-code-templates/{template_id}/submit")
+async def submit_template(
+    template_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.submit(db, template_id, actor=user)
+
+
+@router.post("/pipe-code-templates/{template_id}/approve")
+async def approve_template(
+    template_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "REVIEWER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.approve(db, template_id, actor=user)
+
+
+@router.post("/pipe-code-templates/{template_id}/publish")
+async def publish_template(
+    template_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "APPROVER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.publish(db, template_id, actor=user)
+
+
+@router.post("/pipe-code-templates/{template_id}/obsolete")
+async def obsolete_template(
+    template_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "REVIEWER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.obsolete(db, template_id, actor=user)
+
+
+# ---------- 项目级配置 ----------
+
+
+@router.get("/projects/{project_id}/pipe-code-configs")
+async def list_project_configs(
+    project_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.list_project(db, project_id=project_id)
+
+
+@router.post(
+    "/projects/{project_id}/pipe-code-configs/fork", status_code=201,
+)
+async def fork_project_config(
+    project_id: UUID,
+    payload: ForkProjectConfigRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.fork_to_project(
+        db,
+        project_id=project_id,
+        template_id=payload.template_id,
+        config_name=payload.config_name,
+        actor=user,
+    )
+
+
+@router.post("/projects/{project_id}/pipe-code-configs", status_code=201)
+async def create_project_config(
+    project_id: UUID,
+    payload: CreateProjectConfigRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.create_project_config(
+        db,
+        project_id=project_id,
+        config_name=payload.config_name,
+        format_definition_json=payload.format_definition_json,
+        actor=user,
+    )
+
+
+@router.put("/projects/{project_id}/pipe-code-configs/{config_id}")
+async def update_project_config(
+    project_id: UUID,
+    config_id: UUID,
+    payload: UpdateProjectConfigRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.update_project_config(
+        db,
+        config_id=config_id,
+        format_definition_json=payload.format_definition_json,
+        actor=user,
+    )
+
+
+@router.delete(
+    "/projects/{project_id}/pipe-code-configs/{config_id}", status_code=204,
+)
+async def delete_project_config(
+    project_id: UUID,
+    config_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await PipeCodeTemplateService.delete_project_config(
+        db, config_id=config_id, actor=user,
+    )
+
+
+@router.post("/projects/{project_id}/pipe-code-configs/{config_id}/submit")
+async def submit_project_config(
+    project_id: UUID,
+    config_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.submit_project(
+        db, config_id=config_id, actor=user,
+    )
+
+
+@router.post("/projects/{project_id}/pipe-code-configs/{config_id}/approve")
+async def approve_project_config(
+    project_id: UUID,
+    config_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "REVIEWER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.approve_project(
+        db, config_id=config_id, actor=user,
+    )
+
+
+@router.post("/projects/{project_id}/pipe-code-configs/{config_id}/reject")
+async def reject_project_config(
+    project_id: UUID,
+    config_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "REVIEWER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.reject_project(
+        db, config_id=config_id, actor=user,
+    )
+
+
+@router.post("/projects/{project_id}/pipe-code-configs/{config_id}/publish")
+async def publish_project_config(
+    project_id: UUID,
+    config_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.publish_project(
+        db, config_id=config_id, actor=user,
+    )
+
+
+@router.post("/projects/{project_id}/pipe-code-configs/{config_id}/obsolete")
+async def obsolete_project_config(
+    project_id: UUID,
+    config_id: UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "PROCESS_CONTROLLER", "REVIEWER", "SYSTEM_ADMIN")
+    return await PipeCodeTemplateService.obsolete_project(
+        db, config_id=config_id, actor=user,
+    )
+
+
+# ---------- 生成/验证 ----------
+
+
+@router.post("/pipe-codes/generate")
+async def generate_pipe_code(
+    payload: GenerateRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    code = await PipeCodeGenerator.generate(
+        db, payload.project_id, payload.input_segments,
+    )
+    return {"code": code}
+
+
+@router.post("/pipe-codes/validate")
+async def validate_pipe_code(
+    payload: ValidateRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+):
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    try:
+        outcome = await PipeCodeGenerator.validate(
+            db, payload.project_id, payload.code,
+        )
+    except Exception as e:  # noqa: BLE001
+        raise HTTPException(status_code=500, detail=str(e)) from e
+    return {
+        "valid": outcome.valid,
+        "errors": outcome.errors,
+        "segments": outcome.segments,
+    }

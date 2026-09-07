@@ -27,7 +27,9 @@ def test_table_count(inspector):
     # 53（V3.1 基线）+ pcs_toe_conversion_factors + htri_template_schemas
     # + pipe_class_import_previews（SUP-002 PC-5）+ alembic_version = 57
     # SUP-002 SYM-1 新增 stream_symbols + project_stream_symbols = 59
-    assert len(tables) == 59, f"expected 59 incl. alembic_version, got {len(tables)}"
+    # SUP-002 FMT-1+FMT-3 新增 pipe_code_templates + project_pipe_code_configs
+    #   + project_pipe_code_sequences = 62
+    assert len(tables) == 62, f"expected 62 incl. alembic_version, got {len(tables)}"
 
 
 def test_required_tables_present(inspector):
@@ -85,6 +87,11 @@ def test_required_tables_present(inspector):
         "document_chunks",
         "ai_audit_log",
         "license_configs",
+        "stream_symbols",
+        "project_stream_symbols",
+        "pipe_code_templates",
+        "project_pipe_code_configs",
+        "project_pipe_code_sequences",
     }
     present = set(inspector.get_table_names())
     missing = required - present
