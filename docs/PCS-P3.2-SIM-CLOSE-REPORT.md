@@ -1,17 +1,22 @@
-# PCS P3.2 SIM Sprint 收口报告 V1.0
+# PCS P3.2 SIM Sprint 收口报告 V1.1
 
 | 项 | 值 |
 |---|---|
-| 收口日期 | 2026-09-09 |
+| 收口日期 | 2026-09-09（V1.1 更新 SIM-13 闭环） |
 | Sprint | P3.2 SIM（Process Simulation 流程模拟） |
 | Plan 文件 | `docs/PCS-PLAN-P3.2-SIM.md` |
 | Spec 版本 | V1.6 §3.2 + §3.4 + §5.5 |
-| 总耗时 | 12 task × ~10d（实际 ~7d 含并行） |
+| 总耗时 | 14 task × ~10d（含 SIM-13 合并任务 1.5d） |
 | 主负责人 | Claude (MiniMax-M3) + 用户裁决 |
+
+> **V1.1 修订**：新增 SIM-13 task（用户 2026-09-09 裁决 P0/P1 必补项合并为一个 task）。
+> 闭环审计 D-1 状态机集成 / D-2 文件大小 middleware / D-3 selectinload。
+> D-4 stateful preview 表 记录为 TODO-043 后置 P2；状态机审计日志 记录为 TODO-044。
+> 状态机部分状态从「⚠️ 未集成（P1 已就绪）」改为「✅ SIM-13 闭环」。
 
 ---
 
-## 1. 任务交付清单（13/13）
+## 1. 任务交付清单（14/14）
 
 | ID | 任务 | 状态 | 关键产出 | commit |
 |---|---|---|---|---|
@@ -28,11 +33,14 @@
 | **SIM-10.1** | **streams.is_unreliable 列（用户裁决补丁）** | ✅ | **收敛分层透传到 DB** | `6348474` |
 | **SIM-10.2** | **streams.is_mixed_phase 列（用户裁决补丁）** | ✅ | **MIXED 相事实持久化** | `59fae21` |
 | SIM-11 | 三入口 E2E 集成测试 | ✅ | 12 E2E + 收敛/路径/聚合/migration 幂等 | `d2ff039` |
-| **SIM-12** | **Sprint 收口报告** | ✅ | **本文件** | — |
+| **SIM-13** | **状态机集成 + N+1 防护 + 文件大小 middleware**（用户裁决 P0/P1 合并） | ✅ | **StreamService.transition + 6 API + selectinload + 10MB middleware + 2 migrations** | `dad61a7` |
+| **SIM-12** | **Sprint 收口报告** | ✅ | **本文件（V1.1）** | — |
 
 ### 1.1 收口口径
-- 13 个主任务全部完成（含 2 个用户中途裁决的补丁 SIM-10.1/10.2）
+- 14 个主任务全部完成（含 2 个用户中途裁决的补丁 SIM-10.1/10.2 + 1 个用户裁决的合并 task SIM-13）
 - 关闭 1 个长期待办（bug-062：state_label 重复）
+- 闭环审计 4 项严重偏离（D-1/D-2/D-3 落地 SIM-13；D-4 记录 TODO-043 后置）
+- 新增 4 列状态机字段（change_pending_since / change_resolved_at / change_resolved_by）+ PG enum streamsignstatus 4→9 态
 
 ---
 
@@ -52,9 +60,9 @@
 
 | 指标 | 值 | 目标 | 状态 |
 |---|---|---|---|
-| 全量回归 | **675 passing** | 不退化 | ✅（591 → 675, +84） |
+| 全量回归 | **702 passing** | 不退化 | ✅（591 → 675 → 702，+111） |
 | 覆盖率 | **88%**（app/ 总） | ≥ 80% | ✅ |
-| SIM-10/10.1/10.2/11 新增测试 | 49 tests | — | ✅ |
+| SIM-10/10.1/10.2/11/13 新增测试 | 76 tests | — | ✅（+27 SIM-13） |
 | E2E 测试 | 12 SIM-11 | — | ✅ |
 | Ruff lint（SIM 文件） | 0 errors | 0 | ✅ |
 
@@ -83,9 +91,13 @@ p3sim_state_points_unique_label        (SIM-10 闭环 bug-062)
 p3sim_stream_is_unreliable             (SIM-10.1 用户裁决)
   ↓
 p3sim_stream_is_mixed_phase            (SIM-10.2 用户裁决)
+  ↓
+p3sim_stream_state_machine_fields      (SIM-13：3 状态机字段)
+  ↓
+p3sim_stream_sign_status_extend        (SIM-13：PG enum 4→9 态；不可逆)
 ```
 
-4 个 migration 顺序幂等，pcs/pcs_test 双库已对齐。
+6 个 migration 顺序幂等，pcs/pcs_test 双库已对齐。**注**：p3sim_stream_sign_status_extend 的 ADD VALUE 不可逆（PG enum 限制），降级需手动 ALTER TABLE TYPE varchar。
 
 ---
 
@@ -121,6 +133,8 @@ p3sim_stream_is_mixed_phase            (SIM-10.2 用户裁决)
 | **TODO-040** | Alembic migration round-trip 单测（downgrade→upgrade） | 低 | P4.x | CI 兜底迁移可逆性 |
 | **TODO-041** | export_service 性能预算测试偶发超时 | 低 | — | 非 SIM 范围，非 P3.2 阻塞项 |
 | **TODO-042** | SIM-10 commit_proii 阶段对 BLOCK 流的处理可优化为事务回滚（非逐条 try/except） | 低 | P3.x 重构 | 当前行为正确，仅性能 |
+| **TODO-043** | 导入预览 stateful 落表（用户审计 D-4 后置 P2） | P2 | P3.x | 当前预览为 stateless（preview_id 在响应中丢弃）；如需审计 / 重放 / 大文件分段，需落 stream_import_previews 表 |
+| **TODO-044** | 状态机审计日志结构化（用户裁决后置） | 中 | P3.x | 当前 AuditService 写入 resource_type="streams" + resource_id=str(stream_id)；如需 transfer 原因 / snapshot 链 / 角色变更审计，需扩展 schema |
 
 ---
 
@@ -169,23 +183,27 @@ tests/fixtures/excel/streams_sample.xlsx    1 套 Excel
 
 2. **MIXED 相绕过 SIM-V01**：当前 phase=None 触发不到 BLOCK，但 is_mixed_phase=True 标记保留了数据事实。P4 composition 抽取时可精准回填。
 
-3. **export_service 性能预算测试**：在并行负载下偶发超时（非 SIM 相关）。需独立排查（TODO-041）。
+3. **状态机部分状态（✅ SIM-13 闭环）**：Stream 状态机 9 态闭环（DRAFT → IN_APPROVAL → CHECKED → CHECK_REJECTED / CHANGE_PENDING → CHANGED / STALE 等），6 个 API 端点（submit/approve/reject/initiate-change/pass-change/mark-stale）已上线；SELECT FOR UPDATE 防并发覆盖；TRANSITION_ROLES 角色校验落地。剩余 TODO-043（stateful preview 落表）和 TODO-044（结构化审计日志）为可选 P3.x 增强。
 
-4. **降级路径**：alembic chain 4 个 migration 未做 downgrade→upgrade 循环单测（TODO-040）。生产环境升级前需人工 verify。
+4. **export_service 性能预算测试**：在并行负载下偶发超时（非 SIM 相关）。需独立排查（TODO-041）。
+
+5. **降级路径**：alembic chain 6 个 migration 未做 downgrade→upgrade 循环单测（TODO-040）。p3sim_stream_sign_status_extend 的 ADD VALUE 不可逆（PG enum 限制），降级需手动 ALTER TABLE TYPE varchar。生产环境升级前需人工 verify。
 
 ---
 
 ## 7. 收口 Checklist
 
-- [x] 13 个主任务全部 completed
-- [x] 全量回归 675 passing（591 → 675, +84）
+- [x] 14 个主任务全部 completed（含 SIM-13 用户裁决合并任务）
+- [x] 全量回归 702 passing（591 → 675 → 702, +111）
 - [x] 覆盖率 88%（≥ 80% 目标）
 - [x] Ruff lint 0 errors on SIM files
-- [x] Alembic migration 顺序幂等（pcs + pcs_test）
+- [x] Alembic migration 顺序幂等（pcs + pcs_test），6 个迁移
 - [x] bug-062 已闭环（SV05 UniqueConstraint + service IntegrityError 转译）
 - [x] 用户裁决的 2 个补丁（SIM-10.1/10.2）已落地
 - [x] E2E 三入口一致性已覆盖
-- [x] 未解决问题已记录为 TODO-039/040/041/042
+- [x] 闭环审计 D-1/D-2/D-3 已落地 SIM-13；D-4 记录 TODO-043
+- [x] 状态机 6 端点 + SELECT FOR UPDATE + selectinload N+1 防护 + 10MB 上传限制 middleware 已落地
+- [x] 未解决问题已记录为 TODO-039/040/041/042/043/044
 
 **P3.2 SIM Sprint 收口通过 ✅**
 
