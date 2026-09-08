@@ -91,7 +91,7 @@ def test_preview_proii_sample1_converged_full_import():
     assert first["data_mode"] == "CHEMICAL"
     assert first["source_type"] == "SIM_IMPORT"
     assert first["import_source_version"] == "V8.5"
-    assert "unreliable" in first
+    assert "is_unreliable" in first
     # conflict_report 必有 stats
     assert "BLOCK" in preview["conflict_report"]["stats"]
 
@@ -102,9 +102,9 @@ def test_preview_proii_unreliable_streams_marked():
     preview = ImportService.preview_proii(inp, out)
     assert preview["convergence_status"] == ConvergenceStatus.NOT_CONVERGED.value
     assert len(preview["unreliable_stream_names"]) > 0
-    # 至少一个 preview_streams 条目 unreliable=True
+    # 至少一个 preview_streams 条目 is_unreliable=True
     assert any(
-        e["unreliable"] for e in preview["preview_streams"]
+        e["is_unreliable"] for e in preview["preview_streams"]
     )
 
 
@@ -200,6 +200,70 @@ async def test_commit_proii_unreliable_counted(db, make_project):
     )
     assert result["unreliable_count"] > 0
     assert result["committed_count"] >= result["unreliable_count"]
+
+
+@pytest.mark.asyncio
+async def test_commit_proii_persists_is_unreliable_column(db, make_project):
+    """SIM-10.1：Stream.is_unreliable 列在 commit 后正确落库。
+
+    - 至少一个流 is_unreliable=True
+    - 至少一个流 is_unreliable=False
+    - DB 列可查询（用户 2026-09-09 裁决：下游过滤刚需）
+    """
+    from sqlalchemy import select
+
+    from app.models.project import Stream
+
+    inp, out = _proii_pair("sample2_unconverged")
+    proj = await make_project()
+    preview = ImportService.preview_proii(inp, out)
+    await ImportService.commit_proii(
+        db,
+        project_id=proj.project_id,
+        workspace_id=proj.workspace_id,
+        preview_streams=preview["preview_streams"],
+        actor=uuid.uuid4(),
+    )
+    rows = (
+        await db.execute(select(Stream.is_unreliable).where(Stream.project_id == proj.project_id))
+    ).scalars().all()
+    true_rows = [r for r in rows if r is True]
+    false_rows = [r for r in rows if r is False]
+    assert len(true_rows) >= 1, f"sample2 必含 unreliable 流，got {rows}"
+    assert len(false_rows) >= 1, f"sample2 应也含可靠流，got {rows}"
+
+
+@pytest.mark.asyncio
+async def test_commit_excel_persists_is_unreliable_false(db, make_project, tmp_path):
+    """Excel 无收敛概念 → commit 后所有 stream is_unreliable=False。"""
+    from sqlalchemy import select
+
+    from app.models.project import Stream
+
+    sheet1 = [
+        ["Stream Name", "Temp (°C)", "Pressure (kPa)", "Phase",
+         "Total Mass Flow (kg/h)", "Total Molar Flow (kmol/h)", "Description"],
+        ["S-101", 80.0, 200.0, "L", 1000.0, 50.0, "test"],
+    ]
+    sheet2 = [
+        ["Stream Name", "Component Name", "Mole Fraction", "Mass Flow (kg/h)"],
+        ["S-101", "H2O", 1.0, ""],
+    ]
+    p = tmp_path / "sample.xlsx"
+    _build_xlsx(p, sheet1=sheet1, sheet2=sheet2)
+    proj = await make_project()
+    preview = ImportService.preview_excel(p)
+    await ImportService.commit_excel(
+        db,
+        project_id=proj.project_id,
+        workspace_id=proj.workspace_id,
+        preview_streams=preview["preview_streams"],
+        actor=uuid.uuid4(),
+    )
+    rows = (
+        await db.execute(select(Stream.is_unreliable).where(Stream.project_id == proj.project_id))
+    ).scalars().all()
+    assert rows == [False]
 
 
 # ===========================================================================

@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    Boolean,
     CheckConstraint,
     DateTime,
     Enum,
@@ -228,6 +229,11 @@ class Stream(TimestampMixin, Base):
     import_source_version: Mapped[str | None] = mapped_column(
         String(20),
         comment="PRO/II 解析器版本：V2.71/V4.17/V8.x",
+    )
+    is_unreliable: Mapped[bool | None] = mapped_column(
+        Boolean,
+        nullable=True,
+        comment="PRO/II 不可靠流标记（NULL=未设/False；TRUE=NOT_CONVERGED/ABORTED 单元产品）",
     )
 
 

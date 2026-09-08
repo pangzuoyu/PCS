@@ -107,7 +107,7 @@ def _proii_preview_entry(
         "composition_json": None,
         "import_source_version": f"V{banner_version}",
         "import_original_row": None,
-        "unreliable": s.tag in unreliable_set,
+        "is_unreliable": s.tag in unreliable_set,
     }
 
 
@@ -115,7 +115,7 @@ def _excel_preview_entry(s: ParsedStream) -> dict[str, Any]:
     """ParsedStream（Excel）→ preview_streams 条目。
 
     Excel 走 sheet 顺序，无 source_version；composition 已按名称规整（SIM-10
-    commit 阶段才转 CAS）。
+    commit 阶段才转 CAS）。is_unreliable 显式 False（Excel 无收敛概念）。
     """
     return {
         "stream_name": s.tag,
@@ -129,7 +129,7 @@ def _excel_preview_entry(s: ParsedStream) -> dict[str, Any]:
         "composition_json": s.composition,
         "import_source_version": None,
         "import_original_row": None,
-        "unreliable": False,
+        "is_unreliable": False,
     }
 
 
@@ -229,7 +229,7 @@ class ImportService:
         unreliable_count = 0
         warnings: list[str] = []
         for entry in preview_streams:
-            if entry.get("unreliable"):
+            if entry.get("is_unreliable"):
                 unreliable_count += 1
             stream_name = entry["stream_name"]
             try:
@@ -297,7 +297,7 @@ class ImportService:
         unreliable_count = 0
         warnings: list[str] = []
         for entry in preview_streams:
-            if entry.get("unreliable"):
+            if entry.get("is_unreliable"):
                 unreliable_count += 1
             stream_name = entry["stream_name"]
             try:
@@ -332,12 +332,15 @@ def _entry_to_stream_create(
     project_id: uuid.UUID,
     workspace_id: uuid.UUID,
 ) -> Any:
-    """preview_streams entry → StreamCreate（Pydantic 校验入口）。"""
+    """preview_streams entry → StreamCreate（Pydantic 校验入口）。
+
+    preview_streams 当前所有字段都是 schema-valid（is_unreliable 已纳入
+    StreamBase），无需过滤。如未来加 preview 私有字段（已转换不可逆的中间
+    数据），在此处排除。
+    """
     from app.schemas.stream import StreamCreate  # 延迟 import 避免循环
 
-    # 过滤 preview 扩展字段（unreliable 等不入 schema）
-    payload = {k: v for k, v in entry.items() if k != "unreliable"}
-    return StreamCreate(project_id=project_id, workspace_id=workspace_id, **payload)
+    return StreamCreate(project_id=project_id, workspace_id=workspace_id, **entry)
 
 
 # ---------------------------------------------------------------------------

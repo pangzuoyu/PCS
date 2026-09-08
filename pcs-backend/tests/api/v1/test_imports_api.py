@@ -124,7 +124,7 @@ async def test_preview_proii_unreliable_marked(client, make_project, designer_he
     assert r.status_code == 200
     body = r.json()
     assert body["convergence_status"] == "NOT_CONVERGED"
-    assert any(e["unreliable"] for e in body["preview_streams"])
+    assert any(e["is_unreliable"] for e in body["preview_streams"])
 
 
 @pytest.mark.asyncio

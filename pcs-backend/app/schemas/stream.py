@@ -141,6 +141,13 @@ class StreamBase(BaseModel):
     import_source_version: str | None = Field(
         None, max_length=20, description="PRO/II 解析器版本：V2.71/V4.17/V8.x"
     )
+    is_unreliable: bool | None = Field(
+        None,
+        description=(
+            "PRO/II 不可靠流标记：NULL=未设（手工/Excel 默认，等价 False）；"
+            "TRUE=NOT_CONVERGED/ABORTED 单元产品；FALSE=CONVERGED/WARNINGS 流显式标"
+        ),
+    )
 
 
 class StreamCreate(StreamBase):
