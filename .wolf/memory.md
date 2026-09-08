@@ -1155,3 +1155,412 @@
 | 16:23 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | expanded (+12 lines) | ~380 |
 | 16:24 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | 6→7 lines | ~130 |
 | 09-05 16:30 | SUP-002 V1.2 定稿（七裁决落 §0.5 与正文三表）+ neqsim/ 入 .gitignore | SUP-002*.md, .gitignore, cerebrum.md | 待裁决清零 | ~15k |
+| 16:28 | Created pcs-backend/tests/services/test_pipe_class_service.py | — | ~1177 |
+| 16:29 | Created pcs-backend/app/schemas/pipe_class.py | — | ~637 |
+| 16:29 | Edited pcs-backend/app/schemas/pipe_class.py | 2→1 lines | ~19 |
+| 16:29 | Created pcs-backend/app/services/pipe_class_service.py | — | ~1282 |
+| 16:30 | Edited pcs-backend/tests/services/test_pipe_class_service.py | added 1 import(s) | ~37 |
+| 16:30 | Edited pcs-backend/tests/services/test_pipe_class_service.py | create() → str() | ~96 |
+| 16:32 | Edited pcs-backend/app/schemas/pipe_class.py | inline fix | ~12 |
+| 16:32 | Edited pcs-backend/app/services/pipe_class_service.py | modified list_project() | ~34 |
+| 16:32 | Edited pcs-backend/tests/services/test_pipe_class_service.py | modified test_update_and_obsolete_one_way() | ~30 |
+| 16:34 | Created .superpowers/sdd/2026-09-04-p2-sprint-1.9/task-1.9.1-report.md | — | ~817 |
+| 21:50 | Created pcs-backend/tests/api/v1/test_pipe_classes.py | — | ~1065 |
+| 21:50 | Created pcs-backend/app/api/v1/pipe_classes.py | — | ~1134 |
+| 21:50 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~51 |
+| 21:50 | Edited pcs-backend/app/api/v1/__init__.py | 2→3 lines | ~39 |
+| 21:51 | Created .superpowers/sdd/2026-09-04-p2-sprint-1.9/task-1.9.2-report.md | — | ~655 |
+| 23:11 | Session end: 57 writes across 19 files (conftest.py, test_config.py, formula_service.py, TODOS.md, 2026-09-04-p2-sprint-1.9.md) | 31 reads | ~84515 tok |
+
+## Session: 2026-09-05 01:21
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 06:38 | Edited .superpowers/sdd/2026-09-04-p2-sprint-1.9/progress.md | 1→2 lines | ~56 |
+| 06:39 | Created pcs-backend/tests/services/test_petroleum_service.py | — | ~586 |
+| 06:41 | Edited .superpowers/sdd/2026-09-04-p2-sprint-1.9/progress.md | 1→2 lines | ~68 |
+| 06:41 | Created pcs-backend/app/services/petroleum_service.py | — | ~1163 |
+| 06:43 | Edited pcs-backend/app/services/petroleum_service.py | modified not() | ~54 |
+| 06:44 | Edited pcs-backend/app/services/petroleum_service.py | 3→6 lines | ~111 |
+| 06:44 | Edited pcs-backend/app/services/petroleum_service.py | 1→2 lines | ~27 |
+| 06:44 | Edited pcs-backend/app/services/petroleum_service.py | modified not() | ~46 |
+| 06:46 | Created .superpowers/sdd/2026-09-04-p2-sprint-1.9/task-1.9.3-report.md | — | ~1017 |
+| 06:47 | Edited .superpowers/sdd/2026-09-04-p2-sprint-1.9/progress.md | modified minor() | ~146 |
+| 06:48 | Edited .superpowers/sdd/2026-09-04-p2-sprint-1.9/progress.md | modified minor() | ~131 |
+| 06:49 | Edited .superpowers/sdd/2026-09-04-p2-sprint-1.9/progress.md | 1→2 lines | ~64 |
+| 06:52 | Edited pcs-backend/tests/seeds/test_category3_seeds.py | 4→4 lines | ~29 |
+| 06:52 | Edited pcs-backend/tests/seeds/test_category3_seeds.py | expanded (+6 lines) | ~94 |
+| 06:52 | Edited pcs-backend/tests/seeds/test_category3_seeds.py | modified test_seed_default_tables_creates_six() | ~108 |
+| 06:52 | Edited pcs-backend/tests/seeds/test_category3_seeds.py | modified test_seed_table_queryable() | ~306 |
+| 06:53 | Edited pcs-backend/app/seeds/category3_defaults.json | expanded (+38 lines) | ~621 |
+| 06:53 | Edited pcs-backend/app/services/coefficient_service.py | 5→5 lines | ~52 |
+| 06:54 | Created .superpowers/sdd/2026-09-04-p2-sprint-1.9/task-1.9.4-report.md | — | ~1214 |
+| 06:55 | Edited .superpowers/sdd/2026-09-04-p2-sprint-1.9/progress.md | modified minor() | ~166 |
+| 06:57 | Edited .superpowers/sdd/2026-09-04-p2-sprint-1.9/progress.md | modified minor() | ~164 |
+| 07:01 | Created pcs-backend/tests/api/v1/test_equip_lib.py | — | ~809 |
+| 07:02 | Created pcs-backend/app/schemas/equip_lib.py | — | ~375 |
+| 07:02 | Created pcs-backend/app/services/equip_lib_service.py | — | ~906 |
+| 07:02 | Created pcs-backend/app/api/v1/equip_lib.py | — | ~526 |
+| 07:02 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~48 |
+| 07:03 | Edited pcs-backend/app/api/v1/__init__.py | 2→3 lines | ~38 |
+| 07:03 | Created pcs-backend/tests/api/v1/test_equip_lib.py | — | ~808 |
+| 07:05 | Created .superpowers/sdd/2026-09-04-p2-sprint-1.9/task-1.9.5-report.md | — | ~1323 |
+| 07:05 | Edited .superpowers/sdd/2026-09-04-p2-sprint-1.9/progress.md | modified minor() | ~202 |
+| 07:07 | Edited .superpowers/sdd/2026-09-04-p2-sprint-1.9/progress.md | modified minor() | ~206 |
+| 07:09 | Created pcs-backend/tests/services/test_pipe_class_import.py | — | ~626 |
+| 07:09 | Edited pcs-backend/app/services/pipe_class_service.py | expanded (+6 lines) | ~76 |
+| 07:09 | Edited pcs-backend/app/services/pipe_class_service.py | added error handling | ~770 |
+| 07:10 | Edited pcs-backend/app/api/v1/pipe_classes.py | inline fix | ~24 |
+| 07:10 | Edited pcs-backend/app/api/v1/pipe_classes.py | modified download_import_template() | ~291 |
+| 07:11 | Edited .superpowers/sdd/2026-09-04-p2-sprint-1.9/progress.md | 1→2 lines | ~145 |
+| 07:12 | Edited pcs-backend/tests/services/test_pipe_class_import.py | added 1 import(s) | ~54 |
+| 07:12 | Edited pcs-backend/tests/services/test_pipe_class_import.py | modified test_template_download() | ~586 |
+| 07:14 | Edited .superpowers/sdd/2026-09-04-p2-sprint-1.9/progress.md | 1→2 lines | ~176 |
+| 07:14 | Edited pcs-backend/app/schemas/pipe_class.py | modified _check_dn() | ~93 |
+| 07:16 | Created .superpowers/sdd/2026-09-04-p2-sprint-1.9/task-1.9.6-report.md | — | ~1341 |
+| 11:44 | Edited .superpowers/sdd/2026-09-04-p2-sprint-1.9/progress.md | modified minor() | ~180 |
+| 07:2x | SDD 恢复执行 P2 Sprint 1.9：1.9.3 petroleum_service/1.9.4 CATEGORY_3 seed/1.9.5 equip-lib/1.9.6 Excel 导入全部落地（4 commit 0e62160..4917d01，292 passed），两裁决（python-multipart 依赖、dn 单口径放宽）入账 | pcs-backend 6 文件 | 1.9.3-1.9.6 评审干净，待 1.9.6 评审+终审 | ~25k |
+| 11:48 | Edited .superpowers/sdd/2026-09-04-p2-sprint-1.9/progress.md | modified minor() | ~119 |
+| 12:32 | Edited .superpowers/sdd/2026-09-04-p2-sprint-1.9/progress.md | 1→5 lines | ~253 |
+| 12:33 | Edited .superpowers/sdd/2026-09-04-p2-sprint-1.9/progress.md | 1→2 lines | ~138 |
+| 12:33 | Edited pcs-backend/tests/api/v1/test_equip_lib.py | modified test_settle_truncates_name_to_column_limit() | ~217 |
+| 12:33 | Edited pcs-backend/tests/services/test_pipe_class_import.py | modified test_import_short_row_reports_error() | ~91 |
+| 12:36 | Edited pcs-backend/tests/services/test_pipe_class_import.py | added 2 import(s) | ~61 |
+| 12:36 | Edited pcs-backend/tests/services/test_pipe_class_import.py | modified _strip_dimension() | ~151 |
+| 12:36 | Edited pcs-backend/tests/services/test_pipe_class_import.py | modified test_import_short_row_reports_error() | ~88 |
+| 12:36 | Edited pcs-backend/app/services/equip_lib_service.py | inline fix | ~28 |
+| 12:36 | Edited pcs-backend/app/services/pipe_class_service.py | inline fix | ~24 |
+| 12:36 | Edited pcs-backend/app/api/v1/equip_lib.py | inline fix | ~12 |
+| 12:39 | Created .superpowers/sdd/2026-09-04-p2-sprint-1.9/fix-19-report.md | — | ~696 |
+| 12:43 | Edited .superpowers/sdd/2026-09-04-p2-sprint-1.9/progress.md | 1→4 lines | ~163 |
+| 12:44 | Edited TODOS.md | expanded (+9 lines) | ~341 |
+| 08:0x | Sprint 1.9 终审闭环：修复波 b458b97（3 终审 Important）+ 复审 3/3 ADDRESSED + 295 passed；工作区删除，DEFER→TODO-033 | TODOS.md | sprint 完结，待 /handoff | ~5k |
+| 12:54 | Edited CLAUDE.md | expanded (+10 lines) | ~151 |
+| 12:58 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | inline fix | ~56 |
+| 12:58 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | inline fix | ~53 |
+| 12:58 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | 2→2 lines | ~27 |
+| 12:58 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | inline fix | ~24 |
+| 12:58 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | 4→4 lines | ~33 |
+| 12:58 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | 3→4 lines | ~45 |
+| 12:58 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | 11→12 lines | ~68 |
+| 12:58 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | expanded (+18 lines) | ~489 |
+| 12:58 | Edited spec/PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md | inline fix | ~56 |
+| 13:00 | Session end: 67 writes across 22 files (progress.md, test_petroleum_service.py, petroleum_service.py, task-1.9.3-report.md, test_category3_seeds.py) | 38 reads | ~100112 tok |
+
+## Session: 2026-09-06 23:49
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 06:31 | Edited docs/PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md | 5→5 lines | ~57 |
+| 06:31 | Edited docs/PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md | 5→5 lines | ~42 |
+| 06:31 | Edited docs/PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md | 5→5 lines | ~88 |
+| 06:31 | Edited docs/PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md | 6→6 lines | ~54 |
+| 06:31 | Edited docs/PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md | 2→5 lines | ~123 |
+| 06:32 | Edited docs/PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md | expanded (+11 lines) | ~373 |
+| 06:32 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版开发计划.md | 5→5 lines | ~67 |
+| 06:32 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版开发计划.md | expanded (+18 lines) | ~780 |
+| 06:32 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版开发计划.md | expanded (+24 lines) | ~758 |
+| 06:33 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版开发计划.md | 14→16 lines | ~240 |
+| 06:33 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版开发计划.md | expanded (+13 lines) | ~399 |
+| 06:47 | Session summary: SUP-002 写作计划 V1.4 对齐 + 主开发计划 V1.3 嵌入 SUP-002 V1.4 与 P3-SIM V1.1；commit eab4213 落地四件（SUP-002 V1.4 spec / P3-SIM V1.1 spec / 主开发计划 V1.3 / SUP-002 写作计划 V1.4）；答 Sprint 1.8+1.10 / 1.9 计划均已实现（各 8 commits） | 4 files | committed | ~1.5k |
+| 07:06 | Created pcs-backend/alembic/versions/p2_sup_sprint_pc1_pipe_class_upgrade.py | — | ~2975 |
+| 07:06 | Edited pcs-backend/app/models/config_domain.py | modified ConfigApproval() | ~214 |
+| 07:06 | Edited pcs-backend/app/models/config_domain.py | modified PipeClass() | ~836 |
+| 07:06 | Created pcs-backend/tests/models/test_pipe_class_migration.py | — | ~3251 |
+| 07:07 | Edited pcs-backend/tests/models/test_pipe_class_migration.py | 3→3 lines | ~32 |
+| 07:10 | Edited pcs-backend/tests/api/v1/test_pipe_classes.py | expanded (+8 lines) | ~126 |
+| 07:10 | Edited pcs-backend/tests/api/v1/test_pipe_classes.py | modified test_crud_roundtrip() | ~42 |
+| 07:10 | Edited pcs-backend/tests/api/v1/test_pipe_classes.py | modified test_delete_in_use_409() | ~50 |
+| 07:10 | Edited pcs-backend/tests/api/v1/test_pipe_classes.py | modified test_project_list() | ~49 |
+| 07:10 | Edited pcs-backend/tests/services/test_pipe_class_service.py | expanded (+6 lines) | ~107 |
+| 07:11 | Edited pcs-backend/tests/services/test_pipe_class_service.py | modified test_delete_blocked_when_assigned() | ~54 |
+| 07:11 | Edited pcs-backend/tests/services/test_pipe_class_service.py | modified test_list_project_returns_assignment() | ~55 |
+| 07:12 | Created pcs-backend/tests/services/test_pipe_class_validator.py | — | ~3176 |
+| 07:13 | Created pcs-backend/app/services/pipe_class_validator.py | — | ~4224 |
+| 07:13 | Edited pcs-backend/app/services/pipe_class_validator.py | modified _is_pn_only() | ~312 |
+| 07:13 | Edited pcs-backend/tests/services/test_pipe_class_validator.py | modified test_c04_in_use_block_delete_error() | ~172 |
+| 07:15 | Created pcs-backend/app/services/pipe_class_validator.py | — | ~4244 |
+| 07:15 | Edited pcs-backend/tests/services/test_pipe_class_validator.py | modified test_v10_source_class_id_invalid() | ~186 |
+| 07:16 | Edited pcs-backend/app/services/pipe_class_validator.py | 6→7 lines | ~89 |
+| 07:16 | Edited pcs-backend/tests/services/test_pipe_class_validator.py | 16→14 lines | ~76 |
+| 07:16 | Edited pcs-backend/tests/services/test_pipe_class_validator.py | modified _base_data() | ~268 |
+| 07:16 | Edited pcs-backend/tests/services/test_pipe_class_validator.py | modified test_v10_source_class_id_invalid() | ~61 |
+| 07:20 | Created pcs-backend/tests/api/v1/test_pipe_class_config_flow.py | — | ~2102 |
+| 07:21 | Created pcs-backend/alembic/versions/p2_sup_sprint_pc3_asset_subtype.py | — | ~371 |
+| 07:21 | Edited pcs-backend/app/models/config_domain.py | modified ConfigAsset() | ~223 |
+| 07:21 | Edited pcs-backend/app/services/pipe_class_service.py | modified _ActorLike() | ~334 |
+| 07:21 | Edited pcs-backend/app/services/pipe_class_service.py | modified create_with_config_asset() | ~2234 |
+| 07:22 | Edited pcs-backend/app/api/v1/pipe_classes.py | modified create_pipe_class() | ~159 |
+| 07:22 | Edited pcs-backend/app/api/v1/pipe_classes.py | modified delete_pipe_class() | ~637 |
+| 07:24 | Edited pcs-backend/tests/api/v1/test_pipe_class_config_flow.py | 33→32 lines | ~401 |
+| 07:24 | Edited pcs-backend/tests/api/v1/test_pipe_class_config_flow.py | 6→6 lines | ~123 |
+| 07:25 | Edited pcs-backend/alembic/versions/p2_sup_sprint_pc3_asset_subtype.py | 5→5 lines | ~78 |
+| 07:28 | Created pcs-backend/tests/services/test_pipe_class_fork.py | — | ~4164 |
+| 07:28 | Edited pcs-backend/app/services/pipe_class_service.py | expanded (+7 lines) | ~396 |
+| 07:29 | Edited pcs-backend/app/services/pipe_class_service.py | added 1 condition(s) | ~774 |
+| 07:29 | Edited pcs-backend/app/services/pipe_class_service.py | modified assign_to_project() | ~195 |
+| 07:29 | Edited pcs-backend/app/services/pipe_class_service.py | modified fork_to_project() | ~2225 |
+| 07:30 | Created pcs-backend/alembic/versions/p2_sup_sprint_pc4_config_approval_nullable.py | — | ~334 |
+| 07:30 | Edited pcs-backend/app/models/config_domain.py | modified ConfigApproval() | ~130 |
+| 07:30 | Edited pcs-backend/tests/services/test_pipe_class_fork.py | modified make_company_class() | ~145 |
+| 07:30 | Edited pcs-backend/app/api/v1/pipe_classes.py | modified ProjectPipeClassForkRequest() | ~638 |
+| 07:30 | Edited pcs-backend/app/api/v1/pipe_classes.py | modified assign_project_pipe_class() | ~1824 |
+| 16:42 | Created pcs-backend/tests/services/test_pipe_class_import_v2.py | — | ~3435 |
+| 16:43 | Created pcs-backend/alembic/versions/p2_sup_sprint_pc5_import_previews.py | — | ~547 |
+| 16:43 | Edited pcs-backend/app/models/config_domain.py | modified ToeConversionFactor() | ~618 |
+| 16:43 | Edited pcs-backend/app/models/config_domain.py | 13→16 lines | ~61 |
+| 16:44 | Created pcs-backend/app/services/pipe_class_import_service.py | — | ~3938 |
+| 16:45 | Edited pcs-backend/app/services/pipe_class_import_service.py | modified get_preview() | ~202 |
+| 16:45 | Edited pcs-backend/tests/services/test_pipe_class_import_v2.py | modified test_preview_persists_row_to_db() | ~198 |
+| 16:45 | Edited pcs-backend/tests/services/test_pipe_class_import_v2.py | modified test_get_preview_roundtrip_matches() | ~153 |
+| 16:45 | Edited pcs-backend/tests/services/test_pipe_class_import_v2.py | modified test_commit_import_writes_all_rows() | ~178 |
+| 16:47 | Edited pcs-backend/tests/test_schema.py | modified test_table_count() | ~97 |
+| 16:50 | Edited pcs-backend/app/models/config_domain.py | 16→15 lines | ~57 |
+| 16:51 | Edited pcs-backend/tests/services/test_pipe_class_import_v2.py | 22→21 lines | ~137 |
+| 16:54 | Edited pcs-backend/app/services/pipe_class_import_service.py | 19→19 lines | ~143 |
+| 16:54 | Edited pcs-backend/tests/services/test_pipe_class_import_v2.py | 21→21 lines | ~144 |
+| 17:16 | Edited pcs-backend/tests/api/v1/test_pipe_classes.py | expanded (+8 lines) | ~94 |
+| 17:17 | Edited pcs-backend/tests/api/v1/test_pipe_classes.py | modified test_list_denied_anonymous() | ~2172 |
+| 17:21 | Edited pcs-backend/tests/api/v1/test_pipe_classes.py | 4→4 lines | ~30 |
+| 17:32 | Created pcs-backend/alembic/versions/p2_sup_sprint_sym1_stream_symbols.py | — | ~1059 |
+| 17:32 | Created pcs-backend/app/models/stream_symbol.py | — | ~563 |
+| 17:32 | Edited pcs-backend/app/models/__init__.py | added 1 import(s) | ~138 |
+| 17:34 | Created pcs-backend/app/services/stream_symbol_validator.py | — | ~873 |
+| 17:34 | Created pcs-backend/app/services/stream_symbol_service.py | — | ~3496 |
+| 17:34 | Created pcs-backend/app/api/v1/stream_symbols.py | — | ~1967 |
+| 17:34 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~73 |
+| 17:34 | Edited pcs-backend/app/api/v1/__init__.py | 2→3 lines | ~40 |
+| 17:34 | Created pcs-backend/tests/services/test_stream_symbol_validator.py | — | ~754 |
+| 17:34 | Created pcs-backend/tests/services/test_stream_symbol_service.py | — | ~2522 |
+| 17:34 | Created pcs-backend/tests/api/v1/test_stream_symbols.py | — | ~1390 |
+| 17:35 | Edited pcs-backend/app/api/v1/stream_symbols.py | modified list_project_symbols() | ~128 |
+| 17:35 | Edited pcs-backend/app/api/v1/stream_symbols.py | modified fork_project_symbols() | ~182 |
+| 17:36 | Edited pcs-backend/tests/api/v1/test_stream_symbols.py | modified pc_token() | ~98 |
+| 17:36 | Edited pcs-backend/tests/api/v1/test_stream_symbols.py | modified test_fork_all_returns_list() | ~282 |
+| 17:36 | Edited pcs-backend/tests/api/v1/test_stream_symbols.py | modified pc_token() | ~130 |
+| 17:36 | Edited pcs-backend/tests/api/v1/test_stream_symbols.py | modified test_fork_all_returns_list() | ~288 |
+| 17:37 | Edited pcs-backend/tests/test_schema.py | modified test_table_count() | ~117 |
+| 17:38 | Edited pcs-backend/tests/services/test_stream_symbol_validator.py | 7→5 lines | ~40 |
+| 17:39 | Edited pcs-backend/alembic/versions/p2_sup_sprint_sym1_stream_symbols.py | expanded (+6 lines) | ~124 |
+| 17:39 | Edited pcs-backend/alembic/versions/p2_sup_sprint_sym1_stream_symbols.py | expanded (+6 lines) | ~126 |
+| 17:39 | Edited pcs-backend/tests/api/v1/test_stream_symbols.py | modified test_fork_all_returns_list() | ~32 |
+| 20:08 | Created pcs-backend/alembic/versions/p2_sup_sprint_fmt1_pipe_code_templates.py | — | ~1078 |
+| 20:08 | Created pcs-backend/app/models/pipe_code_template.py | — | ~780 |
+| 20:08 | Edited pcs-backend/app/models/__init__.py | added 1 import(s) | ~64 |
+| 20:08 | Created pcs-backend/app/services/pipe_code_validator.py | — | ~1560 |
+| 20:09 | Created pcs-backend/app/services/pipe_code_template_service.py | — | ~4197 |
+| 20:09 | Created pcs-backend/alembic/versions/p2_sup_sprint_fmt1b_sequence_counter.py | — | ~340 |
+| 20:10 | Created pcs-backend/app/services/pipe_code_generator.py | — | ~2950 |
+| 20:10 | Created pcs-backend/app/api/v1/pipe_codes.py | — | ~3027 |
+| 20:10 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~53 |
+| 20:11 | Edited pcs-backend/app/api/v1/__init__.py | 2→3 lines | ~40 |
+| 20:11 | Edited pcs-backend/alembic/versions/p2_sup_sprint_fmt1_pipe_code_templates.py | 5→5 lines | ~52 |
+| 20:13 | Created pcs-backend/tests/services/test_pipe_code_validator.py | — | ~1632 |
+| 20:13 | Created pcs-backend/tests/services/test_pipe_code_template_service.py | — | ~2464 |
+| 20:14 | Created pcs-backend/tests/services/test_pipe_code_generator.py | — | ~1500 |
+| 20:14 | Edited pcs-backend/tests/services/test_pipe_code_generator.py | modified worker() | ~154 |
+| 20:14 | Edited pcs-backend/tests/services/test_pipe_code_generator.py | 15→13 lines | ~104 |
+| 20:17 | Edited pcs-backend/tests/services/test_pipe_code_generator.py | added 1 import(s) | ~119 |
+| 20:17 | Edited pcs-backend/tests/services/test_pipe_code_generator.py | modified test_generate_invalid_symbol_errors() | ~124 |
+| 20:17 | Edited pcs-backend/tests/services/test_pipe_code_generator.py | get_async_session_factory() → async_sessionmaker() | ~228 |
+| 20:18 | Created pcs-backend/tests/api/v1/test_pipe_codes.py | — | ~2729 |
+| 20:20 | Edited pcs-backend/tests/test_schema.py | modified test_table_count() | ~151 |
+| 20:20 | Edited pcs-backend/tests/test_schema.py | 2→7 lines | ~57 |
+| 20:22 | Edited pcs-backend/app/services/pipe_code_template_service.py | 8→9 lines | ~111 |
+| 20:30 | Created pcs-backend/alembic/versions/p2_sup_sprint_int1_project_template_integration.py | — | ~675 |
+| 20:30 | Created pcs-backend/app/models/project_template_pipe_class.py | — | ~183 |
+| 20:30 | Edited pcs-backend/app/models/config_domain.py | modified PipeClass() | ~72 |
+| 20:30 | Edited pcs-backend/app/models/__init__.py | added 1 import(s) | ~70 |
+| 20:31 | Created pcs-backend/app/services/project_template_service.py | — | ~945 |
+| 20:31 | Edited pcs-backend/tests/test_schema.py | 3→4 lines | ~74 |
+| 20:32 | Created pcs-backend/tests/services/test_project_template_integration.py | — | ~1554 |
+| 20:33 | Edited pcs-backend/tests/services/test_project_template_integration.py | modified make_company_pc() | ~1258 |
+| 20:34 | Edited pcs-backend/tests/services/test_project_template_integration.py | 2→2 lines | ~20 |
+| 20:35 | Edited pcs-backend/tests/services/test_project_template_integration.py | modified actor() | ~145 |
+| 20:35 | Edited pcs-backend/tests/services/test_project_template_integration.py | modified make_company_pc() | ~18 |
+| 20:35 | Edited pcs-backend/tests/services/test_project_template_integration.py | 9→9 lines | ~101 |
+| 20:35 | Edited pcs-backend/tests/services/test_project_template_integration.py | inline fix | ~16 |
+| 20:35 | Edited pcs-backend/tests/services/test_project_template_integration.py | inline fix | ~13 |
+| 20:35 | Edited pcs-backend/tests/services/test_project_template_integration.py | inline fix | ~13 |
+| 20:35 | Edited pcs-backend/tests/services/test_project_template_integration.py | modified test_set_default_validates_existence() | ~134 |
+| 20:36 | Created pcs-backend/tests/integration/test_e2e_template_to_pipe_code.py | — | ~2501 |
+| 20:40 | Edited pcs-backend/tests/integration/test_e2e_template_to_pipe_code.py | modified worker() | ~150 |
+| 20:40 | Edited pcs-backend/tests/integration/test_e2e_template_to_pipe_code.py | inline fix | ~29 |
+| 20:44 | Edited pcs-backend/alembic/versions/p2_sup_sprint_int1_project_template_integration.py | 1→2 lines | ~32 |
+| 20:44 | Edited pcs-backend/tests/integration/test_e2e_template_to_pipe_code.py | 2→2 lines | ~23 |
+| 20:44 | Edited pcs-backend/tests/integration/test_e2e_template_to_pipe_code.py | 1→2 lines | ~10 |
+| 20:51 | Edited pcs-backend/app/schemas/pipe_class.py | modified PipeClassBase() | ~114 |
+| 20:51 | Edited pcs-backend/app/schemas/pipe_class.py | modified PipeClassResponse() | ~44 |
+| 20:51 | Edited pcs-backend/tests/services/test_pipe_class_fork.py | modified make_company_class() | ~114 |
+| 20:53 | Edited pcs-backend/app/schemas/pipe_class.py | "材料牌号（D34 裁决 varchar(100)）" → "材料牌号" | ~22 |
+| 01:22 | Edited pcs-backend/tests/services/test_pipe_class_fork.py | 10→10 lines | ~100 |
+| 01:22 | Edited pcs-backend/tests/services/test_pipe_class_fork.py | 6→5 lines | ~44 |
+| 01:24 | Created pcs-backend/app/services/cia_engine.py | — | ~786 |
+| 01:24 | Edited pcs-backend/app/services/pipe_code_template_service.py | modified publish() | ~173 |
+| 01:24 | Edited pcs-backend/tests/services/test_pipe_code_template_service.py | modified test_update_project_config_locked_after_publish() | ~1400 |
+| 01:25 | Created pcs-backend/app/services/cia_engine.py | — | ~4184 |
+| 01:27 | Edited pcs-backend/app/services/cia_engine.py | 14→10 lines | ~89 |
+| 01:27 | Edited pcs-backend/app/services/cia_engine.py | modified _propagate_pipe_code_template() | ~186 |
+| 01:27 | Edited pcs-backend/app/services/pipe_code_template_service.py | modified publish() | ~63 |
+| 01:29 | Edited pcs-backend/app/services/pipe_code_template_service.py | modified publish() | ~173 |
+| 01:31 | Edited pcs-backend/app/services/pipe_code_template_service.py | modified publish() | ~190 |
+| 01:32 | Edited pcs-backend/app/services/pipe_code_template_service.py | modified publish() | ~188 |
+| 01:33 | Edited pcs-backend/app/services/cia_engine.py | 3→3 lines | ~56 |
+| 01:33 | Edited pcs-backend/app/services/pipe_code_template_service.py | modified publish() | ~173 |
+| 01:33 | Edited pcs-backend/tests/services/test_pipe_code_template_service.py | added 1 import(s) | ~103 |
+| 01:33 | Edited pcs-backend/tests/services/test_pipe_code_template_service.py | 7→5 lines | ~79 |
+| 06:34 | Edited pcs-backend/tests/services/test_pipe_class_service.py | 7→6 lines | ~71 |
+| 06:34 | Edited pcs-backend/tests/services/test_pipe_class_service.py | modified test_delete_blocked_when_assigned() | ~327 |
+| 06:34 | Edited pcs-backend/app/services/pipe_class_service.py | modified delete() | ~261 |
+| 06:34 | Edited pcs-backend/app/services/pipe_class_service.py | modified list_project() | ~107 |
+| 06:35 | Edited pcs-backend/tests/services/test_pipe_class_service.py | modified test_list_project_returns_assignment() | ~185 |
+| 06:35 | Edited pcs-backend/tests/api/v1/test_pipe_classes.py | 8→5 lines | ~54 |
+| 06:35 | Edited pcs-backend/tests/api/v1/test_pipe_classes.py | modified test_crud_roundtrip() | ~16 |
+| 06:36 | Edited pcs-backend/tests/api/v1/test_pipe_classes.py | xfail() → assign() | ~196 |
+| 06:36 | Edited pcs-backend/tests/api/v1/test_pipe_classes.py | modified test_project_list() | ~96 |
+| 06:37 | Edited pcs-backend/app/services/pipe_class_service.py | inline fix | ~22 |
+| 06:53 | Created docs/PCS-P2-CLOSE-REPORT.md | — | ~2175 |
+| 06:55 | Edited pcs-backend/app/schemas/pipe_class.py | modified _check_dn() | ~607 |
+| 06:55 | Edited pcs-backend/app/services/pipe_class_service.py | 5→6 lines | ~106 |
+| 06:55 | Edited pcs-backend/app/services/pipe_class_service.py | removed 28 lines | ~12 |
+| 06:55 | Edited pcs-backend/app/api/v1/pipe_classes.py | 7→5 lines | ~30 |
+| 06:55 | Edited pcs-backend/app/api/v1/pipe_classes.py | modified list_project_pipe_classes() | ~140 |
+| 06:56 | Edited pcs-backend/tests/api/v1/test_pipe_classes.py | modified test_delete_in_use_409() | ~274 |
+| 06:57 | Edited pcs-backend/app/schemas/pipe_class.py | 7→6 lines | ~61 |
+| 06:57 | Edited spec/PCS-SPEC-P3-SIM SIM 模块 输入.md | 8→8 lines | ~106 |
+| 06:57 | Edited spec/PCS-SPEC-P3-SIM SIM 模块 输入.md | 5→5 lines | ~40 |
+| 06:57 | Edited spec/PCS-SPEC-P3-SIM SIM 模块 输入.md | 6→6 lines | ~49 |
+| 06:57 | Edited spec/PCS-SPEC-P3-SIM SIM 模块 输入.md | inline fix | ~24 |
+| 06:57 | Edited spec/PCS-SPEC-P3-SIM SIM 模块 输入.md | expanded (+7 lines) | ~125 |
+| 07:02 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版 P3.md | 7→7 lines | ~208 |
+| 07:02 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版 P3.md | expanded (+139 lines) | ~2677 |
+| 07:03 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版 P3.md | 1→2 lines | ~217 |
+| 07:08 | Edited spec/PCS-SPEC-P3-SIM SIM 模块 输入.md | inline fix | ~80 |
+| 07:08 | Edited spec/PCS-SPEC-P3-SIM SIM 模块 输入.md | expanded (+12 lines) | ~301 |
+| 07:08 | Edited spec/PCS-SPEC-P3-SIM SIM 模块 输入.md | 28→30 lines | ~196 |
+| 07:08 | Edited spec/PCS-SPEC-P3-SIM SIM 模块 输入.md | 3→3 lines | ~62 |
+| 07:08 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版 P3.md | 5→5 lines | ~291 |
+| 07:09 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版 P3.md | expanded (+21 lines) | ~268 |
+| 07:09 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版 P4.md | 5→5 lines | ~206 |
+| 07:09 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版 P4.md | 1→4 lines | ~493 |
+| 07:13 | Created pcs-backend/tests/api/v1/test_common.py | — | ~1809 |
+| 07:13 | Created pcs-backend/app/schemas/common.py | — | ~646 |
+| 07:13 | Created pcs-backend/app/services/common_service.py | — | ~2650 |
+| 07:14 | Created pcs-backend/app/api/v1/common.py | — | ~712 |
+| 07:14 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~99 |
+| 07:14 | Edited pcs-backend/app/api/v1/__init__.py | 1→2 lines | ~25 |
+| 07:14 | Edited pcs-backend/app/services/common_service.py | CAS_from_any() → int_to_CAS() | ~424 |
+| 07:15 | Edited pcs-backend/app/services/common_service.py | expanded (+9 lines) | ~647 |
+| 07:15 | Edited pcs-backend/tests/api/v1/test_common.py | modified test_common_service_allowable_stress_interp() | ~80 |
+| 07:15 | Edited pcs-backend/tests/api/v1/test_common.py | modified test_allowable_stress_carbon_steel_250c() | ~164 |
+| 07:15 | Edited pcs-backend/app/services/common_service.py | 16→16 lines | ~203 |
+| 07:17 | Created docs/PCS-P3.3-COMMON-CLOSE-REPORT.md | — | ~843 |
+| 10:17 | Created docs/PCS-PLAN-P3.2-SIM.md | — | ~6277 |
+| 10:26 | Edited docs/PCS-PLAN-P3.2-SIM.md | 2→1 lines | ~35 |
+| 10:26 | Edited docs/PCS-PLAN-P3.2-SIM.md | 2→1 lines | ~27 |
+| 10:26 | Edited docs/PCS-PLAN-P3.2-SIM.md | inline fix | ~22 |
+| 10:26 | Edited docs/PCS-PLAN-P3.2-SIM.md | 10→13 lines | ~163 |
+| 10:26 | Edited docs/PCS-PLAN-P3.2-SIM.md | modified complete_properties() | ~366 |
+| 10:31 | Edited docs/PCS-PLAN-P3.2-SIM.md | expanded (+9 lines) | ~167 |
+| 10:33 | Edited docs/PCS-PLAN-P3.2-SIM.md | modified test_sim_three_entry_consistency() | ~374 |
+| 10:33 | Edited docs/PCS-PLAN-P3.2-SIM.md | modified test() | ~40 |
+| 10:34 | Edited docs/PCS-PLAN-P3.2-SIM.md | 3→4 lines | ~88 |
+| 10:34 | Edited docs/PCS-PLAN-P3.2-SIM.md | modified test_create_stream_in_draft_status() | ~399 |
+| 10:34 | Edited docs/PCS-PLAN-P3.2-SIM.md | modified test_list_streams_with_state_points_single_query() | ~310 |
+| 10:36 | Edited TODOS.md | expanded (+35 lines) | ~641 |
+| 10:37 | Edited docs/PCS-PLAN-P3.2-SIM.md | 3→4 lines | ~118 |
+| 10:37 | Edited docs/PCS-PLAN-P3.2-SIM.md | modified test_concurrent_transition_second_writer_rejected() | ~283 |
+| 10:37 | Edited docs/PCS-PLAN-P3.2-SIM.md | 1→3 lines | ~55 |
+| 10:39 | Edited docs/PCS-PLAN-P3.2-SIM.md | expanded (+15 lines) | ~409 |
+| 10:39 | Session end: 220 writes across 56 files (PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md, 工艺专用综合计算软件需求规格说明书 Web版开发计划.md, p2_sup_sprint_pc1_pipe_class_upgrade.py, config_domain.py, test_pipe_class_migration.py) | 62 reads | ~225957 tok |
+
+## Session: 2026-09-08 11:23
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 11:48 | Edited docs/PCS-PLAN-P3.2-SIM.md | modified test_proii_sample1_34_components_parses() | ~774 |
+| 11:49 | Edited docs/PCS-PLAN-P3.2-SIM.md | 6→7 lines | ~264 |
+| 12:15 | Committed docs/PCS-PLAN-P3.2-SIM.md V1.0 + V1.0.1 修订 (PRO/II 三版 parser / 5 样例构造方案落地) + STATUS 同步 (SUP-002 已完成 + P3.3 close + P3.2 plan 入库) | 3 commits: d106c23, bbd27c6, 773afdb | OK |
+| 12:20 | User 裁决 SIM-1+SIM-3 并行开工（SIM-1 先行 0.5d 稳定 ORM），StreamResponse 字段顺序不构成前端契约（OpenAPI 注"字段顺序可能变化"，前端规范禁止依赖）| memory entry | OK |
+| 11:51 | Edited docs/PCS-PLAN-P3.2-SIM.md | "StreamResponse" → "字段顺序可能随版本变化，客户端不应依赖顺序" | ~49 |
+| 15:10 | Session end: 3 writes across 1 files (PCS-PLAN-P3.2-SIM.md) | 0 reads | ~1164 tok |
+
+## Session: 2026-09-08 22:25
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 22:28 | Created pcs-backend/tests/models/test_stream_orm.py | — | ~1246 |
+| 22:28 | Created pcs-backend/tests/schemas/test_stream_schema.py | — | ~1163 |
+| 22:28 | Created pcs-backend/alembic/versions/p3_sim_stream_schema_upgrade.py | — | ~1049 |
+| 22:28 | Edited pcs-backend/app/models/project.py | modified StreamStatePoint() | ~454 |
+| 22:29 | Created pcs-backend/app/schemas/stream.py | — | ~3312 |
+| 22:29 | Edited pcs-backend/app/models/project.py | 13→14 lines | ~76 |
+| 22:29 | Edited pcs-backend/app/models/project.py | 4→8 lines | ~88 |
+| 22:29 | Edited pcs-backend/app/models/project.py | modified StreamStatePoint() | ~89 |
+| 22:30 | Edited pcs-backend/tests/models/test_stream_orm.py | modified test_stream_sign_status_remains_pg_enum() | ~186 |
+| 22:30 | Edited pcs-backend/tests/schemas/test_stream_schema.py | modified test_stream_base_accepts_minimal_valid() | ~130 |
+| 22:30 | Edited pcs-backend/tests/schemas/test_stream_schema.py | modified test_stream_state_point_base_accepts_minimal_valid() | ~157 |
+| 22:31 | Edited pcs-backend/app/schemas/stream.py | 4→6 lines | ~58 |
+| 22:31 | Edited pcs-backend/app/schemas/stream.py | expanded (+8 lines) | ~125 |
+| 22:31 | Edited pcs-backend/app/schemas/stream.py | 4→8 lines | ~92 |
+| 22:31 | Edited pcs-backend/app/schemas/stream.py | expanded (+8 lines) | ~221 |
+| 22:31 | Edited pcs-backend/app/schemas/stream.py | 2→6 lines | ~62 |
+| 22:31 | Edited pcs-backend/app/schemas/stream.py | expanded (+6 lines) | ~114 |
+| 22:31 | Edited pcs-backend/app/schemas/stream.py | 4→6 lines | ~64 |
+| 22:33 | Created pcs-backend/tests/services/test_property_completion.py | — | ~1184 |
+| 22:34 | Created pcs-backend/app/services/property_completion.py | — | ~917 |
+| 22:38 | Created pcs-backend/tests/services/test_conflict_resolver.py | — | ~2303 |
+| 22:38 | Edited pcs-backend/app/services/property_completion.py | expanded (+8 lines) | ~239 |
+| 22:39 | Created pcs-backend/app/services/conflict_resolver.py | — | ~2674 |
+| 22:39 | Edited pcs-backend/tests/services/test_conflict_resolver.py | modified test_complete_properties_missing_cas_translates_to_info() | ~268 |
+| 22:40 | Edited pcs-backend/app/services/conflict_resolver.py | 4→5 lines | ~50 |
+| 22:55 | Created pcs-backend/tests/services/test_state_point_conflict.py | — | ~2805 |
+| 22:55 | Created pcs-backend/tests/fixtures/proii/sample1_34comp/sample1_34comp.inp | — | ~1289 |
+| 22:55 | Edited pcs-backend/app/services/property_completion.py | expanded (+28 lines) | ~476 |
+| 22:55 | Edited pcs-backend/app/services/conflict_resolver.py | 1→6 lines | ~42 |
+| 22:55 | Edited pcs-backend/app/services/conflict_resolver.py | modified resolve_batch() | ~332 |
+| 22:55 | Created pcs-backend/tests/fixtures/proii/sample1_34comp/sample1_34comp.out | — | ~1335 |
+| 22:55 | Edited pcs-backend/app/services/conflict_resolver.py | modified _check_sim_e03_vapor_fraction() | ~1260 |
+| 22:55 | Created pcs-backend/tests/fixtures/proii/sample2_unconverged/sample2_unconverged.inp | — | ~281 |
+| 22:55 | Created pcs-backend/tests/fixtures/proii/sample2_unconverged/sample2_unconverged.out | — | ~524 |
+| 22:56 | Created pcs-backend/tests/fixtures/proii/sample3_side_draw/sample3_side_draw.inp | — | ~740 |
+| 22:56 | Created pcs-backend/tests/fixtures/proii/sample3_side_draw/sample3_side_draw.out | — | ~982 |
+| 22:56 | Created pcs-backend/tests/fixtures/proii/sample4_flash_valve/sample4_flash_valve.inp | — | ~641 |
+| 22:56 | Created pcs-backend/tests/fixtures/proii/sample4_flash_valve/sample4_flash_valve.out | — | ~1029 |
+| 22:56 | Created pcs-backend/tests/fixtures/proii/sample5_reactor_extraction/sample5_reactor_extraction.inp | — | ~878 |
+| 22:56 | Created pcs-backend/tests/fixtures/proii/sample5_reactor_extraction/sample5_reactor_extraction.out | — | ~1335 |
+| 22:56 | Created pcs-backend/tests/fixtures/proii/README.md | — | ~641 |
+| 22:57 | Edited pcs-backend/app/services/property_completion.py | 2→3 lines | ~47 |
+| 23:01 | Created pcs-backend/tests/services/test_proii_parser.py | — | ~2830 |
+| 23:01 | Created pcs-backend/app/services/proii_parser.py | — | ~4396 |
+| 23:02 | Edited pcs-backend/app/services/proii_parser.py | modified _parse_unit_ops() | ~178 |
+| 23:02 | Edited pcs-backend/app/services/proii_parser.py | modified _parse_warnings() | ~74 |
+| 23:02 | Edited pcs-backend/tests/services/test_proii_parser.py | modified test_sample4_warnings_captured() | ~67 |
+| 23:03 | Edited pcs-backend/tests/services/test_proii_parser.py | test_sample5_unit_ops_count_6() → test_sample5_unit_ops_minimum_6() | ~78 |
+| 23:04 | Edited pcs-backend/app/services/proii_parser.py | 3→3 lines | ~29 |
+| 23:04 | Edited pcs-backend/app/services/proii_parser.py | 3→4 lines | ~51 |
+| 23:08 | Created pcs-backend/tests/services/test_stream_service.py | — | ~2610 |
+| 23:08 | Created pcs-backend/app/services/stream_service.py | — | ~2013 |
+| 23:09 | Edited pcs-backend/app/services/stream_service.py | added 1 condition(s) | ~244 |
+| 23:10 | Edited pcs-backend/app/services/stream_service.py | 13→9 lines | ~113 |
+| 23:10 | Edited pcs-backend/app/services/stream_service.py | 5→5 lines | ~79 |
+
+## Session: 2026-09-08 P3.2 SIM Sprint Day 1
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|---------|
+| 13:30 | Status handoff + task #3 SIM-2 → in_progress | .wolf/STATUS.md | trim to 371 words (in budget) | — |
+| 13:35 | Read 5 fixtures .inp+.out (sample1-5) | pcs-backend/tests/fixtures/proii/ | banner 三版确认 V2.71+V4.17+V8.5×3 | — |
+| 13:40 | TDD RED: test_proii_parser.py 28 tests | pcs-backend/tests/services/ | ModuleNotFoundError ✓ | — |
+| 13:50 | GREEN: proii_parser.py (lines 1-2: ^ anchor bug) | app/services/proii_parser.py | 8/28 pass (T01 only) | — |
+| 13:52 | Fix ^ → line-by-line scan (3 rules: warnings/unit_ops/etc) | app/services/proii_parser.py | 27/28 pass | — |
+| 13:55 | Test fix: sample5 单元数 6→≥6 (.inp 真实 8 单元) | tests/services/test_proii_parser.py | 28/28 GREEN | — |
+| 14:00 | ruff E501/E702 fix | app/services/proii_parser.py | All checks passed | — |
+| 14:05 | log bug-053 + commit 7b8d96a (SIM-2) | .wolf/buglog.json | 569/569 回归 | — |
+| 14:10 | TDD RED: test_stream_service.py 12 tests | pcs-backend/tests/services/ | ModuleNotFoundError ✓ | — |
+| 14:15 | GREEN: stream_service.py v1 | app/services/stream_service.py | 11/12 (IntegrityError miss) | — |
+| 14:18 | Fix dual-message: uq_streams... OR (UNIQUE + stream_name) | app/services/stream_service.py | 12/12 GREEN | — |
+| 14:20 | ruff auto-fix (imports) + E501 wrap | app/services/stream_service.py | All checks passed | — |
+| 14:25 | log bug-054 + commit 77e7bcf (SIM-4) | .wolf/buglog.json | 581/581 回归 | — |
+| 14:30 | 更新 STATUS.md (6 task 收口) | .wolf/STATUS.md | 用户选 暂停/handoff | — |
+

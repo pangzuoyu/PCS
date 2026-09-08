@@ -4,53 +4,58 @@ budget_tokens: 1000
 ---
 # STATUS — PCS
 
-> Single source of truth for resuming work. Read this FIRST when starting a session.
-> Last updated: 2026-09-08
+> Read this FIRST when starting a session. Last updated: 2026-09-08.
 
 ---
 
-## ✅ Done
+## ✅ Done (本会话 6 task)
 
-- **P2 全系列 SDD 闭环（2026-09-04~06，commits ad25700..f59233d，462 passed）**
-  - Sprint 1.8 + 1.10：formula preconditions / 折标煤 / DETAIL 模板 / ADR-0029
-  - Sprint 1.9（6 个子任务）：vendor 三件接线 / PipeClassService 7 端点 / PetroleumService / CATEGORY_3 seed / equip-lib 沉淀检索 / Excel 导入 71/71；终审 3 修复（settle name 截断/短行 IndexError/limit ge=1）
-  - **SUP-002 全部 11 task**（PC-1→2→3→4→6、SYM-1→2→3、FMT-1→2→3→4、INT-1→3）：管道代码自定义（自然码+asset_id 镜像/5 态挂 ConfigAsset/scope/STALE，V1.4 26 项审查修正全落）
-  - 终 close：bug-051 收口 + P2 Sprint close 报告（462 passed / 43 裁决 / 25 迁移 / 62 表）
-- **P3.3 COMMON 闭环（2026-09-08，commit 37f34f8）**：物性 + 许用应力 + 介质安全数据查询 API
-- **P3-SIM spec V1.1→V1.2** 入库（合并 ADD-001/ADD-002，三 CRITICAL 裁决落地）
-- **P3.2 SIM 实施 Writing-Plan V1.0 入库**（docs/PCS-PLAN-P3.2-SIM.md，2026-09-08，Eng Review CLEAR，12 task × 20.5d）；V1.0.1 修订（2026-09-08，PRO/II parser 三版支持 + 5 样例构造方案）
-- 前史：R19 运行面落库、ADR-0001~0029、P0/P1-MVP——见 git log
+- **P3.2 SIM 落地 6 task**（2026-09-08，6 提交链）：
+  - `81baee6` SIM-1：streams 净增 9 列 + 2 CHECK 约束（10 字段修正版）
+  - `f1d38bb` SIM-3：物性补全（ParsedStream + complete_properties 3 态 + asyncio.gather 100 条 ≤5s）
+  - `7b8d96a` SIM-2：PRO/II .inp+.out 解析器（28 测试，5 样例覆盖 V2.71/V4.17/V8.5）
+  - `0a92191` SIM-7：三级冲突（ConflictLevel/Conflict/ConflictReport/ConflictResolver，SIM-V01/V02 + SIM-E01/E02/E03）
+  - `45e6562` SIM-9：状态点冲突（ParsedStatePoint + resolve_state_points，SIM-SV01~SV05 5 规则）
+  - `77e7bcf` SIM-4：StreamService 物流 CRUD（12 测试，SIM-3+SIM-7 集成骨架）
+  - `c3fc46d` SIM-2 样例：tests/fixtures/proii/ 5 最小 .inp+.out
+  - **581/581 回归全绿**（502 旧 + 79 新）；bug-052/053/054 入 .wolf/buglog.json
+- P2 全 SDD 闭环 + SUP-002 11 task + P3.3 COMMON 闭环（详见 git log）
 
 ---
 
 ## 🚀 Next quest
 
-**Goal:** P3.2 SIM 实施（按 docs/PCS-PLAN-P3.2-SIM.md V1.0 落地 12 task）
-- SIM-1（schema 升级 + ORM + Schema 三套，1d）开路，后续 SIM-2..12 串/并依赖图见 plan §任务依赖图
-- 依赖：P3.3 COMMON `CommonService.get_material(cas)` 已平，SIM-3 直接 import
+**Goal:** P3.2 SIM 续推（剩 6 task）
 
-### 待用户裁决
-1. ✅ **开工顺序已落定**：SIM-1 与 SIM-3 并行，SIM-1 先行 0.5d 稳定 ORM 模型（字段名/类型/nullable 冻结），SIM-3 直接 import ORM 类型并行开工；Schema 变更若 SIM-3 开发中发生需同步 SIM-3 接口签名
-2. ✅ **PRO/II 5 样例构造方案已落地**（plan V1.0.1 修订）：spec §607-633 5 样例是测试构造（每样例一个最小 .inp + .out 双文件），非仓库 sample/ 工程实例；仓库 sample/ 9 文件作 parser 鲁棒性回归（`-m regression`，不入 git）；parser 三版支持 V2.71+V4.17+V8.x
-3. ✅ **StreamResponse 字段顺序不构成契约**（plan 未解决问题 #2 已解决）：OpenAPI docstring 加 warning "字段顺序可能随版本变化"，前端规范禁止顺序敏感逻辑
-4. **仓库级未跟踪面再扫**：cerebrum Do-Not-Repeat 已确认 2026-09-06 无遗留 untracked；本次新增 P3.2 plan 已入库；如需再扫确认可跑 `git status --short` 全检
+- **SIM-5 Excel 解析器**（1d，独立 task，解锁 SIM-10）+ **SIM-6 手工表单 API**（1d，依赖 SIM-4 ✓）可并行
+- SIM-8 状态点 CRUD（1.5d，合并到 StreamService）依赖 SIM-4 ✓
+- 关键路径：SIM-5/6/8 → SIM-10 PRO/II 导入预览（1.5d）→ SIM-11 三入口 E2E（1.5d）→ SIM-12 收口（0.5d）
+
+### 锁定的用户裁决
+1. ✅ SIM-1/SIM-3 并行 + SIM-7 + SIM-2 样例并行（已落地）
+2. ✅ 5 样例构造方案（plan V1.0.1，fixtures 入 git，仓库 sample/ -m regression 不入）
+3. ✅ StreamResponse 字段顺序不构成契约
+4. ✅ SIM-7 三级冲突 + 4 大维度 + Conflict dataclass + 与 SIM-3 错误码转译
+5. ✅ SIM-9 状态点 5 规则（SV01~SV05）
+6. ✅ SIM-4 集成 SIM-3+SIM-7：BLOCK 拒绝 / WARN 保存+返回 / INFO 保存+返回
 
 ### 注意
-- pcs_test 库 schema 敏感运行前先 `cd pcs-backend && uv run alembic upgrade head`（矫正迁移只应用了 pcs）
-- 新表迁移必须含 TimestampMixin 三列（created_by/created_at/updated_at；created_at timezone+server_default，updated_at nullable）
-- Pydantic v2 Schema 必须 Field(description=...)：spec 本体论 V1.6 §5.3 要求每字段含中文描述
-- StreamSignStatus：PG enum 'streamsignstatus' 已落；P3 活跃 4 态（DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED），P4 扩展走 `ALTER TYPE streamsignstatus ADD VALUE`（不可逆）
-- case_type 双层语义：streams.case_type ≠ stream_state_points.case_type，独立两字段（spec V1.6 §3.2.2）
-- 冲突三级：BLOCK（阻止保存）/ WARN（用户值优先+标记）/ INFO（计算值优先派生）
-- 收敛分层：CONVERGED/WARNINGS 全量导入，NOT_CONVERGED/ABORTED SOLVED 单元产品 `unreliable=True`
-- 实施纪律：每步独立 commit；复跑依赖测试后再 commit；干净 worktree 验证 import + alembic + pytest 是唯一可信证据
-- YAGNI：HYSYS/Aspen/HTRI 解析器后置 P4，本 Sprint 仅 PRO/II + 手工 + Excel
+- pcs_test 库 schema 敏感运行前先 `cd pcs-backend && uv run alembic upgrade head`
+- Pydantic v2 Schema 必 Field(description=含中文)
+- 收敛分层：CONVERGED/WARNINGS 全量导入，NOT_CONVERGED/ABORTED 单元产品 `unreliable=True`
+- StreamSignStatus：PG enum 'streamsignstatus'；P3 活跃 4 态 DRAFT/IN_APPROVAL/CHECKED/OBSOLETE
+- case_type 双层：streams.case_type (4 态) ≠ stream_state_points.case_type (4 态)
+- 单位：schema temp °C/press kPa → service 转 K/Pa 后才进 ParsedStream
+- 每步独立 commit；ruff 0 错 + 全 pytest 绿是 commit 前提
+- YAGNI：HYSYS/Aspen/HTRI 解析器后置 P4
+- **bug-053 经验**：regex `^` 锚点必须配 MULTILINE 或按行扫描
+- **bug-054 经验**：SQLite/PG IntegrityError 错误信息格式不同（PG 含约束名；SQLite 仅列名），unique 检查需双匹配
 
 ---
 
 ## Context
 
-- 分支 main（单人直提惯例）；后端 uv+FastAPI+PG16（vendor 三件+python-multipart 已入锁），前端 Vite+React+antd
-- SDD 工作区已删（git 史为正式记录）；TODO-033 = Sprint 1.9 终审 DEFER 清单；P3.2 plan 自带未解决问题 #3~#6 已建 TODO-034/035/037
-- bug-046（python-multipart）/bug-047（dn 单口径）/bug-051（assign_to_project）入 .wolf/buglog.json
-- ADR-0029「已接受」2026-09-04，旧交接中残留待裁决项已除名
+- 分支 main（单人直提）；后端 uv+FastAPI+SQLAlchemy 2.0 async+PG16+pytest；前端 Vite+React+antd
+- TODO-033 = Sprint 1.9 终审 DEFER；P3.2 plan 自带未解决问题 #3~#6 已建 TODO-034/035/037
+- bug-046/047/051/052/053/054 入 .wolf/buglog.json
+- **P3.2 SIM 进度**：SIM-1/2/3/4/7/9 ✅ / SIM-5/6/8/10/11/12 ⏳
