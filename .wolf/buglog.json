@@ -842,6 +842,22 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-08T14:10:00.000Z"
+    },
+    {
+      "id": "bug-055",
+      "timestamp": "2026-09-08T15:00:00.000Z",
+      "error_message": "test_stream_without_composition_kept_with_warn 与 test_missing_sheet_raises 互斥（同输入单 Sheet 1）",
+      "file": "pcs-backend/tests/services/test_excel_parser.py",
+      "root_cause": "spec §2.2 「双 Sheet 解析」严格，但部分用户场景（纯组分流）只录 Sheet 1。设计抉择：保留严格 spec（缺 Sheet 2 必抛错），但 Sheet 2 存在时缺该 stream 数据 → WARN + 保留流。",
+      "fix": "test_stream_without_composition_kept_with_warn 改为 Sheet 2 存在但无该 stream 的行；test_missing_sheet_raises 保留单 Sheet 1 严格抛错。",
+      "tags": [
+        "p3.2-sim-5",
+        "spec-strict-vs-lenient",
+        "test-design"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-08T15:00:00.000Z"
     }
   ]
 }
