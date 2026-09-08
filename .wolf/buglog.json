@@ -825,6 +825,23 @@
       "related_bugs": [],
       "occurrences": 2,
       "last_seen": "2026-09-08T13:45:00.000Z"
+    },
+    {
+      "id": "bug-054",
+      "timestamp": "2026-09-08T14:10:00.000Z",
+      "error_message": "test_create_stream_duplicate_name_raises 失败：SQLite IntegrityError 不含约束名 'uq_streams_project_stream_name'，仅 'UNIQUE constraint failed: streams.project_id, streams.stream_name'",
+      "file": "pcs-backend/app/services/stream_service.py",
+      "root_cause": "SIM-4 unique 约束冲突检测只匹配 PG 错误信息（约束名 uq_streams_project_stream_name），遗漏 SQLite 错误格式（仅列名 + 表名）。",
+      "fix": "IntegrityError 消息双匹配：原约束名 + 'UNIQUE constraint failed' 且含 'stream_name'。",
+      "tags": [
+        "p3.2-sim-4",
+        "sqlite-vs-pg",
+        "integrity-error",
+        "dual-message-match"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-08T14:10:00.000Z"
     }
   ]
 }
