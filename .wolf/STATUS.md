@@ -18,7 +18,7 @@ budget_tokens: 1000
   - 终 close：bug-051 收口 + P2 Sprint close 报告（462 passed / 43 裁决 / 25 迁移 / 62 表）
 - **P3.3 COMMON 闭环（2026-09-08，commit 37f34f8）**：物性 + 许用应力 + 介质安全数据查询 API
 - **P3-SIM spec V1.1→V1.2** 入库（合并 ADD-001/ADD-002，三 CRITICAL 裁决落地）
-- **P3.2 SIM 实施 Writing-Plan V1.0 入库**（docs/PCS-PLAN-P3.2-SIM.md，2026-09-08，Eng Review CLEAR，12 task × 20.5d）
+- **P3.2 SIM 实施 Writing-Plan V1.0 入库**（docs/PCS-PLAN-P3.2-SIM.md，2026-09-08，Eng Review CLEAR，12 task × 20.5d）；V1.0.1 修订（2026-09-08，PRO/II parser 三版支持 + 5 样例构造方案）
 - 前史：R19 运行面落库、ADR-0001~0029、P0/P1-MVP——见 git log
 
 ---
@@ -31,7 +31,7 @@ budget_tokens: 1000
 
 ### 待用户裁决
 1. **开工顺序**：先单跑 SIM-1（schema）拿绿 baseline，还是开 SIM-1+SIM-3 并行（schema 不依赖物性补全）
-2. **PRO/II 5 样例 .inp 来源**（plan 未解决问题 #1）：spec §第三部分 §607-628 引用 + 历史 PCS-NL-P3-SIM V1.1 §2.2 样例库——确认 NAS 路径 / git LFS / fixtures 目录
+2. ✅ **PRO/II 5 样例构造方案已落地**（plan V1.0.1 修订）：spec §607-633 5 样例是测试构造（每样例一个最小 .inp + .out 双文件），非仓库 sample/ 工程实例；仓库 sample/ 9 文件作 parser 鲁棒性回归（`-m regression`，不入 git）；parser 三版支持 V2.71+V4.17+V8.x
 3. **stream 字段顺序对前端契约影响**（plan 未解决问题 #2）：StreamResponse 新增 17+ 字段后 JSON 顺序——前端 SPEC-P3-SIM V1.3 §2.5 示例按字典序，Pydantic v2 默认定义序；需确认前端是否依赖字段顺序（YAGNI 默认按定义序）
 4. **仓库级未跟踪面再扫**：cerebrum Do-Not-Repeat 已确认 2026-09-06 无遗留 untracked；本次新增 P3.2 plan 已入库；如需再扫确认可跑 `git status --short` 全检
 
