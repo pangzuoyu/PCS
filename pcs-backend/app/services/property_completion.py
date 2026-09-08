@@ -36,10 +36,18 @@ class ParsedStream:
 
     tag: str
     cas: str | None = None
+    name: str | None = None
     temperature_k: float | None = None
     pressure_pa: float | None = None
+    phase: str | None = None  # VAPOR / LIQUID / MIXED / SOLID
+    vapor_fraction: float | None = None
+    mass_flow_kg_h: float | None = None
+    molar_flow_kmol_h: float | None = None
+    molecular_weight: float | None = None
     composition: dict[str, float] | None = None  # CAS → 摩尔分率
-    name: str | None = None
+    vapor_composition: dict[str, float] | None = None
+    liquid_composition: dict[str, float] | None = None
+    zero_flow: bool = False  # PRO/II parser 标记零流量保留
 
 
 def complete_properties(stream: _StreamLike) -> dict[str, Any]:
