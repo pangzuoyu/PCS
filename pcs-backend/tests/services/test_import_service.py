@@ -267,6 +267,78 @@ async def test_commit_excel_persists_is_unreliable_false(db, make_project, tmp_p
 
 
 # ===========================================================================
+# SIM-10.2：is_mixed_phase 持久化（MIXED 相标记）
+# ===========================================================================
+
+
+def test_preview_proii_mixed_streams_flagged():
+    """sample1 含 MIXED 相流（FEED/S1-S7）→ preview is_mixed_phase=True。
+
+    同时 phase 字段应为 None（_phase_norm 把 MIXED 置 None 避免 SIM-V01 BLOCK）。
+    """
+    inp, out = _proii_pair("sample1_34comp")
+    preview = ImportService.preview_proii(inp, out)
+
+    mixed_entries = [e for e in preview["preview_streams"] if e["is_mixed_phase"]]
+    assert len(mixed_entries) > 0, "sample1 必含 MIXED 流（FEED/S1-S7）"
+
+    # MIXED 流：phase=None（避免 SIM-V01 BLOCK）+ is_mixed_phase=True（持久化标记）
+    for entry in mixed_entries:
+        assert entry["phase"] is None
+        assert entry["is_mixed_phase"] is True
+
+    # 非 MIXED 流：is_mixed_phase=False（PRO/II parser 显式标）
+    non_mixed = [e for e in preview["preview_streams"] if not e["is_mixed_phase"]]
+    assert all(e["is_mixed_phase"] is False for e in non_mixed)
+
+
+def test_preview_excel_is_mixed_phase_false(tmp_path):
+    """Excel 无 MIXED 概念 → preview is_mixed_phase=False。"""
+    sheet1 = [
+        ["Stream Name", "Temp (°C)", "Pressure (kPa)", "Phase",
+         "Total Mass Flow (kg/h)", "Total Molar Flow (kmol/h)", "Description"],
+        ["S-101", 80.0, 200.0, "L", 1000.0, 50.0, "test"],
+    ]
+    sheet2 = [
+        ["Stream Name", "Component Name", "Mole Fraction", "Mass Flow (kg/h)"],
+        ["S-101", "H2O", 1.0, ""],
+    ]
+    p = tmp_path / "sample.xlsx"
+    _build_xlsx(p, sheet1=sheet1, sheet2=sheet2)
+    preview = ImportService.preview_excel(p)
+    assert preview["preview_streams"][0]["is_mixed_phase"] is False
+
+
+@pytest.mark.asyncio
+async def test_commit_proii_persists_is_mixed_phase_column(db, make_project):
+    """SIM-10.2：commit 后 streams.is_mixed_phase 列正确落库。
+
+    sample1 必有至少一条 is_mixed_phase=True（MIXED 相 FEED/S1-S7）
+    """
+    from sqlalchemy import select
+
+    from app.models.project import Stream
+
+    inp, out = _proii_pair("sample1_34comp")
+    proj = await make_project()
+    preview = ImportService.preview_proii(inp, out)
+    await ImportService.commit_proii(
+        db,
+        project_id=proj.project_id,
+        workspace_id=proj.workspace_id,
+        preview_streams=preview["preview_streams"],
+        actor=uuid.uuid4(),
+    )
+    rows = (
+        await db.execute(
+            select(Stream.is_mixed_phase).where(Stream.project_id == proj.project_id)
+        )
+    ).scalars().all()
+    true_rows = [r for r in rows if r is True]
+    assert len(true_rows) >= 1, f"sample1 必含 MIXED 流，got {rows}"
+
+
+# ===========================================================================
 # Excel preview
 # ===========================================================================
 

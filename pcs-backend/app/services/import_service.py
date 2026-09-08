@@ -45,7 +45,7 @@ def _phase_norm(p: str | None) -> str | None:
 
     V → VAPOR / L → LIQUID / M → None（避免 SIM-V01 BLOCK：
     PRO/II parser 当前不提取 vapor/liquid 组成，MIXED 会触发 BLOCK；
-    留 None 让用户手工补） / S → SOLID
+    留 None 让用户手工补；is_mixed_phase 字段保留 MIXED 事实） / S → SOLID
     """
     if not p:
         return None
@@ -62,6 +62,18 @@ def _phase_norm(p: str | None) -> str | None:
     return p
 
 
+def _is_mixed_phase_raw(p: str | None) -> bool:
+    """PRO/II 原始相态是否为 MIXED（汽液混相）。
+
+    仅在调用前对 parser 输出的 phase（M/MIXED/VAPOR/LIQUID/SOLID）生效。
+    后续 _phase_norm 会把 MIXED 映射成 None，但 is_mixed_phase 持久化标记
+    不变——P4 composition 抽取时按此字段精准筛选。
+    """
+    if not p:
+        return False
+    return p.strip().upper() in ("M", "MIXED")
+
+
 def _k_to_c(t: float | None) -> float | None:
     return None if t is None else t - 273.15
 
@@ -75,6 +87,7 @@ def _proii_lite_to_parsed(s: Any) -> ParsedStream:
 
     PRO/II parser 当前不提取 composition（SIM-10 MVP 仅 T/P/flow/phase 落库）；
     .cas 留 None（SIM-3 转译为 MISSING_CAS → INFO 冲突）。
+    MIXED 相检测由 caller 在调用前完成，结果通过 mixed_set 传至 preview。
     """
     return ParsedStream(
         tag=s.tag,
@@ -92,6 +105,7 @@ def _proii_preview_entry(
     *,
     banner_version: str,
     unreliable_set: set[str],
+    mixed_set: set[str],
     warnings: list[str],
 ) -> dict[str, Any]:
     """ParsedStream → preview_streams 条目（dict 形态，便于 commit round-trip）。"""
@@ -108,6 +122,7 @@ def _proii_preview_entry(
         "import_source_version": f"V{banner_version}",
         "import_original_row": None,
         "is_unreliable": s.tag in unreliable_set,
+        "is_mixed_phase": s.tag in mixed_set,
     }
 
 
@@ -116,6 +131,7 @@ def _excel_preview_entry(s: ParsedStream) -> dict[str, Any]:
 
     Excel 走 sheet 顺序，无 source_version；composition 已按名称规整（SIM-10
     commit 阶段才转 CAS）。is_unreliable 显式 False（Excel 无收敛概念）。
+    is_mixed_phase 显式 False（Excel sheet phase 列显式 L/V/S，无 MIXED）。
     """
     return {
         "stream_name": s.tag,
@@ -130,6 +146,7 @@ def _excel_preview_entry(s: ParsedStream) -> dict[str, Any]:
         "import_source_version": None,
         "import_original_row": None,
         "is_unreliable": False,
+        "is_mixed_phase": False,
     }
 
 
@@ -172,6 +189,12 @@ class ImportService:
         """
         result = parse_proii_files(inp_path, out_path)
         unreliable_set = set(result.unreliable_streams)
+        # SIM-10.2：捕获 MIXED 原始相态（在 _phase_norm 置 None 之前）
+        mixed_set = {
+            tag
+            for tag, lite in result.streams.items()
+            if _is_mixed_phase_raw(lite.phase)
+        }
         # zero_flow 流也标记（保留流名，不阻塞保存）
         warnings: list[str] = list(result.warnings)
         # 物性补全 + 冲突检测（复用 SIM-4 链路）
@@ -182,6 +205,7 @@ class ImportService:
                 p,
                 banner_version=result.banner_version,
                 unreliable_set=unreliable_set,
+                mixed_set=mixed_set,
                 warnings=warnings,
             )
             for p in parsed

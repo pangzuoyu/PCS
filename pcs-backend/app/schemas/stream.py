@@ -148,6 +148,13 @@ class StreamBase(BaseModel):
             "TRUE=NOT_CONVERGED/ABORTED 单元产品；FALSE=CONVERGED/WARNINGS 流显式标"
         ),
     )
+    is_mixed_phase: bool | None = Field(
+        None,
+        description=(
+            "PRO/II 原始相态 MIXED 标记：TRUE=汽液混相（MVP 未抽组成，phase 置 None）；"
+            "FALSE/NULL=其他入口（手工/Excel）或 PRO/II 非 MIXED 流"
+        ),
+    )
 
 
 class StreamCreate(StreamBase):

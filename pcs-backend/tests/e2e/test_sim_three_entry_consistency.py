@@ -180,6 +180,22 @@ async def test_three_entry_consistency_same_project(
     excel_rows = [s for s in rows if s.stream_name == "EX-A"]
     assert excel_rows[0].is_unreliable is False
 
+    # SIM-10.2：is_mixed_phase 在三入口下分布正确
+    # - PRO/II sample1：FEED/S1-S7 MIXED → True（phase=None 绕过 SIM-V01）
+    # - PRO/II sample1 非 MIXED 流：False
+    # - Excel：False（Excel 无 MIXED 概念）
+    # - 手工 API：None（不显式设）
+    proii_rows = [s for s in rows if s.source_type == "SIM_IMPORT" and s.stream_name != "EX-A"]
+    mixed_proii = [s for s in proii_rows if s.is_mixed_phase is True]
+    non_mixed_proii = [s for s in proii_rows if s.is_mixed_phase is False]
+    assert len(mixed_proii) >= 1, (
+        f"sample1 必含 MIXED 流，got "
+        f"{[(s.stream_name, s.is_mixed_phase) for s in proii_rows]}"
+    )
+    assert len(non_mixed_proii) >= 1, "sample1 也必含非 MIXED 流"
+    assert excel_rows[0].is_mixed_phase is False
+    assert manual_rows[0].is_mixed_phase is None
+
 
 @pytest.mark.asyncio
 async def test_three_entry_isolated_projects(db, make_project):

@@ -235,6 +235,14 @@ class Stream(TimestampMixin, Base):
         nullable=True,
         comment="PRO/II 不可靠流标记（NULL=未设/False；TRUE=NOT_CONVERGED/ABORTED 单元产品）",
     )
+    is_mixed_phase: Mapped[bool | None] = mapped_column(
+        Boolean,
+        nullable=True,
+        comment=(
+            "PRO/II 原始相态 MIXED 标记（TRUE=汽液混相，phase 因 MVP 未抽组成置 None；"
+            "NULL=未设/False，多用于手工/Excel 入口或 PRO/II 非 MIXED）"
+        ),
+    )
 
 
 class StreamStatePoint(Base):
