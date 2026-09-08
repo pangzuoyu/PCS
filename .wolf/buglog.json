@@ -858,6 +858,57 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-08T15:00:00.000Z"
+    },
+    {
+      "id": "bug-056",
+      "timestamp": "2026-09-08T16:30:00.000Z",
+      "error_message": "StreamResponse.model_validate(orm_stream) 抛 ValidationError: Input should be a valid dictionary or instance of StreamResponse / created_at Input should be a valid string input_value=datetime.datetime",
+      "file": "pcs-backend/app/api/v1/streams.py",
+      "root_cause": "Pydantic v2 model_validate 默认不接受 ORM 实例 + ORM datetime 字段（created_at/updated_at/last_changed_at）不能直接转 schema 声明的 str 字段。",
+      "fix": "(1) StreamResponse 加 model_config = {\"from_attributes\": True}；(2) API 层不走 model_validate，用 _to_response_dict 手工把 ORM Stream → dict，datetime 字段 .isoformat() 转 ISO 字符串。",
+      "tags": [
+        "p3.2-sim-6",
+        "pydantic-v2",
+        "from-attributes",
+        "datetime-to-str"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-08T16:30:00.000Z"
+    },
+    {
+      "id": "bug-057",
+      "timestamp": "2026-09-08T16:45:00.000Z",
+      "error_message": "FastAPI 装饰器参数顺序错（Query 在 Depends 前）→ invalid-syntax: Parameter without a default cannot follow a parameter with a default",
+      "file": "pcs-backend/app/api/v1/streams.py",
+      "root_cause": "case_type: str | None = Query(None, ...) 默认值在前，user: Annotated[_Actor, Depends(current_actor)] / db: Annotated[AsyncSession, Depends(get_db)] 无默认值在后，触发 Python 语法 + ruff F821。",
+      "fix": "list_project_streams 参数顺序：project_id → user → db → case_type（Depends 必填在 Query 可选前）。",
+      "tags": [
+        "p3.2-sim-6",
+        "fastapi",
+        "parameter-ordering",
+        "depends-before-query"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-08T16:45:00.000Z"
+    },
+    {
+      "id": "bug-058",
+      "timestamp": "2026-09-08T17:00:00.000Z",
+      "error_message": "API 走 HTTPException(422, detail={\"code\":..., \"message\":...})，全局 envelope 把 detail 改写为 None（HTTP_422 envelope 强制 detail=None）。",
+      "file": "pcs-backend/app/api/v1/streams.py",
+      "root_cause": "install_exception_handlers 把 StarletteHTTPException 重新打包为 ErrorResponse(code=HTTP_<status>, message=str(exc.detail), detail=None, trace_id=...)；原 detail 字段位置变了（顶层 code/message/detail 而不是嵌套）。",
+      "fix": "SIM-6 不再 raise HTTPException（业务错），改 raise core.errors.PcsError(code=..., status=..., message=...) 走 _service_pcs handler；HTTPException 仅用于 401/403/404 项目不存在。",
+      "tags": [
+        "p3.2-sim-6",
+        "global-exception-handler",
+        "envelope-mismatch",
+        "core-vs-service-pcserror"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-08T17:00:00.000Z"
     }
   ]
 }

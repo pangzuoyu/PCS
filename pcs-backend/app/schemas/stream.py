@@ -179,6 +179,8 @@ class StreamResponse(StreamBase):
     created_at: str = Field(..., description="创建时间")
     updated_at: str | None = Field(None, description="更新时间")
 
+    model_config = {"from_attributes": True}
+
 
 # ============================================================================
 # 状态点
@@ -243,6 +245,8 @@ class StreamStatePointResponse(StreamStatePointBase):
     stream_id: uuid.UUID = Field(..., description="所属物流 ID")
     record_hash: str = Field(..., description="SHA-256 实质变更判别")
     created_at: str = Field(..., description="创建时间")
+
+    model_config = {"from_attributes": True}
 
 
 # ============================================================================

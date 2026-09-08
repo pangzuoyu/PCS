@@ -12,6 +12,7 @@ from app.api.v1.pipe_classes import router as pipe_classes_router
 from app.api.v1.pipe_codes import router as pipe_codes_router
 from app.api.v1.records import router as records_router
 from app.api.v1.stream_symbols import router as stream_symbols_router
+from app.api.v1.streams import router as streams_router
 from app.api.v1.workspaces import router as workspaces_router
 
 api_router = APIRouter(prefix="/api/v1")
@@ -25,6 +26,7 @@ api_router.include_router(change_impact_router)
 api_router.include_router(config_router)
 api_router.include_router(pipe_classes_router)
 api_router.include_router(stream_symbols_router)
+api_router.include_router(streams_router)
 api_router.include_router(equip_lib_router)
 api_router.include_router(pipe_codes_router)
 api_router.include_router(common_router)
