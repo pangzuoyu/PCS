@@ -149,16 +149,30 @@ async def test_post_state_point_role_forbidden_403(
 
 
 @pytest.mark.asyncio
-async def test_post_state_point_warn_composition_sum(
+async def test_post_state_point_block_composition_sum(
     client, seeded_stream, designer_headers
 ):
-    """SIM-SV03 触发 WARN（非 BLOCK）：composition 和偏差 > 0.5% 但 < 5% → 201 落库。
+    """SIM-SV03 BLOCK：组成和偏差 > 1%（sum=0.5，dev=50%）→ 422 SIM_STATEPOINT_BLOCKED。
 
-    SV03 BLOCK 触发条件：偏差 > 5%（todo：spec 待补）；WARN 不阻断保存。
+    spec 工艺实践参考阈值：PRO/II/Aspen reject 1%、工艺包 < 0.5%、安全泄放 < 0.5% 可信。
     """
     r = await client.post(
         f"/api/v1/streams/{seeded_stream.stream_id}/state-points",
         json=_state_point_body(composition_json={"WATER": 0.5}),
+        headers=designer_headers,
+    )
+    assert r.status_code == 422, r.text
+    assert r.json()["code"] == "SIM_STATEPOINT_BLOCKED"
+
+
+@pytest.mark.asyncio
+async def test_post_state_point_warn_composition_sum_within_tolerance(
+    client, seeded_stream, designer_headers
+):
+    """SIM-SV03 WARN：组成和偏差在 (0.1%, 1%] 区间 → 201 落库。"""
+    r = await client.post(
+        f"/api/v1/streams/{seeded_stream.stream_id}/state-points",
+        json=_state_point_body(composition_json={"WATER": 0.995}),
         headers=designer_headers,
     )
     assert r.status_code == 201, r.text

@@ -110,7 +110,8 @@ def test_sim_sv02_missing_pressure_is_block():
 # ---------------------------------------------------------------------------
 
 
-def test_sim_sv03_composition_sum_off_is_warn():
+def test_sim_sv03_composition_sum_off_is_block():
+    """spec 工艺实践参考：偏差 > 1% → BLOCK（拒绝保存）。"""
     sp = ParsedStatePoint(
         state_point_id="sp-001",
         stream_name="S-101",
@@ -122,7 +123,7 @@ def test_sim_sv03_composition_sum_off_is_warn():
     )
     r = ConflictResolver().resolve_state_points([sp], parent_streams=["S-101"])
     assert any(
-        c.code == "SIM-SV03" and c.level == ConflictLevel.WARN for c in r.warnings
+        c.code == "SIM-SV03" and c.level == ConflictLevel.BLOCK for c in r.blocks
     )
 
 
@@ -138,10 +139,16 @@ def test_sim_sv03_composition_sum_1_passes():
     )
     r = ConflictResolver().resolve_state_points([sp], parent_streams=["S-101"])
     assert not [c for c in r.warnings if c.code == "SIM-SV03"]
+    assert not [c for c in r.blocks if c.code == "SIM-SV03"]
 
 
-def test_sim_sv03_composition_sum_tolerance_0_5_pct():
-    """容差 0.5%：sum=0.997 应通过，sum=0.99 应 WARN。"""
+def test_sim_sv03_composition_sum_tolerance_two_tier():
+    """容差双层：≤0.1% 通过 / (0.1%, 1%] WARN / >1% BLOCK。
+
+    - sum=0.999 (0.1% 偏差) → 通过
+    - sum=0.995 (0.5% 偏差) → WARN
+    - sum=0.985 (1.5% 偏差) → BLOCK
+    """
     sp_ok = ParsedStatePoint(
         state_point_id="sp-ok",
         stream_name="S-101",
@@ -149,10 +156,11 @@ def test_sim_sv03_composition_sum_tolerance_0_5_pct():
         case_type="NORMAL",
         temperature_k=373.15,
         pressure_pa=101325.0,
-        composition={"7732-18-5": 0.997},
+        composition={"7732-18-5": 0.9995},  # 偏差 0.05% < 0.1%
     )
     r = ConflictResolver().resolve_state_points([sp_ok], parent_streams=["S-101"])
     assert not [c for c in r.warnings if c.code == "SIM-SV03"]
+    assert not [c for c in r.blocks if c.code == "SIM-SV03"]
 
     sp_warn = ParsedStatePoint(
         state_point_id="sp-warn",
@@ -161,11 +169,25 @@ def test_sim_sv03_composition_sum_tolerance_0_5_pct():
         case_type="NORMAL",
         temperature_k=373.15,
         pressure_pa=101325.0,
-        composition={"7732-18-5": 0.99},  # 差 1%
+        composition={"7732-18-5": 0.995},  # 偏差 0.5%
     )
     r = ConflictResolver().resolve_state_points([sp_warn], parent_streams=["S-101"])
     assert any(
         c.code == "SIM-SV03" and c.level == ConflictLevel.WARN for c in r.warnings
+    )
+
+    sp_block = ParsedStatePoint(
+        state_point_id="sp-block",
+        stream_name="S-101",
+        state_label="X",
+        case_type="NORMAL",
+        temperature_k=373.15,
+        pressure_pa=101325.0,
+        composition={"7732-18-5": 0.985},  # 偏差 1.5%
+    )
+    r = ConflictResolver().resolve_state_points([sp_block], parent_streams=["S-101"])
+    assert any(
+        c.code == "SIM-SV03" and c.level == ConflictLevel.BLOCK for c in r.blocks
     )
 
 
@@ -269,14 +291,14 @@ def test_resolve_state_points_batch_returns_unified_report():
             pressure_pa=101325.0,
             composition={"7732-18-5": 1.0},
         ),
-        ParsedStatePoint(  # WARN: composition sum off
+        ParsedStatePoint(  # WARN: composition sum 0.5% deviation
             state_point_id="sp-3",
             stream_name="S-102",
             state_label="Y",
             case_type="MIN",
             temperature_k=350.0,
             pressure_pa=100000.0,
-            composition={"7732-18-5": 0.5},
+            composition={"7732-18-5": 0.995},
         ),
     ]
     r = ConflictResolver().resolve_state_points(sps, parent_streams=["S-101", "S-102"])

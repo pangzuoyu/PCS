@@ -15,7 +15,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.project import Project, Stream, StreamStatePoint, Workspace
+from app.models.project import Project, Stream, Workspace
 from app.schemas.stream import (
     StreamCreate,
     StreamStatePointCreate,
@@ -115,6 +115,36 @@ async def test_create_state_point_parent_stream_not_found_404(db):
         )
     assert exc_info.value.code == "SIM_STREAM_NOT_FOUND"
     assert exc_info.value.status == 404
+
+
+@pytest.mark.asyncio
+async def test_create_state_point_block_composition_sum_off(db, make_project):
+    """SIM-SV03 BLOCK：组成和偏差 > 1%（sum=0.5）→ 拒绝保存。"""
+    _proj, stream = await make_project()
+    payload = StreamStatePointCreate(
+        stream_id=stream.stream_id,
+        **_state_point_payload(composition_json={"WATER": 0.5}),
+    )
+    with pytest.raises(PcsError) as exc_info:
+        await StreamService.create_state_point(
+            db, stream.stream_id, payload, actor=uuid.uuid4()
+        )
+    assert exc_info.value.code == "SIM_STATEPOINT_BLOCKED"
+
+
+@pytest.mark.asyncio
+async def test_create_state_point_warn_composition_sum_within_tolerance(db, make_project):
+    """SIM-SV03 WARN：组成和偏差在 (0.1%, 1%] 区间 → 落库 + 报告中含 WARN。"""
+    _proj, stream = await make_project()
+    payload = StreamStatePointCreate(
+        stream_id=stream.stream_id,
+        **_state_point_payload(composition_json={"WATER": 0.995}),
+    )
+    sp, report = await StreamService.create_state_point(
+        db, stream.stream_id, payload, actor=uuid.uuid4()
+    )
+    assert sp.state_point_id is not None
+    assert any(c.code == "SIM-SV03" for c in report.warnings)
 
 
 @pytest.mark.asyncio

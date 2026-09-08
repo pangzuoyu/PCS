@@ -99,6 +99,14 @@ class ConflictResolver:
     # 摩尔-质量流量一致容差（spec 暂定 1%，可后续校核）
     _MOLAR_MASS_TOL = 0.01
 
+    # SIM-SV03 组成归一化容差（spec 工艺实践参考）：
+    #   PRO/II/Aspen 默认 warn 0.1% / reject 1%
+    #   工艺包物料衡算 / 安全泄放：偏差 < 0.5% 可信
+    #   实验室分析报告：偏差 > 1% 视为数据质量差
+    # → 落地：≤0.1% 通过 / (0.1%, 1%] WARN / >1% BLOCK
+    _COMPOSITION_SUM_WARN_TOL = 0.001    # 0.1%
+    _COMPOSITION_SUM_BLOCK_TOL = 0.01     # 1%
+
     def resolve_batch(
         self,
         streams: list[ParsedStream],
@@ -377,21 +385,40 @@ class ConflictResolver:
                 )
             )
 
-    # 组成摩尔分率和容差（spec 暂定 0.5%）
-    _COMPOSITION_SUM_TOL = 0.005
-
     def _check_sim_sv03_composition_sum(
         self, sp: ParsedStatePoint, report: ConflictReport
     ) -> None:
+        """组成归一化校验（spec 工艺实践参考阈值）：
+        - ≤0.1% 偏差：通过
+        - 0.1%~1% 偏差：WARN（标记但允许保存）
+        - >1% 偏差：BLOCK（阻止保存，提示检查组成数据）
+        """
         if not sp.composition:
             return
         total = sum(sp.composition.values())
-        if abs(total - 1.0) > self._COMPOSITION_SUM_TOL:
+        dev = abs(total - 1.0)
+        if dev > self._COMPOSITION_SUM_BLOCK_TOL:
+            report.add(
+                Conflict(
+                    level=ConflictLevel.BLOCK,
+                    code="SIM-SV03",
+                    message=(
+                        f"组成摩尔分率和 {total:.4f} 偏离 1.0 "
+                        f"（偏差 {dev:.2%} > 1%，拒绝保存）"
+                    ),
+                    stream_name=sp.stream_name,
+                    field="composition",
+                )
+            )
+        elif dev > self._COMPOSITION_SUM_WARN_TOL:
             report.add(
                 Conflict(
                     level=ConflictLevel.WARN,
                     code="SIM-SV03",
-                    message=f"组成摩尔分率和 {total:.4f} 偏离 1.0（容差 ±0.5%）",
+                    message=(
+                        f"组成摩尔分率和 {total:.4f} 偏离 1.0 "
+                        f"（偏差 {dev:.2%}，0.1%~1% 区间，建议校正）"
+                    ),
                     stream_name=sp.stream_name,
                     field="composition",
                 )

@@ -945,13 +945,14 @@
     {
       "id": "bug-061",
       "timestamp": "2026-09-09T10:10:00.000Z",
-      "error_message": "test_post_state_point_block_composition_sum 期望 422 SIM_STATEPOINT_BLOCKED，实际返回 201。SV03 是 WARN 级别不是 BLOCK。",
+      "error_message": "test_post_state_point_block_composition_sum 期望 422 SIM_STATEPOINT_BLOCKED，实际返回 201。",
       "file": "pcs-backend/app/services/conflict_resolver.py",
-      "root_cause": "_check_sim_sv03_composition_sum 偏差 > 0.5% 时 add(ConflictLevel.WARN, code=SIM-SV03)；spec 设计上 SV03 是 WARN（非 BLOCK）。",
-      "fix": "API 测试改名为 test_post_state_point_warn_composition_sum，断言 201 + state_point_id 已返回。TODO：SIM-12 收口时与 spec owner 确认 SV03 是否需在 >5% 偏差升级为 BLOCK。",
+      "root_cause": "_check_sim_sv03_composition_sum 阈值设定过宽（单层 0.5% 容差 → WARN 即可），未与工艺实践对齐；用户基于 PRO/II/Aspen/物料衡算/安全泄放数据提供双层阈值（≤0.1% 通过 / (0.1%,1%] WARN / >1% BLOCK）。",
+      "fix": "SIM-9 SV03 升级为双层阈值：_COMPOSITION_SUM_WARN_TOL=0.001 (0.1%) + _COMPOSITION_SUM_BLOCK_TOL=0.01 (1%)。偏差 > 1% → BLOCK；0.1%~1% → WARN；≤0.1% 通过。同步更新 test_state_point_conflict（off_is_block + tolerance_two_tier）+ test_state_point_crud（block_composition_sum_off + warn_within_tolerance）+ test_state_points_api（block + warn）。",
       "tags": [
-        "p3.2-sim-8",
-        "sv03-warn-not-block",
+        "p3.2-sim-9",
+        "sv03-two-tier-threshold",
+        "engineering-tolerance",
         "test-design"
       ],
       "related_bugs": [],
