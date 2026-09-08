@@ -2,6 +2,7 @@ import uuid
 from datetime import datetime
 
 from sqlalchemy import (
+    CheckConstraint,
     DateTime,
     Enum,
     Float,
@@ -99,6 +100,10 @@ class Stream(TimestampMixin, Base):
     __tablename__ = "streams"
     __table_args__ = (
         UniqueConstraint("project_id", "stream_name", name="uq_streams_project_stream_name"),
+        CheckConstraint(
+            "case_type IN ('NORMAL','END_OF_RUN','START_OF_RUN','TURN_DOWN')",
+            name="ck_streams_case_type",
+        ),
     )
     stream_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -194,11 +199,48 @@ class Stream(TimestampMixin, Base):
     last_changed_by: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     last_changed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
+    # === P3.2 SIM 新增字段（spec V1.6 §3.2.2 + §3.2.3，2026-09-08）===
+    case_type: Mapped[str | None] = mapped_column(
+        String(20),
+        comment="物流级 case_type：NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN（设计工况）",
+    )
+    surface_tension: Mapped[float | None] = mapped_column(
+        Float, comment="表面张力 N/m"
+    )
+    api_gravity: Mapped[float | None] = mapped_column(
+        Float, comment="API 度（°API），石油馏分专用"
+    )
+    critical_temp: Mapped[float | None] = mapped_column(
+        Float, comment="临界温度 K"
+    )
+    critical_press: Mapped[float | None] = mapped_column(
+        Float, comment="临界压力 Pa"
+    )
+    actual_vol_flow: Mapped[float | None] = mapped_column(
+        Float, comment="工况体积流量 m³/h（≠ 已有 volumetric_flow 标准体积）"
+    )
+    viscosity_temperature_curve: Mapped[dict | None] = mapped_column(
+        JSONB, comment="粘度-温度曲线 [{temp_k, viscosity_cp}, ...]"
+    )
+    import_original_row: Mapped[int | None] = mapped_column(
+        Integer, comment="PRO/II 原始行号（溯源）"
+    )
+    import_source_version: Mapped[str | None] = mapped_column(
+        String(20),
+        comment="PRO/II 解析器版本：V2.71/V4.17/V8.x",
+    )
+
 
 class StreamStatePoint(Base):
     """工况状态点（ADR-0020）。无 sign_status（跟随所属物流）。字典表3 逐字。"""
 
     __tablename__ = "stream_state_points"
+    __table_args__ = (
+        CheckConstraint(
+            "case_type IN ('NORMAL','MIN','MAX','ALTERNATE')",
+            name="ck_stream_state_points_case_type",
+        ),
+    )
     state_point_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
     )
