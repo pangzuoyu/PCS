@@ -964,7 +964,7 @@
       "error_message": "test_create_state_point_duplicate_same_label_and_case_block 期望第二次 create 触发 SIM-SV05 BLOCK，实际两次都成功。",
       "file": "pcs-backend/app/services/conflict_resolver.py",
       "root_cause": "_check_sim_sv05_unique 仅在 resolve_state_points 的 seen_keys 集合内查重（intra-batch only），不与 DB 已落库数据对比。两次 sequential create 不在同一 batch，seen_keys 不命中。",
-      "fix": "移除 sequential duplicate 测试；当前 SV05 仅对 SIM-10 批量导入（一次多 SP）有效。TODO：SIM-10 commit 阶段考虑用 DB 层 unique constraint 或 service 层预查询已存 (stream_name, case_type)。",
+      "fix": "移除 sequential duplicate 测试；当前 SV05 仅对 SIM-10 批量导入（一次多 SP）有效。TODO：SIM-10 commit 阶段考虑用 DB 层 unique constraint（约束字段 (stream_id, case_type, state_label) — stream_id FK 隐含 project_id）或 service 层预查询已存 (stream_id, case_type, state_label)。",
       "tags": [
         "p3.2-sim-8",
         "sv05-intra-batch-only",
