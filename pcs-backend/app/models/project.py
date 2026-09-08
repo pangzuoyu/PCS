@@ -232,13 +232,24 @@ class Stream(TimestampMixin, Base):
 
 
 class StreamStatePoint(Base):
-    """工况状态点（ADR-0020）。无 sign_status（跟随所属物流）。字典表3 逐字。"""
+    """工况状态点（ADR-0020）。无 sign_status（跟随所属物流）。字典表3 逐字。
+
+    (stream_id, case_type, state_label) 三元组唯一（SIM-10 闭环 bug-062）：
+    同 stream 不同 case_type 可并存（NORMAL/MAX/MIN/ALTERNATE），同 case_type
+    重复 state_label 由 DB 兜底，service 层 IntegrityError 转 SIM_STATEPOINT_BLOCKED。
+    """
 
     __tablename__ = "stream_state_points"
     __table_args__ = (
         CheckConstraint(
             "case_type IN ('NORMAL','MIN','MAX','ALTERNATE')",
             name="ck_stream_state_points_case_type",
+        ),
+        UniqueConstraint(
+            "stream_id",
+            "case_type",
+            "state_label",
+            name="uq_stream_state_points_label",
         ),
     )
     state_point_id: Mapped[uuid.UUID] = mapped_column(

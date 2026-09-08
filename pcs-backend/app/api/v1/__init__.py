@@ -7,6 +7,7 @@ from app.api.v1.common import router as common_router
 from app.api.v1.config import router as config_router
 from app.api.v1.equip_lib import router as equip_lib_router
 from app.api.v1.health import router as health_router
+from app.api.v1.imports import router as imports_router
 from app.api.v1.lineage import router as lineage_router
 from app.api.v1.pipe_classes import router as pipe_classes_router
 from app.api.v1.pipe_codes import router as pipe_codes_router
@@ -30,3 +31,4 @@ api_router.include_router(streams_router)
 api_router.include_router(equip_lib_router)
 api_router.include_router(pipe_codes_router)
 api_router.include_router(common_router)
+api_router.include_router(imports_router)

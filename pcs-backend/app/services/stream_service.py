@@ -303,7 +303,27 @@ class StreamService:
             )
         sp = StreamStatePoint(stream_id=stream_id, **data)
         db.add(sp)
-        await db.commit()
+        try:
+            await db.commit()
+        except IntegrityError as e:
+            await db.rollback()
+            # bug-062 闭环：DB UniqueConstraint(stream_id, case_type, state_label)
+            # 拦截跨批次 duplicate。PG 含约束名；SQLite 仅列名 → 双匹配。
+            err_str = str(e.orig)
+            if (
+                "uq_stream_state_points_label" in err_str
+                or (
+                    "UNIQUE constraint failed" in err_str
+                    and "state_label" in err_str
+                )
+            ):
+                raise PcsError(
+                    f"状态点 (state_label='{payload.state_label}', "
+                    f"case_type='{payload.case_type}') 已存在",
+                    code="SIM_STATEPOINT_BLOCKED",
+                    status=422,
+                ) from e
+            raise
         await db.refresh(sp)
         return sp, report
 
