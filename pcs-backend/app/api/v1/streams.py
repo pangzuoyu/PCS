@@ -1,23 +1,26 @@
-"""P3.2 SIM-6：物流手工表单 API（spec V1.6 §3.2.3）。
+"""P3.2 SIM-6 + SIM-8：物流 / 状态点手工表单 API（spec V1.6 §3.2）。
 
-5 端点：
+物流端点（SIM-6）：
 - POST   /api/v1/projects/{project_id}/streams          # 创建（201 + StreamResponse）
 - GET    /api/v1/projects/{project_id}/streams          # 列表（按 case_type 可选过滤）
 - GET    /api/v1/streams/{stream_id}                    # 单条
 - PATCH  /api/v1/streams/{stream_id}                    # 部分更新
 - DELETE /api/v1/streams/{stream_id}                    # 删除（204）
 
+状态点端点（SIM-8）：
+- POST   /api/v1/streams/{stream_id}/state-points       # 创建（201 + StreamStatePointResponse）
+- GET    /api/v1/streams/{stream_id}/state-points       # 列表
+- GET    /api/v1/state-points/{state_point_id}          # 单条
+- PATCH  /api/v1/state-points/{state_point_id}          # 部分更新
+- DELETE /api/v1/state-points/{state_point_id}          # 删除（204）
+
 设计要点：
 - ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
-- BLOCK 冲突 → 422 (SIM_STREAM_BLOCKED)
-- 同 (project, stream_name) 重复 → 422 (SIM_STREAM_DUPLICATE_NAME)
-- 单查/更新/删除 → 404 (SIM_STREAM_NOT_FOUND)
-- 请求体走精简 CreateStreamRequest（不含 project_id，从 URL 取；
-  workspace_id 可省略，默认取 Project.workspace_id）
-- StreamResponse.model_validate 序列化（字段顺序不构成契约）
-
-下游：SIM-8 状态点 CRUD 复用本 router 路径前缀；
-  SIM-10 PRO/II + Excel 导入另开路由复用 StreamService.create。
+- Stream BLOCK → 422 SIM_STREAM_BLOCKED；StatePoint BLOCK → 422 SIM_STATEPOINT_BLOCKED
+- 同 (project, stream_name) 重复 → 422 SIM_STREAM_DUPLICATE_NAME
+- 单查/更新/删除 → 404 SIM_STREAM_NOT_FOUND / SIM_STATEPOINT_NOT_FOUND
+- ORM datetime → ISO str（API 层 _to_response_dict）
+- 业务错走 core.errors.PcsError envelope；HTTPException 仅用于 401/403/404 project 不存在
 """
 from __future__ import annotations
 
@@ -31,10 +34,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
-from app.models.project import Project, Stream
+from app.models.project import Project, Stream, StreamStatePoint
 from app.schemas.stream import (
     StreamCreate,
     StreamResponse,
+    StreamStatePointCreate,
+    StreamStatePointUpdate,
     StreamUpdate,
 )
 from app.services.exceptions import PcsError
@@ -233,6 +238,115 @@ async def delete_stream(
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     try:
         await StreamService.delete(db, stream_id, actor=user.user_id)
+    except PcsError as e:
+        raise _to_http(e) from e
+    return Response(status_code=204)
+
+
+# ---------------------------------------------------------------------------
+# StatePoint 端点（SIM-8）
+# ---------------------------------------------------------------------------
+
+
+def _state_point_to_response(sp: StreamStatePoint) -> dict[str, Any]:
+    """ORM StreamStatePoint → 响应 dict（datetime → ISO str）。"""
+    data: dict[str, Any] = {}
+    for col in StreamStatePoint.__table__.columns:
+        data[col.name] = getattr(sp, col.name)
+    if data.get("created_at") is not None:
+        data["created_at"] = data["created_at"].isoformat()
+    return data
+
+
+@router.post(
+    "/streams/{stream_id}/state-points",
+    status_code=201,
+)
+async def create_state_point(
+    stream_id: uuid.UUID,
+    payload: dict[str, Any],
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, Any]:
+    """创建状态点：SIM-9 冲突检测，BLOCK 拒绝。"""
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    try:
+        sp_create = StreamStatePointCreate(stream_id=stream_id, **payload)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"请求体不合法: {e}") from e
+    try:
+        sp, _report = await StreamService.create_state_point(
+            db, stream_id, sp_create, actor=user.user_id
+        )
+    except PcsError as e:
+        raise _to_http(e) from e
+    return _state_point_to_response(sp)
+
+
+@router.get("/streams/{stream_id}/state-points")
+async def list_state_points(
+    stream_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> list[dict[str, Any]]:
+    """某物流下状态点列表（按 case_type 排序）。"""
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    try:
+        sps = await StreamService.list_state_points(db, stream_id)
+    except PcsError as e:
+        raise _to_http(e) from e
+    return [_state_point_to_response(sp) for sp in sps]
+
+
+@router.get("/state-points/{state_point_id}")
+async def get_state_point(
+    state_point_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, Any]:
+    """单条状态点查询。"""
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    try:
+        sp = await StreamService.get_state_point(db, state_point_id)
+    except PcsError as e:
+        raise _to_http(e) from e
+    return _state_point_to_response(sp)
+
+
+@router.patch("/state-points/{state_point_id}")
+async def update_state_point(
+    state_point_id: uuid.UUID,
+    payload: dict[str, Any],
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, Any]:
+    """部分更新：state_label/case_type/temp/press/phase/mass_flow/source_type。"""
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    try:
+        update = StreamStatePointUpdate(**payload)
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"请求体不合法: {e}") from e
+    try:
+        sp, _report = await StreamService.update_state_point(
+            db, state_point_id, update, actor=user.user_id
+        )
+    except PcsError as e:
+        raise _to_http(e) from e
+    return _state_point_to_response(sp)
+
+
+@router.delete("/state-points/{state_point_id}", status_code=204)
+async def delete_state_point(
+    state_point_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> Response:
+    """删除状态点。"""
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    try:
+        await StreamService.delete_state_point(
+            db, state_point_id, actor=user.user_id
+        )
     except PcsError as e:
         raise _to_http(e) from e
     return Response(status_code=204)

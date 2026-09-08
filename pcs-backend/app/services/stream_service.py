@@ -1,7 +1,8 @@
-"""P3.2 SIM-4：StreamService 物流 CRUD（spec V1.6 §3.2.3）。
+"""P3.2 SIM-4 + SIM-8：StreamService 物流 / 状态点 CRUD（spec V1.6 §3.2.3）。
 
-整合 P3.2 SIM-1 ORM + SIM-3 物性补全 + SIM-7 三级冲突检测：
+整合 P3.2 SIM-1 ORM + SIM-3 物性补全 + SIM-7 三级冲突 + SIM-9 状态点冲突：
 
+Stream CRUD（SIM-4）：
 - create / list / get / update / delete
 - create 与 update 走 SIM-3 物性补全 + SIM-7 冲突检测
 - BLOCK 冲突 → 拒绝保存（PcsError 422, code=SIM_STREAM_BLOCKED）
@@ -9,9 +10,14 @@
 - INFO 冲突 → 保存 + 返回 conflicts.infos
 - unique (project_id, stream_name) 约束 → 422 (SIM_STREAM_DUPLICATE_NAME)
 
-API 入口（SIM-6 落 API）：POST/GET/PATCH/DELETE /projects/{id}/streams
-下游：SIM-8 状态点 CRUD 合并本 service；SIM-10 导入预览 commit 时复用
-  create() 路径。
+StatePoint CRUD（SIM-8，新增）：
+- create_state_point / list_state_points / get_state_point / update_state_point / delete_state_point
+- 走 SIM-9 状态点冲突检测（SIM-SV01~SV05）
+- BLOCK 冲突 → 拒绝保存（PcsError 422, code=SIM_STATEPOINT_BLOCKED）
+- 状态点按所属 stream_name 关联；父流删除时 FK 联动删除
+
+API 入口（SIM-6 / SIM-8）：POST/GET/PATCH/DELETE /streams 与 /state-points。
+下游：SIM-10 导入预览 commit 时复用 create() 路径。
 """
 from __future__ import annotations
 
@@ -22,11 +28,16 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.project import Stream
-from app.schemas.stream import StreamCreate, StreamUpdate
+from app.models.project import Stream, StreamStatePoint
+from app.schemas.stream import (
+    StreamCreate,
+    StreamStatePointCreate,
+    StreamStatePointUpdate,
+    StreamUpdate,
+)
 from app.services.conflict_resolver import ConflictReport, ConflictResolver
 from app.services.exceptions import PcsError
-from app.services.property_completion import ParsedStream
+from app.services.property_completion import ParsedStatePoint, ParsedStream
 
 _C_TO_K_OFFSET = 273.15
 _KPA_TO_PA = 1000.0
@@ -61,8 +72,50 @@ def _to_parsed_stream(payload: dict[str, Any], tag: str) -> ParsedStream:
     )
 
 
+def _to_parsed_state_point(
+    payload: dict[str, Any],
+    *,
+    stream_name: str,
+    state_point_id: str | None = None,
+) -> ParsedStatePoint:
+    """StreamStatePointCreate/Update dict → ParsedStatePoint（SI 单位）。
+
+    - temp °C → K
+    - press kPa → Pa
+    - composition_json → composition dict
+    """
+    composition = payload.get("composition_json") or {}
+    return ParsedStatePoint(
+        state_point_id=state_point_id or payload.get("state_point_id", ""),
+        stream_name=stream_name,
+        state_label=payload.get("state_label", ""),
+        case_type=payload.get("case_type", "NORMAL"),
+        temperature_k=(
+            (payload["temp"] + _C_TO_K_OFFSET) if payload.get("temp") is not None else None
+        ),
+        pressure_pa=(
+            payload["press"] * _KPA_TO_PA if payload.get("press") is not None else None
+        ),
+        phase=payload.get("phase"),
+        vapor_fraction=payload.get("vapor_fraction"),
+        mass_flow_kg_h=payload.get("mass_flow"),
+        composition=composition or None,
+        vapor_composition=payload.get("vapor_composition_json") or None,
+        liquid_composition=payload.get("liquid_composition_json") or None,
+        source_type=payload.get("source_type"),
+    )
+
+
 class StreamService:
-    """物流 CRUD 服务。Stream ID 类型 UUID；project_id + stream_name 联合唯一。"""
+    """物流 + 状态点 CRUD 服务。
+
+    Stream / StreamStatePoint ID 类型 UUID；project_id + stream_name 联合唯一。
+    StatePoint 通过 stream_id FK 关联 Stream。
+    """
+
+    # =====================================================================
+    # Stream CRUD（SIM-4）
+    # =====================================================================
 
     @staticmethod
     async def create(
@@ -203,6 +256,139 @@ class StreamService:
             if col.name in skip:
                 continue
             out[col.name] = getattr(stream, col.name)
+        return out
+
+    # =====================================================================
+    # StatePoint CRUD（SIM-8）
+    # =====================================================================
+
+    @staticmethod
+    async def create_state_point(
+        db: AsyncSession,
+        stream_id: uuid.UUID,
+        payload: StreamStatePointCreate,
+        *,
+        actor: uuid.UUID,
+    ) -> tuple[StreamStatePoint, ConflictReport]:
+        """创建状态点：SIM-9 冲突检测，BLOCK 拒绝。
+
+        Args:
+            db: async session
+            stream_id: 所属物流 ID（FK）
+            payload: StreamStatePointCreate（state_label/case_type/temp/press/...）
+            actor: 操作用户 UUID（保留字段）
+
+        Returns:
+            (saved_state_point, ConflictReport)
+
+        Raises:
+            PcsError(404, SIM_STREAM_NOT_FOUND): 父流不存在
+            PcsError(422, SIM_STATEPOINT_BLOCKED): BLOCK 冲突（SIM-SV01~SV05）
+        """
+        stream = await StreamService.get(db, stream_id)
+        data = payload.model_dump(exclude={"stream_id"})
+        parsed = _to_parsed_state_point(
+            data, stream_name=stream.stream_name
+        )
+        report = ConflictResolver().resolve_state_points(
+            [parsed], parent_streams=[stream.stream_name], block_on_error=False
+        )
+        if report.has_blocks:
+            first = report.blocks[0]
+            raise PcsError(
+                f"状态点 {payload.state_label} 触发 BLOCK 冲突 "
+                f"[{first.code}]: {first.message}",
+                code="SIM_STATEPOINT_BLOCKED",
+                status=422,
+            )
+        sp = StreamStatePoint(stream_id=stream_id, **data)
+        db.add(sp)
+        await db.commit()
+        await db.refresh(sp)
+        return sp, report
+
+    @staticmethod
+    async def list_state_points(
+        db: AsyncSession, stream_id: uuid.UUID
+    ) -> list[StreamStatePoint]:
+        """某物流下状态点列表（按 case_type 排序，NORMAL → MIN → MAX → ALTERNATE）。"""
+        # 父流存在性校验（返回 404 而不是空列表）
+        await StreamService.get(db, stream_id)
+        stmt = (
+            select(StreamStatePoint)
+            .where(StreamStatePoint.stream_id == stream_id)
+            .order_by(StreamStatePoint.case_type, StreamStatePoint.state_label)
+        )
+        result = await db.execute(stmt)
+        return list(result.scalars().all())
+
+    @staticmethod
+    async def get_state_point(
+        db: AsyncSession, state_point_id: uuid.UUID
+    ) -> StreamStatePoint:
+        """单条状态点查询。"""
+        sp = await db.get(StreamStatePoint, state_point_id)
+        if sp is None:
+            raise PcsError(
+                f"StreamStatePoint {state_point_id} 不存在",
+                code="SIM_STATEPOINT_NOT_FOUND",
+                status=404,
+            )
+        return sp
+
+    @staticmethod
+    async def update_state_point(
+        db: AsyncSession,
+        state_point_id: uuid.UUID,
+        payload: StreamStatePointUpdate,
+        *,
+        actor: uuid.UUID,
+    ) -> tuple[StreamStatePoint, ConflictReport]:
+        """更新状态点（部分字段）。BLOCK 拒绝；其他冲突保留。"""
+        sp = await StreamService.get_state_point(db, state_point_id)
+        data = payload.model_dump(exclude_none=True)
+        merged = {**StreamService._state_point_to_dict(sp), **data}
+        stream = await StreamService.get(db, sp.stream_id)
+        parsed = _to_parsed_state_point(
+            merged,
+            stream_name=stream.stream_name,
+            state_point_id=str(sp.state_point_id),
+        )
+        report = ConflictResolver().resolve_state_points(
+            [parsed], parent_streams=[stream.stream_name], block_on_error=False
+        )
+        if report.has_blocks:
+            first = report.blocks[0]
+            raise PcsError(
+                f"状态点 {sp.state_label} 触发 BLOCK 冲突 "
+                f"[{first.code}]: {first.message}",
+                code="SIM_STATEPOINT_BLOCKED",
+                status=422,
+            )
+        for k, v in data.items():
+            setattr(sp, k, v)
+        await db.commit()
+        await db.refresh(sp)
+        return sp, report
+
+    @staticmethod
+    async def delete_state_point(
+        db: AsyncSession, state_point_id: uuid.UUID, *, actor: uuid.UUID
+    ) -> None:
+        """删除状态点。"""
+        sp = await StreamService.get_state_point(db, state_point_id)
+        await db.delete(sp)
+        await db.commit()
+
+    @staticmethod
+    def _state_point_to_dict(sp: StreamStatePoint) -> dict[str, Any]:
+        """ORM StreamStatePoint → 业务字段 dict。"""
+        skip = {"state_point_id", "stream_id", "record_hash", "created_at"}
+        out: dict[str, Any] = {}
+        for col in StreamStatePoint.__table__.columns:
+            if col.name in skip:
+                continue
+            out[col.name] = getattr(sp, col.name)
         return out
 
 

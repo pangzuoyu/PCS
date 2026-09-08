@@ -909,6 +909,70 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-08T17:00:00.000Z"
+    },
+    {
+      "id": "bug-059",
+      "timestamp": "2026-09-09T10:00:00.000Z",
+      "error_message": "test_create_state_point_block_invalid_case_type 在 schema 层即被 Pydantic StatePointCaseType Enum 拒绝（'Input should be NORMAL/MIN/MAX/ALTERNATE'），resolver SIM-SV01 BLOCK 永远走不到。",
+      "file": "pcs-backend/tests/services/test_state_point_crud.py",
+      "root_cause": "StreamStatePointCreate.case_type 用 Pydantic Enum（StatePointCaseType），schema 校验比 resolver 早。SIM-SV01 的 BLOCK 检查在 service 层不可达。",
+      "fix": "移除 service 层 SIM-SV01 BLOCK 测试（schema 已拦）；resolver SIM-SV01 仍保留供未来 parser 路径直接构造 ParsedStatePoint 时使用。",
+      "tags": [
+        "p3.2-sim-8",
+        "schema-vs-resolver",
+        "validation-order"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-09T10:00:00.000Z"
+    },
+    {
+      "id": "bug-060",
+      "timestamp": "2026-09-09T10:05:00.000Z",
+      "error_message": "test_create_state_point_block_missing_temperature 被 Pydantic required 字段校验拒绝，resolver SIM-SV02 BLOCK 不可达。",
+      "file": "pcs-backend/tests/services/test_state_point_crud.py",
+      "root_cause": "StreamStatePointBase.temp/press/mass_flow 均为 required Pydantic 字段，schema 校验早于 resolver。SIM-SV02 BLOCK 在 API/service 层不可达。",
+      "fix": "移除 service 层 SIM-SV02 BLOCK 测试（schema 已拦）；保留 resolver _check_sim_sv02_required_fields 供未来 parser 路径使用。",
+      "tags": [
+        "p3.2-sim-8",
+        "schema-vs-resolver",
+        "required-field"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-09T10:05:00.000Z"
+    },
+    {
+      "id": "bug-061",
+      "timestamp": "2026-09-09T10:10:00.000Z",
+      "error_message": "test_post_state_point_block_composition_sum 期望 422 SIM_STATEPOINT_BLOCKED，实际返回 201。SV03 是 WARN 级别不是 BLOCK。",
+      "file": "pcs-backend/app/services/conflict_resolver.py",
+      "root_cause": "_check_sim_sv03_composition_sum 偏差 > 0.5% 时 add(ConflictLevel.WARN, code=SIM-SV03)；spec 设计上 SV03 是 WARN（非 BLOCK）。",
+      "fix": "API 测试改名为 test_post_state_point_warn_composition_sum，断言 201 + state_point_id 已返回。TODO：SIM-12 收口时与 spec owner 确认 SV03 是否需在 >5% 偏差升级为 BLOCK。",
+      "tags": [
+        "p3.2-sim-8",
+        "sv03-warn-not-block",
+        "test-design"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-09T10:10:00.000Z"
+    },
+    {
+      "id": "bug-062",
+      "timestamp": "2026-09-09T10:15:00.000Z",
+      "error_message": "test_create_state_point_duplicate_same_label_and_case_block 期望第二次 create 触发 SIM-SV05 BLOCK，实际两次都成功。",
+      "file": "pcs-backend/app/services/conflict_resolver.py",
+      "root_cause": "_check_sim_sv05_unique 仅在 resolve_state_points 的 seen_keys 集合内查重（intra-batch only），不与 DB 已落库数据对比。两次 sequential create 不在同一 batch，seen_keys 不命中。",
+      "fix": "移除 sequential duplicate 测试；当前 SV05 仅对 SIM-10 批量导入（一次多 SP）有效。TODO：SIM-10 commit 阶段考虑用 DB 层 unique constraint 或 service 层预查询已存 (stream_name, case_type)。",
+      "tags": [
+        "p3.2-sim-8",
+        "sv05-intra-batch-only",
+        "unique-constraint"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-09T10:15:00.000Z"
     }
   ]
 }
