@@ -30,9 +30,9 @@ budget_tokens: 1000
 - 依赖：P3.3 COMMON `CommonService.get_material(cas)` 已平，SIM-3 直接 import
 
 ### 待用户裁决
-1. **开工顺序**：先单跑 SIM-1（schema）拿绿 baseline，还是开 SIM-1+SIM-3 并行（schema 不依赖物性补全）
+1. ✅ **开工顺序已落定**：SIM-1 与 SIM-3 并行，SIM-1 先行 0.5d 稳定 ORM 模型（字段名/类型/nullable 冻结），SIM-3 直接 import ORM 类型并行开工；Schema 变更若 SIM-3 开发中发生需同步 SIM-3 接口签名
 2. ✅ **PRO/II 5 样例构造方案已落地**（plan V1.0.1 修订）：spec §607-633 5 样例是测试构造（每样例一个最小 .inp + .out 双文件），非仓库 sample/ 工程实例；仓库 sample/ 9 文件作 parser 鲁棒性回归（`-m regression`，不入 git）；parser 三版支持 V2.71+V4.17+V8.x
-3. **stream 字段顺序对前端契约影响**（plan 未解决问题 #2）：StreamResponse 新增 17+ 字段后 JSON 顺序——前端 SPEC-P3-SIM V1.3 §2.5 示例按字典序，Pydantic v2 默认定义序；需确认前端是否依赖字段顺序（YAGNI 默认按定义序）
+3. ✅ **StreamResponse 字段顺序不构成契约**（plan 未解决问题 #2 已解决）：OpenAPI docstring 加 warning "字段顺序可能随版本变化"，前端规范禁止顺序敏感逻辑
 4. **仓库级未跟踪面再扫**：cerebrum Do-Not-Repeat 已确认 2026-09-06 无遗留 untracked；本次新增 P3.2 plan 已入库；如需再扫确认可跑 `git status --short` 全检
 
 ### 注意

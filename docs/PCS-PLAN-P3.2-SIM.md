@@ -791,7 +791,7 @@ git commit -m "docs(p3-sim-12): P3.2 SIM 关闭报告"
 
 1. ✅ **PRO/II 5 样例构造方案**：spec §607-633 5 样例是**测试构造**（每样例一个最小 .inp + .out 双文件，覆盖一个 lexer 边界），**非仓库 sample/ 工程实例**。仓库 sample/ 9 个工程文件作 parser 鲁棒性回归验证（`-m regression` 标记，仓库不入 git）。SIM-2 Step 1-3 已落地（2026-09-08 修订）
 2. ✅ **Parser 版本支持扩展**：V2.71（1995 spec 示例）+ **V4.17**（1998 仓库 `sample/proii .out` 未收敛参考必加）+ V8.x（2014+ dmc/huafeng140/200FlexiCoking1）。dispatcher 按 banner 路由三 lexer 子类（SIM-2 Step 0 注释）
-3. **Stream 字段顺序对 API 契约的影响**：新增 17+ 字段后 `StreamResponse` JSON 字段顺序——前端 SPEC-P3-SIM V1.3 §2.5 示例按字典序输出，Pydantic v2 默认按字段定义序。需确认前端是否依赖字段顺序（YAGNI 默认按定义序）
+3. ✅ **StreamResponse 字段顺序不构成前端契约**（用户 2026-09-08 裁决）：JSON 对象本质无序，前端应基于字段名访问。OpenAPI docstring 加 warning："字段顺序可能随版本变化，客户端不应依赖顺序"；后端按模型定义序稳定输出即可；前端开发规范明文禁止顺序敏感逻辑。SIM-1 Schema 定义时无需刻意排序
 4. **不可靠单元产品下游计算拒绝**：SIM-10 unreliable=True 标记后，下游工艺计算器（P3.3 之后扩展）是否需要硬拒绝调用？还是仅标记？本 plan 仅标记，未实现下游拒绝——P4 再议（TODO-037 已建）
 5. ✅ **物性补全性能预算**：已解决（plan-eng-review D6 裁决 asyncio.gather 并行 + 性能断言 ≤5s/100 条，SIM-3 Step 3+4b 已编码）
 6. **Excel 模板版本管理**：spec 未明确模板版本字段。SIM-5 仅生成 V1 模板，模板格式变更时旧数据导入兼容性留 P4 议（TODO-034 已建）
