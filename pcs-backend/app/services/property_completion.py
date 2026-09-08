@@ -50,6 +50,35 @@ class ParsedStream:
     zero_flow: bool = False  # PRO/II parser 标记零流量保留
 
 
+# 状态点级 case_type 合法值（spec V1.6 §3.2.2）
+VALID_STATE_POINT_CASE_TYPES: frozenset[str] = frozenset(
+    {"NORMAL", "MIN", "MAX", "ALTERNATE"}
+)
+
+
+@dataclass(frozen=True)
+class ParsedStatePoint:
+    """状态点级中间表示（spec V1.6 §3.2.2）。
+
+    SIM-2/SIM-5/SIM-6 解析器构造；SIM-9 冲突检测 + SIM-8 状态点 CRUD 引用。
+    """
+
+    state_point_id: str
+    stream_name: str
+    state_label: str
+    case_type: str
+    temperature_k: float | None = None
+    pressure_pa: float | None = None
+    phase: str | None = None
+    vapor_fraction: float | None = None
+    mass_flow_kg_h: float | None = None
+    composition: dict[str, float] | None = None
+    vapor_composition: dict[str, float] | None = None
+    liquid_composition: dict[str, float] | None = None
+    source_type: str | None = None
+    # 来源：SIM_IMPORT / MANUAL_ENTRY / FLASH_CALCULATED / DEVICE_CALCULATED
+
+
 def complete_properties(stream: _StreamLike) -> dict[str, Any]:
     """补全单条 stream 物性。失败不抛错（返回 None + warning）。"""
     cas = getattr(stream, "cas", None)

@@ -20,7 +20,12 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Protocol
 
-from app.services.property_completion import ParsedStream, complete_properties
+from app.services.property_completion import (
+    VALID_STATE_POINT_CASE_TYPES,
+    ParsedStatePoint,
+    ParsedStream,
+    complete_properties,
+)
 
 
 class ConflictLevel(str, Enum):
@@ -110,6 +115,25 @@ class ConflictResolver:
             self._check_stream(s, report)
             if block_on_error and report.has_blocks:
                 # 不抛错但 break——caller 一次性看完整 BLOCK 列表
+                continue
+        return report
+
+    def resolve_state_points(
+        self,
+        state_points: list[ParsedStatePoint],
+        *,
+        parent_streams: list[str],
+        block_on_error: bool = True,
+    ) -> ConflictReport:
+        """状态点级冲突检测（spec V1.6 §3.2.2 + §3.4）。
+
+        parent_streams 是已落库 stream_name 列表（供 SIM-SV04 孤儿检测）。
+        """
+        report = ConflictReport()
+        seen_keys: set[tuple[str, str]] = set()
+        for sp in state_points:
+            self._check_state_point(sp, parent_streams, seen_keys, report)
+            if block_on_error and report.has_blocks:
                 continue
         return report
 
@@ -299,3 +323,119 @@ class ConflictResolver:
                     field="vapor_fraction",
                 )
             )
+
+    # -----------------------------------------------------------------
+    # 状态点规则：SIM-SV01~SV05
+    # -----------------------------------------------------------------
+
+    def _check_state_point(
+        self,
+        sp: ParsedStatePoint,
+        parent_streams: list[str],
+        seen_keys: set[tuple[str, str]],
+        report: ConflictReport,
+    ) -> None:
+        self._check_sim_sv01_case_type(sp, report)
+        self._check_sim_sv02_required_fields(sp, report)
+        self._check_sim_sv03_composition_sum(sp, report)
+        self._check_sim_sv04_orphan(sp, parent_streams, report)
+        self._check_sim_sv05_unique(sp, seen_keys, report)
+
+    def _check_sim_sv01_case_type(
+        self, sp: ParsedStatePoint, report: ConflictReport
+    ) -> None:
+        if sp.case_type not in VALID_STATE_POINT_CASE_TYPES:
+            report.add(
+                Conflict(
+                    level=ConflictLevel.BLOCK,
+                    code="SIM-SV01",
+                    message=(
+                        f"case_type '{sp.case_type}' 不在 "
+                        f"{sorted(VALID_STATE_POINT_CASE_TYPES)} 内"
+                    ),
+                    stream_name=sp.stream_name,
+                    field="case_type",
+                )
+            )
+
+    def _check_sim_sv02_required_fields(
+        self, sp: ParsedStatePoint, report: ConflictReport
+    ) -> None:
+        missing: list[str] = []
+        if sp.temperature_k is None:
+            missing.append("temperature_k")
+        if sp.pressure_pa is None:
+            missing.append("pressure_pa")
+        if missing:
+            report.add(
+                Conflict(
+                    level=ConflictLevel.BLOCK,
+                    code="SIM-SV02",
+                    message=f"状态点缺 {','.join(missing)}（必填）",
+                    stream_name=sp.stream_name,
+                    field=missing[0],
+                )
+            )
+
+    # 组成摩尔分率和容差（spec 暂定 0.5%）
+    _COMPOSITION_SUM_TOL = 0.005
+
+    def _check_sim_sv03_composition_sum(
+        self, sp: ParsedStatePoint, report: ConflictReport
+    ) -> None:
+        if not sp.composition:
+            return
+        total = sum(sp.composition.values())
+        if abs(total - 1.0) > self._COMPOSITION_SUM_TOL:
+            report.add(
+                Conflict(
+                    level=ConflictLevel.WARN,
+                    code="SIM-SV03",
+                    message=f"组成摩尔分率和 {total:.4f} 偏离 1.0（容差 ±0.5%）",
+                    stream_name=sp.stream_name,
+                    field="composition",
+                )
+            )
+
+    def _check_sim_sv04_orphan(
+        self,
+        sp: ParsedStatePoint,
+        parent_streams: list[str],
+        report: ConflictReport,
+    ) -> None:
+        if sp.stream_name not in parent_streams:
+            report.add(
+                Conflict(
+                    level=ConflictLevel.BLOCK,
+                    code="SIM-SV04",
+                    message=(
+                        f"状态点关联 stream_name='{sp.stream_name}' "
+                        f"不在已落库 stream 列表中（孤立）"
+                    ),
+                    stream_name=sp.stream_name,
+                    field="stream_name",
+                )
+            )
+
+    def _check_sim_sv05_unique(
+        self,
+        sp: ParsedStatePoint,
+        seen_keys: set[tuple[str, str]],
+        report: ConflictReport,
+    ) -> None:
+        key = (sp.stream_name, sp.case_type)
+        if key in seen_keys:
+            report.add(
+                Conflict(
+                    level=ConflictLevel.BLOCK,
+                    code="SIM-SV05",
+                    message=(
+                        f"(stream_name='{sp.stream_name}', "
+                        f"case_type='{sp.case_type}') 重复（应唯一）"
+                    ),
+                    stream_name=sp.stream_name,
+                    field="case_type",
+                )
+            )
+        else:
+            seen_keys.add(key)
