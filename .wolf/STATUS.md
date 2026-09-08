@@ -5,40 +5,52 @@ budget_tokens: 1000
 # STATUS — PCS
 
 > Single source of truth for resuming work. Read this FIRST when starting a session.
-> Last updated: 2026-09-04
+> Last updated: 2026-09-08
 
 ---
 
 ## ✅ Done
 
-- **P2 Sprint 1.8 + 1.10 计划全部完成（2026-09-03~04，SDD 8 任务 + 终审 + 修复波，commits 35a1614..1dc6a43）**：
-  - s1.8：formula preconditions（PcsError/PreconditionViolation）+ FormulaSecurityError 继承 + CATEGORY_3 六系数表 seed + default_config_json Pydantic 验证
-  - s1.10：折标煤系数组 + DETAIL 模板入库（template_version_seq 自动续号）+ HTRI schema 表 + ADR-0029 + DICT V3.6（`spec/PCS-DICT-ALL-003 V3.6.md`）
-  - 修复波：jinja2 入锁、services.PcsError handler（422/404 信封）、toe 表 timestamptz 矫正迁移、hygiene
-- **git 历史自持修复（R19）**：P0/P1 运行面整面落库（async session/依赖/7 迁移/P1 服务层/schemas），干净 worktree 实证 258 passed
-- **ORM↔DB 收敛（R17/R18）**：D13 全部声明恢复 + doc_no_sequences project_id + 三列 UQ（迁移 p2_s110_doc_no_project_id）
-- 质量门：`pytest` 258 passed（lock-synced venv 复验）/ `ruff` 触达文件 0 错 / alembic 单 head `p2_s110_fix_toe_timestamptz`
-- 早期：领域建模 ADR-0001~0025 + SUP-007 + P0/P1-MVP（状态机/血缘/CIA/工作区）——详见 git log 与 TODOS.md 完成节
+- **P2 全系列 SDD 闭环（2026-09-04~06，commits ad25700..f59233d，462 passed）**
+  - Sprint 1.8 + 1.10：formula preconditions / 折标煤 / DETAIL 模板 / ADR-0029
+  - Sprint 1.9（6 个子任务）：vendor 三件接线 / PipeClassService 7 端点 / PetroleumService / CATEGORY_3 seed / equip-lib 沉淀检索 / Excel 导入 71/71；终审 3 修复（settle name 截断/短行 IndexError/limit ge=1）
+  - **SUP-002 全部 11 task**（PC-1→2→3→4→6、SYM-1→2→3、FMT-1→2→3→4、INT-1→3）：管道代码自定义（自然码+asset_id 镜像/5 态挂 ConfigAsset/scope/STALE，V1.4 26 项审查修正全落）
+  - 终 close：bug-051 收口 + P2 Sprint close 报告（462 passed / 43 裁决 / 25 迁移 / 62 表）
+- **P3.3 COMMON 闭环（2026-09-08，commit 37f34f8）**：物性 + 许用应力 + 介质安全数据查询 API
+- **P3-SIM spec V1.1→V1.2** 入库（合并 ADD-001/ADD-002，三 CRITICAL 裁决落地）
+- **P3.2 SIM 实施 Writing-Plan V1.0 入库**（docs/PCS-PLAN-P3.2-SIM.md，2026-09-08，Eng Review CLEAR，12 task × 20.5d）
+- 前史：R19 运行面落库、ADR-0001~0029、P0/P1-MVP——见 git log
 
 ---
 
 ## 🚀 Next quest
 
-**Goal:** P2 Sprint 1.9（配置层收尾）——PipeClass service + 5 端点、Riazi-Daubert/虚拟组分切割、equip-lib 沉淀 service（来源：本计划"不在范围内"排除表 #4/#6/equip-lib）
+**Goal:** P3.2 SIM 实施（按 docs/PCS-PLAN-P3.2-SIM.md V1.0 落地 12 task）
+- SIM-1（schema 升级 + ORM + Schema 三套，1d）开路，后续 SIM-2..12 串/并依赖图见 plan §任务依赖图
+- 依赖：P3.3 COMMON `CommonService.get_material(cas)` 已平，SIM-3 直接 import
 
 ### 待用户裁决
-1. **ADR-0029 仍「起草中」**——读 `docs/adr/0029-toe-conversion-and-detail-htri-templates.md`，接受则改「已接受」
-2. **preconditions 未接发布门禁（TODO-031）**——终审裁延至 Sprint 1.12，可推翻要求现在接线（~10 行）
-3. 仓库级未跟踪面：docs/adr/0001~0028、spec/ 大部分字典、CLAUDE.md/CONTEXT.md/.wolf/.claude、前端 3 脏文件（P0 auth 流）、debug_tmp.py（可删）——是否入库由用户定
+1. **开工顺序**：先单跑 SIM-1（schema）拿绿 baseline，还是开 SIM-1+SIM-3 并行（schema 不依赖物性补全）
+2. **PRO/II 5 样例 .inp 来源**（plan 未解决问题 #1）：spec §第三部分 §607-628 引用 + 历史 PCS-NL-P3-SIM V1.1 §2.2 样例库——确认 NAS 路径 / git LFS / fixtures 目录
+3. **stream 字段顺序对前端契约影响**（plan 未解决问题 #2）：StreamResponse 新增 17+ 字段后 JSON 顺序——前端 SPEC-P3-SIM V1.3 §2.5 示例按字典序，Pydantic v2 默认定义序；需确认前端是否依赖字段顺序（YAGNI 默认按定义序）
+4. **仓库级未跟踪面再扫**：cerebrum Do-Not-Repeat 已确认 2026-09-06 无遗留 untracked；本次新增 P3.2 plan 已入库；如需再扫确认可跑 `git status --short` 全检
 
 ### 注意
-- pcs_test 库下次 schema 敏感运行前先 `alembic upgrade head`（矫正迁移只应用了 pcs）
-- 新表迁移必须含 TimestampMixin 三列（created_by/created_at timestamptz/updated_at nullable）——见 .wolf/cerebrum Do-Not-Repeat
+- pcs_test 库 schema 敏感运行前先 `cd pcs-backend && uv run alembic upgrade head`（矫正迁移只应用了 pcs）
+- 新表迁移必须含 TimestampMixin 三列（created_by/created_at/updated_at；created_at timezone+server_default，updated_at nullable）
+- Pydantic v2 Schema 必须 Field(description=...)：spec 本体论 V1.6 §5.3 要求每字段含中文描述
+- StreamSignStatus：PG enum 'streamsignstatus' 已落；P3 活跃 4 态（DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED），P4 扩展走 `ALTER TYPE streamsignstatus ADD VALUE`（不可逆）
+- case_type 双层语义：streams.case_type ≠ stream_state_points.case_type，独立两字段（spec V1.6 §3.2.2）
+- 冲突三级：BLOCK（阻止保存）/ WARN（用户值优先+标记）/ INFO（计算值优先派生）
+- 收敛分层：CONVERGED/WARNINGS 全量导入，NOT_CONVERGED/ABORTED SOLVED 单元产品 `unreliable=True`
+- 实施纪律：每步独立 commit；复跑依赖测试后再 commit；干净 worktree 验证 import + alembic + pytest 是唯一可信证据
+- YAGNI：HYSYS/Aspen/HTRI 解析器后置 P4，本 Sprint 仅 PRO/II + 手工 + Excel
 
 ---
 
 ## Context
 
-- 分支 main（单人直提惯例）；后端 uv+FastAPI+PG16，前端 Vite+React+antd
-- TODOS.md 已入库（含新增 TODO-031/032）；SDD 工作区已删，git 史为正式记录
-- 账本裁决全文随工作区删除，关键裁决浓缩于本文件与 cerebrum.md
+- 分支 main（单人直提惯例）；后端 uv+FastAPI+PG16（vendor 三件+python-multipart 已入锁），前端 Vite+React+antd
+- SDD 工作区已删（git 史为正式记录）；TODO-033 = Sprint 1.9 终审 DEFER 清单；P3.2 plan 自带未解决问题 #3~#6 已建 TODO-034/035/037
+- bug-046（python-multipart）/bug-047（dn 单口径）/bug-051（assign_to_project）入 .wolf/buglog.json
+- ADR-0029「已接受」2026-09-04，旧交接中残留待裁决项已除名
