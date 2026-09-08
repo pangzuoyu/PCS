@@ -29,6 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.api.v1.streams import _load_project, _to_http
 from app.core.errors import PcsError as CorePcsError
+from app.core.upload_size_limit import enforce_upload_size
 from app.db.session import get_db
 from app.schemas.stream import StreamImportPreview, StreamImportResult
 from app.services.exceptions import PcsError
@@ -81,6 +82,9 @@ async def preview_proii(
     try:
         inp_bytes = await file_inp.read()
         out_bytes = await file_out.read()
+        # SIM-13 D-2 闭环：单文件 10MB 上限
+        enforce_upload_size(len(inp_bytes), label=".inp")
+        enforce_upload_size(len(out_bytes), label=".out")
         if not inp_bytes or not out_bytes:
             raise HTTPException(status_code=400, detail="空文件")
         inp_path = write_temp_upload(inp_bytes, suffix=".inp")
@@ -156,6 +160,8 @@ async def preview_excel(
     xlsx_path: Path | None = None
     try:
         content = await file_xlsx.read()
+        # SIM-13 D-2 闭环：单文件 10MB 上限
+        enforce_upload_size(len(content), label=".xlsx")
         if not content:
             raise HTTPException(status_code=400, detail="空文件")
         xlsx_path = write_temp_upload(content, suffix=".xlsx")

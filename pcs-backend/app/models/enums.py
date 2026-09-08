@@ -14,9 +14,20 @@ class RecordSignStatus9(str, enum.Enum):
 
 
 class StreamSignStatus(str, enum.Enum):
+    """SIM-13 扩展为 9 态全集（与 RecordSignStatus9 字面对齐）。
+
+    状态机迁移：P3 活跃 4 态 → 9 态全集（PG enum streamsignstatus ADD VALUE）。
+    cerebrum 2026-09-08 锁定：值与 RecordSignStatus9 完全一致，PG enum 扩展不可逆。
+    """
+
     DRAFT = "DRAFT"
     IN_APPROVAL = "IN_APPROVAL"
     CHECKED = "CHECKED"
+    CHECK_REJECTED = "CHECK_REJECTED"
+    STALE = "STALE"
+    CHANGE_PENDING = "CHANGE_PENDING"
+    CHANGED = "CHANGED"
+    REVERSAL_PENDING = "REVERSAL_PENDING"
     OBSOLETE = "OBSOLETE"
 
 

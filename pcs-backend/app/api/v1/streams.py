@@ -34,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
+from app.models.enums import StateTransition
 from app.models.project import Project, Stream, StreamStatePoint
 from app.schemas.stream import (
     StreamCreate,
@@ -68,6 +69,14 @@ class UpdateStreamRequest(BaseModel):
     """精简更新请求：StreamUpdate 字段的可选子集。"""
 
     payload: dict[str, Any] = Field(..., description="StreamUpdate 字段子集")
+
+
+class TransitionRequest(BaseModel):
+    """SIM-13 状态机转移请求体（reason 可选）。"""
+
+    reason: str | None = Field(
+        None, max_length=500, description="转移原因（部分事件需填，audit 落库）"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -350,6 +359,156 @@ async def delete_state_point(
     except PcsError as e:
         raise _to_http(e) from e
     return Response(status_code=204)
+
+
+# ---------------------------------------------------------------------------
+# 状态机端点（SIM-13，闭环审计 D-1）
+# ---------------------------------------------------------------------------
+
+
+async def _transition_endpoint(
+    stream_id: uuid.UUID,
+    event: StateTransition,
+    user: _Actor,
+    db: AsyncSession,
+    reason: str | None,
+) -> dict[str, Any]:
+    """6 状态机端点共用 helper：SELECT FOR UPDATE → StateMachineService。
+
+    Returns:
+        dict 含 sign_status（最新态）便于前端更新展示
+    """
+    try:
+        stream = await StreamService.transition(
+            db,
+            stream_id,
+            transition=event,
+            actor_user_id=user.user_id,
+            actor_role=user.role,
+            reason=reason,
+        )
+    except PcsError as e:
+        raise _to_http(e) from e
+    return {
+        "stream_id": str(stream.stream_id),
+        "sign_status": stream.sign_status.value
+        if hasattr(stream.sign_status, "value")
+        else str(stream.sign_status),
+        "approval_step": stream.approval_step,
+        "change_pending_since": (
+            stream.change_pending_since.isoformat()
+            if stream.change_pending_since
+            else None
+        ),
+        "change_resolved_at": (
+            stream.change_resolved_at.isoformat()
+            if stream.change_resolved_at
+            else None
+        ),
+    }
+
+
+@router.post("/streams/{stream_id}/submit")
+async def submit_stream(
+    stream_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, Any]:
+    """DRAFT → IN_APPROVAL（提交校对）。
+
+    ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    （具体角色权限由 StateMachineService.TRANSITION_ROLES 校验）
+    """
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await _transition_endpoint(
+        stream_id, StateTransition.SUBMIT_FOR_CHECK, user, db, reason=None
+    )
+
+
+@router.post("/streams/{stream_id}/approve")
+async def approve_stream(
+    stream_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, Any]:
+    """IN_APPROVAL → CHECKED（校对通过）。
+
+    ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（StateMachineService 强制 CHECKER/SYSADMIN）
+    """
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await _transition_endpoint(
+        stream_id, StateTransition.PASS_CHECK, user, db, reason=None
+    )
+
+
+@router.post("/streams/{stream_id}/reject")
+async def reject_stream(
+    stream_id: uuid.UUID,
+    req: TransitionRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, Any]:
+    """IN_APPROVAL → CHECK_REJECTED（校对驳回）。
+
+    body.reason 必填（驳回理由写入 audit）。
+    ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    """
+    require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await _transition_endpoint(
+        stream_id, StateTransition.REJECT_CHECK, user, db, reason=req.reason
+    )
+
+
+@router.post("/streams/{stream_id}/initiate-change")
+async def initiate_change_stream(
+    stream_id: uuid.UUID,
+    req: TransitionRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, Any]:
+    """CHECKED → CHANGE_PENDING（ADR-0002 主动变更）。
+
+    body.reason 可选（变更理由写入 audit）。
+    ACL：DESIGNER / SYSTEM_ADMIN
+    """
+    require_roles(user, "DESIGNER", "SYSTEM_ADMIN")
+    return await _transition_endpoint(
+        stream_id, StateTransition.INITIATE_CHANGE, user, db, reason=req.reason
+    )
+
+
+@router.post("/streams/{stream_id}/pass-change")
+async def pass_change_stream(
+    stream_id: uuid.UUID,
+    req: TransitionRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, Any]:
+    """CHANGE_PENDING → CHANGED（变更通过，闭环为 CHANGED 态）。
+
+    ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    """
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await _transition_endpoint(
+        stream_id, StateTransition.APPLY_CHANGE, user, db, reason=req.reason
+    )
+
+
+@router.post("/streams/{stream_id}/mark-stale")
+async def mark_stale_stream(
+    stream_id: uuid.UUID,
+    req: TransitionRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, Any]:
+    """CHECKED → STALE（标记上游变更，ADR-0024 不写 snapshot）。
+
+    ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    """
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    return await _transition_endpoint(
+        stream_id, StateTransition.MARK_STALE, user, db, reason=req.reason
+    )
 
 
 __all__ = ["router"]

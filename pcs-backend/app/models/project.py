@@ -15,7 +15,7 @@ from sqlalchemy import (
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
 from app.models.enums import StreamSignStatus, UserStatus
@@ -243,6 +243,25 @@ class Stream(TimestampMixin, Base):
             "NULL=未设/False，多用于手工/Excel 入口或 PRO/II 非 MIXED）"
         ),
     )
+    # === P3.2 SIM-13：状态机字段（被 StateMachineService.transition() setattr）===
+    change_pending_since: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        comment="INITIATE_CHANGE / MARK_STALE 触发时间",
+    )
+    change_resolved_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), comment="APPLY_CHANGE 完成时间（pass_change 闭环）"
+    )
+    change_resolved_by: Mapped[str | None] = mapped_column(
+        String(64), comment="APPLY_CHANGE 审批人 ID（str(uuid) 形式）"
+    )
+
+    # SIM-13 D-3 闭环：selectinload 防 N+1 — 状态点反向关系
+    state_points: Mapped[list["StreamStatePoint"]] = relationship(  # noqa: F821
+        "StreamStatePoint",
+        back_populates="stream",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
 
 class StreamStatePoint(Base):
@@ -299,4 +318,9 @@ class StreamStatePoint(Base):
     )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
+    )
+
+    # SIM-13 D-3 闭环：selectinload 防 N+1 — 反向关系
+    stream: Mapped["Stream"] = relationship(  # noqa: F821
+        "Stream", back_populates="state_points"
     )

@@ -1,6 +1,7 @@
-"""P3.2 SIM-4 + SIM-8：StreamService 物流 / 状态点 CRUD（spec V1.6 §3.2.3）。
+"""P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。
 
-整合 P3.2 SIM-1 ORM + SIM-3 物性补全 + SIM-7 三级冲突 + SIM-9 状态点冲突：
+整合 P3.2 SIM-1 ORM + SIM-3 物性补全 + SIM-7 三级冲突 + SIM-9 状态点冲突 +
+P1 StateMachineService（SIM-13 集成）：
 
 Stream CRUD（SIM-4）：
 - create / list / get / update / delete
@@ -10,13 +11,26 @@ Stream CRUD（SIM-4）：
 - INFO 冲突 → 保存 + 返回 conflicts.infos
 - unique (project_id, stream_name) 约束 → 422 (SIM_STREAM_DUPLICATE_NAME)
 
-StatePoint CRUD（SIM-8，新增）：
+Stream 状态机（SIM-13，闭环审计 D-1）：
+- transition()：复用 P1 StateMachineService；SELECT FOR UPDATE 防并发覆盖；
+  InvalidTransition → 422 SIM_STREAM_INVALID_TRANSITION；
+  RoleForbidden → 403 SIM_STREAM_ROLE_FORBIDDEN
+- 角色映射：streams API 层使用 PROCESS_CONTROLLER/SYSTEM_ADMIN，
+  state_machine TRANSITION_ROLES 用 CHECKER/SYSADMIN，本层做别名解析
+
+StatePoint CRUD（SIM-8）：
 - create_state_point / list_state_points / get_state_point / update_state_point / delete_state_point
 - 走 SIM-9 状态点冲突检测（SIM-SV01~SV05）
 - BLOCK 冲突 → 拒绝保存（PcsError 422, code=SIM_STATEPOINT_BLOCKED）
 - 状态点按所属 stream_name 关联；父流删除时 FK 联动删除
 
-API 入口（SIM-6 / SIM-8）：POST/GET/PATCH/DELETE /streams 与 /state-points。
+selectinload 防 N+1（SIM-13，闭环审计 D-3）：
+- list_by_project 用 selectinload(Stream.state_points)
+- list 触发 query 数恒为 2（streams + state_points）
+
+API 入口（SIM-6 / SIM-8 / SIM-13）：POST/GET/PATCH/DELETE /streams、
+/state-points、/streams/{id}/{submit,approve,reject,initiate-change,
+pass-change,mark-stale}。
 下游：SIM-10 导入预览 commit 时复用 create() 路径。
 """
 from __future__ import annotations
@@ -27,7 +41,9 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
+from app.models.enums import StateTransition
 from app.models.project import Stream, StreamStatePoint
 from app.schemas.stream import (
     StreamCreate,
@@ -38,9 +54,29 @@ from app.schemas.stream import (
 from app.services.conflict_resolver import ConflictReport, ConflictResolver
 from app.services.exceptions import PcsError
 from app.services.property_completion import ParsedStatePoint, ParsedStream
+from app.services.state_machine import (
+    InvalidTransition,
+    RoleForbidden,
+    StateMachineService,
+)
 
 _C_TO_K_OFFSET = 273.15
 _KPA_TO_PA = 1000.0
+
+# SIM-13 角色别名：streams API 层使用的项目级角色名 → state_machine TRANSITION_ROLES
+# 中使用的代码级角色名。StateMachineService 直接做权限校验，本层做名称翻译。
+_ROLE_ALIAS: dict[str, str] = {
+    "PROCESS_CONTROLLER": "CHECKER",  # 项目级 PC 与代码级 CHECKER 职能一致
+    "SYSTEM_ADMIN": "SYSADMIN",  # SA 简写映射
+}
+
+
+def _resolve_role(role: str) -> str:
+    """streams API 角色名 → state_machine TRANSITION_ROLES 名称。
+
+    找不到别名时原样返回（让 StateMachineService 抛 RoleForbidden）。
+    """
+    return _ROLE_ALIAS.get(role, role)
 
 
 def _to_parsed_stream(payload: dict[str, Any], tag: str) -> ParsedStream:
@@ -177,8 +213,16 @@ class StreamService:
         *,
         case_type: str | None = None,
     ) -> list[Stream]:
-        """项目下物流列表（可选 case_type 过滤）。"""
-        stmt = select(Stream).where(Stream.project_id == project_id)
+        """项目下物流列表（可选 case_type 过滤）。
+
+        SIM-13 D-3 闭环：selectinload(Stream.state_points) 防 N+1。
+        触发查询恒为 2（streams + state_points），与流数量无关。
+        """
+        stmt = (
+            select(Stream)
+            .where(Stream.project_id == project_id)
+            .options(selectinload(Stream.state_points))
+        )
         if case_type is not None:
             stmt = stmt.where(Stream.case_type == case_type)
         stmt = stmt.order_by(Stream.stream_name)
@@ -231,6 +275,94 @@ class StreamService:
         stream = await StreamService.get(db, stream_id)
         await db.delete(stream)
         await db.commit()
+
+    # =====================================================================
+    # 状态机（SIM-13，闭环审计 D-1）
+    # =====================================================================
+
+    @staticmethod
+    async def transition(
+        db: AsyncSession,
+        stream_id: uuid.UUID,
+        *,
+        transition: StateTransition,
+        actor_user_id: uuid.UUID,
+        actor_role: str,
+        reason: str | None = None,
+    ) -> Stream:
+        """物流状态机流转：DRAFT → IN_APPROVAL → CHECKED → ... 9 态闭环。
+
+        复用 P1 StateMachineService.transition()（app/services/state_machine.py）：
+        - SELECT FOR UPDATE 防并发覆盖（同一 stream 同时两次转移会串行化）
+        - 角色权限校验由 TRANSITION_ROLES 字典决定
+        - audit log 写入 AuditService
+        - snapshot 在 INITIATE_CHANGE / RESOLVE_STALE_CHANGED 时自动写
+
+        异常转译：
+        - InvalidTransition → PcsError(422, SIM_STREAM_INVALID_TRANSITION)
+        - RoleForbidden → PcsError(403, SIM_STREAM_ROLE_FORBIDDEN)
+        - Stream 不存在 → PcsError(404, SIM_STREAM_NOT_FOUND)
+
+        Args:
+            db: async session
+            stream_id: 目标物流 UUID
+            transition: StateTransition 事件（SUBMIT_FOR_CHECK/PASS_CHECK/...）
+            actor_user_id: 操作用户 UUID（写 audit）
+            actor_role: 操作用户角色（PROCESS_CONTROLLER/SYSTEM_ADMIN/DESIGNER
+                都会通过 _ROLE_ALIAS 映射为 state_machine 的命名）
+            reason: 转移原因（ABANDON_CHANGE / REQUEST_REVERSAL / OBSOLETE 时使用）
+
+        Returns:
+            流转后的 Stream（含最新 sign_status）
+
+        Raises:
+            PcsError(404): stream 不存在
+            PcsError(403): 角色无权执行该转移
+            PcsError(422): 状态机非法转移
+        """
+        # SELECT FOR UPDATE 串行化并发转移
+        stream = (
+            await db.execute(
+                select(Stream).where(Stream.stream_id == stream_id).with_for_update()
+            )
+        ).scalar_one_or_none()
+        if stream is None:
+            raise PcsError(
+                f"Stream {stream_id} 不存在",
+                code="SIM_STREAM_NOT_FOUND",
+                status=404,
+            )
+
+        resolved_role = _resolve_role(actor_role)
+        sm = StateMachineService(db)
+        # 预取 stream_name：rollback 后属性过期会触发 sync lazy-load（async 上下文崩溃）
+        stream_name = stream.stream_name
+        try:
+            result = await sm.transition(
+                record=stream,
+                transition=transition,
+                actor_user_id=actor_user_id,
+                actor_role=resolved_role,
+                reason=reason,
+            )
+        except RoleForbidden as e:
+            await db.rollback()
+            raise PcsError(
+                f"角色 {actor_role} 无权执行 {transition.value}",
+                code="SIM_STREAM_ROLE_FORBIDDEN",
+                status=403,
+            ) from e
+        except InvalidTransition as e:
+            await db.rollback()
+            raise PcsError(
+                f"物流 {stream_name} 当前状态 {e.from_status} "
+                f"无法执行 {e.transition}",
+                code="SIM_STREAM_INVALID_TRANSITION",
+                status=422,
+            ) from e
+        await db.commit()
+        await db.refresh(result)
+        return result
 
     @staticmethod
     def _to_dict(stream: Stream) -> dict[str, Any]:
