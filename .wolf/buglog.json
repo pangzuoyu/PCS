@@ -792,6 +792,39 @@
       ],
       "related_bugs": [],
       "occurrences": 1
+    },
+    {
+      "id": "bug-052",
+      "timestamp": "2026-09-08T20:30:00+08:00",
+      "error_message": "P3.2 SIM plan V1.0.1 与实际 ORM 现状 3 处不匹配（sign_status 类型、case_type 预存、source_type 已含 import 类枚举）",
+      "file": "docs/PCS-PLAN-P3.2-SIM.md",
+      "root_cause": "plan 假设 streams.sign_status 为 varchar(20) 需改 varchar(32)；实际已是 PG native enum streamsignstatus（VARCHAR(11) 显示）。plan 假设 stream_state_points.case_type 需新增；实际列已存在 NOT NULL VARCHAR(20)（ADR-0020）。plan 假设新增 import_source_type 字段；实际 streams.source_type 已含 SIM_IMPORT/MANUAL_ENTRY/LAB_REPORT/FLASH_CALCULATED/DEVICE_CALCULATED 5 值。vapor_fraction 列也已在 streams 上存在。",
+      "fix": "用户裁决 2026-09-08：按修正版 10 字段开工（净增 9 streams 列 + 2 CHECK 约束）；SIM-1 已落 commit，502/502 回归通过。sign_status 列不动（P4 走 ALTER TYPE ADD VALUE）。后续 plan 校核必跑 SQLAlchemy reflection 比对实际 schema。",
+      "tags": [
+        "p3.2-sim",
+        "plan-vs-reality",
+        "schema-introspection",
+        "corrected-to-10-fields"
+      ],
+      "related_bugs": [],
+      "occurrences": 1
+    },
+    {
+      "id": "bug-053",
+      "timestamp": "2026-09-08T13:45:00.000Z",
+      "error_message": "Only first unit_op parsed (T01 only, SS1/SS2/E01/P01/M01 missed); warnings list empty for sample2/sample4",
+      "file": "pcs-backend/app/services/proii_parser.py",
+      "root_cause": "Regex 用了 ^ 锚点但未带 re.MULTILINE 标志，导致 finditer 只命中字符串首行；warnings 解析用 ^ + finditer 同样问题。",
+      "fix": "所有行级模式解析改用 line.splitlines() + re.match() 逐行扫描（match 自带行首锚点）。_parse_unit_ops / _parse_warnings 改为按行迭代。",
+      "tags": [
+        "p3.2-sim-2",
+        "regex-anchor",
+        "no-multiline-flag",
+        "line-by-line-scan"
+      ],
+      "related_bugs": [],
+      "occurrences": 2,
+      "last_seen": "2026-09-08T13:45:00.000Z"
     }
   ]
 }
