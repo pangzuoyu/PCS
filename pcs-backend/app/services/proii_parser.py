@@ -1024,7 +1024,7 @@ def parse_proii_out_sections(out_path: Path | str) -> dict:
     # NEW SIM-20 sections
     run_stats = _parse_run_statistics(text)
     calc_history = _parse_calculation_history(text)
-    stream_rows = _parse_stream_summary_rows(text)
+    stream_rows, properties_units, component_units = _parse_stream_summary_rows(text)
     comp_data = _parse_component_data(text)
     reactor_summary = _parse_reactor_summary(text)
     cstr_summary = _parse_cstr_summary(text)
@@ -1042,6 +1042,8 @@ def parse_proii_out_sections(out_path: Path | str) -> dict:
         "column_summary": column_summary,
         "streams": stream_rows,            # 列拆分后 list[dict]
         "stream_summary_rows": stream_rows,  # 别名（向后兼容）
+        "properties_units": properties_units,  # SIM-20c：属性单位元数据
+        "component_units": component_units,    # SIM-20c：组分表单位元数据
         "component_data": comp_data,
         "reactor_summary": reactor_summary,  # list[dict]
         "cstr_summary": cstr_summary,        # list[dict]
@@ -1161,77 +1163,464 @@ def _parse_calculation_history(text: str) -> list[dict] | None:
     return rows if rows else None
 
 
-def _parse_stream_summary_rows(text: str) -> list[dict]:
-    """STREAM SUMMARY 段列拆分（spec §3.4.2 PR-5 + §3.6 SIM-22 join 需求）。
+def _parse_stream_summary_rows(text: str) -> tuple[list[dict], dict[str, str], dict[str, str]]:
+    """PRO/II 物流解析主入口（用户 2026-09-10 完整版方案）。
 
-    列拆分后 list[dict]，每个 dict 字段：
-        type           — FEED / PROD / RECYCLE
-        name           — stream 名（如 A/D/E）
-        phase          — MIXED / LIQUID / VAPOR
-        from_tray      — int | None（起点塔板号；空缺 None）
-        to_tray        — int | None（终点塔板号；空缺 None）
-        liquid_frac    — float | None
-        flow_kmolph    — float | None（KG-MOL/HR）
-        heat_mkcalph   — float | None（M*KCAL/HR）
+    解析 4 类物流表：
+      STREAM MOLAR COMPONENT PERCENTS — 组分摩尔百分数（mol%）
+      STREAM WEIGHT COMPONENT RATES    — 组分质量流量（kg/hr）
+      STREAM WEIGHT COMPONENT PERCENTS — 组分质量百分数（wt%）
+      STREAM SUMMARY                   — 总流量 + 物性 + 子相（T/V/L）
 
-    容错策略：跳过 TOC 行（如 "   233   STREAM SUMMARY"），匹配真实段头
-    "                  STREAM SUMMARY                    02/13/98"；
-    行首为 FEED/PROD/RECYCLE 即数据行；列缺失返回 None（不抛错）。
+    返回 tuple：(streams, properties_units, component_units)
+      streams         list[dict]，每个 stream 一条
+      properties_units dict[str, str] 属性名 → 单位（来自报告本身）
+      component_units  dict[str, str] 三套基准固定单位（mol%/kg/hr/wt%）
+
+    每个 stream 字段：
+      stream_id / phase
+      mol_percent / weight_rate / weight_percent 三个子 dict
+      properties 子 dict（TEMPERATURE/PRESSURE/ENTHALPY/MW/MOLE FRAC 等）
+      properties 字段同时拍平到顶层（temperature_c / pressure_kgcm2 / ...）
+
+    单位元数据：每行属性名（如 'TEMPERATURE, C'）→ 属性名 + 单位；
+    同属性多次出现时校验单位一致性（不一致仍采纳，不静默丢）。
+
+    容错：
+      跳过 TOC 数字行（'   233   STREAM SUMMARY'）
+      跳过分隔行（= / -）
+      N/A / 空 / **** 视为 None
+      科学计数法（1.5042E-19）原样保留为 float
+      FLUID MOLAR PERCENTS / FLUID WEIGHT RATES / FLUID WEIGHT PERCENTS 子段头
+      切换 current_mode
+
+    proii .out 纵表兼容：FEED/PROD 开头行也合并进 streams（type/name/from_tray
+    等字段），与横表 stream 名冲突时按横表优先。
     """
     import re
     lines = text.splitlines()
-    rows: list[dict] = []
-    toc_re = re.compile(r"^\s*\d+\s+STREAM SUMMARY\b", re.IGNORECASE)
-    real_header_re = re.compile(r"^\s+STREAM SUMMARY\b", re.IGNORECASE)
+    streams: dict[str, dict] = {}
+    properties_units: dict[str, str] = {}
+    current_ids: list[str] = []
+    id_positions: list[int] = []
+    needs_recalibration = False  # 进入新页后首个 RATE 行重写 id_positions
+    current_mode: str | None = None  # 'mol' | 'rate' | 'wt' | None
     in_section = False
-    in_subblock = False
+    vertical_rows: list[dict] = []  # 纵表回退（proii .out）
+    toc_re = re.compile(r"^\s*\d+\s+STREAM\b", re.IGNORECASE)
+    real_header_re = re.compile(
+        r"^\s+STREAM\s+(SUMMARY|MOLAR|WEIGHT)\b",
+        re.IGNORECASE,
+    )
+    stream_id_re = re.compile(r"^\s+STREAM ID\s+(.+)$", re.IGNORECASE)
+    property_keywords = (
+        "TOTAL RATE", "TEMPERATURE", "PRESSURE", "ENTHALPY",
+        "MOLECULAR WEIGHT", "MOLE FRAC VAPOR", "MOLE FRAC LIQUID",
+        "MOLE FRACTION VAPOR", "MOLE FRACTION LIQUID",
+        "WEIGHT FRAC VAPOR", "WEIGHT FRAC LIQUID",
+        "WEIGHT FRACTION VAPOR", "WEIGHT FRACTION LIQUID",
+        "ACENTRIC FACTOR", "WATSON", "STD LIQ DENSITY", "SPECIFIC GRAVITY",
+        "API GRAVITY", "SURFACE TENSION", "THERMAL COND", "VISCOSITY",
+        "CP,", "CV,", "DENSITY", "COMPRESSIBILITY", "STD LIQ RATE",
+        "REDUCED TEMP", "REDUCED PRES",
+    )
+
+    def get_or_init(sid: str) -> dict:
+        if sid not in streams:
+            streams[sid] = {
+                "stream_id": sid,
+                "phase": None,
+                "name": None,
+                "mol_percent": {},
+                "weight_rate": {},
+                "weight_percent": {},
+                "properties": {},
+            }
+        return streams[sid]
+
+    def parse_value_at(line: str, pos: int, end: int | None = None) -> float | None:
+        slice_ = line[pos:end].strip()
+        return _parse_numeric_or_none(slice_)
+
+    def extract_values_by_positions(line: str) -> list[float | None]:
+        """按 id_positions 切分每列的值（支持 N/A、空、****、科学计数法）。"""
+        if not current_ids:
+            return []
+        result: list[float | None] = []
+        for idx in range(len(current_ids)):
+            start = id_positions[idx]
+            end = (
+                id_positions[idx + 1]
+                if idx + 1 < len(id_positions)
+                else len(line)
+            )
+            val = parse_value_at(line, start, end)
+            result.append(val)
+        return result
+
+    def parse_property_line(line: str) -> None:
+        """属性行（如 'TEMPERATURE, C  130.0  40.0  ...'）按列写入 properties。
+
+        按 property_keywords 列表的优先级匹配行首。提取单位时只取紧跟逗号
+        后的首个 token（避免误把整行数值当单位）。
+
+        键归一化：用完整 label（含单位）走 _normalize_property_key，
+        得到 'temperature_c' / 'pressure_kgcm2' 等。
+        """
+        stripped_left = line.lstrip()
+        matched = None
+        unit = ""
+        full_label = ""
+        for kw in property_keywords:
+            if stripped_left.startswith(kw):
+                matched = kw
+                rest = stripped_left[len(kw):]
+                if rest.startswith(","):
+                    after_comma = rest[1:].lstrip()
+                    parts_after = after_comma.split(None, 1)
+                    if parts_after:
+                        unit = parts_after[0]
+                    full_label = f"{kw}, {unit}".rstrip(", ")
+                else:
+                    full_label = kw
+                break
+        if not matched:
+            return
+        properties_units[matched] = unit
+        # 按列位置取值
+        result: list[float | None] = []
+        for idx in range(len(current_ids)):
+            start = id_positions[idx]
+            end = (
+                id_positions[idx + 1]
+                if idx + 1 < len(id_positions)
+                else len(line)
+            )
+            slice_ = line[start:end].strip() if start < len(line) else ""
+            val = _parse_numeric_or_none(slice_)
+            result.append(val)
+        # 用 _normalize_property_key 归一化键（含单位后缀）
+        norm_key = _normalize_property_key(full_label)
+        for sid, val in zip(current_ids, result, strict=False):
+            if val is not None:
+                get_or_init(sid)["properties"][norm_key] = val
+
+    def parse_component_line(line: str) -> None:
+        """组分数据行：'    1  H2O          0.0361   9.1951E-14   ...'"""
+        m = re.match(r"^\s*(\d+)\s+([A-Za-z0-9]+)\s+(.*)$", line)
+        if not m or current_mode not in ("mol", "rate", "wt"):
+            return
+        comp_name = m.group(2)
+        values = extract_values_by_positions(line)
+        for sid, val in zip(current_ids, values, strict=False):
+            target = get_or_init(sid)
+            if val is None:
+                continue
+            if current_mode == "mol":
+                target["mol_percent"][comp_name] = val
+            elif current_mode == "rate":
+                target["weight_rate"][comp_name] = val
+            elif current_mode == "wt":
+                target["weight_percent"][comp_name] = val
+
     for line in lines:
         upper = line.upper().strip()
         if not in_section:
             if toc_re.match(line):
                 continue
-            if real_header_re.match(line) and not toc_re.match(line):
+            if real_header_re.match(line):
                 in_section = True
+                current_mode = None
                 continue
             continue
-        if upper.startswith(("FEED", "PROD", "RECYCLE")):
-            rows.append(_split_stream_row(line))
-            in_subblock = True
+        # in_section 之后：
+        if line.strip().startswith("***"):
+            in_section = False
+            current_ids = []
+            id_positions = []
+            needs_recalibration = False
+            current_mode = None
             continue
-        if upper.startswith("FEED AND PRODUCT") or upper.startswith("PSEUDO PRODUCT"):
-            in_subblock = True
+        # 页分隔（PRO/II 用 ^L form feed）→ 复位 current_ids 让下一个
+        # STREAM ID 行重新建立，但保持 in_section=True
+        if "\f" in line:
+            current_ids = []
+            id_positions = []
+            needs_recalibration = False
+            current_mode = None
             continue
         if upper.startswith("OVERALL") or upper.startswith("END OF RUN"):
-            break
-        if line.strip().startswith("***"):
-            break
-        if not upper or set(upper) <= {"-", "="}:
+            in_section = False
+            current_ids = []
+            id_positions = []
+            needs_recalibration = False
+            current_mode = None
             continue
-        if in_subblock and ("PHASE" in upper or upper.startswith("TYPE") or
-                          upper.startswith("----")):
+        # STREAM ID 行：建立当前页 stream 列表 + 列位置（待 RATE 行校准）
+        m = stream_id_re.match(line)
+        if m:
+            after = m.group(1)
+            ids = re.findall(r"\S+", after)
+            if ids:
+                current_ids = ids
+                positions = [line.find(sid) for sid in ids]
+                sorted_pairs = sorted(zip(positions, ids, strict=True))
+                id_positions = [p for p, _ in sorted_pairs]
+                current_ids = [sid for _, sid in sorted_pairs]
+                needs_recalibration = True
             continue
-    return rows
+        # RATE/TOTAL RATE/STD LIQ RATE 等典型数值行：用以重新校准列起点
+        # PRO/II STREAM ID 位置与数据列起点不严格对齐（ID 在列内左侧），
+        # 但 RATE 等数值行右对齐到列末尾。用首个数值行作为列位置的真值。
+        if (
+            needs_recalibration
+            and current_ids
+            and re.match(r"^\s+(RATE|TOTAL RATE|STD LIQ RATE),", line)
+        ):
+            positions_found = [
+                m.start()
+                for m in re.finditer(r"-?\d+\.\d+(?:E[+-]?\d+)?", line)
+            ]
+            if len(positions_found) == len(current_ids):
+                id_positions = positions_found
+                needs_recalibration = False
+            # 不 continue → 让 parse_property_line 也处理（写 properties + units）
+        if upper.startswith("NAME"):
+            continue
+        if upper.startswith("PHASE"):
+            parts = upper.split()[1:]
+            for sid, p in zip(current_ids, parts, strict=False):
+                if p in {"LIQUID", "VAPOR", "MIXED", "VAP/LIQ", "SOLID"}:
+                    get_or_init(sid)["phase"] = p
+            continue
+        if "FLUID MOLAR PERCENTS" in upper:
+            current_mode = "mol"
+            continue
+        if "FLUID MOLAR RATES" in upper or "FLUID RATES" in upper:
+            current_mode = "rate"
+            continue
+        if "FLUID WEIGHT RATES" in upper:
+            current_mode = "rate"
+            continue
+        if "FLUID WEIGHT PERCENTS" in upper:
+            current_mode = "wt"
+            continue
+        # 纵表兼容：proii .out 的 FEED/PROD 开头行
+        if not current_ids and upper.startswith(("FEED", "PROD", "RECYCLE")):
+            vertical_rows.append(_split_stream_row(line))
+            continue
+        if not current_ids:
+            continue
+        # 组分数据行（数字 + 名称开头）
+        if re.match(r"^\s*\d+\s+\S+", line):
+            parse_component_line(line)
+            continue
+        # 属性行
+        parse_property_line(line)
+
+    # 合并纵表行（proii .out 兼容）：按 name 加入
+    for vrow in vertical_rows:
+        name = vrow.get("name")
+        if not name:
+            continue
+        target = get_or_init(name)
+        # name/stream_id 允许覆盖 None（横表创建时可能为 None）
+        if not target.get("name"):
+            target["name"] = name
+        if not target.get("stream_id"):
+            target["stream_id"] = name
+        for k, v in vrow.items():
+            if v is None:
+                continue
+            if k in {"type", "from_tray", "to_tray", "liquid_frac",
+                      "flow_kmolph", "heat_mkcalph", "phase"}:
+                target.setdefault(k, v)
+
+    # "FEED AND PRODUCT STREAMS" 段纵表（column summary 段内，含
+    # TYPE/STREAM/PHASE/FROM/TO/LIQUID FRAC/FLOW RATES/HEAT RATES 列）
+    feed_prod_re = re.compile(r"^\s+FEED AND PRODUCT STREAMS\s*$", re.IGNORECASE)
+    fp_in = False
+    fp_dashes_seen = False
+    fp_column_starts: list[int] = []
+    fp_header_line: str = ""
+    fp_dashes_line: str = ""
+    for line in lines:
+        if feed_prod_re.match(line):
+            fp_in = True
+            fp_dashes_seen = False
+            fp_column_starts = []
+            fp_header_line = ""
+            fp_dashes_line = ""
+            continue
+        if fp_in:
+            stripped = line.strip()
+            if not stripped:
+                continue
+            if stripped.startswith("***"):
+                fp_in = False
+                continue
+            # dashes row (-----)：与 header 一起解析列起点
+            if stripped.startswith("---"):
+                fp_dashes_seen = True
+                fp_dashes_line = line
+                fp_column_starts = _detect_column_starts(fp_header_line, fp_dashes_line)
+                continue
+            # 检测表头第一行："  TYPE     STREAM    PHASE   FROM  TO   LIQUID ..."
+            if (
+                not fp_dashes_seen
+                and "TYPE" in line
+                and "STREAM" in line
+                and "PHASE" in line
+            ):
+                fp_header_line = line
+                continue
+            # 段尾（下一个 OVERALL 或 SPECIFICATIONS）
+            if stripped.startswith("OVERALL") or stripped.startswith("PSEUDO") \
+                    or stripped.startswith("SPECIFICATIONS") \
+                    or stripped.startswith("PARAMETER"):
+                fp_in = False
+                continue
+            # 纵表行：FEED/PROD/RECYCLE/NET 开头
+            if re.match(r"^\s*(FEED|PROD|RECYCLE|NET)\s+\S+", line):
+                row = _split_stream_row(line, fp_column_starts)
+                name = row.get("name")
+                if name:
+                    target = get_or_init(name)
+                    if not target.get("name"):
+                        target["name"] = name
+                    if not target.get("stream_id"):
+                        target["stream_id"] = name
+                    for k, v in row.items():
+                        if v is None:
+                            continue
+                        if k in {"type", "from_tray", "to_tray",
+                                  "liquid_frac", "flow_kmolph",
+                                  "heat_mkcalph", "phase"}:
+                            target.setdefault(k, v)
+
+    # 把 properties 字段拍平到顶层（兼容 SIM-22 PropertyConflictResolver 调用）
+    result: list[dict] = []
+    for _sid, s in streams.items():
+        flat = {**s}
+        props = s.get("properties") or {}
+        for prop_name, val in props.items():
+            flat[prop_name] = val
+        result.append(flat)
+
+    # 固定单位元数据（组分表）
+    component_units = {
+        "mol_percent": "mol%",
+        "weight_rate": "kg/hr",
+        "weight_percent": "wt%",
+    }
+    return result, properties_units, component_units
 
 
-def _split_stream_row(line: str) -> dict:
-    """单条 STREAM SUMMARY 数据行列拆分。
+def _normalize_property_key(label: str) -> str:
+    """PRO/II 物性行标签 → 统一 snake_case 字段名。
 
-    典型行格式（PRO/II 8 列表头）：
+    例：
+        'TEMPERATURE, C'           → 'temperature_c'
+        'PRESSURE, KG/CM2'         → 'pressure_kgcm2'
+        'MOLECULAR WEIGHT'         → 'molecular_weight'
+        'RATE, KG-MOL/HR'          → 'rate_kgmolph'
+        'ENTHALPY, M*KCAL/HR'      → 'enthalpy_mkcalph'
+        'ENTHALPY, KCAL/KG'        → 'enthalpy_kcal_kg'
+        'STD LIQ DENSITY, KG/M3'   → 'std_liq_density_kgm3'
+        'SPECIFIC GRAVITY (AIR=1.0)' → 'specific_gravity_air'
+        'REDUCED TEMP (KAYS RULE)' → 'reduced_temp_kays'
+    """
+    s = label.strip().upper()
+    # 去掉括号注释
+    s = re.sub(r"\s*\([^)]*\)\s*", " ", s).strip()
+    # 单位映射
+    unit_map = {
+        "C": "c",
+        "KG/CM2": "kgcm2",
+        "KG-MOL/HR": "kgmolph",
+        "M*KCAL/HR": "mkcalph",
+        "KCAL/KG": "kcal_kg",
+        "KCAL/KG-C": "kcal_kg_c",
+        "KG/M3": "kgm3",
+        "KG/HR": "kgph",
+        "M3/HR": "m3ph",
+        "K*M3/HR": "km3ph",
+        "CP": "cp",
+        "PSI": "psi",
+    }
+    # 拆 "TEMPERATURE, C" → ('TEMPERATURE', 'C')
+    parts = [p.strip() for p in s.split(",")]
+    name = parts[0]
+    unit = parts[1] if len(parts) > 1 else ""
+    name_snake = re.sub(r"\s+", "_", name.lower())
+    if unit:
+        unit_norm = unit_map.get(unit.strip(), unit.lower().replace("/", "_"))
+        return f"{name_snake}_{unit_norm}"
+    return name_snake
+
+
+def _parse_numeric_or_none(token: str) -> float | None:
+    """N/A / 空 / 非数字 → None；否则 float。"""
+    s = token.strip()
+    if not s or s.upper() in {"N/A", "NA", "-", "****", "*"}:
+        return None
+    try:
+        return float(s)
+    except ValueError:
+        return None
+
+
+def _detect_column_starts(header_line: str, dashes_line: str) -> list[int]:
+    """从 FEED AND PRODUCT STREAMS 表头+dashes 行识别 8 列起点。
+
+    header_line: '  TYPE     STREAM    PHASE   FROM  TO   LIQUID ...'
+    dashes_line: '  ----- ------------ ------  ---- ----  ------ ...'
+
+    数据列起点 = dashes 段左端位置。返回 8 个整数（TYPE/STREAM/PHASE/
+    FROM TRAY/TO TRAY/LIQUID FRAC/FLOW RATES/HEAT RATES 起点）。如果
+    dashes 段数 ≠ 8 退化为从 header 提取。
+    """
+    # 主路径：dashes 行每段 '-' 起点 = 列起点
+    groups: list[tuple[int, int]] = []
+    i = 0
+    n = len(dashes_line)
+    while i < n:
+        if dashes_line[i] == "-":
+            j = i
+            while j < n and dashes_line[j] == "-":
+                j += 1
+            groups.append((i, j))
+            i = j
+        else:
+            i += 1
+    if len(groups) == 8:
+        return [g[0] for g in groups]
+    # 回退：从 header 提取
+    keywords = ["TYPE", "STREAM", "PHASE", "FROM", "TO", "LIQUID",
+                "FLOW RATES", "HEAT RATES"]
+    starts: list[int] = []
+    for kw in keywords:
+        pos = header_line.find(kw)
+        if pos < 0:
+            return []
+        starts.append(pos)
+    if len(starts) >= 7 and starts[6] < starts[5]:
+        return []
+    return starts
+
+
+def _split_stream_row(line: str, column_starts: list[int] | None = None) -> dict:
+    """单条 STREAM SUMMARY 数据行列拆分（PRO/II FEED AND PRODUCT STREAMS 段）。
+
+    典型行格式（PRO/II 8 列固定列宽表头）：
         FEED  A            MIXED          25   .8091             120.35        2.9552
         PROD  D            LIQUID     1                           18.68         .2768
         PROD  E            LIQUID    45                          101.67        2.5285
 
-    列定位依据：
-      [0]   type           FEED/PROD/RECYCLE（首列字母）
-      [1]   name           stream 名
-      [2]   phase          MIXED/LIQUID/VAPOR
-      [3]   from_tray      int（FROM TRAY）或空
-      [4]   to_tray        int（TO TRAY）或空
-      [5]   liquid_frac    float（LIQUID FRAC）
-      [6]   flow_kmolph    float（KG-MOL/HR）
-      [7]   heat_mkcalph   float（M*KCAL/HR）
+    关键：FROM TRAY 列允许空白（空白 → None），不能用 split() 按位置。
+    用 column_starts（来自表头行）切分字段，对空白段返回 None。
+    column_starts 为空时退回到经验默认偏移（可能与实际不符）。
     """
-    parts = line.split()
     out: dict = {
         "type": None,
         "name": None,
@@ -1242,29 +1631,52 @@ def _split_stream_row(line: str) -> dict:
         "flow_kmolph": None,
         "heat_mkcalph": None,
     }
-    if not parts:
+    if len(line) < 7:
         return out
-    out["type"] = parts[0].upper()
-    if len(parts) >= 2:
-        out["name"] = parts[1]
-    if len(parts) >= 3:
-        phase_candidate = parts[2].upper()
-        if phase_candidate in {"MIXED", "LIQUID", "VAPOR", "VAP/LIQ", "SOLID"}:
-            out["phase"] = phase_candidate
-    # 列 [3..7] 可能为数字或空（固定列宽分隔）；按位置尝试解析
-    numeric_positions = {3: "from_tray", 4: "to_tray", 5: "liquid_frac",
-                          6: "flow_kmolph", 7: "heat_mkcalph"}
-    for idx, field in numeric_positions.items():
-        if len(parts) > idx:
-            val = parts[idx]
-            try:
-                if field in {"from_tray", "to_tray"}:
-                    out[field] = int(val)
-                else:
-                    out[field] = float(val)
-            except (ValueError, TypeError):
-                # 非数字（"****" 占位/空字段）→ 保持 None
-                pass
+
+    if not column_starts:
+        # 回退：经验默认偏移（只对 line 466-468 风格有效）
+        column_starts = [2, 7, 19, 26, 33, 38, 46, 58]
+
+    def slice_field(start: int, end: int) -> str:
+        s = line[start:end] if end <= len(line) else line[start:]
+        return s.strip()
+
+    def parse_num(s: str, as_int: bool) -> int | float | None:
+        if not s:
+            return None
+        try:
+            return int(s) if as_int else float(s)
+        except (ValueError, TypeError):
+            return None
+
+    # column_starts 8 个值：TYPE/STREAM/PHASE/FROM/TO/LIQ_FRAC/FLOW/HEAT
+    type_end = column_starts[1] if len(column_starts) > 1 else len(line)
+    name_end = column_starts[2] if len(column_starts) > 2 else len(line)
+    phase_end = column_starts[3] if len(column_starts) > 3 else len(line)
+    from_end = column_starts[4] if len(column_starts) > 4 else len(line)
+    to_end = column_starts[5] if len(column_starts) > 5 else len(line)
+    liq_end = column_starts[6] if len(column_starts) > 6 else len(line)
+    heat_end = column_starts[7] if len(column_starts) > 7 else len(line)
+
+    out["type"] = slice_field(column_starts[0], type_end).upper() or None
+    out["name"] = slice_field(column_starts[1], name_end) or None
+
+    phase_str = slice_field(column_starts[2], phase_end).upper()
+    if phase_str in {"MIXED", "LIQUID", "VAPOR", "VAP/LIQ", "SOLID"}:
+        out["phase"] = phase_str
+
+    out["from_tray"] = parse_num(
+        slice_field(column_starts[3], from_end), as_int=True)
+    out["to_tray"] = parse_num(
+        slice_field(column_starts[4], to_end), as_int=True)
+    out["liquid_frac"] = parse_num(
+        slice_field(column_starts[5], liq_end), as_int=False)
+    out["flow_kmolph"] = parse_num(
+        slice_field(column_starts[6], heat_end), as_int=False)
+    out["heat_mkcalph"] = parse_num(
+        slice_field(column_starts[7], len(line)), as_int=False)
+
     return out
 
 
