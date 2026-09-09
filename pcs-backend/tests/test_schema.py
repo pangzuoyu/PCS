@@ -30,7 +30,8 @@ def test_table_count(inspector):
     # SUP-002 FMT-1+FMT-3 新增 pipe_code_templates + project_pipe_code_configs
     #   + project_pipe_code_sequences = 62
     # SUP-002 INT-1 新增 project_template_pipe_classes = 63
-    assert len(tables) == 63, f"expected 63 incl. alembic_version, got {len(tables)}"
+    # P3.x SIM-14 新增 sim_imports + sim_import_warnings = 65
+    assert len(tables) == 65, f"expected 65 incl. alembic_version, got {len(tables)}"
 
 
 def test_required_tables_present(inspector):

@@ -15,13 +15,15 @@ from datetime import datetime
 
 from sqlalchemy import (
     DateTime,
-    Enum as SAEnum,
     ForeignKey,
     Index,
     String,
     Text,
     Uuid,
     func,
+)
+from sqlalchemy import (
+    Enum as SAEnum,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -102,7 +104,7 @@ class SimImport(Base):
     committed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     committed_by: Mapped[uuid.UUID | None] = mapped_column(Uuid)
 
-    warnings: Mapped[list["SimImportWarning"]] = relationship(
+    warnings: Mapped[list[SimImportWarning]] = relationship(
         back_populates="sim_import",
         cascade="all, delete-orphan",
         passive_deletes=True,
@@ -139,7 +141,7 @@ class SimImportWarning(Base):
         DateTime(timezone=True), server_default=func.now()
     )
 
-    sim_import: Mapped["SimImport"] = relationship(back_populates="warnings")
+    sim_import: Mapped[SimImport] = relationship(back_populates="warnings")
 
 
 __all__ = [

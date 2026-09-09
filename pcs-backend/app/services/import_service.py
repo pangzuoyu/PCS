@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import tempfile
 import uuid
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -374,7 +375,7 @@ class ImportService:
         返回 {"import_id": UUID, "preview": <StreamImportPreview dict>}
         客户端保留 import_id，commit 阶段传入。
         """
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         from app.models.sim_import import (
             SimImport,
@@ -383,7 +384,7 @@ class ImportService:
         )
 
         preview_dict = cls.preview_proii(inp_path, out_path)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         sim_import = SimImport(
             project_id=project_id,
             workspace_id=workspace_id,
@@ -427,11 +428,12 @@ class ImportService:
         - 状态：status=PREVIEW
         - 过期：expires_at > now（否则 410）
         """
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from app.models.sim_import import SimImportStatus
 
-        sim_import = await db.get(SimImport := _SimImportModel(), import_id)
+        model_cls = _SimImportModel()
+        sim_import = await db.get(model_cls, import_id)
         if sim_import is None:
             raise PcsError(
                 code="SIM_IMPORT_NOT_FOUND",
@@ -447,8 +449,13 @@ class ImportService:
                 ),
                 status=409,
             )
-        now = datetime.now(timezone.utc)
-        if sim_import.expires_at < now:
+        now = datetime.now(UTC)
+        # DB 返回的 DateTime(timezone=True) 在 asyncpg 驱动下可能为 offset-naive，
+        # 为避免 TypeError，统一 cast 为 offset-aware 比较。
+        expires_at = sim_import.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=UTC)
+        if expires_at < now:
             sim_import.status = SimImportStatus.EXPIRED
             await db.flush()
             raise PcsError(
@@ -487,7 +494,7 @@ class ImportService:
         actor: uuid.UUID,
     ) -> dict[str, Any]:
         """Excel stateful preview：解析 → 持久化到 sim_imports（status=PREVIEW）。"""
-        from datetime import datetime, timedelta, timezone
+        from datetime import datetime, timedelta
 
         from app.models.sim_import import (
             SimImport,
@@ -496,7 +503,7 @@ class ImportService:
         )
 
         preview_dict = cls.preview_excel(path)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         sim_import = SimImport(
             project_id=project_id,
             workspace_id=workspace_id,
@@ -528,7 +535,7 @@ class ImportService:
         actor: uuid.UUID,
     ) -> dict[str, Any]:
         """Excel stateful commit：通过 import_id 读取 sim_imports，落库 + 更新状态=COMMITTED。"""
-        from datetime import datetime, timezone
+        from datetime import datetime
 
         from app.models.sim_import import SimImportStatus
 
@@ -548,8 +555,13 @@ class ImportService:
                 ),
                 status=409,
             )
-        now = datetime.now(timezone.utc)
-        if sim_import.expires_at < now:
+        now = datetime.now(UTC)
+        # DB 返回的 DateTime(timezone=True) 在 asyncpg 驱动下可能为 offset-naive，
+        # 为避免 TypeError，统一 cast 为 offset-aware 比较。
+        expires_at = sim_import.expires_at
+        if expires_at.tzinfo is None:
+            expires_at = expires_at.replace(tzinfo=UTC)
+        if expires_at < now:
             sim_import.status = SimImportStatus.EXPIRED
             await db.flush()
             raise PcsError(
