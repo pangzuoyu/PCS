@@ -2,7 +2,8 @@
 
 spec §5.5 + audit V2.0 E-1：
 - 主表 sim_unit_op_results 公共字段
-- 6 类专用表：SimReactorResult/SimCstrResult/SimCompressorResult/SimSplitterResult/SimStcaResult/SimCalculatorResult
+- 6 类专用表：SimReactorResult / SimCstrResult / SimCompressorResult /
+  SimSplitterResult / SimStcaResult / SimCalculatorResult
 - FK：主表 → sim_imports（CASCADE）；专用表 → 主表（CASCADE）
 - 唯一约束 (import_id, unit_uid)
 """
