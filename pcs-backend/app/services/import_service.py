@@ -349,6 +349,238 @@ class ImportService:
             "warnings": warnings,
         }
 
+    # =========================================================================
+    # P3.x SIM-14：stateful preview（preview 阶段持久化到 sim_imports，
+    # commit 阶段通过 import_id 读取并更新 status=COMMITTED）
+    # D-4 闭环条件：sim_imports.import_id 在 preview 阶段生成并持久化
+    # =========================================================================
+
+    _PREVIEW_TTL_HOURS = 24  # 24h 过期（业务可调）
+
+    @classmethod
+    async def preview_proii_stateful(
+        cls,
+        db: AsyncSession,
+        *,
+        project_id: uuid.UUID,
+        workspace_id: uuid.UUID,
+        inp_path: Path | str,
+        out_path: Path | str,
+        source_file_name: str,
+        actor: uuid.UUID,
+    ) -> dict[str, Any]:
+        """PRO/II stateful preview：解析 → 持久化到 sim_imports（status=PREVIEW）。
+
+        返回 {"import_id": UUID, "preview": <StreamImportPreview dict>}
+        客户端保留 import_id，commit 阶段传入。
+        """
+        from datetime import datetime, timedelta, timezone
+
+        from app.models.sim_import import (
+            SimImport,
+            SimImportStatus,
+            SimImportType,
+        )
+
+        preview_dict = cls.preview_proii(inp_path, out_path)
+        now = datetime.now(timezone.utc)
+        sim_import = SimImport(
+            project_id=project_id,
+            workspace_id=workspace_id,
+            import_type=SimImportType.PROII,
+            status=SimImportStatus.PREVIEW,
+            source_file_name=source_file_name,
+            convergence_status=preview_dict.get("convergence_status"),
+            banner_version=(
+                preview_dict.get("preview_streams", [{}])[0].get(
+                    "import_source_version"
+                )
+                if preview_dict.get("preview_streams")
+                else None
+            ),
+            preview_streams_json=preview_dict.get("preview_streams", []),
+            conflict_report_json=preview_dict.get("conflict_report"),
+            warnings_json=preview_dict.get("warnings", []),
+            created_by=actor,
+            created_at=now,
+            expires_at=now + timedelta(hours=cls._PREVIEW_TTL_HOURS),
+        )
+        db.add(sim_import)
+        await db.flush()
+        return {
+            "import_id": sim_import.import_id,
+            "preview": preview_dict,
+        }
+
+    @classmethod
+    async def commit_proii_stateful(
+        cls,
+        db: AsyncSession,
+        *,
+        import_id: uuid.UUID,
+        actor: uuid.UUID,
+    ) -> dict[str, Any]:
+        """PRO/II stateful commit：通过 import_id 读取 sim_imports，落库 + 更新状态=COMMITTED。
+
+        校验：
+        - 存在性：import_id 必须存在
+        - 状态：status=PREVIEW
+        - 过期：expires_at > now（否则 410）
+        """
+        from datetime import datetime, timezone
+
+        from app.models.sim_import import SimImportStatus
+
+        sim_import = await db.get(SimImport := _SimImportModel(), import_id)
+        if sim_import is None:
+            raise PcsError(
+                code="SIM_IMPORT_NOT_FOUND",
+                message=f"import_id={import_id} 不存在",
+                status=404,
+            )
+        if sim_import.status != SimImportStatus.PREVIEW:
+            raise PcsError(
+                code="SIM_IMPORT_INVALID_STATE",
+                message=(
+                    f"import_id={import_id} 当前状态 {sim_import.status.value}，"
+                    f"仅 PREVIEW 状态可 commit"
+                ),
+                status=409,
+            )
+        now = datetime.now(timezone.utc)
+        if sim_import.expires_at < now:
+            sim_import.status = SimImportStatus.EXPIRED
+            await db.flush()
+            raise PcsError(
+                code="SIM_IMPORT_EXPIRED",
+                message=(
+                    f"import_id={import_id} 已于 "
+                    f"{sim_import.expires_at.isoformat()} 过期"
+                ),
+                status=410,
+            )
+        # 复用 commit_proii 落库逻辑（preview_streams 从 sim_imports 读）
+        result = await cls.commit_proii(
+            db,
+            project_id=sim_import.project_id,
+            workspace_id=sim_import.workspace_id,
+            preview_streams=sim_import.preview_streams_json,
+            actor=actor,
+        )
+        # 更新状态 = COMMITTED
+        sim_import.status = SimImportStatus.COMMITTED
+        sim_import.committed_at = now
+        sim_import.committed_by = actor
+        await db.flush()
+        result["import_id"] = import_id
+        return result
+
+    @classmethod
+    async def preview_excel_stateful(
+        cls,
+        db: AsyncSession,
+        *,
+        project_id: uuid.UUID,
+        workspace_id: uuid.UUID,
+        path: Path | str,
+        source_file_name: str,
+        actor: uuid.UUID,
+    ) -> dict[str, Any]:
+        """Excel stateful preview：解析 → 持久化到 sim_imports（status=PREVIEW）。"""
+        from datetime import datetime, timedelta, timezone
+
+        from app.models.sim_import import (
+            SimImport,
+            SimImportStatus,
+            SimImportType,
+        )
+
+        preview_dict = cls.preview_excel(path)
+        now = datetime.now(timezone.utc)
+        sim_import = SimImport(
+            project_id=project_id,
+            workspace_id=workspace_id,
+            import_type=SimImportType.EXCEL,
+            status=SimImportStatus.PREVIEW,
+            source_file_name=source_file_name,
+            convergence_status=preview_dict.get("convergence_status"),
+            banner_version=None,
+            preview_streams_json=preview_dict.get("preview_streams", []),
+            conflict_report_json=preview_dict.get("conflict_report"),
+            warnings_json=preview_dict.get("warnings", []),
+            created_by=actor,
+            created_at=now,
+            expires_at=now + timedelta(hours=cls._PREVIEW_TTL_HOURS),
+        )
+        db.add(sim_import)
+        await db.flush()
+        return {
+            "import_id": sim_import.import_id,
+            "preview": preview_dict,
+        }
+
+    @classmethod
+    async def commit_excel_stateful(
+        cls,
+        db: AsyncSession,
+        *,
+        import_id: uuid.UUID,
+        actor: uuid.UUID,
+    ) -> dict[str, Any]:
+        """Excel stateful commit：通过 import_id 读取 sim_imports，落库 + 更新状态=COMMITTED。"""
+        from datetime import datetime, timezone
+
+        from app.models.sim_import import SimImportStatus
+
+        sim_import = await db.get(_SimImportModel(), import_id)
+        if sim_import is None:
+            raise PcsError(
+                code="SIM_IMPORT_NOT_FOUND",
+                message=f"import_id={import_id} 不存在",
+                status=404,
+            )
+        if sim_import.status != SimImportStatus.PREVIEW:
+            raise PcsError(
+                code="SIM_IMPORT_INVALID_STATE",
+                message=(
+                    f"import_id={import_id} 当前状态 {sim_import.status.value}，"
+                    f"仅 PREVIEW 状态可 commit"
+                ),
+                status=409,
+            )
+        now = datetime.now(timezone.utc)
+        if sim_import.expires_at < now:
+            sim_import.status = SimImportStatus.EXPIRED
+            await db.flush()
+            raise PcsError(
+                code="SIM_IMPORT_EXPIRED",
+                message=(
+                    f"import_id={import_id} 已于 "
+                    f"{sim_import.expires_at.isoformat()} 过期"
+                ),
+                status=410,
+            )
+        result = await cls.commit_excel(
+            db,
+            project_id=sim_import.project_id,
+            workspace_id=sim_import.workspace_id,
+            preview_streams=sim_import.preview_streams_json,
+            actor=actor,
+        )
+        sim_import.status = SimImportStatus.COMMITTED
+        sim_import.committed_at = now
+        sim_import.committed_by = actor
+        await db.flush()
+        result["import_id"] = import_id
+        return result
+
+
+def _SimImportModel():
+    """延迟 import 避免循环引用。"""
+    from app.models.sim_import import SimImport
+
+    return SimImport
+
 
 def _entry_to_stream_create(
     entry: dict[str, Any],

@@ -1,18 +1,23 @@
-"""P3.2 SIM-10：PRO/II + Excel 导入预览与 commit API（spec V1.6 §5.5）。
+"""P3.2 SIM-10 + P3.x SIM-14：PRO/II + Excel 导入 stateful preview/commit API。
+
+P3.x SIM-14 D-4 等价闭环（用户 2026-09-09 裁决）：
+- preview 阶段：解析后写入 sim_imports（status=PREVIEW），返回 import_id
+- commit 阶段：通过 import_id 读取 sim_imports，校验未过期，落库后更新 status=COMMITTED
 
 端点（4 个）：
 - POST /api/v1/projects/{project_id}/imports/proii/preview
-    multipart/form-data: file_inp + file_out → StreamImportPreview
+    multipart/form-data: file_inp + file_out → {import_id, preview}
 - POST /api/v1/projects/{project_id}/imports/proii/commit
-    application/json: {preview_streams: [...]} → StreamImportResult
+    application/json: {import_id} → StreamImportResult
 - POST /api/v1/projects/{project_id}/imports/excel/preview
-    multipart/form-data: file_xlsx → StreamImportPreview
+    multipart/form-data: file_xlsx → {import_id, preview}
 - POST /api/v1/projects/{project_id}/imports/excel/commit
-    application/json: {preview_streams: [...]} → StreamImportResult
+    application/json: {import_id} → StreamImportResult
 
 设计要点：
-- preview 写临时文件 + parse + 立即 unlink（不持久化）
-- commit 接收 preview 内容（含 unreliable 标记）→ StreamService.create 复用
+- preview 写临时文件 + parse + 持久化到 sim_imports
+- commit 接收 import_id（不再接收 preview_streams）→ sim_imports 读取 → 落库
+- 24h 过期机制：expires_at < now → 410 Gone
 - 业务错走 core.errors.PcsError envelope
 - ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
 """
@@ -20,7 +25,7 @@ from __future__ import annotations
 
 import uuid
 from pathlib import Path
-from typing import Annotated, Any
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from pydantic import BaseModel, Field
@@ -31,7 +36,7 @@ from app.api.v1.streams import _load_project, _to_http
 from app.core.errors import PcsError as CorePcsError
 from app.core.upload_size_limit import enforce_upload_size
 from app.db.session import get_db
-from app.schemas.stream import StreamImportPreview, StreamImportResult
+from app.schemas.stream import StreamImportResult
 from app.services.exceptions import PcsError
 from app.services.import_service import ImportService, write_temp_upload
 
@@ -43,18 +48,19 @@ router = APIRouter(prefix="/projects/{project_id}/imports", tags=["imports"])
 # ---------------------------------------------------------------------------
 
 
-class CommitRequest(BaseModel):
-    """commit 请求体：preview 阶段返回的 preview_streams 列表。
+class CommitByImportIdRequest(BaseModel):
+    """commit 请求体：仅含 import_id（preview 阶段已返回并持久化到 sim_imports）。"""
 
-    workspace_id 可选（缺省取 Project.workspace_id）。
-    """
+    import_id: uuid.UUID = Field(
+        ..., description="preview 阶段返回的 import_id（sim_imports PK）"
+    )
 
-    workspace_id: uuid.UUID | None = Field(
-        None, description="所属工作区 ID（缺省取 Project.workspace_id）"
-    )
-    preview_streams: list[dict[str, Any]] = Field(
-        ..., min_length=1, description="preview 阶段返回的 preview_streams 列表"
-    )
+
+class StatefulPreviewResponse(BaseModel):
+    """stateful preview 响应：import_id + 预览内容。"""
+
+    import_id: uuid.UUID = Field(..., description="sim_imports PK；commit 阶段传入")
+    preview: dict = Field(..., description="预览内容（与原 stateless preview 同结构）")
 
 
 # ---------------------------------------------------------------------------
@@ -64,7 +70,7 @@ class CommitRequest(BaseModel):
 
 @router.post(
     "/proii/preview",
-    response_model=StreamImportPreview,
+    response_model=StatefulPreviewResponse,
 )
 async def preview_proii(
     project_id: uuid.UUID,
@@ -72,10 +78,10 @@ async def preview_proii(
     db: Annotated[AsyncSession, Depends(get_db)],
     file_inp: UploadFile = File(..., description="PRO/II .inp 输入文件"),
     file_out: UploadFile = File(..., description="PRO/II .out 输出文件"),
-) -> StreamImportPreview:
-    """PRO/II 双文件导入预览：parser + ConflictResolver（不落库）。"""
+) -> StatefulPreviewResponse:
+    """PRO/II 双文件导入预览（stateful）：解析 → 持久化到 sim_imports（status=PREVIEW）。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    await _load_project(db, project_id)
+    project = await _load_project(db, project_id)
 
     inp_path: Path | None = None
     out_path: Path | None = None
@@ -90,7 +96,15 @@ async def preview_proii(
         inp_path = write_temp_upload(inp_bytes, suffix=".inp")
         out_path = write_temp_upload(out_bytes, suffix=".out")
         try:
-            preview_dict = ImportService.preview_proii(inp_path, out_path)
+            result = await ImportService.preview_proii_stateful(
+                db,
+                project_id=project_id,
+                workspace_id=project.workspace_id,
+                inp_path=inp_path,
+                out_path=out_path,
+                source_file_name=file_inp.filename or "proii.inp",
+                actor=user.user_id,
+            )
         except ValueError as e:
             # parser banner / 缺文件 等结构错
             raise CorePcsError(
@@ -104,7 +118,10 @@ async def preview_proii(
                 message=str(e),
                 status=404,
             ) from e
-        return StreamImportPreview(**preview_dict)
+        await db.commit()
+        return StatefulPreviewResponse(
+            import_id=result["import_id"], preview=result["preview"]
+        )
     finally:
         if inp_path is not None:
             inp_path.unlink(missing_ok=True)
@@ -118,24 +135,20 @@ async def preview_proii(
 )
 async def commit_proii(
     project_id: uuid.UUID,
-    req: CommitRequest,
+    req: CommitByImportIdRequest,
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> StreamImportResult:
-    """PRO/II preview → 落库（复用 StreamService.create）。"""
+    """PRO/II stateful commit：通过 import_id 读取 sim_imports，落库 + 更新状态=COMMITTED。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    project = await _load_project(db, project_id)
-    workspace_id = req.workspace_id or project.workspace_id
+    await _load_project(db, project_id)
     try:
-        result = await ImportService.commit_proii(
-            db,
-            project_id=project_id,
-            workspace_id=workspace_id,
-            preview_streams=req.preview_streams,
-            actor=user.user_id,
+        result = await ImportService.commit_proii_stateful(
+            db, import_id=req.import_id, actor=user.user_id
         )
     except PcsError as e:
         raise _to_http(e) from e
+    await db.commit()
     return StreamImportResult(**result)
 
 
@@ -146,17 +159,17 @@ async def commit_proii(
 
 @router.post(
     "/excel/preview",
-    response_model=StreamImportPreview,
+    response_model=StatefulPreviewResponse,
 )
 async def preview_excel(
     project_id: uuid.UUID,
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
     file_xlsx: UploadFile = File(..., description="Excel .xlsx 双 Sheet"),
-) -> StreamImportPreview:
-    """Excel 双 Sheet 导入预览。"""
+) -> StatefulPreviewResponse:
+    """Excel 双 Sheet 导入预览（stateful）：解析 → 持久化到 sim_imports（status=PREVIEW）。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    await _load_project(db, project_id)
+    project = await _load_project(db, project_id)
     xlsx_path: Path | None = None
     try:
         content = await file_xlsx.read()
@@ -166,7 +179,14 @@ async def preview_excel(
             raise HTTPException(status_code=400, detail="空文件")
         xlsx_path = write_temp_upload(content, suffix=".xlsx")
         try:
-            preview_dict = ImportService.preview_excel(xlsx_path)
+            result = await ImportService.preview_excel_stateful(
+                db,
+                project_id=project_id,
+                workspace_id=project.workspace_id,
+                path=xlsx_path,
+                source_file_name=file_xlsx.filename or "streams.xlsx",
+                actor=user.user_id,
+            )
         except ValueError as e:
             raise CorePcsError(
                 code="SIM_IMPORT_PARSE_ERROR",
@@ -179,7 +199,10 @@ async def preview_excel(
                 message=str(e),
                 status=404,
             ) from e
-        return StreamImportPreview(**preview_dict)
+        await db.commit()
+        return StatefulPreviewResponse(
+            import_id=result["import_id"], preview=result["preview"]
+        )
     finally:
         if xlsx_path is not None:
             xlsx_path.unlink(missing_ok=True)
@@ -191,24 +214,20 @@ async def preview_excel(
 )
 async def commit_excel(
     project_id: uuid.UUID,
-    req: CommitRequest,
+    req: CommitByImportIdRequest,
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> StreamImportResult:
-    """Excel preview → 落库。"""
+    """Excel stateful commit：通过 import_id 读取 sim_imports，落库 + 更新状态=COMMITTED。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    project = await _load_project(db, project_id)
-    workspace_id = req.workspace_id or project.workspace_id
+    await _load_project(db, project_id)
     try:
-        result = await ImportService.commit_excel(
-            db,
-            project_id=project_id,
-            workspace_id=workspace_id,
-            preview_streams=req.preview_streams,
-            actor=user.user_id,
+        result = await ImportService.commit_excel_stateful(
+            db, import_id=req.import_id, actor=user.user_id
         )
     except PcsError as e:
         raise _to_http(e) from e
+    await db.commit()
     return StreamImportResult(**result)
 
 
