@@ -507,6 +507,167 @@ def parse_proii_out(out_path: Path | str) -> dict:
     }
 
 
+# ---------------------------------------------------------------------------
+# P3.x SIM-15: 单元操作 SUMMARY 段解析（6 类：REACTOR/EXTRACTOR/COMPRESSOR/
+# SPLITTER/STCA/CALCULATOR + 公共字段 iterations/convergence）
+# ---------------------------------------------------------------------------
+
+
+_UNIT_SUMMARY_TYPES = (
+    "REACTOR",
+    "EXTRACTOR",
+    "COMPRESSOR",
+    "SPLITTER",
+    "STCA",
+    "CALCULATOR",
+)
+
+
+def parse_proii_unit_op_summaries(out_path: Path | str) -> list[dict]:
+    """从 PRO/II .out 提取 6 类单元 SUMMARY 段（spec §3.4.2 + SIM-15 E-1）。
+
+    Returns:
+        list[dict]: 每个元素为
+            {
+                unit_uid, unit_type, iterations, convergence_status,
+                feed_streams_json, product_streams_json,
+                raw_summary_json  # 完整段（备 SIM-20 增强）
+            }
+        无 SUMMARY 段时返回 []。
+    """
+    out_path = Path(out_path)
+    text = out_path.read_text(encoding="utf-8", errors="replace")
+    return _parse_unit_op_summaries_text(text)
+
+
+def _parse_unit_op_summaries_text(text: str) -> list[dict]:
+    """text → 6 类 SUMMARY 段列表。"""
+    results: list[dict] = []
+    lines = text.splitlines()
+    i = 0
+    while i < len(lines):
+        line = lines[i]
+        upper = line.upper().strip()
+        # 检测 SUMMARY 段头
+        matched_type: str | None = None
+        for ut in _UNIT_SUMMARY_TYPES:
+            if upper == f"{ut} SUMMARY" or upper.startswith(f"{ut} SUMMARY"):
+                matched_type = ut
+                break
+        if matched_type is None:
+            i += 1
+            continue
+        # 找到段尾（下一个 SUMMARY 或 OVERALL/END OF RUN 等）
+        end_idx = len(lines)
+        for j in range(i + 1, len(lines)):
+            u = lines[j].upper().strip()
+            if u.endswith("SUMMARY") or u.startswith("OVERALL") or "END OF RUN" in u:
+                end_idx = j
+                break
+        section_lines = lines[i + 1 : end_idx]
+        unit = _parse_one_unit_summary(matched_type, section_lines)
+        if unit is not None:
+            results.append(unit)
+        i = end_idx
+    return results
+
+
+def _parse_one_unit_summary(unit_type: str, section_lines: list[str]) -> dict | None:
+    """解析单段 SUMMARY 行 → 字典（公共 + raw_summary_json）。"""
+    unit_uid: str | None = None
+    iterations: int | None = None
+    conv: str | None = None
+    feed_streams: list[str] = []
+    product_streams: list[str] = []
+    raw: dict = {}
+
+    for line in section_lines:
+        stripped = line.strip()
+        if not stripped:
+            continue
+        # UNIT N, 'UID' 行
+        m = re.match(r"UNIT\s+\d+\s*,\s*'(?P<uid>[^']+)'", stripped)
+        if m:
+            unit_uid = m.group("uid")
+            continue
+        # ITERATIONS n
+        m = re.match(r"ITERATIONS\s+(?P<n>\d+)", stripped, re.IGNORECASE)
+        if m:
+            iterations = int(m.group("n"))
+            raw["ITERATIONS"] = int(m.group("n"))
+            continue
+        # CONVERGENCE STATUS X
+        m = re.match(r"CONVERGENCE STATUS\s+(?P<status>\w+)", stripped, re.IGNORECASE)
+        if m:
+            conv = m.group("status").upper()
+            raw["CONVERGENCE STATUS"] = conv
+            continue
+        # FEED STREAMS s1, s2 或 FEED STREAM s1
+        m = re.match(
+            r"FEED\s+STREAMS?\s+(?P<streams>.+)", stripped, re.IGNORECASE
+        )
+        if m:
+            streams = [s.strip() for s in m.group("streams").split(",")]
+            feed_streams.extend(streams)
+            raw["FEED STREAMS"] = streams
+            continue
+        # PRODUCT STREAM s
+        m = re.match(r"PRODUCT\s+STREAM\s+(?P<s>\S+)", stripped, re.IGNORECASE)
+        if m:
+            product_streams.append(m.group("s"))
+            raw["PRODUCT STREAM"] = m.group("s")
+            continue
+        # OVHD / BTMS / VAPOR / LIQUID / RAFFINATE / EXTRACT / OVERHEAD / BOTTOMS
+        m = re.match(
+            r"(?:OVHD|VAPOR\s+PRODUCT|LIQUID\s+PRODUCT|RAFFINATE\s+PRODUCT|"
+            r"EXTRACT\s+PRODUCT|OVERHEAD|BOTTOMS|BTMS)\s+(?P<s>\S+)",
+            stripped,
+            re.IGNORECASE,
+        )
+        if m:
+            product_streams.append(m.group("s"))
+            continue
+        # SPLITTER 专有 OUTLET N STREAM
+        m = re.match(
+            r"OUTLET\s+(?P<n>\d+)\s+STREAM\s+(?P<s>\S+)\s+(?P<flow>[\d.\-]+)\s*KG/HR",
+            stripped,
+            re.IGNORECASE,
+        )
+        if m:
+            raw.setdefault("outlets", []).append(
+                {
+                    "outlet_no": int(m.group("n")),
+                    "stream_id": m.group("s"),
+                    "mass_flow_kg_h": float(m.group("flow")),
+                }
+            )
+            product_streams.append(m.group("s"))
+            continue
+        # 通用 KEY, UNIT 数值 → raw（OUTLET PRESSURE, KPA 3.61 / ITERATIONS 8 等）
+        m = re.match(
+            r"(?P<key>[A-Z][A-Z0-9 \-]+?),?\s+(?P<unit>[A-Z%/]+)\s+(?P<val>[\d.\-eE]+)$",
+            stripped,
+        )
+        if m:
+            raw[m.group("key").strip()] = m.group("val")
+            continue
+        # 通用纯文本（CALCULATOR SEQUENCE STREAMS / CSTR 字段等）— 截短后保留
+        if len(stripped) < 200:
+            raw.setdefault("extra_lines", []).append(stripped)
+
+    if unit_uid is None:
+        return None
+    return {
+        "unit_uid": unit_uid,
+        "unit_type": unit_type,
+        "iterations": iterations,
+        "convergence_status": conv,
+        "feed_streams_json": feed_streams,
+        "product_streams_json": product_streams,
+        "raw_summary_json": raw,
+    }
+
+
 def _parse_column_summary_text(text: str) -> dict | None:
     """text → COLUMN SUMMARY dict（内部供 parse_column_summary/parse_proii_out 共用）。"""
     lines = text.splitlines()
