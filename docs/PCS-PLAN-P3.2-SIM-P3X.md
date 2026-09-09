@@ -1,15 +1,16 @@
-# PCS P3.2 SIM P3.x 续推计划 V1.0
+# PCS P3.2 SIM P3.x 续推计划 V1.1
 
 | 项 | 值 |
 |---|---|
-| 计划版本 | V1.0 |
+| 计划版本 | V1.1（V1.0 → V1.1：D-* 闭环对照 + SIM-37/38 PoC 拆分 + E-* 展开） |
 | 计划日期 | 2026-09-09 |
 | 触发 | 用户裁决"所有项必须再进 P4 前解决"（2026-09-09） |
 | 对照基准 | `docs/PCS-P3.2-SIM-AUDIT-V2.md`（30 项漏项 + 4 严重偏离 + 5 中度偏离） |
 | 上游 | P3.2 SIM Sprint（14 task, 702 passing, 88% 覆盖, 2026-09-09 闭环 `7cdfc17`） |
-| 总估时 | ~38d 串行 / ~20-25d 4 批并行 |
+| 总估时 | ~32.5d 串行 / ~15-20d 4 批并行（V1.0 同；V1.1 仅结构优化） |
 | 主负责人 | Claude (MiniMax-M3) + 用户裁决 |
 | 关联审计 | `docs/PCS-P3.2-SIM-AUDIT-V2.md`（commit `949dd13`） |
+| 关联收口 | `docs/PCS-P3.2-SIM-CLOSE-REPORT.md` V1.1（commit `7cdfc17`） |
 
 ---
 
@@ -19,19 +20,30 @@
 
 P3.2 SIM 14 task 闭环后留有 30 项偏离/漏项，4 严重偏离 + 5 中度偏离。本计划承接 30 项全部 P4 前闭环，**不分级、不分批分先后**，按依赖图分 4 批执行，**最终全部任务 must completed before P4 sprint kickoff**。
 
+### 0.1 V1.1 澄清：审计 V1.0（pre-SIM-13）的 D-* 已闭环
+
+审计报告存在两个版本：
+- **审计 V1.0**（`docs/PCS-P3.2-SIM-AUDIT-REPORT.md`）—— **pre-SIM-13**，4 项严重偏离标为 **D-1/D-2/D-3/D-4**
+- **审计 V2.0**（`docs/PCS-P3.2-SIM-AUDIT-V2.md`, commit `949dd13`）—— **post-SIM-13**，重新标号为 **E-1/E-2/E-3/E-4**
+
+V1.0 的 D-1/D-2/D-3 已在 **SIM-13 闭环**（commit `dad61a7`），D-4 由 **SIM-14 等价覆盖**（见 §1.3 闭环对照表）。本计划仅承接 V2.0 审计的 E-* + 30 漏项 + 9 TODO，**不重复已闭环项**。
+
 ---
 
 ## 1. 范围
 
 ### 1.1 必做（用户强约束）
 
-| 类别 | 数量 | 来源 |
-|---|---|---|
-| 严重偏离 | 4 项 | E-1（spec §5.5 7 表）/ E-2（PRO/II composition）/ E-3（ADD-002 §3.6 五 JSON）/ E-4（spec §6 API） |
-| 中度偏离 | 5 项 | M-1（校验规则 5/36）/ M-2（streams 4 字段）/ M-3（Excel 模板 API）/ M-4（spec §5.6 估算）/ M-5（.out 20+ Section） |
-| 漏项清单 | 30 项 | 审计 V2.0 §8（编号 1-30） |
-| 原 TODO 收口 | 6 项 | TODO-034/035/037/040/041/042/043/044 |
-| 任务清单 | **27 task**（SIM-14 ~ SIM-40） | 见 §2 |
+| 类别 | 数量 | 标签 | 具体内容 | 来源 |
+|---|---|---|---|---|
+| 严重偏离 | 4 项 | **E-1** | spec §5.5 7 张表（sim_imports / sim_import_warnings / sim_unit_op_results / sim_tower_results + 6 专用结果表：SimReactorResult/SimCstrResult/SimCompressorResult/SimSplitterResult/SimStcaResult/SimCalculatorResult） | 审计 V2.0 §1.E-1 |
+| 严重偏离 | 4 项 | **E-2** | PRO/II composition 抽取（组分组成 + 17 项 LIBID→CAS 别名映射 PROII_COMPONENT_ALIASES） | 审计 V2.0 §1.E-2 |
+| 严重偏离 | 4 项 | **E-3** | ADD-002 §3.6 五 JSON（user_provided_properties_json / calculated_properties_json / effective_properties_json / conflict_resolutions_json / stream_properties_json） | 审计 V2.0 §1.E-3 |
+| 严重偏离 | 4 项 | **E-4** | spec §6 缺失 API（POST /streams/validate + GET /streams/import/excel/template + GET /streams/{id}/properties + POST /properties/estimate + 9 类 sim imports 查询端点） | 审计 V2.0 §1.E-4 |
+| 中度偏离 | 5 项 | **M-1~M-5** | 校验规则 5/36 / streams 4 字段 / Excel 模板 API / spec §5.6 估算 / .out 20+ Section | 审计 V2.0 §2 |
+| 漏项清单 | 30 项 | #1-30 | 审计 V2.0 §8 编号 | 审计 V2.0 §8 |
+| 原 TODO 收口 | 9 项 | TODO-034/035/037/039-044 | 全部纳入 P3.x 27+ task | 见 §9 |
+| 任务清单 | **29 task**（SIM-14 ~ SIM-40，含 SIM-37a/37b/38a/38b）| — | 见 §2 | — |
 
 ### 1.2 不做（YAGNI）
 
@@ -39,13 +51,24 @@ P3.2 SIM 14 task 闭环后留有 30 项偏离/漏项，4 严重偏离 + 5 中度
 - 前端集成（spec §3.8，前端 sprint 单独承接）
 - LIMS/PAT 数据接入（不在 P3.2 范围）
 
+### 1.3 审计 V1.0 D-* 闭环对照表
+
+| 审计 V1.0 标签 | 内容 | 闭环 task | commit | 等价性条件 |
+|---|---|---|---|---|
+| **D-1** 状态机集成 | StreamService.transition + 6 API + SELECT FOR UPDATE | **SIM-13** | `dad61a7` | ✅ 已闭环：StreamService.transition + 6 API（submit/approve/reject/initiate-change/pass-change/mark-stale）+ SELECT FOR UPDATE + TRANSITION_ROLES 角色校验 |
+| **D-2** 文件大小 middleware | 10MB 上限 + 413 + STREAM_IMPORT_FILE_TOO_LARGE | **SIM-13** | `dad61a7` | ✅ 已闭环：`app/core/upload_size_limit.py` + 10MB + 413 + 错误码 + 3 测试覆盖 |
+| **D-3** N+1 防护 selectinload | selectinload(state_points) + 性能断言 | **SIM-13** | `dad61a7` | ✅ 已闭环：StreamService.list_with_state_points 改 selectinload(state_points) + selectinload_streams 性能测试 |
+| **D-4** stateful preview 表 | preview 阶段解析结果持久化，commit 阶段读取避免重复解析 | **SIM-14** | （待落地）| ⏳ **等价性条件**（V1.1 用户裁决确认）：sim_imports.import_id 在 preview 阶段生成并持久化（状态=PREVIEW，含解析结果 JSON），commit 阶段读取并更新状态=COMMITTED。归档 API 仅是额外能力，不等同于 preview 持久化本身 |
+
+**D-* 闭环结论**：D-1/D-2/D-3 已在 SIM-13 闭环（commit `dad61a7`）；D-4 由 SIM-14 等价覆盖（待 SIM-14 落地后正式 closed，需 preview 阶段 PREVIEW 状态 + import_id 提前返回）。
+
 ---
 
 ## 2. 任务清单（27 task, SIM-14 ~ SIM-40）
 
 | ID | 任务 | 估时 | 优先级 | 依赖 |
 |---|---|---|---|---|
-| **SIM-14** | sim_imports + sim_import_warnings 表 + 归档 API | 1d | P0 | — |
+| **SIM-14** | sim_imports + sim_import_warnings 表 + **stateful preview**（PREVIEW 状态 + import_id 提前返回；D-4 等价闭环）| 1.5d | P0 | — |
 | **SIM-15** | sim_unit_op_results + 6 专用结果表 + 单元 SUMMARY 解析 | 5d | P0 | — |
 | **SIM-16** | sim_tower_results 表 + COLUMN SUMMARY 解析 | 1d | P0 | — |
 | **SIM-17** | streams 表 4 字段（simulation_status/tear_stream/estimated/stream_properties_json） | 0.5d | P0 | — |
@@ -68,11 +91,13 @@ P3.2 SIM 14 task 闭环后留有 30 项偏离/漏项，4 严重偏离 + 5 中度
 | **SIM-34** | 炼油专用 5 字段 + 蒸馏曲线 8 种 schema | 1d | P2 | — |
 | **SIM-35** | SIM-E04 被引用后不可删除 | 0.25d | P2 | SIM-23 |
 | **SIM-36** | PROII reaction kinetics 提取 | 0.5d | P2 | — |
-| **SIM-37** | PRO/II 8.x 炼油版增量（ASSAY/D86/TBP/LIGHTEND/REFSTREAM/TRAY SIZING/REFINERY PROCESSOR） | 5d | P2 | SIM-15 |
-| **SIM-38** | 塔盘详细数据（TRAY COMPOSITIONS/LOADING/RATING） | 3d | P2 | SIM-16 |
+| **SIM-37a** | **PRO/II 8.x 炼油版 PoC**（关键字识别 + 1 fixture 验证估时）| 1d | P2 | — |
+| **SIM-37b** | **PRO/II 8.x 炼油版全量**（ASSAY/D86/TBP/LIGHTEND/REFSTREAM/TRAY SIZING/REFINERY PROCESSOR；仅 SIM-37a PoC 通过后启动）| 4d | P2 | SIM-37a + SIM-15 |
+| **SIM-38a** | **塔盘数据 PoC**（TRAY COMPOSITIONS 单 Section + 1 fixture）| 0.5d | P2 | — |
+| **SIM-38b** | **塔盘数据全量**（TRAY COMPOSITIONS/LOADING/RATING；仅 SIM-38a PoC 通过后启动）| 2.5d | P2 | SIM-38a + SIM-16 |
 | **SIM-39** | TODO-040 alembic round-trip + TODO-044 状态机审计结构化 + TODO-037 不可靠产品下游拒绝 | 1d | P1 | — |
 | **SIM-40** | P3.x 收口报告 V1.0 | 0.5d | — | 全部 above |
-| **总计** | | **~30.5d** | | |
+| **总计** | | **~32.5d**（V1.0 同；V1.1 仅结构优化：SIM-37/38 拆 PoC+全量） | | |
 
 ---
 
@@ -109,8 +134,8 @@ P3.2 SIM 14 task 闭环后留有 30 项偏离/漏项，4 严重偏离 + 5 中度
   SIM-33 ─┐
   SIM-34 ─┤
   SIM-36 ─┤
-  SIM-37 ─┤  (SIM-37 依赖 SIM-15)
-  SIM-38 ─┤  (SIM-38 依赖 SIM-16)
+  SIM-37a─→ SIM-37b  (PoC 通过后启动全量；依赖 SIM-15)
+  SIM-38a─→ SIM-38b  (PoC 通过后启动全量；依赖 SIM-16)
   SIM-39 ─┤
   SIM-40 ─┘  (SIM-40 依赖全部 above)
 ```
@@ -121,11 +146,11 @@ P3.2 SIM 14 task 闭环后留有 30 项偏离/漏项，4 严重偏离 + 5 中度
 
 | 批 | 内容 | task 数 | 估时 | 关键产出 |
 |---|---|---|---|---|
-| **批 1 基础数据层** | SIM-14/15/16/17/18/19 | 6 | 9.5d | sim_imports/sim_unit_op_results/sim_tower_results/sim_import_warnings 4 表 + streams 8 字段 + composition |
+| **批 1 基础数据层** | SIM-14/15/16/17/18/19 | 6 | 10d | sim_imports (含 stateful preview) / sim_unit_op_results / sim_tower_results / sim_import_warnings 4 表 + streams 8 字段 + composition |
 | **批 2 功能补全** | SIM-20/21/22/23/27 | 5 | 7d | .out 20+ 解析 + 5 类物性估算 + PropertyConflictResolver + DataLineage 反查 + 9 类查询 API |
 | **批 3 API + 校验** | SIM-24/25/26/28/29/30/31/32/35 | 9 | 4.5d | 3 API 端点 + 30 校验规则（SIM-V8 + PR22）+ 50 别名 + composition_mass + update 状态 + SIM-E04 |
-| **批 4 增补 + 收口** | SIM-33/34/36/37/38/39/40 | 7 | 11.5d | ADD-001 字段补全 + 蒸馏曲线 8 种 + reaction kinetics + PRO/II 8.x 炼油 + 塔盘数据 + TODO 收口 + 收口报告 |
-| **总计** | | **27** | **~32.5d 串行** | / |
+| **批 4 增补 + 收口** | SIM-33/34/36/37a/37b/38a/38b/39/40 | 9 | 11d | ADD-001 字段补全 + 蒸馏曲线 8 种 + reaction kinetics + PRO/II 8.x 炼油（PoC+全量）+ 塔盘数据（PoC+全量）+ TODO 收口 + 收口报告 |
+| **总计** | | **29** | **~32.5d 串行** | / |
 
 **并行优化**：
 - 批 1 内部 6 task 全并行（人手够 → ~5d）
