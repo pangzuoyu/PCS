@@ -933,3 +933,330 @@ def _join_continued_lines(text: str, section_start: str, section_end: str) -> st
     if end_idx is None:
         end_idx = len(lines)
     return "\n".join(lines[start_idx:end_idx])
+
+
+# ===========================================================================
+# P3.2 SIM-20: .out 20+ Section 数值提取（spec V1.6 §3.4.2）
+# ===========================================================================
+# 目标：单次 parse_proii_out_sections() 返回所有 section dict[section_name, payload]
+# 性能预算：≤5s / 100 条（spec §3.4.2）
+#
+# 覆盖 section（与 PR-3~PR-10/PR-13 一致）：
+# - banner / convergence_status / warnings
+# - run_statistics（RUN STATISTICS 段，新增 SIM-20）
+# - calculation_history（CALCULATION HISTORY 段，新增 SIM-20）
+# - zero_flow / unreliable / reactions
+# - unit_ops（PUMP/HX/MIXER/FLASH/VALVE/COMPRESSOR/SPLITTER/STCA/CALCULATOR）
+# - column_summary（COLUMN SUMMARY）
+# - stream_summary_rows（STREAM SUMMARY 原始行列表，未做 T/P 列拆分 — SIM-22+ 增强）
+# - component_data（COMPONENT DATA 段，含 MW/DENSITY 等）
+# - hcurve（HCURVE 段——本期未实现，返回 None）
+# - reactor_summary / cstr_summary（PR-13/14——本期未实现，返回 None）
+# ===========================================================================
+
+
+def parse_proii_out_sections(out_path: Path | str) -> dict:
+    """PRO/II .out 单文件一次性提取所有 section（spec §3.4.2 SIM-20 主入口）。
+
+    Returns:
+        dict: {
+            "banner": str,
+            "convergence_status": ConvergenceStatus,
+            "warnings": list[str],
+            "run_statistics": dict,         # NEW SIM-20
+            "calculation_history": list[dict] | None,  # NEW SIM-20
+            "zero_flow": list[str],
+            "unreliable": list[str],
+            "reactions": list[Reaction],
+            "unit_ops": list[dict],
+            "column_summary": dict | None,
+            "stream_summary_rows": list[str],  # NEW SIM-20（原始行，未拆分列）
+            "component_data": list[dict],     # NEW SIM-20（MW/DENSITY 等）
+            "hcurve": None,                    # 待 P5 实现
+            "reactor_summary": None,           # 待 SIM-15 扩展
+            "cstr_summary": None,              # 待 SIM-15 扩展
+        }
+
+    Raises:
+        FileNotFoundError: 文件不存在
+        ValueError: .out 缺 banner（非 PRO/II 输出）
+    """
+    out_path = Path(out_path)
+    if not out_path.exists():
+        raise FileNotFoundError(f"PRO/II .out not found: {out_path}")
+    text = out_path.read_text(encoding="utf-8", errors="replace")
+
+    banner = _parse_banner(text)
+    if banner is None:
+        # 容错：缺标准 banner 但含 RUN STATISTICS/STREAM SUMMARY/COMPONENT DATA
+        # 任一 PRO/II 特征段，仍视为合法 .out（banner 标 unknown）
+        if not any(
+            marker in text.upper()
+            for marker in (
+                "RUN STATISTICS",
+                "STREAM SUMMARY",
+                "COMPONENT DATA",
+                "*** CONVERGENCE STATUS",
+            )
+        ):
+            raise ValueError(f"PRO/II .out 缺 banner 行: {out_path}")
+        banner = "unknown"
+
+    # 收敛状态
+    convergence = _parse_convergence_status(text)
+    convergence, unit_status_map = _parse_unit_convergences(text, convergence)
+
+    # warnings / reactions
+    warnings = _parse_warnings(text)
+    reactions = _parse_reactions(text)
+
+    # zero_flow / unreliable 需要 streams（.inp 解析；本接口仅 .out，故容错返回空）
+    # 注：完整 streams 需 .inp 配合——SIM-20 dispatcher 仅 .out，调用方可走 parse_proii_files
+    zero_flow = _parse_zero_flow_streams(text, {})
+    unreliable = _parse_unreliable_streams(warnings, unit_status_map, {})
+
+    # unit_ops（已有 6 类 + PUMP/HX/MIXER/FLASH/VALVE/COLUMN）
+    unit_ops = _parse_unit_op_summaries_text(text)
+
+    # column summary
+    column_summary = _parse_column_summary_text(text)
+
+    # NEW SIM-20 sections
+    run_stats = _parse_run_statistics(text)
+    calc_history = _parse_calculation_history(text)
+    stream_rows = _parse_stream_summary_rows(text)
+    comp_data = _parse_component_data(text)
+
+    return {
+        "banner": banner,
+        "convergence_status": convergence,
+        "warnings": warnings,
+        "run_statistics": run_stats,
+        "calculation_history": calc_history,
+        "zero_flow": sorted(zero_flow),
+        "unreliable": sorted(unreliable),
+        "reactions": reactions,
+        "unit_ops": unit_ops,
+        "column_summary": column_summary,
+        "streams": stream_rows,            # SIM-20 STREAM SUMMARY 原始行
+        "stream_summary_rows": stream_rows,  # 别名（向后兼容）
+        "component_data": comp_data,
+        # 预留 section（本期未实现）
+        "hcurve": None,
+        "reactor_summary": None,
+        "cstr_summary": None,
+    }
+
+
+def _parse_run_statistics(text: str) -> dict:
+    """RUN STATISTICS 段提取（spec §3.4.2）。
+
+    字段：
+        started: str | None（HH:MM:SS MM/DD/YY）
+        finished: str | None
+        errors: int | None（"NO ERRORS" → 0）
+        warnings: int | None（"NO WARNINGS" → 0）
+        messages: str | None
+        interactive_seconds: float | None
+        calculations_seconds: float | None
+        total_seconds: float | None
+    """
+    out: dict = {
+        "started": None,
+        "finished": None,
+        "errors": None,
+        "warnings": None,
+        "messages": None,
+        "interactive_seconds": None,
+        "calculations_seconds": None,
+        "total_seconds": None,
+    }
+    lines = text.splitlines()
+    in_section = False
+    for line in lines:
+        upper = line.upper().strip()
+        if "*** RUN STATISTICS" in upper:
+            in_section = True
+            continue
+        if in_section:
+            # 段结束：下一个 *** 开头或 OVERALL
+            if upper.startswith("***") or upper.startswith("OVERALL"):
+                break
+            # STARTED    21:07:27 03/04/98          NO ERRORS
+            stripped = line.strip()
+            if stripped.upper().startswith("STARTED"):
+                parts = stripped.split()
+                if len(parts) >= 3:
+                    out["started"] = f"{parts[1]} {parts[2]}"
+                if "NO ERRORS" in stripped.upper():
+                    out["errors"] = 0
+                else:
+                    # 20 ERRORS
+                    for i, p in enumerate(parts):
+                        if p.upper() == "ERRORS" and i > 0:
+                            try:
+                                out["errors"] = int(parts[i - 1])
+                            except ValueError:
+                                pass
+                if "NO WARNINGS" in stripped.upper():
+                    out["warnings"] = 0
+            elif stripped.upper().startswith("FINISHED"):
+                parts = stripped.split()
+                if len(parts) >= 3:
+                    out["finished"] = f"{parts[1]} {parts[2]}"
+                for i, p in enumerate(parts):
+                    if p.upper() == "WARNINGS" and i > 0:
+                        try:
+                            out["warnings"] = int(parts[i - 1])
+                        except ValueError:
+                            pass
+            elif "NO MESSAGES" in stripped.upper():
+                out["messages"] = "NO MESSAGES"
+            elif "MESSAGES" in stripped.upper():
+                out["messages"] = stripped
+            elif stripped.upper().startswith("INTERACTIVE"):
+                out["interactive_seconds"] = _parse_min_sec(stripped)
+            elif stripped.upper().startswith("CALCULATIONS"):
+                out["calculations_seconds"] = _parse_min_sec(stripped)
+            elif stripped.upper().startswith("TOTAL"):
+                out["total_seconds"] = _parse_min_sec(stripped)
+    return out
+
+
+def _parse_min_sec(text: str) -> float | None:
+    """'6 MIN, 39.97 SEC' → 6*60 + 39.97。"""
+    import re
+    m = re.search(r"(\d+)\s*MIN.*?([\d.]+)\s*SEC", text, re.IGNORECASE)
+    if not m:
+        return None
+    return int(m.group(1)) * 60.0 + float(m.group(2))
+
+
+def _parse_calculation_history(text: str) -> list[dict] | None:
+    """CALCULATION HISTORY 段（spec §3.4.2）。
+
+    段内每行格式典型：'INNER  0 : E(ENTH+SPEC) = 9.077E+01'
+    返回 list[dict]，每条含 {label, value}。无段返回 None。
+    """
+    lines = text.splitlines()
+    in_section = False
+    rows: list[dict] = []
+    for line in lines:
+        upper = line.upper().strip()
+        if "CALCULATION HISTORY" in upper:
+            in_section = True
+            continue
+        if in_section:
+            if upper.startswith("***") or upper.startswith("OVERALL"):
+                break
+            stripped = line.strip()
+            if not stripped or stripped.startswith("-"):
+                continue
+            # 'INNER  0 : E(ENTH+SPEC) = 9.077E+01'
+            if ":" in stripped:
+                label, _, rest = stripped.partition(":")
+                rows.append({"label": label.strip(), "value": rest.strip()})
+    return rows if rows else None
+
+
+def _parse_stream_summary_rows(text: str) -> list[str]:
+    """STREAM SUMMARY 段原始行列表（spec §3.4.2 PR-5 stub）。
+
+    注：本期仅提取原始行（含 TYPE/NAME/PHASE/FROM/TO/FLOW_RATES 列），未做
+    列拆分。SIM-22 PropertyConflictResolver 落地后可基于 effective
+    streams 表 join；列拆分属于 P3.2 SIM-21~22 增强范围。
+
+    容错策略：PRO/II .out 头部有 TOC（"   233   STREAM SUMMARY"），且
+    第一次出现 STREAM SUMMARY 段后通常紧跟 banner + COMPONENT DATA 子段，
+    不能立即算入 rows；激活条件：跳过 TOC 数字前缀并仅在看到数据行
+    （FEED/PROD 前缀）或子段标头（FEED AND PRODUCT STREAMS）时确认。
+    """
+    import re
+    lines = text.splitlines()
+    rows: list[str] = []
+    # TOC 行："   233   STREAM SUMMARY"（左对齐数字 + STREAM SUMMARY 单词）
+    toc_re = re.compile(r"^\s*\d+\s+STREAM SUMMARY\b", re.IGNORECASE)
+    # 真实段头："                  STREAM SUMMARY                    02/13/98"
+    # 或独立行 STREAM SUMMARY；要求 STREAM SUMMARY 不在数字前导行中
+    real_header_re = re.compile(
+        r"^\s+STREAM SUMMARY\b", re.IGNORECASE
+    )
+    in_section = False
+    in_subblock = False
+    for line in lines:
+        upper = line.upper().strip()
+        if not in_section:
+            # 跳过 TOC 行（"   233   STREAM SUMMARY"）
+            if toc_re.match(line):
+                continue
+            # 真实段头（独立行 STREAM SUMMARY，可带日期后缀）
+            if real_header_re.match(line) and not toc_re.match(line):
+                in_section = True
+                continue
+            continue
+        # in_section 之后：
+        # 数据行（FEED/PROD/RECYCLE 前缀）→ 入列
+        if upper.startswith(("FEED", "PROD", "RECYCLE")):
+            rows.append(line.rstrip())
+            in_subblock = True
+            continue
+        # 子段标头（FEED AND PRODUCT STREAMS / PSEUDO PRODUCT STREAMS）
+        # 进入 subblock 但不入列
+        if upper.startswith("FEED AND PRODUCT") or upper.startswith("PSEUDO PRODUCT"):
+            in_subblock = True
+            continue
+        # 段结束符
+        if upper.startswith("OVERALL") or upper.startswith("END OF RUN"):
+            break
+        if line.strip().startswith("***"):
+            break
+        # 子段标题/分隔/空行——忽略
+        if not upper or set(upper) <= {"-", "="}:
+            continue
+        if in_subblock and ("PHASE" in upper or upper.startswith("TYPE") or
+                          upper.startswith("----")):
+            continue
+        # 其他任何行——保守：仅在子段标头已出现时舍弃，避免错失
+    return rows
+
+
+def _parse_component_data(text: str) -> list[dict]:
+    """COMPONENT DATA 段（spec §3.4.2）。
+
+    表格行典型：'  1  H2O          LIBRARY  VAP/LIQ  18.015  998.566'
+    提取 {index, name, type, phase, mw, density}。
+    """
+    import re
+    lines = text.splitlines()
+    rows: list[dict] = []
+    in_section = False
+    for line in lines:
+        upper = line.upper().strip()
+        if "COMPONENT DATA" in upper:
+            in_section = True
+            continue
+        if in_section:
+            if upper.startswith("***") and "COMPONENT DATA" not in upper:
+                break
+            if "STREAM SUMMARY" in upper or "OVERALL" in upper:
+                break
+            stripped = line.rstrip()
+            if not stripped or set(stripped) <= {"-", "="}:
+                continue
+            # 匹配：<num> <name> <comp_type> <phase> <mw> <density?>
+            m = re.match(
+                r"\s*(\d+)\s+(\S+)\s+(LIBRARY|PETRO\s*CUT)\s+"
+                r"(VAP/LIQ|VAPOR|LIQUID|SOLID|MIXED)\s+"
+                r"([\d.]+)\s*([\d.]+)?",
+                stripped,
+            )
+            if m:
+                rows.append({
+                    "index": int(m.group(1)),
+                    "name": m.group(2),
+                    "type": m.group(3).replace(" ", ""),
+                    "phase": m.group(4),
+                    "mw": float(m.group(5)),
+                    "density": float(m.group(6)) if m.group(6) else None,
+                })
+    return rows
