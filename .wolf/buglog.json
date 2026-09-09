@@ -974,6 +974,40 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-09T10:15:00.000Z"
+    },
+    {
+      "id": "bug-063",
+      "timestamp": "2026-09-09T11:00:00.000Z",
+      "error_message": "SQLite in-memory 默认关闭 FK 约束；ON DELETE CASCADE 行为在测试中不生效（test_sim_tower_cascade_on_sim_import_delete 失败）。",
+      "file": "pcs-backend/tests/models/test_sim_tower_model.py",
+      "root_cause": "aiosqlite / SQLite in-memory 创建连接时不开启 foreign_keys PRAGMA（默认 OFF）。如在 db_engine fixture 内通过 conn.exec_driver_sql 一次性开启，会因 async engine 连接池复用导致 PRAGMA 仅作用于首连接；event listener attach 到 sync_engine 在 async 上下文也不直接生效 → 76 个既有测试 IntegrityError。",
+      "fix": "改用 FK 元数据契约测试（PG inspector + options.ondelete 验证），不依赖 SQLite 行为。SQLite 端 cascade 验证迁移到 PG 端 alembic round-trip 单测（SIM-39 范畴）。",
+      "tags": [
+        "p3.2-sim-16",
+        "sqlite-pragma",
+        "fk-cascade",
+        "test-design"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-09T11:00:00.000Z"
+    },
+    {
+      "id": "bug-064",
+      "timestamp": "2026-09-09T13:30:00.000Z",
+      "error_message": "PRO/II COMPONENT DATA 段 LIBID 行 body 越界：_LIBID_LINE_RE 用 .+ 捕获直到字符串末尾，将后续 STREAM DATA 段含 COMPOSITION 的数字混入 components 列表（如 ['H2O','CO2','C1  STREAM DATA...COMPOSITION(M)=1,0.95','0.03','0.02, NORMALIZE']），并污染 libid_to_alias 映射。",
+      "file": "pcs-backend/app/services/proii_parser.py",
+      "root_cause": "_LIBID_LINE_RE 字符类 [^/\\n]+ 太宽松；body 段拼接 `&` 替换为空格后又替换换行为空格 → 一行贯通至文件末尾。_join_continued_lines 缺 THERMODYNAMIC DATA 时 fallback 缺失（之前直接返回空），导致 body 解析把整个文件后段都纳入。",
+      "fix": "1) _join_continued_lines 缺 THERMODYNAMIC DATA 时 fallback STREAM DATA/UNIT OPERATIONS/END；2) 重写 _parse_components 为逐行扫描，遇到新 SECTION 标题跳出；3) _LIBID_LINE_RE 收紧到 [\\d/,A-Z0-9_\\- ]+；4) split 后严格校验 chunk 必须以数字 ID 开头（否则跳过），避免尾部 STREAM 段文字污染。",
+      "tags": [
+        "p3.2-sim-19",
+        "proii-parser",
+        "libid-regex",
+        "section-boundary"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-09T13:30:00.000Z"
     }
   ]
 }

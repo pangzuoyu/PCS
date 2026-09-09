@@ -122,7 +122,9 @@ _STREAM_DEF_RE = re.compile(
 # .inp 质量流量：RATE(W)=N
 _RATE_W_RE = re.compile(r"RATE\(W\)\s*=\s*(?P<rate>[\d.\-eE]+)", re.IGNORECASE)
 # .inp LIBID 组分行（可能多行续行 &）
-_LIBID_LINE_RE = re.compile(r"^\s*LIBID\s+(?P<body>.+)$", re.IGNORECASE)
+_LIBID_LINE_RE = re.compile(
+    r"^\s*LIBID\s+(?P<body>[/\d,A-Z0-9_\- ]+)$", re.IGNORECASE
+)
 # .out *** WARNING *** 行
 _WARNING_RE = re.compile(r"^\s*\*{3}\s*WARNING\s*\*{3}\s*(?P<msg>.+?)\s*$")
 # .out *** ZERO FLOW *** 标记
@@ -143,6 +145,52 @@ _REACTION_RE = re.compile(
 )
 # STOIC 段：3,-1/4,-2/5,1/6,1 → [(3,-1),(4,-2),(5,1),(6,1)]
 _STOIC_PAIR_RE = re.compile(r"(\d+)\s*,\s*(-?[\d.]+)")
+
+# ---------------------------------------------------------------------------
+# P3.x SIM-19: PRO/II LIBID→CAS 别名映射（spec §5.2）
+# ---------------------------------------------------------------------------
+
+# 17 项常见 LIBID→CAS 标准名映射（PRO/II 输出常用简写，CASE/PRO/II 计算用全名）
+PROII_COMPONENT_ALIASES: dict[str, str] = {
+    "H2O": "WATER",
+    "CO2": "CARBON_DIOXIDE",
+    "H2S": "HYDROGEN_SULFIDE",
+    "N2": "NITROGEN",
+    "O2": "OXYGEN",
+    "H2": "HYDROGEN",
+    "NH3": "AMMONIA",
+    "C1": "METHANE",
+    "C2": "ETHANE",
+    "C3": "PROPANE",
+    "CO": "CARBON_MONOXIDE",
+    "SO2": "SULFUR_DIOXIDE",
+    "HCL": "HYDROGEN_CHLORIDE",
+    "CL2": "CHLORINE",
+    "NC4": "N_BUTANE",
+    "IC4": "ISO_BUTANE",
+    "NC5": "N_PENTANE",
+}
+
+
+def map_libid_to_alias(name: str) -> str:
+    """PRO/II LIBID 名称 → CAS 标准名（spec §5.2 别名映射）。
+
+    大小写不敏感；未知名称 → 原名大写返回。
+    """
+    if not name:
+        return ""
+    upper = name.strip().upper()
+    return PROII_COMPONENT_ALIASES.get(upper, upper)
+
+
+# .inp COMPOSITION(M)=N,f/N,f/... 段正则（COMPOSITION 关键字 + M 表示摩尔分率）
+# body：紧跟 = 之后的纯数字对（不允许字母/STREAM/&）
+_COMPOSITION_RE = re.compile(
+    r"COMPOSITION\s*\(\s*[MW]\s*\)\s*=\s*(?P<body>[\d\s,/\.\-+eE]+?)(?:\s*,?\s*NORMALIZE|$)",
+    re.IGNORECASE,
+)
+# COMPOSITION 数值对：N,f/N,f/...
+_COMPOSITION_PAIR_RE = re.compile(r"(\d+)\s*,\s*(-?[\d.eE+-]+)")
 
 
 # ---------------------------------------------------------------------------
@@ -358,11 +406,41 @@ def _parse_reactions(text: str) -> list[Reaction]:
 
 def _parse_components(text: str) -> list[str]:
     """COMPONENT DATA 段 LIBID 列表（多行续行 `&`）。"""
+    # 优先在 COMPONENT DATA 与 THERMODYNAMIC DATA 之间取；缺 THERMODYNAMIC 时
+    # fallback 到 STREAM DATA / UNIT OPERATIONS / END。
     body = _join_continued_lines(text, "COMPONENT DATA", "THERMODYNAMIC DATA")
     if not body:
+        for end_marker in ("STREAM DATA", "UNIT OPERATIONS", " END"):
+            body = _join_continued_lines(text, "COMPONENT DATA", end_marker)
+            if body:
+                break
+    if not body:
         return []
-    # LIBID 行常多行续行 &，先拼接
-    joined = body.replace("&", " ").replace("\n", " ")
+    # LIBID 行常多行续行 &，先拼接；不替换换行 → 避免越界
+    # 截取到下一 SECTION 标题或 LIBID 段尾
+    lines = body.splitlines()
+    libid_lines: list[str] = []
+    in_libid = False
+    for line in lines:
+        stripped = line.strip()
+        upper = stripped.upper()
+        if not in_libid:
+            if upper.startswith("LIBID"):
+                libid_lines.append(stripped)
+                in_libid = True
+            continue
+        # LIBID 段内：续行 `&` 拼接；新 SECTION 标题跳出
+        if (
+            upper.startswith("STREAM DATA")
+            or upper.startswith("THERMODYNAMIC DATA")
+            or upper.startswith("UNIT OPERATIONS")
+            or (upper and upper == "END")
+        ):
+            break
+        libid_lines.append(stripped)
+    if not libid_lines:
+        return []
+    joined = " ".join(libid_lines).replace("&", " ")
     m = _LIBID_LINE_RE.search(joined)
     if not m:
         return []
@@ -371,13 +449,11 @@ def _parse_components(text: str) -> list[str]:
     comps: list[str] = []
     for chunk in body_str.split("/"):
         chunk = chunk.strip().rstrip(",")
-        if "," in chunk:
-            _id, name = chunk.split(",", 1)
-            comps.append(name.strip())
-        elif chunk:
-            # 单 id（末位）— 形如 "34,C38" 已被前一对吃掉；纯数字跳过
-            if not chunk.isdigit():
-                comps.append(chunk)
+        # 严格要求以数字 ID 开头（避免 LIBID 越界捕获尾部 STREAM DATA 等）
+        if "," not in chunk or not chunk.split(",", 1)[0].strip().isdigit():
+            continue
+        _id, name = chunk.split(",", 1)
+        comps.append(name.strip())
     return comps
 
 
@@ -758,6 +834,77 @@ def _parse_column_summary_text(text: str) -> dict | None:
                     "vapor_load": float(m.group("v")),
                     "liquid_load": float(m.group("l")),
                 }
+    return result
+
+
+# ---------------------------------------------------------------------------
+# P3.x SIM-19: 流 COMPOSITION 提取（spec §3.3.3）
+# ---------------------------------------------------------------------------
+
+
+def parse_compositions(inp_path: Path | str) -> dict[str, dict[str, float]]:
+    """从 .inp 提取所有 PROPERTY STREAM 的 COMPOSITION(M/W)=N,f/N,f/...
+
+    Args:
+        inp_path: PRO/II .inp 文件路径
+
+    Returns:
+        dict: stream_tag → {component_alias: mole_or_mass_fraction, ...}
+        - 无 COMPOSITION 段或无 STREAM → {}
+        - 数值解析失败 → 跳过该 stream
+    """
+    inp_path = Path(inp_path)
+    if not inp_path.exists():
+        raise FileNotFoundError(f"PRO/II .inp not found: {inp_path}")
+    text = inp_path.read_text(encoding="utf-8", errors="replace")
+
+    # 1) 取 LIBID → alias 映射（libid 是整数）
+    components = _parse_components(text)
+    libid_to_alias: dict[int, str] = {}
+    # components[0] 对应 LIBID=1, components[1] 对应 LIBID=2, ...
+    for idx, comp_name in enumerate(components, start=1):
+        libid_to_alias[idx] = map_libid_to_alias(comp_name)
+
+    # 2) 取 STREAM DATA 段
+    body = _join_continued_lines(text, "STREAM DATA", "UNIT OPERATIONS")
+    if not body:
+        return {}
+
+    # 3) 行扫描（拼接 `&` 续行）
+    joined_lines: list[str] = []
+    buf = ""
+    for line in body.splitlines():
+        if line.rstrip().endswith("&"):
+            buf += line.rstrip()[:-1] + " "
+        else:
+            buf += line
+            joined_lines.append(buf)
+            buf = ""
+    if buf:
+        joined_lines.append(buf)
+
+    # 4) 解析每个 PROPERTY STREAM 行
+    result: dict[str, dict[str, float]] = {}
+    for jline in joined_lines:
+        m = _STREAM_DEF_RE.search(jline)
+        if not m:
+            continue
+        tag = m.group("tag")
+        comp_match = _COMPOSITION_RE.search(jline)
+        if not comp_match:
+            continue
+        comp_body = comp_match.group("body")
+        fractions: dict[str, float] = {}
+        for pair_m in _COMPOSITION_PAIR_RE.finditer(comp_body):
+            try:
+                libid = int(pair_m.group(1))
+                frac = float(pair_m.group(2))
+            except ValueError:
+                continue
+            alias = libid_to_alias.get(libid, f"LIBID_{libid}")
+            fractions[alias] = frac
+        if fractions:
+            result[tag] = fractions
     return result
 
 
