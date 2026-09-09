@@ -444,6 +444,163 @@ def _parse_unit_ops(text: str) -> dict[str, UnitOp]:
 
 
 # ---------------------------------------------------------------------------
+# P3.x SIM-16: COLUMN SUMMARY 段解析
+# ---------------------------------------------------------------------------
+
+
+# COLUMN SUMMARY 段标识
+_COL_SUMMARY_HEADER = "COLUMN SUMMARY"
+# 行模板（spec §3.4.2：PRO/II 输出列宽固定）
+_COL_NAME_RE = re.compile(r"^\s+NAME:\s+(?P<uid>\S+)\s+(?P<name>.*?)\s*$")
+_COL_STAGES_RE = re.compile(r"^\s+NUMBER OF STAGES:\s+(?P<n>\d+)", re.IGNORECASE)
+_COL_CONDENSER_RE = re.compile(r"^\s+CONDENSER TYPE:\s+(?P<type>\S+)", re.IGNORECASE)
+_COL_REBOILER_RE = re.compile(r"^\s+REBOILER TYPE:\s+(?P<type>\S+)", re.IGNORECASE)
+_COL_FEED_RE = re.compile(
+    r"^\s+STREAM\s+(?P<sid>\S+)\s+STAGE\s+(?P<stage>\d+)", re.IGNORECASE
+)
+_COL_PRODUCT_RE = re.compile(r"^\s+(OVERHEAD|BOTTOMS|SIDEDRAW)\s+(?P<sid>\S+)", re.IGNORECASE)
+# TRAY COMPOSITIONS / LOADING 段行
+_TRAY_DATA_RE = re.compile(
+    r"^\s+STAGE\s+(?P<stage>\d+)\s+TEMP\s*=\s*(?P<t>[\d.\-]+)\s+K\s+"
+    r"PRES\s*=\s*(?P<p>[\d.\-]+)\s+KPA",
+    re.IGNORECASE,
+)
+_TRAY_COMP_RE = re.compile(r"^\s+(?P<libid>[A-Z0-9_]+)\s+(?P<frac>[\d.\-eE]+)")
+_TRAY_LOAD_RE = re.compile(
+    r"^\s+STAGE\s+(?P<stage>\d+)\s+VAPOR\s+LOAD\s*=\s*(?P<v>[\d.\-]+)\s+"
+    r"LIQUID\s+LOAD\s*=\s*(?P<l>[\d.\-]+)",
+    re.IGNORECASE,
+)
+
+
+def parse_column_summary(out_path: Path | str) -> dict | None:
+    """从 PRO/II .out 提取第一个 COLUMN SUMMARY 段（spec §3.4.2 + SIM-16 E-1）。
+
+    Returns:
+        None: 文件中无 COLUMN 段（典型情况：REACTOR/EXTRACTOR/COMPRESSOR 工程）
+        dict: {
+            tower_uid, num_stages, condenser_type, reboiler_type,
+            feed_stages_json: [{"stream_id", "stage"}, ...],
+            product_streams_json: [stream_id, ...],
+            tray_data_json: {stage: {temp_k, pressure_kpa, ...}, ...},
+            compositions_json: {stage: {LIBID: mole_frac, ...}, ...},
+            loading_json: {stage: {vapor_load, liquid_load}, ...},
+            rating_json: {} （P5 范畴，SIM-38b 填充）
+        }
+    """
+    out_path = Path(out_path)
+    text = out_path.read_text(encoding="utf-8", errors="replace")
+    return _parse_column_summary_text(text)
+
+
+def parse_proii_out(out_path: Path | str) -> dict:
+    """独立 .out 解析入口（SIM-16 测试用）：返回顶层 dict 含 tower_summaries 列表。
+
+    注：双文件主入口仍是 parse_proii_files（inp+out 配套）；本函数仅暴露 .out
+    可独立抽取的 COLUMN SUMMARY 段，避免 SIM-16 测试准备 .inp。
+    """
+    out_path = Path(out_path)
+    text = out_path.read_text(encoding="utf-8", errors="replace")
+    tower = _parse_column_summary_text(text)
+    return {
+        "tower_summaries": [tower] if tower else [],
+    }
+
+
+def _parse_column_summary_text(text: str) -> dict | None:
+    """text → COLUMN SUMMARY dict（内部供 parse_column_summary/parse_proii_out 共用）。"""
+    lines = text.splitlines()
+    # 找 COLUMN SUMMARY 段行范围（到下一个 SUMMARY 段或空行分隔）
+    start_idx: int | None = None
+    end_idx: int | None = None
+    for i, line in enumerate(lines):
+        if _COL_SUMMARY_HEADER in line.upper() and start_idx is None:
+            start_idx = i + 1
+            continue
+        if start_idx is not None and end_idx is None:
+            if line.strip() == "" or "SUMMARY" in line.upper() and "TRAY" not in line.upper():
+                end_idx = i
+                break
+    if start_idx is None or end_idx is None:
+        return None
+    section = lines[start_idx:end_idx]
+
+    result: dict = {
+        "tower_uid": None,
+        "tower_name": None,
+        "num_stages": None,
+        "condenser_type": None,
+        "reboiler_type": None,
+        "feed_stages_json": [],
+        "product_streams_json": [],
+        "tray_data_json": {},
+        "compositions_json": {},
+        "loading_json": {},
+        "rating_json": {},
+    }
+    for line in section:
+        if (m := _COL_NAME_RE.match(line)):
+            result["tower_uid"] = m.group("uid")
+            result["tower_name"] = m.group("name").strip()
+        elif (m := _COL_STAGES_RE.match(line)):
+            result["num_stages"] = int(m.group("n"))
+        elif (m := _COL_CONDENSER_RE.match(line)):
+            result["condenser_type"] = m.group("type").upper()
+        elif (m := _COL_REBOILER_RE.match(line)):
+            result["reboiler_type"] = m.group("type").upper()
+        elif (m := _COL_FEED_RE.match(line)):
+            result["feed_stages_json"].append(
+                {"stream_id": m.group("sid"), "stage": int(m.group("stage"))}
+            )
+        elif (m := _COL_PRODUCT_RE.match(line)):
+            result["product_streams_json"].append(m.group("sid"))
+
+    # 后续段：TRAY COMPOSITIONS / LOADING
+    post_section = lines[end_idx:]
+    in_tray = False
+    in_load = False
+    current_stage: int | None = None
+    for line in post_section:
+        u = line.upper()
+        if "TRAY COMPOSITIONS" in u:
+            in_tray = True
+            in_load = False
+            current_stage = None
+            continue
+        if "TRAY LOADING" in u:
+            in_tray = False
+            in_load = True
+            current_stage = None
+            continue
+        # 其他 SUMMARY 段 → 跳出
+        if "SUMMARY" in u and "TRAY" not in u:
+            in_tray = False
+            in_load = False
+            continue
+        if in_tray:
+            if (m := _TRAY_DATA_RE.match(line)):
+                stage = int(m.group("stage"))
+                current_stage = stage
+                result["tray_data_json"].setdefault(stage, {})
+                result["tray_data_json"][stage]["temp_k"] = float(m.group("t"))
+                result["tray_data_json"][stage]["pressure_kpa"] = float(m.group("p"))
+                continue
+            if current_stage is not None and (m := _TRAY_COMP_RE.match(line)):
+                result["compositions_json"].setdefault(current_stage, {})
+                result["compositions_json"][current_stage][m.group("libid")] = float(
+                    m.group("frac")
+                )
+        if in_load:
+            if (m := _TRAY_LOAD_RE.match(line)):
+                stage = int(m.group("stage"))
+                result["loading_json"][stage] = {
+                    "vapor_load": float(m.group("v")),
+                    "liquid_load": float(m.group("l")),
+                }
+    return result
+
+
+# ---------------------------------------------------------------------------
 # 工具
 # ---------------------------------------------------------------------------
 

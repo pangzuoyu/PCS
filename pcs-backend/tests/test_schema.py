@@ -31,7 +31,8 @@ def test_table_count(inspector):
     #   + project_pipe_code_sequences = 62
     # SUP-002 INT-1 新增 project_template_pipe_classes = 63
     # P3.x SIM-14 新增 sim_imports + sim_import_warnings = 65
-    assert len(tables) == 65, f"expected 65 incl. alembic_version, got {len(tables)}"
+    # P3.x SIM-16 新增 sim_tower_results = 66
+    assert len(tables) == 66, f"expected 66 incl. alembic_version, got {len(tables)}"
 
 
 def test_required_tables_present(inspector):
@@ -94,6 +95,9 @@ def test_required_tables_present(inspector):
         "pipe_code_templates",
         "project_pipe_code_configs",
         "project_pipe_code_sequences",
+        "sim_imports",
+        "sim_import_warnings",
+        "sim_tower_results",
     }
     present = set(inspector.get_table_names())
     missing = required - present
