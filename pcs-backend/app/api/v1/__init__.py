@@ -12,6 +12,8 @@ from app.api.v1.lineage import router as lineage_router
 from app.api.v1.pipe_classes import router as pipe_classes_router
 from app.api.v1.pipe_codes import router as pipe_codes_router
 from app.api.v1.records import router as records_router
+from app.api.v1.sim_imports_query import project_router as sim_imports_query_router
+from app.api.v1.sim_imports_query import router as sim_imports_query_root_router
 from app.api.v1.stream_symbols import router as stream_symbols_router
 from app.api.v1.streams import router as streams_router
 from app.api.v1.workspaces import router as workspaces_router
@@ -32,3 +34,5 @@ api_router.include_router(equip_lib_router)
 api_router.include_router(pipe_codes_router)
 api_router.include_router(common_router)
 api_router.include_router(imports_router)
+api_router.include_router(sim_imports_query_router)
+api_router.include_router(sim_imports_query_root_router)
