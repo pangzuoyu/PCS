@@ -1026,6 +1026,8 @@ def parse_proii_out_sections(out_path: Path | str) -> dict:
     calc_history = _parse_calculation_history(text)
     stream_rows = _parse_stream_summary_rows(text)
     comp_data = _parse_component_data(text)
+    reactor_summary = _parse_reactor_summary(text)
+    cstr_summary = _parse_cstr_summary(text)
 
     return {
         "banner": banner,
@@ -1038,13 +1040,13 @@ def parse_proii_out_sections(out_path: Path | str) -> dict:
         "reactions": reactions,
         "unit_ops": unit_ops,
         "column_summary": column_summary,
-        "streams": stream_rows,            # SIM-20 STREAM SUMMARY 原始行
+        "streams": stream_rows,            # 列拆分后 list[dict]
         "stream_summary_rows": stream_rows,  # 别名（向后兼容）
         "component_data": comp_data,
-        # 预留 section（本期未实现）
+        "reactor_summary": reactor_summary,  # list[dict]
+        "cstr_summary": cstr_summary,        # list[dict]
+        # HCURVE 在 PRO/II .out 中无 SUMMARY 段（仅 .inp 标识）→ 始终 None
         "hcurve": None,
-        "reactor_summary": None,
-        "cstr_summary": None,
     }
 
 
@@ -1159,64 +1161,365 @@ def _parse_calculation_history(text: str) -> list[dict] | None:
     return rows if rows else None
 
 
-def _parse_stream_summary_rows(text: str) -> list[str]:
-    """STREAM SUMMARY 段原始行列表（spec §3.4.2 PR-5 stub）。
+def _parse_stream_summary_rows(text: str) -> list[dict]:
+    """STREAM SUMMARY 段列拆分（spec §3.4.2 PR-5 + §3.6 SIM-22 join 需求）。
 
-    注：本期仅提取原始行（含 TYPE/NAME/PHASE/FROM/TO/FLOW_RATES 列），未做
-    列拆分。SIM-22 PropertyConflictResolver 落地后可基于 effective
-    streams 表 join；列拆分属于 P3.2 SIM-21~22 增强范围。
+    列拆分后 list[dict]，每个 dict 字段：
+        type           — FEED / PROD / RECYCLE
+        name           — stream 名（如 A/D/E）
+        phase          — MIXED / LIQUID / VAPOR
+        from_tray      — int | None（起点塔板号；空缺 None）
+        to_tray        — int | None（终点塔板号；空缺 None）
+        liquid_frac    — float | None
+        flow_kmolph    — float | None（KG-MOL/HR）
+        heat_mkcalph   — float | None（M*KCAL/HR）
 
-    容错策略：PRO/II .out 头部有 TOC（"   233   STREAM SUMMARY"），且
-    第一次出现 STREAM SUMMARY 段后通常紧跟 banner + COMPONENT DATA 子段，
-    不能立即算入 rows；激活条件：跳过 TOC 数字前缀并仅在看到数据行
-    （FEED/PROD 前缀）或子段标头（FEED AND PRODUCT STREAMS）时确认。
+    容错策略：跳过 TOC 行（如 "   233   STREAM SUMMARY"），匹配真实段头
+    "                  STREAM SUMMARY                    02/13/98"；
+    行首为 FEED/PROD/RECYCLE 即数据行；列缺失返回 None（不抛错）。
     """
     import re
     lines = text.splitlines()
-    rows: list[str] = []
-    # TOC 行："   233   STREAM SUMMARY"（左对齐数字 + STREAM SUMMARY 单词）
+    rows: list[dict] = []
     toc_re = re.compile(r"^\s*\d+\s+STREAM SUMMARY\b", re.IGNORECASE)
-    # 真实段头："                  STREAM SUMMARY                    02/13/98"
-    # 或独立行 STREAM SUMMARY；要求 STREAM SUMMARY 不在数字前导行中
-    real_header_re = re.compile(
-        r"^\s+STREAM SUMMARY\b", re.IGNORECASE
-    )
+    real_header_re = re.compile(r"^\s+STREAM SUMMARY\b", re.IGNORECASE)
     in_section = False
     in_subblock = False
     for line in lines:
         upper = line.upper().strip()
         if not in_section:
-            # 跳过 TOC 行（"   233   STREAM SUMMARY"）
             if toc_re.match(line):
                 continue
-            # 真实段头（独立行 STREAM SUMMARY，可带日期后缀）
             if real_header_re.match(line) and not toc_re.match(line):
                 in_section = True
                 continue
             continue
-        # in_section 之后：
-        # 数据行（FEED/PROD/RECYCLE 前缀）→ 入列
         if upper.startswith(("FEED", "PROD", "RECYCLE")):
-            rows.append(line.rstrip())
+            rows.append(_split_stream_row(line))
             in_subblock = True
             continue
-        # 子段标头（FEED AND PRODUCT STREAMS / PSEUDO PRODUCT STREAMS）
-        # 进入 subblock 但不入列
         if upper.startswith("FEED AND PRODUCT") or upper.startswith("PSEUDO PRODUCT"):
             in_subblock = True
             continue
-        # 段结束符
         if upper.startswith("OVERALL") or upper.startswith("END OF RUN"):
             break
         if line.strip().startswith("***"):
             break
-        # 子段标题/分隔/空行——忽略
         if not upper or set(upper) <= {"-", "="}:
             continue
         if in_subblock and ("PHASE" in upper or upper.startswith("TYPE") or
                           upper.startswith("----")):
             continue
-        # 其他任何行——保守：仅在子段标头已出现时舍弃，避免错失
+    return rows
+
+
+def _split_stream_row(line: str) -> dict:
+    """单条 STREAM SUMMARY 数据行列拆分。
+
+    典型行格式（PRO/II 8 列表头）：
+        FEED  A            MIXED          25   .8091             120.35        2.9552
+        PROD  D            LIQUID     1                           18.68         .2768
+        PROD  E            LIQUID    45                          101.67        2.5285
+
+    列定位依据：
+      [0]   type           FEED/PROD/RECYCLE（首列字母）
+      [1]   name           stream 名
+      [2]   phase          MIXED/LIQUID/VAPOR
+      [3]   from_tray      int（FROM TRAY）或空
+      [4]   to_tray        int（TO TRAY）或空
+      [5]   liquid_frac    float（LIQUID FRAC）
+      [6]   flow_kmolph    float（KG-MOL/HR）
+      [7]   heat_mkcalph   float（M*KCAL/HR）
+    """
+    parts = line.split()
+    out: dict = {
+        "type": None,
+        "name": None,
+        "phase": None,
+        "from_tray": None,
+        "to_tray": None,
+        "liquid_frac": None,
+        "flow_kmolph": None,
+        "heat_mkcalph": None,
+    }
+    if not parts:
+        return out
+    out["type"] = parts[0].upper()
+    if len(parts) >= 2:
+        out["name"] = parts[1]
+    if len(parts) >= 3:
+        phase_candidate = parts[2].upper()
+        if phase_candidate in {"MIXED", "LIQUID", "VAPOR", "VAP/LIQ", "SOLID"}:
+            out["phase"] = phase_candidate
+    # 列 [3..7] 可能为数字或空（固定列宽分隔）；按位置尝试解析
+    numeric_positions = {3: "from_tray", 4: "to_tray", 5: "liquid_frac",
+                          6: "flow_kmolph", 7: "heat_mkcalph"}
+    for idx, field in numeric_positions.items():
+        if len(parts) > idx:
+            val = parts[idx]
+            try:
+                if field in {"from_tray", "to_tray"}:
+                    out[field] = int(val)
+                else:
+                    out[field] = float(val)
+            except (ValueError, TypeError):
+                # 非数字（"****" 占位/空字段）→ 保持 None
+                pass
+    return out
+
+
+def _parse_reactor_summary(text: str) -> list[dict]:
+    """REACTOR SUMMARY 段（spec §3.4.2 PR-13）。
+
+    每段典型结构（sample 行 7885+）：
+        REACTOR SUMMARY  02/09/99
+        UNIT 11, 'R101'
+        REACTOR TYPE   ADIABATIC REACTOR
+        DUTY, M*KCAL/HR   -2.57361E-08
+        FEED         S5
+        LIQUID PRODUCT  S4
+        TEMPERATURE, C  127.24  169.94
+        PRESSURE, KG/CM2  36.7  36.2
+
+    提取 list[dict]，每条 reactor 一条记录：
+        unit_id / reactor_type / duty_mkcalph /
+        heat_of_reaction_mkcalph /
+        feed_stream / liquid_product / temperature_in_c /
+        temperature_out_c / pressure_in_kgcm2 / pressure_out_kgcm2
+    """
+    import re
+    lines = text.splitlines()
+    rows: list[dict] = []
+    header_re = re.compile(r"^\s+REACTOR SUMMARY\b", re.IGNORECASE)
+    unit_re = re.compile(r"^\s*UNIT\s+\d+,\s*'([^']+)'", re.IGNORECASE)
+    type_re = re.compile(r"^\s*REACTOR TYPE\s+(.+)$", re.IGNORECASE)
+    duty_re = re.compile(r"^\s*DUTY,\s*M\*KCAL/HR\s+([\d.E+\-]+)\s*$",
+                         re.IGNORECASE)
+    hor_re = re.compile(
+        r"^\s*TOTAL HEAT OF REACTION AT [\d.]+\s*C,\s*M\*KCAL/HR\s+"
+        r"([\d.E+\-]+)\s*$", re.IGNORECASE
+    )
+    feed_re = re.compile(r"^\s*FEED\s+(\S+)\s*$", re.IGNORECASE)
+    prod_re = re.compile(r"^\s*LIQUID PRODUCT\s+(\S+)\s*$", re.IGNORECASE)
+    temp_re = re.compile(
+        r"^\s*TEMPERATURE,\s*C\s+([\d.E+\-]+)\s+([\d.E+\-]+)\s*$",
+        re.IGNORECASE
+    )
+    pres_re = re.compile(
+        r"^\s*PRESSURE,\s*KG/CM2\s+([\d.E+\-]+)\s+([\d.E+\-]+)\s*$",
+        re.IGNORECASE
+    )
+    in_section = False
+    current: dict | None = None
+    for line in lines:
+        upper = line.upper().strip()
+        if not in_section:
+            if header_re.match(line):
+                in_section = True
+                continue
+            continue
+        # 段结束：下一段 banner（*** 开头或新 SUMMARY）
+        if line.strip().startswith("***"):
+            if current is not None:
+                rows.append(current)
+                current = None
+            break
+        if re.match(r"^\s+(COLUMN|STREAM|PUMP|MIXER|HX|FLASH)\s+SUMMARY\b",
+                    upper):
+            if current is not None:
+                rows.append(current)
+                current = None
+            in_section = False
+            continue
+        m = unit_re.match(line)
+        if m:
+            if current is not None:
+                rows.append(current)
+            current = {"unit_id": m.group(1)}
+            continue
+        if current is None:
+            continue
+        m = type_re.match(line)
+        if m:
+            current["reactor_type"] = m.group(1).strip()
+            continue
+        m = duty_re.match(line)
+        if m:
+            try:
+                current["duty_mkcalph"] = float(m.group(1))
+            except ValueError:
+                pass
+            continue
+        m = hor_re.match(line)
+        if m:
+            try:
+                current["heat_of_reaction_mkcalph"] = float(m.group(1))
+            except ValueError:
+                pass
+            continue
+        m = feed_re.match(line)
+        if m and "feed_stream" not in current:
+            current["feed_stream"] = m.group(1)
+            continue
+        m = prod_re.match(line)
+        if m and "liquid_product" not in current:
+            current["liquid_product"] = m.group(1)
+            continue
+        m = temp_re.match(line)
+        if m:
+            try:
+                current["temperature_in_c"] = float(m.group(1))
+                current["temperature_out_c"] = float(m.group(2))
+            except ValueError:
+                pass
+            continue
+        m = pres_re.match(line)
+        if m:
+            try:
+                current["pressure_in_kgcm2"] = float(m.group(1))
+                current["pressure_out_kgcm2"] = float(m.group(2))
+            except ValueError:
+                pass
+            continue
+    if current is not None:
+        rows.append(current)
+    return rows
+
+
+def _parse_cstr_summary(text: str) -> list[dict]:
+    """CSTR SUMMARY 段（spec §3.4.2 PR-14）。
+
+    结构同 REACTOR SUMMARY（sample 行 8038+），额外含 CSTR 特有：
+        VOLUME, M3 / SPACE-TIME, HR / SPACE-VELOCITY, /HR
+
+    字段同 REACTOR + volume_m3 / space_time_hr / space_velocity_per_hr。
+    """
+    import re
+    lines = text.splitlines()
+    rows: list[dict] = []
+    header_re = re.compile(r"^\s+CSTR SUMMARY\b", re.IGNORECASE)
+    unit_re = re.compile(r"^\s*UNIT\s+\d+,\s*'([^']+)'", re.IGNORECASE)
+    type_re = re.compile(r"^\s*REACTOR TYPE\s+(.+)$", re.IGNORECASE)
+    duty_re = re.compile(r"^\s*DUTY,\s*M\*KCAL/HR\s+([\d.E+\-]+)\s*$",
+                         re.IGNORECASE)
+    hor_re = re.compile(
+        r"^\s*TOTAL HEAT OF REACTION AT [\d.]+\s*C,\s*M\*KCAL/HR\s+"
+        r"([\d.E+\-]+)\s*$", re.IGNORECASE
+    )
+    volume_re = re.compile(r"^\s*VOLUME,\s*M3\s+([\d.E+\-]+)\s*$",
+                           re.IGNORECASE)
+    st_re = re.compile(
+        r"^\s*SPACE-TIME,\s*HR\s+AT OUTLET CONDITIONS\s+([\d.E+\-]+)\s*$",
+        re.IGNORECASE
+    )
+    sv_re = re.compile(
+        r"^\s*SPACE-VELOCITY,\s*/HR\s+AT OUTLET CONDITIONS\s+"
+        r"([\d.E+\-]+)\s*$", re.IGNORECASE
+    )
+    feed_re = re.compile(r"^\s*FEED\s+(\S+)\s*$", re.IGNORECASE)
+    prod_re = re.compile(r"^\s*LIQUID PRODUCT\s+(\S+)\s*$", re.IGNORECASE)
+    temp_re = re.compile(
+        r"^\s*TEMPERATURE,\s*C\s+([\d.E+\-]+)\s+([\d.E+\-]+)\s*$",
+        re.IGNORECASE
+    )
+    pres_re = re.compile(
+        r"^\s*PRESSURE,\s*KG/CM2\s+([\d.E+\-]+)\s+([\d.E+\-]+)\s*$",
+        re.IGNORECASE
+    )
+    in_section = False
+    current: dict | None = None
+    for line in lines:
+        upper = line.upper().strip()
+        if not in_section:
+            if header_re.match(line):
+                in_section = True
+                continue
+            continue
+        if line.strip().startswith("***"):
+            if current is not None:
+                rows.append(current)
+                current = None
+            break
+        if re.match(r"^\s+(COLUMN|STREAM|PUMP|MIXER|HX|FLASH|REACTOR)\s+"
+                    r"SUMMARY\b", upper):
+            if current is not None:
+                rows.append(current)
+                current = None
+            in_section = False
+            continue
+        m = unit_re.match(line)
+        if m:
+            if current is not None:
+                rows.append(current)
+            current = {"unit_id": m.group(1)}
+            continue
+        if current is None:
+            continue
+        m = type_re.match(line)
+        if m:
+            current["reactor_type"] = m.group(1).strip()
+            continue
+        m = duty_re.match(line)
+        if m:
+            try:
+                current["duty_mkcalph"] = float(m.group(1))
+            except ValueError:
+                pass
+            continue
+        m = hor_re.match(line)
+        if m:
+            try:
+                current["heat_of_reaction_mkcalph"] = float(m.group(1))
+            except ValueError:
+                pass
+            continue
+        m = volume_re.match(line)
+        if m:
+            try:
+                current["volume_m3"] = float(m.group(1))
+            except ValueError:
+                pass
+            continue
+        m = st_re.match(line)
+        if m:
+            try:
+                current["space_time_hr"] = float(m.group(1))
+            except ValueError:
+                pass
+            continue
+        m = sv_re.match(line)
+        if m:
+            try:
+                current["space_velocity_per_hr"] = float(m.group(1))
+            except ValueError:
+                pass
+            continue
+        m = feed_re.match(line)
+        if m and "feed_stream" not in current:
+            current["feed_stream"] = m.group(1)
+            continue
+        m = prod_re.match(line)
+        if m and "liquid_product" not in current:
+            current["liquid_product"] = m.group(1)
+            continue
+        m = temp_re.match(line)
+        if m:
+            try:
+                current["temperature_in_c"] = float(m.group(1))
+                current["temperature_out_c"] = float(m.group(2))
+            except ValueError:
+                pass
+            continue
+        m = pres_re.match(line)
+        if m:
+            try:
+                current["pressure_in_kgcm2"] = float(m.group(1))
+                current["pressure_out_kgcm2"] = float(m.group(2))
+            except ValueError:
+                pass
+            continue
+    if current is not None:
+        rows.append(current)
     return rows
 
 

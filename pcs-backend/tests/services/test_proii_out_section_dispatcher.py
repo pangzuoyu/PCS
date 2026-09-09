@@ -169,27 +169,69 @@ def test_parse_proii_out_sections_performance_under_5s():
 
 
 def test_parse_proii_out_sections_streams_contain_data_rows():
-    """streams 段含 STREAM SUMMARY 数据行（spec PR-5：原始行 list）。
+    """streams 段含 STREAM SUMMARY 数据行（spec PR-5：列拆分后 list[dict]）。
 
-    注：本期未做列拆分（TYPE/NAME/PHASE/FROM/TO/FLOW_RATES），保留为
-    原始字符串行——下游 SIM-22 PropertyConflictResolver 落地后可基于
-    effective streams 表 join；列拆分属 SIM-22+ 增强范围。
+    每个 dict 含 type/name/phase/from_tray/to_tray/liquid_frac/flow_kmolph/
+    heat_mkcalph。下游 SIM-22 PropertyConflictResolver + SIM-32 物流表
+    join 可直接消费。
     """
     if not SAMPLE_PROII_OUT.exists():
         pytest.skip(f"sample not found: {SAMPLE_PROII_OUT}")
     sections = parse_proii_out_sections(SAMPLE_PROII_OUT)
     streams = sections["streams"]
     assert isinstance(streams, list)
-    # 至少 1 条数据行（FEED/PROD 等）
     assert len(streams) >= 1
-    # 行至少含 stream type 前缀（FEED/PROD/RECYCLE 等）
-    type_prefixes = {"FEED", "PROD", "RECYCLE", "PROD."}
-    has_prefixed = any(
-        any(row.startswith(p) for p in type_prefixes)
-        for row in streams
-        if isinstance(row, str)
+    # 列拆分后每个 element 是 dict
+    first = streams[0]
+    assert isinstance(first, dict)
+    # 必含字段（spec §3.4.2 STREAM SUMMARY 表头）
+    expected_keys = {
+        "type", "name", "phase",
+        "from_tray", "to_tray", "liquid_frac",
+        "flow_kmolph", "heat_mkcalph",
+    }
+    assert expected_keys.issubset(first.keys()), (
+        f"missing keys: {expected_keys - set(first.keys())}; "
+        f"first row: {first}"
     )
-    assert has_prefixed, (
-        f"no STREAM SUMMARY row with FEED/PROD/RECYCLE prefix; "
-        f"first 5 rows: {streams[:5]}"
-    )
+    # type ∈ FEED/PROD/RECYCLE
+    assert first["type"] in {"FEED", "PROD", "RECYCLE"}
+
+
+def test_parse_proii_out_sections_streams_contain_reactor_summary():
+    """sample 文件含 REACTOR SUMMARY 段（行 7885）→ list[dict]。"""
+    if not SAMPLE_PROII_OUT.exists():
+        pytest.skip(f"sample not found: {SAMPLE_PROII_OUT}")
+    sections = parse_proii_out_sections(SAMPLE_PROII_OUT)
+    rs = sections.get("reactor_summary")
+    assert isinstance(rs, list)
+    assert len(rs) >= 1
+    # 含 unit_id + 关键操作条件
+    first = rs[0]
+    assert isinstance(first, dict)
+    assert "unit_id" in first
+    assert "reactor_type" in first or "duty_mkcalph" in first
+
+
+def test_parse_proii_out_sections_streams_contain_cstr_summary():
+    """sample 文件含 CSTR SUMMARY 段（行 8038）→ list[dict]。"""
+    if not SAMPLE_PROII_OUT.exists():
+        pytest.skip(f"sample not found: {SAMPLE_PROII_OUT}")
+    sections = parse_proii_out_sections(SAMPLE_PROII_OUT)
+    cs = sections.get("cstr_summary")
+    assert isinstance(cs, list)
+    assert len(cs) >= 1
+    first = cs[0]
+    assert isinstance(first, dict)
+    assert "unit_id" in first
+    # CSTR 特有：volume_m3 / space_time_hr
+    assert "volume_m3" in first or "duty_mkcalph" in first
+
+
+def test_parse_proii_out_sections_hcurve_is_none_when_no_summary_in_out():
+    """HCURVE 在 .out 文件中无 SUMMARY 段（仅出现在 .inp 标识）→ 返回 None。"""
+    if not SAMPLE_PROII_OUT.exists():
+        pytest.skip(f"sample not found: {SAMPLE_PROII_OUT}")
+    sections = parse_proii_out_sections(SAMPLE_PROII_OUT)
+    # 实际 PRO/II .out 无 HCURVE SUMMARY；只有 inp 标识
+    assert sections.get("hcurve") is None
