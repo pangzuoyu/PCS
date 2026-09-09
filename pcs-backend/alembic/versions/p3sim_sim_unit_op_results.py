@@ -1,7 +1,8 @@
 """P3.x SIM-15: sim_unit_op_results + 6 专用结果表。
 
 spec §5.5 + audit V2.0 E-1：
-- sim_unit_op_results 主表：13 类单元公共字段（unit_uid/unit_type/iterations/convergence/raw_summary_json）
+- sim_unit_op_results 主表：13 类单元公共字段
+  （unit_uid/unit_type/iterations/convergence/raw_summary_json）
 - 6 类专用表（1:1 FK → sim_unit_op_results.unit_op_id）：
   - sim_reactor_results / sim_cstr_results / sim_compressor_results /
     sim_splitter_results / sim_stca_results / sim_calculator_results
