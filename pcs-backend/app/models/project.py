@@ -255,6 +255,44 @@ class Stream(TimestampMixin, Base):
         String(64), comment="APPLY_CHANGE 审批人 ID（str(uuid) 形式）"
     )
 
+    # === P3.x SIM-17: streams 4 字段 ===
+    # simulation_status / tear_stream / estimated / stream_properties_json
+    simulation_status: Mapped[str | None] = mapped_column(
+        String(30),
+        comment="SIM-17 §3.2.4: SOLVED/ESTIMATED/MEASURED/MANUAL/UNKNOWN（PRO/II 导入标记）",
+    )
+    tear_stream: Mapped[bool | None] = mapped_column(
+        Boolean,
+        comment="SIM-17 §3.2.4: TRUE=撕裂流（收敛循环起点；下游计算模块需特殊处理）",
+    )
+    estimated: Mapped[bool | None] = mapped_column(
+        Boolean,
+        comment="SIM-17 §3.2.4: TRUE=物性被估算（SIM-21 CoolProp/Joback 等自动补全）",
+    )
+    stream_properties_json: Mapped[dict | None] = mapped_column(
+        JSONB,
+        comment="SIM-17 §3.2.4: 流物性包（MW/Tc/Pc/Vc/Zc/acentric + VLE/HV 系数）",
+    )
+
+    # === P3.x SIM-18: streams 4 JSON 字段 ===
+    # user_provided/calculated/effective/conflict_resolutions_json
+    user_provided_properties_json: Mapped[dict | None] = mapped_column(
+        JSONB,
+        comment="SIM-18 §3.6 ADD-002: 用户提供的物性（手工/Excel 入口）",
+    )
+    calculated_properties_json: Mapped[dict | None] = mapped_column(
+        JSONB,
+        comment="SIM-18 §3.6 ADD-002: SIM-3 自动补全的物性（Joback/Lee-Kesler/Rackett/CoolProp）",
+    )
+    effective_properties_json: Mapped[dict | None] = mapped_column(
+        JSONB,
+        comment="SIM-18 §3.6 ADD-002: 实际生效的物性（user_provided > calculated > default）",
+    )
+    conflict_resolutions_json: Mapped[dict | None] = mapped_column(
+        JSONB,
+        comment="SIM-18: PropertyConflictResolver 输出（用户值 vs 计算值冲突解决记录）",
+    )
+
     # SIM-13 D-3 闭环：selectinload 防 N+1 — 状态点反向关系
     state_points: Mapped[list["StreamStatePoint"]] = relationship(  # noqa: F821
         "StreamStatePoint",
