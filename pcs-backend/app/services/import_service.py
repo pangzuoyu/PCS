@@ -652,18 +652,21 @@ _COMPONENT_COLUMNS: list[str] = [
 ]
 
 
-def _component_alias_rows() -> list[tuple[str, str, str]]:
-    """别名表 sheet 数据行（Group / Alias / Standard）。
+def _component_alias_rows() -> list[tuple[str, str, str, float | None]]:
+    """别名表 sheet 数据行（Group / Alias / Standard / Factor）。
 
-    当前 17 项 PRO/II LIBID→CAS（spec §5.2）；SIM-30 任务（task #34）扩展到
-    50+ 组（PROP_ID / FIELD / UNIT / case_type / data_mode 等）时直接追加。
+    Sheet3 4 列契约（SIM-30 决议）：Factor 对纯 ALIAS 组留空；
+    ALIAS_WITH_FACTOR 组填换算因子。展示全部 4 组（COMPONENT_NAME /
+    UNIT_CONVERSION / EXCEL_COLUMN / VALIDATOR_FIELD），用户可直接编辑
+    组分别名列。
     """
-    from app.services.proii_parser import PROII_COMPONENT_ALIASES
+    from app.services.alias_registry import get_group_items, list_groups
 
-    return [
-        ("COMPONENT_NAME", alias, standard)
-        for alias, standard in sorted(PROII_COMPONENT_ALIASES.items())
-    ]
+    rows: list[tuple[str, str, str, float | None]] = []
+    for group in list_groups():
+        for alias, canonical, factor in get_group_items(group):
+            rows.append((group, alias, canonical, factor))
+    return rows
 
 
 def generate_excel_template() -> bytes:
@@ -687,11 +690,11 @@ def generate_excel_template() -> bytes:
     ws2 = wb.create_sheet("组分组成")
     ws2.append(_COMPONENT_COLUMNS)
 
-    # Sheet 3: 别名表
+    # Sheet 3: 别名表（SIM-30：4 列 Group / Alias / Standard / Factor）
     ws3 = wb.create_sheet("别名表")
-    ws3.append(["Group", "Alias", "Standard"])
-    for group, alias, standard in _component_alias_rows():
-        ws3.append([group, alias, standard])
+    ws3.append(["Group", "Alias", "Standard", "Factor"])
+    for group, alias, standard, factor in _component_alias_rows():
+        ws3.append([group, alias, standard, factor if factor is not None else ""])
 
     buf = BytesIO()
     wb.save(buf)

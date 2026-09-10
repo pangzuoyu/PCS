@@ -45,7 +45,8 @@ SHEET1_NAMES = ("物流列表", "Streams", "Stream List")
 SHEET2_NAMES = ("组分组成", "Components", "Compositions")
 
 # spec 附录 A 名称别名（最小集：H₂O→WATER）
-# 后续 P3.2 SIM-10 阶段可扩展（CH4/METHANE、NH3/AMMONIA 等）
+# P3.x SIM-30：单源迁移至 `app.services.alias_registry`，本处保留 dict shim
+# 以兼容旧 import（tests/api/v1/test_excel_import.py 等）
 COMPONENT_ALIASES: dict[str, str] = {
     "H₂O": "WATER",
     "H2O": "WATER",

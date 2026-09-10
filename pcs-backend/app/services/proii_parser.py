@@ -147,40 +147,29 @@ _REACTION_RE = re.compile(
 _STOIC_PAIR_RE = re.compile(r"(\d+)\s*,\s*(-?[\d.]+)")
 
 # ---------------------------------------------------------------------------
-# P3.x SIM-19: PRO/II LIBID→CAS 别名映射（spec §5.2）
+# P3.x SIM-30: PRO/II LIBID→CAS 别名映射（spec §5.2）—— 单源真相迁移至
+# `app.services.alias_registry.ALIAS_GROUPS["COMPONENT_NAME"]`。本处保留
+# `PROII_COMPONENT_ALIASES` 与 `map_libid_to_alias` 作为向后兼容 shim。
 # ---------------------------------------------------------------------------
 
-# 17 项常见 LIBID→CAS 标准名映射（PRO/II 输出常用简写，CASE/PRO/II 计算用全名）
-PROII_COMPONENT_ALIASES: dict[str, str] = {
-    "H2O": "WATER",
-    "CO2": "CARBON_DIOXIDE",
-    "H2S": "HYDROGEN_SULFIDE",
-    "N2": "NITROGEN",
-    "O2": "OXYGEN",
-    "H2": "HYDROGEN",
-    "NH3": "AMMONIA",
-    "C1": "METHANE",
-    "C2": "ETHANE",
-    "C3": "PROPANE",
-    "CO": "CARBON_MONOXIDE",
-    "SO2": "SULFUR_DIOXIDE",
-    "HCL": "HYDROGEN_CHLORIDE",
-    "CL2": "CHLORINE",
-    "NC4": "N_BUTANE",
-    "IC4": "ISO_BUTANE",
-    "NC5": "N_PENTANE",
-}
+# Shim：保持模块级 dict 导入可用（compo 测试兼容）
+# ruff: noqa: E402 — 必须在 PROII_COMPONENT_ALIASES 之前
+from app.services.alias_registry import ALIAS_GROUPS as _ALIAS_GROUPS
+
+PROII_COMPONENT_ALIASES: dict[str, str] = dict(
+    _ALIAS_GROUPS["COMPONENT_NAME"]["entries"]  # 25+ 项 LIBID+Excel 别名
+)
 
 
 def map_libid_to_alias(name: str) -> str:
     """PRO/II LIBID 名称 → CAS 标准名（spec §5.2 别名映射）。
 
-    大小写不敏感；未知名称 → 原名大写返回。
+    DEPRECATED: use `alias_registry.resolve_alias("COMPONENT_NAME", name)`.
+    P4 cleanup 时删除。薄 shim，转发至单源 registry。
     """
-    if not name:
-        return ""
-    upper = name.strip().upper()
-    return PROII_COMPONENT_ALIASES.get(upper, upper)
+    from app.services.alias_registry import resolve_alias
+
+    return resolve_alias("COMPONENT_NAME", name)
 
 
 # .inp COMPOSITION(M)=N,f/N,f/... 段正则（COMPOSITION 关键字 + M 表示摩尔分率）

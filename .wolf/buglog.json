@@ -1008,6 +1008,34 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-09T13:30:00.000Z"
+    },
+    {
+      "id": "bug-065",
+      "timestamp": "2026-09-10T00:00:00Z",
+      "error_message": "PRO/II REFINERY PROCESSOR 子段数值列位置与 STREAM ID 列位置错位",
+      "file": "app/services/proii_parser.py:_parse_refinery_processor",
+      "root_cause": "STREAM ID 行 ID 在 col 37 (FO1)，数据行 RATE 1.9119E-07 在 col 30 — ID 列与数据列差 7 chars；不同属性行因 label 长度不同导致 left-padding 不同 (34/47/60/73 vs 30/46/59/72)，不能用单一 id_positions 切",
+      "fix": "每行独立用 re.finditer 找数值位置，按列起点切片",
+      "tags": [
+        "proii-parser",
+        "SIM-20d",
+        "REFINERY",
+        "FCC",
+        "column-position"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-10T00:00:00Z"
+    },
+    {
+      "id": "bug-066",
+      "timestamp": "2026-09-11T00:00:00Z",
+      "error_message": "alias_registry.resolve_alias uppercases canonical for EXCEL_COLUMN/VALIDATOR_FIELD groups, breaking DB snake_case mapping",
+      "file": "app/services/alias_registry.py",
+      "root_cause": "resolve_alias 默认把 fallback 也 uppercase，导致 case-sensitive canonical（snake_case DB 字段）被破坏",
+      "fix": "增加 per-group `case_sensitive` 标记；EXCEL_COLUMN/VALIDATOR_FIELD 设为 True 保留原大小写；COMPONENT_NAME 保持默认 False（CAS 标准名约定大写）",
+      "tags": ["SIM-30", "alias_registry", "case_sensitivity"],
+      "occurrences": 1,
+      "last_seen": "2026-09-11T00:00:00Z"
     }
   ]
 }

@@ -20,9 +20,10 @@ from app.services.proii_parser import (
 FIXTURES = Path(__file__).parent.parent / "fixtures" / "proii"
 
 
-def test_proii_component_aliases_has_17_items():
-    """spec §5.2 契约：PROII_COMPONENT_ALIASES 必含 17 项 LIBID→CAS。"""
-    assert len(PROII_COMPONENT_ALIASES) == 17
+def test_proii_component_aliases_has_at_least_17_items():
+    """spec §5.2 契约：PROII_COMPONENT_ALIASES 必含原 17 项 LIBID→CAS；
+    SIM-30 扩展至 ≥25（PROII 17 + 附录 A 化学式变体 + 化学常识补全）。"""
+    assert len(PROII_COMPONENT_ALIASES) >= 17
     # 关键别名覆盖（H2O/CO2/H2S/NH3/CH4/C2H6/C3H8 等）
     must_have = {"H2O", "CO2", "H2S", "N2", "O2", "H2", "NH3", "C1",
                  "C2", "C3", "CO", "SO2", "HCL", "CL2", "NC4", "IC4", "NC5"}
