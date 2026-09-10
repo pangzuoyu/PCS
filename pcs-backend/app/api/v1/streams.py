@@ -47,6 +47,7 @@ from app.schemas.stream import (
 )
 from app.services.conflict_resolver import ConflictResolver
 from app.services.exceptions import PcsError
+from app.services.property_auto_complete import PropertyAutoCompleter
 from app.services.stream_service import (
     StreamService,
     _to_parsed_stream,  # SIM-24
@@ -591,6 +592,73 @@ async def mark_stale_stream(
     return await _transition_endpoint(
         stream_id, StateTransition.MARK_STALE, user, db, reason=req.reason
     )
+
+
+# ---------------------------------------------------------------------------
+# SIM-26：物性 JSON 字段查询 + 物性补全估算（不入库）
+# ---------------------------------------------------------------------------
+
+
+class EstimatePropertiesRequest(BaseModel):
+    """POST /streams/{id}/properties/estimate 请求：CAS 列表（必填，可空）。"""
+
+    cas_list: list[str] = Field(
+        default_factory=list,
+        description="CAS 号列表（每条调用 PropertyAutoCompleter.complete）",
+    )
+
+
+@router.get("/streams/{stream_id}/properties")
+async def get_stream_properties(
+    stream_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, Any]:
+    """SIM-26：返回 stream 的 4 JSON 物性字段。
+
+    字段：
+    - user_provided：用户提供（手工/Excel 入口）
+    - calculated：SIM-3 自动补全（Joback/Lee-Kesler/Rackett/CoolProp）
+    - effective：实际生效（user_provided > calculated > default）
+    - conflict_resolutions：PropertyConflictResolver 输出
+    """
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    try:
+        stream = await StreamService.get(db, stream_id)
+    except PcsError as e:
+        raise _to_http(e) from e
+    return {
+        "stream_id": str(stream.stream_id),
+        "user_provided": stream.user_provided_properties_json,
+        "calculated": stream.calculated_properties_json,
+        "effective": stream.effective_properties_json,
+        "conflict_resolutions": stream.conflict_resolutions_json,
+    }
+
+
+@router.post("/streams/{stream_id}/properties/estimate")
+async def estimate_properties(
+    stream_id: uuid.UUID,
+    req: EstimatePropertiesRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> dict[str, Any]:
+    """SIM-26：物性补全估算（不入库）。
+
+    调用 PropertyAutoCompleter.batch_complete，对 req.cas_list 中每个 CAS
+    独立跑一次补全（COMMON 库 + chemicals + CoolProp），返回每 CAS 的 dict。
+    """
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # 先校验 stream 存在 → 不存在 404
+    await StreamService.get(db, stream_id)
+    completer = PropertyAutoCompleter()
+    raw = completer.batch_complete(req.cas_list)
+    # 注入 cas 字段（PropertyAutoCompleter 不返回 cas）
+    results = [
+        {"cas": cas, **data}
+        for cas, data in zip(req.cas_list, raw, strict=True)
+    ]
+    return {"results": results}
 
 
 __all__ = ["router"]
