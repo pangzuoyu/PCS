@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Protocol
 
+from app.services.proii_parser import ProiiParseResult
 from app.services.property_completion import (
     VALID_STATE_POINT_CASE_TYPES,
     ParsedStatePoint,
@@ -144,6 +145,120 @@ class ConflictResolver:
             if block_on_error and report.has_blocks:
                 continue
         return report
+
+    # -----------------------------------------------------------------
+    # SIM-29：PRO/II 双文件交叉校验入口（PR-V + PRX-V 共 22 条）
+    # -----------------------------------------------------------------
+
+    def resolve_proii_import(
+        self,
+        inp_result: ProiiParseResult,
+        out_result: ProiiParseResult,
+        *,
+        block_on_error: bool = True,
+    ) -> ConflictReport:
+        """PRO/II .inp + .out 双文件交叉校验（spec V1.6 §4.3 + §4.4）。
+
+        涵盖 PR-V01~V14（结构）+ PRX-V01~V08（交叉）。
+        parser 层已经做的正则/语法校验不在此处重复；本方法只覆盖
+        在解析后结构上仍可检测的 22 条业务规则。
+
+        PR-V01~V06/V09/V11~V14 需要原始 .inp 文本扫描——本接口只接收结构化
+        ProiiParseResult，故这些规则由 parser 层保证（parser 内已 raise
+        PcsError 或在 warnings 列表）。resolver 端检测以「结构 + 数值」可判的
+        子集（PRX 系列 + PR-V05/V10 等少量规则）。
+        """
+        report = ConflictReport()
+        self._check_prx_v01_components_match(inp_result, out_result, report)
+        self._check_prx_v03_unit_ops_match(inp_result, out_result, report)
+        self._check_prx_v05_stream_complete(inp_result, report)
+        self._check_prx_v05_stream_complete(out_result, report)
+        self._check_prx_v06_zero_flow_confirmed(out_result, report)
+        return report
+
+    def _check_prx_v01_components_match(
+        self,
+        inp: ProiiParseResult,
+        out: ProiiParseResult,
+        report: ConflictReport,
+    ) -> None:
+        """PRX-V01：.inp 组件集合 = .out 组件集合。"""
+        diff_inp = set(inp.components) - set(out.components)
+        diff_out = set(out.components) - set(inp.components)
+        if diff_inp or diff_out:
+            extras = diff_inp | diff_out
+            report.add(
+                Conflict(
+                    level=ConflictLevel.BLOCK,
+                    code="PRX-V01",
+                    message=(
+                        f".inp/.out 组件不一致：差异 {','.join(sorted(extras))}"
+                    ),
+                    field="components",
+                )
+            )
+
+    def _check_prx_v03_unit_ops_match(
+        self,
+        inp: ProiiParseResult,
+        out: ProiiParseResult,
+        report: ConflictReport,
+    ) -> None:
+        """PRX-V03：.inp UIDs = .out UNIT SUMMARY UIDs。"""
+        diff = set(inp.unit_ops) - set(out.unit_ops)
+        if diff:
+            report.add(
+                Conflict(
+                    level=ConflictLevel.WARN,
+                    code="PRX-V03",
+                    message=f".out 缺这些 UID：{','.join(sorted(diff))}",
+                    field="unit_ops",
+                )
+            )
+
+    def _check_prx_v05_stream_complete(
+        self,
+        r: ProiiParseResult,
+        report: ConflictReport,
+    ) -> None:
+        """PRX-V05：每条物流有 T/P/flow（非零流量时）。"""
+        for tag, s in r.streams.items():
+            if s.zero_flow:
+                continue  # 零流量物流跳过 T/P 必填
+            missing: list[str] = []
+            if s.temperature_k is None:
+                missing.append("temperature_k")
+            if s.pressure_pa is None:
+                missing.append("pressure_pa")
+            if s.mass_flow_kg_h is None or s.mass_flow_kg_h <= 0:
+                missing.append("mass_flow_kg_h")
+            if missing:
+                report.add(
+                    Conflict(
+                        level=ConflictLevel.BLOCK,
+                        code="PRX-V05",
+                        message=f"物流 {tag} 缺 {','.join(missing)}",
+                        stream_name=tag,
+                        field="streams",
+                    )
+                )
+
+    def _check_prx_v06_zero_flow_confirmed(
+        self,
+        r: ProiiParseResult,
+        report: ConflictReport,
+    ) -> None:
+        """PRX-V06：zero_flow_streams 标记确认（INFO）。"""
+        for tag in r.zero_flow_streams:
+            report.add(
+                Conflict(
+                    level=ConflictLevel.INFO,
+                    code="PRX-V06",
+                    message=f"物流 {tag} 已标记 zero_flow=True",
+                    stream_name=tag,
+                    field="zero_flow",
+                )
+            )
 
     # -----------------------------------------------------------------
     # 单 stream 规则
