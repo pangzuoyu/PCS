@@ -317,3 +317,128 @@ async def test_delete_stream_not_found_404(client, designer_headers):
         f"/api/v1/streams/{uuid.uuid4()}", headers=designer_headers
     )
     assert r.status_code == 404
+
+
+# ---------------------------------------------------------------------------
+# SIM-24：POST /projects/{id}/streams/validate（不入库）
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_validate_stream_clean_200(
+    client, make_project, designer_headers
+):
+    """干净数据 → 200 + valid=True + blocks=[]，且 DB 无新 stream。"""
+    proj = await make_project()
+    r = await client.post(
+        f"/api/v1/projects/{proj.project_id}/streams/validate",
+        json={"payload": _stream_payload()},
+        headers=designer_headers,
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["valid"] is True
+    assert body["blocks"] == []
+    assert body["warnings"] == []
+    assert body["stats"]["BLOCK"] == 0
+    # 校验不入库：list 应为空
+    lst = await client.get(
+        f"/api/v1/projects/{proj.project_id}/streams",
+        headers=designer_headers,
+    )
+    assert lst.status_code == 200
+    assert lst.json() == []
+
+
+@pytest.mark.asyncio
+async def test_validate_stream_block_200_with_conflicts(
+    client, make_project, designer_headers
+):
+    """BLOCK 冲突 → 200（不入库）+ valid=False + blocks 非空。
+
+    注意：与 create 不同，validate 不抛 422——返回完整 ConflictReport。
+    """
+    proj = await make_project()
+    r = await client.post(
+        f"/api/v1/projects/{proj.project_id}/streams/validate",
+        json={"payload": _stream_payload(temp=99999.0, press=999999.0)},
+        headers=designer_headers,
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["valid"] is False
+    assert len(body["blocks"]) >= 1
+    assert body["stats"]["BLOCK"] >= 1
+    # 仍然不入库
+    lst = await client.get(
+        f"/api/v1/projects/{proj.project_id}/streams",
+        headers=designer_headers,
+    )
+    assert lst.json() == []
+
+
+@pytest.mark.asyncio
+async def test_validate_stream_warn_200_valid_true(
+    client, make_project, designer_headers
+):
+    """WARN 冲突（如 composition_json 之和偏离）→ valid=True + warnings 非空。"""
+    proj = await make_project()
+    # 给一个 composition_json 但加和偏离（0.5+0.5=1.0 故意）——这里只测形态
+    payload = _stream_payload()
+    payload["composition_json"] = {"71-43-2": 0.5, "74-82-8": 0.5}
+    r = await client.post(
+        f"/api/v1/projects/{proj.project_id}/streams/validate",
+        json={"payload": payload},
+        headers=designer_headers,
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["valid"] is True
+    # 无 BLOCK，stats.BLOCK=0
+    assert body["stats"]["BLOCK"] == 0
+
+
+@pytest.mark.asyncio
+async def test_validate_stream_unknown_project_404(client, designer_headers):
+    """project 不存在 → 404（与 create 行为一致）。"""
+    r = await client.post(
+        f"/api/v1/projects/{uuid.uuid4()}/streams/validate",
+        json={"payload": _stream_payload()},
+        headers=designer_headers,
+    )
+    assert r.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_validate_stream_missing_bearer_401(client, make_project):
+    proj = await make_project()
+    r = await client.post(
+        f"/api/v1/projects/{proj.project_id}/streams/validate",
+        json={"payload": _stream_payload()},
+    )
+    assert r.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_validate_stream_role_forbidden_403(
+    client, make_project, no_role_headers
+):
+    proj = await make_project()
+    r = await client.post(
+        f"/api/v1/projects/{proj.project_id}/streams/validate",
+        json={"payload": _stream_payload()},
+        headers=no_role_headers,
+    )
+    assert r.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_validate_stream_bad_payload_422(client, make_project, designer_headers):
+    """payload 不合法（缺 stream_name）→ 422。"""
+    proj = await make_project()
+    r = await client.post(
+        f"/api/v1/projects/{proj.project_id}/streams/validate",
+        json={"payload": {"temp": 80.0}},
+        headers=designer_headers,
+    )
+    assert r.status_code == 422

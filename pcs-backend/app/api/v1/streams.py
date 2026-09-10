@@ -1,7 +1,8 @@
-"""P3.2 SIM-6 + SIM-8：物流 / 状态点手工表单 API（spec V1.6 §3.2）。
+"""P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。
 
 物流端点（SIM-6）：
 - POST   /api/v1/projects/{project_id}/streams          # 创建（201 + StreamResponse）
+- POST   /api/v1/projects/{project_id}/streams/validate # 校验（SIM-24；不入库）
 - GET    /api/v1/projects/{project_id}/streams          # 列表（按 case_type 可选过滤）
 - GET    /api/v1/streams/{stream_id}                    # 单条
 - PATCH  /api/v1/streams/{stream_id}                    # 部分更新
@@ -21,6 +22,7 @@
 - 单查/更新/删除 → 404 SIM_STREAM_NOT_FOUND / SIM_STATEPOINT_NOT_FOUND
 - ORM datetime → ISO str（API 层 _to_response_dict）
 - 业务错走 core.errors.PcsError envelope；HTTPException 仅用于 401/403/404 project 不存在
+- /streams/validate：仅跑 SIM-3 物性补全 + SIM-7 冲突检测，不写库
 """
 from __future__ import annotations
 
@@ -43,10 +45,51 @@ from app.schemas.stream import (
     StreamStatePointUpdate,
     StreamUpdate,
 )
+from app.services.conflict_resolver import ConflictResolver
 from app.services.exceptions import PcsError
-from app.services.stream_service import StreamService
+from app.services.stream_service import (
+    StreamService,
+    _to_parsed_stream,  # SIM-24
+)
 
 router = APIRouter(tags=["streams"])
+
+
+class ValidateStreamResponse(BaseModel):
+    """SIM-24 /streams/validate 响应：完整 ConflictReport + 是否可入库。"""
+
+    valid: bool = Field(
+        ...,
+        description="True = 无 BLOCK 冲突；False = 至少一条 BLOCK。",
+    )
+    blocks: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="BLOCK 级冲突列表（code/message/field/stream_name/unit_id）。",
+    )
+    warnings: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="WARN 级冲突列表。",
+    )
+    infos: list[dict[str, Any]] = Field(
+        default_factory=list,
+        description="INFO 级冲突列表。",
+    )
+    stats: dict[str, int] = Field(
+        default_factory=dict,
+        description="分级计数 {BLOCK, WARN, INFO, TOTAL}。",
+    )
+
+
+def _conflict_to_dict(c) -> dict[str, Any]:
+    """Conflict dataclass → JSON 友好 dict。"""
+    return {
+        "level": c.level.value if hasattr(c.level, "value") else str(c.level),
+        "code": c.code,
+        "message": c.message,
+        "stream_name": c.stream_name,
+        "unit_id": c.unit_id,
+        "field": c.field,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -180,6 +223,45 @@ async def create_stream(
     except PcsError as e:
         raise _to_http(e) from e
     return _to_response_dict(stream)
+
+
+@router.post(
+    "/projects/{project_id}/streams/validate",
+    response_model=ValidateStreamResponse,
+)
+async def validate_stream(
+    project_id: uuid.UUID,
+    req: CreateStreamRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> ValidateStreamResponse:
+    """校验物流不入库：SIM-3 物性补全 + SIM-7 冲突检测。
+
+    仅做（SIM-3 + SIM-7）的离线回放——返回完整 ConflictReport，
+    不写库、不发状态、不发信号事件。前端可在 submit 之前预览。
+    """
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # 仅校验 project 存在 + 借用其 workspace_id，不留副作用
+    project = await _load_project(db, project_id)
+    workspace_id = req.workspace_id or project.workspace_id
+    try:
+        stream_create = StreamCreate(
+            project_id=project_id,
+            workspace_id=workspace_id,
+            **req.payload,
+        )
+    except Exception as e:
+        raise HTTPException(status_code=422, detail=f"请求体不合法: {e}") from e
+    data = stream_create.model_dump(exclude={"project_id", "workspace_id"})
+    parsed = _to_parsed_stream(data, tag=stream_create.stream_name)
+    report = ConflictResolver().resolve_batch([parsed], block_on_error=False)
+    return ValidateStreamResponse(
+        valid=not report.has_blocks,
+        blocks=[_conflict_to_dict(c) for c in report.blocks],
+        warnings=[_conflict_to_dict(c) for c in report.warnings],
+        infos=[_conflict_to_dict(c) for c in report.infos],
+        stats=report.stats,
+    )
 
 
 @router.get(
