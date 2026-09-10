@@ -1029,6 +1029,10 @@ def parse_proii_out_sections(out_path: Path | str) -> dict:
     reactor_summary = _parse_reactor_summary(text)
     cstr_summary = _parse_cstr_summary(text)
 
+    # SIM-20d：FCC 报告专属 REFINERY PROCESSOR + TBP/ASTM CURVES 段
+    refinery_processor = _parse_refinery_processor(text)
+    tbp_astm_curves = _parse_tbp_astm_curves(text)
+
     return {
         "banner": banner,
         "convergence_status": convergence,
@@ -1047,6 +1051,9 @@ def parse_proii_out_sections(out_path: Path | str) -> dict:
         "component_data": comp_data,
         "reactor_summary": reactor_summary,  # list[dict]
         "cstr_summary": cstr_summary,        # list[dict]
+        # SIM-20d：FCC 报告专属段（化工 dmc.out 等无 REFINERY 段时为 []）
+        "refinery_processor": refinery_processor,
+        "tbp_astm": tbp_astm_curves,
         # HCURVE 在 PRO/II .out 中无 SUMMARY 段（仅 .inp 标识）→ 始终 None
         "hcurve": None,
     }
@@ -1975,3 +1982,608 @@ def _parse_component_data(text: str) -> list[dict]:
                     "density": float(m.group(6)) if m.group(6) else None,
                 })
     return rows
+
+
+# ---------------------------------------------------------------------------
+# SIM-20d: REFINERY PROCESSOR PROPERTIES SET + TBP/ASTM CURVES（FCC 报告专属）
+# ---------------------------------------------------------------------------
+
+# REFINERY + TBP/ASTM 子段头（小写 → 子段名）
+# 形如 '--- TOTAL STREAM - WET BASIS (INCLUDES ANY FREE AND DISSOLVED WATER) ---'
+# 提取 'total_wet' / 'vapor_wet' / 'liquid_wet' / 'total_dry' / ...
+_REFINERY_SUBSECTION_RE = re.compile(
+    r"^\s*-{3,}\s*(TOTAL STREAM|VAPOR PHASE|LIQUID PHASE)"
+    r"\s*-\s*(WET|DRY)\s+BASIS\b.*-{3,}\s*$",
+    re.IGNORECASE,
+)
+_REFINERY_HEADER_RE = re.compile(
+    r"^\s*REFINERY PROCESSOR PROPERTIES SET\b", re.IGNORECASE,
+)
+_TBPASTM_HEADER_RE = re.compile(
+    r"^\s*STREAM TBP/ASTM CURVES\b", re.IGNORECASE,
+)
+_TBPASTM_CURVE_RE = re.compile(
+    r"^\s*(TBP|ASTM\s+D\d+)\b(.*)$", re.IGNORECASE,
+)
+
+
+def _detect_section_label(raw_header: str) -> str:
+    """REFINERY 子段头 → 'total_wet' / 'vapor_wet' / 'liquid_dry' 形式。"""
+    upper = raw_header.upper()
+    phase_part = "total"
+    if "VAPOR PHASE" in upper:
+        phase_part = "vapor"
+    elif "LIQUID PHASE" in upper:
+        phase_part = "liquid"
+    basis_part = "wet"
+    if "DRY" in upper and "WET" not in upper:
+        basis_part = "dry"
+    elif "WET" in upper:
+        basis_part = "wet"
+    return f"{phase_part}_{basis_part}"
+
+
+def _detect_phase_column_starts(line: str, num_streams: int) -> list[int]:
+    """PHASE / THERMO ID 行按 token cluster 识别列起点。
+
+    PRO/II PHASE 行每个 stream 是一段连续 token（可能 1 个如 'VAPOR'，
+    也可能 2 个如 'DRY LIQUID' 或 'WATER VAPOR'）。列内 token 之间只
+    隔 1 个空格；列间至少 2 个连续空格。
+    策略：扫所有 token，找到 num_streams 个列起点（每列第一个 token 起点）。
+    """
+    # 跳过 'PHASE' / 'THERMO ID' 前缀
+    keyword_m = re.match(
+        r"^\s*(PHASE|THERMO\s+ID)\s+", line, re.IGNORECASE,
+    )
+    if not keyword_m:
+        return []
+    search_start = keyword_m.end()
+    # 扫描 token + 间隙
+    n = len(line)
+    tokens: list[tuple[int, int]] = []  # (start, end)
+    i = search_start
+    while i < n:
+        while i < n and line[i].isspace():
+            i += 1
+        if i >= n:
+            break
+        tok_start = i
+        while i < n and not line[i].isspace():
+            i += 1
+        tokens.append((tok_start, i))
+    if not tokens:
+        return []
+    # 每个 stream 占连续 token 数。简化：每列 token 数 = round(total/num_streams)
+    # 但 PHASE 列内 token 数可能不同（DRY LIQUID 是 2，VAPOR 是 1）。
+    # 真实 PRO/II 输出每列 token 数固定（实测 2: 'DRY LIQUID' / 'WATER VAPOR'）。
+    # 用 first stream 的 token 数作为基准。
+    # 简单策略：先把所有 token 分成 num_streams 个等大组；
+    # 如 PHASE 行是 'DRY LIQUID  WATER VAPOR  WATER VAPOR  WATER VAPOR'（8 tokens），
+    # num_streams=4 → 每组 2 token。
+    n_tokens = len(tokens)
+    tokens_per_stream = max(1, n_tokens // num_streams)
+    starts: list[int] = []
+    for i in range(num_streams):
+        idx = i * tokens_per_stream
+        if idx < n_tokens:
+            starts.append(tokens[idx][0])
+        else:
+            starts.append(tokens[-1][0])
+    return starts
+
+
+def _split_phase_row_by_columns(line: str, column_starts: list[int]) -> list[str]:
+    """PHASE / THERMO ID 行按 column_starts 切出每列文本。
+
+    与数据行不同，PHASE 是文本（非数值），不能 re.finditer。
+    按 column_starts 切片后 strip，对每列保留原文（去多余空白后大写）。
+    每列 slice 终点是下一列的起点（或行尾），允许跨多个空白 token。
+    """
+    if not column_starts:
+        return []
+    bounds = list(column_starts) + [len(line)]
+    result: list[str] = []
+    for idx in range(len(column_starts)):
+        start = bounds[idx]
+        end = bounds[idx + 1]
+        chunk = line[start:end].strip().upper()
+        # 移除多余的内部空白（'DRY  LIQUID' → 'DRY LIQUID'）
+        chunk = " ".join(chunk.split())
+        result.append(chunk)
+    return result
+
+
+def _split_thermo_row_by_columns(line: str, column_starts: list[int]) -> list[str]:
+    """THERMO ID 行按列切（每列 1 个 ID 如 'SRK' / 'BK10'）。"""
+    return _split_phase_row_by_columns(line, column_starts)
+
+
+def _parse_refinery_processor(text: str) -> list[dict]:
+    """REFINERY PROCESSOR PROPERTIES SET 段解析（FCC 报告专属，SIM-20d）。
+
+    每条 stream dict：
+        stream_id      str
+        phase          str（DRY LIQUID/WET VAPOR/DRY VAPOR/WET LIQUID 等）
+        thermo_id      str | None
+        properties     dict[str, dict[str, float | None]]
+                        按子段名（total_wet/vapor_wet/liquid_wet/total_dry/...）
+                        二级嵌套；每子段内 key 为 snake_case 物性名（如
+                        'temperature_c' / 'pressure_mpa' / 'rate_kgmolph'）。
+
+    跨页同 stream 名按 stream_id 合并（first non-None wins）。
+    跨页同 stream 不同 phase/thermo_id 仍以第一个为权威（PRO/II 报告风格）。
+
+    Returns:
+        list[dict]；空 list 表示 .out 不含 REFINERY 段。
+    """
+    lines = text.splitlines()
+    streams: dict[str, dict] = {}
+    in_refinery = False
+    current_ids: list[str] = []
+    current_phase: list[str | None] = []
+    current_thermo: list[str | None] = []
+    id_positions: list[int] = []
+    current_subsection: str | None = None
+
+    def get_or_init(sid: str) -> dict:
+        if sid not in streams:
+            streams[sid] = {
+                "stream_id": sid,
+                "phase": None,
+                "thermo_id": None,
+                "properties": {},
+            }
+        return streams[sid]
+
+    def reset_page_state() -> None:
+        nonlocal current_ids, current_phase, current_thermo
+        nonlocal id_positions, current_subsection
+        current_ids = []
+        current_phase = []
+        current_thermo = []
+        id_positions = []
+        current_subsection = None
+
+    stream_id_re = re.compile(r"^\s+STREAM ID\s+(.+)$", re.IGNORECASE)
+    name_re = re.compile(r"^\s+NAME\b", re.IGNORECASE)
+    phase_re = re.compile(r"^\s+PHASE\b", re.IGNORECASE)
+    thermo_re = re.compile(r"^\s+THERMO ID\b", re.IGNORECASE)
+    # 数值行：行首一个或多个空白 + (RATE|TEMPERATURE|PRESSURE|ENTHALPY|MW|...)
+    # 以全大写开头，后跟逗号+单位（可无）。识别后按列位置提取每个 stream 的值。
+    refinery_property_keywords = (
+        "TEMPERATURE", "PRESSURE", "RATE", "ENTHALPY",
+        "MOLECULAR WEIGHT", "WATSON", "FLASH POINT", "RVP", "TVP",
+        "ACT RATE", "ACT DENS", "ACT DENSITY", "NORM VAP RATE",
+        "STD LV RATE", "STD SP.GR.", "STD SP.GR",
+        "CP,", "CV,", "DENSITY", "COMPRESSIBILITY",
+        "VISCOSITY", "STD LIQ DENSITY",
+    )
+
+    needs_recalibration = False  # 进入新页后首个数值行重写 id_positions
+
+    def extract_values(line: str) -> list[float | None]:
+        if not current_ids:
+            return []
+        out: list[float | None] = []
+        for idx in range(len(current_ids)):
+            start = id_positions[idx]
+            end = (
+                id_positions[idx + 1]
+                if idx + 1 < len(id_positions)
+                else len(line)
+            )
+            slice_ = line[start:end].strip() if start < len(line) else ""
+            out.append(_parse_numeric_or_none(slice_))
+        return out
+
+    def parse_refinery_property_line(line: str) -> None:
+        stripped_left = line.lstrip()
+        matched_kw = None
+        unit = ""
+        full_label = ""
+        for kw in refinery_property_keywords:
+            if stripped_left.startswith(kw):
+                matched_kw = kw
+                rest = stripped_left[len(kw):]
+                if rest.startswith(","):
+                    after_comma = rest[1:].lstrip()
+                    parts_after = after_comma.split(None, 1)
+                    if parts_after:
+                        unit = parts_after[0]
+                    full_label = f"{kw}, {unit}".rstrip(", ")
+                else:
+                    full_label = kw
+                break
+        if not matched_kw or current_subsection is None:
+            return
+        # REFINERY：每个属性行独立检测数值位置（不同属性值宽度不同——如
+        # RATE 第一列 1.9119E-07 比 TEMPERATURE 第一列 250.00 宽）。按行
+        # 内实际数值起点→下一数值起点切片，避免 STREAM ID 位置/RATE 位置
+        # 与 TEMPERATURE 位置错位（实测 FCC 报告 STREAM ID 列与数据列起点
+        # 不一致：FO1 在 37 而 250.00 在 34）。
+        if not current_ids:
+            return
+        value_positions = [
+            mm.start() for mm in re.finditer(
+                r"-?\d+\.\d+(?:E[+-]?\d+)?", line,
+            )
+        ]
+        if len(value_positions) != len(current_ids):
+            return
+        bounds = value_positions + [len(line)]
+        norm_key = _normalize_property_key(full_label)
+        for idx, sid in enumerate(current_ids):
+            start = bounds[idx]
+            end = bounds[idx + 1]
+            slice_ = line[start:end].strip()
+            val = _parse_numeric_or_none(slice_)
+            if val is None:
+                continue
+            target = get_or_init(sid)
+            sub = target["properties"].setdefault(current_subsection, {})
+            sub[norm_key] = val
+
+    for line in lines:
+        upper = line.upper().strip()
+        # 进入 REFINERY 段
+        if _REFINERY_HEADER_RE.match(line):
+            in_refinery = True
+            reset_page_state()
+            continue
+        # 退出：进入另一段头
+        if in_refinery and (
+            _TBPASTM_HEADER_RE.match(line)
+            or upper.startswith("STREAM SUMMARY")
+            or upper.startswith("STREAM MOLAR")
+            or upper.startswith("STREAM WEIGHT")
+            or upper.startswith("***")
+            or "COMPONENT DATA" in upper
+        ):
+            in_refinery = False
+            reset_page_state()
+            continue
+        if not in_refinery:
+            continue
+        # 页分隔（form feed）→ 仅清空 current_ids
+        if "\f" in line:
+            reset_page_state()
+            continue
+        # STREAM ID 行
+        m = stream_id_re.match(line)
+        if m:
+            after = m.group(1)
+            ids = re.findall(r"\S+", after)
+            if ids:
+                current_ids = ids
+                positions = [line.find(sid) for sid in ids]
+                sorted_pairs = sorted(zip(positions, ids, strict=True))
+                id_positions = [p for p, _ in sorted_pairs]
+                current_ids = [sid for _, sid in sorted_pairs]
+                current_phase = [None] * len(current_ids)
+                current_thermo = [None] * len(current_ids)
+                needs_recalibration = True
+            continue
+        # 数值行重校列起点：PRO/II STREAM ID 位置与数据列起点不严格对齐
+        # （ID 在列内左侧，数据右对齐），用首个数值行（TEMPERATURE/RATE）
+        # 的实际数值起点作为列起点真值。
+        if (
+            needs_recalibration
+            and current_ids
+            and re.match(r"^\s+(TEMPERATURE|PRESSURE|RATE|ENTHALPY|MW|MOLECULAR)\b", upper)
+            and not upper.startswith("PHASE")
+            and not upper.startswith("THERMO ID")
+        ):
+            positions_found = [
+                mm.start() for mm in re.finditer(
+                    r"-?\d+\.\d+(?:E[+-]?\d+)?", line,
+                )
+            ]
+            if len(positions_found) == len(current_ids):
+                id_positions = positions_found
+                needs_recalibration = False
+        if name_re.match(line):
+            continue
+        if phase_re.match(line):
+            phase_starts = _detect_phase_column_starts(line, len(current_ids))
+            phase_values = _split_phase_row_by_columns(line, phase_starts)
+            for idx, p in enumerate(phase_values):
+                if idx < len(current_phase) and p:
+                    current_phase[idx] = p
+            continue
+        if thermo_re.match(line):
+            thermo_starts = _detect_phase_column_starts(line, len(current_ids))
+            thermo_values = _split_phase_row_by_columns(line, thermo_starts)
+            for idx, t in enumerate(thermo_values):
+                if idx < len(current_thermo) and t:
+                    current_thermo[idx] = t.upper().strip()
+            continue
+        # 子段头
+        sub_m = _REFINERY_SUBSECTION_RE.match(line)
+        if sub_m:
+            current_subsection = _detect_section_label(line)
+            continue
+        # 子段头
+        sub_m = _REFINERY_SUBSECTION_RE.match(line)
+        if sub_m:
+            current_subsection = _detect_section_label(line)
+            continue
+        # 属性行：必须有 current_subsection
+        if current_subsection and current_ids:
+            parse_refinery_property_line(line)
+
+    # 简化：从 streams 收集 last_seen phase/thermo（重新扫描）
+    last_phase: dict[str, str] = {}
+    last_thermo: dict[str, str] = {}
+    in_refinery = False
+    current_ids = []
+    current_phase = []
+    current_thermo = []
+    id_positions = []
+    needs_recalibration = False
+    for line in lines:
+        upper = line.upper().strip()
+        if _REFINERY_HEADER_RE.match(line):
+            in_refinery = True
+            current_ids = []
+            current_phase = []
+            current_thermo = []
+            id_positions = []
+            needs_recalibration = False
+            continue
+        if in_refinery and (
+            _TBPASTM_HEADER_RE.match(line)
+            or upper.startswith("STREAM SUMMARY")
+            or upper.startswith("STREAM MOLAR")
+            or upper.startswith("STREAM WEIGHT")
+            or upper.startswith("***")
+            or "COMPONENT DATA" in upper
+        ):
+            in_refinery = False
+            continue
+        if not in_refinery:
+            continue
+        if "\f" in line:
+            current_ids = []
+            current_phase = []
+            current_thermo = []
+            id_positions = []
+            needs_recalibration = False
+            continue
+        m = stream_id_re.match(line)
+        if m:
+            after = m.group(1)
+            ids = re.findall(r"\S+", after)
+            if ids:
+                current_ids = ids
+                positions = [line.find(sid) for sid in ids]
+                sorted_pairs = sorted(zip(positions, ids, strict=True))
+                id_positions = [p for p, _ in sorted_pairs]
+                current_ids = [sid for _, sid in sorted_pairs]
+                current_phase = [None] * len(current_ids)
+                current_thermo = [None] * len(current_ids)
+                needs_recalibration = True
+            continue
+        # 数据行重校（与第一轮一致）
+        if (
+            needs_recalibration
+            and current_ids
+            and re.match(r"^\s+(TEMPERATURE|PRESSURE|RATE|ENTHALPY|MW|MOLECULAR)\b", upper)
+            and not upper.startswith("PHASE")
+            and not upper.startswith("THERMO ID")
+        ):
+            positions_found = [
+                mm.start() for mm in re.finditer(
+                    r"-?\d+\.\d+(?:E[+-]?\d+)?", line,
+                )
+            ]
+            if len(positions_found) == len(current_ids):
+                id_positions = positions_found
+                needs_recalibration = False
+        if phase_re.match(line):
+            phase_starts = _detect_phase_column_starts(line, len(current_ids))
+            phase_values = _split_phase_row_by_columns(line, phase_starts)
+            for idx, p in enumerate(phase_values):
+                if idx < len(current_phase) and p:
+                    current_phase[idx] = p
+            continue
+        if thermo_re.match(line):
+            thermo_starts = _detect_phase_column_starts(line, len(current_ids))
+            thermo_values = _split_phase_row_by_columns(line, thermo_starts)
+            for idx, t in enumerate(thermo_values):
+                if idx < len(current_thermo) and t:
+                    current_thermo[idx] = t.upper().strip()
+            continue
+        # 记录到 last_seen
+        for sid, p, t in zip(current_ids, current_phase, current_thermo, strict=False):
+            if p:
+                last_phase[sid] = p
+            if t:
+                last_thermo[sid] = t
+
+    result = []
+    for sid, s in streams.items():
+        s["phase"] = last_phase.get(sid) or s.get("phase")
+        s["thermo_id"] = last_thermo.get(sid) or s.get("thermo_id")
+        result.append(s)
+    return result
+
+
+def _parse_tbp_astm_curves(text: str) -> list[dict]:
+    """STREAM TBP/ASTM CURVES 段解析（FCC 报告专属，SIM-20d）。
+
+    每条 dict：
+        stream_id        str
+        curve_name       str（TBP / ASTM D86 / ASTM D1160 / ASTM D2887）
+        pressure_label   str（'760 MM HG' / '10 MM HG'）
+        percent_basis    str（'LV' / 'WT'）—— D86/D1160 是 LV%，D2887 是 WT%
+        points           list[{percent: float, temp_c: float | None}]
+                          包含标准 cut points 1/5/10/30/50/70/90/95/98。
+
+    跨页同 (stream_id, curve_name, pressure_label) 合并（first non-None wins）。
+    负温度原样保留（gas stream 1FLUEGAS 实测 -252.760°C）。
+    N/A / 空保持 None（不视作 0）。
+
+    Returns:
+        list[dict]；空 list 表示 .out 不含 TBP/ASTM 段。
+    """
+    lines = text.splitlines()
+    curves: dict[tuple[str, str, str], dict] = {}
+    in_section = False
+    current_ids: list[str] = []
+    id_positions: list[int] = []
+    current_curve: str | None = None  # 'TBP' / 'ASTM D86' / ...
+    current_pressure: str | None = None  # '760 MM HG' / '10 MM HG'
+    current_basis: str = "LV"  # 默认 LV；D2887 在 curve header 后会切到 WT
+
+    def get_or_init(sid: str) -> dict:
+        if current_curve is None or current_pressure is None:
+            return None  # type: ignore[return-value]
+        key = (sid, current_curve, current_pressure)
+        if key not in curves:
+            curves[key] = {
+                "stream_id": sid,
+                "curve_name": current_curve,
+                "pressure_label": current_pressure,
+                "percent_basis": current_basis,
+                "points": [],
+            }
+        return curves[key]
+
+    def extract_values(line: str) -> list[float | None]:
+        if not current_ids:
+            return []
+        out: list[float | None] = []
+        for idx in range(len(current_ids)):
+            start = id_positions[idx]
+            end = (
+                id_positions[idx + 1]
+                if idx + 1 < len(id_positions)
+                else len(line)
+            )
+            slice_ = line[start:end].strip() if start < len(line) else ""
+            out.append(_parse_numeric_or_none(slice_))
+        return out
+
+    stream_id_re = re.compile(r"^\s+STREAM ID\s+(.+)$", re.IGNORECASE)
+
+    for line in lines:
+        upper = line.upper().strip()
+        if _TBPASTM_HEADER_RE.match(line):
+            in_section = True
+            current_ids = []
+            id_positions = []
+            current_curve = None
+            current_pressure = None
+            current_basis = "LV"
+            continue
+        if in_section and (
+            _REFINERY_HEADER_RE.match(line)
+            or upper.startswith("STREAM SUMMARY")
+            or upper.startswith("STREAM MOLAR")
+            or upper.startswith("STREAM WEIGHT")
+            or upper.startswith("***")
+            or "COMPONENT DATA" in upper
+        ):
+            in_section = False
+            current_ids = []
+            id_positions = []
+            current_curve = None
+            current_pressure = None
+            continue
+        if not in_section:
+            continue
+        if "\f" in line:
+            current_ids = []
+            id_positions = []
+            current_curve = None
+            current_pressure = None
+            current_basis = "LV"
+            continue
+        m = stream_id_re.match(line)
+        if m:
+            after = m.group(1)
+            ids = re.findall(r"\S+", after)
+            if ids:
+                current_ids = ids
+                positions = [line.find(sid) for sid in ids]
+                sorted_pairs = sorted(zip(positions, ids, strict=True))
+                id_positions = [p for p, _ in sorted_pairs]
+                current_ids = [sid for _, sid in sorted_pairs]
+            continue
+        # 曲线头：'   TBP AT 760 MM HG' / '   ASTM D86 AT 760 MM HG WITH CRACKING'
+        # 提取曲线名 + 压力 + basis
+        curve_m = _TBPASTM_CURVE_RE.match(line)
+        if curve_m and (
+            "MM HG" in upper or "WITH CRACKING" in upper
+        ):
+            raw_curve = curve_m.group(1).strip().upper()
+            # 归一化曲线名（去多余空白）
+            if raw_curve.startswith("TBP"):
+                current_curve = "TBP"
+            elif raw_curve.startswith("ASTM"):
+                # 提取 ASTM D<num>（如 'ASTM D86' / 'ASTM D1160'）
+                astm_m = re.match(r"(ASTM\s+D\d+)", raw_curve)
+                current_curve = astm_m.group(1) if astm_m else raw_curve
+            else:
+                current_curve = raw_curve
+            # 提取压力（'AT 760 MM HG' / 'AT 10 MM HG'）
+            press_m = re.search(r"AT\s+(\d+\s+MM\s+HG)", upper)
+            current_pressure = (
+                re.sub(r"\s+", " ", press_m.group(1)) if press_m else "760 MM HG"
+            )
+            # basis：D2887 是 WT%，其余是 LV%（与 FIRST LV PERCENT / FIRST WT PERCENT 对应）
+            if current_curve == "ASTM D2887":
+                current_basis = "WT"
+            else:
+                current_basis = "LV"
+            continue
+        # 百分位行：'         1 LV PERCENT' / '         5' / '         1 WT PERCENT'
+        # 提取 percent 数值；basis 由 'LV PERCENT' / 'WT PERCENT' 决定
+        pct_m = re.match(r"^\s*(\d+)\s*(LV\s*PERCENT|WT\s*PERCENT)?\b", upper)
+        if pct_m and current_ids and current_curve and current_pressure:
+            percent = int(pct_m.group(1))
+            basis_label = pct_m.group(2)
+            if basis_label:
+                current_basis = "WT" if "WT" in basis_label.upper() else "LV"
+            values = extract_values(line)
+            # 占位行（仅 percent label，无数据）跳过
+            if not any(v is not None for v in values) and percent not in {
+                1, 5, 10, 30, 50, 70, 90, 95, 98,
+            }:
+                continue
+            for sid, val in zip(current_ids, values, strict=False):
+                key = (sid, current_curve, current_pressure)
+                if key not in curves:
+                    curves[key] = {
+                        "stream_id": sid,
+                        "curve_name": current_curve,
+                        "pressure_label": current_pressure,
+                        "percent_basis": current_basis,
+                        "points": [],
+                    }
+                curves[key]["points"].append({
+                    "percent": float(percent),
+                    "temp_c": val,
+                })
+
+    # 仅保留每个 (stream, curve, pressure) 的标准 9 个 cut points
+    expected_percents = {1, 5, 10, 30, 50, 70, 90, 95, 98}
+    result = []
+    for c in curves.values():
+        points = c["points"]
+        # 同一 stream+curve+pressure 跨多页时合并（去重 percent；first non-None wins）
+        seen: dict[float, dict] = {}
+        for p in points:
+            if p["percent"] not in seen:
+                seen[p["percent"]] = p
+            elif seen[p["percent"]]["temp_c"] is None and p["temp_c"] is not None:
+                seen[p["percent"]]["temp_c"] = p["temp_c"]
+        # 排序 + 仅保留 cut points
+        merged = [
+            seen[pct] for pct in sorted(seen.keys()) if int(pct) in expected_percents
+        ]
+        # 仅保留至少 1 个有效点的曲线
+        if merged:
+            c["points"] = merged
+            result.append(c)
+    return result

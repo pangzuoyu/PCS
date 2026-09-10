@@ -364,6 +364,180 @@ def test_parse_proii_out_sections_streams_200flexicoking_refinery():
     assert isinstance(sections["streams"], list)
 
 
+# ---------------------------------------------------------------------------
+# SIM-20d: REFINERY PROCESSOR + TBP/ASTM 独立段（FCC 报告专属）
+# ---------------------------------------------------------------------------
+
+
+def test_parse_proii_out_sections_refinery_processor_present_in_fcc():
+    """200FlexiCoking1.out 含 REFINERY PROCESSOR PROPERTIES SET 段 → 暴露为
+    sections['refinery_processor']: list[dict]。
+
+    每条 dict 含 stream_id + phase + thermo_id + properties（含 wet/dry + total/
+    vapor/liquid 三套子段）。
+    """
+    flex = SAMPLE_DIR / "200FlexiCoking1.out"
+    if not flex.exists():
+        pytest.skip(f"sample not found: {flex}")
+    sections = parse_proii_out_sections(flex)
+    rp = sections.get("refinery_processor")
+    assert isinstance(rp, list)
+    assert len(rp) >= 5, (
+        f"FCC 文件至少 5 条 stream 的 REFINERY 物性；got {len(rp)}"
+    )
+    first = rp[0]
+    assert isinstance(first, dict)
+    assert "stream_id" in first
+    assert first["phase"] in {"LIQUID", "VAPOR", "MIXED", "WET VAPOR",
+                              "DRY VAPOR", "DRY LIQUID", "WET LIQUID"}
+    # properties 子 dict（按子段组织）
+    props = first.get("properties") or {}
+    assert isinstance(props, dict)
+    # 至少含 total_wet 子段
+    assert "total_wet" in props, (
+        f"first REFINERY stream missing total_wet; got keys: {list(props.keys())}"
+    )
+    # total_wet 含典型物性
+    tw = props["total_wet"]
+    assert "temperature_c" in tw, f"total_wet keys: {list(tw.keys())}"
+
+
+def test_parse_proii_out_sections_refinery_processor_phases_classified():
+    """REFINERY 段 PHASE 行：DRY LIQUID/WET VAPOR/DRY VAPOR/WET LIQUID
+    + WET BASIS/DRY BASIS 多子段 → 完整保留为子段名。
+    """
+    flex = SAMPLE_DIR / "200FlexiCoking1.out"
+    if not flex.exists():
+        pytest.skip(f"sample not found: {flex}")
+    sections = parse_proii_out_sections(flex)
+    rp = sections.get("refinery_processor")
+    assert isinstance(rp, list)
+    # 至少 2 种 phase 同时存在（FCC 报告实测 LIQUID + VAPOR）
+    phases = {s["phase"] for s in rp if s.get("phase")}
+    assert len(phases) >= 2, f"only {len(phases)} phase; got {phases}"
+    # 至少一条 stream 含 wet + dry 双重子段
+    both_basis = [
+        s for s in rp
+        if "total_wet" in (s.get("properties") or {})
+        and "total_dry" in (s.get("properties") or {})
+    ]
+    assert len(both_basis) >= 1, (
+        f"no stream has both wet + dry basis; "
+        f"sample props: {rp[0].get('properties', {}).keys() if rp else 'empty'}"
+    )
+
+
+def test_parse_proii_out_sections_tbp_astm_curves_present_in_fcc():
+    """200FlexiCoking1.out 含 STREAM TBP/ASTM CURVES 段 → sections['tbp_astm']。
+
+    每条 dict 含 stream_id + curve_name + percent_basis（LV/WT）
+    + points: list[{percent: float, temp_c: float}]。
+    """
+    flex = SAMPLE_DIR / "200FlexiCoking1.out"
+    if not flex.exists():
+        pytest.skip(f"sample not found: {flex}")
+    sections = parse_proii_out_sections(flex)
+    curves = sections.get("tbp_astm")
+    assert isinstance(curves, list)
+    assert len(curves) >= 5, (
+        f"FCC 报告至少 5 条曲线（含 TBP/ASTM 多个压力档）；got {len(curves)}"
+    )
+    first = curves[0]
+    assert isinstance(first, dict)
+    assert "stream_id" in first
+    assert "curve_name" in first
+    assert first["curve_name"] in {
+        "TBP", "ASTM D86", "ASTM D1160", "ASTM D2887",
+    }
+    assert "percent_basis" in first
+    assert first["percent_basis"] in {"LV", "WT"}
+    assert "points" in first
+    assert isinstance(first["points"], list)
+    # 标准 cut points 1/5/10/30/50/70/90/95/98
+    percents = [p["percent"] for p in first["points"]]
+    expected = [1, 5, 10, 30, 50, 70, 90, 95, 98]
+    assert percents == expected, (
+        f"curve percents mismatch: got {percents}, expected {expected}"
+    )
+    # 每个点含 temp_c（数值或 None）
+    for p in first["points"]:
+        assert "temp_c" in p
+
+
+def test_parse_proii_out_sections_tbp_astm_curves_negative_temps_handled():
+    """TBP/ASTM 允许负温度（轻组分 gas stream 如 1FLUEGAS）。
+
+    负温度必须原样保留（-252.760），不当 0 或 skip。
+    """
+    flex = SAMPLE_DIR / "200FlexiCoking1.out"
+    if not flex.exists():
+        pytest.skip(f"sample not found: {flex}")
+    sections = parse_proii_out_sections(flex)
+    curves = sections.get("tbp_astm") or []
+    # 找一条含负温度的曲线
+    has_neg = [
+        c for c in curves
+        if any(
+            isinstance(p["temp_c"], (int, float)) and p["temp_c"] < 0
+            for p in c["points"]
+        )
+    ]
+    assert len(has_neg) >= 1, (
+        "FCC 报告 TBP/ASTM 段应含 gas stream 负温度；got 0"
+    )
+    # 至少有 -100°C 以下
+    extreme = [
+        p["temp_c"] for c in has_neg for p in c["points"]
+        if isinstance(p["temp_c"], (int, float)) and p["temp_c"] < -100
+    ]
+    all_temps = [
+        p["temp_c"] for c in curves for p in c["points"]
+        if isinstance(p["temp_c"], (int, float))
+    ]
+    min_temp = min(all_temps) if all_temps else None
+    assert len(extreme) >= 1, (
+        f"FCC 报告 gas stream 应有 <-100°C；got min: {min_temp}"
+    )
+
+
+def test_parse_proii_out_sections_refinery_processor_absent_in_dmc():
+    """dmc.out（化工）无 REFINERY 段 → refinery_processor = []；TBP/ASTM 同。
+
+    不能误把化工文件的 STREAM SUMMARY 当 REFINERY。
+    """
+    dmc = SAMPLE_DIR / "dmc.out"
+    if not dmc.exists():
+        pytest.skip(f"sample not found: {dmc}")
+    sections = parse_proii_out_sections(dmc)
+    # dmc.out 无 REFINERY PROCESSOR PROPERTIES SET 段
+    assert sections.get("refinery_processor") == []
+    # dmc.out 无 TBP/ASTM CURVES 段
+    assert sections.get("tbp_astm") == []
+
+
+def test_parse_proii_out_sections_refinery_processor_preserves_scientific_notation():
+    """REFINERY 段极小值（1.9119E-07 / 1.0000E-04）原样保留为 float。
+
+    spec §3.4.2：科学计数法（E-19 量级）不当 0；trace component 同样原则。
+    """
+    flex = SAMPLE_DIR / "200FlexiCoking1.out"
+    if not flex.exists():
+        pytest.skip(f"sample not found: {flex}")
+    sections = parse_proii_out_sections(flex)
+    rp = sections.get("refinery_processor") or []
+    # 找一条 total_wet 含 rate_kgmolph 极小值（FO1 是 FCC 进料，rate ~ 1.9E-7）
+    has_tiny = []
+    for s in rp:
+        tw = (s.get("properties") or {}).get("total_wet") or {}
+        rate = tw.get("rate_kgmolph")
+        if isinstance(rate, (int, float)) and 0 < rate < 1e-5:
+            has_tiny.append(s["stream_id"])
+    assert len(has_tiny) >= 1, (
+        f"no REFINERY stream has trace rate (<1e-5 kgmol/h); "
+        f"sample: {rp[0].get('properties', {}).get('total_wet', {}) if rp else 'empty'}"
+    )
+
+
 def test_parse_proii_out_sections_streams_merge_property_tables():
     """STREAM MOLAR/WEIGHT COMPONENT RATES/PERCENTS 4 段横表物性 merge 进 streams。
 
