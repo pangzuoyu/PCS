@@ -157,6 +157,14 @@ class ConflictResolver:
         # 2. SIM-V 结构完整性
         self._check_sim_v01_phase_completeness(s, report)
         self._check_sim_v02_molar_mass_consistency(s, eff, report)
+        self._check_sim_v03_pressure(s, report)
+        self._check_sim_v04_phase(s, report)
+        self._check_sim_v05_flow(s, report)
+        self._check_sim_v06_composition_present(s, report)
+        self._check_sim_v07_cas_resolvable(s, report)
+        self._check_sim_v08_composition_unique(s, report)
+        self._check_sim_v09_composition_sum(s, report)
+        self._check_sim_v10_composition_sum_warn(s, report)
 
         # 3. SIM-E 工程一致性
         self._check_sim_e01_temperature(s, report)
@@ -266,6 +274,221 @@ class ConflictResolver:
                     ),
                     stream_name=s.tag,
                     field="mass_flow_kg_h",
+                )
+            )
+
+    # -----------------------------------------------------------------
+    # SIM-V03：压力越界（0 <= p <= 100000 kPa = 1e8 Pa）
+    # -----------------------------------------------------------------
+
+    _PRESSURE_MAX_PA = 1.0e8
+
+    def _check_sim_v03_pressure(
+        self, s: ParsedStream, report: ConflictReport
+    ) -> None:
+        if s.pressure_pa is None:
+            return
+        if s.pressure_pa < 0 or s.pressure_pa > self._PRESSURE_MAX_PA:
+            report.add(
+                Conflict(
+                    level=ConflictLevel.BLOCK,
+                    code="SIM-V03",
+                    message=(
+                        f"压力越界 {s.pressure_pa:.1f} Pa，"
+                        f"应在 [0, {self._PRESSURE_MAX_PA:.0e}] Pa"
+                    ),
+                    stream_name=s.tag,
+                    field="pressure_pa",
+                )
+            )
+
+    # -----------------------------------------------------------------
+    # SIM-V04：相态枚举非法
+    # -----------------------------------------------------------------
+
+    _VALID_PHASES = frozenset({"VAPOR", "LIQUID", "MIXED", "SOLID"})
+
+    def _check_sim_v04_phase(
+        self, s: ParsedStream, report: ConflictReport
+    ) -> None:
+        if s.phase is None:
+            return
+        if s.phase not in self._VALID_PHASES:
+            report.add(
+                Conflict(
+                    level=ConflictLevel.BLOCK,
+                    code="SIM-V04",
+                    message=(
+                        f"相态 '{s.phase}' 非法，应为 "
+                        f"{'/'.join(sorted(self._VALID_PHASES))}"
+                    ),
+                    stream_name=s.tag,
+                    field="phase",
+                )
+            )
+
+    # -----------------------------------------------------------------
+    # SIM-V05：流量全 0
+    # -----------------------------------------------------------------
+
+    def _check_sim_v05_flow(
+        self, s: ParsedStream, report: ConflictReport
+    ) -> None:
+        if s.zero_flow:
+            report.add(
+                Conflict(
+                    level=ConflictLevel.BLOCK,
+                    code="SIM-V05",
+                    message="物流标记 zero_flow=True",
+                    stream_name=s.tag,
+                    field="mass_flow_kg_h",
+                )
+            )
+            return
+        mass = s.mass_flow_kg_h
+        molar = s.molar_flow_kmol_h
+        if (mass is None or mass <= 0) and (molar is None or molar <= 0):
+            report.add(
+                Conflict(
+                    level=ConflictLevel.BLOCK,
+                    code="SIM-V05",
+                    message="质量流量与摩尔流量均为 0 或缺失",
+                    stream_name=s.tag,
+                    field="mass_flow_kg_h",
+                )
+            )
+
+    # -----------------------------------------------------------------
+    # SIM-V06：composition 为空/缺
+    # -----------------------------------------------------------------
+
+    def _check_sim_v06_composition_present(
+        self, s: ParsedStream, report: ConflictReport
+    ) -> None:
+        # composition=None 表示「未提供组成」——允许（utility 流、批次数据等场景）
+        # 仅当 composition 被显式声明为空 dict 时报 BLOCK。
+        if s.composition is not None and len(s.composition) == 0:
+            report.add(
+                Conflict(
+                    level=ConflictLevel.BLOCK,
+                    code="SIM-V06",
+                    message="composition 被声明但为空",
+                    stream_name=s.tag,
+                    field="composition",
+                )
+            )
+
+    # -----------------------------------------------------------------
+    # SIM-V07：composition CAS 无法解析
+    # -----------------------------------------------------------------
+
+    def _check_sim_v07_cas_resolvable(
+        self, s: ParsedStream, report: ConflictReport
+    ) -> None:
+        # V07 与 SIM-V01-NF 语义重叠：CAS 不可解析。
+        # 既有合约是 WARN（test_create_stream_warn_cas_not_found_saves_with_warning
+        # 期望 SIM-V01-NF 在 warnings 而非 blocks），保持 WARN。
+        if not s.composition:
+            return  # V06 已覆盖
+        try:
+            from app.services.property_completion import complete_properties
+        except ImportError:
+            return
+        bad: list[str] = []
+        for cas in s.composition:
+            try:
+                info = complete_properties(
+                    ParsedStream(
+                        tag=s.tag,
+                        cas=cas,
+                        temperature_k=s.temperature_k,
+                        pressure_pa=s.pressure_pa,
+                    )
+                )
+                if not info or info.get("mw") is None:
+                    bad.append(cas)
+            except Exception:
+                bad.append(cas)
+        if bad:
+            report.add(
+                Conflict(
+                    level=ConflictLevel.WARN,
+                    code="SIM-V07",
+                    message=f"下列 CAS 无法解析：{','.join(bad)}",
+                    stream_name=s.tag,
+                    field="composition",
+                )
+            )
+
+    # -----------------------------------------------------------------
+    # SIM-V08：composition 重复 CAS（dict key 自动去重——defensive 检查）
+    # -----------------------------------------------------------------
+
+    def _check_sim_v08_composition_unique(
+        self, s: ParsedStream, report: ConflictReport
+    ) -> None:
+        if not s.composition:
+            return
+        # dict 自动去重后这里基本无意义；保留为防御性检查，
+        # 当上游传入 list[tuple] 时再切回 dict 时若发生覆盖，这里记 INFO。
+        keys = list(s.composition.keys())
+        if len(set(keys)) != len(keys):
+            report.add(
+                Conflict(
+                    level=ConflictLevel.BLOCK,
+                    code="SIM-V08",
+                    message="composition 包含重复 CAS",
+                    stream_name=s.tag,
+                    field="composition",
+                )
+            )
+
+    # -----------------------------------------------------------------
+    # SIM-V09：composition sum drift > 0.1% 阈值（BLOCK）
+    # -----------------------------------------------------------------
+
+    def _check_sim_v09_composition_sum(
+        self, s: ParsedStream, report: ConflictReport
+    ) -> None:
+        if not s.composition:
+            return
+        total = sum(s.composition.values())
+        drift = abs(total - 1.0)
+        if drift > self._COMPOSITION_SUM_WARN_TOL:
+            report.add(
+                Conflict(
+                    level=ConflictLevel.BLOCK,
+                    code="SIM-V09",
+                    message=(
+                        f"组成和 = {total:.4f}，偏离 1.0 {drift*100:.2f}%"
+                    ),
+                    stream_name=s.tag,
+                    field="composition",
+                )
+            )
+
+    # -----------------------------------------------------------------
+    # SIM-V10：composition sum drift > 1% 阈值（WARN）
+    # -----------------------------------------------------------------
+
+    def _check_sim_v10_composition_sum_warn(
+        self, s: ParsedStream, report: ConflictReport
+    ) -> None:
+        if not s.composition:
+            return
+        total = sum(s.composition.values())
+        drift = abs(total - 1.0)
+        if drift > self._COMPOSITION_SUM_BLOCK_TOL:
+            report.add(
+                Conflict(
+                    level=ConflictLevel.WARN,
+                    code="SIM-V10",
+                    message=(
+                        f"组成和 = {total:.4f}，严重偏离 1.0 "
+                        f"{drift*100:.2f}%，请校对组分"
+                    ),
+                    stream_name=s.tag,
+                    field="composition",
                 )
             )
 
