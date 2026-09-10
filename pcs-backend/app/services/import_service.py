@@ -16,6 +16,7 @@ from __future__ import annotations
 import tempfile
 import uuid
 from datetime import UTC
+from io import BytesIO
 from pathlib import Path
 from typing import Any
 
@@ -628,7 +629,77 @@ def write_temp_upload(content: bytes, suffix: str) -> Path:
     return Path(f.name)
 
 
+# ---------------------------------------------------------------------------
+# P3.x SIM-25：Excel 导入模板生成（spec 附录 A）
+# ---------------------------------------------------------------------------
+
+# Sheet 1 / Sheet 2 列定义（spec 附录 A）
+_STREAM_COLUMNS: list[str] = [
+    "Stream Name",
+    "Stream No",
+    "Temperature (°C)",
+    "Pressure (kPa)",
+    "Phase",
+    "Total Mass Flow (kg/h)",
+    "Total Molar Flow (kmol/h)",
+    "Description",
+]
+_COMPONENT_COLUMNS: list[str] = [
+    "Stream Name",
+    "Component Name (alias ok)",
+    "Mole Fraction",
+    "Mass Flow (kg/h)",
+]
+
+
+def _component_alias_rows() -> list[tuple[str, str, str]]:
+    """别名表 sheet 数据行（Group / Alias / Standard）。
+
+    当前 17 项 PRO/II LIBID→CAS（spec §5.2）；SIM-30 任务（task #34）扩展到
+    50+ 组（PROP_ID / FIELD / UNIT / case_type / data_mode 等）时直接追加。
+    """
+    from app.services.proii_parser import PROII_COMPONENT_ALIASES
+
+    return [
+        ("COMPONENT_NAME", alias, standard)
+        for alias, standard in sorted(PROII_COMPONENT_ALIASES.items())
+    ]
+
+
+def generate_excel_template() -> bytes:
+    """Excel 导入模板生成（SIM-25）→ 返回 .xlsx 字节流。
+
+    3 个 sheet：
+    1. 物流列表 — _STREAM_COLUMNS（spec 附录 A）
+    2. 组分组成 — _COMPONENT_COLUMNS（spec 附录 A）
+    3. 别名表 — Group / Alias / Standard（当前 17 条 COMPONENT_NAME，SIM-30 扩 50+）
+    """
+    from openpyxl import Workbook
+
+    wb = Workbook()
+
+    # Sheet 1: 物流列表
+    ws1 = wb.active
+    ws1.title = "物流列表"
+    ws1.append(_STREAM_COLUMNS)
+
+    # Sheet 2: 组分组成
+    ws2 = wb.create_sheet("组分组成")
+    ws2.append(_COMPONENT_COLUMNS)
+
+    # Sheet 3: 别名表
+    ws3 = wb.create_sheet("别名表")
+    ws3.append(["Group", "Alias", "Standard"])
+    for group, alias, standard in _component_alias_rows():
+        ws3.append([group, alias, standard])
+
+    buf = BytesIO()
+    wb.save(buf)
+    return buf.getvalue()
+
+
 __all__ = [
     "ImportService",
+    "generate_excel_template",
     "write_temp_upload",
 ]

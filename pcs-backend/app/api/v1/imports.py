@@ -24,10 +24,12 @@ P3.x SIM-14 D-4 等价闭环（用户 2026-09-09 裁决）：
 from __future__ import annotations
 
 import uuid
+from io import BytesIO
 from pathlib import Path
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -38,7 +40,11 @@ from app.core.upload_size_limit import enforce_upload_size
 from app.db.session import get_db
 from app.schemas.stream import StreamImportResult
 from app.services.exceptions import PcsError
-from app.services.import_service import ImportService, write_temp_upload
+from app.services.import_service import (
+    ImportService,
+    generate_excel_template,
+    write_temp_upload,
+)
 
 router = APIRouter(prefix="/projects/{project_id}/imports", tags=["imports"])
 
@@ -229,6 +235,42 @@ async def commit_excel(
         raise _to_http(e) from e
     await db.commit()
     return StreamImportResult(**result)
+
+
+# ---------------------------------------------------------------------------
+# P3.x SIM-25：Excel 导入模板下载（GET /imports/excel/template）
+# ---------------------------------------------------------------------------
+
+
+@router.get("/excel/template")
+async def get_excel_template(
+    project_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> StreamingResponse:
+    """Excel 导入模板下载（SIM-25；spec 附录 A）。
+
+    返回 3 sheet 的 .xlsx：
+    1. 物流列表（spec §附录 A 8 列）
+    2. 组分组成（4 列）
+    3. 别名表（Group / Alias / Standard；当前 17 条 COMPONENT_NAME，SIM-30 扩 50+）
+
+    ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN / VIEWER（只读模板）。
+    """
+    require_roles(
+        user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN", "VIEWER"
+    )
+    await _load_project(db, project_id)
+    content = generate_excel_template()
+    return StreamingResponse(
+        BytesIO(content),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": (
+                "attachment; filename=pcs_stream_import_template.xlsx"
+            )
+        },
+    )
 
 
 __all__ = ["router"]
