@@ -2,6 +2,10 @@
 
 V1.4 §四、#5 修正：fork_to_project(symbol_id=None) → 复制全部公司级符号；
 symbol_id 指定时只 fork 该符号。Returns list[ProjectStreamSymbol]。
+
+SIM-37（2026-09-11）：项目级符号审批走轻量状态列 + 5 态机
+（ProjectStreamSymbolStateMachine），不挂 ConfigAsset/ConfigApproval
+（cerebrum Do-Not-Repeat：避免 config_assets 爆炸）。
 """
 from __future__ import annotations
 
@@ -17,6 +21,41 @@ from app.models.stream_symbol import ProjectStreamSymbol, StreamSymbol
 from app.services.audit_service import AuditService
 from app.services.config_state_machine import ConfigStateMachine, InvalidTransitionError
 from app.services.exceptions import PcsError
+
+
+class ProjectStreamSymbolStateMachine:
+    """项目级符号轻量 5 态机（不挂 ConfigAsset/ConfigApproval，V1.4 §五、#1）。
+
+    与 ProjectPipeClassStateMachine 同模式：
+    DRAFT → PENDING → APPROVED → PUBLISHED → OBSOLETE；
+    DRAFT/APPROVED/PUBLISHED 可经 OBSOLETE 直接出局；OBSOLETE 终态。
+
+    ConfigApproval 行不写（cerebrum Do-Not-Repeat：仅 PipeClass 写
+    ConfigApproval.project_class_id；其他项目级三域只审计）。
+    """
+
+    TRANSITIONS: dict[str, set[str]] = {
+        "DRAFT": {"submit", "obsolete"},
+        "PENDING": {"approve", "reject"},
+        "APPROVED": {"publish", "obsolete"},
+        "PUBLISHED": {"obsolete"},
+        "OBSOLETE": set(),
+    }
+    ACTION_TO_STATUS: dict[str, str] = {
+        "submit": "PENDING",
+        "approve": "APPROVED",
+        "reject": "DRAFT",
+        "publish": "PUBLISHED",
+        "obsolete": "OBSOLETE",
+    }
+
+    @classmethod
+    def can_transition(cls, current_status: str, action: str) -> bool:
+        return action in cls.TRANSITIONS.get(current_status, set())
+
+    @classmethod
+    def next_status(cls, action: str) -> str:
+        return cls.ACTION_TO_STATUS[action]
 
 
 class StreamSymbolService:
@@ -373,3 +412,111 @@ class StreamSymbolService:
                         }
                     )
         return out
+
+    # ====================================================================
+    # SIM-37 项目级符号 5 态审批（轻量状态列 + 审计；不写 ConfigApproval）
+    # ====================================================================
+
+    @classmethod
+    async def submit_project_symbol(
+        cls, db: AsyncSession, *, project_symbol_id: uuid.UUID, actor: Any,
+    ) -> ProjectStreamSymbol:
+        """DRAFT → PENDING。"""
+        return await cls._project_transition(
+            db, project_symbol_id, "submit", actor,
+        )
+
+    @classmethod
+    async def approve_project_symbol(
+        cls, db: AsyncSession, *, project_symbol_id: uuid.UUID, actor: Any,
+        role: str = "REVIEWER",
+    ) -> ProjectStreamSymbol:
+        """PENDING → APPROVED。"""
+        return await cls._project_transition(
+            db, project_symbol_id, "approve", actor,
+            role=role, record_approval=True,
+        )
+
+    @classmethod
+    async def reject_project_symbol(
+        cls, db: AsyncSession, *, project_symbol_id: uuid.UUID, actor: Any,
+        role: str = "REVIEWER",
+    ) -> ProjectStreamSymbol:
+        """PENDING → DRAFT。"""
+        return await cls._project_transition(
+            db, project_symbol_id, "reject", actor,
+            role=role, record_approval=True,
+        )
+
+    @classmethod
+    async def publish_project_symbol(
+        cls, db: AsyncSession, *, project_symbol_id: uuid.UUID, actor: Any,
+    ) -> ProjectStreamSymbol:
+        """APPROVED → PUBLISHED。"""
+        return await cls._project_transition(
+            db, project_symbol_id, "publish", actor,
+        )
+
+    @classmethod
+    async def obsolete_project_symbol(
+        cls, db: AsyncSession, *, project_symbol_id: uuid.UUID, actor: Any,
+    ) -> ProjectStreamSymbol:
+        """→ OBSOLETE（DRAFT/APPROVED/PUBLISHED 都可）。"""
+        return await cls._project_transition(
+            db, project_symbol_id, "obsolete", actor,
+        )
+
+    @classmethod
+    async def _project_transition(
+        cls,
+        db: AsyncSession,
+        project_symbol_id: uuid.UUID,
+        action: str,
+        actor: Any,
+        *,
+        role: str | None = None,
+        record_approval: bool = False,  # noqa: ARG003 — 预留；不写 ConfigApproval
+    ) -> ProjectStreamSymbol:
+        """项目级符号状态转移公共实现（SIM-37 轻量 5 态机）。
+
+        仅审计落库（cerebrum 政策：ProjectStreamSymbol 不写 ConfigApproval，
+        避免 config_approvals 表膨胀；PipeClass 项目级特殊保留 ConfigApproval
+        是 V1.4 §五、#1 历史决议）。
+        """
+        pss = await db.get(ProjectStreamSymbol, project_symbol_id)
+        if pss is None:
+            raise PcsError(
+                f"项目符号 {project_symbol_id} 不存在",
+                code="PROJECT_STREAM_SYMBOL_NOT_FOUND",
+                status=404,
+            )
+        if not ProjectStreamSymbolStateMachine.can_transition(pss.status, action):
+            raise PcsError(
+                f"项目符号 {pss.symbol} 状态 {pss.status} 不允许 {action}",
+                code="PROJECT_STREAM_SYMBOL_BAD_TRANSITION",
+                status=409,
+            )
+        new_status = ProjectStreamSymbolStateMachine.next_status(action)
+        old_status = pss.status
+        pss.status = new_status
+        audit_action_map = {
+            "submit": AuditAction.CONFIG_ASSET_SUBMITTED,
+            "approve": AuditAction.CONFIG_ASSET_APPROVED,
+            "reject": AuditAction.CONFIG_ASSET_REJECTED,
+            "publish": AuditAction.CONFIG_ASSET_PUBLISHED,
+            "obsolete": AuditAction.CONFIG_ASSET_OBSOLETED,
+        }
+        await AuditService(db).write(
+            action=audit_action_map[action],
+            resource_type="PROJECT_STREAM_SYMBOL",
+            resource_id=str(pss.project_symbol_id),
+            user_id=getattr(actor, "user_id", None),
+            detail={
+                "from": old_status,
+                "to": new_status,
+                "action": action,
+                "project_id": str(pss.project_id),
+            },
+        )
+        await db.commit()
+        return pss

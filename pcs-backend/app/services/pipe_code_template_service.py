@@ -6,6 +6,9 @@
 项目级（project_pipe_code_configs）：fork 或全新创建；5 态自管轻量状态机
 （不挂 ConfigApproval，因 V1.4 §四、#1 修订）。
 
+SIM-37（2026-09-11）：项目级 5 态转移补 audit.write（与 PipeClass 项目级
+模式一致；cerebrum Do-Not-Repeat：service 层禁止绕过状态机直接 UPDATE）。
+
 FMT-OPEN-01：项目级 auto_increment 在 service 层用串行获取 sequence_key
 （pipe_code_generator.PipeCodeGenerator._next_sequence），由 ORM 层
 ProjectPipeCodeSequence 表持久化计数。
@@ -434,6 +437,7 @@ class PipeCodeTemplateService:
         actor: Any,
     ) -> ProjectPipeCodeConfig:
         cfg = await cls.get_project_config(db, config_id=config_id)
+        old_status = cfg.status
         if action == "OBSOLETE":
             # OBSOLETE 允许多入口（DRAFT / APPROVED / PUBLISHED）
             if cfg.status in ("DRAFT", "APPROVED", "PUBLISHED"):
@@ -459,6 +463,28 @@ class PipeCodeTemplateService:
                     status=409,
                 )
             cfg.status = to_state
+        # SIM-37：项目级 5 态转移写审计（cerebrum Do-Not-Repeat：service 层
+        # 禁止绕过状态机直接 UPDATE；审计 + 状态机原子化）。
+        new_status = cfg.status
+        audit_action_map = {
+            "SUBMIT": AuditAction.CONFIG_ASSET_SUBMITTED,
+            "APPROVE": AuditAction.CONFIG_ASSET_APPROVED,
+            "REJECT": AuditAction.CONFIG_ASSET_REJECTED,
+            "PUBLISH": AuditAction.CONFIG_ASSET_PUBLISHED,
+            "OBSOLETE": AuditAction.CONFIG_ASSET_OBSOLETED,
+        }
+        await AuditService(db).write(
+            action=audit_action_map[action],
+            resource_type="PROJECT_PIPE_CODE_CONFIG",
+            resource_id=str(cfg.config_id),
+            user_id=getattr(actor, "user_id", None),
+            detail={
+                "from": old_status,
+                "to": new_status,
+                "action": action,
+                "project_id": str(cfg.project_id),
+            },
+        )
         await db.commit()
         return cfg
 
