@@ -298,10 +298,75 @@ class StreamService:
 
     @staticmethod
     async def delete(db: AsyncSession, stream_id: uuid.UUID, *, actor: uuid.UUID) -> None:
-        """删除物流（hard delete — Stream 无软删字段；状态点通过 FK 联动）。"""
+        """删除物流（hard delete — Stream 无软删字段；状态点通过 FK 联动）。
+
+        SIM-35：被引用时拒绝删除（409 SIM_STREAM_REFERENCED），错误信息含
+        引用表名 + 引用条数。引用表清单：
+        1. stream_state_points（项目内状态点）
+        2. flash_results（flash 计算结果）
+        """
         stream = await StreamService.get(db, stream_id)
+
+        # SIM-35：引用检查（先于 db.delete 给出清晰错误信息）
+        references = await StreamService._collect_references(db, stream_id)
+        if references:
+            detail_lines = [
+                f"{table}={count}条" for table, count in references.items()
+            ]
+            raise PcsError(
+                f"物流 {stream.stream_name} 存在外部引用，无法删除；"
+                f"引用明细：{', '.join(detail_lines)}。"
+                f"请先清理引用（删除相关状态点/计算结果）后重试",
+                code="SIM_STREAM_REFERENCED",
+                status=409,
+            )
+
         await db.delete(stream)
         await db.commit()
+
+    @staticmethod
+    async def _collect_references(
+        db: AsyncSession, stream_id: uuid.UUID
+    ) -> dict[str, int]:
+        """收集引用 stream_id 的外部记录（{table_name: count}）。
+
+        SIM-35：单次往返多表 count 查询，避免 N+1。引用表清单：
+        - stream_state_points（物流状态点）
+        - flash_results（flash 计算结果）
+
+        Returns:
+            {table_name: count}，无引用返回空 dict。
+        """
+        from sqlalchemy import func, select
+
+        from app.models.calc import FlashResult
+        from app.models.project import StreamStatePoint
+
+        result: dict[str, int] = {}
+
+        # 1. stream_state_points
+        sp_count = (
+            await db.execute(
+                select(func.count())
+                .select_from(StreamStatePoint)
+                .where(StreamStatePoint.stream_id == stream_id)
+            )
+        ).scalar_one()
+        if sp_count > 0:
+            result["stream_state_points"] = sp_count
+
+        # 2. flash_results
+        flash_count = (
+            await db.execute(
+                select(func.count())
+                .select_from(FlashResult)
+                .where(FlashResult.stream_id == stream_id)
+            )
+        ).scalar_one()
+        if flash_count > 0:
+            result["flash_results"] = flash_count
+
+        return result
 
     # =====================================================================
     # 状态机（SIM-13，闭环审计 D-1）
