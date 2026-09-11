@@ -115,6 +115,20 @@
   - 测试 fake 类模式：`_FakeDeliverable(Deliverable)` / `_FakeChangeNoticeDetail(ChangeNoticeDetail)` 子类继承（兼容 SQLAlchemy select()），通过 `_FakeSession.register_class_map` 做 fake ↔ ORM 真类双向查找
   - ruff 净减 5（18 vs baseline 23）；全量回归 1077 passed（+19, 1 flake=export_service perf budget 偶发，与本 commit 无关）
 
+- SIM-39（记录弃用 RECORD_CANCELLATION 闭环）：RecordCancellationService + BoundObsoleteError
+  - 弃用路径分支（spec V1.0 §3.4 / ADR-0009）：
+    - 未绑定（locked_by_deliverable=False）：直接 OBSOLETE，obsoleted_via=DIRECT
+    - 已绑定（locked_by_deliverable=True）：拒绝直接 OBSOLETE（BoundObsoleteError → 409
+      RECORD_BOUND_USE_CHANGE_NOTICE），需走 change_type=RECORD_CANCELLATION 变更单
+  - bound_obsolete_via_deliverable：变更单 APPROVED 阶段调用，联动 OBSOLETE +
+    写 obsoleted_via_deliverable_id 追溯凭证
+  - 位号终身唯一契约（ADR-0009）：OBSOLETE 不清空 tag_number，依赖 (project_id, tag_number)
+    UNIQUE 约束覆盖含 OBSOLETE 全部记录（DB 层）；服务层契约：tag_number 保留
+  - 测试 11 项：未绑定直接 OBSOLETE + 5 态起点均允许 + 已绑定拒绝 + BoundObsoleteError
+    code+status + 变更单联动 OBSOLETE + 未绑定拒绝走变更单路径 + 记录不存在 404 +
+    已 OBSOLETE 再次弃用 409 + tag_number 保留 + 2 种路径 audit 落库
+  - ruff 全量持平 18；全量回归 1084 passed（+11-3 export_service 跳过 flake）
+
 ### PCS 领域核心
 
 - 两层签署（记录 9 态门禁 / 交付物 Rev+签署矩阵）、哈希判实质变更、位号终身唯一。
