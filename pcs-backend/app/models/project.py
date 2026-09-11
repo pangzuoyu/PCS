@@ -131,16 +131,113 @@ class Stream(TimestampMixin, Base):
     liquid_composition_json: Mapped[dict | None] = mapped_column(
         JSONB, comment="两相流必填"
     )
-    density: Mapped[float | None] = mapped_column(Float)
-    viscosity_dynamic: Mapped[float | None] = mapped_column(Float)
-    viscosity_kinematic: Mapped[float | None] = mapped_column(Float)
-    thermal_conductivity: Mapped[float | None] = mapped_column(Float)
-    specific_heat: Mapped[float | None] = mapped_column(Float)
-    molecular_weight: Mapped[float | None] = mapped_column(Float)
-    compressibility_factor: Mapped[float | None] = mapped_column(Float)
+    # density / viscosity_dynamic / viscosity_kinematic / thermal_conductivity /
+    # specific_heat / surface_tension / compressibility_factor 已在 SIM-33 重命名为
+    # liquid_* 前缀（spec §3.6 命名对齐）
+    molecular_weight: Mapped[float | None] = mapped_column(
+        Float, comment="分子量（通用，气液相同，SIM-33 不重命名）"
+    )
     vapor_fraction: Mapped[float | None] = mapped_column(Float)
     liquid_fraction: Mapped[float | None] = mapped_column(
         Float, comment="SIM-31 §1.2.1: 液相分率 (0~1)，对称 vapor_fraction"
+    )
+    # === P3.x SIM-33: 液相物性命名对齐（spec §3.6 liquid_ 前缀；7 列 RENAME）===
+    liquid_density: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.6: 液相密度 kg/m³（原 density）"
+    )
+    liquid_viscosity_dynamic: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.6: 液相动力粘度 Pa·s（原 viscosity_dynamic）"
+    )
+    liquid_viscosity_kinematic: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.6: 液相运动粘度 m²/s（原 viscosity_kinematic）"
+    )
+    liquid_thermal_conductivity: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.6: 液相导热系数 W/(m·K)（原 thermal_conductivity）"
+    )
+    liquid_specific_heat: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.6: 液相比热容 kJ/(kg·K)（原 specific_heat）"
+    )
+    liquid_surface_tension: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.6: 液相表面张力 N/m（原 surface_tension）"
+    )
+    liquid_compressibility_factor: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.6: 液相压缩因子 Z（与 vapor_z 对称；原 compressibility_factor）"
+    )
+    # === P3.x SIM-33: SIM-31 JSONB → ORM 迁移（避免气液不对称）===
+    liquid_std_density: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.6: 液相标况密度 kg/m³（SIM-31 std_liq_density 迁 ORM）"
+    )
+    liquid_mass_rate: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.6: 液相质量流量 kg/h（SIM-31 JSONB 迁 ORM）"
+    )
+    liquid_actual_m3hr: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.6: 液相实际体积流量 m³/h（SIM-31 liq_actual_m3hr 迁 ORM）"
+    )
+    # === P3.x SIM-33: 气相物性 9 字段（spec §3.5 C/O，与 vapor_fraction ORM 对称）===
+    vapor_mass_rate: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相质量流量 kg/h"
+    )
+    vapor_actual_m3hr: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相实际体积流量 m³/h"
+    )
+    vapor_normal_m3hr: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相标况体积流量 Nm³/h"
+    )
+    vapor_mw: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相分子量（与 molecular_weight 同义；专气相显示）"
+    )
+    vapor_density: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相密度 kg/m³（与 liquid_density 对称）"
+    )
+    vapor_z: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相压缩因子 Z（与 liquid_compressibility_factor 对称）"
+    )
+    vapor_cp: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相比热容 kJ/(kg·K)"
+    )
+    vapor_viscosity: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相动力粘度 Pa·s"
+    )
+    vapor_thermal_cond: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相导热系数 W/(m·K)"
+    )
+    # === P3.x SIM-33: SIM-31 JSONB → ORM 迁移（避免气液不对称）===
+    liquid_std_density: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.6: 液相标况密度 kg/m³（SIM-31 std_liq_density 迁 ORM）"
+    )
+    liquid_mass_rate: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.6: 液相质量流量 kg/h（SIM-31 JSONB 迁 ORM）"
+    )
+    liquid_actual_m3hr: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.6: 液相实际体积流量 m³/h（SIM-31 liq_actual_m3hr 迁 ORM）"
+    )
+    # === P3.x SIM-33: 气相物性 9 字段（spec §3.5 C/O，与 vapor_fraction ORM 对称）===
+    vapor_mass_rate: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相质量流量 kg/h"
+    )
+    vapor_actual_m3hr: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相实际体积流量 m³/h"
+    )
+    vapor_normal_m3hr: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相标况体积流量 Nm³/h"
+    )
+    vapor_mw: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相分子量（与 molecular_weight 同义；专气相显示）"
+    )
+    vapor_density: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相密度 kg/m³（与 liquid_density 对称）"
+    )
+    vapor_z: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相压缩因子 Z（与 liquid_compressibility_factor 对称）"
+    )
+    vapor_cp: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相比热容 kJ/(kg·K)"
+    )
+    vapor_viscosity: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相动力粘度 Pa·s"
+    )
+    vapor_thermal_cond: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-33 §3.5: 气相导热系数 W/(m·K)"
     )
     enthalpy: Mapped[float | None] = mapped_column(Float)
     entropy: Mapped[float | None] = mapped_column(Float)
@@ -208,9 +305,7 @@ class Stream(TimestampMixin, Base):
         String(20),
         comment="物流级 case_type：NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN（设计工况）",
     )
-    surface_tension: Mapped[float | None] = mapped_column(
-        Float, comment="表面张力 N/m"
-    )
+    # surface_tension 已在 SIM-33 重命名为 liquid_surface_tension（spec §3.6）
     api_gravity: Mapped[float | None] = mapped_column(
         Float, comment="API 度（°API），石油馏分专用"
     )

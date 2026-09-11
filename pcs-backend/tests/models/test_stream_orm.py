@@ -9,7 +9,7 @@
 
 净新增 10 字段（plan 修正版）：
 - streams.case_type VARCHAR(20) + CHECK（NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN）
-- streams.surface_tension / api_gravity / critical_temp / critical_press / actual_vol_flow FLOAT
+- streams.liquid_surface_tension（SIM-33 rename）/ api_gravity / critical_temp / critical_press / actual_vol_flow FLOAT
 - streams.viscosity_temperature_curve JSONB
 - streams.import_original_row INT
 - streams.import_source_version VARCHAR(20)
@@ -39,9 +39,11 @@ def test_stream_case_type_check_constraint():
     )
 
 
-def test_stream_has_surface_tension():
+def test_stream_has_liquid_surface_tension():
+    """SIM-33: surface_tension 重命名为 liquid_surface_tension（spec §3.6）。"""
     cols = {c.name for c in Stream.__table__.columns}
-    assert "surface_tension" in cols
+    assert "liquid_surface_tension" in cols
+    assert "surface_tension" not in cols
 
 
 def test_stream_has_api_gravity():
@@ -122,7 +124,7 @@ def test_stream_total_column_count_after_sim1():
     cols = {c.name for c in Stream.__table__.columns}
     expected_new = {
         "case_type",
-        "surface_tension",
+        "liquid_surface_tension",  # SIM-33: surface_tension → liquid_surface_tension
         "api_gravity",
         "critical_temp",
         "critical_press",

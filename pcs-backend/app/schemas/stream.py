@@ -73,15 +73,68 @@ class StreamBase(BaseModel):
         None, ge=0.0, le=1.0, description="SIM-31: 液相分率 (0~1)，对称 vapor_fraction"
     )
 
-    # === 物性（spec V1.6 §3.2.3 表 2） ===
-    molecular_weight: float | None = Field(None, description="分子量")
-    density: float | None = Field(None, description="密度 kg/m³")
-    viscosity_dynamic: float | None = Field(None, description="动力粘度 Pa·s")
-    viscosity_kinematic: float | None = Field(None, description="运动粘度 m²/s")
-    thermal_conductivity: float | None = Field(None, description="导热系数 W/(m·K)")
-    specific_heat: float | None = Field(None, description="比热容 kJ/(kg·K)")
-    compressibility_factor: float | None = Field(None, description="压缩因子 Z")
-    surface_tension: float | None = Field(None, description="表面张力 N/m")
+    # === 物性（spec V1.6 §3.2.3 表 2 + SIM-33 命名对齐 spec §3.6） ===
+    molecular_weight: float | None = Field(None, description="分子量（通用，气液相同）")
+    # === SIM-33: 液相物性命名对齐（spec §3.6 liquid_ 前缀）===
+    liquid_density: float | None = Field(
+        None, description="SIM-33 §3.6: 液相密度 kg/m³（原 density）"
+    )
+    liquid_viscosity_dynamic: float | None = Field(
+        None, description="SIM-33 §3.6: 液相动力粘度 Pa·s（原 viscosity_dynamic）"
+    )
+    liquid_viscosity_kinematic: float | None = Field(
+        None, description="SIM-33 §3.6: 液相运动粘度 m²/s（原 viscosity_kinematic）"
+    )
+    liquid_thermal_conductivity: float | None = Field(
+        None, description="SIM-33 §3.6: 液相导热系数 W/(m·K)（原 thermal_conductivity）"
+    )
+    liquid_specific_heat: float | None = Field(
+        None, description="SIM-33 §3.6: 液相比热容 kJ/(kg·K)（原 specific_heat）"
+    )
+    liquid_surface_tension: float | None = Field(
+        None, description="SIM-33 §3.6: 液相表面张力 N/m（原 surface_tension）"
+    )
+    liquid_compressibility_factor: float | None = Field(
+        None, description="SIM-33 §3.6: 液相压缩因子 Z（与 vapor_z 对称；原 compressibility_factor）"
+    )
+    # === SIM-33: SIM-31 JSONB → ORM 3 字段（避免气液不对称）===
+    liquid_std_density: float | None = Field(
+        None, description="SIM-33 §3.6: 液相标况密度 kg/m³（SIM-31 std_liq_density 迁 ORM）"
+    )
+    liquid_mass_rate: float | None = Field(
+        None, description="SIM-33 §3.6: 液相质量流量 kg/h（SIM-31 JSONB 迁 ORM）"
+    )
+    liquid_actual_m3hr: float | None = Field(
+        None, description="SIM-33 §3.6: 液相实际体积流量 m³/h（SIM-31 liq_actual_m3hr 迁 ORM）"
+    )
+    # === SIM-33: 气相物性 9 字段（spec §3.5 C/O）===
+    vapor_mass_rate: float | None = Field(
+        None, description="SIM-33 §3.5: 气相质量流量 kg/h"
+    )
+    vapor_actual_m3hr: float | None = Field(
+        None, description="SIM-33 §3.5: 气相实际体积流量 m³/h"
+    )
+    vapor_normal_m3hr: float | None = Field(
+        None, description="SIM-33 §3.5: 气相标况体积流量 Nm³/h"
+    )
+    vapor_mw: float | None = Field(
+        None, description="SIM-33 §3.5: 气相分子量（专气相显示）"
+    )
+    vapor_density: float | None = Field(
+        None, description="SIM-33 §3.5: 气相密度 kg/m³（与 liquid_density 对称）"
+    )
+    vapor_z: float | None = Field(
+        None, description="SIM-33 §3.5: 气相压缩因子 Z（与 liquid_compressibility_factor 对称）"
+    )
+    vapor_cp: float | None = Field(
+        None, description="SIM-33 §3.5: 气相比热容 kJ/(kg·K)"
+    )
+    vapor_viscosity: float | None = Field(
+        None, description="SIM-33 §3.5: 气相动力粘度 Pa·s"
+    )
+    vapor_thermal_cond: float | None = Field(
+        None, description="SIM-33 §3.5: 气相导热系数 W/(m·K)"
+    )
     api_gravity: float | None = Field(None, description="API 度（°API），石油馏分专用")
     specific_gravity: float | None = Field(
         None, description="SIM-31: 比重（water=1.0），对称 api_gravity"

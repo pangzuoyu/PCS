@@ -109,47 +109,12 @@ def test_mass_to_mole_empty_input_returns_empty():
 
 
 # ---------------------------------------------------------------------------
-# JSONB 液相字段写入路径
-# ---------------------------------------------------------------------------
-
-
-def test_liquid_jsonb_fields_round_trip():
-    """3 个 JSONB 字段：std_liq_density / liquid_mass_rate / liq_actual_m3hr
-    写入 stream_properties_json 后可正确读出。"""
-    from app.services.composition_normalizer import (
-        pack_liquid_properties_json,
-        unpack_liquid_properties_json,
-    )
-
-    raw = {
-        "std_liq_density": 850.0,  # kg/m³ @ 标准态
-        "liquid_mass_rate": 1200.0,  # kg/h
-        "liq_actual_m3hr": 1.5,  # m³/h @ 工况
-    }
-    packed = pack_liquid_properties_json(raw)
-    unpacked = unpack_liquid_properties_json(packed)
-    assert unpacked == raw
-
-
-def test_liquid_jsonb_missing_fields_default_none():
-    """未提供 JSONB 字段 → 解包时为 None（不抛 KeyError）。"""
-    from app.services.composition_normalizer import unpack_liquid_properties_json
-
-    unpacked = unpack_liquid_properties_json(None)
-    assert unpacked["std_liq_density"] is None
-    assert unpacked["liquid_mass_rate"] is None
-    assert unpacked["liq_actual_m3hr"] is None
-
-
-# ---------------------------------------------------------------------------
-# 液相 ORM 字段：liquid_fraction + specific_gravity
+# 液相 ORM 字段：SIM-31 + SIM-33 共 5 个 ORM 字段
 # ---------------------------------------------------------------------------
 
 
 def test_liquid_fraction_in_orm_stream():
-    """liquid_fraction 写入 ORM Stream 后可读出（migration 已加列）。"""
-    import uuid
-
+    """liquid_fraction 写入 ORM Stream 后可读出（SIM-31 migration 已加列）。"""
     from app.models.project import Stream
 
     s = Stream()
@@ -158,12 +123,44 @@ def test_liquid_fraction_in_orm_stream():
 
 
 def test_specific_gravity_in_orm_stream():
-    """specific_gravity 写入 ORM Stream 后可读出。"""
+    """specific_gravity 写入 ORM Stream 后可读出（SIM-31 migration）。"""
     from app.models.project import Stream
 
     s = Stream()
     s.specific_gravity = 0.85
     assert s.specific_gravity == 0.85
+
+
+# ---------------------------------------------------------------------------
+# SIM-33：JSONB → ORM 迁移后的 3 字段
+# ---------------------------------------------------------------------------
+
+
+def test_liquid_std_density_in_orm_stream():
+    """liquid_std_density（SIM-31 std_liq_density）迁 ORM 后直接读写。"""
+    from app.models.project import Stream
+
+    s = Stream()
+    s.liquid_std_density = 850.0
+    assert s.liquid_std_density == 850.0
+
+
+def test_liquid_mass_rate_in_orm_stream():
+    """liquid_mass_rate（SIM-31 JSONB）迁 ORM 后直接读写。"""
+    from app.models.project import Stream
+
+    s = Stream()
+    s.liquid_mass_rate = 1200.0
+    assert s.liquid_mass_rate == 1200.0
+
+
+def test_liquid_actual_m3hr_in_orm_stream():
+    """liquid_actual_m3hr（SIM-31 liq_actual_m3hr）迁 ORM 后直接读写。"""
+    from app.models.project import Stream
+
+    s = Stream()
+    s.liquid_actual_m3hr = 1.5
+    assert s.liquid_actual_m3hr == 1.5
 
 
 # ---------------------------------------------------------------------------

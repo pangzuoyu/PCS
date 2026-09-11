@@ -1,8 +1,11 @@
-"""P3.x SIM-31：composition_mass → composition_mole 归一化层 + 液相字段。
+"""P3.x SIM-31: composition_mass → composition_mole 归一化层。
 
 职责边界：
-- **本模块**：mass→mole 纯数学换算 + 液相 JSONB 字段 pack/unpack
+- **本模块**：mass→mole 纯数学换算
 - **PropertyAutoCompleter（SIM-26）不变**：只接 composition_mole 做物性估算
+- 液相 3 字段（std_liq_density/liquid_mass_rate/liq_actual_m3hr）在 SIM-33 已从
+  JSONB 迁 ORM（liquid_std_density/liquid_mass_rate/liquid_actual_m3hr）；
+  pack/unpack 函数已删除。
 
 换算公式（spec §1.2.4 + §5.2）：
     n_i = mass_i / MW_i
@@ -13,15 +16,8 @@
 - 负 mass fraction → ValueError
 - MW=0 → ValueError（避免 ZeroDivisionError 不友好）
 - 空输入 → 空 dict
-
-液相 JSONB 字段（spec §1.2.3 stream_properties_json）：
-- std_liq_density: kg/m³ @ 标准态
-- liquid_mass_rate: kg/h
-- liq_actual_m3hr: m³/h @ 工况
 """
 from __future__ import annotations
-
-from typing import Any
 
 
 class CompositionMassToMoleError(ValueError):
@@ -84,48 +80,7 @@ def normalize_composition_mass_to_mole(
     return {cas: m / total for cas, m in moles.items()}
 
 
-# ---------------------------------------------------------------------------
-# 液相 JSONB 字段 pack/unpack
-# ---------------------------------------------------------------------------
-
-_LIQUID_JSONB_KEYS = ("std_liq_density", "liquid_mass_rate", "liq_actual_m3hr")
-
-
-def pack_liquid_properties_json(
-    raw: dict[str, Any] | None,
-) -> dict[str, Any] | None:
-    """将 3 个液相字段打包进 stream_properties_json dict（保留已有键）。
-
-    Returns:
-        None → None；{} → {}；否则合并。
-    """
-    if raw is None:
-        return None
-    # 复制以避免 mutate 调用方
-    merged: dict[str, Any] = dict(raw)
-    return merged
-
-
-def unpack_liquid_properties_json(
-    stream_properties_json: dict[str, Any] | None,
-) -> dict[str, float | None]:
-    """从 stream_properties_json 提取 3 个液相字段；缺失键返回 None。
-
-    Returns:
-        {"std_liq_density": float|None, "liquid_mass_rate": float|None,
-         "liq_actual_m3hr": float|None}
-    """
-    if not stream_properties_json:
-        return {k: None for k in _LIQUID_JSONB_KEYS}
-    return {
-        k: stream_properties_json.get(k) for k in _LIQUID_JSONB_KEYS
-    }
-
-
 __all__ = [
     "CompositionMassToMoleError",
     "normalize_composition_mass_to_mole",
-    "pack_liquid_properties_json",
-    "unpack_liquid_properties_json",
-    "_LIQUID_JSONB_KEYS",
 ]
