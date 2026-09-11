@@ -139,6 +139,26 @@ class StreamBase(BaseModel):
     specific_gravity: float | None = Field(
         None, description="SIM-31: 比重（water=1.0），对称 api_gravity"
     )
+    # === SIM-34: 炼油专用 5 字段（ADD-001 §3.8-3.9）===
+    rvp: float | None = Field(
+        None, description="SIM-34 §3.8: 雷德蒸气压 RVP（psi）"
+    )
+    tvp: float | None = Field(
+        None, description="SIM-34 §3.8: 真实蒸气压 TVP（psi）"
+    )
+    watson_k: float | None = Field(
+        None, description="SIM-34 §3.8: 沃森特性因子 K（UOP K，无量纲）"
+    )
+    flash_point: float | None = Field(
+        None, description="SIM-34 §3.8: 闪点 °C"
+    )
+    distillation_curves: dict[str, Any] | None = Field(
+        None,
+        description=(
+            "SIM-34 §3.9: 蒸馏曲线 8 种 schema"
+            "（D86/TBP/EFV/D86_CRACKING/D1160/D2887/D5236/D7169）"
+        ),
+    )
     critical_temp: float | None = Field(None, description="临界温度 K")
     critical_press: float | None = Field(None, description="临界压力 Pa")
     enthalpy: float | None = Field(None, description="焓 kJ/kg")

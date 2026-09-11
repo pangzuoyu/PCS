@@ -58,9 +58,9 @@ class ConflictResolution:
 # USER_PRIORITY 字段：实测优先 + per-field 偏差阈值
 USER_PRIORITY_FIELDS: dict[str, float] = {
     "liquid_density": 0.10,
-    "liquid_viscosity": 0.20,
+    "liquid_viscosity": 0.20,  # SIM-33 重命名后用 liquid_viscosity_dynamic
     "vapor_density": 0.10,
-    "surface_tension": 0.15,
+    "liquid_surface_tension": 0.15,  # SIM-33 重命名（原 surface_tension）
     "rvp": 0.10,
     "tvp": 0.10,
 }

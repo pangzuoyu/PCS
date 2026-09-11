@@ -66,7 +66,7 @@ def test_user_priority_fields_set():
         "liquid_density",
         "liquid_viscosity",
         "vapor_density",
-        "surface_tension",
+        "liquid_surface_tension",  # SIM-33: surface_tension 重命名
         "rvp",
         "tvp",
     }
@@ -91,7 +91,7 @@ def test_calculated_priority_fields_set():
 @pytest.mark.parametrize(
     "field",
     ["liquid_density", "liquid_viscosity", "vapor_density",
-     "surface_tension", "rvp", "tvp"],
+     "liquid_surface_tension", "rvp", "tvp"],  # SIM-33 rename
 )
 def test_user_priority_deviation_within_threshold_emits_info(field):
     """偏差 ≤ 阈值 → INFO（用户值已采用）。"""
@@ -108,7 +108,7 @@ def test_user_priority_deviation_within_threshold_emits_info(field):
 @pytest.mark.parametrize(
     "field",
     ["liquid_density", "liquid_viscosity", "vapor_density",
-     "surface_tension", "rvp", "tvp"],
+     "liquid_surface_tension", "rvp", "tvp"],  # SIM-33 rename
 )
 def test_user_priority_deviation_exceeds_threshold_emits_warn(field):
     """偏差 > 阈值 → WARN（用户值已采用但警告）。"""

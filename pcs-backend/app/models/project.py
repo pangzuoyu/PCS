@@ -312,6 +312,23 @@ class Stream(TimestampMixin, Base):
     specific_gravity: Mapped[float | None] = mapped_column(
         Float, comment="SIM-31 §1.2.1: 比重（water=1.0），对称 api_gravity"
     )
+    # === P3.x SIM-34: 炼油专用 5 字段（ADD-001 §3.8-3.9）===
+    rvp: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-34 §3.8: Reid Vapor Pressure psi"
+    )
+    tvp: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-34 §3.8: True Vapor Pressure psi"
+    )
+    watson_k: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-34 §3.8: Watson characterization K-factor (UOP K)"
+    )
+    flash_point: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-34 §3.8: 闪点 °C"
+    )
+    distillation_curves: Mapped[dict | None] = mapped_column(
+        JSONB,
+        comment="SIM-34 §3.9: 蒸馏曲线 8 种 schema（D86/TBP/EFV/D86_CRACKING/D1160/D2887/D5236/D7169）",
+    )
     critical_temp: Mapped[float | None] = mapped_column(
         Float, comment="临界温度 K"
     )
