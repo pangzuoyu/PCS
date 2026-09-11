@@ -129,6 +129,19 @@
     已 OBSOLETE 再次弃用 409 + tag_number 保留 + 2 种路径 audit 落库
   - ruff 全量持平 18；全量回归 1084 passed（+11-3 export_service 跳过 flake）
 
+- SIM-40（反向签署 REVERSAL_APPROVAL 闭环）：ReversalApprovalService 三事件封装
+  - 状态机事件（已在 state_machine.py 锁定）：CHANGED → REVERSAL_PENDING（REQUEST_REVERSAL）→
+    CHECKED（APPROVE_REVERSAL）/ CHANGED（REJECT_REVERSAL）
+  - request_reversal：仅 CHANGED 发起 + reason 必填（422）+ locked_by_deliverable=True 拒绝
+    （409 REVERSAL_LOCKED_USE_CHANGE_REVERSAL，提示走 CHANGE_REVERSAL 新变更单）
+  - approve_reversal：恢复 record_change_snapshots 最新 ACTIVE 快照 + 标记 CONSUMED；
+    无快照时仍 resolve（不阻断）
+  - reject_reversal：reason 必填 + reversal_rejected_* 字段写入
+  - 测试 12 项：request 5 态拒绝 + locked 拒绝 + reason 必填 + 记录不存在 + approve 快照恢复
+    + 无快照仍 resolve + approve 4 态拒绝 + reject 字段写入 + reject reason 必填 + reject
+    4 态拒绝 + 完整周期 2 条 audit 落库（REQUESTED + APPROVED）
+  - ruff 全量持平 18；全量回归 1096 passed（+12）
+
 ### PCS 领域核心
 
 - 两层签署（记录 9 态门禁 / 交付物 Rev+签署矩阵）、哈希判实质变更、位号终身唯一。
