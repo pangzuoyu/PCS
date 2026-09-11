@@ -43,7 +43,12 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models.enums import StateTransition
+from app.models.enums import StateTransition, StreamSignStatus
+
+# SIM-32：update 端点允许编辑的 sign_status 集合（其余均锁定）
+_EDITABLE_STATUSES: frozenset[StreamSignStatus] = frozenset(
+    {StreamSignStatus.DRAFT, StreamSignStatus.IN_APPROVAL}
+)
 from app.models.project import Stream, StreamStatePoint
 from app.schemas.stream import (
     StreamCreate,
@@ -249,8 +254,30 @@ class StreamService:
         *,
         actor: uuid.UUID,
     ) -> tuple[Stream, ConflictReport]:
-        """更新物流（部分字段）。BLOCK 拒绝；其他冲突保留。"""
+        """更新物流（部分字段）。BLOCK 拒绝；其他冲突保留。
+
+        SIM-32：sign_status 处于锁定/终态（CHECKED / STALE / CHANGED /
+        OBSOLETE / CHECK_REJECTED / REVERSAL_PENDING）→ 拒绝更新（409）。
+        可编辑态：DRAFT / IN_APPROVAL。
+        """
         stream = await StreamService.get(db, stream_id)
+
+        # SIM-32：状态机锁定检查
+        current_status = stream.sign_status
+        if current_status is not None and current_status not in _EDITABLE_STATUSES:
+            status_name = (
+                current_status.value
+                if hasattr(current_status, "value")
+                else str(current_status)
+            )
+            raise PcsError(
+                f"物流 {stream.stream_name} 处于 {status_name} 状态，不可编辑；"
+                f"请通过状态机（SUBMIT_FOR_CHECK → PASS_CHECK / REJECT_CHECK / "
+                f"INITIATE_CHANGE 等）流转后重试",
+                code="SIM_STREAM_LOCKED",
+                status=409,
+            )
+
         data = payload.model_dump(exclude_none=True)
         # 合并后再做物性补全 + 冲突检测（用最新 effective 值）
         merged = {**StreamService._to_dict(stream), **data}
