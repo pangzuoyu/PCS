@@ -8,13 +8,18 @@
 - 零流量流：*** ZERO FLOW *** 标记 → zero_flow=True（保留不剔除）
 - 单元操作类型：13 类（COLUMN/SIDESTRIPPER/FLASH/VALVE/REACTOR/EXTRACTOR/
   COMPRESSOR/SPLITTER/STCA/CALCULATOR/PUMP/HX/MIXER）
-- 反应：RXSET + REACTION ID + STOIC + HORX（sample5）
+- 反应：RXSET + REACTION ID + STOIC + HORX（sample5 单行格式 + dmc 多行格式）
 
 设计取舍：
 - 行扫描状态机（不引入 ply/lex 第三方 lexer 依赖；5 样例格式已稳态）
 - .inp 与 .out 互补解析：.inp 拿 components/streams/unit-op 定义，.out 拿
   banner/convergence/warnings/unreliable/side-draw-info/reactions
 - 失败兜底：缺文件 FileNotFoundError / 缺 banner ValueError
+- 反应格式双兼容：单行旧格式（sample5 STOIC:... HORX=... CONV MODEL）
+  + 多行新格式（dmc.inp/out STOICHIOMETRY + HORX HEAT/REFCOMP/REFTEMP/REFPHASE
+  + KINETICS PEXP(...)/ACTIVATION/TEXPONENT + KORDER libid,order）
+- 引用语句排除：CALCULATOR/SET 内的 `REACTION ID=X,COPTION=...` 不解析为
+  reaction 定义（spec §3.3.3 仅 RXDATA 段内的 REACTION 算定义）
 
 下游：SIM-10 导入预览（commit preview）→ SIM-4/5/6 三入口。
 """
@@ -24,6 +29,7 @@ import re
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
+from typing import Any
 
 # T 转换：C → K
 _C_TO_K_OFFSET = 273.15
@@ -52,12 +58,31 @@ class UnitOp:
 
 @dataclass(frozen=True)
 class Reaction:
-    """PRO/II 反应（REACTION DATA SUMMARY 提取）。"""
+    """PRO/II 反应（REACTION DATA SUMMARY 提取，spec V1.6 §3.3.3）。
+
+    spec §3.3.3 PROIIReaction 字段：
+    - id                    → reaction_id
+    - stoichiometry         → stoic（list[tuple[lib_id, coef]]）
+    - horx_heat             → HORX HEAT=X (kcal/mol)
+    - ref_component         → REFCOMP=N（参考组分 LIBID）
+    - ref_temp              → REFTEMP=X（参考温度 °C）
+    - ref_phase             → REFPHASE=L/V/S
+    - kinetics              → KINETICS dict（PEXP/ACTIVATION/TEXPONENT 等）
+    - korder                → KORDER dict（{libid: order}）
+
+    兼容：旧字段 `horx` 保留（单行旧格式 CONV MODEL 兜底，等价 horx_heat）。
+    """
 
     rxset_id: str
     reaction_id: str
     stoic: list[tuple[int, float]]  # [(component_libid, stoic_coef), ...]
-    horx: float | None
+    horx: float | None = None  # COMPAT：sample5 单行 HORX=... CONV MODEL
+    horx_heat: float | None = None  # spec §3.3.3：HORX HEAT=X (kcal/mol)
+    ref_component: int | None = None  # REFCOMP=N（参考组分 LIBID）
+    ref_temp: float | None = None  # REFTEMP=X（参考温度 °C）
+    ref_phase: str | None = None  # REFPHASE=L/V/S
+    kinetics: dict[str, Any] | None = None  # {PEXP(...), ACTIVATION, TEXPONENT}
+    korder: dict[int, float] | None = None  # KORDER {libid: order}
 
 
 @dataclass(frozen=True)
@@ -137,7 +162,7 @@ _OUT_CONV_RE = re.compile(
 )
 # .out 反应：RXSET ID=NAME
 _RXSET_RE = re.compile(r"^\s*RXSET\s+ID\s*=\s*(?P<id>\S+)\s*$", re.IGNORECASE)
-# .out 反应：REACTION ID=RX1  STOIC: 3,-1/4,-2/5,1/6,1     HORX=-2.1978  CONV MODEL
+# .out 反应（旧 sample5 单行格式）：REACTION ID=RX1  STOIC: 3,-1/... HORX=-2.1978  CONV MODEL
 _REACTION_RE = re.compile(
     r"^\s*REACTION\s+ID\s*=\s*(?P<id>\S+)\s+STOIC:\s*(?P<stoic>[^H]+?)\s+"
     r"HORX\s*=\s*(?P<horx>-?\d+\.\d+)\s+CONV\s+MODEL\s*$",
@@ -145,6 +170,21 @@ _REACTION_RE = re.compile(
 )
 # STOIC 段：3,-1/4,-2/5,1/6,1 → [(3,-1),(4,-2),(5,1),(6,1)]
 _STOIC_PAIR_RE = re.compile(r"(\d+)\s*,\s*(-?[\d.]+)")
+# === SIM-36: 多行格式正则（spec V1.6 §3.3.3 RXDATA + KINETICS） ===
+# REACTION header 单行：REACTION ID=DMC+（终止于空白/逗号/行尾）
+_REACTION_HDR_RE = re.compile(
+    r"^\s*REACTION\s+ID\s*=\s*(?P<id>[^\s,]+)", re.IGNORECASE
+)
+# STOICHIOMETRY 行：STOICHIOMETRY 3,-1/4,-2/5,1/6,1
+_STOIC_MULTI_RE = re.compile(
+    r"^\s*STOICHIOMETRY\s+(?P<body>[\d/,\-\.eE\s]+)", re.IGNORECASE
+)
+# HORX 行（多 key=val）：HORX HEAT=X,REFCOMP=N,REFTEMP=T,REFPHASE=P
+_HORX_KV_RE = re.compile(r"^\s*HORX\s+(?P<kv>.+?)\s*$", re.IGNORECASE)
+# KINETICS 行：KINETICS PEXP(MIN,G,LIT)=9785,ACTIVATION=9.615,TEXPONENT=0
+_KINETICS_RE = re.compile(r"^\s*KINETICS\s+(?P<params>.+?)\s*$", re.IGNORECASE)
+# KORDER 行：KORDER 3,1/4,1/5,0/6,0
+_KORDER_RE = re.compile(r"^\s*KORDER\s+(?P<body>[\d/,\-\.eE\s]+)", re.IGNORECASE)
 
 # ---------------------------------------------------------------------------
 # P3.x SIM-30: PRO/II LIBID→CAS 别名映射（spec §5.2）—— 单源真相迁移至
@@ -360,32 +400,183 @@ def _parse_unreliable_streams(
 
 
 def _parse_reactions(text: str) -> list[Reaction]:
-    """REACTION DATA SUMMARY 段：RXSET + REACTION（spec §628）。"""
+    """REACTION DATA SUMMARY 段：RXSET + REACTION（spec V1.6 §3.3.3）。
+
+    支持两种格式：
+    1. 单行旧格式（sample5）：REACTION ID=X STOIC:... HORX=Y CONV MODEL
+       → 仅 horx/horx_heat 字段
+    2. 多行新格式（dmc.inp/out）：REACTION ID=X \n STOICHIOMETRY ... \n
+       HORX HEAT=Y,REFCOMP=N,REFTEMP=T,REFPHASE=P \n
+       KINETICS PEXP(...)=...,ACTIVATION=A,TEXPONENT=E \n
+       KORDER libid,order/...
+       → 完整 spec §3.3.3 PROIIReaction 字段
+
+    引用语句识别（dmc.inp 第 309-310 行）：CALCULATOR/SET 内的
+    `REACTION ID=X,COPTION=...` 是引用而非定义，_is_reaction_definition() 排除。
+    """
     reactions: list[Reaction] = []
     current_rxset: str | None = None
+    current: dict[str, Any] | None = None
+
+    def _flush() -> None:
+        nonlocal current, current_rxset
+        if current is None or current_rxset is None:
+            return
+        horx_heat = current.get("horx_heat")
+        reactions.append(
+            Reaction(
+                rxset_id=current_rxset,
+                reaction_id=current["reaction_id"],
+                stoic=current.get("stoic", []),
+                horx=horx_heat,  # 兼容旧 sample5 单行格式
+                horx_heat=horx_heat,
+                ref_component=current.get("ref_component"),
+                ref_temp=current.get("ref_temp"),
+                ref_phase=current.get("ref_phase"),
+                kinetics=current.get("kinetics"),
+                korder=current.get("korder"),
+            )
+        )
+
+    def _is_reaction_definition(line: str) -> bool:
+        """排除 CALCULATOR/SET 内的 REACTION ID=X,COPTION=... 引用语句。"""
+        m = _REACTION_HDR_RE.match(line)
+        if not m:
+            return False
+        tail = line[m.end():].strip().rstrip(",")
+        # 引用语句包含 COPTION/CONV/USED 等关键词
+        upper = tail.upper()
+        if "COPTION" in upper or "CONV" in upper or "USED" in upper:
+            return False
+        return True
+
     for line in text.splitlines():
+        # 1. RXSET header：RXSET ID=NAME
         m = _RXSET_RE.match(line)
         if m:
+            _flush()
             current_rxset = m.group("id")
+            current = None
             continue
+        # 2. 单行旧格式（COMPAT，先尝试）：REACTION ID=X STOIC:... HORX=Y CONV MODEL
         m = _REACTION_RE.match(line)
         if m and current_rxset:
+            _flush()
+            current = {"reaction_id": m.group("id").strip()}
             stoic_body = m.group("stoic").strip()
-            stoic: list[tuple[int, float]] = []
-            for pair_m in _STOIC_PAIR_RE.finditer(stoic_body):
-                comp_id = int(pair_m.group(1))
-                coef = float(pair_m.group(2))
-                stoic.append((comp_id, coef))
-            horx = float(m.group("horx"))
-            reactions.append(
-                Reaction(
-                    rxset_id=current_rxset,
-                    reaction_id=m.group("id"),
-                    stoic=stoic,
-                    horx=horx,
-                )
-            )
+            current["stoic"] = [
+                (int(pm.group(1)), float(pm.group(2)))
+                for pm in _STOIC_PAIR_RE.finditer(stoic_body)
+            ]
+            try:
+                current["horx_heat"] = float(m.group("horx"))
+            except ValueError:
+                current["horx_heat"] = None
+            continue
+        # 3. REACTION header（多行格式）：REACTION ID=NAME（非引用）
+        m = _REACTION_HDR_RE.match(line)
+        if m and _is_reaction_definition(line):
+            _flush()
+            current = {"reaction_id": m.group("id").strip()}
+            continue
+        if current is None:
+            continue
+        # 4. STOICHIOMETRY 行（多行格式）：STOICHIOMETRY 3,-1/4,-2/...
+        m = _STOIC_MULTI_RE.match(line)
+        if m:
+            body = m.group("body").strip()
+            current["stoic"] = [
+                (int(pm.group(1)), float(pm.group(2)))
+                for pm in _STOIC_PAIR_RE.finditer(body)
+            ]
+            continue
+        # 5. HORX 多 key=val 行（多行格式）
+        m = _HORX_KV_RE.match(line)
+        if m:
+            kv_str = m.group("kv")
+            for pair in _split_top_level_commas(kv_str):
+                pair = pair.strip()
+                if "=" not in pair:
+                    continue
+                k, v = pair.split("=", 1)
+                k = k.strip().upper()
+                v = v.strip()
+                if k == "HEAT":
+                    try:
+                        current["horx_heat"] = float(v)
+                    except ValueError:
+                        current["horx_heat"] = None
+                elif k == "REFCOMP":
+                    try:
+                        current["ref_component"] = int(v)
+                    except ValueError:
+                        current["ref_component"] = None
+                elif k == "REFTEMP":
+                    try:
+                        current["ref_temp"] = float(v)
+                    except ValueError:
+                        current["ref_temp"] = None
+                elif k == "REFPHASE":
+                    current["ref_phase"] = v
+            continue
+        # 6. KINETICS 行（多行格式）
+        m = _KINETICS_RE.match(line)
+        if m:
+            params_str = m.group("params").strip()
+            kinetics: dict[str, Any] = {}
+            for pair in _split_top_level_commas(params_str):
+                pair = pair.strip()
+                if "=" not in pair:
+                    continue
+                k, v = pair.split("=", 1)
+                k = k.strip()
+                v = v.strip()
+                try:
+                    kinetics[k] = float(v)
+                except ValueError:
+                    kinetics[k] = v
+            current["kinetics"] = kinetics
+            continue
+        # 7. KORDER 行（多行格式）
+        m = _KORDER_RE.match(line)
+        if m:
+            body = m.group("body").strip()
+            korder: dict[int, float] = {}
+            for pm in _STOIC_PAIR_RE.finditer(body):
+                korder[int(pm.group(1))] = float(pm.group(2))
+            current["korder"] = korder
+            continue
+
+    # 收尾最后一段
+    _flush()
     return reactions
+
+
+def _split_top_level_commas(s: str) -> list[str]:
+    """按顶层逗号分割字符串（括号内的逗号保留）。
+
+    例：`"PEXP(MIN,G,LIT)=9785,ACTIVATION=9.615,TEXPONENT=0"` →
+        `["PEXP(MIN,G,LIT)=9785", "ACTIVATION=9.615", "TEXPONENT=0"]`
+    用于保护 KINETICS PEXP(MIN,G,LIT) 类括号内逗号。
+    """
+    parts: list[str] = []
+    depth = 0
+    buf: list[str] = []
+    for ch in s:
+        if ch == "(":
+            depth += 1
+            buf.append(ch)
+        elif ch == ")":
+            depth -= 1
+            buf.append(ch)
+        elif ch == "," and depth == 0:
+            parts.append("".join(buf))
+            buf = []
+        else:
+            buf.append(ch)
+    if buf:
+        parts.append("".join(buf))
+    return parts
 
 
 # ---------------------------------------------------------------------------
