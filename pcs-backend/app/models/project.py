@@ -139,6 +139,9 @@ class Stream(TimestampMixin, Base):
     molecular_weight: Mapped[float | None] = mapped_column(Float)
     compressibility_factor: Mapped[float | None] = mapped_column(Float)
     vapor_fraction: Mapped[float | None] = mapped_column(Float)
+    liquid_fraction: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-31 §1.2.1: 液相分率 (0~1)，对称 vapor_fraction"
+    )
     enthalpy: Mapped[float | None] = mapped_column(Float)
     entropy: Mapped[float | None] = mapped_column(Float)
     bulk_density_min: Mapped[float | None] = mapped_column(Float)
@@ -210,6 +213,9 @@ class Stream(TimestampMixin, Base):
     )
     api_gravity: Mapped[float | None] = mapped_column(
         Float, comment="API 度（°API），石油馏分专用"
+    )
+    specific_gravity: Mapped[float | None] = mapped_column(
+        Float, comment="SIM-31 §1.2.1: 比重（water=1.0），对称 api_gravity"
     )
     critical_temp: Mapped[float | None] = mapped_column(
         Float, comment="临界温度 K"

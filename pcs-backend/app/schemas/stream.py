@@ -69,6 +69,9 @@ class StreamBase(BaseModel):
     actual_vol_flow: float | None = Field(None, description="工况体积流量 m³/h（≠ 标准体积）")
     std_gas_flow: float | None = Field(None, description="标况气体流量 Nm³/h")
     vapor_fraction: float | None = Field(None, ge=0.0, le=1.0, description="气相分率")
+    liquid_fraction: float | None = Field(
+        None, ge=0.0, le=1.0, description="SIM-31: 液相分率 (0~1)，对称 vapor_fraction"
+    )
 
     # === 物性（spec V1.6 §3.2.3 表 2） ===
     molecular_weight: float | None = Field(None, description="分子量")
@@ -80,6 +83,9 @@ class StreamBase(BaseModel):
     compressibility_factor: float | None = Field(None, description="压缩因子 Z")
     surface_tension: float | None = Field(None, description="表面张力 N/m")
     api_gravity: float | None = Field(None, description="API 度（°API），石油馏分专用")
+    specific_gravity: float | None = Field(
+        None, description="SIM-31: 比重（water=1.0），对称 api_gravity"
+    )
     critical_temp: float | None = Field(None, description="临界温度 K")
     critical_press: float | None = Field(None, description="临界压力 Pa")
     enthalpy: float | None = Field(None, description="焓 kJ/kg")
