@@ -163,7 +163,8 @@ class PipeClass(TimestampMixin, Base):
     """管道等级（SUP-002 PC-1）。
 
     class_id=等级代码（自然码 PK，varchar(50)，piping_results FK 引用）。
-    asset_id 挂 ConfigAsset（CATEGORY_5，asset_subtype=PIPE_CLASS），状态机由 ConfigStateMachine 驱动。
+    asset_id 挂 ConfigAsset（CATEGORY_5，asset_subtype=PIPE_CLASS），
+    状态机由 ConfigStateMachine 驱动。
     status 为 5 态镜像列：DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE。
     """
 

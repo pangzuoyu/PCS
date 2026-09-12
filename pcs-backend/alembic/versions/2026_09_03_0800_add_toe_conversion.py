@@ -1,13 +1,14 @@
 """add pcs_toe_conversion_factors
-
 Revision ID: 2026_09_03_0800_add_toe_conversion
 Revises: p2_sprint2_equipment_procurement_delivery
 Create Date: 2026-09-03
 
 V1.4 P2-OPEN-005：折标煤系数组，配套 SUP-008 §2.5 + SUP-010 §3.3.4。
 """
-from alembic import op
+# ruff: noqa: E501 — 冻结迁移：种子 SQL VALUES 数据行天然超宽
 import sqlalchemy as sa
+
+from alembic import op
 
 revision = "2026_09_03_0800_add_toe_conversion"
 down_revision = "p2_sprint2_equipment_procurement_delivery"

@@ -45,7 +45,8 @@ _LIQUID_RENAMES = (
     ("thermal_conductivity", "liquid_thermal_conductivity", "液相导热系数 W/(m·K)（spec §3.6）"),
     ("specific_heat", "liquid_specific_heat", "液相比热容 kJ/(kg·K)（spec §3.6）"),
     ("surface_tension", "liquid_surface_tension", "液相表面张力 N/m（spec §3.6）"),
-    ("compressibility_factor", "liquid_compressibility_factor", "液相压缩因子 Z（与 vapor_z 对称）"),
+    ("compressibility_factor", "liquid_compressibility_factor",
+     "液相压缩因子 Z（与 vapor_z 对称）"),
 )
 
 

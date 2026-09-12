@@ -11,11 +11,12 @@ P0 baseline（dd47298c9c38）只建了 status/note 三字段，偏离 V3.1：
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
+
+from alembic import op
 
 revision: str = "p1sprint1_checklist_schema_upgrade"
 down_revision: str | None = "p1sprint1_workspace_checklist"

@@ -189,7 +189,9 @@ async def test_update_locked_error_message_includes_status_name(
 ):
     """409 错误 message 应含 sign_status 枚举名，便于前端定位。"""
     proj = await make_project()
-    sid = await _make_stream(client, db, proj.project_id, StreamSignStatus.CHECKED, designer_headers)
+    sid = await _make_stream(
+        client, db, proj.project_id, StreamSignStatus.CHECKED, designer_headers
+    )
 
     r = await client.patch(
         f"/api/v1/streams/{sid}",

@@ -8,9 +8,10 @@ UNIQUE 约束（保持唯一性 + 允许 NULL）。同时索引保留。
 
 from __future__ import annotations
 
-from typing import Sequence
+from collections.abc import Sequence
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision: str = "p1_sprint3_nullable_equipment_type_codes"

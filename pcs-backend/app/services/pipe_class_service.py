@@ -511,7 +511,8 @@ class PipeClassService:
         cls, session: AsyncSession, *,
         project_id: uuid.UUID, class_name: str, data: dict, actor,
     ) -> ProjectPipeClass:
-        """项目全新创建等级（source_class_id=NULL, snapshot_json=NULL, override_json 含全部字段）。"""
+        """项目全新创建等级（source_class_id=NULL, snapshot_json=NULL,
+        override_json 含全部字段）。"""
         existing = (await session.execute(
             select(ProjectPipeClass).where(
                 ProjectPipeClass.project_id == project_id,

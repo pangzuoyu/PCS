@@ -327,7 +327,10 @@ class Stream(TimestampMixin, Base):
     )
     distillation_curves: Mapped[dict | None] = mapped_column(
         JSONB,
-        comment="SIM-34 §3.9: 蒸馏曲线 8 种 schema（D86/TBP/EFV/D86_CRACKING/D1160/D2887/D5236/D7169）",
+        comment=(
+            "SIM-34 §3.9: 蒸馏曲线 8 种 schema"
+            "（D86/TBP/EFV/D86_CRACKING/D1160/D2887/D5236/D7169）"
+        ),
     )
     critical_temp: Mapped[float | None] = mapped_column(
         Float, comment="临界温度 K"

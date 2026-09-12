@@ -13,8 +13,8 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.formula_engine import FormulaEngine
 from app.services.exceptions import PreconditionViolation
+from app.services.formula_engine import FormulaEngine
 
 
 def test_preconditions_input_required():
@@ -71,7 +71,10 @@ def test_preconditions_post_check():
 
 def test_preconditions_nested_reference():
     """嵌套引用 input.subfield.field 应正确解析"""
-    preconds = [{"id": "PRE-008", "target": "input.stream.temperature", "expression": "temperature > 0"}]
+    preconds = [{
+        "id": "PRE-008", "target": "input.stream.temperature",
+        "expression": "temperature > 0",
+    }]
     FormulaEngine.evaluate_preconditions(
         preconds, {"input": {"stream": {"temperature": 100}}}, phase="pre"
     )  # 不抛错

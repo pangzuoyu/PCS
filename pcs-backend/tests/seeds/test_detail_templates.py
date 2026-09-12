@@ -8,13 +8,14 @@
 注：test_upload_auto_increments_seq 需先创建 ConfigAsset（DB 模板文件表 asset_id
 存在 FK 到 config_assets，p2_sprint1_config_layer_fix 迁移已生效）。
 """
-import pytest
 import uuid
 from pathlib import Path
-from sqlalchemy import delete
+
+import pytest
+
+from app.db.session import get_async_session_factory
 from app.models.config_domain import ConfigAsset
 from app.services.template_service import TemplateService
-from app.db.session import get_async_session_factory
 
 
 async def _create_asset(session) -> uuid.UUID:

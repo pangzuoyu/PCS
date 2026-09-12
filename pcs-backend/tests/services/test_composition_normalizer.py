@@ -20,8 +20,8 @@ import pytest
 
 def _import_normalizer():
     from app.services.composition_normalizer import (
-        normalize_composition_mass_to_mole,
         CompositionMassToMoleError,
+        normalize_composition_mass_to_mole,
     )
 
     return normalize_composition_mass_to_mole, CompositionMassToMoleError

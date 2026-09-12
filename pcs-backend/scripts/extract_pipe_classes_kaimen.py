@@ -9,13 +9,17 @@
     20048A-0000-MD-SPC-0004_C1 Pipe Class.pdf（215 页）
     Pipe Service Index/20048A-0000-MD-LST-0001_C1 Attachment-1 Pipe service index.xls
 """
-
+# ruff: noqa — 一次性数据重生成工具（IFC 升版手动重跑），非 app 代码，全量豁免
 import os
+
 OUT = os.environ.get('PCS_SEEDS', 'app/seeds/')
 
 """kaimen SPC-0004 C1 管道等级批量提取：TOC→逐级页→头部KV+管子行+夹套表2；并 PSI 包络。"""
-import json, re, subprocess
+import json
+import re
+import subprocess
 from collections import defaultdict
+
 
 def pdf_pages(a, b):
     out = subprocess.run(["pdftotext", "-layout", "-f", str(a), "-l", str(b), "spc.pdf", "-"],
@@ -158,8 +162,9 @@ for c in list(sections)[:3]:
 
 # ===== 组装 =====
 """合并 kaimen_sections.json（PDF 明细）+ PSI（xls 包络）→ 种子 JSON+XLSX。"""
-import json, re
-from collections import defaultdict
+import json
+import re
+
 from openpyxl import load_workbook
 
 secs = json.load(open('kaimen_sections.json'))
@@ -293,6 +298,7 @@ meta = {
 json.dump({"meta": meta, "pipe_classes": seed}, open(OUT + 'pipe_classes_kaimen_20048a.json', 'w'), ensure_ascii=False, indent=1)
 
 from openpyxl import Workbook
+
 HEADERS = ["class_id", "class_name", "material_standard", "corrosion_allowance",
            "design_pressure", "design_temperature", "dn_min", "dn_max",
            "sch_series(JSON)", "flange_class", "source", "version"]

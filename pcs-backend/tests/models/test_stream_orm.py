@@ -9,7 +9,8 @@
 
 净新增 10 字段（plan 修正版）：
 - streams.case_type VARCHAR(20) + CHECK（NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN）
-- streams.liquid_surface_tension（SIM-33 rename）/ api_gravity / critical_temp / critical_press / actual_vol_flow FLOAT
+- streams.liquid_surface_tension（SIM-33 rename）/ api_gravity /
+  critical_temp / critical_press / actual_vol_flow FLOAT
 - streams.viscosity_temperature_curve JSONB
 - streams.import_original_row INT
 - streams.import_source_version VARCHAR(20)

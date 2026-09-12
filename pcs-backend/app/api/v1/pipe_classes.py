@@ -9,7 +9,7 @@ ACL：读（list/get/project list）= DESIGNER + PROCESS_CONTROLLER + SYSTEM_ADM
 SUP-002 PC-4（V1.4 §2.4）：项目级 fork + 5 态轻量状态机端点：
 - fork / create-new / override / submit / publish / obsolete → PROCESS_CONTROLLER + SYSTEM_ADMIN
 - approve / reject                                        → REVIEWER + SYSTEM_ADMIN
-- get_effective（读）                                      → DESIGNER + PROCESS_CONTROLLER + SYSTEM_ADMIN
+- get_effective（读）            → DESIGNER + PROCESS_CONTROLLER + SYSTEM_ADMIN
 """
 from __future__ import annotations
 

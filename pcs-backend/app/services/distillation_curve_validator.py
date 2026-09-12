@@ -25,7 +25,6 @@ from __future__ import annotations
 
 from typing import Any
 
-
 # 蒸馏曲线 8 种类型（spec V1.1 §变更 8）
 DISTILLATION_CURVE_TYPES: frozenset[str] = frozenset(
     {

@@ -19,7 +19,7 @@ import math
 from collections.abc import Callable
 from typing import Any
 
-from app.services.exceptions import PreconditionViolation, PcsError
+from app.services.exceptions import PcsError, PreconditionViolation
 
 
 class FormulaSecurityError(PcsError):

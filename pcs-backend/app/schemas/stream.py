@@ -95,7 +95,9 @@ class StreamBase(BaseModel):
         None, description="SIM-33 §3.6: 液相表面张力 N/m（原 surface_tension）"
     )
     liquid_compressibility_factor: float | None = Field(
-        None, description="SIM-33 §3.6: 液相压缩因子 Z（与 vapor_z 对称；原 compressibility_factor）"
+        None, description=(
+            "SIM-33 §3.6: 液相压缩因子 Z（与 vapor_z 对称；原 compressibility_factor）"
+        )
     )
     # === SIM-33: SIM-31 JSONB → ORM 3 字段（避免气液不对称）===
     liquid_std_density: float | None = Field(

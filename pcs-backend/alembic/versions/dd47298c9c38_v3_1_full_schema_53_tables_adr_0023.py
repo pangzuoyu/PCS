@@ -1,21 +1,23 @@
 """v3.1 full schema (53 tables, ADR-0023)
 
 Revision ID: dd47298c9c38
-Revises: 
+Revises:
 Create Date: 2026-08-31 21:03:58.915180
 
 """
-from typing import Sequence, Union
+# ruff: noqa: E501 — 冻结历史全量迁移（53 表列定义天然超 100 列；重排无价值有风险）
+from collections.abc import Sequence
 
-from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
+from alembic import op
+
 # revision identifiers, used by Alembic.
 revision: str = 'dd47298c9c38'
-down_revision: Union[str, Sequence[str], None] = None
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | Sequence[str] | None = None
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

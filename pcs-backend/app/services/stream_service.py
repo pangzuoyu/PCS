@@ -44,11 +44,6 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models.enums import StateTransition, StreamSignStatus
-
-# SIM-32：update 端点允许编辑的 sign_status 集合（其余均锁定）
-_EDITABLE_STATUSES: frozenset[StreamSignStatus] = frozenset(
-    {StreamSignStatus.DRAFT, StreamSignStatus.IN_APPROVAL}
-)
 from app.models.project import Stream, StreamStatePoint
 from app.schemas.stream import (
     StreamCreate,
@@ -63,6 +58,11 @@ from app.services.state_machine import (
     InvalidTransition,
     RoleForbidden,
     StateMachineService,
+)
+
+# SIM-32：update 端点允许编辑的 sign_status 集合（其余均锁定）
+_EDITABLE_STATUSES: frozenset[StreamSignStatus] = frozenset(
+    {StreamSignStatus.DRAFT, StreamSignStatus.IN_APPROVAL}
 )
 
 _C_TO_K_OFFSET = 273.15

@@ -21,8 +21,9 @@ Revises: p2_sup_sprint_int1_project_template_integration
 from __future__ import annotations
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 # revision identifiers, used by Alembic.
 revision = "p3sim_stream_upgrade"

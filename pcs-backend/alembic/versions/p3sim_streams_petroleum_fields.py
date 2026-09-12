@@ -86,7 +86,10 @@ def upgrade() -> None:
             "distillation_curves",
             JSONB(),
             nullable=True,
-            comment="SIM-34 §3.9: 蒸馏曲线 8 种 schema（D86/TBP/EFV/D86_CRACKING/D1160/D2887/D5236/D7169）",
+            comment=(
+                "SIM-34 §3.9: 蒸馏曲线 8 种 schema"
+                "（D86/TBP/EFV/D86_CRACKING/D1160/D2887/D5236/D7169）"
+            ),
         ),
     )
 

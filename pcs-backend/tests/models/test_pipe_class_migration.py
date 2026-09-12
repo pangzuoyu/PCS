@@ -19,7 +19,7 @@ from collections.abc import AsyncIterator
 
 import pytest
 import pytest_asyncio
-from sqlalchemy import select, text
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from app.db.session import dispose_engines_async, get_async_session_factory
