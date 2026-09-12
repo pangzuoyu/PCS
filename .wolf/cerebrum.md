@@ -142,6 +142,113 @@
     4 态拒绝 + 完整周期 2 条 audit 落库（REQUESTED + APPROVED）
   - ruff 全量持平 18；全量回归 1096 passed（+12）
 
+- SIM-37a（PRO/II 8.x 炼油版 PoC 关键字识别）：RefinerySectionDetector
+  - 8 类枚举：ASSAY/D86/TBP/LIGHTEND/REFSTREAM/TRAY_SIZING/REFINERY_PROCESSOR/
+    TBP_ASTM_CURVES（PoC 仅关键字识别，深度解析留待 SIM-37b 4d）
+  - RefineryReport dataclass：sections（set）/counts（多页 TRAY SIZING 计数）/
+    line_numbers（首现 1-based）/source_file + has_refinery + to_dict JSON 序列化
+  - 关键字识别策略：大小写不敏感 + 单词边界匹配（避免 AD860 误吃 D86）+
+    多词关键字优先（STREAM TBP/ASTM CURVES 先于 TBP；TRAY SIZING 先于单 TRAY；
+    REFINERY PROCESSOR 先于 REFINERY）
+  - 1 真 fixture：sample/200FlexiCoking1.out 验证 FCC 报告 6 类关键字全识别
+    （ASSAY/D86/TBP/TRAY_SIZING/REFINERY_PROCESSOR/TBP_ASTM_CURVES，TRAY_SIZING ≥5 次）
+  - 测试 22 项：8 类枚举契约 + 8 类 parametrize 关键字识别 + 去重 + 大小写
+    + 空报告 + counts + line_numbers + 3 真 fixture + 2 dataclass 字段契约
+  - ruff 0 错（全量持平 445）；全量回归 1123 passed（+27）
+
+- SIM-37b/1（PRO/II 炼油版全量 3 commit 拆分第 1 批）：ASSAY + D86 parser
+  - 用户裁决拆 3 commit（每组 2 parser）：① ASSAY+D86 ② TBP+LIGHTEND
+    ③ REFSTREAM+TRAY_SIZING
+  - AssayDeclaration：CUTPOINTS TBPCUTS= 独立行挂靠前一 ASSAY 声明（pending
+    模式）；TBPCUTS 末尾 DEFAULT 关键字 → cut_points_default=True
+  - D86 regex 陷阱：DATA 段内含多逗号（temp/vol 对分隔），必须用非贪婪
+    \`.+?\` 匹配到行尾可选 TEMP，\`[^,]+\` 首逗号截断全挂（RED 阶段实测）
+  - D86Curve points 解析：首 token 跳过（起始 vol% 恒 0）+ temp/vol 对 +
+    末尾孤立 temp → (temp, 100.0) 末点
+  - fixture：1NAPHTHA 13 点 + 1LCO 2 条 D86 + ASSAY API94/IMPROVED/TAILS
+  - 测试 18 项；ruff 持平 445；全量 1141 passed（+18）
+
+- SIM-37b/2（TBP + LIGHTEND parser，commit 6b04bb8）
+  - TBP 与 D86 同构：复用 parse_distillation_points（从 assay_d86 提取
+    公共 helper + __all__ 导出）；DATA 首 token 起始 vol% 可非 0
+    （huafeng FO1 DATA=5,322/...）
+  - LightendComposition：COMPOSITION(WT|M)= 组件对（/ 分隔 comp_id,value）
+    + 可选 PERCENT(WT)= + NORMALIZE 关键字
+  - **续行 joiner 三行 bug（bug-069）**：_join_continued_lines_simple 的
+    if buf: 中间续行分支未剥行尾 &；两行续行（首行 else 分支剥 &）不触发，
+    三行续行 LIGHTEND 首次暴露（丢末对组件 + PERCENT 漏捕）——
+    多行续行场景必须显式测试
+  - fixture：FCC 1SLURRYR TBP 8 点 + huafeng LIGHTEND 1C 8 组件/17.51/NORMALIZE
+  - 测试 18 项；ruff 持平 445；全量 1159 passed（+18）
+
+- SIM-37b/3（REFSTREAM + TRAY SIZING parser，commit 5fcdf6b，SIM-37b 闭环）
+  - RefStreamDeclaration：PROPERTY 行内 REFSTREAM= + 可选 TEMPERATURE=/
+    RATE(M|WT)= 覆盖；无 REFSTREAM 的 PROPERTY 行不产出
+  - UnitTraySizing 状态机：UNIT 头归属 + MECHANICAL/RESULTS 表标记 +
+    段标题守卫精确枚举；MECHANICAL 行尾 5 列布局 [passes, spacing,
+    factor, type, min_dia] 锚定（tray_numbers 取中间 tokens 重组）
+  - **段标题守卫陷阱（bug-070，SIM-38b 必再遇）**：宽守卫 r'^TRAY\s'
+    会误杀 RESULTS 表自身列头行（TRAY VAPOR LIQUID...）→ mode 清空
+    数据全丢；守卫必须精确枚举段标题动词（SIZING DOWNCOMER/RATING/
+    SELECTION/COMPOSITIONS/LOADING）
+  - FCC fixture：10 块 = 5 塔 × 主/备单位系两遍；T204B 9 层塔板
+  - SIM-37b 三批合计：6 parser 54 测试，4d 估时实际半天
+  - 测试 18 项；ruff 持平 445；全量 1177 passed（+18）
+
+- SIM-38a（塔盘数据 PoC，commit 174a82d）：TRAY COMPOSITIONS 单 Section
+  - 块结构：TRAY 头行开块（1 塔板 2 列/2 塔板 4 列）+ 组件行 + RATE 行收尾
+  - **块边界契约**：空行仅结束组件行区，RATE 行仍属本块（RED 实测：
+    空行当块结束 → RATE 行丢）；RATE 行处理完才置 current=None
+  - 列对齐：dashes 段起点 = 值列起点；_detect_column_starts 硬编码 8 列
+    不可复用，PoC 内联扫描（SIM-38b 可提取公共）
+  - X/Y 按奇偶列分液/汽（values[0::2] 液 values[1::2] 汽）
+  - fixture 跨版本：dmc 5.01 T102 14 组件 + proii .out 4.17 T1 2 组件
+  - 测试 9 项；ruff 持平 445；全量 1186 passed（+9）
+
+- SIM-38b（塔盘数据全量 3 commit，0723577/e8b8e43/a533765，闭环）
+  - /1 LOADING：双子表（VAPOR TO/FROM TRAY + LIQUID FROM/TO TRAY）各 12 列；
+    REBOILER（无 vapor）/CONDENSER（无 liquid）8 token 行按关键字识别
+  - /2 RATING：双版本 9 列（4.17 RESULTS）/10 列（8.x AT SELECTED DESIGN
+    TRAY，FF 后多 NP）；单位不同不区分仅取数值
+  - /3 COMPOSITIONS 全量：UnitTrayCompositions（UNIT 归属+MOLAR/WEIGHT
+    basis）；翻页 (CONT) UNIT 头不切断 section；真实文件 marker 翻页不重复
+    （合成测试先写重复 marker 是错的——对齐真实格式后绿）
+  - **fixture 事实**：proii .out 是多 problem 拼接 + T1 报告重复 ×2
+    （LOADING 2 次、COMPOSITIONS 4 section）；T2/T3 在 INDEX 有条目但
+    输出无 section —— 测试预期必须按实际输出对齐
+  - 测试 22 项（8+7+7）；ruff 持平 445；全量 1208 passed（+22 累计）
+  - 2.5d 估时实际半天
+
+- SIM-39（TODO 收口，commit 6a7b075）：TODO-037/040/044 三项闭环
+  - TODO-037（提前 P4）：UnreliableStreamGuard.check → 422
+    STREAM_UNRELIABLE_BLOCKED + 流名 sorted；P4 /calculate 入口调用
+  - TODO-044：audit detail 增 snapshot_id/snapshot_action（additive 五键
+    保留）；SNAPSHOT_TRIGGERS 实为 {INITIATE_CHANGE, RESOLVE_STALE_CHANGED}
+    —— 快照在**发起**变更时创建（BEFORE_CHANGE），非 APPLY_CHANGE
+  - **bug-071**：快照在 flush 后 add，python-side PK default 不补值，
+    audit 读 snapshot_id 得 str(None)；构造时显式 snapshot_id=uuid.uuid4()
+  - TODO-040：round-trip 限**可逆段**（head ↔ 不可逆锚点
+    p3sim_stream_sign_status_extend，enum ADD VALUE 不可 DROP VALUE）；
+    守卫仅 pcs_test URL（默认 URL 是 pcs 开发库——防误降）
+  - 测试 13 项；ruff 持平 445；全量 1220 passed + 1 skipped（守卫生效）
+
+- SIM-40（P3.x 收口报告 V1.0，commit 93e4ca4）：**P3.x sprint 闭环**
+  - 报告：docs/PCS-P3.2-SIM-P3X-CLOSE-REPORT.md（27 task→commit 映射 +
+    验收对照 + TODO 终态 + P4 衔接 5 项）
+  - 终态指标：1219 passed + 1 flake(TODO-041) + 1 skip；覆盖率 88%；
+    ruff 445 基线制；55 commits
+  - TODO 终态：5 闭环（035/037/040/043/044）+ 3 P4 裁决保留（034/041/042）
+  - **编号冲突记录**：commit 前缀 p3x-38/39/40 是 V1.0 变更管理系列；
+    V1.1 的 38a/38b/39/40 是炼油塔盘/TODO/报告系列——两系列全闭环
+  - P4 首批建议：ruff 归零专项 + calculate 入口接 UnreliableStreamGuard
+
+- TODO-045 ruff 归零专项（commit 572cef3，2026-09-13）：**445 → 0，基线制终结**
+  - 33 auto-fix + stream_service 常量移位（E402 根因：常量插 import 块中间）
+  - + 10 处 E501 手工折行 + 3 处 per-file 豁免（冻结迁移×2 + 一次性脚本）
+  - **此后 lint 0 errors 恢复为 commit 前提**（plan §6 原验收）
+  - 交接文档入项目目录：.wolf/HANDOFF-2026-09-13.md（用户裁决，不再写 /tmp）
+  - 早年遗留 4 个未提交 import 排序文件一并收编（formula_engine 等）
+
 ### PCS 领域核心
 
 - 两层签署（记录 9 态门禁 / 交付物 Rev+签署矩阵）、哈希判实质变更、位号终身唯一。

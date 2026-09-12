@@ -276,3 +276,47 @@ P4（FLASH / PIPE / PUMP / PIPE_NET 计算模块接入）
 - **状态**: 随 P1.2 doc_no 原子分配波 | **来源**: 终审 Important#5（2026-09-04）
 - **What**: test_category3_seeds / test_toe_conversion_service / test_detail_templates / test_htri_template_schema 从 get_async_session_factory()（真 PG）迁到 db_session fixtures；test_detail_templates 每跑提交 2+2 行无清理、永久推高 template_version_seq 的问题一并解决
 - **Depends on**: P1.2
+
+## TODO-033: Sprint 1.9 终审 DEFER 清单（终审 minor，全部非阻塞）
+- **状态**: 待窗口 | **来源**: Sprint 1.9 whole-branch 终审（2026-09-06，ad25700..b458b97 干净闭环，295 passed）
+- **What**（按建议归置窗口）:
+  - Sprint 2 前端对接须知：`ProjectPipeClassResponse.pipe_class` 恒 null（ORM 无 relationship，每等级需二次 GET）；equip-lib search `limit>200` 现返回 422（原为 clamp）
+  - P3 物流向导：CATEGORY_3 新三表 rows 为 dict（既有六表为 list，读取方需知）；OBSOLETE 等级字段仍可 PUT 覆写（spec 只裁状态单向、未禁字段编辑，P3 前裁决是否冻结）；`commissioning_date` 无 YYYY-MM-DD 格式校验（前端可补）
+  - 卫生批（一 cleanup commit 可收）：main.py:28「6 张」注释过时；petroleum_service.py:34 `_CONVERT` 悬置注释 + 测试「≈0.494」→0.5061 文案 + 两文件首行路径注释 wart；pipe_class_service `_STATUS_OK` 死常量；creates_six 用例改名；IMPORT_BAD_HEADER 422 补一条 6 行用例；import 空单元格 `str(None)→"None"` 入库缺口；equip_lib description 未截断（name 已截）
+  - 计划文档：Spec 引用 §3.2.4 应为 §3.2.3（P2-COEF-001 三行系数表）；§3.2.5 CoolProp 行与 iapws 替代实现的对应关系 P3 复核时回写
+- **Depends on**: 各自窗口（Sprint 2 / P3 / 卫生批随时）
+
+### TODO-034: Excel 导入模板版本管理（P4 启动时）
+- **状态**: P4 | **来源**: plan-eng-review 2026-09-08（用户裁决 P4 再议）
+- **What**: `stream_import_template.xlsx` 加 `template_version: str` 元数据（写入 sheet0 隐藏行或文件属性）；导入时校验版本兼容，不兼容返 STREAM_TEMPLATE_VERSION_MISMATCH 错误码 + 升级指引 URL
+- **Why**: P3 阶段模板固定为 V1；P4 起字段可能增减，旧模板导入会缺列/多列；无版本管理会导致静默数据丢失
+- **Context**: 用户 2026-09-08 显式裁决 P4 再议；本 Sprint 仅生成 V1 模板，无版本字段
+- **Depends on**: P4 SIM 扩展启动
+
+### TODO-035: 物流校验规则 22 条 P4 补全
+- **状态**: P4 | **来源**: plan-eng-review 2026-09-08（user 决议 P3 仅骨架）
+- **What**: spec §第四部分 22 条校验规则，P3.2 SIM-7 仅实现 3 条典型（相态矛盾 / 偏差 >5% / MW 优先级）。P4 补齐剩余 19 条：饱和蒸汽压、临界压缩因子、Cv 计算边界、雷诺数判定、热力学一致性等
+- **Why**: 完整校验是工艺计算可信度基础；P3 阶段骨架够用，P4 工艺计算模块接入需全部 22 条
+- **Context**: P3.2 SIM-7 已落 BLOCK/WARN/INFO 三级骨架；新规则仅需添加 `ConflictResolver.check_<rule>()` 方法
+- **Depends on**: P4 SIM 扩展 + 工艺计算模块接入
+
+### TODO-036: StreamSignStatus P4 ALTER TYPE 9 态扩展
+- **状态**: P4 启动时 | **来源**: spec V1.6 §P4-OPEN-010（已记录 P4）
+- **What**: PG enum 'streamsignstatus' 当前 4 态（DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED），P4 扩展为 P1 记录层 9 态全集（DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED/STALE/CHANGE_PENDING/CHANGED/REVERSAL_PENDING/OBSOLETE）。`ALTER TYPE streamsignstatus ADD VALUE 'STALE' ...`（PG enum value add 不可逆，需独立 migration + 备份）
+- **Why**: SIM-4 已落 4 态；P4 接入工艺计算模块后状态机需 STALE/CHANGE_PENDING/CHANGED 触发 CIA 引擎传播
+- **Context**: spec §P4-OPEN-010 已锁定；`ALTER TYPE ... ADD VALUE` 不可逆 → P3 必须先备份 enum definition
+- **Depends on**: P4 工艺计算模块启动
+
+### TODO-037: unreliable=True 物流下游计算拒绝（P4）
+- **状态**: P4 | **来源**: plan-eng-review 2026-09-08（用户裁决 P4 再议）
+- **What**: P3 SIM-10 仅标记 `unreliable=True` 在 PRO/II NOT_CONVERGED/ABORTED 单元产品上；P4 工艺计算器调用接口需硬拒绝：`POST /api/v1/calculate/...` 校验所有 input stream 的 unreliable 字段，任意 True → 422 STREAM_UNRELIABLE_BLOCKED + 列出不可靠流名
+- **Why**: 不可靠数据进入计算会污染下游；仅标记不阻止等于没做
+- **Context**: user 2026-09-08 显式裁决 P3 仅标记；P4 工艺计算模块启动时再实现硬拒绝
+- **Depends on**: P4 工艺计算模块接入 + CIA 引擎
+
+### TODO-038: PRO/II 5 样例 .inp 文件 fixtures 正式入库
+- **状态**: SIM-2 启动时 | **来源**: plan-eng-review 2026-09-08
+- **What**: 当前 SIM-2 计划从历史对话文本重建 5 个 .inp 文件（石油分馏 / NH3-H2O 未收敛 / MIXER+COLUMN 含侧线 / 酸性水汽提 / FCC 催化裂化）到 `pcs-backend/app/seeds/proii_samples/`。后续若有真实用户 .inp 文件，需整理脱敏后入库作为回归测试基线（覆盖更复杂工艺配置）
+- **Why**: 单元测试基线完备性取决于样例多样性；用户真实工艺配置是质量保证金标准
+- **Context**: SIM-2 Step 3 由我从对话历史文本重建；P3 Sprint 末若有真实项目 .inp 可用，整理脱敏后入 git
+- **Depends on**: SIM-2 启动 + 后续真实项目数据脱敏流程

@@ -1564,3 +1564,558 @@
 | 14:25 | log bug-054 + commit 77e7bcf (SIM-4) | .wolf/buglog.json | 581/581 回归 | — |
 | 14:30 | 更新 STATUS.md (6 task 收口) | .wolf/STATUS.md | 用户选 暂停/handoff | — |
 
+| 23:23 | Created pcs-backend/tests/fixtures/build_excel_fixture.py | — | ~418 |
+| 23:24 | Created pcs-backend/tests/services/test_excel_parser.py | — | ~1558 |
+| 23:24 | Created pcs-backend/app/services/excel_parser.py | — | ~2750 |
+| 23:25 | Edited pcs-backend/tests/services/test_excel_parser.py | modified test_composition_row_missing_both_fraction_and_mass_raises() | ~221 |
+| 23:25 | Edited pcs-backend/tests/services/test_excel_parser.py | modified test_stream_without_composition_kept_with_warn() | ~239 |
+| 23:25 | Edited pcs-backend/tests/services/test_excel_parser.py | inline fix | ~18 |
+| 23:25 | Edited pcs-backend/tests/services/test_excel_parser.py | 4→3 lines | ~18 |
+| 23:29 | Created pcs-backend/app/api/v1/streams.py | — | ~1856 |
+| 23:29 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~54 |
+| 23:29 | Edited pcs-backend/app/api/v1/__init__.py | 2→3 lines | ~39 |
+| 23:29 | Created pcs-backend/tests/api/v1/test_streams_api.py | — | ~2896 |
+| 23:29 | Edited pcs-backend/tests/api/v1/test_streams_api.py | 6→5 lines | ~49 |
+| 23:30 | Edited pcs-backend/app/api/v1/streams.py | modified list_project_streams() | ~140 |
+| 23:30 | Edited pcs-backend/app/api/v1/streams.py | modified list_project_streams() | ~128 |
+| 23:30 | Edited pcs-backend/app/api/v1/streams.py | modified list_project_streams() | ~148 |
+| 23:31 | Edited pcs-backend/app/schemas/stream.py | modified StreamResponse() | ~203 |
+| 23:31 | Edited pcs-backend/app/schemas/stream.py | modified StreamStatePointResponse() | ~106 |
+| 23:31 | Edited pcs-backend/app/api/v1/streams.py | modified _load_project() | ~182 |
+| 23:32 | Edited pcs-backend/app/api/v1/streams.py | model_validate() → _to_response_dict() | ~65 |
+| 23:32 | Edited pcs-backend/app/api/v1/streams.py | model_validate() → _to_response_dict() | ~62 |
+| 23:32 | Edited pcs-backend/app/api/v1/streams.py | model_validate() → _to_response_dict() | ~64 |
+| 23:32 | Edited pcs-backend/app/api/v1/streams.py | model_validate() → _to_response_dict() | ~45 |
+| 23:32 | Edited pcs-backend/app/api/v1/streams.py | 3→3 lines | ~42 |
+| 23:32 | Edited pcs-backend/app/api/v1/streams.py | modified _to_http() | ~66 |
+| 23:32 | Edited pcs-backend/app/api/v1/streams.py | modified _to_response_dict() | ~389 |
+| 00:03 | Edited pcs-backend/app/api/v1/streams.py | 10→10 lines | ~99 |
+| 00:03 | Edited pcs-backend/app/api/v1/streams.py | modified _load_project() | ~176 |
+| 00:03 | Edited pcs-backend/app/api/v1/streams.py | modified _to_http() | ~41 |
+| 00:03 | Edited pcs-backend/app/api/v1/streams.py | added 1 import(s) | ~28 |
+| 00:03 | Edited pcs-backend/app/api/v1/streams.py | modified _to_http() | ~130 |
+| 00:03 | Edited pcs-backend/app/api/v1/streams.py | modified _load_project() | ~71 |
+| 00:04 | Edited pcs-backend/tests/api/v1/test_streams_api.py | modified test_post_create_stream_block_422() | ~321 |
+| 00:04 | Edited pcs-backend/tests/api/v1/test_streams_api.py | modified test_get_one_stream_not_found_404() | ~76 |
+| 00:04 | Edited pcs-backend/tests/api/v1/test_streams_api.py | 7→7 lines | ~76 |
+| 00:04 | Edited pcs-backend/app/api/v1/streams.py | 2→2 lines | ~28 |
+| 00:11 | Edited pcs-backend/app/services/stream_service.py | modified _to_parsed_stream() | ~3967 |
+| 00:12 | Created pcs-backend/tests/services/test_state_point_crud.py | — | ~3496 |
+| 00:12 | Edited pcs-backend/tests/services/test_state_point_crud.py | removed 34 lines | ~29 |
+| 00:12 | Edited pcs-backend/tests/services/test_state_point_crud.py | test_update_state_point_block_invalid_case_type() → test_update_state_point_block_composition_sum_off() | ~426 |
+| 00:12 | Edited pcs-backend/tests/services/test_state_point_crud.py | test_update_state_point_block_composition_sum_off() → test_update_state_point_not_found_404() | ~297 |
+| 00:14 | Edited pcs-backend/tests/services/test_state_point_crud.py | removed 35 lines | ~31 |
+| 00:14 | Edited pcs-backend/tests/services/test_state_point_crud.py | modified test_delete_state_point_not_found_404() | ~82 |
+| 00:14 | Edited pcs-backend/app/api/v1/streams.py | 41→46 lines | ~540 |
+| 00:14 | Edited pcs-backend/app/api/v1/streams.py | modified delete_stream() | ~1230 |
+| 00:15 | Created pcs-backend/tests/api/v1/test_state_points_api.py | — | ~2665 |
+| 00:15 | Edited pcs-backend/tests/api/v1/test_state_points_api.py | 9→8 lines | ~83 |
+| 00:16 | Edited pcs-backend/tests/api/v1/test_state_points_api.py | test_post_state_point_block_composition_sum() → test_post_state_point_warn_composition_sum() | ~156 |
+| 00:25 | Edited pcs-backend/app/services/conflict_resolver.py | expanded (+8 lines) | ~93 |
+| 00:25 | Edited pcs-backend/app/services/conflict_resolver.py | modified _check_sim_sv03_composition_sum() | ~377 |
+| 00:25 | Edited pcs-backend/app/services/conflict_resolver.py | modified _check_sim_sv03_composition_sum() | ~52 |
+| 00:25 | Edited pcs-backend/tests/services/test_state_point_conflict.py | modified test_sim_sv03_composition_sum_off_is_block() | ~769 |
+| 00:25 | Edited pcs-backend/tests/services/test_state_point_crud.py | modified test_create_state_point_block_composition_sum_off() | ~378 |
+| 00:26 | Edited pcs-backend/tests/api/v1/test_state_points_api.py | modified test_post_state_point_block_composition_sum() | ~303 |
+| 00:27 | Edited pcs-backend/tests/services/test_state_point_conflict.py | 12→12 lines | ~137 |
+| 00:29 | Edited pcs-backend/tests/services/test_state_point_conflict.py | 10→9 lines | ~90 |
+| 00:30 | Edited pcs-backend/tests/services/test_state_point_crud.py | inline fix | ~17 |
+| 00:34 | Created pcs-backend/alembic/versions/p3_sim_state_points_unique_label.py | — | ~323 |
+| 00:34 | Edited pcs-backend/app/models/project.py | modified StreamStatePoint() | ~198 |
+| 00:34 | Edited pcs-backend/app/services/stream_service.py | added error handling | ~280 |
+| 00:34 | Created pcs-backend/app/services/import_service.py | — | ~3341 |
+| 00:34 | Created pcs-backend/app/api/v1/imports.py | — | ~2050 |
+| 00:35 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~115 |
+| 00:35 | Edited pcs-backend/app/api/v1/__init__.py | 4→5 lines | ~61 |
+| 00:35 | Created pcs-backend/tests/services/test_import_service.py | — | ~2787 |
+| 00:35 | Created pcs-backend/tests/api/v1/test_imports_api.py | — | ~3755 |
+| 00:37 | Edited pcs-backend/alembic/versions/p3_sim_state_points_unique_label.py | 5→5 lines | ~47 |
+| 00:37 | Edited pcs-backend/app/services/import_service.py | modified _phase_norm() | ~162 |
+| 00:37 | Edited pcs-backend/tests/services/test_import_service.py | modified test_preview_proii_phase_normalized() | ~104 |
+| 00:37 | Edited pcs-backend/tests/services/test_import_service.py | inline fix | ~19 |
+| 00:37 | Edited pcs-backend/tests/api/v1/test_imports_api.py | inline fix | ~26 |
+| 00:37 | Edited pcs-backend/app/services/import_service.py | modified _excel_preview_entry() | ~197 |
+| 00:42 | Created pcs-backend/alembic/versions/p3_sim_stream_is_unreliable.py | — | ~271 |
+| 00:42 | Edited pcs-backend/app/models/project.py | 7→12 lines | ~122 |
+| 00:42 | Edited pcs-backend/app/models/project.py | 12→13 lines | ~51 |
+| 00:42 | Edited pcs-backend/app/schemas/stream.py | expanded (+7 lines) | ~135 |
+| 00:42 | Edited pcs-backend/app/services/import_service.py | modified _proii_preview_entry() | ~415 |
+| 00:42 | Edited pcs-backend/app/services/import_service.py | modified _entry_to_stream_create() | ~135 |
+| 00:42 | Edited pcs-backend/app/services/import_service.py | modified get() | ~20 |
+| 00:43 | Edited pcs-backend/tests/services/test_import_service.py | 2→2 lines | ~24 |
+| 00:43 | Edited pcs-backend/tests/services/test_import_service.py | 5→5 lines | ~53 |
+| 00:43 | Edited pcs-backend/tests/api/v1/test_imports_api.py | 2→2 lines | ~35 |
+| 00:43 | Edited pcs-backend/tests/services/test_import_service.py | modified test_commit_proii_unreliable_counted() | ~799 |
+| 00:49 | Created pcs-backend/tests/e2e/test_sim_three_entry_consistency.py | — | ~4457 |
+| 00:52 | Edited pcs-backend/tests/e2e/test_sim_three_entry_consistency.py | modified test_block_rejects_commit_via_sim_v02() | ~566 |
+| 00:52 | Edited pcs-backend/tests/e2e/test_sim_three_entry_consistency.py | modified test_block_then_fix_loop_via_service() | ~494 |
+| 07:10 | Edited pcs-backend/tests/e2e/test_sim_three_entry_consistency.py | modified test_excel_block_visible_in_preview() | ~64 |
+| 07:10 | Edited pcs-backend/tests/e2e/test_sim_three_entry_consistency.py | reduced (-6 lines) | ~142 |
+| 07:19 | Created pcs-backend/alembic/versions/p3_sim_stream_is_mixed_phase.py | — | ~299 |
+| 07:20 | Edited pcs-backend/app/models/project.py | expanded (+8 lines) | ~127 |
+| 07:20 | Edited pcs-backend/app/schemas/stream.py | expanded (+7 lines) | ~128 |
+| 07:20 | Edited pcs-backend/app/services/import_service.py | modified _phase_norm() | ~264 |
+| 07:20 | Edited pcs-backend/app/services/import_service.py | modified _proii_lite_to_parsed() | ~621 |
+| 07:20 | Edited pcs-backend/app/services/import_service.py | expanded (+7 lines) | ~258 |
+| 07:21 | Edited pcs-backend/tests/services/test_import_service.py | modified test_preview_proii_mixed_streams_flagged() | ~795 |
+| 07:21 | Edited pcs-backend/tests/e2e/test_sim_three_entry_consistency.py | expanded (+11 lines) | ~240 |
+| 07:23 | Edited pcs-backend/tests/e2e/test_sim_three_entry_consistency.py | 10→12 lines | ~212 |
+| 07:24 | Edited pcs-backend/tests/e2e/test_sim_three_entry_consistency.py | 5→8 lines | ~128 |
+| 07:29 | Created docs/PCS-P3.2-SIM-CLOSE-REPORT.md | — | ~1810 |
+| 07:30 | Edited docs/PCS-P3.2-SIM-CLOSE-REPORT.md | 9→9 lines | ~75 |
+| 07:37 | Created docs/PCS-P3.2-SIM-AUDIT-REPORT.md | — | ~2115 |
+| 07:44 | Created pcs-backend/alembic/versions/p3_sim_stream_state_machine_fields.py | — | ~568 |
+| 07:44 | Edited pcs-backend/app/models/project.py | expanded (+11 lines) | ~221 |
+| 07:45 | Created pcs-backend/alembic/versions/p3_sim_stream_sign_status_extend.py | — | ~546 |
+| 07:45 | Edited pcs-backend/app/models/enums.py | modified StreamSignStatus() | ~142 |
+| 07:46 | Edited pcs-backend/app/services/stream_service.py | modified _resolve_role() | ~766 |
+| 07:46 | Edited pcs-backend/app/services/stream_service.py | modified list_by_project() | ~209 |
+| 07:46 | Edited pcs-backend/app/models/project.py | 7→12 lines | ~126 |
+| 07:46 | Edited pcs-backend/app/models/project.py | inline fix | ~18 |
+| 07:46 | Edited pcs-backend/app/models/project.py | expanded (+8 lines) | ~113 |
+| 07:46 | Edited pcs-backend/app/services/stream_service.py | added error handling | ~934 |
+| 07:47 | Created pcs-backend/app/core/upload_size_limit.py | — | ~663 |
+| 07:47 | Created pcs-backend/app/core/upload_size_limit.py | — | ~340 |
+| 07:47 | Edited pcs-backend/app/api/v1/imports.py | added 1 import(s) | ~131 |
+| 07:48 | Edited pcs-backend/app/api/v1/imports.py | 7→10 lines | ~119 |
+| 07:48 | Edited pcs-backend/app/api/v1/imports.py | 4→6 lines | ~66 |
+| 07:48 | Edited pcs-backend/app/api/v1/streams.py | added 1 import(s) | ~146 |
+| 07:48 | Edited pcs-backend/app/api/v1/streams.py | modified UpdateStreamRequest() | ~95 |
+| 07:48 | Edited pcs-backend/app/api/v1/streams.py | modified delete_state_point() | ~1506 |
+| 07:49 | Created pcs-backend/tests/services/test_stream_transition.py | — | ~2844 |
+| 07:49 | Created pcs-backend/tests/services/test_selectinload_streams.py | — | ~1372 |
+| 07:49 | Created pcs-backend/tests/core/test_upload_size_limit.py | — | ~422 |
+| 07:50 | Edited pcs-backend/app/services/stream_service.py | 28→30 lines | ~312 |
+| 07:51 | Edited pcs-backend/tests/services/test_stream_transition.py | modified test_concurrent_transfer_serialized() | ~679 |
+| 07:51 | Edited pcs-backend/tests/services/test_selectinload_streams.py | list() → len() | ~110 |
+| 07:52 | Edited pcs-backend/tests/services/test_stream_transition.py | modified test_transition_writes_audit_log() | ~270 |
+| 07:52 | Created pcs-backend/tests/api/v1/test_streams_state_machine_api.py | — | ~2298 |
+| 07:53 | Edited pcs-backend/tests/api/v1/test_streams_state_machine_api.py | modified make_project() | ~646 |
+| 07:53 | Edited pcs-backend/tests/api/v1/test_streams_state_machine_api.py | modified test_api_designer_cannot_approve() | ~181 |
+| 07:56 | Edited pcs-backend/tests/api/v1/test_streams_state_machine_api.py | modified pc_headers() | ~50 |
+| 07:56 | Edited pcs-backend/tests/api/v1/test_streams_state_machine_api.py | modified test_api_initiate_change() | ~236 |
+| 07:58 | Edited docs/PCS-P3.2-SIM-CLOSE-REPORT.md | 10→15 lines | ~144 |
+| 07:58 | Edited docs/PCS-P3.2-SIM-CLOSE-REPORT.md | 22→25 lines | ~463 |
+| 07:58 | Edited docs/PCS-P3.2-SIM-CLOSE-REPORT.md | 9→9 lines | ~76 |
+| 07:58 | Edited docs/PCS-P3.2-SIM-CLOSE-REPORT.md | 13→17 lines | ~140 |
+| 07:59 | Edited docs/PCS-P3.2-SIM-CLOSE-REPORT.md | 8→10 lines | ~210 |
+| 07:59 | Edited docs/PCS-P3.2-SIM-CLOSE-REPORT.md | 9→11 lines | ~218 |
+| 07:59 | Edited docs/PCS-P3.2-SIM-CLOSE-REPORT.md | 13→15 lines | ~148 |
+| 08:01 | Created docs/PCS-P3.2-SIM-AUDIT-V2.md | — | ~6267 |
+| 08:06 | Created docs/PCS-PLAN-P3.2-SIM-P3X.md | — | ~2061 |
+| 08:12 | Edited docs/PCS-PLAN-P3.2-SIM-P3X.md | 12→13 lines | ~148 |
+| 08:12 | Edited docs/PCS-PLAN-P3.2-SIM-P3X.md | expanded (+22 lines) | ~798 |
+| 08:12 | Edited docs/PCS-PLAN-P3.2-SIM-P3X.md | inline fix | ~35 |
+| 08:12 | Edited docs/PCS-PLAN-P3.2-SIM-P3X.md | 5→7 lines | ~174 |
+| 08:12 | Edited docs/PCS-PLAN-P3.2-SIM-P3X.md | 21→21 lines | ~251 |
+| 08:12 | Edited docs/PCS-PLAN-P3.2-SIM-P3X.md | inline fix | ~20 |
+| 10:07 | Created pcs-backend/app/models/sim_import.py | — | ~1292 |
+| 10:12 | Created pcs-backend/alembic/versions/p3sim_sim_imports.py | — | ~1514 |
+| 10:13 | Edited pcs-backend/app/models/__init__.py | added 1 import(s) | ~82 |
+| 10:16 | Edited pcs-backend/app/services/import_service.py | modified commit_excel() | ~2670 |
+| 10:55 | Edited pcs-backend/app/api/v1/imports.py | modified preview_proii() | ~2391 |
+| 10:57 | Edited pcs-backend/tests/api/v1/test_imports_api.py | expanded (+6 lines) | ~220 |
+| 10:57 | Edited pcs-backend/tests/api/v1/test_imports_api.py | 5→7 lines | ~85 |
+| 10:57 | Edited pcs-backend/tests/api/v1/test_imports_api.py | 4→5 lines | ~61 |
+| 10:57 | Edited pcs-backend/tests/api/v1/test_imports_api.py | added 2 import(s) | ~500 |
+| 10:58 | Edited pcs-backend/tests/api/v1/test_imports_api.py | added 1 import(s) | ~415 |
+| 10:58 | Edited pcs-backend/app/services/import_service.py | 8→13 lines | ~163 |
+| 11:01 | Edited pcs-backend/tests/test_schema.py | 2→3 lines | ~58 |
+| 11:02 | Edited pcs-backend/tests/api/v1/test_imports_api.py | modified test_commit_proii_404_import_not_found() | ~1018 |
+| 11:08 | Edited pcs-backend/app/services/import_service.py | 6→7 lines | ~64 |
+| 11:14 | Created pcs-backend/tests/models/test_sim_tower_model.py | — | ~1437 |
+| 11:15 | Created pcs-backend/app/models/sim_tower.py | — | ~789 |
+| 11:16 | Edited pcs-backend/app/models/__init__.py | added 1 import(s) | ~48 |
+| 11:16 | Created pcs-backend/alembic/versions/p3sim_sim_tower_results.py | — | ~806 |
+| 11:18 | Edited pcs-backend/tests/models/test_sim_tower_model.py | 8→10 lines | ~95 |
+| 11:20 | Edited pcs-backend/tests/conftest.py | 4→6 lines | ~76 |
+| 11:23 | Edited pcs-backend/tests/conftest.py | modified db_engine() | ~175 |
+| 11:26 | Edited pcs-backend/tests/conftest.py | modified db_engine() | ~93 |
+| 11:26 | Edited pcs-backend/tests/models/test_sim_tower_model.py | modified test_sim_tower_cascade_on_sim_import_delete() | ~263 |
+| 11:29 | Edited pcs-backend/tests/models/test_sim_tower_model.py | 8→10 lines | ~153 |
+| 11:29 | Created pcs-backend/tests/services/test_proii_column_summary_parser.py | — | ~935 |
+| 11:31 | Edited pcs-backend/app/services/proii_parser.py | added 8 condition(s) | ~1810 |
+| 11:32 | Edited pcs-backend/tests/test_schema.py | 3→4 lines | ~71 |
+| 11:32 | Edited pcs-backend/tests/test_schema.py | 3→6 lines | ~47 |
+| 11:35 | Edited pcs-backend/tests/services/test_proii_column_summary_parser.py | 5→3 lines | ~29 |
+| 11:36 | Edited pcs-backend/tests/models/test_sim_tower_model.py | 13→13 lines | ~110 |
+| 11:36 | Edited pcs-backend/tests/models/test_sim_tower_model.py | inline fix | ~9 |
+| 11:36 | Edited pcs-backend/tests/models/test_sim_tower_model.py | 6→5 lines | ~43 |
+| 11:38 | Edited pcs-backend/tests/models/test_sim_tower_model.py | 7→5 lines | ~83 |
+| 11:39 | Edited pcs-backend/tests/models/test_sim_tower_model.py | 5→6 lines | ~84 |
+| 11:43 | Created pcs-backend/app/models/sim_unit_op.py | — | ~1968 |
+| 11:43 | Edited pcs-backend/app/models/__init__.py | added 1 import(s) | ~64 |
+| 11:43 | Created pcs-backend/alembic/versions/p3sim_sim_unit_op_results.py | — | ~1681 |
+| 11:46 | Created pcs-backend/tests/models/test_sim_unit_op_model.py | — | ~2876 |
+| 11:47 | Created pcs-backend/tests/services/test_proii_unit_op_summary_parser.py | — | ~803 |
+| 11:48 | Edited pcs-backend/app/services/proii_parser.py | modified parse_proii_out() | ~1681 |
+| 11:48 | Edited pcs-backend/tests/test_schema.py | 3→4 lines | ~70 |
+| 11:48 | Edited pcs-backend/tests/test_schema.py | expanded (+7 lines) | ~88 |
+| 11:49 | Edited pcs-backend/tests/services/test_proii_unit_op_summary_parser.py | 4→3 lines | ~38 |
+| 11:49 | Edited pcs-backend/app/models/sim_unit_op.py | 6→4 lines | ~54 |
+| 11:50 | Edited pcs-backend/app/models/sim_unit_op.py | 4→5 lines | ~55 |
+| 11:55 | Edited pcs-backend/app/models/project.py | expanded (+36 lines) | ~472 |
+| 11:55 | Created pcs-backend/alembic/versions/p3sim_streams_sim_fields.py | — | ~973 |
+| 11:56 | Created pcs-backend/tests/models/test_streams_sim_fields.py | — | ~1399 |
+| 11:57 | Edited pcs-backend/tests/models/test_streams_sim_fields.py | 6→6 lines | ~84 |
+| 11:57 | Edited pcs-backend/tests/models/test_streams_sim_fields.py | 6→6 lines | ~110 |
+| 11:57 | Edited pcs-backend/tests/models/test_streams_sim_fields.py | 3→3 lines | ~46 |
+| 11:58 | Edited pcs-backend/tests/models/test_streams_sim_fields.py | modified _make_stream() | ~74 |
+| 11:59 | Edited pcs-backend/tests/models/test_streams_sim_fields.py | modified _make_stream() | ~81 |
+| 12:03 | Session end: 253 writes across 67 files (test_stream_orm.py, test_stream_schema.py, p3_sim_stream_schema_upgrade.py, project.py, stream.py) | 54 reads | ~233299 tok |
+
+## Session: 2026-09-09 12:04
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 12:05 | Session end: 253 writes across 67 files (test_stream_orm.py, test_stream_schema.py, p3_sim_stream_schema_upgrade.py, project.py, stream.py) | 54 reads | ~233299 tok |
+| 18:18 | Edited pcs-backend/app/models/project.py | 2→3 lines | ~49 |
+| 18:18 | Edited pcs-backend/app/models/project.py | 2→3 lines | ~52 |
+| 18:18 | Edited pcs-backend/app/models/project.py | "SIM-18 §3.6 ADD-002: Prop" → "SIM-18: PropertyConflictR" | ~19 |
+| 18:22 | Created pcs-backend/tests/services/test_proii_composition_parser.py | — | ~954 |
+| 18:24 | Edited pcs-backend/app/services/proii_parser.py | modified map_libid_to_alias() | ~418 |
+| 18:24 | Edited pcs-backend/app/services/proii_parser.py | added error handling | ~711 |
+| 18:25 | Edited pcs-backend/app/services/proii_parser.py | 23→20 lines | ~149 |
+| 18:25 | Edited pcs-backend/app/services/proii_parser.py | 7→8 lines | ~98 |
+| 18:25 | Edited pcs-backend/tests/services/test_proii_composition_parser.py | modified test_parse_compositions_from_sample1() | ~191 |
+| 18:27 | Edited pcs-backend/app/services/proii_parser.py | 1→3 lines | ~27 |
+| 18:27 | Edited pcs-backend/app/services/proii_parser.py | 3→3 lines | ~27 |
+| 18:28 | Edited pcs-backend/app/services/proii_parser.py | added 1 condition(s) | ~538 |
+| 18:29 | Edited pcs-backend/tests/services/test_proii_composition_parser.py | 18→18 lines | ~186 |
+| 18:30 | Edited pcs-backend/app/services/proii_parser.py | 20→20 lines | ~148 |
+| 18:30 | Edited pcs-backend/tests/services/test_proii_composition_parser.py | 2→2 lines | ~42 |
+| 18:30 | Edited pcs-backend/tests/services/test_proii_composition_parser.py | 18→18 lines | ~185 |
+| 18:33 | Edited pcs-backend/app/services/proii_parser.py | 3→3 lines | ~27 |
+| 18:33 | Edited pcs-backend/app/services/proii_parser.py | modified split() | ~125 |
+| 18:46 | Edited pcs-backend/alembic/versions/p3sim_sim_unit_op_results.py | 1→2 lines | ~28 |
+| 18:46 | Edited pcs-backend/tests/models/test_sim_unit_op_model.py | 1→2 lines | ~36 |
+| 19:01 | Created pcs-backend/tests/services/test_data_lineage_reverse_query.py | — | ~1524 |
+| 19:01 | Created pcs-backend/app/services/data_lineage_query.py | — | ~601 |
+| 19:04 | Created pcs-backend/tests/api/v1/test_sim_imports_query_endpoints.py | — | ~2132 |
+| 19:06 | Created pcs-backend/tests/api/v1/test_sim_imports_query_endpoints.py | — | ~3304 |
+| 19:07 | Created pcs-backend/app/api/v1/sim_imports_query.py | — | ~3670 |
+| 19:08 | Edited pcs-backend/app/api/v1/__init__.py | added 2 import(s) | ~63 |
+| 19:08 | Edited pcs-backend/app/api/v1/__init__.py | 1→3 lines | ~43 |
+| 19:09 | Edited pcs-backend/app/api/v1/sim_imports_query.py | modified SimImportWarningItem() | ~38 |
+| 19:09 | Edited pcs-backend/app/api/v1/sim_imports_query.py | 10→9 lines | ~62 |
+| 19:10 | Edited pcs-backend/app/api/v1/sim_imports_query.py | 2→2 lines | ~40 |
+| 19:10 | Edited pcs-backend/app/api/v1/sim_imports_query.py | modified list_expired() | ~447 |
+| 19:12 | Edited pcs-backend/app/api/v1/sim_imports_query.py | 14→12 lines | ~109 |
+| 19:12 | Edited pcs-backend/app/api/v1/__init__.py | 10→10 lines | ~186 |
+| 19:12 | Edited pcs-backend/tests/api/v1/test_sim_imports_query_endpoints.py | 17→16 lines | ~101 |
+| 19:13 | Edited pcs-backend/tests/api/v1/test_sim_imports_query_endpoints.py | added 1 import(s) | ~24 |
+| 19:18 | Created pcs-backend/tests/services/test_property_conflict_resolver.py | — | ~3552 |
+| 19:19 | Created pcs-backend/app/services/property_conflict_resolver.py | — | ~2268 |
+| 19:27 | Created pcs-backend/tests/services/test_property_auto_complete.py | — | ~1923 |
+| 20:02 | Edited pcs-backend/tests/services/test_property_auto_complete.py | modified test_estimation_sources_set_lists_5_categories() | ~184 |
+| 20:02 | Edited pcs-backend/tests/services/test_property_auto_complete.py | modified test_complete_unknown_cas_returns_estimation_with_estimated_true() | ~108 |
+| 20:03 | Edited pcs-backend/tests/services/test_property_auto_complete.py | modified test_estimation_methods_each_produce_value() | ~171 |
+| 20:03 | Created pcs-backend/app/services/property_auto_complete.py | — | ~2785 |
+| 20:04 | Edited pcs-backend/tests/services/test_property_auto_complete.py | modified test_complete_batch_runs_all_streams() | ~144 |
+| 20:04 | Edited pcs-backend/tests/services/test_property_auto_complete.py | test_complete_methane_returns_known_properties() → test_complete_methane_partial_known_properties() | ~153 |
+| 20:05 | Edited pcs-backend/tests/services/test_property_auto_complete.py | modified test_complete_water_returns_known_properties_without_estimation() | ~246 |
+| 20:05 | Edited pcs-backend/tests/services/test_property_auto_complete.py | modified test_complete_batch_runs_all_streams() | ~191 |
+| 20:14 | Edited pcs-backend/app/services/property_auto_complete.py | 39→39 lines | ~512 |
+| 20:14 | Edited pcs-backend/tests/services/test_property_auto_complete.py | modified test_complete_unknown_cas_returns_estimation_with_estimated_true() | ~181 |
+| 20:14 | Edited pcs-backend/tests/services/test_property_auto_complete.py | modified test_estimation_methods_each_produce_value() | ~209 |
+| 20:14 | Edited pcs-backend/tests/services/test_property_auto_complete.py | modified test_complete_with_invalid_cas_skips_gracefully() | ~108 |
+| 20:16 | Edited pcs-backend/app/services/property_auto_complete.py | modified _estimate_acentric() | ~317 |
+| 20:16 | Edited pcs-backend/tests/services/test_property_auto_complete.py | modified test_estimation_methods_each_produce_value() | ~346 |
+| 20:16 | Edited pcs-backend/tests/services/test_property_auto_complete.py | batch_complete() → complete() | ~243 |
+| 20:16 | Edited pcs-backend/tests/services/test_property_auto_complete.py | modified test_complete_known_only_marks_missing_fields_as_estimated() | ~178 |
+| 20:17 | Edited pcs-backend/app/services/property_auto_complete.py | modified _estimate_viscosity_gas() | ~547 |
+| 20:19 | Edited pcs-backend/app/services/property_auto_complete.py | 4→3 lines | ~22 |
+| 20:19 | Edited pcs-backend/app/services/property_auto_complete.py | 3→3 lines | ~27 |
+| 20:19 | Edited pcs-backend/tests/services/test_property_auto_complete.py | 3→4 lines | ~53 |
+| 20:19 | Edited pcs-backend/app/services/property_auto_complete.py | added 1 import(s) | ~35 |
+| 20:23 | Created pcs-backend/tests/services/test_proii_out_section_dispatcher.py | — | ~1921 |
+| 20:27 | Edited pcs-backend/app/services/proii_parser.py | added error handling | ~3201 |
+| 20:29 | Edited pcs-backend/app/services/proii_parser.py | expanded (+12 lines) | ~154 |
+| 20:29 | Edited pcs-backend/app/services/proii_parser.py | 18→19 lines | ~190 |
+| 20:30 | Edited pcs-backend/tests/services/test_proii_out_section_dispatcher.py | modified test_parse_proii_out_sections_streams_contain_data_rows() | ~273 |
+| 20:33 | Edited pcs-backend/app/services/proii_parser.py | modified _parse_stream_summary_rows() | ~586 |
+| 20:34 | Edited pcs-backend/app/services/proii_parser.py | modified match() | ~244 |
+| 20:50 | Edited pcs-backend/tests/services/test_proii_out_section_dispatcher.py | modified test_parse_proii_out_sections_streams_contain_data_rows() | ~732 |
+| 20:52 | Edited pcs-backend/app/services/proii_parser.py | added error handling | ~3526 |
+| 20:52 | Edited pcs-backend/app/services/proii_parser.py | 25→27 lines | ~302 |
+| 20:59 | Edited pcs-backend/tests/services/test_proii_out_section_dispatcher.py | modified test_parse_proii_out_sections_streams_contain_data_rows() | ~572 |
+| 21:11 | Edited pcs-backend/tests/services/test_proii_out_section_dispatcher.py | modified test_parse_proii_out_sections_streams_contain_data_rows() | ~669 |
+| 21:12 | Edited pcs-backend/app/services/proii_parser.py | modified _parse_stream_summary_rows() | ~259 |
+| 21:13 | Edited pcs-backend/app/services/proii_parser.py | added error handling | ~2645 |
+| 21:15 | Edited pcs-backend/app/services/proii_parser.py | modified flush_horizontal() | ~2141 |
+| 21:18 | Edited pcs-backend/app/services/proii_parser.py | expanded (+17 lines) | ~472 |
+| 21:19 | Edited pcs-backend/app/services/proii_parser.py | modified match() | ~99 |
+| 06:08 | Edited pcs-backend/tests/services/test_proii_out_section_dispatcher.py | modified test_parse_proii_out_sections_dmc_streams_horizontal_table() | ~1480 |
+| 06:09 | Edited pcs-backend/app/services/proii_parser.py | modified _parse_stream_summary_rows() | ~2521 |
+| 06:11 | Edited pcs-backend/app/services/proii_parser.py | modified _parse_stream_summary_rows() | ~2385 |
+| 06:11 | Edited pcs-backend/app/services/proii_parser.py | 27→29 lines | ~350 |
+| 06:12 | Edited pcs-backend/app/services/proii_parser.py | modified items() | ~616 |
+| 06:12 | Edited pcs-backend/tests/services/test_proii_out_section_dispatcher.py | modified test_parse_proii_out_sections_streams_contain_data_rows() | ~366 |
+| 06:14 | Edited pcs-backend/app/services/proii_parser.py | modified _split_stream_row() | ~627 |
+| 06:14 | Edited pcs-backend/app/services/proii_parser.py | modified parse_property_line() | ~684 |
+| 06:16 | Edited pcs-backend/app/services/proii_parser.py | modified parse_property_line() | ~510 |
+| 06:16 | Edited pcs-backend/app/services/proii_parser.py | modified items() | ~142 |
+| 06:16 | Edited pcs-backend/app/services/proii_parser.py | modified match() | ~279 |
+| 06:16 | Edited pcs-backend/app/services/proii_parser.py | 9→12 lines | ~119 |
+| 06:18 | Edited pcs-backend/app/services/proii_parser.py | added 1 condition(s) | ~628 |
+| 06:18 | Edited pcs-backend/app/services/proii_parser.py | modified _detect_column_starts() | ~272 |
+| 06:18 | Edited pcs-backend/app/services/proii_parser.py | modified _split_stream_row() | ~785 |
+| 06:18 | Edited pcs-backend/app/services/proii_parser.py | 9→11 lines | ~166 |
+| 06:19 | Edited pcs-backend/app/services/proii_parser.py | modified _detect_column_starts() | ~344 |
+| 06:20 | Edited pcs-backend/app/services/proii_parser.py | modified match() | ~669 |
+| 06:20 | Edited pcs-backend/tests/services/test_proii_out_section_dispatcher.py | 18→20 lines | ~193 |
+| 06:20 | Edited pcs-backend/tests/services/test_proii_out_section_dispatcher.py | modified test_parse_proii_out_sections_streams_phase_liquid_vapor_mixed() | ~339 |
+| 06:23 | Edited pcs-backend/app/services/proii_parser.py | added 1 condition(s) | ~693 |
+| 06:23 | Edited pcs-backend/tests/services/test_proii_out_section_dispatcher.py | 20→20 lines | ~231 |
+| 06:25 | Edited pcs-backend/app/services/proii_parser.py | modified len() | ~187 |
+| 06:25 | Edited pcs-backend/app/services/proii_parser.py | 8→9 lines | ~109 |
+| 06:25 | Edited pcs-backend/app/services/proii_parser.py | modified startswith() | ~558 |
+| 06:25 | Edited pcs-backend/app/services/proii_parser.py | modified items() | ~234 |
+| 06:25 | Edited pcs-backend/app/services/proii_parser.py | modified len() | ~193 |
+| 06:26 | Edited pcs-backend/app/services/proii_parser.py | modified items() | ~234 |
+| 06:26 | Edited pcs-backend/app/services/proii_parser.py | modified items() | ~148 |
+| 06:27 | Edited pcs-backend/app/services/proii_parser.py | modified get() | ~180 |
+| 06:27 | Edited pcs-backend/app/services/proii_parser.py | modified get() | ~241 |
+| 06:28 | Edited pcs-backend/app/services/proii_parser.py | 12→11 lines | ~97 |
+| 06:28 | Edited pcs-backend/app/services/proii_parser.py | modified parse_component_line() | ~205 |
+| 06:28 | Edited pcs-backend/app/services/proii_parser.py | 6→6 lines | ~95 |
+| 06:28 | Edited pcs-backend/app/services/proii_parser.py | modified startswith() | ~82 |
+| 06:28 | Edited pcs-backend/app/services/proii_parser.py | modified items() | ~86 |
+| 07:14 | Edited pcs-backend/tests/services/test_proii_out_section_dispatcher.py | modified test_parse_proii_out_sections_streams_200flexicoking_refinery() | ~1975 |
+| 07:15 | Edited pcs-backend/app/services/proii_parser.py | modified _parse_component_data() | ~5423 |
+| 07:15 | Edited pcs-backend/app/services/proii_parser.py | expanded (+7 lines) | ~439 |
+| 07:17 | Edited pcs-backend/app/services/proii_parser.py | 3→3 lines | ~61 |
+| 07:18 | Edited pcs-backend/app/services/proii_parser.py | 14→16 lines | ~225 |
+| 07:18 | Edited pcs-backend/app/services/proii_parser.py | added 1 condition(s) | ~400 |
+| 07:18 | Edited pcs-backend/app/services/proii_parser.py | added 1 condition(s) | ~358 |
+| 07:18 | Edited pcs-backend/app/services/proii_parser.py | modified match() | ~132 |
+| 07:18 | Edited pcs-backend/app/services/proii_parser.py | 18→20 lines | ~227 |
+| 07:19 | Edited pcs-backend/app/services/proii_parser.py | modified parse_refinery_property_line() | ~518 |
+| 07:19 | Edited pcs-backend/app/services/proii_parser.py | modified match() | ~217 |
+| 07:19 | Edited pcs-backend/app/services/proii_parser.py | modified match() | ~130 |
+| 07:20 | Edited pcs-backend/app/services/proii_parser.py | modified _detect_section_label() | ~378 |
+| 07:20 | Edited pcs-backend/app/services/proii_parser.py | 4→3 lines | ~31 |
+| 07:20 | Edited pcs-backend/app/services/proii_parser.py | modified match() | ~161 |
+| 07:20 | Edited pcs-backend/app/services/proii_parser.py | modified _detect_phase_column_starts() | ~466 |
+| 07:20 | Edited pcs-backend/app/services/proii_parser.py | _split_thermo_row_by_columns() → _detect_phase_column_starts() | ~221 |
+| 07:20 | Edited pcs-backend/app/services/proii_parser.py | _split_thermo_row_by_columns() → _detect_phase_column_starts() | ~206 |
+| 07:21 | Edited pcs-backend/app/services/proii_parser.py | modified _split_phase_row_by_columns() | ~251 |
+| 07:22 | Edited pcs-backend/app/services/proii_parser.py | modified _detect_phase_column_starts() | ~465 |
+| 20:35 | Edited pcs-backend/app/services/proii_parser.py | reduced (-7 lines) | ~24 |
+| 20:35 | Edited pcs-backend/tests/services/test_proii_out_section_dispatcher.py | 12→16 lines | ~154 |
+| 20:43 | Edited pcs-backend/app/api/v1/streams.py | 24→26 lines | ~377 |
+| 20:43 | Edited pcs-backend/app/api/v1/streams.py | added 1 import(s) | ~50 |
+| 20:44 | Edited pcs-backend/app/api/v1/streams.py | modified _conflict_to_dict() | ~302 |
+| 20:45 | Edited pcs-backend/app/api/v1/streams.py | modified validate_stream() | ~464 |
+| 20:46 | Edited pcs-backend/tests/api/v1/test_streams_api.py | modified test_delete_stream_not_found_404() | ~1183 |
+| 20:47 | Edited pcs-backend/app/api/v1/streams.py | modified _conflict_to_dict() | ~926 |
+| 20:47 | Edited pcs-backend/app/api/v1/streams.py | reduced (-26 lines) | ~83 |
+| 20:48 | Edited pcs-backend/app/api/v1/streams.py | 16→17 lines | ~178 |
+| 20:48 | Edited pcs-backend/app/api/v1/streams.py | added 1 import(s) | ~35 |
+| 20:48 | Edited pcs-backend/app/api/v1/streams.py | inline fix | ~18 |
+| 20:55 | Created pcs-backend/tests/api/v1/test_sim_imports_template_endpoint.py | — | ~1782 |
+| 20:55 | Edited pcs-backend/app/services/import_service.py | modified write_temp_upload() | ~650 |
+| 20:55 | Edited pcs-backend/app/services/import_service.py | added 1 import(s) | ~46 |
+| 20:55 | Edited pcs-backend/app/api/v1/imports.py | expanded (+6 lines) | ~202 |
+| 20:56 | Edited pcs-backend/app/api/v1/imports.py | 24→24 lines | ~232 |
+| 20:56 | Edited pcs-backend/app/api/v1/imports.py | modified get_excel_template() | ~358 |
+| 20:56 | Edited pcs-backend/tests/api/v1/test_sim_imports_template_endpoint.py | reduced (-8 lines) | ~71 |
+| 21:00 | Created pcs-backend/tests/api/v1/test_streams_properties_endpoints.py | — | ~2364 |
+| 21:00 | Created pcs-backend/tests/api/v1/test_streams_properties_endpoints.py | — | ~2174 |
+| 21:01 | Edited pcs-backend/tests/api/v1/test_streams_properties_endpoints.py | modified test_get_stream_properties_returns_user_provided() | ~284 |
+| 21:02 | Edited pcs-backend/app/api/v1/streams.py | added 1 import(s) | ~78 |
+| 21:02 | Edited pcs-backend/app/api/v1/streams.py | added error handling | ~624 |
+| 21:03 | Edited pcs-backend/app/api/v1/streams.py | 3→7 lines | ~73 |
+| 21:04 | Edited pcs-backend/app/api/v1/streams.py | 3→4 lines | ~31 |
+| 21:08 | Created pcs-backend/tests/services/test_sim_v03_to_v10_rules.py | — | ~2633 |
+| 21:08 | Edited pcs-backend/app/services/conflict_resolver.py | expanded (+8 lines) | ~213 |
+| 21:08 | Edited pcs-backend/app/services/conflict_resolver.py | added error handling | ~2145 |
+| 21:09 | Edited pcs-backend/tests/services/test_sim_v03_to_v10_rules.py | modified test_sim_v10_composition_sum_warn_drift_above_1pct() | ~179 |
+| 21:12 | Edited pcs-backend/app/services/conflict_resolver.py | modified _check_sim_v06_composition_present() | ~165 |
+| 21:16 | Edited pcs-backend/app/services/conflict_resolver.py | modified _check_sim_v07_cas_resolvable() | ~377 |
+| 21:16 | Edited pcs-backend/tests/services/test_sim_v03_to_v10_rules.py | modified test_sim_v07_unresolvable_cas_warn() | ~118 |
+| 21:16 | Edited pcs-backend/tests/services/test_sim_v03_to_v10_rules.py | test_sim_v06_none_composition_block() → test_sim_v06_none_composition_pass() | ~140 |
+| 21:19 | Edited pcs-backend/tests/services/test_sim_v03_to_v10_rules.py | modified test_sim_v08_duplicate_cas_block() | ~157 |
+| 21:24 | Created pcs-backend/tests/services/test_pr_v_and_prx_v_rules.py | — | ~2132 |
+| 21:24 | Edited pcs-backend/app/services/conflict_resolver.py | added 1 import(s) | ~58 |
+| 21:25 | Edited pcs-backend/app/services/conflict_resolver.py | modified resolve_proii_import() | ~1236 |
+| 21:25 | Edited pcs-backend/tests/services/test_pr_v_and_prx_v_rules.py | test_prx_v05_stream_zero_flow_block() → test_prx_v05_stream_zero_flow_skipped() | ~136 |
+| 21:27 | Edited pcs-backend/tests/services/test_pr_v_and_prx_v_rules.py | modified test_pr_v_block_codes_present_for_known_failures() | ~88 |
+| 21:27 | Edited pcs-backend/tests/services/test_pr_v_and_prx_v_rules.py | modified test_pr_v_block_codes_present_for_known_failures() | ~63 |
+| 05:59 | Created pcs-backend/tests/services/test_alias_registry.py | — | ~4279 |
+| 05:59 | Created pcs-backend/app/services/alias_registry.py | — | ~2053 |
+| 05:59 | Edited pcs-backend/app/services/proii_parser.py | modified map_libid_to_alias() | ~216 |
+| 06:00 | Edited pcs-backend/app/services/excel_parser.py | 7→8 lines | ~70 |
+| 06:00 | Edited pcs-backend/app/services/import_service.py | modified _component_alias_rows() | ~148 |
+| 06:00 | Edited pcs-backend/app/services/alias_registry.py | modified resolve_alias() | ~324 |
+| 06:00 | Edited pcs-backend/app/services/alias_registry.py | 9→11 lines | ~101 |
+| 06:01 | Edited pcs-backend/tests/services/test_proii_composition_parser.py | test_proii_component_aliases_has_17_items() → test_proii_component_aliases_has_at_least_17_items() | ~150 |
+| 06:01 | Edited pcs-backend/app/services/alias_registry.py | expanded (+13 lines) | ~320 |
+| 06:01 | Edited pcs-backend/app/services/alias_registry.py | expanded (+6 lines) | ~276 |
+| 06:01 | Edited pcs-backend/app/services/alias_registry.py | list() → get() | ~251 |
+| 06:01 | Edited pcs-backend/app/services/import_service.py | modified _component_alias_rows() | ~87 |
+| 06:02 | Edited pcs-backend/app/services/import_service.py | modified _component_alias_rows() | ~176 |
+| 06:02 | Edited pcs-backend/tests/services/test_alias_registry.py | test_unit_conversion_alias_group_has_10_entries() → test_unit_conversion_alias_group_has_12_entries() | ~338 |
+| 06:02 | Edited pcs-backend/tests/services/test_alias_registry.py | modified test_get_group_items_returns_alias_entries() | ~447 |
+| 06:02 | Edited pcs-backend/tests/services/test_alias_registry.py | modified test_unit_conversion_aliases_resolve() | ~385 |
+| 06:02 | Edited pcs-backend/tests/services/test_alias_registry.py | modified test_excel_template_includes_aliases_from_registry() | ~725 |
+| 06:02 | Edited pcs-backend/app/services/proii_parser.py | modified map_libid_to_alias() | ~94 |
+| 06:03 | Edited pcs-backend/app/services/proii_parser.py | 11→12 lines | ~157 |
+| 06:03 | Edited pcs-backend/tests/services/test_alias_registry.py | 5→3 lines | ~14 |
+| 09:09 | Created pcs-backend/alembic/versions/p3sim_streams_liquid_fields.py | — | ~435 |
+| 09:09 | Edited pcs-backend/app/models/project.py | 2→5 lines | ~73 |
+| 09:09 | Edited pcs-backend/app/models/project.py | 3→6 lines | ~69 |
+| 09:09 | Edited pcs-backend/app/schemas/stream.py | 1→4 lines | ~55 |
+| 09:10 | Edited pcs-backend/app/schemas/stream.py | 2→5 lines | ~82 |
+| 09:10 | Created pcs-backend/tests/services/test_composition_normalizer.py | — | ~1733 |
+| 09:10 | Created pcs-backend/app/services/composition_normalizer.py | — | ~1034 |
+| 09:11 | Edited pcs-backend/tests/services/test_composition_normalizer.py | modified test_property_auto_complete_signature_unchanged() | ~164 |
+| 09:24 | Created pcs-backend/tests/api/v1/test_streams_update_status_restriction.py | — | ~2149 |
+| 09:24 | Edited pcs-backend/tests/api/v1/test_streams_update_status_restriction.py | modified _make_stream() | ~217 |
+| 09:25 | Edited pcs-backend/app/services/stream_service.py | modified update() | ~468 |
+| 09:25 | Edited pcs-backend/app/services/stream_service.py | 1→6 lines | ~66 |
+| 09:26 | Edited pcs-backend/tests/api/v1/test_streams_update_status_restriction.py | 12→12 lines | ~115 |
+| 09:26 | Edited pcs-backend/tests/api/v1/test_streams_update_status_restriction.py | 3→3 lines | ~31 |
+| 09:26 | Edited pcs-backend/tests/api/v1/test_streams_update_status_restriction.py | 3→3 lines | ~26 |
+| 09:27 | Edited pcs-backend/tests/api/v1/test_streams_update_status_restriction.py | modified test_update_missing_bearer_returns_401() | ~72 |
+| 09:27 | Edited pcs-backend/tests/api/v1/test_streams_update_status_restriction.py | modified test_update_viewer_role_forbidden() | ~108 |
+| 09:29 | Edited pcs-backend/tests/api/v1/test_streams_update_status_restriction.py | 3→3 lines | ~42 |
+| 09:30 | Edited pcs-backend/app/services/stream_service.py | 5→9 lines | ~101 |
+| 09:32 | Created pcs-backend/tests/api/v1/test_streams_delete_reference_blocking.py | — | ~2111 |
+| 09:32 | Edited pcs-backend/app/services/stream_service.py | modified delete() | ~643 |
+| 09:33 | Edited pcs-backend/tests/api/v1/test_streams_delete_reference_blocking.py | 12→12 lines | ~89 |
+| 09:33 | Edited pcs-backend/tests/api/v1/test_streams_delete_reference_blocking.py | 11→11 lines | ~84 |
+| 09:35 | Edited pcs-backend/tests/api/v1/test_streams_delete_reference_blocking.py | 15→18 lines | ~186 |
+| 09:35 | Edited pcs-backend/tests/api/v1/test_streams_delete_reference_blocking.py | 7→10 lines | ~96 |
+| 09:36 | Edited pcs-backend/tests/api/v1/test_streams_delete_reference_blocking.py | 6→5 lines | ~24 |
+| 09:59 | Created pcs-backend/alembic/versions/p3sim_streams_vapor_fields.py | — | ~1037 |
+| 09:59 | Edited pcs-backend/app/models/project.py | expanded (+60 lines) | ~976 |
+| 09:59 | Edited pcs-backend/app/schemas/stream.py | expanded (+53 lines) | ~792 |
+| 10:00 | Created pcs-backend/app/services/composition_normalizer.py | — | ~690 |
+| 10:00 | Edited pcs-backend/tests/services/test_composition_normalizer.py | modified test_liquid_fraction_in_orm_stream() | ~451 |
+| 10:01 | Created pcs-backend/tests/models/test_streams_sim33_vapor_fields.py | — | ~2188 |
+| 10:02 | Edited pcs-backend/app/models/project.py | reduced (-22 lines) | ~188 |
+| 10:02 | Edited pcs-backend/app/models/project.py | expanded (+60 lines) | ~826 |
+| 10:02 | Edited pcs-backend/app/models/project.py | 14→13 lines | ~173 |
+| 10:03 | Edited pcs-backend/app/models/project.py | 14→12 lines | ~151 |
+| 10:04 | Edited pcs-backend/tests/models/test_stream_orm.py | test_stream_has_surface_tension() → test_stream_has_liquid_surface_tension() | ~110 |
+| 10:04 | Edited pcs-backend/tests/models/test_stream_orm.py | 14→14 lines | ~135 |
+| 10:04 | Edited pcs-backend/tests/models/test_stream_orm.py | inline fix | ~34 |
+| 10:07 | Edited pcs-backend/app/services/property_conflict_resolver.py | 9→9 lines | ~90 |
+| 10:07 | Created pcs-backend/alembic/versions/p3sim_streams_petroleum_fields.py | — | ~712 |
+| 10:07 | Edited pcs-backend/app/models/project.py | expanded (+17 lines) | ~283 |
+| 10:08 | Edited pcs-backend/app/schemas/stream.py | expanded (+20 lines) | ~247 |
+| 10:08 | Created pcs-backend/app/services/distillation_curve_validator.py | — | ~1427 |
+| 10:08 | Created pcs-backend/tests/models/test_streams_sim34_petroleum_fields.py | — | ~2522 |
+| 10:09 | Edited pcs-backend/tests/models/test_streams_sim34_petroleum_fields.py | modified test_petroleum_fields_round_trip() | ~376 |
+| 10:09 | Edited pcs-backend/tests/models/test_streams_sim34_petroleum_fields.py | modified make_project() | ~216 |
+| 10:09 | Edited pcs-backend/tests/models/test_streams_sim34_petroleum_fields.py | added 2 import(s) | ~41 |
+| 10:11 | Edited pcs-backend/tests/services/test_property_conflict_resolver.py | modified test_user_priority_fields_set() | ~130 |
+| 10:11 | Edited pcs-backend/tests/services/test_property_conflict_resolver.py | modified test_user_priority_deviation_within_threshold_emits_info() | ~67 |
+| 10:11 | Edited pcs-backend/tests/services/test_property_conflict_resolver.py | modified test_user_priority_deviation_exceeds_threshold_emits_warn() | ~67 |
+| 10:11 | Edited pcs-backend/app/schemas/stream.py | 20→20 lines | ~184 |
+| 10:19 | Created pcs-backend/tests/services/test_proii_reaction_kinetics.py | — | ~3019 |
+| 10:20 | Edited pcs-backend/app/services/proii_parser.py | expanded (+19 lines) | ~347 |
+| 10:20 | Edited pcs-backend/app/services/proii_parser.py | added 1 import(s) | ~35 |
+| 10:20 | Edited pcs-backend/app/services/proii_parser.py | expanded (+15 lines) | ~350 |
+| 10:20 | Edited pcs-backend/app/services/proii_parser.py | added error handling | ~1386 |
+| 10:21 | Edited pcs-backend/app/services/proii_parser.py | modified _parse_reactions() | ~1776 |
+| 10:21 | Edited pcs-backend/app/services/proii_parser.py | 5→5 lines | ~59 |
+| 10:24 | Edited pcs-backend/app/services/proii_parser.py | 20→25 lines | ~321 |
+| 10:33 | Created pcs-backend/tests/services/test_project_symbol_template_approval.py | — | ~3924 |
+| 10:34 | Edited pcs-backend/app/services/stream_symbol_service.py | modified can_transition() | ~556 |
+| 10:34 | Edited pcs-backend/app/services/stream_symbol_service.py | modified submit_project_symbol() | ~1294 |
+| 10:35 | Edited pcs-backend/app/services/pipe_code_template_service.py | 7→10 lines | ~111 |
+| 10:35 | Edited pcs-backend/app/services/pipe_code_template_service.py | modified _project_transition() | ~656 |
+| 10:35 | Edited pcs-backend/tests/services/test_project_symbol_template_approval.py | modified __init__() | ~101 |
+| 10:35 | Edited pcs-backend/tests/services/test_project_symbol_template_approval.py | modified test_pipe_code_config_project_transition_writes_audit() | ~649 |
+| 10:38 | Edited pcs-backend/tests/services/test_project_symbol_template_approval.py | 6→5 lines | ~24 |
+| 10:46 | Created pcs-backend/tests/services/test_change_notice_service.py | — | ~3797 |
+| 10:46 | Edited pcs-backend/app/models/enums.py | 7→11 lines | ~160 |
+| 10:47 | Created pcs-backend/app/services/change_notice_service.py | — | ~3337 |
+| 10:48 | Edited pcs-backend/app/services/change_notice_service.py | modified _load_record_sign_status() | ~146 |
+| 10:48 | Edited pcs-backend/app/services/change_notice_service.py | 3→5 lines | ~62 |
+| 10:49 | Created pcs-backend/tests/services/test_change_notice_service.py | — | ~4513 |
+| 10:50 | Edited pcs-backend/tests/services/test_change_notice_service.py | modified __init__() | ~597 |
+| 10:50 | Edited pcs-backend/app/services/change_notice_service.py | modified _get_detail_by_deliverable() | ~167 |
+| 10:50 | Edited pcs-backend/app/services/change_notice_service.py | modified approve_change_notice() | ~946 |
+| 10:50 | Edited pcs-backend/tests/services/test_change_notice_service.py | added 1 import(s) | ~63 |
+| 10:51 | Edited pcs-backend/tests/services/test_change_notice_service.py | modified register_class_map() | ~239 |
+| 10:51 | Edited pcs-backend/tests/services/test_change_notice_service.py | modified _build_record_signing_session() | ~364 |
+| 10:51 | Edited pcs-backend/tests/services/test_change_notice_service.py | modified test_approve_change_notice_changes_pending_to_approved() | ~511 |
+| 10:52 | Edited pcs-backend/tests/services/test_change_notice_service.py | modified test_approve_change_notice_writes_audit() | ~393 |
+| 10:52 | Edited pcs-backend/tests/services/test_change_notice_service.py | modified _build_cn_session() | ~316 |
+| 10:52 | Edited pcs-backend/tests/services/test_change_notice_service.py | modified add() | ~225 |
+| 10:52 | Edited pcs-backend/tests/services/test_change_notice_service.py | modified test_create_change_notice_creates_both_tables() | ~127 |
+| 10:53 | Edited pcs-backend/tests/services/test_change_notice_service.py | modified __init__() | ~289 |
+| 10:53 | Edited pcs-backend/tests/services/test_change_notice_service.py | modified __init__() | ~124 |
+| 10:53 | Edited pcs-backend/tests/services/test_change_notice_service.py | 3→7 lines | ~65 |
+| 10:54 | Edited pcs-backend/tests/services/test_change_notice_service.py | 7→7 lines | ~62 |
+| 10:54 | Edited pcs-backend/app/services/change_notice_service.py | modified _load_record_sign_status() | ~361 |
+| 10:55 | Edited pcs-backend/app/services/change_notice_service.py | reduced (-10 lines) | ~178 |
+| 11:04 | Created pcs-backend/tests/services/test_record_cancellation.py | — | ~3815 |
+| 11:05 | Created pcs-backend/app/services/record_cancellation_service.py | — | ~2108 |
+| 18:21 | Created pcs-backend/tests/services/test_reversal_approval.py | — | ~4032 |
+| 18:22 | Created pcs-backend/app/services/reversal_approval_service.py | — | ~2973 |
+| 18:23 | Edited pcs-backend/tests/services/test_reversal_approval.py | 2→2 lines | ~30 |
+| 18:24 | Edited pcs-backend/app/services/reversal_approval_service.py | 35→36 lines | ~351 |
+| 18:26 | Edited pcs-backend/tests/services/test_reversal_approval.py | modified test_approve_reversal_no_active_snapshot_still_resolves() | ~158 |
+| 18:37 | Created pcs-backend/tests/services/test_proii_refinery_poc.py | — | ~2453 |
+| 18:39 | Created pcs-backend/app/services/proii_refinery_poc.py | — | ~1606 |
+| 18:40 | Edited pcs-backend/app/services/proii_refinery_poc.py | modified _classify_line() | ~85 |
+| 18:40 | Edited pcs-backend/tests/services/test_proii_refinery_poc.py | modified test_refinery_section_enum_has_eight_keywords() | ~56 |
+| 18:41 | Edited pcs-backend/tests/services/test_proii_refinery_poc.py | 3→3 lines | ~37 |
+| 18:54 | Created pcs-backend/tests/services/test_proii_assay_d86_parser.py | — | ~2500 |
+| 18:54 | Created pcs-backend/app/services/proii_assay_d86_parser.py | — | ~2163 |
+| 19:28 | Session end: 551 writes across 107 files (test_stream_orm.py, test_stream_schema.py, p3_sim_stream_schema_upgrade.py, project.py, stream.py) | 73 reads | ~429528 tok |
+| 09:57 | Edited pcs-backend/app/services/proii_assay_d86_parser.py | 6→7 lines | ~79 |
+| 09:58 | Edited pcs-backend/tests/services/test_proii_assay_d86_parser.py | 3→3 lines | ~40 |
+| 10:19 | Created pcs-backend/tests/services/test_proii_tbp_lightend_parser.py | — | ~2264 |
+| 10:20 | Edited pcs-backend/app/services/proii_assay_d86_parser.py | added error handling | ~468 |
+| 10:20 | Edited pcs-backend/app/services/proii_assay_d86_parser.py | reduced (-37 lines) | ~104 |
+| 10:20 | Edited pcs-backend/app/services/proii_assay_d86_parser.py | 6→7 lines | ~41 |
+| 10:21 | Created pcs-backend/app/services/proii_tbp_lightend_parser.py | — | ~1262 |
+| 10:22 | Edited pcs-backend/app/services/proii_assay_d86_parser.py | modified endswith() | ~78 |
+| 10:28 | Created pcs-backend/tests/services/test_proii_refstream_tray_sizing_parser.py | — | ~2912 |
+| 10:29 | Created pcs-backend/app/services/proii_refstream_tray_sizing_parser.py | — | ~2182 |
+| 10:30 | Edited pcs-backend/app/services/proii_refstream_tray_sizing_parser.py | modified match() | ~231 |
+| 10:31 | Edited pcs-backend/app/services/proii_refstream_tray_sizing_parser.py | expanded (+7 lines) | ~110 |
+| 10:32 | Edited pcs-backend/app/services/proii_refstream_tray_sizing_parser.py | 2→2 lines | ~33 |
+| 10:33 | Edited pcs-backend/app/services/proii_refstream_tray_sizing_parser.py | 2→1 lines | ~10 |
+| 10:47 | Created pcs-backend/tests/services/test_proii_tray_compositions_poc.py | — | ~2024 |
+| 10:48 | Created pcs-backend/app/services/proii_tray_compositions_poc.py | — | ~1287 |
+| 10:48 | Edited pcs-backend/app/services/proii_tray_compositions_poc.py | modified match() | ~221 |
+| 10:58 | Created pcs-backend/tests/services/test_proii_tray_loading_parser.py | — | ~2381 |
+| 10:58 | Created pcs-backend/app/services/proii_tray_loading_parser.py | — | ~1434 |
+| 10:59 | Edited pcs-backend/tests/services/test_proii_tray_loading_parser.py | next() → all() | ~278 |
+| 18:46 | Edited pcs-backend/tests/services/test_proii_tray_loading_parser.py | 3→4 lines | ~41 |
+| 18:49 | Created pcs-backend/tests/services/test_proii_tray_rating_parser.py | — | ~1729 |
+| 18:49 | Created pcs-backend/app/services/proii_tray_rating_parser.py | — | ~1201 |
+| 18:49 | Edited pcs-backend/app/services/proii_tray_rating_parser.py | inline fix | ~20 |
+| 18:51 | Created pcs-backend/tests/services/test_proii_tray_compositions_parser.py | — | ~1654 |
+| 18:52 | Created pcs-backend/app/services/proii_tray_compositions_parser.py | — | ~957 |
+| 18:53 | Edited pcs-backend/tests/services/test_proii_tray_compositions_parser.py | 42→40 lines | ~514 |
+| 18:53 | Edited pcs-backend/tests/services/test_proii_tray_compositions_parser.py | modified test_real_fixture_old_t1_repeated() | ~197 |
+| 19:12 | Created pcs-backend/tests/services/test_unreliable_stream_guard.py | — | ~1029 |
+| 19:12 | Created pcs-backend/tests/services/test_state_machine_audit_structured.py | — | ~1531 |
+| 19:12 | Edited pcs-backend/tests/services/test_state_machine_audit_structured.py | modified _transition_capture_detail() | ~124 |
+| 19:12 | Edited pcs-backend/tests/services/test_state_machine_audit_structured.py | 14→15 lines | ~152 |
+| 19:13 | Created pcs-backend/app/services/unreliable_stream_guard.py | — | ~557 |
+| 19:13 | Edited pcs-backend/app/services/state_machine.py | modified _create_snapshot_if_needed() | ~424 |
+| 19:13 | Edited pcs-backend/app/services/state_machine.py | 14→14 lines | ~160 |
+| 19:13 | Edited pcs-backend/app/services/state_machine.py | modified items() | ~70 |
+| 19:13 | Edited pcs-backend/app/services/state_machine.py | expanded (+10 lines) | ~374 |
+| 00:11 | Edited pcs-backend/app/services/state_machine.py | 4→4 lines | ~41 |
+| 00:12 | Edited pcs-backend/app/services/state_machine.py | inline fix | ~20 |
+| 00:12 | Edited pcs-backend/tests/services/test_state_machine_audit_structured.py | test_apply_change_audit_has_snapshot_created() → test_initiate_change_audit_has_snapshot_created() | ~119 |
+| 00:13 | Edited pcs-backend/app/services/state_machine.py | 11→14 lines | ~177 |
+| 00:14 | Created pcs-backend/tests/models/test_alembic_roundtrip.py | — | ~1338 |
+| 00:14 | Created pcs-backend/tests/models/test_alembic_roundtrip.py | — | ~1130 |
+| 00:15 | Edited pcs-backend/tests/models/test_alembic_roundtrip.py | modified _alembic_config() | ~222 |
+| 00:15 | Edited pcs-backend/tests/models/test_alembic_roundtrip.py | modified test_enum_migration_downgrade_raises_not_implemented() | ~175 |
+| 00:17 | Edited pcs-backend/app/services/state_machine.py | added 1 import(s) | ~36 |
+| 00:27 | Created docs/PCS-P3.2-SIM-P3X-CLOSE-REPORT.md | — | ~1588 |
+| 05:29 | Edited pcs-backend/alembic/versions/dd47298c9c38_v3_1_full_schema_53_tables_adr_0023.py | 8→9 lines | ~62 |
+| 05:29 | Edited pcs-backend/scripts/extract_pipe_classes_kaimen.py | 4→4 lines | ~44 |
+| 05:30 | Edited pcs-backend/app/services/stream_service.py | 23→23 lines | ~214 |
+| 05:31 | Edited pcs-backend/alembic/versions/2026_09_03_0800_add_toe_conversion.py | 9→9 lines | ~84 |

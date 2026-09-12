@@ -1033,9 +1033,97 @@
       "file": "app/services/alias_registry.py",
       "root_cause": "resolve_alias 默认把 fallback 也 uppercase，导致 case-sensitive canonical（snake_case DB 字段）被破坏",
       "fix": "增加 per-group `case_sensitive` 标记；EXCEL_COLUMN/VALIDATOR_FIELD 设为 True 保留原大小写；COMPONENT_NAME 保持默认 False（CAS 标准名约定大写）",
-      "tags": ["SIM-30", "alias_registry", "case_sensitivity"],
+      "tags": [
+        "SIM-30",
+        "alias_registry",
+        "case_sensitivity"
+      ],
       "occurrences": 1,
       "last_seen": "2026-09-11T00:00:00Z"
+    },
+    {
+      "id": "bug-067",
+      "timestamp": "2026-09-11T10:30:00.000Z",
+      "error_message": "TypeError: 'workspace_id' is an invalid keyword argument for StreamStatePoint",
+      "file": "pcs-backend/tests/api/v1/test_streams_delete_reference_blocking.py",
+      "root_cause": "StreamStatePoint model has NO workspace_id field (only stream_id + state_label + composition_json etc.). Test fixture passed workspace_id kwarg inherited from past StreamStatePoint design.",
+      "fix": "Removed workspace_id kwarg; StreamStatePoint uses stream_id FK + composition_json (required NOT NULL).",
+      "tags": [
+        "auto-detected",
+        "model-mismatch",
+        "test-fixture",
+        "SIM-35"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-11T10:30:00.000Z"
+    },
+    {
+      "id": "bug-068",
+      "timestamp": "2026-09-11T10:32:00.000Z",
+      "error_message": "sqlite3.IntegrityError: NOT NULL constraint failed: flash_results.tag_number",
+      "file": "pcs-backend/tests/api/v1/test_streams_delete_reference_blocking.py",
+      "root_cause": "FlashResult inherits TaggedRecordMixin where tag_number is NOT NULL. Test fixture omitted tag_number / project_id / workspace_id required fields.",
+      "fix": "Added tag_number (unique per project), project_id, workspace_id to FlashResult construction in 2 tests.",
+      "tags": [
+        "auto-detected",
+        "model-mismatch",
+        "not-null",
+        "SIM-35"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-11T10:32:00.000Z"
+    },
+    {
+      "id": "bug-069",
+      "timestamp": "2026-09-12T10:23:17",
+      "error_message": "LIGHTEND 三行续行解析丢末对组件 + PERCENT 未捕获",
+      "file": "pcs-backend/app/services/proii_assay_d86_parser.py",
+      "root_cause": "_join_continued_lines_simple 的 if buf: 中间续行分支 append(line.strip()) 未剥行尾 &；两行续行（首行在 else 分支剥 &）不触发，三行续行 LIGHTEND 首次暴露",
+      "fix": "if buf: 分支按行尾 & 分流：续行 append 前 rstrip(\"&\").rstrip()，非续行 append 后落盘",
+      "tags": [
+        "proii",
+        "continuation",
+        "sim-37b",
+        "joiner"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-12"
+    },
+    {
+      "id": "bug-070",
+      "timestamp": "2026-09-12T10:32:21",
+      "error_message": "TRAY SIZING RESULTS 表数据行全部丢失（sections 解析正常 results 空）",
+      "file": "pcs-backend/app/services/proii_refstream_tray_sizing_parser.py",
+      "root_cause": "段切换守卫 r\"^\\s*TRAY\\s\" 过宽，把 RESULTS 表自己的列头行（TRAY VAPOR LIQUID VLOAD...）误判为兄弟段标题，mode 清空后数据行全部跳过",
+      "fix": "守卫改为精确枚举已知段标题动词（SIZING DOWNCOMER/RATING/SELECTION/COMPOSITIONS/LOADING）；另一处 MECHANICAL 尾 5 列布局 [passes,spacing,factor,type,min_dia] 索引错位",
+      "tags": [
+        "proii",
+        "tray-sizing",
+        "section-guard",
+        "sim-37b",
+        "sim-38"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-12"
+    },
+    {
+      "id": "bug-071",
+      "timestamp": "2026-09-13T00:13:54",
+      "error_message": "状态机审计 snapshot_id 写入字符串 None（str(None)）",
+      "file": "pcs-backend/app/services/state_machine.py",
+      "root_cause": "RecordChangeSnapshot.snapshot_id 的 python-side default=uuid.uuid4 仅在 flush 时生效；快照在 transition 的 flush 之后才 session.add，audit 立即读取 snapshot_id 得到 None",
+      "fix": "_create_snapshot_if_needed 构造时显式 snapshot_id=uuid.uuid4()，保证 audit 回链立即可用",
+      "tags": [
+        "state-machine",
+        "audit",
+        "snapshot",
+        "pk-default",
+        "sim-39"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-13"
     }
   ]
 }
