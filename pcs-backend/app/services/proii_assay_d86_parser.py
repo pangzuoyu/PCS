@@ -69,9 +69,10 @@ def _join_continued_lines_simple(text: str) -> str:
     buf: list[str] = []
     for line in raw_lines:
         if buf:
-            buf.append(line.strip())
             if line.rstrip().endswith("&"):
+                buf.append(line.strip().rstrip("&").rstrip())
                 continue
+            buf.append(line.strip())
             joined.append(" ".join(buf))
             buf = []
         else:
@@ -173,6 +174,56 @@ def parse_assay_declarations(text: str) -> list[AssayDeclaration]:
 # ----------------------------------------------------------------------------
 
 
+def parse_distillation_points(data_blob: str) -> list[tuple[float, float]]:
+    """解析蒸馏曲线 DATA 段为 (temp, vol_pct) 点列（D86/TBP 同构复用）。
+
+    格式：首 token 为起始 vol%（通常 0，可非 0，跳过），后续 temp/vol 对
+    以 `/` 分隔；末尾孤立 temp 为 100% 末点。
+
+    Args:
+        data_blob: DATA= 之后的原始字符串（如 "0,50/5,57/10,...,190"）
+
+    Returns:
+        (temp, vol_pct) 列表；无法解析返回空 list
+    """
+    tokens = [t.strip() for t in data_blob.split(",") if t.strip()]
+    if not tokens:
+        return []
+
+    points: list[tuple[float, float]] = []
+    try:
+        _initial_vol = float(tokens[0])  # 起始 vol%（跳过）
+    except ValueError:
+        return []
+    rest = tokens[1:]
+    i = 0
+    while i < len(rest):
+        tok = rest[i]
+        if "/" in tok:
+            ts, vs = tok.split("/", 1)
+            try:
+                points.append((float(ts), float(vs)))
+            except ValueError:
+                pass
+            i += 1
+        else:
+            if i + 1 < len(rest) and "/" not in rest[i + 1]:
+                # 两个孤立 token → (temp, vol) 末点对
+                try:
+                    points.append((float(tok), float(rest[i + 1])))
+                except ValueError:
+                    pass
+                i += 2
+            else:
+                # 单孤立 temp → 100% 末点
+                try:
+                    points.append((float(tok), 100.0))
+                except ValueError:
+                    pass
+                i += 1
+    return points
+
+
 def parse_d86_curves(text: str) -> list[D86Curve]:
     """解析 PRO/II D86 蒸馏曲线。
 
@@ -201,46 +252,9 @@ def parse_d86_curves(text: str) -> list[D86Curve]:
         data_blob = m.group(2).strip()
         temp_unit = (m.group(3) or "C").upper()
 
-        # 解析 DATA：开头 vol%（如 0），后续 temp/vol 对
-        tokens = [t.strip() for t in data_blob.split(",") if t.strip()]
-        if not tokens:
+        points = parse_distillation_points(data_blob)
+        if not points:
             continue
-
-        points: list[tuple[float, float]] = []
-        try:
-            # 跳过第一个 vol%（通常 0）
-            _initial_vol = float(tokens[0])
-        except ValueError:
-            continue
-        rest = tokens[1:]
-        # 后续按「temp/vol」成对；末尾可能孤立 temp（100% 末点）
-        i = 0
-        while i < len(rest):
-            tok = rest[i]
-            if "/" in tok:
-                # 完整 temp/vol 对
-                ts, vs = tok.split("/", 1)
-                try:
-                    points.append((float(ts), float(vs)))
-                except ValueError:
-                    pass
-                i += 1
-            else:
-                # 孤立值：若下一 token 仍是孤立数字，则 (tok, next)；否则视为单末尾
-                if i + 1 < len(rest) and "/" not in rest[i + 1]:
-                    # 两个孤立 → temp/vol 末点
-                    try:
-                        points.append((float(tok), float(rest[i + 1])))
-                    except ValueError:
-                        pass
-                    i += 2
-                else:
-                    # 单孤立：100%vol 末点
-                    try:
-                        points.append((float(tok), 100.0))
-                    except ValueError:
-                        pass
-                    i += 1
 
         curves.append(D86Curve(
             stream_id=stream_id,
@@ -256,4 +270,5 @@ __all__ = [
     "D86Curve",
     "parse_assay_declarations",
     "parse_d86_curves",
+    "parse_distillation_points",
 ]
