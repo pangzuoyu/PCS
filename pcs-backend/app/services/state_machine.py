@@ -21,6 +21,7 @@ from app.models.enums import (
 )
 
 if TYPE_CHECKING:
+    from app.models.deliverable import RecordChangeSnapshot
     from app.models.mixins import RecordMixin
 
 
@@ -186,15 +187,22 @@ class StateMachineService:
         transition: StateTransition,
         record: RecordMixin,
         actor_user_id: uuid.UUID | None,
-    ) -> None:
+    ) -> RecordChangeSnapshot | None:
+        """快照触发转移（INITIATE_CHANGE/RESOLVE_STALE_CHANGED）创建 BEFORE_CHANGE 快照。
+
+        返回创建的快照（audit 回链 snapshot_id 用）；非触发转移返回 None。
+        """
         if transition not in SNAPSHOT_TRIGGERS:
-            return
+            return None
 
         from app.models.deliverable import RecordChangeSnapshot
 
         # ADR-0024：MARK_STALE 已从 SNAPSHOT_TRIGGERS 移除；进入此函数的转移仅
-        # APPLY_CHANGE / RESOLVE_STALE_CHANGED，统一 BEFORE_CHANGE。
+        # INITIATE_CHANGE / RESOLVE_STALE_CHANGED，统一 BEFORE_CHANGE。
+        # snapshot_id 显式生成：快照在 flush 后 add，python-side default
+        # 不再补值，audit 回链需要立即可用的 UUID
         snapshot = RecordChangeSnapshot(
+            snapshot_id=uuid.uuid4(),
             record_type=record.__class__.__name__,
             record_id=_record_pk(record),
             record_hash=record.record_hash or "",
@@ -205,16 +213,20 @@ class StateMachineService:
             created_by=actor_user_id,
         )
         self.session.add(snapshot)
+        return snapshot
 
     async def _restore_snapshot_if_needed(
         self,
         *,
         transition: StateTransition,
         record: RecordMixin,
-    ) -> None:
-        """ABANDON_CHANGE / APPROVE_REVERSAL：恢复最新 ACTIVE 快照 + 标记 CONSUMED。"""
+    ) -> RecordChangeSnapshot | None:
+        """ABANDON_CHANGE / APPROVE_REVERSAL：恢复最新 ACTIVE 快照 + 标记 CONSUMED。
+
+        返回恢复的快照（audit 回链 snapshot_id 用）；无快照/非恢复转移返回 None。
+        """
         if transition not in SNAPSHOT_RESTORERS:
-            return
+            return None
 
         from sqlalchemy import select
 
@@ -234,12 +246,13 @@ class StateMachineService:
             )
         ).scalar_one_or_none()
         if snap is None:
-            return
+            return None
         data = snap.data_snapshot_json or {}
         for col, val in data.items():
             if hasattr(record, col):
                 setattr(record, col, val)
         snap.snapshot_status = SnapshotStatus.CONSUMED.value
+        return snap
 
     async def transition(
         self,
@@ -286,15 +299,17 @@ class StateMachineService:
             record.obsoleted_reason = reason or ""
 
         await self.session.flush()
-        await self._create_snapshot_if_needed(
+        created_snapshot = await self._create_snapshot_if_needed(
             transition=transition,
             record=record,
             actor_user_id=actor_user_id,
         )
-        await self._restore_snapshot_if_needed(
+        restored_snapshot = await self._restore_snapshot_if_needed(
             transition=transition,
             record=record,
         )
+        # TODO-044 结构化：审计回链快照（CREATED/RESTORED 互斥，同一转移不并存）
+        snapshot = created_snapshot or restored_snapshot
         await self._write_audit(
             action=TRANSITION_AUDIT_ACTION[transition],
             resource_type=_record_table_name(record),
@@ -306,6 +321,14 @@ class StateMachineService:
                 "transition": transition.value,
                 "reason": reason,
                 "role": actor_role,
+                "snapshot_id": (
+                    str(snapshot.snapshot_id) if snapshot is not None else None
+                ),
+                "snapshot_action": (
+                    "CREATED" if created_snapshot is not None
+                    else "RESTORED" if restored_snapshot is not None
+                    else None
+                ),
             },
         )
         return record
