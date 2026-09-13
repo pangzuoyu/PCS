@@ -1,13 +1,14 @@
-# P4 核心计算引擎（第一批）实施计划 V1.0
+# P4 核心计算引擎（第一批）实施计划 V1.1
 
 > **执行方式**：superpowers TDD（每 task：RED 测试 → GREEN 实现 → commit）；
 > 可用 subagent-driven-development（每 task 派新 agent）或 executing-plans（本 session 批量）。
 > **基线 spec**：`spec/工艺专用综合计算软件需求规格说明书 Web版 P4.md`（V1.5）
 > **开发计划**：`spec/...Web版开发计划.md` §P4（4.1~4.4）｜ **TODOS**：034/035/036
+> **V1.1（2026-09-13）**：7 项裁决落地（见文末裁决记录）
 
 **Goal**：交付 FLASH/PIPE/PIPE_NET/PUMP 四模块计算链（物性→管道→管网→泵），9 态记录门禁 + CIA STALE 传播闭环。
 
-**Architecture**：Thermo(vendored) 相平衡 → fluids(vendored) 管道水力学 → SciPy 管网迭代 → 伯努利泵链；结果入 P0 已建表（calc.py）+ OPEN-008 扩展；每计算自动 record_hash + 血缘 + 出口物流（ADR-0022）。
+**Architecture**：Thermo(vendored) 相平衡 → fluids(vendored) 管道水力学 → SciPy 管网迭代 → 伯努利泵链；结果入 P0 已建表（calc.py）+ OPEN-008 扩展；每计算自动 record_hash + 血缘 + 出口物流（ADR-0022）；审计写入统一走 lineage helper（禁直写审计列）。
 
 **Tech**：FastAPI + SQLAlchemy 2.0 async + PG16 + thermo/fluids(vendored) + scipy + numpy.float64
 
@@ -19,6 +20,8 @@
 - 引用物流须 CHECKED（DRAFT → 403）+ 不可靠流 → 422 STREAM_UNRELIABLE_BLOCKED（guard 已备）
 - 性能预算：FLASH ≤2s / PIPE 链 ≤3s / PIPE_NET(10 节点) ≤5s / PUMP ≤2s；迭代上限 100
 - 出口物流：PIPE/PIPE_NET/PUMP/CV 完成自动建出口物流（source_type=DEVICE_CALCULATED，DRAFT，change_type=PUMP_WORK/FRICTION_PRESSURE_DROP…）
+- **物性三段式（裁决 #7）**：已有→用；可估算（白名单：密度/粘度/比热/导热系数）→ estimated 标记继续；不可估算→422 PHYSICAL_PROPERTY_MISSING（列缺失项）。**Pv 蒸气压与表面张力禁估算，缺失即 422**；estimated 写入 output_json 并传播下游；涉及 estimated 的 check_result 最高 WARNING
+- **审计护栏（裁决 #1）**：批 1~4 落库统一走 lineage/record_hash helper，禁各模块直写审计列；RECORD_TYPE_REGISTRY 先用集中常量占位
 - ruff 0 errors（已归零，572cef3）；测试基线 1220 passed
 
 ---
@@ -29,7 +32,9 @@
 
 enum 5 态已由 SIM-13 落地（勿重复）。残余：streams + 4 计算记录表加审计字段。
 
-**Files**: Create `alembic/versions/p4_calc_audit_fields.py`；Modify `app/models/mixins.py`（RecordMixin 扩展）+ `app/models/calc.py`
+护栏（裁决 #1）：本 task 同时交付 `app/services/calc_lineage.py`（统一 record_hash + 血缘 + 审计列写入 helper）+ `RECORD_TYPE_REGISTRY` 常量占位 + 豁免 ADR（P4 计算链条件启动，全量本体论后置 P4-TASK0 批次）。
+
+**Files**: Create `alembic/versions/p4_calc_audit_fields.py` + `app/services/calc_lineage.py` + `docs/adr/0031-p4-task0-exemption.md`；Modify `app/models/mixins.py`（RecordMixin 扩展）+ `app/models/calc.py`
 
 **测试**（RED，仿 test_alembic_roundtrip 模式）：
 ```python
@@ -151,8 +156,11 @@ commit `feat(p4-2-3): single phase dp + fittings`
 **Files**: Create `app/services/pipe/compressible_dp.py` + `app/services/pipe/two_phase_dp.py`；Test
 
 - 可压缩：fluids.compressible 等温/绝热（Pantheon/Mach 数判定）
-- 两相：首选 Dukler I，L-M 交叉验证；flow_pattern 判别（Hughmark/政府图简化查表）→ two_phase_results 字段
-commit `feat(p4-2-4): compressible + two phase dp`
+- 两相：首选 Dukler I，L-M 交叉验证；flow_pattern 判别 **Baker 图查表**（裁决 #6：
+  系数表固化版本 + 回归测试标 regression_baseline；超适用范围降级 WARNING +
+  confidence=LOW；封装为可替换函数 `classify_flow_pattern(Gm, Lm, ρg, ρl) →
+  (pattern, confidence)`，P5+ 切 Taitel-Dukler 不动调用方）→ two_phase_results 字段
+commit `feat(p4-2-4): compressible + two phase dp + baker flow pattern`
 
 ### P4-2-5 calculate-all 链 + 落库
 
@@ -214,7 +222,8 @@ commit `feat(p4-4-2): head + npsh + design pressure`
 
 **Files**: Create `app/services/pump/power_service.py` + `app/services/pump/viscosity_correction.py`；Test
 
-- HI 9.6.7-2015 修正（OPEN-002 假设版本，ADR 记录）：cH/cQ/cE 多项式（粘度 μ>20cP 触发）
+- **HI 9.6.7 2021 Parameter-B** 修正（裁决 #3：2015 版已被 2021-11-13 取代；
+  ADR-0030 记录）：cH/cQ/cE 修正系数（粘度 μ>20cP 触发）
 - BHP=Q×H×ρ×g/(3600×η)；电机功率 = BHP/η_motor×安全系数(CONFIG)
 - 控制阀压降：设计/正常/最小 3 工况分配规则（CONFIG：按 ΔP_line 比例 + 最小压差约束）
 commit `feat(p4-4-3): viscosity + power + control valve dp`
@@ -230,27 +239,43 @@ commit `feat(p4-4-4): pump chain + cia stale propagation`
 
 ---
 
-## 验收（spec §3.2 各节 + §3.3）
+## 验收（spec §3.2 各节 + §3.3，裁决 #2 校准）
 
 | 项 | 标准 |
 |---|---|
-| FLASH | 纯物质饱和 vs CoolProp <0.5%；混合闪蒸 vs HYSYS <1%；泡露点 <0.5°C（golden 对照数据来源见未决 #2） |
-| PIPE | 单相压降 <0.1%（vs fluids golden）；壁厚与手算一致；K 值 <2% Crane；综合 <5% 手算 |
-| PIPE_NET | 并联 <1% 手算；环形 <2% Hardy-Cross 标准算例 |
-| PUMP | 扬程 <1% 手算；NPSH/功率正确；控制阀分配合理 |
+| FLASH | 纯物质饱和 vs CoolProp/IAPWS <0.5%（硬基准）；**混合闪蒸 thermo 快照标 regression_baseline（条件验收，挂 P4-OPEN-GOLDEN）**；泡露点纯组分自洽 + 手算 |
+| PIPE | 单相压降 fluids 快照 regression_baseline + 手算 <5%；壁厚与手算一致（硬基准）；K 值 Crane 库值固化 |
+| PIPE_NET | 并联 <1% 手算（硬基准）；环形 Hardy-Cross 标准算例快照 |
+| PUMP | 扬程 <1% 手算（硬基准）；NPSH/功率正确；控制阀分配合理 |
+| 流型 | Baker 图 regression_baseline（挂 P4-OPEN-FLOWPATTERN 如需实验/商业对照） |
 | 性能 | 4 模块预算（§3.3.1）全部断言 |
-| 记录 | record_hash + 血缘 + 出口物流 + CIA STALE 闭环 |
+| 记录 | record_hash + 血缘 + 出口物流 + CIA STALE 闭环（统一 helper） |
+
+> **条件验收边界（裁决 #2/#6）**：HYSYS/商业软件偏差验收待用户提供惠州 xlsx
+> 点位后补对照测试；未补前上述 regression_baseline 项为回归保护而非精度验收。
 
 ## 估时
 
 批 0 ≈2d → 批 1 ≈4d → 批 2 ≈6d → 批 3 ≈3d → 批 4 ≈4d ≈ **19d**（P3.x 实绩折算系数 ~0.3，实际可能 ~6-8d）
 
-## 未解决问题（需用户/架构委员会裁决）
+## 裁决记录（2026-09-13，V1.1 全部已决）
 
-1. **P4-OPEN-005/006 本体论 Task 0 全量**：@lineage 装饰器（D4/D5）、RECORD_TYPE_REGISTRY、physical_semantics 列、importlinter D8、CI 三方比对——本计划仅落审计字段子集，全量待架构委员会按 V1.6 §5.1/§5.2 清单 approve 后增补批次
-2. **Golden 对照数据来源**：HYSYS/商业软件偏差验收（<0.1%/1%）需要对照算例——用户提供？或降级为 fluids/thermo 自洽 + 手算基准
-3. **OPEN-002**：粘度修正 HI 版本假设 9.6.7-2015，需确认 + ADR
-4. **前端**：本计划仅后端（spec §3.1.1 四界面属前端计划，另行编制？）
-5. **TODO-034/035**：模板版本管理 + 22 条校验规则补全——建议并入批 0/批 4 还是独立？
-6. **流型判别方法**：两相 flow_pattern 用哪张流型图（Baker/Hughmark/Taitel）？spec 只定枚举未定算法
-7. **Psat/物性默认来源**：PIPE 链的密度/粘度从 streams.stream_properties_json 读，缺失时走 COMMON 物性补全还是直接 422？
+| # | 议题 | 裁决 |
+|---|---|---|
+| 1 | 本体论 Task 0（OPEN-005/006） | **子集先行 + 护栏**：批 0 仅落审计 3 列；同时交付统一 lineage helper（禁直写审计列）+ RECORD_TYPE_REGISTRY 常量占位 + 豁免 ADR-0031；全量（@lineage D4/D5/physical_semantics/importlinter D8/CI 三方比对/Pydantic↔ORM CI）拆独立 **P4-TASK0 批次**，不阻塞批 1~4，但 P4 验收前必须关闭（否则 P4 条件验收）。架构委员会拒豁免时切最小化方案（physical_semantics+D4/D5+骨架 CI 先行） |
+| 2 | golden 对照来源 | **手算 + 快照混合**：壁厚/泵/并联管网手算硬基准；纯组分饱和 CoolProp/IAPWS 硬基准；混合闪蒸/单相压降 thermo/fluids 快照标 regression_baseline（回归保护非精度验收）；可提供惠州 xlsx 点位则补 HYSYS 对照；否则挂 **P4-OPEN-GOLDEN** 条件验收 |
+| 3 | HI 粘度修正版本 | **HI 9.6.7 2021 Parameter-B**（2015 版已 superseded）；ADR-0030 |
+| 4 | 前端 | **后端先行**；spec §3.1.1 四界面后端 API 冻结后另编前端计划 |
+| 5 | TODO-034/035 | **独立小 sprint**（~1.5d，与计算链解耦，不进本计划） |
+| 6 | 流型判别 | **Baker 图查表**：系数表固化 + regression_baseline；超适用范围 WARNING + confidence=LOW；封装可替换函数（P5+ 切 Taitel-Dukler 不动调用方）；需实验/商业对照则挂 **P4-OPEN-FLOWPATTERN** |
+| 7 | 物性缺失策略 | **三段式**：已有→用 / 可估算→estimated 继续 / 不可估算→422；白名单仅密度/粘度/比热/导热系数；**Pv 与表面张力禁估算**；estimated 写 output_json 传播下游；涉 estimated 的 check_result 最高 WARNING；上游物性变更触发 CIA STALE |
+
+### 新挂 OPEN 项（条件验收）
+
+- **P4-OPEN-GOLDEN**：混合闪蒸/压降 vs HYSYS 偏差验收，待用户提供惠州 xlsx 对照点位
+- **P4-OPEN-FLOWPATTERN**：Baker 流型 vs 实验/商业软件对照，如验收要求时补
+
+### 后置批次（P4 验收前关闭）
+
+- **P4-TASK0**：本体论全量（V1.6 §5.1/§5.2 清单逐项，架构委员会 approve 后细化）
+- **P4.x-TODO**：TODO-034 模板版本 + TODO-035 22 条校验（独立小 sprint ~1.5d）
