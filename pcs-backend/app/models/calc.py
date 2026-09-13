@@ -3,6 +3,7 @@ import uuid
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Enum,
     Float,
     ForeignKey,
     Integer,
@@ -14,6 +15,14 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
+from app.models.enums import (
+    CheckResult,
+    DesignStage,
+    FlowPattern,
+    PipeType,
+    PumpOperation,
+    TwoPhaseCheck,
+)
 from app.models.mixins import RecordMixin, TaggedRecordMixin
 
 
@@ -79,6 +88,24 @@ class PipingResult(RecordMixin, Base):
     cleaning_method: Mapped[list | None] = mapped_column(JSONB, comment="PI/PA/DG/SO 多选")
     stress_analysis_level: Mapped[str | None] = mapped_column(String(10))
     remark: Mapped[str | None] = mapped_column(String(500))
+    # P4-0-2 SUP-008 OPEN-008 字段（11 列）
+    line_description: Mapped[str | None] = mapped_column(String(200))
+    pipe_type: Mapped[PipeType | None] = mapped_column(
+        Enum(PipeType, name="pipe_type_enum", native_enum=True)
+    )
+    max_flow_factor: Mapped[float | None] = mapped_column(Float)
+    selected_diameter: Mapped[float | None] = mapped_column(Float, comment="mm")
+    liquid_velocity_max: Mapped[float | None] = mapped_column(Float, comment="m/s")
+    gas_velocity_max: Mapped[float | None] = mapped_column(Float, comment="m/s")
+    pressure_drop_per_100m: Mapped[float | None] = mapped_column(
+        Float, comment="kPa/100m"
+    )
+    selected_pipe_size: Mapped[str | None] = mapped_column(String(20))
+    recommended_pipe_size: Mapped[str | None] = mapped_column(String(20))
+    check_result: Mapped[CheckResult | None] = mapped_column(
+        Enum(CheckResult, name="check_result_enum", native_enum=True)
+    )
+    velocity_range_reference: Mapped[str | None] = mapped_column(String(100))
 
 
 class PipeNetworkResult(TaggedRecordMixin, Base):
@@ -109,6 +136,19 @@ class PumpResult(TaggedRecordMixin, Base):
     actual_npshr: Mapped[float | None] = mapped_column(Float)
     vendor_model: Mapped[str | None] = mapped_column(String(100))
     actual_data_confirmed: Mapped[bool] = mapped_column(Boolean, default=False)
+    # P4-0-2 SUP-008 OPEN-008/009 字段（5 列：4 选型 + design_stage）
+    selected_pump_model: Mapped[str | None] = mapped_column(String(100))
+    selected_motor_model: Mapped[str | None] = mapped_column(String(100))
+    selected_motor_power: Mapped[float | None] = mapped_column(Float, comment="kW")
+    pump_operation: Mapped[PumpOperation | None] = mapped_column(
+        Enum(PumpOperation, name="pump_operation_enum", native_enum=True)
+    )
+    design_stage: Mapped[DesignStage] = mapped_column(
+        Enum(DesignStage, name="design_stage_enum", native_enum=True),
+        nullable=False,
+        default=DesignStage.BASIC,
+        comment="设计阶段 BASIC/DETAIL（OPEN-009）",
+    )
 
 
 class PsvResult(TaggedRecordMixin, Base):
@@ -122,6 +162,13 @@ class PsvResult(TaggedRecordMixin, Base):
     inlet_size: Mapped[str] = mapped_column(String(20))
     outlet_size: Mapped[str] = mapped_column(String(20))
     relief_scenario: Mapped[list] = mapped_column(JSONB, comment="enum[] 多选")
+    # P4-0-2 OPEN-009 设计阶段
+    design_stage: Mapped[DesignStage] = mapped_column(
+        Enum(DesignStage, name="design_stage_enum", native_enum=True),
+        nullable=False,
+        default=DesignStage.BASIC,
+        comment="设计阶段 BASIC/DETAIL（OPEN-009）",
+    )
 
 
 class FlareSystemResult(TaggedRecordMixin, Base):
@@ -136,6 +183,43 @@ class VesselResult(TaggedRecordMixin, Base):
     vessel_calc_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     input_json: Mapped[dict] = mapped_column(JSONB)
     output_json: Mapped[dict] = mapped_column(JSONB)
+    # P4-0-2 OPEN-009 设计阶段
+    design_stage: Mapped[DesignStage] = mapped_column(
+        Enum(DesignStage, name="design_stage_enum", native_enum=True),
+        nullable=False,
+        default=DesignStage.BASIC,
+        comment="设计阶段 BASIC/DETAIL（OPEN-009）",
+    )
+
+
+class TwoPhaseResult(Base):
+    """两相流水力学结果（SUP-008 §8.3.4，P4-0-2 OPEN-008）。
+
+    仅含 brief 列出的 13 字段（PK + input/output JSONB + 业务 + 时间戳），
+    不继承 TaggedRecordMixin：与其他新表（sim_tower_results / sim_unit_op_*）
+    一致；bit_number / record_hash / 审批等门禁由后续 P4-TASK0 / 批次按需扩展。
+    """
+
+    __tablename__ = "two_phase_results"
+    two_phase_calc_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4
+    )
+    input_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    output_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    Bx: Mapped[float | None] = mapped_column(Float, comment="Lockhart-Martinelli 参数")
+    By: Mapped[float | None] = mapped_column(Float, comment="Lockhart-Martinelli 参数")
+    flow_pattern: Mapped[FlowPattern | None] = mapped_column(
+        Enum(FlowPattern, name="flow_pattern_enum", native_enum=True)
+    )
+    two_phase_check: Mapped[TwoPhaseCheck | None] = mapped_column(
+        Enum(TwoPhaseCheck, name="two_phase_check_enum", native_enum=True)
+    )
+    liquid_velocity: Mapped[float | None] = mapped_column(Float, comment="m/s")
+    gas_velocity: Mapped[float | None] = mapped_column(Float, comment="m/s")
+    pressure_gradient: Mapped[float | None] = mapped_column(Float, comment="kPa/m")
+    void_fraction: Mapped[float | None] = mapped_column(Float)
+    calc_method: Mapped[str | None] = mapped_column(String(50))
+    created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True))
 
 
 class SepEquipResult(TaggedRecordMixin, Base):

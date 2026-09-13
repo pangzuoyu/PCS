@@ -238,3 +238,75 @@ class ConfigTransition(str, enum.Enum):
     PUBLISH = "PUBLISH"
     OBSOLETE = "OBSOLETE"
 
+
+class PipeType(str, enum.Enum):
+    """管道类型（SUP-008 OPEN-008，piping_results.pipe_type）。
+
+    PUMP_SUCTION 泵吸入管 / PUMP_DISCHARGE 泵排出管 / SELF_FLOW 自流 /
+    HEATING_STEAM 蒸汽伴热 / TWO_PHASE 两相流。
+    """
+
+    PUMP_SUCTION = "PUMP_SUCTION"
+    PUMP_DISCHARGE = "PUMP_DISCHARGE"
+    SELF_FLOW = "SELF_FLOW"
+    HEATING_STEAM = "HEATING_STEAM"
+    TWO_PHASE = "TWO_PHASE"
+
+
+class CheckResult(str, enum.Enum):
+    """流速校核结果（SUP-008 OPEN-008，piping_results.check_result）。
+
+    PASS 合格 / FAIL 不合格 / WARNING 警告（接近上限）。
+    """
+
+    PASS = "PASS"
+    FAIL = "FAIL"
+    WARNING = "WARNING"
+
+
+class PumpOperation(str, enum.Enum):
+    """泵运行模式（SUP-008 OPEN-008，pump_results.pump_operation）。
+
+    NORMAL 正常运行 / STANDBY 备用 / OFF 停运。
+    """
+
+    NORMAL = "NORMAL"
+    STANDBY = "STANDBY"
+    OFF = "OFF"
+
+
+class DesignStage(str, enum.Enum):
+    """设计阶段（SUP-008 OPEN-009，pump_results/psv_results/vessel_results.design_stage）。
+
+    BASIC 基础设计 / DETAIL 详细设计。default BASIC。
+    """
+
+    BASIC = "BASIC"
+    DETAIL = "DETAIL"
+
+
+class FlowPattern(str, enum.Enum):
+    """两相流流型（SUP-008 §8.3.4，two_phase_results.flow_pattern）。
+
+    ANNULAR 环状流 / MIST 雾状流 / BUBBLE 泡状流 / SLUG 段塞流 /
+    STRATIFIED 分层流 / WAVE 波状流（Baker 图判别）。
+    """
+
+    ANNULAR = "ANNULAR"
+    MIST = "MIST"
+    BUBBLE = "BUBBLE"
+    SLUG = "SLUG"
+    STRATIFIED = "STRATIFIED"
+    WAVE = "WAVE"
+
+
+class TwoPhaseCheck(str, enum.Enum):
+    """两相流校核结果（SUP-008 §8.3.4，two_phase_results.two_phase_check）。
+
+    PASS 合格 / WARNING 警告 / FAIL 不合格。
+    """
+
+    PASS = "PASS"
+    WARNING = "WARNING"
+    FAIL = "FAIL"
+
