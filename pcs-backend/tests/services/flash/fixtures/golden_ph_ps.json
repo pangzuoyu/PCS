@@ -1,0 +1,19 @@
+{
+  "_comment": "P4-1-2 step 2：PH/PS roundtrip golden fixture。H/S 来自 step2 占位模型（理想液体 + 理想气体 + Raoult K）。固化时间：2026-09-14。",
+  "ph_flash_roundtrip": {
+    "zs": [0.3, 0.7],
+    "T_K": 335.0,
+    "P_Pa": 1000000.0,
+    "H_target_J_per_mol": 38936.6399554745,
+    "tolerance": 1e-3,
+    "notes": "首次固化来源：thermo.H_PT（占位模型：理想液体 + 理想气体）计算 PT_FLASH(335K, 1MPa) 状态下的总焓。H = (1-vfrac)*sum(x_i*Cpl_i)*T + vfrac*sum(y_i*Cpg_i)*T。测试目的：PH_FLASH 反向 roundtrip 精度 1e-3 Pa。"
+  },
+  "ps_flash_roundtrip": {
+    "zs": [0.3, 0.7],
+    "T_K": 335.0,
+    "vfrac_target": 0.32173367261838093,
+    "S_target_J_per_mol_K": 640.6634100593175,
+    "tolerance": 1e-6,
+    "notes": "首次固化来源：vfrac 来自 step1 固化（PT_FLASH 335K/1MPa）；S 来自 thermo.S_PT（占位模型：理想液体 S=Cpl*ln(T) + 理想气体 S=Cpg*ln(T)-R*ln(P*y)）。测试目的：PS_FLASH 反向 roundtrip 精度 1e-6 vfrac。"
+  }
+}

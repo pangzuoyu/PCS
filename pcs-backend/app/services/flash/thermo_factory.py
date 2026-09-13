@@ -21,6 +21,9 @@ from typing import Protocol, runtime_checkable
 
 from app.services.exceptions import PcsError
 
+# 通用气体常数 J/(mol*K)
+_R = 8.314462618
+
 # ---------------------------------------------------------------------------
 # 映射表
 # ---------------------------------------------------------------------------
@@ -367,6 +370,60 @@ class _WagnerBaseThermo:
 
     def cas_list(self) -> list[str]:
         return list(self._cass)
+
+    # ----- H/S 占位（P4-1-2 step 2，step3+ 由 native 物性包替换）-----
+
+    def H_PT(
+        self,
+        zs: list[float],
+        T: float,
+        P: float,
+        vapor_fraction: float,
+        y_vapor: list[float],
+        x_liquid: list[float],
+    ) -> float:
+        """PT flash 状态下的总焓 J/mol（占位实现，P4-1-3+ 由 native 物性包替换）。
+
+        占位模型：
+        - 液相理想液体：H_liq_i(T) = Cp_liq_i * T
+        - 汽相理想气体：H_vap_i(T) = Cp_gas_i * T
+        - H_total = (1 - vfrac) * sum(x_i * H_liq_i) + vfrac * sum(y_i * H_vap_i)
+
+        注意：占位仅用于 PH_FLASH/PS_FLASH 反向 roundtrip 测试；物理精度由
+        P4-1-3 接入 Peng-Robinson / SRK / NRTL 真实物性后保证。
+        """
+        n = len(zs)
+        H_liq = sum(x_liquid[i] * self.Cp_liq(i) * T for i in range(n))
+        H_vap = sum(y_vapor[i] * self.Cp_gas(i) * T for i in range(n))
+        return (1.0 - vapor_fraction) * H_liq + vapor_fraction * H_vap
+
+    def S_PT(
+        self,
+        zs: list[float],
+        T: float,
+        P: float,
+        vapor_fraction: float,
+        y_vapor: list[float],
+        x_liquid: list[float],
+    ) -> float:
+        """PT flash 状态下的总熵 J/mol/K（占位实现，P4-1-3+ 由 native 物性包替换）。
+
+        占位模型：
+        - 液相理想液体：S_liq_i(T) = Cp_liq_i * ln(T)
+        - 汽相理想气体：S_vap_i(T, P) = Cp_gas_i * ln(T) - R * ln(P * y_i)
+        - S_total = (1 - vfrac) * sum(x_i * S_liq_i) + vfrac * sum(y_i * S_vap_i)
+
+        同 H_PT：占位仅用于 PS_FLASH roundtrip 测试；物理精度由 P4-1-3 接管。
+        """
+        n = len(zs)
+        lnT = math.log(T)
+        S_liq = sum(x_liquid[i] * self.Cp_liq(i) * lnT for i in range(n))
+        S_vap = sum(
+            y_vapor[i]
+            * (self.Cp_gas(i) * lnT - _R * math.log(P * max(y_vapor[i], 1e-12)))
+            for i in range(n)
+        )
+        return (1.0 - vapor_fraction) * S_liq + vapor_fraction * S_vap
 
     def __repr__(self) -> str:  # pragma: no cover — debug-only
         return f"<{type(self).__name__} cas={self._cass}>"

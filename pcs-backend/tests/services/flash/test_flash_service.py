@@ -18,7 +18,17 @@ import pytest
 
 from app.services.exceptions import PcsError
 from app.services.flash import flash_service
-from app.services.flash.flash_service import PT_FLASH, PTFlashResult
+from app.services.flash.flash_service import (
+    BUBBLE_P,
+    BUBBLE_T,
+    DEW_P,
+    DEW_T,
+    PH_FLASH,
+    PS_FLASH,
+    PT_FLASH,
+    FlashConvergenceError,
+    PTFlashResult,
+)
 from app.services.flash.thermo_factory import (
     CompositionSumError,
     ThermoInterface,
@@ -183,3 +193,282 @@ def test_pt_flash_result_is_named_tuple():
     v, y, x = r
     assert v == 0.5
     assert y == [0.6, 0.4]
+
+
+# ===========================================================================
+# P4-1-2 step 2：BUBBLE_P / BUBBLE_T / DEW_P / DEW_T / PH_FLASH / PS_FLASH
+# ===========================================================================
+
+# Golden fixture 加载
+_BD_FIXTURE = Path(__file__).parent / "fixtures" / "golden_bubble_dew.json"
+_PHPS_FIXTURE = Path(__file__).parent / "fixtures" / "golden_ph_ps.json"
+GOLDEN_BD = json.loads(_BD_FIXTURE.read_text(encoding="utf-8"))
+GOLDEN_PHPS = json.loads(_PHPS_FIXTURE.read_text(encoding="utf-8"))
+
+
+# ---------------------------------------------------------------------------
+# 1) BUBBLE_P / BUBBLE_T golden（丙烷+正丁烷）
+# ---------------------------------------------------------------------------
+
+
+def test_bubble_p_direct_formula():
+    """BUBBLE_P = sum(z_i * Psat_i(T))：直接公式。"""
+    zs, cass = [0.3, 0.7], ["74-98-6", "106-97-8"]
+    thermo = build_thermo("LIGHT_HYDROCARBON", zs, cass)
+    T = 300.0
+    expected = sum(zs[i] * thermo.Psat(i, T) for i in range(2))
+    assert math.isclose(BUBBLE_P(zs, T, thermo), expected, abs_tol=1e-12)
+
+
+def test_bubble_T_at_1MPa_matches_golden():
+    """BUBBLE_T @ 1MPa 丙烷+正丁烷：≤ 1e-3 K。"""
+    golden = GOLDEN_BD["propane_butane_bubble_T_at_1MPa"]
+    zs, cass = golden["zs"], ["74-98-6", "106-97-8"]
+    thermo = build_thermo("LIGHT_HYDROCARBON", zs, cass)
+    T_bubble = BUBBLE_T(zs, golden["P_Pa"], thermo)
+    assert math.isclose(T_bubble, golden["T_bubble_K"], abs_tol=golden["tolerance"])
+
+
+def test_bubble_T_roundtrip_through_bubble_p():
+    """BUBBLE_T(P) → 带回 P_bubble(T_bubble) → 应等于原 P（自洽）。"""
+    zs, cass = [0.3, 0.7], ["74-98-6", "106-97-8"]
+    thermo = build_thermo("LIGHT_HYDROCARBON", zs, cass)
+    P = 1e6
+    T_bubble = BUBBLE_T(zs, P, thermo)
+    P_recovered = BUBBLE_P(zs, T_bubble, thermo)
+    assert math.isclose(P_recovered, P, rel_tol=1e-9)
+
+
+# ---------------------------------------------------------------------------
+# 2) DEW_P / DEW_T golden
+# ---------------------------------------------------------------------------
+
+
+def test_dew_p_direct_formula():
+    """DEW_P = 1 / sum(z_i / Psat_i(T))：直接公式。"""
+    zs, cass = [0.3, 0.7], ["74-98-6", "106-97-8"]
+    thermo = build_thermo("LIGHT_HYDROCARBON", zs, cass)
+    T = 300.0
+    expected = 1.0 / sum(zs[i] / thermo.Psat(i, T) for i in range(2))
+    assert math.isclose(DEW_P(zs, T, thermo), expected, abs_tol=1e-12)
+
+
+def test_dew_T_at_1MPa_matches_golden():
+    """DEW_T @ 1MPa 丙烷+正丁烷：≤ 1e-3 K。"""
+    golden = GOLDEN_BD["propane_butane_dew_T_at_1MPa"]
+    zs, cass = golden["zs"], ["74-98-6", "106-97-8"]
+    thermo = build_thermo("LIGHT_HYDROCARBON", zs, cass)
+    T_dew = DEW_T(zs, golden["P_Pa"], thermo)
+    assert math.isclose(T_dew, golden["T_dew_K"], abs_tol=golden["tolerance"])
+
+
+def test_dew_T_roundtrip_through_dew_p():
+    """DEW_T(P) → 带回 P_dew(T_dew) → 应等于原 P（自洽）。"""
+    zs, cass = [0.3, 0.7], ["74-98-6", "106-97-8"]
+    thermo = build_thermo("LIGHT_HYDROCARBON", zs, cass)
+    P = 1e6
+    T_dew = DEW_T(zs, P, thermo)
+    P_recovered = DEW_P(zs, T_dew, thermo)
+    assert math.isclose(P_recovered, P, rel_tol=1e-9)
+
+
+# ---------------------------------------------------------------------------
+# 3) BUBBLE_T 和 DEW_T 区间：335K ∈ (BUBBLE_T, DEW_T)
+# ---------------------------------------------------------------------------
+
+
+def test_335K_in_two_phase_region_at_1MPa():
+    """BUBBLE_T(1MPa) < 335 K < DEW_T(1MPa)（互逆验证）。"""
+    zs, cass = [0.3, 0.7], ["74-98-6", "106-97-8"]
+    thermo = build_thermo("LIGHT_HYDROCARBON", zs, cass)
+    T_bubble = BUBBLE_T(zs, 1e6, thermo)
+    T_dew = DEW_T(zs, 1e6, thermo)
+    assert T_bubble < 335.0 < T_dew, (
+        f"335K 应在 (T_bubble={T_bubble}, T_dew={T_dew}) 区间内"
+    )
+
+
+# ---------------------------------------------------------------------------
+# 4) 纯组分自洽：BUBBLE_P == DEW_P == Psat
+# ---------------------------------------------------------------------------
+
+
+def test_pure_component_bubble_equals_dew_equals_psat():
+    """纯组分：BUBBLE_P == DEW_P == Psat（容差 1e-6 Pa）。"""
+    golden = GOLDEN_BD["pure_bubble_equals_dew_equals_psat"]
+    zs = [1.0]
+    cass = [golden["fluid_cas"]]
+    thermo = build_thermo("LIGHT_HYDROCARBON", zs, cass)
+    T = golden["T_K"]
+    P_bubble = BUBBLE_P(zs, T, thermo)
+    P_dew = DEW_P(zs, T, thermo)
+    P_sat = thermo.Psat(0, T)
+    tol = golden["tolerance"]
+    assert math.isclose(P_bubble, P_dew, abs_tol=tol)
+    assert math.isclose(P_bubble, P_sat, abs_tol=tol)
+    assert math.isclose(P_bubble, golden["P_sat_Pa"], abs_tol=tol)
+
+
+def test_pure_component_bubble_T_equals_dew_T_equals_Tsat():
+    """纯组分：BUBBLE_T == DEW_T == Tsat（容差 1e-6 K）。"""
+    zs = [1.0]
+    cass = ["74-98-6"]
+    thermo = build_thermo("LIGHT_HYDROCARBON", zs, cass)
+    P = 1e6
+    T_bubble = BUBBLE_T(zs, P, thermo)
+    T_dew = DEW_T(zs, P, thermo)
+    T_sat = thermo.Tsat(0, P)
+    tol = 1e-6
+    assert math.isclose(T_bubble, T_dew, abs_tol=tol)
+    assert math.isclose(T_bubble, T_sat, abs_tol=tol)
+
+
+# ---------------------------------------------------------------------------
+# 5) PH_FLASH roundtrip
+# ---------------------------------------------------------------------------
+
+
+def test_ph_flash_roundtrip_matches_golden():
+    """PH_FLASH roundtrip：PT_FLASH(335K,1MPa)→H；PH_FLASH 反推回同 P ≤ 1e-3 Pa。"""
+    golden = GOLDEN_PHPS["ph_flash_roundtrip"]
+    zs, cass = golden["zs"], ["74-98-6", "106-97-8"]
+    thermo = build_thermo("LIGHT_HYDROCARBON", zs, cass)
+
+    # 1) PT_FLASH 算 H_target
+    res_pt = PT_FLASH(zs, golden["T_K"], golden["P_Pa"], thermo)
+    H_target = thermo.H_PT(
+        zs,
+        golden["T_K"],
+        golden["P_Pa"],
+        res_pt.vapor_fraction,
+        res_pt.y_vapor,
+        res_pt.x_liquid,
+    )
+    # 2) H_target 应与 golden 偏差 ≤ 1e-3（J/mol）
+    assert math.isclose(H_target, golden["H_target_J_per_mol"], abs_tol=1e-3)
+
+    # 3) PH_FLASH 反推 P
+    P, vfrac, y, x = PH_FLASH(zs, golden["T_K"], H_target, thermo)
+    # 4) P 应等于 1e6（容差 1e-3 Pa）
+    assert math.isclose(P, golden["P_Pa"], abs_tol=golden["tolerance"])
+    # 5) vfrac 应等于 PT_FLASH 原始 vfrac（容差 1e-3）
+    assert math.isclose(vfrac, res_pt.vapor_fraction, abs_tol=1e-3)
+
+
+def test_ph_flash_returns_valid_pt_state():
+    """PH_FLASH 返回的 (P, vfrac, y, x) 在 PT_FLASH(P) 下应自洽。"""
+    zs, cass = [0.3, 0.7], ["74-98-6", "106-97-8"]
+    thermo = build_thermo("LIGHT_HYDROCARBON", zs, cass)
+    res_pt = PT_FLASH(zs, 335.0, 1e6, thermo)
+    H_target = thermo.H_PT(
+        zs, 335.0, 1e6, res_pt.vapor_fraction, res_pt.y_vapor, res_pt.x_liquid
+    )
+    P, vfrac, y, x = PH_FLASH(zs, 335.0, H_target, thermo)
+    # y 和 x 都归一化
+    assert math.isclose(sum(y), 1.0, abs_tol=1e-9)
+    assert math.isclose(sum(x), 1.0, abs_tol=1e-9)
+    # vfrac 在 [0, 1]
+    assert 0.0 <= vfrac <= 1.0
+
+
+# ---------------------------------------------------------------------------
+# 6) PS_FLASH roundtrip
+# ---------------------------------------------------------------------------
+
+
+def test_ps_flash_roundtrip_matches_golden():
+    """PS_FLASH roundtrip：PT_FLASH(335K,1MPa)→S；PS_FLASH 反推回同 vfrac ≤ 1e-6。"""
+    golden = GOLDEN_PHPS["ps_flash_roundtrip"]
+    zs, cass = golden["zs"], ["74-98-6", "106-97-8"]
+    thermo = build_thermo("LIGHT_HYDROCARBON", zs, cass)
+    P_ref = 1.0e6  # PS roundtrip 参考压力（与 step1 固化 vfrac 一致）
+
+    # 1) PT_FLASH 算 S_target
+    res_pt = PT_FLASH(zs, golden["T_K"], P_ref, thermo)
+    S_target = thermo.S_PT(
+        zs,
+        golden["T_K"],
+        P_ref,
+        res_pt.vapor_fraction,
+        res_pt.y_vapor,
+        res_pt.x_liquid,
+    )
+    # 2) S_target 应与 golden 偏差 ≤ 1e-3
+    assert math.isclose(S_target, golden["S_target_J_per_mol_K"], abs_tol=1e-3)
+
+    # 3) PS_FLASH 反推 vfrac
+    vfrac, y, x, P = PS_FLASH(zs, golden["T_K"], S_target, thermo)
+    # 4) vfrac 应等于 step1 固化值（容差 1e-6）
+    assert math.isclose(vfrac, golden["vfrac_target"], abs_tol=golden["tolerance"])
+    # 5) P 应等于 1e6（容差 1e-3 Pa）
+    assert math.isclose(P, P_ref, abs_tol=1e-3)
+
+
+def test_ps_flash_returns_valid_pt_state():
+    """PS_FLASH 返回的 (vfrac, y, x, P) 在 PT_FLASH(P) 下应自洽。"""
+    zs, cass = [0.3, 0.7], ["74-98-6", "106-97-8"]
+    thermo = build_thermo("LIGHT_HYDROCARBON", zs, cass)
+    res_pt = PT_FLASH(zs, 335.0, 1e6, thermo)
+    S_target = thermo.S_PT(
+        zs, 335.0, 1e6, res_pt.vapor_fraction, res_pt.y_vapor, res_pt.x_liquid
+    )
+    vfrac, y, x, P = PS_FLASH(zs, 335.0, S_target, thermo)
+    # y 和 x 都归一化
+    assert math.isclose(sum(y), 1.0, abs_tol=1e-9)
+    assert math.isclose(sum(x), 1.0, abs_tol=1e-9)
+    # vfrac 在 [0, 1]
+    assert 0.0 <= vfrac <= 1.0
+    # P > 0
+    assert P > 0
+
+
+# ---------------------------------------------------------------------------
+# 7) 收敛失败：FlashConvergenceError
+# ---------------------------------------------------------------------------
+
+
+def test_ph_flash_h_target_out_of_range_raises():
+    """PH_FLASH H_target 超出物理范围 → FlashConvergenceError。"""
+    zs, cass = [0.3, 0.7], ["74-98-6", "106-97-8"]
+    thermo = build_thermo("LIGHT_HYDROCARBON", zs, cass)
+    # 实际 H 范围约 [30495, 42377] J/mol @ 335K；1e9 远超上限
+    with pytest.raises(FlashConvergenceError):
+        PH_FLASH(zs, 335.0, 1.0e9, thermo)
+
+
+def test_ps_flash_s_target_out_of_range_raises():
+    """PS_FLASH S_target 超出物理范围 → FlashConvergenceError。"""
+    zs, cass = [0.3, 0.7], ["74-98-6", "106-97-8"]
+    thermo = build_thermo("LIGHT_HYDROCARBON", zs, cass)
+    # 实际 S 范围约 [420, 735] J/mol/K @ 335K；1e6 远超上限
+    with pytest.raises(FlashConvergenceError):
+        PS_FLASH(zs, 335.0, 1.0e6, thermo)
+
+
+def test_flash_convergence_error_inherits_pcs_error():
+    """FlashConvergenceError 继承 PcsError（422 风格）。"""
+    assert issubclass(FlashConvergenceError, PcsError)
+    err = FlashConvergenceError("test")
+    assert err.code == "FLASH_CONVERGENCE_ERROR"
+    assert err.status == 422
+
+
+# ---------------------------------------------------------------------------
+# 模块导出检查（step 2 扩展）
+# ---------------------------------------------------------------------------
+
+
+def test_flash_service_module_exports_step2_symbols():
+    """step 2 模块导出：6 个 flash 函数 + FlashConvergenceError。"""
+    required = {
+        "PTFlashResult",
+        "PT_FLASH",
+        "BUBBLE_P",
+        "BUBBLE_T",
+        "DEW_P",
+        "DEW_T",
+        "PH_FLASH",
+        "PS_FLASH",
+        "FlashConvergenceError",
+    }
+    assert required.issubset(set(dir(flash_service)))

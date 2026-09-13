@@ -1,0 +1,25 @@
+{
+  "_comment": "P4-1-2 step 2：BUBBLE/DEW golden fixture。propane/n-butane (0.3/0.7) @ 1MPa + 纯组分自洽。固化时间：2026-09-14。",
+  "propane_butane_bubble_T_at_1MPa": {
+    "zs": [0.3, 0.7],
+    "P_Pa": 1000000.0,
+    "T_bubble_K": 329.5939059867394,
+    "tolerance": 1e-3,
+    "notes": "首次固化来源：brentq（xtol=1e-10）解 sum(z_i * Psat_i(T)) = 1e6 Pa。Raoult 定律 + Wagner_original（chemicals.vapor_pressure）。测试目的：BUBBLE_T 数值精度。"
+  },
+  "propane_butane_dew_T_at_1MPa": {
+    "zs": [0.3, 0.7],
+    "P_Pa": 1000000.0,
+    "T_dew_K": 342.26223500680044,
+    "tolerance": 1e-3,
+    "notes": "首次固化来源：brentq（xtol=1e-10）解 1 / sum(z_i / Psat_i(T)) = 1e6 Pa。同上 Raoult + Wagner。测试目的：DEW_T 数值精度。"
+  },
+  "pure_bubble_equals_dew_equals_psat": {
+    "fluid_cas": "74-98-6",
+    "fluid_name": "propane",
+    "T_K": 300.0,
+    "P_sat_Pa": 996905.6014872768,
+    "tolerance": 1e-6,
+    "notes": "首次固化来源：chemicals.vapor_pressure.Wagner_original（propane @ 300K）。测试目的：纯组分 BUBBLE_P == DEW_P == Psat 自洽。"
+  }
+}
