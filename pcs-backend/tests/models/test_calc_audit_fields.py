@@ -113,3 +113,31 @@ async def test_audit_column_types(table: str) -> None:
         r["column_name"]: (r["data_type"], r["character_maximum_length"]) for r in rows
     }
     assert got == _EXPECTED_TYPES, f"{table}: {got}"
+
+
+@_ONLY_PCS_TEST
+@pytest.mark.asyncio
+@pytest.mark.parametrize("table", _TABLES)
+async def test_hash_changed_server_default_false(table: str) -> None:
+    """hash_changed server_default = false（与迁移 server_default=sa.false() 一致）。
+
+    PG information_schema.columns.column_default 渲染为 'false'::boolean
+    字面量；用 LIKE 匹配 'false' 子串，避开 cast 标记差异。
+    """
+    factory = get_async_session_factory()
+    async with factory() as session:
+        row = (
+            await session.execute(
+                text(
+                    """
+                    SELECT column_default
+                    FROM information_schema.columns
+                    WHERE table_name = :t
+                      AND column_name = 'hash_changed'
+                    """
+                ),
+                {"t": table},
+            )
+        ).mappings().one()
+    default = (row["column_default"] or "").lower()
+    assert "false" in default, f"{table}.hash_changed column_default={default!r}"

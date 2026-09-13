@@ -42,6 +42,18 @@ _HASH_PREFIX = 16
 # 数值规范化有效数字位数（mixins.record_hash 注释契约）
 _SIG_DIGITS = 6
 
+# hash 输入排除列：保证 compute_record_hash 幂等
+# - record_hash：自身，重复 finalize 会随上次 hash 漂移
+# - created_at / created_by / updated_at / updated_by：生命周期列，由 DB / ORM
+#   副作用写入，不参与业务内容指纹
+_EXCLUDED_KEYS: frozenset[str] = frozenset({
+    "record_hash",
+    "created_at",
+    "created_by",
+    "updated_at",
+    "updated_by",
+})
+
 
 def _round_sig(value: float) -> float:
     """浮点 → 6 位有效数字（%g 四舍五入语义；0 / 非有限值原样返回）。"""
@@ -54,6 +66,10 @@ def compute_record_hash(record) -> str:
     """record 数值规范化哈希：Float 列 round 到 6 位有效数字后序列化，
     sha256 截断 16 hex。
 
+    幂等：排除 record_hash 自身与生命周期列（created_at/created_by/updated_at
+    /updated_by），同 record 重复调用结果一致——CIA hash_changed 语义依赖此
+    性质（CIA 引擎后续批次复用）。
+
     读取顺序：state.dict → committed_state（与 lineage._compute_hash 同约束：
     禁止 getattr fallback，防 expire 后 async lazy-load 抛 MissingGreenlet）。
     """
@@ -62,6 +78,8 @@ def compute_record_hash(record) -> str:
     payload: dict = {}
     for col in record.__table__.columns:
         if col.primary_key:
+            continue
+        if col.key in _EXCLUDED_KEYS:
             continue
         v = state.dict.get(col.key)
         if v is None:

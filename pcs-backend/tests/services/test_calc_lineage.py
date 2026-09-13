@@ -86,16 +86,44 @@ async def test_finalize_writes_record_hash_and_lineage() -> None:
     )
     assert _HASH_RE.match(rec.record_hash), f"hash 非 16 hex: {rec.record_hash}"
     assert len(db.added) == len(sids)
-    for ln in db.added:
+    # 精确比对：每条血缘 → 对应一个 source stream + record 主键
+    paired = sorted(db.added, key=lambda x: x.source_ref_id)
+    expected = sorted(sids)
+    for ln, sid in zip(paired, expected, strict=True):
         assert ln.record_type == "PipingResult"
         assert ln.source_ref_type == "Stream"
-        assert ln.source_ref_id in sids
+        assert ln.source_ref_id == sid
+        assert ln.record_id == rec.pipe_id
         diff = ln.change_diff_json
         assert diff["formula_version"] == "Fv1.0"
         assert diff["record_hash"] == rec.record_hash
         assert isinstance(diff["hash"], str) and diff["hash"]
     # 事务由调用方控制：本函数不 commit
     assert db.commits == 0
+
+
+@pytest.mark.asyncio
+async def test_finalize_idempotent_same_hash() -> None:
+    """同 record finalize 两次 → hash 相同（Finding 1 Important：幂等性）。
+
+    第二次调用前不重置 record_hash（业务场景：重复收口/重放），hash 必须稳定。
+    """
+    db1 = _FakeSession()
+    rec1 = _make_record()
+    await finalize_calc_record(
+        db1, rec1, source_stream_ids=[uuid.uuid4()], formula_version="v"
+    )
+    db2 = _FakeSession()
+    rec2 = _make_record()
+    await finalize_calc_record(
+        db2, rec2, source_stream_ids=[uuid.uuid4()], formula_version="v"
+    )
+    # 业务重放场景：第二次 finalize 前 record_hash 已被上一次写入
+    rec1.record_hash = "stale-from-prior-finalize"  # noqa: S105
+    await finalize_calc_record(
+        db1, rec1, source_stream_ids=[uuid.uuid4()], formula_version="v"
+    )
+    assert rec1.record_hash == rec2.record_hash
 
 
 @pytest.mark.asyncio
@@ -134,3 +162,10 @@ async def test_hash_stable_at_7th_significant_digit() -> None:
         db6, bump6, source_stream_ids=[uuid.uuid4()], formula_version="v"
     )
     assert bump6.record_hash != base.record_hash
+
+    bump1 = _make_record(design_press=2.2345671)  # 第 1 位有效数字 1→2
+    db1 = _FakeSession()
+    await finalize_calc_record(
+        db1, bump1, source_stream_ids=[uuid.uuid4()], formula_version="v"
+    )
+    assert bump1.record_hash != base.record_hash
