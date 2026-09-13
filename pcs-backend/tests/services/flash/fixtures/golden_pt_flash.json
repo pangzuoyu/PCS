@@ -1,0 +1,23 @@
+{
+  "_comment": "P4-1-2 step 1：PT_FLASH golden fixture。propane/n-butane (0.3/0.7) @ 1MPa 两组。固化时间：2026-09-14。",
+  "propane_butane_300K_1MPa": {
+    "zs": [0.3, 0.7],
+    "T_K": 300.0,
+    "P_Pa": 1000000.0,
+    "vapor_fraction": 0.0,
+    "y_vapor": [0.3, 0.7],
+    "x_liquid": [0.3, 0.7],
+    "notes": "首次固化来源：chemicals.vapor_pressure.Wagner_original（T=300K）→ Psat=[996905.6, 257772.3] Pa → K=[0.9969, 0.2578] → 全部 K<1 → 亚冷液单相（vfrac=0, x=y=zs）。测试目的：验证单相边界 + 1e-12 漂移。",
+    "tolerance": 1e-12
+  },
+  "propane_butane_335K_1MPa": {
+    "zs": [0.3, 0.7],
+    "T_K": 335.0,
+    "P_Pa": 1000000.0,
+    "vapor_fraction": 0.32173367261838093,
+    "y_vapor": [0.47638725426472395, 0.523612745735276],
+    "x_liquid": [0.21633121559087476, 0.7836687844091252],
+    "notes": "首次固化来源：chemicals.flash_basic.flash_inner_loop（Raoult K-value + Rachford-Rice 解析）。T=335K 在两相区域（bubble=329.6K, dew=342.3K）。测试目的：验证两相 flash 数值精度 1e-12。",
+    "tolerance": 1e-12
+  }
+}

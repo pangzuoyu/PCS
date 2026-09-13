@@ -134,10 +134,21 @@ def test_all_zero_zs_raises():
 # ---------------------------------------------------------------------------
 
 
-def test_empty_cass_allowed():
-    """空 CASs 列表允许（stub 不依赖 CAS，仅签名占位）。"""
-    thermo = build_thermo("LIGHT_HYDROCARBON", [1.0], [])
-    assert isinstance(thermo, ThermoInterface)
+def test_cass_length_mismatch_raises():
+    """cass 长度与 zs 不匹配 → CompositionSumError（422 风格）。
+
+    P4-1-2 起 stub 真正使用 cass，cass 必须提供（与 zs 等长）。
+    """
+    with pytest.raises(CompositionSumError) as exc_info:
+        build_thermo("LIGHT_HYDROCARBON", [0.5, 0.5], ["74-98-6"])
+    assert exc_info.value.status == 422
+    assert exc_info.value.code == "COMPOSITION_SUM_ERROR"
+
+
+def test_cass_must_be_non_empty():
+    """空 CASs（与 zs 等长空列表）→ CompositionSumError。"""
+    with pytest.raises(CompositionSumError):
+        build_thermo("LIGHT_HYDROCARBON", [], [])
 
 
 # ---------------------------------------------------------------------------
@@ -145,12 +156,15 @@ def test_empty_cass_allowed():
 # ---------------------------------------------------------------------------
 
 
-def test_stub_psat_raises_not_implemented():
-    """stub.Psat 必须 raise NotImplementedError（P4-1-2 落地）。"""
-    thermo = build_thermo("LIGHT_HYDROCARBON", [1.0], ["74-82-8"])
-    with pytest.raises(NotImplementedError) as exc_info:
-        thermo.Psat(0)
-    assert "P4-1-2" in str(exc_info.value)
+def test_stub_psat_returns_finite_value():
+    """stub.Psat 在已知 CAS 下应返回有限正数（P4-1-2 Wagner 实现）。"""
+    thermo = build_thermo("LIGHT_HYDROCARBON", [1.0], ["74-98-6"])
+    p = thermo.Psat(0, 300.0)
+    import math
+    assert math.isfinite(p)
+    assert p > 0
+    # 300K 时丙烷 Psat 应在 ~1 MPa 量级
+    assert 5e5 < p < 2e6
 
 
 @pytest.mark.parametrize("system_type", list(THERMO_METHOD_MAP.keys()))
