@@ -9,8 +9,10 @@ from sqlalchemy import (
     Integer,
     String,
     Uuid,
+    false,
     func,
 )
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, declared_attr, mapped_column
 
 from app.models.enums import RecordSignStatus9
@@ -84,6 +86,20 @@ class RecordMixin(TimestampMixin):
     reversal_reason: Mapped[str | None] = mapped_column(String(500))
     reversal_approved_by: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     reversal_approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+    # P4-0-1 审计列（ADR-0031）：只经 calc_lineage.finalize_calc_record /
+    # CIA 引擎写，业务模块禁止直写；streams 表同构列在 Stream 模型显式声明
+    stale_resolution_path: Mapped[str | None] = mapped_column(
+        String(30), comment="STALE 后走的重算路径（CIA 审计）"
+    )
+    hash_changed: Mapped[bool | None] = mapped_column(
+        Boolean,
+        server_default=false(),
+        comment="record_hash 相对上版是否实质变化",
+    )
+    changed_fields: Mapped[dict | None] = mapped_column(
+        JSONB, comment="实质变化字段清单（6 位规范化后仍发散的字段）"
+    )
 
     @declared_attr
     def project_id(cls) -> Mapped[uuid.UUID]:

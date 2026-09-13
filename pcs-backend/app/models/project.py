@@ -12,6 +12,7 @@ from sqlalchemy import (
     String,
     UniqueConstraint,
     Uuid,
+    false,
     func,
 )
 from sqlalchemy.dialects.postgresql import JSONB
@@ -412,6 +413,19 @@ class Stream(TimestampMixin, Base):
     conflict_resolutions_json: Mapped[dict | None] = mapped_column(
         JSONB,
         comment="SIM-18: PropertyConflictResolver 输出（用户值 vs 计算值冲突解决记录）",
+    )
+
+    # === P4-0-1 审计列（ADR-0031）：Stream 不继承 RecordMixin，与 mixin 同构显式声明 ===
+    stale_resolution_path: Mapped[str | None] = mapped_column(
+        String(30), comment="STALE 后走的重算路径（CIA 审计）"
+    )
+    hash_changed: Mapped[bool | None] = mapped_column(
+        Boolean,
+        server_default=false(),
+        comment="record_hash 相对上版是否实质变化",
+    )
+    changed_fields: Mapped[dict | None] = mapped_column(
+        JSONB, comment="实质变化字段清单（6 位规范化后仍发散的字段）"
     )
 
     # SIM-13 D-3 闭环：selectinload 防 N+1 — 状态点反向关系
