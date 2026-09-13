@@ -126,6 +126,31 @@ _TB_TABLE: dict[str, float] = {
     "7732-18-5": 373.124,
 }
 
+# 分子量（kg/mol）— 用于 SATURATION 潜热 J/mol → J/kg 换算
+# 来自 chemicals.elements.molecular_weight（g/mol）→ /1000
+_MW_TABLE: dict[str, float] = {
+    "74-82-8": 16.04246 / 1000.0,    # methane
+    "74-84-0": 30.06904 / 1000.0,    # ethane
+    "74-98-6": 44.09562 / 1000.0,    # propane
+    "106-97-8": 58.1222 / 1000.0,    # n-butane
+    "78-78-4": 72.14878 / 1000.0,    # isopentane
+    "110-54-3": 86.17536 / 1000.0,   # n-hexane
+    "67-56-1": 32.04186 / 1000.0,    # methanol
+    "7732-18-5": 18.01528 / 1000.0,  # water
+}
+
+# Fluid 名 → CAS（用于 SATURATION 入口解析 — P4-1-2 step3）
+_FLUID_NAME_TO_CAS: dict[str, str] = {
+    "WATER": "7732-18-5",
+    "METHANE": "74-82-8",
+    "ETHANE": "74-84-0",
+    "PROPANE": "74-98-6",
+    "N_BUTANE": "106-97-8",
+    "ISOPENTANE": "78-78-4",
+    "N_HEXANE": "110-54-3",
+    "METHANOL": "67-56-1",
+}
+
 
 # ---------------------------------------------------------------------------
 # 工具函数
@@ -172,6 +197,55 @@ def _water_h_fg(T: float) -> float:
     V_l = MW / rhol
     V_g = MW / rhog
     return T * (V_g - V_l) * dPdT
+
+
+def _water_h_fg_j_per_kg(T: float) -> float:
+    """水的汽化焓（J/kg）— iapws95 Clapeyron J/mol → / MW。
+
+    单位说明：spec 要求 h_fg 以 J/kg 报出（与流程工程 SI 单位一致）；iapws95
+    内部按 mol 计算，须转换。
+    """
+    return _water_h_fg(T) / _MW_TABLE["7732-18-5"]
+
+
+def _hydrocarbon_h_fg_j_per_kg(cas: str, T: float, Psat: float) -> float:
+    """轻烃/极性组分汽化焓（J/kg）— Clapeyron 方程（chemicals.phase_change）。
+
+    dZ=1 假设在 Tr<0.8 区误差 < 3%（化学品工程实践精度可接受）；spec 验收
+    容差 1% 配合 step1 BUBBLE_P=996905.6 Pa 基准。返回 J/kg（J/mol / MW）。
+
+    Args:
+        cas: CAS 号（须在 _WAGNER_TABLE + _MW_TABLE 中）
+        T: 温度 (K)
+        Psat: 饱和压力 (Pa)
+    """
+    from chemicals.phase_change import Clapeyron
+
+    Tc, Pc, _omega = _CRITICAL_TABLE[cas]
+    h_fg_j_per_mol = Clapeyron(T, Tc, Pc, 1.0, Psat)
+    return h_fg_j_per_mol / _MW_TABLE[cas]
+
+
+def resolve_fluid_cas(fluid: str) -> str:
+    """解析 fluid 名/CAS 为 CAS 号 — SATURATION 入口。
+
+    接受：CAS 号字符串（如 "74-98-6"）或别名（如 "PROPANE"，大小写不敏感）。
+
+    Args:
+        fluid: 流体名或 CAS 号
+
+    Returns:
+        CAS 号字符串
+
+    Raises:
+        KeyError: 未知 fluid（由 SATURATION 转成 SaturationInputError）
+    """
+    fluid_up = fluid.upper()
+    if fluid_up in _FLUID_NAME_TO_CAS:
+        return _FLUID_NAME_TO_CAS[fluid_up]
+    if fluid in _WAGNER_TABLE:
+        return fluid
+    raise KeyError(fluid)
 
 
 # ---------------------------------------------------------------------------
@@ -562,4 +636,5 @@ __all__ = [
     "SRKMIXThermo",
     "NRTLThermo",
     "CoolPropThermo",
+    "resolve_fluid_cas",
 ]

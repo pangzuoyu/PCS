@@ -1,6 +1,7 @@
-"""P4-1-2 step 2：6 个闪蒸计算（BUBBLE/DEW/PH/PS）+ golden fixtures。
+"""P4-1-2 step 3：SATURATION 纯组分饱和 + golden fixtures。
 
-P4-1-2 step 1 已落 PT_FLASH；step 2 落地其余 6 个计算。
+P4-1-2 step 1 已落 PT_FLASH；step 2 落地其余 6 个计算（BUBBLE/DEW/PH/PS）；
+step 3 收口纯组分饱和 SATURATION。
 
 算法：
 - BUBBLE_P / DEW_P：直接公式（Raoult 定律，sum(z*K)=1 / sum(z/K)=1）
@@ -8,6 +9,8 @@ P4-1-2 step 1 已落 PT_FLASH；step 2 落地其余 6 个计算。
 - PH_FLASH：brentq on P in [1e3, 1e8] Pa（外层 P 迭代，内层 PT_FLASH 算 H）
 - PS_FLASH：brentq on vfrac in [eps, 1-eps]，内层 brentq on P 求 vfrac→P 映射
            （vfrac 与 P 在 2-phase 区是一一对应；按 spec 字面要求 iterate vfrac）
+- SATURATION（step 3）：water → iapws95_Tsat/Psat；hydrocarbon → Wagner + Clapeyron；
+                     fluid 名/CAS 双输入；临界检查 + h_fg J/kg。
 
 H/S 模型：占位（理想液体 + 理想气体 + Raoult K），由 ``_WagnerBaseThermo.H_PT`` /
 ``_WagnerBaseThermo.S_PT`` 提供；P4-1-3+ 由 native 物性包替换为 Peng-Robinson /
@@ -23,7 +26,18 @@ from typing import NamedTuple
 from scipy.optimize import brentq
 
 from app.services.exceptions import PcsError
-from app.services.flash.thermo_factory import ThermoInterface
+from app.services.flash.thermo_factory import (
+    _CRITICAL_TABLE,
+    _TB_TABLE,
+    _WAGNER_TABLE,
+    ThermoInterface,
+    _hydrocarbon_h_fg_j_per_kg,
+    _wagner_psat,
+    _water_h_fg_j_per_kg,
+    _water_Psat,
+    _water_Tsat,
+    resolve_fluid_cas,
+)
 
 # ---------------------------------------------------------------------------
 # 异常
@@ -40,6 +54,30 @@ class FlashConvergenceError(PcsError):
     """
 
     code = "FLASH_CONVERGENCE_ERROR"
+    status = 422
+
+
+class SaturationInputError(PcsError):
+    """SATURATION 输入错误。
+
+    触发场景：
+    - fluid 不识别（不在 FLUID_NAME_TO_CAS，也不在 _WAGNER_TABLE）
+    - P 和 T 都给 / 都不给（互斥约束失败）
+    """
+
+    code = "SATURATION_INPUT_ERROR"
+    status = 422
+
+
+class SaturationRangeError(PcsError):
+    """SATURATION 范围错误：输入超出临界点（超临界态无法定义饱和曲线）。
+
+    触发场景：
+    - P > Pc（超临界压力）
+    - T > Tc（超临界温度）
+    """
+
+    code = "SATURATION_OUT_OF_RANGE"
     status = 422
 
 
@@ -329,6 +367,120 @@ def PS_FLASH(
     return (res.vapor_fraction, res.y_vapor, res.x_liquid, P)
 
 
+# ---------------------------------------------------------------------------
+# SATURATION（step 3 — 纯组分饱和曲线 P(T) / T(P) + 潜热 h_fg）
+# ---------------------------------------------------------------------------
+
+
+def SATURATION(
+    fluid: str, P: float | None = None, T: float | None = None
+) -> tuple[float, float]:
+    """纯组分饱和：根据给定 P 或 T，返回 (other_var, h_fg)。
+
+    算法：
+    - water (CAS 7732-18-5)：T_sat = iapws95_Tsat(P)；P_sat = iapws95_Psat(T)；
+      h_fg = T*(V_g - V_l)*dPsat/dT（iapws95 Clapeyron J/kg）
+    - 其它流体（hydrocarbon/polar）：T_sat = Wagner 牛顿反演 / P_sat =
+      Wagner_original(T)；h_fg = Clapeyron 方程 dZ=1（J/kg）
+    - fluid 名大小写不敏感；CAS 号直接接受
+
+    Args:
+        fluid: 流体名（如 "WATER" / "PROPANE" / "N_BUTANE"）或 CAS 号
+        P: 给定压力 (Pa)；与 T 互斥
+        T: 给定温度 (K)；与 P 互斥
+
+    Returns:
+        (other_var, h_fg)：
+        - P 给定时返回 (T_sat_K, h_fg_J_per_kg)
+        - T 给定时返回 (P_sat_Pa, h_fg_J_per_kg)
+
+    Raises:
+        SaturationInputError: P 和 T 都给 / 都不给 / fluid 不识别
+        SaturationRangeError: 输入超出临界点范围（T > Tc 或 P > Pc）
+    """
+    # 1) 互斥检查：P 和 T 必须二选一
+    if (P is None) == (T is None):
+        raise SaturationInputError(
+            "SATURATION 必须只给定 P 或 T 之一；"
+            f"当前 P={P}, T={T}",
+            details={"P": P, "T": T},
+        )
+
+    # 2) fluid 解析（名 → CAS；大小写不敏感）
+    try:
+        cas = resolve_fluid_cas(fluid)
+    except KeyError as e:
+        raise SaturationInputError(
+            f"SATURATION 无法识别 fluid={fluid!r}；"
+            f"支持的 fluid 名：WATER / METHANE / ETHANE / PROPANE / N_BUTANE / "
+            f"ISOPENTANE / N_HEXANE / METHANOL，或 _WAGNER_TABLE 中的 CAS 号",
+            details={"fluid": fluid},
+        ) from e
+
+    # 3) 临界检查 + 计算
+    Tc, Pc, _omega = _CRITICAL_TABLE[cas]
+    is_water = cas == "7732-18-5"
+
+    if P is not None:
+        # P 给定 → 求 T_sat + h_fg
+        if P > Pc:
+            raise SaturationRangeError(
+                f"SATURATION P={P} Pa 超出 Pc={Pc} Pa（fluid={fluid} 超临界）",
+                details={"P": P, "Pc": Pc, "fluid": fluid},
+            )
+        if is_water:
+            T_sat = _water_Tsat(P)
+            h_fg = _water_h_fg_j_per_kg(T_sat)
+        else:
+            # T_sat：Wagner 牛顿反演
+            T_sat = _tsat_from_wagner(cas, P)
+            # h_fg：Wagner Psat(T_sat) → Clapeyron
+            Psat_at_T = _wagner_psat(cas, T_sat)
+            h_fg = _hydrocarbon_h_fg_j_per_kg(cas, T_sat, Psat_at_T)
+        return (T_sat, h_fg)
+
+    else:  # T is not None
+        # T 给定 → 求 P_sat + h_fg
+        if T > Tc:
+            raise SaturationRangeError(
+                f"SATURATION T={T} K 超出 Tc={Tc} K（fluid={fluid} 超临界）",
+                details={"T": T, "Tc": Tc, "fluid": fluid},
+            )
+        if is_water:
+            P_sat = _water_Psat(T)
+            h_fg = _water_h_fg_j_per_kg(T)
+        else:
+            P_sat = _wagner_psat(cas, T)
+            h_fg = _hydrocarbon_h_fg_j_per_kg(cas, T, P_sat)
+        return (P_sat, h_fg)
+
+
+def _tsat_from_wagner(cas: str, P: float) -> float:
+    """Wagner 方程牛顿反演求 T_sat（hydrocarbon 路径）。
+
+    复用 thermo_factory._WagnerBaseThermo.Tsat 的牛顿逻辑：初值 Tmin*0.9，
+    收敛容差 1 Pa。P 与 Psat 差 < 1 Pa 视为收敛。
+    """
+    from chemicals.vapor_pressure import dWagner_dT
+
+    Tc, Pc, a, b, c, d, _Tmin = _WAGNER_TABLE[cas]
+    T_guess = max(_TB_TABLE.get(cas, 300.0) * 0.9, 100.0)
+    for _ in range(50):
+        P_calc = _wagner_psat(cas, T_guess)
+        dPdT = dWagner_dT(T_guess, Tc, Pc, a, b, c, d)
+        if dPdT == 0:
+            break
+        err = P_calc - P
+        if abs(err) < 1.0:  # Pa — 1 Pa 是 Wagner 在 T_bubble 量级的精度
+            return T_guess
+        T_guess = T_guess - err / dPdT
+        if T_guess < 50.0:
+            T_guess = 50.0
+        if T_guess > Tc * 0.999:
+            T_guess = Tc * 0.999
+    return T_guess
+
+
 __all__ = [
     "PTFlashResult",
     "PT_FLASH",
@@ -338,5 +490,8 @@ __all__ = [
     "DEW_T",
     "PH_FLASH",
     "PS_FLASH",
+    "SATURATION",
     "FlashConvergenceError",
+    "SaturationInputError",
+    "SaturationRangeError",
 ]

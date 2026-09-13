@@ -1,0 +1,32 @@
+{
+  "_comment": "P4-1-2 step 3：SATURATION golden fixture。WATER @ 101325 Pa + PROPANE @ 300 K。固化时间：2026-09-14。",
+  "water_at_101325_Pa": {
+    "fluid": "WATER",
+    "P_Pa": 101325.0,
+    "T_sat_K": 373.12429584768347,
+    "h_fg_J_kg": 2256471.5924050626,
+    "tolerance": 0.005,
+    "notes": "首次固化来源：chemicals.iapws.iapws95_Tsat(101325.0) = 373.12429584768347 K；h_fg = T * (V_g - V_l) * dPsat/dT（Clapeyron 方程）= 40650.96754922308 J/mol → / MW(18.01528e-3 kg/mol) = 2256471.5924050626 J/kg。容差 0.5% 为 spec 验收口径。"
+  },
+  "propane_at_300K": {
+    "fluid": "PROPANE",
+    "T_K": 300.0,
+    "P_sat_Pa": 996905.6014872768,
+    "h_fg_J_kg": 434185.71484100824,
+    "tolerance": 0.01,
+    "notes": "首次固化来源：P_sat = chemicals.vapor_pressure.Wagner_original(300.0, 369.82, 4255760.0, ...) = 996905.6014872768 Pa（与 step1 BUBBLE_P=996905.6 Pa 一致）；h_fg = chemicals.phase_change.Clapeyron(300.0, _CRITICAL_TABLE[propane]=(Tc=369.89, Pc=4.2512e6), 1.0, Psat) → / _MW_TABLE[propane]=44.09562e-3 kg/mol = 434185.71 J/kg（SATURATION 实测）。Clapeyron 在 Tr<0.8 区 dZ=1 假设误差 < 3%。容差 1% 为 spec 验收口径。"
+  },
+  "water_P_T_mutually_exclusive": {
+    "fluid": "WATER",
+    "P_Pa": 101325.0,
+    "T_K": 373.0,
+    "expect_error": "SaturationInputError",
+    "notes": "P 和 T 同时给定 → 互斥约束触发 SaturationInputError。"
+  },
+  "water_above_critical": {
+    "fluid": "WATER",
+    "P_Pa": 25000000.0,
+    "expect_error": "SaturationRangeError",
+    "notes": "P > Pc(water)=22.064 MPa → 临界检查触发 SaturationRangeError。"
+  }
+}

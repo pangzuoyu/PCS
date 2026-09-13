@@ -26,8 +26,11 @@ from app.services.flash.flash_service import (
     PH_FLASH,
     PS_FLASH,
     PT_FLASH,
+    SATURATION,
     FlashConvergenceError,
     PTFlashResult,
+    SaturationInputError,
+    SaturationRangeError,
 )
 from app.services.flash.thermo_factory import (
     CompositionSumError,
@@ -470,5 +473,172 @@ def test_flash_service_module_exports_step2_symbols():
         "PH_FLASH",
         "PS_FLASH",
         "FlashConvergenceError",
+    }
+    assert required.issubset(set(dir(flash_service)))
+
+
+# ===========================================================================
+# P4-1-2 step 3：SATURATION 纯组分饱和 + golden
+# ===========================================================================
+
+# Golden fixture 加载
+_SAT_FIXTURE = Path(__file__).parent / "fixtures" / "golden_saturation.json"
+GOLDEN_SAT = json.loads(_SAT_FIXTURE.read_text(encoding="utf-8"))
+
+
+# ---------------------------------------------------------------------------
+# 1) WATER @ 101325 Pa — golden (T_sat + h_fg)
+# ---------------------------------------------------------------------------
+
+
+def test_saturation_water_at_101325_Pa_matches_golden():
+    """SATURATION("WATER", P=101325)：T_sat ≈ 373.12 K，h_fg ≈ 2.256e6 J/kg（容差 0.5%）。"""
+    golden = GOLDEN_SAT["water_at_101325_Pa"]
+    T_sat, h_fg = SATURATION(golden["fluid"], P=golden["P_Pa"])
+    # T_sat：0.5% 相对容差 → spec 验收口径
+    assert math.isclose(T_sat, golden["T_sat_K"], rel_tol=golden["tolerance"])
+    # h_fg：0.5% 相对容差
+    assert math.isclose(h_fg, golden["h_fg_J_kg"], rel_tol=golden["tolerance"])
+
+
+def test_saturation_water_at_101325_Pa_t_sat_close_to_373_12():
+    """直接断言 T_sat ≈ 373.12 K（spec 验收口径）。"""
+    T_sat, _ = SATURATION("WATER", P=101325.0)
+    assert math.isclose(T_sat, 373.12, abs_tol=2.0)  # ~0.5%
+
+
+# ---------------------------------------------------------------------------
+# 2) PROPANE @ 300 K — golden (P_sat + h_fg)
+# ---------------------------------------------------------------------------
+
+
+def test_saturation_propane_at_300K_matches_golden():
+    """SATURATION("PROPANE", T=300)：P_sat 接近 step1 BUBBLE_P=996905.6 Pa（< 1%）。"""
+    golden = GOLDEN_SAT["propane_at_300K"]
+    P_sat, h_fg = SATURATION(golden["fluid"], T=golden["T_K"])
+    # P_sat：相对容差 1%（step1 BUBBLE_P=996905.6 Pa 为基准）
+    assert math.isclose(P_sat, 996905.6, rel_tol=0.01)
+    # h_fg：相对容差 1%（step1 golden h_fg≈4.2e5 J/kg）
+    assert math.isclose(h_fg, golden["h_fg_J_kg"], rel_tol=golden["tolerance"])
+
+
+# ---------------------------------------------------------------------------
+# 3) 互斥输入：P 和 T 都给 → raise SaturationInputError
+# ---------------------------------------------------------------------------
+
+
+def test_saturation_P_and_T_both_given_raises_input_error():
+    """P 和 T 都给 → SaturationInputError（互斥）。"""
+    with pytest.raises(SaturationInputError) as exc_info:
+        SATURATION("WATER", P=101325.0, T=373.0)
+    assert exc_info.value.code == "SATURATION_INPUT_ERROR"
+    assert exc_info.value.status == 422
+    assert isinstance(exc_info.value, PcsError)
+
+
+# ---------------------------------------------------------------------------
+# 4) 缺输入：两者都不给 → raise SaturationInputError
+# ---------------------------------------------------------------------------
+
+
+def test_saturation_neither_P_nor_T_raises_input_error():
+    """P 和 T 都不给 → SaturationInputError。"""
+    with pytest.raises(SaturationInputError) as exc_info:
+        SATURATION("WATER")
+    assert exc_info.value.code == "SATURATION_INPUT_ERROR"
+
+
+# ---------------------------------------------------------------------------
+# 5) 超临界：water @ P > Pc (22.064 MPa) → raise SaturationRangeError
+# ---------------------------------------------------------------------------
+
+
+def test_saturation_water_above_critical_P_raises_range_error():
+    """water @ P=25e6 Pa > Pc=22.064 MPa → SaturationRangeError。"""
+    with pytest.raises(SaturationRangeError) as exc_info:
+        SATURATION("WATER", P=25.0e6)
+    assert exc_info.value.code == "SATURATION_OUT_OF_RANGE"
+    assert exc_info.value.status == 422
+    assert isinstance(exc_info.value, PcsError)
+
+
+def test_saturation_water_above_critical_T_raises_range_error():
+    """water @ T > Tc=647.096 K → SaturationRangeError（T 给定路径同样检查）。"""
+    with pytest.raises(SaturationRangeError):
+        SATURATION("WATER", T=700.0)
+
+
+# ---------------------------------------------------------------------------
+# 6) 未知流体：fluid="UNKNOWN" → raise SaturationInputError
+# ---------------------------------------------------------------------------
+
+
+def test_saturation_unknown_fluid_raises_input_error():
+    """fluid="UNKNOWN"（既不在 name 表也不在 CAS 表）→ SaturationInputError。"""
+    with pytest.raises(SaturationInputError) as exc_info:
+        SATURATION("UNKNOWN")
+    assert exc_info.value.code == "SATURATION_INPUT_ERROR"
+
+
+def test_saturation_accepts_cas_string():
+    """SATURATION 接受 CAS 号字符串（如 "74-98-6"）而不只是 fluid 名。"""
+    P_sat, h_fg = SATURATION("74-98-6", T=300.0)
+    assert P_sat > 0.0
+    assert h_fg > 0.0
+
+
+# ---------------------------------------------------------------------------
+# 7) 反向 roundtrip：WATER @ 101325 Pa → T；再 T → P 应等于 101325 Pa
+# ---------------------------------------------------------------------------
+
+
+def test_saturation_water_roundtrip_P_to_T_to_P():
+    """WATER 反向 roundtrip：P=101325 → T_sat；再 T_sat → P_sat 应等于 101325（< 1e-2 Pa）。"""
+    P_in = 101325.0
+    T_sat, _ = SATURATION("WATER", P=P_in)
+    P_back, _ = SATURATION("WATER", T=T_sat)
+    assert math.isclose(P_back, P_in, abs_tol=1e-2)
+
+
+def test_saturation_propane_roundtrip_T_to_P_to_T():
+    """PROPANE 反向 roundtrip：T=300 K → P_sat；再 P_sat → T_sat 应等于 300 K。"""
+    T_in = 300.0
+    P_sat, _ = SATURATION("PROPANE", T=T_in)
+    T_back, _ = SATURATION("PROPANE", P=P_sat)
+    assert math.isclose(T_back, T_in, abs_tol=1e-2)
+
+
+# ---------------------------------------------------------------------------
+# 8) SaturationInputError / SaturationRangeError 异常体系
+# ---------------------------------------------------------------------------
+
+
+def test_saturation_input_error_inherits_pcs_error():
+    """SaturationInputError 继承 PcsError（422 风格）。"""
+    assert issubclass(SaturationInputError, PcsError)
+    err = SaturationInputError("test")
+    assert err.code == "SATURATION_INPUT_ERROR"
+    assert err.status == 422
+
+
+def test_saturation_range_error_inherits_pcs_error():
+    """SaturationRangeError 继承 PcsError（422 风格）。"""
+    assert issubclass(SaturationRangeError, PcsError)
+    err = SaturationRangeError("test")
+    assert err.code == "SATURATION_OUT_OF_RANGE"
+    assert err.status == 422
+
+
+# ---------------------------------------------------------------------------
+# 9) 模块导出检查（step 3 扩展）
+# ---------------------------------------------------------------------------
+
+
+def test_flash_service_module_exports_step3_symbols():
+    """step 3 模块导出：SATURATION + 2 个新异常。"""
+    required = {
+        "SATURATION",
+        "SaturationInputError",
+        "SaturationRangeError",
     }
     assert required.issubset(set(dir(flash_service)))
