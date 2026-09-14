@@ -208,7 +208,9 @@ def test_calc_chain_transition_segment_warning_propagates_to_chain():
     # P4-2-5 聚合
     assert res.flow_regimes[0] == "TRANSITION"
     assert res.flow_regimes[1] == "TURBULENT"
-    assert res.confidence == "MEDIUM"  # 段 1 TRANSITION → MEDIUM
+    # P4-2-3 R1 fix：段 1 TRANSITION (Re<4000) → confidence=LOW 拖累链整体 → LOW
+    # （Crane K 表 Re 区间外；任一 LOW → 整体 LOW）
+    assert res.confidence == "LOW"
     assert res.check_result == "WARNING"
     assert res.check_result_reason == "TRANSITION_REGIME"
     # 单段 Re 校验

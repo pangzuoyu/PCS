@@ -1,6 +1,6 @@
 {
-  "_comment": "P4-2-3 PressureDropService golden fixture。固化时间：2026-09-14。",
-  "_source": "Darcy-Weisbach + Colebrook-White（brentq 求解）+ Crane TP-410 fittings K 值表。",
+  "_comment": "P4-2-3 PressureDropService golden fixture。固化时间：2026-09-15（P4-2-3 R1 fix）。",
+  "_source": "Darcy-Weisbach + Colebrook-White（brentq 求解）+ Crane TP-410 fittings K 值表；过渡区 R1 fix 改线性插值 [2320, 4000]。",
   "_comment_calc": "单段直管：L=10m, D=0.05m, ρ=1000 kg/m³, μ=1e-3 Pa·s, Q=0.001 m³/s, ε=4.5e-5 m（碳钢使用中）。",
   "single_straight_water": {
     "L_m": 10.0,
@@ -13,7 +13,51 @@
     "reynolds": 25464.79,
     "friction_factor": 0.026504,
     "tolerance": 0.01,
-    "notes": "手算：A=π×0.05²/4=0.001963 m²；v=Q/A=0.001/0.001963=0.5093 m/s；Re=ρvD/μ=1000×0.5093×0.05/1e-3=25464.79（湍流）；ε/D=4.5e-5/0.05=0.0009；f=Colebrook brentq 求解=0.026504；dp=f·(L/D)·(ρv²/2)=0.026504×10/0.05×(1000×0.5093²/2)=0.026504×200×129.65=687.4643 Pa。"
+    "flow_regime": "TURBULENT",
+    "friction_formula": "Colebrook_迭代（brentq）",
+    "formula_applicable_re": "Re > 4000（湍流区）",
+    "formula_deviation_pct": "<0.1（Crane TP-410 标准精度）",
+    "confidence": "HIGH",
+    "check_result": "PASS",
+    "notes": "手算：A=π×0.05²/4=0.001963 m²；v=Q/A=0.001/0.001963=0.5093 m/s；Re=ρvD/μ=1000×0.5093×0.05/1e-3=25464.79（湍流）；ε/D=4.5e-5/0.05=0.0009；f=Colebrook brentq 求解=0.026504；dp=f·(L/D)·(ρv²/2)=0.026504×10/0.05×(1000×0.5093²/2)=0.026504×200×129.65=687.4643 Pa。R1 fix 阈值：Re≥10000→confidence=HIGH。"
+  },
+  "transition_water_at_Re_3000": {
+    "_comment": "R1 fix：过渡区 f 线性插值 [2320, 4000] 验证用例。",
+    "L_m": 10.0,
+    "D_m": 0.05,
+    "rho": 1000.0,
+    "mu": 0.04,
+    "Q_m3s": 4.7124e-3,
+    "roughness_m": 4.5e-5,
+    "target_reynolds": 3000.0,
+    "flow_regime": "TRANSITION",
+    "friction_formula": "线性插值 [2320, 4000]",
+    "formula_applicable_re": "2000 ≤ Re ≤ 4000",
+    "formula_expression": "f = f_lam + α × (f_turb - f_lam); α = (Re - 2320) / (4000 - 2320); f_lam = 64/Re; f_turb = Colebrook(Re)",
+    "formula_deviation_pct": "<2（Colebrook 在过渡区本身误差 ±5%；插值提供数值连续性 + f 平滑过渡）",
+    "check_result": "WARNING",
+    "check_result_reason": "TRANSITION_REGIME",
+    "confidence": "LOW",
+    "confidence_rationale": "R1 fix：Re<4000 → confidence=LOW（Crane K 表 Re 区间外；无论 f 多准）",
+    "notes": "设计：v = Re·μ/(ρD) = 3000×0.04/(1000×0.05) = 2.4 m/s → Q = v×A = 2.4×π×0.05²/4 = 4.7124e-3。Re=3000 落在 [2320, 4000] 内：α=0.405；f_lam=64/3000=0.02133；f_turb=Colebrook(3000)≈0.02726；f=0.02133+0.405×(0.02726-0.02133)≈0.02366。"
+  },
+  "laminar_water_at_Re_1000": {
+    "_comment": "R1 fix：LAMINAR f=64/Re 解析公式显式断言 + 未调用 Colebrook。",
+    "L_m": 10.0,
+    "D_m": 0.05,
+    "rho": 1000.0,
+    "mu": 0.12,
+    "Q_m3s": 4.7124e-3,
+    "roughness_m": 4.5e-5,
+    "target_reynolds": 1000.0,
+    "flow_regime": "LAMINAR",
+    "friction_formula": "解析公式 f = 64/Re（Hagen-Poiseuille）",
+    "formula_applicable_re": "Re < 2000",
+    "formula_deviation_pct": "0（解析精确，无迭代误差）",
+    "check_result": "PASS",
+    "confidence": "LOW",
+    "confidence_rationale": "R1 fix：Re<4000 → confidence=LOW（Crane K 表 Re 区间外）",
+    "notes": "设计：v = Re·μ/(ρD) = 1000×0.12/(1000×0.05) = 2.4 m/s → Q = v×A = 2.4×π×0.05²/4 = 4.7124e-3。f=64/1000=0.064。Mock 验证：LAMINAR 分支不调用 _colebrook_f。"
   },
   "routing_threshold": {
     "ratio_incompressible_max": 0.0999,
@@ -25,5 +69,27 @@
     "GAS": "default air (ρ=10, μ=1e-5)",
     "STEAM": "default saturated steam (ρ=10, μ=1e-5)",
     "TWO_PHASE": "需 P4-2-4 处理；P4-2-3 入口若 fluid_phase='TWO_PHASE' → 标记 need_two_phase=True 直接路由"
+  },
+  "r1_fix_summary": {
+    "date": "2026-09-15",
+    "scope": "P4-2-3 R1 fix additive 精度护栏升级（不动 P4-2-5 已落地契约）",
+    "transition_f_strategy": "Colebrook 迭代 → 线性插值 [2320, 4000]（f_lam + α × (f_turb - f_lam)）",
+    "confidence_threshold_old": {
+      "HIGH": "TURBULENT + Re > 10000",
+      "MEDIUM": "TRANSITION 或 Re ∈ (4000, 10000]",
+      "LOW": "LAMINAR"
+    },
+    "confidence_threshold_new": {
+      "HIGH": "Re ≥ 10000（Crane K 表完全适用 + f Colebrook 高精度）",
+      "MEDIUM": "Re ∈ [4000, 10000)（过渡区尾部湍流；f 适用但 K 表部分适用）",
+      "LOW": "Re < 4000（Crane K 表 Re 区间外；无论 f 多准 → LOW）"
+    },
+    "p4_2_5_unchanged": [
+      "pipe_chain_service.py / pipe_chain_persist.py 透传 confidence 不变",
+      "fitings K 表数值不变（Crane TP-410 固定）",
+      "get_fitting_k 签名（diameter_m + reynolds）不变",
+      "PressureDropResult dataclass 字段集不变",
+      "TWO_PHASE 短路 + 路由 ΔP/P₁ ≥ 10% 逻辑不变"
+    ]
   }
 }

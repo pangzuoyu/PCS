@@ -7,13 +7,23 @@ P4-2-5 扩展（流态分支 + confidence 字段；不改 Colebrook / K 表数�
 - K 表 reynolds_applicable 标注（v2 schema 嵌套对象）；get_fitting_k
   签名预留 Re 参数（P5+ 接入 Hooper 2-K / Darby 3-K 时改内部）
 
+R1 fix（additive 精度护栏升级；不改 P4-2-5 已落地契约）：
+- 过渡区 f 策略：Colebrook 迭代 → 线性插值 [2320, 4000]（f_lam=64/Re 与
+  f_turb=Colebrook 之间；外推 Re<2320 时沿公式自然趋近 64/Re）
+- confidence 阈值收紧：Re<4000 → LOW（Crane K 表 Re 区间外；无论 f 多准）；
+  Re∈[4000, 10000) → MEDIUM；Re≥10000 → HIGH（Crane K 表完全适用）
+- P4-2-5 透传语义零变更：pipe_chain_service 链式 confidence 聚合规则不变
+
 公式：
 - Darcy-Weisbach 直管摩阻：ΔP_friction = f × (L/D) × (ρ × v²/2)
-- 摩擦系数 f：Colebrook-White 隐式方程，brentq 求解
+- 摩擦系数 f：
+  LAMINAR (Re<2000) → f = 64/Re（解析精确）
+  TRANSITION (2000≤Re≤4000) → 线性插值 [2320, 4000]：
+    f_lam = 64/Re, f_turb = Colebrook(Re),
+    α = (Re - 2320) / (4000 - 2320),
+    f = f_lam + α × (f_turb - f_lam)
+  TURBULENT (Re>4000) → Colebrook-White 隐式 brentq 求解
   1/√f = -2 log10(ε/(3.7D) + 2.51/(Re√f))，Re = ρvD/μ
-  LAMINAR (Re<2000) → f = 64/Re
-  TRANSITION (2000≤Re≤4000) → Colebrook（f 在湍流区迭代；不准确但代码可重复）
-  TURBULENT (Re>4000) → Colebrook 求解
 - fittings 局部阻力：ΔP_fittings = (ΣK_i) × ρ × v²/2
 - Colebrook 求解复用 sizing_service._colebrook_f（P4-2-1 已实现，本模块不重复造轮子）
 
@@ -204,16 +214,20 @@ _RE_HI: Final[float] = 1.0e8
 
 # P4-2-5：3 态流场边界
 # - LAMINAR:  Re < 2000（Crane TP-410 + White, "Viscous Fluid Flow" 第 3 版 §3-3）
-# - TRANSITION: 2000 ≤ Re ≤ 4000（强制 Colebrook + check=WARNING；非稳态）
+# - TRANSITION: 2000 ≤ Re ≤ 4000（线性插值 [2320, 4000] + check=WARNING；非稳态）
 # - TURBULENT: Re > 4000（Crane TP-410 标准湍流范围下限）
 _RE_LAMINAR_MAX: Final[float] = 2000.0
+# R1 fix: 过渡区 f 线性插值下限（Nikuradse 物理临界 Re；Re<2320 时沿插值公式
+# 外推 → 趋近 64/Re，不退化）
+_RE_TRANSITION_LO: Final[float] = 2320.0
 _RE_TRANSITION_HI: Final[float] = 4000.0
 
-# P4-2-5：confidence 聚合阈值
-# - HIGH: TURBULENT + Re > 10000（f 公式 + K 表 Crane 全适用）
-# - MEDIUM: TRANSITION 或 Re ∈ (4000, 10000]（过渡区 / 低湍流；f 适用但 K 表部分适用）
-# - LOW: LAMINAR（f 公式精确 64/Re，但 Crane K 表 Re 区间外）
+# R1 fix: confidence 阈值（Crane K 表 Re 适用度决定性因素；f 精度次要）
+# - HIGH: Re ≥ 10000（Crane K 表完全适用 + f Colebrook 高精度）
+# - MEDIUM: Re ∈ [4000, 10000)（过渡区尾部湍流；f 适用但 K 表部分适用）
+# - LOW: Re < 4000（Crane K 表 Re 区间外，无论 f 多准）
 _RE_CONFIDENCE_HIGH_MIN: Final[float] = 10_000.0
+_RE_CONFIDENCE_LOW_MAX: Final[float] = 4000.0
 
 
 # 默认物性（按 fluid_phase；与 sizing_service 对齐）
@@ -255,20 +269,66 @@ def _classify_flow_regime(Re: float) -> FlowRegime3:
 def _classify_confidence(
     regime: FlowRegime3, Re: float
 ) -> PressureDropConfidence:
-    """流态 + Re → confidence（P4-2-5）。
+    """流态 + Re → confidence（R1 fix）。
 
-    - HIGH: TURBULENT + Re > 10000
-    - MEDIUM: TRANSITION 或 Re ∈ (4000, 10000]
-    - LOW: LAMINAR（Crane K 表 Re 区间外）
+    R1 fix：Crane K 表 Re 适用度为决定性因素（f 精度次要）。
+    - HIGH: Re ≥ 10000（Crane K 表完全适用 + f Colebrook 高精度）
+    - MEDIUM: Re ∈ [4000, 10000)（过渡区尾部湍流；f 适用但 K 表部分适用）
+    - LOW: Re < 4000（Crane K 表 Re 区间外；无论 f 多准 → LOW）
+
+    说明：TRANSITION（无论 Re 在 [2000, 4000] 哪个位置）→ LOW（Crane K 不可信）。
     """
-    if regime == "LAMINAR":
+    if Re < _RE_CONFIDENCE_LOW_MAX:
         return "LOW"
-    if regime == "TRANSITION":
-        return "MEDIUM"
-    # TURBULENT
-    if Re > _RE_CONFIDENCE_HIGH_MIN:
+    if Re >= _RE_CONFIDENCE_HIGH_MIN:
         return "HIGH"
     return "MEDIUM"
+
+
+def _transition_friction_factor(
+    reynolds: float,
+    D_m: float,
+    v_ms: float,
+    rho: float,
+    mu: float,
+    eps_m: float,
+) -> float:
+    """过渡区 f 线性插值 [2320, 4000]（R1 fix）。
+
+    公式：
+        f_lam = 64 / Re（层流解析精确）
+        f_turb = _colebrook_f(...)（湍流区 Colebrook brentq 迭代）
+        α = (Re - 2320) / (4000 - 2320)
+        f = f_lam + α × (f_turb - f_lam)
+
+    说明：
+    - Re ∈ [2320, 4000] 区间内严格线性插值
+    - Re < 2320 时沿公式外推（α<0；f→f_lam=64/Re 自然趋近）
+    - 区间外推范围 [2000, 2320] 仍可用，docstring 注明非严格物理定义；
+      物理上 Nikuradse 临界 Re≈2320，故该区间插值仅作平滑过渡近似
+    - 保证：Re=2320 时 f=f_lam=64/2320；Re=4000 时 f=f_turb（连续过渡）
+
+    Args:
+        reynolds: 雷诺数 Re（应满足 2000 ≤ Re ≤ 4000；外推可放宽）
+        D_m: 管径 (m)
+        v_ms: 流速 (m/s)
+        rho: 流体密度 (kg/m³)
+        mu: 动力粘度 (Pa·s)
+        eps_m: 绝对粗糙度 (m)
+
+    Returns:
+        Darcy 摩擦系数 f
+    """
+    f_lam = 64.0 / reynolds
+    f_turb = _colebrook_f(
+        D_m=D_m,
+        v_ms=v_ms,
+        rho=rho,
+        mu=mu,
+        eps_m=eps_m,
+    )
+    alpha = (reynolds - _RE_TRANSITION_LO) / (_RE_TRANSITION_HI - _RE_TRANSITION_LO)
+    return f_lam + alpha * (f_turb - f_lam)
 
 
 def _classify_check(regime: FlowRegime3) -> tuple[PressureDropCheck, str | None]:
@@ -424,9 +484,12 @@ def calc_pressure_drop(
 
     P4-2-5 流态 + confidence + check_result：
     - LAMINAR (Re<2000) → f=64/Re；confidence=LOW（Crane K 表 Re 区间外）
-    - TRANSITION (2000≤Re≤4000) → Colebrook；check_result=WARNING
-      (reason="TRANSITION_REGIME")；confidence=MEDIUM
-    - TURBULENT (Re>4000) → Colebrook；Re>10000 → confidence=HIGH；否则 MEDIUM
+    - TRANSITION (2000≤Re≤4000) → f=线性插值 [2320, 4000]；
+      check_result=WARNING (reason="TRANSITION_REGIME")；confidence=LOW
+      （R1 fix：Crane K 表 Re<4000 不可信，无论 f 精度如何）
+    - TURBULENT (Re>4000) → Colebrook；
+      Re≥10000 → confidence=HIGH；
+      Re∈[4000, 10000) → confidence=MEDIUM
 
     Args:
         seg: 管道段（直管 + fittings 集合 + 流体物性）
@@ -530,10 +593,20 @@ def calc_pressure_drop(
 
     # 摩擦系数 f
     if flow_regime == "LAMINAR":
+        # 层流：f = 64/Re 解析精确（Crane TP-410 + White §3-3）
         f = 64.0 / Re
+    elif flow_regime == "TRANSITION":
+        # R1 fix：过渡区 f 线性插值 [2320, 4000]（保证数值连续性 + f 平滑过渡）
+        f = _transition_friction_factor(
+            reynolds=Re,
+            D_m=seg.D_m,
+            v_ms=v,
+            rho=seg.fluid_density,
+            mu=seg.fluid_viscosity,
+            eps_m=seg.roughness_m,
+        )
     else:
-        # TRANSITION + TURBULENT 共用 Colebrook（f 在湍流区迭代；TRANSITION
-        # 不准确但代码可重复 — P4-2-5 测试用 1e-2 容差）
+        # TURBULENT：Colebrook 隐式 brentq 求解（复用 sizing_service）
         f = _colebrook_f(
             D_m=seg.D_m,
             v_ms=v,

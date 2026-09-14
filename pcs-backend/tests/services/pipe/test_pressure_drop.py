@@ -21,6 +21,7 @@ from __future__ import annotations
 import json
 import math
 from pathlib import Path
+from unittest.mock import patch
 
 import pytest
 
@@ -339,7 +340,8 @@ def test_load_fittings_k_default_returns_all_types():
 
 
 def test_calc_pressure_drop_transition_regime_warning():
-    """过渡区（2000≤Re≤4000）：f=Colebrook；check_result=WARNING(reason="TRANSITION_REGIME")。
+    """过渡区（2000≤Re≤4000）：f=线性插值 [2320, 4000]；check_result=WARNING
+    (reason="TRANSITION_REGIME")；confidence=LOW（Crane K 表 Re<4000 不可信）。
 
     Re≈3000 设计：D=0.05, Q=6e-4 → v=0.3056 → Re=15278 → 实际太高。重新选：
     油 μ=0.05 Pa·s, D=0.05, Q=2.0e-3 → v=1.019 → Re=ρvD/μ=1000×1.019×0.05/0.05=1019 (层流)
@@ -348,11 +350,11 @@ def test_calc_pressure_drop_transition_regime_warning():
     用油 μ=0.05，D=0.05, Q=4.8e-3 → v=2.44 → Re=2444（接近过渡区下限）
     为 Re≈3000：D=0.05, ρ=1000, μ=0.04, Q=3.84e-3 → v=1.957 → Re=2446
     实际 D=0.05 ρ=1000 v=Q/(π×0.05²/4)=Q/0.001963
-    目标 Re=3000：v = Re·μ/(ρD) = 3000×0.04/(1000×0.05) = 2.4 m/s → Q=2.4×0.001963=4.71e-3
+    目标 Re=3000：v = Re·μ/(ρD) = 3000×0.04/(1000×0.05) = 2.4 m/s → Q=2.4×0.001963=4.7124e-3
     """
     seg = _make_straight_segment(
         fluid_viscosity=0.04,  # 油
-        flow_rate_m3s=4.71e-3,  # → v=2.4, Re=3000
+        flow_rate_m3s=4.7124e-3,  # → v=2.4, Re=3000（精确）
     )
     P1 = 200_000.0
     res = calc_pressure_drop(seg, P1_pa=P1, fluid_phase="LIQUID")
@@ -360,8 +362,115 @@ def test_calc_pressure_drop_transition_regime_warning():
     assert res.flow_regime == "TRANSITION"
     assert res.check_result == "WARNING"
     assert res.check_result_reason == "TRANSITION_REGIME"
-    # P4-2-5: TRANSITION → confidence=MEDIUM
-    assert res.confidence == "MEDIUM"
+    # R1 fix: TRANSITION (Re<4000) → confidence=LOW（Crane K 表不可信）
+    assert res.confidence == "LOW"
+
+
+def test_calc_pressure_drop_transition_linear_interpolation_at_Re_3000():
+    """R1 fix: 过渡区（Re∈[2320,4000]）f 线性插值 [2320, 4000] 公式验证。
+
+    公式：
+        f_lam = 64 / Re
+        f_turb = _colebrook_f(Re)  # 湍流区 Colebrook 迭代
+        α = (Re - 2320) / (4000 - 2320)
+        f = f_lam + α × (f_turb - f_lam)
+    """
+    from app.services.pipe.sizing_service import _colebrook_f
+
+    seg = _make_straight_segment(
+        fluid_viscosity=0.04,  # 油
+        flow_rate_m3s=4.7124e-3,  # → v=2.4, Re=3000（精确）
+    )
+    P1 = 200_000.0
+    res = calc_pressure_drop(seg, P1_pa=P1, fluid_phase="LIQUID")
+
+    assert res.flow_regime == "TRANSITION"
+    assert res.reynolds == pytest.approx(3000.0, abs=2.0)
+
+    # 手算 f_lam, f_turb, 期望 f
+    Re = res.reynolds
+    v = seg.flow_rate_m3s / (math.pi * seg.D_m ** 2 / 4.0)
+    f_lam = 64.0 / Re
+    f_turb = _colebrook_f(
+        D_m=seg.D_m,
+        v_ms=v,
+        rho=seg.fluid_density,
+        mu=seg.fluid_viscosity,
+        eps_m=seg.roughness_m,
+    )
+    alpha = (Re - 2320.0) / (4000.0 - 2320.0)
+    f_expected = f_lam + alpha * (f_turb - f_lam)
+
+    assert math.isclose(res.friction_factor, f_expected, rel_tol=1e-6)
+    # R1 fix: Re<4000 → confidence=LOW
+    assert res.confidence == "LOW"
+    assert res.check_result == "WARNING"
+    assert res.check_result_reason == "TRANSITION_REGIME"
+
+
+def test_calc_pressure_drop_transition_linear_interpolation_at_Re_2500():
+    """R1 fix: Re=2500（接近过渡区下限）仍在线性插值区间；α 较小 → f 接近 64/Re。"""
+    from app.services.pipe.sizing_service import _colebrook_f
+
+    # 目标 Re=2500：D=0.05, ρ=1000, μ=0.048 → v = 2500×0.048/(1000×0.05)=2.4 m/s
+    # Q = v × A = 2.4 × π×0.05²/4 = 2.4×0.001963=4.7124e-3（与 Re=3000 同 Q 不同 μ）
+    seg = _make_straight_segment(
+        fluid_viscosity=0.048,  # 油
+        flow_rate_m3s=4.7124e-3,  # → v=2.4, Re=2500（精确）
+    )
+    P1 = 200_000.0
+    res = calc_pressure_drop(seg, P1_pa=P1, fluid_phase="LIQUID")
+
+    assert res.flow_regime == "TRANSITION"
+    assert res.reynolds == pytest.approx(2500.0, abs=2.0)
+
+    Re = res.reynolds
+    v = seg.flow_rate_m3s / (math.pi * seg.D_m ** 2 / 4.0)
+    f_lam = 64.0 / Re
+    f_turb = _colebrook_f(
+        D_m=seg.D_m,
+        v_ms=v,
+        rho=seg.fluid_density,
+        mu=seg.fluid_viscosity,
+        eps_m=seg.roughness_m,
+    )
+    alpha = (Re - 2320.0) / (4000.0 - 2320.0)
+    f_expected = f_lam + alpha * (f_turb - f_lam)
+
+    assert math.isclose(res.friction_factor, f_expected, rel_tol=1e-6)
+    assert res.confidence == "LOW"
+
+
+def test_calc_pressure_drop_laminar_no_colebrook_call():
+    """R1 fix: LAMINAR (Re<2000) f=64/Re，不调用 Colebrook（mock 验证）。"""
+    seg = _make_straight_segment(
+        flow_rate_m3s=1.0e-5,  # → Re≈254（LAMINAR）
+    )
+    P1 = 200_000.0
+    with patch(
+        "app.services.pipe.pressure_drop_service._colebrook_f"
+    ) as mock_cole:
+        res = calc_pressure_drop(seg, P1_pa=P1, fluid_phase="LIQUID")
+        mock_cole.assert_not_called()
+
+    assert res.flow_regime == "LAMINAR"
+    assert math.isclose(res.friction_factor, 64.0 / res.reynolds, rel_tol=1e-12)
+    assert res.confidence == "LOW"
+
+
+def test_calc_pressure_drop_laminar_explicit_f_64_over_Re():
+    """LAMINAR f 显式断言：f = 64/Re 精确成立（解析公式，不依赖任何迭代）。"""
+    # Re=1000 (lower-bound safe): D=0.05, ρ=1000, μ=0.12 → v=Re·μ/(ρD)=2.4 → Q=4.7124e-3
+    seg = _make_straight_segment(
+        fluid_viscosity=0.12,  # 高粘度油
+        flow_rate_m3s=4.7124e-3,  # → Re=1000（精确）
+    )
+    P1 = 200_000.0
+    res = calc_pressure_drop(seg, P1_pa=P1, fluid_phase="LIQUID")
+    assert res.flow_regime == "LAMINAR"
+    assert res.reynolds == pytest.approx(1000.0, abs=2.0)
+    assert math.isclose(res.friction_factor, 64.0 / res.reynolds, rel_tol=1e-12)
+    assert res.confidence == "LOW"
 
 
 def test_calc_pressure_drop_turbulent_medium_confidence():
