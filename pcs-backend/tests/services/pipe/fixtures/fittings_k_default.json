@@ -1,0 +1,15 @@
+{
+  "_comment": "P4-2-3 PipePressureDropService fittings K 值默认表。",
+  "_source": "Crane TP-410 / Idelchik 'Handbook of Hydraulic Resistance' 第 4 版表 5-7 / 6-1（K = ζ 无量纲局部阻力系数）；本表为常用管件默认值。",
+  "_units": "K 无量纲（局部损失系数 h_L = K · v²/2g）。",
+  "elbow_90": 0.9,
+  "elbow_45": 0.4,
+  "tee_branch": 1.0,
+  "tee_through": 0.2,
+  "valve_gate": 0.15,
+  "valve_ball": 0.05,
+  "reducer": 0.5,
+  "expander": 0.6,
+  "entrance": 0.5,
+  "exit": 1.0
+}

@@ -1,0 +1,29 @@
+{
+  "_comment": "P4-2-3 PressureDropService golden fixture。固化时间：2026-09-14。",
+  "_source": "Darcy-Weisbach + Colebrook-White（brentq 求解）+ Crane TP-410 fittings K 值表。",
+  "_comment_calc": "单段直管：L=10m, D=0.05m, ρ=1000 kg/m³, μ=1e-3 Pa·s, Q=0.001 m³/s, ε=4.5e-5 m（碳钢使用中）。",
+  "single_straight_water": {
+    "L_m": 10.0,
+    "D_m": 0.05,
+    "rho": 1000.0,
+    "mu": 1.0e-3,
+    "Q_m3s": 0.001,
+    "roughness_m": 4.5e-5,
+    "dp_friction_pa": 687.4643,
+    "reynolds": 25464.79,
+    "friction_factor": 0.026504,
+    "tolerance": 0.01,
+    "notes": "手算：A=π×0.05²/4=0.001963 m²；v=Q/A=0.001/0.001963=0.5093 m/s；Re=ρvD/μ=1000×0.5093×0.05/1e-3=25464.79（湍流）；ε/D=4.5e-5/0.05=0.0009；f=Colebrook brentq 求解=0.026504；dp=f·(L/D)·(ρv²/2)=0.026504×10/0.05×(1000×0.5093²/2)=0.026504×200×129.65=687.4643 Pa。"
+  },
+  "routing_threshold": {
+    "ratio_incompressible_max": 0.0999,
+    "ratio_two_phase_min": 0.1001,
+    "notes": "ΔP/P₁ < 10% → 不可压缩近似（need_two_phase=False）；ΔP/P₁ ≥ 10% → 路由至 P4-2-4 两相计算（need_two_phase=True）。阈值 10% 是工程经验（Crane TP-410 + Perry's Chemical Engineers' Handbook 第 8 版 §6-18）。"
+  },
+  "fluid_phase_inputs": {
+    "LIQUID": "default water (ρ=1000, μ=1e-3)",
+    "GAS": "default air (ρ=10, μ=1e-5)",
+    "STEAM": "default saturated steam (ρ=10, μ=1e-5)",
+    "TWO_PHASE": "需 P4-2-4 处理；P4-2-3 入口若 fluid_phase='TWO_PHASE' → 标记 need_two_phase=True 直接路由"
+  }
+}
