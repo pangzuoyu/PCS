@@ -474,6 +474,15 @@ async def test_piping_results_pipe_chain_roundtrip_all_columns() -> None:
     res = calc_chain(inp)
 
     # 最小 Project + Workspace + Stream 落库前置（与 test_pipe_chain 同模式）
+    # FK 链：Workspace.project_id ↔ Project.workspace_id（Project 一侧
+    # use_alter=True 破建表循环，但 INSERT 仍立即检查） +
+    # piping_results.material_class → pipe_classes.class_id（persist 硬编码
+    # 'CS-STD'）。
+    # INSERT 顺序：Workspace（project_id NULL）→ Project（workspace_id 引用）
+    # → Workspace.project_id 回填 → CS-STD PipeClass → Stream。
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    from app.models.config_domain import PipeClass
     from app.models.enums import StreamSignStatus
     from app.models.project import Project, Stream, Workspace
 
@@ -482,7 +491,7 @@ async def test_piping_results_pipe_chain_roundtrip_all_columns() -> None:
         ws = Workspace(
             workspace_id=workspace_id,
             workspace_type="FORMAL",
-            project_id=project_id,
+            project_id=None,  # 先 NULL；Project 落库后回填（FK 可空）
             name="t",
         )
         session.add(ws)
@@ -499,6 +508,37 @@ async def test_piping_results_pipe_chain_roundtrip_all_columns() -> None:
             status="ACTIVE",
             workspace_id=ws.workspace_id,
         )
+        session.add(proj)
+        await session.flush()
+        ws.project_id = project_id  # 回填 Workspace→Project FK（可空）
+        await session.flush()
+
+        # CS-STD PipeClass（persist_pipe_chain_result 硬编码
+        # material_class='CS-STD'；pcs_test 默认空 → FK 违反）。
+        # 幂等：ON CONFLICT (class_id) DO NOTHING（重复运行安全）。
+        stmt = (
+            pg_insert(PipeClass)
+            .values(
+                class_id="CS-STD",
+                class_name="Carbon Steel Standard",
+                material_standard="ASME B36.10",
+                base_material="A106-B",
+                corrosion_allowance=1.5,
+                design_pressure=2.5,
+                design_temperature=200.0,
+                allowable_stress_json={},
+                dn_series_json={"min": 15, "max": 600},
+                sch_series_json=["STD", "40", "XS"],
+                flange_class="PN25",
+                source="COMPANY_STD",
+                version="v1",
+                status="PUBLISHED",
+            )
+            .on_conflict_do_nothing(index_elements=["class_id"])
+        )
+        await session.execute(stmt)
+        await session.flush()
+
         stream = Stream(
             stream_id=source_stream_id,
             project_id=project_id,
@@ -513,7 +553,7 @@ async def test_piping_results_pipe_chain_roundtrip_all_columns() -> None:
             temp=298.15,
             composition_json={"C1": 1.0},
         )
-        session.add_all([proj, stream])
+        session.add(stream)
         await session.flush()
 
         row, outlet = await persist_pipe_chain_result(session, inp, res)
