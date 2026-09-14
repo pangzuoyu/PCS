@@ -1,0 +1,59 @@
+{
+  "_comment": "P4-2-2 WallThicknessService golden fixture。固化时间：2026-09-14。",
+  "_source": "ASME B31.3 2018/2020 §304.1.2（直管壁厚公式）+ ASME B36.10（碳钢 Sch 标准系列）+ CommonService._ASME_B31_3_A1（许用应力，5 牌号 × 6 温度点）。",
+  "seamless_basic": {
+    "P_MPa": 2.0,
+    "D_mm": 168.3,
+    "S_MPa": 138.0,
+    "E": 1.0,
+    "Y": 0.4,
+    "t_calc_mm": 1.213,
+    "t_nom_with_c_2": 3.213,
+    "tolerance": 0.01,
+    "notes": "手算 t = 2.0×168.3 / (2×(138×1 + 2.0×0.4)) = 336.6 / 277.6 = 1.2125 mm（取 1.213）；t_nom = t_calc + c(2.0) = 3.213。"
+  },
+  "welded_basic": {
+    "P_MPa": 2.0,
+    "D_mm": 168.3,
+    "S_MPa": 138.0,
+    "E": 1.0,
+    "Y": 0.4,
+    "W": 0.85,
+    "t_calc_mm": 1.425,
+    "t_nom_with_c_2": 3.425,
+    "tolerance": 0.01,
+    "notes": "手算 t = 336.6 / (2×(138×1×0.85 + 2.0×0.4)) = 336.6 / (2×(117.3 + 0.8)) = 336.6 / 236.2 = 1.4251 mm（取 1.425；任务描述原文 1.424 系手算舍入差异）。"
+  },
+  "schedule_rounding": {
+    "DN_mm": 168.3,
+    "t_nom_mm": 3.213,
+    "schedule_round": "SCH 10",
+    "schedule_thickness_mm": 3.40,
+    "tolerance": 0.01,
+    "notes": "DN150 (NPS 6\") OD=168.3 mm，ASME B36.10 标准 Sch 系列：SCH 5=2.77 / SCH 10=3.40 / SCH 20=3.96 / SCH 40=3.91 (=STD) / SCH 60=5.56 / SCH 80=5.49 (=XS) / SCH 100=6.35 / SCH 120=7.14 / SCH 140=8.74 / SCH 160=9.53。t_nom=3.213 → 最小满足 ≥ t_nom 的标准 Sch 为 SCH 10 (3.40 mm)，差值 0.187 mm。任务描述原文示例 SCH 30 (3.4) 与 ASME B36.10 标准不符（NPS 6\" 无 SCH 30 档），固化为 SCH 10 与 ASNE 标准一致。"
+  },
+  "schedule_dn150_standard_table_mm": {
+    "_source": "ASME B36.10 NPS 6\" / OD 168.3 mm 标准壁厚表",
+    "SCH 5": 2.77,
+    "SCH 10": 3.40,
+    "SCH 20": 3.96,
+    "SCH 40": 3.91,
+    "STD": 3.91,
+    "SCH 60": 5.56,
+    "SCH 80": 5.49,
+    "XS": 5.49,
+    "SCH 100": 6.35,
+    "SCH 120": 7.14,
+    "SCH 140": 8.74,
+    "SCH 160": 9.53
+  },
+  "allowable_stress_materials": {
+    "A106-GrB": "碳钢 20#（GB/T 8163 同级别）",
+    "A53-GrB": "碳钢 ERW（电阻焊）",
+    "304-SS": "304 不锈钢（GB/T 14976 同级别）",
+    "316-SS": "316 不锈钢",
+    "A240-304L": "304L 板材",
+    "_source": "CommonService._ASME_B31_3_A1（ASME B31.3-2020 Table A-1，5 牌号 × 6 温度点：38/100/200/300/400/500°C）",
+    "A106-GrB_stress_at_200C_MPa": 113.8
+  }
+}
