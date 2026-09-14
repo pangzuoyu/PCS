@@ -546,18 +546,62 @@ async def _reset_async_engine() -> None:
     await dispose_engines_async()
 
 
+async def _ensure_cs_std_pipe_class(db) -> None:
+    """INSERT CS-STD PipeClass 行（persist_pipe_chain_result 硬编码
+    material_class='CS-STD'；pcs_test 默认空 pipe_classes → FK 违反
+    fk_piping_results_material_class_pipe_classes）。
+    幂等：ON CONFLICT (class_id) DO NOTHING（重复执行安全）。
+    """
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
+
+    from app.models.config_domain import PipeClass
+
+    stmt = (
+        pg_insert(PipeClass)
+        .values(
+            class_id="CS-STD",
+            class_name="Carbon Steel Standard",
+            material_standard="ASME B36.10",
+            base_material="A106-B",
+            corrosion_allowance=1.5,
+            design_pressure=2.5,
+            design_temperature=200.0,
+            allowable_stress_json={},
+            dn_series_json={"min": 15, "max": 600},
+            sch_series_json=["STD", "40", "XS"],
+            flange_class="PN25",
+            source="COMPANY_STD",
+            version="v1",
+            status="PUBLISHED",
+        )
+        .on_conflict_do_nothing(index_elements=["class_id"])
+    )
+    await db.execute(stmt)
+    await db.flush()
+
+
 async def _make_project_workspace_stream(
     db, project_id: uuid.UUID, workspace_id: uuid.UUID, source_stream_id: uuid.UUID
 ) -> None:
-    """最小 Project + Workspace + Stream 构造（供 persist_pipe_chain_result 落库用）。"""
+    """最小 Project + Workspace + Stream 构造（供 persist_pipe_chain_result 落库用）。
+
+    FK 链：
+    1. Workspace.project_id ↔ Project.workspace_id（Project 一侧
+       ``use_alter=True`` 破建表循环，但 INSERT 仍立即检查）。
+    2. piping_results.material_class → pipe_classes.class_id（persist 硬编码
+       'CS-STD'）。
+    INSERT 顺序：Workspace（project_id=NULL）→ Project（workspace_id 引用）
+    → Workspace.project_id 回填 → CS-STD PipeClass → Stream。
+    """
     from app.models.enums import StreamSignStatus
     from app.models.project import Project, Stream, Workspace
 
-    # 顺序：Workspace 先 flush（PK 已生成）→ Project.workspace_id 引用 → Stream
+    # 顺序：Workspace（project_id NULL）先 flush → Project.workspace_id 引用
+    # flush → Workspace.project_id 回填 flush → CS-STD → Stream
     ws = Workspace(
         workspace_id=workspace_id,
         workspace_type="FORMAL",
-        project_id=project_id,
+        project_id=None,  # 先 NULL；Project 落库后回填（FK 可空）
         name="test",
     )
     db.add(ws)
@@ -574,6 +618,11 @@ async def _make_project_workspace_stream(
         status="ACTIVE",
         workspace_id=ws.workspace_id,
     )
+    db.add(proj)
+    await db.flush()
+    ws.project_id = project_id  # 回填 Workspace→Project FK（可空）
+    await db.flush()
+    await _ensure_cs_std_pipe_class(db)  # 满足 piping_results.material_class FK
     stream = Stream(
         stream_id=source_stream_id,
         project_id=project_id,
@@ -588,7 +637,7 @@ async def _make_project_workspace_stream(
         temp=298.15,
         composition_json={"C1": 1.0},
     )
-    db.add_all([proj, stream])
+    db.add(stream)
     await db.flush()
 
 
