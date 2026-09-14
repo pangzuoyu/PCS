@@ -1,0 +1,27 @@
+{
+  "_comment": "P4-3-2 管网 Hardy-Cross 求解器 golden fixture。固化时间：2026-09-15。",
+  "_source": "Hardy-Cross 法（n=2 湍流 DW）+ 等 R 拓扑对称解。",
+  "_comment_calc": "4 节点 (N1 SOURCE / N2 JUNCTION / N3 JUNCTION / N4 SINK demand=0.02) + 5 边 (E1: N1→N2, E2: N2→N3, E3: N1→N3 cross, E4: N3→N4, E5: N2→N4 cross)。所有 pipe_chain 等长等径水 (ρ=1000, μ=1e-3, D=0.05m, L=10m, ε=4.6e-5m)。E-V+1=2 独立环：Loop1=(E1,E2,-E3) N1→N2→N3→N1；Loop2=(E2,E4,-E5) N2→N3→N4→N2。",
+  "_comment_expected": "手算对称解：等 R + 对称拓扑 → E2 走 0 流量，Q1=Q3=Q4=Q5=0.01，Q2=0。\n- 质量守恒：Q1+Q3=0.02（SOURCE 总出）；N2: Q1=Q2+Q5 → 0.01=0+0.01 ✓；N3: Q2+Q3=Q4 → 0+0.01=0.01 ✓；N4: Q4+Q5=0.02 ✓\n- Loop1: 0.01²+0²-0.01²=0 ✓\n- Loop2: 0²+0.01²-0.01²=0 ✓\n\n实算偏移：Colebrook f 随 Re 变化 → R 严格相等但非线性 → E2 收敛到极小值（~1e-4 量级）而非精确 0；容差 5e-4 覆盖数值残差。",
+  "two_loop_network": {
+    "tolerance_m3_s": 5e-4,
+    "expected_edge_flows": {
+      "E1": 0.01,
+      "E2": 0.0,
+      "E3": 0.01,
+      "E4": 0.01,
+      "E5": 0.01
+    },
+    "_expected_pressure_pa": "P_N1=200000（SOURCE 锚定）。P_N2 = P_N1 - dp_E1 ≈ 200000 - R×0.0001。P_N3 = P_N1 - dp_E3 ≈ 200000 - R×0.0001。P_N4 = P_N3 - dp_E4 ≈ 200000 - 2R×0.0001。R 取决于 Colebrook 在 Q=0.01 m³/s 时的 f：D=0.05m, V=5.093 m/s, Re=254648, f≈0.0203 → R = 8·f·L·ρ/(π²·D⁵) ≈ 52660 Pa·s²/m⁶ → dp_E1≈52660 Pa → P_N2≈147340 Pa。实际求解器输出值会有微小差异（容差 1e-3 相对压降和）。",
+    "loop1_signatures": {
+      "traversal": "N1→N2→N3→N1",
+      "edges_signed": {"E1": "+1", "E2": "+1", "E3": "-1"},
+      "balance_equation": "h_E1 + h_E2 - h_E3 = 0"
+    },
+    "loop2_signatures": {
+      "traversal": "N2→N3→N4→N2",
+      "edges_signed": {"E2": "+1", "E4": "+1", "E5": "-1"},
+      "balance_equation": "h_E2 + h_E4 - h_E5 = 0"
+    }
+  }
+}
