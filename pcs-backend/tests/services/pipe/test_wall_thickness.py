@@ -208,17 +208,14 @@ def test_get_allowable_stress_exact_table_point():
 
 
 def test_get_allowable_stress_interpolation_midpoint():
-    """A106-GrB @ 150°C（节点温度间） → interpolated=True，stress 在节点值之间。
+    """A106-GrB @ 150°C（节点温度间） → 在 prev=100°C / next=200°C 邻接节点间线性插值。
 
-    注意：CommonService.allowable_stress 在 prev_t/next_t 选择上对中位温度
-    使用了错误的邻居（next_t 取末节点 500 而非最近的 > temp_c 节点）。
-    本模块作为 wrapper 透传结果（不动既有 CommonService），因此断言只验证
-    interpolated=True 且 stress 在 [38°C 节点值, 500°C 节点值] 之间。
+    正确插值：table[100]=124.1, table[200]=113.8，ratio=0.5
+    → 124.1 + 0.5*(113.8 - 124.1) = 118.95 MPa。
     """
     result = get_allowable_stress(material="A106-GrB", design_temp_C=150.0)
     assert result["interpolated"] is True
-    # 节点区间 [62.1, 137.9]（500°C / 38°C），断言在 [60, 140] 之间
-    assert 60 < result["stress_mpa"] < 140
+    assert math.isclose(result["stress_mpa"], 118.95, abs_tol=0.1)
 
 
 def test_get_allowable_stress_lower_node():

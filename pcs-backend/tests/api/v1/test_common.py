@@ -5,6 +5,8 @@ ACL：读（DESIGNER + PROCESS_CONTROLLER + SYSTEM_ADMIN），无写操作。
 """
 from __future__ import annotations
 
+import math
+
 import pytest
 
 
@@ -93,8 +95,8 @@ async def test_allowable_stress_carbon_steel_250c(client, sample_user_token):
     assert body["material"] == "A106-GrB"
     assert body["temp_c"] == 250
     assert body["interpolated"] is True
-    # 200°C → 113.8, 300°C → 96.5 → 250 插值 ≈ 105.15
-    assert 95 < body["stress_mpa"] < 115
+    # 200°C → 113.8, 300°C → 96.5 → 250 插值 = 105.15
+    assert math.isclose(body["stress_mpa"], 105.15, abs_tol=0.1)
 
 
 async def test_allowable_stress_exact_table_point(client, sample_user_token):
@@ -107,7 +109,8 @@ async def test_allowable_stress_exact_table_point(client, sample_user_token):
     assert r.status_code == 200, r.text
     body = r.json()
     assert body["interpolated"] is False
-    assert 100 < body["stress_mpa"] < 130
+    # 200°C 节点精确值 = 113.8
+    assert math.isclose(body["stress_mpa"], 113.8, abs_tol=0.1)
 
 
 async def test_allowable_stress_oob_temp_422(client, sample_user_token):

@@ -208,9 +208,10 @@ class CommonService:
                 "interpolated": False,
                 "source": "ASME_B31.3_TABLE_A1",
             }
-        # 节点间线性插值
-        prev_t = next(t for t in _ASME_TEMPS if t < temp_c)
-        next_t = next(t for t in reversed(_ASME_TEMPS) if t > temp_c)
+        # 节点间线性插值（prev = 最靠近 temp_c 且 < temp_c 的节点；
+        # next = 最靠近 temp_c 且 > temp_c 的节点）
+        prev_t = max(t for t in _ASME_TEMPS if t < temp_c)
+        next_t = min(t for t in _ASME_TEMPS if t > temp_c)
         ratio = (temp_c - prev_t) / (next_t - prev_t)
         stress = table[prev_t] + ratio * (table[next_t] - table[prev_t])
         return {
