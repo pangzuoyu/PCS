@@ -3,13 +3,15 @@
 复用面：
 - P4-1-3 FLASH（FLASH_CALCULATED）— 本批次首建
 - P4-2-5 PIPE 计算链（PIPE_CALCULATED）
+- P4-3-3 PIPE_NET 管网（_NET_CALCULATED 后缀；P4-3-3 扩 Literal）
 - P4-4-4 PUMP 计算链（PUMP_CALCULATED）
 
 设计要点：
 - 独立可调用：不依赖 flash_persist；只接 db + 元数据
 - sign_status=DRAFT（下游未 CHECKED 不可用，calc 入口守卫兜底）
 - properties → stream.stream_properties_json（JSONB）
-- source_type 走 Stream.source_type 字符串列（FLASH_CALCULATED/PIPE_CALCULATED/PUMP_CALCULATED）
+- source_type 走 Stream.source_type 字符串列
+  （FLASH_CALCULATED/PIPE_CALCULATED/PUMP_CALCULATED/PIPE_NET_CALCULATED）
 - upstream_stream_id / upstream_equipment_type 用于溯源
 - project_id 校验：必须与源流同 project，跨 project 抛 OutletStreamProjectMismatchError
 
@@ -30,7 +32,13 @@ from app.models.project import Stream
 from app.services.exceptions import PcsError
 
 # 出口物流 source_type 字面值（Stream.source_type 字符串列无 enum）
-OutletSourceType = Literal["FLASH_CALCULATED", "PIPE_CALCULATED", "PUMP_CALCULATED"]
+# P4-3-3 扩展：新增 "PIPE_NET_CALCULATED"（向前兼容，旧调用仍有效）
+OutletSourceType = Literal[
+    "FLASH_CALCULATED",
+    "PIPE_CALCULATED",
+    "PUMP_CALCULATED",
+    "PIPE_NET_CALCULATED",
+]
 
 
 class OutletStreamProjectMismatchError(PcsError):
@@ -38,6 +46,27 @@ class OutletStreamProjectMismatchError(PcsError):
 
     code = "OUTLET_STREAM_PROJECT_MISMATCH"
     status = 422
+
+
+# upstream_equipment_type 映射表
+# （P4-3-3 扩 "PIPE_NET_CALCULATED" → "PIPE_NET"；其余按 source_type split_[0]
+# 即可；集中维护以防 PIPE_NET_CALCULATED 被 split 出 "PIPE" 错值）
+_EQUIP_TYPE_MAP: dict[str, str] = {
+    "FLASH_CALCULATED": "FLASH",
+    "PIPE_CALCULATED": "PIPE",
+    "PUMP_CALCULATED": "PUMP",
+    "PIPE_NET_CALCULATED": "PIPE_NET",
+}
+
+
+def _upstream_equipment_type(source_type: str) -> str:
+    """source_type → upstream_equipment_type 映射。
+
+    已知类型查表；未知类型回退 source_type.split("_")[0]（向后兼容）。
+    """
+    if source_type in _EQUIP_TYPE_MAP:
+        return _EQUIP_TYPE_MAP[source_type]
+    return source_type.split("_")[0]
 
 
 async def create_outlet_stream(
@@ -96,9 +125,7 @@ async def create_outlet_stream(
         sign_status=StreamSignStatus.DRAFT,
         approval_depth=1,
         upstream_stream_id=source.stream_id,
-        upstream_equipment_type=(
-            "FLASH" if source_type == "FLASH_CALCULATED" else source_type.split("_")[0]
-        ),
+        upstream_equipment_type=_upstream_equipment_type(source_type),
         stream_properties_json=dict(properties),
         composition_json=source.composition_json,
         # 物理量透传（如源流有）
