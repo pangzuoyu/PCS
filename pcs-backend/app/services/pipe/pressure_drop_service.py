@@ -1,10 +1,19 @@
 """P4-2-3：单相压降服务（Darcy-Weisbach + Colebrook + fittings K 值表 + 路由）。
 
+P4-2-5 扩展（流态分支 + confidence 字段；不改 Colebrook / K 表数值）：
+- flow_regime 3 态：LAMINAR (Re<2000) / TRANSITION (2000≤Re≤4000) / TURBULENT (Re>4000)
+- check_result 强制 WARNING for TRANSITION（reason="TRANSITION_REGIME"）
+- confidence HIGH/MEDIUM/LOW 聚合（湍流 Re>10000 HIGH；过渡/低 Re MEDIUM/LOW）
+- K 表 reynolds_applicable 标注（v2 schema 嵌套对象）；get_fitting_k
+  签名预留 Re 参数（P5+ 接入 Hooper 2-K / Darby 3-K 时改内部）
+
 公式：
 - Darcy-Weisbach 直管摩阻：ΔP_friction = f × (L/D) × (ρ × v²/2)
 - 摩擦系数 f：Colebrook-White 隐式方程，brentq 求解
   1/√f = -2 log10(ε/(3.7D) + 2.51/(Re√f))，Re = ρvD/μ
-  层流（Re < 2300）→ f = 64/Re
+  LAMINAR (Re<2000) → f = 64/Re
+  TRANSITION (2000≤Re≤4000) → Colebrook（f 在湍流区迭代；不准确但代码可重复）
+  TURBULENT (Re>4000) → Colebrook 求解
 - fittings 局部阻力：ΔP_fittings = (ΣK_i) × ρ × v²/2
 - Colebrook 求解复用 sizing_service._colebrook_f（P4-2-1 已实现，本模块不重复造轮子）
 
@@ -82,6 +91,15 @@ FittingType = Literal[
     "exit",
 ]
 
+# P4-2-5：3 态流场（替代 P4-2-3 2 态 lam/turb）
+FlowRegime3 = Literal["LAMINAR", "TRANSITION", "TURBULENT"]
+
+# P4-2-5：单管段校核档位
+PressureDropCheck = Literal["PASS", "WARNING", "FAIL"]
+
+# P4-2-5：单管段置信度（链式聚合用）
+PressureDropConfidence = Literal["HIGH", "MEDIUM", "LOW"]
+
 
 @dataclass(frozen=True)
 class Fitting:
@@ -120,6 +138,23 @@ class PipeSegment:
 
 
 @dataclass(frozen=True)
+class FittingKMeta:
+    """P4-2-5 fittings K 值元数据（K 表 v2 schema）。
+
+    Attributes:
+        k: K 值（无量纲；Crane 固定；P5+ 改 Hooper 2-K / Darby 3-K）
+        reynolds_applicable: 适用 Re 区间（informational；当前实现忽略）
+        k_factor_confidence: K 系数置信度（Crane 表适用度）
+        source: 数据源（Crane TP-410 / Idelchik 等）
+    """
+
+    k: float
+    reynolds_applicable: str
+    k_factor_confidence: PressureDropConfidence
+    source: str
+
+
+@dataclass(frozen=True)
 class PressureDropResult:
     """单相压降计算结果。
 
@@ -130,9 +165,13 @@ class PressureDropResult:
         dp_total_kpa_per_100m: 总压降折算 (kPa/100m 当量) = dp_total_pa/1000 × 100/L_m
         friction_factor: Darcy 摩擦系数 f（Colebrook 求解或层流 64/Re）
         reynolds: 雷诺数 Re
-        flow_regime: "laminar" (Re<2300) 或 "turbulent" (Re≥2300)
+        flow_regime: LAMINAR (Re<2000) / TRANSITION (2000≤Re≤4000) /
+            TURBULENT (Re>4000)
         dp_ratio: dp_total / P1（用于路由判断）
         need_two_phase: 是否需路由至 P4-2-4 两相计算
+        check_result: 校核档位 PASS / WARNING / FAIL
+        check_result_reason: 校核原因（TRANSITION_REGIME 等）
+        confidence: 置信度 HIGH / MEDIUM / LOW（链式聚合；任一 LOW → 整体 LOW）
     """
 
     dp_friction_pa: float
@@ -141,9 +180,12 @@ class PressureDropResult:
     dp_total_kpa_per_100m: float
     friction_factor: float
     reynolds: float
-    flow_regime: Literal["laminar", "turbulent"]
+    flow_regime: FlowRegime3
     dp_ratio: float
     need_two_phase: bool
+    check_result: PressureDropCheck
+    check_result_reason: str | None
+    confidence: PressureDropConfidence
 
 
 # ---------------------------------------------------------------------------
@@ -155,13 +197,23 @@ class PressureDropResult:
 _TWO_PHASE_RATIO_THRESHOLD: Final[float] = 0.10
 
 
-# Re 工程经验区间
+# Re 工程经验区间（保留 P4-2-3 既有 100/1e8 极值）
 _RE_LO: Final[float] = 100.0
 _RE_HI: Final[float] = 1.0e8
 
 
-# laminar / turbulent 临界
-_RE_LAMINAR_MAX: Final[float] = 2300.0
+# P4-2-5：3 态流场边界
+# - LAMINAR:  Re < 2000（Crane TP-410 + White, "Viscous Fluid Flow" 第 3 版 §3-3）
+# - TRANSITION: 2000 ≤ Re ≤ 4000（强制 Colebrook + check=WARNING；非稳态）
+# - TURBULENT: Re > 4000（Crane TP-410 标准湍流范围下限）
+_RE_LAMINAR_MAX: Final[float] = 2000.0
+_RE_TRANSITION_HI: Final[float] = 4000.0
+
+# P4-2-5：confidence 聚合阈值
+# - HIGH: TURBULENT + Re > 10000（f 公式 + K 表 Crane 全适用）
+# - MEDIUM: TRANSITION 或 Re ∈ (4000, 10000]（过渡区 / 低湍流；f 适用但 K 表部分适用）
+# - LOW: LAMINAR（f 公式精确 64/Re，但 Crane K 表 Re 区间外）
+_RE_CONFIDENCE_HIGH_MIN: Final[float] = 10_000.0
 
 
 # 默认物性（按 fluid_phase；与 sizing_service 对齐）
@@ -187,18 +239,63 @@ _K_TABLE_FIXTURE_PATH: Final[Path] = (
 
 
 # ---------------------------------------------------------------------------
-# fittings K 值表加载
+# 内部工具：Re → 流态 + confidence
 # ---------------------------------------------------------------------------
 
 
-def load_fittings_k_default() -> dict[FittingType, float]:
-    """加载 fittings K 值默认表（Crane TP-410 / Idelchik）。
+def _classify_flow_regime(Re: float) -> FlowRegime3:
+    """Re → 3 态流场分类（P4-2-5）。"""
+    if Re < _RE_LAMINAR_MAX:
+        return "LAMINAR"
+    if Re <= _RE_TRANSITION_HI:
+        return "TRANSITION"
+    return "TURBULENT"
+
+
+def _classify_confidence(
+    regime: FlowRegime3, Re: float
+) -> PressureDropConfidence:
+    """流态 + Re → confidence（P4-2-5）。
+
+    - HIGH: TURBULENT + Re > 10000
+    - MEDIUM: TRANSITION 或 Re ∈ (4000, 10000]
+    - LOW: LAMINAR（Crane K 表 Re 区间外）
+    """
+    if regime == "LAMINAR":
+        return "LOW"
+    if regime == "TRANSITION":
+        return "MEDIUM"
+    # TURBULENT
+    if Re > _RE_CONFIDENCE_HIGH_MIN:
+        return "HIGH"
+    return "MEDIUM"
+
+
+def _classify_check(regime: FlowRegime3) -> tuple[PressureDropCheck, str | None]:
+    """流态 → check_result + reason（P4-2-5）。
+
+    - TRANSITION → WARNING（reason="TRANSITION_REGIME"）
+    - LAMINAR / TURBULENT → PASS（None）
+    """
+    if regime == "TRANSITION":
+        return "WARNING", "TRANSITION_REGIME"
+    return "PASS", None
+
+
+# ---------------------------------------------------------------------------
+# fittings K 值表加载（v2 schema：嵌套对象 + 元数据）
+# ---------------------------------------------------------------------------
+
+
+def load_fittings_k_default() -> dict[FittingType, FittingKMeta]:
+    """加载 fittings K 值默认表（Crane TP-410 / Idelchik；v2 schema）。
 
     Returns:
-        dict[type, K]：10 个 FittingType → K 值（无量纲）
+        dict[type, FittingKMeta]：10 个 FittingType → K 值 + 元数据
 
     Raises:
-        PressureDropInputError: K 表文件缺失 / JSON 损坏 / 类型字段缺失
+        PressureDropInputError: K 表文件缺失 / JSON 损坏 / 类型字段缺失 /
+            schema v2 字段缺失
     """
     if not _K_TABLE_FIXTURE_PATH.exists():
         raise PressureDropInputError(
@@ -206,21 +303,99 @@ def load_fittings_k_default() -> dict[FittingType, float]:
             details={"path": str(_K_TABLE_FIXTURE_PATH)},
         )
     raw = json.loads(_K_TABLE_FIXTURE_PATH.read_text(encoding="utf-8"))
-    k_table: dict[FittingType, float] = {}
-    for ftype in ("elbow_90", "elbow_45", "tee_branch", "tee_through",
-                  "valve_gate", "valve_ball", "reducer", "expander",
-                  "entrance", "exit"):
+    k_table: dict[FittingType, FittingKMeta] = {}
+    for ftype in (
+        "elbow_90",
+        "elbow_45",
+        "tee_branch",
+        "tee_through",
+        "valve_gate",
+        "valve_ball",
+        "reducer",
+        "expander",
+        "entrance",
+        "exit",
+    ):
         if ftype not in raw:
             raise PressureDropInputError(
                 f"fittings K 值表缺 type={ftype!r}",
                 details={"missing_type": ftype, "available": list(raw.keys())},
             )
-        k_table[ftype] = float(raw[ftype])  # type: ignore[assignment]
+        entry = raw[ftype]
+        if not isinstance(entry, dict):
+            raise PressureDropInputError(
+                f"fittings K 值表 {ftype!r} 期望对象，得到 {type(entry).__name__} "
+                f"（v2 schema 要求嵌套 k:v 结构）",
+                details={"type": ftype, "got": type(entry).__name__},
+            )
+        # v2 schema 必填字段
+        for field_name in ("k", "reynolds_applicable", "k_factor_confidence", "source"):
+            if field_name not in entry:
+                raise PressureDropInputError(
+                    f"fittings K 值表 {ftype!r} 缺字段 {field_name!r}",
+                    details={"type": ftype, "missing_field": field_name},
+                )
+        k_table[ftype] = FittingKMeta(  # type: ignore[assignment]
+            k=float(entry["k"]),
+            reynolds_applicable=str(entry["reynolds_applicable"]),
+            k_factor_confidence=entry["k_factor_confidence"],  # type: ignore[assignment]
+            source=str(entry["source"]),
+        )
     return k_table
 
 
 # 模块加载时固化（单一真源；fixture 缺失 → 启动失败）
-_K_TABLE: Final[dict[FittingType, float]] = load_fittings_k_default()
+_K_TABLE: Final[dict[FittingType, FittingKMeta]] = load_fittings_k_default()
+
+
+# ---------------------------------------------------------------------------
+# fittings K 值查询（带 Re/diameter 签名预留；P5+ 接入 Hooper 2-K / Darby 3-K）
+# ---------------------------------------------------------------------------
+
+
+def get_fitting_k(
+    fitting_type: FittingType,
+    *,
+    diameter_m: float,
+    reynolds: float,
+) -> tuple[float, PressureDropConfidence]:
+    """按 (fitting_type, diameter, Re) 取 K 值 + K 系数置信度。
+
+    当前实现：返回 Crane 固定 K（P4-2-5 不变 K 表数值；约束"不重写 K 表"）。
+    P5+ 接入：
+    - Hooper 2-K 法（K = K1 / Re + K_inf(1 + 1/D)²；恒定 K1/K_inf 表）
+    - Darby 3-K 法（K = K1/Re + K2(1 + K3/(D^(0.3)))²；分段 K1/K2/K3 表）
+    接口签名已预留 diameter / reynolds 参数；内部届时改按 Re/D 算 K。
+
+    Args:
+        fitting_type: 管件类型（FittingType 之一）
+        diameter_m: 管内径 (m；P5+ Hooper 2-K 用 1/D 项)
+        reynolds: 雷诺数（P5+ Hooper 2-K / Darby 3-K 用 1/Re 项）
+            当前实现忽略（保留 Crane 固定 K）
+
+    Returns:
+        (K, K 系数置信度)
+
+    Raises:
+        PressureDropInputError: fitting_type 不在 K 表 / diameter / Re 非法
+    """
+    if fitting_type not in _K_TABLE:
+        raise PressureDropInputError(
+            f"fittings K 值表无 type={fitting_type!r}",
+            details={"type": fitting_type, "available": list(_K_TABLE.keys())},
+        )
+    if diameter_m <= 0.0:
+        raise PressureDropInputError(
+            f"diameter_m={diameter_m} 必须 > 0",
+            details={"diameter_m": diameter_m},
+        )
+    if reynolds < 0.0:
+        raise PressureDropInputError(
+            f"reynolds={reynolds} 不能为负（物理非法）",
+            details={"reynolds": reynolds},
+        )
+    meta = _K_TABLE[fitting_type]
+    return meta.k, meta.k_factor_confidence
 
 
 # ---------------------------------------------------------------------------
@@ -247,13 +422,19 @@ def calc_pressure_drop(
     - dp_total / P1 ≥ 10% → need_two_phase=True（路由至 P4-2-4）
     - 否则 → need_two_phase=False（不可压缩近似）
 
+    P4-2-5 流态 + confidence + check_result：
+    - LAMINAR (Re<2000) → f=64/Re；confidence=LOW（Crane K 表 Re 区间外）
+    - TRANSITION (2000≤Re≤4000) → Colebrook；check_result=WARNING
+      (reason="TRANSITION_REGIME")；confidence=MEDIUM
+    - TURBULENT (Re>4000) → Colebrook；Re>10000 → confidence=HIGH；否则 MEDIUM
+
     Args:
         seg: 管道段（直管 + fittings 集合 + 流体物性）
         P1_pa: 上游压力 (Pa；入口压力)
         fluid_phase: 流相（LIQUID / GAS / STEAM / TWO_PHASE）
 
     Returns:
-        PressureDropResult：含直管 / fittings / 总压降 + f + Re + 路由标记
+        PressureDropResult：含直管 / fittings / 总压降 + f + Re + 流态 + confidence + check
 
     Raises:
         PressureDropInputError: P1 ≤ 0 / D ≤ 0 / ρ ≤ 0 / μ ≤ 0 / Q < 0 /
@@ -302,9 +483,12 @@ def calc_pressure_drop(
             dp_total_kpa_per_100m=0.0,
             friction_factor=0.0,
             reynolds=0.0,
-            flow_regime="laminar",
+            flow_regime="LAMINAR",  # 占位；两相不走单相
             dp_ratio=0.0,
             need_two_phase=True,
+            check_result="PASS",
+            check_result_reason=None,
+            confidence="LOW",
         )
 
     # 流量为 0：返回零 dp，不触发 Re 越界检查
@@ -316,9 +500,12 @@ def calc_pressure_drop(
             dp_total_kpa_per_100m=0.0,
             friction_factor=0.0,
             reynolds=0.0,
-            flow_regime="laminar",
+            flow_regime="LAMINAR",  # 占位；零流量
             dp_ratio=0.0,
             need_two_phase=False,
+            check_result="PASS",
+            check_result_reason=None,
+            confidence="LOW",
         )
 
     # 计算速度 + 雷诺数
@@ -338,26 +525,36 @@ def calc_pressure_drop(
             details={"reynolds": Re, "max_Re": _RE_HI},
         )
 
-    flow_regime: Literal["laminar", "turbulent"] = (
-        "laminar" if Re < _RE_LAMINAR_MAX else "turbulent"
-    )
+    # P4-2-5：3 态流场分类
+    flow_regime = _classify_flow_regime(Re)
 
-    # Colebrook 求解（复用 sizing_service._colebrook_f）
-    f = _colebrook_f(
-        D_m=seg.D_m,
-        v_ms=v,
-        rho=seg.fluid_density,
-        mu=seg.fluid_viscosity,
-        eps_m=seg.roughness_m,
-    )
+    # 摩擦系数 f
+    if flow_regime == "LAMINAR":
+        f = 64.0 / Re
+    else:
+        # TRANSITION + TURBULENT 共用 Colebrook（f 在湍流区迭代；TRANSITION
+        # 不准确但代码可重复 — P4-2-5 测试用 1e-2 容差）
+        f = _colebrook_f(
+            D_m=seg.D_m,
+            v_ms=v,
+            rho=seg.fluid_density,
+            mu=seg.fluid_viscosity,
+            eps_m=seg.roughness_m,
+        )
 
     # Darcy-Weisbach 直管摩阻
     dp_friction = f * (seg.L_m / seg.D_m) * (seg.fluid_density * v ** 2 / 2.0)
 
-    # fittings 局部阻力累加
+    # fittings 局部阻力累加（get_fitting_k 签名预留 Re；当前按 Crane 固定 K）
     K_sum = 0.0
     for fit in seg.fittings:
-        K_sum += fit.K if fit.K is not None else _K_TABLE[fit.type]
+        if fit.K is not None:
+            K_sum += fit.K
+        else:
+            k_val, _k_conf = get_fitting_k(
+                fit.type, diameter_m=seg.D_m, reynolds=Re
+            )
+            K_sum += k_val
     dp_fittings = K_sum * seg.fluid_density * v ** 2 / 2.0
 
     dp_total = dp_friction + dp_fittings
@@ -366,6 +563,10 @@ def calc_pressure_drop(
     # 路由：dp_total / P1 ≥ 10% → need_two_phase=True
     dp_ratio = dp_total / P1_pa
     need_two_phase = dp_ratio >= _TWO_PHASE_RATIO_THRESHOLD
+
+    # P4-2-5：confidence + check_result
+    confidence = _classify_confidence(flow_regime, Re)
+    check_result, check_reason = _classify_check(flow_regime)
 
     return PressureDropResult(
         dp_friction_pa=dp_friction,
@@ -377,16 +578,24 @@ def calc_pressure_drop(
         flow_regime=flow_regime,
         dp_ratio=dp_ratio,
         need_two_phase=need_two_phase,
+        check_result=check_result,
+        check_result_reason=check_reason,
+        confidence=confidence,
     )
 
 
 __all__ = [
     "Fitting",
+    "FittingKMeta",
     "FittingType",
+    "FlowRegime3",
     "PipeSegment",
+    "PressureDropCheck",
+    "PressureDropConfidence",
     "PressureDropInputError",
     "PressureDropRangeError",
     "PressureDropResult",
     "calc_pressure_drop",
+    "get_fitting_k",
     "load_fittings_k_default",
 ]

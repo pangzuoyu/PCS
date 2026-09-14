@@ -1,0 +1,26 @@
+{
+  "_comment": "P4-2-5 PipeChainService golden fixture。固化时间：2026-09-14。",
+  "_source": "Darcy-Weisbach + Colebrook-White（brentq 求解，复用 sizing_service._colebrook_f）+ fittings K 值表 + 高程修正。",
+  "_comment_calc": "3 段串联全液相：水，ρ=1000 kg/m³, μ=1e-3 Pa·s, Q=0.001 m³/s, ε=4.6e-5 m。段 1: D=0.05m L=10m；段 2: D=0.08m L=5m；段 3: D=0.05m L=8m。无 fittings、无高程。",
+  "three_liquid_segments": {
+    "n_segments": 3,
+    "total_length_m": 23.0,
+    "total_dp_pa": 1274.6863,
+    "dp_per_segment_pa": [688.5876, 35.2287, 550.8700],
+    "velocity_m_s": 0.5093,
+    "reynolds": 25464.7909,
+    "friction_factor": 0.026547,
+    "outlet_pressure_pa": 198725.3137,
+    "pressure_gradient_kpa_m": 0.0554,
+    "tolerance": 0.01,
+    "_comment_p425": "P4-2-5：3 态流场 + confidence 聚合。段 1 Re=25464 → TURBULENT/HIGH；段 2 D=0.08m Q=0.001 → v=0.199 → Re=15915 → TURBULENT/HIGH；段 3 同段 1 → TURBULENT/HIGH。链整体 confidence=HIGH（聚合最差等级）。",
+    "flow_regimes": ["TURBULENT", "TURBULENT", "TURBULENT"],
+    "per_segment_reynolds": [25464.7909, 15915.4943, 25464.7909],
+    "per_segment_flow_regime": ["TURBULENT", "TURBULENT", "TURBULENT"],
+    "per_segment_confidence": ["HIGH", "HIGH", "HIGH"],
+    "check_result": "PASS",
+    "check_result_reason": null,
+    "confidence": "HIGH",
+    "notes": "手算：v=Q/A=0.001/0.001963=0.5093 m/s（段 1/3 相同 D=0.05m）；段 1: Re=25464.8 → f=0.026547 → dp=f·(L/D)·(ρv²/2)=0.026547×10/0.05×(1000×0.5093²/2)=688.59 Pa；段 2: D=0.08m → v=0.199 m/s → Re=15915 → f=0.0286 → dp=35.23 Pa；段 3: 同段 1 几何 → dp=550.87 Pa（长度缩放 8/10）。Σdp=1274.69 Pa；outlet=P1-Σdp=200000-1274.69=198725.31 Pa；gradient=1274.69/1000/23=0.0554 kPa/m。"
+  }
+}

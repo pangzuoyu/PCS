@@ -405,3 +405,164 @@ async def test_two_phase_results_persist_roundtrip_all_columns() -> None:
     assert got["input_json"]["liquid_mass_flow"] == inp.liquid_mass_flow
     assert got["output_json"]["Bx"] == res.Bx
     assert got["output_json"]["flow_pattern"] == res.flow_pattern
+
+
+# === piping_results 落库 roundtrip（P4-2-5：链式管道） ===
+
+_CHAIN_INPUT_DICT: dict = {
+    "project_id": None,  # 由 case 注入
+    "workspace_id": None,
+    "source_stream_id": None,
+    "tag_number": "P-CHAIN-RT-001",
+    "inlet_pressure_pa": 200000.0,
+    "inlet_temperature_K": 298.15,
+    "parallel_branches": 1,
+    "segments": [
+        {
+            "fluid_phase": "LIQUID",
+            "mass_flow_kg_s": 1.0,
+            "density_kg_m3": 1000.0,
+            "viscosity_pa_s": 1.0e-3,
+            "pipe_diameter_m": 0.05,
+            "pipe_roughness_m": 4.6e-5,
+            "length_m": 10.0,
+        },
+        {
+            "fluid_phase": "LIQUID",
+            "mass_flow_kg_s": 1.0,
+            "density_kg_m3": 1000.0,
+            "viscosity_pa_s": 1.0e-3,
+            "pipe_diameter_m": 0.08,
+            "pipe_roughness_m": 4.6e-5,
+            "length_m": 5.0,
+        },
+    ],
+}
+
+
+@_ONLY_PCS_TEST
+@pytest.mark.asyncio
+async def test_piping_results_pipe_chain_roundtrip_all_columns() -> None:
+    """P4-2-5：calc → persist_pipe_chain_result → SELECT 验证 SUP-008 11 列 +
+    record_hash + cleaning_method JSONB 含链完整 input/output。
+
+    覆盖：
+    - line_description = "PIPE_CHAIN: 2seg dp=...Pa"
+    - pressure_drop_per_100m = gradient × 100
+    - selected_diameter = 首段 D (mm)
+    - cleaning_method JSONB[0]._chain_calc = True 且含 input/output
+    - record_hash 16 hex
+    """
+    import uuid
+
+    from app.services.pipe.pipe_chain_persist import persist_pipe_chain_result
+    from app.services.pipe.pipe_chain_service import (
+        PipeChainInput,
+        PipeSegmentInput,
+        calc_chain,
+    )
+
+    project_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+    source_stream_id = uuid.uuid4()
+    payload = dict(_CHAIN_INPUT_DICT)
+    payload["project_id"] = project_id
+    payload["workspace_id"] = workspace_id
+    payload["source_stream_id"] = source_stream_id
+    payload["segments"] = [PipeSegmentInput(**s) for s in payload["segments"]]
+    inp = PipeChainInput(**payload)
+    res = calc_chain(inp)
+
+    # 最小 Project + Workspace + Stream 落库前置（与 test_pipe_chain 同模式）
+    from app.models.enums import StreamSignStatus
+    from app.models.project import Project, Stream, Workspace
+
+    factory = get_async_session_factory()
+    async with factory() as session:
+        ws = Workspace(
+            workspace_id=workspace_id,
+            workspace_type="FORMAL",
+            project_id=project_id,
+            name="t",
+        )
+        session.add(ws)
+        await session.flush()
+        proj = Project(
+            project_id=project_id,
+            project_no=f"P-{project_id.hex[:8]}",
+            project_name="t",
+            owner_company="t",
+            location="t",
+            project_type="t",
+            design_phase="BASIC",
+            unit_system="SI",
+            status="ACTIVE",
+            workspace_id=ws.workspace_id,
+        )
+        stream = Stream(
+            stream_id=source_stream_id,
+            project_id=project_id,
+            workspace_id=workspace_id,
+            stream_name=f"S-{source_stream_id.hex[:8]}",
+            case_type="NORMAL",
+            data_mode="CHEMICAL",
+            source_type="MANUAL_ENTRY",
+            sign_status=StreamSignStatus.CHECKED,
+            approval_depth=1,
+            press=200000.0,
+            temp=298.15,
+            composition_json={"C1": 1.0},
+        )
+        session.add_all([proj, stream])
+        await session.flush()
+
+        row, outlet = await persist_pipe_chain_result(session, inp, res)
+        await session.commit()
+        pk = row.pipe_id
+        row_hash = row.record_hash
+        outlet_source_type = outlet.source_type
+        outlet_upstream = outlet.upstream_equipment_type
+
+    # SELECT 11 SUP-008 列 + line_no + cleaning_method
+    async with factory() as session:
+        result = await session.execute(
+            text(
+                """
+                SELECT pipe_id, line_no, line_description, pressure_drop_per_100m,
+                       selected_diameter, cleaning_method, record_hash, check_result
+                FROM piping_results
+                WHERE pipe_id = :pk
+                """
+            ),
+            {"pk": str(pk)},
+        )
+        record = result.mappings().one()
+    got = dict(record)
+
+    # line_no = tag_number
+    assert got["line_no"] == "P-CHAIN-RT-001"
+    # line_description 链摘要
+    assert "PIPE_CHAIN" in got["line_description"]
+    # pressure_drop_per_100m = gradient × 100（与计算结果一致）
+    expected_dp100 = res.pressure_gradient_kpa_m * 100.0
+    assert abs(float(got["pressure_drop_per_100m"]) - expected_dp100) < 1e-6
+    # selected_diameter = 首段 D (mm) = 0.05 × 1000 = 50.0
+    assert abs(float(got["selected_diameter"]) - 50.0) < 1e-6
+    # cleaning_method JSONB 含完整 chain input/output
+    cm = got["cleaning_method"]
+    assert isinstance(cm, list) and len(cm) == 1
+    chain_data = cm[0]
+    assert chain_data["_chain_calc"] is True
+    assert chain_data["_tag_number"] == "P-CHAIN-RT-001"
+    assert "input" in chain_data and "output" in chain_data
+    # input 内 UUID 已转 str（_json_safe 兼容 SQLite/PG JSONB）
+    assert chain_data["input"]["tag_number"] == "P-CHAIN-RT-001"
+    assert chain_data["input"]["inlet_pressure_pa"] == 200000.0
+    # output 含 P4-2-5 新字段
+    assert "flow_regimes" in chain_data["output"]
+    assert chain_data["output"]["confidence"] in ("HIGH", "MEDIUM", "LOW")
+    # record_hash 16 hex
+    assert len(row_hash) == 16
+    # outlet_stream P4-1-3 helper 复用契约
+    assert outlet_source_type == "PIPE_CALCULATED"
+    assert outlet_upstream == "PIPE"

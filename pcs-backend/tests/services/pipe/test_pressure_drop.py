@@ -91,7 +91,9 @@ def test_calc_pressure_drop_golden_single_straight_water():
     assert math.isclose(
         res.friction_factor, golden["friction_factor"], abs_tol=1e-4
     )
-    assert res.flow_regime == "turbulent"
+    assert res.flow_regime == "TURBULENT"
+    assert res.confidence == "HIGH"  # Re≈25465 > 10000, TURBULENT
+    assert res.check_result == "PASS"
     assert res.need_two_phase is False
 
 
@@ -116,7 +118,11 @@ def test_calc_pressure_drop_fittings_k_accumulates():
     # v = Q/A = 0.001 / (π × 0.05² / 4) = 0.509296 m/s
     rho = 1000.0
     v_expected = 0.001 / (math.pi * 0.05 ** 2 / 4)
-    K_sum = K_DEFAULT["elbow_90"] + K_DEFAULT["tee_branch"] + K_DEFAULT["valve_gate"]
+    K_sum = (
+        K_DEFAULT["elbow_90"]["k"]
+        + K_DEFAULT["tee_branch"]["k"]
+        + K_DEFAULT["valve_gate"]["k"]
+    )
     dp_fittings_expected = K_sum * rho * v_expected ** 2 / 2.0
 
     assert math.isclose(
@@ -158,17 +164,21 @@ def test_calc_pressure_drop_explicit_K_overrides_default():
 
 
 def test_calc_pressure_drop_laminar_uses_64_over_Re():
-    """层流（Re<2300）：f = 64/Re。"""
+    """层流（Re<2000）：f = 64/Re；confidence=LOW（Crane K 表 Re 区间外）。"""
     # 极低流速：Q=1e-5 m³/s, D=0.05 → v≈0.00509 → Re≈254（层流）
     seg = _make_straight_segment(
         flow_rate_m3s=1.0e-5,
     )
     P1 = 200_000.0
     res = calc_pressure_drop(seg, P1_pa=P1, fluid_phase="LIQUID")
-    assert res.flow_regime == "laminar"
-    assert res.reynolds < 2300.0
+    assert res.flow_regime == "LAMINAR"
+    assert res.reynolds < 2000.0
     f_expected = 64.0 / res.reynolds
     assert math.isclose(res.friction_factor, f_expected, rel_tol=1e-9)
+    # P4-2-5: LAMINAR → confidence=LOW（Crane K 表 Re 区间外）
+    assert res.confidence == "LOW"
+    assert res.check_result == "PASS"
+    assert res.check_result_reason is None
 
 
 # ---------------------------------------------------------------------------
@@ -206,7 +216,7 @@ def test_calc_pressure_drop_Q_zero_returns_zero_dp():
     assert res.dp_fittings_pa == 0.0
     assert res.dp_total_pa == 0.0
     assert res.reynolds == 0.0
-    assert res.flow_regime == "laminar"
+    assert res.flow_regime == "LAMINAR"
 
 
 def test_calc_pressure_drop_Q_negative_raises():
@@ -302,7 +312,7 @@ def test_calc_pressure_drop_two_phase_input_short_circuits():
 
 
 def test_load_fittings_k_default_returns_all_types():
-    """load_fittings_k_default 返回全部 10 个 type 的 K 值。"""
+    """load_fittings_k_default 返回全部 10 个 type 的 K 值 + v2 元数据。"""
     k_table = load_fittings_k_default()
     expected_types = [
         "elbow_90", "elbow_45", "tee_branch", "tee_through",
@@ -311,19 +321,111 @@ def test_load_fittings_k_default_returns_all_types():
     ]
     for t in expected_types:
         assert t in k_table
-        assert isinstance(k_table[t], float)
-        assert k_table[t] >= 0.0
+        meta = k_table[t]
+        # v2 schema: FittingKMeta 含 k + reynolds_applicable + k_factor_confidence + source
+        assert hasattr(meta, "k")
+        assert isinstance(meta.k, float)
+        assert hasattr(meta, "reynolds_applicable")
+        assert isinstance(meta.reynolds_applicable, str)
+        assert hasattr(meta, "k_factor_confidence")
+        assert meta.k_factor_confidence in ("HIGH", "MEDIUM", "LOW")
+        assert hasattr(meta, "source")
+        assert isinstance(meta.source, str)
+
+
+# ---------------------------------------------------------------------------
+# 8) P4-2-5：3 态流场 + confidence + check_result
+# ---------------------------------------------------------------------------
+
+
+def test_calc_pressure_drop_transition_regime_warning():
+    """过渡区（2000≤Re≤4000）：f=Colebrook；check_result=WARNING(reason="TRANSITION_REGIME")。
+
+    Re≈3000 设计：D=0.05, Q=6e-4 → v=0.3056 → Re=15278 → 实际太高。重新选：
+    油 μ=0.05 Pa·s, D=0.05, Q=2.0e-3 → v=1.019 → Re=ρvD/μ=1000×1.019×0.05/0.05=1019 (层流)
+    Re≈3000：D=0.05, ρ=1000, μ=0.017, Q=1.018e-2 → v=5.19 → Re=15265（太高）
+    Re≈3000：D=0.05, ρ=1000, μ=0.085, Q=5.1e-3 → v=2.6 → Re=1529（层流）
+    用油 μ=0.05，D=0.05, Q=4.8e-3 → v=2.44 → Re=2444（接近过渡区下限）
+    为 Re≈3000：D=0.05, ρ=1000, μ=0.04, Q=3.84e-3 → v=1.957 → Re=2446
+    实际 D=0.05 ρ=1000 v=Q/(π×0.05²/4)=Q/0.001963
+    目标 Re=3000：v = Re·μ/(ρD) = 3000×0.04/(1000×0.05) = 2.4 m/s → Q=2.4×0.001963=4.71e-3
+    """
+    seg = _make_straight_segment(
+        fluid_viscosity=0.04,  # 油
+        flow_rate_m3s=4.71e-3,  # → v=2.4, Re=3000
+    )
+    P1 = 200_000.0
+    res = calc_pressure_drop(seg, P1_pa=P1, fluid_phase="LIQUID")
+    assert 2000.0 <= res.reynolds <= 4000.0, f"reynolds={res.reynolds}"
+    assert res.flow_regime == "TRANSITION"
+    assert res.check_result == "WARNING"
+    assert res.check_result_reason == "TRANSITION_REGIME"
+    # P4-2-5: TRANSITION → confidence=MEDIUM
+    assert res.confidence == "MEDIUM"
+
+
+def test_calc_pressure_drop_turbulent_medium_confidence():
+    """湍流 Re ∈ (4000, 10000]：confidence=MEDIUM（K 表部分适用）。"""
+    # Re=5000：D=0.05, ρ=1000, μ=0.02, Q=？→ v=Re·μ/(ρD)=5000×0.02/50=2.0 m/s
+    # Q=v·A=2.0×0.001963=3.93e-3
+    seg = _make_straight_segment(
+        fluid_viscosity=0.02,
+        flow_rate_m3s=3.93e-3,
+    )
+    P1 = 200_000.0
+    res = calc_pressure_drop(seg, P1_pa=P1, fluid_phase="LIQUID")
+    assert res.reynolds > 4000.0
+    assert res.reynolds <= 10000.0
+    assert res.flow_regime == "TURBULENT"
+    assert res.check_result == "PASS"
+    assert res.confidence == "MEDIUM"  # Re ≤ 10000 → MEDIUM
+
+
+def test_calc_pressure_drop_get_fitting_k_signature():
+    """get_fitting_k 签名：传 diameter + reynolds；当前实现忽略 Re 返回固定 K。"""
+    from app.services.pipe.pressure_drop_service import get_fitting_k
+
+    k_low, conf = get_fitting_k("elbow_90", diameter_m=0.05, reynolds=100.0)
+    k_high, conf2 = get_fitting_k("elbow_90", diameter_m=0.05, reynolds=1.0e7)
+    # 当前实现：固定 K（与 Re 无关；P5+ 改 Hooper 2-K 时再分桶）
+    assert k_low == k_high
+    assert conf == conf2
+    assert conf == "HIGH"
+
+
+def test_calc_pressure_drop_get_fitting_k_invalid_type_raises():
+    """get_fitting_k 未知 type → raise。"""
+    from app.services.pipe.pressure_drop_service import get_fitting_k
+
+    with pytest.raises(PressureDropInputError):
+        get_fitting_k("elbow_unknown", diameter_m=0.05, reynolds=1000.0)  # type: ignore[arg-type]
+
+
+def test_calc_pressure_drop_get_fitting_k_invalid_diameter_raises():
+    """get_fitting_k D≤0 → raise。"""
+    from app.services.pipe.pressure_drop_service import get_fitting_k
+
+    with pytest.raises(PressureDropInputError):
+        get_fitting_k("elbow_90", diameter_m=0.0, reynolds=1000.0)
+
+
+def test_calc_pressure_drop_get_fitting_k_negative_reynolds_raises():
+    """get_fitting_k Re<0 → raise。"""
+    from app.services.pipe.pressure_drop_service import get_fitting_k
+
+    with pytest.raises(PressureDropInputError):
+        get_fitting_k("elbow_90", diameter_m=0.05, reynolds=-1.0)
 
 
 def test_fittings_k_default_values_match_crane_tp_410():
     """固化 K 值与 Crane TP-410 / Idelchik 常用值匹配（容差 0.01）。"""
     # 见 fixtures/fittings_k_default.json _source
-    assert math.isclose(K_DEFAULT["elbow_90"], 0.9, abs_tol=0.01)
-    assert math.isclose(K_DEFAULT["elbow_45"], 0.4, abs_tol=0.01)
-    assert math.isclose(K_DEFAULT["tee_branch"], 1.0, abs_tol=0.01)
-    assert math.isclose(K_DEFAULT["tee_through"], 0.2, abs_tol=0.01)
-    assert math.isclose(K_DEFAULT["valve_gate"], 0.15, abs_tol=0.01)
-    assert math.isclose(K_DEFAULT["valve_ball"], 0.05, abs_tol=0.01)
+    assert math.isclose(K_DEFAULT["elbow_90"]["k"], 0.9, abs_tol=0.01)
+    assert math.isclose(K_DEFAULT["elbow_45"]["k"], 0.4, abs_tol=0.01)
+    assert math.isclose(K_DEFAULT["tee_branch"]["k"], 1.0, abs_tol=0.01)
+    assert math.isclose(K_DEFAULT["tee_through"]["k"], 0.2, abs_tol=0.01)
+    assert math.isclose(K_DEFAULT["valve_gate"]["k"], 0.15, abs_tol=0.01)
+    assert math.isclose(K_DEFAULT["valve_ball"]["k"], 0.05, abs_tol=0.01)
 
 
 # ---------------------------------------------------------------------------
@@ -376,6 +478,6 @@ def test_calc_pressure_drop_formula_fittings():
     )
     res = calc_pressure_drop(seg, P1_pa=200_000.0, fluid_phase="LIQUID")
     v = seg.flow_rate_m3s / (math.pi * seg.D_m ** 2 / 4.0)
-    K_sum = K_DEFAULT["elbow_90"] + K_DEFAULT["valve_ball"]
+    K_sum = K_DEFAULT["elbow_90"]["k"] + K_DEFAULT["valve_ball"]["k"]
     dp_expected = K_sum * seg.fluid_density * v ** 2 / 2.0
     assert math.isclose(res.dp_fittings_pa, dp_expected, rel_tol=1e-9)
