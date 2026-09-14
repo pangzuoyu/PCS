@@ -1,0 +1,36 @@
+{
+  "_comment": "P4-2-1 PipeSizingService golden fixture。固化时间：2026-09-14。",
+  "_source": "HG/T 20570.6-95 表 5.1（管道推荐流速，PIPE 模块；种子 pcs-backend/app/seeds/category3_defaults.json → recommended_velocity.rows）。",
+  "velocity_method_water": {
+    "V_m3s": 0.01,
+    "fluid_phase": "LIQUID",
+    "v_target_ms": 2.0,
+    "D_calc_mm": 79.788,
+    "DN_round": "DN80",
+    "tolerance": 0.5,
+    "notes": "手算 D = 1000 * sqrt(0.01 / (0.785 * 2.0)) = 79.788 mm；圆整到 DN80（HG/T 20570.6 越档+安全裕度）。"
+  },
+  "dp_method_water": {
+    "V_m3s": 0.01,
+    "fluid_phase": "LIQUID",
+    "dp_per_100m_kpa": 30.0,
+    "DN_round": "DN100",
+    "tolerance": "DN_round_exact",
+    "notes": "默认水 ρ=1000 kg/m³, μ=1e-3 Pa·s, ε=0.045 mm（碳钢使用中）。迭代最小 DN 使 Darcy-Weisbach + Colebrook 压降 ≤ 30 kPa/100m → DN100。"
+  },
+  "fluid_phase_velocity_targets": {
+    "LIQUID": 2.0,
+    "GAS": 20.0,
+    "STEAM": 30.0,
+    "TWO_PHASE": 8.0,
+    "notes": "各相推荐流速中心值（HG/T 20570.6-95 表 5.1 一般情况）：液体 1.5/气体 20/蒸汽 30/两相 8（取推荐区间中心）。"
+  },
+  "dn_standard_series_mm": [
+    15, 20, 25, 32, 40, 50, 65, 80, 100, 125, 150, 200, 250, 300, 350, 400, 500
+  ],
+  "dn_rounding_boundary": {
+    "no_step": {"D_calc_mm": 50.5, "DN_round": "DN50"},
+    "step_one": {"D_calc_mm": 63.3, "DN_round": "DN65"},
+    "notes": "圆整策略：D > 当前 DN 阈值 → 上一档（HG/T 20570.6 越档+安全裕度）。D=50.5 在 DN50 范围内；D=63.3 > 50 → 升档 DN65。"
+  }
+}
