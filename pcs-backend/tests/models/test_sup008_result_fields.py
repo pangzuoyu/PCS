@@ -316,3 +316,92 @@ async def test_enum_values(type_name: str, expected: tuple[str, ...]) -> None:
     assert tuple(rows) == expected, (
         f"{type_name}: expected={expected!r}, got={tuple(rows)!r}"
     )
+
+
+# === two_phase_results 落库 roundtrip（P4-2-4） ===
+
+# 用于落库的 TwoPhaseInput 构造（golden horizontal_air_water）
+_TWO_PHASE_INPUT_DICT: dict = {
+    "liquid_mass_flow": 1.0,
+    "gas_mass_flow": 0.05,
+    "liquid_density": 1000.0,
+    "gas_density": 1.2,
+    "liquid_viscosity": 1.0e-3,
+    "gas_viscosity": 1.8e-5,
+    "surface_tension": 0.072,
+    "pipe_diameter_m": 0.05,
+    "pipe_roughness_m": 4.5e-5,
+    "inclination_deg": 0.0,
+    "L_m": 10.0,
+    "P1_pa": 200000.0,
+}
+
+
+@_ONLY_PCS_TEST
+@pytest.mark.asyncio
+async def test_two_phase_results_persist_roundtrip_all_columns() -> None:
+    """P4-2-4：calc → persist_two_phase_result → SELECT 验证 13 字段全部对齐。
+
+    覆盖：input/output JSONB + Bx/By + flow_pattern/two_phase_check enum +
+    liquid_velocity/gas_velocity/pressure_gradient/void_fraction + calc_method +
+    created_at。
+    """
+    # 延迟导入：测试模块位于 pcs-backend，service 包结构稳定
+    from app.services.pipe.two_phase_persist import persist_two_phase_result
+    from app.services.pipe.two_phase_service import (
+        TwoPhaseInput,
+        calc_two_phase,
+    )
+
+    inp = TwoPhaseInput(**_TWO_PHASE_INPUT_DICT)
+    res = calc_two_phase(inp)
+
+    factory = get_async_session_factory()
+    async with factory() as session:
+        row = await persist_two_phase_result(session, inp, res)
+        await session.commit()
+        pk = row.two_phase_calc_id
+
+    # SELECT 全部字段验证
+    # 注：Bx / By 是 PG 大小写敏感列（双字符全大写未自动小写），必须双引号引用
+    async with factory() as session:
+        result = await session.execute(
+            text(
+                """
+                SELECT two_phase_calc_id, input_json, output_json, "Bx", "By",
+                       flow_pattern, two_phase_check,
+                       liquid_velocity, gas_velocity, pressure_gradient,
+                       void_fraction, calc_method, created_at
+                FROM two_phase_results
+                WHERE two_phase_calc_id = :pk
+                """
+            ),
+            {"pk": str(pk)},
+        )
+        record = result.mappings().one()
+    got = dict(record)
+
+    # PK + created_at
+    assert got["two_phase_calc_id"] == pk
+    assert got["created_at"] is not None
+
+    # 数值字段
+    assert got["Bx"] is not None and abs(float(got["Bx"]) - res.Bx) < 1e-9
+    assert got["By"] is not None and abs(float(got["By"]) - res.By) < 1e-9
+    assert abs(float(got["liquid_velocity"]) - res.liquid_velocity) < 1e-9
+    assert abs(float(got["gas_velocity"]) - res.gas_velocity) < 1e-9
+    assert abs(float(got["pressure_gradient"]) - res.pressure_gradient) < 1e-9
+    assert abs(float(got["void_fraction"]) - res.void_fraction) < 1e-6
+
+    # PG enum 字段（直接传字符串；读回也是字符串）
+    assert got["flow_pattern"] == res.flow_pattern
+    assert got["two_phase_check"] == res.two_phase_check
+
+    # String 字段
+    assert got["calc_method"] == res.calc_method
+
+    # JSONB 透传
+    assert got["input_json"]["pipe_diameter_m"] == inp.pipe_diameter_m
+    assert got["input_json"]["liquid_mass_flow"] == inp.liquid_mass_flow
+    assert got["output_json"]["Bx"] == res.Bx
+    assert got["output_json"]["flow_pattern"] == res.flow_pattern

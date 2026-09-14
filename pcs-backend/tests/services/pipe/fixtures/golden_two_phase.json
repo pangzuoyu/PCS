@@ -1,0 +1,31 @@
+{
+  "_comment": "P4-2-4 TwoPhaseService golden fixture。固化时间：2026-09-14。",
+  "_source": "Lockhart-Martinelli-Baker + Chisholm void fraction + Colebrook-White 单相摩阻（Crane TP-410 / Perry's 8th ed.）。",
+  "_method": "φ_l² = 1 + C/X + 1/X²，C = 21（turbulent-turbulent，Baker 默认）；X = √[(dp/dz)_l / (dp/dz)_g]；ε_g = 1 / (1 + (1/X)^(2/3) × (ρ_g/ρ_l)^(1/3))（Chisholm 简化）。",
+  "_comment_calc": "水平管气液：m_l=1 kg/s, m_g=0.05 kg/s, ρ_l=1000, ρ_g=1.2, μ_l=1e-3, μ_g=1.8e-5, σ=0.072, D=0.05 m, ε=4.5e-5 m, L=10 m, 水平。",
+  "horizontal_air_water": {
+    "liquid_mass_flow_kg_s": 1.0,
+    "gas_mass_flow_kg_s": 0.05,
+    "rho_l": 1000.0,
+    "rho_g": 1.2,
+    "mu_l": 1.0e-3,
+    "mu_g": 1.8e-5,
+    "sigma": 0.072,
+    "D_m": 0.05,
+    "roughness_m": 4.5e-5,
+    "L_m": 10.0,
+    "P1_pa": 200000.0,
+    "inclination_deg": 0.0,
+    "_hand_calc": "A=π×0.05²/4=0.0019635 m²；v_sl=1.0/(1000×0.0019635)=0.5093 m/s；v_sg=0.05/(1.2×0.0019635)=21.221 m/s；Re_l=1000×0.5093×0.05/1e-3=25464.8（湍流）；Re_g=1.2×21.221×0.05/1.8e-5=70736.7（湍流）；f_l=Colebrook(ε/D=9e-4, Re_l=25465)≈0.026504；f_g=Colebrook(ε/D=9e-4, Re_g=70737)≈0.0227；(dp/dz)_l=0.026504×1000×0.5093²/(2×0.05)=68.75 Pa/m；(dp/dz)_g=0.0227×1.2×21.221²/(2×0.05)=122.61 Pa/m；X²=68.75/122.61=0.5608；X=√0.5608=0.7489；φ_l²=1+21/0.7489+1/0.5608=1+28.04+1.783=30.82；(dp/dz)_tp=68.75×30.82=2118.7 Pa/m=2.119 kPa/m；ε_g=1/(1+(1/0.7489)^(2/3)×(1.2/1000)^(1/3))=1/(1+1.244×0.1063)=1/1.1323=0.8832；flow_pattern: v_sg=21.221 m/s ≥ 3 → ANNULAR；two_phase_check: Bx=0.7489 < 10 → PASS。",
+    "Bx": 0.7489,
+    "By": 30.82,
+    "liquid_velocity": 0.5093,
+    "gas_velocity": 21.221,
+    "pressure_gradient_kpa_m": 2.119,
+    "void_fraction": 0.8832,
+    "flow_pattern": "ANNULAR",
+    "two_phase_check": "PASS",
+    "calc_method": "LOCKHART_MARTINELLI_BAKER",
+    "tolerance": 0.05
+  }
+}
