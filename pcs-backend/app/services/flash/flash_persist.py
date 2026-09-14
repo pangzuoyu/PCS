@@ -155,6 +155,76 @@ def _link_state_point(
     # spj 中 user 值保留不变（不静默覆盖）
 
 
+def _writeback_properties(
+    stream: Stream,
+    calc_result: dict[str, float],
+    calc_type: str,
+) -> None:
+    """P4-1-4：calc → stream.stream_properties_json 反向写入（H/S/vfrac）。
+
+    行为契约（沿 P4-1-3 user-wins）：
+    - calc_result 含 ``vapor_fraction`` 时：仅 0 < v < 1（单相不污染）→ 写入
+    - calc_result 含 ``enthalpy`` 时：calc 提供 → 写入
+    - calc_result 含 ``entropy`` 时：calc 提供 → 写入
+    - stream_properties_json[key] 已存在 → calc 值入
+      conflict_resolutions_json[key] = {user_value, calc_value, source, resolver=user-wins}；
+      effective 值不变（user-wins 生效）
+    - stream_properties_json[key] 缺失 → 写入 stream_properties_json[key]，
+      附 _source=FLASH_CALCULATED + estimated=true
+
+    Args:
+        stream: 目标 Stream ORM 对象（in-place 修改；commit 由调用方负责）
+        calc_result: 计算输出 dict，可含 vapor_fraction / enthalpy / entropy
+        calc_type: 计算类型（PT_FLASH / PH_FLASH / PS_FLASH / ...），仅用于标注
+    """
+    # 候选写入键：按 calc_type 过滤 + 单相不污染
+    candidates: list[tuple[str, float]] = []
+    if "vapor_fraction" in calc_result:
+        vf = float(calc_result["vapor_fraction"])
+        if 0.0 < vf < 1.0:  # 单相 (v=0/1) 不污染
+            candidates.append(("vapor_fraction", vf))
+    if "enthalpy" in calc_result:
+        candidates.append(("enthalpy", float(calc_result["enthalpy"])))
+    if "entropy" in calc_result:
+        candidates.append(("entropy", float(calc_result["entropy"])))
+
+    if not candidates:
+        return
+
+    spj = dict(stream.stream_properties_json or {})
+    crj = dict(stream.conflict_resolutions_json or {})
+
+    for key, calc_value in candidates:
+        existing = spj.get(key)
+        if existing is None:
+            # 未设值 → 写入 + 标记
+            spj[key] = float(calc_value)
+            spj["_source"] = "FLASH_CALCULATED"
+            spj["_estimated"] = True
+            continue
+
+        try:
+            existing_f = float(existing)
+        except (TypeError, ValueError):
+            existing_f = None
+
+        if existing_f is not None and abs(existing_f - float(calc_value)) < 1e-12:
+            # 幂等：值一致不动作
+            continue
+
+        # 冲突：保留 user 值；写 conflict_resolutions_json
+        crj[key] = {
+            "user_value": existing,
+            "calc_value": float(calc_value),
+            "source": "FLASH_CALCULATED",
+            "ts": "P4-1-4",
+            "resolver": "user-wins",
+        }
+
+    stream.stream_properties_json = spj
+    stream.conflict_resolutions_json = crj
+
+
 # ---------------------------------------------------------------------------
 # Core entry points（3 端点对应）
 # ---------------------------------------------------------------------------
@@ -186,6 +256,14 @@ async def persist_pt_flash(
 
     result = PT_FLASH(zs, T_K, P_Pa, thermo)
 
+    # P4-1-4：PT_FLASH 隐式产出 H/S（占位 thermo 模型）；写入 record + 反向回写
+    h_calc = thermo.H_PT(
+        zs, T_K, P_Pa, result.vapor_fraction, result.y_vapor, result.x_liquid
+    )
+    s_calc = thermo.S_PT(
+        zs, T_K, P_Pa, result.vapor_fraction, result.y_vapor, result.x_liquid
+    )
+
     # 构造 record
     record = FlashResult(
         tag_number=_generate_tag_number(stream.project_id),
@@ -205,6 +283,8 @@ async def persist_pt_flash(
             "vapor_fraction": result.vapor_fraction,
             "y_vapor": result.y_vapor,
             "x_liquid": result.x_liquid,
+            "enthalpy": h_calc,
+            "entropy": s_calc,
         },
     )
     db.add(record)
@@ -220,6 +300,12 @@ async def persist_pt_flash(
     # 状态点联动：仅当 2-phase 时写 vfrac（v=0/1 单相不写，避免污染）
     if 0.0 < result.vapor_fraction < 1.0:
         _link_state_point(stream, result.vapor_fraction)
+    # P4-1-4 反向写入：vfrac（2-phase 时）+ enthalpy + entropy（H/S 来自 thermo）
+    _writeback_properties(
+        stream,
+        {"vapor_fraction": result.vapor_fraction, "enthalpy": h_calc, "entropy": s_calc},
+        "PT_FLASH",
+    )
 
     # 出口物流（PT_FLASH 总是产生 outlet 流 — 包含两相/单相结果）
     outlet = await create_outlet_stream(
@@ -286,6 +372,7 @@ async def persist_ph_flash(
 
     P, vfrac, y, x = PH_FLASH(zs, T_K, H_target, thermo)
 
+    # P4-1-4：PH_FLASH 显式提供 H（H_target），写入 record + 反向回写
     record = FlashResult(
         tag_number=_generate_tag_number(stream.project_id),
         project_id=stream.project_id,
@@ -305,6 +392,7 @@ async def persist_ph_flash(
             "vapor_fraction": vfrac,
             "y_vapor": y,
             "x_liquid": x,
+            "enthalpy": H_target,
         },
     )
     db.add(record)
@@ -317,6 +405,12 @@ async def persist_ph_flash(
     )
     if 0.0 < vfrac < 1.0:
         _link_state_point(stream, vfrac)
+    # P4-1-4 反向写入：vfrac（2-phase 时）+ enthalpy（H_target）
+    _writeback_properties(
+        stream,
+        {"vapor_fraction": vfrac, "enthalpy": H_target},
+        "PH_FLASH",
+    )
     outlet = await create_outlet_stream(
         db,
         source_stream_id=stream.stream_id,
@@ -373,6 +467,7 @@ async def persist_ps_flash(
 
     vfrac, y, x, P = PS_FLASH(zs, T_K, S_target, thermo)
 
+    # P4-1-4：PS_FLASH 显式提供 S（S_target），写入 record + 反向回写
     record = FlashResult(
         tag_number=_generate_tag_number(stream.project_id),
         project_id=stream.project_id,
@@ -392,6 +487,7 @@ async def persist_ps_flash(
             "vapor_fraction": vfrac,
             "y_vapor": y,
             "x_liquid": x,
+            "entropy": S_target,
         },
     )
     db.add(record)
@@ -404,6 +500,12 @@ async def persist_ps_flash(
     )
     if 0.0 < vfrac < 1.0:
         _link_state_point(stream, vfrac)
+    # P4-1-4 反向写入：vfrac（2-phase 时）+ entropy（S_target）
+    _writeback_properties(
+        stream,
+        {"vapor_fraction": vfrac, "entropy": S_target},
+        "PS_FLASH",
+    )
     outlet = await create_outlet_stream(
         db,
         source_stream_id=stream.stream_id,

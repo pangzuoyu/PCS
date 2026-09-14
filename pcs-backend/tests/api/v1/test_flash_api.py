@@ -476,3 +476,270 @@ async def test_outlet_stream_helper_project_mismatch_raises(
             project_id=other_proj.project_id,  # 跨 project
             workspace_id=other_proj.workspace_id,
         )
+
+
+# ============================================================================
+# 10) P4-1-4 FLASH 反向写入：H/S/vfrac → stream_properties_json
+#     规则：calc 提供时写入；用户已设值走 conflict_resolutions_json（user-wins）；
+#     单相不污染；统一 _source=Flash_CALCULATED + estimated=true 标记
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_writeback_pt_flash_writes_enthalpy(
+    client, db: AsyncSession, seeded_stream, designer_headers
+):
+    """PT_FLASH 反向写入：vapor_fraction（2-phase 时）+ enthalpy（J/mol）+ 标记。"""
+    # 跑 PT_FLASH（335K, 1MPa → 2-phase）
+    r = await client.post(
+        "/api/v1/flash/calculate",
+        json=_calc_pt_body(seeded_stream.stream_id),
+        headers=designer_headers,
+    )
+    assert r.status_code == 201, r.text
+
+    await db.refresh(seeded_stream)
+    spj = seeded_stream.stream_properties_json or {}
+
+    # vfrac（既有 P4-1-3 行为）
+    assert "vapor_fraction" in spj
+    assert 0.0 < spj["vapor_fraction"] < 1.0
+
+    # enthalpy：calc 提供时（P4-1-4 新增）
+    assert "enthalpy" in spj
+    assert isinstance(spj["enthalpy"], (int, float))
+    # 占位 thermo 模型：理想液体 + 理想气体，H 为正值（Cp * T）
+    assert spj["enthalpy"] > 0
+
+    # 统一 source 标记
+    assert spj.get("_source") == "FLASH_CALCULATED"
+    assert spj.get("_estimated") is True
+
+
+@pytest.mark.asyncio
+async def test_writeback_ph_flash_writes_enthalpy(
+    client, db: AsyncSession, seeded_stream, designer_headers
+):
+    """PH_FLASH 反向写入：enthalpy（来自 H_target，FLASH_CALCULATED 标记）。
+
+    准备：先用 PT_FLASH 找出 2-phase 区间内的 H 值，再 PH_FLASH 跑回去。
+    """
+    # 1. 先 PT_FLASH 拿一个有效 vfrac + H（在 2-phase 区）
+    r_pt = await client.post(
+        "/api/v1/flash/calculate",
+        json=_calc_pt_body(seeded_stream.stream_id),
+        headers=designer_headers,
+    )
+    assert r_pt.status_code == 201
+    pt_result = r_pt.json()["result"]
+    assert 0.0 < pt_result["vapor_fraction"] < 1.0
+
+    # 2. 拿 spj 里的 enthalpy 作为 PH_FLASH 的 H_target（保证能收敛到 2-phase）
+    await db.refresh(seeded_stream)
+    spj_before = seeded_stream.stream_properties_json or {}
+    h_target = float(spj_before["enthalpy"])
+
+    # 3. PH_FLASH（用刚算出的 H 作为 target）
+    r = await client.post(
+        "/api/v1/flash/calculate",
+        json={
+            "calc_type": "PH_FLASH",
+            "stream_id": str(seeded_stream.stream_id),
+            "T_K": 335.0,
+            "H_target": h_target,
+        },
+        headers=designer_headers,
+    )
+    assert r.status_code == 201, r.text
+
+    # 4. enthalpy 应保留（H 值一致 → 幂等 no-op，不应触发冲突）
+    await db.refresh(seeded_stream)
+    spj = seeded_stream.stream_properties_json or {}
+    assert "enthalpy" in spj
+    assert abs(float(spj["enthalpy"]) - h_target) < 1e-3
+    # 没有冲突记录（值一致 → 幂等）
+    crj = seeded_stream.conflict_resolutions_json or {}
+    assert "enthalpy" not in crj
+
+
+@pytest.mark.asyncio
+async def test_writeback_ps_flash_writes_entropy(
+    client, db: AsyncSession, seeded_stream, designer_headers
+):
+    """PS_FLASH 反向写入：entropy（J/mol/K，FLASH_CALCULATED 标记）。"""
+    # 1. 先 PT_FLASH 拿 entropy 基准（2-phase 区）
+    r_pt = await client.post(
+        "/api/v1/flash/calculate",
+        json=_calc_pt_body(seeded_stream.stream_id),
+        headers=designer_headers,
+    )
+    assert r_pt.status_code == 201
+
+    # 2. 读 PT_FLASH 算出的 entropy 作为 PS_FLASH 的 S_target
+    await db.refresh(seeded_stream)
+    s_target = float(seeded_stream.stream_properties_json["entropy"])
+
+    # 3. PS_FLASH（用算出的 S 作为 target）
+    r = await client.post(
+        "/api/v1/flash/calculate",
+        json={
+            "calc_type": "PS_FLASH",
+            "stream_id": str(seeded_stream.stream_id),
+            "T_K": 335.0,
+            "S_target": s_target,
+        },
+        headers=designer_headers,
+    )
+    assert r.status_code == 201, r.text
+
+    # 4. entropy 应保留
+    await db.refresh(seeded_stream)
+    spj = seeded_stream.stream_properties_json or {}
+    assert "entropy" in spj
+    assert abs(float(spj["entropy"]) - s_target) < 1e-3
+    # source 标记
+    assert spj.get("_source") == "FLASH_CALCULATED"
+    assert spj.get("_estimated") is True
+
+
+@pytest.mark.asyncio
+async def test_writeback_user_value_wins_with_conflict(
+    client, db: AsyncSession, seeded_stream, designer_headers
+):
+    """用户已设 enthalpy → calc 值入 conflict_resolutions_json；effective 不变（user-wins）。
+
+    不静默覆盖：流 stream_properties_json.enthalpy = user 值；冲突记录入
+    conflict_resolutions_json.enthalpy = {user_value, calc_value, source, resolver=user-wins}。
+    """
+    # 1. 预设 user_enthalpy = 1000（模拟用户手工设置）
+    seeded_stream.stream_properties_json = {
+        "enthalpy": 1000.0,
+        "_source": "USER",
+        "_estimated": False,
+    }
+    await db.commit()
+    await db.refresh(seeded_stream)
+
+    # 2. 跑 PH_FLASH（H_target=35000 在物理范围 [3e4, 4.2e4] 内）
+    r = await client.post(
+        "/api/v1/flash/calculate",
+        json={
+            "calc_type": "PH_FLASH",
+            "stream_id": str(seeded_stream.stream_id),
+            "T_K": 335.0,
+            "H_target": 35000.0,
+        },
+        headers=designer_headers,
+    )
+    assert r.status_code == 201, r.text
+
+    # 3. user 值保留 + 冲突记录
+    await db.refresh(seeded_stream)
+    spj = seeded_stream.stream_properties_json or {}
+    # user 值未被覆盖
+    assert spj["enthalpy"] == 1000.0
+
+    crj = seeded_stream.conflict_resolutions_json or {}
+    assert "enthalpy" in crj
+    rec = crj["enthalpy"]
+    assert rec["user_value"] == 1000.0
+    assert "calc_value" in rec
+    assert float(rec["calc_value"]) != 1000.0  # calc 与 user 不同才冲突
+    assert rec["source"] == "FLASH_CALCULATED"
+    assert rec["resolver"] == "user-wins"
+
+
+@pytest.mark.asyncio
+async def test_writeback_single_phase_no_vapor_fraction(
+    client, db: AsyncSession, seeded_stream, designer_headers
+):
+    """单相不污染：vfrac=0 或 v=1 的 PT_FLASH 不写 vapor_fraction 到 stream_properties_json。
+
+    极端条件：
+    - v=0（液相）：T=250K, P=10MPa（远低于 bubble 温度，高于 dew 压力）
+    - v=1（汽相）：T=600K, P=10kPa（远高于 dew 温度，低于 bubble 压力）
+    """
+    # v=1 路径：高温低压
+    r = await client.post(
+        "/api/v1/flash/calculate",
+        json=_calc_pt_body(seeded_stream.stream_id, T_K=600.0, P_Pa=1.0e4),
+        headers=designer_headers,
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    vf = body["result"]["vapor_fraction"]
+    assert vf == 1.0, f"期望 v=1，实际 v={vf}"
+
+    # 单相：源流不应被写入 vapor_fraction
+    await db.refresh(seeded_stream)
+    spj = seeded_stream.stream_properties_json or {}
+    assert "vapor_fraction" not in spj, (
+        f"单相不应污染 stream_properties_json.vapor_fraction，实际={spj}"
+    )
+
+    # 但 enthalpy 仍可写（calc 提供了）
+    assert "enthalpy" in spj
+
+    # 清理：换成 v=0 路径（新流）
+    proj_id = seeded_stream.project_id
+    workspace_id = seeded_stream.workspace_id
+    sp2, _ = await StreamService.create(
+        db,
+        StreamCreate(
+            project_id=proj_id,
+            workspace_id=workspace_id,
+            stream_name="S-102",
+            case_type="NORMAL",
+            data_mode="CHEMICAL",
+            source_type="MANUAL_ENTRY",
+            temp=250.0,
+            press=10.0,
+            phase="LIQUID",
+            mass_flow=1000.0,
+            composition_json={"74-98-6": 0.3, "106-97-8": 0.7},
+        ),
+        actor=uuid.uuid4(),
+    )
+    sp2.sign_status = StreamSignStatus.CHECKED
+    await db.commit()
+    await db.refresh(sp2)
+
+    r2 = await client.post(
+        "/api/v1/flash/calculate",
+        json=_calc_pt_body(sp2.stream_id, T_K=250.0, P_Pa=1.0e7),
+        headers=designer_headers,
+    )
+    assert r2.status_code == 201, r2.text
+    body2 = r2.json()
+    vf2 = body2["result"]["vapor_fraction"]
+    assert vf2 == 0.0, f"期望 v=0，实际 v={vf2}"
+
+    await db.refresh(sp2)
+    spj2 = sp2.stream_properties_json or {}
+    assert "vapor_fraction" not in spj2, (
+        f"单相不应污染 stream_properties_json.vapor_fraction，实际={spj2}"
+    )
+
+
+@pytest.mark.asyncio
+async def test_writeback_estimated_marker_present(
+    client, db: AsyncSession, seeded_stream, designer_headers
+):
+    """所有 calc 写入字段（vfrac/H/S）的 _source=FLASH_CALCULATED + estimated=true 必须存在。"""
+    # 跑 PT_FLASH（vfrac + enthalpy）
+    r = await client.post(
+        "/api/v1/flash/calculate",
+        json=_calc_pt_body(seeded_stream.stream_id),
+        headers=designer_headers,
+    )
+    assert r.status_code == 201
+
+    await db.refresh(seeded_stream)
+    spj = seeded_stream.stream_properties_json or {}
+
+    # _source + _estimated 标记
+    assert spj.get("_source") == "FLASH_CALCULATED"
+    assert spj.get("_estimated") is True
+    # calc 写入的字段至少包含 vfrac + enthalpy
+    assert "vapor_fraction" in spj
+    assert "enthalpy" in spj
