@@ -13,3 +13,7 @@ cd pcs-backend && uv run alembic upgrade head
 ```
 
 （矫正迁移 historically 只应用了 pcs 库；pcs_test 需手动对齐后再跑。）
+
+# 前端 UI 规范
+
+前端所有 UI 以 `docs/PCS-UI-SPEC.md`（V1.0 冻结）为唯一编码依据。字段/枚举/权限/错误码以 OpenAPI + meta API 为准；与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订。
