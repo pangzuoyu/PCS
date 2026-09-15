@@ -60,13 +60,14 @@ def _make_record(**overrides) -> PipingResult:
 # ============================================================================
 
 
-def test_registry_contains_4_record_types() -> None:
-    """占位 registry 覆盖 P4 批 0 的 4 类 record。"""
+def test_registry_contains_all_calc_record_types() -> None:
+    """registry 覆盖 P4-TASK0 完整化的全部 5 类 record（P4 批 0 4 类 + TwoPhaseResult）。"""
     assert set(RECORD_TYPE_REGISTRY) == {
         "PipingResult",
         "PumpResult",
         "FlashResult",
         "PipeNetworkResult",
+        "TwoPhaseResult",
     }
 
 

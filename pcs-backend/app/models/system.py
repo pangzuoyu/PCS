@@ -42,6 +42,23 @@ class DataLineage(Base):
     actor_ai_agent_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     change_summary: Mapped[str | None] = mapped_column(Text)
     change_diff_json: Mapped[dict | None] = mapped_column(JSONB)
+    # P4-TASK0 D4/D5 扩展（ADR-0031 残余）
+    # - record_hash_at_track：本次收口时 record.record_hash（16 hex）
+    # - source_record_hash：上游 record_hash（无上游 → 退化 = record_hash）
+    # - formula_version_at_track：本次公式版本
+    # - config_version：上游配置版本（P4-TASK0 占位；CIA 引擎后续使用）
+    record_hash_at_track: Mapped[str | None] = mapped_column(
+        String(16), comment="收口时 record_hash（P4-TASK0 D4）"
+    )
+    source_record_hash: Mapped[str | None] = mapped_column(
+        String(16), comment="上游 record_hash（P4-TASK0 D5）"
+    )
+    formula_version_at_track: Mapped[str | None] = mapped_column(
+        String(50), comment="收口时公式版本（P4-TASK0 D4）"
+    )
+    config_version: Mapped[str | None] = mapped_column(
+        String(50), comment="上游配置版本（P4-TASK0 占位）"
+    )
     occurred_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), index=True
     )

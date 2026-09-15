@@ -1,0 +1,52 @@
+{
+  "schema_version": "1.0",
+  "description": "三方对照用例集骨架（PRO/II / HYSYS / 手工算例）。仅含最小契约字段；v1 不要求实际跑三方软件（需商业 license）。hash = fingerprint sha256 truncated 16 hex。",
+  "cases": [
+    {
+      "case_id": "pipe_single_phase_dp",
+      "vendor": "PROII",
+      "module": "PIPE",
+      "fingerprint": {
+        "fluid": "water",
+        "d_mm": 100.0,
+        "rho_kg_m3": 998.2,
+        "mu_pa_s": 0.001,
+        "flow_kg_s": 10.0,
+        "length_m": 50.0,
+        "dp_expected_kpa": 12.4
+      },
+      "expected_hash": "6c68733300d1e3fb",
+      "tolerance_pct": 1.0,
+      "notes": "单相水平管压降 — 占位 hash，待 v1 真实三方数据替换"
+    },
+    {
+      "case_id": "pump_npsha_check",
+      "vendor": "HYSYS",
+      "module": "PUMP",
+      "fingerprint": {
+        "suction_pressure_kpa": 150.0,
+        "vapor_pressure_kpa": 25.0,
+        "head_m": 3.0,
+        "npshr_m": 2.5
+      },
+      "expected_hash": "dedf4c90227bc4b5",
+      "tolerance_pct": 2.0,
+      "notes": "NPSHa vs NPSHr — 占位 hash"
+    },
+    {
+      "case_id": "flash_bubble_dew",
+      "vendor": "MANUAL",
+      "module": "FLASH",
+      "fingerprint": {
+        "z_c1": 0.5,
+        "z_c3": 0.5,
+        "pressure_kpa": 1013.25,
+        "t_bubble_c": -42.0,
+        "t_dew_c": 25.0
+      },
+      "expected_hash": "7f126d7515eb7033",
+      "tolerance_pct": 0.5,
+      "notes": "泡露点手工算例 — 占位 hash"
+    }
+  ]
+}

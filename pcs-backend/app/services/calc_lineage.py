@@ -25,15 +25,20 @@ from app.models.calc import (
     PipeNetworkResult,
     PipingResult,
     PumpResult,
+    TwoPhaseResult,
 )
 from app.services.lineage import LineageTracker, _compute_hash
+from app.services.lineage_extension import attach_lineage_d45
 
-# P4 批 0 record 类型占位（裁决 #1：正式 registry 后置 P4-TASK0）
+# P4-TASK0 RECORD_TYPE_REGISTRY 完整化（ADR-0031 残余）：
+# P4 批 0 占位 4 类 + TwoPhaseResult（P4-2-4 新增两相结果表）。
+# Stream 不登记（Stream 是物流不是计算记录）。
 RECORD_TYPE_REGISTRY: dict[str, type] = {
     "PipingResult": PipingResult,
     "PumpResult": PumpResult,
     "FlashResult": FlashResult,
     "PipeNetworkResult": PipeNetworkResult,
+    "TwoPhaseResult": TwoPhaseResult,
 }
 
 # record_hash 截断长度（16 hex = 64 bit，与 cia_engine._CONTENT_HASH_PREFIX 一致）
@@ -116,7 +121,7 @@ async def finalize_calc_record(
     tracker = LineageTracker(db)
     record.record_hash = compute_record_hash(record)
     for sid in source_stream_ids:
-        await tracker.track(
+        entry = await tracker.track(
             record=record,
             source="CALC",
             change_summary=f"calc finalize (formula_version={formula_version})",
@@ -128,6 +133,9 @@ async def finalize_calc_record(
             source_ref_type="Stream",
             source_ref_id=sid,
         )
+        # P4-TASK0 D4/D5 扩展（ADR-0031 残余）：DataLineage 4 列增量写入。
+        # 既有契约（hash + 血缘结构）不变；仅在 track 后追加元数据。
+        attach_lineage_d45(entry, record=record, formula_version=formula_version)
 
 
 __all__ = [

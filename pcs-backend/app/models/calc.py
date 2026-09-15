@@ -196,11 +196,11 @@ class VesselResult(TaggedRecordMixin, Base):
 
 
 class TwoPhaseResult(Base):
-    """两相流水力学结果（SUP-008 §8.3.4，P4-0-2 OPEN-008）。
+    """两相流水力学结果（SUP-008 §8.3.4，P4-0-2 OPEN-008 + P4-TASK0 扩展）。
 
-    仅含 brief 列出的 13 字段（PK + input/output JSONB + 业务 + 时间戳），
-    不继承 TaggedRecordMixin：与其他新表（sim_tower_results / sim_unit_op_*）
-    一致；bit_number / record_hash / 审批等门禁由后续 P4-TASK0 / 批次按需扩展。
+    P4-0-2 仅含 13 字段；P4-TASK0 补 record_hash 列以接入 calc_lineage 收口
+    （RECORD_TYPE_REGISTRY 注册 + finalize_calc_record 可调）。其余门禁列
+    （approval / change_* / obsoleted_*）暂不引入，避免破坏 P4-0-2 既有契约。
     """
 
     __tablename__ = "two_phase_results"
@@ -223,6 +223,13 @@ class TwoPhaseResult(Base):
     void_fraction: Mapped[float | None] = mapped_column(Float)
     calc_method: Mapped[str | None] = mapped_column(String(50))
     created_at: Mapped[DateTime] = mapped_column(DateTime(timezone=True))
+    # P4-TASK0：接入 calc_lineage 收口
+    record_hash: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        default="",
+        comment="SHA-256 截断 16 hex；与 RecordMixin 同语义（P4-TASK0 扩展）",
+    )
 
 
 class SepEquipResult(TaggedRecordMixin, Base):

@@ -57,6 +57,15 @@ testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
 
+# P4-TASK0 架构层依赖约束（ADR-0031 残余）。
+# 实际校验由 tests/architecture/test_imports.py 用 importlib 自实现（不引入新依赖）。
+# 本节作为契约文档；CI 跑 test_imports.py 强制执行。
+# 若未来引入 importlinter 包，本节直接作为 importlinter 配置文件即可。
+#
+# [tool.importlinter:contract:api-downstream]        # TOML key 不允许冒号 → 注释占位
+# type = "layers"
+# layers = ["app.api", "app.services", "app.models", "app.core"]
+
 [tool.uv.sources]
 fluids = { path = "vendor/fluids", editable = true }
 chemicals = { path = "vendor/chemicals", editable = true }
