@@ -36,9 +36,9 @@
 - **ChEDL 版本锁定**（D-08）：Task 25 (P5-0-6) + ADR-0030；fluids / chemicals / ht 冻结至 **pyproject.toml 精确版本 `==X.Y.Z`**（**V1.7 问题8** source of truth）+ uv.lock 重新生成 + requirements.txt uv export 快照；P5-0 批内完成，P5-1 启动前生效
 - **DETAIL/BASIC 双阶段设计**：design_stage 下沉自 P4-OPEN-009（VESSEL/PSV/COLUMN 加列，spec §4.3 OPEN-005）
 
-## 任务清单（25 task；Task 24/25 为 P5-0-5/P5-0-6 前置执行）
+## 任务清单（26 task；Task 24/25/26 为 P5-0-5/P5-0-6/P5-0-7 前置执行）
 
-### 批 P5-0 — 数据模型层（6 task：Task 1~4 主 + Task 24/25 前置，全部批内执行）
+### 批 P5-0 — 数据模型层（7 task：Task 1~4 主 + Task 24/25/26 前置，全部批内执行）
 
 #### Task 1: P5-0-1 P5-OPEN-005 模型扩展（relief_results + column_sizing + mixer_results + 4 蒸汽表 + design_stage）
 
@@ -117,7 +117,7 @@
 - Create: `tests/services/vessel/test_vessel_sizing.py`
 - Create: `tests/services/vessel/fixtures/golden_vessel_souders_brown.json`
 
-**依赖（V1.8 问题2 时序明确 + V1.9 GSTACK P0 增强）**：**Task 25 (P5-0-6) 和 Task 25b (P5-0-7) 都必须先完成**；Task 25 在 P5-0 批最开始执行（先于 Task 1）锁定 ChEDL 版本；Task 25b 紧随 Task 25 创建包装层；Task 5 实施时 `import fluids` 验证版本等于 `fluids.__version__ == "X.Y.Z"`（ADR-0030 锁定版本）+ `from app.services.chedl_wrapper import v_Souders_Brown` 验证包装层就绪
+**依赖（V1.8 问题2 时序明确 + V1.9 GSTACK P0 增强）**：**Task 25 (P5-0-6) 和 Task 26 (P5-0-7) 都必须先完成**；Task 25 在 P5-0 批最开始执行（先于 Task 1）锁定 ChEDL 版本；Task 26 紧随 Task 25 创建包装层；Task 5 实施时 `import fluids` 验证版本等于 `fluids.__version__ == "X.Y.Z"`（ADR-0030 锁定版本）+ `from app.services.chedl_wrapper import v_Souders_Brown` 验证包装层就绪
 
 **接口**:
 - Consumes: `CONFIG.K_factor_vertical_separator`（P2 配）+ `rho_L` / `rho_V`（FLASH 物流）
@@ -693,7 +693,7 @@
 
 **生效时机**：P5-0 批内完成（P5-1 启动前生效）；P5-1 之后**禁止修改** ChEDL 版本（升级需独立 PR）
 
-#### Task 25b: P5-0-7 ChEDL 包装层（F-13-2 落地，V1.9 GSTACK P0 修正）
+#### Task 26: P5-0-7 ChEDL 包装层（F-13-2 落地，V1.9 GSTACK P0 修正）
 
 > **执行顺序**：Task 25 完成后**立即**执行；Task 5/6/11 GREEN 步骤依赖本 Task；与 Task 24 并行（不依赖标准 profile）
 
@@ -776,7 +776,7 @@
 | SUP-P5-PSV-001 §10 Backlog（DIERS / 先导式 / 孔口表 / CUSTOM 审批 / 跨标准对比 / P6 FLARE_SYS 汇总） | P5+ / P6+ 见 Backlog |
 | ADR-0030 ChEDL 版本锁定（D-08） | Task 25 (P5-0-6) |
 
-**覆盖完整性**：spec §2~§4 + SUP-P5-PSV-001 §1~§10 全部覆盖（**25 task** 含 Task 24 P5-0-5 前置 + Task 25 P5-0-6 ChEDL 版本锁定；F-01 方案 A）。
+**覆盖完整性**：spec §2~§4 + SUP-P5-PSV-001 §1~§10 全部覆盖（**26 task** 含 Task 24 P5-0-5 前置 + Task 25 P5-0-6 ChEDL 版本锁定 + Task 26 P5-0-7 ChEDL 包装层；F-01 方案 A + V1.9 F-14-2 + V1.10 ADR-0030 落地）。
 
 ### 2. Placeholder 扫描
 
@@ -896,7 +896,7 @@
 
 - **F-14 V1.9 GSTACK eng-review 12 项修正**（2026-09-15 第五轮审查 + 用户 6 项新发现合并）：
   - **F-14-1（P1 阻塞）**：`RECORD_TYPE_REGISTRY` 方案 A 统一 —— heat_results 已在"现有 5 表"内，P5-0-2 仅字段扩展不新增注册；P5-0-1 后 12 类 + P5-0-5 后 13 类（ProjectCalculationStandardProfile）；裁决 #11 + F-06 + 验收同步
-  - **F-14-2（P1 阻塞）**：新增 **Task 25b (P5-0-7) ChEDL 包装层** —— V1.8 F-13-2 仅在 Task 5/11 GREEN 步骤提到调 `chedl_wrapper.*`，但包装层文件本身无 Task 创建；Task 25b 紧随 Task 25，与 Task 24 并行；Task 5/6/11 实施前必完成；`app/services/chedl_wrapper.py` + `app/services/chedl_provenance.py` + 7 包装函数 + provenance 字典
+  - **F-14-2（P1 阻塞）**：新增 **Task 26 (P5-0-7) ChEDL 包装层** —— V1.8 F-13-2 仅在 Task 5/11 GREEN 步骤提到调 `chedl_wrapper.*`，但包装层文件本身无 Task 创建；Task 26 紧随 Task 25，与 Task 24 并行；Task 5/6/11 实施前必完成；`app/services/chedl_wrapper.py` + `app/services/chedl_provenance.py` + 7 包装函数 + provenance 字典
   - **F-14-3（P1 阻塞）**：Task 25 GREEN 步骤加入 `dir()` 核验前置 —— 选择 ChEDL 版本前先核验函数可用性，避免"版本锁定后才发现函数不存在"的返工；缺函数（除 `fluids.tanks` 已知缺失）→ 重新选版本
   - **F-14-4（P1）**：Task 6 双套测试模式 —— `test_empty_time_with_chedl`（skipif 函数缺失）+ `test_empty_time_self_implemented`（始终执行）；比"RED 失败后重写 GREEN"更平滑
   - **F-14-5（P1）**：验收基线改为**净增量 ≥67 passed**口径 —— `baseline_at_start` = P5 启动时实际值；`pcs_test_total - baseline_at_start ≥ 67`；不绑定 P4 末态 1603 绝对数
@@ -912,6 +912,8 @@
   - **F-15-1（P0 阻塞）**：ADR-0028 决策 8 落地 — Task 18 Steps 增加先导式阀前置校验（`valve_type == "PILOT_OPERATED"` + profile.pilot_operated.enabled=False → 422 `PSV_PILOT_OPERATED_NOT_SUPPORTED` + upgrade_hint）+ 2 例测试（`test_pilot_operated_request_returns_422` / `test_spring_loaded_request_passes_through`）
   - **F-15-2（P0 阻塞）**：ADR-0030 编号同步 — Task 25 文件路径 `0029-chedl-version-lock.md` → `0030-chedl-version-lock.md`；全文 20 处 `ADR-0029` → `ADR-0030`（含裁决 #22、Task 25 标题/接口/Steps/commit、F-13-1/2/3、Backlog、验收段）；现有 `0029-toe-conversion-and-detail-htri-templates.md`（2026-09-04 Accepted）保留不动
   - **F-15-3（P1 阻塞）**：裁决 #11 措辞保持 — V1.9 已写"7 表 + 现有 5 表 = 12 类"（方案 A：heat_results 已含 5 表内）；ADR-0028 影响段"V1.8 裁决 #11 中'P5-0-2 完成后追加 heat_results'表述作废"实为对 V1.8 早期版本的修正标注，V1.10 不必再改
+  - **F-15-4（P0 阻塞 — ADR-0030 审查后追加）**：Task 25b → Task 26 编号调整 —— V1.9 F-14-2 新增的包装层 Task 与原 Task 25 强耦合（同一文件 `app/services/chedl_wrapper.py`），按 ADR-0030 审查意见改为独立 Task 26（P5-0-7）；V1.10 总任务数 25 → 26；Task 24/25/26 三个 P5-0 前置任务并行执行
+  - **F-15-5（P0 阻塞 — ADR-0030 审查后追加）**：RECORD_TYPE_REGISTRY 口径对齐 ADR-0028 —— ChEDLVersionSnapshot 不登记（CI baseline 非计算记录，独立由 `tests/fixtures/chedl_version_snapshot.txt` 管理）；保持 ADR-0028 影响段"Task 1 后 12 类、Task 24 后 13 类"口径不变
 
 ## Backlog（按优先级）
 
@@ -952,7 +954,7 @@
 ## 验收
 
 P5 闭环判定：
-1. **26 task 全部 CLOSED**（含 R1 fix 如有；F-01 方案 A：Task 1~23 主批 + Task 24/25/25b 前置执行；**V1.9 F-14-2 新增 Task 25b (P5-0-7) ChEDL 包装层**）
+1. **26 task 全部 CLOSED**（含 R1 fix 如有；F-01 方案 A：Task 1~23 主批 + Task 24/25/26 前置执行；**V1.9 F-14-2 新增 + V1.10 ADR-0030 落地：Task 26 (P5-0-7) ChEDL 包装层**）
 2. **P5 期间 pcs_test 净增量 ≥67 passed**（E-02 + D-08，**V1.9 GSTACK P2 修正**）
    - **P5 启动时**记录 `baseline_at_start = pcs_test 实际值`（不受 P4 hotfix / P5-OPEN 修复影响）
    - **P5 完成时**断言 `pcs_test_total - baseline_at_start ≥ 67`
@@ -1005,9 +1007,9 @@ P5 闭环判定：
 
 **用户新增 6 项**：
 
-7. ✅ **[P1] (conf: 9/10)** chedl_wrapper.py 创建 Task 缺失 → F-14-2 新增 Task 25b (P5-0-7)
+7. ✅ **[P1] (conf: 9/10)** chedl_wrapper.py 创建 Task 缺失 → F-14-2 新增 Task 26 (P5-0-7)
 8. ✅ **[P1] (conf: 9/10)** dir() 核验时序错位 → F-14-3 Task 25 GREEN 步骤前置 dir() 核验
 9. ✅ **[P1] (conf: 8/10)** dir() 失败时 RED 测试重写 → F-14-4 双套测试模式
-10. ✅ **[P2] (conf: 8/10)** get_chedl_provenance 缺失 → F-14-2 Task 25b 接口 + ChEDLProvenance dataclass
+10. ✅ **[P2] (conf: 8/10)** get_chedl_provenance 缺失 → F-14-2 Task 26 接口 + ChEDLProvenance dataclass
 11. ✅ **[P2] (conf: 7/10)** Task 22 偏差基准来源 → F-14-12 fixture README + golden_weight_bem/aem.json
 12. ✅ **[P3] (conf: 7/10)** validate 调用边界不清 → F-14-8 Task 16 service + Task 18 persist 双重防护
