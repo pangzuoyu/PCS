@@ -1,0 +1,18 @@
+{
+  "centrifugal_5_points": {
+    "points": [
+      {"flow_m3_s": 0.01, "head_m": 35, "efficiency": 0.65, "npshr_m": 2.0},
+      {"flow_m3_s": 0.02, "head_m": 33, "efficiency": 0.75, "npshr_m": 2.5},
+      {"flow_m3_s": 0.03, "head_m": 30, "efficiency": 0.80, "npshr_m": 3.2},
+      {"flow_m3_s": 0.04, "head_m": 26, "efficiency": 0.78, "npshr_m": 4.0},
+      {"flow_m3_s": 0.05, "head_m": 21, "efficiency": 0.70, "npshr_m": 5.0}
+    ],
+    "rated_flow_m3_s": 0.03,
+    "rated_head_m": 30,
+    "rated_efficiency": 0.80,
+    "test_queries": [
+      {"flow_m3_s": 0.025, "expected_head_m": 31.5, "tolerance": 0.01},
+      {"flow_m3_s": 0.035, "expected_head_m": 28.0, "tolerance": 0.01}
+    ]
+  }
+}
