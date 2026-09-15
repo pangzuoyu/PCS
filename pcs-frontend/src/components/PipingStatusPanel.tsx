@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Card, List, Space } from 'antd';
 import axios from 'axios';
-import { StatusTag } from './StatusTag';
+import { StateBadge } from './common/StateBadge';
 import type { RecordSignStatus } from '../types/records';
 
 interface PipingRow {
@@ -30,7 +30,7 @@ export function PipingStatusPanel({ workspaceId }: { workspaceId?: string }) {
           <List.Item>
             <Space>
               <span>{r.line_no}</span>
-              <StatusTag status={r.sign_status} />
+              <StateBadge status={r.sign_status} />
             </Space>
           </List.Item>
         )}
