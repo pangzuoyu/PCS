@@ -1,0 +1,172 @@
+/*
+ * PCS Design Tokens — 三层架构（primitive / semantic / component）
+ * UI Spec: docs/PCS-UI-SPEC.md §2
+ * UI-UX-Pro-Max design-system 子技能建议（D-1，2026-09-15）：补 component 层 + disabled 态 + validate-tokens CI
+ * 命名约定：--{category}-{item} (semantic) | --{component}-{property}-{state?} (component)
+ */
+
+/* === PRIMITIVE === */
+:root {
+  /* 状态色（state-primitive：直接用色值，不引用 semantic；component 层 -subtle 变体引用之） */
+  --state-draft: #6B7681;
+  --state-in-approval: #2F81F7;
+  --state-checked: #2EA043;
+  --state-check-rejected: #F85149;
+  --state-stale: #D29922;
+  --state-change-pending: #A371F7;
+  --state-changed: #39C5CF;
+  --state-reversal-pending: #E3B341;
+  --state-obsolete: #484F58;
+
+  /* 语义色（success/warning/danger/info） */
+  --semantic-success: #2EA043;
+  --semantic-warning: #D29922;
+  --semantic-danger: #F85149;
+  --semantic-info: #2F81F7;
+  --semantic-assumed: #D29922;
+
+  /* 冲突色（3 级） */
+  --conflict-block: #F85149;
+  --conflict-warn: #D29922;
+  --conflict-info: #2F81F7;
+
+  /* 假设 / 输入项状态色（P1 输入清单） */
+  --input-not-started: #5A6773;
+  --input-in-progress: #E3B341;
+  --input-verified: #2EA043;
+  --input-assumed: #D29922;
+  --input-not-applicable: #484F58;
+}
+
+/* === SEMANTIC === */
+:root {
+  /* 背景层（6 + overlay） */
+  --bg-canvas: #0B0F14;
+  --bg-panel: #111820;
+  --bg-elevated: #18222C;
+  --bg-inset: #0D1319;
+  --bg-hover: #1C2833;
+  --bg-active: #22303D;
+  --bg-overlay: rgba(0, 0, 0, 0.6);
+
+  /* 边框 */
+  --border-subtle: #1A232D;
+  --border-default: #243040;
+  --border-strong: #33455A;
+  --border-focus: #00B4D8;
+
+  /* 文字 */
+  --text-primary: #E6EDF3;
+  --text-secondary: #8B98A5;
+  --text-tertiary: #5A6773;
+  --text-mono: #C9D1D9;
+  --text-inverse: #0B0F14;
+  --text-disabled: var(--text-tertiary);
+
+  /* 主色 / Accent */
+  --accent-primary: #00B4D8;
+  --accent-hover: #22C7E8;
+  --accent-active: #0093B0;
+  --accent-subtle: rgba(0, 180, 216, 0.12);
+
+  /* 字体栈（UI / mono / cn） */
+  --font-ui: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", "SFMono-Regular", Consolas, monospace;
+  --font-cn: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", sans-serif;
+
+  /* 字号 / 行高 */
+  --fs-display: 20px; --lh-display: 28px; --fw-display: 600;
+  --fs-h1: 16px;      --lh-h1: 24px;      --fw-h1: 600;
+  --fs-h2: 14px;      --lh-h2: 20px;      --fw-h2: 600;
+  --fs-body: 13px;    --lh-body: 20px;    --fw-body: 400;
+  --fs-table: 12px;   --lh-table: 18px;   --fw-table: 400;
+  --fs-caption: 11px; --lh-caption: 16px; --fw-caption: 400;
+  --fs-mono: 12px;    --lh-mono: 18px;    --fw-mono: 400;
+
+  /* 间距（基准 4px） */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+  --space-7: 48px;
+
+  /* 圆角 */
+  --radius-sm: 2px;
+  --radius-md: 4px;
+  --radius-lg: 6px;
+  --radius-full: 999px;
+
+  /* 阴影 */
+  --shadow-panel: 0 1px 0 rgba(255, 255, 255, 0.03) inset;
+  --shadow-elevated: 0 8px 24px rgba(0, 0, 0, 0.5);
+  --shadow-focus: 0 0 0 2px rgba(0, 180, 216, 0.4);
+
+  /* 网格（计算模块工作区启用） */
+  --grid-line: rgba(255, 255, 255, 0.02);
+
+  /* 动效时长 */
+  --duration-fast: 120ms;
+  --duration-normal: 200ms;
+  --duration-slow: 400ms;
+  --easing-out: ease-out;
+  --easing-modal: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* 通用 */
+  --opacity-disabled: 0.5;
+  --opacity-loading: 0.7;
+  --bg-disabled: var(--bg-inset);
+}
+
+/* === COMPONENT === */
+:root {
+  /* StateBadge — 9 态 bg -subtle 变体 + 文字色（UI-UX-Pro-Max D-1 Gap 1） */
+  --state-badge-bg-DRAFT: rgba(107, 118, 129, 0.15);
+  --state-badge-fg-DRAFT: var(--state-draft);
+  --state-badge-bg-IN_APPROVAL: rgba(47, 129, 247, 0.15);
+  --state-badge-fg-IN_APPROVAL: var(--state-in-approval);
+  --state-badge-bg-CHECKED: rgba(46, 160, 67, 0.15);
+  --state-badge-fg-CHECKED: var(--state-checked);
+  --state-badge-bg-CHECK_REJECTED: rgba(248, 81, 73, 0.15);
+  --state-badge-fg-CHECK_REJECTED: var(--state-check-rejected);
+  --state-badge-bg-STALE: rgba(210, 153, 34, 0.15);
+  --state-badge-fg-STALE: var(--state-stale);
+  --state-badge-bg-CHANGE_PENDING: rgba(163, 113, 247, 0.15);
+  --state-badge-fg-CHANGE_PENDING: var(--state-change-pending);
+  --state-badge-bg-CHANGED: rgba(57, 197, 207, 0.15);
+  --state-badge-fg-CHANGED: var(--state-changed);
+  --state-badge-bg-REVERSAL_PENDING: rgba(227, 179, 65, 0.15);
+  --state-badge-fg-REVERSAL_PENDING: var(--state-reversal-pending);
+  --state-badge-bg-OBSOLETE: rgba(72, 79, 88, 0.15);
+  --state-badge-fg-OBSOLETE: var(--state-obsolete);
+
+  /* Button — 主色 / 危险 */
+  --btn-primary-bg: var(--accent-primary);
+  --btn-primary-bg-hover: var(--accent-hover);
+  --btn-primary-bg-active: var(--accent-active);
+  --btn-primary-fg: var(--text-inverse);
+  --btn-danger-bg: var(--semantic-danger);
+  --btn-danger-bg-hover: #FF6962;
+  --btn-danger-fg: var(--text-primary);
+
+  /* Input */
+  --input-bg: var(--bg-inset);
+  --input-border: var(--border-strong);
+  --input-border-focus: var(--border-focus);
+  --input-focus-ring: var(--shadow-focus);
+  --input-disabled-bg: var(--bg-canvas);
+  --input-disabled-fg: var(--text-disabled);
+
+  /* Table */
+  --table-header-bg: var(--bg-elevated);
+  --table-row-hover-bg: var(--bg-hover);
+  --table-row-active-bg: var(--bg-active);
+  --table-border: var(--border-subtle);
+
+  /* Panel / Card */
+  --panel-bg: var(--bg-panel);
+  --panel-border: var(--border-default);
+  --panel-radius: var(--radius-md);
+  --panel-padding: var(--space-4);
+}
