@@ -1,4 +1,4 @@
-# P5 设备计算模块（第二批）实施计划 V1.9
+# P5 设备计算模块（第二批）实施计划 V1.10
 
 > **执行方式**：superpowers TDD（每 task：RED → GREEN → commit）；subagent-driven-development 派新 agent。
 > **基线 spec**：
@@ -7,16 +7,16 @@
 > - `spec/SUP-P5-PSV-001 PSV 多标准.md`（V1.0，2026-09-15，已批准，E-01）— PSV 计算标准 API/GB 项目级配置
 > **P4 依赖**：FLASH / PIPE / PUMP / PIPE_NET 已闭环（pcs_test 1603 passed / ruff 0）
 > **TODOS 关联**：026 / 028 / 034 / 035 / 036 / 037 + SUP-PSV-001 TODO-PSV-STD-001（PSV 多标准）
-> **关联 spec**：SUP-008 V1.1 / SUP-009 V1.0 / SUP-010 V1.1 / SUP-007 / SUP-P5-PSV-001 / ADR-0022 / ADR-0027（P5-0-2 落地）/ ADR-0028（PSV 多标准引擎，Task 24 起草 Proposed，与 SUP 同步评审）/ ADR-0029（ChEDL 版本锁定，Task 25 起草，D-08 新建）
+> **关联 spec**：SUP-008 V1.1 / SUP-009 V1.0 / SUP-010 V1.1 / SUP-007 / SUP-P5-PSV-001 / ADR-0022 / ADR-0027（P5-0-2 落地）/ ADR-0028（PSV 多标准引擎，Task 24 起草 Proposed，与 SUP 同步评审）/ ADR-0030（ChEDL 版本锁定，Task 25 起草，D-08 新建）
 > **P5 阶段验收（开发计划 §关键里程碑）**：各设备计算与手算/商业软件偏差在 SPEC 要求范围内（≤1/1/2/2/5/10%）
 > **P5 后续衔接（开发计划 §依赖图）**：PSV → P6 FLARE_SYS（泄放量汇总接口预留 + 按标准口径汇总 SUP-P5-PSV-001 §5.4） + HEAT → P7 UTIL（热负荷汇总接口预留）
 > **BACKLOG 来源**：P4 验收报告 §六（Hooper 2-K / Beggs-Brill / P4-2-6 等不进 P5，P5+）
 
-**Goal**：交付 VESSEL / SEP_EQUIP / PSV / HEAT 四模块 + 数据模型扩展（P5-OPEN-005/006 + TODO-026/028/036）+ PSV 多标准引擎（SUP-P5-PSV-001 + ADR-0028）+ ChEDL 版本锁定（ADR-0029），覆盖工艺室分离设备 + 安全阀 + 换热器三大类设备计算。
+**Goal**：交付 VESSEL / SEP_EQUIP / PSV / HEAT 四模块 + 数据模型扩展（P5-OPEN-005/006 + TODO-026/028/036）+ PSV 多标准引擎（SUP-P5-PSV-001 + ADR-0028）+ ChEDL 版本锁定（ADR-0030），覆盖工艺室分离设备 + 安全阀 + 换热器三大类设备计算。
 
 **Architecture**：底层 **ChEDL 验证模块**（`fluids.separator.v_Souders_Brown` / `K_separator_Watkins` / `K_separator_demister_York` / `fluids.particle_size.v_sphere` Stokes 三区迭代 / `fluids.safety_valve.API520_round_size` 仅复用圆整）+ **业务逻辑层自研**（API 521 火灾热输入 / API 2000 呼吸阀 / HTRI 解析器 / EQUIP_LIB 复用推荐 / PSV 多工况聚合 / 反应失控 / 热膨胀）+ P4 出口物流 helper（ADR-0022）；结果入 P0 已建表 + P5-OPEN-005 扩展；多泄放工况叠加 + 两相流 FLASH 联动；记录走 record_hash + DataLineage（公式版本入 lineage，P4-TASK0 D4/D5 已备；裁决 #8 ChEDL 分层架构）。
 
-**Tech**：FastAPI + SQLAlchemy 2.0 async + PG16 + fluids(**pip 依赖安装，pyproject.toml 精确版本 `==X.Y.Z`，ADR-0029 锁定，V1.8 问题3 修正取消 vendoring — fluids MIT|GPL-3.0 双许可 vendoring 有 GPL-3.0 传染风险**) + numpy.float64 + scipy
+**Tech**：FastAPI + SQLAlchemy 2.0 async + PG16 + fluids(**pip 依赖安装，pyproject.toml 精确版本 `==X.Y.Z`，ADR-0030 锁定，V1.8 问题3 修正取消 vendoring — fluids MIT|GPL-3.0 双许可 vendoring 有 GPL-3.0 传染风险**) + numpy.float64 + scipy
 
 ## 全局约束
 
@@ -33,7 +33,7 @@
 - **GB/T 150.1 版本策略**（D-03）：项目级锁定，新项目默认 2024，历史项目迁移保持原版本（2011）+ `migrated_default=true` 标记
 - **GB/T 12241 孔口表降级**（D-04）：P5 输出所需流道直径不强制圆整；formula_ref 标注 `orifice_table_status: "incomplete_fallback"`；完整录入转 P5+
 - **ruff 0 errors**；**P5 验收基线 = 净增量 ≥67 passed**（**V1.9 GSTACK P2 修正**：`P5 启动时记录 baseline_at_start = pcs_test 实际值`，`P5 完成时要求 pcs_test_total - baseline_at_start ≥ 67`；不绑定 P4 末态 1603 绝对数，避免并行批次 hotfix 漂移；67 = **≥47 P5 核心** + 15 SUP 门禁 + 5 ChEDL 版本锁定，F-04 + E-02 + D-08 + **V1.7 问题7**）
-- **ChEDL 版本锁定**（D-08）：Task 25 (P5-0-6) + ADR-0029；fluids / chemicals / ht 冻结至 **pyproject.toml 精确版本 `==X.Y.Z`**（**V1.7 问题8** source of truth）+ uv.lock 重新生成 + requirements.txt uv export 快照；P5-0 批内完成，P5-1 启动前生效
+- **ChEDL 版本锁定**（D-08）：Task 25 (P5-0-6) + ADR-0030；fluids / chemicals / ht 冻结至 **pyproject.toml 精确版本 `==X.Y.Z`**（**V1.7 问题8** source of truth）+ uv.lock 重新生成 + requirements.txt uv export 快照；P5-0 批内完成，P5-1 启动前生效
 - **DETAIL/BASIC 双阶段设计**：design_stage 下沉自 P4-OPEN-009（VESSEL/PSV/COLUMN 加列，spec §4.3 OPEN-005）
 
 ## 任务清单（25 task；Task 24/25 为 P5-0-5/P5-0-6 前置执行）
@@ -117,7 +117,7 @@
 - Create: `tests/services/vessel/test_vessel_sizing.py`
 - Create: `tests/services/vessel/fixtures/golden_vessel_souders_brown.json`
 
-**依赖（V1.8 问题2 时序明确 + V1.9 GSTACK P0 增强）**：**Task 25 (P5-0-6) 和 Task 25b (P5-0-7) 都必须先完成**；Task 25 在 P5-0 批最开始执行（先于 Task 1）锁定 ChEDL 版本；Task 25b 紧随 Task 25 创建包装层；Task 5 实施时 `import fluids` 验证版本等于 `fluids.__version__ == "X.Y.Z"`（ADR-0029 锁定版本）+ `from app.services.chedl_wrapper import v_Souders_Brown` 验证包装层就绪
+**依赖（V1.8 问题2 时序明确 + V1.9 GSTACK P0 增强）**：**Task 25 (P5-0-6) 和 Task 25b (P5-0-7) 都必须先完成**；Task 25 在 P5-0 批最开始执行（先于 Task 1）锁定 ChEDL 版本；Task 25b 紧随 Task 25 创建包装层；Task 5 实施时 `import fluids` 验证版本等于 `fluids.__version__ == "X.Y.Z"`（ADR-0030 锁定版本）+ `from app.services.chedl_wrapper import v_Souders_Brown` 验证包装层就绪
 
 **接口**:
 - Consumes: `CONFIG.K_factor_vertical_separator`（P2 配）+ `rho_L` / `rho_V`（FLASH 物流）
@@ -382,6 +382,7 @@
 2. GREEN: 
    - `POST /projects/{project_id}/standards/psv` 项目标准配置（CUSTOM 时 approval_json 必填；仅项目标准负责人/管理员可配，403 否则）
    - 3 计算端点：调用 `StandardResolver.resolve(project_id, discipline="PSV")` 获取 standard → 注入 Task 13/14/16/17 函数；项目未配置 → 422 `PSV_STANDARD_NOT_CONFIGURED`；请求覆盖项目默认但无权限 → 403 `PSV_STANDARD_OVERRIDE_FORBIDDEN`（G1/G2 门禁）
+   - **V1.10 ADR-0028 决策 8 落地**：3 端点在调 StandardResolver 之后、调计算函数之前增加先导式阀前置校验——若请求 `valve_type == "PILOT_OPERATED"` 且项目 profile 的 `pilot_operated.enabled == False` → raise `PsvPilotOperatedNotSupportedError(422 PSV_PILOT_OPERATED_NOT_SUPPORTED)`；响应体含 `upgrade_hint: "先导式阀计算 P5+ 实施，请联系标准负责人评估升级路径"`（D-07 / P5-OPEN-00V 关闭）
    - finalize_calc_record 双表 + 写入标准三列 + create_outlet_stream 扩展 "PSV"
    - **V1.9 GSTACK P3 双重防护**：Task 16 service 层 `calc_relief_area()` 返回前调 `validate_relief_area_formula_ref(result.formula_ref, project_id=inp.project_id)`；Task 18 persist 层 `finalize_calc_record()` 写入 DB 前**再次**调 `validate_relief_area_formula_ref(formula_ref, project_id, record_id=psv_result.id)`（防止绕过 Task 16 直接构造记录）；矛盾 → 422 `PSV_FORMULA_REF_INCONSISTENCY`
    - **F-03**：`relief_summary` 按项目标准取每组最大 mass_flow 对应工况（**改用窗口函数**，避免 MAX(scenario) 字母序错误）+ **V1.7 问题4 per_scenario_json 全工况明细**（子查询聚合）+ **V1.8 问题4 性能优化**：
@@ -410,7 +411,7 @@
      - **V1.8 性能测试**：测试中增加 20 工况压力测试（断言响应时间 ≤1s）
    - record_hash 计算含 standard 字段（G4 同一输入跨标准 → 不同 record_hash → 两条独立记录）；**V1.9 GSTACK P3 五段独立断言**：基于 `PSV_RECORD_HASH_FIELDS = (project_id, standard_profile_code, standard_refs_json, input_json, output_json)`，RED 阶段分别 mutate 每字段验证 hash 各不同；hash 算法 = `sha256(json.dumps({field: sorted_value for field in PSV_RECORD_HASH_FIELDS}, sort_keys=True))`
    - **F-07**：migration `p5_psv_standard_not_null.py` —— UPDATE 存量记录 standard_profile_code='API' / standard_refs_json='{}' / formula_ref_json='{}' → ALTER COLUMN ... SET NOT NULL
-3. 测试：4 端点 + 标准字段落库 roundtrip + **G1-G6 门禁 6 例**（未配置 422 / 无权限覆盖 403 / CUSTOM 无审批 422 / 跨标准 record_hash 不同 / 标准变更旧记录待复核 / 历史迁移 migrated_default=true）+ 双表 roundtrip + 多工况叠加 ≤5s + **relief_summary max_scenario 正确性测试**（F-03：FIRE 5kg/s vs CLOSED_VALVE 8kg/s vs THERMAL 3kg/s → max_scenario="CLOSED_VALVE" 而非字母序 "THERMAL_EXPANSION"）+ **V1.7 问题4 per_scenario_json 完整性测试**（断言 3 工况全部出现在 per_scenario_json 中 + 各工况 mass_flow 排序 + formula_ref 字段透传）+ NOT NULL 迁移后无空记录
+3. 测试：4 端点 + 标准字段落库 roundtrip + **G1-G6 门禁 6 例**（未配置 422 / 无权限覆盖 403 / CUSTOM 无审批 422 / 跨标准 record_hash 不同 / 标准变更旧记录待复核 / 历史迁移 migrated_default=true）+ 双表 roundtrip + 多工况叠加 ≤5s + **relief_summary max_scenario 正确性测试**（F-03：FIRE 5kg/s vs CLOSED_VALVE 8kg/s vs THERMAL 3kg/s → max_scenario="CLOSED_VALVE" 而非字母序 "THERMAL_EXPANSION"）+ **V1.7 问题4 per_scenario_json 完整性测试**（断言 3 工况全部出现在 per_scenario_json 中 + 各工况 mass_flow 排序 + formula_ref 字段透传）+ NOT NULL 迁移后无空记录 + **V1.10 先导式阀拦截 2 例**（`test_pilot_operated_request_returns_422`：PILOT_OPERATED 请求 + profile.pilot_operated.enabled=False → 422 PSV_PILOT_OPERATED_NOT_SUPPORTED + upgrade_hint 存在性；`test_spring_loaded_request_passes_through`：SPRING_LOADED 请求 + 同样配置 → 正常计算不受拦截）
 4. commit: `feat(p5-3-6): PSV API + persist + standard 落库 + FLARE_SYS 按标准预留 + relief_summary 窗口函数`
 
 ### 批 P5-4 — HEAT 换热器（5 task）
@@ -635,17 +636,17 @@
 **门禁**（SUP-P5-PSV-001 §6）：G1 项目未配置 → 422（D-02 强化：禁止隐式回退） / G3 CUSTOM 缺审批（approval_json + approved_by）→ 422 / G6 历史迁移 → migrated_default=true 标记
 **依赖**：Task 1（P5-0-1 模型扩展）必须先完成（三列才能加）；Task 25（ChEDL 版本锁定）作为 P5-0 批前置基线
 
-#### Task 25: P5-0-6 ChEDL 版本锁定 ADR-0029（D-08，前置执行）
+#### Task 25: P5-0-6 ChEDL 版本锁定 ADR-0030（D-08，前置执行）
 
 **Files**:
-- Create: `docs/adr/0029-chedl-version-lock.md`
+- Create: `docs/adr/0030-chedl-version-lock.md`
 - Modify: `pcs-backend/pyproject.toml`（fluids / chemicals / ht 锁定到精确版本 `==X.Y.Z`）
 - Modify: `pcs-backend/uv.lock`（uv lock 重新生成，对应版本快照）
 - Create: `tests/architecture/test_chedl_version.py`（pip freeze 快照断言 + import 时版本断言）
 - Create: `tests/fixtures/chedl_version_snapshot.txt`（CI baseline）
 
 **接口**:
-- Produces: **pyproject.toml（source of truth，唯一版本声明）** + `uv.lock`（uv lock 生成，**不手工编辑**）+ `requirements.txt`（uv export 生成的人类可读快照）；ADR-0029（Accepted，记录版本选择依据 + 锁定策略 + 升级流程）；测试断言 `fluids.__version__ == X.Y.Z` 等；**V1.7 问题8 三者关系明确**：pyproject.toml 声明 `==X.Y.Z` → `uv lock` 生成 uv.lock → `uv export` 生成 requirements.txt；测试以 **uv.lock 为准**（机器可读）；requirements.txt 仅作人类可读快照（CI 比对可字节级匹配）
+- Produces: **pyproject.toml（source of truth，唯一版本声明）** + `uv.lock`（uv lock 生成，**不手工编辑**）+ `requirements.txt`（uv export 生成的人类可读快照）；ADR-0030（Accepted，记录版本选择依据 + 锁定策略 + 升级流程）；测试断言 `fluids.__version__ == X.Y.Z` 等；**V1.7 问题8 三者关系明确**：pyproject.toml 声明 `==X.Y.Z` → `uv lock` 生成 uv.lock → `uv export` 生成 requirements.txt；测试以 **uv.lock 为准**（机器可读）；requirements.txt 仅作人类可读快照（CI 比对可字节级匹配）
 
 **Steps**:
 1. RED: 写 ChEDL 版本断言测试（`import fluids; assert fluids.__version__ == "X.Y.Z"` + `chemicals` + `ht` 三库）+ `uv.lock` 文件存在性 + `uv.lock` 解析后三库版本断言（**V1.7 问题8：以 uv.lock 为准，不以 pip freeze**）+ requirements.txt 与 uv.lock 一致性断言（**V1.9 GSTACK P3 集合比较**：解析后 `{pkg: version}` 字典对比，避免字节级匹配脆性）
@@ -683,12 +684,12 @@
      missing = [(m, f) for m, fns in REQUIRED.items() for f in fns if not hasattr(importlib.import_module(m), f)]
      ```
    - 若 `fluids.tanks` 函数缺失 → **预期内**，Task 6 启用 F-13-5 降级（自研 + `formula_ref.source = "self_implemented"`）
-   - 若其他模块函数缺失 → **非预期**，需重新选择 fluids 版本；ADR-0029 记录备选版本评估
+   - 若其他模块函数缺失 → **非预期**，需重新选择 fluids 版本；ADR-0030 记录备选版本评估
    - 选择 ChEDL 版本：fluids / chemicals / ht 选当前稳定版（P5-0 启动时 P4 已闭环的版本号）—— 锁定策略：**pyproject.toml 精确版本 `==X.Y.Z`**，**禁止 `>=` / `~=`**（杜绝 floating）
-   - ADR-0029 内容：版本选择依据（功能覆盖 + 已知 bug 修复 + **dir() 核验结果**）+ 锁定策略（pyproject.toml 单一来源）+ 升级流程（独立 PR + 回归测试全量 + ADR 更新）
+   - ADR-0030 内容：版本选择依据（功能覆盖 + 已知 bug 修复 + **dir() 核验结果**）+ 锁定策略（pyproject.toml 单一来源）+ 升级流程（独立 PR + 回归测试全量 + ADR 更新）
    - 执行 `uv lock` 重新生成 uv.lock + `uv export --no-hashes -o requirements.txt` 生成快照 + CI baseline fixture 落地
 3. 测试：≥5 例（fluids / chemicals / ht 三库版本断言 + uv.lock 文件存在性 + uv.lock 解析版本断言 + requirements.txt 与 uv.lock 一致性 + 升级流程文档链接断言）
-4. commit: `feat(p5-0-6): ChEDL version lock (ADR-0029 + pyproject.toml 单一来源 + uv.lock + requirements.txt 快照)`
+4. commit: `feat(p5-0-6): ChEDL version lock (ADR-0030 + pyproject.toml 单一来源 + uv.lock + requirements.txt 快照)`
 
 **生效时机**：P5-0 批内完成（P5-1 启动前生效）；P5-1 之后**禁止修改** ChEDL 版本（升级需独立 PR）
 
@@ -773,7 +774,7 @@
 | SUP-P5-PSV-001 §8.5 新增 ≥15 例门禁/标准切换测试 | 验收基线 ≥1665 → ≥1670（含 D-08 ChEDL +5） |
 | SUP-P5-PSV-001 §9 OPEN-00X/Y/Z/W/V | 见 "裁决记录 D-02/D-03/D-04/D-06/D-07" + "Backlog" |
 | SUP-P5-PSV-001 §10 Backlog（DIERS / 先导式 / 孔口表 / CUSTOM 审批 / 跨标准对比 / P6 FLARE_SYS 汇总） | P5+ / P6+ 见 Backlog |
-| ADR-0029 ChEDL 版本锁定（D-08） | Task 25 (P5-0-6) |
+| ADR-0030 ChEDL 版本锁定（D-08） | Task 25 (P5-0-6) |
 
 **覆盖完整性**：spec §2~§4 + SUP-P5-PSV-001 §1~§10 全部覆盖（**25 task** 含 Task 24 P5-0-5 前置 + Task 25 P5-0-6 ChEDL 版本锁定；F-01 方案 A）。
 
@@ -848,7 +849,7 @@
 - **GB/T 12241 孔口表降级（裁决 #19，D-04 EFFECTIVE）**：P5 阶段 `select_orifice_gb12241(inp)` 降级为"按计算面积输出所需流道直径"，不强制圆整到标准孔口系列；formula_ref 结构化标注 `orifice_table_status: "incomplete_fallback"` + `note`；P5-OPEN-00Z 关闭，完整录入转 P5+
 - **GB 路径 DIERS 转 P5+（裁决 #20，D-06 EFFECTIVE + V1.6 问题4 实现明确）**：Task 16 (P5-3-4) GB 路径两相流方法 P5 阶段暂缺；GB 两相流介质计算时**显式调用 `calc_relief_area_api520(inp)` 重新计算**（传入相同的 `ReliefAreaInput`），仅 formula_ref 标注 `two_phase_inherited_from: "API_520"`；ReliefAreaStandard 接口预留 DIERS 积分法扩展位；P5-OPEN-00W 关闭
 - **先导式阀 GB/T 28778 转 P5+（裁决 #21，D-07 EFFECTIVE + V1.6 问题1 严格版本号）**：Task 24 GB profile 保留 `pilot_operated: {standard: "GB_T_28778-2023", version: "2023", enabled: false}` 配置项，不实现计算模块；P5-OPEN-00V 关闭
-- **ChEDL 版本锁定（裁决 #22，D-08 EFFECTIVE + V1.7 问题8 + V1.8 F-13-1/2/3）**：P5-0 批内新增 **Task 25 (P5-0-6) ChEDL 版本锁定 ADR-0029**；fluids / chemicals / ht 冻结至 **pyproject.toml 精确版本 `==X.Y.Z`**（单一来源 source of truth，**禁止 `>=` / `~=`**）；uv.lock 由 `uv lock` 重新生成（不手工编辑）；requirements.txt 由 `uv export` 生成人类可读快照；测试断言以 **uv.lock 为准**（`import fluids; assert fluids.__version__ == "X.Y.Z"` 通过 uv.lock 解析而非 pip freeze）；P5-0 批内完成，P5-1 启动前生效；升级需独立 PR + 全量回归 + ADR 更新；**V1.8 许可策略明确**：取消 vendoring，采用 pip 依赖安装（fluids MIT|GPL-3.0 双许可，vendoring 有传染风险）；**V1.8 ChEDL 包装层**：app/services/chedl_wrapper.py 集中封装，业务逻辑层通过包装层调用而非直接 `import fluids.*`；**V1.8 维护风险章节**：ADR-0029 增加"维护风险与缓解"（单一维护者 + ht 低活跃）
+- **ChEDL 版本锁定（裁决 #22，D-08 EFFECTIVE + V1.7 问题8 + V1.8 F-13-1/2/3）**：P5-0 批内新增 **Task 25 (P5-0-6) ChEDL 版本锁定 ADR-0030**；fluids / chemicals / ht 冻结至 **pyproject.toml 精确版本 `==X.Y.Z`**（单一来源 source of truth，**禁止 `>=` / `~=`**）；uv.lock 由 `uv lock` 重新生成（不手工编辑）；requirements.txt 由 `uv export` 生成人类可读快照；测试断言以 **uv.lock 为准**（`import fluids; assert fluids.__version__ == "X.Y.Z"` 通过 uv.lock 解析而非 pip freeze）；P5-0 批内完成，P5-1 启动前生效；升级需独立 PR + 全量回归 + ADR 更新；**V1.8 许可策略明确**：取消 vendoring，采用 pip 依赖安装（fluids MIT|GPL-3.0 双许可，vendoring 有传染风险）；**V1.8 ChEDL 包装层**：app/services/chedl_wrapper.py 集中封装，业务逻辑层通过包装层调用而非直接 `import fluids.*`；**V1.8 维护风险章节**：ADR-0030 增加"维护风险与缓解"（单一维护者 + ht 低活跃）
 - **SUP-P5-PSV-001 基线批准（裁决 #23，E-01 EFFECTIVE）**：SUP-P5-PSV-001 V1.0 状态从"待评审"改为"已批准"（E-01），P5 基线生效；Task 24 (P5-0-5) 可执行
 - **验收基线 1670（裁决 #24，E-02 EFFECTIVE + V1.7 问题7 修正）**：pcs_test 全量 ≥1670 passed（基线 1603 + **≥47** P5 核心 + 15 SUP 门禁/标准切换 + 5 ChEDL 版本锁定 — D-08；实施后按实际测试清单核算，**实际数通常多于计划数 ≥47**，验收不卡上限）；起始基线 ≥1603（P4 末态）/ P5 验收 ≥1670（F-04 + E-02 + D-08 + V1.7）
 
@@ -887,9 +888,9 @@
   - **F-12-6（验收合理性）**：验收报告中明确"按实际 pcs_test 增量核算"，不机械按 47 对账
   - **F-12-7（持久层数据完整性）**：formula_ref_types.py 增加 `validate_relief_area_formula_ref(ref)` 运行时校验函数；Task 16 persist 层调用；矛盾记录（`two_phase_inherited_from="API_520"` + 非 GB standard）→ ValueError → 422
 - **F-13 V1.8 ChEDL 风险 5 项升级**（2026-09-15 第四轮审查，源自 ChEDL 可靠性矩阵审查）：
-  - **F-13-1（许可合规）**：ADR-0029 明确许可策略 —— **pyproject.toml 精确依赖安装（pip/uv install），取消 vendoring**；fluids MIT|GPL-3.0 双许可，vendoring 触发 GPL-3.0 传染风险；Architecture 段同步取消 vendoring 标记
-  - **F-13-2（依赖隔离）**：新增 `app/services/chedl_wrapper.py` ChEDL 包装层，集中封装所有 ChEDL 调用；每个包装函数记录 ChEDL 函数名 + 版本（ADR-0029）+ 已知限制 + 内部替代占位符；Task 5/11 GREEN 步骤改调包装层而非直接 `import fluids.*`；即使 ChEDL 某函数未来不可用，替换仅修改包装层内部
-  - **F-13-3（维护可持续性）**：ADR-0029 增加"维护风险与缓解"章节：单一维护者（Caleb Bell）+ 多仓库；ht 低活跃（8 个月无发布）；fpi 已停滞 8 年（不采用）；缓解措施 = 包装层隔离 + 内部替代占位符；升级需独立 PR + 全量回归 + ADR 更新
+  - **F-13-1（许可合规）**：ADR-0030 明确许可策略 —— **pyproject.toml 精确依赖安装（pip/uv install），取消 vendoring**；fluids MIT|GPL-3.0 双许可，vendoring 触发 GPL-3.0 传染风险；Architecture 段同步取消 vendoring 标记
+  - **F-13-2（依赖隔离）**：新增 `app/services/chedl_wrapper.py` ChEDL 包装层，集中封装所有 ChEDL 调用；每个包装函数记录 ChEDL 函数名 + 版本（ADR-0030）+ 已知限制 + 内部替代占位符；Task 5/11 GREEN 步骤改调包装层而非直接 `import fluids.*`；即使 ChEDL 某函数未来不可用，替换仅修改包装层内部
+  - **F-13-3（维护可持续性）**：ADR-0030 增加"维护风险与缓解"章节：单一维护者（Caleb Bell）+ 多仓库；ht 低活跃（8 个月无发布）；fpi 已停滞 8 年（不采用）；缓解措施 = 包装层隔离 + 内部替代占位符；升级需独立 PR + 全量回归 + ADR 更新
   - **F-13-4（实施前核验）**：Task 5/11 RED 阶段**必须**先 `dir(fluids.separator)` / `dir(fluids.particle_size)` 列出可用函数，确认 `v_Souders_Brown` / `K_separator_Watkins` / `K_separator_demister_York` / `v_terminal` 存在；若不存在 → 调整 GREEN 为自研 + `formula_ref.source: "self_implemented"`
   - **F-13-5（降级预案）**：Task 6 `fluids.tanks.time_to_empty` / `tank_level_to_volume` 经核验公开 API 未包含（V1.8 审查已确认），**F-13-5 降级预案**：调整 GREEN 为自研几何计算 + 伯努利方程 + 孔口出流（`Q = Cd × A × √(2g·h)`），`formula_ref.source = "self_implemented"`
 
@@ -907,10 +908,15 @@
   - **F-14-11（P3）**：requirements.txt 与 uv.lock 一致性改**集合比较** —— 解析 `{pkg: version}` 字典对比（缺包 / 多包 / 版本不一致三类差异分别报错）；避免 `uv export` 输出格式差异的字节级脆性
   - **F-14-12（P3）**：Task 22 fixture README —— `tests/services/heat/fixtures/README.md` 明确基准来源（公司 HTRI/Aspen EDR 报告路径 / 文献引用 / TEMA 附录算例 / Hall-Smolik 手册算例降级策略）；golden_weight_bem.json + golden_weight_aem.json 数据出处可追溯
 
+- **F-15 V1.10 ADR-0028/0030 落地同步**（2026-09-15 第六轮 — ADR 草案发布 + 用户 7 项审查修正后）：
+  - **F-15-1（P0 阻塞）**：ADR-0028 决策 8 落地 — Task 18 Steps 增加先导式阀前置校验（`valve_type == "PILOT_OPERATED"` + profile.pilot_operated.enabled=False → 422 `PSV_PILOT_OPERATED_NOT_SUPPORTED` + upgrade_hint）+ 2 例测试（`test_pilot_operated_request_returns_422` / `test_spring_loaded_request_passes_through`）
+  - **F-15-2（P0 阻塞）**：ADR-0030 编号同步 — Task 25 文件路径 `0029-chedl-version-lock.md` → `0030-chedl-version-lock.md`；全文 20 处 `ADR-0029` → `ADR-0030`（含裁决 #22、Task 25 标题/接口/Steps/commit、F-13-1/2/3、Backlog、验收段）；现有 `0029-toe-conversion-and-detail-htri-templates.md`（2026-09-04 Accepted）保留不动
+  - **F-15-3（P1 阻塞）**：裁决 #11 措辞保持 — V1.9 已写"7 表 + 现有 5 表 = 12 类"（方案 A：heat_results 已含 5 表内）；ADR-0028 影响段"V1.8 裁决 #11 中'P5-0-2 完成后追加 heat_results'表述作废"实为对 V1.8 早期版本的修正标注，V1.10 不必再改
+
 ## Backlog（按优先级）
 
 **P5 启动前必关闭**（用户审查关注项升级）：
-- ~~ChEDL 版本锁定 ADR~~（**已转 Task 25 (P5-0-6) + ADR-0029，D-08 关闭**，P5-0 批内完成）
+- ~~ChEDL 版本锁定 ADR~~（**已转 Task 25 (P5-0-6) + ADR-0030，D-08 关闭**，P5-0 批内完成）
 
 **P5+ 后续**：
 - HTRI_VERSION_SUPPORTED 实测确认（待 P5-OPEN-001 + 公司常用版本样例）
@@ -925,7 +931,7 @@
 
 **SUP-P5-PSV-001 V1.0 Backlog**（P5+ / P6+）：
 - **ADR-0028 Task 24 已起草**（**D-05 Proposed 状态**，与 SUP-P5-PSV-001 V1.0 同步评审）：标准 profile 配置 + StandardResolver 层 + 双路径隔离原则 + 6 道门禁 + record_hash 含 standard 字段 + GB 2011/2024 双版本 + GB 孔口表降级 + DIERS/先导式转 P5+
-- **ADR-0029 Task 25 已起草**（**D-08**：ChEDL 版本锁定，Accepted）：fluids / chemicals / ht 精确版本 + 升级流程
+- **ADR-0030 Task 25 已起草**（**D-08**：ChEDL 版本锁定，Accepted）：fluids / chemicals / ht 精确版本 + 升级流程
 - GB 路径两相流 DIERS 积分法实现（**D-06 转 P5+**，P5-OPEN-00W 关闭）
 - GB/T 28778-2023 先导式安全阀计算模块（**D-07 转 P5+**，P5-OPEN-00V 关闭）
 - GB/T 12241 标准孔口表完整录入（**D-04 转 P5+**，P5-OPEN-00Z 关闭；当前 P5 降级为按计算面积输出所需流道直径）
@@ -965,11 +971,11 @@ P5 闭环判定：
    - P5-OPEN-00Z（GB/T 12241 孔口表）：**D-04 关闭** —— P5 降级，完整录入转 P5+
    - P5-OPEN-00W（GB 路径 DIERS）：**D-06 关闭** —— 转 P5+
    - P5-OPEN-00V（先导式阀 GB/T 28778）：**D-07 关闭** —— 转 P5+
-6. ADR-0028 + ADR-0029 起草评审（**D-05 + V1.9 GSTACK P2 修订排期**）：
+6. ADR-0028 + ADR-0030 起草评审（**D-05 + V1.9 GSTACK P2 修订排期**）：
    - **ADR-0028 评审截止时间**：P5-3 启动前（Task 13 实施前）；若评审未完成，Task 13/14/16/17 全部延迟至评审通过后启动；
    - **ADR-0028 评审触发**：Task 24 完成后立即提交评审申请；评审委员会在 5 个工作日内给出决议；
    - **回退预案**：若 ADR-0028 评审未通过，Task 24 需按评审意见修订后重提；Task 13/14/16/17 在 ADR 通过前不实施；
-   - ADR-0029 独立评审（D-08 ChEDL 版本锁定）
+   - ADR-0030 独立评审（D-08 ChEDL 版本锁定）
 7. spec §3.2.1 K 因子 SI 修订已提交（**D-01**）
 8. P5 验收报告（PCS-P5-CLOSE-REPORT.md）落盘
 
