@@ -1,10 +1,14 @@
 # P5 设备计算模块（第二批）实施计划 V1.0
 
 > **执行方式**：superpowers TDD（每 task：RED → GREEN → commit）；subagent-driven-development 派新 agent。
-> **基线 spec**：`spec/工艺专用综合计算软件需求规格说明书 Web版 P5.md`（V1.3，2026-09-03）
+> **基线 spec**：
+> - `spec/工艺专用综合计算软件需求规格说明书 Web版 P5.md`（V1.3，2026-09-03）
+> - `spec/工艺专用综合计算软件需求规格说明书 Web版开发计划.md`（V1.3，2026-09-06）§P5 周期 12–16 周
 > **P4 依赖**：FLASH / PIPE / PUMP / PIPE_NET 已闭环（pcs_test 1603 passed / ruff 0）
 > **TODOS 关联**：026 / 028 / 034 / 035 / 036 / 037
 > **关联 spec**：SUP-008 V1.1 / SUP-009 V1.0 / SUP-010 V1.1 / SUP-007 / ADR-0022 / ADR-0027（待建）
+> **P5 阶段验收（开发计划 §关键里程碑）**：各设备计算与手算/商业软件偏差在 SPEC 要求范围内（≤1/1/2/2/5/10%）
+> **P5 后续衔接（开发计划 §依赖图）**：PSV → P6 FLARE_SYS（泄放量汇总接口预留） + HEAT → P7 UTIL（热负荷汇总接口预留）
 > **BACKLOG 来源**：P4 验收报告 §六（Hooper 2-K / ChEDL 版本锁定 / Beggs-Brill / P4-2-6 等不进 P5，P5+）
 
 **Goal**：交付 VESSEL / SEP_EQUIP / PSV / HEAT 四模块 + 数据模型扩展（P5-OPEN-005/006 + TODO-026/028/036），覆盖工艺室分离设备 + 安全阀 + 换热器三大类设备计算。
@@ -320,12 +324,13 @@
 **接口**:
 - Produces: `POST /api/v1/psv/calculate-relief` / `calculate-area` / `select-orifice`
 - 落库: `psv_results` + `relief_results`（P5-OPEN-005 新表）+ outlet_stream(source_type=PSV)
+- **预留接口**（P6 FLARE_SYS 消费）：`GET /api/v1/psv/relief-summary?project_id=` 返回多工况最大泄放量（mass_flow + volume_flow + scenario）供 P6 FLARE_SYS 火炬总管汇总
 
 **Steps**:
 1. RED: 3 端点 + persist + 两表落库测试
-2. GREEN: finalize_calc_record 双表 + create_outlet_stream 扩展 "PSV"
-3. 测试：3 端点 + 双表 roundtrip + 多工况叠加 ≤5s 性能
-4. commit: `feat(p5-3-6): PSV API + persist + outlet_stream`
+2. GREEN: finalize_calc_record 双表 + create_outlet_stream 扩展 "PSV" + `relief_summary` 查询端点（读 `relief_results` 聚合，复杂度 O(n)）
+3. 测试：3 端点 + 双表 roundtrip + 多工况叠加 ≤5s 性能 + relief_summary 聚合正确
+4. commit: `feat(p5-3-6): PSV API + persist + outlet_stream + FLARE_SYS 预留`
 
 ### 批 P5-4 — HEAT 换热器（5 task）
 
@@ -404,12 +409,13 @@
 **接口**:
 - Produces: `POST /api/v1/heat/import-htri` / `GET /heat/{heat_id}` / `POST /heat/{heat_id}/weight-estimate`
 - 落库: `heat_results` 单行 + outlet_stream(source_type=HEAT, change_type=HEAT_EXCHANGE)
+- **预留接口**（P7 UTIL 消费）：heat_results 表 `duty_w`（热负荷）+ `total_weight_kg` 字段供 P7 UTIL 综合能耗 / 设备汇总查询
 
 **Steps**:
 1. RED: 3 端点 + 48 字段 roundtrip + outlet_stream HEAT_EXCHANGE 测试
 2. GREEN: finalize_calc_record + create_outlet_stream 扩展 "HEAT" + HEAT_EXCHANGE change_type；物流号更换（spec V1.2 §3.2.4）
-3. 测试：3 端点 + HEAT_EXCHANGE 出口物流独立编号 + ACL + 三步守卫
-4. commit: `feat(p5-4-5): HEAT API + persist + outlet_stream`
+3. 测试：3 端点 + HEAT_EXCHANGE 出口物流独立编号 + ACL + 三步守卫 + heat_results.duty_w/total_weight_kg 字段可读
+4. commit: `feat(p5-4-5): HEAT API + persist + outlet_stream + UTIL 预留`
 
 ## Self-Review
 
