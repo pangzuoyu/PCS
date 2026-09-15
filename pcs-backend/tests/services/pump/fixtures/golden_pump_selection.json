@@ -1,0 +1,22 @@
+{
+  "_meta": {
+    "purpose": "P4-4-1 泵选型 golden fixture",
+    "sources": [
+      "Karassik, Pump Handbook 4th ed., 表 6.1",
+      "API 610 11th ed. (OH2/OH3/BB1/BB3/VS1)"
+    ],
+    "tolerance": 0.05
+  },
+  "centrifugal_water_pump": {
+    "flow_m3_s": 0.05,
+    "head_m": 30,
+    "fluid_density_kg_m3": 1000,
+    "speed_rpm": 2950,
+    "expected_ns": 51.45,
+    "expected_ns_class": "RADIAL",
+    "expected_pump_type": "CENTRIFUGAL",
+    "expected_api610_type": "OH2",
+    "expected_power_kw_at_default_eta": 21.013,
+    "tolerance": 0.05
+  }
+}
