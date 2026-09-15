@@ -249,15 +249,18 @@
 - Produces: `calc_fire_case(inp: FireCaseInput) -> FireCaseResult`（wetted_area_m2 / heat_input_w / relief_mass_flow_kgs / relief_volume_flow_m3s / h_fg_j_per_kg / c_factor / F_factor）
 
 **Steps**:
-1. RED: 写 API 521 完整单位换算链——
+1. RED: 写 API 521 完整单位换算链（**英制链**，用户审查 #1 修正 C 值）——
    - 立式容器润湿面积 A_w = π·D·H（**94.25 m²**，非 85；卧式含液位修正按封头曲面+圆柱部分）
-   - API 521 公式（adequate drainage + firefighting）：Q (BTU/hr) = C × A^0.82（ft²），C=43200；Q (W) = Q(BTU/hr) × 0.2931
-   - 算例：D=3m, H=10m → A_w=94.25 m² = 1014.6 ft² → Q(BTU/hr)=43200×1014.6^0.82=43200×292≈12,614,400 BTU/hr → Q(W)=12.6M×0.2931≈**3.7 MW**
-   - W = Q / h_fg；烃类 h_fg 取 350 kJ/kg（轻烃偏低 / 重烃偏高；用例中必须明确 h_fg 取值依据） → W=3.7M/350000≈**10.5 kg/s**
-   - 任一中间值（A_w / Q / W / h_fg）都必须给出完整换算链，**禁用未注明单位的 hardcoded golden value**
-2. GREEN: 自研公式（fluids/chemicals 无对应模块）—— 润湿面积按容器类型分支（立式 πDH / 卧式封头曲面+圆柱+液位修正）+ C 值按 adequate drainage / only firefighting 分档（43200 / 34500）+ F 环境因子（1.0 默认）+ h_fg 用户输入 + 二次校核（Q 必须 ≥ 0，W 必须 ≥ 0）
-3. 测试：4 例（立式/卧式 × adequate drainage/firefighting only）+ **完整单位链断言**（A_w 算到 ft² → Q(BTU/hr) → Q(W) 三步每步独立断言）+ ≤2% API 521 手算偏差
-4. commit: `feat(p5-3-1): PSV fire case (API 521 + 完整单位链)`
+   - **API 521 7th Ed. Table 5 C 值分档**（用户审查 #1 关键修正）：
+     - adequate drainage + firefighting：**C = 21,000 BTU/(hr·ft²)**
+     - inadequate drainage + firefighting：**C = 34,500 BTU/(hr·ft²)**
+     - plan V1.1 误用 43,200（混淆 SI 转换系数）—— 阻塞级错误，修正为 21,000
+   - 算例（D=3m, H=10m）：A_w = 94.25 m² = 1,014.6 ft² → Q(BTU/hr) = 21,000 × 1,014.6^0.82 = 21,000 × 283.7 ≈ **5,957,700 BTU/hr** → Q(W) = 5,957,700 × 0.2931 ≈ **1.75 MW**（V1.1 误算 3.7 MW 高估 2.1 倍）
+   - W = Q / h_fg → W = 1.75M / 350,000 = **5.0 kg/s**（V1.1 误算 10.5 kg/s）
+   - **h_fg 标注**（用户审查风险 #2）：350 kJ/kg 仅作**测试用例输入值**（非 API 521 推荐值；API 521 保守下限 115 kJ/kg，典型烃类 200-400 kJ/kg）；生产代码 h_fg 应从 FLASH 物流热力学数据获取（CHEDL `chemicals.Hfus` / 饱和蒸气 + 饱和液体焓差）或用户输入；测试断言必须显式声明 `h_fg_input_kj_per_kg=350`
+2. GREEN: 自研公式（fluids/chemicals 无对应模块）—— 润湿面积按容器类型分支（立式 πDH / 卧式封头曲面+圆柱+液位修正）+ C 值按 adequate drainage / only firefighting 分档（**21000 / 34500**） + F 环境因子（1.0 默认）+ h_fg 用户输入 + 二次校核（Q 必须 ≥ 0，W 必须 ≥ 0）
+3. 测试：4 例（立式/卧式 × adequate drainage/firefighting only）+ **完整单位链断言**（A_w(m²) → A_w(ft²) → Q(BTU/hr) → Q(W) 三步每步独立断言）+ ≤2% API 521 7th Ed. Table 5 手算偏差 + h_fg 输入字段断言
+4. commit: `feat(p5-3-1): PSV fire case (API 521 7th Ed + 英制链 + h_fg 输入)`
 
 #### Task 14: P5-3-2 阀门关闭 + 反应失控 + 热膨胀
 
@@ -407,16 +410,17 @@
 - Create: `tests/services/heat/test_weight_estimate.py`
 
 **接口**:
-- Produces: `estimate_weight(inp: WeightEstimateInput) -> WeightEstimateResult`（shell_weight_kg / tube_weight_kg / baffle_weight_kg / total_weight_kg / formula_ref / tema_type: Literal["BEM","AEM","..."]）
+- Produces: `estimate_weight(inp: WeightEstimateInput) -> WeightEstimateResult`（**shell_cylinder_weight_kg** + **shell_total_weight_kg** / tube_weight_kg / baffle_weight_kg / nozzles_weight_kg / channels_weight_kg / total_weight_kg / formula_ref / tema_type: Literal["BEM","AEM","..."]）
 
 **Steps**:
-1. RED: 写 U 型管手算 + **公式来源标注**（plan 原始疏漏消除）——
+1. RED: 写 U 型管手算 + **公式来源标注 + 壳体分量拆分**（plan V1.1 字段不清，用户审查 #2 修正）——
    - 公式参考 **TEMA Standards 9th Ed. §5 机械设计 + 工程经验公式**（Hall/Smolik 换热器设计手册 + Perry's Chemical Engineers' Handbook §11 换热器）
-   - D_shell=1m, L=5m, n_tubes=200 → shell=ρ_steel×t_shell×π×D×L ≈ 7850×0.012×π×1×5≈**1480 kg**（**非 2400**——plan 原始 hardcoded 值需重新核算）
+   - **圆筒段裸重**（薄壁圆筒展开面积 × 壁厚 × 密度）：D_shell=1m, L=5m, t_shell=0.012m → shell_cylinder=7850×0.012×π×1×5≈**1,480 kg**
+   - **壳体总重**（含封头+法兰+接管+补强+支座）：≈1,480 + 300（封头×2）+ 300（法兰）+ 75（接管补强）+ 225（鞍座）≈**2,380 kg**（与 V1.0 hardcoded 2,400 量级一致，圆筒段非总重）
    - 偏差基准：商业软件 HTRI / Aspen EDR 报告值；或文献算例（Peters & Timmerhaus Plant Design §换热器重量）
-2. GREEN: 自研公式（fluids/chemicals 无对应模块）—— shell / tube / baffle / nozzles / channels 五段累加；formula_ref 字段记录 TEMA 版本 + 公式出处
-3. 测试：2 例（BEM 固定管板 / AEM U 型管）+ 与 HTRI / Aspen EDR 报告偏差 ≤10% + formula_ref 字段断言
-4. commit: `feat(p5-4-4): weight estimate (TEMA 9th + 经验公式)`
+2. GREEN: 自研公式（fluids/chemicals 无对应模块）—— **shell 拆分为 cylinder + heads + flanges + nozzles + saddles 五段累加**；tube / baffle / channels 三段；formula_ref 字段记录 TEMA 版本 + 公式出处
+3. 测试：2 例（BEM 固定管板 / AEM U 型管）+ 与 HTRI / Aspen EDR 报告偏差 ≤10%（仅 total_weight）+ **shell_cylinder vs shell_total 独立断言**（cylinder 1,480 ± 1% 总差 / total 2,380 ± 10% vs 商业软件）+ formula_ref 字段断言
+4. commit: `feat(p5-4-4): weight estimate (TEMA 9th + 五段壳体拆分)`
 
 #### Task 23: P5-4-5 HEAT API + 落库 + outlet_stream（HEAT_EXCHANGE）
 
@@ -508,12 +512,20 @@
 - **golden value 严格度（裁决 #9，源自用户审查错误 1+2）**：所有手算验收值必须给出**完整单位换算链**（D/H/A/Q/W/h_fg 各自独立断言），禁用未注明单位的 hardcoded 数字；与 ChEDL 交叉验证作为独立基线
 - **公式溯源字段（裁决 #10，源自用户审查疏漏 4 + 5）**：`ReliefResult.formula_ref` / `CycloneResult.formula_ref` / `WeightEstimateResult.formula_ref` 等字段记录公式版本 + 标准出处（API 520 / 521 / 526 / TEMA / DIERS 等）；版本入 DataLineage（P4-TASK0 D4 已备）
 - **PSV 多工况端到端（裁决 #11，源自用户审查问题 #1）**：Task 15 聚合结果直接驱动 Task 16 ReliefAreaInput.mass_flow；端到端测试断言 `area_m2 > 0` + `omega_method=two_point`
+- **API 521 英制链锁定 + C 值修正（裁决 #12，源自用户审查错误 #1，阻塞级）**：统一使用英制链（A 以 ft²、Q 以 BTU/hr、C 以 BTU/(hr·ft²)）；C 值分档 adequate drainage+firefighting = **21,000**（V1.1 误用 43,200 高估 2.1 倍）/ inadequate drainage+firefighting = **34,500**；修正算例 Q ≈ 1.75 MW / W ≈ 5.0 kg/s（V1.1 误算 3.7 MW / 10.5 kg/s）；实施前必读 API 521 7th Ed. Table 5 确认
+- **h_fg 输入语义（裁决 #13，源自用户审查风险 #2）**：测试用例输入值 350 kJ/kg **非 API 521 推荐值**（API 521 保守下限 115 kJ/kg）；生产代码 h_fg 应从 FLASH 物流热力学数据（CHEDL `chemicals` 饱和蒸气/液体焓差）或用户输入获取；测试断言必须显式声明 `h_fg_input_kj_per_kg=350` 标注为"用例输入"
+- **壳体重量分量拆分（裁决 #14，源自用户审查 #2）**：`WeightEstimateResult.shell_cylinder_weight_kg`（圆筒段裸重，薄壁圆筒展开面积 × 壁厚 × 密度） vs `shell_total_weight_kg`（含封头+法兰+接管+补强+支座五段累加）独立字段；V1.0 hardcoded 2,400 kg 实为 shell_total；V1.1 hardcoded 1,480 kg 实为 shell_cylinder；两者不可混用
 - **spec §3.2.1 K 因子取值修订待裁决**：spec 写"立式 0.03~0.15 / 卧式 0.15~0.35"，其中 0.35 来自英制 GPSA（ft/s），SI 应为 0.04–0.10（立式）/ 0.07–0.15（卧式）。**待 spec 修订裁决 SI vs 英制**；本 P5 按 SI（m/s）+ GPSA SI 换算取值实施，spec 修订后同步 CONFIG 种子
 
-## Backlog（P5+ 后续）
+## Backlog（按优先级）
 
+**P5 启动前必关闭**（用户审查关注项升级）：
+- **ChEDL 版本锁定 ADR**（P5 大量复用 ChEDL：v_Souders_Brown / v_sphere / API520_round_size / K_separator_*；fluids / chemicals 版本浮动会影响计算重现性，需冻结版本）
+
+**P5+ 后续**：
+- HTRI_VERSION_SUPPORTED 实测确认（待 P5-OPEN-001 + 公司常用版本样例）
+- GPSA 算例版本核对（旋风分阈值 15%/10%/8% 验证基准来源）
 - Hooper 2-K / Darby 3-K 低 Re K 值修正（P4 转入）
-- ChEDL 版本锁定 ADR
 - `fluids.two_phase` Beggs-Brill 交叉校核
 - `fluids.fittings` K_from_f 交叉校核
 - P4-2-6 热损失 + 混合黏度
