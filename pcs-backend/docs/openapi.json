@@ -1162,6 +1162,214 @@
         }
       }
     },
+    "/api/v1/meta/enums": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Get Enums",
+        "description": "7 个 enum 字典（含 9 态全集）；前端 StateBadge 按 module 过滤激活子集。",
+        "operationId": "get_enums_api_v1_meta_enums_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnumsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meta/permissions": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Get Permissions",
+        "description": "权限矩阵骨架（V1）。前端 <Can permission=\"...\"> 组件按 frontend_behavior 决定显示/隐藏/禁用。",
+        "operationId": "get_permissions_api_v1_meta_permissions_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/PermissionItem"
+                  },
+                  "title": "Response Get Permissions Api V1 Meta Permissions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meta/error-codes": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Get Error Codes",
+        "description": "错误码表（V1 骨架）；前端 ErrorState 按 code 渲染可读 message + ui_behavior 决定交互。",
+        "operationId": "get_error_codes_api_v1_meta_error_codes_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/ErrorCodeItem"
+                  },
+                  "title": "Response Get Error Codes Api V1 Meta Error Codes Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/meta/state-machine": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Get State Machine",
+        "description": "9 态状态机迁移表 + allowed 字典；前端 RecordActions 按状态渲染可执行操作。",
+        "operationId": "get_state_machine_api_v1_meta_state_machine_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StateMachineResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/change-impact/{record_type}/{record_id}/confirm-recalc": {
       "post": {
         "tags": [
@@ -9438,6 +9646,115 @@
         "title": "EdgeReq",
         "description": "管网边请求。"
       },
+      "EnumItem": {
+        "properties": {
+          "value": {
+            "type": "string",
+            "title": "Value"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "order": {
+            "type": "integer",
+            "title": "Order"
+          },
+          "color": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Color"
+          },
+          "icon": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Icon"
+          }
+        },
+        "type": "object",
+        "required": [
+          "value",
+          "label",
+          "order"
+        ],
+        "title": "EnumItem"
+      },
+      "EnumsResponse": {
+        "properties": {
+          "RecordSignStatus": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Recordsignstatus"
+          },
+          "StreamSignStatus": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Streamsignstatus"
+          },
+          "DeliverableStatus": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Deliverablestatus"
+          },
+          "WorkspaceType": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Workspacetype"
+          },
+          "EquipmentStatus": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Equipmentstatus"
+          },
+          "CalcStatus": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Calcstatus"
+          },
+          "SnapshotStatus": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Snapshotstatus"
+          }
+        },
+        "type": "object",
+        "required": [
+          "RecordSignStatus",
+          "StreamSignStatus",
+          "DeliverableStatus",
+          "WorkspaceType",
+          "EquipmentStatus",
+          "CalcStatus",
+          "SnapshotStatus"
+        ],
+        "title": "EnumsResponse"
+      },
       "EquipLibSettleRequest": {
         "properties": {
           "equipment_name": {
@@ -9543,6 +9860,34 @@
         ],
         "title": "EquipLibSettleRequest",
         "description": "标准化信息校验规则（必填项照 P7 表）：材质/关键尺寸/原项目位号/投用日期必填；\n标准图号如有则必填→简化为可选字段+非空校验由前端承担（P2）；重量必填（如有）。"
+      },
+      "ErrorCodeItem": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          },
+          "http": {
+            "type": "integer",
+            "title": "Http"
+          },
+          "message": {
+            "type": "string",
+            "title": "Message"
+          },
+          "ui_behavior": {
+            "type": "string",
+            "title": "Ui Behavior"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code",
+          "http",
+          "message",
+          "ui_behavior"
+        ],
+        "title": "ErrorCodeItem"
       },
       "EstimatePropertiesRequest": {
         "properties": {
@@ -10040,6 +10385,39 @@
         ],
         "title": "NodeReq",
         "description": "管网节点请求。"
+      },
+      "PermissionItem": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role"
+          },
+          "resource": {
+            "type": "string",
+            "title": "Resource"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          },
+          "permission_code": {
+            "type": "string",
+            "title": "Permission Code"
+          },
+          "frontend_behavior": {
+            "type": "string",
+            "title": "Frontend Behavior"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role",
+          "resource",
+          "action",
+          "permission_code",
+          "frontend_behavior"
+        ],
+        "title": "PermissionItem"
       },
       "PipeChainRef": {
         "properties": {
@@ -10962,7 +11340,7 @@
       "RecordTransitionRequest": {
         "properties": {
           "transition": {
-            "$ref": "#/components/schemas/StateTransition"
+            "$ref": "#/components/schemas/StateTransition-Input"
           },
           "reason": {
             "anyOf": [
@@ -11724,7 +12102,34 @@
         "title": "SolverConfigReq",
         "description": "求解配置（可选；缺省 SolverConfig 默认值）。"
       },
-      "StateTransition": {
+      "StateMachineResponse": {
+        "properties": {
+          "transitions": {
+            "items": {
+              "$ref": "#/components/schemas/StateTransition-Output"
+            },
+            "type": "array",
+            "title": "Transitions"
+          },
+          "allowed": {
+            "additionalProperties": {
+              "items": {
+                "type": "string"
+              },
+              "type": "array"
+            },
+            "type": "object",
+            "title": "Allowed"
+          }
+        },
+        "type": "object",
+        "required": [
+          "transitions",
+          "allowed"
+        ],
+        "title": "StateMachineResponse"
+      },
+      "StateTransition-Input": {
         "type": "string",
         "enum": [
           "SUBMIT_FOR_CHECK",
@@ -11743,6 +12148,24 @@
         ],
         "title": "StateTransition",
         "description": "Sprint 2 状态机 13 项事件（ADR-0002 + ADR-0024 锁定）。\n\nCONFIRM_CHANGE_PENDING 已合并到 RESOLVE_STALE_CHANGED（同一 STALE→CHANGE_PENDING 路径）。"
+      },
+      "StateTransition-Output": {
+        "properties": {
+          "from": {
+            "type": "string",
+            "title": "From"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action"
+          }
+        },
+        "type": "object",
+        "required": [
+          "from",
+          "action"
+        ],
+        "title": "StateTransition"
       },
       "StatefulPreviewResponse": {
         "properties": {

@@ -10,6 +10,7 @@ from app.api.v1.flash import router as flash_router
 from app.api.v1.health import router as health_router
 from app.api.v1.imports import router as imports_router
 from app.api.v1.lineage import router as lineage_router
+from app.api.v1.meta import router as meta_router
 from app.api.v1.pipe import router as pipe_router
 from app.api.v1.pipe_classes import router as pipe_classes_router
 from app.api.v1.pipe_codes import router as pipe_codes_router
@@ -29,6 +30,7 @@ api_router.include_router(workspaces_router)
 api_router.include_router(checklist_router)
 api_router.include_router(records_router)
 api_router.include_router(lineage_router)
+api_router.include_router(meta_router)
 api_router.include_router(change_impact_router)
 api_router.include_router(config_router)
 api_router.include_router(pipe_classes_router)
