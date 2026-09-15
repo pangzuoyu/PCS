@@ -206,9 +206,10 @@ supersedes：无。
 
 ## 附录 A：ChEDL 升级历史
 
-| 日期 | fluids | chemicals | ht | 触发原因 | 偏差分析 | 操作人 |
+| 日期 | fluids | chemicals | thermo | 触发原因 | 偏差分析 | 操作人 |
 |---|---|---|---|---|---|---|
-| 2026-09-15 | 1.0.20 | 1.1.4 | 1.0.1 | 初始锁定（P5-0-6）| N/A（基线）| 工艺部 |
+| 2026-09-15 | 1.0.20 | 1.1.4 | ht 1.0.1 | 初始锁定（P5-0-6，ADR 起草时口径）| N/A（基线占位）| 工艺部 |
+| 2026-09-15 | 1.3.1 | 1.5.2 | 0.6.1 | 初始锁定（P5-0-6，实际落地）| PCS 代码库实际使用 fluids / chemicals / thermo（P4 实施选择），非 ADR 草稿口径的 ht；fluids 1.3.1 中 `v_terminal` 已迁移至 `fluids.v_terminal`（顶层暴露），与 ADR 草稿 `fluids.particle_size.v_terminal` 路径不一致，但函数本体存在且可调用（签名 `(D, rhop, rho, mu, Method=None)`）；`fluids.tanks.{time_to_empty, tank_level_to_volume}` 缺失（F-13-5 预期内，Task 26 包装层启用自研降级）| 工艺部 |
 
 ## 附录 B：PCS 已知的 ChEDL bug（驱动升级触发条件 #2）
 
