@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Card, Col, Row, Typography } from 'antd';
-import { ChecklistDashboard } from '../components/ChecklistDashboard';
+import { InputChecklistPanel } from '../components/common/InputChecklistPanel';
 import { WorkspaceSwitcher } from '../components/common/WorkspaceSwitcher';
 import { useAuth } from '../store/auth';
 import type { Workspace } from '../types/workspace';
@@ -30,7 +30,7 @@ export default function DashboardPage() {
         </Col>
         <Col span={16}>
           <Card title={selected ? `项目 ${projectId.slice(0, 8)}…` : '选择工作区后查看清单'}>
-            <ChecklistDashboard projectId={projectId} />
+            <InputChecklistPanel projectId={projectId} />
           </Card>
         </Col>
       </Row>
