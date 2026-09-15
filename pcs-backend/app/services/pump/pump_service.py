@@ -7,8 +7,8 @@
     500 ≤ ns<3000 → MIXED（混流泵）→ API 610 BB3
     ns ≥ 3000   → AXIAL（轴流泵） → API 610 VS1
 - 功率：P = ρ g Q H / η；默认 η = 0.7
-- 效率经验公式（Pump Handbook 4th 表 6.1 拟合，简化）：
-    η ≈ 0.94 - 0.001 × (3000 - ns) / 30  → 在 [0.55, 0.88] 区间裁剪
+- 效率经验公式（Pump Handbook 4th 表 6.1 简化拟合）：
+    η = 0.55 + 0.00012 × ns  → 在 [0.55, 0.88] 区间裁剪
     （高 ns 大泵效率高；低 ns 小泵效率低 — 与实际趋势一致）
 - confidence：worst-wins（沿用 P4-2-5 链式规则）
     任一上游 chain LOW → 整体 LOW；MEDIUM → MEDIUM；全 HIGH → HIGH

@@ -53,17 +53,6 @@ def _base_input(**overrides):
     return base
 
 
-# PumpInput 实际是 dataclass；helper 包装一下让测试少敲键
-class _I:  # noqa: D401 - simple wrapper
-    def __init__(self, **kwargs):
-        from app.services.pump.pump_service import PumpInput
-
-        self._inp = PumpInput(**kwargs)
-
-    def __call__(self):
-        return self._inp
-
-
 def _to_input(d: dict):
     from app.services.pump.pump_service import PumpInput
 
@@ -92,11 +81,17 @@ def test_specific_speed_radial_low_ns_classifies_centrifugal():
     assert r.pump_type == "CENTRIFUGAL"
 
 
-def test_specific_speed_mid_ns_classifies_mixed_flow():
+def test_specific_speed_just_below_mixed_threshold_stays_radial():
+    """ns 接近 500 边界但 <500 → 仍归 RADIAL（边界归属正确性）。"""
     inp = _to_input(_base_input(flow_m3_s=0.5, head_m=10.0, speed_rpm=2950.0))
     r = select_pump(inp)
-    # ns ≈ 2950 * √0.5 / 10^0.75 ≈ 2950*0.707/5.62 ≈ 371 → 接近边界，需≥500
-    # 调大流量使 ns 落到 MIXED 区间
+    # ns ≈ 2950 * √0.5 / 10^0.75 ≈ 2950*0.707/5.62 ≈ 371 → RADIAL
+    assert r.specific_speed_ns < 500
+    assert r.specific_speed_class == "RADIAL"
+    assert r.pump_type == "CENTRIFUGAL"
+
+
+def test_specific_speed_mid_ns_classifies_mixed_flow():
     inp = _to_input(_base_input(flow_m3_s=2.0, head_m=10.0, speed_rpm=2950.0))
     r = select_pump(inp)
     # ns ≈ 2950*√2 / 10^0.75 ≈ 4172/5.62 ≈ 742 → MIXED
@@ -105,10 +100,17 @@ def test_specific_speed_mid_ns_classifies_mixed_flow():
     assert r.pump_type == "MIXED_FLOW"
 
 
-def test_specific_speed_high_ns_classifies_axial():
+def test_specific_speed_just_below_axial_threshold_stays_mixed():
+    """ns 接近 3000 边界但 <3000 → 仍归 MIXED（边界归属正确性）。"""
     inp = _to_input(_base_input(flow_m3_s=10.0, head_m=2.0, speed_rpm=1450.0))
     r = select_pump(inp)
-    # ns ≈ 1450*√10 / 2^0.75 ≈ 4585/1.682 ≈ 2726 → 边界附近，调到明确 AXIAL
+    # ns ≈ 1450*√10 / 2^0.75 ≈ 4585/1.682 ≈ 2726 → MIXED
+    assert 500 <= r.specific_speed_ns < 3000
+    assert r.specific_speed_class == "MIXED"
+    assert r.pump_type == "MIXED_FLOW"
+
+
+def test_specific_speed_high_ns_classifies_axial():
     inp = _to_input(_base_input(flow_m3_s=20.0, head_m=2.0, speed_rpm=1450.0))
     r = select_pump(inp)
     # ns ≈ 1450*√20 / 2^0.75 ≈ 6486/1.682 ≈ 3857 → AXIAL
@@ -191,6 +193,12 @@ def test_estimated_efficiency_within_5pct_of_golden():
     r = select_pump(inp)
     # golden.expected_efficiency 由实现固化；先断言有效范围
     assert 0.4 <= r.estimated_efficiency <= 0.9
+    # golden 数值断言（ns / 分类 / 泵型 / API 610）
+    tol = g["tolerance"]
+    assert math.isclose(r.specific_speed_ns, g["expected_ns"], rel_tol=tol)
+    assert r.specific_speed_class == g["expected_ns_class"]
+    assert r.pump_type == g["expected_pump_type"]
+    assert r.api610_type == g["expected_api610_type"]
 
 
 def test_golden_centrifugal_water_pump_power_within_tolerance():
@@ -216,6 +224,10 @@ def test_golden_centrifugal_water_pump_power_within_tolerance():
     )
     # 默认 η=0.7 的功率应稳定落在手算 5% 容差内
     assert math.isclose(r.estimated_power_kw, expected_kw, rel_tol=tol)
+    # golden 期望功率（默认 η）数值断言
+    assert math.isclose(
+        r.estimated_power_kw, g["expected_power_kw_at_default_eta"], rel_tol=tol
+    )
 
 
 # ---------------------------------------------------------------------------
