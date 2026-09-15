@@ -7,7 +7,7 @@ date: 2026-09-15
 
 PSV 模块（Task 13/14/16/17）同时承担 API 体系（API 521/520/526）与 GB 体系（GB/T 150.1、GB/T 12241、GB/T 28778、HG/T 20570.2）两类工艺室日常计算。若不显式区分标准，将出现同一项目内 API/GB 结果混存、lineage 无法解释、record_hash 无法区分标准差异、P6 FLARE_SYS 拿到混合口径数据等问题。
 
-本 ADR 记录 PSV 多标准引擎的 11 项架构裁决。SUP-P5-PSV-001 V1.0（2026-09-15 批准）是其需求侧锚点；本 ADR 是其架构落地侧锚点。两者须同步评审。
+本 ADR 记录 PSV 多标准引擎的 12 项架构裁决（决策 10 拆分为 10a 门禁 + 10b 校验调用点）。SUP-P5-PSV-001 V1.0（2026-09-15 批准）是其需求侧锚点；本 ADR 是其架构落地侧锚点。两者须同步评审。
 
 决定：**项目级显式配置 + 双路径完全隔离 + 公式条款级溯源 + 禁止隐式回退**。
 
@@ -38,8 +38,12 @@ API 路径和 GB 路径的计算逻辑完全隔离，各自拥有独立的函数
 
 每条计算记录必须写入 clause 级 formula_ref，记录具体子标准 + 版本 + 条款号。
 
-- 字段：`(standard, version, clause)`，外加环节扩展字段（火灾 `drained`、泄放面积 `omega_method` / `two_phase_inherited_from`、孔口 `orifice_table_status`）
-- TypedDict 集中定义于 `app/services/psv/formula_ref_types.py`：FireCaseFormulaRef / ClosedValveFormulaRef / ReliefAreaFormulaRef / OrificeFormulaRef
+- 基础字段：`(standard, version, clause)`。`version` 与 `standard` 后缀年份（如 `GB_T_150.1-2024`）冗余——`version` 单列保留是为下游按版本筛选索引方便，权威值以 `standard` 字段后缀为准
+- TypedDict 集中定义于 `app/services/psv/formula_ref_types.py`，四个完整定义：
+  - `FireCaseFormulaRef`：(standard, version, clause, drained: Optional["adequate"|"inadequate"]) — GB 火灾扩展字段
+  - `ClosedValveFormulaRef`：(standard, version, clause, supplement: Optional[str]) — HG/T 20570.2-1995 标注"基于工程经验补充"
+  - `ReliefAreaFormulaRef`：(standard, version, clause, omega_method: Optional["single_point"|"two_point"|"direct_integration"], two_phase_inherited_from: Optional[str]) — 两相流继承来源
+  - `OrificeFormulaRef`：(standard, version, clause, orifice_table_status: Optional["complete"|"incomplete_fallback"], note: Optional[str]) — 孔口表完整度 + 备注
 - 写 `psv_results.formula_ref_json` 与 `DataLineage.payload`，供 P6 FLARE_SYS 跨标准溯源
 
 替代方案：仅写 `standard_refs_json` 整体——否决。条款级缺失时，工艺室复核 PSV 结果无法定位到具体公式段落（如 GB/T 12241-2021 §7.4 排量系数 vs §8 孔口确定）。
@@ -86,22 +90,30 @@ GB/T 150.1 现行有效版本为 2024 版（代替 2011 版）。项目级显式
 
 ### 决策 7：GB 路径两相流方法转 P5+（D-06 / P5-OPEN-00W 关闭）
 
-GB/T 12241 路径的两相流方法（P5 阶段 API 路径已用 two_point；GB 路径可复用 API 结果）在 P5 阶段可暂缺。
+P5 阶段 GB 路径两相流**始终委托** API 路径（无"若缺失"条件分支；委托是 P5 显式选择，非 fallback）：
 
-- 接口预留扩展位：`ReliefAreaFormulaRef.two_phase_inherited_from: Optional[str]` 标注"API_520"
-- P5 阶段 GB 路径两相流若缺失，则在 formula_ref 中明确 `two_phase_inherited_from="API_520"` + `note="P5 阶段 GB 路径暂缺，引用 API 520 结果"`
+- Task 16 GB 路径 `calc_relief_area_gb12241(inp)` 遇到 `medium="TWO_PHASE"` 时，**显式调用 `calc_relief_area_api520(inp)` 重新计算**（传入相同 ReliefAreaInput；非函数引用，是实际调用以保证 record_hash 输入一致）
+- 结果写入 `formula_ref_json.two_phase_inherited_from = "API_520"` 标注计算引擎来源
+- `standard_profile_code` 保持为 "GB"（项目配置优先），不写 "API"
+- `DataLineage.payload.notes` 明确"计算引擎与 profile 不一致"
 - DIERS 积分法完整实现转 P5+
 
 替代方案：P5 阶段同步实现 DIERS 积分法——否决。DIERS 涉及 ω 法多版本、数值积分路径，文献推荐保守取值（如 Omega-1），实现工作量远超单 task 范围。
 
-### 决策 8：GB/T 28778-2023 先导式阀转 P5+（D-07 / P5-OPEN-00V 关闭）
+### 决策 8：GB/T 28778-2023 先导式阀转 P5+（D-07 / P5-OPEN-00V 关闭）+ Task 18 拦截
 
-先导式安全阀（GB/T 28778-2023）不纳入 P5 范围。
+先导式安全阀（GB/T 28778-2023）不纳入 P5 范围，但必须**显式拦截**避免静默失败：
 
 - `pilot_operated` 配置项保留但 `enabled=false`
-- P5 阶段先导式阀计算请求返回 `422 PSV_PILOT_OPERATED_NOT_SUPPORTED`，提示升级至 P5+
+- **Task 18 增加前置校验**：所有 `POST /api/v1/psv/calculate-*` 端点在调 StandardResolver 之后、调计算函数之前：
+  - 若请求 `valve_type == "PILOT_OPERATED"` 且项目 profile 的 `pilot_operated.enabled == False`
+  - → raise `PsvPilotOperatedNotSupportedError(422 PSV_PILOT_OPERATED_NOT_SUPPORTED)`
+  - 响应体含 `upgrade_hint: "先导式阀计算 P5+ 实施，请联系标准负责人评估升级路径"`
+- **新增测试 2 例**（并入 Task 18 测试套件）：
+  - `test_pilot_operated_request_returns_422` — 先导式阀请求 + 项目配置 `enabled=false` → 422 + 错误码断言 + upgrade_hint 存在性
+  - `test_spring_loaded_request_passes_through` — 弹簧式阀请求 + 同样配置 → 正常计算（不受拦截）
 
-替代方案：P5 同步实现——否决。先导式阀涉及导阀 + 主阀分程控制、响应时间、额定排量修正等独立体系，需独立批次专项实施。
+替代方案：仅保留配置项 enabled=false，无 API 层拦截——否决。无拦截时工艺室调用先导式阀计算会得到"未知设备类型"或"pilot_operated.enabled=false"等隐式错误，无明确错误码与升级指引。显式 422 与 G1/G2/G3 错误码风格一致。
 
 ### 决策 9：GB/T 12241 孔口表降级（D-04 / P5-OPEN-00Z 关闭）
 
@@ -114,7 +126,7 @@ GB/T 12241-2021 §8 安全阀尺寸的确定所需孔口表完整录入转 P5+�
 
 替代方案：P5 阶段硬编部分孔口值——否决。工艺室实际项目孔口档位组合多，硬编数据缺乏标准维护流程，遗留技术债。
 
-### 决策 10：6 道门禁规则（G1-G6）
+### 决策 10a：6 道门禁规则（G1-G6）
 
 | 编号 | 规则 | 响应 |
 |---|---|---|
@@ -125,10 +137,18 @@ GB/T 12241-2021 §8 安全阀尺寸的确定所需孔口表完整录入转 P5+�
 | G5 | 标准配置变更 | 旧记录不自动重算，标记 `pending_review` |
 | G6 | 历史项目迁移 | 写入 API 默认 + `migrated_default=true`，要求复核 |
 
-门禁校验点：
+### 决策 10b：校验调用点（双重防护 + 可观测性）
+
+`validate_relief_area_formula_ref()` 在两处调用，形成双重防护：
+
 - **Task 16 service 层** `calc_relief_area()` 返回前：调 `validate_relief_area_formula_ref()`
 - **Task 18 persist 层** `finalize_calc_record()` 写入 DB 前：再调一次（防止绕过 Task 16 直接构造记录）
-- 校验失败：raise `PsvFormulaRefInconsistencyError`，附加 `logger.error(extra={project_id, record_id, ref})` + `PSV_FORMULA_REF_INCONSISTENCY_COUNTER.inc()`（可观测性，F-14-7）
+
+校验失败行为：
+
+- raise `PsvFormulaRefInconsistencyError`（GB 两相流 standard 错配场景）
+- 附加 `logger.error(extra={"project_id", "record_id", "ref"})` —— 持久化定位 + 运维可观测
+- 附加 `PSV_FORMULA_REF_INCONSISTENCY_COUNTER.inc()` —— Prometheus 指标，可接入告警
 
 ### 决策 11：验收基准——按标准独立 golden，禁止共用阈值
 
@@ -147,18 +167,30 @@ GB/T 12241-2021 §8 安全阀尺寸的确定所需孔口表完整录入转 P5+�
 
 - **新表** 1 张：`project_calculation_standard_profiles`
 - **加列**：`psv_results` / `relief_results` 各加 `standard_profile_code` / `standard_refs_json` / `formula_ref_json`（P5-3 实施后 NOT NULL）
-- **新文件** 5 个：`standard_resolver.py` / `formula_ref_types.py` / `tests/models/test_psv_standard_profile.py` / `tests/services/psv/test_standard_resolver.py` / `tests/services/psv/test_formula_ref_validation.py`
+- **新文件** 7 个（含迁移 + ADR + 校验测试）：
+  - `alembic/versions/p5_psv_standard_profiles.py` — 新表迁移（仅加列 + 默认值，NOT NULL 由 Task 18 强制）
+  - `app/services/psv/standard_resolver.py` — 标准解析层
+  - `app/services/psv/formula_ref_types.py` — TypedDict 集中定义 + 校验函数
+  - `tests/models/test_psv_standard_profile.py` — 模型层测试
+  - `tests/services/psv/test_standard_resolver.py` — 解析层测试
+  - `tests/services/psv/test_relief_area.py` — 含 formula_ref 校验测试（不单独建 test_formula_ref_validation.py，避免碎片化）
+  - `docs/adr/0028-psv-multi-standard-engine.md` — 本 ADR 本身
 - **新枚举** 1 个：`PsvStandardProfileCode`
-- **新异常** ≥4 个：`PsvStandardNotConfiguredError` / `PsvStandardOverrideForbiddenError` / `PsvCustomProfileApprovalRequiredError` / `PsvCustomProfileSelfApprovalForbiddenError` / `PsvFormulaRefInconsistencyError`
+- **新异常** 6 个：`PsvStandardNotConfiguredError` / `PsvStandardOverrideForbiddenError` / `PsvCustomProfileApprovalRequiredError` / `PsvCustomProfileSelfApprovalForbiddenError` / `PsvFormulaRefInconsistencyError` / `PsvPilotOperatedNotSupportedError`
 - **新 metric** 1 个：`PSV_FORMULA_REF_INCONSISTENCY_COUNTER`
-- **RECORD_TYPE_REGISTRY 同步登记** `ProjectCalculationStandardProfile`（P5-0-5 后总注册数 = 13 类）
-- **接口签名变更**：Task 13/14/16/17 计算函数增加 `standard` 参数
+- **RECORD_TYPE_REGISTRY 同步登记** `ProjectCalculationStandardProfile`
+  - **注册类数口径**（明确 GSTACK P1）：
+    - Task 1 (P5-0-1) 后：**12 类**（7 新表 + 现有 5 表，`heat_results` 已含在 5 表内）
+    - Task 24 (P5-0-5) 后：**13 类**（+ `ProjectCalculationStandardProfile`）
+  - V1.8 裁决 #11 中"P5-0-2 完成后追加 heat_results"表述作废；`heat_results` 为 P4 已存在表，P5-0-2 仅扩展字段，不新增 registry 条目
+- **接口签名变更**：Task 13/14/16/17 计算函数增加 `standard` 参数；Task 18 端点增加 `valve_type` 前置校验（决策 8）
 
 ## 后续
 
-- Task 24（P5-0-5 PSV 标准配置模型）落地本 ADR 全部 11 项决策
+- Task 24（P5-0-5 PSV 标准配置模型）落地本 ADR 全部 12 项决策
+- **V1.8 计划同步**（本次审查发现）：裁决 #11 中"P5-0-2 完成后追加 heat_results"措辞需改为"P5-0-2 仅扩展字段，不新增 registry 条目"；Task 18 Steps 增加决策 8 拦截逻辑 + 2 例测试
 - 评审通过后状态行由「proposed」改「accepted」
-- ADR-0029（ChEDL 版本锁定）独立评审（D-08），与本 ADR 无耦合
+- ADR-0030（ChEDL 版本锁定，独立评审 D-08）与本 ADR 无耦合
 - **评审截止时间**：P5-3 启动前（Task 13 实施前）
 - **评审触发**：Task 24 完成后立即提交评审申请
 - **评审 SLA**：5 个工作日内给出决议
