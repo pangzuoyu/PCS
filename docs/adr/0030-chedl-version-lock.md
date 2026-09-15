@@ -1,6 +1,7 @@
 ---
-status: proposed
+status: accepted
 date: 2026-09-15
+accepted_date: 2026-09-15
 ---
 
 # ChEDL 版本锁定：pyproject.toml 单一来源 + 包装层隔离 + dir() 前置核验

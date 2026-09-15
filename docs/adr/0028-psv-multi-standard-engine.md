@@ -1,6 +1,7 @@
 ---
-status: proposed
+status: accepted
 date: 2026-09-15
+accepted_date: 2026-09-15
 ---
 
 # PSV 多标准引擎：项目级显式配置 + 双路径隔离 + 公式溯源
