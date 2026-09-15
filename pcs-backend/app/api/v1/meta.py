@@ -11,7 +11,8 @@ from fastapi import APIRouter, Depends, Response
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.api.v1.auth import current_user
-from app.services import meta_service
+from app.core.errors import PcsError
+from app.services import meta_service, ui_schema_service
 
 router = APIRouter(prefix="/meta", tags=["meta"])
 
@@ -80,6 +81,29 @@ class StateMachineResponse(BaseModel):
     allowed: dict[str, list[str]]
 
 
+class UiSchemaField(BaseModel):
+    path: str
+    label: str
+    widget: str
+    order: int = 0
+    required: bool | None = None
+    readonly: bool | None = None
+    enum_group: str | None = None
+    placeholder: str | None = None
+    help: str | None = None
+    unit: str | None = None
+    min_length: int | None = None
+    max_length: int | None = None
+    visible: bool | None = None
+    hidden_when: str | None = None
+
+
+class UiSchemaResponse(BaseModel):
+    schema_version: str
+    resource: str
+    fields: list[UiSchemaField]
+
+
 # === endpoints ===
 
 
@@ -130,4 +154,32 @@ def get_state_machine(
     return StateMachineResponse(
         transitions=[StateTransition.model_validate(t) for t in sm["transitions"]],
         allowed=sm["allowed"],
+    )
+
+
+@router.get("/ui-schema/{resource}", response_model=UiSchemaResponse)
+def get_ui_schema(
+    resource: str,
+    _user: Annotated[dict[str, Any], Depends(current_user)],
+) -> UiSchemaResponse:
+    """表单节点契约（Task 18.5 P45-2-0）。
+
+    按 resource 返回 {schema_version, resource, fields[]} — 驱动前端
+    SchemaForm 渲染（visible/required/placeholder/help/order/widget/
+    enum_group/unit/min_length/max_length/readonly）。
+
+    未知 resource → 404 UNKNOWN_UI_SCHEMA_RESOURCE。
+    """
+    try:
+        schema = ui_schema_service.get_ui_schema(resource)
+    except KeyError:
+        raise PcsError(
+            code="UNKNOWN_UI_SCHEMA_RESOURCE",
+            status=404,
+            message=f"未知资源：{resource}",
+        ) from None
+    return UiSchemaResponse(
+        schema_version=schema["schema_version"],
+        resource=schema["resource"],
+        fields=[UiSchemaField(**f) for f in schema["fields"]],
     )

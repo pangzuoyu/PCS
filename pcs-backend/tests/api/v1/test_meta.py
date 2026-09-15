@@ -67,7 +67,7 @@ async def test_get_state_machine_with_full_fields(client, sample_user_token):
     # transitions[] 字段齐全
     for t in data["transitions"]:
         assert {"from", "action", "to", "allowed_roles", "preconditions", "side_effects"} <= t.keys(), \
-            f"transition 字段缺：{t}"
+            f"transition 字段缺：{t}"  # noqa: E501
     # 实际 13 StateTransition 事件 × 多 from 态 = 21 条（ALLOWED_TRANSITIONS）
     assert len(data["transitions"]) >= 20, f"transitions 太少：{len(data['transitions'])}"
     # allowed_roles 是 list[str]
@@ -169,4 +169,98 @@ async def test_state_machine_anonymous_denied(client):
 
 async def test_permissions_csv_anonymous_denied(client):
     r = await client.get("/api/v1/meta/permissions.csv")
+    assert r.status_code == 401
+
+
+# ---------- ui-schema（P45-2-0 / Task 18.5）----------
+
+
+async def test_ui_schema_stream(client, sample_user_token):
+    r = await client.get("/api/v1/meta/ui-schema/stream", headers=_auth(sample_user_token))
+    assert r.status_code == 200, r.text
+    data = r.json()
+    assert data["schema_version"] == "1.0.0"
+    assert data["resource"] == "stream"
+    fields = {f["path"]: f for f in data["fields"]}
+    # ≥3 字段断言（plan 最低 5×3）
+    assert fields["stream_name"]["required"] is True
+    assert fields["stream_name"]["widget"] == "Input"
+    assert fields["stream_name"]["max_length"] == 100
+    assert fields["case_type"]["required"] is True
+    assert fields["case_type"]["widget"] == "Select"
+    assert fields["case_type"]["enum_group"] == "StreamCaseType"
+    assert fields["data_mode"]["required"] is True
+    assert fields["data_mode"]["enum_group"] == "StreamDataMode"
+    # 进阶：temp 携带单位，composition_json 默认隐藏
+    assert fields["temp"]["unit"] == "°C"
+    assert fields["composition_json"]["visible"] is False
+    # order 升序
+    orders = [f["order"] for f in data["fields"]]
+    assert orders == sorted(orders), f"order 未升序：{orders}"
+
+
+async def test_ui_schema_workspace(client, sample_user_token):
+    r = await client.get("/api/v1/meta/ui-schema/workspace", headers=_auth(sample_user_token))
+    assert r.status_code == 200, r.text
+    data = r.json()
+    fields = {f["path"]: f for f in data["fields"]}
+    assert fields["workspace_type"]["required"] is True
+    assert fields["workspace_type"]["widget"] == "Select"
+    assert fields["workspace_type"]["enum_group"] == "WorkspaceType"
+    assert fields["name"]["required"] is True
+    assert fields["name"]["widget"] == "Input"
+    assert fields["retention_days"]["unit"] == "天"
+
+
+async def test_ui_schema_record(client, sample_user_token):
+    r = await client.get("/api/v1/meta/ui-schema/record", headers=_auth(sample_user_token))
+    assert r.status_code == 200, r.text
+    data = r.json()
+    fields = {f["path"]: f for f in data["fields"]}
+    # record 是审批表单：record_type/sign_status 只读，transition 必填
+    assert fields["record_type"]["readonly"] is True
+    assert fields["record_type"]["widget"] == "Input"
+    assert fields["sign_status"]["readonly"] is True
+    assert fields["sign_status"]["enum_group"] == "RecordSignStatus"
+    assert fields["transition"]["required"] is True
+    assert fields["transition"]["enum_group"] == "ConfigTransition"
+
+
+async def test_ui_schema_pipe_class(client, sample_user_token):
+    r = await client.get("/api/v1/meta/ui-schema/pipe_class", headers=_auth(sample_user_token))
+    assert r.status_code == 200, r.text
+    data = r.json()
+    fields = {f["path"]: f for f in data["fields"]}
+    assert fields["class_id"]["required"] is True
+    assert fields["class_id"]["widget"] == "Input"
+    assert fields["class_id"]["max_length"] == 20
+    assert fields["corrosion_allowance"]["widget"] == "NumberInput"
+    assert fields["corrosion_allowance"]["unit"] == "mm"
+    assert fields["design_pressure"]["widget"] == "NumberInput"
+    assert fields["design_pressure"]["unit"] == "MPaG"
+    assert fields["design_temperature"]["unit"] == "°C"
+
+
+async def test_ui_schema_equipment(client, sample_user_token):
+    r = await client.get("/api/v1/meta/ui-schema/equipment", headers=_auth(sample_user_token))
+    assert r.status_code == 200, r.text
+    data = r.json()
+    fields = {f["path"]: f for f in data["fields"]}
+    assert fields["equipment_name"]["required"] is True
+    assert fields["equipment_name"]["widget"] == "Input"
+    assert fields["weight_kg"]["widget"] == "NumberInput"
+    assert fields["weight_kg"]["unit"] == "kg"
+    assert fields["weight_kg"]["required"] is False
+    assert fields["commissioning_date"]["widget"] == "DatePicker"
+    assert fields["commissioning_date"]["required"] is True
+
+
+async def test_ui_schema_unknown_resource_404(client, sample_user_token):
+    r = await client.get("/api/v1/meta/ui-schema/nonexistent", headers=_auth(sample_user_token))
+    assert r.status_code == 404, r.text
+    assert r.json()["code"] == "UNKNOWN_UI_SCHEMA_RESOURCE"
+
+
+async def test_ui_schema_anonymous_denied(client):
+    r = await client.get("/api/v1/meta/ui-schema/stream")
     assert r.status_code == 401

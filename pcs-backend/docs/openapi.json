@@ -1418,6 +1418,65 @@
         }
       }
     },
+    "/api/v1/meta/ui-schema/{resource}": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Get Ui Schema",
+        "description": "表单节点契约（Task 18.5 P45-2-0）。\n\n按 resource 返回 {schema_version, resource, fields[]} — 驱动前端\nSchemaForm 渲染（visible/required/placeholder/help/order/widget/\nenum_group/unit/min_length/max_length/readonly）。\n\n未知 resource → 404 UNKNOWN_UI_SCHEMA_RESOURCE。",
+        "operationId": "get_ui_schema_api_v1_meta_ui_schema__resource__get",
+        "parameters": [
+          {
+            "name": "resource",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Resource"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UiSchemaResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/change-impact/{record_type}/{record_id}/confirm-recalc": {
       "post": {
         "tags": [
@@ -13484,6 +13543,170 @@
         "type": "object",
         "title": "TransitionRequest",
         "description": "SIM-13 状态机转移请求体（reason 可选）。"
+      },
+      "UiSchemaField": {
+        "properties": {
+          "path": {
+            "type": "string",
+            "title": "Path"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "widget": {
+            "type": "string",
+            "title": "Widget"
+          },
+          "order": {
+            "type": "integer",
+            "title": "Order",
+            "default": 0
+          },
+          "required": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Required"
+          },
+          "readonly": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Readonly"
+          },
+          "enum_group": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enum Group"
+          },
+          "placeholder": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Placeholder"
+          },
+          "help": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Help"
+          },
+          "unit": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Unit"
+          },
+          "min_length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Min Length"
+          },
+          "max_length": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Length"
+          },
+          "visible": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Visible"
+          },
+          "hidden_when": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hidden When"
+          }
+        },
+        "type": "object",
+        "required": [
+          "path",
+          "label",
+          "widget"
+        ],
+        "title": "UiSchemaField"
+      },
+      "UiSchemaResponse": {
+        "properties": {
+          "schema_version": {
+            "type": "string",
+            "title": "Schema Version"
+          },
+          "resource": {
+            "type": "string",
+            "title": "Resource"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/UiSchemaField"
+            },
+            "type": "array",
+            "title": "Fields"
+          }
+        },
+        "type": "object",
+        "required": [
+          "schema_version",
+          "resource",
+          "fields"
+        ],
+        "title": "UiSchemaResponse"
       },
       "UpdateProjectConfigRequest": {
         "properties": {

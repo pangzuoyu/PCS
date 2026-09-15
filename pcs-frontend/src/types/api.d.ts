@@ -419,6 +419,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/meta/ui-schema/{resource}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Ui Schema
+         * @description 表单节点契约（Task 18.5 P45-2-0）。
+         *
+         *     按 resource 返回 {schema_version, resource, fields[]} — 驱动前端
+         *     SchemaForm 渲染（visible/required/placeholder/help/order/widget/
+         *     enum_group/unit/min_length/max_length/readonly）。
+         *
+         *     未知 resource → 404 UNKNOWN_UI_SCHEMA_RESOURCE。
+         */
+        get: operations["get_ui_schema_api_v1_meta_ui_schema__resource__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/change-impact/{record_type}/{record_id}/confirm-recalc": {
         parameters: {
             query?: never;
@@ -4556,6 +4582,49 @@ export interface components {
              */
             reason?: string | null;
         };
+        /** UiSchemaField */
+        UiSchemaField: {
+            /** Path */
+            path: string;
+            /** Label */
+            label: string;
+            /** Widget */
+            widget: string;
+            /**
+             * Order
+             * @default 0
+             */
+            order: number;
+            /** Required */
+            required?: boolean | null;
+            /** Readonly */
+            readonly?: boolean | null;
+            /** Enum Group */
+            enum_group?: string | null;
+            /** Placeholder */
+            placeholder?: string | null;
+            /** Help */
+            help?: string | null;
+            /** Unit */
+            unit?: string | null;
+            /** Min Length */
+            min_length?: number | null;
+            /** Max Length */
+            max_length?: number | null;
+            /** Visible */
+            visible?: boolean | null;
+            /** Hidden When */
+            hidden_when?: string | null;
+        };
+        /** UiSchemaResponse */
+        UiSchemaResponse: {
+            /** Schema Version */
+            schema_version: string;
+            /** Resource */
+            resource: string;
+            /** Fields */
+            fields: components["schemas"]["UiSchemaField"][];
+        };
         /** UpdateProjectConfigRequest */
         UpdateProjectConfigRequest: {
             /** Format Definition Json */
@@ -5723,6 +5792,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StateMachineResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_ui_schema_api_v1_meta_ui_schema__resource__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                resource: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UiSchemaResponse"];
                 };
             };
             /** @description Validation Error */
