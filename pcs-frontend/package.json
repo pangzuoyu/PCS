@@ -11,7 +11,9 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "api:gen": "bash scripts/gen-api-types.sh",
+    "api:check": "bash scripts/check-api-drift.sh"
   },
   "dependencies": {
     "antd": "^5.20.0",
@@ -30,6 +32,7 @@
     "eslint": "^8.57.1",
     "eslint-plugin-react-hooks": "^4.6.2",
     "eslint-plugin-react-refresh": "^0.4.26",
+    "openapi-typescript": "^7.13.0",
     "typescript": "^5.5.0",
     "vite": "^5.4.0"
   }
