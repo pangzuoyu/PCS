@@ -93,11 +93,12 @@ uv run ruff check .               # 0 错为目标
 | 批 1 | P4-1 FLASH（thermo 封装 + 8 calc + API + 落库 + 状态点联动 + SIM 反向写入） | CLOSED |
 | 批 2 | P4-2 PIPE（sizing + wall_thickness + 单相压降 + 两相压降 + 链式管道 + outlet_stream） | CLOSED |
 | 批 3 | P4-3 PIPE_NET（拓扑模型 + Hardy-Cross 求解器 + API + 落库） | CLOSED |
+| 批 4 | P4-4 PUMP（选型 + NPSHa + 曲线插值 + PUMP 链 + 出口物流） | CLOSED |
+| P4-TASK0 | 本体论（@lineage D4/D5 + RECORD_TYPE_REGISTRY 完整化 + physical_semantics + importlinter D8 + CI 三方比对基础） | CLOSED |
 
 ### ⏳ 待启动批次
 
-- **批 4**：P4-4 PUMP（泵选型 + NPSHa + 泵曲线插值 + PUMP 链 + 出口物流）
-- **P4-TASK0**：本体论（@lineage、RECORD_TYPE_REGISTRY 完整化、physical_semantics、importlinter、CI 三方比对）— **P4 验收前必须关闭**
+_（P4 闸门已全部解除，下一轮为 P5+ 见 backlog）_
 
 ### 已落地工艺能力
 
@@ -109,10 +110,9 @@ uv run ruff check .               # 0 错为目标
 
 ### Backlog（P5+）
 
-- Hooper 2-K / Darby 3-K 低 Re K 值修正
+- Hooper 2-K / Darby 3-K 低 Re K 值修正（get_fitting_k Re 参数预留位）
 - `fluids.two_phase` Beggs-Brill 交叉校核
 - `fluids.fittings` K_from_f 交叉校核
-- P4-TASK0：record_hash 扩展至 two_phase_results + formula_version 列
 - ChEDL 版本锁定 ADR（fluids / thermo / chemicals 频繁更新，需复现性）
 - P4-2-6：热损失 + 混合黏度
 - 控制阀 / PSV（独立批次，不在 P4 范围）
