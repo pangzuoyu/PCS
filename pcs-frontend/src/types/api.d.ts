@@ -319,6 +319,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/meta/enums": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Enums
+         * @description 19 组枚举字典；前端 StateBadge / Select / 筛选用。
+         */
+        get: operations["get_enums_api_v1_meta_enums_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meta/permissions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Permissions
+         * @description 权限矩阵（V1.1 全集）；前端 <Can permission="..."> 按 frontend_behavior 显示/禁用。
+         */
+        get: operations["get_permissions_api_v1_meta_permissions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meta/permissions.csv": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Permissions Csv
+         * @description 权限矩阵 CSV 导出；前端可下载做权限审计。
+         */
+        get: operations["get_permissions_csv_api_v1_meta_permissions_csv_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meta/error-codes": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Error Codes
+         * @description 错误码全集（全仓 AST 派生）；前端 ErrorState 按 code 渲染可读 message。
+         */
+        get: operations["get_error_codes_api_v1_meta_error_codes_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/meta/state-machine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get State Machine
+         * @description 13 事件 × 9 态迁移表 + 字段；前端 RecordActions 按状态渲染可执行操作。
+         */
+        get: operations["get_state_machine_api_v1_meta_state_machine_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/change-impact/{record_type}/{record_id}/confirm-recalc": {
         parameters: {
             query?: never;
@@ -2709,6 +2809,60 @@ export interface components {
              */
             parallel_branches: number;
         };
+        /** EnumItem */
+        EnumItem: {
+            /** Value */
+            value: string;
+            /** Label */
+            label: string;
+            /** Order */
+            order: number;
+            /** Color */
+            color?: string | null;
+            /** Icon */
+            icon?: string | null;
+        };
+        /** EnumsResponse */
+        EnumsResponse: {
+            /** Recordsignstatus */
+            RecordSignStatus: components["schemas"]["EnumItem"][];
+            /** Streamsignstatus */
+            StreamSignStatus: components["schemas"]["EnumItem"][];
+            /** Deliverablesignstatus */
+            DeliverableSignStatus: components["schemas"]["EnumItem"][];
+            /** Workspacetype */
+            WorkspaceType: components["schemas"]["EnumItem"][];
+            /** Equipmentstatus */
+            EquipmentStatus: components["schemas"]["EnumItem"][];
+            /** Calcstatus */
+            CalcStatus: components["schemas"]["EnumItem"][];
+            /** Actualdatastatus */
+            ActualDataStatus: components["schemas"]["EnumItem"][];
+            /** Snapshotstatus */
+            SnapshotStatus: components["schemas"]["EnumItem"][];
+            /** Configstatus */
+            ConfigStatus: components["schemas"]["EnumItem"][];
+            /** Configtransition */
+            ConfigTransition: components["schemas"]["EnumItem"][];
+            /** Pipetype */
+            PipeType: components["schemas"]["EnumItem"][];
+            /** Checkresult */
+            CheckResult: components["schemas"]["EnumItem"][];
+            /** Pumpoperation */
+            PumpOperation: components["schemas"]["EnumItem"][];
+            /** Designstage */
+            DesignStage: components["schemas"]["EnumItem"][];
+            /** Flowpattern */
+            FlowPattern: components["schemas"]["EnumItem"][];
+            /** Twophasecheck */
+            TwoPhaseCheck: components["schemas"]["EnumItem"][];
+            /** Streamdatamode */
+            StreamDataMode: components["schemas"]["EnumItem"][];
+            /** Streamcasetype */
+            StreamCaseType: components["schemas"]["EnumItem"][];
+            /** Statepointcasetype */
+            StatePointCaseType: components["schemas"]["EnumItem"][];
+        };
         /**
          * EquipLibSettleRequest
          * @description 标准化信息校验规则（必填项照 P7 表）：材质/关键尺寸/原项目位号/投用日期必填；
@@ -2744,6 +2898,17 @@ export interface components {
             source_equipment_id?: string | null;
             /** Source Project Id */
             source_project_id?: string | null;
+        };
+        /** ErrorCodeItem */
+        ErrorCodeItem: {
+            /** Code */
+            code: string;
+            /** Http */
+            http: number;
+            /** Message */
+            message: string;
+            /** Ui Behavior */
+            ui_behavior: string;
         };
         /**
          * EstimatePropertiesRequest
@@ -2999,6 +3164,19 @@ export interface components {
              * @description 设备类型（仅 EQUIPMENT_INTERFACE）
              */
             upstream_equipment_type?: string | null;
+        };
+        /** PermissionItem */
+        PermissionItem: {
+            /** Role */
+            role: string;
+            /** Resource */
+            resource: string;
+            /** Action */
+            action: string;
+            /** Permission Code */
+            permission_code: string;
+            /** Frontend Behavior */
+            frontend_behavior: string;
         };
         /**
          * PipeChainRef
@@ -3441,7 +3619,7 @@ export interface components {
         };
         /** RecordTransitionRequest */
         RecordTransitionRequest: {
-            transition: components["schemas"]["StateTransition"];
+            transition: components["schemas"]["StateTransition-Input"];
             /** Reason */
             reason?: string | null;
         };
@@ -3807,6 +3985,15 @@ export interface components {
              */
             initial_flow_strategy: string;
         };
+        /** StateMachineResponse */
+        StateMachineResponse: {
+            /** Transitions */
+            transitions: components["schemas"]["StateTransition-Output"][];
+            /** Allowed */
+            allowed: {
+                [key: string]: string[];
+            };
+        };
         /**
          * StateTransition
          * @description Sprint 2 状态机 13 项事件（ADR-0002 + ADR-0024 锁定）。
@@ -3814,7 +4001,22 @@ export interface components {
          *     CONFIRM_CHANGE_PENDING 已合并到 RESOLVE_STALE_CHANGED（同一 STALE→CHANGE_PENDING 路径）。
          * @enum {string}
          */
-        StateTransition: "SUBMIT_FOR_CHECK" | "PASS_CHECK" | "REJECT_CHECK" | "REQUEST_REVERSAL" | "APPROVE_REVERSAL" | "REJECT_REVERSAL" | "INITIATE_CHANGE" | "APPLY_CHANGE" | "ABANDON_CHANGE" | "MARK_STALE" | "RESOLVE_STALE_NO_CHANGE" | "RESOLVE_STALE_CHANGED" | "OBSOLETE";
+        "StateTransition-Input": "SUBMIT_FOR_CHECK" | "PASS_CHECK" | "REJECT_CHECK" | "REQUEST_REVERSAL" | "APPROVE_REVERSAL" | "REJECT_REVERSAL" | "INITIATE_CHANGE" | "APPLY_CHANGE" | "ABANDON_CHANGE" | "MARK_STALE" | "RESOLVE_STALE_NO_CHANGE" | "RESOLVE_STALE_CHANGED" | "OBSOLETE";
+        /** StateTransition */
+        "StateTransition-Output": {
+            /** From */
+            from: string;
+            /** Action */
+            action: string;
+            /** To */
+            to: string;
+            /** Allowed Roles */
+            allowed_roles: string[];
+            /** Preconditions */
+            preconditions: string[];
+            /** Side Effects */
+            side_effects: string[];
+        };
         /**
          * StatefulPreviewResponse
          * @description stateful preview 响应：import_id + 预览内容。
@@ -5366,6 +5568,161 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_enums_api_v1_meta_enums_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnumsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_permissions_api_v1_meta_permissions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PermissionItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_permissions_csv_api_v1_meta_permissions_csv_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_error_codes_api_v1_meta_error_codes_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorCodeItem"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_state_machine_api_v1_meta_state_machine_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StateMachineResponse"];
                 };
             };
             /** @description Validation Error */
