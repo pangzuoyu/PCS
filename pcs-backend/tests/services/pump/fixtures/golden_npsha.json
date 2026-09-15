@@ -1,0 +1,23 @@
+{
+  "_meta": {
+    "purpose": "P4-4-2 NPSHa 计算 golden fixture",
+    "sources": [
+      "ANSI/HI 9.6.6-2016（NPSHa = (Ps - Pv) / (rho*g) - h_loss）",
+      "P4-2-5 pipe_chain_service 摩擦压降（Crane / Colebrook）"
+    ],
+    "tolerance": 0.05
+  },
+  "cold_water_centrifugal_pump": {
+    "system_pressure_pa": 101325,
+    "vapor_pressure_pa": 2338,
+    "fluid_density_kg_m3": 1000,
+    "fluid_viscosity_pa_s": 0.001,
+    "D_m": 0.05,
+    "L_m": 10,
+    "rough_m": 4.6e-5,
+    "mass_flow_kg_s": 1.0,
+    "elevation_change_m": 0,
+    "expected_npsha_m": 10.00,
+    "tolerance": 0.05
+  }
+}
