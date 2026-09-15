@@ -14,6 +14,7 @@ from app.api.v1.pipe import router as pipe_router
 from app.api.v1.pipe_classes import router as pipe_classes_router
 from app.api.v1.pipe_codes import router as pipe_codes_router
 from app.api.v1.pipe_net import router as pipe_net_router
+from app.api.v1.pump import router as pump_router
 from app.api.v1.records import router as records_router
 from app.api.v1.sim_imports_query import project_router as sim_imports_query_router
 from app.api.v1.sim_imports_query import router as sim_imports_query_root_router
@@ -33,6 +34,7 @@ api_router.include_router(config_router)
 api_router.include_router(pipe_classes_router)
 api_router.include_router(pipe_router)
 api_router.include_router(pipe_net_router)
+api_router.include_router(pump_router)
 api_router.include_router(stream_symbols_router)
 api_router.include_router(streams_router)
 api_router.include_router(equip_lib_router)

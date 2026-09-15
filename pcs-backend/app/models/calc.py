@@ -149,6 +149,9 @@ class PumpResult(TaggedRecordMixin, Base):
         default=DesignStage.BASIC,
         comment="设计阶段 BASIC/DETAIL（OPEN-009）",
     )
+    # P4-4-4 PUMP 链：链完整入出参 JSON（与 PIPE/PIPE_NET 同语义）
+    input_json: Mapped[dict | None] = mapped_column(JSONB, comment="PUMP 链入参（P4-4-4）")
+    output_json: Mapped[dict | None] = mapped_column(JSONB, comment="PUMP 链出参（P4-4-4）")
 
 
 class PsvResult(TaggedRecordMixin, Base):
