@@ -129,10 +129,18 @@ class PipeNetSolveRequest(BaseModel):
     nodes: list[NodeReq] = Field(..., description="节点列表（≥ 1 SOURCE + ≥ 1 SINK）")
     edges: list[EdgeReq] = Field(..., description="边列表")
     tolerance_pa: float = Field(
-        100.0, description="保留兼容字段；本批走 solver_config.tolerance_m3_s"
+        100.0,
+        deprecated=True,
+        exclude=True,
+        description="DEPRECATED：兼容字段（P4-3-1 遗留 dead field）。本批不生效；"
+        "请使用 solver_config.tolerance_m3_s。",
     )
     max_iterations: int = Field(
-        100, description="保留兼容字段；本批走 solver_config.max_iterations"
+        100,
+        deprecated=True,
+        exclude=True,
+        description="DEPRECATED：兼容字段。solver_config 提供时被忽略；"
+        "请使用 solver_config.max_iterations。",
     )
     solver_config: SolverConfigReq | None = Field(None, description="求解配置（可选）")
 
@@ -305,7 +313,7 @@ async def solve_pipe_net(
     else:
         solver_cfg = SolverConfig(
             tolerance_m3_s=1e-6,
-            max_iterations=req.max_iterations,
+            max_iterations=100,
             initial_flow_strategy="EVEN_DEMAND_PROPORTIONAL",
         )
 
@@ -316,8 +324,6 @@ async def solve_pipe_net(
         tag_number=req.tag_number,
         nodes=nodes_dc,
         edges=edges_dc,
-        tolerance_pa=req.tolerance_pa,
-        max_iterations=req.max_iterations,
     )
 
     # 3. solve_network（含拓扑校验 + Hardy-Cross 求解）

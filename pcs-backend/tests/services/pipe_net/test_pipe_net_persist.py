@@ -505,10 +505,8 @@ async def test_persist_does_not_commit_pcs_test():
             db, project_id, workspace_id, source_stream_id
         )
         row, outlet = await persist_pipe_network_result(db, inp, result)
-        # 未 commit 前 session.dirty 仍有 row + outlet（db.add 后仍未 flush 完）
-        # 注：persist 内部已 await db.flush()，但 flush 不等于 commit；session.dirty
-        # 在 flush 后会重置，但 session.identity_map 仍有；commit 前数据库层面未持久化。
-        # 用 session.is_modified / 重新查询验证：commit 前 SELECT 查不到。
+        # persist 内部 flush 但不 commit；外部观察者未 commit 时不可见。
+        # 验证：跨事务 SELECT COUNT=0，commit 后 COUNT=1。
         net_id = row.network_id
         outlet_id = outlet.stream_id
         pre_check = await db.execute(
