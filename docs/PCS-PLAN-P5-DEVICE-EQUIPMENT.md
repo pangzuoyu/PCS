@@ -43,12 +43,13 @@
 
 **接口**:
 - Produces: `relief_results` / `column_sizing_results` / `mixer_results` / `steam_drum_results` / `two_phase_pipe_sizing_results` / `blowdown_drum_results` / `thermosiphon_circulation_results` 7 表 ORM；`vessel_results.design_stage` / `psv_results.design_stage` / `column_sizing_results.design_stage` 三列（BASIC/DETAIL）
+- **RECORD_TYPE_REGISTRY 即时注册**（裁决 #11 时机修正）：P5-0-1 完成后立即在 `app/services/calc_lineage.py` 注册 7 表 + 现有 5 表 = **12 类**；新增测试断言 registry 完整性（防止 Task 4 主键 rename 后落库验证空跑）
 
 **Steps**:
-1. RED: 写 7 表 ORM 存在性 + design_stage 列存在性 + alembic 迁移 head 跑通测试
-2. GREEN: 按 SUP-008 V1.1 §2.2-§2.6 + §8.4 + SUP-010 V1.1 §3.1 建表；design_stage 加列（BASIC/DETAIL 枚举）
-3. 测试：DICT V3.7/V3.9 字段对齐；alembic upgrade head OK；列存在性
-4. commit: `feat(p5-0-1): model extension (7 tables + design_stage)`
+1. RED: 写 7 表 ORM 存在性 + design_stage 列存在性 + alembic 迁移 head 跑通测试 + **RECORD_TYPE_REGISTRY 12 类注册断言**
+2. GREEN: 按 SUP-008 V1.1 §2.2-§2.6 + §8.4 + SUP-010 V1.1 §3.1 建表；design_stage 加列（BASIC/DETAIL 枚举）；calc_lineage.RECORD_TYPE_REGISTRY 同步追加
+3. 测试：DICT V3.7/V3.9 字段对齐；alembic upgrade head OK；列存在性；registry 完整性
+4. commit: `feat(p5-0-1): model extension (7 tables + design_stage + registry 12 类)`
 
 #### Task 2: P5-0-2 P5-OPEN-006 HEAT 旧字段清洗 + ADR-0027
 
@@ -114,10 +115,12 @@
 - Produces: `calc_vessel_sizing(inp: VesselSizingInput) -> VesselSizingResult`（vessel_type / D_min_m / liquid_volume_m3 / V_max_ms / K_factor）
 
 **Steps**:
-1. RED: 写 Souders-Brown 公式手算对照（K=0.1, ρ_L=850, ρ_V=1.2 → V_max=2.64 m/s）+ D_min 公式 + 停留时间 3~5 分钟
-2. GREEN: 自实现算法（不依赖 fluids.tanks 核心公式）+ K 因子从 CONFIG 读 + 容器类型分支（立式/卧式/带除沫器）
-3. 测试：6 例（4 容器类型 × 卧式/立式）+ K 因子边界 0.03/0.15/0.35 + 验收 ≤1% 偏差
-4. commit: `feat(p5-1-1): vessel Souders-Brown sizing`
+1. RED: 写 Souders-Brown 公式手算对照（K=0.1 m/s, ρ_L=850 kg/m³, ρ_V=1.2 kg/m³ → V_max=0.1×√((850-1.2)/1.2)=0.1×√707.33=**2.66 m/s**）+ D_min 公式 + 停留时间 3~5 分钟 + 与 ChEDL `fluids.separator.v_Souders_Brown(K, rhol, rhog)` 交叉验证
+2. GREEN: **ChEDL 分层架构**（裁决 #8）—— 直接调 `fluids.separator.v_Souders_Brown` / `K_separator_Watkins` / `K_separator_demister_York` / `K_Souders_Brown_theoretical`，不重写核心公式；自研仅做 K 因子 CONFIG 读取 + 容器类型分支（立式/卧式/带除沫器）+ D_min / 停留时间
+3. 测试：6 例（4 容器类型 × 卧式/立式）+ K 因子边界 0.04/0.10/0.15 + **单位约定**（K 取 SI m/s，与 ChEDL 一致）+ 与手算 + ChEDL 交叉验证偏差 ≤1%
+4. commit: `feat(p5-1-1): vessel Souders-Brown sizing (ChEDL 底层)`
+
+**注**：spec §3.2.1 K 因子取值"立式 0.03~0.15 / 卧式 0.15~0.35"——其中 0.35 是英制 GPSA ft/s 单位下的值（0.35 ft/s ≈ 0.107 m/s），按 SI 应为 0.04–0.10（立式）/ 0.07–0.15（卧式）。**待 spec 修订裁决 SI vs 英制**；本 task 实施按 SI（m/s）+ GPSA SI 换算取值，spec 修订裁决后调整 CONFIG 种子数据。
 
 #### Task 6: P5-1-2 vessel 流体力学校核（fluids.tanks 排空/溢流/液位-容积/放空）
 
@@ -181,10 +184,10 @@
 - Produces: `calc_cyclone(inp: CycloneInput) -> CycloneResult`（D_cylinder_m / inlet_width_m / inlet_height_m / pressure_drop_pa / efficiency_pct / method: Literal["Lapple","Swift","Barth"]）
 
 **Steps**:
-1. RED: 写 Lapple 手算（d=0.5m, v_in=15m/s, ρ=1.2 → ΔP=750 Pa）+ Barth 效率公式
-2. GREEN: 默认 Lapple（P5-OPEN-002 已确认）；Swift/Barth 作为可选 method 参数
-3. 测试：3 方法各 1 例 + 验收 ≤10% 压降偏差
-4. commit: `feat(p5-2-1): cyclone (Lapple/Swift/Barth)`
+1. RED: 写 Lapple 公式（ΔP_c = C_f × ρ/2 × V_in²，C_f = 16·a·b / D_e²）手算（d=0.5m, a=0.2m, b=0.1m, V_in=15m/s, ρ=1.2 → C_f=64·0.02/0.5²=5.12 → ΔP=5.12×0.6×225=691 Pa）+ Barth 压降模型（出口管旋流速度头 + 壁面摩擦 + 出口管损失）+ 偏差基准数据集（GPSA Engineering Data Book §Cyclone Separators 算例 + 文献 Stairmand 高效旋风分离器标准数据）
+2. GREEN: 默认 Lapple（P5-OPEN-002 已确认）；Swift/Barth 作为可选 method 参数；自研三方法实现（**fpi 模块成熟度低，活跃更新停滞 8 年，不依赖**——ChEDL 不建议复用）
+3. 测试：3 方法各 2 例（标准/高效旋风）+ **分阈值偏差基准**（Lapple ≤15% GPSA 算例 / Swift ≤10% / Barth ≤8% ——简化方法偏差预期高于 Barth）
+4. commit: `feat(p5-2-1): cyclone (Lapple/Swift/Barth + GPSA 基准)`
 
 #### Task 10: P5-2-2 丝网除沫器（York + Souders-Brown）
 
@@ -208,13 +211,13 @@
 - Create: `tests/services/sep_equip/test_gravity_separator.py`
 
 **接口**:
-- Produces: `calc_gravity_separator(inp: GravitySeparatorInput) -> GravitySeparatorResult`（chamber_length_m / chamber_width_m / settling_velocity_ms）
+- Produces: `calc_gravity_separator(inp: GravitySeparatorInput) -> GravitySeparatorResult`（chamber_length_m / chamber_width_m / settling_velocity_ms / method_region: Literal["Stokes","Intermediate","Newton"] / re_particle）
 
 **Steps**:
-1. RED: 写 Stokes 沉降手算（d=100μm, ρ_p=1100, μ=1.8e-5 → v_t=0.0074 m/s）+ 终端速度三区判定（Re<1 Stokes / Re=1-1000 Intermediate / Re>1000 Newton）
-2. GREEN: 调 `fluids.particle_size.v_sphere`；叶片/纤维用经验法（spec §3.2.2）
-3. 测试：Stokes ≤1% 偏差 + 三区判定 + 粒径分布拟合 ≤5% 偏差
-4. commit: `feat(p5-2-3): gravity separator (Stokes) + vane/fiber`
+1. RED: 写 Stokes 沉降手算（d=100μm, ρ_p=1100 kg/m³, μ=1.8e-5 Pa·s → v_t=g·(ρ_p-ρ_f)·d²/(18μ)=9.81×100×(100e-6)²/(18×1.8e-5)≈0.0074 m/s，Re_p=ρ·v·d/μ=1.2×0.0074×100e-6/1.8e-5≈0.05 → Stokes 区）+ 与 ChEDL `fluids.particle_size.v_sphere(d, rho_p, rho_f, mu)` 交叉验证（含三区判定）
+2. GREEN: **ChEDL 优先**（裁决 #8）—— 调 `fluids.particle_size.v_sphere`，**ChEDL 内置 Stokes/Intermediate/Newton 三区迭代收敛**（无需自研迭代逻辑；plan 原始"单向判定"疏漏消除）；叶片/纤维用经验法（spec §3.2.2）
+3. 测试：3 区域各 1 例 + v_sphere 跨区域边界（Re≈1, Re≈1000）+ Stokes ≤1% 偏差 + 粒径分布拟合 ≤5% 偏差
+4. commit: `feat(p5-2-3): gravity separator (Stokes via ChEDL v_sphere) + vane/fiber`
 
 #### Task 12: P5-2-4 sep_equip API + 落库
 
@@ -243,13 +246,18 @@
 - Create: `tests/services/psv/test_fire_case.py`
 
 **接口**:
-- Produces: `calc_fire_case(inp: FireCaseInput) -> FireCaseResult`（wetted_area_m2 / heat_input_w / relief_mass_flow_kgs / relief_volume_flow_m3s）
+- Produces: `calc_fire_case(inp: FireCaseInput) -> FireCaseResult`（wetted_area_m2 / heat_input_w / relief_mass_flow_kgs / relief_volume_flow_m3s / h_fg_j_per_kg / c_factor / F_factor）
 
 **Steps**:
-1. RED: 写 API 521 火灾工况手算（立式容器 d=3m h=10m → A_w=85m² → Q=850000W → W=12.5 kg/s）
-2. GREEN: 润湿面积计算（绝热 vs 非绝热分支）+ 热输入量（环境因子 env_factor）
-3. 测试：2 例（绝热/非绝热）+ ≤2% 偏差
-4. commit: `feat(p5-3-1): PSV fire case (API 521)`
+1. RED: 写 API 521 完整单位换算链——
+   - 立式容器润湿面积 A_w = π·D·H（**94.25 m²**，非 85；卧式含液位修正按封头曲面+圆柱部分）
+   - API 521 公式（adequate drainage + firefighting）：Q (BTU/hr) = C × A^0.82（ft²），C=43200；Q (W) = Q(BTU/hr) × 0.2931
+   - 算例：D=3m, H=10m → A_w=94.25 m² = 1014.6 ft² → Q(BTU/hr)=43200×1014.6^0.82=43200×292≈12,614,400 BTU/hr → Q(W)=12.6M×0.2931≈**3.7 MW**
+   - W = Q / h_fg；烃类 h_fg 取 350 kJ/kg（轻烃偏低 / 重烃偏高；用例中必须明确 h_fg 取值依据） → W=3.7M/350000≈**10.5 kg/s**
+   - 任一中间值（A_w / Q / W / h_fg）都必须给出完整换算链，**禁用未注明单位的 hardcoded golden value**
+2. GREEN: 自研公式（fluids/chemicals 无对应模块）—— 润湿面积按容器类型分支（立式 πDH / 卧式封头曲面+圆柱+液位修正）+ C 值按 adequate drainage / only firefighting 分档（43200 / 34500）+ F 环境因子（1.0 默认）+ h_fg 用户输入 + 二次校核（Q 必须 ≥ 0，W 必须 ≥ 0）
+3. 测试：4 例（立式/卧式 × adequate drainage/firefighting only）+ **完整单位链断言**（A_w 算到 ft² → Q(BTU/hr) → Q(W) 三步每步独立断言）+ ≤2% API 521 手算偏差
+4. commit: `feat(p5-3-1): PSV fire case (API 521 + 完整单位链)`
 
 #### Task 14: P5-3-2 阀门关闭 + 反应失控 + 热膨胀
 
@@ -261,10 +269,13 @@
 - Produces: `calc_closed_valve_case(inp) -> ReliefResult` + `calc_reaction_runaway(inp) -> ReliefResult` + `calc_thermal_expansion(inp) -> ReliefResult`
 
 **Steps**:
-1. RED: 写 3 工况公式手算（closed_valve 流体膨胀 / reaction 泄放动力学 / thermal 液体膨胀系数）
-2. GREEN: 各工况独立函数；公用 `ReliefResult` dataclass（mass_flow + volume_flow + scenario enum）
-3. 测试：3 工况各 1 例
-4. commit: `feat(p5-3-2): PSV other cases (closed/reaction/thermal)`
+1. RED: 写 3 工况公式手算 + **公式来源标注**（plan 原始疏漏消除）——
+   - `closed_valve`：API 521 §4.3 阀门误关流量截断（最大泵流量 + 流体膨胀系数 β）；公式 W = Q_pump × ρ × β
+   - `reaction_runaway`：API 521 §4.4 + DIERS（Design Institute for Emergency Relief Systems）手册两相流泄放动力学；公式按时间-压力-温升积分（绝热放热率 × 反应时间）
+   - `thermal_expansion`：API 521 §4.5 液体热膨胀（阻塞管段工况）；W = V × ρ × β × ΔT / t（V 液体体积，β 体积膨胀系数，ΔT 温升，t 泄放时间）
+2. GREEN: 各工况独立函数；公用 `ReliefResult` dataclass（mass_flow + volume_flow + scenario enum + formula_ref 字段记录公式来源）；公式版本入 DataLineage（P4-TASK0 D4 已备）
+3. 测试：3 工况各 1 例 + formula_ref 字段断言 + 与 API 521 / DIERS 手算 ≤5% 偏差（反应失控放宽因动力学简化）
+4. commit: `feat(p5-3-2): PSV other cases (closed/reaction/thermal) + 公式溯源`
 
 #### Task 15: P5-3-3 多工况叠加 + 最大泄放量
 
@@ -273,13 +284,15 @@
 - Create: `tests/services/psv/test_relief_aggregator.py`
 
 **接口**:
-- Produces: `aggregate_relief_cases(cases: list[ReliefResult]) -> ReliefAggregateResult`（max_mass_flow_kgs / max_scenario / per_scenario_json）
+- Produces: `aggregate_relief_cases(cases: list[ReliefResult]) -> ReliefAggregateResult`（max_mass_flow_kgs / max_volume_flow_m3s / max_scenario / per_scenario_json）
 
 **Steps**:
-1. RED: 写多工况叠加测试（3 工况 → max mass flow 取最大）
-2. GREEN: 聚合函数 + spec §2.5 "多泄放工况叠加 ≤5s" 性能测试
-3. 测试：4 工况叠加 + 空集异常
-4. commit: `feat(p5-3-3): PSV multi-case aggregator`
+1. RED: 写多工况叠加测试（3 工况 → max mass flow 取最大；max volume flow 取最大；max_scenario 字段标记）
+2. GREEN: 聚合函数 + spec §2.5 "多泄放工况叠加 ≤5s" 性能测试 + **ReliefAggregateResult 直接作为 Task 16 ReliefAreaInput.mass_flow 输入**（plan 原始"任务顺序独立"问题消除 —— Task 16 测试中追加端到端"聚合 → 面积"用例）
+3. 测试：4 工况叠加 + 空集异常 + **端到端"Task 15 聚合 → Task 16 面积"集成测试**（fixture 共享）
+4. commit: `feat(p5-3-3): PSV multi-case aggregator (端到端驱动 Task 16)`
+
+**衔接说明**：Task 15 完成后，Task 16 实现时应直接消费 `ReliefAggregateResult.max_mass_flow_kgs` 而非构造孤立测试数据；端到端集成测试断言 `area_m2 > 0` 且 `formula_ref` 标记 `omega_method=two_point`。
 
 #### Task 16: P5-3-4 PSV 泄放面积（气体/液体/两相流）
 
@@ -288,13 +301,16 @@
 - Create: `tests/services/psv/test_relief_area.py`
 
 **接口**:
-- Produces: `calc_relief_area(inp: ReliefAreaInput) -> ReliefAreaResult`（area_m2 / medium: Literal["GAS","VAPOR","LIQUID","TWO_PHASE"] / formula_ref）
+- Produces: `calc_relief_area(inp: ReliefAreaInput) -> ReliefAreaResult`（area_m2 / medium: Literal["GAS","VAPOR","LIQUID","TWO_PHASE"] / formula_ref / omega_method: Optional[Literal["single_point","two_point","direct_integration"]]）
 
 **Steps**:
-1. RED: 写 3 介质公式手算（气体：A=W/(C×Kd×P1×Kb)×√(TZ/M) / 液体 API 520 / 两相 API 520 8th Ed. 附录 D）
-2. GREEN: 介质分支 + 两相流 FLASH 联动（调 P4 flash_service 算 Z/M）；C/Kd/Kb 默认值表
-3. 测试：3 介质各 1 例 + 两相流 ≤5% 偏差（vs HYSYS）
-4. commit: `feat(p5-3-4): PSV relief area (gas/liquid/two-phase)`
+1. RED: 写 3 介质公式手算 + **ω 法版本明确**（plan 原始疏漏消除）——
+   - 气体：A = W / (C·Kd·P1·Kb) × √(T·Z/M)（API 520 §5.5.3）
+   - 液体：A = W / (ρ·√(ΔP/(k·ρ))）（API 520 §5.6.2）
+   - **两相流 ω 法**（API 520 附录 D）：默认 **two_point**（API 520 正文推荐 —— 滞止条件 + 0.9·P_stagnation 两点积分 ω）；`omega_method: Literal["single_point","two_point","direct_integration"]` 入参；`single_point` 仅作回退选项（保守程度更高）；`direct_integration` 作未来扩展
+2. GREEN: 介质分支 + 两相流 FLASH 联动（调 P4 flash_service 算 Z/M）；C/Kd/Kb 默认值表；omega_method 参数透传到 omega_service；**ChEDL 复用评估**：可调用 `fluids.safety_valve.API520_round_size`（API 526 孔口圆整复用 Task 17），但 `fluids.safety_valve` 两相流方法未明确 ω 法版本，**两相流 ω 法仍自研以锁定版本**
+3. 测试：3 介质各 1 例 + **两相流 omega_method 切换测试**（single_point vs two_point vs direct_integration 结果对比）+ 两相流 ≤5% 偏差（vs HYSYS）+ formula_ref 字段断言（含 omega_method）
+4. commit: `feat(p5-3-4): PSV relief area (gas/liquid/two-phase + omega_method)`
 
 #### Task 17: P5-3-5 API 526 选型 + API 2000 呼吸阀
 
@@ -342,15 +358,16 @@
 - Create: `tests/services/heat/fixtures/htri_sample.txt`（自造测试样本）
 
 **接口**:
-- Produces: `parse_htri(path) -> HtriParsedData`（Q_w / U_w_m2k / area_m2 / shell_dia_m / tube_length_m / tube_count / baffle_spacing_m / ...）
+- Produces: `parse_htri(path) -> HtriParsedData`（Q_w / U_w_m2k / area_m2 / shell_dia_m / tube_length_m / tube_count / baffle_spacing_m / ...）+ `detect_version(path) -> str` + `HTRI_VERSION_SUPPORTED: list[str]` 白名单 + `HtriVersionUnsupportedError` 异常
 
 **Steps**:
-1. RED: 写解析手算样本（Q=1MW, U=500, A=10m²）+ 解析失败异常
-2. GREEN: 自研解析（基于 HTRI 文本/CSV 输出格式；P5-OPEN-001 待确认兼容范围，按 P4-PUMP 模式先支持一个版本）
-3. 测试：3 例（基本/管壳/空冷）+ 解析失败异常 + ≤10s 性能
-4. commit: `feat(p5-4-1): HTRI parser`
+1. RED: 写解析手算样本（Q=1MW, U=500 W/m²K, A=10m²）+ 解析失败异常 + **版本探测测试**（公司常用 v1 / v2 / 不支持版本 v99）
+2. GREEN: 自研解析（基于 HTRI 文本/CSV 输出格式）+ `detect_version(path)` 探测函数（按文件头魔数 / 文件名约定 / 首行关键字判别）+ `HTRI_VERSION_SUPPORTED` 白名单（待 P5-OPEN-001 确认；默认 ["Xist_v6","Xchanger_Suite_v8"]）+ 不在白名单 → `HtriVersionUnsupportedError(versions_supported)` 含升级指引 URL；plan 原始"版本兼容风险被低估"疏漏消除
+3. 测试：3 例（基本/管壳/空冷）+ **版本探测 5 例**（白名单 v1/v2 + 不支持 v99/0/空文件）+ 解析失败异常 + ≤10s 性能
+4. commit: `feat(p5-4-1): HTRI parser + version detection`
 
 **OPEN**：P5-OPEN-001（HTRI 版本兼容范围）默认按公司常用版本实施，扩展性预留 `version: str` 字段
+**架构评估（用户审查建议 3）**：ht 包（Zukauskas/Bell/ESDU 公开方法）与 HTRI（Licensor 专有）双轨并行 —— 折中方案保留 HTRI 解析器（与工艺室现有工作流一致）+ 评估 ht 直接计算作为独立交叉验证路径（P5+ 实施，本 task 仅预留接口）
 
 #### Task 20: P5-4-2 heat_results 39 字段扩展
 
@@ -390,13 +407,16 @@
 - Create: `tests/services/heat/test_weight_estimate.py`
 
 **接口**:
-- Produces: `estimate_weight(inp: WeightEstimateInput) -> WeightEstimateResult`（shell_weight_kg / tube_weight_kg / baffle_weight_kg / total_weight_kg / tema_type: Literal["BEM","AEM","..."]）
+- Produces: `estimate_weight(inp: WeightEstimateInput) -> WeightEstimateResult`（shell_weight_kg / tube_weight_kg / baffle_weight_kg / total_weight_kg / formula_ref / tema_type: Literal["BEM","AEM","..."]）
 
 **Steps**:
-1. RED: 写 U 型管手算（D_shell=1m, L=5m, n_tubes=200 → shell=2400kg, tube=1800kg, baffle=200kg）
-2. GREEN: 公式基于壳径/管长/管数；TEMA 类型分支
-3. 测试：2 例（BEM/AEM）+ ≤10% 偏差
-4. commit: `feat(p5-4-4): weight estimate (U-tube/BEM)`
+1. RED: 写 U 型管手算 + **公式来源标注**（plan 原始疏漏消除）——
+   - 公式参考 **TEMA Standards 9th Ed. §5 机械设计 + 工程经验公式**（Hall/Smolik 换热器设计手册 + Perry's Chemical Engineers' Handbook §11 换热器）
+   - D_shell=1m, L=5m, n_tubes=200 → shell=ρ_steel×t_shell×π×D×L ≈ 7850×0.012×π×1×5≈**1480 kg**（**非 2400**——plan 原始 hardcoded 值需重新核算）
+   - 偏差基准：商业软件 HTRI / Aspen EDR 报告值；或文献算例（Peters & Timmerhaus Plant Design §换热器重量）
+2. GREEN: 自研公式（fluids/chemicals 无对应模块）—— shell / tube / baffle / nozzles / channels 五段累加；formula_ref 字段记录 TEMA 版本 + 公式出处
+3. 测试：2 例（BEM 固定管板 / AEM U 型管）+ 与 HTRI / Aspen EDR 报告偏差 ≤10% + formula_ref 字段断言
+4. commit: `feat(p5-4-4): weight estimate (TEMA 9th + 经验公式)`
 
 #### Task 23: P5-4-5 HEAT API + 落库 + outlet_stream（HEAT_EXCHANGE）
 
@@ -477,10 +497,18 @@
 
 - 批 P5-0 必须先闭环（P5-1~P5-4 依赖 ORM 列 + 9 态 + DICT V3.3 rename）
 - outlet_stream Literal 在 P5-1-4 一次性扩展为 ["FLASH","PIPE","PUMP","PIPE_NET","VESSEL","SEP_EQUIP","PSV","HEAT"]
-- RECORD_TYPE_REGISTRY 在 P5-0-2 完成后追加 7 类（含 vessel/sep_equip/psv/relief/heat + 设计阶段 design_stage）
+- **RECORD_TYPE_REGISTRY 时机修正**（用户审查问题 #2）：在 **P5-0-1 完成后立即注册** vessel_results / sep_equip_results / psv_results / relief_results / column_sizing_results / mixer_results / 4 张蒸汽表（7 表 + 现有 5 表 = 12 类）；P5-0-2 完成后追加 heat_results（双轨）。**Task 4 (P5-0-4) 测试可正常使用 finalize_calc_record 落库验证**
 - 5 个 P5 服务互不依赖（VESSEL → FLASH 物流 → ρ_L/ρ_V；PSV → FLASH 物流 → Z/M；HEAT → EQUIP_LIB；SEP_EQUIP → 颗粒 Stokes 独立）
 - 性能预算 ≤2/2/2/5/10/1s 与精度 ≤1/1/2/2/5/10% 由各批性能 + golden 测试覆盖
 - 任务粒度与 P4 主体一致（一批一 commit 模式 → P5 同样）
+- **ChEDL 分层架构（裁决 #8，源自用户审查建议）**：底层计算引擎优先调用已验证 ChEDL 模块；业务逻辑层自研
+  - 直接调用清单：`fluids.separator.v_Souders_Brown` / `K_separator_Watkins` / `K_separator_demister_York`（Task 5/10）/ `fluids.particle_size.v_sphere`（Task 11 三区迭代内置）/ `fluids.safety_valve.API520_round_size`（Task 17 API 526 圆整，仅复用圆整 + 不复用两相流方法因 ω 法版本未锁定）
+  - 评估/不调用：`ht` 模块（与 HTRI 双轨评估，P5+ 实施）/ `fluids.safety_valve` 两相流方法（ω 法版本未锁定，自研）/ `fpi` 旋风分离器（活跃更新停滞 8 年，自研）
+  - 自研清单：API 521 火灾热输入 / API 2000 呼吸阀 / HTRI 解析器 / EQUIP_LIB 复用推荐 / PSV 多工况聚合 / 反应失控 / 热膨胀
+- **golden value 严格度（裁决 #9，源自用户审查错误 1+2）**：所有手算验收值必须给出**完整单位换算链**（D/H/A/Q/W/h_fg 各自独立断言），禁用未注明单位的 hardcoded 数字；与 ChEDL 交叉验证作为独立基线
+- **公式溯源字段（裁决 #10，源自用户审查疏漏 4 + 5）**：`ReliefResult.formula_ref` / `CycloneResult.formula_ref` / `WeightEstimateResult.formula_ref` 等字段记录公式版本 + 标准出处（API 520 / 521 / 526 / TEMA / DIERS 等）；版本入 DataLineage（P4-TASK0 D4 已备）
+- **PSV 多工况端到端（裁决 #11，源自用户审查问题 #1）**：Task 15 聚合结果直接驱动 Task 16 ReliefAreaInput.mass_flow；端到端测试断言 `area_m2 > 0` + `omega_method=two_point`
+- **spec §3.2.1 K 因子取值修订待裁决**：spec 写"立式 0.03~0.15 / 卧式 0.15~0.35"，其中 0.35 来自英制 GPSA（ft/s），SI 应为 0.04–0.10（立式）/ 0.07–0.15（卧式）。**待 spec 修订裁决 SI vs 英制**；本 P5 按 SI（m/s）+ GPSA SI 换算取值实施，spec 修订后同步 CONFIG 种子
 
 ## Backlog（P5+ 后续）
 
