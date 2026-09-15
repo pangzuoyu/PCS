@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Card, Col, Row, Typography } from 'antd';
 import { ChecklistDashboard } from '../components/ChecklistDashboard';
-import { WorkspaceSwitcher } from '../components/WorkspaceSwitcher';
+import { WorkspaceSwitcher } from '../components/common/WorkspaceSwitcher';
 import { useAuth } from '../store/auth';
 import type { Workspace } from '../types/workspace';
 
