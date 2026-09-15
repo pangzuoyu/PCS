@@ -1168,7 +1168,7 @@
           "meta"
         ],
         "summary": "Get Enums",
-        "description": "7 个 enum 字典（含 9 态全集）；前端 StateBadge 按 module 过滤激活子集。",
+        "description": "19 组枚举字典；前端 StateBadge / Select / 筛选用。",
         "operationId": "get_enums_api_v1_meta_enums_get",
         "parameters": [
           {
@@ -1218,7 +1218,7 @@
           "meta"
         ],
         "summary": "Get Permissions",
-        "description": "权限矩阵骨架（V1）。前端 <Can permission=\"...\"> 组件按 frontend_behavior 决定显示/隐藏/禁用。",
+        "description": "权限矩阵（V1.1 全集）；前端 <Can permission=\"...\"> 按 frontend_behavior 显示/禁用。",
         "operationId": "get_permissions_api_v1_meta_permissions_get",
         "parameters": [
           {
@@ -1266,13 +1266,61 @@
         }
       }
     },
+    "/api/v1/meta/permissions.csv": {
+      "get": {
+        "tags": [
+          "meta"
+        ],
+        "summary": "Get Permissions Csv",
+        "description": "权限矩阵 CSV 导出；前端可下载做权限审计。",
+        "operationId": "get_permissions_csv_api_v1_meta_permissions_csv_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/meta/error-codes": {
       "get": {
         "tags": [
           "meta"
         ],
         "summary": "Get Error Codes",
-        "description": "错误码表（V1 骨架）；前端 ErrorState 按 code 渲染可读 message + ui_behavior 决定交互。",
+        "description": "错误码全集（全仓 AST 派生）；前端 ErrorState 按 code 渲染可读 message。",
         "operationId": "get_error_codes_api_v1_meta_error_codes_get",
         "parameters": [
           {
@@ -1326,7 +1374,7 @@
           "meta"
         ],
         "summary": "Get State Machine",
-        "description": "9 态状态机迁移表 + allowed 字典；前端 RecordActions 按状态渲染可执行操作。",
+        "description": "13 事件 × 9 态迁移表 + 字段；前端 RecordActions 按状态渲染可执行操作。",
         "operationId": "get_state_machine_api_v1_meta_state_machine_get",
         "parameters": [
           {
@@ -9707,12 +9755,12 @@
             "type": "array",
             "title": "Streamsignstatus"
           },
-          "DeliverableStatus": {
+          "DeliverableSignStatus": {
             "items": {
               "$ref": "#/components/schemas/EnumItem"
             },
             "type": "array",
-            "title": "Deliverablestatus"
+            "title": "Deliverablesignstatus"
           },
           "WorkspaceType": {
             "items": {
@@ -9735,23 +9783,119 @@
             "type": "array",
             "title": "Calcstatus"
           },
+          "ActualDataStatus": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Actualdatastatus"
+          },
           "SnapshotStatus": {
             "items": {
               "$ref": "#/components/schemas/EnumItem"
             },
             "type": "array",
             "title": "Snapshotstatus"
+          },
+          "ConfigStatus": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Configstatus"
+          },
+          "ConfigTransition": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Configtransition"
+          },
+          "PipeType": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Pipetype"
+          },
+          "CheckResult": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Checkresult"
+          },
+          "PumpOperation": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Pumpoperation"
+          },
+          "DesignStage": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Designstage"
+          },
+          "FlowPattern": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Flowpattern"
+          },
+          "TwoPhaseCheck": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Twophasecheck"
+          },
+          "StreamDataMode": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Streamdatamode"
+          },
+          "StreamCaseType": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Streamcasetype"
+          },
+          "StatePointCaseType": {
+            "items": {
+              "$ref": "#/components/schemas/EnumItem"
+            },
+            "type": "array",
+            "title": "Statepointcasetype"
           }
         },
         "type": "object",
         "required": [
           "RecordSignStatus",
           "StreamSignStatus",
-          "DeliverableStatus",
+          "DeliverableSignStatus",
           "WorkspaceType",
           "EquipmentStatus",
           "CalcStatus",
-          "SnapshotStatus"
+          "ActualDataStatus",
+          "SnapshotStatus",
+          "ConfigStatus",
+          "ConfigTransition",
+          "PipeType",
+          "CheckResult",
+          "PumpOperation",
+          "DesignStage",
+          "FlowPattern",
+          "TwoPhaseCheck",
+          "StreamDataMode",
+          "StreamCaseType",
+          "StatePointCaseType"
         ],
         "title": "EnumsResponse"
       },
@@ -12158,12 +12302,41 @@
           "action": {
             "type": "string",
             "title": "Action"
+          },
+          "to": {
+            "type": "string",
+            "title": "To"
+          },
+          "allowed_roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Allowed Roles"
+          },
+          "preconditions": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Preconditions"
+          },
+          "side_effects": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Side Effects"
           }
         },
         "type": "object",
         "required": [
           "from",
-          "action"
+          "action",
+          "to",
+          "allowed_roles",
+          "preconditions",
+          "side_effects"
         ],
         "title": "StateTransition"
       },
