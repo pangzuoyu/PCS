@@ -1,4 +1,4 @@
-# P5 设备计算模块（第二批）实施计划 V1.7
+# P5 设备计算模块（第二批）实施计划 V1.8
 
 > **执行方式**：superpowers TDD（每 task：RED → GREEN → commit）；subagent-driven-development 派新 agent。
 > **基线 spec**：
@@ -16,7 +16,7 @@
 
 **Architecture**：底层 **ChEDL 验证模块**（`fluids.separator.v_Souders_Brown` / `K_separator_Watkins` / `K_separator_demister_York` / `fluids.particle_size.v_sphere` Stokes 三区迭代 / `fluids.safety_valve.API520_round_size` 仅复用圆整）+ **业务逻辑层自研**（API 521 火灾热输入 / API 2000 呼吸阀 / HTRI 解析器 / EQUIP_LIB 复用推荐 / PSV 多工况聚合 / 反应失控 / 热膨胀）+ P4 出口物流 helper（ADR-0022）；结果入 P0 已建表 + P5-OPEN-005 扩展；多泄放工况叠加 + 两相流 FLASH 联动；记录走 record_hash + DataLineage（公式版本入 lineage，P4-TASK0 D4/D5 已备；裁决 #8 ChEDL 分层架构）。
 
-**Tech**：FastAPI + SQLAlchemy 2.0 async + PG16 + fluids(vendored, ADR-0029 锁定版本) + numpy.float64 + scipy
+**Tech**：FastAPI + SQLAlchemy 2.0 async + PG16 + fluids(**pip 依赖安装，pyproject.toml 精确版本 `==X.Y.Z`，ADR-0029 锁定，V1.8 问题3 修正取消 vendoring — fluids MIT|GPL-3.0 双许可 vendoring 有 GPL-3.0 传染风险**) + numpy.float64 + scipy
 
 ## 全局约束
 
@@ -117,13 +117,15 @@
 - Create: `tests/services/vessel/test_vessel_sizing.py`
 - Create: `tests/services/vessel/fixtures/golden_vessel_souders_brown.json`
 
+**依赖（V1.8 问题2 时序明确）**：**Task 25 (P5-0-6) 必须先完成**，fluids 版本已锁定（ADR-0029）；Task 25 在 P5-0 批最开始执行（先于 Task 1）；Task 5 实施时 `import fluids` 验证版本等于 `fluids.__version__ == "X.Y.Z"`（ADR-0029 锁定版本）
+
 **接口**:
 - Consumes: `CONFIG.K_factor_vertical_separator`（P2 配）+ `rho_L` / `rho_V`（FLASH 物流）
 - Produces: `calc_vessel_sizing(inp: VesselSizingInput) -> VesselSizingResult`（vessel_type / D_min_m / liquid_volume_m3 / V_max_ms / K_factor）
 
 **Steps**:
-1. RED: 写 Souders-Brown 公式手算对照（K=0.1 m/s, ρ_L=850 kg/m³, ρ_V=1.2 kg/m³ → V_max=0.1×√((850-1.2)/1.2)=0.1×√707.33=**2.66 m/s**）+ D_min 公式 + **停留时间按 vessel_type 分支（V1.6 关注项修正）**：立式 3~5 分钟 / 卧式 5~10 分钟（卧式液位控制更复杂，行业惯例上浮）+ 与 ChEDL `fluids.separator.v_Souders_Brown(K, rhol, rhog)` 交叉验证 + **V1.7 问题1 ChEDL 函数签名确认**：RED 阶段**必须**先 assert 调用 `v_Souders_Brown(K=0.1, rhol=850, rhog=1.2)` 的返回值与手算 V_max=2.66 m/s 对比（≤1%），明确函数语义（返回 V_max 还是 K 因子）；**若返回 K 因子** → 业务层 `V_max = K × √((ρ_L-ρ_V)/ρ_V)`；**若返回 V_max** → 直接使用；该断言作为测试基线固化，**防止 GREEN 阶段实现逻辑偏差**
-2. GREEN: **ChEDL 分层架构**（裁决 #8）—— 直接调 `fluids.separator.v_Souders_Brown` / `K_separator_Watkins` / `K_separator_demister_York` / `K_Souders_Brown_theoretical`，不重写核心公式；自研仅做 K 因子 CONFIG 读取 + 容器类型分支（立式/卧式/带除沫器）+ D_min / **停留时间按 vessel_type 分支（V1.6：vertical=3~5 min, horizontal=5~10 min，CONFIG 种子支持两种区间）**
+1. RED: 写 Souders-Brown 公式手算对照（K=0.1 m/s, ρ_L=850 kg/m³, ρ_V=1.2 kg/m³ → V_max=0.1×√((850-1.2)/1.2)=0.1×√707.33=**2.66 m/s**）+ D_min 公式 + **停留时间按 vessel_type 分支（V1.6 关注项修正）**：立式 3~5 分钟 / 卧式 5~10 分钟（卧式液位控制更复杂，行业惯例上浮）+ 与 ChEDL `fluids.separator.v_Souders_Brown(K, rhol, rhog)` 交叉验证 + **V1.7 问题1 ChEDL 函数签名确认**：RED 阶段**必须**先 assert 调用 `v_Souders_Brown(K=0.1, rhol=850, rhog=1.2)` 的返回值与手算 V_max=2.66 m/s 对比（≤1%），明确函数语义（返回 V_max 还是 K 因子）；**若返回 K 因子** → 业务层 `V_max = K × √((ρ_L-ρ_V)/ρ_V)`；**若返回 V_max** → 直接使用；该断言作为测试基线固化，**防止 GREEN 阶段实现逻辑偏差** + **V1.8 F-13-4 dir() 核验**：RED 阶段**必须**先 `dir(fluids.separator)` 列出可用函数，确认 `v_Souders_Brown` / `K_separator_Watkins` / `K_separator_demister_York` / `K_Souders_Brown_theoretical` 存在；若不存在 → 调整 GREEN 为自研 + `formula_ref.source: "self_implemented"`
+2. GREEN: **ChEDL 分层架构**（裁决 #8 + **V1.8 ChEDL 包装层**）—— 不直接 `import fluids.*`，统一调 `app/services/chedl_wrapper.py`（**F-13-2 集中封装**，每个包装函数记录 ChEDL 函数名 + 版本 + 已知限制 + 内部替代占位符；即使 ChEDL 某函数未来不可用，替换仅修改包装层内部）；`chedl_wrapper.v_Souders_Brown(K, rhol, rhog)` / `chedl_wrapper.K_separator_Watkins` / `chedl_wrapper.K_separator_demister_York` / `chedl_wrapper.K_Souders_Brown_theoretical`，不重写核心公式；自研仅做 K 因子 CONFIG 读取 + 容器类型分支（立式/卧式/带除沫器）+ D_min / **停留时间按 vessel_type 分支（V1.6：vertical=3~5 min, horizontal=5~10 min，CONFIG 种子支持两种区间）**
 3. 测试：6 例（4 容器类型 × 卧式/立式）+ K 因子边界 0.04/0.10/0.15 + **单位约定**（K 取 SI m/s，与 ChEDL 一致）+ 与手算 + ChEDL 交叉验证偏差 ≤1%
 4. commit: `feat(p5-1-1): vessel Souders-Brown sizing (ChEDL 底层)`
 
@@ -139,8 +141,8 @@
 - Produces: `calc_vessel_hydraulics(inp: VesselHydraulicsInput) -> VesselHydraulicsResult`（empty_time_s / overflow_ok / level_volume_curve_json / vent_capacity_m3_s）
 
 **Steps**:
-1. RED: 写排空时间手算 + 卧式罐液位-容积曲线几何公式
-2. GREEN: 调 `fluids.tanks.time_to_empty` / `tank_level_to_volume`；溢流口校核（Q_in vs 溢流能力）；放空能力（呼吸量 PVRV 参考）
+1. RED: 写排空时间手算 + 卧式罐液位-容积曲线几何公式 + **V1.8 F-13-4 dir() 核验**：RED 阶段**必须**先 `dir(fluids.tanks)` 列出可用函数，确认 `time_to_empty` / `tank_level_to_volume` 存在；**F-13-5 降级预案**：若 ChEDL 文档与源码搜索均未找到这两个函数（V1.8 审查已确认），**立即**调整 GREEN 为自研几何计算 + 伯努利方程 + 孔口出流（`Q = Cd × A × √(2g·h)`），`formula_ref.source = "self_implemented"` + 注记"ChEDL 公开 API 不含此函数，自研实现"
+2. GREEN: **ChEDL 包装层优先**（V1.8 F-13-2）—— 调 `chedl_wrapper.time_to_empty` / `chedl_wrapper.tank_level_to_volume`（包装层内调用 ChEDL 函数，若缺失则 fallback 自研实现）；溢流口校核（Q_in vs 溢流能力）；放空能力（呼吸量 PVRV 参考）
 3. 测试：4 例（排空/溢流/液位-容积/放空）+ 验收 ≤5% 偏差
 4. commit: `feat(p5-1-2): vessel hydraulics (fluids.tanks)`
 
@@ -221,8 +223,8 @@
 - Produces: `calc_gravity_separator(inp: GravitySeparatorInput) -> GravitySeparatorResult`（chamber_length_m / chamber_width_m / settling_velocity_ms / method_region: Literal["Stokes","Intermediate","Newton"] / re_particle）
 
 **Steps**:
-1. RED: 写 Stokes 沉降手算（d=100μm, ρ_p=1100 kg/m³, μ=1.8e-5 Pa·s → v_t=g·(ρ_p-ρ_f)·d²/(18μ)=9.81×100×(100e-6)²/(18×1.8e-5)≈0.0074 m/s，Re_p=ρ·v·d/μ=1.2×0.0074×100e-6/1.8e-5≈0.05 → Stokes 区）+ 与 ChEDL `fluids.particle_size.v_sphere(d, rho_p, rho_f, mu)` 交叉验证（含三区判定）
-2. GREEN: **ChEDL 优先**（裁决 #8）—— 调 `fluids.particle_size.v_sphere`，**ChEDL 内置 Stokes/Intermediate/Newton 三区迭代收敛**（无需自研迭代逻辑；plan 原始"单向判定"疏漏消除）；叶片/纤维用经验法（spec §3.2.2）
+1. RED: 写 Stokes 沉降手算（d=100μm, ρ_p=1100 kg/m³, μ=1.8e-5 Pa·s → v_t=g·(ρ_p-ρ_f)·d²/(18μ)=9.81×100×(100e-6)²/(18×1.8e-5)≈0.0074 m/s，Re_p=ρ·v·d/μ=1.2×0.0074×100e-6/1.8e-5≈0.05 → Stokes 区）+ 与 ChEDL `fluids.particle_size.v_terminal(d, rho_p, rho_f, mu)` 交叉验证（含三区判定；**V1.8 F-13-4 dir() 核验**：ChEDL 源码实际函数名为 `v_terminal` 而非 `v_sphere`，RED 阶段必须先 `dir(fluids.particle_size)` 确认存在；若不存在 → 调整 GREEN 为自研三区迭代 + `formula_ref.source: "self_implemented"`）
+2. GREEN: **ChEDL 优先**（裁决 #8 + **V1.8 ChEDL 包装层 F-13-2**）—— 不直接 `import fluids.particle_size.*`，调 `chedl_wrapper.v_terminal`（包装层记录 ChEDL 函数名 + 版本 + 已知限制）；**ChEDL 内置 Stokes/Intermediate/Newton 三区迭代收敛**（无需自研迭代逻辑；plan 原始"单向判定"疏漏消除）；叶片/纤维用经验法（spec §3.2.2）
 3. 测试：3 区域各 1 例 + v_sphere 跨区域边界（Re≈1, Re≈1000）+ Stokes ≤1% 偏差 + 粒径分布拟合 ≤5% 偏差
 4. commit: `feat(p5-2-3): gravity separator (Stokes via ChEDL v_sphere) + vane/fiber`
 
@@ -322,11 +324,11 @@
 
 **Steps**:
 1. RED: 写 3 介质公式手算 + **ω 法版本明确 + GB/T 12241-2021 双路径**（plan 原始疏漏消除 + SUP-P5-PSV-001 §4.4）——
-   - **API 520 路径**：气体 A = W / (C·Kd·P1·Kb) × √(T·Z/M)（§5.5.3）/ 液体 A = W / (ρ·√(ΔP/(k·ρ)))（§5.6.2）/ 两相流 ω 法默认 two_point（API 520 附录D 滞止 + 0.9·P_stagnation）
+   - **API 520 路径**：气体 A = W / (C·Kd·P1·Kb) × √(T·Z/M)（§5.5.3）/ 液体 A = W / (ρ·√(ΔP/(k·ρ)))（§5.6.2）/ 两相流 ω 法默认 two_point（**V1.8 问题1 附录按版本区分**：API 520 第7版（2000）附录 D / 第9版（2014）/ 第10版（2020）Annex C；锁定 API_520_10th → `clause: "Annex C (10th Ed.)"`；锁定 9th → `"Annex C (9th Ed.)"`；锁定 7th → `"Appendix D (7th Ed.)"`）
    - **GB/T 12241-2021 路径**（SUP-P5-PSV-001 §4.4）：§7.4 排量系数确定 + §7.5 额定排量系数 + §8 安全阀尺寸确定；额定排量 = 理论排量 × 额定排量系数 或 实测排量 × 减低系数(0.9)；亚临界流动需乘 Kb（GB 表4）；**两相流方法 GB 路径 P5 阶段暂缺**（D-06 决议：转 P5+，P5-OPEN-00W 关闭），**V1.6 问题4 实现方式明确**：GB 两相流介质时**调用 `calc_relief_area_api520(inp)` 重新计算**（传入相同的 `ReliefAreaInput` 参数），GB 路径函数内部**显式调用 API 路径函数**而非读取已存记录，避免输入条件不一致；仅 `formula_ref` 标注 `two_phase_inherited_from: "API_520"` 表明面积计算引擎实际仍是 API 520（统一入口便于 lineage 解释）；ReliefAreaStandard 接口预留 DIERS 积分法扩展位
    - `omega_method: Literal["single_point","two_point","direct_integration"]` 仅 API 路径生效
-2. GREEN: 介质分支 + 两相流 FLASH 联动（调 P4 flash_service 算 Z/M）+ C/Kd/Kb 默认值表（API 路径）+ GB 排量系数表（GB 路径）+ omega_method 参数透传；**API/GB 计算逻辑完全隔离**（SUP-P5-PSV-001 §4.1）；**ChEDL 复用评估**：可调 `fluids.safety_valve.API520_round_size`（API 526 圆整复用 Task 17），但两相流方法仍自研以锁定 ω 法版本；**问题6 落库口径**：GB 两相流介质调用 `calc_relief_area_api520(inp)` 重新计算时（**V1.6 问题4 实现明确**）`relief_results.standard_profile_code = "GB"`（项目配置优先，不写 "API"）+ `relief_results.formula_ref_json.two_phase_inherited_from = "API_520"`（标注计算引擎来源）；P6 FLARE_SYS 按项目标准汇总时不遗漏该记录；同一容器 + 同一输入在 GB profile 下计算 → record_hash 与 API profile 不同（G4 门禁强制）
-3. 测试：3 介质 × 2 标准 = 6 例 + **omega_method 切换测试**（API 单点 vs 两点 vs 直接积分）+ 两相流 ≤5% 偏差（vs HYSYS）+ formula_ref 断言（含 omega_method / GB clause）/ GB 标准算例 ≤5% 偏差（阈值由工艺室确认）+ **V1.7 问题5 GB 两相流双标注断言**：同一容器 + 同一输入在 GB profile 下两相流计算后，`relief_results.formula_ref_json` 必须**同时**包含 `standard: "GB_T_12241-2021"`（profile 标准）+ `two_phase_inherited_from: "API_520"`（计算引擎来源）+ `area_value`（API 520 算得）；`standard_profile_code = "GB"` 而非 "API"；DataLineage 注释明确"计算引擎与 profile 不一致"防误判
+2. GREEN: 介质分支 + 两相流 FLASH 联动（调 P4 flash_service 算 Z/M）+ C/Kd/Kb 默认值表（API 路径）+ GB 排量系数表（GB 路径）+ omega_method 参数透传；**API/GB 计算逻辑完全隔离**（SUP-P5-PSV-001 §4.1）；**ChEDL 复用评估**：可调 `fluids.safety_valve.API520_round_size`（API 526 圆整复用 Task 17），但两相流方法仍自研以锁定 ω 法版本；**问题6 落库口径**：GB 两相流介质调用 `calc_relief_area_api520(inp)` 重新计算时（**V1.6 问题4 实现明确**）`relief_results.standard_profile_code = "GB"`（项目配置优先，不写 "API"）+ `relief_results.formula_ref_json.two_phase_inherited_from = "API_520"`（标注计算引擎来源）；P6 FLARE_SYS 按项目标准汇总时不遗漏该记录；同一容器 + 同一输入在 GB profile 下计算 → record_hash 与 API profile 不同（G4 门禁强制）；**V1.8 问题7 persist 层运行时校验**：落库前调用 `validate_relief_area_formula_ref(formula_ref)`（F-12-7 集中定义），standard 与 two_phase_inherited_from 矛盾时 raise ValueError → 422（防 GB 两相流记录误写为 API standard 等数据错误）
+3. 测试：3 介质 × 2 标准 = 6 例 + **omega_method 切换测试**（API 单点 vs 两点 vs 直接积分）+ 两相流 ≤5% 偏差（vs HYSYS）+ formula_ref 断言（含 omega_method / GB clause）/ GB 标准算例 ≤5% 偏差（阈值由工艺室确认）+ **V1.7 问题5 GB 两相流双标注断言**：同一容器 + 同一输入在 GB profile 下两相流计算后，`relief_results.formula_ref_json` 必须**同时**包含 `standard: "GB_T_12241-2021"`（profile 标准）+ `two_phase_inherited_from: "API_520"`（计算引擎来源）+ `area_value`（API 520 算得）；`standard_profile_code = "GB"` 而非 "API"；DataLineage 注释明确"计算引擎与 profile 不一致"防误判 + **V1.8 问题7 validate_relief_area_formula_ref 负面断言**：模拟矛盾记录（`two_phase_inherited_from="API_520"` + `standard="API_520"`）→ 断言 raise ValueError；正常 GB 两相流记录 → 断言不抛异常
 4. commit: `feat(p5-3-4): PSV relief area (API 520 + GB/T 12241 双路径 + omega_method)`
 
 #### Task 17: P5-3-5 API 526 选型 + API 2000 呼吸阀
@@ -367,7 +369,7 @@
    - `POST /projects/{project_id}/standards/psv` 项目标准配置（CUSTOM 时 approval_json 必填；仅项目标准负责人/管理员可配，403 否则）
    - 3 计算端点：调用 `StandardResolver.resolve(project_id, discipline="PSV")` 获取 standard → 注入 Task 13/14/16/17 函数；项目未配置 → 422 `PSV_STANDARD_NOT_CONFIGURED`；请求覆盖项目默认但无权限 → 403 `PSV_STANDARD_OVERRIDE_FORBIDDEN`（G1/G2 门禁）
    - finalize_calc_record 双表 + 写入标准三列 + create_outlet_stream 扩展 "PSV"
-   - **F-03**：`relief_summary` 按项目标准取每组最大 mass_flow 对应工况（**改用窗口函数**，避免 MAX(scenario) 字母序错误）+ **V1.7 问题4 per_scenario_json 全工况明细**（子查询聚合）：
+   - **F-03**：`relief_summary` 按项目标准取每组最大 mass_flow 对应工况（**改用窗口函数**，避免 MAX(scenario) 字母序错误）+ **V1.7 问题4 per_scenario_json 全工况明细**（子查询聚合）+ **V1.8 问题4 性能优化**：
      ```sql
      SELECT DISTINCT ON (r.project_id, r.standard_profile_code)
          r.project_id, r.standard_profile_code,
@@ -389,6 +391,8 @@
      WHERE r.project_id = :pid
      ORDER BY r.project_id, r.standard_profile_code, r.mass_flow DESC
      ```
+     - **复合索引**：`CREATE INDEX idx_relief_results_project_standard ON relief_results (project_id, standard_profile_code, mass_flow DESC)`（V1.8 问题4 性能保障）
+     - **V1.8 性能测试**：测试中增加 20 工况压力测试（断言响应时间 ≤1s）
    - record_hash 计算含 standard 字段（G4 同一输入跨标准 → 不同 record_hash → 两条独立记录）
    - **F-07**：migration `p5_psv_standard_not_null.py` —— UPDATE 存量记录 standard_profile_code='API' / standard_refs_json='{}' / formula_ref_json='{}' → ALTER COLUMN ... SET NOT NULL
 3. 测试：4 端点 + 标准字段落库 roundtrip + **G1-G6 门禁 6 例**（未配置 422 / 无权限覆盖 403 / CUSTOM 无审批 422 / 跨标准 record_hash 不同 / 标准变更旧记录待复核 / 历史迁移 migrated_default=true）+ 双表 roundtrip + 多工况叠加 ≤5s + **relief_summary max_scenario 正确性测试**（F-03：FIRE 5kg/s vs CLOSED_VALVE 8kg/s vs THERMAL 3kg/s → max_scenario="CLOSED_VALVE" 而非字母序 "THERMAL_EXPANSION"）+ **V1.7 问题4 per_scenario_json 完整性测试**（断言 3 工况全部出现在 per_scenario_json 中 + 各工况 mass_flow 排序 + formula_ref 字段透传）+ NOT NULL 迁移后无空记录
@@ -460,8 +464,14 @@
    - 公式参考 **TEMA Standards 9th Ed. §5 机械设计 + 工程经验公式**（Hall/Smolik 换热器设计手册 + Perry's Chemical Engineers' Handbook §11 换热器）
    - **圆筒段裸重**（薄壁圆筒展开面积 × 壁厚 × 密度）：D_shell=1m, L=5m, t_shell=0.012m → shell_cylinder=7850×0.012×π×1×5≈**1,480 kg**
    - **壳体总重**（含封头+法兰+接管+补强+支座）：≈1,480 + 300（封头×2）+ 300（法兰）+ 75（接管补强）+ 225（鞍座）≈**2,380 kg**（与 V1.0 hardcoded 2,400 量级一致，圆筒段非总重）
+   - **V1.8 问题3 五段公式来源具体化**（避免 subagent 使用"工程经验估算"导致偏差超 10%）：
+     - **cylinder**：薄壁圆筒展开面积 × 壁厚 × 密度（直接几何计算，ChEDL 无对应）
+     - **heads**：椭圆封头公式（GB/T 25198-2010 / ASME VIII-1 UG-32 —— 内径 + 壁厚 + 直边高度，标准公式 `W_heads = π × ρ × t × [(D_i + t)²/4 × (2/3 + h_straight/(D_i + t))]`）
+     - **flanges**：ASME B16.5 / HG/T 20592 法兰重量表（按 Type: WN/SO/BL + Class + Size 查表）
+     - **nozzles**：接管 + 补强圈（ASME B16.9 接管尺寸 + 工程经验补强系数）
+     - **saddles**：NB/T 47065-2018 / HG/T 21574 鞍座标准（按 D_shell + 材质查表）
    - 偏差基准：商业软件 HTRI / Aspen EDR 报告值；或文献算例（Peters & Timmerhaus Plant Design §换热器重量）
-2. GREEN: 自研公式（fluids/chemicals 无对应模块）—— **shell 拆分为 cylinder + heads + flanges + nozzles + saddles 五段累加**；tube / baffle / channels 三段；formula_ref 字段记录 TEMA 版本 + 公式出处
+2. GREEN: 自研公式（fluids/chemicals **完全无对应函数**，ChEDL 价值为零 —— **V1.8 ChEDL 限制确认**）—— **shell 拆分为 cylinder + heads + flanges + nozzles + saddles 五段累加**（各段独立 formula_ref 子字段：source + standard + version + clause）；tube / baffle / channels 三段；formula_ref 顶层记录 TEMA 版本 + 公式出处；**V1.8 F-13-2 不引入 ChEDL 包装层**（Task 22 全部自研）
 3. 测试：2 例（BEM 固定管板 / AEM U 型管）+ 与 HTRI / Aspen EDR 报告偏差 ≤10%（仅 total_weight）+ **shell_cylinder vs shell_total 独立断言**（cylinder 1,480 ± 1% 总差 / total 2,380 ± 10% vs 商业软件）+ formula_ref 字段断言
 4. commit: `feat(p5-4-4): weight estimate (TEMA 9th + 五段壳体拆分)`
 
@@ -527,9 +537,9 @@
       supplement: Optional[str]  # HG/T 20570.2-1995 标注"基于工程经验补充"
 
   class ReliefAreaFormulaRef(TypedDict):
-      standard: str
-      version: str
-      clause: str
+      standard: str           # 如 "API_520" / "GB_T_12241-2021"（V1.6 standard 含年份）
+      version: str            # 如 "10th" / "9th" / "7th" / "2021"（冗余）
+      clause: str             # 如 "Annex C (10th Ed.)" / "Appendix D (7th Ed.)" / "§7.4"（V1.8 问题1 API 520 按版本区分附录）
       omega_method: Optional[Literal["single_point", "two_point", "direct_integration"]]
       two_phase_inherited_from: Optional[str]  # D-06：GB 路径两相流标 "API_520"
 
@@ -539,9 +549,27 @@
       clause: str             # 如 "§8"
       orifice_table_status: Optional[Literal["complete", "incomplete_fallback"]]  # D-04
       note: Optional[str]
+
+  # V1.8 问题7 运行时校验函数（F-12-7）
+  def validate_relief_area_formula_ref(ref: ReliefAreaFormulaRef) -> None:
+      """校验 GB 两相流记录 formula_ref 内部一致性。
+
+      规则：若 two_phase_inherited_from == "API_520"（GB 路径复用 API 结果），
+      则 standard 必须为 GB 系列（GB_T_12241 开头），否则视为矛盾记录。
+
+      Raises:
+          ValueError: 若 standard 与 two_phase_inherited_from 矛盾
+      """
+      if ref.get("two_phase_inherited_from") == "API_520":
+          if not ref["standard"].startswith("GB_T_12241"):
+              raise ValueError(
+                  f"GB two-phase inherited record must have GB standard; "
+                  f"got standard={ref['standard']!r}, "
+                  f"two_phase_inherited_from={ref['two_phase_inherited_from']!r}"
+              )
   ```
 - 标准 profile 映射（SUP-P5-PSV-001 §2 + **D-03 GB/T 150.1 版本策略**）：
-  - **API profile**：fire_case=API_521_7th / closed_valve=API_521_7th / relief_area=API_520_10th / orifice=API_526_2017 / two_phase.omega_method=two_point
+  - **API profile**：fire_case=API_521_7th / closed_valve=API_521_7th / relief_area=API_520_10th（**V1.8 问题1 附录按版本区分**：10th Ed. → clause "Annex C (10th Ed.)"；9th Ed. → "Annex C (9th Ed.)"；7th Ed. → "Appendix D (7th Ed.)"；锁定 10th 默认）/ orifice=API_526_2017 / two_phase.omega_method=two_point
   - **GB profile**（**D-03 + V1.6 问题1 严格版本号 + V1.7 问题2 条款细化**：新项目默认 version="2024"；历史项目迁移可保持 version="2011" + migrated_default=true 标记）：fire_case={standard: "GB_T_150.1-2024", version: "2024", clause: "附录B.1.3"}（V1.7 火灾工况精确到 B.1.3）/ closed_valve={standard: "HG_T_20570.2-1995", version: "1995", clause: "§2.3"} / relief_area={standard: "GB_T_12241-2021", version: "2021", clause: "§7.4"} / orifice={standard: "GB_T_12241-2021", version: "2021", clause: "§8", orifice_table_status: "incomplete_fallback"}（**D-04 降级**）/ pilot_operated={standard: "GB_T_28778-2023", version: "2023", enabled: false}（**D-07**：转 P5+）
   - **CUSTOM profile**：混合配置 + approval_json 必填（approved_by + reason + approved_at，**D-02**：仅项目标准负责人/管理员可创建）
 
@@ -549,11 +577,12 @@
 1. RED: 写项目未配置 → 422 `PSV_STANDARD_NOT_CONFIGURED` 测试 + API/GB/CUSTOM 三 profile 配置 + 读取测试 + psv_results/relief_results 三列存在性测试 + CUSTOM 无 approval → 422 `PSV_CUSTOM_PROFILE_APPROVAL_REQUIRED` 测试 + **RECORD_TYPE_REGISTRY 13 类注册断言**（F-06）+ **GB profile version=2024/2011 双版本切换测试**（D-03）+ **D-02 项目未配置无隐式回退**测试 + **`approved_by` 字段存在性 + CUSTOM 时 NOT NULL 测试** + **V1.6 四眼原则：approved_by == created_by → 422 `PSV_CUSTOM_PROFILE_SELF_APPROVAL_FORBIDDEN` 测试**
 2. GREEN:
    - 新表 `project_calculation_standard_profiles`（含 UNIQUE(project_id, discipline, effective_from) + is_default 唯一性 + TimestampMixin `created_by` / `created_at` / `updated_at` + `approved_by` BIGINT REFERENCES users(id)，**profile_code='CUSTOM' 时 approved_by NOT NULL + `CHECK (approved_by IS NULL OR approved_by != created_by)` 四眼原则（V1.7 问题6 显式 NULL 处理，不依赖 PostgreSQL 隐式 NULL 语义）**，其他可空；强行同人提交 → 422 `PSV_CUSTOM_PROFILE_SELF_APPROVAL_FORBIDDEN`）
+   - **V1.8 问题5 API 层前置校验**：DB CHECK 仅兜底（返回 IntegrityError → 500），不直接暴露给 API 调用者；在 `StandardResolver` / `psv_persist` 服务层**前置校验** `created_by != approved_by`，同人审批时直接 raise `PsvCustomProfileSelfApprovalForbiddenError(422)`，响应业务错误码 `PSV_CUSTOM_PROFILE_SELF_APPROVAL_FORBIDDEN`；DB CHECK 作为最后防线
    - psv_results / relief_results 三列加列（默认 'API' / '{}' / '{}'，**可空**，**F-07**：NOT NULL 由 Task 18 完成）
    - `StandardResolver` 服务层：**D-02 禁止隐式回退** —— 项目未配置 → raise `PsvStandardNotConfiguredError(422)`；项目配置 CUSTOM 无 approval 或无 approved_by → raise `PsvCustomProfileApprovalRequiredError(422)`；CUSTOM 同人审批 → raise `PsvCustomProfileSelfApprovalForbiddenError(422)`；项目配置 GB version 锁定 → 路由到对应子分支
    - `formula_ref_types.py`（问题4 集中定义 TypedDict）
    - ADR-0028 起草（**D-05 Proposed 状态**）：PSV 多标准引擎设计裁决（项目级显式配置 + 公式溯源 + 禁止隐式回退 + GB 2011/2024 双版本 + GB 孔口表降级 + DIERS/先导式转 P5+）
-3. 测试：≥12 例（未配置 422 / API 配置 / GB 2024 配置 / GB 2011 配置 / GB 2024→2011 切换 / CUSTOM 无 approval 422 / **CUSTOM 无 approved_by 422** / **CUSTOM 同人审批 422 四眼原则 V1.6** / 同一 (project_id, discipline) 时间唯一 / record_hash 含 standard 字段独立 / **registry 13 类完整性** F-06 / **D-02 无隐式回退**断言）
+3. 测试：≥12 例（未配置 422 / API 配置 / GB 2024 配置 / GB 2011 配置 / GB 2024→2011 切换 / CUSTOM 无 approval 422 / **CUSTOM 无 approved_by 422** / **CUSTOM 同人审批 422 四眼原则 V1.6（V1.8 问题5 增加 API 层业务错误码断言，非数据库 IntegrityError 500）** / 同一 (project_id, discipline) 时间唯一 / record_hash 含 standard 字段独立 / **registry 13 类完整性** F-06 / **D-02 无隐式回退**断言）
 4. commit: `feat(p5-0-5): PSV standard profile (SUP-P5-PSV-001 §3 + ADR-0028 Proposed + approved_by + TypedDict)`
 
 **门禁**（SUP-P5-PSV-001 §6）：G1 项目未配置 → 422（D-02 强化：禁止隐式回退） / G3 CUSTOM 缺审批（approval_json + approved_by）→ 422 / G6 历史迁移 → migrated_default=true 标记
@@ -704,7 +733,7 @@
 - **GB/T 12241 孔口表降级（裁决 #19，D-04 EFFECTIVE）**：P5 阶段 `select_orifice_gb12241(inp)` 降级为"按计算面积输出所需流道直径"，不强制圆整到标准孔口系列；formula_ref 结构化标注 `orifice_table_status: "incomplete_fallback"` + `note`；P5-OPEN-00Z 关闭，完整录入转 P5+
 - **GB 路径 DIERS 转 P5+（裁决 #20，D-06 EFFECTIVE + V1.6 问题4 实现明确）**：Task 16 (P5-3-4) GB 路径两相流方法 P5 阶段暂缺；GB 两相流介质计算时**显式调用 `calc_relief_area_api520(inp)` 重新计算**（传入相同的 `ReliefAreaInput`），仅 formula_ref 标注 `two_phase_inherited_from: "API_520"`；ReliefAreaStandard 接口预留 DIERS 积分法扩展位；P5-OPEN-00W 关闭
 - **先导式阀 GB/T 28778 转 P5+（裁决 #21，D-07 EFFECTIVE + V1.6 问题1 严格版本号）**：Task 24 GB profile 保留 `pilot_operated: {standard: "GB_T_28778-2023", version: "2023", enabled: false}` 配置项，不实现计算模块；P5-OPEN-00V 关闭
-- **ChEDL 版本锁定（裁决 #22，D-08 EFFECTIVE + V1.7 问题8 三者关系明确）**：P5-0 批内新增 **Task 25 (P5-0-6) ChEDL 版本锁定 ADR-0029**；fluids / chemicals / ht 冻结至 **pyproject.toml 精确版本 `==X.Y.Z`**（单一来源 source of truth，**禁止 `>=` / `~=`**）；uv.lock 由 `uv lock` 重新生成（不手工编辑）；requirements.txt 由 `uv export` 生成人类可读快照；测试断言以 **uv.lock 为准**（`import fluids; assert fluids.__version__ == "X.Y.Z"` 通过 uv.lock 解析而非 pip freeze）；P5-0 批内完成，P5-1 启动前生效；升级需独立 PR + 全量回归 + ADR 更新
+- **ChEDL 版本锁定（裁决 #22，D-08 EFFECTIVE + V1.7 问题8 + V1.8 F-13-1/2/3）**：P5-0 批内新增 **Task 25 (P5-0-6) ChEDL 版本锁定 ADR-0029**；fluids / chemicals / ht 冻结至 **pyproject.toml 精确版本 `==X.Y.Z`**（单一来源 source of truth，**禁止 `>=` / `~=`**）；uv.lock 由 `uv lock` 重新生成（不手工编辑）；requirements.txt 由 `uv export` 生成人类可读快照；测试断言以 **uv.lock 为准**（`import fluids; assert fluids.__version__ == "X.Y.Z"` 通过 uv.lock 解析而非 pip freeze）；P5-0 批内完成，P5-1 启动前生效；升级需独立 PR + 全量回归 + ADR 更新；**V1.8 许可策略明确**：取消 vendoring，采用 pip 依赖安装（fluids MIT|GPL-3.0 双许可，vendoring 有传染风险）；**V1.8 ChEDL 包装层**：app/services/chedl_wrapper.py 集中封装，业务逻辑层通过包装层调用而非直接 `import fluids.*`；**V1.8 维护风险章节**：ADR-0029 增加"维护风险与缓解"（单一维护者 + ht 低活跃）
 - **SUP-P5-PSV-001 基线批准（裁决 #23，E-01 EFFECTIVE）**：SUP-P5-PSV-001 V1.0 状态从"待评审"改为"已批准"（E-01），P5 基线生效；Task 24 (P5-0-5) 可执行
 - **验收基线 1670（裁决 #24，E-02 EFFECTIVE + V1.7 问题7 修正）**：pcs_test 全量 ≥1670 passed（基线 1603 + **≥47** P5 核心 + 15 SUP 门禁/标准切换 + 5 ChEDL 版本锁定 — D-08；实施后按实际测试清单核算，**实际数通常多于计划数 ≥47**，验收不卡上限）；起始基线 ≥1603（P4 末态）/ P5 验收 ≥1670（F-04 + E-02 + D-08 + V1.7）
 
@@ -734,6 +763,20 @@
   - **F-11-6（迁移可移植性）**：Task 24 CHECK 约束**显式 NULL 处理**：`CHECK (approved_by IS NULL OR approved_by != created_by)`，避免依赖 PostgreSQL 隐式 NULL 语义；subagent 实现时一目了然
   - **F-11-7（验收口径）**：验收段 "47 P5 核心" → "**≥47** P5 核心"，避免 subagent 误读"恰好 47"导致测试不足时无法验收；裁决 #24 + 验收段 同步
   - **F-11-8（依赖管理可维护性）**：Task 25 锁定策略明确 **pyproject.toml = source of truth**（声明 `==X.Y.Z`）→ `uv lock` 生成 uv.lock（不手工编辑）→ `uv export` 生成 requirements.txt（人类可读快照）；测试以 uv.lock 为准（替代 pip freeze）；裁决 #22 + 全局约束 + 验收段同步
+- **F-12 V1.8 P5 计划 7 项 ⚠️ 修正**（2026-09-15 第四轮审查）：
+  - **F-12-1（lineage 一致性）**：API 520 clause 按版本区分（10th/9th → Annex C；7th → Appendix D）；Task 16 RED 段 + ReliefAreaFormulaRef TypedDict 示例 + 裁决 #15 API profile 同步
+  - **F-12-2（时序明确性）**：Task 5 Files 段增加"依赖：Task 25 (P5-0-6) 必须先完成"声明；Task 25 在 P5-0 批最开始执行（先于 Task 1）
+  - **F-12-3（公式来源具体化）**：Task 22 五段公式来源分别明确 —— heads: GB/T 25198 / ASME VIII-1 UG-32；flanges: ASME B16.5 / HG/T 20592；saddles: NB/T 47065 / HG/T 21574；nozzles: ASME B16.9 + 补强圈工程经验；避免 subagent 使用"工程经验估算"导致偏差超 10%
+  - **F-12-4（性能保障）**：Task 18 relief_summary 增加 `(project_id, standard_profile_code, mass_flow DESC)` 复合索引 + 20 工况压力测试（响应 ≤1s）
+  - **F-12-5（错误码友好性）**：approved_by 四眼原则 API 层前置校验（StandardResolver / psv_persist）→ 422 `PSV_CUSTOM_PROFILE_SELF_APPROVAL_FORBIDDEN`；DB CHECK 仅兜底
+  - **F-12-6（验收合理性）**：验收报告中明确"按实际 pcs_test 增量核算"，不机械按 47 对账
+  - **F-12-7（持久层数据完整性）**：formula_ref_types.py 增加 `validate_relief_area_formula_ref(ref)` 运行时校验函数；Task 16 persist 层调用；矛盾记录（`two_phase_inherited_from="API_520"` + 非 GB standard）→ ValueError → 422
+- **F-13 V1.8 ChEDL 风险 5 项升级**（2026-09-15 第四轮审查，源自 ChEDL 可靠性矩阵审查）：
+  - **F-13-1（许可合规）**：ADR-0029 明确许可策略 —— **pyproject.toml 精确依赖安装（pip/uv install），取消 vendoring**；fluids MIT|GPL-3.0 双许可，vendoring 触发 GPL-3.0 传染风险；Architecture 段同步取消 vendoring 标记
+  - **F-13-2（依赖隔离）**：新增 `app/services/chedl_wrapper.py` ChEDL 包装层，集中封装所有 ChEDL 调用；每个包装函数记录 ChEDL 函数名 + 版本（ADR-0029）+ 已知限制 + 内部替代占位符；Task 5/11 GREEN 步骤改调包装层而非直接 `import fluids.*`；即使 ChEDL 某函数未来不可用，替换仅修改包装层内部
+  - **F-13-3（维护可持续性）**：ADR-0029 增加"维护风险与缓解"章节：单一维护者（Caleb Bell）+ 多仓库；ht 低活跃（8 个月无发布）；fpi 已停滞 8 年（不采用）；缓解措施 = 包装层隔离 + 内部替代占位符；升级需独立 PR + 全量回归 + ADR 更新
+  - **F-13-4（实施前核验）**：Task 5/11 RED 阶段**必须**先 `dir(fluids.separator)` / `dir(fluids.particle_size)` 列出可用函数，确认 `v_Souders_Brown` / `K_separator_Watkins` / `K_separator_demister_York` / `v_terminal` 存在；若不存在 → 调整 GREEN 为自研 + `formula_ref.source: "self_implemented"`
+  - **F-13-5（降级预案）**：Task 6 `fluids.tanks.time_to_empty` / `tank_level_to_volume` 经核验公开 API 未包含（V1.8 审查已确认），**F-13-5 降级预案**：调整 GREEN 为自研几何计算 + 伯努利方程 + 孔口出流（`Q = Cd × A × √(2g·h)`），`formula_ref.source = "self_implemented"`
 
 ## Backlog（按优先级）
 
@@ -776,7 +819,7 @@
 P5 闭环判定：
 1. **25 task 全部 CLOSED**（含 R1 fix 如有；F-01 方案 A：Task 1~23 主批 + Task 24/25 前置执行）
 2. **pcs_test 全量 ≥1670 passed**（E-02 + D-08）
-   - **基线 1603 passed**（P4 末态）+ **≥47 P5 核心**（**问题5 构成**：Task 5 VESSEL 10 + Task 9~12 SEP_EQUIP 12 + Task 13~18 PSV 20 + Task 19~23 HEAT 5 = 47；实施后按实际测试清单核算，**实际数通常多于 47**；**V1.7 问题7**：验收不卡上限，避免 subagent 误读"恰好 47"导致测试不足时无法验收）
+   - **基线 1603 passed**（P4 末态）+ **≥47 P5 核心**（**问题5 构成**：Task 5 VESSEL 10 + Task 9~12 SEP_EQUIP 12 + Task 13~18 PSV 20 + Task 19~23 HEAT 5 = 47；**实际数通常多于 47**；**V1.7 问题7 + V1.8 问题6**：验收报告按实际 pcs_test 增量核算，不机械按 47 对账；验收报告中列出每个 task 实际新增测试数与累计增量）
    - **15 SUP 门禁/标准切换**（SUP-P5-PSV-001 §8.5：项目未配置 422 / API 配置 / GB 配置 / 无权限覆盖 403 / 跨标准 record_hash 不同 等 15 例）
    - **5 ChEDL 版本锁定**（Task 25：fluids / chemicals / ht 三库版本断言 + uv.lock 存在性 + requirements.txt 与 uv.lock 一致性 5 例；**V1.7 问题8** 以 uv.lock 为准替代 pip freeze）
 3. ruff 0 errors
