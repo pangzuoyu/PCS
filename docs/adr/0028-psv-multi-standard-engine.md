@@ -1,9 +1,11 @@
 ---
-status: proposed
+status: accepted
 date: 2026-09-15
 revised: 2026-09-16
+accepted_date: 2026-09-16
 version: V1.1
 supersedes: V1.0 (2026-09-15 proposed，2026-09-16 由 V1.1 修订)
+accepted_by: P5 架构评审委员会
 ---
 
 # PSV 多标准引擎：项目级显式配置 + 双路径隔离 + 公式溯源
