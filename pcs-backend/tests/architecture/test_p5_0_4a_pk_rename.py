@@ -32,7 +32,6 @@ from app.models.calc import (
     TwoPhaseResult,
     VesselResult,
 )
-from app.services.calc_lineage import RECORD_TYPE_REGISTRY
 
 ROOT = Path(__file__).resolve().parents[2]
 ALEMBIC_MIGRATION_PATH = (
@@ -311,12 +310,8 @@ def test_alembic_migration_unique_constraint_rehomed_on_tag_number():
 # ============================================================================
 
 
-def test_record_type_registry_still_8_entries():
-    """Task 4a 不涉及新表，REGISTRY 仍 8 类。"""
-    assert len(RECORD_TYPE_REGISTRY) == 8, (
-        f"REGISTRY 应 8 类，实际 {len(RECORD_TYPE_REGISTRY)}: "
-        f"{list(RECORD_TYPE_REGISTRY.keys())}"
-    )
+# Note: Task 4a 不涉及新表，但 P5-0-5 Task 24 已扩展 REGISTRY 至 9 类。
+# REGISTRY 计数断言已下沉到 test_p5_0_5 自身的 test_record_type_registry_count_is_9。
 
 
 # ============================================================================

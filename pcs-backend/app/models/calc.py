@@ -2,14 +2,18 @@ import uuid
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Enum,
     Float,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
+    Text,
     Uuid,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -173,6 +177,52 @@ class PsvResult(TaggedRecordMixin, Base):
         default=DesignStage.BASIC,
         comment="设计阶段 BASIC/DETAIL（OPEN-009）",
     )
+    # P5-0-5 Task 24a：PSV 多标准配置（SUP-P5-PSV-001 §3.2 + ADR-0028 V1.1）
+    # standard_profile_code + standard_refs_json 在 P5-3 实施后转 NOT NULL
+    standard_profile_code: Mapped[str | None] = mapped_column(
+        String(16), comment="API / GB / CUSTOM（来自 project_calculation_standard_profiles）"
+    )
+    standard_refs_json: Mapped[dict | None] = mapped_column(
+        JSONB, comment="各子标准、版本、条款映射（canonical JSON）"
+    )
+    formula_ref_json: Mapped[dict | None] = mapped_column(
+        JSONB, comment="公式溯源（标准/版本/条款，受控词表）"
+    )
+    pending_review: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("FALSE"),
+        comment="标准配置变更后旧记录需复核（G5 门禁）",
+    )
+    migrated_default: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("FALSE"),
+        comment="历史项目迁移默认值（G6 门禁）",
+    )
+    override_reason: Mapped[str | None] = mapped_column(
+        Text, comment="覆盖项目默认标准的理由（G7 门禁）"
+    )
+    override_approval_json: Mapped[dict | None] = mapped_column(
+        JSONB, comment="覆盖审批依据（与 override_reason 成对）"
+    )
+    __table_args__ = (
+        CheckConstraint(
+            "(override_reason IS NULL AND override_approval_json IS NULL) OR "
+            "(override_reason IS NOT NULL AND override_approval_json IS NOT NULL)",
+            name="psv_override_paired_chk",
+        ),
+        Index(
+            "idx_psv_results_pending_review",
+            "project_id",
+            postgresql_where=text("pending_review = TRUE"),
+        ),
+        Index(
+            "idx_psv_results_migrated_default",
+            "project_id",
+            postgresql_where=text("migrated_default = TRUE"),
+        ),
+    )
 
 
 class FlareSystemResult(TaggedRecordMixin, Base):
@@ -245,6 +295,51 @@ class ReliefResult(RecordMixin, Base):
         Uuid,
         ForeignKey("psv_results.psv_id"),
         comment="选型 PSV（反查 psv_results）；可空：未选型前",
+    )
+    # P5-0-5 Task 24a：PSV 多标准配置（SUP-P5-PSV-001 §3.2 + ADR-0028 V1.1）
+    standard_profile_code: Mapped[str | None] = mapped_column(
+        String(16), comment="API / GB / CUSTOM"
+    )
+    standard_refs_json: Mapped[dict | None] = mapped_column(
+        JSONB, comment="各子标准、版本、条款映射"
+    )
+    formula_ref_json: Mapped[dict | None] = mapped_column(
+        JSONB, comment="公式溯源（标准/版本/条款）"
+    )
+    pending_review: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("FALSE"),
+        comment="标准配置变更后旧记录需复核（G5 门禁）",
+    )
+    migrated_default: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("FALSE"),
+        comment="历史项目迁移默认值（G6 门禁）",
+    )
+    override_reason: Mapped[str | None] = mapped_column(
+        Text, comment="覆盖项目默认标准的理由（G7 门禁）"
+    )
+    override_approval_json: Mapped[dict | None] = mapped_column(
+        JSONB, comment="覆盖审批依据"
+    )
+    __table_args__ = (
+        CheckConstraint(
+            "(override_reason IS NULL AND override_approval_json IS NULL) OR "
+            "(override_reason IS NOT NULL AND override_approval_json IS NOT NULL)",
+            name="relief_override_paired_chk",
+        ),
+        Index(
+            "idx_relief_results_pending_review",
+            "project_id",
+            postgresql_where=text("pending_review = TRUE"),
+        ),
+        Index(
+            "idx_relief_results_migrated_default",
+            "project_id",
+            postgresql_where=text("migrated_default = TRUE"),
+        ),
     )
 
 

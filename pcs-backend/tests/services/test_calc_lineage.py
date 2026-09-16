@@ -76,6 +76,8 @@ def test_registry_contains_all_calc_record_types() -> None:
         "ReliefResult",
         "ColumnSizingResult",
         "MixerResult",
+        # P5-0-5 Task 24 新增（2026-09-16）
+        "ProjectCalculationStandardProfile",
     }
 
 

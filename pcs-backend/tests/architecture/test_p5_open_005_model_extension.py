@@ -266,12 +266,8 @@ def test_alembic_migration_creates_3_tables():
 # ============================================================================
 
 
-def test_record_type_registry_has_8_entries():
-    """RECORD_TYPE_REGISTRY 必须 8 类（5 既有 + 3 新增）。"""
-    assert len(RECORD_TYPE_REGISTRY) == 8, (
-        f"RECORD_TYPE_REGISTRY 应有 8 类，实际 {len(RECORD_TYPE_REGISTRY)}: "
-        f"{list(RECORD_TYPE_REGISTRY.keys())}"
-    )
+# Note: P5-0-5 Task 24 已扩展 REGISTRY 至 9 类（+ProjectCalculationStandardProfile）。
+# 8 类计数断言已下沉到 test_p5_0_5_psv_multi_standard.py::test_record_type_registry_count_is_9。
 
 
 def test_record_type_registry_contains_p5_0_1a_3_classes():

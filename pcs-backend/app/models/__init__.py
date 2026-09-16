@@ -7,6 +7,7 @@ from app.models.htri_template import *  # noqa: F401,F403
 from app.models.pipe_code_template import *  # noqa: F401,F403
 from app.models.project import *  # noqa: F401,F403
 from app.models.project_template_pipe_class import *  # noqa: F401,F403
+from app.models.psv_standards import *  # noqa: F401,F403
 from app.models.sim_import import *  # noqa: F401,F403
 from app.models.sim_tower import *  # noqa: F401,F403
 from app.models.sim_unit_op import *  # noqa: F401,F403

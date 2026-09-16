@@ -34,7 +34,9 @@ def test_table_count(inspector):
     # P3.x SIM-16 新增 sim_tower_results = 66
     # P3.x SIM-15 新增 sim_unit_op_results + 6 专用表 = 73
     # P4-0-2 新增 two_phase_results = 74
-    assert len(tables) == 74, f"expected 74 incl. alembic_version, got {len(tables)}"
+    # P5-OPEN-005 新增 relief_results + column_sizing + mixer_results = 77
+    # P5-0-5 Task 24 新增 project_calculation_standard_profiles = 78
+    assert len(tables) == 78, f"expected 78 incl. alembic_version, got {len(tables)}"
 
 
 def test_required_tables_present(inspector):
