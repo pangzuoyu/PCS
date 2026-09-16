@@ -1,8 +1,8 @@
 增补 SPEC：PSV 多标准（API / GB）项目级配置与计算引擎
 Spec 编号：SUP-P5-PSV-001
-版本：V1.5.1
+版本：V1.5.2
 日期：2026-09-16
-状态：**已批准**（V1.5.1 项目评审通过，作为 P5-3 实施依据；2026-09-16 归档）
+状态：**已批准**（V1.5.1 项目评审通过；V1.5.2 关闭 P5-OPEN-00R D-08 — 工艺室 2026-09-16 核查结论回填 §4.4 / §2.1 / §5.5）
 父 Spec：spec/工艺专用综合计算软件需求规格说明书 Web版 P5.md V1.3 §3.2.3
 关联计划：P5 设备计算模块（第二批）实施计划 V1.0 Task 13/14/16/17/18
 关联 ADR：ADR-0028（PSV 多标准引擎，accepted 2026-09-15）、ADR-0030（ChEDL 版本锁定，accepted 2026-09-15）
@@ -11,6 +11,16 @@ TODOS 关联：TODO-PSV-STD-001
 
 修订说明
 ---
+V1.5.2 相对 V1.5.1 关闭 P5-OPEN-00R（D-08）：
+
+- 工艺室 2026-09-16 核查 API 520 Part I 附录 C 原文，结论：HDI（C.2.1 数值积分）与两点 Omega 法（ω / ωs 解析法）是**并列**方法；ω 法（C.2.2）与 ωs 法（C.2.3）是**子方法级别**的区分（适用工况：入口有气相 vs 入口为液相）；第十版勘误仅把 ωs 编号从 C.2.3 改到 C.2.2 下，物理模型未消失，子方法实质仍区分
+- V1.5.2 修复（字段结构改两层）：
+  - §4.4 two_phase 字段结构：`method` ∈ {"hdi", "two_point_omega"} + `omega_submethod` ∈ {"omega", "omega_s"}（仅 method=two_point_omega 时有效）
+  - §2.1 API profile two_phase + §2.1 GB profile two_phase + §5.1 POST 请求体示例 同步两层结构
+  - §5.5 JSON Schema 加 `if method=="hdi" then omega_submethod must be undefined` 约束
+- §9 OPEN 项表 P5-OPEN-00R 关闭（D-08 决议 + 工艺室签字日期 2026-09-16）
+- "two_point" 是求 ω 参数的数值方案（不是与 HDI 平级的方法）；不存在"ω + 积分法"或"ωs + 积分法"组合
+
 V1.5.1 相对 V1.5 处理以下建议（不阻塞实施，落地前一次性补齐）：
 
 - M1：§4.2 "详 §10 P5-OPEN-00U" 引用错误（00U 是 closed_valve，GB 火灾分支无对应 OPEN 项）。V1.5.1 修复：§9 OPEN 项表新增 **P5-OPEN-00T**（GB 火灾分支范围变更，跟踪工艺室签字对账表）；§4.2 引用改为 §9 P5-OPEN-00T
@@ -155,7 +165,8 @@ PsvStandardProfileCode = Literal["API", "GB", "CUSTOM"]
   "two_phase": {
     "standard": "API_520_Appendix_C",
     "version": "10th",
-    "omega_method": "two_point"
+    "method": "two_point_omega",
+    "omega_submethod": "omega"
   },
   "heat_exchanger_tube_rupture": {
     "standard": "API_521",
@@ -187,7 +198,9 @@ PsvStandardProfileCode = Literal["API", "GB", "CUSTOM"]
     "standard": "GB_T_12241",
     "version": "2021",
     "status": "unsupported_p5",
-    "reason": "P5 阶段 GB 路径两相流不实现，DIERS 积分法转 P5+"
+    "reason": "P5 阶段 GB 路径两相流不实现，DIERS 积分法转 P5+",
+    "method": "hdi",
+    "omega_submethod": null
   },
   "pilot_operated": { "standard": "GB_T_28778", "version": "2023", "enabled": false },
   "heat_exchanger_tube_rupture": {
@@ -625,12 +638,30 @@ API 520 分支（E4 + E6 修复）：
   - 排量系数 Kd（制造厂试验值，典型 0.975）
   - **背压修正系数 Kb**（E4 修复）：临界流 Kb = 1；亚临界流按 API 520 Figure 30 取值（背压比 Pb/Pdr 的函数）
   - **组合修正系数 Kc**（E4 修复）：安全阀+爆破片组合时按 API 520 §3.6 取值；普通弹簧式安全阀 Kc = 1
-- **两相流方法**（E6 修复）：
+- **两相流方法**（E6 + P5-OPEN-00R D-08 修复 — 字段结构改两层）：
   - 附录编号：**附录 C**（Part I 第八版起；V1.2 误写为附录 D 已修正）
-  - **ω 法**（API 520 附录 C.2.2）：适用于进入安全阀前已存在气相的两相系统
-  - **ωs 法**（API 520 附录 C.2.3）：适用于进入安全阀前为液相、进入后可能闪蒸的工况
-  - **第十版子方法编号（n1 待工艺室确认）**：第八/九版的 C.2.3 ωs 法在第十版 Errata 中编号归入 C.2.2 ω 法（仅编号合并，子方法实质仍区分）→ `omega_method` 取值 `omega` | `omega_s` 均合法，分别走 C.2.2 主体 / C.2.2 子方法 ωs；若工艺室确认第十版**取消 ωs 独立子方法** → `omega_method` 仅 `omega` 合法，`omega_s` 作为别名等价于 `omega`。**V1.4 锁定待工艺室对照 API 520 10th Ed. Errata 原文确认**；实施时两种取值都接受（避免实施期阻塞）
-  - 默认 method：**two_point**（用户请求未指定时），可显式指定 `omega_method = "omega" | "omega_s"`（n1：两种取值都合法，详见上一条工艺室确认）
+  - **API 520 附录 C 实际结构**（工艺室 2026-09-16 核查结论，P5-OPEN-00R 关闭）：
+    - **C.2.1 均相直接积分法（HDI）**：独立方法，对动量方程 + 能量方程做数值积分，**不**使用 ω 关联式
+    - **两点 Omega法（总称，下分两个子方法）**：
+      - **C.2.2 ω 法**：适用于进入安全阀前已存在气相的两相系统（ω 参数 = f(G, x)）
+      - **C.2.3 ωs 法**：适用于进入安全阀前为液相、进入后不论是否闪蒸的工况（ωs 参数定义式与 ω 不同）
+    - 第十版勘误：ωs 法物理模型未消失，表格章节编号从 C.2.3 改为 C.2.2 下（与 ω 法合并编号），但子方法实质仍区分
+  - **字段结构（V1.5.2 修复，两层语义清晰）**：
+    ```json
+    "two_phase": {
+      "standard": "API_520_Appendix_C",
+      "method": "two_point_omega",       // "hdi" (C.2.1) | "two_point_omega" (C.2.2/C.2.3 解析法)
+      "omega_submethod": "omega"          // "omega" | "omega_s"，仅 method=two_point_omega 时有效
+    }
+    ```
+  - 取值说明：
+    - `method = "hdi"` → 不需要 `omega_submethod` 字段；走 C.2.1 数值积分（DIERS）
+    - `method = "two_point_omega"` + `omega_submethod = "omega"` → 走 C.2.2 ω 法（入口有气相）
+    - `method = "two_point_omega"` + `omega_submethod = "omega_s"` → 走 C.2.3 ωs 法（入口为液相）
+  - 默认 method：**two_point_omega** + omega_submethod：**omega**（覆盖大多数入口工况）
+  - GB 路径：`status = "unsupported_p5"`（详 G10 + D-06 转 P5+），按 D-06 决议 GB 路径两相流 DIERS 积分法转 P5+
+  - 不存在"ω + 积分法"或"ωs + 积分法"组合（HDI 不使用 ω 关联式，是独立方法）
+  - "two_point" 是求 ω 参数的数值方案（取两个压力点的比容数据估算 ω），**不是**与 HDI 平级的方法
 - D-06 关闭：GB 路径两相流 DIERS 积分法转 P5+
 
 GB/T 12241 分支（E5 修复）：
@@ -671,7 +702,7 @@ Authorization: Bearer <token>
     "closed_valve": { "standard": "HG_T_20570.2", "version": "1995", "status": "unsupported_p5", "reason": "原标准未提供控制阀故障液体泄放量的完整计算公式" },
     "relief_area": { "standard": "GB_T_12241", "version": "2021" },
     "orifice": { "standard": "GB_T_12241", "version": "2021", "orifice_table_status": "incomplete_fallback" },
-    "two_phase": { "standard": "GB_T_12241", "version": "2021", "status": "unsupported_p5", "reason": "P5 阶段 GB 路径两相流不实现，DIERS 积分法转 P5+" },
+    "two_phase": { "standard": "GB_T_12241", "version": "2021", "status": "unsupported_p5", "reason": "P5 阶段 GB 路径两相流不实现，DIERS 积分法转 P5+", "method": "hdi", "omega_submethod": null },
     "pilot_operated": { "standard": "GB_T_28778", "version": "2023", "enabled": false },
     "heat_exchanger_tube_rupture": { "standard": "HG_T_20570.2", "version": "1995", "status": "unsupported_p5", "reason": "原标准未提供换热器管破裂工况的完整计算公式" }
   },
@@ -765,6 +796,10 @@ GET /api/v1/psv/relief-summary?project_id=...
 - B8 修复：`heat_exchanger_tube_rupture` 子对象与 `closed_valve` 共用 `status: unsupported_p5` 拒绝路径，错误响应含 `insufficient_case: "tube_rupture"`（详 §4.1 check_capability + G8c）
 - B11 修复：响应错误码按 stage 映射（详 §4.1 `_STAGE_ERROR_CODE`）：two_phase → PSV_TWO_PHASE_GB_UNSUPPORTED；pilot_operated → PSV_PILOT_UNSUPPORTED；其他 → PSV_PROFILE_INSUFFICIENT
 - M3 修复：响应 `insufficient_case` 字段取值范围 `{"closed_valve", "tube_rupture", "two_phase", "pilot_operated", "unsupported"}`——`closed_valve` / `tube_rupture` 保留兼容别名；`two_phase` / `pilot_operated` 直接用 stage 名；其他 mandatory / 未知 stage → `"unsupported"`。前端按 `insufficient_case` 分流 G8 / G8c / G10 / G12 错误展示
+- V1.5.2 修复（P5-OPEN-00R D-08）：`two_phase` 子对象字段结构改为两层（详 §4.4 + §2.1）：
+  - `method`: enum `{"hdi", "two_point_omega"}`，必填
+  - `omega_submethod`: enum `{"omega", "omega_s"}`，**仅 `method = "two_point_omega"` 时有效**；`method = "hdi"` 时该字段必须缺省（schema 强制 `if method=="hdi" then omega_submethod must be undefined`）
+  - API / GB / CUSTOM profile 示例均按此结构落地
 
 5.6 pending_review 触发机制
 
@@ -835,7 +870,7 @@ GET /api/v1/psv/relief-summary?project_id=...
 | P5-OPEN-00V | **D-07** | 先导式阀 GB/T 28778：转 P5+ 评估 |
 | **P5-OPEN-00U**（V1.1 新增） | 待 P5 实施后评估 | GB 路径控制阀故障工况（HG/T 20570.2 补充公式）：转 P5+ 评估，需工艺室 + 标准负责人联签，公式需附标准出处与权威基准 |
 | **P5-OPEN-00T**（M1 V1.5.1 新增） | 待 P5 启动评审会确认 | GB/T 150.1 附录B 火灾分支范围变更（从 P5 交付范围移至前置条件，工艺室签字对账表）：签字后 P5+ 评估补齐或直接纳入 P5 修订版；与 §4.2 范围变更标注 + §7 验收表"P5 交付范围外"联动 |
-| **P5-OPEN-00R**（M4 V1.5.1 新增） | 待工艺室对照标准原文确认 | API 520 10th Ed. 附录 C ω/ωs 子方法编号（ωs 是否独立保留）：实施期两种取值都接受避免阻塞；签字后回填 §4.4 表述 |
+| **P5-OPEN-00R**（V1.5.1 新增） | **D-08**（V1.5.2 关闭） | API 520 10th Ed. 附录 C ω/ωs 子方法编号 + 方法层级与子方法层级的字段结构设计：工艺室 2026-09-16 核查结论——HDI（C.2.1）与两点 Omega 法（ω + ωs）是并列方法；ω / ωs 子方法实质仍区分（第十版仅编号从 C.2.3 改为 C.2.2 下）；字段结构改两层 `method` (hdi \| two_point_omega) + `omega_submethod` (omega \| omega_s)。§4.4 / §2.1 / §5.5 已按此结构落地 |
 
 8.2 P5-0 增加前置任务
 
