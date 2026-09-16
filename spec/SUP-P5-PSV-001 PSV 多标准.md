@@ -1,8 +1,8 @@
 增补 SPEC：PSV 多标准（API / GB）项目级配置与计算引擎
 Spec 编号：SUP-P5-PSV-001
-版本：V1.5
+版本：V1.5.1
 日期：2026-09-16
-状态：修订（V1.4 评审反馈整改 + 提交重评；B10/B11/B12 + n5-residual + n2-residual + c1-c3）
+状态：修订（V1.5 评审反馈整改；M1-M5 建议落地；不阻塞实施）
 父 Spec：spec/工艺专用综合计算软件需求规格说明书 Web版 P5.md V1.3 §3.2.3
 关联计划：P5 设备计算模块（第二批）实施计划 V1.0 Task 13/14/16/17/18
 关联 ADR：ADR-0028（PSV 多标准引擎，accepted 2026-09-15）、ADR-0030（ChEDL 版本锁定，accepted 2026-09-15）
@@ -11,6 +11,14 @@ TODOS 关联：TODO-PSV-STD-001
 
 修订说明
 ---
+V1.5.1 相对 V1.5 处理以下建议（不阻塞实施，落地前一次性补齐）：
+
+- M1：§4.2 "详 §10 P5-OPEN-00U" 引用错误（00U 是 closed_valve，GB 火灾分支无对应 OPEN 项）。V1.5.1 修复：§9 OPEN 项表新增 **P5-OPEN-00T**（GB 火灾分支范围变更，跟踪工艺室签字对账表）；§4.2 引用改为 §9 P5-OPEN-00T
+- M2：§5.1 POST 请求体示例缺 `two_phase` 和 `heat_exchanger_tube_rupture`，与 §5.5 JSON Schema 必填规则不一致。V1.5.1 修复：§5.1 GB profile 示例补齐两个字段（与 §2.1 GB profile 定义对齐），并加 `reason` 字段（与示例语义统一）
+- M3：§4.1 `insufficient_case` 对 two_phase / pilot_operated 取值未声明（当前返回 "unsupported" 字符串）。V1.5.1 修复：`insufficient_case` 改为按 stage 名输出；§5.5 声明取值范围 `{"closed_valve", "tube_rupture", "two_phase", "pilot_operated", "unsupported"}`；保留 closed_valve / tube_rupture 别名兼容 G8 / G8c 已有约定
+- M4：n1（ω/ωs 编号）缺 OPEN 项编号跟踪。V1.5.1 修复：§9 OPEN 项表新增 **P5-OPEN-00R**（API 520 10th Ed. 附录 C ω/ωs 子方法编号确认）
+- M5：§11.2 / §11.3 步骤 3 / 步骤 2 措辞混合"列 / 约束 / 索引"。V1.5.1 修复：DDL 分类描述（ADD/DROP 7 列 + ADD/DROP CONSTRAINT × 2 表 + CREATE/DROP INDEX 4 条部分索引）
+
 V1.5 相对 V1.4 解决以下问题：
 
 V1.4 新暴露阻塞项（3）：
@@ -522,12 +530,16 @@ class StandardResolver:
                 )
             standard = ref.get("standard")
             if standard in P5_UNIMPLEMENTABLE_STANDARDS or ref.get("status") == "unsupported_p5":
-                # B8 修复：区分 insufficient_case（closed_valve / tube_rupture），错误码共用 PSV_PROFILE_INSUFFICIENT
-                insufficient_case = (
-                    "tube_rupture" if stage == "heat_exchanger_tube_rupture"
-                    else "closed_valve" if stage == "closed_valve"
-                    else "unsupported"
-                )
+                # B8 + M3 修复：insufficient_case 按 stage 名输出（语义清晰，统一取值范围）
+                # 取值范围：{"closed_valve", "tube_rupture", "two_phase", "pilot_operated", "unsupported"}
+                # "closed_valve" / "tube_rupture" 保留兼容别名（前端按 insufficient_case 分流 G8 / G8c 时已有约定）
+                # 其他 stage 直接用 stage 名（如 "two_phase" / "pilot_operated"），便于前端按 insufficient_case 决定错误码展示
+                if stage == "heat_exchanger_tube_rupture":
+                    insufficient_case = "tube_rupture"
+                elif stage == "closed_valve":
+                    insufficient_case = "closed_valve"
+                else:
+                    insufficient_case = stage   # M3：two_phase / pilot_operated / 其他 → stage 名
                 if insufficient_case == "closed_valve":
                     remediation = [
                         "改用 CUSTOM profile，closed_valve 指定 API_521 并附审批依据",
@@ -587,7 +599,7 @@ GB/T 150.1 附录B 分支（E3 修复：补完整公式结构）：
 - API 分支：API 521 算例 / 商业软件，≤2%
 - GB 分支：GB 标准算例 / 工艺室手算，阈值由工艺室确认（建议 ≤5%）；E3 整改前 P5 不实施 GB 分支，Task 13 启动前须有工艺室签字的 GB 算例对账表
 
-> **范围变更（n2 标注）**：E3 修复将 GB 火灾分支从 **P5 交付范围** 移到 **P5 前置条件**（工艺室签字对账表）。Task 13 工期影响：对账表未签字前 P5 不实施 GB 分支；签字后 P5+ 评估补齐或直接纳入 P5 修订版。建议 P5 启动评审会上确认（详 §10 P5-OPEN-00U）。
+> **范围变更（n2 标注 + M1 V1.5.1 修复）**：E3 修复将 GB 火灾分支从 **P5 交付范围** 移到 **P5 前置条件**（工艺室签字对账表）。Task 13 工期影响：对账表未签字前 P5 不实施 GB 分支；签字后 P5+ 评估补齐或直接纳入 P5 修订版。建议 P5 启动评审会上确认（详 §9 **P5-OPEN-00T**，M1 V1.5.1 新增 OPEN 项；00U 是 closed_valve 项，不可混用）。
 
 4.3 Task 14 改造：其他工况
 
@@ -656,10 +668,12 @@ Authorization: Bearer <token>
   "profile_code": "GB",
   "standard_refs": {
     "fire_case": { "standard": "GB_T_150.1", "version": "2024", "clause": "附录B" },
-    "closed_valve": { "standard": "HG_T_20570.2", "version": "1995", "status": "unsupported_p5" },
+    "closed_valve": { "standard": "HG_T_20570.2", "version": "1995", "status": "unsupported_p5", "reason": "原标准未提供控制阀故障液体泄放量的完整计算公式" },
     "relief_area": { "standard": "GB_T_12241", "version": "2021" },
     "orifice": { "standard": "GB_T_12241", "version": "2021", "orifice_table_status": "incomplete_fallback" },
-    "pilot_operated": { "standard": "GB_T_28778", "version": "2023", "enabled": false }
+    "two_phase": { "standard": "GB_T_12241", "version": "2021", "status": "unsupported_p5", "reason": "P5 阶段 GB 路径两相流不实现，DIERS 积分法转 P5+" },
+    "pilot_operated": { "standard": "GB_T_28778", "version": "2023", "enabled": false },
+    "heat_exchanger_tube_rupture": { "standard": "HG_T_20570.2", "version": "1995", "status": "unsupported_p5", "reason": "原标准未提供换热器管破裂工况的完整计算公式" }
   },
   "is_default": true
 }
@@ -750,6 +764,7 @@ GET /api/v1/psv/relief-summary?project_id=...
 - m3 修复：`pilot_operated` 子对象可选字段 `enabled: boolean`，缺省 = `true`；`enabled = false` 表示 profile 显式关闭该阶段，请求含 `pilot_operated` 时由 §4.1 check_capability 拒绝（U3 + G12 联动）
 - B8 修复：`heat_exchanger_tube_rupture` 子对象与 `closed_valve` 共用 `status: unsupported_p5` 拒绝路径，错误响应含 `insufficient_case: "tube_rupture"`（详 §4.1 check_capability + G8c）
 - B11 修复：响应错误码按 stage 映射（详 §4.1 `_STAGE_ERROR_CODE`）：two_phase → PSV_TWO_PHASE_GB_UNSUPPORTED；pilot_operated → PSV_PILOT_UNSUPPORTED；其他 → PSV_PROFILE_INSUFFICIENT
+- M3 修复：响应 `insufficient_case` 字段取值范围 `{"closed_valve", "tube_rupture", "two_phase", "pilot_operated", "unsupported"}`——`closed_valve` / `tube_rupture` 保留兼容别名；`two_phase` / `pilot_operated` 直接用 stage 名；其他 mandatory / 未知 stage → `"unsupported"`。前端按 `insufficient_case` 分流 G8 / G8c / G10 / G12 错误展示
 
 5.6 pending_review 触发机制
 
@@ -819,6 +834,8 @@ GET /api/v1/psv/relief-summary?project_id=...
 | P5-OPEN-00W | **D-06** | GB 路径两相流 DIERS 积分法：转 P5+ |
 | P5-OPEN-00V | **D-07** | 先导式阀 GB/T 28778：转 P5+ 评估 |
 | **P5-OPEN-00U**（V1.1 新增） | 待 P5 实施后评估 | GB 路径控制阀故障工况（HG/T 20570.2 补充公式）：转 P5+ 评估，需工艺室 + 标准负责人联签，公式需附标准出处与权威基准 |
+| **P5-OPEN-00T**（M1 V1.5.1 新增） | 待 P5 启动评审会确认 | GB/T 150.1 附录B 火灾分支范围变更（从 P5 交付范围移至前置条件，工艺室签字对账表）：签字后 P5+ 评估补齐或直接纳入 P5 修订版；与 §4.2 范围变更标注 + §7 验收表"P5 交付范围外"联动 |
+| **P5-OPEN-00R**（M4 V1.5.1 新增） | 待工艺室对照标准原文确认 | API 520 10th Ed. 附录 C ω/ωs 子方法编号（ωs 是否独立保留）：实施期两种取值都接受避免阻塞；签字后回填 §4.4 表述 |
 
 8.2 P5-0 增加前置任务
 
@@ -953,7 +970,7 @@ P5 验收基线：P5 启动基线 1662 + 净增 ≥30 = **≥1692**。
 
 1. **CREATE EXTENSION IF NOT EXISTS btree_gist;**（B4 修复：必须在 CREATE TABLE 之前；需 DB 用户有 CREATE EXTENSION 权限）
 2. CREATE TABLE `project_calculation_standard_profiles`（含 EXCLUDE 约束 + `migrated_default` 列）
-3. ALTER TABLE `psv_results` / `relief_results` ADD COLUMN 7 列（含 `override_paired_chk` + 4 部分索引）
+3. ALTER TABLE `psv_results` / `relief_results` 加 7 列（`standard_profile_code` + `standard_refs_json` + `formula_ref_json` + `pending_review` + `migrated_default` + `override_reason` + `override_approval_json`）；ALTER TABLE ... ADD CONSTRAINT `override_paired_chk`（×2 表）；CREATE INDEX 4 条部分索引（`pending_review` / `migrated_default` × psv_results / relief_results，B7 修复：仅 `project_id`，不引用 `sign_status`）—— M5 修复：列 / 约束 / 索引 三类 DDL 分类描述
 4. INSERT 默认 API 配置到所有历史项目（`migrated_default = TRUE`）
 5. UPDATE 既有 `psv_results` / `relief_results` 记录：`migrated_default = TRUE` + `pending_review = TRUE`
 6. 校验：EXCLUDE 约束无冲突；所有历史项目均有默认 profile
@@ -962,7 +979,7 @@ P5 验收基线：P5 启动基线 1662 + 净增 ≥30 = **≥1692**。
 
 `downgrade()` 步骤：
 1. DELETE FROM `project_calculation_standard_profiles` WHERE `migrated_default = TRUE`
-2. ALTER TABLE `psv_results` / `relief_results` DROP COLUMN 7 列
+2. ALTER TABLE `psv_results` / `relief_results` DROP 7 列（`standard_profile_code` + `standard_refs_json` + `formula_ref_json` + `pending_review` + `migrated_default` + `override_reason` + `override_approval_json`）；DROP CONSTRAINT `override_paired_chk`（×2 表）；DROP INDEX 4 条部分索引—— M5 修复：列 / 约束 / 索引 三类 DDL 分类描述
 3. DROP TABLE `project_calculation_standard_profiles`
 
 NOT NULL 约束在迁移完成后**下次 P5-3 启动前**才加（不在本次迁移内），保证 P5-3 实施前回滚窗口。
