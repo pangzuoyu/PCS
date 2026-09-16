@@ -1,8 +1,8 @@
 增补 SPEC：PSV 多标准（API / GB）项目级配置与计算引擎
 Spec 编号：SUP-P5-PSV-001
-版本：V1.4
+版本：V1.5
 日期：2026-09-16
-状态：修订（V1.3 评审反馈整改 + 提交重评；B8/B9 + S2-residual 第三次 + n1-n5）
+状态：修订（V1.4 评审反馈整改 + 提交重评；B10/B11/B12 + n5-residual + n2-residual + c1-c3）
 父 Spec：spec/工艺专用综合计算软件需求规格说明书 Web版 P5.md V1.3 §3.2.3
 关联计划：P5 设备计算模块（第二批）实施计划 V1.0 Task 13/14/16/17/18
 关联 ADR：ADR-0028（PSV 多标准引擎，accepted 2026-09-15）、ADR-0030（ChEDL 版本锁定，accepted 2026-09-15）
@@ -11,6 +11,22 @@ TODOS 关联：TODO-PSV-STD-001
 
 修订说明
 ---
+V1.5 相对 V1.4 解决以下问题：
+
+V1.4 新暴露阻塞项（3）：
+- B10：API profile 缺 `heat_exchanger_tube_rupture` 字段，B9 方案 A 在 API 路径下未落地。V1.5 修复：§2.1 API profile 显式增字段 `{"standard": "API_521", "version": "7th", "status": "unsupported_p5"}`；§5.5 JSON Schema 明确"三类 profile 均必填 heat_exchanger_tube_rupture"
+- B11：G10/G12 声称的专用错误码（PSV_TWO_PHASE_GB_UNSUPPORTED / PSV_PILOT_UNSUPPORTED）在 check_capability 中全部退化为 PSV_PROFILE_INSUFFICIENT。V1.5 修复（方案 A）：§4.1 check_capability 加 `_STAGE_ERROR_CODE` 映射字典，所有 `raise PsvProfileInsufficientError` 注入 `error_code` 字段：two_phase → PSV_TWO_PHASE_GB_UNSUPPORTED，pilot_operated → PSV_PILOT_UNSUPPORTED，其他 → PSV_PROFILE_INSUFFICIENT；错误码与 G10/G12 声明完全对齐
+- B12：§7 验收表 "G1-G12 = 12 测试" 与 §8.5 "门禁类 14 条" 不一致。V1.5 修复：§7 该行改为"G1-G12 + G8b + G8c = 14 测试"，与 §8.5 对齐
+
+残留（2）：
+- n5-residual：§7 验收表 GB/T 28778 行未覆盖 G12 三情形。V1.5 修复：§7 该行单元格列三情形 (a)(b)(c)，3 测试
+- n2-residual：§7 验收表 GB 火灾行未标注"P5 交付范围外"。V1.5 修复：§7 该行标"**P5 交付范围外**"（E3 范围变更），验收阈值改为"待工艺室签字"
+
+次要（3）：
+- c1：§2.2 CUSTOM profile `reason` 字段含"B9 方案 A 锁定"等 SPEC 内部决策编号。V1.5 修复：`reason` 改用户友好"P5 阶段不支持换热器管破裂工况；该工况转 P5+ 评估"，内部决策编号留在 §4.3
+- c2：§2.1 GB profile 缺 `two_phase` 字段，G10 实际走 U3 分支而非 unsupported_p5 分支。V1.5 修复：GB profile 显式增 `two_phase: {"standard": "GB_T_12241", "version": "2021", "status": "unsupported_p5"}`，与 B11 共同保证 G10 错误码正确返回
+- c3：§2.3 "effective_from 必须 ≤ 当前时刻 + 1 秒" 与 §3.1 `effective_from <= created_at + INTERVAL '1 second'` 表述不一致。V1.5 修复：§2.3 改为"effective_from 必须 ≤ 本行 created_at + INTERVAL '1 second'"，与 §3.1 IMMUTABLE CHECK 对齐
+
 V1.4 相对 V1.3 解决以下问题：
 
 V1.3 新引入阻塞项（2）：
@@ -133,6 +149,12 @@ PsvStandardProfileCode = Literal["API", "GB", "CUSTOM"]
     "version": "10th",
     "omega_method": "two_point"
   },
+  "heat_exchanger_tube_rupture": {
+    "standard": "API_521",
+    "version": "7th",
+    "status": "unsupported_p5",
+    "reason": "P5 阶段不支持换热器管破裂工况；该工况转 P5+ 评估"
+  },
   "pilot_operated": null
 }
 ```
@@ -153,6 +175,12 @@ PsvStandardProfileCode = Literal["API", "GB", "CUSTOM"]
   },
   "relief_area": { "standard": "GB_T_12241", "version": "2021" },
   "orifice": { "standard": "GB_T_12241", "version": "2021", "orifice_table_status": "incomplete_fallback" },
+  "two_phase": {
+    "standard": "GB_T_12241",
+    "version": "2021",
+    "status": "unsupported_p5",
+    "reason": "P5 阶段 GB 路径两相流不实现，DIERS 积分法转 P5+"
+  },
   "pilot_operated": { "standard": "GB_T_28778", "version": "2023", "enabled": false },
   "heat_exchanger_tube_rupture": {
     "standard": "HG_T_20570.2",
@@ -182,7 +210,7 @@ PsvStandardProfileCode = Literal["API", "GB", "CUSTOM"]
     "standard": "API_521",
     "version": "7th",
     "status": "unsupported_p5",
-    "reason": "P5 不实现换热器管破裂计算；B9 方案 A 锁定：无论 API/GB/CUSTOM，标准请求 P5 阶段一律触发 G8c"
+    "reason": "P5 阶段不支持换热器管破裂工况；该工况转 P5+ 评估"
   },
   "approval": {
     "approved_by": "标准负责人姓名",
@@ -208,7 +236,7 @@ GB/T 150.1 现行有效版本为 2024 版，代替 2011 版（D-03 关闭：项�
 
 GB/T 12241 现行有效版本为 2021 版，代替 2005 版（D-04 关闭：P5 阶段孔口表降级，输出所需流道直径不强制圆整；完整录入转 P5+）。GB/T 28778 现行有效版本为 2023 版（D-07 关闭：先导式阀转 P5+ 评估）。
 
-**预排程 profile 限制**（S6 修复）：P5 阶段不支持 `effective_from > NOW()` 的预排程 profile 写入（§3.1 `future_dated_forbidden_chk` 约束拦截）。`effective_from` 必须 ≤ 当前时刻 + 1 秒。新生效配置写入即视为即时生效；若需"未来某日起生效"语义，请走 P5+ 评审 + ADR 复审。
+**预排程 profile 限制**（S6 + B5 + c3 修复）：P5 阶段不支持预排程 profile 写入（§3.1 `future_dated_forbidden_chk` 约束拦截）。`effective_from` 必须 ≤ **本行 `created_at + INTERVAL '1 second'`**（约束依赖本表列，引用 `NOW()` 会破坏 IMMUTABLE）。新生效配置写入即视为即时生效；若需"未来某日起生效"语义，请走 P5+ 评审 + ADR 复审。
 
 §3 数据模型
 ---
@@ -419,7 +447,21 @@ class StandardResolver:
         (c) 请求包含该 optional 阶段，profile 标 enabled=FALSE / unimplementable → 422
 
         这样避免"不隐式回退"原则被破坏：用户显式请求的阶段必须被解析或被显式拒绝。
+
+        B11 修复（方案 A）：按 insufficient_stage 映射 error_code：
+        - two_phase → PSV_TWO_PHASE_GB_UNSUPPORTED
+        - pilot_operated → PSV_PILOT_UNSUPPORTED
+        - 其他（closed_valve / heat_exchanger_tube_rupture / mandatory 缺失 / 未定义 stage） → PSV_PROFILE_INSUFFICIENT
+        错误码与 G10/G12 声明完全对齐，不再退化为单一 PSV_PROFILE_INSUFFICIENT。
         """
+        # B11：错误码按 stage 分发
+        _STAGE_ERROR_CODE = {
+            "two_phase": "PSV_TWO_PHASE_GB_UNSUPPORTED",
+            "pilot_operated": "PSV_PILOT_UNSUPPORTED",
+        }
+        def _error_code(stage: str) -> str:
+            return _STAGE_ERROR_CODE.get(stage, "PSV_PROFILE_INSUFFICIENT")
+
         all_known = PSV_MANDATORY_STAGES | PSV_OPTIONAL_STAGES
         for stage in requested_stages:
             if stage not in all_known:
@@ -428,6 +470,7 @@ class StandardResolver:
                     discipline=profile.discipline,
                     profile_code=profile.profile_code,
                     insufficient_stage=stage,
+                    error_code="PSV_PROFILE_INSUFFICIENT",  # B11：未知 stage 强制通用码
                     standard="(unknown_stage)",
                     version="-",
                     reason=f"未定义的计算阶段 {stage}",
@@ -442,6 +485,7 @@ class StandardResolver:
                         discipline=profile.discipline,
                         profile_code=profile.profile_code,
                         insufficient_stage=stage,
+                        error_code=_error_code(stage),  # B11：mandatory 阶段也按 stage 映射
                         standard="(missing_in_profile)",
                         version="-",
                         reason=f"mandatory 阶段 {stage} 在 profile 中缺失",
@@ -453,6 +497,7 @@ class StandardResolver:
                     discipline=profile.discipline,
                     profile_code=profile.profile_code,
                     insufficient_stage=stage,
+                    error_code=_error_code(stage),  # B11：按 stage 映射（G10/G12 走专用错误码）
                     standard="(not_covered_by_profile)",
                     version="-",
                     reason=f"optional 阶段 {stage} 在 profile {profile.profile_code} 中未覆盖，且被请求显式启用",
@@ -469,6 +514,7 @@ class StandardResolver:
                     discipline=profile.discipline,
                     profile_code=profile.profile_code,
                     insufficient_stage=stage,
+                    error_code=_error_code(stage),  # B11：按 stage 映射
                     standard=ref.get("standard", "-"),
                     version=ref.get("version", "-"),
                     reason=f"阶段 {stage} 在 profile 中显式 enabled=FALSE",
@@ -500,6 +546,7 @@ class StandardResolver:
                     discipline=profile.discipline,
                     profile_code=profile.profile_code,
                     insufficient_stage=stage,
+                    error_code=_error_code(stage),  # B11：按 stage 映射（two_phase→PSV_TWO_PHASE_GB_UNSUPPORTED, pilot_operated→PSV_PILOT_UNSUPPORTED）
                     insufficient_case=insufficient_case,   # B8 新增字段，供前端 / OpenAPI 区分
                     standard=standard,
                     version=ref.get("version", "-"),
@@ -692,12 +739,17 @@ GET /api/v1/psv/relief-summary?project_id=...
 `standard_refs_json` 与 `formula_ref_json` 在 API 层使用 JSON Schema 校验：
 
 - `standard_refs_json` 必填键按 discipline 区分；**S3 修复**：PSV discipline 必填 `fire_case` + `closed_valve` + `relief_area` + `orifice`（与 §4.1 `PSV_MANDATORY_STAGES` 对齐），可选 `two_phase` / `pilot_operated` / `heat_exchanger_tube_rupture`（B8 修复：与 §4.1 `PSV_OPTIONAL_STAGES` 对齐）
-- **GB profile 必须显式写 closed_valve + heat_exchanger_tube_rupture**：`{"standard": "HG_T_20570.2", "version": "1995", "status": "unsupported_p5", "reason": "..."}`，否则 schema 校验失败
+- **B10 修复**：三类 profile（API / GB / CUSTOM）**均必填** `heat_exchanger_tube_rupture` 子对象，否则 schema 校验失败。三类示例：
+  - API：`{"standard": "API_521", "version": "7th", "status": "unsupported_p5", "reason": "P5 阶段不支持换热器管破裂工况；该工况转 P5+ 评估"}`
+  - GB：`{"standard": "HG_T_20570.2", "version": "1995", "status": "unsupported_p5", "reason": "原标准未提供换热器管破裂工况的完整计算公式"}`
+  - CUSTOM：同 API（用户友好 reason）
+- **GB profile 必须显式写 closed_valve + two_phase + heat_exchanger_tube_rupture**（c2 修复：GB + two_phase 需命中 unsupported_p5 分支而非 U3 分支）：closed_valve 与 heat_exchanger_tube_rupture 走 HG/T 20570.2 unsupported_p5；two_phase 走 GB/T 12241 unsupported_p5
 - 每个 `{standard, version, clause?}` 子对象必填 `standard` + `version`，`clause` 可选但 `fire_case`（GB 路径）必填
 - `status` 字段仅允许 `unsupported_p5` 或缺省；缺省 = 支持
 - `orifice_table_status` 仅允许 `incomplete_fallback` 或缺省；缺省 = 完整（n4：仅 profile 级，请求级不出现）
 - m3 修复：`pilot_operated` 子对象可选字段 `enabled: boolean`，缺省 = `true`；`enabled = false` 表示 profile 显式关闭该阶段，请求含 `pilot_operated` 时由 §4.1 check_capability 拒绝（U3 + G12 联动）
 - B8 修复：`heat_exchanger_tube_rupture` 子对象与 `closed_valve` 共用 `status: unsupported_p5` 拒绝路径，错误响应含 `insufficient_case: "tube_rupture"`（详 §4.1 check_capability + G8c）
+- B11 修复：响应错误码按 stage 映射（详 §4.1 `_STAGE_ERROR_CODE`）：two_phase → PSV_TWO_PHASE_GB_UNSUPPORTED；pilot_operated → PSV_PILOT_UNSUPPORTED；其他 → PSV_PROFILE_INSUFFICIENT
 
 5.6 pending_review 触发机制
 
@@ -734,7 +786,7 @@ GET /api/v1/psv/relief-summary?project_id=...
 | 标准/环节 | 验收基准 | 阈值 |
 |---|---|---|
 | API 521 火灾 | API 521 算例 / 商业软件 | ≤2% |
-| GB/T 150.1 附录B 火灾 | GB 标准算例 / 工艺室手算 | 由工艺室确认（建议 ≤5%） |
+| GB/T 150.1 附录B 火灾 | **P5 交付范围外**（n2-residual 标注：E3 范围变更，作为 P5 前置条件跟踪，详 §4.2 范围变更 + §10 P5-OPEN-00U）；验收基准由工艺室签字对账表后补齐 | 待工艺室签字 |
 | API 520 泄放面积 | API 520 算例 / HYSYS | ≤2% |
 | GB/T 12241 泄放面积 | 标准算例 | 由工艺室确认 |
 | API 520 两相流 | HYSYS / 文献 | ≤5% |
@@ -743,8 +795,8 @@ GET /api/v1/psv/relief-summary?project_id=...
 | **GB 路径两相流** | 拒绝路径：项目 GB profile + two_phase → 422 PSV_TWO_PHASE_GB_UNSUPPORTED | 响应码与错误码断言 |
 | **GB/T 12241 孔口选型（降级路径）** | 输出 `required_diameter_mm` + `orifice_selection_degraded=true` + 服务端 WARN 日志 | 响应体断言 + 日志断言 |
 | **CUSTOM 混合（fire_case=GB + closed_valve=API_521）** | 正常返回，`formula_ref.fire_case` 指向 GB/T 150.1，`formula_ref.closed_valve` 指向 API 521 | formula_ref 字段断言 |
-| **GB/T 28778 先导式** | 拒绝路径：项目 GB profile + pilot_operated 启用 → **422 PSV_PILOT_UNSUPPORTED**（V1.2 统一 422，**不再用 501**） | 响应码与错误码断言 |
-| **G1-G12 门禁**（V1.2 更新） | 每条 1 测试 | 12 测试 |
+| **GB/T 28778 先导式** | 拒绝路径覆盖 G12 三情形（n5-residual 修复）：(a) API profile + `pilot_operated: null` → 422 PSV_PILOT_UNSUPPORTED；(b) GB profile + `pilot_operated.enabled = FALSE` → 422 PSV_PILOT_UNSUPPORTED；(c) `pilot_operated.standard ∈ P5_UNIMPLEMENTABLE_STANDARDS` → 422 PSV_PILOT_UNSUPPORTED（V1.2 统一 422，**不再用 501**） | 三情形响应码与错误码断言（3 测试） |
+| **G1-G12 + G8b + G8c 门禁**（V1.2 更新 + V1.5 扩 G8b/G8c，B12 修复：与 §8.5 门禁类 14 条对齐） | 每条 1 测试 | **14 测试** |
 | **历史迁移 migrated_default 复核** | 迁移后既有记录 `migrated_default = TRUE` + `pending_review = TRUE`，**不**作为正式默认 | DB 状态断言 |
 | **标准配置变更 pending_review** | 项目级 profile 变更 → 旧记录 `pending_review = TRUE`（自动） | DB 状态断言 |
 | **record_hash 跨标准差异** | 同一输入 × API vs GB → 两条独立记录，record_hash 不同 | hash 断言 |
@@ -782,7 +834,7 @@ Task P5-0-5：PSV 标准配置模型（**V1.2 补齐 7 列 + 词表 + 未来日�
   - 4 条部分索引：`pending_review` / `migrated_default` × psv_results / relief_results（B7 修复：仅 `project_id`，不引用 `sign_status`）
 - 注册 `PsvStandardProfileCode` 枚举
 - 注册 `P5_UNIMPLEMENTABLE_STANDARDS` 词表（B2 修复：标准 registry 模块）
-- 写 **G1-G12 全 12 门禁测试**（V1.2 升级：含 G11 EXCLUDE 兜底 / G12 pilot_operated 泛化）
+- 写 **G1-G12 + G8b + G8c 全 14 门禁测试**（V1.5 升级：含 G11 EXCLUDE 兜底 / G12 pilot_operated 泛化 / G8b 审批不解锁 / G8c 换热器管破裂拒绝；与 §8.5 门禁类 14 条对齐，B12 修复）
 - 写 `closed_valve` mandatory 缺失测试（S3 修复）
 - 写 `override_paired_chk` DB 兜底测试（B3 修复）
 - 写 `migrated_default` resolver 过滤测试（B1 修复）
