@@ -46,7 +46,7 @@ PCS 后端工艺计算强依赖 Caleb Bell 维护的 ChEDL 生态（`fluids` / `
 
 本 ADR 记录 ChEDL 版本锁定的 9 项架构裁决（V1.1 新增决策 9）。Task 25 (P5-0-6) + Task 26 (P5-0-7) 共同落地。
 
-**决定**：pyproject.toml 单一来源 + 包装层隔离 + dir() 前置核验 + 降级预案 + 独立升级流程 + 双包装层职责边界。
+**决定**：pyproject.toml 单一来源（决策 1）+ 禁止浮动版本约束（决策 2）+ 取消 vendoring（决策 3）+ 三层文件关系明确（决策 4）+ 包装层隔离 + dir() 前置核验（决策 5）+ 双包装层职责边界（决策 6 + 9）+ 降级预案（决策 7）+ 独立升级流程（决策 8）。
 
 ---
 
@@ -188,7 +188,7 @@ missing = [
 
 | 包装层 | 文件 | 职责 | 引入时机 |
 |---|---|---|---|
-| `chedl_wrapper.py` | `app/services/chedl_wrapper.py` | P5+ 新引入的 ChEDL 调用（`fluids.*` + `chemicals.*` 统一封装）；future 扩展 | Task 26（新） |
+| `chedl_wrapper.py` | `app/services/chedl_wrapper.py` | P5+ 新引入的 ChEDL 调用：当前 7 个 `fluids.*` 函数（决策 6 表）；`chemicals.*` 包装为 future 扩展位（P5 阶段 0 个，P4 已用的 9 子模块由 `thermo_factory.py` 负责不重复包装） | Task 26（新） |
 | `thermo_factory.py` | `app/services/flash/thermo_factory.py`（P4 实际位置） | P4 遗留的 chemicals 抽象层；V1.1 冻结现状，不动 P4 已闭环代码 | P4（已存在） |
 
 **职责边界规则**：
@@ -257,7 +257,7 @@ ChEDL 生态版本升级须走以下流程：
 1. **独立 PR**：不允许混入其他功能改动；PR 标题格式 `chore(deps): bump ChEDL to <new versions>`
 2. **dir() 核验**：PR 中必须包含 `tests/fixtures/chedl_dir_check_<old>.txt → <new>.txt` 差异分析，确认新版本函数集兼容（含 `chemicals.*` 子模块）
 3. **全量回归**：`pcs_test` 库基线全跑；任何工艺计算结果偏差 > 阈值（API 521 火灾 ≤2%、GB 泄放面积 ≤5% 等，按 ADR-0028 决策 11 独立 golden）须分析并文档化
-4. **ADR 更新**：升级完成后，在附录 B 追加升级历史；本 ADR 决策内容不修改（评审通过后本 ADR 状态为 accepted；后续升级不改变该状态）
+4. **ADR 更新**：升级完成后，在附录 B 追加升级历史；本 ADR 决策内容不修改
 5. **包装层同步**：包装层 docstring 中 ChEDL 版本号必须同步更新
 
 **升级触发条件**（V1.1 新增）：
@@ -282,7 +282,7 @@ ChEDL 生态版本升级须走以下流程：
 
 **理由**：
 
-1. P4 已闭环：flash_service 已被 1662 tests 覆盖，重构会引入回归风险
+1. P4 已闭环：flash_service 已被覆盖（pcs_test 基线 1603 passed / ruff 0，重构会引入回归风险；P5 启动时 collect-only = 1662 含 P4 hotfix 增量未跑项）
 2. 命名遗留：`thermo_factory.py` 的实际依赖是 `chemicals` 不是 `thermo`，但 P4 已定型，改名成本高
 3. 职责可区分：P4 遗留 vs P5 新增，时间维度清晰
 4. 未来整合：P5+ 可择机将 `thermo_factory.py` 迁移到 `chedl_wrapper.py`，但不阻塞 P5
@@ -321,12 +321,13 @@ thermo_factory.py 调用 chemicals.* 子模块：
 - `pcs-backend/uv.lock` — `uv lock` 生成（不手工编辑）
 - `pcs-backend/requirements.txt` — `uv export` 生成快照（不手工编辑）
 
-### 新文件（4 个，V1.1 不变）
+### 新文件（5 个，V1.1 不变）
 
 - `app/services/chedl_wrapper.py` — 7 个 `fluids.*` 包装 + chemicals 包装预留位（P5 阶段 0 个 chemicals 包装；P4 已用的 9 子模块由 `thermo_factory.py` 负责，不重复包装）+ 异常捕获 + fallback 占位
 - `app/services/chedl_provenance.py` — `ChEDLProvenance` dataclass + `get_chedl_provenance()` 接口
 - `tests/architecture/test_chedl_version.py` — 测试（版本断言 + uv.lock 存在性 + requirements 一致性 + `dir()` 核验）
 - `tests/services/test_chedl_wrapper.py` — 包装层存在性测试
+- `tests/fixtures/chedl_version_snapshot.txt` — CI baseline 快照（版本断言基准，RECORD_TYPE_REGISTRY 段说明独立管理）
 
 ### vendor 清理（V1.1 修订，D3/D4 裁决后执行）
 
@@ -459,5 +460,5 @@ thermo    == 0.6.1    (pyproject.toml:25)
 
 ---
 
-supersedes：V1.0（2026-09-15 accepted，2026-09-16 由 V1.1 覆盖）
+supersedes：V1.0（2026-09-15 proposed，2026-09-16 由 V1.1 覆盖）
 related：ADR-0028（PSV 多标准引擎）、ADR-0027（HEAT 双轨）
