@@ -1,0 +1,95 @@
+{
+  "_comment": "P5-2-1 旋风分离器 golden fixture：3 方法各 2 例（标准/高效旋风）+ GPSA 算例 + Stairmand 高效型。SI 单位（m, m/s, Pa）。手算对照见 PCS-PLAN-P5-DEVICE-EQUIPMENT.md 行 212。",
+  "_formula_refs": {
+    "lapple": "C_f = 16·a·b / D_e²；ΔP = C_f × ρ/2 × V_in²（GPSA Engineering Data Book §Cyclone Separators, 13th ed.）",
+    "swift": "ΔP_swift = ρ × V_in² × (1 + 2·φ²) / (1 + 2·φ)²× ...（简化流场模型，Cooper & Alley 2010 Air Pollution Control）",
+    "barth": "ΔP_barth = (1 + 2·x²) × (ρ/2 × V_in²) - 体平均摩擦 + 出口管动能头（Barth 1956 Mitt. VGB）",
+    "d50_stairmand": "d50 = √(9·μ·W / (2·π·N_e·ΔP × ρ_p))（Stairmand 高效旋风，效率 50% 切割粒径）"
+  },
+  "cases": [
+    {
+      "id": "gpsa_standard_cyclone",
+      "method": "LAPPLE",
+      "D_cylinder_m": 0.5,
+      "D_exhaust_m": 0.25,
+      "a_inlet_m": 0.2,
+      "b_inlet_m": 0.1,
+      "V_in_ms": 15.0,
+      "rho_kg_m3": 1.2,
+      "mu_pa_s": 1.8e-5,
+      "rho_particle_kg_m3": 1100.0,
+      "N_effective_turns": 5.0,
+      "expected": {
+        "pressure_drop_pa": 691.2,
+        "d_cylinder_m": 0.5,
+        "inlet_width_m": 0.2,
+        "inlet_height_m": 0.1,
+        "efficiency_pct": null,
+        "method": "LAPPLE"
+      }
+    },
+    {
+      "id": "gpsa_high_efficiency_stairmand",
+      "method": "LAPPLE",
+      "D_cylinder_m": 0.3,
+      "D_exhaust_m": 0.15,
+      "a_inlet_m": 0.12,
+      "b_inlet_m": 0.06,
+      "V_in_ms": 20.0,
+      "rho_kg_m3": 1.2,
+      "mu_pa_s": 1.8e-5,
+      "rho_particle_kg_m3": 1100.0,
+      "N_effective_turns": 8.0,
+      "expected": {
+        "pressure_drop_pa": 1228.8,
+        "d_cylinder_m": 0.3,
+        "inlet_width_m": 0.12,
+        "inlet_height_m": 0.06,
+        "efficiency_pct": null,
+        "method": "LAPPLE"
+      }
+    },
+    {
+      "id": "swift_standard_cyclone",
+      "method": "SWIFT",
+      "D_cylinder_m": 0.5,
+      "D_exhaust_m": 0.25,
+      "a_inlet_m": 0.2,
+      "b_inlet_m": 0.1,
+      "V_in_ms": 15.0,
+      "rho_kg_m3": 1.2,
+      "mu_pa_s": 1.8e-5,
+      "rho_particle_kg_m3": 1100.0,
+      "N_effective_turns": 5.0,
+      "expected": {
+        "pressure_drop_pa": null,
+        "d_cylinder_m": 0.5,
+        "inlet_width_m": 0.2,
+        "inlet_height_m": 0.1,
+        "efficiency_pct": null,
+        "method": "SWIFT"
+      }
+    },
+    {
+      "id": "barth_high_efficiency",
+      "method": "BARTH",
+      "D_cylinder_m": 0.3,
+      "D_exhaust_m": 0.15,
+      "a_inlet_m": 0.12,
+      "b_inlet_m": 0.06,
+      "V_in_ms": 20.0,
+      "rho_kg_m3": 1.2,
+      "mu_pa_s": 1.8e-5,
+      "rho_particle_kg_m3": 1100.0,
+      "N_effective_turns": 8.0,
+      "expected": {
+        "pressure_drop_pa": null,
+        "d_cylinder_m": 0.3,
+        "inlet_width_m": 0.12,
+        "inlet_height_m": 0.06,
+        "efficiency_pct": null,
+        "method": "BARTH"
+      }
+    }
+  ]
+}
