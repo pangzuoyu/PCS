@@ -80,6 +80,8 @@ export function NotificationCenter({
       width={420}
       open={open}
       onClose={onClose}
+      maskClosable  // 默认 true，显式确认未被覆盖（点遮罩关闭抽屉）
+      keyboard      // 默认 true，显式确认未被覆盖（ESC 关闭抽屉）
     >
       <Tabs
         data-testid="notification-tabs"
