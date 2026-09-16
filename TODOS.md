@@ -320,3 +320,37 @@ P4（FLASH / PIPE / PUMP / PIPE_NET 计算模块接入）
 - **Why**: 单元测试基线完备性取决于样例多样性；用户真实工艺配置是质量保证金标准
 - **Context**: SIM-2 Step 3 由我从对话历史文本重建；P3 Sprint 末若有真实项目 .inp 可用，整理脱敏后入 git
 - **Depends on**: SIM-2 启动 + 后续真实项目数据脱敏流程
+
+---
+
+## ⏭️ P4.5 批 3 延后项（2026-09-16 落地时识别）
+
+批 3（Tasks 27-35）前端计算模块 + PMS/BEDD/向导 完成；以下为实现中显式标记"留 P5 / 完整版"的延后项。
+
+### TODO-039: 前端 7 个 type 占位文件 P5-1 由 api.d.ts 替换
+- **状态**: P5-1（api:gen 输出后） | **来源**: 批 3 实施（2026-09-16，7 个 type 文件加 `TODO(api-migration)` 标注）
+- **What**: 当前 `pcs-frontend/src/types/{pipeClass,flash,pipe,pump,pipeNet,pms,common}.ts` 是 V1 mock props shape（与 P5-1 真实 OpenAPI 不一定同字段顺序/枚举值/可空性）。P5-1 calculate 入口契约冻结后，由 `src/types/api.d.ts` 替换这 7 个文件；前端 import 全部从 `./api` 引
+- **Why**: 当前类型来源不唯一（mock types 与 OpenAPI types 并存）；P5-1 后必须以 OpenAPI 为准
+- **Context**: 批 3 计划修订 item 6 已记录"前端类型来源唯一性"
+- **Depends on**: P5-1 OpenAPI 契约冻结
+
+### TODO-040: PIPE_NET 完整版（reactflow / 自动布局 / 环路检测 / 序列化）
+- **状态**: PIPE_NET 完整功能 sprint | **来源**: Task 33 PipeNetTopologyPage 实施（2026-09-16，提交 e5ea389）
+- **What**: V1 极简版手写 SVG 渲染 + 基础校验；完整版需：reactflow 拖拽节点 / 自动布局算法（dagre 或 ELK）/ 环路检测算法（DFS）/ 拓扑序列化导入导出
+- **Why**: 拓扑是 PIPE_NET 模块核心；V1 占位不足以支持工程实用
+- **Context**: Task 33 提交明确写"V1 极简版：手写 SVG 渲染 + 基础校验；完整功能（reactflow 拖拽 / 自动布局 / 环路检测 / 序列化）留 PIPE_NET 完整版"
+- **Depends on**: PIPE_NET 完整功能 sprint 启动
+
+### TODO-041: 前端 MSW handlers 契约冻结（P5-1 后重写）
+- **状态**: P5-1（OpenAPI 契约冻结后） | **来源**: 批 3 实施（MSW handlers 当前与 mock props shape 对齐）
+- **What**: `pcs-frontend/src/mocks/handlers.ts` 当前按前端 mock types 写；P5-1 backend OpenAPI 冻结后必须按真实端点重写（路径 / 请求 / 响应 / 错误码 / 状态码），并删除不再使用的 mock handlers
+- **Why**: P5-1 之后前端不能继续按 mock 协议工作；必须与真实后端契约对齐
+- **Context**: 当前 MSW 让前端可独立运行；P5-1 后 MSW 仍有用（dev / e2e 离线），但契约必须与生产对齐
+- **Depends on**: P5-1 OpenAPI 契约冻结 + 9 态 enum 扩展
+
+### TODO-042: PIPE_LINE_LIST 25 列 DETAIL 视图补全
+- **状态**: P5 SIM 扩展时 | **来源**: Task 32 PipeLineListPage 实施（2026-09-16）
+- **What**: 当前 PipeLineListPage DETAIL 视图 25 列含 `compressor_kw` / `compressor_count` / `heat_duty_kw` 等计算结果字段，但 P5 之前 calculation 表未必齐全，部分列会显示空。P5 SIM/FLASH/PIPE/PUMP 计算结果入库后，需要回填这 25 列对应的 backend 字段映射
+- **Why**: 用户在 P5 之前切到 DETAIL 视图会看到大量空列；需评估是否在 P5 之前默认 BASIC only
+- **Context**: 批 3 提交 e427efb；BASIC 11 列 + DETAIL 25 列的双视图设计为后续计算结果预留
+- **Depends on**: P5 各计算模块入库 + 列填充策略裁决
