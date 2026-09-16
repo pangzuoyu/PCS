@@ -361,3 +361,16 @@ P4（FLASH / PIPE / PUMP / PIPE_NET 计算模块接入）
 - **Why**: Dashboard 渲染空状态（无功能阻塞但控制台报错污染日志 + 数据缺失让 P5-1 前的 Dashboard 不可信）
 - **Context**: QA 报告 `qa-report-pcs-frontend-2026-09-16.md`；DashboardPage 需 loading / empty / error 三态展示
 - **Depends on**: P5-1 workspaces + checklist 端点 OpenAPI 冻结 + MSW handler 重写（TODO-041）
+
+### TODO-044: Per-Batch QA Gate（每批落地强制浏览器 QA）
+- **状态**: P5-1 启动时生效 | **来源**: 2026-09-16 补跑批 1 / 批 2 末 QA（报告 `qa-report-pcs-frontend-per-batch-2026-09-16.md`）
+- **What**: P4.5 批 1 / 批 2 / 批 3 累计 3 个 CRITICAL（mock-login 404、21 路由未挂、static antd message），其中 2 个在批 1 就可拦截，1 个在批 2 落地即应拦截；现在补齐 per-batch QA 闸门
+- **流程**:
+  1. 每批最后一个 commit 落地后，`git checkout <commit> --detach`
+  2. 跑浏览器回归：login + dashboard + 各 Page 路由 + 控制台无 antd/React/TS error
+  3. 写 QA 报告到 `.gstack/qa-reports/qa-report-pcs-frontend-YYYY-MM-DD-<batch>.md`
+  4. CRITICAL/HIGH 修完再开下一批
+  5. 验收物清单：`tsc --noEmit` clean、`eslint` clean、`vitest run` ≥ 上批 baseline、QA 报告存在
+- **Why**: 集成层 bug（路由 / MSW / antd App 包裹）单元测试覆盖不到；3 个 CRITICAL 跨批累积到收口才被发现 = 4 天延迟
+- **Context**: gstack-qa skill 之前被 settings.json 写死 `"off"`，本次 session 才解锁
+- **Depends on**: 无；P5-1 启动即生效

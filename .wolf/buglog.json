@@ -1124,6 +1124,67 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-09-13"
+    },
+    {
+      "id": "QA-2026-09-16-001",
+      "timestamp": "2026-09-16T03:32:00Z",
+      "error_message": "POST /api/v1/auth/mock-login → 404 Not Found; dev login flow fully broken",
+      "file": "pcs-frontend/src/mocks/handlers.ts",
+      "root_cause": "P4.5 批 1 引入 MSW handlers 时只覆盖了 OpenAPI 5 个 meta 端点；mock-login 不在 OpenAPI 中且未单独注册；OpenAPI drift 校验仅检查 handlers 数组。",
+      "fix": "拆分为 handlers (OpenAPI-validated, 5 端点) + devOnlyMockHandlers (dev-only, mock-login)；browser.ts 同时挂载。Commit d924b10。",
+      "tags": [
+        "msw",
+        "handlers",
+        "login",
+        "openapi-drift",
+        "qa-critical"
+      ],
+      "occurrences": 1,
+      "first_seen": "2026-09-16T03:32:00Z",
+      "last_seen": "2026-09-16T03:32:00Z",
+      "related_bugs": [],
+      "introduced_at_batch": "P4.5 批 1",
+      "caught_at_batch": "P4.5 批 3 末"
+    },
+    {
+      "id": "QA-2026-09-16-002",
+      "timestamp": "2026-09-16T03:32:00Z",
+      "error_message": "登录后 / 仅渲染空白 Dashboard；21 个 P4.5 批 2/3 页面无路由",
+      "file": "pcs-frontend/src/App.tsx + layouts/MainLayout.tsx + new pages/routeWrappers.tsx",
+      "root_cause": "批 2 落地 16 个 Page 组件但 App.tsx 只挂 /login + / 两条原始路由；批 3 落地 5 个 Page 同样未挂。MainLayout 菜单仅有 1 项。",
+      "fix": "新建 routeWrappers.tsx (21 包装器 + 空 fixtures)；App.tsx 按 6 领域分组挂 21 路由；MainLayout 改 group 菜单 + findSelectedKeys + defaultOpenKeys。Commit 18da2ca。",
+      "tags": [
+        "routing",
+        "frontend",
+        "page-mount",
+        "qa-critical"
+      ],
+      "occurrences": 1,
+      "first_seen": "2026-09-16T03:32:00Z",
+      "last_seen": "2026-09-16T03:32:00Z",
+      "related_bugs": [],
+      "introduced_at_batch": "P4.5 批 2",
+      "caught_at_batch": "P4.5 批 3 末"
+    },
+    {
+      "id": "QA-2026-09-16-003",
+      "timestamp": "2026-09-16T03:32:00Z",
+      "error_message": "[antd: message] Static function can not consume context like dynamic theme",
+      "file": "pcs-frontend/src/pages/LoginPage.tsx + main.tsx",
+      "root_cause": "LoginPage.tsx:2 静态 import 'message' from 'antd'；main.tsx 缺 <AntdApp> 包裹，ConfigProvider 动态主题无法传给静态 message。",
+      "fix": "LoginPage 改 App.useApp() 拿 message；main.tsx 在 ConfigProvider 内层包 <AntdApp>。Commit a827d03。",
+      "tags": [
+        "antd",
+        "message",
+        "app-context",
+        "qa-critical"
+      ],
+      "occurrences": 1,
+      "first_seen": "2026-09-16T03:32:00Z",
+      "last_seen": "2026-09-16T03:32:00Z",
+      "related_bugs": [],
+      "introduced_at_batch": "P4.5 批 1（继承自 P0 LoginPage）",
+      "caught_at_batch": "P4.5 批 3 末"
     }
   ]
 }
