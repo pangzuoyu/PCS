@@ -33,7 +33,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 def create_app() -> FastAPI:
     settings = get_settings()
     setup_logging()
-    app = FastAPI(title="PCS Backend", version="0.1.0", lifespan=lifespan)
+    app = FastAPI(title="PCS Backend", version="0.5.1", lifespan=lifespan)
 
     @app.middleware("http")
     async def add_trace_id(request: Request, call_next):

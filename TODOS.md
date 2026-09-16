@@ -374,3 +374,26 @@ P4（FLASH / PIPE / PUMP / PIPE_NET 计算模块接入）
 - **Why**: 集成层 bug（路由 / MSW / antd App 包裹）单元测试覆盖不到；3 个 CRITICAL 跨批累积到收口才被发现 = 4 天延迟
 - **Context**: gstack-qa skill 之前被 settings.json 写死 `"off"`，本次 session 才解锁
 - **Depends on**: 无；P5-1 启动即生效
+
+## ✅ P5-1 闭环（2026-09-16）
+
+**Goal**: P5 设备计算模块首批 — calculate 入口接 Guard + 9 态 enum 全量 + 文件契约冻结。
+
+### 子任务落地状态
+
+- ✅ **calculate 入口 + UnreliableStreamGuard** — `check_calc_inputs` 已在 `pipe.py` / `pump.py` / `pipe_net.py` / `flash_persist.py` 5 处接好；422 STREAM_UNRELIABLE_BLOCKED + 403 STREAM_NOT_CHECKED + 404 SIM_STREAM_NOT_FOUND 契约就位；14/14 Guard 测试通过，ruff 干净。
+- ✅ **9 态 enum 全量扩展** — `streamsignstatus` PG enum 已扩 9 态（`p3_sim_stream_sign_status_extend.py` 迁移）；15 张计算表通过 `TaggedRecordMixin` / `RecordMixin` 全部继承 9 态 `sign_status`；`TwoPhaseResult` / `CostEstResult` 按 P4-0-2 / P4-TASK0 既有契约保留无 sign_status（cerebrum Do-Not-Repeat）。
+- ✅ **文件契约冻结** — `pcs-backend/app/main.py` OpenAPI version `0.1.0` → `0.5.1`（P5-1 基线标记）；`docs/openapi.json` regen 115 paths / 100 schemas；frontend `openapi.snapshot.json` 同步；`api:gen` 生成 `src/types/api.d.ts`（9664 行）；`api:check` PASS（CI drift 闸门）；tsc + eslint + ruff 干净。
+
+### 解除的依赖
+
+- TODO-039 (前端 7 个 mock type 文件迁移) — 解锁 → 启动 P5-2
+- TODO-041 (MSW handlers 契约冻结) — 解锁 → 启动 P5-2
+- TODO-043 (Dashboard 3 端点 404) — 仍在 P5-2 范围（MSW handlers 重写时一并）
+
+### P5-2 启动项（PSV 多标准前置）
+
+1. **TODO-039 推进**：7 个 mock type 文件 (`pipeClass,flash,pipe,pump,pipeNet,pms,common`) 改 import 自 `./api`；组件 props 引用迁移
+2. **TODO-041 推进**：MSW handlers 按 OpenAPI 重写 — 路径/请求/响应/错误码/状态码全部对齐
+3. **TODO-043 收口**：DashboardPage 触发 3 端点（workspaces/checklist list/checklist completeness）404 修复
+4. **SUP-P5-PSV-001 启动准备**：项目级 PSV 标准配置模型（`project_calculation_standard_profiles` 表）+ `StandardResolver` 注入计算引擎（Task 13/14/16/17/18 接口扩展）
