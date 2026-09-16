@@ -74,7 +74,8 @@ const MODULE_ACTIVATED: Record<StateBadgeModule, ReadonlySet<RecordSignStatus>> 
 const TOTAL_STEPS_DEFAULT = 3;
 
 /** 把 DRAFT / IN_APPROVAL 等转成 tokens.css 里的 kebab-case。 */
-function toKebab(status: string): string {
+function toKebab(status: string | null | undefined): string {
+  if (!status) return 'unknown';
   return status.toLowerCase().replace(/_/g, '-');
 }
 
@@ -90,13 +91,14 @@ export function StateBadge({
   // depth 为 v0.2 缩进口子；v0.1 不消费但显式标记避免 unused warning
   void depth;
 
-  const meta = STATUS_META[status];
-  const isActive = MODULE_ACTIVATED[module].has(status);
+  const meta = STATUS_META[status as RecordSignStatus] ?? STATUS_META.DRAFT;
+  const safeStatus = (status ?? 'DRAFT') as RecordSignStatus;
+  const isActive = MODULE_ACTIVATED[module].has(safeStatus);
   const kebab = toKebab(status);
 
   const style: CSSProperties = {
     color: `var(--${meta.token})`,
-    background: `var(--state-badge-bg-${status}, transparent)`,
+    background: `var(--state-badge-bg-${safeStatus}, transparent)`,
     border: `1px solid var(--${meta.token})`,
     fontSize: size === 'sm' ? 11 : 12,
     lineHeight: size === 'sm' ? '18px' : '20px',
@@ -119,7 +121,7 @@ export function StateBadge({
   }
 
   let stepSuffix = '';
-  if (showStep && status === 'IN_APPROVAL') {
+  if (showStep && safeStatus === 'IN_APPROVAL') {
     const current = step ?? 1;
     stepSuffix = ` · Step ${current}/${TOTAL_STEPS_DEFAULT}`;
   }
@@ -127,7 +129,7 @@ export function StateBadge({
   return (
     <span
       data-testid="state-badge"
-      data-status={status}
+      data-status={safeStatus}
       data-module={module}
       data-active={String(isActive)}
       data-kebab={kebab}

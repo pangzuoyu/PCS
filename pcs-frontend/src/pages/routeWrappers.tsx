@@ -1,10 +1,15 @@
 /**
- * 路由层默认 fixtures 包装器（QA fix / ISSUE-002）。
+ * 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化）
  *
- * P4.5 批 3 的页面都以 mock props 形式写就，路由层直接挂载会因
- * 缺 required data prop 报 TS 错 / 运行时崩溃。本文件提供最小空
- * 默认值包装；后续接 MSW / 真接口后由 data loader 替换为真数据。
+ * P4.5 批 3 的页面以 mock props 形式写就，路由层挂载时会因缺 required data
+ * prop 报 TS 错 / 运行时崩溃。本文件提供：
+ * 1) 空 fixtures 占位（避免 TS 错）
+ * 2) useEffect + MSW fetch 拉 seed 数据后重渲染（让 11 个共享组件实例化）
+ *
+ * 后续 P5-1 接真接口后由 data loader 替换；当前阶段 MSW devOnlyMockHandlers
+ * 已覆盖 13 个端点（QA 11 组件实例化 P1）。
  */
+import { useEffect, useState } from 'react';
 import type { JSX } from 'react';
 
 import type { AllowableStress, ComponentProperty, ToxicityClass } from '../types/common';
@@ -57,18 +62,38 @@ import { StreamDetailPage } from './sim/StreamDetailPage';
 import { StreamListPage } from './sim/StreamListPage';
 import { ProjectWizardPage } from './wizard/ProjectWizardPage';
 
+const PROJECT_ID = '00000000-0000-0000-0000-000000000001';
+// MSW handlers 只校验 Authorization: Bearer <non-empty> 前缀；真 token 来自
+// zustand store（in-memory），路由层只关心格式不关心内容。
+const DEV_BEARER = 'Bearer mock-jwt-token';
+
+function useFetch<T>(path: string, initial: T): T {
+  const [data, setData] = useState<T>(initial);
+  useEffect(() => {
+    let cancelled = false;
+    void fetch(path, { headers: { Authorization: DEV_BEARER } })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j: T | null) => {
+        if (!cancelled && j !== null) setData(j);
+      })
+      .catch(() => {/* offline / unhandled: keep empty fixtures */});
+    return () => { cancelled = true; };
+  }, [path]);
+  return data;
+}
+
 // === 基础配置 ===
 export function ApprovalPanelRoute(): JSX.Element {
   return <ApprovalPanelPage items={[]} />;
 }
 export function AssetListRoute(): JSX.Element {
-  return <AssetListPage assets={[]} />;
+  const assets = useFetch<ConfigAsset[]>('/api/v1/config/assets', []);
+  return <AssetListPage assets={assets} />;
 }
 export function CoefficientEditorRoute(): JSX.Element {
   return <CoefficientTableEditorPage rows={[]} />;
 }
 export function FormulaEditorRoute(): JSX.Element {
-  // 最小可渲染占位 formula；onChange/onSave 留路由层后续接真接口
   const stub = {} as Parameters<typeof FormulaEditorPage>[0]['formula'];
   return <FormulaEditorPage formula={stub} />;
 }
@@ -78,7 +103,8 @@ export function TemplateFileRoute(): JSX.Element {
 
 // === 物流 ===
 export function StreamListRoute(): JSX.Element {
-  return <StreamListPage streams={[]} />;
+  const streams = useFetch<Stream[]>(`/api/v1/projects/${PROJECT_ID}/streams`, []);
+  return <StreamListPage streams={streams} />;
 }
 export function StreamDetailRoute(): JSX.Element {
   // 占位 Stream：路由层缺真数据；用户实际编辑流应从 /sim/streams 列表进
@@ -91,7 +117,8 @@ export function ImportWizardRoute(): JSX.Element {
 
 // === 管道等级 ===
 export function PipeClassListRoute(): JSX.Element {
-  return <PipeClassListPage classes={[]} />;
+  const classes = useFetch<PipeClass[]>('/api/v1/pipe-classes', []);
+  return <PipeClassListPage classes={classes} />;
 }
 export function SymbolTableRoute(): JSX.Element {
   return <SymbolTablePage mappings={[]} />;
@@ -102,13 +129,16 @@ export function CodeFormatRoute(): JSX.Element {
 
 // === 物性 / 许用应力 / 毒性爆炸 ===
 export function PropertySearchRoute(): JSX.Element {
-  return <PropertySearchPage components={[]} />;
+  const components = useFetch<ComponentProperty[]>('/api/v1/common/materials/search', []);
+  return <PropertySearchPage components={components} />;
 }
 export function AllowableStressRoute(): JSX.Element {
-  return <AllowableStressPage stresses={[]} />;
+  const stresses = useFetch<AllowableStress[]>('/api/v1/common/allowable-stress', []);
+  return <AllowableStressPage stresses={stresses} />;
 }
 export function ToxicityRoute(): JSX.Element {
-  return <ToxicityExplosivityPage classes={[]} />;
+  const classes = useFetch<ToxicityClass[]>('/api/v1/common/safety', []);
+  return <ToxicityExplosivityPage classes={classes} />;
 }
 
 // === 工艺计算 ===
@@ -130,7 +160,8 @@ export function PipeRoute(): JSX.Element {
   );
 }
 export function PipeLineListRoute(): JSX.Element {
-  return <PipeLineListPage rows={[]} />;
+  const rows = useFetch<PipeLineListRow[]>(`/api/v1/projects/${PROJECT_ID}/pipe-line-list`, []);
+  return <PipeLineListPage rows={rows} />;
 }
 export function PipeNetRoute(): JSX.Element {
   const empty: PipeNetGraph = { nodes: [], edges: [] };
@@ -147,13 +178,14 @@ export function PumpRoute(): JSX.Element {
 
 // === 项目文档 / 向导 ===
 export function PmsRoute(): JSX.Element {
-  return <PmsPage items={[]} />;
+  const items = useFetch<PmsItem[]>(`/api/v1/projects/${PROJECT_ID}/pms`, []);
+  return <PmsPage items={items} />;
 }
 export function BeddRoute(): JSX.Element {
-  return <BeddPage sections={[]} />;
+  const sections = useFetch<BeddSection[]>(`/api/v1/projects/${PROJECT_ID}/bedd`, []);
+  return <BeddPage sections={sections} />;
 }
 export function WizardRoute(): JSX.Element {
-  // minimal initial steps for routing preview; real init from /pms or store
   return (
     <ProjectWizardPage
       initialSteps={[

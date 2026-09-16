@@ -1185,6 +1185,22 @@
       "related_bugs": [],
       "introduced_at_batch": "P4.5 批 1（继承自 P0 LoginPage）",
       "caught_at_batch": "P4.5 批 3 末"
+    },
+    {
+      "id": "QA-2026-09-16-004",
+      "timestamp": "2026-09-16T04:19:08.111835Z",
+      "error_message": "TypeError: Cannot read properties of undefined (reading toLowerCase) at StateBadge.toKebab",
+      "file": "pcs-frontend/src/components/common/StateBadge.tsx",
+      "root_cause": "seedChecklist 用 COMPLETED/PENDING/BLOCKED，但 InputChecklistPanel.STATUS_TO_BADGE 只映射 5 态 (NOT_STARTED/IN_PROGRESS/VERIFIED/ASSUMED/NOT_APPLICABLE)，导致 STATUS_TO_BADGE[record.status] 返回 undefined。StateBadge 未对 undefined 做防御。",
+      "fix": "seedChecklist 改用 ChecklistStatus 5 态；StateBadge toKebab 加 null/undefined 防御，STATUS_META 未命中时回退 DRAFT",
+      "tags": [
+        "frontend",
+        "msw",
+        "seed",
+        "defensive-coding"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-16T04:19:08.111849Z"
     }
   ]
 }
