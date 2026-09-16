@@ -91,6 +91,8 @@
 
 **约束**：`ALTER TYPE ... ADD VALUE` 不可逆 → migration 必须独立 + 备份（spec §P5-OPEN-010）
 
+**状态**（2026-09-16 P5-1 ratify）：本 Task 实质已在 **P3.2 SIM-13** 闭环，迁移 `alembic/versions/p3_sim_stream_sign_status_extend.py` 落地（revision=`p3sim_stream_sign_status_extend`，IF NOT EXISTS 幂等）。P5-0-3 启动时直接验收既有迁移 + ORM 枚举同步，不重复 ALTER。本 Task 标"已闭环 ratify"。
+
 #### Task 4: P5-0-4 TODO-026 + TODO-028 字段平铺 + 主键 rename
 
 **Files**:
@@ -726,6 +728,31 @@
 4. commit: `feat(p5-0-7): ChEDL wrapper layer + provenance`
 
 **依赖**：Task 25 (P5-0-6) 必须先完成（fluids 版本已锁定）；Task 5/6/11 实施前**必须**完成本 Task
+
+## P5-1 闭环（前置 ratify，2026-09-16）
+
+P5-1 在 26 task 之外先于 P5-0~P5-4 批启动前闭环，作为 P5 计算入口与文件契约基础。
+
+### 子任务落地状态
+
+- ✅ **calculate 入口 + UnreliableStreamGuard** — `app/services/calc_entry.py::check_calc_inputs` 三步守卫（404 SIM_STREAM_NOT_FOUND / 403 STREAM_NOT_CHECKED / 422 STREAM_UNRELIABLE_BLOCKED）已接 pipe/pump/pipe_net/flash_persist 5 端点；14/14 Guard 测试通过；ruff 干净。
+  - 实质为 P4-0-3 落地的工作，P5-1 ratify；后续 P5-1/2/3/4 模块 API 全部复用 `check_calc_inputs` 前置
+- ✅ **9 态 enum 全量** — `streamsignstatus` PG enum 9 态已扩（见 Task 3 ratify）；`RecordSignStatus9` Python 枚举与 PG enum 对齐；15 张计算表经 `TaggedRecordMixin` / `RecordMixin` 全部继承 9 态 sign_status 列（vessel/sep_equip/psv/relief/heat/pipe/pump/flash 等）；`TwoPhaseResult`/`CostEstResult` 按 P4-0-2/P4-TASK0 既有契约保留无 sign_status（cerebrum Do-Not-Reat）
+- ✅ **文件契约冻结** — `pcs-backend/app/main.py` FastAPI version `0.1.0` → `0.5.1`（P5-1 基线）；`docs/openapi.json` regen（115 paths / 100 schemas）；frontend `openapi.snapshot.json` 同步；`src/types/api.d.ts` openapi-typescript 自动生成（9664 行）；`api:check` PASS（CI drift 闸门）；tsc + eslint + ruff 干净
+
+### 与 26 task 的关系
+
+| P5-1 子任务 | 对应 plan task | 关系 |
+|---|---|---|
+| calculate 入口 + Guard | （无对应 task） | 复用 P4-0-3 工作，P5-1 ratify；后续 P5-1/2/3/4 模块 API 全部复用 `check_calc_inputs` 前置 |
+| 9 态 enum 全量 | Task 3 (P5-0-3) | 实质已在 P3.2 SIM-13 闭环；Task 3 P5-0-3 ratify，**不再重复 ALTER** |
+| 文件契约冻结 | （无对应 task） | 跨 P5-0~P5-4 全程依赖；每 task 完成后须 `npm run api:check` 验证 drift |
+
+### P5 启动基线（baseline_at_start）
+
+- **pcs_test 总数 = 1662**（2026-09-16 实测 `uv run pytest --collect-only`）
+- **P5 验收要求**：pcs_test_total − 1662 ≥ 67（即 ≥1729；含 ≥47 P5 核心 + 15 SUP 门禁 + 5 ChEDL 版本锁定）
+- **新加 metric**：OpenAPI version `0.5.1` 为 P5-1 起点，每 task 完成后 `npm run api:check` 必须 PASS
 
 ## Self-Review
 

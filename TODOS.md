@@ -385,6 +385,12 @@ P4（FLASH / PIPE / PUMP / PIPE_NET 计算模块接入）
 - ✅ **9 态 enum 全量扩展** — `streamsignstatus` PG enum 已扩 9 态（`p3_sim_stream_sign_status_extend.py` 迁移）；15 张计算表通过 `TaggedRecordMixin` / `RecordMixin` 全部继承 9 态 `sign_status`；`TwoPhaseResult` / `CostEstResult` 按 P4-0-2 / P4-TASK0 既有契约保留无 sign_status（cerebrum Do-Not-Repeat）。
 - ✅ **文件契约冻结** — `pcs-backend/app/main.py` OpenAPI version `0.1.0` → `0.5.1`（P5-1 基线标记）；`docs/openapi.json` regen 115 paths / 100 schemas；frontend `openapi.snapshot.json` 同步；`api:gen` 生成 `src/types/api.d.ts`（9664 行）；`api:check` PASS（CI drift 闸门）；tsc + eslint + ruff 干净。
 
+### P5 启动基线（baseline_at_start = 2026-09-16）
+
+- **pcs_test 总数 = 1662**（`uv run pytest --collect-only` 实测）
+- **P5 验收要求**：pcs_test_total − 1662 ≥ 67（即 ≥1729；含 ≥47 P5 核心 + 15 SUP 门禁 + 5 ChEDL 版本锁定）
+- 详见 `docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md` "P5-1 闭环（前置 ratify）" 段 + "验收" 第2条
+
 ### 解除的依赖
 
 - TODO-039 (前端 7 个 mock type 文件迁移) — 解锁 → 启动 P5-2
