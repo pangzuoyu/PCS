@@ -46,7 +46,7 @@ PCS 后端工艺计算强依赖 Caleb Bell 维护的 ChEDL 生态（`fluids` / `
 
 本 ADR 记录 ChEDL 版本锁定的 9 项架构裁决（V1.1 新增决策 9）。Task 25 (P5-0-6) + Task 26 (P5-0-7) 共同落地。
 
-**决定**：pyproject.toml 单一来源（决策 1）+ 禁止浮动版本约束（决策 2）+ 取消 vendoring（决策 3）+ 三层文件关系明确（决策 4）+ 包装层隔离 + dir() 前置核验（决策 5）+ 双包装层职责边界（决策 6 + 9）+ 降级预案（决策 7）+ 独立升级流程（决策 8）。
+**决定**：pyproject.toml 单一来源（决策 1）+ 禁止浮动版本约束（决策 2）+ 取消 vendoring（决策 3）+ 三层文件关系明确（决策 4）+ dir() 前置核验（决策 5）+ 包装层隔离（决策 6）+ 降级预案（决策 7）+ 独立升级流程（决策 8）+ 双包装层职责边界（决策 9）。
 
 ---
 
@@ -61,7 +61,7 @@ ChEDL 生态相关库版本号仅在 `pyproject.toml` 声明，其他位置禁�
 chemicals = "==1.5.2"      # P4 flash_service 直接依赖（V1.1 实地核验：pyproject:23）
 fluids    = "==1.3.1"      # P5-1 VESSEL + P5-2 SEP_EQUIP 直接依赖（V1.1 实地核验：pyproject:24）
 thermo    = "==0.6.1"       # V1.1 新增：pyproject:25 已锁；thermo_factory 命名遗留（实际依赖是 chemicals.*）
-# ht 从锁定清单移除（D4 裁决：pyproject 实际未声明 ht 版本，vendor 中存在但无业务 import）
+# ht 不添加锁定条目（D4 裁决：pyproject 实际未声明 ht 版本，vendor 中存在但无业务 import）
 ```
 
 **V1.1 修订**（原 V1.0 为 `{fluids, chemicals, ht}`）：
@@ -153,6 +153,10 @@ missing = [
 ]
 ```
 
+**chemicals 子模块核验粒度**（V1.1 评审 P2-3 明确）：
+
+模块级导入（不核验子模块内部函数）。理由：P4 已闭环，模块可导入即视为兼容；如 P4 flash_service 回归失败，则说明子模块内部 API 有变化，P5-1 启动前的 P4 全量回归会覆盖此风险。
+
 **执行顺序**（V1.1 明确，拆主流程 + 分支处理）：
 
 **主流程**：
@@ -237,6 +241,8 @@ Task 6 双套测试模式（F-14-4）：
 
 包装层内部透明 fallback（V1.1 明确）：
 
+> **说明**：包装层内部允许直接 `import fluids.*` / `import chemicals.*`（这是包装层的职责）；决策 6 的"禁止直接 import"约束针对业务模块（Task 5/6/10/11/17 等），两者不冲突。
+
 ```python
 # chedl_wrapper.py
 def time_to_empty(...) -> ...:
@@ -258,6 +264,8 @@ ChEDL 生态版本升级须走以下流程：
 2. **dir() 核验**：PR 中必须包含 `tests/fixtures/chedl_dir_check_<old>.txt → <new>.txt` 差异分析，确认新版本函数集兼容（含 `chemicals.*` 子模块）
 3. **全量回归**：`pcs_test` 库基线全跑；任何工艺计算结果偏差 > 阈值（API 521 火灾 ≤2%、GB 泄放面积 ≤5% 等，按 ADR-0028 决策 11 独立 golden）须分析并文档化
 4. **ADR 更新**：升级完成后，在附录 B 追加升级历史；本 ADR 决策内容不修改
+
+   **例外**：决策 4 中 uv 工具链版本号首次确定（Task 25 实施时回填到 CI 配置文件 + Dockerfile + 决策 4 段）视为记录性更新，不属于"修改决策内容"——决策 4 内容（"三层文件关系明确 + uv 工具链固定"）未变，仅首次确定具体版本号。
 5. **包装层同步**：包装层 docstring 中 ChEDL 版本号必须同步更新
 
 **升级触发条件**（V1.1 新增）：
@@ -321,7 +329,9 @@ thermo_factory.py 调用 chemicals.* 子模块：
 - `pcs-backend/uv.lock` — `uv lock` 生成（不手工编辑）
 - `pcs-backend/requirements.txt` — `uv export` 生成快照（不手工编辑）
 
-### 新文件（5 个，V1.1 不变）
+### 新文件（5 个，V1.1 新增第 5 项）
+
+（V1.0 为 4 个：chedl_wrapper / chedl_provenance / test_chedl_version / test_chedl_wrapper；V1.1 补 chedl_version_snapshot.txt）
 
 - `app/services/chedl_wrapper.py` — 7 个 `fluids.*` 包装 + chemicals 包装预留位（P5 阶段 0 个 chemicals 包装；P4 已用的 9 子模块由 `thermo_factory.py` 负责，不重复包装）+ 异常捕获 + fallback 占位
 - `app/services/chedl_provenance.py` — `ChEDLProvenance` dataclass + `get_chedl_provenance()` 接口
