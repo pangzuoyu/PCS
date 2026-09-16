@@ -1,0 +1,112 @@
+{
+  "_comment": "P5-1-1 golden fixture：6 例容器尺寸（4 容器类型 × 卧式/立式）+ K 边界。SI 单位（m/s, m, m³）。手算对照 = Souders-Brown 公式 V_max = K × √((ρ_L-ρ_V)/ρ_V)。",
+  "_expected_values_formula": {
+    "V_max_ms": "K × √((ρ_L - ρ_V) / ρ_V)",
+    "D_min_m": "√(4 × Q_v / (π × V_max))",
+    "liquid_volume_m3": "Q_L × t_residence × 60 (min→s 转换)"
+  },
+  "cases": [
+    {
+      "id": "vertical_basic",
+      "vessel_type": "VERTICAL",
+      "rho_L_kg_m3": 850.0,
+      "rho_V_kg_m3": 1.2,
+      "liquid_flow_m3_s": 0.005,
+      "vapor_flow_m3_s": 0.5,
+      "residence_time_min": 5.0,
+      "K_factor_ms": 0.10,
+      "expected": {
+        "V_max_ms": 2.660,
+        "D_min_m": 0.489,
+        "liquid_volume_m3": 1.50,
+        "check_result": "PASS",
+        "confidence": "HIGH"
+      }
+    },
+    {
+      "id": "horizontal_basic",
+      "vessel_type": "HORIZONTAL",
+      "rho_L_kg_m3": 1000.0,
+      "rho_V_kg_m3": 1.2,
+      "liquid_flow_m3_s": 0.008,
+      "vapor_flow_m3_s": 0.8,
+      "residence_time_min": 8.0,
+      "K_factor_ms": 0.12,
+      "expected": {
+        "V_max_ms": 3.462,
+        "D_min_m": 0.542,
+        "liquid_volume_m3": 3.84,
+        "check_result": "PASS",
+        "confidence": "HIGH"
+      }
+    },
+    {
+      "id": "vertical_with_demister",
+      "vessel_type": "WITH_DEMISTER",
+      "rho_L_kg_m3": 750.0,
+      "rho_V_kg_m3": 2.5,
+      "liquid_flow_m3_s": 0.003,
+      "vapor_flow_m3_s": 0.3,
+      "residence_time_min": 4.0,
+      "K_factor_ms": 0.08,
+      "expected": {
+        "V_max_ms": 1.383,
+        "D_min_m": 0.525,
+        "liquid_volume_m3": 0.72,
+        "check_result": "PASS",
+        "confidence": "HIGH"
+      }
+    },
+    {
+      "id": "horizontal_high_pressure",
+      "vessel_type": "HORIZONTAL",
+      "rho_L_kg_m3": 900.0,
+      "rho_V_kg_m3": 5.0,
+      "liquid_flow_m3_s": 0.010,
+      "vapor_flow_m3_s": 0.2,
+      "residence_time_min": 10.0,
+      "K_factor_ms": 0.07,
+      "expected": {
+        "V_max_ms": 0.937,
+        "D_min_m": 0.521,
+        "liquid_volume_m3": 6.00,
+        "check_result": "PASS",
+        "confidence": "HIGH"
+      }
+    },
+    {
+      "id": "k_boundary_low",
+      "vessel_type": "VERTICAL",
+      "rho_L_kg_m3": 800.0,
+      "rho_V_kg_m3": 1.0,
+      "liquid_flow_m3_s": 0.002,
+      "vapor_flow_m3_s": 0.4,
+      "residence_time_min": 3.0,
+      "K_factor_ms": 0.04,
+      "expected": {
+        "V_max_ms": 1.131,
+        "D_min_m": 0.670,
+        "liquid_volume_m3": 0.36,
+        "check_result": "WARNING",
+        "confidence": "MEDIUM"
+      }
+    },
+    {
+      "id": "k_boundary_high",
+      "vessel_type": "HORIZONTAL",
+      "rho_L_kg_m3": 950.0,
+      "rho_V_kg_m3": 1.5,
+      "liquid_flow_m3_s": 0.006,
+      "vapor_flow_m3_s": 0.6,
+      "residence_time_min": 7.0,
+      "K_factor_ms": 0.15,
+      "expected": {
+        "V_max_ms": 3.764,
+        "D_min_m": 0.450,
+        "liquid_volume_m3": 2.52,
+        "check_result": "WARNING",
+        "confidence": "MEDIUM"
+      }
+    }
+  ]
+}
