@@ -30,10 +30,12 @@ V1.0 基于 P5 计划文本假设 ChEDL 依赖为 `{fluids, chemicals, ht}`，�
 
 **裁决项（V1.1 新增，提交评审前必须关闭）**：
 
-- [x] **D1**：确认 thermo==0.6.1 的既有锁定（pyproject.toml:25 已锁），纳入 ADR-0030 决策 1 正式清单。**推荐采纳**。
-- [x] **D2**：`thermo_factory.py`（P4 遗留）与 `chedl_wrapper.py`（P5 新增）双包装层并存，职责边界清晰。**推荐采纳**。
-- [x] **D3**：CoolProp 清理 vendor 副本（无业务 import），不纳入 pyproject。**推荐采纳**。
-- [x] **D4**：ht 完全移除（pyproject 未声明 + 无业务 import）；P5-4 如需复用走决策 8 流程独立引入。**推荐采纳**（评审结论 P0-2 方案 A）。
+- ✔ **D1**：确认 thermo==0.6.1 的既有锁定（pyproject.toml:25 已锁），纳入 ADR-0030 决策 1 正式清单。**作者推荐采纳**（评审决议见文档末尾检查清单）。
+- ✔ **D2**：`thermo_factory.py`（P4 遗留）与 `chedl_wrapper.py`（P5 新增）双包装层并存，职责边界清晰。**作者推荐采纳**。
+- ✔ **D3**：CoolProp 清理 vendor 副本（无业务 import），不纳入 pyproject。**作者推荐采纳**。
+- ✔ **D4**：ht 完全移除（pyproject 未声明 + 无业务 import）；P5-4 如需复用走决策 8 流程独立引入。**作者推荐采纳**（评审结论 P0-2 方案 A）。
+
+> **设计意图说明**：本段用 ✔ 表示"作者预置推荐"，与文档末尾检查清单 [ ] 表示"评审委员会待决议"语义分离——避免 [x] checkbox 误导读者认为"已通过"。
 
 ---
 
@@ -171,7 +173,7 @@ missing = [
 
 **替代方案**：版本锁定后实施时再 `dir()`——**否决**。Task 5/11 RED 阶段才发现函数不存在需返工，且需重新选版本 + 重跑 `uv lock` + 重测。版本选择前置核验把返工收敛到 Task 25 单点。
 
-### 决策 6：包装层隔离 + 双包装层职责边界（F-13-2 + V1.1 扩展）
+### 决策 6：包装层隔离（F-13-2 + V1.1 扩展）
 
 所有 ChEDL 生态调用经 `app/services/chedl_wrapper.py` 集中封装。
 
@@ -279,7 +281,7 @@ ChEDL 生态版本升级须走以下流程：
 
 **替代方案**：升级走常规 PR 流程——**否决**。ChEDL 升级会触发全量工艺计算回归，需独立评审通道而非与功能 PR 混排。
 
-### 决策 9：thermo_factory.py 与 chedl_wrapper.py 双包装层共存（V1.1 新增，D2 方案 X）
+### 决策 9：thermo_factory.py 与 chedl_wrapper.py 双包装层职责边界（V1.1 新增，D2 方案 X）
 
 **背景**：P4 的 flash_service 通过 `app/services/flash/thermo_factory.py` 调用 `chemicals.*` 多子模块；P5 引入 `chedl_wrapper.py` 封装 `fluids.*`。两者并存会引发"谁是唯一 ChEDL 入口"的疑问。
 
