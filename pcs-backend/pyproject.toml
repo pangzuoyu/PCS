@@ -66,7 +66,6 @@ asyncio_default_fixture_loop_scope = "function"
 # type = "layers"
 # layers = ["app.api", "app.services", "app.models", "app.core"]
 
-[tool.uv.sources]
-fluids = { path = "vendor/fluids", editable = true }
-chemicals = { path = "vendor/chemicals", editable = true }
-thermo = { path = "vendor/thermo", editable = true }
+# ADR-0030 决策 3：取消 vendoring，依赖 uv/pip 从 PyPI 拉精确版本。
+# 历史上 [tool.uv.sources] 指向 vendor/{fluids,chemicals,thermo} editable 路径。
+# 2026-09-16 P5-0-6 Task 25 起，三库统一走 PyPI ==X.Y.Z；vendor/ 目录清理由 B-06 在 Task 26 完成后执行。

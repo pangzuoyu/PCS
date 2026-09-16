@@ -294,81 +294,17 @@ wheels = [
 [[package]]
 name = "chemicals"
 version = "1.5.2"
-source = { editable = "vendor/chemicals" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "fluids" },
     { name = "numpy" },
     { name = "pandas" },
     { name = "scipy" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "bandit", marker = "extra == 'security'" },
-    { name = "build", marker = "extra == 'dev'" },
-    { name = "chemicals", extras = ["docs"], marker = "extra == 'prerelease'" },
-    { name = "chemicals", extras = ["test"], marker = "extra == 'prerelease'" },
-    { name = "chemicals", extras = ["test", "numba", "docs", "lint", "security"], marker = "extra == 'dev'" },
-    { name = "coverage", marker = "extra == 'numba'", specifier = ">=7.6.1" },
-    { name = "coveralls", marker = "extra == 'test'" },
-    { name = "fluids", specifier = ">=1.1.0" },
-    { name = "fuzzywuzzy", marker = "extra == 'test'" },
-    { name = "ipython", marker = "extra == 'docs'" },
-    { name = "ipython", marker = "extra == 'test'" },
-    { name = "ipython", marker = "extra == 'test-multiarch'" },
-    { name = "jacobi", marker = "extra == 'docs'" },
-    { name = "jacobi", marker = "extra == 'prerelease'" },
-    { name = "joblib", marker = "extra == 'test'" },
-    { name = "joblib", marker = "extra == 'test-multiarch'" },
-    { name = "matplotlib", marker = "extra == 'docs'" },
-    { name = "matplotlib", marker = "extra == 'test'" },
-    { name = "mpmath", marker = "extra == 'docs'" },
-    { name = "mpmath", marker = "extra == 'prerelease'" },
-    { name = "mpmath", marker = "extra == 'test'" },
-    { name = "mpmath", marker = "extra == 'test-multiarch'" },
-    { name = "mypy", marker = "extra == 'lint'" },
-    { name = "nbsphinx", marker = "extra == 'docs'" },
-    { name = "nbval", marker = "extra == 'prerelease'" },
-    { name = "numba", marker = "extra == 'docs'" },
-    { name = "numba", marker = "extra == 'numba'" },
-    { name = "numdifftools", marker = "extra == 'docs'" },
-    { name = "numdifftools", marker = "extra == 'prerelease'" },
-    { name = "numpy" },
-    { name = "numpydoc", marker = "extra == 'docs'" },
-    { name = "openpyxl", marker = "extra == 'docs'" },
-    { name = "openpyxl", marker = "extra == 'test'" },
-    { name = "pandas" },
-    { name = "pint", marker = "extra == 'docs'" },
-    { name = "pint", marker = "extra == 'test'" },
-    { name = "pint", marker = "extra == 'test-multiarch'" },
-    { name = "pip-audit", marker = "extra == 'security'" },
-    { name = "prek", marker = "extra == 'dev'" },
-    { name = "pytest", marker = "extra == 'test'", specifier = ">=6.0" },
-    { name = "pytest", marker = "extra == 'test-multiarch'", specifier = ">=6.0" },
-    { name = "pytest-cov", marker = "extra == 'test'" },
-    { name = "pytest-xdist", marker = "extra == 'test'" },
-    { name = "pytz", marker = "extra == 'test'" },
-    { name = "pytz", marker = "extra == 'test-multiarch'" },
-    { name = "ruff", marker = "extra == 'lint'" },
-    { name = "scipy", specifier = ">=1.6.0" },
-    { name = "sphinx", marker = "extra == 'docs'" },
-    { name = "sphinx-sitemap", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-applehelp", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-devhelp", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-googleanalytics", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-htmlhelp", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-katex", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-qthelp", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-serializinghtml", marker = "extra == 'docs'" },
-    { name = "sympy", marker = "extra == 'test'" },
-    { name = "sympy", marker = "extra == 'test-multiarch'" },
-    { name = "thefuzz", marker = "extra == 'test-multiarch'" },
-    { name = "twine", marker = "extra == 'dev'" },
-    { name = "wheel", marker = "extra == 'dev'" },
-    { name = "wheel", marker = "extra == 'test'" },
-    { name = "wheel", marker = "extra == 'test-multiarch'" },
+sdist = { url = "https://files.pythonhosted.org/packages/d8/6b/973cc94cff091789187a4c1fc403f10c47ec72c5ff18f099ff21c1db8154/chemicals-1.5.2.tar.gz", hash = "sha256:431301c224f2b21fc54a0ac242fdb12c456a012ac0eb715e9c50ef3204e623be", size = 22351761, upload-time = "2026-06-07T23:25:08.876Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/22/f5/59eea489c5faf02e651744057bb93d89aacf6c3c3f404abbc4217b7ceae1/chemicals-1.5.2-py3-none-any.whl", hash = "sha256:f85ef7f36e77fee634686c26562929ee61026cd548d89cebd57b2251ca843d6e", size = 22288884, upload-time = "2026-06-07T23:25:05.365Z" },
 ]
-provides-extras = ["test", "test-multiarch", "numba", "docs", "lint", "prerelease", "security", "dev"]
 
 [[package]]
 name = "click"
@@ -565,66 +501,15 @@ wheels = [
 [[package]]
 name = "fluids"
 version = "1.3.1"
-source = { editable = "vendor/fluids" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "numpy" },
     { name = "scipy" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "bandit", marker = "extra == 'security'" },
-    { name = "build", marker = "extra == 'dev'" },
-    { name = "coverage", marker = "extra == 'numba'", specifier = ">=7.6.1" },
-    { name = "coveralls", marker = "extra == 'test'" },
-    { name = "fluids", extras = ["docs"], marker = "extra == 'prerelease'" },
-    { name = "fluids", extras = ["test"], marker = "extra == 'prerelease'" },
-    { name = "fluids", extras = ["test", "numba", "docs", "lint", "security"], marker = "extra == 'dev'" },
-    { name = "ipython", marker = "extra == 'docs'" },
-    { name = "ipython", marker = "extra == 'test'" },
-    { name = "jacobi", marker = "extra == 'prerelease'" },
-    { name = "matplotlib", marker = "extra == 'docs'" },
-    { name = "matplotlib", marker = "extra == 'test'" },
-    { name = "mpmath", marker = "extra == 'prerelease'" },
-    { name = "mypy", marker = "extra == 'lint'" },
-    { name = "nbsphinx", marker = "extra == 'docs'" },
-    { name = "nbval", marker = "extra == 'prerelease'" },
-    { name = "numba", marker = "extra == 'docs'" },
-    { name = "numba", marker = "extra == 'numba'" },
-    { name = "numdifftools", marker = "extra == 'prerelease'" },
-    { name = "numpy", specifier = ">=1.5.0" },
-    { name = "numpydoc", marker = "extra == 'docs'" },
-    { name = "pandas", marker = "extra == 'test'" },
-    { name = "pint", marker = "extra == 'docs'" },
-    { name = "pint", marker = "extra == 'test'" },
-    { name = "pint", marker = "extra == 'test-multiarch'" },
-    { name = "pip-audit", marker = "extra == 'security'" },
-    { name = "prek", marker = "extra == 'dev'" },
-    { name = "pytest", marker = "extra == 'test'", specifier = ">=6.0" },
-    { name = "pytest", marker = "extra == 'test-multiarch'", specifier = ">=6.0" },
-    { name = "pytest-cov", marker = "extra == 'test'" },
-    { name = "pytest-xdist", marker = "extra == 'test'" },
-    { name = "pytz", marker = "extra == 'test'" },
-    { name = "pytz", marker = "extra == 'test-multiarch'" },
-    { name = "ruff", marker = "extra == 'lint'" },
-    { name = "scipy", specifier = ">=1.6.0" },
-    { name = "sphinx", marker = "extra == 'docs'" },
-    { name = "sphinx-sitemap", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-applehelp", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-devhelp", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-googleanalytics", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-htmlhelp", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-katex", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-qthelp", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-serializinghtml", marker = "extra == 'docs'" },
-    { name = "sympy", marker = "extra == 'test'" },
-    { name = "thefuzz", marker = "extra == 'test'" },
-    { name = "thefuzz", marker = "extra == 'test-multiarch'" },
-    { name = "twine", marker = "extra == 'dev'" },
-    { name = "wheel", marker = "extra == 'dev'" },
-    { name = "wheel", marker = "extra == 'test-multiarch'" },
+sdist = { url = "https://files.pythonhosted.org/packages/f0/71/798e4d4b3f965a18e441510521db3cd0f7b3ce2a5840e8a01d6f7c183175/fluids-1.3.1.tar.gz", hash = "sha256:42014b5f7d0ee3a5c6fea05582cdc37975e7c46d4c864feb6c7cb915df8a1972", size = 2210067, upload-time = "2026-06-23T05:27:51.605Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/ee/d3/40646ac276d7d06abd4e8a796efcb44e9cb1fc0b66aaed54be5d4675fc6d/fluids-1.3.1-py3-none-any.whl", hash = "sha256:d9097efe57c910ac14b89a1984d5e7062ee9df1afc84e089d944fdd85404e361", size = 608795, upload-time = "2026-06-23T05:27:49.878Z" },
 ]
-provides-extras = ["test", "test-multiarch", "numba", "docs", "lint", "prerelease", "security", "dev"]
 
 [[package]]
 name = "greenlet"
@@ -1389,9 +1274,9 @@ requires-dist = [
     { name = "arq", specifier = ">=0.25" },
     { name = "asyncpg", specifier = ">=0.29" },
     { name = "authlib", specifier = ">=1.3" },
-    { name = "chemicals", editable = "vendor/chemicals" },
+    { name = "chemicals", specifier = "==1.5.2" },
     { name = "fastapi", specifier = ">=0.115" },
-    { name = "fluids", editable = "vendor/fluids" },
+    { name = "fluids", specifier = "==1.3.1" },
     { name = "greenlet", specifier = ">=3.0" },
     { name = "jinja2", specifier = ">=3.1" },
     { name = "ldap3", specifier = ">=2.9" },
@@ -1403,7 +1288,7 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0.32" },
     { name = "redis", specifier = ">=5.0" },
     { name = "sqlalchemy", specifier = ">=2.0.30" },
-    { name = "thermo", editable = "vendor/thermo" },
+    { name = "thermo", specifier = "==0.6.1" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]
 
@@ -1927,79 +1812,17 @@ wheels = [
 [[package]]
 name = "thermo"
 version = "0.6.1"
-source = { editable = "vendor/thermo" }
+source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "chemicals" },
     { name = "fluids" },
     { name = "pandas" },
     { name = "scipy" },
 ]
-
-[package.metadata]
-requires-dist = [
-    { name = "bandit", marker = "extra == 'security'" },
-    { name = "build", marker = "extra == 'dev'" },
-    { name = "chemicals", specifier = ">=1.4.0" },
-    { name = "coverage", marker = "extra == 'numba'", specifier = ">=7.6.1" },
-    { name = "coveralls", marker = "extra == 'test'" },
-    { name = "fluids", specifier = ">=1.3.1" },
-    { name = "fuzzywuzzy", marker = "extra == 'test'" },
-    { name = "fuzzywuzzy", marker = "extra == 'test-multiarch'" },
-    { name = "ipython", marker = "extra == 'docs'" },
-    { name = "ipython", marker = "extra == 'test'" },
-    { name = "ipython", marker = "extra == 'test-multiarch'" },
-    { name = "jacobi", marker = "extra == 'docs'" },
-    { name = "jacobi", marker = "extra == 'prerelease'" },
-    { name = "matplotlib", marker = "extra == 'docs'" },
-    { name = "matplotlib", marker = "extra == 'test'" },
-    { name = "mpmath", marker = "extra == 'docs'" },
-    { name = "mpmath", marker = "extra == 'prerelease'" },
-    { name = "mpmath", marker = "extra == 'test'" },
-    { name = "mpmath", marker = "extra == 'test-multiarch'" },
-    { name = "mypy", marker = "extra == 'lint'" },
-    { name = "nbsphinx", marker = "extra == 'docs'" },
-    { name = "nbval", marker = "extra == 'prerelease'" },
-    { name = "numba", marker = "extra == 'docs'" },
-    { name = "numba", marker = "extra == 'numba'" },
-    { name = "numdifftools", marker = "extra == 'docs'" },
-    { name = "numdifftools", marker = "extra == 'prerelease'" },
-    { name = "numpydoc", marker = "extra == 'docs'" },
-    { name = "pandas" },
-    { name = "pint", marker = "extra == 'docs'" },
-    { name = "pint", marker = "extra == 'test'" },
-    { name = "pint", marker = "extra == 'test-multiarch'" },
-    { name = "pip-audit", marker = "extra == 'security'" },
-    { name = "prek", marker = "extra == 'dev'" },
-    { name = "pytest", marker = "extra == 'test'", specifier = ">=6.0" },
-    { name = "pytest", marker = "extra == 'test-multiarch'", specifier = ">=6.0" },
-    { name = "pytest-cov", marker = "extra == 'test'" },
-    { name = "pytest-xdist", marker = "extra == 'test'" },
-    { name = "pytz", marker = "extra == 'test'" },
-    { name = "pytz", marker = "extra == 'test-multiarch'" },
-    { name = "ruff", marker = "extra == 'lint'" },
-    { name = "scipy", specifier = ">=1.6.0" },
-    { name = "sphinx", marker = "extra == 'docs'" },
-    { name = "sphinx-sitemap", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-applehelp", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-devhelp", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-googleanalytics", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-htmlhelp", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-katex", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-qthelp", marker = "extra == 'docs'" },
-    { name = "sphinxcontrib-serializinghtml", marker = "extra == 'docs'" },
-    { name = "sqlalchemy", marker = "extra == 'test'" },
-    { name = "sqlalchemy", marker = "extra == 'test-multiarch'" },
-    { name = "sympy", marker = "extra == 'test'" },
-    { name = "sympy", marker = "extra == 'test-multiarch'" },
-    { name = "thermo", extras = ["docs"], marker = "extra == 'prerelease'" },
-    { name = "thermo", extras = ["test"], marker = "extra == 'prerelease'" },
-    { name = "thermo", extras = ["test", "numba", "docs", "lint", "security"], marker = "extra == 'dev'" },
-    { name = "twine", marker = "extra == 'dev'" },
-    { name = "wheel", marker = "extra == 'dev'" },
-    { name = "wheel", marker = "extra == 'test'" },
-    { name = "wheel", marker = "extra == 'test-multiarch'" },
+sdist = { url = "https://files.pythonhosted.org/packages/23/80/537b463a4fcdb45d9035d3fb865474c440a817dad1edf03602dd7fa41d99/thermo-0.6.1.tar.gz", hash = "sha256:35ad523c54d54d91d8aaf8be0c68a628fb17cfae76fffe02d8e543facbef9e18", size = 7071937, upload-time = "2026-07-13T02:22:41.494Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/16/e2/64dae8ca4cd2318a49428222646618318def328d2ebe7d64d77aeb12be26/thermo-0.6.1-py3-none-any.whl", hash = "sha256:0c16937885feddcb0d4d1589b4ebdef22c186302a83fbac7ed51fc252a451048", size = 6399201, upload-time = "2026-07-13T02:22:38.996Z" },
 ]
-provides-extras = ["test", "test-multiarch", "numba", "docs", "lint", "prerelease", "security", "dev"]
 
 [[package]]
 name = "typing-extensions"
