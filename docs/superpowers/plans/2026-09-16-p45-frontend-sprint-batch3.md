@@ -531,8 +531,90 @@ export interface BeddSection {
 3. **drag-sort 库选择**：Task 29 CodeFormatDesignerPage 的 segment 排序暂用 antd Select 顺序数组，不引入 react-dnd；如 SPEC 强化要求视觉拖拽再装。
 4. **PIPE 一览表 BASIC 30 列 vs DETAIL 41 列**：Task 32 需要明确 SPEC 列字段映射，避免「≤30 列」解读差异。已记录于 §7.11.2，等 SPEC 维护者确认。
 5. **PIPE_NET 从 EQUIP_LIST 自动生成**：依赖 EQUIP_LIST 接口；本批 3 用 mock 数组，P5 EQUIP_LIST 端点就绪后接入。
+6. **前端类型来源唯一性**：批 3 期间手写 `types/stream.ts` / `pipeClass.ts` / `common.ts` / `flash.ts` 等作为 Page-level mock props shape（已加 `TODO(api-migration)` 注释）。P5-1 契约冻结后必须由 `src/types/api.d.ts` 的 OpenAPI 生成类型替换前端所有手写类型（详见下方"## P5 契约冻结点"）。
 7. **HEAT 计算（PSV / HTRI 导入）依赖 P5 异步任务契约**：不在本批范围；建议另开 P5-HEAT 前端计划文档，1 task / 半天评估后编。
 8. **P3 / P4 模块未覆盖部分**：§7.12 设备计算（HEAT/PSV 等） / §7.13 EQUIP_LIST 详情 Tab / §7.14 供应商数据 / §7.15 UTIL — 本批 3 暂不展开，留 P4.6+ 后续批。
+
+---
+
+## ModuleLayout 注册（§6.21 新增章节）
+
+批 3 Task 27 引入 `ModuleLayout` 共享 Shell（2×2 网格：input/result/lineage/syncDevices 槽位）。审查（见问题 5）指出 SPEC §6 未注册该概念，违反「不发明新概念」原则。
+
+**注册位置**：`docs/PCS-UI-SPEC.md` §6.21 ModuleLayout（新增章节）
+
+**章节草案**：
+
+> **§6.21 ModuleLayout** — 2×2 网格共享 Shell，槽位 `input` / `result` / `lineage` / `syncDevices`。
+> - 上行：`input`（输入卡）+ `result`（结果卡）必须存在
+> - 下行：`lineage`（谱系/签署）+ `syncDevices`（同步设备）按需启用；无内容时不渲染
+> - 行间间距：16px；列等宽（无主次）
+> - 适用：FLASH / PIPE / PUMP 等计算密集型模块
+> - 槽位传入 `ReactNode`，由各 Page 自由填充
+>
+> 共享约束：UI 元素布局遵循本节；颜色 / 圆角 / 间距用 tokens.css 现有 `--surface-bg-*` / `--radius-md` / `--gap-md`
+
+P4.5 收口报告（commit 3234012 后）需补充该章节后再纳入 SPEC 正式版本。
+
+---
+
+## P5 契约冻结点
+
+批 3 所有计算页面（FLASH / PIPE / PUMP / PIPE_NET）的 V1 mock props shape 由前端手写 type 支撑（已加 `TODO(api-migration)`）。当 P5-1 后端交付时，按下列节点冻结契约：
+
+| 阶段 | 节点 | 负责方 | 持续时间 | 交付物 |
+|---|---|---|---|---|
+| 1 | P5-1 calculate 入口交付 | 后端 | T0 | `POST /api/calculate/{module}` OpenAPI 已签入 |
+| 2 | 前端 type 重新生成 | 前端 | T0 + 1d | `npm run api:gen` → `src/types/api.d.ts` 更新 |
+| 3 | 手写 type 替换 | 前端 | T0 + 1~2d | `types/stream.ts` 等删除；Page-level props 改用 `api.d.ts` DTO |
+| 4 | MSW handler 重写 | 前端 | T0 + 1~2d | `mocks/handlers.ts` 按新 OpenAPI schema 改 response shape |
+| 5 | 联调 | 前端 + 后端 | T0 + 3d | 6 Page 端到端走真实 API |
+
+**冻结触发**：P5-1 PR 合并到 main 后开 issue "批 3 mock → API 迁移"（T0）。
+
+**未冻结的边界 case**：
+- HEAT 模块（PSV / HTRI）独立 P5-HEAT 计划，详见未解决问题 7。
+- Stream tag_number / stream_id 等路径参数不进 OpenAPI body schema，需前端 mock 自维护直到 P5-1 加 query schema。
+
+---
+
+## 任务顺序（修订版）
+
+按审查问题 7 调整（考虑 PUMP 依赖 PIPE 压降；PIPE_NET 依赖 PIPE）：
+
+| # | Task | 模块 | 工期 | 依赖 |
+|---|---|---|---|---|
+| 1 | Task 27 P45-3-0 | Shell | 0.5d | — |
+| 2 | Task 28 P45-3-1 | SIM 物流 | 1d | — |
+| 3 | Task 30 P45-3-3 | COMMON | 1d | — |
+| 4 | Task 29 P45-3-2 | PIPE_CLASS | 1d | — |
+| 5 | Task 35 P45-3-8 | PMS/BEDD/项目向导 | 1d | Task 27 |
+| 6 | Task 31 P45-3-4 | FLASH | 1d | Task 30（物性） |
+| 7 | Task 32 P45-3-5 | PIPE 计算 + 一览表 | 1.5d | Task 27 + Task 29 |
+| 8 | Task 34 P45-3-7 | PUMP | 1d | Task 32（PIPE 压降） |
+| 9 | Task 33 P45-3-6 | PIPE_NET | 1.5d | Task 32 + Task 35 |
+
+总工期 ~9d，4 个任务可与 PMS/BEDD 并行（详见 Execution Handoff）。
+
+---
+
+## 测试数量基线（修订版）
+
+按审查问题 9 修订：基础页面 ≥10 测试；列表 / 表格类 ≥12；计算 / 拓扑类 ≥15；PIPE 一览表 / PIPE_NET 拓扑 ≥20。
+
+| 任务 | 测试基线 | 备注 |
+|---|---|---|
+| Task 27 Shell | 10 | PageHeader / ModuleLayout 各自独立 |
+| Task 28 SIM | 18 | 列表 7 + 详情 6 + 导入向导 5 |
+| Task 29 PIPE_CLASS | 16 | 列表 6 + 设计器 7 + 符号表 3 |
+| Task 30 COMMON | 13 | PropertySearch 5 + AllowableStress 3 + ToxicityExplosivity 5 |
+| Task 31 FLASH | ≥10 | 计算路径 + 不收敛分支 + 4 种热力学方法 |
+| Task 32 PIPE | ≥20 | 一览表 41 列 + 计算结果卡 + 多工况分支 |
+| Task 33 PIPE_NET | ≥20 | 拓扑节点 / 边 / 校验 / 序列化 |
+| Task 34 PUMP | ≥15 | 多结果卡（NPSHr / 扬程 / 功率 / 汽蚀） |
+| Task 35 PMS/BEDD | ≥15 | 单位制切换 / 设计条件表单 / 项目向导步骤 |
+
+总计 ≥127 条。
 
 ---
 

@@ -5,6 +5,14 @@
  * - ComponentProperty：组分物性（组分库）
  * - AllowableStress：许用应力（材料 + 温度 + 标准）
  * - ToxicityClass：毒性 / 爆炸极限（hazard_class 三档）
+ *
+ * TODO(api-migration): AllowableStressResult 已在 api.d.ts 存在
+ * （§AllowableStressResult）。ComponentProperty / ToxicityClass 后端
+ * 端点未在 P5-1 前冻结，V1 沿用前端 mock props shape。P5-1 完成后
+ * 由 api.d.ts 替换。
+ *
+ * 见 docs/superpowers/plans/2026-09-16-p45-frontend-sprint-batch3.md
+ * §"P5 契约冻结点"
  */
 
 export interface ComponentProperty {

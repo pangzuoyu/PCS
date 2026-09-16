@@ -5,6 +5,14 @@
  * - 管子等级（PipeClass）：压力 / 温度 / 尺寸 / 腐蚀余量 / 设计阶段
  * - 代码格式段（CodeFormatSegment）：管道号拼接规则
  * - 符号映射（SymbolMapping）：管路符号 ↔ 介质/服务/相态/毒性
+ *
+ * TODO(api-migration): PipeClassResponse 已在 api.d.ts 存在（§PipeClassResponse
+ * 字段名 code/material/schedule 已对齐）；但 size_range_json /
+ * design_pressure_mpa 等扩展字段由前端 V1 mock 注入。P5-1 完成 OpenAPI
+ * 冻结后由 api.d.ts 替换本页 PipeClass / CodeFormatSegment / SymbolMapping。
+ *
+ * 见 docs/superpowers/plans/2026-09-16-p45-frontend-sprint-batch3.md
+ * §"P5 契约冻结点"
  */
 
 export type PipeClassStatus = 'DRAFT' | 'IN_APPROVAL' | 'CHECKED' | 'OBSOLETE';
