@@ -1,10 +1,9 @@
 ---
-status: accepted
+status: proposed
 date: 2026-09-15
-accepted_date: 2026-09-15
 revised: 2026-09-16
 version: V1.1
-supersedes: V1.0 (2026-09-15 accepted，2026-09-16 由 V1.1 修订)
+supersedes: V1.0 (2026-09-15 proposed，2026-09-16 由 V1.1 修订)
 ---
 
 # ChEDL 版本锁定：pyproject.toml 单一来源 + 包装层隔离 + dir() 前置核验
@@ -258,7 +257,7 @@ ChEDL 生态版本升级须走以下流程：
 1. **独立 PR**：不允许混入其他功能改动；PR 标题格式 `chore(deps): bump ChEDL to <new versions>`
 2. **dir() 核验**：PR 中必须包含 `tests/fixtures/chedl_dir_check_<old>.txt → <new>.txt` 差异分析，确认新版本函数集兼容（含 `chemicals.*` 子模块）
 3. **全量回归**：`pcs_test` 库基线全跑；任何工艺计算结果偏差 > 阈值（API 521 火灾 ≤2%、GB 泄放面积 ≤5% 等，按 ADR-0028 决策 11 独立 golden）须分析并文档化
-4. **ADR 更新**：本 ADR 状态由 `proposed` → `accepted`（评审通过后）；后续升级不修改决策内容，仅在附录 A 追加升级历史
+4. **ADR 更新**：升级完成后，在附录 B 追加升级历史；本 ADR 决策内容不修改（评审通过后本 ADR 状态为 accepted；后续升级不改变该状态）
 5. **包装层同步**：包装层 docstring 中 ChEDL 版本号必须同步更新
 
 **升级触发条件**（V1.1 新增）：
@@ -324,7 +323,7 @@ thermo_factory.py 调用 chemicals.* 子模块：
 
 ### 新文件（4 个，V1.1 不变）
 
-- `app/services/chedl_wrapper.py` — 7 个 `fluids.*` 包装 + 9 个 `chemicals.*` 子模块包装 + 异常捕获 + fallback 占位
+- `app/services/chedl_wrapper.py` — 7 个 `fluids.*` 包装 + chemicals 包装预留位（P5 阶段 0 个 chemicals 包装；P4 已用的 9 子模块由 `thermo_factory.py` 负责，不重复包装）+ 异常捕获 + fallback 占位
 - `app/services/chedl_provenance.py` — `ChEDLProvenance` dataclass + `get_chedl_provenance()` 接口
 - `tests/architecture/test_chedl_version.py` — 测试（版本断言 + uv.lock 存在性 + requirements 一致性 + `dir()` 核验）
 - `tests/services/test_chedl_wrapper.py` — 包装层存在性测试
@@ -368,16 +367,25 @@ D1-D4 裁决关闭前，不动 vendor（本次核验已记录现状）。
 - Task 25 文件路径 `docs/adr/0029-chedl-version-lock.md` → `docs/adr/0030-chedl-version-lock.md`
 - 新增 Task 26 (P5-0-7 ChEDL 包装层)；任务总数 25 → 26
 - 裁决 #22 / 全局约束 / 验收段中"ADR-0029"引用 → "ADR-0030"
-- 全局约束中"fluids / chemicals / ht 冻结" → "chemicals / fluids / thermo（ht 从锁定清单移除，保留待 P5-4 评估）"
+- 全局约束中"fluids / chemicals / ht 冻结" → "chemicals / fluids / thermo"（ht 完全移除：pyproject 未声明 + 无业务 import；P5-4 如需复用走决策 8 流程独立引入）
 - Architecture 段中"fluids(vendored)" → "chemicals / fluids / thermo（pip 安装）"
 - ADR 编号说明：原 V1.8 计划中的 ADR-0029 位置调整为 ADR-0030；ADR-0029 编号保留给未来某项 ADR
 
-### 裁决项关闭检查清单（V1.1 评审 2026-09-16 全部关闭）
+### 裁决项关闭检查清单
 
-- [x] **D1**：thermo 既有锁定（pyproject:25 == 0.6.1）已确认持续有效，纳入决策 1 正式清单（评审 P0-3 修正）
-- [x] **D2**：thermo_factory.py（P4 遗留）+ chedl_wrapper.py（P5 新增）双包装层并存，职责边界清晰（决策 9）
-- [x] **D3**：CoolProp 清理 vendor 副本（无业务 import），不纳入 pyproject
-- [x] **D4**：ht 完全移除（pyproject 未声明 + 无业务 import；评审 P0-2 方案 A）；P5-4 如需复用走决策 8 流程独立引入
+**作者推荐（提交评审前预置）**：
+
+- **D1**：thermo 既有锁定（pyproject:25 == 0.6.1）已确认持续有效，纳入决策 1 正式清单（评审 P0-3 修正）— **推荐采纳**
+- **D2**：thermo_factory.py（P4 遗留）+ chedl_wrapper.py（P5 新增）双包装层并存，职责边界清晰（决策 9）— **推荐采纳**
+- **D3**：CoolProp 清理 vendor 副本（无业务 import），不纳入 pyproject — **推荐采纳**
+- **D4**：ht 完全移除（pyproject 未声明 + 无业务 import；评审 P0-2 方案 A）；P5-4 如需复用走决策 8 流程独立引入 — **推荐采纳**
+
+**评审委员会决议（评审会后由秘书处填写）**：
+
+- [ ] D1 确认
+- [ ] D2 确认
+- [ ] D3 确认
+- [ ] D4 确认
 
 ---
 
@@ -432,12 +440,12 @@ thermo    == 0.6.1    (pyproject.toml:25)
 
 ## 附录 B：ChEDL 升级历史（V1.1 新增）
 
-| 日期 | chemicals | fluids | thermo | 触发原因 | 偏差分析 |
-|---|---|---|---|---|---|
-| 2026-09-16 | 1.5.2 | 1.3.1 | 0.6.1 | 初始锁定（V1.1 实地核验） | N/A（首次锁定） |
-| （未来） | ... | ... | ... | ... | ... |
+| 日期 | chemicals | fluids | thermo | ht | 触发原因 | 偏差分析 |
+|---|---|---|---|---|---|---|
+| 2026-09-16 | 1.5.2 | 1.3.1 | 0.6.1 | — (未锁定) | 初始锁定（V1.1 实地核验） | N/A（首次锁定） |
+| （未来） | ... | ... | ... | ... | ... | ... |
 
-> **注**：ht 列已移除（D4 方案 A：ht 完全从锁定清单移除；如未来 P5-4 需引入 ht，按决策 8 流程新增独立条目）
+> **注**：ht 列保留作为升级追踪位（当前填 "— (未锁定)"）。D4 决策 ht 完全从锁定清单移除（pyproject 未声明 + 无业务 import），但升级历史表保留 ht 列以便未来 P5-4 如需引入 ht（如换热器工艺计算复用），按决策 8 流程独立引入并填版本号。
 
 ---
 
