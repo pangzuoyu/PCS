@@ -14,7 +14,7 @@ import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import Ajv from "ajv";
 
-import { handlers } from "../../src/mocks/handlers";
+import { handlers, devOnlyMockHandlers } from "../../src/mocks/handlers";
 import { metaSeed } from "../../src/mocks/seed/meta";
 
 const openapiPath = resolve(__dirname, "../../openapi.snapshot.json");
@@ -148,5 +148,21 @@ describe("MSW handlers 注册 ↔ OpenAPI paths", () => {
     const data = metaSeed.enums;
     expect(data).toBeDefined();
     // MSW handler 内的 isAuthed 行为通过集成测试验证（e2e）
+  });
+});
+
+describe("devOnlyMockHandlers（QA fix ISSUE-001）", () => {
+  it("mock-login 已注册（防止回归为 404）", () => {
+    const paths = new Set(devOnlyMockHandlers.map((h) =>
+      (h as { info?: { path?: string } }).info?.path,
+    ));
+    expect(paths.has("/api/v1/auth/mock-login")).toBe(true);
+  });
+
+  it("devOnlyMockHandlers 不在 handlers 数组（避免 OpenAPI drift 校验触发）", () => {
+    const paths = new Set(handlers.map((h) =>
+      (h as { info?: { path?: string } }).info?.path,
+    ));
+    expect(paths.has("/api/v1/auth/mock-login")).toBe(false);
   });
 });

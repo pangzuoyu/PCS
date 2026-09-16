@@ -14,6 +14,31 @@ function isAuthed(req: Request): boolean {
   return !!auth && auth.startsWith("Bearer ") && auth !== "Bearer ";
 }
 
+const ROLE_BY_USER: Record<string, string> = {
+  alice: "DESIGNER",
+  bob: "CHECKER",
+  carol: "APPROVER",
+  dan: "SYSADMIN",
+};
+
+/** V1 mock-only 端点：仅 dev 环境使用，不在 OpenAPI 中（QA fix / ISSUE-001） */
+const devOnlyMockHandlers = [
+  http.post("/api/v1/auth/mock-login", async ({ request }) => {
+    const body = (await request.json()) as { username?: string };
+    const username = body.username ?? "alice";
+    const role = ROLE_BY_USER[username] ?? "DESIGNER";
+    return HttpResponse.json({
+      access_token: MOCK_TOKEN,
+      refresh_token: `${MOCK_TOKEN}.refresh`,
+      token_type: "bearer",
+      role,
+      username,
+    });
+  }),
+];
+
+/** 后端 OpenAPI 契约端点（meta 5 端点）。handlers 数组统一导出；test 端 OpenAPI drift
+ * 校验只针对这一组，devOnlyMockHandlers 通过拼接传入 setupWorker。 */
 export const handlers = [
   http.get("/api/v1/meta/enums", ({ request }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER", message: "..." }, { status: 401 });
@@ -51,3 +76,4 @@ export const handlers = [
 ];
 
 export const mockAuthToken = MOCK_TOKEN;
+export { devOnlyMockHandlers };

@@ -12,3 +12,5 @@ dist/
 *.local
 pgdata/
 neqsim/
+.gstack/
+.vite/
