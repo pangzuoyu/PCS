@@ -1217,6 +1217,24 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-09-16T16:45:00Z"
+    },
+    {
+      "id": "bug-077",
+      "timestamp": "2026-09-17T00:00:00Z",
+      "error_message": "vent_capacity 单位 bug：字段名 m3_s 但公式 /60 实际产出 m3/min",
+      "file": "pcs-backend/app/services/vessel/vessel_service.py",
+      "root_cause": "_compute_vent_capacity 实现 V_total/60 时未除 3600（m³/h→m³/s），字段名 vent_capacity_m3_s 与实际单位不一致；用户 2026-09-17 评审指出 1.2·tf·V/60 公式反推 tf≈0.064 不符合任何标准量级",
+      "fix": "P5-1-2 hotfix: V_total/60 改为 V_total/3600（m³/s 正确单位）；docstring 引用 API 2000 7th Ed. §4.3.3 + ISO 28300:2008 §6；thermal_factor 默认 1.0 标注按 API 2000 表 4 Y 系数查表覆盖；注明不含 working breathing（P5-3 Task 17 接管）",
+      "tags": [
+        "auto-detected",
+        "unit-bug",
+        "vessel",
+        "p5-1-2",
+        "api2000",
+        "docstring"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-17T00:00:00Z"
     }
   ]
 }

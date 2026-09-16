@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import json
 import math
+import warnings
 from dataclasses import dataclass
 from typing import Final, Literal
 
@@ -32,6 +33,10 @@ from app.services.exceptions import PcsError
 VesselType = Literal["VERTICAL", "HORIZONTAL", "WITH_DEMISTER"]
 CheckResult = Literal["PASS", "WARNING", "FAIL"]
 Confidence = Literal["HIGH", "MEDIUM", "LOW"]
+# 容器方位（区分重力排空公式适用性）：
+#   "vertical" — 立式，A_tank 常数（π·D²/4），t_empty 公式严格适用
+#   "horizontal" — 卧式，A_tank 随 h 变化（椭圆截面），t_empty 仅供参考
+VesselOrientation = Literal["vertical", "horizontal"]
 
 # 物理常量（ISO 80000-3）
 _PI: Final[float] = math.pi
@@ -236,7 +241,11 @@ class VesselHydraulicsInput:
       - 长度 m
       - 流量 m³/s
       - 无量纲 Cd（流量系数，0~1）
-      - 呼吸因子 thermal_breathing_factor（PVRV 参考）
+      - 呼吸因子 thermal_breathing_factor（API 2000 / ISO 28300）
+
+    ⚠️ orientation 决定 t_empty 公式适用性：
+      - "vertical"：严格适用（立式圆柱罐 A_tank 常数）
+      - "horizontal"：仅供参考（卧式罐 A_tank 随 h 变化）
     """
 
     D_m: float
@@ -248,6 +257,7 @@ class VesselHydraulicsInput:
     d_overflow_m: float
     h_overflow_m: float
     Cd_overflow: float
+    orientation: VesselOrientation
     thermal_breathing_factor: float = 1.0
 
 
@@ -256,16 +266,18 @@ class VesselHydraulicsResult:
     """calc_vessel_hydraulics 输出结果（frozen dataclass）。
 
     字段：
-      - empty_time_s: 重力排空时间估算（s，公式见模块 docstring）
+      - empty_time_s: 重力排空时间估算（s，**仅 vertical 严格适用**）
       - overflow_ok: True = 进液量 < 溢流口能力；False = 溢流
       - level_volume_curve_json: 液位-容积曲线 JSON 串（11 采样点）
-      - vent_capacity_m3_s: PVRV 放空能力参考 = 1.2 × thermal_factor × V_total / 60
+      - vent_capacity_m3_s: PVRV thermal breathing capacity = 1.2 × tf × V_total / 3600
+      - applicable_orientation: 结果严格适用的容器方位（当前实现仅 vertical 严格）
     """
 
     empty_time_s: float
     overflow_ok: bool
     level_volume_curve_json: str
     vent_capacity_m3_s: float
+    applicable_orientation: VesselOrientation
 
 
 def _validate_hydraulics_input(inp: VesselHydraulicsInput) -> None:
@@ -297,6 +309,14 @@ def _compute_empty_time(inp: VesselHydraulicsInput) -> float:
     """排空时间（重力出流积分）。
 
     公式：t = (A_tank / (Cd · A_orifice)) · √(2·h0/g)
+
+    ⚠️ 适用性边界（用户评审 2026-09-17）：
+      - 仅严格适用于**立式圆柱罐**（A_tank 假设为常数 π·D²/4）
+      - 卧式罐 A_tank 随 h 变化（液面为椭圆截面）→ 偏差显著（>5%）
+      - 卧式罐重力排空到底的工程场景少见（常泵抽）；如需精确请用 P5-3
+        Task 17 接管后的迭代积分实现
+      - 运行时：calc_vessel_hydraulics 在 orientation == "horizontal"
+        时自动发 UserWarning（非拒绝，详见调用层）
 
     注：包装层 chedl_wrapper.time_to_empty 在 fluids 1.3.1 不存在时降级为自研
     实现（V1.9 F-13-5）。业务侧统一调包装层，无需关心底层来源。
@@ -349,21 +369,44 @@ def _compute_level_volume_curve(inp: VesselHydraulicsInput) -> str:
 def _compute_vent_capacity(inp: VesselHydraulicsInput) -> float:
     """放空能力（PVRV 呼吸量参考，简化工程估算）。
 
-    PVRV breathing capacity ≈ 1.2 × thermal_factor × V_total / 60  [m³/s]
-    V_total = π·(D/2)²·L（圆柱主体，不含封头简化；封头段 < 5% 体积）
+    标准来源：API 2000 7th Ed. §4.3.3（Tank Venting — Normal Venting） +
+              ISO 28300:2008 §6（Pressure/Vacuum Relief）。
+    本实现为简化估算（仅 thermal breathing，**不含** working breathing
+    —— 后者由 P5-3 Task 17 breathing_valve_service 接管）。
+
+    公式：Q_thermal = 1.2 × thermal_factor × V_total / 3600  [m³/s]
+      - 1.2 = API 2000 §4.3.3.2 推荐 20% 安全余量系数（thermal only）
+      - thermal_factor = API 2000 表 4 (Y 系数，按罐体类型 + 闪点分类)
+        —— 默认 1.0 代表普通固定顶罐；用户按工况查表覆盖
+      - V_total = π·(D/2)²·L（圆柱主体，封头段 < 5% 体积已忽略）
+      - 3600 = m³/h → m³/s 转换
+
+    ⚠️ V1.0 历史 bug：早期实现用 `/60`（m³/min），与字段名 m3_s 不一致；
+       P5-1-2 hotfix 修正为 `/3600`。
+
+    Args:
+        inp: VesselHydraulicsInput（必须 D_m, L_m > 0）
+
+    Returns:
+        PVRV thermal breathing capacity，单位 m³/s
     """
     V_total = math.pi * (inp.D_m / 2.0) ** 2 * inp.L_m
-    return 1.2 * inp.thermal_breathing_factor * V_total / 60.0
+    return 1.2 * inp.thermal_breathing_factor * V_total / 3600.0
 
 
 def calc_vessel_hydraulics(inp: VesselHydraulicsInput) -> VesselHydraulicsResult:
     """计算 vessel 流体力学 4 项：排空 / 溢流校核 / 液位-容积 / 放空能力。
 
     PCS-PLAN-P5-DEVICE-EQUIPMENT.md §136-163 接口契约：
-      - empty_time_s: 重力排空时间
+      - empty_time_s: 重力排空时间（**仅 vertical 严格适用**）
       - overflow_ok: 溢流校核布尔
       - level_volume_curve_json: 液位-容积曲线 JSON 串
-      - vent_capacity_m3_s: PVRV 放空能力参考
+      - vent_capacity_m3_s: PVRV thermal breathing capacity（API 2000 §4.3.3）
+      - applicable_orientation: 严格适用的方位（当前固定 "vertical"）
+
+    卧式罐运行时警告（用户评审 2026-09-17 补强）：
+      input.orientation == "horizontal" 时发 UserWarning（不拒绝），
+      result.applicable_orientation 仍为 "vertical"（数据可追溯）。
 
     包装层降级（V1.9 F-13-5）：fluids 1.3.1 缺失 time_to_empty / tank_level_to_volume
     → chedl_wrapper 走 fallback 自研实现，业务侧无感。
@@ -372,6 +415,16 @@ def calc_vessel_hydraulics(inp: VesselHydraulicsInput) -> VesselHydraulicsResult
         frozen dataclass；纯函数不触 DB。
     """
     _validate_hydraulics_input(inp)
+
+    # 卧式罐 t_empty 适用性警告（用户评审 2026-09-17）
+    if inp.orientation == "horizontal":
+        warnings.warn(
+            "t_empty 公式仅严格适用于立式罐（orientation='vertical'）；"
+            "卧式罐 A_tank 随 h 变化，结果偏差 > 5%，仅供参考。"
+            "backlog：P5-3 Task 17 breathing_valve_service 接管后补迭代积分。",
+            UserWarning,
+            stacklevel=2,
+        )
 
     empty_time_s = _compute_empty_time(inp)
     overflow_ok, _ = _check_overflow(inp)
@@ -383,4 +436,5 @@ def calc_vessel_hydraulics(inp: VesselHydraulicsInput) -> VesselHydraulicsResult
         overflow_ok=overflow_ok,
         level_volume_curve_json=level_volume_curve_json,
         vent_capacity_m3_s=vent_capacity_m3_s,
+        applicable_orientation="vertical",
     )

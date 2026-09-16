@@ -163,20 +163,23 @@ def test_calc_vessel_hydraulics_returns_frozen_dataclass():
         d_orifice_m=0.05, Cd_orifice=0.62,
         Q_in_liquid_m3_s=0.005,
         d_overflow_m=0.1, h_overflow_m=1.0, Cd_overflow=0.62,
+        orientation="vertical",
         thermal_breathing_factor=1.0,
     )
     result = calc_vessel_hydraulics(inp)
 
-    # 含 4 字段
+    # 含 5 字段（hotfix +applicable_orientation）
     field_names = {f.name for f in fields(VesselHydraulicsResult)}
     expected = {
         "empty_time_s", "overflow_ok", "level_volume_curve_json",
-        "vent_capacity_m3_s",
+        "vent_capacity_m3_s", "applicable_orientation",
     }
     assert field_names == expected, (
         f"VesselHydraulicsResult 字段不匹配。缺失: {expected - field_names}，"
         f"多余: {field_names - expected}"
     )
+    # 严格适用方位固定为 "vertical"
+    assert result.applicable_orientation == "vertical"
 
     # 不可变
     with pytest.raises(FrozenInstanceError):
@@ -190,6 +193,7 @@ def test_calc_vessel_hydraulics_integration():
         d_orifice_m=0.05, Cd_orifice=0.62,
         Q_in_liquid_m3_s=0.005,
         d_overflow_m=0.1, h_overflow_m=1.0, Cd_overflow=0.62,
+        orientation="vertical",
         thermal_breathing_factor=1.0,
     )
     result = calc_vessel_hydraulics(inp)
@@ -202,8 +206,9 @@ def test_calc_vessel_hydraulics_integration():
     curve = json.loads(result.level_volume_curve_json)
     assert isinstance(curve, dict)
     assert len(curve) > 0
-    # 放空能力：V_total = π·D²/4·L ≈ 15.71 m³，vent = 1.2 × 1.0 × 15.71 / 60 ≈ 0.314 m³/s
+    # 放空能力：V_total = π·D²/4·L ≈ 15.71 m³，vent = 1.2 × 1.0 × 15.71 / 3600 ≈ 0.00524 m³/s
     assert result.vent_capacity_m3_s > 0
+    assert result.applicable_orientation == "vertical"
 
 
 def test_calc_vessel_hydraulics_negative_input_raises():
@@ -215,6 +220,7 @@ def test_calc_vessel_hydraulics_negative_input_raises():
             d_orifice_m=0.05, Cd_orifice=0.62,
             Q_in_liquid_m3_s=0.005,
             d_overflow_m=0.1, h_overflow_m=1.0, Cd_overflow=0.62,
+            orientation="vertical",
             thermal_breathing_factor=1.0,
         ))
 
@@ -242,3 +248,109 @@ def test_f13_5_fallback_source_documented():
     assert "fallback" in src2.lower() or "self_implemented" in src2.lower(), (
         "F-13-5：包装层 tank_level_to_volume 应标注 fallback 自研路径"
     )
+
+
+# ============================================================================
+# 5. P5-1-2 hotfix: vent_capacity 单位修正（m³/h → m³/s）+ 卧式罐适用性
+# ============================================================================
+
+
+def test_vent_capacity_unit_correctness_m3_per_s():
+    """P5-1-2 hotfix: vent_capacity_m3_s 字段必须输出 m³/s（不是 m³/min）。
+
+    V_total = π·(D/2)²·L = π·1·5 ≈ 15.708 m³
+    Q_thermal = 1.2 × 1.0 × 15.708 / 3600 ≈ 0.005235 m³/s
+    （bug 修正前：除以 60 → 0.314 m³/min，量级错 60 倍）
+    """
+    inp = VesselHydraulicsInput(
+        D_m=2.0, L_m=5.0, h0_m=1.0,
+        d_orifice_m=0.05, Cd_orifice=0.62,
+        Q_in_liquid_m3_s=0.005,
+        d_overflow_m=0.1, h_overflow_m=1.0, Cd_overflow=0.62,
+        orientation="vertical",
+        thermal_breathing_factor=1.0,
+    )
+    result = calc_vessel_hydraulics(inp)
+
+    import math
+    expected_m3_s = 1.2 * 1.0 * math.pi * 1.0 * 5.0 / 3600.0  # ≈ 0.005235
+    assert math.isclose(result.vent_capacity_m3_s, expected_m3_s, rel_tol=0.01), (
+        f"vent_capacity={result.vent_capacity_m3_s} 期望 {expected_m3_s:.6f} m³/s "
+        f"（V_total/3600 而非 V_total/60）"
+    )
+    # 单位验证：0.314 m³/min 远超 m³/s 量级
+    assert result.vent_capacity_m3_s < 0.01, (
+        f"vent_capacity {result.vent_capacity_m3_s} 疑似 m³/min 单位（应 < 0.01 m³/s）"
+    )
+
+
+def test_vent_capacity_api2000_source_documented():
+    """P5-1-2 hotfix: vent_capacity docstring 必须引用 API 2000 / ISO 28300 标准来源。"""
+    import inspect
+
+    from app.services.vessel import vessel_service as vs
+
+    src = inspect.getsource(vs._compute_vent_capacity)
+    assert "API 2000" in src, "_compute_vent_capacity 缺 API 2000 来源引用"
+    assert "ISO 28300" in src, "_compute_vent_capacity 缺 ISO 28300 来源引用"
+    assert "/3600" in src, "vent_capacity 应除以 3600 (m³/h→m³/s)"
+    assert "/60" not in src or "bug" in src.lower() or "早期" in src, (
+        "/60 残留公式（已修复，应只在历史注释中保留）"
+    )
+
+
+def test_empty_time_only_vertical_documented():
+    """P5-1-2 hotfix: _compute_empty_time docstring 必须声明仅适用于立式圆柱罐。
+
+    卧式罐 A_tank 随 h 变化（椭圆截面），t_empty 偏差 > 5%。
+    """
+    import inspect
+
+    from app.services.vessel import vessel_service as vs
+
+    src = inspect.getsource(vs._compute_empty_time)
+    assert "立式" in src or "vertical" in src.lower(), (
+        "_compute_empty_time 应明示立式罐适用性"
+    )
+    assert "卧式" in src or "horizontal" in src.lower(), (
+        "_compute_empty_time 应明示卧式罐适用性边界"
+    )
+
+
+def test_horizontal_vessel_emits_warning():
+    """P5-1-2 hotfix (用户评审补强): 卧式罐 input 应触发 UserWarning（运行时可见）。
+
+    不拒绝（业务接受），但警告 t_empty 公式仅适用立式罐。
+    result.applicable_orientation 固定为 "vertical"（数据可追溯）。
+    """
+    inp_horizontal = VesselHydraulicsInput(
+        D_m=2.0, L_m=5.0, h0_m=1.0,
+        d_orifice_m=0.05, Cd_orifice=0.62,
+        Q_in_liquid_m3_s=0.005,
+        d_overflow_m=0.1, h_overflow_m=1.0, Cd_overflow=0.62,
+        orientation="horizontal",  # 卧式
+        thermal_breathing_factor=1.0,
+    )
+    with pytest.warns(UserWarning, match="仅严格适用于立式罐"):
+        result = calc_vessel_hydraulics(inp_horizontal)
+    # result 仍返回（不拒绝），applicable_orientation 固定 "vertical"
+    assert result.applicable_orientation == "vertical"
+    assert result.empty_time_s > 0  # 数值仍计算，但带警告
+
+
+def test_vertical_vessel_no_warning():
+    """P5-1-2 hotfix (用户评审补强): 立式罐 input 不应触发警告。"""
+    inp_vertical = VesselHydraulicsInput(
+        D_m=2.0, L_m=5.0, h0_m=1.0,
+        d_orifice_m=0.05, Cd_orifice=0.62,
+        Q_in_liquid_m3_s=0.005,
+        d_overflow_m=0.1, h_overflow_m=1.0, Cd_overflow=0.62,
+        orientation="vertical",  # 立式
+        thermal_breathing_factor=1.0,
+    )
+    # 应无警告
+    import warnings as _w
+    with _w.catch_warnings():
+        _w.simplefilter("error")  # 任何警告升级为异常
+        result = calc_vessel_hydraulics(inp_vertical)
+    assert result.applicable_orientation == "vertical"

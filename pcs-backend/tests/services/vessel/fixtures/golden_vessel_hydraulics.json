@@ -1,14 +1,16 @@
 {
-  "_comment": "P5-1-2 golden fixture：4 例 vessel 流体力学校核（排空/液位-容积/溢流-OK/溢流-NG）。SI 单位（m, s, m³/s, m³）。手算对照 = 伯努利 + 圆柱几何。",
+  "_comment": "P5-1-2 golden fixture：4 例 vessel 流体力学校核（排空/液位-容积/溢流-OK/溢流-NG）。SI 单位（m, s, m³/s, m³）。手算对照 = 伯努利 + 圆柱几何。**horizontal_level_curve 修正历史**：原计算值 2.618 (= 5π/6 ≈ π/3 + π·0.5) 用了半高假设错误 (V_cyl = π·r²·(h-D/4)/2)，P5-1-2 hotfix 修正为 4.189 (= 4π/3 = π·D³/24 + π·r²·(h-D/4) = π/3 + π·1·1)。**vent_capacity 单位历史**：早期实现除以 60 误为 m³/min，P5-1-2 hotfix 修正为 /3600 真正的 m³/s。",
   "_expected_values_formula": {
-    "empty_time_s": "(A_tank / (Cd · A_orifice)) · √(2·h0/g)  [重力排空积分结果]",
+    "empty_time_s": "(A_tank / (Cd · A_orifice)) · √(2·h0/g)  [重力排空积分结果，仅立式罐严格适用]",
     "level_volume_m3": "ellipse 封头段 V = π·D³/24 主体段 V = π·D³/24 + π·r²·(h-D/4)",
-    "overflow_capacity_m3_s": "Cd · A_overflow · √(2·g·h_overflow)  [溢流口出流]"
+    "overflow_capacity_m3_s": "Cd · A_overflow · √(2·g·h_overflow)  [溢流口出流]",
+    "vent_capacity_m3_s": "1.2 × thermal_factor × V_total / 3600  [API 2000 §4.3.3 thermal breathing]"
   },
   "cases": [
     {
       "id": "vertical_empty_basic",
       "description": "立式容器重力排空：D=2 m, h0=1 m, d_orifice=0.05 m, Cd=0.62",
+      "orientation": "vertical",
       "D_m": 2.0,
       "h0_m": 1.0,
       "d_orifice_m": 0.05,
@@ -19,6 +21,7 @@
     {
       "id": "horizontal_level_curve",
       "description": "卧式容器液位-容积曲线：D=2 m, h=1.5 m（封头+主体段）",
+      "orientation": "horizontal",
       "D_m": 2.0,
       "level_m": 1.5,
       "head_type": "ellipse",
@@ -28,6 +31,7 @@
     {
       "id": "overflow_pass",
       "description": "溢流校核 OK：Q_in=0.005, d_overflow=0.1, h=1.0",
+      "orientation": "vertical",
       "D_m": 2.0,
       "Q_in_liquid_m3_s": 0.005,
       "d_overflow_m": 0.1,
@@ -40,6 +44,7 @@
     {
       "id": "overflow_fail",
       "description": "溢流校核 NG：Q_in=0.1, d_overflow=0.05, h=1.0（远超能力）",
+      "orientation": "vertical",
       "D_m": 2.0,
       "Q_in_liquid_m3_s": 0.1,
       "d_orifice_m": 0.05,
