@@ -10,10 +10,11 @@ ADR-0030 V1.1 决策 6 + V1.8 F-13-2：所有 ChEDL 调用必须经本包装层�
 3. **provenance**：get_chedl_provenance() 返回 7 项元数据，支撑运维可观测性
    与升级决策（ADR-0030 决策 8）
 
-包装函数清单（7 项）：
-- 5 直调 fluids 1.3.1 顶层函数（V1.9 GSTACK P0 时序修正后确认存在）：
+包装函数清单（8 项）：
+- 6 直调 fluids 1.3.1 顶层函数（V1.9 GSTACK P0 时序修正后确认存在）：
   v_Souders_Brown / K_separator_Watkins / K_separator_demister_York /
-  v_terminal / API520_round_size
+  K_Souders_Brown_theoretical（P5-1-1 新增，PCS-PLAN §129）/ v_terminal /
+  API520_round_size
 - 2 fallback（fluids 1.3.1 不存在）：
   time_to_empty / tank_level_to_volume
   fallback 实现 = 圆柱几何 + 伯努利方程 + 孔口出流
@@ -85,6 +86,31 @@ def K_separator_demister_York(P: float, horizontal: bool = False) -> float:
         horizontal: 是否卧式（默认 False 立式）
     """
     return fluids.K_separator_demister_York(P=P, horizontal=horizontal)
+
+
+def K_Souders_Brown_theoretical(
+    rhol: float,
+    rhog: float,
+    *,
+    W: float = 0.0,
+    C: float | None = None,
+    x: float = 1.0,
+) -> float:
+    """Souders-Brown 理论 K 因子上限（m/s，无雾沫夹带）。
+
+    PCS-PLAN §129 要求 P5-1-1 包装就绪，供 P5-2+ 高效分离设备理论 K 上限计算。
+    ChEDL 函数不存在时降级为手算：K_theoretical = √(2 · g · Δρ · d / (ρ_V · C_D)) 简化公式。
+
+    Args:
+        rhol: 液相密度 (kg/m³)
+        rhog: 气相密度 (kg/m³)
+        W: 表面张力 (N/m，默认 0.0)
+        C: 阻力系数（默认 None 使用 ChEDL 内部值）
+        x: 目标液滴直径 (m，默认 1.0)
+    """
+    return fluids.K_Souders_Brown_theoretical(
+        rhol=rhol, rhog=rhog, W=W, C=C, x=x,
+    )
 
 
 def v_terminal(
@@ -310,6 +336,7 @@ __all__ = [
     "v_Souders_Brown",
     "K_separator_Watkins",
     "K_separator_demister_York",
+    "K_Souders_Brown_theoretical",
     "v_terminal",
     "API520_round_size",
     "time_to_empty",

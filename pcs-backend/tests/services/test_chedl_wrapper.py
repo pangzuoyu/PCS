@@ -293,3 +293,32 @@ def test_chedl_provenance_frozen():
     )
     with pytest.raises(FrozenInstanceError):
         meta.chEDL_version = "9.9.9"  # type: ignore[misc]
+
+
+# ============================================================================
+# P5-1-1 包装扩展（PCS-PLAN §129）
+# ============================================================================
+
+
+def test_K_Souders_Brown_theoretical_exists_in_chedl_and_wrapper():
+    """PCS-PLAN §129 要求 K_Souders_Brown_theoretical 包装就绪（P5-1-1 前置）。
+
+    ChEDL fluids.separator 必须原生存在此函数 + chedl_wrapper 必须已包装。
+    包装函数用于 P5-2+ 旋风分离器 / 高效分离设备理论 K 因子上限计算。
+    """
+    import fluids.separator
+
+    from app.services import chedl_wrapper
+
+    assert hasattr(fluids.separator, "K_Souders_Brown_theoretical"), (
+        "ChEDL fluids.separator 缺 K_Souders_Brown_theoretical（ChEDL 版本不匹配）"
+    )
+    assert hasattr(chedl_wrapper, "K_Souders_Brown_theoretical"), (
+        "包装层 chedl_wrapper 缺 K_Souders_Brown_theoretical（PCS-PLAN §129 未落地）"
+    )
+    assert callable(chedl_wrapper.K_Souders_Brown_theoretical), (
+        "chedl_wrapper.K_Souders_Brown_theoretical 不可调用"
+    )
+    assert "K_Souders_Brown_theoretical" in chedl_wrapper.__all__, (
+        "K_Souders_Brown_theoretical 未加入 chedl_wrapper.__all__"
+    )
