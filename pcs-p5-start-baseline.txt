@@ -1,0 +1,45 @@
+# PCS P5 启动基线快照（2026-09-16）
+# 生成时机：A 冻结串行策略确认后，P5-0 首批开工前
+# 关联：docs/PCS-P5-START-CHECKLIST.md（12 项检查详情）
+
+# Git commit baseline（main 分支 P5 启动点）
+commit=e37c2e8fbb017f3dd2be9e8ff062c25277600028
+
+# 测试收集数（pcs-backend pytest --collect-only -q）
+# 注意：是"收集数"，不是"passed 数"；P5 验收基线 = 完成时收集数 − 启动时收集数
+tests_collected=1662
+
+# Ruff 状态（pcs-backend ruff check .）
+# P4 末尾已完成 ruff 归零（V1.8 §"P4 首批建议 #1"叙述已过时）
+ruff=All checks passed!
+
+# Alembic head（两库一致 = CLAUDE.md 「测试前检查」所述矫正迁移风险被现状消除）
+alembic_head_pcs=p4_task0_lineage_extension
+alembic_head_pcs_test=p4_task0_lineage_extension
+
+# RECORD_TYPE_REGISTRY（P5-0-1 后 = N+7；Task 25 后 = N+8；Task 24 后 = N+9）
+record_type_registry_count=5
+record_type_registry_keys=['FlashResult', 'PipeNetworkResult', 'PipingResult', 'PumpResult', 'TwoPhaseResult']
+
+# PG 版本（两库一致）
+pg_version_pcs=PostgreSQL 16.15
+pg_version_pcs_test=PostgreSQL 16.15
+
+# StreamSignStatus 9 态 enum（两库均已扩；Task 3 ratify 不重复 ALTER）
+enum_state_count=9
+enum_values=DRAFT,IN_APPROVAL,CHECKED,OBSOLETE,CHECK_REJECTED,STALE,CHANGE_PENDING,CHANGED,REVERSAL_PENDING
+
+# ADR 状态
+adr_0028_status=accepted
+adr_0028_accepted_date=2026-09-15
+adr_0030_status=accepted
+adr_0030_accepted_date=2026-09-15
+
+# 待裁决阻塞项（P5 启动前必须解决，详 PCS-P5-START-CHECKLIST.md）
+# 1. btree_gist 扩展 + superuser 权限（阻塞 Task 24）
+# 2. ChEDL vendoring 残留 + chedl_wrapper.py 缺失（阻塞 Task 25+26）
+# 3. 工艺室 GB 精度阈值（阻塞 P5-3 启动）
+
+# P5 验收净增量目标（plan §754）
+# ≥47 P5 核心 + 15 SUP 门禁 + 5 ChEDL 版本锁定 = ≥67 passed
+# 完成时采集：pcs_test total - 1662 ≥ 67（即 ≥1729）
