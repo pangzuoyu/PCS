@@ -1,9 +1,10 @@
 ---
-status: proposed
+status: accepted
 date: 2026-09-15
+accepted_date: 2026-09-15
 revised: 2026-09-16
 version: V1.1
-supersedes: V1.0 (2026-09-15 accepted)
+supersedes: V1.0 (2026-09-15 accepted，2026-09-16 由 V1.1 修订)
 ---
 
 # ChEDL 版本锁定：pyproject.toml 单一来源 + 包装层隔离 + dir() 前置核验
@@ -24,16 +25,16 @@ V1.0 基于 P5 计划文本假设 ChEDL 依赖为 `{fluids, chemicals, ht}`，�
 |---|---|---|---|
 | chemicals | **1.5.2**（pyproject:23 + import 验证） | 1.1.4（V1.0 注释） | → `chemicals==1.5.2` |
 | fluids | **1.3.1**（pyproject:24 + import 验证） | 1.0.20（V1.0 注释） | → `fluids==1.3.1` |
-| thermo | **0.6.1**（pyproject:25 + import 验证） | 未声明 | → `thermo==0.6.1`（新增锁定） |
-| ht | **未在 pyproject 声明**（仅在 vendor 中存在） | 1.0.1 | → 从锁定清单移除（D4 裁决） |
-| CoolProp | 未声明 | 未提及 | → D3 裁决（推荐清理，不纳入 pyproject） |
+| thermo | **0.6.1**（pyproject:25 + import 验证） | 未声明 | → 确认既有锁定（D1） |
+| ht | **未在 pyproject 声明**（仅在 vendor 中存在） | 1.0.1 | → **完全移除**（D4：方案 A 采纳，无业务 import，P5-4 如需复用走决策 8 流程独立引入） |
+| CoolProp | 未声明 | 未提及 | → D3 裁决（清理 vendor，不纳入 pyproject） |
 
-**裁决项（V1.1 新增）**：
+**裁决项（V1.1 新增，提交评审前必须关闭）**：
 
-- **D1**：thermo 是否纳入锁定清单（**推荐：纳入**，pyproject.toml:25 已锁 0.6.1）
-- **D2**：`thermo_factory.py` 与 `chedl_wrapper.py` 的关系（**推荐：方案 X 双包装层并存**）
-- **D3**：CoolProp 清理（**推荐：清理**，无业务 import）
-- **D4**：ht 清理（**推荐：清理**，无业务 import，pyproject 实际未锁版本）
+- [x] **D1**：确认 thermo==0.6.1 的既有锁定（pyproject.toml:25 已锁），纳入 ADR-0030 决策 1 正式清单。**推荐采纳**。
+- [x] **D2**：`thermo_factory.py`（P4 遗留）与 `chedl_wrapper.py`（P5 新增）双包装层并存，职责边界清晰。**推荐采纳**。
+- [x] **D3**：CoolProp 清理 vendor 副本（无业务 import），不纳入 pyproject。**推荐采纳**。
+- [x] **D4**：ht 完全移除（pyproject 未声明 + 无业务 import）；P5-4 如需复用走决策 8 流程独立引入。**推荐采纳**（评审结论 P0-2 方案 A）。
 
 ---
 
@@ -66,8 +67,8 @@ thermo    = "==0.6.1"       # V1.1 新增：pyproject:25 已锁；thermo_factory
 
 **V1.1 修订**（原 V1.0 为 `{fluids, chemicals, ht}`）：
 
-- 加入 `thermo==0.6.1`（D1 推荐纳入锁定）
-- 移除 ht（pyproject 实际未声明版本号；D4 推荐清理 vendor）
+- 加入 `thermo==0.6.1`（D1：确认既有锁定持续有效）
+- ht **完全移除**：pyproject 未声明版本号 + vendor/ht/ 无业务 import（D4 方案 A）；P5-4 如需复用走决策 8 升级流程独立引入
 - CoolProp **不纳入** pyproject（D3 推荐清理 vendor，不写依赖）
 
 **替代方案**：分散在多处（如 Dockerfile + pyproject.toml + 文档）——**否决**。版本号多源会导致"一处更新另处遗忘"的不一致，且无机器可读的 source of truth。
@@ -116,7 +117,7 @@ thermo    = "==0.6.1"       # V1.1 新增：pyproject:25 已锁；thermo_factory
 - `requirements.txt` 仅作快照 + 外部工具（如 docker）回退使用；CI 以 `uv.lock` 为准
 - P5-1 之后 ChEDL 版本冻结；P5+ 升级须走决策 8 流程
 
-**V1.1 补充**：uv 工具链版本需在 CI/Docker 中固定（如 `uv==0.11.2`），避免 uv.lock 格式差异破坏跨环境测试断言。
+**V1.1 补充**：uv 工具链版本需在 CI/Docker 中固定，避免 uv.lock 格式差异破坏跨环境测试断言。具体版本号由 **Task 25 实施时核验当前稳定版后确定**，并同步到 CI 配置文件 + Dockerfile + ADR-0030 决策 4（本 ADR 正式记录）。
 
 **替代方案**：测试以 `requirements.txt` 字节匹配为准——**否决**。`uv export` 输出格式因 uv 版本而异（hash 格式、字段顺序），字节匹配脆性高。集合比较（解析 `{pkg: version}` 字典后比对键集与版本）稳定可维护。
 
@@ -153,14 +154,17 @@ missing = [
 ]
 ```
 
-**执行顺序**（V1.1 明确）：
+**执行顺序**（V1.1 明确，拆主流程 + 分支处理）：
 
+**主流程**：
 1. 先选定一个候选版本（基于 P4 已闭环的版本号）
 2. `dir()` 核验
-3. 若缺失非预期函数 → 回退到步骤 1，选择上一个稳定版本
-4. 核验通过后锁定 `pyproject.toml`
-5. 若 `fluids.tanks` 函数缺失 → 预期内（F-13-5），启用决策 7 降级预案
-6. 若 `chemicals.*` 子模块不可导入 → 非预期，需重新选版本；P4 flash_service 已依赖，回归测试必须覆盖
+3. 核验通过 → 锁定 `pyproject.toml`
+
+**分支处理**（条件触发，不满足时跳过）：
+- 若缺失**非预期**函数 → 回退到步骤 1，选择上一个稳定版本
+- 若 `fluids.tanks` 函数缺失 → 预期内（F-13-5），启用决策 7 降级预案，主流程继续
+- 若 `chemicals.*` 子模块不可导入 → 非预期，回退到步骤 1；P4 flash_service 已依赖，回归测试必须覆盖
 
 **替代方案**：版本锁定后实施时再 `dir()`——**否决**。Task 5/11 RED 阶段才发现函数不存在需返工，且需重新选版本 + 重跑 `uv lock` + 重测。版本选择前置核验把返工收敛到 Task 25 单点。
 
@@ -179,7 +183,7 @@ missing = [
 | `fluids.tanks` | `time_to_empty` / `tank_level_to_volume` | 2 | Task 6（降级预案） |
 | `fluids.safety_valve` | `API520_round_size` | 1 | Task 17 |
 | **fluids.* 小计** | | **7** | |
-| **chemicals.*（子模块级包装）** | `vapor_pressure` / `iapws` / `phase_change` / `critical` / `acentric` / `volume` / `viscosity` / `thermal_conductivity` / `identifiers` | **9 子模块** | P4 flash_service 复用（经 `thermo_factory.py`） |
+| **chemicals.* 子模块级包装预留位** | P5+ 未来可能新用的子模块（当前未知）；**P4 已用的 9 子模块由 `thermo_factory.py` 负责，不在 chedl_wrapper 重复包装** | **0（P5 当前无新增 chemicals 需求）** | P5+ 新增 chemicals 调用时优先在 chedl_wrapper 增加包装 |
 
 **双包装层职责边界**（V1.1 新增，D2 推荐方案 X）：
 
@@ -193,6 +197,12 @@ missing = [
 - P5 新增代码（Task 5/6/10/11/17）：**必须** 经 `chedl_wrapper.py`，禁止直接 `import fluids.*` / `import chemicals.*`
 - P4 遗留代码（flash_service / petroleum 等）：经 `thermo_factory.py`，P5 期间不重构（避免回归风险）
 - 未来整合（P5+）：`thermo_factory.py` 可择机迁移到 `chedl_wrapper.py`，但不阻塞 P5
+
+**chedl_wrapper.py 范围澄清**（V1.1 评审 P1-2 修正）：
+
+- `chedl_wrapper.py` 实现 = **7 个 fluids 函数**（P5 当前 0 个 chemicals 包装，与决策 6 表"P5 当前无新增 chemicals 需求"对齐）
+- P5+ 若新增 chemicals 调用（如 R2 新功能），优先在 `chedl_wrapper.py` 增加包装
+- P4 已用的 chemicals.* 9 子模块由 `thermo_factory.py` 负责，**不重复包装**（避免双层抽象）
 
 每个包装函数的 docstring 格式：
 
@@ -362,12 +372,12 @@ D1-D4 裁决关闭前，不动 vendor（本次核验已记录现状）。
 - Architecture 段中"fluids(vendored)" → "chemicals / fluids / thermo（pip 安装）"
 - ADR 编号说明：原 V1.8 计划中的 ADR-0029 位置调整为 ADR-0030；ADR-0029 编号保留给未来某项 ADR
 
-### 裁决项关闭检查清单（提交评审前必须关闭）
+### 裁决项关闭检查清单（V1.1 评审 2026-09-16 全部关闭）
 
-- [ ] **D1**：thermo 是否纳入锁定（**推荐：是**，pyproject:25 已锁 0.6.1）
-- [ ] **D2**：thermo_factory.py 与 chedl_wrapper.py 关系（**推荐：双包装层**）
-- [ ] **D3**：CoolProp 清理（**推荐：清理**，无业务 import）
-- [ ] **D4**：ht 清理（**推荐：清理**，pyproject 实际未声明 ht 版本）
+- [x] **D1**：thermo 既有锁定（pyproject:25 == 0.6.1）已确认持续有效，纳入决策 1 正式清单（评审 P0-3 修正）
+- [x] **D2**：thermo_factory.py（P4 遗留）+ chedl_wrapper.py（P5 新增）双包装层并存，职责边界清晰（决策 9）
+- [x] **D3**：CoolProp 清理 vendor 副本（无业务 import），不纳入 pyproject
+- [x] **D4**：ht 完全移除（pyproject 未声明 + 无业务 import；评审 P0-2 方案 A）；P5-4 如需复用走决策 8 流程独立引入
 
 ---
 
@@ -413,19 +423,21 @@ thermo    == 0.6.1    (pyproject.toml:25)
 
 ### A.4 包装函数规模对比
 
-| 版本 | `fluids.*` | `chemicals.*` | 合计 |
-|---|---|---|---|
-| V1.0 声明 | 7 | 0 | 7 |
-| V1.1 实际 | 7 | 9 子模块 | 16 |
+| 版本 | `fluids.*` | `chemicals.*` | 合计 | 备注 |
+|---|---|---|---|---|
+| V1.0 声明 | 7 | 0 | 7 | V1.0 仅 fluids |
+| V1.1 实际 | 7 | **0（P5 阶段不重复包装）** | **7** | P4 已用的 9 子模块由 `thermo_factory.py` 负责；`chedl_wrapper.py` 仅 P5+ 新增 chemicals 调用时扩展 |
 
 ---
 
 ## 附录 B：ChEDL 升级历史（V1.1 新增）
 
-| 日期 | chemicals | fluids | thermo | ht | 触发原因 | 偏差分析 |
-|---|---|---|---|---|---|---|
-| 2026-09-16 | 1.5.2 | 1.3.1 | 0.6.1 | (未锁定) | 初始锁定（V1.1 实地核验） | N/A（首次锁定） |
-| （未来） | ... | ... | ... | ... | ... | ... |
+| 日期 | chemicals | fluids | thermo | 触发原因 | 偏差分析 |
+|---|---|---|---|---|---|
+| 2026-09-16 | 1.5.2 | 1.3.1 | 0.6.1 | 初始锁定（V1.1 实地核验） | N/A（首次锁定） |
+| （未来） | ... | ... | ... | ... | ... |
+
+> **注**：ht 列已移除（D4 方案 A：ht 完全从锁定清单移除；如未来 P5-4 需引入 ht，按决策 8 流程新增独立条目）
 
 ---
 
@@ -433,7 +445,9 @@ thermo    == 0.6.1    (pyproject.toml:25)
 
 | 库 | bug 描述 | 记录日期 | 影响范围 | 状态 |
 |---|---|---|---|---|
-| （待 P4 团队补充） | | | | |
+| — | *P5-0 阶段无已知 bug；P5 各批次实施中发现的 ChEDL 问题在此汇总* | — | — | — |
+
+**附录 C 填充时机**：P5-0 批内无已知 bug，标注"无"；P5-1 至 P5-4 期间由各 task subagent 记录；P5 验收时汇总归档。
 
 ---
 
