@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Button, Card, Form, Input, Select, Space, Typography, message } from 'antd';
+import { App, Button, Card, Form, Input, Select, Space, Typography } from 'antd';
 import { useNavigate } from 'react-router-dom';
 import { authApi } from '../api/client';
 import { useAuth } from '../store/auth';
@@ -16,6 +16,7 @@ export default function LoginPage() {
   const [mockUser, setMockUser] = useState('alice');
   const setSession = useAuth((s) => s.setSession);
   const nav = useNavigate();
+  const { message } = App.useApp();
 
   async function onMockLogin() {
     setLoading(true);
