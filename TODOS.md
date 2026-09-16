@@ -354,3 +354,10 @@ P4（FLASH / PIPE / PUMP / PIPE_NET 计算模块接入）
 - **Why**: 用户在 P5 之前切到 DETAIL 视图会看到大量空列；需评估是否在 P5 之前默认 BASIC only
 - **Context**: 批 3 提交 e427efb；BASIC 11 列 + DETAIL 25 列的双视图设计为后续计算结果预留
 - **Depends on**: P5 各计算模块入库 + 列填充策略裁决
+
+### TODO-043: Dashboard 数据 fetch MSW 缺口（QA ISSUE-004）
+- **状态**: P5-1（数据契约冻结时） | **来源**: 2026-09-16 QA 浏览器回归（提交 a827d03 之后）
+- **What**: 登录后 DashboardPage 触发 6 个 404（StrictMode 双 mount × 3 端点）：`GET /api/v1/workspaces?owner_id=...`、`GET /api/v1/checklist/projects/{uuid}`、`GET /api/v1/checklist/projects/{uuid}/completeness`。当前 MSW handlers 数组未注册这三个端点，bypass 走 vite → 404
+- **Why**: Dashboard 渲染空状态（无功能阻塞但控制台报错污染日志 + 数据缺失让 P5-1 前的 Dashboard 不可信）
+- **Context**: QA 报告 `qa-report-pcs-frontend-2026-09-16.md`；DashboardPage 需 loading / empty / error 三态展示
+- **Depends on**: P5-1 workspaces + checklist 端点 OpenAPI 冻结 + MSW handler 重写（TODO-041）
