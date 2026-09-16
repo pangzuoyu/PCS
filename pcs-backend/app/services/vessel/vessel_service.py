@@ -1,9 +1,10 @@
-"""P5-1-1 vessel_service 核心（Souders-Brown + D_min + 停留时间）。
+"""P5-1 vessel_service（Souders-Brown + 流体力学）。
 
-按 ADR-0032 V1.0（P5-1-1 起草）：
+按 ADR-0032 V1.0 + PCS-PLAN-P5-DEVICE-EQUIPMENT.md §136-163：
 - ChEDL 分层（业务代码禁直接 import fluids，统一 chedl_wrapper）
 - K 因子单位约定 SI m/s
 - 停留时间按 vessel_type 分支（vertical=3~5 min / horizontal=5~10 min）
+- 流体力学：排空 / 液位-容积 / 溢流 / 放空（V1.9 F-13-5 双套测试 pattern）
 - 纯函数不触 DB（P5-1-4 才落库）
 - 输入/输出均为 frozen dataclass（不可变 + 可哈希）
 
@@ -11,11 +12,15 @@
   V_max = K × √((ρ_L - ρ_V) / ρ_V)        [Souders-Brown, m/s]
   D_min = √(4 × Q_v / (π × V_max))         [m]
   V_liq = Q_L × t_residence                [m³]
+  t_empty = (A_tank / (Cd · A_orifice)) · √(2·h0/g)   [重力排空积分结果, s]
+  Q_overflow = Cd · A_overflow · √(2·g·h_overflow)   [溢流口出流, m³/s]
 
 与 ChEDL `fluids.separator.v_Souders_Brown(K, rhol, rhog)` 交叉验证 ≤1%。
+fluids 1.3.1 不提供 time_to_empty / tank_level_to_volume，包装层 fallback 自研（V1.9 F-13-5）。
 """
 from __future__ import annotations
 
+import json
 import math
 from dataclasses import dataclass
 from typing import Final, Literal
@@ -212,4 +217,167 @@ def calc_vessel_sizing(inp: VesselSizingInput) -> VesselSizingResult:
         residence_time_min=t_residence_min,
         check_result=check_result,
         confidence=confidence,
+    )
+
+
+# ============================================================================
+# P5-1-2 vessel 流体力学校核（fluids.tanks 排空/液位-容积/溢流/放空）
+# ============================================================================
+
+
+@dataclass(frozen=True)
+class VesselHydraulicsInput:
+    """calc_vessel_hydraulics 输入参数（frozen dataclass）。
+
+    物理量 SI 单位：
+      - 长度 m
+      - 流量 m³/s
+      - 无量纲 Cd（流量系数，0~1）
+      - 呼吸因子 thermal_breathing_factor（PVRV 参考）
+    """
+
+    D_m: float
+    L_m: float
+    h0_m: float
+    d_orifice_m: float
+    Cd_orifice: float
+    Q_in_liquid_m3_s: float
+    d_overflow_m: float
+    h_overflow_m: float
+    Cd_overflow: float
+    thermal_breathing_factor: float = 1.0
+
+
+@dataclass(frozen=True)
+class VesselHydraulicsResult:
+    """calc_vessel_hydraulics 输出结果（frozen dataclass）。
+
+    字段：
+      - empty_time_s: 重力排空时间估算（s，公式见模块 docstring）
+      - overflow_ok: True = 进液量 < 溢流口能力；False = 溢流
+      - level_volume_curve_json: 液位-容积曲线 JSON 串（11 采样点）
+      - vent_capacity_m3_s: PVRV 放空能力参考 = 1.2 × thermal_factor × V_total / 60
+    """
+
+    empty_time_s: float
+    overflow_ok: bool
+    level_volume_curve_json: str
+    vent_capacity_m3_s: float
+
+
+def _validate_hydraulics_input(inp: VesselHydraulicsInput) -> None:
+    """VesselHydraulicsInput 边界校验。"""
+    if inp.D_m <= 0 or inp.L_m <= 0 or inp.h0_m <= 0:
+        raise VesselInputError(
+            f"容器几何必须 > 0（D={inp.D_m}, L={inp.L_m}, h0={inp.h0_m}）"
+        )
+    if inp.d_orifice_m <= 0 or inp.Cd_orifice <= 0:
+        raise VesselInputError(
+            f"排空口参数非法（d={inp.d_orifice_m}, Cd={inp.Cd_orifice}）"
+        )
+    if inp.d_overflow_m <= 0 or inp.h_overflow_m <= 0 or inp.Cd_overflow <= 0:
+        raise VesselInputError(
+            f"溢流口参数非法（d={inp.d_overflow_m}, h={inp.h_overflow_m}, "
+            f"Cd={inp.Cd_overflow}）"
+        )
+    if inp.Q_in_liquid_m3_s < 0:
+        raise VesselInputError(
+            f"Q_in_liquid_m3_s={inp.Q_in_liquid_m3_s} 不能为负"
+        )
+    if inp.thermal_breathing_factor <= 0:
+        raise VesselInputError(
+            f"thermal_breathing_factor={inp.thermal_breathing_factor} 必须 > 0"
+        )
+
+
+def _compute_empty_time(inp: VesselHydraulicsInput) -> float:
+    """排空时间（重力出流积分）。
+
+    公式：t = (A_tank / (Cd · A_orifice)) · √(2·h0/g)
+
+    注：包装层 chedl_wrapper.time_to_empty 在 fluids 1.3.1 不存在时降级为自研
+    实现（V1.9 F-13-5）。业务侧统一调包装层，无需关心底层来源。
+    """
+    return chedl_wrapper.time_to_empty(
+        D_tank=inp.D_m,
+        h0=inp.h0_m,
+        d_orifice=inp.d_orifice_m,
+        Cd=inp.Cd_orifice,
+    )
+
+
+def _check_overflow(inp: VesselHydraulicsInput) -> tuple[bool, float]:
+    """溢流校核：Q_in vs 溢流口出流能力。
+
+    溢流口出流能力 = Cd × A_overflow × √(2·g·h_overflow)
+    进液量 < 能力 → 不溢流（overflow_ok=True）
+
+    Returns:
+        (overflow_ok, capacity_m3_s)
+    """
+    g = 9.80665
+    A_overflow = math.pi * (inp.d_overflow_m / 2.0) ** 2
+    capacity_m3_s = inp.Cd_overflow * A_overflow * math.sqrt(2.0 * g * inp.h_overflow_m)
+    overflow_ok = inp.Q_in_liquid_m3_s < capacity_m3_s
+    return overflow_ok, capacity_m3_s
+
+
+def _compute_level_volume_curve(inp: VesselHydraulicsInput) -> str:
+    """液位-容积曲线 JSON。
+
+    11 个采样点：h = 0, 0.1D, 0.2D, ..., 1.0D（按封头 + 圆柱几何）。
+    包装层 chedl_wrapper.tank_level_to_volume 在 fluids 1.3.1 缺失时降级自研
+    （V1.9 F-13-5，2:1 椭圆封头 + 圆柱主体分段积分）。
+
+    Returns:
+        JSON 字符串：{"h=0.00": 0.0, "h=0.20": ..., "h=2.00": ...}
+    """
+    levels = [inp.D_m * i / 10.0 for i in range(11)]
+    curve = {
+        f"h={h:.2f}m": round(
+            chedl_wrapper.tank_level_to_volume(D=inp.D_m, h=h, head_type="ellipse"),
+            4,
+        )
+        for h in levels
+    }
+    return json.dumps(curve, ensure_ascii=False)
+
+
+def _compute_vent_capacity(inp: VesselHydraulicsInput) -> float:
+    """放空能力（PVRV 呼吸量参考，简化工程估算）。
+
+    PVRV breathing capacity ≈ 1.2 × thermal_factor × V_total / 60  [m³/s]
+    V_total = π·(D/2)²·L（圆柱主体，不含封头简化；封头段 < 5% 体积）
+    """
+    V_total = math.pi * (inp.D_m / 2.0) ** 2 * inp.L_m
+    return 1.2 * inp.thermal_breathing_factor * V_total / 60.0
+
+
+def calc_vessel_hydraulics(inp: VesselHydraulicsInput) -> VesselHydraulicsResult:
+    """计算 vessel 流体力学 4 项：排空 / 溢流校核 / 液位-容积 / 放空能力。
+
+    PCS-PLAN-P5-DEVICE-EQUIPMENT.md §136-163 接口契约：
+      - empty_time_s: 重力排空时间
+      - overflow_ok: 溢流校核布尔
+      - level_volume_curve_json: 液位-容积曲线 JSON 串
+      - vent_capacity_m3_s: PVRV 放空能力参考
+
+    包装层降级（V1.9 F-13-5）：fluids 1.3.1 缺失 time_to_empty / tank_level_to_volume
+    → chedl_wrapper 走 fallback 自研实现，业务侧无感。
+
+    Returns:
+        frozen dataclass；纯函数不触 DB。
+    """
+    _validate_hydraulics_input(inp)
+
+    empty_time_s = _compute_empty_time(inp)
+    overflow_ok, _ = _check_overflow(inp)
+    level_volume_curve_json = _compute_level_volume_curve(inp)
+    vent_capacity_m3_s = _compute_vent_capacity(inp)
+
+    return VesselHydraulicsResult(
+        empty_time_s=empty_time_s,
+        overflow_ok=overflow_ok,
+        level_volume_curve_json=level_volume_curve_json,
+        vent_capacity_m3_s=vent_capacity_m3_s,
     )

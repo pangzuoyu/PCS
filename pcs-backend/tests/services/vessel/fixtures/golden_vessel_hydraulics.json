@@ -1,0 +1,54 @@
+{
+  "_comment": "P5-1-2 golden fixture：4 例 vessel 流体力学校核（排空/液位-容积/溢流-OK/溢流-NG）。SI 单位（m, s, m³/s, m³）。手算对照 = 伯努利 + 圆柱几何。",
+  "_expected_values_formula": {
+    "empty_time_s": "(A_tank / (Cd · A_orifice)) · √(2·h0/g)  [重力排空积分结果]",
+    "level_volume_m3": "ellipse 封头段 V = π·D³/24 主体段 V = π·D³/24 + π·r²·(h-D/4)",
+    "overflow_capacity_m3_s": "Cd · A_overflow · √(2·g·h_overflow)  [溢流口出流]"
+  },
+  "cases": [
+    {
+      "id": "vertical_empty_basic",
+      "description": "立式容器重力排空：D=2 m, h0=1 m, d_orifice=0.05 m, Cd=0.62",
+      "D_m": 2.0,
+      "h0_m": 1.0,
+      "d_orifice_m": 0.05,
+      "Cd_orifice": 0.62,
+      "expected_empty_time_s": 1165.5,
+      "tol_empty_time_pct": 0.01
+    },
+    {
+      "id": "horizontal_level_curve",
+      "description": "卧式容器液位-容积曲线：D=2 m, h=1.5 m（封头+主体段）",
+      "D_m": 2.0,
+      "level_m": 1.5,
+      "head_type": "ellipse",
+      "expected_volume_m3": 4.189,
+      "tol_volume_pct": 0.01
+    },
+    {
+      "id": "overflow_pass",
+      "description": "溢流校核 OK：Q_in=0.005, d_overflow=0.1, h=1.0",
+      "D_m": 2.0,
+      "Q_in_liquid_m3_s": 0.005,
+      "d_overflow_m": 0.1,
+      "h_overflow_m": 1.0,
+      "Cd_overflow": 0.62,
+      "expected_overflow_ok": true,
+      "expected_capacity_m3_s": 0.02157,
+      "tol_capacity_pct": 0.02
+    },
+    {
+      "id": "overflow_fail",
+      "description": "溢流校核 NG：Q_in=0.1, d_overflow=0.05, h=1.0（远超能力）",
+      "D_m": 2.0,
+      "Q_in_liquid_m3_s": 0.1,
+      "d_orifice_m": 0.05,
+      "d_overflow_m": 0.05,
+      "h_overflow_m": 1.0,
+      "Cd_overflow": 0.62,
+      "expected_overflow_ok": false,
+      "expected_capacity_m3_s": 0.005391,
+      "tol_capacity_pct": 0.02
+    }
+  ]
+}
