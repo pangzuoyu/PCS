@@ -95,10 +95,12 @@ uv run ruff check .               # 0 错为目标
 | 批 3 | P4-3 PIPE_NET（拓扑模型 + Hardy-Cross 求解器 + API + 落库） | CLOSED |
 | 批 4 | P4-4 PUMP（选型 + NPSHa + 曲线插值 + PUMP 链 + 出口物流） | CLOSED |
 | P4-TASK0 | 本体论（@lineage D4/D5 + RECORD_TYPE_REGISTRY 完整化 + physical_semantics + importlinter D8 + CI 三方比对基础） | CLOSED |
+| **P4.5 批 3** | **前端计算模块 + 项目向导（SIM 物流详情/导入向导、PIPE_CLASS 等级/符号表、COMMON 物性查询/许用应力/毒性爆炸、FLASH/PIPE/PUMP 计算界面、PIPE_NET 拓扑 V1、PMS/BEDD/项目向导；前端测试 ~131 项）** | **CLOSED 2026-09-16** |
 
 ### ⏳ 待启动批次
 
-_（P4 闸门已全部解除，下一轮为 P5+ 见 backlog）_
+- **P5-1**：calculate 入口接 Guard + 9 态 enum 扩展 + 文件上传契约冻结（详见 `docs/superpowers/plans/2026-09-16-p45-frontend-sprint-batch3.md` §P5 冻结点）
+- **P5-HEAT**：换热器 / PSV / HTRI 导入异步任务契约
 
 ### 已落地工艺能力
 
@@ -107,6 +109,7 @@ _（P4 闸门已全部解除，下一轮为 P5+ 见 backlog）_
 - **管网**：拓扑校验 + Hardy-Cross 流量分配 + 节点压力回推
 - **精度护栏**：3 流态分支（LAMINAR / TRANSITION 2000–4000 强制 WARNING / TURBULENT）+ confidence HIGH/MEDIUM/LOW + Crane TP-410 K 表 reynolds_applicable 标注 + get_fitting_k Re 参数预留（P5+ Hooper 2-K / Darby 3-K 接入）
 - **血缘与哈希**：record_hash 数值规范化 16 hex + DataLineage 只追加 + finalize_calc_record 统一收口
+- **前端模块**（P4.5 批 3）：SIM 物流导入向导 + 详情页 / PIPE_CLASS 等级 + 符号表 + 代码格式设计器 / COMMON 物性查询 + 许用应力 + 毒性爆炸 / FLASH/PIPE/PUMP 计算界面 / PIPE_NET 拓扑 V1（手写 SVG）/ PMS 管道材料规格 + BEDD 文档 + 项目向导；StateBadge 9 态 + SignatureMatrix 共享组件 + ModuleLayout 2×2 网格；前端 vitest 约 131 项测试通过
 
 ### Backlog（P5+）
 
@@ -116,8 +119,11 @@ _（P4 闸门已全部解除，下一轮为 P5+ 见 backlog）_
 - ChEDL 版本锁定 ADR（fluids / thermo / chemicals 频繁更新，需复现性）
 - P4-2-6：热损失 + 混合黏度
 - 控制阀 / PSV（独立批次，不在 P4 范围）
+- PIPE_NET 完整版（reactflow 拖拽 / 自动布局 / 环路检测 / 序列化）
+- 前端类型 P5-1 由 OpenAPI 生成的 `api.d.ts` 替换 7 个 V1 mock 类型文件
+- MSW handlers P5-1 后按真实 OpenAPI 重写
 
-详细收口报告见 `docs/PCS-P*-CLOSE-REPORT.md`。
+详细收口报告见 `docs/PCS-P*-CLOSE-REPORT.md`；延后项见 [`TODOS.md`](./TODOS.md)。
 
 ## 核心约定
 
