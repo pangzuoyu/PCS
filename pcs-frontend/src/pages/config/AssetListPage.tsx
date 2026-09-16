@@ -30,6 +30,7 @@ import {
 import type { ColumnsType } from 'antd/es/table';
 
 import { HashBadge } from '../../components/common/HashBadge';
+import { RevTimeline, type RevVersion } from '../../components/common/RevTimeline';
 import {
   CONFIG_CATEGORY_LABEL,
   CONFIG_CATEGORY_ORDER,
@@ -66,6 +67,9 @@ type CategoryFilter = 'ALL' | ConfigCategory;
 export function AssetListPage({ assets, onEdit, onApprove, onVersion }: Props): JSX.Element {
   const [activeCategory, setActiveCategory] = useState<CategoryFilter>('ALL');
   const [detailAsset, setDetailAsset] = useState<ConfigAsset | null>(null);
+  const [revAssetId, setRevAssetId] = useState<string | null>(null);
+  const [revisions, setRevisions] = useState<RevVersion[]>([]);
+  const [revisionsLoading, setRevisionsLoading] = useState(false);
 
   const filtered = useMemo(() => {
     if (activeCategory === 'ALL') return assets;
@@ -163,6 +167,16 @@ export function AssetListPage({ assets, onEdit, onApprove, onVersion }: Props): 
             onClick={(e) => {
               e.stopPropagation();
               onVersion?.(row);
+              // 拉取 RevTimeline 数据
+              setRevAssetId(row.asset_id);
+              setRevisionsLoading(true);
+              void fetch(`/api/v1/config/assets/${row.asset_id}/revisions`, {
+                headers: { Authorization: 'Bearer mock-jwt-token' },
+              })
+                .then((r) => (r.ok ? r.json() : []))
+                .then((j: RevVersion[]) => setRevisions(j))
+                .catch(() => {/* network unavailable (jsdom / offline) */})
+                .finally(() => setRevisionsLoading(false));
             }}
           >
             版本
@@ -221,6 +235,13 @@ export function AssetListPage({ assets, onEdit, onApprove, onVersion }: Props): 
         open={!!detailAsset}
         onClose={() => setDetailAsset(null)}
       >
+        <Button
+          data-testid="asset-detail-open-rev"
+          onClick={() => detailAsset && setRevAssetId(detailAsset.asset_id)}
+          style={{ marginBottom: 16 }}
+        >
+          查看版本历史
+        </Button>
         {detailAsset && (
           <Descriptions column={1} bordered size="small" data-testid="asset-detail">
             <Descriptions.Item label="名称">{detailAsset.name}</Descriptions.Item>
@@ -258,6 +279,24 @@ export function AssetListPage({ assets, onEdit, onApprove, onVersion }: Props): 
               <Descriptions.Item label="描述">{detailAsset.description}</Descriptions.Item>
             )}
           </Descriptions>
+        )}
+      </Drawer>
+
+      {/* 版本历史 RevTimeline（P2 8 组件实例化）*/}
+      <Drawer
+        title="版本历史"
+        placement="right"
+        width={520}
+        open={!!revAssetId}
+        onClose={() => setRevAssetId(null)}
+        data-testid="asset-rev-drawer"
+      >
+        {revisionsLoading ? (
+          <Typography.Text type="secondary">加载中…</Typography.Text>
+        ) : revisions.length === 0 ? (
+          <Empty description="无版本记录" />
+        ) : (
+          <RevTimeline versions={revisions} />
         )}
       </Drawer>
     </div>

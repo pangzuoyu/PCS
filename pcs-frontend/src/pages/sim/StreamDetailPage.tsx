@@ -29,12 +29,24 @@ import type { ColumnsType } from 'antd/es/table';
 import { ModuleLayout } from '../../components/common/ModuleLayout';
 import { PageHeader } from '../../components/common/PageHeader';
 import { SignatureMatrix, type SignatureRecord, type SignatureStep } from '../../components/common/SignatureMatrix';
+import { ApprovalStepBar, type ApprovalStep } from '../../components/common/ApprovalStepBar';
+import { ConflictResolver, type Conflict } from '../../components/common/ConflictResolver';
+import { LineageGraph, type LineageNode, type LineageEdge } from '../../components/common/LineageGraph';
+import { ChangeImpactPanel, type ChangeSource, type AffectedRecord } from '../../components/common/ChangeImpactPanel';
+import { SchemaForm, type UiSchemaResponse } from '../../components/common/SchemaForm';
+import { AssumedDataMarker } from '../../components/common/AssumedDataMarker';
 import { STREAM_PHASE_LABEL, STREAM_SUBPHASE_LABEL, type Stream } from '../../types/stream';
 
 interface Props {
   stream: Stream;
   matrix?: SignatureStep[];
   signatures?: SignatureRecord[];
+  approvalSteps?: ApprovalStep[];
+  currentApprovalStep?: number;
+  conflicts?: Conflict[];
+  lineage?: { center: string; nodes: LineageNode[]; edges: LineageEdge[] };
+  changeImpact?: { source: ChangeSource; records: AffectedRecord[] } | null;
+  uiSchema?: UiSchemaResponse;
   onBack?: () => void;
   onSubmit?: () => void;
   onObsolete?: () => void;
@@ -56,6 +68,12 @@ export function StreamDetailPage({
   stream,
   matrix = DEFAULT_MATRIX,
   signatures = DEFAULT_SIGNATURES,
+  approvalSteps,
+  currentApprovalStep = 0,
+  conflicts = [],
+  lineage,
+  changeImpact,
+  uiSchema,
   onBack,
   onSubmit,
   onObsolete,
@@ -176,6 +194,66 @@ export function StreamDetailPage({
           </Row>
         }
       />
+
+      {/* 8 组件实例化 P2：审批链 / 冲突 / 血缘 / 变更影响 / 表单 */}
+      <Row gutter={[16, 16]} style={{ marginTop: 16 }}>
+        {approvalSteps && approvalSteps.length > 0 && (
+          <Col span={24}>
+            <Card title="审批链" size="small" data-testid="stream-detail-approval-bar">
+              <ApprovalStepBar
+                currentStep={currentApprovalStep}
+                totalSteps={approvalSteps.length}
+                role="CHECKER"
+                steps={approvalSteps}
+              />
+            </Card>
+          </Col>
+        )}
+        {conflicts.length > 0 && (
+          <Col span={24}>
+            <Card title="物性冲突" size="small" data-testid="stream-detail-conflict-resolver">
+              <ConflictResolver conflicts={conflicts} />
+            </Card>
+          </Col>
+        )}
+        {lineage && lineage.nodes.length > 0 && (
+          <Col span={24}>
+            <Card title="数据血缘" size="small" data-testid="stream-detail-lineage">
+              <LineageGraph centerRecord={lineage.center} direction="upstream" data={{ nodes: lineage.nodes, edges: lineage.edges }} />
+            </Card>
+          </Col>
+        )}
+        {changeImpact && (
+          <Col span={24}>
+            <Card title="变更影响" size="small" data-testid="stream-detail-change-impact">
+              <ChangeImpactPanel changeSource={changeImpact.source} affectedRecords={changeImpact.records} />
+            </Card>
+          </Col>
+        )}
+        {uiSchema && (
+          <Col span={24}>
+            <Card title="表单 Schema（只读）" size="small" data-testid="stream-detail-schema-form">
+              <SchemaForm
+                schema={uiSchema}
+                value={{
+                  tag_number: stream.tag_number,
+                  stream_name: stream.stream_name,
+                  phase: stream.phase,
+                  temperature_c: stream.temperature_c,
+                  pressure_mpa: stream.pressure_mpa,
+                  total_mass_flow_kg_h: stream.total_mass_flow_kg_h,
+                }}
+              />
+              {stream.sign_status === 'STALE' && (
+                <div style={{ marginTop: 8 }}>
+                  <AssumedDataMarker assumed={true} reason="上游工艺变更" source="S-102 流量调整" value={stream.total_mass_flow_kg_h.toString()} />
+                  <span style={{ marginLeft: 8 }}>流量为假设值</span>
+                </div>
+              )}
+            </Card>
+          </Col>
+        )}
+      </Row>
     </div>
   );
 }

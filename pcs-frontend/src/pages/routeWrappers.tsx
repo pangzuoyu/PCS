@@ -11,6 +11,8 @@
  */
 import { useEffect, useState } from 'react';
 import type { JSX } from 'react';
+import { Typography } from 'antd';
+import { useParams } from 'react-router-dom';
 
 import type { AllowableStress, ComponentProperty, ToxicityClass } from '../types/common';
 import type { ConfigAsset } from '../types/configAsset';
@@ -21,6 +23,7 @@ import type { BeddSection, PmsItem } from '../types/pms';
 import type { PipeInput, PipeLineListRow, PipeResult } from '../types/pipe';
 import type { FlashInput, FlashResult } from '../types/flash';
 import type { PumpInput, PumpResult } from '../types/pump';
+import type { StreamDetailPayload } from '../mocks/seed/streams';
 
 // 页面本地的辅助类型，从源文件复制定义（路由层仅传空数组，不深耦合）
 type StreamLite = {
@@ -107,9 +110,24 @@ export function StreamListRoute(): JSX.Element {
   return <StreamListPage streams={streams} />;
 }
 export function StreamDetailRoute(): JSX.Element {
-  // 占位 Stream：路由层缺真数据；用户实际编辑流应从 /sim/streams 列表进
-  const stub = {} as Stream;
-  return <StreamDetailPage stream={stub} />;
+  // P5-1 接 :stream_id；s-101 / s-104 都有详情 payload，s-104 sign_status=STALE 触发 ChangeImpactPanel
+  const { id } = useParams<{ id: string }>();
+  const streamId = id ?? 's-101';
+  const payload = useFetch<StreamDetailPayload | null>(`/api/v1/streams/${streamId}`, null);
+  if (!payload) return <Typography.Text>加载中…</Typography.Text>;
+  return (
+    <StreamDetailPage
+      stream={payload.stream}
+      matrix={payload.matrix}
+      signatures={payload.signatures}
+      approvalSteps={payload.approvalSteps}
+      currentApprovalStep={payload.currentApprovalStep}
+      conflicts={payload.conflicts}
+      lineage={payload.lineage}
+      changeImpact={payload.changeImpact}
+      uiSchema={payload.uiSchema}
+    />
+  );
 }
 export function ImportWizardRoute(): JSX.Element {
   return <ImportWizardPage />;

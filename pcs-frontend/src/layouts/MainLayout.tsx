@@ -1,7 +1,10 @@
-import { Button, Layout, Menu, Space, Typography } from 'antd';
+import { useEffect, useState } from 'react';
+import { Badge, Button, Layout, Menu, Space, Typography } from 'antd';
+import { BellOutlined } from '@ant-design/icons';
 import type { MenuProps } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
+import { NotificationCenter, type Notification } from '../components/common/NotificationCenter';
 
 const { Header, Content, Sider } = Layout;
 
@@ -68,6 +71,19 @@ export default function MainLayout() {
   const clear = useAuth((s) => s.clearSession);
   const nav = useNavigate();
   const location = useLocation();
+  const [notifOpen, setNotifOpen] = useState(false);
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+
+  useEffect(() => {
+    void fetch('/api/v1/notifications', {
+      headers: { Authorization: 'Bearer mock-jwt-token' },
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((j: Notification[]) => setNotifications(j))
+      .catch(() => {/* offline */});
+  }, []);
+
+  const unreadCount = notifications.filter((n) => n.unread).length;
 
   const selectedKeys = findSelectedKeys(location.pathname);
   const openKeys = selectedKeys.length > 1 ? [selectedKeys[0]] : [];
@@ -85,6 +101,14 @@ export default function MainLayout() {
         </Typography.Title>
         <div style={{ flex: 1 }} />
         <Space>
+          <Badge count={unreadCount} size="small" data-testid="notif-badge">
+            <Button
+              type="text"
+              icon={<BellOutlined style={{ color: '#fff', fontSize: 18 }} />}
+              data-testid="notif-bell"
+              onClick={() => setNotifOpen(true)}
+            />
+          </Badge>
           <Typography.Text style={{ color: '#fff' }}>
             {username} ({role})
           </Typography.Text>
@@ -107,6 +131,16 @@ export default function MainLayout() {
           <Outlet />
         </Content>
       </Layout>
+
+      <NotificationCenter
+        open={notifOpen}
+        onClose={() => setNotifOpen(false)}
+        notifications={notifications}
+        onItemClick={(id) => {
+          // 简单点击行为：标记为已读（前端 mock）
+          setNotifications((prev) => prev.map((n) => (n.notification_id === id ? { ...n, unread: false } : n)));
+        }}
+      />
     </Layout>
   );
 }

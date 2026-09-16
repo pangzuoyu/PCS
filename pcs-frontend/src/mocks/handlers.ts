@@ -17,8 +17,13 @@ import { seedAllowableStress, seedMaterials, seedToxicityClasses } from "./seed/
 import { seedPipeClasses } from "./seed/pipe-classes";
 import { seedPipeLineRows } from "./seed/pipe-line";
 import { seedBeddSections, seedPmsItems } from "./seed/pms";
-import { seedStreams } from "./seed/streams";
+import {
+  buildStreamDetail,
+  seedStreams,
+} from "./seed/streams";
 import { seedChecklist, seedWorkspaces } from "./seed/workspaces";
+import type { RevVersion } from "../components/common/RevTimeline";
+import type { Notification } from "../components/common/NotificationCenter";
 
 /** JWT 守卫 — 无 token → 401 */
 function isAuthed(req: Request): boolean {
@@ -56,9 +61,10 @@ const devOnlyMockHandlers = [
   }),
   http.get("/api/v1/streams/:stream_id", ({ request, params }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    const s = seedStreams.find((x) => x.stream_id === params.stream_id);
-    return s
-      ? HttpResponse.json(s)
+    // 返回详情页所需的完整 payload（stream + 矩阵 + 签署 + 审批 + 冲突 + 血缘 + 变更影响 + UiSchema）
+    const payload = buildStreamDetail(String(params.stream_id));
+    return payload
+      ? HttpResponse.json(payload)
       : HttpResponse.json({ code: "NOT_FOUND", message: `stream ${params.stream_id} not found` }, { status: 404 });
   }),
 
@@ -123,6 +129,44 @@ const devOnlyMockHandlers = [
       percent: items.length > 0 ? Math.round((completed / items.length) * 100) : 0,
     });
   }),
+
+  // === 通知中心 ===
+  http.get("/api/v1/notifications", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json(seedNotifications);
+  }),
+
+  // === 资产版本历史（RevTimeline）===
+  http.get("/api/v1/config/assets/:asset_id/revisions", ({ request, params }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json(seedRevisions.filter((r) => r.asset_id === params.asset_id));
+  }),
+];
+
+/** 通知 seed — 5 条覆盖 3 类（todo/change/system）+ 2 条未读 */
+const seedNotifications: Notification[] = [
+  { notification_id: 'n-001', category: 'todo', kind: 'TODO', title: 'S-101 待你校核', summary: 'alice 已提交物流 S-101 的校核请求', issued_at: '2026-09-16T04:00:00Z', unread: true },
+  { notification_id: 'n-002', category: 'todo', kind: 'TODO', title: 'P-2001 管道设计校核', summary: '管道计算结果等待复核', issued_at: '2026-09-16T03:30:00Z', unread: true },
+  { notification_id: 'n-003', category: 'change', kind: 'CHANGE', title: 'S-101 流量变更', summary: '流量 1000 → 1100 kg/h，影响 3 条计算', issued_at: '2026-09-16T04:30:00Z' },
+  { notification_id: 'n-004', category: 'change', kind: 'CHANGE', title: '上游 HAZOP 报告更新', summary: 'SAFE-001 假设数据需重审', issued_at: '2026-09-15T22:00:00Z' },
+  { notification_id: 'n-005', category: 'system', kind: 'SYSTEM', title: '系统维护通知', summary: '今晚 22:00 数据库例行维护', issued_at: '2026-09-15T18:00:00Z' },
+];
+
+/** Rev seed — 4 个 Rev 字母覆盖 ISSUED_FOR_DESIGN/REVIEW/CONSTRUCTION/USE */
+const seedRevisions: (RevVersion & { asset_id: string })[] = [
+  // a-formula-001（Antoine 方程）— 4 Rev
+  { asset_id: 'a-formula-001', version_id: 'v-a-formula-001-A', rev_letter: 'A', issued_at: '2026-08-01T09:00:00Z', status: 'ISSUED_FOR_DESIGN', signatures: [{ role: '设计', signer_name: 'alice', signed_at: '2026-08-01T10:00:00Z' }], snapshot_hash: 'a1b2c3d4', snapshot_hash_full: 'a1b2c3d4e5f6789012345' },
+  { asset_id: 'a-formula-001', version_id: 'v-a-formula-001-B', rev_letter: 'B', issued_at: '2026-08-15T09:00:00Z', status: 'ISSUED_FOR_REVIEW', signatures: [{ role: '设计', signer_name: 'alice', signed_at: '2026-08-15T10:00:00Z' }, { role: '校核', signer_name: 'bob', signed_at: '2026-08-15T15:00:00Z' }], snapshot_hash: 'b2c3d4e5', snapshot_hash_full: 'b2c3d4e5f6789012345a' },
+  { asset_id: 'a-formula-001', version_id: 'v-a-formula-001-C', rev_letter: 'C', issued_at: '2026-09-05T09:00:00Z', status: 'ISSUED_FOR_CONSTRUCTION', affected: true, signatures: [{ role: '设计', signer_name: 'alice' }, { role: '校核', signer_name: 'bob' }, { role: '审核', signer_name: 'carol', signed_at: '2026-09-05T16:00:00Z' }], snapshot_hash: 'c3d4e5f6', snapshot_hash_full: 'c3d4e5f6789012345abc' },
+  { asset_id: 'a-formula-001', version_id: 'v-a-formula-001-D', rev_letter: 'D', issued_at: '2026-09-10T09:00:00Z', status: 'ISSUED_FOR_USE', signatures: [], snapshot_hash: 'f7a8b9c0', snapshot_hash_full: 'f7a8b9c0d1e2f3a4b5c6d' },
+  // 其他资产 — 简化给 2 Rev
+  { asset_id: 'a-coeff-002', version_id: 'v-a-coeff-002-A', rev_letter: 'A', issued_at: '2026-08-20T09:00:00Z', status: 'ISSUED_FOR_REVIEW', signatures: [{ role: '设计', signer_name: 'bob', signed_at: '2026-08-20T10:00:00Z' }], snapshot_hash: 'a1b2c3d4', snapshot_hash_full: 'a1b2c3d4e5f67890abcde' },
+  { asset_id: 'a-coeff-002', version_id: 'v-a-coeff-002-B', rev_letter: 'B', issued_at: '2026-09-12T14:30:00Z', status: 'ISSUED_FOR_USE', signatures: [], snapshot_hash: 'a1b2c3d4', snapshot_hash_full: 'a1b2c3d4e5f6789012345' },
+  { asset_id: 'a-tmpl-003', version_id: 'v-a-tmpl-003-A', rev_letter: 'A', issued_at: '2026-09-15T16:45:00Z', status: 'ISSUED_FOR_REVIEW', signatures: [], snapshot_hash: 'b2c3d4e5', snapshot_hash_full: 'b2c3d4e5f67890abc1234' },
+  { asset_id: 'a-proj-004', version_id: 'v-a-proj-004-A', rev_letter: 'A', issued_at: '2026-09-16T01:20:00Z', status: 'ISSUED_FOR_DESIGN', signatures: [], snapshot_hash: 'c3d4e5f6', snapshot_hash_full: 'c3d4e5f67890abcdef1234' },
+  { asset_id: 'a-std-005', version_id: 'v-a-std-005-A', rev_letter: 'A', issued_at: '2026-07-01T09:00:00Z', status: 'ISSUED_FOR_CONSTRUCTION', affected: true, signatures: [{ role: '设计', signer_name: 'dan' }, { role: '校核', signer_name: 'dan' }, { role: '审核', signer_name: 'dan' }], snapshot_hash: 'd4e5f678', snapshot_hash_full: 'd4e5f67890abcdef12345' },
+  { asset_id: 'a-std-005', version_id: 'v-a-std-005-B', rev_letter: 'B', issued_at: '2026-08-15T09:00:00Z', status: 'ISSUED_FOR_USE', signatures: [], snapshot_hash: 'd4e5f678', snapshot_hash_full: 'd4e5f67890abcdef1234b' },
+  { asset_id: 'a-std-005', version_id: 'v-a-std-005-C', rev_letter: 'C', issued_at: '2026-08-30T10:15:00Z', status: 'ISSUED_FOR_USE', affected: true, signatures: [], snapshot_hash: 'd4e5f678', snapshot_hash_full: 'd4e5f67890abcdef1234c' },
 ];
 
 /** 后端 OpenAPI 契约端点（meta 5 端点）。handlers 数组统一导出；test 端 OpenAPI drift
