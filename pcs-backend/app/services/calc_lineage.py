@@ -30,6 +30,7 @@ from app.models.calc import (
     PumpResult,
     ReliefResult,
     TwoPhaseResult,
+    VesselResult,
 )
 from app.models.psv_standards import ProjectCalculationStandardProfile
 from app.services.lineage import LineageTracker, _compute_hash
@@ -41,9 +42,10 @@ from app.services.lineage_extension import attach_lineage_d45
 # （SUP-008 §8.3.2/§8.3.3/§8.3.5 + P5-OPEN-005 5 类 → 8 类）。
 # P5-0-5 Task 24 扩展 1 类：ProjectCalculationStandardProfile（SUP-P5-PSV-001 §3.1） → 9 类
 # P5-0-2 Task 2 扩展 1 类：HeatResult（ADR-0027 V1.0 决策 2，修正 P4 遗漏）→ 10 类
+# P5-1-4 扩展 1 类：VesselResult（ADR-0032 V1.1 决策 6）→ 11 类
 # Stream 不登记（Stream 是物流不是计算记录）。
 # 后续扩展：
-#   P5-0-1b（4 蒸汽表）后 +4 = 14 类（Q4 约束 3 修订：原 13 → 14 因 +HeatResult）
+#   P5-0-1b（4 蒸汽表）后 +4 = 15 类（Q4 约束 3 修订：原 13 → 14 因 +HeatResult +VesselResult）
 RECORD_TYPE_REGISTRY: dict[str, type] = {
     "PipingResult": PipingResult,
     "PumpResult": PumpResult,
@@ -58,6 +60,8 @@ RECORD_TYPE_REGISTRY: dict[str, type] = {
     "ProjectCalculationStandardProfile": ProjectCalculationStandardProfile,
     # P5-0-2 Task 2 新增（2026-09-17，ADR-0027 V1.0 决策 2，修正 P4 遗漏）
     "HeatResult": HeatResult,
+    # P5-1-4 新增（2026-09-17，ADR-0032 V1.1 决策 6）
+    "VesselResult": VesselResult,
 }
 
 # record_hash 截断长度（16 hex = 64 bit，与 cia_engine._CONTENT_HASH_PREFIX 一致）

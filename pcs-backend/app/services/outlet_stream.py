@@ -5,13 +5,15 @@
 - P4-2-5 PIPE 计算链（PIPE_CALCULATED）
 - P4-3-3 PIPE_NET 管网（_NET_CALCULATED 后缀；P4-3-3 扩 Literal）
 - P4-4-4 PUMP 计算链（PUMP_CALCULATED）
+- **P5-1-4 VESSEL**（VESSEL_CALCULATED）— ADR-0032 V1.1 决策 6
 
 设计要点：
 - 独立可调用：不依赖 flash_persist；只接 db + 元数据
 - sign_status=DRAFT（下游未 CHECKED 不可用，calc 入口守卫兜底）
 - properties → stream.stream_properties_json（JSONB）
 - source_type 走 Stream.source_type 字符串列
-  （FLASH_CALCULATED/PIPE_CALCULATED/PUMP_CALCULATED/PIPE_NET_CALCULATED）
+  （FLASH_CALCULATED/PIPE_CALCULATED/PUMP_CALCULATED/PIPE_NET_CALCULATED/
+  VESSEL_CALCULATED）
 - upstream_stream_id / upstream_equipment_type 用于溯源
 - project_id 校验：必须与源流同 project，跨 project 抛 OutletStreamProjectMismatchError
 
@@ -33,11 +35,13 @@ from app.services.exceptions import PcsError
 
 # 出口物流 source_type 字面值（Stream.source_type 字符串列无 enum）
 # P4-3-3 扩展：新增 "PIPE_NET_CALCULATED"（向前兼容，旧调用仍有效）
+# P5-1-4 扩展：新增 "VESSEL_CALCULATED"（ADR-0032 V1.1 决策 6）
 OutletSourceType = Literal[
     "FLASH_CALCULATED",
     "PIPE_CALCULATED",
     "PUMP_CALCULATED",
     "PIPE_NET_CALCULATED",
+    "VESSEL_CALCULATED",
 ]
 
 
@@ -51,11 +55,13 @@ class OutletStreamProjectMismatchError(PcsError):
 # upstream_equipment_type 映射表
 # （P4-3-3 扩 "PIPE_NET_CALCULATED" → "PIPE_NET"；其余按 source_type split_[0]
 # 即可；集中维护以防 PIPE_NET_CALCULATED 被 split 出 "PIPE" 错值）
+# P5-1-4 扩展：新增 "VESSEL_CALCULATED" → "VESSEL"
 _EQUIP_TYPE_MAP: dict[str, str] = {
     "FLASH_CALCULATED": "FLASH",
     "PIPE_CALCULATED": "PIPE",
     "PUMP_CALCULATED": "PUMP",
     "PIPE_NET_CALCULATED": "PIPE_NET",
+    "VESSEL_CALCULATED": "VESSEL",
 }
 
 

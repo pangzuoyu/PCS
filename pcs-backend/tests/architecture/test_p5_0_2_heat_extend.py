@@ -150,9 +150,10 @@ def test_record_type_registry_count_is_10():
     """P5-0 批约束 3 修订：Task 2 后 REGISTRY 必须 10 类（+ HeatResult）。
 
     Q4 约束 3 原"P5-0-1b 后=13"修订为"=14"（13 + HeatResult 修正 P4 遗漏）。
+    **P5-1-4 修订**（ADR-0032 V1.1 决策 6）：+VesselResult → 11 类。
     """
-    assert len(RECORD_TYPE_REGISTRY) == 10, (
-        f"REGISTRY 应 10 类（Q4 修订），实际 {len(RECORD_TYPE_REGISTRY)}: "
+    assert len(RECORD_TYPE_REGISTRY) == 11, (
+        f"REGISTRY 应 11 类（P5-1-4 +VesselResult），实际 {len(RECORD_TYPE_REGISTRY)}: "
         f"{list(RECORD_TYPE_REGISTRY.keys())}"
     )
 
