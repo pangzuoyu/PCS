@@ -61,10 +61,11 @@ def _make_record(**overrides) -> PipingResult:
 
 
 def test_registry_contains_all_calc_record_types() -> None:
-    """registry 覆盖 P5-0-1a 落地后的全部 8 类 record。
+    """registry 覆盖 P5-0-1a + P5-0-5 + P5-0-2 落地后的全部 10 类 record。
 
     P4-TASK0 5 类 + P5-0-1a 新增 3 类（ReliefResult / ColumnSizingResult / MixerResult）。
-    Task 24 (P5-0-5) 落地后扩展为 9 类。
+    Task 24 (P5-0-5) 扩展为 9 类（+ProjectCalculationStandardProfile）。
+    Task 2 (P5-0-2) 扩展为 10 类（+HeatResult，修正 P4 遗漏，ADR-0027 决策 2）。
     """
     assert set(RECORD_TYPE_REGISTRY) == {
         "PipingResult",
@@ -78,6 +79,8 @@ def test_registry_contains_all_calc_record_types() -> None:
         "MixerResult",
         # P5-0-5 Task 24 新增（2026-09-16）
         "ProjectCalculationStandardProfile",
+        # P5-0-2 Task 2 新增（2026-09-17，ADR-0027 决策 2）
+        "HeatResult",
     }
 
 

@@ -454,6 +454,18 @@ class SepEquipResult(TaggedRecordMixin, Base):
 
 
 class HeatResult(TaggedRecordMixin, Base):
+    """换热器计算结果（P5-0-2 Task 2 双轨扩展，ADR-0027 V1.0）。
+
+    **双轨结构**：
+    - 9 旧标量：equipment_no/equipment_name/**duty**/effective_area/4 压力/u_overall
+    - 5 现状 JSONB：air_side/design_conditions/enthalpy_table/input/output
+    - 39 新标量 + 3 新 JSONB：详 SUP-009 V1.0 §3.1（`duty` 与 9 旧共享 1 列）
+
+    `duty` 共享 = 9 旧 P4 上游值与 SUP-009 P5 计算结果合并为 1 列。P5-4 实施
+    时按需拆分为 `duty_legacy` / `duty_calc` 双字段（详 ADR-0027 决策 5）。
+
+    PK rename（heat_exchanger_id → heat_calc_id，DICT V3.4 方向）待 Task 4a。
+    """
     __tablename__ = "heat_results"
     heat_exchanger_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     exchanger_category: Mapped[str] = mapped_column(String(30), comment="SHELL_TUBE/AIR_COOL/PLATE")
@@ -462,6 +474,82 @@ class HeatResult(TaggedRecordMixin, Base):
     enthalpy_table_json: Mapped[dict | None] = mapped_column(JSONB)
     input_json: Mapped[dict] = mapped_column(JSONB)
     output_json: Mapped[dict] = mapped_column(JSONB)
+    # === 9 旧标量（P5-OPEN-006 保留列，详 ADR-0027 决策 1）===
+    equipment_no: Mapped[str | None] = mapped_column(String(30))
+    equipment_name: Mapped[str | None] = mapped_column(String(100))
+    duty: Mapped[float | None] = mapped_column(Float, comment="9 旧与新轨共享 1 列")
+    effective_area: Mapped[float | None] = mapped_column(Float)
+    hot_inlet_pressure: Mapped[float | None] = mapped_column(Float)
+    hot_outlet_pressure: Mapped[float | None] = mapped_column(Float)
+    cold_inlet_pressure: Mapped[float | None] = mapped_column(Float)
+    cold_outlet_pressure: Mapped[float | None] = mapped_column(Float)
+    u_overall: Mapped[float | None] = mapped_column(Float)
+    # === 39 新标量（SUP-009 §3.1.1-3.1.6，详 ADR-0027 决策 5）===
+    # §3.1.1 基础标识 7
+    exchanger_type: Mapped[str | None] = mapped_column(String(20), comment="DEU/BEM/AEL/ACHE")
+    orientation: Mapped[str | None] = mapped_column(String(20), comment="Horizontal/Vertical")
+    units_series: Mapped[int | None] = mapped_column(Integer)
+    units_parallel: Mapped[int | None] = mapped_column(Integer)
+    shells_per_unit: Mapped[int | None] = mapped_column(Integer)
+    total_area_gross: Mapped[float | None] = mapped_column(Float, comment="m²")
+    total_area_eff: Mapped[float | None] = mapped_column(Float, comment="m²")
+    # §3.1.2 通用热工 8（除 duty 共享 9 旧）
+    lmtd: Mapped[float | None] = mapped_column(Float, comment="对数平均温差 °C")
+    mtd_corrected: Mapped[float | None] = mapped_column(Float, comment="校正后平均温差 °C")
+    emtd: Mapped[float | None] = mapped_column(Float, comment="有效平均温差 °C")
+    overdesign_percent: Mapped[float | None] = mapped_column(Float, comment="%")
+    u_service: Mapped[float | None] = mapped_column(Float, comment="W/m²·K")
+    u_calculated: Mapped[float | None] = mapped_column(Float, comment="W/m²·K")
+    u_clean: Mapped[float | None] = mapped_column(Float, comment="W/m²·K")
+    heat_exchange_area: Mapped[float | None] = mapped_column(Float, comment="m²")
+    # §3.1.4 通用几何 9
+    tube_count: Mapped[int | None] = mapped_column(Integer)
+    tube_od: Mapped[float | None] = mapped_column(Float, comment="mm")
+    tube_id: Mapped[float | None] = mapped_column(Float, comment="mm")
+    tube_wall_thickness: Mapped[float | None] = mapped_column(Float, comment="mm")
+    tube_length: Mapped[float | None] = mapped_column(Float, comment="m")
+    tube_pitch: Mapped[float | None] = mapped_column(Float, comment="mm")
+    tube_layout: Mapped[str | None] = mapped_column(String(10), comment="30/45/60/90")
+    tube_material: Mapped[str | None] = mapped_column(String(100))
+    tube_passes: Mapped[int | None] = mapped_column(Integer)
+    # §3.1.5 壳程几何 10
+    shell_id: Mapped[float | None] = mapped_column(Float, comment="mm")
+    shell_design_pressure: Mapped[float | None] = mapped_column(Float, comment="kPaG")
+    shell_design_temp: Mapped[float | None] = mapped_column(Float, comment="°C")
+    baffle_type: Mapped[str | None] = mapped_column(
+        String(30), comment="PERPEND/SINGLE-SEG/DOUBLE-SEG/NO-TUBES-IN-WINDOW"
+    )
+    baffle_cut_percent: Mapped[float | None] = mapped_column(Float, comment="%")
+    baffle_spacing: Mapped[float | None] = mapped_column(Float, comment="mm")
+    baffle_inlet_spacing: Mapped[float | None] = mapped_column(Float, comment="mm")
+    seal_strip_count: Mapped[int | None] = mapped_column(Integer)
+    passlane_seal_rod_count: Mapped[int | None] = mapped_column(Integer)
+    impingement_plate: Mapped[str | None] = mapped_column(String(10), comment="None/Yes")
+    # §3.1.6 热阻分布 5
+    thermal_resistance_shell: Mapped[float | None] = mapped_column(Float, comment="%")
+    thermal_resistance_tube: Mapped[float | None] = mapped_column(Float, comment="%")
+    thermal_resistance_fouling: Mapped[float | None] = mapped_column(Float, comment="%")
+    thermal_resistance_metal: Mapped[float | None] = mapped_column(Float, comment="%")
+    thermal_resistance_bond: Mapped[float | None] = mapped_column(Float, comment="% ACHE 专用")
+    # === 3 新 JSONB（SUP-009 §3.1.3 + §3.1.7）===
+    shell_params: Mapped[dict | None] = mapped_column(
+        JSONB,
+        comment=(
+            "§3.1.3 壳程工艺物性"
+            "（fluid_name/mass_flow/temp_in/out/density/viscosity/cp/k/"
+            "pressure/pd/velocity/film_coef/fouling_res/...）"
+        ),
+    )
+    tube_params: Mapped[dict | None] = mapped_column(
+        JSONB, comment="§3.1.3 管程工艺物性（同 shell_params 结构）"
+    )
+    ache_params: Mapped[dict | None] = mapped_column(
+        JSONB,
+        comment=(
+            "§3.1.7 ACHE 专属"
+            "（fans/airside/fin/nozzle/airside_resistance_distribution）"
+        ),
+    )
 
 
 class CvResult(TaggedRecordMixin, Base):

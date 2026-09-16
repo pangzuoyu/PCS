@@ -11,7 +11,7 @@
 5. 2 部分索引：current_default + migrated_default
 6. psv_results 加 7 列 + override_paired_chk + 2 部分索引
 7. relief_results 加 7 列 + override_paired_chk + 2 部分索引
-8. RECORD_TYPE_REGISTRY == 9（Q4 约束）
+8. RECORD_TYPE_REGISTRY ≥ 9（Q4 约束；P5-0-2 Task 2 后 = 10 含 HeatResult）
 9. alembic migration 链 p5_0_4a_pk_rename_and_tag_number → p5_0_5_psv_multi_standard
 """
 from __future__ import annotations
@@ -243,18 +243,20 @@ def test_relief_results_has_2_partial_indexes():
 
 
 # ============================================================================
-# 6. RECORD_TYPE_REGISTRY == 9（Q4 约束）
+# 6. RECORD_TYPE_REGISTRY ≥ 9（Q4 约束；P5-0-2 Task 2 后 = 10）
 # ============================================================================
 
 
-def test_record_type_registry_count_is_9():
-    """P5-0 批约束 3（Q4）：Task 24 后 REGISTRY 必须恰好 9 类。
+def test_record_type_registry_count_is_at_least_9():
+    """P5-0 批约束 3（Q4）：Task 24 末态 REGISTRY ≥ 9 类。
 
     8 → 9：+ ProjectCalculationStandardProfile
-    防误加（不跳到 10 或 13）。
+    P5-0-2 Task 2 后 = 10（含 HeatResult，详 test_p5_0_2_heat_extend.py + ADR-0027 决策 2）。
+
+    本断言不强卡 = 9（已被 Task 2 扩展），只卡 ≥ 9（防回归删除 P5-0-5 9 类）。
     """
-    assert len(RECORD_TYPE_REGISTRY) == 9, (
-        f"REGISTRY 应 9 类（Q4 约束），实际 {len(RECORD_TYPE_REGISTRY)}: "
+    assert len(RECORD_TYPE_REGISTRY) >= 9, (
+        f"REGISTRY 应 ≥ 9 类（Q4 约束），实际 {len(RECORD_TYPE_REGISTRY)}: "
         f"{list(RECORD_TYPE_REGISTRY.keys())}"
     )
 
