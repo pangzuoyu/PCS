@@ -1,8 +1,8 @@
 增补 SPEC：PSV 多标准（API / GB）项目级配置与计算引擎
 Spec 编号：SUP-P5-PSV-001
-版本：V1.1
+版本：V1.2
 日期：2026-09-16
-状态：修订（V1.0 评审反馈整改 + 提交重评）
+状态：修订（V1.1 评审反馈整改 + 提交重评）
 父 Spec：spec/工艺专用综合计算软件需求规格说明书 Web版 P5.md V1.3 §3.2.3
 关联计划：P5 设备计算模块（第二批）实施计划 V1.0 Task 13/14/16/17/18
 关联 ADR：ADR-0028（PSV 多标准引擎，accepted 2026-09-15）、ADR-0030（ChEDL 版本锁定，accepted 2026-09-15）
@@ -11,6 +11,22 @@ TODOS 关联：TODO-PSV-STD-001
 
 修订说明
 ---
+V1.2 相对 V1.1 解决以下问题：
+
+阻塞项（4）：
+- B1：`migrated_default` 缺失列。§3.1 profile 表新增 `migrated_default` 列 + CHECK + 部分索引；resolver 查询排除该列
+- B2：`check_capability` 只检查 `status` 与 G8 语义不一致。改为统一通过 `P5_UNIMPLEMENTABLE_STANDARDS` 词表 + `status` 双判定
+- B3：D1 要求的 `override_reason` 与 `override_approval_json` 成对 CHECK 未写入 SQL。§3.2 ALTER 显式加 `override_paired_chk`
+- B4：EXCLUDE 约束缺 `btree_gist` 扩展声明。§3.1 与 §11.2 迁移脚本首步加 `CREATE EXTENSION IF NOT EXISTS btree_gist;`
+
+非阻塞（6）：
+- S1：缺 `pending_review` / `migrated_default` 部分索引。§3.2 加 4 条
+- S2：§8.5 测试计数（≥25）与清单（21）对不上。补 3 条达 24：G12 pilot_operated / closed_valve mandatory / btree_gist 扩展
+- S3：`closed_valve` 必填 vs 可选前后不一致。§5.5 改为必填（GB profile 必带 `status: unsupported_p5`）；§4.1 check_capability 改为请求 mandatory 阶段缺失即 422
+- S4：先导式门禁缺 G 编号 + 用了 501 不一致。新增 G12 统一 422 PSV_PILOT_UNSUPPORTED
+- S5：G2 (403) vs G7 (422) 判定顺序未定义。明确 G2 优先（权限检查在前）
+- S6：P5 预排程 profile 未明确禁止。§3.1 加 `future_dated_forbidden_chk` 约束 + §2.3 注明
+
 V1.1 相对 V1.0 解决以下问题：
 
 1. **数据模型与门禁规则不一致** — psv_results/relief_results 补充 4 列；§8.2 任务清单补齐
@@ -147,11 +163,16 @@ GB/T 150.1 现行有效版本为 2024 版，代替 2011 版（D-03 关闭：项�
 
 GB/T 12241 现行有效版本为 2021 版，代替 2005 版（D-04 关闭：P5 阶段孔口表降级，输出所需流道直径不强制圆整；完整录入转 P5+）。GB/T 28778 现行有效版本为 2023 版（D-07 关闭：先导式阀转 P5+ 评估）。
 
+**预排程 profile 限制**（S6 修复）：P5 阶段不支持 `effective_from > NOW()` 的预排程 profile 写入（§3.1 `future_dated_forbidden_chk` 约束拦截）。`effective_from` 必须 ≤ 当前时刻 + 1 秒。新生效配置写入即视为即时生效；若需"未来某日起生效"语义，请走 P5+ 评审 + ADR 复审。
+
 §3 数据模型
 ---
 3.1 新增表：project_calculation_standard_profiles
 
 ```sql
+-- B4 修复：EXCLUDE 约束需要 btree_gist 支持跨类型 = 运算符
+CREATE EXTENSION IF NOT EXISTS btree_gist;
+
 CREATE TABLE project_calculation_standard_profiles (
     id                      BIGSERIAL PRIMARY KEY,
     project_id              BIGINT NOT NULL REFERENCES projects(id),
@@ -160,6 +181,7 @@ CREATE TABLE project_calculation_standard_profiles (
     standard_refs_json      JSONB NOT NULL,         -- 各子标准、版本、条款映射
     approval_json           JSONB,                  -- CUSTOM 时必填，含审批人+依据
     is_default              BOOLEAN NOT NULL DEFAULT FALSE,
+    migrated_default        BOOLEAN NOT NULL DEFAULT FALSE,  -- B1 修复：迁移占位标志，与 psv_results/relief_results 同名同语义
     effective_from          TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     effective_to            TIMESTAMPTZ,            -- NULL 表示当前生效；非 NULL 表示已失效
     approved_by             BIGINT REFERENCES users(id),
@@ -171,16 +193,23 @@ CREATE TABLE project_calculation_standard_profiles (
         (profile_code = 'CUSTOM' AND approval_json IS NOT NULL) OR
         (profile_code <> 'CUSTOM')
     ),
+    -- S6 修复：P5 不支持预排程 profile（effective_from 必须已生效或即时生效）
+    CONSTRAINT future_dated_forbidden_chk CHECK (effective_from <= NOW() + INTERVAL '1 second'),
     CONSTRAINT project_standard_default_unique
         EXCLUDE USING gist (
             project_id WITH =,
             discipline WITH =,
             tstzrange(effective_from, COALESCE(effective_to, 'infinity'::timestamptz), '[)') WITH &&
-        ) WHERE (is_default = TRUE)
+        ) WHERE (is_default = TRUE AND migrated_default = FALSE)
 );
+-- S1 修复：current_default 部分索引已排除 migrated_default
 CREATE INDEX idx_pcs_project_discipline_default
     ON project_calculation_standard_profiles (project_id, discipline)
-    WHERE is_default = TRUE AND effective_to IS NULL;
+    WHERE is_default = TRUE AND migrated_default = FALSE AND effective_to IS NULL;
+-- S1 修复：迁移占位部分索引（供 §11.4 复核队列查询）
+CREATE INDEX idx_pcs_profile_migrated_default
+    ON project_calculation_standard_profiles (project_id, discipline)
+    WHERE migrated_default = TRUE;
 ```
 
 约束语义：
@@ -198,6 +227,17 @@ ALTER TABLE psv_results ADD COLUMN pending_review BOOLEAN NOT NULL DEFAULT FALSE
 ALTER TABLE psv_results ADD COLUMN migrated_default BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE psv_results ADD COLUMN override_reason TEXT;
 ALTER TABLE psv_results ADD COLUMN override_approval_json JSONB;
+-- B3 修复：override 字段成对 CHECK（与 G7 + D1 决议对齐；防止后台/迁移/直接 SQL 绕过 API 层）
+ALTER TABLE psv_results ADD CONSTRAINT psv_override_paired_chk CHECK (
+    (override_reason IS NULL AND override_approval_json IS NULL) OR
+    (override_reason IS NOT NULL AND override_approval_json IS NOT NULL)
+);
+-- S1 修复：复核队列部分索引（项目内绝大多数 FALSE，索引代价极低）
+CREATE INDEX idx_psv_results_pending_review
+    ON psv_results(project_id, sign_status) WHERE pending_review = TRUE;
+-- S1 修复：迁移清单部分索引
+CREATE INDEX idx_psv_results_migrated_default
+    ON psv_results(project_id, sign_status) WHERE migrated_default = TRUE;
 
 ALTER TABLE relief_results ADD COLUMN standard_profile_code VARCHAR(16);
 ALTER TABLE relief_results ADD COLUMN standard_refs_json JSONB;
@@ -206,13 +246,23 @@ ALTER TABLE relief_results ADD COLUMN pending_review BOOLEAN NOT NULL DEFAULT FA
 ALTER TABLE relief_results ADD COLUMN migrated_default BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE relief_results ADD COLUMN override_reason TEXT;
 ALTER TABLE relief_results ADD COLUMN override_approval_json JSONB;
+-- B3 修复
+ALTER TABLE relief_results ADD CONSTRAINT relief_override_paired_chk CHECK (
+    (override_reason IS NULL AND override_approval_json IS NULL) OR
+    (override_reason IS NOT NULL AND override_approval_json IS NOT NULL)
+);
+-- S1 修复
+CREATE INDEX idx_relief_results_pending_review
+    ON relief_results(project_id, sign_status) WHERE pending_review = TRUE;
+CREATE INDEX idx_relief_results_migrated_default
+    ON relief_results(project_id, sign_status) WHERE migrated_default = TRUE;
 ```
 
 约束：
 - `standard_profile_code` 和 `standard_refs_json` 为 NOT NULL（P5-3 实施后）
 - `pending_review = TRUE` 表示标准配置变更后旧记录需复核，**自动触发**（详 §5.6）
 - `migrated_default = TRUE` 表示历史项目迁移默认值，**不作为正式默认**（仅作占位），需人工 `pending_review` 流程转为正式默认
-- `override_reason` 与 `override_approval_json` 在覆盖项目默认时必填（详 §5.2 + G7）
+- `override_reason` 与 `override_approval_json` 必须成对非空或成对空（`override_paired_chk`）；G7 在 API 层校验 422，DB 层兜底防绕过
 - record_hash 计算必须包含 `standard_profile_code` + `standard_refs_json`，canonical JSON 规范详 §3.4
 
 3.3 DataLineage formula_ref 条款级记录
@@ -257,7 +307,25 @@ formula_ref 统一结构，**禁止字符串拼接**：
 ---
 4.1 标准解析层（standard_resolver）
 
-在服务层之上增加 standard_resolver 层，由它决定调用哪套底层计算函数：
+在服务层之上增加 standard_resolver 层，由它决定调用哪套底层计算函数。
+
+**P5 阶段不可实现标准词表**（B2 修复：集中判定，散落拒绝与词表漂移隔离）：
+
+```python
+# app/services/standard_registry.py
+P5_UNIMPLEMENTABLE_STANDARDS: frozenset[str] = frozenset({
+    "HG_T_20570.2",   # 控制阀故障液体泄放量无完整公式（D-01 隐含 + G8）
+})
+# 后续 P5+ 补齐时仅追加此集合
+
+# PSV discipline mandatory 阶段（S3 修复：closed_valve 必填，不可静默放行）
+PSV_MANDATORY_STAGES: frozenset[str] = frozenset({
+    "fire_case", "closed_valve", "relief_area", "orifice",
+})
+PSV_OPTIONAL_STAGES: frozenset[str] = frozenset({
+    "two_phase", "pilot_operated",
+})
+```
 
 ```python
 class StandardResolver:
@@ -267,7 +335,11 @@ class StandardResolver:
         """
         解析项目当前生效的默认标准配置。
         若项目未配置 → raise PsvStandardNotConfiguredError (422, G1)
-        若 closed_valve.status == 'unsupported_p5' → 不在此处拒绝，按请求工序级联拒绝（G8）
+        迁移占位（migrated_default=TRUE）经人工复核前不可被 resolve 选中（B1 修复）
+
+        SQL 实现：SELECT ... WHERE project_id=? AND discipline=? AND is_default=TRUE
+                       AND migrated_default=FALSE AND effective_to IS NULL
+        命中 `idx_pcs_project_discipline_default` 部分索引。
         """
         profile = self._repo.get_current_default(project_id, discipline)
         if profile is None:
@@ -280,24 +352,56 @@ class StandardResolver:
         self, profile: PsvStandardProfile, requested_stages: list[str]
     ) -> None:
         """
-        按请求工况级联检查 profile 能力。任一 unsupported 阶段 → 422 PSV_PROFILE_INSUFFICIENT
+        按请求工况级联检查 profile 能力。
+
+        B2 修复：双判定
+        (1) ref.standard ∈ P5_UNIMPLEMENTABLE_STANDARDS → 拒绝
+        (2) ref.status == "unsupported_p5" → 拒绝
+        任一 unsupported 阶段 → 422 PSV_PROFILE_INSUFFICIENT
+
+        S3 修复：mandatory 阶段缺失 → 422 PSV_PROFILE_INSUFFICIENT（不可静默放行）
+        optional 阶段缺失 → 跳过（不报错）
         """
+        all_known = PSV_MANDATORY_STAGES | PSV_OPTIONAL_STAGES
         for stage in requested_stages:
-            ref = profile.standard_refs.get(stage)
-            if ref is None:
-                continue
-            if ref.get("status") == "unsupported_p5":
+            if stage not in all_known:
                 raise PsvProfileInsufficientError(
                     project_id=profile.project_id,
                     discipline=profile.discipline,
                     profile_code=profile.profile_code,
                     insufficient_stage=stage,
-                    standard=ref["standard"],
-                    version=ref["version"],
+                    standard="(unknown_stage)",
+                    version="-",
+                    reason=f"未定义的计算阶段 {stage}",
+                    remediation=[f"请求阶段必须在 {sorted(all_known)} 之内"]
+                )
+            ref = profile.standard_refs.get(stage)
+            if ref is None:
+                if stage in PSV_MANDATORY_STAGES:
+                    raise PsvProfileInsufficientError(
+                        project_id=profile.project_id,
+                        discipline=profile.discipline,
+                        profile_code=profile.profile_code,
+                        insufficient_stage=stage,
+                        standard="(missing_in_profile)",
+                        version="-",
+                        reason=f"mandatory 阶段 {stage} 在 profile 中缺失",
+                        remediation=[f"为 {stage} 配置标准（GB profile 必带 status=unsupported_p5）"]
+                    )
+                continue  # optional 阶段缺失：跳过
+            standard = ref.get("standard")
+            if standard in P5_UNIMPLEMENTABLE_STANDARDS or ref.get("status") == "unsupported_p5":
+                raise PsvProfileInsufficientError(
+                    project_id=profile.project_id,
+                    discipline=profile.discipline,
+                    profile_code=profile.profile_code,
+                    insufficient_stage=stage,
+                    standard=standard,
+                    version=ref.get("version", "-"),
                     reason=ref.get("reason", "原标准未提供完整计算公式"),
                     remediation=[
                         "改用 CUSTOM profile，closed_valve 指定 API_521 并附审批依据",
-                        "或将 closed_valve 工况排除在本项目 PSV 计算范围外"
+                        "或将此工况排除在本项目 PSV 计算范围外"
                     ]
                 )
 ```
@@ -418,6 +522,14 @@ POST /api/v1/psv/calculate-relief
 - 项目**未配置**任何 profile + 请求任意 code → 422 PSV_STANDARD_NOT_CONFIGURED（**不**绕项目级配置；**不**自动使用 API 默认）
 - 覆盖的 `standard_profile_code` 必须是项目**已配置的 profile**（不是内置模板）；内置模板不可绕过项目级审批
 
+**判定顺序**（S5 修复：明确 G2 vs G7 优先级）：
+1. **权限检查**（G2）→ 无权限 403 PSV_STANDARD_OVERRIDE_FORBIDDEN（**优先返回**）
+2. **审批依据检查**（G7）→ 有权限但缺 `override_reason`/`override_approval` → 422 PSV_OVERRIDE_APPROVAL_REQUIRED
+3. **Profile 能力检查**（G8/G9/G10/G12）→ 422 PSV_PROFILE_INSUFFICIENT / PSV_TWO_PHASE_GB_UNSUPPORTED / PSV_PILOT_UNSUPPORTED
+4. **计算执行**
+
+G2 优先于 G7 的理由：未授权者不应通过错误信息探测系统状态（避免"缺审批依据"等错误提示泄露系统内部能力存在性）。G2 也优先于 G8（capability 检查需要先通过权限），否则无权用户会收到 422 而非 403，泄露存在的能力。
+
 5.3 响应与落库
 
 ```json
@@ -451,7 +563,8 @@ GET /api/v1/psv/relief-summary?project_id=...
 
 `standard_refs_json` 与 `formula_ref_json` 在 API 层使用 JSON Schema 校验：
 
-- `standard_refs_json` 必填键按 discipline 区分；PSV discipline 必填 `fire_case` + `relief_area` + `orifice`，可选 `closed_valve` / `two_phase` / `pilot_operated`
+- `standard_refs_json` 必填键按 discipline 区分；**S3 修复**：PSV discipline 必填 `fire_case` + `closed_valve` + `relief_area` + `orifice`（与 §4.1 `PSV_MANDATORY_STAGES` 对齐），可选 `two_phase` / `pilot_operated`
+- **GB profile 必须显式写 closed_valve**：`{"standard": "HG_T_20570.2", "version": "1995", "status": "unsupported_p5", "reason": "..."}`，否则 schema 校验失败
 - 每个 `{standard, version, clause?}` 子对象必填 `standard` + `version`，`clause` 可选但 `fire_case`（GB 路径）必填
 - `status` 字段仅允许 `unsupported_p5` 或缺省；缺省 = 支持
 - `orifice_table_status` 仅允许 `incomplete_fallback` 或缺省；缺省 = 完整
@@ -482,6 +595,7 @@ GET /api/v1/psv/relief-summary?project_id=...
 | **G9** | 项目未配置任何 profile + 请求任意 `standard_profile_code` | 422 PSV_STANDARD_NOT_CONFIGURED（**不**绕项目级配置；**不**自动使用 API 默认） |
 | **G10** | GB profile + 请求包含 two_phase 工况 | 422 PSV_TWO_PHASE_GB_UNSUPPORTED（D-06 转 P5+） |
 | G11 | 同一 (project_id, discipline) 同时存在多个 `is_default = TRUE` | EXCLUDE 约束报错（写入时拦截） |
+| **G12**（V1.2 新增） | GB/CUSTOM profile + `pilot_operated.enabled = TRUE` + 请求包含 pilot_operated 工况 | 422 PSV_PILOT_UNSUPPORTED（D-07 转 P5+；**统一 422 不再用 501**） |
 
 禁止隐式回退 API。项目未配置时，计算请求必须返回 422，不得自动使用 API 作为默认。
 
@@ -499,15 +613,20 @@ GET /api/v1/psv/relief-summary?project_id=...
 | **GB 路径两相流** | 拒绝路径：项目 GB profile + two_phase → 422 PSV_TWO_PHASE_GB_UNSUPPORTED | 响应码与错误码断言 |
 | **GB/T 12241 孔口选型（降级路径）** | 输出 `required_diameter_mm` + `orifice_selection_degraded=true` + 服务端 WARN 日志 | 响应体断言 + 日志断言 |
 | **CUSTOM 混合（fire_case=GB + closed_valve=API_521）** | 正常返回，`formula_ref.fire_case` 指向 GB/T 150.1，`formula_ref.closed_valve` 指向 API 521 | formula_ref 字段断言 |
-| **GB/T 28778 先导式** | 拒绝路径：项目 GB profile + pilot_operated 启用 → 501 PSV_PILOT_UNSUPPORTED | 响应码与错误码断言 |
-| **G1-G11 门禁** | 每条 1 测试 | 11 测试 |
+| **GB/T 28778 先导式** | 拒绝路径：项目 GB profile + pilot_operated 启用 → **422 PSV_PILOT_UNSUPPORTED**（V1.2 统一 422，**不再用 501**） | 响应码与错误码断言 |
+| **G1-G12 门禁**（V1.2 更新） | 每条 1 测试 | 12 测试 |
 | **历史迁移 migrated_default 复核** | 迁移后既有记录 `migrated_default = TRUE` + `pending_review = TRUE`，**不**作为正式默认 | DB 状态断言 |
 | **标准配置变更 pending_review** | 项目级 profile 变更 → 旧记录 `pending_review = TRUE`（自动） | DB 状态断言 |
 | **record_hash 跨标准差异** | 同一输入 × API vs GB → 两条独立记录，record_hash 不同 | hash 断言 |
 | **override 权限与审批** | 覆盖默认 + 无 `override_reason` → 422 PSV_OVERRIDE_APPROVAL_REQUIRED；无权限 → 403 | 响应码断言 |
 | **canonical JSON 规范** | 同标准同输入跨项目 hash 一致；不同 standard 字段 hash 不同 | hash 断言 |
 
-合计新增测试 ≥25 个（V1.0 估 ≥15 偏少；现按 G1-G11 11 门禁 + 上表 8 标准/环节 = ≥19，外加 canonical JSON 1 + record_hash 1 + pending_review 1 + migrated_default 1 + override 权限 1 = ≥24，留 1 余量）。P5 验收基线：原 ≥1650（V1.0 误写为 ≥1665）调整为 **净增 ≥25**，对应 P5 启动基线 1662 → ≥1687。
+合计新增测试 **24 个**（S2 修复对账）：
+- G1-G12 门禁：12 条
+- §7 验收表标准/环节：8 条（HG/T 20570.2 GB 拒绝 / HG/T 20570.2 CUSTOM 拒绝 / GB 两相流拒绝 / GB 孔口降级 / CUSTOM 合法 / GB/T 28778 拒绝 / migrated_default 复核 / pending_review 自动）
+- 辅助：4 条（record_hash canonical 跨项目 / record_hash 跨标准 / override 权限与审批 / **closed_valve mandatory 缺失 422** S3）
+
+P5 验收基线：P5 启动基线 1662 + 净增 ≥24 = **≥1686**。
 
 §8 对 P5 计划的修改
 ---
@@ -565,14 +684,19 @@ V1.0 估"≥15 个"偏少且 V1.0 误写 P5 验收基线为"≥1650 → ≥1665"
 - G9 项目未配置 + 任意 code → 422
 - G10 GB + two_phase → 422 PSV_TWO_PHASE_GB_UNSUPPORTED
 - G11 EXCLUDE 约束并发写入 → IntegrityError
+- **G12 GB + pilot_operated 启用 + 请求 pilot_operated → 422 PSV_PILOT_UNSUPPORTED**（V1.2 新增；统一 422 不再 501）
+- **closed_valve mandatory 缺失 → 422 PSV_PROFILE_INSUFFICIENT**（V1.2 新增；S3 修复：GB profile 不写 closed_valve 时请求 closed_valve 拒绝）
+- **btree_gist 扩展存在性 + 标准词表含 HG_T_20570.2**（V1.2 新增；B2 + B4 修复：resolver 双判定依赖此扩展 + 词表）
 - HG/T 20570.2 拒绝路径：项目 GB profile + 仅 fire_case → 正常；+ closed_valve → 422
+- HG/T 20570.2 CUSTOM 拒绝路径：CUSTOM closed_valve=HG_T_20570.2 + 审批齐全 → 仍 422（审批不解锁能力，B2 修复）
 - GB 两相流拒绝路径：项目 GB profile + relief_area + two_phase → 422
 - GB 孔口降级：项目 GB profile + orifice → `orifice_selection_degraded=true` + 服务端 WARN + 不可采购标记
 - CUSTOM 合法路径：项目 CUSTOM closed_valve=API_521 + 审批齐全 → 正常
 - record_hash canonical JSON 跨项目一致性
 - record_hash 跨标准差异
 - override 权限：无权限 → 403；有权限 + 无 override_reason → 422
-- migrated_default 不可作正式默认：扫描 DB 默认查询排除 `migrated_default = TRUE`
+- override 成对 CHECK 兜底：直接 SQL UPDATE 仅写 override_reason 不写 approval → DB IntegrityError（B3 修复）
+- migrated_default 不可作正式默认：profile 表 migrated_default=TRUE 不被 resolver 选中（SQL `WHERE migrated_default=FALSE` 过滤 + `idx_pcs_project_discipline_default` 部分索引；B1 修复）
 - pending_review 自动触发：项目级 profile 变更后旧记录 `pending_review = TRUE`
 
 §9 OPEN 项
@@ -602,16 +726,18 @@ V1.0 估"≥15 个"偏少且 V1.0 误写 P5 验收基线为"≥1650 → ≥1665"
 ---
 11.1 迁移范围
 
-历史项目（V1.0 实施前已存在的项目）需迁移 `project_calculation_standard_profiles` 记录：
+历史项目（V1.0 实施前已存在的项目）需迁移 `project_calculation_standard_profiles` 记录（V1.2 明确：migrated_default 写在 profile 表，与 §3.1 schema 对齐）：
 
-- 写入 `profile_code = 'API'` + `is_default = TRUE` + `migrated_default = TRUE` + `effective_from = NOW()` + `effective_to = NULL`
+- 写入 `profile_code = 'API'` + `is_default = TRUE` + **`migrated_default = TRUE`** + `effective_from = NOW()` + `effective_to = NULL` + `migrated_at = NOW()`
 - 扫描既有 `psv_results` / `relief_results` 中 `standard_profile_code IS NULL` 的记录 → 标记 `migrated_default = TRUE` + `pending_review = TRUE`
+- **resolver 过滤语义**：`migrated_default = TRUE` 的 profile 行 `is_default = TRUE` 仍在 DB 落库（便于人工复核与审计），但 resolver SQL `WHERE migrated_default = FALSE` 排除，经人工复核置 `migrated_default = FALSE` 后方可被 resolve 选中
 
 11.2 迁移脚本
 
 `alembic/versions/p5_psv_standard_profiles_migrate.py`：
 
-1. CREATE TABLE `project_calculation_standard_profiles`（含 EXCLUDE 约束）
+1. **CREATE EXTENSION IF NOT EXISTS btree_gist;**（B4 修复：必须在 CREATE TABLE 之前；需 DB 用户有 CREATE EXTENSION 权限）
+2. CREATE TABLE `project_calculation_standard_profiles`（含 EXCLUDE 约束 + `migrated_default` 列）
 2. ALTER TABLE `psv_results` / `relief_results` ADD COLUMN 7 列
 3. INSERT 默认 API 配置到所有历史项目（`migrated_default = TRUE`）
 4. UPDATE 既有 `psv_results` / `relief_results` 记录：`migrated_default = TRUE` + `pending_review = TRUE`
