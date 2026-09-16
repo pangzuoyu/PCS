@@ -1,9 +1,8 @@
 ---
-status: accepted
+status: proposed
 date: 2026-09-15
 revised: 2026-09-16
 version: V1.1
-accepted_date: 2026-09-15
 ---
 
 # PSV 多标准引擎：项目级显式配置 + 双路径隔离 + 公式溯源
@@ -155,20 +154,11 @@ GB/T 12241-2021 §8 安全阀尺寸的确定所需孔口表完整录入转 P5+�
 
 ### 决策 11：验收基准——按标准独立 golden，禁止共用阈值
 
-| 标准 | 验收基准 | 阈值 |
-|---|---|---|
-| API 521 火灾 | API 521 算例 / 商业软件 | ≤2% |
-| GB/T 150.1 附录 B 火灾 | GB 标准算例 / 工艺室手算 | 由工艺室确认（建议 ≤5%） |
-| API 520 泄放面积 | API 520 算例 / HYSYS | ≤2% |
-| GB/T 12241 泄放面积 | 标准算例 | 由工艺室确认 |
-| API 520 两相流 | HYSYS / 文献 | ≤5% |
-| GB/T 28778 先导式 | 标准算例 | P5+ 再定 |
-
-每个标准必须独立 golden，不能共用阈值。SUP-P5-PSV-001 §7 锁定的 15 例门禁测试须独立存在。
+每个标准必须独立 golden，不能共用阈值。SUP-P5-PSV-001 §7 锁定的 15 例门禁测试须独立存在。V1.1 修订（2026-09-16，工艺室 + 标准负责人联签）给出分层阈值三表：
 
 **V1.1 修订（2026-09-16，工艺室 + 标准负责人联签）**：
 
-V1.0 决策 11 中 GB 路径 3 行阈值写"由工艺室确认"，未给具体数字。2026-09-16 经工艺室邮件核验 + 标准对比分析，给出**分层阈值三表**：
+V1.0 决策 11 中 GB 路径 3 行阈值写"由工艺室确认"，未给具体数字。2026-09-16 经工艺室邮件核验 + 标准对比分析（数值分析工作底稿归档至 `docs/adr/signatures/0028-v1.1-标准对比分析.md`，含 API 521 vs GB/T 150.1 附录 B 润湿面积 / 修正系数 / 公式结构三处差异），给出**分层阈值三表**：
 
 **核心声明（不可推翻）**：
 
@@ -207,7 +197,11 @@ GB/T 12241 对排量试验测量误差要求 ±2% / 排量系数重复性 ±5%�
 **修订落地路径**：
 
 1. SUP-P5-PSV-001 §7 验收表 GB 分支行（GB/T 150.1 附录 B 火灾 / GB/T 12241 泄放面积）按分层阈值三表展开
-2. P5 计划 §613 / §793 / §800 / §801 GB 阈值引用同步更新
+2. P5 计划中以下 task 的 GB 阈值引用同步更新：
+   - Task 13（火灾工况）测试基线
+   - Task 14（其他工况）GB 路径测试
+   - Task 16（泄放面积）GB 路径测试
+   - Task 17（孔口选型）GB 降级路径测试
 3. Task 13 / Task 14 / Task 16 / Task 17 测试基线按三表分层各自独立写 golden
 4. 工艺室 + 标准负责人联签邮件归档至 `docs/adr/signatures/0028-v1.1-工艺室联签.md`
 
@@ -215,7 +209,7 @@ GB/T 12241 对排量试验测量误差要求 ±2% / 排量系数重复性 ±5%�
 
 - **新表** 1 张：`project_calculation_standard_profiles`
 - **加列**：`psv_results` / `relief_results` 各加 `standard_profile_code` / `standard_refs_json` / `formula_ref_json`（P5-3 实施后 NOT NULL）
-- **新文件** 7 个（含迁移 + ADR + 校验测试）：
+- **新文件** 9 个（含迁移 + ADR + 校验测试 + 决策 11 联签归档）：
   - `alembic/versions/p5_psv_standard_profiles.py` — 新表迁移（仅加列 + 默认值，NOT NULL 由 Task 18 强制）
   - `app/services/psv/standard_resolver.py` — 标准解析层
   - `app/services/psv/formula_ref_types.py` — TypedDict 集中定义 + 校验函数
@@ -223,6 +217,8 @@ GB/T 12241 对排量试验测量误差要求 ±2% / 排量系数重复性 ±5%�
   - `tests/services/psv/test_standard_resolver.py` — 解析层测试
   - `tests/services/psv/test_relief_area.py` — 含 formula_ref 校验测试（不单独建 test_formula_ref_validation.py，避免碎片化）
   - `docs/adr/0028-psv-multi-standard-engine.md` — 本 ADR 本身
+  - `docs/adr/signatures/0028-v1.1-工艺室联签.md` — 决策 11 GB 分层阈值工艺室 + 标准负责人联签邮件归档
+  - `docs/adr/signatures/0028-v1.1-标准对比分析.md` — 决策 11 修订依据：API 521 vs GB/T 150.1 附录 B 润湿面积 / 修正系数 / 公式结构三处差异的数值分析工作底稿
 - **新枚举** 1 个：`PsvStandardProfileCode`
 - **新异常** 6 个：`PsvStandardNotConfiguredError` / `PsvStandardOverrideForbiddenError` / `PsvCustomProfileApprovalRequiredError` / `PsvCustomProfileSelfApprovalForbiddenError` / `PsvFormulaRefInconsistencyError` / `PsvPilotOperatedNotSupportedError`
 - **新 metric** 1 个：`PSV_FORMULA_REF_INCONSISTENCY_COUNTER`
