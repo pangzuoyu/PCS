@@ -310,3 +310,26 @@ class TwoPhaseCheck(str, enum.Enum):
     WARNING = "WARNING"
     FAIL = "FAIL"
 
+
+class ReliefScenario(str, enum.Enum):
+    """泄放工况（SUP-008 §8.3.2 + P5-OPEN-005，relief_results.relief_scenario）。
+
+    6 态（合并 P5 spec）：
+    - FIRE 火灾
+    - CLOSED_VALVE 出口阀关闭
+    - REACTION_LOSS_OF_CONTROL 反应失控
+    - BLOCKED_OUTLET 出口堵塞
+    - COOLING_FAILURE 冷却失效
+    - UPSET 异常扰动（SUP-008 §8.3.2 原 4 态无 UPSET；P5-OPEN-005 扩展为 6 态）
+
+    历史：SUP-008 §8.3.2 仅列 4 态（FIRE/BLOCKED_OUTLET/COOLING_FAILURE/POWER_FAILURE）；
+    POWER_FAILURE 在 P5-OPEN-005 合并版改为 UPSET（覆盖更广）。当前采纳 P5-OPEN-005 6 态。
+    """
+
+    FIRE = "FIRE"
+    CLOSED_VALVE = "CLOSED_VALVE"
+    REACTION_LOSS_OF_CONTROL = "REACTION_LOSS_OF_CONTROL"
+    BLOCKED_OUTLET = "BLOCKED_OUTLET"
+    COOLING_FAILURE = "COOLING_FAILURE"
+    UPSET = "UPSET"
+

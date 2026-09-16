@@ -21,6 +21,7 @@ from app.models.enums import (
     FlowPattern,
     PipeType,
     PumpOperation,
+    ReliefScenario,
     TwoPhaseCheck,
 )
 from app.models.mixins import RecordMixin, TaggedRecordMixin
@@ -192,6 +193,117 @@ class VesselResult(TaggedRecordMixin, Base):
         nullable=False,
         default=DesignStage.BASIC,
         comment="设计阶段 BASIC/DETAIL（OPEN-009）",
+    )
+
+
+class ReliefResult(RecordMixin, Base):
+    """泄放计算结果（SUP-008 §8.3.2 + P5-OPEN-005，psv_results 选型前置）。
+
+    泄放量计算输入 source_equipment_id（多态：reactor/vessel/heat exchanger），
+    输出 required_relief_area + selected_psv_id 反查 psv_results。relief_results
+    自身不输出设备记录——只承载 API 521 / GB/T 150.1 附录 B 泄放量计算。
+
+    design_stage 不下沉（§8.4 OPEN-009 限 VESSEL/PSV/COLUMN，relief_results 是
+    PSV 选型上游，非 COLUMN）；psv_results 已带 design_stage。
+
+    RecordMixin 全套：sign_status/record_hash/approval_* 与其他 16 张计算表一致；
+    workspace_id 业务隔离（SUP-008 §8.3.2 未显式列出，按 P5-0-1a 决策 4 加）。
+    """
+
+    __tablename__ = "relief_results"
+    relief_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    source_equipment_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid,
+        index=True,
+        comment="源设备（多态 FK：reactor/vessel/heat_exchanger，不加 DB 级 FK）",
+    )
+    relief_scenario: Mapped[ReliefScenario] = mapped_column(
+        Enum(ReliefScenario, name="relief_scenario_enum", native_enum=True),
+        nullable=False,
+        comment="泄放工况（SUP-008 §8.3.2 + P5-OPEN-005 合并 6 态）",
+    )
+    reactor_volume: Mapped[float | None] = mapped_column(Float, comment="反应器/容器总体积 m³")
+    reactor_diameter: Mapped[float | None] = mapped_column(Float, comment="直径 m")
+    reactor_height: Mapped[float | None] = mapped_column(Float, comment="高度 m")
+    gas_tight_pressure: Mapped[float | None] = mapped_column(Float, comment="气密试验压力 Bar")
+    safety_factor: Mapped[float] = mapped_column(
+        Float, nullable=False, default=1.2, comment="安全系数（默认 1.2）"
+    )
+    relief_rate_tier_1: Mapped[float] = mapped_column(
+        Float, nullable=False, default=0.7, comment="第一档泄放率 MPa/min（API 521 推荐 0.7）"
+    )
+    relief_rate_tier_2: Mapped[float] = mapped_column(
+        Float, nullable=False, default=1.4, comment="第二档泄放率 MPa/min（API 521 推荐 1.4）"
+    )
+    relief_rate_tier_3: Mapped[float] = mapped_column(
+        Float, nullable=False, default=2.1, comment="第三档泄放率 MPa/min（API 521 推荐 2.1）"
+    )
+    required_relief_area: Mapped[float | None] = mapped_column(
+        Float, comment="所需泄放面积 cm²（API 521 公式输出）"
+    )
+    selected_psv_id: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid,
+        ForeignKey("psv_results.psv_id"),
+        comment="选型 PSV（反查 psv_results）；可空：未选型前",
+    )
+
+
+class ColumnSizingResult(RecordMixin, Base):
+    """塔径核算结果（SUP-008 §8.3.3 + P5-OPEN-005，VESSEL/PSV/COLUMN 三表之一）。
+
+    VESSEL/PSV/COLUMN §8.4 OPEN-009：design_stage 列下沉（P5-0-1a 决策）。
+
+    决策说明：
+    - RecordMixin 而非 TaggedRecordMixin（SUP-008 §8.3.3 业务位号字段是 column_tag
+      非 tag_number；tag_number 留空；service 层强制 (project_id, column_tag) 唯一）
+    - 与 vessel_results / psv_results 同构：design_stage(enum, NOT NULL default BASIC)
+    """
+
+    __tablename__ = "column_sizing"
+    column_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    column_tag: Mapped[str] = mapped_column(String(50), nullable=False)
+    column_name: Mapped[str | None] = mapped_column(String(200))
+    hysys_flooding_percent: Mapped[float | None] = mapped_column(Float, comment="HYSYS 泛点率 %")
+    hysys_calc_diameter_mm: Mapped[float | None] = mapped_column(
+        Float, comment="HYSYS 计算塔径 mm"
+    )
+    selected_diameter_mm: Mapped[float | None] = mapped_column(Float, comment="选取塔径 mm")
+    reference_diameter_mm: Mapped[float | None] = mapped_column(Float, comment="参考塔径 mm")
+    tray_spacing_mm: Mapped[float | None] = mapped_column(Float, comment="板间距 mm")
+    tray_count: Mapped[int | None] = mapped_column(Integer, comment="实际塔板数")
+    theoretical_tray_count: Mapped[int | None] = mapped_column(
+        Integer, comment="理论塔板数"
+    )
+    overall_efficiency: Mapped[float | None] = mapped_column(Float, comment="总板效率 %")
+    calc_date: Mapped[DateTime | None] = mapped_column(DateTime, comment="计算日期")
+    # P5-OPEN-005 §8.4 OPEN-009：VESSEL/PSV/COLUMN 三表 design_stage 下沉
+    design_stage: Mapped[DesignStage] = mapped_column(
+        Enum(DesignStage, name="design_stage_enum", native_enum=True),
+        nullable=False,
+        default=DesignStage.BASIC,
+        comment="设计阶段 BASIC/DETAIL（§8.4 OPEN-009）",
+    )
+
+
+class MixerResult(RecordMixin, Base):
+    """混合器压降结果（SUP-008 §8.3.5 + P5-OPEN-005）。
+
+    混合器（MI-101/MI-201 等）压降核算，2 路组分汇合 + check_result 校核。
+    business 字段 mixer_tag 留 RecordMixin tag_number 空（与 column_sizing 同模式）；
+    (project_id, mixer_tag) 唯一性由 service 层强制。
+    """
+
+    __tablename__ = "mixer_results"
+    mixer_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    mixer_tag: Mapped[str] = mapped_column(String(50), nullable=False)
+    mixer_name: Mapped[str | None] = mapped_column(String(200))
+    component_1_name: Mapped[str | None] = mapped_column(String(100), comment="组分 1 名称")
+    component_1_flow: Mapped[float | None] = mapped_column(Float, comment="流率 m³/h")
+    component_2_name: Mapped[str | None] = mapped_column(String(100), comment="组分 2 名称")
+    component_2_flow: Mapped[float | None] = mapped_column(Float, comment="流率 m³/h")
+    pressure_drop_kpa: Mapped[float | None] = mapped_column(Float, comment="压降 kPa")
+    check_result: Mapped[str | None] = mapped_column(
+        String(20), comment="校核 PASS/WARNING/FAIL（与 check_result_enum 同语义字符串）"
     )
 
 
