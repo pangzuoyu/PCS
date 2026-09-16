@@ -1201,6 +1201,22 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-09-16T04:19:08.111849Z"
+    },
+    {
+      "id": "bug-002",
+      "timestamp": "2026-09-16T16:45:00Z",
+      "error_message": "alembic.ProgrammingError: column tag_number of relation column_sizing already exists",
+      "file": "pcs-backend/alembic/versions/p5_0_4a_pk_rename_and_tag_number.py",
+      "root_cause": "Q2 路径 A 实施误判：DICT V3.3 字典约定要求 column_sizing 位号统一为 tag_number，但 P5-0-1a migration 同时创建了 column_tag（业务 NOT NULL+UNIQUE）+ tag_number（RecordMixin mixin nullable）。我假设是 RENAME COLUMN，但实际 tag_number 已存在。正确路径：drop UNIQUE → drop column column_tag → alter tag_number NOT NULL → create UNIQUE(project_id, tag_number)。",
+      "fix": "改 alembic migration DDL：op.drop_constraint(uq_column_sizing_tag) + op.drop_column(column_tag) + op.alter_column(tag_number, nullable=False) + op.create_unique_constraint(project_id, tag_number)。同步修改 test_p5_0_4a_pk_rename.py 的 alembic 迁移契约断言。",
+      "tags": [
+        "ddl-design",
+        "p5-0-4a",
+        "alembic",
+        "column_sizing"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-16T16:45:00Z"
     }
   ]
 }

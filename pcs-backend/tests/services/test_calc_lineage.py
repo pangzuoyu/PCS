@@ -61,13 +61,21 @@ def _make_record(**overrides) -> PipingResult:
 
 
 def test_registry_contains_all_calc_record_types() -> None:
-    """registry 覆盖 P4-TASK0 完整化的全部 5 类 record（P4 批 0 4 类 + TwoPhaseResult）。"""
+    """registry 覆盖 P5-0-1a 落地后的全部 8 类 record。
+
+    P4-TASK0 5 类 + P5-0-1a 新增 3 类（ReliefResult / ColumnSizingResult / MixerResult）。
+    Task 24 (P5-0-5) 落地后扩展为 9 类。
+    """
     assert set(RECORD_TYPE_REGISTRY) == {
         "PipingResult",
         "PumpResult",
         "FlashResult",
         "PipeNetworkResult",
         "TwoPhaseResult",
+        # P5-0-1a 新增（2026-09-16）
+        "ReliefResult",
+        "ColumnSizingResult",
+        "MixerResult",
     }
 
 

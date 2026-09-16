@@ -31,7 +31,7 @@ class _FakeSession:
 
 def _make_two_phase(**overrides) -> TwoPhaseResult:
     base = {
-        "two_phase_calc_id": uuid.uuid4(),
+        "two_phase_id": uuid.uuid4(),
         "input_json": {"d": 0.1, "rho_l": 800.0},
         "output_json": {"dp": 1.5},
         "Bx": 0.5,

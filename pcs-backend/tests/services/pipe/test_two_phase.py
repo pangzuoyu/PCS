@@ -353,14 +353,14 @@ async def test_persist_two_phase_result_roundtrip():
     async with factory() as session:
         row = await persist_two_phase_result(session, inp, res, formula_version="LM-Baker-v1.0")
         await session.commit()
-        pk = row.two_phase_calc_id
+        pk = row.two_phase_id
 
     assert isinstance(pk, uuid.UUID)
 
     # 重新读回，断言所有 13 字段
     async with factory() as session:
         result = await session.execute(
-            text("SELECT * FROM two_phase_results WHERE two_phase_calc_id = :pk"),
+            text("SELECT * FROM two_phase_results WHERE two_phase_id = :pk"),
             {"pk": str(pk)},
         )
         record = result.mappings().one()
@@ -395,11 +395,11 @@ async def test_persist_two_phase_result_formula_version_default():
     async with factory() as session:
         row = await persist_two_phase_result(session, inp, res)
         await session.commit()
-        pk = row.two_phase_calc_id
+        pk = row.two_phase_id
 
     async with factory() as session:
         result = await session.execute(
-            text("SELECT calc_method FROM two_phase_results WHERE two_phase_calc_id = :pk"),
+            text("SELECT calc_method FROM two_phase_results WHERE two_phase_id = :pk"),
             {"pk": str(pk)},
         )
         method = result.scalar_one()

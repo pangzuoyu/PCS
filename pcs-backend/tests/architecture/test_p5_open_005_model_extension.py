@@ -74,7 +74,7 @@ RELIEF_RESULT_COLUMNS: frozenset[str] = frozenset({
 
 COLUMN_SIZING_COLUMNS: frozenset[str] = frozenset({
     "column_id",
-    "column_tag",
+    "tag_number",
     "column_name",
     "hysys_flooding_percent",
     "hysys_calc_diameter_mm",

@@ -184,7 +184,7 @@ class FlareSystemResult(TaggedRecordMixin, Base):
 
 class VesselResult(TaggedRecordMixin, Base):
     __tablename__ = "vessel_results"
-    vessel_calc_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    vessel_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     input_json: Mapped[dict] = mapped_column(JSONB)
     output_json: Mapped[dict] = mapped_column(JSONB)
     # P4-0-2 OPEN-009 设计阶段
@@ -257,11 +257,18 @@ class ColumnSizingResult(RecordMixin, Base):
     - RecordMixin 而非 TaggedRecordMixin（SUP-008 §8.3.3 业务位号字段是 column_tag
       非 tag_number；tag_number 留空；service 层强制 (project_id, column_tag) 唯一）
     - 与 vessel_results / psv_results 同构：design_stage(enum, NOT NULL default BASIC)
+
+    **过渡态**（P5-0 批约束 1，2026-09-16 用户裁决 Q2 路径 A）：
+    column_tag 列是 P5-0-1a 临时命名。Task 4（P5-0-4 PK rename + flatten）将统一改造为
+    tag_number mixin 字段，与 16 张计算表一致。改造方式：
+    - alembic: ALTER TABLE column_sizing RENAME COLUMN column_tag TO tag_number
+    - ORM: Mapped["column_tag"] → Mapped["tag_number"]（保留 column_tag 业务字段名作为兼容）
+    - 影响面：迁移文件 + ORM + 任何引用 column_tag 的 service / test
     """
 
     __tablename__ = "column_sizing"
     column_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    column_tag: Mapped[str] = mapped_column(String(50), nullable=False)
+    tag_number: Mapped[str] = mapped_column(String(50), nullable=False)
     column_name: Mapped[str | None] = mapped_column(String(200))
     hysys_flooding_percent: Mapped[float | None] = mapped_column(Float, comment="HYSYS 泛点率 %")
     hysys_calc_diameter_mm: Mapped[float | None] = mapped_column(
@@ -316,7 +323,7 @@ class TwoPhaseResult(Base):
     """
 
     __tablename__ = "two_phase_results"
-    two_phase_calc_id: Mapped[uuid.UUID] = mapped_column(
+    two_phase_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
     )
     input_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
@@ -346,14 +353,14 @@ class TwoPhaseResult(Base):
 
 class SepEquipResult(TaggedRecordMixin, Base):
     __tablename__ = "sep_equip_results"
-    sep_calc_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    sep_equip_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     input_json: Mapped[dict] = mapped_column(JSONB)
     output_json: Mapped[dict] = mapped_column(JSONB)
 
 
 class HeatResult(TaggedRecordMixin, Base):
     __tablename__ = "heat_results"
-    heat_calc_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    heat_exchanger_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     exchanger_category: Mapped[str] = mapped_column(String(30), comment="SHELL_TUBE/AIR_COOL/PLATE")
     air_side_json: Mapped[dict | None] = mapped_column(JSONB)
     design_conditions_json: Mapped[dict] = mapped_column(JSONB)
@@ -364,7 +371,7 @@ class HeatResult(TaggedRecordMixin, Base):
 
 class CvResult(TaggedRecordMixin, Base):
     __tablename__ = "cv_results"
-    cv_calc_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cv_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     cv_value: Mapped[float] = mapped_column(Float)
     flow_rate: Mapped[float] = mapped_column(Float)
     pressure_drop: Mapped[float] = mapped_column(Float)
@@ -375,7 +382,7 @@ class CvResult(TaggedRecordMixin, Base):
 
 class RestrictionResult(TaggedRecordMixin, Base):
     __tablename__ = "restriction_results"
-    orifice_calc_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    orifice_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     restriction_type: Mapped[str] = mapped_column(String(30), comment="ORIFICE/PLATE/...")
     input_json: Mapped[dict] = mapped_column(JSONB)
     output_json: Mapped[dict] = mapped_column(JSONB)
@@ -383,14 +390,14 @@ class RestrictionResult(TaggedRecordMixin, Base):
 
 class CoolingTowerResult(TaggedRecordMixin, Base):
     __tablename__ = "cooling_tower_results"
-    ct_calc_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    cooling_tower_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     input_json: Mapped[dict] = mapped_column(JSONB)
     output_json: Mapped[dict] = mapped_column(JSONB)
 
 
 class PsychroResult(TaggedRecordMixin, Base):
     __tablename__ = "psychro_results"
-    psychro_calc_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    psychro_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     calc_type: Mapped[str] = mapped_column(String(30))
     input_json: Mapped[dict] = mapped_column(JSONB)
     output_json: Mapped[dict] = mapped_column(JSONB)
@@ -398,7 +405,7 @@ class PsychroResult(TaggedRecordMixin, Base):
 
 class OpenChannelResult(TaggedRecordMixin, Base):
     __tablename__ = "open_channel_results"
-    channel_calc_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    open_channel_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     channel_type: Mapped[str] = mapped_column(String(30))
     cross_section_json: Mapped[dict] = mapped_column(JSONB)
     flow_rate: Mapped[float] = mapped_column(Float)
@@ -409,7 +416,7 @@ class OpenChannelResult(TaggedRecordMixin, Base):
 
 class FiltrationResult(TaggedRecordMixin, Base):
     __tablename__ = "filtration_results"
-    filter_calc_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    filter_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     filter_type: Mapped[str] = mapped_column(String(30))
     area: Mapped[float] = mapped_column(Float)
     cycle_time: Mapped[float] = mapped_column(Float, comment="h")

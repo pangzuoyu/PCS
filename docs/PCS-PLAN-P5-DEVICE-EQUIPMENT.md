@@ -101,7 +101,7 @@
 - Test: `tests/models/test_p5_pk_flatten.py`
 
 **接口**:
-- Produces: 10 表主键 rename（vessel_id→vessel_calc_id / heat_exchanger_id→heat_calc_id 等 DICT V3.3 §4.1）；P5 模块字段平铺或 `*_json` 子结构
+- Produces: 10 表主键 rename（**vessel_calc_id→vessel_id / heat_calc_id→heat_exchanger_id 等 DICT V3.3 §4.1**：移除 `_calc` 后缀，与 DICT V3.3 字典约定一致；V1.3 plan 文本写反了方向，2026-09-16 修订）；P5 模块字段平铺或 `*_json` 子结构
 
 **Steps**:
 1. RED: 主键 rename 后 ORM 字段名匹配测试 + P5 模块平铺字段或 data_sheet_json 写入读出测试
@@ -170,7 +170,7 @@
 - Create: `tests/services/vessel/test_vessel_recommend.py`
 
 **接口**:
-- Produces: `recommend_vessels(vessel_calc_id) -> list[VesselRecommendEntry]`（equipment_no / K_factor / D_min / similarity_pct）
+- Produces: `recommend_vessels(vessel_id) -> list[VesselRecommendEntry]`（equipment_no / K_factor / D_min / similarity_pct）
 
 **Steps**:
 1. RED: 写 EQUIP_LIB 匹配测试（接口尺寸 + 容器类型 + 工作压力量级）

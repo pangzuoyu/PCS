@@ -57,7 +57,7 @@ _PUMP_NEW_COLS = {
 # two_phase_results 13 字段（含 PK + JSONB + 业务 + 时间戳）
 # 注：Bx / By 是 PG 大小写敏感列（双字符全大写未自动小写）
 _TWO_PHASE_COLS = {
-    "two_phase_calc_id": ("uuid", None),
+    "two_phase_id": ("uuid", None),
     "input_json": ("jsonb", None),
     "output_json": ("jsonb", None),
     "Bx": ("double precision", None),
@@ -272,7 +272,7 @@ async def test_two_phase_results_thirteen_columns() -> None:
 @_ONLY_PCS_TEST
 @pytest.mark.asyncio
 async def test_two_phase_results_pk_is_uuid() -> None:
-    """two_phase_calc_id 是 uuid 类型 PK。"""
+    """two_phase_id 是 uuid 类型 PK。"""
     factory = get_async_session_factory()
     async with factory() as session:
         row = (
@@ -282,7 +282,7 @@ async def test_two_phase_results_pk_is_uuid() -> None:
                     SELECT data_type
                     FROM information_schema.columns
                     WHERE table_name = 'two_phase_results'
-                      AND column_name = 'two_phase_calc_id'
+                      AND column_name = 'two_phase_id'
                     """
                 )
             )
@@ -360,7 +360,7 @@ async def test_two_phase_results_persist_roundtrip_all_columns() -> None:
     async with factory() as session:
         row = await persist_two_phase_result(session, inp, res)
         await session.commit()
-        pk = row.two_phase_calc_id
+        pk = row.two_phase_id
 
     # SELECT 全部字段验证
     # 注：Bx / By 是 PG 大小写敏感列（双字符全大写未自动小写），必须双引号引用
@@ -368,12 +368,12 @@ async def test_two_phase_results_persist_roundtrip_all_columns() -> None:
         result = await session.execute(
             text(
                 """
-                SELECT two_phase_calc_id, input_json, output_json, "Bx", "By",
+                SELECT two_phase_id, input_json, output_json, "Bx", "By",
                        flow_pattern, two_phase_check,
                        liquid_velocity, gas_velocity, pressure_gradient,
                        void_fraction, calc_method, created_at
                 FROM two_phase_results
-                WHERE two_phase_calc_id = :pk
+                WHERE two_phase_id = :pk
                 """
             ),
             {"pk": str(pk)},
@@ -382,7 +382,7 @@ async def test_two_phase_results_persist_roundtrip_all_columns() -> None:
     got = dict(record)
 
     # PK + created_at
-    assert got["two_phase_calc_id"] == pk
+    assert got["two_phase_id"] == pk
     assert got["created_at"] is not None
 
     # 数值字段
