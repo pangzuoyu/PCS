@@ -1,8 +1,8 @@
 增补 SPEC：PSV 多标准（API / GB）项目级配置与计算引擎
 Spec 编号：SUP-P5-PSV-001
-版本：V1.2
+版本：V1.3
 日期：2026-09-16
-状态：修订（V1.1 评审反馈整改 + 提交重评）
+状态：修订（V1.2 评审反馈整改 + 提交重评）
 父 Spec：spec/工艺专用综合计算软件需求规格说明书 Web版 P5.md V1.3 §3.2.3
 关联计划：P5 设备计算模块（第二批）实施计划 V1.0 Task 13/14/16/17/18
 关联 ADR：ADR-0028（PSV 多标准引擎，accepted 2026-09-15）、ADR-0030（ChEDL 版本锁定，accepted 2026-09-15）
@@ -11,23 +11,38 @@ TODOS 关联：TODO-PSV-STD-001
 
 修订说明
 ---
+V1.3 相对 V1.2 解决以下问题：
+
+阻塞项（3）：
+- B5：`future_dated_forbidden_chk` 在 PostgreSQL CHECK 约束中引用 `NOW()` 不合法（NOW() 是 STABLE 而非 IMMUTABLE）。改为 `effective_from <= created_at + INTERVAL '1 second'`，仅引用本表列
+- B6：§11.1 迁移脚本引用不存在的 `migrated_at` 列。删除 `migrated_at`，`created_at` 已记录迁移时刻
+- B7：§3.2 部分索引引用未声明的 `sign_status` 列。改为 `(project_id)` 单列部分索引（与 D1 拍板建议一致）
+
+不彻底项（3）：
+- U1：§8.2 任务清单仍 V1.1 文案。更新为 V1.2 补齐（含 G11/G12 + 词表注册 + 未来日期约束替代）
+- U2：§8.4 API 校验清单缺 G11/G12。补齐
+- U3：`pilot_operated` 在 API profile 下请求被静默跳过违反"不隐式回退"。G12 泛化为"请求包含 pilot_operated 但当前 profile 未提供可实现路径 → 422"；§4.1 check_capability 区分"未请求" vs "请求但缺失"
+
+残留（1）：
+- S2-residual：§8.5 测试计数仍不对账（正文 24 vs 清单 28）。改为清单 28 条 + 验收基线 1662 + 28 = **≥1690**
+
+次要（3）：
+- m1：§11.2 步骤编号重复。重新编号
+- m2：`P5_UNIMPLEMENTABLE_STANDARDS` 后续需迁配置表。§10 Backlog 加
+- m3：`pilot_operated.enabled` JSON Schema 约束未明。§5.5 补
+
+计算程序错误（9 项，V1.2 评审发现，整合到 V1.3 同一批提交）：
+- E1（高）：§4.2 API 521 火灾 C 值仅写 21,000，缺无 adequate drainage 的 34,500；公式未强调 wetted surface area（非容器总表面积）
+- E2（中）：§4.2 润湿面积计算缺 25 ft 液位上限规则 + 球罐独立公式
+- E3（高）：§4.2 GB/T 150.1 附录B 分支只有框架，缺完整公式（吸热量 / 汽化潜热）
+- E4（高）：§4.4 API 520 泄放面积缺背压修正系数 Kb + 组合修正系数 Kc
+- E5（中）：§4.4 GB/T 12241 减低系数 0.9 缺理论路径（理论排量 × 额定排量系数）
+- E6（高）：§4.4 API 520 两相流附录编号 D → C 修正；明确 ω 法 / ωs 法适用条件 + 第十版对子方法编号的更正
+- E7（中）：§1.2 + §4.3 + G8 范围遗漏换热器管破裂工况（HG/T 20570.2 同样未提供完整公式）；G8 范围扩展
+- E8（中）：§2.1 GB profile `pilot_operated.enabled = false` 时请求 pilot_operated 的行为与 §7 验收表"拒绝路径"矛盾；明确 `enabled = false` + 请求 → 拒绝（与 V1.3 U3 联动）
+- E9（低）：§3.4 canonical JSON 固定位数（API ≤6 / GB ≤4）改工程有效数字（泄放量 3 位、比热比 2 位小数、温度 1 位小数）
+
 V1.2 相对 V1.1 解决以下问题：
-
-阻塞项（4）：
-- B1：`migrated_default` 缺失列。§3.1 profile 表新增 `migrated_default` 列 + CHECK + 部分索引；resolver 查询排除该列
-- B2：`check_capability` 只检查 `status` 与 G8 语义不一致。改为统一通过 `P5_UNIMPLEMENTABLE_STANDARDS` 词表 + `status` 双判定
-- B3：D1 要求的 `override_reason` 与 `override_approval_json` 成对 CHECK 未写入 SQL。§3.2 ALTER 显式加 `override_paired_chk`
-- B4：EXCLUDE 约束缺 `btree_gist` 扩展声明。§3.1 与 §11.2 迁移脚本首步加 `CREATE EXTENSION IF NOT EXISTS btree_gist;`
-
-非阻塞（6）：
-- S1：缺 `pending_review` / `migrated_default` 部分索引。§3.2 加 4 条
-- S2：§8.5 测试计数（≥25）与清单（21）对不上。补 3 条达 24：G12 pilot_operated / closed_valve mandatory / btree_gist 扩展
-- S3：`closed_valve` 必填 vs 可选前后不一致。§5.5 改为必填（GB profile 必带 `status: unsupported_p5`）；§4.1 check_capability 改为请求 mandatory 阶段缺失即 422
-- S4：先导式门禁缺 G 编号 + 用了 501 不一致。新增 G12 统一 422 PSV_PILOT_UNSUPPORTED
-- S5：G2 (403) vs G7 (422) 判定顺序未定义。明确 G2 优先（权限检查在前）
-- S6：P5 预排程 profile 未明确禁止。§3.1 加 `future_dated_forbidden_chk` 约束 + §2.3 注明
-
-V1.1 相对 V1.0 解决以下问题：
 
 1. **数据模型与门禁规则不一致** — psv_results/relief_results 补充 4 列；§8.2 任务清单补齐
 2. **is_default 唯一性约束时间维度不完整** — 引入 `effective_to` + EXCLUDE 约束
@@ -56,11 +71,12 @@ D 决议来源：
 |---|---|---|
 | 火灾工况泄放量 | API 521 | GB/T 150.1-2024 附录B |
 | 控制阀故障/热膨胀等 | API 521 | HG/T 20570.2-1995（**P5 不实现，详 G8**） |
+| 换热器管破裂 | API 521 §5.3（管破口径=接管内径×max） | HG/T 20570.2-1995（**P5 不实现，详 G8c**） |
 | 泄放面积 | API 520 | GB/T 12241-2021 |
 | 孔口选型/尺寸确定 | API 526 | GB/T 12241-2021（**孔口表不完整时降级，详 §4.5**） |
 | 先导式安全阀 | — | GB/T 28778-2023（**P5+ 评估**） |
 
-文献研究表明，GB/T 150.1 附录B 与 API 521 在火灾工况下 公式结构、润湿面积计算、容器外壁修正系数取值 三个环节存在实质性差异，同一台容器按两套标准计算的泄放量结果不同。排量系数的定义及取值在 GB/T 12241-2021 与 API 520-2020 之间也存在差异。HG/T 20570.2-1995 作为国内石油化工行业安全阀设置和计算的首选参考规范，对控制阀故障和换热器管破裂工况**未提供完整公式**。
+文献研究表明，GB/T 150.1 附录B 与 API 521 在火灾工况下 公式结构、润湿面积计算、容器外壁修正系数取值 三个环节存在实质性差异，同一台容器按两套标准计算的泄放量结果不同。排量系数的定义及取值在 GB/T 12241-2021 与 API 520-2020 之间也存在差异。HG/T 20570.2-1995 作为国内石油化工行业安全阀设置和计算的首选参考规范，对控制阀故障和换热器管破裂工况**未提供完整公式**（控制阀故障无完整液体泄放公式；换热器管破裂按惯例采用 API 521 §5.3 "管破口径 = 接管内径 × max(实际, 设计限值）" + 接管根数 的修正路径，但 HG/T 20570.2-1995 原文未给出系数表 → 触发 G8c 门禁拒绝）。
 
 1.3 核心问题
 若不在项目级定义标准配置，将导致：
@@ -127,6 +143,7 @@ PsvStandardProfileCode = Literal["API", "GB", "CUSTOM"]
 
 > 注 1：`closed_valve.status = "unsupported_p5"` 触发 G8 门禁（详 §6），请求包含此工况时直接 422，不进入计算函数。
 > 注 2：`orifice.orifice_table_status = "incomplete_fallback"` 标记降级路径（详 §4.5）。
+> 注 3（E8）：`pilot_operated.enabled = FALSE` 时请求包含 `pilot_operated` 工况 → G12 (b) 情形，422 PSV_PILOT_UNSUPPORTED（详 §4.1 check_capability + §6 G12 三种情形 a/b/c）；`enabled` 字段 JSON Schema 约束见 §5.5 m3。
 
 2.2 CUSTOM Profile
 
@@ -193,8 +210,9 @@ CREATE TABLE project_calculation_standard_profiles (
         (profile_code = 'CUSTOM' AND approval_json IS NOT NULL) OR
         (profile_code <> 'CUSTOM')
     ),
-    -- S6 修复：P5 不支持预排程 profile（effective_from 必须已生效或即时生效）
-    CONSTRAINT future_dated_forbidden_chk CHECK (effective_from <= NOW() + INTERVAL '1 second'),
+    -- S6/B5 修复：P5 不支持预排程 profile（effective_from 必须已生效或即时生效）
+    -- 仅引用本表列，避开 NOW() 的 STABLE 语义（CHECK 约束要求 IMMUTABLE）
+    CONSTRAINT future_dated_forbidden_chk CHECK (effective_from <= created_at + INTERVAL '1 second'),
     CONSTRAINT project_standard_default_unique
         EXCLUDE USING gist (
             project_id WITH =,
@@ -234,10 +252,10 @@ ALTER TABLE psv_results ADD CONSTRAINT psv_override_paired_chk CHECK (
 );
 -- S1 修复：复核队列部分索引（项目内绝大多数 FALSE，索引代价极低）
 CREATE INDEX idx_psv_results_pending_review
-    ON psv_results(project_id, sign_status) WHERE pending_review = TRUE;
+    ON psv_results(project_id) WHERE pending_review = TRUE;
 -- S1 修复：迁移清单部分索引
 CREATE INDEX idx_psv_results_migrated_default
-    ON psv_results(project_id, sign_status) WHERE migrated_default = TRUE;
+    ON psv_results(project_id) WHERE migrated_default = TRUE;
 
 ALTER TABLE relief_results ADD COLUMN standard_profile_code VARCHAR(16);
 ALTER TABLE relief_results ADD COLUMN standard_refs_json JSONB;
@@ -253,9 +271,9 @@ ALTER TABLE relief_results ADD CONSTRAINT relief_override_paired_chk CHECK (
 );
 -- S1 修复
 CREATE INDEX idx_relief_results_pending_review
-    ON relief_results(project_id, sign_status) WHERE pending_review = TRUE;
+    ON relief_results(project_id) WHERE pending_review = TRUE;
 CREATE INDEX idx_relief_results_migrated_default
-    ON relief_results(project_id, sign_status) WHERE migrated_default = TRUE;
+    ON relief_results(project_id) WHERE migrated_default = TRUE;
 ```
 
 约束：
@@ -296,7 +314,13 @@ formula_ref 统一结构，**禁止字符串拼接**：
 
 - **键排序**：字典键按字符串升序排序（递归作用于嵌套对象）
 - **时间戳**：所有时间字段使用 ISO 8601 UTC（`...Z`），字符串字面量
-- **数值**：定点数十进制（如 `0.975` 而非浮点 `0.9750000000000001`），位数由计算结果有效位数决定（API 521 ≤6 位，GB ≤4 位）
+- **数值**：定点数十进制（如 `0.975` 而非浮点 `0.9750000000000001`）；按字段物理意义取**工程有效数字**（E9 修复）：
+  - 泄放量 W（kg/h 或 m³/h）：3 位有效数字（如 `12300` 而非 `12345.6789`）
+  - 比热比 γ / Cp 比：2 位小数（如 `1.40` 而非 `1.4034567`）
+  - 温度 T（℃ 或 K）：1 位小数（如 `425.0` 而非 `424.87`）
+  - 面积 A（m²）：3 位有效数字
+  - 孔径 d（mm）：2 位小数
+  - 其他无量纲系数（C / Kd / Kb / Kc）：保留原始标准表给定的有效位数（API 521 取 0.001 / GB/T 12241 取 0.01）
 - **空值语义**：`null` 与字段缺失必须一致（统一 `null`）
 - **审批信息**：审批依据（approved_by/approved_at）**不**进入 record_hash（用于权限审计，但避免审批时间变更触发 hash 漂移）
 - **覆盖信息**：`override_reason` 与 `override_approval_json` **不**进入 record_hash（用于审计，避免审批变更触发 hash 漂移）
@@ -360,7 +384,13 @@ class StandardResolver:
         任一 unsupported 阶段 → 422 PSV_PROFILE_INSUFFICIENT
 
         S3 修复：mandatory 阶段缺失 → 422 PSV_PROFILE_INSUFFICIENT（不可静默放行）
-        optional 阶段缺失 → 跳过（不报错）
+
+        U3 修复：区分 optional 阶段的两种缺失语义
+        (a) 请求未包含该 optional 阶段 → 不检查（正常跳过，不计算）
+        (b) 请求包含该 optional 阶段，但 profile 未覆盖 → 422 PSV_PROFILE_INSUFFICIENT
+        (c) 请求包含该 optional 阶段，profile 标 enabled=FALSE / unimplementable → 422
+
+        这样避免"不隐式回退"原则被破坏：用户显式请求的阶段必须被解析或被显式拒绝。
         """
         all_known = PSV_MANDATORY_STAGES | PSV_OPTIONAL_STAGES
         for stage in requested_stages:
@@ -377,6 +407,7 @@ class StandardResolver:
                 )
             ref = profile.standard_refs.get(stage)
             if ref is None:
+                # 阶段在 profile 中未配置
                 if stage in PSV_MANDATORY_STAGES:
                     raise PsvProfileInsufficientError(
                         project_id=profile.project_id,
@@ -388,7 +419,33 @@ class StandardResolver:
                         reason=f"mandatory 阶段 {stage} 在 profile 中缺失",
                         remediation=[f"为 {stage} 配置标准（GB profile 必带 status=unsupported_p5）"]
                     )
-                continue  # optional 阶段缺失：跳过
+                # U3：optional 阶段在 profile 中未配置，但被显式请求 → 必须拒绝，不静默跳过
+                raise PsvProfileInsufficientError(
+                    project_id=profile.project_id,
+                    discipline=profile.discipline,
+                    profile_code=profile.profile_code,
+                    insufficient_stage=stage,
+                    standard="(not_covered_by_profile)",
+                    version="-",
+                    reason=f"optional 阶段 {stage} 在 profile {profile.profile_code} 中未覆盖，且被请求显式启用",
+                    remediation=[
+                        f"改用覆盖 {stage} 的 profile 或 CUSTOM profile",
+                        f"或从 requested_stages 中移除 {stage}"
+                    ]
+                )
+            # 阶段已配置：检查是否可实现
+            if ref.get("enabled") is False:
+                # U3：显式标 enabled=FALSE（如 GB profile 的 pilot_operated）
+                raise PsvProfileInsufficientError(
+                    project_id=profile.project_id,
+                    discipline=profile.discipline,
+                    profile_code=profile.profile_code,
+                    insufficient_stage=stage,
+                    standard=ref.get("standard", "-"),
+                    version=ref.get("version", "-"),
+                    reason=f"阶段 {stage} 在 profile 中显式 enabled=FALSE",
+                    remediation=[f"将 {stage}.enabled 改为 TRUE，或从请求中移除该阶段"]
+                )
             standard = ref.get("standard")
             if standard in P5_UNIMPLEMENTABLE_STANDARDS or ref.get("status") == "unsupported_p5":
                 raise PsvProfileInsufficientError(
@@ -418,24 +475,35 @@ calc_fire_case(
 ```
 
 API 521 分支（修正后）：
-- C 值：adequate drainage + firefighting → 21,000（BTU/hr·ft²，英制链）
-- 润湿面积：立式 πDH，卧式按封头曲面 + 圆柱 + 液位修正
+- **公式**：Q = C × F × A^0.82
+  - C 值（E1 修复）：adequate drainage + prompt firefighting → **21,000**（BTU/hr·ft²）；其他工况 → **34,500**（含 inadequate drainage）。代码必须按排水条件分支选择 C 值，**不**允许统一使用 21,000 低估无排水工况的泄放量
+  - **A 必须为 wetted surface area**（E1 修复），**不**是容器总表面积；F 为容器外壁修正系数
+- **润湿面积**（E2 修复）：
+  - 立式容器：取液位高度对应的圆柱侧面积，**液位上限 25 ft（约 7.6 m）**，超出按 25 ft 截断
+  - 卧式容器：取 75% 的暴露面积，**计算至 30 ft 高度**截断
+  - **球形储罐**：API 521 独立公式（按球罐表面积 × 55% 或按球罐实际液位对应球冠面积，详 API 521 7th Ed. §4.4.5）
 - 修正系数：API 521 容器外壁修正系数
 
-GB/T 150.1 附录B 分支：
-- 润湿面积按 GB 几何规则计算（与 API 的 πDH 处理不同）
-- 修正系数按 GB 取值规则
-- 泄放量公式结构按 GB 附录B
+GB/T 150.1 附录B 分支（E3 修复：补完整公式结构）：
+- **公式**：W = Q_abs / r
+  - Q_abs：容器吸热量 = C' × A_w^0.82 × F_w（C' 为 GB 燃料系数；A_w 为 GB 润湿面积；F_w 为 GB 容器外壁修正系数）
+  - r：液化气体在泄放状态下的汽化潜热
+  - 燃料系数、润湿面积、外壁修正系数三个环节**与 API 521 均有实质差异**，不可在底层函数内 if standard == "GB" 分支共享
+- 验收基准（E3 整改）：公式细节需工艺室提供具体 GB 标准算例与手算对账（详 §10 Backlog）；SPEC 此处只锁公式结构，参数取值由 Task 13 实施时附工艺室签字对账表
 
 验收基准：
 - API 分支：API 521 算例 / 商业软件，≤2%
-- GB 分支：GB 标准算例 / 工艺室手算，阈值由工艺室确认（建议 ≤5%）
+- GB 分支：GB 标准算例 / 工艺室手算，阈值由工艺室确认（建议 ≤5%）；E3 整改前 P5 不实施 GB 分支，Task 13 启动前须有工艺室签字的 GB 算例对账表
 
 4.3 Task 14 改造：其他工况
 
 GB profile 的 `closed_valve` 标记为 `unsupported_p5`（详 §2.1 + G8）。`calc_closed_valve_case_GB()` **不实施**——请求包含此工况时由 §4.1 `check_capability` 在 resolver 层抛 `PsvProfileInsufficientError`，不进入任何计算函数。
 
 CUSTOM profile 的 `closed_valve.standard = "API_521"` 合法路径走 `calc_closed_valve_case_API()`，formula_ref.closed_valve 指向 API 521 7th。
+
+**换热器管破裂工况（E7 扩展）**：GB profile 的换热器管破裂标记为 `unsupported_p5`（详 §2.1 + G8c）——HG/T 20570.2-1995 未提供完整公式，且 P5+ 评估前不补齐。请求包含 `heat_exchanger_tube_rupture` 工况时，§4.1 `check_capability` 抛 `PsvProfileInsufficientError`，错误码细分 `unsupported_case = "tube_rupture"`，与 `closed_valve` 共用 PSV_PROFILE_INSUFFICIENT 但 `remediation` 不同（前者推荐改用 API 521 §5.3 + 项目标记不要求 HG/T 20570.2；后者推荐改用 API_521 closed_valve）。
+
+CUSTOM profile 的换热器管破裂合法路径：`heat_exchanger_tube_rupture.standard = "API_521"`，走 `calc_heat_exchanger_tube_rupture_API()`（**P5 不实现**——占位逻辑，调用即抛 `NotImplementedError`；转 P5+ 评估 m2 扩展项）。
 
 4.4 Task 16 改造：泄放面积
 
@@ -446,14 +514,27 @@ calc_relief_area(
 ) -> ReliefAreaResult
 ```
 
-API 520 分支：
-- 排量系数：Kd（制造厂试验值，典型 0.975）
-- 两相流 ω 法：默认 two_point，API 520 附录D（D-06 关闭：GB 路径两相流 DIERS 积分法转 P5+）
+API 520 分支（E4 + E6 修复）：
+- **公式**：A = W / (C × Kd × Kb × Kc × ... )
+  - 排量系数 Kd（制造厂试验值，典型 0.975）
+  - **背压修正系数 Kb**（E4 修复）：临界流 Kb = 1；亚临界流按 API 520 Figure 30 取值（背压比 Pb/Pdr 的函数）
+  - **组合修正系数 Kc**（E4 修复）：安全阀+爆破片组合时按 API 520 §3.6 取值；普通弹簧式安全阀 Kc = 1
+- **两相流方法**（E6 修复）：
+  - 附录编号：**附录 C**（Part I 第八版起；V1.2 误写为附录 D 已修正）
+  - **ω 法**（API 520 附录 C.2.2）：适用于进入安全阀前已存在气相的两相系统
+  - **ωs 法**（API 520 附录 C.2.3）：适用于进入安全阀前为液相、进入后可能闪蒸的工况
+  - **第十版子方法编号更正**：第八/九版的 C.2.3 ωs 法在第十版中已更正归入 C.2.2 ω 法（详 API 520 10th Ed. Errata）；按工质状态选择
+  - 默认 method：**two_point**（用户请求未指定时），可显式指定 `omega_method = "omega" | "omega_s"`
+- D-06 关闭：GB 路径两相流 DIERS 积分法转 P5+
 
-GB/T 12241 分支：
+GB/T 12241 分支（E5 修复）：
 - 排量系数确定路径与 API 不同：GB/T 12241-2021 §7.4 规定了排量系数的确定方法，§7.5 规定了额定排量系数
-- 额定排量计算：理论排量 × 额定排量系数，或实测排量 × 减低系数（0.9）
-- 亚临界流动需乘以排量修正系数 Kb（GB/T 12241 表4）
+- **额定排量三种方式并存**（E5 修复）：
+  1. 实测排量 × 减低系数（0.9）
+  2. 理论排量 × 排量系数 × 0.9
+  3. 理论排量 × 额定排量系数（即排量系数 × 0.9）
+  - 路径 1 用于有实测数据场景（认证后）；**路径 2/3 用于初步设计阶段**（SPEC 此前遗漏理论路径）
+- **亚临界流动需乘以排量修正系数 Kb**（GB/T 12241 表 4，**E4 修复**：必须从表 4 按背压比 Pb/Pdr 取值，**不**允许固定 1.0）
 - **两相流方法**：P5 阶段 GB 路径不实现，请求 GB + two_phase → 422 PSV_TWO_PHASE_GB_UNSUPPORTED（G10），接口预留扩展（D-06）
 
 4.5 Task 17 改造：孔口选型
@@ -525,7 +606,7 @@ POST /api/v1/psv/calculate-relief
 **判定顺序**（S5 修复：明确 G2 vs G7 优先级）：
 1. **权限检查**（G2）→ 无权限 403 PSV_STANDARD_OVERRIDE_FORBIDDEN（**优先返回**）
 2. **审批依据检查**（G7）→ 有权限但缺 `override_reason`/`override_approval` → 422 PSV_OVERRIDE_APPROVAL_REQUIRED
-3. **Profile 能力检查**（G8/G9/G10/G12）→ 422 PSV_PROFILE_INSUFFICIENT / PSV_TWO_PHASE_GB_UNSUPPORTED / PSV_PILOT_UNSUPPORTED
+3. **Profile 能力检查**（G8/G8c/G9/G10/G12）→ 422 PSV_PROFILE_INSUFFICIENT（closed_valve + 换热器管破裂共用错误码，`unsupported_case` 区分）/ PSV_TWO_PHASE_GB_UNSUPPORTED / PSV_PILOT_UNSUPPORTED
 4. **计算执行**
 
 G2 优先于 G7 的理由：未授权者不应通过错误信息探测系统状态（避免"缺审批依据"等错误提示泄露系统内部能力存在性）。G2 也优先于 G8（capability 检查需要先通过权限），否则无权用户会收到 422 而非 403，泄露存在的能力。
@@ -568,6 +649,7 @@ GET /api/v1/psv/relief-summary?project_id=...
 - 每个 `{standard, version, clause?}` 子对象必填 `standard` + `version`，`clause` 可选但 `fire_case`（GB 路径）必填
 - `status` 字段仅允许 `unsupported_p5` 或缺省；缺省 = 支持
 - `orifice_table_status` 仅允许 `incomplete_fallback` 或缺省；缺省 = 完整
+- m3 修复：`pilot_operated` 子对象可选字段 `enabled: boolean`，缺省 = `true`；`enabled = false` 表示 profile 显式关闭该阶段，请求含 `pilot_operated` 时由 §4.1 check_capability 拒绝（U3 + G12 联动）
 
 5.6 pending_review 触发机制
 
@@ -595,7 +677,7 @@ GET /api/v1/psv/relief-summary?project_id=...
 | **G9** | 项目未配置任何 profile + 请求任意 `standard_profile_code` | 422 PSV_STANDARD_NOT_CONFIGURED（**不**绕项目级配置；**不**自动使用 API 默认） |
 | **G10** | GB profile + 请求包含 two_phase 工况 | 422 PSV_TWO_PHASE_GB_UNSUPPORTED（D-06 转 P5+） |
 | G11 | 同一 (project_id, discipline) 同时存在多个 `is_default = TRUE` | EXCLUDE 约束报错（写入时拦截） |
-| **G12**（V1.2 新增） | GB/CUSTOM profile + `pilot_operated.enabled = TRUE` + 请求包含 pilot_operated 工况 | 422 PSV_PILOT_UNSUPPORTED（D-07 转 P5+；**统一 422 不再用 501**） |
+| **G12**（V1.2 新增，V1.3 泛化） | **请求包含 `pilot_operated` 工况，但当前 profile 未提供可实现路径**（三种情形：(a) profile 无 pilot_operated 字段；(b) `pilot_operated.enabled = FALSE`；(c) `pilot_operated.standard ∈ P5_UNIMPLEMENTABLE_STANDARDS`） | 422 PSV_PILOT_UNSUPPORTED（D-07 转 P5+；**统一 422 不再用 501**） |
 
 禁止隐式回退 API。项目未配置时，计算请求必须返回 422，不得自动使用 API 作为默认。
 
@@ -643,14 +725,24 @@ P5 验收基线：P5 启动基线 1662 + 净增 ≥24 = **≥1686**。
 
 8.2 P5-0 增加前置任务
 
-Task P5-0-5：PSV 标准配置模型（V1.1 补齐 4 列）
+Task P5-0-5：PSV 标准配置模型（**V1.2 补齐 7 列 + 词表 + 未来日期约束替代 + G11/G12**）
 
-- 建 `project_calculation_standard_profiles` 表（含 `effective_to` + EXCLUDE 约束 + discipline/profile_code CHECK）
-- 给 `psv_results` / `relief_results` 加 `standard_profile_code` + `standard_refs_json` + `formula_ref_json` + `pending_review` + `migrated_default` + `override_reason` + `override_approval_json`（共 7 列，V1.0 漏 4 列）
+- 建 `project_calculation_standard_profiles` 表（V1.2 完整 schema）：
+  - `effective_to` + EXCLUDE 约束 + `discipline` / `profile_code` CHECK
+  - `migrated_default` 列（B1）
+  - `future_dated_forbidden_chk` 约束（B5 修复：`effective_from <= created_at + INTERVAL '1 second'`）
+  - `CREATE EXTENSION IF NOT EXISTS btree_gist;`（B4 修复）
+- 给 `psv_results` / `relief_results` 加 `standard_profile_code` + `standard_refs_json` + `formula_ref_json` + `pending_review` + `migrated_default` + `override_reason` + `override_approval_json`（共 7 列）
+  - `override_paired_chk` 约束（B3 修复：DB 层兜底）
+  - 4 条部分索引：`pending_review` / `migrated_default` × psv_results / relief_results（B7 修复：仅 `project_id`，不引用 `sign_status`）
 - 注册 `PsvStandardProfileCode` 枚举
-- 写 G1 / G7 / G8 / G9 / G10 门禁测试
+- 注册 `P5_UNIMPLEMENTABLE_STANDARDS` 词表（B2 修复：标准 registry 模块）
+- 写 **G1-G12 全 12 门禁测试**（V1.2 升级：含 G11 EXCLUDE 兜底 / G12 pilot_operated 泛化）
+- 写 `closed_valve` mandatory 缺失测试（S3 修复）
+- 写 `override_paired_chk` DB 兜底测试（B3 修复）
+- 写 `migrated_default` resolver 过滤测试（B1 修复）
 - 实现 `utils/canonical_json.py` 提供 `canonical_dumps`
-- 实现 `app/services/standard_resolver.py` 提供 `resolve` + `check_capability`
+- 实现 `app/services/standard_resolver.py` 提供 `resolve` + `check_capability`（含 `enabled` 判定 + U3 修复）
 
 8.3 Task 13/14/16/17 接口增加标准参数
 
@@ -658,19 +750,27 @@ Task P5-0-5：PSV 标准配置模型（V1.1 补齐 4 列）
 
 8.4 Task 18 API 增加校验
 
+**V1.2 升级（U2 修复：补 G11/G12）**：
+
 - G1：项目未配置 → 422 PSV_STANDARD_NOT_CONFIGURED
+- G2：无权限覆盖 → 403 PSV_STANDARD_OVERRIDE_FORBIDDEN（**S5：权限检查优先于审批依据**）
 - G7：覆盖默认 + 无审批依据 → 422 PSV_OVERRIDE_APPROVAL_REQUIRED
-- G8：GB/CUSTOM closed_valve → 422 PSV_PROFILE_INSUFFICIENT（按工况）
+- G8：GB/CUSTOM closed_valve → 422 PSV_PROFILE_INSUFFICIENT（按工况；B2 词表双判定）
 - G9：项目未配置 + 任意 code → 422 PSV_STANDARD_NOT_CONFIGURED
 - G10：GB + two_phase → 422 PSV_TWO_PHASE_GB_UNSUPPORTED
+- G11：EXCLUDE 约束并发写入 → IntegrityError（兜底）
+- G12：请求 pilot_operated 但 profile 未提供可实现路径 → 422 PSV_PILOT_UNSUPPORTED（U3 泛化：覆盖缺字段 / enabled=FALSE / 词表命中三种情形）
 - 落库写入 `pending_review` / `migrated_default` / `override_*` 字段
 - relief_summary 按 `standard_profile_code` 分组（混合记录）
+- `migrated_default = TRUE` 的 profile 行不被 resolver 选中（B1 修复：SQL `WHERE migrated_default=FALSE`）
 
 8.5 测试基线调整
 
-V1.0 估"≥15 个"偏少且 V1.0 误写 P5 验收基线为"≥1650 → ≥1665"（实际 P5 启动基线 1662，净增 ≥25 → ≥1687）。V1.1 调整：
+V1.0 估"≥15 个"偏少；V1.1 写 ≥25（清单 21）；V1.2 写 24（清单 28）；V1.3 真正对账：**清单 28 条 + 验收基线 1662 + 28 = ≥1690**。
 
-新增测试（G1-G11 11 门禁 + §7 验收表 8 标准/环节 + 4 辅助）：
+新增测试（**28 条**，S2-residual 彻底关闭）：
+
+**门禁类（13 条）**：
 
 - G1 项目未配置标准 → 422 PSV_STANDARD_NOT_CONFIGURED
 - G2 无权限覆盖 → 403 PSV_STANDARD_OVERRIDE_FORBIDDEN
@@ -681,23 +781,37 @@ V1.0 估"≥15 个"偏少且 V1.0 误写 P5 验收基线为"≥1650 → ≥1665"
 - G7 覆盖无审批 → 422 PSV_OVERRIDE_APPROVAL_REQUIRED
 - G8 GB + closed_valve → 422 PSV_PROFILE_INSUFFICIENT（按工况）
 - G8b CUSTOM closed_valve=HG_T_20570.2 + 审批齐全 → 仍 G8（审批不解锁能力）
+- G8c GB/CUSTOM + heat_exchanger_tube_rupture → 422 PSV_PROFILE_INSUFFICIENT，`unsupported_case="tube_rupture"`（E7 扩展；HG/T 20570.2 未提供完整公式 + API 521 §5.3 实现转 P5+ m2 评估）
 - G9 项目未配置 + 任意 code → 422
 - G10 GB + two_phase → 422 PSV_TWO_PHASE_GB_UNSUPPORTED
 - G11 EXCLUDE 约束并发写入 → IntegrityError
-- **G12 GB + pilot_operated 启用 + 请求 pilot_operated → 422 PSV_PILOT_UNSUPPORTED**（V1.2 新增；统一 422 不再 501）
-- **closed_valve mandatory 缺失 → 422 PSV_PROFILE_INSUFFICIENT**（V1.2 新增；S3 修复：GB profile 不写 closed_valve 时请求 closed_valve 拒绝）
-- **btree_gist 扩展存在性 + 标准词表含 HG_T_20570.2**（V1.2 新增；B2 + B4 修复：resolver 双判定依赖此扩展 + 词表）
+- G12 pilot_operated 三种情形（缺字段 / enabled=FALSE / 词表命中）→ 422 PSV_PILOT_UNSUPPORTED（V1.3 泛化）
+
+**标准/环节类（8 条）**：
+
 - HG/T 20570.2 拒绝路径：项目 GB profile + 仅 fire_case → 正常；+ closed_valve → 422
 - HG/T 20570.2 CUSTOM 拒绝路径：CUSTOM closed_valve=HG_T_20570.2 + 审批齐全 → 仍 422（审批不解锁能力，B2 修复）
+- 换热器管破裂拒绝路径：项目 GB profile + 仅 fire_case → 正常；+ heat_exchanger_tube_rupture → 422 PSV_PROFILE_INSUFFICIENT `unsupported_case="tube_rupture"`（E7 扩展）
 - GB 两相流拒绝路径：项目 GB profile + relief_area + two_phase → 422
 - GB 孔口降级：项目 GB profile + orifice → `orifice_selection_degraded=true` + 服务端 WARN + 不可采购标记
 - CUSTOM 合法路径：项目 CUSTOM closed_valve=API_521 + 审批齐全 → 正常
+- GB/T 28778 先导式拒绝路径：422 PSV_PILOT_UNSUPPORTED（V1.3 统一 422；详见 E8 路径）
+- 历史迁移 migrated_default 复核：DB 状态断言
+- 标准配置变更 pending_review：项目级 profile 变更后旧记录 `pending_review = TRUE`（自动）
+
+**辅助类（7 条）**：
+
+- closed_valve mandatory 缺失 → 422 PSV_PROFILE_INSUFFICIENT（V1.2 S3 修复）
+- btree_gist 扩展存在性 + 标准词表含 HG_T_20570.2（V1.2 B2 + B4 修复）
 - record_hash canonical JSON 跨项目一致性
 - record_hash 跨标准差异
 - override 权限：无权限 → 403；有权限 + 无 override_reason → 422
 - override 成对 CHECK 兜底：直接 SQL UPDATE 仅写 override_reason 不写 approval → DB IntegrityError（B3 修复）
-- migrated_default 不可作正式默认：profile 表 migrated_default=TRUE 不被 resolver 选中（SQL `WHERE migrated_default=FALSE` 过滤 + `idx_pcs_project_discipline_default` 部分索引；B1 修复）
-- pending_review 自动触发：项目级 profile 变更后旧记录 `pending_review = TRUE`
+- migrated_default resolver 过滤：profile 表 migrated_default=TRUE 不被 resolve 选中（B1 修复）
+
+合计 13 + 8 + 7 = **28 条**。
+
+P5 验收基线：P5 启动基线 1662 + 净增 ≥28 = **≥1690**。
 
 §9 OPEN 项
 ---
@@ -721,6 +835,8 @@ V1.0 估"≥15 个"偏少且 V1.0 误写 P5 验收基线为"≥1650 → ≥1665"
 - 跨标准结果对比报告（同一容器 API vs GB 偏差分析）
 - P6 FLARE_SYS 按标准口径汇总接口
 - P5+ GB profile `closed_valve` 公式补齐（接 P5-OPEN-00U）
+- m2：`P5_UNIMPLEMENTABLE_STANDARDS` 从代码常量迁配置表（`p5_unimplementable_standards` 表 + API 管理），避免 P5+ 补齐时散落代码
+- m2 扩展：HG/T 20570.2 换热器管破裂工况（E7 拓展）— 与 closed_valve 同步转 P5+ 评估
 
 §11 数据迁移策略
 ---
@@ -728,7 +844,7 @@ V1.0 估"≥15 个"偏少且 V1.0 误写 P5 验收基线为"≥1650 → ≥1665"
 
 历史项目（V1.0 实施前已存在的项目）需迁移 `project_calculation_standard_profiles` 记录（V1.2 明确：migrated_default 写在 profile 表，与 §3.1 schema 对齐）：
 
-- 写入 `profile_code = 'API'` + `is_default = TRUE` + **`migrated_default = TRUE`** + `effective_from = NOW()` + `effective_to = NULL` + `migrated_at = NOW()`
+- 写入 `profile_code = 'API'` + `is_default = TRUE` + **`migrated_default = TRUE`** + `effective_from = NOW()` + `effective_to = NULL`（B6 修复：删除 V1.2 误引的 `migrated_at` 列；`created_at` 已记录迁移时刻）
 - 扫描既有 `psv_results` / `relief_results` 中 `standard_profile_code IS NULL` 的记录 → 标记 `migrated_default = TRUE` + `pending_review = TRUE`
 - **resolver 过滤语义**：`migrated_default = TRUE` 的 profile 行 `is_default = TRUE` 仍在 DB 落库（便于人工复核与审计），但 resolver SQL `WHERE migrated_default = FALSE` 排除，经人工复核置 `migrated_default = FALSE` 后方可被 resolve 选中
 
@@ -738,10 +854,10 @@ V1.0 估"≥15 个"偏少且 V1.0 误写 P5 验收基线为"≥1650 → ≥1665"
 
 1. **CREATE EXTENSION IF NOT EXISTS btree_gist;**（B4 修复：必须在 CREATE TABLE 之前；需 DB 用户有 CREATE EXTENSION 权限）
 2. CREATE TABLE `project_calculation_standard_profiles`（含 EXCLUDE 约束 + `migrated_default` 列）
-2. ALTER TABLE `psv_results` / `relief_results` ADD COLUMN 7 列
-3. INSERT 默认 API 配置到所有历史项目（`migrated_default = TRUE`）
-4. UPDATE 既有 `psv_results` / `relief_results` 记录：`migrated_default = TRUE` + `pending_review = TRUE`
-5. 校验：EXCLUDE 约束无冲突；所有历史项目均有默认 profile
+3. ALTER TABLE `psv_results` / `relief_results` ADD COLUMN 7 列（含 `override_paired_chk` + 4 部分索引）
+4. INSERT 默认 API 配置到所有历史项目（`migrated_default = TRUE`）
+5. UPDATE 既有 `psv_results` / `relief_results` 记录：`migrated_default = TRUE` + `pending_review = TRUE`
+6. 校验：EXCLUDE 约束无冲突；所有历史项目均有默认 profile
 
 11.3 回滚方案
 
