@@ -109,11 +109,21 @@ def test_chedl_v_Souders_Brown_cross_validation():
 # ============================================================================
 
 
-@pytest.mark.parametrize("K", [0.04, 0.10, 0.15])
-def test_K_factor_boundary(K):
-    """K 因子边界 0.04/0.10/0.15 应分别落入 WARNING/PASS/WARNING 区间。"""
+@pytest.mark.parametrize("K,vessel_type", [
+    (0.01, "VERTICAL"),    # 立式下界 = 物理下界
+    (0.05, "VERTICAL"),    # 立式上界（边界 MEDIUM）
+    (0.05, "HORIZONTAL"),  # 卧式下界（边界 MEDIUM）
+    (0.11, "HORIZONTAL"),  # 卧式上界（边界 MEDIUM）
+    (0.04, "WITH_DEMISTER"), # 除沫器下界（边界 MEDIUM）
+    (0.10, "WITH_DEMISTER"), # 除沫器上界（边界 MEDIUM）
+])
+def test_K_factor_boundary(K, vessel_type):
+    """K 因子 vessel_type 子区间边界值应落入 MEDIUM 保守区间（不抛异常）。
+
+    ADR-0032 V1.1 决策 2：vessel_type 子区间边界值视为 MEDIUM（保守）。
+    """
     inp = VesselSizingInput(
-        vessel_type="VERTICAL",
+        vessel_type=vessel_type,
         rho_L_kg_m3=850.0,
         rho_V_kg_m3=1.2,
         liquid_flow_m3_s=0.005,
@@ -122,9 +132,9 @@ def test_K_factor_boundary(K):
         K_factor_ms=K,
     )
     result = calc_vessel_sizing(inp)
-    # 边界值不抛异常；置信度按区间：0.04 LOW / 0.10 HIGH / 0.15 LOW
+    # 边界值不抛异常；置信度按 ADR-0032 V1.1：边界 → MEDIUM
     assert result.V_max_ms > 0
-    assert result.confidence in ("HIGH", "MEDIUM", "LOW")
+    assert result.confidence == "MEDIUM"
 
 
 # ============================================================================

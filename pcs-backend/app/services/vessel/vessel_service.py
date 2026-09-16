@@ -36,15 +36,14 @@ Confidence = Literal["HIGH", "MEDIUM", "LOW"]
 # 物理常量（ISO 80000-3）
 _PI: Final[float] = math.pi
 
-# K 因子边界（SI m/s，PCS-PLAN §134 + ADR-0032 决策 2）
+# K 因子边界（SI m/s，PCS-PLAN §134 + ADR-0032 V1.1 决策 2）
 _K_LOW_BOUND: Final[float] = 0.01   # 物理下限
 _K_HIGH_BOUND: Final[float] = 1.0   # 物理上限
-# 典型区间：开区间 (0.04, 0.15)，边界值视为 MEDIUM（保守）
-# vessel_type 推荐子区间（仅供 SPEC 修订对齐参考，不影响 HIGH/MEDIUM 判定）：
-#   - VERTICAL / WITH_DEMISTER: (0.04, 0.10)
-#   - HORIZONTAL: (0.07, 0.15)
-_K_TYPICAL_MIN: Final[float] = 0.04  # GPSA K 因子下界（PCS-PLAN §134）
-_K_TYPICAL_MAX: Final[float] = 0.15  # GPSA K 因子上界（PCS-PLAN §134）
+# vessel_type 子区间（开区间，边界值视为 MEDIUM 保守；影响 HIGH/MEDIUM 判定）
+# ADR-0032 V1.1 OPEN-2 用户裁决（保守经典值）
+_K_VERTICAL_TYPICAL: Final[tuple[float, float]] = (0.01, 0.05)        # 立式
+_K_HORIZONTAL_TYPICAL: Final[tuple[float, float]] = (0.05, 0.11)      # 卧式
+_K_WITH_DEMISTER_TYPICAL: Final[tuple[float, float]] = (0.04, 0.10)   # 带除沫器
 
 # 停留时间区间（ADR-0032 决策 3，V1.6 关注项修正）
 _RESIDENCE_VERTICAL_MIN_MAX: Final[tuple[float, float]] = (3.0, 5.0)
@@ -143,20 +142,24 @@ def _resolve_residence_time(inp: VesselSizingInput) -> float:
 
 
 def _classify_K_factor(K: float, vessel_type: VesselType) -> Confidence:
-    """K 因子置信度分类（开区间 (0.04, 0.15)：边界值视为 MEDIUM）。
+    """K 因子置信度分类（vessel_type 子区间，开区间，边界 MEDIUM）。
 
-    典型区间 = GPSA 全范围 (0.04, 0.15) 开区间。vessel_type 不影响 HIGH/MEDIUM 判定
-    （仅影响推荐子区间，详 ADR-0032 决策 2 注记）。
+    ADR-0032 V1.1 决策 2：vessel_type 子区间影响 HIGH/MEDIUM 判定（保守经典值）。
+      - VERTICAL：(0.01, 0.05) → 子区间内 HIGH，边界值 MEDIUM
+      - HORIZONTAL：(0.05, 0.11) → 同上
+      - WITH_DEMISTER：(0.04, 0.10) → 同上
 
-    K 严格落在 (0.04, 0.15) 内 → HIGH（典型工况）
-    K = 0.04 或 0.15（边界值）→ MEDIUM（保守）
-    K < 0.04 或 K > 0.15 → MEDIUM（区间外）
-
-    Note:
-        vessel_type 参数保留供未来扩展（如除沫器特殊逻辑）；当前不影响判定。
+    Returns:
+        "HIGH"：K 严格落在 vessel_type 子区间内（典型工况）
+        "MEDIUM"：K 为边界值 或 子区间外但 [0.01, 1.0] 内（保守）
     """
-    del vessel_type  # 未使用，保留接口供扩展
-    if _K_TYPICAL_MIN < K < _K_TYPICAL_MAX:
+    if vessel_type == "VERTICAL":
+        lo, hi = _K_VERTICAL_TYPICAL
+    elif vessel_type == "HORIZONTAL":
+        lo, hi = _K_HORIZONTAL_TYPICAL
+    else:  # WITH_DEMISTER
+        lo, hi = _K_WITH_DEMISTER_TYPICAL
+    if lo < K < hi:
         return "HIGH"
     return "MEDIUM"
 
