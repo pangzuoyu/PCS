@@ -263,3 +263,95 @@
 - 项目级管道等级/符号/格式模板审批**不挂 ConfigAsset**（避免 config_assets 爆炸），走轻量状态列 + ConfigStateMachine；`pipe_classes.status` 是 5 态镜像列，service 层禁止绕过状态机直接 UPDATE。
 - SIM-30 scope = 新增单源 alias 表，**不动 P3.2 已落地枚举**（StreamCaseType/StatePointCaseType/StreamSignStatus/RecordSignStatus/ConflictSeverity/ImportSourceType）。
 - SIM-31 mass→mole 换算独立于 PropertyAutoCompleter（职责分离）；MW 缺失在归一化层抛 `CompositionMassToMoleError`。
+
+## P5 frontend 闭环 / 2026-09-17
+
+- **P5-4 HEAT frontend UI 闭环**（10 commit：5dcf154 / a218564 / 173a7ba
+  / 45b15ac / 06802a2 / 4dac093 / 99e0d07 / 361aacf / a31b6a2 / c70a653）
+  - types/heat.ts 对齐 V1.3 SPEC §7.11.6 + 后端 OpenAPI 96165e1
+  - api/heat.ts HEAT 3 端点（import-htri multipart + get + weight-estimate）
+  - HeatComputePage：Upload + 3 Radio（SHELL_TUBE/AIR_COOL/PLATE）+
+    source_stream_id Select（OPEN-6）+ result + weight Collapse + extractPcsError
+  - StateBadge 扩 4 态子集（DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED）
+  - MSW HEAT 3 handler（import-htri 201 + get 200/404 + weight-estimate 9 segments）
+  - OPEN-4-1 vesselApi + OPEN-4-2 sepEquipApi + routeWrappers 简化
+  - OPEN-5 OpenAPI snapshot regen（pcs-backend 102 → 122 paths；drift check pass）
+  - 终态指标：51 files / 521 tests passed（vs 上批 48/513）
+- **OPEN-9**（gstack browse sandbox 阻断）：`browser-manager.ts` 已支持自动
+  `--no-sandbox`，但只在 `CI=1` / `CONTAINER=1` 环境变量触发；本机 Linux 容器
+  未设这两个变量 → 一行修复 `CI=1` 即可
+- **antd Select 测试标准模式**（PC 前端固定模板，仿 WorkspaceSwitcher）：
+  ```tsx
+  const selector = document.querySelector('.ant-select-selector') as HTMLElement;
+  fireEvent.mouseDown(selector);
+  await waitFor(() => { expect(document.querySelector('.ant-select-dropdown')).toBeTruthy(); });
+  const dropdown = document.querySelector('.ant-select-dropdown') as HTMLElement;
+  expect(within(dropdown).getByText('FEED-101')).toBeTruthy();
+  // 选中点击：
+  const option = within(dropdown).getByText('FEED-101').closest('.ant-select-item') as HTMLElement;
+  fireEvent.click(option);
+  ```
+  - antd Select 不是原生 `<select>`，`fireEvent.change` 不生效
+  - `select.textContent` 不含 dropdown options（dropdown 默认关闭，DOM 外）
+  - 必须先 mouseDown → 打开 dropdown → waitFor → within
+- **Per-Batch QA Gate（CLAUDE.md 强制）**：每批 sprint 落地后必须跑浏览器
+  回归（login + 各 Page 路由 + console 清洁 + 网络无 404）。4 页全跑通
+  + 截图入 `.gstack/qa-reports/`（已 gitignore，本地路径）
+- **MSW handlers 测试策略**：直接用 `setupServer` + 本地 fetch（不走
+  `@mswjs/interceptors`），让 handler 真跑（参数校验 + 响应序列化 + 错误
+  envelope 一致性都覆盖）
+- **OPEN-7（HEAT import→get 串行优化）**：需后端 `ImportHtriResponse`
+  扩充字段（equipment_no + equipment_name + tag_number + exchanger_category +
+  duty_w + output_json partial），前端 import() 后免去 get() roundtrip；
+  超出 frontend scope，留待下批后端契约变更
+
+## P5 frontend 决策（累积）
+
+- PROJECT_ID / DEV_BEARER 走 `constants/env.ts`（commit 1afa756）；不留 hardcode
+- 不动后端（OPEN-4/6/7 集中 frontend；后端契约 96165e1 已闭环）
+- 不引新依赖（复用 `api/client.ts` + `api/psv.ts` 模板 + `pages/routeWrappers.tsx`）
+- 不动 MSW core（复用现有 17+ handler 模式 + devOnlyMockHandlers 数组追加）
+- 字段/枚举/权限/错误码以 OpenAPI + meta API 为准；与 SPEC 冲突时 OpenAPI
+  为准并登记 SPEC 修订（V1.3 §12.4）
+
+## P5-3 PSV 二次闭环（2026-09-17）
+
+- **多工况泄放设计**：后端 `PsvCalculateRequest` 是单 scenario 入参
+  （types/psv.ts L106-115）；前端通过 `Promise.all(scenarios.map(s =>
+  psvApi.calculate({ ...baseReq, relief_scenario: s })))` 并行调用 +
+  `responses.reduce((max, r) => r.result.orifice.actual_area_m2 > max... ? r : max)`
+  取最大喉径为主导。**前端层聚合**等价于"后端多 scenario 聚合"，不动
+  后端契约
+- **多 scenario 表单字段隔离**：用 `${scenario}_` 前缀避免 FIRE_D_m
+  与 CLOSED_VALVE_D_m 等同名字段冲突；运行时通过 `extractScenarioValues`
+  函数按前缀拆分
+- **多工况结果对比表**：antd Table 列 `dataIndex: ['result', 'relief_scenario']`
+  用数组路径访问嵌套字段（不在 `PsvCalculateResponse` 顶层），高亮 max
+  行用 `<Tag color="gold">最大（主导）</Tag>` 金标
+- **SUP-P5-PSV-002 安全阀选型前端部分**（V1.0 待评审）：
+  - 新增 PsvValveType 4 态 + PsvBodyMaterial 5 态 + OrificeSize 14 态
+  - 6 字段 UI 全部在 PsvComputePage 一个 Collapse 分组里（位于"泄放工况"
+    之上，按 SPEC §5.1 要求）
+  - 联动规则前端实现：先导式/爆破膜式 → 黄色 Alert + 提交按钮 disabled
+    （antd Button `disabled` 属性）；blowdown_fraction 越界 → form rules
+    validator；orifice_override < 计算孔口 → ORIFICE_ORDER 数组索引对比
+  - **后端契约兼容**：3 新字段（valve_type/body_material/orifice_override）
+    Pydantic v2 `extra='ignore'` 静默忽略，**老请求格式仍可用**（SUP-P5-PSV-002
+    §7.2 向后兼容）；前端不引 break change
+- **antd Tabs role-based 查询**：测试中 `screen.getByText(/结果/)` 在
+  antd Tabs 里因多匹配失败；改用 `screen.getByRole('tab', { name: '结果' })`
+  准确定位（antd Tabs 内 role="tab" 属性）
+- **antd Form.Item name 必须**：之前误用 `<InputNumber name="...">` 直
+  接放在 Form.Item 里（不绑 form），`form.validateFields()` 拿不到值
+  → handleSubmit 提前返回。修正：必须用 `<Form.Item name="blowdown_fraction"
+  rules={...}>` 包裹，InputNumber 不带 name
+- **测试 timeout 局部调整**：复杂 antd Select dropdown + form 提交流程
+  在 5s 默认 timeout 下偶发超时（vitest 全套并发跑慢），用 `it('...',
+  async () => {...}, 15000)` 局部扩展 timeout
+
+## SUP-P5-PSV-002 OPEN 项（待评审通过后启动）
+
+- OPEN-10 后端契约扩展：Pydantic `PsvCalculateRequest` 加 3 字段 +
+  psv_results 7 列迁移 + Task 18 端点 G7/G8/G9 拦截 + Task 17 孔口
+  override 逻辑；后端测试 +15 / E2E +2；前端无需改动（G7/G8/G9 错误码
+  解析已闭环）
