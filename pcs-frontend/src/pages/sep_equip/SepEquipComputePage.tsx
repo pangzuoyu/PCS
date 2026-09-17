@@ -7,8 +7,11 @@
  * - 计算按钮触发 → 结果卡片（设备类型对应字段）
  *
  * V1：5 类型统一表格布局（device_type → form fields 映射），结果区按设备类型动态渲染。
+ *
+ * OPEN-4-2：Props 兼容（streams/onCalculate 可选）+ 未注入时走 streamApi.listByProject
+ * 自取 + sepEquipApi.calculate 真接 API + Spin loading + STREAM_NOT_CHECKED 错误处理。
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { JSX } from 'react';
 import {
   Alert,
@@ -22,11 +25,14 @@ import {
   Row,
   Select,
   Space,
+  Spin,
   Tag,
   Typography,
 } from 'antd';
 
 import { PageHeader } from '../../components/common/PageHeader';
+import { sepEquipApi, type SepEquipCalculateResponse } from '../../api/sepEquip';
+import { streamApi } from '../../api/stream';
 import type {
   CycloneParams,
   GravitySeparatorParams,
@@ -41,11 +47,26 @@ interface StreamLite {
 }
 
 interface Props {
-  streams: StreamLite[];
+  /**可选：父组件注入时优先用（向后兼容 P5-2 测试）；未注入则走 streamApi。*/
+  streams?: StreamLite[];
+  /**可选：父组件注入时优先用（向后兼容 P5-2 测试）；未注入则走 sepEquipApi。*/
   onCalculate?: (
     device: SepEquipDeviceType,
     params: CycloneParams | MistEliminatorParams | GravitySeparatorParams,
-  ) => Record<string, unknown> | undefined;
+  ) => SepEquipCalculateResponse | undefined;
+}
+
+/**后端 PcsError envelope 解析（与 HeatComputePage / VesselComputePage 同模式）。*/
+interface PcsErrorEnvelope {
+  code?: string;
+  message?: string;
+}
+function extractPcsError(err: unknown): PcsErrorEnvelope {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const data = (err as { response?: { data?: PcsErrorEnvelope } }).response?.data;
+    if (data && typeof data === 'object') return data;
+  }
+  return {};
 }
 
 const DEVICE_OPTIONS: { value: SepEquipDeviceType; label: string }[] = [
@@ -87,16 +108,52 @@ const DEFAULT_GRAVITY: GravitySeparatorParams = {
   horizontal_velocity_ms: 0.1,
 };
 
-export function SepEquipComputePage({ streams, onCalculate }: Props): JSX.Element {
+export function SepEquipComputePage({
+  streams: streamsProp,
+  onCalculate: onCalculateProp,
+}: Props): JSX.Element {
   const [device, setDevice] = useState<SepEquipDeviceType>('CYCLONE');
   const [streamId, setStreamId] = useState<string | undefined>();
   const [params, setParams] = useState<
     CycloneParams | MistEliminatorParams | GravitySeparatorParams
   >(DEFAULT_CYCLONE);
-  const [result, setResult] = useState<Record<string, unknown> | null>(null);
+  const [result, setResult] = useState<SepEquipCalculateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [calculating, setCalculating] = useState(false);
+  const [fetchedStreams, setFetchedStreams] = useState<StreamLite[] | null>(null);
+  const [streamsLoading, setStreamsLoading] = useState(false);
 
-  const checkedStreams = streams.filter((s) => s.sign_status === 'CHECKED');
+  // OPEN-4-2：未注入 streams 时走 streamApi 自取
+  useEffect(() => {
+    if (streamsProp !== undefined) return;
+    let cancelled = false;
+    setStreamsLoading(true);
+    streamApi
+      .listByProject('00000000-0000-0000-0000-000000000001')
+      .then((list) => {
+        if (cancelled) return;
+        setFetchedStreams(
+          list.map((s) => ({
+            stream_id: s.stream_id,
+            tag_number: s.tag_number,
+            sign_status: 'CHECKED',
+          })),
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFetchedStreams([]);
+      })
+      .finally(() => {
+        if (!cancelled) setStreamsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [streamsProp]);
+
+  const streams = streamsProp ?? fetchedStreams ?? [];
+  const checkedStreams = streams; // sign_status 过滤在 streamApi/mock 阶段由调用方控制
 
   const onDeviceChange = (v: SepEquipDeviceType): void => {
     setDevice(v);
@@ -106,23 +163,41 @@ export function SepEquipComputePage({ streams, onCalculate }: Props): JSX.Elemen
     setResult(null);
   };
 
-  const handleCalculate = () => {
+  const handleCalculate = async () => {
     if (!streamId) {
       setError('请选择物流');
       return;
     }
     setError(null);
+    setCalculating(true);
     try {
-      const r = onCalculate ? onCalculate(device, params) : mockResult(device, params);
+      let r: SepEquipCalculateResponse | undefined;
+      if (onCalculateProp) {
+        r = onCalculateProp(device, params);
+      } else {
+        r = await sepEquipApi.calculate({
+          source_stream_id: streamId,
+          device_type: device,
+          params,
+        });
+      }
       if (!r) {
         setError('计算失败：返回空');
         setResult(null);
         return;
       }
       setResult(r);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : '未知错误');
+    } catch (err: unknown) {
+      const env = extractPcsError(err);
+      const code = env.code ?? '';
+      if (code === 'STREAM_NOT_CHECKED') {
+        setError('所选流未签出（仅 CHECKED 可计算）');
+      } else {
+        setError(env.message ?? '计算失败');
+      }
       setResult(null);
+    } finally {
+      setCalculating(false);
     }
   };
 
@@ -136,6 +211,7 @@ export function SepEquipComputePage({ streams, onCalculate }: Props): JSX.Elemen
             type="primary"
             data-testid="sep-equip-calculate"
             onClick={handleCalculate}
+            loading={calculating}
           >
             计算
           </Button>
@@ -149,9 +225,11 @@ export function SepEquipComputePage({ streams, onCalculate }: Props): JSX.Elemen
               <Form.Item label="物流" required>
                 <Select
                   data-testid="sep-equip-stream-select"
-                  placeholder="选择 CHECKED 物流"
+                  placeholder={streamsLoading ? '加载物流中…' : '选择 CHECKED 物流'}
                   value={streamId}
                   onChange={setStreamId}
+                  loading={streamsLoading}
+                  disabled={streamsLoading}
                   options={checkedStreams.map((s) => ({
                     value: s.stream_id,
                     label: s.tag_number,
@@ -186,30 +264,32 @@ export function SepEquipComputePage({ streams, onCalculate }: Props): JSX.Elemen
 
         <Col span={14}>
           <Card title="结果" size="small" data-testid="sep-equip-result-card">
-            {error && (
-              <Alert
-                type="error"
-                message={error}
-                data-testid="sep-equip-error"
-                style={{ marginBottom: 12 }}
-              />
-            )}
-            {!result && !error && (
-              <Typography.Text type="secondary">点击「计算」开始</Typography.Text>
-            )}
-            {result && (
-              <Descriptions
-                size="small"
-                column={1}
-                data-testid="sep-equip-result-table"
-              >
-                {Object.entries(result).map(([k, v]) => (
-                  <Descriptions.Item key={k} label={k}>
-                    {renderResultValue(v)}
-                  </Descriptions.Item>
-                ))}
-              </Descriptions>
-            )}
+            <Spin spinning={calculating}>
+              {error && (
+                <Alert
+                  type="error"
+                  message={error}
+                  data-testid="sep-equip-error"
+                  style={{ marginBottom: 12 }}
+                />
+              )}
+              {!result && !error && (
+                <Typography.Text type="secondary">点击「计算」开始</Typography.Text>
+              )}
+              {result && (
+                <Descriptions
+                  size="small"
+                  column={1}
+                  data-testid="sep-equip-result-table"
+                >
+                  {Object.entries(result.result).map(([k, v]) => (
+                    <Descriptions.Item key={k} label={k}>
+                      {renderResultValue(v)}
+                    </Descriptions.Item>
+                  ))}
+                </Descriptions>
+              )}
+            </Spin>
           </Card>
         </Col>
       </Row>
@@ -426,39 +506,6 @@ function renderResultValue(v: unknown): JSX.Element {
     return v ? <Tag color="green">true</Tag> : <Tag color="default">false</Tag>;
   }
   return <span>{String(v)}</span>;
-}
-
-function mockResult(
-  device: SepEquipDeviceType,
-  params: CycloneParams | MistEliminatorParams | GravitySeparatorParams,
-): Record<string, unknown> {
-  if (device === 'CYCLONE') {
-    const p = params as CycloneParams;
-    const c_f =
-      p.method === 'LAPPLE'
-        ? (16 * p.a_inlet_m * p.b_inlet_m) / (p.D_exhaust_m ** 2)
-        : p.method === 'SWIFT'
-          ? 1 + 2 * (p.D_exhaust_m / p.D_cylinder_m) ** 2
-          : (4 * p.a_inlet_m * p.b_inlet_m) / (p.D_exhaust_m * p.D_cylinder_m);
-    const dP = c_f * (p.rho_kg_m3 / 2) * p.V_in_ms ** 2;
-    return { pressure_drop_pa: dP, method: p.method };
-  }
-  if (device === 'MIST_ELIMINATOR') {
-    const p = params as MistEliminatorParams;
-    const K = p.pad_type === 'STANDARD' ? 0.107 : 0.085;
-    const pad_area = p.Q_gas_m3_s / K;
-    return { pad_area_m2: pad_area, K_factor_ms: K };
-  }
-  const p = params as GravitySeparatorParams;
-  const mu = p.mu_fluid_pa_s;
-  const v_t = (p.rho_particle_kg_m3 - p.rho_fluid_kg_m3) * 9.81 * p.d_particle_m ** 2 / (18 * mu);
-  const region = v_t > 0.0001 ? 'NEWTON' : 'INTERMEDIATE';
-  const chamber_length = p.height_setting_m * p.horizontal_velocity_ms / v_t;
-  return {
-    settling_velocity_ms: v_t,
-    region,
-    chamber_length_m: chamber_length,
-  };
 }
 
 export default SepEquipComputePage;

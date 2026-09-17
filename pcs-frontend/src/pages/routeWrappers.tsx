@@ -202,7 +202,8 @@ export function VesselRoute(): JSX.Element {
 
 // === P5-2 SEP_EQUIP ===
 export function SepEquipRoute(): JSX.Element {
-  return <SepEquipComputePage streams={[]} />;
+  // OPEN-4-2：移除 streams={[]} 注入，让 Page 走 streamApi 自取
+  return <SepEquipComputePage />;
 }
 
 // === P5-3 PSV ===
