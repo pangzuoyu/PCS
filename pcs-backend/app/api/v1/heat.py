@@ -62,11 +62,20 @@ class ImportHtriResponse(BaseModel):
     record_hash: str = Field(..., description="16 hex 数值规范化哈希")
     project_id: uuid.UUID = Field(..., description="项目 UUID")
     equipment_no: str = Field(..., description="设备位号")
+    equipment_name: str | None = Field(
+        None, description="设备名（OPEN-7：补足前端 import() 后免 get() roundtrip）"
+    )
     tag_number: str = Field(..., description="HeatResult 业务 tag")
     exchanger_category: str = Field(
         ..., description="SHELL_TUBE / AIR_COOL / PLATE"
     )
     duty_w: float | None = Field(None, description="热负荷 W（HTRI）")
+    # OPEN-7：HTRI output_json 摘录（total_weight_kg/weight_segments 等），
+    # 前端 import() 后免调 get() 即可拿重量估值（P7 UTIL 消费）
+    output_json: dict[str, Any] = Field(
+        default_factory=dict,
+        description="HeatResult.output_json 摘录（OPEN-7 串行优化）",
+    )
     outlet_stream_id: uuid.UUID | None = Field(
         None, description="出口流 UUID（source_stream_id 提供时存在）"
     )
@@ -258,9 +267,11 @@ async def import_htri(
         record_hash=record.record_hash,
         project_id=project_id,
         equipment_no=equipment_no,
+        equipment_name=record.equipment_name,  # OPEN-7：透传，import() 后免 get()
         tag_number=tag_number,
         exchanger_category=exchanger_category,
         duty_w=record.duty,
+        output_json=record.output_json or {},  # OPEN-7：透传 HTRI 摘录
         outlet_stream_id=outlet.stream_id if outlet else None,
         outlet_stream_name=outlet.stream_name if outlet else None,
     )

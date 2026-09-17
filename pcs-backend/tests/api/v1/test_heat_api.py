@@ -149,6 +149,9 @@ async def test_import_htri_happy_path_without_outlet(
     assert body["tag_number"] == "E-201"
     assert body["exchanger_category"] == "SHELL_TUBE"
     assert body["duty_w"] == pytest.approx(1_000_000.0)
+    # OPEN-7：equipment_name + output_json 透传（前端 import() 免 get() roundtrip）
+    assert body["equipment_name"] == "HEAT-E-201"
+    assert isinstance(body["output_json"], dict)
     # 无 source_stream_id → 无 outlet
     assert body["outlet_stream_id"] is None
     assert body["outlet_stream_name"] is None

@@ -163,9 +163,22 @@ export function HeatComputePage(): JSX.Element {
         source_stream_id: values.source_stream_id || undefined,
       });
       setImportResult(resp);
-      // 立即 GET 详情（output_json 含 total_weight_kg）
-      const detail = await heatApi.get(resp.calc_id);
-      setHeatDetail(detail);
+      // OPEN-7：import() 透传 equipment_name + output_json，免去 get() roundtrip
+      // 直接用 resp 构造 HeatResultResponse 占位（input_json 在 import 阶段尚未完整解析，置空对象）
+      setHeatDetail({
+        calc_id: resp.calc_id,
+        calc_type: resp.calc_type,
+        project_id: resp.project_id,
+        workspace_id: PROJECT_ID, // 占位：V1.5 接 meta 后真值
+        tag_number: resp.tag_number,
+        equipment_no: resp.equipment_no,
+        equipment_name: resp.equipment_name,
+        exchanger_category: resp.exchanger_category,
+        duty: resp.duty_w,
+        record_hash: resp.record_hash,
+        input_json: {},
+        output_json: resp.output_json,
+      });
       message.success(`HEAT 导入完成：record_hash=${resp.record_hash}`);
     } catch (err: unknown) {
       const env = extractPcsError(err);

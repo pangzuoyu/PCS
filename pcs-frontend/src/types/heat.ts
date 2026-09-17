@@ -54,9 +54,11 @@ export interface ImportHtriResponse {
   record_hash: string;                          // 16 hex（ADR-0031）
   project_id: string;                           // UUID
   equipment_no: string;
+  equipment_name: string | null;               // OPEN-7：补足免 get() roundtrip
   tag_number: string;                          // HeatResult 业务 tag
   exchanger_category: ExchangerCategory;
   duty_w: number | null;                        // 热负荷 W（HTRI 解析后填入；P7 UTIL 消费）
+  output_json: Record<string, unknown>;         // OPEN-7：HTRI output 摘录（总重等）
   outlet_stream_id: string | null;              // source_stream_id 提供时存在
   outlet_stream_name: string | null;            // HEAT_EXCHANGE 后缀（outlet_stream.py:138）
 }
