@@ -77,6 +77,19 @@ _DEFAULT_INLET_SIZE: Final[str] = "4 inch"
 _DEFAULT_OUTLET_SIZE: Final[str] = "6 inch"
 _DEFAULT_BLOWDOWN_FRACTION: Final[float] = 0.05
 
+# 介质默认 blowdown（V1.14 §3.5 BLOWDOWN_DEFAULT_BY_MEDIUM 联动；与 valve_selection_types 同源）
+_BLOWDOWN_DEFAULT_BY_MEDIUM: Final[dict[str, float]] = {
+    "GAS": 0.05,
+    "VAPOR": 0.05,
+    "LIQUID": 0.10,
+    "TWO_PHASE": 0.10,
+}
+
+
+def _get_default_blowdown(medium: str) -> float:
+    """介质默认 blowdown（§3.5）。"""
+    return _BLOWDOWN_DEFAULT_BY_MEDIUM.get(medium, _DEFAULT_BLOWDOWN_FRACTION)
+
 # 默认 standard profile（项目级缺省走 API/7th）
 _DEFAULT_STANDARD_CODE: Final[str] = "API"
 _DEFAULT_STANDARD_VERSION: Final[str] = "7th"
@@ -249,12 +262,36 @@ async def persist_psv_calculate(
     sizing_params: dict[str, Any],
     standard_code: str | None = None,
     standard_version: str | None = None,
-    blowdown_fraction: float = _DEFAULT_BLOWDOWN_FRACTION,
+    blowdown_fraction: float | None = None,
     inlet_size: str = _DEFAULT_INLET_SIZE,
     outlet_size: str = _DEFAULT_OUTLET_SIZE,
     actor: uuid.UUID | None = None,
+    # ===== P5-OPEN-10 SUP-P5-PSV-002 V1.14 §4.1 选型 18 字段 =====
+    valve_type: str = "SPRING_LOADED",
+    body_material: str = "SS316",
+    bellows_material: str | None = None,
+    flange_class: str = "300#",
+    back_pressure_type: str = "BUILT_UP",
+    back_pressure_pct: float = 0.0,
+    superimposed_pressure_pa: float = 0.0,
+    set_pressure_pa: float = 200_000.0,
+    overpressure_pct: float = 0.10,
+    orifice_override: str | None = None,
+    valve_brand: str | None = None,
+    rupture_disc_position: str = "NONE",
+    pilot_temperature_c: float | None = None,
+    pilot_temp_class: str = "GENERAL",
+    fire_protection: bool = False,
+    medium: str = "GAS",
+    service_note: str | None = None,
+    fluid_temperature_c: float | None = None,
+    molecular_weight: float | None = None,
+    calculated_area_m2: float | None = None,
 ) -> dict[str, Any]:
     """PSV 计算落库：scenario → aggregate → area → orifice → PsvResult + outlet。
+
+    P5-OPEN-10 V1.14：新增 18 选型字段 + validate_valve_params 校验（G7-G25）
+    + 派生字段落库（kb_factor / kb_source / cdtp_applied / rupture_disc_kc）
 
     Args:
         db: async session
@@ -273,7 +310,7 @@ async def persist_psv_calculate(
         }
 
     Raises:
-        PcsError: 三步守卫失败 / 源流不存在 / 工况不支持 / standard 不支持
+        PcsError: 三步守卫失败 / 源流不存在 / 工况不支持 / standard 不支持 / 选型校验失败
     """
     # 1. 三步守卫
     await check_calc_inputs(db, [source_stream_id])
@@ -311,6 +348,40 @@ async def persist_psv_calculate(
         OrificeInput(area_required_m2=area_result.area_required_m2),
     )
 
+    # 7.5 P5-OPEN-10 选型校验（G7-G25 全拦截/警告；可能 raise）
+    # 延迟 import：避免 service 层循环
+    from app.services.psv.valve_validation import validate_valve_params
+
+    # 计算面积透传给 validate（G9 orifice_override < 计算面积 校验用）
+    if calculated_area_m2 is None:
+        calculated_area_m2 = area_result.area_required_m2
+
+    validated = validate_valve_params(
+        {
+            "valve_type": valve_type,
+            "body_material": body_material,
+            "bellows_material": bellows_material,
+            "medium": medium,
+            "flange_class": flange_class,
+            "back_pressure_type": back_pressure_type,
+            "back_pressure_pct": back_pressure_pct,
+            "superimposed_pressure_pa": superimposed_pressure_pa,
+            "set_pressure_pa": set_pressure_pa,
+            "overpressure_pct": overpressure_pct,
+            "blowdown_fraction": blowdown_fraction,
+            "orifice_override": orifice_override,
+            "inlet_size": inlet_size,
+            "outlet_size": outlet_size,
+            "rupture_disc_position": rupture_disc_position,
+            "valve_brand": valve_brand,
+            "service_note": service_note,
+            "fluid_temperature_c": fluid_temperature_c,
+            "molecular_weight": molecular_weight,
+            "calculated_area_m2": calculated_area_m2,
+            "relief_scenario": relief_scenario,
+        }
+    )
+
     # 8. 构造 PsvResult ORM
     set_pressure_pa = float(sizing_params.get("P_set_pa", 0.0))
     relief_scenario_list: list[str] = [relief_scenario]
@@ -322,6 +393,13 @@ async def persist_psv_calculate(
         "dominant_scenario": aggregate.dominant_scenario,
     }
 
+    # 选型 blowdown：validate 派生（None → 默认）后写入
+    blowdown_db = (
+        blowdown_fraction
+        if blowdown_fraction is not None
+        else _get_default_blowdown(medium)
+    )
+
     record = PsvResult(
         tag_number=_generate_tag_number(stream.project_id),
         project_id=stream.project_id,
@@ -329,7 +407,7 @@ async def persist_psv_calculate(
         set_pressure=set_pressure_pa,
         relief_capacity=aggregate.max_relief_mass_flow_kgs,
         orifice_area=orifice_result.actual_area_m2,
-        blowdown=blowdown_fraction,
+        blowdown=blowdown_db,
         orifice_designation=orifice_result.selected_size,
         inlet_size=inlet_size,
         outlet_size=outlet_size,
@@ -339,6 +417,25 @@ async def persist_psv_calculate(
         formula_ref_json=formula_ref_json,
         pending_review=False,
         migrated_default=False,
+        # ===== P5-OPEN-10 选型 18 列 =====
+        valve_type=valve_type,
+        body_material=body_material,
+        bellows_material=bellows_material,
+        flange_class=flange_class,
+        back_pressure_type=back_pressure_type,
+        back_pressure_pct=back_pressure_pct,
+        overpressure_pct=overpressure_pct,
+        kb_factor=validated.kb_factor,
+        kb_source=validated.kb_source,
+        valve_brand=valve_brand,
+        cdtp_applied=validated.cdtp_applied,
+        orifice_overridden=orifice_override is not None,
+        orifice_manual=orifice_override,
+        rupture_disc_position=rupture_disc_position,
+        rupture_disc_kc=validated.rupture_disc_kc,
+        pilot_temperature_c=pilot_temperature_c,
+        pilot_temp_class=pilot_temp_class,
+        fire_protection=fire_protection,
     )
     db.add(record)
     await db.flush()  # psv_id 落库（finalize 内 LineageTracker 需要 PK）
@@ -351,7 +448,7 @@ async def persist_psv_calculate(
         formula_version=_FORMULA_VERSION,
     )
 
-    # 10. outlet 流（source_type=PSV_CALCULATED）
+    # 10. outlet 流（source_type=PSV_CALCULATED；properties 含 V1.14 选型 18 字段）
     outlet = await create_outlet_stream(
         db,
         source_stream_id=source_stream_id,
@@ -365,9 +462,27 @@ async def persist_psv_calculate(
             "relief_capacity_kgs": aggregate.max_relief_mass_flow_kgs,
             "orifice_designation": orifice_result.selected_size,
             "orifice_area_m2": orifice_result.actual_area_m2,
-            "blowdown_fraction": blowdown_fraction,
+            "blowdown_fraction": blowdown_db,
             "standard_profile_code": profile_code,
             "standard_version": version,
+            # ===== P5-OPEN-10 V1.14 选型派生字段透传 =====
+            "valve_type": valve_type,
+            "body_material": body_material,
+            "bellows_material": bellows_material,
+            "flange_class": flange_class,
+            "back_pressure_type": back_pressure_type,
+            "back_pressure_pct": back_pressure_pct,
+            "overpressure_pct": overpressure_pct,
+            "kb_factor": validated.kb_factor,
+            "kb_source": validated.kb_source,
+            "valve_brand": valve_brand,
+            "cdtp_applied": validated.cdtp_applied,
+            "cdtp_set_pressure_pa": validated.cdtp_set_pressure_pa,
+            "rupture_disc_position": rupture_disc_position,
+            "rupture_disc_kc": validated.rupture_disc_kc,
+            "fire_protection": fire_protection,
+            "candidates": validated.candidates,
+            "warnings": validated.warnings,
         },
         project_id=stream.project_id,
         workspace_id=stream.workspace_id,
@@ -395,12 +510,30 @@ async def persist_psv_calculate(
         "relief_area": _dataclass_to_dict(area_result),
         "orifice": _dataclass_to_dict(orifice_result),
         "set_pressure_pa": set_pressure_pa,
-        "blowdown_fraction": blowdown_fraction,
+        "blowdown_fraction": blowdown_db,
         "inlet_size": inlet_size,
         "outlet_size": outlet_size,
         "standard_profile_code": profile_code,
         "standard_version": version,
         "formula_ref_json": formula_ref_json,
+        # ===== P5-OPEN-10 V1.14 选型派生字段（§4.6 透传）=====
+        "valve_type": valve_type,
+        "body_material": body_material,
+        "bellows_material": bellows_material,
+        "flange_class": flange_class,
+        "back_pressure_type": back_pressure_type,
+        "back_pressure_pct": back_pressure_pct,
+        "overpressure_pct": overpressure_pct,
+        "kb_factor": validated.kb_factor,
+        "kb_source": validated.kb_source,
+        "valve_brand": valve_brand,
+        "cdtp_applied": validated.cdtp_applied,
+        "cdtp_set_pressure_pa": validated.cdtp_set_pressure_pa,
+        "rupture_disc_position": rupture_disc_position,
+        "rupture_disc_kc": validated.rupture_disc_kc,
+        "fire_protection": fire_protection,
+        "candidates": validated.candidates,
+        "warnings": validated.warnings,
     }
 
     return {
