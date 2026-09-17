@@ -159,13 +159,57 @@ P5c: 3 (output_json 类型过松、setHeatDetail prev=null 边界、HeatComputeP
 | Sprint | Prod Files Reviewed | Findings | CRITICAL | HIGH |
 |---|---|---|---|---|
 | P0 | 25 top + sampled | 16 | 0 | 4 |
-| P1 | 20 top + sampled | 14 | **4** | 4 |
+| P1 | 20 top + sampled | 14 | **4** | 3 |
 | P2 | 5 (all) | 9 | 0 | 3 |
-| P5-123 backend | 35 top + 4 P5-4 backend | 14 | **3** | 5 |
-| P5-3 frontend | 10 (all) | TBD | TBD | TBD |
+| P5-123 backend | 39 (35 top + 4 P5-4 backend) | 14 | **3** | 5 |
+| P5-3 frontend | 10 (all) | 20 | 0 | **3** |
 | P5-4 fe.detail | 15 top | 18 | **3** | 4 |
 | P5c (latest) | 5 (all) | 7 | 0 | 0 |
-| **Total** | | **78** | **10** | **20** |
+| **Total** | | **98** | **10** | **22** |
+
+## DELTA: Additional findings surfaced in late reviewer returns (78 → 98)
+
+### P5-3 frontend 新增 (3 HIGH)
+- **HEAT-WORKSPACE-ID-INCORRECT** `HeatComputePage.tsx:159` — multipart POST sends `workspace_id: PROJECT_ID` (project UUID masquerading as workspace UUID). Backend HEAT_PROJECT_MISMATCH/404 risk once workspace-existence check fires.
+- **MSW-VESSEL-SEPEQUIP-MISSING** `handlers.ts:202` — MSW registers PSV + HEAT but NOT /vessel/calculate or /sep-equip/calculate → MSW mode 404 vs backend 422/403 (false-negative tests + per-batch QA breakage).
+- **MSW-PSV-STATUS-201** `handlers.ts:148` — POST /psv/calculate returns 201 (action endpoint); verify against OpenAPI.
+
+### P2 新增 (1 HIGH)
+- **P2-001** `equipment_list` 47 columns have ZERO API surface — no schemas/equipment.py, no `/api/v1/equipment*` endpoints. Task brief claimed config.py exposes them; **wrong**. config.py doesn't touch equipment_list at all. Columns are ORM-only dead data until P3.
+
+### P5-3 frontend 新增 (7 MEDIUM)
+- VESSEL/SEPEQUIP-HARDCODED-PROJECT-UUID x2 (`VesselComputePage.tsx:122`, `SepEquipComputePage.tsx:132`)
+- VESSEL/SEPEQUIP-SIGN-STATUS-FABRICATION x2 (stamps `sign_status: 'CHECKED'` on every stream)
+- HEAT-OUTPUT-JSON-UNSAFE-CAST `HeatComputePage.tsx:360` — `in` proves key presence not type; string drift crashes P7 UTIL critical path
+- HEAT-ZERO-INPUT-JSON-PLACEHOLDER `HeatComputePage.tsx:179` — silent data loss
+- APP-ROUTER-NO-ERROR-BOUNDARY `App.tsx:38` (pre-existing)
+- VESSEL-RESULT-NUMBER-COERCION `VesselComputePage.tsx:421` — NaN leak on string backend values
+
+### P5-4 fe.detail 新增 (replacement IDs with engineering detail)
+- **P5-4FD-001** `valve_validation.py:118` — G9 orifice_override 校验未实现 (`noqa: F841`)
+- **P5-4FD-002** `PsvComputePage.tsx:179` — FLANGE_TO_ORIFICES 与后端 3 处不一致（顺序、缺条目、无法兰等级过滤）
+- **P5-4FD-003** `types/psv.ts:72` — PsvKbSource Literal 缺 Farris/Crosby
+- **P5-4FD-004/005/006** feature-dead-code x3（CDTP/G15/背压）
+- **P5-4FD-007** `kb_service.py:195` — `_normalize_brand` 返回值违反类型契约
+- **P5-4FD-011** alembic upgrade 未执行 UPDATE backfill（仅 add_column nullable=True）
+- **P5-4FD-017** `psv_persist.py:357` — `calculated_area_m2` 入参形同虚设（P5-4FD-001 缺陷连锁）
+
+### P1 关键发现 (上下文)
+**P1 sprint 实际是 P0-baseline 临时回滚**（88k 行 diff 中绝大部分是 deletions）。所有删除项（5 routers / 4 schemas / 1 model / 6 migrations / 44 equipment columns / async engine）在后续 P2..P5 中已**逐步重新应用**。P1 的"收口"是临时 revert，不是终态。
+- **结论**：P1 CRITICAL findings（P1-CR-001..004）当前**部分/完全已修复**（auth.py 后续 P5 阶段重写，session.py 加回 async engine）。建议**仅核实 P1-CR-005/006/007**（equipment.py 44 列 + config_domain.py 字段重命名）是否仍存在数据丢失风险。
+
+### P5-123 关键发现 (工程细节)
+- **PSV-001** `fire_case_service.py:160` — `_wetted_area_horizontal_with_liquid` (L133) 已定义但**从未被调用**；3 个 fire-case 路径全部无条件调用 `_wetted_area_vertical`
+- **PSV-002** `relief_area_service.py:156` — `_gas_area_api520` signature 收 T/M/Z/k 但公式 drop √(M/(Z·R·T))·√(k/(k-1))·((2/(k+1))^((k+1)/(k-1))) 项
+- **PSV-003** `relief_area_service.py:253` — `1 + ω·5.0` magic number, ω=1 产 6× area
+- **MIGRATION-001** — `p5_open_010_psv_valve_selection.py` CHECK 约束可能漏 PILOT/RUPTURE_DISC
+
+### Task brief 修订
+Task brief 列 `ache_params.py` / `weight_estimate.py` 不存在。真实路径：
+- `AcheParams` → `heat_data_service.py:287-302`
+- `weight estimate` → `weight_estimate_service.py`
+
+19 alembic migrations 实际是 P5 批次的 5 个（p5_0_2/p5_0_4a/p5_0_5/p5_open_005/p5_open_010）；"19 表"指 19 个 P5 result-table 列新增，非迁移文件。
 
 ---
 
