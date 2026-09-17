@@ -16,7 +16,7 @@
  * - workspace_id：当前简化由 PROJECT_ID 同源占位（项目级 workspace 上下文）；
  *   V1.5 阶段接入 meta/projects 取真实 workspace_id。
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { JSX } from 'react';
 import {
   Alert,
@@ -28,6 +28,7 @@ import {
   Input,
   InputNumber,
   Radio,
+  Select,
   Spin,
   Table,
   Tag,
@@ -48,6 +49,15 @@ import type {
   WeightEstimateResponse,
 } from '../../types/heat';
 import { PROJECT_ID } from '../../constants/env';
+import { streamApi } from '../../api/stream';
+
+/**streams 列表条目（仅取 Select 所需子集，避免引入全 stream 详情类型）。*/
+interface StreamListItem {
+  stream_id: string;
+  tag_number: string;
+  stream_name: string;
+  phase?: string;
+}
 
 interface PcsErrorEnvelope {
   code?: string;
@@ -95,6 +105,40 @@ export function HeatComputePage(): JSX.Element {
   const [importResult, setImportResult] = useState<ImportHtriResponse | null>(null);
   const [heatDetail, setHeatDetail] = useState<HeatResultResponse | null>(null);
   const [weightResult, setWeightResult] = useState<WeightEstimateResponse | null>(null);
+  const [streamOptions, setStreamOptions] = useState<{ value: string; label: JSX.Element }[]>([]);
+  const [streamsLoading, setStreamsLoading] = useState(false);
+
+  // OPEN-6：源流从 Input 改为 Select（按 V1.5 接 streams 列表）
+  useEffect(() => {
+    let cancelled = false;
+    setStreamsLoading(true);
+    streamApi
+      .listByProject(PROJECT_ID)
+      .then((streams) => {
+        if (cancelled) return;
+        const opts = (streams as StreamListItem[]).map((s) => ({
+          value: s.stream_id,
+          label: (
+            <span>
+              <code>{s.stream_id}</code> {s.tag_number} — {s.stream_name}
+              {s.phase ? ` (${s.phase})` : ''}
+            </span>
+          ),
+        }));
+        setStreamOptions(opts);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        // 加载失败不阻塞表单（OPEN-6 接受：可手动输入 UUID）
+        setStreamOptions([]);
+      })
+      .finally(() => {
+        if (!cancelled) setStreamsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   const onImport = async () => {
     if (!importFile) {
@@ -244,8 +288,20 @@ export function HeatComputePage(): JSX.Element {
           >
             <Radio.Group options={EXCHANGER_CATEGORY_OPTIONS} optionType="button" />
           </Form.Item>
-          <Form.Item name="source_stream_id" label="源流 UUID（可选；提供则创建 HEAT_EXCHANGE outlet）">
-            <Input placeholder="UUID（可选）" />
+          <Form.Item
+            name="source_stream_id"
+            label="源流（可选；提供则创建 HEAT_EXCHANGE outlet）"
+            tooltip="从项目 SIM 流列表选择；可清空表示不创建 outlet"
+          >
+            <Select
+              allowClear
+              showSearch
+              loading={streamsLoading}
+              placeholder="选择源流（可选；不选则不创建 HEAT_EXCHANGE outlet）"
+              options={streamOptions}
+              optionFilterProp="label"
+              notFoundContent={streamsLoading ? '加载中…' : '该项目下无 SIM 流'}
+            />
           </Form.Item>
           <Form.Item>
             <Button type="primary" onClick={onImport} disabled={!importFile}>

@@ -24,6 +24,16 @@ vi.mock('../../../src/api/heat', () => ({
   },
 }));
 
+// mock streamApi：避免 useEffect 真发请求（OPEN-6 Select 数据源）
+vi.mock('../../../src/api/stream', () => ({
+  streamApi: {
+    listByProject: vi.fn().mockResolvedValue([
+      { stream_id: 's-101', tag_number: 'S-101', stream_name: '进料物流', phase: 'LIQUID' },
+      { stream_id: 's-102', tag_number: 'S-102', stream_name: '塔顶蒸汽', phase: 'VAPOR' },
+    ]),
+  },
+}));
+
 describe('HeatComputePage — 渲染 (P5-4 frontend)', () => {
   it('渲染 PageHeader + 导入表单 + 重量估算折叠', () => {
     render(<HeatComputePage />);
@@ -58,5 +68,13 @@ describe('HeatComputePage — 渲染 (P5-4 frontend)', () => {
     render(<HeatComputePage />);
     const importBtn = screen.getByRole('button', { name: '导入 HTRI' });
     expect(importBtn).toBeDisabled();
+  });
+
+  it('源流 Select 渲染（OPEN-6：Input → Select）', () => {
+    render(<HeatComputePage />);
+    // Select 触发器显示 placeholder（mock streamApi 已 resolve）
+    expect(screen.getByText(/选择源流/)).toBeTruthy();
+    // 旧的 Input placeholder "UUID（可选）" 应不再出现
+    expect(screen.queryByPlaceholderText(/^UUID（可选）$/)).toBeNull();
   });
 });
