@@ -1,11 +1,14 @@
 /**
- * PsvComputePage — PSV 安全阀计算界面（P5-3-6 / Task 18）。
+ * PsvComputePage — PSV 安全阀计算界面（V1.2 SPEC §7.11.5）。
  *
- * SPEC §7.11.5：
- * - 4 端点对应 4 卡片：relief / area / orifice / standard
- * - relief 多工况叠加 → max_mass_flow 取最大
- * - 标准由项目配置注入（API / GB / CUSTOM）；先导式阀拦截提示
- * - V1：单 Page 内 4 Tab 切换（antd Tabs）
+ * 按 SPEC V1.2 + 后端 OpenAPI（commit 93627a7）：
+ * - 单 Page 单 API 调用（POST /api/v1/psv/calculate）→ aggregate + relief_area + orifice + 标准溯源
+ * - 4 种 relief_scenario 路由（FIRE/CLOSED_VALVE/REACTION_RUNAWAY/THERMAL_EXPANSION）
+ * - design_stage BASIC ≤25 列 / DETAIL 完整切换
+ * - 结果区展示 outlet_stream（PSV_CALCULATED）+ record_hash + lineage_ids + formula_ref_json
+ * - 错误 envelope（403/404/422）按 code 分支提示
+ *
+ * 复用 api/psv.ts（commit 238f882）+ types/psv.ts（commit 61a3706）。
  */
 import { useState } from 'react';
 import type { JSX } from 'react';
@@ -15,8 +18,11 @@ import {
   Card,
   Col,
   Descriptions,
+  Empty,
   Form,
+  Input,
   InputNumber,
+  Radio,
   Row,
   Select,
   Space,
@@ -25,17 +31,23 @@ import {
   Tabs,
   Tag,
   Typography,
+  message,
 } from 'antd';
 
 import { PageHeader } from '../../components/common/PageHeader';
+import { psvApi } from '../../api/psv';
 import type {
-  FireCaseInput,
-  FireCaseResult,
-  OrificeResult,
-  ReliefAggregateResult,
-  ReliefAreaInput,
-  ReliefAreaResult,
+  DesignStage,
+  FireScenarioParams,
+  ClosedValveScenarioParams,
+  ReactionRunawayScenarioParams,
+  ThermalExpansionScenarioParams,
+  PsvCalculateRequest,
+  PsvCalculateResponse,
+  PsvStandardProfileCode,
   ReliefScenario,
+  ReliefPhase,
+  ScenarioParams,
 } from '../../types/psv';
 
 interface StreamLite {
@@ -46,12 +58,7 @@ interface StreamLite {
 
 interface Props {
   streams: StreamLite[];
-  projectStandard?: string;
-  onFireCaseCalculate?: (input: FireCaseInput) => FireCaseResult | undefined;
-  onReliefAreaCalculate?: (
-    input: ReliefAreaInput,
-  ) => ReliefAreaResult | undefined;
-  onOrificeSelect?: (area_m2: number) => OrificeResult | undefined;
+  projectStandard?: PsvStandardProfileCode;
 }
 
 const SCENARIO_OPTIONS: { value: ReliefScenario; label: string }[] = [
@@ -61,50 +68,147 @@ const SCENARIO_OPTIONS: { value: ReliefScenario; label: string }[] = [
   { value: 'THERMAL_EXPANSION', label: '热膨胀' },
 ];
 
+const PHASE_OPTIONS: { value: ReliefPhase; label: string }[] = [
+  { value: 'GAS', label: '气体' },
+  { value: 'LIQUID', label: '液体' },
+  { value: 'TWO_PHASE', label: '两相流' },
+];
+
+interface PcsErrorEnvelope {
+  code?: string;
+  message?: string;
+  detail?: unknown;
+  trace_id?: string;
+}
+
+function extractPcsError(err: unknown): PcsErrorEnvelope {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const data = (err as { response?: { data?: PcsErrorEnvelope } }).response?.data;
+    if (data && typeof data === 'object') return data;
+  }
+  return {};
+}
+
 export function PsvComputePage({
   streams,
   projectStandard = 'API',
-  onFireCaseCalculate,
-  onReliefAreaCalculate,
-  onOrificeSelect,
 }: Props): JSX.Element {
+  const [streamId, setStreamId] = useState<string | undefined>();
+  const [scenario, setScenario] = useState<ReliefScenario>('FIRE');
+  const [phase, setPhase] = useState<ReliefPhase>('GAS');
+  const [designStage, setDesignStage] = useState<DesignStage>('DETAIL');
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState<PsvCalculateResponse | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const checkedStreams = streams.filter((s) => s.sign_status === 'CHECKED');
+
+  const onCalculate = async (formValues: Record<string, number>) => {
+    if (!streamId) {
+      message.error('请先选择 CHECKED 物流');
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const scenario_params = buildScenarioParams(scenario, formValues);
+      const req: PsvCalculateRequest = {
+        source_stream_id: streamId,
+        relief_scenario: scenario,
+        scenario_params,
+        sizing_params: {
+          relief_mass_flow_kgs: formValues.relief_mass_flow_kgs,
+          phase,
+          P_back_pa: formValues.P_back_pa,
+          P_set_pa: formValues.P_set_pa,
+          T_k: formValues.T_k,
+          M_kg_per_mol: formValues.M_kg_per_mol,
+          Z: formValues.Z,
+          k_cp_ratio: formValues.k_cp_ratio,
+          rho_L_kg_m3: formValues.rho_L_kg_m3,
+        },
+        design_stage: designStage,
+        blowdown_fraction: 0.05,
+        inlet_size: '4 inch',
+        outlet_size: '6 inch',
+      };
+      const resp = await psvApi.calculate(req);
+      setResult(resp);
+      message.success(`PSV 计算完成：record_hash=${resp.record_hash}`);
+    } catch (err: unknown) {
+      const env = extractPcsError(err);
+      const code = env.code ?? '';
+      const msg = env.message ?? 'PSV 计算失败';
+      if (code === 'STREAM_NOT_CHECKED') {
+        message.error('源流未签收，请先在物流一览完成 CHECKED 流程');
+      } else if (code === 'SIM_STREAM_NOT_FOUND') {
+        message.error('源流不存在，请重新选择');
+      } else if (code === 'PSV_INPUT_ERROR') {
+        message.error(`输入参数不合法：${msg}`);
+      } else {
+        message.error(msg);
+      }
+      setError(msg);
+      setResult(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div data-testid="psv-compute-page">
       <PageHeader
         title="PSV 安全阀计算"
         module="PSV"
         actions={
-          <Tag color="blue" data-testid="psv-standard-tag">
-            项目标准：{projectStandard}
-          </Tag>
+          <Space>
+            <Tag color="blue" data-testid="psv-standard-tag">
+              项目标准：{projectStandard}
+            </Tag>
+            <Radio.Group
+              value={designStage}
+              onChange={(e) => setDesignStage(e.target.value as DesignStage)}
+              data-testid="psv-design-stage"
+            >
+              <Radio.Button value="BASIC">BASIC（≤25 列）</Radio.Button>
+              <Radio.Button value="DETAIL">DETAIL（完整）</Radio.Button>
+            </Radio.Group>
+          </Space>
         }
       />
 
       <Tabs
-        defaultActiveKey="relief"
+        defaultActiveKey="input"
         data-testid="psv-tabs"
         items={[
           {
-            key: 'relief',
-            label: '泄放工况',
+            key: 'input',
+            label: '输入与计算',
             children: (
-              <ReliefTab
-                streams={streams}
-                onFireCaseCalculate={onFireCaseCalculate}
+              <InputPanel
+                streamId={streamId}
+                setStreamId={setStreamId}
+                scenario={scenario}
+                setScenario={setScenario}
+                phase={phase}
+                setPhase={setPhase}
+                checkedStreams={checkedStreams}
+                loading={loading}
+                onCalculate={onCalculate}
+                error={error}
               />
             ),
           },
           {
-            key: 'area',
-            label: '泄放面积',
+            key: 'result',
+            label: '结果',
             children: (
-              <AreaTab onReliefAreaCalculate={onReliefAreaCalculate} />
+              <ResultPanel
+                result={result}
+                designStage={designStage}
+                error={error}
+              />
             ),
-          },
-          {
-            key: 'orifice',
-            label: '孔口选型',
-            children: <OrificeTab onOrificeSelect={onOrificeSelect} />,
           },
         ]}
       />
@@ -112,70 +216,55 @@ export function PsvComputePage({
   );
 }
 
-// ============================ 泄放工况 Tab ============================
+// ---------------------------------------------------------------------------
+// 输入面板
+// ---------------------------------------------------------------------------
 
-interface ReliefTabProps {
-  streams: StreamLite[];
-  onFireCaseCalculate?: (input: FireCaseInput) => FireCaseResult | undefined;
+interface InputPanelProps {
+  streamId: string | undefined;
+  setStreamId: (v: string | undefined) => void;
+  scenario: ReliefScenario;
+  setScenario: (v: ReliefScenario) => void;
+  phase: ReliefPhase;
+  setPhase: (v: ReliefPhase) => void;
+  checkedStreams: StreamLite[];
+  loading: boolean;
+  onCalculate: (values: Record<string, number>) => Promise<void>;
+  error: string | null;
 }
 
-function ReliefTab({ streams, onFireCaseCalculate }: ReliefTabProps): JSX.Element {
-  const [scenarios, setScenarios] = useState<ReliefScenario[]>(['FIRE']);
-  const [streamId, setStreamId] = useState<string | undefined>();
-  const [aggregate, setAggregate] = useState<ReliefAggregateResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
+function InputPanel({
+  streamId,
+  setStreamId,
+  scenario,
+  setScenario,
+  phase,
+  setPhase,
+  checkedStreams,
+  loading,
+  onCalculate,
+  error,
+}: InputPanelProps): JSX.Element {
+  const [form] = Form.useForm();
 
-  const checkedStreams = streams.filter((s) => s.sign_status === 'CHECKED');
-
-  const handleCalculate = () => {
-    if (!streamId) {
-      setError('请选择物流');
-      return;
-    }
-    setError(null);
-    try {
-      // V1 mock：仅 FIRE 场景示例
-      const fireInput: FireCaseInput = {
-        source_stream_id: streamId,
-        vessel_type: 'VERTICAL',
-        D_m: 3.0,
-        H_m: 10.0,
-        liquid_level_fraction: 0.5,
-        environment_factor_F: 1.0,
-        h_fg_input_kj_per_kg: 350,
-      };
-      const r = onFireCaseCalculate
-        ? onFireCaseCalculate(fireInput)
-        : mockFireCase(fireInput);
-      if (!r) {
-        setError('计算失败：返回空');
-        setAggregate(null);
-        return;
-      }
-      setAggregate({
-        max_mass_flow_kgs: r.relief_mass_flow_kgs,
-        max_volume_flow_m3s: r.relief_volume_flow_m3s,
-        max_scenario: 'FIRE',
-        per_scenario_json: [
-          {
-            scenario: 'FIRE',
-            mass_flow_kgs: r.relief_mass_flow_kgs,
-            volume_flow_m3s: r.relief_volume_flow_m3s,
-            formula_ref: r.formula_ref as unknown as Record<string, string>,
-          },
-        ],
-      });
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : '未知错误');
-      setAggregate(null);
-    }
+  const handleSubmit = async () => {
+    const values = await form.validateFields();
+    await onCalculate(values as Record<string, number>);
   };
 
   return (
     <Row gutter={16}>
       <Col span={10}>
         <Card title="输入条件" size="small">
-          <Form layout="vertical">
+          {error && (
+            <Alert
+              type="error"
+              message={error}
+              data-testid="psv-error"
+              style={{ marginBottom: 12 }}
+            />
+          )}
+          <Form form={form} layout="vertical" data-testid="psv-form">
             <Form.Item label="物流" required>
               <Select
                 data-testid="psv-stream-select"
@@ -188,20 +277,32 @@ function ReliefTab({ streams, onFireCaseCalculate }: ReliefTabProps): JSX.Elemen
                 }))}
               />
             </Form.Item>
-            <Form.Item label="工况">
+            <Form.Item label="泄放工况">
               <Select
-                mode="multiple"
-                data-testid="psv-scenarios"
-                value={scenarios}
-                onChange={(v) => setScenarios(v as ReliefScenario[])}
+                data-testid="psv-scenario-select"
+                value={scenario}
+                onChange={setScenario}
                 options={SCENARIO_OPTIONS}
               />
             </Form.Item>
+            <Form.Item label="相态">
+              <Select
+                data-testid="psv-phase-select"
+                value={phase}
+                onChange={setPhase}
+                options={PHASE_OPTIONS}
+              />
+            </Form.Item>
+
+            <ScenarioParamsForm scenario={scenario} />
+            <SizingParamsForm phase={phase} />
+
             <Form.Item>
               <Button
                 type="primary"
                 data-testid="psv-calculate"
-                onClick={handleCalculate}
+                loading={loading}
+                onClick={handleSubmit}
               >
                 计算
               </Button>
@@ -211,365 +312,316 @@ function ReliefTab({ streams, onFireCaseCalculate }: ReliefTabProps): JSX.Elemen
       </Col>
 
       <Col span={14}>
-        <Card title="结果" size="small" data-testid="psv-result-card">
-          {error && (
-            <Alert
-              type="error"
-              message={error}
-              data-testid="psv-error"
-              style={{ marginBottom: 12 }}
-            />
-          )}
-          {!aggregate && !error && (
-            <Typography.Text type="secondary">点击「计算」开始</Typography.Text>
-          )}
-          {aggregate && (
-            <Space direction="vertical" size={16} style={{ width: '100%' }}>
-              <Row gutter={16}>
-                <Col span={8}>
-                  <Statistic
-                    title="max mass flow (kg/s)"
-                    value={aggregate.max_mass_flow_kgs}
-                    precision={3}
-                    data-testid="psv-max-mass-flow"
-                  />
-                </Col>
-                <Col span={8}>
-                  <Statistic
-                    title="max volume flow (m³/s)"
-                    value={aggregate.max_volume_flow_m3s}
-                    precision={4}
-                  />
-                </Col>
-                <Col span={8}>
-                  <Statistic
-                    title="max scenario"
-                    value={aggregate.max_scenario}
-                    data-testid="psv-max-scenario"
-                  />
-                </Col>
-              </Row>
-
-              <Descriptions size="small" column={1}>
-                <Descriptions.Item label="工况明细">
-                  <Table
-                    size="small"
-                    rowKey="scenario"
-                    pagination={false}
-                    data-testid="psv-per-scenario-table"
-                    dataSource={aggregate.per_scenario_json}
-                    columns={[
-                      { title: '工况', dataIndex: 'scenario', width: 100 },
-                      {
-                        title: 'mass_flow (kg/s)',
-                        dataIndex: 'mass_flow_kgs',
-                        render: (v: number) => v.toFixed(3),
-                      },
-                      {
-                        title: 'volume_flow (m³/s)',
-                        dataIndex: 'volume_flow_m3s',
-                        render: (v: number) => v.toFixed(4),
-                      },
-                    ]}
-                  />
-                </Descriptions.Item>
-              </Descriptions>
-            </Space>
-          )}
-        </Card>
-      </Col>
-    </Row>
-  );
-}
-
-// ============================ 泄放面积 Tab ============================
-
-interface AreaTabProps {
-  onReliefAreaCalculate?: (input: ReliefAreaInput) => ReliefAreaResult | undefined;
-}
-
-function AreaTab({ onReliefAreaCalculate }: AreaTabProps): JSX.Element {
-  const [input, setInput] = useState<Partial<ReliefAreaInput>>({
-    medium: 'GAS',
-    omega_method: 'two_point',
-  });
-  const [result, setResult] = useState<ReliefAreaResult | null>(null);
-  const [error, setError] = useState<string | null>(null);
-
-  const handleCalculate = () => {
-    setError(null);
-    try {
-      const r = onReliefAreaCalculate
-        ? onReliefAreaCalculate(input as ReliefAreaInput)
-        : mockArea(input as ReliefAreaInput);
-      if (!r) {
-        setError('计算失败：返回空');
-        setResult(null);
-        return;
-      }
-      setResult(r);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : '未知错误');
-      setResult(null);
-    }
-  };
-
-  return (
-    <Row gutter={16}>
-      <Col span={10}>
-        <Card title="输入条件" size="small">
-          <Form layout="vertical">
-            <Form.Item label="介质">
-              <Select
-                data-testid="psv-area-medium"
-                value={input.medium}
-                onChange={(v) => setInput((s) => ({ ...s, medium: v }))}
-                options={[
-                  { value: 'GAS', label: '气体' },
-                  { value: 'VAPOR', label: '蒸汽' },
-                  { value: 'LIQUID', label: '液体' },
-                  { value: 'TWO_PHASE', label: '两相流' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item label="mass_flow (kg/s)">
-              <InputNumber
-                data-testid="psv-area-mass-flow"
-                value={input.mass_flow_kgs}
-                onChange={(v) =>
-                  setInput((s) => ({ ...s, mass_flow_kgs: v ?? 0 }))
-                }
-              />
-            </Form.Item>
-            <Form.Item label="P (Pa)">
-              <InputNumber
-                value={input.pressure_pa}
-                onChange={(v) =>
-                  setInput((s) => ({ ...s, pressure_pa: v ?? 0 }))
-                }
-              />
-            </Form.Item>
-            <Form.Item label="T (K)">
-              <InputNumber
-                value={input.temperature_k}
-                onChange={(v) =>
-                  setInput((s) => ({ ...s, temperature_k: v ?? 0 }))
-                }
-              />
-            </Form.Item>
-            <Form.Item label="Z">
-              <InputNumber
-                step={0.01}
-                value={input.Z}
-                onChange={(v) => setInput((s) => ({ ...s, Z: v ?? 1 }))}
-              />
-            </Form.Item>
-            <Form.Item label="M (kg/kmol)">
-              <InputNumber
-                value={input.M_kg_kmol}
-                onChange={(v) => setInput((s) => ({ ...s, M_kg_kmol: v ?? 0 }))}
-              />
-            </Form.Item>
-            <Form.Item label="ω 方法 (气体/蒸汽)">
-              <Select
-                value={input.omega_method}
-                onChange={(v) => setInput((s) => ({ ...s, omega_method: v }))}
-                options={[
-                  { value: 'single_point', label: '单点法' },
-                  { value: 'two_point', label: '两点法' },
-                  { value: 'direct_integration', label: '直接积分' },
-                ]}
-              />
-            </Form.Item>
-            <Form.Item>
-              <Button type="primary" onClick={handleCalculate}>
-                计算
-              </Button>
-            </Form.Item>
-          </Form>
-        </Card>
-      </Col>
-
-      <Col span={14}>
-        <Card title="结果" size="small">
-          {error && <Alert type="error" message={error} />}
-          {!result && !error && (
-            <Typography.Text type="secondary">点击「计算」开始</Typography.Text>
-          )}
-          {result && (
-            <Descriptions size="small" column={1}>
-              <Descriptions.Item label="area (m²)">
-                {result.area_m2.toExponential(3)}
-              </Descriptions.Item>
-              <Descriptions.Item label="medium">
-                <Tag color="blue">{result.medium}</Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="ω method">
-                <Tag color="green">{result.omega_method ?? '-'}</Tag>
-              </Descriptions.Item>
-            </Descriptions>
-          )}
-        </Card>
-      </Col>
-    </Row>
-  );
-}
-
-// ============================ 孔口选型 Tab ============================
-
-interface OrificeTabProps {
-  onOrificeSelect?: (area_m2: number) => OrificeResult | undefined;
-}
-
-function OrificeTab({ onOrificeSelect }: OrificeTabProps): JSX.Element {
-  const [area, setArea] = useState<number>(0.001);
-  const [result, setResult] = useState<OrificeResult | null>(null);
-
-  const handleSelect = () => {
-    const r = onOrificeSelect ? onOrificeSelect(area) : mockOrifice(area);
-    setResult(r ?? null);
-  };
-
-  return (
-    <Row gutter={16}>
-      <Col span={10}>
-        <Card title="输入" size="small">
-          <Form layout="vertical">
-            <Form.Item label="所需面积 (m²)">
-              <InputNumber
-                data-testid="psv-orifice-area"
-                value={area}
-                step={0.001}
-                onChange={(v) => setArea(v ?? 0)}
-              />
-            </Form.Item>
-            <Form.Item>
-              <Button
-                type="primary"
-                data-testid="psv-orifice-select"
-                onClick={handleSelect}
-              >
-                选型
-              </Button>
-            </Form.Item>
-          </Form>
-        </Card>
-      </Col>
-      <Col span={14}>
-        <Card title="结果" size="small">
-          {!result && <Typography.Text type="secondary">点击「选型」开始</Typography.Text>}
-          {result && (
-            <Descriptions size="small" column={1}>
-              <Descriptions.Item label="孔口代号">
-                <Tag color="green" data-testid="psv-orifice-designation">
-                  {result.selected_orifice}
-                </Tag>
-              </Descriptions.Item>
-              <Descriptions.Item label="实际面积 (m²)">
-                {result.orifice_area_m2.toExponential(3)}
-              </Descriptions.Item>
-              {result.required_diameter_mm !== undefined && (
-                <Descriptions.Item label="所需流道直径 (mm)">
-                  {result.required_diameter_mm.toFixed(2)}
-                </Descriptions.Item>
+        <Card title="当前选择" size="small">
+          <Descriptions size="small" column={1}>
+            <Descriptions.Item label="物流">
+              {streamId ? (
+                <code>{streamId}</code>
+              ) : (
+                <Typography.Text type="secondary">未选择</Typography.Text>
               )}
-            </Descriptions>
-          )}
+            </Descriptions.Item>
+            <Descriptions.Item label="工况">{scenario}</Descriptions.Item>
+            <Descriptions.Item label="相态">{phase}</Descriptions.Item>
+          </Descriptions>
+          <Typography.Paragraph type="secondary" style={{ marginTop: 12 }}>
+            提交后端 → POST /api/v1/psv/calculate → 结果区显示 record_hash +
+            outlet_stream + aggregate + relief_area + orifice。
+          </Typography.Paragraph>
         </Card>
       </Col>
     </Row>
   );
 }
 
-// ============================ Mocks ============================
+// ---------------------------------------------------------------------------
+// 4 种 scenario_params 动态表单
+// ---------------------------------------------------------------------------
 
-function mockFireCase(inp: FireCaseInput): FireCaseResult {
-  const wetted_area_m2 = Math.PI * inp.D_m * inp.H_m;
-  const A_pow_082 = Math.pow(wetted_area_m2, 0.82);
-  const heat_input_w = 63600 * A_pow_082 * inp.environment_factor_F;
-  const h_fg = inp.h_fg_input_kj_per_kg * 1000;
-  const relief_mass_flow_kgs = heat_input_w / h_fg;
-  return {
-    wetted_area_m2,
-    heat_input_w,
-    relief_mass_flow_kgs,
-    relief_volume_flow_m3s: relief_mass_flow_kgs / 1.2,
-    h_fg_j_per_kg: h_fg,
-    c_factor: 21000,
-    F_factor: inp.environment_factor_F,
-    formula_ref: {
-      standard: 'API_521',
-      version: '7th',
-      clause: '§5.15.2.2.1 / Table 5',
-    },
-  };
+interface ScenarioFormProps {
+  scenario: ReliefScenario;
 }
 
-function mockArea(inp: ReliefAreaInput): ReliefAreaResult {
-  // API 520 气体 A = W / (C·Kd·P1·Kb) × √(T·Z/M)
-  const C = 0.85;
-  const Kd = 0.95;
-  const Kb = 1.0;
-  const denom = C * Kd * inp.pressure_pa * Kb;
-  const num = inp.mass_flow_kgs * Math.sqrt(inp.temperature_k * inp.Z / inp.M_kg_kmol);
-  const area_m2 = num / denom;
-  return {
-    area_m2,
-    medium: inp.medium,
-    omega_method: inp.omega_method,
-    formula_ref: {
-      standard: 'API_520',
-      version: '10th',
-      clause: '§5.5.3',
-    },
-  };
+function ScenarioParamsForm({ scenario }: ScenarioFormProps): JSX.Element {
+  if (scenario === 'FIRE') {
+    return (
+      <>
+        <Form.Item label="容器直径 D_m" name="D_m" initialValue={1.0} rules={[{ required: true }]}>
+          <InputNumber min={0.1} step={0.1} style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item label="容器高度 H_m" name="H_m" initialValue={5.0} rules={[{ required: true }]}>
+          <InputNumber min={0.1} step={0.1} style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item label="充液分率" name="liquid_level_fraction" initialValue={0.5}>
+          <InputNumber min={0} max={1} step={0.05} style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item label="环境因子 F" name="environment_factor_F" initialValue={1.0}>
+          <InputNumber min={0} max={2} step={0.1} style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item label="汽化潜热 h_fg (J/kg)" name="h_fg_j_per_kg" initialValue={350000}>
+          <InputNumber min={1} step={1000} style={{ width: '100%' }} />
+        </Form.Item>
+      </>
+    );
+  }
+  if (scenario === 'CLOSED_VALVE') {
+    return (
+      <>
+        <Form.Item label="管段容积 V_pipe (m³)" name="V_pipe_m3" initialValue={0.1}>
+          <InputNumber min={0.0001} step={0.01} style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item label="液体密度 ρ_L (kg/m³)" name="rho_L_kg_m3" initialValue={850}>
+          <InputNumber min={1} step={10} style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item label="隔离时间 t_isolation (s)" name="t_isolation_s" initialValue={600}>
+          <InputNumber min={1} step={10} style={{ width: '100%' }} />
+        </Form.Item>
+      </>
+    );
+  }
+  if (scenario === 'REACTION_RUNAWAY') {
+    return (
+      <>
+        <Form.Item label="反应放热 Q_rxn (W)" name="Q_rxn_w" initialValue={50000}>
+          <InputNumber min={1} step={1000} style={{ width: '100%' }} />
+        </Form.Item>
+        <Form.Item label="分率 fraction_to_valve" name="fraction_to_valve" initialValue={0.3}>
+          <InputNumber min={0} max={1} step={0.05} style={{ width: '100%' }} />
+        </Form.Item>
+      </>
+    );
+  }
+  return (
+    <>
+      <Form.Item label="液体体积 V_L (m³)" name="V_L_m3" initialValue={1.0}>
+        <InputNumber min={0.0001} step={0.1} style={{ width: '100%' }} />
+      </Form.Item>
+      <Form.Item label="液体密度 ρ_L (kg/m³)" name="rho_L_kg_m3" initialValue={1000}>
+        <InputNumber min={1} step={10} style={{ width: '100%' }} />
+      </Form.Item>
+      <Form.Item label="体膨胀系数 β (1/K)" name="beta_per_k" initialValue={0.0001}>
+        <InputNumber min={0} step={0.0001} style={{ width: '100%' }} />
+      </Form.Item>
+      <Form.Item label="温升 ΔT (K)" name="delta_T_k" initialValue={30}>
+        <InputNumber min={0} step={1} style={{ width: '100%' }} />
+      </Form.Item>
+      <Form.Item label="加热时间 t_heat (s)" name="t_heat_s" initialValue={3600}>
+        <InputNumber min={1} step={60} style={{ width: '100%' }} />
+      </Form.Item>
+    </>
+  );
 }
 
-// API 526 标准孔口表（D~T，in² → m²）
-const API526_ORIFICES: Array<{ designation: string; area_in2: number }> = [
-  { designation: 'D', area_in2: 0.110 },
-  { designation: 'E', area_in2: 0.196 },
-  { designation: 'F', area_in2: 0.307 },
-  { designation: 'G', area_in2: 0.503 },
-  { designation: 'H', area_in2: 0.785 },
-  { designation: 'J', area_in2: 1.287 },
-  { designation: 'K', area_in2: 1.838 },
-  { designation: 'L', area_in2: 2.853 },
-  { designation: 'M', area_in2: 3.600 },
-  { designation: 'N', area_in2: 4.340 },
-  { designation: 'P', area_in2: 6.380 },
-  { designation: 'Q', area_in2: 11.05 },
-  { designation: 'R', area_in2: 16.00 },
-  { designation: 'T', area_in2: 26.00 },
-];
+// ---------------------------------------------------------------------------
+// sizing_params 三相态表单
+// ---------------------------------------------------------------------------
 
-const IN2_TO_M2 = 6.4516e-4;
+interface SizingFormProps {
+  phase: ReliefPhase;
+}
 
-function mockOrifice(area_m2: number): OrificeResult {
-  const target_in2 = area_m2 / IN2_TO_M2;
-  for (const o of API526_ORIFICES) {
-    if (o.area_in2 >= target_in2) {
-      return {
-        selected_orifice: o.designation,
-        orifice_area_m2: o.area_in2 * IN2_TO_M2,
-        formula_ref: {
-          standard: 'API_526',
-          version: 'latest',
-          clause: 'Table 1',
-        },
+function SizingParamsForm({ phase }: SizingFormProps): JSX.Element {
+  const showGas = phase !== 'LIQUID';
+  return (
+    <>
+      <Form.Item label="所需泄放量 W (kg/s)" name="relief_mass_flow_kgs" initialValue={0.005} rules={[{ required: true }]}>
+        <InputNumber min={0.0001} step={0.001} style={{ width: '100%' }} />
+      </Form.Item>
+      <Form.Item label="背压 P_back (Pa)" name="P_back_pa" initialValue={100000}>
+        <InputNumber min={0} step={1000} style={{ width: '100%' }} />
+      </Form.Item>
+      <Form.Item label="整定压力 P_set (Pa)" name="P_set_pa" initialValue={200000}>
+        <InputNumber min={0} step={1000} style={{ width: '100%' }} />
+      </Form.Item>
+      {showGas && (
+        <>
+          <Form.Item label="温度 T (K)" name="T_k" initialValue={350}>
+            <InputNumber min={0} step={1} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item label="分子量 M (kg/mol)" name="M_kg_per_mol" initialValue={0.029}>
+            <InputNumber min={0.001} step={0.001} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item label="压缩因子 Z" name="Z" initialValue={1.0}>
+            <InputNumber min={0.01} max={5} step={0.01} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item label="比热容比 k_cp" name="k_cp_ratio" initialValue={1.4}>
+            <InputNumber min={1.0} max={2.0} step={0.01} style={{ width: '100%' }} />
+          </Form.Item>
+        </>
+      )}
+      {phase === 'LIQUID' && (
+        <Form.Item label="液体密度 ρ_L (kg/m³)" name="rho_L_kg_m3" initialValue={850}>
+          <InputNumber min={1} step={10} style={{ width: '100%' }} />
+        </Form.Item>
+      )}
+    </>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// 结果面板
+// ---------------------------------------------------------------------------
+
+interface ResultPanelProps {
+  result: PsvCalculateResponse | null;
+  designStage: DesignStage;
+  error: string | null;
+}
+
+function ResultPanel({ result, designStage, error }: ResultPanelProps): JSX.Element {
+  if (error && !result) {
+    return <Alert type="error" message={error} data-testid="psv-result-error" />;
+  }
+  if (!result) {
+    return (
+      <Empty description="尚未执行计算；请到「输入与计算」提交" data-testid="psv-result-empty" />
+    );
+  }
+
+  const r = result.result;
+  const detail = designStage === 'DETAIL';
+
+  return (
+    <Space direction="vertical" size={16} style={{ width: '100%' }}>
+      <Row gutter={16}>
+        <Col span={6}>
+          <Statistic
+            title="record_hash"
+            value={result.record_hash}
+            data-testid="psv-record-hash"
+          />
+        </Col>
+        <Col span={6}>
+          <Statistic title="lineage 数量" value={result.lineage_ids.length} />
+        </Col>
+        <Col span={6}>
+          <Statistic title="泄放面积 (m²)" value={r.relief_area.area_required_m2} precision={6} />
+        </Col>
+        <Col span={6}>
+          <Statistic title="孔口" value={r.orifice.selected_size} />
+        </Col>
+      </Row>
+
+      <Card title="出口流（PSV_CALCULATED）" size="small" data-testid="psv-outlet-card">
+        {result.outlet_stream_id ? (
+          <Descriptions size="small" column={2}>
+            <Descriptions.Item label="Stream ID">
+              <code>{result.outlet_stream_id}</code>
+            </Descriptions.Item>
+            <Descriptions.Item label="Name">{result.outlet_stream_name}</Descriptions.Item>
+            <Descriptions.Item label="状态">
+              <Tag color="default">DRAFT</Tag>
+            </Descriptions.Item>
+            <Descriptions.Item label="source_type">
+              <Tag color="blue">PSV_CALCULATED</Tag>
+            </Descriptions.Item>
+          </Descriptions>
+        ) : (
+          <Empty description="未生成出口流" />
+        )}
+      </Card>
+
+      <Card title="aggregate" size="small">
+        <Descriptions size="small" column={2}>
+          <Descriptions.Item label="dominant_scenario">
+            <Tag color="purple">{r.aggregate.dominant_scenario}</Tag>
+          </Descriptions.Item>
+          <Descriptions.Item label="case_count">{r.aggregate.case_count}</Descriptions.Item>
+          <Descriptions.Item label="set_pressure_pa">{r.set_pressure_pa}</Descriptions.Item>
+          <Descriptions.Item label="blowdown">{r.blowdown_fraction * 100}%</Descriptions.Item>
+          <Descriptions.Item label="standard_profile_code">
+            <Tag color="cyan">{r.standard_profile_code}</Tag>
+          </Descriptions.Item>
+        </Descriptions>
+      </Card>
+
+      <Card title="relief_area / orifice" size="small">
+        <Descriptions size="small" column={2}>
+          <Descriptions.Item label="area_required_m2">
+            {r.relief_area.area_required_m2}
+          </Descriptions.Item>
+          <Descriptions.Item label="medium">{r.relief_area.medium}</Descriptions.Item>
+          <Descriptions.Item label="orifice.selected_size">
+            {r.orifice.selected_size}
+          </Descriptions.Item>
+          <Descriptions.Item label="actual_area_m2">{r.orifice.actual_area_m2}</Descriptions.Item>
+          <Descriptions.Item label="inlet_size">{r.orifice.inlet_size}</Descriptions.Item>
+          <Descriptions.Item label="outlet_size">{r.orifice.outlet_size}</Descriptions.Item>
+        </Descriptions>
+      </Card>
+
+      {detail && (
+        <Card title="标准溯源（DETAIL 模式）" size="small" data-testid="psv-formula-ref-card">
+          <Table
+            size="small"
+            rowKey="key"
+            pagination={false}
+            dataSource={Object.entries(r.standard_refs_json).map(([k, v]) => ({
+              key: k,
+              standard: v.standard,
+              version: v.version,
+              clause: v.clause,
+            }))}
+            columns={[
+              { title: '子项', dataIndex: 'key', width: 120 },
+              { title: 'standard', dataIndex: 'standard' },
+              { title: 'version', dataIndex: 'version', width: 100 },
+              { title: 'clause', dataIndex: 'clause' },
+            ]}
+          />
+        </Card>
+      )}
+    </Space>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// scenario_params 构造器（按 4 种 relief_scenario 路由）
+// ---------------------------------------------------------------------------
+
+function buildScenarioParams(
+  scenario: ReliefScenario,
+  values: Record<string, number>,
+): ScenarioParams {
+  switch (scenario) {
+    case 'FIRE': {
+      const p: FireScenarioParams = {
+        kind: 'FIRE',
+        D_m: values.D_m,
+        H_m: values.H_m,
+        liquid_level_fraction: values.liquid_level_fraction,
+        environment_factor_F: values.environment_factor_F,
+        h_fg_j_per_kg: values.h_fg_j_per_kg,
       };
+      return p;
+    }
+    case 'CLOSED_VALVE': {
+      const p: ClosedValveScenarioParams = {
+        kind: 'CLOSED_VALVE',
+        V_pipe_m3: values.V_pipe_m3,
+        rho_L_kg_m3: values.rho_L_kg_m3,
+        t_isolation_s: values.t_isolation_s,
+      };
+      return p;
+    }
+    case 'REACTION_RUNAWAY': {
+      const p: ReactionRunawayScenarioParams = {
+        kind: 'REACTION_RUNAWAY',
+        Q_rxn_w: values.Q_rxn_w,
+        fraction_to_valve: values.fraction_to_valve,
+      };
+      return p;
+    }
+    case 'THERMAL_EXPANSION': {
+      const p: ThermalExpansionScenarioParams = {
+        kind: 'THERMAL_EXPANSION',
+        V_L_m3: values.V_L_m3,
+        rho_L_kg_m3: values.rho_L_kg_m3,
+        beta_per_k: values.beta_per_k,
+        delta_T_k: values.delta_T_k,
+        t_heat_s: values.t_heat_s,
+      };
+      return p;
     }
   }
-  const last = API526_ORIFICES[API526_ORIFICES.length - 1];
-  return {
-    selected_orifice: last.designation,
-    orifice_area_m2: last.area_in2 * IN2_TO_M2,
-    formula_ref: {
-      standard: 'API_526',
-      version: 'latest',
-      clause: 'Table 1',
-    },
-  };
 }
-
-export default PsvComputePage;
