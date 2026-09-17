@@ -313,3 +313,28 @@ async def test_status_report_empty_db_returns_empty_list(client, sample_pc_token
     )
     assert r.status_code == 200
     assert r.json() == []
+
+
+# ---------------------------------------------------------------------------
+# GET /assets/status-report/export（P4 #5 覆盖率补 route 366-375）
+# ---------------------------------------------------------------------------
+
+
+async def test_status_report_export_returns_xlsx_streaming(
+    client, sample_pc_token
+):
+    """status-report/export → 200 + xlsx media_type + content-disposition attachment。"""
+    r = await client.get(
+        "/api/v1/config/assets/status-report/export",
+        headers={"Authorization": f"Bearer {sample_pc_token}"},
+    )
+    assert r.status_code == 200, r.text
+    assert (
+        r.headers["content-type"]
+        == "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+    assert r.headers["content-disposition"] == (
+        "attachment; filename=config_asset_status.xlsx"
+    )
+    # xlsx 文件头（PK\x03\x04 zip magic）
+    assert r.content[:4] == b"PK\x03\x04"

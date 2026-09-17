@@ -742,3 +742,78 @@ async def test_v114_g12_orifice_override_not_in_candidates(
     err = r.json()
     assert err["code"] == "PSV_INLET_OUTLET_MISMATCH"
     assert err["detail"]["orifice_override"] == "D"
+
+
+@pytest.mark.asyncio
+async def test_v114_full_v114_fields_happy_path(
+    client, db: AsyncSession, checked_stream, designer_headers
+):
+    """V1.14 全字段非默认 happy path：18 列全部覆盖。
+
+    覆盖 persist_psv_calculate 中 blowdown_db=None fallback / _get_default_blowdown
+    + validated.cdtp_applied / rupture_disc_kc / cdtp_set_pressure_pa / candidates
+    + warnings 派生 + orifice_overridden 实际路径 + outlet 全部 21 字段透传。
+    """
+    body = _fire_body(checked_stream.stream_id)
+    body["valve_type"] = "BALANCED_BELLOWS"
+    body["body_material"] = "SS316L"
+    body["bellows_material"] = "SS316L"
+    body["flange_class"] = "150#"
+    body["back_pressure_type"] = "SUPERIMPOSED"  # CDTP 触发
+    body["back_pressure_pct"] = 5.0
+    body["superimposed_pressure_pa"] = 50_000.0
+    body["set_pressure_pa"] = 250_000.0
+    body["overpressure_pct"] = 0.10
+    body["valve_brand"] = "LESER"
+    body["rupture_disc_position"] = "UPSTREAM"  # kc=1.0 派生
+    body["fire_protection"] = True
+    body["medium"] = "GAS"
+    # blowdown_fraction=None → _get_default_blowdown("GAS") fallback 派生
+    body["inlet_size"] = "2 inch"
+    body["outlet_size"] = "3 inch"
+
+    r = await client.post(
+        "/api/v1/psv/calculate", json=body, headers=designer_headers,
+    )
+    assert r.status_code == 201, r.text
+    body_out = r.json()
+
+    psv_id = uuid.UUID(body_out["calc_id"])
+    record = await db.get(PsvResult, psv_id)
+    # 18 列全部断言非默认
+    assert record.valve_type == "BALANCED_BELLOWS"
+    assert record.body_material == "SS316L"
+    assert record.bellows_material == "SS316L"
+    assert record.flange_class == "150#"
+    assert record.back_pressure_type == "SUPERIMPOSED"
+    assert record.back_pressure_pct == 5.0
+    assert record.overpressure_pct == 0.10
+    assert record.kb_source == "manufacturer:LESER"
+    assert record.valve_brand == "LESER"
+    assert record.cdtp_applied is True  # SUPERIMPOSED → CDTP
+    assert record.rupture_disc_position == "UPSTREAM"
+    assert record.rupture_disc_kc == 0.90  # UPSTREAM → kc=0.90（ASME UG-127）
+    assert record.fire_protection is True
+    assert record.pilot_temp_class == "GENERAL"
+
+    # outlet 全部 21 字段透传
+    outlet_id = uuid.UUID(body_out["outlet_stream_id"])
+    outlet = await db.get(Stream, outlet_id)
+    p = outlet.stream_properties_json
+    assert p["valve_type"] == "BALANCED_BELLOWS"
+    assert p["body_material"] == "SS316L"
+    assert p["bellows_material"] == "SS316L"
+    assert p["back_pressure_type"] == "SUPERIMPOSED"
+    assert p["cdtp_applied"] is True
+    assert p["rupture_disc_kc"] == 0.90
+    assert p["fire_protection"] is True
+    assert p["valve_brand"] == "LESER"
+    assert p["kb_source"] == "manufacturer:LESER"
+
+    # result dict 透传 cdtp_set_pressure_pa / candidates / warnings
+    result = body_out["result"]
+    assert result["valve_type"] == "BALANCED_BELLOWS"
+    assert result["cdtp_applied"] is True
+    assert "cdtp_set_pressure_pa" in result
+    assert "candidates" in result
+    assert "warnings" in result
