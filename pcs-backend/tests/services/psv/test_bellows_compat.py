@@ -20,7 +20,6 @@ from app.services.psv.bellows_compat import (
     validate_bellows_compat,
 )
 
-
 # ============================================================================
 # 1. 6 材料 forbidden 条件 → 抛 PsvBellowsIncompatible（PSV_BELLOWS_INCOMPATIBLE 422）
 # ============================================================================
@@ -131,3 +130,76 @@ def test_matrix_count_6_materials():
     """BELLOWS_MATERIAL_COMPAT 包含 6 材料。"""
     expected = {"HASTELLOY_C276", "ALLOY_C22", "SS316L", "INCONEL_625", "INCONEL_718", "ALLOY_400"}
     assert set(BELLOWS_MATERIAL_COMPAT.keys()) == expected
+
+
+# ============================================================================
+# 4. 多 forbidden + 匹配优先级（OPEN-10-3 余项）
+# ============================================================================
+
+
+def test_alloy_400_强氧化性_priority_over_wet_h2s():
+    """ALLOY_400 同时含 '强氧化性介质' + '湿 H₂S' → 取第一条（forbidden list 顺序）。"""
+    with pytest.raises(PsvBellowsIncompatible) as exc_info:
+        validate_bellows_compat(
+            "ALLOY_400",
+            "强氧化性介质 + 湿 H₂S 共存工段",
+        )
+    assert exc_info.value.details["forbidden_condition"] == "强氧化性介质"
+
+
+def test_alloy_400_wet_h2s_only_no_match_强氧化性():
+    """ALLOY_400 仅 '湿 H₂S' → 不匹配强氧化性条目。"""
+    with pytest.raises(PsvBellowsIncompatible) as exc_info:
+        validate_bellows_compat("ALLOY_400", "湿 H₂S 工况")
+    assert exc_info.value.details["forbidden_condition"] == "湿 H₂S"
+
+
+def test_inconel_625_hf_substring_match():
+    """INCONEL_625 完整短语 '高温高浓度氢氟酸' 匹配。"""
+    with pytest.raises(PsvBellowsIncompatible) as exc_info:
+        validate_bellows_compat("INCONEL_625", "烷基化装置：高温高浓度氢氟酸工况")
+    assert "氢氟酸" in str(exc_info.value)
+
+
+def test_ss316l_chloride_500ppm_threshold_in_details():
+    """SS316L + 氯化物 → 错误详情含 conservative_threshold_ppm=500。"""
+    with pytest.raises(PsvBellowsIncompatible) as exc_info:
+        validate_bellows_compat("SS316L", "氯化物应力腐蚀开裂风险")
+    err = exc_info.value
+    assert err.details["conservative_threshold_ppm"] == 500
+    assert err.details["source"] == "NACE MR0175 / ISO 15156 + 行业工程经验"
+
+
+def test_inconel_718_low_sulfur_does_not_match():
+    """INCONEL_718 + '低硫'（不匹配 '高硫'）→ 通过。"""
+    validate_bellows_compat("INCONEL_718", "低硫原油环境")  # 不抛
+
+
+def test_alloy_400_dry_h2s_does_not_match():
+    """ALLOY_400 + 'dry H₂S'/'干燥 H₂S'（不匹配 '湿 H₂S'）→ 通过。"""
+    validate_bellows_compat("ALLOY_400", "干燥 H₂S 环境（含微量游离水但低含量）")
+    # 含 '湿 H₂S' 才匹配（精确子串）；'干燥 H₂S' 不匹配
+    # 注意：assert not raise（上行无断言说明不抛）
+
+
+def test_get_matching_forbidden_returns_full_dict():
+    """命中时返回完整 dict（含 source / note / conservative_threshold_ppm）。"""
+    matched = get_matching_forbidden_condition(
+        "SS316L", "氯化物应力腐蚀开裂"
+    )
+    assert matched is not None
+    assert matched["condition"] == "氯化物应力腐蚀开裂"
+    assert matched["conservative_threshold_ppm"] == 500
+    assert "NACE" in matched["source"]
+
+
+def test_get_matching_forbidden_partial_keyword_does_not_match():
+    """SS316L + '氯离子'（不匹配 '氯化物'）→ 不匹配（精确子串）。"""
+    # "氯化物" 必须出现；"氯离子" 是同义词但严格不匹配
+    assert get_matching_forbidden_condition("SS316L", "氯离子环境") is None
+
+
+def test_empty_string_service_note_returns_none():
+    """service_note=''（空串）→ 不匹配（视为无信息）。"""
+    assert get_matching_forbidden_condition("HASTELLOY_C276", "") is None
+    validate_bellows_compat("HASTELLOY_C276", "")  # 不抛

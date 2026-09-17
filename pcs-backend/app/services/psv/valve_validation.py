@@ -32,7 +32,6 @@ from typing import Any
 
 from app.services.exceptions import (
     PsvBackPressureExceeded,
-    PsvBellowsIncompatible,
     PsvBellowsMaterialRequired,
     PsvBlowdownOutOfRange,
     PsvInletOutletMismatch,
@@ -57,7 +56,6 @@ from app.services.psv.valve_selection_types import (
     RUPTURE_DISC_KC,
     ValidatedParams,
 )
-
 
 # ---------------------------------------------------------------------------
 # 工具：duck-typed request 字段读取
@@ -105,6 +103,7 @@ def validate_valve_params(req: Any) -> ValidatedParams:
     back_pressure_pct: float = float(_attr(req, "back_pressure_pct", 0.0) or 0.0)
     set_pressure_pa: float = float(_attr(req, "set_pressure_pa", 0.0) or 0.0)
     overpressure_pct: float = float(_attr(req, "overpressure_pct", 10.0) or 10.0)
+    body_material: str = _attr(req, "body_material")
     inlet_size = _attr(req, "inlet_size")
     outlet_size = _attr(req, "outlet_size")
     orifice_override = _attr(req, "orifice_override")
@@ -116,7 +115,7 @@ def validate_valve_params(req: Any) -> ValidatedParams:
     superimposed_pressure_pa: float = float(_attr(req, "superimposed_pressure_pa", 0.0) or 0.0)
     fluid_temperature_c = _attr(req, "fluid_temperature_c")
     molecular_weight = _attr(req, "molecular_weight")
-    calculated_area_m2 = _attr(req, "calculated_area_m2")
+    _calculated_area_m2 = _attr(req, "calculated_area_m2")  # noqa: F841 — G9 面积比较预留
 
     warnings: list[str] = []
 
@@ -202,8 +201,8 @@ def validate_valve_params(req: Any) -> ValidatedParams:
     max_pct = BACK_PRESSURE_MAX_BY_TYPE.get(valve_type, {}).get(back_pressure_type)
     if max_pct is not None and back_pressure_pct > max_pct:
         raise PsvBackPressureExceeded(
-            f"背压 {back_pressure_pct:.1f}% 超过 {valve_type}/{back_pressure_type} 上限 {max_pct:.0%}"
-            f"（§3.5 G10）",
+            f"背压 {back_pressure_pct:.1f}% 超过 {valve_type}/{back_pressure_type} "
+            f"上限 {max_pct:.0%}（§3.5 G10）",
             details={
                 "back_pressure_pct": back_pressure_pct,
                 "max_pct": max_pct,

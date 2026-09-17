@@ -24,12 +24,12 @@ from app.services.exceptions import (
     PsvBlowdownOutOfRange,
     PsvInletOutletMismatch,
     PsvInletTooSmall,
+    PsvOrificeTemperatureLimit,
     PsvPilotOperatedNotSupported,
     PsvRuptureDiscNotSupported,
 )
 from app.services.psv.valve_selection_types import ValidatedParams
 from app.services.psv.valve_validation import validate_valve_params
-
 
 # ============================================================================
 # 请求模板：默认 SPRING_LOADED + BUILT_UP + BP=0
@@ -257,3 +257,202 @@ def test_happy_path_balanced_bellows_with_brand_kb():
     result = validate_valve_params(req)
     assert result.kb_factor == 0.95
     assert result.kb_source == "manufacturer:LESER"
+
+
+# ============================================================================
+# G13: 平衡波纹管式 + CARBON_STEEL + 强氧化性 service_note → 警告
+# ============================================================================
+
+
+def test_g13_balanced_carbon_steel_in_oxidizing_warning():
+    """BALANCED_BELLOWS + CARBON_STEEL + 强氧化性 service_note → warnings 含 G13。"""
+    req = _base_req(
+        valve_type="BALANCED_BELLOWS",
+        bellows_material="SS316L",
+        body_material="CARBON_STEEL",
+        service_note="强氧化性介质工况（热浓硝酸旁路）",
+    )
+    result = validate_valve_params(req)
+    assert any("G13" in w for w in result.warnings)
+
+
+def test_g13_no_warning_when_body_material_is_alloy():
+    """BALANCED_BELLOWS + ALLOY + 强氧化性 → 不触发 G13 警告。"""
+    req = _base_req(
+        valve_type="BALANCED_BELLOWS",
+        bellows_material="SS316L",
+        body_material="ALLOY",
+        service_note="强氧化性介质工况",
+    )
+    result = validate_valve_params(req)
+    assert not any("G13" in w for w in result.warnings)
+
+
+# ============================================================================
+# G15: Q/R/T 高温低分子量
+# ============================================================================
+
+
+def test_g15_q_high_temp_light_gas_raises():
+    """Q 孔口 + T=200°C + MW=5 → 422 PSV_ORIFICE_TEMPERATURE_LIMIT。"""
+    req = _base_req(
+        inlet_size="6 inch",
+        outlet_size="8 inch",
+        flange_class="300#",
+        orifice_override="Q",
+        fluid_temperature_c=200.0,
+        molecular_weight=5.0,
+    )
+    with pytest.raises(PsvOrificeTemperatureLimit) as exc_info:
+        validate_valve_params(req)
+    assert exc_info.value.code == "PSV_ORIFICE_TEMPERATURE_LIMIT"
+    assert exc_info.value.details["orifice"] == "Q"
+
+
+def test_g15_t_high_temp_light_gas_raises():
+    """T 孔口 + T=200°C + MW=5 → 422。"""
+    req = _base_req(
+        inlet_size="8 inch",
+        outlet_size="10 inch",
+        flange_class="300#",
+        orifice_override="T",
+        fluid_temperature_c=200.0,
+        molecular_weight=5.0,
+    )
+    with pytest.raises(PsvOrificeTemperatureLimit):
+        validate_valve_params(req)
+
+
+def test_g15_no_temp_passes():
+    """Q 孔口 + 无温度/分子量 → 不受限（无法判断）。"""
+    req = _base_req(
+        inlet_size="6 inch",
+        outlet_size="8 inch",
+        flange_class="300#",
+        orifice_override="Q",
+        fluid_temperature_c=None,
+        molecular_weight=None,
+    )
+    result = validate_valve_params(req)
+    assert isinstance(result, ValidatedParams)
+
+
+# ============================================================================
+# G24/G25: 警告收集
+# ============================================================================
+
+
+def test_g24_unknown_brand_warning():
+    """valve_brand='UnknownCo' + BP>0 → warnings 含 G24（fallback api520_fig30）。"""
+    req = _base_req(
+        back_pressure_type="BUILT_UP",
+        back_pressure_pct=5.0,
+        valve_brand="UnknownCo",
+    )
+    result = validate_valve_params(req)
+    assert any("G24" in w for w in result.warnings)
+
+
+def test_g25_mixed_brand_warning():
+    """valve_brand='LESER+Consolidated' → warnings 含 G25。"""
+    req = _base_req(
+        back_pressure_type="BUILT_UP",
+        back_pressure_pct=5.0,
+        valve_brand="LESER+Consolidated",
+    )
+    result = validate_valve_params(req)
+    assert any("G25" in w for w in result.warnings)
+
+
+# ============================================================================
+# CDTP 触发条件
+# ============================================================================
+
+
+def test_cdtp_not_applied_superimposed_zero():
+    """SPRING_LOADED + SUPERIMPOSED + BP=0 + superimposed_pa=0 → cdtp_applied=False。"""
+    req = _base_req(
+        back_pressure_type="SUPERIMPOSED",
+        back_pressure_pct=0.0,
+        superimposed_pressure_pa=0.0,
+    )
+    result = validate_valve_params(req)
+    assert result.cdtp_applied is False
+    assert result.cdtp_set_pressure_pa is None
+
+
+def test_cdtp_applied_superimposed_nonzero():
+    """SPRING_LOADED + SUPERIMPOSED + BP=5 + superimposed_pa=50_000 → cdtp_applied=True。"""
+    req = _base_req(
+        back_pressure_type="SUPERIMPOSED",
+        back_pressure_pct=5.0,
+        superimposed_pressure_pa=50_000.0,
+        set_pressure_pa=200_000.0,
+    )
+    result = validate_valve_params(req)
+    assert result.cdtp_applied is True
+    assert result.cdtp_set_pressure_pa == 150_000.0
+
+
+def test_cdtp_built_up_no_correction():
+    """SPRING_LOADED + BUILT_UP + BP=5 → cdtp_applied=False（走 Kb 路径）。"""
+    req = _base_req(
+        back_pressure_type="BUILT_UP",
+        back_pressure_pct=5.0,
+    )
+    result = validate_valve_params(req)
+    assert result.cdtp_applied is False
+
+
+# ============================================================================
+# rupture_disc_kc（ASME UG-127）
+# ============================================================================
+
+
+def test_rupture_disc_kc_upstream():
+    """rupture_disc_position='UPSTREAM' → kc=0.90（ASME UG-127）。"""
+    req = _base_req(rupture_disc_position="UPSTREAM")
+    result = validate_valve_params(req)
+    assert result.rupture_disc_kc == 0.90
+
+
+def test_rupture_disc_kc_downstream():
+    """rupture_disc_position='DOWNSTREAM' → kc=1.00。"""
+    req = _base_req(rupture_disc_position="DOWNSTREAM")
+    result = validate_valve_params(req)
+    assert result.rupture_disc_kc == 1.00
+
+
+def test_rupture_disc_kc_none():
+    """rupture_disc_position='NONE' → kc=None（无爆破膜组合）。"""
+    req = _base_req(rupture_disc_position="NONE")
+    result = validate_valve_params(req)
+    assert result.rupture_disc_kc is None
+
+
+# ============================================================================
+# 边界 — inlet/orifice_override 缺失
+# ============================================================================
+
+
+def test_orifice_override_validated_when_in_candidates():
+    """orifice_override='H' 在 candidates → orifice_override_validated='H'。"""
+    req = _base_req(
+        inlet_size="2 inch",
+        outlet_size="3 inch",
+        flange_class="300#",
+        orifice_override="H",
+    )
+    result = validate_valve_params(req)
+    assert result.orifice_override_validated == "H"
+
+
+def test_balanced_bellows_no_service_note_passes():
+    """BALANCED_BELLOWS + 无 service_note → 不触发 G21。"""
+    req = _base_req(
+        valve_type="BALANCED_BELLOWS",
+        bellows_material="SS316L",
+        service_note=None,
+    )
+    result = validate_valve_params(req)
+    assert isinstance(result, ValidatedParams)

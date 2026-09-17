@@ -31,7 +31,6 @@ from app.services.psv.orifice_flange import (
 )
 from app.services.psv.valve_selection_types import API526_MIN_INLET
 
-
 # ============================================================================
 # 1. 14 项基础映射完整性（API 526 Tables 2-15）
 # ============================================================================
@@ -258,3 +257,88 @@ def test_flange_to_orifices_count():
 def test_flange_to_orifices_parametrized(key, expected):
     """反向映射 9 条目逐一校验。"""
     assert API526_FLANGE_TO_ORIFICES[key] == expected
+
+
+# ============================================================================
+# 10. 高压档边界（OPEN-10-3 余项）
+# ============================================================================
+
+
+def test_900_class_not_high_pressure():
+    """900# 不在高压档集合（1500#/2500# 是边界）。"""
+    assert is_high_pressure_flange("900#") is False
+
+
+def test_g_standard_works_in_2500_class():
+    """'1.5 inch × 3 inch' + 2500# → ['G']（G 标准档在 2500# 仍允许）。"""
+    candidates = get_candidate_orifices("1.5 inch", "3 inch", "2500#")
+    assert candidates == ["G"]
+
+
+def test_hg_dual_candidates_in_2500_class():
+    """'2 inch × 3 inch' + 2500# → ['H', 'G']（双候选；G 高压档 2500# 允许）。"""
+    candidates = get_candidate_orifices("2 inch", "3 inch", "2500#")
+    assert candidates == ["H", "G"]
+
+
+def test_hg_dual_candidates_in_900_class():
+    """'2 inch × 3 inch' + 900# → ['H']（900# 非高压档 → 仅 H）。"""
+    candidates = get_candidate_orifices("2 inch", "3 inch", "900#")
+    assert candidates == ["H"]
+
+
+# ============================================================================
+# 11. 非法尺寸兜底
+# ============================================================================
+
+
+def test_equal_inlet_outlet_returns_empty():
+    """inlet == outlet（'3 inch × 3 inch'）→ []（无候选；几何异常）。"""
+    candidates = get_candidate_orifices("3 inch", "3 inch", "300#")
+    assert candidates == []
+
+
+def test_empty_string_inlet_returns_empty():
+    """inlet=''（空字符串）→ []（无候选）。"""
+    candidates = get_candidate_orifices("", "3 inch", "300#")
+    assert candidates == []
+
+
+# ============================================================================
+# 12. 变体细节
+# ============================================================================
+
+
+def test_r_variant_6x10_match():
+    """R 孔口变体 '6 inch × 10 inch' → 变体配置。"""
+    assert is_variant_configuration("6 inch", "10 inch", "R") is True
+
+
+def test_r_variant_8x10_standard():
+    """R 孔口 '8 inch × 10 inch' → 标准配置（非变体）。"""
+    assert is_variant_configuration("8 inch", "10 inch", "R") is False
+
+
+# ============================================================================
+# 13. 高温低分子量 R restricted（OPEN-10-3 余项）
+# ============================================================================
+
+
+def test_high_temp_light_gas_r_restricted():
+    """R 孔口 + T=200°C + MW=5 → 受限。"""
+    assert is_high_temp_light_gas_restricted("R", 200.0, 5.0) is True
+
+
+def test_high_temp_light_gas_boundary_above_177c():
+    """T=178°C + MW=5 + Q → 受限（>177 触发；严格大于）。"""
+    assert is_high_temp_light_gas_restricted("Q", 178.0, 5.0) is True
+
+
+def test_high_temp_light_gas_boundary_exactly_177c_passes():
+    """T=177°C 临界温度 + MW=5 + Q → 不受限（严格 >；177 临界不触发）。"""
+    assert is_high_temp_light_gas_restricted("Q", 177.0, 5.0) is False
+
+
+def test_high_temp_light_gas_boundary_10_mw():
+    """T=200°C + MW=10 + Q → 不受限（>= 10 不触发）。"""
+    assert is_high_temp_light_gas_restricted("Q", 200.0, 10.0) is False
