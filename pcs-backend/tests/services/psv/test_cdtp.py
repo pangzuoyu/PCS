@@ -107,3 +107,24 @@ def test_cdtp_validation_priority_superimposed_second():
     with pytest.raises(PcsError) as exc_info:
         apply_cdtp_correction(200_000.0, -1.0)
     assert exc_info.value.code == "PSV_INVALID_SUPERIMPOSED_BP"
+
+
+# ============================================================================
+# OPEN-10-4 余项：cdtp 边界 + 复合错码 details 完整性
+# ============================================================================
+
+
+def test_cdtp_non_positive_details_contains_all_three_fields():
+    """PSV_CDTP_NON_POSITIVE details 含 set/superimposed/cdtp 三字段（P5-OPEN-10 §4.4 契约）。"""
+    with pytest.raises(PcsError) as exc_info:
+        apply_cdtp_correction(100_000.0, 200_000.0)
+    assert exc_info.value.code == "PSV_CDTP_NON_POSITIVE"
+    details = exc_info.value.details
+    assert details["set_pressure_pa"] == 100_000.0
+    assert details["superimposed_ba_pa"] == 200_000.0
+    assert details["cdtp_pa"] == -100_000.0
+
+
+def test_cdtp_at_exactly_half_set_pressure():
+    """边界：superimposed = set/2 → CDTP = set/2（精确分割；常用于 §6 决策 7 复算）。"""
+    assert apply_cdtp_correction(200_000.0, 100_000.0) == 100_000.0
