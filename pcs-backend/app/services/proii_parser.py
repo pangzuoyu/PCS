@@ -936,7 +936,10 @@ def _parse_one_unit_summary(unit_type: str, section_lines: list[str]) -> dict | 
 def _parse_column_summary_text(text: str) -> dict | None:
     """text → COLUMN SUMMARY dict（内部供 parse_column_summary/parse_proii_out 共用）。"""
     lines = text.splitlines()
-    # 找 COLUMN SUMMARY 段行范围（到下一个 SUMMARY 段或 RUN STATISTICS / END）
+    # 找 COLUMN SUMMARY 段行范围（到下一个 TRAY 子段或 SUMMARY / RUN STATISTICS）
+    # 关键：TRAY COMPOSITIONS / TRAY LOADING / TRAY REPORT 是 COLUMN SUMMARY 的
+    # 子段，**不进 section**，留给 post_section 解析入 tray_data_json / compositions_json /
+    # loading_json。终止条件为：TRAY 子段头、下一 SUMMARY 段、RUN STATISTICS 三者之一。
     start_idx: int | None = None
     end_idx: int | None = None
     for i, line in enumerate(lines):
@@ -945,21 +948,26 @@ def _parse_column_summary_text(text: str) -> dict | None:
             continue
         if start_idx is not None and end_idx is None:
             u = line.upper()
-            # 终止条件：下一个 SUMMARY 段 / RUN STATISTICS / 空行后接非缩进行
+            # 终止条件：TRAY 子段头（交由 post_section 解析）
+            if u.lstrip().startswith("TRAY ") or u.lstrip().startswith("TRAY\t"):
+                end_idx = i
+                break
             if "RUN STATISTICS" in u:
                 end_idx = i
                 break
             if "SUMMARY" in u and "TRAY" not in u and "COLUMN" not in u:
                 end_idx = i
                 break
-    if start_idx is None or end_idx is None:
-        # 兜底：COLUMN SUMMARY 段后所有非 RUN STATISTICS 行
-        for i in range(start_idx or 0, len(lines)):
-            if "RUN STATISTICS" in lines[i].upper():
-                end_idx = i
-                break
-        if end_idx is None:
-            end_idx = len(lines)
+    if start_idx is None:
+        # 文件中无 COLUMN SUMMARY 段（典型：REACTOR/EXTRACTOR/COMPRESSOR 工程）
+        # 显式返回 None，便于调用方区分"未发现"vs"已发现但内容空"。
+        # P3.x 契约：SIM-16 测试 + spec §3.4.2 期望 None。
+        return None
+    if end_idx is None:
+        # 兜底：扫描完仍未设置（典型：COLUMN SUMMARY 后直接接 CONVERGENCE STATUS 等
+        # 非 SUMMARY 终止行）→ end_idx 设为 len(lines)，post_section 为空由后续
+        # TRAY 段扫描安全跳过。
+        end_idx = len(lines)
     section = lines[start_idx:end_idx]
 
     result: dict = {

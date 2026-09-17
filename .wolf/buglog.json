@@ -1285,6 +1285,23 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-09-17T13:13:39.499763Z"
+    },
+    {
+      "id": "bug-081",
+      "timestamp": "2026-09-18T13:00:00.000000Z",
+      "error_message": "parse_column_summary 返回 tray_data_json={} (空 dict)，测试 test_parse_column_summary_includes_tray_data 失败: assert 15 in {}",
+      "file": "pcs-backend/app/services/proii_parser.py:946-954",
+      "root_cause": "_parse_column_summary_text end_idx 计算逻辑只终止于下一个 SUMMARY / RUN STATISTICS 段；当测试样例/真实输出末尾仅接 CONVERGENCE STATUS 而无 SUMMARY 时，end_idx 保留为 None。P4 #4 修复改用 len(lines) 兜底，导致 post_section = lines[len(lines):] = []，TRAY COMPOSITIONS / TRAY LOADING 子段从未被解析。正确语义：TRAY COMPOSITIONS / LOADING / REPORT 是 COLUMN SUMMARY 的子段，end_idx 应终止于首个 TRAY 子段头（而非包含在 section 内）。",
+      "fix": "end_idx 终止条件增加 TRAY 子段头（u.lstrip().startswith(\"TRAY \") 命中即 end_idx=i）；删掉 RUN STATISTICS 双层兜底循环；兜底统一为 end_idx = len(lines) 而非 None。",
+      "tags": [
+        "p4-5",
+        "proii_parser",
+        "column_summary",
+        "tray_data",
+        "sim-16"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-18T13:00:00.000000Z"
     }
   ]
 }
