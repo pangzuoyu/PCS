@@ -8,6 +8,37 @@ budget_tokens: 1500
 
 ---
 
+## ✅ Done (OPEN-7 HEAT import + weight-estimate 全串行闭环 — 2026-09-18)
+
+- **第二阶段：weight-estimate 响应透传 output_json**（commit `b5b2804`）：
+  - **背景**：第一阶段（commit `94b8c6f`）只让 import() 响应含 output_json，
+    weight-estimate 完成后前端仍需再调 `heatApi.get()` 拿刷新后的
+    `output_json.total_weight_kg` —— 即一次计算 2 roundtrip。
+  - **本批修改**：
+    - 后端 `WeightEstimateResponse` 加 `output_json: dict[str, Any]`
+      （HeatResult.output_json 摘录，含 total_weight_kg / weight_segments）
+    - endpoint `estimate_weight_endpoint` 构造响应填 `record.output_json`
+    - 前端 `WeightEstimateResponse` 类型同步加 `output_json` + 之前缺失的 `record_hash`
+    - 前端 `HeatComputePage` 重量估算处理：去掉 `await heatApi.get()`，
+      改用 `resp.output_json` 直接 `setHeatDetail` 局部更新 record_hash + output_json
+    - 前端 MSW handler（`src/mocks/handlers.ts` + `tests/mocks/heat_handlers.test.ts`）
+      `mockHeatWeightResult` / `heatWeightResult` 加 output_json
+  - **后端测试**：test_estimate_heat_weight_writes_output_json 加 1 断言
+    `output_json.total_weight_kg == total_weight_kg`
+  - **MSW handler 测试**：heat_handlers.test.ts weight-estimate 测试加 2 断言
+    `output_json.total_weight_kg` + `weight_segments.shell_total_kg`
+- **验证**：
+  - 后端 `tests/api/v1/test_heat_api.py`: **8 passed**
+  - 前端 `vitest`: **533 passed**（51 files）
+  - 前端 `tsc --noEmit`: 0 errors
+  - 前端 `eslint src/ tests/`: 0 errors
+  - 后端 `ruff check`: All checks passed!
+- **OPEN-7 全闭环**：一次 import → 一次 weight-estimate，
+  **0 次 get() roundtrip**。前端 UI 可直接用 resp.output_json.total_weight_kg
+  渲染 P7 UTIL 总重
+
+---
+
 ## ✅ Done (P4-5 覆盖率补测 — 2026-09-18)
 
 - **proii_parser P4 #4 修复后回归修复**（commit `357c506`）：
