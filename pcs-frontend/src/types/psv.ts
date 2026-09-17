@@ -30,12 +30,12 @@ export type OrificeSize =
   | 'D' | 'E' | 'F' | 'G' | 'H' | 'J' | 'K' | 'L'
   | 'M' | 'N' | 'P' | 'Q' | 'R' | 'T';
 
-// SUP-P5-PSV-002 V1.0 §3.2：阀体型式 / 阀体材料 / 孔口系列枚举
+// SUP-P5-PSV-002 V1.14 §3.2：阀体型式 / 阀体材料 / 波纹管材料 / 孔口系列 / 背压类型 / 介质 / 先导温度等级 / 爆破膜位置 / 法兰等级 / Kb 来源 / 阀体品牌
 export type PsvValveType =
   | 'SPRING_LOADED'      // 弹簧载荷式（默认）
   | 'BALANCED_BELLOWS'   // 平衡波纹管式
-  | 'PILOT_OPERATED'     // 先导式（P5 拦截）
-  | 'RUPTURE_DISC';      // 爆破膜式（P5 拦截）
+  | 'PILOT_OPERATED'     // 先导式（P5 拦截 G7）
+  | 'RUPTURE_DISC';      // 爆破膜式（P5 拦截 G8）
 
 export type PsvBodyMaterial =
   | 'CARBON_STEEL'       // 碳钢
@@ -43,6 +43,46 @@ export type PsvBodyMaterial =
   | 'SS316'
   | 'SS316L'
   | 'ALLOY';             // 合金钢
+
+export type PsvBellowsMaterial =
+  | 'HASTELLOY_C276'
+  | 'SS316L'
+  | 'INCONEL_625'
+  | 'INCONEL_718'
+  | 'ALLOY_400'
+  | 'ALLOY_C22';
+
+export type PsvBackPressureType = 'BUILT_UP' | 'SUPERIMPOSED';
+
+export type PsvMedium = 'GAS' | 'VAPOR' | 'LIQUID' | 'TWO_PHASE';
+
+export type PsvPilotTempClass = 'GENERAL' | 'HIGH_TEMP' | 'CRYOGENIC';
+
+export type PsvRuptureDiscPosition = 'UPSTREAM' | 'DOWNSTREAM' | 'NONE';
+
+export type PsvFlangeClass =
+  | '150#'
+  | '300#'
+  | '600#'
+  | '900#'
+  | '1500#'
+  | '2500#';
+
+// §4.3 Kb 来源标识（'none' = 标准定义 1.0；'mixed:{mfr1}+{mfr2}' = 多厂商混用）
+export type PsvKbSource =
+  | 'none'
+  | 'manufacturer:LESER'
+  | 'manufacturer:Consolidated'
+  | 'manufacturer:Anderson_Greenwood'
+  | 'mixed:LESER+Consolidated'
+  | 'mixed:LESER+Anderson_Greenwood'
+  | 'mixed:Consolidated+Anderson_Greenwood'
+  | 'api520_fig30'
+  | 'en4126';
+
+// §4.1 V1.14 P2-1：valve_brand 自由字符串（不枚举）；已知品牌见 _KB_DATA
+//    后端 Warning + 回退覆盖/保守优先策略
+export type PsvValveBrand = string;
 
 export interface FormulaRef {
   standard: string;
@@ -123,15 +163,27 @@ export interface PsvCalculateRequest {
   scenario_params: ScenarioParams;
   sizing_params: SizingParams;
   design_stage?: DesignStage;
+  // SUP-P5-PSV-002 V1.14 §4.1 阀体选型 18 字段
+  // 已有 3 字段（blowdown_fraction / inlet_size / outlet_size）+ 新增 15 字段
+  // 后端 Pydantic v2 extra='ignore' 静默忽略缺失字段；老请求格式仍兼容（§7.2）
   blowdown_fraction?: number;
-  inlet_size?: string;
-  outlet_size?: string;
-  // SUP-P5-PSV-002 V1.0 §4.1 扩展：阀体选型 6 字段
-  // 已有 3 字段（blowdown_fraction / inlet_size / outlet_size）+ 新增 3 字段
-  // 后端当前 extra='ignore' 静默忽略缺失字段；老请求格式仍兼容（§7.2）
+  inlet_size?: string | null;
+  outlet_size?: string | null;
   valve_type?: PsvValveType;
   body_material?: PsvBodyMaterial;
+  bellows_material?: PsvBellowsMaterial | null;
+  medium?: PsvMedium;
+  flange_class?: PsvFlangeClass;
+  back_pressure_pct?: number | null;
+  back_pressure_type?: PsvBackPressureType;
+  overpressure_pct?: number;
   orifice_override?: OrificeSize | null;
+  valve_brand?: PsvValveBrand | null;
+  pilot_temperature_c?: number | null;
+  pilot_temp_class?: PsvPilotTempClass;
+  rupture_disc_position?: PsvRuptureDiscPosition;
+  fire_protection?: boolean;
+  service_note?: string | null;
 }
 
 // ---------------------------------------------------------------------------
@@ -174,6 +226,23 @@ export interface PsvResultBody {
     relief_area: FormulaRef;
     orifice: FormulaRef;
   };
+  // SUP-P5-PSV-002 V1.14 §4.6 响应扩展
+  // 后端落地 OPEN-10 后填充；前端先行渲染（缺字段时静默隐藏）
+  valve_type?: PsvValveType;
+  body_material?: PsvBodyMaterial;
+  bellows_material?: PsvBellowsMaterial | null;
+  inlet_size?: string | null;
+  outlet_size?: string | null;
+  flange_class?: PsvFlangeClass;
+  back_pressure_pct?: number | null;
+  back_pressure_type?: PsvBackPressureType;
+  overpressure_pct?: number;
+  kb_factor?: number | null;
+  kb_source?: PsvKbSource | null;
+  valve_brand?: PsvValveBrand | null;
+  cdtp_applied?: boolean;
+  rupture_disc_kc?: number | null;
+  warnings?: string[];
 }
 
 export interface PsvCalculateResponse {
