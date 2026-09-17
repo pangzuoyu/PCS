@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-17T01:19:53.547Z
-> Files: 658 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-17T06:03:21.212Z
+> Files: 671 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -105,13 +105,13 @@
 - `PCS-P3.2-SIM-CLOSE-REPORT.md` — PCS P3.2 SIM Sprint 收口报告 V1.1 (~2145 tok)
 - `PCS-P3.2-SIM-P3X-CLOSE-REPORT.md` — PCS P3.x SIM 收口报告 V1.0 (~1489 tok)
 - `PCS-P3.3-COMMON-CLOSE-REPORT.md` — PCS P3.3 COMMON 平 收口报告（2026-09-08） (~790 tok)
-- `PCS-P5-PLAN.md` — PCS P5 批计划锚点（2026-09-16 / 末次修订 2026-09-17） (~1729 tok)
+- `PCS-P5-PLAN.md` — PCS P5 批计划锚点（2026-09-16 / 末次修订 2026-09-17） (~2208 tok)
 - `PCS-P5-START-CHECKLIST.md` — PCS P5 启动前检查清单（12 项） (~2491 tok)
 - `PCS-PLAN-P3.2-SIM-P3X.md` — PCS P3.2 SIM P3.x 续推计划 V1.1 (~2629 tok)
 - `PCS-PLAN-P3.2-SIM.md` — PCS P3.2 SIM 实施 Writing-Plan（V1.0，2026-09-08） (~7883 tok)
 - `PCS-PLAN-P5-DEVICE-EQUIPMENT.md` — P5 设备计算模块（第二批）实施计划 V1.10 (~20379 tok)
 - `PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md` — p2_sup_sprint_pc1_pipe_class_upgrade.py (~17953 tok)
-- `PCS-UI-SPEC.md` (~6275 tok)
+- `PCS-UI-SPEC.md` (~7421 tok)
 
 ## docs/adr/
 
@@ -386,6 +386,11 @@
 - `unreliable_stream_guard.py` — P3.x SIM-39 / TODO-037: 不可靠物流下游计算硬拒绝守卫。 (~557 tok)
 - `workspace_service.py` — WorkspaceService（Sprint 1）。 (~1329 tok)
 
+## pcs-backend/app/services/heat/
+
+- `heat_data_service.py` — HeatResultsService 落库（P5-4-2 / Task 20）。 (~2760 tok)
+- `htri_parser.py` — HTRI 自研解析器（P5-4-1 / Task 19）。 (~2229 tok)
+
 ## pcs-backend/app/services/psv/
 
 - `__init__.py` — P5-3 PSV 安全阀模块。 (~877 tok)
@@ -626,6 +631,20 @@
 - `test_ui_schema_drift.py` — uiSchema ↔ Pydantic Schema drift 检测（P45-1-15 / Task 20）。 (~1476 tok)
 - `test_unreliable_stream_guard.py` — P3.x SIM-39 / TODO-037: 不可靠物流下游计算硬拒绝守卫。 (~1029 tok)
 
+## pcs-backend/tests/services/heat/
+
+- `test_heat_data.py` — HeatResultsService 测试（P5-4-2 / Task 20）。 (~2773 tok)
+- `test_htri_parser.py` — HTRI parser + version detection 测试（P5-4-1 / Task 19）。 (~1338 tok)
+
+## pcs-backend/tests/services/heat/fixtures/
+
+- `htri_corrupted.txt` (~17 tok)
+- `htri_empty.txt` (~0 tok)
+- `htri_unsupported_v99.txt` (~37 tok)
+- `htri_xchanger_v8_shell_tube.txt` (~120 tok)
+- `htri_xist_v6_air_cooled.txt` (~82 tok)
+- `htri_xist_v6_basic.txt` (~118 tok)
+
 ## pcs-backend/tests/services/pipe/
 
 - `test_two_phase.py` — P4-2-4 TwoPhaseService 单元测试。 (~4162 tok)
@@ -681,13 +700,14 @@
 
 ## pcs-frontend/src/
 
-- `App.tsx` — router — renders form (~794 tok)
+- `App.tsx` — router — renders form (~824 tok)
 - `main.tsx` — Dev 环境挂载 MSW worker；prod 构建时本 if 块被 tree-shake 移除 (~235 tok)
-- `vite-env.d.ts` — / <reference types="vite/client" /> (~11 tok)
+- `vite-env.d.ts` — / <reference types="vite/client" /> (~56 tok)
 
 ## pcs-frontend/src/api/
 
 - `client.ts` — Exports api, TokenResponse, authApi (~335 tok)
+- `psv.ts` — P5-3 PSV 计算 + 项目标准配置 API 客户端（V1.2 SPEC §7.11.5）。 (~350 tok)
 - `sprint1.ts` — Exports workspaceApi, checklistApi (~519 tok)
 
 ## pcs-frontend/src/components/
@@ -717,14 +737,18 @@
 - `StateBadge.tsx` — StateBadge — 9 态工程状态徽章组件（P45-1-1 / Task 6）。 (~1384 tok)
 - `WorkspaceSwitcher.tsx` — WorkspaceSwitcher — 工作区切换器（P45-1-6 / Task 11，升级版）。 (~863 tok)
 
+## pcs-frontend/src/constants/
+
+- `env.ts` — 前端常量统一来源（P5 frontend 收口 checklist 收口项 #1）。 (~148 tok)
+
 ## pcs-frontend/src/layouts/
 
-- `MainLayout.tsx` — 在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。 (~1409 tok)
+- `MainLayout.tsx` — 在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。 (~1419 tok)
 
 ## pcs-frontend/src/mocks/
 
 - `browser.ts` — MSW browser worker — dev 环境挂载（P45-0-5） (~78 tok)
-- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~3437 tok)
+- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~4464 tok)
 
 ## pcs-frontend/src/mocks/seed/
 
@@ -741,7 +765,7 @@
 
 - `DashboardPage.tsx` — workspaceProjectId (~362 tok)
 - `LoginPage.tsx` — MOCK_ACCOUNTS — renders form (~618 tok)
-- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~2514 tok)
+- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~2532 tok)
 
 ## pcs-frontend/src/pages/bedd/
 
@@ -756,7 +780,7 @@
 ## pcs-frontend/src/pages/config/
 
 - `ApprovalPanelPage.tsx` — ApprovalPanelPage — CONFIG 审批面板（P45-2-7 / Task 25）。 (~2647 tok)
-- `AssetListPage.tsx` — AssetListPage — CONFIG 资产列表 + 详情（P45-2-3 / Task 21）。 (~2615 tok)
+- `AssetListPage.tsx` — AssetListPage — CONFIG 资产列表 + 详情（P45-2-3 / Task 21）。 (~2626 tok)
 - `CoefficientTableEditorPage.tsx` — CoefficientTableEditorPage — 系数表编辑器（P45-2-5 / Task 23）。 (~2541 tok)
 - `DiffViewer.tsx` — DiffViewer — 通用版本对比组件（P45-2-8 / Task 26）。 (~2510 tok)
 - `FormulaEditorPage.tsx` — FormulaEditorPage — 公式编辑器（P45-2-4 / Task 22）。 (~3843 tok)
@@ -787,7 +811,8 @@
 
 ## pcs-frontend/src/pages/psv/
 
-- `PsvComputePage.tsx` — PsvComputePage — PSV 安全阀计算界面（P5-3-6 / Task 18）。 (~4924 tok)
+- `PsvComputePage.tsx` — PsvComputePage — PSV 安全阀计算界面（V1.2 SPEC §7.11.5）。 (~5880 tok)
+- `PsvStandardProfilePage.tsx` — PsvStandardProfilePage — 项目级 PSV 标准配置（V1.2 SPEC §7.11.5）。 (~3772 tok)
 
 ## pcs-frontend/src/pages/pump/
 
@@ -830,7 +855,7 @@
 - `pipeClass.ts` — PIPE_CLASS 模块类型（P45-3-2 / Task 29）。 (~441 tok)
 - `pipeNet.ts` — PIPE_NET 模块类型（P45-3-6 / Task 33）。 (~246 tok)
 - `pms.ts` — PMS / BEDD 模块类型（P45-3-8 / Task 35）。 (~290 tok)
-- `psv.ts` — PSV 模块类型（P5-3-6 / Task 18）。 (~904 tok)
+- `psv.ts` — PSV 模块类型（P5-3 frontend / Task 1）。 (~1566 tok)
 - `pump.ts` — PUMP 模块类型（P45-3-7 / Task 34）。 (~355 tok)
 - `records.ts` — Exports RecordSignStatus, StateTransitionName, RecordTransitionRequest, RecordResponse (~226 tok)
 - `sepEquip.ts` — SEP_EQUIP 模块类型（P5-2-4 / Task 12）。 (~476 tok)
@@ -909,7 +934,7 @@
 
 ## pcs-frontend/tests/pages/psv/
 
-- `PsvComputePage.test.tsx` — PsvComputePage 测试（P5-3-6 / Task 18）。 (~442 tok)
+- `PsvComputePage.test.tsx` — PsvComputePage 测试（P5-3-6，对齐 V1.2 SPEC §7.11.5）。 (~610 tok)
 
 ## pcs-frontend/tests/pages/pump/
 

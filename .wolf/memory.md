@@ -3025,3 +3025,47 @@
 | 09:19 | Edited pcs-backend/tests/api/v1/test_psv_api.py | modified test_post_psv_standard_profile_designer_forbidden() | ~48 |
 | 09:19 | Edited pcs-backend/tests/conftest.py | added 1 import(s) | ~72 |
 | 09:19 | Edited pcs-backend/tests/conftest.py | modified _register_sqlite_pg_functions() | ~221 |
+| 09:26 | Edited docs/PCS-UI-SPEC.md | modified result() | ~1068 |
+| 09:26 | Edited docs/PCS-UI-SPEC.md | 5→6 lines | ~326 |
+| 09:40 | Edited docs/PCS-P5-PLAN.md | added nullish coalescing | ~547 |
+| 09:40 | Created pcs-frontend/src/types/psv.ts | — | ~1566 |
+| 09:41 | Created pcs-frontend/src/api/psv.ts | — | ~350 |
+| 09:42 | Created pcs-frontend/src/pages/psv/PsvComputePage.tsx | — | ~5912 |
+| 09:42 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | removed 5 lines | ~1 |
+| 09:43 | Created pcs-frontend/src/pages/psv/PsvStandardProfilePage.tsx | — | ~3768 |
+| 09:43 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified PsvRoute() | ~79 |
+| 09:43 | Edited pcs-frontend/src/pages/routeWrappers.tsx | added 1 import(s) | ~36 |
+| 09:43 | Edited pcs-frontend/src/App.tsx | 2→3 lines | ~14 |
+| 09:43 | Edited pcs-frontend/src/App.tsx | 4→5 lines | ~70 |
+| 09:43 | Edited pcs-frontend/src/mocks/handlers.ts | added nullish coalescing | ~477 |
+| 09:43 | Edited pcs-frontend/src/mocks/handlers.ts | expanded (+61 lines) | ~655 |
+| 09:44 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | 3→2 lines | ~6 |
+| 09:44 | Edited pcs-frontend/src/pages/psv/PsvStandardProfilePage.tsx | added nullish coalescing | ~40 |
+| 09:46 | Created pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | — | ~610 |
+| 09:55 | Created pcs-frontend/src/vite-env.d.ts | — | ~56 |
+| 09:55 | Created pcs-frontend/src/constants/env.ts | — | ~148 |
+| 09:55 | Edited pcs-frontend/src/pages/routeWrappers.tsx | added 1 import(s) | ~47 |
+| 09:55 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified useFetch() | ~34 |
+| 09:55 | Edited pcs-frontend/src/layouts/MainLayout.tsx | added 1 import(s) | ~41 |
+| 09:55 | Edited pcs-frontend/src/layouts/MainLayout.tsx | inline fix | ~12 |
+| 09:55 | Edited pcs-frontend/src/pages/config/AssetListPage.tsx | added 1 import(s) | ~32 |
+| 09:55 | Edited pcs-frontend/src/pages/config/AssetListPage.tsx | inline fix | ~12 |
+| 09:57 | Edited docs/PCS-P5-PLAN.md | 5→5 lines | ~93 |
+| 09:58 | Created pcs-backend/tests/services/heat/fixtures/htri_xist_v6_basic.txt | — | ~116 |
+| 09:58 | Created pcs-backend/tests/services/heat/fixtures/htri_xchanger_v8_shell_tube.txt | — | ~119 |
+| 09:58 | Created pcs-backend/tests/services/heat/fixtures/htri_xist_v6_air_cooled.txt | — | ~84 |
+| 09:58 | Created pcs-backend/tests/services/heat/fixtures/htri_unsupported_v99.txt | — | ~39 |
+| 09:58 | Created pcs-backend/tests/services/heat/fixtures/htri_empty.txt | — | ~0 |
+| 09:58 | Created pcs-backend/tests/services/heat/fixtures/htri_corrupted.txt | — | ~18 |
+| 09:58 | Created pcs-backend/tests/services/heat/test_htri_parser.py | — | ~1338 |
+| 09:58 | Created pcs-backend/app/services/heat/htri_parser.py | — | ~2229 |
+| 09:59 | Edited pcs-backend/tests/services/heat/fixtures/htri_xist_v6_basic.txt | 11→11 lines | ~60 |
+| 09:59 | Edited pcs-backend/tests/services/heat/fixtures/htri_xchanger_v8_shell_tube.txt | 11→11 lines | ~60 |
+| 09:59 | Edited pcs-backend/tests/services/heat/fixtures/htri_xist_v6_air_cooled.txt | 5→5 lines | ~29 |
+| 13:58 | Created pcs-backend/tests/services/heat/test_heat_data.py | — | ~2665 |
+| 13:58 | Created pcs-backend/app/services/heat/heat_data_service.py | — | ~2743 |
+| 13:59 | Edited pcs-backend/tests/services/heat/test_heat_data.py | modified _seed_project_workspace() | ~200 |
+| 13:59 | Edited pcs-backend/tests/services/heat/test_heat_data.py | modified _seed_project_workspace() | ~234 |
+| 14:02 | Edited pcs-backend/app/services/heat/heat_data_service.py | 3→7 lines | ~103 |
+| 14:03 | Edited pcs-backend/app/services/heat/heat_data_service.py | 9→8 lines | ~99 |
+| 14:03 | Edited pcs-backend/tests/services/heat/test_heat_data.py | 3→2 lines | ~16 |

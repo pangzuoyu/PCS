@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-09-17T01:19:53.547Z",
-    "fileCount": 658,
+    "lastScanned": "2026-09-17T06:03:21.212Z",
+    "fileCount": 671,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "736abb51b0bfb23b0f4a1d8a84f5abb05c64a14b0f5ad760ed1fe41ca127fcff",
-    "storeUpdatedAt": "2026-09-17T01:19:53.557Z",
-    "rootHash": "88e156479cba7214"
+    "renderedHash": "0e1ccb40d006ae64217cde815e3d87a44a8bb255ed5f604916494dc717d85906",
+    "storeUpdatedAt": "2026-09-17T06:03:21.221Z",
+    "rootHash": "690b85e97161986c"
   },
   "files": {
     "CLAUDE.md": {
@@ -1757,18 +1757,18 @@
     },
     "pcs-frontend/src/App.tsx": {
       "description": "router — renders form",
-      "tokens": 794,
-      "hash": "c246c42dfca3de5b",
-      "size": 2854,
-      "mtimeMs": 1789606582980.7651,
-      "updatedAt": "2026-09-17T00:56:23.037Z",
+      "tokens": 824,
+      "hash": "4afc1c9d805bf99c",
+      "size": 2959,
+      "mtimeMs": 1789609402484.6265,
+      "updatedAt": "2026-09-17T01:43:22.535Z",
       "source": "hook",
       "symbols": [
         {
           "name": "App",
           "kind": "fn",
-          "startLine": 90,
-          "endLine": 92,
+          "startLine": 92,
+          "endLine": 94,
           "tokens": 23
         }
       ]
@@ -1834,33 +1834,33 @@
     },
     "pcs-frontend/src/layouts/MainLayout.tsx": {
       "description": "在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。",
-      "tokens": 1409,
-      "hash": "bc94569d363fe80e",
-      "size": 5238,
-      "mtimeMs": 1789606583467.77,
-      "updatedAt": "2026-09-17T00:56:23.512Z",
+      "tokens": 1419,
+      "hash": "1376506bbb7509a5",
+      "size": 5272,
+      "mtimeMs": 1789610133265.8564,
+      "updatedAt": "2026-09-17T01:55:33.310Z",
       "source": "hook",
       "symbols": [
         {
           "name": "group",
           "kind": "fn",
-          "startLine": 13,
-          "endLine": 57,
+          "startLine": 14,
+          "endLine": 58,
           "tokens": 438
         },
         {
           "name": "findSelectedKeys",
           "kind": "fn",
-          "startLine": 58,
-          "endLine": 70,
+          "startLine": 59,
+          "endLine": 71,
           "tokens": 96
         },
         {
           "name": "MainLayout",
           "kind": "fn",
-          "startLine": 71,
-          "endLine": 149,
-          "tokens": 728
+          "startLine": 72,
+          "endLine": 150,
+          "tokens": 725
         }
       ]
     },
@@ -18534,19 +18534,19 @@
     },
     "pcs-frontend/src/mocks/handlers.ts": {
       "description": "MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16）",
-      "tokens": 3437,
-      "hash": "fe2c3dd734e5640c",
-      "size": 12652,
-      "mtimeMs": 1789532972003.7537,
-      "updatedAt": "2026-09-16T04:29:32.049Z",
+      "tokens": 4464,
+      "hash": "1c65ae564a7a0bd6",
+      "size": 16342,
+      "mtimeMs": 1789609432600.9475,
+      "updatedAt": "2026-09-17T01:43:52.648Z",
       "source": "hook",
       "symbols": [
         {
           "name": "isAuthed",
           "kind": "fn",
           "startLine": 29,
-          "endLine": 211,
-          "tokens": 3107
+          "endLine": 307,
+          "tokens": 4135
         }
       ]
     },
@@ -18561,11 +18561,11 @@
     },
     "pcs-frontend/src/vite-env.d.ts": {
       "description": "/ <reference types=\"vite/client\" />",
-      "tokens": 11,
-      "hash": "b440b802c2cfeac6",
-      "size": 37,
-      "mtimeMs": 1789512775677.4941,
-      "updatedAt": "2026-09-15T22:52:55.722Z",
+      "tokens": 56,
+      "hash": "b85ac843658d5459",
+      "size": 196,
+      "mtimeMs": 1789610112283.7578,
+      "updatedAt": "2026-09-17T01:55:12.332Z",
       "source": "hook"
     },
     "pcs-backend/app/services/ui_schema_service.py": {
@@ -19373,26 +19373,26 @@
     },
     "pcs-frontend/src/pages/config/AssetListPage.tsx": {
       "description": "AssetListPage — CONFIG 资产列表 + 详情（P45-2-3 / Task 21）。",
-      "tokens": 2615,
-      "hash": "86340493e2932316",
-      "size": 9677,
-      "mtimeMs": 1789533121957.3882,
-      "updatedAt": "2026-09-16T04:32:02.006Z",
+      "tokens": 2626,
+      "hash": "8398da74ddc5deb3",
+      "size": 9714,
+      "mtimeMs": 1789610134253.7537,
+      "updatedAt": "2026-09-17T01:55:34.319Z",
       "source": "hook",
       "symbols": [
         {
           "name": "Props",
           "kind": "section",
-          "startLine": 43,
-          "endLine": 66,
+          "startLine": 44,
+          "endLine": 67,
           "tokens": 179
         },
         {
           "name": "AssetListPage",
           "kind": "fn",
-          "startLine": 67,
-          "endLine": 309,
-          "tokens": 2136
+          "startLine": 68,
+          "endLine": 310,
+          "tokens": 2132
         }
       ]
     },
@@ -20618,193 +20618,200 @@
     },
     "pcs-frontend/src/pages/routeWrappers.tsx": {
       "description": "路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化）",
-      "tokens": 2514,
-      "hash": "5f5c41b52ec42582",
-      "size": 9275,
-      "mtimeMs": 1789606581985.7556,
-      "updatedAt": "2026-09-17T00:56:22.033Z",
+      "tokens": 2532,
+      "hash": "d248d765e2675da2",
+      "size": 9297,
+      "mtimeMs": 1789610118665.399,
+      "updatedAt": "2026-09-17T01:55:18.717Z",
       "source": "hook",
       "symbols": [
         {
           "name": "useFetch",
           "kind": "fn",
-          "startLine": 76,
-          "endLine": 91,
+          "startLine": 73,
+          "endLine": 88,
           "tokens": 144
         },
         {
           "name": "ApprovalPanelRoute",
           "kind": "fn",
-          "startLine": 92,
-          "endLine": 94,
+          "startLine": 89,
+          "endLine": 91,
           "tokens": 28
         },
         {
           "name": "AssetListRoute",
           "kind": "fn",
-          "startLine": 95,
-          "endLine": 98,
+          "startLine": 92,
+          "endLine": 95,
           "tokens": 47
         },
         {
           "name": "CoefficientEditorRoute",
           "kind": "fn",
-          "startLine": 99,
-          "endLine": 101,
+          "startLine": 96,
+          "endLine": 98,
           "tokens": 31
         },
         {
           "name": "FormulaEditorRoute",
           "kind": "fn",
-          "startLine": 102,
-          "endLine": 105,
+          "startLine": 99,
+          "endLine": 102,
           "tokens": 50
         },
         {
           "name": "TemplateFileRoute",
           "kind": "fn",
-          "startLine": 106,
-          "endLine": 110,
+          "startLine": 103,
+          "endLine": 107,
           "tokens": 33
         },
         {
           "name": "StreamListRoute",
           "kind": "fn",
-          "startLine": 111,
-          "endLine": 114,
+          "startLine": 108,
+          "endLine": 111,
           "tokens": 52
         },
         {
           "name": "StreamDetailRoute",
           "kind": "fn",
-          "startLine": 115,
-          "endLine": 134,
+          "startLine": 112,
+          "endLine": 131,
           "tokens": 221
         },
         {
           "name": "ImportWizardRoute",
           "kind": "fn",
-          "startLine": 135,
-          "endLine": 139,
+          "startLine": 132,
+          "endLine": 136,
           "tokens": 29
         },
         {
           "name": "PipeClassListRoute",
           "kind": "fn",
-          "startLine": 140,
-          "endLine": 143,
+          "startLine": 137,
+          "endLine": 140,
           "tokens": 50
         },
         {
           "name": "SymbolTableRoute",
           "kind": "fn",
-          "startLine": 144,
-          "endLine": 146,
+          "startLine": 141,
+          "endLine": 143,
           "tokens": 28
         },
         {
           "name": "CodeFormatRoute",
           "kind": "fn",
-          "startLine": 147,
-          "endLine": 151,
+          "startLine": 144,
+          "endLine": 148,
           "tokens": 38
         },
         {
           "name": "PropertySearchRoute",
           "kind": "fn",
-          "startLine": 152,
-          "endLine": 155,
+          "startLine": 149,
+          "endLine": 152,
           "tokens": 58
         },
         {
           "name": "AllowableStressRoute",
           "kind": "fn",
-          "startLine": 156,
-          "endLine": 159,
+          "startLine": 153,
+          "endLine": 156,
           "tokens": 56
         },
         {
           "name": "ToxicityRoute",
           "kind": "fn",
-          "startLine": 160,
-          "endLine": 165,
+          "startLine": 157,
+          "endLine": 162,
           "tokens": 56
         },
         {
           "name": "FlashRoute",
           "kind": "fn",
-          "startLine": 166,
-          "endLine": 173,
+          "startLine": 163,
+          "endLine": 170,
           "tokens": 54
         },
         {
           "name": "PipeRoute",
           "kind": "fn",
-          "startLine": 174,
-          "endLine": 182,
+          "startLine": 171,
+          "endLine": 179,
           "tokens": 60
         },
         {
           "name": "PipeLineListRoute",
           "kind": "fn",
-          "startLine": 183,
-          "endLine": 186,
+          "startLine": 180,
+          "endLine": 183,
           "tokens": 55
         },
         {
           "name": "PipeNetRoute",
           "kind": "fn",
-          "startLine": 187,
-          "endLine": 190,
+          "startLine": 184,
+          "endLine": 187,
           "tokens": 44
         },
         {
           "name": "PumpRoute",
           "kind": "fn",
-          "startLine": 191,
-          "endLine": 200,
+          "startLine": 188,
+          "endLine": 197,
           "tokens": 60
         },
         {
           "name": "VesselRoute",
           "kind": "fn",
-          "startLine": 201,
-          "endLine": 205,
+          "startLine": 198,
+          "endLine": 202,
           "tokens": 34
         },
         {
           "name": "SepEquipRoute",
           "kind": "fn",
-          "startLine": 206,
-          "endLine": 210,
+          "startLine": 203,
+          "endLine": 207,
           "tokens": 34
         },
         {
           "name": "PsvRoute",
           "kind": "fn",
-          "startLine": 211,
-          "endLine": 215,
-          "tokens": 37
+          "startLine": 208,
+          "endLine": 212,
+          "tokens": 39
+        },
+        {
+          "name": "PsvStandardProfileRoute",
+          "kind": "fn",
+          "startLine": 213,
+          "endLine": 217,
+          "tokens": 40
         },
         {
           "name": "PmsRoute",
           "kind": "fn",
-          "startLine": 216,
-          "endLine": 219,
+          "startLine": 218,
+          "endLine": 221,
           "tokens": 46
         },
         {
           "name": "BeddRoute",
           "kind": "fn",
-          "startLine": 220,
-          "endLine": 223,
+          "startLine": 222,
+          "endLine": 225,
           "tokens": 50
         },
         {
           "name": "WizardRoute",
           "kind": "fn",
-          "startLine": 224,
-          "endLine": 253,
+          "startLine": 226,
+          "endLine": 255,
           "tokens": 184
         }
       ]
@@ -21449,11 +21456,11 @@
     },
     "docs/PCS-P5-PLAN.md": {
       "description": "PCS P5 批计划锚点（2026-09-16 / 末次修订 2026-09-17）",
-      "tokens": 1729,
-      "hash": "5bd4023890c7a93e",
-      "size": 9377,
-      "mtimeMs": 1789578319773.8926,
-      "updatedAt": "2026-09-16T17:05:19.822Z",
+      "tokens": 2208,
+      "hash": "5397cf16a048437a",
+      "size": 12035,
+      "mtimeMs": 1789610237368.0684,
+      "updatedAt": "2026-09-17T01:57:17.425Z",
       "source": "hook"
     },
     "pcs-backend/alembic/versions/p5_0_4a_pk_rename_and_tag_number.py": {
@@ -24027,199 +24034,227 @@
       ]
     },
     "pcs-frontend/src/types/psv.ts": {
-      "description": "PSV 模块类型（P5-3-6 / Task 18）。",
-      "tokens": 904,
-      "hash": "86172d927616bd1a",
-      "size": 3228,
-      "mtimeMs": 1789606569540.6377,
-      "updatedAt": "2026-09-17T00:56:09.592Z",
+      "description": "PSV 模块类型（P5-3 frontend / Task 1）。",
+      "tokens": 1566,
+      "hash": "670ddb74b607b7ed",
+      "size": 5621,
+      "mtimeMs": 1789609258991.2317,
+      "updatedAt": "2026-09-17T01:40:59.045Z",
       "source": "hook",
       "symbols": [
         {
-          "name": "FireCaseInput",
+          "name": "FormulaRef",
           "kind": "section",
-          "startLine": 21,
-          "endLine": 30,
-          "tokens": 67
+          "startLine": 33,
+          "endLine": 42,
+          "tokens": 80
         },
         {
-          "name": "FireCaseResult",
+          "name": "ScenarioParamsBase",
           "kind": "section",
-          "startLine": 31,
-          "endLine": 45,
-          "tokens": 87
+          "startLine": 43,
+          "endLine": 46,
+          "tokens": 17
         },
         {
-          "name": "ClosedValveInput",
+          "name": "FireScenarioParams",
           "kind": "section",
-          "startLine": 46,
-          "endLine": 52,
-          "tokens": 37
+          "startLine": 47,
+          "endLine": 55,
+          "tokens": 58
         },
         {
-          "name": "ThermalExpansionInput",
+          "name": "ClosedValveScenarioParams",
           "kind": "section",
-          "startLine": 53,
-          "endLine": 61,
-          "tokens": 45
+          "startLine": 56,
+          "endLine": 62,
+          "tokens": 48
         },
         {
-          "name": "ReliefResult",
+          "name": "ReactionRunawayScenarioParams",
           "kind": "section",
-          "startLine": 62,
+          "startLine": 63,
           "endLine": 68,
           "tokens": 44
         },
         {
-          "name": "ReliefAggregateResult",
+          "name": "ThermalExpansionScenarioParams",
           "kind": "section",
           "startLine": 69,
-          "endLine": 75,
-          "tokens": 50
+          "endLine": 87,
+          "tokens": 164
         },
         {
-          "name": "ReliefAreaInput",
+          "name": "SizingParams",
           "kind": "section",
-          "startLine": 76,
-          "endLine": 89,
-          "tokens": 101
+          "startLine": 88,
+          "endLine": 105,
+          "tokens": 132
         },
         {
-          "name": "ReliefAreaResult",
+          "name": "PsvCalculateRequest",
           "kind": "section",
-          "startLine": 90,
-          "endLine": 96,
-          "tokens": 53
+          "startLine": 106,
+          "endLine": 120,
+          "tokens": 134
         },
         {
-          "name": "OrificeResult",
+          "name": "PsvAggregateResult",
           "kind": "section",
-          "startLine": 97,
-          "endLine": 103,
-          "tokens": 47
+          "startLine": 121,
+          "endLine": 126,
+          "tokens": 42
         },
         {
-          "name": "PsvStandardRef",
+          "name": "PsvReliefAreaResult",
           "kind": "section",
-          "startLine": 104,
-          "endLine": 109,
-          "tokens": 29
+          "startLine": 127,
+          "endLine": 134,
+          "tokens": 54
+        },
+        {
+          "name": "PsvOrificeResult",
+          "kind": "section",
+          "startLine": 135,
+          "endLine": 141,
+          "tokens": 40
+        },
+        {
+          "name": "PsvResultBody",
+          "kind": "section",
+          "startLine": 142,
+          "endLine": 158,
+          "tokens": 135
+        },
+        {
+          "name": "PsvCalculateResponse",
+          "kind": "section",
+          "startLine": 159,
+          "endLine": 173,
+          "tokens": 133
         },
         {
           "name": "PsvStandardProfile",
           "kind": "section",
-          "startLine": 110,
-          "endLine": 117,
-          "tokens": 64
+          "startLine": 174,
+          "endLine": 189,
+          "tokens": 122
         },
         {
-          "name": "PsvCalculateReliefRequest",
+          "name": "UpsertPsvStandardProfileRequest",
           "kind": "section",
-          "startLine": 118,
-          "endLine": 127,
-          "tokens": 79
-        },
-        {
-          "name": "PsvCalculateReliefResponse",
-          "kind": "section",
-          "startLine": 128,
-          "endLine": 133,
-          "tokens": 50
+          "startLine": 190,
+          "endLine": 195,
+          "tokens": 60
         }
       ]
     },
     "pcs-frontend/src/pages/psv/PsvComputePage.tsx": {
-      "description": "PsvComputePage — PSV 安全阀计算界面（P5-3-6 / Task 18）。",
-      "tokens": 4924,
-      "hash": "7c19eb5f72c692fc",
-      "size": 17761,
-      "mtimeMs": 1789606632790.282,
-      "updatedAt": "2026-09-17T00:57:12.848Z",
+      "description": "PsvComputePage — PSV 安全阀计算界面（V1.2 SPEC §7.11.5）。",
+      "tokens": 5880,
+      "hash": "4af0b17fbbab7229",
+      "size": 21317,
+      "mtimeMs": 1789609497556.6685,
+      "updatedAt": "2026-09-17T01:44:57.606Z",
       "source": "hook",
       "symbols": [
         {
           "name": "StreamLite",
           "kind": "section",
-          "startLine": 41,
-          "endLine": 46,
+          "startLine": 52,
+          "endLine": 57,
           "tokens": 26
         },
         {
           "name": "Props",
           "kind": "section",
-          "startLine": 47,
-          "endLine": 63,
-          "tokens": 161
+          "startLine": 58,
+          "endLine": 75,
+          "tokens": 148
+        },
+        {
+          "name": "PcsErrorEnvelope",
+          "kind": "section",
+          "startLine": 76,
+          "endLine": 82,
+          "tokens": 32
+        },
+        {
+          "name": "extractPcsError",
+          "kind": "fn",
+          "startLine": 83,
+          "endLine": 90,
+          "tokens": 80
         },
         {
           "name": "PsvComputePage",
           "kind": "fn",
-          "startLine": 64,
-          "endLine": 116,
-          "tokens": 350
+          "startLine": 91,
+          "endLine": 221,
+          "tokens": 1159
         },
         {
-          "name": "ReliefTabProps",
+          "name": "InputPanelProps",
           "kind": "section",
-          "startLine": 117,
-          "endLine": 121,
-          "tokens": 38
+          "startLine": 222,
+          "endLine": 234,
+          "tokens": 110
         },
         {
-          "name": "ReliefTab",
+          "name": "InputPanel",
           "kind": "fn",
-          "startLine": 122,
-          "endLine": 286,
-          "tokens": 1524
+          "startLine": 235,
+          "endLine": 339,
+          "tokens": 892
         },
         {
-          "name": "AreaTabProps",
+          "name": "ScenarioFormProps",
           "kind": "section",
-          "startLine": 287,
-          "endLine": 290,
-          "tokens": 32
+          "startLine": 340,
+          "endLine": 343,
+          "tokens": 18
         },
         {
-          "name": "AreaTab",
+          "name": "ScenarioParamsForm",
           "kind": "fn",
-          "startLine": 291,
-          "endLine": 419,
-          "tokens": 1233
+          "startLine": 344,
+          "endLine": 417,
+          "tokens": 909
         },
         {
-          "name": "OrificeTabProps",
+          "name": "SizingFormProps",
           "kind": "section",
-          "startLine": 420,
-          "endLine": 423,
-          "tokens": 28
+          "startLine": 418,
+          "endLine": 421,
+          "tokens": 15
         },
         {
-          "name": "OrificeTab",
+          "name": "SizingParamsForm",
           "kind": "fn",
-          "startLine": 424,
-          "endLine": 485,
-          "tokens": 571
+          "startLine": 422,
+          "endLine": 463,
+          "tokens": 525
         },
         {
-          "name": "mockFireCase",
-          "kind": "fn",
-          "startLine": 486,
-          "endLine": 507,
-          "tokens": 193
+          "name": "ResultPanelProps",
+          "kind": "section",
+          "startLine": 464,
+          "endLine": 469,
+          "tokens": 35
         },
         {
-          "name": "mockArea",
+          "name": "ResultPanel",
           "kind": "fn",
-          "startLine": 508,
-          "endLine": 547,
-          "tokens": 353
+          "startLine": 470,
+          "endLine": 580,
+          "tokens": 1224
         },
         {
-          "name": "mockOrifice",
+          "name": "buildScenarioParams",
           "kind": "fn",
-          "startLine": 548,
-          "endLine": 575,
-          "tokens": 205
+          "startLine": 581,
+          "endLine": 626,
+          "tokens": 367
         }
       ]
     },
@@ -24242,21 +24277,21 @@
       "source": "hook"
     },
     "pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx": {
-      "description": "PsvComputePage 测试（P5-3-6 / Task 18）。",
-      "tokens": 442,
-      "hash": "4ea1c29124a95023",
-      "size": 1768,
-      "mtimeMs": 1789606697893.0537,
-      "updatedAt": "2026-09-17T00:58:17.942Z",
+      "description": "PsvComputePage 测试（P5-3-6，对齐 V1.2 SPEC §7.11.5）。",
+      "tokens": 610,
+      "hash": "a5a8b16859f5a94a",
+      "size": 2504,
+      "mtimeMs": 1789609576015.5857,
+      "updatedAt": "2026-09-17T01:46:16.065Z",
       "source": "hook"
     },
     "docs/PCS-UI-SPEC.md": {
       "description": "",
-      "tokens": 6275,
-      "hash": "08cdf3d116b2bd10",
-      "size": 42360,
-      "mtimeMs": 1789606793962.094,
-      "updatedAt": "2026-09-17T00:59:54.018Z",
+      "tokens": 7421,
+      "hash": "c1210c63b0dc08c0",
+      "size": 47674,
+      "mtimeMs": 1789608364092.1216,
+      "updatedAt": "2026-09-17T01:26:04.138Z",
       "source": "hook"
     },
     "pcs-backend/app/services/psv/__init__.py": {
@@ -25773,6 +25808,462 @@
           "startLine": 540,
           "endLine": 569,
           "tokens": 271
+        }
+      ]
+    },
+    "pcs-frontend/src/api/psv.ts": {
+      "description": "P5-3 PSV 计算 + 项目标准配置 API 客户端（V1.2 SPEC §7.11.5）。",
+      "tokens": 350,
+      "hash": "a78bb3b4ea395c20",
+      "size": 1330,
+      "mtimeMs": 1789609281474.434,
+      "updatedAt": "2026-09-17T01:41:21.521Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/pages/psv/PsvStandardProfilePage.tsx": {
+      "description": "PsvStandardProfilePage — 项目级 PSV 标准配置（V1.2 SPEC §7.11.5）。",
+      "tokens": 3772,
+      "hash": "44fb6a8938a54d05",
+      "size": 13557,
+      "mtimeMs": 1789609498002.6736,
+      "updatedAt": "2026-09-17T01:44:58.058Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 42,
+          "endLine": 57,
+          "tokens": 118
+        },
+        {
+          "name": "PcsErrorEnvelope",
+          "kind": "section",
+          "startLine": 58,
+          "endLine": 62,
+          "tokens": 20
+        },
+        {
+          "name": "extractPcsError",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 70,
+          "tokens": 80
+        },
+        {
+          "name": "PsvStandardProfilePage",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 176,
+          "tokens": 855
+        },
+        {
+          "name": "CurrentProfileCardProps",
+          "kind": "section",
+          "startLine": 177,
+          "endLine": 180,
+          "tokens": 20
+        },
+        {
+          "name": "CurrentProfileCard",
+          "kind": "fn",
+          "startLine": 181,
+          "endLine": 269,
+          "tokens": 917
+        },
+        {
+          "name": "EditDrawerProps",
+          "kind": "section",
+          "startLine": 270,
+          "endLine": 276,
+          "tokens": 51
+        },
+        {
+          "name": "EditDrawer",
+          "kind": "fn",
+          "startLine": 277,
+          "endLine": 414,
+          "tokens": 1366
+        },
+        {
+          "name": "safeJsonParse",
+          "kind": "fn",
+          "startLine": 415,
+          "endLine": 425,
+          "tokens": 82
+        }
+      ]
+    },
+    "pcs-frontend/src/constants/env.ts": {
+      "description": "前端常量统一来源（P5 frontend 收口 checklist 收口项 #1）。",
+      "tokens": 148,
+      "hash": "9541c24bcd8cfbff",
+      "size": 628,
+      "mtimeMs": 1789610112693.7637,
+      "updatedAt": "2026-09-17T01:55:12.740Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/heat/fixtures/htri_xist_v6_basic.txt": {
+      "description": "",
+      "tokens": 118,
+      "hash": "8ecd44baba9e08af",
+      "size": 474,
+      "mtimeMs": 1789610350691.4922,
+      "updatedAt": "2026-09-17T01:59:10.738Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/heat/fixtures/htri_xchanger_v8_shell_tube.txt": {
+      "description": "",
+      "tokens": 120,
+      "hash": "683d4947d66f681a",
+      "size": 484,
+      "mtimeMs": 1789610351158.461,
+      "updatedAt": "2026-09-17T01:59:11.204Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/heat/fixtures/htri_xist_v6_air_cooled.txt": {
+      "description": "",
+      "tokens": 82,
+      "hash": "ed5313fb1550eb05",
+      "size": 332,
+      "mtimeMs": 1789610351653.4275,
+      "updatedAt": "2026-09-17T01:59:11.701Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/heat/fixtures/htri_unsupported_v99.txt": {
+      "description": "",
+      "tokens": 37,
+      "hash": "515e26c74590ed37",
+      "size": 147,
+      "mtimeMs": 1789610294751.4827,
+      "updatedAt": "2026-09-17T01:58:14.805Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/heat/fixtures/htri_empty.txt": {
+      "description": "",
+      "tokens": 0,
+      "hash": "e3b0c44298fc1c14",
+      "size": 0,
+      "mtimeMs": 1789610295193.4492,
+      "updatedAt": "2026-09-17T01:58:15.242Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/heat/fixtures/htri_corrupted.txt": {
+      "description": "",
+      "tokens": 17,
+      "hash": "868efce94f22e600",
+      "size": 67,
+      "mtimeMs": 1789610295592.4192,
+      "updatedAt": "2026-09-17T01:58:15.637Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/heat/test_htri_parser.py": {
+      "description": "HTRI parser + version detection 测试（P5-4-1 / Task 19）。",
+      "tokens": 1338,
+      "hash": "4d39b01224c525fa",
+      "size": 4985,
+      "mtimeMs": 1789610307402.5405,
+      "updatedAt": "2026-09-17T01:58:27.447Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_fixture",
+          "kind": "fn",
+          "startLine": 28,
+          "endLine": 34,
+          "tokens": 28
+        },
+        {
+          "name": "test_parse_xist_v6_basic_hand_calc",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 56,
+          "tokens": 323
+        },
+        {
+          "name": "test_parse_xchanger_v8_shell_tube",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 67,
+          "tokens": 142
+        },
+        {
+          "name": "test_parse_xist_v6_air_cooled",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 85,
+          "tokens": 201
+        },
+        {
+          "name": "test_detect_version_xist_v6",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 89,
+          "tokens": 32
+        },
+        {
+          "name": "test_detect_version_xchanger_v8",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 93,
+          "tokens": 39
+        },
+        {
+          "name": "test_detect_version_xist_v6_air_cooled",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 97,
+          "tokens": 37
+        },
+        {
+          "name": "test_detect_version_unsupported_v99_raises",
+          "kind": "fn",
+          "startLine": 98,
+          "endLine": 106,
+          "tokens": 116
+        },
+        {
+          "name": "test_detect_version_empty_file_returns_none",
+          "kind": "fn",
+          "startLine": 107,
+          "endLine": 114,
+          "tokens": 52
+        },
+        {
+          "name": "test_parse_empty_file_raises",
+          "kind": "fn",
+          "startLine": 115,
+          "endLine": 119,
+          "tokens": 36
+        },
+        {
+          "name": "test_parse_corrupted_file_raises",
+          "kind": "fn",
+          "startLine": 120,
+          "endLine": 127,
+          "tokens": 44
+        },
+        {
+          "name": "test_supported_versions_list",
+          "kind": "fn",
+          "startLine": 128,
+          "endLine": 136,
+          "tokens": 61
+        },
+        {
+          "name": "test_parse_under_10s",
+          "kind": "fn",
+          "startLine": 137,
+          "endLine": 143,
+          "tokens": 82
+        }
+      ]
+    },
+    "pcs-backend/app/services/heat/htri_parser.py": {
+      "description": "HTRI 自研解析器（P5-4-1 / Task 19）。",
+      "tokens": 2229,
+      "hash": "5cbd307ab8bd6487",
+      "size": 8700,
+      "mtimeMs": 1789610332929.711,
+      "updatedAt": "2026-09-17T01:58:52.977Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "HtriParseError",
+          "kind": "class",
+          "startLine": 43,
+          "endLine": 46,
+          "tokens": 22
+        },
+        {
+          "name": "HtriVersionUnsupportedError",
+          "kind": "class",
+          "startLine": 47,
+          "endLine": 70,
+          "tokens": 202
+        },
+        {
+          "name": "HtriParsedData",
+          "kind": "class",
+          "startLine": 71,
+          "endLine": 111,
+          "tokens": 274
+        },
+        {
+          "name": "detect_version",
+          "kind": "fn",
+          "startLine": 112,
+          "endLine": 131,
+          "tokens": 155
+        },
+        {
+          "name": "parse_htri",
+          "kind": "fn",
+          "startLine": 132,
+          "endLine": 193,
+          "tokens": 723
+        },
+        {
+          "name": "_FieldMissing",
+          "kind": "class",
+          "startLine": 194,
+          "endLine": 197,
+          "tokens": 18
+        },
+        {
+          "name": "_parse_fields",
+          "kind": "fn",
+          "startLine": 198,
+          "endLine": 215,
+          "tokens": 135
+        },
+        {
+          "name": "_coerce_w",
+          "kind": "fn",
+          "startLine": 216,
+          "endLine": 228,
+          "tokens": 88
+        },
+        {
+          "name": "_coerce_numeric",
+          "kind": "fn",
+          "startLine": 229,
+          "endLine": 235,
+          "tokens": 49
+        },
+        {
+          "name": "_coerce_optional_numeric",
+          "kind": "fn",
+          "startLine": 236,
+          "endLine": 245,
+          "tokens": 63
+        },
+        {
+          "name": "_coerce_optional_int",
+          "kind": "fn",
+          "startLine": 246,
+          "endLine": 255,
+          "tokens": 62
+        },
+        {
+          "name": "_split_unit",
+          "kind": "fn",
+          "startLine": 256,
+          "endLine": 263,
+          "tokens": 88
+        }
+      ]
+    },
+    "pcs-backend/tests/services/heat/test_heat_data.py": {
+      "description": "HeatResultsService 测试（P5-4-2 / Task 20）。",
+      "tokens": 2773,
+      "hash": "d1d131dec2eb616a",
+      "size": 10246,
+      "mtimeMs": 1789625001166.1602,
+      "updatedAt": "2026-09-17T06:03:21.212Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_sample_input",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 115,
+          "tokens": 755
+        },
+        {
+          "name": "_seed_project_workspace",
+          "kind": "fn",
+          "startLine": 116,
+          "endLine": 147,
+          "tokens": 247
+        },
+        {
+          "name": "test_save_39_new_fields_roundtrip",
+          "kind": "fn",
+          "startLine": 148,
+          "endLine": 212,
+          "tokens": 591
+        },
+        {
+          "name": "test_save_legacy_9_fields_compat",
+          "kind": "fn",
+          "startLine": 213,
+          "endLine": 240,
+          "tokens": 234
+        },
+        {
+          "name": "test_save_requires_tag_number",
+          "kind": "fn",
+          "startLine": 241,
+          "endLine": 257,
+          "tokens": 156
+        },
+        {
+          "name": "test_map_htri_to_heat_input_xist_v6_basic",
+          "kind": "fn",
+          "startLine": 258,
+          "endLine": 286,
+          "tokens": 274
+        },
+        {
+          "name": "test_save_from_htri_end_to_end",
+          "kind": "fn",
+          "startLine": 287,
+          "endLine": 315,
+          "tokens": 278
+        }
+      ]
+    },
+    "pcs-backend/app/services/heat/heat_data_service.py": {
+      "description": "HeatResultsService 落库（P5-4-2 / Task 20）。",
+      "tokens": 2760,
+      "hash": "8fc5180598b4bb9a",
+      "size": 10302,
+      "mtimeMs": 1789624996888.8127,
+      "updatedAt": "2026-09-17T06:03:16.944Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "HeatCalcInput",
+          "kind": "class",
+          "startLine": 31,
+          "endLine": 105,
+          "tokens": 826
+        },
+        {
+          "name": "save_heat_calc_result",
+          "kind": "fn",
+          "startLine": 106,
+          "endLine": 210,
+          "tokens": 1043
+        },
+        {
+          "name": "map_htri_to_heat_input",
+          "kind": "fn",
+          "startLine": 211,
+          "endLine": 252,
+          "tokens": 415
+        },
+        {
+          "name": "_htri_hot_side_dict",
+          "kind": "fn",
+          "startLine": 253,
+          "endLine": 262,
+          "tokens": 78
+        },
+        {
+          "name": "_htri_cold_side_dict",
+          "kind": "fn",
+          "startLine": 263,
+          "endLine": 272,
+          "tokens": 80
+        },
+        {
+          "name": "_htri_ache_dict",
+          "kind": "fn",
+          "startLine": 273,
+          "endLine": 280,
+          "tokens": 94
         }
       ]
     }

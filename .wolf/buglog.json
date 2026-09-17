@@ -1235,6 +1235,25 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-09-17T00:00:00Z"
+    },
+    {
+      "id": "bug-078",
+      "timestamp": "2026-09-17T00:00:00Z",
+      "error_message": "ruff E501 fix introduced non-existent dataclass fields shell_id_mm / baffle_spacing_mm",
+      "file": "pcs-backend/app/services/heat/heat_data_service.py",
+      "root_cause": "为消除 E501（baffle_spacing 行 103 > 100），第一次 Edit 把字段重命名为 shell_id_mm / baffle_spacing_mm 但 HeatCalcInput dataclass 仅有 shell_id / baffle_spacing（无 _mm 后缀变体）；属于改字段名而非拆行的越权修改",
+      "fix": "字段名还原 shell_id / baffle_spacing；用括号跨行解决 E501（_baffle_spacing_m * 1000.0 if ... else None 折行）。_FORMULA_VERSION 仍是 HTv1.0-p5-4-2；dataclass 与 ORM 字段 1:1 对齐；ruff 0 errors + 17 tests pass",
+      "tags": [
+        "auto-detected",
+        "self-introduced",
+        "field-name-mismatch",
+        "ruff-e501",
+        "p5-4-2",
+        "heat"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-17T00:00:00Z"
     }
   ]
 }
