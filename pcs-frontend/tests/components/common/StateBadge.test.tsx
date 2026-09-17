@@ -81,6 +81,30 @@ describe('StateBadge — 模块激活子集', () => {
       }
     }
   });
+
+  it('HEAT 模块 4 态子集（P5-4 frontend / Task 3）：DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED active，其余半透明', () => {
+    const active: Array<RecordSignStatus> = ['DRAFT', 'IN_APPROVAL', 'CHECKED', 'CHECK_REJECTED'];
+    const inactive: Array<RecordSignStatus> = ['STALE', 'CHANGE_PENDING', 'CHANGED', 'REVERSAL_PENDING', 'OBSOLETE'];
+
+    for (const s of active) {
+      const { unmount } = render(<StateBadge status={s} module="HEAT" />);
+      const el = screen.getByTestId('state-badge');
+      expect(el.getAttribute('data-module')).toBe('HEAT');
+      expect(el.getAttribute('data-active')).toBe('true');
+      const style = el.getAttribute('style') || '';
+      expect(style).not.toMatch(/opacity:\s*0\.4/);
+      unmount();
+    }
+
+    for (const s of inactive) {
+      const { unmount } = render(<StateBadge status={s} module="HEAT" />);
+      const el = screen.getByTestId('state-badge');
+      expect(el.getAttribute('data-active')).toBe('false');
+      const style = el.getAttribute('style') || '';
+      expect(style).toMatch(/opacity:\s*0\.4/);
+      unmount();
+    }
+  });
 });
 
 describe('StateBadge — showStep', () => {

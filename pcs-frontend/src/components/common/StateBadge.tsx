@@ -18,7 +18,7 @@ import type { RecordSignStatus } from '../../types/records';
 
 export type StateBadgeModule =
   | 'SIM' | 'PIPE' | 'PUMP' | 'PIPE_NET' | 'FLASH'
-  | 'VESSEL' | 'SEP_EQUIP' | 'PSV'
+  | 'VESSEL' | 'SEP_EQUIP' | 'PSV' | 'HEAT'
   | 'CONFIG' | 'DELIVERABLE';
 
 export type StateBadgeSize = 'sm' | 'md';
@@ -65,6 +65,7 @@ const MODULE_ACTIVATED: Record<StateBadgeModule, ReadonlySet<RecordSignStatus>> 
   VESSEL: FOUR_STATE_SUBSET,
   SEP_EQUIP: FOUR_STATE_SUBSET,
   PSV: FOUR_STATE_SUBSET,
+  HEAT: FOUR_STATE_SUBSET,
   CONFIG: new Set<RecordSignStatus>([
     'DRAFT', 'IN_APPROVAL', 'CHECKED', 'CHECK_REJECTED', 'STALE',
     'CHANGE_PENDING', 'CHANGED', 'REVERSAL_PENDING', 'OBSOLETE',
