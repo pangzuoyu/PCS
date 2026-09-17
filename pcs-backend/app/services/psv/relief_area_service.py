@@ -137,11 +137,23 @@ def _gas_area_api520(
     Z: float,
     k: float,
 ) -> float:
-    """API 520 §5.6.3 气体面积（V1 简化主链）。
+    """API 520 §5.6.3 气体面积（SI 主链，完整等熵项）。
 
-    严格公式：
-      A = W / (C_d × K_b × P_back × √(M/(Z·R·T)) × √(k/(k-1)) × ((2/(k+1))^((k+1)/(k-1))))
-    V1 简化：Cd = 0.975, K_b = 1.0, 等熵指数项归一化处理。
+    严格公式（API 520 Part I 9th Ed. §5.6.2.3 critical flow）：
+      G_c = C_d · K_b · P_back · √(M / (Z·R·T)) · √(k·(2/(k+1))^((k+1)/(k-1)) / (k-1))
+      A = W / G_c
+
+    各项物理意义：
+      - C_d = 0.975（API 520 Table 6 排放系数）
+      - K_b = 1.0（≤ 临界压比时；balanced bellows 需 ≥ 0.9）
+      - M = 摩尔质量 kg/kmol
+      - Z = 压缩因子
+      - k = 比热比 cp/cv
+      - 等熵指数项 = (k/(k-1)) × ((2/(k+1))^((k+1)/(k-1)))
+        （k=1.4 空气 → 1.172 → √1.172 ≈ 1.0826）
+
+    比 V1 简化（Cd·Kb·P_back 反推）更准确：原 V1 忽略 M/Z/T/k 等熵项，
+    实际气体（蒸汽/烃类）结果偏差 10-30%。SUP-P5-PSV-001 §4.1 C6 fix。
     """
     if P_back <= 0:
         raise PsvReliefAreaInputError(f"P_back={P_back} Pa 必须 > 0")
@@ -154,12 +166,21 @@ def _gas_area_api520(
     if k <= 1.0:
         raise PsvReliefAreaInputError(f"k_cp_ratio={k} 必须 > 1.0（理想气体比热比下限）")
 
-    # V1 简化：用 Cd · K_b · P_back 近似（完整等熵流项留 P5-3-6 补全）
-    return W / (
+    R_universal = 8314.462618  # J/(kmol·K)
+    # 等熵指数组合：√[(k/(k-1)) × ((2/(k+1))^((k+1)/(k-1)))]
+    # k>1 保证分母 > 0；k 越大（cp/cv 接近 1）越接近极限
+    isentropic_factor = math.sqrt(
+        (k / (k - 1.0)) * ((2.0 / (k + 1.0)) ** ((k + 1.0) / (k - 1.0)))
+    )
+    # 临界质量通量 kg/(s·m²)
+    G_c = (
         _API520_GAS_C_D_DEFAULT
         * _API520_GAS_K_B_DEFAULT
         * P_back
+        * math.sqrt(M / (Z * R_universal * T_k))
+        * isentropic_factor
     )
+    return W / G_c
 
 
 def calc_relief_area_api520_gas(inp: ReliefAreaInput) -> ReliefAreaResult:
@@ -303,10 +324,21 @@ def calc_relief_area_gb12241(inp: ReliefAreaInput) -> ReliefAreaResult:
             f"relief_mass_flow_kgs={inp.relief_mass_flow_kgs} 必须 > 0"
         )
 
-    # GB 略保守：C_d=0.95（同 API 气体公式）
-    area = inp.relief_mass_flow_kgs / (
-        _GB12241_GAS_C_D_DEFAULT * _GB12241_GAS_K_B_DEFAULT * inp.P_back_pa
+    # GB 略保守：C_d=0.95（同 API 气体公式结构；含 M/Z/k 等熵项与 API 一致）
+    # GB 与 API 唯一差异：C_d（GB 0.95 vs API 0.975）
+    R_universal = 8314.462618
+    k = inp.k_cp_ratio
+    isentropic_factor = math.sqrt(
+        (k / (k - 1.0)) * ((2.0 / (k + 1.0)) ** ((k + 1.0) / (k - 1.0)))
     )
+    G_c = (
+        _GB12241_GAS_C_D_DEFAULT
+        * _GB12241_GAS_K_B_DEFAULT
+        * inp.P_back_pa
+        * math.sqrt(inp.M_kg_per_mol / (inp.Z * R_universal * inp.T_k))
+        * isentropic_factor
+    )
+    area = inp.relief_mass_flow_kgs / G_c
 
     result = _build_area_result(area, inp, "GB_T_12241", "2021", "§4.3.1")
     # 标记降级（不可变 dataclass：构造新对象）

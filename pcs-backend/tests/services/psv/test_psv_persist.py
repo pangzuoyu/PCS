@@ -177,15 +177,15 @@ def test_dispatcher_to_aggregate_to_area_to_orifice():
         select_orifice_api526,
     )
 
-    # 1. dispatcher → ReliefCase
+    # 1. dispatcher → ReliefCase（小容器 + 高 h_fg，使 W 落在合理工业级）
     relief_case = _dispatch_scenario_calc(
         scenario="FIRE",
         scenario_params={
-            "D_m": 2.0,
-            "H_m": 6.0,
-            "liquid_level_fraction": 0.7,
+            "D_m": 0.3,
+            "H_m": 1.0,
+            "liquid_level_fraction": 0.5,
             "environment_factor_F": 1.0,
-            "h_fg_j_per_kg": 350_000.0,
+            "h_fg_j_per_kg": 5_000_000.0,
         },
         standard="API",
         version="7th",
@@ -196,13 +196,16 @@ def test_dispatcher_to_aggregate_to_area_to_orifice():
     assert aggregate.dominant_scenario == "FIRE"
     assert aggregate.max_relief_mass_flow_kgs == relief_case.relief_mass_flow_kgs
 
-    # 3. relief_area
+    # 3. relief_area（V2 严格公式：含 M/Z/T/k 等熵项；用 10 MPa 高背压使 area 落在 API 526 范围内）
     area_result = calc_relief_area(
         ReliefAreaInput(
             relief_mass_flow_kgs=aggregate.max_relief_mass_flow_kgs,
             phase="GAS",
-            P_back_pa=100_000.0,
-            P_set_pa=200_000.0,
+            P_back_pa=10_000_000.0,  # 10 MPa
+            P_set_pa=12_000_000.0,
+            T_k=500.0,
+            M_kg_per_mol=0.020,
+            k_cp_ratio=1.4,
         ),
         standard="API",
     )

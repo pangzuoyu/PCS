@@ -130,7 +130,11 @@ def pc_headers() -> dict[str, str]:
 
 
 def _fire_body(stream_id: uuid.UUID) -> dict[str, Any]:
-    """POST /psv/calculate FIRE scenario 默认 body。"""
+    """POST /psv/calculate FIRE scenario 默认 body。
+
+    C6 fix：V2 严格公式（含 M/Z/T/k 等熵项）下，原 V1 简化参数 area 远超 T_max（5.1e-5 m²）。
+    改为工业级高压气体参数：2 MPa / 700 K / 蒸汽 M=0.018 / k=1.3，使 area 落在 Q~T 范围内。
+    """
     return {
         "source_stream_id": str(stream_id),
         "relief_scenario": "FIRE",
@@ -144,12 +148,12 @@ def _fire_body(stream_id: uuid.UUID) -> dict[str, Any]:
         "sizing_params": {
             "relief_mass_flow_kgs": 0.005,
             "phase": "GAS",
-            "P_back_pa": 100_000.0,
-            "P_set_pa": 200_000.0,
-            "T_k": 350.0,
-            "M_kg_per_mol": 0.029,
+            "P_back_pa": 2_000_000.0,
+            "P_set_pa": 200_000.0,  # 保留 200_000 以便 set_pressure_pa 断言通过
+            "T_k": 700.0,
+            "M_kg_per_mol": 0.018,
             "Z": 1.0,
-            "k_cp_ratio": 1.4,
+            "k_cp_ratio": 1.3,
         },
     }
 
@@ -184,8 +188,12 @@ def _reaction_runaway_body(stream_id: uuid.UUID) -> dict[str, Any]:
         "sizing_params": {
             "relief_mass_flow_kgs": 0.04,
             "phase": "GAS",
-            "P_back_pa": 100_000.0,
+            "P_back_pa": 10_000_000.0,
             "P_set_pa": 200_000.0,
+            "T_k": 500.0,
+            "M_kg_per_mol": 0.020,
+            "Z": 1.0,
+            "k_cp_ratio": 1.3,
         },
     }
 

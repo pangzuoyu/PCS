@@ -52,33 +52,38 @@ _BASE_LIQUID_INPUT = ReliefAreaInput(
 
 
 def test_api520_gas_basic():
-    """API 520 气体：V1 简化 A = W / (Cd · K_b · P_back)。
+    """API 520 气体（严格公式，ce-code-review C6）：含 M/Z/k 等熵项。
 
-    Cd = 0.975, K_b = 1.0
-    A = 5.0 / (0.975 × 1.0 × 100,000) = 5.129e-5 m²
+    W=5.0, P_back=100000, M=0.029, T=350, Z=1.0, k=1.4
+    isentropic = √(1.4/0.4 × (2/2.4)^6) = √1.172 ≈ 1.0826
+    G_c = 0.975 × 100000 × √(0.029/(8314×350)) × 1.0826
+        = 0.975 × 100000 × 9.977e-5 × 1.0826
+        ≈ 10.53 kg/(s·m²)
+    A = 5.0 / 10.53 ≈ 0.4750 m²
     """
     r = calc_relief_area_api520_gas(_BASE_GAS_INPUT)
 
-    expected = 5.0 / (0.975 * 1.0 * 100_000.0)
+    R = 8314.462618
+    isentropic = math.sqrt((1.4 / 0.4) * ((2.0 / 2.4) ** 6))
+    G_c = 0.975 * 100_000.0 * math.sqrt(0.029 / (1.0 * R * 350.0)) * isentropic
+    expected = 5.0 / G_c
     assert math.isclose(r.area_required_m2, expected, rel_tol=1e-6)
-    # orifice_diameter 反算：d = √(4A/π)
     expected_d = math.sqrt(4.0 * expected / math.pi)
     assert math.isclose(r.orifice_diameter_m, expected_d, rel_tol=1e-6)
-    # orifice_table_status API 路径 = "exact"
     assert r.orifice_table_status == "exact"
-    # formula_ref
     assert r.formula_ref.standard == "API_520"
     assert r.formula_ref.version == "7th"
     assert r.formula_ref.clause == "§5.6.3"
 
 
 def test_api520_gas_W_proportional():
-    """W 翻倍 → A 翻倍（正比例）。"""
+    """W 翻倍 → A 翻倍（正比例；同 T/M/Z/k 严格公式下）。"""
     inp_double = ReliefAreaInput(
         relief_mass_flow_kgs=10.0,
         phase="GAS",
         P_back_pa=100_000.0,
         P_set_pa=200_000.0,
+        T_k=350.0, M_kg_per_mol=0.029, Z=1.0, k_cp_ratio=1.4,
     )
     r_base = calc_relief_area_api520_gas(_BASE_GAS_INPUT)
     r_double = calc_relief_area_api520_gas(inp_double)
@@ -86,12 +91,13 @@ def test_api520_gas_W_proportional():
 
 
 def test_api520_gas_P_back_inverse():
-    """P_back 翻倍 → A 减半（反比例）。"""
+    """P_back 翻倍 → A 减半（反比例；同 T/M/Z/k 严格公式下）。"""
     inp_double = ReliefAreaInput(
         relief_mass_flow_kgs=5.0,
         phase="GAS",
         P_back_pa=200_000.0,
         P_set_pa=400_000.0,
+        T_k=350.0, M_kg_per_mol=0.029, Z=1.0, k_cp_ratio=1.4,
     )
     r_base = calc_relief_area_api520_gas(_BASE_GAS_INPUT)
     r_double = calc_relief_area_api520_gas(inp_double)
@@ -177,45 +183,64 @@ def test_api520_liquid_rho_zero_raises():
 
 
 def test_api520_two_phase_omega_zero():
-    """ω = 0：两相流退化为纯气（Leung：denom=1.0 → A_TP = A_gas）。"""
-    inp = ReliefAreaInput(
+    """ω = 0：两相流退化为纯气（Leung：denom=1.0 → A_TP = A_gas）。
+
+    同 T/M 让 base_area 一致；C6 fix 后 gas 公式含严格等熵项。
+    """
+    inp_tp = ReliefAreaInput(
         relief_mass_flow_kgs=5.0, phase="TWO_PHASE",
         P_back_pa=100_000.0, P_set_pa=200_000.0,
         omega=0.0, rho_L_kg_m3=1000.0, rho_g_kg_m3=0.6,
+        T_k=350.0, M_kg_per_mol=0.029,
     )
-    r_two_phase = calc_relief_area_api520_two_phase(inp)
-    r_gas = calc_relief_area_api520_gas(_BASE_GAS_INPUT)
+    inp_gas = ReliefAreaInput(
+        relief_mass_flow_kgs=5.0, phase="GAS",
+        P_back_pa=100_000.0, P_set_pa=200_000.0,
+        T_k=350.0, M_kg_per_mol=0.029,
+    )
+    r_two_phase = calc_relief_area_api520_two_phase(inp_tp)
+    r_gas = calc_relief_area_api520_gas(inp_gas)
 
     assert math.isclose(r_two_phase.area_required_m2, r_gas.area_required_m2, rel_tol=1e-6)
 
 
 def test_api520_two_phase_omega_one():
     """ω = 1：Leung 公式 A_TP = A_gas × √(ρ_l/ρ_g)（密度比主导；远超 6× V1 简化）。"""
-    inp = ReliefAreaInput(
+    inp_tp = ReliefAreaInput(
         relief_mass_flow_kgs=5.0, phase="TWO_PHASE",
         P_back_pa=100_000.0, P_set_pa=200_000.0,
         omega=1.0, rho_L_kg_m3=1000.0, rho_g_kg_m3=0.6,
+        T_k=350.0, M_kg_per_mol=0.029,
     )
-    r_two_phase = calc_relief_area_api520_two_phase(inp)
-    r_gas = calc_relief_area_api520_gas(_BASE_GAS_INPUT)
+    inp_gas = ReliefAreaInput(
+        relief_mass_flow_kgs=5.0, phase="GAS",
+        P_back_pa=100_000.0, P_set_pa=200_000.0,
+        T_k=350.0, M_kg_per_mol=0.029,
+    )
+    r_two_phase = calc_relief_area_api520_two_phase(inp_tp)
+    r_gas = calc_relief_area_api520_gas(inp_gas)
 
-    # Leung：denom = (1-1) + 1 × (0.6/1000) = 6e-4 → √6e-4 ≈ 0.02449
-    #       A_TP = A_gas / 0.02449 ≈ 40.82 × A_gas
     expected = r_gas.area_required_m2 / math.sqrt(0.6 / 1000.0)
     assert math.isclose(r_two_phase.area_required_m2, expected, rel_tol=1e-6)
 
 
 def test_api520_two_phase_omega_half():
     """ω = 0.5：Leung 公式 A_TP = A_gas / √((1-0.5) + 0.5×ρ_g/ρ_l)。"""
-    inp = ReliefAreaInput(
+    inp_tp = ReliefAreaInput(
         relief_mass_flow_kgs=5.0, phase="TWO_PHASE",
         P_back_pa=100_000.0, P_set_pa=200_000.0,
         omega=0.5, rho_L_kg_m3=1000.0, rho_g_kg_m3=0.6,
+        T_k=350.0, M_kg_per_mol=0.029,
     )
-    r_two_phase = calc_relief_area_api520_two_phase(inp)
-    r_gas = calc_relief_area_api520_gas(_BASE_GAS_INPUT)
+    inp_gas = ReliefAreaInput(
+        relief_mass_flow_kgs=5.0, phase="GAS",
+        P_back_pa=100_000.0, P_set_pa=200_000.0,
+        T_k=350.0, M_kg_per_mol=0.029,
+    )
+    r_two_phase = calc_relief_area_api520_two_phase(inp_tp)
+    r_gas = calc_relief_area_api520_gas(inp_gas)
 
-    density_ratio = 0.6 / 1000.0  # 6e-4
+    density_ratio = 0.6 / 1000.0
     expected = r_gas.area_required_m2 / math.sqrt((1.0 - 0.5) + 0.5 * density_ratio)
     assert math.isclose(r_two_phase.area_required_m2, expected, rel_tol=1e-6)
 
@@ -419,3 +444,57 @@ def test_api_formula_ref_structured(fn, expected_standard, expected_clause):
     assert r.formula_ref.standard == expected_standard
     assert r.formula_ref.version == "7th"
     assert r.formula_ref.clause == expected_clause
+
+# ============================================================================
+# C6: API 520 气体公式严格化（ce-code-review P0..P5 C6）—— M/Z/k 等熵项
+# ============================================================================
+
+
+def test_api520_gas_strict_M_dependence():
+    """气体面积随 M 严格变化（V1 简化忽略 M → 现在纳入公式）。
+
+    M=0.002 (H₂): k=1.41, M=0.029 (air): k=1.4（同温同压）
+    比值 ≈ √(M_air/M_H₂) = √(0.029/0.002) ≈ 3.81
+    """
+    inp_h2 = ReliefAreaInput(
+        relief_mass_flow_kgs=5.0, phase="GAS",
+        P_back_pa=100_000.0, P_set_pa=200_000.0,
+        T_k=350.0, M_kg_per_mol=0.002, k_cp_ratio=1.41,
+    )
+    inp_air = ReliefAreaInput(
+        relief_mass_flow_kgs=5.0, phase="GAS",
+        P_back_pa=100_000.0, P_set_pa=200_000.0,
+        T_k=350.0, M_kg_per_mol=0.029, k_cp_ratio=1.4,
+    )
+    r_h2 = calc_relief_area_api520_gas(inp_h2)
+    r_air = calc_relief_area_api520_gas(inp_air)
+    # H₂ 分子量小 → 单位质量体积大 → 临界质量通量小 → 面积大
+    assert r_h2.area_required_m2 > r_air.area_required_m2
+    # 比值 ≈ √(M_H₂/M_air)^(-1) = √(M_air/M_H₂) × √(isentropic_h2/isentropic_air) ≈ 3.81
+    # （k_H₂ 略大 → isentropic 略大 → 比值稍大于纯 √(M_air/M_H₂)）
+    ratio = r_h2.area_required_m2 / r_air.area_required_m2
+    assert 3.5 < ratio < 4.0
+
+
+def test_api520_gas_strict_T_dependence():
+    """气体面积随 T 严格变化（V1 简化忽略 T → 现在纳入公式）。
+
+    T↑ → √(M/T)↓ → G_c↓ → A↑
+    """
+    inp_cold = ReliefAreaInput(
+        relief_mass_flow_kgs=5.0, phase="GAS",
+        P_back_pa=100_000.0, P_set_pa=200_000.0,
+        T_k=200.0, M_kg_per_mol=0.029, k_cp_ratio=1.4,
+    )
+    inp_hot = ReliefAreaInput(
+        relief_mass_flow_kgs=5.0, phase="GAS",
+        P_back_pa=100_000.0, P_set_pa=200_000.0,
+        T_k=800.0, M_kg_per_mol=0.029, k_cp_ratio=1.4,
+    )
+    r_cold = calc_relief_area_api520_gas(inp_cold)
+    r_hot = calc_relief_area_api520_gas(inp_hot)
+    # 高温 → 大面积
+    assert r_hot.area_required_m2 > r_cold.area_required_m2
+    # T 比 4× → √T 比 2× → 面积比 2×（同其他条件）
+    ratio = r_hot.area_required_m2 / r_cold.area_required_m2
+    assert math.isclose(ratio, math.sqrt(800.0 / 200.0), rel_tol=1e-6)
