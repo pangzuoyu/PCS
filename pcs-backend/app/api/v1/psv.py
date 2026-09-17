@@ -34,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
+from app.services.calc_entry import check_calc_inputs
 from app.services.exceptions import PcsError
 from app.services.psv import persist_psv_calculate
 
@@ -267,6 +268,10 @@ async def calculate_psv(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+
+    # 0. 三步守卫（物流存在 → CHECKED → 不可靠流）
+    await check_calc_inputs(db, [req.source_stream_id])
+
     try:
         data = await persist_psv_calculate(
             db,
