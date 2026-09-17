@@ -24,7 +24,7 @@
 
 不做：
   - 不重做泄放量计算（SPEC §6 决策 11 锁定：选型字段不影响泄放量）
-  - 不实现 G9 面积比较（计算面积由调用方透传，本函数仅校验 override ≥ 计算面积）
+  - 实现 G9 override 面积 vs 计算面积（透传 calculated_area_m2；未传则跳过）
 """
 from __future__ import annotations
 
@@ -36,6 +36,7 @@ from app.services.exceptions import (
     PsvBlowdownOutOfRange,
     PsvInletOutletMismatch,
     PsvInletTooSmall,
+    PsvOrificeOverrideTooSmall,
     PsvOrificeTemperatureLimit,
     PsvPilotOperatedNotSupported,
     PsvRuptureDiscNotSupported,
@@ -49,6 +50,7 @@ from app.services.psv.orifice_flange import (
     is_high_temp_light_gas_restricted,
     size_lt,
 )
+from app.services.psv.orifice_service import orifice_area_m2
 from app.services.psv.valve_selection_types import (
     BACK_PRESSURE_MAX_BY_TYPE,
     BLOWDOWN_DEFAULT_BY_MEDIUM,
@@ -115,7 +117,7 @@ def validate_valve_params(req: Any) -> ValidatedParams:
     superimposed_pressure_pa: float = float(_attr(req, "superimposed_pressure_pa", 0.0) or 0.0)
     fluid_temperature_c = _attr(req, "fluid_temperature_c")
     molecular_weight = _attr(req, "molecular_weight")
-    _calculated_area_m2 = _attr(req, "calculated_area_m2")  # noqa: F841 — G9 面积比较预留
+    _calculated_area_m2 = _attr(req, "calculated_area_m2")  # G9 计算面积（§4.2 override 面积比较使用）
 
     warnings: list[str] = []
 
@@ -271,11 +273,21 @@ def validate_valve_params(req: Any) -> ValidatedParams:
                 },
             )
 
-    # ============ G9: orifice_override < 计算面积 ============
-    # （计算面积不在本函数范围内；调用方传 calculated_area_m2；本函数不实现面积比较）
-    # 占位：当前实现仅校验 orifice_override 在 candidates 内（G12 已覆盖）。
-    # 若 calculated_area_m2 已传且 orifice_override_validated 对应已知 orifice 面积表
-    # 可加面积比较。P5 暂不实现（需扩大 API 526 面积表）；G9 在 Task 18 集成测试覆盖。
+    # ============ G9: orifice_override 面积 < 计算面积 ============
+    # §4.2 G9：orifice_override 对应标准孔口面积必须 ≥ 泄放计算面积
+    # 调用方透传 calculated_area_m2（relief_area 阶段产出），未传则跳过（不阻断）
+    if orifice_override_validated and _calculated_area_m2 is not None:
+        override_area_m2 = orifice_area_m2(orifice_override_validated)
+        if override_area_m2 < float(_calculated_area_m2):
+            raise PsvOrificeOverrideTooSmall(
+                f"orifice_override {orifice_override_validated} 面积 {override_area_m2:.6e} m²"
+                f" < 计算面积 {_calculated_area_m2:.6e} m²（§4.2 G9）",
+                details={
+                    "orifice_override": orifice_override_validated,
+                    "override_area_m2": override_area_m2,
+                    "calculated_area_m2": float(_calculated_area_m2),
+                },
+            )
 
     # ============ G13: 平衡波纹管式材料-介质（占位，P5 仅声明）============
     # body_material 与 medium 的兼容性需 NACE/材料手册细则，P5 仅在告警层级登记，

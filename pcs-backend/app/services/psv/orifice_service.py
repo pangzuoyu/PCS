@@ -132,6 +132,14 @@ class PsvOrificeInputError(PcsError):
 # ---------- 选型实现 ----------
 
 
+def orifice_area_m2(size: OrificeSize) -> float:
+    """按 OrificeSize（D~T）查 API 526 面积 m²。V1.14 §4.2 G9 使用。"""
+    for s, a in _API526_TABLE_M2:
+        if s == size:
+            return a
+    raise ValueError(f"未知孔口 {size}（API 526 D~T）")
+
+
 def select_orifice_api526(inp: OrificeInput) -> OrificeResult:
     """API 526 §5.1 标准孔口选型。
 

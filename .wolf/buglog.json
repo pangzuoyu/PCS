@@ -1339,6 +1339,25 @@
       "last_seen": "2026-09-18",
       "severity": "CRITICAL",
       "fix_commit": "TBD (this commit)"
+    },
+    {
+      "id": "bug-084",
+      "timestamp": "2026-09-18T10:55:00Z",
+      "error_message": "G9 orifice_override 面积 < 计算面积 校验未实现（# noqa:F841 占位 + G9 注释占位）",
+      "file": "pcs-backend/app/services/psv/valve_validation.py:118,274-278",
+      "root_cause": "ce-code-review P0..P5 全量审查发现（C8）。P5-OPEN-10 实施时 G12（override ∉ candidates）已做，但 G9（override 面积 < 计算面积）仅留注释占位 + noqa:F841。原因：API 526 面积表未封装为公共查询函数",
+      "fix": "(1) orifice_service.py 加 orifice_area_m2(size) 公共查询；(2) valve_validation.py 实现 G9 校验：override_validated → orifice_area_m2() 与 calculated_area_m2 比较，小则 raise PsvOrificeOverrideTooSmall；(3) 移除 noqa:F841 占位；(4) 加 3 单元测试（pass / raise / skip-when-None）",
+      "tags": [
+        "ce-code-review",
+        "P5-OPEN-10",
+        "G9-validation",
+        "API-526",
+        "contract-fix"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-18",
+      "severity": "CRITICAL",
+      "fix_commit": "TBD (this commit)"
     }
   ]
 }

@@ -24,6 +24,7 @@ from app.services.exceptions import (
     PsvBlowdownOutOfRange,
     PsvInletOutletMismatch,
     PsvInletTooSmall,
+    PsvOrificeOverrideTooSmall,
     PsvOrificeTemperatureLimit,
     PsvPilotOperatedNotSupported,
     PsvRuptureDiscNotSupported,
@@ -688,3 +689,47 @@ def test_g15_raises_when_temp_above_and_mw_below():
         validate_valve_params(req)
     assert exc_info.value.code == "PSV_ORIFICE_TEMPERATURE_LIMIT"
     assert exc_info.value.details["orifice"] == "Q"
+
+# ============================================================================
+# G9: orifice_override 面积 < 计算面积（SUP-P5-PSV-002 V1.14 §4.2 G9）
+# ============================================================================
+
+
+def test_g9_orifice_override_area_ge_calculated_area_passes():
+    """orifice_override 面积 ≥ 计算面积 → 通过。
+
+    H = 2.929e-06 m²；计算面积 2.0e-06 m² → override 更大，通过
+    """
+    req = _base_req(
+        orifice_override="H",
+        calculated_area_m2=2.0e-06,
+    )
+    result = validate_valve_params(req)
+    assert result.orifice_override_validated == "H"
+
+
+def test_g9_orifice_override_area_lt_calculated_area_raises():
+    """orifice_override 面积 < 计算面积 → 422 PSV_ORIFICE_OVERRIDE_TOO_SMALL。
+
+    2×3 / 300# candidates=['H']；H = 2.93e-06 m²；计算面积 5.0e-06 m² → H 远小，raise
+    """
+    req = _base_req(
+        orifice_override="H",
+        calculated_area_m2=5.0e-06,
+    )
+    with pytest.raises(PsvOrificeOverrideTooSmall) as exc_info:
+        validate_valve_params(req)
+    assert exc_info.value.code == "PSV_ORIFICE_OVERRIDE_TOO_SMALL"
+    details = exc_info.value.details
+    assert details["orifice_override"] == "H"
+    assert details["override_area_m2"] < details["calculated_area_m2"]
+
+
+def test_g9_orifice_override_without_calculated_area_skips():
+    """calculated_area_m2=None → G9 跳过（不阻断；P5 阶段允许"先选型后计算"）。"""
+    req = _base_req(
+        orifice_override="H",
+        calculated_area_m2=None,
+    )
+    result = validate_valve_params(req)
+    assert result.orifice_override_validated == "H"
