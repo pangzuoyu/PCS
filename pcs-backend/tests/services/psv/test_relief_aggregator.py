@@ -11,13 +11,12 @@ import pytest
 
 from app.services.psv import (
     ReliefAggregateInput,
-    ReliefCase,
+    ReliefCase,  # noqa: E501
     calc_relief_aggregate,
 )
 from app.services.psv.fire_case_service import FireCaseFormulaRef
 from app.services.psv.other_cases_service import OtherCaseFormulaRef
 from app.services.psv.relief_aggregator_service import PsvAggregateInputError
-
 
 _FIRE_REF = FireCaseFormulaRef(standard="API_521", version="7th", clause="§5.15.2.2.1")
 _CLOSED_VALVE_REF = OtherCaseFormulaRef(standard="API_521", version="7th", clause="§5.15.2.3")
@@ -30,7 +29,7 @@ _THERMAL_REF = OtherCaseFormulaRef(standard="API_521", version="7th", clause="§
 # ============================================================================
 
 
-@pytest.mark.parametrize("scenario", ["FIRE", "CLOSED_VALVE", "REACTION_RUNAWAY", "THERMAL_EXPANSION"])
+@pytest.mark.parametrize("scenario", ["FIRE", "CLOSED_VALVE", "REACTION_RUNAWAY", "THERMAL_EXPANSION"])  # noqa: E501
 def test_single_case_dominant_is_self(scenario):
     """单工况：主导 = self，max W_mass = 自身 W_mass。"""
     case = ReliefCase(
@@ -57,10 +56,10 @@ def test_single_case_dominant_is_self(scenario):
 def test_multi_case_takes_max_W_mass():
     """多工况：取最大 W_mass（保守原则）。"""
     cases = (
-        ReliefCase("FIRE", relief_mass_flow_kgs=5.0, relief_volume_flow_m3s=4.0, formula_ref=_FIRE_REF),
-        ReliefCase("CLOSED_VALVE", relief_mass_flow_kgs=1.2, relief_volume_flow_m3s=1.0, formula_ref=_CLOSED_VALVE_REF),
-        ReliefCase("REACTION_RUNAWAY", relief_mass_flow_kgs=3.5, relief_volume_flow_m3s=2.8, formula_ref=_REACTION_REF),
-        ReliefCase("THERMAL_EXPANSION", relief_mass_flow_kgs=0.5, relief_volume_flow_m3s=0.4, formula_ref=_THERMAL_REF),
+        ReliefCase("FIRE", relief_mass_flow_kgs=5.0, relief_volume_flow_m3s=4.0, formula_ref=_FIRE_REF),  # noqa: E501
+        ReliefCase("CLOSED_VALVE", relief_mass_flow_kgs=1.2, relief_volume_flow_m3s=1.0, formula_ref=_CLOSED_VALVE_REF),  # noqa: E501
+        ReliefCase("REACTION_RUNAWAY", relief_mass_flow_kgs=3.5, relief_volume_flow_m3s=2.8, formula_ref=_REACTION_REF),  # noqa: E501
+        ReliefCase("THERMAL_EXPANSION", relief_mass_flow_kgs=0.5, relief_volume_flow_m3s=0.4, formula_ref=_THERMAL_REF),  # noqa: E501
     )
     inp = ReliefAggregateInput(cases=cases)
     r = calc_relief_aggregate(inp)
@@ -75,8 +74,8 @@ def test_multi_case_takes_max_W_mass():
 def test_no_summation():
     """保守原则：不加和 W_mass；总和 vs max 必须严格不等（W_mass > 0 时）。"""
     cases = (
-        ReliefCase("FIRE", relief_mass_flow_kgs=5.0, relief_volume_flow_m3s=4.0, formula_ref=_FIRE_REF),
-        ReliefCase("CLOSED_VALVE", relief_mass_flow_kgs=1.2, relief_volume_flow_m3s=1.0, formula_ref=_CLOSED_VALVE_REF),
+        ReliefCase("FIRE", relief_mass_flow_kgs=5.0, relief_volume_flow_m3s=4.0, formula_ref=_FIRE_REF),  # noqa: E501
+        ReliefCase("CLOSED_VALVE", relief_mass_flow_kgs=1.2, relief_volume_flow_m3s=1.0, formula_ref=_CLOSED_VALVE_REF),  # noqa: E501
     )
     inp = ReliefAggregateInput(cases=cases)
     r = calc_relief_aggregate(inp)
@@ -94,9 +93,9 @@ def test_no_summation():
 def test_dominant_scenario_reaction_runaway():
     """主导工况识别：REACTION_RUNAWAY 最大。"""
     cases = (
-        ReliefCase("FIRE", relief_mass_flow_kgs=2.0, relief_volume_flow_m3s=1.5, formula_ref=_FIRE_REF),
-        ReliefCase("REACTION_RUNAWAY", relief_mass_flow_kgs=10.0, relief_volume_flow_m3s=8.0, formula_ref=_REACTION_REF),
-        ReliefCase("THERMAL_EXPANSION", relief_mass_flow_kgs=0.5, relief_volume_flow_m3s=0.4, formula_ref=_THERMAL_REF),
+        ReliefCase("FIRE", relief_mass_flow_kgs=2.0, relief_volume_flow_m3s=1.5, formula_ref=_FIRE_REF),  # noqa: E501
+        ReliefCase("REACTION_RUNAWAY", relief_mass_flow_kgs=10.0, relief_volume_flow_m3s=8.0, formula_ref=_REACTION_REF),  # noqa: E501
+        ReliefCase("THERMAL_EXPANSION", relief_mass_flow_kgs=0.5, relief_volume_flow_m3s=0.4, formula_ref=_THERMAL_REF),  # noqa: E501
     )
     r = calc_relief_aggregate(ReliefAggregateInput(cases=cases))
     assert r.dominant_scenario == "REACTION_RUNAWAY"
@@ -105,8 +104,8 @@ def test_dominant_scenario_reaction_runaway():
 def test_dominant_scenario_takes_first_max_on_tie():
     """并列 max：取首个（稳定排序）。"""
     cases = (
-        ReliefCase("FIRE", relief_mass_flow_kgs=5.0, relief_volume_flow_m3s=4.0, formula_ref=_FIRE_REF),
-        ReliefCase("REACTION_RUNAWAY", relief_mass_flow_kgs=5.0, relief_volume_flow_m3s=4.0, formula_ref=_REACTION_REF),
+        ReliefCase("FIRE", relief_mass_flow_kgs=5.0, relief_volume_flow_m3s=4.0, formula_ref=_FIRE_REF),  # noqa: E501
+        ReliefCase("REACTION_RUNAWAY", relief_mass_flow_kgs=5.0, relief_volume_flow_m3s=4.0, formula_ref=_REACTION_REF),  # noqa: E501
     )
     r = calc_relief_aggregate(ReliefAggregateInput(cases=cases))
     # 并列时取首个 → FIRE
@@ -149,8 +148,8 @@ def test_negative_W_mass_raises():
 def test_all_zero_dominant_is_first():
     """所有工况 W_mass = 0：max = 0，取首个。"""
     cases = (
-        ReliefCase("FIRE", relief_mass_flow_kgs=0.0, relief_volume_flow_m3s=0.0, formula_ref=_FIRE_REF),
-        ReliefCase("CLOSED_VALVE", relief_mass_flow_kgs=0.0, relief_volume_flow_m3s=0.0, formula_ref=_CLOSED_VALVE_REF),
+        ReliefCase("FIRE", relief_mass_flow_kgs=0.0, relief_volume_flow_m3s=0.0, formula_ref=_FIRE_REF),  # noqa: E501
+        ReliefCase("CLOSED_VALVE", relief_mass_flow_kgs=0.0, relief_volume_flow_m3s=0.0, formula_ref=_CLOSED_VALVE_REF),  # noqa: E501
     )
     r = calc_relief_aggregate(ReliefAggregateInput(cases=cases))
     assert r.max_relief_mass_flow_kgs == 0.0
@@ -165,8 +164,8 @@ def test_all_zero_dominant_is_first():
 def test_cases_transmitted_for_audit():
     """cases 完整透传，audit / SPEC 报告可遍历。"""
     cases = (
-        ReliefCase("FIRE", relief_mass_flow_kgs=2.0, relief_volume_flow_m3s=1.5, formula_ref=_FIRE_REF),
-        ReliefCase("REACTION_RUNAWAY", relief_mass_flow_kgs=10.0, relief_volume_flow_m3s=8.0, formula_ref=_REACTION_REF),
+        ReliefCase("FIRE", relief_mass_flow_kgs=2.0, relief_volume_flow_m3s=1.5, formula_ref=_FIRE_REF),  # noqa: E501
+        ReliefCase("REACTION_RUNAWAY", relief_mass_flow_kgs=10.0, relief_volume_flow_m3s=8.0, formula_ref=_REACTION_REF),  # noqa: E501
     )
     r = calc_relief_aggregate(ReliefAggregateInput(cases=cases))
     assert r.cases == cases
