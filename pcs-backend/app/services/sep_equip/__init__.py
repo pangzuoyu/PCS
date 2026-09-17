@@ -4,6 +4,13 @@ from app.services.sep_equip.cyclone_service import (
     CycloneResult,
     calc_cyclone,
 )
+from app.services.sep_equip.gravity_separator_service import (
+    GravitySeparatorInput,
+    GravitySeparatorResult,
+    Region,
+    SeparatorType,
+    calc_gravity_separator,
+)
 from app.services.sep_equip.mist_eliminator_service import (
     MistEliminatorInput,
     MistEliminatorResult,
@@ -17,4 +24,9 @@ __all__ = [
     "MistEliminatorInput",
     "MistEliminatorResult",
     "calc_mist_eliminator",
+    "GravitySeparatorInput",
+    "GravitySeparatorResult",
+    "Region",
+    "SeparatorType",
+    "calc_gravity_separator",
 ]
