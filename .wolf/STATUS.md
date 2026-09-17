@@ -4,7 +4,21 @@ budget_tokens: 1500
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-09-17.
+> Read this FIRST when starting a session. Last updated: 2026-09-18.
+
+---
+
+## ✅ Done (OPEN-7 HEAT import→get 串行优化 — 2026-09-18)
+
+- **后端 ImportHtriResponse 扩字段**（commit `94b8c6f`）：
+  - `equipment_name`（透传 record.equipment_name）
+  - `output_json`（透传 record.output_json，HTRI 摘录）
+- **前端 ImportHtriResponse 类型同步**：heat.ts L51-66 加 2 字段
+- **HeatComputePage import() 后免 get()**：line 167 GET roundtrip 改为
+  直接用 resp 构造 HeatResultResponse 占位填 state（input_json 置空对象
+  —— import 阶段尚未完整解析，weight-estimate 完成后才补）
+- 验证：heat_api **8/8 绿**、HeatComputePage **5/5 绿**、
+  tsc 0 errors、ESLint 0 errors、ruff 0 errors
 
 ---
 
