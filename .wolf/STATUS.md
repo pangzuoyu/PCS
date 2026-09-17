@@ -8,6 +8,28 @@ budget_tokens: 1500
 
 ---
 
+## ✅ Done (P4 #4 parser 入库链路 — 2026-09-17)
+
+- **parser → sim_tower_results 入库链路全链贯通**（commit `a8d41cf`）：
+  - `sim_imports.preview_towers_json` JSONB 列（alembic `p4_4_sim_import_preview_towers`，
+    `down_revision = p5_open_010_psv_valve_selection`）
+  - `ProiiParseResult.column_summary` 字段 + parser 扩展 3 正则：
+    - `UNIT N, 'T01'` → `tower_uid` / `tower_name`
+    - `THEORETICAL TRAYS N` → `num_stages`
+    - `FEED TRAY N` → `feed_stages_json`（stream_id 待补，None 占位）
+  - `StreamImportResult.tower_ids` 字段（schema 透传）
+  - `commit_proii` 落库块：循环 `preview_towers` 写 sim_tower_results，
+    `tower_uid` 缺失跳过（silent skip）
+- **1 新集成测试**（`test_p4_4_commit_writes_sim_tower_results`）：
+  sample1_34comp preview_towers≥1 → commit 后 tower_ids≥1（DB 实查）
+- 验证：tests/api/v1/test_imports_api.py **16/16 绿**（无回归），
+  parser 总套 **54/54 绿**，ruff **0 errors**
+- 修复隐藏 bug：旧 `_parse_column_summary_text` section 范围在 `COLUMN SUMMARY`
+  后第一个空行即 end，导致 sample1_34comp 整段被吞。修复：end 改判
+  `RUN STATISTICS` / 下一个 SUMMARY 段（去重 COLUMN/TRAY），空白不再截断
+
+---
+
 ## ✅ Done (P4-2 工艺端点 Guard 接入 — 2026-09-17)
 
 - **3 工艺端点接入三步守卫**（commit `0401fd2`）：
@@ -203,8 +225,10 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 1. ✅ **ruff 归零专项**：5 errors → 0（commit `138cb6c`，2026-09-17）
 2. ✅ **calculate 入口接 Guard**：6/7 工艺端点已接（commit `0401fd2`，2026-09-17；
    pipe / pipe_net / pump SIM-39 + psv / vessel / sep_equip 本批）
-3. **enum 9 态扩展（TODO-036）**：`ALTER TYPE ADD VALUE` 不可逆，迁移前备份
-   enum definition
+3. ✅ **enum 9 态扩展（TODO-036）**：P3 SIM-13 已闭环，StreamSignStatus 9 态全集 +
+   alembic `p3sim_stream_sign_status_extend`（ADD VALUE：CHECK_REJECTED /
+   STALE / CHANGE_PENDING / CHANGED / REVERSAL_PENDING；ADD VALUE 不可逆
+   落地 2026-09-08 cerebrum 锁定）
 4. **parser 入库链路**：SIM-37b/38b 产出为 dataclass 层，P4 需 import_service
    集成写 sim_tower_results / stream_properties_json
 5. 覆盖率 88% → 90%（未覆盖行集中在 api 层 error 分支）
