@@ -280,6 +280,27 @@ async def calculate_psv(
             inlet_size=req.inlet_size,
             outlet_size=req.outlet_size,
             actor=user.user_id,
+            # ===== P5-OPEN-10 V1.14 §4.1 选型 18 字段透传 =====
+            valve_type=req.valve_type,
+            body_material=req.body_material,
+            bellows_material=req.bellows_material,
+            flange_class=req.flange_class,
+            back_pressure_type=req.back_pressure_type,
+            back_pressure_pct=req.back_pressure_pct,
+            superimposed_pressure_pa=req.superimposed_pressure_pa,
+            set_pressure_pa=req.set_pressure_pa,
+            overpressure_pct=req.overpressure_pct,
+            orifice_override=req.orifice_override,
+            valve_brand=req.valve_brand,
+            rupture_disc_position=req.rupture_disc_position,
+            pilot_temperature_c=req.pilot_temperature_c,
+            pilot_temp_class=req.pilot_temp_class,
+            fire_protection=req.fire_protection,
+            medium=req.medium,
+            service_note=req.service_note,
+            fluid_temperature_c=req.fluid_temperature_c,
+            molecular_weight=req.molecular_weight,
+            calculated_area_m2=req.calculated_area_m2,
         )
     except PcsError as e:
         raise _to_http(e) from e

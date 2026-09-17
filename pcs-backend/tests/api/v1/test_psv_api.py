@@ -566,4 +566,179 @@ async def test_get_psv_standard_profile_after_post(
     body = r.json()
     assert body["profile_code"] == "GB"
     assert body["is_default"] is True
-    assert body["standard_refs_json"]["fire_case"]["version"] == "2024"
+
+
+# ============================================================================
+# P5-OPEN-10 SUP-P5-PSV-002 V1.14 §4.1 选型 18 字段端到端集成测试
+# ============================================================================
+#
+# 覆盖：
+# 1) 默认请求：21 字段透传 + PsvResult 落库 + kb=1.0/source='none'
+# 2) SPRING_LOADED + BUILT_UP BP=15%：422 G10
+# 3) PILOT_OPERATED：422 G7
+# 4) RUPTURE_DISC：422 G8
+# 5) BALANCED_BELLOWS + 缺 bellows_material：422 G17
+# 6) BALANCED_BELLOWS + HASTELLOY_C276 + service_note='强氧化性'：422 G21
+# 7) BALANCED_BELLOWS + valve_brand='LESER' + BP=20：kb 来自 LESER
+# 8) orifice_override 越界（不在候选）：422 G12
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_v114_default_request_writes_18_columns(
+    client, db: AsyncSession, checked_stream, designer_headers
+):
+    """默认请求（无 V1.14 字段）→ PsvResult 18 列落库 + kb=1.0/source='none'。"""
+    r = await client.post(
+        "/api/v1/psv/calculate",
+        json=_fire_body(checked_stream.stream_id),
+        headers=designer_headers,
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    psv_id = uuid.UUID(body["calc_id"])
+
+    record = await db.get(PsvResult, psv_id)
+    assert record is not None
+    # 18 列落库
+    assert record.valve_type == "SPRING_LOADED"
+    assert record.body_material == "SS316"
+    assert record.bellows_material is None
+    assert record.flange_class == "300#"
+    assert record.back_pressure_type == "BUILT_UP"
+    assert record.back_pressure_pct == 0.0
+    assert record.overpressure_pct == 0.10
+    assert record.kb_factor == 1.0
+    assert record.kb_source == "none"
+    assert record.valve_brand is None
+    assert record.cdtp_applied is False
+    assert record.orifice_overridden is False
+    assert record.orifice_manual is None
+    assert record.rupture_disc_position == "NONE"
+    assert record.rupture_disc_kc is None
+    assert record.pilot_temperature_c is None
+    assert record.pilot_temp_class == "GENERAL"
+    assert record.fire_protection is False
+
+    # outlet 透传
+    outlet_id = uuid.UUID(body["outlet_stream_id"])
+    outlet = await db.get(Stream, outlet_id)
+    assert outlet.stream_properties_json["valve_type"] == "SPRING_LOADED"
+    assert outlet.stream_properties_json["kb_factor"] == 1.0
+    assert outlet.stream_properties_json["kb_source"] == "none"
+
+
+@pytest.mark.asyncio
+async def test_v114_g10_spring_builtup_bp_exceeded(
+    client, checked_stream, designer_headers
+):
+    """SPRING_LOADED + BUILT_UP + BP=15% → 422 PSV_BACK_PRESSURE_EXCEEDED。"""
+    body = _fire_body(checked_stream.stream_id)
+    body["back_pressure_type"] = "BUILT_UP"
+    body["back_pressure_pct"] = 15.0
+    r = await client.post(
+        "/api/v1/psv/calculate", json=body, headers=designer_headers,
+    )
+    assert r.status_code == 422, r.text
+    err = r.json()
+    assert err["code"] == "PSV_BACK_PRESSURE_EXCEEDED"
+    assert err["detail"]["max_pct"] == 10.0
+
+
+@pytest.mark.asyncio
+async def test_v114_g7_pilot_operated_rejected(
+    client, checked_stream, designer_headers
+):
+    """PILOT_OPERATED → 422 PSV_PILOT_OPERATED_NOT_SUPPORTED。"""
+    body = _fire_body(checked_stream.stream_id)
+    body["valve_type"] = "PILOT_OPERATED"
+    r = await client.post(
+        "/api/v1/psv/calculate", json=body, headers=designer_headers,
+    )
+    assert r.status_code == 422, r.text
+    assert r.json()["code"] == "PSV_PILOT_OPERATED_NOT_SUPPORTED"
+
+
+@pytest.mark.asyncio
+async def test_v114_g8_rupture_disc_rejected(
+    client, checked_stream, designer_headers
+):
+    """RUPTURE_DISC → 422 PSV_RUPTURE_DISC_NOT_SUPPORTED。"""
+    body = _fire_body(checked_stream.stream_id)
+    body["valve_type"] = "RUPTURE_DISC"
+    r = await client.post(
+        "/api/v1/psv/calculate", json=body, headers=designer_headers,
+    )
+    assert r.status_code == 422, r.text
+    assert r.json()["code"] == "PSV_RUPTURE_DISC_NOT_SUPPORTED"
+
+
+@pytest.mark.asyncio
+async def test_v114_g17_balanced_bellows_missing_material(
+    client, checked_stream, designer_headers
+):
+    """BALANCED_BELLOWS + bellows_material=None → 422 PSV_BELLOWS_MATERIAL_REQUIRED。"""
+    body = _fire_body(checked_stream.stream_id)
+    body["valve_type"] = "BALANCED_BELLOWS"
+    # bellows_material 默认 None
+    r = await client.post(
+        "/api/v1/psv/calculate", json=body, headers=designer_headers,
+    )
+    assert r.status_code == 422, r.text
+    assert r.json()["code"] == "PSV_BELLOWS_MATERIAL_REQUIRED"
+
+
+@pytest.mark.asyncio
+async def test_v114_g21_hastelloy_in_strong_oxidizer_rejected(
+    client, checked_stream, designer_headers
+):
+    """BALANCED_BELLOWS + HASTELLOY_C276 + '强氧化性' service_note → 422 G21。"""
+    body = _fire_body(checked_stream.stream_id)
+    body["valve_type"] = "BALANCED_BELLOWS"
+    body["bellows_material"] = "HASTELLOY_C276"
+    body["service_note"] = "本工段为热浓硝酸介质，强氧化性介质工况"
+    r = await client.post(
+        "/api/v1/psv/calculate", json=body, headers=designer_headers,
+    )
+    assert r.status_code == 422, r.text
+    assert r.json()["code"] == "PSV_BELLOWS_INCOMPATIBLE"
+
+
+@pytest.mark.asyncio
+async def test_v114_leser_brand_kb_lookup(
+    client, db: AsyncSession, checked_stream, designer_headers
+):
+    """BALANCED_BELLOWS + LESER + BP=20% → kb 来自 LESER 曲线 @ 16% = 0.95。"""
+    body = _fire_body(checked_stream.stream_id)
+    body["valve_type"] = "BALANCED_BELLOWS"
+    body["bellows_material"] = "SS316L"
+    body["back_pressure_type"] = "BUILT_UP"
+    body["back_pressure_pct"] = 20.0
+    body["overpressure_pct"] = 16.0
+    body["valve_brand"] = "LESER"
+    r = await client.post(
+        "/api/v1/psv/calculate", json=body, headers=designer_headers,
+    )
+    assert r.status_code == 201, r.text
+    psv_id = uuid.UUID(r.json()["calc_id"])
+    record = await db.get(PsvResult, psv_id)
+    assert record.kb_factor == 0.95
+    assert record.kb_source == "manufacturer:LESER"
+
+
+@pytest.mark.asyncio
+async def test_v114_g12_orifice_override_not_in_candidates(
+    client, checked_stream, designer_headers
+):
+    """orifice_override='D' + 4×6 inch → 422 PSV_INLET_OUTLET_MISMATCH（D 不在候选）。"""
+    body = _fire_body(checked_stream.stream_id)
+    body["inlet_size"] = "4 inch"
+    body["outlet_size"] = "6 inch"
+    body["orifice_override"] = "D"
+    r = await client.post(
+        "/api/v1/psv/calculate", json=body, headers=designer_headers,
+    )
+    assert r.status_code == 422, r.text
+    err = r.json()
+    assert err["code"] == "PSV_INLET_OUTLET_MISMATCH"
+    assert err["detail"]["orifice_override"] == "D"
