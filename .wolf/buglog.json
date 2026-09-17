@@ -1358,6 +1358,25 @@
       "last_seen": "2026-09-18",
       "severity": "CRITICAL",
       "fix_commit": "TBD (this commit)"
+    },
+    {
+      "id": "bug-085",
+      "timestamp": "2026-09-18T11:05:00Z",
+      "error_message": "POST /auth/refresh 在 role claim 缺失时静默默认降级为 DESIGNER（auth.py:108 旧 `payload.get('role', 'DESIGNER')`）",
+      "file": "pcs-backend/app/api/v1/auth.py:108",
+      "root_cause": "ce-code-review P0..P5 全量审查发现（C1）。refresh endpoint 用 `.get('role', 'DESIGNER')` 默认：伪造或格式错误的 refresh token（无 role）会被静默接受并铸造 DESIGNER 权限 access token → 越权。原意是 P0 早期容错，但保留为安全漏洞",
+      "fix": "auth.py 改为 require role：缺/空字符串 → raise INVALID_REFRESH（401）。P0-2 已修复角色保留，但缺角色拒绝未做。2 测试覆盖：role 缺失 + role=''",
+      "tags": [
+        "ce-code-review",
+        "auth",
+        "security",
+        "refresh-token",
+        "C1"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-18",
+      "severity": "CRITICAL",
+      "fix_commit": "TBD (this commit)"
     }
   ]
 }

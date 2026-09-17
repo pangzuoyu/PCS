@@ -2,11 +2,13 @@
 
 from __future__ import annotations
 
+import jwt
 import pytest
 from fastapi.testclient import TestClient
 
 import app.api.v1.auth as auth_mod
 import app.services.ldap_client as ldap_mod
+from app.core.config import get_settings
 from app.core.security import create_access_token, create_refresh_token
 from app.main import app
 
@@ -143,3 +145,41 @@ def test_refresh_with_access_token_rejected(client):
 def test_logout_204(client):
     r = client.post("/api/v1/auth/logout")
     assert r.status_code == 204
+
+
+def test_refresh_missing_role_401_invalid_refresh(client):
+    """C1 防回归：refresh token 无 role claim → 401 INVALID_REFRESH（拒绝授权）。
+
+    直接用 jwt.encode 伪造 role-缺失 refresh token（绕过 create_refresh_token 默认填 role）；
+    后端必须识别缺 role 并拒绝，**不可**默认降级为 DESIGNER。
+    """
+    settings = get_settings()
+    payload = {
+        "sub": "alice",
+        "type": "refresh",
+        "exp": 9_999_999_999,
+        "iat": 1,
+        # 注意：无 "role" 字段
+    }
+    bad_rt = jwt.encode(payload, settings.secret_key, algorithm="HS256")
+    r = client.post("/api/v1/auth/refresh", json={"refresh_token": bad_rt})
+    assert r.status_code == 401
+    body = r.json()
+    assert body["code"] == "INVALID_REFRESH"
+    assert "role" in body["message"].lower()
+
+
+def test_refresh_empty_role_401_invalid_refresh(client):
+    """C1 防回归：refresh token role="" → 401 INVALID_REFRESH（拒绝授权）。"""
+    settings = get_settings()
+    payload = {
+        "sub": "alice",
+        "type": "refresh",
+        "role": "",
+        "exp": 9_999_999_999,
+        "iat": 1,
+    }
+    bad_rt = jwt.encode(payload, settings.secret_key, algorithm="HS256")
+    r = client.post("/api/v1/auth/refresh", json={"refresh_token": bad_rt})
+    assert r.status_code == 401
+    assert r.json()["code"] == "INVALID_REFRESH"

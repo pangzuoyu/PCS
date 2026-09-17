@@ -103,10 +103,16 @@ def refresh(body: RefreshRequest) -> RefreshResponse:
         raise PcsError(
             code="WRONG_TOKEN_TYPE", message="not a refresh token", status=401
         )
-    return RefreshResponse(
-        access_token=create_access_token(
-            subject=payload["sub"], role=payload.get("role", "DESIGNER")
+    # P0-2 防回归：refresh token 必须含 role 字段；缺则视为伪造/过期格式，拒绝授权
+    role = payload.get("role")
+    if not role:
+        raise PcsError(
+            code="INVALID_REFRESH",
+            message="refresh token missing role claim",
+            status=401,
         )
+    return RefreshResponse(
+        access_token=create_access_token(subject=payload["sub"], role=role)
     )
 
 
