@@ -1377,6 +1377,26 @@
       "last_seen": "2026-09-18",
       "severity": "CRITICAL",
       "fix_commit": "TBD (this commit)"
+    },
+    {
+      "id": "bug-086",
+      "timestamp": "2026-09-18T11:25:00Z",
+      "error_message": "calc_relief_area_api520_two_phase 使用 magic number 缩放 `1 + ω × 5.0`（V1 简化系数 5.0 无工程依据）",
+      "file": "pcs-backend/app/services/psv/relief_area_service.py:213-256",
+      "root_cause": "ce-code-review P0..P5 全量审查发现（C7）。两相流 ω 法实现 `scaling = 1.0 + inp.omega * 5.0` 是 V1 简化，magic 5.0 无物理意义；水-蒸汽工况（ρ_l/ρ_g ~ 1666）ω=1 时实际应保守放大 ~40× 而非 6×，欠保守。SPEC 未指明公式；用户 2026-09-18 选 B（DIERS Leung 1996）",
+      "fix": "(1) ReliefAreaInput 加 rho_g_kg_m3 字段（缺则理想气体推导）；(2) 替换为 Leung 公式 A_TP = A_gas / √((1-ω) + ω × ρ_g/ρ_l)；(3) 引用 API 520 §4.3.5.2 + Leung 1996 Chem. Eng. Prog.；(4) 更新 3 旧测试预期值 + 加 2 新测试（理想气体推导 + 水-蒸汽工况）；(5) 测试 27/27 pass",
+      "tags": [
+        "ce-code-review",
+        "P5-PSV",
+        "two-phase",
+        "DIERS-Leung-1996",
+        "API-520-4.3.5.2",
+        "C7"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-18",
+      "severity": "CRITICAL",
+      "fix_commit": "TBD (this commit)"
     }
   ]
 }

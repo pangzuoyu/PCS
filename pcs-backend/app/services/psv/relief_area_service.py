@@ -67,6 +67,7 @@ class ReliefAreaInput:
       - k_cp_ratio: 比热容比 cp/cv（GAS 用，默认 1.4 空气）
       - two_phase_method: 两相流计算方法（TWO_PHASE 用）
       - omega: 两相流均相流模型参数（TWO_PHASE 用）
+      - rho_g_kg_m3: 蒸汽密度（two_phase Leung 法用；缺则按理想气体从 P_back/T_k 估算）
     """
 
     relief_mass_flow_kgs: float
@@ -80,6 +81,7 @@ class ReliefAreaInput:
     k_cp_ratio: float = 1.4
     two_phase_method: TwoPhaseMethod = "two_point"
     omega: float = 0.0
+    rho_g_kg_m3: float = 0.0  # 0 = 由 P_back/T_k + 理想气体推导
 
 
 @dataclass(frozen=True)
@@ -211,12 +213,20 @@ def calc_relief_area_api520_liquid(inp: ReliefAreaInput) -> ReliefAreaResult:
 
 
 def calc_relief_area_api520_two_phase(inp: ReliefAreaInput) -> ReliefAreaResult:
-    """API 520 §5.6.5 两相流泄放面积（ω 法，V1 简化）。
+    """API 520 §4.3.5.2 两相流泄放面积（DIERS Leung 1996 ω 法）。
 
-    ω = x_v / x_v_lim （基于均相流模型）
-    A_two_phase = A_gas_equivalent × (1 + ω × scaling)
+    Leung, J.C., "Two-Phase Flashing Flow", Chem. Eng. Prog., 1996 / DIERS Final Report §4.3:
+        G_T = G_gas × √((1-ω) + ω × ρ_g / ρ_l)
+        →  A_two_phase = A_gas / √((1-ω) + ω × ρ_g / ρ_l)
+    其中：
+      - ω = x_v / x_v_lim（均相流模型蒸汽含率比；调用方传）
+      - ρ_l = 液体密度（必填，inp.rho_L_kg_m3）
+      - ρ_g = 蒸汽密度：优先 inp.rho_g_kg_m3；缺则按理想气体 ρ_g = P_back × M / (Z × R × T_k)
 
-    V1 简化：直接以 ω 系数缩放 gas-equivalent 面积。
+    边界：
+      - ω = 0 → A_TP = A_gas（纯气退化）
+      - ρ_g << ρ_l（如水/蒸汽 ρ_g/ρ_l ~ 1e-3）→ A_TP ≈ A_gas / √(1-ω)，保守放大
+      - ω = 1 且 ρ_g << ρ_l → A_TP → ∞（纯液相，无气相出口，物理上应由液相路径接管）
     """
     if inp.phase != "TWO_PHASE":
         raise PsvReliefAreaInputError(
@@ -224,6 +234,10 @@ def calc_relief_area_api520_two_phase(inp: ReliefAreaInput) -> ReliefAreaResult:
         )
     if not (0.0 <= inp.omega <= 1.0):
         raise PsvReliefAreaInputError(f"omega={inp.omega} 必须在 [0, 1]")
+    if inp.rho_L_kg_m3 <= 0:
+        raise PsvReliefAreaInputError(
+            f"TWO_PHASE 必填 rho_L_kg_m3（实测={inp.rho_L_kg_m3}）"
+        )
     if inp.two_phase_method not in ("two_point", "single_point", "direct_integration"):
         raise PsvReliefAreaInputError(
             f"two_phase_method={inp.two_phase_method} 不在支持范围"
@@ -249,11 +263,27 @@ def calc_relief_area_api520_two_phase(inp: ReliefAreaInput) -> ReliefAreaResult:
         Z=base_inp.Z,
         k=base_inp.k_cp_ratio,
     )
-    # ω 缩放：ω=0 纯气，ω=1 纯液（面积趋近无穷大保守）
-    scaling = 1.0 + inp.omega * 5.0  # V1 简化系数
-    area = base_area * scaling
 
-    return _build_area_result(area, inp, "API_520", "7th", "§5.6.5")
+    # 蒸汽密度：优先用入参；缺则理想气体推导
+    R_universal = 8314.462618  # J/(kmol·K)
+    if inp.rho_g_kg_m3 > 0:
+        rho_g = inp.rho_g_kg_m3
+    else:
+        rho_g = inp.P_back_pa * inp.M_kg_per_mol / (inp.Z * R_universal * inp.T_k)
+
+    # DIERS Leung 1996：G_T/G_gas = √((1-ω) + ω × ρ_g/ρ_l)
+    #                  A_TP / A_gas = 1 / √((1-ω) + ω × ρ_g/ρ_l)
+    omega = inp.omega
+    density_ratio = rho_g / inp.rho_L_kg_m3
+    denominator_sq = (1.0 - omega) + omega * density_ratio
+    if denominator_sq <= 0:
+        # 数学退化（不应发生：ω ∈ [0,1] 且 ρ_g/ρ_l > 0）
+        raise PsvReliefAreaInputError(
+            f"Leung 分母平方 ≤ 0（ω={omega}, ρ_g/ρ_l={density_ratio:.3e}）"
+        )
+    area = base_area / math.sqrt(denominator_sq)
+
+    return _build_area_result(area, inp, "API_520", "7th", "§4.3.5.2")
 
 
 # ---------- GB/T 12241 降级路径 ----------

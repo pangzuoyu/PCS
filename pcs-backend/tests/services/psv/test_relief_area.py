@@ -177,45 +177,46 @@ def test_api520_liquid_rho_zero_raises():
 
 
 def test_api520_two_phase_omega_zero():
-    """ω = 0：两相流退化为纯气。"""
+    """ω = 0：两相流退化为纯气（Leung：denom=1.0 → A_TP = A_gas）。"""
     inp = ReliefAreaInput(
         relief_mass_flow_kgs=5.0, phase="TWO_PHASE",
         P_back_pa=100_000.0, P_set_pa=200_000.0,
-        omega=0.0,
+        omega=0.0, rho_L_kg_m3=1000.0, rho_g_kg_m3=0.6,
     )
     r_two_phase = calc_relief_area_api520_two_phase(inp)
     r_gas = calc_relief_area_api520_gas(_BASE_GAS_INPUT)
 
-    # ω=0 → area = base × 1.0 = base_gas_area
     assert math.isclose(r_two_phase.area_required_m2, r_gas.area_required_m2, rel_tol=1e-6)
 
 
 def test_api520_two_phase_omega_one():
-    """ω = 1：保守放大（V1 简化系数 1 + 1×5 = 6 倍）。"""
+    """ω = 1：Leung 公式 A_TP = A_gas × √(ρ_l/ρ_g)（密度比主导；远超 6× V1 简化）。"""
     inp = ReliefAreaInput(
         relief_mass_flow_kgs=5.0, phase="TWO_PHASE",
         P_back_pa=100_000.0, P_set_pa=200_000.0,
-        omega=1.0,
+        omega=1.0, rho_L_kg_m3=1000.0, rho_g_kg_m3=0.6,
     )
     r_two_phase = calc_relief_area_api520_two_phase(inp)
     r_gas = calc_relief_area_api520_gas(_BASE_GAS_INPUT)
 
-    # V1 简化：scaling = 1 + ω × 5 → ω=1 → 6 倍
-    expected = r_gas.area_required_m2 * 6.0
+    # Leung：denom = (1-1) + 1 × (0.6/1000) = 6e-4 → √6e-4 ≈ 0.02449
+    #       A_TP = A_gas / 0.02449 ≈ 40.82 × A_gas
+    expected = r_gas.area_required_m2 / math.sqrt(0.6 / 1000.0)
     assert math.isclose(r_two_phase.area_required_m2, expected, rel_tol=1e-6)
 
 
 def test_api520_two_phase_omega_half():
-    """ω = 0.5：保守放大 3.5 倍。"""
+    """ω = 0.5：Leung 公式 A_TP = A_gas / √((1-0.5) + 0.5×ρ_g/ρ_l)。"""
     inp = ReliefAreaInput(
         relief_mass_flow_kgs=5.0, phase="TWO_PHASE",
         P_back_pa=100_000.0, P_set_pa=200_000.0,
-        omega=0.5,
+        omega=0.5, rho_L_kg_m3=1000.0, rho_g_kg_m3=0.6,
     )
     r_two_phase = calc_relief_area_api520_two_phase(inp)
     r_gas = calc_relief_area_api520_gas(_BASE_GAS_INPUT)
 
-    expected = r_gas.area_required_m2 * 3.5
+    density_ratio = 0.6 / 1000.0  # 6e-4
+    expected = r_gas.area_required_m2 / math.sqrt((1.0 - 0.5) + 0.5 * density_ratio)
     assert math.isclose(r_two_phase.area_required_m2, expected, rel_tol=1e-6)
 
 
@@ -224,10 +225,57 @@ def test_api520_two_phase_omega_out_of_range_raises():
     inp = ReliefAreaInput(
         relief_mass_flow_kgs=5.0, phase="TWO_PHASE",
         P_back_pa=100_000.0, P_set_pa=200_000.0,
-        omega=1.5,
+        omega=1.5, rho_L_kg_m3=1000.0, rho_g_kg_m3=0.6,
     )
     with pytest.raises(PsvReliefAreaInputError):
         calc_relief_area_api520_two_phase(inp)
+
+
+def test_api520_two_phase_leung_ideal_gas_fallback_rho_g():
+    """未传 rho_g_kg_m3 → 理想气体推导 ρ_g = P_back × M / (Z × R × T)。"""
+    # 蒸汽 M=0.018 kg/kmol, P_back=101325, T=400 K, Z=1.0
+    # ρ_g = 101325 × 0.018 / (1 × 8314.46 × 400) ≈ 0.5482 kg/m³
+    rho_g_expected = 101_325.0 * 0.018 / (1.0 * 8314.462618 * 400.0)
+    inp_explicit = ReliefAreaInput(
+        relief_mass_flow_kgs=5.0, phase="TWO_PHASE",
+        P_back_pa=101_325.0, P_set_pa=200_000.0,
+        omega=0.3, rho_L_kg_m3=1000.0, T_k=400.0, M_kg_per_mol=0.018,
+        rho_g_kg_m3=rho_g_expected,
+    )
+    inp_fallback = ReliefAreaInput(
+        relief_mass_flow_kgs=5.0, phase="TWO_PHASE",
+        P_back_pa=101_325.0, P_set_pa=200_000.0,
+        omega=0.3, rho_L_kg_m3=1000.0, T_k=400.0, M_kg_per_mol=0.018,
+        # rho_g_kg_m3 不传 → 理想气体推导
+    )
+    r_explicit = calc_relief_area_api520_two_phase(inp_explicit)
+    r_fallback = calc_relief_area_api520_two_phase(inp_fallback)
+    assert math.isclose(
+        r_explicit.area_required_m2, r_fallback.area_required_m2, rel_tol=1e-6
+    )
+
+
+def test_api520_two_phase_leung_water_steam_conservative():
+    """水-蒸汽工况（ρ_l=1000, ρ_g=0.6, ω=0.4）→ Leung 公式保守放大 ~1.29×。
+
+    用同一热力学参数（T_k, M）跑 gas 基准，确保 ratio 严格等于 1/√denom。
+    """
+    inp_tp = ReliefAreaInput(
+        relief_mass_flow_kgs=5.0, phase="TWO_PHASE",
+        P_back_pa=101_325.0, P_set_pa=200_000.0,
+        omega=0.4, rho_L_kg_m3=1000.0, rho_g_kg_m3=0.6,
+        T_k=400.0, M_kg_per_mol=0.018,
+    )
+    inp_gas = ReliefAreaInput(
+        relief_mass_flow_kgs=5.0, phase="GAS",
+        P_back_pa=101_325.0, P_set_pa=200_000.0,
+        T_k=400.0, M_kg_per_mol=0.018,
+    )
+    r_tp = calc_relief_area_api520_two_phase(inp_tp)
+    r_gas = calc_relief_area_api520_gas(inp_gas)
+    # Leung：denom = (1-0.4) + 0.4 × 0.0006 = 0.60024 → √0.60024 ≈ 0.7748
+    expected = r_gas.area_required_m2 / math.sqrt(0.60024)
+    assert math.isclose(r_tp.area_required_m2, expected, rel_tol=1e-6)
 
 
 # ============================================================================
@@ -291,14 +339,14 @@ def test_dispatch_api_liquid():
 
 
 def test_dispatch_api_two_phase():
-    """calc_relief_area(standard='API') + TWO_PHASE → API 520 两相流。"""
+    """calc_relief_area(standard='API') + TWO_PHASE → API 520 Leung 1996 ω 法。"""
     inp = ReliefAreaInput(
         relief_mass_flow_kgs=5.0, phase="TWO_PHASE",
         P_back_pa=100_000.0, P_set_pa=200_000.0,
-        omega=0.3,
+        omega=0.3, rho_L_kg_m3=1000.0, rho_g_kg_m3=0.6,
     )
     r = calc_relief_area(inp, standard="API")
-    assert r.formula_ref.clause == "§5.6.5"
+    assert r.formula_ref.clause == "§4.3.5.2"
 
 
 def test_dispatch_gb_unified():
@@ -345,7 +393,7 @@ def test_api_gb_calculation_independence():
 @pytest.mark.parametrize("fn, expected_standard, expected_clause", [
     (calc_relief_area_api520_gas, "API_520", "§5.6.3"),
     (calc_relief_area_api520_liquid, "API_520", "§5.6.4"),
-    (calc_relief_area_api520_two_phase, "API_520", "§5.6.5"),
+    (calc_relief_area_api520_two_phase, "API_520", "§4.3.5.2"),
 ])
 def test_api_formula_ref_structured(fn, expected_standard, expected_clause):
     """API 520 三相态 formula_ref 三字段均完整。"""
@@ -364,7 +412,7 @@ def test_api_formula_ref_structured(fn, expected_standard, expected_clause):
         inp = ReliefAreaInput(
             relief_mass_flow_kgs=5.0, phase="TWO_PHASE",
             P_back_pa=100_000.0, P_set_pa=200_000.0,
-            omega=0.5,
+            omega=0.5, rho_L_kg_m3=1000.0, rho_g_kg_m3=0.6,
         )
 
     r = fn(inp)
