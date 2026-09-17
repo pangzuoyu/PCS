@@ -4,9 +4,17 @@ from app.services.sep_equip.cyclone_service import (
     CycloneResult,
     calc_cyclone,
 )
+from app.services.sep_equip.mist_eliminator_service import (
+    MistEliminatorInput,
+    MistEliminatorResult,
+    calc_mist_eliminator,
+)
 
 __all__ = [
     "CycloneInput",
     "CycloneResult",
     "calc_cyclone",
+    "MistEliminatorInput",
+    "MistEliminatorResult",
+    "calc_mist_eliminator",
 ]
