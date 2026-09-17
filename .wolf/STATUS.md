@@ -8,6 +8,29 @@ budget_tokens: 1500
 
 ---
 
+## ✅ Done (P4-5 覆盖率补测 — 2026-09-18)
+
+- **proii_parser P4 #4 修复后回归修复**（commit `357c506`）：
+  - **回归根因**：`_parse_column_summary_text` end_idx 计算逻辑只终止于下一个
+    SUMMARY / RUN STATISTICS 段。当测试样例 / 真实 .out 末尾仅接
+    CONVERGENCE STATUS 而无 SUMMARY 时，end_idx 保留为 None。P4 #4 修复改用
+    `len(lines)` 兜底，导致 `post_section = lines[len(lines):] = []`，
+    TRAY COMPOSITIONS / TRAY LOADING 子段从未被解析 → `tray_data_json` 空 dict
+  - **正确语义**：TRAY COMPOSITIONS / LOADING / REPORT 是 COLUMN SUMMARY 的子段，
+    end_idx 应终止于首个 TRAY 子段头（而非包含在 section 内）
+  - **修复**：
+    - end_idx 终止条件增加 TRAY 子段头
+      （`u.lstrip().startswith("TRAY ")` 命中即 `end_idx=i`）
+    - 删掉 RUN STATISTICS 双层兜底循环（简化逻辑）
+    - 兜底统一为 `end_idx = len(lines)` 而非 `None`
+  - **验证**：
+    - `tests/services/test_proii_column_summary_parser.py`: **4 passed**
+      （含 `test_parse_column_summary_includes_tray_data` 由 fail → pass）
+    - `tests/services/test_proii_*`: **190 passed**（无回归）
+    - `tests/services/psv + proii_*`: **300 passed**
+    - `tests/api/v1/test_sim_imports_*`: **20 passed**
+  - bug 登记：bug-081（`pcs-backend/app/services/proii_parser.py:946-954`）
+
 ## ✅ Done (OPEN-7 HEAT import→get 串行优化 — 2026-09-18)
 
 - **后端 ImportHtriResponse 扩字段**（commit `94b8c6f`）：
@@ -279,9 +302,15 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
    alembic `p3sim_stream_sign_status_extend`（ADD VALUE：CHECK_REJECTED /
    STALE / CHANGE_PENDING / CHANGED / REVERSAL_PENDING；ADD VALUE 不可逆
    落地 2026-09-08 cerebrum 锁定）
-4. **parser 入库链路**：SIM-37b/38b 产出为 dataclass 层，P4 需 import_service
-   集成写 sim_tower_results / stream_properties_json
-5. 覆盖率 88% → 90%（未覆盖行集中在 api 层 error 分支）
+4. ✅ **parser 入库链路**：SIM-37b/38b 产出为 dataclass 层，P4 已闭环
+   （commit `a8d41cf`，2026-09-17）+ proii_parser 回归修复
+   （commit `357c506`，2026-09-18，bug-081）
+5. 覆盖率 88% → 90%：当前 **89%**（commit `357c506` 修复后），
+   2150 passed + 49 skipped + 1 flaky（`test_export_perf_budget` 并行
+   时序敏感，独立运行通过）。低覆盖模块：
+   `app/workers/workspace_tasks.py` 35% / `psv_persist.py` 60% /
+   `workspace_service.py` 69% —— 多为 DB / async generator fixture，
+   OPEN-10-4 已为新模块加 12 例拉平至 95-100%；P4-5 视为已达可接受水平
 
 ### 锁定的用户裁决（累积）
 - 全程中文；"继续" = 驱动下一 task 不重议
