@@ -135,6 +135,49 @@ P5-0 批**末**修订：
 
 ---
 
+## P5 frontend 收口 checklist（2026-09-17 新增）
+
+**目的**：P5 全部前端页面完成后（VESSEL / SEP_EQUIP / PSV + 标准 profile 等），统一收口**前端技术债**，避免 6 批次都登记但从未解决的悬案。
+
+### 收口项 #1：硬编码常量统一抽象（OPEN-2 + OPEN-3）
+
+- **OPEN-2：PROJECT_ID 硬编码**
+  - 位置：`pcs-frontend/src/pages/routeWrappers.tsx:71` — `'00000000-0000-0000-0000-000000000001'`
+  - 风险：未来 P5-6 / P5-7 多项目场景必须从 store/URL 派生，UUID 字面量无法支持
+
+- **OPEN-3：DEV_BEARER 硬编码 3 处重复**
+  - 位置 1：`pcs-frontend/src/pages/routeWrappers.tsx:74` — `DEV_BEARER = 'Bearer mock-jwt-token'`
+  - 位置 2：`pcs-frontend/src/layouts/MainLayout.tsx:82` — 字面量 `'Bearer mock-jwt-token'`
+  - 位置 3：`pcs-frontend/src/mocks/handlers.ts:14` — `MOCK_TOKEN`（来自 seed/meta.ts）
+  - 风险：3 处值必须人工同步，未来替换 auth 方案时遗漏即 P0 bug
+
+**处理方案**：P5 全部前端页面（P5-1 / P5-2 / P5-3）完成后，**统一抽 `src/constants/env.ts`**：
+
+```ts
+// src/constants/env.ts（建议）
+export const PROJECT_ID = (import.meta.env.VITE_PROJECT_ID ?? '00000000-0000-0000-0000-000000000001');
+export const DEV_BEARER = `Bearer ${import.meta.env.VITE_DEV_TOKEN ?? 'mock-jwt-token'}`;
+```
+
+- 3 处 import 替换为统一来源
+- Vite env vars 通过 `.env.development` / `.env.production` 注入
+- 收口 commit：`refactor(p5-close): constants/env.ts 统一 PROJECT_ID + DEV_BEARER`
+
+**不在各批次分散处理的原因**：
+1. P5-3（PSV 前端）/ P5-2（SEP_EQUIP 前端）/ P5-1（VESSEL 前端）各自批次都会引入新的 `routeWrappers.tsx` + `useFetch` 调用，分散处理会形成 3 次 commit + 3 次文件 diff
+2. 收口涉及 vite env vars 注入（`.env.development` / `.env.production`），需要 P5 全栈 frontend baseline 一致后整体切换
+3. 1 次集中处理 vs 6 次分散处理：减少跨批 merge 冲突 + 减少回归测试轮次
+
+**触发条件**：P5-3 frontend 闭环（commit 93627a7 后端 + 本批次 frontend）后，由用户"继续"驱动收口 task。
+
+**状态**：✅ 已收口（commit `1afa756`，2026-09-17）—— `src/constants/env.ts` 统一 PROJECT_ID + DEV_BEARER，`src/vite-env.d.ts` 扩展 ImportMetaEnv（VITE_PROJECT_ID / VITE_DEV_TOKEN 可选），`routeWrappers.tsx` / `MainLayout.tsx` / `AssetListPage.tsx` 4 处硬编码字面量清零；tsc + eslint + vitest 496/496 baseline 持平
+
+### 收口项 #2（未来登记位）
+
+后续 P5-1 / P5-2 frontend 闭环时如发现跨批技术债，统一登记于此段。
+
+---
+
 ## 关联文档
 
 - PCS-PLAN-P5-DEVICE-EQUIPMENT.md（V1.3 总计划）
@@ -145,4 +188,4 @@ P5-0 批**末**修订：
 - SUP-008 V1.1 + SUP-009 V1.0 + SUP-010 V1.1
 
 **生成时机**：P5-0-1 完成后立即创建（2026-09-16）
-**末次更新**：2026-09-17（Task 25/26 文档批次末修订 = 本次 commit 闭环 Q1 锚点）
+**末次更新**：2026-09-17（Task 25/26 文档批次末修订 + P5 frontend 收口 checklist 登记 OPEN-2/3）
