@@ -215,3 +215,128 @@ def test_dispatcher_to_aggregate_to_area_to_orifice():
     assert orifice.selected_size in ("D", "E", "F", "G", "H", "J", "K", "L", "M",
                                       "N", "P", "Q", "R", "T")
     assert orifice.actual_area_m2 >= area_result.area_required_m2
+
+
+# ============================================================================
+# OPEN-10-4 余项：V1.14 §4.6 helpers + 18 列落库派生映射
+# ============================================================================
+
+
+def test_get_default_blowdown_gas_5pct():
+    """_get_default_blowdown('GAS') → 0.05（V1.14 §3.5 联动规则）。"""
+    from app.services.psv.psv_persist import _get_default_blowdown
+
+    assert _get_default_blowdown("GAS") == 0.05
+
+
+def test_get_default_blowdown_liquid_10pct():
+    """_get_default_blowdown('LIQUID') → 0.10。"""
+    from app.services.psv.psv_persist import _get_default_blowdown
+
+    assert _get_default_blowdown("LIQUID") == 0.10
+
+
+def test_get_default_blowdown_two_phase_10pct():
+    """_get_default_blowdown('TWO_PHASE') → 0.10。"""
+    from app.services.psv.psv_persist import _get_default_blowdown
+
+    assert _get_default_blowdown("TWO_PHASE") == 0.10
+
+
+def test_get_default_blowdown_unknown_medium_fallback():
+    """未知 medium → _DEFAULT_BLOWDOWN_FRACTION（0.05）兜底。"""
+    from app.services.psv.psv_persist import _get_default_blowdown
+
+    assert _get_default_blowdown("UNKNOWN_MEDIUM_XYZ") == 0.05
+
+
+def test_formula_ref_to_dict_basic():
+    """_formula_ref_to_dict(dataclass FormulaRef) → 标准 dict 含 standard/version/clause。"""
+    from app.services.psv.fire_case_service import FireCaseInput, calc_fire_case
+    from app.services.psv.psv_persist import _formula_ref_to_dict
+
+    result = calc_fire_case(
+        FireCaseInput(
+            D_m=1.0,
+            H_m=5.0,
+            liquid_level_fraction=0.5,
+            environment_factor_F=1.0,
+            h_fg_j_per_kg=350_000.0,
+        ),
+        standard="API",
+        version="7th",
+    )
+    ref_dict = _formula_ref_to_dict(result.formula_ref)
+    assert isinstance(ref_dict, dict)
+    assert ref_dict["standard"] == "API_521"
+    assert ref_dict["version"] == "7th"
+
+
+def test_formula_ref_to_dict_handles_dict_input():
+    """_formula_ref_to_dict 接收 dict 输入 → 直接透传（兼容历史 record）。"""
+    from app.services.psv.psv_persist import _formula_ref_to_dict
+
+    src = {"standard": "API_520", "version": "9th", "clause": "§5.3.1"}
+    assert _formula_ref_to_dict(src) == src
+
+
+def test_default_inlet_size_4_inch():
+    """_DEFAULT_INLET_SIZE = '4 inch'（V1 锁定入口；§3.3 默认；P5-3-7 端点可覆盖）。"""
+    from app.services.psv.psv_persist import _DEFAULT_INLET_SIZE
+
+    assert _DEFAULT_INLET_SIZE == "4 inch"
+
+
+def test_default_outlet_size_6_inch():
+    """_DEFAULT_OUTLET_SIZE = '6 inch'（V1 锁定出口；§3.3 默认）。"""
+    from app.services.psv.psv_persist import _DEFAULT_OUTLET_SIZE
+
+    assert _DEFAULT_OUTLET_SIZE == "6 inch"
+
+
+def test_blowdown_default_by_medium_persists_module():
+    """_BLOWDOWN_DEFAULT_BY_MEDIUM 4 介质默认（GAS/VAPOR=5%, LIQUID/TWO_PHASE=10%）。"""
+    from app.services.psv.psv_persist import _BLOWDOWN_DEFAULT_BY_MEDIUM
+
+    assert _BLOWDOWN_DEFAULT_BY_MEDIUM["GAS"] == 0.05
+    assert _BLOWDOWN_DEFAULT_BY_MEDIUM["VAPOR"] == 0.05
+    assert _BLOWDOWN_DEFAULT_BY_MEDIUM["LIQUID"] == 0.10
+    assert _BLOWDOWN_DEFAULT_BY_MEDIUM["TWO_PHASE"] == 0.10
+
+
+def test_formula_version_constant():
+    """_FORMULA_VERSION 是非空字符串（V1.14 §4.6 record_hash 协议标识）。"""
+    from app.services.psv.psv_persist import _FORMULA_VERSION
+
+    assert isinstance(_FORMULA_VERSION, str)
+    assert len(_FORMULA_VERSION) > 0
+
+
+def test_generate_tag_number_basic():
+    """_generate_tag_number(project_id) → 'PSV-{8hex}' 格式（每次新生成 8 hex）。"""
+    import uuid
+
+    from app.services.psv.psv_persist import _generate_tag_number
+
+    project_id = uuid.uuid4()
+    tag1 = _generate_tag_number(project_id)
+    tag2 = _generate_tag_number(project_id)
+    # 前缀 PSV- + 8 hex（项目内由 DB unique 约束兜底）
+    assert tag1.startswith("PSV-")
+    assert len(tag1) == len("PSV-") + 8
+    # 每次不同（UUID 随机）
+    assert tag1 != tag2
+    # project_id 参数当前未被使用（保留为接口签名）
+    assert isinstance(project_id, uuid.UUID)
+
+
+def test_generate_tag_number_format_8hex_uppercase():
+    """_generate_tag_number 生成 8 位大写 hex（与 pcs_persist 其他模块一致）。"""
+    import re
+    import uuid
+
+    from app.services.psv.psv_persist import _generate_tag_number
+
+    tag = _generate_tag_number(uuid.uuid4())
+    match = re.match(r"^PSV-([0-9A-F]{8})$", tag)
+    assert match is not None, f"tag {tag} 不匹配 PSV-XXXXXXXX 格式"
