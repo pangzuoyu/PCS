@@ -19,6 +19,18 @@ from app.services.psv.fire_case_service import (
     calc_fire_case_gb150_v2011,
     calc_fire_case_gb150_v2024,
 )
+from app.services.psv.other_cases_service import (
+    ClosedValveInput,
+    ClosedValveResult,
+    OtherCaseFormulaRef,
+    ReactionRunawayInput,
+    ReactionRunawayResult,
+    ThermalExpansionInput,
+    ThermalExpansionResult,
+    calc_closed_valve_case,
+    calc_reaction_runaway_case,
+    calc_thermal_expansion_case,
+)
 
 __all__ = [
     "FireCaseInput",
@@ -28,4 +40,14 @@ __all__ = [
     "calc_fire_case_api521",
     "calc_fire_case_gb150_v2011",
     "calc_fire_case_gb150_v2024",
+    "ClosedValveInput",
+    "ClosedValveResult",
+    "ReactionRunawayInput",
+    "ReactionRunawayResult",
+    "ThermalExpansionInput",
+    "ThermalExpansionResult",
+    "OtherCaseFormulaRef",
+    "calc_closed_valve_case",
+    "calc_reaction_runaway_case",
+    "calc_thermal_expansion_case",
 ]
