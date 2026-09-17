@@ -10,6 +10,13 @@
 
 API/GB 计算逻辑完全隔离（SUP-P5-PSV-001 §4.1）：各自独立函数 + 公用入口分发。
 """
+from app.services.psv.breathing_valve_service import (
+    BreathingValveFormulaRef,
+    BreathingValveInput,
+    BreathingValveResult,
+    BreathingValveSize,
+    calc_breathing_valve_api2000,
+)
 from app.services.psv.fire_case_service import (
     FireCaseFormulaRef,
     FireCaseInput,
@@ -18,6 +25,13 @@ from app.services.psv.fire_case_service import (
     calc_fire_case_api521,
     calc_fire_case_gb150_v2011,
     calc_fire_case_gb150_v2024,
+)
+from app.services.psv.orifice_service import (
+    OrificeFormulaRef,
+    OrificeInput,
+    OrificeResult,
+    OrificeSize,
+    select_orifice_api526,
 )
 from app.services.psv.other_cases_service import (
     ClosedValveInput,
@@ -84,4 +98,14 @@ __all__ = [
     "calc_relief_area_api520_liquid",
     "calc_relief_area_api520_two_phase",
     "calc_relief_area_gb12241",
+    "OrificeSize",
+    "OrificeFormulaRef",
+    "OrificeInput",
+    "OrificeResult",
+    "select_orifice_api526",
+    "BreathingValveSize",
+    "BreathingValveFormulaRef",
+    "BreathingValveInput",
+    "BreathingValveResult",
+    "calc_breathing_valve_api2000",
 ]

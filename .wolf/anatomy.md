@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-17T01:07:56.452Z
-> Files: 650 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-17T01:10:42.421Z
+> Files: 653 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -386,8 +386,10 @@
 
 ## pcs-backend/app/services/psv/
 
-- `__init__.py` — P5-3 PSV 安全阀模块。 (~676 tok)
+- `__init__.py` — P5-3 PSV 安全阀模块。 (~850 tok)
+- `breathing_valve_service.py` — P5-3-5 PSV 呼吸阀（API 2000 Venting Atmospheric and Low-Pressure Storage Tanks）。 (~1418 tok)
 - `fire_case_service.py` — P5-3-1 PSV 火灾工况计算（API 521 7th + GB/T 150.1 2011/2024 双路径）。 (~2493 tok)
+- `orifice_service.py` — P5-3-5 PSV 选型（API 526 标准孔口表 D~T）。 (~1189 tok)
 - `other_cases_service.py` — P5-3-2 PSV 其他工况（阀门关闭 + 反应失控 + 热膨胀）。 (~1960 tok)
 - `relief_aggregator_service.py` — P5-3-3 PSV 多工况叠加聚合。 (~982 tok)
 - `relief_area_service.py` — P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 双路径 + ω 法两相流）。 (~2847 tok)
@@ -628,6 +630,7 @@
 
 - `__init__.py` (~0 tok)
 - `test_fire_case.py` — P5-3-1 PSV 火灾工况（API 521 7th + GB/T 150.1 2011/2024 双路径）测试。 (~3611 tok)
+- `test_orifice_breathing.py` — P5-3-5 PSV 选型（API 526 孔口表 D~T）+ 呼吸阀（API 2000）测试。 (~2273 tok)
 - `test_other_cases.py` — P5-3-2 PSV 其他工况（阀门关闭 + 反应失控 + 热膨胀）测试。 (~2758 tok)
 - `test_relief_aggregator.py` — P5-3-3 PSV 多工况叠加聚合测试。 (~1923 tok)
 - `test_relief_area.py` — P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 + ω 法两相流）测试。 (~3487 tok)

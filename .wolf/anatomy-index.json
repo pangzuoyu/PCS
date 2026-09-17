@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-09-17T01:07:56.452Z",
-    "fileCount": 650,
+    "lastScanned": "2026-09-17T01:10:42.421Z",
+    "fileCount": 653,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "f484d9f9db2ded3ab4fcd2852dd2def49d309fd5767fb3efedebad0cf68b19a0",
-    "storeUpdatedAt": "2026-09-17T01:07:56.462Z",
-    "rootHash": "5fe84566fbc2a7c0"
+    "renderedHash": "417bce576dfcee85a2aae1f2e4963ad64902fef33e7c5a36573e0d1dc322e18e",
+    "storeUpdatedAt": "2026-09-17T01:10:42.431Z",
+    "rootHash": "251a324a0caa3238"
   },
   "files": {
     "CLAUDE.md": {
@@ -24254,11 +24254,11 @@
     },
     "pcs-backend/app/services/psv/__init__.py": {
       "description": "P5-3 PSV 安全阀模块。",
-      "tokens": 676,
-      "hash": "1d505c63b09432ef",
-      "size": 2493,
-      "mtimeMs": 1789607262119.7866,
-      "updatedAt": "2026-09-17T01:07:42.171Z",
+      "tokens": 850,
+      "hash": "6cd410ca5712163d",
+      "size": 3105,
+      "mtimeMs": 1789607322779.0413,
+      "updatedAt": "2026-09-17T01:08:42.825Z",
       "source": "hook"
     },
     "pcs-backend/app/services/psv/fire_case_service.py": {
@@ -25139,6 +25139,235 @@
           "startLine": 351,
           "endLine": 374,
           "tokens": 247
+        }
+      ]
+    },
+    "pcs-backend/app/services/psv/orifice_service.py": {
+      "description": "P5-3-5 PSV 选型（API 526 标准孔口表 D~T）。",
+      "tokens": 1189,
+      "hash": "325f63753adf05b3",
+      "size": 4938,
+      "mtimeMs": 1789607407047.8245,
+      "updatedAt": "2026-09-17T01:10:07.094Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "OrificeFormulaRef",
+          "kind": "class",
+          "startLine": 48,
+          "endLine": 80,
+          "tokens": 178
+        },
+        {
+          "name": "_build_table_m2",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 94,
+          "tokens": 92
+        },
+        {
+          "name": "OrificeInput",
+          "kind": "class",
+          "startLine": 95,
+          "endLine": 105,
+          "tokens": 56
+        },
+        {
+          "name": "OrificeResult",
+          "kind": "class",
+          "startLine": 106,
+          "endLine": 126,
+          "tokens": 118
+        },
+        {
+          "name": "PsvOrificeInputError",
+          "kind": "class",
+          "startLine": 127,
+          "endLine": 136,
+          "tokens": 42
+        },
+        {
+          "name": "select_orifice_api526",
+          "kind": "fn",
+          "startLine": 137,
+          "endLine": 190,
+          "tokens": 437
+        }
+      ]
+    },
+    "pcs-backend/app/services/psv/breathing_valve_service.py": {
+      "description": "P5-3-5 PSV 呼吸阀（API 2000 Venting Atmospheric and Low-Pressure Storage Tanks）。",
+      "tokens": 1418,
+      "hash": "bb4b6936d4ef0765",
+      "size": 5718,
+      "mtimeMs": 1789607321784.0203,
+      "updatedAt": "2026-09-17T01:08:41.834Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "BreathingValveFormulaRef",
+          "kind": "class",
+          "startLine": 38,
+          "endLine": 64,
+          "tokens": 160
+        },
+        {
+          "name": "BreathingValveInput",
+          "kind": "class",
+          "startLine": 65,
+          "endLine": 81,
+          "tokens": 116
+        },
+        {
+          "name": "BreathingValveResult",
+          "kind": "class",
+          "startLine": 82,
+          "endLine": 104,
+          "tokens": 163
+        },
+        {
+          "name": "PsvBreathingValveInputError",
+          "kind": "class",
+          "startLine": 105,
+          "endLine": 114,
+          "tokens": 45
+        },
+        {
+          "name": "calc_breathing_valve_api2000",
+          "kind": "fn",
+          "startLine": 115,
+          "endLine": 165,
+          "tokens": 451
+        },
+        {
+          "name": "_validate",
+          "kind": "fn",
+          "startLine": 166,
+          "endLine": 190,
+          "tokens": 240
+        }
+      ]
+    },
+    "pcs-backend/tests/services/psv/test_orifice_breathing.py": {
+      "description": "P5-3-5 PSV 选型（API 526 孔口表 D~T）+ 呼吸阀（API 2000）测试。",
+      "tokens": 2273,
+      "hash": "b1ffa9dc531ee1ec",
+      "size": 8749,
+      "mtimeMs": 1789607442365.5845,
+      "updatedAt": "2026-09-17T01:10:42.421Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_api526_selects_minimum_fitting",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 40,
+          "tokens": 116
+        },
+        {
+          "name": "test_api526_selects_T_for_large_area",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 51,
+          "tokens": 113
+        },
+        {
+          "name": "test_api526_selects_T_within_tolerance",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 62,
+          "tokens": 103
+        },
+        {
+          "name": "test_api526_formula_ref",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 71,
+          "tokens": 83
+        },
+        {
+          "name": "test_api526_zero_area_raises",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 77,
+          "tokens": 58
+        },
+        {
+          "name": "test_api526_negative_area_raises",
+          "kind": "fn",
+          "startLine": 78,
+          "endLine": 88,
+          "tokens": 113
+        },
+        {
+          "name": "test_api526_size_table_includes_all_D_to_T",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 98,
+          "tokens": 107
+        },
+        {
+          "name": "test_api526_required_area_passthrough",
+          "kind": "fn",
+          "startLine": 99,
+          "endLine": 112,
+          "tokens": 133
+        },
+        {
+          "name": "test_api2000_basic_selection",
+          "kind": "fn",
+          "startLine": 113,
+          "endLine": 134,
+          "tokens": 168
+        },
+        {
+          "name": "test_api2000_selects_4_inch_for_medium_flow",
+          "kind": "fn",
+          "startLine": 135,
+          "endLine": 146,
+          "tokens": 107
+        },
+        {
+          "name": "test_api2000_thermal_breathing_factor_scaling",
+          "kind": "fn",
+          "startLine": 147,
+          "endLine": 169,
+          "tokens": 231
+        },
+        {
+          "name": "test_api2000_formula_ref",
+          "kind": "fn",
+          "startLine": 170,
+          "endLine": 187,
+          "tokens": 158
+        },
+        {
+          "name": "test_api2000_inbreath_zero_raises",
+          "kind": "fn",
+          "startLine": 188,
+          "endLine": 198,
+          "tokens": 94
+        },
+        {
+          "name": "test_api2000_outbreath_zero_raises",
+          "kind": "fn",
+          "startLine": 199,
+          "endLine": 209,
+          "tokens": 95
+        },
+        {
+          "name": "test_api2000_P_design_zero_raises",
+          "kind": "fn",
+          "startLine": 210,
+          "endLine": 225,
+          "tokens": 148
+        },
+        {
+          "name": "test_integration_area_to_orifice",
+          "kind": "fn",
+          "startLine": 226,
+          "endLine": 250,
+          "tokens": 221
         }
       ]
     }
