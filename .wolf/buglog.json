@@ -1320,6 +1320,25 @@
       "last_seen": "2026-09-18",
       "severity": "CRITICAL",
       "fix_commit": "TBD (this commit)"
+    },
+    {
+      "id": "bug-083",
+      "timestamp": "2026-09-18T10:35:00Z",
+      "error_message": "前端 FLANGE_TO_ORIFICES 与后端 API526_FLANGE_TO_ORIFICES 3 处不一致（顺序、缺 6×10、缺法兰等级过滤）",
+      "file": "pcs-frontend/src/pages/psv/PsvComputePage.tsx:179",
+      "root_cause": "ce-code-review P0..P5 全量审查发现（C9）。前端 mapping 与后端 orifice_flange.py:75-85 drift：(a) 2×3 顺序 ['G','H'] vs 后端 ['H','G']；(b) 缺 ('6 inch','10 inch'):['R']；(c) 无法兰等级过滤",
+      "fix": "PsvComputePage.tsx 同步后端：顺序 ['H','G'] + 加 ('6 inch|10 inch'):['R']；法兰等级过滤留 P5-OPEN-10 后端 endpoint 处理",
+      "tags": [
+        "ce-code-review",
+        "P5-OPEN-10",
+        "contract-drift",
+        "frontend",
+        "API-526"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-18",
+      "severity": "CRITICAL",
+      "fix_commit": "TBD (this commit)"
     }
   ]
 }

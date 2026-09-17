@@ -176,14 +176,19 @@ const ORIFICE_OPTIONS: { value: OrificeSize; label: string }[] = [
 const ORIFICE_ORDER: OrificeSize[] = ['D', 'E', 'F', 'G', 'H', 'J', 'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'T'];
 
 // §3.3 API 526 孔口-法兰映射（前端用：反查候选孔口）
+// 与后端 API526_FLANGE_TO_ORIFICES（orifice_flange.py:75-85）完全对齐：
+// - 顺序约定：主候选在前（H > G），保留 "size 升序" 阅读
+// - 含 ('6 inch','10 inch'): ['R']（前端遗漏，后端完整）
+// 注：法兰等级过滤在后端 get_candidate_orifices() 处理（前端选 orifice_size 后透传 flange_class）
 const FLANGE_TO_ORIFICES: Record<string, OrificeSize[]> = {
   '1 inch|2 inch': ['D'],
   '1.5 inch|2.5 inch': ['E', 'F'],
   '1.5 inch|3 inch': ['G'],
-  '2 inch|3 inch': ['G', 'H'], // G 高压档 + H 标准档
+  '2 inch|3 inch': ['H', 'G'], // H 主 + G 高压档
   '3 inch|4 inch': ['J', 'K'],
   '4 inch|6 inch': ['L', 'M', 'N'],
   '6 inch|8 inch': ['P', 'Q'],
+  '6 inch|10 inch': ['R'],
   '8 inch|10 inch': ['Q', 'R', 'T'],
 };
 
