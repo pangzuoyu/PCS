@@ -15,6 +15,8 @@ from app.api.v1.pipe import router as pipe_router
 from app.api.v1.pipe_classes import router as pipe_classes_router
 from app.api.v1.pipe_codes import router as pipe_codes_router
 from app.api.v1.pipe_net import router as pipe_net_router
+from app.api.v1.psv import router as psv_router  # P5-3-6
+from app.api.v1.psv_standard_profiles import router as psv_standard_profiles_router  # P5-3-6
 from app.api.v1.pump import router as pump_router
 from app.api.v1.records import router as records_router
 from app.api.v1.sep_equip import router as sep_equip_router  # P5-2-4
@@ -45,6 +47,8 @@ api_router.include_router(equip_lib_router)
 api_router.include_router(flash_router)
 api_router.include_router(vessel_router)  # P5-1-4
 api_router.include_router(sep_equip_router)  # P5-2-4
+api_router.include_router(psv_router)  # P5-3-6
+api_router.include_router(psv_standard_profiles_router)  # P5-3-6
 api_router.include_router(pipe_codes_router)
 api_router.include_router(common_router)
 api_router.include_router(imports_router)

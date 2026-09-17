@@ -45,6 +45,7 @@ from app.services.psv.other_cases_service import (
     calc_reaction_runaway_case,
     calc_thermal_expansion_case,
 )
+from app.services.psv.psv_persist import persist_psv_calculate
 from app.services.psv.relief_aggregator_service import (
     ReliefAggregateInput,
     ReliefAggregateResult,
@@ -108,4 +109,5 @@ __all__ = [
     "BreathingValveInput",
     "BreathingValveResult",
     "calc_breathing_valve_api2000",
+    "persist_psv_calculate",
 ]

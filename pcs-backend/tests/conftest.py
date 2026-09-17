@@ -26,9 +26,10 @@ from collections.abc import AsyncIterator
 import pytest
 import pytest_asyncio
 from httpx import ASGITransport, AsyncClient
-from sqlalchemy import select
-from sqlalchemy.dialects.sqlite.base import SQLiteTypeCompiler
+from sqlalchemy import event, select
+from sqlalchemy.dialects.sqlite.base import SQLiteDDLCompiler, SQLiteTypeCompiler
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy.schema import ColumnDefault
 
 from app.api.v1 import api_router
 from app.core.security import create_access_token
@@ -46,6 +47,18 @@ from app.models.enums import ConfigStatus
 # ---------------------------------------------------------------------------
 
 SQLiteTypeCompiler.visit_JSONB = SQLiteTypeCompiler.visit_JSON  # type: ignore[attr-defined]
+
+# SQLite 不支持 PostgreSQL NOW() / gen_random_uuid() 函数；
+# DDL 重写为 SQLite 等价表达（CURRENT_TIMESTAMP / 应用层 default）。
+_orig_create_column = SQLiteDDLCompiler.visit_create_column
+
+
+def _visit_create_column(self, *args, **kwargs):  # noqa: ANN001, ANN202
+    rendered = _orig_create_column(self, *args, **kwargs)
+    return rendered.replace("NOW()", "CURRENT_TIMESTAMP")
+
+
+SQLiteDDLCompiler.visit_create_column = _visit_create_column  # type: ignore[attr-defined]
 
 
 def _visit_text_nolen(self, type_, **kw):  # noqa: ANN001, ANN201
@@ -77,6 +90,24 @@ async def db_engine():
         "sqlite+aiosqlite:///:memory:",
         echo=False,
     )
+
+    # SQLite 不支持 PostgreSQL gen_random_uuid() 函数；
+    # 通过 connect 钩子注册 SQLite 自定义函数（每次 INSERT 触发 DEFAULT 时调用）。
+    @event.listens_for(engine.sync_engine, "connect")
+    def _register_sqlite_pg_functions(dbapi_conn, _record):  # noqa: ANN001
+        dbapi_conn.create_function(
+            "gen_random_uuid", 0, lambda: str(uuid.uuid4())
+        )
+
+    # SQLite 不支持 PostgreSQL gen_random_uuid() server_default；
+    # 清掉 server_default 并附加 Python-side ColumnDefault（绕过 RETURNING 问题）。
+    for _table in SA_Base.metadata.tables.values():
+        for _col in _table.columns:
+            sd = _col.server_default
+            if sd is not None and "gen_random_uuid" in str(sd.arg):
+                _col.server_default = None
+                _col.default = ColumnDefault(uuid.uuid4)
+
     async with engine.begin() as conn:
         await conn.run_sync(SA_Base.metadata.create_all)
     yield engine

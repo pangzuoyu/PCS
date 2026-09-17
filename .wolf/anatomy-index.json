@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-09-17T01:10:42.421Z",
-    "fileCount": 653,
+    "lastScanned": "2026-09-17T01:19:53.547Z",
+    "fileCount": 658,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "417bce576dfcee85a2aae1f2e4963ad64902fef33e7c5a36573e0d1dc322e18e",
-    "storeUpdatedAt": "2026-09-17T01:10:42.431Z",
-    "rootHash": "251a324a0caa3238"
+    "renderedHash": "736abb51b0bfb23b0f4a1d8a84f5abb05c64a14b0f5ad760ed1fe41ca127fcff",
+    "storeUpdatedAt": "2026-09-17T01:19:53.557Z",
+    "rootHash": "88e156479cba7214"
   },
   "files": {
     "CLAUDE.md": {
@@ -521,11 +521,11 @@
     },
     "pcs-backend/app/api/v1/__init__.py": {
       "description": "",
-      "tokens": 738,
-      "hash": "ad515665ba0648bb",
-      "size": 2581,
-      "mtimeMs": 1789604685344.5735,
-      "updatedAt": "2026-09-17T00:24:45.394Z",
+      "tokens": 814,
+      "hash": "14427e7918cc10ae",
+      "size": 2847,
+      "mtimeMs": 1789607629872.7202,
+      "updatedAt": "2026-09-17T01:13:49.927Z",
       "source": "hook"
     },
     "pcs-backend/tests/__init__.py": {
@@ -2198,200 +2198,207 @@
     },
     "pcs-backend/tests/conftest.py": {
       "description": "Sprint 1 + P2 共享测试 fixtures。",
-      "tokens": 3376,
-      "hash": "c561256d7cc5446f",
-      "size": 12586,
-      "mtimeMs": 1788924391843.9163,
-      "updatedAt": "2026-09-09T03:26:31.910Z",
+      "tokens": 3748,
+      "hash": "06c1d6aee0329825",
+      "size": 14013,
+      "mtimeMs": 1789607993500.0798,
+      "updatedAt": "2026-09-17T01:19:53.547Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "_visit_create_column",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 63,
+          "tokens": 81
+        },
+        {
           "name": "_visit_text_nolen",
           "kind": "fn",
-          "startLine": 51,
-          "endLine": 73,
+          "startLine": 64,
+          "endLine": 86,
           "tokens": 234
         },
         {
           "name": "db_engine",
           "kind": "fn",
-          "startLine": 74,
-          "endLine": 86,
-          "tokens": 94
+          "startLine": 87,
+          "endLine": 117,
+          "tokens": 316
         },
         {
           "name": "db_session",
           "kind": "fn",
-          "startLine": 87,
-          "endLine": 95,
+          "startLine": 118,
+          "endLine": 126,
           "tokens": 100
         },
         {
           "name": "user_id",
           "kind": "fn",
-          "startLine": 96,
-          "endLine": 100,
+          "startLine": 127,
+          "endLine": 131,
           "tokens": 20
         },
         {
           "name": "owner_id",
           "kind": "fn",
-          "startLine": 101,
-          "endLine": 105,
+          "startLine": 132,
+          "endLine": 136,
           "tokens": 20
         },
         {
           "name": "project_id",
           "kind": "fn",
-          "startLine": 106,
-          "endLine": 110,
+          "startLine": 137,
+          "endLine": 141,
           "tokens": 23
         },
         {
           "name": "client",
           "kind": "fn",
-          "startLine": 111,
-          "endLine": 133,
+          "startLine": 142,
+          "endLine": 164,
           "tokens": 223
         },
         {
           "name": "_avoid_real_db_probe",
           "kind": "fn",
-          "startLine": 134,
-          "endLine": 151,
+          "startLine": 165,
+          "endLine": 182,
           "tokens": 168
         },
         {
           "name": "db",
           "kind": "fn",
-          "startLine": 152,
-          "endLine": 157,
+          "startLine": 183,
+          "endLine": 188,
           "tokens": 42
         },
         {
           "name": "actor",
           "kind": "fn",
-          "startLine": 158,
-          "endLine": 163,
+          "startLine": 189,
+          "endLine": 194,
           "tokens": 27
         },
         {
           "name": "pc_actor",
           "kind": "fn",
-          "startLine": 164,
-          "endLine": 169,
+          "startLine": 195,
+          "endLine": 200,
           "tokens": 31
         },
         {
           "name": "designer_actor",
           "kind": "fn",
-          "startLine": 170,
-          "endLine": 175,
+          "startLine": 201,
+          "endLine": 206,
           "tokens": 32
         },
         {
           "name": "make_asset",
           "kind": "fn",
-          "startLine": 176,
-          "endLine": 222,
+          "startLine": 207,
+          "endLine": 253,
           "tokens": 373
         },
         {
           "name": "_latest_version",
           "kind": "fn",
-          "startLine": 223,
-          "endLine": 233,
+          "startLine": 254,
+          "endLine": 264,
           "tokens": 107
         },
         {
           "name": "sample_draft_asset",
           "kind": "fn",
-          "startLine": 234,
-          "endLine": 238,
+          "startLine": 265,
+          "endLine": 269,
           "tokens": 42
         },
         {
           "name": "sample_pending_asset",
           "kind": "fn",
-          "startLine": 239,
-          "endLine": 243,
+          "startLine": 270,
+          "endLine": 274,
           "tokens": 44
         },
         {
           "name": "sample_pending_asset_c3",
           "kind": "fn",
-          "startLine": 244,
-          "endLine": 248,
+          "startLine": 275,
+          "endLine": 279,
           "tokens": 51
         },
         {
           "name": "sample_approved_formula_asset",
           "kind": "fn",
-          "startLine": 249,
-          "endLine": 266,
+          "startLine": 280,
+          "endLine": 297,
           "tokens": 178
         },
         {
           "name": "sample_approved_formula_with_preconditions",
           "kind": "fn",
-          "startLine": 267,
-          "endLine": 289,
+          "startLine": 298,
+          "endLine": 320,
           "tokens": 239
         },
         {
           "name": "sample_approved_formula_failing_precondition",
           "kind": "fn",
-          "startLine": 290,
-          "endLine": 312,
+          "startLine": 321,
+          "endLine": 343,
           "tokens": 239
         },
         {
           "name": "sample_approved_formula_with_failing_test",
           "kind": "fn",
-          "startLine": 313,
-          "endLine": 331,
+          "startLine": 344,
+          "endLine": 362,
           "tokens": 211
         },
         {
           "name": "sample_published_asset",
           "kind": "fn",
-          "startLine": 332,
-          "endLine": 336,
+          "startLine": 363,
+          "endLine": 367,
           "tokens": 45
         },
         {
           "name": "sample_two_version_asset",
           "kind": "fn",
-          "startLine": 337,
-          "endLine": 351,
+          "startLine": 368,
+          "endLine": 382,
           "tokens": 120
         },
         {
           "name": "sample_sequence",
           "kind": "fn",
-          "startLine": 352,
-          "endLine": 365,
+          "startLine": 383,
+          "endLine": 396,
           "tokens": 92
         },
         {
           "name": "sample_user_token",
           "kind": "fn",
-          "startLine": 366,
-          "endLine": 371,
+          "startLine": 397,
+          "endLine": 402,
           "tokens": 50
         },
         {
           "name": "sample_pc_token",
           "kind": "fn",
-          "startLine": 372,
-          "endLine": 377,
+          "startLine": 403,
+          "endLine": 408,
           "tokens": 47
         },
         {
           "name": "sample_designer_token",
           "kind": "fn",
-          "startLine": 378,
-          "endLine": 380,
+          "startLine": 409,
+          "endLine": 411,
           "tokens": 40
         }
       ]
@@ -22793,32 +22800,32 @@
     },
     "pcs-backend/app/services/outlet_stream.py": {
       "description": "P4-1-3 出口物流创建 helper（ADR-0022 集成点）。",
-      "tokens": 1431,
-      "hash": "29e0fd2f845a6bce",
-      "size": 5822,
-      "mtimeMs": 1789604640902.3728,
-      "updatedAt": "2026-09-17T00:24:00.961Z",
+      "tokens": 1477,
+      "hash": "ae075533c1e4d121",
+      "size": 5993,
+      "mtimeMs": 1789607528850.4724,
+      "updatedAt": "2026-09-17T01:12:08.902Z",
       "source": "hook",
       "symbols": [
         {
           "name": "OutletStreamProjectMismatchError",
           "kind": "class",
-          "startLine": 49,
-          "endLine": 70,
-          "tokens": 189
+          "startLine": 52,
+          "endLine": 74,
+          "tokens": 197
         },
         {
           "name": "_upstream_equipment_type",
           "kind": "fn",
-          "startLine": 71,
-          "endLine": 80,
+          "startLine": 75,
+          "endLine": 84,
           "tokens": 82
         },
         {
           "name": "create_outlet_stream",
           "kind": "fn",
-          "startLine": 81,
-          "endLine": 161,
+          "startLine": 85,
+          "endLine": 165,
           "tokens": 748
         }
       ]
@@ -24254,11 +24261,11 @@
     },
     "pcs-backend/app/services/psv/__init__.py": {
       "description": "P5-3 PSV 安全阀模块。",
-      "tokens": 850,
-      "hash": "6cd410ca5712163d",
-      "size": 3105,
-      "mtimeMs": 1789607322779.0413,
-      "updatedAt": "2026-09-17T01:08:42.825Z",
+      "tokens": 877,
+      "hash": "2984290bf46ca1af",
+      "size": 3197,
+      "mtimeMs": 1789607585533.7285,
+      "updatedAt": "2026-09-17T01:13:05.584Z",
       "source": "hook"
     },
     "pcs-backend/app/services/psv/fire_case_service.py": {
@@ -25368,6 +25375,404 @@
           "startLine": 226,
           "endLine": 250,
           "tokens": 221
+        }
+      ]
+    },
+    "pcs-backend/app/services/psv/psv_persist.py": {
+      "description": "P5-3-6 PSV 计算落库 + outlet 流（service 层）。",
+      "tokens": 3975,
+      "hash": "6892b8a1738307e3",
+      "size": 14862,
+      "mtimeMs": 1789607581567.6401,
+      "updatedAt": "2026-09-17T01:13:01.623Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_generate_tag_number",
+          "kind": "fn",
+          "startLine": 88,
+          "endLine": 95,
+          "tokens": 61
+        },
+        {
+          "name": "_dataclass_to_dict",
+          "kind": "fn",
+          "startLine": 96,
+          "endLine": 100,
+          "tokens": 38
+        },
+        {
+          "name": "_formula_ref_to_dict",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 109,
+          "tokens": 79
+        },
+        {
+          "name": "_default_standard_refs",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 133,
+          "tokens": 166
+        },
+        {
+          "name": "_resolve_standard_profile",
+          "kind": "fn",
+          "startLine": 134,
+          "endLine": 172,
+          "tokens": 397
+        },
+        {
+          "name": "_infer_default_version",
+          "kind": "fn",
+          "startLine": 173,
+          "endLine": 185,
+          "tokens": 112
+        },
+        {
+          "name": "_dispatch_scenario_calc",
+          "kind": "fn",
+          "startLine": 186,
+          "endLine": 242,
+          "tokens": 604
+        },
+        {
+          "name": "persist_psv_calculate",
+          "kind": "fn",
+          "startLine": 243,
+          "endLine": 417,
+          "tokens": 1765
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/psv.py": {
+      "description": "P5-3-6 PSV API：POST /calculate 端点契约。",
+      "tokens": 1829,
+      "hash": "70dd1ebe088b359b",
+      "size": 6845,
+      "mtimeMs": 1789607601647.0881,
+      "updatedAt": "2026-09-17T01:13:21.692Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "CalculateRequest",
+          "kind": "class",
+          "startLine": 54,
+          "endLine": 90,
+          "tokens": 351
+        },
+        {
+          "name": "CalculateResponse",
+          "kind": "class",
+          "startLine": 91,
+          "endLine": 113,
+          "tokens": 257
+        },
+        {
+          "name": "_to_http",
+          "kind": "fn",
+          "startLine": 114,
+          "endLine": 122,
+          "tokens": 102
+        },
+        {
+          "name": "_lineage_ids",
+          "kind": "fn",
+          "startLine": 123,
+          "endLine": 151,
+          "tokens": 216
+        },
+        {
+          "name": "calculate_psv",
+          "kind": "fn",
+          "startLine": 152,
+          "endLine": 192,
+          "tokens": 400
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/psv_standard_profiles.py": {
+      "description": "P5-3-6 PSV 项目标准配置 API。",
+      "tokens": 2496,
+      "hash": "ad00ca630f37d50f",
+      "size": 9412,
+      "mtimeMs": 1789607835004.3943,
+      "updatedAt": "2026-09-17T01:17:15.055Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "StandardProfileResponse",
+          "kind": "class",
+          "startLine": 56,
+          "endLine": 81,
+          "tokens": 303
+        },
+        {
+          "name": "UpsertStandardProfileRequest",
+          "kind": "class",
+          "startLine": 82,
+          "endLine": 106,
+          "tokens": 206
+        },
+        {
+          "name": "_to_http",
+          "kind": "fn",
+          "startLine": 107,
+          "endLine": 114,
+          "tokens": 84
+        },
+        {
+          "name": "_serialize_profile",
+          "kind": "fn",
+          "startLine": 115,
+          "endLine": 141,
+          "tokens": 265
+        },
+        {
+          "name": "get_psv_standard_profile",
+          "kind": "fn",
+          "startLine": 142,
+          "endLine": 180,
+          "tokens": 378
+        },
+        {
+          "name": "upsert_psv_standard_profile",
+          "kind": "fn",
+          "startLine": 181,
+          "endLine": 257,
+          "tokens": 757
+        }
+      ]
+    },
+    "pcs-backend/tests/services/psv/test_psv_persist.py": {
+      "description": "P5-3-6 PSV 落库 service dispatcher + helpers 单元测试。",
+      "tokens": 2065,
+      "hash": "5e6c5b6fd51e7367",
+      "size": 7572,
+      "mtimeMs": 1789607649158.154,
+      "updatedAt": "2026-09-17T01:14:09.213Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_default_standard_refs_api_path",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 46,
+          "tokens": 190
+        },
+        {
+          "name": "test_dispatch_fire_case",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 69,
+          "tokens": 222
+        },
+        {
+          "name": "test_dispatch_closed_valve",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 86,
+          "tokens": 159
+        },
+        {
+          "name": "test_dispatch_reaction_runaway",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 105,
+          "tokens": 200
+        },
+        {
+          "name": "test_dispatch_thermal_expansion",
+          "kind": "fn",
+          "startLine": 106,
+          "endLine": 126,
+          "tokens": 218
+        },
+        {
+          "name": "test_dispatch_invalid_scenario_raises",
+          "kind": "fn",
+          "startLine": 127,
+          "endLine": 141,
+          "tokens": 137
+        },
+        {
+          "name": "test_dispatch_gb_v2024",
+          "kind": "fn",
+          "startLine": 142,
+          "endLine": 165,
+          "tokens": 238
+        },
+        {
+          "name": "test_dispatcher_to_aggregate_to_area_to_orifice",
+          "kind": "fn",
+          "startLine": 166,
+          "endLine": 217,
+          "tokens": 477
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_psv_api.py": {
+      "description": "P5-3-6 PSV API + 落库 + outlet_stream + 标准 profile 集成测试。",
+      "tokens": 5210,
+      "hash": "3d1d51bb6cd9d051",
+      "size": 18711,
+      "mtimeMs": 1789607950016.0635,
+      "updatedAt": "2026-09-17T01:19:10.066Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "make_project",
+          "kind": "fn",
+          "startLine": 46,
+          "endLine": 70,
+          "tokens": 191
+        },
+        {
+          "name": "checked_stream",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 94,
+          "tokens": 207
+        },
+        {
+          "name": "draft_stream",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 117,
+          "tokens": 192
+        },
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 118,
+          "endLine": 123,
+          "tokens": 52
+        },
+        {
+          "name": "pc_headers",
+          "kind": "fn",
+          "startLine": 124,
+          "endLine": 131,
+          "tokens": 65
+        },
+        {
+          "name": "_fire_body",
+          "kind": "fn",
+          "startLine": 132,
+          "endLine": 156,
+          "tokens": 204
+        },
+        {
+          "name": "_closed_valve_body",
+          "kind": "fn",
+          "startLine": 157,
+          "endLine": 175,
+          "tokens": 151
+        },
+        {
+          "name": "_reaction_runaway_body",
+          "kind": "fn",
+          "startLine": 176,
+          "endLine": 192,
+          "tokens": 134
+        },
+        {
+          "name": "_thermal_expansion_body",
+          "kind": "fn",
+          "startLine": 193,
+          "endLine": 219,
+          "tokens": 237
+        },
+        {
+          "name": "test_calculate_psv_fire_happy_path",
+          "kind": "fn",
+          "startLine": 220,
+          "endLine": 259,
+          "tokens": 434
+        },
+        {
+          "name": "test_calculate_psv_fire_db_record",
+          "kind": "fn",
+          "startLine": 260,
+          "endLine": 305,
+          "tokens": 488
+        },
+        {
+          "name": "test_calculate_psv_4_scenarios",
+          "kind": "fn",
+          "startLine": 306,
+          "endLine": 328,
+          "tokens": 226
+        },
+        {
+          "name": "test_calculate_psv_draft_stream_403",
+          "kind": "fn",
+          "startLine": 329,
+          "endLine": 342,
+          "tokens": 115
+        },
+        {
+          "name": "test_calculate_psv_stream_not_found_404",
+          "kind": "fn",
+          "startLine": 343,
+          "endLine": 357,
+          "tokens": 120
+        },
+        {
+          "name": "test_calculate_psv_invalid_scenario_422",
+          "kind": "fn",
+          "startLine": 358,
+          "endLine": 378,
+          "tokens": 192
+        },
+        {
+          "name": "test_calculate_psv_lineage_recorded",
+          "kind": "fn",
+          "startLine": 379,
+          "endLine": 408,
+          "tokens": 266
+        },
+        {
+          "name": "test_calculate_psv_outlet_psv_calculated",
+          "kind": "fn",
+          "startLine": 409,
+          "endLine": 434,
+          "tokens": 284
+        },
+        {
+          "name": "test_get_psv_standard_profile_empty",
+          "kind": "fn",
+          "startLine": 435,
+          "endLine": 453,
+          "tokens": 174
+        },
+        {
+          "name": "test_post_psv_standard_profile_api",
+          "kind": "fn",
+          "startLine": 454,
+          "endLine": 496,
+          "tokens": 394
+        },
+        {
+          "name": "test_post_psv_standard_profile_custom_422",
+          "kind": "fn",
+          "startLine": 497,
+          "endLine": 516,
+          "tokens": 168
+        },
+        {
+          "name": "test_post_psv_standard_profile_designer_forbidden",
+          "kind": "fn",
+          "startLine": 517,
+          "endLine": 539,
+          "tokens": 204
+        },
+        {
+          "name": "test_get_psv_standard_profile_after_post",
+          "kind": "fn",
+          "startLine": 540,
+          "endLine": 569,
+          "tokens": 271
         }
       ]
     }

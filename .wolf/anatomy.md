@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-17T01:10:42.421Z
-> Files: 653 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-17T01:19:53.547Z
+> Files: 658 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -238,7 +238,7 @@
 
 ## pcs-backend/app/api/v1/
 
-- `__init__.py` (~738 tok)
+- `__init__.py` (~814 tok)
 - `auth.py` — POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。 (~994 tok)
 - `change_impact.py` — Change Impact API（Sprint 3）。 (~579 tok)
 - `checklist.py` — Checklist API（Sprint 1）。 (~641 tok)
@@ -252,6 +252,8 @@
 - `mock_auth.py` — Mock 登录：仅 env != production 时挂载。固定 4 个角色账号，无 LDAP 依赖。 (~456 tok)
 - `pipe_classes.py` — 管道等级端点（Task 1.9.2 / P2-STD-001）。 (~3878 tok)
 - `pipe_codes.py` — 管道代码 API（FMT-4 / SUP-002 §11.5/§12）。 (~3027 tok)
+- `psv_standard_profiles.py` — P5-3-6 PSV 项目标准配置 API。 (~2496 tok)
+- `psv.py` — P5-3-6 PSV API：POST /calculate 端点契约。 (~1829 tok)
 - `records.py` — Records API（Sprint 2）。 (~2338 tok)
 - `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1470 tok)
 - `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~3677 tok)
@@ -350,7 +352,7 @@
 - `lineage.py` — 血缘追踪（Sprint 3）。 (~2720 tok)
 - `meta_service.py` — Meta API 服务层 — 枚举字典 + 状态机 + 权限码 + 错误码（P4.5 V1.1）。 (~3784 tok)
 - `numbering_service.py` — NumberingService — 文档编号原子自增 + UNIQUE 约束防并发（Task 2.7）。 (~757 tok)
-- `outlet_stream.py` — P4-1-3 出口物流创建 helper（ADR-0022 集成点）。 (~1431 tok)
+- `outlet_stream.py` — P4-1-3 出口物流创建 helper（ADR-0022 集成点）。 (~1477 tok)
 - `petroleum_service.py` — PetroleumService — 炼油馏分物性估算 + 虚拟组分切割（Task 1.9.3 / ADR-0019）。 (~1199 tok)
 - `pipe_class_import_service.py` — SUP-002 PC-5：管道等级 Excel 双 Sheet + 验证引擎 + import_id 暂存。 (~3990 tok)
 - `pipe_class_service.py` — PipeClassService — 管道等级 CRUD + 项目分配（Task 1.9.1 / P2-STD-001）。 (~7077 tok)
@@ -386,11 +388,12 @@
 
 ## pcs-backend/app/services/psv/
 
-- `__init__.py` — P5-3 PSV 安全阀模块。 (~850 tok)
+- `__init__.py` — P5-3 PSV 安全阀模块。 (~877 tok)
 - `breathing_valve_service.py` — P5-3-5 PSV 呼吸阀（API 2000 Venting Atmospheric and Low-Pressure Storage Tanks）。 (~1418 tok)
 - `fire_case_service.py` — P5-3-1 PSV 火灾工况计算（API 521 7th + GB/T 150.1 2011/2024 双路径）。 (~2493 tok)
 - `orifice_service.py` — P5-3-5 PSV 选型（API 526 标准孔口表 D~T）。 (~1189 tok)
 - `other_cases_service.py` — P5-3-2 PSV 其他工况（阀门关闭 + 反应失控 + 热膨胀）。 (~1960 tok)
+- `psv_persist.py` — P5-3-6 PSV 计算落库 + outlet 流（service 层）。 (~3975 tok)
 - `relief_aggregator_service.py` — P5-3-3 PSV 多工况叠加聚合。 (~982 tok)
 - `relief_area_service.py` — P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 双路径 + ω 法两相流）。 (~2847 tok)
 
@@ -425,7 +428,7 @@
 - `__init__.py` — tests package marker (~7 tok)
 - `_debug_hash_diff_test.py` — Test wrapper to run the debug function. (~63 tok)
 - `_debug_hash_diff.py` — Debug: find fields that differ between in-memory and re-loaded pipe. (~720 tok)
-- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~3376 tok)
+- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~3748 tok)
 - `test_arq_failure.py` — ARQ worker failure 路径测试：cleanup_expired_workspaces 应捕获并记录异常。 (~779 tok)
 - `test_audit.py` — Audit 测试：AuditAction 长度 + AuditService 写入。 (~540 tok)
 - `test_auth.py` — auth API 单元测试。Mock LDAP 通过 monkey-patching app.services.ldap_client.authenticate。 (~1334 tok)
@@ -455,6 +458,7 @@
 - `test_pipe_class_config_flow.py` — SUP-002 PC-3: 管道等级 + ConfigAsset 5 态接入（V1.4 §0.5/§2.1/§3.1）。 (~2074 tok)
 - `test_pipe_classes.py` — 管道等级 API 测试（Task 1.9.2 / spec §3.2.5 5 端点 + 删除/分配）。 (~3579 tok)
 - `test_pipe_codes.py` — 管道代码 API 集成测试（FMT-4）。 (~2729 tok)
+- `test_psv_api.py` — P5-3-6 PSV API + 落库 + outlet_stream + 标准 profile 集成测试。 (~5210 tok)
 - `test_sep_equip.py` — P5-2-4 SEP_EQUIP API 集成测试。 (~2648 tok)
 - `test_sim_imports_query_endpoints.py` — P3.x SIM-27: 9 类 sim imports 查询端点 测试。 (~3304 tok)
 - `test_sim_imports_template_endpoint.py` — P3.x SIM-25：GET /imports/excel/template 模板下载端点测试。 (~1736 tok)
@@ -632,6 +636,7 @@
 - `test_fire_case.py` — P5-3-1 PSV 火灾工况（API 521 7th + GB/T 150.1 2011/2024 双路径）测试。 (~3611 tok)
 - `test_orifice_breathing.py` — P5-3-5 PSV 选型（API 526 孔口表 D~T）+ 呼吸阀（API 2000）测试。 (~2273 tok)
 - `test_other_cases.py` — P5-3-2 PSV 其他工况（阀门关闭 + 反应失控 + 热膨胀）测试。 (~2758 tok)
+- `test_psv_persist.py` — P5-3-6 PSV 落库 service dispatcher + helpers 单元测试。 (~2065 tok)
 - `test_relief_aggregator.py` — P5-3-3 PSV 多工况叠加聚合测试。 (~1923 tok)
 - `test_relief_area.py` — P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 + ω 法两相流）测试。 (~3487 tok)
 

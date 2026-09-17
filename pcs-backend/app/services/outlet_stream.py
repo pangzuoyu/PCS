@@ -6,6 +6,8 @@
 - P4-3-3 PIPE_NET 管网（_NET_CALCULATED 后缀；P4-3-3 扩 Literal）
 - P4-4-4 PUMP 计算链（PUMP_CALCULATED）
 - **P5-1-4 VESSEL**（VESSEL_CALCULATED）— ADR-0032 V1.1 决策 6
+- **P5-2-4 SEP_EQUIP**（SEP_EQUIP_CALCULATED）
+- **P5-3-6 PSV**（PSV_CALCULATED）— ADR-0028 V1.1 + SUP-P5-PSV-001
 
 设计要点：
 - 独立可调用：不依赖 flash_persist；只接 db + 元数据
@@ -43,6 +45,7 @@ OutletSourceType = Literal[
     "PIPE_NET_CALCULATED",
     "VESSEL_CALCULATED",
     "SEP_EQUIP_CALCULATED",
+    "PSV_CALCULATED",
 ]
 
 
@@ -65,6 +68,7 @@ _EQUIP_TYPE_MAP: dict[str, str] = {
     "PIPE_NET_CALCULATED": "PIPE_NET",
     "VESSEL_CALCULATED": "VESSEL",
     "SEP_EQUIP_CALCULATED": "SEP_EQUIP",
+    "PSV_CALCULATED": "PSV",
 }
 
 
