@@ -209,6 +209,12 @@ export function PsvRoute(): JSX.Element {
   return <PsvComputePage streams={[]} projectStandard="API" />;
 }
 
+// === P5-4 HEAT ===
+import { HeatComputePage } from './heat/HeatComputePage';
+export function HeatRoute(): JSX.Element {
+  return <HeatComputePage />;
+}
+
 // === P5-3 PSV 项目标准配置 ===
 export function PsvStandardProfileRoute(): JSX.Element {
   return <PsvStandardProfilePage projectId={PROJECT_ID} />;

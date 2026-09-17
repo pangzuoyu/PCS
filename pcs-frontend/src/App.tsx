@@ -14,6 +14,7 @@ import {
   CoefficientEditorRoute,
   FlashRoute,
   FormulaEditorRoute,
+  HeatRoute,
   ImportWizardRoute,
   PipeClassListRoute,
   PipeLineListRoute,
@@ -80,6 +81,7 @@ const router = createBrowserRouter([
       { path: 'sep-equip', element: <SepEquipRoute /> },
       { path: 'psv', element: <PsvRoute /> },
       { path: 'psv/standard-profile', element: <PsvStandardProfileRoute /> },
+      { path: 'heat', element: <HeatRoute /> },
 
       // 项目文档 / 向导
       { path: 'pms', element: <PmsRoute /> },
