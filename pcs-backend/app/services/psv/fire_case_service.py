@@ -50,10 +50,11 @@ class FireCaseInput:
 
     物理量 SI 单位：
       - D_m: 容器直径 m
-      - H_m: 容器高度/长度 m
+      - H_m: 容器高度（VERTICAL）/长度（HORIZONTAL）m
       - liquid_level_fraction: 液位占容器高度的比例 [0, 1]
       - environment_factor_F: 环境因子（API 521 取 1.0；GB 按 §附录 B 取值）
       - h_fg_j_per_kg: 气化潜热 J/kg（350 kJ/kg 仅作测试用例输入值，API 521 保守下限 115 kJ/kg）
+      - vessel_type: 容器型式 VERTICAL / HORIZONTAL（API 521 §5.15.2.2.1 不同润湿面公式）
     """
 
     D_m: float
@@ -61,6 +62,7 @@ class FireCaseInput:
     liquid_level_fraction: float
     environment_factor_F: float
     h_fg_j_per_kg: float
+    vessel_type: str = "VERTICAL"  # VERTICAL / HORIZONTAL（API 521 §5.15.2.2.1）
 
 
 @dataclass(frozen=True)
@@ -155,9 +157,21 @@ def calc_fire_case_api521(inp: FireCaseInput) -> FireCaseResult:
 
     C 值（21,000 / 34,500 BTU/(hr·ft²)）仅作 SI 链交叉验证用，
     不参与主链计算（V1.6 明确：英制 C 值与 SI 公式 63,600 无简单换算关系）。
+
+    API 521 §5.15.2.2.1：VERTICAL 与 HORIZONTAL 容器润湿面积公式不同。
+    HORIZONTAL 含封头曲面 + 液位修正（_wetted_area_horizontal_with_liquid）。
     """
     _validate(inp)
-    A_w = _wetted_area_vertical(inp)
+    # API 521 §5.15.2.2.1 vessel_type 路由：VERTICAL / HORIZONTAL 不同公式
+    if inp.vessel_type == "HORIZONTAL":
+        A_w = _wetted_area_horizontal_with_liquid(inp)
+    elif inp.vessel_type == "VERTICAL":
+        A_w = _wetted_area_vertical(inp)
+    else:
+        raise PsvFireCaseInputError(
+            f"vessel_type={inp.vessel_type} 不支持（VERTICAL / HORIZONTAL）",
+            details={"vessel_type": inp.vessel_type},
+        )
     heat_input_w = (
         _API521_SI_COEFFICIENT
         * (A_w ** _API521_EXPONENT)

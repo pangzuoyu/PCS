@@ -1397,6 +1397,25 @@
       "last_seen": "2026-09-18",
       "severity": "CRITICAL",
       "fix_commit": "TBD (this commit)"
+    },
+    {
+      "id": "bug-087",
+      "timestamp": "2026-09-18T11:40:00Z",
+      "error_message": "calc_fire_case_api521 永远走 _wetted_area_vertical；HORIZONTAL 容器用立式公式 → 润湿面积偏大/偏小（PSV 选型偏差，安全违规）",
+      "file": "pcs-backend/app/services/psv/fire_case_service.py:152-167",
+      "root_cause": "ce-code-review P0..P5 全量审查发现（C5）。calc_fire_case_api521 中 A_w 永远取 _wetted_area_vertical(inp)，HORIZONTAL 容器分支未实现。_wetted_area_horizontal_with_liquid 已存在但无人调用。FireCaseInput 也无 vessel_type 字段",
+      "fix": "(1) FireCaseInput 加 vessel_type 字段（默认 VERTICAL 兼容老调用）；(2) calc_fire_case_api521 按 vessel_type 路由 VERTICAL→_wetted_area_vertical / HORIZONTAL→_wetted_area_horizontal_with_liquid；(3) 非法 vessel_type → raise PsvFireCaseInputError；(4) 3 测试：HORIZONTAL≠VERTICAL + 全充满公式 + 非法 vessel_type",
+      "tags": [
+        "ce-code-review",
+        "P5-PSV",
+        "API-521-5.15.2.2.1",
+        "vessel-type",
+        "C5"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-18",
+      "severity": "CRITICAL",
+      "fix_commit": "TBD (this commit)"
     }
   ]
 }

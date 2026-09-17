@@ -346,3 +346,61 @@ def test_h_fg_zero_raises():
     with pytest.raises(Exception) as exc_info:
         calc_fire_case_api521(inp)
     assert "h_fg" in str(exc_info.value)
+
+# ============================================================================
+# C5: API 521 卧式容器润湿面积（SUP-P5-PSV-001 §5.15.2.2.1；ce-code-review P0..P5 C5）
+# ============================================================================
+
+
+def test_fire_case_api521_horizontal_uses_horizontal_formula():
+    """HORIZONTAL 容器走卧式公式：cylinder side + heads（API 521 §5.15.2.2.1）。
+
+    D=1.5, H=5.0, f=0.5：
+      VERTICAL: A_w = π × 1.5 × 5.0 = 23.56 m²
+      HORIZONTAL: A_w = π × 1.5 × 5.0 × 0.5 + 2 × π × 0.75² × 0.5
+                       = 11.78 + 1.767 = 13.55 m²
+      HORIZONTAL < VERTICAL（卧式封头折算比例小）
+    """
+    from app.services.psv.fire_case_service import FireCaseInput, calc_fire_case_api521
+
+    base = dict(D_m=1.5, H_m=5.0, liquid_level_fraction=0.5,
+                environment_factor_F=1.0, h_fg_j_per_kg=350_000.0)
+    r_v = calc_fire_case_api521(FireCaseInput(**base, vessel_type="VERTICAL"))
+    r_h = calc_fire_case_api521(FireCaseInput(**base, vessel_type="HORIZONTAL"))
+
+    assert r_v.wetted_area_m2 > 0
+    assert r_h.wetted_area_m2 > 0
+    # HORIZONTAL 必须 ≠ VERTICAL（防止 ce-code-review C5：永远走立式公式）
+    assert r_h.wetted_area_m2 != r_v.wetted_area_m2
+    # HORIZONTAL < VERTICAL（卧式封头折算比例 < 立式全柱面）
+    assert r_h.wetted_area_m2 < r_v.wetted_area_m2
+
+
+def test_fire_case_api521_horizontal_full_fill_equals_full_cylinder():
+    """HORIZONTAL 全充满（f=1）→ A_w = πDL + 2 × π/4 × D²（满柱 + 整封头）。"""
+    from app.services.psv.fire_case_service import FireCaseInput, calc_fire_case_api521
+
+    inp = FireCaseInput(
+        D_m=2.0, H_m=4.0, liquid_level_fraction=1.0,
+        environment_factor_F=1.0, h_fg_j_per_kg=350_000.0,
+        vessel_type="HORIZONTAL",
+    )
+    r = calc_fire_case_api521(inp)
+    import math
+    expected = math.pi * 2.0 * 4.0 + 2 * math.pi * (2.0 / 2) ** 2
+    assert math.isclose(r.wetted_area_m2, expected, rel_tol=1e-6)
+
+
+def test_fire_case_api521_invalid_vessel_type_raises():
+    """vessel_type='CUBIC' → PsvFireCaseInputError。"""
+    from app.services.psv.fire_case_service import (
+        FireCaseInput, PsvFireCaseInputError, calc_fire_case_api521,
+    )
+
+    inp = FireCaseInput(
+        D_m=1.0, H_m=2.0, liquid_level_fraction=0.5,
+        environment_factor_F=1.0, h_fg_j_per_kg=350_000.0,
+        vessel_type="CUBIC",
+    )
+    with pytest.raises(PsvFireCaseInputError):
+        calc_fire_case_api521(inp)
