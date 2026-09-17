@@ -8,6 +8,41 @@ budget_tokens: 1500
 
 ---
 
+## ✅ Done (P5-OPEN-10 SUP-P5-PSV-002 V1.14 后端契约扩展闭环 — 2026-09-17)
+
+- **10 commits + 30+ 新测试 + 13 PcsError 子类 + 18 列迁移 + 4 阶段 Kb + 6 波纹管矩阵**
+  - 落地状态：`spec/SUP-P5-PSV-002-V1.14-STATUS.md`
+  - commit 序列：
+    `adacd33` cdtp → `25fbf25` bellows_compat → `522f2f2` kb_service →
+    `d0aa5eb` exceptions → `f1fcc19` valve_validation → `41442cd` PsvResult ORM →
+    `a3e9471` alembic 迁移 → `dcce671` CalculateRequest 扩展 →
+    `<task 11>` psv_persist 落库 → `<task 12>` API 集成 + 8 测试
+- **13 PcsError 子类**：G7 PILOT / G8 RUPTURE / G9 ORIFICE_OVERRIDE_TOO_SMALL /
+  G10 BACK_PRESSURE / G11 BLOWDOWN / G12 INLET_OUTLET_MISMATCH /
+  G13 MATERIAL_INCOMPATIBLE / G14 INLET_TOO_SMALL / G15 ORIFICE_TEMPERATURE_LIMIT /
+  G17 BELLOWS_MATERIAL_REQUIRED / G20 FLANGE_CLASS_ORIFICE_MISMATCH /
+  G21 BELLOWS_INCOMPATIBLE / PSV_INLET_OUTLET_REQUIRED
+- **PsvResult +18 列 + 3 CHECK**（§3.1）：valve_type / body_material /
+  bellows_material / flange_class / back_pressure_type / back_pressure_pct /
+  overpressure_pct / kb_factor / kb_source / valve_brand / cdtp_applied /
+  orifice_overridden / orifice_manual / rupture_disc_position /
+  rupture_disc_kc / pilot_temperature_c / pilot_temp_class / fire_protection
+- **Kb 4 阶段策略**（§4.3）：none（PILOT 走 EN 4126）→ brand（厂商曲线 +
+  线性插值）→ mixed（多厂商最低档）→ conservative fallback（api520_fig30）
+- **6 波纹管材料兼容矩阵**（§3.8）：HASTELLOY_C276 / SS316L / INCONEL_625 /
+  INCONEL_718 / ALLOY_400 / ALLOY_C22 × forbidden 条件
+- **前端 V1.14 已先期落地**（commit `3657b57`，15 tests）—— 契约扩展后端端到端通
+- **合成 _KB_DATA 标记** `# SYNTHETIC_TEST_DATA` —— P5-3 启动后工艺工程师替换
+- **后续待办**（P5-3 接管）：
+  - OPEN-10-1 API526_FLANGE_CLASS_ORIFICE_LIMITS 84 组合
+  - OPEN-10-2 真实 Kb 厂商数据
+  - OPEN-10-3 +50~60 测试余项
+  - OPEN-10-4 CRYOGENIC 型号（OPEN-18）/ API 521 FIRE+PILOT 章节号（OPEN-19）
+  - OPEN-10-5 65 psig T 孔口 150# 警告（OPEN-20）
+  - OPEN-10-6 record_hash 含新字段回归验证
+
+---
+
 ## ✅ Done (P3.x sprint 全闭环 — 2026-09-13)
 
 - **27 task (SIM-14~SIM-40) + V1.0 变更管理 4 task 全部 completed**
