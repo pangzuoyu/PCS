@@ -1421,6 +1421,120 @@ GET ACL:  DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
 - 403 STREAM_NOT_CHECKED
 - 404 SIM_STREAM_NOT_FOUND
 
+7.11.6 HEAT
+
+按 PCS-PLAN-P5-DEVICE-EQUIPMENT.md §419-517 + ADR-0027 V1.0 + 后端 commit 96165e1。
+
+设计阶段：单层（无 BASIC/DETAIL 分级；HTRI 导入本身即 DETAIL 级，HeatResult 模型不含 design_stage 字段，VESSEL/PSV/COLUMN 三表 design_stage 下沉不覆盖 HEAT — 详 pcs-backend/app/models/calc.py:456 HeatResult）。
+
+输入（POST /api/v1/heat/import-htri，multipart/form-data）：
+
+```text
+file (UploadFile .txt, required)               — HTRI Xist v6.0 输出
+project_id (UUID, required)
+workspace_id (UUID, required)
+equipment_no (string, required)                — 设备位号（如 E-201）
+tag_number (string, required)                  — HeatResult.tag_number（NOT NULL 约束）
+exchanger_category (enum, required)             — SHELL_TUBE / AIR_COOL / PLATE
+equipment_name (string?, optional)             — 默认用 htri.case_name
+source_stream_id (UUID?, optional)             — 提供则创建 HEAT_CALCULATED outlet stream
+```
+
+输出（ImportHtriResponse, 201）：
+
+```text
+calc_id (UUID)              — HeatResult.heat_exchanger_id
+calc_type (string)          — 固定 "HEAT"
+record_hash (string)        — 16 hex 数值规范化哈希（ADR-0031）
+project_id (UUID)
+equipment_no (string)
+tag_number (string)
+exchanger_category (enum)   — SHELL_TUBE / AIR_COOL / PLATE
+duty_w (float | null)       — 热负荷 W（HTRI）
+outlet_stream_id (UUID | null)        — 提供 source_stream_id 时存在
+outlet_stream_name (string | null)    — HEAT_EXCHANGE 后缀
+```
+
+详情（GET /api/v1/heat/{heat_id}, 200 → HeatResultResponse）：
+
+```text
+calc_id (UUID)
+calc_type (string)          — 固定 "HEAT"
+project_id (UUID)
+workspace_id (UUID)
+tag_number (string)
+equipment_no (string | null)
+equipment_name (string | null)
+exchanger_category (enum)
+duty (float | null)         — 热负荷 W（P7 UTIL 综合能耗消费）
+record_hash (string | null) — 16 hex
+input_json (object)         — 原始 HTRI 字段（input_json 双轨）
+output_json (object)        — 计算输出 + total_weight_kg（P7 UTIL 消费；重量估算后写入 3 字段 total_weight_kg / weight_segments / weight_formula_ref）
+```
+
+重量估算（POST /api/v1/heat/{heat_id}/weight-estimate, 200 → WeightEstimateResponse）：
+
+请求体 22 字段 TEMA 9th 表单（必填 4 项 + 默认 18 项）：
+
+```text
+tema_type (BEM/AEM/AEL/NEN/BEM_FIXED/AEM_U_TUBE, required)
+shell_id_m (float, required, gt=0)             — 壳体内径 m
+shell_length_m (float, required, gt=0)         — 壳体长度 m
+shell_thickness_m (float, required, gt=0)      — 壳体壁厚 m
+material (carbon_steel/SS304/SS316/SS316L, default carbon_steel)
+head_count (int, default 2, ge=0)
+head_straight_m (float, default 0.025, ge=0)
+flange_count (int, default 2, ge=0)
+flange_class (string, default "300#")
+flange_size_dn (int, default 600, gt=0)
+nozzle_count (int, default 4, ge=0)
+nozzle_size_dn (int, default 100, gt=0)
+saddle_count (int, default 2, ge=0)
+saddle_size_dn (int, default 600, gt=0)
+tube_count (int, default 0, ge=0)
+tube_od_m (float, default 0.0, ge=0)
+tube_thickness_m (float, default 0.0, ge=0)
+tube_length_m (float, default 0.0, ge=0)
+baffle_count (int, default 0, ge=0)
+baffle_diameter_m (float, default 0.0, ge=0)
+baffle_thickness_m (float, default 0.0, ge=0)
+```
+
+响应：
+
+```text
+calc_id (UUID)
+total_weight_kg (float)       — TEMA 9th 5 段壳体 + tube/baffle/channels
+shell_total_kg (float)       — 壳体 5 段累加（cylinder/heads/flanges/nozzles/saddles）
+segments (object, 9 项):
+  shell_cylinder / shell_heads / shell_flanges / shell_nozzles / shell_saddles
+  shell_total / tube / baffle / channels
+  每项: { weight_kg: float, formula_ref: string }
+formula_ref (object)         — 顶层（TEMA 版本 + 各段标准 + clause）
+record_hash (string)         — 刷新后（output_json 变更 → 哈希重算）
+```
+
+出口物流：创建 source_type=HEAT_CALCULATED + change_type=HEAT_EXCHANGE + upstream_equipment_type=HEAT 出口流（sign_status=DRAFT；outlet_stream_name = {source}-{HEAT_EXCHANGE}-{uuid 短码} — pcs-backend/app/services/outlet_stream.py:138）。
+
+结果 Tab：
+
+- calc_id / record_hash（16 hex）
+- 设备位号 / 业务 tag / 类别
+- 热负荷 duty_w
+- 出口流（HEAT_CALCULATED + HEAT_EXCHANGE）
+- input_json / output_json 双轨
+- TEMA 9th 总重 + 9 段 segments 表格（重量估算后）
+- formula_ref（顶层 + 各段）
+
+错误码：
+
+- 422 HEAT_INPUT_ERROR — HTRI 解析失败（HtriParseError）
+- 404 HEAT_NOT_FOUND — heat_id 不存在
+- 422 HEAT_PROJECT_MISMATCH — 源流 project_id 与 heat 不一致
+- 404 SIM_STREAM_NOT_FOUND — 源流 stream_id 不存在
+
+ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN（与 PSV/VESSEL/SEP_EQUIP 一致）。
+
 7.12 设备计算（P5/P6）
 统一页面模式：
 
@@ -1857,6 +1971,7 @@ AI 未启用	AI 功能未启用
 V1.0	2026-09-15	初始版本，冻结全部裁决	联合项目组
 V1.1	2026-09-17	P5-1-4 VESSEL / P5-2-4 SEP_EQUIP / P5-3-6 PSV 设备计算 Page §7.11.3-5：①VESSEL CalculateRequest 由扁平工艺字段改为嵌套 sizing{SizingInputSchema} + hydraulics{HydraulicsInputSchema}（app/api/v1/vessel.py:46-78）；②SEP_EQUIP / PSV source_stream_id+device_type+params 扁平结构对齐后端 OpenAPI；③StateBadgeModule 扩展 +VESSEL/+SEP_EQUIP/+PSV（4 态子集）；④V1.0 SPEC §7.11.3-5 详细字段章节暂缺，本期仅落地导航与最小 Page 渲染，详细字段以 plan PCS-PLAN-P5-DEVICE-EQUIPMENT.md + 后端 OpenAPI 为准，SPEC 详细字段章节 P5-3 闭环后追加（TODO-2026-09-17-01）。	Claude Code
 V1.2	2026-09-17	P5-3 闭环后追加 §7.11.5 PSV 详细字段章节（解决 TODO-2026-09-17-01）：输入字段（source_stream_id + relief_scenario + scenario_params 4 种 Input 路由 + sizing_params + standard_code/version + blowdown_fraction 5% + inlet/outlet_size）；输出字段（calc_id + record_hash + lineage_ids + outlet_stream_id + result 含 aggregate / relief_area / orifice / standard_refs_json / formula_ref_json）；设计阶段 BASIC ≤25 列 / DETAIL 完整；出口流 source_type=PSV_CALCULATED；项目标准配置 GET/POST 端点（GET ACL：DESIGNER+，POST ACL：PROCESS_CONTROLLER+，CUSTOM 必填 approval_json + approved_by）；错误码 PSV_INPUT_ERROR / PSV_PROFILE_CONFLICT / PSV_STANDARD_NOT_CONFIGURED / STREAM_NOT_CHECKED / SIM_STREAM_NOT_FOUND。	Claude Code
+V1.3	2026-09-17	P5-4 闭环后追加 §7.11.6 HEAT 详细字段章节：①设计阶段单层（无 BASIC/DETAIL 分级；HeatResult 模型 pcs-backend/app/models/calc.py:456 不含 design_stage 字段，VESSEL/PSV/COLUMN 三表 design_stage 下沉不覆盖 HEAT）；②输入字段（POST /api/v1/heat/import-htri，multipart/form-data：file HTRI Xist v6.0 .txt + project_id + workspace_id + equipment_no + tag_number + exchanger_category ∈ SHELL_TUBE/AIR_COOL/PLATE + equipment_name? + source_stream_id? — 提供则创建 HEAT_CALCULATED outlet stream）；③输出 ImportHtriResponse 201（calc_id + record_hash 16 hex + project_id + equipment_no + tag_number + exchanger_category + duty_w HTRI 热负荷 W + outlet_stream_id + outlet_stream_name HEAT_EXCHANGE 后缀）；④详情 GET /api/v1/heat/{heat_id} 200 HeatResultResponse（calc_id + record_hash + tag_number + equipment_no/equipment_name + exchanger_category + duty P7 UTIL 消费 + input_json/output_json 双轨 + output_json.total_weight_kg 字段可读 P7 UTIL）；⑤重量估算 POST /api/v1/heat/{heat_id}/weight-estimate 200 WeightEstimateResponse（请求体 22 字段 TEMA 9th 几何参数，必填 4 项：tema_type/shell_id_m/shell_length_m/shell_thickness_m；默认 18 项：material/head_*/flange_*/nozzle_*/saddle_*/tube_*/baffle_*；响应 total_weight_kg + shell_total_kg + 9 段 segments 拆分：TEMA 9th 5 段壳体 cylinder/heads/flanges/nozzles/saddles + tube + baffle + channels + shell_total 累加 + formula_ref 顶层含 TEMA 版本 + 各段标准 + clause）；⑥出口流 source_type=HEAT_CALCULATED + change_type=HEAT_EXCHANGE + upstream_equipment_type=HEAT + sign_status=DRAFT + outlet_stream_name = {source}-{HEAT_EXCHANGE}-{uuid 短码}；⑦错误码 HEAT_INPUT_ERROR 422 / HEAT_NOT_FOUND 404 / HEAT_PROJECT_MISMATCH 422 / SIM_STREAM_NOT_FOUND 404；⑧ACL DESIGNER/PROCESS_CONTROLLER/SYSTEM_ADMIN（与 PSV/VESSEL/SEP_EQUIP 一致）。	Claude Code
 文档结束。
 
 本文件为 PCS 前端编码的唯一 UI 依据。字段、类型、枚举、错误码以 OpenAPI + JSON Schema 为准。冲突时以 OpenAPI 为准，并登记修订。
