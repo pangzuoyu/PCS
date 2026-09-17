@@ -8,9 +8,22 @@ budget_tokens: 1500
 
 ---
 
+## ✅ Done (P4-1 ruff 归零专项 — 2026-09-17)
+
+- **5 errors → 0**（commit `138cb6c`）：
+  - 4× E501：中文注释行缩短（alembic 注释 / bellows_compat 注释 /
+    valve_selection_types 注释）
+  - 1× I001：test_kb_lookup.py `from __future__` 位置（auto-fix）
+- `uv run ruff check .` → All checks passed!
+- PSV tests：228 passed（cleanup 未引入回归）
+
+---
+
 ## ✅ Done (P5-OPEN-10 SUP-P5-PSV-002 V1.14 后端契约扩展闭环 — 2026-09-17)
 
-- **10 commits + 30+ 新测试 + 13 PcsError 子类 + 18 列迁移 + 4 阶段 Kb + 6 波纹管矩阵**
+- **10 commits + 30+ 新测试 + 13 PcsError 子类 + 18 列迁移 + 4 阶段 Kb + 6 波纹管矩阵 + OPEN-10-3 +46 测试**
+  - OPEN-10-3 余项测试（commit `1193b92`）：cdtp 10 + bellows 9 + orifice 11 +
+    valve_validation 15 = 45 例新 + bug-079 NameError fix + bug-080 登记
   - 落地状态：`spec/SUP-P5-PSV-002-V1.14-STATUS.md`
   - commit 序列：
     `adacd33` cdtp → `25fbf25` bellows_compat → `522f2f2` kb_service →
@@ -175,7 +188,7 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
    - 前端无需改动（已就绪，G7/G8/G9 错误码解析已闭环）
 
 ### P4 首批建议（收口报告 §6，优先序）
-1. **ruff 归零专项**：445 → 0（31 fixable + 手工复核），半天
+1. ✅ **ruff 归零专项**：5 errors → 0（commit `138cb6c`，2026-09-17）
 2. **calculate 入口接 Guard**：P4 工艺计算首个端点调
    `UnreliableStreamGuard.check`（422 STREAM_UNRELIABLE_BLOCKED 契约已备 + 测试）
 3. **enum 9 态扩展（TODO-036）**：`ALTER TYPE ADD VALUE` 不可逆，迁移前备份
