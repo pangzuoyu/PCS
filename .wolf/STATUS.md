@@ -94,12 +94,26 @@ budget_tokens: 1500
 - **10 commits + 30+ 新测试 + 13 PcsError 子类 + 18 列迁移 + 4 阶段 Kb + 6 波纹管矩阵 + OPEN-10-3 +46 测试**
   - OPEN-10-3 余项测试（commit `1193b92`）：cdtp 10 + bellows 9 + orifice 11 +
     valve_validation 15 = 45 例新 + bug-079 NameError fix + bug-080 登记
+  - OPEN-10-4 余项测试（commit `2466fb8` `b549337` `3831274`，**+40 例**）：
+    - `2466fb8` kb_service + cdtp 边界 10 例（Consolidated / Anderson_Greenwood
+      完整曲线 + mixed 三厂商 21% + EN 4126 PILOT 路径 + BP=0 SPRING_LOADED 策略1
+      优先 + cdtp details 字段完整性 + 边界 half-set）
+    - `b549337` valve_validation 18 例（CDTP+KB 联动 bp_for_kb=0 + G13 警告
+      3 场景触发/不触发 + G24+G25 累积边界 + blowdown 4 介质默认派生
+      + 显式值 in/out 范围 + orifice_override_validated 透传 + G15 Q/R/T
+      高温低分子量 3 路径）
+    - `3831274` psv_persist 12 例（_get_default_blowdown 4 介质 + 未知介质
+      兜底 + _formula_ref_to_dict dataclass/dict + 默认 in/out 4"/6" +
+      _BLOWDOWN_DEFAULT_BY_MEDIUM 模块常量 + _FORMULA_VERSION + _generate_tag_number
+      格式 + 跨调用不同）
   - 落地状态：`spec/SUP-P5-PSV-002-V1.14-STATUS.md`
   - commit 序列：
     `adacd33` cdtp → `25fbf25` bellows_compat → `522f2f2` kb_service →
     `d0aa5eb` exceptions → `f1fcc19` valve_validation → `41442cd` PsvResult ORM →
     `a3e9471` alembic 迁移 → `dcce671` CalculateRequest 扩展 →
     `<task 11>` psv_persist 落库 → `<task 12>` API 集成 + 8 测试
+    → `1193b92` OPEN-10-3 余项 +46 → `2466fb8` `b549337` `3831274` OPEN-10-4 +40
+- **OPEN-10 累计测试**：146 基础（plan 实施期） + OPEN-10-3 +46 + **OPEN-10-4 +40 = 232 例**
 - **13 PcsError 子类**：G7 PILOT / G8 RUPTURE / G9 ORIFICE_OVERRIDE_TOO_SMALL /
   G10 BACK_PRESSURE / G11 BLOWDOWN / G12 INLET_OUTLET_MISMATCH /
   G13 MATERIAL_INCOMPATIBLE / G14 INLET_TOO_SMALL / G15 ORIFICE_TEMPERATURE_LIMIT /
@@ -119,10 +133,10 @@ budget_tokens: 1500
 - **后续待办**（P5-3 接管）：
   - OPEN-10-1 API526_FLANGE_CLASS_ORIFICE_LIMITS 84 组合
   - OPEN-10-2 真实 Kb 厂商数据
-  - OPEN-10-3 +50~60 测试余项
-  - OPEN-10-4 CRYOGENIC 型号（OPEN-18）/ API 521 FIRE+PILOT 章节号（OPEN-19）
-  - OPEN-10-5 65 psig T 孔口 150# 警告（OPEN-20）
-  - OPEN-10-6 record_hash 含新字段回归验证
+  - OPEN-10-3 ~剩余 50 例（依赖 OPEN-10-1/2 外部数据 ready；OPEN-10-3+4 已 +86 总数覆盖可独立执行的余项）
+  - OPEN-10-5 CRYOGENIC 型号（OPEN-18）/ API 521 FIRE+PILOT 章节号（OPEN-19）
+  - OPEN-10-6 65 psig T 孔口 150# 警告（OPEN-20）
+  - OPEN-10-7 record_hash 含新字段回归验证
 
 ---
 
