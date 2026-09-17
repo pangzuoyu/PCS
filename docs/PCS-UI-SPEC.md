@@ -1758,6 +1758,7 @@ AI 未启用	AI 功能未启用
 12.4 修订记录
 版本	日期	修改	编制
 V1.0	2026-09-15	初始版本，冻结全部裁决	联合项目组
+V1.1	2026-09-17	P5-1-4 VESSEL / P5-2-4 SEP_EQUIP / P5-3-6 PSV 设备计算 Page §7.11.3-5：①VESSEL CalculateRequest 由扁平工艺字段改为嵌套 sizing{SizingInputSchema} + hydraulics{HydraulicsInputSchema}（app/api/v1/vessel.py:46-78）；②SEP_EQUIP / PSV source_stream_id+device_type+params 扁平结构对齐后端 OpenAPI；③StateBadgeModule 扩展 +VESSEL/+SEP_EQUIP/+PSV（4 态子集）；④V1.0 SPEC §7.11.3-5 详细字段章节暂缺，本期仅落地导航与最小 Page 渲染，详细字段以 plan PCS-PLAN-P5-DEVICE-EQUIPMENT.md + 后端 OpenAPI 为准，SPEC 详细字段章节 P5-3 闭环后追加（TODO-2026-09-17-01）。	Claude Code
 文档结束。
 
 本文件为 PCS 前端编码的唯一 UI 依据。字段、类型、枚举、错误码以 OpenAPI + JSON Schema 为准。冲突时以 OpenAPI 为准，并登记修订。
