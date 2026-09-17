@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-09-17T06:03:21.212Z",
-    "fileCount": 671,
+    "lastScanned": "2026-09-17T06:13:53.251Z",
+    "fileCount": 672,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "0e1ccb40d006ae64217cde815e3d87a44a8bb255ed5f604916494dc717d85906",
-    "storeUpdatedAt": "2026-09-17T06:03:21.221Z",
-    "rootHash": "690b85e97161986c"
+    "renderedHash": "43679db14171ab7608d0a49716044b875f406f8ce4e190b7b54c216c635c3f3f",
+    "storeUpdatedAt": "2026-09-17T06:13:53.260Z",
+    "rootHash": "42a5b5b559d1abbd"
   },
   "files": {
     "CLAUDE.md": {
@@ -26216,54 +26216,163 @@
     },
     "pcs-backend/app/services/heat/heat_data_service.py": {
       "description": "HeatResultsService 落库（P5-4-2 / Task 20）。",
-      "tokens": 2760,
-      "hash": "8fc5180598b4bb9a",
-      "size": 10302,
-      "mtimeMs": 1789624996888.8127,
-      "updatedAt": "2026-09-17T06:03:16.944Z",
+      "tokens": 3685,
+      "hash": "d6f6f8704477e887",
+      "size": 13871,
+      "mtimeMs": 1789625472266.1406,
+      "updatedAt": "2026-09-17T06:11:12.310Z",
       "source": "hook",
       "symbols": [
         {
           "name": "HeatCalcInput",
           "kind": "class",
-          "startLine": 31,
-          "endLine": 105,
+          "startLine": 32,
+          "endLine": 106,
           "tokens": 826
         },
         {
           "name": "save_heat_calc_result",
           "kind": "fn",
-          "startLine": 106,
-          "endLine": 210,
+          "startLine": 107,
+          "endLine": 211,
           "tokens": 1043
         },
         {
           "name": "map_htri_to_heat_input",
           "kind": "fn",
-          "startLine": 211,
-          "endLine": 252,
+          "startLine": 212,
+          "endLine": 253,
           "tokens": 415
         },
         {
           "name": "_htri_hot_side_dict",
           "kind": "fn",
-          "startLine": 253,
-          "endLine": 262,
+          "startLine": 254,
+          "endLine": 263,
           "tokens": 78
         },
         {
           "name": "_htri_cold_side_dict",
           "kind": "fn",
-          "startLine": 263,
-          "endLine": 272,
+          "startLine": 264,
+          "endLine": 273,
           "tokens": 80
         },
         {
           "name": "_htri_ache_dict",
           "kind": "fn",
-          "startLine": 273,
-          "endLine": 280,
+          "startLine": 274,
+          "endLine": 287,
+          "tokens": 111
+        },
+        {
+          "name": "AcheParams",
+          "kind": "class",
+          "startLine": 288,
+          "endLine": 308,
+          "tokens": 161
+        },
+        {
+          "name": "EnthalpyTableEntry",
+          "kind": "class",
+          "startLine": 309,
+          "endLine": 318,
+          "tokens": 58
+        },
+        {
+          "name": "EnthalpyTable",
+          "kind": "class",
+          "startLine": 319,
+          "endLine": 352,
+          "tokens": 298
+        },
+        {
+          "name": "save_ache_params",
+          "kind": "fn",
+          "startLine": 353,
+          "endLine": 379,
+          "tokens": 182
+        },
+        {
+          "name": "save_enthalpy_table",
+          "kind": "fn",
+          "startLine": 380,
+          "endLine": 404,
+          "tokens": 196
+        }
+      ]
+    },
+    "pcs-backend/tests/services/heat/test_ache.py": {
+      "description": "ACHE 空冷器 + 焓值表 service 测试（P5-4-3 / Task 21）。",
+      "tokens": 2411,
+      "hash": "82fceab3ed48fc92",
+      "size": 8917,
+      "mtimeMs": 1789625633202.9307,
+      "updatedAt": "2026-09-17T06:13:53.251Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_ache_params_sample",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 54,
+          "tokens": 123
+        },
+        {
+          "name": "_enthalpy_table_sample",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 78,
+          "tokens": 202
+        },
+        {
+          "name": "_seed_heat_result",
+          "kind": "fn",
+          "startLine": 79,
+          "endLine": 120,
+          "tokens": 336
+        },
+        {
+          "name": "test_save_ache_params_roundtrip",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 149,
+          "tokens": 325
+        },
+        {
+          "name": "test_save_enthalpy_table_10_points_ok",
+          "kind": "fn",
+          "startLine": 150,
+          "endLine": 178,
+          "tokens": 306
+        },
+        {
+          "name": "test_enthalpy_table_rejects_under_10_points",
+          "kind": "fn",
+          "startLine": 179,
+          "endLine": 199,
+          "tokens": 193
+        },
+        {
+          "name": "test_enthalpy_table_licensor_metadata_passthrough",
+          "kind": "fn",
+          "startLine": 200,
+          "endLine": 234,
+          "tokens": 284
+        },
+        {
+          "name": "test_save_ache_params_nonexistent_heat_raises",
+          "kind": "fn",
+          "startLine": 235,
+          "endLine": 245,
           "tokens": 94
+        },
+        {
+          "name": "test_ache_and_enthalpy_independent_writes",
+          "kind": "fn",
+          "startLine": 246,
+          "endLine": 272,
+          "tokens": 258
         }
       ]
     }

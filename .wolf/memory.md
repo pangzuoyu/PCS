@@ -3069,3 +3069,7 @@
 | 14:02 | Edited pcs-backend/app/services/heat/heat_data_service.py | 3→7 lines | ~103 |
 | 14:03 | Edited pcs-backend/app/services/heat/heat_data_service.py | 9→8 lines | ~99 |
 | 14:03 | Edited pcs-backend/tests/services/heat/test_heat_data.py | 3→2 lines | ~16 |
+| 14:10 | Created pcs-backend/tests/services/heat/test_ache.py | — | ~2433 |
+| 14:10 | Edited pcs-backend/app/services/heat/heat_data_service.py | added 1 import(s) | ~86 |
+| 14:11 | Edited pcs-backend/app/services/heat/heat_data_service.py | modified _htri_ache_dict() | ~1007 |
+| 14:13 | Edited pcs-backend/tests/services/heat/test_ache.py | 8→8 lines | ~59 |

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-17T06:03:21.212Z
-> Files: 671 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-17T06:13:53.251Z
+> Files: 672 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -388,7 +388,7 @@
 
 ## pcs-backend/app/services/heat/
 
-- `heat_data_service.py` — HeatResultsService 落库（P5-4-2 / Task 20）。 (~2760 tok)
+- `heat_data_service.py` — HeatResultsService 落库（P5-4-2 / Task 20）。 (~3685 tok)
 - `htri_parser.py` — HTRI 自研解析器（P5-4-1 / Task 19）。 (~2229 tok)
 
 ## pcs-backend/app/services/psv/
@@ -633,6 +633,7 @@
 
 ## pcs-backend/tests/services/heat/
 
+- `test_ache.py` — ACHE 空冷器 + 焓值表 service 测试（P5-4-3 / Task 21）。 (~2411 tok)
 - `test_heat_data.py` — HeatResultsService 测试（P5-4-2 / Task 20）。 (~2773 tok)
 - `test_htri_parser.py` — HTRI parser + version detection 测试（P5-4-1 / Task 19）。 (~1338 tok)
 

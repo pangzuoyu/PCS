@@ -12,8 +12,9 @@
 from __future__ import annotations
 
 import uuid
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import asdict, dataclass, field
+from datetime import date
+from typing import Any, ClassVar
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -278,3 +279,126 @@ def _htri_ache_dict(htri: HtriParsedData) -> dict[str, Any] | None:
         "air_inlet_temp": htri.air_inlet_t_k,
         "bundle_area": htri.bundle_area_m2,
     }
+
+
+# ===== ACHE 空冷器 + 焓值表（P5-4-3 / Task 21）=====
+
+
+@dataclass
+class AcheParams:
+    """ACHE 空冷器专属参数（spec §3.1.7 + SUP-009 §3.1.3）。
+
+    字段：fan_count / fan_power_kw / bundle_area_m2 / air_inlet_temp_k /
+    altitude_m / fin_type / tube_nozzle_count / air_side_resistance_dist。
+    """
+
+    fan_count: int
+    fan_power_kw: float
+    bundle_area_m2: float
+    air_inlet_temp_k: float
+    altitude_m: float
+    fin_type: str  # L-footed / G-embedded / Extruded / Smooth
+    tube_nozzle_count: int
+    air_side_resistance_dist: dict[str, float]
+
+    def to_dict(self) -> dict[str, Any]:
+        return asdict(self)
+
+
+@dataclass
+class EnthalpyTableEntry:
+    """焓值表单点（t_k, h_j_per_kg, cp_j_per_kg_k, phase）。"""
+
+    t_k: float
+    h_j_per_kg: float
+    cp_j_per_kg_k: float
+    phase: str  # LIQUID / VAPOR / TWO_PHASE
+
+
+@dataclass
+class EnthalpyTable:
+    """焓值表（P5-OPEN-004 来自 Licensor，Task 21 强校验 ≥10 温度点）。
+
+    覆盖 LOW / AMBIENT / OPERATING 三段区间：每个 phase 至少 3 点（避免
+    插值穿越相变区时精度塌陷）。min_entries = 10 满足该最低门槛。
+    """
+
+    fluid_name: str
+    licensor: str
+    source_doc: str
+    valid_from: date
+    valid_to: date | None
+    entries: list[EnthalpyTableEntry]
+
+    MIN_ENTRIES: ClassVar[int] = 10
+
+    def __post_init__(self) -> None:
+        if len(self.entries) < self.MIN_ENTRIES:
+            raise ValueError(
+                f"EnthalpyTable requires ≥{self.MIN_ENTRIES} temperature points, "
+                f"got {len(self.entries)} (覆盖 LIQUID/TWO_PHASE/VAPOR 三段)"
+            )
+
+    def to_dict(self) -> dict[str, Any]:
+        return {
+            "fluid_name": self.fluid_name,
+            "licensor": self.licensor,
+            "source_doc": self.source_doc,
+            "valid_from": self.valid_from.isoformat(),
+            "valid_to": self.valid_to.isoformat() if self.valid_to else None,
+            "entries": [asdict(e) for e in self.entries],
+        }
+
+
+async def save_ache_params(
+    db: AsyncSession,
+    *,
+    heat_exchanger_id: uuid.UUID,
+    params: AcheParams,
+) -> HeatResult:
+    """更新已落库 HeatResult 的 ache_params JSONB 列。
+
+    Args:
+        db: async session
+        heat_exchanger_id: 既有 HeatResult 主键
+        params: ACHE 8 字段参数
+
+    Returns:
+        更新后的 HeatResult 实例（未 commit，调用方负责 commit）
+
+    Raises:
+        ValueError: heat_id 不存在
+    """
+    record = await db.get(HeatResult, heat_exchanger_id)
+    if record is None:
+        raise ValueError(f"HeatResult {heat_exchanger_id} not found")
+    record.ache_params = params.to_dict()
+    await db.flush()
+    return record
+
+
+async def save_enthalpy_table(
+    db: AsyncSession,
+    *,
+    heat_exchanger_id: uuid.UUID,
+    table: EnthalpyTable,
+) -> HeatResult:
+    """更新已落库 HeatResult 的 enthalpy_table_json JSONB 列。
+
+    Args:
+        db: async session
+        heat_exchanger_id: 既有 HeatResult 主键
+        table: ≥10 温度点焓值表（EnthalpyTable.__post_init__ 已校验）
+
+    Returns:
+        更新后的 HeatResult 实例（未 commit，调用方负责 commit）
+
+    Raises:
+        ValueError: heat_id 不存在
+    """
+    record = await db.get(HeatResult, heat_exchanger_id)
+    if record is None:
+        raise ValueError(f"HeatResult {heat_exchanger_id} not found")
+    record.enthalpy_table_json = table.to_dict()
+    await db.flush()
+    return record
