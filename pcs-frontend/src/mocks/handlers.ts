@@ -141,7 +141,103 @@ const devOnlyMockHandlers = [
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
     return HttpResponse.json(seedRevisions.filter((r) => r.asset_id === params.asset_id));
   }),
+
+  // === P5-3 PSV 计算 ===
+  http.post("/api/v1/psv/calculate", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json(mockPsvCalculateResult, { status: 201 });
+  }),
+
+  // === P5-3 PSV 项目标准配置 GET ===
+  http.get("/api/v1/projects/:project_id/psv/standard-profile", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json(mockPsvStandardProfile);
+  }),
+
+  // === P5-3 PSV 项目标准配置 POST ===
+  http.post("/api/v1/projects/:project_id/psv/standard-profile", async ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const body = (await request.json()) as {
+      profile_code?: string;
+      approval_json?: Record<string, unknown>;
+      approved_by?: string;
+    };
+    if (body.profile_code === "CUSTOM" && (!body.approval_json || !body.approved_by)) {
+      return HttpResponse.json(
+        { code: "PSV_INPUT_ERROR", message: "CUSTOM 必须填 approval_json + approved_by", detail: null, trace_id: "" },
+        { status: 422 },
+      );
+    }
+    return HttpResponse.json(
+      {
+        ...mockPsvStandardProfile,
+        profile_code: body.profile_code ?? "API",
+      },
+      { status: 201 },
+    );
+  }),
 ];
+
+/** P5-3 PSV 计算 mock 响应 — 固定 FIRE 场景输出（V1.2 SPEC §7.11.5 字段对齐） */
+const mockPsvCalculateResult = {
+  calc_id: '00000000-0000-0000-0000-000000000099',
+  calc_type: 'PSV',
+  record_hash: 'a1b2c3d4e5f60718',
+  stream_id: '00000000-0000-0000-0000-000000000001',
+  lineage_ids: ['00000000-0000-0000-0000-000000000050'],
+  outlet_stream_id: '00000000-0000-0000-0000-000000000088',
+  outlet_stream_name: 'S-PSV-301-PSV-OUT',
+  result: {
+    relief_scenario: 'FIRE',
+    aggregate: { dominant_scenario: 'FIRE', case_count: 1, per_scenario_json: {} },
+    relief_area: {
+      area_required_m2: 0.001234,
+      medium: 'GAS',
+      formula_ref: { standard: 'API_520', version: '7th', clause: '§5.6.3' },
+    },
+    orifice: {
+      selected_size: 'D',
+      actual_area_m2: 0.00171,
+      inlet_size: '4 inch',
+      outlet_size: '6 inch',
+    },
+    set_pressure_pa: 200000.0,
+    blowdown_fraction: 0.05,
+    standard_profile_code: 'API',
+    standard_refs_json: {
+      fire_case: { standard: 'API_521', version: '7th', clause: '§5.15.2.2.1' },
+      relief_area: { standard: 'API_520', version: '7th', clause: '§5.6.3' },
+      orifice: { standard: 'API_526', version: '7th', clause: 'Table 1' },
+    },
+    formula_ref_json: {
+      dominant_scenario: 'FIRE',
+      fire_case_or_other: { standard: 'API_521', version: '7th', clause: '§5.15.2.2.1' },
+      relief_area: { standard: 'API_520', version: '7th', clause: '§5.6.3' },
+      orifice: { standard: 'API_526', version: '7th', clause: 'Table 1' },
+    },
+  },
+};
+
+/** P5-3 PSV 项目标准配置 mock seed — API/7th 默认 */
+const mockPsvStandardProfile = {
+  profile_id: '00000000-0000-0000-0000-000000000200',
+  project_id: '00000000-0000-0000-0000-000000000001',
+  discipline: 'PSV',
+  profile_code: 'API',
+  standard_refs_json: {
+    fire_case: { standard: 'API_521', version: '7th', clause: '§5.15.2.2.1' },
+    relief_area: { standard: 'API_520', version: '7th', clause: '§5.6.3' },
+    orifice: { standard: 'API_526', version: '7th', clause: 'Table 1' },
+  },
+  approval_json: null,
+  is_default: true,
+  migrated_default: false,
+  effective_from: '2026-09-17T00:00:00Z',
+  effective_to: null,
+  approved_by: null,
+  created_at: '2026-09-17T00:00:00Z',
+  updated_at: '2026-09-17T00:00:00Z',
+};
 
 /** 通知 seed — 5 条覆盖 3 类（todo/change/system）+ 2 条未读 */
 const seedNotifications: Notification[] = [
