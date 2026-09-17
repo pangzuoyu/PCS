@@ -5,6 +5,7 @@ import type { MenuProps } from 'antd';
 import { Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '../store/auth';
 import { NotificationCenter, type Notification } from '../components/common/NotificationCenter';
+import { DEV_BEARER } from '../constants/env';
 
 const { Header, Content, Sider } = Layout;
 
@@ -79,7 +80,7 @@ export default function MainLayout() {
 
   useEffect(() => {
     void fetch('/api/v1/notifications', {
-      headers: { Authorization: 'Bearer mock-jwt-token' },
+      headers: { Authorization: DEV_BEARER },
     })
       .then((r) => (r.ok ? r.json() : []))
       .then((j: Notification[]) => setNotifications(j))

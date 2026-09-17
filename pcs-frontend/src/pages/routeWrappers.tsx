@@ -24,6 +24,7 @@ import type { PipeInput, PipeLineListRow, PipeResult } from '../types/pipe';
 import type { FlashInput, FlashResult } from '../types/flash';
 import type { PumpInput, PumpResult } from '../types/pump';
 import type { StreamDetailPayload } from '../mocks/seed/streams';
+import { DEV_BEARER, PROJECT_ID } from '../constants/env';
 
 // 页面本地的辅助类型，从源文件复制定义（路由层仅传空数组，不深耦合）
 type StreamLite = {
@@ -68,11 +69,6 @@ import { StreamDetailPage } from './sim/StreamDetailPage';
 import { StreamListPage } from './sim/StreamListPage';
 import { VesselComputePage } from './vessel/VesselComputePage';
 import { ProjectWizardPage } from './wizard/ProjectWizardPage';
-
-const PROJECT_ID = '00000000-0000-0000-0000-000000000001';
-// MSW handlers 只校验 Authorization: Bearer <non-empty> 前缀；真 token 来自
-// zustand store（in-memory），路由层只关心格式不关心内容。
-const DEV_BEARER = 'Bearer mock-jwt-token';
 
 function useFetch<T>(path: string, initial: T): T {
   const [data, setData] = useState<T>(initial);

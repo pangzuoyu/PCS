@@ -39,6 +39,7 @@ import {
   type ConfigCategory,
 } from '../../types/configAsset';
 import type { RecordSignStatus } from '../../types/records';
+import { DEV_BEARER } from '../../constants/env';
 
 interface Props {
   assets: ConfigAsset[];
@@ -171,7 +172,7 @@ export function AssetListPage({ assets, onEdit, onApprove, onVersion }: Props): 
               setRevAssetId(row.asset_id);
               setRevisionsLoading(true);
               void fetch(`/api/v1/config/assets/${row.asset_id}/revisions`, {
-                headers: { Authorization: 'Bearer mock-jwt-token' },
+                headers: { Authorization: DEV_BEARER },
               })
                 .then((r) => (r.ok ? r.json() : []))
                 .then((j: RevVersion[]) => setRevisions(j))
