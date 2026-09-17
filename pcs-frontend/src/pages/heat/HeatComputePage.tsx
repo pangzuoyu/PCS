@@ -212,9 +212,16 @@ export function HeatComputePage(): JSX.Element {
     try {
       const resp = await heatApi.estimateWeight(heatDetail.calc_id, values);
       setWeightResult(resp);
-      // 刷新详情（output_json.total_weight_kg 已更新）
-      const refreshed = await heatApi.get(heatDetail.calc_id);
-      setHeatDetail(refreshed);
+      // OPEN-7 闭环：resp.output_json 直接含刷新后的 output_json，免去 get() roundtrip
+      setHeatDetail((prev) =>
+        prev
+          ? {
+              ...prev,
+              record_hash: resp.record_hash,
+              output_json: resp.output_json,
+            }
+          : prev,
+      );
       message.success(`重量估算完成：total=${resp.total_weight_kg.toFixed(1)} kg`);
     } catch (err: unknown) {
       const env = extractPcsError(err);

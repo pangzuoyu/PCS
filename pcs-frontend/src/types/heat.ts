@@ -138,4 +138,5 @@ export interface WeightEstimateResponse {
   };
   formula_ref: Record<string, string>;          // 顶层（含 TEMA 版本 + 各段标准 + clause）
   record_hash: string;                          // 刷新后（output_json 变更）
+  output_json: Record<string, unknown>;         // OPEN-7：含 total_weight_kg / weight_segments，前端免 get() roundtrip
 }

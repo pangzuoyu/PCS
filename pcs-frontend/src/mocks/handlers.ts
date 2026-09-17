@@ -333,6 +333,16 @@ const mockHeatWeightResult = {
     channels: 'TEMA 9th N-3.4',
   },
   record_hash: 'c2d3e4f5061728b1',
+  // OPEN-7 闭环：透传刷新后的 output_json，前端免去 get() roundtrip
+  output_json: {
+    total_weight_kg: 3056.75,
+    weight_segments: {
+      shell_total_kg: 2037.49,
+      tube_kg: 850.2,
+      baffle_kg: 95.3,
+      channels_kg: 73.76,
+    },
+  },
 };
 
 /** 通知 seed — 5 条覆盖 3 类（todo/change/system）+ 2 条未读 */

@@ -160,6 +160,12 @@ class WeightEstimateResponse(BaseModel):
         ..., description="顶层 formula_ref（含 TEMA 版本 + 各段标准 + clause）"
     )
     record_hash: str = Field(..., description="刷新后的 record_hash（output_json 变更）")
+    # OPEN-7 闭环：透传刷新后的 output_json（含 total_weight_kg / weight_segments），
+    # 前端 import / weight-estimate 后免去 get() roundtrip 即可直接消费 P7 UTIL 总重。
+    output_json: dict[str, Any] = Field(
+        default_factory=dict,
+        description="HeatResult.output_json 摘录（OPEN-7 串行优化）",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -352,6 +358,7 @@ async def estimate_weight_endpoint(
         segments=_build_segments(wres),
         formula_ref=dict(wres.formula_ref),
         record_hash=record.record_hash,
+        output_json=dict(record.output_json or {}),  # OPEN-7：免 get() roundtrip
     )
 
 

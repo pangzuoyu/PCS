@@ -333,6 +333,9 @@ async def test_estimate_heat_weight_writes_output_json(
     assert out["formula_ref"]["tema_version"] == "TEMA 9th Ed."
     # record_hash 刷新
     assert _HASH_RE.match(out["record_hash"])
+    # OPEN-7：output_json 透传 total_weight_kg（前端免 get() roundtrip）
+    assert "output_json" in out
+    assert out["output_json"]["total_weight_kg"] == pytest.approx(out["total_weight_kg"])
 
 
 @pytest.mark.asyncio

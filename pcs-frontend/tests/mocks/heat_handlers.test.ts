@@ -77,6 +77,11 @@ const heatWeightResult = {
   },
   formula_ref: { tema_version: 'TEMA 9th Ed.' },
   record_hash: 'c2d3e4f5061728b1',
+  // OPEN-7：透传刷新后的 output_json（前端免 get() roundtrip）
+  output_json: {
+    total_weight_kg: 3056.75,
+    weight_segments: { shell_total_kg: 2037.49 },
+  },
 };
 
 const server = setupServer(
@@ -186,5 +191,8 @@ describe('MSW HEAT handlers (P5-4 frontend / Task 6)', () => {
     }
     expect(body.formula_ref.tema_version).toBe('TEMA 9th Ed.');
     expect(body.record_hash).toMatch(/^[0-9a-f]{16}$/);
+    // OPEN-7：output_json 透传 total_weight_kg（前端免 get() roundtrip）
+    expect(body.output_json.total_weight_kg).toBeCloseTo(3056.75);
+    expect(body.output_json.weight_segments.shell_total_kg).toBeCloseTo(2037.49);
   });
 });
