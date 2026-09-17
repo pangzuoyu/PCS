@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-17T06:13:53.251Z
-> Files: 672 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-17T06:24:13.832Z
+> Files: 677 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -390,6 +390,7 @@
 
 - `heat_data_service.py` — HeatResultsService 落库（P5-4-2 / Task 20）。 (~3685 tok)
 - `htri_parser.py` — HTRI 自研解析器（P5-4-1 / Task 19）。 (~2229 tok)
+- `weight_estimate_service.py` — 换热器重量估算 service（P5-4-4 / Task 22）。 (~2488 tok)
 
 ## pcs-backend/app/services/psv/
 
@@ -636,15 +637,19 @@
 - `test_ache.py` — ACHE 空冷器 + 焓值表 service 测试（P5-4-3 / Task 21）。 (~2411 tok)
 - `test_heat_data.py` — HeatResultsService 测试（P5-4-2 / Task 20）。 (~2773 tok)
 - `test_htri_parser.py` — HTRI parser + version detection 测试（P5-4-1 / Task 19）。 (~1338 tok)
+- `test_weight_estimate.py` — 换热器重量估算 service 测试（P5-4-4 / Task 22）。 (~1524 tok)
 
 ## pcs-backend/tests/services/heat/fixtures/
 
+- `golden_weight_aem.json` (~315 tok)
+- `golden_weight_bem.json` (~322 tok)
 - `htri_corrupted.txt` (~17 tok)
 - `htri_empty.txt` (~0 tok)
 - `htri_unsupported_v99.txt` (~37 tok)
 - `htri_xchanger_v8_shell_tube.txt` (~120 tok)
 - `htri_xist_v6_air_cooled.txt` (~82 tok)
 - `htri_xist_v6_basic.txt` (~118 tok)
+- `README.md` — Project documentation (~309 tok)
 
 ## pcs-backend/tests/services/pipe/
 

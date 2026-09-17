@@ -1,0 +1,44 @@
+{
+  "name": "BEM 固定管板算例（P5-4-4 baseline）",
+  "tema_type": "BEM",
+  "input": {
+    "tema_type": "BEM",
+    "shell_id_m": 1.0,
+    "shell_length_m": 5.0,
+    "shell_thickness_m": 0.012,
+    "material": "carbon_steel",
+    "head_count": 2,
+    "head_straight_m": 0.025,
+    "flange_count": 2,
+    "flange_class": "300#",
+    "flange_size_dn": 600,
+    "nozzle_count": 4,
+    "nozzle_size_dn": 100,
+    "saddle_count": 2,
+    "saddle_size_dn": 600,
+    "tube_count": 200,
+    "tube_od_m": 0.01905,
+    "tube_thickness_m": 0.00165,
+    "tube_length_m": 5.0,
+    "baffle_count": 10,
+    "baffle_diameter_m": 0.8,
+    "baffle_thickness_m": 0.005
+  },
+  "expected_weights_kg": {
+    "shell_cylinder": 1479.69,
+    "shell_heads": 162.77,
+    "shell_flanges": 190.0,
+    "shell_nozzles": 25.03,
+    "shell_saddles": 180.0,
+    "shell_total": 2037.49,
+    "tube": 708.03,
+    "baffle": 197.29,
+    "channels": 113.94,
+    "total": 3056.75
+  },
+  "deviation_tolerance": {
+    "shell_cylinder_pct": 1,
+    "total_pct": 10
+  },
+  "source": "PCS-PLAN-P5-DEVICE-EQUIPMENT.md V1.0 §Task 22 + service 公式 ground truth（ASME / TEMA / NB/T 简化查表）"
+}

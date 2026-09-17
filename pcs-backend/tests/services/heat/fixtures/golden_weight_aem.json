@@ -1,0 +1,44 @@
+{
+  "name": "AEM U 型管算例（P5-4-4 baseline）",
+  "tema_type": "AEM",
+  "input": {
+    "tema_type": "AEM",
+    "shell_id_m": 1.0,
+    "shell_length_m": 6.0,
+    "shell_thickness_m": 0.012,
+    "material": "carbon_steel",
+    "head_count": 2,
+    "head_straight_m": 0.025,
+    "flange_count": 2,
+    "flange_class": "300#",
+    "flange_size_dn": 600,
+    "nozzle_count": 4,
+    "nozzle_size_dn": 100,
+    "saddle_count": 2,
+    "saddle_size_dn": 600,
+    "tube_count": 300,
+    "tube_od_m": 0.01905,
+    "tube_thickness_m": 0.00165,
+    "tube_length_m": 6.0,
+    "baffle_count": 0,
+    "baffle_diameter_m": 0.0,
+    "baffle_thickness_m": 0.0
+  },
+  "expected_weights_kg": {
+    "shell_cylinder": 1775.63,
+    "shell_heads": 162.77,
+    "shell_flanges": 190.0,
+    "shell_nozzles": 25.03,
+    "shell_saddles": 180.0,
+    "shell_total": 2333.43,
+    "tube": 1274.46,
+    "baffle": 0.0,
+    "channels": 0.0,
+    "total": 3607.89
+  },
+  "deviation_tolerance": {
+    "shell_cylinder_pct": 1,
+    "total_pct": 10
+  },
+  "source": "PCS-PLAN-P5-DEVICE-EQUIPMENT.md V1.0 §Task 22 + AEM U 型管调整（无 baffle/channels）"
+}

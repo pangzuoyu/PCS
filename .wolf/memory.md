@@ -3073,3 +3073,14 @@
 | 14:10 | Edited pcs-backend/app/services/heat/heat_data_service.py | added 1 import(s) | ~86 |
 | 14:11 | Edited pcs-backend/app/services/heat/heat_data_service.py | modified _htri_ache_dict() | ~1007 |
 | 14:13 | Edited pcs-backend/tests/services/heat/test_ache.py | 8→8 lines | ~59 |
+| 14:21 | Created pcs-backend/tests/services/heat/fixtures/README.md | — | ~329 |
+| 14:21 | Created pcs-backend/tests/services/heat/fixtures/golden_weight_bem.json | — | ~311 |
+| 14:21 | Created pcs-backend/tests/services/heat/fixtures/golden_weight_aem.json | — | ~316 |
+| 14:22 | Created pcs-backend/app/services/heat/weight_estimate_service.py | — | ~2488 |
+| 14:22 | Created pcs-backend/tests/services/heat/test_weight_estimate.py | — | ~1524 |
+| 14:22 | Edited pcs-backend/tests/services/heat/fixtures/golden_weight_bem.json | 3→2 lines | ~15 |
+| 14:22 | Edited pcs-backend/tests/services/heat/fixtures/golden_weight_aem.json | 3→2 lines | ~15 |
+| 14:23 | Edited pcs-backend/tests/services/heat/fixtures/golden_weight_bem.json | 2→3 lines | ~17 |
+| 14:23 | Edited pcs-backend/tests/services/heat/fixtures/golden_weight_aem.json | 2→3 lines | ~17 |
+| 14:24 | Created pcs-backend/tests/services/heat/fixtures/golden_weight_bem.json | — | ~322 |
+| 14:24 | Created pcs-backend/tests/services/heat/fixtures/golden_weight_aem.json | — | ~315 |

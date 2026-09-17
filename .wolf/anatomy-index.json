@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-09-17T06:13:53.251Z",
-    "fileCount": 672,
+    "lastScanned": "2026-09-17T06:24:13.832Z",
+    "fileCount": 677,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "43679db14171ab7608d0a49716044b875f406f8ce4e190b7b54c216c635c3f3f",
-    "storeUpdatedAt": "2026-09-17T06:13:53.260Z",
-    "rootHash": "42a5b5b559d1abbd"
+    "renderedHash": "4a58504440a08e811c3181c75ff209431d0634e2b5bfb10a37dc587b71ec5eda",
+    "storeUpdatedAt": "2026-09-17T06:24:13.842Z",
+    "rootHash": "1a22923cffb69614"
   },
   "files": {
     "CLAUDE.md": {
@@ -26373,6 +26373,174 @@
           "startLine": 246,
           "endLine": 272,
           "tokens": 258
+        }
+      ]
+    },
+    "pcs-backend/tests/services/heat/fixtures/README.md": {
+      "description": "Project documentation",
+      "tokens": 309,
+      "hash": "d013b52cc5e562aa",
+      "size": 1766,
+      "mtimeMs": 1789626062776.136,
+      "updatedAt": "2026-09-17T06:21:02.829Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/heat/fixtures/golden_weight_bem.json": {
+      "description": "",
+      "tokens": 322,
+      "hash": "1d6b8ef7a6e46285",
+      "size": 1160,
+      "mtimeMs": 1789626252353.8933,
+      "updatedAt": "2026-09-17T06:24:12.405Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/heat/fixtures/golden_weight_aem.json": {
+      "description": "",
+      "tokens": 315,
+      "hash": "ac010f168b65374d",
+      "size": 1127,
+      "mtimeMs": 1789626253783.92,
+      "updatedAt": "2026-09-17T06:24:13.832Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/services/heat/weight_estimate_service.py": {
+      "description": "换热器重量估算 service（P5-4-4 / Task 22）。",
+      "tokens": 2488,
+      "hash": "4ca52d1b4eefe3fc",
+      "size": 9616,
+      "mtimeMs": 1789626128362.494,
+      "updatedAt": "2026-09-17T06:22:08.415Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "WeightEstimateInput",
+          "kind": "class",
+          "startLine": 70,
+          "endLine": 96,
+          "tokens": 204
+        },
+        {
+          "name": "WeightSegment",
+          "kind": "class",
+          "startLine": 97,
+          "endLine": 104,
+          "tokens": 38
+        },
+        {
+          "name": "WeightEstimateResult",
+          "kind": "class",
+          "startLine": 105,
+          "endLine": 124,
+          "tokens": 137
+        },
+        {
+          "name": "_material_density",
+          "kind": "fn",
+          "startLine": 125,
+          "endLine": 128,
+          "tokens": 32
+        },
+        {
+          "name": "_flange_unit_weight",
+          "kind": "fn",
+          "startLine": 129,
+          "endLine": 134,
+          "tokens": 48
+        },
+        {
+          "name": "_saddle_unit_weight",
+          "kind": "fn",
+          "startLine": 135,
+          "endLine": 138,
+          "tokens": 34
+        },
+        {
+          "name": "_nozzle_od",
+          "kind": "fn",
+          "startLine": 139,
+          "endLine": 142,
+          "tokens": 33
+        },
+        {
+          "name": "estimate_weight",
+          "kind": "fn",
+          "startLine": 143,
+          "endLine": 294,
+          "tokens": 1388
+        }
+      ]
+    },
+    "pcs-backend/tests/services/heat/test_weight_estimate.py": {
+      "description": "换热器重量估算 service 测试（P5-4-4 / Task 22）。",
+      "tokens": 1524,
+      "hash": "b75f3061e996f617",
+      "size": 5852,
+      "mtimeMs": 1789626144250.8127,
+      "updatedAt": "2026-09-17T06:22:24.328Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_load_golden",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 37,
+          "tokens": 43
+        },
+        {
+          "name": "test_cylinder_geometry_exact",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 55,
+          "tokens": 150
+        },
+        {
+          "name": "test_bem_golden_weight_match",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 71,
+          "tokens": 164
+        },
+        {
+          "name": "test_bem_formula_ref_present",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 90,
+          "tokens": 205
+        },
+        {
+          "name": "test_bem_shell_total_equals_sum_of_5_segments",
+          "kind": "fn",
+          "startLine": 91,
+          "endLine": 106,
+          "tokens": 152
+        },
+        {
+          "name": "test_bem_total_equals_shell_plus_tube_baffle_channels",
+          "kind": "fn",
+          "startLine": 107,
+          "endLine": 124,
+          "tokens": 156
+        },
+        {
+          "name": "test_aem_golden_weight_match",
+          "kind": "fn",
+          "startLine": 125,
+          "endLine": 142,
+          "tokens": 142
+        },
+        {
+          "name": "test_material_density_carbon_vs_ss304",
+          "kind": "fn",
+          "startLine": 143,
+          "endLine": 160,
+          "tokens": 164
+        },
+        {
+          "name": "test_zero_tube_baffle_yields_zero",
+          "kind": "fn",
+          "startLine": 161,
+          "endLine": 176,
+          "tokens": 137
         }
       ]
     }
