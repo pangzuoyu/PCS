@@ -8,6 +8,7 @@ from app.api.v1.config import router as config_router
 from app.api.v1.equip_lib import router as equip_lib_router
 from app.api.v1.flash import router as flash_router
 from app.api.v1.health import router as health_router
+from app.api.v1.heat import router as heat_router  # P5-4-5
 from app.api.v1.imports import router as imports_router
 from app.api.v1.lineage import router as lineage_router
 from app.api.v1.meta import router as meta_router
@@ -49,6 +50,7 @@ api_router.include_router(vessel_router)  # P5-1-4
 api_router.include_router(sep_equip_router)  # P5-2-4
 api_router.include_router(psv_router)  # P5-3-6
 api_router.include_router(psv_standard_profiles_router)  # P5-3-6
+api_router.include_router(heat_router)  # P5-4-5
 api_router.include_router(pipe_codes_router)
 api_router.include_router(common_router)
 api_router.include_router(imports_router)
