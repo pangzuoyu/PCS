@@ -1,0 +1,22 @@
+HTRI Xist v6.0 Output Report
+==============================
+Case Name: HEAT-E-201 Basic Hand-Parse
+Heat Duty: 1.0 MW
+Overall U: 500 W/m²K
+Area Required: 10.0 m²
+Shell Diameter: 0.600 m
+Tube Length: 3.000 m
+Tube Count: 150
+Baffle Spacing: 0.400 m
+
+Hot Side:
+  Hot Inlet T: 423.15 K
+  Hot Outlet T: 383.15 K
+  Hot Mass Flow: 1.389 kg/s
+  Hot Cp: 2100 J/kg·K
+
+Cold Side:
+  Cold Inlet T: 308.15 K
+  Cold Outlet T: 348.15 K
+  Cold Mass Flow: 1.667 kg/s
+  Cold Cp: 4180 J/kg·K

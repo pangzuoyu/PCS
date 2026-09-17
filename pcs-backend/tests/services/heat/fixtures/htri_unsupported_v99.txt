@@ -1,0 +1,6 @@
+HTRI Xist v99.0 Output Report
+==============================
+Case Name: HEAT-FUTURE
+Heat Duty: 1.0 MW
+Overall U: 500 W/m²K
+Area Required: 10.0 m²

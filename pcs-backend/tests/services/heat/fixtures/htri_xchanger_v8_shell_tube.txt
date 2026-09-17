@@ -1,0 +1,22 @@
+HTRI Xchanger Suite v8.2 Output
+===============================
+Case Name: HEAT-E-301 Shell and Tube BEM
+Heat Duty: 850.0 kW
+Overall U: 650.0 W/m²K
+Area Required: 8.50 m²
+Shell Diameter: 0.500 m
+Tube Length: 4.000 m
+Tube Count: 198
+Baffle Spacing: 0.350 m
+
+Hot Side:
+  Hot Inlet T: 393.15 K
+  Hot Outlet T: 353.15 K
+  Hot Mass Flow: 1.250 kg/s
+  Hot Cp: 2200 J/kg·K
+
+Cold Side:
+  Cold Inlet T: 298.15 K
+  Cold Outlet T: 333.15 K
+  Cold Mass Flow: 2.400 kg/s
+  Cold Cp: 4186 J/kg·K
