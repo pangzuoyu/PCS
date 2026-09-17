@@ -30,6 +30,20 @@ export type OrificeSize =
   | 'D' | 'E' | 'F' | 'G' | 'H' | 'J' | 'K' | 'L'
   | 'M' | 'N' | 'P' | 'Q' | 'R' | 'T';
 
+// SUP-P5-PSV-002 V1.0 §3.2：阀体型式 / 阀体材料 / 孔口系列枚举
+export type PsvValveType =
+  | 'SPRING_LOADED'      // 弹簧载荷式（默认）
+  | 'BALANCED_BELLOWS'   // 平衡波纹管式
+  | 'PILOT_OPERATED'     // 先导式（P5 拦截）
+  | 'RUPTURE_DISC';      // 爆破膜式（P5 拦截）
+
+export type PsvBodyMaterial =
+  | 'CARBON_STEEL'       // 碳钢
+  | 'SS304'
+  | 'SS316'
+  | 'SS316L'
+  | 'ALLOY';             // 合金钢
+
 export interface FormulaRef {
   standard: string;
   version: string;
@@ -112,6 +126,12 @@ export interface PsvCalculateRequest {
   blowdown_fraction?: number;
   inlet_size?: string;
   outlet_size?: string;
+  // SUP-P5-PSV-002 V1.0 §4.1 扩展：阀体选型 6 字段
+  // 已有 3 字段（blowdown_fraction / inlet_size / outlet_size）+ 新增 3 字段
+  // 后端当前 extra='ignore' 静默忽略缺失字段；老请求格式仍兼容（§7.2）
+  valve_type?: PsvValveType;
+  body_material?: PsvBodyMaterial;
+  orifice_override?: OrificeSize | null;
 }
 
 // ---------------------------------------------------------------------------
