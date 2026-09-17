@@ -28,7 +28,7 @@ import uuid
 from typing import Annotated, Any, Literal
 
 from fastapi import APIRouter, Depends
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
@@ -50,9 +50,30 @@ ReliefScenarioLit = Literal[
 ]
 StandardCodeLit = Literal["API", "GB", "CUSTOM"]
 
+# P5-OPEN-10 SUP-P5-PSV-002 V1.14 §4.1 Pydantic Literal 枚举
+PsvValveTypeLit = Literal["SPRING_LOADED", "BALANCED_BELLOWS", "PILOT_OPERATED", "RUPTURE_DISC"]
+PsvBodyMaterialLit = Literal["CARBON_STEEL", "SS304", "SS316", "SS316L", "ALLOY"]
+PsvBellowsMaterialLit = Literal[
+    "HASTELLOY_C276", "SS316L", "INCONEL_625", "INCONEL_718", "ALLOY_400", "ALLOY_C22",
+]
+PsvFlangeClassLit = Literal["150#", "300#", "600#", "900#", "1500#", "2500#"]
+PsvBackPressureTypeLit = Literal["BUILT_UP", "SUPERIMPOSED"]
+PsvMediumLit = Literal["GAS", "VAPOR", "LIQUID", "TWO_PHASE"]
+PsvOrificeSizeLit = Literal[
+    "D", "E", "F", "G", "H", "J", "K", "L", "M", "N", "P", "Q", "R", "T",
+]
+PsvRuptureDiscPositionLit = Literal["UPSTREAM", "DOWNSTREAM", "NONE"]
+PsvPilotTempClassLit = Literal["GENERAL", "HIGH_TEMP", "CRYOGENIC"]
+
 
 class CalculateRequest(BaseModel):
-    """POST /psv/calculate 请求体。"""
+    """POST /psv/calculate 请求体。
+
+    P5-OPEN-10 V1.14：新增 18 字段与前端 §4.1 联动；老请求可用（extra='ignore'）。
+    """
+
+    # forward-compat：未识别字段静默丢弃；后端 Pydantic v2 不阻断老客户端
+    model_config = ConfigDict(extra="ignore", protected_namespaces=())
 
     source_stream_id: uuid.UUID = Field(..., description="输入流 UUID（必须 CHECKED）")
     relief_scenario: ReliefScenarioLit = Field(
@@ -78,14 +99,101 @@ class CalculateRequest(BaseModel):
         default=None,
         description="7th / 2011 / 2024 / CUSTOM；缺省由项目 profile 推断",
     )
-    blowdown_fraction: float = Field(
-        default=0.05,
-        gt=0,
-        lt=1,
-        description="blowdown 占比（API 520 惯例 5%）",
+    blowdown_fraction: float | None = Field(
+        default=None,
+        description=(
+            "blowdown 占比（API 520 惯例 5%）；None → 按 medium 派生（GAS=5% / "
+            "VAPOR=5% / LIQUID=10% / TWO_PHASE=10%；§3.5）"
+        ),
     )
     inlet_size: str = Field(default="4 inch", description="进口尺寸")
     outlet_size: str = Field(default="6 inch", description="出口尺寸")
+
+    # ===== P5-OPEN-10 SUP-P5-PSV-002 V1.14 §4.1 选型 18 字段（全部 Optional + 默认值）=====
+    valve_type: PsvValveTypeLit = Field(
+        default="SPRING_LOADED",
+        description="SPRING_LOADED / BALANCED_BELLOWS / PILOT_OPERATED / RUPTURE_DISC",
+    )
+    body_material: PsvBodyMaterialLit = Field(
+        default="SS316",
+        description="阀体材料 CARBON_STEEL / SS304 / SS316 / SS316L / ALLOY",
+    )
+    bellows_material: PsvBellowsMaterialLit | None = Field(
+        default=None,
+        description="波纹管材料 6 种（仅 BALANCED_BELLOWS 必填；§3.8）",
+    )
+    flange_class: PsvFlangeClassLit = Field(
+        default="300#",
+        description="法兰等级 150#/300#/600#/900#/1500#/2500#",
+    )
+    back_pressure_type: PsvBackPressureTypeLit = Field(
+        default="BUILT_UP",
+        description="BUILT_UP（累积）/ SUPERIMPOSED（恒定叠加）",
+    )
+    back_pressure_pct: float = Field(
+        default=0.0,
+        ge=0,
+        le=100,
+        description="背压百分比 0-100（弹簧式 BUILT_UP 上限 10%；§3.5）",
+    )
+    superimposed_pressure_pa: float = Field(
+        default=0.0,
+        ge=0,
+        description="恒定叠加背压（Pa；仅 SUPERIMPOSED 时启用 CDTP 修正；§4.4）",
+    )
+    set_pressure_pa: float = Field(
+        default=200_000.0,
+        gt=0,
+        description="设定压力（Pa gauge；前端透传 stream.max_allowable_pressure_pa）",
+    )
+    overpressure_pct: float = Field(
+        default=0.10,
+        description="超压百分比 10/16/21（API 520 §5.3.1）",
+    )
+    orifice_override: PsvOrificeSizeLit | None = Field(
+        default=None,
+        description="手动指定孔口 D-T（与 API 526 反向映射候选一致；§4.5）",
+    )
+    valve_brand: str | None = Field(
+        default=None,
+        description="阀体品牌（自由字符串；V1.14 P2-1 修订；§4.3）",
+    )
+    rupture_disc_position: PsvRuptureDiscPositionLit = Field(
+        default="NONE",
+        description="爆破膜位置 UPSTREAM（Kc=0.90）/ DOWNSTREAM（Kc=1.00）/ NONE",
+    )
+    pilot_temperature_c: float | None = Field(
+        default=None,
+        description="先导温度 °C（PILOT_OPERATED；P5 占位）",
+    )
+    pilot_temp_class: PsvPilotTempClassLit = Field(
+        default="GENERAL",
+        description="GENERAL / HIGH_TEMP / CRYOGENIC（PILOT_OPERATED；P5 占位）",
+    )
+    fire_protection: bool = Field(
+        default=False,
+        description="防火保护（影响 FIRE 工况计算；§3.2）",
+    )
+    medium: PsvMediumLit = Field(
+        default="GAS",
+        description="介质 GAS / VAPOR / LIQUID / TWO_PHASE",
+    )
+    service_note: str | None = Field(
+        default=None,
+        description="服务工况备注（人工输入；含介质描述，用于波纹管材料兼容校验；§3.8）",
+    )
+    fluid_temperature_c: float | None = Field(
+        default=None,
+        description="流体温度 °C（Q/R/T 高温低分子量校验用；§3.9）",
+    )
+    molecular_weight: float | None = Field(
+        default=None,
+        description="分子量 g/mol（Q/R/T 高温低分子量校验用；§3.9）",
+    )
+    calculated_area_m2: float | None = Field(
+        default=None,
+        description="计算泄放面积 m²（G9 orifice_override < 计算面积 校验用；§4.2 G9）",
+    )
 
 
 class CalculateResponse(BaseModel):
