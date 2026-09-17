@@ -43,6 +43,9 @@ const MENU_ITEMS: MenuItem[] = [
     { key: '/pipe/line-list', label: '管道一览表' },
     { key: '/pipe-net', label: '管网拓扑' },
     { key: '/pump', label: '泵计算' },
+    { key: '/vessel', label: '容器计算' },
+    { key: '/sep-equip', label: '分离设备' },
+    { key: '/psv', label: '安全阀' },
   ]),
   group('项目文档', 'docs', [
     { key: '/pms', label: 'PMS 规格' },

@@ -21,12 +21,15 @@ import {
   PipeRoute,
   PmsRoute,
   PropertySearchRoute,
+  PsvRoute,
   PumpRoute,
+  SepEquipRoute,
   StreamDetailRoute,
   StreamListRoute,
   SymbolTableRoute,
   TemplateFileRoute,
   ToxicityRoute,
+  VesselRoute,
   WizardRoute,
 } from './pages/routeWrappers';
 
@@ -70,6 +73,11 @@ const router = createBrowserRouter([
       { path: 'pipe/line-list', element: <PipeLineListRoute /> },
       { path: 'pipe-net', element: <PipeNetRoute /> },
       { path: 'pump', element: <PumpRoute /> },
+
+      // 设备计算（P5）
+      { path: 'vessel', element: <VesselRoute /> },
+      { path: 'sep-equip', element: <SepEquipRoute /> },
+      { path: 'psv', element: <PsvRoute /> },
 
       // 项目文档 / 向导
       { path: 'pms', element: <PmsRoute /> },

@@ -52,17 +52,20 @@ import { CoefficientTableEditorPage } from './config/CoefficientTableEditorPage'
 import { FormulaEditorPage } from './config/FormulaEditorPage';
 import { TemplateFilePage } from './config/TemplateFilePage';
 import { FlashComputePage } from './flash/FlashComputePage';
+import { PipeComputePage } from './pipe/PipeComputePage';
+import { PipeLineListPage } from './pipe/PipeLineListPage';
 import { CodeFormatDesignerPage } from './pipe_class/CodeFormatDesignerPage';
 import { PipeClassListPage } from './pipe_class/PipeClassListPage';
 import { SymbolTablePage } from './pipe_class/SymbolTablePage';
-import { PipeComputePage } from './pipe/PipeComputePage';
-import { PipeLineListPage } from './pipe/PipeLineListPage';
 import { PipeNetTopologyPage } from './pipe_net/PipeNetTopologyPage';
+import { PsvComputePage } from './psv/PsvComputePage';
 import { PumpComputePage } from './pump/PumpComputePage';
 import { PmsPage } from './pms/PmsPage';
+import { SepEquipComputePage } from './sep_equip/SepEquipComputePage';
 import { ImportWizardPage } from './sim/ImportWizardPage';
 import { StreamDetailPage } from './sim/StreamDetailPage';
 import { StreamListPage } from './sim/StreamListPage';
+import { VesselComputePage } from './vessel/VesselComputePage';
 import { ProjectWizardPage } from './wizard/ProjectWizardPage';
 
 const PROJECT_ID = '00000000-0000-0000-0000-000000000001';
@@ -192,6 +195,21 @@ export function PumpRoute(): JSX.Element {
       onCalculate={(_input: PumpInput): PumpResult | undefined => undefined}
     />
   );
+}
+
+// === P5-1 VESSEL ===
+export function VesselRoute(): JSX.Element {
+  return <VesselComputePage streams={[]} />;
+}
+
+// === P5-2 SEP_EQUIP ===
+export function SepEquipRoute(): JSX.Element {
+  return <SepEquipComputePage streams={[]} />;
+}
+
+// === P5-3 PSV ===
+export function PsvRoute(): JSX.Element {
+  return <PsvComputePage streams={[]} projectStandard="API" />;
 }
 
 // === 项目文档 / 向导 ===
