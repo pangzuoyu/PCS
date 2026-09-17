@@ -165,7 +165,7 @@ BLOWDOWN_DEFAULT_BY_MEDIUM: Final[dict[str, float]] = {
 
 # 背压阀型上限（§3.5 + §4.2 G10）
 BACK_PRESSURE_MAX_BY_TYPE: Final[dict[PsvValveType, dict[PsvBackPressureType, float | None]]] = {
-    "SPRING_LOADED": {"BUILT_UP": 10.0, "SUPERIMPOSED": None},  # 10% 硬限；superimposed 无硬限（CDTP 修正）
+    "SPRING_LOADED": {"BUILT_UP": 10.0, "SUPERIMPOSED": None},  # 10% 硬限
     "BALANCED_BELLOWS": {"BUILT_UP": 50.0, "SUPERIMPOSED": 50.0},  # total ≤ 50%
     "PILOT_OPERATED": {"BUILT_UP": None, "SUPERIMPOSED": None},  # P5 拦截
     "RUPTURE_DISC": {"BUILT_UP": None, "SUPERIMPOSED": None},  # P5 拦截

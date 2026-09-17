@@ -34,7 +34,7 @@ from app.services.psv.valve_selection_types import PsvBellowsMaterial
 # ---------------------------------------------------------------------------
 
 
-# forbidden 条件结构：{"condition": str, "source": str, "note"?: str, "conservative_threshold_ppm"?: int}
+# forbidden 条件结构：{"condition", "source", "note"?, "conservative_threshold_ppm"?}
 BELLOWS_MATERIAL_COMPAT: Final[dict[PsvBellowsMaterial, dict[str, Any]]] = {
     "HASTELLOY_C276": {
         "astm": ["ASTM B 575", "ASTM B 622"],

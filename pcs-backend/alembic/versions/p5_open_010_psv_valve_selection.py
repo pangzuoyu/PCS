@@ -2,7 +2,7 @@
 
 按 SUP-P5-PSV-002 V1.14（SPEC §3.1 + §4.1 + §4.2）：
 
-1. **psv_results 加 18 列**（净增；inlet_size/outlet_size/blowdown/set_pressure/orifice_designation 已存在）：
+1. **psv_results 加 18 列**（净增；inlet/outlet/blowdown/set_pressure/orifice_designation 已存在）：
    - 阀型/材料：valve_type / body_material / bellows_material
    - 背压：back_pressure_type / back_pressure_pct
    - 超压：overpressure_pct
@@ -21,7 +21,8 @@
 3. **存量回填**（兼容 G6 门禁）：
    - 现有 PsvResult 行的 valve_type 默认为 'SPRING_LOADED'（满足 psv_valve_type_chk）
    - 现有 PsvResult 行的 cdtp_applied 默认 FALSE（满足 psv_cdtp_check）
-   - 现有 PsvResult 行的 orifice_overridden 默认 FALSE + orifice_manual NULL（满足 psv_orifice_overridden_check）
+   - 现有 PsvResult 行的 orifice_overridden 默认 FALSE + orifice_manual NULL
+     （满足 psv_orifice_overridden_check）
 
 **DOWN-REVISION** = p5_0_2_heat_results_extend（P5-0 末态 alembic head）。
 """
