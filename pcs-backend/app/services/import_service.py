@@ -228,6 +228,7 @@ class ImportService:
             "unreliable_stream_names": sorted(unreliable_set),
             "warnings": warnings,
             "preview_streams": preview_streams,
+            "preview_towers": [result.column_summary] if result.column_summary else [],
             "conflict_report": _serialize_report(report),
         }
 
@@ -240,6 +241,8 @@ class ImportService:
         workspace_id: uuid.UUID,
         preview_streams: list[dict[str, Any]],
         actor: uuid.UUID,
+        preview_towers: list[dict[str, Any]] | None = None,
+        import_id: uuid.UUID | None = None,
     ) -> dict[str, Any]:
         """PRO/II 预览条目落库。
 
@@ -249,6 +252,8 @@ class ImportService:
         - unreliable 流：依旧落库，但 StreamResponse.phase 标 *UNRELIABLE* 不在
           schema 内，preview 已告知用户。本期实现：unreliable 流正常入库，
           response.unreliable_count 仅计数。
+        - P4 #4：preview_towers 非空时，逐条写入 sim_tower_results（SIM-16）。
+          tower_uid/tower_name/num_stages/condenser/reboiler + 4 JSONB 段。
         """
         committed: list[uuid.UUID] = []
         skipped = 0
@@ -275,11 +280,42 @@ class ImportService:
                     warnings.append(f"{stream_name}: {str(e)}")
                 else:
                     raise
+
+        # P4 #4：sim_tower_results 落库（SIM-16 COLUMN SUMMARY）
+        tower_ids: list[uuid.UUID] = []
+        if preview_towers and import_id is not None:
+            from app.models.sim_tower import SimTowerResult
+
+            for tower in preview_towers:
+                tower_uid = tower.get("tower_uid")
+                if not tower_uid:
+                    continue
+                row = SimTowerResult(
+                    import_id=import_id,
+                    tower_uid=tower_uid,
+                    tower_name=tower.get("tower_name"),
+                    tower_type=tower.get("tower_type", "COLUMN"),
+                    num_stages=tower.get("num_stages"),
+                    condenser_type=tower.get("condenser_type"),
+                    reboiler_type=tower.get("reboiler_type"),
+                    feed_stages_json=tower.get("feed_stages_json", []),
+                    product_streams_json=tower.get("product_streams_json", []),
+                    tray_data_json=tower.get("tray_data_json", {}),
+                    compositions_json=tower.get("compositions_json", {}),
+                    loading_json=tower.get("loading_json", {}),
+                    rating_json=tower.get("rating_json", {}),
+                    is_unreliable=tower.get("is_unreliable", False),
+                )
+                db.add(row)
+                await db.flush()
+                tower_ids.append(row.tower_id)
+
         return {
             "committed_count": len(committed),
             "unreliable_count": unreliable_count,
             "skipped_count": skipped,
             "stream_ids": committed,
+            "tower_ids": tower_ids,
             "warnings": warnings,
         }
 
@@ -401,6 +437,7 @@ class ImportService:
                 else None
             ),
             preview_streams_json=preview_dict.get("preview_streams", []),
+            preview_towers_json=preview_dict.get("preview_towers", []),
             conflict_report_json=preview_dict.get("conflict_report"),
             warnings_json=preview_dict.get("warnings", []),
             created_by=actor,
@@ -473,6 +510,8 @@ class ImportService:
             project_id=sim_import.project_id,
             workspace_id=sim_import.workspace_id,
             preview_streams=sim_import.preview_streams_json,
+            preview_towers=sim_import.preview_towers_json,
+            import_id=sim_import.import_id,
             actor=actor,
         )
         # 更新状态 = COMMITTED

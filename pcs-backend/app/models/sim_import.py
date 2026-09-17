@@ -93,6 +93,7 @@ class SimImport(Base):
     banner_version: Mapped[str | None] = mapped_column(String(20))
     # preview 阶段解析结果（commit 阶段读取使用）
     preview_streams_json: Mapped[dict] = mapped_column(JSONB, default=dict)
+    preview_towers_json: Mapped[list] = mapped_column(JSONB, default=list)
     conflict_report_json: Mapped[dict | None] = mapped_column(JSONB)
     warnings_json: Mapped[list] = mapped_column(JSONB, default=list)
     # 生命周期

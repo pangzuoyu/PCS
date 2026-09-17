@@ -98,6 +98,8 @@ class ProiiParseResult:
     zero_flow_streams: list[str] = field(default_factory=list)
     unreliable_streams: list[str] = field(default_factory=list)
     warnings: list[str] = field(default_factory=list)
+    # P4 #4：SIM-16 COLUMN SUMMARY 段（dict 或 None；preview/commit 链路落库）
+    column_summary: dict | None = None
 
 
 # 复用 property_completion.ParsedStream（避免重复定义）—— 但为了测试简便，
@@ -296,6 +298,7 @@ def parse_proii_files(inp_path: Path | str, out_path: Path | str) -> ProiiParseR
         zero_flow_streams=sorted(zero_flow),
         unreliable_streams=sorted(unreliable),
         warnings=warnings,
+        column_summary=_parse_column_summary_text(out_text),
     )
 
 
@@ -715,6 +718,12 @@ _COL_FEED_RE = re.compile(
     r"^\s+STREAM\s+(?P<sid>\S+)\s+STAGE\s+(?P<stage>\d+)", re.IGNORECASE
 )
 _COL_PRODUCT_RE = re.compile(r"^\s+(OVERHEAD|BOTTOMS|SIDEDRAW)\s+(?P<sid>\S+)", re.IGNORECASE)
+# P4 #4：sample1_34comp 简版 COLUMN SUMMARY 段行（无 NAME: 前缀）
+_COL_UNIT_RE = re.compile(r"^\s*UNIT\s+\d+\s*,\s*'(?P<uid>[^']+)'", re.IGNORECASE)
+_COL_TRAYS_SIMPLE_RE = re.compile(
+    r"^\s+THEORETICAL TRAYS\s+(?P<n>\d+)", re.IGNORECASE
+)
+_COL_FEED_TRAY_RE = re.compile(r"^\s+FEED TRAY\s+(?P<stage>\d+)", re.IGNORECASE)
 # TRAY COMPOSITIONS / LOADING 段行
 _TRAY_DATA_RE = re.compile(
     r"^\s+STAGE\s+(?P<stage>\d+)\s+TEMP\s*=\s*(?P<t>[\d.\-]+)\s+K\s+"
@@ -927,7 +936,7 @@ def _parse_one_unit_summary(unit_type: str, section_lines: list[str]) -> dict | 
 def _parse_column_summary_text(text: str) -> dict | None:
     """text → COLUMN SUMMARY dict（内部供 parse_column_summary/parse_proii_out 共用）。"""
     lines = text.splitlines()
-    # 找 COLUMN SUMMARY 段行范围（到下一个 SUMMARY 段或空行分隔）
+    # 找 COLUMN SUMMARY 段行范围（到下一个 SUMMARY 段或 RUN STATISTICS / END）
     start_idx: int | None = None
     end_idx: int | None = None
     for i, line in enumerate(lines):
@@ -935,11 +944,22 @@ def _parse_column_summary_text(text: str) -> dict | None:
             start_idx = i + 1
             continue
         if start_idx is not None and end_idx is None:
-            if line.strip() == "" or "SUMMARY" in line.upper() and "TRAY" not in line.upper():
+            u = line.upper()
+            # 终止条件：下一个 SUMMARY 段 / RUN STATISTICS / 空行后接非缩进行
+            if "RUN STATISTICS" in u:
+                end_idx = i
+                break
+            if "SUMMARY" in u and "TRAY" not in u and "COLUMN" not in u:
                 end_idx = i
                 break
     if start_idx is None or end_idx is None:
-        return None
+        # 兜底：COLUMN SUMMARY 段后所有非 RUN STATISTICS 行
+        for i in range(start_idx or 0, len(lines)):
+            if "RUN STATISTICS" in lines[i].upper():
+                end_idx = i
+                break
+        if end_idx is None:
+            end_idx = len(lines)
     section = lines[start_idx:end_idx]
 
     result: dict = {
@@ -971,6 +991,17 @@ def _parse_column_summary_text(text: str) -> dict | None:
             )
         elif (m := _COL_PRODUCT_RE.match(line)):
             result["product_streams_json"].append(m.group("sid"))
+        # P4 #4：sample1_34comp 简版段（UNIT 1, 'T01' + THEORETICAL TRAYS N）
+        elif (m := _COL_UNIT_RE.match(line)):
+            result["tower_uid"] = m.group("uid")
+            result["tower_name"] = m.group("uid")
+        elif (m := _COL_TRAYS_SIMPLE_RE.match(line)):
+            result["num_stages"] = int(m.group("n"))
+        elif (m := _COL_FEED_TRAY_RE.match(line)):
+            # FEED TRAY 仅 1 个，作为单元素 feed_stages_json（stream_id 待补）
+            result["feed_stages_json"].append(
+                {"stream_id": None, "stage": int(m.group("stage"))}
+            )
 
     # 后续段：TRAY COMPOSITIONS / LOADING
     post_section = lines[end_idx:]

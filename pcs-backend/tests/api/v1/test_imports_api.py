@@ -448,3 +448,44 @@ async def test_stateful_commit_marks_status_committed(
     assert sim_import.status == SimImportStatus.COMMITTED
     assert sim_import.committed_at is not None
     assert sim_import.committed_by is not None
+
+
+@pytest.mark.asyncio
+async def test_p4_4_commit_writes_sim_tower_results(
+    client, make_project, designer_headers, db
+):
+    """P4 #4 parser 入库链路：commit 阶段把 COLUMN SUMMARY 写入 sim_tower_results。
+
+    sample1_34comp 含 COLUMN SUMMARY 段 → 至少 1 行 sim_tower_results。
+    """
+    from sqlalchemy import select
+
+    from app.models.sim_tower import SimTowerResult
+
+    proj = await make_project()
+    inp, out = _proii_pair("sample1_34comp")
+    with inp.open("rb") as f_inp, out.open("rb") as f_out:
+        r1 = await client.post(
+            f"/api/v1/projects/{proj.project_id}/imports/proii/preview",
+            files={"file_inp": ("sample1.inp", f_inp, "text/plain"),
+                   "file_out": ("sample1.out", f_out, "text/plain")},
+            headers=designer_headers,
+        )
+    import_id = uuid.UUID(r1.json()["import_id"])
+    # preview 阶段 preview_towers 至少 1 条
+    assert len(r1.json()["preview"].get("preview_towers", [])) >= 1, r1.text
+    r2 = await client.post(
+        f"/api/v1/projects/{proj.project_id}/imports/proii/commit",
+        json={"import_id": str(import_id)},
+        headers=designer_headers,
+    )
+    assert r2.status_code == 200, r2.text
+    assert len(r2.json().get("tower_ids", [])) >= 1, r2.text
+
+    # DB 校验
+    stmt = select(SimTowerResult).where(SimTowerResult.import_id == import_id)
+    towers = (await db.execute(stmt)).scalars().all()
+    assert len(towers) >= 1
+    assert towers[0].tower_type == "COLUMN"
+    assert towers[0].tower_uid is not None
+    assert towers[0].num_stages is not None

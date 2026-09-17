@@ -374,4 +374,6 @@ class StreamImportResult(BaseModel):
     unreliable_count: int = Field(..., ge=0, description="不可靠数（unreliable=True 标记）")
     skipped_count: int = Field(default=0, ge=0, description="跳过数（BLOCK 冲突）")
     stream_ids: list[uuid.UUID] = Field(default_factory=list, description="落库物流 ID 列表")
+    # P4 #4：sim_tower_results 落库 ID 列表（SIM-16 COLUMN SUMMARY）
+    tower_ids: list[uuid.UUID] = Field(default_factory=list, description="落库塔 ID 列表")
     warnings: list[str] = Field(default_factory=list, description="落库过程警告")
