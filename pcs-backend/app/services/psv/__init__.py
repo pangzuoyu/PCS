@@ -31,6 +31,13 @@ from app.services.psv.other_cases_service import (
     calc_reaction_runaway_case,
     calc_thermal_expansion_case,
 )
+from app.services.psv.relief_aggregator_service import (
+    ReliefAggregateInput,
+    ReliefAggregateResult,
+    ReliefCase,
+    Scenario,
+    calc_relief_aggregate,
+)
 
 __all__ = [
     "FireCaseInput",
@@ -50,4 +57,9 @@ __all__ = [
     "calc_closed_valve_case",
     "calc_reaction_runaway_case",
     "calc_thermal_expansion_case",
+    "Scenario",
+    "ReliefCase",
+    "ReliefAggregateInput",
+    "ReliefAggregateResult",
+    "calc_relief_aggregate",
 ]
