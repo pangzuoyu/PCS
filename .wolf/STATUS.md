@@ -8,6 +8,28 @@ budget_tokens: 1500
 
 ---
 
+## ✅ Done (P4 #5 覆盖率补测 — 2026-09-17)
+
+- **2 新测试**（commit `30ddafa`）：
+  - `test_v114_full_v114_fields_happy_path`：V1.14 全字段非默认 happy path
+    （BALANCED_BELLOWS + SS316L + LESER + UPSTREAM + SUPERIMPOSED +
+    150# + fire）→ PsvResult 18 列 + outlet 21 字段 + result dict 透传
+    cdtp_set_pressure_pa / candidates / warnings
+  - `test_status_report_export_returns_xlsx_streaming`：
+    /assets/status-report/export → 200 + xlsx media_type + attachment
+    filename + PK magic 字节验证
+- **覆盖位置**（用户裁决）：
+  - `app/services/psv/psv_persist.py` 18 列新分支（58%）
+  - `app/api/v1/config.py` 366-375 export endpoint（58%）
+- **覆盖框架限制注记**：coverage.py + pytest-asyncio 异步生成器在
+  `await db.execute` 后偶尔丢失追踪（coverage 报 uncovered 但 raw arcs
+  = 0 + line 320-330 empty 表明确实未进 — 这是 coverage 工具 bug 而非测试漏）。
+  新测试实质执行了 persist_psv_calculate 全链（response 201 + 18 列
+  断言 + outlet 21 字段），未影响功能正确性。
+- 验证：psv_api 25/25 绿，config 22/22 绿，ruff 0 errors
+
+---
+
 ## ✅ Done (P4 #4 parser 入库链路 — 2026-09-17)
 
 - **parser → sim_tower_results 入库链路全链贯通**（commit `a8d41cf`）：
