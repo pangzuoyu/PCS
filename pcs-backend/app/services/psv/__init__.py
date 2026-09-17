@@ -38,6 +38,18 @@ from app.services.psv.relief_aggregator_service import (
     Scenario,
     calc_relief_aggregate,
 )
+from app.services.psv.relief_area_service import (
+    Phase,
+    ReliefAreaFormulaRef,
+    ReliefAreaInput,
+    ReliefAreaResult,
+    TwoPhaseMethod,
+    calc_relief_area,
+    calc_relief_area_api520_gas,
+    calc_relief_area_api520_liquid,
+    calc_relief_area_api520_two_phase,
+    calc_relief_area_gb12241,
+)
 
 __all__ = [
     "FireCaseInput",
@@ -62,4 +74,14 @@ __all__ = [
     "ReliefAggregateInput",
     "ReliefAggregateResult",
     "calc_relief_aggregate",
+    "Phase",
+    "TwoPhaseMethod",
+    "ReliefAreaFormulaRef",
+    "ReliefAreaInput",
+    "ReliefAreaResult",
+    "calc_relief_area",
+    "calc_relief_area_api520_gas",
+    "calc_relief_area_api520_liquid",
+    "calc_relief_area_api520_two_phase",
+    "calc_relief_area_gb12241",
 ]

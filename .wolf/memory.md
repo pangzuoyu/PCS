@@ -2119,3 +2119,867 @@
 | 05:29 | Edited pcs-backend/scripts/extract_pipe_classes_kaimen.py | 4→4 lines | ~44 |
 | 05:30 | Edited pcs-backend/app/services/stream_service.py | 23→23 lines | ~214 |
 | 05:31 | Edited pcs-backend/alembic/versions/2026_09_03_0800_add_toe_conversion.py | 9→9 lines | ~84 |
+| 20:02 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 36→41 lines | ~845 |
+| 20:02 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | — | ~0 |
+| 20:02 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 2→2 lines | ~131 |
+| 20:03 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | modified feat() | ~594 |
+| 20:03 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~32 |
+| 20:03 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 2→2 lines | ~109 |
+| 20:03 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 2→2 lines | ~173 |
+| 20:03 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | modified feat() | ~687 |
+| 20:04 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | modified feat() | ~1279 |
+| 20:04 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | expanded (+8 lines) | ~226 |
+| 20:04 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 18→19 lines | ~303 |
+| 20:04 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 5→6 lines | ~120 |
+| 20:04 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~175 |
+| 20:05 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 11→12 lines | ~374 |
+| 20:05 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | expanded (+20 lines) | ~832 |
+| 20:05 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~74 |
+| 20:05 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~44 |
+| 20:05 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 15→15 lines | ~140 |
+| 20:06 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~56 |
+| 20:20 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 2→2 lines | ~173 |
+| 20:20 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~89 |
+| 20:21 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~29 |
+| 20:21 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | reduced (-20 lines) | ~198 |
+| 20:22 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | modified FireCaseFormulaRef() | ~1520 |
+| 20:22 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~122 |
+| 20:22 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~143 |
+| 20:22 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | "fire_case=GB_T_150.1_2024" → "fire_case={standard: " | ~121 |
+| 20:23 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | expanded (+6 lines) | ~378 |
+| 20:23 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~7 |
+| 20:28 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~7 |
+| 20:28 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 13→14 lines | ~688 |
+| 20:28 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~197 |
+| 20:28 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~168 |
+| 20:28 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~153 |
+| 20:29 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 2→2 lines | ~240 |
+| 20:29 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 8→8 lines | ~446 |
+| 20:29 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 2→2 lines | ~155 |
+| 20:29 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~64 |
+| 20:29 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | "two_phase_inherited_from:" → "calc_relief_area_api520(i" | ~128 |
+| 20:29 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~153 |
+| 20:30 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | "two_phase_inherited_from:" → "calc_relief_area_api520(i" | ~77 |
+| 20:30 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~40 |
+| 20:30 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~60 |
+| 20:30 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~53 |
+| 20:30 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~51 |
+| 20:31 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | expanded (+7 lines) | ~328 |
+| 20:31 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | modified FireCaseFormulaRef() | ~86 |
+| 20:33 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 6 → 7 | ~7 |
+| 20:33 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~144 |
+| 20:33 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~135 |
+| 20:34 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~163 |
+| 20:34 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~188 |
+| 20:34 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~27 |
+| 20:34 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~113 |
+| 20:34 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | "Table 5" → "§5.15.2.2.1 / Table 5" | ~22 |
+| 20:34 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~115 |
+| 20:34 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | expanded (+11 lines) | ~270 |
+| 20:35 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~122 |
+| 20:35 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~123 |
+| 20:35 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~119 |
+| 20:35 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | "CHECK (approved_by != cre" → "CHECK (approved_by IS NUL" | ~53 |
+| 20:35 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~41 |
+| 20:35 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~64 |
+| 20:35 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~60 |
+| 20:36 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | modified feat() | ~320 |
+| 20:36 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~116 |
+| 20:36 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~56 |
+| 20:36 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~41 |
+| 20:36 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | expanded (+9 lines) | ~420 |
+| 20:41 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 7 → 8 | ~7 |
+| 20:41 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~56 |
+| 20:41 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~83 |
+| 20:41 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | modified ReliefAreaFormulaRef() | ~126 |
+| 20:42 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~77 |
+| 20:42 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 6→8 lines | ~120 |
+| 20:42 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | "fluids.separator.v_Souder" → "import fluids.*" | ~138 |
+| 20:42 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~209 |
+| 20:42 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 2→2 lines | ~184 |
+| 20:42 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 2→2 lines | ~139 |
+| 20:43 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | expanded (+6 lines) | ~350 |
+| 20:43 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 22→24 lines | ~328 |
+| 20:43 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 1→2 lines | ~196 |
+| 20:43 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~86 |
+| 20:43 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~66 |
+| 20:43 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | modified validate_relief_area_formula_ref() | ~269 |
+| 20:44 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~204 |
+| 20:44 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~166 |
+| 20:44 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | expanded (+14 lines) | ~626 |
+| 20:44 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~178 |
+| 20:51 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | expanded (+22 lines) | ~511 |
+| 20:55 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~116 |
+| 20:55 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~61 |
+| 20:55 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~76 |
+| 20:55 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 4→6 lines | ~180 |
+| 20:55 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 1→5 lines | ~87 |
+| 20:55 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | modified validate_relief_area_formula_ref() | ~377 |
+| 20:55 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 1→2 lines | ~115 |
+| 20:56 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~244 |
+| 20:56 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | expanded (+13 lines) | ~320 |
+| 20:56 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | modified feat() | ~576 |
+| 20:57 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~82 |
+| 20:57 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | added 1 condition(s) | ~204 |
+| 20:57 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 3→6 lines | ~115 |
+| 20:57 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | modified parse_uv_lock() | ~298 |
+| 20:57 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | modified FireCaseFormulaRef() | ~141 |
+| 20:57 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~92 |
+| 20:58 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | expanded (+14 lines) | ~665 |
+| 20:58 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~35 |
+| 20:58 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 8 → 9 | ~7 |
+| 20:58 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~38 |
+| 20:58 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | expanded (+11 lines) | ~334 |
+| 21:02 | Created docs/adr/0028-psv-multi-standard-engine.md | — | ~1774 |
+| 21:02 | Edited docs/adr/README.md | inline fix | ~49 |
+| 21:12 | Edited docs/adr/0028-psv-multi-standard-engine.md | 9→13 lines | ~280 |
+| 21:13 | Edited docs/adr/0028-psv-multi-standard-engine.md | expanded (+8 lines) | ~381 |
+| 21:13 | Edited docs/adr/0028-psv-multi-standard-engine.md | expanded (+8 lines) | ~238 |
+| 21:13 | Edited docs/adr/0028-psv-multi-standard-engine.md | expanded (+11 lines) | ~400 |
+| 21:13 | Edited docs/adr/0028-psv-multi-standard-engine.md | inline fix | ~34 |
+| 21:14 | Edited docs/adr/0028-psv-multi-standard-engine.md | 11→12 lines | ~116 |
+| 21:15 | Created docs/adr/0030-chedl-version-lock.md | — | ~1582 |
+| 21:15 | Edited docs/adr/README.md | inline fix | ~68 |
+| 21:20 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 0029 → 0030 | ~3 |
+| 21:21 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | "docs/adr/0029-chedl-versi" → "docs/adr/0030-chedl-versi" | ~10 |
+| 21:21 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 1→2 lines | ~143 |
+| 21:21 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~191 |
+| 21:22 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 9 → 10 | ~7 |
+| 21:23 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 1→6 lines | ~279 |
+| 21:29 | Edited docs/adr/0030-chedl-version-lock.md | modified in() | ~272 |
+| 21:30 | Edited docs/adr/0030-chedl-version-lock.md | modified time_to_empty() | ~376 |
+| 21:30 | Edited docs/adr/0030-chedl-version-lock.md | modified chore() | ~273 |
+| 21:30 | Edited docs/adr/0030-chedl-version-lock.md | 3→4 lines | ~176 |
+| 21:30 | Edited docs/adr/0030-chedl-version-lock.md | expanded (+20 lines) | ~304 |
+| 21:31 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~6 |
+| 21:31 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~2 |
+| 21:32 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~40 |
+| 21:32 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~16 |
+| 21:32 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~17 |
+| 21:32 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | inline fix | ~49 |
+| 21:33 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | 1→3 lines | ~168 |
+| 21:34 | Edited docs/adr/0028-psv-multi-standard-engine.md | 4→5 lines | ~18 |
+| 21:34 | Edited docs/adr/0030-chedl-version-lock.md | 4→5 lines | ~18 |
+| 21:42 | Created pcs-backend/tests/architecture/test_chedl_version.py | — | ~2162 |
+| 21:42 | Edited pcs-backend/pyproject.toml | 3→3 lines | ~43 |
+| 21:43 | Edited pcs-backend/tests/architecture/test_chedl_version.py | modified _parse_requirements() | ~374 |
+| 21:45 | Edited pcs-backend/tests/architecture/test_chedl_version.py | modified test_fluids_version() | ~494 |
+| 21:45 | Edited pcs-backend/tests/architecture/test_chedl_version.py | 3→4 lines | ~54 |
+| 21:47 | Edited docs/adr/0030-chedl-version-lock.md | 5→6 lines | ~151 |
+| 00:03 | Created docs/superpowers/plans/2026-09-16-p45-frontend-sprint.md | — | ~5401 |
+| 00:09 | Edited docs/superpowers/plans/2026-09-16-p45-frontend-sprint.md | modified chore() | ~174 |
+| 00:10 | Created pcs-frontend/.eslintrc.cjs | — | ~189 |
+| 00:10 | Edited CLAUDE.md | 1→5 lines | ~49 |
+| 00:10 | Created pcs-frontend/src/styles/tokens.css | — | ~1524 |
+| 00:11 | Created pcs-frontend/src/styles/theme.ts | — | ~771 |
+| 00:11 | Created pcs-frontend/src/main.tsx | — | ~127 |
+| 00:11 | Created pcs-frontend/vitest.config.ts | — | ~103 |
+| 00:11 | Created pcs-frontend/tests/setup.ts | — | ~45 |
+| 00:11 | Created pcs-frontend/tests/styles/tokens.test.ts | — | ~931 |
+| 00:12 | Edited pcs-frontend/package.json | 3→6 lines | ~59 |
+| 00:12 | Edited pcs-frontend/tests/styles/tokens.test.ts | "../src/styles/tokens.css" → "../../src/styles/tokens.c" | ~25 |
+| 00:12 | Created pcs-backend/scripts/export_openapi.py | — | ~341 |
+| 00:12 | Edited pcs-backend/scripts/export_openapi.py | modified export() | ~103 |
+| 00:13 | Created pcs-frontend/scripts/gen-api-types.sh | — | ~198 |
+| 00:13 | Edited pcs-frontend/package.json | 3→5 lines | ~51 |
+| 00:13 | Created pcs-frontend/scripts/check-api-drift.sh | — | ~267 |
+| 00:14 | Created pcs-backend/app/services/meta_service.py | — | ~2118 |
+| 00:14 | Created pcs-backend/app/api/v1/meta.py | — | ~770 |
+| 00:14 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~45 |
+| 00:14 | Edited pcs-backend/app/api/v1/__init__.py | 1→2 lines | ~23 |
+| 00:14 | Created pcs-backend/tests/api/v1/test_meta.py | — | ~952 |
+| 00:15 | Edited pcs-backend/app/api/v1/meta.py | 7→7 lines | ~58 |
+| 00:15 | Edited pcs-backend/app/api/v1/meta.py | modified StateTransition() | ~73 |
+| 00:15 | Edited pcs-backend/app/api/v1/meta.py | StateTransition() → model_validate() | ~55 |
+| 00:16 | Created pcs-backend/app/services/meta_service.py | — | ~2225 |
+| 00:22 | Created docs/contracts/p45-contract-reconciliation-2026-09-16.md | — | ~611 |
+| 00:25 | Created pcs-backend/tests/api/v1/test_meta.py | — | ~1760 |
+| 00:25 | Created pcs-backend/app/services/meta_service.py | — | ~3719 |
+| 00:26 | Edited pcs-backend/app/services/meta_service.py | modified StreamDataMode() | ~247 |
+| 00:27 | Created pcs-backend/app/api/v1/meta.py | — | ~1040 |
+| 00:27 | Edited pcs-backend/tests/api/v1/test_meta.py | modified test_get_permissions_7_roles_full() | ~227 |
+| 00:27 | Edited pcs-backend/tests/api/v1/test_meta.py | 2→2 lines | ~44 |
+| 00:30 | Created docs/contracts/p45-contract-reconciliation-2026-09-16.md | — | ~1371 |
+| 00:30 | Edited docs/superpowers/plans/2026-09-16-p45-frontend-sprint.md | modified feat() | ~742 |
+| 00:30 | Edited docs/superpowers/plans/2026-09-16-p45-frontend-sprint.md | modified feat() | ~338 |
+| 00:31 | Created pcs-frontend/tests/mocks/handlers.test.ts | — | ~1225 |
+| 00:32 | Created pcs-frontend/src/mocks/seed/meta.ts | — | ~4026 |
+| 00:32 | Created pcs-frontend/src/mocks/handlers.ts | — | ~570 |
+| 00:32 | Created pcs-frontend/src/mocks/browser.ts | — | ~66 |
+| 00:32 | Created pcs-frontend/src/main.tsx | — | ~220 |
+| 00:32 | Edited pcs-frontend/tests/mocks/handlers.test.ts | 1→2 lines | ~33 |
+| 00:32 | Edited pcs-frontend/tests/mocks/handlers.test.ts | "error" → "bypass" | ~19 |
+| 00:33 | Edited pcs-frontend/tests/mocks/handlers.test.ts | 8→9 lines | ~78 |
+| 00:34 | Created pcs-frontend/tests/mocks/handlers.test.ts | — | ~1599 |
+| 00:34 | Created pcs-frontend/tests/mocks/handlers.test.ts | — | ~1441 |
+| 00:34 | Created pcs-frontend/tests/mocks/handlers.test.ts | — | ~1349 |
+| 00:35 | Edited pcs-frontend/tests/mocks/handlers.test.ts | added 2 condition(s) | ~205 |
+| 06:52 | Edited pcs-frontend/tests/mocks/handlers.test.ts | added 4 condition(s) | ~447 |
+| 06:52 | Created pcs-frontend/src/vite-env.d.ts | — | ~11 |
+| 06:54 | Created pcs-frontend/package.json | — | ~405 |
+| 06:56 | Created pcs-backend/app/services/ui_schema_service.py | — | ~2729 |
+| 06:56 | Edited pcs-backend/app/api/v1/meta.py | added 1 import(s) | ~50 |
+| 06:56 | Edited pcs-backend/app/api/v1/meta.py | modified StateMachineResponse() | ~185 |
+| 06:56 | Edited pcs-backend/app/api/v1/meta.py | added error handling | ~389 |
+| 06:56 | Edited pcs-backend/app/api/v1/meta.py | added 1 import(s) | ~46 |
+| 06:56 | Edited pcs-backend/tests/api/v1/test_meta.py | modified test_permissions_csv_anonymous_denied() | ~1250 |
+| 06:56 | Edited pcs-backend/app/api/v1/meta.py | 6→5 lines | ~53 |
+| 06:56 | Edited pcs-backend/tests/api/v1/test_meta.py | 3→3 lines | ~52 |
+| 06:56 | Edited pcs-backend/app/api/v1/meta.py | 9→8 lines | ~69 |
+| 07:04 | Created pcs-frontend/src/components/common/StateBadge.tsx | — | ~1300 |
+| 07:04 | Created pcs-frontend/tests/components/common/StateBadge.test.tsx | — | ~1364 |
+| 07:04 | Edited pcs-frontend/src/components/PipingStatusPanel.tsx | 5→5 lines | ~64 |
+| 07:04 | Edited pcs-frontend/src/components/PipingStatusPanel.tsx | inline fix | ~11 |
+| 07:04 | Edited pcs-frontend/tests/components/common/StateBadge.test.tsx | 3→3 lines | ~48 |
+| 07:05 | Created pcs-frontend/src/components/common/ApprovalStepBar.tsx | — | ~1340 |
+| 07:05 | Created pcs-frontend/src/components/common/ApprovalStepBar.tsx | — | ~1328 |
+| 07:05 | Created pcs-frontend/tests/components/common/ApprovalStepBar.test.tsx | — | ~2096 |
+| 07:05 | Edited pcs-frontend/tests/components/common/ApprovalStepBar.test.tsx | 7→8 lines | ~140 |
+| 07:06 | Edited pcs-frontend/tests/components/common/ApprovalStepBar.test.tsx | getAllByTestId() → querySelectorAll() | ~97 |
+| 07:06 | Edited pcs-frontend/tests/components/common/ApprovalStepBar.test.tsx | 12→9 lines | ~167 |
+| 07:06 | Created pcs-frontend/src/components/common/HashBadge.tsx | — | ~931 |
+| 07:06 | Created pcs-frontend/tests/components/common/HashBadge.test.tsx | — | ~1363 |
+| 07:06 | Edited pcs-frontend/tests/components/common/HashBadge.test.tsx | toMatch() → toContain() | ~84 |
+| 07:06 | Edited pcs-frontend/tests/components/common/HashBadge.test.tsx | 2→2 lines | ~40 |
+| 07:06 | Edited pcs-frontend/tests/components/common/HashBadge.test.tsx | 14→16 lines | ~184 |
+| 07:07 | Edited pcs-frontend/tests/components/common/HashBadge.test.tsx | 5→5 lines | ~58 |
+| 07:07 | Created pcs-frontend/src/components/common/NumericCell.tsx | — | ~830 |
+| 07:07 | Edited pcs-frontend/src/components/common/NumericCell.tsx | CSS: normal | ~383 |
+| 07:07 | Created pcs-frontend/tests/components/common/NumericCell.test.tsx | — | ~1568 |
+| 07:07 | Edited pcs-frontend/src/components/common/NumericCell.tsx | modified formatNumber() | ~57 |
+| 07:08 | Edited pcs-frontend/tests/components/common/NumericCell.test.tsx | 4→4 lines | ~72 |
+| 07:08 | Edited pcs-frontend/tests/components/common/NumericCell.test.tsx | 4→6 lines | ~94 |
+| 07:08 | Created pcs-frontend/src/components/common/AssumedDataMarker.tsx | — | ~423 |
+| 07:08 | Created pcs-frontend/tests/components/common/AssumedDataMarker.test.tsx | — | ~672 |
+| 07:09 | Created pcs-frontend/src/components/common/WorkspaceSwitcher.tsx | — | ~863 |
+| 07:09 | Created pcs-frontend/tests/components/common/WorkspaceSwitcher.test.tsx | — | ~1124 |
+| 07:09 | Created pcs-frontend/tests/components/common/WorkspaceSwitcher.test.tsx | — | ~1100 |
+| 07:10 | Created pcs-frontend/tests/components/common/WorkspaceSwitcher.test.tsx | — | ~1514 |
+| 07:10 | Edited pcs-frontend/src/pages/DashboardPage.tsx | "../components/WorkspaceSw" → "../components/common/Work" | ~22 |
+| 07:10 | Created pcs-frontend/src/components/common/InputChecklistPanel.tsx | — | ~2536 |
+| 07:11 | Created pcs-frontend/src/components/common/InputChecklistPanel.tsx | — | ~2693 |
+| 07:11 | Created pcs-frontend/tests/components/common/InputChecklistPanel.test.tsx | — | ~2160 |
+| 07:11 | Created pcs-frontend/tests/setup.ts | — | ~176 |
+| 07:12 | Edited pcs-frontend/tests/components/common/InputChecklistPanel.test.tsx | 8→12 lines | ~141 |
+| 07:12 | Edited pcs-frontend/tests/components/common/InputChecklistPanel.test.tsx | added optional chaining | ~137 |
+| 07:12 | Edited pcs-frontend/tests/components/common/InputChecklistPanel.test.tsx | 12→13 lines | ~159 |
+| 07:12 | Edited pcs-frontend/tests/components/common/InputChecklistPanel.test.tsx | 13→10 lines | ~119 |
+| 07:12 | Edited pcs-frontend/tests/components/common/InputChecklistPanel.test.tsx | toContain() → getByText() | ~112 |
+| 07:13 | Edited pcs-frontend/src/pages/DashboardPage.tsx | 2→2 lines | ~45 |
+| 07:13 | Edited pcs-frontend/src/pages/DashboardPage.tsx | inline fix | ~13 |
+| 07:14 | Created pcs-frontend/src/components/common/ChangeImpactPanel.tsx | — | ~1693 |
+| 07:14 | Created pcs-frontend/tests/components/common/ChangeImpactPanel.test.tsx | — | ~1684 |
+| 07:15 | Edited pcs-frontend/tests/components/common/ChangeImpactPanel.test.tsx | 24→25 lines | ~262 |
+| 07:15 | Edited pcs-frontend/tests/components/common/ChangeImpactPanel.test.tsx | 17→17 lines | ~164 |
+| 07:15 | Edited pcs-frontend/tests/components/common/ChangeImpactPanel.test.tsx | added optional chaining | ~241 |
+| 07:16 | Edited pcs-frontend/tests/components/common/ChangeImpactPanel.test.tsx | 22→23 lines | ~251 |
+| 07:16 | Edited pcs-frontend/tests/components/common/ChangeImpactPanel.test.tsx | 11→11 lines | ~114 |
+| 07:16 | Edited pcs-frontend/tests/components/common/ChangeImpactPanel.test.tsx | 17→17 lines | ~159 |
+| 07:16 | Edited pcs-frontend/tests/components/common/ChangeImpactPanel.test.tsx | reduced (-8 lines) | ~153 |
+| 07:16 | Edited pcs-frontend/tests/components/common/ChangeImpactPanel.test.tsx | 17→16 lines | ~162 |
+| 07:17 | Created pcs-frontend/src/components/common/ConflictResolver.tsx | — | ~1480 |
+| 07:17 | Created pcs-frontend/tests/components/common/ConflictResolver.test.tsx | — | ~1660 |
+| 07:17 | Created pcs-frontend/src/components/common/LineageGraph.tsx | — | ~2594 |
+| 07:17 | Created pcs-frontend/tests/components/common/LineageGraph.test.tsx | — | ~1700 |
+| 07:18 | Created pcs-frontend/src/components/common/RevTimeline.tsx | — | ~1150 |
+| 07:18 | Created pcs-frontend/tests/components/common/RevTimeline.test.tsx | — | ~1376 |
+| 07:18 | Edited pcs-frontend/tests/components/common/RevTimeline.test.tsx | 5→6 lines | ~84 |
+| 07:19 | Created pcs-frontend/src/components/common/SignatureMatrix.tsx | — | ~1199 |
+| 07:19 | Created pcs-frontend/tests/components/common/SignatureMatrix.test.tsx | — | ~1464 |
+| 07:19 | Created pcs-frontend/src/components/common/NotificationCenter.tsx | — | ~1419 |
+| 07:19 | Created pcs-frontend/tests/components/common/NotificationCenter.test.tsx | — | ~1737 |
+| 07:20 | Created pcs-frontend/tests/components/common/NotificationCenter.test.tsx | — | ~1779 |
+| 07:21 | Created pcs-frontend/src/components/common/SchemaForm.tsx | — | ~1975 |
+| 07:21 | Created pcs-frontend/tests/components/common/SchemaForm.test.tsx | — | ~2174 |
+| 07:21 | Edited pcs-frontend/src/components/common/SchemaForm.tsx | 13→13 lines | ~60 |
+| 10:06 | Edited pcs-frontend/src/components/common/SchemaForm.tsx | inline fix | ~15 |
+| 10:07 | Created pcs-backend/tests/services/test_ui_schema_drift.py | — | ~1488 |
+| 10:08 | Edited pcs-backend/tests/services/test_ui_schema_drift.py | 8→6 lines | ~70 |
+| 10:08 | Edited pcs-backend/tests/services/test_ui_schema_drift.py | modified test_resource_drift_against_pydantic() | ~44 |
+| 10:08 | Edited pcs-backend/tests/services/test_ui_schema_drift.py | modified test_resource_drift_against_pydantic() | ~34 |
+| 10:20 | Created pcs-frontend/tests/pages/config/AssetListPage.test.tsx | — | ~2746 |
+| 10:20 | Created pcs-frontend/src/types/configAsset.ts | — | ~376 |
+| 10:21 | Created pcs-frontend/src/pages/config/AssetListPage.tsx | — | ~2174 |
+| 10:22 | Edited pcs-frontend/tests/pages/config/AssetListPage.test.tsx | 9→8 lines | ~100 |
+| 10:22 | Edited pcs-frontend/tests/pages/config/AssetListPage.test.tsx | 10→9 lines | ~126 |
+| 10:23 | Created pcs-frontend/tests/pages/config/FormulaEditorPage.test.tsx | — | ~1754 |
+| 10:23 | Created pcs-frontend/src/pages/config/FormulaEditorPage.tsx | — | ~3820 |
+| 10:25 | Edited pcs-frontend/tests/pages/config/FormulaEditorPage.test.tsx | added optional chaining | ~378 |
+| 10:26 | Edited pcs-frontend/tests/pages/config/FormulaEditorPage.test.tsx | inline fix | ~29 |
+| 10:26 | Edited pcs-frontend/src/pages/config/FormulaEditorPage.tsx | 11→13 lines | ~140 |
+| 10:27 | Created pcs-frontend/tests/pages/config/CoefficientTableEditorPage.test.tsx | — | ~2117 |
+| 10:27 | Created pcs-frontend/src/pages/config/CoefficientTableEditorPage.tsx | — | ~2541 |
+| 10:28 | Created pcs-frontend/tests/pages/config/TemplateFilePage.test.tsx | — | ~1481 |
+| 10:28 | Created pcs-frontend/src/pages/config/TemplateFilePage.tsx | — | ~1834 |
+| 10:29 | Created pcs-frontend/tests/pages/config/ApprovalPanelPage.test.tsx | — | ~1463 |
+| 10:29 | Created pcs-frontend/src/pages/config/ApprovalPanelPage.tsx | — | ~2637 |
+| 10:29 | Edited pcs-frontend/src/pages/config/ApprovalPanelPage.tsx | 9→11 lines | ~153 |
+| 10:30 | Edited pcs-frontend/src/pages/config/ApprovalPanelPage.tsx | 11→10 lines | ~30 |
+| 10:31 | Created pcs-frontend/tests/pages/config/DiffViewer.test.tsx | — | ~1350 |
+| 10:31 | Created pcs-frontend/src/pages/config/DiffViewer.tsx | — | ~2510 |
+| 10:35 | Created docs/superpowers/plans/2026-09-16-p45-frontend-sprint-batch3.md | — | ~4783 |
+| 10:35 | Created pcs-frontend/tests/components/common/PageHeader.test.tsx | — | ~660 |
+| 10:35 | Created pcs-frontend/src/components/common/PageHeader.tsx | — | ~595 |
+| 10:35 | Created pcs-frontend/tests/components/common/ModuleLayout.test.tsx | — | ~443 |
+| 10:35 | Created pcs-frontend/src/components/common/ModuleLayout.tsx | — | ~461 |
+| 10:35 | Edited pcs-frontend/src/components/common/PageHeader.tsx | 5→10 lines | ~82 |
+| 10:37 | Created pcs-frontend/src/types/stream.ts | — | ~300 |
+| 10:37 | Created pcs-frontend/tests/pages/sim/StreamListPage.test.tsx | — | ~1074 |
+| 10:37 | Created pcs-frontend/src/pages/sim/StreamListPage.tsx | — | ~1145 |
+| 10:37 | Edited pcs-frontend/src/pages/sim/StreamListPage.tsx | 18→18 lines | ~154 |
+| 10:38 | Edited pcs-frontend/src/pages/sim/StreamListPage.tsx | 12→12 lines | ~110 |
+| 10:39 | Created pcs-frontend/tests/pages/sim/StreamDetailPage.test.tsx | — | ~841 |
+| 10:39 | Created pcs-frontend/src/pages/sim/StreamDetailPage.tsx | — | ~1546 |
+| 10:39 | Edited pcs-frontend/src/pages/sim/StreamDetailPage.tsx | expanded (+7 lines) | ~280 |
+| 10:39 | Edited pcs-frontend/src/pages/sim/StreamDetailPage.tsx | modified StreamDetailPage() | ~48 |
+| 10:39 | Edited pcs-frontend/src/pages/sim/StreamDetailPage.tsx | inline fix | ~26 |
+| 10:40 | Edited pcs-frontend/tests/pages/sim/StreamDetailPage.test.tsx | CSS: sign_status | ~81 |
+| 10:41 | Created pcs-frontend/tests/pages/sim/ImportWizardPage.test.tsx | — | ~559 |
+| 10:41 | Created pcs-frontend/src/pages/sim/ImportWizardPage.tsx | — | ~832 |
+| 10:42 | Edited pcs-frontend/src/pages/sim/StreamDetailPage.tsx | CSS: signer_name, signer_name, signer_name | ~112 |
+| 10:44 | Created pcs-frontend/src/types/pipeClass.ts | — | ~342 |
+| 10:44 | Created pcs-frontend/src/pages/pipe_class/PipeClassListPage.tsx | — | ~996 |
+| 10:44 | Created pcs-frontend/src/pages/pipe_class/CodeFormatDesignerPage.tsx | — | ~1664 |
+| 10:44 | Created pcs-frontend/src/pages/pipe_class/SymbolTablePage.tsx | — | ~910 |
+| 10:44 | Created pcs-frontend/tests/pages/pipe_class/PipeClassListPage.test.tsx | — | ~926 |
+| 10:44 | Created pcs-frontend/tests/pages/pipe_class/CodeFormatDesignerPage.test.tsx | — | ~1098 |
+| 10:44 | Created pcs-frontend/tests/pages/pipe_class/SymbolTablePage.test.tsx | — | ~576 |
+| 10:44 | Edited pcs-frontend/src/pages/pipe_class/PipeClassListPage.tsx | 5→5 lines | ~41 |
+| 10:44 | Edited pcs-frontend/tests/pages/pipe_class/SymbolTablePage.test.tsx | 7→7 lines | ~94 |
+| 10:45 | Edited pcs-frontend/src/pages/pipe_class/CodeFormatDesignerPage.tsx | reduced (-9 lines) | ~134 |
+| 10:45 | Edited pcs-frontend/src/pages/pipe_class/SymbolTablePage.tsx | 4→6 lines | ~56 |
+| 10:45 | Created pcs-frontend/src/types/common.ts | — | ~257 |
+| 10:45 | Created pcs-frontend/src/pages/common/PropertySearchPage.tsx | — | ~972 |
+| 10:45 | Created pcs-frontend/src/pages/common/AllowableStressPage.tsx | — | ~773 |
+| 10:46 | Created pcs-frontend/src/pages/common/ToxicityExplosivityPage.tsx | — | ~1089 |
+| 10:46 | Created pcs-frontend/tests/pages/common/PropertySearchPage.test.tsx | — | ~716 |
+| 10:46 | Created pcs-frontend/tests/pages/common/AllowableStressPage.test.tsx | — | ~457 |
+| 10:46 | Created pcs-frontend/tests/pages/common/ToxicityExplosivityPage.test.tsx | — | ~649 |
+| 10:46 | Edited pcs-frontend/src/pages/common/ToxicityExplosivityPage.tsx | inline fix | ~7 |
+| 10:46 | Edited pcs-frontend/tests/pages/common/AllowableStressPage.test.tsx | inline fix | ~14 |
+| 10:47 | Created pcs-frontend/src/types/flash.ts | — | ~224 |
+| 10:47 | Created pcs-frontend/src/pages/flash/FlashComputePage.tsx | — | ~2806 |
+| 10:47 | Created pcs-frontend/tests/pages/flash/FlashComputePage.test.tsx | — | ~798 |
+| 10:48 | Edited pcs-frontend/src/pages/flash/FlashComputePage.tsx | 8→7 lines | ~46 |
+| 11:02 | Edited pcs-frontend/src/types/pipeClass.ts | modified TODO() | ~155 |
+| 11:02 | Edited pcs-frontend/src/types/common.ts | modified TODO() | ~133 |
+| 11:02 | Edited pcs-frontend/src/types/flash.ts | modified TODO() | ~133 |
+| 11:02 | Edited pcs-frontend/src/types/stream.ts | modified TODO() | ~153 |
+| 11:02 | Edited docs/superpowers/plans/2026-09-16-p45-frontend-sprint-batch3.md | expanded (+82 lines) | ~877 |
+| 11:03 | Edited pcs-frontend/tests/pages/flash/FlashComputePage.test.tsx | modified fn() | ~1463 |
+| 11:03 | Edited pcs-frontend/tests/pages/flash/FlashComputePage.test.tsx | 9→13 lines | ~139 |
+| 11:05 | Created pcs-frontend/src/types/pipe.ts | — | ~558 |
+| 11:05 | Created pcs-frontend/src/pages/pipe/PipeComputePage.tsx | — | ~3862 |
+| 11:05 | Created pcs-frontend/src/pages/pipe/PipeLineListPage.tsx | — | ~1725 |
+| 11:05 | Created pcs-frontend/tests/pages/pipe/PipeComputePage.test.tsx | — | ~1543 |
+| 11:05 | Created pcs-frontend/tests/pages/pipe/PipeLineListPage.test.tsx | — | ~1665 |
+| 11:07 | Edited pcs-frontend/src/pages/pipe/PipeLineListPage.tsx | 2→2 lines | ~73 |
+| 11:07 | Edited pcs-frontend/tests/pages/pipe/PipeComputePage.test.tsx | 7→11 lines | ~172 |
+| 11:08 | Edited pcs-frontend/tests/pages/pipe/PipeLineListPage.test.tsx | 5→5 lines | ~57 |
+| 11:08 | Edited pcs-frontend/tests/pages/pipe/PipeLineListPage.test.tsx | 16→16 lines | ~235 |
+| 11:08 | Edited pcs-frontend/tests/pages/pipe/PipeLineListPage.test.tsx | 10→10 lines | ~144 |
+| 11:08 | Edited pcs-frontend/tests/pages/pipe/PipeLineListPage.test.tsx | 14→14 lines | ~204 |
+| 11:08 | Edited pcs-frontend/tests/pages/pipe/PipeComputePage.test.tsx | 8→11 lines | ~157 |
+| 11:08 | Edited pcs-frontend/tests/pages/pipe/PipeComputePage.test.tsx | 24→26 lines | ~350 |
+| 11:10 | Edited pcs-frontend/tests/pages/pipe/PipeComputePage.test.tsx | "[role=" → ".ant-tabs-tab" | ~16 |
+| 11:11 | Edited pcs-frontend/src/pages/pipe/PipeComputePage.tsx | 9→9 lines | ~91 |
+| 11:11 | Edited pcs-frontend/src/pages/pipe/PipeComputePage.tsx | 5→5 lines | ~55 |
+| 11:11 | Edited pcs-frontend/src/pages/pipe/PipeComputePage.tsx | 5→5 lines | ~54 |
+| 11:11 | Edited pcs-frontend/src/pages/pipe/PipeComputePage.tsx | 5→5 lines | ~58 |
+| 11:11 | Edited pcs-frontend/tests/pages/pipe/PipeComputePage.test.tsx | 11→8 lines | ~123 |
+| 11:11 | Edited pcs-frontend/tests/pages/pipe/PipeComputePage.test.tsx | 4→1 lines | ~18 |
+| 11:11 | Edited pcs-frontend/tests/pages/pipe/PipeComputePage.test.tsx | 4→1 lines | ~19 |
+| 11:12 | Edited pcs-frontend/tests/pages/pipe/PipeComputePage.test.tsx | modified fn() | ~31 |
+| 11:13 | Edited pcs-frontend/tests/pages/pipe/PipeComputePage.test.tsx | inline fix | ~17 |
+| 11:14 | Created pcs-frontend/src/types/pump.ts | — | ~355 |
+| 11:14 | Created pcs-frontend/src/pages/pump/PumpComputePage.tsx | — | ~4057 |
+| 11:14 | Created pcs-frontend/tests/pages/pump/PumpComputePage.test.tsx | — | ~1077 |
+| 11:15 | Edited pcs-frontend/tests/pages/pump/PumpComputePage.test.tsx | expanded (+37 lines) | ~446 |
+| 11:17 | Created pcs-frontend/src/types/pipeNet.ts | — | ~246 |
+| 11:17 | Created pcs-frontend/src/pages/pipe_net/PipeNetTopologyPage.tsx | — | ~1931 |
+| 11:17 | Created pcs-frontend/tests/pages/pipe_net/PipeNetTopologyPage.test.tsx | — | ~1617 |
+| 11:17 | Edited pcs-frontend/src/pages/pipe_net/PipeNetTopologyPage.tsx | modified defaultValidation() | ~192 |
+| 11:19 | Created pcs-frontend/src/types/pms.ts | — | ~290 |
+| 11:19 | Created pcs-frontend/src/pages/pms/PmsPage.tsx | — | ~864 |
+| 11:19 | Created pcs-frontend/src/pages/bedd/BeddPage.tsx | — | ~978 |
+| 11:19 | Created pcs-frontend/src/pages/wizard/ProjectWizardPage.tsx | — | ~1035 |
+| 11:20 | Created pcs-frontend/tests/pages/pms/PmsPage.test.tsx | — | ~923 |
+| 11:20 | Created pcs-frontend/tests/pages/bedd/BeddPage.test.tsx | — | ~872 |
+| 11:20 | Created pcs-frontend/tests/pages/wizard/ProjectWizardPage.test.tsx | — | ~1393 |
+| 11:21 | Edited pcs-frontend/tests/pages/pms/PmsPage.test.tsx | 8→8 lines | ~46 |
+| 11:21 | Edited pcs-frontend/tests/pages/bedd/BeddPage.test.tsx | 4→4 lines | ~22 |
+| 11:21 | Edited pcs-frontend/tests/pages/bedd/BeddPage.test.tsx | 3→3 lines | ~21 |
+| 11:21 | Edited pcs-frontend/tests/pages/pms/PmsPage.test.tsx | 5→5 lines | ~35 |
+| 11:23 | Edited TODOS.md | expanded (+34 lines) | ~665 |
+| 11:25 | Edited README.md | expanded (+6 lines) | ~585 |
+| 11:33 | Edited pcs-frontend/src/mocks/handlers.ts | added nullish coalescing | ~247 |
+| 11:33 | Created pcs-frontend/src/App.tsx | — | ~1042 |
+| 11:33 | Created pcs-frontend/src/layouts/MainLayout.tsx | — | ~997 |
+| 11:33 | Edited pcs-frontend/src/pages/LoginPage.tsx | modified LoginPage() | ~335 |
+| 11:33 | Edited pcs-frontend/src/main.tsx | 7→9 lines | ~71 |
+| 11:33 | Created pcs-frontend/src/main.tsx | — | ~235 |
+| 11:34 | Created pcs-frontend/src/pages/routeWrappers.tsx | — | ~1642 |
+| 11:34 | Created pcs-frontend/src/App.tsx | — | ~732 |
+| 11:35 | Edited pcs-frontend/src/pages/routeWrappers.tsx | expanded (+17 lines) | ~279 |
+| 11:35 | Edited pcs-frontend/src/pages/routeWrappers.tsx | 3→2 lines | ~32 |
+| 11:35 | Edited pcs-frontend/src/pages/routeWrappers.tsx | 22→20 lines | ~94 |
+| 11:35 | Edited pcs-frontend/src/pages/routeWrappers.tsx | 9→9 lines | ~170 |
+| 11:35 | Edited pcs-frontend/src/pages/routeWrappers.tsx | 20→18 lines | ~84 |
+| 11:35 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified FormulaEditorRoute() | ~64 |
+| 11:38 | Edited pcs-frontend/src/mocks/handlers.ts | 16→20 lines | ~204 |
+| 11:38 | Edited pcs-frontend/src/mocks/handlers.ts | 7→8 lines | ~83 |
+| 11:38 | Edited pcs-frontend/src/mocks/browser.ts | 5→5 lines | ~51 |
+| 11:41 | Edited pcs-frontend/tests/mocks/handlers.test.ts | 2→2 lines | ~37 |
+| 11:41 | Edited pcs-frontend/tests/mocks/handlers.test.ts | added optional chaining | ~227 |
+| 11:46 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-09-16.md | — | ~1230 |
+| 11:46 | Edited TODOS.md | expanded (+7 lines) | ~302 |
+| 11:52 | Created .gstack/qa-reports/qa-report-pcs-frontend-per-batch-2026-09-16.md | — | ~1379 |
+| 11:52 | Edited TODOS.md | expanded (+13 lines) | ~388 |
+| 12:11 | Created pcs-frontend/src/mocks/seed/streams.ts | — | ~650 |
+| 12:11 | Created pcs-frontend/src/mocks/seed/config.ts | — | ~454 |
+| 12:11 | Created pcs-frontend/src/mocks/seed/pipe-classes.ts | — | ~385 |
+| 12:11 | Created pcs-frontend/src/mocks/seed/pms.ts | — | ~369 |
+| 12:11 | Created pcs-frontend/src/mocks/seed/common.ts | — | ~542 |
+| 12:11 | Created pcs-frontend/src/mocks/seed/pipe-line.ts | — | ~752 |
+| 12:12 | Created pcs-frontend/src/mocks/seed/workspaces.ts | — | ~1006 |
+| 12:12 | Created pcs-frontend/src/mocks/handlers.ts | — | ~2005 |
+| 12:12 | Created pcs-frontend/src/pages/routeWrappers.tsx | — | ~2125 |
+| 12:12 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified useFetch() | ~201 |
+| 12:13 | Created pcs-frontend/src/mocks/seed/config.ts | — | ~455 |
+| 12:13 | Created pcs-frontend/src/mocks/seed/pipe-line.ts | — | ~919 |
+| 12:18 | Edited pcs-frontend/src/mocks/seed/workspaces.ts | 17→19 lines | ~589 |
+| 12:18 | Edited pcs-frontend/src/components/common/StateBadge.tsx | added 1 condition(s) | ~59 |
+| 12:18 | Edited pcs-frontend/src/components/common/StateBadge.tsx | modified if() | ~400 |
+| 12:18 | Edited pcs-frontend/src/mocks/handlers.ts | 2→2 lines | ~44 |
+| 12:19 | Edited pcs-frontend/src/mocks/seed/workspaces.ts | added 1 import(s) | ~46 |
+| 12:19 | Edited pcs-frontend/src/mocks/seed/workspaces.ts | removed 14 lines | ~23 |
+| 12:19 | Edited pcs-frontend/src/mocks/seed/workspaces.ts | 14→14 lines | ~453 |
+| 12:20 | Edited pcs-frontend/src/mocks/seed/workspaces.ts | 18→18 lines | ~1074 |
+| 12:27 | Edited pcs-frontend/src/mocks/handlers.ts | expanded (+6 lines) | ~74 |
+| 12:27 | Edited pcs-frontend/src/mocks/handlers.ts | 14→13 lines | ~182 |
+| 12:27 | Edited pcs-frontend/src/mocks/handlers.ts | modified json() | ~138 |
+| 12:27 | Edited pcs-frontend/src/mocks/handlers.ts | added 2 condition(s) | ~877 |
+| 12:27 | Edited pcs-frontend/src/mocks/handlers.ts | expanded (+9 lines) | ~947 |
+| 12:28 | Edited pcs-frontend/src/pages/sim/StreamDetailPage.tsx | expanded (+12 lines) | ~392 |
+| 12:28 | Edited pcs-frontend/src/pages/sim/StreamDetailPage.tsx | modified StreamDetailPage() | ~77 |
+| 12:28 | Edited pcs-frontend/src/pages/sim/StreamDetailPage.tsx | expanded (+60 lines) | ~783 |
+| 12:28 | Edited pcs-frontend/src/pages/routeWrappers.tsx | added 1 import(s) | ~188 |
+| 12:28 | Edited pcs-frontend/src/pages/routeWrappers.tsx | added 1 condition(s) | ~184 |
+| 12:28 | Edited pcs-frontend/src/pages/config/AssetListPage.tsx | added 1 import(s) | ~165 |
+| 12:28 | Edited pcs-frontend/src/pages/config/AssetListPage.tsx | modified AssetListPage() | ~128 |
+| 12:28 | Edited pcs-frontend/src/pages/config/AssetListPage.tsx | CSS: headers, Authorization, j | ~206 |
+| 12:28 | Edited pcs-frontend/src/pages/config/AssetListPage.tsx | CSS: marginBottom | ~122 |
+| 12:28 | Edited pcs-frontend/src/pages/config/AssetListPage.tsx | expanded (+18 lines) | ~204 |
+| 12:28 | Edited pcs-frontend/src/layouts/MainLayout.tsx | added 3 import(s) | ~118 |
+| 12:28 | Edited pcs-frontend/src/layouts/MainLayout.tsx | CSS: headers, Authorization, j | ~257 |
+| 12:28 | Edited pcs-frontend/src/layouts/MainLayout.tsx | CSS: fontSize | ~151 |
+| 12:28 | Edited pcs-frontend/src/layouts/MainLayout.tsx | CSS: unread | ~127 |
+| 12:29 | Edited pcs-frontend/src/mocks/seed/streams.ts | added 6 import(s) | ~206 |
+| 12:29 | Edited pcs-frontend/src/mocks/handlers.ts | 2→2 lines | ~69 |
+| 12:30 | Edited pcs-frontend/src/mocks/seed/streams.ts | removed 9 lines | ~12 |
+| 12:32 | Edited pcs-frontend/src/pages/config/AssetListPage.tsx | modified json() | ~114 |
+| 12:33 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified StreamDetailRoute() | ~183 |
+| 12:36 | Edited pcs-frontend/src/pages/routeWrappers.tsx | added 1 import(s) | ~33 |
+| 12:37 | Edited pcs-frontend/src/pages/routeWrappers.tsx | added 1 import(s) | ~46 |
+| 12:37 | Edited pcs-frontend/src/pages/routeWrappers.tsx | added nullish coalescing | ~110 |
+| 14:13 | Edited pcs-frontend/src/components/common/NotificationCenter.tsx | 8→10 lines | ~74 |
+| 14:33 | Edited pcs-backend/app/main.py | inline fix | ~20 |
+| 14:33 | Edited TODOS.md | expanded (+23 lines) | ~413 |
+| 14:40 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | modified feat() | ~247 |
+| 14:40 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | expanded (+25 lines) | ~472 |
+| 14:40 | Edited TODOS.md | expanded (+6 lines) | ~286 |
+| 14:55 | Created spec/SUP-P5-PSV-001 PSV 多标准.md | — | ~6623 |
+| 14:58 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+16 lines) | ~355 |
+| 14:58 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+13 lines) | ~670 |
+| 14:58 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+21 lines) | ~671 |
+| 14:58 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | modified resolve() | ~999 |
+| 14:58 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+8 lines) | ~207 |
+| 14:58 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 8→9 lines | ~170 |
+| 14:58 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 4→5 lines | ~103 |
+| 14:59 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 9→14 lines | ~268 |
+| 14:59 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 12→17 lines | ~318 |
+| 14:59 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 12→15 lines | ~268 |
+| 14:59 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 8→6 lines | ~84 |
+| 14:59 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | modified resolve() | ~196 |
+| 14:59 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 15→14 lines | ~239 |
+| 14:59 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | "migrated_not_default_chk" → "WHERE migrated_default=FA" | ~44 |
+| 15:00 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 1→3 lines | ~88 |
+| 15:02 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 30→34 lines | ~328 |
+| 15:02 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 2→3 lines | ~59 |
+| 15:02 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 6→6 lines | ~72 |
+| 15:02 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 5→5 lines | ~62 |
+| 15:02 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | modified check_capability() | ~1108 |
+| 15:02 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 2→3 lines | ~73 |
+| 15:03 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | "pilot_operated.enabled = " → "pilot_operated" | ~74 |
+| 15:03 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+16 lines) | ~543 |
+| 15:03 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+14 lines) | ~509 |
+| 15:04 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+11 lines) | ~208 |
+| 15:04 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | inline fix | ~51 |
+| 15:04 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 6→6 lines | ~131 |
+| 15:04 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 9→11 lines | ~129 |
+| 15:04 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+7 lines) | ~259 |
+| 15:04 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+13 lines) | ~283 |
+| 15:05 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 1→2 lines | ~38 |
+| 15:05 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | inline fix | ~53 |
+| 15:06 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 5→9 lines | ~244 |
+| 15:06 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | inline fix | ~46 |
+| 15:06 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 2→3 lines | ~77 |
+| 15:06 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 8→9 lines | ~185 |
+| 15:07 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 2→3 lines | ~95 |
+| 15:07 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+6 lines) | ~94 |
+| 15:10 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 13→13 lines | ~126 |
+| 15:10 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+17 lines) | ~447 |
+| 15:11 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+6 lines) | ~114 |
+| 15:11 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+6 lines) | ~173 |
+| 15:11 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 6→7 lines | ~267 |
+| 15:11 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 3→3 lines | ~202 |
+| 15:12 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 46→48 lines | ~682 |
+| 15:12 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 6→3 lines | ~46 |
+| 15:12 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 2→2 lines | ~110 |
+| 15:13 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 1→3 lines | ~68 |
+| 15:13 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 5→5 lines | ~30 |
+| 15:13 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | inline fix | ~54 |
+| 15:13 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | inline fix | ~65 |
+| 15:13 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+16 lines) | ~437 |
+| 15:13 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 3→3 lines | ~22 |
+| 15:16 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+6 lines) | ~99 |
+| 15:16 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+6 lines) | ~155 |
+| 15:16 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 6→6 lines | ~44 |
+| 15:17 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | "effective_from > NOW()" → "future_dated_forbidden_ch" | ~66 |
+| 15:17 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | modified _error_code() | ~199 |
+| 15:17 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 11→12 lines | ~154 |
+| 15:17 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 11→12 lines | ~180 |
+| 15:17 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 14→15 lines | ~208 |
+| 15:17 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 12→13 lines | ~186 |
+| 15:17 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 11→12 lines | ~183 |
+| 15:18 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | inline fix | ~35 |
+| 15:18 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | inline fix | ~90 |
+| 15:18 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | inline fix | ~28 |
+| 15:18 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | inline fix | ~37 |
+| 15:18 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 3→3 lines | ~26 |
+| 15:18 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+16 lines) | ~744 |
+| 15:19 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 6→11 lines | ~357 |
+| 15:21 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 1→3 lines | ~107 |
+| 15:21 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | inline fix | ~61 |
+| 15:21 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 8→12 lines | ~224 |
+| 15:21 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 1→2 lines | ~123 |
+| 15:22 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 12→14 lines | ~228 |
+| 15:22 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 6→6 lines | ~220 |
+| 15:22 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 4→4 lines | ~125 |
+| 15:22 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 3→3 lines | ~16 |
+| 15:22 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+8 lines) | ~247 |
+| 15:25 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 3→3 lines | ~21 |
+| 15:30 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+18 lines) | ~345 |
+| 15:30 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 5→6 lines | ~39 |
+| 15:30 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 1→5 lines | ~172 |
+| 15:30 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | inline fix | ~48 |
+| 15:31 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 6→8 lines | ~55 |
+| 15:31 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | inline fix | ~84 |
+| 15:31 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 3→3 lines | ~32 |
+| 15:31 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+10 lines) | ~198 |
+| 15:44 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 3→5 lines | ~99 |
+| 15:44 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 2→3 lines | ~160 |
+| 15:45 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+109 lines) | ~612 |
+| 15:45 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | 4→4 lines | ~50 |
+| 15:46 | Edited spec/SUP-P5-PSV-001 PSV 多标准.md | expanded (+10 lines) | ~199 |
+| 16:32 | Created docs/PCS-P5-START-CHECKLIST.md | — | ~1704 |
+| 16:32 | Created pcs-p5-start-baseline.txt | — | ~395 |
+| 17:29 | Edited docs/PCS-P5-START-CHECKLIST.md | expanded (+73 lines) | ~1088 |
+| 17:30 | Edited docs/PCS-P5-START-CHECKLIST.md | expanded (+12 lines) | ~252 |
+| 17:34 | Created docs/adr/0030-chedl-version-lock.md | — | ~3889 |
+| 17:34 | Edited docs/adr/0028-psv-multi-standard-engine.md | expanded (+45 lines) | ~478 |
+| 17:34 | Edited docs/adr/0028-psv-multi-standard-engine.md | 5→7 lines | ~27 |
+| 17:42 | Edited docs/adr/0030-chedl-version-lock.md | 36→37 lines | ~455 |
+| 17:42 | Edited docs/adr/0030-chedl-version-lock.md | 5→5 lines | ~60 |
+| 17:42 | Edited docs/adr/0030-chedl-version-lock.md | 8→11 lines | ~80 |
+| 17:43 | Edited docs/adr/0030-chedl-version-lock.md | 10→10 lines | ~160 |
+| 17:43 | Edited docs/adr/0030-chedl-version-lock.md | expanded (+6 lines) | ~143 |
+| 17:43 | Edited docs/adr/0030-chedl-version-lock.md | inline fix | ~40 |
+| 17:43 | Edited docs/adr/0030-chedl-version-lock.md | 6→6 lines | ~68 |
+| 17:44 | Edited docs/adr/0030-chedl-version-lock.md | 6→8 lines | ~76 |
+| 17:44 | Edited docs/adr/0030-chedl-version-lock.md | 5→7 lines | ~64 |
+| 17:44 | Edited docs/adr/0030-chedl-version-lock.md | 6→6 lines | ~92 |
+| 17:59 | Edited docs/adr/0030-chedl-version-lock.md | 8→7 lines | ~36 |
+| 17:59 | Edited docs/adr/0030-chedl-version-lock.md | inline fix | ~34 |
+| 17:59 | Edited docs/adr/0030-chedl-version-lock.md | inline fix | ~22 |
+| 18:00 | Edited docs/adr/0030-chedl-version-lock.md | inline fix | ~43 |
+| 18:00 | Edited docs/adr/0030-chedl-version-lock.md | expanded (+9 lines) | ~118 |
+| 18:01 | Edited docs/adr/0030-chedl-version-lock.md | 8→8 lines | ~103 |
+| 18:01 | Edited docs/adr/0028-psv-multi-standard-engine.md | 7→6 lines | ~20 |
+| 18:02 | Edited docs/adr/0028-psv-multi-standard-engine.md | reduced (-9 lines) | ~48 |
+| 18:02 | Edited docs/adr/0028-psv-multi-standard-engine.md | 8→10 lines | ~197 |
+| 18:02 | Edited docs/adr/0028-psv-multi-standard-engine.md | inline fix | ~51 |
+| 18:02 | Edited docs/adr/0028-psv-multi-standard-engine.md | 1→5 lines | ~36 |
+| 18:22 | Edited docs/adr/0030-chedl-version-lock.md | inline fix | ~16 |
+| 18:22 | Edited docs/adr/0030-chedl-version-lock.md | inline fix | ~42 |
+| 18:22 | Edited docs/adr/0030-chedl-version-lock.md | inline fix | ~32 |
+| 18:22 | Edited docs/adr/0030-chedl-version-lock.md | inline fix | ~54 |
+| 18:22 | Edited docs/adr/0030-chedl-version-lock.md | inline fix | ~13 |
+| 18:22 | Edited docs/adr/0030-chedl-version-lock.md | 6→7 lines | ~142 |
+| 18:23 | Edited docs/adr/0030-chedl-version-lock.md | inline fix | ~43 |
+| 18:23 | Edited docs/adr/0030-chedl-version-lock.md | inline fix | ~17 |
+| 18:23 | Edited docs/adr/0030-chedl-version-lock.md | 7→9 lines | ~176 |
+| 18:23 | Edited docs/adr/0030-chedl-version-lock.md | modified time_to_empty() | ~103 |
+| 18:23 | Edited docs/adr/0030-chedl-version-lock.md | 1→3 lines | ~51 |
+| 18:24 | Edited docs/adr/0030-chedl-version-lock.md | 5→9 lines | ~63 |
+| 18:25 | Edited docs/adr/0030-chedl-version-lock.md | 6→8 lines | ~129 |
+| 18:25 | Edited docs/adr/0030-chedl-version-lock.md | inline fix | ~9 |
+| 18:25 | Edited docs/adr/0030-chedl-version-lock.md | inline fix | ~19 |
+| 18:26 | Edited docs/adr/0028-psv-multi-standard-engine.md | 6→7 lines | ~36 |
+| 18:26 | Edited docs/adr/0028-psv-multi-standard-engine.md | expanded (+27 lines) | ~252 |
+| 18:26 | Edited docs/adr/0028-psv-multi-standard-engine.md | 3→3 lines | ~39 |
+| 18:26 | Edited docs/adr/0028-psv-multi-standard-engine.md | 1→2 lines | ~37 |
+| 18:26 | Edited docs/adr/0028-psv-multi-standard-engine.md | inline fix | ~16 |
+| 18:27 | Edited docs/adr/0028-psv-multi-standard-engine.md | 7→3 lines | ~36 |
+| 18:29 | Edited docs/adr/0028-psv-multi-standard-engine.md | 7→9 lines | ~50 |
+| 18:29 | Created docs/adr/signatures/0028-acceptance-resolution.md | — | ~1299 |
+| 18:30 | Edited docs/adr/0030-chedl-version-lock.md | 7→9 lines | ~50 |
+| 18:30 | Created docs/adr/signatures/0030-acceptance-resolution.md | — | ~1695 |
+| 18:31 | Created docs/adr/signatures/dba-btree-gist-install-request.md | — | ~847 |
+| 18:38 | Created docs/adr/signatures/0028-v1.1-标准对比分析.md | — | ~1807 |
+| 18:49 | Created docs/adr/signatures/dba-btree-gist-install-confirmation.md | — | ~601 |
+| 19:18 | Edited pcs-backend/pyproject.toml | 13→12 lines | ~151 |
+| 19:27 | Created pcs-backend/tests/fixtures/chedl_version_snapshot.txt | — | ~116 |
+| 19:28 | Created pcs-backend/tests/services/test_chedl_wrapper.py | — | ~2818 |
+| 19:29 | Created pcs-backend/app/services/chedl_provenance.py | — | ~310 |
+| 19:29 | Created pcs-backend/app/services/chedl_wrapper.py | — | ~2623 |
+| 19:29 | Edited pcs-backend/app/services/chedl_wrapper.py | modified tank_level_to_volume() | ~387 |
+| 19:30 | Edited pcs-backend/tests/services/test_chedl_wrapper.py | 3→4 lines | ~62 |
+| 19:30 | Edited pcs-backend/tests/services/test_chedl_wrapper.py | "provenance 中 7 项必须有 known" → "provenance 中 7 项必须有 known" | ~22 |
+| 19:30 | Edited pcs-backend/tests/services/test_chedl_wrapper.py | "ChEDLProvenance 字段必须：chED" → "ChEDLProvenance 字段必须含 5 项" | ~25 |
+| 19:31 | Edited pcs-backend/tests/services/test_chedl_wrapper.py | "ChEDLProvenance 字段必须含 5 项" → "ChEDLProvenance 必须含 5 字段（" | ~22 |
+| 19:40 | Created pcs-backend/tests/models/test_sign_status_9states_ratify.py | — | ~1026 |
+| 19:40 | Edited pcs-backend/tests/models/test_sign_status_9states_ratify.py | modified test_pg_enum_has_9_values() | ~318 |
+| 19:44 | Edited pcs-backend/app/models/enums.py | modified TwoPhaseCheck() | ~260 |
+| 19:44 | Edited pcs-backend/app/models/calc.py | 8→9 lines | ~45 |
+| 19:44 | Edited pcs-backend/app/models/calc.py | modified ReliefResult() | ~1501 |
+| 19:45 | Created pcs-backend/alembic/versions/p5_open_005_model_extension.py | — | ~3360 |
+| 19:45 | Edited pcs-backend/app/services/calc_lineage.py | 7→10 lines | ~53 |
+| 19:45 | Edited pcs-backend/app/services/calc_lineage.py | expanded (+9 lines) | ~207 |
+| 19:46 | Created pcs-backend/tests/architecture/test_p5_open_005_model_extension.py | — | ~2877 |
+| 19:57 | Edited pcs-backend/tests/architecture/test_p5_open_005_model_extension.py | 5→3 lines | ~16 |
+| 20:08 | Edited pcs-backend/tests/architecture/test_p5_open_005_model_extension.py | modified test_column_sizing_design_stage_type_is_design_stage_enum() | ~180 |
+| 20:16 | Created docs/PCS-P5-PLAN.md | — | ~993 |
+| 20:16 | Edited pcs-backend/app/models/calc.py | modified ColumnSizingResult() | ~242 |
+| 20:20 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | "*_json" → "_calc" | ~52 |
+| 20:20 | Edited docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md | "recommend_vessels(vessel_" → "recommend_vessels(vessel_" | ~33 |
+| 20:20 | Edited pcs-backend/app/models/calc.py | modified VesselResult() | ~50 |
+| 20:20 | Edited pcs-backend/app/models/calc.py | modified TwoPhaseResult() | ~126 |
+| 20:20 | Edited pcs-backend/app/models/calc.py | modified SepEquipResult() | ~948 |
+| 20:21 | Edited pcs-backend/app/models/calc.py | 4→4 lines | ~76 |
+| 20:21 | Created pcs-backend/alembic/versions/p5_0_4a_pk_rename_and_tag_number.py | — | ~803 |
+| 20:21 | Edited pcs-backend/tests/models/test_sup008_result_fields.py | inline fix | ~4 |
+| 20:22 | Edited pcs-backend/tests/services/pipe/test_two_phase.py | inline fix | ~4 |
+| 20:22 | Edited pcs-backend/tests/services/test_lineage_extension.py | inline fix | ~4 |
+| 20:22 | Created pcs-backend/tests/architecture/test_p5_0_4a_pk_rename.py | — | ~3142 |
+| 20:26 | Edited pcs-backend/alembic/versions/p5_0_4a_pk_rename_and_tag_number.py | modified upgrade() | ~1288 |
+| 20:26 | Edited pcs-backend/tests/architecture/test_p5_0_4a_pk_rename.py | modified test_alembic_migration_uses_alter_column_rename() | ~855 |
+| 20:27 | Edited pcs-backend/tests/architecture/test_p5_0_4a_pk_rename.py | modified test_alembic_migration_uses_alter_column_rename() | ~443 |
+| 20:28 | Edited pcs-backend/tests/architecture/test_p5_open_005_model_extension.py | 4→4 lines | ~30 |
+| 20:30 | Edited pcs-backend/tests/services/test_calc_lineage.py | modified test_registry_contains_all_calc_record_types() | ~147 |
+| 20:32 | Edited pcs-backend/alembic/versions/p5_0_4a_pk_rename_and_tag_number.py | 2→7 lines | ~60 |
+| 20:33 | Edited pcs-backend/tests/architecture/test_p5_0_4a_pk_rename.py | 1→2 lines | ~26 |
+| 20:33 | Edited pcs-backend/tests/architecture/test_p5_0_4a_pk_rename.py | 2→1 lines | ~29 |
+| 20:33 | Edited pcs-backend/tests/architecture/test_p5_0_4a_pk_rename.py | inline fix | ~18 |
+| 20:34 | Edited pcs-backend/tests/architecture/test_p5_0_4a_pk_rename.py | assert() → count() | ~178 |
+| 20:36 | Created pcs-backend/alembic/versions/p5_0_5_psv_multi_standard.py | — | ~3306 |
+| 20:37 | Created pcs-backend/app/models/psv_standards.py | — | ~1831 |
+| 20:37 | Edited pcs-backend/app/models/calc.py | modified PsvResult() | ~745 |
+| 20:37 | Edited pcs-backend/app/models/calc.py | expanded (+45 lines) | ~528 |
+| 20:37 | Edited pcs-backend/app/models/calc.py | 13→17 lines | ~83 |
+| 20:37 | Edited pcs-backend/app/services/calc_lineage.py | 32→35 lines | ~362 |
+| 20:38 | Edited pcs-backend/app/models/__init__.py | added 1 import(s) | ~240 |
+| 20:39 | Edited pcs-backend/alembic/versions/p5_0_5_psv_multi_standard.py | expanded (+8 lines) | ~248 |
+| 20:39 | Created pcs-backend/tests/architecture/test_p5_0_5_psv_multi_standard.py | — | ~3285 |
+| 21:18 | Edited pcs-backend/alembic/versions/p5_0_5_psv_multi_standard.py | 2→4 lines | ~64 |
+| 21:18 | Edited pcs-backend/app/models/psv_standards.py | 1→2 lines | ~30 |
+| 21:18 | Edited pcs-backend/app/models/psv_standards.py | inline fix | ~28 |
+| 21:19 | Edited pcs-backend/tests/architecture/test_p5_0_5_psv_multi_standard.py | 1→2 lines | ~30 |
+| 21:19 | Edited pcs-backend/tests/architecture/test_p5_0_5_psv_multi_standard.py | modified test_psv_results_override_paired_chk_present() | ~37 |
+| 21:19 | Edited pcs-backend/tests/architecture/test_p5_0_5_psv_multi_standard.py | 4→6 lines | ~60 |
+| 21:19 | Edited pcs-backend/tests/architecture/test_p5_0_5_psv_multi_standard.py | 1→3 lines | ~35 |
+| 21:19 | Edited pcs-backend/tests/architecture/test_p5_0_5_psv_multi_standard.py | reduced (-6 lines) | ~61 |
+| 21:38 | Edited pcs-backend/alembic/versions/p5_0_5_psv_multi_standard.py | 14→11 lines | ~135 |
+| 21:38 | Edited pcs-backend/app/models/psv_standards.py | 4→4 lines | ~77 |
+| 21:39 | Edited pcs-backend/app/models/psv_standards.py | 12→9 lines | ~112 |
+| 21:39 | Edited pcs-backend/tests/architecture/test_p5_0_5_psv_multi_standard.py | 2→2 lines | ~36 |
+| 21:39 | Edited pcs-backend/tests/architecture/test_p5_0_5_psv_multi_standard.py | test_pcs_profile_has_4_check_constraints() → test_pcs_profile_has_3_check_constraints() | ~176 |
+| 21:41 | Edited pcs-backend/tests/architecture/test_p5_0_4a_pk_rename.py | 10→6 lines | ~76 |
+| 21:41 | Edited pcs-backend/tests/architecture/test_p5_open_005_model_extension.py | 10→6 lines | ~83 |
+| 21:41 | Edited pcs-backend/tests/services/test_calc_lineage.py | 11→13 lines | ~105 |
+| 21:41 | Edited pcs-backend/tests/test_schema.py | 2→3 lines | ~55 |
+| 21:44 | Edited pcs-backend/tests/test_schema.py | 3→4 lines | ~76 |
+| 21:46 | Edited pcs-backend/tests/architecture/test_p5_0_4a_pk_rename.py | 2→2 lines | ~38 |
+| 21:46 | Edited pcs-backend/tests/architecture/test_p5_0_4a_pk_rename.py | 5→4 lines | ~18 |
+| 00:44 | Created docs/adr/0027-heat-results-dual-track.md | — | ~1438 |
+| 00:44 | Edited docs/adr/0027-heat-results-dual-track.md | 9→10 lines | ~144 |
+| 00:44 | Edited docs/adr/0027-heat-results-dual-track.md | expanded (+8 lines) | ~525 |
+| 00:45 | Edited docs/adr/0027-heat-results-dual-track.md | 23→23 lines | ~462 |
+| 00:45 | Edited docs/adr/0027-heat-results-dual-track.md | inline fix | ~18 |
+| 00:45 | Created pcs-backend/alembic/versions/p5_0_2_heat_results_extend.py | — | ~1600 |
+| 00:45 | Edited pcs-backend/app/models/calc.py | modified HeatResult() | ~1583 |
+| 00:46 | Edited pcs-backend/app/services/calc_lineage.py | 35→39 lines | ~420 |
+| 00:46 | Edited pcs-backend/tests/services/test_calc_lineage.py | 18→21 lines | ~209 |
+| 00:46 | Created pcs-backend/tests/architecture/test_p5_0_2_heat_extend.py | — | ~2302 |
+| 00:48 | Edited pcs-backend/tests/architecture/test_p5_0_2_heat_extend.py | 19→20 lines | ~279 |
+| 00:48 | Edited pcs-backend/tests/architecture/test_p5_0_2_heat_extend.py | modified test_alembic_migration_adds_50_columns() | ~176 |
+| 00:48 | Edited pcs-backend/tests/architecture/test_p5_0_2_heat_extend.py | modified test_alembic_migration_keeps_duty_single_column() | ~188 |
+| 00:49 | Edited docs/adr/0027-heat-results-dual-track.md | inline fix | ~33 |
+| 00:49 | Edited docs/adr/0027-heat-results-dual-track.md | 4→4 lines | ~85 |
+| 00:49 | Edited pcs-backend/alembic/versions/p5_0_2_heat_results_extend.py | modified upgrade() | ~1615 |
+| 00:49 | Edited pcs-backend/app/models/calc.py | modified HeatResult() | ~150 |
+| 00:49 | Edited pcs-backend/app/models/calc.py | 38 → 39 | ~16 |
+| 00:49 | Edited pcs-backend/tests/architecture/test_p5_0_2_heat_extend.py | 2→2 lines | ~27 |
+| 00:49 | Edited pcs-backend/tests/architecture/test_p5_0_2_heat_extend.py | test_heat_result_has_38_new_scalars() → test_heat_result_has_39_new_scalars() | ~73 |
+| 00:49 | Edited pcs-backend/tests/architecture/test_p5_0_2_heat_extend.py | test_alembic_migration_adds_50_columns() → test_alembic_migration_adds_51_columns() | ~176 |
+| 00:49 | Edited pcs-backend/tests/architecture/test_p5_0_2_heat_extend.py | modified test_alembic_migration_keeps_duty_single_column() | ~188 |
+| 00:49 | Edited pcs-backend/tests/architecture/test_p5_0_2_heat_extend.py | 19→19 lines | ~208 |
+| 00:51 | Edited pcs-backend/app/models/calc.py | expanded (+9 lines) | ~181 |
+| 00:51 | Edited pcs-backend/tests/architecture/test_p5_0_5_psv_multi_standard.py | modified test_record_type_registry_count_is_9() | ~197 |
+| 00:51 | Edited pcs-backend/tests/architecture/test_p5_0_5_psv_multi_standard.py | test_record_type_registry_count_is_9() → test_record_type_registry_count_is_at_least_9() | ~133 |
+| 00:51 | Edited pcs-backend/tests/architecture/test_p5_0_5_psv_multi_standard.py | inline fix | ~20 |
+| 00:51 | Edited pcs-backend/tests/architecture/test_p5_0_5_psv_multi_standard.py | inline fix | ~17 |
+| 01:03 | Edited docs/adr/0027-heat-results-dual-track.md | 15→19 lines | ~249 |
+| 01:03 | Edited docs/adr/0027-heat-results-dual-track.md | inline fix | ~30 |
+| 01:05 | Edited docs/PCS-P5-PLAN.md | expanded (+46 lines) | ~1839 |
+| 01:05 | Edited docs/PCS-P5-PLAN.md | 9→9 lines | ~219 |
+| 01:17 | Created docs/adr/0032-vessel-process-calculation.md | — | ~1729 |
+| 01:17 | Edited pcs-backend/tests/services/test_chedl_wrapper.py | modified test_chedl_provenance_frozen() | ~450 |
+| 01:18 | Edited pcs-backend/app/services/chedl_wrapper.py | modified K_separator_demister_York() | ~245 |
+| 01:18 | Edited pcs-backend/app/services/chedl_wrapper.py | 7→8 lines | ~95 |
+| 01:18 | Edited pcs-backend/app/services/chedl_wrapper.py | 10→11 lines | ~72 |
+| 01:18 | Created pcs-backend/tests/services/vessel/fixtures/golden_vessel_souders_brown.json | — | ~847 |
+| 01:18 | Created pcs-backend/tests/services/vessel/__init__.py | — | ~0 |
+| 01:18 | Created pcs-backend/tests/services/vessel/test_vessel_sizing.py | — | ~2185 |
+| 01:19 | Created pcs-backend/app/services/vessel/vessel_service.py | — | ~1725 |
+| 01:19 | Created pcs-backend/app/services/vessel/__init__.py | — | ~84 |
+| 01:19 | Edited pcs-backend/app/services/vessel/vessel_service.py | modified _classify_K_factor() | ~153 |
+| 01:20 | Edited pcs-backend/app/services/vessel/vessel_service.py | 5→9 lines | ~125 |
+| 01:20 | Edited pcs-backend/app/services/vessel/vessel_service.py | modified _classify_K_factor() | ~152 |
+| 01:20 | Edited pcs-backend/tests/services/vessel/fixtures/golden_vessel_souders_brown.json | 34→34 lines | ~249 |
+| 01:21 | Edited pcs-backend/tests/services/vessel/test_vessel_sizing.py | 6→7 lines | ~52 |
+| 01:21 | Edited pcs-backend/tests/services/vessel/test_vessel_sizing.py | modified test_K_factor_out_of_range_raises() | ~231 |
+| 01:21 | Edited pcs-backend/tests/services/vessel/test_vessel_sizing.py | modified test_zero_liquid_flow_raises() | ~143 |
+| 07:28 | Created pcs-backend/tests/services/vessel/fixtures/golden_vessel_hydraulics.json | — | ~477 |
+| 07:28 | Created pcs-backend/tests/services/vessel/test_vessel_hydraulics.py | — | ~2347 |
+| 07:28 | Edited pcs-backend/app/services/vessel/vessel_service.py | 21→26 lines | ~268 |
+| 07:28 | Edited pcs-backend/app/services/vessel/vessel_service.py | modified _validate_hydraulics_input() | ~1503 |
+| 07:28 | Edited pcs-backend/app/services/vessel/__init__.py | expanded (+6 lines) | ~133 |
+| 07:29 | Edited pcs-backend/tests/services/vessel/fixtures/golden_vessel_hydraulics.json | 2.618 → 4.189 | ~8 |
+| 07:29 | Edited pcs-backend/tests/services/vessel/test_vessel_hydraulics.py | modified test_tank_level_to_volume_ellipse() | ~113 |
+| 07:36 | Edited docs/adr/0032-vessel-process-calculation.md | 8→9 lines | ~61 |
+| 07:36 | Edited docs/adr/0032-vessel-process-calculation.md | 16→21 lines | ~254 |
+| 07:36 | Edited docs/adr/0032-vessel-process-calculation.md | expanded (+9 lines) | ~258 |
+| 07:36 | Edited docs/adr/0032-vessel-process-calculation.md | expanded (+6 lines) | ~331 |
+| 07:36 | Edited docs/adr/0032-vessel-process-calculation.md | expanded (+19 lines) | ~319 |
+| 07:36 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版 P5.md | 10→12 lines | ~66 |
+| 07:36 | Edited pcs-backend/app/services/vessel/vessel_service.py | 9→8 lines | ~131 |
+| 07:36 | Edited pcs-backend/app/services/vessel/vessel_service.py | modified _classify_K_factor() | ~204 |
+| 07:36 | Created pcs-backend/tests/services/vessel/fixtures/golden_vessel_souders_brown.json | — | ~880 |
+| 07:36 | Edited pcs-backend/tests/services/vessel/test_vessel_sizing.py | modified test_K_factor_boundary() | ~249 |
+| 07:40 | Edited pcs-backend/app/services/outlet_stream.py | modified OutletStreamProjectMismatchError() | ~531 |
+| 07:40 | Edited pcs-backend/app/services/calc_lineage.py | 22→25 lines | ~316 |
+| 07:40 | Edited pcs-backend/app/services/calc_lineage.py | 11→12 lines | ~63 |
+| 07:41 | Edited pcs-backend/app/services/vessel/vessel_service.py | modified _compute_vent_capacity() | ~279 |
+| 07:41 | Edited pcs-backend/app/services/vessel/vessel_service.py | modified _compute_empty_time() | ~121 |
+| 07:41 | Edited pcs-backend/tests/services/vessel/fixtures/golden_vessel_hydraulics.json | 7→8 lines | ~215 |
+| 07:42 | Edited pcs-backend/tests/services/vessel/test_vessel_hydraulics.py | modified test_vent_capacity_unit_correctness_m3_per_s() | ~729 |
+| 07:42 | Edited pcs-backend/app/services/vessel/vessel_service.py | 12→17 lines | ~155 |
+| 07:42 | Edited pcs-backend/app/services/vessel/vessel_service.py | expanded (+7 lines) | ~352 |
+| 07:42 | Edited pcs-backend/app/services/vessel/vessel_service.py | modified _compute_empty_time() | ~154 |
+| 07:42 | Edited pcs-backend/app/services/vessel/vessel_service.py | modified calc_vessel_hydraulics() | ~462 |
+| 07:43 | Edited pcs-backend/tests/services/vessel/test_vessel_hydraulics.py | modified test_calc_vessel_hydraulics_returns_frozen_dataclass() | ~735 |
+| 07:43 | Edited pcs-backend/tests/services/vessel/test_vessel_hydraulics.py | modified test_vent_capacity_unit_correctness_m3_per_s() | ~305 |
+| 07:43 | Edited pcs-backend/tests/services/vessel/test_vessel_hydraulics.py | modified test_empty_time_only_vertical_documented() | ~544 |
+| 07:45 | Edited pcs-backend/tests/services/vessel/fixtures/golden_vessel_hydraulics.json | 46→50 lines | ~402 |
+| 07:47 | Edited pcs-backend/app/services/outlet_stream.py | 21→23 lines | ~231 |
+| 07:47 | Edited pcs-backend/app/services/calc_lineage.py | 39→43 lines | ~468 |
+| 07:48 | Edited pcs-backend/app/services/outlet_stream.py | modified OutletStreamProjectMismatchError() | ~251 |
+| 07:48 | Edited pcs-backend/tests/architecture/test_p5_0_2_heat_extend.py | modified test_record_type_registry_count_is_10() | ~120 |
+| 07:48 | Edited pcs-backend/tests/services/test_calc_lineage.py | modified test_registry_contains_all_calc_record_types() | ~268 |
+| 07:48 | Created pcs-backend/app/services/vessel/vessel_persist.py | — | ~1821 |
+| 07:48 | Created pcs-backend/app/api/v1/vessel.py | — | ~1918 |
+| 07:49 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~420 |
+| 07:49 | Created pcs-backend/tests/services/vessel/test_vessel_persist.py | — | ~2951 |
+| 07:49 | Edited pcs-backend/tests/services/vessel/test_vessel_persist.py | reduced (-6 lines) | ~133 |
+| 07:49 | Edited pcs-backend/tests/services/vessel/test_vessel_persist.py | modified checked_stream() | ~310 |
+| 07:50 | Edited pcs-backend/app/services/vessel/vessel_persist.py | 8→7 lines | ~40 |
+| 07:50 | Edited pcs-backend/app/services/vessel/vessel_persist.py | 24→25 lines | ~288 |
+| 07:50 | Edited pcs-backend/app/api/v1/vessel.py | 15→18 lines | ~193 |
+| 07:50 | Edited pcs-backend/app/api/v1/vessel.py | modified HydraulicsInputSchema() | ~267 |
+| 07:50 | Edited pcs-backend/app/api/v1/vessel.py | modified CalculateRequest() | ~301 |
+| 07:50 | Edited pcs-backend/tests/services/vessel/test_vessel_persist.py | 8→7 lines | ~28 |
+| 07:51 | Created pcs-backend/tests/api/v1/test_vessel_api.py | — | ~3024 |
+| 07:52 | Edited pcs-backend/tests/api/v1/test_vessel_api.py | test_calculate_vessel_invalid_K_factor_422() → test_calculate_vessel_invalid_input_422() | ~196 |
+| 07:55 | Created pcs-backend/tests/services/sep_equip/fixtures/golden_cyclone_lapple.json | — | ~785 |
+| 07:55 | Edited pcs-backend/tests/services/sep_equip/fixtures/golden_cyclone_lapple.json | 8→8 lines | ~60 |
+| 07:55 | Created pcs-backend/tests/services/sep_equip/__init__.py | — | ~10 |
+| 07:55 | Created pcs-backend/tests/services/sep_equip/test_cyclone.py | — | ~1706 |
+| 07:55 | Created pcs-backend/app/services/sep_equip/__init__.py | — | ~63 |
+| 07:55 | Created pcs-backend/app/services/sep_equip/cyclone_service.py | — | ~1709 |
+| 07:55 | Edited pcs-backend/app/services/sep_equip/cyclone_service.py | inline fix | ~13 |
+| 07:56 | Edited pcs-backend/tests/services/sep_equip/test_cyclone.py | 4→4 lines | ~57 |
+| 07:56 | Edited pcs-backend/tests/services/sep_equip/test_cyclone.py | 5→5 lines | ~61 |
+| 07:58 | Created pcs-backend/tests/services/sep_equip/test_mist_eliminator.py | — | ~1521 |
+| 07:58 | Created pcs-backend/app/services/sep_equip/mist_eliminator_service.py | — | ~1493 |
+| 07:58 | Edited pcs-backend/app/services/sep_equip/__init__.py | expanded (+8 lines) | ~127 |
+| 07:58 | Edited pcs-backend/tests/services/sep_equip/test_mist_eliminator.py | modified test_standard_mist_eliminator_hand_calc() | ~197 |
+| 08:01 | Created pcs-backend/tests/services/sep_equip/test_gravity_separator.py | — | ~2131 |
+| 08:01 | Created pcs-backend/app/services/sep_equip/gravity_separator_service.py | — | ~1697 |
+| 08:01 | Edited pcs-backend/app/services/sep_equip/__init__.py | expanded (+12 lines) | ~213 |
+| 08:03 | Edited pcs-backend/app/services/outlet_stream.py | 11→13 lines | ~144 |
+| 08:03 | Edited pcs-backend/app/services/calc_lineage.py | 12→13 lines | ~68 |
+| 08:03 | Edited pcs-backend/app/services/calc_lineage.py | 2→3 lines | ~42 |
+| 08:03 | Edited pcs-backend/app/services/calc_lineage.py | 3→5 lines | ~49 |
+| 08:24 | Edited pcs-backend/app/services/outlet_stream.py | 7→8 lines | ~52 |
+| 08:24 | Edited pcs-backend/tests/services/test_calc_lineage.py | 24→27 lines | ~293 |
+| 08:24 | Created pcs-backend/app/services/sep_equip/sep_equip_persist.py | — | ~1744 |
+| 08:24 | Created pcs-backend/app/api/v1/sep_equip.py | — | ~1470 |
+| 08:24 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~170 |
+| 08:24 | Edited pcs-backend/app/api/v1/__init__.py | 3→4 lines | ~54 |
+| 08:24 | Edited pcs-backend/app/api/v1/__init__.py | 9→9 lines | ~170 |
+| 08:24 | Created pcs-backend/tests/services/sep_equip/test_sep_equip_persist.py | — | ~2807 |
+| 08:25 | Created pcs-backend/tests/api/v1/test_sep_equip.py | — | ~2648 |
+| 08:26 | Edited pcs-backend/tests/architecture/test_p5_0_2_heat_extend.py | modified test_record_type_registry_count_is_10() | ~526 |
+| 08:55 | Created pcs-frontend/src/types/vessel.ts | — | ~369 |
+| 08:55 | Created pcs-frontend/src/pages/vessel/VesselComputePage.tsx | — | ~2864 |
+| 08:55 | Created pcs-frontend/src/types/sepEquip.ts | — | ~476 |
+| 08:55 | Created pcs-frontend/src/pages/sep_equip/SepEquipComputePage.tsx | — | ~3826 |
+| 08:56 | Created pcs-frontend/src/types/psv.ts | — | ~904 |
+| 08:56 | Created pcs-frontend/src/pages/psv/PsvComputePage.tsx | — | ~4924 |
+| 08:56 | Edited pcs-frontend/src/pages/routeWrappers.tsx | added 3 import(s) | ~448 |
+| 08:56 | Edited pcs-frontend/src/pages/routeWrappers.tsx | CSS: i, I | ~231 |
+| 08:56 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified VesselRoute() | ~33 |
+| 08:56 | Edited pcs-frontend/src/App.tsx | 24→27 lines | ~142 |
+| 08:56 | Edited pcs-frontend/src/App.tsx | 6→11 lines | ~128 |
+| 08:56 | Edited pcs-frontend/src/layouts/MainLayout.tsx | 7→10 lines | ~98 |
+| 08:57 | Edited pcs-frontend/src/components/common/StateBadge.tsx | 3→4 lines | ~42 |
+| 08:57 | Edited pcs-frontend/src/components/common/StateBadge.tsx | CSS: VESSEL, SEP_EQUIP, PSV | ~191 |
+| 08:57 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | 18→17 lines | ~50 |
+| 08:57 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | added nullish coalescing | ~39 |
+| 08:57 | Edited pcs-frontend/src/pages/sep_equip/SepEquipComputePage.tsx | 2→2 lines | ~20 |
+| 08:58 | Created pcs-frontend/tests/pages/vessel/VesselComputePage.test.tsx | — | ~572 |
+| 08:58 | Created pcs-frontend/tests/pages/sep_equip/SepEquipComputePage.test.tsx | — | ~611 |
+| 08:58 | Created pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | — | ~442 |
+| 08:59 | Created pcs-frontend/src/types/vessel.ts | — | ~529 |
+| 08:59 | Created pcs-frontend/src/pages/vessel/VesselComputePage.tsx | — | ~4673 |
+| 08:59 | Edited pcs-frontend/src/pages/vessel/VesselComputePage.tsx | added nullish coalescing | ~81 |
+| 08:59 | Edited pcs-frontend/src/pages/vessel/VesselComputePage.tsx | 3→3 lines | ~40 |
+| 08:59 | Edited pcs-frontend/src/pages/vessel/VesselComputePage.tsx | 4→4 lines | ~57 |
+| 08:59 | Edited docs/PCS-UI-SPEC.md | 4→5 lines | ~149 |
+| 09:03 | Created pcs-backend/app/services/psv/__init__.py | — | ~248 |
+| 09:03 | Created pcs-backend/app/services/psv/fire_case_service.py | — | ~2493 |
+| 09:04 | Created pcs-backend/tests/services/psv/__init__.py | — | ~0 |
+| 09:04 | Created pcs-backend/tests/services/psv/test_fire_case.py | — | ~3611 |
+| 09:05 | Created pcs-backend/app/services/psv/other_cases_service.py | — | ~1960 |
+| 09:05 | Edited pcs-backend/app/services/psv/__init__.py | expanded (+22 lines) | ~298 |
+| 09:05 | Created pcs-backend/tests/services/psv/test_other_cases.py | — | ~2737 |
+| 09:05 | Edited pcs-backend/tests/services/psv/test_other_cases.py | 1→2 lines | ~39 |
+| 09:05 | Edited pcs-backend/tests/services/psv/test_other_cases.py | 1→2 lines | ~39 |
+| 09:06 | Created pcs-backend/app/services/psv/relief_aggregator_service.py | — | ~982 |
+| 09:06 | Edited pcs-backend/app/services/psv/__init__.py | expanded (+12 lines) | ~316 |
+| 09:06 | Created pcs-backend/tests/services/psv/test_relief_aggregator.py | — | ~1923 |
+| 09:07 | Created pcs-backend/app/services/psv/relief_area_service.py | — | ~2847 |
+| 09:07 | Edited pcs-backend/app/services/psv/__init__.py | expanded (+12 lines) | ~138 |
+| 09:07 | Edited pcs-backend/app/services/psv/__init__.py | expanded (+10 lines) | ~114 |
+| 09:07 | Created pcs-backend/tests/services/psv/test_relief_area.py | — | ~3487 |
