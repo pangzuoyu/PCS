@@ -6044,7 +6044,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/CalculateRequest"
+                "$ref": "#/components/schemas/app__api__v1__flash__CalculateRequest"
               }
             }
           }
@@ -6055,7 +6055,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/CalculateResponse"
+                  "$ref": "#/components/schemas/app__api__v1__flash__CalculateResponse"
                 }
               }
             }
@@ -6176,6 +6176,512 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/BubbleDewResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/vessel/calculate": {
+      "post": {
+        "tags": [
+          "vessel"
+        ],
+        "summary": "Calculate Vessel",
+        "description": "POST /api/v1/vessel/calculate：vessel 尺寸 + 流体力学一次计算。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_vessel_api_v1_vessel_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__api__v1__vessel__CalculateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__api__v1__vessel__CalculateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/sep-equip/calculate": {
+      "post": {
+        "tags": [
+          "sep-equip"
+        ],
+        "summary": "Calculate Sep Equip",
+        "description": "POST /api/v1/sep-equip/calculate：5 类型 sep_equip 一次计算。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_sep_equip_api_v1_sep_equip_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__api__v1__sep_equip__CalculateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__api__v1__sep_equip__CalculateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/psv/calculate": {
+      "post": {
+        "tags": [
+          "psv"
+        ],
+        "summary": "Calculate Psv",
+        "description": "POST /api/v1/psv/calculate：PSV 单工况计算落库。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_psv_api_v1_psv_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/app__api__v1__psv__CalculateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/app__api__v1__psv__CalculateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/projects/{project_id}/psv/standard-profile": {
+      "get": {
+        "tags": [
+          "psv-config"
+        ],
+        "summary": "Get Psv Standard Profile",
+        "description": "查项目当前默认 PSV 标准配置；无 → 200 null（前端按\"未配置\"展示）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "get_psv_standard_profile_api_v1_projects__project_id__psv_standard_profile_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/StandardProfileResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Get Psv Standard Profile Api V1 Projects  Project Id  Psv Standard Profile Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "psv-config"
+        ],
+        "summary": "Upsert Psv Standard Profile",
+        "description": "创建/激活项目 PSV 标准配置（设 is_default=TRUE）。\n\n流程：\n1. 校验：CUSTOM 必填 approval_json + approved_by\n2. 旧默认 is_default=FALSE（不显式迁移；新行 is_default=TRUE）\n3. 新行 effective_to NULL（V1 即时生效）\n4. DB EXCLUDE USING gist 兜底冲突 → IntegrityError → 转 PcsError\n\nACL：PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "upsert_psv_standard_profile_api_v1_projects__project_id__psv_standard_profile_post",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpsertStandardProfileRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StandardProfileResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/heat/import-htri": {
+      "post": {
+        "tags": [
+          "heat"
+        ],
+        "summary": "Import Htri",
+        "description": "POST /api/v1/heat/import-htri：HTRI 文件 → HeatResult 落库。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "import_htri_api_v1_heat_import_htri_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "multipart/form-data": {
+              "schema": {
+                "$ref": "#/components/schemas/Body_import_htri_api_v1_heat_import_htri_post"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ImportHtriResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/heat/{heat_id}": {
+      "get": {
+        "tags": [
+          "heat"
+        ],
+        "summary": "Get Heat",
+        "description": "GET /api/v1/heat/{heat_id}：HeatResult 详情（input_json / output_json / record_hash）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "get_heat_api_v1_heat__heat_id__get",
+        "parameters": [
+          {
+            "name": "heat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Heat Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeatResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/heat/{heat_id}/weight-estimate": {
+      "post": {
+        "tags": [
+          "heat"
+        ],
+        "summary": "Estimate Weight Endpoint",
+        "description": "POST /api/v1/heat/{heat_id}/weight-estimate：TEMA 9th 重量估算。\n\n写入 HeatResult.output_json.total_weight_kg / weight_segments /\nweight_formula_ref（P7 UTIL 综合消费）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "estimate_weight_endpoint_api_v1_heat__heat_id__weight_estimate_post",
+        "parameters": [
+          {
+            "name": "heat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Heat Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WeightEstimateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WeightEstimateResponse"
                 }
               }
             }
@@ -8723,6 +9229,74 @@
         "title": "AssetResponse",
         "description": "GET /assets/{id} 与 POST /assets 返回结构。"
       },
+      "Body_import_htri_api_v1_heat_import_htri_post": {
+        "properties": {
+          "file": {
+            "type": "string",
+            "contentMediaType": "application/octet-stream",
+            "title": "File",
+            "description": "HTRI Xist v6.0 .txt 输出"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id"
+          },
+          "equipment_no": {
+            "type": "string",
+            "title": "Equipment No",
+            "description": "设备位号（如 E-201）"
+          },
+          "tag_number": {
+            "type": "string",
+            "title": "Tag Number",
+            "description": "HeatResult.tag_number（NOT NULL）"
+          },
+          "exchanger_category": {
+            "type": "string",
+            "title": "Exchanger Category",
+            "description": "SHELL_TUBE / AIR_COOL / PLATE"
+          },
+          "equipment_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment Name"
+          },
+          "source_stream_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Stream Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "file",
+          "project_id",
+          "workspace_id",
+          "equipment_no",
+          "tag_number",
+          "exchanger_category"
+        ],
+        "title": "Body_import_htri_api_v1_heat_import_htri_post"
+      },
       "Body_import_pipe_classes_api_v1_pipe_classes_import_post": {
         "properties": {
           "file": {
@@ -8899,163 +9473,6 @@
         ],
         "title": "BubbleDewResponse",
         "description": "POST /flash/bubble 与 POST /flash/dew 响应。"
-      },
-      "CalculateRequest": {
-        "properties": {
-          "calc_type": {
-            "type": "string",
-            "title": "Calc Type",
-            "description": "PT_FLASH / PH_FLASH / PS_FLASH / SATURATION"
-          },
-          "stream_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Stream Id",
-            "description": "输入流 UUID（必须 CHECKED）"
-          },
-          "T_K": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "T K",
-            "description": "温度 K（PT/PH/PS_FLASH + SATURATION 用）"
-          },
-          "P_Pa": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "P Pa",
-            "description": "压力 Pa（PT_FLASH + SATURATION 用）"
-          },
-          "H_target": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "H Target",
-            "description": "目标焓 J/mol（PH_FLASH）"
-          },
-          "S_target": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "S Target",
-            "description": "目标熵 J/mol/K（PS_FLASH）"
-          },
-          "fluid": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Fluid",
-            "description": "流体名/CAS（SATURATION 用，例如 PROPANE / 74-98-6）"
-          }
-        },
-        "type": "object",
-        "required": [
-          "calc_type",
-          "stream_id"
-        ],
-        "title": "CalculateRequest",
-        "description": "POST /flash/calculate 请求体。"
-      },
-      "CalculateResponse": {
-        "properties": {
-          "calc_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Calc Id",
-            "description": "FlashResult.flash_id"
-          },
-          "calc_type": {
-            "type": "string",
-            "title": "Calc Type",
-            "description": "回显计算类型"
-          },
-          "record_hash": {
-            "type": "string",
-            "title": "Record Hash",
-            "description": "16 hex 数值规范化哈希"
-          },
-          "stream_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Stream Id",
-            "description": "输入流 UUID"
-          },
-          "lineage_ids": {
-            "items": {
-              "type": "string",
-              "format": "uuid"
-            },
-            "type": "array",
-            "title": "Lineage Ids",
-            "description": "DataLineage 行 ID 列表（每 source_stream 一条）"
-          },
-          "result": {
-            "additionalProperties": true,
-            "type": "object",
-            "title": "Result",
-            "description": "计算结果"
-          },
-          "outlet_stream_id": {
-            "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Outlet Stream Id",
-            "description": "出口流 UUID（SATURATION 时为 null）"
-          },
-          "outlet_stream_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Outlet Stream Name",
-            "description": "出口流名称（SATURATION 时为 null）"
-          }
-        },
-        "type": "object",
-        "required": [
-          "calc_id",
-          "calc_type",
-          "record_hash",
-          "stream_id"
-        ],
-        "title": "CalculateResponse",
-        "description": "POST /flash/calculate 响应：calc_id + record_hash + lineage_ids + outlet。"
       },
       "ChecklistBulkSeed": {
         "properties": {
@@ -10249,6 +10666,287 @@
           "database"
         ],
         "title": "HealthResponse"
+      },
+      "HeatResultResponse": {
+        "properties": {
+          "calc_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Calc Id",
+            "description": "HeatResult.heat_exchanger_id"
+          },
+          "calc_type": {
+            "type": "string",
+            "title": "Calc Type",
+            "description": "计算类型（固定 HEAT）",
+            "default": "HEAT"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id"
+          },
+          "tag_number": {
+            "type": "string",
+            "title": "Tag Number"
+          },
+          "equipment_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment No"
+          },
+          "equipment_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment Name"
+          },
+          "exchanger_category": {
+            "type": "string",
+            "title": "Exchanger Category"
+          },
+          "duty": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duty",
+            "description": "热负荷 W（P7 UTIL 消费）"
+          },
+          "record_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Hash",
+            "description": "16 hex 数值规范化哈希"
+          },
+          "input_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Input Json",
+            "description": "原始 HTRI 字段（input_json 双轨）"
+          },
+          "output_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Output Json",
+            "description": "计算输出 + total_weight_kg（P7 UTIL 消费）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "calc_id",
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "equipment_no",
+          "equipment_name",
+          "exchanger_category"
+        ],
+        "title": "HeatResultResponse",
+        "description": "GET /heat/{heat_id} 响应。"
+      },
+      "HydraulicsInputSchema": {
+        "properties": {
+          "D_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "D M",
+            "description": "容器直径 m"
+          },
+          "L_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "L M",
+            "description": "容器长度 m（立式罐即高度）"
+          },
+          "h0_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "H0 M",
+            "description": "初始液位 m（重力排空起点）"
+          },
+          "d_orifice_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "D Orifice M",
+            "description": "排空孔口直径 m"
+          },
+          "Cd_orifice": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Cd Orifice",
+            "description": "孔口流量系数"
+          },
+          "Q_in_liquid_m3_s": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Q In Liquid M3 S",
+            "description": "进液流量 m³/s",
+            "default": 0.0
+          },
+          "d_overflow_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "D Overflow M",
+            "description": "溢流口直径 m"
+          },
+          "h_overflow_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "H Overflow M",
+            "description": "溢流口距底部高度 m"
+          },
+          "Cd_overflow": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Cd Overflow",
+            "description": "溢流口流量系数"
+          },
+          "orientation": {
+            "type": "string",
+            "title": "Orientation",
+            "description": "容器朝向：vertical/horizontal（horizontal 触发 UserWarning）",
+            "default": "vertical"
+          },
+          "thermal_breathing_factor": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Thermal Breathing Factor",
+            "description": "API 2000 表 4 Y 系数（默认 1.0）",
+            "default": 1.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "D_m",
+          "L_m",
+          "h0_m",
+          "d_orifice_m",
+          "Cd_orifice",
+          "d_overflow_m",
+          "h_overflow_m",
+          "Cd_overflow"
+        ],
+        "title": "HydraulicsInputSchema",
+        "description": "hydraulics 输入（对应 VesselHydraulicsInput 物理量）。"
+      },
+      "ImportHtriResponse": {
+        "properties": {
+          "calc_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Calc Id",
+            "description": "HeatResult.heat_exchanger_id"
+          },
+          "calc_type": {
+            "type": "string",
+            "title": "Calc Type",
+            "description": "计算类型（固定 HEAT）",
+            "default": "HEAT"
+          },
+          "record_hash": {
+            "type": "string",
+            "title": "Record Hash",
+            "description": "16 hex 数值规范化哈希"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 UUID"
+          },
+          "equipment_no": {
+            "type": "string",
+            "title": "Equipment No",
+            "description": "设备位号"
+          },
+          "tag_number": {
+            "type": "string",
+            "title": "Tag Number",
+            "description": "HeatResult 业务 tag"
+          },
+          "exchanger_category": {
+            "type": "string",
+            "title": "Exchanger Category",
+            "description": "SHELL_TUBE / AIR_COOL / PLATE"
+          },
+          "duty_w": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duty W",
+            "description": "热负荷 W（HTRI）"
+          },
+          "outlet_stream_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outlet Stream Id",
+            "description": "出口流 UUID（source_stream_id 提供时存在）"
+          },
+          "outlet_stream_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outlet Stream Name",
+            "description": "出口流名称（HEAT_EXCHANGE 后缀）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "calc_id",
+          "record_hash",
+          "project_id",
+          "equipment_no",
+          "tag_number",
+          "exchanger_category"
+        ],
+        "title": "ImportHtriResponse",
+        "description": "POST /heat/import-htri 响应。"
       },
       "LoginRequest": {
         "properties": {
@@ -12281,6 +12979,64 @@
         ],
         "title": "SimImportWarningListResponse"
       },
+      "SizingInputSchema": {
+        "properties": {
+          "vessel_type": {
+            "type": "string",
+            "title": "Vessel Type",
+            "description": "VERTICAL / HORIZONTAL / WITH_DEMISTER"
+          },
+          "rho_L_kg_m3": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Rho L Kg M3",
+            "description": "液相密度 kg/m³"
+          },
+          "rho_V_kg_m3": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Rho V Kg M3",
+            "description": "气相密度 kg/m³"
+          },
+          "liquid_flow_m3_s": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Liquid Flow M3 S",
+            "description": "液相流量 m³/s"
+          },
+          "vapor_flow_m3_s": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Vapor Flow M3 S",
+            "description": "气相流量 m³/s"
+          },
+          "residence_time_min": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Residence Time Min",
+            "description": "停留时间 min（0 = 按 vessel_type 默认区间中值）",
+            "default": 0.0
+          },
+          "K_factor_ms": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.01,
+            "title": "K Factor Ms",
+            "description": "K 因子 m/s（SI 物理范围）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "vessel_type",
+          "rho_L_kg_m3",
+          "rho_V_kg_m3",
+          "liquid_flow_m3_s",
+          "vapor_flow_m3_s",
+          "K_factor_ms"
+        ],
+        "title": "SizingInputSchema",
+        "description": "sizing 输入（对应 VesselSizingInput 物理量）。"
+      },
       "SolverConfigReq": {
         "properties": {
           "tolerance_m3_s": {
@@ -12304,6 +13060,120 @@
         "type": "object",
         "title": "SolverConfigReq",
         "description": "求解配置（可选；缺省 SolverConfig 默认值）。"
+      },
+      "StandardProfileResponse": {
+        "properties": {
+          "profile_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Profile Id",
+            "description": "ProjectCalculationStandardProfile.id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 UUID"
+          },
+          "discipline": {
+            "type": "string",
+            "title": "Discipline",
+            "description": "固定 PSV",
+            "default": "PSV"
+          },
+          "profile_code": {
+            "type": "string",
+            "title": "Profile Code",
+            "description": "API / GB / CUSTOM"
+          },
+          "standard_refs_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Standard Refs Json",
+            "description": "各子标准、版本、条款映射"
+          },
+          "approval_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Json",
+            "description": "CUSTOM 审批依据"
+          },
+          "is_default": {
+            "type": "boolean",
+            "title": "Is Default",
+            "description": "是否当前默认"
+          },
+          "migrated_default": {
+            "type": "boolean",
+            "title": "Migrated Default",
+            "description": "是否迁移占位"
+          },
+          "effective_from": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Effective From",
+            "description": "生效起始时间"
+          },
+          "effective_to": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Effective To",
+            "description": "失效时间；NULL 表示当前生效"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By",
+            "description": "审批人 UUID"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "创建时间"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At",
+            "description": "更新时间"
+          }
+        },
+        "type": "object",
+        "required": [
+          "profile_id",
+          "project_id",
+          "profile_code",
+          "standard_refs_json",
+          "is_default",
+          "migrated_default",
+          "effective_from",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "StandardProfileResponse",
+        "description": "GET /standard-profile 响应。"
       },
       "StateMachineResponse": {
         "properties": {
@@ -13806,6 +14676,59 @@
         "type": "object",
         "title": "UpdateTemplateRequest"
       },
+      "UpsertStandardProfileRequest": {
+        "properties": {
+          "profile_code": {
+            "type": "string",
+            "enum": [
+              "API",
+              "GB",
+              "CUSTOM"
+            ],
+            "title": "Profile Code",
+            "description": "API / GB / CUSTOM"
+          },
+          "standard_refs_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Standard Refs Json",
+            "description": "子标准引用（fire_case/relief_area/orifice 等子项）"
+          },
+          "approval_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approval Json",
+            "description": "CUSTOM 必填：审批人+依据"
+          },
+          "approved_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Approved By",
+            "description": "审批人 UUID（CUSTOM 必填）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "profile_code",
+          "standard_refs_json"
+        ],
+        "title": "UpsertStandardProfileRequest",
+        "description": "POST /standard-profile 请求体。"
+      },
       "ValidateRequest": {
         "properties": {
           "project_id": {
@@ -13975,6 +14898,217 @@
         "title": "VersionResponse",
         "description": "POST /versions、POST /fork 返回结构。"
       },
+      "WeightEstimateRequest": {
+        "properties": {
+          "tema_type": {
+            "type": "string",
+            "title": "Tema Type",
+            "description": "BEM / AEM / AEL / NEN / BEM_FIXED / AEM_U_TUBE"
+          },
+          "shell_id_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Shell Id M",
+            "description": "壳体内径 m"
+          },
+          "shell_length_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Shell Length M",
+            "description": "壳体长度 m"
+          },
+          "shell_thickness_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Shell Thickness M",
+            "description": "壳体壁厚 m"
+          },
+          "material": {
+            "type": "string",
+            "title": "Material",
+            "description": "carbon_steel / SS304 / SS316 / SS316L",
+            "default": "carbon_steel"
+          },
+          "head_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Head Count",
+            "description": "封头数（默认 2）",
+            "default": 2
+          },
+          "head_straight_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Head Straight M",
+            "description": "椭圆封头直边段 m",
+            "default": 0.025
+          },
+          "flange_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Flange Count",
+            "default": 2
+          },
+          "flange_class": {
+            "type": "string",
+            "title": "Flange Class",
+            "description": "ASME B16.5 Class",
+            "default": "300#"
+          },
+          "flange_size_dn": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Flange Size Dn",
+            "default": 600
+          },
+          "nozzle_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Nozzle Count",
+            "default": 4
+          },
+          "nozzle_size_dn": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Nozzle Size Dn",
+            "default": 100
+          },
+          "saddle_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Saddle Count",
+            "default": 2
+          },
+          "saddle_size_dn": {
+            "type": "integer",
+            "exclusiveMinimum": 0.0,
+            "title": "Saddle Size Dn",
+            "default": 600
+          },
+          "tube_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Tube Count",
+            "default": 0
+          },
+          "tube_od_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Tube Od M",
+            "default": 0.0
+          },
+          "tube_thickness_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Tube Thickness M",
+            "default": 0.0
+          },
+          "tube_length_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Tube Length M",
+            "default": 0.0
+          },
+          "baffle_count": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Baffle Count",
+            "default": 0
+          },
+          "baffle_diameter_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Baffle Diameter M",
+            "default": 0.0
+          },
+          "baffle_thickness_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Baffle Thickness M",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "tema_type",
+          "shell_id_m",
+          "shell_length_m",
+          "shell_thickness_m"
+        ],
+        "title": "WeightEstimateRequest",
+        "description": "POST /heat/{heat_id}/weight-estimate 请求体。"
+      },
+      "WeightEstimateResponse": {
+        "properties": {
+          "calc_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Calc Id",
+            "description": "HeatResult.heat_exchanger_id"
+          },
+          "total_weight_kg": {
+            "type": "number",
+            "title": "Total Weight Kg",
+            "description": "总重 kg（TEMA 9th 5 段 + tube/baffle/channels）"
+          },
+          "shell_total_kg": {
+            "type": "number",
+            "title": "Shell Total Kg",
+            "description": "壳体 5 段累加 kg"
+          },
+          "segments": {
+            "additionalProperties": {
+              "$ref": "#/components/schemas/WeightSegmentResponse"
+            },
+            "type": "object",
+            "title": "Segments",
+            "description": "9 段：cylinder/heads/flanges/nozzles/saddles/tube/baffle/channels/shell_total"
+          },
+          "formula_ref": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Formula Ref",
+            "description": "顶层 formula_ref（含 TEMA 版本 + 各段标准 + clause）"
+          },
+          "record_hash": {
+            "type": "string",
+            "title": "Record Hash",
+            "description": "刷新后的 record_hash（output_json 变更）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "calc_id",
+          "total_weight_kg",
+          "shell_total_kg",
+          "segments",
+          "formula_ref",
+          "record_hash"
+        ],
+        "title": "WeightEstimateResponse",
+        "description": "POST /heat/{heat_id}/weight-estimate 响应。"
+      },
+      "WeightSegmentResponse": {
+        "properties": {
+          "weight_kg": {
+            "type": "number",
+            "title": "Weight Kg"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref"
+          }
+        },
+        "type": "object",
+        "required": [
+          "weight_kg",
+          "formula_ref"
+        ],
+        "title": "WeightSegmentResponse",
+        "description": "单段重量 + 公式来源标注。"
+      },
       "WorkspaceCreate": {
         "properties": {
           "workspace_type": {
@@ -14102,6 +15236,163 @@
         ],
         "title": "WorkspaceOut"
       },
+      "app__api__v1__flash__CalculateRequest": {
+        "properties": {
+          "calc_type": {
+            "type": "string",
+            "title": "Calc Type",
+            "description": "PT_FLASH / PH_FLASH / PS_FLASH / SATURATION"
+          },
+          "stream_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Stream Id",
+            "description": "输入流 UUID（必须 CHECKED）"
+          },
+          "T_K": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "T K",
+            "description": "温度 K（PT/PH/PS_FLASH + SATURATION 用）"
+          },
+          "P_Pa": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P Pa",
+            "description": "压力 Pa（PT_FLASH + SATURATION 用）"
+          },
+          "H_target": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "H Target",
+            "description": "目标焓 J/mol（PH_FLASH）"
+          },
+          "S_target": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "S Target",
+            "description": "目标熵 J/mol/K（PS_FLASH）"
+          },
+          "fluid": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fluid",
+            "description": "流体名/CAS（SATURATION 用，例如 PROPANE / 74-98-6）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "calc_type",
+          "stream_id"
+        ],
+        "title": "CalculateRequest",
+        "description": "POST /flash/calculate 请求体。"
+      },
+      "app__api__v1__flash__CalculateResponse": {
+        "properties": {
+          "calc_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Calc Id",
+            "description": "FlashResult.flash_id"
+          },
+          "calc_type": {
+            "type": "string",
+            "title": "Calc Type",
+            "description": "回显计算类型"
+          },
+          "record_hash": {
+            "type": "string",
+            "title": "Record Hash",
+            "description": "16 hex 数值规范化哈希"
+          },
+          "stream_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Stream Id",
+            "description": "输入流 UUID"
+          },
+          "lineage_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Lineage Ids",
+            "description": "DataLineage 行 ID 列表（每 source_stream 一条）"
+          },
+          "result": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Result",
+            "description": "计算结果"
+          },
+          "outlet_stream_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outlet Stream Id",
+            "description": "出口流 UUID（SATURATION 时为 null）"
+          },
+          "outlet_stream_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Outlet Stream Name",
+            "description": "出口流名称（SATURATION 时为 null）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "calc_id",
+          "calc_type",
+          "record_hash",
+          "stream_id"
+        ],
+        "title": "CalculateResponse",
+        "description": "POST /flash/calculate 响应：calc_id + record_hash + lineage_ids + outlet。"
+      },
       "app__api__v1__pipe__CalcChainRequest": {
         "properties": {
           "project_id": {
@@ -14211,6 +15502,160 @@
         ],
         "title": "CalcChainResponse",
         "description": "POST /pipe/calc-chain 响应。"
+      },
+      "app__api__v1__psv__CalculateRequest": {
+        "properties": {
+          "source_stream_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Source Stream Id",
+            "description": "输入流 UUID（必须 CHECKED）"
+          },
+          "relief_scenario": {
+            "type": "string",
+            "enum": [
+              "FIRE",
+              "CLOSED_VALVE",
+              "REACTION_RUNAWAY",
+              "THERMAL_EXPANSION"
+            ],
+            "title": "Relief Scenario",
+            "description": "FIRE / CLOSED_VALVE / REACTION_RUNAWAY / THERMAL_EXPANSION"
+          },
+          "scenario_params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Scenario Params",
+            "description": "工况参数：按 relief_scenario 路由 FireCaseInput / ClosedValveInput / ReactionRunawayInput / ThermalExpansionInput 对应字段"
+          },
+          "sizing_params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Sizing Params",
+            "description": "ReliefAreaInput 字段（phase + P_back + P_set + ...）"
+          },
+          "standard_code": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "API",
+                  "GB",
+                  "CUSTOM"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Standard Code",
+            "description": "API / GB / CUSTOM；缺省走项目默认 PSV profile"
+          },
+          "standard_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Standard Version",
+            "description": "7th / 2011 / 2024 / CUSTOM；缺省由项目 profile 推断"
+          },
+          "blowdown_fraction": {
+            "type": "number",
+            "exclusiveMaximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Blowdown Fraction",
+            "description": "blowdown 占比（API 520 惯例 5%）",
+            "default": 0.05
+          },
+          "inlet_size": {
+            "type": "string",
+            "title": "Inlet Size",
+            "description": "进口尺寸",
+            "default": "4 inch"
+          },
+          "outlet_size": {
+            "type": "string",
+            "title": "Outlet Size",
+            "description": "出口尺寸",
+            "default": "6 inch"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_stream_id",
+          "relief_scenario",
+          "scenario_params",
+          "sizing_params"
+        ],
+        "title": "CalculateRequest",
+        "description": "POST /psv/calculate 请求体。"
+      },
+      "app__api__v1__psv__CalculateResponse": {
+        "properties": {
+          "calc_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Calc Id",
+            "description": "PsvResult.psv_id"
+          },
+          "calc_type": {
+            "type": "string",
+            "title": "Calc Type",
+            "description": "计算类型（固定 PSV）",
+            "default": "PSV"
+          },
+          "record_hash": {
+            "type": "string",
+            "title": "Record Hash",
+            "description": "16 hex 数值规范化哈希"
+          },
+          "stream_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Stream Id",
+            "description": "源流 UUID"
+          },
+          "lineage_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Lineage Ids",
+            "description": "DataLineage 行 ID 列表"
+          },
+          "result": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Result",
+            "description": "完整 PSV 计算结果（scenario + aggregate + area + orifice + formula_ref）"
+          },
+          "outlet_stream_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Outlet Stream Id",
+            "description": "出口流 UUID"
+          },
+          "outlet_stream_name": {
+            "type": "string",
+            "title": "Outlet Stream Name",
+            "description": "出口流名称"
+          }
+        },
+        "type": "object",
+        "required": [
+          "calc_id",
+          "record_hash",
+          "stream_id",
+          "outlet_stream_id",
+          "outlet_stream_name"
+        ],
+        "title": "CalculateResponse",
+        "description": "POST /psv/calculate 响应。"
       },
       "app__api__v1__pump__CalcChainRequest": {
         "properties": {
@@ -14344,6 +15789,187 @@
         ],
         "title": "CalcChainResponse",
         "description": "POST /pump/calc-chain 响应。"
+      },
+      "app__api__v1__sep_equip__CalculateRequest": {
+        "properties": {
+          "source_stream_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Source Stream Id",
+            "description": "输入流 UUID（必须 CHECKED）"
+          },
+          "device_type": {
+            "type": "string",
+            "title": "Device Type",
+            "description": "CYCLONE/MIST_ELIMINATOR/GRAVITY/VANE/FIBER"
+          },
+          "params": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Params",
+            "description": "设备类型对应参数（字段名匹配对应 Input dataclass）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_stream_id",
+          "device_type",
+          "params"
+        ],
+        "title": "CalculateRequest",
+        "description": "POST /sep-equip/calculate 请求体。"
+      },
+      "app__api__v1__sep_equip__CalculateResponse": {
+        "properties": {
+          "calc_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Calc Id",
+            "description": "SepEquipResult.sep_equip_id"
+          },
+          "calc_type": {
+            "type": "string",
+            "title": "Calc Type",
+            "description": "设备类型（= device_type）"
+          },
+          "record_hash": {
+            "type": "string",
+            "title": "Record Hash",
+            "description": "16 hex 数值规范化哈希"
+          },
+          "stream_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Stream Id",
+            "description": "源流 UUID"
+          },
+          "lineage_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Lineage Ids",
+            "description": "DataLineage 行 ID 列表"
+          },
+          "result": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Result",
+            "description": "设备类型对应 result dict"
+          },
+          "outlet_stream_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Outlet Stream Id",
+            "description": "出口流 UUID"
+          },
+          "outlet_stream_name": {
+            "type": "string",
+            "title": "Outlet Stream Name",
+            "description": "出口流名称"
+          }
+        },
+        "type": "object",
+        "required": [
+          "calc_id",
+          "calc_type",
+          "record_hash",
+          "stream_id",
+          "outlet_stream_id",
+          "outlet_stream_name"
+        ],
+        "title": "CalculateResponse",
+        "description": "POST /sep-equip/calculate 响应。"
+      },
+      "app__api__v1__vessel__CalculateRequest": {
+        "properties": {
+          "source_stream_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Source Stream Id",
+            "description": "输入流 UUID（必须 CHECKED）"
+          },
+          "sizing": {
+            "$ref": "#/components/schemas/SizingInputSchema",
+            "description": "vessel 尺寸计算输入"
+          },
+          "hydraulics": {
+            "$ref": "#/components/schemas/HydraulicsInputSchema",
+            "description": "vessel 流体力学校核输入"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_stream_id",
+          "sizing",
+          "hydraulics"
+        ],
+        "title": "CalculateRequest",
+        "description": "POST /vessel/calculate 请求体。"
+      },
+      "app__api__v1__vessel__CalculateResponse": {
+        "properties": {
+          "calc_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Calc Id",
+            "description": "VesselResult.vessel_id"
+          },
+          "calc_type": {
+            "type": "string",
+            "title": "Calc Type",
+            "description": "计算类型（固定 VESSEL）",
+            "default": "VESSEL"
+          },
+          "record_hash": {
+            "type": "string",
+            "title": "Record Hash",
+            "description": "16 hex 数值规范化哈希"
+          },
+          "stream_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Stream Id",
+            "description": "源流 UUID"
+          },
+          "lineage_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "title": "Lineage Ids",
+            "description": "DataLineage 行 ID 列表"
+          },
+          "result": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Result",
+            "description": "合并 sizing + hydraulics 结果"
+          },
+          "outlet_stream_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Outlet Stream Id",
+            "description": "出口流 UUID"
+          },
+          "outlet_stream_name": {
+            "type": "string",
+            "title": "Outlet Stream Name",
+            "description": "出口流名称"
+          }
+        },
+        "type": "object",
+        "required": [
+          "calc_id",
+          "record_hash",
+          "stream_id",
+          "outlet_stream_id",
+          "outlet_stream_name"
+        ],
+        "title": "CalculateResponse",
+        "description": "POST /vessel/calculate 响应：vessel_id + record_hash + lineage_ids + outlet。"
       }
     }
   }
