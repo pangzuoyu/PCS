@@ -206,11 +206,88 @@ class PsvResult(TaggedRecordMixin, Base):
     override_approval_json: Mapped[dict | None] = mapped_column(
         JSONB, comment="覆盖审批依据（与 override_reason 成对）"
     )
+    # P5-OPEN-10 SUP-P5-PSV-002 V1.14 §3.1 选型 19 字段（净增；inlet/outlet/blowdown 已存在）
+    valve_type: Mapped[str | None] = mapped_column(
+        String(32), comment="SPRING_LOADED/BALANCED_BELLOWS/PILOT/RUPTURE_DISC（§3.2）"
+    )
+    body_material: Mapped[str | None] = mapped_column(
+        String(32), comment="阀体材料 CARBON_STEEL/SS304/SS316/SS316L/ALLOY（§3.2）"
+    )
+    bellows_material: Mapped[str | None] = mapped_column(
+        String(32), comment="波纹管材料 6 种（§3.8 仅 BALANCED_BELLOWS 必填）"
+    )
+    flange_class: Mapped[str | None] = mapped_column(
+        String(8), comment="150#/300#/600#/900#/1500#/2500#（§3.2）"
+    )
+    back_pressure_type: Mapped[str | None] = mapped_column(
+        String(16), comment="BUILT_UP / SUPERIMPOSED（§3.2）"
+    )
+    back_pressure_pct: Mapped[float | None] = mapped_column(
+        Float, comment="背压百分比 0-50（§3.5）"
+    )
+    overpressure_pct: Mapped[float | None] = mapped_column(
+        Float, comment="超压百分比 10/16/21（API 520 §5.3.1；§3.2）"
+    )
+    kb_factor: Mapped[float | None] = mapped_column(
+        Float, comment="背压修正系数 Kb（§4.3；4 阶段策略）"
+    )
+    kb_source: Mapped[str | None] = mapped_column(
+        String(32), comment="Kb 来源（none/manufacturer:X/api520_fig30/en4126/mixed:X+Y；§4.3）"
+    )
+    valve_brand: Mapped[str | None] = mapped_column(
+        String(32), comment="阀体品牌（自由字符串；V1.14 P2-1 修订；§4.3）"
+    )
+    cdtp_applied: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("FALSE"),
+        comment="CDTP 修正是否生效（SUPERIMPOSED + BP>0；§4.4）",
+    )
+    orifice_overridden: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("FALSE"),
+        comment="用户手动指定 orifice_override（与 orifice_manual 成对；§4.5）",
+    )
+    orifice_manual: Mapped[str | None] = mapped_column(
+        String(8), comment="手动指定孔口字母 D-T（§4.5）"
+    )
+    rupture_disc_position: Mapped[str | None] = mapped_column(
+        String(16), comment="爆破膜位置 UPSTREAM/DOWNSTREAM/NONE（ASME UG-127；§3.2）"
+    )
+    rupture_disc_kc: Mapped[float | None] = mapped_column(
+        Float, comment="爆破膜组合 Kc（UPSTREAM=0.90 / DOWNSTREAM=1.00；ASME UG-127）"
+    )
+    pilot_temperature_c: Mapped[float | None] = mapped_column(
+        Float, comment="先导温度 °C（PILOT_OPERATED 字段；P5 占位）"
+    )
+    pilot_temp_class: Mapped[str | None] = mapped_column(
+        String(16), comment="GENERAL/HIGH_TEMP/CRYOGENIC（PILOT_OPERATED；P5 占位）"
+    )
+    fire_protection: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("FALSE"),
+        comment="防火保护（影响 FIRE 工况计算；§3.2）",
+    )
     __table_args__ = (
         CheckConstraint(
             "(override_reason IS NULL AND override_approval_json IS NULL) OR "
             "(override_reason IS NOT NULL AND override_approval_json IS NOT NULL)",
             name="psv_override_paired_chk",
+        ),
+        CheckConstraint(
+            "valve_type IS NULL OR valve_type IN ('SPRING_LOADED', 'BALANCED_BELLOWS')",
+            name="psv_valve_type_chk",
+        ),
+        CheckConstraint(
+            "NOT cdtp_applied OR back_pressure_type = 'SUPERIMPOSED'",
+            name="psv_cdtp_check",
+        ),
+        CheckConstraint(
+            "(NOT orifice_overridden AND orifice_manual IS NULL) OR "
+            "(orifice_overridden AND orifice_manual IS NOT NULL)",
+            name="psv_orifice_overridden_check",
         ),
         Index(
             "idx_psv_results_pending_review",
