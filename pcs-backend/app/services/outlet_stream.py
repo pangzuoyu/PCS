@@ -42,6 +42,7 @@ OutletSourceType = Literal[
     "PUMP_CALCULATED",
     "PIPE_NET_CALCULATED",
     "VESSEL_CALCULATED",
+    "SEP_EQUIP_CALCULATED",
 ]
 
 
@@ -56,12 +57,14 @@ class OutletStreamProjectMismatchError(PcsError):
 # （P4-3-3 扩 "PIPE_NET_CALCULATED" → "PIPE_NET"；其余按 source_type split_[0]
 # 即可；集中维护以防 PIPE_NET_CALCULATED 被 split 出 "PIPE" 错值）
 # P5-1-4 扩展：新增 "VESSEL_CALCULATED" → "VESSEL"
+# P5-2-4 扩展：新增 "SEP_EQUIP_CALCULATED" → "SEP_EQUIP"
 _EQUIP_TYPE_MAP: dict[str, str] = {
     "FLASH_CALCULATED": "FLASH",
     "PIPE_CALCULATED": "PIPE",
     "PUMP_CALCULATED": "PUMP",
     "PIPE_NET_CALCULATED": "PIPE_NET",
     "VESSEL_CALCULATED": "VESSEL",
+    "SEP_EQUIP_CALCULATED": "SEP_EQUIP",
 }
 
 

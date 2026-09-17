@@ -29,6 +29,7 @@ from app.models.calc import (
     PipingResult,
     PumpResult,
     ReliefResult,
+    SepEquipResult,
     TwoPhaseResult,
     VesselResult,
 )
@@ -43,6 +44,7 @@ from app.services.lineage_extension import attach_lineage_d45
 # P5-0-5 Task 24 扩展 1 类：ProjectCalculationStandardProfile（SUP-P5-PSV-001 §3.1） → 9 类
 # P5-0-2 Task 2 扩展 1 类：HeatResult（ADR-0027 V1.0 决策 2，修正 P4 遗漏）→ 10 类
 # P5-1-4 扩展 1 类：VesselResult（ADR-0032 V1.1 决策 6）→ 11 类
+# P5-2-4 扩展 1 类：SepEquipResult（SEP_EQUIP 旋风/丝网/重力等）→ 12 类
 # Stream 不登记（Stream 是物流不是计算记录）。
 # 后续扩展：
 #   P5-0-1b（4 蒸汽表）后 +4 = 15 类（Q4 约束 3 修订：原 13 → 14 因 +HeatResult +VesselResult）
@@ -62,6 +64,8 @@ RECORD_TYPE_REGISTRY: dict[str, type] = {
     "HeatResult": HeatResult,
     # P5-1-4 新增（2026-09-17，ADR-0032 V1.1 决策 6）
     "VesselResult": VesselResult,
+    # P5-2-4 新增（2026-09-17，SEP_EQUIP 旋风/丝网/重力/叶片/纤维）
+    "SepEquipResult": SepEquipResult,
 }
 
 # record_hash 截断长度（16 hex = 64 bit，与 cia_engine._CONTENT_HASH_PREFIX 一致）

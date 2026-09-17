@@ -61,12 +61,13 @@ def _make_record(**overrides) -> PipingResult:
 
 
 def test_registry_contains_all_calc_record_types() -> None:
-    """registry 覆盖 P5-0-1a + P5-0-5 + P5-0-2 + P5-1-4 落地后的全部 11 类 record。
+    """registry 覆盖 P5-0-1a + P5-0-5 + P5-0-2 + P5-1-4 + P5-2-4 落地后的全部 12 类 record。
 
     P4-TASK0 5 类 + P5-0-1a 新增 3 类（ReliefResult / ColumnSizingResult / MixerResult）。
     Task 24 (P5-0-5) 扩展为 9 类（+ProjectCalculationStandardProfile）。
     Task 2 (P5-0-2) 扩展为 10 类（+HeatResult，修正 P4 遗漏，ADR-0027 决策 2）。
     Task P5-1-4 扩展为 11 类（+VesselResult，ADR-0032 V1.1 决策 6）。
+    Task P5-2-4 扩展为 12 类（+SepEquipResult，SEP_EQUIP 旋风/丝网/重力）。
     """
     assert set(RECORD_TYPE_REGISTRY) == {
         "PipingResult",
@@ -84,6 +85,8 @@ def test_registry_contains_all_calc_record_types() -> None:
         "HeatResult",
         # P5-1-4 新增（2026-09-17，ADR-0032 V1.1 决策 6）
         "VesselResult",
+        # P5-2-4 新增（2026-09-17，SEP_EQUIP 旋风/丝网/重力/叶片/纤维）
+        "SepEquipResult",
     }
 
 

@@ -151,9 +151,10 @@ def test_record_type_registry_count_is_10():
 
     Q4 约束 3 原"P5-0-1b 后=13"修订为"=14"（13 + HeatResult 修正 P4 遗漏）。
     **P5-1-4 修订**（ADR-0032 V1.1 决策 6）：+VesselResult → 11 类。
+    **P5-2-4 修订**：+SepEquipResult → 12 类。
     """
-    assert len(RECORD_TYPE_REGISTRY) == 11, (
-        f"REGISTRY 应 11 类（P5-1-4 +VesselResult），实际 {len(RECORD_TYPE_REGISTRY)}: "
+    assert len(RECORD_TYPE_REGISTRY) == 12, (
+        f"REGISTRY 应 12 类（P5-2-4 +SepEquipResult），实际 {len(RECORD_TYPE_REGISTRY)}: "
         f"{list(RECORD_TYPE_REGISTRY.keys())}"
     )
 
@@ -165,15 +166,31 @@ def test_record_type_registry_contains_heat_result():
     )
 
 
+def test_record_type_registry_contains_vessel_result():
+    """P5-1-4：REGISTRY 必须包含 VesselResult。"""
+    assert "VesselResult" in RECORD_TYPE_REGISTRY, (
+        f"REGISTRY 缺 VesselResult: {list(RECORD_TYPE_REGISTRY.keys())}"
+    )
+
+
+def test_record_type_registry_contains_sep_equip_result():
+    """P5-2-4：REGISTRY 必须包含 SepEquipResult（旋风/丝网/重力/VANE/FIBER 共用）。"""
+    assert "SepEquipResult" in RECORD_TYPE_REGISTRY, (
+        f"REGISTRY 缺 SepEquipResult: {list(RECORD_TYPE_REGISTRY.keys())}"
+    )
+
+
 def test_record_type_registry_preserves_p5_0_5_9_classes():
-    """REGISTRY 10 类必须包含 P5-0-5 末态 9 类（无意外删除）。"""
+    """REGISTRY 12 类必须包含 P5-0-5 末态 9 类 + P5-1-4 VesselResult + P5-2-4 SepEquipResult。"""
     expected_p5_0_5 = {
         "PipingResult", "PumpResult", "FlashResult", "PipeNetworkResult",
         "TwoPhaseResult", "ReliefResult", "ColumnSizingResult", "MixerResult",
         "ProjectCalculationStandardProfile",
+        "VesselResult", "SepEquipResult",
     }
     assert expected_p5_0_5 <= set(RECORD_TYPE_REGISTRY.keys()), (
-        f"REGISTRY 缺 P5-0-5 9 类: {expected_p5_0_5 - set(RECORD_TYPE_REGISTRY.keys())}"
+        f"REGISTRY 缺 P5-0-5 9 类 + P5-1-4 VesselResult + P5-2-4 SepEquipResult: "
+        f"{expected_p5_0_5 - set(RECORD_TYPE_REGISTRY.keys())}"
     )
 
 
