@@ -456,3 +456,235 @@ def test_balanced_bellows_no_service_note_passes():
     )
     result = validate_valve_params(req)
     assert isinstance(result, ValidatedParams)
+
+
+# ============================================================================
+# OPEN-10-4 余项：CDTP + Kb 联动 / warnings 累积 / blowdown 4 介质
+# ============================================================================
+
+
+def test_cdtp_kb_interplay_superimposed_uses_zero_bp():
+    """SUPERIMPOSED + BP>0 + superimposed_pa>0：bp_for_kb=0 → Kb=1.0/'none'（kb 不重复调 cdtp）。
+
+    SPEC §4.3：SUPERIMPOSED 走 CDTP 修正，背压不直接进入 Kb 路径。
+    """
+    req = _base_req(
+        back_pressure_type="SUPERIMPOSED",
+        back_pressure_pct=5.0,
+        superimposed_pressure_pa=50_000.0,
+        set_pressure_pa=200_000.0,
+    )
+    result = validate_valve_params(req)
+    assert result.cdtp_applied is True
+    assert result.cdtp_set_pressure_pa == 150_000.0
+    # Kb 走 bp_for_kb=0 路径 → SPRING_LOADED + BP=0 → Kb=1.0 / 'none'
+    assert result.kb_factor == 1.00
+    assert result.kb_source == "none"
+
+
+def test_cdtp_kb_brand_kept_when_superimposed():
+    """SUPERIMPOSED + 指定 LESER：bp_for_kb=0 → 'none'（策略 1 优先于品牌查询）。
+
+    注：bp_pct=5（实际值）被 KB 路径忽略（bp_for_kb=0），策略 1 触发。
+    """
+    req = _base_req(
+        back_pressure_type="SUPERIMPOSED",
+        back_pressure_pct=5.0,
+        superimposed_pressure_pa=50_000.0,
+        set_pressure_pa=200_000.0,
+        valve_brand="LESER",
+    )
+    result = validate_valve_params(req)
+    assert result.cdtp_applied is True
+    assert result.kb_source == "none"  # 策略 1 优先于品牌查询
+
+
+def test_warnings_g13_carbon_steel_wet_h2s():
+    """G13 触发：CARBON_STEEL + 湿 H₂S service_note → warnings 含 G13 文案（占位）。"""
+    req = _base_req(
+        valve_type="BALANCED_BELLOWS",
+        bellows_material="SS316L",
+        body_material="CARBON_STEEL",
+        service_note="湿 H₂S 工况（NACE MR0175）",
+    )
+    result = validate_valve_params(req)
+    assert any("G13" in w for w in result.warnings)
+
+
+def test_warnings_g13_ss304_strong_oxidizing():
+    """G13 触发：SS304 + 强氧化性 → warnings 含 G13（占位）。"""
+    req = _base_req(
+        valve_type="BALANCED_BELLOWS",
+        bellows_material="SS316L",
+        body_material="SS304",
+        service_note="强氧化性介质 HNO3",
+    )
+    result = validate_valve_params(req)
+    assert any("G13" in w for w in result.warnings)
+
+
+def test_warnings_g13_not_triggered_for_alloy():
+    """G13 不触发：body=ALLOY 即便含湿 H₂S。"""
+    req = _base_req(
+        valve_type="BALANCED_BELLOWS",
+        bellows_material="SS316L",
+        body_material="ALLOY",
+        service_note="湿 H₂S 工况",
+    )
+    result = validate_valve_params(req)
+    assert not any("G13" in w for w in result.warnings)
+
+
+def test_warnings_g25_triggered_for_all_known_mixed_brand():
+    """G25 触发：LESER+Consolidated 全在 _KB_DATA → kb_source='mixed:...' → G25 警告。
+
+    与 G24 不同：mixed 部分缺失 fallback 时 G25 不触发；全 known 时 G25 触发但 G24 不触发。
+    """
+    req = _base_req(
+        valve_type="BALANCED_BELLOWS",
+        bellows_material="SS316L",
+        back_pressure_type="BUILT_UP",
+        back_pressure_pct=20.0,
+        overpressure_pct=16.0,
+        valve_brand="LESER+Consolidated",
+    )
+    result = validate_valve_params(req)
+    assert any("G25" in w for w in result.warnings)
+    assert result.kb_source == "mixed:LESER+Consolidated"
+    # 全 known → 不走 fallback → G24 不触发
+    assert not any("G24" in w for w in result.warnings)
+
+
+def test_warnings_g24_unknown_mixed_falls_back_to_api520():
+    """G24 触发（kb_source=api520_fig30 + 指定 brand）；mixed 中断 → G25 不触发。
+
+    注：mixed 含 unknown mfr → kb_service 部分缺失返回 None → fallback api520_fig30。
+    G25 要求 kb_source 前缀 'mixed:'，fallback 后不再匹配。
+    用 BALANCED_BELLOWS 避开 SPRING_LOADED + BUILT_UP=20% 的 G10 拦截。
+    """
+    req = _base_req(
+        valve_type="BALANCED_BELLOWS",
+        bellows_material="SS316L",
+        back_pressure_type="BUILT_UP",
+        back_pressure_pct=20.0,
+        overpressure_pct=16.0,
+        valve_brand="LESER+UnknownMFR",
+    )
+    result = validate_valve_params(req)
+    assert any("G24" in w for w in result.warnings)
+    assert result.kb_source == "api520_fig30"
+    # G25 不触发：mixed 中断 fallback（kb_source 不是 'mixed:' 前缀）
+    assert not any("G25" in w for w in result.warnings)
+
+
+def test_blowdown_default_gas_5pct():
+    """blowdown_fraction=None + medium=GAS → 默认 5%（BLOWDOWN_DEFAULT_BY_MEDIUM 派生）。"""
+    req = _base_req(medium="GAS", blowdown_fraction=None)
+    result = validate_valve_params(req)
+    assert result.cdtp_applied is False
+    assert result.kb_factor == 1.00  # SPRING_LOADED + BP=0 默认
+
+
+def test_blowdown_default_liquid_10pct():
+    """blowdown_fraction=None + medium=LIQUID → 默认 10%。"""
+    req = _base_req(medium="LIQUID", blowdown_fraction=None)
+    result = validate_valve_params(req)
+    assert result.cdtp_applied is False
+
+
+def test_blowdown_default_two_phase_10pct():
+    """blowdown_fraction=None + medium=TWO_PHASE → 默认 10%。"""
+    req = _base_req(medium="TWO_PHASE", blowdown_fraction=None)
+    result = validate_valve_params(req)
+    assert result.cdtp_applied is False
+
+
+def test_blowdown_default_vapor_5pct():
+    """blowdown_fraction=None + medium=VAPOR → 默认 5%。"""
+    req = _base_req(medium="VAPOR", blowdown_fraction=None)
+    result = validate_valve_params(req)
+    assert result.cdtp_applied is False
+
+
+def test_blowdown_explicit_liquid_15pct_in_range():
+    """blowdown_fraction=0.15 + LIQUID (10-20% 范围) → 不 raise。"""
+    req = _base_req(medium="LIQUID", blowdown_fraction=0.15)
+    result = validate_valve_params(req)
+    assert result.cdtp_applied is False
+
+
+def test_blowdown_explicit_gas_8pct_in_range():
+    """blowdown_fraction=0.08 + GAS (5-10% 范围) → 不 raise。"""
+    req = _base_req(medium="GAS", blowdown_fraction=0.08)
+    result = validate_valve_params(req)
+    assert result.cdtp_applied is False
+
+
+def test_blowdown_explicit_liquid_25pct_out_of_range():
+    """blowdown_fraction=0.25 + LIQUID (上限 20%) → raise G11。"""
+    req = _base_req(medium="LIQUID", blowdown_fraction=0.25)
+    with pytest.raises(PsvBlowdownOutOfRange) as exc_info:
+        validate_valve_params(req)
+    assert exc_info.value.code == "PSV_BLOWDOWN_OUT_OF_RANGE"
+    assert exc_info.value.details["valve_type"] == "SPRING_LOADED"
+    assert exc_info.value.details["max"] == 0.20
+
+
+def test_orifice_override_None_means_first_candidate_unused():
+    """orifice_override=None → orifice_override_validated=None（不自动取 candidates[0]）。"""
+    req = _base_req(
+        inlet_size="2 inch",
+        outlet_size="3 inch",
+        flange_class="300#",
+        orifice_override=None,
+    )
+    result = validate_valve_params(req)
+    assert result.orifice_override_validated is None
+    assert len(result.candidates) >= 1  # 但 candidates 仍计算
+
+
+def test_g15_orifice_temperature_no_trigger_without_temp():
+    """G15：Q/R/T + 无 fluid_temperature_c 也不 raise（温度缺失时不拦截）。
+
+    用 6"×8" 300# 让 Q 进入 candidates（实测 ['P', 'Q']）。
+    """
+    req = _base_req(
+        inlet_size="6 inch",
+        outlet_size="8 inch",
+        flange_class="300#",
+        orifice_override="Q",
+        fluid_temperature_c=None,
+        molecular_weight=None,
+    )
+    result = validate_valve_params(req)
+    assert result.orifice_override_validated == "Q"
+
+
+def test_g15_passes_when_temp_below_threshold():
+    """G15：Q/R/T + T<177°C + MW>=10 → 不 raise（高温低分子量条件未触发）。"""
+    req = _base_req(
+        inlet_size="6 inch",
+        outlet_size="8 inch",
+        flange_class="300#",
+        orifice_override="Q",
+        fluid_temperature_c=100.0,
+        molecular_weight=20.0,
+    )
+    result = validate_valve_params(req)
+    assert result.orifice_override_validated == "Q"
+
+
+def test_g15_raises_when_temp_above_and_mw_below():
+    """G15：Q/R/T + T>=177 + MW<10 → raise PsvOrificeTemperatureLimit。"""
+    req = _base_req(
+        inlet_size="6 inch",
+        outlet_size="8 inch",
+        flange_class="300#",
+        orifice_override="Q",
+        fluid_temperature_c=300.0,
+        molecular_weight=5.0,
+    )
+    with pytest.raises(PsvOrificeTemperatureLimit) as exc_info:
+        validate_valve_params(req)
+    assert exc_info.value.code == "PSV_ORIFICE_TEMPERATURE_LIMIT"
+    assert exc_info.value.details["orifice"] == "Q"
