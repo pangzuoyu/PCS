@@ -22,6 +22,7 @@ import {
   PmsRoute,
   PropertySearchRoute,
   PsvRoute,
+  PsvStandardProfileRoute,
   PumpRoute,
   SepEquipRoute,
   StreamDetailRoute,
@@ -78,6 +79,7 @@ const router = createBrowserRouter([
       { path: 'vessel', element: <VesselRoute /> },
       { path: 'sep-equip', element: <SepEquipRoute /> },
       { path: 'psv', element: <PsvRoute /> },
+      { path: 'psv/standard-profile', element: <PsvStandardProfileRoute /> },
 
       // 项目文档 / 向导
       { path: 'pms', element: <PmsRoute /> },

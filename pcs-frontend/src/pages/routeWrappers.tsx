@@ -59,6 +59,7 @@ import { PipeClassListPage } from './pipe_class/PipeClassListPage';
 import { SymbolTablePage } from './pipe_class/SymbolTablePage';
 import { PipeNetTopologyPage } from './pipe_net/PipeNetTopologyPage';
 import { PsvComputePage } from './psv/PsvComputePage';
+import { PsvStandardProfilePage } from './psv/PsvStandardProfilePage';
 import { PumpComputePage } from './pump/PumpComputePage';
 import { PmsPage } from './pms/PmsPage';
 import { SepEquipComputePage } from './sep_equip/SepEquipComputePage';
@@ -210,6 +211,11 @@ export function SepEquipRoute(): JSX.Element {
 // === P5-3 PSV ===
 export function PsvRoute(): JSX.Element {
   return <PsvComputePage streams={[]} projectStandard="API" />;
+}
+
+// === P5-3 PSV 项目标准配置 ===
+export function PsvStandardProfileRoute(): JSX.Element {
+  return <PsvStandardProfilePage projectId={PROJECT_ID} />;
 }
 
 // === 项目文档 / 向导 ===
