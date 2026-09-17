@@ -1324,6 +1324,103 @@ DETAIL：完整（684 行 × 43 列）
 
 出口物流：创建 PUMP_WORK 类型出口物流。
 
+7.11.5 PSV
+
+按 PCS-PLAN-P5-DEVICE-EQUIPMENT.md §265-417 + SUP-P5-PSV-001 V1.0 + ADR-0028 V1.1：
+
+输入（POST /api/v1/psv/calculate）：
+
+```text
+source_stream_id (UUID, required)          — 输入流 UUID（必须 CHECKED，否则 403 STREAM_NOT_CHECKED）
+relief_scenario (enum, required)            — FIRE / CLOSED_VALVE / REACTION_RUNAWAY / THERMAL_EXPANSION
+scenario_params (object, required)          — 按 relief_scenario 路由 4 种 Input dataclass：
+                                                FireCaseInput: D_m / H_m / liquid_level_fraction /
+                                                  environment_factor_F / h_fg_j_per_kg
+                                                ClosedValveInput: V_pipe_m3 / rho_L_kg_m3 / t_isolation_s
+                                                ReactionRunawayInput: Q_rxn_w / fraction_to_valve
+                                                ThermalExpansionInput: V_L_m3 / rho_L_kg_m3 /
+                                                  beta_per_k / delta_T_k / t_heat_s
+sizing_params (object, required)            — ReliefAreaInput:
+                                                relief_mass_flow_kgs / phase (GAS/LIQUID/VAPOR/LIQUID_VAPOR_MIX) /
+                                                P_back_pa / P_set_pa / T_k / M_kg_per_mol / Z /
+                                                k_cp_ratio / rho_L_kg_m3 ...
+standard_code (enum?, optional)              — API / GB / CUSTOM（缺省走项目默认 PSV profile）
+standard_version (string?, optional)         — 7th / 2011 / 2024 / CUSTOM（缺省由 profile 推断）
+blowdown_fraction (float, default 0.05)      — API 520 惯例 5%
+inlet_size (string, default "4 inch")
+outlet_size (string, default "6 inch")
+```
+
+输出：
+
+```text
+calc_id (UUID)              — PsvResult.psv_id
+record_hash (string, 16 hex)
+stream_id (UUID)            — 源流 UUID
+lineage_ids (UUID[])         — DataLineage 行 ID 列表
+outlet_stream_id (UUID)
+outlet_stream_name (string)
+result (object):
+  relief_scenario            — 输入的 scenario
+  set_pressure_pa            — 整定压力
+  relief_capacity (kg/s)
+  blowdown_fraction          — 5% 默认
+  inlet_size / outlet_size
+  aggregate:
+    dominant_scenario        — API 521 §5.15.4 保守原则：max W_mass 主导
+    case_count               — 输入 case 数（V1 dispatcher 单 case）
+    max_relief_mass_flow_kgs
+  relief_area:
+    area_required_m2
+    formula_ref              — standard / version / clause
+  orifice:
+    selected_size            — API 526 孔口 D~T
+    actual_area_m2
+  standard_refs_json         — 标准引用（API_521 / API_520 / API_526 或 GB_T_150.1-2024）
+  formula_ref_json           — 公式溯源（fire_case_or_other / relief_area / orifice / dominant_scenario）
+```
+
+设计阶段 design_stage：
+
+BASIC：≤25 列（标量 + aggregate + selected_size）
+DETAIL：完整（formula_ref 三段 + standard_refs_json + lineage）
+
+出口物流：创建 source_type=PSV_CALCULATED + upstream_equipment_type=PSV 出口流（sign_status=DRAFT）。
+
+结果 Tab：
+
+- 整定压力 / 泄放量
+- 主导工况识别（API 521 §5.15.4 保守原则）
+- 泄放面积 + 公式溯源
+- 孔口选型（API 526 D~T + GB/T 12241 降级路径 orifice_table_status）
+- 呼吸阀（API 2000，低压工况时启用；commit f380178）
+- 标准引用（API 521 / API 520 / API 526 / GB/T 150.1-2024）
+- 公式溯源 JSON（standard / version / clause 三段）
+- 血缘（lineage_ids）
+- 出口流（PSV_CALCULATED）
+- 设备表同步（EQUIP_LIST 来源=PSV）
+
+项目标准配置（GET/POST /api/v1/projects/{pid}/psv/standard-profile）：
+
+```text
+GET 响应：当前默认 profile（discipline=PSV, is_default=TRUE, effective_to=NULL）；无 → null
+POST body:
+  profile_code (enum: API / GB / CUSTOM, required)
+  standard_refs_json (object, required)     — 子项：fire_case / relief_area / orifice
+  approval_json (object?)                   — CUSTOM 必填（否则 422 PSV_INPUT_ERROR）
+  approved_by (UUID?)                       — CUSTOM 必填
+POST ACL: PROCESS_CONTROLLER / SYSTEM_ADMIN
+GET ACL:  DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+```
+
+错误码：
+
+- 422 PSV_INPUT_ERROR（scenario_params 非法 / 标准口径降级 / 面积超 API 526 T 孔）
+- 422 PSV_PROFILE_CONFLICT（DB EXCLUDE USING gist 冲突）
+- 422 PSV_STANDARD_NOT_CONFIGURED（D-02：项目未配置 → 禁止隐式回退）
+- 403 STREAM_NOT_CHECKED
+- 404 SIM_STREAM_NOT_FOUND
+
 7.12 设备计算（P5/P6）
 统一页面模式：
 
@@ -1759,6 +1856,7 @@ AI 未启用	AI 功能未启用
 版本	日期	修改	编制
 V1.0	2026-09-15	初始版本，冻结全部裁决	联合项目组
 V1.1	2026-09-17	P5-1-4 VESSEL / P5-2-4 SEP_EQUIP / P5-3-6 PSV 设备计算 Page §7.11.3-5：①VESSEL CalculateRequest 由扁平工艺字段改为嵌套 sizing{SizingInputSchema} + hydraulics{HydraulicsInputSchema}（app/api/v1/vessel.py:46-78）；②SEP_EQUIP / PSV source_stream_id+device_type+params 扁平结构对齐后端 OpenAPI；③StateBadgeModule 扩展 +VESSEL/+SEP_EQUIP/+PSV（4 态子集）；④V1.0 SPEC §7.11.3-5 详细字段章节暂缺，本期仅落地导航与最小 Page 渲染，详细字段以 plan PCS-PLAN-P5-DEVICE-EQUIPMENT.md + 后端 OpenAPI 为准，SPEC 详细字段章节 P5-3 闭环后追加（TODO-2026-09-17-01）。	Claude Code
+V1.2	2026-09-17	P5-3 闭环后追加 §7.11.5 PSV 详细字段章节（解决 TODO-2026-09-17-01）：输入字段（source_stream_id + relief_scenario + scenario_params 4 种 Input 路由 + sizing_params + standard_code/version + blowdown_fraction 5% + inlet/outlet_size）；输出字段（calc_id + record_hash + lineage_ids + outlet_stream_id + result 含 aggregate / relief_area / orifice / standard_refs_json / formula_ref_json）；设计阶段 BASIC ≤25 列 / DETAIL 完整；出口流 source_type=PSV_CALCULATED；项目标准配置 GET/POST 端点（GET ACL：DESIGNER+，POST ACL：PROCESS_CONTROLLER+，CUSTOM 必填 approval_json + approved_by）；错误码 PSV_INPUT_ERROR / PSV_PROFILE_CONFLICT / PSV_STANDARD_NOT_CONFIGURED / STREAM_NOT_CHECKED / SIM_STREAM_NOT_FOUND。	Claude Code
 文档结束。
 
 本文件为 PCS 前端编码的唯一 UI 依据。字段、类型、枚举、错误码以 OpenAPI + JSON Schema 为准。冲突时以 OpenAPI 为准，并登记修订。
