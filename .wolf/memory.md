@@ -3084,3 +3084,337 @@
 | 14:23 | Edited pcs-backend/tests/services/heat/fixtures/golden_weight_aem.json | 2→3 lines | ~17 |
 | 14:24 | Created pcs-backend/tests/services/heat/fixtures/golden_weight_bem.json | — | ~322 |
 | 14:24 | Created pcs-backend/tests/services/heat/fixtures/golden_weight_aem.json | — | ~315 |
+| 14:29 | Edited pcs-backend/app/services/outlet_stream.py | 12→13 lines | ~131 |
+| 14:29 | Edited pcs-backend/app/services/outlet_stream.py | 12→14 lines | ~129 |
+| 14:29 | Edited pcs-backend/app/services/outlet_stream.py | 14→16 lines | ~173 |
+| 14:29 | Created pcs-backend/app/services/heat/heat_persist.py | — | ~2002 |
+| 14:30 | Created pcs-backend/tests/services/heat/test_heat_persist.py | — | ~2773 |
+| 14:31 | Edited pcs-backend/tests/services/heat/test_heat_persist.py | modified _seed_source_stream() | ~158 |
+| 14:31 | Edited pcs-backend/tests/services/heat/test_heat_persist.py | modified test_estimate_heat_weight_nonexistent_heat_raises() | ~179 |
+| 14:32 | Edited pcs-backend/tests/services/heat/test_heat_persist.py | 6→6 lines | ~50 |
+| 14:35 | Edited pcs-backend/tests/services/heat/test_heat_persist.py | added 1 import(s) | ~67 |
+| 14:38 | Created pcs-backend/app/api/v1/heat.py | — | ~3468 |
+| 14:38 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~64 |
+| 14:38 | Edited pcs-backend/app/api/v1/__init__.py | 2→3 lines | ~47 |
+| 14:39 | Created pcs-backend/tests/api/v1/test_heat_api.py | — | ~3840 |
+| 14:39 | Edited pcs-backend/tests/api/v1/test_heat_api.py | removed 40 lines | ~40 |
+| 14:40 | Edited pcs-backend/app/api/v1/heat.py | added 2 import(s) | ~35 |
+| 14:40 | Edited pcs-backend/app/api/v1/heat.py | expanded (+8 lines) | ~170 |
+| 14:41 | Edited pcs-backend/app/services/heat/heat_persist.py | 22→25 lines | ~265 |
+| 14:41 | Edited pcs-backend/app/services/heat/heat_persist.py | 9→10 lines | ~70 |
+| 14:42 | Edited pcs-backend/app/api/v1/heat.py | inline fix | ~18 |
+| 14:42 | Edited pcs-backend/app/api/v1/heat.py | HTTPException() → CorePcsError() | ~62 |
+| 14:42 | Edited pcs-backend/tests/api/v1/test_heat_api.py | 11→9 lines | ~111 |
+| 14:43 | Edited pcs-backend/tests/api/v1/test_heat_api.py | modified test_get_heat_not_found_404() | ~92 |
+| 14:43 | Edited pcs-backend/tests/api/v1/test_heat_api.py | modified test_estimate_heat_weight_not_found_404() | ~149 |
+| 14:43 | Edited pcs-backend/app/api/v1/heat.py | 9→8 lines | ~92 |
+| 14:43 | Edited pcs-backend/app/api/v1/heat.py | 15→14 lines | ~152 |
+| 14:44 | Edited pcs-backend/app/api/v1/heat.py | expanded (+6 lines) | ~135 |
+| 15:03 | Created docs/superpowers/plans/2026-09-17-p5-4-frontend-heat-ui.md | — | ~8127 |
+| 15:07 | Created docs/superpowers/plans/2026-09-17-p5-4-frontend-heat-ui.md | — | ~13681 |
+| 15:09 | Edited docs/superpowers/plans/2026-09-17-p5-4-frontend-heat-ui.md | 2→2 lines | ~46 |
+| 15:09 | Edited docs/superpowers/plans/2026-09-17-p5-4-frontend-heat-ui.md | inline fix | ~15 |
+| 15:10 | Edited docs/superpowers/plans/2026-09-17-p5-4-frontend-heat-ui.md | inline fix | ~15 |
+| 15:10 | Edited docs/superpowers/plans/2026-09-17-p5-4-frontend-heat-ui.md | 3→3 lines | ~26 |
+| 15:10 | Edited docs/superpowers/plans/2026-09-17-p5-4-frontend-heat-ui.md | 3→4 lines | ~54 |
+| 15:10 | Edited docs/superpowers/plans/2026-09-17-p5-4-frontend-heat-ui.md | expanded (+9 lines) | ~212 |
+| 15:10 | Edited docs/superpowers/plans/2026-09-17-p5-4-frontend-heat-ui.md | added optional chaining | ~122 |
+| 15:10 | Edited docs/superpowers/plans/2026-09-17-p5-4-frontend-heat-ui.md | added optional chaining | ~555 |
+| 15:10 | Edited docs/superpowers/plans/2026-09-17-p5-4-frontend-heat-ui.md | modified style() | ~466 |
+| 15:11 | Edited docs/superpowers/plans/2026-09-17-p5-4-frontend-heat-ui.md | inline fix | ~28 |
+| 15:11 | Edited docs/superpowers/plans/2026-09-17-p5-4-frontend-heat-ui.md | inline fix | ~19 |
+| 15:11 | Edited docs/superpowers/plans/2026-09-17-p5-4-frontend-heat-ui.md | 3→3 lines | ~31 |
+| 15:14 | Edited docs/PCS-UI-SPEC.md | modified segments() | ~1112 |
+| 15:14 | Edited docs/PCS-UI-SPEC.md | 1→2 lines | ~620 |
+| 15:16 | Created pcs-frontend/src/types/heat.ts | — | ~1704 |
+| 15:16 | Created docs/P45-BATCH3-TYPE-MIGRATION.md | — | ~265 |
+| 15:18 | Created pcs-frontend/src/api/heat.ts | — | ~764 |
+| 15:18 | Created pcs-frontend/tests/api/test_heat_api.ts | — | ~1049 |
+| 15:19 | Edited pcs-frontend/src/components/common/StateBadge.tsx | 4→4 lines | ~45 |
+| 15:19 | Edited pcs-frontend/src/components/common/StateBadge.tsx | CSS: HEAT | ~43 |
+| 15:20 | Edited pcs-frontend/tests/components/common/StateBadge.test.tsx | modified for() | ~430 |
+| 15:21 | Created pcs-frontend/src/pages/heat/HeatComputePage.tsx | — | ~3718 |
+| 15:22 | Edited pcs-frontend/src/pages/heat/HeatComputePage.tsx | expanded (+17 lines) | ~122 |
+| 15:22 | Edited pcs-frontend/src/pages/heat/HeatComputePage.tsx | 4→5 lines | ~44 |
+| 15:22 | Edited pcs-frontend/src/pages/heat/HeatComputePage.tsx | 6→7 lines | ~30 |
+| 15:23 | Created pcs-frontend/tests/pages/heat/HeatComputePage.test.tsx | — | ~585 |
+| 15:24 | Edited pcs-frontend/tests/pages/heat/HeatComputePage.test.tsx | 12→13 lines | ~175 |
+| 15:24 | Edited pcs-frontend/tests/pages/heat/HeatComputePage.test.tsx | inline fix | ~31 |
+| 15:25 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified PsvRoute() | ~81 |
+| 15:25 | Edited pcs-frontend/src/App.tsx | 3→4 lines | ~20 |
+| 15:25 | Edited pcs-frontend/src/App.tsx | 1→2 lines | ~34 |
+| 15:25 | Edited pcs-frontend/src/layouts/MainLayout.tsx | 1→2 lines | ~19 |
+| 15:26 | Created pcs-frontend/tests/test_routing_heat.tsx | — | ~262 |
+| 15:26 | Created pcs-frontend/tests/test_routing_heat.tsx | — | ~222 |
+| 15:27 | Created pcs-frontend/tests/routing_heat.test.tsx | — | ~423 |
+| 15:27 | Edited pcs-frontend/src/mocks/handlers.ts | added 4 condition(s) | ~521 |
+| 15:28 | Edited pcs-frontend/src/mocks/handlers.ts | expanded (+72 lines) | ~736 |
+| 15:28 | Created pcs-frontend/tests/mocks/heat_handlers.test.ts | — | ~1237 |
+| 15:29 | Edited pcs-frontend/tests/mocks/heat_handlers.test.ts | "error" → "bypass" | ~19 |
+| 15:29 | Edited pcs-frontend/tests/mocks/heat_handlers.test.ts | "bypass" → "warn" | ~18 |
+| 15:29 | Edited pcs-frontend/tests/mocks/heat_handlers.test.ts | 1→3 lines | ~44 |
+| 15:29 | Edited pcs-frontend/tests/mocks/heat_handlers.test.ts | 5→5 lines | ~37 |
+| 15:29 | Edited pcs-frontend/tests/mocks/heat_handlers.test.ts | 3→3 lines | ~31 |
+| 15:29 | Edited pcs-frontend/tests/mocks/heat_handlers.test.ts | 3→3 lines | ~37 |
+| 15:30 | Edited pcs-frontend/tests/mocks/heat_handlers.test.ts | 13→13 lines | ~102 |
+| 15:30 | Edited pcs-frontend/src/mocks/handlers.ts | modified if() | ~286 |
+| 15:30 | Edited pcs-frontend/tests/mocks/heat_handlers.test.ts | 3→2 lines | ~30 |
+| 15:30 | Edited pcs-frontend/src/mocks/handlers.ts | modified if() | ~299 |
+| 15:30 | Edited pcs-frontend/src/mocks/handlers.ts | modified if() | ~285 |
+| 15:31 | Created pcs-frontend/tests/mocks/heat_handlers.test.ts | — | ~2073 |
+| 15:40 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | — | ~1810 |
+| 16:33 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | 11→13 lines | ~108 |
+| 16:33 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | expanded (+8 lines) | ~264 |
+| 16:33 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | 4→4 lines | ~103 |
+| 16:34 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | modified feat() | ~96 |
+| 16:34 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | 2→2 lines | ~50 |
+| 16:34 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | inline fix | ~14 |
+| 16:34 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | 4→4 lines | ~60 |
+| 16:34 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | inline fix | ~33 |
+| 16:35 | Edited pcs-frontend/src/pages/heat/HeatComputePage.tsx | 18→19 lines | ~73 |
+| 16:35 | Edited pcs-frontend/src/pages/heat/HeatComputePage.tsx | CSS: stream_id, tag_number, stream_name | ~76 |
+| 16:35 | Edited pcs-frontend/src/pages/heat/HeatComputePage.tsx | added 3 condition(s) | ~449 |
+| 16:35 | Edited pcs-frontend/src/pages/heat/HeatComputePage.tsx | expanded (+12 lines) | ~153 |
+| 16:36 | Edited pcs-frontend/src/pages/heat/HeatComputePage.tsx | 10→10 lines | ~75 |
+| 16:36 | Created pcs-frontend/src/api/stream.ts | — | ~240 |
+| 16:37 | Created pcs-frontend/tests/api/stream_api.test.ts | — | ~470 |
+| 16:37 | Edited pcs-frontend/tests/api/stream_api.test.ts | 49→44 lines | ~361 |
+| 16:38 | Edited pcs-frontend/tests/pages/heat/HeatComputePage.test.tsx | expanded (+10 lines) | ~210 |
+| 16:38 | Edited pcs-frontend/tests/pages/heat/HeatComputePage.test.tsx | expanded (+8 lines) | ~142 |
+| 18:35 | Created pcs-frontend/src/api/vessel.ts | — | ~230 |
+| 18:35 | Edited pcs-frontend/src/pages/vessel/VesselComputePage.tsx | added optional chaining | ~376 |
+| 18:35 | Edited pcs-frontend/src/pages/vessel/VesselComputePage.tsx | added nullish coalescing | ~750 |
+| 18:36 | Edited pcs-frontend/src/pages/vessel/VesselComputePage.tsx | 15→16 lines | ~106 |
+| 18:36 | Edited pcs-frontend/src/pages/vessel/VesselComputePage.tsx | 1→2 lines | ~33 |
+| 18:36 | Edited pcs-frontend/src/pages/vessel/VesselComputePage.tsx | 9→10 lines | ~40 |
+| 18:36 | Edited pcs-frontend/src/pages/vessel/VesselComputePage.tsx | 12→14 lines | ~162 |
+| 18:36 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified VesselRoute() | ~48 |
+| 18:37 | Edited pcs-frontend/src/pages/vessel/VesselComputePage.tsx | added nullish coalescing | ~91 |
+| 18:38 | Edited pcs-frontend/src/pages/vessel/VesselComputePage.tsx | modified renderCheckTag() | ~91 |
+| 18:38 | Created pcs-frontend/tests/api/vessel_api.test.ts | — | ~87 |
+| 18:38 | Edited pcs-frontend/tests/pages/vessel/VesselComputePage.test.tsx | expanded (+28 lines) | ~297 |
+| 18:38 | Edited pcs-frontend/tests/pages/vessel/VesselComputePage.test.tsx | CSS: OPEN-4-1, target, value | ~333 |
+| 18:39 | Edited pcs-frontend/tests/pages/vessel/VesselComputePage.test.tsx | CSS: sign_status, sign_status | ~103 |
+| 18:40 | Edited pcs-frontend/tests/pages/vessel/VesselComputePage.test.tsx | 9→12 lines | ~157 |
+| 18:41 | Edited pcs-frontend/tests/pages/vessel/VesselComputePage.test.tsx | inline fix | ~24 |
+| 18:41 | Edited pcs-frontend/tests/pages/vessel/VesselComputePage.test.tsx | 12→16 lines | ~234 |
+| 18:41 | Edited pcs-frontend/tests/pages/vessel/VesselComputePage.test.tsx | expanded (+7 lines) | ~189 |
+| 18:45 | Created pcs-frontend/src/api/sepEquip.ts | — | ~436 |
+| 18:45 | Edited pcs-frontend/src/pages/sep_equip/SepEquipComputePage.tsx | added optional chaining | ~523 |
+| 18:45 | Edited pcs-frontend/src/pages/sep_equip/SepEquipComputePage.tsx | added nullish coalescing | ~457 |
+| 18:45 | Edited pcs-frontend/src/pages/sep_equip/SepEquipComputePage.tsx | added nullish coalescing | ~257 |
+| 18:45 | Edited pcs-frontend/src/pages/sep_equip/SepEquipComputePage.tsx | 9→10 lines | ~66 |
+| 18:46 | Edited pcs-frontend/src/pages/sep_equip/SepEquipComputePage.tsx | 12→14 lines | ~159 |
+| 18:46 | Edited pcs-frontend/src/pages/sep_equip/SepEquipComputePage.tsx | 28→30 lines | ~296 |
+| 18:46 | Edited pcs-frontend/src/pages/sep_equip/SepEquipComputePage.tsx | modified renderResultValue() | ~168 |
+| 18:46 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified SepEquipRoute() | ~47 |
+| 18:46 | Created pcs-frontend/tests/api/sep_equip_api.test.ts | — | ~90 |
+| 18:46 | Created pcs-frontend/tests/pages/sep_equip/SepEquipComputePage.test.tsx | — | ~1236 |
+| 18:47 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | expanded (+10 lines) | ~328 |
+| 18:51 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | inline fix | ~41 |
+| 18:51 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | inline fix | ~18 |
+| 19:05 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | expanded (+34 lines) | ~507 |
+| 19:05 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | inline fix | ~34 |
+| 19:05 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | 4→4 lines | ~134 |
+| 19:09 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | inline fix | ~30 |
+| 19:09 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | inline fix | ~30 |
+| 19:09 | Edited .gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md | inline fix | ~23 |
+| 19:13 | Created pcs-frontend/src/pages/psv/PsvComputePage.tsx | — | ~7251 |
+| 19:14 | Created pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | — | ~1936 |
+| 19:14 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | 14→14 lines | ~152 |
+| 19:21 | Edited pcs-frontend/src/types/psv.ts | expanded (+14 lines) | ~153 |
+| 19:21 | Edited pcs-frontend/src/types/psv.ts | expanded (+6 lines) | ~155 |
+| 19:21 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | 39→42 lines | ~210 |
+| 19:22 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | expanded (+33 lines) | ~431 |
+| 19:22 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | modified PsvComputePage() | ~351 |
+| 19:22 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | added optional chaining | ~1181 |
+| 19:22 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | modified InputPanel() | ~348 |
+| 19:22 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | added optional chaining | ~1440 |
+| 19:22 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | expanded (+11 lines) | ~302 |
+| 19:23 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | added optional chaining | ~510 |
+| 19:24 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | CSS: validator, v | ~372 |
+| 19:25 | Edited pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | getByText() → getByRole() | ~43 |
+| 19:26 | Edited pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | 1→3 lines | ~50 |
+| 19:28 | Edited pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | 5→5 lines | ~57 |
+| 19:28 | Edited pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | 4→2 lines | ~53 |
+| 19:28 | Edited pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | 7→6 lines | ~61 |
+| 19:29 | Edited pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | expanded (+50 lines) | ~645 |
+| 19:29 | Edited pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | expanded (+13 lines) | ~386 |
+| 19:30 | Edited docs/PCS-UI-SPEC.md | 1→2 lines | ~756 |
+| 20:09 | Edited pcs-frontend/src/types/psv.ts | expanded (+40 lines) | ~401 |
+| 20:09 | Edited pcs-frontend/src/types/psv.ts | expanded (+12 lines) | ~288 |
+| 20:09 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | expanded (+7 lines) | ~169 |
+| 20:11 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | expanded (+109 lines) | ~1439 |
+| 20:11 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | 6→8 lines | ~32 |
+| 20:12 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | added 16 condition(s) | ~3037 |
+| 20:12 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | 21→24 lines | ~71 |
+| 20:13 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | expanded (+32 lines) | ~562 |
+| 20:13 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | modified InputPanel() | ~276 |
+| 20:13 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | CSS: fontSize, fontSize, manufacturer | ~4624 |
+| 20:14 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | expanded (+9 lines) | ~317 |
+| 20:14 | Edited pcs-frontend/src/types/psv.ts | expanded (+17 lines) | ~299 |
+| 20:14 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | added optional chaining | ~867 |
+| 20:15 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | expanded (+31 lines) | ~710 |
+| 20:15 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | 8→7 lines | ~39 |
+| 20:15 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | 9→7 lines | ~39 |
+| 20:15 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | 6→5 lines | ~16 |
+| 20:15 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | 3→2 lines | ~13 |
+| 20:15 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | removed 19 lines | ~28 |
+| 20:16 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | CSS: valveBrandCustom | ~97 |
+| 20:16 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | 3→3 lines | ~64 |
+| 20:17 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | CSS: textAlign | ~329 |
+| 20:19 | Edited pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | expanded (+53 lines) | ~836 |
+| 20:20 | Edited pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | CSS: key, key | ~277 |
+| 20:20 | Edited pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | added optional chaining | ~351 |
+| 20:21 | Edited pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | reduced (-7 lines) | ~284 |
+| 20:22 | Edited pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | 22→17 lines | ~248 |
+| 20:26 | Edited pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | added optional chaining | ~698 |
+| 20:27 | Edited pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | reduced (-26 lines) | ~201 |
+| 20:28 | Edited pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | expanded (+22 lines) | ~546 |
+| 20:28 | Edited pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx | removed 25 lines | ~43 |
+| 20:46 | Created pcs-backend/app/services/psv/valve_selection_types.py | — | ~2296 |
+| 20:46 | Created pcs-backend/app/services/psv/orifice_flange.py | — | ~2674 |
+| 20:46 | Created pcs-backend/tests/services/psv/test_orifice_flange.py | — | ~2366 |
+| 20:47 | Edited pcs-backend/app/services/psv/orifice_flange.py | modified is_variant_configuration() | ~145 |
+| 20:47 | Edited pcs-backend/tests/services/psv/test_orifice_flange.py | test_6x8_with_q_returns_q() → test_6x8_with_p_and_q_variant() | ~71 |
+| 20:47 | Created pcs-backend/app/services/psv/bellows_compat.py | — | ~1757 |
+| 20:47 | Edited pcs-backend/app/services/psv/bellows_compat.py | PsvBellowsIncompatibleError() → PcsError() | ~351 |
+| 20:48 | Created pcs-backend/tests/services/psv/test_bellows_compat.py | — | ~1369 |
+| 20:49 | Created pcs-backend/app/services/psv/cdtp.py | — | ~630 |
+| 20:49 | Created pcs-backend/app/services/psv/kb_service.py | — | ~1870 |
+| 20:49 | Created pcs-backend/tests/services/psv/test_kb_lookup.py | — | ~1806 |
+| 20:50 | Edited pcs-backend/app/services/psv/kb_service.py | 5→9 lines | ~94 |
+| 20:50 | Edited pcs-backend/app/services/psv/kb_service.py | 4→2 lines | ~22 |
+| 20:50 | Edited pcs-backend/app/services/exceptions.py | modified __init__() | ~1063 |
+| 20:51 | Edited pcs-backend/app/services/psv/bellows_compat.py | PcsError() → PsvBellowsIncompatibleError() | ~319 |
+| 20:51 | Edited pcs-backend/tests/services/psv/test_bellows_compat.py | 2→2 lines | ~32 |
+| 20:51 | Edited pcs-backend/tests/services/psv/test_bellows_compat.py | inline fix | ~24 |
+| 20:52 | Created pcs-backend/app/services/psv/valve_validation.py | — | ~3453 |
+| 20:52 | Created pcs-backend/tests/services/psv/test_valve_validation.py | — | ~2661 |
+| 20:52 | Edited pcs-backend/app/models/calc.py | expanded (+77 lines) | ~1132 |
+| 20:54 | Created pcs-backend/alembic/versions/p5_open_010_psv_valve_selection.py | — | ~1964 |
+| 20:55 | Edited pcs-backend/app/api/v1/psv.py | modified CalculateRequest() | ~1533 |
+| 20:55 | Edited pcs-backend/app/api/v1/psv.py | inline fix | ~14 |
+| 20:55 | Edited pcs-backend/app/services/psv/psv_persist.py | modified persist_psv_calculate() | ~657 |
+| 20:56 | Edited pcs-backend/app/services/psv/psv_persist.py | expanded (+78 lines) | ~1638 |
+| 20:56 | Edited pcs-backend/app/services/psv/psv_persist.py | modified _get_default_blowdown() | ~158 |
+| 20:56 | Edited pcs-backend/app/services/psv/psv_persist.py | expanded (+18 lines) | ~349 |
+| 20:58 | Edited pcs-backend/app/api/v1/psv.py | expanded (+21 lines) | ~492 |
+| 20:59 | Edited pcs-backend/tests/api/v1/test_psv_api.py | modified test_v114_default_request_writes_18_columns() | ~1924 |
+| 20:59 | Edited pcs-backend/tests/api/v1/test_psv_api.py | 3→2 lines | ~29 |
+| 20:59 | Edited pcs-backend/tests/api/v1/test_psv_api.py | 3→3 lines | ~34 |
+| 21:00 | Created spec/SUP-P5-PSV-002-V1.14-STATUS.md | — | ~1372 |
+| 21:07 | Created pcs-backend/tests/services/psv/test_cdtp.py | — | ~1194 |
+| 21:07 | Edited pcs-backend/tests/services/psv/test_bellows_compat.py | modified test_matrix_count_6_materials() | ~858 |
+| 21:07 | Edited pcs-backend/tests/services/psv/test_bellows_compat.py | modified test_alloy_400_() | ~255 |
+| 21:08 | Edited pcs-backend/tests/services/psv/test_bellows_compat.py | modified test_inconel_625_hf_substring_match() | ~72 |
+| 21:08 | Edited pcs-backend/tests/services/psv/test_orifice_flange.py | modified test_flange_to_orifices_parametrized() | ~936 |
+| 21:09 | Edited pcs-backend/tests/services/psv/test_orifice_flange.py | modified test_high_temp_light_gas_boundary_above_177c() | ~104 |
+| 21:09 | Edited pcs-backend/tests/services/psv/test_valve_validation.py | modified test_happy_path_balanced_bellows_with_brand_kb() | ~1977 |
+| 21:11 | Edited pcs-backend/tests/services/psv/test_valve_validation.py | 10→11 lines | ~87 |
+| 21:11 | Edited pcs-backend/app/services/psv/valve_validation.py | 8→9 lines | ~152 |
+| 21:12 | Edited pcs-backend/tests/services/psv/test_valve_validation.py | modified test_g24_unknown_brand_warning() | ~568 |
+| 21:16 | Edited pcs-backend/app/services/psv/valve_validation.py | inline fix | ~24 |
+| 21:16 | Edited pcs-backend/app/services/psv/valve_validation.py | 2→2 lines | ~36 |
+| 21:16 | Edited pcs-backend/tests/services/psv/test_bellows_compat.py | modified test_get_matching_forbidden_returns_full_dict() | ~35 |
+| 21:30 | Edited pcs-backend/alembic/versions/p5_open_010_psv_valve_selection.py | inline fix | ~26 |
+| 21:30 | Edited pcs-backend/alembic/versions/p5_open_010_psv_valve_selection.py | 1→2 lines | ~32 |
+| 21:30 | Edited pcs-backend/app/services/psv/bellows_compat.py | inline fix | ~23 |
+| 21:30 | Edited pcs-backend/app/services/psv/valve_selection_types.py | inline fix | ~21 |
+| 21:33 | Edited pcs-backend/app/api/v1/psv.py | added 1 import(s) | ~87 |
+| 21:33 | Edited pcs-backend/app/api/v1/psv.py | 5→9 lines | ~81 |
+| 21:35 | Edited pcs-backend/app/api/v1/vessel.py | added 1 import(s) | ~72 |
+| 21:35 | Edited pcs-backend/app/api/v1/vessel.py | 4→8 lines | ~82 |
+| 21:35 | Edited pcs-backend/app/api/v1/sep_equip.py | 3→2 lines | ~34 |
+| 21:35 | Edited pcs-backend/app/api/v1/sep_equip.py | added 2 import(s) | ~68 |
+| 21:35 | Edited pcs-backend/app/api/v1/sep_equip.py | 3→7 lines | ~70 |
+| 22:20 | Edited pcs-backend/app/models/sim_import.py | 3→4 lines | ~73 |
+| 22:20 | Edited pcs-backend/app/services/import_service.py | 7→8 lines | ~110 |
+| 22:20 | Edited pcs-backend/app/services/import_service.py | 13→14 lines | ~193 |
+| 22:20 | Edited pcs-backend/app/services/import_service.py | modified commit_proii() | ~227 |
+| 22:21 | Edited pcs-backend/app/services/import_service.py | expanded (+33 lines) | ~598 |
+| 22:21 | Edited pcs-backend/app/services/import_service.py | added 1 import(s) | ~111 |
+| 22:21 | Edited pcs-backend/app/services/import_service.py | added 1 import(s) | ~402 |
+| 22:21 | Edited pcs-backend/app/services/import_service.py | added 1 import(s) | ~119 |
+| 22:22 | Created pcs-backend/alembic/versions/p4_4_sim_import_preview_towers.py | — | ~341 |
+| 22:24 | Edited pcs-backend/app/services/proii_parser.py | 3→5 lines | ~83 |
+| 22:24 | Edited pcs-backend/app/services/proii_parser.py | 11→12 lines | ~114 |
+| 22:26 | Edited pcs-backend/tests/api/v1/test_imports_api.py | modified test_p4_4_commit_writes_sim_tower_results() | ~468 |
+| 22:29 | Edited pcs-backend/app/services/proii_parser.py | expanded (+6 lines) | ~126 |
+| 22:29 | Edited pcs-backend/app/services/proii_parser.py | added 3 condition(s) | ~194 |
+| 22:29 | Edited pcs-backend/app/schemas/stream.py | 5→7 lines | ~153 |
+| 22:30 | Edited pcs-backend/app/services/proii_parser.py | modified _parse_column_summary_text() | ~333 |
+| 23:42 | Edited pcs-backend/tests/api/v1/test_psv_api.py | modified test_v114_g12_orifice_override_not_in_candidates() | ~1026 |
+| 23:42 | Edited pcs-backend/tests/api/v1/test_psv_api.py | 1.0 → 0.90 | ~10 |
+| 23:42 | Edited pcs-backend/tests/api/v1/test_psv_api.py | inline fix | ~21 |
+| 23:49 | Edited pcs-backend/app/services/psv/psv_persist.py | added 1 import(s) | ~70 |
+| 23:49 | Edited pcs-backend/app/services/psv/psv_persist.py | 6→6 lines | ~73 |
+| 23:50 | Edited pcs-backend/app/services/psv/psv_persist.py | 6→4 lines | ~36 |
+| 23:54 | Edited pcs-backend/tests/api/v1/test_config.py | modified test_status_report_export_returns_xlsx_streaming() | ~317 |
+| 23:57 | Edited pcs-backend/app/api/v1/heat.py | modified ImportHtriResponse() | ~350 |
+| 23:57 | Edited pcs-backend/app/api/v1/heat.py | 12→14 lines | ~168 |
+| 23:57 | Edited pcs-backend/tests/api/v1/test_heat_api.py | 4→7 lines | ~101 |
+| 23:57 | Edited pcs-frontend/src/types/heat.ts | 12→14 lines | ~230 |
+| 23:58 | Edited pcs-frontend/src/pages/heat/HeatComputePage.tsx | expanded (+13 lines) | ~323 |
+| 00:03 | Edited pcs-backend/tests/services/psv/test_kb_lookup.py | modified test_three_way_mixed_average() | ~1103 |
+| 00:03 | Edited pcs-backend/tests/services/psv/test_cdtp.py | modified test_cdtp_validation_priority_superimposed_second() | ~336 |
+| 00:04 | Edited pcs-backend/tests/services/psv/test_valve_validation.py | modified test_balanced_bellows_no_service_note_passes() | ~2061 |
+| 00:04 | Edited pcs-backend/tests/services/psv/test_valve_validation.py | modified test_warnings_g24_g25_accumulate_unknown_and_mixed() | ~194 |
+| 00:04 | Edited pcs-backend/tests/services/psv/test_valve_validation.py | modified test_g15_orifice_temperature_no_trigger_without_temp() | ~416 |
+| 00:05 | Edited pcs-backend/tests/services/psv/test_valve_validation.py | test_warnings_g24_g25_accumulate_unknown_and_mixed() → test_warnings_g24_unknown_mixed_falls_back_to_api520() | ~235 |
+| 00:05 | Edited pcs-backend/tests/services/psv/test_valve_validation.py | modified test_warnings_g13_not_triggered_for_alloy() | ~303 |
+| 00:05 | Edited pcs-backend/tests/services/psv/test_psv_persist.py | modified test_get_default_blowdown_gas_5pct() | ~1267 |
+| 00:05 | Edited pcs-backend/tests/services/psv/test_psv_persist.py | modified test_formula_version_constant() | ~70 |
+| 00:06 | Edited pcs-backend/tests/services/psv/test_psv_persist.py | modified test_default_inlet_size_4_inch() | ~123 |
+| 00:06 | Edited pcs-backend/tests/services/psv/test_psv_persist.py | modified test_generate_tag_number_basic() | ~268 |
+| 00:06 | Edited pcs-backend/tests/services/psv/test_psv_persist.py | modified test_blowdown_default_by_medium_persists_module() | ~39 |
+| 00:15 | Edited pcs-backend/app/services/proii_parser.py | modified upper() | ~152 |
+| 00:16 | Edited pcs-backend/app/services/proii_parser.py | modified upper() | ~205 |
+| 00:19 | Edited pcs-backend/app/services/proii_parser.py | modified enumerate() | ~422 |
+| 00:47 | Edited pcs-backend/app/api/v1/heat.py | modified WeightEstimateResponse() | ~299 |
+| 00:47 | Edited pcs-backend/app/api/v1/heat.py | 8→9 lines | ~110 |
+| 00:47 | Edited pcs-backend/tests/api/v1/test_heat_api.py | 4→7 lines | ~99 |
+| 00:47 | Edited pcs-frontend/src/types/heat.ts | 16→18 lines | ~253 |
+| 00:47 | Edited pcs-frontend/src/types/heat.ts | 5→4 lines | ~77 |
+| 00:48 | Edited pcs-frontend/src/pages/heat/HeatComputePage.tsx | CSS: record_hash, output_json | ~144 |
+| 00:48 | Edited pcs-frontend/src/mocks/handlers.ts | expanded (+10 lines) | ~79 |
+| 00:48 | Edited pcs-frontend/tests/mocks/heat_handlers.test.ts | 3→6 lines | ~98 |
+| 00:49 | Edited pcs-frontend/tests/mocks/heat_handlers.test.ts | 3→8 lines | ~69 |
+| 00:54 | Session end: 2297 writes across 503 files (test_stream_orm.py, test_stream_schema.py, p3_sim_stream_schema_upgrade.py, project.py, stream.py) | 306 reads | ~1764859 tok |
+| 07:25 | Edited pcs-frontend/src/types/psv.ts | expanded (+6 lines) | ~176 |
+| 07:25 | Edited pcs-frontend/src/pages/psv/PsvComputePage.tsx | CSS: py | ~178 |
+| 07:26 | Edited pcs-backend/app/services/psv/orifice_service.py | modified orifice_area_m2() | ~87 |
+| 07:26 | Edited pcs-backend/app/services/psv/valve_validation.py | 10→11 lines | ~88 |
+| 07:26 | Edited pcs-backend/app/services/psv/valve_validation.py | added 1 import(s) | ~79 |
+| 07:26 | Edited pcs-backend/app/services/psv/valve_validation.py | 3→2 lines | ~33 |
+| 07:26 | Edited pcs-backend/app/services/psv/valve_validation.py | inline fix | ~25 |
+| 07:26 | Edited pcs-backend/app/services/psv/valve_validation.py | modified float() | ~238 |
+| 07:26 | Edited pcs-backend/app/services/psv/valve_validation.py | 2→2 lines | ~28 |
+| 07:27 | Edited pcs-backend/tests/services/psv/test_valve_validation.py | 6→7 lines | ~51 |
+| 07:28 | Edited pcs-backend/tests/services/psv/test_valve_validation.py | modified test_g9_orifice_override_area_lt_calculated_area_raises() | ~181 |
+| 07:28 | Edited pcs-backend/app/api/v1/auth.py | expanded (+6 lines) | ~148 |
+| 07:28 | Edited pcs-backend/tests/test_auth.py | added 2 import(s) | ~82 |
+| 07:37 | Edited pcs-backend/app/services/psv/relief_area_service.py | 15→17 lines | ~148 |
+| 07:38 | Edited pcs-backend/app/services/psv/relief_area_service.py | modified calc_relief_area_api520_two_phase() | ~766 |
+| 07:38 | Edited pcs-backend/tests/services/psv/test_relief_area.py | modified test_api520_two_phase_omega_zero() | ~1106 |
+| 07:39 | Edited pcs-backend/tests/services/psv/test_relief_area.py | modified test_dispatch_api_two_phase() | ~114 |
+| 07:39 | Edited pcs-backend/tests/services/psv/test_relief_area.py | 6→6 lines | ~70 |
+| 07:39 | Edited pcs-backend/tests/services/psv/test_relief_area.py | inline fix | ~17 |
+| 07:39 | Edited pcs-backend/tests/services/psv/test_relief_area.py | modified test_api520_two_phase_leung_water_steam_conservative() | ~256 |
+| 07:41 | Edited pcs-backend/app/services/psv/fire_case_service.py | 17→19 lines | ~181 |
+| 07:41 | Edited pcs-backend/app/services/psv/fire_case_service.py | modified calc_fire_case_api521() | ~247 |
+| 07:42 | Edited pcs-backend/app/services/psv/relief_area_service.py | modified _gas_area_api520() | ~457 |
+| 07:42 | Edited pcs-backend/app/services/psv/relief_area_service.py | expanded (+11 lines) | ~148 |
+| 07:42 | Edited pcs-backend/tests/services/psv/test_relief_area.py | modified test_api520_gas_basic() | ~279 |
+| 07:43 | Edited pcs-backend/tests/services/psv/test_relief_area.py | modified test_api520_gas_W_proportional() | ~291 |
+| 07:43 | Edited pcs-backend/tests/services/psv/test_relief_area.py | modified test_api520_two_phase_omega_zero() | ~671 |
+| 07:44 | Edited pcs-backend/tests/services/psv/test_relief_area.py | 8→8 lines | ~120 |
+| 07:45 | Edited pcs-backend/tests/services/psv/test_orifice_breathing.py | modified test_integration_area_to_orifice() | ~296 |
+| 07:45 | Edited pcs-backend/tests/services/psv/test_psv_persist.py | 11→14 lines | ~128 |
+| 07:46 | Edited pcs-backend/tests/services/psv/test_orifice_breathing.py | modified test_integration_area_to_orifice() | ~298 |
+| 07:46 | Edited pcs-backend/tests/services/psv/test_psv_persist.py | 14→14 lines | ~140 |
+| 07:47 | Edited pcs-backend/tests/services/psv/test_orifice_breathing.py | 9→9 lines | ~79 |
+| 07:47 | Edited pcs-backend/tests/services/psv/test_psv_persist.py | 33→33 lines | ~316 |
+| 07:49 | Edited pcs-backend/tests/api/v1/test_psv_api.py | modified _fire_body() | ~247 |
+| 07:49 | Edited pcs-backend/tests/api/v1/test_psv_api.py | 8→8 lines | ~81 |
+| 07:50 | Edited pcs-backend/tests/api/v1/test_psv_api.py | modified _reaction_runaway_body() | ~167 |

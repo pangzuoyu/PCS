@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-17T06:24:13.832Z
-> Files: 677 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-17T23:50:14.182Z
+> Files: 712 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -24,6 +24,7 @@
 ## .gstack/qa-reports/
 
 - `qa-report-pcs-frontend-2026-09-16.md` — PCS Frontend QA Report (~1153 tok)
+- `qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md` — QA Report — pcs-frontend — P5-4 HEAT frontend UI 闭环 (~2385 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/2026-09-02-p2-implementation-plan/
@@ -99,6 +100,7 @@
 
 ## docs/
 
+- `P45-BATCH3-TYPE-MIGRATION.md` — P45 BATCH3 前端类型手动迁移登记 (~248 tok)
 - `PCS-P2-CLOSE-REPORT.md` — PCS P2 Sprint Close Report（2026-09-08） (~2039 tok)
 - `PCS-P3.2-SIM-AUDIT-REPORT.md` — PCS P3.2 SIM 全量审计报告 V1.0 (~1983 tok)
 - `PCS-P3.2-SIM-AUDIT-V2.md` — PCS P3.2 SIM 全量审计报告 V2.0（Post-SIM-13 闭环） (~5875 tok)
@@ -111,7 +113,7 @@
 - `PCS-PLAN-P3.2-SIM.md` — PCS P3.2 SIM 实施 Writing-Plan（V1.0，2026-09-08） (~7883 tok)
 - `PCS-PLAN-P5-DEVICE-EQUIPMENT.md` — P5 设备计算模块（第二批）实施计划 V1.10 (~20379 tok)
 - `PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md` — p2_sup_sprint_pc1_pipe_class_upgrade.py (~17953 tok)
-- `PCS-UI-SPEC.md` (~7421 tok)
+- `PCS-UI-SPEC.md` (~9161 tok)
 
 ## docs/adr/
 
@@ -163,6 +165,7 @@
 - `2026-09-04-p2-sprint-1.9.md` — P2 Sprint 1.9（配置层收尾）Implementation Plan (~13255 tok)
 - `2026-09-16-p45-frontend-sprint-batch3.md` — P4.5 批 3：P3/P4 计算页面 实施计划 (~5231 tok)
 - `2026-09-16-p45-frontend-sprint.md` — P4.5 前端补课 Sprint 实施计划 (~6176 tok)
+- `2026-09-17-p5-4-frontend-heat-ui.md` — P5-4 HEAT 前端 UI 实施计划（V1.3 对齐） (~13441 tok)
 
 ## docs/superpowers/specs/
 
@@ -221,10 +224,12 @@
 - `p3sim_streams_petroleum_fields.py` — P3.x SIM-34: 炼油专用 5 字段 + 蒸馏曲线 8 种 schema。 (~712 tok)
 - `p3sim_streams_sim_fields.py` — P3.x SIM-17+18: streams 表 8 字段扩展。 (~973 tok)
 - `p3sim_streams_vapor_fields.py` — P3.x SIM-33: 气相物性 9 字段（ORM 列） + 液相物性命名对齐 + SIM-31 JSONB 3 字段迁 ORM。 (~1037 tok)
+- `p4_4_sim_import_preview_towers.py` — P4-4 sim_imports.preview_towers_json 列扩展（P4 #4 parser 入库链路）。 (~341 tok)
 - `p5_0_2_heat_results_extend.py` — P5-0-2 Task 2: heat_results 双轨字段扩展（ADR-0027 V1.0）。 (~1616 tok)
 - `p5_0_4a_pk_rename_and_tag_number.py` — P5-0-4a Task 4a: PK rename + tag_number 统一（DICT V3.3 字典约定对齐）。 (~1299 tok)
 - `p5_0_5_psv_multi_standard.py` — P5-0-5 Task 24a: PSV 多标准配置 + 9 类 registry。 (~3336 tok)
 - `p5_open_005_model_extension.py` — P5-0-1: 设备结果表扩展 + 双阶段设计下沉（SUP-008 §8.3.2/§8.3.3/§8.3.5 + §8.4 OPEN-009）。 (~3360 tok)
+- `p5_open_010_psv_valve_selection.py` — P5-OPEN-10 SUP-P5-PSV-002 V1.14 §3.1 PSV 选型 18 列 + 3 CHECK。 (~1963 tok)
 
 ## pcs-backend/app/
 
@@ -238,14 +243,15 @@
 
 ## pcs-backend/app/api/v1/
 
-- `__init__.py` (~814 tok)
-- `auth.py` — POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。 (~994 tok)
+- `__init__.py` (~845 tok)
+- `auth.py` — POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。 (~1054 tok)
 - `change_impact.py` — Change Impact API（Sprint 3）。 (~579 tok)
 - `checklist.py` — Checklist API（Sprint 1）。 (~641 tok)
 - `common.py` — COMMON 物性 / 许用应力 / 介质安全 端点（P3.3 / spec §3.2.3 + §3.1.2）。 (~712 tok)
 - `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~4817 tok)
 - `equip_lib.py` — equip-lib 端点（Task 1.9.5 / P2-EQL-001）。 (~530 tok)
 - `health.py` — Health endpoint（async via check_database_async，Sprint 1）。 (~164 tok)
+- `heat.py` — P5-4-5 HEAT API：HTRI 导入 + 详情读 + 重量估算 3 端点契约。 (~3771 tok)
 - `imports.py` — P3.2 SIM-10 + P3.x SIM-14：PRO/II + Excel 导入 stateful preview/commit API。 (~2758 tok)
 - `lineage.py` — Lineage API（Sprint 3）。 (~864 tok)
 - `meta.py` — Meta API 路由 — 4 端点 + 1 CSV 导出（enums / permissions / error-codes / (~1466 tok)
@@ -253,13 +259,13 @@
 - `pipe_classes.py` — 管道等级端点（Task 1.9.2 / P2-STD-001）。 (~3878 tok)
 - `pipe_codes.py` — 管道代码 API（FMT-4 / SUP-002 §11.5/§12）。 (~3027 tok)
 - `psv_standard_profiles.py` — P5-3-6 PSV 项目标准配置 API。 (~2496 tok)
-- `psv.py` — P5-3-6 PSV API：POST /calculate 端点契约。 (~1829 tok)
+- `psv.py` — P5-3-6 PSV API：POST /calculate 端点契约。 (~3317 tok)
 - `records.py` — Records API（Sprint 2）。 (~2338 tok)
-- `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1470 tok)
+- `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1512 tok)
 - `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~3677 tok)
 - `stream_symbols.py` — 物流符号表端点（SYM-3 / SUP-002 §8）。 (~1973 tok)
 - `streams.py` — P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。 (~6380 tok)
-- `vessel.py` — P5-1-4 VESSEL API：POST /calculate 端点契约。 (~1924 tok)
+- `vessel.py` — P5-1-4 VESSEL API：POST /calculate 端点契约。 (~1967 tok)
 - `workspaces.py` — Workspace API（Sprint 1）。 (~551 tok)
 
 ## pcs-backend/app/core/
@@ -281,7 +287,7 @@
 ## pcs-backend/app/models/
 
 - `__init__.py` — 全部 ORM 模型。alembic/env.py 依赖本包导入即注册全部表。 (~240 tok)
-- `calc.py` — Declares FlashResult (~8332 tok)
+- `calc.py` — Declares FlashResult (~9229 tok)
 - `config_domain.py` — Declares ConfigAsset (~3612 tok)
 - `deliverable.py` — Declares Deliverable (~2550 tok)
 - `enums.py` — Declares class (~2579 tok)
@@ -292,7 +298,7 @@
 - `project_template_pipe_class.py` — ProjectTemplate ↔ PipeClass 多对多关联表（SUP-002 §15 / PC-OPEN-04）。 (~183 tok)
 - `project.py` — Declares Project (~5976 tok)
 - `psv_standards.py` — PSV 多标准配置 ORM（P5-0-5 Task 24a，SUP-P5-PSV-001 §3.1 + ADR-0028 V1.1）。 (~1811 tok)
-- `sim_import.py` — P3.x SIM-14: sim_imports + sim_import_warnings 表（stateful preview，D-4 等价闭环）。 (~1292 tok)
+- `sim_import.py` — P3.x SIM-14: sim_imports + sim_import_warnings 表（stateful preview，D-4 等价闭环）。 (~1320 tok)
 - `sim_tower.py` — P3.x SIM-16: sim_tower_results 表（COLUMN SUMMARY 存档）。 (~789 tok)
 - `sim_unit_op.py` — P3.x SIM-15: sim_unit_op_results + 6 专用结果表（单元 SUMMARY 存档）。 (~1967 tok)
 - `stream_symbol.py` — 物流符号表 ORM（SUP-002 §7.1/§7.2）。 (~563 tok)
@@ -309,7 +315,7 @@
 - `pipe_class.py` — PipeClass API schemas（Pydantic v2；Task 1.9.1 / P2-STD-001）。 (~580 tok)
 - `project_template.py` — Pydantic: ApprovalStep (~504 tok)
 - `records.py` — Record 通用 Pydantic schemas（Sprint 2）。 (~186 tok)
-- `stream.py` — P3.2 SIM Stream / StreamStatePoint Pydantic v2 Schema（spec V1.6 §3.2 + §5.3）。 (~4351 tok)
+- `stream.py` — P3.2 SIM Stream / StreamStatePoint Pydantic v2 Schema（spec V1.6 §3.2 + §5.3）。 (~4400 tok)
 - `workspace.py` — Workspace Pydantic schemas（Sprint 1）。 (~281 tok)
 
 ## pcs-backend/app/seeds/
@@ -343,16 +349,16 @@
 - `distillation_curve_validator.py` — P3.x SIM-34：蒸馏曲线 8 种 schema 验证器。 (~1427 tok)
 - `equip_lib_service.py` — EquipLibService — 设备沉淀（CATEGORY_6）+ 检索（Task 1.9.5）。 (~914 tok)
 - `excel_parser.py` — P3.2 SIM-5：Excel 批量导入解析器（spec 第二部分）。 (~2768 tok)
-- `exceptions.py` — PCS service 层统一异常。 (~267 tok)
+- `exceptions.py` — PCS service 层统一异常。 (~1063 tok)
 - `export_service.py` — ExportService — openpyxl Excel 导出（P2 Sprint 3 Task 5.3）。 (~397 tok)
 - `formula_engine.py` — FormulaEngine — 公式解析与版本指纹。 (~2242 tok)
 - `formula_service.py` — FormulaService — 公式 PUBLISH 前置校验（Task 2.8 / D18）。 (~1234 tok)
-- `import_service.py` — P3.2 SIM-10：PRO/II + Excel 导入预览与落库服务（spec V1.6 §3.2 + §5.5）。 (~6622 tok)
+- `import_service.py` — P3.2 SIM-10：PRO/II + Excel 导入预览与落库服务（spec V1.6 §3.2 + §5.5）。 (~7180 tok)
 - `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~669 tok)
 - `lineage.py` — 血缘追踪（Sprint 3）。 (~2720 tok)
 - `meta_service.py` — Meta API 服务层 — 枚举字典 + 状态机 + 权限码 + 错误码（P4.5 V1.1）。 (~3784 tok)
 - `numbering_service.py` — NumberingService — 文档编号原子自增 + UNIQUE 约束防并发（Task 2.7）。 (~757 tok)
-- `outlet_stream.py` — P4-1-3 出口物流创建 helper（ADR-0022 集成点）。 (~1477 tok)
+- `outlet_stream.py` — P4-1-3 出口物流创建 helper（ADR-0022 集成点）。 (~1544 tok)
 - `petroleum_service.py` — PetroleumService — 炼油馏分物性估算 + 虚拟组分切割（Task 1.9.3 / ADR-0019）。 (~1199 tok)
 - `pipe_class_import_service.py` — SUP-002 PC-5：管道等级 Excel 双 Sheet + 验证引擎 + import_id 暂存。 (~3990 tok)
 - `pipe_class_service.py` — PipeClassService — 管道等级 CRUD + 项目分配（Task 1.9.1 / P2-STD-001）。 (~7077 tok)
@@ -361,7 +367,7 @@
 - `pipe_code_template_service.py` — PipeCodeTemplateService — 公司级 CRUD + 项目级 fork（SUP-002 §11/§12）。 (~4613 tok)
 - `pipe_code_validator.py` — FMT 验证规则（SUP-002 §12，9 条）。 (~1560 tok)
 - `proii_assay_d86_parser.py` — P3.x SIM-37b/1: PRO/II 8.x 炼油版全量解析 — ASSAY + D86（6 parser 第 1 批）。 (~2248 tok)
-- `proii_parser.py` — P3.2 SIM-2：PRO/II .inp + .out 双文件解析器（spec V1.6 §3.2 + §3.3.2）。 (~28498 tok)
+- `proii_parser.py` — P3.2 SIM-2：PRO/II .inp + .out 双文件解析器（spec V1.6 §3.2 + §3.3.2）。 (~29049 tok)
 - `proii_refinery_poc.py` — P3.x SIM-37a: PRO/II 8.x 炼油版 PoC — 关键字识别。 (~1624 tok)
 - `proii_refstream_tray_sizing_parser.py` — P3.x SIM-37b/3: PRO/II 8.x 炼油版全量解析 — REFSTREAM + TRAY SIZING（6 parser 第 3 批）。 (~2251 tok)
 - `proii_tbp_lightend_parser.py` — P3.x SIM-37b/2: PRO/II 8.x 炼油版全量解析 — TBP + LIGHTEND（6 parser 第 2 批）。 (~1262 tok)
@@ -389,19 +395,26 @@
 ## pcs-backend/app/services/heat/
 
 - `heat_data_service.py` — HeatResultsService 落库（P5-4-2 / Task 20）。 (~3685 tok)
+- `heat_persist.py` — HEAT 换热器计算持久化 service（P5-4-5 / Task 23）。 (~2027 tok)
 - `htri_parser.py` — HTRI 自研解析器（P5-4-1 / Task 19）。 (~2229 tok)
 - `weight_estimate_service.py` — 换热器重量估算 service（P5-4-4 / Task 22）。 (~2488 tok)
 
 ## pcs-backend/app/services/psv/
 
 - `__init__.py` — P5-3 PSV 安全阀模块。 (~877 tok)
+- `bellows_compat.py` — SUP-P5-PSV-002 V1.14 §3.8 波纹管材料-介质兼容矩阵。 (~1730 tok)
 - `breathing_valve_service.py` — P5-3-5 PSV 呼吸阀（API 2000 Venting Atmospheric and Low-Pressure Storage Tanks）。 (~1418 tok)
-- `fire_case_service.py` — P5-3-1 PSV 火灾工况计算（API 521 7th + GB/T 150.1 2011/2024 双路径）。 (~2493 tok)
-- `orifice_service.py` — P5-3-5 PSV 选型（API 526 标准孔口表 D~T）。 (~1189 tok)
+- `cdtp.py` — SUP-P5-PSV-002 V1.14 §4.4 CDTP 修正。 (~630 tok)
+- `fire_case_service.py` — P5-3-1 PSV 火灾工况计算（API 521 7th + GB/T 150.1 2011/2024 双路径）。 (~2691 tok)
+- `kb_service.py` — SUP-P5-PSV-002 V1.14 §4.3 Kb 4 阶段策略 + 合成 _KB_DATA seed。 (~1888 tok)
+- `orifice_flange.py` — SUP-P5-PSV-002 V1.14 §3.3 API 526 孔口-法兰映射 + 变体 + 反向查询。 (~2747 tok)
+- `orifice_service.py` — P5-3-5 PSV 选型（API 526 标准孔口表 D~T）。 (~1254 tok)
 - `other_cases_service.py` — P5-3-2 PSV 其他工况（阀门关闭 + 反应失控 + 热膨胀）。 (~1960 tok)
-- `psv_persist.py` — P5-3-6 PSV 计算落库 + outlet 流（service 层）。 (~3975 tok)
+- `psv_persist.py` — P5-3-6 PSV 计算落库 + outlet 流（service 层）。 (~5533 tok)
 - `relief_aggregator_service.py` — P5-3-3 PSV 多工况叠加聚合。 (~982 tok)
-- `relief_area_service.py` — P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 双路径 + ω 法两相流）。 (~2847 tok)
+- `relief_area_service.py` — P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 双路径 + ω 法两相流）。 (~3524 tok)
+- `valve_selection_types.py` — SUP-P5-PSV-002 V1.14 §3.2 类型定义 + ValidatedParams 容器。 (~2288 tok)
+- `valve_validation.py` — SUP-P5-PSV-002 V1.14 §4.2 validate_valve_params（G7-G25 全拦截/警告）。 (~3649 tok)
 
 ## pcs-backend/app/services/sep_equip/
 
@@ -437,7 +450,7 @@
 - `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~3748 tok)
 - `test_arq_failure.py` — ARQ worker failure 路径测试：cleanup_expired_workspaces 应捕获并记录异常。 (~779 tok)
 - `test_audit.py` — Audit 测试：AuditAction 长度 + AuditService 写入。 (~540 tok)
-- `test_auth.py` — auth API 单元测试。Mock LDAP 通过 monkey-patching app.services.ldap_client.authenticate。 (~1334 tok)
+- `test_auth.py` — auth API 单元测试。Mock LDAP 通过 monkey-patching app.services.ldap_client.authenticate。 (~1348 tok)
 - `test_change_impact.py` — Change Impact API 端到端测试（Sprint 3）。 (~1168 tok)
 - `test_checklist.py` — Checklist API/服务测试（DICT-ALL-003 V3.1 表44 5态）。 (~1412 tok)
 - `test_cia_tasks.py` — CIA ARQ 定时任务测试（Sprint 3）。 (~1568 tok)
@@ -457,14 +470,15 @@
 ## pcs-backend/tests/api/v1/
 
 - `test_common.py` — COMMON 物性/许用应力/介质安全 API 测试（P3.3 / spec §3.2.3）。 (~1820 tok)
-- `test_config.py` — Config API 端点测试（Task 2.8 — P2 Sprint 1.7）。 (~3154 tok)
+- `test_config.py` — Config API 端点测试（Task 2.8 — P2 Sprint 1.7）。 (~3414 tok)
 - `test_equip_lib.py` — equip-lib 沉淀 + 检索测试（Task 1.9.5 / P2-EQL-001，CATEGORY_6 复用审批链）。 (~1003 tok)
-- `test_imports_api.py` — P3.2 SIM-10 + P3.x SIM-14：PRO/II + Excel 导入 stateful preview/commit API 测试。 (~4833 tok)
+- `test_heat_api.py` — P5-4-5 HEAT API + 落库 + outlet_stream + weight 集成测试。 (~3544 tok)
+- `test_imports_api.py` — P3.2 SIM-10 + P3.x SIM-14：PRO/II + Excel 导入 stateful preview/commit API 测试。 (~5274 tok)
 - `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3016 tok)
 - `test_pipe_class_config_flow.py` — SUP-002 PC-3: 管道等级 + ConfigAsset 5 态接入（V1.4 §0.5/§2.1/§3.1）。 (~2074 tok)
 - `test_pipe_classes.py` — 管道等级 API 测试（Task 1.9.2 / spec §3.2.5 5 端点 + 删除/分配）。 (~3579 tok)
 - `test_pipe_codes.py` — 管道代码 API 集成测试（FMT-4）。 (~2729 tok)
-- `test_psv_api.py` — P5-3-6 PSV API + 落库 + outlet_stream + 标准 profile 集成测试。 (~5210 tok)
+- `test_psv_api.py` — P5-3-6 PSV API + 落库 + outlet_stream + 标准 profile 集成测试。 (~7973 tok)
 - `test_sep_equip.py` — P5-2-4 SEP_EQUIP API 集成测试。 (~2648 tok)
 - `test_sim_imports_query_endpoints.py` — P3.x SIM-27: 9 类 sim imports 查询端点 测试。 (~3304 tok)
 - `test_sim_imports_template_endpoint.py` — P3.x SIM-25：GET /imports/excel/template 模板下载端点测试。 (~1736 tok)
@@ -636,6 +650,7 @@
 
 - `test_ache.py` — ACHE 空冷器 + 焓值表 service 测试（P5-4-3 / Task 21）。 (~2411 tok)
 - `test_heat_data.py` — HeatResultsService 测试（P5-4-2 / Task 20）。 (~2773 tok)
+- `test_heat_persist.py` — HEAT 持久化 service 测试（P5-4-5 / Task 23）。 (~2802 tok)
 - `test_htri_parser.py` — HTRI parser + version detection 测试（P5-4-1 / Task 19）。 (~1338 tok)
 - `test_weight_estimate.py` — 换热器重量估算 service 测试（P5-4-4 / Task 22）。 (~1524 tok)
 
@@ -658,12 +673,17 @@
 ## pcs-backend/tests/services/psv/
 
 - `__init__.py` (~0 tok)
+- `test_bellows_compat.py` — SUP-P5-PSV-002 V1.14 §3.8 波纹管材料-介质兼容矩阵测试。 (~2175 tok)
+- `test_cdtp.py` — SUP-P5-PSV-002 V1.14 §4.4 apply_cdtp_correction 边界 + 错误码测试。 (~1446 tok)
 - `test_fire_case.py` — P5-3-1 PSV 火灾工况（API 521 7th + GB/T 150.1 2011/2024 双路径）测试。 (~3611 tok)
-- `test_orifice_breathing.py` — P5-3-5 PSV 选型（API 526 孔口表 D~T）+ 呼吸阀（API 2000）测试。 (~2273 tok)
+- `test_kb_lookup.py` — SUP-P5-PSV-002 V1.14 §4.3 Kb 4 阶段策略 + 合成 _KB_DATA 测试。 (~2792 tok)
+- `test_orifice_breathing.py` — P5-3-5 PSV 选型（API 526 孔口表 D~T）+ 呼吸阀（API 2000）测试。 (~2356 tok)
+- `test_orifice_flange.py` — API 526 孔口-法兰映射 + 变体 + H/G 双候选 + T 孔口 65 psig 测试（V1.14 §3.3）。 (~3194 tok)
 - `test_other_cases.py` — P5-3-2 PSV 其他工况（阀门关闭 + 反应失控 + 热膨胀）测试。 (~2758 tok)
-- `test_psv_persist.py` — P5-3-6 PSV 落库 service dispatcher + helpers 单元测试。 (~2065 tok)
+- `test_psv_persist.py` — P5-3-6 PSV 落库 service dispatcher + helpers 单元测试。 (~3320 tok)
 - `test_relief_aggregator.py` — P5-3-3 PSV 多工况叠加聚合测试。 (~1923 tok)
-- `test_relief_area.py` — P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 + ω 法两相流）测试。 (~3487 tok)
+- `test_relief_area.py` — P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 + ω 法两相流）测试。 (~5036 tok)
+- `test_valve_validation.py` — SUP-P5-PSV-002 V1.14 §4.2 validate_valve_params 测试（G7-G25 全拦截/警告）。 (~7230 tok)
 
 ## pcs-backend/tests/services/sep_equip/
 
@@ -706,15 +726,19 @@
 
 ## pcs-frontend/src/
 
-- `App.tsx` — router — renders form (~824 tok)
+- `App.tsx` — router — renders form (~842 tok)
 - `main.tsx` — Dev 环境挂载 MSW worker；prod 构建时本 if 块被 tree-shake 移除 (~235 tok)
 - `vite-env.d.ts` — / <reference types="vite/client" /> (~56 tok)
 
 ## pcs-frontend/src/api/
 
 - `client.ts` — Exports api, TokenResponse, authApi (~335 tok)
+- `heat.ts` — P5-4 HEAT 计算 + 重量估算 API 客户端（V1.3 SPEC §7.11.6）。 (~764 tok)
 - `psv.ts` — P5-3 PSV 计算 + 项目标准配置 API 客户端（V1.2 SPEC §7.11.5）。 (~350 tok)
+- `sepEquip.ts` — SEP_EQUIP 分离设备计算 API 客户端（P5 frontend 全栈收口 / OPEN-4-2）。 (~436 tok)
 - `sprint1.ts` — Exports workspaceApi, checklistApi (~519 tok)
+- `stream.ts` — streams API 客户端（项目级 SIM 流列表 + 单流详情）。 (~240 tok)
+- `vessel.ts` — VESSEL 容器计算 API 客户端（P5 frontend 全栈收口 / OPEN-4-1）。 (~230 tok)
 
 ## pcs-frontend/src/components/
 
@@ -740,7 +764,7 @@
 - `RevTimeline.tsx` — RevTimeline — 交付物 Rev 历史（P45-1-11 / Task 16）。 (~1150 tok)
 - `SchemaForm.tsx` — SchemaForm — 通用动态表单（P45-1-14 / Task 19）。 (~1971 tok)
 - `SignatureMatrix.tsx` — SignatureMatrix — 签署矩阵渲染（P45-1-12 / Task 17）。 (~1199 tok)
-- `StateBadge.tsx` — StateBadge — 9 态工程状态徽章组件（P45-1-1 / Task 6）。 (~1384 tok)
+- `StateBadge.tsx` — StateBadge — 9 态工程状态徽章组件（P45-1-1 / Task 6）。 (~1394 tok)
 - `WorkspaceSwitcher.tsx` — WorkspaceSwitcher — 工作区切换器（P45-1-6 / Task 11，升级版）。 (~863 tok)
 
 ## pcs-frontend/src/constants/
@@ -749,12 +773,12 @@
 
 ## pcs-frontend/src/layouts/
 
-- `MainLayout.tsx` — 在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。 (~1419 tok)
+- `MainLayout.tsx` — 在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。 (~1429 tok)
 
 ## pcs-frontend/src/mocks/
 
 - `browser.ts` — MSW browser worker — dev 环境挂载（P45-0-5） (~78 tok)
-- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~4464 tok)
+- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~5520 tok)
 
 ## pcs-frontend/src/mocks/seed/
 
@@ -771,7 +795,7 @@
 
 - `DashboardPage.tsx` — workspaceProjectId (~362 tok)
 - `LoginPage.tsx` — MOCK_ACCOUNTS — renders form (~618 tok)
-- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~2532 tok)
+- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~2604 tok)
 
 ## pcs-frontend/src/pages/bedd/
 
@@ -796,6 +820,10 @@
 
 - `FlashComputePage.tsx` — FlashComputePage — FLASH 计算界面（P45-3-4 / Task 31）。 (~2794 tok)
 
+## pcs-frontend/src/pages/heat/
+
+- `HeatComputePage.tsx` — HeatComputePage — 换热器计算界面（V1.3 SPEC §7.11.6）。 (~4498 tok)
+
 ## pcs-frontend/src/pages/pipe/
 
 - `PipeComputePage.tsx` — PipeComputePage — PIPE 计算界面（P45-3-5 / Task 32）。 (~3918 tok)
@@ -817,7 +845,7 @@
 
 ## pcs-frontend/src/pages/psv/
 
-- `PsvComputePage.tsx` — PsvComputePage — PSV 安全阀计算界面（V1.2 SPEC §7.11.5）。 (~5880 tok)
+- `PsvComputePage.tsx` — PsvComputePage — PSV 安全阀计算界面（V1.2 SPEC §7.11.5）。 (~17828 tok)
 - `PsvStandardProfilePage.tsx` — PsvStandardProfilePage — 项目级 PSV 标准配置（V1.2 SPEC §7.11.5）。 (~3772 tok)
 
 ## pcs-frontend/src/pages/pump/
@@ -826,7 +854,7 @@
 
 ## pcs-frontend/src/pages/sep_equip/
 
-- `SepEquipComputePage.tsx` — SepEquipComputePage — SEP_EQUIP 分离设备计算界面（P5-2-4 / Task 12）。 (~3824 tok)
+- `SepEquipComputePage.tsx` — SepEquipComputePage — SEP_EQUIP 分离设备计算界面（P5-2-4 / Task 12）。 (~4200 tok)
 
 ## pcs-frontend/src/pages/sim/
 
@@ -836,7 +864,7 @@
 
 ## pcs-frontend/src/pages/vessel/
 
-- `VesselComputePage.tsx` — VesselComputePage — VESSEL 容器计算界面（P5-1-4 / Task 5）。 (~4682 tok)
+- `VesselComputePage.tsx` — VesselComputePage — VESSEL 容器计算界面（P5-1-4 / Task 5）。 (~4828 tok)
 
 ## pcs-frontend/src/pages/wizard/
 
@@ -857,11 +885,12 @@
 - `common.ts` — COMMON 模块类型（P45-3-3 / Task 30）。 (~338 tok)
 - `configAsset.ts` — CONFIG 资产类型定义（P45-2-3 / Task 21）。 (~376 tok)
 - `flash.ts` — FLASH 模块类型（P45-3-4 / Task 31）。 (~300 tok)
+- `heat.ts` — HEAT 模块类型（P5-4 frontend / Task 1）。 (~1781 tok)
 - `pipe.ts` — PIPE 模块类型（P45-3-5 / Task 32）。 (~558 tok)
 - `pipeClass.ts` — PIPE_CLASS 模块类型（P45-3-2 / Task 29）。 (~441 tok)
 - `pipeNet.ts` — PIPE_NET 模块类型（P45-3-6 / Task 33）。 (~246 tok)
 - `pms.ts` — PMS / BEDD 模块类型（P45-3-8 / Task 35）。 (~290 tok)
-- `psv.ts` — PSV 模块类型（P5-3 frontend / Task 1）。 (~1566 tok)
+- `psv.ts` — PSV 模块类型（P5-3 frontend / Task 1）。 (~2420 tok)
 - `pump.ts` — PUMP 模块类型（P45-3-7 / Task 34）。 (~355 tok)
 - `records.ts` — Exports RecordSignStatus, StateTransitionName, RecordTransitionRequest, RecordResponse (~226 tok)
 - `sepEquip.ts` — SEP_EQUIP 模块类型（P5-2-4 / Task 12）。 (~476 tok)
@@ -871,7 +900,16 @@
 
 ## pcs-frontend/tests/
 
+- `routing_heat.test.tsx` — HEAT 路由 + 菜单注册测试（P5-4 frontend / Task 5）。 (~423 tok)
 - `setup.ts` — antd Table / Row / Col use matchMedia for responsive breakpoints; (~176 tok)
+- `test_routing_heat.tsx` — HEAT 路由 + 菜单注册测试（P5-4 frontend / Task 5）。 (~222 tok)
+
+## pcs-frontend/tests/api/
+
+- `sep_equip_api.test.ts` — sepEquipApi 真跑测试（P5 frontend 全栈收口 / OPEN-4-2）。 (~90 tok)
+- `stream_api.test.ts` — streamApi 真跑测试（P5 frontend 全栈收口 / OPEN-6）。 (~410 tok)
+- `test_heat_api.ts` — HEAT API 客户端测试（P5-4 frontend / Task 2）。 (~1049 tok)
+- `vessel_api.test.ts` — vesselApi 真跑测试（P5 frontend全栈收口 / OPEN-4-1）。 (~87 tok)
 
 ## pcs-frontend/tests/components/common/
 
@@ -889,12 +927,13 @@
 - `RevTimeline.test.tsx` — RevTimeline 测试（P45-1-11 / Task 16）。 (~1389 tok)
 - `SchemaForm.test.tsx` — SchemaForm 测试（P45-1-14 / Task 19）。 (~2174 tok)
 - `SignatureMatrix.test.tsx` — SignatureMatrix 测试（P45-1-12 / Task 17）。 (~1464 tok)
-- `StateBadge.test.tsx` — StateBadge 测试（P45-1-1 / Task 6）。 (~1364 tok)
+- `StateBadge.test.tsx` — StateBadge 测试（P45-1-1 / Task 6）。 (~1672 tok)
 - `WorkspaceSwitcher.test.tsx` — WorkspaceSwitcher 升级版测试（P45-1-6 / Task 11）。 (~1514 tok)
 
 ## pcs-frontend/tests/mocks/
 
 - `handlers.test.ts` — MSW seed + handler shape 验证 — 防 MSW ↔ OpenAPI drift (P45-0-5) (~1767 tok)
+- `heat_handlers.test.ts` — HEAT MSW handlers 真跑测试（P5-4 frontend / Task 6）。 (~2179 tok)
 
 ## pcs-frontend/tests/pages/bedd/
 
@@ -919,6 +958,10 @@
 
 - `FlashComputePage.test.tsx` — FlashComputePage 测试（P45-3-4 / Task 31）。 (~1490 tok)
 
+## pcs-frontend/tests/pages/heat/
+
+- `HeatComputePage.test.tsx` — HeatComputePage 测试（P5-4 frontend / Task 4）。 (~812 tok)
+
 ## pcs-frontend/tests/pages/pipe/
 
 - `PipeComputePage.test.tsx` — PipeComputePage 测试（P45-3-5 / Task 32）。 (~1554 tok)
@@ -940,7 +983,7 @@
 
 ## pcs-frontend/tests/pages/psv/
 
-- `PsvComputePage.test.tsx` — PsvComputePage 测试（P5-3-6，对齐 V1.2 SPEC §7.11.5）。 (~610 tok)
+- `PsvComputePage.test.tsx` — PsvComputePage 测试（P5-3-6 + 多工况 P5-3-7，对齐 V1.2 SPEC §7.11.5）。 (~3705 tok)
 
 ## pcs-frontend/tests/pages/pump/
 
@@ -948,7 +991,7 @@
 
 ## pcs-frontend/tests/pages/sep_equip/
 
-- `SepEquipComputePage.test.tsx` — SepEquipComputePage 测试（P5-2-4 / Task 12）。 (~611 tok)
+- `SepEquipComputePage.test.tsx` — SepEquipComputePage 测试（P5-2-4 / Task 12）。 (~1236 tok)
 
 ## pcs-frontend/tests/pages/sim/
 
@@ -958,7 +1001,7 @@
 
 ## pcs-frontend/tests/pages/vessel/
 
-- `VesselComputePage.test.tsx` — VesselComputePage 测试（P5-1-4 / Task 5）。 (~572 tok)
+- `VesselComputePage.test.tsx` — VesselComputePage 测试（P5-1-4 / Task 5）。 (~1264 tok)
 
 ## pcs-frontend/tests/pages/wizard/
 
@@ -997,3 +1040,4 @@
 - `PCS-SPEC-P3-SIM SIM 模块 输入.md` — Declares VAPOR (~14092 tok)
 - `schema_compact_dict.md` (~5674 tok)
 - `SUP-P5-PSV-001 PSV 多标准.md` (~13713 tok)
+- `SUP-P5-PSV-002-V1.14-STATUS.md` — SUP-P5-PSV-002 V1.14 落地状态（后端契约扩展） (~1286 tok)

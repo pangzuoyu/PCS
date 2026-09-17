@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-09-17T06:24:13.832Z",
-    "fileCount": 677,
+    "lastScanned": "2026-09-17T23:50:14.182Z",
+    "fileCount": 712,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "4a58504440a08e811c3181c75ff209431d0634e2b5bfb10a37dc587b71ec5eda",
-    "storeUpdatedAt": "2026-09-17T06:24:13.842Z",
-    "rootHash": "1a22923cffb69614"
+    "renderedHash": "fe812fba8fa35553e215bfd73de2b4a532f009b353ff5d47644ad39263f48c05",
+    "storeUpdatedAt": "2026-09-17T23:50:14.192Z",
+    "rootHash": "2642d81d5ecdd48a"
   },
   "files": {
     "CLAUDE.md": {
@@ -521,11 +521,11 @@
     },
     "pcs-backend/app/api/v1/__init__.py": {
       "description": "",
-      "tokens": 814,
-      "hash": "14427e7918cc10ae",
-      "size": 2847,
-      "mtimeMs": 1789607629872.7202,
-      "updatedAt": "2026-09-17T01:13:49.927Z",
+      "tokens": 845,
+      "hash": "220ffcc2ba668782",
+      "size": 2956,
+      "mtimeMs": 1789627095844.8672,
+      "updatedAt": "2026-09-17T06:38:15.893Z",
       "source": "hook"
     },
     "pcs-backend/tests/__init__.py": {
@@ -964,11 +964,11 @@
     },
     "pcs-backend/app/models/calc.py": {
       "description": "Declares FlashResult",
-      "tokens": 8332,
-      "hash": "0f05ec0977c44abe",
-      "size": 31221,
-      "mtimeMs": 1789577460734.0156,
-      "updatedAt": "2026-09-16T16:51:00.782Z",
+      "tokens": 9229,
+      "hash": "b585837acebe8ab4",
+      "size": 34698,
+      "mtimeMs": 1789649573772.2703,
+      "updatedAt": "2026-09-17T12:52:53.821Z",
       "source": "hook",
       "symbols": [
         {
@@ -1003,112 +1003,112 @@
           "name": "PsvResult",
           "kind": "class",
           "startLine": 162,
-          "endLine": 227,
-          "tokens": 745
+          "endLine": 304,
+          "tokens": 1643
         },
         {
           "name": "FlareSystemResult",
           "kind": "class",
-          "startLine": 228,
-          "endLine": 234,
+          "startLine": 305,
+          "endLine": 311,
           "tokens": 84
         },
         {
           "name": "VesselResult",
           "kind": "class",
-          "startLine": 235,
-          "endLine": 248,
+          "startLine": 312,
+          "endLine": 325,
           "tokens": 156
         },
         {
           "name": "ReliefResult",
           "kind": "class",
-          "startLine": 249,
-          "endLine": 345,
+          "startLine": 326,
+          "endLine": 422,
           "tokens": 1099
         },
         {
           "name": "ColumnSizingResult",
           "kind": "class",
-          "startLine": 346,
-          "endLine": 389,
+          "startLine": 423,
+          "endLine": 466,
           "tokens": 630
         },
         {
           "name": "MixerResult",
           "kind": "class",
-          "startLine": 390,
-          "endLine": 411,
+          "startLine": 467,
+          "endLine": 488,
           "tokens": 317
         },
         {
           "name": "TwoPhaseResult",
           "kind": "class",
-          "startLine": 412,
-          "endLine": 448,
+          "startLine": 489,
+          "endLine": 525,
           "tokens": 485
         },
         {
           "name": "SepEquipResult",
           "kind": "class",
-          "startLine": 449,
-          "endLine": 455,
+          "startLine": 526,
+          "endLine": 532,
           "tokens": 83
         },
         {
           "name": "HeatResult",
           "kind": "class",
-          "startLine": 456,
-          "endLine": 554,
+          "startLine": 533,
+          "endLine": 631,
           "tokens": 1614
         },
         {
           "name": "CvResult",
           "kind": "class",
-          "startLine": 555,
-          "endLine": 565,
+          "startLine": 632,
+          "endLine": 642,
           "tokens": 143
         },
         {
           "name": "RestrictionResult",
           "kind": "class",
-          "startLine": 566,
-          "endLine": 573,
+          "startLine": 643,
+          "endLine": 650,
           "tokens": 110
         },
         {
           "name": "CoolingTowerResult",
           "kind": "class",
-          "startLine": 574,
-          "endLine": 580,
+          "startLine": 651,
+          "endLine": 657,
           "tokens": 86
         },
         {
           "name": "PsychroResult",
           "kind": "class",
-          "startLine": 581,
-          "endLine": 588,
+          "startLine": 658,
+          "endLine": 665,
           "tokens": 97
         },
         {
           "name": "OpenChannelResult",
           "kind": "class",
-          "startLine": 589,
-          "endLine": 599,
+          "startLine": 666,
+          "endLine": 676,
           "tokens": 146
         },
         {
           "name": "FiltrationResult",
           "kind": "class",
-          "startLine": 600,
-          "endLine": 608,
+          "startLine": 677,
+          "endLine": 685,
           "tokens": 118
         },
         {
           "name": "CostEstResult",
           "kind": "class",
-          "startLine": 609,
-          "endLine": 621,
+          "startLine": 686,
+          "endLine": 698,
           "tokens": 167
         }
       ]
@@ -1451,11 +1451,11 @@
     },
     "pcs-backend/app/api/v1/auth.py": {
       "description": "POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。",
-      "tokens": 994,
-      "hash": "be844066d2ae9a50",
-      "size": 3575,
-      "mtimeMs": 1788219820969.2676,
-      "updatedAt": "2026-08-31T23:43:41.010Z",
+      "tokens": 1054,
+      "hash": "0c1a98bd5d5d8ae9",
+      "size": 3832,
+      "mtimeMs": 1789687713197.72,
+      "updatedAt": "2026-09-17T23:28:33.244Z",
       "source": "hook",
       "symbols": [
         {
@@ -1525,116 +1525,116 @@
           "name": "refresh",
           "kind": "fn",
           "startLine": 97,
-          "endLine": 113,
-          "tokens": 167
+          "endLine": 119,
+          "tokens": 226
         },
         {
           "name": "logout",
           "kind": "fn",
-          "startLine": 114,
-          "endLine": 117,
+          "startLine": 120,
+          "endLine": 123,
           "tokens": 24
         }
       ]
     },
     "pcs-backend/tests/test_auth.py": {
       "description": "auth API 单元测试。Mock LDAP 通过 monkey-patching app.services.ldap_client.authenticate。",
-      "tokens": 1334,
-      "hash": "655d53be405ce2b1",
-      "size": 4750,
-      "mtimeMs": 1788219934188.0417,
-      "updatedAt": "2026-08-31T23:45:34.229Z",
+      "tokens": 1348,
+      "hash": "b97abbaaf3f5e5f7",
+      "size": 4802,
+      "mtimeMs": 1789687723282.998,
+      "updatedAt": "2026-09-17T23:28:43.325Z",
       "source": "hook",
       "symbols": [
         {
           "name": "client",
           "kind": "fn",
-          "startLine": 15,
-          "endLine": 19,
+          "startLine": 17,
+          "endLine": 21,
           "tokens": 21
         },
         {
           "name": "patched_ldap",
           "kind": "fn",
-          "startLine": 20,
-          "endLine": 43,
+          "startLine": 22,
+          "endLine": 45,
           "tokens": 212
         },
         {
           "name": "test_login_success_returns_tokens",
           "kind": "fn",
-          "startLine": 44,
-          "endLine": 56,
+          "startLine": 46,
+          "endLine": 58,
           "tokens": 126
         },
         {
           "name": "test_login_failure_invalid_credentials",
           "kind": "fn",
-          "startLine": 57,
-          "endLine": 64,
+          "startLine": 59,
+          "endLine": 66,
           "tokens": 72
         },
         {
           "name": "test_login_failure_missing_fields",
           "kind": "fn",
-          "startLine": 65,
-          "endLine": 69,
+          "startLine": 67,
+          "endLine": 71,
           "tokens": 42
         },
         {
           "name": "test_me_with_valid_bearer",
           "kind": "fn",
-          "startLine": 70,
-          "endLine": 76,
+          "startLine": 72,
+          "endLine": 78,
           "tokens": 82
         },
         {
           "name": "test_me_missing_bearer_401",
           "kind": "fn",
-          "startLine": 77,
-          "endLine": 82,
+          "startLine": 79,
+          "endLine": 84,
           "tokens": 46
         },
         {
           "name": "test_me_invalid_token_401",
           "kind": "fn",
-          "startLine": 83,
-          "endLine": 90,
+          "startLine": 85,
+          "endLine": 92,
           "tokens": 63
         },
         {
           "name": "test_me_with_refresh_token_rejected",
           "kind": "fn",
-          "startLine": 91,
-          "endLine": 97,
+          "startLine": 93,
+          "endLine": 99,
           "tokens": 80
         },
         {
           "name": "test_refresh_returns_new_access_token",
           "kind": "fn",
-          "startLine": 98,
-          "endLine": 104,
+          "startLine": 100,
+          "endLine": 106,
           "tokens": 78
         },
         {
           "name": "test_refresh_preserves_roles",
           "kind": "fn",
-          "startLine": 105,
-          "endLine": 135,
+          "startLine": 107,
+          "endLine": 137,
           "tokens": 298
         },
         {
           "name": "test_refresh_with_access_token_rejected",
           "kind": "fn",
-          "startLine": 136,
-          "endLine": 142,
+          "startLine": 138,
+          "endLine": 144,
           "tokens": 78
         },
         {
           "name": "test_logout_204",
           "kind": "fn",
-          "startLine": 143,
-          "endLine": 146,
+          "startLine": 145,
+          "endLine": 148,
           "tokens": 30
         }
       ]
@@ -1757,18 +1757,18 @@
     },
     "pcs-frontend/src/App.tsx": {
       "description": "router — renders form",
-      "tokens": 824,
-      "hash": "4afc1c9d805bf99c",
-      "size": 2959,
-      "mtimeMs": 1789609402484.6265,
-      "updatedAt": "2026-09-17T01:43:22.535Z",
+      "tokens": 842,
+      "hash": "30f53a28609768b8",
+      "size": 3020,
+      "mtimeMs": 1789629942175.8247,
+      "updatedAt": "2026-09-17T07:25:42.224Z",
       "source": "hook",
       "symbols": [
         {
           "name": "App",
           "kind": "fn",
-          "startLine": 92,
-          "endLine": 94,
+          "startLine": 94,
+          "endLine": 96,
           "tokens": 23
         }
       ]
@@ -1834,32 +1834,32 @@
     },
     "pcs-frontend/src/layouts/MainLayout.tsx": {
       "description": "在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。",
-      "tokens": 1419,
-      "hash": "1376506bbb7509a5",
-      "size": 5272,
-      "mtimeMs": 1789610133265.8564,
-      "updatedAt": "2026-09-17T01:55:33.310Z",
+      "tokens": 1429,
+      "hash": "14c88ce81f971d3c",
+      "size": 5314,
+      "mtimeMs": 1789629951528.0872,
+      "updatedAt": "2026-09-17T07:25:51.586Z",
       "source": "hook",
       "symbols": [
         {
           "name": "group",
           "kind": "fn",
           "startLine": 14,
-          "endLine": 58,
-          "tokens": 438
+          "endLine": 59,
+          "tokens": 448
         },
         {
           "name": "findSelectedKeys",
           "kind": "fn",
-          "startLine": 59,
-          "endLine": 71,
+          "startLine": 60,
+          "endLine": 72,
           "tokens": 96
         },
         {
           "name": "MainLayout",
           "kind": "fn",
-          "startLine": 72,
-          "endLine": 150,
+          "startLine": 73,
+          "endLine": 151,
           "tokens": 725
         }
       ]
@@ -4834,11 +4834,11 @@
     },
     "pcs-backend/tests/api/v1/test_config.py": {
       "description": "Config API 端点测试（Task 2.8 — P2 Sprint 1.7）。",
-      "tokens": 3154,
-      "hash": "ba4c276495d16fe5",
-      "size": 11531,
-      "mtimeMs": 1788529212948.1729,
-      "updatedAt": "2026-09-04T13:40:12.990Z",
+      "tokens": 3414,
+      "hash": "6844e77e41c5cf88",
+      "size": 12470,
+      "mtimeMs": 1789660452437.1365,
+      "updatedAt": "2026-09-17T15:54:12.488Z",
       "source": "hook",
       "symbols": [
         {
@@ -4985,8 +4985,15 @@
           "name": "test_status_report_empty_db_returns_empty_list",
           "kind": "fn",
           "startLine": 308,
-          "endLine": 315,
-          "tokens": 94
+          "endLine": 322,
+          "tokens": 158
+        },
+        {
+          "name": "test_status_report_export_returns_xlsx_streaming",
+          "kind": "fn",
+          "startLine": 323,
+          "endLine": 340,
+          "tokens": 198
         }
       ]
     },
@@ -5773,12 +5780,119 @@
     },
     "pcs-backend/app/services/exceptions.py": {
       "description": "PCS service 层统一异常。",
-      "tokens": 267,
-      "hash": "b544a9e5f530693d",
-      "size": 1074,
-      "mtimeMs": 1788392891729.6396,
-      "updatedAt": "2026-09-02T23:48:11.773Z",
-      "source": "hook"
+      "tokens": 1063,
+      "hash": "830c60a2078ae493",
+      "size": 4361,
+      "mtimeMs": 1789649455532.937,
+      "updatedAt": "2026-09-17T12:50:55.585Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "PcsError",
+          "kind": "class",
+          "startLine": 15,
+          "endLine": 36,
+          "tokens": 144
+        },
+        {
+          "name": "PreconditionViolation",
+          "kind": "class",
+          "startLine": 37,
+          "endLine": 48,
+          "tokens": 106
+        },
+        {
+          "name": "PsvPilotOperatedNotSupported",
+          "kind": "class",
+          "startLine": 49,
+          "endLine": 55,
+          "tokens": 48
+        },
+        {
+          "name": "PsvRuptureDiscNotSupported",
+          "kind": "class",
+          "startLine": 56,
+          "endLine": 62,
+          "tokens": 46
+        },
+        {
+          "name": "PsvOrificeOverrideTooSmall",
+          "kind": "class",
+          "startLine": 63,
+          "endLine": 69,
+          "tokens": 46
+        },
+        {
+          "name": "PsvBackPressureExceeded",
+          "kind": "class",
+          "startLine": 70,
+          "endLine": 76,
+          "tokens": 44
+        },
+        {
+          "name": "PsvBlowdownOutOfRange",
+          "kind": "class",
+          "startLine": 77,
+          "endLine": 83,
+          "tokens": 44
+        },
+        {
+          "name": "PsvInletOutletMismatch",
+          "kind": "class",
+          "startLine": 84,
+          "endLine": 90,
+          "tokens": 45
+        },
+        {
+          "name": "PsvMaterialIncompatible",
+          "kind": "class",
+          "startLine": 91,
+          "endLine": 97,
+          "tokens": 41
+        },
+        {
+          "name": "PsvInletTooSmall",
+          "kind": "class",
+          "startLine": 98,
+          "endLine": 104,
+          "tokens": 37
+        },
+        {
+          "name": "PsvOrificeTemperatureLimit",
+          "kind": "class",
+          "startLine": 105,
+          "endLine": 111,
+          "tokens": 50
+        },
+        {
+          "name": "PsvBellowsMaterialRequired",
+          "kind": "class",
+          "startLine": 112,
+          "endLine": 118,
+          "tokens": 44
+        },
+        {
+          "name": "PsvFlangeClassOrificeMismatch",
+          "kind": "class",
+          "startLine": 119,
+          "endLine": 125,
+          "tokens": 46
+        },
+        {
+          "name": "PsvBellowsIncompatible",
+          "kind": "class",
+          "startLine": 126,
+          "endLine": 132,
+          "tokens": 44
+        },
+        {
+          "name": "PsvInletOutletRequired",
+          "kind": "class",
+          "startLine": 133,
+          "endLine": 158,
+          "tokens": 190
+        }
+      ]
     },
     ".superpowers/sdd/2026-09-03-p2-sprint-1.8-and-1.10/task-1.8.1-report.md": {
       "description": "Task 1.8.1 Report: preconditions 全链路接入",
@@ -9937,11 +10051,11 @@
     },
     "pcs-backend/app/schemas/stream.py": {
       "description": "P3.2 SIM Stream / StreamStatePoint Pydantic v2 Schema（spec V1.6 §3.2 + §5.3）。",
-      "tokens": 4351,
-      "hash": "8f4752386177c081",
-      "size": 17570,
-      "mtimeMs": 1789092718245.9958,
-      "updatedAt": "2026-09-11T02:11:58.292Z",
+      "tokens": 4400,
+      "hash": "85ed33516603cd87",
+      "size": 17766,
+      "mtimeMs": 1789655382035.005,
+      "updatedAt": "2026-09-17T14:29:42.084Z",
       "source": "hook",
       "symbols": [
         {
@@ -9962,71 +10076,71 @@
           "name": "StreamBase",
           "kind": "class",
           "startLine": 46,
-          "endLine": 238,
-          "tokens": 2386
+          "endLine": 240,
+          "tokens": 2393
         },
         {
           "name": "StreamCreate",
           "kind": "class",
-          "startLine": 239,
-          "endLine": 245,
+          "startLine": 241,
+          "endLine": 247,
           "tokens": 59
         },
         {
           "name": "StreamUpdate",
           "kind": "class",
-          "startLine": 246,
-          "endLine": 261,
+          "startLine": 248,
+          "endLine": 263,
           "tokens": 249
         },
         {
           "name": "StreamResponse",
           "kind": "class",
-          "startLine": 262,
-          "endLine": 282,
+          "startLine": 264,
+          "endLine": 284,
           "tokens": 251
         },
         {
           "name": "StreamStatePointBase",
           "kind": "class",
-          "startLine": 283,
-          "endLine": 316,
+          "startLine": 285,
+          "endLine": 318,
           "tokens": 440
         },
         {
           "name": "StreamStatePointCreate",
           "kind": "class",
-          "startLine": 317,
-          "endLine": 322,
+          "startLine": 319,
+          "endLine": 324,
           "tokens": 42
         },
         {
           "name": "StreamStatePointUpdate",
           "kind": "class",
-          "startLine": 323,
-          "endLine": 333,
+          "startLine": 325,
+          "endLine": 335,
           "tokens": 142
         },
         {
           "name": "StreamStatePointResponse",
           "kind": "class",
-          "startLine": 334,
-          "endLine": 349,
+          "startLine": 336,
+          "endLine": 351,
           "tokens": 156
         },
         {
           "name": "StreamImportPreview",
           "kind": "class",
-          "startLine": 350,
-          "endLine": 367,
+          "startLine": 352,
+          "endLine": 369,
           "tokens": 186
         },
         {
           "name": "StreamImportResult",
           "kind": "class",
-          "startLine": 368,
-          "endLine": 376,
-          "tokens": 132
+          "startLine": 370,
+          "endLine": 380,
+          "tokens": 175
         }
       ]
     },
@@ -10764,11 +10878,11 @@
     },
     "pcs-backend/app/services/proii_parser.py": {
       "description": "P3.2 SIM-2：PRO/II .inp + .out 双文件解析器（spec V1.6 §3.2 + §3.3.2）。",
-      "tokens": 28498,
-      "hash": "7d659d49cceeef31",
-      "size": 106830,
-      "mtimeMs": 1789093448826.165,
-      "updatedAt": "2026-09-11T02:24:08.877Z",
+      "tokens": 29049,
+      "hash": "19148c11cfea6088",
+      "size": 109095,
+      "mtimeMs": 1789661942861.0295,
+      "updatedAt": "2026-09-17T16:19:02.911Z",
       "source": "hook",
       "symbols": [
         {
@@ -10796,189 +10910,189 @@
           "name": "ProiiParseResult",
           "kind": "class",
           "startLine": 89,
-          "endLine": 105,
-          "tokens": 178
+          "endLine": 107,
+          "tokens": 209
         },
         {
           "name": "_ParsedStreamLite",
           "kind": "class",
-          "startLine": 106,
-          "endLine": 203,
+          "startLine": 108,
+          "endLine": 205,
           "tokens": 1136
         },
         {
           "name": "map_libid_to_alias",
           "kind": "fn",
-          "startLine": 204,
-          "endLine": 229,
+          "startLine": 206,
+          "endLine": 231,
           "tokens": 239
         },
         {
           "name": "parse_proii_files",
           "kind": "fn",
-          "startLine": 230,
-          "endLine": 306,
-          "tokens": 752
+          "startLine": 232,
+          "endLine": 309,
+          "tokens": 770
         },
         {
           "name": "_parse_banner",
           "kind": "fn",
-          "startLine": 307,
-          "endLine": 313,
+          "startLine": 310,
+          "endLine": 316,
           "tokens": 64
         },
         {
           "name": "_parse_convergence_status",
           "kind": "fn",
-          "startLine": 314,
-          "endLine": 324,
+          "startLine": 317,
+          "endLine": 327,
           "tokens": 105
         },
         {
           "name": "_parse_unit_convergences",
           "kind": "fn",
-          "startLine": 325,
-          "endLine": 357,
+          "startLine": 328,
+          "endLine": 360,
           "tokens": 329
         },
         {
           "name": "_parse_warnings",
           "kind": "fn",
-          "startLine": 358,
-          "endLine": 367,
+          "startLine": 361,
+          "endLine": 370,
           "tokens": 75
         },
         {
           "name": "_parse_zero_flow_streams",
           "kind": "fn",
-          "startLine": 368,
-          "endLine": 385,
+          "startLine": 371,
+          "endLine": 388,
           "tokens": 148
         },
         {
           "name": "_parse_unreliable_streams",
           "kind": "fn",
-          "startLine": 386,
-          "endLine": 401,
+          "startLine": 389,
+          "endLine": 404,
           "tokens": 152
         },
         {
           "name": "_parse_reactions",
           "kind": "fn",
-          "startLine": 402,
-          "endLine": 554,
+          "startLine": 405,
+          "endLine": 557,
           "tokens": 1578
         },
         {
           "name": "_split_top_level_commas",
           "kind": "fn",
-          "startLine": 555,
-          "endLine": 586,
+          "startLine": 558,
+          "endLine": 589,
           "tokens": 247
         },
         {
           "name": "_parse_components",
           "kind": "fn",
-          "startLine": 587,
-          "endLine": 639,
+          "startLine": 590,
+          "endLine": 642,
           "tokens": 532
         },
         {
           "name": "_parse_streams",
           "kind": "fn",
-          "startLine": 640,
-          "endLine": 681,
+          "startLine": 643,
+          "endLine": 684,
           "tokens": 391
         },
         {
           "name": "_parse_unit_ops",
           "kind": "fn",
-          "startLine": 682,
-          "endLine": 731,
-          "tokens": 536
+          "startLine": 685,
+          "endLine": 740,
+          "tokens": 626
         },
         {
           "name": "parse_column_summary",
           "kind": "fn",
-          "startLine": 732,
-          "endLine": 751,
+          "startLine": 741,
+          "endLine": 760,
           "tokens": 236
         },
         {
           "name": "parse_proii_out",
           "kind": "fn",
-          "startLine": 752,
-          "endLine": 781,
+          "startLine": 761,
+          "endLine": 790,
           "tokens": 243
         },
         {
           "name": "parse_proii_unit_op_summaries",
           "kind": "fn",
-          "startLine": 782,
-          "endLine": 798,
+          "startLine": 791,
+          "endLine": 807,
           "tokens": 162
         },
         {
           "name": "_parse_unit_op_summaries_text",
           "kind": "fn",
-          "startLine": 799,
-          "endLine": 830,
+          "startLine": 808,
+          "endLine": 839,
           "tokens": 308
         },
         {
           "name": "_parse_one_unit_summary",
           "kind": "fn",
-          "startLine": 831,
-          "endLine": 926,
+          "startLine": 840,
+          "endLine": 935,
           "tokens": 969
         },
         {
           "name": "_parse_column_summary_text",
           "kind": "fn",
-          "startLine": 927,
-          "endLine": 1024,
-          "tokens": 1078
+          "startLine": 936,
+          "endLine": 1063,
+          "tokens": 1490
         },
         {
           "name": "parse_compositions",
           "kind": "fn",
-          "startLine": 1025,
-          "endLine": 1095,
+          "startLine": 1064,
+          "endLine": 1134,
           "tokens": 654
         },
         {
           "name": "_join_continued_lines",
           "kind": "fn",
-          "startLine": 1096,
-          "endLine": 1137,
+          "startLine": 1135,
+          "endLine": 1176,
           "tokens": 470
         },
         {
           "name": "parse_proii_out_sections",
           "kind": "fn",
-          "startLine": 1138,
-          "endLine": 1241,
+          "startLine": 1177,
+          "endLine": 1280,
           "tokens": 1140
         },
         {
           "name": "_parse_run_statistics",
           "kind": "fn",
-          "startLine": 1242,
-          "endLine": 1316,
+          "startLine": 1281,
+          "endLine": 1355,
           "tokens": 836
         },
         {
           "name": "_parse_min_sec",
           "kind": "fn",
-          "startLine": 1317,
-          "endLine": 1325,
+          "startLine": 1356,
+          "endLine": 1364,
           "tokens": 77
         },
         {
           "name": "_parse_calculation_history",
           "kind": "fn",
-          "startLine": 1326,
-          "endLine": 2770,
+          "startLine": 1365,
+          "endLine": 2809,
           "tokens": 14998
         }
       ]
@@ -11987,11 +12101,11 @@
     },
     "pcs-backend/app/services/import_service.py": {
       "description": "P3.2 SIM-10：PRO/II + Excel 导入预览与落库服务（spec V1.6 §3.2 + §5.5）。",
-      "tokens": 6622,
-      "hash": "81053f3e76f6f0ce",
-      "size": 25263,
-      "mtimeMs": 1789077720016.0095,
-      "updatedAt": "2026-09-10T22:02:00.065Z",
+      "tokens": 7180,
+      "hash": "ccac0789654fcc9e",
+      "size": 27255,
+      "mtimeMs": 1789654910378.6843,
+      "updatedAt": "2026-09-17T14:21:50.428Z",
       "source": "hook",
       "symbols": [
         {
@@ -12054,42 +12168,42 @@
           "name": "ImportService",
           "kind": "class",
           "startLine": 176,
-          "endLine": 590,
-          "tokens": 4165
+          "endLine": 629,
+          "tokens": 4723
         },
         {
           "name": "_SimImportModel",
           "kind": "fn",
-          "startLine": 591,
-          "endLine": 597,
+          "startLine": 630,
+          "endLine": 636,
           "tokens": 35
         },
         {
           "name": "_entry_to_stream_create",
           "kind": "fn",
-          "startLine": 598,
-          "endLine": 619,
+          "startLine": 637,
+          "endLine": 658,
           "tokens": 185
         },
         {
           "name": "write_temp_upload",
           "kind": "fn",
-          "startLine": 620,
-          "endLine": 654,
+          "startLine": 659,
+          "endLine": 693,
           "tokens": 274
         },
         {
           "name": "_component_alias_rows",
           "kind": "fn",
-          "startLine": 655,
-          "endLine": 671,
+          "startLine": 694,
+          "endLine": 710,
           "tokens": 177
         },
         {
           "name": "generate_excel_template",
           "kind": "fn",
-          "startLine": 672,
-          "endLine": 708,
+          "startLine": 711,
+          "endLine": 747,
           "tokens": 278
         }
       ]
@@ -12300,11 +12414,11 @@
     },
     "pcs-backend/tests/api/v1/test_imports_api.py": {
       "description": "P3.2 SIM-10 + P3.x SIM-14：PRO/II + Excel 导入 stateful preview/commit API 测试。",
-      "tokens": 4833,
-      "hash": "e455a98d89564712",
-      "size": 17277,
-      "mtimeMs": 1788922946266.4302,
-      "updatedAt": "2026-09-09T03:02:26.335Z",
+      "tokens": 5274,
+      "hash": "06911bc40268cecf",
+      "size": 18870,
+      "mtimeMs": 1789655181440.1965,
+      "updatedAt": "2026-09-17T14:26:21.486Z",
       "source": "hook",
       "symbols": [
         {
@@ -12444,8 +12558,15 @@
           "name": "test_stateful_commit_marks_status_committed",
           "kind": "fn",
           "startLine": 420,
-          "endLine": 451,
-          "tokens": 365
+          "endLine": 453,
+          "tokens": 371
+        },
+        {
+          "name": "test_p4_4_commit_writes_sim_tower_results",
+          "kind": "fn",
+          "startLine": 454,
+          "endLine": 491,
+          "tokens": 435
         }
       ]
     },
@@ -12946,46 +13067,46 @@
     },
     "pcs-backend/app/models/sim_import.py": {
       "description": "P3.x SIM-14: sim_imports + sim_import_warnings 表（stateful preview，D-4 等价闭环）。",
-      "tokens": 1292,
-      "hash": "2c125f4e08953e59",
-      "size": 4836,
-      "mtimeMs": 1788919656315.3975,
-      "updatedAt": "2026-09-09T02:07:36.385Z",
+      "tokens": 1320,
+      "hash": "866ee9e8eaedba72",
+      "size": 4934,
+      "mtimeMs": 1789654813143.736,
+      "updatedAt": "2026-09-17T14:20:13.188Z",
       "source": "hook",
       "symbols": [
         {
           "name": "SimImportType",
           "kind": "class",
-          "startLine": 32,
-          "endLine": 38,
+          "startLine": 34,
+          "endLine": 40,
           "tokens": 28
         },
         {
           "name": "SimImportStatus",
           "kind": "class",
-          "startLine": 39,
-          "endLine": 46,
+          "startLine": 41,
+          "endLine": 48,
           "tokens": 40
         },
         {
           "name": "SimImportWarningSeverity",
           "kind": "class",
-          "startLine": 47,
-          "endLine": 54,
+          "startLine": 49,
+          "endLine": 56,
           "tokens": 38
         },
         {
           "name": "SimImport",
           "kind": "class",
-          "startLine": 55,
-          "endLine": 116,
-          "tokens": 674
+          "startLine": 57,
+          "endLine": 119,
+          "tokens": 695
         },
         {
           "name": "SimImportWarning",
           "kind": "class",
-          "startLine": 117,
-          "endLine": 152,
+          "startLine": 120,
+          "endLine": 155,
           "tokens": 311
         }
       ]
@@ -18534,19 +18655,19 @@
     },
     "pcs-frontend/src/mocks/handlers.ts": {
       "description": "MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16）",
-      "tokens": 4464,
-      "hash": "1c65ae564a7a0bd6",
-      "size": 16342,
-      "mtimeMs": 1789609432600.9475,
-      "updatedAt": "2026-09-17T01:43:52.648Z",
+      "tokens": 5520,
+      "hash": "355435226678d050",
+      "size": 20123,
+      "mtimeMs": 1789663733576.75,
+      "updatedAt": "2026-09-17T16:48:53.623Z",
       "source": "hook",
       "symbols": [
         {
           "name": "isAuthed",
           "kind": "fn",
           "startLine": 29,
-          "endLine": 307,
-          "tokens": 4135
+          "endLine": 413,
+          "tokens": 5190
         }
       ]
     },
@@ -18602,11 +18723,11 @@
     },
     "pcs-frontend/src/components/common/StateBadge.tsx": {
       "description": "StateBadge — 9 态工程状态徽章组件（P45-1-1 / Task 6）。",
-      "tokens": 1384,
-      "hash": "914dd9338a6afbeb",
-      "size": 5190,
-      "mtimeMs": 1789606631843.2715,
-      "updatedAt": "2026-09-17T00:57:11.894Z",
+      "tokens": 1394,
+      "hash": "d2973651b32c14dc",
+      "size": 5226,
+      "mtimeMs": 1789629581040.695,
+      "updatedAt": "2026-09-17T07:19:41.087Z",
       "source": "hook",
       "symbols": [
         {
@@ -18620,32 +18741,32 @@
           "name": "StatusMeta",
           "kind": "section",
           "startLine": 37,
-          "endLine": 80,
-          "tokens": 556
+          "endLine": 81,
+          "tokens": 564
         },
         {
           "name": "toKebab",
           "kind": "fn",
-          "startLine": 81,
-          "endLine": 85,
+          "startLine": 82,
+          "endLine": 86,
           "tokens": 42
         },
         {
           "name": "StateBadge",
           "kind": "fn",
-          "startLine": 86,
-          "endLine": 151,
+          "startLine": 87,
+          "endLine": 152,
           "tokens": 476
         }
       ]
     },
     "pcs-frontend/tests/components/common/StateBadge.test.tsx": {
       "description": "StateBadge 测试（P45-1-1 / Task 6）。",
-      "tokens": 1364,
-      "hash": "5c92f93b5b64a178",
-      "size": 5042,
-      "mtimeMs": 1789513476025.3853,
-      "updatedAt": "2026-09-15T23:04:36.073Z",
+      "tokens": 1672,
+      "hash": "11850e91df7653b9",
+      "size": 6148,
+      "mtimeMs": 1789629614519.7954,
+      "updatedAt": "2026-09-17T07:20:14.564Z",
       "source": "hook"
     },
     "pcs-frontend/src/components/common/ApprovalStepBar.tsx": {
@@ -20618,11 +20739,11 @@
     },
     "pcs-frontend/src/pages/routeWrappers.tsx": {
       "description": "路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化）",
-      "tokens": 2532,
-      "hash": "d248d765e2675da2",
-      "size": 9297,
-      "mtimeMs": 1789610118665.399,
-      "updatedAt": "2026-09-17T01:55:18.717Z",
+      "tokens": 2604,
+      "hash": "1871e36c8c7966a5",
+      "size": 9596,
+      "mtimeMs": 1789641976877.7095,
+      "updatedAt": "2026-09-17T10:46:16.922Z",
       "source": "hook",
       "symbols": [
         {
@@ -20769,49 +20890,56 @@
           "name": "VesselRoute",
           "kind": "fn",
           "startLine": 198,
-          "endLine": 202,
-          "tokens": 34
+          "endLine": 203,
+          "tokens": 50
         },
         {
           "name": "SepEquipRoute",
           "kind": "fn",
-          "startLine": 203,
-          "endLine": 207,
-          "tokens": 34
+          "startLine": 204,
+          "endLine": 209,
+          "tokens": 46
         },
         {
           "name": "PsvRoute",
           "kind": "fn",
-          "startLine": 208,
-          "endLine": 212,
-          "tokens": 39
+          "startLine": 210,
+          "endLine": 215,
+          "tokens": 54
+        },
+        {
+          "name": "HeatRoute",
+          "kind": "fn",
+          "startLine": 216,
+          "endLine": 220,
+          "tokens": 30
         },
         {
           "name": "PsvStandardProfileRoute",
           "kind": "fn",
-          "startLine": 213,
-          "endLine": 217,
+          "startLine": 221,
+          "endLine": 225,
           "tokens": 40
         },
         {
           "name": "PmsRoute",
           "kind": "fn",
-          "startLine": 218,
-          "endLine": 221,
+          "startLine": 226,
+          "endLine": 229,
           "tokens": 46
         },
         {
           "name": "BeddRoute",
           "kind": "fn",
-          "startLine": 222,
-          "endLine": 225,
+          "startLine": 230,
+          "endLine": 233,
           "tokens": 50
         },
         {
           "name": "WizardRoute",
           "kind": "fn",
-          "startLine": 226,
-          "endLine": 255,
+          "startLine": 234,
+          "endLine": 263,
           "tokens": 184
         }
       ]
@@ -22807,32 +22935,32 @@
     },
     "pcs-backend/app/services/outlet_stream.py": {
       "description": "P4-1-3 出口物流创建 helper（ADR-0022 集成点）。",
-      "tokens": 1477,
-      "hash": "ae075533c1e4d121",
-      "size": 5993,
-      "mtimeMs": 1789607528850.4724,
-      "updatedAt": "2026-09-17T01:12:08.902Z",
+      "tokens": 1544,
+      "hash": "eecac675bc15b40f",
+      "size": 6259,
+      "mtimeMs": 1789626578356.4463,
+      "updatedAt": "2026-09-17T06:29:38.402Z",
       "source": "hook",
       "symbols": [
         {
           "name": "OutletStreamProjectMismatchError",
           "kind": "class",
-          "startLine": 52,
-          "endLine": 74,
-          "tokens": 197
+          "startLine": 55,
+          "endLine": 79,
+          "tokens": 218
         },
         {
           "name": "_upstream_equipment_type",
           "kind": "fn",
-          "startLine": 75,
-          "endLine": 84,
+          "startLine": 80,
+          "endLine": 89,
           "tokens": 82
         },
         {
           "name": "create_outlet_stream",
           "kind": "fn",
-          "startLine": 85,
-          "endLine": 165,
+          "startLine": 90,
+          "endLine": 170,
           "tokens": 748
         }
       ]
@@ -22871,61 +22999,61 @@
     },
     "pcs-backend/app/api/v1/vessel.py": {
       "description": "P5-1-4 VESSEL API：POST /calculate 端点契约。",
-      "tokens": 1924,
-      "hash": "c3d890197411e37f",
-      "size": 7329,
-      "mtimeMs": 1789602645129.5037,
-      "updatedAt": "2026-09-16T23:50:45.175Z",
+      "tokens": 1967,
+      "hash": "fed58329952eab0e",
+      "size": 7510,
+      "mtimeMs": 1789652108898.7476,
+      "updatedAt": "2026-09-17T13:35:09.015Z",
       "source": "hook",
       "symbols": [
         {
           "name": "SizingInputSchema",
           "kind": "class",
-          "startLine": 46,
-          "endLine": 59,
+          "startLine": 47,
+          "endLine": 60,
           "tokens": 186
         },
         {
           "name": "HydraulicsInputSchema",
           "kind": "class",
-          "startLine": 60,
-          "endLine": 80,
+          "startLine": 61,
+          "endLine": 81,
           "tokens": 268
         },
         {
           "name": "CalculateRequest",
           "kind": "class",
-          "startLine": 81,
-          "endLine": 88,
+          "startLine": 82,
+          "endLine": 89,
           "tokens": 89
         },
         {
           "name": "CalculateResponse",
           "kind": "class",
-          "startLine": 89,
-          "endLine": 110,
+          "startLine": 90,
+          "endLine": 111,
           "tokens": 261
         },
         {
           "name": "_to_http",
           "kind": "fn",
-          "startLine": 111,
-          "endLine": 119,
+          "startLine": 112,
+          "endLine": 120,
           "tokens": 101
         },
         {
           "name": "_lineage_ids",
           "kind": "fn",
-          "startLine": 120,
-          "endLine": 146,
+          "startLine": 121,
+          "endLine": 147,
           "tokens": 216
         },
         {
           "name": "calculate_vessel",
           "kind": "fn",
-          "startLine": 147,
-          "endLine": 187,
-          "tokens": 388
+          "startLine": 148,
+          "endLine": 192,
+          "tokens": 415
         }
       ]
     },
@@ -23617,47 +23745,47 @@
     },
     "pcs-backend/app/api/v1/sep_equip.py": {
       "description": "P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。",
-      "tokens": 1470,
-      "hash": "32de9079fcfe630f",
-      "size": 5449,
-      "mtimeMs": 1789604662213.9092,
-      "updatedAt": "2026-09-17T00:24:22.265Z",
+      "tokens": 1512,
+      "hash": "a2106c90c8417a52",
+      "size": 5630,
+      "mtimeMs": 1789652144458.4934,
+      "updatedAt": "2026-09-17T13:35:44.506Z",
       "source": "hook",
       "symbols": [
         {
           "name": "CalculateRequest",
           "kind": "class",
-          "startLine": 48,
-          "endLine": 61,
+          "startLine": 49,
+          "endLine": 62,
           "tokens": 111
         },
         {
           "name": "CalculateResponse",
           "kind": "class",
-          "startLine": 62,
-          "endLine": 83,
+          "startLine": 63,
+          "endLine": 84,
           "tokens": 248
         },
         {
           "name": "_to_http",
           "kind": "fn",
-          "startLine": 84,
-          "endLine": 93,
+          "startLine": 85,
+          "endLine": 94,
           "tokens": 88
         },
         {
           "name": "_lineage_ids",
           "kind": "fn",
-          "startLine": 94,
-          "endLine": 122,
+          "startLine": 95,
+          "endLine": 123,
           "tokens": 211
         },
         {
           "name": "calculate_sep_equip",
           "kind": "fn",
-          "startLine": 123,
-          "endLine": 157,
-          "tokens": 334
+          "startLine": 124,
+          "endLine": 162,
+          "tokens": 361
         }
       ]
     },
@@ -23892,61 +24020,68 @@
     },
     "pcs-frontend/src/pages/vessel/VesselComputePage.tsx": {
       "description": "VesselComputePage — VESSEL 容器计算界面（P5-1-4 / Task 5）。",
-      "tokens": 4682,
-      "hash": "a7ff37d64ee8b25b",
-      "size": 16771,
-      "mtimeMs": 1789606772901.0625,
-      "updatedAt": "2026-09-17T00:59:32.956Z",
+      "tokens": 4828,
+      "hash": "b521c1e1c1c77ad3",
+      "size": 17534,
+      "mtimeMs": 1789641483962.9067,
+      "updatedAt": "2026-09-17T10:38:04.013Z",
       "source": "hook",
       "symbols": [
         {
           "name": "StreamLite",
           "kind": "section",
-          "startLine": 42,
-          "endLine": 47,
+          "startLine": 45,
+          "endLine": 50,
           "tokens": 26
         },
         {
           "name": "Props",
           "kind": "section",
-          "startLine": 48,
-          "endLine": 84,
-          "tokens": 238
+          "startLine": 51,
+          "endLine": 60,
+          "tokens": 85
+        },
+        {
+          "name": "PcsErrorEnvelope",
+          "kind": "section",
+          "startLine": 61,
+          "endLine": 64,
+          "tokens": 20
+        },
+        {
+          "name": "extractPcsError",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 102,
+          "tokens": 277
         },
         {
           "name": "VesselComputePage",
           "kind": "fn",
-          "startLine": 85,
-          "endLine": 404,
-          "tokens": 3381
+          "startLine": 103,
+          "endLine": 479,
+          "tokens": 3886
         },
         {
           "name": "NumberRowProps",
           "kind": "section",
-          "startLine": 405,
-          "endLine": 412,
+          "startLine": 480,
+          "endLine": 487,
           "tokens": 40
         },
         {
           "name": "NumberRow",
           "kind": "fn",
-          "startLine": 413,
-          "endLine": 432,
+          "startLine": 488,
+          "endLine": 507,
           "tokens": 102
         },
         {
           "name": "renderCheckTag",
           "kind": "fn",
-          "startLine": 433,
-          "endLine": 439,
-          "tokens": 82
-        },
-        {
-          "name": "defaultMockResult",
-          "kind": "fn",
-          "startLine": 440,
-          "endLine": 492,
-          "tokens": 544
+          "startLine": 508,
+          "endLine": 515,
+          "tokens": 91
         }
       ]
     },
@@ -23961,337 +24096,374 @@
     },
     "pcs-frontend/src/pages/sep_equip/SepEquipComputePage.tsx": {
       "description": "SepEquipComputePage — SEP_EQUIP 分离设备计算界面（P5-2-4 / Task 12）。",
-      "tokens": 3824,
-      "hash": "699ff8e4bc663e14",
-      "size": 13722,
-      "mtimeMs": 1789606633245.2869,
-      "updatedAt": "2026-09-17T00:57:13.291Z",
+      "tokens": 4200,
+      "hash": "619bf616cd0fb5c9",
+      "size": 15285,
+      "mtimeMs": 1789641967240.5986,
+      "updatedAt": "2026-09-17T10:46:07.290Z",
       "source": "hook",
       "symbols": [
         {
           "name": "StreamLite",
           "kind": "section",
-          "startLine": 37,
-          "endLine": 42,
+          "startLine": 43,
+          "endLine": 48,
           "tokens": 26
         },
         {
           "name": "Props",
           "kind": "section",
-          "startLine": 43,
-          "endLine": 89,
-          "tokens": 327
+          "startLine": 49,
+          "endLine": 59,
+          "tokens": 113
+        },
+        {
+          "name": "PcsErrorEnvelope",
+          "kind": "section",
+          "startLine": 60,
+          "endLine": 63,
+          "tokens": 20
+        },
+        {
+          "name": "extractPcsError",
+          "kind": "fn",
+          "startLine": 64,
+          "endLine": 110,
+          "tokens": 346
         },
         {
           "name": "SepEquipComputePage",
           "kind": "fn",
-          "startLine": 90,
-          "endLine": 219,
-          "tokens": 1134
+          "startLine": 111,
+          "endLine": 299,
+          "tokens": 1634
         },
         {
           "name": "DeviceParamsFieldsProps",
           "kind": "section",
-          "startLine": 220,
-          "endLine": 227,
+          "startLine": 300,
+          "endLine": 307,
           "tokens": 68
         },
         {
           "name": "DeviceParamsFields",
           "kind": "fn",
-          "startLine": 228,
-          "endLine": 384,
+          "startLine": 308,
+          "endLine": 464,
           "tokens": 1414
         },
         {
           "name": "NumberFieldProps",
           "kind": "section",
-          "startLine": 385,
-          "endLine": 391,
+          "startLine": 465,
+          "endLine": 471,
           "tokens": 35
         },
         {
           "name": "NumberField",
           "kind": "fn",
-          "startLine": 392,
-          "endLine": 409,
+          "startLine": 472,
+          "endLine": 489,
           "tokens": 92
         },
         {
           "name": "renderResultValue",
           "kind": "fn",
-          "startLine": 410,
-          "endLine": 430,
-          "tokens": 157
-        },
-        {
-          "name": "mockResult",
-          "kind": "fn",
-          "startLine": 431,
-          "endLine": 464,
-          "tokens": 372
+          "startLine": 490,
+          "endLine": 511,
+          "tokens": 168
         }
       ]
     },
     "pcs-frontend/src/types/psv.ts": {
       "description": "PSV 模块类型（P5-3 frontend / Task 1）。",
-      "tokens": 1566,
-      "hash": "670ddb74b607b7ed",
-      "size": 5621,
-      "mtimeMs": 1789609258991.2317,
-      "updatedAt": "2026-09-17T01:40:59.045Z",
+      "tokens": 2420,
+      "hash": "9933c19e266fa183",
+      "size": 9041,
+      "mtimeMs": 1789687502367.313,
+      "updatedAt": "2026-09-17T23:25:02.411Z",
       "source": "hook",
       "symbols": [
         {
           "name": "FormulaRef",
           "kind": "section",
-          "startLine": 33,
-          "endLine": 42,
+          "startLine": 93,
+          "endLine": 102,
           "tokens": 80
         },
         {
           "name": "ScenarioParamsBase",
           "kind": "section",
-          "startLine": 43,
-          "endLine": 46,
+          "startLine": 103,
+          "endLine": 106,
           "tokens": 17
         },
         {
           "name": "FireScenarioParams",
           "kind": "section",
-          "startLine": 47,
-          "endLine": 55,
+          "startLine": 107,
+          "endLine": 115,
           "tokens": 58
         },
         {
           "name": "ClosedValveScenarioParams",
           "kind": "section",
-          "startLine": 56,
-          "endLine": 62,
+          "startLine": 116,
+          "endLine": 122,
           "tokens": 48
         },
         {
           "name": "ReactionRunawayScenarioParams",
           "kind": "section",
-          "startLine": 63,
-          "endLine": 68,
+          "startLine": 123,
+          "endLine": 128,
           "tokens": 44
         },
         {
           "name": "ThermalExpansionScenarioParams",
           "kind": "section",
-          "startLine": 69,
-          "endLine": 87,
+          "startLine": 129,
+          "endLine": 147,
           "tokens": 164
         },
         {
           "name": "SizingParams",
           "kind": "section",
-          "startLine": 88,
-          "endLine": 105,
+          "startLine": 148,
+          "endLine": 165,
           "tokens": 132
         },
         {
           "name": "PsvCalculateRequest",
           "kind": "section",
-          "startLine": 106,
-          "endLine": 120,
-          "tokens": 134
+          "startLine": 166,
+          "endLine": 198,
+          "tokens": 343
         },
         {
           "name": "PsvAggregateResult",
           "kind": "section",
-          "startLine": 121,
-          "endLine": 126,
+          "startLine": 199,
+          "endLine": 204,
           "tokens": 42
         },
         {
           "name": "PsvReliefAreaResult",
           "kind": "section",
-          "startLine": 127,
-          "endLine": 134,
+          "startLine": 205,
+          "endLine": 212,
           "tokens": 54
         },
         {
           "name": "PsvOrificeResult",
           "kind": "section",
-          "startLine": 135,
-          "endLine": 141,
+          "startLine": 213,
+          "endLine": 219,
           "tokens": 40
         },
         {
           "name": "PsvResultBody",
           "kind": "section",
-          "startLine": 142,
-          "endLine": 158,
-          "tokens": 135
+          "startLine": 220,
+          "endLine": 253,
+          "tokens": 300
         },
         {
           "name": "PsvCalculateResponse",
           "kind": "section",
-          "startLine": 159,
-          "endLine": 173,
+          "startLine": 254,
+          "endLine": 268,
           "tokens": 133
         },
         {
           "name": "PsvStandardProfile",
           "kind": "section",
-          "startLine": 174,
-          "endLine": 189,
+          "startLine": 269,
+          "endLine": 284,
           "tokens": 122
         },
         {
           "name": "UpsertPsvStandardProfileRequest",
           "kind": "section",
-          "startLine": 190,
-          "endLine": 195,
+          "startLine": 285,
+          "endLine": 290,
           "tokens": 60
         }
       ]
     },
     "pcs-frontend/src/pages/psv/PsvComputePage.tsx": {
       "description": "PsvComputePage — PSV 安全阀计算界面（V1.2 SPEC §7.11.5）。",
-      "tokens": 5880,
-      "hash": "4af0b17fbbab7229",
-      "size": 21317,
-      "mtimeMs": 1789609497556.6685,
-      "updatedAt": "2026-09-17T01:44:57.606Z",
+      "tokens": 17828,
+      "hash": "8e4a42d088ac4bb9",
+      "size": 66532,
+      "mtimeMs": 1789687532945.0427,
+      "updatedAt": "2026-09-17T23:25:32.999Z",
       "source": "hook",
       "symbols": [
         {
           "name": "StreamLite",
           "kind": "section",
-          "startLine": 52,
-          "endLine": 57,
+          "startLine": 68,
+          "endLine": 73,
           "tokens": 26
         },
         {
           "name": "Props",
           "kind": "section",
-          "startLine": 58,
-          "endLine": 75,
-          "tokens": 148
+          "startLine": 74,
+          "endLine": 228,
+          "tokens": 1569
         },
         {
           "name": "PcsErrorEnvelope",
           "kind": "section",
-          "startLine": 76,
-          "endLine": 82,
+          "startLine": 229,
+          "endLine": 235,
           "tokens": 32
         },
         {
           "name": "extractPcsError",
           "kind": "fn",
-          "startLine": 83,
-          "endLine": 90,
-          "tokens": 80
+          "startLine": 236,
+          "endLine": 244,
+          "tokens": 95
+        },
+        {
+          "name": "extractScenarioValues",
+          "kind": "fn",
+          "startLine": 245,
+          "endLine": 258,
+          "tokens": 113
         },
         {
           "name": "PsvComputePage",
           "kind": "fn",
-          "startLine": 91,
-          "endLine": 221,
-          "tokens": 1159
+          "startLine": 259,
+          "endLine": 609,
+          "tokens": 4150
         },
         {
           "name": "InputPanelProps",
           "kind": "section",
-          "startLine": 222,
-          "endLine": 234,
-          "tokens": 110
+          "startLine": 610,
+          "endLine": 666,
+          "tokens": 562
         },
         {
           "name": "InputPanel",
           "kind": "fn",
-          "startLine": 235,
-          "endLine": 339,
-          "tokens": 892
+          "startLine": 667,
+          "endLine": 1205,
+          "tokens": 6349
+        },
+        {
+          "name": "ScenarioFormsProps",
+          "kind": "section",
+          "startLine": 1206,
+          "endLine": 1209,
+          "tokens": 19
+        },
+        {
+          "name": "ScenarioParamsForms",
+          "kind": "fn",
+          "startLine": 1210,
+          "endLine": 1234,
+          "tokens": 174
         },
         {
           "name": "ScenarioFormProps",
           "kind": "section",
-          "startLine": 340,
-          "endLine": 343,
+          "startLine": 1235,
+          "endLine": 1238,
           "tokens": 18
         },
         {
           "name": "ScenarioParamsForm",
           "kind": "fn",
-          "startLine": 344,
-          "endLine": 417,
-          "tokens": 909
+          "startLine": 1239,
+          "endLine": 1313,
+          "tokens": 965
         },
         {
           "name": "SizingFormProps",
           "kind": "section",
-          "startLine": 418,
-          "endLine": 421,
+          "startLine": 1314,
+          "endLine": 1317,
           "tokens": 15
         },
         {
           "name": "SizingParamsForm",
           "kind": "fn",
-          "startLine": 422,
-          "endLine": 463,
+          "startLine": 1318,
+          "endLine": 1359,
           "tokens": 525
         },
         {
           "name": "ResultPanelProps",
           "kind": "section",
-          "startLine": 464,
-          "endLine": 469,
-          "tokens": 35
+          "startLine": 1360,
+          "endLine": 1366,
+          "tokens": 48
         },
         {
           "name": "ResultPanel",
           "kind": "fn",
-          "startLine": 470,
-          "endLine": 580,
-          "tokens": 1224
+          "startLine": 1367,
+          "endLine": 1579,
+          "tokens": 2381
         },
         {
           "name": "buildScenarioParams",
           "kind": "fn",
-          "startLine": 581,
-          "endLine": 626,
+          "startLine": 1580,
+          "endLine": 1625,
           "tokens": 367
         }
       ]
     },
     "pcs-frontend/tests/pages/vessel/VesselComputePage.test.tsx": {
       "description": "VesselComputePage 测试（P5-1-4 / Task 5）。",
-      "tokens": 572,
-      "hash": "fa9af6b9a74cea96",
-      "size": 2222,
-      "mtimeMs": 1789606697049.043,
-      "updatedAt": "2026-09-17T00:58:17.102Z",
+      "tokens": 1264,
+      "hash": "688e0dc0441e27e9",
+      "size": 4784,
+      "mtimeMs": 1789641707678.5132,
+      "updatedAt": "2026-09-17T10:41:47.733Z",
       "source": "hook"
     },
     "pcs-frontend/tests/pages/sep_equip/SepEquipComputePage.test.tsx": {
       "description": "SepEquipComputePage 测试（P5-2-4 / Task 12）。",
-      "tokens": 611,
-      "hash": "d5df506f4e106559",
-      "size": 2374,
-      "mtimeMs": 1789606697468.0483,
-      "updatedAt": "2026-09-17T00:58:17.517Z",
+      "tokens": 1236,
+      "hash": "38cd2190d6dcbb00",
+      "size": 4679,
+      "mtimeMs": 1789641977890.6167,
+      "updatedAt": "2026-09-17T10:46:17.944Z",
       "source": "hook"
     },
     "pcs-frontend/tests/pages/psv/PsvComputePage.test.tsx": {
-      "description": "PsvComputePage 测试（P5-3-6，对齐 V1.2 SPEC §7.11.5）。",
-      "tokens": 610,
-      "hash": "a5a8b16859f5a94a",
-      "size": 2504,
-      "mtimeMs": 1789609576015.5857,
-      "updatedAt": "2026-09-17T01:46:16.065Z",
-      "source": "hook"
+      "description": "PsvComputePage 测试（P5-3-6 + 多工况 P5-3-7，对齐 V1.2 SPEC §7.11.5）。",
+      "tokens": 3705,
+      "hash": "772b1e02b4cd1f05",
+      "size": 14195,
+      "mtimeMs": 1789648108711.236,
+      "updatedAt": "2026-09-17T12:28:28.763Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "makeResponse",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 319,
+          "tokens": 3366
+        }
+      ]
     },
     "docs/PCS-UI-SPEC.md": {
       "description": "",
-      "tokens": 7421,
-      "hash": "c1210c63b0dc08c0",
-      "size": 47674,
-      "mtimeMs": 1789608364092.1216,
-      "updatedAt": "2026-09-17T01:26:04.138Z",
+      "tokens": 9161,
+      "hash": "82d8d39e06fac277",
+      "size": 56182,
+      "mtimeMs": 1789644658479.7642,
+      "updatedAt": "2026-09-17T11:30:58.535Z",
       "source": "hook"
     },
     "pcs-backend/app/services/psv/__init__.py": {
@@ -24305,11 +24477,11 @@
     },
     "pcs-backend/app/services/psv/fire_case_service.py": {
       "description": "P5-3-1 PSV 火灾工况计算（API 521 7th + GB/T 150.1 2011/2024 双路径）。",
-      "tokens": 2493,
-      "hash": "237d78db468aeec5",
-      "size": 10322,
-      "mtimeMs": 1789607019373.0845,
-      "updatedAt": "2026-09-17T01:03:39.423Z",
+      "tokens": 2691,
+      "hash": "51e31189c5a75881",
+      "size": 11132,
+      "mtimeMs": 1789688487425.9375,
+      "updatedAt": "2026-09-17T23:41:27.474Z",
       "source": "hook",
       "symbols": [
         {
@@ -24323,70 +24495,70 @@
           "name": "FireCaseInput",
           "kind": "class",
           "startLine": 48,
-          "endLine": 66,
-          "tokens": 131
+          "endLine": 68,
+          "tokens": 182
         },
         {
           "name": "FireCaseResult",
           "kind": "class",
-          "startLine": 67,
-          "endLine": 113,
+          "startLine": 69,
+          "endLine": 115,
           "tokens": 386
         },
         {
           "name": "PsvFireCaseInputError",
           "kind": "class",
-          "startLine": 114,
-          "endLine": 123,
+          "startLine": 116,
+          "endLine": 125,
           "tokens": 46
         },
         {
           "name": "_wetted_area_vertical",
           "kind": "fn",
-          "startLine": 124,
-          "endLine": 132,
+          "startLine": 126,
+          "endLine": 134,
           "tokens": 72
         },
         {
           "name": "_wetted_area_horizontal_with_liquid",
           "kind": "fn",
-          "startLine": 133,
-          "endLine": 149,
+          "startLine": 135,
+          "endLine": 151,
           "tokens": 143
         },
         {
           "name": "calc_fire_case_api521",
           "kind": "fn",
-          "startLine": 150,
-          "endLine": 188,
-          "tokens": 335
+          "startLine": 152,
+          "endLine": 202,
+          "tokens": 483
         },
         {
           "name": "calc_fire_case_gb150_v2011",
           "kind": "fn",
-          "startLine": 189,
-          "endLine": 219,
+          "startLine": 203,
+          "endLine": 233,
           "tokens": 268
         },
         {
           "name": "calc_fire_case_gb150_v2024",
           "kind": "fn",
-          "startLine": 220,
-          "endLine": 253,
+          "startLine": 234,
+          "endLine": 267,
           "tokens": 278
         },
         {
           "name": "calc_fire_case",
           "kind": "fn",
-          "startLine": 254,
-          "endLine": 280,
+          "startLine": 268,
+          "endLine": 294,
           "tokens": 206
         },
         {
           "name": "_validate",
           "kind": "fn",
-          "startLine": 281,
-          "endLine": 309,
+          "startLine": 295,
+          "endLine": 323,
           "tokens": 267
         }
       ]
@@ -24926,313 +25098,348 @@
     },
     "pcs-backend/app/services/psv/relief_area_service.py": {
       "description": "P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 双路径 + ω 法两相流）。",
-      "tokens": 2847,
-      "hash": "f687bbe2415772c4",
-      "size": 11457,
-      "mtimeMs": 1789607261112.766,
-      "updatedAt": "2026-09-17T01:07:41.159Z",
+      "tokens": 3524,
+      "hash": "0f757b37be3fac17",
+      "size": 14331,
+      "mtimeMs": 1789688575027.8916,
+      "updatedAt": "2026-09-17T23:42:55.074Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ReliefAreaFormulaRef",
           "kind": "class",
-          "startLine": 44,
-          "endLine": 55,
+          "startLine": 43,
+          "endLine": 54,
           "tokens": 47
         },
         {
           "name": "ReliefAreaInput",
           "kind": "class",
-          "startLine": 56,
-          "endLine": 86,
-          "tokens": 240
+          "startLine": 55,
+          "endLine": 87,
+          "tokens": 277
         },
         {
           "name": "ReliefAreaResult",
           "kind": "class",
-          "startLine": 87,
-          "endLine": 120,
+          "startLine": 88,
+          "endLine": 121,
           "tokens": 248
         },
         {
           "name": "PsvReliefAreaInputError",
           "kind": "class",
-          "startLine": 121,
-          "endLine": 130,
+          "startLine": 122,
+          "endLine": 131,
           "tokens": 46
         },
         {
           "name": "_gas_area_api520",
           "kind": "fn",
-          "startLine": 131,
-          "endLine": 163,
-          "tokens": 254
+          "startLine": 132,
+          "endLine": 185,
+          "tokens": 458
         },
         {
           "name": "calc_relief_area_api520_gas",
           "kind": "fn",
-          "startLine": 164,
-          "endLine": 185,
+          "startLine": 186,
+          "endLine": 207,
           "tokens": 160
         },
         {
           "name": "calc_relief_area_api520_liquid",
           "kind": "fn",
-          "startLine": 186,
-          "endLine": 213,
+          "startLine": 208,
+          "endLine": 235,
           "tokens": 252
         },
         {
           "name": "calc_relief_area_api520_two_phase",
           "kind": "fn",
-          "startLine": 214,
-          "endLine": 262,
-          "tokens": 444
+          "startLine": 236,
+          "endLine": 312,
+          "tokens": 778
         },
         {
           "name": "calc_relief_area_gb12241",
           "kind": "fn",
-          "startLine": 263,
-          "endLine": 295,
-          "tokens": 308
+          "startLine": 313,
+          "endLine": 356,
+          "tokens": 412
         },
         {
           "name": "calc_relief_area",
           "kind": "fn",
-          "startLine": 296,
-          "endLine": 326,
+          "startLine": 357,
+          "endLine": 387,
           "tokens": 258
         },
         {
           "name": "_build_area_result",
           "kind": "fn",
-          "startLine": 327,
-          "endLine": 362,
+          "startLine": 388,
+          "endLine": 423,
           "tokens": 273
         }
       ]
     },
     "pcs-backend/tests/services/psv/test_relief_area.py": {
       "description": "P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 + ω 法两相流）测试。",
-      "tokens": 3487,
-      "hash": "028c254e8fb0c2fd",
-      "size": 12904,
-      "mtimeMs": 1789607276406.0798,
-      "updatedAt": "2026-09-17T01:07:56.452Z",
+      "tokens": 5036,
+      "hash": "465361b2ea2dd069",
+      "size": 18854,
+      "mtimeMs": 1789688686407.6782,
+      "updatedAt": "2026-09-17T23:44:46.459Z",
       "source": "hook",
       "symbols": [
         {
           "name": "test_api520_gas_basic",
           "kind": "fn",
-          "startLine": 55,
-          "endLine": 75,
-          "tokens": 212
+          "startLine": 54,
+          "endLine": 78,
+          "tokens": 280
         },
         {
           "name": "test_api520_gas_W_proportional",
           "kind": "fn",
-          "startLine": 76,
-          "endLine": 88,
-          "tokens": 123
+          "startLine": 79,
+          "endLine": 92,
+          "tokens": 145
         },
         {
           "name": "test_api520_gas_P_back_inverse",
           "kind": "fn",
-          "startLine": 89,
-          "endLine": 101,
-          "tokens": 124
+          "startLine": 93,
+          "endLine": 106,
+          "tokens": 146
         },
         {
           "name": "test_api520_gas_wrong_phase_raises",
           "kind": "fn",
-          "startLine": 102,
-          "endLine": 107,
+          "startLine": 107,
+          "endLine": 112,
           "tokens": 60
         },
         {
           "name": "test_api520_gas_T_zero_raises",
           "kind": "fn",
-          "startLine": 108,
-          "endLine": 118,
+          "startLine": 113,
+          "endLine": 123,
           "tokens": 92
         },
         {
           "name": "test_api520_gas_k_le_one_raises",
           "kind": "fn",
-          "startLine": 119,
-          "endLine": 134,
+          "startLine": 124,
+          "endLine": 139,
           "tokens": 150
         },
         {
           "name": "test_api520_liquid_basic",
           "kind": "fn",
-          "startLine": 135,
-          "endLine": 152,
+          "startLine": 140,
+          "endLine": 157,
           "tokens": 167
         },
         {
           "name": "test_api520_liquid_P_set_le_P_back_raises",
           "kind": "fn",
-          "startLine": 153,
-          "endLine": 163,
+          "startLine": 158,
+          "endLine": 168,
           "tokens": 106
         },
         {
           "name": "test_api520_liquid_rho_zero_raises",
           "kind": "fn",
-          "startLine": 164,
-          "endLine": 179,
+          "startLine": 169,
+          "endLine": 184,
           "tokens": 149
         },
         {
           "name": "test_api520_two_phase_omega_zero",
           "kind": "fn",
-          "startLine": 180,
-          "endLine": 193,
-          "tokens": 136
+          "startLine": 185,
+          "endLine": 206,
+          "tokens": 218
         },
         {
           "name": "test_api520_two_phase_omega_one",
           "kind": "fn",
-          "startLine": 194,
-          "endLine": 208,
-          "tokens": 149
+          "startLine": 207,
+          "endLine": 226,
+          "tokens": 220
         },
         {
           "name": "test_api520_two_phase_omega_half",
           "kind": "fn",
-          "startLine": 209,
-          "endLine": 222,
-          "tokens": 132
+          "startLine": 227,
+          "endLine": 247,
+          "tokens": 235
         },
         {
           "name": "test_api520_two_phase_omega_out_of_range_raises",
           "kind": "fn",
-          "startLine": 223,
-          "endLine": 238,
-          "tokens": 166
+          "startLine": 248,
+          "endLine": 258,
+          "tokens": 112
+        },
+        {
+          "name": "test_api520_two_phase_leung_ideal_gas_fallback_rho_g",
+          "kind": "fn",
+          "startLine": 259,
+          "endLine": 282,
+          "tokens": 302
+        },
+        {
+          "name": "test_api520_two_phase_leung_water_steam_conservative",
+          "kind": "fn",
+          "startLine": 283,
+          "endLine": 310,
+          "tokens": 321
         },
         {
           "name": "test_gb12241_fallback_marker",
           "kind": "fn",
-          "startLine": 239,
-          "endLine": 252,
+          "startLine": 311,
+          "endLine": 324,
           "tokens": 134
         },
         {
           "name": "test_gb12241_more_conservative_than_api",
           "kind": "fn",
-          "startLine": 253,
-          "endLine": 265,
+          "startLine": 325,
+          "endLine": 337,
           "tokens": 118
         },
         {
           "name": "test_gb12241_P_back_zero_raises",
           "kind": "fn",
-          "startLine": 266,
-          "endLine": 280,
+          "startLine": 338,
+          "endLine": 352,
           "tokens": 141
         },
         {
           "name": "test_dispatch_api_gas",
           "kind": "fn",
-          "startLine": 281,
-          "endLine": 287,
+          "startLine": 353,
+          "endLine": 359,
           "tokens": 70
         },
         {
           "name": "test_dispatch_api_liquid",
           "kind": "fn",
-          "startLine": 288,
-          "endLine": 293,
+          "startLine": 360,
+          "endLine": 365,
           "tokens": 59
         },
         {
           "name": "test_dispatch_api_two_phase",
           "kind": "fn",
-          "startLine": 294,
-          "endLine": 304,
-          "tokens": 100
+          "startLine": 366,
+          "endLine": 376,
+          "tokens": 115
         },
         {
           "name": "test_dispatch_gb_unified",
           "kind": "fn",
-          "startLine": 305,
-          "endLine": 311,
+          "startLine": 377,
+          "endLine": 383,
           "tokens": 75
         },
         {
           "name": "test_dispatch_W_zero_raises",
           "kind": "fn",
-          "startLine": 312,
-          "endLine": 326,
+          "startLine": 384,
+          "endLine": 398,
           "tokens": 147
         },
         {
           "name": "test_api_gb_calculation_independence",
           "kind": "fn",
-          "startLine": 327,
-          "endLine": 350,
+          "startLine": 399,
+          "endLine": 422,
           "tokens": 266
         },
         {
           "name": "test_api_formula_ref_structured",
           "kind": "fn",
-          "startLine": 351,
-          "endLine": 374,
-          "tokens": 247
+          "startLine": 423,
+          "endLine": 452,
+          "tokens": 320
+        },
+        {
+          "name": "test_api520_gas_strict_M_dependence",
+          "kind": "fn",
+          "startLine": 453,
+          "endLine": 478,
+          "tokens": 284
+        },
+        {
+          "name": "test_api520_gas_strict_T_dependence",
+          "kind": "fn",
+          "startLine": 479,
+          "endLine": 501,
+          "tokens": 242
         }
       ]
     },
     "pcs-backend/app/services/psv/orifice_service.py": {
       "description": "P5-3-5 PSV 选型（API 526 标准孔口表 D~T）。",
-      "tokens": 1189,
-      "hash": "325f63753adf05b3",
-      "size": 4938,
-      "mtimeMs": 1789607407047.8245,
-      "updatedAt": "2026-09-17T01:10:07.094Z",
+      "tokens": 1254,
+      "hash": "6e07cdae73639d48",
+      "size": 5199,
+      "mtimeMs": 1789687601580.7527,
+      "updatedAt": "2026-09-17T23:26:41.631Z",
       "source": "hook",
       "symbols": [
         {
           "name": "OrificeFormulaRef",
           "kind": "class",
-          "startLine": 48,
-          "endLine": 80,
+          "startLine": 46,
+          "endLine": 78,
           "tokens": 178
         },
         {
           "name": "_build_table_m2",
           "kind": "fn",
-          "startLine": 81,
-          "endLine": 94,
+          "startLine": 79,
+          "endLine": 92,
           "tokens": 92
         },
         {
           "name": "OrificeInput",
           "kind": "class",
-          "startLine": 95,
-          "endLine": 105,
+          "startLine": 93,
+          "endLine": 103,
           "tokens": 56
         },
         {
           "name": "OrificeResult",
           "kind": "class",
-          "startLine": 106,
-          "endLine": 126,
+          "startLine": 104,
+          "endLine": 124,
           "tokens": 118
         },
         {
           "name": "PsvOrificeInputError",
           "kind": "class",
-          "startLine": 127,
-          "endLine": 136,
+          "startLine": 125,
+          "endLine": 134,
           "tokens": 42
+        },
+        {
+          "name": "orifice_area_m2",
+          "kind": "fn",
+          "startLine": 135,
+          "endLine": 142,
+          "tokens": 69
         },
         {
           "name": "select_orifice_api526",
           "kind": "fn",
-          "startLine": 137,
-          "endLine": 190,
+          "startLine": 143,
+          "endLine": 196,
           "tokens": 437
         }
       ]
@@ -25292,237 +25499,244 @@
     },
     "pcs-backend/tests/services/psv/test_orifice_breathing.py": {
       "description": "P5-3-5 PSV 选型（API 526 孔口表 D~T）+ 呼吸阀（API 2000）测试。",
-      "tokens": 2273,
-      "hash": "b1ffa9dc531ee1ec",
-      "size": 8749,
-      "mtimeMs": 1789607442365.5845,
-      "updatedAt": "2026-09-17T01:10:42.421Z",
+      "tokens": 2356,
+      "hash": "0c9a5767b8324030",
+      "size": 9143,
+      "mtimeMs": 1789688838221.7466,
+      "updatedAt": "2026-09-17T23:47:18.269Z",
       "source": "hook",
       "symbols": [
         {
           "name": "test_api526_selects_minimum_fitting",
           "kind": "fn",
-          "startLine": 29,
-          "endLine": 40,
+          "startLine": 28,
+          "endLine": 39,
           "tokens": 116
         },
         {
           "name": "test_api526_selects_T_for_large_area",
           "kind": "fn",
-          "startLine": 41,
-          "endLine": 51,
+          "startLine": 40,
+          "endLine": 50,
           "tokens": 113
         },
         {
           "name": "test_api526_selects_T_within_tolerance",
           "kind": "fn",
-          "startLine": 52,
-          "endLine": 62,
+          "startLine": 51,
+          "endLine": 61,
           "tokens": 103
         },
         {
           "name": "test_api526_formula_ref",
           "kind": "fn",
-          "startLine": 63,
-          "endLine": 71,
+          "startLine": 62,
+          "endLine": 70,
           "tokens": 83
         },
         {
           "name": "test_api526_zero_area_raises",
           "kind": "fn",
-          "startLine": 72,
-          "endLine": 77,
+          "startLine": 71,
+          "endLine": 76,
           "tokens": 58
         },
         {
           "name": "test_api526_negative_area_raises",
           "kind": "fn",
-          "startLine": 78,
-          "endLine": 88,
+          "startLine": 77,
+          "endLine": 87,
           "tokens": 113
         },
         {
           "name": "test_api526_size_table_includes_all_D_to_T",
           "kind": "fn",
-          "startLine": 89,
-          "endLine": 98,
+          "startLine": 88,
+          "endLine": 97,
           "tokens": 107
         },
         {
           "name": "test_api526_required_area_passthrough",
           "kind": "fn",
-          "startLine": 99,
-          "endLine": 112,
+          "startLine": 98,
+          "endLine": 111,
           "tokens": 133
         },
         {
           "name": "test_api2000_basic_selection",
           "kind": "fn",
-          "startLine": 113,
-          "endLine": 134,
+          "startLine": 112,
+          "endLine": 133,
           "tokens": 168
         },
         {
           "name": "test_api2000_selects_4_inch_for_medium_flow",
           "kind": "fn",
-          "startLine": 135,
-          "endLine": 146,
+          "startLine": 134,
+          "endLine": 145,
           "tokens": 107
         },
         {
           "name": "test_api2000_thermal_breathing_factor_scaling",
           "kind": "fn",
-          "startLine": 147,
-          "endLine": 169,
+          "startLine": 146,
+          "endLine": 168,
           "tokens": 231
         },
         {
           "name": "test_api2000_formula_ref",
           "kind": "fn",
-          "startLine": 170,
-          "endLine": 187,
+          "startLine": 169,
+          "endLine": 186,
           "tokens": 158
         },
         {
           "name": "test_api2000_inbreath_zero_raises",
           "kind": "fn",
-          "startLine": 188,
-          "endLine": 198,
+          "startLine": 187,
+          "endLine": 197,
           "tokens": 94
         },
         {
           "name": "test_api2000_outbreath_zero_raises",
           "kind": "fn",
-          "startLine": 199,
-          "endLine": 209,
+          "startLine": 198,
+          "endLine": 208,
           "tokens": 95
         },
         {
           "name": "test_api2000_P_design_zero_raises",
           "kind": "fn",
-          "startLine": 210,
-          "endLine": 225,
+          "startLine": 209,
+          "endLine": 224,
           "tokens": 148
         },
         {
           "name": "test_integration_area_to_orifice",
           "kind": "fn",
-          "startLine": 226,
-          "endLine": 250,
-          "tokens": 221
+          "startLine": 225,
+          "endLine": 252,
+          "tokens": 304
         }
       ]
     },
     "pcs-backend/app/services/psv/psv_persist.py": {
       "description": "P5-3-6 PSV 计算落库 + outlet 流（service 层）。",
-      "tokens": 3975,
-      "hash": "6892b8a1738307e3",
-      "size": 14862,
-      "mtimeMs": 1789607581567.6401,
-      "updatedAt": "2026-09-17T01:13:01.623Z",
+      "tokens": 5533,
+      "hash": "d6d25e85e99c520a",
+      "size": 20570,
+      "mtimeMs": 1789660223411.7935,
+      "updatedAt": "2026-09-17T15:50:23.460Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "_get_default_blowdown",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 100,
+          "tokens": 92
+        },
+        {
           "name": "_generate_tag_number",
           "kind": "fn",
-          "startLine": 88,
-          "endLine": 95,
+          "startLine": 101,
+          "endLine": 108,
           "tokens": 61
         },
         {
           "name": "_dataclass_to_dict",
           "kind": "fn",
-          "startLine": 96,
-          "endLine": 100,
+          "startLine": 109,
+          "endLine": 113,
           "tokens": 38
         },
         {
           "name": "_formula_ref_to_dict",
           "kind": "fn",
-          "startLine": 101,
-          "endLine": 109,
+          "startLine": 114,
+          "endLine": 122,
           "tokens": 79
         },
         {
           "name": "_default_standard_refs",
           "kind": "fn",
-          "startLine": 110,
-          "endLine": 133,
+          "startLine": 123,
+          "endLine": 146,
           "tokens": 166
         },
         {
           "name": "_resolve_standard_profile",
           "kind": "fn",
-          "startLine": 134,
-          "endLine": 172,
+          "startLine": 147,
+          "endLine": 185,
           "tokens": 397
         },
         {
           "name": "_infer_default_version",
           "kind": "fn",
-          "startLine": 173,
-          "endLine": 185,
+          "startLine": 186,
+          "endLine": 198,
           "tokens": 112
         },
         {
           "name": "_dispatch_scenario_calc",
           "kind": "fn",
-          "startLine": 186,
-          "endLine": 242,
+          "startLine": 199,
+          "endLine": 255,
           "tokens": 604
         },
         {
           "name": "persist_psv_calculate",
           "kind": "fn",
-          "startLine": 243,
-          "endLine": 417,
-          "tokens": 1765
+          "startLine": 256,
+          "endLine": 550,
+          "tokens": 3213
         }
       ]
     },
     "pcs-backend/app/api/v1/psv.py": {
       "description": "P5-3-6 PSV API：POST /calculate 端点契约。",
-      "tokens": 1829,
-      "hash": "70dd1ebe088b359b",
-      "size": 6845,
-      "mtimeMs": 1789607601647.0881,
-      "updatedAt": "2026-09-17T01:13:21.692Z",
+      "tokens": 3317,
+      "hash": "b07054509553c802",
+      "size": 12689,
+      "mtimeMs": 1789652030943.7678,
+      "updatedAt": "2026-09-17T13:33:50.992Z",
       "source": "hook",
       "symbols": [
         {
           "name": "CalculateRequest",
           "kind": "class",
-          "startLine": 54,
-          "endLine": 90,
-          "tokens": 351
+          "startLine": 70,
+          "endLine": 199,
+          "tokens": 1260
         },
         {
           "name": "CalculateResponse",
           "kind": "class",
-          "startLine": 91,
-          "endLine": 113,
+          "startLine": 200,
+          "endLine": 222,
           "tokens": 257
         },
         {
           "name": "_to_http",
           "kind": "fn",
-          "startLine": 114,
-          "endLine": 122,
+          "startLine": 223,
+          "endLine": 231,
           "tokens": 102
         },
         {
           "name": "_lineage_ids",
           "kind": "fn",
-          "startLine": 123,
-          "endLine": 151,
+          "startLine": 232,
+          "endLine": 260,
           "tokens": 216
         },
         {
           "name": "calculate_psv",
           "kind": "fn",
-          "startLine": 152,
-          "endLine": 192,
-          "tokens": 400
+          "startLine": 261,
+          "endLine": 326,
+          "tokens": 730
         }
       ]
     },
@@ -25581,11 +25795,11 @@
     },
     "pcs-backend/tests/services/psv/test_psv_persist.py": {
       "description": "P5-3-6 PSV 落库 service dispatcher + helpers 单元测试。",
-      "tokens": 2065,
-      "hash": "5e6c5b6fd51e7367",
-      "size": 7572,
-      "mtimeMs": 1789607649158.154,
-      "updatedAt": "2026-09-17T01:14:09.213Z",
+      "tokens": 3320,
+      "hash": "6923a3599f1baae2",
+      "size": 12375,
+      "mtimeMs": 1789688867118.966,
+      "updatedAt": "2026-09-17T23:47:47.169Z",
       "source": "hook",
       "symbols": [
         {
@@ -25641,18 +25855,102 @@
           "name": "test_dispatcher_to_aggregate_to_area_to_orifice",
           "kind": "fn",
           "startLine": 166,
-          "endLine": 217,
-          "tokens": 477
+          "endLine": 227,
+          "tokens": 589
+        },
+        {
+          "name": "test_get_default_blowdown_gas_5pct",
+          "kind": "fn",
+          "startLine": 228,
+          "endLine": 234,
+          "tokens": 64
+        },
+        {
+          "name": "test_get_default_blowdown_liquid_10pct",
+          "kind": "fn",
+          "startLine": 235,
+          "endLine": 241,
+          "tokens": 62
+        },
+        {
+          "name": "test_get_default_blowdown_two_phase_10pct",
+          "kind": "fn",
+          "startLine": 242,
+          "endLine": 248,
+          "tokens": 65
+        },
+        {
+          "name": "test_get_default_blowdown_unknown_medium_fallback",
+          "kind": "fn",
+          "startLine": 249,
+          "endLine": 255,
+          "tokens": 71
+        },
+        {
+          "name": "test_formula_ref_to_dict_basic",
+          "kind": "fn",
+          "startLine": 256,
+          "endLine": 277,
+          "tokens": 208
+        },
+        {
+          "name": "test_formula_ref_to_dict_handles_dict_input",
+          "kind": "fn",
+          "startLine": 278,
+          "endLine": 285,
+          "tokens": 86
+        },
+        {
+          "name": "test_default_inlet_size_4_inch",
+          "kind": "fn",
+          "startLine": 286,
+          "endLine": 292,
+          "tokens": 63
+        },
+        {
+          "name": "test_default_outlet_size_6_inch",
+          "kind": "fn",
+          "startLine": 293,
+          "endLine": 299,
+          "tokens": 61
+        },
+        {
+          "name": "test_blowdown_default_by_medium_persists_module",
+          "kind": "fn",
+          "startLine": 300,
+          "endLine": 309,
+          "tokens": 126
+        },
+        {
+          "name": "test_formula_version_constant",
+          "kind": "fn",
+          "startLine": 310,
+          "endLine": 317,
+          "tokens": 71
+        },
+        {
+          "name": "test_generate_tag_number_basic",
+          "kind": "fn",
+          "startLine": 318,
+          "endLine": 335,
+          "tokens": 160
+        },
+        {
+          "name": "test_generate_tag_number_format_8hex_uppercase",
+          "kind": "fn",
+          "startLine": 336,
+          "endLine": 345,
+          "tokens": 108
         }
       ]
     },
     "pcs-backend/tests/api/v1/test_psv_api.py": {
       "description": "P5-3-6 PSV API + 落库 + outlet_stream + 标准 profile 集成测试。",
-      "tokens": 5210,
-      "hash": "3d1d51bb6cd9d051",
-      "size": 18711,
-      "mtimeMs": 1789607950016.0635,
-      "updatedAt": "2026-09-17T01:19:10.066Z",
+      "tokens": 7973,
+      "hash": "dfdb4fb24db6bdee",
+      "size": 28832,
+      "mtimeMs": 1789689014136.3289,
+      "updatedAt": "2026-09-17T23:50:14.182Z",
       "source": "hook",
       "symbols": [
         {
@@ -25694,120 +25992,176 @@
           "name": "_fire_body",
           "kind": "fn",
           "startLine": 132,
-          "endLine": 156,
-          "tokens": 204
+          "endLine": 160,
+          "tokens": 258
         },
         {
           "name": "_closed_valve_body",
           "kind": "fn",
-          "startLine": 157,
-          "endLine": 175,
+          "startLine": 161,
+          "endLine": 179,
           "tokens": 151
         },
         {
           "name": "_reaction_runaway_body",
           "kind": "fn",
-          "startLine": 176,
-          "endLine": 192,
-          "tokens": 134
+          "startLine": 180,
+          "endLine": 200,
+          "tokens": 168
         },
         {
           "name": "_thermal_expansion_body",
           "kind": "fn",
-          "startLine": 193,
-          "endLine": 219,
+          "startLine": 201,
+          "endLine": 227,
           "tokens": 237
         },
         {
           "name": "test_calculate_psv_fire_happy_path",
           "kind": "fn",
-          "startLine": 220,
-          "endLine": 259,
+          "startLine": 228,
+          "endLine": 267,
           "tokens": 434
         },
         {
           "name": "test_calculate_psv_fire_db_record",
           "kind": "fn",
-          "startLine": 260,
-          "endLine": 305,
+          "startLine": 268,
+          "endLine": 313,
           "tokens": 488
         },
         {
           "name": "test_calculate_psv_4_scenarios",
           "kind": "fn",
-          "startLine": 306,
-          "endLine": 328,
+          "startLine": 314,
+          "endLine": 336,
           "tokens": 226
         },
         {
           "name": "test_calculate_psv_draft_stream_403",
           "kind": "fn",
-          "startLine": 329,
-          "endLine": 342,
+          "startLine": 337,
+          "endLine": 350,
           "tokens": 115
         },
         {
           "name": "test_calculate_psv_stream_not_found_404",
           "kind": "fn",
-          "startLine": 343,
-          "endLine": 357,
+          "startLine": 351,
+          "endLine": 365,
           "tokens": 120
         },
         {
           "name": "test_calculate_psv_invalid_scenario_422",
           "kind": "fn",
-          "startLine": 358,
-          "endLine": 378,
+          "startLine": 366,
+          "endLine": 386,
           "tokens": 192
         },
         {
           "name": "test_calculate_psv_lineage_recorded",
           "kind": "fn",
-          "startLine": 379,
-          "endLine": 408,
+          "startLine": 387,
+          "endLine": 416,
           "tokens": 266
         },
         {
           "name": "test_calculate_psv_outlet_psv_calculated",
           "kind": "fn",
-          "startLine": 409,
-          "endLine": 434,
+          "startLine": 417,
+          "endLine": 442,
           "tokens": 284
         },
         {
           "name": "test_get_psv_standard_profile_empty",
           "kind": "fn",
-          "startLine": 435,
-          "endLine": 453,
+          "startLine": 443,
+          "endLine": 461,
           "tokens": 174
         },
         {
           "name": "test_post_psv_standard_profile_api",
           "kind": "fn",
-          "startLine": 454,
-          "endLine": 496,
+          "startLine": 462,
+          "endLine": 504,
           "tokens": 394
         },
         {
           "name": "test_post_psv_standard_profile_custom_422",
           "kind": "fn",
-          "startLine": 497,
-          "endLine": 516,
+          "startLine": 505,
+          "endLine": 524,
           "tokens": 168
         },
         {
           "name": "test_post_psv_standard_profile_designer_forbidden",
           "kind": "fn",
-          "startLine": 517,
-          "endLine": 539,
+          "startLine": 525,
+          "endLine": 547,
           "tokens": 204
         },
         {
           "name": "test_get_psv_standard_profile_after_post",
           "kind": "fn",
-          "startLine": 540,
-          "endLine": 569,
-          "tokens": 271
+          "startLine": 548,
+          "endLine": 595,
+          "tokens": 451
+        },
+        {
+          "name": "test_v114_default_request_writes_18_columns",
+          "kind": "fn",
+          "startLine": 596,
+          "endLine": 639,
+          "tokens": 470
+        },
+        {
+          "name": "test_v114_g10_spring_builtup_bp_exceeded",
+          "kind": "fn",
+          "startLine": 640,
+          "endLine": 656,
+          "tokens": 169
+        },
+        {
+          "name": "test_v114_g7_pilot_operated_rejected",
+          "kind": "fn",
+          "startLine": 657,
+          "endLine": 670,
+          "tokens": 138
+        },
+        {
+          "name": "test_v114_g8_rupture_disc_rejected",
+          "kind": "fn",
+          "startLine": 671,
+          "endLine": 684,
+          "tokens": 135
+        },
+        {
+          "name": "test_v114_g17_balanced_bellows_missing_material",
+          "kind": "fn",
+          "startLine": 685,
+          "endLine": 699,
+          "tokens": 156
+        },
+        {
+          "name": "test_v114_g21_hastelloy_in_strong_oxidizer_rejected",
+          "kind": "fn",
+          "startLine": 700,
+          "endLine": 715,
+          "tokens": 172
+        },
+        {
+          "name": "test_v114_leser_brand_kb_lookup",
+          "kind": "fn",
+          "startLine": 716,
+          "endLine": 737,
+          "tokens": 232
+        },
+        {
+          "name": "test_v114_g12_orifice_override_not_in_candidates",
+          "kind": "fn",
+          "startLine": 738,
+          "endLine": 827,
+          "tokens": 1025
         }
       ]
     },
@@ -26543,6 +26897,1668 @@
           "tokens": 137
         }
       ]
+    },
+    "pcs-backend/app/services/heat/heat_persist.py": {
+      "description": "HEAT 换热器计算持久化 service（P5-4-5 / Task 23）。",
+      "tokens": 2027,
+      "hash": "287d60ff96ac9c93",
+      "size": 7697,
+      "mtimeMs": 1789627299798.6948,
+      "updatedAt": "2026-09-17T06:41:39.845Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "HeatStreamNotFoundError",
+          "kind": "class",
+          "startLine": 47,
+          "endLine": 53,
+          "tokens": 37
+        },
+        {
+          "name": "HeatProjectMismatchError",
+          "kind": "class",
+          "startLine": 54,
+          "endLine": 60,
+          "tokens": 45
+        },
+        {
+          "name": "_verify_source_stream",
+          "kind": "fn",
+          "startLine": 61,
+          "endLine": 80,
+          "tokens": 212
+        },
+        {
+          "name": "import_htri_heat_result",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 160,
+          "tokens": 734
+        },
+        {
+          "name": "estimate_heat_weight",
+          "kind": "fn",
+          "startLine": 161,
+          "endLine": 227,
+          "tokens": 555
+        }
+      ]
+    },
+    "pcs-backend/tests/services/heat/test_heat_persist.py": {
+      "description": "HEAT 持久化 service 测试（P5-4-5 / Task 23）。",
+      "tokens": 2802,
+      "hash": "7d34ea78d61efb39",
+      "size": 10368,
+      "mtimeMs": 1789626945737.917,
+      "updatedAt": "2026-09-17T06:35:45.786Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_seed_project_workspace",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 62,
+          "tokens": 237
+        },
+        {
+          "name": "_seed_source_stream",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 83,
+          "tokens": 159
+        },
+        {
+          "name": "_htri_fixture",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 93,
+          "tokens": 74
+        },
+        {
+          "name": "test_import_htri_heat_result_end_to_end",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 129,
+          "tokens": 330
+        },
+        {
+          "name": "test_import_htri_heat_result_creates_heat_outlet",
+          "kind": "fn",
+          "startLine": 130,
+          "endLine": 167,
+          "tokens": 392
+        },
+        {
+          "name": "test_import_htri_rejects_cross_project_source",
+          "kind": "fn",
+          "startLine": 168,
+          "endLine": 197,
+          "tokens": 267
+        },
+        {
+          "name": "test_estimate_heat_weight_writes_output_json",
+          "kind": "fn",
+          "startLine": 198,
+          "endLine": 265,
+          "tokens": 625
+        },
+        {
+          "name": "test_estimate_heat_weight_nonexistent_heat_raises",
+          "kind": "fn",
+          "startLine": 266,
+          "endLine": 288,
+          "tokens": 192
+        },
+        {
+          "name": "test_heat_results_duty_readable_for_util",
+          "kind": "fn",
+          "startLine": 289,
+          "endLine": 308,
+          "tokens": 207
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/heat.py": {
+      "description": "P5-4-5 HEAT API：HTRI 导入 + 详情读 + 重量估算 3 端点契约。",
+      "tokens": 3771,
+      "hash": "0900cc012a34d408",
+      "size": 14054,
+      "mtimeMs": 1789663639736.5886,
+      "updatedAt": "2026-09-17T16:47:19.784Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ImportHtriResponse",
+          "kind": "class",
+          "startLine": 57,
+          "endLine": 86,
+          "tokens": 350
+        },
+        {
+          "name": "HeatResultResponse",
+          "kind": "class",
+          "startLine": 87,
+          "endLine": 108,
+          "tokens": 221
+        },
+        {
+          "name": "WeightEstimateRequest",
+          "kind": "class",
+          "startLine": 109,
+          "endLine": 136,
+          "tokens": 397
+        },
+        {
+          "name": "WeightSegmentResponse",
+          "kind": "class",
+          "startLine": 137,
+          "endLine": 143,
+          "tokens": 32
+        },
+        {
+          "name": "WeightEstimateResponse",
+          "kind": "class",
+          "startLine": 144,
+          "endLine": 175,
+          "tokens": 348
+        },
+        {
+          "name": "_to_http",
+          "kind": "fn",
+          "startLine": 176,
+          "endLine": 184,
+          "tokens": 104
+        },
+        {
+          "name": "_serialize_segment",
+          "kind": "fn",
+          "startLine": 185,
+          "endLine": 188,
+          "tokens": 41
+        },
+        {
+          "name": "_build_segments",
+          "kind": "fn",
+          "startLine": 189,
+          "endLine": 212,
+          "tokens": 260
+        },
+        {
+          "name": "import_htri",
+          "kind": "fn",
+          "startLine": 213,
+          "endLine": 289,
+          "tokens": 769
+        },
+        {
+          "name": "get_heat",
+          "kind": "fn",
+          "startLine": 290,
+          "endLine": 330,
+          "tokens": 368
+        },
+        {
+          "name": "estimate_weight_endpoint",
+          "kind": "fn",
+          "startLine": 331,
+          "endLine": 366,
+          "tokens": 340
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_heat_api.py": {
+      "description": "P5-4-5 HEAT API + 落库 + outlet_stream + weight 集成测试。",
+      "tokens": 3544,
+      "hash": "f9a31dd8482ebae6",
+      "size": 12913,
+      "mtimeMs": 1789663643790.595,
+      "updatedAt": "2026-09-17T16:47:23.835Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "make_project",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 63,
+          "tokens": 196
+        },
+        {
+          "name": "source_stream",
+          "kind": "fn",
+          "startLine": 64,
+          "endLine": 88,
+          "tokens": 204
+        },
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 93,
+          "tokens": 48
+        },
+        {
+          "name": "_htri_file_bytes",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 99,
+          "tokens": 57
+        },
+        {
+          "name": "_import_form",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 127,
+          "tokens": 264
+        },
+        {
+          "name": "test_import_htri_happy_path_without_outlet",
+          "kind": "fn",
+          "startLine": 128,
+          "endLine": 160,
+          "tokens": 344
+        },
+        {
+          "name": "test_import_htri_creates_heat_outlet_via_db",
+          "kind": "fn",
+          "startLine": 161,
+          "endLine": 188,
+          "tokens": 276
+        },
+        {
+          "name": "test_import_htri_persists_heat_result",
+          "kind": "fn",
+          "startLine": 189,
+          "endLine": 222,
+          "tokens": 335
+        },
+        {
+          "name": "test_get_heat_returns_full_record",
+          "kind": "fn",
+          "startLine": 223,
+          "endLine": 252,
+          "tokens": 308
+        },
+        {
+          "name": "test_get_heat_not_found_404",
+          "kind": "fn",
+          "startLine": 253,
+          "endLine": 265,
+          "tokens": 151
+        },
+        {
+          "name": "test_estimate_heat_weight_writes_output_json",
+          "kind": "fn",
+          "startLine": 266,
+          "endLine": 341,
+          "tokens": 645
+        },
+        {
+          "name": "test_estimate_heat_weight_not_found_404",
+          "kind": "fn",
+          "startLine": 342,
+          "endLine": 363,
+          "tokens": 201
+        },
+        {
+          "name": "test_import_htri_invalid_file_422",
+          "kind": "fn",
+          "startLine": 364,
+          "endLine": 379,
+          "tokens": 172
+        }
+      ]
+    },
+    "docs/superpowers/plans/2026-09-17-p5-4-frontend-heat-ui.md": {
+      "description": "P5-4 HEAT 前端 UI 实施计划（V1.3 对齐）",
+      "tokens": 13441,
+      "hash": "c17c5464c4a63fa7",
+      "size": 60456,
+      "mtimeMs": 1789629080351.1086,
+      "updatedAt": "2026-09-17T07:11:20.413Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/types/heat.ts": {
+      "description": "HEAT 模块类型（P5-4 frontend / Task 1）。",
+      "tokens": 1781,
+      "hash": "cb991f636e6aec32",
+      "size": 6758,
+      "mtimeMs": 1789663673472.6433,
+      "updatedAt": "2026-09-17T16:47:53.520Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ImportHtriResponse",
+          "kind": "section",
+          "startLine": 51,
+          "endLine": 69,
+          "tokens": 286
+        },
+        {
+          "name": "HeatResultResponse",
+          "kind": "section",
+          "startLine": 70,
+          "endLine": 89,
+          "tokens": 262
+        },
+        {
+          "name": "WeightEstimateRequest",
+          "kind": "section",
+          "startLine": 90,
+          "endLine": 118,
+          "tokens": 355
+        },
+        {
+          "name": "WeightSegmentResponse",
+          "kind": "section",
+          "startLine": 119,
+          "endLine": 123,
+          "tokens": 41
+        },
+        {
+          "name": "WeightEstimateResponse",
+          "kind": "section",
+          "startLine": 124,
+          "endLine": 142,
+          "tokens": 253
+        }
+      ]
+    },
+    "docs/P45-BATCH3-TYPE-MIGRATION.md": {
+      "description": "P45 BATCH3 前端类型手动迁移登记",
+      "tokens": 248,
+      "hash": "1509dbd528436a4f",
+      "size": 1441,
+      "mtimeMs": 1789629394691.158,
+      "updatedAt": "2026-09-17T07:16:34.740Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/api/heat.ts": {
+      "description": "P5-4 HEAT 计算 + 重量估算 API 客户端（V1.3 SPEC §7.11.6）。",
+      "tokens": 764,
+      "hash": "91ae754a11f8d65f",
+      "size": 3073,
+      "mtimeMs": 1789629492099.4336,
+      "updatedAt": "2026-09-17T07:18:12.148Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ImportHtriParams",
+          "kind": "section",
+          "startLine": 29,
+          "endLine": 78,
+          "tokens": 474
+        }
+      ]
+    },
+    "pcs-frontend/tests/api/test_heat_api.ts": {
+      "description": "HEAT API 客户端测试（P5-4 frontend / Task 2）。",
+      "tokens": 1049,
+      "hash": "2551d69298115f7f",
+      "size": 3925,
+      "mtimeMs": 1789629528860.5405,
+      "updatedAt": "2026-09-17T07:18:48.906Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/pages/heat/HeatComputePage.tsx": {
+      "description": "HeatComputePage — 换热器计算界面（V1.3 SPEC §7.11.6）。",
+      "tokens": 4498,
+      "hash": "33a1ded15731f205",
+      "size": 16735,
+      "mtimeMs": 1789663685791.6643,
+      "updatedAt": "2026-09-17T16:48:05.838Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "StreamListItem",
+          "kind": "section",
+          "startLine": 55,
+          "endLine": 61,
+          "tokens": 33
+        },
+        {
+          "name": "PcsErrorEnvelope",
+          "kind": "section",
+          "startLine": 62,
+          "endLine": 68,
+          "tokens": 32
+        },
+        {
+          "name": "extractPcsError",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 98,
+          "tokens": 301
+        },
+        {
+          "name": "HeatComputePage",
+          "kind": "fn",
+          "startLine": 99,
+          "endLine": 475,
+          "tokens": 3667
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/heat/HeatComputePage.test.tsx": {
+      "description": "HeatComputePage 测试（P5-4 frontend / Task 4）。",
+      "tokens": 812,
+      "hash": "c8414137e1d74a34",
+      "size": 3400,
+      "mtimeMs": 1789634303956.948,
+      "updatedAt": "2026-09-17T08:38:24.000Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/test_routing_heat.tsx": {
+      "description": "HEAT 路由 + 菜单注册测试（P5-4 frontend / Task 5）。",
+      "tokens": 222,
+      "hash": "c9b2e9beae53a981",
+      "size": 947,
+      "mtimeMs": 1789629977746.9402,
+      "updatedAt": "2026-09-17T07:26:17.794Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/routing_heat.test.tsx": {
+      "description": "HEAT 路由 + 菜单注册测试（P5-4 frontend / Task 5）。",
+      "tokens": 423,
+      "hash": "a03d86b49d88390f",
+      "size": 1717,
+      "mtimeMs": 1789630022776.0872,
+      "updatedAt": "2026-09-17T07:27:02.821Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/mocks/heat_handlers.test.ts": {
+      "description": "HEAT MSW handlers 真跑测试（P5-4 frontend / Task 6）。",
+      "tokens": 2179,
+      "hash": "8d2dde67955f2fe7",
+      "size": 7867,
+      "mtimeMs": 1789663793442.867,
+      "updatedAt": "2026-09-17T16:49:53.489Z",
+      "source": "hook"
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md": {
+      "description": "QA Report — pcs-frontend — P5-4 HEAT frontend UI 闭环",
+      "tokens": 2385,
+      "hash": "b273417e26235b4e",
+      "size": 12400,
+      "mtimeMs": 1789643369043.905,
+      "updatedAt": "2026-09-17T11:09:29.103Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/api/stream.ts": {
+      "description": "streams API 客户端（项目级 SIM 流列表 + 单流详情）。",
+      "tokens": 240,
+      "hash": "fa70397f4a1e8d52",
+      "size": 1017,
+      "mtimeMs": 1789634192782.0862,
+      "updatedAt": "2026-09-17T08:36:32.828Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/api/stream_api.test.ts": {
+      "description": "streamApi 真跑测试（P5 frontend 全栈收口 / OPEN-6）。",
+      "tokens": 410,
+      "hash": "cf1a94046dc351cc",
+      "size": 1526,
+      "mtimeMs": 1789634268362.5996,
+      "updatedAt": "2026-09-17T08:37:48.407Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/api/vessel.ts": {
+      "description": "VESSEL 容器计算 API 客户端（P5 frontend 全栈收口 / OPEN-4-1）。",
+      "tokens": 230,
+      "hash": "9f505bb8f67a3485",
+      "size": 936,
+      "mtimeMs": 1789641337081.2354,
+      "updatedAt": "2026-09-17T10:35:37.132Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/api/vessel_api.test.ts": {
+      "description": "vesselApi 真跑测试（P5 frontend全栈收口 / OPEN-4-1）。",
+      "tokens": 87,
+      "hash": "399bcb96de0b8b68",
+      "size": 332,
+      "mtimeMs": 1789641513386.0476,
+      "updatedAt": "2026-09-17T10:38:33.434Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/api/sepEquip.ts": {
+      "description": "SEP_EQUIP 分离设备计算 API 客户端（P5 frontend 全栈收口 / OPEN-4-2）。",
+      "tokens": 436,
+      "hash": "5e65a629d14c04d4",
+      "size": 1725,
+      "mtimeMs": 1789641940887.1074,
+      "updatedAt": "2026-09-17T10:45:40.938Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/api/sep_equip_api.test.ts": {
+      "description": "sepEquipApi 真跑测试（P5 frontend 全栈收口 / OPEN-4-2）。",
+      "tokens": 90,
+      "hash": "9829bdcecb718171",
+      "size": 342,
+      "mtimeMs": 1789641977407.661,
+      "updatedAt": "2026-09-17T10:46:17.462Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/services/psv/valve_selection_types.py": {
+      "description": "SUP-P5-PSV-002 V1.14 §3.2 类型定义 + ValidatedParams 容器。",
+      "tokens": 2288,
+      "hash": "0b75229843a85b77",
+      "size": 9193,
+      "mtimeMs": 1789651844238.8506,
+      "updatedAt": "2026-09-17T13:30:44.290Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ValidatedParams",
+          "kind": "class",
+          "startLine": 187,
+          "endLine": 247,
+          "tokens": 541
+        }
+      ]
+    },
+    "pcs-backend/app/services/psv/orifice_flange.py": {
+      "description": "SUP-P5-PSV-002 V1.14 §3.3 API 526 孔口-法兰映射 + 变体 + 反向查询。",
+      "tokens": 2747,
+      "hash": "81962c6222f376fa",
+      "size": 11518,
+      "mtimeMs": 1789649229833.4697,
+      "updatedAt": "2026-09-17T12:47:09.878Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_parse_size_inch",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 107,
+          "tokens": 67
+        },
+        {
+          "name": "size_lt",
+          "kind": "fn",
+          "startLine": 108,
+          "endLine": 112,
+          "tokens": 40
+        },
+        {
+          "name": "size_le",
+          "kind": "fn",
+          "startLine": 113,
+          "endLine": 117,
+          "tokens": 40
+        },
+        {
+          "name": "is_high_pressure_flange",
+          "kind": "fn",
+          "startLine": 118,
+          "endLine": 122,
+          "tokens": 52
+        },
+        {
+          "name": "is_variant_configuration",
+          "kind": "fn",
+          "startLine": 123,
+          "endLine": 145,
+          "tokens": 199
+        },
+        {
+          "name": "get_candidate_orifices",
+          "kind": "fn",
+          "startLine": 146,
+          "endLine": 208,
+          "tokens": 586
+        },
+        {
+          "name": "check_flange_orifice_limit",
+          "kind": "fn",
+          "startLine": 209,
+          "endLine": 253,
+          "tokens": 388
+        },
+        {
+          "name": "is_high_temp_light_gas_restricted",
+          "kind": "fn",
+          "startLine": 254,
+          "endLine": 295,
+          "tokens": 314
+        }
+      ]
+    },
+    "pcs-backend/tests/services/psv/test_orifice_flange.py": {
+      "description": "API 526 孔口-法兰映射 + 变体 + H/G 双候选 + T 孔口 65 psig 测试（V1.14 §3.3）。",
+      "tokens": 3194,
+      "hash": "ddde84a05f3a9425",
+      "size": 12403,
+      "mtimeMs": 1789650540711.5225,
+      "updatedAt": "2026-09-17T13:09:00.755Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_api526_basic_mapping_14_orifices",
+          "kind": "fn",
+          "startLine": 40,
+          "endLine": 46,
+          "tokens": 81
+        },
+        {
+          "name": "test_api526_g_orifice_standard",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 51,
+          "tokens": 46
+        },
+        {
+          "name": "test_api526_t_orifice_8t10",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 61,
+          "tokens": 102
+        },
+        {
+          "name": "test_g_high_pressure_config",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 66,
+          "tokens": 43
+        },
+        {
+          "name": "test_g_high_pressure_flange_class",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 79,
+          "tokens": 135
+        },
+        {
+          "name": "test_hg_dual_candidates_300_class",
+          "kind": "fn",
+          "startLine": 80,
+          "endLine": 86,
+          "tokens": 77
+        },
+        {
+          "name": "test_hg_dual_candidates_1500_class",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 97,
+          "tokens": 110
+        },
+        {
+          "name": "test_standard_g_300_class",
+          "kind": "fn",
+          "startLine": 98,
+          "endLine": 103,
+          "tokens": 56
+        },
+        {
+          "name": "test_standard_d_150_class",
+          "kind": "fn",
+          "startLine": 104,
+          "endLine": 109,
+          "tokens": 51
+        },
+        {
+          "name": "test_ef_dual_candidates",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 115,
+          "tokens": 54
+        },
+        {
+          "name": "test_lmn_triple_candidates",
+          "kind": "fn",
+          "startLine": 116,
+          "endLine": 121,
+          "tokens": 55
+        },
+        {
+          "name": "test_qrt_triple_candidates",
+          "kind": "fn",
+          "startLine": 122,
+          "endLine": 132,
+          "tokens": 106
+        },
+        {
+          "name": "test_unknown_size_returns_empty",
+          "kind": "fn",
+          "startLine": 133,
+          "endLine": 138,
+          "tokens": 51
+        },
+        {
+          "name": "test_swapped_size_returns_empty",
+          "kind": "fn",
+          "startLine": 139,
+          "endLine": 149,
+          "tokens": 99
+        },
+        {
+          "name": "test_q_variants",
+          "kind": "fn",
+          "startLine": 150,
+          "endLine": 154,
+          "tokens": 45
+        },
+        {
+          "name": "test_r_variants",
+          "kind": "fn",
+          "startLine": 155,
+          "endLine": 159,
+          "tokens": 45
+        },
+        {
+          "name": "test_is_variant_q_6x8",
+          "kind": "fn",
+          "startLine": 160,
+          "endLine": 164,
+          "tokens": 40
+        },
+        {
+          "name": "test_is_variant_q_8x10_standard",
+          "kind": "fn",
+          "startLine": 165,
+          "endLine": 169,
+          "tokens": 45
+        },
+        {
+          "name": "test_6x8_with_p_and_q_variant",
+          "kind": "fn",
+          "startLine": 170,
+          "endLine": 181,
+          "tokens": 121
+        },
+        {
+          "name": "test_size_lt_basic",
+          "kind": "fn",
+          "startLine": 182,
+          "endLine": 190,
+          "tokens": 97
+        },
+        {
+          "name": "test_size_le_equal",
+          "kind": "fn",
+          "startLine": 191,
+          "endLine": 197,
+          "tokens": 58
+        },
+        {
+          "name": "test_min_inlet_constant",
+          "kind": "fn",
+          "startLine": 198,
+          "endLine": 207,
+          "tokens": 91
+        },
+        {
+          "name": "test_high_temp_light_gas_q_restricted",
+          "kind": "fn",
+          "startLine": 208,
+          "endLine": 212,
+          "tokens": 46
+        },
+        {
+          "name": "test_high_temp_light_gas_t_below_177",
+          "kind": "fn",
+          "startLine": 213,
+          "endLine": 217,
+          "tokens": 48
+        },
+        {
+          "name": "test_high_temp_light_gas_t_above_10_mw",
+          "kind": "fn",
+          "startLine": 218,
+          "endLine": 222,
+          "tokens": 48
+        },
+        {
+          "name": "test_high_temp_light_gas_d_not_restricted",
+          "kind": "fn",
+          "startLine": 223,
+          "endLine": 227,
+          "tokens": 43
+        },
+        {
+          "name": "test_high_temp_light_gas_no_temp",
+          "kind": "fn",
+          "startLine": 228,
+          "endLine": 238,
+          "tokens": 112
+        },
+        {
+          "name": "test_flange_to_orifices_count",
+          "kind": "fn",
+          "startLine": 239,
+          "endLine": 257,
+          "tokens": 165
+        },
+        {
+          "name": "test_flange_to_orifices_parametrized",
+          "kind": "fn",
+          "startLine": 258,
+          "endLine": 267,
+          "tokens": 93
+        },
+        {
+          "name": "test_900_class_not_high_pressure",
+          "kind": "fn",
+          "startLine": 268,
+          "endLine": 346,
+          "tokens": 768
+        }
+      ]
+    },
+    "pcs-backend/app/services/psv/bellows_compat.py": {
+      "description": "SUP-P5-PSV-002 V1.14 §3.8 波纹管材料-介质兼容矩阵。",
+      "tokens": 1730,
+      "hash": "b72a335f36fcc4e9",
+      "size": 7425,
+      "mtimeMs": 1789651836251.3086,
+      "updatedAt": "2026-09-17T13:30:36.299Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "get_bellows_material_info",
+          "kind": "fn",
+          "startLine": 119,
+          "endLine": 123,
+          "tokens": 47
+        },
+        {
+          "name": "get_matching_forbidden_condition",
+          "kind": "fn",
+          "startLine": 124,
+          "endLine": 151,
+          "tokens": 210
+        },
+        {
+          "name": "validate_bellows_compat",
+          "kind": "fn",
+          "startLine": 152,
+          "endLine": 193,
+          "tokens": 358
+        }
+      ]
+    },
+    "pcs-backend/tests/services/psv/test_bellows_compat.py": {
+      "description": "SUP-P5-PSV-002 V1.14 §3.8 波纹管材料-介质兼容矩阵测试。",
+      "tokens": 2175,
+      "hash": "d65bdb4ae42014d5",
+      "size": 8965,
+      "mtimeMs": 1789651008677.8826,
+      "updatedAt": "2026-09-17T13:16:48.727Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_hastelloy_c276_forbidden_oxidizing_acid",
+          "kind": "fn",
+          "startLine": 28,
+          "endLine": 42,
+          "tokens": 168
+        },
+        {
+          "name": "test_alloy_c22_forbidden_oxidizing_acid",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 51,
+          "tokens": 91
+        },
+        {
+          "name": "test_ss316l_forbidden_chloride_scc",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 61,
+          "tokens": 118
+        },
+        {
+          "name": "test_inconel_625_forbidden_hf",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 70,
+          "tokens": 89
+        },
+        {
+          "name": "test_inconel_718_forbidden_high_sulfur",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 79,
+          "tokens": 92
+        },
+        {
+          "name": "test_alloy_400_forbidden_wet_h2s",
+          "kind": "fn",
+          "startLine": 80,
+          "endLine": 93,
+          "tokens": 144
+        },
+        {
+          "name": "test_none_service_note_passes",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 100,
+          "tokens": 64
+        },
+        {
+          "name": "test_non_matching_service_note_passes",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 113,
+          "tokens": 158
+        },
+        {
+          "name": "test_get_bellows_material_info_returns_dict",
+          "kind": "fn",
+          "startLine": 114,
+          "endLine": 121,
+          "tokens": 86
+        },
+        {
+          "name": "test_get_matching_forbidden_condition_none",
+          "kind": "fn",
+          "startLine": 122,
+          "endLine": 128,
+          "tokens": 88
+        },
+        {
+          "name": "test_matrix_count_6_materials",
+          "kind": "fn",
+          "startLine": 129,
+          "endLine": 139,
+          "tokens": 126
+        },
+        {
+          "name": "test_alloy_400_",
+          "kind": "fn",
+          "startLine": 140,
+          "endLine": 149,
+          "tokens": 101
+        },
+        {
+          "name": "test_alloy_400_wet_h2s_only_no_match_",
+          "kind": "fn",
+          "startLine": 150,
+          "endLine": 156,
+          "tokens": 80
+        },
+        {
+          "name": "test_inconel_625_hf_substring_match",
+          "kind": "fn",
+          "startLine": 157,
+          "endLine": 163,
+          "tokens": 73
+        },
+        {
+          "name": "test_ss316l_chloride_500ppm_threshold_in_details",
+          "kind": "fn",
+          "startLine": 164,
+          "endLine": 172,
+          "tokens": 113
+        },
+        {
+          "name": "test_inconel_718_low_sulfur_does_not_match",
+          "kind": "fn",
+          "startLine": 173,
+          "endLine": 177,
+          "tokens": 44
+        },
+        {
+          "name": "test_alloy_400_dry_h2s_does_not_match",
+          "kind": "fn",
+          "startLine": 178,
+          "endLine": 184,
+          "tokens": 71
+        },
+        {
+          "name": "test_get_matching_forbidden_returns_full_dict",
+          "kind": "fn",
+          "startLine": 185,
+          "endLine": 195,
+          "tokens": 109
+        },
+        {
+          "name": "test_get_matching_forbidden_partial_keyword_does_not_match",
+          "kind": "fn",
+          "startLine": 196,
+          "endLine": 201,
+          "tokens": 63
+        },
+        {
+          "name": "test_empty_string_service_note_returns_none",
+          "kind": "fn",
+          "startLine": 202,
+          "endLine": 205,
+          "tokens": 64
+        }
+      ]
+    },
+    "pcs-backend/app/services/psv/cdtp.py": {
+      "description": "SUP-P5-PSV-002 V1.14 §4.4 CDTP 修正。",
+      "tokens": 630,
+      "hash": "a372c397c268d95e",
+      "size": 2677,
+      "mtimeMs": 1789649341702.6694,
+      "updatedAt": "2026-09-17T12:49:01.750Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "apply_cdtp_correction",
+          "kind": "fn",
+          "startLine": 23,
+          "endLine": 78,
+          "tokens": 488
+        }
+      ]
+    },
+    "pcs-backend/app/services/psv/kb_service.py": {
+      "description": "SUP-P5-PSV-002 V1.14 §4.3 Kb 4 阶段策略 + 合成 _KB_DATA seed。",
+      "tokens": 1888,
+      "hash": "76c38c6ff13a356a",
+      "size": 7641,
+      "mtimeMs": 1789649408571.8196,
+      "updatedAt": "2026-09-17T12:50:08.617Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_interpolate_kb",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 102,
+          "tokens": 276
+        },
+        {
+          "name": "_normalize_brand",
+          "kind": "fn",
+          "startLine": 103,
+          "endLine": 109,
+          "tokens": 64
+        },
+        {
+          "name": "_parse_mixed_brand",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 126,
+          "tokens": 149
+        },
+        {
+          "name": "_kb_for_single_brand",
+          "kind": "fn",
+          "startLine": 127,
+          "endLine": 134,
+          "tokens": 82
+        },
+        {
+          "name": "_kb_for_mixed_brand",
+          "kind": "fn",
+          "startLine": 135,
+          "endLine": 149,
+          "tokens": 122
+        },
+        {
+          "name": "_kb_conservative",
+          "kind": "fn",
+          "startLine": 150,
+          "endLine": 159,
+          "tokens": 106
+        },
+        {
+          "name": "lookup_kb_with_priority",
+          "kind": "fn",
+          "startLine": 160,
+          "endLine": 210,
+          "tokens": 537
+        }
+      ]
+    },
+    "pcs-backend/tests/services/psv/test_kb_lookup.py": {
+      "description": "SUP-P5-PSV-002 V1.14 §4.3 Kb 4 阶段策略 + 合成 _KB_DATA 测试。",
+      "tokens": 2792,
+      "hash": "67a129c7e4e687f0",
+      "size": 10427,
+      "mtimeMs": 1789660988312.2676,
+      "updatedAt": "2026-09-17T16:03:08.360Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_gate10_1_spring_zero_bp_standard",
+          "kind": "fn",
+          "startLine": 28,
+          "endLine": 38,
+          "tokens": 82
+        },
+        {
+          "name": "test_gate10_2_leser_16pct",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 50,
+          "tokens": 98
+        },
+        {
+          "name": "test_gate10_3_leser_21pct",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 62,
+          "tokens": 98
+        },
+        {
+          "name": "test_gate10_4_leser_interpolation_13pct",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 77,
+          "tokens": 131
+        },
+        {
+          "name": "test_gate10_5_mixed_avg",
+          "kind": "fn",
+          "startLine": 78,
+          "endLine": 92,
+          "tokens": 118
+        },
+        {
+          "name": "test_gate10_6_unknown_brand_fallback_api520",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 104,
+          "tokens": 103
+        },
+        {
+          "name": "test_gate10_7_pilot_uses_en4126",
+          "kind": "fn",
+          "startLine": 105,
+          "endLine": 119,
+          "tokens": 114
+        },
+        {
+          "name": "test_gate10_8_balanced_bellows_uses_brand",
+          "kind": "fn",
+          "startLine": 120,
+          "endLine": 136,
+          "tokens": 157
+        },
+        {
+          "name": "test_leser_10pct_boundary",
+          "kind": "fn",
+          "startLine": 137,
+          "endLine": 148,
+          "tokens": 85
+        },
+        {
+          "name": "test_leser_above_max_clamps",
+          "kind": "fn",
+          "startLine": 149,
+          "endLine": 159,
+          "tokens": 75
+        },
+        {
+          "name": "test_leser_below_min_clamps",
+          "kind": "fn",
+          "startLine": 160,
+          "endLine": 170,
+          "tokens": 74
+        },
+        {
+          "name": "test_brand_with_manufacturer_prefix",
+          "kind": "fn",
+          "startLine": 171,
+          "endLine": 182,
+          "tokens": 101
+        },
+        {
+          "name": "test_no_brand_with_bp_falls_back",
+          "kind": "fn",
+          "startLine": 183,
+          "endLine": 194,
+          "tokens": 90
+        },
+        {
+          "name": "test_mixed_partial_unknown_falls_back",
+          "kind": "fn",
+          "startLine": 195,
+          "endLine": 206,
+          "tokens": 93
+        },
+        {
+          "name": "test_three_way_mixed_average",
+          "kind": "fn",
+          "startLine": 207,
+          "endLine": 224,
+          "tokens": 180
+        },
+        {
+          "name": "test_consolidated_10pct",
+          "kind": "fn",
+          "startLine": 225,
+          "endLine": 236,
+          "tokens": 97
+        },
+        {
+          "name": "test_consolidated_16pct",
+          "kind": "fn",
+          "startLine": 237,
+          "endLine": 248,
+          "tokens": 96
+        },
+        {
+          "name": "test_consolidated_21pct",
+          "kind": "fn",
+          "startLine": 249,
+          "endLine": 260,
+          "tokens": 96
+        },
+        {
+          "name": "test_anderson_greenwood_10_16_21_full_curve",
+          "kind": "fn",
+          "startLine": 261,
+          "endLine": 274,
+          "tokens": 156
+        },
+        {
+          "name": "test_anderson_greenwood_brand_with_manufacturer_prefix",
+          "kind": "fn",
+          "startLine": 275,
+          "endLine": 286,
+          "tokens": 117
+        },
+        {
+          "name": "test_three_way_mixed_at_21pct",
+          "kind": "fn",
+          "startLine": 287,
+          "endLine": 298,
+          "tokens": 115
+        },
+        {
+          "name": "test_pilot_operated_ignores_brand_returns_en4126",
+          "kind": "fn",
+          "startLine": 299,
+          "endLine": 312,
+          "tokens": 138
+        },
+        {
+          "name": "test_spring_zero_bp_with_brand_still_returns_none",
+          "kind": "fn",
+          "startLine": 313,
+          "endLine": 323,
+          "tokens": 110
+        }
+      ]
+    },
+    "pcs-backend/app/services/psv/valve_validation.py": {
+      "description": "SUP-P5-PSV-002 V1.14 §4.2 validate_valve_params（G7-G25 全拦截/警告）。",
+      "tokens": 3649,
+      "hash": "80a72a21d2e10414",
+      "size": 14026,
+      "mtimeMs": 1789687617254.1562,
+      "updatedAt": "2026-09-17T23:26:57.303Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_attr",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 80,
+          "tokens": 126
+        },
+        {
+          "name": "validate_valve_params",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 322,
+          "tokens": 2847
+        }
+      ]
+    },
+    "pcs-backend/tests/services/psv/test_valve_validation.py": {
+      "description": "SUP-P5-PSV-002 V1.14 §4.2 validate_valve_params 测试（G7-G25 全拦截/警告）。",
+      "tokens": 7230,
+      "hash": "67d4128403e91e7d",
+      "size": 26977,
+      "mtimeMs": 1789687687633.022,
+      "updatedAt": "2026-09-17T23:28:07.677Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_base_req",
+          "kind": "fn",
+          "startLine": 40,
+          "endLine": 72,
+          "tokens": 295
+        },
+        {
+          "name": "test_g7_pilot_operated_blocked",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 80,
+          "tokens": 93
+        },
+        {
+          "name": "test_g8_rupture_disc_blocked",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 93,
+          "tokens": 139
+        },
+        {
+          "name": "test_g10_built_up_backpressure_exceeds_spring_limit",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 102,
+          "tokens": 120
+        },
+        {
+          "name": "test_g10_balanced_bellows_total_50pct_passes",
+          "kind": "fn",
+          "startLine": 103,
+          "endLine": 114,
+          "tokens": 106
+        },
+        {
+          "name": "test_g10_superimposed_no_limit_for_spring",
+          "kind": "fn",
+          "startLine": 115,
+          "endLine": 131,
+          "tokens": 164
+        },
+        {
+          "name": "test_g11_blowdown_out_of_range",
+          "kind": "fn",
+          "startLine": 132,
+          "endLine": 141,
+          "tokens": 117
+        },
+        {
+          "name": "test_g11_blowdown_default_derived_from_medium",
+          "kind": "fn",
+          "startLine": 142,
+          "endLine": 149,
+          "tokens": 83
+        },
+        {
+          "name": "test_g11_blowdown_default_liquid_10pct",
+          "kind": "fn",
+          "startLine": 150,
+          "endLine": 162,
+          "tokens": 132
+        },
+        {
+          "name": "test_g14_inlet_too_small",
+          "kind": "fn",
+          "startLine": 163,
+          "endLine": 176,
+          "tokens": 168
+        },
+        {
+          "name": "test_g12_inlet_outlet_not_in_api526",
+          "kind": "fn",
+          "startLine": 177,
+          "endLine": 184,
+          "tokens": 101
+        },
+        {
+          "name": "test_g12_orifice_override_not_in_candidates",
+          "kind": "fn",
+          "startLine": 185,
+          "endLine": 203,
+          "tokens": 194
+        },
+        {
+          "name": "test_g17_balanced_bellows_missing_material",
+          "kind": "fn",
+          "startLine": 204,
+          "endLine": 216,
+          "tokens": 159
+        },
+        {
+          "name": "test_g21_bellows_material_medium_incompatible",
+          "kind": "fn",
+          "startLine": 217,
+          "endLine": 233,
+          "tokens": 176
+        },
+        {
+          "name": "test_happy_path_spring_loaded_zero_bp_returns_validated_params",
+          "kind": "fn",
+          "startLine": 234,
+          "endLine": 247,
+          "tokens": 172
+        },
+        {
+          "name": "test_happy_path_balanced_bellows_with_brand_kb",
+          "kind": "fn",
+          "startLine": 248,
+          "endLine": 267,
+          "tokens": 201
+        },
+        {
+          "name": "test_g13_balanced_carbon_steel_in_oxidizing_warning",
+          "kind": "fn",
+          "startLine": 268,
+          "endLine": 279,
+          "tokens": 118
+        },
+        {
+          "name": "test_g13_no_warning_when_body_material_is_alloy",
+          "kind": "fn",
+          "startLine": 280,
+          "endLine": 296,
+          "tokens": 158
+        },
+        {
+          "name": "test_g15_q_high_temp_light_gas_raises",
+          "kind": "fn",
+          "startLine": 297,
+          "endLine": 312,
+          "tokens": 155
+        },
+        {
+          "name": "test_g15_t_high_temp_light_gas_raises",
+          "kind": "fn",
+          "startLine": 313,
+          "endLine": 326,
+          "tokens": 110
+        },
+        {
+          "name": "test_g15_no_temp_passes",
+          "kind": "fn",
+          "startLine": 327,
+          "endLine": 345,
+          "tokens": 156
+        },
+        {
+          "name": "test_g24_unknown_brand_warning",
+          "kind": "fn",
+          "startLine": 346,
+          "endLine": 356,
+          "tokens": 98
+        },
+        {
+          "name": "test_g25_mixed_brand_warning",
+          "kind": "fn",
+          "startLine": 357,
+          "endLine": 372,
+          "tokens": 144
+        },
+        {
+          "name": "test_cdtp_not_applied_superimposed_zero",
+          "kind": "fn",
+          "startLine": 373,
+          "endLine": 384,
+          "tokens": 115
+        },
+        {
+          "name": "test_cdtp_applied_superimposed_nonzero",
+          "kind": "fn",
+          "startLine": 385,
+          "endLine": 397,
+          "tokens": 129
+        },
+        {
+          "name": "test_cdtp_built_up_no_correction",
+          "kind": "fn",
+          "startLine": 398,
+          "endLine": 412,
+          "tokens": 138
+        },
+        {
+          "name": "test_rupture_disc_kc_upstream",
+          "kind": "fn",
+          "startLine": 413,
+          "endLine": 419,
+          "tokens": 69
+        },
+        {
+          "name": "test_rupture_disc_kc_downstream",
+          "kind": "fn",
+          "startLine": 420,
+          "endLine": 426,
+          "tokens": 67
+        },
+        {
+          "name": "test_rupture_disc_kc_none",
+          "kind": "fn",
+          "startLine": 427,
+          "endLine": 438,
+          "tokens": 120
+        },
+        {
+          "name": "test_orifice_override_validated_when_in_candidates",
+          "kind": "fn",
+          "startLine": 439,
+          "endLine": 736,
+          "tokens": 2914
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p5_open_010_psv_valve_selection.py": {
+      "description": "P5-OPEN-10 SUP-P5-PSV-002 V1.14 §3.1 PSV 选型 18 列 + 3 CHECK。",
+      "tokens": 1963,
+      "hash": "938fceaf29ff4cc9",
+      "size": 7419,
+      "mtimeMs": 1789651827239.833,
+      "updatedAt": "2026-09-17T13:30:27.289Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 167,
+          "tokens": 1194
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 168,
+          "endLine": 191,
+          "tokens": 352
+        }
+      ]
+    },
+    "spec/SUP-P5-PSV-002-V1.14-STATUS.md": {
+      "description": "SUP-P5-PSV-002 V1.14 落地状态（后端契约扩展）",
+      "tokens": 1286,
+      "hash": "9636bf13f3eae25b",
+      "size": 6314,
+      "mtimeMs": 1789650037965.7969,
+      "updatedAt": "2026-09-17T13:00:38.024Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/psv/test_cdtp.py": {
+      "description": "SUP-P5-PSV-002 V1.14 §4.4 apply_cdtp_correction 边界 + 错误码测试。",
+      "tokens": 1446,
+      "hash": "1a17a1175cea3145",
+      "size": 5463,
+      "mtimeMs": 1789660992265.2449,
+      "updatedAt": "2026-09-17T16:03:12.311Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_cdtp_basic_200k_set_minus_50k_superimposed",
+          "kind": "fn",
+          "startLine": 27,
+          "endLine": 31,
+          "tokens": 53
+        },
+        {
+          "name": "test_cdtp_zero_superimposed_returns_set_pressure",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 36,
+          "tokens": 57
+        },
+        {
+          "name": "test_cdtp_high_pressure_lpg_service",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 46,
+          "tokens": 106
+        },
+        {
+          "name": "test_cdtp_set_pressure_zero_rejected",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 55,
+          "tokens": 100
+        },
+        {
+          "name": "test_cdtp_set_pressure_negative_rejected",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 67,
+          "tokens": 128
+        },
+        {
+          "name": "test_cdtp_superimposed_negative_rejected",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 80,
+          "tokens": 153
+        },
+        {
+          "name": "test_cdtp_superimposed_equals_set_pressure_rejected",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 88,
+          "tokens": 99
+        },
+        {
+          "name": "test_cdtp_superimposed_exceeds_set_pressure_rejected",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 96,
+          "tokens": 101
+        },
+        {
+          "name": "test_cdtp_validation_priority_set_pressure_first",
+          "kind": "fn",
+          "startLine": 97,
+          "endLine": 104,
+          "tokens": 91
+        },
+        {
+          "name": "test_cdtp_validation_priority_superimposed_second",
+          "kind": "fn",
+          "startLine": 105,
+          "endLine": 116,
+          "tokens": 141
+        },
+        {
+          "name": "test_cdtp_non_positive_details_contains_all_three_fields",
+          "kind": "fn",
+          "startLine": 117,
+          "endLine": 127,
+          "tokens": 142
+        },
+        {
+          "name": "test_cdtp_at_exactly_half_set_pressure",
+          "kind": "fn",
+          "startLine": 128,
+          "endLine": 130,
+          "tokens": 53
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p4_4_sim_import_preview_towers.py": {
+      "description": "P4-4 sim_imports.preview_towers_json 列扩展（P4 #4 parser 入库链路）。",
+      "tokens": 341,
+      "hash": "d2bd754ae55896d5",
+      "size": 1355,
+      "mtimeMs": 1789654927798.8167,
+      "updatedAt": "2026-09-17T14:22:07.849Z",
+      "source": "hook"
     }
   }
 }

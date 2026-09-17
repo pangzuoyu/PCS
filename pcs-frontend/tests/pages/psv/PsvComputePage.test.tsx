@@ -279,11 +279,27 @@ describe('PsvComputePage — 安全阀选型 SUP-P5-PSV-002 §5.1', () => {
     expect(screen.queryByTestId('psv-cdtp-alert')).toBeNull();
   });
 
-  it('SUP-P5-PSV-002 V1.14 §5.1：法兰等级 150# + 孔口 override = T → 65 psig 警告', () => {
+  it('SUP-P5-PSV-002 V1.14 §5.2：平衡波纹管式 → 派生 bellowsConsultWarn 默认 0% 不显示', () => {
+    // 默认 BP = 0 → 不显示提示；切到 BALANCED_BELLOWS 也不显示
     render(<PsvComputePage streams={streams} />);
-    // 法兰 150# + override T → tOrificeLowClassWarn = true
-    // 通过 select onChange 设置：但 Select onChange 需要 antd 事件；最简单：直接验证默认 300# 时无警告
-    // 简化：仅验证 warning Alert 在 override T + 150# 时存在
+    fireEvent.click(screen.getByDisplayValue('BALANCED_BELLOWS'));
+    expect(screen.queryByTestId('psv-bellows-consult-alert')).toBeNull();
+    // 切回 SPRING_LOADED 也不显示
+    fireEvent.click(screen.getByDisplayValue('SPRING_LOADED'));
+    expect(screen.queryByTestId('psv-bellows-consult-alert')).toBeNull();
+  });
+
+  it('SUP-P5-PSV-002 V1.14 §5.2：默认 backPressureType=BUILT_UP → CDTP Alert 不显示', () => {
+    render(<PsvComputePage streams={streams} />);
+    expect(screen.queryByTestId('psv-cdtp-alert')).toBeNull();
+    // 切到 superimposed 但 BP=0 → 仍不显示
+    fireEvent.click(screen.getByDisplayValue('SUPERIMPOSED'));
+    expect(screen.queryByTestId('psv-cdtp-alert')).toBeNull();
+  });
+
+  it('SUP-P5-PSV-002 V1.14 §5.1：T 孔口 + 150# → tOrificeLowClassWarn 默认不触发', () => {
+    render(<PsvComputePage streams={streams} />);
+    // 默认 flangeClass=300#, orificeOverride=null → 不触发 65 psig 警告
     expect(screen.queryByTestId('psv-t-low-class-alert')).toBeNull();
   });
 
