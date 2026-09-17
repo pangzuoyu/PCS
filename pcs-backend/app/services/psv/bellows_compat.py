@@ -15,7 +15,7 @@
 
 设计要点：
 - forbidden 列表：每项含 condition（中文短语）+ source（依据来源）
-- validate_bellows_compat 匹配 service_note 子串 → 抛 PsvBellowsIncompatibleError
+- validate_bellows_compat 匹配 service_note 子串 → 抛 PsvBellowsIncompatible
 - 条件匹配：精确子串匹配（in 操作符）；service_note 为 None 时跳过（不抛错）
 - 注：氯化物阈值 500 ppm 是工程保守参考，非 NACE 硬性阈值（V1.14 P5 §3.8）
 
@@ -156,15 +156,13 @@ def validate_bellows_compat(
     """波纹管材料-介质兼容性校验（§3.8）。
 
     Raises:
-        PcsError: 匹配 forbidden 条件时（code=PSV_BELLOWS_INCOMPATIBLE, status=422）
-            Task 6 引入 PsvBellowsIncompatibleError 子类后此函数仍可工作
-            （PcsError 基类含 code/status；子类仅供类型化引用）
+        PsvBellowsIncompatible: 匹配 forbidden 条件时（code=PSV_BELLOWS_INCOMPATIBLE, status=422）
 
     Notes:
         - service_note 为 None → 不抛错（无信息可判断；由用户承担风险）
         - 抛错时 message 含：材料 + ASTM 标准 + 禁用条件 + 来源
     """
-    from app.services.exceptions import PcsError  # 延迟 import 避免循环
+    from app.services.exceptions import PsvBellowsIncompatible  # 延迟 import 避免循环
 
     matched = get_matching_forbidden_condition(material, service_note)
     if matched is None:
@@ -172,11 +170,9 @@ def validate_bellows_compat(
 
     info = BELLOWS_MATERIAL_COMPAT[material]
     astm_str = " / ".join(info["astm"])
-    raise PcsError(
+    raise PsvBellowsIncompatible(
         f"波纹管材料 {material}（{astm_str}）禁用于：{matched['condition']}"
         f"（来源：{matched['source']}）",
-        code="PSV_BELLOWS_INCOMPATIBLE",
-        status=422,
         details={
             "material": material,
             "astm": info["astm"],

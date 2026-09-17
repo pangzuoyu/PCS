@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from app.services.exceptions import PcsError
+from app.services.exceptions import PsvBellowsIncompatible
 from app.services.psv.bellows_compat import (
     BELLOWS_MATERIAL_COMPAT,
     get_bellows_material_info,
@@ -22,13 +22,13 @@ from app.services.psv.bellows_compat import (
 
 
 # ============================================================================
-# 1. 6 材料 forbidden 条件 → 抛 PcsError（PSV_BELLOWS_INCOMPATIBLE 422）
+# 1. 6 材料 forbidden 条件 → 抛 PsvBellowsIncompatible（PSV_BELLOWS_INCOMPATIBLE 422）
 # ============================================================================
 
 
 def test_hastelloy_c276_forbidden_oxidizing_acid():
     """HASTELLOY_C276 + 强氧化性介质 → 抛 422。"""
-    with pytest.raises(PcsError) as exc_info:
+    with pytest.raises(PsvBellowsIncompatible) as exc_info:
         validate_bellows_compat("HASTELLOY_C276", "本工段为热浓硝酸介质，强氧化性介质工况")
     err = exc_info.value
     assert err.code == "PSV_BELLOWS_INCOMPATIBLE"
@@ -43,7 +43,7 @@ def test_hastelloy_c276_forbidden_oxidizing_acid():
 
 def test_alloy_c22_forbidden_oxidizing_acid():
     """ALLOY_C22 + 强氧化性介质 → 抛 422。"""
-    with pytest.raises(PcsError) as exc_info:
+    with pytest.raises(PsvBellowsIncompatible) as exc_info:
         validate_bellows_compat("ALLOY_C22", "高温 + 强氧化性介质")
     err = exc_info.value
     assert err.code == "PSV_BELLOWS_INCOMPATIBLE"
@@ -52,7 +52,7 @@ def test_alloy_c22_forbidden_oxidizing_acid():
 
 def test_ss316l_forbidden_chloride_scc():
     """SS316L + 氯化物应力腐蚀开裂 → 抛 422（500 ppm 保守阈值标记）。"""
-    with pytest.raises(PcsError) as exc_info:
+    with pytest.raises(PsvBellowsIncompatible) as exc_info:
         validate_bellows_compat("SS316L", "介质含氯化物应力腐蚀开裂风险")
     err = exc_info.value
     assert err.code == "PSV_BELLOWS_INCOMPATIBLE"
@@ -62,7 +62,7 @@ def test_ss316l_forbidden_chloride_scc():
 
 def test_inconel_625_forbidden_hf():
     """INCONEL_625 + 高温高浓度氢氟酸 → 抛 422。"""
-    with pytest.raises(PcsError) as exc_info:
+    with pytest.raises(PsvBellowsIncompatible) as exc_info:
         validate_bellows_compat("INCONEL_625", "高温高浓度氢氟酸工况需专项评估")
     err = exc_info.value
     assert err.code == "PSV_BELLOWS_INCOMPATIBLE"
@@ -71,7 +71,7 @@ def test_inconel_625_forbidden_hf():
 
 def test_inconel_718_forbidden_high_sulfur():
     """INCONEL_718 + 高温高硫环境 → 抛 422。"""
-    with pytest.raises(PcsError) as exc_info:
+    with pytest.raises(PsvBellowsIncompatible) as exc_info:
         validate_bellows_compat("INCONEL_718", "高温高硫环境 — 含硫化合物腐蚀加速")
     err = exc_info.value
     assert err.code == "PSV_BELLOWS_INCOMPATIBLE"
@@ -80,7 +80,7 @@ def test_inconel_718_forbidden_high_sulfur():
 
 def test_alloy_400_forbidden_wet_h2s():
     """ALLOY_400 + 湿 H₂S → 抛 422。"""
-    with pytest.raises(PcsError) as exc_info:
+    with pytest.raises(PsvBellowsIncompatible) as exc_info:
         validate_bellows_compat("ALLOY_400", "本系统含湿 H₂S + 游离水分")
     err = exc_info.value
     assert err.code == "PSV_BELLOWS_INCOMPATIBLE"
