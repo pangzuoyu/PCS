@@ -303,7 +303,7 @@ function EditDrawer({ open, current, onClose, onSubmit }: EditDrawerProps): JSX.
       standard_refs_json: refs,
       approval_json:
         isCustom && values.approval_json
-          ? safeJsonParse(values.approval_json)
+          ? safeJsonParse(values.approval_json) ?? undefined
           : undefined,
       approved_by: isCustom ? values.approved_by : undefined,
     };
