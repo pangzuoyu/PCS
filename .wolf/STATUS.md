@@ -8,6 +8,18 @@ budget_tokens: 1500
 
 ---
 
+## ✅ Done (P4-2 工艺端点 Guard 接入 — 2026-09-17)
+
+- **3 工艺端点接入三步守卫**（commit `0401fd2`）：
+  - psv/calculate → check_calc_inputs（+1 测试 draft_stream_403）
+  - vessel/calculate → check_calc_inputs（+1 测试）
+  - sep-equip/calculate → check_calc_inputs（+1 测试）
+- **P4 端点列表**：6/7 已接（pipe / pipe_net / pump / psv / vessel / sep_equip；
+  heat 无 source_stream_id 跳过）
+- 测试：41 passed in 3 endpoints；全栈 2108 passed（无回归）
+
+---
+
 ## ✅ Done (P4-1 ruff 归零专项 — 2026-09-17)
 
 - **5 errors → 0**（commit `138cb6c`）：
@@ -189,8 +201,8 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 
 ### P4 首批建议（收口报告 §6，优先序）
 1. ✅ **ruff 归零专项**：5 errors → 0（commit `138cb6c`，2026-09-17）
-2. **calculate 入口接 Guard**：P4 工艺计算首个端点调
-   `UnreliableStreamGuard.check`（422 STREAM_UNRELIABLE_BLOCKED 契约已备 + 测试）
+2. ✅ **calculate 入口接 Guard**：6/7 工艺端点已接（commit `0401fd2`，2026-09-17；
+   pipe / pipe_net / pump SIM-39 + psv / vessel / sep_equip 本批）
 3. **enum 9 态扩展（TODO-036）**：`ALTER TYPE ADD VALUE` 不可逆，迁移前备份
    enum definition
 4. **parser 入库链路**：SIM-37b/38b 产出为 dataclass 层，P4 需 import_service
