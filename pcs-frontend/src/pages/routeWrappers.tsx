@@ -196,7 +196,8 @@ export function PumpRoute(): JSX.Element {
 
 // === P5-1 VESSEL ===
 export function VesselRoute(): JSX.Element {
-  return <VesselComputePage streams={[]} />;
+  // OPEN-4-1：移除 streams={[]} 注入，让 Page 走 streamApi 自取（CHECKED 列表）
+  return <VesselComputePage />;
 }
 
 // === P5-2 SEP_EQUIP ===

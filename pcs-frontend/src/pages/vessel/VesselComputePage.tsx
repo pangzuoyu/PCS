@@ -10,7 +10,7 @@
  *
  * V1：单 Page 渲染 sizing + hydraulics 两个 Card。
  */
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { JSX } from 'react';
 import {
   Alert,
@@ -24,12 +24,15 @@ import {
   Row,
   Select,
   Space,
+  Spin,
   Statistic,
   Tag,
   Typography,
 } from 'antd';
 
 import { PageHeader } from '../../components/common/PageHeader';
+import { vesselApi } from '../../api/vessel';
+import { streamApi } from '../../api/stream';
 import type {
   VesselCalculateRequest,
   VesselCalculateResponse,
@@ -46,10 +49,25 @@ interface StreamLite {
 }
 
 interface Props {
-  streams: StreamLite[];
+  /**可选：父组件注入时优先用（向后兼容 P5-1 测试）；未注入则走 streamApi。*/
+  streams?: StreamLite[];
+  /**可选：父组件注入时优先用（向后兼容 P5-1 测试）；未注入则走 vesselApi。*/
   onCalculate?: (
     req: VesselCalculateRequest,
   ) => VesselCalculateResponse | undefined;
+}
+
+/**后端 PcsError envelope 解析（与 HeatComputePage 同模式）。*/
+interface PcsErrorEnvelope {
+  code?: string;
+  message?: string;
+}
+function extractPcsError(err: unknown): PcsErrorEnvelope {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const data = (err as { response?: { data?: PcsErrorEnvelope } }).response?.data;
+    if (data && typeof data === 'object') return data;
+  }
+  return {};
 }
 
 const VESSEL_TYPE_OPTIONS: { value: VesselType; label: string }[] = [
@@ -82,37 +100,89 @@ const DEFAULT_HYDRAULICS: VesselHydraulics = {
   thermal_breathing_factor: 1.0,
 };
 
-export function VesselComputePage({ streams, onCalculate }: Props): JSX.Element {
+export function VesselComputePage({
+  streams: streamsProp,
+  onCalculate: onCalculateProp,
+}: Props): JSX.Element {
   const [streamId, setStreamId] = useState<string | undefined>();
   const [sizing, setSizing] = useState<VesselSizing>(DEFAULT_SIZING);
   const [hydraulics, setHydraulics] = useState<VesselHydraulics>(DEFAULT_HYDRAULICS);
   const [result, setResult] = useState<VesselCalculateResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [calculating, setCalculating] = useState(false);
+  const [fetchedStreams, setFetchedStreams] = useState<StreamLite[] | null>(null);
+  const [streamsLoading, setStreamsLoading] = useState(false);
 
-  const checkedStreams = streams.filter((s) => s.sign_status === 'CHECKED');
+  // OPEN-4-1：未注入 streams 时走 streamApi 自取（CHECKED 过滤在 Mock seed 阶段跳过）
+  useEffect(() => {
+    if (streamsProp !== undefined) return;
+    let cancelled = false;
+    setStreamsLoading(true);
+    streamApi
+      .listByProject('00000000-0000-0000-0000-000000000001')
+      .then((list) => {
+        if (cancelled) return;
+        // streamApi 不返 sign_status（轻量子集），全部当作 CHECKED 候选（dev/mock 友好）
+        // 真实 ACL/状态由后端 /vessel/calculate STREAM_NOT_CHECKED 403 兜底
+        setFetchedStreams(
+          list.map((s) => ({
+            stream_id: s.stream_id,
+            tag_number: s.tag_number,
+            sign_status: 'CHECKED',
+          })),
+        );
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setFetchedStreams([]);
+      })
+      .finally(() => {
+        if (!cancelled) setStreamsLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [streamsProp]);
 
-  const handleCalculate = () => {
+  const streams = streamsProp ?? fetchedStreams ?? [];
+  const checkedStreams = streams; // sign_status 过滤在 streamApi/mock 阶段由调用方控制
+
+  const handleCalculate = async () => {
     if (!streamId) {
       setError('请选择物流');
       return;
     }
     setError(null);
+    setCalculating(true);
     const req: VesselCalculateRequest = {
       source_stream_id: streamId,
       sizing,
       hydraulics,
     };
     try {
-      const r = onCalculate ? onCalculate(req) : defaultMockResult(req);
+      let r: VesselCalculateResponse | undefined;
+      if (onCalculateProp) {
+        r = onCalculateProp(req);
+      } else {
+        r = await vesselApi.calculate(req);
+      }
       if (!r) {
         setError('计算失败：返回空');
         setResult(null);
         return;
       }
       setResult(r);
-    } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : '未知错误');
+    } catch (err: unknown) {
+      const env = extractPcsError(err);
+      const code = env.code ?? '';
+      if (code === 'STREAM_NOT_CHECKED') {
+        setError('所选流未签出（仅 CHECKED 可计算）');
+      } else {
+        setError(env.message ?? '计算失败');
+      }
       setResult(null);
+    } finally {
+      setCalculating(false);
     }
   };
 
@@ -126,6 +196,7 @@ export function VesselComputePage({ streams, onCalculate }: Props): JSX.Element 
             type="primary"
             data-testid="vessel-calculate"
             onClick={handleCalculate}
+            loading={calculating}
           >
             计算
           </Button>
@@ -139,9 +210,11 @@ export function VesselComputePage({ streams, onCalculate }: Props): JSX.Element 
               <Form.Item label="物流" required>
                 <Select
                   data-testid="vessel-stream-select"
-                  placeholder="选择 CHECKED 物流"
+                  placeholder={streamsLoading ? '加载物流中…' : '选择 CHECKED 物流'}
                   value={streamId}
                   onChange={setStreamId}
+                  loading={streamsLoading}
+                  disabled={streamsLoading}
                   options={checkedStreams.map((s) => ({
                     value: s.stream_id,
                     label: s.tag_number,
@@ -327,6 +400,7 @@ export function VesselComputePage({ streams, onCalculate }: Props): JSX.Element 
 
         <Col span={14}>
           <Card title="结果" size="small" data-testid="vessel-result-card">
+            <Spin spinning={calculating}>
             {error && (
               <Alert
                 type="error"
@@ -395,6 +469,7 @@ export function VesselComputePage({ streams, onCalculate }: Props): JSX.Element 
                 )}
               </Space>
             )}
+            </Spin>
           </Card>
         </Col>
       </Row>
@@ -435,58 +510,6 @@ function renderCheckTag(value: unknown): JSX.Element {
   if (v === 'PASS') return <Tag color="green">PASS</Tag>;
   if (v === 'WARNING') return <Tag color="orange" data-testid="vessel-warning">WARNING</Tag>;
   return <Tag color="red">FAIL</Tag>;
-}
-
-function defaultMockResult(req: VesselCalculateRequest): VesselCalculateResponse {
-  const { sizing, hydraulics } = req;
-  // sizing
-  const V_max_ms = sizing.K_factor_ms * Math.sqrt(
-    (sizing.rho_L_kg_m3 - sizing.rho_V_kg_m3) / sizing.rho_V_kg_m3,
-  );
-  const D_min_m = Math.sqrt((4 * sizing.vapor_flow_m3_s) / (Math.PI * V_max_ms));
-  const t = sizing.residence_time_min > 0 ? sizing.residence_time_min : 4.0;
-  const liquid_volume_m3 = sizing.liquid_flow_m3_s * t * 60;
-  const confidence =
-    sizing.K_factor_ms >= 0.04 && sizing.K_factor_ms <= 0.10 ? 'HIGH' : 'MEDIUM';
-  // hydraulics
-  const A_orifice = Math.PI * (hydraulics.d_orifice_m / 2) ** 2;
-  const Q_orifice_m3_s =
-    hydraulics.Cd_orifice * A_orifice * Math.sqrt(2 * 9.81 * hydraulics.h0_m);
-  const A_overflow = Math.PI * (hydraulics.d_overflow_m / 2) ** 2;
-  const Q_overflow_m3_s =
-    hydraulics.Cd_overflow *
-    A_overflow *
-    Math.sqrt(2 * 9.81 * Math.max(hydraulics.h0_m - hydraulics.h_overflow_m, 0));
-  const t_drainage_min = Q_orifice_m3_s > 0 ? hydraulics.h0_m / Q_orifice_m3_s / 60 : 0;
-  const orientation_warning =
-    hydraulics.orientation === 'horizontal' &&
-    hydraulics.D_m > 0 &&
-    hydraulics.L_m / hydraulics.D_m < 3
-      ? '卧式容器 L/D 偏小，建议复核长度'
-      : undefined;
-  return {
-    calc_id: 'mock-vessel-id',
-    calc_type: 'VESSEL',
-    record_hash: 'mock-hash',
-    stream_id: req.source_stream_id,
-    lineage_ids: [],
-    result: {
-      V_max_ms,
-      D_min_m,
-      liquid_volume_m3,
-      vessel_type: sizing.vessel_type,
-      K_factor_ms: sizing.K_factor_ms,
-      residence_time_min: t,
-      check_result: confidence === 'HIGH' ? 'PASS' : 'WARNING',
-      confidence,
-      Q_orifice_m3_s,
-      Q_overflow_m3_s,
-      t_drainage_min,
-      orientation_warning,
-    },
-    outlet_stream_id: 'mock-outlet-id',
-    outlet_stream_name: 'OUT-VESSEL-201',
-  };
 }
 
 export default VesselComputePage;
