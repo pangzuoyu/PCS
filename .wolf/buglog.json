@@ -1302,6 +1302,24 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-09-18T13:00:00.000000Z"
+    },
+    {
+      "id": "bug-082",
+      "timestamp": "2026-09-18T10:30:00Z",
+      "error_message": "前端 PsvKbSource Literal 缺 manufacturer:Farris / manufacturer:Crosby / mixed:LESER+Consolidated+Anderson_Greenwood，与后端 valve_selection_types.py:96-109 不一致",
+      "file": "pcs-frontend/src/types/psv.ts:72",
+      "root_cause": "ce-code-review P0..P5 全量审查发现（C10）。前端类型与后端 Literal drift 致 TS 编译错误 + 运行时 undefined 读取",
+      "fix": "types/psv.ts 加 3 个 union 成员 + 注释引用后端位置",
+      "tags": [
+        "ce-code-review",
+        "P5-OPEN-10",
+        "contract-drift",
+        "frontend"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-18",
+      "severity": "CRITICAL",
+      "fix_commit": "TBD (this commit)"
     }
   ]
 }

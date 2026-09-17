@@ -68,15 +68,21 @@ export type PsvFlangeClass =
   | '1500#'
   | '2500#';
 
-// §4.3 Kb 来源标识（'none' = 标准定义 1.0；'mixed:{mfr1}+{mfr2}' = 多厂商混用）
+// §4.3 Kb 来源标识（'none' = 标准定义 1.0；'mixed:{mfr1}+{mfr2}[+{mfr3}]' = 多厂商混用）
+// 与后端 PsvKbSource Literal（valve_selection_types.py:96-109）完全对齐：
+// - 含 Farris / Crosby（V1.14 P2-1 扩品牌集）
+// - 含 3 厂商混用（mixed:LESER+Consolidated+Anderson_Greenwood）
 export type PsvKbSource =
   | 'none'
   | 'manufacturer:LESER'
   | 'manufacturer:Consolidated'
   | 'manufacturer:Anderson_Greenwood'
+  | 'manufacturer:Farris'
+  | 'manufacturer:Crosby'
   | 'mixed:LESER+Consolidated'
   | 'mixed:LESER+Anderson_Greenwood'
   | 'mixed:Consolidated+Anderson_Greenwood'
+  | 'mixed:LESER+Consolidated+Anderson_Greenwood'
   | 'api520_fig30'
   | 'en4126';
 
