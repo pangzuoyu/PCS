@@ -523,7 +523,7 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - app/main.py 3 个 public 函数补 docstring（lifespan/create_app/add_trace_id，LOW 文档补全）
   - alembic p5_open_010 docstring E501 line-too-long 修复（132→拆两行）
   - app/core/errors.install_exception_handlers 补 docstring（error 信封 5 类 handler 说明）
-- ✅ (g) MEDIUM 滚动第六批 13 项 — commit `81fa2db` + `38e3d58` + `c54f559` + `98eb87b` + `892ea81` + `8a36ac3` + `fafa81d` + `57d0e5d` + `977dc0e` + `1347555` + `024fd23` + `6a3b477` + `422d77c`
+- ✅ (g) MEDIUM 滚动第六批 14 项 — commit `81fa2db` + `38e3d58` + `c54f559` + `98eb87b` + `892ea81` + `8a36ac3` + `fafa81d` + `57d0e5d` + `977dc0e` + `1347555` + `024fd23` + `6a3b477` + `422d77c` + `3117939`
   - stream_symbol_service.create_company 补 docstring（4 步骤流程 + V1.4 §0.5 ConfigAsset 挂载）
   - pipe_code_template_service.create_company 补 docstring（同样 4 步骤 + INT-OPEN-01 ConfigAsset 挂载）
   - checklist_service.update_status 补 docstring（状态分支 + Audit + ValueError）
@@ -537,6 +537,7 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - template_service.upload 补 docstring（SHA-256 去重 + version_seq 自增 + flush 不 commit）
   - api/v1/records.list_snapshots 加 docstring（3 步骤 + workspace 隔离 404）
   - api/v1/auth.refresh 加 docstring（5 条安全约束 + JTI 一次性使用 + 防重放）
+  - workspace_service.create 加 docstring（retention_days 派生默认值 + Audit + flush 不 commit）
 - 🔲 **下一批**：LOW/INFO 滚动
 
 ### 待办（建议优先序）
