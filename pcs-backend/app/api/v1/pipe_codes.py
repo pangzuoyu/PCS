@@ -291,6 +291,17 @@ async def submit_project_config(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 项目管号配置 submit（DRAFT → PENDING + Audit）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 PipeCodeTemplateService.submit_project → _project_transition('SUBMIT')
+    3. 状态校验：DRAFT 才能 SUBMIT，其他 → PROJECT_PIPE_CODE_CONFIG_BAD_TRANSITION 409
+    4. 写 Audit（CONFIG_ASSET_SUBMITTED，detail 含 from→to + project_id）
+
+    五态机端点组：submit / approve / reject / publish / obsolete；
+    区别：公司模板走 ConfigStateMachine；项目级走 _project_transition 轻量状态机。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.submit_project(
         db, config_id=config_id, actor=user,
