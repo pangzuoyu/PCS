@@ -25,6 +25,19 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """streams SIM 字段扩展（P3.2 SIM-17 §3.2.4 物性来源标注）。
+
+    步骤：
+    - simulation_status (varchar 30)：SOLVED/ESTIMATED/MEASURED/MANUAL/UNKNOWN
+      （区分 SIM 计算/估算/实测/人工/未知四源）
+    - source_unit_op (varchar 100)：源单元操作 unit_uid（追溯到 PRO/II 单元）
+    - source_stream_uid (varchar 100)：源 PRO/II 流股编号
+    - sim_import_id (UUID FK→sim_imports)：本次 SIM 导入批次 ID
+    - 索引：sim_import_id（按批次反查）+ (source_unit_op, source_stream_uid) 复合
+
+    业务：streams 表新增 SIM 来源标注，与 sim_imports + sim_unit_op_results
+    形成完整 SIM 血缘链（流股 → 单元 → 批次）。
+    """
     # SIM-17 4 字段
     op.add_column(
         "streams",

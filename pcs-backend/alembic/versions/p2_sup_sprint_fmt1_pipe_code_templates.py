@@ -21,6 +21,19 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """pipe_code_templates 主表创建（FMT-1 / SUP-002 §11.5 公司管号模板）。
+
+    步骤：
+    - 主表 pipe_code_templates：template_id (PK UUID) + asset_id (FK→config_assets) +
+      template_name (unique) + description + format_definition_json (JSON) +
+      status (default 'DRAFT'，走 ConfigStateMachine 5 态机) + version (default '1') +
+      created_by + created_at + updated_at
+    - 索引：template_name unique + status（按 5 态过滤）
+    - 配套：pipe_code_template_sequences 自增序列表
+
+    业务：公司级管号模板 5 态机 DRAFT→PENDING→APPROVED→PUBLISHED→OBSOLETE；
+    PUBLISHED 后 fork_to_project 复制到项目作用域生成 ProjectPipeCodeConfig。
+    """
     op.create_table(
         "pipe_code_templates",
         sa.Column("template_id", sa.UUID(as_uuid=True), primary_key=True),

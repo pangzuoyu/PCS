@@ -24,6 +24,19 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """stream_symbols 主表创建（SYM-1 / SUP-002 §8 公司流股符号）。
+
+    步骤：
+    - 主表 stream_symbols：symbol_id (PK UUID) + asset_id (FK→config_assets) +
+      symbol (unique 10 字符) + name + category + is_active (default true) +
+      status (default 'DRAFT'，走 ConfigStateMachine 5 态机) + version +
+      created_by + created_at + updated_at
+    - 索引：symbol unique + status（按 5 态过滤）+ is_active（仅 active）
+    - 配套：project_stream_symbols（项目级 fork 派生表，含 override_json）
+
+    业务：公司级流股符号 5 态机；PUBLISHED 后 fork_project_symbols 复制到项目作用域
+    生成 ProjectStreamSymbol（含 source_symbol_id 反向引用）。
+    """
     op.create_table(
         "stream_symbols",
         sa.Column("symbol_id", sa.UUID(as_uuid=True), primary_key=True),

@@ -24,6 +24,21 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
+    """equipment_list 工程字段扩展（P2 sprint2 equipment §一来源）。
+
+    步骤：
+    - in_package (Boolean)：是否纳入 3D/ESR/P&ID 设计包
+    - data_sources (varchar 200)：数据来源说明（如"工艺询价+厂家资料+历史项目"）
+    - tag_in_3d (Boolean)：3D 模型中已 tag
+    - tag_in_esr (Boolean)：ESR（设备规格表）中已 tag
+    - tag_in_pid (Boolean)：P&ID 中已 tag
+    - engineering_lead_id (UUID FK→users)：设计负责人
+    - design_review_date (Date)：设计评审日期
+    - 设计数据来源 7 字段（§一）
+
+    业务：equipment_list 扩展工程设计阶段字段，与 §二选型 + §三校核 + §四采购
+    + §五到货 共 5 段累计完成全生命周期追踪。
+    """
     # §一 来源（items 1-4）
     op.add_column(
         "equipment_list", sa.Column("in_package", sa.Boolean(), nullable=True)
