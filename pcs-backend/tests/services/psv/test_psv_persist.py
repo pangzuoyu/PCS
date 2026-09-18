@@ -11,14 +11,19 @@
 """
 from __future__ import annotations
 
+import re
+import uuid
+
 import pytest
 
 from app.services.psv import (
     ReliefCase,
 )
 from app.services.psv.psv_persist import (
+    _FORMULA_VERSION,
     _default_standard_refs,
     _dispatch_scenario_calc,
+    _generate_tag_number,
 )
 
 # ============================================================================
@@ -316,18 +321,12 @@ def test_blowdown_default_by_medium_persists_module():
 
 def test_formula_version_constant():
     """_FORMULA_VERSION 是非空字符串（V1.14 §4.6 record_hash 协议标识）。"""
-    from app.services.psv.psv_persist import _FORMULA_VERSION
-
     assert isinstance(_FORMULA_VERSION, str)
     assert len(_FORMULA_VERSION) > 0
 
 
 def test_generate_tag_number_basic():
     """_generate_tag_number(project_id) → 'PSV-{8hex}' 格式（每次新生成 8 hex）。"""
-    import uuid
-
-    from app.services.psv.psv_persist import _generate_tag_number
-
     project_id = uuid.uuid4()
     tag1 = _generate_tag_number(project_id)
     tag2 = _generate_tag_number(project_id)
@@ -342,11 +341,6 @@ def test_generate_tag_number_basic():
 
 def test_generate_tag_number_format_8hex_uppercase():
     """_generate_tag_number 生成 8 位大写 hex（与 pcs_persist 其他模块一致）。"""
-    import re
-    import uuid
-
-    from app.services.psv.psv_persist import _generate_tag_number
-
     tag = _generate_tag_number(uuid.uuid4())
     match = re.match(r"^PSV-([0-9A-F]{8})$", tag)
     assert match is not None, f"tag {tag} 不匹配 PSV-XXXXXXXX 格式"
