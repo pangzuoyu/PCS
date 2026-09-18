@@ -5,9 +5,9 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class ApplicableConditions(BaseModel):
-    pressure_mpa: str | None = None
-    temperature_c: str | None = None
-    medium: str | None = None
+    pressure_mpa: str | None = Field(None, description="适用压力区间，如 0.1~2.5 MPa")
+    temperature_c: str | None = Field(None, description="适用温度区间，如 -20~200 °C")
+    medium: str | None = Field(None, max_length=200, description="适用介质（工艺物料类别）")
 
 
 class EquipLibSettleRequest(BaseModel):
@@ -15,17 +15,30 @@ class EquipLibSettleRequest(BaseModel):
     标准图号如有则必填→简化为可选字段+非空校验由前端承担（P2）；重量必填（如有）。
     """
 
-    equipment_name: str = Field(..., min_length=1, max_length=200)
-    equipment_type: str = Field(..., min_length=1, max_length=30)
-    standard_drawing_no: str | None = Field(None, max_length=100)
-    applicable_conditions: ApplicableConditions | None = None
-    material: str = Field(..., min_length=1, max_length=200)
-    weight_kg: float | None = Field(None, gt=0)
+    equipment_name: str = Field(
+        ..., min_length=1, max_length=200, description="设备名称（如 离心泵 P-101A）"
+    )
+    equipment_type: str = Field(
+        ...,
+        min_length=1,
+        max_length=30,
+        description="设备类型（如 PUMP/COMPRESSOR/HEAT_EXCHANGER/VESSEL/COLUMN）",
+    )
+    standard_drawing_no: str | None = Field(
+        None, max_length=100, description="标准图号（如 HG/T 1234-2018）"
+    )
+    applicable_conditions: ApplicableConditions | None = Field(
+        None, description="适用工况区间"
+    )
+    material: str = Field(
+        ..., min_length=1, max_length=200, description="主体材质（如 SS316、20#）"
+    )
+    weight_kg: float | None = Field(None, gt=0, description="重量 kg")
     key_dimensions: dict = Field(..., description="关键尺寸，必填（至少一键）")
-    original_tag: str = Field(..., min_length=1, max_length=50)
+    original_tag: str = Field(..., min_length=1, max_length=50, description="原项目位号")
     commissioning_date: str = Field(..., description="投用日期 YYYY-MM-DD")
-    source_equipment_id: str | None = None
-    source_project_id: str | None = None
+    source_equipment_id: str | None = Field(None, description="源设备 ID（项目内）")
+    source_project_id: str | None = Field(None, description="源项目 ID")
 
     @field_validator("key_dimensions")
     @classmethod
