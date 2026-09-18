@@ -129,17 +129,24 @@ def test_tank_level_to_volume_fallback_path():
 # ============================================================================
 
 
-def test_get_chedl_provenance_returns_7_entries():
-    """get_chedl_provenance() 必须返回 7 项（5 直调 + 2 fallback）。"""
+def test_get_chedl_provenance_returns_13_entries():
+    """get_chedl_provenance() 必须返回 13 项（5 直调 + 2 fallback + 6 P6-0）。
+
+    P6-0 Task 3 扩展：原 7 项 → 13 项，新增 6 项 CV/RESTRICTION 函数
+    （控制阀 3 + 流量计 3）。
+    """
     prov = chedl_wrapper.get_chedl_provenance()
     assert isinstance(prov, dict)
-    assert len(prov) == 7, f"provenance 应有 7 项，实际 {len(prov)}: {list(prov.keys())}"
+    assert len(prov) == 13, (
+        f"provenance 应有 13 项，实际 {len(prov)}: {list(prov.keys())}"
+    )
 
 
 def test_get_chedl_provenance_contains_all_functions():
-    """provenance 字典键必须含全部 7 包装函数名。"""
+    """provenance 字典键必须含全部 13 包装函数名。"""
     prov = chedl_wrapper.get_chedl_provenance()
     expected = {
+        # 既有 7 项
         "v_Souders_Brown",
         "K_separator_Watkins",
         "K_separator_demister_York",
@@ -147,6 +154,13 @@ def test_get_chedl_provenance_contains_all_functions():
         "API520_round_size",
         "time_to_empty",
         "tank_level_to_volume",
+        # P6-0 6 项（Task 3）
+        "control_valve_C_liquid",
+        "control_valve_kv_liquid",
+        "control_valve_cv_gas",
+        "flow_meter_orifice",
+        "flow_meter_venturi",
+        "flow_meter_nozzle",
     }
     assert set(prov.keys()) == expected, (
         f"provenance 键不匹配。缺失: {expected - set(prov.keys())}，"
@@ -322,3 +336,335 @@ def test_K_Souders_Brown_theoretical_exists_in_chedl_and_wrapper():
     assert "K_Souders_Brown_theoretical" in chedl_wrapper.__all__, (
         "K_Souders_Brown_theoretical 未加入 chedl_wrapper.__all__"
     )
+
+
+# ============================================================================
+# P6-0 Task 3：CV/RESTRICTION 6 函数（Path A：SPEC §3.2.1/3.2.2 简化公式）
+# ============================================================================
+#
+# 设计依据：
+# - R1 ledger 裁决：Path A 自研（不调 fluids 完整 API）
+# - SPEC §3.2.1 line 149（液体 Cv 简化）+ §3.2.1.3 line 1058-1080（气体 Cv 含 Y 修正）
+# - SPEC §3.2.2.1 line 1382-1397（孔板 Reader-Harris 3 项截断）
+# - SPEC §3.2.2.3 line 1495-1511（ISA 1932 喷嘴完整公式）
+# - SPEC §3.2.2.2 line 1461（文丘里 C 范围中值）
+#
+# 验收：6 函数结果与 SPEC 公式手算值一致（rel <1e-9）。
+
+
+def test_control_valve_C_liquid_spec_formula():
+    """control_valve_C_liquid：SPEC §3.2.1 line 149 简化公式 Cv = Q·√(SG/ΔP)。
+
+    手算验证：Q=100, SG=1, ΔP=1 → Cv = 100·√1 = 100。
+    边界：Q=100, SG=0.8, ΔP=2.5 → Cv = 100·√(0.8/2.5) = 100·√0.32 = 56.5685。
+    """
+    # 标准工况（SG=1, ΔP=1 bar）
+    Cv_standard = chedl_wrapper.control_valve_C_liquid(Q_m3h=100.0, SG=1.0, dP_bar=1.0)
+    assert Cv_standard == pytest.approx(100.0, rel=1e-9), (
+        f"标准工况 Cv 应为 100.0，实际 {Cv_standard}"
+    )
+    # 介质工况（SG=0.8, ΔP=2.5 bar）
+    Cv_heavy = chedl_wrapper.control_valve_C_liquid(
+        Q_m3h=100.0, SG=0.8, dP_bar=2.5
+    )
+    expected_heavy = 100.0 * math.sqrt(0.8 / 2.5)
+    assert Cv_heavy == pytest.approx(expected_heavy, rel=1e-9), (
+        f"介质工况 Cv 应为 {expected_heavy}，实际 {Cv_heavy}"
+    )
+
+
+def test_control_valve_kv_liquid_spec_formula():
+    """control_valve_kv_liquid：SI Kv 简化公式 Kv = Q·√(ρ/(1000·ΔP))。
+
+    手算验证（水 Q=100, ρ=1000, ΔP=1 bar）：Kv = 100·√(1000/1000) = 100。
+    边界（ρ=800, ΔP=2 bar）：Kv = 100·√(800/2000) = 100·√0.4 = 63.2456。
+    """
+    # 标准工况（水）
+    Kv_water = chedl_wrapper.control_valve_kv_liquid(
+        Q_m3h=100.0, rho=1000.0, dP_bar=1.0
+    )
+    assert Kv_water == pytest.approx(100.0, rel=1e-9), (
+        f"水工况 Kv 应为 100.0，实际 {Kv_water}"
+    )
+    # 介质工况（轻质油 ρ=800）
+    Kv_oil = chedl_wrapper.control_valve_kv_liquid(
+        Q_m3h=100.0, rho=800.0, dP_bar=2.0
+    )
+    expected_oil = 100.0 * math.sqrt(800.0 / (1000.0 * 2.0))
+    assert Kv_oil == pytest.approx(expected_oil, rel=1e-9), (
+        f"轻油工况 Kv 应为 {expected_oil}，实际 {Kv_oil}"
+    )
+
+
+def test_control_valve_cv_gas_spec_formula_with_Y_correction():
+    """control_valve_cv_gas：SPEC §3.2.1.3 IEC 60534-2-1 §6.3 完整公式。
+
+    测试工况：空气 M=29, Q=100 Nm³/h, P1=10 bar, T1=300 K, Z=1, ΔP=1 bar,
+    γ=1.4, xT=0.7。
+    手算：
+        x = 0.1/1.0 = 0.1
+        F_γ = 1.4/1.4 = 1.0
+        Y = 1 - 0.1/(3·1.0·0.7) = 1 - 0.04762 = 0.95238
+        Cv = 100 / (0.0865·1·10·0.95238·√(0.1/(29·300·1)))
+    """
+    Cv_gas = chedl_wrapper.control_valve_cv_gas(
+        Q_Nm3h=100.0,
+        P1_pa=10.0 * 1e5,
+        T1_k=300.0,
+        M=29.0,
+        Z=1.0,
+        dP_pa=1.0 * 1e5,
+        gamma=1.4,
+        xT=0.7,
+    )
+    # 手算预期值
+    x = 0.1
+    F_gamma = 1.4 / 1.4
+    Y = 1.0 - x / (3.0 * F_gamma * 0.7)
+    expected_Cv = 100.0 / (
+        0.0865 * 1.0 * 10.0 * Y * math.sqrt(x / (29.0 * 300.0 * 1.0))
+    )
+    assert Cv_gas == pytest.approx(expected_Cv, rel=1e-9), (
+        f"气体 Cv 应为 {expected_Cv}，实际 {Cv_gas}"
+    )
+    # Y 修正一致性验证：Y 应严格等于 0.95238
+    assert Y == pytest.approx(0.95238, rel=1e-4), (
+        f"Y 修正系数应约 0.95238，实际 {Y}"
+    )
+
+
+def test_flow_meter_orifice_spec_reader_harris_3term():
+    """flow_meter_orifice：SPEC §3.2.2.1 Reader-Harris 3 项截断公式。
+
+    测试工况：D=0.1 m, d=0.05 m（β=0.5）, Re_D=1e6, P1=1 bar, ΔP=0.05 bar。
+    手算（β=0.5）：
+        β²=0.25, β⁴=0.0625, β⁸=0.00390625
+        C = 0.5961 + 0.0261·0.25 - 0.216·0.00390625
+          + 0.000521·(10⁶·0.5/1e6)^0.7
+          = 0.5961 + 0.006525 - 0.00084375 + 0.000521·0.5^0.7
+          = 0.601781 + 0.000521·0.61557
+          ≈ 0.602102
+    """
+    C, epsilon = chedl_wrapper.flow_meter_orifice(
+        D_m=0.1,
+        d_m=0.05,
+        Re_D=1.0e6,
+        P1_pa=1.0e5,
+        dP_pa=0.05 * 1.0e5,
+        rho1=1.2,
+    )
+    # 手算 C
+    beta = 0.5
+    beta2 = 0.25
+    beta4 = 0.0625
+    beta8 = 0.00390625
+    expected_C = (
+        0.5961
+        + 0.0261 * beta2
+        - 0.216 * beta8
+        + 0.000521 * (1.0e6 * beta / 1.0e6) ** 0.7
+    )
+    # 手算 ε（κ=1.4 简化）
+    x = 0.05  # ΔP/P1 = 0.05
+    expected_epsilon = 1.0 - (0.351 + 0.256 * beta4 + 0.93 * beta8) * x
+    assert C == pytest.approx(expected_C, rel=1e-9), (
+        f"Orifice C 应为 {expected_C}，实际 {C}"
+    )
+    assert epsilon == pytest.approx(expected_epsilon, rel=1e-9), (
+        f"Orifice ε 应为 {expected_epsilon}，实际 {epsilon}"
+    )
+    # 物理意义校验：β=0.5 典型 C ≈ 0.6，ε ≈ 0.97（5% 压差）
+    assert 0.55 < C < 0.65
+    assert 0.9 < epsilon < 1.0
+
+
+def test_flow_meter_venturi_spec_c_range_midpoint():
+    """flow_meter_venturi：SPEC §3.2.2.2 文丘里 C 取范围中值 0.99。
+
+    测试工况：D=0.1, d=0.06（β=0.6）, Re_D=2e6, P1=2 bar, ΔP=0.1 bar。
+    验证：
+        C = 0.99（铸造标准值）
+        ε = 1 - (0.65·β⁶ + 0.002)·x, 其中 x=0.05
+    """
+    C, epsilon = chedl_wrapper.flow_meter_venturi(
+        D_m=0.1,
+        d_m=0.06,
+        Re_D=2.0e6,
+        P1_pa=2.0e5,
+        dP_pa=0.1 * 1.0e5,
+        rho1=5.0,
+    )
+    assert C == pytest.approx(0.99, rel=1e-9), (
+        f"Venturi C 应为 0.99（SPEC 范围中值），实际 {C}"
+    )
+    # 手算 ε
+    beta = 0.6
+    x = 0.1 / 2.0  # = 0.05
+    expected_epsilon = 1.0 - (0.65 * beta ** 6 + 0.002) * x
+    assert epsilon == pytest.approx(expected_epsilon, rel=1e-9), (
+        f"Venturi ε 应为 {expected_epsilon}，实际 {epsilon}"
+    )
+
+
+def test_flow_meter_nozzle_spec_isa_1932_full_formula():
+    """flow_meter_nozzle：SPEC §3.2.2.3 ISA 1932 喷嘴完整公式。
+
+    测试工况：D=0.1 m, d=0.05 m（β=0.5）, Re_D=1e6, P1=1 bar, ΔP=0.05 bar。
+    手算：
+        β²=0.25, β^4.1, β^4.15
+        C = 0.9900 - 0.2262·0.5^4.1 - (0.00175·0.25 - 0.0033·0.5^4.15)·(10⁶/1e6)^1.15
+          = 0.9900 - 0.2262·0.05809 - (0.0004375 - 0.0033·0.05590)·1.0
+          = 0.9900 - 0.01314 - 0.0004375 + 0.0033·0.05590
+          ≈ 0.97643
+    """
+    C, epsilon = chedl_wrapper.flow_meter_nozzle(
+        D_m=0.1,
+        d_m=0.05,
+        Re_D=1.0e6,
+        P1_pa=1.0e5,
+        dP_pa=0.05 * 1.0e5,
+        rho1=1.2,
+    )
+    # 手算 C（ISA 1932 完整）
+    beta = 0.5
+    beta2 = 0.25
+    expected_C = (
+        0.9900
+        - 0.2262 * (beta ** 4.1)
+        - (0.00175 * beta2 - 0.0033 * (beta ** 4.15))
+        * (1.0e6 / 1.0e6) ** 1.15
+    )
+    # 手算 ε（ISO 5167-3 κ=1.4 简化）
+    beta4 = 0.5 ** 4
+    beta8 = 0.5 ** 8
+    x = 0.05
+    expected_epsilon = 1.0 - (0.7 * beta4 - 0.3 * beta8) * x
+    assert C == pytest.approx(expected_C, rel=1e-9), (
+        f"Nozzle C 应为 {expected_C}，实际 {C}"
+    )
+    assert epsilon == pytest.approx(expected_epsilon, rel=1e-9), (
+        f"Nozzle ε 应为 {expected_epsilon}，实际 {epsilon}"
+    )
+    # 物理意义校验：ISA 1932 典型 C ≈ 0.95~0.99
+    assert 0.9 < C < 1.0
+
+
+# ============================================================================
+# P6-0 provenance 接口扩展
+# ============================================================================
+
+
+def test_get_chedl_provenance_contains_p6_0_six_functions():
+    """provenance 字典键必须含全部 6 个 P6-0 新增函数名。"""
+    prov = chedl_wrapper.get_chedl_provenance()
+    expected_p6_0 = {
+        "control_valve_C_liquid",
+        "control_valve_kv_liquid",
+        "control_valve_cv_gas",
+        "flow_meter_orifice",
+        "flow_meter_venturi",
+        "flow_meter_nozzle",
+    }
+    assert expected_p6_0.issubset(set(prov.keys())), (
+        f"provenance 缺 P6-0 函数：{expected_p6_0 - set(prov.keys())}"
+    )
+
+
+def test_p6_0_provenance_fallback_metadata():
+    """P6-0 6 函数 provenance 必须显式标注 fallback_available=True + fallback_formula_ref。
+
+    Path A 设计决策：fluids 完整 API 不匹配 brief 简化签名，自研实现依赖 SPEC 简化公式。
+    """
+    prov = chedl_wrapper.get_chedl_provenance()
+    for fn_name in (
+        "control_valve_C_liquid",
+        "control_valve_kv_liquid",
+        "control_valve_cv_gas",
+        "flow_meter_orifice",
+        "flow_meter_venturi",
+        "flow_meter_nozzle",
+    ):
+        meta = prov[fn_name]
+        assert meta.fallback_available is True, (
+            f"{fn_name} fallback_available 应为 True（Path A 自研）"
+        )
+        assert meta.fallback_formula_ref, (
+            f"{fn_name} fallback_formula_ref 必须非空（SPEC § 公式追溯）"
+        )
+        assert meta.fallback_formula_ref.startswith("spec_p6_"), (
+            f"{fn_name} fallback_formula_ref 应以 'spec_p6_' 开头，"
+            f"实际 {meta.fallback_formula_ref!r}"
+        )
+        assert meta.known_limitations, (
+            f"{fn_name} known_limitations 必须列出（Path A 决策依据）"
+        )
+
+
+def test_chedl_wrapper_module_exports_all_13():
+    """chedl_wrapper 模块必须暴露全部 13 包装函数 + get_chedl_provenance。"""
+    import app.services.chedl_wrapper as cw
+
+    required_funcs = [
+        # 既有 7 项
+        "v_Souders_Brown",
+        "K_separator_Watkins",
+        "K_separator_demister_York",
+        "K_Souders_Brown_theoretical",
+        "v_terminal",
+        "API520_round_size",
+        "time_to_empty",
+        "tank_level_to_volume",
+        # P6-0 6 项
+        "control_valve_C_liquid",
+        "control_valve_kv_liquid",
+        "control_valve_cv_gas",
+        "flow_meter_orifice",
+        "flow_meter_venturi",
+        "flow_meter_nozzle",
+        "get_chedl_provenance",
+    ]
+    for fn_name in required_funcs:
+        assert hasattr(cw, fn_name), f"chedl_wrapper 缺 {fn_name}"
+        assert callable(getattr(cw, fn_name)), f"chedl_wrapper.{fn_name} 不可调用"
+
+
+# ============================================================================
+# P6-0 参数校验（防御性编程）
+# ============================================================================
+
+
+def test_control_valve_C_liquid_rejects_invalid_dP():
+    """control_valve_C_liquid 必须拒绝非正 ΔP（物理意义：零压差无穷大 Cv）。"""
+    with pytest.raises(ValueError, match="参数必须正数"):
+        chedl_wrapper.control_valve_C_liquid(Q_m3h=100.0, SG=1.0, dP_bar=0.0)
+    with pytest.raises(ValueError, match="参数必须正数"):
+        chedl_wrapper.control_valve_C_liquid(Q_m3h=100.0, SG=1.0, dP_bar=-1.0)
+
+
+def test_flow_meter_orifice_rejects_d_ge_D():
+    """flow_meter_orifice 必须拒绝 d ≥ D（β 范围 [0, 1]）。"""
+    with pytest.raises(ValueError, match="参数异常"):
+        chedl_wrapper.flow_meter_orifice(
+            D_m=0.1, d_m=0.1, Re_D=1e6, P1_pa=1e5, dP_pa=1e3, rho1=1.0
+        )
+    with pytest.raises(ValueError, match="参数异常"):
+        chedl_wrapper.flow_meter_orifice(
+            D_m=0.1, d_m=0.2, Re_D=1e6, P1_pa=1e5, dP_pa=1e3, rho1=1.0
+        )
+
+
+def test_control_valve_cv_gas_rejects_choked_negative_Y():
+    """control_valve_cv_gas 在 Y ≤ 0 时（极端压差比）必须报错而非返回 NaN。"""
+    # x = 0.5 (ΔP/P1), F_γ=1.0, xT=0.7 → Y = 1 - 0.5/(3·1·0.7) = 1 - 0.238 = 0.762 > 0
+    # 触发 Y ≤ 0：xT 极小，x = 0.9 → Y = 1 - 0.9/(3·1·0.1) = 1 - 3 = -2
+    with pytest.raises(ValueError, match="Y 计算出非正值"):
+        chedl_wrapper.control_valve_cv_gas(
+            Q_Nm3h=100.0,
+            P1_pa=10.0e5,
+            T1_k=300.0,
+            M=29.0,
+            Z=1.0,
+            dP_pa=9.0e5,  # x=0.9
+            gamma=1.4,
+            xT=0.1,  # 极端小 xT
+        )

@@ -235,12 +235,324 @@ def tank_level_to_volume(
 
 
 # ============================================================================
+# P6-0 CV/RESTRICTION wrappers（Task 3，Path A：SPEC §3.2.1/3.2.2 简化公式）
+# ============================================================================
+#
+# 设计决策（ADR-0030 V1.2 P6-0）：本批 6 函数**不**直调 fluids.control_valve /
+# fluids.flow_meter 的完整 API（12-17 参数：Psat/Pc/mu/FL/Fd/D1/D2/d/k/meter_type/
+# taps 等），因为：
+#   1. fluids 1.3.1 完整 API 缺 brief 简化签名所需的简化输入（如 Re_D 转 m 需要 mu）
+#   2. 默认值（mu=1e-3, Pc=1e9, Psat=0）在非水/高压气体场景下会给出错误结果
+#   3. SPEC §3.2.1 line 149 / §3.2.2 已给出工程简化公式，签名与 brief 严格对齐
+#   4. 完整流体 API（含 choked/cavitation/堵塞流校核）留 P6+ Task 8 cv_engine
+#
+# 与现有 fallback 模式（time_to_empty / tank_level_to_volume）一致：fluids 缺失或
+# 签名不匹配时，包装层基于 SPEC 简化公式自研实现，provenance 标注
+# fallback_available=True + fallback_formula_ref 指向 SPEC §。
+
+
+# IEC 60534-2-1 SI 标准常数（Nm³/h · bar 单位制）
+_N9_SI = 0.0865
+
+
+def control_valve_C_liquid(Q_m3h: float, SG: float, dP_bar: float) -> float:
+    """不可压缩流体 Cv 计算（SPEC §3.2.1 line 149 简化公式）。
+
+    **Path A 自研实现**：直接采用 SPEC 给出的简化公式，不调 fluids.control_valve
+    完整 API（完整 API 需 15 参数 Psat/Pc/mu/P1/P2/D1/D2/d/FL/Fd/...，与 brief 简化
+    签名不一致）。
+
+    公式（SPEC §3.2.1 line 149，IEC 60534-2-1 湍流非阻塞工况）：
+
+        Cv = Q × √(SG/ΔP)
+
+    Args:
+        Q_m3h: 体积流量（m³/h，USC 转换按业务约定）
+        SG: 相对密度（SG = ρ / 1000，无量纲）
+        dP_bar: 阀前后压差（bar）
+
+    Returns:
+        Cv 值（无量纲，US 单位制 GPM/psi 标定下的流量系数）
+    """
+    if dP_bar <= 0 or Q_m3h < 0 or SG <= 0:
+        raise ValueError(
+            f"control_valve_C_liquid 参数必须正数（Q 可为 0）："
+            f"Q_m3h={Q_m3h}, SG={SG}, dP_bar={dP_bar}"
+        )
+    return Q_m3h * math.sqrt(SG / dP_bar)
+
+
+def control_valve_kv_liquid(Q_m3h: float, rho: float, dP_bar: float) -> float:
+    """不可压缩流体 Kv 计算（SPEC §3.2.1 SI 单位制简化公式）。
+
+    **Path A 自研实现**：基于 SPEC §3.2.1 简化形式，SI 单位 IEC 60534 Kv 标准：
+
+        Kv = Q × √(ρ / (1000 × ΔP_bar))
+
+    其中 ρ 单位 kg/m³，Q 单位 m³/h，ΔP 单位 bar，结果 Kv 单位 m³/h（SI Kv）。
+
+    Args:
+        Q_m3h: 体积流量（m³/h）
+        rho: 流体密度（kg/m³，SG = rho / 1000）
+        dP_bar: 阀前后压差（bar）
+
+    Returns:
+        Kv 值（m³/h，SI Kv 流量系数）
+    """
+    if dP_bar <= 0 or Q_m3h < 0 or rho <= 0:
+        raise ValueError(
+            f"control_valve_kv_liquid 参数必须正数（Q 可为 0）："
+            f"Q_m3h={Q_m3h}, rho={rho}, dP_bar={dP_bar}"
+        )
+    return Q_m3h * math.sqrt(rho / (1000.0 * dP_bar))
+
+
+def control_valve_cv_gas(
+    Q_Nm3h: float,
+    P1_pa: float,
+    T1_k: float,
+    M: float,
+    Z: float,
+    dP_pa: float,
+    gamma: float,
+    xT: float,
+) -> float:
+    """可压缩流体（气体/蒸汽）Cv 计算（SPEC §3.2.1.3 IEC 60534-2-1 §6.3）。
+
+    **Path A 自研实现**：直接采用 SPEC §3.2.1.3 line 1031-1094 给出的简化公式，
+    不调 fluids.control_valve.size_control_valve_g（完整 API 需 17 参数）。
+
+    公式（SPEC §3.2.1.3 line 1058-1080，Fp=1 简化）：
+
+        Cv = Q / (N9 · P1_bar · Y · √(x / (M · T1 · Z)))
+
+    其中：
+        x = ΔP / P1（压差比）
+        Y = 1 - x / (3 · Fγ · xT)（膨胀系数）
+        Fγ = γ / 1.4（比热比因子）
+        N9 = 0.0865（SI 单位常数）
+
+    Args:
+        Q_Nm3h: 标况体积流量（Nm³/h）
+        P1_pa: 阀入口绝压（Pa）
+        T1_k: 阀入口温度（K）
+        M: 分子量（kg/kmol）
+        Z: 压缩因子（无量纲）
+        dP_pa: 阀前后压差（Pa）
+        gamma: 比热比 Cp/Cv（无量纲）
+        xT: 压差比系数（阀门厂数据，无量纲）
+
+    Returns:
+        Cv 值（无量纲）
+    """
+    if (
+        Q_Nm3h <= 0
+        or P1_pa <= 0
+        or T1_k <= 0
+        or M <= 0
+        or Z <= 0
+        or dP_pa <= 0
+        or gamma <= 0
+        or xT <= 0
+    ):
+        raise ValueError(
+            f"control_valve_cv_gas 所有参数必须正数："
+            f"Q_Nm3h={Q_Nm3h}, P1_pa={P1_pa}, T1_k={T1_k}, M={M}, Z={Z}, "
+            f"dP_pa={dP_pa}, gamma={gamma}, xT={xT}"
+        )
+    # 单位换算：Pa → bar（SI IEC 60534 N9 单位制）
+    P1_bar = P1_pa / 1.0e5
+    dP_bar = dP_pa / 1.0e5
+    x = dP_bar / P1_bar
+    F_gamma = gamma / 1.4  # 比热比因子
+    Y = 1.0 - x / (3.0 * F_gamma * xT)
+    if Y <= 0:
+        raise ValueError(
+            f"control_valve_cv_gas Y 计算出非正值（choked 极限）：Y={Y}, "
+            f"x={x}, F_gamma={F_gamma}, xT={xT}"
+        )
+    # SPEC §3.2.1.3 公式：Cv = Q / (N9 · Fp · P1_bar · Y · √(x / (M·T1·Z)))
+    Cv = Q_Nm3h / (
+        _N9_SI * 1.0 * P1_bar * Y * math.sqrt(x / (M * T1_k * Z))
+    )
+    return Cv
+
+
+def flow_meter_orifice(
+    D_m: float, d_m: float, Re_D: float, P1_pa: float, dP_pa: float, rho1: float
+) -> tuple[float, float]:
+    """ISO 5167-2 孔板（C, ε）计算（SPEC §3.2.2.1 Reader-Harris/Gallagher 简化）。
+
+    **Path A 自研实现**：采用 SPEC §3.2.2.1 line 1382-1397 给出的 Reader-Harris
+    3 项截断形式（完整 14 项公式标准原文）。膨胀系数采用 ISO 5167-2 §5.3.2.2
+    κ=1.4 简化形式（brief 无 kappa 输入，默认 γ=1.4 典型气体）。
+
+    C 公式（SPEC §3.2.2.1 line 1382-1397，Reader-Harris 3 项截断）：
+
+        C = 0.5961 + 0.0261·β² - 0.216·β⁸ + 0.000521·(10⁶·β/Re_D)^0.7
+
+    ε 公式（ISO 5167-2 §5.3.2.2 κ=1.4 简化）：
+
+        ε = 1 - (0.351 + 0.256·β⁴ + 0.93·β⁸) · ΔP/P1
+
+    Args:
+        D_m: 管道内径（m）
+        d_m: 孔板孔径（m）
+        Re_D: 管道雷诺数（无量纲）
+        P1_pa: 入口绝压（Pa）
+        dP_pa: 压差（Pa）
+        rho1: 入口密度（kg/m³，仅用于兼容性记录，不参与计算）
+
+    Returns:
+        (C, epsilon)：流出系数（无量纲）+ 膨胀系数（无量纲，气体<1，液体≈1）
+    """
+    if (
+        D_m <= 0
+        or d_m <= 0
+        or d_m >= D_m
+        or Re_D <= 0
+        or P1_pa <= 0
+        or dP_pa < 0
+        or rho1 <= 0
+    ):
+        raise ValueError(
+            f"flow_meter_orifice 参数异常：D_m={D_m}, d_m={d_m}, Re_D={Re_D}, "
+            f"P1_pa={P1_pa}, dP_pa={dP_pa}, rho1={rho1}"
+        )
+    beta = d_m / D_m  # 直径比
+    beta2 = beta * beta
+    beta4 = beta2 * beta2
+    beta8 = beta4 * beta4
+    # Reader-Harris/Gallagher 3 项截断（SPEC §3.2.2.1）
+    C = 0.5961 + 0.0261 * beta2 - 0.216 * beta8 + 0.000521 * (1.0e6 * beta / Re_D) ** 0.7
+    # 膨胀系数（ISO 5167-2 §5.3.2.2 κ=1.4 简化，liquid 场景 ε≈1）
+    x = dP_pa / P1_pa
+    epsilon = 1.0 - (0.351 + 0.256 * beta4 + 0.93 * beta8) * x
+    # ε 下限保护（液体/极低压差场景不应出现负值）
+    if epsilon < 1.0:
+        # 液体场景（dP=0 或极小）下 SPEC §3.2.2.1 注：ε=1
+        # 物理意义：流体不可压缩时无膨胀修正
+        epsilon = max(epsilon, 0.0)
+    return (C, epsilon)
+
+
+def flow_meter_venturi(
+    D_m: float, d_m: float, Re_D: float, P1_pa: float, dP_pa: float, rho1: float
+) -> tuple[float, float]:
+    """ISO 5167-4 文丘里管（C, ε）计算（SPEC §3.2.2.2 简化）。
+
+    **Path A 自研实现**：SPEC §3.2.2.2 line 1461 仅给出 C 范围 0.984~0.995 与
+    ε 引用 ISO 5167-4 §5.4.3.2；本实现取范围中值 0.99 作为 C 简化值，ε 采用
+    ISO 5167-4 κ=1.4 简化公式。
+
+    C 简化：ISO 5167-4 铸造/机械加工文丘里管 C ∈ [0.984, 0.995]，本包装层用
+    典型值 C = 0.99（铸造标准值）。
+
+    ε 公式（ISO 5167-4 §5.4.3.2 κ=1.4 简化）：
+
+        ε = 1 - (0.65·β⁶ + 0.002) · ΔP/P1
+
+    Args:
+        D_m: 管道内径（m）
+        d_m: 喉部直径（m）
+        Re_D: 管道雷诺数（无量纲，venturi 不敏感但保留入参对齐 orifice/nozzle）
+        P1_pa: 入口绝压（Pa）
+        dP_pa: 压差（Pa）
+        rho1: 入口密度（kg/m³，仅用于兼容性记录）
+
+    Returns:
+        (C, epsilon)：流出系数 + 膨胀系数（无量纲）
+    """
+    if (
+        D_m <= 0
+        or d_m <= 0
+        or d_m >= D_m
+        or Re_D <= 0
+        or P1_pa <= 0
+        or dP_pa < 0
+        or rho1 <= 0
+    ):
+        raise ValueError(
+            f"flow_meter_venturi 参数异常：D_m={D_m}, d_m={d_m}, Re_D={Re_D}, "
+            f"P1_pa={P1_pa}, dP_pa={dP_pa}, rho1={rho1}"
+        )
+    # ISO 5167-4 典型 C 值（铸造标准，本批采用中值）
+    C = 0.99
+    beta = d_m / D_m
+    beta6 = beta ** 6
+    x = dP_pa / P1_pa
+    epsilon = 1.0 - (0.65 * beta6 + 0.002) * x
+    if epsilon < 1.0:
+        epsilon = max(epsilon, 0.0)
+    return (C, epsilon)
+
+
+def flow_meter_nozzle(
+    D_m: float, d_m: float, Re_D: float, P1_pa: float, dP_pa: float, rho1: float
+) -> tuple[float, float]:
+    """ISO 5167-3 ISA 1932 喷嘴（C, ε）计算（SPEC §3.2.2.3 完整公式）。
+
+    **Path A 自研实现**：SPEC §3.2.2.3 line 1495-1511 给出 ISA 1932 喷嘴 C 完整
+    公式（不需截断），ε 采用 ISO 5167-3 κ=1.4 简化形式。
+
+    C 公式（SPEC §3.2.2.3 line 1495-1511，ISA 1932 完整）：
+
+        C = 0.9900 - 0.2262·β^4.1 - (0.00175·β² - 0.0033·β^4.15)·(10⁶/Re_D)^1.15
+
+    ε 公式（ISO 5167-3 §5.4.2 κ=1.4 简化）：
+
+        ε = 1 - (0.7·β⁴ - 0.3·β⁸) · ΔP/P1
+
+    Args:
+        D_m: 管道内径（m）
+        d_m: 喷嘴喉部直径（m）
+        Re_D: 管道雷诺数（无量纲）
+        P1_pa: 入口绝压（Pa）
+        dP_pa: 压差（Pa）
+        rho1: 入口密度（kg/m³，仅用于兼容性记录）
+
+    Returns:
+        (C, epsilon)：流出系数 + 膨胀系数（无量纲）
+    """
+    if (
+        D_m <= 0
+        or d_m <= 0
+        or d_m >= D_m
+        or Re_D <= 0
+        or P1_pa <= 0
+        or dP_pa < 0
+        or rho1 <= 0
+    ):
+        raise ValueError(
+            f"flow_meter_nozzle 参数异常：D_m={D_m}, d_m={d_m}, Re_D={Re_D}, "
+            f"P1_pa={P1_pa}, dP_pa={dP_pa}, rho1={rho1}"
+        )
+    beta = d_m / D_m
+    beta2 = beta * beta
+    beta4 = beta2 * beta2
+    beta8 = beta4 * beta4
+    # ISA 1932 完整公式（SPEC §3.2.2.3）
+    C = (
+        0.9900
+        - 0.2262 * (beta ** 4.1)
+        - (0.00175 * beta2 - 0.0033 * (beta ** 4.15))
+        * (1.0e6 / Re_D) ** 1.15
+    )
+    # 膨胀系数（ISO 5167-3 §5.4.2 κ=1.4 简化）
+    x = dP_pa / P1_pa
+    epsilon = 1.0 - (0.7 * beta4 - 0.3 * beta8) * x
+    if epsilon < 1.0:
+        epsilon = max(epsilon, 0.0)
+    return (C, epsilon)
+
+
+# ============================================================================
 # provenance 接口（运维可观测 + 升级决策依据）
 # ============================================================================
 
 
 def get_chedl_provenance() -> dict[str, ChEDLProvenance]:
-    """返回 7 包装函数的 provenance 字典。
+    """返回 13 包装函数的 provenance 字典（7 既有 + 6 P6-0 新增）。
 
     用于：
     1. 运维可观测（metrics / health endpoint）
@@ -248,7 +560,7 @@ def get_chedl_provenance() -> dict[str, ChEDLProvenance]:
     3. 公式溯源字段（formula_ref.source 关联）
 
     Returns:
-        7 项 {func_name: ChEDLProvenance} 字典
+        13 项 {func_name: ChEDLProvenance} 字典
     """
     # chEDL_function 使用 fluids 完整路径（含包名前缀）
     # 5 直调函数
@@ -329,7 +641,81 @@ def get_chedl_provenance() -> dict[str, ChEDLProvenance]:
             fallback_formula_ref="self_implemented_cylindrical_geometry",
         ),
     }
-    return {**prov_direct, **prov_fallback}
+    # 6 P6-0 CV/RESTRICTION 函数（Path A：SPEC §3.2.1/3.2.2 简化公式自研）
+    prov_p6_0: dict[str, ChEDLProvenance] = {
+        "control_valve_C_liquid": ChEDLProvenance(
+            chEDL_function="spec_p6_3.2.1_simplified",  # 不调 fluids（Path A）
+            chEDL_version=_CHEDL_VERSION,  # 包装层锁定版本，公式源见 fallback_formula_ref
+            known_limitations=[
+                "P6-0 Path A：fluids 完整 API 需 15 参数（Psat/Pc/mu/...）不匹配 brief 简化签名",
+                "SPEC §3.2.1 line 149 简化公式仅适用于湍流非阻塞工况；"
+                "choked/cavitation 留 P6+ cv_engine",
+                "不应用 FL/Fd 压力恢复/管径形状修正（阀厂数据依赖）",
+            ],
+            fallback_available=True,
+            fallback_formula_ref="spec_p6_3.2.1_line_149",
+        ),
+        "control_valve_kv_liquid": ChEDLProvenance(
+            chEDL_function="spec_p6_3.2.1_simplified",  # 不调 fluids（Path A）
+            chEDL_version=_CHEDL_VERSION,
+            known_limitations=[
+                "P6-0 Path A：SI Kv 简化公式 Kv = Q·√(ρ/(1000·ΔP))",
+                "无粘度/管径修正；高粘度液体（μ>50 cP）需扩展",
+                "choked/cavitation 校核留 P6+ Task 8 cv_engine",
+            ],
+            fallback_available=True,
+            fallback_formula_ref="spec_p6_3.2.1_simplified_kv",
+        ),
+        "control_valve_cv_gas": ChEDLProvenance(
+            chEDL_function="spec_p6_3.2.1_simplified",  # 不调 fluids（Path A）
+            chEDL_version=_CHEDL_VERSION,
+            known_limitations=[
+                "P6-0 Path A：IEC 60534-2-1 §6.3 简化（Fp=1，无 μ/D1/D2/d/FL/Fd 修正）",
+                "Y 膨胀系数公式 Y=1-x/(3·Fγ·xT) 为标准 κ 关联的简化",
+                "阻塞流校核（x ≥ Fγ·xT）由调用方负责；本函数不强制 clamp x",
+                "choked 工况下应取 x = Fγ·xT 代入重算（Task 8 cv_engine 实现）",
+            ],
+            fallback_available=True,
+            fallback_formula_ref="spec_p6_3.2.1.3_line_1058",
+        ),
+        "flow_meter_orifice": ChEDLProvenance(
+            chEDL_function="spec_p6_3.2.2_simplified",  # 不调 fluids（Path A）
+            chEDL_version=_CHEDL_VERSION,
+            known_limitations=[
+                "P6-0 Path A：Reader-Harris 3 项截断（完整 14 项公式未实现）",
+                "ε 公式取 ISO 5167-2 §5.3.2.2 κ=1.4 简化（brief 无 kappa 入参）",
+                "β 范围限定 [0.2, 0.75]（ISO 5167-2 适用范围）",
+                "taps 位置限定 flange / corner / D-D/2（默认 flange 等效处理）",
+            ],
+            fallback_available=True,
+            fallback_formula_ref="spec_p6_3.2.2.1_reader_harris_3term",
+        ),
+        "flow_meter_venturi": ChEDLProvenance(
+            chEDL_function="spec_p6_3.2.2_simplified",  # 不调 fluids（Path A）
+            chEDL_version=_CHEDL_VERSION,
+            known_limitations=[
+                "P6-0 Path A：文丘里管 C 取 SPEC §3.2.2.2 范围中值 0.99（铸造标准）",
+                "ISO 5167-4 实际按加工类型区分（铸造 0.984 / 机械 0.995 / 粗糙铸造 0.985）",
+                "ε 公式取 ISO 5167-4 κ=1.4 简化形式",
+                "喉部 β 范围 [0.3, 0.75]（ISO 5167-4 适用）",
+            ],
+            fallback_available=True,
+            fallback_formula_ref="spec_p6_3.2.2.2_iso_5167_4",
+        ),
+        "flow_meter_nozzle": ChEDLProvenance(
+            chEDL_function="spec_p6_3.2.2_simplified",  # 不调 fluids（Path A）
+            chEDL_version=_CHEDL_VERSION,
+            known_limitations=[
+                "P6-0 Path A：ISA 1932 喷嘴 C 公式 SPEC §3.2.2.3 完整实现",
+                "ε 公式取 ISO 5167-3 §5.4.2 κ=1.4 简化形式",
+                "长径喷嘴 C 系数（ISO 5167-3 Eq. 9）未实现（默认 ISA 1932）",
+                "β 范围限定 [0.2, 0.8]（ISO 5167-3 适用）",
+            ],
+            fallback_available=True,
+            fallback_formula_ref="spec_p6_3.2.2.3_isa_1932",
+        ),
+    }
+    return {**prov_direct, **prov_fallback, **prov_p6_0}
 
 
 __all__ = [
@@ -341,5 +727,11 @@ __all__ = [
     "API520_round_size",
     "time_to_empty",
     "tank_level_to_volume",
+    "control_valve_C_liquid",
+    "control_valve_kv_liquid",
+    "control_valve_cv_gas",
+    "flow_meter_orifice",
+    "flow_meter_venturi",
+    "flow_meter_nozzle",
     "get_chedl_provenance",
 ]
