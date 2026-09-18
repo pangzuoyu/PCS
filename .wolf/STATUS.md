@@ -645,7 +645,7 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 - ✅ (i) LOW/INFO 滚动继续批 — 进行中（alembic 迁移升级流程 docstring）
   - schemas/api v1 Pydantic Field 中文 description 100% 覆盖（11 文件 159 字段）
   - alembic upgrade 流程 9 项 docstring（PC-1 5 态机/SIM 三表/equipment_list 4 段/配置层 fix + 主表 2 张）
-- ✅ (i) LOW/INFO 滚动继续批 86 项 — commit `d799aff` + `0d094dd` + `b99a757` + `6d304c9` + `3393350` + `55ea288` + `ab31050` + `275d85b` + `2e54c9b` + `f79aa06` + `e175e86` + `3e76304` + `1cbf734` + `03b72b1` + `8939b39` + `f2a913a` + `969b833` + `5742c3a` + `14915da` + `8779d7f` + `8059d31` + `79e4b99`
+- ✅ (i) LOW/INFO 滚动继续批 97 项 — commit `d799aff` + `0d094dd` + `b99a757` + `6d304c9` + `3393350` + `55ea288` + `ab31050` + `275d85b` + `2e54c9b` + `f79aa06` + `e175e86` + `3e76304` + `1cbf734` + `03b72b1` + `8939b39` + `f2a913a` + `969b833` + `5742c3a` + `14915da` + `8779d7f` + `8059d31` + `79e4b99` + `33866d0`
   - alembic p2_sup_sprint_pc1_pipe_class_upgrade upgrade 加 docstring（PC-1 5 态机 + ConfigAsset + 项目级 fork 派生 6 段）
   - alembic p3sim_sim_unit_op_results upgrade 加 docstring（SIM 单元操作结果主表 + JSONB 三列 + is_unreliable）
   - alembic p3sim_sim_imports upgrade 加 docstring（SIM 导入批次 + 3 enum + 状态机 PREVIEW/COMMITTED/EXPIRED）
@@ -732,6 +732,10 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - alembic p2_sprint2_equipment_procurement_delivery downgrade 加 docstring（equipment_list §四/五/六/七/八 14 字段回退）
   - alembic p4_sup008_result_fields downgrade 加 docstring（two_phase_results 表 + design_stage 3 表 + pump 4 列 + piping 11 列 + 6 enum 全量逆向）
   - alembic p2_sprint2_equipment_naming_fix downgrade 加 docstring（6 重命名 + vendor_id↔vendor 三步走 + 条件 FK 恢复）
+  - app/services/coefficient_service.query 加 docstring（table_id GetOrNotFound 单表精确查）
+  - app/services/lineage.decorator 加 docstring（lineage() 装饰器内层 fn 包装）
+  - app/services/pipe_class_service.get 加 docstring（class_id GetOrNotFound 单条查询）
+  - app/services/proii_parser get_or_init/parse_num/reset_page_state/extract_values/parse_refinery_property_line 加 docstring（PRO/II 报告 4 类解析内部方法）
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
