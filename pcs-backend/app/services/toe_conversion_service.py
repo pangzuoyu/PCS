@@ -83,6 +83,13 @@ class ToeConversionService:
         standard_coal_factor: float,
         effective_year: int,
     ) -> ToeConversionFactor:
+        """新建 TOE 折算系数（按 fuel_type + effective_year 复合唯一）。
+
+        - fuel_type 必须在 VALID_FUEL_TYPES 白名单内（否则 TOE_INVALID_FUEL 422）
+        - 查重（fuel_type, effective_year），命中 → TOE_DUPLICATE（409）
+        - effective_from 默认设为 effective_year-01-01（即该年度起点）
+        - 写入由本函数负责（session.commit()）
+        """
         if fuel_type not in VALID_FUEL_TYPES:
             raise PcsError(
                 f"未知 fuel_type: {fuel_type}",
