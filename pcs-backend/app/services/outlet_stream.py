@@ -13,7 +13,8 @@
 设计要点：
 - 独立可调用：不依赖 flash_persist；只接 db + 元数据
 - sign_status=DRAFT（下游未 CHECKED 不可用，calc 入口守卫兜底）
-- properties → stream.stream_properties_json（JSONB）
+- properties → stream.stream_properties_json（JSONB，**深拷贝**：
+  防调用方后续修改入参 properties 嵌套 dict/list 泄露到 DB）
 - source_type 走 Stream.source_type 字符串列
   （FLASH_CALCULATED/PIPE_CALCULATED/PUMP_CALCULATED/PIPE_NET_CALCULATED/
   VESSEL_CALCULATED）
@@ -26,6 +27,7 @@
 """
 from __future__ import annotations
 
+import copy
 import uuid
 from typing import Literal
 
@@ -144,7 +146,7 @@ async def create_outlet_stream(
         approval_depth=1,
         upstream_stream_id=source.stream_id,
         upstream_equipment_type=_upstream_equipment_type(source_type),
-        stream_properties_json=dict(properties),
+        stream_properties_json=copy.deepcopy(properties),
         composition_json=source.composition_json,
         # 物理量透传（如源流有）
         temp=source.temp,
