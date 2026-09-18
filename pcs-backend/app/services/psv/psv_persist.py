@@ -231,7 +231,7 @@ def _dispatch_scenario_calc(
         return ReliefCase(
             scenario="REACTION_RUNAWAY",
             relief_mass_flow_kgs=result.relief_mass_flow_kgs,
-            relief_volume_flow_m3s=0.0,  # 反应失控无体积流量输出
+            relief_volume_flow_m3s=result.relief_volume_flow_m3s,
             formula_ref=_formula_ref_to_dict(result.formula_ref),
         )
     if scenario == "THERMAL_EXPANSION":
@@ -382,8 +382,8 @@ async def persist_psv_calculate(
         }
     )
 
-    # 8. 构造 PsvResult ORM
-    set_pressure_pa = float(sizing_params.get("P_set_pa", 0.0))
+    # 8. 构造 PsvResult ORM（HIGH P5-123-2 — set_pressure_pa 取显式入参，
+    #    忽略 sizing_params 内的重复 P_set_pa 以避免下游语义漂移）
     relief_scenario_list: list[str] = [relief_scenario]
 
     formula_ref_json: dict = {

@@ -85,12 +85,17 @@ def test_dispatch_closed_valve():
 
 
 def test_dispatch_reaction_runaway():
-    """REACTION_RUNAWAY scenario → ReactionRunawayInput → ReliefCase。"""
+    """REACTION_RUNAWAY scenario → ReactionRunawayInput → ReliefCase。
+
+    HIGH P5-123-3 — V2 完整：reaction_runaway 现在显式返回体积流量（默认
+    rho_L=800 kg/m³ → 0.143 / 800 ≈ 1.79e-4 m³/s）。
+    """
     relief_case = _dispatch_scenario_calc(
         scenario="REACTION_RUNAWAY",
         scenario_params={
             "Q_rxn_w": 100_000.0,
             "fraction_to_valve": 0.5,
+            "rho_L_kg_m3": 800.0,
         },
         standard="API",
         version="7th",
@@ -98,8 +103,10 @@ def test_dispatch_reaction_runaway():
     assert relief_case.scenario == "REACTION_RUNAWAY"
     # 默认 h_fg=350_000 J/kg：W = 100000 × 0.5 / 350000 ≈ 0.143
     assert relief_case.relief_mass_flow_kgs == pytest.approx(100_000.0 * 0.5 / 350_000.0)
-    # 反应失控无体积流量输出（V1 简化）
-    assert relief_case.relief_volume_flow_m3s == 0.0
+    # V2 完整：体积流量 = mass_flow / rho_L ≈ 0.143 / 800 ≈ 1.79e-4 m³/s
+    assert relief_case.relief_volume_flow_m3s == pytest.approx(
+        100_000.0 * 0.5 / 350_000.0 / 800.0, rel=1e-6
+    )
     assert relief_case.formula_ref["clause"] == "§5.15.2.4"
 
 

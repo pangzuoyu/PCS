@@ -277,7 +277,8 @@ class PsvResult(TaggedRecordMixin, Base):
             name="psv_override_paired_chk",
         ),
         CheckConstraint(
-            "valve_type IS NULL OR valve_type IN ('SPRING_LOADED', 'BALANCED_BELLOWS')",
+            "valve_type IS NULL OR valve_type IN "
+            "('SPRING_LOADED', 'BALANCED_BELLOWS', 'PILOT_OPERATED', 'RUPTURE_DISC')",
             name="psv_valve_type_chk",
         ),
         CheckConstraint(

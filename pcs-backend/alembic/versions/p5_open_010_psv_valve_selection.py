@@ -150,7 +150,8 @@ def upgrade() -> None:
     op.create_check_constraint(
         "psv_valve_type_chk",
         "psv_results",
-        "valve_type IS NULL OR valve_type IN ('SPRING_LOADED', 'BALANCED_BELLOWS')",
+        "valve_type IS NULL OR valve_type IN "
+        "('SPRING_LOADED', 'BALANCED_BELLOWS', 'PILOT_OPERATED', 'RUPTURE_DISC')",
     )
     op.create_check_constraint(
         "psv_cdtp_check",

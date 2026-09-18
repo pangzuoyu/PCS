@@ -75,10 +75,13 @@ class ReactionRunawayInput:
     物理量 SI 单位：
       - Q_rxn_w: 反应放热功率 W（基于放热焓 + 反应速率）
       - fraction_to_valve: 反应热进入 PSV 的分率 [0, 1]
+      - rho_L_kg_m3: 反应器内液体密度 kg/m³（HIGH P5-123-3 — 由质量流量
+        推体积流量需要；与 ClosedValveInput / ThermalExpansionInput 一致）
     """
 
     Q_rxn_w: float
     fraction_to_valve: float
+    rho_L_kg_m3: float = 800.0  # 默认水/有机液体常用密度（HIGH P5-123-3 默认值）
 
 
 @dataclass(frozen=True)
@@ -87,6 +90,7 @@ class ReactionRunawayResult:
 
     heat_input_w: float
     relief_mass_flow_kgs: float
+    relief_volume_flow_m3s: float  # HIGH P5-123-3 — 由 mass_flow / rho_L 推算
     h_fg_j_per_kg: float
     formula_ref: OtherCaseFormulaRef
 
@@ -185,10 +189,14 @@ def calc_reaction_runaway_case(
 
     heat_input_w = inp.Q_rxn_w * inp.fraction_to_valve
     relief_mass_flow_kgs = heat_input_w / h_fg_j_per_kg
+    relief_volume_flow_m3s = (
+        relief_mass_flow_kgs / inp.rho_L_kg_m3 if inp.rho_L_kg_m3 > 0 else 0.0
+    )
 
     return ReactionRunawayResult(
         heat_input_w=heat_input_w,
         relief_mass_flow_kgs=relief_mass_flow_kgs,
+        relief_volume_flow_m3s=relief_volume_flow_m3s,
         h_fg_j_per_kg=h_fg_j_per_kg,
         formula_ref=OtherCaseFormulaRef(
             standard="API_521",
