@@ -21,6 +21,20 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
+    """equipment_list 补 3 个状态列（P1 Sprint3 DICT-002 设备字典）。
+
+    步骤（A → E 共 5 段）：
+    - A. 创建 3 个 PG native enum：equipmentstatus（N/E/D/M/F 单字母）/
+      calcstatus（NOT_CALCULATED/CALCULATING/COMPLETED/NEED_RECALC）/
+      actualdatastatus（NOT_ENTERED/PENDING_CONFIRM/CONFIRMED/NEED_RECALC）
+    - B. equipment_status varchar(1) NOT NULL default 'N'（生命周期分类）
+    - C. calc_status native enum NOT NULL default 'NOT_CALCULATED'
+    - D. actual_data_status native enum NOT NULL default 'NOT_ENTERED'
+    - E. 索引：calc_status + actual_data_status（CIA 扫描加速）
+
+    业务：DICT-ALL-003 V3.3 §2.4 ADR-0025 三状态机落地，equipment_list
+    接入 CIA 计算编排与设备联动关闭流程。
+    """
     # 1. 创建 3 个 PG enum 类型
     equipment_status = sa.Enum("N", "E", "D", "M", "F", name="equipmentstatus")
     equipment_status.create(op.get_bind(), checkfirst=True)

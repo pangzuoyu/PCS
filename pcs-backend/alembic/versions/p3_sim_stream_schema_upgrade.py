@@ -33,6 +33,22 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """P3.2 SIM streams schema 升级（修正版，10 字段 + 2 CHECK）。
+
+    步骤：
+    - streams 9 新字段：case_type(20) + surface_tension / api_gravity /
+      critical_temp / critical_press / actual_vol_flow FLOAT +
+      viscosity_temperature_curve JSONB + import_original_row INT +
+      import_source_version VARCHAR(20)
+    - streams.case_type CHECK：NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN
+    - stream_state_points.case_type CHECK：NORMAL/MIN/MAX/ALTERNATE（列已存在，仅补约束）
+
+    不动：sign_status 已是 native enum（不可逆 ADD VALUE 走 ALTER TYPE）；
+    vapor_fraction/source_type/data_mode 已存在；stream_state_points.case_type 列已存在。
+
+    业务：PRO/II 物性字段入库 + 流股工况维度（运行模式）+ 原始行号追溯；
+    case_type 触发 SIM 多工况并行计算。
+    """
     # ------------------------------------------------------------------------
     # streams 表：9 新字段
     # ------------------------------------------------------------------------
