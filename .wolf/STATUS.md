@@ -480,7 +480,13 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - PsvPilotOperated/RuptureDisc docstring 修正（59b69b5）
   - alembic p5_open_010 存量 backfill 补全（e7bf108）
   - ACHE EnthalpyTable 温度区间 + 升序强校验（71ac4da）
-- 🔲 **下一批**：MEDIUM 滚动次批 — P5-3 fe×7 + P5c×1 + P1×3 + P2×3 + LOW/INFO
+- ✅ (c) MEDIUM 滚动次批 5 项 — commit `80be9ee` + `1a54ad0` + `e34c338` + `bad22ed` + `67465f6`
+  - APP ErrorBoundary 包裹 RouterProvider（80be9ee）
+  - VESSEL/SEP PROJECT_ID 复用常量（1a54ad0）
+  - VESSEL 结果字段 NaN 兜底 coerceNum（e34c338）
+  - VESSEL/SEP sign_status 停止伪造 CHECKED（bad22ed）
+  - HEAT input_json 填实 + total_weight_kg 类型守卫（67465f6）
+- 🔲 **下一批**：P5c×1 (MSW fixture drift) + P1×3 + P2×3 + LOW/INFO 滚动
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
