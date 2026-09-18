@@ -469,6 +469,34 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 
 ---
 
+## ✅ Done (MEDIUM 滚动第三批 2 项收口 — 2026-09-18)
+
+| # | 类别 | 修复 | commit |
+|---|------|------|--------|
+| 1 | P5-123 MEDIUM | outlet_stream properties 改 copy.deepcopy（防嵌套 dict/list 泄露至 DB） | `c9ba8d8` |
+| 2 | P5-123 MEDIUM | HEAT duty 双轨字段落地（ADR-0027 V1.0 决策 5 跟踪项闭环） | `e772be4` |
+
+**(1)** `app/services/outlet_stream.py:148` 把 `dict(properties)` 改为 `copy.deepcopy(properties)`，
+加 `import copy`；新增 `tests/services/test_outlet_stream.py` monkeypatch fake DB 回归测试（5 断言）：
+持久化值与原值当前一致 / 嵌套 dict 修改不泄露 / 嵌套 list 修改不泄露 / 持久化 dict 是不同对象 / 防退化。
+**bug-099**：测试初稿 typo `properties["key2"]` 应为 `properties["outer"]["key2"]` + fake source 缺 `stream_id` 属性。
+
+**(2)** HEAT duty 双轨（ADR-0027 V1.0 决策 5 跟踪项 — P5-4 落地）：
+- alembic `p5_4_heat_duty_split` 迁移（down_revision = p4_4_sim_import_preview_towers，p3.2-sim 分支 head）：
+  - `duty_legacy` Float nullable（P4 上游 duty）
+  - `duty_calc` Float nullable（P5 计算 duty）
+  - 存量回填：`UPDATE heat_results SET duty_calc = duty WHERE duty IS NOT NULL`（默认按溯源未知归 P5 计算归属）
+  - downgrade 反向：COALESCE 写回 duty → drop 两列（保数据）
+- `HeatResult` ORM 加 `duty_legacy` + `duty_calc` 两字段，`duty` 列保留向后兼容 P5-OPEN-006
+- `app/services/heat/heat_data_service.py` 写入路径**未变更**（双轨字段实际写入策略由 P5-4 HEAT 工艺工程师后续批决定）
+- `docs/adr/0027-heat-results-dual-track.md` status → accepted，决策 5 跟踪项标记闭环
+- 新增 `tests/architecture/test_p5_4_heat_duty_split.py` 9 例 contract 测试（ORM 字段 + 迁移结构 + downgrade 对称）
+
+**测试验证**：
+- 后端 pytest：**2225 passed + 49 skipped**（基线 2215 + outlet_stream 1 + architecture 9）
+
+---
+
 ## 🚀 Next quest
 
 **Goal:** MEDIUM/LOW/INFO 48 项 backlog（滚动）
@@ -486,7 +514,10 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - VESSEL 结果字段 NaN 兜底 coerceNum（e34c338）
   - VESSEL/SEP sign_status 停止伪造 CHECKED（bad22ed）
   - HEAT input_json 填实 + total_weight_kg 类型守卫（67465f6）
-- 🔲 **下一批**：P5c×1 (MSW fixture drift) + P1×3 + P2×3 + LOW/INFO 滚动
+- ✅ (d) MEDIUM 滚动第三批 2 项 — commit `c9ba8d8` + `e772be4`
+  - outlet_stream properties 改 copy.deepcopy（防嵌套 dict/list 泄露至 DB，bug-099 fix）
+  - HEAT duty 双轨字段落地（ADR-0027 V1.0 决策 5 跟踪项闭环，p5_4_heat_duty_split 迁移）
+- 🔲 **下一批**：P5-123 设计阶段 NOT NULL + LOW/INFO 滚动
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
