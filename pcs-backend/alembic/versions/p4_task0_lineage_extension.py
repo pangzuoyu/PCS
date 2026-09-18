@@ -26,6 +26,17 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """P4-TASK0 lineage 本体论扩展（ADR-0031 残余，D4/D5）。
+
+    步骤：
+    - A. data_lineage 加 4 列：record_hash_at_track(16) /
+      source_record_hash(16) / formula_version_at_track(50) / config_version(50)
+    - B. two_phase_results 加 1 列：record_hash(64) NOT NULL default ''
+      接入 calc_lineage 收口（P4-TASK0 RECORD_TYPE_REGISTRY 完整化）
+
+    业务：data_lineage 追踪收口时 record_hash（D4）+ 上游 hash（D5）+ 公式版本 +
+    配置版本；two_phase_results 落入 record_hash 与 RecordMixin 一致。
+    """
     # data_lineage D4/D5
     op.add_column(
         "data_lineage",

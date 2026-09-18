@@ -19,6 +19,19 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """项目模板 × 管架/管号 集成（INT-1 + PC-OPEN-04，V1.4 §15）。
+
+    步骤：
+    - A. project_templates 加 pipe_code_template_id UUID NULL + FK→pipe_code_templates
+    - B. 关联表 project_template_pipe_classes（template_id × class_id 复合 PK）：
+      记录项目模板默认携带的管架清单
+    - C. 双向 FK：template_id → project_templates / class_id → pipe_classes
+
+    不做：撤销 stream_symbol_table_id 列（INT-DROP-01 公司符号表无聚合实体）。
+
+    业务：项目创建时自动 fork 默认等级（PC-OPEN-04）→ 关联表记录模板级
+    默认等级清单；project_templates.pipe_code_template_id 引导生成管号。
+    """
     # 1. project_templates 增 pipe_code_template_id 列（nullable）
     op.add_column(
         "project_templates",
