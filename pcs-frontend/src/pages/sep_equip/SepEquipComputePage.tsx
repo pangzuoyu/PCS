@@ -31,6 +31,7 @@ import {
 } from 'antd';
 
 import { PageHeader } from '../../components/common/PageHeader';
+import { PROJECT_ID } from '../../constants/env';
 import { sepEquipApi, type SepEquipCalculateResponse } from '../../api/sepEquip';
 import { streamApi } from '../../api/stream';
 import type {
@@ -129,7 +130,7 @@ export function SepEquipComputePage({
     let cancelled = false;
     setStreamsLoading(true);
     streamApi
-      .listByProject('00000000-0000-0000-0000-000000000001')
+      .listByProject(PROJECT_ID)
       .then((list) => {
         if (cancelled) return;
         setFetchedStreams(

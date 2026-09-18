@@ -32,6 +32,7 @@ import {
 
 import { PageHeader } from '../../components/common/PageHeader';
 import { vesselApi } from '../../api/vessel';
+import { PROJECT_ID } from '../../constants/env';
 import { streamApi } from '../../api/stream';
 import type {
   VesselCalculateRequest,
@@ -119,7 +120,7 @@ export function VesselComputePage({
     let cancelled = false;
     setStreamsLoading(true);
     streamApi
-      .listByProject('00000000-0000-0000-0000-000000000001')
+      .listByProject(PROJECT_ID)
       .then((list) => {
         if (cancelled) return;
         // streamApi 不返 sign_status（轻量子集），全部当作 CHECKED 候选（dev/mock 友好）
