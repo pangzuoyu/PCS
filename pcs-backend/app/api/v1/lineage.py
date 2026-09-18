@@ -40,6 +40,20 @@ async def downstream(
     max_depth: int = Query(10, ge=1, le=50),
     session: AsyncSession = Depends(get_db),
 ):
+    """GET 下游血缘链（沿计算记录向下传播）。
+
+    步骤：
+    1. LineageTracker.latest 取 record_type+record_id 当前最新 lineage_id
+       （record 可能多次重算，latest 取最近一次）
+    2. 不存在 → 404 no lineage for record
+    3. LineageTracker.downstream 从 lineage_id 沿 max_depth 向下传播
+       （max_depth 限 1..50，防止极深递归触发 N+1 风暴）
+    4. 返回 [dict, ...]（按 _serialize 统一字段：record_type/record_id/
+       lineage_id/relation/depth）
+
+    与 upstream 区别：upstream 沿 record_type+record_id 直接递归；
+    downstream 需 latest() 解析到 lineage_id 再传，跨多次重算。
+    """
     tracker = LineageTracker(session)
     latest = await tracker.latest(record_type=record_type, record_id=record_id)
     if latest is None:
