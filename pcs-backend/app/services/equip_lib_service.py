@@ -17,6 +17,13 @@ from app.services.audit_service import AuditService
 
 
 class EquipLibService:
+    """设备沉淀 + 检索（CATEGORY_6 / Task 1.9.5）。
+
+    业务：settle 将设备位号沉淀到 CATEGORY_6 ConfigAsset（标准化信息快照
+    content_json，与源项目解耦）；审批复用 /config/assets 既有 submit/
+    approve/publish；PUBLISH 即入库生效。
+    """
+
     @classmethod
     async def settle(
         cls,

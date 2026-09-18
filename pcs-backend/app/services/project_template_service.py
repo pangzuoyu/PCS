@@ -12,6 +12,13 @@ from app.services.exceptions import PcsError
 
 
 class ProjectTemplateService:
+    """项目模板服务（template_files + ProjectTemplate + ProjectTemplateConfig）。
+
+    业务：承载项目模板元数据 + 模板配置 JSON（Pydantic v2 ProjectTemplateConfig 强类型
+    校验）；validate_config 失败抛 PcsError(TEMPLATE_CONFIG_INVALID)；
+    create_from_template 实例化模板为项目（带 workspace_id）。
+    """
+
     @staticmethod
     def validate_config(raw: dict) -> ProjectTemplateConfig:
         """Pydantic v2 验证 default_config_json；失败抛 PcsError(TEMPLATE_CONFIG_INVALID)。"""

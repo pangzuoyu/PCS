@@ -30,6 +30,14 @@ class FormulaSecurityError(PcsError):
 
 
 class FormulaEngine:
+    """公式解析与版本指纹（Task 2.3）。
+
+    业务：ast.parse(mode="eval") + AST 白名单（ALLOWED_FUNCS 10 + math 模块）→
+    compile → 闭包持 code object；运行时 eval 在受限命名空间（{"__builtins__": {}}）
+    下求值；拒绝 Import/ImportFrom/Global/Nonlocal/Lambda/FunctionDef 等危险节点；
+    版本指纹 SHA256(text + variable_signature_json) 12 字符短哈希。
+    """
+
     ALLOWED_FUNCS = {"sqrt", "log", "exp", "sin", "cos", "tan", "pow", "abs", "min", "max"}
     ALLOWED_NAMES = {"math"} | ALLOWED_FUNCS
     FORBIDDEN_NODES = (

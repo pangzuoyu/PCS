@@ -36,6 +36,13 @@ from app.services.exceptions import PcsError
 
 
 class PipeCodeTemplateService:
+    """管架代号模板服务（公司级 + 项目级 + 引用检查）。
+
+    业务：分两层 — 公司级（pipe_code_templates 全局共享）+ 项目级
+    （project_pipe_code_configs 项目覆盖）；create/update/transition 走
+    ConfigStateMachine 5 态机；引用检查：模板被项目级引用时禁止公司级删除。
+    """
+
     # ====================================================================
     # 公司级
     # ====================================================================

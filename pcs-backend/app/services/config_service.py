@@ -41,6 +41,13 @@ class VersionNotFoundError(Exception):
 
 
 class ConfigService:
+    """配置资产 CRUD + 版本 fork + diff（Task 2.8 / ConfigAsset + ConfigVersion）。
+
+    业务：薄包装 ConfigAsset + ConfigVersion + ConfigApproval 三表；
+    create_asset 插入 DRAFT ConfigAsset + 首个 DRAFT ConfigVersion；
+    create_version 基于现有 asset 追加新 version；diff 计算两版本 content_json 字段差。
+    """
+
     def __init__(self, session: AsyncSession):
         self.session = session
         self.audit = AuditService(session)

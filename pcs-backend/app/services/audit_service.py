@@ -24,6 +24,13 @@ from app.models.system import AuditLog
 
 
 class AuditService:
+    """审计统一入口（Issue 6 锁定；薄包装 P0 audit_logs 表）。
+
+    业务：所有业务资源变更通过 write() 写入 audit_logs 表，承载 user_id +
+    action + resource_type + resource_id + detail_json + occurred_at 五元组；
+    调用方负责 session 生命周期（不主动 commit）。
+    """
+
     def __init__(self, session: AsyncSession):
         self.session = session
 

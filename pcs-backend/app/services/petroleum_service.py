@@ -33,6 +33,14 @@ def _f1(tr: float) -> float:
 
 
 class PetroleumService:
+    """石油特征计算服务（Tb 沸点曲线 / SG 比重 → distillation_curves）。
+
+    业务：依据 ASTM D86 / D2887 标准从体积平均沸点 Tb (°C) + 比重 SG 推导
+    蒸馏曲线（D86: 0/10/30/50/70/90/100% 温度 + D2887 对应沸点）；
+    _validate 校验 sg/tb_c 在有效范围（_SG_RANGE / _TB_C_RANGE），越界
+    抛 PETRO_INVALID_SG 或 PETRO_INVALID_TB PcsError（422）。
+    """
+
     @classmethod
     def _validate(cls, tb_c: float, sg: float) -> None:
         if not (_SG_RANGE[0] < sg < _SG_RANGE[1]):

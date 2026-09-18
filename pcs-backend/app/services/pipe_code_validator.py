@@ -20,12 +20,13 @@ from enum import Enum
 
 
 class Severity(str, Enum):
-    ERROR = "ERROR"
-    WARN = "WARN"
+    """验证规则严重级别：ERROR 拦截 / WARN 仅警告。"""
 
 
 @dataclass
 class FmtValidationResult:
+    """管架代号格式验证单条结果（rule_id + 严重级 + 消息 + 关联字段）。"""
+
     rule_id: str
     severity: Severity
     message: str

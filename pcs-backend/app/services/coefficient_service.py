@@ -23,6 +23,13 @@ class CoefficientNotFoundError(Exception):
 
 
 class CoefficientService:
+    """系数库 CRUD + 批量修改（Task 2.5 / CATEGORY_3 ConfigAsset）。
+
+    业务：直接对 CoefficientTable 行做 add/get + 写 audit；状态机 5 态
+    DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE 由 ConfigStateMachine 流转；
+    seed_default_tables 类方法幂等 seed CATEGORY_3 默认表（缺失才插）。
+    """
+
     def __init__(self, session: AsyncSession):
         self.session = session
         self.audit = AuditService(session)

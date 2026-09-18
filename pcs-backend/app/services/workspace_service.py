@@ -20,6 +20,14 @@ from app.services.audit_service import AuditService
 
 
 class WorkspaceService:
+    """工作区服务（workspace + 关联 owner + 临时工作区 retention_days）。
+
+    业务：管理 workspace 表 + 关联 workspace_member（可选）；create 时按
+    workspace_type（FORMAL/PERSONAL/TEMPORARY）建对应 owner_id 和 retention_days；
+    TEMPORARY 自动清理（基于 retention_days + last_active_at）；import/export
+    走 zip 序列化 project 全量数据。
+    """
+
     def __init__(self, session: AsyncSession):
         self.session = session
         self.audit = AuditService(session)

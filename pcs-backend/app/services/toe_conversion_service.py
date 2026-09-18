@@ -18,6 +18,13 @@ VALID_FUEL_TYPES = {"GAS", "DIESEL", "COAL", "STEAM", "ELECTRICITY", "OTHER"}
 
 
 class ToeConversionService:
+    """TOE（吨油当量）换算因子服务（pcs_toe_conversion_factors 表）。
+
+    业务：按 fuel_type 提供 CO2 排放因子 + TOE 热值系数（与 GB/T 2589 等对齐）；
+    seed_defaults 类方法幂等 seed 6 个 fuel_type 默认值（与 Alembic 迁移同步）；
+    用于项目级碳足迹 / 能耗换算。
+    """
+
     @classmethod
     async def seed_defaults(cls, session: AsyncSession) -> int:
         """幂等 seed 6 个 fuel_type 默认值（与 Alembic 迁移同步）。"""

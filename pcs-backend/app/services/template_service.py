@@ -32,6 +32,13 @@ class TemplateRenderError(Exception):
 
 
 class TemplateService:
+    """模板文件服务（template_files + 文件存储 + Jinja2 渲染）。
+
+    业务：管理 template_files 元数据 + 物理文件（storage_root 子目录）；read/write
+    走 storage_root + 文件名；Jinja2 StrictUndefined 渲染（缺变量抛错，避免静默
+    空字符串）；绑定 template_version_seq（V1.4 P2-OPEN-005 顺序版本号）。
+    """
+
     def __init__(self, session: AsyncSession, storage_root: Path):
         self.session = session
         self.storage_root = Path(storage_root)

@@ -18,6 +18,13 @@ from app.services.audit_service import AuditService
 
 
 class ChecklistService:
+    """项目输入 checklist 服务（DICT-ALL-003 V3.1 表44）。
+
+    业务：管理 ProjectInputChecklist 行，承载 5 态校验（NOT_STARTED / IN_PROGRESS /
+    VERIFIED / ASSUMED / NOT_APPLICABLE）+ 完整度 completeness 计算；list 按
+    project_id 过滤 + item_key 升序（前端按业务顺序展示，不分页 O(10~100)）。
+    """
+
     def __init__(self, session: AsyncSession):
         self.session = session
         self.audit = AuditService(session)

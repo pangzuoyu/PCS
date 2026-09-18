@@ -25,6 +25,11 @@ from app.services.stream_symbol_service import StreamSymbolService
 
 @dataclass
 class ValidationOutcome:
+    """管架代号格式验证结果。
+
+    字段：valid 是否通过 + errors 错误信息列表 + segments 已解析的段映射（段名→值）。
+    """
+
     valid: bool
     errors: list[str] = field(default_factory=list)
     segments: dict = field(default_factory=dict)

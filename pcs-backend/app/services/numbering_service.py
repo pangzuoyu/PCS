@@ -27,6 +27,13 @@ class SequenceNotFoundError(Exception):
 
 
 class NumberingService:
+    """文档号计数服务（DICT V3.4 §68）。
+
+    业务：next_value 按 (project, template, scope) 行锁（SELECT ... FOR UPDATE）
+    Postgres 串行化同 scope 并发取号；DICT V3.4 §68 维护 doc_no_sequences 表，
+    防高并发下文档号跳号或重复。
+    """
+
     def __init__(self, session: AsyncSession):
         self.session = session
         self.audit = AuditService(session)

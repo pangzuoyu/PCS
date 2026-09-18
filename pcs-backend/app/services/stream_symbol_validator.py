@@ -7,12 +7,13 @@ from typing import Any
 
 
 class Severity(str, Enum):
-    ERROR = "ERROR"
-    WARN = "WARN"
+    """验证规则严重级别：ERROR 拦截 / WARN 仅警告。"""
 
 
 @dataclass
 class SymValidationResult:
+    """SYM 验证单条结果（rule_id + 严重级 + 消息 + 关联字段）。"""
+
     rule_id: str
     severity: Severity
     message: str
@@ -23,6 +24,14 @@ VALID_CATEGORIES = {"PROCESS", "UTILITY", "OFFSITE", "AMINE", "REFRIGERATION"}
 
 
 class StreamSymbolValidator:
+    """SYM 流股符号验证器（SUP-002 §4.2/§7 派生 5 规则）。
+
+    业务：SYM-V01~V05 规则校验（symbol 1-10 字符 / name 非空 / 项目内重名 /
+    category 白名单 / fork 快照完整性）；返回 SymValidationResult 列表；
+    ERROR 拦截，WARN 仅警告；不做 SQL 查重（project_existing_symbols 由 service
+    层预查询注入）。
+    """
+
     @classmethod
     def validate(
         cls,

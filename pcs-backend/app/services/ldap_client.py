@@ -39,6 +39,12 @@ def _sanitize_dn_component(value: str) -> str:
 
 @dataclass(frozen=True)
 class LdapUser:
+    """LDAP 认证返回的用户（username + dn + 所属组 + 可选显示名）。
+
+    dn：RFC 4514 §2.4 转义后的 distinguished name；groups：所属 LDAP 组的 cn 列表
+    （用于映射 PCS 角色 ROLE_ADMIN/ROLE_ENGINEER/ROLE_VIEWER 等）。
+    """
+
     username: str
     dn: str
     groups: tuple[str, ...]

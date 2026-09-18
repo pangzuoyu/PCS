@@ -51,6 +51,13 @@ class DocNoUsage(BaseModel):
 
 
 class ReportService:
+    """报表生成服务（ConfigAsset 分布 + 项目状态汇总）。
+
+    业务：config_asset_status 按 category 字母序列出 ConfigAsset 分布报告（每类
+    数量 + PUBLISHED/DRAFT 等状态分桶）；project_status 汇总项目级 checklist
+    完整度 + CHECKED record 数 + 最后活动时间；空 DB 返回 []。
+    """
+
     def __init__(self, session: AsyncSession) -> None:
         self.session = session
 

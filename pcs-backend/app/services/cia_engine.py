@@ -64,6 +64,13 @@ def _content_hash(content: dict | None) -> str:
 
 
 class CIAEngine:
+    """变更影响分析引擎（Sprint 3，扫描 + 标记 STALE）。
+
+    业务：遍历业务结果表（如 PipingResult），比较当前 record_hash 与
+    data_lineage 表最新 hash；不匹配 → 标记 STALE（仅限 CHECKED/CHANGED 状态）。
+    MAX_DEPTH=8 防递归过深；返回受影响行数。
+    """
+
     MAX_DEPTH = 8
 
     def __init__(self, session: AsyncSession):

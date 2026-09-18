@@ -55,9 +55,11 @@ from app.services.state_machine import (
 # StreamDataMode：DB 层 streams.data_mode 是 String(20) + 注释提示，
 # 此处提供 enum 以供前端统一消费（值与 model 注释一致）
 class StreamDataMode(str, Enum):
-    CHEMICAL = "CHEMICAL"
-    PETROLEUM = "PETROLEUM"
-    SOLID = "SOLID"
+    """流数据模式：CHEMICAL 化学组成 / PETROLEUM 石油特征 / SOLID 固体物料。
+
+    与 DB streams.data_mode String(20) 对齐（值字符串完全一致）；前端
+    统一消费此 enum 渲染不同字段集（组分/石油/固体）。
+    """
 
 # 状态色 + icon 与 pcs-frontend/src/styles/tokens.css + PCS-UI-SPEC §6.1 对齐
 _STATE_META: dict[str, dict[str, str]] = {

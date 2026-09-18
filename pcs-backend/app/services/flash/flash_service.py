@@ -332,6 +332,12 @@ def PS_FLASH(
         FlashConvergenceError: S_target 超出物理范围或 brentq 失败
     """
     def S_at_vfrac(v: float) -> float:
+        """闭包辅助：给定气相分率 v → 计算 PT_FLASH 求熵 S（用于 brentq 寻根）。
+
+        业务：vfrac→P 映射走 _vfrac_to_P（嵌套 brentq on P），再用
+        thermo.S_PT(zs, T, P, vapor_fraction, y_vapor, x_liquid) 算总熵；
+        brentq 求 S_target 对应 vfrac 即用此函数作目标函数。
+        """
         P = _vfrac_to_P(zs, T, v, thermo)
         res = PT_FLASH(zs, T, P, thermo)
         return thermo.S_PT(zs, T, P, res.vapor_fraction, res.y_vapor, res.x_liquid)

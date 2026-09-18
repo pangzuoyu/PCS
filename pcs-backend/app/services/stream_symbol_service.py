@@ -59,6 +59,14 @@ class ProjectStreamSymbolStateMachine:
 
 
 class StreamSymbolService:
+    """流股符号服务（公司级 + 项目级 + fork 派生）。
+
+    业务：分两层 — 公司级（stream_symbols 全局共享）+ 项目级
+    （project_stream_symbols 项目派生）；fork 时复制 snapshot_json；项目级
+    delete_project_symbol 无引用检查（派生数据）；公司级 delete_company 引用
+    检查 SUP-002 PC-2（被项目级引用时禁止删除）。
+    """
+
     # ---------- 公司级 ----------
     @classmethod
     async def list_company(

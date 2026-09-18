@@ -33,6 +33,13 @@ class UnitTestResult:
 
 
 class FormulaService:
+    """公式服务（unit_tests 执行 + 结果记录）。
+
+    业务：管理 ConfigAsset 当前 version 的 unit_tests 列表；run_unit_tests 执行
+    所有测试返回 UnitTestResult（passed/total/failures 列表）；不存在 version 或
+    缺 expression 时返回 0/0（业务视为不通过 — PUBLISH 端点比对 passed==total）。
+    """
+
     def __init__(self, session: AsyncSession):
         self.session = session
 

@@ -159,6 +159,14 @@ class RoleForbidden(Exception):
 
 
 class StateMachineService:
+    """通用状态机服务（9 态 record + 5 态 config asset 共用）。
+
+    业务：基于 transfer 表（transition_name + from_status + to_status + 角色权限）
+    驱动状态流转；转移前校验 (a) 当前状态可发起 (b) 角色有权 (c) 必填 reason；
+    成功后写 audit + 调用方 flush；覆盖 records / config_assets / deliverables 三类
+    资源（资源类型通过 resource_type 参数传入）。
+    """
+
     def __init__(self, session: AsyncSession):
         self.session = session
 
