@@ -77,6 +77,22 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """6 重命名 + vendor_id→vendor 三步走回退（P2 Sprint2 逆向）。
+
+    步骤：
+    - 1. ADD COLUMN equipment_list.vendor_id Uuid NULL（恢复 FK 列）
+    - 2. 条件恢复 FK：inspector 检测 suppliers 存在 + equipment_list 无 vendor_id
+      FK 时 CREATE FOREIGN KEY equipment_list_vendor_id_fkey → suppliers
+    - 3. DROP COLUMN equipment_list.vendor
+    - 4. 反向重命名 6 列（process_engineering_remarks → engineering_notes /
+      flowsheet_drawing_number → drawing_no / paint → paint_spec /
+      net_weight → weight_kg / installation_location → install_location /
+      equipment_description → description）
+
+    业务：与 upgrade 互逆；P2 Sprint2 设备命名规范化（6 列重命名）+ vendor_id→
+    vendor 三步走回退。注意：vendor_id 列是 nullable=True，存量行 vendor 字
+    段值会丢失；条件 FK 恢复避免在 suppliers 已 DROP 的旧库报错。
+    """
     # 恢复 vendor_id 列
     op.add_column(
         "equipment_list",

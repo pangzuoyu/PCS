@@ -285,6 +285,24 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """6 enum + piping +11 + pump +4 + design_stage + two_phase_results 落地逆向
+    （P4 SUP-008 逆向）。
+
+    步骤：
+    - DROP TABLE two_phase_results（含 3 列设计阶段 + 状态字段）
+    - DROP COLUMN design_stage on vessel_results / psv_results / pump_results（3 表）
+    - DROP COLUMN 4 列 on pump_results（pump_operation / selected_motor_power /
+      selected_motor_model / selected_pump_model）
+    - DROP COLUMN 11 列 on piping_results（velocity_range_reference / check_result /
+      recommended_pipe_size / selected_pipe_size / pressure_drop_per_100m /
+      gas_velocity_max / liquid_velocity_max / selected_diameter /
+      max_flow_factor / pipe_type / line_description）
+    - DROP TYPE IF EXISTS × 6 enum（two_phase_check / flow_pattern /
+      design_stage / pump_operation / check_result / pipe_type）
+
+    业务：与 upgrade 互逆；P4 SUP-008 SUP-008 6 enum + piping 11 列 + pump 4 列 +
+    design_stage 跨 3 表 + two_phase_results 整表逆向清理。倒序 DROP 便于排查。
+    """
     # 反向：先删表/列，再 drop enum
     op.drop_table("two_phase_results")
 
