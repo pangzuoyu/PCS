@@ -394,7 +394,9 @@ def test_fire_case_api521_horizontal_full_fill_equals_full_cylinder():
 def test_fire_case_api521_invalid_vessel_type_raises():
     """vessel_type='CUBIC' → PsvFireCaseInputError。"""
     from app.services.psv.fire_case_service import (
-        FireCaseInput, PsvFireCaseInputError, calc_fire_case_api521,
+        FireCaseInput,
+        PsvFireCaseInputError,
+        calc_fire_case_api521,
     )
 
     inp = FireCaseInput(

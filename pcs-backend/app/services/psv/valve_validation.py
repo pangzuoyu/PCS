@@ -117,7 +117,8 @@ def validate_valve_params(req: Any) -> ValidatedParams:
     superimposed_pressure_pa: float = float(_attr(req, "superimposed_pressure_pa", 0.0) or 0.0)
     fluid_temperature_c = _attr(req, "fluid_temperature_c")
     molecular_weight = _attr(req, "molecular_weight")
-    _calculated_area_m2 = _attr(req, "calculated_area_m2")  # G9 计算面积（§4.2 override 面积比较使用）
+    _calculated_area_m2 = _attr(req, "calculated_area_m2")
+    # G9 计算面积（§4.2 override 面积比较使用）
 
     warnings: list[str] = []
 
