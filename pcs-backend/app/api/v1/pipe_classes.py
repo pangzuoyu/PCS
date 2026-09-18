@@ -140,6 +140,20 @@ async def update_pipe_class(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """PUT 改公司管号等级（按字段名增量覆盖）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（管号等级工艺侧编辑权限）
+    2. payload.class_id 与路径 class_id 一致性校验：
+       service.update 的 model_dump 含 class_id，不一致会覆写主键
+       → 直接 422 拦截，避免误改
+    3. 转发 PipeClassService.update：状态校验（DRAFT→APPROVED/OBSOLETE 走
+       状态机 → UPDATE status_pipclass，禁止 service 直接 UPDATE）
+    4. service 抛 ValueError → 404；pipe_class_service 已 commit
+
+    注意：本端点不动 status_pipclass（状态流转走 submit/approve/publish/obsolete
+    四态机端点），service 层禁止绕过状态机直接 UPDATE。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     if payload.class_id != class_id:
         # service 层 update 的 model_dump 含 class_id，不一致会覆写主键
