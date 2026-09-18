@@ -33,6 +33,20 @@ _TABLES = (
 
 
 def upgrade() -> None:
+    """P4-0-1 计算链审计字段（5 表 × 3 列 / ADR-0031）。
+
+    步骤（5 表循环：streams / piping_results / pump_results /
+    flash_results / pipe_network_results）：
+    - stale_resolution_path varchar(30) NULL：STALE 后走的重算路径（CIA 审计）
+    - hash_changed boolean NULL default false：record_hash 相对上版是否实质变化
+    - changed_fields JSONB NULL：实质变化字段清单（6 位规范化后仍发散的字段）
+
+    护栏：审计列只经 app/services/calc_lineage.finalize_calc_record 与
+    CIA 引擎写，业务模块禁止直写（ADR-0031）。
+
+    业务：CIA 引擎审计 5 类计算结果，记录 STALE 后续重算路径 + 实质变化
+    字段集，是溯源决策依据（v1.4 §11 收口）。
+    """
     for table in _TABLES:
         op.add_column(
             table,

@@ -25,6 +25,22 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """project_input_checklist schema 对齐 DICT-ALL-003 V3.1 表 44（P1 Sprint1）。
+
+    步骤：
+    - module varchar(30)：模块分组（DI/WS/PSV/HEAT 等）
+    - input_category varchar(20)：REQUIRED/CONDITIONAL/OPTIONAL
+    - input_value_json JSONB：录入值容器
+    - source_type varchar(20)：数据来源
+    - verified_by UUID：核验人（FK→users）
+    - verified_at timestamp：核验时间
+    - assumption_reason text：ASSUMED 假定原因
+
+    全部 nullable=True，不破坏 P0 baseline 老记录。
+
+    业务：3 态 → 5 态机状态扩展（NOT_STARTED/IN_PROGRESS/VERIFIED/ASSUMED/NOT_APPLICABLE）；
+    P0 baseline 仅建 status/note 三字段，偏离 V3.1 表 44，PUT 端点按 5 态实现。
+    """
     op.add_column(
         "project_input_checklist",
         sa.Column("module", sa.String(length=30), nullable=True),
