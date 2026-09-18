@@ -1,3 +1,9 @@
+"""配置域 ORM 模型（公司/工程级共享配置）。
+
+含 ConfigAsset（容器）/ ConfigVersion（immutable 版本快照）/
+ConfigTransitionLog（审计）等。状态机驱动 DRAFT→PUBLISHED→DEPRECATED。
+"""
+
 import datetime
 import uuid
 

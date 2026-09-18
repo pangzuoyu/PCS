@@ -1,3 +1,9 @@
+"""HTRI 换热器模板 ORM 模型（P5-3 HTRI 输入导出）。
+
+含 HtriTemplate（壳程/管程/物流配置）+ HtriTemplateTube（管束参数）。
+供 htri_parser 服务解析用户上传的 .htri 文件后落库。
+"""
+
 import uuid
 
 from sqlalchemy import Integer, String, Uuid

@@ -1,3 +1,9 @@
+"""设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。
+
+含 Equipment（设备主表）+ EquipmentSpec（规格参数 JSONB）+
+EquipmentVendor（厂商映射）。供 vessel / psv / pump / sep_equip / cooling_tower 等选型计算引用。
+"""
+
 import uuid
 from datetime import date
 

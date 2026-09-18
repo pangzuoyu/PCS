@@ -1,3 +1,9 @@
+"""业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。
+
+含 ProjectRole / WorkspaceType / WorkspaceStatus / ConfigStatus 等；
+DB 字段使用 VARCHAR（不是 PG enum）以便演进，新枚举值直接加即可。
+"""
+
 import enum
 
 

@@ -1,3 +1,9 @@
+"""交付物 ORM 模型（P5-3 报告/文档输出）。
+
+含 Deliverable（报告主表）+ DeliverableSection（章节）+ DeliverableArtifact（附件）。
+状态机驱动 DRAFT→RENDERING→READY→ARCHIVED。
+"""
+
 import uuid
 from datetime import date, datetime
 

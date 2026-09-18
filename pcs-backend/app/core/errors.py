@@ -1,3 +1,9 @@
+"""FastAPI 全局异常处理器 + 统一 PcsError 信封。
+
+含 PcsError envelope 结构（code/status/message/detail）+ install_exception_handlers
+注册 5 类 handler（PcsError / HTTPException / RequestValidationError / 未捕获 / 404）。
+"""
+
 from typing import Any
 
 from fastapi import FastAPI, Request

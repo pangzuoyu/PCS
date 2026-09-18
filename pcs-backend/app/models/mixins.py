@@ -1,3 +1,10 @@
+"""ORM mixin 集合（公用字段 + 状态机 hook）。
+
+含 TimestampMixin（created_at/updated_at）+ RecordMixin（project_id/workspace_id
+declared_attr 自动注入）+ TaggedRecordMixin（追加 tag_number NOT NULL）。
+所有业务表必继承其一。
+"""
+
 import uuid
 from datetime import datetime
 

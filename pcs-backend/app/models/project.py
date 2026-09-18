@@ -1,3 +1,9 @@
+"""项目/工作区/成员 ORM 模型（核心租户隔离维度）。
+
+含 Project（顶层）+ Workspace（PERSONAL/TEMPORARY/PROJECT 三种类型）+
+ProjectMember（角色权限）。所有业务表按 project_id + workspace_id 隔离。
+"""
+
 import uuid
 from datetime import datetime
 

@@ -1,3 +1,9 @@
+"""结构化日志 + trace_id 上下文传播。
+
+含 setup_logging() JSON formatter + ContextVar trace_id 注入
+（每个请求自动绑定唯一 UUID，供跨服务链路追踪）。
+"""
+
 import json
 import logging
 import sys

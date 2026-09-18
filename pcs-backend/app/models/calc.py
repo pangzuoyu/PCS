@@ -1,3 +1,10 @@
+"""计算结果 ORM 模型（P5-3 计算引擎持久化）。
+
+含 8 类 Result 表（FlashResult / PsvResult / VesselResult / Cv / CoolingTower /
+Psychro / OpenChannel / Filtration）+ 4 类反应/平衡支撑表（ConstCpResult 等）。
+所有表继承 TaggedRecordMixin（强制 tag_number NOT NULL）。
+"""
+
 import uuid
 
 from sqlalchemy import (

@@ -1,3 +1,9 @@
+"""SQLAlchemy DeclarativeBase + 命名约定（统一约束/索引前缀）。
+
+所有 ORM 模型继承 Base；NAMING_CONVENTION 约束 alembic 自动生成
+ix/uk/fk/pk/chk 前缀，避免迁移约束命名漂移。
+"""
+
 from sqlalchemy import MetaData
 from sqlalchemy.orm import DeclarativeBase
 

@@ -1,3 +1,9 @@
+"""应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。
+
+含 Settings 模型（50+ 配置项）+ get_settings() lru_cache 单例 +
+assert_secret_key_configured() 启动强校验（fail-fast 防 JWT 伪造）。
+"""
+
 import secrets
 import warnings
 from functools import lru_cache

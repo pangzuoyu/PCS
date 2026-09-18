@@ -1,3 +1,9 @@
+"""系统支撑 ORM 模型（审计/血缘/导入历史）。
+
+含 DataLineage（计算记录血缘图）+ AuditLog（操作审计）+
+ImportBatch（批量导入任务）+ SimImportState（SIM 导入状态机持久化）。
+"""
+
 import uuid
 from datetime import datetime
 

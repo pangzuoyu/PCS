@@ -1,3 +1,9 @@
+"""FastAPI 应用入口（lifespan + 路由挂载 + 异常处理器注册）。
+
+含 lifespan async context manager（DB 引擎 + Redis 探测）+ create_app() 工厂
+（中间件链 + CORS + trace_id + 异常处理器 + api_router 挂载）。
+"""
+
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
