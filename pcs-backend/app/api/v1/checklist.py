@@ -40,6 +40,17 @@ async def bulk_seed(
     user_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
 ) -> list[ChecklistItemOut]:
+    """POST 批量种子（项目内 checklist 一次生成）。
+
+    步骤：
+    1. 调 ChecklistService.bulk_seed：按 items 列表逐条创建 ChecklistItem
+       （status 默认 NOT_STARTED；user_id 记录创建者）
+    2. session.commit() 落库（service 已 flush）
+    3. ORM 行经 ChecklistItemOut.model_validate 转响应 schema 列表
+
+    与 update_item 区别：本端点批量初始化（一个项目通常一次提交）；
+    update_item 单项状态流转（5 态 + Audit）。
+    """
     svc = ChecklistService(session)
     rows = await svc.bulk_seed(
         project_id=project_id, items=payload.items, user_id=user_id
