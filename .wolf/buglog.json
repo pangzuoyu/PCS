@@ -1618,6 +1618,24 @@
       "last_seen": "2026-09-18",
       "severity": "CRITICAL",
       "fix_commit": "473b009"
+    },
+    {
+      "id": "bug-098",
+      "timestamp": "2026-09-18T22:00:00+08:00",
+      "error_message": "middleware add_trace_id 调 contextvars.reset(token) 报 AttributeError: module contextvars has no attribute reset。28 测试失败（test_auth 全套 + test_health + test_mock_auth）",
+      "file": "pcs-backend/app/main.py:62",
+      "root_cause": "误以为 contextvars 模块有 reset() 函数；实际 ContextVar.reset(token) 才是实例方法。bind_trace_id() 返回的 Token 本身没 reset 方法，必须用 ctx_var.reset(token)。同时 import contextvars 是函数内导入导致每次请求多余开销",
+      "fix": "(1) 改用 _trace_id_var.reset(token) 直接重置；移除多余函数导入；(2) 在 main.py 顶层 from app.core.logging import _trace_id_var 复用模块级 ContextVar 实例；(3) 中间件不再走 bind_trace_id() 而直接 _trace_id_var.set()",
+      "tags": [
+        "P0-MED-003",
+        "contextvar",
+        "middleware",
+        "trace_id"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-18T22:00:00+08:00",
+      "severity": "CRITICAL",
+      "fix_commit": "4a3c052"
     }
   ]
 }
