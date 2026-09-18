@@ -139,6 +139,16 @@ async def transition_piping(
     actor_role: str = Query("DESIGNER"),
     session: AsyncSession = Depends(get_db),
 ):
+    """管路记录状态机迁移（DRAFT → REVIEWED → APPROVED → ...）。
+
+    约束：
+    1. 仅允许 FORMAL workspace（require_formal_workspace 强校验）
+    2. workspace_id + pipe_id 双键查 PipingResult（不存在 → 404）
+    3. 调 StateMachineService.transition，非法迁移 → 409
+    4. 提交由本端点负责（session.commit()）
+
+    actor_role 默认 DESIGNER（审核/批准时由调用方传 APPROVER 等）。
+    """
     ws = await require_formal_workspace(await get_workspace(workspace_id, session))
     rec = (
         await session.execute(
