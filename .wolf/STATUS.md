@@ -799,6 +799,18 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - app/services/lineage.decorator 加 docstring（lineage() 装饰器内层 fn 包装）
   - app/services/pipe_class_service.get 加 docstring（class_id GetOrNotFound 单条查询）
   - app/services/proii_parser get_or_init/parse_num/reset_page_state/extract_values/parse_refinery_property_line 加 docstring（PRO/II 报告 4 类解析内部方法）
+- ✅ (i+) LOW/INFO 滚动继续批 29 项 — commit `72aad78` + `e54b15e`
+  - app/api/v1/flash.py 2 字段加中文 description（calc_type 闪蒸类型 + calc_id 闪蒸计算记录主键）
+  - app/api/v1/heat.py 7 字段加中文 description（calc_id 主键 × 3 + exchanger_category + tema_type + material + flange_class）
+  - app/api/v1/pipe.py 2 字段加中文 description（fluid_phase 相态 + chain_result_id 管段链计算主键）
+  - app/api/v1/pipe_net.py 2 字段加中文 description（fluid_phase 相态 + node_type 节点类型）
+  - app/api/v1/vessel.py 2 字段加中文 description（vessel_type 容器类型 + calc_id 容器计算记录主键）
+  - app/api/v1/sep_equip.py 2 字段加中文 description（device_type 分离设备类型 + calc_id 分离设备计算记录主键）
+  - app/api/v1/psv.py 3 字段加中文 description（relief_scenario 泄放场景 + valve_type 阀型 + calc_id PSV 计算记录主键）
+  - app/api/v1/psv_standard_profiles.py 3 字段加中文 description（profile_id 标准集 ID + profile_code 响应/请求标准集代号）
+  - app/api/v1/pump.py 2 字段加中文 description（pump_type 泵类型 + api610_type API 610 泵型）
+  - app/schemas/pipe_class.py 4 字段加中文 description（design_pressure MPaG + design_temperature °C + dn_series_json DN 范围 + sch_series_json DN→Sch 映射）
+  - **累计**：97 + 29 = **126 项**（i+）
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
