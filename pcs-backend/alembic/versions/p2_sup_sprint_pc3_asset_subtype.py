@@ -23,6 +23,16 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """config_assets 加 asset_subtype 列（PC-3 / V1.4 §0.5/INT-OPEN-01）。
+
+    步骤：
+    - asset_subtype varchar(30) NULL：PIPE_CLASS / STREAM_SYMBOL / PIPE_CODE_TEMPLATE
+    - ix_config_assets_asset_subtype 索引（按 subtype 过滤）
+
+    业务：ConfigAsset 资产级追溯，name 前缀不可靠；
+    CATEGORY_5 管道等级资产 = (category='CATEGORY_5', asset_subtype='PIPE_CLASS')；
+    后续 PIPE_CODE_TEMPLATE / STREAM_SYMBOL 由 SUP-002 后续 PC 落地。
+    """
     op.add_column(
         "config_assets",
         sa.Column(

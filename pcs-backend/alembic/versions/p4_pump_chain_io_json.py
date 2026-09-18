@@ -17,6 +17,15 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """pump_results 加 input_json / output_json 两列（P4-4-4 PUMP 链）。
+
+    步骤：
+    - input_json JSONB NULL：PUMP 链入参容器
+    - output_json JSONB NULL：PUMP 链出参容器
+
+    业务：与 P4-0-2 SUP-008 PIPE/PIPE_NET 模式对齐 — 链入参/出参走
+    JSONB 容器避免 ORM 列膨胀；不改既有列语义，仅增量加列。
+    """
     op.add_column(
         "pump_results",
         sa.Column(

@@ -89,6 +89,31 @@ two_phase_check_enum = postgresql.ENUM(
 
 
 def upgrade() -> None:
+    """SUP-008 结果字段扩展 + two_phase_results 新表（P4-0-2 / 169 列）。
+
+    步骤（A → E 共 5 段）：
+    - A. 6 个 PG enum 类型创建：
+      pipe_type_enum（PUMP_SUCTION/PUMP_DISCHARGE/SELF_FLOW/HEATING_STEAM/TWO_PHASE）/
+      check_result_enum（PASS/FAIL/WARNING）/ pump_operation_enum
+      （NORMAL/STANDBY/OFF）/ design_stage_enum（BASIC/DETAIL）/
+      flow_pattern_enum（ANNULAR/MIST/BUBBLE/SLUG/STRATIFIED/WAVE）/
+      two_phase_check_enum（PASS/WARNING/FAIL）
+    - B. piping_results +11 列：line_description / pipe_type /
+      max_flow_factor / selected_diameter / liquid/gas_velocity_max /
+      pressure_drop_per_100m / selected/recommended_pipe_size / check_result /
+      velocity_range_reference
+    - C. pump_results +4 列：selected_pump_model / selected_motor_model /
+      selected_motor_power / pump_operation
+    - D. design_stage 3 表循环（pump_results / psv_results / vessel_results）：
+      BASIC default NOT NULL（OPEN-009）
+    - E. 新表 two_phase_results（13 列）：input/output_json + Bx/By
+      （Lockhart-Martinelli） + flow_pattern + two_phase_check + 液速/气速 +
+      pressure_gradient + void_fraction + calc_method + created_at
+      （不放 TaggedRecordMixin — 由 P4-TASK0 / 批次自治）
+
+    业务：SUP-008 全套设计阶段（BASIC/DETAIL）落地；两相流计算表 + 6 enum
+    收口；PSV/HEAT/VESSEL 后续批次接入 design_stage 列。
+    """
     # 1. 创建 6 个 PG enum 类型
     postgresql.ENUM(
         "PUMP_SUCTION",

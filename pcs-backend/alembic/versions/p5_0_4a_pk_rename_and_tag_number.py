@@ -70,6 +70,30 @@ _PK_RENAMES: list[tuple[str, str, str]] = [
 
 
 def upgrade() -> None:
+    """PK rename 10 表 + column_sizing.tag_number 统一（P5-0-4a / DICT V3.3）。
+
+    步骤：
+    - A. PK rename 10 表（移除 `_calc` 后缀）：
+      vessel_results: vessel_calc_id→vessel_id /
+      two_phase_results: two_phase_calc_id→two_phase_id /
+      sep_equip_results: sep_calc_id→sep_equip_id /
+      heat_results: heat_calc_id→heat_exchanger_id /
+      cv_results: cv_calc_id→cv_id /
+      restriction_results: orifice_calc_id→orifice_id /
+      cooling_tower_results: ct_calc_id→cooling_tower_id /
+      psychro_results: psychro_calc_id→psychro_id /
+      open_channel_results: channel_calc_id→open_channel_id /
+      filtration_results: filter_calc_id→filter_id
+    - B. column_sizing.tag_number 统一（Q2 路径 A）：
+      drop uq_column_sizing_tag → drop column_tag → tag_number NOT NULL →
+      recreate UNIQUE(project_id, tag_number)
+
+    不做：P5-0-4b 字段平铺延后 sprint，按 P5-1~P5-4 实际字段需求反推。
+
+    业务：DICT V3.3 字典约定 15 张 TaggedRecordMixin 表（除 piping）+
+    equipment_list PK 命名 = `*_id`；ORM 沿用 P4-0-1 v3_1_full_schema 的
+    `*_calc_id` 命名，与 DICT 不一致，本迁移对齐。
+    """
     # 1. PK rename 10 表（DICT V3.3 字典约定：移除 _calc 后缀）
     for table, old_col, new_col in _PK_RENAMES:
         op.alter_column(table, old_col, new_column_name=new_col)
