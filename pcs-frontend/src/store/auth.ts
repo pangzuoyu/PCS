@@ -25,6 +25,7 @@ function deterministicUuid(namespace: string, name: string): string {
   return `${p1.slice(0, 8)}-${p2.slice(0, 4)}-4${p2.slice(4, 7)}-${(parseInt(p3.slice(0, 2), 16) & 0x3f | 0x80).toString(16)}${p3.slice(2, 7)}-${p4}${hex(h1 ^ 0xabcd, 4).slice(0, 4)}`;
 }
 
+/** Zustand auth store 形状（双 token + 用户身份 + setSession 写入 + clear 清理）。 */
 export interface AuthState {
   accessToken: string | null;
   refreshToken: string | null;

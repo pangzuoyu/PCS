@@ -179,6 +179,7 @@ export interface StreamDetailPayload {
   uiSchema: UiSchemaResponse;
 }
 
+/** 按 stream_id 组装流详情载荷（基础流 + 签名矩阵 + 受影响记录 + UI schema）。 */
 export function buildStreamDetail(streamId: string): StreamDetailPayload | null {
   const stream = seedStreams.find((s) => s.stream_id === streamId);
   if (!stream) return null;

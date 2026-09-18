@@ -1,3 +1,12 @@
+/**
+ * Checklist（项目输入清单）类型定义（V1 极简版）。
+ *
+ * 三类清单状态：
+ * - ChecklistStatus 5 态：未开始/进行中/已校核/已假设/不适用
+ * - ChecklistCategory 3 类：必填/条件必填/可选
+ * - ChecklistCompleteness：项目级完整度汇总（required_total / required_verified / required_assumed / required_blocked）
+ */
+
 export type ChecklistStatus =
   | 'NOT_STARTED'
   | 'IN_PROGRESS'

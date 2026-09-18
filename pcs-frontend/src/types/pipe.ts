@@ -38,14 +38,17 @@ export interface PipeInput {
   allowable_dp_kpa: number;
 }
 
+/** 两相流流型（6 种）：分层 STRATIFIED / 波状 WAVE / 环状 ANNULAR / 弹状 SLUG / 雾状 MIST / 无 NONE。 */
 export type TwoPhasePattern =
   | 'STRATIFIED' | 'WAVE' | 'ANNULAR' | 'SLUG' | 'MIST' | 'NONE';
 
+/** 两相流计算结果：流型 + 持液率 liquid_holdup（0~1）。 */
 export interface TwoPhaseResult {
   pattern: Exclude<TwoPhasePattern, 'NONE'>;
   liquid_holdup: number;
 }
 
+/** 管段计算结果：管径 + 壁厚 + 压降 + 两相流流型/持液率。 */
 export interface PipeResult {
   diameter_mm: number;
   wall_thickness_mm: number;

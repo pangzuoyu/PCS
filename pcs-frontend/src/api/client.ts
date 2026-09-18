@@ -26,6 +26,7 @@ api.interceptors.response.use(
   },
 );
 
+/** `/auth/login` 与 `/auth/refresh` 响应（access + refresh 双 token + 用户信息）。 */
 export interface TokenResponse {
   access_token: string;
   refresh_token: string;

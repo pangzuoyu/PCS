@@ -1,3 +1,12 @@
+/**
+ * Workspace 类型定义（V1 极简版）。
+ *
+ * 三种工作区类型：
+ * - FORMAL：正式项目绑定
+ * - PERSONAL：个人草稿
+ * - TEMPORARY：临时试用（带 retention_days 自动清理）
+ */
+
 export type WorkspaceType = 'FORMAL' | 'PERSONAL' | 'TEMPORARY';
 
 export interface Workspace {

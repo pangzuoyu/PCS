@@ -113,6 +113,7 @@ export interface FireScenarioParams extends ScenarioParamsBase {
   h_fg_j_per_kg: number;
 }
 
+/** 出口阀关断场景参数：管段容积 V_pipe + 液相密度 + 隔离时间。 */
 export interface ClosedValveScenarioParams extends ScenarioParamsBase {
   kind: 'CLOSED_VALVE';
   V_pipe_m3: number;
@@ -120,12 +121,14 @@ export interface ClosedValveScenarioParams extends ScenarioParamsBase {
   t_isolation_s: number;
 }
 
+/** 反应失控场景参数：反应放热功率 Q_rxn + 阀门分率 fraction_to_valve。 */
 export interface ReactionRunawayScenarioParams extends ScenarioParamsBase {
   kind: 'REACTION_RUNAWAY';
   Q_rxn_w: number;
   fraction_to_valve: number;
 }
 
+/** 热膨胀场景参数：液相容积 + 密度 + 体膨胀系数 beta + 温升 delta_T + 加热时间。 */
 export interface ThermalExpansionScenarioParams extends ScenarioParamsBase {
   kind: 'THERMAL_EXPANSION';
   V_L_m3: number;
@@ -135,6 +138,7 @@ export interface ThermalExpansionScenarioParams extends ScenarioParamsBase {
   t_heat_s: number;
 }
 
+/** 4 场景参数并集（按 kind 字段区分）；后端 PSV calculate 按此 dispatch。 */
 export type ScenarioParams =
   | FireScenarioParams
   | ClosedValveScenarioParams
@@ -214,6 +218,7 @@ export interface PsvReliefAreaResult {
   orifice_table_status?: 'incomplete_fallback';
 }
 
+/** PSV 选型孔口结果：选中尺寸 + 实际面积 + 进出口口径。 */
 export interface PsvOrificeResult {
   selected_size: OrificeSize;
   actual_area_m2: number;
@@ -221,6 +226,7 @@ export interface PsvOrificeResult {
   outlet_size: string;
 }
 
+/** PSV 计算结果主体：泄放场景 + 聚合结果 + 泄放面积 + 选型孔口 + 定压等。 */
 export interface PsvResultBody {
   relief_scenario: ReliefScenario;
   aggregate: PsvAggregateResult;
@@ -255,6 +261,7 @@ export interface PsvResultBody {
   warnings?: string[];
 }
 
+/** POST /psv/calculate 响应：calc_id + calc_type + 完整 result body + 出口流 ID + record_hash + 签名状态。 */
 export interface PsvCalculateResponse {
   calc_id: string;
   calc_type: 'PSV';
@@ -286,6 +293,7 @@ export interface PsvStandardProfile {
   updated_at: string;
 }
 
+/** POST /psv/standard-profile 请求：标准集代号 + 子标准/版本/条款映射 + 审批信息。 */
 export interface UpsertPsvStandardProfileRequest {
   profile_code: PsvStandardProfileCode;
   standard_refs_json: Record<string, FormulaRef>;
