@@ -221,6 +221,23 @@ class PipeCodeGenerator:
         project_id: uuid.UUID,
         code: str,
     ) -> ValidationOutcome:
+        """校验管号格式（dry-run，不落库）。
+
+        步骤：
+        1. 取项目内有效模板 (_get_effective_format)；
+           失败 → ValidationOutcome(valid=False, errors=[...])，不抛异常
+        2. 按 format.separator 切分 code（空 separator → 整体 1 段）
+        3. 逐段校验（按 segments 顺序）：
+           - auto_increment：必须全数字 + 长度 ≤ spec.length
+           - stream_symbol：必须在项目有效符号表内
+           - enum：值必须在 spec.values 白名单内
+           - constant：值必须 = spec.value
+           - free_text：可选 regex 校验
+        4. 返回 ValidationOutcome{valid, errors[], segments{key: val}}
+
+        与 generate 区别：validate 仅 dry-run，不写 Sequence、不落库；
+        generate 走完整流程 + 落库 + 取号（写 ProjectPipeCodeSequence 自增 1）。
+        """
         try:
             _, fmt = await cls._get_effective_format(db, project_id)
         except PcsError as e:

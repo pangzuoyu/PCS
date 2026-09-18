@@ -198,6 +198,16 @@ def _colebrook_f(
         return 64.0 / Re
 
     def colebrook_eq(f: float) -> float:
+        """Colebrook-White 摩擦系数方程（隐式方程牛顿迭代残差）。
+
+        步骤：
+        1. 计算 1/√f + 2 log10(ε/(3.7D) + 2.51/(Re√f)) 残差
+        2. term ≤ 0（log10 越界）→ 返回 1.0 提示需要更大 f（牛顿步方向）
+        3. term > 0 → 返回完整残差供牛顿迭代收敛
+
+        用途：在 solve_fluid 中作为 f 牛顿迭代的目标方程（迭代求 f）。
+        与 Re 计算区别：本函数接受 f 返回方程残差；Re 仅算雷诺数（前置）。
+        """
         # 1/√f + 2 log10(ε/(3.7D) + 2.51/(Re√f)) = 0
         sqrt_f = math.sqrt(f)
         term = eps_m / (3.7 * D_m) + 2.51 / (Re * sqrt_f)

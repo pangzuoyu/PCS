@@ -340,6 +340,15 @@ class _WagnerBaseThermo:
     # ----- Psat -----
 
     def Psat(self, comp_id: int, T: float) -> float:
+        """饱和蒸气压 Psat(T)（Wagner 方程，水用专用蒸汽表）。
+
+        步骤：
+        1. _water_only → 全水体系直接调 _water_Psat
+        2. 水组分（CAS 7732-18-5）→ _water_Psat（IAPWS-IF97 精度更佳）
+        3. 其他组分 → _wagner_psat（chemicals.vapor_pressure Wagner 方程）
+
+        与 Tsat 区别：Psat 输入温度返回压力；Tsat 输入压力牛顿反演温度。
+        """
         if self._water_only:
             return _water_Psat(T)
         cas = self._cass[comp_id]
@@ -350,6 +359,18 @@ class _WagnerBaseThermo:
     # ----- Tsat -----
 
     def Tsat(self, comp_id: int, P: float) -> float:
+        """饱和温度 Tsat(P)（Wagner 方程牛顿反演，水用专用蒸汽表）。
+
+        步骤：
+        1. _water_only 或水组分 → _water_Tsat（IAPWS-IF97 精度更佳）
+        2. 其他组分 → Wagner 方程牛顿反演：
+           - 初值取 _TB*0.9 或 100K（避免 0K 起步）
+           - 50 次迭代收敛；dPdT 由 chemicals.vapor_pressure.dWagner_dT
+           - 收敛阈值 1e-3 bar；T 范围 [Tmin, Tc)
+        3. 不收敛 → 返回最后 T_guess（fallback）
+
+        与 Psat 区别：Psat 直接算；Tsat 牛顿迭代。
+        """
         if self._water_only or self._cass[comp_id] == "7732-18-5":
             return _water_Tsat(P)
         # Wagner 方程 → 牛顿反演（dPsat/dT 已知）
