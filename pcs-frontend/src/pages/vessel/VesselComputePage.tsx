@@ -46,7 +46,8 @@ import type {
 interface StreamLite {
   stream_id: string;
   tag_number: string;
-  sign_status: string;
+  /**可选：父组件注入时携带；streamApi 自取路径不返（后端 403 兜底）。*/
+  sign_status?: string;
 }
 
 interface Props {
@@ -132,13 +133,12 @@ export function VesselComputePage({
       .listByProject(PROJECT_ID)
       .then((list) => {
         if (cancelled) return;
-        // streamApi 不返 sign_status（轻量子集），全部当作 CHECKED 候选（dev/mock 友好）
+        // streamApi 不返 sign_status（轻量子集）；不伪造 CHECKED，
         // 真实 ACL/状态由后端 /vessel/calculate STREAM_NOT_CHECKED 403 兜底
         setFetchedStreams(
           list.map((s) => ({
             stream_id: s.stream_id,
             tag_number: s.tag_number,
-            sign_status: 'CHECKED',
           })),
         );
       })
