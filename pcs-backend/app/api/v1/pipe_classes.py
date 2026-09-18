@@ -38,12 +38,18 @@ router = APIRouter(tags=["pipe-classes"])
 
 
 class ProjectPipeClassForkRequest(BaseModel):
-    class_id: str = Field(..., min_length=1, max_length=50)
+    class_id: str = Field(
+        ..., min_length=1, max_length=50, description="公司级管号等级 ID"
+    )
 
 
 class ProjectPipeClassCreateRequest(BaseModel):
-    class_name: str = Field(..., min_length=1, max_length=100)
-    data: dict = Field(default_factory=dict)
+    class_name: str = Field(
+        ..., min_length=1, max_length=100, description="项目级管号等级名"
+    )
+    data: dict = Field(
+        default_factory=dict, description="项目级覆盖字段字典"
+    )
 
 
 class ProjectPipeClassOverrideRequest(BaseModel):
