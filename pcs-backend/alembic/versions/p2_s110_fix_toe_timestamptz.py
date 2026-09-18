@@ -26,6 +26,18 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """pcs_toe_conversion_factors 时间戳列矫正（P2 Sprint1 §110 / 终审 F3）。
+
+    步骤：
+    - created_at：DateTime → DateTime(timezone=True)（PG AT TIME ZONE 'UTC' 转）
+    - updated_at：DateTime → DateTime(timezone=True) + 改 nullable=True
+
+    不改历史：pcs_test DB 已应用 2026_09_03_0800_add_toe_conversion，本迁移
+    仅矫正不回改原文件。
+
+    业务：与 ORM TimestampMixin + 兄弟迁移 2026_09_03_1000_add_htri_template_schemas
+    对齐（timezone=True + updated_at nullable），保证 application 层时区语义一致。
+    """
     op.alter_column(
         "pcs_toe_conversion_factors",
         "created_at",

@@ -21,6 +21,18 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """record_change_snapshots 补 snapshot_status 字段（P1 Sprint2 / ADR-0024 V3.3）。
+
+    步骤：
+    - snapshot_status varchar(20) NULL：ACTIVE/CONSUMED/ABANDONED 三态
+    - 索引：ix_record_change_snapshots_snapshot_status
+
+    不做：equipment_type_codes.project_id 已在 P0 baseline 实现（复合 PK 一部分），
+    本迁移不重复添加。
+
+    业务：state machine 快照引入生命周期三态 — ACTIVE 当前生效 /
+    CONSUMED 已应用下游 / ABANDONED 撤销放弃；nullable 不破坏 P0 老快照。
+    """
     op.add_column(
         "record_change_snapshots",
         sa.Column(

@@ -21,6 +21,20 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """pipe_class_import_previews 主表创建（PC-5 / V1.4 §0.6/§三、#6）。
+
+    步骤：
+    - 主表 pipe_class_import_previews：import_id (PK UUID) + actor_id (FK→users)
+    - 存原文件：file_bytes LargeBinary（完整保留供重新解析）
+    - 解析结果：parsed_json JSON（ImportPreview 序列化：valid/errors/warnings）
+    - 计数：error_count / warning_count INT default 0（前端概览统计）
+    - 时间戳：created_at / expires_at（service 层按 expires_at 过滤 24h 过期清理）
+    - consumed_at NULL（首次 commit_import 写入；二次同 import_id 拒绝，防重复消费）
+    - 索引：ix_pc_import_previews_expires_at（过期清理加速）
+
+    业务：import_id 暂存选 DB 表方案（cerebrum #3 已选）— 服务端 preview 后
+    返 import_id，前端确认携带 import_id，服务端按 import_id 取预览重放。
+    """
     op.create_table(
         "pipe_class_import_previews",
         sa.Column("import_id", sa.UUID(as_uuid=True), primary_key=True),

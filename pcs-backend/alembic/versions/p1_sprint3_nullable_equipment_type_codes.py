@@ -21,6 +21,17 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """equipment_type_codes.project_id 改 nullable（P1 Sprint3 / DICT V3.3）。
+
+    步骤：
+    - A. DROP CONSTRAINT pk_equipment_type_codes CASCADE（PG 不允许 PK 列可空）
+    - B. project_id → nullable=True（语义：NULL = 公司级默认；项目级覆写 P2+ 启用）
+    - C. uq_equipment_type_codes_project_type UNIQUE 约束替代 PK（保留唯一性）
+    - D. 重建 equipment_list.type_code 复合 FK（CASCADE 掉的）+ 索引保留
+
+    业务：V3.3 字典语义扩展 — company-level default（NULL）与 project-level
+    override（UUID）并存；项目级覆写在 P2+ 模板导入后启用。
+    """
     # 1. 丢弃复合主键（CASCADE：会级联删 equipment_list.type_code FK）
     op.execute("ALTER TABLE equipment_type_codes DROP CONSTRAINT pk_equipment_type_codes CASCADE")
     # 2. project_id 改 nullable

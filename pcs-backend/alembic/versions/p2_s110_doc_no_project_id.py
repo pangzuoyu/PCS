@@ -22,6 +22,17 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """doc_no_sequences 补 project_id + 三列 UQ（P2 Sprint1 §110 / DICT V3.4 §68）。
+
+    步骤：
+    - A. doc_no_sequences 加 project_id UUID NULL + FK→projects
+    - B. DROP old uq_doc_no_sequences_template_scope（仅 template_id × scope_key）
+    - C. CREATE uq_doc_no_sequences_proj_template_scope
+      （project_id × template_id × scope_key 三列 UQ）
+
+    业务：DICT-ALL-003 V3.4 §68 要求 doc_no_sequences 含项目维度；NumberingService
+    已按 (project_id, template_id, scope_key) 查建，ORM/测试均已就位，本迁移补齐 DB 侧。
+    """
     op.add_column(
         "doc_no_sequences",
         sa.Column("project_id", sa.Uuid(), nullable=True),

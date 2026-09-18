@@ -116,6 +116,32 @@ _NEW_3_JSONB: list[tuple[str]] = [
 
 
 def upgrade() -> None:
+    """heat_results 双轨字段扩展（P5-0-2 Task 2 / ADR-0027 V1.0 决策 1/5）。
+
+    步骤（A → C 三段）：
+    - A. 9 旧标量保留（P5-OPEN-006 向后兼容承诺）：
+      equipment_no / equipment_name / duty / effective_area /
+      hot/cold inlet/outlet pressure / u_overall
+    - B. 39 新标量（SUP-009 V1.0 §3.1）：
+      - 基础标识 7：exchanger_type / orientation / units_series×2 / shells_per_unit /
+        total_area_gross/eff
+      - 通用热工 8：lmtd / mtd_corrected / emtd / overdesign_percent /
+        u_service/calculated/clean / heat_exchange_area（duty 与 9 旧共享 1 列）
+      - 通用几何 9：tube_count / tube_od/id/wall_thickness/length/pitch / layout /
+        material / passes
+      - 壳程几何 10：shell_id/design_pressure/design_temp / baffle_type/cut/spacing/
+        inlet_spacing / seal_strip_count / passlane_seal_rod_count / impingement_plate
+      - 热阻分布 5：thermal_resistance_shell/tube/fouling/metal/bond
+    - C. 3 JSONB：shell_params / tube_params / ache_params
+
+    列数：9 旧 + 39 新标量 + 3 JSONB = 51 列；新轨 39 + 3 = 42 新字段（ADR-0027 决策 5）。
+
+    不补：SPEC V1.2 §4.1 9 JSONB 缺口（general/performance/heat_transfer/...
+    9 类）语义不对应，列入 P5+ backlog（ADR-0027 决策 4）。
+
+    业务：heat_results 双轨 — 旧轨保 P5-OPEN-006 兼容 + 新轨补 SUP-009 §3.1
+    完整字段；P5-0 批约束 Q4 修订 REGISTRY 9 → 10（+HeatResult 修正 P4 遗漏）。
+    """
     # 1. 9 旧标量
     for col_name, col_type, nullable in _LEGACY_9_COLUMNS:
         op.add_column(
