@@ -96,11 +96,17 @@ uv run ruff check .               # 0 错为目标
 | 批 4 | P4-4 PUMP（选型 + NPSHa + 曲线插值 + PUMP 链 + 出口物流） | CLOSED |
 | P4-TASK0 | 本体论（@lineage D4/D5 + RECORD_TYPE_REGISTRY 完整化 + physical_semantics + importlinter D8 + CI 三方比对基础） | CLOSED |
 | **P4.5 批 3** | **前端计算模块 + 项目向导（SIM 物流详情/导入向导、PIPE_CLASS 等级/符号表、COMMON 物性查询/许用应力/毒性爆炸、FLASH/PIPE/PUMP 计算界面、PIPE_NET 拓扑 V1、PMS/BEDD/项目向导；前端测试 ~131 项）** | **CLOSED 2026-09-16** |
+| **P5 (a)** | P0 MEDIUM 5 项收口（sync dispose + trace_id 传播 + bug-098 修复） | CLOSED |
+| **P5 (b)** | MEDIUM 滚动首批 4 项（proii_parser / PsvPilotOperated / PsvRuptureDisc / alembic backfill / ACHE EnthalpyTable 校验） | CLOSED |
+| **P5 (c)** | MEDIUM 滚动次批 5 项（APP ErrorBoundary / VESSEL/SEP PROJECT_ID / VESSEL NaN 兜底 / VESSEL/SEP sign_status 去伪造） | CLOSED |
+| **P5 (d)~(g)** | MEDIUM 滚动第三~六批 共 33 项（累计 MEDIUM 48 项全部收口） | CLOSED |
+| **P5 (h)** | **LOW/INFO 滚动首批 105 项**（38 个 `docs(p5c-low)` commit，覆盖 7 api/v1 + 7 service + 1 core 文件、11 schema 文件 159 字段中文 description、alembic E501 修复；全栈 ruff 0 错 + pytest 2225 passed） | **CLOSED 2026-09-18** |
 
 ### ⏳ 待启动批次
 
 - **P5-1**：calculate 入口接 Guard + 9 态 enum 扩展 + 文件上传契约冻结（详见 `docs/superpowers/plans/2026-09-16-p45-frontend-sprint-batch3.md` §P5 冻结点）
 - **P5-HEAT**：换热器 / PSV / HTRI 导入异步任务契约
+- **P5-LF (i+)**：LOW/INFO 滚动继续批（batch h 105 项已闭环，剩余清单持续扫描）
 
 ### 已落地工艺能力
 
@@ -110,6 +116,9 @@ uv run ruff check .               # 0 错为目标
 - **精度护栏**：3 流态分支（LAMINAR / TRANSITION 2000–4000 强制 WARNING / TURBULENT）+ confidence HIGH/MEDIUM/LOW + Crane TP-410 K 表 reynolds_applicable 标注 + get_fitting_k Re 参数预留（P5+ Hooper 2-K / Darby 3-K 接入）
 - **血缘与哈希**：record_hash 数值规范化 16 hex + DataLineage 只追加 + finalize_calc_record 统一收口
 - **前端模块**（P4.5 批 3）：SIM 物流导入向导 + 详情页 / PIPE_CLASS 等级 + 符号表 + 代码格式设计器 / COMMON 物性查询 + 许用应力 + 毒性爆炸 / FLASH/PIPE/PUMP 计算界面 / PIPE_NET 拓扑 V1（手写 SVG）/ PMS 管道材料规格 + BEDD 文档 + 项目向导；StateBadge 9 态 + SignatureMatrix 共享组件 + ModuleLayout 2×2 网格；前端 vitest 约 131 项测试通过
+- **状态机双轨**：记录级 9 态机（DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED/STALE/CHANGE_PENDING/CHANGED/REVERSAL_PENDING/OBSOLETE，StateMachineService.transition 驱动）+ 资源级 5 态机（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE，ConfigStateMachine 驱动公司模板 + 项目级轻量状态机）
+- **配置资产**：公司管号模板 / 管架 / 流股符号三资源均挂 ConfigAsset（V1.4 §0.5 INT-OPEN-01），走 fork → project → 5 态机全流程；FMT-9 条规则验证 + PSV-22 字段完整闭环
+- **文档完整度**（P5 批 h LOW/INFO 滚动）：38 个 `docs(p5c-low)` commit 闭环 105 项公共 API docstring（含 5 态机端点、CRUD 端点、Pydantic 字段中文 description）；全栈 ruff 0 错 + pytest 2225 passed 基线锁定
 
 ### Backlog（P5+）
 
