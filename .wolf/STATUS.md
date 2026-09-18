@@ -893,6 +893,17 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - **schemas**（2 项）：equip_lib.require_any_dimension（Pydantic v2 field_validator）+ pipe_class._check_dn（Pydantic v2 model_validator）
   - **累计**：313 + 30 = **~343 项**（i++++++++）
   - **全仓 AST 扫描结果**：0 缺口（class methods 全部已补）
+- ✅ (i+++++++++) LOW/INFO 滚动继续批 14 项模块级 docstring — commit `dab4277`
+  - **core**（3 个）：config（pydantic-settings + secret_key 强校验）/ errors（PcsError 信封 + 5 类 handler）/ logging（JSON + trace_id ContextVar）
+  - **db**（1 个）：base（DeclarativeBase + 命名约定）
+  - **入口**（1 个）：main（lifespan + 路由 + 异常处理器）
+  - **models**（9 个）：calc / config_domain / deliverable / enums / equipment / htri_template / mixins / project / system
+  - **累计**：343 + 14 = **~357 项**（i+++++++++）
+  - **全仓 AST 扫描结果**：0 缺口（class methods + module docstring 全部已补）
+- ✅ (i++++++++++) LOW/INFO 滚动继续批 4 项 type/docstring 微修 — commit `db3f282` + `80697c2`
+  - `db3f282` lineage 装饰器工厂添加返回类型 Callable（按 ruff UP035 从 collections.abc 导入）
+  - `80697c2` 3 项 services 私有 module func 补中文 docstring：excel_parser._find_sheet / heat/heat_data_service._htri_ache_dict / psv/other_cases_service._validate_reaction_runaway
+  - **累计**：357 + 4 = **~361 项**（i++++++++++）
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
