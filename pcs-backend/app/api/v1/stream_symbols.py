@@ -208,6 +208,19 @@ async def update_project_symbol(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """PUT 改项目作用域流股符号（增量覆盖）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（项目符号工艺侧编辑权限）
+    2. payload.model_dump(exclude_none=True) 排除 None 字段，仅提交显式给出的
+       override / name / category / is_active，避免无意清空
+    3. 转发到 StreamSymbolService.update_project_symbol（service 层
+       按字段名增量覆盖，不动 source 字段）
+    4. service 提交（已 commit），返回更新行
+
+    注意：本端点不提供 status 流放接口，项目符号无状态机；如需作废走
+    delete_project_symbol 或 add_project_symbol 重新创建。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await StreamSymbolService.update_project_symbol(
         db,
