@@ -47,6 +47,18 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
+    """取 Settings 单例（lru_cache 缓存）。
+
+    安全校验：
+    1. SECRET_KEY 为空：
+       - production → RuntimeError fail-fast
+       - 其他 → 自动生成开发用密钥（带 _DEFAULT_DEV_SECRET_PREFIX 前缀）+ RuntimeWarning
+    2. SECRET_KEY < 32 字节：
+       - production → RuntimeError fail-fast
+       - 其他 → RuntimeWarning（提示 production 替换）
+
+    返回强校验后的 Settings。
+    """
     s = Settings()
     # secret_key 空 → 自动生成（开发用）+ 提醒
     if not s.secret_key:
