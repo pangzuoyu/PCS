@@ -105,6 +105,19 @@ class ChecklistService:
         return row
 
     async def completeness(self, project_id: uuid.UUID) -> ChecklistCompleteness:
+        """统计项目输入清单完成度。
+
+        判定规则（DICT V3.1，向后兼容旧 P0 required bool 字段）：
+        - required_items：input_category=='REQUIRED' 或（旧数据）required=True 且无 input_category
+        - 分桶：
+          - req_verified = status='VERIFIED'
+          - req_assumed = status='ASSUMED'
+          - req_blocked = status in ('NOT_STARTED', 'IN_PROGRESS')
+        - completeness_pct = (verified + assumed) / required_total × 100
+          required_total=0 时按 100%（避免除零）
+
+        返回 ChecklistCompleteness Pydantic 模型（total/required_total/3 桶/百分比）。
+        """
         items = await self.list_for_project(project_id)
         # DICT V3.1：以 input_category==REQUIRED 判定（旧 P0 required bool 兼容）
         required_items = [
