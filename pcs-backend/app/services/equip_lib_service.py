@@ -27,6 +27,18 @@ class EquipLibService:
         source_project_id: str | None = None,
         created_by: UUID | None = None,
     ) -> ConfigAsset:
+        """将设备位号沉淀到 CATEGORY_6 设备库（标准化信息快照，与源项目解耦）。
+
+        步骤：
+        1. 显式入参优先于 payload 内嵌字段（同一语义两入口）
+        2. 创建 ConfigAsset（CATEGORY_6 / DRAFT / settle-v1）
+           - name = "{equipment_name} [{original_tag}]"（String(200) 截断）
+           - content_json = {equipment_type, standard_info}
+        3. 同步创建 ConfigVersion 行（DRAFT，与 config_service 创建 asset 同款两步）
+        4. 写 Audit（CONFIG_ASSET_CREATED，detail 含 settle=True + source 追溯）
+
+        提交由本函数负责（session.commit()）。
+        """
         # 显式入参优先于 payload 内嵌字段（同一语义，两个入口）
         src_equip = source_equipment_id or payload.source_equipment_id
         src_proj = source_project_id or payload.source_project_id
