@@ -642,8 +642,14 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - pipe_code_template_service.update_project_config 加 docstring（仅 DRAFT/PENDING 可编辑，APPROVED+ 走状态机）
   - api/v1/lineage.graph 加 docstring（root + upstream + downstream 三段，max_depth 防爆栈）
   - api/v1/workspaces.create_workspace 加 docstring（POST 201，flush+commit，user_id=owner_id）
-- 🔲 **下一批**：LOW/INFO 滚动
+- 🔲 (i) LOW/INFO 滚动继续批 — 进行中（alembic 迁移升级流程 docstring）
   - schemas/api v1 Pydantic Field 中文 description 100% 覆盖（11 文件 159 字段）
+- ✅ (i) LOW/INFO 滚动继续批 5 项 — commit `d799aff` + `0d094dd` + `b99a757`
+  - alembic p2_sup_sprint_pc1_pipe_class_upgrade upgrade 加 docstring（PC-1 5 态机 + ConfigAsset + 项目级 fork 派生 6 段）
+  - alembic p3sim_sim_unit_op_results upgrade 加 docstring（SIM 单元操作结果主表 + JSONB 三列 + is_unreliable）
+  - alembic p3sim_sim_imports upgrade 加 docstring（SIM 导入批次 + 3 enum + 状态机 PREVIEW/COMMITTED/EXPIRED）
+  - alembic p2_sprint2_equipment_procurement_delivery upgrade 加 docstring（equipment_list 采购/到货 14 字段扩展）
+  - alembic p2_sprint1_config_layer_fix upgrade 加 docstring（3 张配置表字段修复 + ConfigAsset 挂载）
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
