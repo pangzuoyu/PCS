@@ -168,7 +168,8 @@ export function HeatComputePage(): JSX.Element {
       });
       setImportResult(resp);
       // OPEN-7：import() 透传 equipment_name + output_json，免去 get() roundtrip
-      // 直接用 resp 构造 HeatResultResponse 占位（input_json 在 import 阶段尚未完整解析，置空对象）
+      // 直接用 resp 构造 HeatResultResponse 占位（input_json 用 form 值 + import 元数据填充，
+      // 不再置空对象 → 后端详情页与 record_hash 校验可对照原始 import 输入）
       setHeatDetail({
         calc_id: resp.calc_id,
         calc_type: resp.calc_type,
@@ -180,7 +181,14 @@ export function HeatComputePage(): JSX.Element {
         exchanger_category: resp.exchanger_category,
         duty: resp.duty_w,
         record_hash: resp.record_hash,
-        input_json: {},
+        input_json: {
+          source: 'htri_import',
+          equipment_no: values.equipment_no,
+          tag_number: values.tag_number,
+          exchanger_category: values.exchanger_category,
+          source_stream_id: values.source_stream_id || null,
+          filename: importFile?.name ?? null,
+        },
         output_json: resp.output_json,
       });
       message.success(`HEAT 导入完成：record_hash=${resp.record_hash}`);
@@ -357,11 +365,12 @@ export function HeatComputePage(): JSX.Element {
           </Descriptions>
 
           {heatDetail.output_json &&
-            'total_weight_kg' in heatDetail.output_json && (
+            typeof heatDetail.output_json.total_weight_kg === 'number' &&
+            Number.isFinite(heatDetail.output_json.total_weight_kg) && (
               <Alert
                 type="info"
                 showIcon
-                message={`P7 UTIL 总重：${(heatDetail.output_json.total_weight_kg as number).toFixed(1)} kg`}
+                message={`P7 UTIL 总重：${heatDetail.output_json.total_weight_kg.toFixed(1)} kg`}
                 style={{ marginTop: 12 }}
               />
             )}
