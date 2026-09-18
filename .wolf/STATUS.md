@@ -645,7 +645,7 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 - ✅ (i) LOW/INFO 滚动继续批 — 进行中（alembic 迁移升级流程 docstring）
   - schemas/api v1 Pydantic Field 中文 description 100% 覆盖（11 文件 159 字段）
   - alembic upgrade 流程 9 项 docstring（PC-1 5 态机/SIM 三表/equipment_list 4 段/配置层 fix + 主表 2 张）
-- ✅ (i) LOW/INFO 滚动继续批 17 项 — commit `d799aff` + `0d094dd` + `b99a757` + `6d304c9` + `3393350` + `55ea288` + `ab31050` + `275d85b`
+- ✅ (i) LOW/INFO 滚动继续批 21 项 — commit `d799aff` + `0d094dd` + `b99a757` + `6d304c9` + `3393350` + `55ea288` + `ab31050` + `275d85b` + `2e54c9b` + `f79aa06`
   - alembic p2_sup_sprint_pc1_pipe_class_upgrade upgrade 加 docstring（PC-1 5 态机 + ConfigAsset + 项目级 fork 派生 6 段）
   - alembic p3sim_sim_unit_op_results upgrade 加 docstring（SIM 单元操作结果主表 + JSONB 三列 + is_unreliable）
   - alembic p3sim_sim_imports upgrade 加 docstring（SIM 导入批次 + 3 enum + 状态机 PREVIEW/COMMITTED/EXPIRED）
@@ -663,6 +663,10 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - alembic p3sim_sim_tower_results upgrade 加 docstring（sim_tower_results 主表 + 4 JSON 列）
   - alembic p3_sim_stream_state_machine_fields upgrade 加 docstring（streams 3 状态机字段 + YAGNI 说明）
   - alembic p3sim_streams_petroleum_fields upgrade 加 docstring（4 Float + distillation_curves JSONB + 8 schema）
+  - alembic p1sprint1_checklist_schema_upgrade upgrade 加 docstring（project_input_checklist 7 字段对齐 V3.1）
+  - alembic p4_calc_audit_fields upgrade 加 docstring（5 表 × 3 列审计 + ADR-0031 护栏）
+  - alembic p3sim_streams_liquid_fields upgrade 加 docstring（liquid_fraction + specific_gravity 对称气相）
+  - alembic p3sim_streams_vapor_fields upgrade 加 docstring（7 液相重命名 + 9 气相 + 3 JSONB→ORM）
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
