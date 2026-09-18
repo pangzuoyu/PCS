@@ -28,6 +28,16 @@ class ErrorResponse(BaseModel):
 
 
 def install_exception_handlers(app: FastAPI) -> None:
+    """注册全局异常处理器，统一错误响应信封（ErrorResponse）。
+
+    注册 5 类 handler（按优先级匹配）：
+    1. `PcsError` / `ServicePcsError`：业务异常（status 取 exc.status/code）
+    2. `StarletteHTTPException`：HTTP 异常（status 取 exc.status_code）
+    3. `RequestValidationError`：Pydantic 422 校验失败（VALIDATION_ERROR 信封）
+    4. `Exception`：兜底 500（INTERNAL_ERROR 信封，不泄漏内部细节）
+
+    所有响应均经 `ErrorResponse` 信封序列化（code/message/detail/trace_id）。
+    """
     @app.exception_handler(PcsError)
     async def _pcs(request: Request, exc: PcsError) -> JSONResponse:
         return JSONResponse(
