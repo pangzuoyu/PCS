@@ -72,6 +72,14 @@ class WorkspaceService:
     async def list_for_user(
         self, owner_id: uuid.UUID | None = None, limit: int = 100, offset: int = 0
     ) -> list[Workspace]:
+        """按 owner_id 列 workspace（可全量）。
+
+        - 默认 limit=100, offset=0（分页）
+        - owner_id=None 视为不过滤（admin 用），否则按 owner_id 过滤
+        - 排序依赖 PK（无显式 order_by，结果顺序由 PG 默认）
+
+        对应 create_workspace：owner 字段写入 user_id（创建者即 owner）。
+        """
         stmt = select(Workspace).limit(limit).offset(offset)
         if owner_id is not None:
             stmt = stmt.where(Workspace.owner_id == owner_id)
