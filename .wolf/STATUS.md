@@ -904,6 +904,11 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - `db3f282` lineage 装饰器工厂添加返回类型 Callable（按 ruff UP035 从 collections.abc 导入）
   - `80697c2` 3 项 services 私有 module func 补中文 docstring：excel_parser._find_sheet / heat/heat_data_service._htri_ache_dict / psv/other_cases_service._validate_reaction_runaway
   - **累计**：357 + 4 = **~361 项**（i++++++++++）
+- ✅ (i+++++++++++) LOW/INFO 滚动继续批 2 项 workers module func — commit `25889a2`
+  - worker._make_session（ARQ ctx → AsyncSession 工厂）
+  - workspace_tasks.cleanup_with_session（旧 ctx 兼容 wrapper）
+  - **累计**：361 + 2 = **~363 项**（i+++++++++++）
+  - **全仓 AST 扫描结果**：0 缺口（class methods + module docstring + module funcs 全部已补）
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
