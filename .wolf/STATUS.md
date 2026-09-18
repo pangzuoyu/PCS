@@ -924,6 +924,18 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - flash.ts 2 项 / pipe.ts 2 项 / stream.ts 2 项 / pipeClass/pipeNet/pump 各 1 项
   - **累计**：366 + 47 = **~413 项**（i+++++++++++++）
   - **基线验证**：tsc --noEmit clean / eslint src/types/ clean / AST 0 缺口
+- ✅ (i++++++++++++++) LOW/INFO 滚动继续批 48 项 backend 私有 helper + __init__ docstring — commit `5441c75`
+  - **26 项 module-level 私有 helper**（_xxx 函数）：heat_data_service ×2 / weight_estimate ×4 /
+    import_service ×3 / petroleum_service ×2 / sizing_service / proii_tray_loading ×2 /
+    orifice_service / sep_equip_persist / heat/lineage/pipe_net/psv_standard_profiles/
+    sim_imports_query/api/v1/security + workspace_tasks _now
+  - **22 项 __init__ 方法**：12 个 service class（audit/checklist/cia/coefficient/config/config_sm/
+    data_lineage_query/formula/numbering/pipe_class_import/report/template/workspace）+ 
+    6 个 helper/error class（PcsError core+service + InvalidTransition + StateMachineService +
+    HtriVersionUnsupportedError + BoundObsoleteError + _WagnerBaseThermo + lineage_ctx）
+  - ruff E501 边界处理：单行 docstring ≤100 字符（中英混排紧凑写法）
+  - **累计**：413 + 48 = **~461 项**（i++++++++++++++）
+  - **基线验证**：ruff check . clean / AST 0 缺口
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
@@ -931,7 +943,7 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 3. ✅ ~~P0 MEDIUM 5 项收口~~ — commit 4a3c052 闭环（sync dispose + trace_id + bug-098 修复）
 4. **MEDIUM/LOW/INFO**：
    - ✅ MEDIUM 48 项 — 全部收口（commit a3a8df6，累计 batch a-f+g 闭环）
-   - 🔲 LOW/INFO 滚动（剩余清单入 backlog，待办项持续扫；前端 TS 类型 JSDoc 已 413 项闭环）
+   - 🔲 LOW/INFO 滚动（剩余清单入 backlog，待办项持续扫；前端 TS 类型 + backend 私有 helper 已 461 项闭环）
 4. **P5-3 工艺工程师接管**：
    - OPEN-10-1 API526_FLANGE_CLASS_ORIFICE_LIMITS 84 组合（§8 gate #4）
    - OPEN-10-2 真实 Kb 厂商数据（替换合成 _KB_DATA）
