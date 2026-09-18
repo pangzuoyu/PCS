@@ -402,6 +402,16 @@ class StreamSymbolService:
         project_id: uuid.UUID,
         include_company: bool = True,
     ) -> list[dict]:
+        """列出项目作用域的流股符号（可选择叠加公司级 PUBLISHED）。
+
+        合并规则：
+        1. 先列项目内 ProjectStreamSymbol 行（override_json 优先，缺字段回退到表字段）
+           - status 取行 status，is_active 取行 is_active
+        2. include_company=True 时再列公司级 PUBLISHED 符号，去重后追加
+           - status 标记为 INHERITED（语义：继承自公司级，未在项目内覆写）
+
+        返回 dict 列表（前端无需关心项目/公司来源区分）。
+        """
         out: list[dict] = []
         rows = (
             await db.execute(
