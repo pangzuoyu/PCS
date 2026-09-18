@@ -475,7 +475,12 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 
 ### 当前进度
 - ✅ (a) P0 MEDIUM 5 项收口 — commit `4a3c052`（含 sync dispose + trace_id 传播 + bug-098 修复）
-- 🔲 **下一批**：MEDIUM 滚动首批 — P1×3 / P2×3 / P5-123×4 / P5-4 detail×6 / P5c×1 / P5-3 fe×7
+- ✅ (b) MEDIUM 滚动首批 4 项 — commit `ca8e765` + `59b69b5` + `e7bf108` + `71ac4da`
+  - proii_parser docstring 修正（ca8e765）
+  - PsvPilotOperated/RuptureDisc docstring 修正（59b69b5）
+  - alembic p5_open_010 存量 backfill 补全（e7bf108）
+  - ACHE EnthalpyTable 温度区间 + 升序强校验（71ac4da）
+- 🔲 **下一批**：MEDIUM 滚动次批 — P5-3 fe×7 + P5c×1 + P1×3 + P2×3 + LOW/INFO
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
