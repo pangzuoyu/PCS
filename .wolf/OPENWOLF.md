@@ -25,7 +25,7 @@ Keep it fresh: when the user signals a quest is done ("done", "ship it", "next p
 
 Before fixing any bug: grep `.wolf/buglog.json` for the error message or filename; the fix may already be known.
 
-After fixing any bug, failed test, failed build, or user-reported problem: append an entry with `id`, `timestamp`, `error_message`, `file`, `root_cause`, `fix`, `tags`, `occurrences`, `last_seen`. Also log when you edit a file more than twice to get it right. The threshold is LOW.
+After fixing any bug, failed test, failed build, or user-reported problem: append an entry with `id`, `timestamp`, `error_message`, `file`, `root_cause`, `fix`, `fix_commit`, `tags`, `occurrences`, `last_seen`. `fix_commit` 是修复该 bug 的 git commit hash（短 SHA 7 位，如 `4a3c052`）—— 单点来源便于 STATUS 反查。若修复尚未 commit（如 WIP），填 `null` 并在 `last_seen` 同步 commit 后补。也 log when you edit a file more than twice to get it right. The threshold is LOW.
 
 ## Token discipline
 
