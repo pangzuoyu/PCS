@@ -151,6 +151,16 @@ class StreamSymbolService:
         data: dict[str, Any],
         actor: Any,
     ) -> StreamSymbol:
+        """更新公司级流股符号（按字段名 setattr 增量覆盖）。
+
+        步骤：
+        1. 取行（不存在 → STREAM_SYMBOL_NOT_FOUND 404，由 get() 抛）
+        2. 遍历 data.items()，存在键才 setattr（避免清空未给字段）
+        3. 提交由本函数负责（db.commit()）
+
+        注意：调用方负责 exclude_none（api 端走 model_dump(exclude_none=True)）；
+        本函数不做字段白名单，依赖上游 schema 限制可写字段。actor 参数当前未使用。
+        """
         ss = await cls.get(db, symbol_id)
         for k, v in data.items():
             setattr(ss, k, v)
