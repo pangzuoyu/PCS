@@ -1012,3 +1012,59 @@ C6-b 修复要点：GB/T 12241 虽标 `incomplete_fallback`，但公式常数仍
 - sample/ 9 个 PRO/II 工程不入 git（回归 fixture）
 - QA 报告路径：`.gstack/qa-reports/qa-report-pcs-frontend-YYYY-MM-DD-<batch>.md`
 - 详细交接：`.wolf/HANDOFF-2026-09-13.md`（含 suggested skills；用户裁决交接文档入项目目录）
+
+---
+
+## ✅ Done (P6-0 批末闭环 — 2026-09-19)
+
+**目标**：P6 SPEC V2.0 高级计算模块计划 P6-0 阶段（基础设施 + 包装层扩展）
+
+**任务完成情况**：
+
+| Task | Commit | 内容 | 状态 |
+|------|--------|------|------|
+| Task 1 | `257ac9f` | ADR-0030 V1.2 + CoolProp==6.6.0 锁定（G-02） | ✅ complete（3 Minor deferred） |
+| Task 2 | `d462b71` | G-01 fluids.open_channel API 核验 + P6-OPEN-001 决策 | ✅ complete（5 Minor deferred） |
+| Task 3 | `67a94b4` | chedl_wrapper CV/RESTRICTION 6 项 Path A 自研 | ✅ complete（4 LOW/INFO deferred） |
+| Task 4 | `bb0a343` | chedl_wrapper OPEN_CHANNEL 4 项 Path A 自研 | ✅ complete（4 INFO deferred） |
+| Task 5 | `c5c7d9a` | chedl_wrapper PSYCHRO 6 项 CoolProp 包装（G-02） | ✅ complete（3 LOW/INFO deferred） |
+
+**关键产出**：
+- 包装层 chedl_wrapper 23 个 wrapper 函数（5 既有 + 6 CV/RESTRICTION Path A + 4 OPEN_CHANNEL Path A + 6 PSYCHRO CoolProp + 2 既有 tank）
+- provenance 23 项（chEDL_version 1.3.1 包装层 + CoolProp 6.6.0 运行时）
+- chedl_wrapper 测试 57 例（既有 18 + P6-0 新增 39 = Task3 +13 + Task4 +12 + Task5 +14）
+- 架构层 12 例（Task 1 `test_chedl_version.py`，含 chEDL 锁定 + CoolProp 扩展）
+- 文档：`docs/adr/0030-chedl-version-lock.md` V1.2 + `docs/adr/signatures/0030-v1.2-coolprop-extension.md`
+- 决策：`docs/p6-gate-reports/p6-open-001-decision.md`（OPEN_CHANNEL 自研兜底）
+- 报告：`docs/p6-gate-reports/gate-01-open-channel-api.json`（G-01 核验）
+- P6-OPEN-001：fluids.open_channel 不存在 → 自研兜底（ADR-0030 决策 7 模式）
+
+**Ruling 记录**：
+- **R1**（Task 3）：CV/RESTRICTION 6 函数按 SPEC §3.2.1/§3.2.2 简化公式自研（Path A），不调 fluids 完整 API（brief 签名 3-8 参 vs fluids 完整 API 12-17 参不匹配；项目现有 fallback 模式一致）
+- **R1 前瞻**（Task 4）：OPEN_CHANNEL 4 函数同样 Path A（G-01 已证 fluids.open_channel 不存在）
+- **Task 5**：CoolProp.HumidAir 在 6.6.0 已重命名为 HumidAirProp，brief 错误，已修正并文档化
+
+**基线验证**：
+- **ruff check**：All checks passed（0 errors）
+- **pytest**：2245 passed + 51 skipped（其中 20 个 pre-existing failures，详见"已知问题"）
+- **chedl_wrapper**：57/57 pass（既有 18 + P6-0 新增 39）
+- **architecture/test_chedl_version.py**：12/12 pass（Task 1 全部新增）
+- 详细见 `.superpowers/sdd/2026-09-19-p6-batch/progress.md` ledger
+
+**已知问题（pre-existing failures，不在 P6-0 范围）**：
+- `tests/services/test_pipe_code_validator.py`：12 例 — `Severity.ERROR` AttributeError（enum 类无 ERROR 成员）
+- `tests/services/test_stream_symbol_validator.py`：7 例 — 同上 Severity 缺失
+- `tests/api/v1/test_meta.py::test_get_enums_returns_required_groups`：1 例 — `StreamDataMode` enum is empty
+- **验证**：上述 20 个 failure 在 main 分支 commit `5b88ae0` 同样存在（即 P6-0 之前），非 P6-0 引入
+- **状态**：登记待 LOW/INFO 滚动后续批或 P6-1 启动时评估
+
+**待 P6-1 启动工作**（Task 7+）：
+- cv_results + restriction_results 表迁移 + ORM（Task 7）
+- cv_engine IEC 60534-2-1 完整算法（Task 8，补 Task 3 Reader-Harris 14 项 + choked clamp）
+- cv_persist + outlet stream（Task 9）
+- cv_api endpoint + Pydantic schema（Task 10）
+- frontend cv.ts 类型对齐（Task 11）
+- RESTRICTION 三件套（Task 12-14）
+- 9 Minor/LOW/INFO 集中入 P6-1 待办（如 venturi C 按加工类型区分、cv_engine 完整 14 项公式、SPEC §3.2.4 模块名修正、Severity enum ERROR 成员补全）
+
+**P6-0 触发分支**：`feature/p6-batch` worktree，HEAD `c5c7d9a`（Task 5 amend 后）
