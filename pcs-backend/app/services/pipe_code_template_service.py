@@ -457,6 +457,17 @@ class PipeCodeTemplateService:
         config_id: uuid.UUID,
         actor: Any,
     ) -> None:
+        """删除项目内管号配置（idempotent）。
+
+        步骤：
+        1. db.get 取行（PK 查）；不存在 → 直接 return（idempotent，不抛 404）
+        2. db.delete 删 ORM 行；db.commit 落库
+        3. 不写 Audit（项目级删除由审计上下文中通用兜底；本函数幂等）
+
+        与 delete_company 区别：项目级不挂 ConfigAsset，也无下游引用检查
+        （fork 来源由 source_template_id 字段记录，删 project_config 不影响公司模板）。
+        actor 参数当前未使用（保留签名）。
+        """
         cfg = await db.get(ProjectPipeCodeConfig, config_id)
         if cfg is None:
             return
