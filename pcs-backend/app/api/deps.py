@@ -21,6 +21,12 @@ async def get_workspace(
     workspace_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
 ) -> Workspace:
+    """FastAPI 依赖：按 workspace_id 取 Workspace 行。
+
+    - 不存在 → WorkspaceNotFoundError（404）
+    - 上游 header 改造后由 request header 自动注入（保留 query param 作 fallback）
+    - require_formal_workspace 在此基础上叠加 FORMAL 校验
+    """
     ws = (
         await session.execute(
             select(Workspace).where(Workspace.workspace_id == workspace_id)
