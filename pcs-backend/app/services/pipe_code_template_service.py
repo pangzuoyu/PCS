@@ -54,6 +54,12 @@ class PipeCodeTemplateService:
     async def get(
         cls, db: AsyncSession, template_id: uuid.UUID,
     ) -> PipeCodeTemplate:
+        """取公司管号模板行（不存在抛 404）。
+
+        - db.get 取行（PK 查），不存在 → PIPE_CODE_TEMPLATE_NOT_FOUND 404
+        - 用于 update_company/delete_company/_transition 前的统一入口
+        - 与 get_project_config 对应（公司级 vs 项目级）
+        """
         t = await db.get(PipeCodeTemplate, template_id)
         if t is None:
             raise PcsError(
