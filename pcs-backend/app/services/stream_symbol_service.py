@@ -309,6 +309,15 @@ class StreamSymbolService:
         category: str | None,
         actor: Any,
     ) -> ProjectStreamSymbol:
+        """在项目作用域新增流股符号（unique by project_id + symbol）。
+
+        - 查重：按 (project_id, symbol) 复合唯一约束，命中 → PROJECT_STREAM_SYMBOL_DUP（409）
+        - 新增：ProjectStreamSymbol 行（DRAFT，source_symbol_id=None 表示项目自创）
+        - override_json 默认 {}（项目级覆盖由后续 update_project_symbol 写入）
+        - 写入由本函数负责（db.commit()）
+
+        与 `create_company` 区别：本函数不挂 ConfigAsset（项目级符号非 CATEGORY_5）。
+        """
         existing = (
             await db.execute(
                 select(ProjectStreamSymbol).where(
