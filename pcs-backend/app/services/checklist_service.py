@@ -23,6 +23,12 @@ class ChecklistService:
         self.audit = AuditService(session)
 
     async def list_for_project(self, project_id: uuid.UUID) -> list[ProjectInputChecklist]:
+        """列出项目所有 checklist 项（按 item_key 排序）。
+
+        - 按 project_id 过滤，返回该项目的 ProjectInputChecklist 行
+        - 排序：item_key 升序（前端按业务顺序展示）
+        - 不分页（项目级 checklist O(10~100)）
+        """
         stmt = (
             select(ProjectInputChecklist)
             .where(ProjectInputChecklist.project_id == project_id)
