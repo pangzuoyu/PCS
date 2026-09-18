@@ -44,6 +44,14 @@ class PipeCodeTemplateService:
     async def list_company(
         cls, db: AsyncSession, *, status: str | None = None,
     ) -> list[PipeCodeTemplate]:
+        """列出公司管号模板（按 template_name 排序，可选 status 过滤）。
+
+        - 默认返回全部 PipeCodeTemplate（公司级，无项目隔离）
+        - 可选 status：DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE 五态过滤
+        - 排序：template_name 升序（前端下拉稳定）
+
+        对应项目级 list_project：项目内 fork 走 ProjectPipeCodeConfig 对应 list。
+        """
         stmt = select(PipeCodeTemplate)
         if status:
             stmt = stmt.where(PipeCodeTemplate.status == status)
