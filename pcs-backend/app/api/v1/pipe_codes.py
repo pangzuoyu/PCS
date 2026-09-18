@@ -327,6 +327,18 @@ async def validate_pipe_code(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST /pipe-codes/validate：管号格式校验（不落库，仅 dry-run）。
+
+    步骤：
+    1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 调 PipeCodeGenerator.validate 解析 payload.code（按项目内有效模板）
+       → 返回 Outcome{valid, errors, segments}
+    3. 异常转 500（保留原 try/except 契约：内部异常统一 500，避免泄漏）
+    4. 返回 {valid, errors[], segments[]} — 前端用于实时校验，不入库
+
+    无副作用：不写 Audit、不改 DB（与 /pipe-codes/generate 区别在于
+    generate-fn 走完整流程落库 + 取号）。
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     try:
         outcome = await PipeCodeGenerator.validate(
