@@ -523,10 +523,11 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - app/main.py 3 个 public 函数补 docstring（lifespan/create_app/add_trace_id，LOW 文档补全）
   - alembic p5_open_010 docstring E501 line-too-long 修复（132→拆两行）
   - app/core/errors.install_exception_handlers 补 docstring（error 信封 5 类 handler 说明）
-- ✅ (g) MEDIUM 滚动第六批 3 项 — commit `81fa2db` + `38e3d58` + `c54f559`
+- ✅ (g) MEDIUM 滚动第六批 4 项 — commit `81fa2db` + `38e3d58` + `c54f559` + `98eb87b`
   - stream_symbol_service.create_company 补 docstring（4 步骤流程 + V1.4 §0.5 ConfigAsset 挂载）
   - pipe_code_template_service.create_company 补 docstring（同样 4 步骤 + INT-OPEN-01 ConfigAsset 挂载）
   - checklist_service.update_status 补 docstring（状态分支 + Audit + ValueError）
+  - equip_lib_service.settle 补 docstring（4 步骤流程 + settle-v1 + Audit 追溯）
 - 🔲 **下一批**：LOW/INFO 滚动
 
 ### 待办（建议优先序）
