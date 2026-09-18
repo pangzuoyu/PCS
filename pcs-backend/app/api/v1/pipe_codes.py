@@ -125,6 +125,17 @@ async def submit_template(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 公司管号模板 submit（DRAFT → PENDING + Audit）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 PipeCodeTemplateService.submit → ConfigStateMachine.transition('SUBMIT')
+    3. 状态校验：仅 DRAFT 才能 SUBMIT，其他 → PIPE_CODE_TEMPLATE_BAD_TRANSITION 409
+    4. 写 Audit（PIPE_CODE_TEMPLATE_SUBMITTED，detail 含 from→to + template_id）
+
+    与 submit_project_config 区别：本端点改 PipeCodeTemplateStatus 走 ConfigStateMachine；
+    项目级走 ProjectPipeCodeConfigStatus 轻量状态机。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.submit(db, template_id, actor=user)
 
@@ -135,6 +146,16 @@ async def approve_template(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 公司管号模板 approve（PENDING → APPROVED + Audit）。
+
+    步骤：
+    1. ACL：REVIEWER / SYSTEM_ADMIN
+    2. 转发 PipeCodeTemplateService.approve → ConfigStateMachine.transition('APPROVE')
+    3. 状态校验：仅 PENDING 才能 APPROVE，其他 → PIPE_CODE_TEMPLATE_BAD_TRANSITION 409
+    4. 写 Audit（PIPE_CODE_TEMPLATE_APPROVED，detail 含 from→to + template_id + reviewer）
+
+    与 publish 区别：approve 仅审核通过；publish 入 PUBLISHED 终态，供 fork_to_project 选用。
+    """
     require_roles(user, "REVIEWER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.approve(db, template_id, actor=user)
 
@@ -145,6 +166,20 @@ async def publish_template(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 公司管号模板 publish（APPROVED → PUBLISHED + Audit）。
+
+    步骤：
+    1. ACL：APPROVER / SYSTEM_ADMIN
+    2. 转发 PipeCodeTemplateService.publish → ConfigStateMachine.transition('PUBLISH')
+    3. 状态校验：仅 APPROVED 才能 PUBLISH，其他 → PIPE_CODE_TEMPLATE_BAD_TRANSITION 409
+    4. 写 Audit（PIPE_CODE_TEMPLATE_PUBLISHED，detail 含 from→to + template_id）
+    5. publish 触发 CIAEngine.propagate_from_source 级联：
+       所有 fork 自此模板的 ProjectPipeCodeConfig
+       （source_template_id==template_id 且 status==PUBLISHED）→ 自动转 OBSOLETE
+       （一致性维护）
+
+    终态：PUBLISHED 后可被 fork_to_project 复制到项目作用域。
+    """
     require_roles(user, "APPROVER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.publish(db, template_id, actor=user)
 
@@ -155,6 +190,19 @@ async def obsolete_template(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 公司管号模板 obsolete（任意 → OBSOLETE + Audit，终止态）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / REVIEWER / SYSTEM_ADMIN
+    2. 转发 PipeCodeTemplateService.obsolete → ConfigStateMachine.transition('OBSOLETE')
+    3. 状态校验：DRAFT/PENDING/APPROVED/PUBLISHED 均能转 OBSOLETE；
+       已经是 OBSOLETE → PIPE_CODE_TEMPLATE_BAD_TRANSITION 409
+    4. 写 Audit（PIPE_CODE_TEMPLATE_OBSOLETED，detail 含 from→to + template_id + reason）
+
+    OBSOLETE 后 fork_to_project 不再选作源；存量 ProjectPipeCodeConfig
+    （source_template_id 引用）继续生效，不级联作废。
+    与 publish 反向：publish 级联 → OBSOLETE；obsolete 不级联。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "REVIEWER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.obsolete(db, template_id, actor=user)
 

@@ -190,6 +190,20 @@ async def submit_pipe_class(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 公司管架 submit（DRAFT → PENDING + Audit）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 PipeClassService.submit → ConfigStateMachine.transition('SUBMIT')
+    3. 状态校验：仅 DRAFT 才能 SUBMIT，其他 → PC_BAD_TRANSITION 409
+    4. 写 Audit（PIPE_CLASS_SUBMITTED，detail 含 from→to + class_id）
+
+    与 project 级 submit_pipe_class 区别：本端点改 PipeClassStatus 走 ConfigStateMachine；
+    项目级走 ProjectPipeClassStatus 轻量状态机（approve_project_class / reject_project_class）。
+
+    五态机端点组：submit / approve / publish / obsolete；
+    区别于其他资源：本资源无 reject 端点（直接 OBSOLETE 替代）。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeClassService.submit(db, class_id, actor=user)
 
@@ -200,6 +214,17 @@ async def approve_pipe_class(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 公司管架 approve（PENDING → APPROVED + Audit）。
+
+    步骤：
+    1. ACL：REVIEWER / SYSTEM_ADMIN
+    2. 转发 PipeClassService.approve → ConfigStateMachine.transition('APPROVE')
+    3. 状态校验：仅 PENDING 才能 APPROVE，其他 → PC_BAD_TRANSITION 409
+    4. 写 Audit（PIPE_CLASS_APPROVED，detail 含 from→to + class_id + reviewer）
+
+    与 publish 区别：approve 仅审核通过（仍未生效，依赖下游业务使用前还需 publish）；
+    publish 入 PUBLISHED 终态（API 526 / ASME B31.3 选型可查）。
+    """
     require_roles(user, "REVIEWER", "SYSTEM_ADMIN")
     return await PipeClassService.approve(db, class_id, actor=user)
 
@@ -210,6 +235,17 @@ async def publish_pipe_class(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 公司管架 publish（APPROVED → PUBLISHED + Audit）。
+
+    步骤：
+    1. ACL：APPROVER / SYSTEM_ADMIN
+    2. 转发 PipeClassService.publish → ConfigStateMachine.transition('PUBLISH')
+    3. 状态校验：仅 APPROVED 才能 PUBLISH，其他 → PC_BAD_TRANSITION 409
+    4. 写 Audit（PIPE_CLASS_PUBLISHED，detail 含 from→to + class_id）
+
+    与 approve 区别：approve 仅审核通过；publish 终态生效，供下游 pipe_net /
+    equipment_lib / psv 选型查询引用。
+    """
     require_roles(user, "APPROVER", "SYSTEM_ADMIN")
     return await PipeClassService.publish(db, class_id, actor=user)
 
@@ -220,6 +256,17 @@ async def obsolete_pipe_class(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 公司管架 obsolete（任意 → OBSOLETE + Audit，终止态）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / REVIEWER / APPROVER / SYSTEM_ADMIN
+    2. 转发 PipeClassService.obsolete → ConfigStateMachine.transition('OBSOLETE')
+    3. 状态校验：DRAFT/PENDING/APPROVED/PUBLISHED 均能转 OBSOLETE；
+       已经是 OBSOLETE → PC_BAD_TRANSITION 409
+    4. 写 Audit（PIPE_CLASS_OBSOLETED，detail 含 from→to + class_id + reason）
+
+    终止态：OBSOLETE 后无法转回其他状态；如需复用 → 新建 class_id 重新发起。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "REVIEWER", "APPROVER", "SYSTEM_ADMIN")
     return await PipeClassService.obsolete(db, class_id, actor=user)
 

@@ -116,6 +116,17 @@ async def submit_symbol(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 公司流股符号 submit（DRAFT → PENDING + Audit）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 StreamSymbolService.submit → ConfigStateMachine.transition('SUBMIT')
+    3. 状态校验：仅 DRAFT 才能 SUBMIT，其他 → STREAM_SYMBOL_BAD_TRANSITION 409
+    4. 写 Audit（STREAM_SYMBOL_SUBMITTED，detail 含 from→to + symbol_id）
+
+    公司级流股符号走 ConfigStateMachine；项目级 ProjectStreamSymbol 无状态机
+    （由 add_project_symbol / delete_project_symbol 直接操作）。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await StreamSymbolService.submit(db, symbol_id, actor=user)
 
@@ -126,6 +137,16 @@ async def approve_symbol(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 公司流股符号 approve（PENDING → APPROVED + Audit）。
+
+    步骤：
+    1. ACL：REVIEWER / SYSTEM_ADMIN
+    2. 转发 StreamSymbolService.approve → ConfigStateMachine.transition('APPROVE')
+    3. 状态校验：仅 PENDING 才能 APPROVE，其他 → STREAM_SYMBOL_BAD_TRANSITION 409
+    4. 写 Audit（STREAM_SYMBOL_APPROVED，detail 含 from→to + symbol_id + reviewer）
+
+    与 submit 区别：submit 是工艺方发起；approve 是审核方通过。
+    """
     require_roles(user, "REVIEWER", "SYSTEM_ADMIN")
     return await StreamSymbolService.approve(db, symbol_id, actor=user)
 
@@ -136,6 +157,16 @@ async def publish_symbol(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 公司流股符号 publish（APPROVED → PUBLISHED + Audit）。
+
+    步骤：
+    1. ACL：APPROVER / SYSTEM_ADMIN
+    2. 转发 StreamSymbolService.publish → ConfigStateMachine.transition('PUBLISH')
+    3. 状态校验：仅 APPROVED 才能 PUBLISH，其他 → STREAM_SYMBOL_BAD_TRANSITION 409
+    4. 写 Audit（STREAM_SYMBOL_PUBLISHED，detail 含 from→to + symbol_id）
+
+    终态：PUBLISHED 后可被 fork_to_project 复制到项目作用域。
+    """
     require_roles(user, "APPROVER", "SYSTEM_ADMIN")
     return await StreamSymbolService.publish(db, symbol_id, actor=user)
 
@@ -146,6 +177,18 @@ async def obsolete_symbol(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 公司流股符号 obsolete（任意 → OBSOLETE + Audit，终止态）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / REVIEWER / SYSTEM_ADMIN
+    2. 转发 StreamSymbolService.obsolete → ConfigStateMachine.transition('OBSOLETE')
+    3. 状态校验：DRAFT/PENDING/APPROVED/PUBLISHED 均能转 OBSOLETE；
+       已经是 OBSOLETE → STREAM_SYMBOL_BAD_TRANSITION 409
+    4. 写 Audit（STREAM_SYMBOL_OBSOLETED，detail 含 from→to + symbol_id + reason）
+
+    OBSOLETE 后下游 ProjectStreamSymbol.source_symbol_id 仍保留（不解引用），
+    但 fork_to_project 不再选作源；项目级符号本身不受影响继续生效。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "REVIEWER", "SYSTEM_ADMIN")
     return await StreamSymbolService.obsolete(db, symbol_id, actor=user)
 
