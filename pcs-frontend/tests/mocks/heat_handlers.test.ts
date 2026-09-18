@@ -1,113 +1,39 @@
 /**
  * HEAT MSW handlers 真跑测试（P5-4 frontend / Task 6）。
  *
- * 思路：本地定义测试用 HEAT handlers + setupServer，fetch 真请求，断言契约。
- * （不直接用全局 handlers 数组，因 MSW v2 experimental 在 jsdom 中绝对路径
- *  拦截需 handler path 与 fetch URL 完全一致，且不想污染主 handlers.ts 的
- *  路径模板以免影响其他测试。）
+ * 思路：复用 src/mocks/heat 的单一来源 fixtures + handlers，
+ * 本地 setupServer，fetch 真请求，断言契约。
  *
  * 覆盖：
  * 1. POST /api/v1/heat/import-htri → 201 + ImportHtriResponse 9 字段
  * 2. GET /api/v1/heat/{mock-id} → 200 + HeatResultResponse 含 total_weight_kg
  * 3. GET /api/v1/heat/{unknown-id} → 404 HEAT_NOT_FOUND envelope
  * 4. POST /api/v1/heat/{mock-id}/weight-estimate → 200 + 9 段 segments
+ *
+ * P5c MEDIUM 收口：fixtures + handlers 从 src/mocks/heat.ts 单一来源导入，
+ * 不再本地维护副本（防 contract drift）。
  */
 import { describe, it, expect, beforeAll, afterAll, afterEach } from 'vitest';
 import { setupServer } from 'msw/node';
-import { http, HttpResponse } from 'msw';
 
+import {
+  HEAT_MOCK_ID,
+  heatHandlers,
+  mockHeatDetail,
+  mockHeatImportResult,
+  mockHeatWeightResult,
+} from '../../src/mocks/heat';
 import { mockAuthToken } from '../../src/mocks/handlers';
 
-const HEAT_MOCK_ID = '00000000-0000-0000-0000-000000000077';
 const BEARER = `Bearer ${mockAuthToken}`;
 
-const isAuthed = (request: Request): boolean => {
-  const auth = request.headers.get('Authorization');
-  return !!auth && auth.startsWith('Bearer ');
-};
-
-const heatImportResult = {
-  calc_id: HEAT_MOCK_ID,
-  calc_type: 'HEAT',
-  record_hash: 'b1c2d3e4f5061728',
-  project_id: '00000000-0000-0000-0000-000000000001',
-  equipment_no: 'E-201',
-  tag_number: 'E-201',
-  exchanger_category: 'SHELL_TUBE',
-  duty_w: 1000000.0,
-  outlet_stream_id: '00000000-0000-0000-0000-000000000088',
-  outlet_stream_name: 'S-HEAT-201-HEAT_EXCHANGE-A1B2C3',
-};
-
-const heatDetail = {
-  calc_id: HEAT_MOCK_ID,
-  calc_type: 'HEAT',
-  project_id: '00000000-0000-0000-0000-000000000001',
-  workspace_id: '00000000-0000-0000-0000-000000000002',
-  tag_number: 'E-201',
-  equipment_no: 'E-201',
-  equipment_name: 'HEAT-E-201',
-  exchanger_category: 'SHELL_TUBE',
-  duty: 1000000.0,
-  record_hash: 'b1c2d3e4f5061728',
-  input_json: { duty: 1000000, tube_count: 150, shell_id: 600 },
-  output_json: {
-    total_weight_kg: 3056.75,
-    weight_segments: {
-      shell_total_kg: 2037.49,
-    },
-    weight_formula_ref: { tema_version: 'TEMA 9th Ed.' },
-  },
-};
-
-const heatWeightResult = {
-  calc_id: HEAT_MOCK_ID,
-  total_weight_kg: 3056.75,
-  shell_total_kg: 2037.49,
-  segments: {
-    shell_cylinder: { weight_kg: 1479.69, formula_ref: 'TEMA 9th C-2.1' },
-    shell_heads: { weight_kg: 234.5, formula_ref: 'TEMA 9th C-3.2' },
-    shell_flanges: { weight_kg: 156.2, formula_ref: 'ASME B16.5 Cl.300' },
-    shell_nozzles: { weight_kg: 78.3, formula_ref: 'ASME B16.5 Cl.150' },
-    shell_saddles: { weight_kg: 88.8, formula_ref: 'NB/T 47065' },
-    shell_total: { weight_kg: 2037.49, formula_ref: 'TEMA 9th C-Σ' },
-    tube: { weight_kg: 850.2, formula_ref: 'ASME B31.3' },
-    baffle: { weight_kg: 95.3, formula_ref: 'TEMA 9th R-4.1' },
-    channels: { weight_kg: 73.76, formula_ref: 'TEMA 9th N-3.4' },
-  },
-  formula_ref: { tema_version: 'TEMA 9th Ed.' },
-  record_hash: 'c2d3e4f5061728b1',
-  // OPEN-7：透传刷新后的 output_json（前端免 get() roundtrip）
-  output_json: {
-    total_weight_kg: 3056.75,
-    weight_segments: { shell_total_kg: 2037.49 },
-  },
-};
-
-const server = setupServer(
-  http.post('http://api.local/api/v1/heat/import-htri', ({ request }) => {
-    if (!isAuthed(request)) return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
-    return HttpResponse.json(heatImportResult, { status: 201 });
-  }),
-  http.get('http://api.local/api/v1/heat/:heat_id', ({ request, params }) => {
-    if (!isAuthed(request)) return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
-    if (params.heat_id === HEAT_MOCK_ID) return HttpResponse.json(heatDetail);
-    return HttpResponse.json(
-      { code: 'HEAT_NOT_FOUND', message: '换热器记录不存在', detail: null, trace_id: '' },
-      { status: 404 },
-    );
-  }),
-  http.post('http://api.local/api/v1/heat/:heat_id/weight-estimate', ({ request }) => {
-    if (!isAuthed(request)) return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
-    return HttpResponse.json(heatWeightResult);
-  }),
-);
+const server = setupServer(...heatHandlers);
 
 beforeAll(() => server.listen({ onUnhandledRequest: 'bypass' }));
 afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
-const BASE = 'http://api.local/api/v1';
+const BASE = '/api/v1';
 
 describe('MSW HEAT handlers (P5-4 frontend / Task 6)', () => {
   it('POST /api/v1/heat/import-htri → 201 + 9 字段 ImportHtriResponse', async () => {
@@ -126,6 +52,7 @@ describe('MSW HEAT handlers (P5-4 frontend / Task 6)', () => {
     });
     expect(res.status).toBe(201);
     const body = await res.json();
+    expect(body).toEqual(mockHeatImportResult);
     expect(body.calc_type).toBe('HEAT');
     expect(body.calc_id).toBe(HEAT_MOCK_ID);
     expect(body.record_hash).toMatch(/^[0-9a-f]{16}$/);
@@ -143,6 +70,7 @@ describe('MSW HEAT handlers (P5-4 frontend / Task 6)', () => {
     });
     expect(res.status).toBe(200);
     const body = await res.json();
+    expect(body).toEqual(mockHeatDetail);
     expect(body.calc_id).toBe(HEAT_MOCK_ID);
     expect(body.exchanger_category).toBe('SHELL_TUBE');
     expect(body.duty).toBe(1000000);
@@ -176,6 +104,7 @@ describe('MSW HEAT handlers (P5-4 frontend / Task 6)', () => {
     });
     expect(res.status).toBe(200);
     const body = await res.json();
+    expect(body).toEqual(mockHeatWeightResult);
     expect(body.calc_id).toBe(HEAT_MOCK_ID);
     expect(body.total_weight_kg).toBeCloseTo(3056.75);
     expect(body.shell_total_kg).toBeCloseTo(2037.49);
