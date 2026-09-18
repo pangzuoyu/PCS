@@ -19,6 +19,7 @@ export type PadType = 'STANDARD' | 'HIGH_EFFICIENCY';
 export type SeparatorType = 'PLAIN' | 'VANE' | 'FIBER';
 export type Region = 'STOKES' | 'INTERMEDIATE' | 'NEWTON';
 
+/** 旋风分离器参数：筒径/排气管径 + 进出口宽高 + 入口气速 + 气/粒密度 + 动力粘度 + 有效圈数 + 计算法（LAPPLE/SWIFT/BARTH）。 */
 export interface CycloneParams {
   D_cylinder_m: number;
   D_exhaust_m: number;
@@ -32,6 +33,7 @@ export interface CycloneParams {
   method: CycloneMethod;
 }
 
+/** 除雾器参数：填料类型 + 气体流量 + 筒径 + 气体密度/粘度 + 液体负荷。 */
 export interface MistEliminatorParams {
   pad_type: PadType;
   Q_gas_m3_s: number;
@@ -41,6 +43,7 @@ export interface MistEliminatorParams {
   liquid_load_kg_m3: number;
 }
 
+/** 重力分离器参数：粒径 + 粒/流体密度 + 流体粘度 + 高度设定 + 水平流速。 */
 export interface GravitySeparatorParams {
   d_particle_m: number;
   rho_particle_kg_m3: number;
@@ -50,6 +53,7 @@ export interface GravitySeparatorParams {
   horizontal_velocity_ms: number;
 }
 
+/** POST /sep-equip/calculate 请求：源流 + 设备类型 + 对应类型参数（按 device_type 区分 params）。 */
 export interface SepEquipCalculateRequest {
   source_stream_id: string;
   device_type: SepEquipDeviceType;
@@ -59,6 +63,7 @@ export interface SepEquipCalculateRequest {
     | GravitySeparatorParams;
 }
 
+/** POST /sep-equip/calculate 响应：calc_id + 设备类型 + record_hash + 源流 ID + lineage + result + 出口流 ID/名。 */
 export interface SepEquipCalculateResponse {
   calc_id: string;
   calc_type: SepEquipDeviceType;

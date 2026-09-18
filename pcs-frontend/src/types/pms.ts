@@ -23,6 +23,7 @@ export interface PmsItem {
   sign_status: RecordSignStatus;
 }
 
+/** BEDD（基础工程设计数据表）章节：章节 ID + 标题 + 正文内容。 */
 export interface BeddSection {
   section_id: string;
   title: string;

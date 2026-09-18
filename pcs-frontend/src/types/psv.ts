@@ -26,6 +26,7 @@ export type DesignStage = 'BASIC' | 'DETAIL';
 
 export type ReliefPhase = 'GAS' | 'LIQUID' | 'TWO_PHASE';
 
+/** API 520 孔口代号（D~T 共 14 档，按面积递增）。 */
 export type OrificeSize =
   | 'D' | 'E' | 'F' | 'G' | 'H' | 'J' | 'K' | 'L'
   | 'M' | 'N' | 'P' | 'Q' | 'R' | 'T';
@@ -44,6 +45,7 @@ export type PsvBodyMaterial =
   | 'SS316L'
   | 'ALLOY';             // 合金钢
 
+/** PSV 波纹管材料（6 种 SUP-P5-PSV-002 V1.14 §3.8 兼容矩阵）。 */
 export type PsvBellowsMaterial =
   | 'HASTELLOY_C276'
   | 'SS316L'
@@ -52,14 +54,19 @@ export type PsvBellowsMaterial =
   | 'ALLOY_400'
   | 'ALLOY_C22';
 
+/** PSV 背压类型：BUILT_UP 累积背压（>10% 需 Kb 修正）/ SUPERIMPOSED 叠加背压。 */
 export type PsvBackPressureType = 'BUILT_UP' | 'SUPERIMPOSED';
 
+/** PSV 适用介质：气相 GAS / 蒸汽 VAPOR / 液相 LIQUID / 两相 TWO_PHASE。 */
 export type PsvMedium = 'GAS' | 'VAPOR' | 'LIQUID' | 'TWO_PHASE';
 
+/** 先导式 PSV 温度等级：常规 / 高温 / 低温（OPEN-18 待补）。 */
 export type PsvPilotTempClass = 'GENERAL' | 'HIGH_TEMP' | 'CRYOGENIC';
 
+/** 爆破膜相对阀体位置：上游 / 下游 / 无（NONE = 不装爆破膜）。 */
 export type PsvRuptureDiscPosition = 'UPSTREAM' | 'DOWNSTREAM' | 'NONE';
 
+/** PSV 法兰等级（ASME B16.5 6 档）：150# / 300# / 600# / 900# / 1500# / 2500#。 */
 export type PsvFlangeClass =
   | '150#'
   | '300#'

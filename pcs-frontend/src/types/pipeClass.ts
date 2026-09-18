@@ -29,6 +29,7 @@ export interface PipeClass {
   sign_status: PipeClassStatus;
 }
 
+/** 管架代号片段字段（6 类）：material / schedule / size / service / insulation / custom。 */
 export type CodeSegmentField =
   | 'material'
   | 'schedule'
@@ -37,6 +38,7 @@ export type CodeSegmentField =
   | 'insulation'
   | 'custom';
 
+/** 管架代号格式片段：顺序 + 字段 + 自定义值 + 分隔符。 */
 export interface CodeFormatSegment {
   order: number;
   field: CodeSegmentField;
@@ -44,8 +46,10 @@ export interface CodeFormatSegment {
   separator?: string;          // 前置分隔符（如 '-'）
 }
 
+/** 流代号符号分类：流体 fluid / 服务 service / 相态 phase / 毒性 toxicity。 */
 export type SymbolCategory = 'fluid' | 'service' | 'phase' | 'toxicity';
 
+/** 流代号符号映射：符号 + 含义 + 分类（如 "W" → "Water" → fluid）。 */
 export interface SymbolMapping {
   symbol: string;              // 例如 "W"
   meaning: string;             // 例如 "Water"

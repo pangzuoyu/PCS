@@ -21,6 +21,7 @@ export interface PipeNetNode {
   y: number;
 }
 
+/** 管网边（管道）：连接 from_node → to_node 节点 + pipe_no 管段号。 */
 export interface PipeNetEdge {
   edge_id: string;
   pipe_no: string;
@@ -28,11 +29,13 @@ export interface PipeNetEdge {
   to_node_id: string;
 }
 
+/** 管网图：节点列表 + 边列表。 */
 export interface PipeNetGraph {
   nodes: PipeNetNode[];
   edges: PipeNetEdge[];
 }
 
+/** 管网校验结果：孤立节点 / 重复 tag / 环路（每个环一个节点 ID 数组）。 */
 export interface PipeNetValidation {
   orphans: string[];          // 孤立节点 ID 列表
   duplicate_tags: string[];   // 重复 tag 列表

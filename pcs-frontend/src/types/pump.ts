@@ -24,17 +24,20 @@ export interface PumpDischarge {
   fittings_json: Record<string, number>;
 }
 
+/** 泵流量三档：normal 正常工况 / min 最小工况 / design 设计工况（m³/h）。 */
 export interface PumpFlow {
   normal: number;
   min: number;
   design: number;
 }
 
+/** 泵效率：pump 泵本体效率 + motor 电机效率（0~1 小数）。 */
 export interface PumpEfficiency {
   pump: number;
   motor: number;
 }
 
+/** 泵计算入参：源流 ID + 吸入口/排出口条件 + 三档流量 + 双效率 + 控制阀压降。 */
 export interface PumpInput {
   stream_id: string;
   suction: PumpSuction;
@@ -44,11 +47,13 @@ export interface PumpInput {
   control_valve_dp_kpa: number;
 }
 
+/** 压降段：段名 + 压降值 kPa（用于 pump_result.dp_breakdown 数组元素）。 */
 export interface PumpDpSegment {
   segment: string;
   dp_kpa: number;
 }
 
+/** 泵计算结果：扬程 + NPSH + 轴功率 + 设计压力 + 控制阀 Kv + 当量长度 + 压降分段。 */
 export interface PumpResult {
   head_m: number;
   npsh_m: number;

@@ -26,6 +26,7 @@ export interface ComponentProperty {
   omega: number;               // 偏心因子
 }
 
+/** 许用应力表（材料 × 温度 × 标准）：指定材料在指定温度下的许用应力 MPa（ASME/GB/DIN 等）。 */
 export interface AllowableStress {
   material: string;
   temperature_c: number;
@@ -33,8 +34,10 @@ export interface AllowableStress {
   standard: string;            // ASME / GB / DIN
 }
 
+/** 危险等级：LOW 低 / MEDIUM 中 / HIGH 高（用于介质/工艺综合分级）。 */
 export type HazardClass = 'LOW' | 'MEDIUM' | 'HIGH';
 
+/** 介质毒性分级：组分 ID + 名称 + 半致死量 LD50 + 允许暴露限 PEL + 爆炸极限（LEL/UEL）+ 危险等级。 */
 export interface ToxicityClass {
   component_id: string;
   name: string;

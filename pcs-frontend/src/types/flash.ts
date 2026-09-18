@@ -29,6 +29,7 @@ export interface FlashInput {
   s_kj_kg_k?: number;
 }
 
+/** 闪蒸计算结果：气相分率 + 气液相组成 + 比焓 + 比熵 + K 值（平衡比）+ 收敛标志。 */
 export interface FlashResult {
   vapor_fraction: number;
   liquid_composition: Record<string, number>;
