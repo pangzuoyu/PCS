@@ -71,6 +71,17 @@ class PipeCodeTemplateService:
         data: dict[str, Any],
         actor: Any,
     ) -> PipeCodeTemplate:
+        """创建公司级管号模板（unique template_name）。
+
+        步骤：
+        1. 按 template_name 唯一约束查重，命中 → PIPE_CODE_TEMPLATE_DUP（409）
+        2. 挂载 ConfigAsset（CATEGORY_5 / PIPE_CODE_TEMPLATE，V1.4 §0.5
+           INT-OPEN-01，资产化追踪）
+        3. 插入 PipeCodeTemplate 行（DRAFT 状态 + format_definition_json）
+        4. 写 Audit（CONFIG_ASSET_CREATED，detail 含 template_name）
+
+        返回新建的 PipeCodeTemplate（commit 由调用方负责）。
+        """
         existing = (
             await db.execute(
                 select(PipeCodeTemplate).where(
