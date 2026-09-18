@@ -909,6 +909,12 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - workspace_tasks.cleanup_with_session（旧 ctx 兼容 wrapper）
   - **累计**：361 + 2 = **~363 项**（i+++++++++++）
   - **全仓 AST 扫描结果**：0 缺口（class methods + module docstring + module funcs 全部已补）
+- ✅ (i++++++++++++) LOW/INFO 滚动继续批 3 项 class 最终扫尾 — commit `0fd66f0`
+  - core/errors.py PcsError（FastAPI 全局异常信封基类）
+  - core/logging.py JsonFormatter（structlog 风格 JSON formatter）
+  - services/pipe_class_service.py PipeClassService（管号等级 CRUD + 状态机）
+  - **累计**：363 + 3 = **~366 项**（i++++++++++++）
+  - **全仓 AST 扫描结果**：0 缺口（class + module funcs + module docstring 全部已补）
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
