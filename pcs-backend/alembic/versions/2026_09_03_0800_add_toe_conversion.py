@@ -15,6 +15,21 @@ down_revision = "p2_sprint2_equipment_procurement_delivery"
 
 
 def upgrade():
+    """pcs_toe_conversion_factors 主表 + 默认 6 项 seed（V1.4 P2-OPEN-005）。
+
+    步骤：
+    - A. 创建主表 pcs_toe_conversion_factors：id PK autoinc / fuel_type(30) /
+      toe_conversion_factor(10,4) / standard_coal_factor(10,4) /
+      effective_year / effective_from Date / effective_to Date NULL /
+      source(200) / version(50) default 'TOE-V1.0' / created_by UUID /
+      created_at / updated_at（updated_at 在 p2_s110_fix_toe_timestamptz 矫正时区）
+    - B. UQ(fuel_type, effective_year) — 同年同燃料唯一
+    - C. 索引：fuel_type + effective_year（按年/燃料过滤）
+    - D. 默认 seed 6 项：GAS/DIESEL/COAL/STEAM/ELECTRICITY/OTHER × 2026 年
+      来源：GB 2589-2020 / 综合能耗计算通则（基于蜡油加氢—综合能耗.xlsx 实例）
+
+    业务：折标煤系数组；配套 SUP-008 §2.5 + SUP-010 §3.3.4 能耗计算。
+    """
     op.create_table(
         "pcs_toe_conversion_factors",
         sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),

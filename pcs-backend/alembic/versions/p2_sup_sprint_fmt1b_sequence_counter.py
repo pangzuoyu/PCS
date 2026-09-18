@@ -18,6 +18,17 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """project_pipe_code_sequences 计数器表（FMT-3 / FMT-OPEN-01）。
+
+    步骤：
+    - 主表 project_pipe_code_sequences：config_id (UUID FK) + scope_key (varchar 50)
+      + next_value (Int default 1)
+    - 复合 PK：(config_id, scope_key)
+    - FK → project_pipe_code_configs
+
+    业务：scope_key 默认 `project_id + stream_symbol` 组合键；用独立
+    计数器表防并发竞态（UPSERT 原子自增）。
+    """
     op.create_table(
         "project_pipe_code_sequences",
         sa.Column("config_id", sa.UUID(as_uuid=True), nullable=False),

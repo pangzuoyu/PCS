@@ -23,6 +23,18 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """config_approvals.version_id 改 nullable（PC-4 / V1.4 §2.4/§五、#1）。
+
+    步骤：
+    - config_approvals.version_id Uuid() → nullable=True
+
+    不动：CATEGORY_5 公司级审批行 version_id 仍非空（PC-3 ConfigStateMachine
+    驱动），业务层语义不变；仅放宽 NOT NULL 约束。
+
+    业务：项目级管道等级审批不挂 ConfigVersion（CATEGORY_5 公司级专属），
+    其审批行 ConfigApproval.version_id 应为 NULL、project_class_id 必填。
+    PC-1 仅加 project_class_id 列未放宽 version_id，PC-4 一并放宽避免阻塞端到端。
+    """
     op.alter_column(
         "config_approvals",
         "version_id",

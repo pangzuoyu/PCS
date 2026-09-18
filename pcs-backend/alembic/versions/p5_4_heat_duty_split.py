@@ -29,6 +29,20 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """heat_results.duty 拆分为 duty_legacy + duty_calc（P5-4 HEAT / ADR-0027 V1.0 决策 5）。
+
+    步骤：
+    - A. 加 duty_legacy Float NULL：P4 上游 duty（heat_data_service._store 写入 inp.duty）
+    - B. 加 duty_calc Float NULL：P5 计算结果（htri.heat_duty_w）
+    - C. 存量回填：duty IS NOT NULL 行 → duty_calc（多数 P5 数据由 HTRI parser 写入）
+    - D. duty_legacy 留空（无法判断原值溯源，由 HEAT service 层新增写入补全）
+
+    不删原 duty 列：向后兼容 P5-OPEN-006 §"9 旧标量"承诺 + 不阻断现有读取层。
+    后续 P5+ 批若全量切换至双轨可下掉 duty 列。
+
+    业务：ADR-0027 V1.0 决策 5 跟踪项落地 — 原 duty 同时承载 P4 上游与 P5
+    计算结果业务语义模糊，拆分后溯源清晰。
+    """
     # 1. 加 duty_legacy 列（P4 上游 duty；可空）
     op.add_column(
         "heat_results",
