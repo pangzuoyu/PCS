@@ -26,6 +26,18 @@ async def upstream(
     max_depth: int = Query(10, ge=1, le=50),
     session: AsyncSession = Depends(get_db),
 ):
+    """GET 上游血缘链（沿计算记录向上回溯）。
+
+    步骤：
+    1. LineageTracker.upstream 按 record_type + record_id 直接递归回溯
+       （不走 latest()，因为上游追溯用最近一次就行）
+    2. max_depth 限 1..50（防止极深递归触发 N+1 风暴）
+    3. 返回 [dict, ...]（按 _serialize 统一字段：record_type/record_id/
+       lineage_id/relation/depth）
+
+    与 downstream 区别：upstream 直接按 (record_type, record_id) 递归；
+    downstream 需 latest() 解析（跨多次重算取最近一次）。
+    """
     tracker = LineageTracker(session)
     chain = await tracker.upstream(
         record_type=record_type, record_id=record_id, max_depth=max_depth
