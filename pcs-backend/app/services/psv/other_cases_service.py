@@ -253,6 +253,11 @@ def _validate_closed_valve(inp: ClosedValveInput) -> None:
 
 
 def _validate_reaction_runaway(inp: ReactionRunawayInput) -> None:
+    """PSV 反应失控工况输入校验（API 521 §4.5 反应失控超压）。
+
+    业务：Q_rxn_w > 0（反应放热率必须正）+ fraction_to_valve ∈ [0, 1]
+    （泄放分率物理约束）；非法 → PsvOtherCaseInputError 422。
+    """
     if inp.Q_rxn_w <= 0:
         raise PsvOtherCaseInputError(f"Q_rxn_w={inp.Q_rxn_w} 必须 > 0")
     if not (0.0 <= inp.fraction_to_valve <= 1.0):

@@ -272,6 +272,12 @@ def _htri_cold_side_dict(htri: HtriParsedData) -> dict[str, Any]:
 
 
 def _htri_ache_dict(htri: HtriParsedData) -> dict[str, Any] | None:
+    """HTRI 解析结果 → ACHE（空冷换热器）特征 dict 抽取。
+
+    业务：fan_count/air_inlet_temp/bundle_area 三元组；
+    三者全 None 返回 None（标记非 ACHE 数据）；
+    否则返回部分填充 dict（供热数据模型降级使用）。
+    """
     if htri.fan_count is None and htri.air_inlet_t_k is None and htri.bundle_area_m2 is None:
         return None
     return {

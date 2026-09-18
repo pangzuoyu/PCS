@@ -69,6 +69,11 @@ def _norm_header(s: object) -> str:
 
 
 def _find_sheet(wb, names: tuple[str, ...]) -> str | None:
+    """从 openpyxl Workbook 中按候选名列表查找首个存在的 sheet。
+
+    业务：names 是按优先级排序的中文/英文候选名；
+    命中即返回；全不中返回 None（caller 兜底默认值）。
+    """
     for n in names:
         if n in wb.sheetnames:
             return n
