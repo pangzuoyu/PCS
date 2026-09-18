@@ -67,6 +67,17 @@ async def update_item(
     user_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
 ) -> ChecklistItemOut:
+    """PUT 校验一项状态（5 态流转 + Audit 落库）。
+
+    步骤：
+    1. 调 ChecklistService.update_status（状态校验 + Audit + flush）
+    2. service 抛 ValueError → 404（找不到 checklist 项；保留原 ValueError 契约）
+    3. session.commit() 落库
+    4. ORM 行经 ChecklistItemOut.model_validate 转响应 schema
+
+    ACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSADMIN
+    （由 ACL middleware 在 user_id 注入前验证）。
+    """
     svc = ChecklistService(session)
     try:
         row = await svc.update_status(
