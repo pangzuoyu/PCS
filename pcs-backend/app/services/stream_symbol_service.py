@@ -89,6 +89,17 @@ class StreamSymbolService:
         data: dict[str, Any],
         actor: Any,
     ) -> StreamSymbol:
+        """创建公司级流股符号（unique symbol）。
+
+        步骤：
+        1. 按 symbol 唯一约束查重，命中 → STREAM_SYMBOL_DUP（409）
+        2. 挂载 ConfigAsset（CATEGORY_5 / STREAM_SYMBOL，V1.4 §0.5
+           SYM-OPEN-01 + INT-OPEN-01，资产化追踪）
+        3. 插入 StreamSymbol 行（DRAFT 状态）
+        4. 写 Audit（created_by 来自 actor.user_id）
+
+        返回新建的 StreamSymbol（commit 由调用方负责）。
+        """
         existing = (
             await db.execute(
                 select(StreamSymbol).where(StreamSymbol.symbol == data["symbol"])
