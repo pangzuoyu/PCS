@@ -118,6 +118,25 @@ class PipeCodeGenerator:
         project_id: uuid.UUID,
         input_segments: dict | None = None,
     ) -> str:
+        """生成下一个管号（按项目模板 + segments + Sequence 自增 + 落库）。
+
+        步骤：
+        1. 取项目有效模板 (_get_effective_format) → config_id + format dict
+        2. 按 position 排序 segments，逐段处理：
+           - delimiter：直接插入 sep
+           - stream_symbol：从 input_segments 取 + 校验有效符号表
+           - auto_increment：_next_sequence 取号 + zfill(length)
+           - enum：从 input_segments 取 + 校验 values 白名单 + required
+           - constant：直接用 spec.value
+           - free_text：从 input_segments 取 + 可选 regex 校验
+           - 未知类型 → PIPE_CODE_BAD_TYPE 422
+        3. 拼接：delimiter 段自带 sep 直接插入；其他段间插 default separator
+        4. 返回完整 code 字符串（无 commit，由调用方负责事务边界）
+
+        与 validate 区别：generate 走完整流程 + 落库 + 取号；
+        validate 仅 dry-run 校验，不写 Sequence、不入 DB。
+        与 /pipe-codes/generate 端点关系：端点 = generate + return {"code": ...}。
+        """
         config_id, fmt = await cls._get_effective_format(db, project_id)
         segments = sorted(
             fmt.get("segments") or [],
