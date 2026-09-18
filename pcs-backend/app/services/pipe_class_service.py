@@ -158,6 +158,17 @@ class PipeClassService:
 
     @classmethod
     async def create(cls, session: AsyncSession, *, payload: PipeClassCreate) -> PipeClass:
+        """创建公司管号等级（DRAFT 状态入 company_std 来源）。
+
+        步骤：
+        1. 按 class_id 唯一查重（PK 重复 → PIPE_CLASS_DUP 409）
+        2. PipeClass(**payload.model_dump(), status='DRAFT') 构造行
+           （source=COMPANY_STD 由 model 默认填充）
+        3. session.add + commit 落库
+
+        与项目级 fork 区别：本函数入 company_std 表；fork_project 走
+        ProjectPipeClass 派生。
+        """
         if await session.get(PipeClass, payload.class_id):
             raise PcsError(f"管道等级 {payload.class_id} 已存在", code="PIPE_CLASS_DUP", status=409)
         pc = PipeClass(**payload.model_dump(), status="DRAFT")
