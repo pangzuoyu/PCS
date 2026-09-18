@@ -356,6 +356,15 @@ class StreamSymbolService:
         data: dict[str, Any],
         actor: Any,
     ) -> ProjectStreamSymbol:
+        """更新项目内流股符号（局部字段覆盖 + override_json 合并）。
+
+        - 查行（不存在 → PROJECT_STREAM_SYMBOL_NOT_FOUND 404）
+        - override_json 合并：现有 + data["override"]（增量更新，不全替换）
+        - 可选字段更新：name / category / is_active（按 in 检查，存在才覆盖）
+        - 提交由本函数负责（db.commit()）
+
+        actor 参数当前未使用（保留签名兼容后续审计接入）。
+        """
         pss = await db.get(ProjectStreamSymbol, project_symbol_id)
         if pss is None:
             raise PcsError(
