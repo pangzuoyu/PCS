@@ -358,6 +358,17 @@ class EnthalpyTable:
             prev_t = entry.t_k
 
     def to_dict(self) -> dict[str, Any]:
+        """EnthalpyTable → 可序列化 dict。
+
+        字段映射：
+        - fluid_name / licensor / source_doc：直传字符串
+        - valid_from → isoformat 字符串（date → ISO）
+        - valid_to → isoformat（可能 None，开放区间表）
+        - entries → list[dict]（每条 EnthalpyEntry asdict 序列化）
+
+        返回 dict 直接 JSON-friendly；用于缓存写入（stream_properties_json 容器）
+        与对外 API 响应。
+        """
         return {
             "fluid_name": self.fluid_name,
             "licensor": self.licensor,
