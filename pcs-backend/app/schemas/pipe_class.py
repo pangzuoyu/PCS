@@ -12,22 +12,50 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class PipeClassBase(BaseModel):
-    class_id: str = Field(..., min_length=1, max_length=20)
-    class_name: str = Field(..., min_length=1, max_length=200)
-    material_standard: str = Field(..., min_length=1, max_length=100)
-    base_material: str | None = Field(None, max_length=100, description="材料牌号")
+    class_id: str = Field(
+        ..., min_length=1, max_length=20, description="管号等级编号（公司内唯一）"
+    )
+    class_name: str = Field(
+        ..., min_length=1, max_length=200, description="管号等级名称"
+    )
+    material_standard: str = Field(
+        ...,
+        min_length=1,
+        max_length=100,
+        description="材料标准（如 GB/T 12459、ASME B16.9）",
+    )
+    base_material: str | None = Field(
+        None, max_length=100, description="材料牌号"
+    )
     corrosion_allowance: float = Field(..., ge=0, description="腐蚀裕量 mm")
     design_pressure: float = Field(..., gt=0, description="MPaG")
     design_temperature: float = Field(..., description="°C")
-    fluid_service: str | None = Field(None, max_length=100)
-    allowable_stress_json: dict[str, Any] = Field(default_factory=dict)
+    fluid_service: str | None = Field(
+        None, max_length=100, description="流体服务（工艺介质类别）"
+    )
+    allowable_stress_json: dict[str, Any] = Field(
+        default_factory=dict, description="许用应力表 {温度(°C): 应力 MPa}"
+    )
     dn_series_json: dict[str, int] = Field(..., description="{min,max}")
     sch_series_json: dict[str, str] = Field(..., description="DN→Sch")
-    flange_class: str = Field(..., min_length=1, max_length=20)
-    fitting_type: str | None = Field(None, max_length=50)
-    branch_table_json: dict[str, Any] | None = None
-    source: Literal["COMPANY_STD", "PROJECT"]
-    version: str = Field(..., min_length=1, max_length=50)
+    flange_class: str = Field(
+        ...,
+        min_length=1,
+        max_length=20,
+        description="法兰等级（如 150#、300#、600#）",
+    )
+    fitting_type: str | None = Field(
+        None, max_length=50, description="管件类型（如 ELBOW、TEE、REDUCER）"
+    )
+    branch_table_json: dict[str, Any] | None = Field(
+        None, description="支管表（接管尺寸与补强规则）"
+    )
+    source: Literal["COMPANY_STD", "PROJECT"] = Field(
+        ..., description="数据来源：公司标准 / 项目自定义"
+    )
+    version: str = Field(
+        ..., min_length=1, max_length=50, description="版本号（如 1.0、A1）"
+    )
 
     @model_validator(mode="after")
     def _check_dn(self) -> PipeClassBase:
@@ -42,10 +70,14 @@ class PipeClassCreate(PipeClassBase):
 
 
 class PipeClassUpdate(PipeClassBase):
-    status: Literal["DRAFT", "ACTIVE", "OBSOLETE"] = "DRAFT"
+    status: Literal["DRAFT", "ACTIVE", "OBSOLETE"] = Field(
+        "DRAFT", description="管号等级状态：DRAFT/ACTIVE/OBSOLETE"
+    )
 
 
 class PipeClassResponse(PipeClassBase):
-    status: str
-    base_material: str | None = None  # 重复声明：响应体明确返回
+    status: str = Field(..., description="管号等级状态")
+    base_material: str | None = Field(
+        None, description="材料牌号"
+    )  # 重复声明：响应体明确返回
     model_config = {"from_attributes": True}
