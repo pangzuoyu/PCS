@@ -248,6 +248,18 @@ async def delete_project_symbol(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """DELETE 项目作用域流股符号（204 No Content）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发到 StreamSymbolService.delete_project_symbol
+    3. service 层无引用检查（项目内派生数据无下游引用），直接删行 + commit
+    4. 204 No Content（FastAPI status_code 控制响应体为空）
+
+    与 delete_company_symbol 区别：项目级不做引用检查（项目内派生数据
+    不会被其他项目引用）；公司级需检查 ProjectStreamSymbol.source_symbol_id
+    反向引用（STREAM_SYMBOL_IN_USE 409）。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     await StreamSymbolService.delete_project_symbol(
         db, project_symbol_id=project_symbol_id, actor=user,
