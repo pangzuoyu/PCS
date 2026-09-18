@@ -36,6 +36,13 @@ async def list_piping(
     offset: int = Query(0, ge=0),
     session: AsyncSession = Depends(get_db),
 ):
+    """列出 workspace 内管路记录（分页：默认 limit=50 / offset=0，上限 limit=200）。
+
+    - workspace 隔离：仅返回 workspace_id 下的 PipingResult
+    - 排序：seq_no asc（管号序号）
+    - sign_status 返回 enum value（兼容历史字符串）
+    - 返回 5 字段：pipe_id / line_no / sign_status / approval_step / locked_by_deliverable
+    """
     ws = await get_workspace(workspace_id, session)
     rows = (
         await session.execute(
