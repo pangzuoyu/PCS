@@ -55,6 +55,17 @@ async def graph(
     max_depth: int = Query(10, ge=1, le=50),
     session: AsyncSession = Depends(get_db),
 ):
+    """取记录的全谱系图（root + upstream + downstream）。
+
+    步骤：
+    1. 查最新 LineageRecord（lineage_id；不存在 → 404 no lineage for record）
+    2. 上溯祖先（upstream）：从最新版本反向追踪到源头参数表
+    3. 下溯派生（downstream）：从当前 lineage_id 出发追到所有派生版本
+       （多版本分支以链式 children 形式返回）
+    4. 返回 dict { root, upstream, downstream }，每项均经 _serialize 转 dict
+
+    参数 max_depth 限制上下游遍历深度（1-50，默认 10，防爆栈）。
+    """
     tracker = LineageTracker(session)
     latest = await tracker.latest(record_type=record_type, record_id=record_id)
     if latest is None:
