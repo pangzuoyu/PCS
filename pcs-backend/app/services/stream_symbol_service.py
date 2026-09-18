@@ -72,6 +72,13 @@ class StreamSymbolService:
 
     @classmethod
     async def get(cls, db: AsyncSession, symbol_id: uuid.UUID) -> StreamSymbol:
+        """取公司流股符号行（不存在抛 404）。
+
+        - db.get 取行（PK 查），不存在 → STREAM_SYMBOL_NOT_FOUND 404
+        - 用于 update_company/delete_company/submit/approve/publish/obsolete
+          状态流前的统一入口
+        - 不区分公司/项目级；项目级符号走 ProjectStreamSymbol 模型对应 get
+        """
         ss = await db.get(StreamSymbol, symbol_id)
         if not ss:
             raise PcsError(
