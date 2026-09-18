@@ -47,6 +47,16 @@ class TemplateService:
         file_name: str,
         file_type: str,
     ) -> TemplateFile:
+        """上传模板文件到存储（按内容 SHA-256 去重文件名）。
+
+        步骤：
+        1. 计算 file_bytes SHA-256，存储路径 = {sha}.{file_name}
+        2. 写文件到 storage_root（path.write_bytes）
+        3. 自动续 template_version_seq（取 max + 1，V1.4 P2-OPEN-005）
+        4. 插 TemplateFile 行（DRAFT，version='v1'，placeholders_json 占位 {"vars": []}）
+
+        注意：不主动 commit，flush 后由调用方决定是否落库。
+        """
         sha = hashlib.sha256(file_bytes).hexdigest()
         path = self.storage_root / f"{sha}.{file_name}"
         path.write_bytes(file_bytes)
