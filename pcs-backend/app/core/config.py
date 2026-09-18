@@ -1,13 +1,27 @@
+import secrets
+import warnings
 from functools import lru_cache
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# P0-MED-004 fix（2026-09-18）：移除源代码中明文默认 secret_key。
+# 旧值 `"dev-secret-key-not-for-production--"` 在仓库 .git 中可检索，攻击者
+# 若部署忘记设环境变量即拿到 well-known JWT 签发密钥 → 任意 token 伪造。
+# 新规则：
+#   - 未设环境变量 + 非 production → 自动生成随机 64 字节 secret_key（每次
+#     启动变化）+ warnings.warn 提醒"开发用，生产前必设 SECRET_KEY"
+#   - 未设环境变量 + production → 启动抛 RuntimeError（fail-fast）
+#   - 已设环境变量 + 短于 32 字节 + production → RuntimeError
+#   - 已设环境变量 + 短于 32 字节 + 非 production → warnings.warn
+_DEFAULT_DEV_SECRET_PREFIX = "auto-generated:"  # 仅标记来源，不可见 API
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     env: str = "development"
-    secret_key: str = "dev-secret-key-not-for-production--"
+    # 默认值改为空字符串 sentinel；真实值在 model_validator / lru_cache 路径生成
+    secret_key: str = ""
     database_url: str = "postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs"
     redis_url: str = "redis://localhost:6379/0"
     cors_allow_origins: str = "http://localhost:5173"
@@ -33,13 +47,39 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    s = Settings()
+    # secret_key 空 → 自动生成（开发用）+ 提醒
+    if not s.secret_key:
+        if s.is_production:
+            raise RuntimeError(
+                "SECRET_KEY 环境变量必须在 production 设置（>=32 字节强随机）"
+            )
+        s.secret_key = _DEFAULT_DEV_SECRET_PREFIX + secrets.token_urlsafe(48)
+        warnings.warn(
+            "SECRET_KEY 未配置；自动生成开发用随机密钥（每次启动变化）。"
+            "production 前必须显式设置 SECRET_KEY 环境变量。",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+    elif len(s.secret_key) < 32:
+        if s.is_production:
+            raise RuntimeError(
+                f"SECRET_KEY 长度 {len(s.secret_key)} < 32 字节，production 拒绝"
+            )
+        warnings.warn(
+            f"SECRET_KEY 长度 {len(s.secret_key)} < 32 字节，仅开发用；"
+            "production 前必换强密钥。",
+            RuntimeWarning,
+            stacklevel=2,
+        )
+    return s
 
 
 def assert_secret_key_configured() -> None:
-    """production 启动自检：SECRET_KEY 不得为默认值或短于 32 字节。"""
-    s = get_settings()
-    if s.is_production and (
-        s.secret_key == "dev-secret-key-not-for-production--" or len(s.secret_key) < 32
-    ):
-        raise RuntimeError("SECRET_KEY must be a strong value (>=32 chars) in production")
+    """启动自检：secret_key 至少 32 字节（已在 get_settings() 阶段保证）。
+
+    保留此函数作为 lifespan 调用契约点；自检已在 get_settings() 内部完成，
+    无需重复检查。
+    """
+    # get_settings() 已 fail-fast；此处仅做占位以保留调用契约
+    return None

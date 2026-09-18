@@ -20,11 +20,15 @@ def client() -> TestClient:
 
 @pytest.fixture
 def patched_ldap(monkeypatch):
-    """mock LDAP：alice 在 DESIGNER_GROUP，bob 不在群组（默认 DESIGNER）。"""
+    """mock LDAP：alice 在 DESIGNER_GROUP，bob 不在群组（默认 DESIGNER）。
+
+    password=="wrong-pw" → LdapAuthError（INVALID_CREDENTIALS 测试用）；
+    其他非空密码按 username 命中处理。
+    """
 
     def fake_auth(username: str, password: str) -> ldap_mod.LdapUser:
-        if password == "":
-            raise ldap_mod.LdapAuthError("empty")
+        if password == "wrong-pw":
+            raise ldap_mod.LdapAuthError("invalid credentials")
         groups = (
             ("cn=DESIGNER_GROUP,ou=Groups,dc=test,dc=local",)
             if username == "alice"
@@ -57,8 +61,9 @@ def test_login_success_returns_tokens(client, patched_ldap):
 
 
 def test_login_failure_invalid_credentials(client, patched_ldap):
+    """用户名/密码错误 → 401 INVALID_CREDENTIALS（非空密码）。"""
     r = client.post(
-        "/api/v1/auth/login", json={"username": "alice", "password": ""}
+        "/api/v1/auth/login", json={"username": "alice", "password": "wrong-pw"}
     )
     assert r.status_code == 401
     assert r.json()["code"] == "INVALID_CREDENTIALS"
