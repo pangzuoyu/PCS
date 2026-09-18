@@ -203,6 +203,16 @@ async def list_snapshots(
     workspace_id: uuid.UUID = Query(...),
     session: AsyncSession = Depends(get_db),
 ):
+    """列出管路记录的所有变更快照（按 created_at desc）。
+
+    步骤：
+    1. 校验 workspace + 查 PipingResult（不存在 → 404 piping record not found）
+    2. 列 RecordChangeSnapshot（record_type='PipingResult' + record_id=pipe_id）
+    3. 按 created_at desc 排序，返回 {snapshot_id, snapshot_reason, snapshot_status,
+       snapshot_source, created_at} 列表
+
+    workspace 隔离：仅查询 workspace_id 下的 PipingResult，越权访问 → 404。
+    """
     ws = await get_workspace(workspace_id, session)
     rec = (
         await session.execute(
