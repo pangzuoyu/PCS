@@ -64,6 +64,17 @@ class NumberingService:
         return row.current_value
 
     async def reset(self, project_id, template_id, scope_key, *, new_value=0, actor: UUID) -> None:
+        """重置文档号序列（管理员/纠错用）。
+
+        步骤：
+        1. SELECT ... FOR UPDATE 行锁（同 next_value，并发安全）
+        2. 行不存在 → SequenceNotFoundError
+        3. current_value = new_value（默认 0），flush
+        4. 写 Audit CONFIG_VERSION_CREATED（resource_id 拼 {project/template/scope}）
+
+        注意：重置操作不可逆，调用方应确认业务场景（编错回退、年初清零等）。
+        不主动 commit（flush + Audit.write 后调用方负责）。
+        """
         row = (await self.session.execute(
             select(DocNoSequence).where(
                 DocNoSequence.project_id == project_id,
