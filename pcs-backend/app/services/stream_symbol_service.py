@@ -165,6 +165,15 @@ class StreamSymbolService:
         *,
         actor: Any,
     ) -> None:
+        """删除公司级流股符号（cascade asset + 引用检查）。
+
+        - 取行（不存在 → STREAM_SYMBOL_NOT_FOUND 404）
+        - SYM-V06 引用检查：ProjectStreamSymbol.source_symbol_id 引用
+          → STREAM_SYMBOL_IN_USE（409）
+        - 级联删 ConfigAsset（若存在 asset_id；CASCADE 清理 ConfigVersion）
+        - 删 StreamSymbol 行
+        - 提交由本函数负责（db.commit()）
+        """
         ss = await cls.get(db, symbol_id)
         # SYM-V06：被项目级 fork 引用则不可删
         ref = (
