@@ -1,10 +1,28 @@
 ---
-status: proposed
+status: accepted
 date: 2026-09-17
-revised: 2026-09-17
+revised: 2026-09-18
 version: V1.0
 proposed_by: P5 架构评审委员会（Task 2 起草组）
 related: [SUP-009 V1.0, P5-PLAN-P5-DEVICE-EQUIPMENT.md, P5-OPEN-006, ADR-0028 V1.1, DICT-ALL-003 V3.3, P0 规格说明书]
+accepted_by: P5-4 实施落定（commit p5_4_heat_duty_split 迁移）
+---
+
+# P5-4 实施状态：duty 双轨字段已就位（决策 5 跟踪项闭环）
+
+**2026-09-18 修订**：
+
+- 决策 5 跟踪项"P5-4 实施时按需拆分 duty_legacy/duty_calc"已通过 `p5_4_heat_duty_split` alembic 迁移落地：
+  1. `heat_results.duty_legacy` Float nullable — P4 上游 duty
+  2. `heat_results.duty_calc` Float nullable — P5 计算 duty
+  3. 存量回填：`duty_calc = duty WHERE duty IS NOT NULL`（默认按溯源未知归 P5 计算归属）
+  4. ORM `HeatResult` 加 `duty_legacy` + `duty_calc` 两字段，`duty` 列保留向后兼容
+- **未修改 service 层写入路径**：`HeatCalcInput.duty` 与 `_store(inp)` 调用未变更。
+  双轨字段的实际写入策略（HTRI conversion 走 duty_calc vs 直接用户输入走 duty_legacy）
+  由 P5-4 HEAT 工艺工程师后续批决定。
+- **`duty` 列保留**：向后兼容 P5-OPEN-006 §"9 旧标量"承诺；后续批如全量切换至 duty_calc/duty_legacy 双轨，
+  需另起迁移下掉旧列。
+
 ---
 
 # HEAT 双轨设计：9 标量旧字段保留 + 40 新字段同表扩展
@@ -105,7 +123,7 @@ HEAT 模块（P5-4 batch）需支持 HTRI 空冷器（ACHE）+ TEMA 管壳式换
 
 **`duty` 共享 9 旧**：SUP-009 §3.1.2 `duty` 字段与 P5-OPEN-006 9 旧 `duty` 同名同义（FLOAT kW），合并为 1 列（用 9 旧名 `duty`）。新标量 40 - 1（共享）= **39 新标量** + 3 JSONB = **42 新字段**。
 
-> **P5-4 跟踪项**：SUP-009 `duty`（P5 计算结果）与 9 旧 `duty`（P4 上游值）业务语义有差异。P5-0 简化裁定"共享 1 列"，P5-4 实施时按需拆分为 `duty_legacy`（9 旧）/ `duty_calc`（新）双字段。
+> **P5-4 跟踪项（已闭环 2026-09-18）**：SUP-009 `duty`（P5 计算结果）与 9 旧 `duty`（P4 上游值）业务语义有差异。P5-0 简化裁定"共享 1 列"，P5-4 实施时按需拆分为 `duty_legacy`（9 旧）/ `duty_calc`（新）双字段 — 2026-09-18 已通过 `p5_4_heat_duty_split` 迁移落地，详本 ADR 顶部修订段。
 
 **3 JSONB**：
 - `shell_params`（§3.1.3）：壳程工艺物性（fluid_name / mass_flow / temp_in/out / density_in/out / viscosity_in/out / cp_in/out / k_in/out / pressure_in / pressure_drop_calc / pressure_drop_allow / velocity / film_coef / fouling_res / design_pressure / design_temp / passes / flow_direction）
@@ -142,3 +160,4 @@ HEAT 模块（P5-4 batch）需支持 HTRI 空冷器（ACHE）+ TEMA 管壳式换
 | 版本 | 日期 | 修改内容 |
 |---|---|---|
 | V1.0 | 2026-09-17 | 初始版本：Task 2 P5-0-2 实施依据（6 项裁决） |
+| V1.0-rev | 2026-09-18 | 决策 5 跟踪项闭环：duty 双轨字段已就位（p5_4_heat_duty_split 迁移），status → accepted |

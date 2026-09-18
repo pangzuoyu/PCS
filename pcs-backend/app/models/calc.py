@@ -537,10 +537,13 @@ class HeatResult(TaggedRecordMixin, Base):
     **双轨结构**：
     - 9 旧标量：equipment_no/equipment_name/**duty**/effective_area/4 压力/u_overall
     - 5 现状 JSONB：air_side/design_conditions/enthalpy_table/input/output
-    - 39 新标量 + 3 新 JSONB：详 SUP-009 V1.0 §3.1（`duty` 与 9 旧共享 1 列）
+    - 39 新标量 + 3 新 JSONB：详 SUP-009 V1.0 §3.1
 
-    `duty` 共享 = 9 旧 P4 上游值与 SUP-009 P5 计算结果合并为 1 列。P5-4 实施
-    时按需拆分为 `duty_legacy` / `duty_calc` 双字段（详 ADR-0027 决策 5）。
+    **duty 双轨**（ADR-0027 V1.0 决策 5 跟踪项 — P5-4 已落地）：
+    - `duty`（9 旧共享列）：保留向后兼容；新写入同时落双轨
+    - `duty_legacy`：P4 上游 duty（即 inp.duty 路径）
+    - `duty_calc`：P5 计算 duty（即 htri.heat_duty_w 路径）
+    现有 `duty` 默认按溯源未知处理，迁移回填至 `duty_calc`（详 p5_4_heat_duty_split 迁移）。
 
     PK rename（heat_exchanger_id → heat_calc_id，DICT V3.4 方向）待 Task 4a。
     """
@@ -555,7 +558,10 @@ class HeatResult(TaggedRecordMixin, Base):
     # === 9 旧标量（P5-OPEN-006 保留列，详 ADR-0027 决策 1）===
     equipment_no: Mapped[str | None] = mapped_column(String(30))
     equipment_name: Mapped[str | None] = mapped_column(String(100))
-    duty: Mapped[float | None] = mapped_column(Float, comment="9 旧与新轨共享 1 列")
+    duty: Mapped[float | None] = mapped_column(Float, comment="9 旧与新轨共享 1 列（向后兼容）")
+    # === duty 双轨（ADR-0027 V1.0 决策 5 跟踪项 — P5-4 落地）===
+    duty_legacy: Mapped[float | None] = mapped_column(Float, comment="P4 上游 duty")
+    duty_calc: Mapped[float | None] = mapped_column(Float, comment="P5 计算 duty")
     effective_area: Mapped[float | None] = mapped_column(Float)
     hot_inlet_pressure: Mapped[float | None] = mapped_column(Float)
     hot_outlet_pressure: Mapped[float | None] = mapped_column(Float)
