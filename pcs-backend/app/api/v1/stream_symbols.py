@@ -83,6 +83,17 @@ async def update_company_symbol(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """PUT 改公司流股符号（增量覆盖）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（公司级工艺侧编辑权限）
+    2. payload.model_dump(exclude_none=True) 排除 None 字段，仅提交显式给出项
+    3. 转发到 StreamSymbolService.update_company（按字段名 setattr 增量覆盖）
+    4. service 提交（已 commit），返回更新行
+
+    与 /projects/{project_id}/stream-symbols/{id}（update_project_symbol）区别：
+    本端点改公司级 StreamSymbol；项目级走 ProjectStreamSymbol 对应端点。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await StreamSymbolService.update_company(
         db, symbol_id, data=payload.model_dump(exclude_none=True), actor=user,
