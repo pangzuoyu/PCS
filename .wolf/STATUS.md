@@ -523,7 +523,7 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - app/main.py 3 个 public 函数补 docstring（lifespan/create_app/add_trace_id，LOW 文档补全）
   - alembic p5_open_010 docstring E501 line-too-long 修复（132→拆两行）
   - app/core/errors.install_exception_handlers 补 docstring（error 信封 5 类 handler 说明）
-- ✅ (g) MEDIUM 滚动第六批 20 项 — commit `81fa2db` + `38e3d58` + `c54f559` + `98eb87b` + `892ea81` + `8a36ac3` + `fafa81d` + `57d0e5d` + `977dc0e` + `1347555` + `024fd23` + `6a3b477` + `422d77c` + `3117939` + `ed34777` + `33a8d9b` + `33532df` + `91104c4` + `2bb85d9` + `3762d6e`
+- ✅ (g) MEDIUM 滚动第六批 21 项 — commit `81fa2db` + `38e3d58` + `c54f559` + `98eb87b` + `892ea81` + `8a36ac3` + `fafa81d` + `57d0e5d` + `977dc0e` + `1347555` + `024fd23` + `6a3b477` + `422d77c` + `3117939` + `ed34777` + `33a8d9b` + `33532df` + `91104c4` + `2bb85d9` + `3762d6e` + `c3978a7`
   - stream_symbol_service.create_company 补 docstring（4 步骤流程 + V1.4 §0.5 ConfigAsset 挂载）
   - pipe_code_template_service.create_company 补 docstring（同样 4 步骤 + INT-OPEN-01 ConfigAsset 挂载）
   - checklist_service.update_status 补 docstring（状态分支 + Audit + ValueError）
@@ -544,6 +544,7 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - api/v1/records.get_piping 加 docstring（pipe_id + workspace_id 双键 + sign_status enum value 兼容 + 7 字段）
   - checklist_service.bulk_seed 加 docstring（默认 NOT_STARTED + 不写 Audit + flush 不 commit）
   - api/v1/records.list_piping 加 docstring（分页 + workspace 隔离 + seq_no 排序 + 5 字段）
+  - stream_symbol_service.update_project_symbol 加 docstring（override_json 合并 + 3 字段可选覆盖）
 - 🔲 **下一批**：LOW/INFO 滚动
 
 ### 待办（建议优先序）
