@@ -1458,6 +1458,86 @@
       "last_seen": "2026-09-18",
       "severity": "CRITICAL",
       "fix_commit": "e700271"
+    },
+    {
+      "id": "bug-090",
+      "timestamp": "2026-09-18T16:30:00Z",
+      "error_message": "LDAP authenticate() 用 str.format() 直接拼接 username 到 DN 模板，特殊字符 `,` `=` `+` 等破坏 DN 边界，攻击者可通过 username 注入额外 RDN（DN injection），绕过 LDAP 绑定意图",
+      "file": "pcs-backend/app/services/ldap_client.py:33",
+      "root_cause": "ce-code-review H-P0-4。ldap_user_dn_template.format(username=username) 未转义 RFC 4514 §2.4 必转义字符：\\ \" # + , ; < = > 和 NUL",
+      "fix": "添加 _sanitize_dn_component(value) 按 RFC 4514 §2.4 转义单字符：\\\\ \" # + , ; < = >，NUL 用多字符序列 \\00；authenticate() 在 format 前调用。NUL 特殊处理：先跑单字符转表（NUL 不在表中），再替换 \\x00 → \\\\00，避免被反斜杠转义二次翻倍。16 例 LDAP 单测覆盖 10 字符 + DN 注入集成拦截",
+      "tags": [
+        "ce-code-review",
+        "P0-auth-hardening",
+        "H-P0-4",
+        "LDAP",
+        "DN-injection",
+        "RFC-4514"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-18",
+      "severity": "HIGH",
+      "fix_commit": "4a17efc"
+    },
+    {
+      "id": "bug-091",
+      "timestamp": "2026-09-18T16:30:00Z",
+      "error_message": "jwt.decode(token, secret, algorithms=['HS256']) 缺 options.require，伪造/过期/无主体标识 token 全部被接受 → 任意用户身份冒充",
+      "file": "pcs-backend/app/core/security.py:56-59",
+      "root_cause": "ce-code-review H-P0-1。PyJWT 默认不强制 require claim，攻击者可构造缺 exp/iat/sub 的 token 通过解码校验，绕过过期和主体审计",
+      "fix": "decode_token 添加 options={'require': ['exp', 'iat', 'sub']}。MissingRequiredClaimError 是 PyJWTError 子类，被现有 except jwt.PyJWTError 自动捕获并转 401 INVALID_TOKEN。4 例 parametrize 覆盖 exp/iat/sub 各自缺失 + 1 例 /me 路径 + 1 例正常通过",
+      "tags": [
+        "ce-code-review",
+        "P0-auth-hardening",
+        "H-P0-1",
+        "JWT",
+        "claim-required",
+        "PyJWT"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-18",
+      "severity": "HIGH",
+      "fix_commit": "6743828"
+    },
+    {
+      "id": "bug-092",
+      "timestamp": "2026-09-18T16:30:00Z",
+      "error_message": "refresh 路径不轮换/不吊销旧 refresh token，截获后可永久重放；同时 access token 永不过期（仅依赖 exp）→ 泄露窗口最大化",
+      "file": "pcs-backend/app/core/security.py:43-53 + pcs-backend/app/api/v1/auth.py:96-122",
+      "root_cause": "ce-code-review H-P0-2。create_refresh_token 无 jti claim，refresh 路径无撤销检查也不发新 refresh token → refresh 是可重放的永续凭据",
+      "fix": "(1) create_refresh_token 加 jti=uuid4()；(2) security.py 维护进程内 _REVOKED_JTIS: set + revoke_jti/is_jti_revoked 助手；(3) refresh 端点：解码后检查 jti 未撤销 → 撤销旧 jti → 返回新 access_token + 新 refresh_token；(4) RefreshResponse 加 refresh_token 字段。2 例测试：rotation 返回新 RT / 重放旧 RT → 401",
+      "tags": [
+        "ce-code-review",
+        "P0-auth-hardening",
+        "H-P0-2",
+        "JWT-refresh",
+        "rotation",
+        "JTI-revocation"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-18",
+      "severity": "HIGH",
+      "fix_commit": "e7f0f7e"
+    },
+    {
+      "id": "bug-093",
+      "timestamp": "2026-09-18T16:30:00Z",
+      "error_message": "logout 是 no-op 204，前端丢弃 token 后服务端仍认旧 refresh token 有效 → 登出无法真正切断会话",
+      "file": "pcs-backend/app/api/v1/auth.py:119-122",
+      "root_cause": "ce-code-review H-P0-3。logout endpoint 直接 return None，无任何 token 状态变更，与 refresh 不轮换配套，logout 名存实亡",
+      "fix": "(1) LogoutRequest 接收可选 refresh_token；(2) logout 解码 refresh_token 后调 revoke_jti()；(3) 无 body / 伪造 token / access token 三场景幂等 204（防侧信道）。4 例测试：logout 吊销后 RT 重放 → 401 / 无 body 204 / 伪造 token 204 / access token 204 不影响 /me",
+      "tags": [
+        "ce-code-review",
+        "P0-auth-hardening",
+        "H-P0-3",
+        "logout",
+        "JTI-revocation",
+        "side-channel"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-18",
+      "severity": "HIGH",
+      "fix_commit": "e7f0f7e"
     }
   ]
 }
