@@ -33,6 +33,21 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """SIM 导入批次主表 sim_imports + 4 enum 创建（P3.2 SIM 批次）。
+
+    步骤：
+    - 3 个 PG enum：simimporttype (PROII/EXCEL) + simimportstatus (PREVIEW/COMMITTED/EXPIRED)
+      + simimportwarningseverity (BLOCK/WARN/INFO)
+    - 主表 sim_imports：import_id (PK UUID) + project_id (FK) + workspace_id (FK) +
+      import_type + status + source_file_path + source_file_hash (SHA-256) +
+      source_file_size + parser_version + warnings_json (JSONB) +
+      created_by + created_at + committed_at + expires_at
+    - 索引：project_id + workspace_id（项目级 / 工作区级查询）
+    - 派生表：sim_import_warnings（独立记录每条 warning，便于回查）
+
+    业务：PRO/II + Excel 导入批次管理（PREVIEW 预览 → COMMITTED 提交 → EXPIRED 过期）。
+    与 sim_unit_op_results 关系：本表为批次头；sim_unit_op_results 行为项。
+    """
     # PG enum: simimporttype
     simimporttype = postgresql.ENUM(
         "PROII", "EXCEL", name="simimporttype", create_type=True

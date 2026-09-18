@@ -26,6 +26,21 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """SIM 单元操作结果主表 sim_unit_op_results 创建（P3.2 SIM 批次）。
+
+    步骤：
+    - 主表 sim_unit_op_results：unit_op_id (PK UUID) + import_id (FK→sim_imports) +
+      unit_uid + unit_type + convergence_status + iterations +
+      raw_summary_json (JSONB, 原始 PRO/II 输出) +
+      feed_streams_json (JSONB, 进料物流) +
+      product_streams_json (JSONB, 出料物流) +
+      is_unreliable (Boolean, PRO/II 标记) + created_at (TZ default now())
+    - 索引：import_id（按 import 反查）+ unit_uid（自然码定位）
+    - 派生表：sim_unit_op_warnings（warnings BLOCK/WARN/INFO 分桶）
+
+    业务：SIM 导入 → 单元操作级结果落库（柱/塔/换热器/反应器等）。
+    与 sim_imports 关系：sim_imports 为批次头；sim_unit_op_results 为行项。
+    """
     # 主表
     op.create_table(
         "sim_unit_op_results",
