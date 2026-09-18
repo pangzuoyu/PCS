@@ -19,6 +19,17 @@ from app.services.coefficient_service import CoefficientService
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    """FastAPI 应用生命周期（启动/关闭 hook）。
+
+    启动阶段：
+    1. 校验 `SECRET_KEY` 在生产环境已配置（fail-fast 防 default token 风险）
+    2. 拒绝生产挂载 mock-login 路由（防 P0 误用）
+    3. seed CATEGORY_3 默认 6 张系数表（幂等，V1.4 P2-OPEN-005）
+
+    关闭阶段：
+    释放 sync + async 引擎连接池（P0-MED-002 fix）。否则重启时连接
+    可能 TIME_WAIT 累积 + 文件描述符泄漏。
+    """
     settings = get_settings()
     assert_secret_key_configured()
     if settings.is_production:
@@ -41,12 +52,26 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
+    """PCS 后端 FastAPI 应用工厂。
+
+    装配顺序：
+    1. `setup_logging()` 装载 TraceIdFilter + JsonFormatter
+    2. 注册 `add_trace_id` 中间件（每次请求生成 trace_id 写入 contextvar + state）
+    3. 注册全局异常处理器（`install_exception_handlers`）
+    4. 挂载 `api_router`（v1 路由）
+    5. 非生产环境追加 `mock_auth_router`（开发态 mock 登录）
+    """
     settings = get_settings()
     setup_logging()
     app = FastAPI(title="PCS Backend", version="0.5.1", lifespan=lifespan)
 
     @app.middleware("http")
     async def add_trace_id(request: Request, call_next):
+        """trace_id 中间件：每次 HTTP 请求生成 UUID hex 写入 contextvar + request.state。
+
+        contextvar 让 `app.core.logging.TraceIdFilter` 在任意代码路径读取 trace_id，
+        无需显式透传；request.state 提供给响应日志 / 业务代码层访问。
+        """
         # P0-MED-003 fix（2026-09-18）：trace_id 写入 contextvar + request.state
         # contextvar 让 logging.Filter 能在任意代码路径读取，无需显式透传
         trace_id = uuid.uuid4().hex
