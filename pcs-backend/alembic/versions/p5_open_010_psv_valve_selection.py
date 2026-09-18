@@ -14,7 +14,8 @@
    - 先导：pilot_temperature_c / pilot_temp_class
 
 2. **psv_results 加 3 CHECK 约束**（V1.14 §4.2 业务规则 DB 层兜底）：
-   - psv_valve_type_chk：valve_type IS NULL OR valve_type IN ('SPRING_LOADED', 'BALANCED_BELLOWS', 'PILOT_OPERATED', 'RUPTURE_DISC')
+   - psv_valve_type_chk：valve_type IS NULL OR valve_type IN
+     ('SPRING_LOADED', 'BALANCED_BELLOWS', 'PILOT_OPERATED', 'RUPTURE_DISC')
    - psv_cdtp_check：NOT cdtp_applied OR back_pressure_type = 'SUPERIMPOSED'
    - psv_orifice_overridden_check：orifice_overridden ↔ orifice_manual 成对
 
