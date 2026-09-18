@@ -16,6 +16,7 @@ from __future__ import annotations
 import hashlib
 import json as _json
 import uuid
+from collections.abc import Callable
 from contextvars import ContextVar, Token
 from datetime import UTC, datetime
 from functools import wraps
@@ -204,7 +205,7 @@ class LineageTracker:
         return result
 
 
-def lineage(*, sources: tuple[str, ...] = (), summary: str | None = None):
+def lineage(*, sources: tuple[str, ...] = (), summary: str | None = None) -> Callable:
     """装饰器：包裹的函数返回 record，自动落 data_lineage。
 
     sources 必填元组；如需动态 source，使用 lineage_ctx。
