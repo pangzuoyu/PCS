@@ -308,6 +308,16 @@ class PipeCodeTemplateService:
         format_definition_json: dict,
         actor: Any,
     ) -> ProjectPipeCodeConfig:
+        """在项目作用域内自建管号配置（不基于模板）。
+
+        - 查重：按 (project_id, config_name) 复合唯一，命中 → PROJECT_PIPE_CODE_CONFIG_DUP（409）
+        - 新增：ProjectPipeCodeConfig 行（DRAFT，source_template_id=None 表项目自创，
+          snapshot_json=None 表非 fork 来的快照）
+        - 入库格式由调用方直接传入 format_definition_json（不拷贝模板）
+        - 写入由本函数负责（db.commit()）
+
+        与 `fork_to_project` 区别：本函数 source_template_id=None，无 snapshot。
+        """
         dup = (
             await db.execute(
                 select(ProjectPipeCodeConfig).where(
