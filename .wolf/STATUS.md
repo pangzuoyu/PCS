@@ -519,6 +519,8 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - HEAT duty 双轨字段落地（ADR-0027 V1.0 决策 5 跟踪项闭环，p5_4_heat_duty_split 迁移）
 - ✅ (e) MEDIUM 滚动第四批 1 项 — commit `ba4e0de`
   - design_stage NOT NULL 测试覆盖扩到 column_sizing_results（P5-OPEN-005 三表 contract 对齐 SPEC §8.4）
+- ✅ (f) MEDIUM 滚动第五批 1 项 — commit `c03d2a8`
+  - app/main.py 3 个 public 函数补 docstring（lifespan/create_app/add_trace_id，LOW 文档补全）
 - 🔲 **下一批**：LOW/INFO 滚动
 
 ### 待办（建议优先序）
