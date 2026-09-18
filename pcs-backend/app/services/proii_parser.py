@@ -371,11 +371,18 @@ def _parse_warnings(text: str) -> list[str]:
 def _parse_zero_flow_streams(
     text: str, streams: dict[str, _ParsedStreamLite]
 ) -> set[str]:
-    """零流量流：从警告 + 物料平衡段识别（FG1/FG2 等）。
+    """零流量流：从 .out 警告段识别（FG1/FG2 等）。
 
     规则：
-    - WARNING 中含 "STREAM X HAS ZERO MASS FLOW" → X
-    - 物料平衡段 RATE,W 0.0  *** ZERO FLOW *** → 找该列所在 STREAM 名
+    - WARNING 中含 "STREAM X HAS ZERO MASS FLOW" → X（PRO/II 标准输出）
+
+    Args:
+        text: .out 全文（仅用于 re-scan WARNING；streams 参数当前保留以兼容
+              调用方，未来若扩展物料平衡段解析可复用）
+        streams: 已解析 stream 字典（暂未参与零流量识别；保留兼容）
+
+    Returns:
+        零流量 stream tag 集合
     """
     zero: set[str] = set()
     for w in _parse_warnings(text):
