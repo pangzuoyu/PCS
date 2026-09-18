@@ -50,6 +50,14 @@
 
 ## Key Learnings
 
+### contextvars.reset(token) 模块级陷阱（bug-098, 2026-09-18）
+
+- **陷阱**：以为 `contextvars` 模块有 `reset()` 函数 → `import contextvars; contextvars.reset(token)` 报 `AttributeError: module 'contextvars' has no attribute 'reset'`
+- **正解**：**只有 ContextVar 实例有 reset() 方法**。`token = ctx_var.set(value)` 后必须 `ctx_var.reset(token)`，不能 `contextvars.reset(token)`
+- **应用**：trace_id 中间件（`app/main.py:54-66`）用 `_trace_id_var.set(trace_id)` + `_trace_id_var.reset(token)` 在模块顶层导入避免函数内 import 开销
+- **回归**：误用导致 28 测试失败（test_auth 26 + test_health 1 + test_mock_auth 1）→ 一次 commit 修后 baseline 2215 pass 干净
+- **守则**：任何 ContextVar 用法都贴此模式 — `set()` 取 token，`ctx_var.reset(token)` 归还，**不要**写 `import contextvars` 后再用模块级函数
+
 ### GB/T 12241 bug-089 同款修复（P5-3-8, 2026-09-18）
 
 - **bug-089 双路径**：C6 修复（commit `e700271`）仅覆盖 API 520 路径，
