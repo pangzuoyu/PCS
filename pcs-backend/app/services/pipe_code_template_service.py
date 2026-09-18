@@ -470,6 +470,13 @@ class PipeCodeTemplateService:
         *,
         project_id: uuid.UUID,
     ) -> list[ProjectPipeCodeConfig]:
+        """列出项目内所有管号配置（按 config_name 排序）。
+
+        - 按 project_id 过滤，返回该作用域下全部 ProjectPipeCodeConfig
+        - 排序：config_name 升序（前端下拉稳定）
+        - 不分页（项目内配置数量级小，O(10)）
+        - 与 list_company 对应；本函数专项目级
+        """
         rows = (
             await db.execute(
                 select(ProjectPipeCodeConfig).where(
