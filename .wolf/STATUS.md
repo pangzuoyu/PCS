@@ -563,7 +563,9 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
 2. ✅ ~~P5-3-8 GB/T 12241 bug-089 修复~~ — commit 473b009 闭环（C6 完全关闭）
 3. ✅ ~~P0 MEDIUM 5 项收口~~ — commit 4a3c052 闭环（sync dispose + trace_id + bug-098 修复）
-4. **MEDIUM/LOW/INFO**：剩余 48 项未处理（入 backlog，滚动）
+4. **MEDIUM/LOW/INFO**：
+   - ✅ MEDIUM 48 项 — 全部收口（commit a3a8df6，累计 batch a-f+g 闭环）
+   - 🔲 LOW/INFO 滚动（剩余清单入 backlog，待办项持续扫）
 4. **P5-3 工艺工程师接管**：
    - OPEN-10-1 API526_FLANGE_CLASS_ORIFICE_LIMITS 84 组合（§8 gate #4）
    - OPEN-10-2 真实 Kb 厂商数据（替换合成 _KB_DATA）
