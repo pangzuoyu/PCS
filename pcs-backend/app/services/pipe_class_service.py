@@ -229,6 +229,19 @@ class PipeClassService:
 
     @classmethod
     async def import_from_excel(cls, session, fileobj) -> dict:
+        """从 Excel 批量导入管号等级（每行 = 一条 PipeClassCreate）。
+
+        步骤：
+        1. 读 Excel：优先 sheet "pipe_classes"，否则回退 active sheet
+        2. 表头校验：必须匹配 IMPORT_HEADERS（否则 IMPORT_BAD_HEADER 422）
+        3. 逐行解析为 PipeClassCreate，调 cls.create 落库
+        4. 错误聚合：
+           - PIPE_CLASS_DUP → 计入 skipped（不视为错误）
+           - 其他 PcsError → 计入 errors（行号 + message）
+           - ValueError/TypeError/IndexError/JSONDecodeError → 计入 errors
+
+        返回 {imported, skipped, errors} 字典供前端展示。
+        """
         import json
 
         from openpyxl import load_workbook
