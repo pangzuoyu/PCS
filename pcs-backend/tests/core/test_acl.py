@@ -1,84 +1,51 @@
-"""ACL 装饰器测试（Task 1.4）。
+"""ACL 工具测试（P0-MED-001/007 V1.5，2026-09-18）。
 
-覆盖：
-- require_role 正/负 / user 缺失 / 多角色 OR 语义
-- require_workspace_member 正/负 / user 缺失
-- 装饰器保留原函数元数据（functools.wraps）
+V1.4 装饰器（require_role / require_workspace_member）已下线（functools.wraps
+替换函数签名，与 FastAPI Depends 冲突；真实鉴权走内联 require_roles）。
+本文件仅覆盖现役 _user_attr 辅助 + PermissionDeniedError 导入可达性。
 
-RED 阶段：app.core.acl 不存在时，模块顶部 import 即失败 → 全部测试报
-ImportError。等实现（GREEN）后即可通过。
+P0-MED-007 fix（2026-09-18）：_user_attr 对空集合统一返回 None，
+避免"空集合"与"无属性"语义分歧导致的 false-deny。
 """
 
 from __future__ import annotations
 
-import uuid
+from types import SimpleNamespace
 
-import pytest
-
-from app.core.acl import (
-    PermissionDeniedError,
-    require_role,
-    require_workspace_member,
-)
+from app.core.acl import PermissionDeniedError, _user_attr
 
 
-def test_require_role_designer_can_create_draft(make_user):
-    user = make_user(roles=["DESIGNER"])
-    decorator = require_role("DESIGNER")
-    assert decorator(lambda: "ok")(user=user) == "ok"
+class _User:
+    """最小 user duck-type：仅暴露 roles/workspace_ids。"""
 
 
-def test_require_role_process_controller_blocks_designer(make_user):
-    user = make_user(roles=["DESIGNER"])
-    decorator = require_role("PROCESS_CONTROLLER")
-    with pytest.raises(PermissionDeniedError):
-        decorator(lambda: "ok")(user=user)
+def test_user_attr_none_user_returns_none():
+    assert _user_attr(None, "roles") is None
 
 
-def test_require_role_missing_user_raises():
-    decorator = require_role("DESIGNER")
-    with pytest.raises(PermissionDeniedError):
-        decorator(lambda: "ok")(user=None)
+def test_user_attr_missing_attribute_returns_none():
+    user = _User()
+    assert _user_attr(user, "roles") is None
 
 
-def test_require_role_any_of_multiple_allowed(make_user):
-    """任一角色匹配即放行（OR 语义）。"""
-    user = make_user(roles=["REVIEWER"])
-    decorator = require_role("DESIGNER", "REVIEWER", "APPROVER")
-    assert decorator(lambda: "ok")(user=user) == "ok"
+def test_user_attr_empty_list_returns_none():
+    """P0-MED-007 fix：空集合 → None（与无属性统一为空权限语义）。"""
+    user = SimpleNamespace(roles=[])
+    assert _user_attr(user, "roles") is None
 
 
-def test_require_workspace_member_allowed(make_user):
-    pid = uuid.uuid4()
-    user = make_user(roles=["DESIGNER"], workspace_ids=[pid])
-    decorator = require_workspace_member(pid)
-    assert decorator(lambda: "ok")(user=user) == "ok"
+def test_user_attr_non_empty_list_returns_reference():
+    user = SimpleNamespace(roles=["DESIGNER"])
+    result = _user_attr(user, "roles")
+    assert result == ["DESIGNER"]
+    assert result is user.roles  # 引用透传
 
 
-def test_require_workspace_member_blocked(make_user):
-    pid = uuid.uuid4()
-    other = uuid.uuid4()
-    user = make_user(roles=["DESIGNER"], workspace_ids=[other])
-    decorator = require_workspace_member(pid)
-    with pytest.raises(PermissionDeniedError):
-        decorator(lambda: "ok")(user=user)
+def test_user_attr_workspace_ids_empty_set_returns_none():
+    user = SimpleNamespace(workspace_ids=set())
+    assert _user_attr(user, "workspace_ids") is None
 
 
-def test_require_workspace_member_missing_user_raises():
-    pid = uuid.uuid4()
-    decorator = require_workspace_member(pid)
-    with pytest.raises(PermissionDeniedError):
-        decorator(lambda: "ok")(user=None)
-
-
-def test_decorator_preserves_function_metadata():
-    """functools.wraps 必须保留 __name__ 等元数据。"""
-    decorator = require_role("DESIGNER")
-
-    @decorator
-    def my_endpoint():
-        """端点说明。"""
-        return 42
-
-    assert my_endpoint.__name__ == "my_endpoint"
-    assert "端点说明" in (my_endpoint.__doc__ or "")
+def test_permission_denied_error_importable():
+    """PermissionDeniedError 仍可导入（兼容历史 catch 点）。"""
+    assert issubclass(PermissionDeniedError, Exception)
