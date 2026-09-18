@@ -24,6 +24,18 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """stream_state_points 加 UNIQUE(stream_id, case_type, state_label) 约束（P3.2 SIM-10）。
+
+    步骤：
+    - uq_stream_state_points_label UNIQUE（stream_id + case_type + state_label）
+
+    闭环 bug-062：SV05 仅 intra-batch 查重（seen_keys 集合），跨批次 duplicate
+    漏掉。DB 层 UniqueConstraint 提供最后兜底，commit 时 SQLAlchemy IntegrityError
+    由 StreamService.create_state_point 拦截后转 PcsError(SIM_STATEPOINT_BLOCKED)。
+
+    业务：同 stream + 同 case_type（NORMAL/MAX/MIN/ALTERNATE 四态）+ 同 state_label
+    拒绝；不同 stream 或同 stream 不同 case_type 允许并存。
+    """
     op.create_unique_constraint(
         "uq_stream_state_points_label",
         "stream_state_points",

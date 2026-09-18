@@ -29,6 +29,21 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """streams 加 is_unreliable 字段（P3.2 SIM-10.1 / 用户 2026-09-09 裁决）。
+
+    步骤：
+    - is_unreliable Boolean NULL：未设置（默认 None 等价 False）
+
+    字段语义：
+    - TRUE：PRO/II NOT_CONVERGED/ABORTED 单元产品 → unreliable
+    - FALSE：PRO/II CONVERGED/WARNINGS 流显式标 False
+    - NULL：未设置（等价 False，多用于手工/Excel 入口默认）
+
+    业务：下游过滤刚需（SIM-11 E2E + P 阶段下游计算模块稳定识别 unreliable）；
+    unreliable=True 是物流本身状态（非导入会话临时属性），同一 stream 可能多次
+    导入每次 convergence 不同，需持久化字段。手工/Excel 入口不传该字段
+    （StreamBase 默认 None），行为等同 False。
+    """
     op.add_column(
         "streams",
         sa.Column("is_unreliable", sa.Boolean(), nullable=True),

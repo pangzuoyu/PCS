@@ -17,6 +17,14 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """doc_no_sequences 加 UNIQUE(template_id, scope_key) 约束（P1 Sprint1）。
+
+    步骤：
+    - uq_doc_no_sequences_template_scope UNIQUE（template_id + scope_key）
+
+    业务：P1.2 编号原子分配（pg_insert ... on_conflict_do_update）的 DB 侧
+    并发安全约束；Sprint 1 期间 UNIQUE 已生效，fixture 默认填值防冲突。
+    """
     op.create_unique_constraint(
         "uq_doc_no_sequences_template_scope",
         "doc_no_sequences",
