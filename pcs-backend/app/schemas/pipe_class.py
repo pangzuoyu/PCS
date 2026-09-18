@@ -12,6 +12,13 @@ from pydantic import BaseModel, Field, model_validator
 
 
 class PipeClassBase(BaseModel):
+    """管号等级基础字段（公司级 PipeClass 共用基类，Create/Update/Response 继承）。
+
+    业务：管号等级基础 16 字段（class_id/class_name/material_standard +
+    design_pressure/temperature + dn_series_json/sch_series_json + flange_class +
+    allowable_stress_json 等）；含 model_validator 校验 dn_series_json 完整性。
+    """
+
     class_id: str = Field(
         ..., min_length=1, max_length=20, description="管号等级编号（公司内唯一）"
     )
@@ -70,16 +77,31 @@ class PipeClassBase(BaseModel):
 
 
 class PipeClassCreate(PipeClassBase):
-    pass
+    """创建管号等级请求体（POST /pipe-classes，继承全部基类字段）。
+
+    业务：与 PipeClassBase 完全一致；继承 model_validator（dn_series 完整性）。
+    """
 
 
 class PipeClassUpdate(PipeClassBase):
+    """更新管号等级请求体（PUT /pipe-classes/{class_id}，含状态字段）。
+
+    业务：在基类基础上加 status 字段（DRAFT/ACTIVE/OBSOLETE），支持
+    直接通过 PUT 触发管号等级发布/作废生命周期切换。
+    """
+
     status: Literal["DRAFT", "ACTIVE", "OBSOLETE"] = Field(
         "DRAFT", description="管号等级状态：DRAFT/ACTIVE/OBSOLETE"
     )
 
 
 class PipeClassResponse(PipeClassBase):
+    """管号等级出参（GET /pipe-classes 响应体）。
+
+    业务：含 status 字段 + base_material 显式声明（响应体不复用基类默认）；
+    from_attributes=True 直接绑 ORM 行（PipeClass）。
+    """
+
     status: str = Field(..., description="管号等级状态")
     base_material: str | None = Field(
         None, description="材料牌号"

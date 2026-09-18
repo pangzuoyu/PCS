@@ -5,6 +5,12 @@ from pydantic import BaseModel, Field, field_validator
 
 
 class ApplicableConditions(BaseModel):
+    """设备适用工况区间（equip_lib.applicable_conditions_json 内嵌段）。
+
+    业务：标准化沉淀时记录设备适用的压力/温度/介质区间（自由文本格式如
+    "0.1~2.5 MPa"/"-20~200 °C"）；便于后续项目选型快速匹配复用。
+    """
+
     pressure_mpa: str | None = Field(None, description="适用压力区间，如 0.1~2.5 MPa")
     temperature_c: str | None = Field(None, description="适用温度区间，如 -20~200 °C")
     medium: str | None = Field(None, max_length=200, description="适用介质（工艺物料类别）")

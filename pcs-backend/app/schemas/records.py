@@ -12,6 +12,12 @@ from app.models.enums import RecordSignStatus9, StateTransition
 
 
 class RecordTransitionRequest(BaseModel):
+    """记录状态机迁移请求体（POST /records/{type}/{id}/transitions）。
+
+    业务：transition 锁定 StateTransition 枚举（13 事件）；reason 可选（用作
+    audit_log detail_json 字段，部分迁移如 REJECT_CHECK / REQUEST_REVERSAL 强校验 reason 非空）。
+    """
+
     transition: StateTransition
     reason: str | None = None
 

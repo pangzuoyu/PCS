@@ -13,6 +13,12 @@ from pydantic import BaseModel, Field
 
 
 class ChecklistItemCreate(BaseModel):
+    """创建项目输入校验项（POST /checklist 请求体）。
+
+    业务：项目设计前期必填/条件/选填校验项的元数据；item_key 项目内唯一，
+    input_category 锁定 REQUIRED/CONDITIONAL/OPTIONAL 三档（驱动 UI 红黄绿）。
+    """
+
     item_key: str = Field(
         ..., min_length=1, max_length=100, description="校验项键名（项目内唯一）"
     )
@@ -52,6 +58,12 @@ class ChecklistItemPut(BaseModel):
 
 
 class ChecklistItemOut(BaseModel):
+    """校验项出参（GET /checklist/{checklist_id} 响应体，含完整元数据 + 状态）。
+
+    业务：含 5 态 status + verified_by/verified_at + assumption_reason；
+    from_attributes=True 直接绑 ORM 行（ProjectInputChecklist）输出。
+    """
+
     checklist_id: uuid.UUID = Field(..., description="校验项 ID")
     project_id: uuid.UUID = Field(..., description="所属项目 ID")
     item_key: str = Field(..., description="校验项键名")
@@ -71,6 +83,12 @@ class ChecklistItemOut(BaseModel):
 
 
 class ChecklistCompleteness(BaseModel):
+    """项目校验完整度统计（GET /checklist/completeness 响应体）。
+
+    业务：聚合 REQUIRED 项的 verified/assumed/blocked 三段计数 + 完整度百分比；
+    用于项目交付前的设计输入完整度红绿灯（>=95% 才允许进入交付审批）。
+    """
+
     project_id: uuid.UUID = Field(..., description="项目 ID")
     total: int = Field(..., description="校验项总数")
     required_total: int = Field(..., description="必填项数")
