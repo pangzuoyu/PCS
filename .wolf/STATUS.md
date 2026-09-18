@@ -388,6 +388,49 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 
 ---
 
+## ✅ Done (HIGH 专项 Sprint 非 P0 18 项闭环 — 2026-09-18)
+
+- **范围**：ce-code-review 中 18 个 HIGH 非 P0 项（P1×3 / P2×3 / P5-123×5 / P5-3 fe×3 / P5-4d fe×4）
+- **6 假阳性**（已审，无代码变更）：
+  - **H-P1-1 Pydantic v1 imports**：仓库已全 Pydantic v2（`model_validator` / `field_validator` / `ConfigDict`），报告误报
+  - **H-P1-3 mock auth 测试缺失**：`tests/test_mock_auth.py` 已 5 例全覆盖，报告误报
+  - **H-P2-1 equipment_list NOT NULL**：`equipment_list` 列有意 `nullable=True`（PostgreSQL 最小破坏性迁移策略）
+  - **H-P2-2 CIAEngine pipe_code_template 特殊字符**：service_note 仅 PSV 模块使用，CIAEngine pipe_code_template 字段无此约束
+  - **H-P2-3 report_service 列序**：规范 §5 未规定列顺序，无对应测试断言
+  - **MSW-PSV-STATUS-201**：`pcs-backend/app/api/v1/psv.py:258` 已 `status_code=201`，MSW 已对齐
+- **12 真实修复**（5 commit）：
+  - **H-P1-2 Workspace* PcsError 子类 + workspace fixture**（commit `b45861d`）：
+    - 新增 3 PcsError 子类：`WorkspaceNotFoundError`（404）/ `WorkspaceTypeNotAllowedError`（403）/
+      `WorkspaceContextMissingError`（422）
+    - `app/api/deps.py` 中 `get_workspace` / `require_formal_workspace` 替换裸 `HTTPException`
+    - `tests/conftest.py` 加 `workspace_id` UUID fixture + 异步 `workspace` fixture（创建 FORMAL Workspace）
+  - **H-P5-123 PsvResult valve_type 4 项 CHECK + P_set_pa 优先级 + REACTION_RUNAWAY 体积流量**（commit `fbea0a4`）：
+    - `psv_valve_type_chk` CHECK 约束从 2 项扩到 4 项（`SPRING_LOADED`/`BALANCED_BELLOWS`/`PILOT_OPERATED`/`RUPTURE_DISC`）
+    - `psv_persist.py:386` 删除 `set_pressure_pa = float(sizing_params.get("P_set_pa", 0.0))`（覆盖调用方传入值）
+    - REACTION_RUNAWAY 分支改用 `result.relief_volume_flow_m3s` 而非硬编码 `0.0`（bug-095 fix）
+  - **H-P5-123-4 fire_case phase-aware 体积流量 + H-P5-123-5 orifice 5% oversize warning**（commit `109f687`）：
+    - `FireCaseInput` 扩 `phase: str = "VAPOR"` + `rho_L_kg_m3: float = 800.0`
+    - LIQUID 相态路由 `relief_mass_flow / rho_L`，GAS/VAPOR 走 `1.2 kg/m³` 标况空气密度（bug-096 fix）
+    - `OrificeResult` 增 `oversize_warning: str | None`；API 526 §5.1 `actual_area/required_area > 1.05` 触发建议（warning 不阻断）
+  - **H-P5-3 fe / P5-4d fe**（commit `c193c9a`）：workspace_id TODO 注释 +
+    MSW 加 `/api/v1/vessel/calculate` + `/api/v1/sep-equip/calculate` POST 201 mock +
+    BACK_PRESSURE_MAX_BY_TYPE 改二维（valve_type × back_pressure_type）+ CDTP 修正 +
+    G15 Q/R/T 高温-低分子量前端字段 + PsvKbSource Literal/str 拆解（接受任意 `manufacturer:*` / `mixed:*`）
+  - **style ruff auto-fix**（commit `521e258`）：valve_validation E501 + test_fire_case I001 自动修复
+- **测试验证**：
+  - 后端 pytest：**2215 passed + 49 skipped**（基线 2190 + H-P5-123 fire_case/REACTION_RUNAWAY/persist 测试）
+  - 前端 vitest：**533 passed**（基线持平，无回归）
+  - ruff check：All checks passed
+  - tsc `--noEmit`：0 errors
+  - eslint `src/ tests/`：0 errors
+- **buglog**：bug-095（REACTION_RUNAWAY volume flow 硬编码）/ bug-096（fire_case 1.2 标况硬编码）
+- **本批闭环**：
+  - 18 项 HIGH 非 P0 = 12 真实修复 + 6 假阳性文档化
+  - 全部 P5-3 PSV 模块契约扩展已在 OPEN-10（commit `b48c0f4`/`ce1ee69`）+ P5-3-7（commit `b83a3a0`）就绪后端端到端通
+  - 后续批：MEDIUM/LOW/INFO 48 项 + P5-3-8 GB/T 12241 bug-089 降级路径
+
+---
+
 ## 🚀 Next quest
 
 **Goal:** HIGH 专项 Sprint 后续 P1/P2/P5-123/P5-3 fe/P5-4d fe 高优收口（18 项 HIGH）

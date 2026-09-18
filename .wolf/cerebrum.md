@@ -50,6 +50,43 @@
 
 ## Key Learnings
 
+### HIGH 非 P0 18 项收口（2026-09-18）
+
+- **6 假阳性 + 12 真实修复**（18 项分布 P1×3 / P2×3 / P5-123×5 / P5-3 fe×3 / P5-4d fe×4）
+- **Workspace context 异常三态分离**（H-P1-2）：
+  - 404 `WorkspaceNotFoundError`（workspace 不存在）
+  - 403 `WorkspaceTypeNotAllowedError`（FORMAL 守卫拦截）
+  - 422 `WorkspaceContextMissingError`（请求缺 workspace_id 头/字段）
+  - 三态对应 PcsError.code 区分，HTTP 状态码 + error code 双重反馈
+  - 测试 fixture：`workspace_id` UUID + 异步 `workspace`（创建 FORMAL Workspace 记录）
+- **REACTION_RUNAWAY / fire_case 体积流量 phase-aware 必填**（bug-095/096）：
+  - REACTION_RUNAWAY：API 521 §5.15.2.4 `W_mass = Q_reactor / h_fg` → `V_dot = W_mass / ρ_L`
+  - fire_case §5.15.2.2.1：GAS/VAPOR → 1.2 kg/m³ 标况空气密度；LIQUID → ρ_L（典型 600-1000）
+  - persist 层硬编码 `relief_volume_flow_m3s = 0.0` 或固定 1.2 都会让 outlet stream 体积流量失真，
+    下游管网/阀后管线/背压核算全部失真 → 工艺工程师后果严重
+- **PsvResult valve_type CHECK 4 值扩展**：从 2（SPRING_LOADED/BALANCED_BELLOWS）
+  扩到 4（PILOT_OPERATED/RUPTURE_DISC 也入库 — DB 层兜底拦截 + 服务层 G7/G8 拦截双层）
+- **P_set_pa 优先级**：persist 层不要从 sizing_params 重新提取覆盖调用方传入值，
+  sizing_params.get("P_set_pa", 0.0) 会把调用方精确值覆盖成 None/0，CDTP 修正链路断裂
+- **API 526 §5.1 5% oversize warning**：actual/required > 1.05 仅 warning 不阻断，
+  工艺工程师可裁 — 与 P5 拦截（G7/G8/G14/G17 raise）形成对照
+- **PsvKbSource Literal vs str 拆解**（H-P5-4d-4）：
+  - 静态枚举 `PsvKbSourceLiteral`（前端 select option + backward compat）
+  - 运行时 `PsvKbSource = str`（接受任意 `manufacturer:*` 和 `mixed:*` 运行时拼接）
+  - 前端类型系统 vs 后端 duck-typed 字符串：两层 schema 自然需要不同表达
+- **MSW handler 状态码对齐后端真值**：PSV calculate = 201 而非 200（POST 创建资源语义），
+  检视时若 MSW 与后端 `status_code` 不一致即同步，**不可默认 200**
+- **CDTP 修正条件**：仅当 `back_pressure_type == "SUPERIMPOSED" && superimposed_pressure_pa > 0` 时
+  `set_pressure_pa -= superimposed_pressure_pa`；BUILT_UP 走 Kb 路径，不入 CDTP
+- **报告误报识别 6 类**：
+  - 已迁移版本但报告扫描旧用法（Pydantic v1）
+  - 已有测试但报告扫描缺测试（mock auth 5 例）
+  - 故意 nullable 但报告建议 NOT NULL（equipment_list 兼容老数据）
+  - 模块不相关字段被关联（CIAEngine pipe_code_template 不含 service_note）
+  - 规范未约束但报告硬要求列序
+  - 已对齐 MSW 状态码但报告标 200/201 不一致
+  - 模式：定位报告原始问题 vs 实地验证代码 — 后者为准，报告入归档
+
 ### Auth hardening 模式（2026-09-18）
 
 - **JWT decode 必传 `options={"require": [...]}`**：默认 PyJWT 不强制必填 claim。

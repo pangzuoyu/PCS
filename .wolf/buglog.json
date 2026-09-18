@@ -1558,6 +1558,44 @@
       "last_seen": "2026-09-18",
       "severity": "MEDIUM",
       "fix_commit": "b83a3a0"
+    },
+    {
+      "id": "bug-095",
+      "timestamp": "2026-09-18T20:00:00Z",
+      "error_message": "psv_persist REACTION_RUNAWAY 分支硬编码 relief_volume_flow_m3s = 0.0，丢失 API 521 §5.15.2.4 体积流量结果（Q_reactor/h_fg → V_dot/ρ_L）",
+      "file": "pcs-backend/app/services/psv/psv_persist.py:386 + pcs-backend/app/services/psv/other_cases_service.py:50-60",
+      "root_cause": "ce-code-review H-P5-123-3。reaction_runaway 阶段算得 relief_mass_flow_kgs 后，调用方忘记把 mass flow 转体积流量 — persist 层硬塞 0.0。后果：场景为反应失控的 PSV 计算，outlet stream 体积流量字段为 0，下游管网/阀后管线/背压核算全部失真",
+      "fix": "(1) other_cases_service.calc_reaction_runaway_case 新增 relief_volume_flow_m3s 字段计算 relief_mass_flow_kgs / rho_L_kg_m3；(2) ReactionRunawayInput 扩 rho_L_kg_m3: float = 800.0；(3) psv_persist REACTION_RUNAWAY 分支改用 result.relief_volume_flow_m3s 而非硬编码 0.0",
+      "tags": [
+        "H-P5-123-3",
+        "REACTION_RUNAWAY",
+        "API-521-5.15.2.4",
+        "mass-to-volume-flow",
+        "PSV-outlet-volume-flow"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-18",
+      "severity": "HIGH",
+      "fix_commit": "fbea0a4"
+    },
+    {
+      "id": "bug-096",
+      "timestamp": "2026-09-18T20:00:00Z",
+      "error_message": "fire_case_service.calc_fire_case_api521 体积流量阶段硬编码 1.2 kg/m³（标况空气密度）— LIQUID 相态下 relief_volume_flow_m3s 数量级偏差 600x+（ρ_L≈800 kg/m³ vs 1.2）",
+      "file": "pcs-backend/app/services/psv/fire_case_service.py:80-95",
+      "root_cause": "ce-code-review H-P5-123-4。API 521 §5.15.2.2.1 fire case 公式 Q(W)=63600×A^0.82×F 给定的是 heat input（watt），mass flow 通过 h_fg 推得。体积流量转换应 phase-aware：GAS/VAPOR 走标况空气密度 1.2，LIQUID 走工艺液密度（典型 600-1000 kg/m³）。原实现忽略 phase 字段，无脑除以 1.2 → LIQUID 工况体积流量严重高估，下游 outlet stream 报错",
+      "fix": "(1) FireCaseInput 扩 phase: str = 'VAPOR' + rho_L_kg_m3: float = 800.0；(2) phase=='LIQUID' 时用 rho_L_kg_m3，否则保持 1.2；(3) _validate 加 phase ∈ {LIQUID,GAS,VAPOR} + rho_L>0 校验；(4) test_fire_case 补 phase 路由测试",
+      "tags": [
+        "H-P5-123-4",
+        "API-521-5.15.2.2.1",
+        "fire-case",
+        "phase-aware-volume-flow",
+        "rho-L-density"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-18",
+      "severity": "HIGH",
+      "fix_commit": "109f687"
     }
   ]
 }
