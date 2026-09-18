@@ -315,6 +315,18 @@ async def approve_project_config(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 项目管号配置 approve（PENDING → APPROVED + Audit）。
+
+    步骤：
+    1. ACL：REVIEWER / SYSTEM_ADMIN（区别 submit：工艺 vs 审核）
+    2. 转发 PipeCodeTemplateService.approve_project → _project_transition('APPROVE')
+    3. 状态校验：仅 PENDING 才能 APPROVE，其他 →
+       PROJECT_PIPE_CODE_CONFIG_BAD_TRANSITION 409
+    4. 写 Audit（CONFIG_ASSET_APPROVED，detail 含 from→to + project_id）
+
+    与 reject_project_config 区别：approve 入 APPROVED；reject 回退到 DRAFT
+    并保留 review context 用于后续重提。
+    """
     require_roles(user, "REVIEWER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.approve_project(
         db, config_id=config_id, actor=user,
