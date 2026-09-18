@@ -246,6 +246,69 @@ budget_tokens: 1500
 
 ---
 
+## ✅ Status Snapshot (P5-OPEN-10 SUP-P5-PSV-002 V1.14 实施闭环状态 — 2026-09-18 更新)
+
+> 09-17 初始闭环（上一节）后 24 小时内追加的 PSV 模块工作已远超原 plan 范围。本节为当前快照。
+
+### 累计 commit 序列（18 项，V1.14 实施 + 二次扩展）
+
+| # | commit | 模块 | 内容 |
+|---|--------|------|------|
+| 1 | `adacd33` | cdtp | SUP-P5-PSV-002 §4.4 CDTP 修正（commit 缺席 09-17 列表） |
+| 2 | `25fbf25` | bellows_compat | §3.8 6 材料 × forbidden 矩阵 |
+| 3 | `522f2f2` | kb_service | §4.3 Kb 4 阶段策略 + 合成 _KB_DATA seed |
+| 4 | `d0aa5eb` | exceptions | 13 个 PSV_* PcsError 子类（G7-G14/G17/G20-G21） |
+| 5 | `f1fcc19` | valve_validation | validate_valve_params 实现 G7-G25 全部拦截/警告 |
+| 6 | `41442cd` | PsvResult ORM | 加 15 列 + 3 CHECK |
+| 7 | `a3e9471` | alembic | p5_open_010 迁移 18 列 + 3 CHECK |
+| 8 | `dcce671` | CalculateRequest | 扩展 15+8 字段（§4.1） |
+| 9 | `34cc0a5` | psv_persist | 落库 18 列 + outlet 透传 + validate 集成 |
+| 10 | `<task 12>` | API endpoint | 接 validate + 8 集成测试 |
+| 11 | `1193b92` | OPEN-10-3 余项 | +46 测试（cdtp 10 + bellows 9 + orifice 11 + valve_validation 15） |
+| 12 | `2466fb8` | OPEN-10-4 余项 | kb_service + cdtp 边界 +10 例（Consolidated / AG 完整曲线 + mixed） |
+| 13 | `b549337` | OPEN-10-4 余项 | valve_validation +18 例（CDTP+KB 联动 + G13/24/25 + 介质默认） |
+| 14 | `3831274` | OPEN-10-4 余项 | psv_persist +12 例（blowdown 4 介质 + tag_number 格式） |
+| 15 | `e7bf108` | alembic 存量 | p5_open_010 backfill + CHECK 文档对齐 |
+| 16 | `eebd944` | valve_validation | C8 G9 orifice_override 面积 < 计算面积 校验 |
+| 17 | `fbea0a4` | PsvResult | valve_type 4 项 CHECK + P_set_pa 优先级 + REACTION_RUNAWAY |
+| 18 | `d2d1dd2` | alembic | docstring E501 line-too-long 修复 |
+| +  | `138cb6c` `521e258` | style | ruff 归零 2 轮（4× E501 中文 + I001） |
+| +  | `f913a96` | refactor | test_psv_persist 内联 import 提到顶部 |
+| +  | `cfea698` | refactor | test_valve_validation 735 行拆 2 文件（防 800 行阈值） |
+
+### V1.14 后续 PSV 模块延伸（OPEN-10 闭环之上的二次工作）
+
+| commit | 范围 | 闭环 |
+|--------|------|------|
+| `4d4472c` | C5 fire case | API 521 HORIZONTAL 容器润湿面积分支实现 |
+| `e700271` `a3757ed` | C6 API 520 | 气体面积公式严格化（含 M/Z/k 等熵项）+ bug-089 |
+| `77d5898` | C7 两相流 | ω 法替换为 DIERS Leung 1996 公式 |
+| `b83a3a0` | P5-3-7 | Annex C.2.2 Two-Point Omega Method 完整实现（25 例测试） |
+| `473b009` | P5-3-8 | GB/T 12241 bug-089 R 单位 + k/(k-1) 因子双修 + C6 完全关闭 |
+| `109f687` | fire_case | h-p5-123-4/5 phase-aware 体积流量 + orifice 5% oversize |
+| `c193c9a` | h-p5-3fe/p5-4d | workspace_id 注释 + MSW vessel/sep + BACK_PRESSURE |
+
+### 当前指标（2026-09-18）
+
+- **PSV 模块测试**：303 passed（278 基线 + 25 C.2.2 omega） + bug-089 回归 1 + OPEN-10-3/4 余项 86 = **~390 例**
+- **后端全栈**：2216 passed + 49 skipped（基线 2190 + C.2.2 25 + bug-089 回归 1）
+- **ruff / tsc / eslint**：clean
+- **PsvResult 累计**：18 列新 + 6 项 CHECK（valve_type 4 项 + cdtp + orifice_overridden）
+- **PcsError 累计**：13 PSV_* 子类
+- **合成 _KB_DATA**：`# SYNTHETIC_TEST_DATA` 标记仍在，P5-3 启动后工艺工程师替换
+
+### Open Questions 状态（P5-3 接管清单）
+
+- [ ] **OPEN-10-1** API526_FLANGE_CLASS_ORIFICE_LIMITS 84 组合（§8 gate #4）
+- [ ] **OPEN-10-2** 真实 Kb 厂商数据（替换合成 _KB_DATA）
+- [ ] **OPEN-10-5** CRYOGENIC 型号（OPEN-18）/ API 521 FIRE+PILOT 章节号（OPEN-19）
+- [ ] **OPEN-10-6** 65 psig T 孔口 150# 警告（OPEN-20）
+- [ ] **OPEN-10-7** record_hash 含新字段回归验证（优先级 LOW）
+
+**判定**：V1.14 后端契约**已端到端闭环**，上述 5 项 Open Questions 不阻塞 OPEN-10 主流程，仅为 SPEC §8 gate 数据前置与边缘警告。入 P5-3 backlog 由工艺工程师接管。
+
+---
+
 ## ✅ Done (P3.x sprint 全闭环 — 2026-09-13)
 
 - **27 task (SIM-14~SIM-40) + V1.0 变更管理 4 task 全部 completed**
