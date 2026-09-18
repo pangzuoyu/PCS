@@ -263,6 +263,30 @@ class StateMachineService:
         actor_role: str,
         reason: str | None = None,
     ) -> RecordMixin:
+        """9 态机状态流转（DRAFT/PENDING/CHECKED/... → 下一态 + Audit + Snapshot）。
+
+        步骤：
+        1. ACL 校验：actor_role 必须在 TRANSITION_ROLES[transition] 白名单内
+           （DESIGNER/REVIEWER/APPROVER/SYSTEM_ADMIN 按 transition 区分）
+        2. 转换校验：(from_status, transition) 必须 ∈ ALLOWED_TRANSITIONS 字典
+           （非法转移 → InvalidTransition）
+        3. 更新 record.sign_status = to_status + 业务字段（各 transition 派生）：
+           - PASS_CHECK：清 approval_step
+           - MARK_STALE / INITIATE_CHANGE：写 change_pending_since
+           - APPLY_CHANGE：写 change_resolved_at + change_resolved_by
+           - ABANDON_CHANGE：写 change_abandoned_at + reason
+           - REQUEST_REVERSAL：写 reversal_requested_at/by + reason
+           - APPROVE_REVERSAL：写 reversal_approved_at/by
+           - OBSOLETE：写 obsoleted_at/by + reason
+        4. _create_snapshot_if_needed（PUBLISH/OBSOLETE 等关键节点快照持久化）
+           + _restore_snapshot_if_needed（REQUEST_REVERSAL/APPROVE_REVERSAL 等回滚节点）
+        5. 写 Audit（TRANSITION_AUDIT_ACTION[transition]）含 from→to + transition +
+           reason + role + snapshot_id + snapshot_action（CREATED/RESTORED/None）
+
+        与 ConfigStateMachine.transition 区别：本方法走 9 态 sign_status 状态机
+        （Draft → Pending → Checked → Approved → Formal → ...）；
+        ConfigStateMachine 走 5 态（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）。
+        """
         from_status = RecordSignStatus9(record.sign_status)
         if actor_role not in TRANSITION_ROLES[transition]:
             raise RoleForbidden(
