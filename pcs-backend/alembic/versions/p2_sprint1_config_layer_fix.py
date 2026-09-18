@@ -27,6 +27,20 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
+    """配置层字段修复（P2 sprint1：config_approvals/formula_definitions/coefficient_tables）。
+
+    步骤：
+    - config_approvals：加 approver_id (UUID nullable) + rename comments→comment
+      （单数字段化，便于前端展示）
+    - formula_definitions：加 asset_id (FK→config_assets) + std_source +
+      rename variables_json→parameters_json（语义升级：变量→参数）
+    - coefficient_tables：加 asset_id (FK→config_assets) + rename
+      lookup_columns→column_definitions + 加 columns_count 派生列
+    - 3 张表统一挂 ConfigAsset（V1.4 §0.5 INT-OPEN-01 资源级追溯）
+
+    业务影响：3 张配置表从局部定义升级到全公司 ConfigAsset 追踪；
+    字段命名规范化（单数 + 业务语义精确）。
+    """
     # === config_approvals ===
     op.add_column(
         "config_approvals",

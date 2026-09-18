@@ -19,6 +19,21 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
+    """equipment_list 采购+到货 字段扩展（P2 sprint2 equipment 段 §四+§五）。
+
+    步骤：
+    - §四 采购字段（跳过 §15 vendor）：alternate_vendor + order_date +
+      purchase_order_number + cost + cost_currency + cost_source + cost_year
+      （共 7 列，nullable 增量加，不破坏存量数据）
+    - §五 到货字段：actual_delivery_date + inspection_date + installation_date +
+      commissioning_date + acceptance_date + warranty_expiry + supplier_contact
+      （共 7 列，到货/验收时间线）
+    - 索引：purchase_order_number（按采购单号查）+ order_date（按订货日期范围）
+
+    业务：设备列表从选型（§二）扩展到全生命周期（采购/到货/验收/质保）。
+    与 p2_sprint2_equipment_engineering / equipment_status_columns 关系：
+    三者累计完成 equipment_list 36 字段扩展。
+    """
     # §四 采购（items 16-25，跳过 15 vendor）
     op.add_column(
         "equipment_list", sa.Column("alternate_vendor", sa.String(200), nullable=True)
