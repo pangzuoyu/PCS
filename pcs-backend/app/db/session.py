@@ -113,3 +113,11 @@ async def dispose_engines_async() -> None:
         await _async_engine.dispose()
         _async_engine = None
         _async_session_factory = None
+
+
+def dispose_sync_engine() -> None:
+    """lifespan shutdown：释放 sync engine 连接池（P0-MED-002 修复）。"""
+    global _sync_engine
+    if _sync_engine is not None:
+        _sync_engine.dispose()
+        _sync_engine = None
