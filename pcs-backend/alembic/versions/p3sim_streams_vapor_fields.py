@@ -73,6 +73,26 @@ _NEW_LIQUID_FROM_JSONB = (
 
 
 def upgrade() -> None:
+    """streams 气相 9 字段 + 液相命名对齐 + SIM-31 JSONB 提升 ORM（P3.x SIM-33）。
+
+    步骤：
+    - A. 液相 7 列重命名（spec §3.6 liquid_ 前缀）：
+      density→liquid_density / viscosity_dynamic→liquid_viscosity_dynamic /
+      viscosity_kinematic→liquid_viscosity_kinematic / thermal_conductivity→
+      liquid_thermal_conductivity / specific_heat→liquid_specific_heat /
+      surface_tension→liquid_surface_tension / compressibility_factor→
+      liquid_compressibility_factor
+    - B. 气相 9 字段新增（spec §3.5）：vapor_mass_rate / vapor_actual_m3hr /
+      vapor_normal_m3hr / vapor_mw / vapor_density / vapor_z / vapor_cp /
+      vapor_viscosity / vapor_thermal_cond
+    - C. SIM-31 JSONB → ORM 3 列提升：liquid_std_density / liquid_mass_rate /
+      liquid_actual_m3hr（避免气液不对称）
+
+    不动：molecular_weight 通用 MW 气液相同保留原名。
+
+    业务：spec §3.6 命名规范统一落地（liquid_/vapor_ 前缀对称），SIM-2/3
+    物性查询/索引能力补齐。
+    """
     # 1. 液相 7 列重命名（spec §3.6 liquid_ 前缀）
     for old, new, _ in _LIQUID_RENAMES:
         op.alter_column(

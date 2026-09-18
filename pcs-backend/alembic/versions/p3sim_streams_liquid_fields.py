@@ -30,6 +30,19 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """streams 液相对称 2 字段 + 索引（P3.x SIM-31 / spec §1.2.1）。
+
+    步骤：
+    - liquid_fraction Float NULL：液相分率（0~1），对称 vapor_fraction
+    - specific_gravity Float NULL：比重（water=1.0），对称 api_gravity
+    - ix_streams_liquid_fraction 索引（液相分率过滤，与 vapor_fraction 查询模式对称）
+
+    不入 ORM：std_liq_density / liquid_mass_rate / liq_actual_m3hr 仍走
+    stream_properties_json JSONB 容器（避免 alembic 单列迁移开销）。
+
+    业务：液相物性对称气相模式；下游 SIM-2/3 计算与 UI 展示对齐 spec V1.1
+    §变更 7 物性字段命名规范。
+    """
     # SIM-31: 液相对称字段（与 vapor_fraction / api_gravity 对齐）
     op.add_column(
         "streams",
