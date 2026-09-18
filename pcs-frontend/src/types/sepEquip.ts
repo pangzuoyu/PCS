@@ -14,9 +14,13 @@ export type SepEquipDeviceType =
   | 'VANE'
   | 'FIBER';
 
+/** 旋风分离器切割粒径计算法：LAPPLE（经典）/ SWIFT（修正）/ BARTH（工业级）。 */
 export type CycloneMethod = 'LAPPLE' | 'SWIFT' | 'BARTH';
+/** 除雾器填料类型：标准 STANDARD / 高效 HIGH_EFFICIENCY。 */
 export type PadType = 'STANDARD' | 'HIGH_EFFICIENCY';
+/** 重力分离器内部型式：板式 PLAIN / 百叶 VANE / 纤维 FIBER。 */
 export type SeparatorType = 'PLAIN' | 'VANE' | 'FIBER';
+/** 重力分离沉降区域：斯托克斯 STOKES / 中间区 INTERMEDIATE / 牛顿 NEWTON（按 Re 数划分）。 */
 export type Region = 'STOKES' | 'INTERMEDIATE' | 'NEWTON';
 
 /** 旋风分离器参数：筒径/排气管径 + 进出口宽高 + 入口气速 + 气/粒密度 + 动力粘度 + 有效圈数 + 计算法（LAPPLE/SWIFT/BARTH）。 */

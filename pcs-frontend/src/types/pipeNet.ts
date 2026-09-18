@@ -12,6 +12,7 @@
 
 export type PipeNetNodeKind = 'EQUIPMENT' | 'JUNCTION' | 'INLET' | 'OUTLET';
 
+/** 管网节点：设备连接点（节点 ID + 业务 tag + 显示名 + 4 类节点类型 + 画布坐标 0~100）。 */
 export interface PipeNetNode {
   node_id: string;
   tag_number: string;

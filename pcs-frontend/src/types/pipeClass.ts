@@ -17,6 +17,7 @@
 
 export type PipeClassStatus = 'DRAFT' | 'IN_APPROVAL' | 'CHECKED' | 'OBSOLETE';
 
+/** 管子等级条目：压力/温度/尺寸范围/腐蚀余量/设计阶段 + 5 态机签名状态（与 5 态机 DRAFT/IN_APPROVAL/CHECKED/OBSOLETE 对齐）。 */
 export interface PipeClass {
   pipe_class_id: string;
   code: string;                // 例如 "ASME B31.3"

@@ -17,6 +17,7 @@ export interface PumpSuction {
   fittings_json: Record<string, number>;
 }
 
+/** 泵排出口条件：排出容器压力 + 静扬程 + 管径 + 管件当量长度 JSON。 */
 export interface PumpDischarge {
   vessel_pressure_mpa: number;
   static_head_m: number;

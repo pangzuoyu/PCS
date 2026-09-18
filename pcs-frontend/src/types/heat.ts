@@ -25,8 +25,10 @@
 // 枚举 / 字面量
 // ---------------------------------------------------------------------------
 
+/** 换热器大类：管壳式 SHELL_TUBE / 空冷 AIR_COOL / 板式 PLATE（驱动 HeatResult 字段差异化）。 */
 export type ExchangerCategory = 'SHELL_TUBE' | 'AIR_COOL' | 'PLATE';
 
+/** TEMA 代号（6 类管壳式）：BEM / AEM / AEL / NEN / BEM_FIXED / AEM_U_TUBE（前端管板型式）。 */
 export type TemaType =
   | 'BEM'
   | 'AEM'
@@ -35,6 +37,7 @@ export type TemaType =
   | 'BEM_FIXED'
   | 'AEM_U_TUBE';
 
+/** 设备材料：碳钢 carbon_steel / SS304 / SS316 / SS316L（重量估算密度因子 dispatch）。 */
 export type Material = 'carbon_steel' | 'SS304' | 'SS316' | 'SS316L';
 
 // ---------------------------------------------------------------------------
@@ -48,6 +51,7 @@ export type Material = 'carbon_steel' | 'SS304' | 'SS316' | 'SS316L';
 // POST /api/v1/heat/import-htri 输出（201）
 // ---------------------------------------------------------------------------
 
+/** POST /heat/import-htri 响应：calc_id + 类型 + record_hash + 项目 ID + 设备号/名 + 业务 tag + 换热器类别 + 热负荷 W + HTRI output 摘录 + 出口流 ID/名（OPEN-7 补足免 get() roundtrip）。 */
 export interface ImportHtriResponse {
   calc_id: string;                              // UUID（HeatResult.heat_exchanger_id）
   calc_type: 'HEAT';
@@ -67,6 +71,7 @@ export interface ImportHtriResponse {
 // GET /api/v1/heat/{heat_id} 输出（200）
 // ---------------------------------------------------------------------------
 
+/** GET /heat/{heat_id} 响应：完整 HeatResult 字段（calc_id + 类型 + 项目/工作区 + 业务 tag + 设备号/名 + 类别 + 热负荷 W + record_hash + input/output 双 JSON）。 */
 export interface HeatResultResponse {
   calc_id: string;                              // UUID
   calc_type: 'HEAT';
@@ -87,6 +92,7 @@ export interface HeatResultResponse {
 // ---------------------------------------------------------------------------
 // WeightEstimateRequest（19 字段 TEMA 9th 几何参数）
 
+/** POST /heat/{heat_id}/weight-estimate 入参：TEMA 型式 + 壳体几何（ID/长/厚）+ 头/法兰/接管/鞍座/管束/折流板可选字段（共 19 字段，TEMA 9th 几何参数）。 */
 export interface WeightEstimateRequest {
   tema_type: TemaType;
   shell_id_m: number;
@@ -116,11 +122,13 @@ export interface WeightEstimateRequest {
 // POST /api/v1/heat/{heat_id}/weight-estimate 输出（200）
 // ---------------------------------------------------------------------------
 
+/** 重量估算单段响应：段重 kg + 公式引用 standard/version/clause（9 段 × 1 公式引用，组成 segments dict）。 */
 export interface WeightSegmentResponse {
   weight_kg: number;
   formula_ref: string;                          // standard + version + clause
 }
 
+/** POST /heat/{heat_id}/weight-estimate 响应：calc_id + 总重 kg + 壳体 5 段累加 + 9 段明细（壳+管+折+通道）+ 顶层公式引用 + 刷新 record_hash + output_json（OPEN-7 免 get() roundtrip）。 */
 export interface WeightEstimateResponse {
   calc_id: string;                              // UUID
   total_weight_kg: number;                      // TEMA 9th 5 段 + tube/baffle/channels

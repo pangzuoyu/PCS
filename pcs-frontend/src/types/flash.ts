@@ -17,8 +17,10 @@
 
 export type ThermoMethod = 'PR' | 'SRK' | 'NRTL' | 'IAPWS_IF97';
 
+/** 闪蒸计算类型：定压定温 PT / 定压定焓 PH / 定压定熵 PS / 泡点 BUBBLE_POINT / 露点 DEW_POINT。 */
 export type FlashCalcType = 'PT' | 'PH' | 'PS' | 'BUBBLE_POINT' | 'DEW_POINT';
 
+/** 闪蒸入参：源流 ID + 热力学方法 + 计算类型 + 条件字段（T/P 或 H/S，按 calc_type 二选一）。 */
 export interface FlashInput {
   stream_id: string;
   thermo_method: ThermoMethod;

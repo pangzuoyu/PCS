@@ -15,12 +15,16 @@
 
 export type VesselType = 'VERTICAL' | 'HORIZONTAL' | 'WITH_DEMISTER';
 
+/** 容器安装方位：立式 vertical / 卧式 horizontal（影响持液量/水力学默认区间）。 */
 export type VesselOrientation = 'vertical' | 'horizontal';
 
+/** 容器校核结果：通过 PASS / 警告 WARNING / 不通过 FAIL（驱动 Card 状态色 + Result Alert）。 */
 export type VesselCheckResult = 'PASS' | 'WARNING' | 'FAIL';
 
+/** 容器选型置信度：高 HIGH / 中 MEDIUM / 低 LOW（输入缺失字段或区间外推时降级）。 */
 export type VesselConfidence = 'HIGH' | 'MEDIUM' | 'LOW';
 
+/** 容器选型入参：容器类型 + 气液密度 + 双流量 + 停留时间（0 = 默认中值）+ K 因子（0.01~1.0 m/s）。 */
 export interface VesselSizing {
   vessel_type: VesselType;
   rho_L_kg_m3: number;
@@ -33,6 +37,7 @@ export interface VesselSizing {
   K_factor_ms: number;
 }
 
+/** 容器水力学入参：筒径/长/初液位 + 孔径/Cd + 进液流量 + 溢流孔径/高度/Cd + 方位 + 热呼吸因子。 */
 export interface VesselHydraulics {
   D_m: number;
   L_m: number;
@@ -48,12 +53,14 @@ export interface VesselHydraulics {
   thermal_breathing_factor: number;
 }
 
+/** POST /vessel/calculate 请求：源流 ID + 选型入参 + 水力学入参（sizing/hydraulics 分别承载）。 */
 export interface VesselCalculateRequest {
   source_stream_id: string;
   sizing: VesselSizing;
   hydraulics: VesselHydraulics;
 }
 
+/** POST /vessel/calculate 响应：calc_id + 类型 + record_hash + 源流 ID + lineage + 结果 dict + 出口流 ID/名。 */
 export interface VesselCalculateResponse {
   calc_id: string;
   calc_type: 'VESSEL';

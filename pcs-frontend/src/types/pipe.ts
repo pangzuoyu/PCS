@@ -13,12 +13,14 @@
 
 export type PipeDesignStage = 'BASIC' | 'DETAIL';
 
+/** 管件（弯头/三通/大小头等）：类型 + 数量 + 尺寸（DN 字符串）。 */
 export interface PipeFitting {
   type: string;
   quantity: number;
   size: string;
 }
 
+/** 管段计算入参：源流 + 管段号 + 长度 + 起终点 + PID 参考 + 管件列表 + 设计条件 + 管子等级 + 绝热/粗糙度 + 许用压降。 */
 export interface PipeInput {
   stream_id: string;
   pipe_no: string;

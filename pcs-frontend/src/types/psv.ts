@@ -14,16 +14,20 @@
 // 枚举 / 字面量
 // ---------------------------------------------------------------------------
 
+/** PSV 项目标准集代号：API（520/521 美标）/ GB（12241 国标）/ CUSTOM（用户自定义）。 */
 export type PsvStandardProfileCode = 'API' | 'GB' | 'CUSTOM';
 
+/** 泄放场景 4 类：火灾 FIRE / 出口阀关断 CLOSED_VALVE / 反应失控 REACTION_RUNAWAY / 热膨胀 THERMAL_EXPANSION（API 521 9th §3.4~3.7）。 */
 export type ReliefScenario =
   | 'FIRE'
   | 'CLOSED_VALVE'
   | 'REACTION_RUNAWAY'
   | 'THERMAL_EXPANSION';
 
+/** 设计阶段：基础设计 BASIC ≤25 列 / 详细设计 DETAIL 完整（驱动一览表列切换）。 */
 export type DesignStage = 'BASIC' | 'DETAIL';
 
+/** 泄放相态：气相 GAS / 液相 LIQUID / 两相 TWO_PHASE（决定 sizing_params 路径 + 公式 dispatch）。 */
 export type ReliefPhase = 'GAS' | 'LIQUID' | 'TWO_PHASE';
 
 /** API 520 孔口代号（D~T 共 14 档，按面积递增）。 */
@@ -32,12 +36,14 @@ export type OrificeSize =
   | 'M' | 'N' | 'P' | 'Q' | 'R' | 'T';
 
 // SUP-P5-PSV-002 V1.14 §3.2：阀体型式 / 阀体材料 / 波纹管材料 / 孔口系列 / 背压类型 / 介质 / 先导温度等级 / 爆破膜位置 / 法兰等级 / Kb 来源 / 阀体品牌
+/** PSV 阀体型式：弹簧载荷式 SPRING_LOADED（默认）/ 平衡波纹管式 BALANCED_BELLOWS / 先导式 PILOT_OPERATED（P5 拦截 G7）/ 爆破膜式 RUPTURE_DISC（P5 拦截 G8）。 */
 export type PsvValveType =
   | 'SPRING_LOADED'      // 弹簧载荷式（默认）
   | 'BALANCED_BELLOWS'   // 平衡波纹管式
   | 'PILOT_OPERATED'     // 先导式（P5 拦截 G7）
   | 'RUPTURE_DISC';      // 爆破膜式（P5 拦截 G8）
 
+/** PSV 阀体材料：碳钢 CARBON_STEEL / SS304 / SS316 / SS316L / 合金钢 ALLOY（5 档，§3.7 兼容矩阵 dispatch）。 */
 export type PsvBodyMaterial =
   | 'CARBON_STEEL'       // 碳钢
   | 'SS304'
@@ -79,6 +85,7 @@ export type PsvFlangeClass =
 // 与后端 PsvKbSource Literal（valve_selection_types.py:96-109）完全对齐：
 // - 含 Farris / Crosby（V1.14 P2-1 扩品牌集）
 // - 含 3 厂商混用（mixed:LESER+Consolidated+Anderson_Greenwood）
+/** Kb 来源标识（与后端 valve_selection_types.py:96-109 完全对齐）：none = 标准定义 1.0；manufacturer:{mfr} = 单厂商曲线；mixed:{mfr1}+{mfr2}[+{mfr3}] = 多厂商混用；api520_fig30 / en4126 = 标准曲线兜底。 */
 export type PsvKbSource =
   | 'none'
   | 'manufacturer:LESER'
@@ -95,8 +102,10 @@ export type PsvKbSource =
 
 // §4.1 V1.14 P2-1：valve_brand 自由字符串（不枚举）；已知品牌见 _KB_DATA
 //    后端 Warning + 回退覆盖/保守优先策略
+/** PSV 阀体品牌：自由字符串（不枚举；§4.1 V1.14 P2-1 扩展）；已知品牌在 _KB_DATA；后端 Warning + 回退覆盖/保守优先策略。 */
 export type PsvValveBrand = string;
 
+/** 公式引用三元组：标准代号（API 520/521/...）+ 版本号（9th/10th/...）+ 条款号（§3.4/§C.2.2/...）。 */
 export interface FormulaRef {
   standard: string;
   version: string;
@@ -111,6 +120,7 @@ interface ScenarioParamsBase {
   kind: ReliefScenario;
 }
 
+/** 火灾场景参数：容器直径 D + 受热高度 H + 液位分率 + 环境因子 F + 汽化潜热 h_fg（API 521 9th §3.4 火灾 Wetted-Method）。 */
 export interface FireScenarioParams extends ScenarioParamsBase {
   kind: 'FIRE';
   D_m: number;
@@ -156,6 +166,7 @@ export type ScenarioParams =
 // sizing_params（GAS / LIQUID / TWO_PHASE 三相态）
 // ---------------------------------------------------------------------------
 
+/** PSV 选型入参：泄放质量流量 + 相态 + 背压 + 定压 + GAS/TWO_PHASE 路径（温度/分子量/Z/k）+ LIQUID 路径（液相密度）。 */
 export interface SizingParams {
   relief_mass_flow_kgs: number;
   phase: ReliefPhase;
@@ -174,6 +185,7 @@ export interface SizingParams {
 // POST /api/v1/psv/calculate 输入
 // ---------------------------------------------------------------------------
 
+/** POST /psv/calculate 请求：源流 ID + 泄放场景 + scenario_params + sizing_params + 可选 design_stage + SUP-P5-PSV-002 V1.14 §4.1 阀体选型 18 字段 + H-P5-4d CDTP/G15 三字段（向后兼容 extra='ignore'）。 */
 export interface PsvCalculateRequest {
   source_stream_id: string;
   relief_scenario: ReliefScenario;
@@ -211,12 +223,14 @@ export interface PsvCalculateRequest {
 // POST /api/v1/psv/calculate 输出
 // ---------------------------------------------------------------------------
 
+/** PSV 多场景聚合结果：主导场景（流量最大）+ 场景数 + 各场景明细 JSON（前端聚合表渲染）。 */
 export interface PsvAggregateResult {
   dominant_scenario: ReliefScenario;
   case_count: number;
   per_scenario_json: Record<string, unknown>;
 }
 
+/** PSV 泄放面积结果：所需面积 m² + 介质相态 + 公式引用 + 可选 ω 方法（C7-b Annex C.2.2）+ 可选孔口表兜底标记（orifice_table 不全时填 incomplete_fallback）。 */
 export interface PsvReliefAreaResult {
   area_required_m2: number;
   medium: ReliefPhase;
@@ -284,6 +298,7 @@ export interface PsvCalculateResponse {
 // 项目标准配置（GET/POST /projects/{pid}/psv/standard-profile）
 // ---------------------------------------------------------------------------
 
+/** GET /projects/{pid}/psv/standard-profile：项目级 PSV 标准集（profile_id + 项目 + 学科 PSV + 标准代号 + 子标准/版本/条款映射 + 审批 JSON + 默认/迁移默认双标志 + 生效起止 + 审批人 + 时间戳）。 */
 export interface PsvStandardProfile {
   profile_id: string;
   project_id: string;

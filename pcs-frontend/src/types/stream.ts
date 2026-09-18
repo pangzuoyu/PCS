@@ -17,8 +17,10 @@
  */
 
 export type StreamPhase = 'LIQUID' | 'VAPOR' | 'MIXED' | 'AQUEOUS';
+/** 流子相态（饱和态细分）：过冷 SUBCOOLED / 饱和液 SAT_LIQUID / 饱和气 SAT_VAPOR / 过热 SUPERHEATED。 */
 export type StreamSubphase = 'SUBCOOLED' | 'SAT_LIQUID' | 'SAT_VAPOR' | 'SUPERHEATED';
 
+/** SIM 物流条目：流号 + 业务 tag + 流名 + 主相态/子相态 + 温压 + 双流量 + 组成 + 5 态机签名状态。 */
 export interface Stream {
   stream_id: string;
   tag_number: string;

@@ -12,8 +12,10 @@
 
 import type { RecordSignStatus } from './records';
 
+/** 危险等级（管道材料规格 PMS）：低 LOW / 中 MEDIUM / 高 HIGH（驱动审批层级）。 */
 export type HazardLevel = 'LOW' | 'MEDIUM' | 'HIGH';
 
+/** PMS 管道材料规格条目：物料 ID + PMS 编号 + 描述 + 类别 + 危险等级 + 5 态机签名状态。 */
 export interface PmsItem {
   item_id: string;
   pms_no: string;
@@ -33,6 +35,7 @@ export interface BeddSection {
   signatures?: Array<{ step_index: number; signer: string; signed_at: string }>;
 }
 
+/** 项目向导步骤：步骤序号 + 标题 + 描述 + 完成标志（驱动 Wizard 进度条渲染）。 */
 export interface WizardStep {
   step_index: number;
   title: string;
@@ -40,6 +43,7 @@ export interface WizardStep {
   done: boolean;
 }
 
+/** 项目向导配置：项目名 + 步骤列表（顺序由 step_index 决定）。 */
 export interface ProjectWizard {
   project_name: string;
   steps: WizardStep[];
