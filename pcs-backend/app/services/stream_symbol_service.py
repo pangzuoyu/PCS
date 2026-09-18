@@ -402,6 +402,21 @@ class StreamSymbolService:
         project_symbol_id: uuid.UUID,
         actor: Any,
     ) -> None:
+        """删除项目作用域的流股符号（硬删除，无引用检查）。
+
+        步骤：
+        1. 查行（不存在 → PROJECT_STREAM_SYMBOL_NOT_FOUND 404）
+        2. 直接 ORM delete（无引用检查、无审计、无快照；项目内符号为
+           派生数据，前端编辑可自由重做）
+        3. 提交由本函数负责（db.commit()）
+
+        与 `delete_company` 区别：
+        - delete_company 检查 ProjectStreamSymbol.source_symbol_id 引用
+          （SYM-V06）→ STREAM_SYMBOL_IN_USE 拒绝
+        - delete_project_symbol 不检查（项目内派生数据可任意重建）
+
+        actor 参数当前未使用（保留签名兼容后续审计接入）。
+        """
         pss = await db.get(ProjectStreamSymbol, project_symbol_id)
         if pss is None:
             raise PcsError(
