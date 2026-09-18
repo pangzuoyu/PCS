@@ -35,6 +35,18 @@ class CoefficientService:
         data_json: dict,
         applicable_range: str | None = None,
     ) -> CoefficientTable:
+        """创建系数表（CoefficientTable，初始 DRAFT）。
+
+        步骤：
+        1. 构造 CoefficientTable 行（asset_id 绑定 ConfigAsset，name 命名
+           表，data_json 装多列系数数据，applicable_range 可选适用区间字符串）
+        2. 防御性补 version='v1'（model.version NOT NULL String(50)，
+           brief 未指定具体策略默认 v1）
+        3. 初始 status='DRAFT'（待 ConfigStateMachine 流转）
+        4. session.add + flush（不主动 commit，调用方负责整笔业务原子）
+
+        返回 CoefficientTable 实例（未提交）。
+        """
         table = CoefficientTable(
             asset_id=asset_id,
             name=name,
@@ -50,6 +62,7 @@ class CoefficientService:
     async def bulk_update(
         self, table_id: UUID, data_json: dict, *, actor: UUID
     ) -> CoefficientTable:
+        """批量更新系数表数据（仅 DRAFT/PENDING 可写）。"""
         table = await self.session.get(CoefficientTable, table_id)
         if table is None:
             raise CoefficientNotFoundError(f"未找到 table_id={table_id}")
