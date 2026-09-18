@@ -242,6 +242,13 @@ class PipeClassService:
     async def list_project(
         cls, session: AsyncSession, project_id: uuid.UUID
     ) -> list[ProjectPipeClass]:
+        """列出项目内派生管号等级（按 class_name 排序）。
+
+        - 按 project_id 过滤，返回 ProjectPipeClass（PROJECT_DERIVED 来源）
+        - 排序：class_name 升序（前端下拉稳定）
+        - 不分页（项目内 fork 数量级小，O(10)）
+        - 对应 list_company：公司级（COMPANY_STD）走 list_company
+        """
         stmt = (
             select(ProjectPipeClass)
             .where(ProjectPipeClass.project_id == project_id)
