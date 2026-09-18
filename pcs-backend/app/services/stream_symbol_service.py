@@ -64,6 +64,14 @@ class StreamSymbolService:
     async def list_company(
         cls, db: AsyncSession, *, status: str | None = None
     ) -> list[StreamSymbol]:
+        """列出公司流股符号（按 symbol 排序，可选 status 过滤）。
+
+        - 默认返回全部公司级 StreamSymbol（无项目隔离）
+        - 可选 status：DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE 五态过滤
+        - 排序：symbol 升序（前端下拉稳定）
+
+        对应项目级 list_project：项目内 fork 走 ProjectStreamSymbol 模型对应 list。
+        """
         stmt = select(StreamSymbol)
         if status:
             stmt = stmt.where(StreamSymbol.status == status)
