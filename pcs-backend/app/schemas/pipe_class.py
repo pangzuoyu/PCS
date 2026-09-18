@@ -28,16 +28,20 @@ class PipeClassBase(BaseModel):
         None, max_length=100, description="材料牌号"
     )
     corrosion_allowance: float = Field(..., ge=0, description="腐蚀裕量 mm")
-    design_pressure: float = Field(..., gt=0, description="MPaG")
-    design_temperature: float = Field(..., description="°C")
+    design_pressure: float = Field(..., gt=0, description="设计压力（MPa，表压 MPaG）")
+    design_temperature: float = Field(..., description="设计温度（°C）")
     fluid_service: str | None = Field(
         None, max_length=100, description="流体服务（工艺介质类别）"
     )
     allowable_stress_json: dict[str, Any] = Field(
         default_factory=dict, description="许用应力表 {温度(°C): 应力 MPa}"
     )
-    dn_series_json: dict[str, int] = Field(..., description="{min,max}")
-    sch_series_json: dict[str, str] = Field(..., description="DN→Sch")
+    dn_series_json: dict[str, int] = Field(
+        ..., description="DN 系列范围（mm，{min, max}）"
+    )
+    sch_series_json: dict[str, str] = Field(
+        ..., description="DN → Sch 壁厚系列映射（管壁厚对应表，DN→Sch）"
+    )
     flange_class: str = Field(
         ...,
         min_length=1,
