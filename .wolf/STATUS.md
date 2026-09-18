@@ -834,6 +834,59 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - src/types/records.ts 4 类型 JSDoc（RecordSignStatus 9 态 + StateTransitionName 13 转移 + RecordTransitionRequest + RecordResponse）
   - src/types/workspace.ts 3 类型 JSDoc（Workspace + WorkspaceCreate + WorkspaceImportResponse）
   - **累计**：143 + 42 = **185 项**（i+++）
+- ✅ (i++++) LOW/INFO 滚动继续批 24 项后端 service — commit `a5f9360`
+  - app/services/audit_service.py AuditService docstring（5 元组 + session 生命周期）
+  - app/services/checklist_service.py ChecklistService（5 态 + 阻塞判定）
+  - app/services/cia_engine.py CIAEngine（变更影响分析 + STALE 标记）
+  - app/services/coefficient_service.py CoefficientService（系数表 CRUD + 范围校验）
+  - app/services/config_service.py ConfigService（5 态资产 + version 链）
+  - app/services/equip_lib_service.py EquipLibService（设备沉淀 + 复用）
+  - app/services/formula_engine.py FormulaEngine（compile + sandbox 限制）
+  - app/services/formula_service.py FormulaService（公式 CRUD + unit_test 执行）
+  - app/services/numbering_service.py NumberingService（位号生成器 6 片段类型）
+  - app/services/petroleum_service.py PetroleumService（石油特征组分计算）
+  - app/services/pipe_code_generator.py ValidationOutcome dataclass
+  - app/services/pipe_code_template_service.py PipeCodeTemplateService
+  - app/services/pipe_code_validator.py Severity + FmtValidationResult
+  - app/services/project_template_service.py ProjectTemplateService（7 段配置）
+  - app/services/report_service.py ReportService（异步生成 + 日志审计）
+  - app/services/state_machine.py StateMachineService（13 事件 × 9 态）
+  - app/services/stream_symbol_service.py StreamSymbolService
+  - app/services/stream_symbol_validator.py Severity + SymValidationResult + StreamSymbolValidator
+  - app/services/template_service.py TemplateService（storage_root + Jinja2 StrictUndefined）
+  - app/services/toe_conversion_service.py ToeConversionService（折标煤 + GB 2589-2020）
+  - app/services/workspace_service.py WorkspaceService（retention_days + 7/90 天 TTL）
+  - app/services/ldap_client.py LdapUser dataclass（RFC 4514 转义后 dn）
+  - app/services/meta_service.py StreamDataMode enum（3 模式）
+  - app/services/flash/flash_service.py S_at_vfrac 闭包辅助（vfrac→S）
+  - **累计**：185 + 24 = **209 项**（i++++）
+- ✅ (i+++++) LOW/INFO 滚动继续批 22 项 Pydantic schema — commit `37e910e`
+  - app/schemas/checklist.py 3 类（ChecklistItemCreate + ChecklistItemOut + ChecklistCompleteness）
+  - app/schemas/formula.py 4 类（FormulaParameter + FormulaParametersSchema + UnitTestCase + UnitTestsSchema）
+  - app/schemas/pipe_class.py 4 类（PipeClassBase + Create + Update + Response）
+  - app/schemas/project_template.py 7 类（ApprovalStep + RecordApprovalConfig + StreamApprovalConfig + NumberingSegment + NumberingConfig + CustomerApprovalConfig + SignatureMatrixBinding + VersionSequenceConfig + ReversalRoleConfig + ProjectTemplateConfig）
+  - app/schemas/equip_lib.py ApplicableConditions
+  - app/schemas/records.py RecordTransitionRequest
+  - app/schemas/workspace.py 4 类（WorkspaceCreate + WorkspaceOut + WorkspaceImportRequest + WorkspaceImportResponse）
+  - **累计**：209 + 22 = **231 项**（i+++++）
+- ✅ (i++++++) LOW/INFO 滚动继续批 ~60 项 models/api/core/db/workers class — commit `ef1f7a2`
+  - **models**：13 个 ORM 模型（Flash/PipeNetwork/Pump/Psv/Flare/Vessel/SepEquip/Cv/Restriction/CoolingTower/Psychro/OpenChannel/Filtration）+ 9 个配置资产（ConfigAsset/Version/Approval + Formula/Coefficient/TemplateFile/ProjectTemplate/Numbering/DocNo）+ 5 个交付物（DeliverableVersion/ProjectSignatureMatrixBinding/CustomerApprovalAttachment/ChangeNoticeDetail/RecordChangeSnapshot）+ 4 个枚举（RecordSignStatus9/DeliverableSignStatus/WorkspaceType/UserStatus）+ TimestampMixin + 5 个项目/流股/管号关联（Project/Workspace/User/ProjectTemplatePipeClass/StreamSymbol/ProjectStreamSymbol/EquipmentLib/Supplier/PipeCodeTemplate/ProjectPipeCodeConfig/ReportExecutionLog）
+  - **api/v1**：~20 个 request/response（auth/health/meta/mock-auth/pipe-classes/pipe-codes/sim-imports-query/stream-symbols）
+  - **core**：Settings + ErrorResponse
+  - **db**：Base（命名约定）
+  - **services/lineage_extension.py**：_HasHash Protocol
+  - **workers**：WorkerSettings（ARQ 配置 + 函数注册 + 启停钩子）
+  - **累计**：231 + ~60 = **~291 项**（i++++++）
+- ✅ (i+++++++) LOW/INFO 滚动继续批 22 项模块级函数 — commit `2561e84`
+  - api/v1 5 个：_decode_bearer / _load_asset / _to_http × 2 / _load_project
+  - cia_engine 2 个：_content_hash / _pk（绕开 16 张表耦合）
+  - htri_parser 3 个：_coerce_numeric / _coerce_optional_numeric / _coerce_optional_int
+  - proii_parser 1 个：_flush（闭包辅助）
+  - psv 子场景 4 个：breathing_valve / fire_case / closed_valve / thermal_expansion _validate
+  - pump 子场景 5 个：_validate_curve / _validate_q_in_range / _validate_input × 2 / _classify_ns
+  - workers 1 个：_on_startup
+  - **累计**：291 + 22 = **~313 项**（i+++++++）
+  - **全仓 AST 扫描结果**：0 缺口（class + module-level funcs 全部已补）
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
