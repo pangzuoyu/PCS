@@ -645,7 +645,7 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 - ✅ (i) LOW/INFO 滚动继续批 — 进行中（alembic 迁移升级流程 docstring）
   - schemas/api v1 Pydantic Field 中文 description 100% 覆盖（11 文件 159 字段）
   - alembic upgrade 流程 9 项 docstring（PC-1 5 态机/SIM 三表/equipment_list 4 段/配置层 fix + 主表 2 张）
-- ✅ (i) LOW/INFO 滚动继续批 29 项 — commit `d799aff` + `0d094dd` + `b99a757` + `6d304c9` + `3393350` + `55ea288` + `ab31050` + `275d85b` + `2e54c9b` + `f79aa06` + `e175e86` + `3e76304`
+- ✅ (i) LOW/INFO 滚动继续批 33 项 — commit `d799aff` + `0d094dd` + `b99a757` + `6d304c9` + `3393350` + `55ea288` + `ab31050` + `275d85b` + `2e54c9b` + `f79aa06` + `e175e86` + `3e76304` + `1cbf734`
   - alembic p2_sup_sprint_pc1_pipe_class_upgrade upgrade 加 docstring（PC-1 5 态机 + ConfigAsset + 项目级 fork 派生 6 段）
   - alembic p3sim_sim_unit_op_results upgrade 加 docstring（SIM 单元操作结果主表 + JSONB 三列 + is_unreliable）
   - alembic p3sim_sim_imports upgrade 加 docstring（SIM 导入批次 + 3 enum + 状态机 PREVIEW/COMMITTED/EXPIRED）
@@ -675,6 +675,10 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - alembic p2_s110_doc_no_project_id upgrade 加 docstring（doc_no_sequences 三列 UQ + DICT V3.4 §68）
   - alembic p2_s110_fix_toe_timestamptz upgrade 加 docstring（TOE 时区列矫正 + 终审 F3）
   - alembic p5_0_2_heat_results_extend upgrade 加 docstring（heat_results 双轨 9+39+3 字段 + ADR-0027）
+  - alembic p2_sup_sprint_pc3_asset_subtype upgrade 加 docstring（config_assets.asset_subtype + PC-3）
+  - alembic p4_pump_chain_io_json upgrade 加 docstring（pump_results input/output_json 与 PIPE 对齐）
+  - alembic p4_sup008_result_fields upgrade 加 docstring（6 enum + piping +11 + pump +4 + design_stage + two_phase_results）
+  - alembic p5_0_4a_pk_rename_and_tag_number upgrade 加 docstring（10 表 PK rename + column_sizing tag_number 统一）
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
