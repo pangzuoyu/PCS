@@ -108,7 +108,10 @@ class OrificeResult:
       - selected_size: 选中的标准孔口 D~T
       - actual_area_m2: 实际标准孔口面积 m²
       - required_area_m2: 输入所需面积 m²（透传）
-      - oversize_ratio: 实际/所需（≥ 1.0，≤ 1.05）
+      - oversize_ratio: 实际/所需（≥ 1.0，≤ 1.05；HIGH P5-123-5 5% 上限强校验）
+      - oversize_warning: HIGH P5-123-5 — oversize_ratio > 1.05 时填入；
+        API 526 §5.1 实际允许，但工艺工程师应复核是否选更接近的小孔口
+        （减小阀门尺寸降低购置成本）。None 表示未超限。
       - formula_ref: 公式溯源
     """
 
@@ -116,6 +119,7 @@ class OrificeResult:
     actual_area_m2: float
     required_area_m2: float
     oversize_ratio: float
+    oversize_warning: str | None
     formula_ref: OrificeFormulaRef
 
 
@@ -173,11 +177,22 @@ def select_orifice_api526(inp: OrificeInput) -> OrificeResult:
 
     oversize_ratio = actual_area / inp.area_required_m2
 
+    # HIGH P5-123-5 — API 526 §5.1 5% 过裕量上限强校验。
+    # API 526 实际允许大于 5% 的过选，但工艺工程实践建议 ≤5%（节省成本）。
+    # 本实现策略：>5% 填入 warning（不 raise），供前端展示给工艺工程师复核。
+    oversize_warning: str | None = None
+    if oversize_ratio > _MAX_OVERSIZE_RATIO:
+        oversize_warning = (
+            f"oversize_ratio={oversize_ratio:.3f} > {_MAX_OVERSIZE_RATIO:.2f} 5% API 526 §5.1 "
+            f"上限 — 建议工艺工程师复核是否选更接近的小孔口（节省成本）"
+        )
+
     return OrificeResult(
         selected_size=selected,
         actual_area_m2=actual_area,
         required_area_m2=inp.area_required_m2,
         oversize_ratio=oversize_ratio,
+        oversize_warning=oversize_warning,
         formula_ref=OrificeFormulaRef(
             standard="API_526",
             version="7th",

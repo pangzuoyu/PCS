@@ -55,6 +55,8 @@ class FireCaseInput:
       - environment_factor_F: 环境因子（API 521 取 1.0；GB 按 §附录 B 取值）
       - h_fg_j_per_kg: 气化潜热 J/kg（350 kJ/kg 仅作测试用例输入值，API 521 保守下限 115 kJ/kg）
       - vessel_type: 容器型式 VERTICAL / HORIZONTAL（API 521 §5.15.2.2.1 不同润湿面公式）
+      - phase: 介质相态 GAS / VAPOR / LIQUID（HIGH P5-123-4 — 决定 volume_flow 密度）
+      - rho_L_kg_m3: 液体密度 kg/m³（phase=LIQUID 时用于体积流量计算）
     """
 
     D_m: float
@@ -63,6 +65,8 @@ class FireCaseInput:
     environment_factor_F: float
     h_fg_j_per_kg: float
     vessel_type: str = "VERTICAL"  # VERTICAL / HORIZONTAL（API 521 §5.15.2.2.1）
+    phase: str = "VAPOR"  # HIGH P5-123-4 — GAS / VAPOR / LIQUID
+    rho_L_kg_m3: float = 800.0  # HIGH P5-123-4 — phase=LIQUID 时使用
 
 
 @dataclass(frozen=True)
@@ -178,8 +182,13 @@ def calc_fire_case_api521(inp: FireCaseInput) -> FireCaseResult:
         * inp.environment_factor_F
     )
     relief_mass_flow_kgs = heat_input_w / inp.h_fg_j_per_kg
-    # 体积流量按密度 1.2 kg/m³ 估算（空气标况；后续接 FLASH 物流数据）
-    relief_volume_flow_m3s = relief_mass_flow_kgs / 1.2
+    # HIGH P5-123-4 — 体积流量按 phase 路由：液相用液体密度 ρ_L，气/汽相用
+    # 空气标况密度 1.2 kg/m³（保守估算）。后续 FLASH 物流数据接入后替换 rho。
+    if inp.phase == "LIQUID":
+        rho_volume = inp.rho_L_kg_m3 if inp.rho_L_kg_m3 > 0 else 800.0
+    else:
+        rho_volume = 1.2  # GAS / VAPOR 空气标况密度
+    relief_volume_flow_m3s = relief_mass_flow_kgs / rho_volume
 
     return FireCaseResult(
         wetted_area_m2=A_w,
@@ -308,6 +317,14 @@ def _validate(inp: FireCaseInput) -> None:
     if inp.h_fg_j_per_kg <= 0:
         raise PsvFireCaseInputError(
             f"h_fg_j_per_kg={inp.h_fg_j_per_kg} 必须 > 0（API 521 保守下限 115,000 J/kg）"
+        )
+    if inp.phase not in ("GAS", "VAPOR", "LIQUID"):
+        raise PsvFireCaseInputError(
+            f"phase={inp.phase!r} 不支持（GAS / VAPOR / LIQUID）"
+        )
+    if inp.phase == "LIQUID" and inp.rho_L_kg_m3 <= 0:
+        raise PsvFireCaseInputError(
+            f"phase=LIQUID 时 rho_L_kg_m3={inp.rho_L_kg_m3} 必须 > 0"
         )
 
 
