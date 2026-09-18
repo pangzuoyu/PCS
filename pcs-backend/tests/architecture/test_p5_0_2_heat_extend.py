@@ -152,10 +152,12 @@ def test_record_type_registry_count_is_10():
     Q4 约束 3 原"P5-0-1b 后=13"修订为"=14"（13 + HeatResult 修正 P4 遗漏）。
     **P5-1-4 修订**（ADR-0032 V1.1 决策 6）：+VesselResult → 11 类。
     **P5-2-4 修订**：+SepEquipResult → 12 类。
+    **P6-1 Task 7 修订**（SPEC §3.2.1.6/§3.2.2.6 + DICT V3.3）：
+    +CvResult / +RestrictionResult → 14 类。
     """
-    assert len(RECORD_TYPE_REGISTRY) == 12, (
-        f"REGISTRY 应 12 类（P5-2-4 +SepEquipResult），实际 {len(RECORD_TYPE_REGISTRY)}: "
-        f"{list(RECORD_TYPE_REGISTRY.keys())}"
+    assert len(RECORD_TYPE_REGISTRY) == 14, (
+        f"REGISTRY 应 14 类（P6-1 Task 7 +CvResult/+RestrictionResult），"
+        f"实际 {len(RECORD_TYPE_REGISTRY)}: {list(RECORD_TYPE_REGISTRY.keys())}"
     )
 
 

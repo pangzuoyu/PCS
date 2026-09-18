@@ -687,34 +687,168 @@ class HeatResult(TaggedRecordMixin, Base):
 
 
 class CvResult(TaggedRecordMixin, Base):
-    """调节阀 Cv 选型/校核结果（cv_results 表）。
+    """调节阀 Cv 选型/校核结果（cv_results 表，SPEC §3.2.1.6 + DICT V3.3）。
 
-    业务：调节阀流量系数 Cv + 阀体口径 + 噪声 + 闪蒸判定；
-    input_params/output_params JSONB 容器，含 sizing_method + 流体工况。
+    业务：调节阀流量系数 Cv + 阀体口径 + 噪声 + 闪蒸判定（IEC 60534-2-1/8-3）；
+    input_json/output_json JSONB 容器，含 sizing_method + 流体工况 +
+    noise 完整 L_p/L_w 序列。
+
+    PK 列名 = cv_id（DICT V3.3 §4.1，P5-0-4a rename 自 cv_calc_id）。
+    v3_1 既有 stub 列（cv_value/flow_rate/pressure_drop/choked_flow）保留以防
+    既有查询/测试引用；新字段由 cv_engine（Task 8）写入并启用。
+
+    RECORD_TYPE_REGISTRY 注册键 = "cv_result"（P6-1 Task 7 / ADR-0031）。
     """
 
     __tablename__ = "cv_results"
     cv_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    # 既有 v3_1 stub 列（保留；不被 cv_engine 写入）
     cv_value: Mapped[float] = mapped_column(Float)
     flow_rate: Mapped[float] = mapped_column(Float)
     pressure_drop: Mapped[float] = mapped_column(Float)
     choked_flow: Mapped[bool] = mapped_column(Boolean, default=False)
     input_json: Mapped[dict] = mapped_column(JSONB)
     output_json: Mapped[dict] = mapped_column(JSONB)
+    # P6-1 Task 7: SPEC §3.2.1.6 字段平铺 21 列
+    # 阀型 + 流体相（NOT NULL per SPEC §3.2.1.6）
+    valve_type: Mapped[str] = mapped_column(
+        String(32), comment="线性/等百分比/快开（SPEC §3.2.1.6）"
+    )
+    fluid_phase: Mapped[str] = mapped_column(
+        String(16), comment="LIQUID/GAS/VAPOR/TWO_PHASE（SPEC §3.2.1.6）"
+    )
+    # 工况（NOT NULL per SPEC for P1/P2/T1）
+    P1_pa: Mapped[float] = mapped_column(Float, comment="入口绝压 Pa（SPEC §3.2.1.6）")
+    P2_pa: Mapped[float] = mapped_column(Float, comment="出口绝压 Pa（SPEC §3.2.1.6）")
+    T1_k: Mapped[float] = mapped_column(Float, comment="入口温度 K（SPEC §3.2.1.6）")
+    Q_m3_per_h: Mapped[float | None] = mapped_column(
+        Float, comment="体积流量 m³/h（SPEC §3.2.1.6）"
+    )
+    # 物性（nullable per SPEC）
+    rho: Mapped[float | None] = mapped_column(
+        Float, comment="密度 kg/m³（SPEC §3.2.1.6，brief 短名）"
+    )
+    SG: Mapped[float | None] = mapped_column(
+        Float, comment="相对密度（SPEC §3.2.1.6）"
+    )
+    FL: Mapped[float | None] = mapped_column(
+        Float, comment="压力恢复系数（SPEC §3.2.1.6）"
+    )
+    xT: Mapped[float | None] = mapped_column(
+        Float, comment="压差比系数（SPEC §3.2.1.6）"
+    )
+    gamma: Mapped[float | None] = mapped_column(
+        Float, comment="比热比（SPEC §3.2.1.6）"
+    )
+    M: Mapped[float | None] = mapped_column(
+        Float, comment="分子量 g/mol（SPEC §3.2.1.6，brief 短名）"
+    )
+    Z: Mapped[float | None] = mapped_column(
+        Float, comment="压缩因子（SPEC §3.2.1.6）"
+    )
+    # 结果（NOT NULL per SPEC for Cv_calculated）
+    Cv_calculated: Mapped[float] = mapped_column(
+        Float, comment="计算 Cv（SPEC §3.2.1.6）"
+    )
+    Cv_selected: Mapped[float | None] = mapped_column(
+        Float, comment="圆整到标准系列的 Cv（SPEC §3.2.1.6）"
+    )
+    # 状态 Boolean（NOT NULL per SPEC for choked）
+    choked: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False,
+        comment="是否阻塞流（SPEC §3.2.1.6）",
+    )
+    cavitation: Mapped[bool] = mapped_column(
+        Boolean, default=False, comment="液体空化标记（SPEC §3.2.1.6）"
+    )
+    flashing: Mapped[bool] = mapped_column(
+        Boolean, default=False, comment="液体闪蒸标记（SPEC §3.2.1.6）"
+    )
+    noise_sil_db: Mapped[float | None] = mapped_column(
+        Float, comment="简化法噪音 dB（SPEC §3.2.1.6）"
+    )
+    # 标准代码（NOT NULL per SPEC；brief 32 与 SPEC 16 取 brief）
+    standard_profile_code: Mapped[str] = mapped_column(
+        String(32), comment="API/GB/CUSTOM（ADR-0028，brief 长度 32）"
+    )
+    # 设计阶段（OPEN-009 + PsvResult 同模式）
+    design_stage: Mapped[DesignStage] = mapped_column(
+        Enum(DesignStage, name="design_stage_enum", native_enum=True),
+        nullable=False,
+        default=DesignStage.BASIC,
+        comment="设计阶段 BASIC/DETAIL（OPEN-009）",
+    )
 
 
 class RestrictionResult(TaggedRecordMixin, Base):
-    """限流孔板计算结果（restriction_results 表，R-ORF 限流孔板）。
+    """限流孔板计算结果（restriction_results 表，SPEC §3.2.2.6 + DICT V3.3）。
 
-    业务：限流孔板孔径+压降+多孔板组合判定；
-    result_json 承载孔径+数量+材质+最大允许压降。
+    业务：限流孔板孔径+压降+多孔板组合判定（ISO 5167-2/-3/-4）；
+    input_json/output_json JSONB 容器，含 sizing_method + 流体工况 +
+    阻塞流/闪蒸判定 + 多级降压级数 stages。
+
+    PK 列名 = orifice_id（DICT V3.3 §4.1，P5-0-4a rename 自 orifice_calc_id）。
+    v3_1 既有 stub 列 restriction_type 保留以防既有查询/测试引用；新字段由
+    cv_engine（Task 8）写入并启用。
+
+    RECORD_TYPE_REGISTRY 注册键 = "restriction_result"（P6-1 Task 7 / ADR-0031）。
     """
 
     __tablename__ = "restriction_results"
     orifice_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    # 既有 v3_1 stub 列（保留；不被 cv_engine 写入）
     restriction_type: Mapped[str] = mapped_column(String(30), comment="ORIFICE/PLATE/...")
     input_json: Mapped[dict] = mapped_column(JSONB)
     output_json: Mapped[dict] = mapped_column(JSONB)
+    # P6-1 Task 7: SPEC §3.2.2.6 字段平铺 13 列
+    # 装置类型（NOT NULL per SPEC §3.2.2.6）
+    device_type: Mapped[str] = mapped_column(
+        String(32), comment="ORIFICE/VENTURI/NOZZLE/MULTI_STAGE（§3.2.2.6）"
+    )
+    # 几何（NOT NULL per SPEC for D/d/beta/C）
+    D_pipe_m: Mapped[float] = mapped_column(
+        Float, comment="管道内径 m（SPEC §3.2.2.6）"
+    )
+    d_solved_m: Mapped[float] = mapped_column(
+        Float, comment="求解的孔径 m（SPEC §3.2.2.6）"
+    )
+    beta_ratio: Mapped[float] = mapped_column(
+        Float, comment="d/D（SPEC §3.2.2.6）"
+    )
+    C_discharge: Mapped[float] = mapped_column(
+        Float, comment="流出系数（SPEC §3.2.2.6）"
+    )
+    # 可膨胀性 / 雷诺数（nullable per SPEC）
+    epsilon: Mapped[float | None] = mapped_column(
+        Float, comment="可膨胀性系数（SPEC §3.2.2.6）"
+    )
+    Re_D: Mapped[float | None] = mapped_column(
+        Float, comment="雷诺数（SPEC §3.2.2.6）"
+    )
+    # 压差（NOT NULL per SPEC for delta_P_pa）
+    delta_P_pa: Mapped[float] = mapped_column(
+        Float, comment="压差 Pa（SPEC §3.2.2.6）"
+    )
+    delta_omega_pa: Mapped[float | None] = mapped_column(
+        Float, comment="永久压损 Pa（SPEC §3.2.2.6）"
+    )
+    # 状态 Boolean / Integer
+    choked: Mapped[bool] = mapped_column(
+        Boolean, default=False, comment="阻塞流（SPEC §3.2.2.6）"
+    )
+    flashing: Mapped[bool] = mapped_column(
+        Boolean, default=False, comment="闪蒸（SPEC §3.2.2.6）"
+    )
+    stages: Mapped[int | None] = mapped_column(
+        Integer, comment="多级时级数（SPEC §3.2.2.6）"
+    )
+    # 设计阶段（OPEN-009 + PsvResult 同模式）
+    design_stage: Mapped[DesignStage] = mapped_column(
+        Enum(DesignStage, name="design_stage_enum", native_enum=True),
+        nullable=False,
+        default=DesignStage.BASIC,
+        comment="设计阶段 BASIC/DETAIL（OPEN-009）",
+    )
 
 
 class CoolingTowerResult(TaggedRecordMixin, Base):
