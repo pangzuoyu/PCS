@@ -57,6 +57,17 @@ async def list_workspaces(
     owner_id: uuid.UUID | None = None,
     session: AsyncSession = Depends(get_db),
 ) -> list[WorkspaceOut]:
+    """GET 列出工作区。
+
+    步骤：
+    1. 可选 query: owner_id（按 owner 过滤；不传 → 全部）
+    2. 转发 WorkspaceService.list_for_user → 按 owner_id 过滤 + 分页
+    3. ORM 行 → WorkspaceOut 序列化（FastAPI response_model 控制）
+
+    无 ACL 校验：作为内部管理端点（admin 视图），不做角色限制。
+    与 /workspaces/{workspace_id}（get_workspace）区别：本端点列表；
+    get_workspace 单条 + touch + 404。
+    """
     svc = WorkspaceService(session)
     rows = await svc.list_for_user(owner_id=owner_id)
     return [WorkspaceOut.model_validate(r) for r in rows]

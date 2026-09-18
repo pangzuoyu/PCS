@@ -50,6 +50,17 @@ async def list_company_symbols(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """GET 列出公司级流股符号（SYM-3 / SUP-002 §8）。
+
+    步骤：
+    1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 StreamSymbolService.list_company → 公司级 StreamSymbol 行
+       （按 status 5 态过滤由 service 层处理）
+    3. 不分页（公司级 O(10~100)）
+
+    与 /projects/{project_id}/stream-symbols（list_project_symbols）区别：
+    本端点仅列公司级；项目级端点可含公司级（include_company=True）。
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await StreamSymbolService.list_company(db)
 
@@ -60,6 +71,19 @@ async def create_company_symbol(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 创建公司流股符号（201 Created，DRAFT 起始态）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 StreamSymbolService.create_company：
+       - 查重 (symbol) 命中 → STREAM_SYMBOL_DUP 409
+       - 挂载 ConfigAsset（V1.4 §0.5：symbol_id → asset_id）
+       - 创建 StreamSymbol（status='DRAFT'）
+    3. service 提交（已 commit），返回新行
+
+    与 add_project_symbol 区别：本端点创建公司级流股符号，
+    可被 fork_project_symbols 复制到项目作用域。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await StreamSymbolService.create_company(
         db, data=payload.model_dump(), actor=user,
@@ -72,6 +96,16 @@ async def get_company_symbol(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """GET 单条公司流股符号。
+
+    步骤：
+    1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 StreamSymbolService.get → 按 symbol_id 取公司级行
+    3. 不存在 → STREAM_SYMBOL_NOT_FOUND 404
+
+    与 /projects/{project_id}/stream-symbols/{project_symbol_id} 区别：
+    本端点查公司级符号；项目级端点查 ProjectStreamSymbol 行。
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await StreamSymbolService.get(db, symbol_id)
 
@@ -106,6 +140,21 @@ async def delete_company_symbol(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """DELETE 公司流股符号（204 No Content，硬删除）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 StreamSymbolService.delete_company
+    3. service 做引用检查：ProjectStreamSymbol.source_symbol_id 仍引用
+       → STREAM_SYMBOL_IN_USE 409
+    4. 同时级联 ConfigAsset（asset_id 同步删）+ Audit
+    5. 204 No Content（FastAPI status_code 控制响应体为空）
+
+    与 obsolete_symbol 区别：obsolete 是软作废（status→OBSOLETE，历史可查）；
+    delete 是物理删除（行消失，需先无引用）。
+    与 delete_project_symbol 区别：公司级做引用检查；项目级无引用检查
+    （项目内派生数据不会被其他项目引用）。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     await StreamSymbolService.delete_company(db, symbol_id, actor=user)
 

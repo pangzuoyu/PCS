@@ -81,6 +81,17 @@ async def list_pipe_classes(
     db: Annotated[AsyncSession, Depends(get_db)],
     status: str | None = Query(None), keyword: str | None = Query(None),
 ):
+    """GET 列出公司级管架（SUP-002 PC-1）。
+
+    步骤：
+    1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 PipeClassService.list_company → 公司级 PipeClass 行
+    3. 可选过滤：status（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）+ keyword（名称模糊）
+    4. 不分页（公司级 O(10~100)）
+
+    与 /projects/{project_id}/pipe-classes（list_project_pipe_classes）区别：
+    本端点列公司级管架；项目级端点列 ProjectPipeClass（fork 派生）。
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeClassService.list_company(db, status=status, keyword=keyword)
 
@@ -130,6 +141,16 @@ async def get_pipe_class(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """GET 单条公司管架。
+
+    步骤：
+    1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 PipeClassService.get → 按 class_id 取公司级行
+    3. 不存在 → ValueError（由 FastAPI exception_handler 统一返回 404）
+
+    与 /projects/{project_id}/pipe-classes/{class_id} 区别：本端点查公司级；
+    项目级端点查 ProjectPipeClass。
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeClassService.get(db, class_id)
 
@@ -170,6 +191,17 @@ async def delete_pipe_class(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """DELETE 公司管架（204 No Content，硬删除）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 PipeClassService.delete
+    3. service 做引用检查：pipe / pipe_net 仍引用 class_id → PC_IN_USE 409
+    4. 204 No Content（FastAPI status_code 控制响应体为空）
+
+    与 obsolete_pipe_class 区别：obsolete 是软作废（status→OBSOLETE，历史可查）；
+    delete 是物理删除（行消失，需先无引用）。推公司管架场景首选 obsolete。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     await PipeClassService.delete(db, class_id)
 
@@ -279,6 +311,17 @@ async def list_project_pipe_classes(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """GET 列出项目级管架（项目派生 PROJECT_DERIVED）。
+
+    步骤：
+    1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 PipeClassService.list_project → 按 project_id 取 ProjectPipeClass 行
+       （含 source_company_class_id 引用 + override_json 字段覆盖 + status 5 态过滤）
+    3. 不分页（项目级 O(10~50)）
+
+    与 /pipe-classes（list_pipe_classes）区别：本端点列项目级派生管架
+    （fork 自公司模板 + override 覆盖）；list_pipe_classes 列公司级。
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeClassService.list_project(db, project_id)
 

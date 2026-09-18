@@ -70,6 +70,17 @@ async def list_templates(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """GET 列出公司级管号模板（FMT-4）。
+
+    步骤：
+    1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 PipeCodeTemplateService.list_company → 公司级 PipeCodeTemplate 行
+       （按 status 5 态过滤由 service 层处理）
+    3. 不分页（公司级管号模板 O(10~50)）
+
+    与 /projects/{project_id}/pipe-code-configs（list_project_configs）区别：
+    本端点列公司级模板；项目级端点列 ProjectPipeCodeConfig。
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.list_company(db)
 
@@ -80,6 +91,20 @@ async def create_template(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 创建公司管号模板（201 Created，DRAFT 起始态）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 PipeCodeTemplateService.create_company：
+       - 查重 (template_name) 命中 → PIPE_CODE_TEMPLATE_DUP 409
+       - 挂载 ConfigAsset（V1.4 §0.5 INT-OPEN-01：template_id → asset_id）
+       - 创建 PipeCodeTemplate（status='DRAFT'）
+    3. service 提交（已 commit），返回新行
+
+    与 /projects/{project_id}/pipe-code-configs（create_project_config）区别：
+    本端点创建公司级模板，可被 fork_to_project 复制到项目作用域；
+    create_project_config 直接创建项目级配置，无 ConfigAsset 挂载。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.create_company(
         db, data=payload.model_dump(), actor=user,
@@ -92,6 +117,16 @@ async def get_template(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """GET 单条公司管号模板。
+
+    步骤：
+    1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 PipeCodeTemplateService.get → 按 template_id 取公司级行
+    3. 不存在 → PIPE_CODE_TEMPLATE_NOT_FOUND 404
+
+    与 /projects/{project_id}/pipe-code-configs/{config_id}（get_project_config）区别：
+    本端点查公司级模板；get_project_config 查项目级配置。
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.get(db, template_id)
 
@@ -103,6 +138,18 @@ async def update_template(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """PUT 替换公司管号模板字段（增量覆盖）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. payload.model_dump(exclude_none=True) 排除 None 字段，仅提交显式给出项
+    3. 转发 PipeCodeTemplateService.update_company（按字段名增量 setattr；
+       禁改 status，status 由 ConfigStateMachine 5 态机管控）
+    4. service 提交（已 commit），返回更新行
+
+    与 update_project_config 区别：本端点改公司模板无 DRAFT/PENDING 锁定
+    （靠 ConfigStateMachine PUBLISH 防御）；项目级走 _project_transition 轻量状态机。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.update_company(
         db, template_id, data=payload.model_dump(exclude_none=True), actor=user,
@@ -115,6 +162,19 @@ async def delete_template(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """DELETE 公司管号模板（204 No Content，硬删除）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 PipeCodeTemplateService.delete_company
+    3. service 做引用检查：ProjectPipeCodeConfig.source_template_id 仍引用
+       → PIPE_CODE_TEMPLATE_IN_USE 409
+    4. 同时级联 ConfigAsset（asset_id 同步删）+ Audit
+    5. 204 No Content（FastAPI status_code 控制响应体为空）
+
+    与 obsolete_template 区别：obsolete 是软作废（status→OBSOLETE，历史可查）；
+    delete 是物理删除（行消失，需先无引用）。推公司模板场景首选 obsolete。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     await PipeCodeTemplateService.delete_company(db, template_id, actor=user)
 
@@ -216,6 +276,18 @@ async def list_project_configs(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """GET 列出项目级管号配置。
+
+    步骤：
+    1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 PipeCodeTemplateService.list_project → 按 project_id 取
+       ProjectPipeCodeConfig 行（按 status 5 态过滤由 service 层处理）
+    3. 不分页（项目级 O(10~50)）
+
+    与 /pipe-code-templates（list_templates）区别：本端点列项目级配置
+    （含 fork 自公司模板的 source_template_id + snapshot_json 派生）；
+    list_templates 列公司级模板。
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.list_project(db, project_id=project_id)
 
