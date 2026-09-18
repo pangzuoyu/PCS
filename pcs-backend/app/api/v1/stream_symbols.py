@@ -165,6 +165,17 @@ async def list_project_symbols(
     db: Annotated[AsyncSession, Depends(get_db)],
     include_company: bool = True,
 ):
+    """GET 列出项目作用域流股符号（可含公司级一并）。
+
+    步骤：
+    1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发到 StreamSymbolService.list_project
+    3. include_company=True（默认）：合并公司级 StreamSymbol（fork 的源头）
+       + 项目级 ProjectStreamSymbol（项目内派生）；False 时仅项目级
+
+    与 /stream-symbols（公司级 list_company_symbols）区别：本端点按项目
+    隔离，含公司级需 include_company=True。
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await StreamSymbolService.list_project(
         db, project_id=project_id, include_company=include_company,
