@@ -38,6 +38,11 @@ async def _on_shutdown(ctx: dict) -> None:
 
 
 async def _make_session(ctx: dict) -> AsyncSession:
+    """ARQ ctx → AsyncSession 工厂（每个任务调用一次）。
+
+    业务：从 on_startup 注入的 session_factory 取异步 session；
+    调用方负责 commit/close（ARQ 任务生命周期内单 session）。
+    """
     factory = ctx["session_factory"]
     return factory()
 

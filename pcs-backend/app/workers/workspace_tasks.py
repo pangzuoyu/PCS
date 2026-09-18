@@ -30,6 +30,11 @@ async def touch_workspace(ctx: dict, workspace_id: str) -> bool:
 
 # 兼容旧 ctx dict 直接传 session 的简易 helper
 async def cleanup_with_session(session) -> int:
+    """旧 ctx 兼容 wrapper：直接接收 session，调用 WorkspaceService.cleanup_expired。
+
+    业务：兼容旧 ARQ 任务签名（session 直传而非 ctx dict）；
+    返回删除行数（caller 通常忽略）。
+    """
     svc = WorkspaceService(session)
     return await svc.cleanup_expired()
 
