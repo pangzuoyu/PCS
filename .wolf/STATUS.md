@@ -811,6 +811,16 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - app/api/v1/pump.py 2 字段加中文 description（pump_type 泵类型 + api610_type API 610 泵型）
   - app/schemas/pipe_class.py 4 字段加中文 description（design_pressure MPaG + design_temperature °C + dn_series_json DN 范围 + sch_series_json DN→Sch 映射）
   - **累计**：97 + 29 = **126 项**（i+）
+- ✅ (i++) LOW/INFO 滚动继续批 17 项 — commit `f34453c`
+  - src/types/workspace.ts 文件级 JSDoc（FORMAL/PERSONAL/TEMPORARY 三类说明）
+  - src/types/checklist.ts 文件级 JSDoc（ChecklistStatus 5 态 + ChecklistCategory 3 类 + 完整度汇总）
+  - src/types/records.ts 文件级 JSDoc（RecordSignStatus 9 态 + StateTransitionName 13 转移）
+  - src/api/client.ts TokenResponse JSDoc（access + refresh 双 token）
+  - src/store/auth.ts AuthState JSDoc（Zustand auth store 形状）
+  - src/mocks/seed/streams.ts buildStreamDetail JSDoc（流详情载荷组装）
+  - src/types/pipe.ts 3 类型 JSDoc（TwoPhasePattern 6 流型 + TwoPhaseResult + PipeResult）
+  - src/types/psv.ts 8 类型 JSDoc（ClosedValve/ReactionRunaway/ThermalExpansion ScenarioParams + ScenarioParams 联合 + PsvOrificeResult / PsvResultBody / PsvCalculateResponse / UpsertPsvStandardProfileRequest）
+  - **累计**：126 + 17 = **143 项**（i++）
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
