@@ -27,7 +27,9 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 class LoginRequest(BaseModel):
     username: str = Field(min_length=1, max_length=100)
-    password: str = Field(min_length=0, max_length=200)
+    # P0-MED-006 fix（2026-09-18）：password min_length 1（不允许空字符串，
+    # 避免爆破时 "" 通过校验；max_length 200 与 LDAP DN 边界对齐）。
+    password: str = Field(min_length=1, max_length=200)
 
 
 class TokenResponse(BaseModel):

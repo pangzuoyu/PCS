@@ -325,3 +325,19 @@ def test_logout_with_access_token_204_no_op(client):
     # sanity：access token 仍然能访问 /me（无服务端会话，logout 不动 access）
     me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {at}"})
     assert me.status_code == 200
+
+
+def test_login_empty_password_rejected_422(client):
+    """P0-MED-006 防回归：password="" → 422（Pydantic min_length=1）。
+
+    旧实现 min_length=0 允许空密码通过校验，攻击者可枚举 username 配合空
+    密码爆破。新规则：空密码直接 422，节省 LDAP 查询。
+    """
+    r = client.post(
+        "/api/v1/auth/login",
+        json={"username": "alice", "password": ""},
+    )
+    assert r.status_code == 422
+    body = r.json()
+    # 校验错误必有 password 字段定位
+    assert any("password" in str(err).lower() for err in body.get("detail", []))
