@@ -245,6 +245,17 @@ class PipeClassService:
 
     @classmethod
     def build_import_template(cls) -> bytes:
+        """构建管号等级 Excel 导入模板（xlsx bytes）。
+
+        步骤：
+        1. 新建 openpyxl Workbook，第一张工作表 ws 重命名 'pipe_classes'
+        2. 写入表头（IMPORT_HEADERS，含 class_id/cn_name/en_name/dn/inch/pip_class_id/...）
+        3. BytesIO 缓冲 → wb.save 序列化为 xlsx 字节流
+        4. 返回 bytes（前端用于 <a download> 下载）
+
+        与 build_export_template 区别：本函数只写表头，无数据行；供用户
+        手动填表导入。导出模板（export）通常按已存数据填行。
+        """
         import io
 
         from openpyxl import Workbook
