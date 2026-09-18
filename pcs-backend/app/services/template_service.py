@@ -80,6 +80,17 @@ class TemplateService:
         return tpl
 
     async def render(self, template_id: UUID, context: dict) -> str:
+        """按 template_id 渲染 Jinja2 模板。
+
+        步骤：
+        1. 取 TemplateFile 行（不存在 → TemplateRenderError 404）
+        2. 读模板文件（file_path → utf-8 文本）
+        3. self.jinja.from_string 构造临时 Template；render(**context) 替换变量
+        4. Jinja2 TemplateError → 包成 TemplateRenderError 抛给上游
+
+        安全：模板文件路径由 TemplateFile.file_path 决定，调用方应保证
+        文件来源可信（系统种子模板），不接受用户上传路径。
+        """
         tpl = await self.session.get(TemplateFile, template_id)
         if tpl is None:
             raise TemplateRenderError(f"未找到 template_id={template_id}")
