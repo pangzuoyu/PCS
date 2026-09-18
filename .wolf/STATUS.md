@@ -388,6 +388,28 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 
 ---
 
+## ✅ Done (P5-3-8 GB/T 12241 bug-089 闭环 + C6 完全关闭 — 2026-09-18)
+
+- **范围**：C6 关闭声明延后项 — GB/T 12241 降级路径继承 bug-089 错误
+  （R=8314 + k/(k-1) 因子），虽标 `incomplete_fallback` 但公式常数仍错
+- **双修**（commit `473b009`）：
+  - `R_universal`: 8314.462618 → 8.314462618 J/(mol·K)
+    （与 M kg/mol 配对，消 √1000 偏差）
+  - `isentropic_factor`: 移除 `(k/(k-1))` 因子
+    → `√[k × ((2/(k+1))^((k+1)/(k-1)))]` 与 API 520 9th Ed. §5.6.3 Eq 9 一致
+    （k/(k-1) 是 subcritical F_2 因子，不适用于 critical flow）
+- **修复前后 GB/API 面积比**（k=1.4 空气）：
+  - 修复前 ≈ 20.5x（严重失真，工艺工程师按此选 PSV 必然偏大）
+  - 修复后 ≈ 1.0263（仅 C_d 差异 GB 0.95 vs API 0.975）
+- **回归测试**（`test_gb12241_bug089_regression`）：锁定 GB/API 面积比 rel < 0.1%
+- **C6 完全关闭**：
+  - API 520 路径 bug-089 修复（commit `e700271`）
+  - GB/T 12241 路径 bug-089 修复（commit `473b009`）
+- **buglog**：bug-097 已登记（severity CRITICAL）
+- **验证**：2216 passed + 49 skipped（基线 2215 + 1 新回归测试）；ruff clean
+
+---
+
 ## ✅ Done (HIGH 专项 Sprint 非 P0 18 项闭环 — 2026-09-18)
 
 - **范围**：ce-code-review 中 18 个 HIGH 非 P0 项（P1×3 / P2×3 / P5-123×5 / P5-3 fe×3 / P5-4d fe×4）
@@ -444,15 +466,15 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 - 🔲 **下一批**：HIGH 非 P0 类 18 项（P1×3 / P2×3 / P5-123×5 / P5-3 fe×3 / P5-4d fe×4）
 
 ### 待办（建议优先序）
-1. **HIGH P1**：Pydantic v1 imports（3 处）→ 全部迁 Pydantic v2；workspace context 异常类型；
-   mock auth 单测（5 项）
-2. **HIGH P2**：equipment_list NOT NULL、pipe_code_template、report_service 列序
-3. **HIGH P5-123**：PsvResult valve_type CHECK、psv_persist P_set_pa、REACTION_RUNAWAY hardcoded、
-   fire_case 1.2 kg/m³、API 526 oversize 5%
-4. **HIGH P5-3 frontend**：HEAT-WORKSPACE-ID、MSW-VESSEL-SEPEQUIP-MISSING、MSW-PSV-STATUS-201
-5. **HIGH P5-4 fe.detail**：BACK_PRESSURE_MAX_BY_TYPE、CDTP dead code、G15 dead code、kb_service Literal
-6. **MEDIUM/LOW/INFO**：48 项未处理（入 backlog，滚动）
-7. **P5-3-8**：GB/T 12241 bug-089 修复（R=8.314 + 移除 k/(k-1) 因子），延后
+1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
+2. ✅ ~~P5-3-8 GB/T 12241 bug-089 修复~~ — commit 473b009 闭环（C6 完全关闭）
+3. **MEDIUM/LOW/INFO**：48 项未处理（入 backlog，滚动）
+4. **P5-3 工艺工程师接管**：
+   - OPEN-10-1 API526_FLANGE_CLASS_ORIFICE_LIMITS 84 组合（§8 gate #4）
+   - OPEN-10-2 真实 Kb 厂商数据（替换合成 _KB_DATA）
+   - OPEN-10-5 CRYOGENIC 型号（OPEN-18）/ API 521 FIRE+PILOT 章节号（OPEN-19）
+   - OPEN-10-6 65 psig T 孔口 150# 警告（OPEN-20）
+5. **OPEN-7 续**：HEAT 二次扩展（weight-estimate 闭环已 commit b5b2804；剩余深度对接）
 
 ### P5-3-7 关闭后 C7 完整状态
 
@@ -462,6 +484,15 @@ C7（两相流 ω 法）状态：✅ **完全关闭**
 - C7-b（API 520 9th Ed. Annex C.2.2 完整形式）— commit `b83a3a0`（bug-094, 2026-09-18）
 
 V1 简化形式保留（向后兼容 + outlet 透传），C.2.2 完整版为新代码首选。
+
+### C6 完全关闭状态
+
+C6（公式 bug-088 修复不彻底 + bug-089 R 单位）状态：✅ **完全关闭**
+
+- C6-a（API 520 路径 bug-089 修复：R=8.314 + 等熵因子形式）— commit `e700271`（bug-089, 2026-09-18）
+- C6-b（GB/T 12241 路径同款 bug-089 修复）— commit `473b009`（bug-097, 2026-09-18）
+
+C6-b 修复要点：GB/T 12241 虽标 `incomplete_fallback`，但公式常数仍错，GB/API 面积比 k=1.4 空气时严重失真 20.5x，修复后 1.0263。
 
 ### 锁定的用户裁决（累积）
 - 全程中文；"继续" = 驱动下一 task 不重议
