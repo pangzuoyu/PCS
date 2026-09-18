@@ -31,6 +31,14 @@ async def search(
     equipment_type: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
 ):
+    """GET 检索设备库（仅 PUBLISHED）。
+
+    - ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    - keyword 可选模糊匹配 name（ILIKE）
+    - equipment_type 可选 JSONB ->> 精确过滤
+    - limit 上限 200（防前端误传大数）
+    - 返回 AssetResponse 列表（CATEGORY_6 + status=PUBLISHED，由 service 固定）
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await EquipLibService.search(
         db, keyword=keyword, equipment_type=equipment_type, limit=limit
