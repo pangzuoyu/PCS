@@ -253,6 +253,22 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """PC-1 管架 5 态机改造逆向（F → A）。
+
+    步骤（按 E → A 顺序逆向）：
+    - E 逆向：config_approvals.project_class_id FK + 列删除
+    - D 逆向：project_pipe_classes 复原 class_id+enabled+custom_override_json +
+      复合 PK（project_id × class_id） + 删 source_class_id/class_name/
+      snapshot_json/override_json/status
+      数据回填：custom_override_json ← snapshot_json / enabled ← status
+      是否 OBSOLETE（启发式 lossy）
+    - C 逆向：pipe_classes status PUBLISHED → ACTIVE
+    - B 逆向：base_material 不回滚（material_standard 原值保留，无信息损失）
+    - A 逆向：pipe_classes 删 asset_id + base_material + class_id 50→20
+
+    业务：与 upgrade 6 段（A→F）完全镜像；lossy 数据回填仅供回退救场，
+    生产环境应避免执行。
+    """
     # E 逆向
     op.drop_constraint(
         "fk_config_approvals_project_class_id_project_pipe_classes",

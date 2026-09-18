@@ -132,6 +132,19 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """P2 Sprint1 配置层字段修复 5 张表逆向。
+
+    步骤（按 A → E 顺序逆向 E → A）：
+    - E. config_approvals：comment→comments 重命名 + 删 approver_id
+    - D. formula_definitions：parameters_json→variables_json + 删 std_source/asset_id
+    - C. coefficient_tables：applicable_range→domain + 删 std_source/asset_id
+    - B. template_files：删 asset_id FK + 列
+    - A. project_templates：删 checklist_json + asset_id FK + 列
+    - numbering_templates：description→scope + template_name→name 反向重命名
+
+    业务：与 upgrade 完全对称的 5 表配置层字段修复回滚；drop FK 后 drop
+    列的标准 SQLAlchemy 顺序。
+    """
     # === numbering_templates ===
     op.alter_column(
         "numbering_templates", "description", new_column_name="scope"
