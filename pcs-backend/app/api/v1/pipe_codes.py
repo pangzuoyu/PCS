@@ -278,6 +278,19 @@ async def delete_project_config(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """DELETE 项目内管号配置（204 No Content，硬删除）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发到 PipeCodeTemplateService.delete_project_config
+    3. service 层做引用检查：若 ProjectPipeCodeSequence（已生成管号序列）
+       仍引用此 config_id → PROJECT_PIPE_CODE_CONFIG_IN_USE 409
+    4. service 提交（已 commit），204 No Content（FastAPI status_code 控制响应体为空）
+
+    与 obsolete_project_config 区别：obsolete 是软作废（status→OBSOLETE，
+    历史记录可查）；delete 是物理删除（行消失，需先无引用）。
+    推项目级管号配置场景首选 obsolete；delete 仅用于误建清理。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     await PipeCodeTemplateService.delete_project_config(
         db, config_id=config_id, actor=user,
@@ -340,6 +353,19 @@ async def reject_project_config(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 项目管号配置 reject（PENDING → DRAFT + Audit + review context）。
+
+    步骤：
+    1. ACL：REVIEWER / SYSTEM_ADMIN
+    2. 转发 PipeCodeTemplateService.reject_project → _project_transition('REJECT')
+    3. 状态校验：仅 PENDING 才能 REJECT，其他 →
+       PROJECT_PIPE_CODE_CONFIG_BAD_TRANSITION 409
+    4. 写 Audit（CONFIG_ASSET_REJECTED，detail 含 from→to + project_id + review_note）
+    5. 回退到 DRAFT（而非 OBSOLETE），工艺方可重提
+
+    与 approve_project_config 区别：approve 入 APPROVED（成功流转）；
+    reject 回 DRAFT（带 review context 备注），区别于 obsolete（强制作废）。
+    """
     require_roles(user, "REVIEWER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.reject_project(
         db, config_id=config_id, actor=user,
@@ -353,6 +379,21 @@ async def publish_project_config(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 项目管号配置 publish（APPROVED → PUBLISHED + Audit）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 转发 PipeCodeTemplateService.publish_project → _project_transition('PUBLISH')
+    3. 状态校验：仅 APPROVED 才能 PUBLISH，其他 →
+       PROJECT_PIPE_CODE_CONFIG_BAD_TRANSITION 409
+    4. 写 Audit（CONFIG_ASSET_PUBLISHED，detail 含 from→to + project_id）
+
+    与 approve_project_config 区别：approve 入 APPROVED（审核通过）；
+    publish 入 PUBLISHED（生效供 PipeCodeGenerator.generate 选用）。
+
+    项目级 publish 不像公司模板那样需要 APPROVER 角色（PROJECT_PIPE_CODE_CONFIG
+    走轻量 _project_transition），PROCESS_CONTROLLER 即可触发。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.publish_project(
         db, config_id=config_id, actor=user,
@@ -366,6 +407,21 @@ async def obsolete_project_config(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 项目管号配置 obsolete（任何态 → OBSOLETE + Audit，终止态）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / REVIEWER / SYSTEM_ADMIN
+    2. 转发 PipeCodeTemplateService.obsolete_project → _project_transition('OBSOLETE')
+    3. 状态校验：DRAFT/PENDING/APPROVED/PUBLISHED 均能转 OBSOLETE；
+       已经是 OBSOLETE → PROJECT_PIPE_CODE_CONFIG_BAD_TRANSITION 409
+    4. 写 Audit（CONFIG_ASSET_OBSOLETED，detail 含 from→to + project_id + reason）
+
+    与 reject_project_config 区别：reject 仅 PENDING→DRAFT（回退）；
+    obsolete 任何态都能转 OBSOLETE（终止态，强制作废）。
+
+    与 publish_project_config 区别：publish 是 APPROVED→PUBLISHED（正向生效）；
+    obsolete 是任意→OBSOLETE（强制作废）。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "REVIEWER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.obsolete_project(
         db, config_id=config_id, actor=user,
