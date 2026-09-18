@@ -269,6 +269,17 @@ class PipeCodeTemplateService:
         config_name: str,
         actor: Any,
     ) -> ProjectPipeCodeConfig:
+        """将公司级模板 fork 到项目作用域。
+
+        - 取公司模板（不存在 → PIPE_CODE_TEMPLATE_NOT_FOUND 404）
+        - 查重 (project_id, config_name)，命中 → PROJECT_PIPE_CODE_CONFIG_DUP（409）
+        - 新增 ProjectPipeCodeConfig 行（DRAFT，source_template_id 表 fork 来源，
+          snapshot_json 与 format_definition_json 均复制模板内容，便于项目编辑与回溯）
+        - 写入由本函数负责（db.commit()）
+
+        与 `create_project_config` 区别：本函数基于现有模板 fork；create_project_config
+        项目自创，无 snapshot。
+        """
         t = await cls.get(db, template_id)
         # FMT-V08 项目内 config_name 唯一
         dup = (
