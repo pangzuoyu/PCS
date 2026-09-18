@@ -110,6 +110,15 @@ class WorkspaceService:
         return record_count
 
     async def touch(self, workspace_id: uuid.UUID) -> None:
+        """更新 workspace.last_active_at（最近活跃时间戳，追踪 user 活跃）。
+
+        步骤：
+        1. UPDATE Workspace SET last_active_at=now() WHERE workspace_id=?
+        2. 不主动 flush（依赖外层 commit 串行化）
+        3. 用于 /workspaces/{workspace_id}（get_workspace）等读端点的活跃追踪
+
+        与 list_for_user 区别：touch 单条更新（写）；list_for_user 列表（读）。
+        """
         await self.session.execute(
             update(Workspace)
             .where(Workspace.workspace_id == workspace_id)

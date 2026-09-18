@@ -83,6 +83,16 @@ def _decode_bearer(authorization: str) -> dict[str, Any]:
 
 
 def current_user(authorization: Annotated[str | None, Header()] = None) -> dict[str, Any]:
+    """FastAPI 依赖：取 Authorization Bearer JWT 解析 payload。
+
+    步骤：
+    1. 无 Authorization header → MISSING_BEARER 401
+    2. 调 _decode_bearer 解析 JWT（HS256 + 密钥校验 + 过期检查）
+    3. 返回 payload dict（含 user_id / role / exp / iat 等）
+
+    返回 _Actor TypedDict（FastAPI Depends 注入端点）。
+    与 login 区别：login 颁发 JWT；current_user 解析验证。
+    """
     if not authorization:
         raise PcsError(
             code="MISSING_BEARER", message="Authorization: Bearer <token>", status=401

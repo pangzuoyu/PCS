@@ -24,6 +24,17 @@ async def list_for_project(
     project_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
 ) -> list[ChecklistItemOut]:
+    """GET 列出项目输入清单（DICT V3.1 表 44）。
+
+    步骤：
+    1. 转发 ChecklistService.list_for_project → 按 project_id 取行
+       （按 item_key 升序，不分页）
+    2. ORM 行 → ChecklistItemOut 序列化（FastAPI response_model 控制）
+
+    无 ACL 校验：项目内部资源，依赖项目级鉴权上层路由。
+    与 /projects/{project_id}/completeness（completeness）区别：
+    本端点返回逐项明细；completeness 返回聚合统计。
+    """
     svc = ChecklistService(session)
     rows = await svc.list_for_project(project_id)
     return [ChecklistItemOut.model_validate(r) for r in rows]
@@ -67,6 +78,16 @@ async def completeness(
     project_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
 ) -> ChecklistCompleteness:
+    """GET 项目输入清单完成度统计。
+
+    步骤：
+    1. 转发 ChecklistService.completeness → 按 project_id 取行
+       → 派生 total / required_total / 3 桶分桶 / 百分比
+    2. 返回 ChecklistCompleteness Pydantic 模型
+
+    无 ACL 校验：项目内部资源，依赖项目级鉴权上层路由。
+    与 list_for_project 区别：本端点返回聚合统计；list 返回逐项明细。
+    """
     svc = ChecklistService(session)
     return await svc.completeness(project_id)
 

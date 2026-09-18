@@ -160,6 +160,17 @@ class ChecklistService:
 
 
 async def count_assumed_for_project(session: AsyncSession, project_id: uuid.UUID) -> int:
+    """统计项目内 status='ASSUMED' 且 required=True 的 checklist 数（兼容性辅助）。
+
+    步骤：
+    1. 按 project_id + required=True + status='ASSUMED' 三条件计数
+    2. 返回整数（无结果 → 0）
+
+    注意：DICT V3.1 后 required 判定已改为 input_category=='REQUIRED'；
+    本函数保留旧 P0 required bool 判定，向后兼容旧数据查询。
+    与 ChecklistService.completeness 不同点：本函数仅数 assumed 单桶；
+    completeness 算 total/required_total/3 桶/百分比 完整统计。
+    """
     stmt = select(func.count(ProjectInputChecklist.checklist_id)).where(
         ProjectInputChecklist.project_id == project_id,
         ProjectInputChecklist.required.is_(True),

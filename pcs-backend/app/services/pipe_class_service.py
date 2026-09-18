@@ -667,6 +667,17 @@ class PipeClassService:
     async def submit_project_class(
         cls, session: AsyncSession, *, project_class_id: uuid.UUID, actor,
     ) -> ProjectPipeClass:
+        """项目派生管号等级 submit（DRAFT → PENDING + Audit，轻量状态机）。
+
+        步骤：
+        1. 转发 _project_transition('submit')（项目级独立轻量状态机）
+        2. 状态校验：仅 DRAFT 才能 SUBMIT，其他 → PROJECT_PIPE_CLASS_BAD_TRANSITION 409
+        3. 写 Audit（CONFIG_ASSET_SUBMITTED）
+
+        与 submit_pipe_class（公司级）区别：本端点改 ProjectPipeClassStatus
+        走 ProjectPipeClassStateMachine 轻量状态机；公司级走 ConfigStateMachine
+        + ConfigAsset + ConfigVersion。
+        """
         return await cls._project_transition(
             session, project_class_id, "submit", actor,
         )
@@ -712,6 +723,16 @@ class PipeClassService:
     async def publish_project_class(
         cls, session: AsyncSession, *, project_class_id: uuid.UUID, actor,
     ) -> ProjectPipeClass:
+        """项目派生管号等级 publish（APPROVED → PUBLISHED + Audit）。
+
+        步骤：
+        1. 转发 _project_transition('publish')
+        2. 状态校验：仅 APPROVED 才能 PUBLISH，其他 → PROJECT_PIPE_CLASS_BAD_TRANSITION 409
+        3. 写 Audit（CONFIG_ASSET_PUBLISHED）
+
+        与 publish_pipe_class（公司级）区别：本端点改 ProjectPipeClassStatus
+        走轻量状态机；公司级走 ConfigStateMachine + ConfigAsset 同步挂。
+        """
         return await cls._project_transition(
             session, project_class_id, "publish", actor,
         )
@@ -720,6 +741,16 @@ class PipeClassService:
     async def obsolete_project_class(
         cls, session: AsyncSession, *, project_class_id: uuid.UUID, actor,
     ) -> ProjectPipeClass:
+        """项目派生管号等级 obsolete（任意 → OBSOLETE + Audit，终止态）。
+
+        步骤：
+        1. 转发 _project_transition('obsolete')
+        2. 状态校验：DRAFT/PENDING/APPROVED/PUBLISHED 均能转 OBSOLETE；
+           已经是 OBSOLETE → PROJECT_PIPE_CLASS_BAD_TRANSITION 409
+        3. 写 Audit（CONFIG_ASSET_OBSOLETED）
+
+        终止态：OBSOLETE 后无法转回；如需复用 → 新建 project_class_id 重新发起。
+        """
         return await cls._project_transition(
             session, project_class_id, "obsolete", actor,
         )
