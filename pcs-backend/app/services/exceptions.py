@@ -47,14 +47,14 @@ class PreconditionViolation(PcsError):
 
 
 class PsvPilotOperatedNotSupported(PcsError):
-    """G7：先导式（PILOT_OPERATED）阀型 P5 拦截（P5+ 实施；§2.2）。"""
+    """G7：先导式（PILOT_OPERATED）阀型 P5 拦截（valve_validation:127 raise）。"""
 
     code = "PSV_PILOT_OPERATED_NOT_SUPPORTED"
     status = 422
 
 
 class PsvRuptureDiscNotSupported(PcsError):
-    """G8：爆破膜式（RUPTURE_DISC）阀型 P5 拦截（P6+ 实施；§2.2）。"""
+    """G8：爆破膜式（RUPTURE_DISC）阀型 P5 拦截（valve_validation:134 raise）。"""
 
     code = "PSV_RUPTURE_DISC_NOT_SUPPORTED"
     status = 422
