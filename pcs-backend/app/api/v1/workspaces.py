@@ -25,6 +25,20 @@ async def create_workspace(
     owner_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
 ) -> WorkspaceOut:
+    """创建工作区（POST /workspaces，201 Created）。
+
+    步骤：
+    1. 构造 WorkspaceService，传入当前 session
+    2. 调 svc.create：owner_id（=user_id）、workspace_type（来自 payload
+       枚举字符串）、name、project_id（None 表个人工作区）、retention_days
+    3. service 层已 flush 不 commit（WorkspaceService.create 契约）；此处补
+       session.commit() 落库
+    4. 转 WorkspaceOut 返回（含 id/name/type/project_id/retention_days/
+       created_by/created_at 等字段）
+
+    owner_id 来自 Depends（认证中间件注入），user_id 复用 owner_id：
+    工作区拥有者即创建者。
+    """
     svc = WorkspaceService(session)
     ws = await svc.create(
         owner_id=owner_id,
