@@ -10,6 +10,34 @@ from ldap3.core.exceptions import LDAPException
 from app.core.config import get_settings
 
 
+# RFC 4514 §2.4 DN 转义字符。反斜杠必须最先转义避免双重转义。
+_LDAP_DN_ESCAPE_MAP = {
+    "\\": r"\\",
+    '"': r"\"",
+    "#": r"\#",
+    "+": r"\+",
+    ",": r"\,",
+    ";": r"\;",
+    "<": r"\<",
+    "=": r"\=",
+    ">": r"\>",
+    "\x00": r"\00",
+}
+
+
+def _sanitize_dn_component(value: str) -> str:
+    """RFC 4514 §2.4 DN 组件转义：防止 DN injection（`,` `=` `+` 等破坏 DN 边界）。
+
+    NUL（`\\x00`）按 RFC 4514 编码为多字符序列 `\\00`，与其它单字符转义不同，
+    因此先跑单字符转表（NUL 不在表中保持原样），最后再单独替换 `\\x00` → `\\00`，
+    避免 pre-replace 后又被反斜杠转义二次翻倍。
+    """
+    escaped = "".join(_LDAP_DN_ESCAPE_MAP.get(ch, ch) for ch in value)
+    if "\x00" in escaped:
+        escaped = escaped.replace("\x00", "\\00")
+    return escaped
+
+
 @dataclass(frozen=True)
 class LdapUser:
     username: str
@@ -30,7 +58,8 @@ def authenticate(username: str, password: str) -> LdapUser:
     settings = get_settings()
     if not username or not password:
         raise LdapAuthError("empty credentials")
-    user_dn = settings.ldap_user_dn_template.format(username=username)
+    safe_username = _sanitize_dn_component(username)
+    user_dn = settings.ldap_user_dn_template.format(username=safe_username)
 
     server = ldap3.Server(settings.ldap_url, get_info=ldap3.NONE)
     try:
