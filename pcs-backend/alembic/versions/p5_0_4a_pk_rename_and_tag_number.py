@@ -117,6 +117,21 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """10 表 PK rename + column_sizing tag_number 字段统一回退（P5-0-4a 逆向）。
+
+    步骤：
+    - 1. column_sizing 回退（4 步反向操作）
+      - 1a. DROP CONSTRAINT uq_column_sizing_tag（删 UNIQUE(project_id, tag_number)）
+      - 1b. ALTER COLUMN tag_number SET NULL（回退 NULLABLE）
+      - 1c. ADD COLUMN column_tag（恢复 NOT NULL 业务字段）
+      - 1d. CREATE UNIQUE CONSTRAINT uq_column_sizing_tag（恢复
+        UNIQUE(project_id, column_tag)）
+    - 2. PK rename 回退（loop reversed _PK_RENAMES，10 表 PK rename 还原）
+
+    业务：与 upgrade 互逆；10 表 PK rename + column_sizing.tag_number 业务字段
+    统一（与 PIPE / pump / heat 等保持一致）逆向。reversed 顺序与 upgrade
+    对称（实际无依赖）。
+    """
     # 1. column_sizing 回退：反向操作
     # 1a. 删除 UNIQUE(project_id, tag_number)
     op.drop_constraint("uq_column_sizing_tag", "column_sizing", type_="unique")

@@ -137,6 +137,24 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """equipment_list §四/§五/§六/§七/§八 采购+图纸+交付+安装+重量 14 字段回退（P2 Sprint2 逆向）。
+
+    步骤（按章节逆序）：
+    - §八 重量（3 字段）：weigh_cells / full_weight / empty_weight
+    - §七 安装（5 字段）：loading_by / unloading / installation /
+      installation_notes / installation_contract_number
+    - §六 交付（5 字段）：storage_location / actual_on_site / forecast_on_site /
+      actual_received_date / delivery_date
+    - §五 图纸（3 字段）：certified_drawing_received_date /
+      approval_drawing_return_date / approval_drawing_received_date
+    - §四 采购（11 字段）：specification_priority / gpe_spec_status /
+      gpe_spec_number / cost_year / cost_source / cost_currency / cost /
+      purchase_order_number / order_date / alternate_vendor（10 项 +
+      §四 末尾）实际 10 字段
+
+    业务：与 upgrade 互逆；equipment_list 采购到货 14 字段扩展（P2 Sprint2）
+    逆向清理。所有字段 nullable=True，存量行 NULL 默认值不变。
+    """
     # §八 重量（逆向）
     op.drop_column("equipment_list", "weigh_cells")
     op.drop_column("equipment_list", "full_weight")

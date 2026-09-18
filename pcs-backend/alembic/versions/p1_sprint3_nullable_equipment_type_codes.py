@@ -58,6 +58,20 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """equipment_type_codes PK/FK 回退 nullable=False（P1 Sprint3 逆向）。
+
+    步骤（与 upgrade 相反）：
+    - DROP CONSTRAINT fk_equipment_list_type_code_composite（FK 到复合 PK）
+    - DROP CONSTRAINT uq_equipment_type_codes_project_type（UNIQUE 复合）
+    - ALTER COLUMN equipment_type_codes.project_id SET NOT NULL
+    - CREATE PRIMARY KEY pk_equipment_type_codes（project_id + type_code 复合）
+    - CREATE FOREIGN KEY fk_equipment_list_type_code（重建原 equipment_list FK
+      equipment_type_project_id + type_code → project_id + type_code）
+
+    业务：与 upgrade 互逆；equipment_type_codes 复合 PK + project_id 改 nullable
+    + CASCADE FK 落地逆向。注意 project_id SET NOT NULL 需保证现存行
+    project_id IS NOT NULL（升级后的存量行满足），否则违例。
+    """
     # 回滚顺序与 upgrade 相反
     op.drop_constraint(
         "fk_equipment_list_type_code_composite",

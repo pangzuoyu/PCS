@@ -113,6 +113,21 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """equipment_list §一/§二/§三/§九 21 字段回退（P2 Sprint2 逆向）。
+
+    步骤（按章节逆序）：
+    - §九 工程（8 字段）：mst_number / emts_number / registration_number /
+      dimensions / pid_status / pid_drawing_number / detail_engineer /
+      process_engineer
+    - §三 类型（4 字段）：pressure_vessel_category / is_pressure_vessel /
+      equipment_category / equipment_sub_type
+    - §二 标识（5 字段）：unit_name / unit_no / sub_project / package_no /
+      equipment_name_cn
+    - §一 来源（4 字段）：tag_in_esr / tag_in_3d / data_sources / in_package
+
+    业务：与 upgrade 互逆；equipment_list 工程/类型/标识/来源四章节 21 字段
+    全部 drop，无回退保护（无 DEFAULT，存量行 NULL 默认值不变）。
+    """
     # §九 工程（逆向）
     op.drop_column("equipment_list", "mst_number")
     op.drop_column("equipment_list", "emts_number")
