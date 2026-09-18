@@ -13,6 +13,22 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
+    """equipment_list 命名修正（P2 Sprint2 Task 3.1，6 重命名 + 1 字段升级）。
+
+    步骤：
+    - A. 6 列重命名（与 brief §九/§十一致）：
+      description→equipment_description / install_location→installation_location /
+      weight_kg→net_weight / paint_spec→paint / drawing_no→flowsheet_drawing_number /
+      engineering_notes→process_engineering_remarks
+    - B. vendor_id (FK→suppliers) → vendor (varchar 200) 三步走：
+      - B1. 新增 vendor 字符串列（nullable，不破坏既有行）
+      - B2. 数据回填（suppliers 表存在时 JOIN suppliers 填名称）
+      - B3. 删 vendor_id FK + 列（FK 名探测后 drop，避免硬编码）
+    - 不存在的 FK 容忍（print 信息继续执行）
+
+    业务：equipment_list 字段命名对齐 brief §二/§九/§十规格；vendor
+    改为字符串（避免供应商管理受 suppliers 表约束，自由文本录入）。
+    """
     # 6 个简单重命名
     op.alter_column(
         "equipment_list", "description", new_column_name="equipment_description"
