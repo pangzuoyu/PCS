@@ -915,6 +915,15 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - services/pipe_class_service.py PipeClassService（管号等级 CRUD + 状态机）
   - **累计**：363 + 3 = **~366 项**（i++++++++++++）
   - **全仓 AST 扫描结果**：0 缺口（class + module funcs + module docstring 全部已补）
+- ✅ (i+++++++++++++) LOW/INFO 滚动继续批 47 项 frontend TS 类型 JSDoc — commit `e5ae90f`
+  - heat.ts 8 项（ExchangerCategory/TemaType/Material + 4 Request/Response + Segment）
+  - vessel.ts 7 项（Orientation/CheckResult/Confidence + Sizing/Hydraulics + 2 Request/Response）
+  - psv.ts 15 项（枚举 + 阀体选型 + FormulaRef + 4 场景/sizing/request/aggregate/relief_area/standard_profile）
+  - pms.ts 4 项（HazardLevel/PmsItem/WizardStep/ProjectWizard）
+  - sepEquip.ts 4 项（CycloneMethod/PadType/SeparatorType/Region）
+  - flash.ts 2 项 / pipe.ts 2 项 / stream.ts 2 项 / pipeClass/pipeNet/pump 各 1 项
+  - **累计**：366 + 47 = **~413 项**（i+++++++++++++）
+  - **基线验证**：tsc --noEmit clean / eslint src/types/ clean / AST 0 缺口
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
@@ -922,7 +931,7 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 3. ✅ ~~P0 MEDIUM 5 项收口~~ — commit 4a3c052 闭环（sync dispose + trace_id + bug-098 修复）
 4. **MEDIUM/LOW/INFO**：
    - ✅ MEDIUM 48 项 — 全部收口（commit a3a8df6，累计 batch a-f+g 闭环）
-   - 🔲 LOW/INFO 滚动（剩余清单入 backlog，待办项持续扫）
+   - 🔲 LOW/INFO 滚动（剩余清单入 backlog，待办项持续扫；前端 TS 类型 JSDoc 已 413 项闭环）
 4. **P5-3 工艺工程师接管**：
    - OPEN-10-1 API526_FLANGE_CLASS_ORIFICE_LIMITS 84 组合（§8 gate #4）
    - OPEN-10-2 真实 Kb 厂商数据（替换合成 _KB_DATA）
