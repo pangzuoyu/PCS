@@ -363,6 +363,12 @@ def calc_relief_area_gb12241(inp: ReliefAreaInput) -> ReliefAreaResult:
     orifice_table_status = "incomplete_fallback"：
     GB 标准孔口表完整数据待 P5-3-6 接 GB 标准孔口表。
     V1 用略保守公式常数（C_d=0.95 vs API 0.975）。
+
+    bug-089 fix（P5-3-8 闭环，2026-09-18）：
+      - R 单位 8314 → 8.314 J/(mol·K)（与 M kg/mol 配对，消除 √1000 偏差）
+      - 等熵因子去掉 k/(k-1) 因子（误用 §5.6.4 subcritical F_2 Eq 18，
+        正确为 §5.6.3 critical flow Eq 9 √[k × (2/(k+1))^((k+1)/(k-1))]）
+    修复后 GB 与 API 仅差 C_d（0.95 vs 0.975 → GB 面积 ≈ API 面积 × 1.026）。
     """
     if inp.P_back_pa <= 0:
         raise PsvReliefAreaInputError(f"P_back={inp.P_back_pa} Pa 必须 > 0")
@@ -371,12 +377,14 @@ def calc_relief_area_gb12241(inp: ReliefAreaInput) -> ReliefAreaResult:
             f"relief_mass_flow_kgs={inp.relief_mass_flow_kgs} 必须 > 0"
         )
 
-    # GB 略保守：C_d=0.95（同 API 气体公式结构；含 M/Z/k 等熵项与 API 一致）
-    # GB 与 API 唯一差异：C_d（GB 0.95 vs API 0.975）
-    R_universal = 8314.462618
+    # bug-089 fix: R 必须 8.314 J/(mol·K) 与 M kg/mol 配对（同 _gas_area_api520）
+    # 原 8314 J/(kmol·K) → 偏差 √1000
+    R_universal = 8.314462618  # J/(mol·K)
     k = inp.k_cp_ratio
+    # bug-089 fix: 等熵因子形式与 API §5.6.3 Eq 9 一致（k/(k-1) 是 subcritical F_2 因子，
+    # 不适用于 critical flow）
     isentropic_factor = math.sqrt(
-        (k / (k - 1.0)) * ((2.0 / (k + 1.0)) ** ((k + 1.0) / (k - 1.0)))
+        k * ((2.0 / (k + 1.0)) ** ((k + 1.0) / (k - 1.0)))
     )
     G_c = (
         _GB12241_GAS_C_D_DEFAULT

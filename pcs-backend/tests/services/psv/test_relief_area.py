@@ -398,6 +398,34 @@ def test_dispatch_W_zero_raises():
 # ============================================================================
 
 
+def test_gb12241_bug089_regression():
+    """bug-089 GB/T 12241 修复回归：R 单位 + k/(k-1) 因子双修。
+
+    修复前：GB 面积 ≈ API 面积 × 20.5x（k=1.4 空气），严重失真
+    修复后：GB 面积 ≈ API 面积 × (0.975/0.95) = 1.0263（仅 C_d 差异）
+
+    锁定：
+      - R = 8.314462618 J/(mol·K)（不是 8314）
+      - 等熵因子 = √[k × (2/(k+1))^((k+1)/(k-1))]（不含 k/(k-1)）
+    """
+    inp = ReliefAreaInput(
+        relief_mass_flow_kgs=5.0, phase="GAS",
+        P_back_pa=100_000.0, P_set_pa=200_000.0,
+        T_k=350.0, M_kg_per_mol=0.02897,  # 空气
+        Z=1.0, k_cp_ratio=1.4,
+    )
+    r_api = calc_relief_area_api520_gas(inp)
+    r_gb = calc_relief_area_gb12241(inp)
+
+    # 仅 C_d 差异 (0.975 vs 0.95 → GB 面积更大 1/0.95 / 1/0.975 = 1.0263 倍)
+    expected_ratio = 0.975 / 0.95
+    actual_ratio = r_gb.area_required_m2 / r_api.area_required_m2
+    assert math.isclose(actual_ratio, expected_ratio, rel_tol=1e-3), (
+        f"bug-089 修复回归：GB/API 面积比 {actual_ratio:.4f} 偏离预期 "
+        f"{expected_ratio:.4f}（rel > 0.1%）"
+    )
+
+
 def test_api_gb_calculation_independence():
     """API 与 GB 公式常数不同，相同输入产出必须不同（证明隔离）。"""
     inp = ReliefAreaInput(
