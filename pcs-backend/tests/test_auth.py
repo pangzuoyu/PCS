@@ -183,3 +183,47 @@ def test_refresh_empty_role_401_invalid_refresh(client):
     r = client.post("/api/v1/auth/refresh", json={"refresh_token": bad_rt})
     assert r.status_code == 401
     assert r.json()["code"] == "INVALID_REFRESH"
+
+
+# --- H-P0-1: JWT decode 必须 exp/iat/sub 三字段必填 ---
+
+
+@pytest.mark.parametrize("missing_field", ["exp", "iat", "sub"])
+def test_decode_token_rejects_missing_required_claim(client, missing_field):
+    """H-P0-1 防回归：token 缺少 exp/iat/sub 任一字段 → 401 INVALID_TOKEN。
+
+    攻击场景：伪造 token 跳过 exp 永不过期；跳过 sub 无主体标识；
+    跳过 iat 绕过最短有效时长审计。后端必须识别并拒绝。
+    """
+    settings = get_settings()
+    payload: dict = {
+        "sub": "alice",
+        "type": "refresh",
+        "role": "DESIGNER",
+        "exp": 9_999_999_999,
+        "iat": 1,
+    }
+    del payload[missing_field]
+    bad_token = jwt.encode(payload, settings.secret_key, algorithm="HS256")
+
+    # /refresh 路径：缺 exp/iat/sub → decode_token 抛 MissingRequiredClaimError
+    r = client.post("/api/v1/auth/refresh", json={"refresh_token": bad_token})
+    assert r.status_code == 401, r.text
+    assert r.json()["code"] == "INVALID_REFRESH"
+
+
+def test_decode_token_rejects_missing_required_claim_on_me(client):
+    """H-P0-1 防回归：/me 路径同样必须含 exp/iat/sub。"""
+    settings = get_settings()
+    payload = {"sub": "alice", "type": "access", "role": "DESIGNER"}  # 缺 exp/iat
+    bad_token = jwt.encode(payload, settings.secret_key, algorithm="HS256")
+    r = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {bad_token}"})
+    assert r.status_code == 401, r.text
+    assert r.json()["code"] == "INVALID_TOKEN"
+
+
+def test_decode_token_accepts_all_required_claims(client):
+    """正常路径：exp/iat/sub 全部存在时 decode 通过。"""
+    token = create_access_token(subject="alice", role="DESIGNER")
+    r = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200

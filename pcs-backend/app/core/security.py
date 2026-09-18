@@ -54,6 +54,15 @@ def create_refresh_token(*, subject: str, role: str) -> str:
 
 
 def decode_token(token: str) -> dict[str, Any]:
-    """解码 JWT。InvalidTokenError / ExpiredSignatureError 由调用方转 PcsError。"""
+    """解码 JWT。InvalidTokenError / ExpiredSignatureError 由调用方转 PcsError。
+
+    H-P0-1 强制要求 exp/iat/sub 三字段必填，防止接受过期/未签发/无主体标识的伪造 token。
+    缺失必填 claim 抛 MissingRequiredClaimError（PyJWTError 子类），调用方 catch 后转 401。
+    """
     settings = get_settings()
-    return jwt.decode(token, settings.secret_key, algorithms=["HS256"])
+    return jwt.decode(
+        token,
+        settings.secret_key,
+        algorithms=["HS256"],
+        options={"require": ["exp", "iat", "sub"]},
+    )
