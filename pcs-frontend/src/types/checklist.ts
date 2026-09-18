@@ -7,6 +7,7 @@
  * - ChecklistCompleteness：项目级完整度汇总（required_total / required_verified / required_assumed / required_blocked）
  */
 
+/** Checklist 条目状态：未开始 NOT_STARTED / 进行中 IN_PROGRESS / 已校核 VERIFIED / 已假设 ASSUMED / 不适用 NOT_APPLICABLE。 */
 export type ChecklistStatus =
   | 'NOT_STARTED'
   | 'IN_PROGRESS'
@@ -14,8 +15,10 @@ export type ChecklistStatus =
   | 'ASSUMED'
   | 'NOT_APPLICABLE';
 
+/** Checklist 条目类别：必填 REQUIRED / 条件必填 CONDITIONAL / 可选 OPTIONAL。 */
 export type ChecklistCategory = 'REQUIRED' | 'CONDITIONAL' | 'OPTIONAL';
 
+/** Checklist 单条记录：项目下条目（key + label + module + 类别 + 是否必填 + 输入值 JSON + 状态 + 校核者/时间/假设原因 + 备注）。 */
 export interface ChecklistItem {
   checklist_id: string;
   project_id: string;
@@ -33,6 +36,7 @@ export interface ChecklistItem {
   note: string | null;
 }
 
+/** Checklist 更新请求：状态 + 可选输入值/来源/假设原因。 */
 export interface ChecklistItemPut {
   status: ChecklistStatus;
   input_value_json?: Record<string, unknown> | null;
@@ -40,6 +44,7 @@ export interface ChecklistItemPut {
   assumption_reason?: string | null;
 }
 
+/** Checklist 新建请求：key + label + 可选 module/类别/必填/备注。 */
 export interface ChecklistItemCreate {
   item_key: string;
   item_label: string;
@@ -49,6 +54,7 @@ export interface ChecklistItemCreate {
   note?: string | null;
 }
 
+/** 项目 Checklist 完整度汇总：总数 + 必填总数/已校核/已假设/阻塞数 + 完整度百分比。 */
 export interface ChecklistCompleteness {
   project_id: string;
   total: number;

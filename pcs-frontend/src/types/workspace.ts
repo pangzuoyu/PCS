@@ -9,6 +9,7 @@
 
 export type WorkspaceType = 'FORMAL' | 'PERSONAL' | 'TEMPORARY';
 
+/** 工作区：UUID + 类型 + 名称 + 关联项目 ID + 拥有者 ID + 创建/最近活跃时间 + 保留天数（仅 TEMPORARY）。 */
 export interface Workspace {
   workspace_id: string;
   workspace_type: WorkspaceType;
@@ -20,6 +21,7 @@ export interface Workspace {
   retention_days: number | null;
 }
 
+/** 创建工作区请求：类型 + 名称 + 可选项目 ID + 可选保留天数。 */
 export interface WorkspaceCreate {
   workspace_type: WorkspaceType;
   name: string;
@@ -27,6 +29,7 @@ export interface WorkspaceCreate {
   retention_days?: number | null;
 }
 
+/** 工作区导入响应：UUID + 是否成功 + 导入记录数。 */
 export interface WorkspaceImportResponse {
   workspace_id: string;
   imported: boolean;
