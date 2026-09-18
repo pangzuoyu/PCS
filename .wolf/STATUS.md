@@ -453,22 +453,35 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 
 ---
 
+## ✅ Done (P0 MEDIUM 5 项收口 — 2026-09-18)
+
+| # | P0-MED | 修复 | commit |
+|---|--------|------|--------|
+| 1 | P0-MED-002 sync engine dispose on shutdown | lifespan try/finally 释放 sync + async engine 连接池 | `4a3c052` |
+| 2 | P0-MED-003 trace_id contextvar 传播 | ContextVar + TraceIdFilter + JsonFormatter 注入 | `4a3c052` |
+| 3 | P0-MED-004 secret_key 默认值移除 | 开发自动生成 + production fail-fast | `513d751` |
+| 4 | P0-MED-006 LoginRequest password min_length 0→1 | 空密码直接 422 | `9630b2c` |
+| 5 | P0-MED-007 ACL _user_attr 空集合 false-deny 修复 | 空 list/set 返回 None（非假 deny） | `d4ecdf5` |
+
+**bug-098**：ContextVar.reset(token) 误用 contextvars.reset(token) → 28 测试失败
+- 修正：`_trace_id_var.reset(token)`（实例方法），模块顶层导入避免函数内 import 开销
+- 修正后 baseline 2215 pass 干净
+
+---
+
 ## 🚀 Next quest
 
-**Goal:** HIGH 专项 Sprint 后续 P1/P2/P5-123/P5-3 fe/P5-4d fe 高优收口（18 项 HIGH）
+**Goal:** MEDIUM/LOW/INFO 48 项 backlog（滚动）
 
 ### 当前进度
-- ✅ (a) buglog.json fix_commit（C5/C7/C8/C9/C10/C6 7 项）— commit `4b670c5`
-- ✅ (b) HIGH 专项 P0 auth hardening 4 项（H-P0-1/2/3/4）— commit `e7f0f7e`
-- ✅ (c) C7 两相流 ω 法（bug-086）— commit `77d5898`
-- ✅ (d) OPEN-10 后端契约扩展（15 commit 含 21 列迁移 + 13 PcsError + 30+ 测试）— commit `b48c0f4` / `ce1ee69`
-- ✅ (e) **P5-3-7 Annex C.2.2 Two-Point Omega Method 完整实现** — commit `b83a3a0`（bug-094, 25 例单测, PDF §C.2.2.2-3 独立复算 rel<1.5%）
-- 🔲 **下一批**：HIGH 非 P0 类 18 项（P1×3 / P2×3 / P5-123×5 / P5-3 fe×3 / P5-4d fe×4）
+- ✅ (a) P0 MEDIUM 5 项收口 — commit `4a3c052`（含 sync dispose + trace_id 传播 + bug-098 修复）
+- 🔲 **下一批**：MEDIUM 滚动首批 — P1×3 / P2×3 / P5-123×4 / P5-4 detail×6 / P5c×1 / P5-3 fe×7
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
 2. ✅ ~~P5-3-8 GB/T 12241 bug-089 修复~~ — commit 473b009 闭环（C6 完全关闭）
-3. **MEDIUM/LOW/INFO**：48 项未处理（入 backlog，滚动）
+3. ✅ ~~P0 MEDIUM 5 项收口~~ — commit 4a3c052 闭环（sync dispose + trace_id + bug-098 修复）
+4. **MEDIUM/LOW/INFO**：剩余 48 项未处理（入 backlog，滚动）
 4. **P5-3 工艺工程师接管**：
    - OPEN-10-1 API526_FLANGE_CLASS_ORIFICE_LIMITS 84 组合（§8 gate #4）
    - OPEN-10-2 真实 Kb 厂商数据（替换合成 _KB_DATA）
