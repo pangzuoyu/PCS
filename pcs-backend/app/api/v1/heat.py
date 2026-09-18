@@ -89,12 +89,14 @@ class HeatResultResponse(BaseModel):
 
     calc_id: uuid.UUID = Field(..., description="HeatResult.heat_exchanger_id")
     calc_type: str = Field("HEAT", description="计算类型（固定 HEAT）")
-    project_id: uuid.UUID
-    workspace_id: uuid.UUID
-    tag_number: str
-    equipment_no: str | None
-    equipment_name: str | None
-    exchanger_category: str
+    project_id: uuid.UUID = Field(..., description="项目 ID")
+    workspace_id: uuid.UUID = Field(..., description="工作区 ID")
+    tag_number: str = Field(..., description="HeatResult 业务 tag")
+    equipment_no: str | None = Field(None, description="设备位号")
+    equipment_name: str | None = Field(None, description="设备名")
+    exchanger_category: str = Field(
+        ..., description="换热器类别：SHELL_TUBE / AIR_COOL / PLATE"
+    )
     duty: float | None = Field(None, description="热负荷 W（P7 UTIL 消费）")
     record_hash: str | None = Field(None, description="16 hex 数值规范化哈希")
     input_json: dict[str, Any] = Field(
@@ -118,27 +120,27 @@ class WeightEstimateRequest(BaseModel):
     )
     head_count: int = Field(default=2, ge=0, description="封头数（默认 2）")
     head_straight_m: float = Field(default=0.025, ge=0, description="椭圆封头直边段 m")
-    flange_count: int = Field(default=2, ge=0)
+    flange_count: int = Field(default=2, ge=0, description="法兰对数")
     flange_class: str = Field(default="300#", description="ASME B16.5 Class")
-    flange_size_dn: int = Field(default=600, gt=0)
-    nozzle_count: int = Field(default=4, ge=0)
-    nozzle_size_dn: int = Field(default=100, gt=0)
-    saddle_count: int = Field(default=2, ge=0)
-    saddle_size_dn: int = Field(default=600, gt=0)
-    tube_count: int = Field(default=0, ge=0)
-    tube_od_m: float = Field(default=0.0, ge=0)
-    tube_thickness_m: float = Field(default=0.0, ge=0)
-    tube_length_m: float = Field(default=0.0, ge=0)
-    baffle_count: int = Field(default=0, ge=0)
-    baffle_diameter_m: float = Field(default=0.0, ge=0)
-    baffle_thickness_m: float = Field(default=0.0, ge=0)
+    flange_size_dn: int = Field(default=600, gt=0, description="法兰口径 DN")
+    nozzle_count: int = Field(default=4, ge=0, description="接口数")
+    nozzle_size_dn: int = Field(default=100, gt=0, description="接口口径 DN")
+    saddle_count: int = Field(default=2, ge=0, description="鞍座数")
+    saddle_size_dn: int = Field(default=600, gt=0, description="鞍座口径 DN")
+    tube_count: int = Field(default=0, ge=0, description="管束数")
+    tube_od_m: float = Field(default=0.0, ge=0, description="管外径 m")
+    tube_thickness_m: float = Field(default=0.0, ge=0, description="管壁厚 m")
+    tube_length_m: float = Field(default=0.0, ge=0, description="管长 m")
+    baffle_count: int = Field(default=0, ge=0, description="折流板数")
+    baffle_diameter_m: float = Field(default=0.0, ge=0, description="折流板直径 m")
+    baffle_thickness_m: float = Field(default=0.0, ge=0, description="折流板厚度 m")
 
 
 class WeightSegmentResponse(BaseModel):
     """单段重量 + 公式来源标注。"""
 
-    weight_kg: float
-    formula_ref: str
+    weight_kg: float = Field(..., description="该段重量 kg")
+    formula_ref: str = Field(..., description="公式来源标注（如 TEMA 9th §4.3）")
 
 
 class WeightEstimateResponse(BaseModel):
