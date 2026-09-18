@@ -1319,7 +1319,7 @@
       "occurrences": 1,
       "last_seen": "2026-09-18",
       "severity": "CRITICAL",
-      "fix_commit": "TBD (this commit)"
+      "fix_commit": "a751e32"
     },
     {
       "id": "bug-083",
@@ -1338,7 +1338,7 @@
       "occurrences": 1,
       "last_seen": "2026-09-18",
       "severity": "CRITICAL",
-      "fix_commit": "TBD (this commit)"
+      "fix_commit": "c61dfcc"
     },
     {
       "id": "bug-084",
@@ -1357,7 +1357,7 @@
       "occurrences": 1,
       "last_seen": "2026-09-18",
       "severity": "CRITICAL",
-      "fix_commit": "TBD (this commit)"
+      "fix_commit": "eebd944"
     },
     {
       "id": "bug-085",
@@ -1376,7 +1376,7 @@
       "occurrences": 1,
       "last_seen": "2026-09-18",
       "severity": "CRITICAL",
-      "fix_commit": "TBD (this commit)"
+      "fix_commit": "2ce44e1"
     },
     {
       "id": "bug-086",
@@ -1396,7 +1396,7 @@
       "occurrences": 1,
       "last_seen": "2026-09-18",
       "severity": "CRITICAL",
-      "fix_commit": "TBD (this commit)"
+      "fix_commit": "77d5898"
     },
     {
       "id": "bug-087",
@@ -1415,7 +1415,7 @@
       "occurrences": 1,
       "last_seen": "2026-09-18",
       "severity": "CRITICAL",
-      "fix_commit": "TBD (this commit)"
+      "fix_commit": "4d4472c"
     },
     {
       "id": "bug-088",
@@ -1457,7 +1457,7 @@
       "occurrences": 1,
       "last_seen": "2026-09-18",
       "severity": "CRITICAL",
-      "fix_commit": "TBD (this commit)"
+      "fix_commit": "e700271"
     }
   ]
 }
