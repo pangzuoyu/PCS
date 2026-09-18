@@ -127,6 +127,7 @@ class _FakeSession:
         self._class_map[fake_cls] = orm_cls
 
     async def get(self, model_cls: type, pk: Any) -> Any:
+        """ORM 主键查询占位：先查 ORM 真类，失败再回退到 fake 类反向映射。"""
         # 1. 先查 ORM 真类
         obj = self.store.get((model_cls, pk))
         if obj is not None:
@@ -151,6 +152,7 @@ class _FakeSession:
                 self._value = value
 
             def scalar_one_or_none(self) -> Any:
+                """scalar_one_or_none 占位：返回构造时预设的 value（或 None）。"""
                 return self._value
 
         for (_m_cls, _), obj in self.store.items():
@@ -159,6 +161,7 @@ class _FakeSession:
         return _Result(None)
 
     def add(self, obj: Any) -> None:
+        """记录 add 调用 + 自动补 deliverable_id/detail_id PK + 同步 ORM 真类索引。"""
         self.added.append(obj)
         # 自动设置 PK
         if isinstance(obj, _FakeDeliverable) and not getattr(obj, "deliverable_id", None):
@@ -173,9 +176,11 @@ class _FakeSession:
                 self.store[(orm_cls, pk)] = obj
 
     async def commit(self) -> None:
+        """commit 计数自增（service 断言事务提交次数）。"""
         self.commits += 1
 
     async def flush(self) -> None:
+        """flush 占位（无实际操作）。"""
         return None
 
 

@@ -47,6 +47,7 @@ async def test_create_outlet_stream_deep_copies_properties(monkeypatch):
             return src
 
         def add(self, outlet):
+            """捕获 service 层 add(outlet) 的对象到 captured 字典供断言。"""
             captured["outlet"] = outlet
 
         async def flush(self):

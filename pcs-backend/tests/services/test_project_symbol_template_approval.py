@@ -74,12 +74,15 @@ class _FakeStreamSymbolSession:
         # 永远返回空（不影响 transition 路径；仅依赖 session.get）
         class _Result:
             def scalars(self) -> _Result:
+                """链式 .scalars() 占位（返回自身）。"""
                 return self
 
             def scalar_one_or_none(self) -> Any:
+                """单值 SELECT 占位：空结果返回 None（不影响 transition 路径）。"""
                 return None
 
             def all(self) -> list:
+                """多行 SELECT 占位：返回空列表。"""
                 return []
 
         return _Result()

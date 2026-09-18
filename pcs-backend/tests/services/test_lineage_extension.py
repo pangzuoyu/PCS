@@ -23,6 +23,7 @@ class _FakeSession:
         self.added: list = []
 
     def add(self, obj) -> None:
+        """记录 add 调用，service 用 self.added 断言无写入或顺序。"""
         self.added.append(obj)
 
     async def flush(self) -> None:

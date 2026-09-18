@@ -110,6 +110,7 @@ class _FakeSession:
         self.snapshots: list = []
 
     async def get(self, model_cls: type, pk: Any) -> Any:
+        """ORM 主键查询占位：从 self.store[(model_cls, pk)] 返回（无则 None）。"""
         return self.store.get((model_cls, pk))
 
     async def execute(self, stmt: Any) -> Any:
@@ -125,19 +126,23 @@ class _FakeSession:
                 self._value = value
 
             def scalar_one_or_none(self) -> Any:
+                """scalar_one_or_none 占位：返回外层 execute 选定的 ACTIVE 快照。"""
                 return self._value
 
         return _Result(active)
 
     def add(self, obj: Any) -> None:
+        """记录 add 调用，_FakeSnapshot 还追加到 self.snapshots 供 execute 复用。"""
         self.added.append(obj)
         if isinstance(obj, _FakeSnapshot):
             self.snapshots.append(obj)
 
     async def commit(self) -> None:
+        """commit 计数自增（service 断言事务边界用）。"""
         self.commits += 1
 
     async def flush(self) -> None:
+        """flush 占位（无实际操作）。"""
         return None
 
 

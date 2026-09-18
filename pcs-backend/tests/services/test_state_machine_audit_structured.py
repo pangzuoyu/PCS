@@ -32,10 +32,13 @@ class _FakeStream(Stream):
 
 
 class _FakeSnapshotResult:
+    """execute 返回值占位：构造时绑定 value，scalar_one_or_none 透传。"""
+
     def __init__(self, value: Any) -> None:
         self._value = value
 
     def scalar_one_or_none(self) -> Any:
+        """透传构造时绑定的 value（ACTIVE 快照或 None）。"""
         return self._value
 
 
@@ -47,12 +50,15 @@ class _FakeSession:
         self.active_snapshot = active_snapshot
 
     def add(self, obj: Any) -> None:
+        """记录 add 调用，service 用 self.added 断言写入对象列表。"""
         self.added.append(obj)
 
     async def execute(self, stmt: Any) -> _FakeSnapshotResult:
+        """execute 占位：返回 _FakeSnapshotResult 包裹构造时预设的 ACTIVE 快照。"""
         return _FakeSnapshotResult(self.active_snapshot)
 
     async def flush(self) -> None:
+        """flush 占位（无实际操作）。"""
         return None
 
 

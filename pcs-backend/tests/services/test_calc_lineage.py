@@ -29,6 +29,7 @@ class _FakeSession:
         self.commits = 0
 
     def add(self, obj) -> None:
+        """记录 add 调用（service 层用 self.added 断言）。"""
         self.added.append(obj)
 
     async def flush(self) -> None:

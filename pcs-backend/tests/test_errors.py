@@ -1,3 +1,7 @@
+"""全局异常信封测试：404 / 405 / 422 均走 ErrorResponse 信封（code/trace_id 字段断言）。
+
+覆盖 app/core/errors.py install_exception_handlers 注册的 StarletteHTTPException handler。
+"""
 from fastapi.testclient import TestClient
 
 from app.main import create_app

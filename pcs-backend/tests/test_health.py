@@ -1,3 +1,8 @@
+"""健康检查端点测试：database up/down 与未捕获异常均走 ErrorResponse 信封。
+
+覆盖 /api/v1/health 三场景：DB up → ok / DB down → degraded /
+未捕获异常 → 500 INTERNAL_ERROR 信封（含 trace_id）。
+"""
 from fastapi.testclient import TestClient
 
 from app.main import create_app

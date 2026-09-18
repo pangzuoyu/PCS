@@ -46,6 +46,8 @@ def _base_data(**overrides) -> dict:
 # ---------- PC-V 结构完整性（11 条） ----------
 
 class TestPCV:
+    """PC-V 结构完整性 11 条（V01~V11）。"""
+
     def test_v01_missing_required_fields(self):
         """缺 class_name 触发 PC-V01 ERROR。"""
         data = _base_data()
@@ -126,6 +128,8 @@ class TestPCV:
 # ---------- PC-E 工程一致性（7 条） ----------
 
 class TestPCE:
+    """PC-E 工程一致性 7 条（E01~E07）。"""
+
     def test_e01_carbon_steel_high_temp_warn(self):
         """A106 碳钢 + 450°C → PC-E01 WARN。"""
         data = _base_data(base_material="A106 Gr.B", design_temperature=450)
@@ -185,6 +189,8 @@ class TestPCE:
 # ---------- PC-C 项目上下文（4 条） ----------
 
 class TestPCC:
+    """PC-C 项目上下文 4 条（C01~C04）。"""
+
     def test_c01_project_pressure_over_limit_warn(self):
         """项目压力上限 2.0，等级 2.5 → PC-C01 WARN。"""
         data = _base_data(design_pressure=2.5)
@@ -230,6 +236,8 @@ class TestPCC:
 # ---------- 接口契约附加测试 ----------
 
 class TestInterface:
+    """接口契约附加测试（has_errors / ValidationResult dataclass / ValidationContext 默认值）。"""
+
     def test_has_errors_true_when_error(self):
         """has_errors 命中 ERROR 返回 True。"""
         data = _base_data()

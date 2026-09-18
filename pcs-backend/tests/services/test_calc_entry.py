@@ -43,9 +43,11 @@ class _FakeResult:
         self._rows = rows
 
     def scalars(self) -> _FakeResult:
+        """SQLAlchemy 链式调用 .scalars() 返回自身（_FakeResult 自身支持 all）。"""
         return self
 
     def all(self) -> list:
+        """select(...).scalars().all() 的尾段，返回全部预置行。"""
         return list(self._rows)
 
 
@@ -63,6 +65,7 @@ class _FakeSession:
         self._call_count = 0
 
     async def execute(self, stmt: Any) -> _FakeResult:
+        """execute 占位：按调用顺序分支（1st 返回所有流，2nd 返回 unreliable 流名）。"""
         self._call_count += 1
         if self._call_count == 1:
             # existence + sign_status 查询：返回 fake session 中所有流

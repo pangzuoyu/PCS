@@ -1,3 +1,8 @@
+"""项目模板 Pydantic schema 验证测试（app/schemas/project_template.py）。
+
+覆盖 8 个 config 子 schema + ProjectTemplateConfig 完整加载 +
+ProjectTemplateService.validate_config 抛 PcsError(TEMPLATE_CONFIG_INVALID)。
+"""
 import pytest
 from pydantic import ValidationError
 

@@ -83,29 +83,36 @@ class _FakeSession:
         self.added: list = []
 
     async def get(self, model_cls: type, pk: Any) -> Any:
+        """ORM 主键查询占位：从 self.store[(model_cls, pk)] 返回。"""
         return self.store.get((model_cls, pk))
 
     async def execute(self, stmt: Any) -> Any:
-        # mock：占位（不实际执行查询）
+        """execute 占位：不实际执行查询，返回空 _Result（依赖 db.get 主键查）。"""
         class _Result:
             def scalar_one_or_none(self) -> Any:
+                """scalar_one_or_none 占位：返回 None（不影响 service 路径）。"""
                 return None
 
             def scalars(self) -> _Result:
+                """链式 .scalars() 占位（返回自身）。"""
                 return self
 
             def all(self) -> list:
+                """all 占位：返回空列表。"""
                 return []
 
         return _Result()
 
     def add(self, obj: Any) -> None:
+        """记录 add 调用，service 用 self.added 断言写入对象列表。"""
         self.added.append(obj)
 
     async def commit(self) -> None:
+        """commit 计数自增（service 断言事务提交次数）。"""
         self.commits += 1
 
     async def flush(self) -> None:
+        """flush 占位（无实际操作）。"""
         return None
 
 

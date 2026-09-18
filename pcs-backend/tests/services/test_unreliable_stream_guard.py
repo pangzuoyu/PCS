@@ -31,9 +31,11 @@ class _FakeResult:
         self._names = names
 
     def scalars(self) -> _FakeResult:
+        """链式 .scalars() 占位（返回自身）。"""
         return self
 
     def all(self) -> list[str]:
+        """select(...).scalars().all() 尾段，返回构造时预设的不可靠流名列表。"""
         return self._names
 
 
@@ -44,6 +46,7 @@ class _FakeSession:
         self._names = unreliable_names
 
     async def execute(self, stmt: Any) -> _FakeResult:
+        """execute 占位：返回 _FakeResult 包裹一份不可靠流名副本。"""
         return _FakeResult(list(self._names))
 
 
