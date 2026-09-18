@@ -200,6 +200,47 @@ const devOnlyMockHandlers = [
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
     return HttpResponse.json(mockHeatWeightResult);
   }),
+
+  // === MSW-VESSEL-SEPEQUIP-MISSING — HIGH P5-3 fe — 补 vessel/sep-equip
+  // mock 让前端 MSW 模式与后端契约对齐，避免 per-batch QA 假阴性 ===
+  http.post("/api/v1/vessel/calculate", async ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const body = (await request.json().catch(() => ({}))) as {
+      project_id?: string;
+      tag_number?: string;
+    };
+    return HttpResponse.json(
+      {
+        vessel_id: "00000000-0000-0000-0000-000000000000",
+        project_id: body.project_id ?? "00000000-0000-0000-0000-000000000000",
+        tag_number: body.tag_number ?? "V-001",
+        design_stage: "BASIC",
+        output_json: { mock: true, source: "msw" },
+        record_hash: "msw-vessel-hash",
+        created_at: new Date().toISOString(),
+      },
+      { status: 201 },
+    );
+  }),
+
+  http.post("/api/v1/sep-equip/calculate", async ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const body = (await request.json().catch(() => ({}))) as {
+      project_id?: string;
+      tag_number?: string;
+    };
+    return HttpResponse.json(
+      {
+        sep_id: "00000000-0000-0000-0000-000000000000",
+        project_id: body.project_id ?? "00000000-0000-0000-0000-000000000000",
+        tag_number: body.tag_number ?? "S-001",
+        output_json: { mock: true, source: "msw" },
+        record_hash: "msw-sep-hash",
+        created_at: new Date().toISOString(),
+      },
+      { status: 201 },
+    );
+  }),
 ];
 
 /** P5-3 PSV 计算 mock 响应 — 固定 FIRE 场景输出（V1.2 SPEC §7.11.5 字段对齐） */

@@ -92,8 +92,10 @@ PsvFlangeClass = Literal[
 ]
 
 # PsvKbSource: "none" = API 520 标准定义 1.0；其他 = 厂商/API 520 Fig.30/EN 4126
-# ⚠️ 新增厂商（如 Farris / Crosby）必须同步更新此枚举 + kb_service._KB_DATA
-PsvKbSource = Literal[
+# H-P5-4d-4 — HIGH backend — 改用 str 接受任意 manufacturer:* 和 mixed:* 组合；
+# PsvKbSourceLiteral 仅保留静态枚举（用于前端 select option 与 backward compat）。
+# kb_service.lookup_kb_with_priority 运行时拼接的字符串一律属此范畴。
+PsvKbSourceLiteral = Literal[
     "none",
     "manufacturer:LESER",
     "manufacturer:Consolidated",
@@ -107,6 +109,9 @@ PsvKbSource = Literal[
     "api520_fig30",
     "en4126",
 ]
+
+# H-P5-4d-4 — 运行时扩展：任意 manufacturer:* 和 mixed:* 均合法（用户传入任意厂商名）
+PsvKbSource = str  # 实际合法值范围 = PsvKbSourceLiteral ∪ {"manufacturer:*", "mixed:*"}
 
 # PsvValveBrand: 自由字符串（V1.14 P2-1 修订裁决）
 #    已知品牌：LESER / Consolidated / Anderson_Greenwood / Farris / Crosby
@@ -226,6 +231,7 @@ __all__ = [
     "PsvRuptureDiscPosition",
     "PsvFlangeClass",
     "PsvKbSource",
+    "PsvKbSourceLiteral",
     "PsvValveBrand",
     "ValidatedParams",
     "DEFAULT_VALVE_TYPE",

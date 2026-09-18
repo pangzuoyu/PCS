@@ -211,9 +211,14 @@ const BLOWDOWN_DEFAULT_BY_MEDIUM: Record<PsvMedium, number> = {
   TWO_PHASE: 0.10,
 };
 
-const BACK_PRESSURE_MAX_BY_TYPE: Record<PsvBackPressureType, number> = {
-  BUILT_UP: 10.0,
-  SUPERIMPOSED: 50.0,
+// H-P5-4d-1 — HIGH fe — 嵌套结构（按 valve_type × back_pressure_type 二维），
+// 与后端 valve_selection_types.py BACK_PRESSURE_MAX_BY_TYPE 一致。
+// SPRING_LOADED BUILT_UP=10% 硬限；BALANCED_BELLOWS total ≤ 50%。
+const BACK_PRESSURE_MAX_BY_TYPE: Record<PsvValveType, Record<PsvBackPressureType, number | null>> = {
+  SPRING_LOADED: { BUILT_UP: 10.0, SUPERIMPOSED: null },
+  BALANCED_BELLOWS: { BUILT_UP: 50.0, SUPERIMPOSED: 50.0 },
+  PILOT_OPERATED: { BUILT_UP: null, SUPERIMPOSED: null },
+  RUPTURE_DISC: { BUILT_UP: null, SUPERIMPOSED: null },
 };
 
 const INLET_SIZE_DEFAULT = '4 inch';
@@ -281,6 +286,9 @@ export function PsvComputePage({
   const [ruptureDiscPosition, setRuptureDiscPosition] = useState<PsvRuptureDiscPosition>('NONE');
   const [fireProtection, setFireProtection] = useState<boolean>(false);
   const [serviceNote, setServiceNote] = useState<string>('');
+  // H-P5-4d-3 — G15 Q/R/T 高温低分子量校验输入
+  const [fluidTemperatureC, setFluidTemperatureC] = useState<number | null>(null);
+  const [molecularWeight, setMolecularWeight] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PsvCalculateResponse | null>(null);
   const [allResults, setAllResults] = useState<PsvCalculateResponse[] | null>(null);
@@ -414,6 +422,14 @@ export function PsvComputePage({
             rupture_disc_position: ruptureDiscPosition,
             fire_protection: fireProtection,
             service_note: serviceNote || null,
+            // H-P5-4d-2 — CDTP 修正（仅 SUPERIMPOSED 时生效）
+            superimposed_pressure_pa:
+              backPressureType === 'SUPERIMPOSED' && backPressurePct > 0
+                ? (backPressurePct / 100) * (formValues.P_set_pa as number)
+                : null,
+            // H-P5-4d-3 — G15 Q/R/T 高温低分子量校验（API 520 §5.3.4）
+            fluid_temperature_c: fluidTemperatureC,
+            molecular_weight: molecularWeight,
           };
           return psvApi.calculate(req);
         }),
@@ -463,7 +479,7 @@ export function PsvComputePage({
         message.error(`手动孔口面积小于计算面积：${msg}`);
       } else if (code === 'PSV_BACK_PRESSURE_EXCEEDED') {
         // G10
-        message.error(`背压超阀型范围（${valveType}：${BACK_PRESSURE_MAX_BY_TYPE[backPressureType]}%）：${msg}`);
+        message.error(`背压超阀型范围（${valveType}：${BACK_PRESSURE_MAX_BY_TYPE[valveType]?.[backPressureType] ?? 'N/A'}%）：${msg}`);
       } else if (code === 'PSV_BLOWDOWN_OUT_OF_RANGE') {
         // G11
         message.error(`blowdown 超 (${valveType}, ${medium}) 范围 ${blowdownRange[0] * 100}%~${blowdownRange[1] * 100}%：${msg}`);
@@ -572,6 +588,10 @@ export function PsvComputePage({
                 setFireProtection={setFireProtection}
                 serviceNote={serviceNote}
                 setServiceNote={setServiceNote}
+                fluidTemperatureC={fluidTemperatureC}
+                setFluidTemperatureC={setFluidTemperatureC}
+                molecularWeight={molecularWeight}
+                setMolecularWeight={setMolecularWeight}
                 isUnsupportedValveType={isUnsupportedValveType}
                 bellowsConsultWarn={bellowsConsultWarn}
                 cdtpActive={cdtpActive}
@@ -651,6 +671,11 @@ interface InputPanelProps {
   setFireProtection: (v: boolean) => void;
   serviceNote: string;
   setServiceNote: (v: string) => void;
+  // H-P5-4d-3 — G15 Q/R/T 高温低分子量校验输入
+  fluidTemperatureC: number | null;
+  setFluidTemperatureC: (v: number | null) => void;
+  molecularWeight: number | null;
+  setMolecularWeight: (v: number | null) => void;
   // §5.2 联动派生
   isUnsupportedValveType: boolean;
   bellowsConsultWarn: boolean;
@@ -707,6 +732,10 @@ function InputPanel({
   setFireProtection,
   serviceNote,
   setServiceNote,
+  fluidTemperatureC,
+  setFluidTemperatureC,
+  molecularWeight,
+  setMolecularWeight,
   isUnsupportedValveType,
   bellowsConsultWarn,
   cdtpActive,
@@ -995,7 +1024,7 @@ function InputPanel({
                               <InputNumber
                                 data-testid="psv-bp-pct-input"
                                 min={0}
-                                max={BACK_PRESSURE_MAX_BY_TYPE[backPressureType]}
+                                max={BACK_PRESSURE_MAX_BY_TYPE[valveType]?.[backPressureType] ?? 50}
                                 step={0.5}
                                 value={backPressurePct}
                                 onChange={(v) => setBackPressurePct((v as number) ?? 0)}
@@ -1120,6 +1149,40 @@ function InputPanel({
                           placeholder="例如：500 ppm 氯离子、含水 H₂S、热浓硝酸…"
                         />
                       </Form.Item>
+
+                      {/* H-P5-4d-3 — G15 Q/R/T 高温低分子量校验（API 520 §5.3.4）*/}
+                      <Row gutter={16}>
+                        <Col span={12}>
+                          <Form.Item label="流体温度 °C（G15 校验）">
+                            <InputNumber
+                              data-testid="psv-fluid-temperature"
+                              min={-273}
+                              max={1000}
+                              step={1}
+                              value={fluidTemperatureC ?? undefined}
+                              onChange={(v) =>
+                                setFluidTemperatureC(v == null ? null : Number(v))
+                              }
+                              placeholder="例如：250"
+                            />
+                          </Form.Item>
+                        </Col>
+                        <Col span={12}>
+                          <Form.Item label="分子量 kg/kmol（G15 校验）">
+                            <InputNumber
+                              data-testid="psv-molecular-weight"
+                              min={1}
+                              max={500}
+                              step={0.1}
+                              value={molecularWeight ?? undefined}
+                              onChange={(v) =>
+                                setMolecularWeight(v == null ? null : Number(v))
+                              }
+                              placeholder="例如：28 (空气/N₂)"
+                            />
+                          </Form.Item>
+                        </Col>
+                      </Row>
                     </>
                   ),
                 },

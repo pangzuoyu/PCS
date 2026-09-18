@@ -190,6 +190,10 @@ export interface PsvCalculateRequest {
   rupture_disc_position?: PsvRuptureDiscPosition;
   fire_protection?: boolean;
   service_note?: string | null;
+  // H-P5-4d-2 / H-P5-4d-3 — HIGH fe — CDTP 修正 + G15 Q/R/T 高温低分子量校验
+  superimposed_pressure_pa?: number | null;
+  fluid_temperature_c?: number | null;
+  molecular_weight?: number | null;
 }
 
 // ---------------------------------------------------------------------------

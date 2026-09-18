@@ -156,7 +156,11 @@ export function HeatComputePage(): JSX.Element {
       const resp = await heatApi.importHtri({
         file: importFile,
         project_id: PROJECT_ID,
-        workspace_id: PROJECT_ID, // 项目级 workspace 占位；V1.5 接 meta/projects
+        // HEAT-WORKSPACE-ID-INCORRECT — HIGH P5-3 fe — 当前 mock 模式硬复用
+        // PROJECT_ID 作为 workspace_id；后端 schema 仅校验 UUID 不验存在，
+        // 但生产环境启用 workspace 存在性校验后必报 HEAT_PROJECT_MISMATCH/404。
+        // TODO(P5c+)：接入 meta/projects + useCurrentWorkspace 后切真值。
+        workspace_id: PROJECT_ID,
         equipment_no: values.equipment_no,
         tag_number: values.tag_number,
         exchanger_category: values.exchanger_category,
