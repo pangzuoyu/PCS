@@ -178,6 +178,19 @@ class PipeClassService:
 
     @classmethod
     async def delete(cls, session: AsyncSession, class_id: str) -> None:
+        """删除管号等级（强引用检查，仅可作废不可删的场景显式拒绝）。
+
+        步骤：
+        1. 取行（不存在 → PIPE_CLASS_NOT_FOUND 404）
+        2. SUP-002 PC-1 引用检查：
+           - ProjectPipeClass.source_class_id 引用
+           - PipingResult.material_class 引用
+           任一命中 → PIPE_CLASS_IN_USE（409，提示走作废而非删除）
+        3. 删 PipeClass 行（直接 __table__.delete，绕 ORM 避免级联）
+        4. 提交由本函数负责（session.commit()）
+
+        注意：被引用时仅可走 status=OBSOLETE 作废流（preserve 引用完整性）。
+        """
         await cls.get(session, class_id)
         # SUP-002 PC-1：ProjectPipeClass 不再存 class_id FK，改存 source_class_id。
         assigned = (await session.execute(
