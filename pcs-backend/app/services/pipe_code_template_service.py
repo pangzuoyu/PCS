@@ -399,6 +399,12 @@ class PipeCodeTemplateService:
         *,
         config_id: uuid.UUID,
     ) -> ProjectPipeCodeConfig:
+        """取项目管号配置行（不存在抛 404）。
+
+        - db.get 取行（PK 查），不存在 → PROJECT_PIPE_CODE_CONFIG_NOT_FOUND 404
+        - 与 get(template_id) 公司级对应；本函数专项目级
+        - 用于 update_project_config / _project_transition 前的统一入口
+        """
         cfg = await db.get(ProjectPipeCodeConfig, config_id)
         if cfg is None:
             raise PcsError(
