@@ -211,6 +211,20 @@ async def create_project_config(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 项目内自建管号配置（201 Created）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 调 PipeCodeTemplateService.create_project_config：
+       查重 (project_id, config_name) 命中 → PROJECT_PIPE_CODE_CONFIG_DUP 409
+    3. 新增 ProjectPipeCodeConfig（DRAFT，source_template_id=None 表项目自创，
+       snapshot_json=None 表非 fork 来的快照）
+    4. format_definition_json 由调用方直接传入（不拷贝模板）
+    5. service 提交（已 commit），返回新行
+
+    与 fork_project_config 区别：本端点 source_template_id=None，无 snapshot，
+    后续不会被 CIAEngine.propagate_from_source 同步；纯项目本地管号定义。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.create_project_config(
         db,
