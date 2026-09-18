@@ -405,6 +405,21 @@ class PipeCodeTemplateService:
         format_definition_json: dict,
         actor: Any,
     ) -> ProjectPipeCodeConfig:
+        """更新项目内管号配置（仅 DRAFT/PENDING 状态可改）。
+
+        步骤：
+        1. 查行（不存在 → PROJECT_PIPE_CODE_CONFIG_NOT_FOUND 404，由
+           get_project_config() 抛）
+        2. 状态校验：仅 DRAFT/PENDING 允许编辑
+           - 其他（APPROVED/PUBLISHED/OBSOLETE）→
+             PROJECT_PIPE_CODE_CONFIG_LOCKED（409）
+        3. 覆盖 format_definition_json（直接替换整段字典，非合并）
+        4. 提交由本函数负责（db.commit()）
+
+        注意：本函数仅改格式定义，不动 status（状态流转走
+        submit_project/approve_project/reject_project/publish_project/
+        obsolete_project 五态机）。actor 参数当前未使用（保留签名）。
+        """
         cfg = await cls.get_project_config(db, config_id=config_id)
         if cfg.status not in ("DRAFT", "PENDING"):
             raise PcsError(
