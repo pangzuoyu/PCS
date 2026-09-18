@@ -821,6 +821,19 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - src/types/pipe.ts 3 类型 JSDoc（TwoPhasePattern 6 流型 + TwoPhaseResult + PipeResult）
   - src/types/psv.ts 8 类型 JSDoc（ClosedValve/ReactionRunaway/ThermalExpansion ScenarioParams + ScenarioParams 联合 + PsvOrificeResult / PsvResultBody / PsvCalculateResponse / UpsertPsvStandardProfileRequest）
   - **累计**：126 + 17 = **143 项**（i++）
+- ✅ (i+++) LOW/INFO 滚动继续批 42 项 — commit `ef0f50d` + `6ec6d27`
+  - src/types/psv.ts 7 字面量 JSDoc（OrificeSize 14 档 + PsvBellowsMaterial 6 波纹管 + PsvBackPressureType 2 背压 + PsvMedium 4 介质 + PsvPilotTempClass 3 温度等级 + PsvRuptureDiscPosition 3 位置 + PsvFlangeClass 6 法兰等级）
+  - src/types/pipeClass.ts 4 类型 JSDoc（CodeSegmentField 6 + CodeFormatSegment + SymbolCategory 4 + SymbolMapping）
+  - src/types/pipeNet.ts 3 类型 JSDoc（PipeNetEdge + PipeNetGraph + PipeNetValidation 孤立/重复/环路）
+  - src/types/pump.ts 5 类型 JSDoc（PumpFlow 三档 + PumpEfficiency 双效率 + PumpInput + PumpDpSegment + PumpResult）
+  - src/types/sepEquip.ts 5 类型 JSDoc（CycloneParams + MistEliminatorParams + GravitySeparatorParams + Request/Response）
+  - src/types/pms.ts 1 类型 JSDoc（BeddSection BEDD 章节）
+  - src/types/common.ts 3 类型 JSDoc（AllowableStress 许用应力 + HazardClass 三档 + ToxicityClass 毒性）
+  - src/types/flash.ts 1 类型 JSDoc（FlashResult 闪蒸结果 气相分率 + 气液组成 + K 值）
+  - src/types/checklist.ts 6 类型 JSDoc（ChecklistStatus 5 态 + ChecklistCategory 3 类 + ChecklistItem + ChecklistItemPut + ChecklistItemCreate + ChecklistCompleteness）
+  - src/types/records.ts 4 类型 JSDoc（RecordSignStatus 9 态 + StateTransitionName 13 转移 + RecordTransitionRequest + RecordResponse）
+  - src/types/workspace.ts 3 类型 JSDoc（Workspace + WorkspaceCreate + WorkspaceImportResponse）
+  - **累计**：143 + 42 = **185 项**（i+++）
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
