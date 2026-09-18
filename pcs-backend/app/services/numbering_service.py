@@ -32,6 +32,16 @@ class NumberingService:
         self.audit = AuditService(session)
 
     async def next_value(self, project_id: UUID, template_id: UUID, scope_key: str) -> int:
+        """取文档号下一个值（按 (project, template, scope) 行锁串行化）。
+
+        步骤：
+        1. SELECT ... FOR UPDATE 行锁（Postgres 串行化同 scope 并发取号）
+        2. 行不存在则初始化（current_value=0）
+        3. current_value += 1，flush 返回新值
+
+        不主动 commit，flush 后由调用方负责（保证整笔业务原子）。
+        返回新 current_value（≥1）。
+        """
         # SELECT ... FOR UPDATE 行锁 — Postgres 串行化同 scope 的并发
         row = (await self.session.execute(
             select(DocNoSequence).where(
