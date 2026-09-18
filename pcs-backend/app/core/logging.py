@@ -38,6 +38,17 @@ class TraceIdFilter(logging.Filter):
 
 class JsonFormatter(logging.Formatter):
     def format(self, record: logging.LogRecord) -> str:
+        """日志 → 单行 JSON（structlog 风格）。
+
+        步骤：
+        1. 构造 payload：ts/level/logger/msg/trace_id
+           （trace_id 来自 record 注入，由 TraceIdFilter 设置）
+        2. 异常时附 exc（exc_info → str，保留 traceback）
+        3. json.dumps(ensure_ascii=False)：中文日志不转义，便于 ELK 直接读
+
+        输出格式：{"ts": ..., "level": "INFO", "logger": "...", "msg": "...",
+                  "trace_id": "...", "exc": "..."}
+        """
         payload: dict[str, object] = {
             "ts": self.formatTime(record),
             "level": record.levelname,
