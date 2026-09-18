@@ -19,6 +19,11 @@ ADR-0030 V1.1 决策 6 + V1.8 F-13-2：所有 ChEDL 调用必须经本包装层�
   time_to_empty / tank_level_to_volume
   fallback 实现 = 圆柱几何 + 伯努利方程 + 孔口出流
 
+P6-0 扩展（13 → 17 项）：
+- Task 3：6 函数（control_valve_* 3 + flow_meter_* 3，SPEC §3.2.1/3.2.2 简化公式自研）
+- Task 4：4 函数（manning_Q / manning_V / critical_depth_rectangular /
+  hydraulic_jump_y2，SPEC §3.2.6 教科书公式自研，详见 G-01 决策 P6-OPEN-001）
+
 调用示例：
     from app.services import chedl_wrapper
     v = chedl_wrapper.v_Souders_Brown(K=0.1, rhol=1000.0, rhog=1.2)
@@ -547,12 +552,184 @@ def flow_meter_nozzle(
 
 
 # ============================================================================
+# P6-0 OPEN_CHANNEL wrappers（Task 4，Path A：SPEC §3.2.6 教科书简化公式）
+# ============================================================================
+#
+# 设计决策（ADR-0030 V1.2 + P6-OPEN-001 决策 2026-09-19）：本批 4 函数**不**直调
+# fluids.open_channel / fluids.open_flow，因为：
+#   1. fluids.open_channel 不存在（ModuleNotFoundError，G-01 核验确认）
+#   2. fluids.open_flow（38 个导出符号）REQUIRED 命中仅 1/5（V_Manning），
+#      缺失 4 函数：Manning / Manning_flow / critical_depth / hydraulic_radius
+#   3. brief 签名（Manning_Q/V / 矩形 y_c / Bélanger y2）属教科书工程简化公式，
+#      不需要流体物性入参（mu/ρ），与 fluids 完整 API 不匹配
+#   4. SPEC §3.2.6 line 256-279 已给出 OPEN_CHANNEL 模块功能描述（Manning 公式、
+#      临界水深、Froude 数判定、水跃计算），brief 4 函数为标准教科书公式
+#   5. 与 Task 3 CV/RESTRICTION 同模式（Path A 自研），保持包装层一致性
+#
+# 兜底架构（P6-OPEN-001 §四）：OPEN_CHANNEL 模块实施时，本批 4 函数作为前置依赖；
+# P6-3 Task 31 open_channel_wrapper 在本批之上叠加梯形/圆形断面几何与水跃迭代求解。
+# 工艺工程师 Owner（Manning n 值 / 临界水深 / 水跃 golden 值校核）由 P6-3 负责，
+# 本批仅提供基础教科书公式。
+
+
+def manning_Q(n: float, A_m2: float, Rh_m: float, S: float) -> float:
+    """Manning 流量计算（SPEC §3.2.6 line 256-279 教科书简化公式）。
+
+    **Path A 自研实现**：不调 fluids.open_channel / fluids.open_flow（Manning / Manning_flow
+    缺失）。采用明渠水力学教科书 Manning 公式：
+
+        Q = (1/n) · A · Rh^(2/3) · S^(1/2)
+
+    其中：
+        n：Manning 糙率系数（无量纲，典型混凝土 0.013 / 土渠 0.025）
+        A：过水断面面积 (m²)
+        Rh：水力半径 (m)，Rh = A / P（P 为湿周）
+        S：渠底坡度（无量纲，典型 0.0001 ~ 0.01）
+
+    适用条件：
+        均匀流（正常水深 = 设计水深）
+        紊流（Re > 某些阈值，自动满足除非极端低 Re）
+        单相水流（不含泥沙/高浓度）
+
+    已知限制：
+        - Manning n 不在本层校验（糙率取值合理性由调用方/P6-3 OPEN_CHANNEL 负责）
+        - A / Rh 应由断面几何函数（P6-3 提供）预计算
+        - 不含非均匀流加速/减速项（仅稳态均匀流）
+
+    Args:
+        n: Manning 糙率系数（无量纲）
+        A_m2: 过水断面面积 (m²)
+        Rh_m: 水力半径 (m)
+        S: 渠底坡度（无量纲，应 > 0）
+
+    Returns:
+        体积流量 (m³/s)
+    """
+    if n <= 0:
+        raise ValueError(f"manning_Q Manning n 必须正数：n={n}")
+    if A_m2 <= 0 or Rh_m <= 0:
+        raise ValueError(
+            f"manning_Q 几何参数必须正数：A_m2={A_m2}, Rh_m={Rh_m}"
+        )
+    if S <= 0:
+        raise ValueError(
+            f"manning_Q 坡度 S 必须正数（均匀流降坡，逆坡用 P6-3 非均匀流模块）：S={S}"
+        )
+    return (1.0 / n) * A_m2 * (Rh_m ** (2.0 / 3.0)) * math.sqrt(S)
+
+
+def manning_V(n: float, Rh_m: float, S: float) -> float:
+    """Manning 流速计算（SPEC §3.2.6 line 256-279 教科书简化公式）。
+
+    **Path A 自研实现**：Manning 流速形式（Q = V·A）：
+
+        V = (1/n) · Rh^(2/3) · S^(1/2)
+
+    Args:
+        n: Manning 糙率系数（无量纲）
+        Rh_m: 水力半径 (m)
+        S: 渠底坡度（无量纲，应 > 0）
+
+    Returns:
+        断面平均流速 (m/s)
+    """
+    if n <= 0:
+        raise ValueError(f"manning_V Manning n 必须正数：n={n}")
+    if Rh_m <= 0:
+        raise ValueError(f"manning_V 水力半径必须正数：Rh_m={Rh_m}")
+    if S <= 0:
+        raise ValueError(f"manning_V 坡度 S 必须正数：S={S}")
+    return (1.0 / n) * (Rh_m ** (2.0 / 3.0)) * math.sqrt(S)
+
+
+def critical_depth_rectangular(Q_m3s: float, b_m: float) -> float:
+    """矩形渠临界水深（SPEC §3.2.6 line 267 + P6-OPEN-001 §三 公式）。
+
+    **Path A 自研实现**：矩形断面临界水深（Bélanger 临界流条件 Fr = 1）：
+
+        y_c = (Q² / (g · b²))^(1/3) = (q² / g)^(1/3)
+
+    其中 q = Q/b 为单宽流量，g = 9.80665 m/s²。
+
+    适用条件：
+        矩形断面（梯形/圆形需 P6-3 OPEN_CHANNEL 通用迭代法）
+        Fr = 1（临界流，由 Fr 数定义 V/√(g·D_h) = 1 推导）
+        不可压缩流体（明渠自由表面流）
+
+    已知限制：
+        - 仅矩形断面；梯形/圆形留 P6-3 OPEN_CHANNEL
+        - 假设平坡渠底（无显著坡度修正，临界水深定义独立于 S）
+        - 不含非棱柱体断面变化
+
+    Args:
+        Q_m3s: 体积流量 (m³/s)
+        b_m: 渠宽 (m)，矩形断面顶宽
+
+    Returns:
+        临界水深 (m)
+    """
+    if Q_m3s <= 0:
+        raise ValueError(
+            f"critical_depth_rectangular 流量必须正数：Q_m3s={Q_m3s}"
+        )
+    if b_m <= 0:
+        raise ValueError(
+            f"critical_depth_rectangular 渠宽必须正数：b_m={b_m}"
+        )
+    # y_c = (Q²/(g·b²))^(1/3)
+    return ((Q_m3s ** 2) / (_G * (b_m ** 2))) ** (1.0 / 3.0)
+
+
+def hydraulic_jump_y2(y1: float, Fr1: float) -> float:
+    """矩形断面水跃共轭水深（SPEC §3.2.6 line 269 + Bélanger 方程）。
+
+    **Path A 自研实现**：Bélanger 方程（矩形断面共轭水深比）：
+
+        y2/y1 = 0.5 · (√(1 + 8·Fr1²) - 1)
+
+    即：
+
+        y2 = y1 · 0.5 · (√(1 + 8·Fr1²) - 1)
+
+    其中：
+        y1：跃前水深（m，上游急流水深，Fr1 > 1）
+        Fr1：跃前 Froude 数（无量纲，Fr1 = V1/√(g·y1)）
+
+    适用条件：
+        矩形断面（梯形渠水跃公式不同，留 P6-3 OPEN_CHANNEL）
+        平坡渠底（无坡度修正）
+        Fr1 > 1（急流）；Fr1 = 1 时 y2 = y1（临界退化）
+        经典水跃（1 < Fr1 < 2.5 摆动水跃；2.5 < Fr1 < 4.5 稳定水跃；
+        Fr1 > 4.5 强水跃，能量耗散大）
+
+    已知限制：
+        - 仅矩形断面；梯形/圆形留 P6-3 OPEN_CHANNEL
+        - 假设水平渠底；陡坡渠水跃含能量方程修正
+        - 不含 Fr1 < 1 输入校验（公式物理上无意义但数学上仍可计算，
+          调用方负责）
+
+    Args:
+        y1: 跃前水深 (m)
+        Fr1: 跃前 Froude 数（无量纲）
+
+    Returns:
+        共轭水深 y2 (m)
+    """
+    if y1 <= 0:
+        raise ValueError(
+            f"hydraulic_jump_y2 跃前水深必须正数：y1={y1}"
+        )
+    # Bélanger 方程：y2 = y1 · 0.5 · (√(1+8·Fr1²) - 1)
+    return y1 * 0.5 * (math.sqrt(1.0 + 8.0 * Fr1 * Fr1) - 1.0)
+
+
+# ============================================================================
 # provenance 接口（运维可观测 + 升级决策依据）
 # ============================================================================
 
 
 def get_chedl_provenance() -> dict[str, ChEDLProvenance]:
-    """返回 13 包装函数的 provenance 字典（7 既有 + 6 P6-0 新增）。
+    """返回 17 包装函数的 provenance 字典（7 既有 + 6 Task 3 + 4 Task 4）。
 
     用于：
     1. 运维可观测（metrics / health endpoint）
@@ -560,7 +737,7 @@ def get_chedl_provenance() -> dict[str, ChEDLProvenance]:
     3. 公式溯源字段（formula_ref.source 关联）
 
     Returns:
-        13 项 {func_name: ChEDLProvenance} 字典
+        17 项 {func_name: ChEDLProvenance} 字典
     """
     # chEDL_function 使用 fluids 完整路径（含包名前缀）
     # 5 直调函数
@@ -715,7 +892,62 @@ def get_chedl_provenance() -> dict[str, ChEDLProvenance]:
             fallback_formula_ref="spec_p6_3.2.2.3_isa_1932",
         ),
     }
-    return {**prov_direct, **prov_fallback, **prov_p6_0}
+    # 4 P6-0 OPEN_CHANNEL 函数（Task 4，Path A：SPEC §3.2.6 教科书公式自研）
+    prov_p6_0_t4: dict[str, ChEDLProvenance] = {
+        "manning_Q": ChEDLProvenance(
+            chEDL_function="spec_p6_3.2.6_simplified",  # 不调 fluids（Path A）
+            chEDL_version=_CHEDL_VERSION,
+            known_limitations=[
+                "P6-0 Task 4 Path A：fluids.open_channel 不存在；fluids.open_flow.Manning_flow "
+                "REQUIRED 命中缺失（G-01 核验）",
+                "教科书 Manning 公式 Q = (1/n)·A·Rh^(2/3)·S^(1/2)，仅适用均匀流",
+                "Manning n 取值合理性由 P6-3 OPEN_CHANNEL 工艺工程师 Owner 校核",
+                "A/Rh 由 P6-3 断面几何函数（梯形/矩形/圆形）提供",
+                "不含非均匀流加速/减速修正（明渠水力学缓变流方程留 P6+）",
+            ],
+            fallback_available=True,
+            fallback_formula_ref="spec_p6_3.2.6_manning_textbook",
+        ),
+        "manning_V": ChEDLProvenance(
+            chEDL_function="spec_p6_3.2.6_simplified",  # 不调 fluids（Path A）
+            chEDL_version=_CHEDL_VERSION,
+            known_limitations=[
+                "P6-0 Task 4 Path A：Q = V·A 推导式 V = (1/n)·Rh^(2/3)·S^(1/2)",
+                "V 与 Q 应满足 V = Q/A 一致性（P6-3 测试保证）",
+                "不调 fluids.open_flow.V_Manning（签名不同：fluids 需要 A/Rh/n/S 但 "
+                "返回值口径与工程单位差异待校核）",
+            ],
+            fallback_available=True,
+            fallback_formula_ref="spec_p6_3.2.6_manning_textbook",
+        ),
+        "critical_depth_rectangular": ChEDLProvenance(
+            chEDL_function="spec_p6_3.2.6_simplified",  # 不调 fluids（Path A）
+            chEDL_version=_CHEDL_VERSION,
+            known_limitations=[
+                "P6-0 Task 4 Path A：仅矩形断面 y_c = (Q²/(g·b²))^(1/3)",
+                "梯形/圆形断面临界水深须迭代求解 Q²/g = A³/T，留 P6-3 OPEN_CHANNEL",
+                "假设平坡渠底（临界水深定义独立于 S）",
+                "P6-OPEN-001 §三：fluids.open_flow.critical_depth REQUIRED 命中缺失",
+            ],
+            fallback_available=True,
+            fallback_formula_ref="spec_p6_3.2.6_rect_critical_depth",
+        ),
+        "hydraulic_jump_y2": ChEDLProvenance(
+            chEDL_function="spec_p6_3.2.6_simplified",  # 不调 fluids（Path A）
+            chEDL_version=_CHEDL_VERSION,
+            known_limitations=[
+                "P6-0 Task 4 Path A：Bélanger 方程仅适用矩形断面",
+                "梯形/圆形断面水跃共轭水深须数值迭代，留 P6-3 OPEN_CHANNEL",
+                "假设水平渠底（陡坡水跃含能量方程修正）",
+                "Fr1 < 1 输入未校验（公式数学上仍可计算但物理无意义，调用方负责）",
+                "P6-OPEN-001 §三：fluids.open_flow.hydraulic_radius REQUIRED 命中缺失"
+                "（注：fl 流体库无直接共轭水深 API，需由 R+A 计算）",
+            ],
+            fallback_available=True,
+            fallback_formula_ref="spec_p6_3.2.6_belanger_rect_jump",
+        ),
+    }
+    return {**prov_direct, **prov_fallback, **prov_p6_0, **prov_p6_0_t4}
 
 
 __all__ = [
@@ -733,5 +965,9 @@ __all__ = [
     "flow_meter_orifice",
     "flow_meter_venturi",
     "flow_meter_nozzle",
+    "manning_Q",
+    "manning_V",
+    "critical_depth_rectangular",
+    "hydraulic_jump_y2",
     "get_chedl_provenance",
 ]

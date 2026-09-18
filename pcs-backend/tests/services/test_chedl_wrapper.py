@@ -129,21 +129,21 @@ def test_tank_level_to_volume_fallback_path():
 # ============================================================================
 
 
-def test_get_chedl_provenance_returns_13_entries():
-    """get_chedl_provenance() 必须返回 13 项（5 直调 + 2 fallback + 6 P6-0）。
+def test_get_chedl_provenance_returns_17_entries():
+    """get_chedl_provenance() 必须返回 17 项（5 直调 + 2 fallback + 6 Task 3 + 4 Task 4）。
 
-    P6-0 Task 3 扩展：原 7 项 → 13 项，新增 6 项 CV/RESTRICTION 函数
-    （控制阀 3 + 流量计 3）。
+    P6-0 Task 3 扩展：原 7 项 → 13 项，新增 6 项 CV/RESTRICTION 函数。
+    P6-0 Task 4 扩展：13 项 → 17 项，新增 4 项 OPEN_CHANNEL 函数（Manning×2 + 临界水深 + 水跃）。
     """
     prov = chedl_wrapper.get_chedl_provenance()
     assert isinstance(prov, dict)
-    assert len(prov) == 13, (
-        f"provenance 应有 13 项，实际 {len(prov)}: {list(prov.keys())}"
+    assert len(prov) == 17, (
+        f"provenance 应有 17 项，实际 {len(prov)}: {list(prov.keys())}"
     )
 
 
 def test_get_chedl_provenance_contains_all_functions():
-    """provenance 字典键必须含全部 13 包装函数名。"""
+    """provenance 字典键必须含全部 17 包装函数名。"""
     prov = chedl_wrapper.get_chedl_provenance()
     expected = {
         # 既有 7 项
@@ -161,6 +161,11 @@ def test_get_chedl_provenance_contains_all_functions():
         "flow_meter_orifice",
         "flow_meter_venturi",
         "flow_meter_nozzle",
+        # P6-0 4 项（Task 4）
+        "manning_Q",
+        "manning_V",
+        "critical_depth_rectangular",
+        "hydraulic_jump_y2",
     }
     assert set(prov.keys()) == expected, (
         f"provenance 键不匹配。缺失: {expected - set(prov.keys())}，"
@@ -668,3 +673,266 @@ def test_control_valve_cv_gas_rejects_choked_negative_Y():
             gamma=1.4,
             xT=0.1,  # 极端小 xT
         )
+
+
+# ============================================================================
+# P6-0 Task 4：OPEN_CHANNEL 4 函数（Path A：SPEC §3.2.6 教科书简化公式）
+# ============================================================================
+#
+# 设计依据：
+# - R1 ledger 裁决：Path A 自研（不调 fluids.open_flow，brief 工程单位签名不匹配）
+# - SPEC §3.2.6 line 256-279：OPEN_CHANNEL 明渠流（Manning 公式、临界水深、水跃计算）
+# - P6-OPEN-001 决策：fluids.open_channel 缺失 4/5 函数，自研兜底（ADR-0030 决策 7 模式）
+# - 教科书公式：
+#     manning_Q(n, A, Rh, S) = (1/n) · A · Rh^(2/3) · S^(1/2)
+#     manning_V(n, Rh, S) = (1/n) · Rh^(2/3) · S^(1/2)
+#     critical_depth_rectangular(Q, b) = (Q²/(g·b²))^(1/3)   [矩形断面 y_c = (q²/g)^(1/3)]
+#     hydraulic_jump_y2(y1, Fr1) = y1 · 0.5·(√(1+8·Fr1²) - 1)   [共轭水深 Bélanger 方程]
+#
+# 验收：4 函数结果与教科书公式手算值一致（rel <1e-9）。
+
+
+def test_manning_Q_spec_formula():
+    """manning_Q：SPEC §3.2.6 Manning 流量 Q = (1/n)·A·Rh^(2/3)·S^(1/2)。
+
+    手算验证（典型混凝土渠道）：
+        n=0.013, A=2 m², Rh=1 m, S=0.001
+        Q = (1/0.013)·2·1·0.001^0.5 = 76.923·2·1·0.03162 ≈ 4.8661 m³/s
+    边界（n=0.025 天然土渠）：
+        n=0.025, A=2, Rh=1, S=0.001
+        Q = 40·2·1·0.03162 = 2.5298 m³/s
+    """
+    # 标准工况（混凝土 n=0.013）
+    Q_concrete = chedl_wrapper.manning_Q(n=0.013, A_m2=2.0, Rh_m=1.0, S=0.001)
+    expected_concrete = (1.0 / 0.013) * 2.0 * (1.0 ** (2.0 / 3.0)) * math.sqrt(0.001)
+    assert Q_concrete == pytest.approx(expected_concrete, rel=1e-9), (
+        f"混凝土渠道 Q 应为 {expected_concrete}，实际 {Q_concrete}"
+    )
+    # 量级合理（2 m², Rh=1m, S=0.001 典型数 m³/s 量级）
+    assert 4.0 < Q_concrete < 5.0
+
+    # 介质工况（天然土渠 n=0.025）—— 糙率大流量小
+    Q_earth = chedl_wrapper.manning_Q(n=0.025, A_m2=2.0, Rh_m=1.0, S=0.001)
+    expected_earth = (1.0 / 0.025) * 2.0 * (1.0 ** (2.0 / 3.0)) * math.sqrt(0.001)
+    assert Q_earth == pytest.approx(expected_earth, rel=1e-9), (
+        f"土渠 Q 应为 {expected_earth}，实际 {Q_earth}"
+    )
+    # n 增大 → Q 减小（物理意义：糙率大流阻大）
+    assert Q_earth < Q_concrete
+
+
+def test_manning_V_spec_formula():
+    """manning_V：SPEC §3.2.6 Manning 流速 V = (1/n)·Rh^(2/3)·S^(1/2)。
+
+    手算验证：
+        n=0.013, Rh=1 m, S=0.001
+        V = (1/0.013)·1·0.001^0.5 = 76.923·0.03162 ≈ 2.4331 m/s
+    """
+    V_concrete = chedl_wrapper.manning_V(n=0.013, Rh_m=1.0, S=0.001)
+    expected_V = (1.0 / 0.013) * (1.0 ** (2.0 / 3.0)) * math.sqrt(0.001)
+    assert V_concrete == pytest.approx(expected_V, rel=1e-9), (
+        f"混凝土 V 应为 {expected_V}，实际 {V_concrete}"
+    )
+    # 物理意义校验：V = Q/A = 4.8661/2 = 2.4331 m/s
+    Q_concrete = chedl_wrapper.manning_Q(n=0.013, A_m2=2.0, Rh_m=1.0, S=0.001)
+    assert V_concrete == pytest.approx(Q_concrete / 2.0, rel=1e-9), (
+        f"V 应等于 Q/A，实际 V={V_concrete} vs Q/A={Q_concrete / 2.0}"
+    )
+
+
+def test_critical_depth_rectangular_spec_formula():
+    """critical_depth_rectangular：矩形渠临界水深 y_c = (Q²/(g·b²))^(1/3)。
+
+    手算验证：
+        Q=1 m³/s, b=2 m, g=9.80665
+        y_c = (1²/(9.80665·4))^(1/3) = (0.02548)^(1/3) ≈ 0.2937 m
+    """
+    # 单宽流量 q = Q/b = 0.5 m²/s
+    y_c = chedl_wrapper.critical_depth_rectangular(Q_m3s=1.0, b_m=2.0)
+    g = 9.80665
+    expected_y_c = ((1.0 ** 2) / (g * (2.0 ** 2))) ** (1.0 / 3.0)
+    assert y_c == pytest.approx(expected_y_c, rel=1e-9), (
+        f"矩形 y_c 应为 {expected_y_c}，实际 {y_c}"
+    )
+    # 量级合理（q=0.5 m²/s 时 y_c ≈ 0.29 m）
+    assert 0.28 < y_c < 0.30
+
+    # 边界工况：流量翻倍 → y_c 增长 (2)^(2/3) ≈ 1.587 倍
+    y_c_2Q = chedl_wrapper.critical_depth_rectangular(Q_m3s=2.0, b_m=2.0)
+    ratio = y_c_2Q / y_c
+    assert ratio == pytest.approx(2.0 ** (2.0 / 3.0), rel=1e-9), (
+        f"y_c 与 Q^(2/3) 成正比，实际 ratio={ratio}"
+    )
+
+
+def test_hydraulic_jump_y2_spec_formula():
+    """hydraulic_jump_y2：共轭水深 y2 = y1·0.5·(√(1+8·Fr1²) - 1)。
+
+    Bélanger 方程（矩形断面水跃共轭水深）。
+
+    手算验证：
+        y1=0.5 m, Fr1=2.5
+        Fr1²=6.25
+        y2 = 0.5·0.5·(√(1+8·6.25) - 1) = 0.25·(√51 - 1)
+           = 0.25·(7.1414 - 1) = 0.25·6.1414 ≈ 1.5354 m
+    """
+    y2 = chedl_wrapper.hydraulic_jump_y2(y1=0.5, Fr1=2.5)
+    expected_y2 = 0.5 * 0.5 * (math.sqrt(1.0 + 8.0 * 2.5 ** 2) - 1.0)
+    assert y2 == pytest.approx(expected_y2, rel=1e-9), (
+        f"水跃共轭水深 y2 应为 {expected_y2}，实际 {y2}"
+    )
+    # 物理意义校验：Fr1>1（急流）→ y2 > y1（缓流）
+    assert y2 > 0.5, f"Fr1=2.5 急流 → y2 应大于 y1，实际 y2={y2}"
+
+    # 边界：Fr1=1（临界流）→ y2=y1（Bélanger 方程退化）
+    y2_critical = chedl_wrapper.hydraulic_jump_y2(y1=1.0, Fr1=1.0)
+    assert y2_critical == pytest.approx(1.0, rel=1e-9), (
+        f"Fr1=1 临界流 → y2 应等于 y1，实际 {y2_critical}"
+    )
+
+    # 边界：Fr1=4（强水跃）→ y2/y1 显著增大
+    y2_strong = chedl_wrapper.hydraulic_jump_y2(y1=1.0, Fr1=4.0)
+    expected_y2_strong = 0.5 * (math.sqrt(1.0 + 8.0 * 16.0) - 1.0)
+    assert y2_strong == pytest.approx(expected_y2_strong, rel=1e-9), (
+        f"Fr1=4 强水跃 y2 应为 {expected_y2_strong}，实际 {y2_strong}"
+    )
+    assert y2_strong > 5.0, f"Fr1=4 强水跃 → y2/y1 > 5，实际 {y2_strong}"
+
+
+# ============================================================================
+# P6-0 Task 4 provenance 接口扩展（OPEN_CHANNEL 4 函数）
+# ============================================================================
+
+
+def test_get_chedl_provenance_contains_p6_0_task4_four_functions():
+    """provenance 字典键必须含全部 4 个 P6-0 Task 4 新增函数名。"""
+    prov = chedl_wrapper.get_chedl_provenance()
+    expected_p6_0_t4 = {
+        "manning_Q",
+        "manning_V",
+        "critical_depth_rectangular",
+        "hydraulic_jump_y2",
+    }
+    assert expected_p6_0_t4.issubset(set(prov.keys())), (
+        f"provenance 缺 P6-0 Task 4 函数：{expected_p6_0_t4 - set(prov.keys())}"
+    )
+
+
+def test_p6_0_task4_provenance_fallback_metadata():
+    """P6-0 Task 4 4 函数 provenance 必须显式标注 fallback_available=True + fallback_formula_ref。
+
+    Path A 设计决策：fluids.open_channel 缺失 4/5 函数，自研实现依赖 SPEC §3.2.6 教科书公式。
+    """
+    prov = chedl_wrapper.get_chedl_provenance()
+    for fn_name in (
+        "manning_Q",
+        "manning_V",
+        "critical_depth_rectangular",
+        "hydraulic_jump_y2",
+    ):
+        meta = prov[fn_name]
+        assert meta.fallback_available is True, (
+            f"{fn_name} fallback_available 应为 True（Path A 自研）"
+        )
+        assert meta.fallback_formula_ref, (
+            f"{fn_name} fallback_formula_ref 必须非空（SPEC § 公式追溯）"
+        )
+        assert meta.fallback_formula_ref.startswith("spec_p6_"), (
+            f"{fn_name} fallback_formula_ref 应以 'spec_p6_' 开头，"
+            f"实际 {meta.fallback_formula_ref!r}"
+        )
+        assert meta.known_limitations, (
+            f"{fn_name} known_limitations 必须列出（Path A 决策依据）"
+        )
+
+
+def test_p6_0_task4_provenance_chedl_function_spec_p6_3_2_6():
+    """OPEN_CHANNEL 4 函数 provenance 的 chEDL_function 必须以 spec_p6_3.2.6 开头。
+
+    SPEC §3.2.6 是 OPEN_CHANNEL 明渠流的统一锚点。
+    """
+    prov = chedl_wrapper.get_chedl_provenance()
+    for fn_name in (
+        "manning_Q",
+        "manning_V",
+        "critical_depth_rectangular",
+        "hydraulic_jump_y2",
+    ):
+        meta = prov[fn_name]
+        assert meta.chEDL_function.startswith("spec_p6_3.2.6"), (
+            f"{fn_name} chEDL_function 应以 'spec_p6_3.2.6' 开头，"
+            f"实际 {meta.chEDL_function!r}"
+        )
+
+
+# ============================================================================
+# P6-0 Task 4 模块导出契约
+# ============================================================================
+
+
+def test_chedl_wrapper_module_exports_all_17():
+    """chedl_wrapper 模块必须暴露全部 17 包装函数 + get_chedl_provenance（13 + 4 Task 4）。"""
+    import app.services.chedl_wrapper as cw
+
+    required_funcs = [
+        # 既有 7 项
+        "v_Souders_Brown",
+        "K_separator_Watkins",
+        "K_separator_demister_York",
+        "K_Souders_Brown_theoretical",
+        "v_terminal",
+        "API520_round_size",
+        "time_to_empty",
+        "tank_level_to_volume",
+        # P6-0 Task 3 6 项
+        "control_valve_C_liquid",
+        "control_valve_kv_liquid",
+        "control_valve_cv_gas",
+        "flow_meter_orifice",
+        "flow_meter_venturi",
+        "flow_meter_nozzle",
+        # P6-0 Task 4 4 项
+        "manning_Q",
+        "manning_V",
+        "critical_depth_rectangular",
+        "hydraulic_jump_y2",
+        "get_chedl_provenance",
+    ]
+    for fn_name in required_funcs:
+        assert hasattr(cw, fn_name), f"chedl_wrapper 缺 {fn_name}"
+        assert callable(getattr(cw, fn_name)), f"chedl_wrapper.{fn_name} 不可调用"
+
+
+# ============================================================================
+# P6-0 Task 4 参数校验（防御性编程）
+# ============================================================================
+
+
+def test_manning_Q_rejects_non_positive_n():
+    """manning_Q 必须拒绝非正 Manning n（n≤0 无物理意义）。"""
+    with pytest.raises(ValueError, match="Manning"):
+        chedl_wrapper.manning_Q(n=0.0, A_m2=2.0, Rh_m=1.0, S=0.001)
+    with pytest.raises(ValueError, match="Manning"):
+        chedl_wrapper.manning_Q(n=-0.013, A_m2=2.0, Rh_m=1.0, S=0.001)
+
+
+def test_manning_V_rejects_non_positive_S():
+    """manning_V 必须拒绝负坡度 S（S<0 表示逆坡，无物理意义；S=0 视为临界水平态）。"""
+    with pytest.raises(ValueError, match="坡度"):
+        chedl_wrapper.manning_V(n=0.013, Rh_m=1.0, S=-0.001)
+
+
+def test_critical_depth_rectangular_rejects_non_positive_b():
+    """critical_depth_rectangular 必须拒绝非正渠宽 b（b≤0 无断面）。"""
+    with pytest.raises(ValueError, match="渠宽"):
+        chedl_wrapper.critical_depth_rectangular(Q_m3s=1.0, b_m=0.0)
+    with pytest.raises(ValueError, match="渠宽"):
+        chedl_wrapper.critical_depth_rectangular(Q_m3s=1.0, b_m=-1.0)
+
+
+def test_hydraulic_jump_y2_rejects_non_positive_y1():
+    """hydraulic_jump_y2 必须拒绝非正 y1（y1≤0 无上游水深）。"""
+    with pytest.raises(ValueError, match="y1"):
+        chedl_wrapper.hydraulic_jump_y2(y1=0.0, Fr1=2.5)
+    with pytest.raises(ValueError, match="y1"):
+        chedl_wrapper.hydraulic_jump_y2(y1=-0.5, Fr1=2.5)
