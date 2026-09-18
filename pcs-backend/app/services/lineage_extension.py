@@ -18,6 +18,12 @@ from typing import Any, Protocol
 
 
 class _HasHash(Protocol):
+    """Protocol：具有 record_hash 字段的对象契约（lineage 扩展通用接口）。
+
+    业务：所有计算结果类（FlashResult/PsvResult/VesselResult 等 16 表）隐式满足
+    此协议；lineage_extension 用此作为鸭子类型约束，避免循环导入。
+    """
+
     record_hash: str
 
 

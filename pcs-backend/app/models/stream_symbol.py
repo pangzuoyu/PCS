@@ -11,6 +11,12 @@ from app.models.mixins import TimestampMixin
 
 
 class StreamSymbol(TimestampMixin, Base):
+    """公司级流股符号（stream_symbols 表，SUP-002 §7.1）。
+
+    业务：symbol 字段全局唯一（如物料流/能量流/控制信号等类型化符号）；
+    asset_id 反向追溯所属配置资产；is_active 控制可见性（默认 True）。
+    """
+
     __tablename__ = "stream_symbols"
     symbol_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     asset_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -25,6 +31,13 @@ class StreamSymbol(TimestampMixin, Base):
 
 
 class ProjectStreamSymbol(TimestampMixin, Base):
+    """项目级流股符号（project_stream_symbols 表，SUP-002 §7.2）。
+
+    业务：UNIQUE(project_id, symbol) 限定项目内符号唯一；source_symbol_id
+    可空（项目自定义）；snapshot_json 是 fork 时公司级快照；override_json
+    项目级重写（颜色/icon/排序等 UI 属性）。
+    """
+
     __tablename__ = "project_stream_symbols"
     __table_args__ = (
         UniqueConstraint("project_id", "symbol", name="uq_project_stream_symbol"),

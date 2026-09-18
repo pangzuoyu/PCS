@@ -26,6 +26,12 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 class LoginRequest(BaseModel):
+    """登录请求体（POST /auth/login）。
+
+    业务：username 是 LDAP uid（min_length=1 防空）；password 必填（1~200
+    字符防爆破）；登录走 LDAP bind + 派生 role；mock 模式按 MOCK_USERS 表。
+    """
+
     username: str = Field(
         ..., min_length=1, max_length=100, description="登录用户名（LDAP uid）"
     )
@@ -37,6 +43,12 @@ class LoginRequest(BaseModel):
 
 
 class TokenResponse(BaseModel):
+    """JWT token 响应（POST /auth/login 响应体）。
+
+    业务：access_token + refresh_token（bearer 类型）；role + username 同步返回
+    （前端省去再调 /me 取角色）。
+    """
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -45,10 +57,20 @@ class TokenResponse(BaseModel):
 
 
 class RefreshRequest(BaseModel):
+    """刷新 token 请求体（POST /auth/refresh）。
+
+    业务：仅传 refresh_token；服务端校验 jti + 有效期后颁发新 access + refresh。
+    """
+
     refresh_token: str
 
 
 class RefreshResponse(BaseModel):
+    """刷新 token 响应（POST /auth/refresh 响应体）。
+
+    业务：返回新 access_token + 新 refresh_token（jti 轮换防重放）。
+    """
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"
@@ -61,6 +83,11 @@ class LogoutRequest(BaseModel):
 
 
 class MeResponse(BaseModel):
+    """当前用户信息响应（GET /auth/me 端点）。
+
+    业务：仅返回当前 token 用户的 username + role；不含 token 等敏感字段。
+    """
+
     username: str
     role: str
 

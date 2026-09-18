@@ -21,6 +21,12 @@ class PcsError(Exception):
 
 
 class ErrorResponse(BaseModel):
+    """统一错误响应外壳（FastAPI exception handler 序列化输出）。
+
+    业务：code 业务错误码 + message 中文消息 + detail 可选详情 +
+    trace_id 链路追踪 ID（X-Trace-ID header 同值，跨服务日志关联）。
+    """
+
     code: str
     message: str
     detail: Any = None

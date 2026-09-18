@@ -93,6 +93,12 @@ class Deliverable(TimestampMixin, Base):
 
 
 class DeliverableVersion(TimestampMixin, Base):
+    """交付物版本快照（deliverable_versions 表）。
+
+    业务：deliverable_id 关联 deliverables；rev 版本号（如 A1/B2/CN-001）；
+    version_purpose 区分 DRAFT/PUBLISHED/CHANGE_NOTICE 三种用途。
+    """
+
     __tablename__ = "deliverable_versions"
     version_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -154,6 +160,12 @@ class SignatureMatrix(TimestampMixin, Base):
 
 
 class ProjectSignatureMatrixBinding(TimestampMixin, Base):
+    """项目签名矩阵绑定（project_signature_matrix_bindings 表）。
+
+    业务：项目 + 模块（RECORD/STREAM/EQUIP）+ 签名矩阵的 3 元组绑定；
+    一个项目同一模块只能绑定一个矩阵（matrix_id 唯一）。
+    """
+
     __tablename__ = "project_signature_matrix_bindings"
     binding_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -168,6 +180,12 @@ class ProjectSignatureMatrixBinding(TimestampMixin, Base):
 
 
 class CustomerApprovalAttachment(Base):
+    """业主审批附件（customer_approval_attachments 表）。
+
+    业务：deliverable_version_id 关联交付物版本；file_path 物理附件路径；
+    上传/下载走 CustomerApprovalAttachmentService（issue 6 锁定路径）。
+    """
+
     __tablename__ = "customer_approval_attachments"
     attachment_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -187,6 +205,12 @@ class CustomerApprovalAttachment(Base):
 
 
 class ChangeNoticeDetail(TimestampMixin, Base):
+    """变更通知单明细（change_notice_details 表）。
+
+    业务：每次发布后变更需开变更通知单；detail_json 列出本变更影响记录清单
+    （被变更记录 ID + before/after 字段快照 + 变更原因）；与 deliverable_versions 关联。
+    """
+
     __tablename__ = "change_notice_details"
     detail_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -201,6 +225,12 @@ class ChangeNoticeDetail(TimestampMixin, Base):
 
 
 class RecordChangeSnapshot(Base):
+    """记录变更前快照（record_change_snapshots 表，state_machine 9 态机迁移触发）。
+
+    业务：record_type + record_id 索引定位原记录；record_hash + data_snapshot_json
+    是变更前的完整数据；用于状态机 INITIATE_CHANGE/MARK_STALE 等迁移的回溯/对比。
+    """
+
     __tablename__ = "record_change_snapshots"
     snapshot_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4

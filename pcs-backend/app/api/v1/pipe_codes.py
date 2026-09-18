@@ -26,6 +26,12 @@ router = APIRouter(tags=["pipe-codes"])
 
 
 class CreateTemplateRequest(BaseModel):
+    """创建公司级管道代码模板请求体（POST /pipe-code-templates）。
+
+    业务：template_name 全局唯一；format_definition_json 描述代码段结构
+    （PREFIX/SEQ/SUFFIX 等片段定义）；version 默认 "1"。
+    """
+
     template_name: str
     description: str | None = None
     format_definition_json: dict
@@ -33,31 +39,66 @@ class CreateTemplateRequest(BaseModel):
 
 
 class UpdateTemplateRequest(BaseModel):
+    """更新公司级模板请求体（PATCH /pipe-code-templates/{id}）。
+
+    业务：description + format_definition_json + version 三段均可选；
+    版本变更触发 PipeCodeTemplateService 新版本号写入。
+    """
+
     description: str | None = None
     format_definition_json: dict | None = None
     version: str | None = None
 
 
 class ForkProjectConfigRequest(BaseModel):
+    """Fork 公司级模板到项目级配置请求体（POST /project-pipe-code-configs/fork）。
+
+    业务：template_id 引用公司级 pipe_code_templates；config_name 项目内唯一；
+    服务层从公司级拷贝 format_definition_json 到项目级 snapshot_json。
+    """
+
     template_id: UUID
     config_name: str
 
 
 class CreateProjectConfigRequest(BaseModel):
+    """创建项目级管道代码配置请求体（POST /project-pipe-code-configs，纯自定义）。
+
+    业务：config_name 项目内唯一；format_definition_json 项目自定义结构
+    （无公司级源模板）；与 fork 路径互补。
+    """
+
     config_name: str
     format_definition_json: dict
 
 
 class UpdateProjectConfigRequest(BaseModel):
+    """更新项目级管道代码配置请求体（PUT /project-pipe-code-configs/{id}）。
+
+    业务：仅 format_definition_json 可改；config_name 不允许改（防外键断链）。
+    """
+
     format_definition_json: dict
 
 
 class GenerateRequest(BaseModel):
+    """管道代码生成请求体（POST /project-pipe-code-configs/{id}/generate）。
+
+    业务：project_id 限定项目；input_segments 用户输入字段值（与模板
+    format_definition_json 字段对应）；返回生成的完整管道代码字符串。
+    """
+
     project_id: UUID
     input_segments: dict = {}
 
 
 class ValidateRequest(BaseModel):
+    """管道代码验证请求体（POST /project-pipe-code-configs/{id}/validate）。
+
+    业务：project_id + code（待校验的完整管道代码）；返回 SYM-V01~V05
+    等 5 类规则校验结果（含 severity + message + position）。
+    """
+
     project_id: UUID
     code: str
 

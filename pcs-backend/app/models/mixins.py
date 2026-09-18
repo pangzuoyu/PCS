@@ -19,6 +19,12 @@ from app.models.enums import RecordSignStatus9
 
 
 class TimestampMixin:
+    """时间戳 mixin（所有业务表统一审计列；含 created_by + created_at + updated_at）。
+
+    业务：created_at 由 DB server_default=func.now() 自动填，updated_at 通过
+    onupdate=func.now() 自动更新；created_by 记录创建人 ID（可空，匿名操作）。
+    """
+
     created_by: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()

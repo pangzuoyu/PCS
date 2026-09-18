@@ -37,6 +37,13 @@ async def _make_session(ctx: dict) -> AsyncSession:
 
 
 class WorkerSettings:
+    """ARQ worker 配置（连接 Redis + 注册函数 + 启停钩子）。
+
+    业务：functions 注册异步任务（cleanup_expired_workspaces/touch_workspace/
+    scan_stale_incremental 等）；on_startup 初始化 DB session + LRU 缓存预热；
+    on_shutdown 释放连接。
+    """
+
     redis_settings: RedisSettings = RedisSettings()  # overridden in startup
     on_startup = _on_startup
     on_shutdown = _on_shutdown

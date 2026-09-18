@@ -151,6 +151,12 @@ class ReportDefinition(TimestampMixin, Base):
 
 
 class ReportExecutionLog(Base):
+    """报表执行日志（report_execution_logs 表）。
+
+    业务：记录每次报表生成（template_id + user_id + duration + status +
+    output_path）；用于报表运行审计 + 慢查询/失败排查；report_service 异步写入。
+    """
+
     __tablename__ = "report_execution_logs"
     exec_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4

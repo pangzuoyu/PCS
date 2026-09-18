@@ -16,6 +16,12 @@ router = APIRouter(tags=["stream-symbols"])
 
 
 class CreateSymbolRequest(BaseModel):
+    """创建公司级流股符号请求体（POST /stream-symbols）。
+
+    业务：symbol 全局唯一（如 物料流/能量流/控制信号）；name 中文名；
+    category 分类（可选）；version 默认 "1"（DRAFT 起始）。
+    """
+
     symbol: str
     name: str
     category: str | None = None
@@ -23,17 +29,34 @@ class CreateSymbolRequest(BaseModel):
 
 
 class UpdateSymbolRequest(BaseModel):
+    """更新公司级流股符号请求体（PUT /stream-symbols/{id}）。
+
+    业务：name + category 增量更新；symbol 与 version 不允许改（防外键断链）。
+    """
+
     name: str | None = None
     category: str | None = None
 
 
 class ProjectSymbolRequest(BaseModel):
+    """项目级新增流股符号请求体（POST /projects/{id}/stream-symbols）。
+
+    业务：symbol 项目内唯一（与公司级同字面冲突 OK，靠 source_symbol_id 区分）；
+    name + category 可选；项目符号无状态机（DRAFT 直接生效）。
+    """
+
     symbol: str
     name: str
     category: str | None = None
 
 
 class ProjectSymbolUpdateRequest(BaseModel):
+    """项目级流股符号更新请求体（PUT /projects/{id}/stream-symbols/{id}）。
+
+    业务：override 字段重写 + name/category/is_active 增量更新；
+    payload.model_dump(exclude_none=True) 排除 None 避免无意清空。
+    """
+
     override: dict = {}
     name: str | None = None
     category: str | None = None
@@ -41,6 +64,12 @@ class ProjectSymbolUpdateRequest(BaseModel):
 
 
 class ForkProjectSymbolRequest(BaseModel):
+    """Fork 公司级符号到项目请求体（POST /projects/{id}/stream-symbols/fork）。
+
+    业务：symbol_id 可空（None → 复制全部公司级 PUBLISHED 符号）；
+    指定时只 fork 单个；目标 ProjectStreamSymbol.source_symbol_id 保留。
+    """
+
     symbol_id: UUID | None = None
 
 

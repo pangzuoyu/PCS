@@ -38,12 +38,24 @@ router = APIRouter(tags=["pipe-classes"])
 
 
 class ProjectPipeClassForkRequest(BaseModel):
+    """Fork 公司级管号等级到项目级请求体（POST /project-pipe-classes/fork）。
+
+    业务：class_id 引用公司级 pipe_classes.class_id；服务层从公司级拷贝数据
+    到项目级 snapshot_json（保证项目离线运行 + 公司级变更不影响项目）。
+    """
+
     class_id: str = Field(
         ..., min_length=1, max_length=50, description="公司级管号等级 ID"
     )
 
 
 class ProjectPipeClassCreateRequest(BaseModel):
+    """创建项目级管号等级请求体（POST /project-pipe-classes，纯项目自定义）。
+
+    业务：class_name 项目内唯一；data 是项目级基础字段（无公司级来源）；
+    与 fork 路径互补。
+    """
+
     class_name: str = Field(
         ..., min_length=1, max_length=100, description="项目级管号等级名"
     )
@@ -53,12 +65,23 @@ class ProjectPipeClassCreateRequest(BaseModel):
 
 
 class ProjectPipeClassOverrideRequest(BaseModel):
+    """项目级管号等级字段覆盖请求体（PATCH /project-pipe-classes/{id}）。
+
+    业务：override 仅覆盖同名字段（与公司级 fork 后合并）；不影响 snapshot_json。
+    """
+
     override: dict = Field(
         default_factory=dict, description="覆盖字段字典（与公司级同名字段覆盖）"
     )
 
 
 class ProjectPipeClassFullResponse(BaseModel):
+    """项目级管号等级完整响应（GET /project-pipe-classes/{id} 响应体）。
+
+    业务：含 snapshot_json（公司级 fork 快照）+ override_json（项目级覆盖）+
+    status；from_attributes=True 直接绑 ORM 行（ProjectPipeClass）。
+    """
+
     project_class_id: UUID
     project_id: UUID
     source_class_id: str | None
@@ -70,6 +93,12 @@ class ProjectPipeClassFullResponse(BaseModel):
 
 
 class ProjectPipeClassEffectiveResponse(BaseModel):
+    """项目级管号等级生效视图响应（GET /project-pipe-classes/effective/{name}）。
+
+    业务：effective 是 snapshot_json + override_json 合并后的最终生效值；
+    前端用此直接渲染当前实际使用的字段（无需前端做合并）。
+    """
+
     project_id: UUID
     class_name: str
     effective: dict

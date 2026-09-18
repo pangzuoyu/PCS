@@ -10,4 +10,10 @@ NAMING_CONVENTION = {
 
 
 class Base(DeclarativeBase):
+    """SQLAlchemy 声明基类（统一命名约定，避免 alembic autogenerate 噪声）。
+
+    业务：所有 ORM 模型继承 Base；NAMING_CONVENTION 锁定 ix/uq/fk/pk 命名
+    规则（手工建约束时也能命中约定，autogenerate 不报"diff noise"）。
+    """
+
     metadata = MetaData(naming_convention=NAMING_CONVENTION)

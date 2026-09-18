@@ -17,6 +17,12 @@ _DEFAULT_DEV_SECRET_PREFIX = "auto-generated:"  # 仅标记来源，不可见 AP
 
 
 class Settings(BaseSettings):
+    """应用全局配置（pydantic-settings，env 注入 + .env 兜底）。
+
+    业务：env/secret_key/database_url/redis_url/ldap/jwt/cors 等 50+ 配置项；
+    单例 get_settings() lru_cache 缓存；model_validator 兜底 secret_key 派生。
+    """
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     env: str = "development"

@@ -21,6 +21,12 @@ router = APIRouter(prefix="/meta", tags=["meta"])
 
 
 class EnumItem(BaseModel):
+    """枚举单项（meta/enums 端点的标准项；含值/中文 label/顺序/可选色/icon）。
+
+    业务：value 是 DB 存储字面值；label 是中文显示名；order 是枚举顺序；
+    color/icon 仅部分 enum 字段（如 9 态状态机）携带，用于前端状态色和按钮 icon。
+    """
+
     value: str
     label: str
     order: int
@@ -29,6 +35,12 @@ class EnumItem(BaseModel):
 
 
 class EnumsResponse(BaseModel):
+    """19 组枚举字典响应（meta/enums 端点）。
+
+    业务：一次性下发全部 enum 给前端（含 9 态/StreamSignStatus 等全部）；
+    前端通过 enum_group 字段名查表，避免硬编码。
+    """
+
     RecordSignStatus: list[EnumItem]
     StreamSignStatus: list[EnumItem]
     DeliverableSignStatus: list[EnumItem]
@@ -51,6 +63,12 @@ class EnumsResponse(BaseModel):
 
 
 class PermissionItem(BaseModel):
+    """权限矩阵单项（meta/permissions 端点）。
+
+    业务：role 角色 + resource 资源 + action 行为 + permission_code 唯一码 +
+    frontend_behavior（show/disable/tooltip 等前端行为）；前端用此动态渲染按钮。
+    """
+
     role: str
     resource: str
     action: str
@@ -59,6 +77,12 @@ class PermissionItem(BaseModel):
 
 
 class ErrorCodeItem(BaseModel):
+    """错误码字典单项（meta/errors 端点）。
+
+    业务：code 错误码 + http 状态码 + message 默认消息 + ui_behavior 前端响应
+    策略（block_toast/inline_field_error/redirect_to_login/modal_confirm 等）。
+    """
+
     code: str
     http: int
     message: str
@@ -66,6 +90,12 @@ class ErrorCodeItem(BaseModel):
 
 
 class StateTransition(BaseModel):
+    """单条状态机迁移项（meta/state-machine 端点）。
+
+    业务：from_ 源态 + action 事件 + to 目标态 + allowed_roles 允许角色 +
+    preconditions 前置条件 + side_effects 副作用；前端按此禁用/启用按钮。
+    """
+
     model_config = ConfigDict(populate_by_name=True)
 
     from_: str = Field(
@@ -79,11 +109,23 @@ class StateTransition(BaseModel):
 
 
 class StateMachineResponse(BaseModel):
+    """状态机完整响应（meta/state-machine 端点）。
+
+    业务：transitions 全迁移列表 + allowed 各源态允许的事件集合；
+    前端用此渲染 9 态机按钮矩阵 + 提示前置条件。
+    """
+
     transitions: list[StateTransition]
     allowed: dict[str, list[str]]
 
 
 class UiSchemaField(BaseModel):
+    """UI 表单 schema 单字段（meta/ui-schemas/{resource} 端点）。
+
+    业务：path 字段路径 + label 中文标签 + widget 控件类型 + enum_group 关联枚举
+    + visible/hidden_when 条件可见性；驱动前端 SchemaForm 动态生成。
+    """
+
     path: str
     label: str
     widget: str
@@ -101,6 +143,12 @@ class UiSchemaField(BaseModel):
 
 
 class UiSchemaResponse(BaseModel):
+    """UI Schema 响应（meta/ui-schemas/{resource} 端点）。
+
+    业务：schema_version 版本号 + resource 资源名 + fields 字段列表；
+    前端 SchemaForm 直接消费，无需本地硬编码字段。
+    """
+
     schema_version: str
     resource: str
     fields: list[UiSchemaField]

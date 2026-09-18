@@ -2,6 +2,13 @@ import enum
 
 
 class RecordSignStatus9(str, enum.Enum):
+    """记录签审 9 态全集（核心 9 态机，P3 锁定）。
+
+    业务：DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED/STALE/CHANGE_PENDING/
+    CHANGED/REVERSAL_PENDING/OBSOLETE 共 9 态；state_machine.ALLOWED_TRANSITIONS
+    派生迁移表；前端 meta API 用此 enum 渲染状态色 + 按钮。
+    """
+
     DRAFT = "DRAFT"
     IN_APPROVAL = "IN_APPROVAL"
     CHECKED = "CHECKED"
@@ -32,6 +39,12 @@ class StreamSignStatus(str, enum.Enum):
 
 
 class DeliverableSignStatus(str, enum.Enum):
+    """交付物签审状态 4 态（DRAFT/PENDING/APPROVED/OBSOLETE）。
+
+    业务：交付物版本全生命周期（草稿→待审→已批→作废）；与 record_sign_status
+    不同的是交付物不参与 REVERSAL_PENDING（直接 APPROVED 后作废走 OBSOLETE）。
+    """
+
     DRAFT = "DRAFT"
     PENDING = "PENDING"
     APPROVED = "APPROVED"
@@ -39,6 +52,12 @@ class DeliverableSignStatus(str, enum.Enum):
 
 
 class WorkspaceType(str, enum.Enum):
+    """工作区类型 3 类（FORMAL/PERSONAL/TEMPORARY）。
+
+    业务：FORMAL 项目正式工作区（永久）、PERSONAL 个人草稿（90 天 TTL）、
+    TEMPORARY 临时（7 天 TTL）；WorkspaceService.create 按此派生 retention_days。
+    """
+
     FORMAL = "FORMAL"
     PERSONAL = "PERSONAL"
     TEMPORARY = "TEMPORARY"
@@ -121,6 +140,12 @@ class StateTransition(str, enum.Enum):
 
 
 class UserStatus(str, enum.Enum):
+    """用户状态（ACTIVE 活跃 / DISABLED 禁用）。
+
+    业务：用户登录有效性判定（auth 路由 login 校验）；DISABLED 用户禁止
+    任何 token 颁发，但已签发 token 仍可使用至过期（兼容审计追溯）。
+    """
+
     ACTIVE = "ACTIVE"
     DISABLED = "DISABLED"
 

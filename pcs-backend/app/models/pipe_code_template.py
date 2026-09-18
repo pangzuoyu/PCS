@@ -22,6 +22,12 @@ from app.models.mixins import TimestampMixin
 
 
 class PipeCodeTemplate(TimestampMixin, Base):
+    """公司级管道代码模板（pipe_code_templates 表，SUP-002 §11.1）。
+
+    业务：template_name 全局唯一；asset_id 反向追溯所属配置资产
+    （asset_subtype=PIPE_CODE_TEMPLATE）；format_definition_json 描述代码段结构。
+    """
+
     __tablename__ = "pipe_code_templates"
     template_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4,
@@ -37,6 +43,13 @@ class PipeCodeTemplate(TimestampMixin, Base):
 
 
 class ProjectPipeCodeConfig(TimestampMixin, Base):
+    """项目级管道代码配置（project_pipe_code_configs 表，SUP-002 §11.2）。
+
+    业务：UNIQUE(project_id, config_name) 限定每项目每个配置名唯一；
+    source_template_id 可空（项目自定义无源模板）；snapshot_json 是
+    fork 时公司级模板的快照（保证项目离线后可独立运行）。
+    """
+
     __tablename__ = "project_pipe_code_configs"
     __table_args__ = (
         UniqueConstraint("project_id", "config_name", name="uq_project_pipe_code_config"),

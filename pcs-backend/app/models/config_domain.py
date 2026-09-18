@@ -24,6 +24,12 @@ from app.models.mixins import TimestampMixin
 
 
 class ConfigAsset(TimestampMixin, Base):
+    """公司级配置资产（config_assets 表；5 态机 DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）。
+
+    业务：category CATEGORY_1~6 区分 6 类配置（公式/系数/管号/模板/...）；
+    asset_subtype PIPE_CLASS/STREAM_SYMBOL/PIPE_CODE_TEMPLATE 进一步细分子类（V1.4 §0.5/PC-3）。
+    """
+
     __tablename__ = "config_assets"
     asset_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -43,6 +49,12 @@ class ConfigAsset(TimestampMixin, Base):
 
 
 class ConfigVersion(TimestampMixin, Base):
+    """配置资产版本快照（config_versions 表，ConfigAsset 的版本历史）。
+
+    业务：version_code 唯一（asset 内顺序版本号）；parent_version_id 形成版本
+    链（变更/撤销追溯）；content_json 是该版本的完整内容快照。
+    """
+
     __tablename__ = "config_versions"
     version_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -60,6 +72,12 @@ class ConfigVersion(TimestampMixin, Base):
 
 
 class ConfigApproval(TimestampMixin, Base):
+    """配置审批记录（config_approvals 表）。
+
+    业务：version_id 与 config_versions 关联（公司级配置审批）；项目级审批
+    （SUP-002 PC-4）version_id=NULL，project_class_id 关联 project_pipe_classes。
+    """
+
     __tablename__ = "config_approvals"
     approval_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -79,6 +97,12 @@ class ConfigApproval(TimestampMixin, Base):
 
 
 class FormulaDefinition(TimestampMixin, Base):
+    """公式定义（formula_definitions 表，公式引擎核心实体）。
+
+    业务：name + module + category 索引定位；expression 文本（formula_engine
+    compile）；parameters_json / unit_tests_json 锁版（schema 校验入口）。
+    """
+
     __tablename__ = "formula_definitions"
     formula_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -98,6 +122,12 @@ class FormulaDefinition(TimestampMixin, Base):
 
 
 class CoefficientTable(TimestampMixin, Base):
+    """系数表（coefficient_tables 表，工艺系数字典）。
+
+    业务：scope 限定范围（PROCESS/SIZE/MATERIAL）；rows_json 实际系数行
+    （key-value 或多列）；revision 与 ConfigAsset 版本对齐（系数变更追溯）。
+    """
+
     __tablename__ = "coefficient_tables"
     table_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -114,6 +144,12 @@ class CoefficientTable(TimestampMixin, Base):
 
 
 class TemplateFile(TimestampMixin, Base):
+    """模板文件元数据（template_files 表，Jinja2 模板存储）。
+
+    业务：name + asset_id（所属配置资产）+ file_path 物理路径；
+    placeholders_json 占位符清单；template_version_seq 顺序号（V1.4 P2-OPEN-005）。
+    """
+
     __tablename__ = "template_files"
     template_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -134,6 +170,13 @@ class TemplateFile(TimestampMixin, Base):
 
 
 class ProjectTemplate(TimestampMixin, Base):
+    """项目模板（project_templates 表，承载 7 段可配置子项）。
+
+    业务：config_json 涵盖 record_approval/stream_approval/numbering/
+    customer_approval/signature_matrix/version_sequence/reversal_role（参考
+    schemas/project_template.py ProjectTemplateConfig）；scope 公司/项目级。
+    """
+
     __tablename__ = "project_templates"
     template_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -231,6 +274,12 @@ class ProjectPipeClass(TimestampMixin, Base):
 
 
 class NumberingTemplate(TimestampMixin, Base):
+    """编号模板（numbering_templates 表，位号生成规则）。
+
+    业务：sequence 顺序号 + pattern 模板模式（PREFIX-SEQ-YEAR 等）；
+    doc_type 限定适用文档（RECORD/PROJECT/EQUIP）；next_seq 当前游标。
+    """
+
     __tablename__ = "numbering_templates"
     template_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -245,6 +294,12 @@ class NumberingTemplate(TimestampMixin, Base):
 
 
 class DocNoSequence(TimestampMixin, Base):
+    """文档编号序列（doc_no_sequences 表，编号游标持久化）。
+
+    业务：template_id 关联 NumberingTemplate；year + category 复合唯一游标；
+    next_seq 下一个可用序号（atomic 加锁递增）。
+    """
+
     __tablename__ = "doc_no_sequences"
     __table_args__ = (
         UniqueConstraint(

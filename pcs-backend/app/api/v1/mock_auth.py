@@ -20,12 +20,24 @@ MOCK_USERS: dict[str, str] = {
 
 
 class MockLoginRequest(BaseModel):
+    """Mock 登录请求体（POST /mock-auth/login，仅开发模式启用）。
+
+    业务：仅传 username（不校验密码）；MOCK_USERS 表查 role 后颁发 JWT；
+    生产环境通过 settings.mock_auth_enabled 关闭。
+    """
+
     username: str = Field(
         ..., min_length=1, max_length=100, description="Mock 登录用户名"
     )
 
 
 class MockLoginResponse(BaseModel):
+    """Mock 登录响应（POST /mock-auth/login）。
+
+    业务：与 TokenResponse 同构（access + refresh + bearer + role + username）；
+    仅 mock 模式返回；生产模式由 LDAP Login 端点替代。
+    """
+
     access_token: str
     refresh_token: str
     token_type: str = "bearer"

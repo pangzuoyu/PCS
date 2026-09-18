@@ -11,6 +11,12 @@ router = APIRouter(tags=["health"])
 
 
 class HealthResponse(BaseModel):
+    """健康检查响应（GET /health）。
+
+    业务：status 服务整体状态（ok/degraded）+ database DB 连接状态（up/down）；
+    用于 K8s liveness probe 与监控告警（始终 200，由调用方按字段判定）。
+    """
+
     status: str
     database: str
 

@@ -32,6 +32,12 @@ from app.models.mixins import RecordMixin, TaggedRecordMixin
 
 
 class FlashResult(TaggedRecordMixin, Base):
+    """闪蒸计算结果（flash_results 表，继承 TaggedRecordMixin 强制 tag_number）。
+
+    业务：T/P/PT_FLASH 三类闪蒸结果；input_json/output_json JSONB 双容器
+    （输入条件 + 输出物性/组成）；stream_id 索引关联源 stream。
+    """
+
     __tablename__ = "flash_results"
     flash_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     stream_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("streams.stream_id"), index=True)
@@ -114,6 +120,12 @@ class PipingResult(RecordMixin, Base):
 
 
 class PipeNetworkResult(TaggedRecordMixin, Base):
+    """管网压降计算结果（pipe_network_results 表，继承 TaggedRecordMixin）。
+
+    业务：管道网络图节点/边的逐段压降计算结果；output_json 承载每段管径+流速
+    +压降+汇合点压力；tag_number 关联位号（与 stream/pipe 同项目内唯一）。
+    """
+
     __tablename__ = "pipe_network_results"
     network_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     input_json: Mapped[dict] = mapped_column(JSONB)
@@ -121,6 +133,12 @@ class PipeNetworkResult(TaggedRecordMixin, Base):
 
 
 class PumpResult(TaggedRecordMixin, Base):
+    """泵选型/校核结果（pump_results 表，tag_number 位号 P-xxx 唯一）。
+
+    业务：单级/多级离心泵流量扬程+效率+轴功率+NPSHa；input_params/output_params
+    JSONB 双容器；API 610 type（OH1/OH2/BB1/BB3/VS1 等）锁定驱动校验。
+    """
+
     __tablename__ = "pump_results"
     pump_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     basic_info_json: Mapped[dict] = mapped_column(JSONB)
@@ -160,6 +178,13 @@ class PumpResult(TaggedRecordMixin, Base):
 
 
 class PsvResult(TaggedRecordMixin, Base):
+    """PSV 安全阀选型/校核结果（psv_results 表，V1.14 扩展 19 列）。
+
+    业务：PSV 计算结果持久化（relief_scenario + sizing 物性 + 阀体选型 15 字段 +
+    orifice 候选 + warnings JSON）；OPEN-10 V1.14 加 valve_type/body_material/
+    bellows_material/flange_class/back_pressure_* + kb_factor/cdtp_applied 等。
+    """
+
     __tablename__ = "psv_results"
     psv_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     set_pressure: Mapped[float] = mapped_column(Float)
@@ -304,6 +329,12 @@ class PsvResult(TaggedRecordMixin, Base):
 
 
 class FlareSystemResult(TaggedRecordMixin, Base):
+    """火炬系统计算结果（flare_system_results 表）。
+
+    业务：总管直径+背压+辐射热+排放量上限校核；result_json 承载节点
+    列表+每段管径与压降；用于 OPEN-5 火炬管网设计校验。
+    """
+
     __tablename__ = "flare_system_results"
     flare_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     input_json: Mapped[dict] = mapped_column(JSONB)
@@ -311,6 +342,12 @@ class FlareSystemResult(TaggedRecordMixin, Base):
 
 
 class VesselResult(TaggedRecordMixin, Base):
+    """容器（V-）设计/校核结果（vessel_results 表）。
+
+    业务：立式/卧式容器直径+长度+壁厚+封头类型+风载/地震载荷；
+    input_json/output_json 双容器，含 TEMA 类型（仅换热器容器相关）。
+    """
+
     __tablename__ = "vessel_results"
     vessel_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     input_json: Mapped[dict] = mapped_column(JSONB)
@@ -525,6 +562,12 @@ class TwoPhaseResult(Base):
 
 
 class SepEquipResult(TaggedRecordMixin, Base):
+    """分离设备（旋风/丝网/重力）选型/校核结果（sep_equip_results 表）。
+
+    业务：device_type ∈ {CYCLONE/MIST_ELIMINATOR/GRAVITY_SEPARATOR}；
+    input_params/output_params JSONB 容器，含分离效率+压降+尺寸。
+    """
+
     __tablename__ = "sep_equip_results"
     sep_equip_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     input_json: Mapped[dict] = mapped_column(JSONB)
@@ -637,6 +680,12 @@ class HeatResult(TaggedRecordMixin, Base):
 
 
 class CvResult(TaggedRecordMixin, Base):
+    """调节阀 Cv 选型/校核结果（cv_results 表）。
+
+    业务：调节阀流量系数 Cv + 阀体口径 + 噪声 + 闪蒸判定；
+    input_params/output_params JSONB 容器，含 sizing_method + 流体工况。
+    """
+
     __tablename__ = "cv_results"
     cv_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     cv_value: Mapped[float] = mapped_column(Float)
@@ -648,6 +697,12 @@ class CvResult(TaggedRecordMixin, Base):
 
 
 class RestrictionResult(TaggedRecordMixin, Base):
+    """限流孔板计算结果（restriction_results 表，R-ORF 限流孔板）。
+
+    业务：限流孔板孔径+压降+多孔板组合判定；
+    result_json 承载孔径+数量+材质+最大允许压降。
+    """
+
     __tablename__ = "restriction_results"
     orifice_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     restriction_type: Mapped[str] = mapped_column(String(30), comment="ORIFICE/PLATE/...")
@@ -656,6 +711,12 @@ class RestrictionResult(TaggedRecordMixin, Base):
 
 
 class CoolingTowerResult(TaggedRecordMixin, Base):
+    """凉水塔选型/校核结果（cooling_tower_results 表）。
+
+    业务：湿球温度+进/出口水温+风量+填料类型+逼近度；result_json 承载
+    型号匹配+风机功率+补充水量；用于循环水系统设计。
+    """
+
     __tablename__ = "cooling_tower_results"
     cooling_tower_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     input_json: Mapped[dict] = mapped_column(JSONB)
@@ -663,6 +724,12 @@ class CoolingTowerResult(TaggedRecordMixin, Base):
 
 
 class PsychroResult(TaggedRecordMixin, Base):
+    """空气焓湿计算结果（psychro_results 表）。
+
+    业务：干/湿球温度+相对湿度+露点+比焓+比湿+空气密度；
+    input_json/output_json 双容器，用于通风空调设计。
+    """
+
     __tablename__ = "psychro_results"
     psychro_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     calc_type: Mapped[str] = mapped_column(String(30))
@@ -671,6 +738,12 @@ class PsychroResult(TaggedRecordMixin, Base):
 
 
 class OpenChannelResult(TaggedRecordMixin, Base):
+    """明渠流计算结果（open_channel_results 表）。
+
+    业务：矩形/梯形/圆形明渠均匀流+临界水深+水跃+能量损失；
+    result_json 承载水深+流速+弗劳德数+水力坡度。
+    """
+
     __tablename__ = "open_channel_results"
     open_channel_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     channel_type: Mapped[str] = mapped_column(String(30))
@@ -682,6 +755,12 @@ class OpenChannelResult(TaggedRecordMixin, Base):
 
 
 class FiltrationResult(TaggedRecordMixin, Base):
+    """过滤设备选型/校核结果（filtration_results 表）。
+
+    业务：袋式/滤芯/砂滤等过滤器精度+压降+反吹周期+容尘量；
+    result_json 承载型号+过滤面积+数量+材质。
+    """
+
     __tablename__ = "filtration_results"
     filter_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     filter_type: Mapped[str] = mapped_column(String(30))

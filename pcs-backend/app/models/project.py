@@ -24,6 +24,12 @@ from app.models.mixins import TimestampMixin
 
 
 class Project(TimestampMixin, Base):
+    """项目根实体（projects 表，所有业务数据归属的根节点）。
+
+    业务：project_code 全局唯一；name 显示名；customer/customer_code 业主信息；
+    status 走 5 态 ACTIVE/ARCHIVED；所有业务记录通过 project_id 外键关联。
+    """
+
     __tablename__ = "projects"
     project_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -58,6 +64,12 @@ class Project(TimestampMixin, Base):
 
 
 class Workspace(Base):
+    """工作区（workspaces 表，3 类 FORMAL/PERSONAL/TEMPORARY）。
+
+    业务：owner_id 工作区拥有者；retention_days TTL（None=永久，PERSONAL=90，
+    TEMPORARY=7）；last_active_at 自动清理锚点（与 retention_days 联动计算）。
+    """
+
     __tablename__ = "workspaces"
     workspace_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
@@ -78,6 +90,12 @@ class Workspace(Base):
 
 
 class User(Base):
+    """用户表（users 表，LDAP/本地登录统一入口）。
+
+    业务：username 唯一；ldap_dn 关联 LDAP 目录（本地用户可空）；
+    groups 缓存的 LDAP 组（用于角色映射）；status ACTIVE/DISABLED。
+    """
+
     __tablename__ = "users"
     user_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4

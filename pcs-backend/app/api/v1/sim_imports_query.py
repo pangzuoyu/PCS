@@ -102,6 +102,12 @@ class SimImportDetailResponse(BaseModel):
 
 
 class SimImportWarningItem(BaseModel):
+    """SIM 导入警告单项（GET /sim-imports/{id}/warnings 响应项）。
+
+    业务：warning_id 唯一标识 + severity 严重级（WARNING/ERROR）+ message
+    警告内容 + unit_id 关联单元（PRO/II 模块 ID，可空）。
+    """
+
     warning_id: uuid.UUID
     severity: str
     message: str
@@ -109,6 +115,11 @@ class SimImportWarningItem(BaseModel):
 
 
 class SimImportWarningListResponse(BaseModel):
+    """SIM 导入警告列表响应。
+
+    业务：items 警告列表 + total 总数（用于前端分页 + 头部红点提示）。
+    """
+
     items: list[SimImportWarningItem]
     total: int
 
