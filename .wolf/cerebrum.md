@@ -50,6 +50,25 @@
 
 ## Key Learnings
 
+### Auth hardening 模式（2026-09-18）
+
+- **JWT decode 必传 `options={"require": [...]}`**：默认 PyJWT 不强制必填 claim。
+  必传 `["exp", "iat", "sub"]` 至少这三项（与 create_*_token 实际写入对齐）。
+  `MissingRequiredClaimError` 是 `PyJWTError` 子类，已被现有 `except jwt.PyJWTError` 自动捕获。
+- **Refresh token 必须 JTI + rotation**：每次 `create_refresh_token` 写 `jti=uuid4()`；
+  进程内 `_REVOKED_JTIS: set[str]` in-memory 即可，redis 单节点场景避免额外依赖。
+  refresh 端点：检查 `is_jti_revoked` → 撤销旧 JTI → 返回新 access + 新 refresh。
+  `RefreshResponse` 必须含 `refresh_token`，前端无需另存。
+- **Logout 真正生效需要接 refresh_token**：旧实现 `return None` 是 no-op，
+  与 refresh 不轮换配套下 logout 名存实亡。
+  `LogoutRequest` 接收可选 `refresh_token` 字段，无 body / 伪造 / access 三场景
+  全部幂等 204（防侧信道：不通过响应区分 token 状态）。
+- **LDAP DN 必须 RFC 4514 §2.4 转义**：`_sanitize_dn_component(value)` 处理
+  `\` `"` `#` `+` `,` `;` `<` `=` `>` 和 NUL。
+  NUL 特殊：先跑单字符转表（NUL 不在表中保持原样），再单独 `replace("\x00", "\\00")`，
+  否则 pre-replace 后反斜杠会被转义二次翻倍成 `\\\\00`。
+  测试覆盖：parametrize 10 字符 + 集成（username=`alice,ou=admin` 注入 RDN 边界）。
+
 ### P3.2 SIM 范围与契约
 
 - 范围：PRO/II + 手工 + Excel 三入口；HYSYS/Aspen/HTRI 解析器后置 P4。
