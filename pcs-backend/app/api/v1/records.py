@@ -184,6 +184,17 @@ async def obsolete_piping(
     reason: str = Query(""),
     session: AsyncSession = Depends(get_db),
 ):
+    """管路记录作废（DELETE，状态机迁移至 OBSOLETE）。
+
+    - 仅允许 FORMAL workspace
+    - workspace_id + pipe_id 双键查 PipingResult（不存在 → 404）
+    - 调 StateMachineService.transition(OBSOLETE)，失败 → 409
+    - reason 必传 Query（默认空串），记录到状态机迁移 reason 字段供审计追溯
+    - 提交由本端点负责（session.commit()）
+
+    与 `transition_piping` 区别：本端点固定 transition=OBSOLETE，semantically 是
+    "软删除"，不真删 PipingResult 行（保留审计快照）。
+    """
     ws = await require_formal_workspace(await get_workspace(workspace_id, session))
     rec = (
         await session.execute(
