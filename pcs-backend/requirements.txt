@@ -36,6 +36,8 @@ click==8.5.0
     #   uvicorn
 colorama==0.4.6 ; sys_platform == 'win32'
     # via pytest
+coolprop==6.6.0
+    # via pcs-backend
 coverage==7.16.0
     # via pytest-cov
 cryptography==50.0.1
