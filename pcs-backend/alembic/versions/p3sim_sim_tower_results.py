@@ -91,5 +91,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """sim_tower_results 表 + 索引删除（P3.2 SIM 落地逆向）。
+
+    步骤：
+    - DROP INDEX ix_sim_tower_results_import_id
+    - DROP TABLE sim_tower_results
+
+    业务：与 upgrade 互逆；SIM 塔结果主表 + import_id 索引清理。
+    """
     op.drop_index("ix_sim_tower_results_import_id", table_name="sim_tower_results")
     op.drop_table("sim_tower_results")

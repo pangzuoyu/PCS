@@ -79,6 +79,16 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """streams 删 3 状态机字段（P3.2 SIM-12 逆向）。
+
+    步骤（顺序与 upgrade 逆序）：
+    - DROP COLUMN change_resolved_by
+    - DROP COLUMN change_resolved_at
+    - DROP COLUMN change_pending_since
+
+    业务：与 upgrade 互逆；streams 3 状态机字段（CHANGE_PENDING/CHANGED 流转的
+    pending_since/resolved_at/resolved_by）清理。
+    """
     op.drop_column("streams", "change_resolved_by")
     op.drop_column("streams", "change_resolved_at")
     op.drop_column("streams", "change_pending_since")

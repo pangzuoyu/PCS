@@ -53,4 +53,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """streams 删 is_mixed_phase 字段（P3.2 SIM-10.2 逆向）。
+
+    步骤：
+    - DROP COLUMN streams.is_mixed_phase
+
+    业务：与 upgrade 互逆；MIXED 相持久化标记字段清理。
+    """
     op.drop_column("streams", "is_mixed_phase")

@@ -97,6 +97,16 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """pipe_code_templates + project_pipe_code_configs 双表删除（FMT-1 落地逆向）。
+
+    步骤：
+    - DROP INDEX ix_project_pipe_code_configs_project_id
+    - DROP TABLE project_pipe_code_configs
+    - DROP INDEX ix_pipe_code_templates_status
+    - DROP TABLE pipe_code_templates
+
+    业务：与 upgrade 互逆；管架模板主表 + 项目级配置表 + 2 索引全清。
+    """
     op.drop_index("ix_project_pipe_code_configs_project_id", "project_pipe_code_configs")
     op.drop_table("project_pipe_code_configs")
     op.drop_index("ix_pipe_code_templates_status", "pipe_code_templates")

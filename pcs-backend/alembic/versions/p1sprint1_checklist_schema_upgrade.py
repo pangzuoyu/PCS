@@ -77,6 +77,19 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """project_input_checklist 删 7 字段（V3.1 升级逆向）。
+
+    步骤（顺序与 upgrade 逆序）：
+    - DROP COLUMN assumption_reason
+    - DROP COLUMN verified_at
+    - DROP COLUMN verified_by
+    - DROP COLUMN source_type
+    - DROP COLUMN input_value_json
+    - DROP COLUMN input_category
+    - DROP COLUMN module
+
+    业务：与 upgrade 互逆；项目输入清单 V3.1 落地（7 字段对齐）逆向。
+    """
     op.drop_column("project_input_checklist", "assumption_reason")
     op.drop_column("project_input_checklist", "verified_at")
     op.drop_column("project_input_checklist", "verified_by")

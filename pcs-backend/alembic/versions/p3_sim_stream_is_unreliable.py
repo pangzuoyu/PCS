@@ -51,4 +51,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """streams 删 is_unreliable 字段（P3.2 SIM-10.1 逆向）。
+
+    步骤：
+    - DROP COLUMN streams.is_unreliable
+
+    业务：与 upgrade 互逆；不可靠物流标记字段清理。
+    """
     op.drop_column("streams", "is_unreliable")

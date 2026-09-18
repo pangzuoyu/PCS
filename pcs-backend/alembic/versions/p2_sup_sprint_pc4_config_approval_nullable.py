@@ -44,6 +44,16 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """config_approvals.version_id 回滚 nullable=False（PC-4 落地逆向）。
+
+    步骤：
+    - DELETE FROM config_approvals WHERE version_id IS NULL（先清项目级审批）
+    - ALTER COLUMN version_id SET NOT NULL
+
+    业务：与 upgrade 互逆；回滚前必须先 DELETE 项目级审批行（version_id=NULL），
+    否则 NOT NULL 违例报错。本迁移是 PC-4 配套，落地有 project 级审批的
+    config_approvals 行（如 DRAFT 项目模板审批）须先清，否则 reverse 失败。
+    """
     # 回滚前需清空 version_id IS NULL 的行（项目级审批），否则 NOT NULL 违例
     op.execute("DELETE FROM config_approvals WHERE version_id IS NULL")
     op.alter_column(

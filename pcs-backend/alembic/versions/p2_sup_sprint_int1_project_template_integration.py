@@ -83,6 +83,15 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """project_template_pipe_classes 表 + FK + 字段删除（INT-1 落地逆向）。
+
+    步骤：
+    - DROP TABLE project_template_pipe_classes（项目模板与管架类关联表）
+    - DROP CONSTRAINT fk_project_templates_pct_id_pct
+    - DROP COLUMN project_templates.pipe_code_template_id
+
+    业务：与 upgrade 互逆；PC-OPEN-04 关联表 + pipe_code_template_id 外键清理。
+    """
     op.drop_table("project_template_pipe_classes")
     op.drop_constraint(
         "fk_project_templates_pct_id_pct",

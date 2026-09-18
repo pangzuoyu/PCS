@@ -44,6 +44,15 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """stream_state_points 删 UNIQUE(stream_id, case_type, state_label) 约束（P3.2 SIM-10 逆向）。
+
+    步骤：
+    - DROP CONSTRAINT uq_stream_state_points_label
+
+    业务：与 upgrade 互逆；bug-062 DB 兜底约束拆除（注意：拆除后 SV05 intra-batch
+    seen_keys 查重仍生效，但跨批次 duplicate 不再被 DB 拦截；恢复升级到 P3.3
+    撤销流时必须重新 add constraint）。
+    """
     op.drop_constraint(
         "uq_stream_state_points_label", "stream_state_points", type_="unique"
     )

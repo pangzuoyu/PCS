@@ -50,6 +50,15 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """record_change_snapshots 删 snapshot_status 字段 + 索引（P1 Sprint2 逆向）。
+
+    步骤：
+    - DROP INDEX ix_record_change_snapshots_snapshot_status
+    - DROP COLUMN snapshot_status
+
+    业务：与 upgrade 互逆；snapshot_status 3 态字段（DRAFT/PENDING/APPROVED，
+    ADR-0024）+ 索引清理。
+    """
     op.drop_index(
         "ix_record_change_snapshots_snapshot_status",
         table_name="record_change_snapshots",
