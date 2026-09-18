@@ -120,6 +120,23 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """streams 删 SIM-17/18 8 字段 + 2 索引（P3.2 SIM 落地逆向）。
+
+    步骤：
+    - DROP INDEX ix_streams_estimated
+    - DROP INDEX ix_streams_simulation_status
+    - DROP COLUMN streams.conflict_resolutions_json
+    - DROP COLUMN streams.effective_properties_json
+    - DROP COLUMN streams.calculated_properties_json
+    - DROP COLUMN streams.user_provided_properties_json
+    - DROP COLUMN streams.stream_properties_json
+    - DROP COLUMN streams.estimated
+    - DROP COLUMN streams.tear_stream
+    - DROP COLUMN streams.simulation_status
+
+    业务：与 upgrade 互逆；streams SIM-17/18 8 字段（4 JSONB properties +
+    conflict_resolutions + 3 SIM 状态字段）+ 2 索引清理。
+    """
     op.drop_index("ix_streams_estimated", table_name="streams")
     op.drop_index("ix_streams_simulation_status", table_name="streams")
     op.drop_column("streams", "conflict_resolutions_json")

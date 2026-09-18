@@ -117,6 +117,17 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """streams 删 7 液相重命名 + 9 气相 + 3 JSONB→ORM（P3.2 SIM 落地逆向）。
+
+    步骤（与 upgrade 逆序）：
+    - 1. 移除 SIM-31 JSONB → ORM 3 列（loop _NEW_LIQUID_FROM_JSONB）
+    - 2. 移除气相 9 列（loop _NEW_VAPOR_COLUMNS）
+    - 3. 液相 7 列重命名回原名（loop reversed _LIQUID_RENAMES）
+
+    业务：与 upgrade 互逆；SIM-31 JSONB 拆分 + 液相 7 列重命名 + 气相 9 列扩展
+    全部逆向。注意：液相重命名是 alter_column new_column_name 而非 drop +
+    add，避免列类型语义变化。
+    """
     # 1. 移除 SIM-31 JSONB → ORM 3 列
     for col, _ in _NEW_LIQUID_FROM_JSONB:
         op.drop_column("streams", col)

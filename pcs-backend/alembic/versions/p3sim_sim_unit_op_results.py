@@ -156,6 +156,23 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """sim_unit_op_results + 6 单元类型子表 + 2 索引删除（P3.2 SIM 落地逆向）。
+
+    步骤：
+    - DROP TABLE sim_calculator_results（子表）
+    - DROP TABLE sim_stca_results
+    - DROP TABLE sim_splitter_results
+    - DROP TABLE sim_compressor_results
+    - DROP TABLE sim_cstr_results
+    - DROP TABLE sim_reactor_results
+    - DROP INDEX ix_sim_unit_op_results_unit_type
+    - DROP INDEX ix_sim_unit_op_results_import_id
+    - DROP TABLE sim_unit_op_results（主表）
+
+    业务：与 upgrade 互逆；SIM 单元操作结果主表 + 6 单元类型子表（calculator/
+    stca/splitter/compressor/cstr/reactor）+ 2 索引全清。先删子表（FK CASCADE
+    兜底）后删主表。
+    """
     op.drop_table("sim_calculator_results")
     op.drop_table("sim_stca_results")
     op.drop_table("sim_splitter_results")

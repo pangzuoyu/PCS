@@ -54,6 +54,19 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """pcs_toe_conversion_factors 时区列矫正回退（P2 S110 终审 F3 逆向）。
+
+    步骤：
+    - ALTER COLUMN updated_at SET NOT NULL
+    - ALTER COLUMN updated_at TYPE DateTime（去掉 timezone）+
+      postgresql_using AT TIME ZONE 'UTC'（剥离 tz）
+    - ALTER COLUMN created_at TYPE DateTime + AT TIME ZONE 'UTC'
+
+    业务：与 upgrade 互逆；S110 终审 F3 把 PCS 表 timestamptz → datetime 的矫正
+    落地逆向。AT TIME ZONE 'UTC' 把 timestamptz 转回 naive datetime（按 UTC
+    落表）。注意：updated_at NOT NULL 回退意味着 NULL 行会被违例报错；如有 NULL
+    行需先 UPDATE。
+    """
     op.alter_column("pcs_toe_conversion_factors", "updated_at", nullable=False)
     op.alter_column(
         "pcs_toe_conversion_factors",

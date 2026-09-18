@@ -55,6 +55,18 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """doc_no_sequences 回退 project_id + 三列 UQ（P2 S110 逆向）。
+
+    步骤：
+    - DROP CONSTRAINT uq_doc_no_sequences_proj_template_scope
+    - CREATE UNIQUE CONSTRAINT uq_doc_no_sequences_template_scope（还原）
+    - DROP CONSTRAINT fk_doc_no_sequences_project_id
+    - DROP COLUMN doc_no_sequences.project_id
+
+    业务：与 upgrade 互逆；DICT V3.4 §68 doc_no 编号规则升级逆向：删 project_id
+    FK + 三列 UQ（project_id + template_id + scope_key），重建原二列 UQ
+    （template_id + scope_key）。
+    """
     op.drop_constraint(
         "uq_doc_no_sequences_proj_template_scope", "doc_no_sequences", type_="unique"
     )

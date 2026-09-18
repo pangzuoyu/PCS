@@ -165,6 +165,17 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """heat_results 双轨 9+39+3 字段回退（P5-0-2 ADR-0027 逆向）。
+
+    步骤（与 upgrade 逆序，loop reversed）：
+    - 1. 3 JSONB 回退（loop reversed _NEW_3_JSONB）
+    - 2. 39 新标量回退（loop reversed _NEW_39_SCALARS）
+    - 3. 9 旧标量回退（loop reversed _LEGACY_9_COLUMNS）
+
+    业务：与 upgrade 互逆；heat_results 双轨扩展（9 legacy + 39 new + 3 JSONB）
+    ADR-0027 落地逆向。注意：reversed 是必要的——upgrade 按 (legacy, new, jsonb)
+    顺序 add，downgrade 按相反顺序 drop，避免列依赖。
+    """
     # 1. 3 JSONB 回退
     for (col_name,) in reversed(_NEW_3_JSONB):
         op.drop_column("heat_results", col_name)

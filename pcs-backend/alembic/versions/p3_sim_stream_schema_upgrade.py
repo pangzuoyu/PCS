@@ -111,6 +111,24 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """streams 删 9 字段 + 2 case_type CHECK 约束（P3.2 SIM 落地逆向）。
+
+    步骤：
+    - DROP CONSTRAINT ck_stream_state_points_case_type
+    - DROP CONSTRAINT ck_streams_case_type
+    - DROP COLUMN streams.import_source_version
+    - DROP COLUMN streams.import_original_row
+    - DROP COLUMN streams.viscosity_temperature_curve
+    - DROP COLUMN streams.actual_vol_flow
+    - DROP COLUMN streams.critical_press
+    - DROP COLUMN streams.critical_temp
+    - DROP COLUMN streams.api_gravity
+    - DROP COLUMN streams.surface_tension
+    - DROP COLUMN streams.case_type
+
+    业务：与 upgrade 互逆；streams 9 字段（SIM 特征 7 + case_type + 状态字段）+
+    2 CHECK（NORMAL/MIN/MAX/ALTERNATE）逆向清理。
+    """
     op.drop_constraint(
         "ck_stream_state_points_case_type", "stream_state_points", type_="check"
     )

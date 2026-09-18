@@ -107,6 +107,21 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """equipment_list 删 3 状态机字段 + 2 索引 + 3 enum（P1 Sprint3 逆向）。
+
+    步骤：
+    - DROP INDEX ix_equipment_list_actual_data_status
+    - DROP INDEX ix_equipment_list_calc_status
+    - DROP COLUMN actual_data_status
+    - DROP COLUMN calc_status
+    - DROP COLUMN equipment_status
+    - DROP TYPE actualdatastatus（CHECKFIRST，幂等）
+    - DROP TYPE calcstatus
+    - DROP TYPE equipmentstatus
+
+    业务：与 upgrade 互逆；equipment_list 3 状态机字段（equipment_status /
+    calc_status / actual_data_status）+ 2 索引 + 3 enum 全清。
+    """
     op.drop_index("ix_equipment_list_actual_data_status", table_name="equipment_list")
     op.drop_index("ix_equipment_list_calc_status", table_name="equipment_list")
     op.drop_column("equipment_list", "actual_data_status")
