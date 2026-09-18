@@ -154,6 +154,12 @@ def _worst_confidence(c1: Confidence, c2: Confidence | None) -> Confidence:
 
 
 def _classify_ns(ns: float) -> SpecificSpeedClass:
+    """比转速分类（API 610 §1.3 离心泵/混流泵/轴流泵判定）。
+
+    业务：按 ns 阈值三段映射 RADIAL/MIXED/AXIAL；用于泵类型锁定
+    与 API 610 type 表（OH1/OH2/BB1 等）联动选型。
+    """
+
     if ns < _NS_RADIAL_MAX:
         return "RADIAL"
     if ns < _NS_MIXED_MAX:
@@ -184,6 +190,12 @@ def _estimate_efficiency(ns: float) -> float:
 
 
 def _validate_input(inp: PumpInput) -> None:
+    """PUMP 单泵选型输入校验（流量/扬程 + 物性 + NPSH + 工作温度）。
+
+    业务：flow/head/temperature 范围；NPSHa >0；转速合法；
+    任意非法抛 PumpInputError（422 + PUMP_INPUT_INVALID）。
+    """
+
     if inp.flow_m3_s <= 0:
         raise PumpInputError(f"flow_m3_s 必须 > 0（got {inp.flow_m3_s}）")
     if inp.head_m <= 0:

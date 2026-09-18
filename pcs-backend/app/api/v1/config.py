@@ -104,6 +104,11 @@ def require_roles(user: _Actor, *allowed_roles: str) -> None:
 
 
 async def _load_asset(db: AsyncSession, asset_id: UUID) -> ConfigAsset:
+    """按 asset_id 取 ConfigAsset 行（不存在 → 404 Not Found）。
+
+    业务：薄包装 db.get，不存在抛 HTTPException；配置资产路由层统一 404 出口。
+    """
+
     asset = await db.get(ConfigAsset, asset_id)
     if asset is None:
         raise HTTPException(status_code=404, detail=f"未找到 asset {asset_id}")

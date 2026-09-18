@@ -429,6 +429,12 @@ def _parse_reactions(text: str) -> list[Reaction]:
     current: dict[str, Any] | None = None
 
     def _flush() -> None:
+        """PRO/II 解析器闭包辅助：当前反应集 flush 到 reactions 列表。
+
+        业务：当前无活动 current 或 rxset 时静默跳过；否则按 horx_heat 反应类型
+        构造 Reaction 并 append 到 reactions；用于 parse_proii_reactions 阶段化聚合。
+        """
+
         nonlocal current, current_rxset
         if current is None or current_rxset is None:
             return

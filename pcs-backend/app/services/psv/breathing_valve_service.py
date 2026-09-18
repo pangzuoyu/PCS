@@ -163,6 +163,12 @@ def calc_breathing_valve_api2000(inp: BreathingValveInput) -> BreathingValveResu
 
 
 def _validate(inp: BreathingValveInput) -> None:
+    """呼吸阀输入校验（PSV 子场景：储罐大呼吸/小呼吸泄放）。
+
+    业务：入/出呼吸流量必须 >0；设计压力+温度范围校验；
+    任意字段非法抛 PsvBreathingValveInputError（422 + PSV_BREATHING_INPUT_INVALID）。
+    """
+
     if inp.inbreath_flow_m3h <= 0:
         raise PsvBreathingValveInputError(
             f"inbreath_flow_m3h={inp.inbreath_flow_m3h} 必须 > 0"

@@ -110,6 +110,12 @@ class UpsertStandardProfileRequest(BaseModel):
 
 
 def _to_http(err: Exception) -> CorePcsError:
+    """异常 → HTTP CorePcsError 转换（profile 路由层统一错误响应壳）。
+
+    业务：从 err 取 code/status/message/details 4 元组，构造统一外壳；
+    默认 PCS_ERROR / 422；详情 dict 可空。
+    """
+
     code = getattr(err, "code", "PCS_ERROR")
     status = getattr(err, "status", 422)
     message = str(err)

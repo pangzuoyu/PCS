@@ -227,6 +227,12 @@ def _coerce_w(value: str | None) -> float:
 
 
 def _coerce_numeric(value: str | None) -> float:
+    """必填数字字段强转（HTRI Excel 解析，None 时抛 _FieldMissing）。
+
+    业务：value 为 None → 抛 _FieldMissing（必填项缺失）；否则按 _split_unit
+    拆出 raw 数字部分，float 强转；与 schema 必填校验互为兜底。
+    """
+
     if value is None:
         raise _FieldMissing("numeric value")
     raw, _ = _split_unit(value)
@@ -234,6 +240,12 @@ def _coerce_numeric(value: str | None) -> float:
 
 
 def _coerce_optional_numeric(value: str | None) -> float | None:
+    """选填数字字段软解析（None 或非法字符串均返回 None）。
+
+    业务：None → None；非数字字符（带单位除外）抛 ValueError 时静默吞掉
+    返回 None；HTRI Excel 单元格的"-"或空文本统一当 None 处理。
+    """
+
     if value is None:
         return None
     raw, _ = _split_unit(value)
@@ -244,6 +256,12 @@ def _coerce_optional_numeric(value: str | None) -> float | None:
 
 
 def _coerce_optional_int(value: str | None) -> int | None:
+    """选填整数字段软解析（先按 float 取整，None/非法 → None）。
+
+    业务：与 _coerce_optional_numeric 类似，但 int(float(raw)) 截断小数；
+    用于 HTRI TEMA 表盘数（管程数/壳程数等整数字段）。
+    """
+
     if value is None:
         return None
     raw, _ = _split_unit(value)

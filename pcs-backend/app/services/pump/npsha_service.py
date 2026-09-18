@@ -127,6 +127,13 @@ class NPSHaResult:
 
 
 def _validate_input(inp: NPSHaInput) -> None:
+    """NPSHa 输入校验（API 610 §4.7 有效汽蚀余量计算前置）。
+
+    业务：system_pressure 必须严格 > vapor_pressure（否则 NPSHa 物理上无意义）；
+    vapor_pressure ≥0；吸入管压降 < 系统压力；
+    任意非法抛 NPSHaInputError（422 + PUMP_NPSHA_INVALID）。
+    """
+
     if inp.system_pressure_pa <= inp.vapor_pressure_pa:
         raise NPSHaInputError(
             f"system_pressure_pa 必须 > vapor_pressure_pa "

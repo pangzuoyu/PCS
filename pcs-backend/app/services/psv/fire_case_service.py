@@ -302,6 +302,12 @@ def calc_fire_case(
 
 
 def _validate(inp: FireCaseInput) -> None:
+    """PSV 火工况输入校验（API 521 §4.5 外部火灾 + 容器润湿表面）。
+
+    业务：容器直径 D_m + 高度 H_m 必须 >0；液位分数 [0,1]；
+    wetted_area_m2 >0；任意字段非法抛 PsvFireCaseInputError（422 + PSV_FIRE_INVALID）。
+    """
+
     if inp.D_m <= 0:
         raise PsvFireCaseInputError(f"D_m={inp.D_m} 必须 > 0")
     if inp.H_m <= 0:

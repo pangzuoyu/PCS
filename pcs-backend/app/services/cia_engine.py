@@ -57,6 +57,12 @@ _CONTENT_HASH_PREFIX = 16
 
 
 def _content_hash(content: dict | None) -> str:
+    """内容 SHA-256 哈希（前缀截断，CIA 引擎变更检测）。
+
+    业务：content 为空时返回空串（无哈希），否则按 sort_keys + default=str
+    序列化后 SHA-256，截前 _CONTENT_HASH_PREFIX 位；用于 compare_versions 差异检测。
+    """
+
     if not content:
         return ""
     raw = _json.dumps(content, sort_keys=True, default=str)
@@ -404,6 +410,12 @@ class CIAEngine:
 
 
 def _pk(record) -> uuid.UUID:
+    """提取 ORM 记录主键值（CIA 引擎内部工具，绕开具体表名耦合）。
+
+    业务：用 sqlalchemy.inspect 读取映射的 PK 列名，再 getattr 取出值；
+    避免为 16 张计算表各写一个 pk getter；record 非 ORM 时抛 TypeError。
+    """
+
     from sqlalchemy import inspect as _inspect
 
     mapper = _inspect(record.__class__)

@@ -149,6 +149,12 @@ def _worst_confidence(c1: Confidence, c2: Confidence) -> Confidence:
 
 
 def _validate_input(inp: PumpChainInput) -> None:
+    """PUMP 链输入校验（流量/扬程/物性 + 系列泵数）。
+
+    业务：flow/head/density/viscosity >0；series_count 1-10 范围；
+    任意非法抛 PumpChainInputError（422 + PUMP_CHAIN_INVALID）。
+    """
+
     if inp.flow_m3_s <= 0:
         raise PumpChainInputError(f"flow_m3_s 必须 > 0（got {inp.flow_m3_s}）")
     if inp.head_m <= 0:

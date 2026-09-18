@@ -142,6 +142,11 @@ def _to_http(err: Exception) -> CorePcsError:
 
 
 async def _load_project(db: AsyncSession, project_id: uuid.UUID) -> Project:
+    """按 project_id 取 Project 行（不存在 → 404）。
+
+    业务：薄包装 db.get；streams 路由层取项目时的统一 404 出口。
+    """
+
     project = await db.get(Project, project_id)
     if project is None:
         raise HTTPException(status_code=404, detail=f"Project {project_id} 不存在")

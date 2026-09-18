@@ -93,6 +93,13 @@ class MeResponse(BaseModel):
 
 
 def _decode_bearer(authorization: str) -> dict[str, Any]:
+    """从 Authorization Bearer 头解析 + 校验 JWT token。
+
+    业务：authorization 必须以 "Bearer " 开头；decode_token 失败抛
+    PcsError(INVALID_TOKEN, 401)；type 必须为 "access"（防 refresh 混用）。
+    """
+
+
     if not authorization.lower().startswith("bearer "):
         raise PcsError(
             code="MISSING_BEARER", message="Authorization: Bearer <token>", status=401

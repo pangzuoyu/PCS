@@ -238,6 +238,12 @@ def calc_thermal_expansion_case(inp: ThermalExpansionInput) -> ThermalExpansionR
 
 
 def _validate_closed_valve(inp: ClosedValveInput) -> None:
+    """PSV 闭阀工况输入校验（API 521 §4.4 误关阀热膨胀 + 管段流体泄放）。
+
+    业务：管段体积 V_pipe_m3 + 液体密度 + 隔离时间必须 >0；
+    任意非法抛 PsvOtherCaseInputError（422 + PSV_CLOSED_VALVE_INVALID）。
+    """
+
     if inp.V_pipe_m3 <= 0:
         raise PsvOtherCaseInputError(f"V_pipe_m3={inp.V_pipe_m3} 必须 > 0")
     if inp.rho_L_kg_m3 <= 0:
@@ -256,6 +262,12 @@ def _validate_reaction_runaway(inp: ReactionRunawayInput) -> None:
 
 
 def _validate_thermal_expansion(inp: ThermalExpansionInput) -> None:
+    """PSV 热膨胀工况输入校验（API 521 §4.4 冷态液体受热膨胀）。
+
+    业务：液体体积 + 密度 + 膨胀系数范围校验；
+    任意非法抛 PsvOtherCaseInputError（422 + PSV_THERMAL_EXPANSION_INVALID）。
+    """
+
     if inp.V_L_m3 <= 0:
         raise PsvOtherCaseInputError(f"V_L_m3={inp.V_L_m3} 必须 > 0")
     if inp.rho_L_kg_m3 <= 0:

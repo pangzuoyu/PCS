@@ -22,6 +22,12 @@ from app.workers.workspace_tasks import (
 
 
 async def _on_startup(ctx: dict) -> None:
+    """ARQ worker 启动钩子（注入 Redis 设置 + DB session factory）。
+
+    业务：从 get_settings() 取 redis_url，构造 RedisSettings 注入 ctx；
+    get_async_session_factory() 同步创建异步 session 工厂（worker 任务内复用）。
+    """
+
     settings = get_settings()
     ctx["redis_settings"] = RedisSettings.from_dsn(settings.redis_url)
     ctx["session_factory"] = get_async_session_factory()

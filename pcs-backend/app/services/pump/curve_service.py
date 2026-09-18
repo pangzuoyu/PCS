@@ -91,6 +91,12 @@ class PumpCurveInterp:
 
 
 def _validate_curve(curve: PumpCurve) -> None:
+    """泵曲线基础校验（≥2 数据点 + 额定参数合法性）。
+
+    业务：points 必须 ≥2（线性插值需要）；rated_flow/speed >0；
+    rated_efficiency ∈ (0, 1]；任意非法抛 PumpCurveInputError（422 + PUMP_CURVE_INVALID）。
+    """
+
     if len(curve.points) < 2:
         raise PumpCurveInputError(
             f"泵曲线至少 2 个数据点（got {len(curve.points)}）"
@@ -110,6 +116,12 @@ def _validate_curve(curve: PumpCurve) -> None:
 
 
 def _validate_q_in_range(curve: PumpCurve, q: float) -> None:
+    """泵曲线流量越界校验（强制 [q_min, q_max] 区间内插值，不允许外推）。
+
+    业务：q 超出曲线数据点首尾范围时抛 PumpCurveInputError（避免线性外推
+    引入噪声）；曲线首尾点决定插值区间边界。
+    """
+
     q_min = curve.points[0].flow_m3_s
     q_max = curve.points[-1].flow_m3_s
     if q < q_min or q > q_max:
