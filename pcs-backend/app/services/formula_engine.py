@@ -64,6 +64,24 @@ class FormulaEngine:
 
     @classmethod
     def parse(cls, expression: str, parameters: dict[str, float]) -> Callable[[dict], float]:
+        """解析公式表达式 → 可重复调用 evaluator。
+
+        步骤：
+        1. ast.parse(expression, mode='eval') 语法解析
+        2. _validate_ast 白名单校验（拒 call/attribute/subscript 节点，禁危险 API）
+        3. _build_namespace() 注入安全数学函数（sin/cos/...），不含 __builtins__
+        4. parameters 合并到 namespace（公式级常量定义）
+        5. compile(tree, '<formula>', 'eval') 编译为字节码
+        6. 返回闭包 evaluator(p)：运行时合并 p + namespace，eval 出 float
+
+        安全：双层 JSON 防御——白名单 AST + 内置清空（__builtins__={}）；
+        noqa: S307 已知 eval 风险，已通过 AST 校验。
+
+        参数：
+        - expression: 公式字符串（如 "a*sin(b)+c"）
+        - parameters: 公式级固定参数（如 {"k": 1.5}）
+        返回：evaluator(p) 闭包，p 是运行时变量覆盖（同名优先）
+        """
         tree = ast.parse(expression, mode="eval")
         cls._validate_ast(tree)
         namespace = cls._build_namespace()
