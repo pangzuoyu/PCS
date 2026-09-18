@@ -127,6 +127,12 @@ class ProjectPipeClassStateMachine:
 
 
 class PipeClassService:
+    """管号等级 CRUD + 状态机服务（公司级 + 项目级双层）。
+
+    业务：list_company/get/create/update/delete + 项目级 _project_transition；
+    状态机驱动 DRAFT→PUBLISHED→DEPRECATED；PipeClassResult 含压力等级/材质/口径。
+    """
+
     @classmethod
     async def list_company(
         cls, session: AsyncSession, *, status: str | None = None, keyword: str | None = None

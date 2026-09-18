@@ -17,6 +17,12 @@ from app.services.exceptions import PcsError as ServicePcsError
 
 
 class PcsError(Exception):
+    """FastAPI 全局异常信封基类（code/status/message/detail 四元组）。
+
+    业务：service 层抛出 PcsError，install_exception_handlers 兜底转 4xx/5xx JSON；
+    code 大写蛇形命名 + status HTTP code + detail 可选 dict（结构化错误数据）。
+    """
+
     def __init__(
         self, code: str, message: str, status: int = 400, detail: Any = None
     ):

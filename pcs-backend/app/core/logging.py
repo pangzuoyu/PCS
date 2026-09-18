@@ -53,6 +53,13 @@ class TraceIdFilter(logging.Filter):
 
 
 class JsonFormatter(logging.Formatter):
+    """logging.Formatter 子类：日志 → 单行 JSON 输出（structlog 风格）。
+
+    业务：setup_logging() 注入此 formatter；
+    payload 含 ts/level/logger/msg/trace_id；
+    trace_id 从 ContextVar 取（每请求 UUID 唯一）。
+    """
+
     def format(self, record: logging.LogRecord) -> str:
         """日志 → 单行 JSON（structlog 风格）。
 
