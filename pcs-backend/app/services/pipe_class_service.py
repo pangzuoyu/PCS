@@ -151,6 +151,14 @@ class PipeClassService:
 
     @classmethod
     async def get(cls, session: AsyncSession, class_id: str) -> PipeClass:
+        """按 class_id 查询 PipeClass（GetOrNotFound 语义）。
+
+        步骤：
+        - session.get(PipeClass, class_id)
+        - 未命中抛 PcsError(PIPE_CLASS_NOT_FOUND, 404)
+
+        业务：管道等级（PipeClass）单条查询入口；与 list_by_* 系列组合使用。
+        """
         pc = await session.get(PipeClass, class_id)
         if not pc:
             raise PcsError(f"管道等级 {class_id} 不存在", code="PIPE_CLASS_NOT_FOUND", status=404)

@@ -212,6 +212,11 @@ def lineage(*, sources: tuple[str, ...] = (), summary: str | None = None):
     """
 
     def decorator(fn):
+        """装饰器内部：将 fn 的 result 解析后调用 LineageTracker.track 落 lineage。
+
+        业务：lineage() 装饰器工厂的内层函数；签名约束 fn(*args, **kwargs) ->
+        RecordMixin（直接返回单记录）或 -> Iterable[RecordMixin]（批量）。
+        """
         @wraps(fn)
         async def wrapper(*args, **kwargs):
             result = await fn(*args, **kwargs)

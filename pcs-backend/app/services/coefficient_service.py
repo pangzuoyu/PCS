@@ -77,6 +77,15 @@ class CoefficientService:
         return table
 
     async def query(self, table_id: UUID) -> CoefficientTable:
+        """按 table_id 查询系数表（GetOrNotFound 语义）。
+
+        步骤：
+        - session.get(CoefficientTable, table_id)
+        - 未命中抛 CoefficientNotFoundError
+
+        业务：导入层管理项目配置层（CATEGORY_3）查询入口；区别于 list（按
+        category 过滤分页），query 是单表精确查。
+        """
         table = await self.session.get(CoefficientTable, table_id)
         if table is None:
             raise CoefficientNotFoundError(f"未找到 table_id={table_id}")

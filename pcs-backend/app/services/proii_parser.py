@@ -1459,6 +1459,17 @@ def _parse_stream_summary_rows(text: str) -> tuple[list[dict], dict[str, str], d
     )
 
     def get_or_init(sid: str) -> dict:
+        """按 stream_id 获取或初始化 stream dict（PRO/II Refinery Property 页解析）。
+
+        步骤：
+        - streams 中已有 sid 直接返回
+        - 否则初始化 stream 字段集（phase/name/mol_percent/weight_rate/
+          weight_percent/properties）
+
+        业务：PRO/II SIM-V01 SIM_PAGE_REF 报告页解析过程中累积 stream 数据；
+        每个 stream 在解析期间可能跨多个 property 行（dimension + 列名 + 值），
+        get_or_init 保证首次见到时初始化结构，后续按需填充。
+        """
         if sid not in streams:
             streams[sid] = {
                 "stream_id": sid,
@@ -1876,6 +1887,18 @@ def _split_stream_row(line: str, column_starts: list[int] | None = None) -> dict
         return s.strip()
 
     def parse_num(s: str, as_int: bool) -> int | float | None:
+        """字符串解析为 int/float（PRO/II 行切片字段数值化）。
+
+        步骤：
+        - 空字符串返 None
+        - as_int=True 走 int(s)
+        - as_int=False 走 float(s)
+        - ValueError/TypeError 转 None（不抛）
+
+        业务：PRO/II 报告行按列切片后的字段可能是数字（流量、温度等）或空
+        （N/A），parse_num 把切片字符串转数值，失败静默 None 让上层判定
+        是否 N/A。
+        """
         if not s:
             return None
         try:
@@ -2352,6 +2375,16 @@ def _parse_refinery_processor(text: str) -> list[dict]:
     current_subsection: str | None = None
 
     def get_or_init(sid: str) -> dict:
+        """按 stream_id 获取或初始化 stream dict（PRO/II SIM Page Report 解析）。
+
+        步骤：
+        - streams 中已有 sid 直接返回
+        - 否则初始化 stream 字段集（phase/thermo_id/properties）
+
+        业务：PRO/II SIM_PAGE_REPORT 页（一般 stream 属性页：TEMPERATURE/
+        PRESSURE/ENTHALPY/MW 等）解析；按 stream_id 累积数据。注意此处较
+        refinery_property 简化——只 phase/thermo_id/properties 三字段。
+        """
         if sid not in streams:
             streams[sid] = {
                 "stream_id": sid,
@@ -2362,6 +2395,16 @@ def _parse_refinery_processor(text: str) -> list[dict]:
         return streams[sid]
 
     def reset_page_state() -> None:
+        """跨页切换时重置 current_* 累积状态（PRO/II SIM Page Report 解析）。
+
+        步骤（nonlocal 全部清空）：
+        - current_ids / current_phase / current_thermo
+        - id_positions / current_subsection
+
+        业务：PRO/II 报告一页内可能有多组 STREAM ID 列表（典型如 REFERY 分隔
+        后的新页）；进入新页时必须清空当前累积，否则上一页的 stream_id 列位
+        错位影响下一行数值提取。
+        """
         nonlocal current_ids, current_phase, current_thermo
         nonlocal id_positions, current_subsection
         current_ids = []
@@ -2388,6 +2431,16 @@ def _parse_refinery_processor(text: str) -> list[dict]:
     needs_recalibration = False  # 进入新页后首个数值行重写 id_positions
 
     def extract_values(line: str) -> list[float | None]:
+        """按 id_positions 列位提取当前页所有 stream 的数值（PRO/II SIM Page）。
+
+        步骤：
+        - 无 current_ids 返回空列表（页尚未初始化）
+        - 按 id_positions 切片 line，每段 strip 后 _parse_numeric_or_none
+
+        业务：当前页 STREAM ID 列表（current_ids）建立后，后续每个数值行
+        （TEMPERATURE/PRESSURE 等）按列位提取各 stream 值；这是 PRO/II 报告
+        列对齐的核心机制。
+        """
         if not current_ids:
             return []
         out: list[float | None] = []
@@ -2403,6 +2456,19 @@ def _parse_refinery_processor(text: str) -> list[dict]:
         return out
 
     def parse_refinery_property_line(line: str) -> None:
+        """解析 PRO/II Refinery Property 单行（按关键字匹配写 stream.properties）。
+
+        步骤（46 lines 实现）：
+        - 关键字匹配 refinery_property_keywords（TEMPERATURE/PRESSURE/RATE/
+          ENTHALPY/MW/WATSON/RVP/TVP/...）
+        - 提取单位（逗号后空白分隔）
+        - extract_values 抽取每 stream 值
+        - 写入对应 stream.properties[label] / phase / thermo_id 等
+
+        业务：SIM-V01 Refinery Property 页（典型输出页）的核心解析器；每个
+        数值行匹配关键字后写入对应 stream 的 properties dict，调用方迭代所有
+        stream 完成 stream table 反序列化。
+        """
         stripped_left = line.lstrip()
         matched_kw = None
         unit = ""
@@ -2662,6 +2728,17 @@ def _parse_tbp_astm_curves(text: str) -> list[dict]:
     current_basis: str = "LV"  # 默认 LV；D2887 在 curve header 后会切到 WT
 
     def get_or_init(sid: str) -> dict:
+        """按 (sid, curve, pressure) 获取或初始化蒸馏曲线 dict（PRO/II D86/D2887 页）。
+
+        步骤：
+        - 若当前页 curve/pressure 未建立，返回 None
+        - 否则按 (sid, current_curve, current_pressure) 三元组查 curves
+        - 不存在则初始化 {stream_id / curve_name / pressure_label /
+          percent_basis / points}
+
+        业务：PRO/II 蒸馏曲线页（TBP / ASTM D86 / D2887 / EFV 等）解析；同
+        stream 可能有多曲线 × 多压力组合，三元组 key 保证每个组合独立 dict。
+        """
         if current_curve is None or current_pressure is None:
             return None  # type: ignore[return-value]
         key = (sid, current_curve, current_pressure)
@@ -2676,6 +2753,14 @@ def _parse_tbp_astm_curves(text: str) -> list[dict]:
         return curves[key]
 
     def extract_values(line: str) -> list[float | None]:
+        """按 id_positions 列位提取蒸馏曲线点（PRO/II D86/D2887 页）。
+
+        步骤：与 SIM Page Report 同款——按 current_ids + id_positions 切片
+        line 每段 strip 后 _parse_numeric_or_none。
+
+        业务：蒸馏曲线页（与 SIM Page Report 共享同一列对齐机制）；每个数值
+        行（PERCENT OFF/TEMP 等）按列位提取各 stream 的曲线点。
+        """
         if not current_ids:
             return []
         out: list[float | None] = []
