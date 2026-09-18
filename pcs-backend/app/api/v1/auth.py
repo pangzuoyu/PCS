@@ -26,10 +26,14 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 class LoginRequest(BaseModel):
-    username: str = Field(min_length=1, max_length=100)
+    username: str = Field(
+        ..., min_length=1, max_length=100, description="登录用户名（LDAP uid）"
+    )
     # P0-MED-006 fix（2026-09-18）：password min_length 1（不允许空字符串，
     # 避免爆破时 "" 通过校验；max_length 200 与 LDAP DN 边界对齐）。
-    password: str = Field(min_length=1, max_length=200)
+    password: str = Field(
+        ..., min_length=1, max_length=200, description="登录密码（LDAP 绑定）"
+    )
 
 
 class TokenResponse(BaseModel):
