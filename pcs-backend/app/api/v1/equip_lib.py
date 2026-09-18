@@ -43,6 +43,18 @@ async def settle(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 设备库沉淀（201 Created）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（设备库写权限）
+    2. 调 EquipLibService.settle：从项目设备（source_equipment_id /
+       source_project_id）克隆到设备库 CATEGORY_6 ConfigAsset（DRAFT）
+    3. 沉淀完成走 /config/assets 既有 submit/approve/publish 链审批；
+       本端点仅做沉淀（DRAFT），不直接发布
+    4. 检索（search）仅返回 PUBLISHED 状态的设备库资产
+
+    与 search 区别：settle 是写、DRAFT 状态入库；search 是读、仅 PUBLISHED。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await EquipLibService.settle(
         db,
