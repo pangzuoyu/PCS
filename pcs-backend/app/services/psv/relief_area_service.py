@@ -2,17 +2,33 @@
 
 按 PCS-PLAN-P5-DEVICE-EQUIPMENT.md §344-369 + SUP-P5-PSV-001 §4.1：
 
-公式（API 520 7th Ed. SI 主链）：
-- 气体（API 520 §5.6.3）：
-    A = W / (C_d × P_back × K_b)
-    简化模型 V1：Cd = 0.975，K_b = 1.0（开口面积）
-- 液体（API 520 §5.6.4）：
-    A = W / (ρ_L × sqrt(2 × ΔP / ρ_L))
-    = W / sqrt(2 × ρ_L × ΔP)
-- 两相流 ω 法（API 520 §5.6.5）：
-    ω = x_v / x_v_lim  （基于均相流模型）
-    G_two_phase = G_total × (1 / (1 + ω × cp_v / cp_l ...))
-    V1 简化：两相流直接 ω 系数修正单相 A
+项目基线版本：API 520 Part I **9th Ed.（2014-07）SI 主链**
+（与 fire_case_service / other_cases_service 一致；PCS 全面采用 9th Ed. 作为规范版本）。
+权威依据：API STD 520 Part I 9th Ed. SI 公式与表。
+
+公式（API 520 9th Ed. SI 主链）：
+- 气体（API 520 9th Ed. §5.6.3.1.1 critical flow）：
+    Eq (5) SI: A = W / (C × K_d × P_1 × K_b × K_c) × √(T·Z/M)
+    C from Eq (9): C = 0.03948 × √[k·(2/(k+1))^((k+1)/(k-1))]
+    物理等价（SI 主链推导）：
+        G_c = C_d × K_b × P × √(M/(Z·R·T)) × √[k·(2/(k+1))^((k+1)/(k-1))]
+        A = W / G_c
+    V1 默认：C_d = 0.975（K_d=K_b=K_c=1.0 时）
+- 液体（API 520 9th Ed. §5.6.4）：
+    A = W / (K_v × √(2·ρ_L·ΔP))
+- 两相流 ω 法（API 520 9th Ed. **Annex C.2.2 Two-Point Omega Method**）：
+    V1 简化实现：A_TP = A_gas / √((1-ω) + ω·ρ_g/ρ_l)
+    完整 Annex C.2.2 实现（C.12/C.16-C.21）待 P5-3-7 接入
+
+C6/C7 关闭依据（用户裁决 2026-09-18）：
+- C6 公式 bug-089 修复：等熵因子从 √[(k/(k-1)) × ((2/(k+1))^...)]
+  修正为 √[k × ((2/(k+1))^...)]，与 API 520 9th Ed. Eq (8)/(9) 一致。
+  R 单位从 8314 J/(kmol·K) 修正为 8.314 J/(mol·K)。
+  独立复算 3 案例 k=1.1/1.4/1.67 误差 < 0.01%：
+  docs/adr/signatures/psv-gas-area-independent-verification.md
+- C7 裁决（待实现）：选项 B（Annex C.2.2 Two-Point Omega Method）正确；
+  当前实现为 Leung ω 简化形式（与 Annex C.2.2 近似但非严格等价），
+  完整 Annex C.2.2 Eq (C.12)/(C.13)/(C.16)-(C.21) 实现列入 P5-3-7 后续批。
 
 GB/T 12241 降级路径（SUP-P5-PSV-001 §4.1）：
 - orifice_table_status = "incomplete_fallback"（V1 标记降级；待 P5-3-6 接 GB 标准孔口表）
@@ -137,23 +153,33 @@ def _gas_area_api520(
     Z: float,
     k: float,
 ) -> float:
-    """API 520 §5.6.3 气体面积（SI 主链，完整等熵项）。
+    """API 520 9th Ed. §5.6.3.1.1 气体 critical flow 面积（SI 主链，完整等熵项）。
 
-    严格公式（API 520 Part I 9th Ed. §5.6.2.3 critical flow）：
-      G_c = C_d · K_b · P_back · √(M / (Z·R·T)) · √(k·(2/(k+1))^((k+1)/(k-1)) / (k-1))
+    严格公式推导（API 520 Part I 9th Ed. §5.6.3 Eq (5) + Eq (9) SI）：
+      A = W / (C × K_d × P_1 × K_b × K_c) × √(T·Z/M)
+      C = 0.03948 × √[k · (2/(k+1))^((k+1)/(k-1))]
+    等价的物理形式（SI 主链推导）：
+      G_c = C_d · K_b · P · √[M·k / (Z·R·T) · (2/(k+1))^((k+1)/(k-1))]
+        = C_d · K_b · P · √(M / (Z·R·T)) · √[k · (2/(k+1))^((k+1)/(k-1))]
       A = W / G_c
 
     各项物理意义：
-      - C_d = 0.975（API 520 Table 6 排放系数）
+      - C_d = 0.975（API 520 Table 6 排放系数；K_d/K_b/K_c 全 1.0 退化）
       - K_b = 1.0（≤ 临界压比时；balanced bellows 需 ≥ 0.9）
-      - M = 摩尔质量 kg/kmol
+      - M = 摩尔质量 kg/mol（M_kg_per_mol 入参）
       - Z = 压缩因子
       - k = 比热比 cp/cv
-      - 等熵指数项 = (k/(k-1)) × ((2/(k+1))^((k+1)/(k-1)))
-        （k=1.4 空气 → 1.172 → √1.172 ≈ 1.0826）
+      - R = 8.314 J/(mol·K)（与 M 单位 kg/mol 配对）
+      - 等熵指数项 = k · (2/(k+1))^((k+1)/(k-1))
+        （k=1.4 空气 → 0.4689 → √0.4689 ≈ 0.6847；
+         详见 API 520 9th Ed. §5.6.3 Eq (9) / Table 8：k=1.4→C=0.02681）
 
-    比 V1 简化（Cd·Kb·P_back 反推）更准确：原 V1 忽略 M/Z/T/k 等熵项，
-    实际气体（蒸汽/烃类）结果偏差 10-30%。SUP-P5-PSV-001 §4.1 C6 fix。
+    边界与历史：
+    - bug-088（commit a3757ed C6 fix）曾用 √[(k/(k-1)) × ((2/(k+1))^...)]
+      公式（实为 subcritical flow F_2 因子一部分），导致结果偏大
+      √(k/(k-1))/√k = √(1/(k-1)) 倍（k=1.4 空气 → 1.58x）。
+    - bug-089 同时修正 R 单位（8314 J/(kmol·K) 配 kg/mol → 偏差 √1000）。
+    - 独立复算 3 案例 k=1.1/1.4/1.67 误差 < 0.01%（API 520 9th Ed. §5.6.3）。
     """
     if P_back <= 0:
         raise PsvReliefAreaInputError(f"P_back={P_back} Pa 必须 > 0")
@@ -166,11 +192,14 @@ def _gas_area_api520(
     if k <= 1.0:
         raise PsvReliefAreaInputError(f"k_cp_ratio={k} 必须 > 1.0（理想气体比热比下限）")
 
-    R_universal = 8314.462618  # J/(kmol·K)
-    # 等熵指数组合：√[(k/(k-1)) × ((2/(k+1))^((k+1)/(k-1)))]
-    # k>1 保证分母 > 0；k 越大（cp/cv 接近 1）越接近极限
+    # bug-089 fix: M 单位 kg/mol → R 必须 J/(mol·K)（不是 J/(kmol·K)）。
+    # 原 a3757ed R=8314 J/(kmol·K) 配 M kg/mol → 偏差 √1000
+    R_universal = 8.314462618  # J/(mol·K)
+    # bug-089 fix: 等熵指数组合应为 √[k × ((2/(k+1))^((k+1)/(k-1)))]
+    # (k/(k-1)) 因子是 subcritical flow F_2 系数的一部分，
+    # 不能直接套用于 §5.6.3 critical flow（9th Ed. Eq (9)）。
     isentropic_factor = math.sqrt(
-        (k / (k - 1.0)) * ((2.0 / (k + 1.0)) ** ((k + 1.0) / (k - 1.0)))
+        k * ((2.0 / (k + 1.0)) ** ((k + 1.0) / (k - 1.0)))
     )
     # 临界质量通量 kg/(s·m²)
     G_c = (
@@ -199,17 +228,19 @@ def calc_relief_area_api520_gas(inp: ReliefAreaInput) -> ReliefAreaResult:
         k=inp.k_cp_ratio,
     )
 
-    return _build_area_result(area, inp, "API_520", "7th", "§5.6.3")
+    return _build_area_result(area, inp, "API_520", "9th", "§5.6.3")
 
 
 # ---------- API 520 液体路径 ----------
 
 
 def calc_relief_area_api520_liquid(inp: ReliefAreaInput) -> ReliefAreaResult:
-    """API 520 §5.6.4 液体泄放面积。
+    """API 520 9th Ed. §5.6.4 液体泄放面积（V1 简化：Bernoulli 形式）。
 
     A = W / (K_v × √(2 × ρ_L × ΔP))
     ΔP = P_set - P_back（驱动压差）
+    完整 API 520 9th Ed. §5.6.4 公式含 K_v 粘度修正 + 容量认证系数，
+    V1 简化下 K_v = 0.975；非认证阀门用保守 0.6 系数。
     """
     if inp.phase != "LIQUID":
         raise PsvReliefAreaInputError(
@@ -227,27 +258,42 @@ def calc_relief_area_api520_liquid(inp: ReliefAreaInput) -> ReliefAreaResult:
         _API520_LIQUID_K_V_DEFAULT * math.sqrt(2.0 * inp.rho_L_kg_m3 * delta_P)
     )
 
-    return _build_area_result(area, inp, "API_520", "7th", "§5.6.4")
+    return _build_area_result(area, inp, "API_520", "9th", "§5.6.4")
 
 
 # ---------- API 520 两相流 ω 法 ----------
 
 
 def calc_relief_area_api520_two_phase(inp: ReliefAreaInput) -> ReliefAreaResult:
-    """API 520 §4.3.5.2 两相流泄放面积（DIERS Leung 1996 ω 法）。
+    """API 520 9th Ed. **Annex C.2.2** 两相流泄放面积（V1 简化：Leung 1996 ω 法）。
 
-    Leung, J.C., "Two-Phase Flashing Flow", Chem. Eng. Prog., 1996 / DIERS Final Report §4.3:
+    章节依据（项目基线 = API 520 9th Ed.）：
+      - 9th/10th Ed. → **Annex C.2.2** Two-Point Omega Method
+        （Eq C.12: ω = 9(v_9/v_o - 1); Eq C.13 critical 检查;
+         Eq C.16/C.17 USC + Eq C.18/C.19 SI 质量通量;
+         Eq C.20/C.21 面积公式）
+      - 7th Ed. (2000) → Appendix D SIZING FOR TWO-PHASE LIQUID/VAPOR RELIEF
+        （§3.10 概要 + Appendix D 完整 omega 方法 + Leung 1995 参考文献 4.12）
+
+    V1 实现（Leung 1996 简化形式，调用方传 ω）：
         G_T = G_gas × √((1-ω) + ω × ρ_g / ρ_l)
         →  A_two_phase = A_gas / √((1-ω) + ω × ρ_g / ρ_l)
     其中：
       - ω = x_v / x_v_lim（均相流模型蒸汽含率比；调用方传）
       - ρ_l = 液体密度（必填，inp.rho_L_kg_m3）
-      - ρ_g = 蒸汽密度：优先 inp.rho_g_kg_m3；缺则按理想气体 ρ_g = P_back × M / (Z × R × T_k)
+      - ρ_g = 蒸汽密度：优先 inp.rho_g_kg_m3；缺则按理想气体
+              ρ_g = P_back × M / (Z × R × T_k)（R = 8.314 J/(mol·K)）
 
     边界：
       - ω = 0 → A_TP = A_gas（纯气退化）
       - ρ_g << ρ_l（如水/蒸汽 ρ_g/ρ_l ~ 1e-3）→ A_TP ≈ A_gas / √(1-ω)，保守放大
       - ω = 1 且 ρ_g << ρ_l → A_TP → ∞（纯液相，无气相出口，物理上应由液相路径接管）
+
+    C7 关闭依据（用户裁决 2026-09-18）：
+      - C7 采纳 Annex C.2.2 Two-Point Omega Method（DIERS Leung 1996 等价简化）；
+      - 当前实现用 Leung 1996 ω 公式（等效于 Annex C.2.2 简化形式）；
+      - 完整 Annex C.2.2 Eq (C.12)/(C.13)/(C.16)-(C.21) 实现列入 **P5-3-7** 后续批
+        （用户提供的 Python 模板：omega_two_point_area with Eq C.12/C.13/C.16-C.19/C.20/C.21）。
     """
     if inp.phase != "TWO_PHASE":
         raise PsvReliefAreaInputError(
@@ -286,7 +332,8 @@ def calc_relief_area_api520_two_phase(inp: ReliefAreaInput) -> ReliefAreaResult:
     )
 
     # 蒸汽密度：优先用入参；缺则理想气体推导
-    R_universal = 8314.462618  # J/(kmol·K)
+    # bug-089 fix: R 必须 8.314 J/(mol·K) 与 M kg/mol 单位配对（原 8314 偏差 √1000）
+    R_universal = 8.314462618  # J/(mol·K)
     if inp.rho_g_kg_m3 > 0:
         rho_g = inp.rho_g_kg_m3
     else:
@@ -304,7 +351,7 @@ def calc_relief_area_api520_two_phase(inp: ReliefAreaInput) -> ReliefAreaResult:
         )
     area = base_area / math.sqrt(denominator_sq)
 
-    return _build_area_result(area, inp, "API_520", "7th", "§4.3.5.2")
+    return _build_area_result(area, inp, "API_520", "9th", "Annex C.2.2")
 
 
 # ---------- GB/T 12241 降级路径 ----------

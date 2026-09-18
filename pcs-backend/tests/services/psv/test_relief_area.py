@@ -1,9 +1,9 @@
 """P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 + ω 法两相流）测试。
 
 按 PCS-PLAN-P5-DEVICE-EQUIPMENT.md §344-369 + SUP-P5-PSV-001 §4.1：
-- API 520 §5.6.3 气体（V1 简化主链）
-- API 520 §5.6.4 液体
-- API 520 §5.6.5 两相流 ω 法（V1 简化）
+- API 520 9th Ed. §5.6.3 气体（V2 严格公式：含 M/Z/T/k 等熵项；bug-089 修复）
+- API 520 9th Ed. §5.6.4 液体
+- API 520 9th Ed. Annex C.2.2 两相流 ω 法（V1 简化：Leung 1996 形式）
 - GB/T 12241 降级路径（orifice_table_status = "incomplete_fallback"）
 
 API/GB 完全隔离（独立函数 + 公用入口分发）。
@@ -52,19 +52,21 @@ _BASE_LIQUID_INPUT = ReliefAreaInput(
 
 
 def test_api520_gas_basic():
-    """API 520 气体（严格公式，ce-code-review C6）：含 M/Z/k 等熵项。
+    """API 520 9th Ed. §5.6.3 气体（严格公式，bug-089 修复）：含 M/Z/k 等熵项。
 
     W=5.0, P_back=100000, M=0.029, T=350, Z=1.0, k=1.4
-    isentropic = √(1.4/0.4 × (2/2.4)^6) = √1.172 ≈ 1.0826
-    G_c = 0.975 × 100000 × √(0.029/(8314×350)) × 1.0826
-        = 0.975 × 100000 × 9.977e-5 × 1.0826
-        ≈ 10.53 kg/(s·m²)
-    A = 5.0 / 10.53 ≈ 0.4750 m²
+    isentropic = √(1.4 × (2/2.4)^6) = √0.4689 ≈ 0.6847
+                  （bug-089 fix: 移除 (k/(k-1)) 因子，
+                   见 API 520 9th Ed. §5.6.3 Eq (9)）
+    G_c = 0.975 × 100000 × √(0.029/(8.314×350)) × 0.6847
+        = 0.975 × 100000 × 3.157e-3 × 0.6847
+        ≈ 210.7 kg/(s·m²)
+    A = 5.0 / 210.7 ≈ 0.02373 m²
     """
     r = calc_relief_area_api520_gas(_BASE_GAS_INPUT)
 
-    R = 8314.462618
-    isentropic = math.sqrt((1.4 / 0.4) * ((2.0 / 2.4) ** 6))
+    R = 8.314462618  # bug-089 fix: J/(mol·K) 配 M kg/mol
+    isentropic = math.sqrt(1.4 * ((2.0 / 2.4) ** 6))  # bug-089 fix: √[k×...] 而非 √[(k/(k-1))×...]
     G_c = 0.975 * 100_000.0 * math.sqrt(0.029 / (1.0 * R * 350.0)) * isentropic
     expected = 5.0 / G_c
     assert math.isclose(r.area_required_m2, expected, rel_tol=1e-6)
@@ -72,7 +74,7 @@ def test_api520_gas_basic():
     assert math.isclose(r.orifice_diameter_m, expected_d, rel_tol=1e-6)
     assert r.orifice_table_status == "exact"
     assert r.formula_ref.standard == "API_520"
-    assert r.formula_ref.version == "7th"
+    assert r.formula_ref.version == "9th"
     assert r.formula_ref.clause == "§5.6.3"
 
 
@@ -257,10 +259,10 @@ def test_api520_two_phase_omega_out_of_range_raises():
 
 
 def test_api520_two_phase_leung_ideal_gas_fallback_rho_g():
-    """未传 rho_g_kg_m3 → 理想气体推导 ρ_g = P_back × M / (Z × R × T)。"""
-    # 蒸汽 M=0.018 kg/kmol, P_back=101325, T=400 K, Z=1.0
-    # ρ_g = 101325 × 0.018 / (1 × 8314.46 × 400) ≈ 0.5482 kg/m³
-    rho_g_expected = 101_325.0 * 0.018 / (1.0 * 8314.462618 * 400.0)
+    """未传 rho_g_kg_m3 → 理想气体推导 ρ_g = P_back × M / (Z × R × T)（bug-089 fix R=8.314）。"""
+    # 蒸汽 M=0.018 kg/mol, P_back=101325, T=400 K, Z=1.0
+    # ρ_g = 101325 × 0.018 / (1 × 8.314 × 400) ≈ 0.5484 kg/m³
+    rho_g_expected = 101_325.0 * 0.018 / (1.0 * 8.314462618 * 400.0)
     inp_explicit = ReliefAreaInput(
         relief_mass_flow_kgs=5.0, phase="TWO_PHASE",
         P_back_pa=101_325.0, P_set_pa=200_000.0,
@@ -371,7 +373,7 @@ def test_dispatch_api_two_phase():
         omega=0.3, rho_L_kg_m3=1000.0, rho_g_kg_m3=0.6,
     )
     r = calc_relief_area(inp, standard="API")
-    assert r.formula_ref.clause == "§4.3.5.2"
+    assert r.formula_ref.clause == "Annex C.2.2"
 
 
 def test_dispatch_gb_unified():
@@ -418,7 +420,7 @@ def test_api_gb_calculation_independence():
 @pytest.mark.parametrize("fn, expected_standard, expected_clause", [
     (calc_relief_area_api520_gas, "API_520", "§5.6.3"),
     (calc_relief_area_api520_liquid, "API_520", "§5.6.4"),
-    (calc_relief_area_api520_two_phase, "API_520", "§4.3.5.2"),
+    (calc_relief_area_api520_two_phase, "API_520", "Annex C.2.2"),
 ])
 def test_api_formula_ref_structured(fn, expected_standard, expected_clause):
     """API 520 三相态 formula_ref 三字段均完整。"""
@@ -442,7 +444,7 @@ def test_api_formula_ref_structured(fn, expected_standard, expected_clause):
 
     r = fn(inp)
     assert r.formula_ref.standard == expected_standard
-    assert r.formula_ref.version == "7th"
+    assert r.formula_ref.version == "9th"
     assert r.formula_ref.clause == expected_clause
 
 # ============================================================================
