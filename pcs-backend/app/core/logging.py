@@ -29,6 +29,16 @@ class TraceIdFilter(logging.Filter):
     """
 
     def filter(self, record: logging.LogRecord) -> bool:
+        """logging filter：注入 trace_id 到 record（contextvar 自动派生）。
+
+        步骤：
+        1. 跳过已有 trace_id 的 record（手工 log.extra 路径保留原值）
+        2. 从 _trace_id_var ContextVar 取当前请求 trace_id
+        3. 非空 → 注入 record.trace_id（供 JsonFormatter 输出）
+        4. 始终返回 True（不拦截日志，仅补充字段）
+
+        与 JsonFormatter 区别：filter 注入字段；formatter 序列化输出。
+        """
         if not hasattr(record, "trace_id") or not getattr(record, "trace_id", None):
             current = _trace_id_var.get()
             if current is not None:
@@ -62,6 +72,18 @@ class JsonFormatter(logging.Formatter):
 
 
 def setup_logging() -> None:
+    """初始化全局 logging（stdout + JSON formatter + trace_id filter）。
+
+    步骤：
+    1. 创建 StreamHandler（sys.stdout，容器内默认 stdout 日志）
+    2. 绑定 JsonFormatter（structlog JSON 输出）
+    3. 添加 TraceIdFilter（contextvar 自动派生 trace_id）
+    4. root logger 单 handler + INFO 级别（覆盖 uvicorn/sqlalchemy 等三方）
+
+    在 app/main.py lifespan 启动时调用一次。
+    与 setup_logging_for_worker 区别：本函数初始化根 logger；
+    worker 场景（RQ/Celery）需单独调 setup_logging_for_worker 避免重复初始化。
+    """
     handler = logging.StreamHandler(sys.stdout)
     handler.setFormatter(JsonFormatter())
     handler.addFilter(TraceIdFilter())
