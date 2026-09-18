@@ -13,7 +13,13 @@ from fastapi import APIRouter, Depends, Header
 from pydantic import BaseModel, Field
 
 from app.core.errors import PcsError
-from app.core.security import create_access_token, create_refresh_token, decode_token
+from app.core.security import (
+    create_access_token,
+    create_refresh_token,
+    decode_token,
+    is_jti_revoked,
+    revoke_jti,
+)
 from app.services.ldap_client import LdapAuthError, authenticate, resolve_role
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -38,7 +44,14 @@ class RefreshRequest(BaseModel):
 
 class RefreshResponse(BaseModel):
     access_token: str
+    refresh_token: str
     token_type: str = "bearer"
+
+
+class LogoutRequest(BaseModel):
+    """logout 请求体。可选传 refresh_token 以吊销 JTI；不传则仅 204。"""
+
+    refresh_token: str | None = None
 
 
 class MeResponse(BaseModel):
@@ -111,12 +124,38 @@ def refresh(body: RefreshRequest) -> RefreshResponse:
             message="refresh token missing role claim",
             status=401,
         )
+    # H-P0-2：refresh token JTI 吊销检查 + 轮换。旧 refresh 一次性使用后吊销，
+    # 重放/截获旧 refresh → 401 INVALID_REFRESH。轮换可缩小 token 泄露窗口。
+    old_jti = payload.get("jti")
+    if old_jti and is_jti_revoked(old_jti):
+        raise PcsError(
+            code="INVALID_REFRESH",
+            message="refresh token revoked",
+            status=401,
+        )
+    if old_jti:
+        revoke_jti(old_jti)
+    sub = payload["sub"]
     return RefreshResponse(
-        access_token=create_access_token(subject=payload["sub"], role=role)
+        access_token=create_access_token(subject=sub, role=role),
+        refresh_token=create_refresh_token(subject=sub, role=role),
     )
 
 
 @router.post("/logout", status_code=204)
-def logout() -> None:
-    """无服务端会话，前端仅清空内存 token；保留端点供审计与未来扩展。"""
+def logout(body: LogoutRequest | None = None) -> None:
+    """H-P0-3：logout 接收可选 refresh_token，吊销其 JTI；不传则幂等 204。
+
+    旧 refresh 永不再可用（即使没到 exp）；前端无需记忆，多副本部署需切 Redis set。
+    """
+    if body is not None and body.refresh_token:
+        try:
+            payload = decode_token(body.refresh_token)
+        except jwt.PyJWTError:
+            # 无效/伪造 token：仍返回 204，避免泄露 token 状态（防御侧信道）
+            return None
+        if payload.get("type") == "refresh":
+            jti = payload.get("jti")
+            if jti:
+                revoke_jti(jti)
     return None

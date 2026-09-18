@@ -1,15 +1,30 @@
-"""JWT 编解码 + 密码哈希。HS256，密钥由 Settings.secret_key 提供。"""
+"""JWT 编解码 + 密码哈希 + JTI 吊销。HS256，密钥由 Settings.secret_key 提供。"""
 
 from __future__ import annotations
 
 import hashlib
 import hmac
+import uuid
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import jwt
 
 from app.core.config import get_settings
+
+# H-P0-2/3: refresh token JTI 吊销集。进程内 in-memory，redis 单节点场景避免额外依赖。
+# 多副本部署需切换 Redis set + 启动时从 DB 回填；当前 P5 P0 阶段最小可用。
+_REVOKED_JTIS: set[str] = set()
+
+
+def revoke_jti(jti: str) -> None:
+    """把 JTI 加入吊销集，幂等。"""
+    _REVOKED_JTIS.add(jti)
+
+
+def is_jti_revoked(jti: str) -> bool:
+    """检查 JTI 是否已被吊销。"""
+    return jti in _REVOKED_JTIS
 
 
 def hash_password(plain: str) -> str:
@@ -47,6 +62,7 @@ def create_refresh_token(*, subject: str, role: str) -> str:
         "sub": subject,
         "role": role,
         "type": "refresh",
+        "jti": uuid.uuid4().hex,  # H-P0-2：每次 refresh 唯一 JTI，用于吊销
         "exp": expire,
         "iat": _now(),
     }

@@ -9,7 +9,6 @@ from ldap3.core.exceptions import LDAPException
 
 from app.core.config import get_settings
 
-
 # RFC 4514 §2.4 DN 转义字符。反斜杠必须最先转义避免双重转义。
 _LDAP_DN_ESCAPE_MAP = {
     "\\": r"\\",

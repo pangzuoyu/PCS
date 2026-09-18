@@ -227,3 +227,101 @@ def test_decode_token_accepts_all_required_claims(client):
     token = create_access_token(subject="alice", role="DESIGNER")
     r = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
+
+
+# --- H-P0-2: refresh token rotation（一次性使用，旧 refresh 吊销）---
+
+
+def test_refresh_rotates_to_new_refresh_token(client, patched_ldap):
+    """H-P0-2 防回归：refresh 响应必须含新的 refresh_token（轮换）。"""
+    login = client.post(
+        "/api/v1/auth/login", json={"username": "alice", "password": "x"}
+    ).json()
+    old_rt = login["refresh_token"]
+
+    r = client.post("/api/v1/auth/refresh", json={"refresh_token": old_rt})
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body["access_token"].count(".") == 2
+    # 轮换：响应必须含新 refresh_token，且 ≠ 旧 token
+    assert "refresh_token" in body
+    assert body["refresh_token"] != old_rt
+    assert body["refresh_token"].count(".") == 2
+
+
+def test_refresh_old_token_revoked_after_rotation(client, patched_ldap):
+    """H-P0-2 防回归：旧 refresh 一次性使用 → 重放 → 401 INVALID_REFRESH。
+
+    攻击场景：截获 refresh token 后立即重放，本应被吊销集拦截。
+    """
+    login = client.post(
+        "/api/v1/auth/login", json={"username": "alice", "password": "x"}
+    ).json()
+    old_rt = login["refresh_token"]
+
+    # 第一次 refresh 成功 + 吊销旧 RT
+    first = client.post("/api/v1/auth/refresh", json={"refresh_token": old_rt})
+    assert first.status_code == 200
+
+    # 重放旧 RT → 401 INVALID_REFRESH（被 JTI 吊销拦截）
+    replay = client.post("/api/v1/auth/refresh", json={"refresh_token": old_rt})
+    assert replay.status_code == 401
+    assert replay.json()["code"] == "INVALID_REFRESH"
+    assert "revoked" in replay.json()["message"].lower()
+
+
+# --- H-P0-3: logout 真正吊销 refresh token ---
+
+
+def test_logout_revokes_refresh_token(client, patched_ldap):
+    """H-P0-3 防回归：logout 后 refresh 失效 → 401 INVALID_REFRESH。
+
+    旧实现 logout 是 no-op 204；现在 logout 接收 refresh_token 并吊销其 JTI。
+    """
+    login = client.post(
+        "/api/v1/auth/login", json={"username": "alice", "password": "x"}
+    ).json()
+    rt = login["refresh_token"]
+
+    # logout 204
+    r = client.post("/api/v1/auth/logout", json={"refresh_token": rt})
+    assert r.status_code == 204
+
+    # 被吊销的 RT 不能再 refresh
+    reuse = client.post("/api/v1/auth/refresh", json={"refresh_token": rt})
+    assert reuse.status_code == 401
+    assert reuse.json()["code"] == "INVALID_REFRESH"
+    assert "revoked" in reuse.json()["message"].lower()
+
+
+def test_logout_without_body_204(client):
+    """H-P0-3 防回归：logout 不传 refresh_token → 幂等 204。
+
+    不强制要求客户端传 token，简化前端集成；不传时仅返回 204。
+    """
+    r = client.post("/api/v1/auth/logout")
+    assert r.status_code == 204
+
+
+def test_logout_with_invalid_token_204(client):
+    """H-P0-3 防回归：logout 传伪造/无效 token → 204（不泄露 token 状态）。
+
+    防侧信道：不应通过响应区分 token 有效/无效/已吊销。
+    """
+    r = client.post(
+        "/api/v1/auth/logout", json={"refresh_token": "not.a.jwt"}
+    )
+    assert r.status_code == 204
+
+
+def test_logout_with_access_token_204_no_op(client):
+    """H-P0-3 防回归：logout 传 access token（非 refresh）→ 204，不吊销任何 JTI。
+
+    access token 没有 jti claim，logout 不应错误吊销；refresh 仍可用。
+    """
+    at = create_access_token(subject="alice", role="DESIGNER")
+    r = client.post("/api/v1/auth/logout", json={"refresh_token": at})
+    assert r.status_code == 204
+    # sanity：access token 仍然能访问 /me（无服务端会话，logout 不动 access）
+    me = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {at}"})
+    assert me.status_code == 200
