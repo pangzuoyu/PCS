@@ -41,6 +41,19 @@ def _now() -> datetime:
 
 
 def create_access_token(*, subject: str, role: str, extra: dict[str, Any] | None = None) -> str:
+    """生成 HS256 JWT access token。
+
+    步骤：
+    1. 取 settings（access_token_expire_minutes / secret_key 来自环境变量）
+    2. 构造 payload：sub/role/type=access/exp/iat（iat/exp 均为 UTC 时间戳）
+    3. extra 合并到 payload（用于附加场景字段，如 project_id）
+    4. jwt.encode(payload, secret_key, algorithm='HS256')
+
+    安全注意：
+    - secret_key 必从环境读取（不要硬编码）
+    - exp 由配置驱动，不要在此处覆写
+    - 返回 token 仅在响应体中泄露，不入日志
+    """
     settings = get_settings()
     expire = _now() + timedelta(minutes=settings.access_token_expire_minutes)
     payload: dict[str, Any] = {
