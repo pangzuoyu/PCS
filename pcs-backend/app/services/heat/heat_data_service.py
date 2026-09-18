@@ -331,6 +331,10 @@ class EnthalpyTable:
     entries: list[EnthalpyTableEntry]
 
     MIN_ENTRIES: ClassVar[int] = 10
+    # t_k 物理合理区间（K）：覆盖深冷到裂解炉管壁温；
+    # 工艺典型操作：cryogenic ~100K / ambient ~300K / fired-heater ~1000K
+    T_KELVIN_MIN: ClassVar[float] = 50.0
+    T_KELVIN_MAX: ClassVar[float] = 1500.0
 
     def __post_init__(self) -> None:
         if len(self.entries) < self.MIN_ENTRIES:
@@ -338,6 +342,20 @@ class EnthalpyTable:
                 f"EnthalpyTable requires ≥{self.MIN_ENTRIES} temperature points, "
                 f"got {len(self.entries)} (覆盖 LIQUID/TWO_PHASE/VAPOR 三段)"
             )
+        # 温度点必须按 t_k 升序排列（插值前提）；边界 + 单调性双重校验
+        prev_t: float | None = None
+        for entry in self.entries:
+            if not (self.T_KELVIN_MIN <= entry.t_k <= self.T_KELVIN_MAX):
+                raise ValueError(
+                    f"EnthalpyTable entry t_k={entry.t_k} K 越界"
+                    f"[{self.T_KELVIN_MIN}, {self.T_KELVIN_MAX}] K"
+                )
+            if prev_t is not None and entry.t_k <= prev_t:
+                raise ValueError(
+                    f"EnthalpyTable entries 必须按 t_k 严格升序排列，"
+                    f"t_k={entry.t_k} <= prev={prev_t}"
+                )
+            prev_t = entry.t_k
 
     def to_dict(self) -> dict[str, Any]:
         return {
