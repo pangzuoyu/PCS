@@ -37,6 +37,13 @@ class ChecklistService:
         items: list[ChecklistItemCreate],
         user_id: uuid.UUID | None = None,
     ) -> list[ProjectInputChecklist]:
+        """批量初始化项目输入清单（每项默认 status=NOT_STARTED）。
+
+        - 字段集：item_key / item_label / required / note / module / input_category
+        - 默认 status='NOT_STARTED'，user_id 当前未使用（保留签名兼容）
+        - 写 Audit 留待调用方处理（如需精确 per-item 审计）
+        - 不主动 commit，flush 后由调用方负责
+        """
         created: list[ProjectInputChecklist] = []
         for it in items:
             row = ProjectInputChecklist(
