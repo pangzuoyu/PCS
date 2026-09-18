@@ -138,6 +138,21 @@ class PipeCodeTemplateService:
         data: dict[str, Any],
         actor: Any,
     ) -> PipeCodeTemplate:
+        """更新公司级管号模板（按字段名增量覆盖）。
+
+        步骤：
+        1. 取行（不存在 → PIPE_CODE_TEMPLATE_NOT_FOUND 404，由 get() 抛）
+        2. 按字段名增量覆盖（in 检查，存在才写）：
+           - description → 模板描述
+           - format_definition_json → 格式定义字典（核心字段）
+           - version → 模板版本号（仅作为字符串字段；版本切换走
+             ConfigStateMachine 的 _transition 流程，本函数不动 status）
+        3. 提交由本函数负责（db.commit()）
+
+        注意：本函数只覆盖字典中明确给出的字段，未给出的字段保持原值；
+        状态流转走 submit/approve/publish/obsolete，本函数禁止改 status。
+        actor 参数当前未使用（保留签名兼容后续审计接入）。
+        """
         t = await cls.get(db, template_id)
         if "description" in data:
             t.description = data["description"]
