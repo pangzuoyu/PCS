@@ -1596,6 +1596,28 @@
       "last_seen": "2026-09-18",
       "severity": "HIGH",
       "fix_commit": "109f687"
+    },
+    {
+      "id": "bug-097",
+      "timestamp": "2026-09-18T21:00:00Z",
+      "error_message": "calc_relief_area_gb12241 仍用 bug-089 的错误等熵因子 √[(k/(k-1))×((2/(k+1))^...)] + R=8314 J/(kmol·K) → GB 路径面积 ≈ API 面积 × 20.5 倍（k=1.4 空气），严重失真",
+      "file": "pcs-backend/app/services/psv/relief_area_service.py:360-398",
+      "root_cause": "C6 关闭延后项。bug-089 修复（commit e700271）仅覆盖 API 520 路径；GB/T 12241 降级路径继承 bug-088 的同款错误（等熵因子 + R 单位），GB 路径虽标 incomplete_fallback 但公式常数仍错。修复前 GB/API 面积比 = (0.975/0.95) × √1000 × √(k-1) ≈ 20.5x（k=1.4）",
+      "fix": "(1) R_universal: 8314.462618 → 8.314462618 J/(mol·K) 与 M kg/mol 配对；(2) isentropic_factor: 移除 (k/(k-1)) 因子，改为 √[k×((2/(k+1))^((k+1)/(k-1)))] 与 API §5.6.3 Eq 9 一致；(3) 修复后 GB/API 面积比 ≈ 0.975/0.95 = 1.0263（仅 C_d 差异，GB 略保守）；(4) 1 新回归测试 test_gb12241_bug089_regression 锁定 rel < 0.1%；(5) docstring 注释 bug-089 fix 溯源",
+      "tags": [
+        "ce-code-review",
+        "P5-PSV",
+        "GB-T-12241",
+        "API-520-9th-Ed",
+        "R-universal-units",
+        "isentropic-factor-subcritical-vs-critical",
+        "C6-closure",
+        "P5-3-8"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-18",
+      "severity": "CRITICAL",
+      "fix_commit": "473b009"
     }
   ]
 }
