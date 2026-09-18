@@ -30,6 +30,20 @@ class StreamSymbolValidator:
         *,
         project_existing_symbols: list[str] | None = None,
     ) -> list[SymValidationResult]:
+        """SYM-V01..V04 规则校验（SUP-002 §4.2/§7 派生）。
+
+        步骤：
+        1. 取 data.symbol/name/category 并 strip（容忍空白输入）
+        2. SYM-V01 ERROR：symbol 长度须 1-10 字符（空或 >10）
+        3. SYM-V02 ERROR：name 不能为空
+        4. SYM-V03 ERROR：项目内 symbol 重名（仅当传入
+           project_existing_symbols 时检查；公司级跳过）
+        5. SYM-V04 WARN：category 不在 VALID_CATEGORIES 白名单（不阻断）
+        6. 返回 SymValidationResult 列表（按规则顺序；调用方按 severity 决定
+           拦截/警告）
+
+        不做 SQL 查重；project_existing_symbols 由 service 层预先查询注入。
+        """
         results: list[SymValidationResult] = []
         sym = (data.get("symbol") or "").strip()
         name = (data.get("name") or "").strip()
