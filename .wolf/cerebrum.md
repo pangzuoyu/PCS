@@ -69,6 +69,32 @@
   否则 pre-replace 后反斜杠会被转义二次翻倍成 `\\\\00`。
   测试覆盖：parametrize 10 字符 + 集成（username=`alice,ou=admin` 注入 RDN 边界）。
 
+### Two-Point Omega Method Annex C.2.2（2026-09-18 闭环，P5-3-7）
+
+- **完整实现位置**：`pcs-backend/app/services/psv/two_point_omega.py`（~280 行，commit `b83a3a0`）
+  - 主函数 `omega_two_point_area(input)` — Eq C.12 → C.14 → C.13 → C.18/C.19 → C.21 全链路
+  - 与 V1 简化 `relief_area_service.calc_relief_area_api520_two_phase`（Leung 1996 简化形式）并存
+- **ω 概念差异（关键！不要混用）**：
+  - **V1 简化** ω ∈ [0, 1] = x_v / x_v_lim（**调用方传**） — relief_area_service
+  - **C.2.2 完整** ω ∈ [0, ∞) = 9 × (ρ_lo/ρ_g − 1) = 9 × (v_g/v_o − 1)（**密度比推算**） — two_point_omega
+  - 高含气率工况 V1 ω=1（封顶）vs C.2.2 ω 可达 10+；两者面积结果有可量化差异
+- **Eq C.14 隐式方程求根**：`f(η_c) = η_c² + (ω²−2ω)(1−η_c)² + 2ω² ln η_c + 2ω²(1−η_c) = 0`
+  - f 在 (0, 1) 严格单调递增（df/dη_c > 0），二分法是闭区间唯一根方法
+  - bisection 容差 1e-12，最大 200 iter，bracket [1e-6, 0.999999]
+  - 测试 `test_eq_c14_monotonic_increasing_in_eta` 守护不变量（bracket 选错立即 fail）
+- **Eq C.15 近似**（可选 fallback）：精度在中间 ω 范围（如 1.482）偏差 > 30%，
+  **不推荐作为主路径**；C.2.2 隐式方程（Eq C.14）求根为规范实现
+- **Eq C.19 subcritical 物理边界**：括号项 `-2[ω ln η_a + (ω-1)(1-η_a)]` 必须 ≥ 0
+  （P_c < P_a 时自动成立），分母 `ω(1/η_a − 1) + 1` 必须 > 0；任一异常 throw `TwoPointOmegaInputError`
+- **Eq C.21 SI 面积常数 277.8**：= 1e6 / 3600（kg/h→kg/s + m²→mm² 双重换算）
+  - 公式 A_mm² = 277.8 × W_kg_h / (K_d × K_b × K_c × K_v × G_kg_s_m²)
+  - 物理意义：W (kg/h) / G (kg/s·m²) = (1/3600) m² → × 1e6 → mm²；合并系数即 277.8
+- **独立复算**（PDF §C.2.2.2-3 worked example）：输入 (v_o=0.01945, v_g=0.02265,
+  P_o=556379 Pa, P_a=204700 Pa, W=60.156 kg/s, K_d=0.85) →
+  ω=1.482, η_c=0.6565, P_c=365200, G=2885, A=24533 mm²。
+  PDF 读图值（η_c=0.66, P_c=367210, G=2900, A=24400）rel<1.5%，偏差源于图 C.1 读图精度
+- **C7 完全关闭**：C7-a V1 简化形式 (commit `77d5898` bug-086) + C7-b C.2.2 完整版 (commit `b83a3a0` bug-094)
+
 ### P3.2 SIM 范围与契约
 
 - 范围：PRO/II + 手工 + Excel 三入口；HYSYS/Aspen/HTRI 解析器后置 P4。
@@ -107,7 +133,7 @@
 - **§5.6.3.2 Example 1**（Eq 11 SI）= 3698 mm²（输入：W=24270 kg/h, M=51, k=1.11, T=348K, Z=0.90, P₁=670 kPa）。
 - **章节定位**：`§5.6.3.1.1`（不是 §5.6.5 — 9th Ed. 没有 §5.6.5）。
 - **bug-089 教训**：不能跨章节搬公式因子；critical 与 subcritical 用的 (k/(k-1)) 形式看似相似但语境完全不同——9th Ed. PDF 原文交叉验证是底线。
-- **P5-3-7 待办**：完整 Annex C.2.2 Two-Point Omega Method（Eq C.12/C.13/C.16-C.21），C7 当前 Leung 1996 简化形式仅为占位。
+- **P5-3-7 ✅**（commit `b83a3a0`，2026-09-18 闭环）：完整 Annex C.2.2 Two-Point Omega Method（Eq C.12/C.13/C.14/C.18/C.19/C.21）— 见上面"Two-Point Omega Method Annex C.2.2" Key Learning。bug-094。
 - **P5-3-8 待办**：GB/T 12241 bug-089 修复（R=8314 → 8.314462618，移除 k/(k-1) 因子）—— 与 API 520 同步。
   - 4 Float 字段（rvp/tvp/watson_k/flash_point）+ 1 JSONB 容器（distillation_curves）
   - 8 种曲线枚举：D86/TBP/EFV/D86_CRACKING/D1160/D2887/D5236/D7169

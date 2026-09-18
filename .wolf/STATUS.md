@@ -353,27 +353,72 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 
 ---
 
+## ✅ Done (P5-3-7 Annex C.2.2 Two-Point Omega Method 完整实现 — 2026-09-18)
+
+- **范围**：C7 关闭声明延后项 — API STD 520 Part I 9th Ed. (2014-07) **Annex C.2.2**
+  Two-Point Omega Method 完整链路（替代 V1 简化 Leung 1996 占位）
+- **新文件**：
+  - `pcs-backend/app/services/psv/two_point_omega.py`：~280 行
+    - `TwoPointOmegaInput` / `TwoPointOmegaResult` dataclasses（frozen）
+    - `TwoPointOmegaInputError`（继承 PcsError，code=PSV_INPUT_ERROR, status=422）
+    - `_f_eta_c(eta_c, omega)` — Eq C.14 隐式方程左侧
+    - `_solve_eta_critical(omega)` — bisection 求根（f 单调递增，1e-12 容差）
+    - `omega_two_point_area(inp)` — 主函数，4 步实现
+  - `pcs-backend/tests/services/psv/test_two_point_omega.py`：25 例单测
+- **公式实现**（API 520 9th Ed. SI 主链）：
+  - **Eq C.12** ω = 9 × (v_g / v_o − 1)（密度比推算，调用方传比容 v_o / v_g）
+  - **Eq C.14** η_c² + (ω²−2ω)(1−η_c)² + 2ω² ln η_c + 2ω²(1−η_c) = 0（二分法求根）
+  - **Eq C.13b** P_c = η_c × P_o；P_c ≥ P_a → critical / 否则 subcritical
+  - **Eq C.18** critical: G = η_c × √(P_o / (v_o × ω))
+  - **Eq C.19** subcritical: G = √{−2[ω ln η_a + (ω−1)(1−η_a)]} / (ω(1/η_a − 1) + 1) × √(P_o / v_o)
+  - **Eq C.21** A = 277.8 × W / (K_d × K_b × K_c × K_v × G) mm²；A_m² = A_mm² × 1e-6
+- **与 V1 简化形式并存**：
+  - `relief_area_service.calc_relief_area_api520_two_phase` 保留（向后兼容，outlet 透传）
+  - C.2.2 完整版 omega_two_point_area 为新代码首选
+  - 两者 ω 概念不同：V1 简化 ω ∈ [0,1]（x_v/x_v_lim 调用方传）vs C.2.2 ω ∈ [0,∞)（密度比推算）
+- **独立复算**（PDF §C.2.2.2-3 worked example）：
+  - 输入：v_o=0.01945, v_g=0.02265, P_o=556,379 Pa, P_a=204,700 Pa, W=60.156 kg/s, K_d=0.85
+  - 算得：ω=1.482, η_c≈0.6565, P_c≈365,200, G≈2885, A≈24,533 mm²
+  - PDF 读图值：ω=1.482, η_c=0.66（读图）, P_c=367,210, G=2,900, A=24,400
+  - 偏差 rel < 1.5%（η_c 差异源于图 C.1 读图精度）
+- **测试**：25/25 新单测 pass；303/303 PSV 模块 pass（基线 278 + 25）；2215/2215 后端基线 + 49 skipped pass（基线 2190 + 25）；ruff clean
+- **buglog**：bug-094 已登记（severity MEDIUM，因 V1 简化形式已可用，C.2.2 完整版为规范升级）
+- **commit**：`b83a3a0`
+- **导出**：`app.services.psv.{TwoPointOmegaInput, TwoPointOmegaResult, TwoPointOmegaInputError, omega_two_point_area}`
+
+---
+
 ## 🚀 Next quest
 
-**Goal:** HIGH 专项 Sprint 后续 P1/P2/P5-123/P5-3/P5-4d 高优收口（18 项 HIGH）+ P5-3 启动
+**Goal:** HIGH 专项 Sprint 后续 P1/P2/P5-123/P5-3 fe/P5-4d fe 高优收口（18 项 HIGH）
 
 ### 当前进度
 - ✅ (a) buglog.json fix_commit（C5/C7/C8/C9/C10/C6 7 项）— commit `4b670c5`
 - ✅ (b) HIGH 专项 P0 auth hardening 4 项（H-P0-1/2/3/4）— commit `e7f0f7e`
-- ✅ (c) C7 两相流 ω 法（bug-086）— commit `77d5898`（P5-3-7 Annex C.2.2 完整 Two-Point Omega 延后）
+- ✅ (c) C7 两相流 ω 法（bug-086）— commit `77d5898`
 - ✅ (d) OPEN-10 后端契约扩展（15 commit 含 21 列迁移 + 13 PcsError + 30+ 测试）— commit `b48c0f4` / `ce1ee69`
+- ✅ (e) **P5-3-7 Annex C.2.2 Two-Point Omega Method 完整实现** — commit `b83a3a0`（bug-094, 25 例单测, PDF §C.2.2.2-3 独立复算 rel<1.5%）
 - 🔲 **下一批**：HIGH 非 P0 类 18 项（P1×3 / P2×3 / P5-123×5 / P5-3 fe×3 / P5-4d fe×4）
 
 ### 待办（建议优先序）
-1. **P5-3 启动**：Annex C.2.2 Two-Point Omega Method 完整实现（用户已提供 Python 模板，~2h）
-2. **HIGH P1**：Pydantic v1 imports（3 处）→ 全部迁 Pydantic v2；workspace context 异常类型；
+1. **HIGH P1**：Pydantic v1 imports（3 处）→ 全部迁 Pydantic v2；workspace context 异常类型；
    mock auth 单测（5 项）
-3. **HIGH P2**：equipment_list NOT NULL、pipe_code_template、report_service 列序
-4. **HIGH P5-123**：PsvResult valve_type CHECK、psv_persist P_set_pa、REACTION_RUNAWAY hardcoded、
+2. **HIGH P2**：equipment_list NOT NULL、pipe_code_template、report_service 列序
+3. **HIGH P5-123**：PsvResult valve_type CHECK、psv_persist P_set_pa、REACTION_RUNAWAY hardcoded、
    fire_case 1.2 kg/m³、API 526 oversize 5%
-5. **HIGH P5-3 frontend**：HEAT-WORKSPACE-ID、MSW-VESSEL-SEPEQUIP-MISSING、MSW-PSV-STATUS-201
-6. **HIGH P5-4 fe.detail**：BACK_PRESSURE_MAX_BY_TYPE、CDTP dead code、G15 dead code、kb_service Literal
-7. **MEDIUM/LOW/INFO**：48 项未处理（入 backlog，滚动）
+4. **HIGH P5-3 frontend**：HEAT-WORKSPACE-ID、MSW-VESSEL-SEPEQUIP-MISSING、MSW-PSV-STATUS-201
+5. **HIGH P5-4 fe.detail**：BACK_PRESSURE_MAX_BY_TYPE、CDTP dead code、G15 dead code、kb_service Literal
+6. **MEDIUM/LOW/INFO**：48 项未处理（入 backlog，滚动）
+7. **P5-3-8**：GB/T 12241 bug-089 修复（R=8.314 + 移除 k/(k-1) 因子），延后
+
+### P5-3-7 关闭后 C7 完整状态
+
+C7（两相流 ω 法）状态：✅ **完全关闭**
+
+- C7-a（V1 简化 Leung 1996 形式作为 interim 实施）— commit `77d5898`（bug-086, 2026-09-18）
+- C7-b（API 520 9th Ed. Annex C.2.2 完整形式）— commit `b83a3a0`（bug-094, 2026-09-18）
+
+V1 简化形式保留（向后兼容 + outlet 透传），C.2.2 完整版为新代码首选。
 
 ### 锁定的用户裁决（累积）
 - 全程中文；"继续" = 驱动下一 task 不重议

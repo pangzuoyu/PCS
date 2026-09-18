@@ -1557,7 +1557,7 @@
       "occurrences": 1,
       "last_seen": "2026-09-18",
       "severity": "MEDIUM",
-      "fix_commit": null
+      "fix_commit": "b83a3a0"
     }
   ]
 }
