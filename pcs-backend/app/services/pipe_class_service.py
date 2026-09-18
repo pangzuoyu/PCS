@@ -159,6 +159,23 @@ class PipeClassService:
     async def update(
         cls, session: AsyncSession, class_id: str, *, payload: PipeClassUpdate
     ) -> PipeClass:
+        """更新管号等级（状态流转校验 + 字段覆盖）。
+
+        步骤：
+        1. 取行（不存在 → PIPE_CLASS_NOT_FOUND 404，由 get() 抛）
+        2. 状态流转校验：
+           - DRAFT → ACTIVE：允许
+           - 同状态写回：允许（幂等）
+           - 任何状态 → OBSOLETE：单向允许（DRAFT/ACTIVE → OBSOLETE）
+           - 其他组合（ACTIVE → DRAFT、PENDING → ACTIVE 等）→
+             PIPE_CLASS_BAD_TRANSITION（409）
+        3. 字段覆盖：payload.model_dump(exclude={"status"})
+           → 逐字段 setattr 写入（code/description/spec/corrosive_allowance 等）
+        4. 提交由本函数负责（session.commit()）
+
+        注意：status 字段从 payload 中排除单独处理，避免 setattr 覆盖
+        上面计算好的 new_status。
+        """
         pc = await cls.get(session, class_id)
         if payload.status == "OBSOLETE" and pc.status != "OBSOLETE":
             new_status = "OBSOLETE"  # 作废：单向，允许 DRAFT/ACTIVE → OBSOLETE
