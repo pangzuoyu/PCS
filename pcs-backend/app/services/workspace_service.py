@@ -29,6 +29,7 @@ class WorkspaceService:
     """
 
     def __init__(self, session: AsyncSession):
+        """构造 WorkspaceService（注入 session + AuditService 写工作区生命周期审计）。"""
         self.session = session
         self.audit = AuditService(session)
 

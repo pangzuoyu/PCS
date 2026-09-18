@@ -31,6 +31,7 @@ class CoefficientService:
     """
 
     def __init__(self, session: AsyncSession):
+        """构造 CoefficientService（注入 session + AuditService 写审计）。"""
         self.session = session
         self.audit = AuditService(session)
 

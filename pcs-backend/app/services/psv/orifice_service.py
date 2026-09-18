@@ -77,6 +77,7 @@ _API526_ORIFICE_TABLE_IN2: Final[tuple[tuple[OrificeSize, float], ...]] = (
 
 # 缓存 m² 数组（启动时一次性转换）
 def _build_table_m2() -> tuple[tuple[OrificeSize, float], ...]:
+    """API 526 in² 孔口面积表 → m² 元组（启动时一次性转换缓存）。"""
     return tuple((size, area_in2 * _IN2_TO_M2) for size, area_in2 in _API526_ORIFICE_TABLE_IN2)
 
 

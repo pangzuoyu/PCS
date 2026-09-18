@@ -35,6 +35,7 @@ class NumberingService:
     """
 
     def __init__(self, session: AsyncSession):
+        """构造 NumberingService（注入 session + AuditService 写取号审计）。"""
         self.session = session
         self.audit = AuditService(session)
 

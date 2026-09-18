@@ -80,6 +80,7 @@ class CIAEngine:
     MAX_DEPTH = 8
 
     def __init__(self, session: AsyncSession):
+        """构造 CIAEngine（注入 session + LineageTracker/StateMachineService 协作）。"""
         self.session = session
         self.tracker = LineageTracker(session)
         self.fsm = StateMachineService(session)

@@ -26,6 +26,7 @@ class ChecklistService:
     """
 
     def __init__(self, session: AsyncSession):
+        """构造 ChecklistService（注入 session + 依赖 AuditService 写审计行）。"""
         self.session = session
         self.audit = AuditService(session)
 

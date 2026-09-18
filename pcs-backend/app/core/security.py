@@ -37,6 +37,7 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 
 def _now() -> datetime:
+    """当前 UTC 时间（供 JWT iat/exp 字段统一时区）。"""
     return datetime.now(UTC)
 
 

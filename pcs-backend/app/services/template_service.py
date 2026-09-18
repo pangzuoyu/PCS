@@ -40,6 +40,7 @@ class TemplateService:
     """
 
     def __init__(self, session: AsyncSession, storage_root: Path):
+        """构造 TemplateService（session + storage_root + AuditService + Jinja2 env）。"""
         self.session = session
         self.storage_root = Path(storage_root)
         self.audit = AuditService(session)

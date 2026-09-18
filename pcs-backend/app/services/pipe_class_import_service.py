@@ -86,6 +86,7 @@ class PipeClassImportService:
     """PC-5：双 Sheet + 验证引擎 + import_id 暂存。"""
 
     def __init__(self, db: AsyncSession):
+        """构造 PipeClassImportService（注入 SQLAlchemy async session）。"""
         self.db = db
 
     # ---------- 模板（V1.4 EXCEL-01 锁 1.9.6 12 列） ----------

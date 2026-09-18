@@ -124,6 +124,7 @@ def _to_http(err: Exception) -> CorePcsError:
 
 
 def _serialize_profile(p: ProjectCalculationStandardProfile) -> StandardProfileResponse:
+    """PSV 项目标准集 ORM 行 → StandardProfileResponse（JSON dict 化 + nullable 处理）。"""
     return StandardProfileResponse(
         profile_id=p.id,
         project_id=p.project_id,

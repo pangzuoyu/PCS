@@ -26,6 +26,7 @@ class PcsError(Exception):
     def __init__(
         self, code: str, message: str, status: int = 400, detail: Any = None
     ):
+        """构造 FastAPI 全局异常信封基类（code 大写蛇形 + status HTTP code + detail 可选 dict）。"""
         self.code = code
         self.message = message
         self.status = status

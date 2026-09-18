@@ -41,6 +41,7 @@ class FormulaService:
     """
 
     def __init__(self, session: AsyncSession):
+        """构造 FormulaService（注入 session）。"""
         self.session = session
 
     async def run_unit_tests(self, asset: ConfigAsset) -> UnitTestResult:

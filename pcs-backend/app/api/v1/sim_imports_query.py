@@ -130,6 +130,7 @@ class SimImportWarningListResponse(BaseModel):
 
 
 def _to_list_item(imp: SimImport) -> SimImportListItem:
+    """SIM 导入记录 → 列表项（含枚举 value + warnings 派生 has_warnings/warning_count）。"""
     return SimImportListItem(
         import_id=imp.import_id,
         project_id=imp.project_id,
@@ -148,6 +149,7 @@ def _to_list_item(imp: SimImport) -> SimImportListItem:
 
 
 def _to_detail(imp: SimImport) -> SimImportDetailResponse:
+    """SIM 导入记录 → 详情项（含 workspace_id + expires_at，列表项无的字段）。"""
     return SimImportDetailResponse(
         import_id=imp.import_id,
         project_id=imp.project_id,

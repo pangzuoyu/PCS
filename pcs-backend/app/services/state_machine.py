@@ -149,6 +149,7 @@ class InvalidTransition(Exception):
     """状态机非法转移。"""
 
     def __init__(self, from_status: str, transition: str) -> None:
+        """构造 InvalidTransition（携带 from_status/transition 用于错误信封 detail）。"""
         super().__init__(f"Invalid transition {transition} from {from_status}")
         self.from_status = from_status
         self.transition = transition
@@ -168,6 +169,7 @@ class StateMachineService:
     """
 
     def __init__(self, session: AsyncSession):
+        """构造 StateMachineService（注入 session）。"""
         self.session = session
 
     async def _write_audit(

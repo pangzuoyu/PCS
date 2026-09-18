@@ -332,6 +332,7 @@ class _WagnerBaseThermo:
     _water_only: bool = False  # 子类覆盖：True 表示只支持水（iapws95）
 
     def __init__(self, cass: list[str]):
+        """构造 _WagnerBaseThermo（透传组分 CAS 列表 + 构建 CAS→index 反查表，供 Psat/Tsat 用）。"""
         # 透传 CAS 给 stub（reviewer R0 finding — P4-1-1 已修正接收，此处真正使用）
         self._cass = list(cass)
         # 构造 CAS -> index 反查表

@@ -67,6 +67,7 @@ def _try_floats(tokens: list[str]) -> list[float] | None:
 
 
 def _parse_vapor(vals: list[float]) -> VaporLoading:
+    """PRO/II vapor 6 字段列表 → VaporLoading（temp_c/pressure/mw/rate/density/viscosity）。"""
     return VaporLoading(
         temp_c=vals[0], pressure=vals[1], mw=vals[2],
         rate=vals[3], density=vals[4], viscosity=vals[5],
@@ -74,6 +75,7 @@ def _parse_vapor(vals: list[float]) -> VaporLoading:
 
 
 def _parse_liquid(vals: list[float]) -> LiquidLoading:
+    """PRO/II liquid 6 字段 → LiquidLoading（temp/mw/rate/density/viscosity/surface_tension）。"""
     return LiquidLoading(
         temp_c=vals[0], mw=vals[1], rate=vals[2],
         density=vals[3], viscosity=vals[4], surface_tension=vals[5],

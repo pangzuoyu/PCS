@@ -196,10 +196,12 @@ def _to_http(err: Exception) -> CorePcsError:
 
 
 def _serialize_segment(seg) -> WeightSegmentResponse:
+    """单段重量 → WeightSegmentResponse（dataclass → Pydantic response）。"""
     return WeightSegmentResponse(weight_kg=seg.weight_kg, formula_ref=seg.formula_ref)
 
 
 def _build_segments(wres: WeightEstimateResult) -> dict[str, WeightSegmentResponse]:
+    """重量估算 9 段结果 → 段名→响应 dict（壳 6 段 + tube/baffle/channels）。"""
     return {
         "shell_cylinder": _serialize_segment(wres.shell_cylinder),
         "shell_heads": _serialize_segment(wres.shell_heads),

@@ -165,6 +165,7 @@ def _round_dn(D_calc_mm: float) -> str:
 
 
 def _diameter_mm_to_m(d_mm: float) -> float:
+    """管径 mm → m 单位换算（除 1000）。"""
     return d_mm / 1000.0
 
 

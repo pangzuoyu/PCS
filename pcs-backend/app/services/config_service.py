@@ -49,6 +49,7 @@ class ConfigService:
     """
 
     def __init__(self, session: AsyncSession):
+        """构造 ConfigService（注入 session + AuditService 写审计）。"""
         self.session = session
         self.audit = AuditService(session)
 

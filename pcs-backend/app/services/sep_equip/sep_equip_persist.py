@@ -67,6 +67,7 @@ def _generate_tag_number(project_id: uuid.UUID) -> str:
 
 
 def _dataclass_to_dict(dc: Any) -> dict:
+    """dataclass → dict（透传 dataclasses.asdict，输出 JSON 可序列化）。"""
     return dataclasses.asdict(dc)
 
 

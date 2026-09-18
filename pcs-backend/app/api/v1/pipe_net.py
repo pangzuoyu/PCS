@@ -259,6 +259,7 @@ def _node_req_to_dc(req: NodeReq) -> NodeInput:
 
 
 def _edge_flow_to_json(ef: EdgeFlowResult) -> EdgeFlowJson:
+    """边流结果 EdgeFlowResult → EdgeFlowJson（edge_id/flow_m3_s/direction/dp_pa/iterations）。"""
     return EdgeFlowJson(
         edge_id=ef.edge_id,
         flow_m3_s=ef.flow_m3_s,
@@ -269,6 +270,7 @@ def _edge_flow_to_json(ef: EdgeFlowResult) -> EdgeFlowJson:
 
 
 def _node_pressure_to_json(np: NodePressureResult) -> NodePressureJson:
+    """节点压力结果 → NodePressureJson（node_id/pressure_pa/elevation_m/velocity_head_m）。"""
     return NodePressureJson(
         node_id=np.node_id,
         pressure_pa=np.pressure_pa,

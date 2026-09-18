@@ -77,10 +77,12 @@ def _is_mixed_phase_raw(p: str | None) -> bool:
 
 
 def _k_to_c(t: float | None) -> float | None:
+    """开尔文 K → 摄氏 °C（None 透传）。"""
     return None if t is None else t - 273.15
 
 
 def _pa_to_kpa(p: float | None) -> float | None:
+    """帕 Pa → 千帕 kPa（None 透传）。"""
     return None if p is None else p / 1000.0
 
 
@@ -156,6 +158,7 @@ def _serialize_report(report: Any) -> dict[str, Any]:
     """ConflictReport → dict（JSON 可序列化）。"""
 
     def _conflict_to_dict(c: Any) -> dict[str, Any]:
+        """ConflictLevel enum → value + 5 字段平铺（level/code/message/stream/unit/field）。"""
         return {
             "level": c.level.value if isinstance(c.level, ConflictLevel) else str(c.level),
             "code": c.code,

@@ -252,6 +252,7 @@ def map_htri_to_heat_input(
 
 
 def _htri_hot_side_dict(htri: HtriParsedData) -> dict[str, Any]:
+    """HTRI 解析 → 热侧流体摘要 dict（fluid_name=hot + 进出口温/流量/比热容）。"""
     return {
         "fluid_name": "hot",
         "temp_in": htri.hot_inlet_t_k,
@@ -262,6 +263,7 @@ def _htri_hot_side_dict(htri: HtriParsedData) -> dict[str, Any]:
 
 
 def _htri_cold_side_dict(htri: HtriParsedData) -> dict[str, Any]:
+    """HTRI 解析 → 冷侧流体摘要 dict（fluid_name=cold + 进出口温/流量/比热容）。"""
     return {
         "fluid_name": "cold",
         "temp_in": htri.cold_inlet_t_k,

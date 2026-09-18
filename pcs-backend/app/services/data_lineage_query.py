@@ -29,6 +29,7 @@ class DataLineageQueryService:
     """DataLineage 反向查询（spec §2）。"""
 
     def __init__(self, session: AsyncSession):
+        """构造 DataLineageQueryService（注入 session）。"""
         self.session = session
 
     async def find_references(

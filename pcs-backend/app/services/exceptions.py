@@ -26,6 +26,7 @@ class PcsError(Exception):
         status: int | None = None,
         details: dict[str, Any] | None = None,
     ):
+        """构造 service 层 PcsError（默认 code=PCS_ERROR / status=422；kwargs 可覆盖子码）。"""
         super().__init__(message)
         if code is not None:
             self.code = code

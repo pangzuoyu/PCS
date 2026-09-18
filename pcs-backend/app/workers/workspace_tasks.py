@@ -40,4 +40,5 @@ async def cleanup_with_session(session) -> int:
 
 
 def _now() -> datetime:
+    """当前 UTC 时间（ARQ worker 任务上下文时间戳统一）。"""
     return datetime.now(UTC)

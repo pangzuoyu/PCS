@@ -28,6 +28,7 @@ class BoundObsoleteError(PcsError):
     status = 409
 
     def __init__(self, message: str, **kw: Any) -> None:
+        """构造 BoundObsoleteError（透传父类 PcsError 参数）。"""
         super().__init__(message, **kw)
 
 

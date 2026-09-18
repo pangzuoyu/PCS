@@ -68,6 +68,7 @@ class ConfigStateMachine:
     DOUBLE_SIGNOFF_CATEGORIES: set[str] = {"CATEGORY_2"}
 
     def __init__(self, session: AsyncSession):
+        """构造 ConfigStateMachine（注入 session + AuditService 写状态变更审计）。"""
         self.session = session
         self.audit = AuditService(session)
 

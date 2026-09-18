@@ -59,6 +59,7 @@ class ReportService:
     """
 
     def __init__(self, session: AsyncSession) -> None:
+        """构造 ReportService（注入 session）。"""
         self.session = session
 
     async def config_asset_status(self) -> list[ConfigAssetReport]:

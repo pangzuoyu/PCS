@@ -54,6 +54,7 @@ class HtriVersionUnsupportedError(HtriParseError):
     """
 
     def __init__(self, detected_version: str, versions_supported: list[str], upgrade_url: str):
+        """构造 HtriVersionUnsupportedError（detected/supported/upgrade_url 驱动 message）。"""
         self.detected_version = detected_version
         self.versions_supported = versions_supported
         self.upgrade_url = upgrade_url

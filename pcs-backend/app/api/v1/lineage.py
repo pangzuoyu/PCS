@@ -108,6 +108,7 @@ async def graph(
 
 
 def _serialize(lineage) -> dict:
+    """DataLineage ORM 行 → API dict（UUID 字符串化 + parent/source_ref 字段 nullable 兼容）。"""
     return {
         "lineage_id": str(lineage.lineage_id),
         "record_type": lineage.record_type,

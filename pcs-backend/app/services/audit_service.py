@@ -32,6 +32,7 @@ class AuditService:
     """
 
     def __init__(self, session: AsyncSession):
+        """构造 AuditService（注入 SQLAlchemy async session）。"""
         self.session = session
 
     async def write(

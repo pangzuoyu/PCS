@@ -25,10 +25,12 @@ _TB_C_RANGE = (-100.0, 800.0)
 
 
 def _f0(tr: float) -> float:
+    """Kesler-Lee f0 函数（偏心因子 ω 与蒸汽压关系，Lee & Kesler 1975 AIChE J 21:510）。"""
     return 5.92714 - 6.09648 / tr - 1.28862 * math.log(tr) + 0.169347 * tr**6
 
 
 def _f1(tr: float) -> float:
+    """Kesler-Lee f1 函数（饱和蒸气压校正项）。"""
     return 15.2518 - 15.6875 / tr - 13.4721 * math.log(tr) + 0.43577 * tr**6
 
 

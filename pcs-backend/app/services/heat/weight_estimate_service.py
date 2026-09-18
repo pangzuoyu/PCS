@@ -122,20 +122,24 @@ class WeightEstimateResult:
 
 
 def _material_density(material: str) -> float:
+    """材料密度（kg/m³，未知材料回退 _DEFAULT_DENSITY）。"""
     return _MATERIAL_DENSITY.get(material, _DEFAULT_DENSITY)
 
 
 def _flange_unit_weight(flange_class: str, size_dn: int) -> float:
+    """法兰单重 kg（按 (flange_class, size_dn) 查表，未命中回退默认值）。"""
     return _FLANGE_WEIGHT_KG.get(
         (flange_class, size_dn), _FLANGE_DEFAULT_WEIGHT_KG
     )
 
 
 def _saddle_unit_weight(size_dn: int) -> float:
+    """鞍座单重 kg（按 size_dn 查表，未命中回退默认值）。"""
     return _SADDLE_WEIGHT_KG.get(size_dn, _SADDLE_DEFAULT_WEIGHT_KG)
 
 
 def _nozzle_od(nozzle_size_dn: int) -> float:
+    """接管外径 m（按 size_dn 查表，未命中回退默认值）。"""
     return _NOZZLE_OD_M.get(nozzle_size_dn, _NOZZLE_DEFAULT_OD_M)
 
 

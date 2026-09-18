@@ -89,6 +89,7 @@ class LineageTracker:
     """data_lineage 写入门面。"""
 
     def __init__(self, session: AsyncSession):
+        """构造 LineageTracker（注入 session）。"""
         self.session = session
 
     async def track(
@@ -265,6 +266,7 @@ class lineage_ctx:
         source_ref_type: str | None = None,
         source_ref_id: uuid.UUID | None = None,
     ):
+        """构造 lineage_ctx（参数存入 _data dict，__enter__ 时 push 到 ContextVar）。"""
         self._data = {
             "sources": sources or (),
             "parent_lineage_id": parent_lineage_id,
