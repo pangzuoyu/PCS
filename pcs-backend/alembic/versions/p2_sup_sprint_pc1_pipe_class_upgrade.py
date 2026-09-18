@@ -46,6 +46,22 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """PC-1 管架 upgrade：基础列放宽 + base_material + ConfigAsset FK + 3 态 → 5 态。
+
+    步骤（A → F 共 6 段）：
+    - A. pipe_classes 基础列：class_id varchar(20→50) + base_material + asset_id FK
+    - B. base_material 回填 material_standard（旧列保留兼容）
+    - C. status 3 态 → 5 态映射：ACTIVE → PUBLISHED（DRAFT/PENDING/APPROVED 新增；OBSOLETE 保留）
+    - D. project_pipe_classes 重构：新增 source_company_class_id FK + snapshot_json +
+      override_json（fork 自公司模板的派生字段）
+    - E. project_pipe_classes.status 新增 PENDING/APPROVED（走轻量状态机）
+    - F. ConfigAsset 同步挂载（asset_id 链回 config_assets 表）
+
+    业务影响：
+    - PC-1 管架 5 态机落地（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）
+    - 项目级 fork 派生模式启用（override_json + snapshot_json 二元组）
+    - ConfigAsset 资源级追溯（V1.4 §0.5 INT-OPEN-01）
+    """
     # ============================================================
     # A. pipe_classes 基础列
     # ============================================================
