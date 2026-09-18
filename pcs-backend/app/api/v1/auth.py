@@ -92,6 +92,18 @@ def current_user(authorization: Annotated[str | None, Header()] = None) -> dict[
 
 @router.post("/login", response_model=TokenResponse)
 def login(body: LoginRequest) -> TokenResponse:
+    """POST /login：LDAP 登录换取 access/refresh token。
+
+    步骤：
+    1. authenticate(username, password) 走 LDAP bind（service 层封装）
+       - LDAP 失败（LdapAuthError）→ INVALID_CREDENTIALS 401
+    2. resolve_role(user.groups) 由 LDAP 组映射到内部角色
+       （DESIGNER / PROCESS_CONTROLLER / REVIEWER / APPROVER / SYSTEM_ADMIN）
+    3. create_access_token / create_refresh_token 签发 JWT 对（HS256）
+    4. 不写 Audit（login 是公开端点，无 user_id 上下文）
+
+    返回 TokenResponse：{access_token, refresh_token, role, username}。
+    """
     try:
         user = authenticate(body.username, body.password)
     except LdapAuthError as e:
