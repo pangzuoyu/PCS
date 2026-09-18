@@ -156,6 +156,15 @@ class PipeCodeTemplateService:
         *,
         actor: Any,
     ) -> None:
+        """删除公司级管号模板（cascade asset + 引用检查）。
+
+        - 取行（不存在 → PIPE_CODE_TEMPLATE_NOT_FOUND 404）
+        - 引用检查：ProjectPipeCodeConfig.source_template_id 引用
+          → PIPE_CODE_TEMPLATE_IN_USE（409）
+        - 级联删 ConfigAsset（若存在 asset_id；CASCADE 清理 ConfigVersion）
+        - 删 PipeCodeTemplate 行
+        - 提交由本函数负责（db.commit()）
+        """
         t = await cls.get(db, template_id)
         ref = (
             await db.execute(
