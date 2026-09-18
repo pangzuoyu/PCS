@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-09-17T23:50:14.182Z",
-    "fileCount": 712,
+    "lastScanned": "2026-09-18T01:46:15.927Z",
+    "fileCount": 713,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "fe812fba8fa35553e215bfd73de2b4a532f009b353ff5d47644ad39263f48c05",
-    "storeUpdatedAt": "2026-09-17T23:50:14.192Z",
-    "rootHash": "2642d81d5ecdd48a"
+    "renderedHash": "701635c0b2968d0f772c511f8e104369eea11c24a512cac972651398e0fc39ef",
+    "storeUpdatedAt": "2026-09-18T01:46:15.938Z",
+    "rootHash": "e2d359e7b5dfaccd"
   },
   "files": {
     "CLAUDE.md": {
@@ -25098,288 +25098,288 @@
     },
     "pcs-backend/app/services/psv/relief_area_service.py": {
       "description": "P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 双路径 + ω 法两相流）。",
-      "tokens": 3524,
-      "hash": "0f757b37be3fac17",
-      "size": 14331,
-      "mtimeMs": 1789688575027.8916,
-      "updatedAt": "2026-09-17T23:42:55.074Z",
+      "tokens": 4228,
+      "hash": "d611eb380d7b1212",
+      "size": 17606,
+      "mtimeMs": 1789694549519.633,
+      "updatedAt": "2026-09-18T01:22:29.564Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ReliefAreaFormulaRef",
           "kind": "class",
-          "startLine": 43,
-          "endLine": 54,
+          "startLine": 59,
+          "endLine": 70,
           "tokens": 47
         },
         {
           "name": "ReliefAreaInput",
           "kind": "class",
-          "startLine": 55,
-          "endLine": 87,
+          "startLine": 71,
+          "endLine": 103,
           "tokens": 277
         },
         {
           "name": "ReliefAreaResult",
           "kind": "class",
-          "startLine": 88,
-          "endLine": 121,
+          "startLine": 104,
+          "endLine": 137,
           "tokens": 248
         },
         {
           "name": "PsvReliefAreaInputError",
           "kind": "class",
-          "startLine": 122,
-          "endLine": 131,
+          "startLine": 138,
+          "endLine": 147,
           "tokens": 46
         },
         {
           "name": "_gas_area_api520",
           "kind": "fn",
-          "startLine": 132,
-          "endLine": 185,
-          "tokens": 458
+          "startLine": 148,
+          "endLine": 214,
+          "tokens": 668
         },
         {
           "name": "calc_relief_area_api520_gas",
           "kind": "fn",
-          "startLine": 186,
-          "endLine": 207,
+          "startLine": 215,
+          "endLine": 236,
           "tokens": 160
         },
         {
           "name": "calc_relief_area_api520_liquid",
           "kind": "fn",
-          "startLine": 208,
-          "endLine": 235,
-          "tokens": 252
+          "startLine": 237,
+          "endLine": 266,
+          "tokens": 287
         },
         {
           "name": "calc_relief_area_api520_two_phase",
           "kind": "fn",
-          "startLine": 236,
-          "endLine": 312,
-          "tokens": 778
+          "startLine": 267,
+          "endLine": 359,
+          "tokens": 996
         },
         {
           "name": "calc_relief_area_gb12241",
           "kind": "fn",
-          "startLine": 313,
-          "endLine": 356,
+          "startLine": 360,
+          "endLine": 403,
           "tokens": 412
         },
         {
           "name": "calc_relief_area",
           "kind": "fn",
-          "startLine": 357,
-          "endLine": 387,
+          "startLine": 404,
+          "endLine": 434,
           "tokens": 258
         },
         {
           "name": "_build_area_result",
           "kind": "fn",
-          "startLine": 388,
-          "endLine": 423,
+          "startLine": 435,
+          "endLine": 470,
           "tokens": 273
         }
       ]
     },
     "pcs-backend/tests/services/psv/test_relief_area.py": {
       "description": "P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 + ω 法两相流）测试。",
-      "tokens": 5036,
-      "hash": "465361b2ea2dd069",
-      "size": 18854,
-      "mtimeMs": 1789688686407.6782,
-      "updatedAt": "2026-09-17T23:44:46.459Z",
+      "tokens": 5114,
+      "hash": "32c67371086bc2ca",
+      "size": 19186,
+      "mtimeMs": 1789694820870.08,
+      "updatedAt": "2026-09-18T01:27:00.915Z",
       "source": "hook",
       "symbols": [
         {
           "name": "test_api520_gas_basic",
           "kind": "fn",
           "startLine": 54,
-          "endLine": 78,
-          "tokens": 280
+          "endLine": 80,
+          "tokens": 332
         },
         {
           "name": "test_api520_gas_W_proportional",
           "kind": "fn",
-          "startLine": 79,
-          "endLine": 92,
+          "startLine": 81,
+          "endLine": 94,
           "tokens": 145
         },
         {
           "name": "test_api520_gas_P_back_inverse",
           "kind": "fn",
-          "startLine": 93,
-          "endLine": 106,
+          "startLine": 95,
+          "endLine": 108,
           "tokens": 146
         },
         {
           "name": "test_api520_gas_wrong_phase_raises",
           "kind": "fn",
-          "startLine": 107,
-          "endLine": 112,
+          "startLine": 109,
+          "endLine": 114,
           "tokens": 60
         },
         {
           "name": "test_api520_gas_T_zero_raises",
           "kind": "fn",
-          "startLine": 113,
-          "endLine": 123,
+          "startLine": 115,
+          "endLine": 125,
           "tokens": 92
         },
         {
           "name": "test_api520_gas_k_le_one_raises",
           "kind": "fn",
-          "startLine": 124,
-          "endLine": 139,
+          "startLine": 126,
+          "endLine": 141,
           "tokens": 150
         },
         {
           "name": "test_api520_liquid_basic",
           "kind": "fn",
-          "startLine": 140,
-          "endLine": 157,
+          "startLine": 142,
+          "endLine": 159,
           "tokens": 167
         },
         {
           "name": "test_api520_liquid_P_set_le_P_back_raises",
           "kind": "fn",
-          "startLine": 158,
-          "endLine": 168,
+          "startLine": 160,
+          "endLine": 170,
           "tokens": 106
         },
         {
           "name": "test_api520_liquid_rho_zero_raises",
           "kind": "fn",
-          "startLine": 169,
-          "endLine": 184,
+          "startLine": 171,
+          "endLine": 186,
           "tokens": 149
         },
         {
           "name": "test_api520_two_phase_omega_zero",
           "kind": "fn",
-          "startLine": 185,
-          "endLine": 206,
+          "startLine": 187,
+          "endLine": 208,
           "tokens": 218
         },
         {
           "name": "test_api520_two_phase_omega_one",
           "kind": "fn",
-          "startLine": 207,
-          "endLine": 226,
+          "startLine": 209,
+          "endLine": 228,
           "tokens": 220
         },
         {
           "name": "test_api520_two_phase_omega_half",
           "kind": "fn",
-          "startLine": 227,
-          "endLine": 247,
+          "startLine": 229,
+          "endLine": 249,
           "tokens": 235
         },
         {
           "name": "test_api520_two_phase_omega_out_of_range_raises",
           "kind": "fn",
-          "startLine": 248,
-          "endLine": 258,
+          "startLine": 250,
+          "endLine": 260,
           "tokens": 112
         },
         {
           "name": "test_api520_two_phase_leung_ideal_gas_fallback_rho_g",
           "kind": "fn",
-          "startLine": 259,
-          "endLine": 282,
-          "tokens": 302
+          "startLine": 261,
+          "endLine": 284,
+          "tokens": 307
         },
         {
           "name": "test_api520_two_phase_leung_water_steam_conservative",
           "kind": "fn",
-          "startLine": 283,
-          "endLine": 310,
+          "startLine": 285,
+          "endLine": 312,
           "tokens": 321
         },
         {
           "name": "test_gb12241_fallback_marker",
           "kind": "fn",
-          "startLine": 311,
-          "endLine": 324,
+          "startLine": 313,
+          "endLine": 326,
           "tokens": 134
         },
         {
           "name": "test_gb12241_more_conservative_than_api",
           "kind": "fn",
-          "startLine": 325,
-          "endLine": 337,
+          "startLine": 327,
+          "endLine": 339,
           "tokens": 118
         },
         {
           "name": "test_gb12241_P_back_zero_raises",
           "kind": "fn",
-          "startLine": 338,
-          "endLine": 352,
+          "startLine": 340,
+          "endLine": 354,
           "tokens": 141
         },
         {
           "name": "test_dispatch_api_gas",
           "kind": "fn",
-          "startLine": 353,
-          "endLine": 359,
+          "startLine": 355,
+          "endLine": 361,
           "tokens": 70
         },
         {
           "name": "test_dispatch_api_liquid",
           "kind": "fn",
-          "startLine": 360,
-          "endLine": 365,
+          "startLine": 362,
+          "endLine": 367,
           "tokens": 59
         },
         {
           "name": "test_dispatch_api_two_phase",
           "kind": "fn",
-          "startLine": 366,
-          "endLine": 376,
-          "tokens": 115
+          "startLine": 368,
+          "endLine": 378,
+          "tokens": 116
         },
         {
           "name": "test_dispatch_gb_unified",
           "kind": "fn",
-          "startLine": 377,
-          "endLine": 383,
+          "startLine": 379,
+          "endLine": 385,
           "tokens": 75
         },
         {
           "name": "test_dispatch_W_zero_raises",
           "kind": "fn",
-          "startLine": 384,
-          "endLine": 398,
+          "startLine": 386,
+          "endLine": 400,
           "tokens": 147
         },
         {
           "name": "test_api_gb_calculation_independence",
           "kind": "fn",
-          "startLine": 399,
-          "endLine": 422,
-          "tokens": 266
+          "startLine": 401,
+          "endLine": 424,
+          "tokens": 267
         },
         {
           "name": "test_api_formula_ref_structured",
           "kind": "fn",
-          "startLine": 423,
-          "endLine": 452,
+          "startLine": 425,
+          "endLine": 454,
           "tokens": 320
         },
         {
           "name": "test_api520_gas_strict_M_dependence",
           "kind": "fn",
-          "startLine": 453,
-          "endLine": 478,
+          "startLine": 455,
+          "endLine": 480,
           "tokens": 284
         },
         {
           "name": "test_api520_gas_strict_T_dependence",
           "kind": "fn",
-          "startLine": 479,
-          "endLine": 501,
+          "startLine": 481,
+          "endLine": 503,
           "tokens": 242
         }
       ]
@@ -28558,6 +28558,15 @@
       "size": 1355,
       "mtimeMs": 1789654927798.8167,
       "updatedAt": "2026-09-17T14:22:07.849Z",
+      "source": "hook"
+    },
+    "docs/adr/signatures/psv-gas-area-independent-verification.md": {
+      "description": "PSV 气体泄放面积独立工程复算（C6 关闭报告）",
+      "tokens": 2360,
+      "hash": "ff44b0db6817096a",
+      "size": 11895,
+      "mtimeMs": 1789695975873.8552,
+      "updatedAt": "2026-09-18T01:46:15.927Z",
       "source": "hook"
     }
   }

@@ -8,6 +8,27 @@ budget_tokens: 1500
 
 ---
 
+## ✅ Done (C6 bug-089 9th Ed. PDF 交叉验证 + C6 关闭 — 2026-09-18)
+
+- **C6 关闭依据**（commit `b5b2804` verification update 即将 / 当前 commit）：
+  - **背景**：bug-089 修复（commit `e700271`）后仅做了独立工程复算（3 案例 k=1.10/1.40/1.67）
+  - **本批补充**：直接读 `API St 520-1-2014.pdf`（物理页 66–75 / 印刷页 58–67）原文交叉验证
+    - §5.1 Eq (5) SI + Eq (9) SI 原文逐字符核对（PDF 印刷页 59–60）—— √ 内结构为
+      `k × (2/(k+1))^((k+1)/(k-1))`，**不含** `k/(k-1)` 子表达式
+    - §5.2 Table 8 SI 列 k=1.10/1.40/1.67 = 0.0248/0.0270/0.0287，与 PCS 计算 0.02480/0.02703/0.02869
+      逐项吻合至 4 位小数
+    - §5.3 §5.6.3.2 Example 1（Eq 11 SI）= 3698 mm²，PCS 物理形式 R+isentropic 复算 = 3697 mm²，
+      舍入差 0.027%
+    - §5.4 K_d/K_b/K_c/T/Z/M/3% 入口压降规则全部与 §5.6.3.1 / §5.4.1.1 一致
+    - §5.5 章节定位 `§5.6.3.1.1` 与 PDF 完全一致
+    - §5.6 额外发现：`k/(k-1)` 因子真正归属是 §5.6.4 subcritical F_2 Eq 18，bug-089 源于误用
+  - **验证报告**：`docs/adr/signatures/psv-gas-area-independent-verification.md` §5 9th Ed. PDF 原文交叉验证
+  - **C6 状态**：已关闭（2026-09-18 用户裁决确认）
+- **C7 / GB 状态**：C7 Annex C.2.2 Two-Point Omega Method 完整实现延后到 P5-3-7；
+  GB/T 12241 降级路径 bug-089 错误（R=8314 + k/(k-1) 因子）延后到 P5-3-8
+
+---
+
 ## ✅ Done (OPEN-7 HEAT import + weight-estimate 全串行闭环 — 2026-09-18)
 
 - **第二阶段：weight-estimate 响应透传 output_json**（commit `b5b2804`）：

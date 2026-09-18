@@ -3418,3 +3418,25 @@
 | 07:49 | Edited pcs-backend/tests/api/v1/test_psv_api.py | modified _fire_body() | ~247 |
 | 07:49 | Edited pcs-backend/tests/api/v1/test_psv_api.py | 8→8 lines | ~81 |
 | 07:50 | Edited pcs-backend/tests/api/v1/test_psv_api.py | modified _reaction_runaway_body() | ~167 |
+| 09:18 | Edited pcs-backend/app/services/psv/relief_area_service.py | expanded (+14 lines) | ~426 |
+| 09:18 | Edited pcs-backend/app/services/psv/relief_area_service.py | modified _gas_area_api520() | ~650 |
+| 09:18 | Edited pcs-backend/app/services/psv/relief_area_service.py | modified calc_relief_area_api520_liquid() | ~306 |
+| 09:18 | Edited pcs-backend/app/services/psv/relief_area_service.py | modified calc_relief_area_api520_two_phase() | ~865 |
+| 09:20 | Edited pcs-backend/app/services/psv/relief_area_service.py | modified Eq() | ~450 |
+| 09:21 | Edited pcs-backend/app/services/psv/relief_area_service.py | inline fix | ~20 |
+| 09:21 | Edited pcs-backend/app/services/psv/relief_area_service.py | inline fix | ~20 |
+| 09:21 | Edited pcs-backend/app/services/psv/relief_area_service.py | inline fix | ~21 |
+| 09:22 | Edited pcs-backend/app/services/psv/relief_area_service.py | 27→28 lines | ~330 |
+| 09:22 | Edited pcs-backend/app/services/psv/relief_area_service.py | 3→3 lines | ~46 |
+| 09:22 | Edited pcs-backend/app/services/psv/relief_area_service.py | modified calc_relief_area_api520_liquid() | ~87 |
+| 09:22 | Edited pcs-backend/app/services/psv/relief_area_service.py | modified calc_relief_area_api520_two_phase() | ~392 |
+| 09:25 | Edited pcs-backend/tests/services/psv/test_relief_area.py | 11→11 lines | ~111 |
+| 09:26 | Edited pcs-backend/tests/services/psv/test_relief_area.py | modified test_api520_gas_basic() | ~331 |
+| 09:26 | Edited pcs-backend/tests/services/psv/test_relief_area.py | 2→2 lines | ~27 |
+| 09:26 | Edited pcs-backend/tests/services/psv/test_relief_area.py | 5→5 lines | ~73 |
+| 09:26 | Edited pcs-backend/tests/services/psv/test_relief_area.py | 4→4 lines | ~47 |
+| 09:27 | Edited pcs-backend/tests/services/psv/test_relief_area.py | modified test_api520_two_phase_leung_ideal_gas_fallback_rho_g() | ~306 |
+| 09:29 | Created docs/adr/signatures/psv-gas-area-independent-verification.md | — | ~1341 |
+| 09:45 | Edited docs/adr/signatures/psv-gas-area-independent-verification.md | 3→3 lines | ~90 |
+| 09:45 | Edited docs/adr/signatures/psv-gas-area-independent-verification.md | modified Eq() | ~1225 |
+| 09:46 | Edited docs/adr/signatures/psv-gas-area-independent-verification.md | inline fix | ~17 |

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-17T23:50:14.182Z
-> Files: 712 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-18T01:46:15.927Z
+> Files: 713 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -151,6 +151,7 @@
 - `0030-acceptance-resolution.md` — ADR-0030 V1.1 评审委员会决议（接受） (~1589 tok)
 - `dba-btree-gist-install-confirmation.md` — DBA 执行确认：btree_gist 扩展预装（两库） (~563 tok)
 - `dba-btree-gist-install-request.md` — DBA 执行请求：预装 btree_gist 扩展（两库） (~794 tok)
+- `psv-gas-area-independent-verification.md` — PSV 气体泄放面积独立工程复算（C6 关闭报告） (~2360 tok)
 
 ## docs/contracts/
 
@@ -412,7 +413,7 @@
 - `other_cases_service.py` — P5-3-2 PSV 其他工况（阀门关闭 + 反应失控 + 热膨胀）。 (~1960 tok)
 - `psv_persist.py` — P5-3-6 PSV 计算落库 + outlet 流（service 层）。 (~5533 tok)
 - `relief_aggregator_service.py` — P5-3-3 PSV 多工况叠加聚合。 (~982 tok)
-- `relief_area_service.py` — P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 双路径 + ω 法两相流）。 (~3524 tok)
+- `relief_area_service.py` — P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 双路径 + ω 法两相流）。 (~4228 tok)
 - `valve_selection_types.py` — SUP-P5-PSV-002 V1.14 §3.2 类型定义 + ValidatedParams 容器。 (~2288 tok)
 - `valve_validation.py` — SUP-P5-PSV-002 V1.14 §4.2 validate_valve_params（G7-G25 全拦截/警告）。 (~3649 tok)
 
@@ -682,7 +683,7 @@
 - `test_other_cases.py` — P5-3-2 PSV 其他工况（阀门关闭 + 反应失控 + 热膨胀）测试。 (~2758 tok)
 - `test_psv_persist.py` — P5-3-6 PSV 落库 service dispatcher + helpers 单元测试。 (~3320 tok)
 - `test_relief_aggregator.py` — P5-3-3 PSV 多工况叠加聚合测试。 (~1923 tok)
-- `test_relief_area.py` — P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 + ω 法两相流）测试。 (~5036 tok)
+- `test_relief_area.py` — P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 + ω 法两相流）测试。 (~5114 tok)
 - `test_valve_validation.py` — SUP-P5-PSV-002 V1.14 §4.2 validate_valve_params 测试（G7-G25 全拦截/警告）。 (~7230 tok)
 
 ## pcs-backend/tests/services/sep_equip/
