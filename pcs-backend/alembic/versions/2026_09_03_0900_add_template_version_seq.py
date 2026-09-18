@@ -15,6 +15,14 @@ down_revision = "2026_09_03_0800_add_toe_conversion"
 
 
 def upgrade():
+    """template_files 加 template_version_seq 字段（V1.4 P2-OPEN-005 / Task 1.10.2）。
+
+    步骤：
+    - template_version_seq Integer NOT NULL default 0：模板版本序列号
+
+    业务：模板版本序列号（V1.4 P2-OPEN-005）；与 SUP-009 模板上传 SHA-256
+    去重 + version_seq 自增策略配套使用。
+    """
     op.add_column(
         "template_files",
         sa.Column(

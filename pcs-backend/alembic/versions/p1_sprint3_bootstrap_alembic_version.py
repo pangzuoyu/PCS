@@ -21,6 +21,18 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
+    """bootstrap 修复 alembic_version.version_num 列宽（P1 Sprint3）。
+
+    步骤：
+    - 探测 information_schema 当前 column character_maximum_length
+    - 仅当 < 64 时扩到 VARCHAR(64)（idempotent，已 64 则跳过）
+
+    不动：Sprint 2 之前的 revision 名称都已 <32 字符，无回退必要；downgrade pass。
+
+    业务：Sprint 2 upgrade head 时发现 alembic_version.version_num 是
+    VARCHAR(32)，装不下 'p1sprint1_checklist_schema_upgrade'（37 字符）；
+    已手动 ALTER 到 VARCHAR(64)，本迁移把手动修复落到代码。
+    """
     conn = op.get_bind()
     # 条件：仅当列宽 < 64 时才扩
     res = conn.execute(

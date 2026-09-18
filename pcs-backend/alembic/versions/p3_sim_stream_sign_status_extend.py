@@ -30,6 +30,23 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """streamsignstatus PG enum 扩展为 9 态（P3.2 SIM-13 / P0 闭环 D-1）。
+
+    步骤（ALTER TYPE ADD VALUE IF NOT EXISTS 幂等）：
+    - +CHECK_REJECTED
+    - +STALE
+    - +CHANGE_PENDING
+    - +CHANGED
+    - +REVERSAL_PENDING（P3.3 撤销流预留，本次一并加齐）
+
+    不可逆警告（cerebrum 2026-09-08 锁定）：PG enum ADD VALUE 不可 DROP VALUE；
+    downgrade 抛 NotImplementedError 提示需手动 ALTER TABLE ... TYPE varchar(20)
+    重建枚举。
+
+    业务：P1 StateMachineService.transition() 13 事件流转到 RecordSignStatus9
+    全 9 态（DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED/STALE/CHANGE_PENDING/
+    CHANGED/REVERSAL_PENDING/OBSOLETE）；原 PG enum 仅 4 态缺 5 新值，本迁移补齐。
+    """
     # IF NOT EXISTS：保证幂等（重复 apply 不报错）
     op.execute("ALTER TYPE streamsignstatus ADD VALUE IF NOT EXISTS 'CHECK_REJECTED'")
     op.execute("ALTER TYPE streamsignstatus ADD VALUE IF NOT EXISTS 'STALE'")
