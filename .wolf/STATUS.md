@@ -517,7 +517,9 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 - ✅ (d) MEDIUM 滚动第三批 2 项 — commit `c9ba8d8` + `e772be4`
   - outlet_stream properties 改 copy.deepcopy（防嵌套 dict/list 泄露至 DB，bug-099 fix）
   - HEAT duty 双轨字段落地（ADR-0027 V1.0 决策 5 跟踪项闭环，p5_4_heat_duty_split 迁移）
-- 🔲 **下一批**：P5-123 设计阶段 NOT NULL + LOW/INFO 滚动
+- ✅ (e) MEDIUM 滚动第四批 1 项 — commit `ba4e0de`
+  - design_stage NOT NULL 测试覆盖扩到 column_sizing_results（P5-OPEN-005 三表 contract 对齐 SPEC §8.4）
+- 🔲 **下一批**：LOW/INFO 滚动
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
