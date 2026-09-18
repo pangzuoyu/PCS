@@ -67,6 +67,17 @@ async def get_workspace(
     workspace_id: uuid.UUID,
     session: AsyncSession = Depends(get_db),
 ) -> WorkspaceOut:
+    """GET 单个 workspace（按 ID）+ 更新 last_accessed_at。
+
+    步骤：
+    1. WorkspaceService.get 取行；不存在 → 404 workspace not found
+    2. WorkspaceService.touch 写 last_accessed_at = now（活跃审计）
+    3. session.commit() 落库
+    4. ORM 行经 WorkspaceOut.model_validate 转响应 schema
+
+    注意：本端点不要求 ACL（workspace_id 自身是访问令牌语义）；
+    业务写操作请改用 api/deps.py require_formal_workspace 依赖。
+    """
     svc = WorkspaceService(session)
     ws = await svc.get(workspace_id)
     if ws is None:
