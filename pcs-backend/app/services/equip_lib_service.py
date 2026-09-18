@@ -84,6 +84,17 @@ class EquipLibService:
         cls, session: AsyncSession, *, keyword: str | None = None,
         equipment_type: str | None = None, limit: int = 50,
     ) -> list[ConfigAsset]:
+        """检索设备库（仅 PUBLISHED）。
+
+        步骤：
+        1. 固定过滤：CATEGORY_6（设备库分类） + status == PUBLISHED
+           （DRAFT/pending 走 /config/assets 审批后可见）
+        2. 可选 keyword：name ILIKE %kw% 模糊匹配
+        3. 可选 equipment_type：content_json['equipment_type'] 精确匹配
+           （PG JSONB ->> 字符串提取）
+        4. limit 上限 200（min(limit, 200) 防止前端误传）
+        5. 不分页：返回 ConfigAsset 列表（FastAPI 自动经 AssetResponse 序列化）
+        """
         stmt = select(ConfigAsset).where(
             ConfigAsset.category == "CATEGORY_6", ConfigAsset.status == "PUBLISHED"
         )
