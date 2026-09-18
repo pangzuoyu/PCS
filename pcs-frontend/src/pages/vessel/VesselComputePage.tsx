@@ -71,6 +71,15 @@ function extractPcsError(err: unknown): PcsErrorEnvelope {
   return {};
 }
 
+/**安全数值化：后端字段可能是 number / 数字字符串 / null / undefined；
+ * Number("abc") → NaN 会被 antd Statistic 显示为 "NaN" 误导工艺计算结果。
+ * 此处统一 parseFloat + 兜底 fallback，避免 NaN leak 到 UI。
+ */
+function coerceNum(v: unknown, fallback = 0): number {
+  const n = typeof v === 'number' ? v : parseFloat(String(v ?? ''));
+  return Number.isFinite(n) ? n : fallback;
+}
+
 const VESSEL_TYPE_OPTIONS: { value: VesselType; label: string }[] = [
   { value: 'VERTICAL', label: '立式容器' },
   { value: 'HORIZONTAL', label: '卧式容器' },
@@ -419,7 +428,7 @@ export function VesselComputePage({
                   <Col span={8}>
                     <Statistic
                       title="V_max (m/s)"
-                      value={Number(result.result['V_max_ms'] ?? 0)}
+                      value={coerceNum(result.result['V_max_ms'])}
                       precision={3}
                       data-testid="vessel-v-max"
                     />
@@ -427,7 +436,7 @@ export function VesselComputePage({
                   <Col span={8}>
                     <Statistic
                       title="D_min (m)"
-                      value={Number(result.result['D_min_m'] ?? 0)}
+                      value={coerceNum(result.result['D_min_m'])}
                       precision={3}
                       data-testid="vessel-d-min"
                     />
@@ -435,7 +444,7 @@ export function VesselComputePage({
                   <Col span={8}>
                     <Statistic
                       title="持液量 (m³)"
-                      value={Number(result.result['liquid_volume_m3'] ?? 0)}
+                      value={coerceNum(result.result['liquid_volume_m3'])}
                       precision={2}
                     />
                   </Col>
@@ -451,13 +460,13 @@ export function VesselComputePage({
                     </Tag>
                   </Descriptions.Item>
                   <Descriptions.Item label="Q_orifice (m³/s)">
-                    {Number(result.result['Q_orifice_m3_s'] ?? 0).toPrecision(3)}
+                    {coerceNum(result.result['Q_orifice_m3_s']).toPrecision(3)}
                   </Descriptions.Item>
                   <Descriptions.Item label="Q_overflow (m³/s)">
-                    {Number(result.result['Q_overflow_m3_s'] ?? 0).toPrecision(3)}
+                    {coerceNum(result.result['Q_overflow_m3_s']).toPrecision(3)}
                   </Descriptions.Item>
                   <Descriptions.Item label="t_drainage (min)">
-                    {Number(result.result['t_drainage_min'] ?? 0).toFixed(2)}
+                    {coerceNum(result.result['t_drainage_min']).toFixed(2)}
                   </Descriptions.Item>
                 </Descriptions>
 
