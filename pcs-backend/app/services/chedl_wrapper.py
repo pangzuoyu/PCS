@@ -19,10 +19,12 @@ ADR-0030 V1.1 决策 6 + V1.8 F-13-2：所有 ChEDL 调用必须经本包装层�
   time_to_empty / tank_level_to_volume
   fallback 实现 = 圆柱几何 + 伯努利方程 + 孔口出流
 
-P6-0 扩展（13 → 17 项）：
+P6-0 扩展（13 → 17 项 → 23 项）：
 - Task 3：6 函数（control_valve_* 3 + flow_meter_* 3，SPEC §3.2.1/3.2.2 简化公式自研）
 - Task 4：4 函数（manning_Q / manning_V / critical_depth_rectangular /
   hydraulic_jump_y2，SPEC §3.2.6 教科书公式自研，详见 G-01 决策 P6-OPEN-001）
+- Task 5：6 函数（humid_air_* 6，CoolProp.HumidAirProp.HAPropsSI 直调，
+  详见 ADR-0030 V1.2 G-02 + SPEC §3.2.5 PSYCHRO）
 
 调用示例：
     from app.services import chedl_wrapper
@@ -36,9 +38,27 @@ import math
 import fluids
 
 from app.services.chedl_provenance import ChEDLProvenance
+from app.services.exceptions import PcsError
+
+# CoolProp 依赖（ADR-0030 V1.2 G-02 + Task 1 已锁 pyproject==6.6.0）。
+# 包装层 ImportError 透传为 PcsError(code=CHEDL_NOT_AVAILABLE, status=503)，
+# 避免业务层运行时因依赖缺失导致崩溃（运维统一捕获入口）。
+try:
+    import CoolProp  # noqa: F401  # 仅用于 __version__ 双证据链核验
+    from CoolProp import HumidAirProp as _HA_module
+except ImportError as _coolprop_import_err:  # pragma: no cover - 环境守卫
+    raise PcsError(
+        "CoolProp 依赖缺失（PSYCHRO 模块不可用）。"
+        "请确认 pyproject.toml 已声明 CoolProp==6.6.0 并执行 uv sync。",
+        code="CHEDL_NOT_AVAILABLE",
+        status=503,
+        details={"missing_module": "CoolProp.HumidAirProp"},
+    ) from _coolprop_import_err
 
 # ChEDL 版本（与 Task 25 锁定一致；pyproject.toml/uv.lock 单一来源）
 _CHEDL_VERSION = "1.3.1"
+# CoolProp 版本（ADR-0030 V1.2 决策 5 锁定；Task 1 已落 pyproject）
+_COOLPROP_VERSION = "6.6.0"
 
 # 重力加速度（伯努利方程 + 自由出流）
 _G = 9.80665  # m/s²
@@ -724,12 +744,232 @@ def hydraulic_jump_y2(y1: float, Fr1: float) -> float:
 
 
 # ============================================================================
+# P6-0 Task 5：PSYCHRO 6 函数（CoolProp.HumidAirProp.HAPropsSI 直调包装）
+# ============================================================================
+#
+# 设计决策（ADR-0030 V1.2 G-02）：本批 6 函数**直调** CoolProp.HumidAirProp.HAPropsSI
+# （与 Task 3/4 Path A 自研简化公式不同）：
+#   1. CoolProp 6.6.0 模块路径 `CoolProp.HumidAirProp`（非 `CoolProp.HumidAir`，
+#      后者仅存在于更早版本；本批锁定 6.6.0 后命名以官方文档为准）
+#   2. HAPropsSI 签名 `HAPropsSI(Output, Input1Name, Input1, Input2Name, Input2,
+#      Input3Name, Input3)` 与 brief 完全一致，无须自研简化公式
+#   3. SPEC §3.2.5 PSYCHRO（line 240-254）含湿量/露点/湿球/焓/比容/冷却盘管 6 项
+#      全部由 CoolProp 官方实现覆盖，ASHRAE RP-1845 算法（CoolProp 官方文档）
+#   4. 验收标准：与 ASHRAE Psychrometric Chart 偏差 <1%（SPEC §3.2.5 line 254）
+#   5. 无 fallback 路径——CoolProp 即权威实现；如未来版本不兼容走 ADR-0030 决策 8
+#
+# ASHRAE 验证值参考（P=101325 Pa，由 CoolProp 6.6.0 自洽生成）：
+#   T=298.15K(25°C), RH=0.5: W≈0.00993, D≈287.02K, B≈291.03K, H≈50423 J/kg, V≈0.858
+#   T=303.15K(30°C), RH=0.6: W≈0.01612, H≈71365 J/kg
+#
+# 冷却盘管显热/潜热分解（ASHRAE Handbook Fundamentals 2021 §1.2）：
+#   Q_sensible = Cp_dry_air · (T_in - T_out), Cp_dry_air ≈ 1006 J/(kg·K)
+#   Q_latent   = (H_in - H_out) - Q_sensible
+
+
+def humid_air_humidity_ratio(T_k: float, RH: float, P_pa: float) -> float:
+    """湿空气湿度比 W（kg 水 / kg 干空气）。
+
+    直调 CoolProp.HumidAirProp.HAPropsSI（ADR-0030 V1.2 G-02）：算法基于
+    ASHRAE RP-1845（CoolProp 官方文档 HAPropsSI 实现）。
+
+    Args:
+        T_k: 干球温度（K，开尔文）
+        RH: 相对湿度（无量纲，0~1）
+        P_pa: 大气压力（Pa）
+
+    Returns:
+        湿度比 W（kg/kg dry air）
+
+    已知限制：
+        - RH ∈ [0, 1]（>1 无物理意义）；超出范围触发 ValueError
+        - P > 0（≤0 无物理意义）；非正压力触发 ValueError
+        - T > 0 K（绝对零度无意义）；CoolProp 内部会捕获非正 T
+    """
+    if not (0.0 <= RH <= 1.0):
+        raise ValueError(
+            f"humid_air_humidity_ratio RH 必须在 [0, 1] 区间：RH={RH}"
+        )
+    if P_pa <= 0.0:
+        raise ValueError(
+            f"humid_air_humidity_ratio 压力必须正数：P_pa={P_pa}"
+        )
+    return _HA_module.HAPropsSI("W", "T", T_k, "R", RH, "P", P_pa)
+
+
+def humid_air_dew_point(T_k: float, RH: float, P_pa: float) -> float:
+    """湿空气露点温度 D（K，开尔文）。
+
+    直调 CoolProp.HumidAirProp.HAPropsSI（ADR-0030 V1.2 G-02）：露点定义为
+    保持湿空气湿度比不变，冷却至饱和时的温度。
+
+    Args:
+        T_k: 干球温度（K）
+        RH: 相对湿度（无量纲，0~1）
+        P_pa: 大气压力（Pa）
+
+    Returns:
+        露点温度（K）
+
+    已知限制：
+        - 返回值单位为 K（开尔文）；调用方需转 °C 时减 273.15
+        - RH=0 时返回物理上不可计算（CoolProp 内部抛 ValueError 透传）
+    """
+    if not (0.0 <= RH <= 1.0):
+        raise ValueError(
+            f"humid_air_dew_point RH 必须在 [0, 1] 区间：RH={RH}"
+        )
+    if P_pa <= 0.0:
+        raise ValueError(
+            f"humid_air_dew_point 压力必须正数：P_pa={P_pa}"
+        )
+    return _HA_module.HAPropsSI("D", "T", T_k, "R", RH, "P", P_pa)
+
+
+def humid_air_wet_bulb(T_k: float, RH: float, P_pa: float) -> float:
+    """湿空气湿球温度 B（K，开尔文）。
+
+    直调 CoolProp.HumidAirProp.HAPropsSI（ADR-0030 V1.2 G-02）：湿球定义为
+    等焓饱和温度（绝热饱和近似），位于露点与干球之间。
+
+    Args:
+        T_k: 干球温度（K）
+        RH: 相对湿度（无量纲，0~1）
+        P_pa: 大气压力（Pa）
+
+    Returns:
+        湿球温度（K）
+
+    已知限制：
+        - 返回值单位为 K
+        - RH=0 时物理上不可计算（CoolProp 内部抛 ValueError 透传）
+    """
+    if not (0.0 <= RH <= 1.0):
+        raise ValueError(
+            f"humid_air_wet_bulb RH 必须在 [0, 1] 区间：RH={RH}"
+        )
+    if P_pa <= 0.0:
+        raise ValueError(
+            f"humid_air_wet_bulb 压力必须正数：P_pa={P_pa}"
+        )
+    return _HA_module.HAPropsSI("B", "T", T_k, "R", RH, "P", P_pa)
+
+
+def humid_air_enthalpy(T_k: float, RH: float, P_pa: float) -> float:
+    """湿空气比焓 H（J/kg 干空气）。
+
+    直调 CoolProp.HumidAirProp.HAPropsSI（ADR-0030 V1.2 G-02）：单位为
+    J/kg dry air（每 kg 干空气的焓，不是 kg 湿空气）。
+
+    Args:
+        T_k: 干球温度（K）
+        RH: 相对湿度（无量纲，0~1）
+        P_pa: 大气压力（Pa）
+
+    Returns:
+        比焓（J/kg dry air）
+
+    已知限制：
+        - 单位 J/kg dry air（非 J/kg moist air）；转换需乘以 (1+W)
+        - 高温（T > 100°C）或极低压（P < 1 kPa）需注意 HAPropsSI 适用范围
+    """
+    if not (0.0 <= RH <= 1.0):
+        raise ValueError(
+            f"humid_air_enthalpy RH 必须在 [0, 1] 区间：RH={RH}"
+        )
+    if P_pa <= 0.0:
+        raise ValueError(
+            f"humid_air_enthalpy 压力必须正数：P_pa={P_pa}"
+        )
+    return _HA_module.HAPropsSI("H", "T", T_k, "R", RH, "P", P_pa)
+
+
+def humid_air_specific_volume(T_k: float, RH: float, P_pa: float) -> float:
+    """湿空气比容 V（m³/kg 干空气）。
+
+    直调 CoolProp.HumidAirProp.HAPropsSI（ADR-0030 V1.2 G-02）：单位为
+    m³/kg dry air（每 kg 干空气占据的体积）。
+
+    Args:
+        T_k: 干球温度（K）
+        RH: 相对湿度（无量纲，0~1）
+        P_pa: 大气压力（Pa）
+
+    Returns:
+        比容（m³/kg dry air）
+
+    已知限制：
+        - 单位 m³/kg dry air（非 m³/kg moist air）
+        - T=25°C, P=101325 时理想气体定律给出 V ≈ 0.845（干空气），湿空气略大
+    """
+    if not (0.0 <= RH <= 1.0):
+        raise ValueError(
+            f"humid_air_specific_volume RH 必须在 [0, 1] 区间：RH={RH}"
+        )
+    if P_pa <= 0.0:
+        raise ValueError(
+            f"humid_air_specific_volume 压力必须正数：P_pa={P_pa}"
+        )
+    return _HA_module.HAPropsSI("V", "T", T_k, "R", RH, "P", P_pa)
+
+
+def humid_air_coil_delta_h(
+    T_in: float,
+    RH_in: float,
+    T_out: float,
+    RH_out: float,
+    P_pa: float,
+) -> tuple[float, float]:
+    """冷却盘管显热 + 潜热（J/kg 干空气）。
+
+    直调 CoolProp.HumidAirProp.HAPropsSI 两次（入口/出口焓），按 ASHRAE
+    Handbook Fundamentals 2021 §1.2 拆分：
+
+        Q_sensible = Cp_dry_air · (T_in - T_out)   # Cp ≈ 1006 J/(kg·K)
+        Q_latent   = (H_in - H_out) - Q_sensible
+
+    Args:
+        T_in: 入口干球温度（K）
+        RH_in: 入口相对湿度（无量纲，0~1）
+        T_out: 出口干球温度（K）
+        RH_out: 出口相对湿度（无量纲，0~1）
+        P_pa: 大气压力（Pa）
+
+    Returns:
+        (Q_sensible, Q_latent)：显热 + 潜热（J/kg dry air）
+
+    已知限制：
+        - 单位 J/kg dry air；如需 J/kg moist air 需乘以 (1+W)
+        - 假设冷却盘管表面与空气充分接触（无接触系数修正）
+        - Cp_dry_air 取 1006 J/(kg·K) 典型值（实际随温度变化 ±1%）
+        - 不含盘管结霜/凝水带走潜热的额外修正（标准 ASHRAE 简式）
+    """
+    if T_in <= 0 or T_out <= 0:
+        raise ValueError(
+            f"humid_air_coil_delta_h 温度必须正数：T_in={T_in}, T_out={T_out}"
+        )
+    if not (0.0 <= RH_in <= 1.0) or not (0.0 <= RH_out <= 1.0):
+        raise ValueError(
+            f"humid_air_coil_delta_h RH 必须在 [0, 1]：RH_in={RH_in}, RH_out={RH_out}"
+        )
+    if P_pa <= 0.0:
+        raise ValueError(
+            f"humid_air_coil_delta_h 压力必须正数：P_pa={P_pa}"
+        )
+    H_in = _HA_module.HAPropsSI("H", "T", T_in, "R", RH_in, "P", P_pa)
+    H_out = _HA_module.HAPropsSI("H", "T", T_out, "R", RH_out, "P", P_pa)
+    Q_sensible = 1006.0 * (T_in - T_out)
+    Q_latent = (H_in - H_out) - Q_sensible
+    return (Q_sensible, Q_latent)
+
+
+# ============================================================================
 # provenance 接口（运维可观测 + 升级决策依据）
 # ============================================================================
 
 
 def get_chedl_provenance() -> dict[str, ChEDLProvenance]:
-    """返回 17 包装函数的 provenance 字典（7 既有 + 6 Task 3 + 4 Task 4）。
+    """返回 23 包装函数的 provenance 字典（7 既有 + 6 Task 3 + 4 Task 4 + 6 Task 5）。
 
     用于：
     1. 运维可观测（metrics / health endpoint）
@@ -737,7 +977,7 @@ def get_chedl_provenance() -> dict[str, ChEDLProvenance]:
     3. 公式溯源字段（formula_ref.source 关联）
 
     Returns:
-        17 项 {func_name: ChEDLProvenance} 字典
+        23 项 {func_name: ChEDLProvenance} 字典
     """
     # chEDL_function 使用 fluids 完整路径（含包名前缀）
     # 5 直调函数
@@ -947,7 +1187,84 @@ def get_chedl_provenance() -> dict[str, ChEDLProvenance]:
             fallback_formula_ref="spec_p6_3.2.6_belanger_rect_jump",
         ),
     }
-    return {**prov_direct, **prov_fallback, **prov_p6_0, **prov_p6_0_t4}
+    # 6 P6-0 Task 5 PSYCHRO 函数（直调 CoolProp.HumidAirProp.HAPropsSI）
+    prov_p6_0_t5: dict[str, ChEDLProvenance] = {
+        "humid_air_humidity_ratio": ChEDLProvenance(
+            chEDL_function="coolprop_humidair_hapropssi",  # CoolProp 官方实现
+            chEDL_version=_COOLPROP_VERSION,  # 6.6.0（ADR-0030 V1.2 决策 5）
+            known_limitations=[
+                "P6-0 Task 5：CoolProp 6.6.0 模块路径 CoolProp.HumidAirProp（注意非 HumidAir）",
+                "算法基于 ASHRAE RP-1845（CoolProp 官方文档）",
+                "RH ∈ [0, 1]，超出范围 ValueError；T_k > 0；P_pa > 0",
+                "无 fallback 路径——CoolProp 即权威实现；版本升级走 ADR-0030 决策 8",
+            ],
+            fallback_available=False,
+            fallback_formula_ref=None,
+        ),
+        "humid_air_dew_point": ChEDLProvenance(
+            chEDL_function="coolprop_humidair_hapropssi",
+            chEDL_version=_COOLPROP_VERSION,
+            known_limitations=[
+                "P6-0 Task 5：返回开尔文（K）；CoolProp 不提供 °C 选项",
+                "RH=0 物理上不可计算（CoolProp 内部抛 ValueError，包装层透传）",
+                "算法 ASHRAE RP-1845；冷凝假设饱和水汽压平衡",
+                "无 fallback——CoolProp 即权威",
+            ],
+            fallback_available=False,
+            fallback_formula_ref=None,
+        ),
+        "humid_air_wet_bulb": ChEDLProvenance(
+            chEDL_function="coolprop_humidair_hapropssi",
+            chEDL_version=_COOLPROP_VERSION,
+            known_limitations=[
+                "P6-0 Task 5：湿球为等焓饱和温度近似（非严格等焓过程）",
+                "返回开尔文（K）；位于露点（D）与干球（T）之间",
+                "RH=0 物理上不可计算（CoolProp 透传 ValueError）",
+                "无 fallback——CoolProp 即权威",
+            ],
+            fallback_available=False,
+            fallback_formula_ref=None,
+        ),
+        "humid_air_enthalpy": ChEDLProvenance(
+            chEDL_function="coolprop_humidair_hapropssi",
+            chEDL_version=_COOLPROP_VERSION,
+            known_limitations=[
+                "P6-0 Task 5：单位 J/kg dry air（非 J/kg moist air）；转换需乘以 (1+W)",
+                "高温（T>100°C）或极低压（P<1 kPa）需注意 HAPropsSI 适用范围",
+                "算法 ASHRAE RP-1845；Cp_dry_air≈1006 J/(kg·K) 为 T=25°C 标准值",
+                "无 fallback——CoolProp 即权威",
+            ],
+            fallback_available=False,
+            fallback_formula_ref=None,
+        ),
+        "humid_air_specific_volume": ChEDLProvenance(
+            chEDL_function="coolprop_humidair_hapropssi",
+            chEDL_version=_COOLPROP_VERSION,
+            known_limitations=[
+                "P6-0 Task 5：单位 m³/kg dry air（非 m³/kg moist air）",
+                "T=25°C, P=101325 时理想气体给出 V≈0.845（干空气），湿空气略大",
+                "算法 ASHRAE RP-1845；干空气 R_da=287.058 J/(kg·K)",
+                "无 fallback——CoolProp 即权威",
+            ],
+            fallback_available=False,
+            fallback_formula_ref=None,
+        ),
+        "humid_air_coil_delta_h": ChEDLProvenance(
+            chEDL_function="coolprop_humidair_hapropssi",
+            chEDL_version=_COOLPROP_VERSION,
+            known_limitations=[
+                "P6-0 Task 5：Q_sensible = 1006·(T_in-T_out)；Cp_dry_air 取 T=25°C 典型值",
+                "Q_latent = (H_in-H_out) - Q_sensible；冷却除湿场景两者均正",
+                "假设盘管-空气充分接触（无 BYPASS 系数 / 接触系数修正）",
+                "不含盘管结霜/凝水带走的额外潜热修正（标准 ASHRAE 简式）",
+                "算法核心 HAPropsSI 调用 2 次（入口/出口焓），其余为 ASHRAE §1.2 简式",
+                "无 fallback——CoolProp 即权威",
+            ],
+            fallback_available=False,
+            fallback_formula_ref=None,
+        ),
+    }
+    return {**prov_direct, **prov_fallback, **prov_p6_0, **prov_p6_0_t4, **prov_p6_0_t5}
 
 
 __all__ = [
@@ -969,5 +1286,11 @@ __all__ = [
     "manning_V",
     "critical_depth_rectangular",
     "hydraulic_jump_y2",
+    "humid_air_humidity_ratio",
+    "humid_air_dew_point",
+    "humid_air_wet_bulb",
+    "humid_air_enthalpy",
+    "humid_air_specific_volume",
+    "humid_air_coil_delta_h",
     "get_chedl_provenance",
 ]

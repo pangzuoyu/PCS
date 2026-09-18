@@ -129,21 +129,25 @@ def test_tank_level_to_volume_fallback_path():
 # ============================================================================
 
 
-def test_get_chedl_provenance_returns_17_entries():
-    """get_chedl_provenance() 必须返回 17 项（5 直调 + 2 fallback + 6 Task 3 + 4 Task 4）。
+def test_get_chedl_provenance_returns_23_entries():
+    """get_chedl_provenance() 必须返回 23 项。
+
+    计数：5 fluids 直调 + 2 fallback + 6 Task 3（CV/RESTRICTION）
+       + 4 Task 4（OPEN_CHANNEL）+ 6 Task 5（PSYCHRO CoolProp 直调）。
 
     P6-0 Task 3 扩展：原 7 项 → 13 项，新增 6 项 CV/RESTRICTION 函数。
     P6-0 Task 4 扩展：13 项 → 17 项，新增 4 项 OPEN_CHANNEL 函数（Manning×2 + 临界水深 + 水跃）。
+    P6-0 Task 5 扩展：17 项 → 23 项，新增 6 项 PSYCHRO CoolProp 直调函数。
     """
     prov = chedl_wrapper.get_chedl_provenance()
     assert isinstance(prov, dict)
-    assert len(prov) == 17, (
-        f"provenance 应有 17 项，实际 {len(prov)}: {list(prov.keys())}"
+    assert len(prov) == 23, (
+        f"provenance 应有 23 项，实际 {len(prov)}: {list(prov.keys())}"
     )
 
 
 def test_get_chedl_provenance_contains_all_functions():
-    """provenance 字典键必须含全部 17 包装函数名。"""
+    """provenance 字典键必须含全部 23 包装函数名。"""
     prov = chedl_wrapper.get_chedl_provenance()
     expected = {
         # 既有 7 项
@@ -166,6 +170,13 @@ def test_get_chedl_provenance_contains_all_functions():
         "manning_V",
         "critical_depth_rectangular",
         "hydraulic_jump_y2",
+        # P6-0 6 项（Task 5）
+        "humid_air_humidity_ratio",
+        "humid_air_dew_point",
+        "humid_air_wet_bulb",
+        "humid_air_enthalpy",
+        "humid_air_specific_volume",
+        "humid_air_coil_delta_h",
     }
     assert set(prov.keys()) == expected, (
         f"provenance 键不匹配。缺失: {expected - set(prov.keys())}，"
@@ -174,14 +185,26 @@ def test_get_chedl_provenance_contains_all_functions():
 
 
 def test_get_chedl_provenance_version_matches_locked():
-    """provenance 中的 ChEDL 版本必须与 Task 25 锁定一致（fluids==1.3.1）。"""
+    """provenance 中的 ChEDL 版本必须与 Task 25/Task 1 锁定一致。
+
+    双版本断言：fluids==1.3.1（17 项流体相关）+ CoolProp==6.6.0（6 项 PSYCHRO 直调）。
+    """
     prov = chedl_wrapper.get_chedl_provenance()
+    psychro_funcs = {
+        "humid_air_humidity_ratio",
+        "humid_air_dew_point",
+        "humid_air_wet_bulb",
+        "humid_air_enthalpy",
+        "humid_air_specific_volume",
+        "humid_air_coil_delta_h",
+    }
     for name, meta in prov.items():
         assert isinstance(meta, ChEDLProvenance), (
             f"{name} 应为 ChEDLProvenance 实例，实际 {type(meta)}"
         )
-        assert meta.chEDL_version == "1.3.1", (
-            f"{name} chEDL_version={meta.chEDL_version!r} != 锁定 '1.3.1'"
+        expected_version = "6.6.0" if name in psychro_funcs else "1.3.1"
+        assert meta.chEDL_version == expected_version, (
+            f"{name} chEDL_version={meta.chEDL_version!r} != 锁定 '{expected_version}'"
         )
 
 
@@ -237,13 +260,30 @@ def test_known_limitations_present_all_entries():
 
 
 def test_provenance_runtime_version_matches():
-    """provenance 中的 chEDL_version 应与运行时 fluids.__version__ 一致（双证据链）。"""
+    """provenance 中的 chEDL_version 应与运行时库 __version__ 一致（双证据链）。
+
+    双库版本：fluids==1.3.1（17 项流体）+ CoolProp==6.6.0（6 项 PSYCHRO 直调）。
+    """
+    import CoolProp
     import fluids
 
     prov = chedl_wrapper.get_chedl_provenance()
+    # PSYCHRO 6 函数走 CoolProp 路径；其余 17 项走 fluids 路径
+    psychro_funcs = {
+        "humid_air_humidity_ratio",
+        "humid_air_dew_point",
+        "humid_air_wet_bulb",
+        "humid_air_enthalpy",
+        "humid_air_specific_volume",
+        "humid_air_coil_delta_h",
+    }
     for name, meta in prov.items():
-        assert meta.chEDL_version == fluids.__version__, (
-            f"{name} provenance version {meta.chEDL_version} != 运行时 {fluids.__version__}"
+        expected_version = (
+            CoolProp.__version__ if name in psychro_funcs else fluids.__version__
+        )
+        assert meta.chEDL_version == expected_version, (
+            f"{name} provenance version {meta.chEDL_version} != "
+            f"运行时 {expected_version}"
         )
 
 
@@ -936,3 +976,345 @@ def test_hydraulic_jump_y2_rejects_non_positive_y1():
         chedl_wrapper.hydraulic_jump_y2(y1=0.0, Fr1=2.5)
     with pytest.raises(ValueError, match="y1"):
         chedl_wrapper.hydraulic_jump_y2(y1=-0.5, Fr1=2.5)
+
+
+# ============================================================================
+# P6-0 Task 5：PSYCHRO 6 函数（CoolProp.HumidAirProp HAPropsSI 直调包装）
+# ============================================================================
+#
+# 设计依据（区别于 Task 3/4 Path A）：
+# - 与 Task 3 (CV) / Task 4 (OPEN_CHANNEL) 不同：CoolProp.HumidAirProp.HAPropsSI 签名
+#   `HAPropsSI(Output, Input1Name, Input1, Input2Name, Input2, Input3Name, Input3)`
+#   与 brief 完全一致，无须自研简化公式
+# - 顶部 import：from CoolProp import HumidAirProp as HA
+# - 直调路径：每个函数内部 `return HA.HAPropsSI(...)`，provenance fallback_available=False
+# - ASHRAE 验证值由 CoolProp 6.6.0 自身生成（已知参考工况 P=101325 Pa）：
+#     T=298.15K(25°C), RH=0.5:
+#       W≈0.00993 kg/kg, D≈287.02K (13.87°C), B≈291.03K (17.88°C),
+#       H≈50423 J/kg dry air, V≈0.858 m³/kg dry air
+#     T=303.15K(30°C), RH=0.6:
+#       W≈0.01612 kg/kg, H≈71365 J/kg dry air
+# - 容差建议：rel<1e-3 或 abs<10（对小值）
+# - ADR-0030 V1.2 锁定 CoolProp==6.6.0（Task 1 完成；本批核验）
+
+
+def test_humid_air_humidity_ratio_ashrae():
+    """humid_air_humidity_ratio：T=25°C, RH=0.5, P=101325 → W≈0.00993 kg/kg。
+
+    CoolProp.HumidAirProp.HAPropsSI('W','T',298.15,'R',0.5,'P',101325) ≈ 0.00993。
+    ASHRAE Handbook Fundamentals 2021 湿空气性质（一致）。
+    """
+    W = chedl_wrapper.humid_air_humidity_ratio(
+        T_k=298.15, RH=0.5, P_pa=101325.0
+    )
+    assert isinstance(W, float)
+    assert math.isfinite(W)
+    # 容差：rel<1e-3 或 abs<1e-5（绝对值小，rel 容差防止 trivial case）
+    assert W == pytest.approx(0.00993, rel=1e-3), (
+        f"湿度比 W 应约 0.00993 kg/kg，实际 {W}"
+    )
+    assert W > 0.0, f"湿度比必须正数，实际 {W}"
+    # 物理意义：T=25°C, RH=0.5 饱和水汽压约 3.17 kPa → W≈0.622·0.5·3.17/(101.325-1.585)≈0.00987
+    assert 0.008 < W < 0.012
+
+
+def test_humid_air_dew_point_ashrae():
+    """humid_air_dew_point：T=25°C, RH=0.5, P=101325 → D≈287.02K (13.87°C)。
+
+    CoolProp.HumidAirProp.HAPropsSI('D','T',298.15,'R',0.5,'P',101325) ≈ 287.02 K。
+    物理意义：露点温度 < 干球温度（RH<1 时）。
+    """
+    D = chedl_wrapper.humid_air_dew_point(
+        T_k=298.15, RH=0.5, P_pa=101325.0
+    )
+    assert isinstance(D, float)
+    assert math.isfinite(D)
+    # CoolProp 返回开尔文（D 以 K 为单位）
+    assert D == pytest.approx(287.02, rel=1e-3), (
+        f"露点 D 应约 287.02K，实际 {D}"
+    )
+    # 物理意义：RH=0.5 → 露点 < 干球温度
+    assert D < 298.15, f"露点应 < 干球温度，实际 D={D}"
+    # ASHRAE 范围：典型露点温度 13~14°C
+    assert 285.0 < D < 289.0
+
+
+def test_humid_air_wet_bulb_ashrae():
+    """humid_air_wet_bulb：T=25°C, RH=0.5, P=101325 → B≈291.03K (17.88°C)。
+
+    CoolProp.HumidAirProp.HAPropsSI('B','T',298.15,'R',0.5,'P',101325) ≈ 291.03 K。
+    物理意义：湿球温度介于露点（≈287K）和干球（298K）之间。
+    """
+    B = chedl_wrapper.humid_air_wet_bulb(
+        T_k=298.15, RH=0.5, P_pa=101325.0
+    )
+    assert isinstance(B, float)
+    assert math.isfinite(B)
+    assert B == pytest.approx(291.03, rel=1e-3), (
+        f"湿球 B 应约 291.03K，实际 {B}"
+    )
+    # 物理意义：露点 < 湿球 < 干球
+    assert 287.02 < B < 298.15, (
+        f"湿球应介于露点和干球之间，实际 B={B}"
+    )
+
+
+def test_humid_air_enthalpy_ashrae():
+    """humid_air_enthalpy：T=30°C, RH=0.6, P=101325 → H≈71365 J/kg dry air。
+
+    CoolProp.HumidAirProp.HAPropsSI('H','T',303.15,'R',0.6,'P',101325) ≈ 71365 J/kg dry air。
+    ASHRAE 干空气 Cp≈1006 J/(kg·K)，湿空气焓含水汽贡献。
+    """
+    H = chedl_wrapper.humid_air_enthalpy(
+        T_k=303.15, RH=0.6, P_pa=101325.0
+    )
+    assert isinstance(H, float)
+    assert math.isfinite(H)
+    # H 误差应 < 100 J/kg（高量级值，rel<2e-3 即可）
+    assert H == pytest.approx(71365.0, abs=100.0), (
+        f"焓 H 应约 71365 J/kg dry air，实际 {H}"
+    )
+    # 物理意义：T=30°C 标准大气压湿空气 H 约 70~80 kJ/kg
+    assert 60000.0 < H < 90000.0
+
+
+def test_humid_air_specific_volume_ashrae():
+    """humid_air_specific_volume：T=25°C, RH=0.5, P=101325 → V≈0.858 m³/kg dry air。
+
+    CoolProp.HumidAirProp.HAPropsSI('V','T',298.15,'R',0.5,'P',101325) ≈ 0.858 m³/kg dry air。
+    物理意义：理想气体定律 V ≈ Ra·T/P = 287.058·298.15/101325 ≈ 0.8447（干空气），湿空气略大。
+    """
+    V = chedl_wrapper.humid_air_specific_volume(
+        T_k=298.15, RH=0.5, P_pa=101325.0
+    )
+    assert isinstance(V, float)
+    assert math.isfinite(V)
+    assert V == pytest.approx(0.858, rel=1e-3), (
+        f"比容 V 应约 0.858 m³/kg dry air，实际 {V}"
+    )
+    # 物理意义：T=25°C 标准大气压湿空气 V 约 0.85~0.87 m³/kg
+    assert 0.84 < V < 0.88
+
+
+def test_humid_air_coil_delta_h_ashrae():
+    """humid_air_coil_delta_h：冷却盘管显热 + 潜热（J/kg dry air）。
+
+    测试工况（典型冷却盘管）：
+        T_in=303.15K(30°C), RH_in=0.6 → T_out=295.15K(22°C), RH_out=0.9, P=101325
+    公式：
+        H_in ≈ 71365.22 J/kg dry air
+        H_out ≈ 60309.58 J/kg dry air
+        Q_sensible = 1006 · (T_in - T_out) = 1006 · 8 = 8048 J/kg dry air
+        Q_latent = (H_in - H_out) - Q_sensible ≈ 11055.64 - 8048 = 3007.64 J/kg dry air
+    """
+    Q_sensible, Q_latent = chedl_wrapper.humid_air_coil_delta_h(
+        T_in=303.15, RH_in=0.6, T_out=295.15, RH_out=0.9, P_pa=101325.0
+    )
+    assert isinstance(Q_sensible, float)
+    assert isinstance(Q_latent, float)
+    assert math.isfinite(Q_sensible)
+    assert math.isfinite(Q_latent)
+
+    # 显热（cp_dry_air≈1006 J/(kg·K) × ΔT=8K = 8048 J/kg）
+    assert Q_sensible == pytest.approx(8048.0, abs=10.0), (
+        f"显热 Q_sensible 应约 8048 J/kg，实际 {Q_sensible}"
+    )
+
+    # 潜热（H_in - H_out 减去显热）
+    H_in = 71365.22
+    H_out = 60309.58
+    expected_latent = (H_in - H_out) - Q_sensible
+    assert Q_latent == pytest.approx(expected_latent, abs=50.0), (
+        f"潜热 Q_latent 应约 {expected_latent} J/kg，实际 {Q_latent}"
+    )
+    # 物理意义：T 降低 + RH 升高 → 显热 + 潜热均正（冷却除湿）
+    assert Q_sensible > 0, f"冷却盘管显热应正（放热），实际 {Q_sensible}"
+    assert Q_latent > 0, f"冷却盘管潜热应正（凝结放热），实际 {Q_latent}"
+
+
+# ============================================================================
+# P6-0 Task 5：PSYCHRO 6 函数 provenance 接口扩展
+# ============================================================================
+
+
+def test_get_chedl_provenance_contains_p6_0_task5_six_functions():
+    """provenance 字典键必须含全部 6 个 P6-0 Task 5 新增函数名（PSYCHRO）。"""
+    prov = chedl_wrapper.get_chedl_provenance()
+    expected_p6_0_t5 = {
+        "humid_air_humidity_ratio",
+        "humid_air_dew_point",
+        "humid_air_wet_bulb",
+        "humid_air_enthalpy",
+        "humid_air_specific_volume",
+        "humid_air_coil_delta_h",
+    }
+    assert expected_p6_0_t5.issubset(set(prov.keys())), (
+        f"provenance 缺 P6-0 Task 5 函数：{expected_p6_0_t5 - set(prov.keys())}"
+    )
+
+
+def test_p6_0_task5_provenance_coolprop_direct():
+    """PSYCHRO 6 函数 provenance 必须 chEDL_function 指向 CoolProp HAPropsSI + 无 fallback。
+
+    Task 5 设计决策：与 Task 3/4 Path A 不同——CoolProp.HumidAirProp.HAPropsSI 签名直接匹配
+    brief，无须自研简化公式；CoolProp 即权威实现，无 fallback 路径。
+    """
+    prov = chedl_wrapper.get_chedl_provenance()
+    for fn_name in (
+        "humid_air_humidity_ratio",
+        "humid_air_dew_point",
+        "humid_air_wet_bulb",
+        "humid_air_enthalpy",
+        "humid_air_specific_volume",
+        "humid_air_coil_delta_h",
+    ):
+        meta = prov[fn_name]
+        assert meta.chEDL_function == "coolprop_humidair_hapropssi", (
+            f"{fn_name} chEDL_function 应为 'coolprop_humidair_hapropssi'，"
+            f"实际 {meta.chEDL_function!r}"
+        )
+        assert meta.fallback_available is False, (
+            f"{fn_name} fallback_available 应为 False（CoolProp 即权威）"
+        )
+        assert meta.fallback_formula_ref is None, (
+            f"{fn_name} fallback_formula_ref 应为 None"
+        )
+        assert meta.known_limitations, (
+            f"{fn_name} known_limitations 必须列出（coolprop_version 锁定声明）"
+        )
+
+
+def test_p6_0_task5_provenance_coolprop_version_locked():
+    """PSYCHRO 6 函数 provenance chEDL_version 必须锁定 '6.6.0'（ADR-0030 V1.2 决策 5）。
+
+    Task 1 已锁定 CoolProp==6.6.0，本批测试再断言确保 wrapper 包装层与版本一致。
+    """
+    import CoolProp
+
+    # 双证据链：runtime version 与 locked version 一致
+    assert CoolProp.__version__ == "6.6.0", (
+        f"运行时 CoolProp 版本 {CoolProp.__version__!r} != ADR-0030 V1.2 锁定 '6.6.0'"
+    )
+    prov = chedl_wrapper.get_chedl_provenance()
+    for fn_name in (
+        "humid_air_humidity_ratio",
+        "humid_air_dew_point",
+        "humid_air_wet_bulb",
+        "humid_air_enthalpy",
+        "humid_air_specific_volume",
+        "humid_air_coil_delta_h",
+    ):
+        meta = prov[fn_name]
+        assert meta.chEDL_version == "6.6.0", (
+            f"{fn_name} chEDL_version={meta.chEDL_version!r} != 锁定 '6.6.0'"
+        )
+
+
+# ============================================================================
+# P6-0 Task 5：PSYCHRO 6 函数模块导出契约
+# ============================================================================
+
+
+def test_chedl_wrapper_module_exports_all_23():
+    """chedl_wrapper 模块必须暴露全部 23 包装函数 + get_chedl_provenance（17 + 6 Task 5）。
+
+    23 = 7 既有（P5-0 Task 26） + 6 P6-0 Task 3（CV/RESTRICTION） + 4 P6-0 Task 4
+    （OPEN_CHANNEL） + 6 P6-0 Task 5（PSYCHRO CoolProp）。
+    """
+    import app.services.chedl_wrapper as cw
+
+    required_funcs = [
+        # 既有 7 项（P5-0 Task 26）
+        "v_Souders_Brown",
+        "K_separator_Watkins",
+        "K_separator_demister_York",
+        "K_Souders_Brown_theoretical",
+        "v_terminal",
+        "API520_round_size",
+        "time_to_empty",
+        "tank_level_to_volume",
+        # P6-0 Task 3 6 项（CV/RESTRICTION）
+        "control_valve_C_liquid",
+        "control_valve_kv_liquid",
+        "control_valve_cv_gas",
+        "flow_meter_orifice",
+        "flow_meter_venturi",
+        "flow_meter_nozzle",
+        # P6-0 Task 4 4 项（OPEN_CHANNEL）
+        "manning_Q",
+        "manning_V",
+        "critical_depth_rectangular",
+        "hydraulic_jump_y2",
+        # P6-0 Task 5 6 项（PSYCHRO CoolProp）
+        "humid_air_humidity_ratio",
+        "humid_air_dew_point",
+        "humid_air_wet_bulb",
+        "humid_air_enthalpy",
+        "humid_air_specific_volume",
+        "humid_air_coil_delta_h",
+        "get_chedl_provenance",
+    ]
+    for fn_name in required_funcs:
+        assert hasattr(cw, fn_name), f"chedl_wrapper 缺 {fn_name}"
+        assert callable(getattr(cw, fn_name)), f"chedl_wrapper.{fn_name} 不可调用"
+
+
+# ============================================================================
+# P6-0 Task 5：PSYCHRO 6 函数参数校验（防御性编程）
+# ============================================================================
+
+
+def test_humid_air_humidity_ratio_rejects_invalid_RH():
+    """humid_air_humidity_ratio 必须拒绝非物理 RH（RH ∈ [0, 1]）。"""
+    # RH < 0
+    with pytest.raises(ValueError, match="RH"):
+        chedl_wrapper.humid_air_humidity_ratio(T_k=298.15, RH=-0.1, P_pa=101325.0)
+    # RH > 1
+    with pytest.raises(ValueError, match="RH"):
+        chedl_wrapper.humid_air_humidity_ratio(T_k=298.15, RH=1.5, P_pa=101325.0)
+
+
+def test_humid_air_enthalpy_rejects_negative_P():
+    """humid_air_enthalpy 必须拒绝非正压力（P≤0 无物理意义）。"""
+    with pytest.raises(ValueError, match="压力"):
+        chedl_wrapper.humid_air_enthalpy(T_k=303.15, RH=0.6, P_pa=0.0)
+    with pytest.raises(ValueError, match="压力"):
+        chedl_wrapper.humid_air_enthalpy(T_k=303.15, RH=0.6, P_pa=-101325.0)
+
+
+def test_humid_air_coil_delta_h_returns_tuple():
+    """humid_air_coil_delta_h 必须返回 (Q_sensible, Q_latent) 二元组。"""
+    result = chedl_wrapper.humid_air_coil_delta_h(
+        T_in=303.15, RH_in=0.6, T_out=295.15, RH_out=0.9, P_pa=101325.0
+    )
+    assert isinstance(result, tuple), f"应返回 tuple，实际 {type(result)}"
+    assert len(result) == 2, f"应返回 2 元组，实际 {len(result)} 元组"
+    Q_s, Q_l = result
+    assert isinstance(Q_s, float)
+    assert isinstance(Q_l, float)
+
+
+def test_humid_air_enthalpy_consistency_check_30C():
+    """humid_air_enthalpy 30°C/60% 与湿度比对照：ASHRAE Handbook 简式手算粗校。
+
+    ASHRAE Handbook Fundamentals 2021 湿空气焓（J/kg dry air）：
+        H = 1006 · T_C + W · (2501000 + 1860 · T_C)
+    其中 T_C 为干球温度（°C），W 为湿度比（kg/kg dry air）。
+
+    T_dry=30°C, W≈0.01612 → H ≈ 1006·30 + 0.01612·(2501000 + 1860·30)
+                              ≈ 30180 + 0.01612·2556800 ≈ 30180 + 41216 ≈ 71396 J/kg dry air
+    CoolProp 6.6.0 自洽值 ≈ 71365 J/kg dry air，偏差 < 1%（ASHRAE 验收标准）。
+    """
+    H = chedl_wrapper.humid_air_enthalpy(
+        T_k=303.15, RH=0.6, P_pa=101325.0
+    )
+    W = chedl_wrapper.humid_air_humidity_ratio(
+        T_k=303.15, RH=0.6, P_pa=101325.0
+    )
+    T_c = 303.15 - 273.15  # 30 °C
+    H_approx = 1006.0 * T_c + W * (2501000.0 + 1860.0 * T_c)
+    # CoolProp 与简式偏差应 < 1%（brief ASHRAE 验收标准）
+    rel_err = abs(H - H_approx) / H_approx
+    assert rel_err < 0.01, (
+        f"CoolProp H={H} 与 ASHRAE 简式 H_approx={H_approx} 偏差 {rel_err:.4%} > 1%"
+    )
