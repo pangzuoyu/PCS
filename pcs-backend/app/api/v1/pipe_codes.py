@@ -243,6 +243,23 @@ async def update_project_config(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """PUT 替换项目内管号配置 format_definition_json。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 调 PipeCodeTemplateService.update_project_config：
+       - 查行（不存在 → PROJECT_PIPE_CODE_CONFIG_NOT_FOUND 404）
+       - 状态校验：仅 DRAFT/PENDING 允许编辑
+       - 其他（APPROVED/PUBLISHED/OBSOLETE）→
+         PROJECT_PIPE_CODE_CONFIG_LOCKED（409）
+       - 整段替换 format_definition_json（非合并）
+    3. status 由 submit_project/approve_project/reject_project/
+       publish_project/obsolete_project 五态机管控，本端点不动 status
+    4. service 提交（已 commit），返回更新行
+
+    与 update_company（公司模板）区别：项目级有锁定检查 + 走 _project_transition
+    轻量状态机；公司级直接落库、无锁定（靠 ConfigStateMachine PUBLISH 防御）。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.update_project_config(
         db,
