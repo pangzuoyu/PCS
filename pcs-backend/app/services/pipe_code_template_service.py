@@ -217,6 +217,18 @@ class PipeCodeTemplateService:
     async def publish(
         cls, db: AsyncSession, template_id: uuid.UUID, *, actor: Any,
     ) -> PipeCodeTemplate:
+        """发布公司级管号模板（ConfigStateMachine PUBLISH + 下游 fork 级联）。
+
+        步骤：
+        1. 调 _transition(PUBLISH) 完成资产 + 版本状态机流转（已 commit）
+        2. FMT-OPEN-02 级联扫描：CIAEngine.propagate_from_source 扫描所有
+           ProjectPipeCodeConfig.source_template_id == template_id 的下游 fork，
+           比较 fork.snapshot_json 与当前 template.format_definition_json；
+           发散者 → OBSOLETE（保证下游一致性，避免悬挂）
+        3. 若有 OBSOLETE 操作（n > 0），补 commit；否则无需再 commit
+
+        返回发布的 PipeCodeTemplate（status=PUBLISHED，可能含下游 OBSOLETE 副作用）。
+        """
         t = await cls._transition(db, template_id, ConfigTransition.PUBLISH, actor)
         # FMT-OPEN-02：模板 PUBLISH 后扫描下游 fork，snapshot 与新内容发散者 → OBSOLETE。
         # _transition 已 commit；CIAEngine 走新事务。
