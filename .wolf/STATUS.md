@@ -936,6 +936,13 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - ruff E501 边界处理：单行 docstring ≤100 字符（中英混排紧凑写法）
   - **累计**：413 + 48 = **~461 项**（i++++++++++++++）
   - **基线验证**：ruff check . clean / AST 0 缺口
+- ✅ (i+++++++++++++++) LOW/INFO 滚动继续批 31 项 backend 测试文件 docstring — commit `4c583da`
+  - **3 项 module docstring**：tests/test_errors.py / tests/test_health.py / tests/schemas/test_project_template_schema.py
+  - **4 项 test class docstring**（test_pipe_class_validator.py）：TestPCV / TestPCE / TestPCC / TestInterface
+  - **24 项 _Fake* helper method docstring**：test_calc_entry ×3 / test_calc_lineage ×1 / test_change_notice_service ×4 / test_lineage_extension ×1 / test_outlet_stream ×1 / test_project_symbol_template_approval ×3 / test_record_cancellation ×6 / test_reversal_approval ×5 / test_state_machine_audit_structured ×4 / test_unreliable_stream_guard ×3（部分类内部辅助）
+  - 跳过 394 module-level test_xxx 函数（pytest 约定：函数名即文档）
+  - **累计**：461 + 31 = **~492 项**（i+++++++++++++++）
+  - **基线验证**：ruff check tests/ clean / 119 tests passed
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
