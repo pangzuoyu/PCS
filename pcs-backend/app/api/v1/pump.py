@@ -68,8 +68,13 @@ class PumpCurveRequest(BaseModel):
     """厂家泵曲线请求。"""
 
     pump_tag: str
-    pump_type: str = Field("CENTRIFUGAL", description="CENTRIFUGAL/MIXED_FLOW/AXIAL")
-    api610_type: str = Field("OH2", description="OH2/OH3/BB1/BB3/VS1")
+    pump_type: str = Field(
+        "CENTRIFUGAL",
+        description="泵类型：CENTRIFUGAL 离心 / MIXED_FLOW 混流 / AXIAL 轴流",
+    )
+    api610_type: str = Field(
+        "OH2", description="API 610 泵型：OH2/OH3/BB1/BB3/VS1"
+    )
     speed_rpm: float = 2950.0
     points: list[CurvePointRequest] = Field(
         ..., min_length=2, description="泵特性曲线点（至少 2 点）"

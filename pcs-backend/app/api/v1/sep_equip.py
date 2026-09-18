@@ -52,7 +52,8 @@ class CalculateRequest(BaseModel):
     source_stream_id: uuid.UUID = Field(..., description="输入流 UUID（必须 CHECKED）")
     device_type: str = Field(
         ...,
-        description="CYCLONE/MIST_ELIMINATOR/GRAVITY/VANE/FIBER",
+        description="分离设备类型：CYCLONE 旋风 / MIST_ELIMINATOR 除雾器 / "
+        "GRAVITY 重力 / VANE 折流板 / FIBER 纤维",
     )
     params: dict[str, Any] = Field(
         ...,
@@ -63,7 +64,9 @@ class CalculateRequest(BaseModel):
 class CalculateResponse(BaseModel):
     """POST /sep-equip/calculate 响应。"""
 
-    calc_id: uuid.UUID = Field(..., description="SepEquipResult.sep_equip_id")
+    calc_id: uuid.UUID = Field(
+        ..., description="SepEquipResult 主键 sep_equip_id（分离设备计算记录 UUID）"
+    )
     calc_type: str = Field(..., description="设备类型（= device_type）")
     record_hash: str = Field(..., description="16 hex 数值规范化哈希")
     stream_id: uuid.UUID = Field(..., description="源流 UUID")

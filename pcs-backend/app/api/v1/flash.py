@@ -42,7 +42,10 @@ class CalculateRequest(BaseModel):
 
     calc_type: str = Field(
         ...,
-        description="PT_FLASH / PH_FLASH / PS_FLASH / SATURATION",
+        description=(
+            "闪蒸计算类型：PT_FLASH 等温 / PH_FLASH 等焓 / "
+            "PS_FLASH 等熵 / SATURATION 泡露点"
+        ),
     )
     stream_id: uuid.UUID = Field(..., description="输入流 UUID（必须 CHECKED）")
     T_K: float | None = Field(None, description="温度 K（PT/PH/PS_FLASH + SATURATION 用）")
@@ -69,7 +72,7 @@ class BubbleDewRequest(BaseModel):
 class CalculateResponse(BaseModel):
     """POST /flash/calculate 响应：calc_id + record_hash + lineage_ids + outlet。"""
 
-    calc_id: uuid.UUID = Field(..., description="FlashResult.flash_id")
+    calc_id: uuid.UUID = Field(..., description="FlashResult 主键 flash_id（闪蒸计算记录 UUID）")
     calc_type: str = Field(..., description="回显计算类型")
     record_hash: str = Field(..., description="16 hex 数值规范化哈希")
     stream_id: uuid.UUID = Field(..., description="输入流 UUID")

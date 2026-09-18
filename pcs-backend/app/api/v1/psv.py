@@ -79,7 +79,8 @@ class CalculateRequest(BaseModel):
     source_stream_id: uuid.UUID = Field(..., description="输入流 UUID（必须 CHECKED）")
     relief_scenario: ReliefScenarioLit = Field(
         ...,
-        description="FIRE / CLOSED_VALVE / REACTION_RUNAWAY / THERMAL_EXPANSION",
+        description="泄放场景：FIRE 火灾 / CLOSED_VALVE 出口阀关断 / "
+        "REACTION_RUNAWAY 反应失控 / THERMAL_EXPANSION 热膨胀",
     )
     scenario_params: dict[str, Any] = Field(
         ...,
@@ -113,7 +114,8 @@ class CalculateRequest(BaseModel):
     # ===== P5-OPEN-10 SUP-P5-PSV-002 V1.14 §4.1 选型 18 字段（全部 Optional + 默认值）=====
     valve_type: PsvValveTypeLit = Field(
         default="SPRING_LOADED",
-        description="SPRING_LOADED / BALANCED_BELLOWS / PILOT_OPERATED / RUPTURE_DISC",
+        description="阀型：SPRING_LOADED 弹簧式 / BALANCED_BELLOWS 平衡波纹管式 / "
+        "PILOT_OPERATED 先导式 / RUPTURE_DISC 爆破膜式",
     )
     body_material: PsvBodyMaterialLit = Field(
         default="SS316",
@@ -200,7 +202,9 @@ class CalculateRequest(BaseModel):
 class CalculateResponse(BaseModel):
     """POST /psv/calculate 响应。"""
 
-    calc_id: uuid.UUID = Field(..., description="PsvResult.psv_id")
+    calc_id: uuid.UUID = Field(
+        ..., description="PsvResult 主键 psv_id（PSV 计算记录 UUID）"
+    )
     calc_type: str = Field("PSV", description="计算类型（固定 PSV）")
     record_hash: str = Field(..., description="16 hex 数值规范化哈希")
     stream_id: uuid.UUID = Field(..., description="源流 UUID")

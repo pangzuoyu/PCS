@@ -47,7 +47,9 @@ router = APIRouter(prefix="/vessel", tags=["vessel"])
 class SizingInputSchema(BaseModel):
     """sizing 输入（对应 VesselSizingInput 物理量）。"""
 
-    vessel_type: str = Field(..., description="VERTICAL / HORIZONTAL / WITH_DEMISTER")
+    vessel_type: str = Field(
+        ..., description="容器类型：VERTICAL 立式 / HORIZONTAL 卧式 / WITH_DEMISTER 带除雾器"
+    )
     rho_L_kg_m3: float = Field(..., gt=0, description="液相密度 kg/m³")
     rho_V_kg_m3: float = Field(..., gt=0, description="气相密度 kg/m³")
     liquid_flow_m3_s: float = Field(..., gt=0, description="液相流量 m³/s")
@@ -90,7 +92,9 @@ class CalculateRequest(BaseModel):
 class CalculateResponse(BaseModel):
     """POST /vessel/calculate 响应：vessel_id + record_hash + lineage_ids + outlet。"""
 
-    calc_id: uuid.UUID = Field(..., description="VesselResult.vessel_id")
+    calc_id: uuid.UUID = Field(
+        ..., description="VesselResult 主键 vessel_id（容器计算记录 UUID）"
+    )
     calc_type: str = Field("VESSEL", description="计算类型（固定 VESSEL）")
     record_hash: str = Field(..., description="16 hex 数值规范化哈希")
     stream_id: uuid.UUID = Field(..., description="源流 UUID")

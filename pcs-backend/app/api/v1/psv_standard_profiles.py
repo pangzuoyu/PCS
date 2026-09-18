@@ -56,10 +56,15 @@ StandardProfileCodeLit = Literal["API", "GB", "CUSTOM"]
 class StandardProfileResponse(BaseModel):
     """GET /standard-profile 响应。"""
 
-    profile_id: uuid.UUID = Field(..., description="ProjectCalculationStandardProfile.id")
+    profile_id: uuid.UUID = Field(
+        ...,
+        description="ProjectCalculationStandardProfile 主键（项目计算标准集 ID）",
+    )
     project_id: uuid.UUID = Field(..., description="项目 UUID")
     discipline: str = Field(default="PSV", description="固定 PSV")
-    profile_code: str = Field(..., description="API / GB / CUSTOM")
+    profile_code: str = Field(
+        ..., description="标准集代号：API / GB / CUSTOM 自定义"
+    )
     standard_refs_json: dict[str, Any] = Field(
         ..., description="各子标准、版本、条款映射"
     )
@@ -83,7 +88,7 @@ class UpsertStandardProfileRequest(BaseModel):
     """POST /standard-profile 请求体。"""
 
     profile_code: StandardProfileCodeLit = Field(
-        ..., description="API / GB / CUSTOM"
+        ..., description="标准集代号：API / GB / CUSTOM 自定义"
     )
     standard_refs_json: dict[str, Any] = Field(
         ...,

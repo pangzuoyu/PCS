@@ -47,7 +47,9 @@ router = APIRouter(prefix="/pipe", tags=["pipe"])
 class SegmentRequest(BaseModel):
     """单管段请求。"""
 
-    fluid_phase: FluidPhase = Field(..., description="LIQUID / VAPOR / TWO_PHASE")
+    fluid_phase: FluidPhase = Field(
+        ..., description="流体相态：LIQUID 液相 / VAPOR 气相 / TWO_PHASE 两相"
+    )
     mass_flow_kg_s: float = Field(..., description="单相质量流量 (kg/s)")
     density_kg_m3: float = Field(..., description="单相密度 (kg/m³)")
     viscosity_pa_s: float = Field(..., description="单相动力粘度 (Pa·s)")
@@ -91,7 +93,9 @@ class CalcChainRequest(BaseModel):
 class CalcChainResponse(BaseModel):
     """POST /pipe/calc-chain 响应。"""
 
-    chain_result_id: uuid.UUID = Field(..., description="PipingResult.pipe_id")
+    chain_result_id: uuid.UUID = Field(
+        ..., description="PipingResult 主键 pipe_id（管段链计算结果 UUID）"
+    )
     outlet_stream_id: uuid.UUID = Field(..., description="出口流 UUID")
     record_hash: str = Field(..., description="16 hex 数值规范化哈希")
     result: dict[str, Any] = Field(default_factory=dict, description="链计算结果 dict")

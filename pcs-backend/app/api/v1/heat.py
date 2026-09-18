@@ -57,7 +57,9 @@ router = APIRouter(prefix="/heat", tags=["heat"])
 class ImportHtriResponse(BaseModel):
     """POST /heat/import-htri 响应。"""
 
-    calc_id: uuid.UUID = Field(..., description="HeatResult.heat_exchanger_id")
+    calc_id: uuid.UUID = Field(
+        ..., description="HeatResult 主键 heat_exchanger_id（换热器计算记录 UUID）"
+    )
     calc_type: str = Field("HEAT", description="计算类型（固定 HEAT）")
     record_hash: str = Field(..., description="16 hex 数值规范化哈希")
     project_id: uuid.UUID = Field(..., description="项目 UUID")
@@ -67,7 +69,7 @@ class ImportHtriResponse(BaseModel):
     )
     tag_number: str = Field(..., description="HeatResult 业务 tag")
     exchanger_category: str = Field(
-        ..., description="SHELL_TUBE / AIR_COOL / PLATE"
+        ..., description="换热器类型：SHELL_TUBE 管壳式 / AIR_COOL 空冷 / PLATE 板式"
     )
     duty_w: float | None = Field(None, description="热负荷 W（HTRI）")
     # OPEN-7：HTRI output_json 摘录（total_weight_kg/weight_segments 等），
@@ -87,7 +89,9 @@ class ImportHtriResponse(BaseModel):
 class HeatResultResponse(BaseModel):
     """GET /heat/{heat_id} 响应。"""
 
-    calc_id: uuid.UUID = Field(..., description="HeatResult.heat_exchanger_id")
+    calc_id: uuid.UUID = Field(
+        ..., description="HeatResult 主键 heat_exchanger_id（换热器计算记录 UUID）"
+    )
     calc_type: str = Field("HEAT", description="计算类型（固定 HEAT）")
     project_id: uuid.UUID = Field(..., description="项目 ID")
     workspace_id: uuid.UUID = Field(..., description="工作区 ID")
@@ -111,17 +115,22 @@ class HeatResultResponse(BaseModel):
 class WeightEstimateRequest(BaseModel):
     """POST /heat/{heat_id}/weight-estimate 请求体。"""
 
-    tema_type: str = Field(..., description="BEM / AEM / AEL / NEN / BEM_FIXED / AEM_U_TUBE")
+    tema_type: str = Field(
+        ..., description="TEMA 类型：BEM / AEM / AEL / NEN / BEM_FIXED / AEM_U_TUBE"
+    )
     shell_id_m: float = Field(..., gt=0, description="壳体内径 m")
     shell_length_m: float = Field(..., gt=0, description="壳体长度 m")
     shell_thickness_m: float = Field(..., gt=0, description="壳体壁厚 m")
     material: str = Field(
-        default="carbon_steel", description="carbon_steel / SS304 / SS316 / SS316L"
+        default="carbon_steel",
+        description="材料牌号：carbon_steel 碳钢 / SS304 / SS316 / SS316L",
     )
     head_count: int = Field(default=2, ge=0, description="封头数（默认 2）")
     head_straight_m: float = Field(default=0.025, ge=0, description="椭圆封头直边段 m")
     flange_count: int = Field(default=2, ge=0, description="法兰对数")
-    flange_class: str = Field(default="300#", description="ASME B16.5 Class")
+    flange_class: str = Field(
+        default="300#", description="法兰等级（ASME B16.5 Class，如 150#/300#/600#）"
+    )
     flange_size_dn: int = Field(default=600, gt=0, description="法兰口径 DN")
     nozzle_count: int = Field(default=4, ge=0, description="接口数")
     nozzle_size_dn: int = Field(default=100, gt=0, description="接口口径 DN")
@@ -146,7 +155,9 @@ class WeightSegmentResponse(BaseModel):
 class WeightEstimateResponse(BaseModel):
     """POST /heat/{heat_id}/weight-estimate 响应。"""
 
-    calc_id: uuid.UUID = Field(..., description="HeatResult.heat_exchanger_id")
+    calc_id: uuid.UUID = Field(
+        ..., description="HeatResult 主键 heat_exchanger_id（换热器计算记录 UUID）"
+    )
     total_weight_kg: float = Field(
         ..., description="总重 kg（TEMA 9th 5 段 + tube/baffle/channels）"
     )

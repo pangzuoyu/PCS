@@ -63,7 +63,9 @@ router = APIRouter(prefix="/pipe-net", tags=["pipe-net"])
 class SegmentReq(BaseModel):
     """管段请求（P4-2-5 segment 子集；拓扑入参所需最小字段）。"""
 
-    fluid_phase: str = Field("LIQUID", description="LIQUID / VAPOR / TWO_PHASE")
+    fluid_phase: str = Field(
+        "LIQUID", description="流体相态：LIQUID 液相 / VAPOR 气相 / TWO_PHASE 两相"
+    )
     mass_flow_kg_s: float = Field(1.0, description="单相质量流量 (kg/s；占位)")
     density_kg_m3: float = Field(1000.0, description="单相密度")
     viscosity_pa_s: float = Field(1.0e-3, description="单相动力粘度 (Pa·s)")
@@ -104,7 +106,8 @@ class NodeReq(BaseModel):
     node_id: str = Field(..., description="节点 ID")
     elevation_m: float = Field(0.0, description="标高 (m)")
     node_type: str = Field(
-        "JUNCTION", description="JUNCTION / SOURCE / SINK / EQUIPMENT_INTERFACE"
+        "JUNCTION",
+        description="节点类型：JUNCTION 节点 / SOURCE 源 / SINK 汇 / EQUIPMENT_INTERFACE 设备接口",
     )
     demand_m3_s: float = Field(0.0, description="净需求 (m³/s)")
     pressure_pa: float | None = Field(None, description="节点压力 (Pa)")
