@@ -276,6 +276,13 @@ class ConflictResolver:
     # -----------------------------------------------------------------
 
     def _check_stream(self, s: ParsedStream, report: ConflictReport) -> None:
+        """单 stream 三层规则编排器（物性转译 + SIM-V + SIM-E）。
+
+        业务：
+        1. SIM-3 物性补全错误码转译（先做，以便后续规则复用 effective MW）；
+        2. SIM-V01~V10 结构完整性（10 条）；
+        3. SIM-E01~E03 工程一致性（3 条）。
+        """
         # 1. SIM-3 物性补全错误码转译（先做，以便后续规则复用 effective MW）
         eff = complete_properties(s)
         self._translate_property_status(s, eff, report)
@@ -347,6 +354,11 @@ class ConflictResolver:
     def _check_sim_v01_phase_completeness(
         self, s: ParsedStream, report: ConflictReport
     ) -> None:
+        """SIM-V01 MIXED 相气液组成完整性校验。
+
+        业务：phase='MIXED'（两相流）必须同时给出 vapor_composition 与
+        liquid_composition 两套组成；任一缺失 → report.add BLOCK；其他相态跳过。
+        """
         if s.phase != "MIXED":
             return
         missing: list[str] = []
@@ -375,6 +387,12 @@ class ConflictResolver:
         eff: dict[str, Any],
         report: ConflictReport,
     ) -> None:
+        """SIM-V02 摩尔流量 × MW 与质量流量一致性校验。
+
+        业务：molar_flow_kmol_h × MW ≈ mass_flow_kg_h；MW 优先 stream 自带，
+        否则用 effective 补全值；容差 _MOLAR_MASS_TOL=1%，越界 → BLOCK；
+        缺数据/expected=0/无 MW → 跳过（信息缺失归 INFO）。
+        """
         # 缺数据不算冲突（信息缺失归 INFO，由 SIM-3 翻译处理）
         if s.molar_flow_kmol_h is None or s.mass_flow_kg_h is None:
             return
@@ -412,6 +430,11 @@ class ConflictResolver:
     def _check_sim_v03_pressure(
         self, s: ParsedStream, report: ConflictReport
     ) -> None:
+        """SIM-V03 压力范围校验（[0, 1e8 Pa]）。
+
+        业务：pressure_pa < 0 或 > 1e8 Pa（100 MPa，约临界水压上限）→ BLOCK；
+        防止单位错填（bar/MPa 误判）；None 跳过。
+        """
         if s.pressure_pa is None:
             return
         if s.pressure_pa < 0 or s.pressure_pa > self._PRESSURE_MAX_PA:
@@ -437,6 +460,10 @@ class ConflictResolver:
     def _check_sim_v04_phase(
         self, s: ParsedStream, report: ConflictReport
     ) -> None:
+        """SIM-V04 相态枚举合法性校验。
+
+        业务：phase ∈ {VAPOR, LIQUID, MIXED, SOLID}；非法值 → BLOCK；None 跳过。
+        """
         if s.phase is None:
             return
         if s.phase not in self._VALID_PHASES:
@@ -460,6 +487,11 @@ class ConflictResolver:
     def _check_sim_v05_flow(
         self, s: ParsedStream, report: ConflictReport
     ) -> None:
+        """SIM-V05 流量非零校验。
+
+        业务：zero_flow=True 标记 → BLOCK；质量流量与摩尔流量均 ≤0 或缺失 → BLOCK；
+        两项中任一有正常值即视为通过。
+        """
         if s.zero_flow:
             report.add(
                 Conflict(
@@ -491,6 +523,11 @@ class ConflictResolver:
     def _check_sim_v06_composition_present(
         self, s: ParsedStream, report: ConflictReport
     ) -> None:
+        """SIM-V06 composition 显式为空校验。
+
+        业务：composition=None 视为「未提供」允许（utility 流/批次数据等场景）；
+        仅当显式声明为空 dict（{}）时 → BLOCK。
+        """
         # composition=None 表示「未提供组成」——允许（utility 流、批次数据等场景）
         # 仅当 composition 被显式声明为空 dict 时报 BLOCK。
         if s.composition is not None and len(s.composition) == 0:
@@ -511,6 +548,12 @@ class ConflictResolver:
     def _check_sim_v07_cas_resolvable(
         self, s: ParsedStream, report: ConflictReport
     ) -> None:
+        """SIM-V07 composition CAS 可解析性校验（WARN）。
+
+        业务：遍历 composition 每条 CAS 调 complete_properties，
+        若 mw 缺失或抛异常 → 加入 bad 列表；非空 → WARN（语义重叠 SIM-V01-NF，
+        保留 WARN 等级与既有测试合约兼容）。
+        """
         # V07 与 SIM-V01-NF 语义重叠：CAS 不可解析。
         # 既有合约是 WARN（test_create_stream_warn_cas_not_found_saves_with_warning
         # 期望 SIM-V01-NF 在 warnings 而非 blocks），保持 WARN。
@@ -553,6 +596,11 @@ class ConflictResolver:
     def _check_sim_v08_composition_unique(
         self, s: ParsedStream, report: ConflictReport
     ) -> None:
+        """SIM-V08 composition CAS 唯一性防御校验（BLOCK）。
+
+        业务：dict key 自动去重后通常不触发；保留为防御性检查，
+        当上游传入 list[tuple] 再切回 dict 时若发生覆盖 → BLOCK。
+        """
         if not s.composition:
             return
         # dict 自动去重后这里基本无意义；保留为防御性检查，
@@ -576,6 +624,11 @@ class ConflictResolver:
     def _check_sim_v09_composition_sum(
         self, s: ParsedStream, report: ConflictReport
     ) -> None:
+        """SIM-V09 组成和偏离 1.0 > 0.1%（BLOCK）。
+
+        业务：sum(composition.values()) 与 1.0 偏差 > _COMPOSITION_SUM_WARN_TOL=0.1%
+        → BLOCK；PRO/II/Aspen 默认 warn 阈值；缺失 composition 跳过。
+        """
         if not s.composition:
             return
         total = sum(s.composition.values())
@@ -600,6 +653,11 @@ class ConflictResolver:
     def _check_sim_v10_composition_sum_warn(
         self, s: ParsedStream, report: ConflictReport
     ) -> None:
+        """SIM-V10 组成和严重偏离 1.0 > 1%（WARN）。
+
+        业务：drift > _COMPOSITION_SUM_BLOCK_TOL=1% → WARN（请校对组分）；
+        与 V09 互不重叠（V09 抓 0.1%~1%，本规则只抓 > 1%）。
+        """
         if not s.composition:
             return
         total = sum(s.composition.values())
@@ -625,6 +683,11 @@ class ConflictResolver:
     def _check_sim_e01_temperature(
         self, s: ParsedStream, report: ConflictReport
     ) -> None:
+        """SIM-E01 温度工程范围校验（[0, 1000 K]）。
+
+        业务：temperature_k < 0（绝对零度以下）或 > 1000 K（工程外推上限）
+        → BLOCK；None 跳过。
+        """
         t = s.temperature_k
         if t is None:
             return
@@ -646,6 +709,11 @@ class ConflictResolver:
     def _check_sim_e02_pressure(
         self, s: ParsedStream, report: ConflictReport
     ) -> None:
+        """SIM-E02 压力非正校验。
+
+        业务：pressure_pa ≤ 0（绝对真空/负表压物理异常）→ BLOCK；
+        与 V03（范围上限）互不重叠；None 跳过。
+        """
         p = s.pressure_pa
         if p is None:
             return
@@ -667,6 +735,11 @@ class ConflictResolver:
     def _check_sim_e03_vapor_fraction(
         self, s: ParsedStream, report: ConflictReport
     ) -> None:
+        """SIM-E03 气相分率范围校验（[0, 1]）。
+
+        业务：vapor_fraction ∈ [0, 1]（物理意义：0=全液，1=全气，超界非法）→ BLOCK；
+        None 跳过。
+        """
         vf = s.vapor_fraction
         if vf is None:
             return
@@ -692,6 +765,12 @@ class ConflictResolver:
         seen_keys: set[tuple[str, str]],
         report: ConflictReport,
     ) -> None:
+        """单状态点五规则编排器（SIM-SV01~SV05 串联执行）。
+
+        业务：依序调用 sv01（case_type 枚举）/ sv02（必填字段）/
+        sv03（组成和）/ sv04（孤儿检测）/ sv05（key 唯一性）；
+        seen_keys 为跨状态点的 (stream_name, case_type) 累积集合。
+        """
         self._check_sim_sv01_case_type(sp, report)
         self._check_sim_sv02_required_fields(sp, report)
         self._check_sim_sv03_composition_sum(sp, report)
@@ -701,6 +780,11 @@ class ConflictResolver:
     def _check_sim_sv01_case_type(
         self, sp: ParsedStatePoint, report: ConflictReport
     ) -> None:
+        """SIM-SV01 状态点 case_type 枚举校验。
+
+        业务：case_type ∈ VALID_STATE_POINT_CASE_TYPES（DESIGN/MIN/MAX/NORMAL 等），
+        非法值 → BLOCK。
+        """
         if sp.case_type not in VALID_STATE_POINT_CASE_TYPES:
             report.add(
                 Conflict(
@@ -718,6 +802,11 @@ class ConflictResolver:
     def _check_sim_sv02_required_fields(
         self, sp: ParsedStatePoint, report: ConflictReport
     ) -> None:
+        """SIM-SV02 状态点必填字段校验。
+
+        业务：temperature_k + pressure_pa 必填（无量纲工况无意义）；
+        任一缺失 → BLOCK（缺哪几条都列出）。
+        """
         missing: list[str] = []
         if sp.temperature_k is None:
             missing.append("temperature_k")
@@ -779,6 +868,11 @@ class ConflictResolver:
         parent_streams: list[str],
         report: ConflictReport,
     ) -> None:
+        """SIM-SV04 状态点孤儿检测（父流必须已落库）。
+
+        业务：sp.stream_name 不在已落库 parent_streams 列表中 → BLOCK
+        （孤立状态点，无对应 stream 关联，业务无意义）。
+        """
         if sp.stream_name not in parent_streams:
             report.add(
                 Conflict(
@@ -799,6 +893,11 @@ class ConflictResolver:
         seen_keys: set[tuple[str, str]],
         report: ConflictReport,
     ) -> None:
+        """SIM-SV05 状态点 (stream_name, case_type) 唯一性校验。
+
+        业务：同一 stream 下同一 case_type（DESIGN/MIN/MAX 等）应唯一，
+        重复 → BLOCK；seen_keys 为跨状态点的累积集合（由 caller 持有）。
+        """
         key = (sp.stream_name, sp.case_type)
         if key in seen_keys:
             report.add(

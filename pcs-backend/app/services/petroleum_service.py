@@ -43,6 +43,11 @@ class PetroleumService:
 
     @classmethod
     def _validate(cls, tb_c: float, sg: float) -> None:
+        """石油馏分输入参数范围守卫。
+
+        业务：SG ∈ _SG_RANGE / Tb ∈ _TB_C_RANGE；越界 → PcsError 422
+        （PETRO_INVALID_SG / PETRO_INVALID_TB）；estimate 入口必调。
+        """
         if not (_SG_RANGE[0] < sg < _SG_RANGE[1]):
             raise PcsError(f"SG 越界 {sg}（有效 {_SG_RANGE}）", code="PETRO_INVALID_SG", status=422)
         if not (_TB_C_RANGE[0] < tb_c < _TB_C_RANGE[1]):

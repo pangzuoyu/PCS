@@ -768,6 +768,12 @@ class PipeClassService:
         cls, session: AsyncSession, project_class_id: uuid.UUID, action: str, actor,
         *, role: str | None = None, record_approval: bool = False,
     ) -> ProjectPipeClass:
+        """项目级等级状态机迁移（DRAFT→PUBLISHED→DEPRECATED）。
+
+        业务：调用 ProjectPipeClassStateMachine.can_transition 校验状态转移合法性；
+        不合法 → PcsError PROJECT_PIPE_CLASS_INVALID_TRANSITION；
+        合法 → 写 ProjectPipeClass 行；actor 决定写审计字段。
+        """
         ppc = await session.get(ProjectPipeClass, project_class_id)
         if ppc is None:
             raise PcsError(

@@ -207,6 +207,12 @@ class PipeClassValidator:
         ctx: ValidationContext,
         common_tables: set[str] | None,
     ) -> list[ValidationResult]:
+        """管道等级数据校验入口（生成 ValidationResult 列表）。
+
+        业务：data 为待校验等级字段 dict；ctx 携带工程上下文（管道尺寸/介质等）；
+        common_tables 是项目共享 common 表名集合（跨等级字段去重用）；
+        返回 ValidationResult 列表（错误/警告/信息分级）。
+        """
         results: list[ValidationResult] = []
 
         # PC-V01 必填字段

@@ -179,6 +179,11 @@ class StateMachineService:
         user_id: uuid.UUID | None,
         detail: dict | None,
     ) -> None:
+        """状态机迁移审计写入（AuditLog 行 + 字段快照）。
+
+        业务：审计记录 state 变更（from_status/to_status）+ 操作者；
+        detail dict 携带 before/after 字段快照（供 P5+ 合规审计追溯）。
+        """
         from app.services.audit_service import AuditService
 
         await AuditService(self.session).write(

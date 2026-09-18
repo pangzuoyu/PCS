@@ -109,6 +109,11 @@ class PipeCodeGenerator:
     async def _project_symbol_keys(
         cls, db: AsyncSession, project_id: uuid.UUID,
     ) -> set[str]:
+        """查项目内已激活的物流符号 key 集合（管道代号生成冲突检测用）。
+
+        业务：list_project 含 include_company=True（合并公司级共享符号）；
+        仅保留 is_active=True 行；返回 set[str] 用于生成新代号时的快速去重。
+        """
         items = await StreamSymbolService.list_project(
             db, project_id=project_id, include_company=True,
         )

@@ -277,6 +277,11 @@ class PipeCodeTemplateService:
         action: ConfigTransition,
         actor: Any,
     ) -> PipeCodeTemplate:
+        """管道代号模板状态机迁移（DRAFT→PUBLISHED→DEPRECATED）。
+
+        业务：按 action 类型（PROMOTE/ROLLBACK/DEPRECATE）走 ConfigTransition 状态机；
+        写新版本快照（immutable）+ 更新主表 status 字段；actor 写审计。
+        """
         t = await cls.get(db, template_id)
         if not t.asset_id:
             raise PcsError(
@@ -564,6 +569,11 @@ class PipeCodeTemplateService:
         action: str,
         actor: Any,
     ) -> ProjectPipeCodeConfig:
+        """项目级管道代号配置状态机迁移（DRAFT→ACTIVE→ARCHIVED）。
+
+        业务：项目级配置独立于模板自身的 state machine；
+        action 含 promote/rollback/archive；写审计字段（actor + timestamp）。
+        """
         cfg = await cls.get_project_config(db, config_id=config_id)
         old_status = cfg.status
         if action == "OBSOLETE":

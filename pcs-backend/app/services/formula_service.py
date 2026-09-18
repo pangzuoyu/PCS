@@ -117,6 +117,11 @@ class FormulaService:
         return passed, len(unit_tests)
 
     async def _current_version(self, asset: ConfigAsset) -> ConfigVersion | None:
+        """根据 asset.current_version 指针查最新 ConfigVersion 行。
+
+        业务：asset.current_version（外键指针）→ ConfigVersion 行；
+        asset 与 version 双表解耦，asset 是元数据，version 是 immutable 版本快照。
+        """
         result = await self.session.execute(
             select(ConfigVersion).where(
                 ConfigVersion.asset_id == asset.asset_id,

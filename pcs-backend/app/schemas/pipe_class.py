@@ -70,6 +70,11 @@ class PipeClassBase(BaseModel):
 
     @model_validator(mode="after")
     def _check_dn(self) -> PipeClassBase:
+        """dn_series_json 完整性校验（Pydantic v2 model_validator）。
+
+        业务：dn_series_json 需含 {min, max}；0 < min <= max；
+        单口径（min == max）合法；缺失或越界 → ValueError。
+        """
         mn, mx = self.dn_series_json.get("min"), self.dn_series_json.get("max")
         if mn is None or mx is None or not (0 < mn <= mx):
             raise ValueError("dn_series_json 需 {min,max} 且 0<min<=max（单口径 min==max 合法）")

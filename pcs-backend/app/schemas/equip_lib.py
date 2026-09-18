@@ -49,6 +49,11 @@ class EquipLibSettleRequest(BaseModel):
     @field_validator("key_dimensions")
     @classmethod
     def require_any_dimension(cls, v: dict) -> dict:
+        """key_dimensions 非空校验（Pydantic v2 field_validator）。
+
+        业务：器材库条目至少绑定 1 个关键尺寸维度（DN/PN/材质等）；
+        空 dict → ValueError；保证下游尺寸匹配算法有可用维度。
+        """
         if not v:
             raise ValueError("key_dimensions 不能为空")
         return v

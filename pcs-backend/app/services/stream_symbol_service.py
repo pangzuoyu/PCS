@@ -253,6 +253,11 @@ class StreamSymbolService:
         action: ConfigTransition,
         actor: Any,
     ) -> StreamSymbol:
+        """物流符号状态机迁移（DRAFT→PUBLISHED→DEPRECATED）。
+
+        业务：按 ConfigTransition 类型走状态机；写新版本快照；
+        actor + timestamp 写入审计；不合法的状态转移 → PcsError 422。
+        """
         ss = await cls.get(db, symbol_id)
         if not ss.asset_id:
             raise PcsError(

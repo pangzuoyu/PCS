@@ -224,6 +224,12 @@ class PipeClassImportService:
 
     @staticmethod
     def _deserialize_preview(data: dict) -> ImportPreview:
+        """前端 POST 预览结果 → ImportPreview dataclass 反序列化。
+
+        业务：data 含 valid 列表（ImportRow row_number/class_id/data 三元组）
+        + errors 列表（ValidationResult）；用于将上次 Excel 解析结果在前端
+        二轮编辑后回灌。无 schema 强校验（dict 直传），出错由调用方兜底。
+        """
         preview = ImportPreview()
         for v in data.get("valid", []):
             preview.valid.append(ImportRow(
@@ -269,6 +275,11 @@ class PipeClassImportService:
     # ---------- Excel 解析 ----------
 
     def _parse_excel(self, file_bytes: bytes) -> list[ImportRow]:
+        """Excel 文件字节流 → ImportRow 列表解析（等级列表 sheet）。
+
+        业务：openpyxl read_only + data_only 加载；默认取「等级列表」sheet
+        （中文名），否则取第一个 sheet；每行转 ImportRow（含行号/class_id/data）。
+        """
         wb = openpyxl.load_workbook(
             io.BytesIO(file_bytes), read_only=True, data_only=True,
         )

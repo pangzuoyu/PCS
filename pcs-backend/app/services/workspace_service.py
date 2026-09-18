@@ -74,6 +74,11 @@ class WorkspaceService:
         return ws
 
     async def get(self, workspace_id: uuid.UUID) -> Workspace | None:
+        """按 workspace_id 查单 workspace 行（不存在返回 None）。
+
+        业务：select(Workspace) WHERE workspace_id=：id；
+        用于 caller 判存在性后决策（避免 404 与 200/null 二义性）。
+        """
         stmt = select(Workspace).where(Workspace.workspace_id == workspace_id)
         return (await self.session.execute(stmt)).scalar_one_or_none()
 
