@@ -178,6 +178,17 @@ async def add_project_symbol(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST 项目作用域新增流股符号（201 Created）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（项目符号工艺侧编辑权限）
+    2. 转发到 StreamSymbolService.add_project_symbol（service 层负责
+       (project_id, symbol) 复合唯一查重 + PROJECT_STREAM_SYMBOL_DUP 409）
+    3. service 写入由 service 层 db.commit() 负责（已含事务结束）
+
+    返回新创建的 ProjectStreamSymbol（service 直接返回 ORM 行，FastAPI
+    自动经 response_model 序列化）。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await StreamSymbolService.add_project_symbol(
         db,
