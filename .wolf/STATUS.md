@@ -8,6 +8,37 @@ budget_tokens: 1500
 
 ---
 
+## ✅ Done (HIGH 专项 Sprint P0 Auth Hardening 4 项闭环 — 2026-09-18)
+
+- **范围**：ce-code-review 中 4 个 HIGH P0 auth 类问题
+- **修复**：
+  - **H-P0-4 LDAP DN RFC 4514 §2.4 转义**（commit `4a17efc`，bug-090）：
+    - `_sanitize_dn_component` 处理 `\` `"` `#` `+` `,` `;` `<` `=` `>` 和 NUL
+    - NUL 特殊：先跑单字符转表（NUL 不在表中），再替换 `\x00` → `\00`，避免被反斜杠转义二次翻倍
+    - 16 例 LDAP 单测（10 字符 parametrize + 集成注入拦截）
+  - **H-P0-1 JWT decode 强制 exp/iat/sub 必填**（commit `6743828`，bug-091）：
+    - `decode_token` 加 `options={"require": ["exp", "iat", "sub"]}`
+    - `MissingRequiredClaimError`（PyJWTError 子类）经现有 `except jwt.PyJWTError` 自动转 401 INVALID_TOKEN
+    - 4 例 parametrize（exp/iat/sub 各缺一）+ 1 例 /me 路径 + 1 例正常通过
+  - **H-P0-2 refresh token JTI 轮换 + 旧 RT 吊销**（commit `e7f0f7e`，bug-092）：
+    - `create_refresh_token` 加 `jti=uuid4()`
+    - `_REVOKED_JTIS: set[str]` 进程内 in-memory（redis 单节点避免额外依赖）
+    - refresh 路径：检查 jti 未撤销 → 撤销旧 jti → 返回新 access + 新 refresh
+    - `RefreshResponse` 加 `refresh_token` 字段
+  - **H-P0-3 logout 真正吊销 JTI**（commit `e7f0f7e`，bug-093）：
+    - `LogoutRequest` 接可选 `refresh_token`
+    - 吊销其 jti 后返回 204
+    - 无 body / 伪造 token / access token 三场景幂等 204（防侧信道）
+- **测试**：40 例 auth + LDAP 套件全过；后端全套 1912+278+49 skipped 全过；ruff 归零
+- **buglog**：bug-090/091/092/093 已登记
+- **未做（后续 HIGH 批）**：P1 HIGH ×3（Pydantic v1 / workspace context / mock auth / trace_id）、
+  P2 HIGH ×3（equipment_list NOT NULL / CIAEngine pipe_code_template / report_service col order）、
+  P5-123 HIGH ×5（PsvResult valve_type CHECK / psv_persist P_set_pa / REACTION_RUNAWAY hardcoded /
+  fire_case 1.2 kg/m³ / API 526 oversize 5%）、P5-3 前端 HIGH ×3、P5-4 fe.detail HIGH ×4 — 18 项
+  HIGH 仍待批；本批先关 P0 类（auth 直接面用户的安全面）
+
+---
+
 ## ✅ Done (C6 bug-089 9th Ed. PDF 交叉验证 + C6 关闭 — 2026-09-18)
 
 - **C6 关闭依据**（commit `b5b2804` verification update 即将 / 当前 commit）：
@@ -324,45 +355,25 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 
 ## 🚀 Next quest
 
-**Goal:** P5 收口（OPEN-7 + OPEN-10）+ P4 启动（P3.x 闸门条件已满足）
+**Goal:** HIGH 专项 Sprint 后续 P1/P2/P5-123/P5-3/P5-4d 高优收口（18 项 HIGH）+ P5-3 启动
 
-### P5 收口（OPEN-7 / OPEN-10 需后端契约变更）
+### 当前进度
+- ✅ (a) buglog.json fix_commit（C5/C7/C8/C9/C10/C6 7 项）— commit `4b670c5`
+- ✅ (b) HIGH 专项 P0 auth hardening 4 项（H-P0-1/2/3/4）— commit `e7f0f7e`
+- ✅ (c) C7 两相流 ω 法（bug-086）— commit `77d5898`（P5-3-7 Annex C.2.2 完整 Two-Point Omega 延后）
+- ✅ (d) OPEN-10 后端契约扩展（15 commit 含 21 列迁移 + 13 PcsError + 30+ 测试）— commit `b48c0f4` / `ce1ee69`
+- 🔲 **下一批**：HIGH 非 P0 类 18 项（P1×3 / P2×3 / P5-123×5 / P5-3 fe×3 / P5-4d fe×4）
 
-1. **OPEN-7 HEAT import→get 串行优化**：后端 `ImportHtriResponse` 扩充字段（返回
-   `equipment_no` + `equipment_name` + `tag_number` + `exchanger_category`
-   + `duty_w` + `output_json` partial），前端 `import()` 后免去 `get()`
-   roundtrip
-2. **OPEN-10 SUP-P5-PSV-002 后端契约扩展**（待评审通过后启动）：
-   - Pydantic `PsvCalculateRequest` 加 `valve_type` / `body_material` /
-     `orifice_override` 字段（与前端默认值兼容：SPRING_LOADED / SS316 / null）
-   - 持久化：`psv_results` 表 7 列迁移（valve_type/body_material/inlet_size/
-     outlet_size/blowdown_fraction/orifice_overridden/orifice_manual）+ 存量
-     回填
-   - 拦截逻辑 G7/G8/G9：Task 18 端点前置校验（PILOT_OPERATED 422
-     PSV_PILOT_OPERATED_NOT_SUPPORTED / RUPTURE_DISC 422 PSV_RUPTURE_DISC_NOT_SUPPORTED
-     / orifice_override < 计算面积 422 PSV_ORIFICE_OVERRIDE_TOO_SMALL）
-   - 孔口选型逻辑（Task 17 扩展）：手动 override 优先 → API526_AREA_TABLE 校验
-     → 否则自动圆整
-   - 后端测试 +15 / E2E +2（per SUP-P5-PSV-002 §8 验收）
-   - 前端无需改动（已就绪，G7/G8/G9 错误码解析已闭环）
-
-### P4 首批建议（收口报告 §6，优先序）
-1. ✅ **ruff 归零专项**：5 errors → 0（commit `138cb6c`，2026-09-17）
-2. ✅ **calculate 入口接 Guard**：6/7 工艺端点已接（commit `0401fd2`，2026-09-17；
-   pipe / pipe_net / pump SIM-39 + psv / vessel / sep_equip 本批）
-3. ✅ **enum 9 态扩展（TODO-036）**：P3 SIM-13 已闭环，StreamSignStatus 9 态全集 +
-   alembic `p3sim_stream_sign_status_extend`（ADD VALUE：CHECK_REJECTED /
-   STALE / CHANGE_PENDING / CHANGED / REVERSAL_PENDING；ADD VALUE 不可逆
-   落地 2026-09-08 cerebrum 锁定）
-4. ✅ **parser 入库链路**：SIM-37b/38b 产出为 dataclass 层，P4 已闭环
-   （commit `a8d41cf`，2026-09-17）+ proii_parser 回归修复
-   （commit `357c506`，2026-09-18，bug-081）
-5. 覆盖率 88% → 90%：当前 **89%**（commit `357c506` 修复后），
-   2150 passed + 49 skipped + 1 flaky（`test_export_perf_budget` 并行
-   时序敏感，独立运行通过）。低覆盖模块：
-   `app/workers/workspace_tasks.py` 35% / `psv_persist.py` 60% /
-   `workspace_service.py` 69% —— 多为 DB / async generator fixture，
-   OPEN-10-4 已为新模块加 12 例拉平至 95-100%；P4-5 视为已达可接受水平
+### 待办（建议优先序）
+1. **P5-3 启动**：Annex C.2.2 Two-Point Omega Method 完整实现（用户已提供 Python 模板，~2h）
+2. **HIGH P1**：Pydantic v1 imports（3 处）→ 全部迁 Pydantic v2；workspace context 异常类型；
+   mock auth 单测（5 项）
+3. **HIGH P2**：equipment_list NOT NULL、pipe_code_template、report_service 列序
+4. **HIGH P5-123**：PsvResult valve_type CHECK、psv_persist P_set_pa、REACTION_RUNAWAY hardcoded、
+   fire_case 1.2 kg/m³、API 526 oversize 5%
+5. **HIGH P5-3 frontend**：HEAT-WORKSPACE-ID、MSW-VESSEL-SEPEQUIP-MISSING、MSW-PSV-STATUS-201
+6. **HIGH P5-4 fe.detail**：BACK_PRESSURE_MAX_BY_TYPE、CDTP dead code、G15 dead code、kb_service Literal
+7. **MEDIUM/LOW/INFO**：48 项未处理（入 backlog，滚动）
 
 ### 锁定的用户裁决（累积）
 - 全程中文；"继续" = 驱动下一 task 不重议
