@@ -34,6 +34,21 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """streams 状态机字段补齐（P3.2 SIM-13 / P0 闭环 D-1）。
+
+    步骤：
+    - change_pending_since timestamp NULL（INITIATE_CHANGE / MARK_STALE 触发时间）
+    - change_resolved_at timestamp NULL（APPLY_CHANGE 完成时间）
+    - change_resolved_by varchar(64) NULL（APPLY_CHANGE 审批人 str(uuid)）
+
+    不做（YAGNI，SIM-13 范围外）：
+    - change_abandoned_at / reason（P3.3+ ABANDON_CHANGE 用）
+    - reversal_* 字段（P3.4+ 撤销链路）
+    - obsoleted_at / by / reason（P3.4+ 退役）
+
+    业务：StateMachineService.transition() 对 13 事件 setattr 这 3 字段；
+    Stream ORM 当前缺这些字段时调用 transition 抛 AttributeError，本迁移补齐。
+    """
     op.add_column(
         "streams",
         sa.Column(

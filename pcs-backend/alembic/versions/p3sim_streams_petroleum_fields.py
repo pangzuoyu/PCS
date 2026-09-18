@@ -42,6 +42,18 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """streams 炼油专用 5 字段扩展（P3.x SIM-34 / ADD-001 §3.8-3.9）。
+
+    步骤：
+    - 4 个 Float：rvp（Reid 蒸汽压 psi）/ tvp（True 蒸汽压 psi）/
+      watson_k（UOP K 因子）/ flash_point（闪点 °C）
+    - 1 个 JSONB 容器：distillation_curves（spec V1.1 §变更 8 蒸馏曲线 8 种 schema）
+      8 种类型：D86 / TBP / EFV / D86_CRACKING / D1160 / D2887 / D5236 / D7169
+      每条 schema：{curve_type, points:[{percent_vapor,temp_c}], pressure_mmhg}
+
+    业务：炼油工艺专用物性入库；蒸馏曲线 8 种覆盖 ASTM 全谱（常压/减压
+    + SimDist GC + 高温减压）；下游 SIM-2/3 物性计算接入。
+    """
     # 4 个 Float 字段
     op.add_column(
         "streams",
