@@ -76,6 +76,17 @@ class ConflictReport:
         return bool(self.warnings)
 
     def add(self, c: Conflict) -> None:
+        """添加一条 Conflict 到 Report（按 level 分桶）。
+
+        步骤：
+        1. 按 c.level 分发到 blocks/warnings/infos 三个桶
+           - BLOCK：阻断级（必须解决才能继续）
+           - WARN：警告级（不阻断，UI 提示）
+           - 其他（INFO）：信息级
+        2. stats 计数：对应 level 自增 + TOTAL 自增
+
+        调用方应保证 c 已通过 Conflict 构造校验；add 不做 schema 二次校验。
+        """
         if c.level == ConflictLevel.BLOCK:
             self.blocks.append(c)
         elif c.level == ConflictLevel.WARN:
