@@ -54,6 +54,26 @@ class PipeCodeValidator:
         existing_config_names: Iterable[str] | None = None,
         project_config_name: str | None = None,
     ) -> list[FmtValidationResult]:
+        """校验管号 format_definition_json（9 条 FMT-V01..V09 规则）。
+
+        步骤（每条规则独立判定，结果聚合成 list）：
+        - V01 恰有一个 auto_increment 段（ERROR）
+        - V02 恰有一个 stream_symbol 段（ERROR）
+        - V03 分段 key 唯一（ERROR）
+        - V04 相邻段不能都无分隔符（delimiter 段自带 sep 跳过）
+        - V05 总长度 ≤ 50 字符（按段长 + 段间 separator 累加）
+        - V06 枚举段 values 非空（ERROR）
+        - V07 stream_symbol 段 key 在项目有效符号表内（ERROR，可选 project_symbol_keys）
+        - V08 项目内配置名唯一（ERROR，可选 existing_config_names + project_config_name）
+        - V09 auto_increment 段位于末位/靠近末位（距离 ≤ 2，WARN）
+
+        失败模式：fmt 非 dict → 1 条 V01 ERROR；其余规则正常累加。
+        严重度由 has_errors 静态方法聚合（任一 ERROR → True）。
+
+        用途：在 PipeCodeTemplateService.create_company / update_company /
+        create_project_config / update_project_config / fork_to_project 入口
+        校验 format_definition_json，ERROR 阻止保存，WARN 仅提示。
+        """
         results: list[FmtValidationResult] = []
         if not isinstance(fmt, dict):
             return [FmtValidationResult(
