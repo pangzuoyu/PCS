@@ -110,6 +110,15 @@ def me(
 
 @router.post("/refresh", response_model=RefreshResponse)
 def refresh(body: RefreshRequest) -> RefreshResponse:
+    """刷新 token：旧 refresh 一次性使用，签发新 access + 新 refresh。
+
+    安全约束：
+    1. JWT 解码失败 → INVALID_REFRESH（401）
+    2. type != 'refresh' → WRONG_TOKEN_TYPE（401）
+    3. 缺 role claim（P0-2 防回归）→ INVALID_REFRESH（401）
+    4. JTI 已被吊销（重放/截获）→ INVALID_REFRESH（401，H-P0-2 防重放）
+    5. 旧 JTI 一次性使用：成功签发后立即 revoke 旧 JTI，缩小泄露窗口
+    """
     try:
         payload = decode_token(body.refresh_token)
     except jwt.PyJWTError as e:
