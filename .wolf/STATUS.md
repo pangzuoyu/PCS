@@ -887,6 +887,12 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - workers 1 个：_on_startup
   - **累计**：291 + 22 = **~313 项**（i+++++++）
   - **全仓 AST 扫描结果**：0 缺口（class + module-level funcs 全部已补）
+- ✅ (i++++++++) LOW/INFO 滚动继续批 30 项 service/schemas class 方法 — commit `902e9cc`
+  - **conflict_resolver.py**（19 项）：`_check_stream` 三层编排器 + SIM-V01~V10 + E01~E03 + SV01~SV05 全部 SIM 校验方法中文 docstring
+  - **services**（11 项）：formula_service._current_version / petroleum_service._validate / pipe_class_import_service._deserialize_preview + _parse_excel / pipe_class_service._project_transition / pipe_class_validator._validate / pipe_code_generator._project_symbol_keys / pipe_code_template_service._transition + _project_transition / state_machine._write_audit / stream_symbol_service._transition / workspace_service.get
+  - **schemas**（2 项）：equip_lib.require_any_dimension（Pydantic v2 field_validator）+ pipe_class._check_dn（Pydantic v2 model_validator）
+  - **累计**：313 + 30 = **~343 项**（i++++++++）
+  - **全仓 AST 扫描结果**：0 缺口（class methods 全部已补）
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
