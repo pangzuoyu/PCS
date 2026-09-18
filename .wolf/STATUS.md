@@ -645,7 +645,7 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 - ✅ (i) LOW/INFO 滚动继续批 — 进行中（alembic 迁移升级流程 docstring）
   - schemas/api v1 Pydantic Field 中文 description 100% 覆盖（11 文件 159 字段）
   - alembic upgrade 流程 9 项 docstring（PC-1 5 态机/SIM 三表/equipment_list 4 段/配置层 fix + 主表 2 张）
-- ✅ (i) LOW/INFO 滚动继续批 45 项 — commit `d799aff` + `0d094dd` + `b99a757` + `6d304c9` + `3393350` + `55ea288` + `ab31050` + `275d85b` + `2e54c9b` + `f79aa06` + `e175e86` + `3e76304` + `1cbf734` + `03b72b1` + `8939b39` + `f2a913a`
+- ✅ (i) LOW/INFO 滚动继续批 54 项 — commit `d799aff` + `0d094dd` + `b99a757` + `6d304c9` + `3393350` + `55ea288` + `ab31050` + `275d85b` + `2e54c9b` + `f79aa06` + `e175e86` + `3e76304` + `1cbf734` + `03b72b1` + `8939b39` + `f2a913a` + `969b833`
   - alembic p2_sup_sprint_pc1_pipe_class_upgrade upgrade 加 docstring（PC-1 5 态机 + ConfigAsset + 项目级 fork 派生 6 段）
   - alembic p3sim_sim_unit_op_results upgrade 加 docstring（SIM 单元操作结果主表 + JSONB 三列 + is_unreliable）
   - alembic p3sim_sim_imports upgrade 加 docstring（SIM 导入批次 + 3 enum + 状态机 PREVIEW/COMMITTED/EXPIRED）
@@ -691,6 +691,15 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - alembic p3_sim_state_points_unique_label upgrade 加 docstring（stream_state_points UNIQUE(stream_id, case_type, state_label) bug-062 兜底）
   - alembic p3_sim_stream_is_unreliable upgrade 加 docstring（streams.is_unreliable 持久化字段）
   - alembic p3_sim_stream_is_mixed_phase upgrade 加 docstring（streams.is_mixed_phase MIXED 相持久化标记）
+  - alembic 2026_09_03_0800_add_toe_conversion downgrade 加 docstring（pcs_toe_conversion_factors 表删除）
+  - alembic 2026_09_03_0900_add_template_version_seq downgrade 加 docstring（template_files 删 template_version_seq）
+  - alembic 2026_09_03_1000_add_htri_template_schemas downgrade 加 docstring（htri_template_schemas 表删除）
+  - alembic p1_sprint1_workspace_checklist downgrade 加 docstring（doc_no_sequences 删 UNIQUE(template_id, scope_key)）
+  - alembic p1_sprint3_bootstrap_alembic_version downgrade 加 docstring（alembic_version.version_num 列宽不还原 noop）
+  - alembic p2_sup_sprint_pc5_import_previews downgrade 加 docstring（pipe_class_import_previews 表 + 索引删除）
+  - alembic p2_sup_sprint_pc3_asset_subtype downgrade 加 docstring（config_assets 删 asset_subtype + 索引）
+  - alembic p2_sup_sprint_fmt1b_sequence_counter downgrade 加 docstring（project_pipe_code_sequences 表删除）
+  - alembic p2_sup_sprint_sym1_stream_symbols downgrade 加 docstring（stream_symbols 双表 + 状态索引删除）
 
 ### 待办（建议优先序）
 1. ✅ ~~HIGH P1 / P2 / P5-123 / P5-3 fe / P5-4d fe 共 18 项~~ — commit b302f81 闭环
