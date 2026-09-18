@@ -181,6 +181,19 @@ async def fork_project_config(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST fork 公司模板到项目（201 Created）。
+
+    步骤：
+    1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（项目级模板 fork 工艺侧权限）
+    2. 调 PipeCodeTemplateService.fork_to_project：取公司模板 →
+       查重 (project_id, config_name) 命中 → PROJECT_PIPE_CODE_CONFIG_DUP 409
+    3. 新增 ProjectPipeCodeConfig（DRAFT，source_template_id 表 fork 来源，
+       snapshot_json 与 format_definition_json 都拷贝模板内容）
+    4. service 提交（已 commit），返回新行
+
+    与 create_project_config 区别：本端点基于现有公司模板 fork，源可追溯；
+    create_project_config 项目自创，无 source_template_id 与 snapshot。
+    """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return await PipeCodeTemplateService.fork_to_project(
         db,
