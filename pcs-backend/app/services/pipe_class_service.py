@@ -675,6 +675,15 @@ class PipeClassService:
     async def approve_project_class(
         cls, session: AsyncSession, *, project_class_id: uuid.UUID, actor, role: str = "REVIEWER",
     ) -> ProjectPipeClass:
+        """项目派生管号等级 approve（轻量状态机 → APPROVED + Audit + RecordApproval）。
+
+        - 调 _project_transition('approve', record_approval=True)：业务约束 +
+          ConfigApproval 表落库（项目级独立可审计的强制需求）
+        - role 默认 REVIEWER（端点 ACL 已限定）
+        - 写 Audit（CONFIG_ASSET_APPROVED）
+
+        与 submit_project_class 区别：submit 入 PENDING；approve 入 APPROVED 并写审批记录。
+        """
         return await cls._project_transition(
             session, project_class_id, "approve", actor,
             role=role, record_approval=True,
@@ -684,6 +693,16 @@ class PipeClassService:
     async def reject_project_class(
         cls, session: AsyncSession, *, project_class_id: uuid.UUID, actor, role: str = "REVIEWER",
     ) -> ProjectPipeClass:
+        """项目派生管号等级 reject（PENDING → DRAFT + Audit + RecordApproval）。
+
+        - 调 _project_transition('reject', record_approval=True)：业务约束 +
+          ConfigApproval 表落库（驳回原因由调用方 payload 携带）
+        - role 默认 REVIEWER
+        - 写 Audit（CONFIG_ASSET_REJECTED）
+
+        与 approve_project_class 区别：approve 入 APPROVED；reject 回退到 DRAFT
+        并保留审批记录便于后续重提。
+        """
         return await cls._project_transition(
             session, project_class_id, "reject", actor,
             role=role, record_approval=True,
