@@ -138,6 +138,34 @@ def project_id() -> uuid.UUID:
     return uuid.uuid4()
 
 
+@pytest.fixture
+def workspace_id() -> uuid.UUID:
+    """HIGH P1-2 — 测试统一 workspace context 注入点。"""
+    return uuid.uuid4()
+
+
+@pytest_asyncio.fixture
+async def workspace(db_session, workspace_id):
+    """HIGH P1-2 — 异步 fixture 中建一个 FORMAL Workspace 记录，workspace_id 可预测。
+
+    用法：``async def test_x(client, workspace): ...`` —— ``get_workspace``
+    依赖 ``workspace_id`` query/path/header 参数时，httpx ``client.get(
+    f"/.../workspaces/{workspace.workspace_id}/...")`` 即可命中已建记录。
+    """
+    from app.models.enums import WorkspaceType
+    from app.models.project import Workspace
+
+    ws = Workspace(
+        workspace_id=workspace_id,
+        workspace_type=WorkspaceType.FORMAL.value,
+        workspace_name="Test Workspace",
+    )
+    db_session.add(ws)
+    await db_session.commit()
+    await db_session.refresh(ws)
+    return ws
+
+
 @pytest_asyncio.fixture
 async def client(db_engine) -> AsyncIterator[AsyncClient]:
     """注入 in-memory session 的 httpx async client。"""

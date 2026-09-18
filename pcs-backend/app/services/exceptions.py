@@ -137,6 +137,32 @@ class PsvInletOutletRequired(PcsError):
     status = 422
 
 
+# ---------------------------------------------------------------------------
+# Workspace context（HIGH P1-2 — 异常类型统一）
+# ---------------------------------------------------------------------------
+
+
+class WorkspaceNotFoundError(PcsError):
+    """Workspace 不存在（HTTP 404）。"""
+
+    code = "WORKSPACE_NOT_FOUND"
+    status = 404
+
+
+class WorkspaceTypeNotAllowedError(PcsError):
+    """仅 FORMAL workspace 允许业务记录写（HTTP 403）。"""
+
+    code = "WORKSPACE_TYPE_NOT_ALLOWED"
+    status = 403
+
+
+class WorkspaceContextMissingError(PcsError):
+    """请求缺 workspace context（HTTP 422）。"""
+
+    code = "WORKSPACE_CONTEXT_MISSING"
+    status = 422
+
+
 __all__ = [
     "PcsError",
     "PreconditionViolation",
@@ -154,4 +180,8 @@ __all__ = [
     "PsvFlangeClassOrificeMismatch",
     "PsvBellowsIncompatible",
     "PsvInletOutletRequired",
+    # Workspace context (HIGH P1-2)
+    "WorkspaceNotFoundError",
+    "WorkspaceTypeNotAllowedError",
+    "WorkspaceContextMissingError",
 ]
