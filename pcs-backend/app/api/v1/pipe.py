@@ -65,7 +65,9 @@ class SegmentRequest(BaseModel):
     liquid_mass_flow_kg_s: float | None = None
     gas_mass_flow_kg_s: float | None = None
     # 单相 fittings
-    fittings: list[Fitting] = Field(default_factory=list)
+    fittings: list[Fitting] = Field(
+        default_factory=list, description="单相管件列表（弯头/三通/异径/阀门）"
+    )
 
 
 class CalcChainRequest(BaseModel):

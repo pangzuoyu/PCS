@@ -53,7 +53,9 @@ class ProjectPipeClassCreateRequest(BaseModel):
 
 
 class ProjectPipeClassOverrideRequest(BaseModel):
-    override: dict = Field(default_factory=dict)
+    override: dict = Field(
+        default_factory=dict, description="覆盖字段字典（与公司级同名字段覆盖）"
+    )
 
 
 class ProjectPipeClassFullResponse(BaseModel):

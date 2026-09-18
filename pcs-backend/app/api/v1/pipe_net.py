@@ -79,7 +79,9 @@ class SegmentReq(BaseModel):
     gas_viscosity_pa_s: float | None = None
     liquid_mass_flow_kg_s: float | None = None
     gas_mass_flow_kg_s: float | None = None
-    fittings: list[dict[str, Any]] = Field(default_factory=list)
+    fittings: list[dict[str, Any]] = Field(
+        default_factory=list, description="管件列表（dict 形态）"
+    )
 
 
 class EdgeReq(BaseModel):
@@ -116,7 +118,10 @@ class SolverConfigReq(BaseModel):
 
     tolerance_m3_s: float = Field(1e-6, description="流量收敛容差 (m³/s)")
     max_iterations: int = Field(100, description="最大迭代次数")
-    initial_flow_strategy: str = Field("EVEN_DEMAND_PROPORTIONAL")
+    initial_flow_strategy: str = Field(
+        "EVEN_DEMAND_PROPORTIONAL",
+        description="初始流量分配策略：EVEN_DEMAND_PROPORTIONAL / SOURCE_PRIORITY",
+    )
 
 
 class PipeNetSolveRequest(BaseModel):

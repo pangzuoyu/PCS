@@ -20,7 +20,9 @@ MOCK_USERS: dict[str, str] = {
 
 
 class MockLoginRequest(BaseModel):
-    username: str = Field(min_length=1, max_length=100)
+    username: str = Field(
+        ..., min_length=1, max_length=100, description="Mock 登录用户名"
+    )
 
 
 class MockLoginResponse(BaseModel):

@@ -68,7 +68,9 @@ class ErrorCodeItem(BaseModel):
 class StateTransition(BaseModel):
     model_config = ConfigDict(populate_by_name=True)
 
-    from_: str = Field(alias="from")
+    from_: str = Field(
+        ..., alias="from", description="源状态名"
+    )
     action: str
     to: str
     allowed_roles: list[str]

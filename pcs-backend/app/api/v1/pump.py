@@ -71,7 +71,9 @@ class PumpCurveRequest(BaseModel):
     pump_type: str = Field("CENTRIFUGAL", description="CENTRIFUGAL/MIXED_FLOW/AXIAL")
     api610_type: str = Field("OH2", description="OH2/OH3/BB1/BB3/VS1")
     speed_rpm: float = 2950.0
-    points: list[CurvePointRequest] = Field(..., min_length=2)
+    points: list[CurvePointRequest] = Field(
+        ..., min_length=2, description="泵特性曲线点（至少 2 点）"
+    )
     rated_flow_m3_s: float
     rated_head_m: float
     rated_efficiency: float
