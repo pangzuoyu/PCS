@@ -14,7 +14,7 @@
    - 先导：pilot_temperature_c / pilot_temp_class
 
 2. **psv_results 加 3 CHECK 约束**（V1.14 §4.2 业务规则 DB 层兜底）：
-   - psv_valve_type_chk：valve_type IS NULL OR valve_type IN ('SPRING_LOADED', 'BALANCED_BELLOWS')
+   - psv_valve_type_chk：valve_type IS NULL OR valve_type IN ('SPRING_LOADED', 'BALANCED_BELLOWS', 'PILOT_OPERATED', 'RUPTURE_DISC')
    - psv_cdtp_check：NOT cdtp_applied OR back_pressure_type = 'SUPERIMPOSED'
    - psv_orifice_overridden_check：orifice_overridden ↔ orifice_manual 成对
 
@@ -146,7 +146,15 @@ def upgrade() -> None:
         ),
     )
 
-    # 2. psv_results 加 3 CHECK 约束
+    # 2. 存量回填（G6 门禁：旧 PsvResult 行 valve_type 默认 SPRING_LOADED）
+    #    CHECK 约束允许 NULL 但业务层假定非 NULL（G7/G8 拦截基于具体值）；
+    #    cdtp_applied/orifice_overridden 已 server_default=FALSE 自动回填。
+    op.execute(
+        "UPDATE psv_results SET valve_type = 'SPRING_LOADED' "
+        "WHERE valve_type IS NULL"
+    )
+
+    # 3. psv_results 加 3 CHECK 约束
     op.create_check_constraint(
         "psv_valve_type_chk",
         "psv_results",
