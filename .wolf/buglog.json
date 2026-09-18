@@ -1538,6 +1538,26 @@
       "last_seen": "2026-09-18",
       "severity": "HIGH",
       "fix_commit": "e7f0f7e"
+    },
+    {
+      "id": "bug-094",
+      "timestamp": "2026-09-18T17:30:00Z",
+      "error_message": "relief_area_service.calc_relief_area_api520_two_phase 用 Leung 1996 简化形式（V1 占位），与 API 520 9th Ed. Annex C.2.2 严格 Two-Point Omega Method 不等价；缺 Eq C.12/C.13/C.14/C.18/C.19/C.21 完整链路（omega 由 v_g/v_o 推算而非调用方传，eta_c 隐式方程解，P_c 临界判定，G 临界/亚临界分支，A 公式 SI 主链）",
+      "file": "pcs-backend/app/services/psv/two_point_omega.py",
+      "root_cause": "P5-3-7 待办。Annex C.2.2 Two-Point Omega Method 是 API 520 9th Ed. (2014-07) 规范形式；V1 简化仅保留 G_T/G_gas 比例关系，未实现 omega 由密度比推算、eta_c 隐式求根、critical/subcritical 分支。STATUS/C7 关闭声明完整 Annex C.2.2 实现列入 P5-3-7 后续批",
+      "fix": "(1) 新增 two_point_omega.py：TwoPointOmegaInput/Result + omega_two_point_area 主函数；(2) Eq C.12 omega = 9×(v_g/v_o-1) 由 v_o/v_g 推算；(3) Eq C.14 隐式方程用 bisection 求根（f 单调递增，1e-12 容差）；(4) Eq C.13 临界判定 P_c = eta_c×P_o；(5) Eq C.18 临界 / Eq C.19 亚临界 质量通量 G；(6) Eq C.21 SI 面积 A = 277.8×W/(K_d×K_b×K_c×K_v×G)，mm²/m² 同步；(7) 与 V1 简化形式并存（calc_relief_area_api520_two_phase 保留向后兼容）；(8) 25 例单测覆盖 PDF §C.2.2.2-3 worked example（omega=1.482 / eta_c≈0.6565 / G≈2885 / A≈24533 mm²，rel 1-1.5%）、subcritical 分支、K 系数缩放、10 例输入校验、退化边界（omega→0 / omega>100）",
+      "tags": [
+        "P5-3-7",
+        "API-520-Annex-C.2.2",
+        "Two-Point-Omega",
+        "DIERS-Leung-1996",
+        "bisection-root-find",
+        "two-phase-relief"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-18",
+      "severity": "MEDIUM",
+      "fix_commit": null
     }
   ]
 }
