@@ -33,6 +33,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """doc_no_sequences 删 UNIQUE(template_id, scope_key) 约束（P1 Sprint1 逆向）。
+
+    步骤：
+    - DROP CONSTRAINT uq_doc_no_sequences_template_scope
+
+    业务：与 upgrade 互逆；P1.2 编号原子分配的 DB 侧并发安全约束拆除。
+    """
     op.drop_constraint(
         "uq_doc_no_sequences_template_scope",
         "doc_no_sequences",

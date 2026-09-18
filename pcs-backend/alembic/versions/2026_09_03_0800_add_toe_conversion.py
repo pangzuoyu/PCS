@@ -62,4 +62,12 @@ def upgrade():
 
 
 def downgrade():
+    """pcs_toe_conversion_factors 表删除（TOE 综合能耗转换因子 seed 落地逆向）。
+
+    步骤：
+    - DROP TABLE pcs_toe_conversion_factors
+
+    业务：与 upgrade 互逆；TOE 系数（V1.0 GB 2589-2020 综合能耗计算通则）落表逆向
+    操作，删除全部 6 行（HEAT_ELECTRICITY/STEAM/GAS/WATER 等介质类型）+ 表本身。
+    """
     op.drop_table("pcs_toe_conversion_factors")

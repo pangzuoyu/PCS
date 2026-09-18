@@ -52,5 +52,14 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """bootstrap alembic_version.version_num 列宽 32→64 不还原（P1 Sprint3）。
+
+    步骤：
+    - noop（pass）：列已扩到 64 不回退到 32
+
+    不动理由：Sprint 2 之前的 revision 名称都已 <32 字符（最长 37 字符的
+    p1sprint1_checklist_schema_upgrade 是 Sprint 2 引入），回退到 VARCHAR(32)
+    会再次装不下该 revision；alembic_version 表是公共权限核心，禁止回退。
+    """
     # 不还原：Sprint 2 之前的 revision 名称都已 <32 字符，无回退必要
     pass

@@ -47,4 +47,11 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """project_pipe_code_sequences 表删除（FMT-1b 计数器落地逆向）。
+
+    步骤：
+    - DROP TABLE project_pipe_code_sequences
+
+    业务：与 upgrade 互逆；项目级管架编号序列计数器表清理。
+    """
     op.drop_table("project_pipe_code_sequences")

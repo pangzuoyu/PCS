@@ -50,5 +50,14 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """config_assets 删 asset_subtype 字段 + 索引（PC-3 落地逆向）。
+
+    步骤：
+    - DROP INDEX ix_config_assets_asset_subtype
+    - DROP COLUMN config_assets.asset_subtype
+
+    业务：与 upgrade 互逆；PC-3 配置资产子类型字段（pipe_class / project /
+    stream_symbol 等细分）清理。
+    """
     op.drop_index("ix_config_assets_asset_subtype", table_name="config_assets")
     op.drop_column("config_assets", "asset_subtype")

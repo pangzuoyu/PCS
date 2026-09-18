@@ -100,6 +100,15 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """stream_symbols + project_stream_symbols 双表 + 索引删除（SYM-1 落地逆向）。
+
+    步骤：
+    - DROP TABLE project_stream_symbols
+    - DROP INDEX ix_stream_symbols_status
+    - DROP TABLE stream_symbols
+
+    业务：与 upgrade 互逆；流号符号主表 + 项目级符号映射表 + 状态索引全清。
+    """
     op.drop_table("project_stream_symbols")
     op.drop_index("ix_stream_symbols_status", "stream_symbols")
     op.drop_table("stream_symbols")

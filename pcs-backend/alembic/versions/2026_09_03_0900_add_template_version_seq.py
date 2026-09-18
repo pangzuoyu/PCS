@@ -36,4 +36,11 @@ def upgrade():
 
 
 def downgrade():
+    """template_files 删 template_version_seq 字段（V1.4 P2-OPEN-005 落地逆向）。
+
+    步骤：
+    - DROP COLUMN template_version_seq
+
+    业务：与 upgrade 互逆；模板版本序列号（V1.4 P2-OPEN-005）移除。
+    """
     op.drop_column("template_files", "template_version_seq")

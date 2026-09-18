@@ -49,4 +49,12 @@ def upgrade():
     )
 
 def downgrade():
+    """htri_template_schemas 表删除（HEAT/HTRI 模板 schema 落地逆向）。
+
+    步骤：
+    - DROP TABLE htri_template_schemas
+
+    业务：与 upgrade 互逆；空冷器/管壳式换热器模板列定义 + TEMA 类型 + 版本管理
+    数据全清。
+    """
     op.drop_table("htri_template_schemas")

@@ -58,5 +58,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """pipe_class_import_previews 表 + 索引删除（PC-5 落地逆向）。
+
+    步骤：
+    - DROP INDEX ix_pc_import_previews_expires_at
+    - DROP TABLE pipe_class_import_previews
+
+    业务：与 upgrade 互逆；管架导入预览批次表 + expires_at 索引清理。
+    """
     op.drop_index("ix_pc_import_previews_expires_at", "pipe_class_import_previews")
     op.drop_table("pipe_class_import_previews")
