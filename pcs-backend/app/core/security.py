@@ -69,6 +69,19 @@ def create_access_token(*, subject: str, role: str, extra: dict[str, Any] | None
 
 
 def create_refresh_token(*, subject: str, role: str) -> str:
+    """生成 HS256 JWT refresh token。
+
+    步骤：
+    1. settings（refresh_token_expire_days / secret_key 来自环境变量）
+    2. payload：sub/role/type=refresh/jti/exp/iat
+       - jti = uuid4().hex（H-P0-2 每次唯一，用于吊销追踪）
+    3. jwt.encode(payload, secret_key, algorithm='HS256')
+
+    安全注意：
+    - refresh token 有效期长（天级），务必走 HTTPS 传输
+    - jti 写入吊销列表（revoked_jtis）即可禁用单 token
+    - 与 access_token 区别：access 用于 API 调用；refresh 仅用于换取新 access
+    """
     settings = get_settings()
     expire = _now() + timedelta(days=settings.refresh_token_expire_days)
     payload = {
