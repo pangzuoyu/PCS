@@ -131,6 +131,16 @@ class PipeClassService:
     async def list_company(
         cls, session: AsyncSession, *, status: str | None = None, keyword: str | None = None
     ) -> list[PipeClass]:
+        """列出公司管号等级（COMPANY_STD 来源，可选 status/keyword 过滤）。
+
+        步骤：
+        1. 固定过滤 source == 'COMPANY_STD'（项目派生 fork 不入此列表）
+        2. 可选 status：按 status_pipclass 过滤（DRAFT/APPROVED/PUBLISHED/OBSOLETE）
+        3. 可选 keyword：class_name ILIKE 模糊
+        4. 排序：class_id 升序（前端下拉稳定）
+
+        对应 list_project：项目内派生（source='PROJECT_DERIVED'）走 list_project。
+        """
         stmt = select(PipeClass).where(PipeClass.source == "COMPANY_STD")
         if status:
             stmt = stmt.where(PipeClass.status == status)
