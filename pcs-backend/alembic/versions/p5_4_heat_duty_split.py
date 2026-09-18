@@ -63,6 +63,16 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """heat_results.duty 拆字段逆向（P5-4 HEAT duty 拆分回滚）。
+
+    步骤：
+    - UPDATE duty 兜底回填：duty_legacy 与 duty_calc 任一非空 → 写回 duty
+    - DROP COLUMN heat_results.duty_calc
+    - DROP COLUMN heat_results.duty_legacy
+
+    业务：与 upgrade 互逆；duty 拆 duty_legacy + duty_calc 之前先做兜底回填
+    （避免 duty NULL 行被丢掉），本迁移是 P5-4 HEAT duty 拆分回滚安全网。
+    """
     # 回填 duty 兜底：duty_legacy 与 duty_calc 任一非空 → 写回 duty
     op.execute(
         "UPDATE heat_results "

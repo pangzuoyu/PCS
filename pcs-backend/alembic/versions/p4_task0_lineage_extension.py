@@ -89,6 +89,18 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """data_lineage D4/D5 + two_phase_results.record_hash 字段删除（P4 TASK0 逆向）。
+
+    步骤：
+    - DROP COLUMN two_phase_results.record_hash
+    - DROP COLUMN data_lineage.config_version
+    - DROP COLUMN data_lineage.formula_version_at_track
+    - DROP COLUMN data_lineage.source_record_hash
+    - DROP COLUMN data_lineage.record_hash_at_track
+
+    业务：与 upgrade 互逆；D4/D5 lineage 扩展（公式版本 + 来源 record_hash +
+    RecordMixin 同语义 SHA-256 截断 16 hex）清理。
+    """
     op.drop_column("two_phase_results", "record_hash")
     op.drop_column("data_lineage", "config_version")
     op.drop_column("data_lineage", "formula_version_at_track")

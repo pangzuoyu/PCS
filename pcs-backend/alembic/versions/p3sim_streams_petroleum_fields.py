@@ -107,6 +107,17 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """streams 删 5 石油特征字段（P3.2 SIM 落地逆向）。
+
+    步骤：
+    - DROP COLUMN distillation_curves（蒸馏曲线 JSONB）
+    - DROP COLUMN flash_point（闪点）
+    - DROP COLUMN watson_k（Watson K 特性因子）
+    - DROP COLUMN tvp（真蒸气压）
+    - DROP COLUMN rvp（雷德蒸气压）
+
+    业务：与 upgrade 互逆；4 Float + distillation_curves JSONB 8 schema 字段清理。
+    """
     op.drop_column("streams", "distillation_curves")
     op.drop_column("streams", "flash_point")
     op.drop_column("streams", "watson_k")

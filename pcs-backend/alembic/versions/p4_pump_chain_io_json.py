@@ -47,5 +47,13 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """pump_results 删 input_json + output_json 字段（P4 落地逆向）。
+
+    步骤（顺序与 upgrade 逆序）：
+    - DROP COLUMN pump_results.output_json
+    - DROP COLUMN pump_results.input_json
+
+    业务：与 upgrade 互逆；pump_results 入出 JSON 与 PIPE 对齐字段清理。
+    """
     op.drop_column("pump_results", "output_json")
     op.drop_column("pump_results", "input_json")

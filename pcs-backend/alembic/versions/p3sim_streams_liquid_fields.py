@@ -68,6 +68,15 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """streams 删 liquid_fraction + specific_gravity 字段 + 索引（P3.2 SIM 落地逆向）。
+
+    步骤（顺序与 upgrade 逆序）：
+    - DROP INDEX ix_streams_liquid_fraction
+    - DROP COLUMN streams.specific_gravity
+    - DROP COLUMN streams.liquid_fraction
+
+    业务：与 upgrade 互逆；液相分率 + 比重字段清理，与 vapor_fraction 对称。
+    """
     op.drop_index("ix_streams_liquid_fraction", table_name="streams")
     op.drop_column("streams", "specific_gravity")
     op.drop_column("streams", "liquid_fraction")

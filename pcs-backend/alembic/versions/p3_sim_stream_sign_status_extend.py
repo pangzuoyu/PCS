@@ -56,6 +56,16 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """streamsignstatus PG enum 扩展回退不可执行（cerebrum 2026-09-08 锁定）。
+
+    不可逆警告：PG enum ADD VALUE 不可 DROP VALUE；如需回退需手动执行：
+    - ALTER TABLE streams ALTER COLUMN sign_status TYPE varchar(20)
+      USING sign_status::varchar(20)
+    - DROP TYPE streamsignstatus
+
+    业务：本迁移是单向扩展（P3.2 SIM-13 / P0 闭环 D-1）；cerebrum 锁定降级文档
+    路径，不允许自动化执行（避免误清掉下游 SIM-13 6 端点已写入的 4 个新值行）。
+    """
     # PG enum 不可 DROP VALUE；降级文档：手动重建 enum 或 ALTER TABLE ... TYPE varchar
     # 此处仅抛 NotImplementedError，提示用户决策
     raise NotImplementedError(

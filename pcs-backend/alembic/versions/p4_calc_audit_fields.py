@@ -79,6 +79,16 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """5 表 × 3 审计字段删除（P4 ADR-0031 护栏逆向）。
+
+    步骤（循环 _TABLES）：
+    - DROP COLUMN changed_fields
+    - DROP COLUMN hash_changed
+    - DROP COLUMN stale_resolution_path
+
+    业务：与 upgrade 互逆；ADR-0031 审计三件套清理（5 表：heat_results /
+    pump_results / pipe_results / vessel_results / two_phase_results）。
+    """
     for table in _TABLES:
         op.drop_column(table, "changed_fields")
         op.drop_column(table, "hash_changed")

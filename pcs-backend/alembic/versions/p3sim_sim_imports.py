@@ -152,6 +152,19 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """sim_imports + sim_import_warnings 双表 + 3 enum 删除（P3.2 SIM 落地逆向）。
+
+    步骤：
+    - DROP TABLE sim_import_warnings
+    - DROP INDEX ix_sim_imports_expires_at
+    - DROP INDEX ix_sim_imports_project_status
+    - DROP TABLE sim_imports
+    - DROP TYPE IF EXISTS simimportwarningseverity（INFO/WARN/ERROR 三态）
+    - DROP TYPE IF EXISTS simimportstatus（PREVIEW/COMMITTED/EXPIRED）
+    - DROP TYPE IF EXISTS simimporttype（PROII / MANUAL / EXCEL）
+
+    业务：与 upgrade 互逆；SIM 导入批次主表 + 警告表 + 2 索引 + 3 enum 全清。
+    """
     op.drop_table("sim_import_warnings")
     op.drop_index("ix_sim_imports_expires_at", table_name="sim_imports")
     op.drop_index("ix_sim_imports_project_status", table_name="sim_imports")
