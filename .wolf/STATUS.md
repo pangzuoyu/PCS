@@ -524,7 +524,7 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
   - alembic p5_open_010 docstring E501 line-too-long 修复（132→拆两行）
   - app/core/errors.install_exception_handlers 补 docstring（error 信封 5 类 handler 说明）
 - ✅ (g) MEDIUM 滚动第六批 33 项（MEDIUM 48 项全部收口） — commit `81fa2db` + `38e3d58` + `c54f559` + `98eb87b` + `892ea81` + `8a36ac3` + `fafa81d` + `57d0e5d` + `977dc0e` + `1347555` + `024fd23` + `6a3b477` + `422d77c` + `3117939` + `ed34777` + `33a8d9b` + `33532df` + `91104c4` + `2bb85d9` + `3762d6e` + `c3978a7` + `d94837a` + `1eeb362` + `42507d2` + `b1d2edd` + `1ca71dd` + `b52ed4e` + `46ec975` + `8d8a5b2` + `80dde6a` + `673ba0a` + `e0665a9` + `bc117f6`
-- ✅ (h) LOW/INFO 滚动首批 46 项 — commit `c3692ba` + `e04216c` + `62f1593` + `d9a91b0` + `21348e9` + `4850f18` + `285c575` + `7f78bef` + `c017ba2` + `84084b2` + `ae504d7` + `c6959f7` + `eb2641c` + `309b855` + `a6c54e8` + `f8353b2` + `3d9b091` + 5 个 api/v1 + 4 个 service + 8 个 api/v1/auth/checklist/workspaces/lineage/equip_lib + 3 个 lineage/security/pct + 3 个 get/logging/formula + 3 个 pipe_class + 3 个 template/stream_symbol/conflict_resolver docstring
+- ✅ (h) LOW/INFO 滚动首批 49 项 — commit `c3692ba` + `e04216c` + `62f1593` + `d9a91b0` + `21348e9` + `4850f18` + `285c575` + `7f78bef` + `c017ba2` + `84084b2` + `ae504d7` + `c6959f7` + `eb2641c` + `309b855` + `a6c54e8` + `f8353b2` + `3d9b091` + 5 个 api/v1 + 4 个 service + 8 个 api/v1/auth/checklist/workspaces/lineage/equip_lib + 3 个 lineage/security/pct + 3 个 get/logging/formula + 3 个 pipe_class + 3 个 template/stream_symbol/conflict_resolver + 3 个 enthalpy/stream_symbol/pct list_company docstring
   - schemas/pipe_class 14 字段补中文 description（Field 多行排版）
   - schemas/config 16 字段补中文 description（Asset/Version/Diff）
   - schemas/checklist 27 字段补中文 description（含 5 态枚举修正）
@@ -569,6 +569,9 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 - services/stream_symbol_service.get 加 docstring（公司级 404 入口）
 - services/conflict_resolver.ConflictReport.add 加 docstring（level 分桶 + stats 计数）
 - services/pipe_class_service.list_project 加 docstring（项目派生 PROJECT_DERIVED + class_name 排序）
+- services/heat/heat_data_service.EnthalpyTable.to_dict 加 docstring（date isoformat + entries asdict）
+- services/stream_symbol_service.list_company 加 docstring（公司级流股符号 + 5 态过滤）
+- services/pipe_code_template_service.list_company 加 docstring（公司管号模板 + 5 态过滤）
   - stream_symbol_service.create_company 补 docstring（4 步骤流程 + V1.4 §0.5 ConfigAsset 挂载）
   - pipe_code_template_service.create_company 补 docstring（同样 4 步骤 + INT-OPEN-01 ConfigAsset 挂载）
   - checklist_service.update_status 补 docstring（状态分支 + Audit + ValueError）
