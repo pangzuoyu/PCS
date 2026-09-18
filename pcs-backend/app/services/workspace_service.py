@@ -34,6 +34,14 @@ class WorkspaceService:
         retention_days: int | None = None,
         user_id: uuid.UUID | None = None,
     ) -> Workspace:
+        """创建 workspace。
+
+        - retention_days 默认按 workspace_type 派生：FORMAL=None（永久）/ PERSONAL=90 / TEMPORARY=7
+        - 显式入参 retention_days 优先于派生默认值
+        - last_active_at = 创建时刻（UTC）
+        - 写 Audit WORKSPACE_CREATED（detail 含 workspace_type + name）
+        - 不主动 commit，flush 后由调用方负责
+        """
         if retention_days is None:
             retention_days = {"FORMAL": None, "PERSONAL": 90, "TEMPORARY": 7}[
                 workspace_type.value
