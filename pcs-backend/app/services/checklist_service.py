@@ -61,6 +61,16 @@ class ChecklistService:
         payload: ChecklistItemPut,
         user_id: uuid.UUID | None = None,
     ) -> ProjectInputChecklist:
+        """更新项目输入清单项状态（VERIFIED / IN_PROGRESS / NOT_STARTED / ASSUMED）。
+
+        行为：
+        - 状态写回 status / input_value_json / source_type / assumption_reason
+        - VERIFIED：自动填 verified_by + verified_at
+        - NOT_STARTED / IN_PROGRESS：清 verified_by/at
+        - 写 Audit（CHECKLIST_ITEM_VERIFIED / CHECKLIST_ITEM_ASSUMED / READ）
+
+        raises ValueError: checklist_id 不存在
+        """
         stmt = select(ProjectInputChecklist).where(
             ProjectInputChecklist.checklist_id == checklist_id
         )
