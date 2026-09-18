@@ -96,6 +96,18 @@ class TemplateService:
         *,
         actor: UUID,
     ) -> TemplateFile:
+        """更新模板的占位符元数据（template_id 对应 TemplateFile 行）。
+
+        步骤：
+        1. 查行（不存在 → TemplateRenderError，未用 try/except 包装因上层
+           已有 PcsError envelope 转化）
+        2. 直接覆盖 placeholders_json（整段替换，非合并；调用方传完整字典）
+        3. flush 不 commit（调用方负责事务边界）
+        4. 写 Audit（CONFIG_VERSION_CREATED，resource_id=str(template_id)，
+           标识 placeholder 配置变更与版本生成同 action——历史约定）
+
+        返回更新后的 TemplateFile。
+        """
         tpl = await self.session.get(TemplateFile, template_id)
         if tpl is None:
             raise TemplateRenderError(f"未找到 template_id={template_id}")
