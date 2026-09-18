@@ -358,6 +358,18 @@ async def generate_pipe_code(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ):
+    """POST /pipe-codes/generate：按项目模板生成下一个管号。
+
+    步骤：
+    1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    2. 调 PipeCodeGenerator.generate：按 payload.project_id 取有效模板，
+       解析 input_segments → 走 format_definition_json 合并 + 占位符替换
+       → 取 ProjectPipeCodeSequence 自增 1 → 落库
+    3. 返回 {"code": code_str}（仅最新生成的字符串）
+
+    与 /pipe-codes/validate 区别：generate 走完整流程 + 落库 + 取号；
+    validate 仅 dry-run，不入 DB。
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     code = await PipeCodeGenerator.generate(
         db, payload.project_id, payload.input_segments,
