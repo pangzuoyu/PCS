@@ -66,6 +66,14 @@ async def get_piping(
     workspace_id: uuid.UUID = Query(...),
     session: AsyncSession = Depends(get_db),
 ):
+    """取单条管路记录（按 pipe_id + workspace_id 双键查询）。
+
+    workspace 隔离：仅返回 workspace_id 下的 PipingResult，越权 → 404。
+    sign_status 返回 enum value（兼容历史字符串字段）。
+
+    返回字段：pipe_id / line_no / sign_status / approval_step /
+    locked_by_deliverable / seq_no / source_pid。
+    """
     ws = await get_workspace(workspace_id, session)
     rec = (
         await session.execute(
