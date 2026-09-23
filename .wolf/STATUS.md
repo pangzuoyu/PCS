@@ -1067,4 +1067,63 @@ C6-b 修复要点：GB/T 12241 虽标 `incomplete_fallback`，但公式常数仍
 - RESTRICTION 三件套（Task 12-14）
 - 9 Minor/LOW/INFO 集中入 P6-1 待办（如 venturi C 按加工类型区分、cv_engine 完整 14 项公式、SPEC §3.2.4 模块名修正、Severity enum ERROR 成员补全）
 
+---
+
+## ✅ Done (P6-1 批末闭环 — 2026-09-24)
+
+**目标**：P6 SPEC V2.0 P6-1 阶段（CV + RESTRICTION 三件套 — engine / persist / api / frontend types）
+
+**任务完成情况**：
+
+| Task | Commit | 内容 | 状态 |
+|------|--------|------|------|
+| Task 7 | `a1a4716` | cv_results + restriction_results 表迁移 + ORM（P6-1 基础设施；DICT V3.3 PK `cv_id` / `orifice_id`） | ✅ complete |
+| Task 8 | `c98f9bc` | cv_engine IEC 60534-2-1 完整算法（§3.2.1.1~1.4；21 键 payload；Reader-Harris 14 项） | ✅ complete |
+| Task 9 | `41dfacb` | cv_persist 落库 + outlet stream（ADR-0022 DEVICE_CALCULATED + FRICTION_PRESSURE_DROP + CV-{tag}） | ✅ complete（subagent 429 后 controller 接管） |
+| Task 10 | `cf84499` | cv_api POST /api/v1/cv/calculate + Pydantic schema（CvCalculateRequest 22 + CvCalculateResponse 13） | ✅ complete |
+| Regen | `72c3df0` | OpenAPI snapshot regen 含 cv router | ✅ complete |
+| Task 11 | `a3edf71` | frontend cv.ts 类型对齐 OpenAPI（镜像 cv.ts 模式 40 行） | ✅ complete |
+| Task 12-14 | `a6be288` | RESTRICTION 三件套：engine ISO 5167-2/3/4 + persist（outlet ISOENTHALPIC）+ api POST /restriction/calculate | ✅ complete（24 例，超 brief 期望 22） |
+| Regen | `8450a86` | OpenAPI snapshot regen 含 restriction router | ✅ complete |
+| Task 15 | `4304f50` | frontend restriction.ts 类型对齐 OpenAPI（47 行；4 union + 1 常量 + 1 接口） | ✅ complete |
+
+**关键产出**：
+- 业务模块：cv_engine + cv_persist + cv_api + restriction_engine + restriction_persist + restriction_api（共 6 个 service 单元 + 2 个 schema + 2 个 API router）
+- ORM：cv_results（Cv_calculated 大写驼峰）+ restriction_results（orifice_id PK）+ outlet stream 链
+- Pydantic schema：cv 22+13 + restriction 14+13 字段（全部 `extra='forbid'` 严格模式 + 中文 description）
+- Frontend wrapper：cv.ts 40 + restriction.ts 47（含 union 常量 + 接口）
+- OpenAPI snapshot：123 paths + 119 schemas（pcs-backend/docs/openapi.json 505K）
+- 决策：ADR-0022 outlet stream change_type 区分 FRICTION_PRESSURE_DROP（CV）vs ISOENTHALPIC（Restriction）
+
+**关键修复**：
+- cv_persist subagent Task 9 突发 429 rate limit 后 controller 接管 + 验证 + 手动 commit（恢复模式已在 progress.md 详细文档化）
+- Task 10 implementer 漏跑 OpenAPI regen → controller 接管跑 regen + 重新派 Task 11（教训：openapi regen 必须 commit 前完成）
+
+**Ruling 记录**：
+- **R-isoenthalpic**（Task 12-14）：RESTRICTION outlet stream change_type = ISOENTHALPIC（区别 CV 的 FRICTION_PRESSURE_DROP）；等熵焓降设备物理建模正确
+- **R-outlet-source**（Task 12-14）：outlet_stream.OutletSourceType Literal 增 `RESTRICTION_CALCULATED` + `_EQUIP_TYPE_MAP` 增 `"RESTRICTION_CALCULATED": "RESTRICTION"`（与 CV 共用同 module，避免分裂）
+
+**基线验证（G-08 契约）**：
+- **ruff check**：All checks passed（0 errors）
+- **tsc --noEmit**：0 errors
+- **eslint src/ tests/**：0 errors
+- **pytest**：2287 passed + 20 failed pre-existing（meta / pipe_code_validator / stream_symbol_validator；与 P6-1 无关，已 git stash 验证）
+- **vitest**：533 passed（51 test files）
+- **OpenAPI snapshot**：`pcs-backend/docs/openapi.json` 505K / 123 paths / 119 schemas（CV + Restriction schema 新增）
+
+**G-08 baseline 截取**：
+- `pcs-backend/docs/openapi.json` → 留作 P6-2 批前 G-08 diff baseline
+
+**待 P6-2 启动工作**（Task 17+）：
+- FLARE_SYS + COOL_TOWER + PSYCHRO 三件套（Task 17-27）
+- G-07 集成（Task 28 批末）
+- LOW/INFO 滚动：cv_engine standard_profile_code override 链路（P6-2 修）、RESTRICTION 闪蒸完整 FLASH 联校核、Reader-Harris 14 项扩展（如需）
+- 20 pre-existing failures（meta / pipe_code_validator / stream_symbol_validator）入 P6+ LOW/INFO 滚动
+
+**待 P6-3 启动工作**（Task 29+）：
+- OPEN_CHANNEL + FILTRATION + COST_EST 三件套（Task 29-37）
+- G-04/05/06 + 批末总结（Task 38）
+
+**P6-1 → P6-2 总进度**：8/38 tasks complete（21%）。下一批 11 task 推进 FLARE_SYS / COOL_TOWER / PSYCHRO。
+
 **P6-0 触发分支**：`feature/p6-batch` worktree，HEAD `c5c7d9a`（Task 5 amend 后）
