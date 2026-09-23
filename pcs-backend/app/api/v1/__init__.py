@@ -21,6 +21,7 @@ from app.api.v1.psv import router as psv_router  # P5-3-6
 from app.api.v1.psv_standard_profiles import router as psv_standard_profiles_router  # P5-3-6
 from app.api.v1.pump import router as pump_router
 from app.api.v1.records import router as records_router
+from app.api.v1.restriction import router as restriction_router  # P6-1 Task 14
 from app.api.v1.sep_equip import router as sep_equip_router  # P5-2-4
 from app.api.v1.sim_imports_query import project_router as sim_imports_query_router
 from app.api.v1.sim_imports_query import router as sim_imports_query_root_router
@@ -53,6 +54,7 @@ api_router.include_router(psv_router)  # P5-3-6
 api_router.include_router(psv_standard_profiles_router)  # P5-3-6
 api_router.include_router(heat_router)  # P5-4-5
 api_router.include_router(cv_router)  # P6-1 Task 10
+api_router.include_router(restriction_router)  # P6-1 Task 14
 api_router.include_router(pipe_codes_router)
 api_router.include_router(common_router)
 api_router.include_router(imports_router)

@@ -42,6 +42,7 @@ from app.services.exceptions import PcsError
 # P4-3-3 扩展：新增 "PIPE_NET_CALCULATED"（向前兼容，旧调用仍有效）
 # P5-1-4 扩展：新增 "VESSEL_CALCULATED"（ADR-0032 V1.1 决策 6）
 # P5-4-5 扩展：新增 "HEAT_CALCULATED"（ADR-0027 V1.0 + spec V1.2 §3.2.4）
+# P6-1 Task 13 扩展：新增 "RESTRICTION_CALCULATED"（SPEC §3.2.2 + ADR-0022 ISOENTHALPIC）
 OutletSourceType = Literal[
     "FLASH_CALCULATED",
     "PIPE_CALCULATED",
@@ -51,6 +52,7 @@ OutletSourceType = Literal[
     "SEP_EQUIP_CALCULATED",
     "PSV_CALCULATED",
     "HEAT_CALCULATED",
+    "RESTRICTION_CALCULATED",
 ]
 
 
@@ -67,6 +69,7 @@ class OutletStreamProjectMismatchError(PcsError):
 # P5-1-4 扩展：新增 "VESSEL_CALCULATED" → "VESSEL"
 # P5-2-4 扩展：新增 "SEP_EQUIP_CALCULATED" → "SEP_EQUIP"
 # P5-4-5 扩展：新增 "HEAT_CALCULATED" → "HEAT"
+# P6-1 Task 13 扩展：新增 "RESTRICTION_CALCULATED" → "RESTRICTION"
 _EQUIP_TYPE_MAP: dict[str, str] = {
     "FLASH_CALCULATED": "FLASH",
     "PIPE_CALCULATED": "PIPE",
@@ -76,6 +79,7 @@ _EQUIP_TYPE_MAP: dict[str, str] = {
     "SEP_EQUIP_CALCULATED": "SEP_EQUIP",
     "PSV_CALCULATED": "PSV",
     "HEAT_CALCULATED": "HEAT",
+    "RESTRICTION_CALCULATED": "RESTRICTION",
 }
 
 
