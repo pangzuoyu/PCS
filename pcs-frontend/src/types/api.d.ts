@@ -11,7 +11,18 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Health */
+        /**
+         * Health
+         * @description GET /health（liveness + DB 探测）。
+         *
+         *     步骤：
+         *     1. 调 check_database_async（asyncpg SELECT 1）探测 DB 连接
+         *     2. 返回 {status, database}：db ok → "ok"/"up"，db fail → "degraded"/"down"
+         *     3. 始终 200（不依赖 DB 状态码），由调用方按字段判定
+         *
+         *     用于：K8s liveness probe / 监控 / 容器 orchestrator 健康检查。
+         *     不暴露敏感信息（无 DB URL / 表名 / 用户名）。
+         */
         get: operations["health_api_v1_health_get"];
         put?: never;
         post?: never;
@@ -30,7 +41,20 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Login */
+        /**
+         * Login
+         * @description POST /login：LDAP 登录换取 access/refresh token。
+         *
+         *     步骤：
+         *     1. authenticate(username, password) 走 LDAP bind（service 层封装）
+         *        - LDAP 失败（LdapAuthError）→ INVALID_CREDENTIALS 401
+         *     2. resolve_role(user.groups) 由 LDAP 组映射到内部角色
+         *        （DESIGNER / PROCESS_CONTROLLER / REVIEWER / APPROVER / SYSTEM_ADMIN）
+         *     3. create_access_token / create_refresh_token 签发 JWT 对（HS256）
+         *     4. 不写 Audit（login 是公开端点，无 user_id 上下文）
+         *
+         *     返回 TokenResponse：{access_token, refresh_token, role, username}。
+         */
         post: operations["login_api_v1_auth_login_post"];
         delete?: never;
         options?: never;
@@ -64,7 +88,17 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Refresh */
+        /**
+         * Refresh
+         * @description 刷新 token：旧 refresh 一次性使用，签发新 access + 新 refresh。
+         *
+         *     安全约束：
+         *     1. JWT 解码失败 → INVALID_REFRESH（401）
+         *     2. type != 'refresh' → WRONG_TOKEN_TYPE（401）
+         *     3. 缺 role claim（P0-2 防回归）→ INVALID_REFRESH（401）
+         *     4. JTI 已被吊销（重放/截获）→ INVALID_REFRESH（401，H-P0-2 防重放）
+         *     5. 旧 JTI 一次性使用：成功签发后立即 revoke 旧 JTI，缩小泄露窗口
+         */
         post: operations["refresh_api_v1_auth_refresh_post"];
         delete?: never;
         options?: never;
@@ -83,7 +117,9 @@ export interface paths {
         put?: never;
         /**
          * Logout
-         * @description 无服务端会话，前端仅清空内存 token；保留端点供审计与未来扩展。
+         * @description H-P0-3：logout 接收可选 refresh_token，吊销其 JTI；不传则幂等 204。
+         *
+         *     旧 refresh 永不再可用（即使没到 exp）；前端无需记忆，多副本部署需切 Redis set。
          */
         post: operations["logout_api_v1_auth_logout_post"];
         delete?: never;
@@ -99,10 +135,37 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Workspaces */
+        /**
+         * List Workspaces
+         * @description GET 列出工作区。
+         *
+         *     步骤：
+         *     1. 可选 query: owner_id（按 owner 过滤；不传 → 全部）
+         *     2. 转发 WorkspaceService.list_for_user → 按 owner_id 过滤 + 分页
+         *     3. ORM 行 → WorkspaceOut 序列化（FastAPI response_model 控制）
+         *
+         *     无 ACL 校验：作为内部管理端点（admin 视图），不做角色限制。
+         *     与 /workspaces/{workspace_id}（get_workspace）区别：本端点列表；
+         *     get_workspace 单条 + touch + 404。
+         */
         get: operations["list_workspaces_api_v1_workspaces_get"];
         put?: never;
-        /** Create Workspace */
+        /**
+         * Create Workspace
+         * @description 创建工作区（POST /workspaces，201 Created）。
+         *
+         *     步骤：
+         *     1. 构造 WorkspaceService，传入当前 session
+         *     2. 调 svc.create：owner_id（=user_id）、workspace_type（来自 payload
+         *        枚举字符串）、name、project_id（None 表个人工作区）、retention_days
+         *     3. service 层已 flush 不 commit（WorkspaceService.create 契约）；此处补
+         *        session.commit() 落库
+         *     4. 转 WorkspaceOut 返回（含 id/name/type/project_id/retention_days/
+         *        created_by/created_at 等字段）
+         *
+         *     owner_id 来自 Depends（认证中间件注入），user_id 复用 owner_id：
+         *     工作区拥有者即创建者。
+         */
         post: operations["create_workspace_api_v1_workspaces_post"];
         delete?: never;
         options?: never;
@@ -117,7 +180,19 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Workspace */
+        /**
+         * Get Workspace
+         * @description GET 单个 workspace（按 ID）+ 更新 last_accessed_at。
+         *
+         *     步骤：
+         *     1. WorkspaceService.get 取行；不存在 → 404 workspace not found
+         *     2. WorkspaceService.touch 写 last_accessed_at = now（活跃审计）
+         *     3. session.commit() 落库
+         *     4. ORM 行经 WorkspaceOut.model_validate 转响应 schema
+         *
+         *     注意：本端点不要求 ACL（workspace_id 自身是访问令牌语义）；
+         *     业务写操作请改用 api/deps.py require_formal_workspace 依赖。
+         */
         get: operations["get_workspace_api_v1_workspaces__workspace_id__get"];
         put?: never;
         post?: never;
@@ -134,7 +209,19 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List For Project */
+        /**
+         * List For Project
+         * @description GET 列出项目输入清单（DICT V3.1 表 44）。
+         *
+         *     步骤：
+         *     1. 转发 ChecklistService.list_for_project → 按 project_id 取行
+         *        （按 item_key 升序，不分页）
+         *     2. ORM 行 → ChecklistItemOut 序列化（FastAPI response_model 控制）
+         *
+         *     无 ACL 校验：项目内部资源，依赖项目级鉴权上层路由。
+         *     与 /projects/{project_id}/completeness（completeness）区别：
+         *     本端点返回逐项明细；completeness 返回聚合统计。
+         */
         get: operations["list_for_project_api_v1_checklist_projects__project_id__get"];
         put?: never;
         post?: never;
@@ -153,7 +240,19 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Bulk Seed */
+        /**
+         * Bulk Seed
+         * @description POST 批量种子（项目内 checklist 一次生成）。
+         *
+         *     步骤：
+         *     1. 调 ChecklistService.bulk_seed：按 items 列表逐条创建 ChecklistItem
+         *        （status 默认 NOT_STARTED；user_id 记录创建者）
+         *     2. session.commit() 落库（service 已 flush）
+         *     3. ORM 行经 ChecklistItemOut.model_validate 转响应 schema 列表
+         *
+         *     与 update_item 区别：本端点批量初始化（一个项目通常一次提交）；
+         *     update_item 单项状态流转（5 态 + Audit）。
+         */
         post: operations["bulk_seed_api_v1_checklist_projects__project_id__seed_post"];
         delete?: never;
         options?: never;
@@ -168,7 +267,18 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Completeness */
+        /**
+         * Completeness
+         * @description GET 项目输入清单完成度统计。
+         *
+         *     步骤：
+         *     1. 转发 ChecklistService.completeness → 按 project_id 取行
+         *        → 派生 total / required_total / 3 桶分桶 / 百分比
+         *     2. 返回 ChecklistCompleteness Pydantic 模型
+         *
+         *     无 ACL 校验：项目内部资源，依赖项目级鉴权上层路由。
+         *     与 list_for_project 区别：本端点返回聚合统计；list 返回逐项明细。
+         */
         get: operations["completeness_api_v1_checklist_projects__project_id__completeness_get"];
         put?: never;
         post?: never;
@@ -186,7 +296,19 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Update Item */
+        /**
+         * Update Item
+         * @description PUT 校验一项状态（5 态流转 + Audit 落库）。
+         *
+         *     步骤：
+         *     1. 调 ChecklistService.update_status（状态校验 + Audit + flush）
+         *     2. service 抛 ValueError → 404（找不到 checklist 项；保留原 ValueError 契约）
+         *     3. session.commit() 落库
+         *     4. ORM 行经 ChecklistItemOut.model_validate 转响应 schema
+         *
+         *     ACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSADMIN
+         *     （由 ACL middleware 在 user_id 注入前验证）。
+         */
         put: operations["update_item_api_v1_checklist_items__checklist_id__put"];
         post?: never;
         delete?: never;
@@ -202,7 +324,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Piping */
+        /**
+         * List Piping
+         * @description 列出 workspace 内管路记录（分页：默认 limit=50 / offset=0，上限 limit=200）。
+         *
+         *     - workspace 隔离：仅返回 workspace_id 下的 PipingResult
+         *     - 排序：seq_no asc（管号序号）
+         *     - sign_status 返回 enum value（兼容历史字符串）
+         *     - 返回 5 字段：pipe_id / line_no / sign_status / approval_step / locked_by_deliverable
+         */
         get: operations["list_piping_api_v1_records_piping_get"];
         put?: never;
         /**
@@ -223,11 +353,32 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Piping */
+        /**
+         * Get Piping
+         * @description 取单条管路记录（按 pipe_id + workspace_id 双键查询）。
+         *
+         *     workspace 隔离：仅返回 workspace_id 下的 PipingResult，越权 → 404。
+         *     sign_status 返回 enum value（兼容历史字符串字段）。
+         *
+         *     返回字段：pipe_id / line_no / sign_status / approval_step /
+         *     locked_by_deliverable / seq_no / source_pid。
+         */
         get: operations["get_piping_api_v1_records_piping__pipe_id__get"];
         put?: never;
         post?: never;
-        /** Obsolete Piping */
+        /**
+         * Obsolete Piping
+         * @description 管路记录作废（DELETE，状态机迁移至 OBSOLETE）。
+         *
+         *     - 仅允许 FORMAL workspace
+         *     - workspace_id + pipe_id 双键查 PipingResult（不存在 → 404）
+         *     - 调 StateMachineService.transition(OBSOLETE)，失败 → 409
+         *     - reason 必传 Query（默认空串），记录到状态机迁移 reason 字段供审计追溯
+         *     - 提交由本端点负责（session.commit()）
+         *
+         *     与 `transition_piping` 区别：本端点固定 transition=OBSOLETE，semantically 是
+         *     "软删除"，不真删 PipingResult 行（保留审计快照）。
+         */
         delete: operations["obsolete_piping_api_v1_records_piping__pipe_id__delete"];
         options?: never;
         head?: never;
@@ -243,7 +394,18 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Transition Piping */
+        /**
+         * Transition Piping
+         * @description 管路记录状态机迁移（DRAFT → REVIEWED → APPROVED → ...）。
+         *
+         *     约束：
+         *     1. 仅允许 FORMAL workspace（require_formal_workspace 强校验）
+         *     2. workspace_id + pipe_id 双键查 PipingResult（不存在 → 404）
+         *     3. 调 StateMachineService.transition，非法迁移 → 409
+         *     4. 提交由本端点负责（session.commit()）
+         *
+         *     actor_role 默认 DESIGNER（审核/批准时由调用方传 APPROVER 等）。
+         */
         post: operations["transition_piping_api_v1_records_piping__pipe_id__transition_post"];
         delete?: never;
         options?: never;
@@ -258,7 +420,18 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Snapshots */
+        /**
+         * List Snapshots
+         * @description 列出管路记录的所有变更快照（按 created_at desc）。
+         *
+         *     步骤：
+         *     1. 校验 workspace + 查 PipingResult（不存在 → 404 piping record not found）
+         *     2. 列 RecordChangeSnapshot（record_type='PipingResult' + record_id=pipe_id）
+         *     3. 按 created_at desc 排序，返回 {snapshot_id, snapshot_reason, snapshot_status,
+         *        snapshot_source, created_at} 列表
+         *
+         *     workspace 隔离：仅查询 workspace_id 下的 PipingResult，越权访问 → 404。
+         */
         get: operations["list_snapshots_api_v1_records_piping__pipe_id__snapshots_get"];
         put?: never;
         post?: never;
@@ -275,7 +448,20 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Upstream */
+        /**
+         * Upstream
+         * @description GET 上游血缘链（沿计算记录向上回溯）。
+         *
+         *     步骤：
+         *     1. LineageTracker.upstream 按 record_type + record_id 直接递归回溯
+         *        （不走 latest()，因为上游追溯用最近一次就行）
+         *     2. max_depth 限 1..50（防止极深递归触发 N+1 风暴）
+         *     3. 返回 [dict, ...]（按 _serialize 统一字段：record_type/record_id/
+         *        lineage_id/relation/depth）
+         *
+         *     与 downstream 区别：upstream 直接按 (record_type, record_id) 递归；
+         *     downstream 需 latest() 解析（跨多次重算取最近一次）。
+         */
         get: operations["upstream_api_v1_lineage__record_type___record_id__upstream_get"];
         put?: never;
         post?: never;
@@ -292,7 +478,22 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Downstream */
+        /**
+         * Downstream
+         * @description GET 下游血缘链（沿计算记录向下传播）。
+         *
+         *     步骤：
+         *     1. LineageTracker.latest 取 record_type+record_id 当前最新 lineage_id
+         *        （record 可能多次重算，latest 取最近一次）
+         *     2. 不存在 → 404 no lineage for record
+         *     3. LineageTracker.downstream 从 lineage_id 沿 max_depth 向下传播
+         *        （max_depth 限 1..50，防止极深递归触发 N+1 风暴）
+         *     4. 返回 [dict, ...]（按 _serialize 统一字段：record_type/record_id/
+         *        lineage_id/relation/depth）
+         *
+         *     与 upstream 区别：upstream 沿 record_type+record_id 直接递归；
+         *     downstream 需 latest() 解析到 lineage_id 再传，跨多次重算。
+         */
         get: operations["downstream_api_v1_lineage__record_type___record_id__downstream_get"];
         put?: never;
         post?: never;
@@ -309,7 +510,19 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Graph */
+        /**
+         * Graph
+         * @description 取记录的全谱系图（root + upstream + downstream）。
+         *
+         *     步骤：
+         *     1. 查最新 LineageRecord（lineage_id；不存在 → 404 no lineage for record）
+         *     2. 上溯祖先（upstream）：从最新版本反向追踪到源头参数表
+         *     3. 下溯派生（downstream）：从当前 lineage_id 出发追到所有派生版本
+         *        （多版本分支以链式 children 形式返回）
+         *     4. 返回 dict { root, upstream, downstream }，每项均经 _serialize 转 dict
+         *
+         *     参数 max_depth 限制上下游遍历深度（1-50，默认 10，防爆栈）。
+         */
         get: operations["graph_api_v1_lineage__record_type___record_id__graph_get"];
         put?: never;
         post?: never;
@@ -707,7 +920,19 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Pipe Classes */
+        /**
+         * List Pipe Classes
+         * @description GET 列出公司级管架（SUP-002 PC-1）。
+         *
+         *     步骤：
+         *     1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 PipeClassService.list_company → 公司级 PipeClass 行
+         *     3. 可选过滤：status（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）+ keyword（名称模糊）
+         *     4. 不分页（公司级 O(10~100)）
+         *
+         *     与 /projects/{project_id}/pipe-classes（list_project_pipe_classes）区别：
+         *     本端点列公司级管架；项目级端点列 ProjectPipeClass（fork 派生）。
+         */
         get: operations["list_pipe_classes_api_v1_pipe_classes_get"];
         put?: never;
         /**
@@ -771,12 +996,50 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Pipe Class */
+        /**
+         * Get Pipe Class
+         * @description GET 单条公司管架。
+         *
+         *     步骤：
+         *     1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 PipeClassService.get → 按 class_id 取公司级行
+         *     3. 不存在 → ValueError（由 FastAPI exception_handler 统一返回 404）
+         *
+         *     与 /projects/{project_id}/pipe-classes/{class_id} 区别：本端点查公司级；
+         *     项目级端点查 ProjectPipeClass。
+         */
         get: operations["get_pipe_class_api_v1_pipe_classes__class_id__get"];
-        /** Update Pipe Class */
+        /**
+         * Update Pipe Class
+         * @description PUT 改公司管号等级（按字段名增量覆盖）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（管号等级工艺侧编辑权限）
+         *     2. payload.class_id 与路径 class_id 一致性校验：
+         *        service.update 的 model_dump 含 class_id，不一致会覆写主键
+         *        → 直接 422 拦截，避免误改
+         *     3. 转发 PipeClassService.update：状态校验（DRAFT→APPROVED/OBSOLETE 走
+         *        状态机 → UPDATE status_pipclass，禁止 service 直接 UPDATE）
+         *     4. service 抛 ValueError → 404；pipe_class_service 已 commit
+         *
+         *     注意：本端点不动 status_pipclass（状态流转走 submit/approve/publish/obsolete
+         *     四态机端点），service 层禁止绕过状态机直接 UPDATE。
+         */
         put: operations["update_pipe_class_api_v1_pipe_classes__class_id__put"];
         post?: never;
-        /** Delete Pipe Class */
+        /**
+         * Delete Pipe Class
+         * @description DELETE 公司管架（204 No Content，硬删除）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 PipeClassService.delete
+         *     3. service 做引用检查：pipe / pipe_net 仍引用 class_id → PC_IN_USE 409
+         *     4. 204 No Content（FastAPI status_code 控制响应体为空）
+         *
+         *     与 obsolete_pipe_class 区别：obsolete 是软作废（status→OBSOLETE，历史可查）；
+         *     delete 是物理删除（行消失，需先无引用）。推公司管架场景首选 obsolete。
+         */
         delete: operations["delete_pipe_class_api_v1_pipe_classes__class_id__delete"];
         options?: never;
         head?: never;
@@ -792,7 +1055,22 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Submit Pipe Class */
+        /**
+         * Submit Pipe Class
+         * @description POST 公司管架 submit（DRAFT → PENDING + Audit）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 PipeClassService.submit → ConfigStateMachine.transition('SUBMIT')
+         *     3. 状态校验：仅 DRAFT 才能 SUBMIT，其他 → PC_BAD_TRANSITION 409
+         *     4. 写 Audit（PIPE_CLASS_SUBMITTED，detail 含 from→to + class_id）
+         *
+         *     与 project 级 submit_pipe_class 区别：本端点改 PipeClassStatus 走 ConfigStateMachine；
+         *     项目级走 ProjectPipeClassStatus 轻量状态机（approve_project_class / reject_project_class）。
+         *
+         *     五态机端点组：submit / approve / publish / obsolete；
+         *     区别于其他资源：本资源无 reject 端点（直接 OBSOLETE 替代）。
+         */
         post: operations["submit_pipe_class_api_v1_pipe_classes__class_id__submit_post"];
         delete?: never;
         options?: never;
@@ -809,7 +1087,19 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Approve Pipe Class */
+        /**
+         * Approve Pipe Class
+         * @description POST 公司管架 approve（PENDING → APPROVED + Audit）。
+         *
+         *     步骤：
+         *     1. ACL：REVIEWER / SYSTEM_ADMIN
+         *     2. 转发 PipeClassService.approve → ConfigStateMachine.transition('APPROVE')
+         *     3. 状态校验：仅 PENDING 才能 APPROVE，其他 → PC_BAD_TRANSITION 409
+         *     4. 写 Audit（PIPE_CLASS_APPROVED，detail 含 from→to + class_id + reviewer）
+         *
+         *     与 publish 区别：approve 仅审核通过（仍未生效，依赖下游业务使用前还需 publish）；
+         *     publish 入 PUBLISHED 终态（API 526 / ASME B31.3 选型可查）。
+         */
         post: operations["approve_pipe_class_api_v1_pipe_classes__class_id__approve_post"];
         delete?: never;
         options?: never;
@@ -826,7 +1116,19 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Publish Pipe Class */
+        /**
+         * Publish Pipe Class
+         * @description POST 公司管架 publish（APPROVED → PUBLISHED + Audit）。
+         *
+         *     步骤：
+         *     1. ACL：APPROVER / SYSTEM_ADMIN
+         *     2. 转发 PipeClassService.publish → ConfigStateMachine.transition('PUBLISH')
+         *     3. 状态校验：仅 APPROVED 才能 PUBLISH，其他 → PC_BAD_TRANSITION 409
+         *     4. 写 Audit（PIPE_CLASS_PUBLISHED，detail 含 from→to + class_id）
+         *
+         *     与 approve 区别：approve 仅审核通过；publish 终态生效，供下游 pipe_net /
+         *     equipment_lib / psv 选型查询引用。
+         */
         post: operations["publish_pipe_class_api_v1_pipe_classes__class_id__publish_post"];
         delete?: never;
         options?: never;
@@ -843,7 +1145,19 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Obsolete Pipe Class */
+        /**
+         * Obsolete Pipe Class
+         * @description POST 公司管架 obsolete（任意 → OBSOLETE + Audit，终止态）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / REVIEWER / APPROVER / SYSTEM_ADMIN
+         *     2. 转发 PipeClassService.obsolete → ConfigStateMachine.transition('OBSOLETE')
+         *     3. 状态校验：DRAFT/PENDING/APPROVED/PUBLISHED 均能转 OBSOLETE；
+         *        已经是 OBSOLETE → PC_BAD_TRANSITION 409
+         *     4. 写 Audit（PIPE_CLASS_OBSOLETED，detail 含 from→to + class_id + reason）
+         *
+         *     终止态：OBSOLETE 后无法转回其他状态；如需复用 → 新建 class_id 重新发起。
+         */
         post: operations["obsolete_pipe_class_api_v1_pipe_classes__class_id__obsolete_post"];
         delete?: never;
         options?: never;
@@ -858,7 +1172,19 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Project Pipe Classes */
+        /**
+         * List Project Pipe Classes
+         * @description GET 列出项目级管架（项目派生 PROJECT_DERIVED）。
+         *
+         *     步骤：
+         *     1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 PipeClassService.list_project → 按 project_id 取 ProjectPipeClass 行
+         *        （含 source_company_class_id 引用 + override_json 字段覆盖 + status 5 态过滤）
+         *     3. 不分页（项目级 O(10~50)）
+         *
+         *     与 /pipe-classes（list_pipe_classes）区别：本端点列项目级派生管架
+         *     （fork 自公司模板 + override 覆盖）；list_pipe_classes 列公司级。
+         */
         get: operations["list_project_pipe_classes_api_v1_projects__project_id__pipe_classes_get"];
         put?: never;
         post?: never;
@@ -1129,10 +1455,36 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Company Symbols */
+        /**
+         * List Company Symbols
+         * @description GET 列出公司级流股符号（SYM-3 / SUP-002 §8）。
+         *
+         *     步骤：
+         *     1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 StreamSymbolService.list_company → 公司级 StreamSymbol 行
+         *        （按 status 5 态过滤由 service 层处理）
+         *     3. 不分页（公司级 O(10~100)）
+         *
+         *     与 /projects/{project_id}/stream-symbols（list_project_symbols）区别：
+         *     本端点仅列公司级；项目级端点可含公司级（include_company=True）。
+         */
         get: operations["list_company_symbols_api_v1_stream_symbols_get"];
         put?: never;
-        /** Create Company Symbol */
+        /**
+         * Create Company Symbol
+         * @description POST 创建公司流股符号（201 Created，DRAFT 起始态）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 StreamSymbolService.create_company：
+         *        - 查重 (symbol) 命中 → STREAM_SYMBOL_DUP 409
+         *        - 挂载 ConfigAsset（V1.4 §0.5：symbol_id → asset_id）
+         *        - 创建 StreamSymbol（status='DRAFT'）
+         *     3. service 提交（已 commit），返回新行
+         *
+         *     与 add_project_symbol 区别：本端点创建公司级流股符号，
+         *     可被 fork_project_symbols 复制到项目作用域。
+         */
         post: operations["create_company_symbol_api_v1_stream_symbols_post"];
         delete?: never;
         options?: never;
@@ -1147,12 +1499,51 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Company Symbol */
+        /**
+         * Get Company Symbol
+         * @description GET 单条公司流股符号。
+         *
+         *     步骤：
+         *     1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 StreamSymbolService.get → 按 symbol_id 取公司级行
+         *     3. 不存在 → STREAM_SYMBOL_NOT_FOUND 404
+         *
+         *     与 /projects/{project_id}/stream-symbols/{project_symbol_id} 区别：
+         *     本端点查公司级符号；项目级端点查 ProjectStreamSymbol 行。
+         */
         get: operations["get_company_symbol_api_v1_stream_symbols__symbol_id__get"];
-        /** Update Company Symbol */
+        /**
+         * Update Company Symbol
+         * @description PUT 改公司流股符号（增量覆盖）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（公司级工艺侧编辑权限）
+         *     2. payload.model_dump(exclude_none=True) 排除 None 字段，仅提交显式给出项
+         *     3. 转发到 StreamSymbolService.update_company（按字段名 setattr 增量覆盖）
+         *     4. service 提交（已 commit），返回更新行
+         *
+         *     与 /projects/{project_id}/stream-symbols/{id}（update_project_symbol）区别：
+         *     本端点改公司级 StreamSymbol；项目级走 ProjectStreamSymbol 对应端点。
+         */
         put: operations["update_company_symbol_api_v1_stream_symbols__symbol_id__put"];
         post?: never;
-        /** Delete Company Symbol */
+        /**
+         * Delete Company Symbol
+         * @description DELETE 公司流股符号（204 No Content，硬删除）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 StreamSymbolService.delete_company
+         *     3. service 做引用检查：ProjectStreamSymbol.source_symbol_id 仍引用
+         *        → STREAM_SYMBOL_IN_USE 409
+         *     4. 同时级联 ConfigAsset（asset_id 同步删）+ Audit
+         *     5. 204 No Content（FastAPI status_code 控制响应体为空）
+         *
+         *     与 obsolete_symbol 区别：obsolete 是软作废（status→OBSOLETE，历史可查）；
+         *     delete 是物理删除（行消失，需先无引用）。
+         *     与 delete_project_symbol 区别：公司级做引用检查；项目级无引用检查
+         *     （项目内派生数据不会被其他项目引用）。
+         */
         delete: operations["delete_company_symbol_api_v1_stream_symbols__symbol_id__delete"];
         options?: never;
         head?: never;
@@ -1168,7 +1559,19 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Submit Symbol */
+        /**
+         * Submit Symbol
+         * @description POST 公司流股符号 submit（DRAFT → PENDING + Audit）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 StreamSymbolService.submit → ConfigStateMachine.transition('SUBMIT')
+         *     3. 状态校验：仅 DRAFT 才能 SUBMIT，其他 → STREAM_SYMBOL_BAD_TRANSITION 409
+         *     4. 写 Audit（STREAM_SYMBOL_SUBMITTED，detail 含 from→to + symbol_id）
+         *
+         *     公司级流股符号走 ConfigStateMachine；项目级 ProjectStreamSymbol 无状态机
+         *     （由 add_project_symbol / delete_project_symbol 直接操作）。
+         */
         post: operations["submit_symbol_api_v1_stream_symbols__symbol_id__submit_post"];
         delete?: never;
         options?: never;
@@ -1185,7 +1588,18 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Approve Symbol */
+        /**
+         * Approve Symbol
+         * @description POST 公司流股符号 approve（PENDING → APPROVED + Audit）。
+         *
+         *     步骤：
+         *     1. ACL：REVIEWER / SYSTEM_ADMIN
+         *     2. 转发 StreamSymbolService.approve → ConfigStateMachine.transition('APPROVE')
+         *     3. 状态校验：仅 PENDING 才能 APPROVE，其他 → STREAM_SYMBOL_BAD_TRANSITION 409
+         *     4. 写 Audit（STREAM_SYMBOL_APPROVED，detail 含 from→to + symbol_id + reviewer）
+         *
+         *     与 submit 区别：submit 是工艺方发起；approve 是审核方通过。
+         */
         post: operations["approve_symbol_api_v1_stream_symbols__symbol_id__approve_post"];
         delete?: never;
         options?: never;
@@ -1202,7 +1616,18 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Publish Symbol */
+        /**
+         * Publish Symbol
+         * @description POST 公司流股符号 publish（APPROVED → PUBLISHED + Audit）。
+         *
+         *     步骤：
+         *     1. ACL：APPROVER / SYSTEM_ADMIN
+         *     2. 转发 StreamSymbolService.publish → ConfigStateMachine.transition('PUBLISH')
+         *     3. 状态校验：仅 APPROVED 才能 PUBLISH，其他 → STREAM_SYMBOL_BAD_TRANSITION 409
+         *     4. 写 Audit（STREAM_SYMBOL_PUBLISHED，detail 含 from→to + symbol_id）
+         *
+         *     终态：PUBLISHED 后可被 fork_to_project 复制到项目作用域。
+         */
         post: operations["publish_symbol_api_v1_stream_symbols__symbol_id__publish_post"];
         delete?: never;
         options?: never;
@@ -1219,7 +1644,20 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Obsolete Symbol */
+        /**
+         * Obsolete Symbol
+         * @description POST 公司流股符号 obsolete（任意 → OBSOLETE + Audit，终止态）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / REVIEWER / SYSTEM_ADMIN
+         *     2. 转发 StreamSymbolService.obsolete → ConfigStateMachine.transition('OBSOLETE')
+         *     3. 状态校验：DRAFT/PENDING/APPROVED/PUBLISHED 均能转 OBSOLETE；
+         *        已经是 OBSOLETE → STREAM_SYMBOL_BAD_TRANSITION 409
+         *     4. 写 Audit（STREAM_SYMBOL_OBSOLETED，detail 含 from→to + symbol_id + reason）
+         *
+         *     OBSOLETE 后下游 ProjectStreamSymbol.source_symbol_id 仍保留（不解引用），
+         *     但 fork_to_project 不再选作源；项目级符号本身不受影响继续生效。
+         */
         post: operations["obsolete_symbol_api_v1_stream_symbols__symbol_id__obsolete_post"];
         delete?: never;
         options?: never;
@@ -1254,10 +1692,34 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Project Symbols */
+        /**
+         * List Project Symbols
+         * @description GET 列出项目作用域流股符号（可含公司级一并）。
+         *
+         *     步骤：
+         *     1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发到 StreamSymbolService.list_project
+         *     3. include_company=True（默认）：合并公司级 StreamSymbol（fork 的源头）
+         *        + 项目级 ProjectStreamSymbol（项目内派生）；False 时仅项目级
+         *
+         *     与 /stream-symbols（公司级 list_company_symbols）区别：本端点按项目
+         *     隔离，含公司级需 include_company=True。
+         */
         get: operations["list_project_symbols_api_v1_projects__project_id__stream_symbols_get"];
         put?: never;
-        /** Add Project Symbol */
+        /**
+         * Add Project Symbol
+         * @description POST 项目作用域新增流股符号（201 Created）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（项目符号工艺侧编辑权限）
+         *     2. 转发到 StreamSymbolService.add_project_symbol（service 层负责
+         *        (project_id, symbol) 复合唯一查重 + PROJECT_STREAM_SYMBOL_DUP 409）
+         *     3. service 写入由 service 层 db.commit() 负责（已含事务结束）
+         *
+         *     返回新创建的 ProjectStreamSymbol（service 直接返回 ORM 行，FastAPI
+         *     自动经 response_model 序列化）。
+         */
         post: operations["add_project_symbol_api_v1_projects__project_id__stream_symbols_post"];
         delete?: never;
         options?: never;
@@ -1273,10 +1735,37 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Update Project Symbol */
+        /**
+         * Update Project Symbol
+         * @description PUT 改项目作用域流股符号（增量覆盖）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（项目符号工艺侧编辑权限）
+         *     2. payload.model_dump(exclude_none=True) 排除 None 字段，仅提交显式给出的
+         *        override / name / category / is_active，避免无意清空
+         *     3. 转发到 StreamSymbolService.update_project_symbol（service 层
+         *        按字段名增量覆盖，不动 source 字段）
+         *     4. service 提交（已 commit），返回更新行
+         *
+         *     注意：本端点不提供 status 流放接口，项目符号无状态机；如需作废走
+         *     delete_project_symbol 或 add_project_symbol 重新创建。
+         */
         put: operations["update_project_symbol_api_v1_projects__project_id__stream_symbols__project_symbol_id__put"];
         post?: never;
-        /** Delete Project Symbol */
+        /**
+         * Delete Project Symbol
+         * @description DELETE 项目作用域流股符号（204 No Content）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发到 StreamSymbolService.delete_project_symbol
+         *     3. service 层无引用检查（项目内派生数据无下游引用），直接删行 + commit
+         *     4. 204 No Content（FastAPI status_code 控制响应体为空）
+         *
+         *     与 delete_company_symbol 区别：项目级不做引用检查（项目内派生数据
+         *     不会被其他项目引用）；公司级需检查 ProjectStreamSymbol.source_symbol_id
+         *     反向引用（STREAM_SYMBOL_IN_USE 409）。
+         */
         delete: operations["delete_project_symbol_api_v1_projects__project_id__stream_symbols__project_symbol_id__delete"];
         options?: never;
         head?: never;
@@ -1601,7 +2090,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Search */
+        /**
+         * Search
+         * @description GET 检索设备库（仅 PUBLISHED）。
+         *
+         *     - ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     - keyword 可选模糊匹配 name（ILIKE）
+         *     - equipment_type 可选 JSONB ->> 精确过滤
+         *     - limit 上限 200（防前端误传大数）
+         *     - 返回 AssetResponse 列表（CATEGORY_6 + status=PUBLISHED，由 service 固定）
+         */
         get: operations["search_api_v1_equip_lib_search_get"];
         put?: never;
         post?: never;
@@ -1620,7 +2118,20 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Settle */
+        /**
+         * Settle
+         * @description POST 设备库沉淀（201 Created）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（设备库写权限）
+         *     2. 调 EquipLibService.settle：从项目设备（source_equipment_id /
+         *        source_project_id）克隆到设备库 CATEGORY_6 ConfigAsset（DRAFT）
+         *     3. 沉淀完成走 /config/assets 既有 submit/approve/publish 链审批；
+         *        本端点仅做沉淀（DRAFT），不直接发布
+         *     4. 检索（search）仅返回 PUBLISHED 状态的设备库资产
+         *
+         *     与 search 区别：settle 是写、DRAFT 状态入库；search 是读、仅 PUBLISHED。
+         */
         post: operations["settle_api_v1_equip_lib_settle_post"];
         delete?: never;
         options?: never;
@@ -1859,6 +2370,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/cv/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cv Calculate
+         * @description POST /api/v1/cv/calculate：调节阀 Cv 单工况计算落库。
+         *
+         *     流程：
+         *     1. CvService.persist_calculate（调 CvEngine + 落 cv_results + outlet stream）
+         *     2. 查 outlet stream（upstream_stream_id == source_stream_id）
+         *     3. 组装 CvCalculateResponse 返回
+         *
+         *     Returns:
+         *         201 + cv_result_id + outlet_stream_id + 关键计算字段
+         */
+        post: operations["cv_calculate_api_v1_cv_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/pipe-code-templates": {
         parameters: {
             query?: never;
@@ -1866,10 +2405,37 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Templates */
+        /**
+         * List Templates
+         * @description GET 列出公司级管号模板（FMT-4）。
+         *
+         *     步骤：
+         *     1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 PipeCodeTemplateService.list_company → 公司级 PipeCodeTemplate 行
+         *        （按 status 5 态过滤由 service 层处理）
+         *     3. 不分页（公司级管号模板 O(10~50)）
+         *
+         *     与 /projects/{project_id}/pipe-code-configs（list_project_configs）区别：
+         *     本端点列公司级模板；项目级端点列 ProjectPipeCodeConfig。
+         */
         get: operations["list_templates_api_v1_pipe_code_templates_get"];
         put?: never;
-        /** Create Template */
+        /**
+         * Create Template
+         * @description POST 创建公司管号模板（201 Created，DRAFT 起始态）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 PipeCodeTemplateService.create_company：
+         *        - 查重 (template_name) 命中 → PIPE_CODE_TEMPLATE_DUP 409
+         *        - 挂载 ConfigAsset（V1.4 §0.5 INT-OPEN-01：template_id → asset_id）
+         *        - 创建 PipeCodeTemplate（status='DRAFT'）
+         *     3. service 提交（已 commit），返回新行
+         *
+         *     与 /projects/{project_id}/pipe-code-configs（create_project_config）区别：
+         *     本端点创建公司级模板，可被 fork_to_project 复制到项目作用域；
+         *     create_project_config 直接创建项目级配置，无 ConfigAsset 挂载。
+         */
         post: operations["create_template_api_v1_pipe_code_templates_post"];
         delete?: never;
         options?: never;
@@ -1884,12 +2450,50 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Template */
+        /**
+         * Get Template
+         * @description GET 单条公司管号模板。
+         *
+         *     步骤：
+         *     1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 PipeCodeTemplateService.get → 按 template_id 取公司级行
+         *     3. 不存在 → PIPE_CODE_TEMPLATE_NOT_FOUND 404
+         *
+         *     与 /projects/{project_id}/pipe-code-configs/{config_id}（get_project_config）区别：
+         *     本端点查公司级模板；get_project_config 查项目级配置。
+         */
         get: operations["get_template_api_v1_pipe_code_templates__template_id__get"];
-        /** Update Template */
+        /**
+         * Update Template
+         * @description PUT 替换公司管号模板字段（增量覆盖）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. payload.model_dump(exclude_none=True) 排除 None 字段，仅提交显式给出项
+         *     3. 转发 PipeCodeTemplateService.update_company（按字段名增量 setattr；
+         *        禁改 status，status 由 ConfigStateMachine 5 态机管控）
+         *     4. service 提交（已 commit），返回更新行
+         *
+         *     与 update_project_config 区别：本端点改公司模板无 DRAFT/PENDING 锁定
+         *     （靠 ConfigStateMachine PUBLISH 防御）；项目级走 _project_transition 轻量状态机。
+         */
         put: operations["update_template_api_v1_pipe_code_templates__template_id__put"];
         post?: never;
-        /** Delete Template */
+        /**
+         * Delete Template
+         * @description DELETE 公司管号模板（204 No Content，硬删除）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 PipeCodeTemplateService.delete_company
+         *     3. service 做引用检查：ProjectPipeCodeConfig.source_template_id 仍引用
+         *        → PIPE_CODE_TEMPLATE_IN_USE 409
+         *     4. 同时级联 ConfigAsset（asset_id 同步删）+ Audit
+         *     5. 204 No Content（FastAPI status_code 控制响应体为空）
+         *
+         *     与 obsolete_template 区别：obsolete 是软作废（status→OBSOLETE，历史可查）；
+         *     delete 是物理删除（行消失，需先无引用）。推公司模板场景首选 obsolete。
+         */
         delete: operations["delete_template_api_v1_pipe_code_templates__template_id__delete"];
         options?: never;
         head?: never;
@@ -1905,7 +2509,19 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Submit Template */
+        /**
+         * Submit Template
+         * @description POST 公司管号模板 submit（DRAFT → PENDING + Audit）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 PipeCodeTemplateService.submit → ConfigStateMachine.transition('SUBMIT')
+         *     3. 状态校验：仅 DRAFT 才能 SUBMIT，其他 → PIPE_CODE_TEMPLATE_BAD_TRANSITION 409
+         *     4. 写 Audit（PIPE_CODE_TEMPLATE_SUBMITTED，detail 含 from→to + template_id）
+         *
+         *     与 submit_project_config 区别：本端点改 PipeCodeTemplateStatus 走 ConfigStateMachine；
+         *     项目级走 ProjectPipeCodeConfigStatus 轻量状态机。
+         */
         post: operations["submit_template_api_v1_pipe_code_templates__template_id__submit_post"];
         delete?: never;
         options?: never;
@@ -1922,7 +2538,18 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Approve Template */
+        /**
+         * Approve Template
+         * @description POST 公司管号模板 approve（PENDING → APPROVED + Audit）。
+         *
+         *     步骤：
+         *     1. ACL：REVIEWER / SYSTEM_ADMIN
+         *     2. 转发 PipeCodeTemplateService.approve → ConfigStateMachine.transition('APPROVE')
+         *     3. 状态校验：仅 PENDING 才能 APPROVE，其他 → PIPE_CODE_TEMPLATE_BAD_TRANSITION 409
+         *     4. 写 Audit（PIPE_CODE_TEMPLATE_APPROVED，detail 含 from→to + template_id + reviewer）
+         *
+         *     与 publish 区别：approve 仅审核通过；publish 入 PUBLISHED 终态，供 fork_to_project 选用。
+         */
         post: operations["approve_template_api_v1_pipe_code_templates__template_id__approve_post"];
         delete?: never;
         options?: never;
@@ -1939,7 +2566,22 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Publish Template */
+        /**
+         * Publish Template
+         * @description POST 公司管号模板 publish（APPROVED → PUBLISHED + Audit）。
+         *
+         *     步骤：
+         *     1. ACL：APPROVER / SYSTEM_ADMIN
+         *     2. 转发 PipeCodeTemplateService.publish → ConfigStateMachine.transition('PUBLISH')
+         *     3. 状态校验：仅 APPROVED 才能 PUBLISH，其他 → PIPE_CODE_TEMPLATE_BAD_TRANSITION 409
+         *     4. 写 Audit（PIPE_CODE_TEMPLATE_PUBLISHED，detail 含 from→to + template_id）
+         *     5. publish 触发 CIAEngine.propagate_from_source 级联：
+         *        所有 fork 自此模板的 ProjectPipeCodeConfig
+         *        （source_template_id==template_id 且 status==PUBLISHED）→ 自动转 OBSOLETE
+         *        （一致性维护）
+         *
+         *     终态：PUBLISHED 后可被 fork_to_project 复制到项目作用域。
+         */
         post: operations["publish_template_api_v1_pipe_code_templates__template_id__publish_post"];
         delete?: never;
         options?: never;
@@ -1956,7 +2598,21 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Obsolete Template */
+        /**
+         * Obsolete Template
+         * @description POST 公司管号模板 obsolete（任意 → OBSOLETE + Audit，终止态）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / REVIEWER / SYSTEM_ADMIN
+         *     2. 转发 PipeCodeTemplateService.obsolete → ConfigStateMachine.transition('OBSOLETE')
+         *     3. 状态校验：DRAFT/PENDING/APPROVED/PUBLISHED 均能转 OBSOLETE；
+         *        已经是 OBSOLETE → PIPE_CODE_TEMPLATE_BAD_TRANSITION 409
+         *     4. 写 Audit（PIPE_CODE_TEMPLATE_OBSOLETED，detail 含 from→to + template_id + reason）
+         *
+         *     OBSOLETE 后 fork_to_project 不再选作源；存量 ProjectPipeCodeConfig
+         *     （source_template_id 引用）继续生效，不级联作废。
+         *     与 publish 反向：publish 级联 → OBSOLETE；obsolete 不级联。
+         */
         post: operations["obsolete_template_api_v1_pipe_code_templates__template_id__obsolete_post"];
         delete?: never;
         options?: never;
@@ -1971,10 +2627,38 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Project Configs */
+        /**
+         * List Project Configs
+         * @description GET 列出项目级管号配置。
+         *
+         *     步骤：
+         *     1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 PipeCodeTemplateService.list_project → 按 project_id 取
+         *        ProjectPipeCodeConfig 行（按 status 5 态过滤由 service 层处理）
+         *     3. 不分页（项目级 O(10~50)）
+         *
+         *     与 /pipe-code-templates（list_templates）区别：本端点列项目级配置
+         *     （含 fork 自公司模板的 source_template_id + snapshot_json 派生）；
+         *     list_templates 列公司级模板。
+         */
         get: operations["list_project_configs_api_v1_projects__project_id__pipe_code_configs_get"];
         put?: never;
-        /** Create Project Config */
+        /**
+         * Create Project Config
+         * @description POST 项目内自建管号配置（201 Created）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 调 PipeCodeTemplateService.create_project_config：
+         *        查重 (project_id, config_name) 命中 → PROJECT_PIPE_CODE_CONFIG_DUP 409
+         *     3. 新增 ProjectPipeCodeConfig（DRAFT，source_template_id=None 表项目自创，
+         *        snapshot_json=None 表非 fork 来的快照）
+         *     4. format_definition_json 由调用方直接传入（不拷贝模板）
+         *     5. service 提交（已 commit），返回新行
+         *
+         *     与 fork_project_config 区别：本端点 source_template_id=None，无 snapshot，
+         *     后续不会被 CIAEngine.propagate_from_source 同步；纯项目本地管号定义。
+         */
         post: operations["create_project_config_api_v1_projects__project_id__pipe_code_configs_post"];
         delete?: never;
         options?: never;
@@ -1991,7 +2675,21 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Fork Project Config */
+        /**
+         * Fork Project Config
+         * @description POST fork 公司模板到项目（201 Created）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（项目级模板 fork 工艺侧权限）
+         *     2. 调 PipeCodeTemplateService.fork_to_project：取公司模板 →
+         *        查重 (project_id, config_name) 命中 → PROJECT_PIPE_CODE_CONFIG_DUP 409
+         *     3. 新增 ProjectPipeCodeConfig（DRAFT，source_template_id 表 fork 来源，
+         *        snapshot_json 与 format_definition_json 都拷贝模板内容）
+         *     4. service 提交（已 commit），返回新行
+         *
+         *     与 create_project_config 区别：本端点基于现有公司模板 fork，源可追溯；
+         *     create_project_config 项目自创，无 source_template_id 与 snapshot。
+         */
         post: operations["fork_project_config_api_v1_projects__project_id__pipe_code_configs_fork_post"];
         delete?: never;
         options?: never;
@@ -2007,10 +2705,42 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Update Project Config */
+        /**
+         * Update Project Config
+         * @description PUT 替换项目内管号配置 format_definition_json。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 调 PipeCodeTemplateService.update_project_config：
+         *        - 查行（不存在 → PROJECT_PIPE_CODE_CONFIG_NOT_FOUND 404）
+         *        - 状态校验：仅 DRAFT/PENDING 允许编辑
+         *        - 其他（APPROVED/PUBLISHED/OBSOLETE）→
+         *          PROJECT_PIPE_CODE_CONFIG_LOCKED（409）
+         *        - 整段替换 format_definition_json（非合并）
+         *     3. status 由 submit_project/approve_project/reject_project/
+         *        publish_project/obsolete_project 五态机管控，本端点不动 status
+         *     4. service 提交（已 commit），返回更新行
+         *
+         *     与 update_company（公司模板）区别：项目级有锁定检查 + 走 _project_transition
+         *     轻量状态机；公司级直接落库、无锁定（靠 ConfigStateMachine PUBLISH 防御）。
+         */
         put: operations["update_project_config_api_v1_projects__project_id__pipe_code_configs__config_id__put"];
         post?: never;
-        /** Delete Project Config */
+        /**
+         * Delete Project Config
+         * @description DELETE 项目内管号配置（204 No Content，硬删除）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发到 PipeCodeTemplateService.delete_project_config
+         *     3. service 层做引用检查：若 ProjectPipeCodeSequence（已生成管号序列）
+         *        仍引用此 config_id → PROJECT_PIPE_CODE_CONFIG_IN_USE 409
+         *     4. service 提交（已 commit），204 No Content（FastAPI status_code 控制响应体为空）
+         *
+         *     与 obsolete_project_config 区别：obsolete 是软作废（status→OBSOLETE，
+         *     历史记录可查）；delete 是物理删除（行消失，需先无引用）。
+         *     推项目级管号配置场景首选 obsolete；delete 仅用于误建清理。
+         */
         delete: operations["delete_project_config_api_v1_projects__project_id__pipe_code_configs__config_id__delete"];
         options?: never;
         head?: never;
@@ -2026,7 +2756,19 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Submit Project Config */
+        /**
+         * Submit Project Config
+         * @description POST 项目管号配置 submit（DRAFT → PENDING + Audit）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 PipeCodeTemplateService.submit_project → _project_transition('SUBMIT')
+         *     3. 状态校验：DRAFT 才能 SUBMIT，其他 → PROJECT_PIPE_CODE_CONFIG_BAD_TRANSITION 409
+         *     4. 写 Audit（CONFIG_ASSET_SUBMITTED，detail 含 from→to + project_id）
+         *
+         *     五态机端点组：submit / approve / reject / publish / obsolete；
+         *     区别：公司模板走 ConfigStateMachine；项目级走 _project_transition 轻量状态机。
+         */
         post: operations["submit_project_config_api_v1_projects__project_id__pipe_code_configs__config_id__submit_post"];
         delete?: never;
         options?: never;
@@ -2043,7 +2785,20 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Approve Project Config */
+        /**
+         * Approve Project Config
+         * @description POST 项目管号配置 approve（PENDING → APPROVED + Audit）。
+         *
+         *     步骤：
+         *     1. ACL：REVIEWER / SYSTEM_ADMIN（区别 submit：工艺 vs 审核）
+         *     2. 转发 PipeCodeTemplateService.approve_project → _project_transition('APPROVE')
+         *     3. 状态校验：仅 PENDING 才能 APPROVE，其他 →
+         *        PROJECT_PIPE_CODE_CONFIG_BAD_TRANSITION 409
+         *     4. 写 Audit（CONFIG_ASSET_APPROVED，detail 含 from→to + project_id）
+         *
+         *     与 reject_project_config 区别：approve 入 APPROVED；reject 回退到 DRAFT
+         *     并保留 review context 用于后续重提。
+         */
         post: operations["approve_project_config_api_v1_projects__project_id__pipe_code_configs__config_id__approve_post"];
         delete?: never;
         options?: never;
@@ -2060,7 +2815,21 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Reject Project Config */
+        /**
+         * Reject Project Config
+         * @description POST 项目管号配置 reject（PENDING → DRAFT + Audit + review context）。
+         *
+         *     步骤：
+         *     1. ACL：REVIEWER / SYSTEM_ADMIN
+         *     2. 转发 PipeCodeTemplateService.reject_project → _project_transition('REJECT')
+         *     3. 状态校验：仅 PENDING 才能 REJECT，其他 →
+         *        PROJECT_PIPE_CODE_CONFIG_BAD_TRANSITION 409
+         *     4. 写 Audit（CONFIG_ASSET_REJECTED，detail 含 from→to + project_id + review_note）
+         *     5. 回退到 DRAFT（而非 OBSOLETE），工艺方可重提
+         *
+         *     与 approve_project_config 区别：approve 入 APPROVED（成功流转）；
+         *     reject 回 DRAFT（带 review context 备注），区别于 obsolete（强制作废）。
+         */
         post: operations["reject_project_config_api_v1_projects__project_id__pipe_code_configs__config_id__reject_post"];
         delete?: never;
         options?: never;
@@ -2077,7 +2846,23 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Publish Project Config */
+        /**
+         * Publish Project Config
+         * @description POST 项目管号配置 publish（APPROVED → PUBLISHED + Audit）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 转发 PipeCodeTemplateService.publish_project → _project_transition('PUBLISH')
+         *     3. 状态校验：仅 APPROVED 才能 PUBLISH，其他 →
+         *        PROJECT_PIPE_CODE_CONFIG_BAD_TRANSITION 409
+         *     4. 写 Audit（CONFIG_ASSET_PUBLISHED，detail 含 from→to + project_id）
+         *
+         *     与 approve_project_config 区别：approve 入 APPROVED（审核通过）；
+         *     publish 入 PUBLISHED（生效供 PipeCodeGenerator.generate 选用）。
+         *
+         *     项目级 publish 不像公司模板那样需要 APPROVER 角色（PROJECT_PIPE_CODE_CONFIG
+         *     走轻量 _project_transition），PROCESS_CONTROLLER 即可触发。
+         */
         post: operations["publish_project_config_api_v1_projects__project_id__pipe_code_configs__config_id__publish_post"];
         delete?: never;
         options?: never;
@@ -2094,7 +2879,23 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Obsolete Project Config */
+        /**
+         * Obsolete Project Config
+         * @description POST 项目管号配置 obsolete（任何态 → OBSOLETE + Audit，终止态）。
+         *
+         *     步骤：
+         *     1. ACL：PROCESS_CONTROLLER / REVIEWER / SYSTEM_ADMIN
+         *     2. 转发 PipeCodeTemplateService.obsolete_project → _project_transition('OBSOLETE')
+         *     3. 状态校验：DRAFT/PENDING/APPROVED/PUBLISHED 均能转 OBSOLETE；
+         *        已经是 OBSOLETE → PROJECT_PIPE_CODE_CONFIG_BAD_TRANSITION 409
+         *     4. 写 Audit（CONFIG_ASSET_OBSOLETED，detail 含 from→to + project_id + reason）
+         *
+         *     与 reject_project_config 区别：reject 仅 PENDING→DRAFT（回退）；
+         *     obsolete 任何态都能转 OBSOLETE（终止态，强制作废）。
+         *
+         *     与 publish_project_config 区别：publish 是 APPROVED→PUBLISHED（正向生效）；
+         *     obsolete 是任意→OBSOLETE（强制作废）。
+         */
         post: operations["obsolete_project_config_api_v1_projects__project_id__pipe_code_configs__config_id__obsolete_post"];
         delete?: never;
         options?: never;
@@ -2111,7 +2912,20 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Generate Pipe Code */
+        /**
+         * Generate Pipe Code
+         * @description POST /pipe-codes/generate：按项目模板生成下一个管号。
+         *
+         *     步骤：
+         *     1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 调 PipeCodeGenerator.generate：按 payload.project_id 取有效模板，
+         *        解析 input_segments → 走 format_definition_json 合并 + 占位符替换
+         *        → 取 ProjectPipeCodeSequence 自增 1 → 落库
+         *     3. 返回 {"code": code_str}（仅最新生成的字符串）
+         *
+         *     与 /pipe-codes/validate 区别：generate 走完整流程 + 落库 + 取号；
+         *     validate 仅 dry-run，不入 DB。
+         */
         post: operations["generate_pipe_code_api_v1_pipe_codes_generate_post"];
         delete?: never;
         options?: never;
@@ -2128,7 +2942,20 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Validate Pipe Code */
+        /**
+         * Validate Pipe Code
+         * @description POST /pipe-codes/validate：管号格式校验（不落库，仅 dry-run）。
+         *
+         *     步骤：
+         *     1. ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     2. 调 PipeCodeGenerator.validate 解析 payload.code（按项目内有效模板）
+         *        → 返回 Outcome{valid, errors, segments}
+         *     3. 异常转 500（保留原 try/except 契约：内部异常统一 500，避免泄漏）
+         *     4. 返回 {valid, errors[], segments[]} — 前端用于实时校验，不入库
+         *
+         *     无副作用：不写 Audit、不改 DB（与 /pipe-codes/generate 区别在于
+         *     generate-fn 走完整流程落库 + 取号）。
+         */
         post: operations["validate_pipe_code_api_v1_pipe_codes_validate_post"];
         delete?: never;
         options?: never;
@@ -2479,13 +3306,28 @@ export interface components {
              */
             source: string;
         };
-        /** ApplicableConditions */
+        /**
+         * ApplicableConditions
+         * @description 设备适用工况区间（equip_lib.applicable_conditions_json 内嵌段）。
+         *
+         *     业务：标准化沉淀时记录设备适用的压力/温度/介质区间（自由文本格式如
+         *     "0.1~2.5 MPa"/"-20~200 °C"）；便于后续项目选型快速匹配复用。
+         */
         ApplicableConditions: {
-            /** Pressure Mpa */
+            /**
+             * Pressure Mpa
+             * @description 适用压力区间，如 0.1~2.5 MPa
+             */
             pressure_mpa?: string | null;
-            /** Temperature C */
+            /**
+             * Temperature C
+             * @description 适用温度区间，如 -20~200 °C
+             */
             temperature_c?: string | null;
-            /** Medium */
+            /**
+             * Medium
+             * @description 适用介质（工艺物料类别）
+             */
             medium?: string | null;
         };
         /**
@@ -2496,15 +3338,28 @@ export interface components {
             /**
              * Asset Id
              * Format: uuid
+             * @description 资产唯一 ID
              */
             asset_id: string;
-            /** Category */
+            /**
+             * Category
+             * @description 资产类别
+             */
             category: string;
-            /** Name */
+            /**
+             * Name
+             * @description 资产名称
+             */
             name: string;
-            /** Status */
+            /**
+             * Status
+             * @description 资产状态（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）
+             */
             status: string;
-            /** Current Version */
+            /**
+             * Current Version
+             * @description 当前版本号
+             */
             current_version?: string | null;
         };
         /** Body_import_htri_api_v1_heat_import_htri_post */
@@ -2629,100 +3484,206 @@ export interface components {
          * @description 批量预置：种子脚本/一次性导入使用。
          */
         ChecklistBulkSeed: {
-            /** Items */
+            /**
+             * Items
+             * @description 批量预置条目列表
+             */
             items: components["schemas"]["ChecklistItemCreate"][];
         };
-        /** ChecklistCompleteness */
+        /**
+         * ChecklistCompleteness
+         * @description 项目校验完整度统计（GET /checklist/completeness 响应体）。
+         *
+         *     业务：聚合 REQUIRED 项的 verified/assumed/blocked 三段计数 + 完整度百分比；
+         *     用于项目交付前的设计输入完整度红绿灯（>=95% 才允许进入交付审批）。
+         */
         ChecklistCompleteness: {
             /**
              * Project Id
              * Format: uuid
+             * @description 项目 ID
              */
             project_id: string;
-            /** Total */
+            /**
+             * Total
+             * @description 校验项总数
+             */
             total: number;
-            /** Required Total */
+            /**
+             * Required Total
+             * @description 必填项数
+             */
             required_total: number;
-            /** Required Verified */
+            /**
+             * Required Verified
+             * @description 必填已校验数
+             */
             required_verified: number;
-            /** Required Assumed */
+            /**
+             * Required Assumed
+             * @description 必填已假设数（ASSUMED 视同通过）
+             */
             required_assumed: number;
-            /** Required Blocked */
+            /**
+             * Required Blocked
+             * @description 必填阻塞数（NOT_STARTED/IN_PROGRESS）
+             */
             required_blocked: number;
-            /** Completeness Pct */
+            /**
+             * Completeness Pct
+             * @description 完整度百分比 0~100
+             */
             completeness_pct: number;
         };
-        /** ChecklistItemCreate */
+        /**
+         * ChecklistItemCreate
+         * @description 创建项目输入校验项（POST /checklist 请求体）。
+         *
+         *     业务：项目设计前期必填/条件/选填校验项的元数据；item_key 项目内唯一，
+         *     input_category 锁定 REQUIRED/CONDITIONAL/OPTIONAL 三档（驱动 UI 红黄绿）。
+         */
         ChecklistItemCreate: {
-            /** Item Key */
+            /**
+             * Item Key
+             * @description 校验项键名（项目内唯一）
+             */
             item_key: string;
-            /** Item Label */
+            /**
+             * Item Label
+             * @description 校验项显示名
+             */
             item_label: string;
-            /** Module */
+            /**
+             * Module
+             * @description 所属模块（如 STREAM/EQUIP/PIPING）
+             */
             module?: string | null;
-            /** Input Category */
+            /**
+             * Input Category
+             * @description 输入类别：REQUIRED 必填 / CONDITIONAL 有条件 / OPTIONAL 选填
+             */
             input_category?: string | null;
             /**
              * Required
+             * @description 是否必填校验
              * @default true
              */
             required: boolean;
-            /** Note */
+            /**
+             * Note
+             * @description 备注说明
+             */
             note?: string | null;
         };
-        /** ChecklistItemOut */
+        /**
+         * ChecklistItemOut
+         * @description 校验项出参（GET /checklist/{checklist_id} 响应体，含完整元数据 + 状态）。
+         *
+         *     业务：含 5 态 status + verified_by/verified_at + assumption_reason；
+         *     from_attributes=True 直接绑 ORM 行（ProjectInputChecklist）输出。
+         */
         ChecklistItemOut: {
             /**
              * Checklist Id
              * Format: uuid
+             * @description 校验项 ID
              */
             checklist_id: string;
             /**
              * Project Id
              * Format: uuid
+             * @description 所属项目 ID
              */
             project_id: string;
-            /** Item Key */
+            /**
+             * Item Key
+             * @description 校验项键名
+             */
             item_key: string;
-            /** Item Label */
+            /**
+             * Item Label
+             * @description 校验项显示名
+             */
             item_label: string;
-            /** Module */
-            module: string | null;
-            /** Input Category */
-            input_category: string | null;
-            /** Required */
+            /**
+             * Module
+             * @description 所属模块
+             */
+            module?: string | null;
+            /**
+             * Input Category
+             * @description 输入类别
+             */
+            input_category?: string | null;
+            /**
+             * Required
+             * @description 是否必填校验
+             */
             required: boolean;
-            /** Input Value Json */
-            input_value_json: {
+            /**
+             * Input Value Json
+             * @description 实际输入值 JSON
+             */
+            input_value_json?: {
                 [key: string]: unknown;
             } | null;
-            /** Source Type */
-            source_type: string | null;
-            /** Status */
+            /**
+             * Source Type
+             * @description 来源类型
+             */
+            source_type?: string | null;
+            /**
+             * Status
+             * @description 校验状态 5 态
+             */
             status: string;
-            /** Verified By */
-            verified_by: string | null;
-            /** Verified At */
-            verified_at: string | null;
-            /** Assumption Reason */
-            assumption_reason: string | null;
-            /** Note */
-            note: string | null;
+            /**
+             * Verified By
+             * @description 校验人 ID
+             */
+            verified_by?: string | null;
+            /**
+             * Verified At
+             * @description 校验时间
+             */
+            verified_at?: string | null;
+            /**
+             * Assumption Reason
+             * @description 假设原因
+             */
+            assumption_reason?: string | null;
+            /**
+             * Note
+             * @description 备注说明
+             */
+            note?: string | null;
         };
         /**
          * ChecklistItemPut
          * @description PUT 校验一项（5态 + 元数据）。
          */
         ChecklistItemPut: {
-            /** Status */
+            /**
+             * Status
+             * @description 校验状态 5 态：NOT_STARTED 未开始 / IN_PROGRESS 进行 / VERIFIED 已核 / ASSUMED 假设 / NOT_APPLICABLE 不适用
+             */
             status: string;
-            /** Input Value Json */
+            /**
+             * Input Value Json
+             * @description 实际输入值 JSON
+             */
             input_value_json?: {
                 [key: string]: unknown;
             } | null;
-            /** Source Type */
+            /**
+             * Source Type
+             * @description 来源类型：DESIGN_DOC/LAB_REPORT/VENDOR_DATA/ENGINEER_ASSUMPTION
+             */
             source_type?: string | null;
-            /** Assumption Reason */
+            /**
+             * Assumption Reason
+             * @description 假设原因（status=ASSUMED 时必填）
+             */
             assumption_reason?: string | null;
         };
         /**
@@ -2775,12 +3736,24 @@ export interface components {
          * @description POST /assets 请求体。
          */
         CreateAssetRequest: {
-            /** Category */
+            /**
+             * Category
+             * @description 资产类别（如 PIPE_CLASS / STREAM_SYMBOL / TEMPLATE）
+             */
             category: string;
-            /** Name */
+            /**
+             * Name
+             * @description 资产名称（公司内唯一）
+             */
             name: string;
         };
-        /** CreateProjectConfigRequest */
+        /**
+         * CreateProjectConfigRequest
+         * @description 创建项目级管道代码配置请求体（POST /project-pipe-code-configs，纯自定义）。
+         *
+         *     业务：config_name 项目内唯一；format_definition_json 项目自定义结构
+         *     （无公司级源模板）；与 fork 路径互补。
+         */
         CreateProjectConfigRequest: {
             /** Config Name */
             config_name: string;
@@ -2807,7 +3780,13 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /** CreateSymbolRequest */
+        /**
+         * CreateSymbolRequest
+         * @description 创建公司级流股符号请求体（POST /stream-symbols）。
+         *
+         *     业务：symbol 全局唯一（如 物料流/能量流/控制信号）；name 中文名；
+         *     category 分类（可选）；version 默认 "1"（DRAFT 起始）。
+         */
         CreateSymbolRequest: {
             /** Symbol */
             symbol: string;
@@ -2821,7 +3800,13 @@ export interface components {
              */
             version: string | null;
         };
-        /** CreateTemplateRequest */
+        /**
+         * CreateTemplateRequest
+         * @description 创建公司级管道代码模板请求体（POST /pipe-code-templates）。
+         *
+         *     业务：template_name 全局唯一；format_definition_json 描述代码段结构
+         *     （PREFIX/SEQ/SUFFIX 等片段定义）；version 默认 "1"。
+         */
         CreateTemplateRequest: {
             /** Template Name */
             template_name: string;
@@ -2842,7 +3827,10 @@ export interface components {
          * @description POST /assets/{id}/versions 请求体。
          */
         CreateVersionRequest: {
-            /** Content Json */
+            /**
+             * Content Json
+             * @description 版本内容 JSON（任意非语义行 schema）
+             */
             content_json: {
                 [key: string]: unknown;
             };
@@ -2862,29 +3850,241 @@ export interface components {
             npshr_m: number;
         };
         /**
+         * CvCalculateRequest
+         * @description 调节阀 Cv 计算请求体（POST /api/v1/cv/calculate）。
+         *
+         *     字段对齐 SPEC §3.2.1.1~1.4 液体/气体/阻塞流/噪音 + §3.2.1.6 schema。
+         *
+         *     严格模式：未知字段 → 422 ValidationError（不静默吞）。
+         */
+        CvCalculateRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 设备位号（CV- 前缀在 outlet.properties.device 补；缺省自动生成 8 hex）
+             */
+            tag_number?: string | null;
+            /**
+             * Design Stage
+             * @description 设计阶段 BASIC（基础设计）/ DETAIL（详细设计）
+             * @default BASIC
+             * @enum {string}
+             */
+            design_stage: "BASIC" | "DETAIL";
+            /**
+             * Standard Profile Code
+             * @description 执行标准 profile code（ADR-0028 V1.1；默认 API-60534）
+             * @default API-60534
+             */
+            standard_profile_code: string;
+            /**
+             * Fluid Phase
+             * @description 流体相态：LIQUID 液体 / GAS 气体 / TWO_PHASE 两相流
+             * @enum {string}
+             */
+            fluid_phase: "LIQUID" | "GAS" | "TWO_PHASE";
+            /**
+             * Q M3H
+             * @description 体积流量 m³/h（LIQUID 路径用 SI 实流量）
+             */
+            Q_m3h: number;
+            /**
+             * P1 Pa
+             * @description 阀前绝压 Pa
+             */
+            P1_pa: number;
+            /**
+             * P2 Pa
+             * @description 阀后绝压 Pa
+             */
+            P2_pa: number;
+            /**
+             * T1 K
+             * @description 入口温度 K
+             */
+            T1_k: number;
+            /**
+             * Sg
+             * @description 液体相对密度（SG = ρ/1000，LIQUID 必填）
+             */
+            SG?: number | null;
+            /**
+             * Rho
+             * @description 密度 kg/m³（与 SG 二选一）
+             */
+            rho?: number | null;
+            /**
+             * M
+             * @description 分子量 kg/kmol（GAS 必填）
+             */
+            M?: number | null;
+            /**
+             * Z
+             * @description 压缩因子（GAS 必填）
+             */
+            Z?: number | null;
+            /**
+             * Gamma
+             * @description 气体绝热指数 Cp/Cv（GAS 必填）
+             */
+            gamma?: number | null;
+            /**
+             * Dp Bar
+             * @description 压差 bar（LIQUID 专用；GAS 路径用 dP_pa）
+             */
+            dP_bar?: number | null;
+            /**
+             * Dp Pa
+             * @description 压差 Pa（GAS 专用；LIQUID 路径用 dP_bar）
+             */
+            dP_pa?: number | null;
+            /**
+             * Fl
+             * @description 液体临界压力比恢复系数（IEC 60534-2-1 §5.2）
+             * @default 0.9
+             */
+            FL: number | null;
+            /**
+             * Ff
+             * @description 阀门几何系数（典型 0.96）
+             * @default 0.96
+             */
+            FF: number | null;
+            /**
+             * Pv
+             * @description 蒸汽压 Pa（LIQUID 阻塞判定用）
+             */
+            Pv?: number | null;
+            /**
+             * Pc
+             * @description 临界压力 Pa（LIQUID 阻塞判定用）
+             */
+            Pc?: number | null;
+            /**
+             * Xt
+             * @description 临界压差比（GAS 阻塞判定用，典型 0.4~0.8）
+             * @default 0.7
+             */
+            xT: number | null;
+            /**
+             * Source Stream Id
+             * Format: uuid
+             * @description 源流 UUID（outlet.upstream_stream_id 锚点）
+             */
+            source_stream_id: string;
+        };
+        /**
+         * CvCalculateResponse
+         * @description 调节阀 Cv 计算响应（POST /api/v1/cv/calculate 201）。
+         *
+         *     回填 CvResult 主键 + 关键结果字段 + outlet stream 锚点。
+         */
+        CvCalculateResponse: {
+            /**
+             * Cv Result Id
+             * Format: uuid
+             * @description CvResult 主键 cv_id（计算记录 UUID）
+             */
+            cv_result_id: string;
+            /**
+             * Tag Number
+             * @description 设备位号（CV-{tag_number} 为 outlet device 名）
+             */
+            tag_number: string;
+            /**
+             * Fluid Phase
+             * @description 流体相态 LIQUID/GAS/TWO_PHASE
+             */
+            fluid_phase: string;
+            /**
+             * Cv Calculated
+             * @description 计算 Cv（流量系数，US 单位制 GPM/psi）
+             */
+            Cv_calculated: number;
+            /**
+             * Cv Selected
+             * @description 圆整到标准系列的 Cv
+             */
+            Cv_selected?: number | null;
+            /**
+             * Choked
+             * @description 是否阻塞流（IEC 60534-2-1 §5.2.1/§6.3）
+             */
+            choked: boolean;
+            /**
+             * Cavitation
+             * @description 液体空化标记（IEC 60534-2-1 §5.3，LIQUID 路径）
+             * @default false
+             */
+            cavitation: boolean;
+            /**
+             * Flashing
+             * @description 液体闪蒸标记（IEC 60534-2-1 §5.4，LIQUID 路径）
+             * @default false
+             */
+            flashing: boolean;
+            /**
+             * Noise Sil Db
+             * @description 简化法噪音估算 dB（IEC 60534-8-3）
+             */
+            noise_sil_db?: number | null;
+            /**
+             * Standard Profile Code
+             * @description 执行标准 profile code（ADR-0028）
+             */
+            standard_profile_code: string;
+            /**
+             * Design Stage
+             * @description 设计阶段 BASIC/DETAIL（OPEN-009）
+             */
+            design_stage: string;
+            /**
+             * Record Hash
+             * @description 16 hex 数值规范化哈希（SHA-256 截断）
+             */
+            record_hash: string;
+            /**
+             * Outlet Stream Id
+             * Format: uuid
+             * @description 出口流 UUID（DEVICE_CALCULATED）
+             */
+            outlet_stream_id: string;
+        };
+        /**
          * DiffResponse
          * @description GET /assets/{id}/diff 返回结构（深 diff 的三段式）。
          */
         DiffResponse: {
             /**
              * Added
-             * @default {}
+             * @description 新增字段 {path: value}
              */
-            added: {
+            added?: {
                 [key: string]: unknown;
             };
             /**
              * Removed
-             * @default {}
+             * @description 删除字段 {path: value}
              */
-            removed: {
+            removed?: {
                 [key: string]: unknown;
             };
             /**
              * Changed
-             * @default {}
+             * @description 修改字段 {path: {from, to}}
              */
-            changed: {
+            changed?: {
                 [key: string]: unknown;
             };
         };
@@ -2949,7 +4149,13 @@ export interface components {
              */
             parallel_branches: number;
         };
-        /** EnumItem */
+        /**
+         * EnumItem
+         * @description 枚举单项（meta/enums 端点的标准项；含值/中文 label/顺序/可选色/icon）。
+         *
+         *     业务：value 是 DB 存储字面值；label 是中文显示名；order 是枚举顺序；
+         *     color/icon 仅部分 enum 字段（如 9 态状态机）携带，用于前端状态色和按钮 icon。
+         */
         EnumItem: {
             /** Value */
             value: string;
@@ -2962,7 +4168,13 @@ export interface components {
             /** Icon */
             icon?: string | null;
         };
-        /** EnumsResponse */
+        /**
+         * EnumsResponse
+         * @description 19 组枚举字典响应（meta/enums 端点）。
+         *
+         *     业务：一次性下发全部 enum 给前端（含 9 态/StreamSignStatus 等全部）；
+         *     前端通过 enum_group 字段名查表，避免硬编码。
+         */
         EnumsResponse: {
             /** Recordsignstatus */
             RecordSignStatus: components["schemas"]["EnumItem"][];
@@ -3009,16 +4221,32 @@ export interface components {
          *     标准图号如有则必填→简化为可选字段+非空校验由前端承担（P2）；重量必填（如有）。
          */
         EquipLibSettleRequest: {
-            /** Equipment Name */
+            /**
+             * Equipment Name
+             * @description 设备名称（如 离心泵 P-101A）
+             */
             equipment_name: string;
-            /** Equipment Type */
+            /**
+             * Equipment Type
+             * @description 设备类型（如 PUMP/COMPRESSOR/HEAT_EXCHANGER/VESSEL/COLUMN）
+             */
             equipment_type: string;
-            /** Standard Drawing No */
+            /**
+             * Standard Drawing No
+             * @description 标准图号（如 HG/T 1234-2018）
+             */
             standard_drawing_no?: string | null;
+            /** @description 适用工况区间 */
             applicable_conditions?: components["schemas"]["ApplicableConditions"] | null;
-            /** Material */
+            /**
+             * Material
+             * @description 主体材质（如 SS316、20#）
+             */
             material: string;
-            /** Weight Kg */
+            /**
+             * Weight Kg
+             * @description 重量 kg
+             */
             weight_kg?: number | null;
             /**
              * Key Dimensions
@@ -3027,19 +4255,34 @@ export interface components {
             key_dimensions: {
                 [key: string]: unknown;
             };
-            /** Original Tag */
+            /**
+             * Original Tag
+             * @description 原项目位号
+             */
             original_tag: string;
             /**
              * Commissioning Date
              * @description 投用日期 YYYY-MM-DD
              */
             commissioning_date: string;
-            /** Source Equipment Id */
+            /**
+             * Source Equipment Id
+             * @description 源设备 ID（项目内）
+             */
             source_equipment_id?: string | null;
-            /** Source Project Id */
+            /**
+             * Source Project Id
+             * @description 源项目 ID
+             */
             source_project_id?: string | null;
         };
-        /** ErrorCodeItem */
+        /**
+         * ErrorCodeItem
+         * @description 错误码字典单项（meta/errors 端点）。
+         *
+         *     业务：code 错误码 + http 状态码 + message 默认消息 + ui_behavior 前端响应
+         *     策略（block_toast/inline_field_error/redirect_to_login/modal_confirm 等）。
+         */
         ErrorCodeItem: {
             /** Code */
             code: string;
@@ -3078,7 +4321,13 @@ export interface components {
             /** K */
             K?: number | null;
         };
-        /** ForkProjectConfigRequest */
+        /**
+         * ForkProjectConfigRequest
+         * @description Fork 公司级模板到项目级配置请求体（POST /project-pipe-code-configs/fork）。
+         *
+         *     业务：template_id 引用公司级 pipe_code_templates；config_name 项目内唯一；
+         *     服务层从公司级拷贝 format_definition_json 到项目级 snapshot_json。
+         */
         ForkProjectConfigRequest: {
             /**
              * Template Id
@@ -3088,7 +4337,13 @@ export interface components {
             /** Config Name */
             config_name: string;
         };
-        /** ForkProjectSymbolRequest */
+        /**
+         * ForkProjectSymbolRequest
+         * @description Fork 公司级符号到项目请求体（POST /projects/{id}/stream-symbols/fork）。
+         *
+         *     业务：symbol_id 可空（None → 复制全部公司级 PUBLISHED 符号）；
+         *     指定时只 fork 单个；目标 ProjectStreamSymbol.source_symbol_id 保留。
+         */
         ForkProjectSymbolRequest: {
             /** Symbol Id */
             symbol_id?: string | null;
@@ -3098,10 +4353,19 @@ export interface components {
          * @description POST /assets/{id}/fork 请求体。
          */
         ForkVersionRequest: {
-            /** Change Note */
+            /**
+             * Change Note
+             * @description 分叉说明
+             */
             change_note?: string | null;
         };
-        /** GenerateRequest */
+        /**
+         * GenerateRequest
+         * @description 管道代码生成请求体（POST /project-pipe-code-configs/{id}/generate）。
+         *
+         *     业务：project_id 限定项目；input_segments 用户输入字段值（与模板
+         *     format_definition_json 字段对应）；返回生成的完整管道代码字符串。
+         */
         GenerateRequest: {
             /**
              * Project Id
@@ -3121,7 +4385,13 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
-        /** HealthResponse */
+        /**
+         * HealthResponse
+         * @description 健康检查响应（GET /health）。
+         *
+         *     业务：status 服务整体状态（ok/degraded）+ database DB 连接状态（up/down）；
+         *     用于 K8s liveness probe 与监控告警（始终 200，由调用方按字段判定）。
+         */
         HealthResponse: {
             /** Status */
             status: string;
@@ -3136,7 +4406,7 @@ export interface components {
             /**
              * Calc Id
              * Format: uuid
-             * @description HeatResult.heat_exchanger_id
+             * @description HeatResult 主键 heat_exchanger_id（换热器计算记录 UUID）
              */
             calc_id: string;
             /**
@@ -3148,20 +4418,34 @@ export interface components {
             /**
              * Project Id
              * Format: uuid
+             * @description 项目 ID
              */
             project_id: string;
             /**
              * Workspace Id
              * Format: uuid
+             * @description 工作区 ID
              */
             workspace_id: string;
-            /** Tag Number */
+            /**
+             * Tag Number
+             * @description HeatResult 业务 tag
+             */
             tag_number: string;
-            /** Equipment No */
-            equipment_no: string | null;
-            /** Equipment Name */
-            equipment_name: string | null;
-            /** Exchanger Category */
+            /**
+             * Equipment No
+             * @description 设备位号
+             */
+            equipment_no?: string | null;
+            /**
+             * Equipment Name
+             * @description 设备名
+             */
+            equipment_name?: string | null;
+            /**
+             * Exchanger Category
+             * @description 换热器类别：SHELL_TUBE / AIR_COOL / PLATE
+             */
             exchanger_category: string;
             /**
              * Duty
@@ -3260,7 +4544,7 @@ export interface components {
             /**
              * Calc Id
              * Format: uuid
-             * @description HeatResult.heat_exchanger_id
+             * @description HeatResult 主键 heat_exchanger_id（换热器计算记录 UUID）
              */
             calc_id: string;
             /**
@@ -3286,13 +4570,18 @@ export interface components {
              */
             equipment_no: string;
             /**
+             * Equipment Name
+             * @description 设备名（OPEN-7：补足前端 import() 后免 get() roundtrip）
+             */
+            equipment_name?: string | null;
+            /**
              * Tag Number
              * @description HeatResult 业务 tag
              */
             tag_number: string;
             /**
              * Exchanger Category
-             * @description SHELL_TUBE / AIR_COOL / PLATE
+             * @description 换热器类型：SHELL_TUBE 管壳式 / AIR_COOL 空冷 / PLATE 板式
              */
             exchanger_category: string;
             /**
@@ -3300,6 +4589,13 @@ export interface components {
              * @description 热负荷 W（HTRI）
              */
             duty_w?: number | null;
+            /**
+             * Output Json
+             * @description HeatResult.output_json 摘录（OPEN-7 串行优化）
+             */
+            output_json?: {
+                [key: string]: unknown;
+            };
             /**
              * Outlet Stream Id
              * @description 出口流 UUID（source_stream_id 提供时存在）
@@ -3311,12 +4607,32 @@ export interface components {
              */
             outlet_stream_name?: string | null;
         };
-        /** LoginRequest */
+        /**
+         * LoginRequest
+         * @description 登录请求体（POST /auth/login）。
+         *
+         *     业务：username 是 LDAP uid（min_length=1 防空）；password 必填（1~200
+         *     字符防爆破）；登录走 LDAP bind + 派生 role；mock 模式按 MOCK_USERS 表。
+         */
         LoginRequest: {
-            /** Username */
+            /**
+             * Username
+             * @description 登录用户名（LDAP uid）
+             */
             username: string;
-            /** Password */
+            /**
+             * Password
+             * @description 登录密码（LDAP 绑定）
+             */
             password: string;
+        };
+        /**
+         * LogoutRequest
+         * @description logout 请求体。可选传 refresh_token 以吊销 JTI；不传则仅 204。
+         */
+        LogoutRequest: {
+            /** Refresh Token */
+            refresh_token?: string | null;
         };
         /**
          * MaterialDetail
@@ -3407,19 +4723,39 @@ export interface components {
              */
             source: string;
         };
-        /** MeResponse */
+        /**
+         * MeResponse
+         * @description 当前用户信息响应（GET /auth/me 端点）。
+         *
+         *     业务：仅返回当前 token 用户的 username + role；不含 token 等敏感字段。
+         */
         MeResponse: {
             /** Username */
             username: string;
             /** Role */
             role: string;
         };
-        /** MockLoginRequest */
+        /**
+         * MockLoginRequest
+         * @description Mock 登录请求体（POST /mock-auth/login，仅开发模式启用）。
+         *
+         *     业务：仅传 username（不校验密码）；MOCK_USERS 表查 role 后颁发 JWT；
+         *     生产环境通过 settings.mock_auth_enabled 关闭。
+         */
         MockLoginRequest: {
-            /** Username */
+            /**
+             * Username
+             * @description Mock 登录用户名
+             */
             username: string;
         };
-        /** MockLoginResponse */
+        /**
+         * MockLoginResponse
+         * @description Mock 登录响应（POST /mock-auth/login）。
+         *
+         *     业务：与 TokenResponse 同构（access + refresh + bearer + role + username）；
+         *     仅 mock 模式返回；生产模式由 LDAP Login 端点替代。
+         */
         MockLoginResponse: {
             /** Access Token */
             access_token: string;
@@ -3467,7 +4803,7 @@ export interface components {
             elevation_m: number;
             /**
              * Node Type
-             * @description JUNCTION / SOURCE / SINK / EQUIPMENT_INTERFACE
+             * @description 节点类型：JUNCTION 节点 / SOURCE 源 / SINK 汇 / EQUIPMENT_INTERFACE 设备接口
              * @default JUNCTION
              */
             node_type: string;
@@ -3488,7 +4824,13 @@ export interface components {
              */
             upstream_equipment_type?: string | null;
         };
-        /** PermissionItem */
+        /**
+         * PermissionItem
+         * @description 权限矩阵单项（meta/permissions 端点）。
+         *
+         *     业务：role 角色 + resource 资源 + action 行为 + permission_code 唯一码 +
+         *     frontend_behavior（show/disable/tooltip 等前端行为）；前端用此动态渲染按钮。
+         */
         PermissionItem: {
             /** Role */
             role: string;
@@ -3530,13 +4872,27 @@ export interface components {
              */
             parallel_branches: number;
         };
-        /** PipeClassCreate */
+        /**
+         * PipeClassCreate
+         * @description 创建管号等级请求体（POST /pipe-classes，继承全部基类字段）。
+         *
+         *     业务：与 PipeClassBase 完全一致；继承 model_validator（dn_series 完整性）。
+         */
         PipeClassCreate: {
-            /** Class Id */
+            /**
+             * Class Id
+             * @description 管号等级编号（公司内唯一）
+             */
             class_id: string;
-            /** Class Name */
+            /**
+             * Class Name
+             * @description 管号等级名称
+             */
             class_name: string;
-            /** Material Standard */
+            /**
+             * Material Standard
+             * @description 材料标准（如 GB/T 12459、ASME B16.9）
+             */
             material_standard: string;
             /**
              * Base Material
@@ -3550,120 +4906,91 @@ export interface components {
             corrosion_allowance: number;
             /**
              * Design Pressure
-             * @description MPaG
+             * @description 设计压力（MPa，表压 MPaG）
              */
             design_pressure: number;
             /**
              * Design Temperature
-             * @description °C
+             * @description 设计温度（°C）
              */
             design_temperature: number;
-            /** Fluid Service */
+            /**
+             * Fluid Service
+             * @description 流体服务（工艺介质类别）
+             */
             fluid_service?: string | null;
-            /** Allowable Stress Json */
+            /**
+             * Allowable Stress Json
+             * @description 许用应力表 {温度(°C): 应力 MPa}
+             */
             allowable_stress_json?: {
                 [key: string]: unknown;
             };
             /**
              * Dn Series Json
-             * @description {min,max}
+             * @description DN 系列范围（mm，{min, max}）
              */
             dn_series_json: {
                 [key: string]: number;
             };
             /**
              * Sch Series Json
-             * @description DN→Sch
+             * @description DN → Sch 壁厚系列映射（管壁厚对应表，DN→Sch）
              */
             sch_series_json: {
                 [key: string]: string;
             };
-            /** Flange Class */
+            /**
+             * Flange Class
+             * @description 法兰等级（如 150#、300#、600#）
+             */
             flange_class: string;
-            /** Fitting Type */
+            /**
+             * Fitting Type
+             * @description 管件类型（如 ELBOW、TEE、REDUCER）
+             */
             fitting_type?: string | null;
-            /** Branch Table Json */
+            /**
+             * Branch Table Json
+             * @description 支管表（接管尺寸与补强规则）
+             */
             branch_table_json?: {
                 [key: string]: unknown;
             } | null;
             /**
              * Source
+             * @description 数据来源：公司标准 / 项目自定义
              * @enum {string}
              */
             source: "COMPANY_STD" | "PROJECT";
-            /** Version */
+            /**
+             * Version
+             * @description 版本号（如 1.0、A1）
+             */
             version: string;
         };
-        /** PipeClassResponse */
+        /**
+         * PipeClassResponse
+         * @description 管号等级出参（GET /pipe-classes 响应体）。
+         *
+         *     业务：含 status 字段 + base_material 显式声明（响应体不复用基类默认）；
+         *     from_attributes=True 直接绑 ORM 行（PipeClass）。
+         */
         PipeClassResponse: {
-            /** Class Id */
+            /**
+             * Class Id
+             * @description 管号等级编号（公司内唯一）
+             */
             class_id: string;
-            /** Class Name */
+            /**
+             * Class Name
+             * @description 管号等级名称
+             */
             class_name: string;
-            /** Material Standard */
-            material_standard: string;
-            /** Base Material */
-            base_material?: string | null;
             /**
-             * Corrosion Allowance
-             * @description 腐蚀裕量 mm
+             * Material Standard
+             * @description 材料标准（如 GB/T 12459、ASME B16.9）
              */
-            corrosion_allowance: number;
-            /**
-             * Design Pressure
-             * @description MPaG
-             */
-            design_pressure: number;
-            /**
-             * Design Temperature
-             * @description °C
-             */
-            design_temperature: number;
-            /** Fluid Service */
-            fluid_service?: string | null;
-            /** Allowable Stress Json */
-            allowable_stress_json?: {
-                [key: string]: unknown;
-            };
-            /**
-             * Dn Series Json
-             * @description {min,max}
-             */
-            dn_series_json: {
-                [key: string]: number;
-            };
-            /**
-             * Sch Series Json
-             * @description DN→Sch
-             */
-            sch_series_json: {
-                [key: string]: string;
-            };
-            /** Flange Class */
-            flange_class: string;
-            /** Fitting Type */
-            fitting_type?: string | null;
-            /** Branch Table Json */
-            branch_table_json?: {
-                [key: string]: unknown;
-            } | null;
-            /**
-             * Source
-             * @enum {string}
-             */
-            source: "COMPANY_STD" | "PROJECT";
-            /** Version */
-            version: string;
-            /** Status */
-            status: string;
-        };
-        /** PipeClassUpdate */
-        PipeClassUpdate: {
-            /** Class Id */
-            class_id: string;
-            /** Class Name */
-            class_name: string;
-            /** Material Standard */
             material_standard: string;
             /**
              * Base Material
@@ -3677,51 +5004,174 @@ export interface components {
             corrosion_allowance: number;
             /**
              * Design Pressure
-             * @description MPaG
+             * @description 设计压力（MPa，表压 MPaG）
              */
             design_pressure: number;
             /**
              * Design Temperature
-             * @description °C
+             * @description 设计温度（°C）
              */
             design_temperature: number;
-            /** Fluid Service */
+            /**
+             * Fluid Service
+             * @description 流体服务（工艺介质类别）
+             */
             fluid_service?: string | null;
-            /** Allowable Stress Json */
+            /**
+             * Allowable Stress Json
+             * @description 许用应力表 {温度(°C): 应力 MPa}
+             */
             allowable_stress_json?: {
                 [key: string]: unknown;
             };
             /**
              * Dn Series Json
-             * @description {min,max}
+             * @description DN 系列范围（mm，{min, max}）
              */
             dn_series_json: {
                 [key: string]: number;
             };
             /**
              * Sch Series Json
-             * @description DN→Sch
+             * @description DN → Sch 壁厚系列映射（管壁厚对应表，DN→Sch）
              */
             sch_series_json: {
                 [key: string]: string;
             };
-            /** Flange Class */
+            /**
+             * Flange Class
+             * @description 法兰等级（如 150#、300#、600#）
+             */
             flange_class: string;
-            /** Fitting Type */
+            /**
+             * Fitting Type
+             * @description 管件类型（如 ELBOW、TEE、REDUCER）
+             */
             fitting_type?: string | null;
-            /** Branch Table Json */
+            /**
+             * Branch Table Json
+             * @description 支管表（接管尺寸与补强规则）
+             */
             branch_table_json?: {
                 [key: string]: unknown;
             } | null;
             /**
              * Source
+             * @description 数据来源：公司标准 / 项目自定义
              * @enum {string}
              */
             source: "COMPANY_STD" | "PROJECT";
-            /** Version */
+            /**
+             * Version
+             * @description 版本号（如 1.0、A1）
+             */
             version: string;
             /**
              * Status
+             * @description 管号等级状态
+             */
+            status: string;
+        };
+        /**
+         * PipeClassUpdate
+         * @description 更新管号等级请求体（PUT /pipe-classes/{class_id}，含状态字段）。
+         *
+         *     业务：在基类基础上加 status 字段（DRAFT/ACTIVE/OBSOLETE），支持
+         *     直接通过 PUT 触发管号等级发布/作废生命周期切换。
+         */
+        PipeClassUpdate: {
+            /**
+             * Class Id
+             * @description 管号等级编号（公司内唯一）
+             */
+            class_id: string;
+            /**
+             * Class Name
+             * @description 管号等级名称
+             */
+            class_name: string;
+            /**
+             * Material Standard
+             * @description 材料标准（如 GB/T 12459、ASME B16.9）
+             */
+            material_standard: string;
+            /**
+             * Base Material
+             * @description 材料牌号
+             */
+            base_material?: string | null;
+            /**
+             * Corrosion Allowance
+             * @description 腐蚀裕量 mm
+             */
+            corrosion_allowance: number;
+            /**
+             * Design Pressure
+             * @description 设计压力（MPa，表压 MPaG）
+             */
+            design_pressure: number;
+            /**
+             * Design Temperature
+             * @description 设计温度（°C）
+             */
+            design_temperature: number;
+            /**
+             * Fluid Service
+             * @description 流体服务（工艺介质类别）
+             */
+            fluid_service?: string | null;
+            /**
+             * Allowable Stress Json
+             * @description 许用应力表 {温度(°C): 应力 MPa}
+             */
+            allowable_stress_json?: {
+                [key: string]: unknown;
+            };
+            /**
+             * Dn Series Json
+             * @description DN 系列范围（mm，{min, max}）
+             */
+            dn_series_json: {
+                [key: string]: number;
+            };
+            /**
+             * Sch Series Json
+             * @description DN → Sch 壁厚系列映射（管壁厚对应表，DN→Sch）
+             */
+            sch_series_json: {
+                [key: string]: string;
+            };
+            /**
+             * Flange Class
+             * @description 法兰等级（如 150#、300#、600#）
+             */
+            flange_class: string;
+            /**
+             * Fitting Type
+             * @description 管件类型（如 ELBOW、TEE、REDUCER）
+             */
+            fitting_type?: string | null;
+            /**
+             * Branch Table Json
+             * @description 支管表（接管尺寸与补强规则）
+             */
+            branch_table_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Source
+             * @description 数据来源：公司标准 / 项目自定义
+             * @enum {string}
+             */
+            source: "COMPANY_STD" | "PROJECT";
+            /**
+             * Version
+             * @description 版本号（如 1.0、A1）
+             */
+            version: string;
+            /**
+             * Status
+             * @description 管号等级状态：DRAFT/ACTIVE/OBSOLETE
              * @default DRAFT
              * @enum {string}
              */
@@ -3820,16 +5270,34 @@ export interface components {
             /** Check Result Reason */
             check_result_reason: string | null;
         };
-        /** ProjectPipeClassCreateRequest */
+        /**
+         * ProjectPipeClassCreateRequest
+         * @description 创建项目级管号等级请求体（POST /project-pipe-classes，纯项目自定义）。
+         *
+         *     业务：class_name 项目内唯一；data 是项目级基础字段（无公司级来源）；
+         *     与 fork 路径互补。
+         */
         ProjectPipeClassCreateRequest: {
-            /** Class Name */
+            /**
+             * Class Name
+             * @description 项目级管号等级名
+             */
             class_name: string;
-            /** Data */
+            /**
+             * Data
+             * @description 项目级覆盖字段字典
+             */
             data?: {
                 [key: string]: unknown;
             };
         };
-        /** ProjectPipeClassEffectiveResponse */
+        /**
+         * ProjectPipeClassEffectiveResponse
+         * @description 项目级管号等级生效视图响应（GET /project-pipe-classes/effective/{name}）。
+         *
+         *     业务：effective 是 snapshot_json + override_json 合并后的最终生效值；
+         *     前端用此直接渲染当前实际使用的字段（无需前端做合并）。
+         */
         ProjectPipeClassEffectiveResponse: {
             /**
              * Project Id
@@ -3843,12 +5311,27 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /** ProjectPipeClassForkRequest */
+        /**
+         * ProjectPipeClassForkRequest
+         * @description Fork 公司级管号等级到项目级请求体（POST /project-pipe-classes/fork）。
+         *
+         *     业务：class_id 引用公司级 pipe_classes.class_id；服务层从公司级拷贝数据
+         *     到项目级 snapshot_json（保证项目离线运行 + 公司级变更不影响项目）。
+         */
         ProjectPipeClassForkRequest: {
-            /** Class Id */
+            /**
+             * Class Id
+             * @description 公司级管号等级 ID
+             */
             class_id: string;
         };
-        /** ProjectPipeClassFullResponse */
+        /**
+         * ProjectPipeClassFullResponse
+         * @description 项目级管号等级完整响应（GET /project-pipe-classes/{id} 响应体）。
+         *
+         *     业务：含 snapshot_json（公司级 fork 快照）+ override_json（项目级覆盖）+
+         *     status；from_attributes=True 直接绑 ORM 行（ProjectPipeClass）。
+         */
         ProjectPipeClassFullResponse: {
             /**
              * Project Class Id
@@ -3875,14 +5358,28 @@ export interface components {
             /** Status */
             status: string;
         };
-        /** ProjectPipeClassOverrideRequest */
+        /**
+         * ProjectPipeClassOverrideRequest
+         * @description 项目级管号等级字段覆盖请求体（PATCH /project-pipe-classes/{id}）。
+         *
+         *     业务：override 仅覆盖同名字段（与公司级 fork 后合并）；不影响 snapshot_json。
+         */
         ProjectPipeClassOverrideRequest: {
-            /** Override */
+            /**
+             * Override
+             * @description 覆盖字段字典（与公司级同名字段覆盖）
+             */
             override?: {
                 [key: string]: unknown;
             };
         };
-        /** ProjectSymbolRequest */
+        /**
+         * ProjectSymbolRequest
+         * @description 项目级新增流股符号请求体（POST /projects/{id}/stream-symbols）。
+         *
+         *     业务：symbol 项目内唯一（与公司级同字面冲突 OK，靠 source_symbol_id 区分）；
+         *     name + category 可选；项目符号无状态机（DRAFT 直接生效）。
+         */
         ProjectSymbolRequest: {
             /** Symbol */
             symbol: string;
@@ -3891,7 +5388,13 @@ export interface components {
             /** Category */
             category?: string | null;
         };
-        /** ProjectSymbolUpdateRequest */
+        /**
+         * ProjectSymbolUpdateRequest
+         * @description 项目级流股符号更新请求体（PUT /projects/{id}/stream-symbols/{id}）。
+         *
+         *     业务：override 字段重写 + name/category/is_active 增量更新；
+         *     payload.model_dump(exclude_none=True) 排除 None 避免无意清空。
+         */
         ProjectSymbolUpdateRequest: {
             /**
              * Override
@@ -3916,13 +5419,13 @@ export interface components {
             pump_tag: string;
             /**
              * Pump Type
-             * @description CENTRIFUGAL/MIXED_FLOW/AXIAL
+             * @description 泵类型：CENTRIFUGAL 离心 / MIXED_FLOW 混流 / AXIAL 轴流
              * @default CENTRIFUGAL
              */
             pump_type: string;
             /**
              * Api610 Type
-             * @description OH2/OH3/BB1/BB3/VS1
+             * @description API 610 泵型：OH2/OH3/BB1/BB3/VS1
              * @default OH2
              */
             api610_type: string;
@@ -3931,7 +5434,10 @@ export interface components {
              * @default 2950
              */
             speed_rpm: number;
-            /** Points */
+            /**
+             * Points
+             * @description 泵特性曲线点（至少 2 点）
+             */
             points: components["schemas"]["CurvePointRequest"][];
             /** Rated Flow M3 S */
             rated_flow_m3_s: number;
@@ -3940,21 +5446,39 @@ export interface components {
             /** Rated Efficiency */
             rated_efficiency: number;
         };
-        /** RecordTransitionRequest */
+        /**
+         * RecordTransitionRequest
+         * @description 记录状态机迁移请求体（POST /records/{type}/{id}/transitions）。
+         *
+         *     业务：transition 锁定 StateTransition 枚举（13 事件）；reason 可选（用作
+         *     audit_log detail_json 字段，部分迁移如 REJECT_CHECK / REQUEST_REVERSAL 强校验 reason 非空）。
+         */
         RecordTransitionRequest: {
             transition: components["schemas"]["StateTransition-Input"];
             /** Reason */
             reason?: string | null;
         };
-        /** RefreshRequest */
+        /**
+         * RefreshRequest
+         * @description 刷新 token 请求体（POST /auth/refresh）。
+         *
+         *     业务：仅传 refresh_token；服务端校验 jti + 有效期后颁发新 access + refresh。
+         */
         RefreshRequest: {
             /** Refresh Token */
             refresh_token: string;
         };
-        /** RefreshResponse */
+        /**
+         * RefreshResponse
+         * @description 刷新 token 响应（POST /auth/refresh 响应体）。
+         *
+         *     业务：返回新 access_token + 新 refresh_token（jti 轮换防重放）。
+         */
         RefreshResponse: {
             /** Access Token */
             access_token: string;
+            /** Refresh Token */
+            refresh_token: string;
             /**
              * Token Type
              * @default bearer
@@ -4005,7 +5529,7 @@ export interface components {
         SegmentReq: {
             /**
              * Fluid Phase
-             * @description LIQUID / VAPOR / TWO_PHASE
+             * @description 流体相态：LIQUID 液相 / VAPOR 气相 / TWO_PHASE 两相
              * @default LIQUID
              */
             fluid_phase: string;
@@ -4071,7 +5595,10 @@ export interface components {
             liquid_mass_flow_kg_s?: number | null;
             /** Gas Mass Flow Kg S */
             gas_mass_flow_kg_s?: number | null;
-            /** Fittings */
+            /**
+             * Fittings
+             * @description 管件列表（dict 形态）
+             */
             fittings?: {
                 [key: string]: unknown;
             }[];
@@ -4083,7 +5610,7 @@ export interface components {
         SegmentRequest: {
             /**
              * Fluid Phase
-             * @description LIQUID / VAPOR / TWO_PHASE
+             * @description 流体相态：LIQUID 液相 / VAPOR 气相 / TWO_PHASE 两相
              * @enum {string}
              */
             fluid_phase: "LIQUID" | "VAPOR" | "TWO_PHASE";
@@ -4143,7 +5670,10 @@ export interface components {
             liquid_mass_flow_kg_s?: number | null;
             /** Gas Mass Flow Kg S */
             gas_mass_flow_kg_s?: number | null;
-            /** Fittings */
+            /**
+             * Fittings
+             * @description 单相管件列表（弯头/三通/异径/阀门）
+             */
             fittings?: components["schemas"]["Fitting"][];
         };
         /**
@@ -4264,7 +5794,13 @@ export interface components {
          * @enum {string}
          */
         SimImportStatus: "PREVIEW" | "COMMITTED" | "EXPIRED";
-        /** SimImportWarningItem */
+        /**
+         * SimImportWarningItem
+         * @description SIM 导入警告单项（GET /sim-imports/{id}/warnings 响应项）。
+         *
+         *     业务：warning_id 唯一标识 + severity 严重级（WARNING/ERROR）+ message
+         *     警告内容 + unit_id 关联单元（PRO/II 模块 ID，可空）。
+         */
         SimImportWarningItem: {
             /**
              * Warning Id
@@ -4278,7 +5814,12 @@ export interface components {
             /** Unit Id */
             unit_id?: string | null;
         };
-        /** SimImportWarningListResponse */
+        /**
+         * SimImportWarningListResponse
+         * @description SIM 导入警告列表响应。
+         *
+         *     业务：items 警告列表 + total 总数（用于前端分页 + 头部红点提示）。
+         */
         SimImportWarningListResponse: {
             /** Items */
             items: components["schemas"]["SimImportWarningItem"][];
@@ -4292,7 +5833,7 @@ export interface components {
         SizingInputSchema: {
             /**
              * Vessel Type
-             * @description VERTICAL / HORIZONTAL / WITH_DEMISTER
+             * @description 容器类型：VERTICAL 立式 / HORIZONTAL 卧式 / WITH_DEMISTER 带除雾器
              */
             vessel_type: string;
             /**
@@ -4346,6 +5887,7 @@ export interface components {
             max_iterations: number;
             /**
              * Initial Flow Strategy
+             * @description 初始流量分配策略：EVEN_DEMAND_PROPORTIONAL / SOURCE_PRIORITY
              * @default EVEN_DEMAND_PROPORTIONAL
              */
             initial_flow_strategy: string;
@@ -4358,7 +5900,7 @@ export interface components {
             /**
              * Profile Id
              * Format: uuid
-             * @description ProjectCalculationStandardProfile.id
+             * @description ProjectCalculationStandardProfile 主键（项目计算标准集 ID）
              */
             profile_id: string;
             /**
@@ -4375,7 +5917,7 @@ export interface components {
             discipline: string;
             /**
              * Profile Code
-             * @description API / GB / CUSTOM
+             * @description 标准集代号：API / GB / CUSTOM 自定义
              */
             profile_code: string;
             /**
@@ -4431,7 +5973,13 @@ export interface components {
              */
             updated_at: string;
         };
-        /** StateMachineResponse */
+        /**
+         * StateMachineResponse
+         * @description 状态机完整响应（meta/state-machine 端点）。
+         *
+         *     业务：transitions 全迁移列表 + allowed 各源态允许的事件集合；
+         *     前端用此渲染 9 态机按钮矩阵 + 提示前置条件。
+         */
         StateMachineResponse: {
             /** Transitions */
             transitions: components["schemas"]["StateTransition-Output"][];
@@ -4448,9 +5996,18 @@ export interface components {
          * @enum {string}
          */
         "StateTransition-Input": "SUBMIT_FOR_CHECK" | "PASS_CHECK" | "REJECT_CHECK" | "REQUEST_REVERSAL" | "APPROVE_REVERSAL" | "REJECT_REVERSAL" | "INITIATE_CHANGE" | "APPLY_CHANGE" | "ABANDON_CHANGE" | "MARK_STALE" | "RESOLVE_STALE_NO_CHANGE" | "RESOLVE_STALE_CHANGED" | "OBSOLETE";
-        /** StateTransition */
+        /**
+         * StateTransition
+         * @description 单条状态机迁移项（meta/state-machine 端点）。
+         *
+         *     业务：from_ 源态 + action 事件 + to 目标态 + allowed_roles 允许角色 +
+         *     preconditions 前置条件 + side_effects 副作用；前端按此禁用/启用按钮。
+         */
         "StateTransition-Output": {
-            /** From */
+            /**
+             * From
+             * @description 源状态名
+             */
             from: string;
             /** Action */
             action: string;
@@ -4514,6 +6071,11 @@ export interface components {
              * @description 落库物流 ID 列表
              */
             stream_ids?: string[];
+            /**
+             * Tower Ids
+             * @description 落库塔 ID 列表
+             */
+            tower_ids?: string[];
             /**
              * Warnings
              * @description 落库过程警告
@@ -4975,7 +6537,13 @@ export interface components {
              */
             updated_at?: string | null;
         };
-        /** TokenResponse */
+        /**
+         * TokenResponse
+         * @description JWT token 响应（POST /auth/login 响应体）。
+         *
+         *     业务：access_token + refresh_token（bearer 类型）；role + username 同步返回
+         *     （前端省去再调 /me 取角色）。
+         */
         TokenResponse: {
             /** Access Token */
             access_token: string;
@@ -5002,7 +6570,13 @@ export interface components {
              */
             reason?: string | null;
         };
-        /** UiSchemaField */
+        /**
+         * UiSchemaField
+         * @description UI 表单 schema 单字段（meta/ui-schemas/{resource} 端点）。
+         *
+         *     业务：path 字段路径 + label 中文标签 + widget 控件类型 + enum_group 关联枚举
+         *     + visible/hidden_when 条件可见性；驱动前端 SchemaForm 动态生成。
+         */
         UiSchemaField: {
             /** Path */
             path: string;
@@ -5036,7 +6610,13 @@ export interface components {
             /** Hidden When */
             hidden_when?: string | null;
         };
-        /** UiSchemaResponse */
+        /**
+         * UiSchemaResponse
+         * @description UI Schema 响应（meta/ui-schemas/{resource} 端点）。
+         *
+         *     业务：schema_version 版本号 + resource 资源名 + fields 字段列表；
+         *     前端 SchemaForm 直接消费，无需本地硬编码字段。
+         */
         UiSchemaResponse: {
             /** Schema Version */
             schema_version: string;
@@ -5045,7 +6625,12 @@ export interface components {
             /** Fields */
             fields: components["schemas"]["UiSchemaField"][];
         };
-        /** UpdateProjectConfigRequest */
+        /**
+         * UpdateProjectConfigRequest
+         * @description 更新项目级管道代码配置请求体（PUT /project-pipe-code-configs/{id}）。
+         *
+         *     业务：仅 format_definition_json 可改；config_name 不允许改（防外键断链）。
+         */
         UpdateProjectConfigRequest: {
             /** Format Definition Json */
             format_definition_json: {
@@ -5065,14 +6650,25 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /** UpdateSymbolRequest */
+        /**
+         * UpdateSymbolRequest
+         * @description 更新公司级流股符号请求体（PUT /stream-symbols/{id}）。
+         *
+         *     业务：name + category 增量更新；symbol 与 version 不允许改（防外键断链）。
+         */
         UpdateSymbolRequest: {
             /** Name */
             name?: string | null;
             /** Category */
             category?: string | null;
         };
-        /** UpdateTemplateRequest */
+        /**
+         * UpdateTemplateRequest
+         * @description 更新公司级模板请求体（PATCH /pipe-code-templates/{id}）。
+         *
+         *     业务：description + format_definition_json + version 三段均可选；
+         *     版本变更触发 PipeCodeTemplateService 新版本号写入。
+         */
         UpdateTemplateRequest: {
             /** Description */
             description?: string | null;
@@ -5090,7 +6686,7 @@ export interface components {
         UpsertStandardProfileRequest: {
             /**
              * Profile Code
-             * @description API / GB / CUSTOM
+             * @description 标准集代号：API / GB / CUSTOM 自定义
              * @enum {string}
              */
             profile_code: "API" | "GB" | "CUSTOM";
@@ -5114,7 +6710,13 @@ export interface components {
              */
             approved_by?: string | null;
         };
-        /** ValidateRequest */
+        /**
+         * ValidateRequest
+         * @description 管道代码验证请求体（POST /project-pipe-code-configs/{id}/validate）。
+         *
+         *     业务：project_id + code（待校验的完整管道代码）；返回 SYM-V01~V05
+         *     等 5 类规则校验结果（含 severity + message + position）。
+         */
         ValidateRequest: {
             /**
              * Project Id
@@ -5184,24 +6786,41 @@ export interface components {
             /**
              * Version Id
              * Format: uuid
+             * @description 版本唯一 ID
              */
             version_id: string;
             /**
              * Asset Id
              * Format: uuid
+             * @description 所属资产 ID
              */
             asset_id: string;
-            /** Version Code */
+            /**
+             * Version Code
+             * @description 版本号（如 1.0、A1）
+             */
             version_code: string;
-            /** Status */
+            /**
+             * Status
+             * @description 版本状态
+             */
             status: string;
-            /** Content Json */
+            /**
+             * Content Json
+             * @description 版本内容 JSON
+             */
             content_json: {
                 [key: string]: unknown;
             };
-            /** Parent Version Id */
+            /**
+             * Parent Version Id
+             * @description 父版本 ID（分叉时记录）
+             */
             parent_version_id?: string | null;
-            /** Change Note */
+            /**
+             * Change Note
+             * @description 变更说明
+             */
             change_note?: string | null;
         };
         /**
@@ -5211,7 +6830,7 @@ export interface components {
         WeightEstimateRequest: {
             /**
              * Tema Type
-             * @description BEM / AEM / AEL / NEN / BEM_FIXED / AEM_U_TUBE
+             * @description TEMA 类型：BEM / AEM / AEL / NEN / BEM_FIXED / AEM_U_TUBE
              */
             tema_type: string;
             /**
@@ -5231,7 +6850,7 @@ export interface components {
             shell_thickness_m: number;
             /**
              * Material
-             * @description carbon_steel / SS304 / SS316 / SS316L
+             * @description 材料牌号：carbon_steel 碳钢 / SS304 / SS316 / SS316L
              * @default carbon_steel
              */
             material: string;
@@ -5249,72 +6868,85 @@ export interface components {
             head_straight_m: number;
             /**
              * Flange Count
+             * @description 法兰对数
              * @default 2
              */
             flange_count: number;
             /**
              * Flange Class
-             * @description ASME B16.5 Class
+             * @description 法兰等级（ASME B16.5 Class，如 150#/300#/600#）
              * @default 300#
              */
             flange_class: string;
             /**
              * Flange Size Dn
+             * @description 法兰口径 DN
              * @default 600
              */
             flange_size_dn: number;
             /**
              * Nozzle Count
+             * @description 接口数
              * @default 4
              */
             nozzle_count: number;
             /**
              * Nozzle Size Dn
+             * @description 接口口径 DN
              * @default 100
              */
             nozzle_size_dn: number;
             /**
              * Saddle Count
+             * @description 鞍座数
              * @default 2
              */
             saddle_count: number;
             /**
              * Saddle Size Dn
+             * @description 鞍座口径 DN
              * @default 600
              */
             saddle_size_dn: number;
             /**
              * Tube Count
+             * @description 管束数
              * @default 0
              */
             tube_count: number;
             /**
              * Tube Od M
+             * @description 管外径 m
              * @default 0
              */
             tube_od_m: number;
             /**
              * Tube Thickness M
+             * @description 管壁厚 m
              * @default 0
              */
             tube_thickness_m: number;
             /**
              * Tube Length M
+             * @description 管长 m
              * @default 0
              */
             tube_length_m: number;
             /**
              * Baffle Count
+             * @description 折流板数
              * @default 0
              */
             baffle_count: number;
             /**
              * Baffle Diameter M
+             * @description 折流板直径 m
              * @default 0
              */
             baffle_diameter_m: number;
             /**
              * Baffle Thickness M
+             * @description 折流板厚度 m
              * @default 0
              */
             baffle_thickness_m: number;
@@ -5327,7 +6959,7 @@ export interface components {
             /**
              * Calc Id
              * Format: uuid
-             * @description HeatResult.heat_exchanger_id
+             * @description HeatResult 主键 heat_exchanger_id（换热器计算记录 UUID）
              */
             calc_id: string;
             /**
@@ -5359,52 +6991,109 @@ export interface components {
              * @description 刷新后的 record_hash（output_json 变更）
              */
             record_hash: string;
+            /**
+             * Output Json
+             * @description HeatResult.output_json 摘录（OPEN-7 串行优化）
+             */
+            output_json?: {
+                [key: string]: unknown;
+            };
         };
         /**
          * WeightSegmentResponse
          * @description 单段重量 + 公式来源标注。
          */
         WeightSegmentResponse: {
-            /** Weight Kg */
+            /**
+             * Weight Kg
+             * @description 该段重量 kg
+             */
             weight_kg: number;
-            /** Formula Ref */
+            /**
+             * Formula Ref
+             * @description 公式来源标注（如 TEMA 9th §4.3）
+             */
             formula_ref: string;
         };
-        /** WorkspaceCreate */
+        /**
+         * WorkspaceCreate
+         * @description 创建工作区请求体（POST /workspaces）。
+         *
+         *     业务：workspace_type 锁定 FORMAL/PERSONAL/TEMPORARY 三类；retention_days
+         *     1~365 天（仅 TEMPORARY 必填）；project_id PERSONAL 可空。
+         */
         WorkspaceCreate: {
-            /** Workspace Type */
+            /**
+             * Workspace Type
+             * @description 工作区类型：FORMAL 项目正式 / PERSONAL 个人 / TEMPORARY 临时
+             */
             workspace_type: string;
-            /** Name */
+            /**
+             * Name
+             * @description 工作区名称
+             */
             name: string;
-            /** Project Id */
+            /**
+             * Project Id
+             * @description 所属项目 ID（PERSONAL 可空）
+             */
             project_id?: string | null;
-            /** Retention Days */
+            /**
+             * Retention Days
+             * @description 数据保留天数（TEMPORARY 必填）
+             */
             retention_days?: number | null;
         };
-        /** WorkspaceOut */
+        /**
+         * WorkspaceOut
+         * @description 工作区出参（GET /workspaces 响应体）。
+         *
+         *     业务：含 workspace_id + workspace_type + name + owner_id + retention_days
+         *     + last_active_at；from_attributes=True 直接绑 ORM 行（Workspace）。
+         */
         WorkspaceOut: {
             /**
              * Workspace Id
              * Format: uuid
+             * @description 工作区 ID
              */
             workspace_id: string;
-            /** Workspace Type */
+            /**
+             * Workspace Type
+             * @description 工作区类型
+             */
             workspace_type: string;
-            /** Name */
+            /**
+             * Name
+             * @description 工作区名称
+             */
             name: string;
-            /** Project Id */
-            project_id: string | null;
-            /** Owner Id */
-            owner_id: string | null;
+            /**
+             * Project Id
+             * @description 所属项目 ID
+             */
+            project_id?: string | null;
+            /**
+             * Owner Id
+             * @description 拥有者 ID
+             */
+            owner_id?: string | null;
             /**
              * Created At
              * Format: date-time
+             * @description 创建时间
              */
             created_at: string;
-            /** Last Active At */
-            last_active_at: string | null;
-            /** Retention Days */
-            retention_days: number | null;
+            /**
+             * Last Active At
+             * @description 最近活跃时间
+             */
+            last_active_at?: string | null;
+            /**
+             * Retention Days
+             * @description 数据保留天数
+             */
+            retention_days?: number | null;
         };
         /**
          * CalculateRequest
@@ -5413,7 +7102,7 @@ export interface components {
         app__api__v1__flash__CalculateRequest: {
             /**
              * Calc Type
-             * @description PT_FLASH / PH_FLASH / PS_FLASH / SATURATION
+             * @description 闪蒸计算类型：PT_FLASH 等温 / PH_FLASH 等焓 / PS_FLASH 等熵 / SATURATION 泡露点
              */
             calc_type: string;
             /**
@@ -5456,7 +7145,7 @@ export interface components {
             /**
              * Calc Id
              * Format: uuid
-             * @description FlashResult.flash_id
+             * @description FlashResult 主键 flash_id（闪蒸计算记录 UUID）
              */
             calc_id: string;
             /**
@@ -5556,7 +7245,7 @@ export interface components {
             /**
              * Chain Result Id
              * Format: uuid
-             * @description PipingResult.pipe_id
+             * @description PipingResult 主键 pipe_id（管段链计算结果 UUID）
              */
             chain_result_id: string;
             /**
@@ -5581,6 +7270,8 @@ export interface components {
         /**
          * CalculateRequest
          * @description POST /psv/calculate 请求体。
+         *
+         *     P5-OPEN-10 V1.14：新增 18 字段与前端 §4.1 联动；老请求可用（extra='ignore'）。
          */
         app__api__v1__psv__CalculateRequest: {
             /**
@@ -5591,7 +7282,7 @@ export interface components {
             source_stream_id: string;
             /**
              * Relief Scenario
-             * @description FIRE / CLOSED_VALVE / REACTION_RUNAWAY / THERMAL_EXPANSION
+             * @description 泄放场景：FIRE 火灾 / CLOSED_VALVE 出口阀关断 / REACTION_RUNAWAY 反应失控 / THERMAL_EXPANSION 热膨胀
              * @enum {string}
              */
             relief_scenario: "FIRE" | "CLOSED_VALVE" | "REACTION_RUNAWAY" | "THERMAL_EXPANSION";
@@ -5621,10 +7312,9 @@ export interface components {
             standard_version?: string | null;
             /**
              * Blowdown Fraction
-             * @description blowdown 占比（API 520 惯例 5%）
-             * @default 0.05
+             * @description blowdown 占比（API 520 惯例 5%）；None → 按 medium 派生（GAS=5% / VAPOR=5% / LIQUID=10% / TWO_PHASE=10%；§3.5）
              */
-            blowdown_fraction: number;
+            blowdown_fraction?: number | null;
             /**
              * Inlet Size
              * @description 进口尺寸
@@ -5637,6 +7327,125 @@ export interface components {
              * @default 6 inch
              */
             outlet_size: string;
+            /**
+             * Valve Type
+             * @description 阀型：SPRING_LOADED 弹簧式 / BALANCED_BELLOWS 平衡波纹管式 / PILOT_OPERATED 先导式 / RUPTURE_DISC 爆破膜式
+             * @default SPRING_LOADED
+             * @enum {string}
+             */
+            valve_type: "SPRING_LOADED" | "BALANCED_BELLOWS" | "PILOT_OPERATED" | "RUPTURE_DISC";
+            /**
+             * Body Material
+             * @description 阀体材料 CARBON_STEEL / SS304 / SS316 / SS316L / ALLOY
+             * @default SS316
+             * @enum {string}
+             */
+            body_material: "CARBON_STEEL" | "SS304" | "SS316" | "SS316L" | "ALLOY";
+            /**
+             * Bellows Material
+             * @description 波纹管材料 6 种（仅 BALANCED_BELLOWS 必填；§3.8）
+             */
+            bellows_material?: ("HASTELLOY_C276" | "SS316L" | "INCONEL_625" | "INCONEL_718" | "ALLOY_400" | "ALLOY_C22") | null;
+            /**
+             * Flange Class
+             * @description 法兰等级 150#/300#/600#/900#/1500#/2500#
+             * @default 300#
+             * @enum {string}
+             */
+            flange_class: "150#" | "300#" | "600#" | "900#" | "1500#" | "2500#";
+            /**
+             * Back Pressure Type
+             * @description BUILT_UP（累积）/ SUPERIMPOSED（恒定叠加）
+             * @default BUILT_UP
+             * @enum {string}
+             */
+            back_pressure_type: "BUILT_UP" | "SUPERIMPOSED";
+            /**
+             * Back Pressure Pct
+             * @description 背压百分比 0-100（弹簧式 BUILT_UP 上限 10%；§3.5）
+             * @default 0
+             */
+            back_pressure_pct: number;
+            /**
+             * Superimposed Pressure Pa
+             * @description 恒定叠加背压（Pa；仅 SUPERIMPOSED 时启用 CDTP 修正；§4.4）
+             * @default 0
+             */
+            superimposed_pressure_pa: number;
+            /**
+             * Set Pressure Pa
+             * @description 设定压力（Pa gauge；前端透传 stream.max_allowable_pressure_pa）
+             * @default 200000
+             */
+            set_pressure_pa: number;
+            /**
+             * Overpressure Pct
+             * @description 超压百分比 10/16/21（API 520 §5.3.1）
+             * @default 0.1
+             */
+            overpressure_pct: number;
+            /**
+             * Orifice Override
+             * @description 手动指定孔口 D-T（与 API 526 反向映射候选一致；§4.5）
+             */
+            orifice_override?: ("D" | "E" | "F" | "G" | "H" | "J" | "K" | "L" | "M" | "N" | "P" | "Q" | "R" | "T") | null;
+            /**
+             * Valve Brand
+             * @description 阀体品牌（自由字符串；V1.14 P2-1 修订；§4.3）
+             */
+            valve_brand?: string | null;
+            /**
+             * Rupture Disc Position
+             * @description 爆破膜位置 UPSTREAM（Kc=0.90）/ DOWNSTREAM（Kc=1.00）/ NONE
+             * @default NONE
+             * @enum {string}
+             */
+            rupture_disc_position: "UPSTREAM" | "DOWNSTREAM" | "NONE";
+            /**
+             * Pilot Temperature C
+             * @description 先导温度 °C（PILOT_OPERATED；P5 占位）
+             */
+            pilot_temperature_c?: number | null;
+            /**
+             * Pilot Temp Class
+             * @description GENERAL / HIGH_TEMP / CRYOGENIC（PILOT_OPERATED；P5 占位）
+             * @default GENERAL
+             * @enum {string}
+             */
+            pilot_temp_class: "GENERAL" | "HIGH_TEMP" | "CRYOGENIC";
+            /**
+             * Fire Protection
+             * @description 防火保护（影响 FIRE 工况计算；§3.2）
+             * @default false
+             */
+            fire_protection: boolean;
+            /**
+             * Medium
+             * @description 介质 GAS / VAPOR / LIQUID / TWO_PHASE
+             * @default GAS
+             * @enum {string}
+             */
+            medium: "GAS" | "VAPOR" | "LIQUID" | "TWO_PHASE";
+            /**
+             * Service Note
+             * @description 服务工况备注（人工输入；含介质描述，用于波纹管材料兼容校验；§3.8）
+             */
+            service_note?: string | null;
+            /**
+             * Fluid Temperature C
+             * @description 流体温度 °C（Q/R/T 高温低分子量校验用；§3.9）
+             */
+            fluid_temperature_c?: number | null;
+            /**
+             * Molecular Weight
+             * @description 分子量 g/mol（Q/R/T 高温低分子量校验用；§3.9）
+             */
+            molecular_weight?: number | null;
+            /**
+             * Calculated Area M2
+             * @description 计算泄放面积 m²（G9 orifice_override < 计算面积 校验用；§4.2 G9）
+             */
+            calculated_area_m2?: number | null;
         };
         /**
          * CalculateResponse
@@ -5646,7 +7455,7 @@ export interface components {
             /**
              * Calc Id
              * Format: uuid
-             * @description PsvResult.psv_id
+             * @description PsvResult 主键 psv_id（PSV 计算记录 UUID）
              */
             calc_id: string;
             /**
@@ -5775,7 +7584,7 @@ export interface components {
             source_stream_id: string;
             /**
              * Device Type
-             * @description CYCLONE/MIST_ELIMINATOR/GRAVITY/VANE/FIBER
+             * @description 分离设备类型：CYCLONE 旋风 / MIST_ELIMINATOR 除雾器 / GRAVITY 重力 / VANE 折流板 / FIBER 纤维
              */
             device_type: string;
             /**
@@ -5794,7 +7603,7 @@ export interface components {
             /**
              * Calc Id
              * Format: uuid
-             * @description SepEquipResult.sep_equip_id
+             * @description SepEquipResult 主键 sep_equip_id（分离设备计算记录 UUID）
              */
             calc_id: string;
             /**
@@ -5861,7 +7670,7 @@ export interface components {
             /**
              * Calc Id
              * Format: uuid
-             * @description VesselResult.vessel_id
+             * @description VesselResult 主键 vessel_id（容器计算记录 UUID）
              */
             calc_id: string;
             /**
@@ -6038,7 +7847,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["LogoutRequest"] | null;
+            };
+        };
         responses: {
             /** @description Successful Response */
             204: {
@@ -6046,6 +7859,15 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
             };
         };
     };
@@ -9645,6 +11467,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["WeightEstimateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    cv_calculate_api_v1_cv_calculate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CvCalculateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CvCalculateResponse"];
                 };
             };
             /** @description Validation Error */
