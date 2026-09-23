@@ -2398,6 +2398,34 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/restriction/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Restriction Calculate
+         * @description POST /api/v1/restriction/calculate：限制装置单工况计算落库。
+         *
+         *     流程：
+         *     1. RestrictionService.persist_calculate（RestrictionEngine + 落库 + outlet）
+         *     2. 查 outlet stream（upstream_stream_id == source_stream_id）
+         *     3. 组装 RestrictionCalculateResponse 返回
+         *
+         *     Returns:
+         *         201 + restriction_result_id + outlet_stream_id + 关键计算字段
+         */
+        post: operations["restriction_calculate_api_v1_restriction_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/pipe-code-templates": {
         parameters: {
             query?: never;
@@ -5484,6 +5512,182 @@ export interface components {
              * @default bearer
              */
             token_type: string;
+        };
+        /**
+         * RestrictionCalculateRequest
+         * @description 限制装置计算请求体（POST /api/v1/restriction/calculate）。
+         *
+         *     字段对齐 SPEC §3.2.2.1~4 孔板/文丘里/喷嘴/多级降压 + §3.2.2.6 schema。
+         *
+         *     严格模式：未知字段 → 422 ValidationError（不静默吞）。
+         */
+        RestrictionCalculateRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 设备位号（RES- 前缀在 outlet.properties.device 补；缺省自动生成 8 hex）
+             */
+            tag_number?: string | null;
+            /**
+             * Design Stage
+             * @description 设计阶段 BASIC（基础设计）/ DETAIL（详细设计）
+             * @default BASIC
+             * @enum {string}
+             */
+            design_stage: "BASIC" | "DETAIL";
+            /**
+             * Standard Profile Code
+             * @description 执行标准 profile code（ISO 5167 系列；默认 ISO-5167）
+             * @default ISO-5167
+             */
+            standard_profile_code: string;
+            /**
+             * Device Type
+             * @description 限制装置类型：ORIFICE 孔板 / VENTURI 文丘里 / NOZZLE 喷嘴 / MULTI_STAGE 多级降压
+             * @enum {string}
+             */
+            device_type: "ORIFICE" | "VENTURI" | "NOZZLE" | "MULTI_STAGE";
+            /**
+             * Fluid Phase
+             * @description 流体相态：LIQUID 液体 / GAS 气体
+             * @default LIQUID
+             * @enum {string}
+             */
+            fluid_phase: "LIQUID" | "GAS";
+            /**
+             * D Pipe M
+             * @description 管道内径 m
+             */
+            D_pipe_m: number;
+            /**
+             * D Solved M
+             * @description 孔径 m（求解后）
+             */
+            d_solved_m: number;
+            /**
+             * Re D
+             * @description 管道雷诺数
+             */
+            Re_D: number;
+            /**
+             * P1 Pa
+             * @description 上游绝压 Pa
+             */
+            P1_pa: number;
+            /**
+             * Dp Pa
+             * @description 压差 Pa
+             */
+            dP_pa: number;
+            /**
+             * Rho1
+             * @description 上游密度 kg/m³
+             */
+            rho1: number;
+            /**
+             * Mu
+             * @description 动力粘度 Pa·s（备用，当前未启用）
+             */
+            mu?: number | null;
+            /**
+             * Stages
+             * @description 降压级数（仅 MULTI_STAGE 路径生效；其他装置默认 1）
+             * @default 1
+             */
+            stages: number;
+            /**
+             * Source Stream Id
+             * Format: uuid
+             * @description 源流 UUID（outlet.upstream_stream_id 锚点）
+             */
+            source_stream_id: string;
+        };
+        /**
+         * RestrictionCalculateResponse
+         * @description 限制装置计算响应（POST /api/v1/restriction/calculate 201）。
+         *
+         *     回填 RestrictionResult 主键 orifice_id + 关键结果字段 + outlet stream 锚点。
+         */
+        RestrictionCalculateResponse: {
+            /**
+             * Restriction Result Id
+             * Format: uuid
+             * @description RestrictionResult 主键 orifice_id（计算记录 UUID）
+             */
+            restriction_result_id: string;
+            /**
+             * Tag Number
+             * @description 设备位号（RES-{tag_number} 为 outlet device 名）
+             */
+            tag_number: string;
+            /**
+             * Device Type
+             * @description 限制装置类型 ORIFICE/VENTURI/NOZZLE/MULTI_STAGE
+             */
+            device_type: string;
+            /**
+             * C Discharge
+             * @description 流出系数（ISO 5167 C）
+             */
+            C_discharge: number;
+            /**
+             * Beta Ratio
+             * @description 直径比 d/D
+             */
+            beta_ratio: number;
+            /**
+             * Epsilon
+             * @description 可膨胀性系数（液体 ≈ 1）
+             */
+            epsilon?: number | null;
+            /**
+             * Delta P Pa
+             * @description 压差 Pa
+             */
+            delta_P_pa: number;
+            /**
+             * Choked
+             * @description 是否阻塞流
+             */
+            choked: boolean;
+            /**
+             * Flashing
+             * @description 是否闪蒸（液体 + 低 P1 启发式判据）
+             * @default false
+             */
+            flashing: boolean;
+            /**
+             * Stages
+             * @description 多级时级数（仅 MULTI_STAGE）
+             */
+            stages?: number | null;
+            /**
+             * Standard Profile Code
+             * @description 执行标准 profile code（ISO 5167 系列）
+             */
+            standard_profile_code: string;
+            /**
+             * Record Hash
+             * @description 16 hex 数值规范化哈希（SHA-256 截断）
+             */
+            record_hash: string;
+            /**
+             * Outlet Stream Id
+             * Format: uuid
+             * @description 出口流 UUID（RESTRICTION_CALCULATED）
+             */
+            outlet_stream_id: string;
         };
         /**
          * SafetyResult
@@ -11500,6 +11704,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CvCalculateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    restriction_calculate_api_v1_restriction_calculate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RestrictionCalculateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RestrictionCalculateResponse"];
                 };
             };
             /** @description Validation Error */

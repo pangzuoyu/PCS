@@ -6810,6 +6810,48 @@
         }
       }
     },
+    "/api/v1/restriction/calculate": {
+      "post": {
+        "tags": [
+          "restriction"
+        ],
+        "summary": "Restriction Calculate",
+        "description": "POST /api/v1/restriction/calculate：限制装置单工况计算落库。\n\n流程：\n1. RestrictionService.persist_calculate（RestrictionEngine + 落库 + outlet）\n2. 查 outlet stream（upstream_stream_id == source_stream_id）\n3. 组装 RestrictionCalculateResponse 返回\n\nReturns:\n    201 + restriction_result_id + outlet_stream_id + 关键计算字段",
+        "operationId": "restriction_calculate_api_v1_restriction_calculate_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RestrictionCalculateRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RestrictionCalculateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/pipe-code-templates": {
       "get": {
         "tags": [
@@ -12930,6 +12972,242 @@
         ],
         "title": "RefreshResponse",
         "description": "刷新 token 响应（POST /auth/refresh 响应体）。\n\n业务：返回新 access_token + 新 refresh_token（jti 轮换防重放）。"
+      },
+      "RestrictionCalculateRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag Number",
+            "description": "设备位号（RES- 前缀在 outlet.properties.device 补；缺省自动生成 8 hex）"
+          },
+          "design_stage": {
+            "type": "string",
+            "enum": [
+              "BASIC",
+              "DETAIL"
+            ],
+            "title": "Design Stage",
+            "description": "设计阶段 BASIC（基础设计）/ DETAIL（详细设计）",
+            "default": "BASIC"
+          },
+          "standard_profile_code": {
+            "type": "string",
+            "title": "Standard Profile Code",
+            "description": "执行标准 profile code（ISO 5167 系列；默认 ISO-5167）",
+            "default": "ISO-5167"
+          },
+          "device_type": {
+            "type": "string",
+            "enum": [
+              "ORIFICE",
+              "VENTURI",
+              "NOZZLE",
+              "MULTI_STAGE"
+            ],
+            "title": "Device Type",
+            "description": "限制装置类型：ORIFICE 孔板 / VENTURI 文丘里 / NOZZLE 喷嘴 / MULTI_STAGE 多级降压"
+          },
+          "fluid_phase": {
+            "type": "string",
+            "enum": [
+              "LIQUID",
+              "GAS"
+            ],
+            "title": "Fluid Phase",
+            "description": "流体相态：LIQUID 液体 / GAS 气体",
+            "default": "LIQUID"
+          },
+          "D_pipe_m": {
+            "type": "number",
+            "title": "D Pipe M",
+            "description": "管道内径 m"
+          },
+          "d_solved_m": {
+            "type": "number",
+            "title": "D Solved M",
+            "description": "孔径 m（求解后）"
+          },
+          "Re_D": {
+            "type": "number",
+            "title": "Re D",
+            "description": "管道雷诺数"
+          },
+          "P1_pa": {
+            "type": "number",
+            "title": "P1 Pa",
+            "description": "上游绝压 Pa"
+          },
+          "dP_pa": {
+            "type": "number",
+            "title": "Dp Pa",
+            "description": "压差 Pa"
+          },
+          "rho1": {
+            "type": "number",
+            "title": "Rho1",
+            "description": "上游密度 kg/m³"
+          },
+          "mu": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Mu",
+            "description": "动力粘度 Pa·s（备用，当前未启用）"
+          },
+          "stages": {
+            "type": "integer",
+            "title": "Stages",
+            "description": "降压级数（仅 MULTI_STAGE 路径生效；其他装置默认 1）",
+            "default": 1
+          },
+          "source_stream_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Source Stream Id",
+            "description": "源流 UUID（outlet.upstream_stream_id 锚点）"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "device_type",
+          "D_pipe_m",
+          "d_solved_m",
+          "Re_D",
+          "P1_pa",
+          "dP_pa",
+          "rho1",
+          "source_stream_id"
+        ],
+        "title": "RestrictionCalculateRequest",
+        "description": "限制装置计算请求体（POST /api/v1/restriction/calculate）。\n\n字段对齐 SPEC §3.2.2.1~4 孔板/文丘里/喷嘴/多级降压 + §3.2.2.6 schema。\n\n严格模式：未知字段 → 422 ValidationError（不静默吞）。"
+      },
+      "RestrictionCalculateResponse": {
+        "properties": {
+          "restriction_result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Restriction Result Id",
+            "description": "RestrictionResult 主键 orifice_id（计算记录 UUID）"
+          },
+          "tag_number": {
+            "type": "string",
+            "title": "Tag Number",
+            "description": "设备位号（RES-{tag_number} 为 outlet device 名）"
+          },
+          "device_type": {
+            "type": "string",
+            "title": "Device Type",
+            "description": "限制装置类型 ORIFICE/VENTURI/NOZZLE/MULTI_STAGE"
+          },
+          "C_discharge": {
+            "type": "number",
+            "title": "C Discharge",
+            "description": "流出系数（ISO 5167 C）"
+          },
+          "beta_ratio": {
+            "type": "number",
+            "title": "Beta Ratio",
+            "description": "直径比 d/D"
+          },
+          "epsilon": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Epsilon",
+            "description": "可膨胀性系数（液体 ≈ 1）"
+          },
+          "delta_P_pa": {
+            "type": "number",
+            "title": "Delta P Pa",
+            "description": "压差 Pa"
+          },
+          "choked": {
+            "type": "boolean",
+            "title": "Choked",
+            "description": "是否阻塞流"
+          },
+          "flashing": {
+            "type": "boolean",
+            "title": "Flashing",
+            "description": "是否闪蒸（液体 + 低 P1 启发式判据）",
+            "default": false
+          },
+          "stages": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stages",
+            "description": "多级时级数（仅 MULTI_STAGE）"
+          },
+          "standard_profile_code": {
+            "type": "string",
+            "title": "Standard Profile Code",
+            "description": "执行标准 profile code（ISO 5167 系列）"
+          },
+          "record_hash": {
+            "type": "string",
+            "title": "Record Hash",
+            "description": "16 hex 数值规范化哈希（SHA-256 截断）"
+          },
+          "outlet_stream_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Outlet Stream Id",
+            "description": "出口流 UUID（RESTRICTION_CALCULATED）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "restriction_result_id",
+          "tag_number",
+          "device_type",
+          "C_discharge",
+          "beta_ratio",
+          "delta_P_pa",
+          "choked",
+          "standard_profile_code",
+          "record_hash",
+          "outlet_stream_id"
+        ],
+        "title": "RestrictionCalculateResponse",
+        "description": "限制装置计算响应（POST /api/v1/restriction/calculate 201）。\n\n回填 RestrictionResult 主键 orifice_id + 关键结果字段 + outlet stream 锚点。"
       },
       "SafetyResult": {
         "properties": {
