@@ -5,6 +5,7 @@ from app.api.v1.change_impact import router as change_impact_router
 from app.api.v1.checklist import router as checklist_router
 from app.api.v1.common import router as common_router
 from app.api.v1.config import router as config_router
+from app.api.v1.cv import router as cv_router  # P6-1 Task 10
 from app.api.v1.equip_lib import router as equip_lib_router
 from app.api.v1.flash import router as flash_router
 from app.api.v1.health import router as health_router
@@ -51,6 +52,7 @@ api_router.include_router(sep_equip_router)  # P5-2-4
 api_router.include_router(psv_router)  # P5-3-6
 api_router.include_router(psv_standard_profiles_router)  # P5-3-6
 api_router.include_router(heat_router)  # P5-4-5
+api_router.include_router(cv_router)  # P6-1 Task 10
 api_router.include_router(pipe_codes_router)
 api_router.include_router(common_router)
 api_router.include_router(imports_router)
