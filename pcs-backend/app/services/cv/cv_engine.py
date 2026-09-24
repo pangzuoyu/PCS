@@ -272,7 +272,7 @@ def _compute_noise_sil(dP_pa: float, Q_m3h: float, Kc: float) -> float:
 
 
 class CvEngine:
-    """调节阀 Cv 计算引擎（P6-1 Task 8）。
+    """调节阀 Cv 计算引擎（P6-1 Task 8 / P6-1.5 C-07 参数化）。
 
     入口：calculate(**kwargs) → dict
     - fluid_phase: "LIQUID" / "GAS" / "VAPOR" / "TWO_PHASE"
@@ -281,15 +281,21 @@ class CvEngine:
       fluid_phase, valve_type(占位), P1_pa, P2_pa, T1_k, Q_m3_per_h,
       SG, FL, xT, gamma, M, Z, Cv_calculated, Cv_selected(占位 None),
       choked, cavitation, flashing, noise_sil_db,
-      standard_profile_code(占位 "API-60534"), design_stage(占位 "BASIC")
+      standard_profile_code（默认 IEC_60534），design_stage(占位 "BASIC")
       + 计算引擎内部字段（rho/standard_profile_code 默认值）
+
+    标准代码策略（C-07 评审委员会 2026-09-24 裁决）：
+    - GB/T 4213 等同采用 IEC 60534-2-1:2011，无公式差异
+    - standard_profile_code 仅溯源（数据口径标识），不参与公式分支
+    - 默认值由原 `API-60534` 改为 `IEC_60534`（GB/T 等同采用 IEC，溯源更准确）
 
     详细 Pydantic CvCalculateRequest（21 字段对齐 CvResult）由 Task 10 接入；
     本任务最小字段 + dict 返回以解耦 cv_persist（Task 9）落地。
     """
 
-    # 默认标准代码（P6-1 Task 8 占位，Task 10 接 API/GB/CUSTOM 枚举）
-    _DEFAULT_STANDARD_PROFILE = "API-60534"
+    # 默认标准代码（P6-1.5 C-07：默认 IEC_60534 而非 API-60534）
+    # 公式不变；仅溯源字段口径调整（GB/T 4213 等同采用 IEC 60534-2-1:2011）
+    _DEFAULT_STANDARD_PROFILE = "IEC_60534"
     _DEFAULT_VALVE_TYPE = "GLOBE"
     _DEFAULT_DESIGN_STAGE = "BASIC"
 
@@ -301,6 +307,8 @@ class CvEngine:
         - LIQUID：Q_m3h, SG, dP_bar, FL, FF, Pv, Pc, P1_pa
         - GAS/VAPOR：Q_Nm3h, P1_pa, T1_k, M, Z, dP_pa, gamma, xT
         - 通用：valve_type（可选，默认 GLOBE），Kc（噪音系数，默认 1.0）
+        - standard_profile_code（可选，默认 IEC_60534，C-07 裁决）；
+          仅溯源不参与公式分支，调用方传值时仅校验非空字符串。
 
         Returns:
             dict 含 CvResult ORM 21 键（choked/cavitation/flashing/noise_sil_db
@@ -339,8 +347,10 @@ class CvEngine:
             "cavitation": False,
             "flashing": False,
             "noise_sil_db": None,
-            # 标准（占位默认，Task 10 接标准枚举）
-            "standard_profile_code": self._DEFAULT_STANDARD_PROFILE,
+            # 标准代码（C-07 裁决：默认 IEC_60534，调用方可覆盖仅溯源）
+            "standard_profile_code": kwargs.get(
+                "standard_profile_code", self._DEFAULT_STANDARD_PROFILE
+            ),
             # 设计阶段（OPEN-009 占位默认）
             "design_stage": self._DEFAULT_DESIGN_STAGE,
         }

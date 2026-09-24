@@ -1,4 +1,4 @@
-"""调节阀 Cv 计算 Pydantic schema（P6-1 Task 10 / SPEC §3.2.1）。
+"""调节阀 Cv 计算 Pydantic schema（P6-1 Task 10 / SPEC §3.2.1 / P6-1.5 C-07）。
 
 CvCalculateRequest 21+ 字段对齐 SPEC §3.2.1.1~1.4（液体/气体/阻塞流/噪音）+ §3.2.1.6
 （21 列 ORM schema）；CvCalculateResponse 回填 CvResult 主键 + outlet stream。
@@ -7,7 +7,8 @@ CvCalculateRequest 21+ 字段对齐 SPEC §3.2.1.1~1.4（液体/气体/阻塞流
 - `extra='forbid'` 拒绝未知字段（V1.14 PsvCalculateRequest 历史教训；
   .wolf/cerebrum.md Do-Not-Repeat）
 - 所有 Field description 含中文
-- standard_profile_code 默认 API-60534（ADR-0028 V1.1）
+- standard_profile_code 默认 IEC_60534（P6-1.5 C-07 评审委员会 2026-09-24 裁决；
+  原 ADR-0028 V1.1 默认 API-60534 已废止）
 - design_stage 默认 BASIC（OPEN-009）
 
 不做：
@@ -44,8 +45,11 @@ class CvCalculateRequest(BaseModel):
         "BASIC", description="设计阶段 BASIC（基础设计）/ DETAIL（详细设计）"
     )
     standard_profile_code: str = Field(
-        "API-60534",
-        description="执行标准 profile code（ADR-0028 V1.1；默认 API-60534）",
+        "IEC_60534",
+        description=(
+            "执行标准 profile code（C-07 裁决 2026-09-24：默认 IEC_60534；"
+            "GB/T 4213 等同采用 IEC 60534-2-1:2011，仅溯源不参与公式）"
+        ),
     )
 
     # 流体相态（1 字段，必填）
@@ -100,7 +104,10 @@ class CvCalculateResponse(BaseModel):
     cavitation: bool = Field(False, description="液体空化标记（IEC 60534-2-1 §5.3，LIQUID 路径）")
     flashing: bool = Field(False, description="液体闪蒸标记（IEC 60534-2-1 §5.4，LIQUID 路径）")
     noise_sil_db: float | None = Field(None, description="简化法噪音估算 dB（IEC 60534-8-3）")
-    standard_profile_code: str = Field(..., description="执行标准 profile code（ADR-0028）")
+    standard_profile_code: str = Field(
+        ...,
+        description="执行标准 profile code（C-07：默认 IEC_60534）",
+    )
     design_stage: str = Field(..., description="设计阶段 BASIC/DETAIL（OPEN-009）")
     record_hash: str = Field(..., description="16 hex 数值规范化哈希（SHA-256 截断）")
     outlet_stream_id: uuid.UUID = Field(..., description="出口流 UUID（DEVICE_CALCULATED）")

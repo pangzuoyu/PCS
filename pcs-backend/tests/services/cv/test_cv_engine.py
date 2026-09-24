@@ -185,3 +185,44 @@ def test_CvEngine_calculate_gas():
     assert "Cv_calculated" in payload
     assert payload["choked"] is False
     assert payload["fluid_phase"] == "GAS"
+
+
+def test_calculate_default_standard_profile_code_iec_60534():
+    """CvEngine.calculate：C-07 裁决默认 standard_profile_code = IEC_60534。
+
+    不传 standard_profile_code 时，payload['standard_profile_code'] 应为
+    IEC_60534（GB/T 4213 等同采用 IEC 60534-2-1:2011；C-07 评审委员会 2026-09-24）。
+
+    显式传值时也应透传（kwargs 参数化）。
+    """
+    engine = cv_engine.CvEngine()
+
+    # 1. 不传 → 默认 IEC_60534
+    payload_default = engine.calculate(
+        fluid_phase="LIQUID",
+        Q_m3h=100.0, SG=1.0, dP_bar=1.0,
+        FL=0.9, FF=0.96, Pv=2000.0, Pc=22.0e6, P1_pa=3.0e5,
+    )
+    assert payload_default["standard_profile_code"] == "IEC_60534", (
+        "默认 standard_profile_code 应为 IEC_60534，"
+        f"实际 {payload_default['standard_profile_code']!r}"
+    )
+
+    # 2. 显式传 GB-12241 → 透传（仅溯源，不参与公式）
+    payload_custom = engine.calculate(
+        fluid_phase="LIQUID",
+        Q_m3h=100.0, SG=1.0, dP_bar=1.0,
+        FL=0.9, FF=0.96, Pv=2000.0, Pc=22.0e6, P1_pa=3.0e5,
+        standard_profile_code="GB-12241",
+    )
+    assert payload_custom["standard_profile_code"] == "GB-12241", (
+        f"显式传值应透传，实际 {payload_custom['standard_profile_code']!r}"
+    )
+
+    # 3. Cv_calculated 在两种 standard_profile_code 下必须完全一致（仅溯源不参与公式）
+    assert payload_default["Cv_calculated"] == pytest.approx(
+        payload_custom["Cv_calculated"], rel=1e-12
+    ), (
+        "standard_profile_code 仅溯源不参与公式，Cv_calculated 应相同："
+        f"{payload_default['Cv_calculated']} vs {payload_custom['Cv_calculated']}"
+    )

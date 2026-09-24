@@ -1,4 +1,4 @@
-"""cv_persist 调节阀 Cv 计算结果落库 + 出口物流（P6-1 Task 9 / ADR-0022）。
+"""cv_persist 调节阀 Cv 计算结果落库 + 出口物流（P6-1 Task 9 / ADR-0022 / P6-1.5 C-07）。
 
 完整实现 P6 SPEC §3.2.1.6 + §3.2.1.7：
 
@@ -12,6 +12,9 @@
 - sign_status='DRAFT'（计算阶段草稿；create_outlet_stream 内 hardcode）
 - change_type='FRICTION_PRESSURE_DROP'（控制阀为摩擦压降设备；入 properties）
 - device='CV-{tag_number}'（设备名格式）
+
+C-07 裁决 2026-09-24：standard_profile_code 透传调用方字段（默认 IEC_60534）。
+engine_kwargs 过滤保留 standard_profile_code，仅剔除 project_id/workspace_id/tag_number。
 
 不：
 - 不调 cv_api（Task 10 接入 Pydantic CvCalculateRequest）
@@ -30,8 +33,9 @@ from app.services.calc_lineage import compute_record_hash
 from app.services.cv.cv_engine import CvEngine
 from app.services.outlet_stream import create_outlet_stream
 
-# P6-1 Task 9 formula_version：固定锚点（CIA 引擎版本对齐时一并 bump）
-_FORMULA_VERSION = "CVv1.0-p6-1-9"
+# P6-1.5 C-07 公式版本：默认 standard_profile_code 由 API-60534 改为 IEC_60534
+# 公式不变；仅溯源字段口径调整（GB/T 4213 等同采用 IEC 60534-2-1:2011）
+_FORMULA_VERSION = "CVv1.1-c07-iec-60534"
 
 
 def _generate_tag_number(project_id: uuid.UUID) -> str:

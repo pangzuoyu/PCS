@@ -108,7 +108,7 @@ async def test_persist_calculate_default(
     )
     # SPEC §3.2.1.6 关键字段
     assert cv_result.fluid_phase == "LIQUID"
-    assert cv_result.standard_profile_code == "API-60534"
+    assert cv_result.standard_profile_code == "IEC_60534"
     assert cv_result.choked is False
     # DB 持久化校验（重新查一次）
     stmt = select(CvResult).where(CvResult.cv_id == cv_result.cv_id)

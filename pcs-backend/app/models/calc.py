@@ -767,9 +767,13 @@ class CvResult(TaggedRecordMixin, Base):
     noise_sil_db: Mapped[float | None] = mapped_column(
         Float, comment="简化法噪音 dB（SPEC §3.2.1.6）"
     )
-    # 标准代码（NOT NULL per SPEC；brief 32 与 SPEC 16 取 brief）
+    # 标准代码（NOT NULL per SPEC；SPEC §3.2.1.6 line 1283 VARCHAR(16)）
+    # 默认值由 CvEngine 注入；ORM 层无 server_default（防止写空值）
     standard_profile_code: Mapped[str] = mapped_column(
-        String(32), comment="API/GB/CUSTOM（ADR-0028，brief 长度 32）"
+        String(16),
+        nullable=False,
+        server_default="IEC_60534",
+        comment="IEC_60534（GB/T 4213 等同采用；C-07 评审委员会裁决 2026-09-24）",
     )
     # 设计阶段（OPEN-009 + PsvResult 同模式）
     design_stage: Mapped[DesignStage] = mapped_column(

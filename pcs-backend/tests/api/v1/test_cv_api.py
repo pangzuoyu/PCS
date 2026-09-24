@@ -106,7 +106,7 @@ async def test_cv_calculate_post_success(
     uuid.UUID(body["cv_result_id"])  # parse OK
     assert body["fluid_phase"] == "LIQUID"
     assert body["Cv_calculated"] > 0
-    assert body["standard_profile_code"] == "API-60534"  # 默认值
+    assert body["standard_profile_code"] == "IEC_60534"  # C-07 默认值
     assert body["design_stage"] == "BASIC"  # 默认值
     assert _HASH_RE.match(body["record_hash"]), body["record_hash"]
 
@@ -229,7 +229,7 @@ async def test_cv_calculate_invalid_input_unknown_field(
 async def test_cv_calculate_standard_profile_code_default(
     client, source_stream, project_id, workspace_id
 ):
-    """缺省 standard_profile_code → 默认 API-60534（ADR-0028）。
+    """缺省 standard_profile_code → 默认 IEC_60534（C-07 评审委员会 2026-09-24 裁决）。
 
     不传 standard_profile_code 时仍能跑（Pydantic 默认值；CvEngine 内部也用
     同样的默认填充 CvResult.standard_profile_code 列）。
@@ -239,4 +239,4 @@ async def test_cv_calculate_standard_profile_code_default(
 
     r = await client.post("/api/v1/cv/calculate", json=body)
     assert r.status_code == 201, r.text
-    assert r.json()["standard_profile_code"] == "API-60534"
+    assert r.json()["standard_profile_code"] == "IEC_60534"
