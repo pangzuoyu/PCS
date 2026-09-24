@@ -403,3 +403,31 @@ P4（FLASH / PIPE / PUMP / PIPE_NET 计算模块接入）
 2. **TODO-041 推进**：MSW handlers 按 OpenAPI 重写 — 路径/请求/响应/错误码/状态码全部对齐
 3. **TODO-043 收口**：DashboardPage 触发 3 端点（workspaces/checklist list/checklist completeness）404 修复
 4. **SUP-P5-PSV-001 启动准备**：项目级 PSV 标准配置模型（`project_calculation_standard_profiles` 表）+ `StandardResolver` 注入计算引擎（Task 13/14/16/17/18 接口扩展）
+
+## P6-3 必须修复（2026-09-24 Task 19 review 登记）
+
+### P6-OPEN-009 alembic drift: psv_results 表缺 stale_resolution_path 列
+
+- **发现**：Task 19 G-07 集成测试用 raw SQL INSERT 绕开 ORM；发现 PsvResult ORM model 声明 `stale_resolution_path: Mapped[str | None]`（`app/models/mixins.py:105` declared_attr），但 `psv_results` DB 表无该列
+- **影响**：任何 ORM INSERT PsvResult 会失败（PG 端 `UndefinedColumnError` 或 `INSERT has more expressions than target columns`）；生产 persist service 阻塞
+- **历史追溯**：
+  - `psv_results` 表创建：`alembic/versions/dd47298c9c38_v3_1_full_schema_53_tables_adr_0023.py:961-1004`（v3_1 根迁移，**未声明** `stale_resolution_path`）
+  - audit 字段扩展：`alembic/versions/p4_calc_audit_fields.py:27-31`（5 表：streams / piping_results / pump_results / flash_results / pipe_network_results，**不含 psv_results**）
+  - P5-0-5 / P5-OPEN-005 / P5-OPEN-10 多次迁移均不动 psv_results
+- **修复方案（P6-3 启动后执行）**：
+  ```python
+  # alembic/versions/p6_3_xxx_psv_audit_drift_fix.py
+  revision = "p6_3_xxx_psv_audit_drift_fix"
+  down_revision = "p6_2_xxx"  # 当前 P6-2 末 head
+  upgrade:
+      op.add_column("psv_results", sa.Column("stale_resolution_path", sa.String(30), nullable=True))
+      op.add_column("psv_results", sa.Column("hash_changed", sa.Boolean, nullable=True, server_default=sa.text("FALSE")))
+      op.add_column("psv_results", sa.Column("changed_fields", JSONB, nullable=True))
+  downgrade:
+      op.drop_column("psv_results", "changed_fields")
+      op.drop_column("psv_results", "hash_changed")
+      op.drop_column("psv_results", "stale_resolution_path")
+  ```
+- **关联测试**：P6-3 启动后改 G-07（`tests/services/flare/test_relief_aggregator.py::test_g07_end_to_end_real_pcs_test`）从 raw SQL 切回 ORM INSERT，验证修复有效
+- **Owner**：P6-3 启动后 subagent 接管
+
