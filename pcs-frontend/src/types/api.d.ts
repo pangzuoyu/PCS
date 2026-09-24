@@ -3912,8 +3912,8 @@ export interface components {
             design_stage: "BASIC" | "DETAIL";
             /**
              * Standard Profile Code
-             * @description 执行标准 profile code（ADR-0028 V1.1；默认 API-60534）
-             * @default API-60534
+             * @description 执行标准 profile code（C-07 裁决 2026-09-24：默认 IEC_60534；GB/T 4213 等同采用 IEC 60534-2-1:2011，仅溯源不参与公式）
+             * @default IEC_60534
              */
             standard_profile_code: string;
             /**
@@ -4069,7 +4069,7 @@ export interface components {
             noise_sil_db?: number | null;
             /**
              * Standard Profile Code
-             * @description 执行标准 profile code（ADR-0028）
+             * @description 执行标准 profile code（C-07：默认 IEC_60534）
              */
             standard_profile_code: string;
             /**
