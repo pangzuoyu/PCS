@@ -335,17 +335,53 @@ class PsvResult(TaggedRecordMixin, Base):
     )
 
 
-class FlareSystemResult(TaggedRecordMixin, Base):
-    """火炬系统计算结果（flare_system_results 表）。
+class FlareSystemResult(TaggedRecordMixin, RecordMixin, Base):
+    """FLARE_SYS 火炬系统计算结果（flare_system_results 表，P6-2 Task 18 重构）。
 
-    业务：总管直径+背压+辐射热+排放量上限校核；result_json 承载节点
-    列表+每段管径与压降；用于 OPEN-5 火炬管网设计校验。
+    业务：泄放汇总 / 总管尺寸 / 分液罐尺寸 / 筒体高度 / 辐射校验 / 火炬头选型。
+    SPEC §3.2.3 + PCS-DICT-005 §3（radiation_check_json）+ PCS-DICT-007 §第五部分。
+
+    字段双轨：平铺 Float/Boolean 列（report 直接 SELECT）+ JSONB 容器
+    （input_json/output_json 业务子结构；radiation_check_json 独立 JSONB 存
+    PCS-DICT-005 §3.1 辐射校验完整产物）。
+    standard_profile_code 默认 API_521（C-07 锁定 String(16)）。
+
+    RECORD_TYPE_REGISTRY 注册键 = "flare_system_result"（P6-2 Task 18）。
     """
 
     __tablename__ = "flare_system_results"
     flare_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    input_json: Mapped[dict] = mapped_column(JSONB)
-    output_json: Mapped[dict] = mapped_column(JSONB)
+    # 溯源
+    standard_profile_code: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="API_521",
+        comment="API_521（SPEC §3.2.3 默认；C-07 String(16) 锁定）",
+    )
+    calc_type: Mapped[str] = mapped_column(
+        String(32), nullable=False,
+        comment="RELIEF_SUMMARY/HEADER_SIZING/KOD_SIZING/STACK_HEIGHT/RADIATION/FLARE_TIP",
+    )
+    # 结果（平铺字段，SPEC §3.2.3 字段平铺）
+    total_relief_load_kg_h: Mapped[float | None] = mapped_column(Float, comment="kg/h")
+    header_diameter_mm: Mapped[float | None] = mapped_column(Float, comment="mm")
+    header_mach: Mapped[float | None] = mapped_column(Float, comment="马赫数")
+    header_pressure_drop_kpa: Mapped[float | None] = mapped_column(Float, comment="kPa")
+    kod_diameter_mm: Mapped[float | None] = mapped_column(Float, comment="mm")
+    water_seal_height_mm: Mapped[float | None] = mapped_column(Float, comment="mm")
+    stack_height_m: Mapped[float | None] = mapped_column(Float, comment="m")
+    stack_diameter_m: Mapped[float | None] = mapped_column(Float, comment="m")
+    radiation_at_grade_kw_m2: Mapped[float | None] = mapped_column(Float, comment="kW/m²")
+    radiation_limit_kw_m2: Mapped[float | None] = mapped_column(Float, comment="kW/m²")
+    pass_: Mapped[bool | None] = mapped_column(
+        "pass", Boolean, nullable=True, comment="辐射校验 PASS/FAIL（SPEC §3.2.3）",
+    )
+    flare_tip_diameter_mm: Mapped[float | None] = mapped_column(Float, comment="mm")
+    steam_for_smokeless_kg_h: Mapped[float | None] = mapped_column(Float, comment="kg/h")
+    # JSONB 容器（PCS-DICT-005 §3.1 辐射校验独立列 + 通用 input/output）
+    radiation_check_json: Mapped[dict | None] = mapped_column(
+        JSONB, comment="PCS-DICT-005 §3.1 辐射校验完整产物",
+    )
+    input_json: Mapped[dict | None] = mapped_column(JSONB, comment="入参（业务子结构）")
+    output_json: Mapped[dict | None] = mapped_column(JSONB, comment="出参（业务子结构）")
 
 
 class VesselResult(TaggedRecordMixin, Base):
@@ -855,31 +891,86 @@ class RestrictionResult(TaggedRecordMixin, Base):
     )
 
 
-class CoolingTowerResult(TaggedRecordMixin, Base):
-    """凉水塔选型/校核结果（cooling_tower_results 表）。
+class CoolingTowerResult(TaggedRecordMixin, RecordMixin, Base):
+    """COOL_TOWER 冷却塔计算结果（cooling_tower_results 表，P6-2 Task 18 重构）。
 
-    业务：湿球温度+进/出口水温+风量+填料类型+逼近度；result_json 承载
-    型号匹配+风机功率+补充水量；用于循环水系统设计。
+    业务：Merkel 热力 / 循环水量 / 补充水量 / 风机功率。
+    SPEC §3.2.4 + PCS-DICT-007 §SUP-012（data_sheet_json 14 子结构）。
+
+    字段双轨：5 平铺 Float（duty/water_flow/makeup/fan_power/merkel_integral）
+    + JSONB 容器（data_sheet_json 14 子结构 + 通用 input/output）。
+    standard_profile_code 默认 CTI_ATC_105（C-07 锁定 String(16)）。
+
+    RECORD_TYPE_REGISTRY 注册键 = "cooling_tower_result"（P6-2 Task 18）。
     """
 
     __tablename__ = "cooling_tower_results"
     cooling_tower_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    input_json: Mapped[dict] = mapped_column(JSONB)
-    output_json: Mapped[dict] = mapped_column(JSONB)
+    # 溯源
+    standard_profile_code: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="CTI_ATC_105",
+        comment="CTI_ATC_105（SPEC §3.2.4 默认；C-07 String(16) 锁定）",
+    )
+    calc_type: Mapped[str] = mapped_column(
+        String(32), nullable=False,
+        comment="MERKEL / WATER_BALANCE / FAN_POWER / HEAT_AGGREGATE",
+    )
+    tower_type: Mapped[str | None] = mapped_column(
+        String(32), nullable=True,
+        comment="COUNTERFLOW_MECH / CROSSFLOW_MECH / NATURAL_DRAFT",
+    )
+    # 结果（5 平铺字段 + SUP-012 §3）
+    duty_kw: Mapped[float | None] = mapped_column(Float, comment="kW")
+    water_flow_m3h: Mapped[float | None] = mapped_column(Float, comment="m³/h")
+    makeup_water_m3h: Mapped[float | None] = mapped_column(Float, comment="m³/h")
+    fan_power_kw: Mapped[float | None] = mapped_column(Float, comment="kW")
+    merkel_integral: Mapped[float | None] = mapped_column(Float, comment="Merkel 积分值")
+    # JSONB
+    data_sheet_json: Mapped[dict | None] = mapped_column(
+        JSONB, comment="PCS-DICT-007 SUP-012 §3 14 子结构 data sheet",
+    )
+    input_json: Mapped[dict | None] = mapped_column(JSONB, comment="入参（业务子结构）")
+    output_json: Mapped[dict | None] = mapped_column(JSONB, comment="出参（业务子结构）")
 
 
-class PsychroResult(TaggedRecordMixin, Base):
-    """空气焓湿计算结果（psychro_results 表）。
+class PsychroResult(TaggedRecordMixin, RecordMixin, Base):
+    """PSYCHRO 湿空气计算结果（psychro_results 表，P6-2 Task 18 重构）。
 
-    业务：干/湿球温度+相对湿度+露点+比焓+比湿+空气密度；
-    input_json/output_json 双容器，用于通风空调设计。
+    业务：CoolProp HumidAir 包装 — 含湿量 / 露点 / 湿球 / 焓 / 比容 / 冷却盘管。
+    SPEC §3.2.5 + PCS-DICT-005 §4（6 calc_type）。
+
+    字段双轨：7 平铺 Float（6 calc_type 各自 result + sensible/latent heat）+
+    JSONB 容器。coolprop_version 字段溯源 CoolProp 库版本（如 "6.6.0"）。
+    standard_profile_code 默认 ASHRAE_FUND_2021（C-07 锁定 String(16)）。
+
+    RECORD_TYPE_REGISTRY 注册键 = "psychro_result"（P6-2 Task 18）。
     """
 
     __tablename__ = "psychro_results"
     psychro_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    calc_type: Mapped[str] = mapped_column(String(30))
-    input_json: Mapped[dict] = mapped_column(JSONB)
-    output_json: Mapped[dict] = mapped_column(JSONB)
+    # 溯源
+    standard_profile_code: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="ASHRAE_FUND_2021",
+        comment="ASHRAE_FUND_2021（SPEC §3.2.5 默认；C-07 String(16) 锁定）",
+    )
+    calc_type: Mapped[str] = mapped_column(
+        String(32), nullable=False,
+        comment="HUMIDITY_RATIO / DEW_POINT / WET_BULB / ENTHALPY / SPECIFIC_VOLUME / COOLING_COIL",
+    )
+    coolprop_version: Mapped[str | None] = mapped_column(
+        String(16), nullable=True, comment="CoolProp 版本（如 6.6.0）；record_hash 反射自动含",
+    )
+    # 结果（6 calc_type 各自的 result float + cooling_coil 双轨）
+    humidity_ratio_kg_kg: Mapped[float | None] = mapped_column(Float, comment="kg/kg")
+    dew_point_c: Mapped[float | None] = mapped_column(Float, comment="°C")
+    wet_bulb_c: Mapped[float | None] = mapped_column(Float, comment="°C")
+    enthalpy_kj_kg: Mapped[float | None] = mapped_column(Float, comment="kJ/kg")
+    specific_volume_m3_kg: Mapped[float | None] = mapped_column(Float, comment="m³/kg")
+    sensible_heat_kw: Mapped[float | None] = mapped_column(Float, comment="显热 kW（cooling_coil）")
+    latent_heat_kw: Mapped[float | None] = mapped_column(Float, comment="潜热 kW（cooling_coil）")
+    # JSONB
+    input_json: Mapped[dict | None] = mapped_column(JSONB, comment="入参（业务子结构）")
+    output_json: Mapped[dict | None] = mapped_column(JSONB, comment="出参（业务子结构）")
 
 
 class OpenChannelResult(TaggedRecordMixin, Base):
