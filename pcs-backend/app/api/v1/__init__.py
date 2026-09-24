@@ -8,6 +8,7 @@ from app.api.v1.config import router as config_router
 from app.api.v1.cool_tower import router as cool_tower_router  # P6-2 Task 25
 from app.api.v1.cv import router as cv_router  # P6-1 Task 10
 from app.api.v1.equip_lib import router as equip_lib_router
+from app.api.v1.filtration import router as filtration_router  # P6-3 Task 34
 from app.api.v1.flare import router as flare_router  # P6-2 Task 20
 from app.api.v1.flash import router as flash_router
 from app.api.v1.health import router as health_router
@@ -63,6 +64,7 @@ api_router.include_router(heat_router)  # P5-4-5
 api_router.include_router(cv_router)  # P6-1 Task 10
 api_router.include_router(restriction_router)  # P6-1 Task 14
 api_router.include_router(open_channel_router)  # P6-3 Task 32
+api_router.include_router(filtration_router)  # P6-3 Task 34
 api_router.include_router(pipe_codes_router)
 api_router.include_router(common_router)
 api_router.include_router(imports_router)

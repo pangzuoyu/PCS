@@ -3129,6 +3129,142 @@ export interface paths {
         patch: operations["update_open_channel_result_api_v1_open_channel_results__result_id__patch"];
         trace?: never;
     };
+    "/api/v1/filtration/ruth-constant-pressure/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calculate Ruth Constant Pressure
+         * @description Ruth 恒压过滤计算（§3.2.7 第一项）。
+         *
+         *     流程：endpoint 调 ``calc_ruth_constant_pressure`` → save_ruth_constant_
+         *     pressure_result service 落 FiltrationResult 行；禁止 endpoint 直构 ORM
+         *     （红线 #1）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calculate_ruth_constant_pressure_api_v1_filtration_ruth_constant_pressure_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/filtration/ruth-constant-rate/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calculate Ruth Constant Rate
+         * @description Ruth 恒速过滤计算（§3.2.7 第二项）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calculate_ruth_constant_rate_api_v1_filtration_ruth_constant_rate_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/filtration/ergun/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calculate Ergun
+         * @description Ergun 介质阻力计算（§3.2.7 第三项 — 深层过滤）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calculate_ergun_api_v1_filtration_ergun_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/filtration/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Filtration Results
+         * @description 按 project_id 列出 FiltrationResult（GET list，分页）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        get: operations["list_filtration_results_api_v1_filtration_results_get"];
+        put?: never;
+        /**
+         * Create Filtration Result
+         * @description 直接创建 FiltrationResult 行（POST → 201，不走 calc）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["create_filtration_result_api_v1_filtration_results_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/filtration/results/{result_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Filtration Result
+         * @description 按 filter_id 取 FiltrationResult（GET detail）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        get: operations["get_filtration_result_api_v1_filtration_results__result_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Soft Delete Filtration Result
+         * @description 软删除 FiltrationResult（DELETE → sign_status=OBSOLETE）。
+         *
+         *     位号加 ``__OBSOLETE_<ts>`` 后缀，stale_resolution_path 标记。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        delete: operations["soft_delete_filtration_result_api_v1_filtration_results__result_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Filtration Result
+         * @description 更新 FiltrationResult 业务字段（PATCH）。
+         *
+         *     仅 DRAFT / CHANGE_PENDING 可改；CHECKED 等锁定态拒绝。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        patch: operations["update_filtration_result_api_v1_filtration_results__result_id__patch"];
+        trace?: never;
+    };
     "/api/v1/pipe-code-templates": {
         parameters: {
             query?: never;
@@ -5697,6 +5833,168 @@ export interface components {
             source_project_id?: string | null;
         };
         /**
+         * ErgunCalcRequest
+         * @description POST /filtration/ergun/calculate 请求。
+         *
+         *     额外字段：permeability_k / porosity_eps（深层过滤介质阻力）。
+         */
+        ErgunCalcRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（isolation key）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Media Type
+             * @description 介质代码（SAND/ANTHRACITE/CARBON/RUTH_FILTER_CLOTH/ERGUN_PACKING）
+             */
+            media_type: string;
+            /**
+             * Area
+             * @description 过滤面积 A（m²）
+             */
+            area: number;
+            /**
+             * Cycle Time
+             * @description 过滤周期（h）
+             */
+            cycle_time: number;
+            /**
+             * Pressure Drop
+             * @description 压降（Pa）
+             */
+            pressure_drop: number;
+            /**
+             * Cake Resistance Alpha
+             * @description m/kg 滤饼比阻
+             */
+            cake_resistance_alpha?: number | null;
+            /**
+             * Specific Resistance R0
+             * @description 1/m 介质单位阻力
+             */
+            specific_resistance_r0?: number | null;
+            /**
+             * Permeability K
+             * @description m² 渗透率
+             */
+            permeability_k?: number | null;
+            /**
+             * Porosity Eps
+             * @description 无量纲 床层空隙率
+             */
+            porosity_eps?: number | null;
+            /**
+             * Filter Velocity
+             * @description m/s 过滤速率
+             */
+            filter_velocity?: number | null;
+        };
+        /**
+         * ErgunCalcResponse
+         * @description POST /filtration/ergun/calculate 响应（201）。
+         *
+         *     额外填 permeability_k / porosity_eps（calc 派生）。
+         */
+        ErgunCalcResponse: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（isolation key）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Media Type
+             * @description 介质代码（SAND/ANTHRACITE/CARBON/RUTH_FILTER_CLOTH/ERGUN_PACKING）
+             */
+            media_type: string;
+            /**
+             * Area
+             * @description 过滤面积 A（m²）
+             */
+            area: number;
+            /**
+             * Cycle Time
+             * @description 过滤周期（h）
+             */
+            cycle_time: number;
+            /**
+             * Pressure Drop
+             * @description 压降（Pa）
+             */
+            pressure_drop: number;
+            /**
+             * Cake Resistance Alpha
+             * @description m/kg 滤饼比阻
+             */
+            cake_resistance_alpha?: number | null;
+            /**
+             * Specific Resistance R0
+             * @description 1/m 介质单位阻力
+             */
+            specific_resistance_r0?: number | null;
+            /**
+             * Permeability K
+             * @description m² 渗透率
+             */
+            permeability_k?: number | null;
+            /**
+             * Porosity Eps
+             * @description 无量纲 床层空隙率
+             */
+            porosity_eps?: number | null;
+            /**
+             * Filter Velocity
+             * @description m/s 过滤速率
+             */
+            filter_velocity?: number | null;
+            /**
+             * Result Id
+             * Format: uuid
+             * @description filter_id（PK）
+             */
+            result_id: string;
+            /**
+             * Record Hash
+             * @description record_hash（16 hex）
+             */
+            record_hash?: string | null;
+            /**
+             * Sign Status
+             * @description 签审状态 9 态
+             */
+            sign_status: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description 创建时间
+             */
+            created_at: string;
+        };
+        /**
          * ErrorCodeItem
          * @description 错误码字典单项（meta/errors 端点）。
          *
@@ -5775,6 +6073,261 @@ export interface components {
              * @description 公式溯源标记（API_521_§3.2.4.6）
              */
             formula_ref: string;
+        };
+        /**
+         * FiltrationCreateRequest
+         * @description POST /filtration/results 直接创建请求（不走 calc）。
+         *
+         *     业务字段子集（PATCH-style）：所有 10 业务字段均可填；filter_type /
+         *     media_type + 3 平铺（area / cycle_time / pressure_drop）必填。
+         */
+        FiltrationCreateRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Filter Type
+             * @description 过滤类型（RUTH_CONST_PRESSURE/RUTH_CONST_RATE/ERGUN_DEEP_BED）
+             */
+            filter_type: string;
+            /**
+             * Media Type
+             * @description 介质代码
+             */
+            media_type: string;
+            /**
+             * Area
+             * @description m² 过滤面积
+             */
+            area: number;
+            /**
+             * Cycle Time
+             * @description h 过滤周期
+             */
+            cycle_time: number;
+            /**
+             * Pressure Drop
+             * @description Pa 压降
+             */
+            pressure_drop: number;
+            /** Cake Resistance Alpha */
+            cake_resistance_alpha?: number | null;
+            /** Specific Resistance R0 */
+            specific_resistance_r0?: number | null;
+            /** Permeability K */
+            permeability_k?: number | null;
+            /** Porosity Eps */
+            porosity_eps?: number | null;
+            /** Filter Velocity */
+            filter_velocity?: number | null;
+        };
+        /**
+         * FiltrationDeleteResponse
+         * @description DELETE /filtration/results/{id} 响应。
+         *
+         *     字段：result_id + tag_number（含 __OBSOLETE_<ts> 后缀）+ sign_status +
+         *     deleted_at。
+         */
+        FiltrationDeleteResponse: {
+            /**
+             * Result Id
+             * Format: uuid
+             * @description filter_id（PK）
+             */
+            result_id: string;
+            /**
+             * Tag Number
+             * @description 位号（含 __OBSOLETE_<ts> 后缀）
+             */
+            tag_number: string;
+            /**
+             * Sign Status
+             * @description 签审状态（已改为 OBSOLETE）
+             */
+            sign_status: string;
+            /**
+             * Deleted At
+             * Format: date-time
+             * @description 删除时间（updated_at）
+             */
+            deleted_at: string;
+        };
+        /**
+         * FiltrationListResponse
+         * @description GET /filtration/results 列表响应。
+         *
+         *     字段：
+         *     - items: FiltrationResultResponse 列表
+         *     - total: 命中条数（受 include_obsolete 影响）
+         *     - skip / limit: 分页参数回显
+         */
+        FiltrationListResponse: {
+            /**
+             * Items
+             * @description FiltrationResult 列表
+             */
+            items: components["schemas"]["FiltrationResultResponse"][];
+            /**
+             * Total
+             * @description 命中条数
+             */
+            total: number;
+            /**
+             * Skip
+             * @description 分页偏移
+             */
+            skip: number;
+            /**
+             * Limit
+             * @description 分页上限
+             */
+            limit: number;
+        };
+        /**
+         * FiltrationResultResponse
+         * @description GET /filtration/results/{id} 响应（含溯源 + 业务字段）。
+         *
+         *     字段映射（ORM → schema）：
+         *     - ORM filter_id → schema result_id（PK 重命名；前端统一用 result_id）
+         */
+        FiltrationResultResponse: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（isolation key）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Media Type
+             * @description 介质代码（SAND/ANTHRACITE/CARBON/RUTH_FILTER_CLOTH/ERGUN_PACKING）
+             */
+            media_type: string;
+            /**
+             * Area
+             * @description 过滤面积 A（m²）
+             */
+            area: number;
+            /**
+             * Cycle Time
+             * @description 过滤周期（h）
+             */
+            cycle_time: number;
+            /**
+             * Pressure Drop
+             * @description 压降（Pa）
+             */
+            pressure_drop: number;
+            /**
+             * Cake Resistance Alpha
+             * @description m/kg 滤饼比阻
+             */
+            cake_resistance_alpha?: number | null;
+            /**
+             * Specific Resistance R0
+             * @description 1/m 介质单位阻力
+             */
+            specific_resistance_r0?: number | null;
+            /**
+             * Permeability K
+             * @description m² 渗透率
+             */
+            permeability_k?: number | null;
+            /**
+             * Porosity Eps
+             * @description 无量纲 床层空隙率
+             */
+            porosity_eps?: number | null;
+            /**
+             * Filter Velocity
+             * @description m/s 过滤速率
+             */
+            filter_velocity?: number | null;
+            /**
+             * Result Id
+             * Format: uuid
+             * @description filter_id（PK）
+             */
+            result_id: string;
+            /**
+             * Filter Type
+             * @description 过滤类型
+             */
+            filter_type: string;
+            /**
+             * Sign Status
+             * @description 签审状态 9 态
+             */
+            sign_status: string;
+            /**
+             * Record Hash
+             * @description record_hash（16 hex）
+             */
+            record_hash?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description 创建时间
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * @description 更新时间
+             */
+            updated_at?: string | null;
+        };
+        /**
+         * FiltrationUpdateRequest
+         * @description PATCH /filtration/results/{id} 请求（partial update）。
+         *
+         *     所有字段 optional（PATCH 部分更新）。白名单由 service 层校验。
+         *     ``extra="forbid"``：未知字段 → Pydantic 422，避免 service 层 silent drop。
+         */
+        FiltrationUpdateRequest: {
+            /** Filter Type */
+            filter_type?: string | null;
+            /** Media Type */
+            media_type?: string | null;
+            /** Area */
+            area?: number | null;
+            /** Cycle Time */
+            cycle_time?: number | null;
+            /** Pressure Drop */
+            pressure_drop?: number | null;
+            /** Cake Resistance Alpha */
+            cake_resistance_alpha?: number | null;
+            /** Specific Resistance R0 */
+            specific_resistance_r0?: number | null;
+            /** Permeability K */
+            permeability_k?: number | null;
+            /** Porosity Eps */
+            porosity_eps?: number | null;
+            /** Filter Velocity */
+            filter_velocity?: number | null;
         };
         /**
          * Fitting
@@ -9219,6 +9772,329 @@ export interface components {
              * @description 出口流 UUID（RESTRICTION_CALCULATED）
              */
             outlet_stream_id: string;
+        };
+        /**
+         * RuthConstantPressureCalcRequest
+         * @description POST /filtration/ruth-constant-pressure/calculate 请求。
+         *
+         *     字段：4 公共必填 + cake_resistance_alpha（可选）+ specific_resistance_r0
+         *     （可选）。filter_velocity 由 calc 派生，可不传。
+         */
+        RuthConstantPressureCalcRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（isolation key）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Media Type
+             * @description 介质代码（SAND/ANTHRACITE/CARBON/RUTH_FILTER_CLOTH/ERGUN_PACKING）
+             */
+            media_type: string;
+            /**
+             * Area
+             * @description 过滤面积 A（m²）
+             */
+            area: number;
+            /**
+             * Cycle Time
+             * @description 过滤周期（h）
+             */
+            cycle_time: number;
+            /**
+             * Pressure Drop
+             * @description 压降（Pa）
+             */
+            pressure_drop: number;
+            /**
+             * Cake Resistance Alpha
+             * @description m/kg 滤饼比阻
+             */
+            cake_resistance_alpha?: number | null;
+            /**
+             * Specific Resistance R0
+             * @description 1/m 介质单位阻力
+             */
+            specific_resistance_r0?: number | null;
+            /**
+             * Permeability K
+             * @description m² 渗透率
+             */
+            permeability_k?: number | null;
+            /**
+             * Porosity Eps
+             * @description 无量纲 床层空隙率
+             */
+            porosity_eps?: number | null;
+            /**
+             * Filter Velocity
+             * @description m/s 过滤速率
+             */
+            filter_velocity?: number | null;
+        };
+        /**
+         * RuthConstantPressureCalcResponse
+         * @description POST /filtration/ruth-constant-pressure/calculate 响应（201）。
+         *
+         *     额外含：result_id / record_hash / sign_status / created_at。
+         */
+        RuthConstantPressureCalcResponse: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（isolation key）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Media Type
+             * @description 介质代码（SAND/ANTHRACITE/CARBON/RUTH_FILTER_CLOTH/ERGUN_PACKING）
+             */
+            media_type: string;
+            /**
+             * Area
+             * @description 过滤面积 A（m²）
+             */
+            area: number;
+            /**
+             * Cycle Time
+             * @description 过滤周期（h）
+             */
+            cycle_time: number;
+            /**
+             * Pressure Drop
+             * @description 压降（Pa）
+             */
+            pressure_drop: number;
+            /**
+             * Cake Resistance Alpha
+             * @description m/kg 滤饼比阻
+             */
+            cake_resistance_alpha?: number | null;
+            /**
+             * Specific Resistance R0
+             * @description 1/m 介质单位阻力
+             */
+            specific_resistance_r0?: number | null;
+            /**
+             * Permeability K
+             * @description m² 渗透率
+             */
+            permeability_k?: number | null;
+            /**
+             * Porosity Eps
+             * @description 无量纲 床层空隙率
+             */
+            porosity_eps?: number | null;
+            /**
+             * Filter Velocity
+             * @description m/s 过滤速率
+             */
+            filter_velocity?: number | null;
+            /**
+             * Result Id
+             * Format: uuid
+             * @description filter_id（PK）
+             */
+            result_id: string;
+            /**
+             * Record Hash
+             * @description record_hash（ADR-0028 §决策 4 reflection；16 hex）
+             */
+            record_hash?: string | null;
+            /**
+             * Sign Status
+             * @description 签审状态 9 态
+             */
+            sign_status: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description 创建时间
+             */
+            created_at: string;
+        };
+        /**
+         * RuthConstantRateCalcRequest
+         * @description POST /filtration/ruth-constant-rate/calculate 请求。
+         *
+         *     字段：与 RuthConstantPressureCalcRequest 镜像（恒速泵入场景）。
+         */
+        RuthConstantRateCalcRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（isolation key）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Media Type
+             * @description 介质代码（SAND/ANTHRACITE/CARBON/RUTH_FILTER_CLOTH/ERGUN_PACKING）
+             */
+            media_type: string;
+            /**
+             * Area
+             * @description 过滤面积 A（m²）
+             */
+            area: number;
+            /**
+             * Cycle Time
+             * @description 过滤周期（h）
+             */
+            cycle_time: number;
+            /**
+             * Pressure Drop
+             * @description 压降（Pa）
+             */
+            pressure_drop: number;
+            /**
+             * Cake Resistance Alpha
+             * @description m/kg 滤饼比阻
+             */
+            cake_resistance_alpha?: number | null;
+            /**
+             * Specific Resistance R0
+             * @description 1/m 介质单位阻力
+             */
+            specific_resistance_r0?: number | null;
+            /**
+             * Permeability K
+             * @description m² 渗透率
+             */
+            permeability_k?: number | null;
+            /**
+             * Porosity Eps
+             * @description 无量纲 床层空隙率
+             */
+            porosity_eps?: number | null;
+            /**
+             * Filter Velocity
+             * @description m/s 过滤速率
+             */
+            filter_velocity?: number | null;
+        };
+        /**
+         * RuthConstantRateCalcResponse
+         * @description POST /filtration/ruth-constant-rate/calculate 响应（201）。
+         */
+        RuthConstantRateCalcResponse: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（isolation key）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Media Type
+             * @description 介质代码（SAND/ANTHRACITE/CARBON/RUTH_FILTER_CLOTH/ERGUN_PACKING）
+             */
+            media_type: string;
+            /**
+             * Area
+             * @description 过滤面积 A（m²）
+             */
+            area: number;
+            /**
+             * Cycle Time
+             * @description 过滤周期（h）
+             */
+            cycle_time: number;
+            /**
+             * Pressure Drop
+             * @description 压降（Pa）
+             */
+            pressure_drop: number;
+            /**
+             * Cake Resistance Alpha
+             * @description m/kg 滤饼比阻
+             */
+            cake_resistance_alpha?: number | null;
+            /**
+             * Specific Resistance R0
+             * @description 1/m 介质单位阻力
+             */
+            specific_resistance_r0?: number | null;
+            /**
+             * Permeability K
+             * @description m² 渗透率
+             */
+            permeability_k?: number | null;
+            /**
+             * Porosity Eps
+             * @description 无量纲 床层空隙率
+             */
+            porosity_eps?: number | null;
+            /**
+             * Filter Velocity
+             * @description m/s 过滤速率
+             */
+            filter_velocity?: number | null;
+            /**
+             * Result Id
+             * Format: uuid
+             * @description filter_id（PK）
+             */
+            result_id: string;
+            /**
+             * Record Hash
+             * @description record_hash（16 hex）
+             */
+            record_hash?: string | null;
+            /**
+             * Sign Status
+             * @description 签审状态 9 态
+             */
+            sign_status: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description 创建时间
+             */
+            created_at: string;
         };
         /**
          * SafetyResult
@@ -17106,6 +17982,285 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["OpenChannelResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calculate_ruth_constant_pressure_api_v1_filtration_ruth_constant_pressure_calculate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuthConstantPressureCalcRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuthConstantPressureCalcResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calculate_ruth_constant_rate_api_v1_filtration_ruth_constant_rate_calculate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuthConstantRateCalcRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuthConstantRateCalcResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calculate_ergun_api_v1_filtration_ergun_calculate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ErgunCalcRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErgunCalcResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_filtration_results_api_v1_filtration_results_get: {
+        parameters: {
+            query: {
+                project_id: string;
+                include_obsolete?: boolean;
+                skip?: number;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FiltrationListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_filtration_result_api_v1_filtration_results_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FiltrationCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FiltrationResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_filtration_result_api_v1_filtration_results__result_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FiltrationResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    soft_delete_filtration_result_api_v1_filtration_results__result_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FiltrationDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_filtration_result_api_v1_filtration_results__result_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FiltrationUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FiltrationResultResponse"];
                 };
             };
             /** @description Validation Error */

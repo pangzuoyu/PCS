@@ -9217,6 +9217,523 @@
         }
       }
     },
+    "/api/v1/filtration/ruth-constant-pressure/calculate": {
+      "post": {
+        "tags": [
+          "filtration"
+        ],
+        "summary": "Calculate Ruth Constant Pressure",
+        "description": "Ruth 恒压过滤计算（§3.2.7 第一项）。\n\n流程：endpoint 调 ``calc_ruth_constant_pressure`` → save_ruth_constant_\npressure_result service 落 FiltrationResult 行；禁止 endpoint 直构 ORM\n（红线 #1）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_ruth_constant_pressure_api_v1_filtration_ruth_constant_pressure_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuthConstantPressureCalcRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuthConstantPressureCalcResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/filtration/ruth-constant-rate/calculate": {
+      "post": {
+        "tags": [
+          "filtration"
+        ],
+        "summary": "Calculate Ruth Constant Rate",
+        "description": "Ruth 恒速过滤计算（§3.2.7 第二项）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_ruth_constant_rate_api_v1_filtration_ruth_constant_rate_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RuthConstantRateCalcRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RuthConstantRateCalcResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/filtration/ergun/calculate": {
+      "post": {
+        "tags": [
+          "filtration"
+        ],
+        "summary": "Calculate Ergun",
+        "description": "Ergun 介质阻力计算（§3.2.7 第三项 — 深层过滤）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_ergun_api_v1_filtration_ergun_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ErgunCalcRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErgunCalcResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/filtration/results": {
+      "post": {
+        "tags": [
+          "filtration"
+        ],
+        "summary": "Create Filtration Result",
+        "description": "直接创建 FiltrationResult 行（POST → 201，不走 calc）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "create_filtration_result_api_v1_filtration_results_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FiltrationCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiltrationResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "filtration"
+        ],
+        "summary": "List Filtration Results",
+        "description": "按 project_id 列出 FiltrationResult（GET list，分页）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "list_filtration_results_api_v1_filtration_results_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "include_obsolete",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Obsolete"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiltrationListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/filtration/results/{result_id}": {
+      "get": {
+        "tags": [
+          "filtration"
+        ],
+        "summary": "Get Filtration Result",
+        "description": "按 filter_id 取 FiltrationResult（GET detail）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "get_filtration_result_api_v1_filtration_results__result_id__get",
+        "parameters": [
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Result Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiltrationResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "filtration"
+        ],
+        "summary": "Update Filtration Result",
+        "description": "更新 FiltrationResult 业务字段（PATCH）。\n\n仅 DRAFT / CHANGE_PENDING 可改；CHECKED 等锁定态拒绝。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "update_filtration_result_api_v1_filtration_results__result_id__patch",
+        "parameters": [
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Result Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FiltrationUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiltrationResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "filtration"
+        ],
+        "summary": "Soft Delete Filtration Result",
+        "description": "软删除 FiltrationResult（DELETE → sign_status=OBSOLETE）。\n\n位号加 ``__OBSOLETE_<ts>`` 后缀，stale_resolution_path 标记。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "soft_delete_filtration_result_api_v1_filtration_results__result_id__delete",
+        "parameters": [
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Result Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FiltrationDeleteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/pipe-code-templates": {
       "get": {
         "tags": [
@@ -14469,6 +14986,286 @@
         "title": "EquipLibSettleRequest",
         "description": "标准化信息校验规则（必填项照 P7 表）：材质/关键尺寸/原项目位号/投用日期必填；\n标准图号如有则必填→简化为可选字段+非空校验由前端承担（P2）；重量必填（如有）。"
       },
+      "ErgunCalcRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type",
+            "description": "介质代码（SAND/ANTHRACITE/CARBON/RUTH_FILTER_CLOTH/ERGUN_PACKING）"
+          },
+          "area": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Area",
+            "description": "过滤面积 A（m²）"
+          },
+          "cycle_time": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Cycle Time",
+            "description": "过滤周期（h）"
+          },
+          "pressure_drop": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Pressure Drop",
+            "description": "压降（Pa）"
+          },
+          "cake_resistance_alpha": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cake Resistance Alpha",
+            "description": "m/kg 滤饼比阻"
+          },
+          "specific_resistance_r0": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specific Resistance R0",
+            "description": "1/m 介质单位阻力"
+          },
+          "permeability_k": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permeability K",
+            "description": "m² 渗透率"
+          },
+          "porosity_eps": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Porosity Eps",
+            "description": "无量纲 床层空隙率"
+          },
+          "filter_velocity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filter Velocity",
+            "description": "m/s 过滤速率"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "media_type",
+          "area",
+          "cycle_time",
+          "pressure_drop"
+        ],
+        "title": "ErgunCalcRequest",
+        "description": "POST /filtration/ergun/calculate 请求。\n\n额外字段：permeability_k / porosity_eps（深层过滤介质阻力）。"
+      },
+      "ErgunCalcResponse": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type",
+            "description": "介质代码（SAND/ANTHRACITE/CARBON/RUTH_FILTER_CLOTH/ERGUN_PACKING）"
+          },
+          "area": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Area",
+            "description": "过滤面积 A（m²）"
+          },
+          "cycle_time": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Cycle Time",
+            "description": "过滤周期（h）"
+          },
+          "pressure_drop": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Pressure Drop",
+            "description": "压降（Pa）"
+          },
+          "cake_resistance_alpha": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cake Resistance Alpha",
+            "description": "m/kg 滤饼比阻"
+          },
+          "specific_resistance_r0": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specific Resistance R0",
+            "description": "1/m 介质单位阻力"
+          },
+          "permeability_k": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permeability K",
+            "description": "m² 渗透率"
+          },
+          "porosity_eps": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Porosity Eps",
+            "description": "无量纲 床层空隙率"
+          },
+          "filter_velocity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filter Velocity",
+            "description": "m/s 过滤速率"
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id",
+            "description": "filter_id（PK）"
+          },
+          "record_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Hash",
+            "description": "record_hash（16 hex）"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "签审状态 9 态"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "创建时间"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "media_type",
+          "area",
+          "cycle_time",
+          "pressure_drop",
+          "result_id",
+          "sign_status",
+          "created_at"
+        ],
+        "title": "ErgunCalcResponse",
+        "description": "POST /filtration/ergun/calculate 响应（201）。\n\n额外填 permeability_k / porosity_eps（calc 派生）。"
+      },
       "ErrorCodeItem": {
         "properties": {
           "code": {
@@ -14572,6 +15369,504 @@
         ],
         "title": "FanPowerResponse",
         "description": "风机功率响应（POST /cool-tower/fan-power）。\n\n字段：\n- p_fan_kw: 风机功率 kW\n- formula_ref: 公式溯源标记 \"API_521_§3.2.4.6\""
+      },
+      "FiltrationCreateRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "filter_type": {
+            "type": "string",
+            "title": "Filter Type",
+            "description": "过滤类型（RUTH_CONST_PRESSURE/RUTH_CONST_RATE/ERGUN_DEEP_BED）"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type",
+            "description": "介质代码"
+          },
+          "area": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Area",
+            "description": "m² 过滤面积"
+          },
+          "cycle_time": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Cycle Time",
+            "description": "h 过滤周期"
+          },
+          "pressure_drop": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Pressure Drop",
+            "description": "Pa 压降"
+          },
+          "cake_resistance_alpha": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cake Resistance Alpha"
+          },
+          "specific_resistance_r0": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specific Resistance R0"
+          },
+          "permeability_k": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permeability K"
+          },
+          "porosity_eps": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Porosity Eps"
+          },
+          "filter_velocity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filter Velocity"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "filter_type",
+          "media_type",
+          "area",
+          "cycle_time",
+          "pressure_drop"
+        ],
+        "title": "FiltrationCreateRequest",
+        "description": "POST /filtration/results 直接创建请求（不走 calc）。\n\n业务字段子集（PATCH-style）：所有 10 业务字段均可填；filter_type /\nmedia_type + 3 平铺（area / cycle_time / pressure_drop）必填。"
+      },
+      "FiltrationDeleteResponse": {
+        "properties": {
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id",
+            "description": "filter_id（PK）"
+          },
+          "tag_number": {
+            "type": "string",
+            "title": "Tag Number",
+            "description": "位号（含 __OBSOLETE_<ts> 后缀）"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "签审状态（已改为 OBSOLETE）"
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deleted At",
+            "description": "删除时间（updated_at）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "result_id",
+          "tag_number",
+          "sign_status",
+          "deleted_at"
+        ],
+        "title": "FiltrationDeleteResponse",
+        "description": "DELETE /filtration/results/{id} 响应。\n\n字段：result_id + tag_number（含 __OBSOLETE_<ts> 后缀）+ sign_status +\ndeleted_at。"
+      },
+      "FiltrationListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/FiltrationResultResponse"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "FiltrationResult 列表"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "命中条数"
+          },
+          "skip": {
+            "type": "integer",
+            "title": "Skip",
+            "description": "分页偏移"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "分页上限"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "skip",
+          "limit"
+        ],
+        "title": "FiltrationListResponse",
+        "description": "GET /filtration/results 列表响应。\n\n字段：\n- items: FiltrationResultResponse 列表\n- total: 命中条数（受 include_obsolete 影响）\n- skip / limit: 分页参数回显"
+      },
+      "FiltrationResultResponse": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type",
+            "description": "介质代码（SAND/ANTHRACITE/CARBON/RUTH_FILTER_CLOTH/ERGUN_PACKING）"
+          },
+          "area": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Area",
+            "description": "过滤面积 A（m²）"
+          },
+          "cycle_time": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Cycle Time",
+            "description": "过滤周期（h）"
+          },
+          "pressure_drop": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Pressure Drop",
+            "description": "压降（Pa）"
+          },
+          "cake_resistance_alpha": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cake Resistance Alpha",
+            "description": "m/kg 滤饼比阻"
+          },
+          "specific_resistance_r0": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specific Resistance R0",
+            "description": "1/m 介质单位阻力"
+          },
+          "permeability_k": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permeability K",
+            "description": "m² 渗透率"
+          },
+          "porosity_eps": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Porosity Eps",
+            "description": "无量纲 床层空隙率"
+          },
+          "filter_velocity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filter Velocity",
+            "description": "m/s 过滤速率"
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id",
+            "description": "filter_id（PK）"
+          },
+          "filter_type": {
+            "type": "string",
+            "title": "Filter Type",
+            "description": "过滤类型"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "签审状态 9 态"
+          },
+          "record_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Hash",
+            "description": "record_hash（16 hex）"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "创建时间"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At",
+            "description": "更新时间"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "media_type",
+          "area",
+          "cycle_time",
+          "pressure_drop",
+          "result_id",
+          "filter_type",
+          "sign_status",
+          "created_at"
+        ],
+        "title": "FiltrationResultResponse",
+        "description": "GET /filtration/results/{id} 响应（含溯源 + 业务字段）。\n\n字段映射（ORM → schema）：\n- ORM filter_id → schema result_id（PK 重命名；前端统一用 result_id）"
+      },
+      "FiltrationUpdateRequest": {
+        "properties": {
+          "filter_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filter Type"
+          },
+          "media_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Media Type"
+          },
+          "area": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Area"
+          },
+          "cycle_time": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cycle Time"
+          },
+          "pressure_drop": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Drop"
+          },
+          "cake_resistance_alpha": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cake Resistance Alpha"
+          },
+          "specific_resistance_r0": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specific Resistance R0"
+          },
+          "permeability_k": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permeability K"
+          },
+          "porosity_eps": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Porosity Eps"
+          },
+          "filter_velocity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filter Velocity"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "FiltrationUpdateRequest",
+        "description": "PATCH /filtration/results/{id} 请求（partial update）。\n\n所有字段 optional（PATCH 部分更新）。白名单由 service 层校验。\n``extra=\"forbid\"``：未知字段 → Pydantic 422，避免 service 层 silent drop。"
       },
       "Fitting": {
         "properties": {
@@ -20003,6 +21298,566 @@
         ],
         "title": "RestrictionCalculateResponse",
         "description": "限制装置计算响应（POST /api/v1/restriction/calculate 201）。\n\n回填 RestrictionResult 主键 orifice_id + 关键结果字段 + flash 元数据 +\noutlet stream 锚点。"
+      },
+      "RuthConstantPressureCalcRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type",
+            "description": "介质代码（SAND/ANTHRACITE/CARBON/RUTH_FILTER_CLOTH/ERGUN_PACKING）"
+          },
+          "area": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Area",
+            "description": "过滤面积 A（m²）"
+          },
+          "cycle_time": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Cycle Time",
+            "description": "过滤周期（h）"
+          },
+          "pressure_drop": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Pressure Drop",
+            "description": "压降（Pa）"
+          },
+          "cake_resistance_alpha": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cake Resistance Alpha",
+            "description": "m/kg 滤饼比阻"
+          },
+          "specific_resistance_r0": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specific Resistance R0",
+            "description": "1/m 介质单位阻力"
+          },
+          "permeability_k": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permeability K",
+            "description": "m² 渗透率"
+          },
+          "porosity_eps": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Porosity Eps",
+            "description": "无量纲 床层空隙率"
+          },
+          "filter_velocity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filter Velocity",
+            "description": "m/s 过滤速率"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "media_type",
+          "area",
+          "cycle_time",
+          "pressure_drop"
+        ],
+        "title": "RuthConstantPressureCalcRequest",
+        "description": "POST /filtration/ruth-constant-pressure/calculate 请求。\n\n字段：4 公共必填 + cake_resistance_alpha（可选）+ specific_resistance_r0\n（可选）。filter_velocity 由 calc 派生，可不传。"
+      },
+      "RuthConstantPressureCalcResponse": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type",
+            "description": "介质代码（SAND/ANTHRACITE/CARBON/RUTH_FILTER_CLOTH/ERGUN_PACKING）"
+          },
+          "area": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Area",
+            "description": "过滤面积 A（m²）"
+          },
+          "cycle_time": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Cycle Time",
+            "description": "过滤周期（h）"
+          },
+          "pressure_drop": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Pressure Drop",
+            "description": "压降（Pa）"
+          },
+          "cake_resistance_alpha": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cake Resistance Alpha",
+            "description": "m/kg 滤饼比阻"
+          },
+          "specific_resistance_r0": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specific Resistance R0",
+            "description": "1/m 介质单位阻力"
+          },
+          "permeability_k": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permeability K",
+            "description": "m² 渗透率"
+          },
+          "porosity_eps": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Porosity Eps",
+            "description": "无量纲 床层空隙率"
+          },
+          "filter_velocity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filter Velocity",
+            "description": "m/s 过滤速率"
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id",
+            "description": "filter_id（PK）"
+          },
+          "record_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Hash",
+            "description": "record_hash（ADR-0028 §决策 4 reflection；16 hex）"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "签审状态 9 态"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "创建时间"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "media_type",
+          "area",
+          "cycle_time",
+          "pressure_drop",
+          "result_id",
+          "sign_status",
+          "created_at"
+        ],
+        "title": "RuthConstantPressureCalcResponse",
+        "description": "POST /filtration/ruth-constant-pressure/calculate 响应（201）。\n\n额外含：result_id / record_hash / sign_status / created_at。"
+      },
+      "RuthConstantRateCalcRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type",
+            "description": "介质代码（SAND/ANTHRACITE/CARBON/RUTH_FILTER_CLOTH/ERGUN_PACKING）"
+          },
+          "area": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Area",
+            "description": "过滤面积 A（m²）"
+          },
+          "cycle_time": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Cycle Time",
+            "description": "过滤周期（h）"
+          },
+          "pressure_drop": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Pressure Drop",
+            "description": "压降（Pa）"
+          },
+          "cake_resistance_alpha": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cake Resistance Alpha",
+            "description": "m/kg 滤饼比阻"
+          },
+          "specific_resistance_r0": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specific Resistance R0",
+            "description": "1/m 介质单位阻力"
+          },
+          "permeability_k": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permeability K",
+            "description": "m² 渗透率"
+          },
+          "porosity_eps": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Porosity Eps",
+            "description": "无量纲 床层空隙率"
+          },
+          "filter_velocity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filter Velocity",
+            "description": "m/s 过滤速率"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "media_type",
+          "area",
+          "cycle_time",
+          "pressure_drop"
+        ],
+        "title": "RuthConstantRateCalcRequest",
+        "description": "POST /filtration/ruth-constant-rate/calculate 请求。\n\n字段：与 RuthConstantPressureCalcRequest 镜像（恒速泵入场景）。"
+      },
+      "RuthConstantRateCalcResponse": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "media_type": {
+            "type": "string",
+            "title": "Media Type",
+            "description": "介质代码（SAND/ANTHRACITE/CARBON/RUTH_FILTER_CLOTH/ERGUN_PACKING）"
+          },
+          "area": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Area",
+            "description": "过滤面积 A（m²）"
+          },
+          "cycle_time": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Cycle Time",
+            "description": "过滤周期（h）"
+          },
+          "pressure_drop": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Pressure Drop",
+            "description": "压降（Pa）"
+          },
+          "cake_resistance_alpha": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cake Resistance Alpha",
+            "description": "m/kg 滤饼比阻"
+          },
+          "specific_resistance_r0": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specific Resistance R0",
+            "description": "1/m 介质单位阻力"
+          },
+          "permeability_k": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Permeability K",
+            "description": "m² 渗透率"
+          },
+          "porosity_eps": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMaximum": 1.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Porosity Eps",
+            "description": "无量纲 床层空隙率"
+          },
+          "filter_velocity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filter Velocity",
+            "description": "m/s 过滤速率"
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id",
+            "description": "filter_id（PK）"
+          },
+          "record_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Hash",
+            "description": "record_hash（16 hex）"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "签审状态 9 态"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "创建时间"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "media_type",
+          "area",
+          "cycle_time",
+          "pressure_drop",
+          "result_id",
+          "sign_status",
+          "created_at"
+        ],
+        "title": "RuthConstantRateCalcResponse",
+        "description": "POST /filtration/ruth-constant-rate/calculate 响应（201）。"
       },
       "SafetyResult": {
         "properties": {
