@@ -14,10 +14,14 @@ import datetime
 import uuid
 
 from sqlalchemy import (
+    CheckConstraint,
     DateTime,
     Float,
+    ForeignKey,
     Integer,
+    Numeric,
     String,
+    Text,
     UniqueConstraint,
     Uuid,
     func,
@@ -333,4 +337,114 @@ class FlareRadiationLimits(Base):
     )
     __table_args__ = (
         UniqueConstraint("limit_type", name="uq_flare_radiation_limits_type"),
+    )
+
+
+class CostCorrelationLibrary(Base):
+    """成本关联式库（cost_correlations 表，SPEC §3.2.8 第三项）。
+
+    业务（P6 SPEC §3.2.8）：
+
+    - 设备类型（``equipment_type``）映射到 ``cost = a + b · S^n`` 关联式，
+      其中 ``S`` 为规模参数（塔器直径 / 容器容积 / 换热面积 / 流量 /
+      压缩机功率 / 管路 L·D）。
+    - ``version`` 关联式版本号（如 ``v1``），便于引入新版关联式（如
+      新版化工经济数据回归）不影响旧调用。
+    - ``coefficient_a`` / ``coefficient_b`` 关联式系数；
+    - ``scaling_exponent_n`` 关联式指数 n；
+    - ``scale_unit`` 规模参数单位（如 ``D(m)`` / ``V(m³)``）；
+    - ``valid_range_low`` / ``valid_range_high`` 规模参数有效区间；
+      区间外 ``lookup_cost_correlation`` 抛 422。
+    - ``base_currency`` / ``base_year`` 关联式基准币种 + 基准年份
+      （CEPCI 调整的参考时点）。
+    - ``notes`` 备注（数据来源说明 / 适用条件）。
+    - ``created_by`` 录入人 UUID（FK -> ``users.user_id``，工艺工程师签字）。
+
+    计算层入口：本表接入 ``cost_correlation_lookup`` 模块；
+    落库执行：本任务 + Task 35 seed 录入 6 设备类型；后续工艺室签字
+    流程同 G-03 / G-04 / G-05 / G-06 模式。
+
+    不继承 ``TaggedRecordMixin``/``TimestampMixin``（元数据表非业务
+    计算记录；改用 created_at 直列 + server_default，便于运维 SQL 排查）。
+
+    唯一约束：``(equipment_type, version)``；CHECK 约束：``n`` 范围
+    ``(0, 1.5]`` + ``coefficient_b >= 0``（避免非法负系数）。
+    """
+
+    __tablename__ = "cost_correlations"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+        comment="自增主键",
+    )
+    equipment_type: Mapped[str] = mapped_column(
+        String(32), nullable=False,
+        comment='设备类型："TOWER"/"VESSEL"/"HEAT_EXCHANGER"/'
+                '"PUMP"/"COMPRESSOR"/"PIPING"',
+    )
+    version: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default="v1",
+        comment="关联式版本号（默认 v1）",
+    )
+    coefficient_a: Mapped[float] = mapped_column(
+        Numeric(18, 2), nullable=False,
+        comment="关联式系数 a（基准货币）",
+    )
+    coefficient_b: Mapped[float] = mapped_column(
+        Numeric(18, 2), nullable=False,
+        comment="关联式系数 b（基准货币）",
+    )
+    scaling_exponent_n: Mapped[float] = mapped_column(
+        Numeric(6, 4), nullable=False,
+        comment="关联式指数 n（0 < n <= 1.5）",
+    )
+    scale_unit: Mapped[str] = mapped_column(
+        String(16), nullable=False,
+        comment='规模参数单位：如 "D(m)" / "V(m³)" / "A(m²)" 等',
+    )
+    valid_range_low: Mapped[float] = mapped_column(
+        Numeric(12, 4), nullable=False,
+        comment="规模参数有效区间下界（含）",
+    )
+    valid_range_high: Mapped[float] = mapped_column(
+        Numeric(12, 4), nullable=False,
+        comment="规模参数有效区间上界（含）",
+    )
+    base_currency: Mapped[str] = mapped_column(
+        String(8), nullable=False, server_default="USD",
+        comment='基准货币（默认 USD）',
+    )
+    base_year: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="2019",
+        comment="基准年份（默认 2019，对齐 CEPCI 录入 2018~2024 系列）",
+    )
+    notes: Mapped[str | None] = mapped_column(
+        Text, nullable=True,
+        comment="备注（数据来源 / 适用条件）",
+    )
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        Uuid, ForeignKey("users.user_id"), nullable=True,
+        comment="录入人（FK -> users.user_id）",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
+        comment="记录创建时间（DB server_default）",
+    )
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(),
+        comment="记录更新时间（DB onupdate 触发）",
+    )
+    __table_args__ = (
+        UniqueConstraint(
+            "equipment_type", "version",
+            name="uq_cost_corr_type_version",
+        ),
+        CheckConstraint(
+            "scaling_exponent_n > 0 AND scaling_exponent_n <= 1.5",
+            name="chk_cost_corr_n",
+        ),
+        CheckConstraint(
+            "coefficient_b >= 0",
+            name="chk_cost_corr_b_nonneg",
+        ),
     )
