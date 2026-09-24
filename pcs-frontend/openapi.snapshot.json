@@ -6838,6 +6838,522 @@
         }
       }
     },
+    "/api/v1/cool-tower/heat-load-aggregator": {
+      "post": {
+        "tags": [
+          "cool-tower"
+        ],
+        "summary": "Aggregate Heat Load",
+        "description": "HEAT 汇总（§3.2.4.5）：按 project_id + exchanger_category 汇总 duty kW。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "aggregate_heat_load_api_v1_cool_tower_heat_load_aggregator_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeatLoadAggregatorRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeatLoadAggregatorResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cool-tower/fan-power": {
+      "post": {
+        "tags": [
+          "cool-tower"
+        ],
+        "summary": "Calculate Fan Power",
+        "description": "风机功率（§3.2.4.6）：CTI 1492 经验值 P_fan = Q_air × Δp_total /\n(η_fan × η_motor × 1000)。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_fan_power_api_v1_cool_tower_fan_power_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/FanPowerRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/FanPowerResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cool-tower/water-balance": {
+      "post": {
+        "tags": [
+          "cool-tower"
+        ],
+        "summary": "Calculate Water Balance",
+        "description": "补充水量（§3.2.4.4）：M = E + D + B（蒸发 + 风吹 + 排污）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_water_balance_api_v1_cool_tower_water_balance_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WaterBalanceRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WaterBalanceResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cool-tower/results": {
+      "post": {
+        "tags": [
+          "cool-tower"
+        ],
+        "summary": "Create Cool Tower Result",
+        "description": "创建 CoolingTowerResult 行（POST → 201）。\n\n``save_cool_tower_result`` service 层自动 final record_hash\n（ADR-0028 §决策 4），返回创建后的完整 CoolingTowerResult 行。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "create_cool_tower_result_api_v1_cool_tower_results_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoolTowerResultCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoolTowerResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "cool-tower"
+        ],
+        "summary": "List Cool Tower Results",
+        "description": "按 project_id 列出 CoolingTowerResult（GET list，分页）。\n\n默认 sign_status filter = (DRAFT, CHECKED) — 排除 OBSOLETE 等门禁态。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "list_cool_tower_results_api_v1_cool_tower_results_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "standard_profile_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Standard Profile Code"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoolTowerResultListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cool-tower/results/{record_id}": {
+      "get": {
+        "tags": [
+          "cool-tower"
+        ],
+        "summary": "Get Cool Tower Result",
+        "description": "按 id 取 CoolingTowerResult（GET detail）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "get_cool_tower_result_api_v1_cool_tower_results__record_id__get",
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoolTowerResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "cool-tower"
+        ],
+        "summary": "Update Cool Tower Result",
+        "description": "更新 CoolingTowerResult 业务字段（PATCH；仅 DRAFT/CHANGE_PENDING 可改）。\n\nCHECKED / IN_APPROVAL / REVERSAL_PENDING 等锁定态拒绝更新（避免\n评审中数据漂移）。project_id 由 ACL 在 Phase 后续 PATCH 透传；本\n批次为 None（service 层不强制隔离）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "update_cool_tower_result_api_v1_cool_tower_results__record_id__patch",
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoolTowerResultUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoolTowerResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "cool-tower"
+        ],
+        "summary": "Delete Cool Tower Result",
+        "description": "软删除 CoolingTowerResult（DELETE → sign_status=OBSOLETE）。\n\n软删而非物理删除（SPEC §3.2.3 P6-FLR-004 审计要求）；记录不再被\nlist 默认过滤（DRAFT/CHECKED filter）展示。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "delete_cool_tower_result_api_v1_cool_tower_results__record_id__delete",
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/vessel/calculate": {
       "post": {
         "tags": [
@@ -10628,6 +11144,519 @@
         "title": "ConfigAssetReport",
         "description": "按 category 聚合的 status 计数（按 version 算，不取 latest）。"
       },
+      "CoolTowerResultCreateRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（FK → projects）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID（业务隔离）"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号（TaggedRecordMixin NOT NULL）"
+          },
+          "standard_profile_code": {
+            "type": "string",
+            "title": "Standard Profile Code",
+            "description": "项目标准（默认 CTI_ATC_105）",
+            "default": "CTI_ATC_105"
+          },
+          "calc_type": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Calc Type",
+            "description": "计算类型（MERKEL/WATER_BALANCE/FAN_POWER/HEAT_AGGREGATE）"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "签审状态（DRAFT / IN_APPROVAL / CHECKED / CHECK_REJECTED / STALE / CHANGE_PENDING / CHANGED / REVERSAL_PENDING / OBSOLETE）",
+            "default": "DRAFT"
+          },
+          "tower_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tower Type",
+            "description": "塔型（COUNTERFLOW_MECH / CROSSFLOW_MECH / NATURAL_DRAFT）"
+          },
+          "duty_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duty Kw",
+            "description": "热负荷 kW"
+          },
+          "water_flow_m3h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Water Flow M3H",
+            "description": "循环水量 m³/h"
+          },
+          "makeup_water_m3h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Makeup Water M3H",
+            "description": "补充水量 m³/h"
+          },
+          "fan_power_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fan Power Kw",
+            "description": "风机功率 kW"
+          },
+          "merkel_integral": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merkel Integral",
+            "description": "Merkel 积分值 KaV/L"
+          },
+          "data_sheet_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Sheet Json",
+            "description": "PCS-DICT-007 SUP-012 §3 14 子结构 data sheet"
+          },
+          "input_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Json",
+            "description": "入参（业务子结构）"
+          },
+          "output_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Json",
+            "description": "出参（业务子结构）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "calc_type"
+        ],
+        "title": "CoolTowerResultCreateRequest",
+        "description": "CoolingTowerResult 创建请求（POST /cool-tower/results）。\n\n字段按 CoolingTowerResult ORM 列名（Task 18，P6-2 实施）平铺 ——\n``save_cool_tower_result`` service 直接 ``**payload`` 喂给 ORM，\n字段名必须与列名严格一致：\n\n- project_id: 项目 ID（RecordMixin FK → projects.project_id）\n- workspace_id: 工作区 ID（业务隔离）\n- tag_number: 位号（TaggedRecordMixin NOT NULL；项目内唯一）\n- standard_profile_code: 项目标准（默认 \"CTI_ATC_105\"；\n  C-07 String(16) 锁定）\n- calc_type: 计算类型（MERKEL / WATER_BALANCE / FAN_POWER /\n  HEAT_AGGREGATE；String(32) NOT NULL）\n- sign_status: 签审状态（默认 DRAFT）\n\n10 业务字段（CoolingTowerResult __table__ 排除 PK + mixin 字段）：\n- tower_type: COUNTERFLOW_MECH / CROSSFLOW_MECH / NATURAL_DRAFT\n- duty_kw: 热负荷 kW（来自 Task 25 heat_aggregator）\n- water_flow_m3h: 循环水量 m³/h（来自 Task 24 calc_water_flow）\n- makeup_water_m3h: 补充水量 m³/h（来自 Task 24 calc_water_balance）\n- fan_power_kw: 风机功率 kW（来自 Task 25 calc_fan_power）\n- merkel_integral: Merkel 积分值 KaV/L（来自 Task 24 calc_merkel）\n- data_sheet_json: PCS-DICT-007 SUP-012 §3 14 子结构 data sheet\n- input_json: 入参（业务子结构）\n- output_json: 出参（业务子结构）"
+      },
+      "CoolTowerResultListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CoolTowerResultResponse"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "CoolingTowerResult 列表"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "命中条数（默认 DRAFT/CHECKED filter）"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "分页上限"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "description": "分页偏移"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "CoolTowerResultListResponse",
+        "description": "CoolingTowerResult 列表响应（GET /cool-tower/results）。\n\n字段：\n- items: CoolTowerResultResponse 列表\n- total: 命中条数（受 sign_status_filter 影响；OBSOLETE 等门禁态被过滤）\n- limit / offset: 分页参数回显"
+      },
+      "CoolTowerResultResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "cooling_tower_results.cooling_tower_id（PK）"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "standard_profile_code": {
+            "type": "string",
+            "title": "Standard Profile Code",
+            "description": "项目标准"
+          },
+          "calc_type": {
+            "type": "string",
+            "title": "Calc Type",
+            "description": "计算类型"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "签审状态 9 态"
+          },
+          "record_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Hash",
+            "description": "record_hash（ADR-0028 §决策 4 reflection；16 hex）"
+          },
+          "tower_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tower Type",
+            "description": "塔型"
+          },
+          "duty_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duty Kw",
+            "description": "热负荷 kW"
+          },
+          "water_flow_m3h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Water Flow M3H",
+            "description": "循环水量 m³/h"
+          },
+          "makeup_water_m3h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Makeup Water M3H",
+            "description": "补充水量 m³/h"
+          },
+          "fan_power_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fan Power Kw",
+            "description": "风机功率 kW"
+          },
+          "merkel_integral": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merkel Integral",
+            "description": "Merkel 积分值 KaV/L"
+          },
+          "data_sheet_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Sheet Json",
+            "description": "PCS-DICT-007 SUP-012 §3 14 子结构 data sheet"
+          },
+          "input_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Json",
+            "description": "入参"
+          },
+          "output_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Json",
+            "description": "出参"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "创建时间"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At",
+            "description": "更新时间"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "standard_profile_code",
+          "calc_type",
+          "sign_status",
+          "created_at"
+        ],
+        "title": "CoolTowerResultResponse",
+        "description": "CoolingTowerResult 单条响应（GET /cool-tower/results/{id} 与\nPOST 201 body）。\n\n字段：溯源（id / project_id / workspace_id / tag_number /\nstandard_profile_code / calc_type / sign_status / record_hash）+\n10 业务字段 + 时间戳。\n\n字段映射（ORM → schema）：\n- ORM cooling_tower_id → schema id（PK 重命名；前端统一用 id）"
+      },
+      "CoolTowerResultUpdateRequest": {
+        "properties": {
+          "tower_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tower Type",
+            "description": "塔型（COUNTERFLOW_MECH / CROSSFLOW_MECH / NATURAL_DRAFT）"
+          },
+          "duty_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Duty Kw",
+            "description": "热负荷 kW"
+          },
+          "water_flow_m3h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Water Flow M3H",
+            "description": "循环水量 m³/h"
+          },
+          "makeup_water_m3h": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Makeup Water M3H",
+            "description": "补充水量 m³/h"
+          },
+          "fan_power_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fan Power Kw",
+            "description": "风机功率 kW"
+          },
+          "merkel_integral": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Merkel Integral",
+            "description": "Merkel 积分值 KaV/L"
+          },
+          "data_sheet_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Sheet Json",
+            "description": "PCS-DICT-007 SUP-012 §3 14 子结构 data sheet"
+          },
+          "input_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Json",
+            "description": "入参"
+          },
+          "output_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Json",
+            "description": "出参"
+          }
+        },
+        "type": "object",
+        "title": "CoolTowerResultUpdateRequest",
+        "description": "CoolingTowerResult 更新请求（PATCH /cool-tower/results/{id}）。\n\n字段子集（PATCH 仅允许业务字段；不可改 sign_status / tag_number /\n溯源 / standard_profile_code / calc_type 等）。"
+      },
       "CreateAssetRequest": {
         "properties": {
           "category": {
@@ -11670,6 +12699,66 @@
         "type": "object",
         "title": "EstimatePropertiesRequest",
         "description": "POST /streams/{id}/properties/estimate 请求：CAS 列表（必填，可空）。"
+      },
+      "FanPowerRequest": {
+        "properties": {
+          "q_air_m3_s": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Q Air M3 S",
+            "description": "风机风量 m³/s"
+          },
+          "delta_p_total_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Delta P Total Pa",
+            "description": "风机全压 Pa"
+          },
+          "fan_efficiency": {
+            "type": "number",
+            "exclusiveMaximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Fan Efficiency",
+            "description": "风机效率（轴流式 typ. 0.7，离心式 typ. 0.65）"
+          },
+          "motor_efficiency": {
+            "type": "number",
+            "exclusiveMaximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Motor Efficiency",
+            "description": "电机效率（typ. 0.85~0.95）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "q_air_m3_s",
+          "delta_p_total_pa",
+          "fan_efficiency",
+          "motor_efficiency"
+        ],
+        "title": "FanPowerRequest",
+        "description": "风机功率请求（POST /cool-tower/fan-power）。\n\n字段（按 §3.2.4.6 CTI 1492 经验值所需输入）：\n- q_air_m3_s: 风机风量 m³/s（>0）\n- delta_p_total_pa: 全压 Pa（>0）\n- fan_efficiency: 风机效率（0 < η_fan < 1）\n- motor_efficiency: 电机效率（0 < η_motor < 1）"
+      },
+      "FanPowerResponse": {
+        "properties": {
+          "p_fan_kw": {
+            "type": "number",
+            "title": "P Fan Kw",
+            "description": "风机功率 kW"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref",
+            "description": "公式溯源标记（API_521_§3.2.4.6）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "p_fan_kw",
+          "formula_ref"
+        ],
+        "title": "FanPowerResponse",
+        "description": "风机功率响应（POST /cool-tower/fan-power）。\n\n字段：\n- p_fan_kw: 风机功率 kW\n- formula_ref: 公式溯源标记 \"API_521_§3.2.4.6\""
       },
       "Fitting": {
         "properties": {
@@ -12867,6 +13956,88 @@
         ],
         "title": "HealthResponse",
         "description": "健康检查响应（GET /health）。\n\n业务：status 服务整体状态（ok/degraded）+ database DB 连接状态（up/down）；\n用于 K8s liveness probe 与监控告警（始终 200，由调用方按字段判定）。"
+      },
+      "HeatLoadAggregatorRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "exchanger_categories_filter": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchanger Categories Filter",
+            "description": "过滤的 exchanger_category 列表（默认 ['SHELL_TUBE','PLATE']）"
+          },
+          "sign_status_filter": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sign Status Filter",
+            "description": "sign_status 白名单（默认 ['DRAFT', 'CHECKED']）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id"
+        ],
+        "title": "HeatLoadAggregatorRequest",
+        "description": "HEAT 汇总请求（POST /cool-tower/heat-load-aggregator）。\n\n字段（按 §3.2.4.5 汇总需求）：\n- project_id: 项目 ID（必填；isolation key）\n- exchanger_categories_filter: 过滤的 exchanger_category 列表\n  （默认 ['SHELL_TUBE', 'PLATE']；排除 'AIR_COOL'）\n- sign_status_filter: sign_status 白名单（默认 ['DRAFT', 'CHECKED']）"
+      },
+      "HeatLoadAggregatorResponse": {
+        "properties": {
+          "h_aggregate_kw": {
+            "type": "number",
+            "title": "H Aggregate Kw",
+            "description": "总 kW（汇总后）"
+          },
+          "heat_record_count": {
+            "type": "integer",
+            "title": "Heat Record Count",
+            "description": "命中 HeatResult 行数"
+          },
+          "per_exchanger_category": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Per Exchanger Category",
+            "description": "按 exchanger_category 细分"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref",
+            "description": "公式溯源标记（API_521_§3.2.4.5）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "h_aggregate_kw",
+          "heat_record_count",
+          "per_exchanger_category",
+          "formula_ref"
+        ],
+        "title": "HeatLoadAggregatorResponse",
+        "description": "HEAT 汇总响应（POST /cool-tower/heat-load-aggregator）。\n\n字段：\n- h_aggregate_kw: 总 kW（各 exchanger_category 求和）\n- heat_record_count: 命中的 HeatResult 行数\n- per_exchanger_category: 按类别细分\n- formula_ref: 公式溯源标记 \"API_521_§3.2.4.5\""
       },
       "HeatResultResponse": {
         "properties": {
@@ -17932,6 +19103,97 @@
         ],
         "title": "VersionResponse",
         "description": "POST /versions、POST /fork 返回结构。"
+      },
+      "WaterBalanceRequest": {
+        "properties": {
+          "q_w_m3_s": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Q W M3 S",
+            "description": "循环水量 m³/s"
+          },
+          "delta_t_c": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Delta T C",
+            "description": "温差 °C"
+          },
+          "cycle_ratio": {
+            "type": "number",
+            "exclusiveMinimum": 1.0,
+            "title": "Cycle Ratio",
+            "description": "浓缩倍数 C_cycle（典型 3~5，默认 4）",
+            "default": 4.0
+          },
+          "drift_fraction": {
+            "type": "number",
+            "maximum": 0.1,
+            "minimum": 0.0,
+            "title": "Drift Fraction",
+            "description": "风吹损失系数（典型 0.001~0.002）",
+            "default": 0.001
+          },
+          "h_vap_kj_kg": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "H Vap Kj Kg",
+            "description": "蒸发潜热 kJ/kg（默认 2400）",
+            "default": 2400.0
+          },
+          "c_water_kj_kg_k": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "C Water Kj Kg K",
+            "description": "水比热 kJ/kg·K（默认 4.187）",
+            "default": 4.187
+          }
+        },
+        "type": "object",
+        "required": [
+          "q_w_m3_s",
+          "delta_t_c"
+        ],
+        "title": "WaterBalanceRequest",
+        "description": "补充水量请求（POST /cool-tower/water-balance）。\n\n字段（按 §3.2.4.4 循环水量 + 补充水量合并输入）：\n- q_w_m3_s: 循环水量 m³/s（>0）\n- delta_t_c: 温差 °C（>=0；与 Kelvin 等价差值）\n- cycle_ratio: 浓缩倍数 C_cycle（>1）\n- drift_fraction: 风吹损失系数（∈ [0, 0.1]）\n- h_vap_kj_kg: 蒸发潜热 kJ/kg（>0；默认 2400）\n- c_water_kj_kg_k: 水比热 kJ/kg·K（>0；默认 4.187）"
+      },
+      "WaterBalanceResponse": {
+        "properties": {
+          "evaporation_m3_s": {
+            "type": "number",
+            "title": "Evaporation M3 S",
+            "description": "蒸发损失 E m³/s"
+          },
+          "drift_m3_s": {
+            "type": "number",
+            "title": "Drift M3 S",
+            "description": "风吹损失 D m³/s"
+          },
+          "blowdown_m3_s": {
+            "type": "number",
+            "title": "Blowdown M3 S",
+            "description": "排污损失 B m³/s"
+          },
+          "makeup_m3_s": {
+            "type": "number",
+            "title": "Makeup M3 S",
+            "description": "总补充水 M m³/s"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref",
+            "description": "公式溯源标记（API_521_§3.2.4.4）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "evaporation_m3_s",
+          "drift_m3_s",
+          "blowdown_m3_s",
+          "makeup_m3_s",
+          "formula_ref"
+        ],
+        "title": "WaterBalanceResponse",
+        "description": "补充水量响应（POST /cool-tower/water-balance）。\n\n字段：\n- evaporation_m3_s: 蒸发损失 E m³/s\n- drift_m3_s: 风吹损失 D m³/s\n- blowdown_m3_s: 排污损失 B m³/s（工程下限 clamp 0）\n- makeup_m3_s: 总补充水 M m³/s\n- formula_ref: 公式溯源标记 \"API_521_§3.2.4.4\""
       },
       "WaterSealInfo": {
         "properties": {
