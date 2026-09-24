@@ -183,6 +183,21 @@ Cv值与IEC 60534手算偏差<1%
 
 两相：HEM/滑移模型
 
+闪蒸校核（P6-2 S-01 评审委员会 2026-09-24 升级）：
+调用 P4 flash_service（`calc_pure_fluid_bubble_point_pa` 包装 SATURATION 纯组分饱和）
+得到上游泡点压力 P_sat（给定流体名 fluid + 上游温度 T_K）；与节流后压力
+P_outlet = P_inlet − ΔP 对比：
+
+- 若 P_outlet ≥ P_sat → 单相流，走 ISO 5167 系列（C + ε）
+- 若 P_outlet < P_sat → 闪蒸工况，切换 HEM 模型（API STD 520 Annex C）：
+  - HEM 均相密度：ρ_hem = 1 / (x/ρ_v + (1−x)/ρ_l)
+  - Moody 滑脱因子：F_t² = (1−x) + x·√(ρ_l/ρ_v)
+  - 流量：G_hem = Cd·A·√(F_t²·ρ_hem·ΔP)
+- 节流后气相分率 x 估算：P_outlet < P_sat 时 x ≈ 1 − P_outlet/P_sat（线性近似）
+
+取代旧 P1<50 kPa 启发式（已废弃，2026-09-24 评审委员会裁决）。
+缺 fluid / T_K 时 graceful fallback → 不闪蒸、走 ISO 5167，error_code="missing_input"。
+
 出口物流规则（V1.2，ADR-0022）：RESTRICTION 与 CV 计算完成后自动创建出口物流（source_type=DEVICE_CALCULATED、sign_status=DRAFT、change_type=ISOENTHALPIC/FRICTION_PRESSURE_DROP），物流号经过节流装置后更换，血缘记录 {上游物流}--[装置]-->{出口物流}。
 
 验收标准：
