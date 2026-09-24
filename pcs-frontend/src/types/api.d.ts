@@ -2201,6 +2201,28 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/flare/header-sizing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calculate Header Sizing
+         * @description Mach 数法 + 等温可压缩管流计算火炬总管直径（API 521 §5.15.4）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calculate_header_sizing_api_v1_flare_header_sizing_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/vessel/calculate": {
         parameters: {
             query?: never;
@@ -4413,6 +4435,136 @@ export interface components {
         HTTPValidationError: {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
+        };
+        /**
+         * HeaderSizingRequest
+         * @description FLARE_SYS header_sizing 请求。
+         *
+         *     字段（按 API 521 §5.15.4 火炬总管 Mach 数法 + 等温可压缩管流所需输入）：
+         *
+         *     - project_id: 项目 ID（与 Task 19 aggregate_flare_load 隔离键一致）
+         *     - standard_profile_code: 项目标准（默认 API_521；GB/T 暂不开放）
+         *     - relief_mass_flow_kgs: 总泄放质量流量 kg/s（>0）
+         *     - avg_temperature_k: 管内平均温度 K（>0）
+         *     - avg_pressure_pa: 管内平均压力 Pa（>0）
+         *     - mw_kg_kmol: 气体分子量 kg/kmol（>0）
+         *     - specific_heat_ratio: 比热比 k = cp/cv（>1.0）
+         *     - target_mach: 目标 Mach 数（默认 0.5 保守，范围 [0.05, 1.0]）
+         */
+        HeaderSizingRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（来自 Task 19 aggregate_flare_load 隔离键）
+             */
+            project_id: string;
+            /**
+             * Standard Profile Code
+             * @description 项目标准（API_521 / GB/T）
+             * @default API_521
+             */
+            standard_profile_code: string;
+            /**
+             * Relief Mass Flow Kgs
+             * @description 总泄放质量流量 kg/s
+             */
+            relief_mass_flow_kgs: number;
+            /**
+             * Avg Temperature K
+             * @description 管内平均温度 K
+             */
+            avg_temperature_k: number;
+            /**
+             * Avg Pressure Pa
+             * @description 管内平均压力 Pa
+             */
+            avg_pressure_pa: number;
+            /**
+             * Mw Kg Kmol
+             * @description 气体分子量 kg/kmol
+             */
+            mw_kg_kmol: number;
+            /**
+             * Specific Heat Ratio
+             * @description 比热比 k = cp/cv
+             */
+            specific_heat_ratio: number;
+            /**
+             * Target Mach
+             * @description 目标 Mach 数（默认 0.5 保守）
+             * @default 0.5
+             */
+            target_mach: number;
+        };
+        /**
+         * HeaderSizingResponse
+         * @description FLARE_SYS header_sizing 响应。
+         *
+         *     字段（按 API 521 §5.15.4 反算输出）：
+         *
+         *     - diameter_m: 总管直径 m
+         *     - area_m2: 总管截面积 m²
+         *     - actual_mach: 实际 Mach 数（应等于 target_mach）
+         *     - mass_flux_kgs_m2: 质量流速 G kg/(s·m²)
+         *     - velocity_m_s: 气流速度 m/s
+         *     - sound_speed_m_s: 等温声速 m/s
+         *     - gas_density_kg_m3: 管内气体密度 kg/m³（等温理想气体）
+         *     - formula_ref: 公式溯源标记
+         *     - project_id: 回显请求 project_id（前端 audit）
+         *     - standard_profile_code: 回显请求 standard_profile_code
+         */
+        HeaderSizingResponse: {
+            /**
+             * Diameter M
+             * @description 总管直径 m
+             */
+            diameter_m: number;
+            /**
+             * Area M2
+             * @description 总管截面积 m²
+             */
+            area_m2: number;
+            /**
+             * Actual Mach
+             * @description 实际 Mach 数（应等于 target_mach）
+             */
+            actual_mach: number;
+            /**
+             * Mass Flux Kgs M2
+             * @description 质量流速 G kg/(s·m²)
+             */
+            mass_flux_kgs_m2: number;
+            /**
+             * Velocity M S
+             * @description 气流速度 m/s
+             */
+            velocity_m_s: number;
+            /**
+             * Sound Speed M S
+             * @description 等温声速 m/s
+             */
+            sound_speed_m_s: number;
+            /**
+             * Gas Density Kg M3
+             * @description 管内气体密度 kg/m³（等温理想气体）
+             */
+            gas_density_kg_m3: number;
+            /**
+             * Formula Ref
+             * @description 公式溯源标记（API_521_§5.15.4）
+             */
+            formula_ref: string;
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 回显请求 project_id
+             */
+            project_id: string;
+            /**
+             * Standard Profile Code
+             * @description 回显请求 standard_profile_code
+             */
+            standard_profile_code: string;
         };
         /**
          * HealthResponse
@@ -11439,6 +11591,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["BubbleDewResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calculate_header_sizing_api_v1_flare_header_sizing_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HeaderSizingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeaderSizingResponse"];
                 };
             };
             /** @description Validation Error */

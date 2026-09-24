@@ -6262,6 +6262,66 @@
         }
       }
     },
+    "/api/v1/flare/header-sizing": {
+      "post": {
+        "tags": [
+          "flare"
+        ],
+        "summary": "Calculate Header Sizing",
+        "description": "Mach 数法 + 等温可压缩管流计算火炬总管直径（API 521 §5.15.4）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_header_sizing_api_v1_flare_header_sizing_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeaderSizingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeaderSizingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/vessel/calculate": {
       "post": {
         "tags": [
@@ -11224,6 +11284,141 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "HeaderSizingRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（来自 Task 19 aggregate_flare_load 隔离键）"
+          },
+          "standard_profile_code": {
+            "type": "string",
+            "title": "Standard Profile Code",
+            "description": "项目标准（API_521 / GB/T）",
+            "default": "API_521"
+          },
+          "relief_mass_flow_kgs": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Relief Mass Flow Kgs",
+            "description": "总泄放质量流量 kg/s"
+          },
+          "avg_temperature_k": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Avg Temperature K",
+            "description": "管内平均温度 K"
+          },
+          "avg_pressure_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Avg Pressure Pa",
+            "description": "管内平均压力 Pa"
+          },
+          "mw_kg_kmol": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Mw Kg Kmol",
+            "description": "气体分子量 kg/kmol"
+          },
+          "specific_heat_ratio": {
+            "type": "number",
+            "exclusiveMinimum": 1.0,
+            "title": "Specific Heat Ratio",
+            "description": "比热比 k = cp/cv"
+          },
+          "target_mach": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.05,
+            "title": "Target Mach",
+            "description": "目标 Mach 数（默认 0.5 保守）",
+            "default": 0.5
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "relief_mass_flow_kgs",
+          "avg_temperature_k",
+          "avg_pressure_pa",
+          "mw_kg_kmol",
+          "specific_heat_ratio"
+        ],
+        "title": "HeaderSizingRequest",
+        "description": "FLARE_SYS header_sizing 请求。\n\n字段（按 API 521 §5.15.4 火炬总管 Mach 数法 + 等温可压缩管流所需输入）：\n\n- project_id: 项目 ID（与 Task 19 aggregate_flare_load 隔离键一致）\n- standard_profile_code: 项目标准（默认 API_521；GB/T 暂不开放）\n- relief_mass_flow_kgs: 总泄放质量流量 kg/s（>0）\n- avg_temperature_k: 管内平均温度 K（>0）\n- avg_pressure_pa: 管内平均压力 Pa（>0）\n- mw_kg_kmol: 气体分子量 kg/kmol（>0）\n- specific_heat_ratio: 比热比 k = cp/cv（>1.0）\n- target_mach: 目标 Mach 数（默认 0.5 保守，范围 [0.05, 1.0]）"
+      },
+      "HeaderSizingResponse": {
+        "properties": {
+          "diameter_m": {
+            "type": "number",
+            "title": "Diameter M",
+            "description": "总管直径 m"
+          },
+          "area_m2": {
+            "type": "number",
+            "title": "Area M2",
+            "description": "总管截面积 m²"
+          },
+          "actual_mach": {
+            "type": "number",
+            "title": "Actual Mach",
+            "description": "实际 Mach 数（应等于 target_mach）"
+          },
+          "mass_flux_kgs_m2": {
+            "type": "number",
+            "title": "Mass Flux Kgs M2",
+            "description": "质量流速 G kg/(s·m²)"
+          },
+          "velocity_m_s": {
+            "type": "number",
+            "title": "Velocity M S",
+            "description": "气流速度 m/s"
+          },
+          "sound_speed_m_s": {
+            "type": "number",
+            "title": "Sound Speed M S",
+            "description": "等温声速 m/s"
+          },
+          "gas_density_kg_m3": {
+            "type": "number",
+            "title": "Gas Density Kg M3",
+            "description": "管内气体密度 kg/m³（等温理想气体）"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref",
+            "description": "公式溯源标记（API_521_§5.15.4）"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "回显请求 project_id"
+          },
+          "standard_profile_code": {
+            "type": "string",
+            "title": "Standard Profile Code",
+            "description": "回显请求 standard_profile_code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "diameter_m",
+          "area_m2",
+          "actual_mach",
+          "mass_flux_kgs_m2",
+          "velocity_m_s",
+          "sound_speed_m_s",
+          "gas_density_kg_m3",
+          "formula_ref",
+          "project_id",
+          "standard_profile_code"
+        ],
+        "title": "HeaderSizingResponse",
+        "description": "FLARE_SYS header_sizing 响应。\n\n字段（按 API 521 §5.15.4 反算输出）：\n\n- diameter_m: 总管直径 m\n- area_m2: 总管截面积 m²\n- actual_mach: 实际 Mach 数（应等于 target_mach）\n- mass_flux_kgs_m2: 质量流速 G kg/(s·m²)\n- velocity_m_s: 气流速度 m/s\n- sound_speed_m_s: 等温声速 m/s\n- gas_density_kg_m3: 管内气体密度 kg/m³（等温理想气体）\n- formula_ref: 公式溯源标记\n- project_id: 回显请求 project_id（前端 audit）\n- standard_profile_code: 回显请求 standard_profile_code"
       },
       "HealthResponse": {
         "properties": {

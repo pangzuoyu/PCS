@@ -7,6 +7,7 @@ from app.api.v1.common import router as common_router
 from app.api.v1.config import router as config_router
 from app.api.v1.cv import router as cv_router  # P6-1 Task 10
 from app.api.v1.equip_lib import router as equip_lib_router
+from app.api.v1.flare import router as flare_router  # P6-2 Task 20
 from app.api.v1.flash import router as flash_router
 from app.api.v1.health import router as health_router
 from app.api.v1.heat import router as heat_router  # P5-4-5
@@ -48,6 +49,7 @@ api_router.include_router(stream_symbols_router)
 api_router.include_router(streams_router)
 api_router.include_router(equip_lib_router)
 api_router.include_router(flash_router)
+api_router.include_router(flare_router)  # P6-2 Task 20
 api_router.include_router(vessel_router)  # P5-1-4
 api_router.include_router(sep_equip_router)  # P5-2-4
 api_router.include_router(psv_router)  # P5-3-6
