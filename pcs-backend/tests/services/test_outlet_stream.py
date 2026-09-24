@@ -5,12 +5,18 @@ DB 集成测试走现有 api/v1 入口（POST /vessel/calculate 等）。
 
 回归保护：若有人未来误把 copy.deepcopy 退回 dict(properties) 或
 shallow dict() 拷贝，本测试 fail。
+
+A-03 / C-05 LOW 修复（2026-09-24）：
+新增 OutletSourceType Literal 字面集合一致性单测（DEVICE_CALCULATED
+必须在 Literal；cv_persist.py:185 / restriction_persist.py:186 实测
+已落库 DEVICE_CALCULATED；防回归）。
 """
 from __future__ import annotations
 
 import copy
+from typing import get_args
 
-from app.services.outlet_stream import create_outlet_stream
+from app.services.outlet_stream import OutletSourceType, create_outlet_stream
 
 
 async def test_create_outlet_stream_deep_copies_properties(monkeypatch):
@@ -88,3 +94,78 @@ async def test_create_outlet_stream_deep_copies_properties(monkeypatch):
     fresh = copy.deepcopy(properties)
     fresh["outer"]["key1"]["nested_key"] = "fresh mutation"
     assert persisted["outer"]["key1"]["nested_key"] == "original"
+
+
+# ---------------------------------------------------------------------------
+# A-03 / C-05 LOW 修复：OutletSourceType Literal 字面集合一致性
+# ---------------------------------------------------------------------------
+
+
+def test_outlet_source_type_literal_includes_device_calculated():
+    """OutletSourceType Literal 必须包含 'DEVICE_CALCULATED'（C-05 评审 LOW 修复）。
+
+    落库侧 cv_persist.py:185 / restriction_persist.py:186 已用此字面值；
+    若未来有人误删 Literal 成员，运行时不报错但 IDE/mypy 会报警，
+    此测试保证 Literal 与实际落库口径一致。
+    """
+    members = get_args(OutletSourceType)
+    assert "DEVICE_CALCULATED" in members, (
+        f"OutletSourceType Literal 必须含 DEVICE_CALCULATED，实际 {members}"
+    )
+
+
+def test_outlet_source_type_literal_total_count():
+    """P6-1 期间 Literal 共 9 种 CALCULATED 派生；A-03 加 DEVICE_CALCULATED 后 10 种。
+
+    若未来新增 CALCULATED 派生，更新此计数 + 在 Literal + _EQUIP_TYPE_MAP
+    同步加条目（A-03 经验：Literal 与落库口径漂移是 LOW 但真实的回归源）。
+    """
+    members = get_args(OutletSourceType)
+    assert len(members) == 10, (
+        f"OutletSourceType 应共 10 种（P6-1 9 + DEVICE_CALCULATED），实际 {len(members)}: {members}"
+    )
+
+
+def test_device_calculated_uses_split_fallback_in_equip_type_map():
+    """DEVICE_CALCULATED 不进 _EQUIP_TYPE_MAP：split 兜底返 'DEVICE'，与现状一致。
+
+    CV 与 RESTRICTION 都用 source_type='DEVICE_CALCULATED'（仅 change_type 不同）；
+    若强行映射 DEVICE_CALCULATED→CV，RESTRICTION 出口流 upstream_equipment_type
+    会被误归 "CV"，所以 Literal 已加但 _EQUIP_TYPE_MAP 保持现状。
+    """
+    from app.services.outlet_stream import _upstream_equipment_type
+
+    # split("_")[0] 兜底返回 "DEVICE"，与未改 _EQUIP_TYPE_MAP 之前一致
+    assert _upstream_equipment_type("DEVICE_CALCULATED") == "DEVICE", (
+        "DEVICE_CALCULATED 应走 split 兜底返 'DEVICE'，"
+        "否则 RESTRICTION 出口流 upstream_equipment_type 会被误归 'CV'"
+    )
+
+
+def test_cv_persist_uses_device_calculated_literally():
+    """cv_persist.py:185 用字面 'DEVICE_CALCULATED'，与 OutletSourceType Literal 一致。
+
+    静态校验：直接 import cv_persist 模块并 assert create_outlet_stream 调用处
+    的 source_type 字符串在 Literal 成员集合中。防有人未来误改 cv_persist 落库
+    字面值与 Literal 漂移。
+    """
+    import inspect
+
+    import app.services.cv.cv_persist as cv_persist
+    import app.services.outlet_stream as outlet_stream_mod
+
+    # outlet_stream 模块级源码应声明 DEVICE_CALCULATED 字面（Literal 成员）
+    src_module = inspect.getsource(outlet_stream_mod)
+    assert "DEVICE_CALCULATED" in src_module, (
+        "outlet_stream 模块源码必须声明 DEVICE_CALCULATED 字面（Literal 成员）"
+    )
+    # cv_persist.persist_calculate 必须把 source_type='DEVICE_CALCULATED' 传入
+    src_persist = inspect.getsource(cv_persist)
+    assert 'source_type="DEVICE_CALCULATED"' in src_persist, (
+        "cv_persist.py 应以字面 DEVICE_CALCULATED 写入 source_type"
+    )
+    # 该字面值必须在 Literal 中（与 Literal 漂移即 fail）
+    members = get_args(OutletSourceType)
+    assert "DEVICE_CALCULATED" in members, (
+        f"DEVICE_CALCULATED 落库字面值必须包含在 Literal 中，实际 {members}"
+    )
