@@ -2412,12 +2412,13 @@ export interface paths {
          * @description POST /api/v1/restriction/calculate：限制装置单工况计算落库。
          *
          *     流程：
-         *     1. RestrictionService.persist_calculate（RestrictionEngine + 落库 + outlet）
+         *     1. await RestrictionService.persist_calculate（RestrictionEngine async + 落库 +
+         *        outlet；含 P6-2 S-01 flash 联动）
          *     2. 查 outlet stream（upstream_stream_id == source_stream_id）
-         *     3. 组装 RestrictionCalculateResponse 返回
+         *     3. 组装 RestrictionCalculateResponse 返回（含 flash 元数据）
          *
          *     Returns:
-         *         201 + restriction_result_id + outlet_stream_id + 关键计算字段
+         *         201 + restriction_result_id + outlet_stream_id + 关键计算字段 + flash 元数据
          */
         post: operations["restriction_calculate_api_v1_restriction_calculate_post"];
         delete?: never;
@@ -5517,7 +5518,8 @@ export interface components {
          * RestrictionCalculateRequest
          * @description 限制装置计算请求体（POST /api/v1/restriction/calculate）。
          *
-         *     字段对齐 SPEC §3.2.2.1~4 孔板/文丘里/喷嘴/多级降压 + §3.2.2.6 schema。
+         *     字段对齐 SPEC §3.2.2.1~4 孔板/文丘里/喷嘴/多级降压 + §3.2.2.6 schema +
+         *     P6-2 S-01 闪蒸校核输入。
          *
          *     严格模式：未知字段 → 422 ValidationError（不静默吞）。
          */
@@ -5612,12 +5614,41 @@ export interface components {
              * @description 源流 UUID（outlet.upstream_stream_id 锚点）
              */
             source_stream_id: string;
+            /**
+             * Fluid
+             * @description 上游流体名（P6-2 S-01 评审委员会裁决 2026-09-24；调 P4 flash_service.calc_pure_fluid_bubble_point_pa 用；支持 WATER / PROPANE / N_BUTANE / ISOPENTANE / N_HEXANE / METHANE / ETHANE / METHANOL 或 CAS 号）
+             * @default WATER
+             */
+            fluid: string;
+            /**
+             * Upstream T K
+             * @description 上游温度 K（P6-2 S-01；缺省 25°C 标况）
+             * @default 298.15
+             */
+            upstream_T_K: number;
+            /**
+             * Rho L Kg M3
+             * @description 液体密度 kg/m³（P6-2 S-01 HEM 模型需要；缺省时 HEM 跳过 G_hem 计算）
+             */
+            rho_l_kg_m3?: number | null;
+            /**
+             * Rho V Kg M3
+             * @description 蒸汽密度 kg/m³（P6-2 S-01 HEM 模型需要；缺省时 HEM 跳过 G_hem 计算）
+             */
+            rho_v_kg_m3?: number | null;
+            /**
+             * X Vapor Outlet
+             * @description 节流后工况气相分率（0~1；P6-2 S-01 HEM 模型需要；缺省 0 = 调用 check_flashing 内部估算）
+             * @default 0
+             */
+            x_vapor_outlet: number;
         };
         /**
          * RestrictionCalculateResponse
          * @description 限制装置计算响应（POST /api/v1/restriction/calculate 201）。
          *
-         *     回填 RestrictionResult 主键 orifice_id + 关键结果字段 + outlet stream 锚点。
+         *     回填 RestrictionResult 主键 orifice_id + 关键结果字段 + flash 元数据 +
+         *     outlet stream 锚点。
          */
         RestrictionCalculateResponse: {
             /**
@@ -5663,10 +5694,27 @@ export interface components {
             choked: boolean;
             /**
              * Flashing
-             * @description 是否闪蒸（液体 + 低 P1 启发式判据）
+             * @description 是否闪蒸（P6-2 S-01 评审委员会裁决；调 flash_service.calc_pure_fluid_bubble_point_pa 求 P_sat 与 P_outlet 对比）
              * @default false
              */
             flashing: boolean;
+            /**
+             * P Sat Pa
+             * @description 上游泡点压力 Pa（P6-2 S-01 flash_service 返回；fluid_unknown/超临界时 None）
+             */
+            P_sat_pa?: number | null;
+            /**
+             * Vapor Fraction At Outlet
+             * @description 节流后工况气相分率（0~1；P6-2 S-01 HEM 模型需要）
+             * @default 0
+             */
+            vapor_fraction_at_outlet: number;
+            /**
+             * Model Used
+             * @description 调用的物理模型（P6-2 S-01）；ISO_5167 = 单相走 ISO 5167；HEM = 闪蒸工况走 API STD 520 Annex C
+             * @default ISO_5167
+             */
+            model_used: string;
             /**
              * Stages
              * @description 多级时级数（仅 MULTI_STAGE）

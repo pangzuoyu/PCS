@@ -6816,7 +6816,7 @@
           "restriction"
         ],
         "summary": "Restriction Calculate",
-        "description": "POST /api/v1/restriction/calculate：限制装置单工况计算落库。\n\n流程：\n1. RestrictionService.persist_calculate（RestrictionEngine + 落库 + outlet）\n2. 查 outlet stream（upstream_stream_id == source_stream_id）\n3. 组装 RestrictionCalculateResponse 返回\n\nReturns:\n    201 + restriction_result_id + outlet_stream_id + 关键计算字段",
+        "description": "POST /api/v1/restriction/calculate：限制装置单工况计算落库。\n\n流程：\n1. await RestrictionService.persist_calculate（RestrictionEngine async + 落库 +\n   outlet；含 P6-2 S-01 flash 联动）\n2. 查 outlet stream（upstream_stream_id == source_stream_id）\n3. 组装 RestrictionCalculateResponse 返回（含 flash 元数据）\n\nReturns:\n    201 + restriction_result_id + outlet_stream_id + 关键计算字段 + flash 元数据",
         "operationId": "restriction_calculate_api_v1_restriction_calculate_post",
         "requestBody": {
           "content": {
@@ -13089,6 +13089,48 @@
             "format": "uuid",
             "title": "Source Stream Id",
             "description": "源流 UUID（outlet.upstream_stream_id 锚点）"
+          },
+          "fluid": {
+            "type": "string",
+            "title": "Fluid",
+            "description": "上游流体名（P6-2 S-01 评审委员会裁决 2026-09-24；调 P4 flash_service.calc_pure_fluid_bubble_point_pa 用；支持 WATER / PROPANE / N_BUTANE / ISOPENTANE / N_HEXANE / METHANE / ETHANE / METHANOL 或 CAS 号）",
+            "default": "WATER"
+          },
+          "upstream_T_K": {
+            "type": "number",
+            "title": "Upstream T K",
+            "description": "上游温度 K（P6-2 S-01；缺省 25°C 标况）",
+            "default": 298.15
+          },
+          "rho_l_kg_m3": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rho L Kg M3",
+            "description": "液体密度 kg/m³（P6-2 S-01 HEM 模型需要；缺省时 HEM 跳过 G_hem 计算）"
+          },
+          "rho_v_kg_m3": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rho V Kg M3",
+            "description": "蒸汽密度 kg/m³（P6-2 S-01 HEM 模型需要；缺省时 HEM 跳过 G_hem 计算）"
+          },
+          "x_vapor_outlet": {
+            "type": "number",
+            "title": "X Vapor Outlet",
+            "description": "节流后工况气相分率（0~1；P6-2 S-01 HEM 模型需要；缺省 0 = 调用 check_flashing 内部估算）",
+            "default": 0.0
           }
         },
         "additionalProperties": false,
@@ -13106,7 +13148,7 @@
           "source_stream_id"
         ],
         "title": "RestrictionCalculateRequest",
-        "description": "限制装置计算请求体（POST /api/v1/restriction/calculate）。\n\n字段对齐 SPEC §3.2.2.1~4 孔板/文丘里/喷嘴/多级降压 + §3.2.2.6 schema。\n\n严格模式：未知字段 → 422 ValidationError（不静默吞）。"
+        "description": "限制装置计算请求体（POST /api/v1/restriction/calculate）。\n\n字段对齐 SPEC §3.2.2.1~4 孔板/文丘里/喷嘴/多级降压 + §3.2.2.6 schema +\nP6-2 S-01 闪蒸校核输入。\n\n严格模式：未知字段 → 422 ValidationError（不静默吞）。"
       },
       "RestrictionCalculateResponse": {
         "properties": {
@@ -13161,8 +13203,32 @@
           "flashing": {
             "type": "boolean",
             "title": "Flashing",
-            "description": "是否闪蒸（液体 + 低 P1 启发式判据）",
+            "description": "是否闪蒸（P6-2 S-01 评审委员会裁决；调 flash_service.calc_pure_fluid_bubble_point_pa 求 P_sat 与 P_outlet 对比）",
             "default": false
+          },
+          "P_sat_pa": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "P Sat Pa",
+            "description": "上游泡点压力 Pa（P6-2 S-01 flash_service 返回；fluid_unknown/超临界时 None）"
+          },
+          "vapor_fraction_at_outlet": {
+            "type": "number",
+            "title": "Vapor Fraction At Outlet",
+            "description": "节流后工况气相分率（0~1；P6-2 S-01 HEM 模型需要）",
+            "default": 0.0
+          },
+          "model_used": {
+            "type": "string",
+            "title": "Model Used",
+            "description": "调用的物理模型（P6-2 S-01）；ISO_5167 = 单相走 ISO 5167；HEM = 闪蒸工况走 API STD 520 Annex C",
+            "default": "ISO_5167"
           },
           "stages": {
             "anyOf": [
@@ -13207,7 +13273,7 @@
           "outlet_stream_id"
         ],
         "title": "RestrictionCalculateResponse",
-        "description": "限制装置计算响应（POST /api/v1/restriction/calculate 201）。\n\n回填 RestrictionResult 主键 orifice_id + 关键结果字段 + outlet stream 锚点。"
+        "description": "限制装置计算响应（POST /api/v1/restriction/calculate 201）。\n\n回填 RestrictionResult 主键 orifice_id + 关键结果字段 + flash 元数据 +\noutlet stream 锚点。"
       },
       "SafetyResult": {
         "properties": {
