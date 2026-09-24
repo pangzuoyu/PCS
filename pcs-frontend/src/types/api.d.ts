@@ -2223,6 +2223,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/flare/kod-sizing": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calculate Kod Sizing
+         * @description Souders-Brown KOD 直径 + Water Seal 液柱高度综合计算。
+         *
+         *     按 API 521 §5.15.3（Souders-Brown 法 KOD 直径）+ §5.15.5（Water Seal
+         *     液柱高度）综合调用。输入参数来自 Task 19（vapor mass flow）+ Task 20
+         *     （header P/T）；不写 DB（落库由 Task 23 flare_persist 统一处理）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calculate_kod_sizing_api_v1_flare_kod_sizing_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/vessel/calculate": {
         parameters: {
             query?: never;
@@ -4789,6 +4815,168 @@ export interface components {
             outlet_stream_name?: string | null;
         };
         /**
+         * KodInfo
+         * @description KOD 子结果（API 521 §5.15.3 Souders-Brown）。
+         */
+        KodInfo: {
+            /**
+             * Diameter M
+             * @description KOD 直径 m
+             */
+            diameter_m: number;
+            /**
+             * Area M2
+             * @description KOD 流通截面积 m²
+             */
+            area_m2: number;
+            /**
+             * U Perm M S
+             * @description 允许蒸气速度 m/s
+             */
+            u_perm_m_s: number;
+            /**
+             * U Actual M S
+             * @description 实际蒸气速度 m/s（数学恒等 u_perm，合规自检）
+             */
+            u_actual_m_s: number;
+            /**
+             * Limit Ratio
+             * @description Souders-Brown 极限比 u_actual / u_perm（应 == 1.0）
+             */
+            limit_ratio: number;
+            /**
+             * Formula Ref
+             * @description 公式溯源标记（API_521_§5.15.3）
+             */
+            formula_ref: string;
+        };
+        /**
+         * KodSizingRequest
+         * @description FLARE_SYS kod_sizing 请求（KOD + Water Seal 合并调用）。
+         *
+         *     字段（按 API 521 §5.15.3 Souders-Brown + §5.15.5 Water Seal 所需输入）：
+         *
+         *     - project_id: 项目 ID（与 Task 19/20 隔离键一致）
+         *     - standard_profile_code: 项目标准（默认 API_521；GB/T 暂不开放）
+         *
+         *     KOD（Souders-Brown）：
+         *     - vapor_mass_flow_kgs: 闪蒸气质量流量 kg/s（来自 Task 19）
+         *     - vapor_density_kg_m3: 蒸气密度 kg/m³（工况下）
+         *     - liquid_density_kg_m3: 液滴密度 kg/m³（必须 > vapor_density 否则无气液分离）
+         *     - k_sb_m_s: Souders-Brown 系数 m/s（默认 0.3 保守，范围 (0, 2.0]）
+         *
+         *     Water Seal：
+         *     - header_pressure_pa: 总管在 water seal 处压力 Pa（来自 Task 20）
+         *     - seal_pot_pressure_pa: seal pot 下游压力 Pa（大气压常 101325）
+         *     - water_density_kg_m3: 水封液密度 kg/m³（默认 1000 纯水）
+         *     - gravity_m_s2: 重力加速度 m/s²（默认 9.81）
+         *     - safety_factor: 设计安全系数（默认 1.5；API 521 推荐 1.25–2.0）
+         *     - surge_pressure_pa: 浪涌工况额外压力 Pa（默认 0）
+         */
+        KodSizingRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（与 Task 19/20 隔离键一致）
+             */
+            project_id: string;
+            /**
+             * Standard Profile Code
+             * @description 项目标准（API_521 / GB/T）
+             * @default API_521
+             */
+            standard_profile_code: string;
+            /**
+             * Vapor Mass Flow Kgs
+             * @description 闪蒸气质量流量 kg/s（来自 Task 19）
+             */
+            vapor_mass_flow_kgs: number;
+            /**
+             * Vapor Density Kg M3
+             * @description 蒸气密度 kg/m³（工况下）
+             */
+            vapor_density_kg_m3: number;
+            /**
+             * Liquid Density Kg M3
+             * @description 液滴密度 kg/m³
+             */
+            liquid_density_kg_m3: number;
+            /**
+             * K Sb M S
+             * @description Souders-Brown 系数 m/s（典型 0.1–0.4，默认 0.3 保守）
+             * @default 0.3
+             */
+            k_sb_m_s: number;
+            /**
+             * Header Pressure Pa
+             * @description 总管在 water seal 处压力 Pa（来自 Task 20）
+             */
+            header_pressure_pa: number;
+            /**
+             * Seal Pot Pressure Pa
+             * @description seal pot 下游压力 Pa（大气压常 101325）
+             */
+            seal_pot_pressure_pa: number;
+            /**
+             * Water Density Kg M3
+             * @description 水封液密度 kg/m³（默认 1000 纯水）
+             * @default 1000
+             */
+            water_density_kg_m3: number;
+            /**
+             * Gravity M S2
+             * @description 重力加速度 m/s²（默认 9.81）
+             * @default 9.81
+             */
+            gravity_m_s2: number;
+            /**
+             * Safety Factor
+             * @description 设计安全系数（API 521 推荐 1.25–2.0，默认 1.5）
+             * @default 1.5
+             */
+            safety_factor: number;
+            /**
+             * Surge Pressure Pa
+             * @description 浪涌工况额外压力 Pa（默认 0）
+             * @default 0
+             */
+            surge_pressure_pa: number;
+        };
+        /**
+         * KodSizingResponse
+         * @description FLARE_SYS kod_sizing 响应（KOD + Water Seal 综合）。
+         *
+         *     字段：
+         *
+         *     - kod: KOD 子结果（KodInfo；API 521 §5.15.3）
+         *     - water_seal: Water Seal 子结果（WaterSealInfo；API 521 §5.15.5）
+         *     - project_id: 回显请求 project_id（前端 audit）
+         *     - standard_profile_code: 回显请求 standard_profile_code
+         *     - formula_ref: 综合公式溯源标记 "API_521_§5.15.3+§5.15.5"
+         */
+        KodSizingResponse: {
+            /** @description KOD 子结果 */
+            kod: components["schemas"]["KodInfo"];
+            /** @description Water Seal 子结果 */
+            water_seal: components["schemas"]["WaterSealInfo"];
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 回显请求 project_id
+             */
+            project_id: string;
+            /**
+             * Standard Profile Code
+             * @description 回显请求 standard_profile_code
+             */
+            standard_profile_code: string;
+            /**
+             * Formula Ref
+             * @description 公式溯源标记（API_521_§5.15.3+§5.15.5）
+             */
+            formula_ref: string;
+        };
+        /**
          * LoginRequest
          * @description 登录请求体（POST /auth/login）。
          *
@@ -7226,6 +7414,32 @@ export interface components {
              * @description 变更说明
              */
             change_note?: string | null;
+        };
+        /**
+         * WaterSealInfo
+         * @description Water Seal 子结果（API 521 §5.15.5）。
+         */
+        WaterSealInfo: {
+            /**
+             * H Seal M
+             * @description 最小液封高度 m
+             */
+            h_seal_m: number;
+            /**
+             * H Design M
+             * @description 设计液封高度 m（含 safety_factor）
+             */
+            h_design_m: number;
+            /**
+             * Delta Pressure Pa
+             * @description 有效压差 Pa
+             */
+            delta_pressure_pa: number;
+            /**
+             * Formula Ref
+             * @description 公式溯源标记（API_521_§5.15.5）
+             */
+            formula_ref: string;
         };
         /**
          * WeightEstimateRequest
@@ -11626,6 +11840,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HeaderSizingResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calculate_kod_sizing_api_v1_flare_kod_sizing_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["KodSizingRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["KodSizingResponse"];
                 };
             };
             /** @description Validation Error */

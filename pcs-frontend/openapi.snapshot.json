@@ -6322,6 +6322,66 @@
         }
       }
     },
+    "/api/v1/flare/kod-sizing": {
+      "post": {
+        "tags": [
+          "flare"
+        ],
+        "summary": "Calculate Kod Sizing",
+        "description": "Souders-Brown KOD 直径 + Water Seal 液柱高度综合计算。\n\n按 API 521 §5.15.3（Souders-Brown 法 KOD 直径）+ §5.15.5（Water Seal\n液柱高度）综合调用。输入参数来自 Task 19（vapor mass flow）+ Task 20\n（header P/T）；不写 DB（落库由 Task 23 flare_persist 统一处理）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_kod_sizing_api_v1_flare_kod_sizing_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/KodSizingRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KodSizingResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/vessel/calculate": {
       "post": {
         "tags": [
@@ -11742,6 +11802,182 @@
         "title": "ImportHtriResponse",
         "description": "POST /heat/import-htri 响应。"
       },
+      "KodInfo": {
+        "properties": {
+          "diameter_m": {
+            "type": "number",
+            "title": "Diameter M",
+            "description": "KOD 直径 m"
+          },
+          "area_m2": {
+            "type": "number",
+            "title": "Area M2",
+            "description": "KOD 流通截面积 m²"
+          },
+          "u_perm_m_s": {
+            "type": "number",
+            "title": "U Perm M S",
+            "description": "允许蒸气速度 m/s"
+          },
+          "u_actual_m_s": {
+            "type": "number",
+            "title": "U Actual M S",
+            "description": "实际蒸气速度 m/s（数学恒等 u_perm，合规自检）"
+          },
+          "limit_ratio": {
+            "type": "number",
+            "title": "Limit Ratio",
+            "description": "Souders-Brown 极限比 u_actual / u_perm（应 == 1.0）"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref",
+            "description": "公式溯源标记（API_521_§5.15.3）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "diameter_m",
+          "area_m2",
+          "u_perm_m_s",
+          "u_actual_m_s",
+          "limit_ratio",
+          "formula_ref"
+        ],
+        "title": "KodInfo",
+        "description": "KOD 子结果（API 521 §5.15.3 Souders-Brown）。"
+      },
+      "KodSizingRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（与 Task 19/20 隔离键一致）"
+          },
+          "standard_profile_code": {
+            "type": "string",
+            "title": "Standard Profile Code",
+            "description": "项目标准（API_521 / GB/T）",
+            "default": "API_521"
+          },
+          "vapor_mass_flow_kgs": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Vapor Mass Flow Kgs",
+            "description": "闪蒸气质量流量 kg/s（来自 Task 19）"
+          },
+          "vapor_density_kg_m3": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Vapor Density Kg M3",
+            "description": "蒸气密度 kg/m³（工况下）"
+          },
+          "liquid_density_kg_m3": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Liquid Density Kg M3",
+            "description": "液滴密度 kg/m³"
+          },
+          "k_sb_m_s": {
+            "type": "number",
+            "maximum": 2.0,
+            "exclusiveMinimum": 0.0,
+            "title": "K Sb M S",
+            "description": "Souders-Brown 系数 m/s（典型 0.1–0.4，默认 0.3 保守）",
+            "default": 0.3
+          },
+          "header_pressure_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Header Pressure Pa",
+            "description": "总管在 water seal 处压力 Pa（来自 Task 20）"
+          },
+          "seal_pot_pressure_pa": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Seal Pot Pressure Pa",
+            "description": "seal pot 下游压力 Pa（大气压常 101325）"
+          },
+          "water_density_kg_m3": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Water Density Kg M3",
+            "description": "水封液密度 kg/m³（默认 1000 纯水）",
+            "default": 1000.0
+          },
+          "gravity_m_s2": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Gravity M S2",
+            "description": "重力加速度 m/s²（默认 9.81）",
+            "default": 9.81
+          },
+          "safety_factor": {
+            "type": "number",
+            "minimum": 1.0,
+            "title": "Safety Factor",
+            "description": "设计安全系数（API 521 推荐 1.25–2.0，默认 1.5）",
+            "default": 1.5
+          },
+          "surge_pressure_pa": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Surge Pressure Pa",
+            "description": "浪涌工况额外压力 Pa（默认 0）",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "vapor_mass_flow_kgs",
+          "vapor_density_kg_m3",
+          "liquid_density_kg_m3",
+          "header_pressure_pa",
+          "seal_pot_pressure_pa"
+        ],
+        "title": "KodSizingRequest",
+        "description": "FLARE_SYS kod_sizing 请求（KOD + Water Seal 合并调用）。\n\n字段（按 API 521 §5.15.3 Souders-Brown + §5.15.5 Water Seal 所需输入）：\n\n- project_id: 项目 ID（与 Task 19/20 隔离键一致）\n- standard_profile_code: 项目标准（默认 API_521；GB/T 暂不开放）\n\nKOD（Souders-Brown）：\n- vapor_mass_flow_kgs: 闪蒸气质量流量 kg/s（来自 Task 19）\n- vapor_density_kg_m3: 蒸气密度 kg/m³（工况下）\n- liquid_density_kg_m3: 液滴密度 kg/m³（必须 > vapor_density 否则无气液分离）\n- k_sb_m_s: Souders-Brown 系数 m/s（默认 0.3 保守，范围 (0, 2.0]）\n\nWater Seal：\n- header_pressure_pa: 总管在 water seal 处压力 Pa（来自 Task 20）\n- seal_pot_pressure_pa: seal pot 下游压力 Pa（大气压常 101325）\n- water_density_kg_m3: 水封液密度 kg/m³（默认 1000 纯水）\n- gravity_m_s2: 重力加速度 m/s²（默认 9.81）\n- safety_factor: 设计安全系数（默认 1.5；API 521 推荐 1.25–2.0）\n- surge_pressure_pa: 浪涌工况额外压力 Pa（默认 0）"
+      },
+      "KodSizingResponse": {
+        "properties": {
+          "kod": {
+            "$ref": "#/components/schemas/KodInfo",
+            "description": "KOD 子结果"
+          },
+          "water_seal": {
+            "$ref": "#/components/schemas/WaterSealInfo",
+            "description": "Water Seal 子结果"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "回显请求 project_id"
+          },
+          "standard_profile_code": {
+            "type": "string",
+            "title": "Standard Profile Code",
+            "description": "回显请求 standard_profile_code"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref",
+            "description": "公式溯源标记（API_521_§5.15.3+§5.15.5）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "kod",
+          "water_seal",
+          "project_id",
+          "standard_profile_code",
+          "formula_ref"
+        ],
+        "title": "KodSizingResponse",
+        "description": "FLARE_SYS kod_sizing 响应（KOD + Water Seal 综合）。\n\n字段：\n\n- kod: KOD 子结果（KodInfo；API 521 §5.15.3）\n- water_seal: Water Seal 子结果（WaterSealInfo；API 521 §5.15.5）\n- project_id: 回显请求 project_id（前端 audit）\n- standard_profile_code: 回显请求 standard_profile_code\n- formula_ref: 综合公式溯源标记 \"API_521_§5.15.3+§5.15.5\""
+      },
       "LoginRequest": {
         "properties": {
           "username": {
@@ -16106,6 +16342,39 @@
         ],
         "title": "VersionResponse",
         "description": "POST /versions、POST /fork 返回结构。"
+      },
+      "WaterSealInfo": {
+        "properties": {
+          "h_seal_m": {
+            "type": "number",
+            "title": "H Seal M",
+            "description": "最小液封高度 m"
+          },
+          "h_design_m": {
+            "type": "number",
+            "title": "H Design M",
+            "description": "设计液封高度 m（含 safety_factor）"
+          },
+          "delta_pressure_pa": {
+            "type": "number",
+            "title": "Delta Pressure Pa",
+            "description": "有效压差 Pa"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref",
+            "description": "公式溯源标记（API_521_§5.15.5）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "h_seal_m",
+          "h_design_m",
+          "delta_pressure_pa",
+          "formula_ref"
+        ],
+        "title": "WaterSealInfo",
+        "description": "Water Seal 子结果（API 521 §5.15.5）。"
       },
       "WeightEstimateRequest": {
         "properties": {
