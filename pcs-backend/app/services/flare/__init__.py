@@ -13,11 +13,14 @@
 - ``kod_sizing`` 提供 ``calc_kod_sizing``：按 API 521 §5.15.3
   Souders-Brown 法计算 KOD 直径 + §5.15.5 Water Seal 液柱高度综合
   （不依赖 DB；纯计算函数）。
+- ``stack_design`` 提供 ``calc_stack_design``：按 API 521 §7.4.2.2
+  Stack Height（Pasquill-Gifford 修正）+ §7.4.2.3 Thermal Radiation
+  （点源模型）+ BEDD 限值校验综合（不依赖 DB；纯计算函数）。
 
 粒度从「单 PSV 多工况保守 max」（P5-3-3 ``psv/relief_aggregator_service``
 ``calc_relief_aggregate``）升级到「项目级多 PSV 叠加」+「总管尺寸」
-+「KOD + 水封」。四模块独立、不互相调用；FLARE_SYS 不下沉到
-``app/services/psv/`` 子树（避免 PSV 选型与 FLARE 网络拓扑耦合）。
++「KOD + 水封」+「火炬高度与辐射」。五模块独立、不互相调用；FLARE_SYS
+不下沉到 ``app/services/psv/`` 子树（避免 PSV 选型与 FLARE 网络拓扑耦合）。
 """
 from __future__ import annotations
 
@@ -46,6 +49,18 @@ from app.services.flare.relief_aggregator import (
     Scenario,
     aggregate_flare_load,
 )
+from app.services.flare.stack_design import (  # P6-2 Task 22
+    RadiationCheckInput,
+    RadiationCheckInputError,
+    RadiationCheckResult,
+    StackDesignResult,
+    StackHeightInput,
+    StackHeightInputError,
+    StackHeightResult,
+    calc_radiation_check,
+    calc_stack_design,
+    calc_stack_height,
+)
 
 __all__ = [
     "Scenario",
@@ -69,4 +84,15 @@ __all__ = [
     "calc_kod",
     "calc_water_seal",
     "calc_kod_sizing",
+    # P6-2 Task 22 — stack_design（Stack Height + Thermal Radiation + BEDD）
+    "StackHeightInput",
+    "StackHeightResult",
+    "RadiationCheckInput",
+    "RadiationCheckResult",
+    "StackDesignResult",
+    "StackHeightInputError",
+    "RadiationCheckInputError",
+    "calc_stack_height",
+    "calc_radiation_check",
+    "calc_stack_design",
 ]

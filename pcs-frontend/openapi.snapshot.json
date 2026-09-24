@@ -6382,6 +6382,66 @@
         }
       }
     },
+    "/api/v1/flare/stack-design": {
+      "post": {
+        "tags": [
+          "flare"
+        ],
+        "summary": "Calculate Stack Design",
+        "description": "API 521 §7.4.2.2 火炬高度 + §7.4.2.3 地面辐射 + BEDD 限值校验综合端点。\n\n接力实现要点：\n1. endpoint 内**先单独调** ``calc_stack_height`` 拿到真实 h_stack_m\n   （不能用占位 0.0；辐射计算的 h_stack 接力必须用 stack_height 的实际结果）\n2. 用真实 h_stack_m 构造 ``RadiationCheckInput`` 再调 ``calc_radiation_check``\n3. 综合 stack_height + radiation 子结果返回\n\n输入来自 Task 19（Q_total）+ Task 20（header 几何）；不写 DB（落库由\nTask 23 flare_persist 统一处理）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_stack_design_api_v1_flare_stack_design_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/StackDesignRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StackDesignResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/vessel/calculate": {
       "post": {
         "tags": [
@@ -13342,6 +13402,57 @@
         "title": "PumpCurveRequest",
         "description": "厂家泵曲线请求。"
       },
+      "RadiationCheckInfo": {
+        "properties": {
+          "q_at_receptor_w_m2": {
+            "type": "number",
+            "title": "Q At Receptor W M2",
+            "description": "受体处辐射强度 W/m²"
+          },
+          "q_at_receptor_kw_m2": {
+            "type": "number",
+            "title": "Q At Receptor Kw M2",
+            "description": "受体处辐射强度 kW/m²（常用）"
+          },
+          "bedd_compliant": {
+            "type": "boolean",
+            "title": "Bedd Compliant",
+            "description": "是否满足 BEDD 限值（True = q ≤ bedd_limit）"
+          },
+          "bedd_limit_kw_m2": {
+            "type": "number",
+            "title": "Bedd Limit Kw M2",
+            "description": "BEDD 限值 kW/m²（输入阈值）"
+          },
+          "flame_center_height_m": {
+            "type": "number",
+            "title": "Flame Center Height M",
+            "description": "火焰中心高度 m"
+          },
+          "slant_distance_m": {
+            "type": "number",
+            "title": "Slant Distance M",
+            "description": "受体处斜距 R m"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref",
+            "description": "公式溯源标记（API_521_§7.4.2.3+BEDD）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "q_at_receptor_w_m2",
+          "q_at_receptor_kw_m2",
+          "bedd_compliant",
+          "bedd_limit_kw_m2",
+          "flame_center_height_m",
+          "slant_distance_m",
+          "formula_ref"
+        ],
+        "title": "RadiationCheckInfo",
+        "description": "Radiation Check 子结果（API 521 §7.4.2.3 + BEDD）。"
+      },
       "RecordTransitionRequest": {
         "properties": {
           "transition": {
@@ -14479,6 +14590,176 @@
         "type": "object",
         "title": "SolverConfigReq",
         "description": "求解配置（可选；缺省 SolverConfig 默认值）。"
+      },
+      "StackDesignRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（与 Task 19/20/21 隔离键一致）"
+          },
+          "standard_profile_code": {
+            "type": "string",
+            "title": "Standard Profile Code",
+            "description": "项目标准（API_521 / GB/T）",
+            "default": "API_521"
+          },
+          "total_heat_release_mw": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Total Heat Release Mw",
+            "description": "总热释放速率 MW（来自 Task 19 aggregate_flare_load）"
+          },
+          "stability_class": {
+            "type": "string",
+            "title": "Stability Class",
+            "description": "Pasquill-Gifford 大气稳定度等级（A-F，默认 D 中性）",
+            "default": "D"
+          },
+          "h_min_engineering_m": {
+            "type": "number",
+            "maximum": 200.0,
+            "minimum": 5.0,
+            "title": "H Min Engineering M",
+            "description": "工程最小高度 m（默认 10，范围 [5, 200]）",
+            "default": 10.0
+          },
+          "wind_speed_m_s": {
+            "type": "number",
+            "maximum": 50.0,
+            "minimum": 0.0,
+            "title": "Wind Speed M S",
+            "description": "设计风速 m/s（默认 5，范围 [0, 50]）",
+            "default": 5.0
+          },
+          "q_radiated_mw": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Q Radiated Mw",
+            "description": "火焰辐射热释放 MW（Q_total × fraction_rad）"
+          },
+          "receptor_distance_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Receptor Distance M",
+            "description": "受体距火炬底水平距离 m（property line）"
+          },
+          "flame_height_m": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flame Height M",
+            "description": "火焰长度 m（None 则自动 0.5×H_stack）"
+          },
+          "tilt_angle_deg": {
+            "type": "number",
+            "maximum": 90.0,
+            "minimum": 0.0,
+            "title": "Tilt Angle Deg",
+            "description": "火焰倾斜角 度（默认 0 无风）",
+            "default": 0.0
+          },
+          "bedd_limit_kw_m2": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Bedd Limit Kw M2",
+            "description": "BEDD 限值 kW/m²（property line 4.73 / personnel 6.31 / emergency 12.6，默认 4.73）",
+            "default": 4.73
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "total_heat_release_mw",
+          "q_radiated_mw",
+          "receptor_distance_m"
+        ],
+        "title": "StackDesignRequest",
+        "description": "FLARE_SYS stack_design 请求（stack_height + radiation_check 合并调用）。\n\n字段（按 API 521 §7.4.2.2 Stack Height + §7.4.2.3 Thermal Radiation +\nBEDD 限值校验所需输入）：\n\n- project_id: 项目 ID（与 Task 19/20/21 隔离键一致）\n- standard_profile_code: 项目标准（默认 API_521；GB/T 暂不开放）\n\nStack Height 输入（API 521 §7.4.2.2）：\n- total_heat_release_mw: 总热释放速率 MW（来自 Task 19 推导）\n- stability_class: Pasquill-Gifford 大气稳定度（A–F，默认 D 中性）\n- h_min_engineering_m: 工程最小高度 m（默认 10，范围 [5, 200]）\n- wind_speed_m_s: 设计风速 m/s（默认 5，范围 [0, 50]）\n\nRadiation Check 输入（API 521 §7.4.2.3 + BEDD）：\n- q_radiated_mw: 火焰辐射热释放 MW（Q_total × fraction_rad，>0）\n- receptor_distance_m: 受体距火炬底水平距离 m（property line，>0）\n- flame_height_m: 火焰长度 m（None 则自动 0.5×H_stack，ge=0）\n- tilt_angle_deg: 火焰倾斜角 度（默认 0 无风，范围 [0, 90]）\n- bedd_limit_kw_m2: BEDD 限值 kW/m²（property line 4.73 / personnel 6.31 /\n  emergency 12.6，默认 4.73）"
+      },
+      "StackDesignResponse": {
+        "properties": {
+          "stack_height": {
+            "$ref": "#/components/schemas/StackHeightInfo",
+            "description": "Stack Height 子结果"
+          },
+          "radiation": {
+            "$ref": "#/components/schemas/RadiationCheckInfo",
+            "description": "Radiation Check 子结果"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "回显请求 project_id"
+          },
+          "standard_profile_code": {
+            "type": "string",
+            "title": "Standard Profile Code",
+            "description": "回显请求 standard_profile_code"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref",
+            "description": "公式溯源标记（API_521_§7.4.2.2+§7.4.2.3）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "stack_height",
+          "radiation",
+          "project_id",
+          "standard_profile_code",
+          "formula_ref"
+        ],
+        "title": "StackDesignResponse",
+        "description": "FLARE_SYS stack_design 响应（stack_height + radiation_check 综合）。\n\n字段：\n- stack_height: Stack Height 子结果（StackHeightInfo；API 521 §7.4.2.2）\n- radiation: Radiation Check 子结果（RadiationCheckInfo；API 521 §7.4.2.3 + BEDD）\n- project_id: 回显请求 project_id（前端 audit）\n- standard_profile_code: 回显请求 standard_profile_code\n- formula_ref: 综合公式溯源标记 \"API_521_§7.4.2.2+§7.4.2.3\""
+      },
+      "StackHeightInfo": {
+        "properties": {
+          "h_stack_m": {
+            "type": "number",
+            "title": "H Stack M",
+            "description": "推荐火炬高度 m（max(h_min, h_eff)）"
+          },
+          "h_effective_m": {
+            "type": "number",
+            "title": "H Effective M",
+            "description": "有效高度 m（含 dispersion_factor）"
+          },
+          "buoyancy_rise_m": {
+            "type": "number",
+            "title": "Buoyancy Rise M",
+            "description": "浮升抬升 ΔH_buoy m（1.5 × √Q_total）"
+          },
+          "dispersion_factor": {
+            "type": "number",
+            "title": "Dispersion Factor",
+            "description": "Pasquill-Gifford 修正因子（依 stability_class）"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref",
+            "description": "公式溯源标记（API_521_§7.4.2.2）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "h_stack_m",
+          "h_effective_m",
+          "buoyancy_rise_m",
+          "dispersion_factor",
+          "formula_ref"
+        ],
+        "title": "StackHeightInfo",
+        "description": "Stack Height 子结果（API 521 §7.4.2.2）。"
       },
       "StandardProfileResponse": {
         "properties": {

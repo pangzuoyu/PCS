@@ -1,4 +1,4 @@
-"""P6-2 FLARE_SYS API：Task 20 header_sizing + Task 21 kod_sizing 端点。
+"""P6-2 FLARE_SYS API：Task 20 header_sizing + Task 21 kod_sizing + Task 22 stack_design 端点。
 
 端点：
 - POST /api/v1/flare/header-sizing
@@ -7,11 +7,14 @@
 - POST /api/v1/flare/kod-sizing
     body: KodSizingRequest
     response: KodSizingResponse（API 521 §5.15.3 Souders-Brown + §5.15.5 Water Seal）
+- POST /api/v1/flare/stack-design
+    body: StackDesignRequest
+    response: StackDesignResponse（API 521 §7.4.2.2 Stack Height + §7.4.2.3 Radiation + BEDD）
 
 设计要点：
 - ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
 - 业务异常 → 走 core.errors.PcsError envelope
-- 不写 DB（header_sizing / kod_sizing 是独立计算，结果由 flare_persist
+- 不写 DB（header_sizing / kod_sizing / stack_design 是独立计算，结果由 flare_persist
   统一落库 — Task 23）
 """
 from __future__ import annotations
@@ -30,6 +33,10 @@ from app.schemas.flare import (
     KodInfo,
     KodSizingRequest,
     KodSizingResponse,
+    RadiationCheckInfo,
+    StackDesignRequest,
+    StackDesignResponse,
+    StackHeightInfo,
     WaterSealInfo,
 )
 from app.services.exceptions import PcsError
@@ -41,6 +48,12 @@ from app.services.flare.kod_sizing import (  # P6-2 Task 21
     KodInput,
     WaterSealInput,
     calc_kod_sizing,
+)
+from app.services.flare.stack_design import (  # P6-2 Task 22
+    RadiationCheckInput,
+    StackHeightInput,
+    calc_radiation_check,
+    calc_stack_height,
 )
 
 router = APIRouter(prefix="/flare", tags=["flare"])
@@ -151,6 +164,76 @@ async def calculate_kod_sizing(
         project_id=req.project_id,
         standard_profile_code=req.standard_profile_code,
         formula_ref=result.formula_ref,
+    )
+
+
+@router.post("/stack-design", response_model=StackDesignResponse)
+async def calculate_stack_design(
+    req: StackDesignRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> StackDesignResponse:
+    """API 521 §7.4.2.2 火炬高度 + §7.4.2.3 地面辐射 + BEDD 限值校验综合端点。
+
+    接力实现要点：
+    1. endpoint 内**先单独调** ``calc_stack_height`` 拿到真实 h_stack_m
+       （不能用占位 0.0；辐射计算的 h_stack 接力必须用 stack_height 的实际结果）
+    2. 用真实 h_stack_m 构造 ``RadiationCheckInput`` 再调 ``calc_radiation_check``
+    3. 综合 stack_height + radiation 子结果返回
+
+    输入来自 Task 19（Q_total）+ Task 20（header 几何）；不写 DB（落库由
+    Task 23 flare_persist 统一处理）。
+
+    ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    """
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    try:
+        # ── 接力 step 1: 先调 stack_height 拿真实 h_stack_m ──
+        stack_r = calc_stack_height(
+            StackHeightInput(
+                total_heat_release_mw=req.total_heat_release_mw,
+                stability_class=req.stability_class,
+                h_min_engineering_m=req.h_min_engineering_m,
+                wind_speed_m_s=req.wind_speed_m_s,
+            )
+        )
+        # ── 接力 step 2: 用真实 h_stack_m 串入 radiation_check ──
+        radiation_r = calc_radiation_check(
+            RadiationCheckInput(
+                q_radiated_mw=req.q_radiated_mw,
+                h_stack_m=stack_r.h_stack_m,  # 接力：真实高度（非占位 0.0）
+                receptor_distance_m=req.receptor_distance_m,
+                flame_height_m=req.flame_height_m,
+                tilt_angle_deg=req.tilt_angle_deg,
+                bedd_limit_kw_m2=req.bedd_limit_kw_m2,
+            )
+        )
+    except PcsError as e:
+        raise _to_http(e) from e
+
+    # 不写 DB（stack_design 是独立计算，落库由 Task 23 flare_persist 统一处理）
+    del db  # 显式不使用 session（避免 pylint unused-argument）
+
+    return StackDesignResponse(
+        stack_height=StackHeightInfo(
+            h_stack_m=stack_r.h_stack_m,
+            h_effective_m=stack_r.h_effective_m,
+            buoyancy_rise_m=stack_r.buoyancy_rise_m,
+            dispersion_factor=stack_r.dispersion_factor,
+            formula_ref=stack_r.formula_ref,
+        ),
+        radiation=RadiationCheckInfo(
+            q_at_receptor_w_m2=radiation_r.q_at_receptor_w_m2,
+            q_at_receptor_kw_m2=radiation_r.q_at_receptor_kw_m2,
+            bedd_compliant=radiation_r.bedd_compliant,
+            bedd_limit_kw_m2=radiation_r.bedd_limit_kw_m2,
+            flame_center_height_m=radiation_r.flame_center_height_m,
+            slant_distance_m=radiation_r.slant_distance_m,
+            formula_ref=radiation_r.formula_ref,
+        ),
+        project_id=req.project_id,
+        standard_profile_code=req.standard_profile_code,
+        formula_ref="API_521_§7.4.2.2+§7.4.2.3",
     )
 
 
