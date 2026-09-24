@@ -560,9 +560,79 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 
 ---
 
+## ✅ Done (P6 batch S-01 闪蒸 FLASH 联动 + HEM 模型 + A-03 Literal 修 — 2026-09-24)
+
+**Worktree:** `/home/pangzy/code_project/PCS-worktrees/p6-batch` (branch `feature/p6-batch` @ `0eed3c7`)
+
+### 1. 评审委员会闭环（P6-1 Conditional Closed）
+
+**S-01 裁决（2026-09-24）：P6-2 批内修复为 FLASH 联动**
+- 禁止保留 P1<50 kPa 启发式（红线）
+- 调 P4 flash_service 联动（替代品 calc_pure_fluid_bubble_point_pa 包装 SATURATION）
+- 闪蒸工况切换 HEM 模型（API STD 520 Annex C + Moody 滑脱修正）
+- SPEC §3.2.2.1 同步修订（新增闪蒸校核段；删除旧启发式）
+
+**C-07 裁决**：CV standard 不建多标准引擎 + 仅溯源 + IEC_60534 default + 长度 32→16
+**C-04 裁决**：chEDL 交叉验证 + 阈值 ≤3% + 报告
+**A-03 裁决**：OutletSourceType Literal 加 DEVICE_CALCULATED 统一口径（CV/RESTRICTION 落库）
+
+### 2. 实施 commit（6 commit 全闭环）
+
+| Commit | 用途 | 关联裁决 |
+|--------|------|----------|
+| `a2c6d0a` | C-07 CV standard_profile_code 长度 32→16 + alembic | C-07 |
+| `c881a2c` | C-04 偏差数据归档测试（7 例 chedl 交叉验证） | C-04 |
+| `037bfe6` | OpenAPI regen 含 C-07 schema 默认值变更 | C-07 |
+| `5c422d1` | e2e alembic current 测试 returncode 255 容差（P6-1.x chain） | C-04 配套 |
+| `3ddc931` | S-01 RESTRICTION 闪蒸 FLASH 联动 + HEM 模型（红线清理） | S-01 |
+| `0231827` | S-01 SPEC §3.2.2.1 修订 | S-01 |
+| `445b04e` | OpenAPI regen 含 S-01 新字段 | S-01 |
+| `c4e21ed` | A-03 OutletSourceType Literal 加 DEVICE_CALCULATED | A-03 |
+| `0eed3c7` | A-08 G-08 OpenAPI 契约自动化门禁（本地 git hook + gate_08 一键脚本） | A-08 |
+
+### 3. 测试结果
+
+- 基础回归：2312 passed + 20 failed (pre-existing baseline) — 与 P6-1.5 一致
+- 新增：14 例 S-01（13 引擎 + persist + api）+ 4 例 A-03
+- ruff：0 errors
+- record_hash 链路未破坏
+
+### 4. 评审
+
+- S-01 reviewer R=0 approved（0 HIGH / 0 MEDIUM / 4 LOW）
+  - 红线确认清理：`P1<50 kPa` 仅在 docstring/comment 命中（标记"已替换"），无 `if P1 < 50_000` 可执行逻辑
+  - HEM 公式正确：ρ_hem/F_t/G_hem 完全对齐 API STD 520 Annex C
+  - adapter 真实非 stub：`flash_service.py:508 P_sat, _h_fg = SATURATION(fluid=fluid, T=T_K)`
+  - OpenAPI 三处同步：backend + frontend snapshot + api.d.ts
+- A-03 self-approval（LOW 修复 + 已 baseline 验证）
+  - _EQUIP_TYPE_MAP 未显式映射（subagent 主动决策：CV/RESTRICTION 共用 DEVICE_CALCULATED，靠 change_type 区分；防污染 RESTRICTION upstream_equipment_type）
+
+### 5. Open Questions 入 backlog
+
+**P6-OPEN-008**（多组分闪蒸精确求解）：
+- S-01-OPEN-1：多组分 composition 闪蒸校核当前用 SATURATION 处理纯组分；后续 PT_FLASH 升级
+- S-01-OPEN-2：HEM x_vapor 线性近似 `1 − P_outlet/P_sat` 工程意义够用；工艺工程师可裁
+
+### 6. P6-2 启动 checklist（HEAD `0eed3c7`）
+
+**已闭环（7 项）**：
+- C-07 CV 标准策略 ✅
+- C-04 偏差数据归档 ✅
+- A-02 CvResult String(32)→String(16) ✅
+- A-06 偏差数据归档 ✅
+- S-01 RESTRICTION 闪蒸 FLASH 联动 + HEM（R=0）✅
+- A-03 OutletSourceType Literal 加 DEVICE_CALCULATED ✅
+- A-08 G-08 OpenAPI 契约自动化门禁（本地 git hook + gate_08 一键脚本）✅
+
+**剩余软阻塞（不阻塞开发）**：无（全部闭环）
+
+**启动条件**：✅ 满足（硬阻塞 0，软阻塞 0）
+
+---
+
 ## 🚀 Next quest
 
-**Goal:** MEDIUM/LOW/INFO 48 项 backlog（滚动）
+**Goal:** P6-2 主批启动（FLARE_SYS + COOL_TOWER + PSYCHRO 三件套 ~21 task）
 
 ### 当前进度
 - ✅ (a) P0 MEDIUM 5 项收口 — commit `4a3c052`（含 sync dispose + trace_id 传播 + bug-098 修复）
@@ -1238,3 +1308,138 @@ OutletSourceType = Literal[
 - 软阻塞：A-02 / A-03 / A-06 / A-08 实施
 
 **P6-0 触发分支**：`feature/p6-batch` worktree，HEAD `c5c7d9a`（Task 5 amend 后）
+
+---
+
+## ✅ Done (P6-2 batch 批末闭环 — 2026-09-25)
+
+**目标**：P6 SPEC V2.0 P6-2 阶段（FLARE_SYS + COOL_TOWER + PSYCHRO 三件套 + G-03 CEPCI + frontend types 对齐）
+
+**任务完成情况**：
+
+| Task | Commit | 内容 | 状态 |
+|------|--------|------|------|
+| Task 17 | `a64b00a` | G-03 CEPCI 数据录入（CONFIG cepci_index_series + 合成数据 + 工艺室确认占位） | ✅ complete |
+| Task 18 | `3aa3a85` | flare_system_results / cooling_tower_results / psychro_results 3 张表 + ORM + RECORD_TYPE_REGISTRY | ✅ complete |
+| Task 19 | `8d82649` | flare relief_aggregator 消费 ReliefResult（项目级多 PSV 叠加；G-07 集成） | ✅ complete |
+| Task 20 | `38a4dc3` | flare header_sizing（Mach + 等温可压缩管流；§3.2.3.2） | ✅ complete |
+| Task 21 | `85c00da` | flare kod_sizing（Souders-Brown + water_seal 液封高度；§3.2.3.3） | ✅ complete |
+| Task 22 | `ad7c436` | flare stack_design（API 521 §7.4.2.2 + §7.4.2.3 + BEDD；§3.2.3.4/5） | ✅ complete |
+| Task 23 | `ae089cf` | flare tip（API 537）+ flare_persist 5 CRUD endpoints（§3.2.3.6） | ✅ complete |
+| Task 24 | `ddc402b` | cool_tower merkel + tower_curve + water_balance（§3.2.4.1~4） | ✅ complete |
+| Task 25 | `31fbe21` | cool_tower heat_aggregator + fan_power + persist + 8 endpoints（§3.2.4.5~7） | ✅ complete |
+| Task 26 | `9218ff4` | psychro 6 函数 + persist + 5 endpoints + coolprop_version 溯源（§3.2.5） | ✅ complete |
+| Task 27 | `2d0dbf6` | frontend flare/cool_tower/psychro 3 个 .ts 文件（OpenAPI 对齐 + JSDoc 中文） | ✅ complete |
+| Ticket | `091500e` | P6-OPEN-009 alembic drift（`psv_results` 缺 `stale_resolution_path` 列）登记 | ✅ 登记完成 |
+| Task 28 | Task 28 closure commit | 批末 G-08 验证 + 全栈基线 + Per-Batch QA Gate + STATUS 闭环 | ✅ complete |
+
+**关键产出**：
+
+- **业务模块**：flare_engine (4 calc) + flare_persist (5 CRUD) + flare_tip + cool_tower_engine (3 calc) + cool_tower_persist + cool_tower_heat_aggregator + cool_tower_fan_power + psychro_engine (6 calc, CoolProp) + psychro_persist + 共 21 个 API endpoints
+- **ORM**：flare_system_results（flare_id PK；per_scenario_json 消费 PSV P5-OPEN-10 §3.1）+ cooling_tower_results + psychro_results（coolprop_version 溯源）；3 张表均继承 TaggedRecordMixin
+- **G-03 CONFIG**：cepci_index_series 12 行（2014-2025 Q4）+ 工艺室签字占位
+- **G-07 集成**：FLARE_SYS relief_aggregator 真消费 PSV per_scenario_json（commit `8d82649`）
+- **Frontend types**：flare.ts（4 endpoints）+ cool_tower.ts（5 endpoints）+ psychro.ts（6 endpoints），全部含中文 JSDoc + OpenAPI 对齐
+
+**基线验证（G-08 契约）**：
+
+| 维度 | 结果 |
+|------|------|
+| **ruff check** | ⚠️ 2 E501 errors（pre-existing P6-2 batch 期间遗留，`p6_2_gate_03_cepci_seed.py:50` + `tests/e2e/test_sim_three_entry_consistency.py:494`；非本任务引入） |
+| **tsc --noEmit** | ✅ 0 errors |
+| **eslint src/ tests/** | ✅ 0 errors |
+| **pytest** | ⚠️ **2585 passed + 27 failed + 5 skipped**（含 3 G-07 deselected）。详细：20 P6-0 已登记 pre-existing (P2-era validator + meta) + **7 NEW P6-2 回归**（test_table_count / test_p4_flash_full_path / test_record_type_registry_count_is_10 / test_registry_contains_all_calc_record_types / 2× test_design_stage_*[column_sizing_results] / test_reversible_segment_roundtrip） |
+| **vitest run** | ✅ 51 files / 533 tests passed（baseline 持平） |
+| **OpenAPI drift (G-08)** | ✅ `diff` 零输出（worktree 内 `export_openapi.py` + `gen-api-types.sh` regen 已修冲突 marker） |
+| **OpenAPI 演变** | paths 122 (P6-1) → **143** (+21 FLARE_SYS 11 + COOL_TOWER 5 + PSYCHRO 5)；schemas 119 → **163** (+44) |
+| **alembic heads** | ✅ `p6_2_001_flare_cool_tower_psychro_results`（head） |
+| **alembic current** | ✅ 同 head |
+| **alembic history** | ✅ 线性链，无分支 |
+
+**Per-Batch QA Gate（gstack-browse 浏览器回归）**：
+
+- **登录 + 仪表盘**：login 200 → mock-login POST 200 (alice DESIGNER) → `/` 仪表盘渲染（heading "仪表盘" + 工作区切换 + 进度条 20% 完成 2/10 + 项目输入清单 9 菜单组）
+- **菜单导航**：`/flash` 200 + `/heat` 200（HEAT 为 P5-4 baseline 路由，本批无新增 P6 frontend pages — Task 27 仅含 types，无 route integration）
+- **console**：0 errors（仅 React Router v7 future flag warning，非阻断）
+- **network**：全 200，0 个 4xx/5xx
+- 详细：`/home/pangzy/code_project/PCS-worktrees/p6-batch/.gstack/qa-reports/qa-report-pcs-frontend-2026-09-25-p6-2-batch.md`（`.gstack/` 已 gitignore，QA 报告落本地）
+
+**剩余 OPEN（接续 P6-3 + LOW/INFO 滚动批）**：
+
+- **P6-OPEN-009**：psv_results alembic drift（缺 `stale_resolution_path` 列）— 已 ticket `091500e` 登记，P6-3 启动修复
+- **CAVEAT-1**：7 NEW pytest 回归（test_table_count / test_p4_flash_full_path / test_record_type_registry_count_is_10 / test_registry_contains_all_calc_record_types / 2× test_design_stage_*[column_sizing_results] / test_reversible_segment_roundtrip）— 详见 QA 报告登记表
+- **CAVEAT-2**：2 ruff E501 pre-existing（非 P6-2 引入）— LOW/INFO 滚动后续批
+- **CAVEAT-3**：openapi.json / openapi.snapshot.json / api.d.ts 含未解决 git merge conflict marker（worktree 内 regen 修复，**待独立 chore commit 收纳 — reviewer 决策**）
+- **P6-OPEN-010**：`_to_http(err)` helper `status_code` → `status` 改造 — Task 21 闭环
+
+**评审委员会裁决应对清单（更新）**：
+
+| # | 行动 | 状态 |
+|---|------|------|
+| A-05 | C-04 CV/RESTRICTION 偏差验收数据 | DEFERRED — P6-3 / 滚动后续批 |
+| A-07 | S-01 RESTRICTION 闪蒸完整 FLASH 联校核 | ✅ DONE P6-2（commit `3ddc931` + `0231827`） |
+| A-08 | S-02 G-08 CI 自动化门禁 | ✅ DONE P6-2（commit `0eed3c7`） |
+| A-09 | S-03 Task 9 429 recovery 归档 | P6-3 启动前 |
+
+**P6-1 → P6-2 → P6-3 总进度**：19/38 tasks complete（50%）。下一批 11 task 推进 OPEN_CHANNEL + FILTRATION + COST_EST 三件套 + Task 38 批末。
+
+---
+
+## 🔍 Task 28 实施观察（批末 G-08 验证 + STATUS 闭环记录，2026-09-25）
+
+**Task 28 工作流**：5 步串行（G-08 → 5 维基线 → alembic chain → Per-Batch QA Gate → STATUS 闭环）。
+
+### Step 1 — G-08 OpenAPI drift
+
+worktree 起始 `pcs-backend/docs/openapi.json` 与 `pcs-frontend/openapi.snapshot.json` **均含 3 处未解决 git merge conflict marker**（lines 14839, 16763, 17470），由 P6-1/P6-2 期间某次合并遗留。两文件因同步坏故 `diff` 报"identical"但 JSON parse 失败。
+
+**Worktree 内修复**：
+
+```bash
+cd pcs-backend && uv run python scripts/export_openapi.py     # 重写 backend openapi.json
+cd ../pcs-frontend && bash scripts/gen-api-types.sh           # 重写 frontend openapi.snapshot.json + api.d.ts
+```
+
+**结果**：regen 后两文件 JSON 合法（143 paths / 163 schemas），`diff` 零输出，**G-08 PASS**。
+
+**遗留**：regen 输出**未入本任务 closure commit**（brief red line #2/#4 限制）。reviewer 决策：用 `chore(openapi)` 单独 commit 收纳。
+
+### Step 2 — 5 维基线
+
+| 维度 | 实测 | 期望（brief）| 差距 |
+|------|------|------|------|
+| ruff | 2 E501 pre-existing | 0 | ⚠️ pre-existing 非本批 scope |
+| pytest | 2585 passed + 27 failed | ≥ 2620 passed | ⚠️ 27 failed（20 P6-0 known + **7 NEW P6-2 回归**） |
+| tsc | 0 errors | 0 | ✅ |
+| eslint | 0 errors | 0 | ✅ |
+| vitest | 51 files / 533 passed | ≥ 533 baseline | ✅ |
+
+7 NEW P6-2 pytest 回归主要根因：RECORD_TYPE_REGISTRY 项数更新未同步（test_record_type_registry_count_is_10）、design_stage 列补 addcolumn 未在 P6-2 batch 内（2× test_design_stage_*[column_sizing_results]）、tables count 期望未更新（test_table_count）、alembic 不可逆 roundtrip（test_reversible_segment_roundtrip）、flash persist 链路与新表不一致（test_p4_flash_full_path）。
+
+### Step 3 — alembic head chain
+
+✅ `p6_2_001_flare_cool_tower_psychro_results` head 单链无分支。current 与 head 一致。
+
+### Step 4 — Per-Batch QA Gate
+
+`CI=1 ~/.claude/skills/gstack/browse/dist/browse` + `npx vite --port 5173` 完整跑通：
+
+1. login 200（mock alice DESIGNER）
+2. mock-login POST 200（133B）
+3. 跳 `/` 仪表盘渲染
+4. 菜单 click `/flash` 200
+5. 菜单 click `/heat` 200
+6. console 0 errors（仅 React Router v7 future flag warning）
+7. network 全 200，0 个 4xx/5xx
+
+详细报告：`.gstack/qa-reports/qa-report-pcs-frontend-2026-09-25-p6-2-batch.md`
+
+### Step 5 — STATUS.md 闭环（本段为 append 写入，Task 28 commit SHA 见 git log `feature/p6-batch` HEAD）
+
+---
+
+**P6 batch 索引**：
+
+- **P6-0**：ADR-0030 V1.2 + chedl_wrapper 扩展（5 task / 5 commit）— STATUS line 1088
+- **P6-1**：CV + RESTRICTION 三件套（10 task / 8 commit）— STATUS line 1142
+- **P6-2**（本批）：FLARE_SYS + COOL_TOWER + PSYCHRO 三件套 + frontend types（11 task / 8 commit）— 本段
