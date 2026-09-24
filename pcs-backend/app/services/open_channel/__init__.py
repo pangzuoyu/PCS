@@ -37,6 +37,18 @@ from app.services.open_channel.manning import (  # P6-3 Task 31
     ManningResult,
     calc_manning_flow,
 )
+from app.services.open_channel.open_channel_persist_service import (  # P6-3 Task 32
+    OpenChannelPersistInputError,
+    create_open_channel_result_direct,
+    get_open_channel_result_service,
+    list_open_channel_results_service,
+    save_critical_result,
+    save_jump_result,
+    save_manning_result,
+    save_section_result,
+    soft_delete_open_channel_result_service,
+    update_open_channel_result_service,
+)
 from app.services.open_channel.section import (  # P6-3 Task 31
     SectionInput,
     SectionInputError,
@@ -66,4 +78,15 @@ __all__ = [
     "JumpResult",
     "JumpInputError",
     "calc_hydraulic_jump",
+    # P6-3 Task 32 — open_channel_persist（OpenChannelResult 落库 + CRUD）
+    "OpenChannelPersistInputError",
+    "save_manning_result",
+    "save_section_result",
+    "save_critical_result",
+    "save_jump_result",
+    "list_open_channel_results_service",
+    "get_open_channel_result_service",
+    "update_open_channel_result_service",
+    "soft_delete_open_channel_result_service",
+    "create_open_channel_result_direct",
 ]

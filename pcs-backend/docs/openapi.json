@@ -8640,6 +8640,583 @@
         }
       }
     },
+    "/api/v1/open-channel/manning/calculate": {
+      "post": {
+        "tags": [
+          "open-channel"
+        ],
+        "summary": "Calculate Manning",
+        "description": "Manning 流量计算（§3.2.6 第一项）。\n\n流程：endpoint 调 ``calc_manning_flow`` → save_manning_result service\n落 OpenChannelResult 行；禁止 endpoint 直构 ORM（红线 #1）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_manning_api_v1_open_channel_manning_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ManningCalcRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ManningCalcResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/open-channel/section/calculate": {
+      "post": {
+        "tags": [
+          "open-channel"
+        ],
+        "summary": "Calculate Section",
+        "description": "最优水力断面（§3.2.6 第二项）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_section_api_v1_open_channel_section_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SectionCalcRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SectionCalcResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/open-channel/critical/calculate": {
+      "post": {
+        "tags": [
+          "open-channel"
+        ],
+        "summary": "Calculate Critical",
+        "description": "临界水深 + Froude 数（§3.2.6 第三项）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_critical_api_v1_open_channel_critical_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CriticalCalcRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CriticalCalcResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/open-channel/jump/calculate": {
+      "post": {
+        "tags": [
+          "open-channel"
+        ],
+        "summary": "Calculate Jump",
+        "description": "水跃 Bélanger + 能量损失 + 跃型判定（§3.2.6 第四项）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_jump_api_v1_open_channel_jump_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JumpCalcRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JumpCalcResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/open-channel/results": {
+      "post": {
+        "tags": [
+          "open-channel"
+        ],
+        "summary": "Create Open Channel Result",
+        "description": "直接创建 OpenChannelResult 行（POST → 201，不走 calc）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "create_open_channel_result_api_v1_open_channel_results_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenChannelCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenChannelResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "open-channel"
+        ],
+        "summary": "List Open Channel Results",
+        "description": "按 project_id 列出 OpenChannelResult（GET list，分页）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "list_open_channel_results_api_v1_open_channel_results_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "include_obsolete",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "Include Obsolete"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenChannelListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/open-channel/results/{result_id}": {
+      "get": {
+        "tags": [
+          "open-channel"
+        ],
+        "summary": "Get Open Channel Result",
+        "description": "按 open_channel_id 取 OpenChannelResult（GET detail）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "get_open_channel_result_api_v1_open_channel_results__result_id__get",
+        "parameters": [
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Result Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenChannelResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "open-channel"
+        ],
+        "summary": "Update Open Channel Result",
+        "description": "更新 OpenChannelResult 业务字段（PATCH）。\n\n仅 DRAFT / CHANGE_PENDING 可改；CHECKED 等锁定态拒绝。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "update_open_channel_result_api_v1_open_channel_results__result_id__patch",
+        "parameters": [
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Result Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpenChannelUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenChannelResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "open-channel"
+        ],
+        "summary": "Soft Delete Open Channel Result",
+        "description": "软删除 OpenChannelResult（DELETE → sign_status=OBSOLETE）。\n\n位号加 ``__OBSOLETE_<ts>`` 后缀，stale_resolution_path 标记。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "soft_delete_open_channel_result_api_v1_open_channel_results__result_id__delete",
+        "parameters": [
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Result Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OpenChannelDeleteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/pipe-code-templates": {
       "get": {
         "tags": [
@@ -12608,6 +13185,362 @@
         "title": "CreateVersionRequest",
         "description": "POST /assets/{id}/versions 请求体。"
       },
+      "CriticalCalcRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "channel_type": {
+            "type": "string",
+            "title": "Channel Type",
+            "description": "断面类型（RECT / TRAP / CIRC）"
+          },
+          "cross_section_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Cross Section Json",
+            "description": "断面几何 {bottom_width, side_slope, diameter}"
+          },
+          "flow_rate": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Flow Rate",
+            "description": "流量 Q（m³/s）"
+          },
+          "depth": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Depth",
+            "description": "水深 h（m）"
+          },
+          "velocity": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Velocity",
+            "description": "流速 v（m/s）"
+          },
+          "slope": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Slope",
+            "description": "坡度 S（m/m）"
+          },
+          "critical_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical Depth",
+            "description": "m 临界水深"
+          },
+          "froude_number": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Froude Number",
+            "description": "Fr 弗劳德数"
+          },
+          "manning_n": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manning N",
+            "description": "糙率"
+          },
+          "hydraulic_radius": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hydraulic Radius",
+            "description": "m 水力半径"
+          },
+          "jump_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jump Type",
+            "description": "WAVY/WEAK/OSCILLATING/STEADY/STRONG"
+          },
+          "conjugate_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conjugate Depth",
+            "description": "m 水跃共轭水深"
+          },
+          "energy_loss": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Loss",
+            "description": "m 水跃能量损失"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "channel_type",
+          "cross_section_json",
+          "flow_rate",
+          "depth",
+          "velocity",
+          "slope"
+        ],
+        "title": "CriticalCalcRequest",
+        "description": "POST /open-channel/critical/calculate 请求。\n\n额外要求：cross_section_json 含 bottom_width（用于 calc_critical_depth）。"
+      },
+      "CriticalCalcResponse": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "channel_type": {
+            "type": "string",
+            "title": "Channel Type",
+            "description": "断面类型（RECT / TRAP / CIRC）"
+          },
+          "cross_section_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Cross Section Json",
+            "description": "断面几何 {bottom_width, side_slope, diameter}"
+          },
+          "flow_rate": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Flow Rate",
+            "description": "流量 Q（m³/s）"
+          },
+          "depth": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Depth",
+            "description": "水深 h（m）"
+          },
+          "velocity": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Velocity",
+            "description": "流速 v（m/s）"
+          },
+          "slope": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Slope",
+            "description": "坡度 S（m/m）"
+          },
+          "critical_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical Depth",
+            "description": "m 临界水深"
+          },
+          "froude_number": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Froude Number",
+            "description": "Fr 弗劳德数"
+          },
+          "manning_n": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manning N",
+            "description": "糙率"
+          },
+          "hydraulic_radius": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hydraulic Radius",
+            "description": "m 水力半径"
+          },
+          "jump_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jump Type",
+            "description": "WAVY/WEAK/OSCILLATING/STEADY/STRONG"
+          },
+          "conjugate_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conjugate Depth",
+            "description": "m 水跃共轭水深"
+          },
+          "energy_loss": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Loss",
+            "description": "m 水跃能量损失"
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id",
+            "description": "open_channel_id（PK）"
+          },
+          "record_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Hash",
+            "description": "record_hash（16 hex）"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "签审状态 9 态"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "创建时间"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "channel_type",
+          "cross_section_json",
+          "flow_rate",
+          "depth",
+          "velocity",
+          "slope",
+          "result_id",
+          "sign_status",
+          "created_at"
+        ],
+        "title": "CriticalCalcResponse",
+        "description": "POST /open-channel/critical/calculate 响应（201）。\n\n额外填 critical_depth / froude_number（由 calc 派生）。"
+      },
       "CurvePointRequest": {
         "properties": {
           "flow_m3_s": {
@@ -15274,6 +16207,362 @@
         "title": "ImportHtriResponse",
         "description": "POST /heat/import-htri 响应。"
       },
+      "JumpCalcRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "channel_type": {
+            "type": "string",
+            "title": "Channel Type",
+            "description": "断面类型（RECT / TRAP / CIRC）"
+          },
+          "cross_section_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Cross Section Json",
+            "description": "断面几何 {bottom_width, side_slope, diameter}"
+          },
+          "flow_rate": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Flow Rate",
+            "description": "流量 Q（m³/s）"
+          },
+          "depth": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Depth",
+            "description": "水深 h（m）"
+          },
+          "velocity": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Velocity",
+            "description": "流速 v（m/s）"
+          },
+          "slope": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Slope",
+            "description": "坡度 S（m/m）"
+          },
+          "critical_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical Depth",
+            "description": "m 临界水深"
+          },
+          "froude_number": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Froude Number",
+            "description": "Fr 弗劳德数"
+          },
+          "manning_n": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manning N",
+            "description": "糙率"
+          },
+          "hydraulic_radius": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hydraulic Radius",
+            "description": "m 水力半径"
+          },
+          "jump_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jump Type",
+            "description": "WAVY/WEAK/OSCILLATING/STEADY/STRONG"
+          },
+          "conjugate_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conjugate Depth",
+            "description": "m 水跃共轭水深"
+          },
+          "energy_loss": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Loss",
+            "description": "m 水跃能量损失"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "channel_type",
+          "cross_section_json",
+          "flow_rate",
+          "depth",
+          "velocity",
+          "slope"
+        ],
+        "title": "JumpCalcRequest",
+        "description": "POST /open-channel/jump/calculate 请求。\n\n额外要求：cross_section_json 含 bottom_width（用于连续方程）。\ndepth / velocity 作为跃前水深 + 流速（h1 / v1）。"
+      },
+      "JumpCalcResponse": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "channel_type": {
+            "type": "string",
+            "title": "Channel Type",
+            "description": "断面类型（RECT / TRAP / CIRC）"
+          },
+          "cross_section_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Cross Section Json",
+            "description": "断面几何 {bottom_width, side_slope, diameter}"
+          },
+          "flow_rate": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Flow Rate",
+            "description": "流量 Q（m³/s）"
+          },
+          "depth": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Depth",
+            "description": "水深 h（m）"
+          },
+          "velocity": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Velocity",
+            "description": "流速 v（m/s）"
+          },
+          "slope": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Slope",
+            "description": "坡度 S（m/m）"
+          },
+          "critical_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical Depth",
+            "description": "m 临界水深"
+          },
+          "froude_number": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Froude Number",
+            "description": "Fr 弗劳德数"
+          },
+          "manning_n": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manning N",
+            "description": "糙率"
+          },
+          "hydraulic_radius": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hydraulic Radius",
+            "description": "m 水力半径"
+          },
+          "jump_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jump Type",
+            "description": "WAVY/WEAK/OSCILLATING/STEADY/STRONG"
+          },
+          "conjugate_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conjugate Depth",
+            "description": "m 水跃共轭水深"
+          },
+          "energy_loss": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Loss",
+            "description": "m 水跃能量损失"
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id",
+            "description": "open_channel_id（PK）"
+          },
+          "record_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Hash",
+            "description": "record_hash（16 hex）"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "签审状态 9 态"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "创建时间"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "channel_type",
+          "cross_section_json",
+          "flow_rate",
+          "depth",
+          "velocity",
+          "slope",
+          "result_id",
+          "sign_status",
+          "created_at"
+        ],
+        "title": "JumpCalcResponse",
+        "description": "POST /open-channel/jump/calculate 响应（201）。\n\n额外填 jump_type / conjugate_depth / energy_loss。"
+      },
       "KodInfo": {
         "properties": {
           "diameter_m": {
@@ -15492,6 +16781,362 @@
         "type": "object",
         "title": "LogoutRequest",
         "description": "logout 请求体。可选传 refresh_token 以吊销 JTI；不传则仅 204。"
+      },
+      "ManningCalcRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "channel_type": {
+            "type": "string",
+            "title": "Channel Type",
+            "description": "断面类型（RECT / TRAP / CIRC）"
+          },
+          "cross_section_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Cross Section Json",
+            "description": "断面几何 {bottom_width, side_slope, diameter}"
+          },
+          "flow_rate": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Flow Rate",
+            "description": "流量 Q（m³/s）"
+          },
+          "depth": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Depth",
+            "description": "水深 h（m）"
+          },
+          "velocity": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Velocity",
+            "description": "流速 v（m/s）"
+          },
+          "slope": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Slope",
+            "description": "坡度 S（m/m）"
+          },
+          "critical_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical Depth",
+            "description": "m 临界水深"
+          },
+          "froude_number": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Froude Number",
+            "description": "Fr 弗劳德数"
+          },
+          "manning_n": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manning N",
+            "description": "糙率"
+          },
+          "hydraulic_radius": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hydraulic Radius",
+            "description": "m 水力半径"
+          },
+          "jump_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jump Type",
+            "description": "WAVY/WEAK/OSCILLATING/STEADY/STRONG"
+          },
+          "conjugate_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conjugate Depth",
+            "description": "m 水跃共轭水深"
+          },
+          "energy_loss": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Loss",
+            "description": "m 水跃能量损失"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "channel_type",
+          "cross_section_json",
+          "flow_rate",
+          "depth",
+          "velocity",
+          "slope"
+        ],
+        "title": "ManningCalcRequest",
+        "description": "POST /open-channel/manning/calculate 请求。\n\n字段（maning 模块必需）：channel_type + cross_section_json（含\nbottom_width/side_slope/diameter）+ depth + manning_n + slope。\nmanning_n 由 cross_section_json 旁路提供（请求体独立字段）。"
+      },
+      "ManningCalcResponse": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "channel_type": {
+            "type": "string",
+            "title": "Channel Type",
+            "description": "断面类型（RECT / TRAP / CIRC）"
+          },
+          "cross_section_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Cross Section Json",
+            "description": "断面几何 {bottom_width, side_slope, diameter}"
+          },
+          "flow_rate": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Flow Rate",
+            "description": "流量 Q（m³/s）"
+          },
+          "depth": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Depth",
+            "description": "水深 h（m）"
+          },
+          "velocity": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Velocity",
+            "description": "流速 v（m/s）"
+          },
+          "slope": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Slope",
+            "description": "坡度 S（m/m）"
+          },
+          "critical_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical Depth",
+            "description": "m 临界水深"
+          },
+          "froude_number": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Froude Number",
+            "description": "Fr 弗劳德数"
+          },
+          "manning_n": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manning N",
+            "description": "糙率"
+          },
+          "hydraulic_radius": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hydraulic Radius",
+            "description": "m 水力半径"
+          },
+          "jump_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jump Type",
+            "description": "WAVY/WEAK/OSCILLATING/STEADY/STRONG"
+          },
+          "conjugate_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conjugate Depth",
+            "description": "m 水跃共轭水深"
+          },
+          "energy_loss": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Loss",
+            "description": "m 水跃能量损失"
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id",
+            "description": "open_channel_id（PK）"
+          },
+          "record_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Hash",
+            "description": "record_hash（ADR-0028 §决策 4 reflection；16 hex）"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "签审状态 9 态"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "创建时间"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "channel_type",
+          "cross_section_json",
+          "flow_rate",
+          "depth",
+          "velocity",
+          "slope",
+          "result_id",
+          "sign_status",
+          "created_at"
+        ],
+        "title": "ManningCalcResponse",
+        "description": "POST /open-channel/manning/calculate 响应（201）。\n\n额外含：result_id / record_hash / sign_status / created_at。"
       },
       "MaterialDetail": {
         "properties": {
@@ -15813,6 +17458,601 @@
         ],
         "title": "NodeReq",
         "description": "管网节点请求。"
+      },
+      "OpenChannelCreateRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "channel_type": {
+            "type": "string",
+            "title": "Channel Type",
+            "description": "断面类型（RECT / TRAP / CIRC）"
+          },
+          "cross_section_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Cross Section Json",
+            "description": "断面几何"
+          },
+          "flow_rate": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Flow Rate",
+            "description": "流量 Q（m³/s）"
+          },
+          "depth": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Depth",
+            "description": "水深 h（m）"
+          },
+          "velocity": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Velocity",
+            "description": "流速 v（m/s）"
+          },
+          "slope": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Slope",
+            "description": "坡度 S（m/m）"
+          },
+          "critical_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical Depth"
+          },
+          "froude_number": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Froude Number"
+          },
+          "manning_n": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manning N"
+          },
+          "hydraulic_radius": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hydraulic Radius"
+          },
+          "jump_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jump Type"
+          },
+          "conjugate_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conjugate Depth"
+          },
+          "energy_loss": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Loss"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "channel_type",
+          "cross_section_json",
+          "flow_rate",
+          "depth",
+          "velocity",
+          "slope"
+        ],
+        "title": "OpenChannelCreateRequest",
+        "description": "POST /open-channel/results 直接创建请求（不走 calc）。\n\n业务字段子集（PATCH-style）：所有 13 字段均可填；channel_type /\ncross_section_json + 4 平铺（flow_rate / depth / velocity / slope）\n必填。"
+      },
+      "OpenChannelDeleteResponse": {
+        "properties": {
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id",
+            "description": "open_channel_id（PK）"
+          },
+          "tag_number": {
+            "type": "string",
+            "title": "Tag Number",
+            "description": "位号（含 __OBSOLETE_<ts> 后缀）"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "签审状态（已改为 OBSOLETE）"
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deleted At",
+            "description": "删除时间（updated_at）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "result_id",
+          "tag_number",
+          "sign_status",
+          "deleted_at"
+        ],
+        "title": "OpenChannelDeleteResponse",
+        "description": "DELETE /open-channel/results/{id} 响应。\n\n字段：result_id + tag_number（含 __OBSOLETE_<ts> 后缀）+ sign_status +\ndeleted_at。"
+      },
+      "OpenChannelListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/OpenChannelResultResponse"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "OpenChannelResult 列表"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "命中条数"
+          },
+          "skip": {
+            "type": "integer",
+            "title": "Skip",
+            "description": "分页偏移"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "分页上限"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "skip",
+          "limit"
+        ],
+        "title": "OpenChannelListResponse",
+        "description": "GET /open-channel/results 列表响应。\n\n字段：\n- items: OpenChannelResultResponse 列表\n- total: 命中条数（受 include_obsolete 影响）\n- skip / limit: 分页参数回显"
+      },
+      "OpenChannelResultResponse": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "channel_type": {
+            "type": "string",
+            "title": "Channel Type",
+            "description": "断面类型（RECT / TRAP / CIRC）"
+          },
+          "cross_section_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Cross Section Json",
+            "description": "断面几何 {bottom_width, side_slope, diameter}"
+          },
+          "flow_rate": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Flow Rate",
+            "description": "流量 Q（m³/s）"
+          },
+          "depth": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Depth",
+            "description": "水深 h（m）"
+          },
+          "velocity": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Velocity",
+            "description": "流速 v（m/s）"
+          },
+          "slope": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Slope",
+            "description": "坡度 S（m/m）"
+          },
+          "critical_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical Depth",
+            "description": "m 临界水深"
+          },
+          "froude_number": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Froude Number",
+            "description": "Fr 弗劳德数"
+          },
+          "manning_n": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manning N",
+            "description": "糙率"
+          },
+          "hydraulic_radius": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hydraulic Radius",
+            "description": "m 水力半径"
+          },
+          "jump_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jump Type",
+            "description": "WAVY/WEAK/OSCILLATING/STEADY/STRONG"
+          },
+          "conjugate_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conjugate Depth",
+            "description": "m 水跃共轭水深"
+          },
+          "energy_loss": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Loss",
+            "description": "m 水跃能量损失"
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id",
+            "description": "open_channel_id（PK）"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "签审状态 9 态"
+          },
+          "record_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Hash",
+            "description": "record_hash（16 hex）"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "创建时间"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At",
+            "description": "更新时间"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "channel_type",
+          "cross_section_json",
+          "flow_rate",
+          "depth",
+          "velocity",
+          "slope",
+          "result_id",
+          "sign_status",
+          "created_at"
+        ],
+        "title": "OpenChannelResultResponse",
+        "description": "GET /open-channel/results/{id} 响应（含溯源 + 业务字段）。\n\n字段映射（ORM → schema）：\n- ORM open_channel_id → schema result_id（PK 重命名；前端统一用 result_id）"
+      },
+      "OpenChannelUpdateRequest": {
+        "properties": {
+          "channel_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Channel Type"
+          },
+          "cross_section_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cross Section Json"
+          },
+          "flow_rate": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flow Rate"
+          },
+          "depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Depth"
+          },
+          "velocity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Velocity"
+          },
+          "slope": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Slope"
+          },
+          "critical_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical Depth"
+          },
+          "froude_number": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Froude Number"
+          },
+          "manning_n": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manning N"
+          },
+          "hydraulic_radius": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hydraulic Radius"
+          },
+          "jump_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jump Type"
+          },
+          "conjugate_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conjugate Depth"
+          },
+          "energy_loss": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Loss"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OpenChannelUpdateRequest",
+        "description": "PATCH /open-channel/results/{id} 请求（partial update）。\n\n所有字段 optional（PATCH 部分更新）。白名单由 service 层校验。\n``extra=\"forbid\"``：未知字段 → Pydantic 422，避免 service 层 silent drop。"
       },
       "PermissionItem": {
         "properties": {
@@ -17826,6 +20066,362 @@
         ],
         "title": "SafetyResult",
         "description": "介质安全数据（毒性分类 + 爆炸极限）。"
+      },
+      "SectionCalcRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "channel_type": {
+            "type": "string",
+            "title": "Channel Type",
+            "description": "断面类型（RECT / TRAP / CIRC）"
+          },
+          "cross_section_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Cross Section Json",
+            "description": "断面几何 {bottom_width, side_slope, diameter}"
+          },
+          "flow_rate": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Flow Rate",
+            "description": "流量 Q（m³/s）"
+          },
+          "depth": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Depth",
+            "description": "水深 h（m）"
+          },
+          "velocity": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Velocity",
+            "description": "流速 v（m/s）"
+          },
+          "slope": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Slope",
+            "description": "坡度 S（m/m）"
+          },
+          "critical_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical Depth",
+            "description": "m 临界水深"
+          },
+          "froude_number": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Froude Number",
+            "description": "Fr 弗劳德数"
+          },
+          "manning_n": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manning N",
+            "description": "糙率"
+          },
+          "hydraulic_radius": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hydraulic Radius",
+            "description": "m 水力半径"
+          },
+          "jump_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jump Type",
+            "description": "WAVY/WEAK/OSCILLATING/STEADY/STRONG"
+          },
+          "conjugate_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conjugate Depth",
+            "description": "m 水跃共轭水深"
+          },
+          "energy_loss": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Loss",
+            "description": "m 水跃能量损失"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "channel_type",
+          "cross_section_json",
+          "flow_rate",
+          "depth",
+          "velocity",
+          "slope"
+        ],
+        "title": "SectionCalcRequest",
+        "description": "POST /open-channel/section/calculate 请求。\n\n字段：flow_rate + slope + manning_n + channel_type（无 depth / velocity\n输入；由 calc 反解最优水深）。"
+      },
+      "SectionCalcResponse": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（isolation key）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "channel_type": {
+            "type": "string",
+            "title": "Channel Type",
+            "description": "断面类型（RECT / TRAP / CIRC）"
+          },
+          "cross_section_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Cross Section Json",
+            "description": "断面几何 {bottom_width, side_slope, diameter}"
+          },
+          "flow_rate": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Flow Rate",
+            "description": "流量 Q（m³/s）"
+          },
+          "depth": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Depth",
+            "description": "水深 h（m）"
+          },
+          "velocity": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Velocity",
+            "description": "流速 v（m/s）"
+          },
+          "slope": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Slope",
+            "description": "坡度 S（m/m）"
+          },
+          "critical_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Critical Depth",
+            "description": "m 临界水深"
+          },
+          "froude_number": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Froude Number",
+            "description": "Fr 弗劳德数"
+          },
+          "manning_n": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Manning N",
+            "description": "糙率"
+          },
+          "hydraulic_radius": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hydraulic Radius",
+            "description": "m 水力半径"
+          },
+          "jump_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Jump Type",
+            "description": "WAVY/WEAK/OSCILLATING/STEADY/STRONG"
+          },
+          "conjugate_depth": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Conjugate Depth",
+            "description": "m 水跃共轭水深"
+          },
+          "energy_loss": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Energy Loss",
+            "description": "m 水跃能量损失"
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id",
+            "description": "open_channel_id（PK）"
+          },
+          "record_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Hash",
+            "description": "record_hash（16 hex）"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "签审状态 9 态"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "创建时间"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "channel_type",
+          "cross_section_json",
+          "flow_rate",
+          "depth",
+          "velocity",
+          "slope",
+          "result_id",
+          "sign_status",
+          "created_at"
+        ],
+        "title": "SectionCalcResponse",
+        "description": "POST /open-channel/section/calculate 响应（201）。"
       },
       "SegmentReq": {
         "properties": {

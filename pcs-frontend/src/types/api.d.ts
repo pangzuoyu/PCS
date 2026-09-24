@@ -2972,6 +2972,163 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/open-channel/manning/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calculate Manning
+         * @description Manning 流量计算（§3.2.6 第一项）。
+         *
+         *     流程：endpoint 调 ``calc_manning_flow`` → save_manning_result service
+         *     落 OpenChannelResult 行；禁止 endpoint 直构 ORM（红线 #1）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calculate_manning_api_v1_open_channel_manning_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-channel/section/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calculate Section
+         * @description 最优水力断面（§3.2.6 第二项）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calculate_section_api_v1_open_channel_section_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-channel/critical/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calculate Critical
+         * @description 临界水深 + Froude 数（§3.2.6 第三项）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calculate_critical_api_v1_open_channel_critical_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-channel/jump/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calculate Jump
+         * @description 水跃 Bélanger + 能量损失 + 跃型判定（§3.2.6 第四项）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calculate_jump_api_v1_open_channel_jump_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-channel/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Open Channel Results
+         * @description 按 project_id 列出 OpenChannelResult（GET list，分页）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        get: operations["list_open_channel_results_api_v1_open_channel_results_get"];
+        put?: never;
+        /**
+         * Create Open Channel Result
+         * @description 直接创建 OpenChannelResult 行（POST → 201，不走 calc）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["create_open_channel_result_api_v1_open_channel_results_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/open-channel/results/{result_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Open Channel Result
+         * @description 按 open_channel_id 取 OpenChannelResult（GET detail）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        get: operations["get_open_channel_result_api_v1_open_channel_results__result_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Soft Delete Open Channel Result
+         * @description 软删除 OpenChannelResult（DELETE → sign_status=OBSOLETE）。
+         *
+         *     位号加 ``__OBSOLETE_<ts>`` 后缀，stale_resolution_path 标记。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        delete: operations["soft_delete_open_channel_result_api_v1_open_channel_results__result_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Open Channel Result
+         * @description 更新 OpenChannelResult 业务字段（PATCH）。
+         *
+         *     仅 DRAFT / CHANGE_PENDING 可改；CHECKED 等锁定态拒绝。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        patch: operations["update_open_channel_result_api_v1_open_channel_results__result_id__patch"];
+        trace?: never;
+    };
     "/api/v1/pipe-code-templates": {
         parameters: {
             query?: never;
@@ -4804,6 +4961,212 @@ export interface components {
             };
         };
         /**
+         * CriticalCalcRequest
+         * @description POST /open-channel/critical/calculate 请求。
+         *
+         *     额外要求：cross_section_json 含 bottom_width（用于 calc_critical_depth）。
+         */
+        CriticalCalcRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（isolation key）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Channel Type
+             * @description 断面类型（RECT / TRAP / CIRC）
+             */
+            channel_type: string;
+            /**
+             * Cross Section Json
+             * @description 断面几何 {bottom_width, side_slope, diameter}
+             */
+            cross_section_json: {
+                [key: string]: unknown;
+            };
+            /**
+             * Flow Rate
+             * @description 流量 Q（m³/s）
+             */
+            flow_rate: number;
+            /**
+             * Depth
+             * @description 水深 h（m）
+             */
+            depth: number;
+            /**
+             * Velocity
+             * @description 流速 v（m/s）
+             */
+            velocity: number;
+            /**
+             * Slope
+             * @description 坡度 S（m/m）
+             */
+            slope: number;
+            /**
+             * Critical Depth
+             * @description m 临界水深
+             */
+            critical_depth?: number | null;
+            /**
+             * Froude Number
+             * @description Fr 弗劳德数
+             */
+            froude_number?: number | null;
+            /**
+             * Manning N
+             * @description 糙率
+             */
+            manning_n?: number | null;
+            /**
+             * Hydraulic Radius
+             * @description m 水力半径
+             */
+            hydraulic_radius?: number | null;
+            /**
+             * Jump Type
+             * @description WAVY/WEAK/OSCILLATING/STEADY/STRONG
+             */
+            jump_type?: string | null;
+            /**
+             * Conjugate Depth
+             * @description m 水跃共轭水深
+             */
+            conjugate_depth?: number | null;
+            /**
+             * Energy Loss
+             * @description m 水跃能量损失
+             */
+            energy_loss?: number | null;
+        };
+        /**
+         * CriticalCalcResponse
+         * @description POST /open-channel/critical/calculate 响应（201）。
+         *
+         *     额外填 critical_depth / froude_number（由 calc 派生）。
+         */
+        CriticalCalcResponse: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（isolation key）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Channel Type
+             * @description 断面类型（RECT / TRAP / CIRC）
+             */
+            channel_type: string;
+            /**
+             * Cross Section Json
+             * @description 断面几何 {bottom_width, side_slope, diameter}
+             */
+            cross_section_json: {
+                [key: string]: unknown;
+            };
+            /**
+             * Flow Rate
+             * @description 流量 Q（m³/s）
+             */
+            flow_rate: number;
+            /**
+             * Depth
+             * @description 水深 h（m）
+             */
+            depth: number;
+            /**
+             * Velocity
+             * @description 流速 v（m/s）
+             */
+            velocity: number;
+            /**
+             * Slope
+             * @description 坡度 S（m/m）
+             */
+            slope: number;
+            /**
+             * Critical Depth
+             * @description m 临界水深
+             */
+            critical_depth?: number | null;
+            /**
+             * Froude Number
+             * @description Fr 弗劳德数
+             */
+            froude_number?: number | null;
+            /**
+             * Manning N
+             * @description 糙率
+             */
+            manning_n?: number | null;
+            /**
+             * Hydraulic Radius
+             * @description m 水力半径
+             */
+            hydraulic_radius?: number | null;
+            /**
+             * Jump Type
+             * @description WAVY/WEAK/OSCILLATING/STEADY/STRONG
+             */
+            jump_type?: string | null;
+            /**
+             * Conjugate Depth
+             * @description m 水跃共轭水深
+             */
+            conjugate_depth?: number | null;
+            /**
+             * Energy Loss
+             * @description m 水跃能量损失
+             */
+            energy_loss?: number | null;
+            /**
+             * Result Id
+             * Format: uuid
+             * @description open_channel_id（PK）
+             */
+            result_id: string;
+            /**
+             * Record Hash
+             * @description record_hash（16 hex）
+             */
+            record_hash?: string | null;
+            /**
+             * Sign Status
+             * @description 签审状态 9 态
+             */
+            sign_status: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description 创建时间
+             */
+            created_at: string;
+        };
+        /**
          * CurvePointRequest
          * @description 曲线单点请求。
          */
@@ -6523,6 +6886,213 @@ export interface components {
             outlet_stream_name?: string | null;
         };
         /**
+         * JumpCalcRequest
+         * @description POST /open-channel/jump/calculate 请求。
+         *
+         *     额外要求：cross_section_json 含 bottom_width（用于连续方程）。
+         *     depth / velocity 作为跃前水深 + 流速（h1 / v1）。
+         */
+        JumpCalcRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（isolation key）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Channel Type
+             * @description 断面类型（RECT / TRAP / CIRC）
+             */
+            channel_type: string;
+            /**
+             * Cross Section Json
+             * @description 断面几何 {bottom_width, side_slope, diameter}
+             */
+            cross_section_json: {
+                [key: string]: unknown;
+            };
+            /**
+             * Flow Rate
+             * @description 流量 Q（m³/s）
+             */
+            flow_rate: number;
+            /**
+             * Depth
+             * @description 水深 h（m）
+             */
+            depth: number;
+            /**
+             * Velocity
+             * @description 流速 v（m/s）
+             */
+            velocity: number;
+            /**
+             * Slope
+             * @description 坡度 S（m/m）
+             */
+            slope: number;
+            /**
+             * Critical Depth
+             * @description m 临界水深
+             */
+            critical_depth?: number | null;
+            /**
+             * Froude Number
+             * @description Fr 弗劳德数
+             */
+            froude_number?: number | null;
+            /**
+             * Manning N
+             * @description 糙率
+             */
+            manning_n?: number | null;
+            /**
+             * Hydraulic Radius
+             * @description m 水力半径
+             */
+            hydraulic_radius?: number | null;
+            /**
+             * Jump Type
+             * @description WAVY/WEAK/OSCILLATING/STEADY/STRONG
+             */
+            jump_type?: string | null;
+            /**
+             * Conjugate Depth
+             * @description m 水跃共轭水深
+             */
+            conjugate_depth?: number | null;
+            /**
+             * Energy Loss
+             * @description m 水跃能量损失
+             */
+            energy_loss?: number | null;
+        };
+        /**
+         * JumpCalcResponse
+         * @description POST /open-channel/jump/calculate 响应（201）。
+         *
+         *     额外填 jump_type / conjugate_depth / energy_loss。
+         */
+        JumpCalcResponse: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（isolation key）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Channel Type
+             * @description 断面类型（RECT / TRAP / CIRC）
+             */
+            channel_type: string;
+            /**
+             * Cross Section Json
+             * @description 断面几何 {bottom_width, side_slope, diameter}
+             */
+            cross_section_json: {
+                [key: string]: unknown;
+            };
+            /**
+             * Flow Rate
+             * @description 流量 Q（m³/s）
+             */
+            flow_rate: number;
+            /**
+             * Depth
+             * @description 水深 h（m）
+             */
+            depth: number;
+            /**
+             * Velocity
+             * @description 流速 v（m/s）
+             */
+            velocity: number;
+            /**
+             * Slope
+             * @description 坡度 S（m/m）
+             */
+            slope: number;
+            /**
+             * Critical Depth
+             * @description m 临界水深
+             */
+            critical_depth?: number | null;
+            /**
+             * Froude Number
+             * @description Fr 弗劳德数
+             */
+            froude_number?: number | null;
+            /**
+             * Manning N
+             * @description 糙率
+             */
+            manning_n?: number | null;
+            /**
+             * Hydraulic Radius
+             * @description m 水力半径
+             */
+            hydraulic_radius?: number | null;
+            /**
+             * Jump Type
+             * @description WAVY/WEAK/OSCILLATING/STEADY/STRONG
+             */
+            jump_type?: string | null;
+            /**
+             * Conjugate Depth
+             * @description m 水跃共轭水深
+             */
+            conjugate_depth?: number | null;
+            /**
+             * Energy Loss
+             * @description m 水跃能量损失
+             */
+            energy_loss?: number | null;
+            /**
+             * Result Id
+             * Format: uuid
+             * @description open_channel_id（PK）
+             */
+            result_id: string;
+            /**
+             * Record Hash
+             * @description record_hash（16 hex）
+             */
+            record_hash?: string | null;
+            /**
+             * Sign Status
+             * @description 签审状态 9 态
+             */
+            sign_status: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description 创建时间
+             */
+            created_at: string;
+        };
+        /**
          * KodInfo
          * @description KOD 子结果（API 521 §5.15.3 Souders-Brown）。
          */
@@ -6710,6 +7280,214 @@ export interface components {
         LogoutRequest: {
             /** Refresh Token */
             refresh_token?: string | null;
+        };
+        /**
+         * ManningCalcRequest
+         * @description POST /open-channel/manning/calculate 请求。
+         *
+         *     字段（maning 模块必需）：channel_type + cross_section_json（含
+         *     bottom_width/side_slope/diameter）+ depth + manning_n + slope。
+         *     manning_n 由 cross_section_json 旁路提供（请求体独立字段）。
+         */
+        ManningCalcRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（isolation key）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Channel Type
+             * @description 断面类型（RECT / TRAP / CIRC）
+             */
+            channel_type: string;
+            /**
+             * Cross Section Json
+             * @description 断面几何 {bottom_width, side_slope, diameter}
+             */
+            cross_section_json: {
+                [key: string]: unknown;
+            };
+            /**
+             * Flow Rate
+             * @description 流量 Q（m³/s）
+             */
+            flow_rate: number;
+            /**
+             * Depth
+             * @description 水深 h（m）
+             */
+            depth: number;
+            /**
+             * Velocity
+             * @description 流速 v（m/s）
+             */
+            velocity: number;
+            /**
+             * Slope
+             * @description 坡度 S（m/m）
+             */
+            slope: number;
+            /**
+             * Critical Depth
+             * @description m 临界水深
+             */
+            critical_depth?: number | null;
+            /**
+             * Froude Number
+             * @description Fr 弗劳德数
+             */
+            froude_number?: number | null;
+            /**
+             * Manning N
+             * @description 糙率
+             */
+            manning_n?: number | null;
+            /**
+             * Hydraulic Radius
+             * @description m 水力半径
+             */
+            hydraulic_radius?: number | null;
+            /**
+             * Jump Type
+             * @description WAVY/WEAK/OSCILLATING/STEADY/STRONG
+             */
+            jump_type?: string | null;
+            /**
+             * Conjugate Depth
+             * @description m 水跃共轭水深
+             */
+            conjugate_depth?: number | null;
+            /**
+             * Energy Loss
+             * @description m 水跃能量损失
+             */
+            energy_loss?: number | null;
+        };
+        /**
+         * ManningCalcResponse
+         * @description POST /open-channel/manning/calculate 响应（201）。
+         *
+         *     额外含：result_id / record_hash / sign_status / created_at。
+         */
+        ManningCalcResponse: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（isolation key）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Channel Type
+             * @description 断面类型（RECT / TRAP / CIRC）
+             */
+            channel_type: string;
+            /**
+             * Cross Section Json
+             * @description 断面几何 {bottom_width, side_slope, diameter}
+             */
+            cross_section_json: {
+                [key: string]: unknown;
+            };
+            /**
+             * Flow Rate
+             * @description 流量 Q（m³/s）
+             */
+            flow_rate: number;
+            /**
+             * Depth
+             * @description 水深 h（m）
+             */
+            depth: number;
+            /**
+             * Velocity
+             * @description 流速 v（m/s）
+             */
+            velocity: number;
+            /**
+             * Slope
+             * @description 坡度 S（m/m）
+             */
+            slope: number;
+            /**
+             * Critical Depth
+             * @description m 临界水深
+             */
+            critical_depth?: number | null;
+            /**
+             * Froude Number
+             * @description Fr 弗劳德数
+             */
+            froude_number?: number | null;
+            /**
+             * Manning N
+             * @description 糙率
+             */
+            manning_n?: number | null;
+            /**
+             * Hydraulic Radius
+             * @description m 水力半径
+             */
+            hydraulic_radius?: number | null;
+            /**
+             * Jump Type
+             * @description WAVY/WEAK/OSCILLATING/STEADY/STRONG
+             */
+            jump_type?: string | null;
+            /**
+             * Conjugate Depth
+             * @description m 水跃共轭水深
+             */
+            conjugate_depth?: number | null;
+            /**
+             * Energy Loss
+             * @description m 水跃能量损失
+             */
+            energy_loss?: number | null;
+            /**
+             * Result Id
+             * Format: uuid
+             * @description open_channel_id（PK）
+             */
+            result_id: string;
+            /**
+             * Record Hash
+             * @description record_hash（ADR-0028 §决策 4 reflection；16 hex）
+             */
+            record_hash?: string | null;
+            /**
+             * Sign Status
+             * @description 签审状态 9 态
+             */
+            sign_status: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description 创建时间
+             */
+            created_at: string;
         };
         /**
          * MaterialDetail
@@ -6900,6 +7678,298 @@ export interface components {
              * @description 设备类型（仅 EQUIPMENT_INTERFACE）
              */
             upstream_equipment_type?: string | null;
+        };
+        /**
+         * OpenChannelCreateRequest
+         * @description POST /open-channel/results 直接创建请求（不走 calc）。
+         *
+         *     业务字段子集（PATCH-style）：所有 13 字段均可填；channel_type /
+         *     cross_section_json + 4 平铺（flow_rate / depth / velocity / slope）
+         *     必填。
+         */
+        OpenChannelCreateRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Channel Type
+             * @description 断面类型（RECT / TRAP / CIRC）
+             */
+            channel_type: string;
+            /**
+             * Cross Section Json
+             * @description 断面几何
+             */
+            cross_section_json: {
+                [key: string]: unknown;
+            };
+            /**
+             * Flow Rate
+             * @description 流量 Q（m³/s）
+             */
+            flow_rate: number;
+            /**
+             * Depth
+             * @description 水深 h（m）
+             */
+            depth: number;
+            /**
+             * Velocity
+             * @description 流速 v（m/s）
+             */
+            velocity: number;
+            /**
+             * Slope
+             * @description 坡度 S（m/m）
+             */
+            slope: number;
+            /** Critical Depth */
+            critical_depth?: number | null;
+            /** Froude Number */
+            froude_number?: number | null;
+            /** Manning N */
+            manning_n?: number | null;
+            /** Hydraulic Radius */
+            hydraulic_radius?: number | null;
+            /** Jump Type */
+            jump_type?: string | null;
+            /** Conjugate Depth */
+            conjugate_depth?: number | null;
+            /** Energy Loss */
+            energy_loss?: number | null;
+        };
+        /**
+         * OpenChannelDeleteResponse
+         * @description DELETE /open-channel/results/{id} 响应。
+         *
+         *     字段：result_id + tag_number（含 __OBSOLETE_<ts> 后缀）+ sign_status +
+         *     deleted_at。
+         */
+        OpenChannelDeleteResponse: {
+            /**
+             * Result Id
+             * Format: uuid
+             * @description open_channel_id（PK）
+             */
+            result_id: string;
+            /**
+             * Tag Number
+             * @description 位号（含 __OBSOLETE_<ts> 后缀）
+             */
+            tag_number: string;
+            /**
+             * Sign Status
+             * @description 签审状态（已改为 OBSOLETE）
+             */
+            sign_status: string;
+            /**
+             * Deleted At
+             * Format: date-time
+             * @description 删除时间（updated_at）
+             */
+            deleted_at: string;
+        };
+        /**
+         * OpenChannelListResponse
+         * @description GET /open-channel/results 列表响应。
+         *
+         *     字段：
+         *     - items: OpenChannelResultResponse 列表
+         *     - total: 命中条数（受 include_obsolete 影响）
+         *     - skip / limit: 分页参数回显
+         */
+        OpenChannelListResponse: {
+            /**
+             * Items
+             * @description OpenChannelResult 列表
+             */
+            items: components["schemas"]["OpenChannelResultResponse"][];
+            /**
+             * Total
+             * @description 命中条数
+             */
+            total: number;
+            /**
+             * Skip
+             * @description 分页偏移
+             */
+            skip: number;
+            /**
+             * Limit
+             * @description 分页上限
+             */
+            limit: number;
+        };
+        /**
+         * OpenChannelResultResponse
+         * @description GET /open-channel/results/{id} 响应（含溯源 + 业务字段）。
+         *
+         *     字段映射（ORM → schema）：
+         *     - ORM open_channel_id → schema result_id（PK 重命名；前端统一用 result_id）
+         */
+        OpenChannelResultResponse: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（isolation key）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Channel Type
+             * @description 断面类型（RECT / TRAP / CIRC）
+             */
+            channel_type: string;
+            /**
+             * Cross Section Json
+             * @description 断面几何 {bottom_width, side_slope, diameter}
+             */
+            cross_section_json: {
+                [key: string]: unknown;
+            };
+            /**
+             * Flow Rate
+             * @description 流量 Q（m³/s）
+             */
+            flow_rate: number;
+            /**
+             * Depth
+             * @description 水深 h（m）
+             */
+            depth: number;
+            /**
+             * Velocity
+             * @description 流速 v（m/s）
+             */
+            velocity: number;
+            /**
+             * Slope
+             * @description 坡度 S（m/m）
+             */
+            slope: number;
+            /**
+             * Critical Depth
+             * @description m 临界水深
+             */
+            critical_depth?: number | null;
+            /**
+             * Froude Number
+             * @description Fr 弗劳德数
+             */
+            froude_number?: number | null;
+            /**
+             * Manning N
+             * @description 糙率
+             */
+            manning_n?: number | null;
+            /**
+             * Hydraulic Radius
+             * @description m 水力半径
+             */
+            hydraulic_radius?: number | null;
+            /**
+             * Jump Type
+             * @description WAVY/WEAK/OSCILLATING/STEADY/STRONG
+             */
+            jump_type?: string | null;
+            /**
+             * Conjugate Depth
+             * @description m 水跃共轭水深
+             */
+            conjugate_depth?: number | null;
+            /**
+             * Energy Loss
+             * @description m 水跃能量损失
+             */
+            energy_loss?: number | null;
+            /**
+             * Result Id
+             * Format: uuid
+             * @description open_channel_id（PK）
+             */
+            result_id: string;
+            /**
+             * Sign Status
+             * @description 签审状态 9 态
+             */
+            sign_status: string;
+            /**
+             * Record Hash
+             * @description record_hash（16 hex）
+             */
+            record_hash?: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description 创建时间
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * @description 更新时间
+             */
+            updated_at?: string | null;
+        };
+        /**
+         * OpenChannelUpdateRequest
+         * @description PATCH /open-channel/results/{id} 请求（partial update）。
+         *
+         *     所有字段 optional（PATCH 部分更新）。白名单由 service 层校验。
+         *     ``extra="forbid"``：未知字段 → Pydantic 422，避免 service 层 silent drop。
+         */
+        OpenChannelUpdateRequest: {
+            /** Channel Type */
+            channel_type?: string | null;
+            /** Cross Section Json */
+            cross_section_json?: {
+                [key: string]: unknown;
+            } | null;
+            /** Flow Rate */
+            flow_rate?: number | null;
+            /** Depth */
+            depth?: number | null;
+            /** Velocity */
+            velocity?: number | null;
+            /** Slope */
+            slope?: number | null;
+            /** Critical Depth */
+            critical_depth?: number | null;
+            /** Froude Number */
+            froude_number?: number | null;
+            /** Manning N */
+            manning_n?: number | null;
+            /** Hydraulic Radius */
+            hydraulic_radius?: number | null;
+            /** Jump Type */
+            jump_type?: string | null;
+            /** Conjugate Depth */
+            conjugate_depth?: number | null;
+            /** Energy Loss */
+            energy_loss?: number | null;
         };
         /**
          * PermissionItem
@@ -8186,6 +9256,211 @@ export interface components {
              * @default INTERNAL_SAFETY_DB
              */
             source: string;
+        };
+        /**
+         * SectionCalcRequest
+         * @description POST /open-channel/section/calculate 请求。
+         *
+         *     字段：flow_rate + slope + manning_n + channel_type（无 depth / velocity
+         *     输入；由 calc 反解最优水深）。
+         */
+        SectionCalcRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（isolation key）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Channel Type
+             * @description 断面类型（RECT / TRAP / CIRC）
+             */
+            channel_type: string;
+            /**
+             * Cross Section Json
+             * @description 断面几何 {bottom_width, side_slope, diameter}
+             */
+            cross_section_json: {
+                [key: string]: unknown;
+            };
+            /**
+             * Flow Rate
+             * @description 流量 Q（m³/s）
+             */
+            flow_rate: number;
+            /**
+             * Depth
+             * @description 水深 h（m）
+             */
+            depth: number;
+            /**
+             * Velocity
+             * @description 流速 v（m/s）
+             */
+            velocity: number;
+            /**
+             * Slope
+             * @description 坡度 S（m/m）
+             */
+            slope: number;
+            /**
+             * Critical Depth
+             * @description m 临界水深
+             */
+            critical_depth?: number | null;
+            /**
+             * Froude Number
+             * @description Fr 弗劳德数
+             */
+            froude_number?: number | null;
+            /**
+             * Manning N
+             * @description 糙率
+             */
+            manning_n?: number | null;
+            /**
+             * Hydraulic Radius
+             * @description m 水力半径
+             */
+            hydraulic_radius?: number | null;
+            /**
+             * Jump Type
+             * @description WAVY/WEAK/OSCILLATING/STEADY/STRONG
+             */
+            jump_type?: string | null;
+            /**
+             * Conjugate Depth
+             * @description m 水跃共轭水深
+             */
+            conjugate_depth?: number | null;
+            /**
+             * Energy Loss
+             * @description m 水跃能量损失
+             */
+            energy_loss?: number | null;
+        };
+        /**
+         * SectionCalcResponse
+         * @description POST /open-channel/section/calculate 响应（201）。
+         */
+        SectionCalcResponse: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（isolation key）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Channel Type
+             * @description 断面类型（RECT / TRAP / CIRC）
+             */
+            channel_type: string;
+            /**
+             * Cross Section Json
+             * @description 断面几何 {bottom_width, side_slope, diameter}
+             */
+            cross_section_json: {
+                [key: string]: unknown;
+            };
+            /**
+             * Flow Rate
+             * @description 流量 Q（m³/s）
+             */
+            flow_rate: number;
+            /**
+             * Depth
+             * @description 水深 h（m）
+             */
+            depth: number;
+            /**
+             * Velocity
+             * @description 流速 v（m/s）
+             */
+            velocity: number;
+            /**
+             * Slope
+             * @description 坡度 S（m/m）
+             */
+            slope: number;
+            /**
+             * Critical Depth
+             * @description m 临界水深
+             */
+            critical_depth?: number | null;
+            /**
+             * Froude Number
+             * @description Fr 弗劳德数
+             */
+            froude_number?: number | null;
+            /**
+             * Manning N
+             * @description 糙率
+             */
+            manning_n?: number | null;
+            /**
+             * Hydraulic Radius
+             * @description m 水力半径
+             */
+            hydraulic_radius?: number | null;
+            /**
+             * Jump Type
+             * @description WAVY/WEAK/OSCILLATING/STEADY/STRONG
+             */
+            jump_type?: string | null;
+            /**
+             * Conjugate Depth
+             * @description m 水跃共轭水深
+             */
+            conjugate_depth?: number | null;
+            /**
+             * Energy Loss
+             * @description m 水跃能量损失
+             */
+            energy_loss?: number | null;
+            /**
+             * Result Id
+             * Format: uuid
+             * @description open_channel_id（PK）
+             */
+            result_id: string;
+            /**
+             * Record Hash
+             * @description record_hash（16 hex）
+             */
+            record_hash?: string | null;
+            /**
+             * Sign Status
+             * @description 签审状态 9 态
+             */
+            sign_status: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description 创建时间
+             */
+            created_at: string;
         };
         /**
          * SegmentReq
@@ -15517,6 +16792,320 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RestrictionCalculateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calculate_manning_api_v1_open_channel_manning_calculate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ManningCalcRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ManningCalcResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calculate_section_api_v1_open_channel_section_calculate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SectionCalcRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SectionCalcResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calculate_critical_api_v1_open_channel_critical_calculate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CriticalCalcRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CriticalCalcResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calculate_jump_api_v1_open_channel_jump_calculate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JumpCalcRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JumpCalcResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_open_channel_results_api_v1_open_channel_results_get: {
+        parameters: {
+            query: {
+                project_id: string;
+                include_obsolete?: boolean;
+                skip?: number;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenChannelListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_open_channel_result_api_v1_open_channel_results_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenChannelCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenChannelResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_open_channel_result_api_v1_open_channel_results__result_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenChannelResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    soft_delete_open_channel_result_api_v1_open_channel_results__result_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenChannelDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_open_channel_result_api_v1_open_channel_results__result_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["OpenChannelUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OpenChannelResultResponse"];
                 };
             };
             /** @description Validation Error */

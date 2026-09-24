@@ -15,6 +15,7 @@ from app.api.v1.heat import router as heat_router  # P5-4-5
 from app.api.v1.imports import router as imports_router
 from app.api.v1.lineage import router as lineage_router
 from app.api.v1.meta import router as meta_router
+from app.api.v1.open_channel import router as open_channel_router  # P6-3 Task 32
 from app.api.v1.pipe import router as pipe_router
 from app.api.v1.pipe_classes import router as pipe_classes_router
 from app.api.v1.pipe_codes import router as pipe_codes_router
@@ -61,6 +62,7 @@ api_router.include_router(psv_standard_profiles_router)  # P5-3-6
 api_router.include_router(heat_router)  # P5-4-5
 api_router.include_router(cv_router)  # P6-1 Task 10
 api_router.include_router(restriction_router)  # P6-1 Task 14
+api_router.include_router(open_channel_router)  # P6-3 Task 32
 api_router.include_router(pipe_codes_router)
 api_router.include_router(common_router)
 api_router.include_router(imports_router)
