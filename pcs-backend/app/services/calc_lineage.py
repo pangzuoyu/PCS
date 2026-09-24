@@ -23,11 +23,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.calc import (
     ColumnSizingResult,
     CoolingTowerResult,
+    CostEstResult,
     CvResult,
+    FiltrationResult,
     FlareSystemResult,
     FlashResult,
     HeatResult,
     MixerResult,
+    OpenChannelResult,
     PipeNetworkResult,
     PipingResult,
     PsychroResult,
@@ -53,10 +56,12 @@ from app.services.lineage_extension import attach_lineage_d45
 # P6-1 Task 7 扩展 2 类：CvResult / RestrictionResult（SPEC §3.2.1.6/§3.2.2.6 + DICT V3.3）→ 14 类
 # P6-2 Task 18 扩展 3 类：FlareSystemResult / CoolingTowerResult / PsychroResult
 # （SPEC §3.2.3/§3.2.4/§3.2.5 + PCS-DICT-005/007）→ 17 类
+# P6-3 Task 30 扩展 3 类：OpenChannelResult / FiltrationResult / CostEstResult
+# （SPEC §3.2.6/§3.2.7/§3.2.8）→ 20 类
 # Stream 不登记（Stream 是物流不是计算记录）。
 # 后续扩展：
-#   P5-0-1b（4 蒸汽表）后 +4 = 18 类（Q4 约束 3 修订：原 13 → 14 因 +HeatResult +VesselResult，
-#   现 14 → 16 因 +CvResult +RestrictionResult）
+#   P5-0-1b（4 蒸汽表）后 +4 = 24 类（Q4 约束 3 修订：原 13 → 14 因 +HeatResult +VesselResult，
+#   现 14 → 16 因 +CvResult +RestrictionResult → 17 因 +3 P6-2 → 20 因 +3 P6-3）
 RECORD_TYPE_REGISTRY: dict[str, type] = {
     "PipingResult": PipingResult,
     "PumpResult": PumpResult,
@@ -82,6 +87,10 @@ RECORD_TYPE_REGISTRY: dict[str, type] = {
     "flare_system_result": FlareSystemResult,
     "cooling_tower_result": CoolingTowerResult,
     "psychro_result": PsychroResult,
+    # P6-3 Task 30 新增（2026-09-25，SPEC §3.2.6/§3.2.7/§3.2.8）
+    "OpenChannelResult": OpenChannelResult,
+    "FiltrationResult": FiltrationResult,
+    "CostEstResult": CostEstResult,
 }
 
 # record_hash 截断长度（16 hex = 64 bit，与 cia_engine._CONTENT_HASH_PREFIX 一致）

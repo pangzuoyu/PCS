@@ -302,6 +302,22 @@ class PsvResult(TaggedRecordMixin, Base):
         server_default=text("FALSE"),
         comment="防火保护（影响 FIRE 工况计算；§3.2）",
     )
+    # P6-OPEN-009 fix（ticket 091500e）：psv_results alembic drift 补 3 列
+    # 审计列护栏（calc_lineage §审计列护栏 注释）：stale_resolution_path /
+    # hash_changed / changed_fields 只经 calc_lineage.finalize_calc_record
+    # 或 CIA 引擎写，业务模块禁止直写；本批次只提供列（业务侧尚未触发审计链）。
+    stale_resolution_path: Mapped[str | None] = mapped_column(
+        Text, comment="stale 决策链 JSON（业务模块禁直写）"
+    )
+    hash_changed: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("FALSE"),
+        comment="record_hash 变更标记（CIA 引擎写；业务模块禁直写）",
+    )
+    changed_fields: Mapped[dict | None] = mapped_column(
+        JSONB, comment="变更字段清单（CIA 引擎写；业务模块禁直写）"
+    )
     __table_args__ = (
         CheckConstraint(
             "(override_reason IS NULL AND override_approval_json IS NULL) OR "
@@ -974,46 +990,109 @@ class PsychroResult(TaggedRecordMixin, RecordMixin, Base):
 
 
 class OpenChannelResult(TaggedRecordMixin, Base):
-    """明渠流计算结果（open_channel_results 表）。
+    """明渠流计算结果（open_channel_results 表，P6-3 Task 30 扩展）。
 
     业务：矩形/梯形/圆形明渠均匀流+临界水深+水跃+能量损失；
-    result_json 承载水深+流速+弗劳德数+水力坡度。
+    SPEC §3.2.6 — manning 公式+临界水深+水跃判定。
+
+    P6-3 Task 30 补齐派生字段（仅追加 nullable，不漂移既有 7 字段）：
+    critical_depth / froude_number / manning_n / hydraulic_radius +
+    jump 三件套（jump_type / conjugate_depth / energy_loss）。
+    Task 31（manning/section/critical/jump 4 模块）将消费这些字段落库。
     """
 
     __tablename__ = "open_channel_results"
     open_channel_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    channel_type: Mapped[str] = mapped_column(String(30))
-    cross_section_json: Mapped[dict] = mapped_column(JSONB)
-    flow_rate: Mapped[float] = mapped_column(Float)
-    depth: Mapped[float] = mapped_column(Float)
-    velocity: Mapped[float] = mapped_column(Float)
-    slope: Mapped[float] = mapped_column(Float)
+    # 既有 7 业务字段（v3.1 stub，P6-3 Task 30 不漂移）
+    channel_type: Mapped[str] = mapped_column(String(30), comment="RECT/TRAP/CIRC（SPEC §3.2.6）")
+    cross_section_json: Mapped[dict] = mapped_column(
+        JSONB, comment="{bottom_width, side_slope, diameter}（SPEC §3.2.6）"
+    )
+    flow_rate: Mapped[float] = mapped_column(Float, comment="m³/s")
+    depth: Mapped[float] = mapped_column(Float, comment="m（正常水深）")
+    velocity: Mapped[float] = mapped_column(Float, comment="m/s")
+    slope: Mapped[float] = mapped_column(Float, comment="m/m（水力坡度）")
+    # P6-3 Task 30 派生字段（SPEC §3.2.6；Task 31 manning/section/critical/jump 落库）
+    critical_depth: Mapped[float | None] = mapped_column(Float, comment="m（临界水深）")
+    froude_number: Mapped[float | None] = mapped_column(Float, comment="Fr 弗劳德数")
+    manning_n: Mapped[float | None] = mapped_column(Float, comment="糙率")
+    hydraulic_radius: Mapped[float | None] = mapped_column(Float, comment="m 水力半径")
+    # 水跃（Task 31 jump 模块落库用）
+    jump_type: Mapped[str | None] = mapped_column(
+        String(16), comment="NONE/UNDROWNED/DROWNED"
+    )
+    conjugate_depth: Mapped[float | None] = mapped_column(Float, comment="m 水跃共轭水深")
+    energy_loss: Mapped[float | None] = mapped_column(Float, comment="m 水跃能量损失")
 
 
 class FiltrationResult(TaggedRecordMixin, Base):
-    """过滤设备选型/校核结果（filtration_results 表）。
+    """过滤设备选型/校核结果（filtration_results 表，P6-3 Task 30 扩展）。
 
-    业务：袋式/滤芯/砂滤等过滤器精度+压降+反吹周期+容尘量；
-    result_json 承载型号+过滤面积+数量+材质。
+    业务：Ruth 恒压/恒速过滤 + Ergun 深层过滤；SPEC §3.2.7。
+    既有 4 业务字段 + P6-3 Task 30 补齐 6 派生字段（media 五件套 + filter_velocity）。
+    Task 33/34（ruth 恒压 / ruth 恒速 / ergun 3 模块）将消费这些字段落库。
     """
 
     __tablename__ = "filtration_results"
     filter_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    filter_type: Mapped[str] = mapped_column(String(30))
-    area: Mapped[float] = mapped_column(Float)
-    cycle_time: Mapped[float] = mapped_column(Float, comment="h")
-    pressure_drop: Mapped[float] = mapped_column(Float)
+    # 既有 4 业务字段（v3.1 stub，P6-3 Task 30 不漂移）
+    filter_type: Mapped[str] = mapped_column(
+        String(30),
+        comment="RUTH_CONST_PRESSURE/RUTH_CONST_RATE/ERGUN_DEEP_BED（SPEC §3.2.7）",
+    )
+    area: Mapped[float] = mapped_column(Float, comment="m² 过滤面积")
+    cycle_time: Mapped[float] = mapped_column(Float, comment="h 过滤周期")
+    pressure_drop: Mapped[float] = mapped_column(Float, comment="Pa 压降")
+    # P6-3 Task 30 派生字段（SPEC §3.2.7；Task 33/34 落库）
+    media_type: Mapped[str | None] = mapped_column(
+        String(32), comment="SAND/ANTHRACITE/CARBON/RUTH_FILTER_CLOTH/ERGUN_PACKING"
+    )
+    cake_resistance_alpha: Mapped[float | None] = mapped_column(
+        Float, comment="m/kg Ruth 滤饼比阻"
+    )
+    specific_resistance_r0: Mapped[float | None] = mapped_column(
+        Float, comment="1/m Ruth 单位阻力"
+    )
+    permeability_k: Mapped[float | None] = mapped_column(
+        Float, comment="m² Ergun 渗透率"
+    )
+    porosity_eps: Mapped[float | None] = mapped_column(
+        Float, comment="0~1 Ergun 孔隙率"
+    )
+    filter_velocity: Mapped[float | None] = mapped_column(
+        Float, comment="m/s 过滤速率"
+    )
 
 
 class CostEstResult(Base):
-    """cost_est 与设备一对一，不带 sign_status（跟随所属设备）。"""
+    """成本估算结果（cost_est_results 表，P6-3 Task 30 扩展）。
+
+    cost_est 与设备一对一，不带 sign_status（跟随所属设备）。
+    SPEC §3.2.8 — 六十法则 + CEPCI 调整。
+
+    P6-3 Task 30 补齐 6 派生字段（base_cost / CEPCI 双件套 + scaling_exponent
+    + correlation_source）。Task 35（六十法则 + CEPCI 调整模块）将消费这些
+    字段落库。
+    """
 
     __tablename__ = "cost_est_results"
     cost_est_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     equipment_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("equipment_list.equipment_id"), unique=True
     )
-    estimated_cost: Mapped[float] = mapped_column(Numeric(18, 2))
+    # 既有 4 业务字段（v3.1 stub，P6-3 Task 30 不漂移）
+    estimated_cost: Mapped[float] = mapped_column(Numeric(18, 2), comment="估算成本")
     currency: Mapped[str] = mapped_column(String(10), default="USD")
-    cost_index_year: Mapped[int] = mapped_column(Integer)
+    cost_index_year: Mapped[int] = mapped_column(Integer, comment="目标年（CEPCI 索引年）")
+    # P6-3 Task 30 派生字段（SPEC §3.2.8；Task 35 落库）
+    base_cost: Mapped[float | None] = mapped_column(Numeric(18, 2), comment="基准年成本")
+    base_year: Mapped[int | None] = mapped_column(Integer, comment="基准年")
+    cepci_index_base: Mapped[float | None] = mapped_column(Float, comment="基准年 CEPCI")
+    cepci_index_target: Mapped[float | None] = mapped_column(Float, comment="目标年 CEPCI")
+    correlation_source: Mapped[str | None] = mapped_column(
+        String(64), comment="关联式来源（如 'Garrett1989_表5-21'）"
+    )
+    scaling_exponent: Mapped[float | None] = mapped_column(
+        Float, comment="缩放指数 n（六十法则 0.6 典型）"
+    )
     created_at = mapped_column(DateTime(timezone=True))

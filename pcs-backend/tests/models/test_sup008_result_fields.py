@@ -204,13 +204,17 @@ async def test_pump_design_stage_server_default_basic() -> None:
 @_ONLY_PCS_TEST
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "table", ["psv_results", "vessel_results", "column_sizing_results"]
+    "table", ["psv_results", "vessel_results", "column_sizing"]
 )
 async def test_design_stage_column_exists_not_null(table: str) -> None:
-    """psv_results / vessel_results / column_sizing_results 设计阶段列存在 + NOT NULL。
+    """psv_results / vessel_results / column_sizing 设计阶段列存在 + NOT NULL。
 
     SUP-008 §8.4 OPEN-009 VESSEL/PSV/COLUMN 三表必须 design_stage NOT NULL；
-    column_sizing_results 由 P5-OPEN-005（V1.3）落地，前两表由 P4-0-2 落地。
+    column_sizing 由 P5-OPEN-005（V1.3）落地，前两表由 P4-0-2 落地。
+
+    注意：实际表名是 ``column_sizing`` 而非 ``column_sizing_results``（P5-OPEN-005
+    落地决策，brief 历史曾用 ``column_sizing_results`` 别名——P6-3 Task 30 CAVEAT-1
+    校正）。
     """
     rows = await _fetch_column_rows(table, ("design_stage",))
     assert rows and rows[0]["is_nullable"] == "NO", f"{table}: {rows}"
@@ -219,10 +223,10 @@ async def test_design_stage_column_exists_not_null(table: str) -> None:
 @_ONLY_PCS_TEST
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "table", ["psv_results", "vessel_results", "column_sizing_results"]
+    "table", ["psv_results", "vessel_results", "column_sizing"]
 )
 async def test_design_stage_server_default_basic(table: str) -> None:
-    """psv_results / vessel_results / column_sizing_results 设计阶段 server_default = 'BASIC'。"""
+    """psv_results / vessel_results / column_sizing 设计阶段 server_default = 'BASIC'。"""
     factory = get_async_session_factory()
     async with factory() as session:
         row = (
