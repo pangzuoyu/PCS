@@ -25,6 +25,20 @@
 from __future__ import annotations
 
 from app.services.exceptions import FlareAggregatorInputError
+from app.services.flare.flare_persist_service import (  # P6-2 Task 23
+    FlarePersistInputError,
+    get_flare_result,
+    list_flare_results,
+    save_flare_result,
+    soft_delete_flare_result,
+    update_flare_result,
+)
+from app.services.flare.flare_tip import (  # P6-2 Task 23
+    FlareTipInput,
+    FlareTipInputError,
+    FlareTipResult,
+    calc_flare_tip,
+)
 from app.services.flare.header_sizing import (
     HeaderSizingInput,
     HeaderSizingInputError,
@@ -95,4 +109,16 @@ __all__ = [
     "calc_stack_height",
     "calc_radiation_check",
     "calc_stack_design",
+    # P6-2 Task 23 — flare_tip（API 521 §5.15.6 火炬尖端速度）
+    "FlareTipInput",
+    "FlareTipResult",
+    "FlareTipInputError",
+    "calc_flare_tip",
+    # P6-2 Task 23 — flare_persist（FlareSystemResult 落库）
+    "FlarePersistInputError",
+    "save_flare_result",
+    "list_flare_results",
+    "get_flare_result",
+    "update_flare_result",
+    "soft_delete_flare_result",
 ]

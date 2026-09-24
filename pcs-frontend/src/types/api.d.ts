@@ -2280,6 +2280,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/flare/tip": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calculate Flare Tip
+         * @description API 521 §5.15.6 火炬尖端速度 + Mach 数计算。
+         *
+         *     复用 Task 20 header_sizing 的等温声速 / 理想气体密度公式，按尖端工况
+         *     （header 出口 P/T）计算 tip 点速度与马赫数。本接口纯计算不写 DB（落库
+         *     由 Task 23 flare_persist 统一处理）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calculate_flare_tip_api_v1_flare_tip_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/flare/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Flare Results
+         * @description 按 project_id 列出 FlareSystemResult（GET list，分页）。
+         *
+         *     默认 sign_status filter = (DRAFT, CHECKED) — 排除 OBSOLETE 等门禁态。
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        get: operations["list_flare_results_api_v1_flare_results_get"];
+        put?: never;
+        /**
+         * Create Flare Result
+         * @description 创建 FlareSystemResult 行（POST → 201）。
+         *
+         *     save_flare_result service 层自动 final record_hash（ADR-0028 §决策 4），
+         *     返回创建后的完整 FlareSystemResult 行。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["create_flare_result_api_v1_flare_results_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/flare/results/{record_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Flare Result
+         * @description 按 id 取 FlareSystemResult（GET detail）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        get: operations["get_flare_result_api_v1_flare_results__record_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Flare Result
+         * @description 软删除 FlareSystemResult（DELETE → sign_status=OBSOLETE）。
+         *
+         *     软删而非物理删除（SPEC §3.2.3 P6-FLR-004 审计要求）；记录不再被
+         *     list 默认过滤（DRAFT/CHECKED filter）展示。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        delete: operations["delete_flare_result_api_v1_flare_results__record_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Flare Result
+         * @description 更新 FlareSystemResult 业务字段（PATCH；仅 DRAFT/CHANGE_PENDING 可改）。
+         *
+         *     CHECKED / IN_APPROVAL / REVERSAL_PENDING 等锁定态拒绝更新（避免评审中
+         *     数据漂移）。project_id 由 ACL 在 Phase 后续 PATCH 透传；本批次为
+         *     None（service 层不强制隔离）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        patch: operations["update_flare_result_api_v1_flare_results__record_id__patch"];
+        trace?: never;
+    };
     "/api/v1/vessel/calculate": {
         parameters: {
             query?: never;
@@ -4428,6 +4527,573 @@ export interface components {
             type: "elbow_90" | "elbow_45" | "tee_branch" | "tee_through" | "valve_gate" | "valve_ball" | "reducer" | "expander" | "entrance" | "exit";
             /** K */
             K?: number | null;
+        };
+        /**
+         * FlareResultCreateRequest
+         * @description FlareSystemResult 创建请求（POST /flare/results）。
+         *
+         *     字段按 FlareSystemResult ORM 列名（Task 18，P6-2 实施）平铺 —— save_flare_result
+         *     service 直接 ``**payload`` 喂给 ORM，字段名必须与列名严格一致：
+         *
+         *     - project_id: 项目 ID（RecordMixin FK → projects.project_id）
+         *     - workspace_id: 工作区 ID（业务隔离）
+         *     - tag_number: 位号（TaggedRecordMixin NOT NULL；项目内唯一）
+         *     - standard_profile_code: 项目标准（默认 "API_521"；C-07 String(16) 锁定）
+         *     - calc_type: 计算类型（RELIEF_SUMMARY/HEADER_SIZING/KOD_SIZING/STACK_HEIGHT/
+         *       RADIATION/FLARE_TIP；String(32) NOT NULL）
+         *     - sign_status: 签审状态（默认 DRAFT）
+         *
+         *     18 业务字段（FlareSystemResult __table__ 排除 PK + mixin 字段）：
+         *     - total_relief_load_kg_h: 总泄放质量流量 kg/h
+         *     - header_diameter_mm: 总管直径 mm（来自 Task 20）
+         *     - header_mach: 总管实际 Mach 数（应等于 target_mach）
+         *     - header_pressure_drop_kpa: 总管压降 kPa
+         *     - kod_diameter_mm: KOD 直径 mm（来自 Task 21）
+         *     - water_seal_height_mm: 水封高度 mm（来自 Task 21）
+         *     - stack_height_m: 火炬高度 m（来自 Task 22）
+         *     - stack_diameter_m: 火炬直径 m
+         *     - radiation_at_grade_kw_m2: 地面辐射 kW/m²（来自 Task 22）
+         *     - radiation_limit_kw_m2: BEDD 限值 kW/m²（来自 Task 22）
+         *     - pass_: 辐射校验 PASS/FAIL（SPEC §3.2.3）
+         *     - flare_tip_diameter_mm: 尖端直径 mm（来自 tip 计算）
+         *     - steam_for_smokeless_kg_h: 无烟蒸汽消耗 kg/h
+         *     - radiation_check_json: 辐射校验完整产物（PCS-DICT-005 §3.1）
+         *     - input_json: 入参（业务子结构）
+         *     - output_json: 出参（业务子结构）
+         */
+        FlareResultCreateRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（FK → projects）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID（业务隔离）
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号（TaggedRecordMixin NOT NULL）
+             */
+            tag_number: string;
+            /**
+             * Standard Profile Code
+             * @description 项目标准（默认 API_521）
+             * @default API_521
+             */
+            standard_profile_code: string;
+            /**
+             * Calc Type
+             * @description 计算类型（RELIEF_SUMMARY/HEADER_SIZING/KOD_SIZING/STACK_HEIGHT/RADIATION/FLARE_TIP）
+             */
+            calc_type: string;
+            /**
+             * Sign Status
+             * @description 签审状态（DRAFT / IN_APPROVAL / CHECKED / CHECK_REJECTED / STALE / CHANGE_PENDING / CHANGED / REVERSAL_PENDING / OBSOLETE）
+             * @default DRAFT
+             */
+            sign_status: string;
+            /**
+             * Total Relief Load Kg H
+             * @description 总泄放质量流量 kg/h
+             */
+            total_relief_load_kg_h?: number | null;
+            /**
+             * Header Diameter Mm
+             * @description 总管直径 mm
+             */
+            header_diameter_mm?: number | null;
+            /**
+             * Header Mach
+             * @description 总管 Mach 数
+             */
+            header_mach?: number | null;
+            /**
+             * Header Pressure Drop Kpa
+             * @description 总管压降 kPa
+             */
+            header_pressure_drop_kpa?: number | null;
+            /**
+             * Kod Diameter Mm
+             * @description KOD 直径 mm
+             */
+            kod_diameter_mm?: number | null;
+            /**
+             * Water Seal Height Mm
+             * @description 水封高度 mm
+             */
+            water_seal_height_mm?: number | null;
+            /**
+             * Stack Height M
+             * @description 火炬高度 m
+             */
+            stack_height_m?: number | null;
+            /**
+             * Stack Diameter M
+             * @description 火炬直径 m
+             */
+            stack_diameter_m?: number | null;
+            /**
+             * Radiation At Grade Kw M2
+             * @description 地面辐射 kW/m²
+             */
+            radiation_at_grade_kw_m2?: number | null;
+            /**
+             * Radiation Limit Kw M2
+             * @description BEDD 限值 kW/m²
+             */
+            radiation_limit_kw_m2?: number | null;
+            /**
+             * Pass
+             * @description 辐射校验 PASS/FAIL（SPEC §3.2.3）
+             */
+            pass?: boolean | null;
+            /**
+             * Flare Tip Diameter Mm
+             * @description 尖端直径 mm（来自 tip 计算）
+             */
+            flare_tip_diameter_mm?: number | null;
+            /**
+             * Steam For Smokeless Kg H
+             * @description 无烟蒸汽消耗 kg/h
+             */
+            steam_for_smokeless_kg_h?: number | null;
+            /**
+             * Radiation Check Json
+             * @description 辐射校验完整产物（PCS-DICT-005 §3.1）
+             */
+            radiation_check_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Input Json
+             * @description 入参（业务子结构）
+             */
+            input_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Output Json
+             * @description 出参（业务子结构）
+             */
+            output_json?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * FlareResultListResponse
+         * @description FlareSystemResult 列表响应（GET /flare/results）。
+         *
+         *     字段：
+         *     - items: FlareResultResponse 列表
+         *     - total: 命中条数（受 sign_status_filter 影响；OBSOLETE 等门禁态被过滤）
+         *     - limit / offset: 分页参数回显
+         */
+        FlareResultListResponse: {
+            /**
+             * Items
+             * @description FlareSystemResult 列表
+             */
+            items: components["schemas"]["FlareResultResponse"][];
+            /**
+             * Total
+             * @description 命中条数（默认 DRAFT/CHECKED filter）
+             */
+            total: number;
+            /**
+             * Limit
+             * @description 分页上限
+             */
+            limit: number;
+            /**
+             * Offset
+             * @description 分页偏移
+             */
+            offset: number;
+        };
+        /**
+         * FlareResultResponse
+         * @description FlareSystemResult 单条响应（GET /flare/results/{id} 与 POST 201 body）。
+         *
+         *     字段：溯源（id / project_id / workspace_id / tag_number / standard_profile_code
+         *     / calc_type / sign_status / record_hash）+ 18 业务字段 + 时间戳。
+         *
+         *     字段映射（ORM → schema）：
+         *     - ORM flare_id → schema id（PK 重命名；前端统一用 id）
+         *     - ORM pass → schema pass_（保留 ORM 别名）
+         */
+        FlareResultResponse: {
+            /**
+             * Id
+             * Format: uuid
+             * @description flare_system_results.flare_id（PK）
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Standard Profile Code
+             * @description 项目标准
+             */
+            standard_profile_code: string;
+            /**
+             * Calc Type
+             * @description 计算类型
+             */
+            calc_type: string;
+            /**
+             * Sign Status
+             * @description 签审状态 9 态
+             */
+            sign_status: string;
+            /**
+             * Record Hash
+             * @description record_hash（ADR-0028 §决策 4 reflection；16 hex）
+             */
+            record_hash?: string | null;
+            /**
+             * Total Relief Load Kg H
+             * @description kg/h
+             */
+            total_relief_load_kg_h?: number | null;
+            /**
+             * Header Diameter Mm
+             * @description 总管直径 mm
+             */
+            header_diameter_mm?: number | null;
+            /**
+             * Header Mach
+             * @description 总管 Mach 数
+             */
+            header_mach?: number | null;
+            /**
+             * Header Pressure Drop Kpa
+             * @description 总管压降 kPa
+             */
+            header_pressure_drop_kpa?: number | null;
+            /**
+             * Kod Diameter Mm
+             * @description KOD 直径 mm
+             */
+            kod_diameter_mm?: number | null;
+            /**
+             * Water Seal Height Mm
+             * @description 水封高度 mm
+             */
+            water_seal_height_mm?: number | null;
+            /**
+             * Stack Height M
+             * @description 火炬高度 m
+             */
+            stack_height_m?: number | null;
+            /**
+             * Stack Diameter M
+             * @description 火炬直径 m
+             */
+            stack_diameter_m?: number | null;
+            /**
+             * Radiation At Grade Kw M2
+             * @description 地面辐射 kW/m²
+             */
+            radiation_at_grade_kw_m2?: number | null;
+            /**
+             * Radiation Limit Kw M2
+             * @description BEDD kW/m²
+             */
+            radiation_limit_kw_m2?: number | null;
+            /**
+             * Pass
+             * @description 辐射校验 PASS/FAIL
+             */
+            pass?: boolean | null;
+            /**
+             * Flare Tip Diameter Mm
+             * @description 尖端直径 mm
+             */
+            flare_tip_diameter_mm?: number | null;
+            /**
+             * Steam For Smokeless Kg H
+             * @description 无烟蒸汽消耗 kg/h
+             */
+            steam_for_smokeless_kg_h?: number | null;
+            /**
+             * Radiation Check Json
+             * @description 辐射校验完整产物
+             */
+            radiation_check_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Input Json
+             * @description 入参
+             */
+            input_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Output Json
+             * @description 出参
+             */
+            output_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description 创建时间
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * @description 更新时间
+             */
+            updated_at?: string | null;
+        };
+        /**
+         * FlareResultUpdateRequest
+         * @description FlareSystemResult 更新请求（PATCH /flare/results/{id}）。
+         *
+         *     字段子集（PATCH 仅允许业务字段；不可改 sign_status / tag_number / 溯源等）
+         */
+        FlareResultUpdateRequest: {
+            /**
+             * Calc Type
+             * @description 计算类型
+             */
+            calc_type?: string | null;
+            /**
+             * Total Relief Load Kg H
+             * @description 总泄放质量流量 kg/h
+             */
+            total_relief_load_kg_h?: number | null;
+            /**
+             * Header Diameter Mm
+             * @description 总管直径 mm
+             */
+            header_diameter_mm?: number | null;
+            /**
+             * Header Mach
+             * @description 总管 Mach 数
+             */
+            header_mach?: number | null;
+            /**
+             * Header Pressure Drop Kpa
+             * @description 总管压降 kPa
+             */
+            header_pressure_drop_kpa?: number | null;
+            /**
+             * Kod Diameter Mm
+             * @description KOD 直径 mm
+             */
+            kod_diameter_mm?: number | null;
+            /**
+             * Water Seal Height Mm
+             * @description 水封高度 mm
+             */
+            water_seal_height_mm?: number | null;
+            /**
+             * Stack Height M
+             * @description 火炬高度 m
+             */
+            stack_height_m?: number | null;
+            /**
+             * Stack Diameter M
+             * @description 火炬直径 m
+             */
+            stack_diameter_m?: number | null;
+            /**
+             * Radiation At Grade Kw M2
+             * @description 地面辐射 kW/m²
+             */
+            radiation_at_grade_kw_m2?: number | null;
+            /**
+             * Radiation Limit Kw M2
+             * @description BEDD 限值 kW/m²
+             */
+            radiation_limit_kw_m2?: number | null;
+            /**
+             * Pass
+             * @description 辐射校验 PASS/FAIL
+             */
+            pass?: boolean | null;
+            /**
+             * Flare Tip Diameter Mm
+             * @description 尖端直径 mm
+             */
+            flare_tip_diameter_mm?: number | null;
+            /**
+             * Steam For Smokeless Kg H
+             * @description 无烟蒸汽消耗 kg/h
+             */
+            steam_for_smokeless_kg_h?: number | null;
+            /**
+             * Radiation Check Json
+             * @description 辐射校验完整产物
+             */
+            radiation_check_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Input Json
+             * @description 入参
+             */
+            input_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Output Json
+             * @description 出参
+             */
+            output_json?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * FlareTipRequest
+         * @description FLARE_SYS flare_tip 请求（API 521 §5.15.6）。
+         *
+         *     字段（按 API 521 §5.15.6 火炬尖端 tip 速度计算输入）：
+         *
+         *     - project_id: 项目 ID（与 Task 19/20/21/22 隔离键一致）
+         *     - standard_profile_code: 项目标准（默认 API_521）
+         *     - header_diameter_m: 火炬总管直径 m（>0；来自 Task 20 header_sizing）
+         *     - mw_kg_kmol: 气体分子量 kg/kmol（>0）
+         *     - tip_temperature_k: 尖端温度 K（>0，工况下）
+         *     - tip_pressure_pa: 尖端压力 Pa（>0，火炬入口压力）
+         *     - specific_heat_ratio: 比热比 k = cp/cv（>1.0）
+         *     - target_mach: 目标 Mach 数（默认 0.2 尖端亚音速，范围 [0.05, 1.0]）
+         */
+        FlareTipRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（与 Task 19/20/21/22 隔离键一致）
+             */
+            project_id: string;
+            /**
+             * Standard Profile Code
+             * @description 项目标准（API_521 / GB/T）
+             * @default API_521
+             */
+            standard_profile_code: string;
+            /**
+             * Header Diameter M
+             * @description 火炬总管直径 m（来自 Task 20 header_sizing）
+             */
+            header_diameter_m: number;
+            /**
+             * Mw Kg Kmol
+             * @description 气体分子量 kg/kmol
+             */
+            mw_kg_kmol: number;
+            /**
+             * Tip Temperature K
+             * @description 尖端温度 K（工况下）
+             */
+            tip_temperature_k: number;
+            /**
+             * Tip Pressure Pa
+             * @description 尖端压力 Pa（火炬入口压力）
+             */
+            tip_pressure_pa: number;
+            /**
+             * Specific Heat Ratio
+             * @description 比热比 k = cp/cv
+             */
+            specific_heat_ratio: number;
+            /**
+             * Target Mach
+             * @description 目标 Mach 数（尖端亚音速默认 0.2，范围 [0.05, 1.0]）
+             * @default 0.2
+             */
+            target_mach: number;
+        };
+        /**
+         * FlareTipResponse
+         * @description FLARE_SYS flare_tip 响应（API 521 §5.15.6）。
+         *
+         *     字段（按 API 521 §5.15.6 输出）：
+         *     - tip_diameter_m: 尖端直径 m（与 header 同径；单点 tip 假设）
+         *     - tip_area_m2: 尖端流通面积 m²
+         *     - tip_velocity_m_s: 尖端目标速度 m/s（= M_target × a）
+         *     - actual_mach: 实际 Mach 数（恒等于 target_mach）
+         *     - sound_speed_m_s: 等温声速 m/s
+         *     - gas_density_kg_m3: 管内气体密度 kg/m³
+         *     - mass_flux_kgs_m2: 质量流速 G kg/(s·m²)
+         *     - formula_ref: 公式溯源标记 "API_521_§5.15.6"
+         *     - project_id: 回显请求 project_id（前端 audit）
+         *     - standard_profile_code: 回显请求 standard_profile_code
+         */
+        FlareTipResponse: {
+            /**
+             * Tip Diameter M
+             * @description 尖端直径 m
+             */
+            tip_diameter_m: number;
+            /**
+             * Tip Area M2
+             * @description 尖端流通面积 m²
+             */
+            tip_area_m2: number;
+            /**
+             * Tip Velocity M S
+             * @description 尖端目标速度 m/s
+             */
+            tip_velocity_m_s: number;
+            /**
+             * Actual Mach
+             * @description 实际 Mach 数（恒等于 target_mach）
+             */
+            actual_mach: number;
+            /**
+             * Sound Speed M S
+             * @description 等温声速 m/s
+             */
+            sound_speed_m_s: number;
+            /**
+             * Gas Density Kg M3
+             * @description 管内气体密度 kg/m³
+             */
+            gas_density_kg_m3: number;
+            /**
+             * Mass Flux Kgs M2
+             * @description 质量流速 G kg/(s·m²)
+             */
+            mass_flux_kgs_m2: number;
+            /**
+             * Formula Ref
+             * @description 公式溯源标记（API_521_§5.15.6）
+             */
+            formula_ref: string;
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 回显请求 project_id
+             */
+            project_id: string;
+            /**
+             * Standard Profile Code
+             * @description 回显请求 standard_profile_code
+             */
+            standard_profile_code: string;
         };
         /**
          * ForkProjectConfigRequest
@@ -12134,6 +12800,213 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["StackDesignResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calculate_flare_tip_api_v1_flare_tip_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FlareTipRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlareTipResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_flare_results_api_v1_flare_results_get: {
+        parameters: {
+            query: {
+                project_id: string;
+                standard_profile_code?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlareResultListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_flare_result_api_v1_flare_results_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FlareResultCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlareResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_flare_result_api_v1_flare_results__record_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlareResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_flare_result_api_v1_flare_results__record_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_flare_result_api_v1_flare_results__record_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["FlareResultUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["FlareResultResponse"];
                 };
             };
             /** @description Validation Error */

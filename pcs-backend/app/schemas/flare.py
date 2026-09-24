@@ -9,6 +9,7 @@
 - Task 20：POST /api/v1/flare/header-sizing：req HeaderSizingRequest / resp HeaderSizingResponse
 - Task 21：POST /api/v1/flare/kod-sizing：req KodSizingRequest / resp KodSizingResponse
 - Task 22：POST /api/v1/flare/stack-design：req StackDesignRequest / resp StackDesignResponse
+- Task 23：POST /api/v1/flare/tip + CRUD /api/v1/flare/results
 
 不写 DB（header_sizing / kod_sizing / stack_design 是计算，落库由 Task 23
 flare_persist 统一处理）。
@@ -16,8 +17,10 @@ flare_persist 统一处理）。
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
+from typing import Any
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class HeaderSizingRequest(BaseModel):
@@ -332,4 +335,323 @@ __all__ = [
     "StackDesignResponse",
     "StackHeightInfo",
     "RadiationCheckInfo",
+    # Task 23 — flare_tip + flare_persist
+    "FlareTipRequest",
+    "FlareTipResponse",
+    "FlareResultCreateRequest",
+    "FlareResultUpdateRequest",
+    "FlareResultResponse",
+    "FlareResultListResponse",
 ]
+
+# ───────────────────────────── Task 23 flare_tip ──────────────────────────────
+
+
+class FlareTipRequest(BaseModel):
+    """FLARE_SYS flare_tip 请求（API 521 §5.15.6）。
+
+    字段（按 API 521 §5.15.6 火炬尖端 tip 速度计算输入）：
+
+    - project_id: 项目 ID（与 Task 19/20/21/22 隔离键一致）
+    - standard_profile_code: 项目标准（默认 API_521）
+    - header_diameter_m: 火炬总管直径 m（>0；来自 Task 20 header_sizing）
+    - mw_kg_kmol: 气体分子量 kg/kmol（>0）
+    - tip_temperature_k: 尖端温度 K（>0，工况下）
+    - tip_pressure_pa: 尖端压力 Pa（>0，火炬入口压力）
+    - specific_heat_ratio: 比热比 k = cp/cv（>1.0）
+    - target_mach: 目标 Mach 数（默认 0.2 尖端亚音速，范围 [0.05, 1.0]）
+    """
+
+    project_id: uuid.UUID = Field(
+        ..., description="项目 ID（与 Task 19/20/21/22 隔离键一致）"
+    )
+    standard_profile_code: str = Field(
+        "API_521", description="项目标准（API_521 / GB/T）"
+    )
+    header_diameter_m: float = Field(
+        ..., gt=0, description="火炬总管直径 m（来自 Task 20 header_sizing）"
+    )
+    mw_kg_kmol: float = Field(..., gt=0, description="气体分子量 kg/kmol")
+    tip_temperature_k: float = Field(..., gt=0, description="尖端温度 K（工况下）")
+    tip_pressure_pa: float = Field(
+        ..., gt=0, description="尖端压力 Pa（火炬入口压力）"
+    )
+    specific_heat_ratio: float = Field(
+        ..., gt=1.0, description="比热比 k = cp/cv"
+    )
+    target_mach: float = Field(
+        0.2,
+        ge=0.05,
+        le=1.0,
+        description="目标 Mach 数（尖端亚音速默认 0.2，范围 [0.05, 1.0]）",
+    )
+
+
+class FlareTipResponse(BaseModel):
+    """FLARE_SYS flare_tip 响应（API 521 §5.15.6）。
+
+    字段（按 API 521 §5.15.6 输出）：
+    - tip_diameter_m: 尖端直径 m（与 header 同径；单点 tip 假设）
+    - tip_area_m2: 尖端流通面积 m²
+    - tip_velocity_m_s: 尖端目标速度 m/s（= M_target × a）
+    - actual_mach: 实际 Mach 数（恒等于 target_mach）
+    - sound_speed_m_s: 等温声速 m/s
+    - gas_density_kg_m3: 管内气体密度 kg/m³
+    - mass_flux_kgs_m2: 质量流速 G kg/(s·m²)
+    - formula_ref: 公式溯源标记 "API_521_§5.15.6"
+    - project_id: 回显请求 project_id（前端 audit）
+    - standard_profile_code: 回显请求 standard_profile_code
+    """
+
+    tip_diameter_m: float = Field(..., description="尖端直径 m")
+    tip_area_m2: float = Field(..., description="尖端流通面积 m²")
+    tip_velocity_m_s: float = Field(..., description="尖端目标速度 m/s")
+    actual_mach: float = Field(
+        ..., description="实际 Mach 数（恒等于 target_mach）"
+    )
+    sound_speed_m_s: float = Field(..., description="等温声速 m/s")
+    gas_density_kg_m3: float = Field(..., description="管内气体密度 kg/m³")
+    mass_flux_kgs_m2: float = Field(..., description="质量流速 G kg/(s·m²)")
+    formula_ref: str = Field(
+        ..., description="公式溯源标记（API_521_§5.15.6）"
+    )
+    project_id: uuid.UUID = Field(..., description="回显请求 project_id")
+    standard_profile_code: str = Field(
+        ..., description="回显请求 standard_profile_code"
+    )
+
+
+# ───────────────────────────── Task 23 flare_persist ───────────────────────────
+
+
+class FlareResultCreateRequest(BaseModel):
+    """FlareSystemResult 创建请求（POST /flare/results）。
+
+    字段按 FlareSystemResult ORM 列名（Task 18，P6-2 实施）平铺 —— save_flare_result
+    service 直接 ``**payload`` 喂给 ORM，字段名必须与列名严格一致：
+
+    - project_id: 项目 ID（RecordMixin FK → projects.project_id）
+    - workspace_id: 工作区 ID（业务隔离）
+    - tag_number: 位号（TaggedRecordMixin NOT NULL；项目内唯一）
+    - standard_profile_code: 项目标准（默认 "API_521"；C-07 String(16) 锁定）
+    - calc_type: 计算类型（RELIEF_SUMMARY/HEADER_SIZING/KOD_SIZING/STACK_HEIGHT/
+      RADIATION/FLARE_TIP；String(32) NOT NULL）
+    - sign_status: 签审状态（默认 DRAFT）
+
+    18 业务字段（FlareSystemResult __table__ 排除 PK + mixin 字段）：
+    - total_relief_load_kg_h: 总泄放质量流量 kg/h
+    - header_diameter_mm: 总管直径 mm（来自 Task 20）
+    - header_mach: 总管实际 Mach 数（应等于 target_mach）
+    - header_pressure_drop_kpa: 总管压降 kPa
+    - kod_diameter_mm: KOD 直径 mm（来自 Task 21）
+    - water_seal_height_mm: 水封高度 mm（来自 Task 21）
+    - stack_height_m: 火炬高度 m（来自 Task 22）
+    - stack_diameter_m: 火炬直径 m
+    - radiation_at_grade_kw_m2: 地面辐射 kW/m²（来自 Task 22）
+    - radiation_limit_kw_m2: BEDD 限值 kW/m²（来自 Task 22）
+    - pass_: 辐射校验 PASS/FAIL（SPEC §3.2.3）
+    - flare_tip_diameter_mm: 尖端直径 mm（来自 tip 计算）
+    - steam_for_smokeless_kg_h: 无烟蒸汽消耗 kg/h
+    - radiation_check_json: 辐射校验完整产物（PCS-DICT-005 §3.1）
+    - input_json: 入参（业务子结构）
+    - output_json: 出参（业务子结构）
+    """
+
+    # 溯源 + 隔离（mixin 必填）
+    project_id: uuid.UUID = Field(..., description="项目 ID（FK → projects）")
+    workspace_id: uuid.UUID = Field(..., description="工作区 ID（业务隔离）")
+    tag_number: str = Field(
+        ..., min_length=1, max_length=50, description="位号（TaggedRecordMixin NOT NULL）"
+    )
+    standard_profile_code: str = Field(
+        "API_521", description="项目标准（默认 API_521）"
+    )
+    calc_type: str = Field(
+        ...,
+        min_length=1,
+        max_length=32,
+        description="计算类型（RELIEF_SUMMARY/HEADER_SIZING/KOD_SIZING/STACK_HEIGHT/RADIATION/FLARE_TIP）",
+    )
+    sign_status: str = Field(
+        "DRAFT",
+        description=(
+            "签审状态（DRAFT / IN_APPROVAL / CHECKED / CHECK_REJECTED / "
+            "STALE / CHANGE_PENDING / CHANGED / REVERSAL_PENDING / OBSOLETE）"
+        ),
+    )
+
+    # 18 业务字段（按 ORM 列名平铺；service layer **payload 喂给 ORM）
+    total_relief_load_kg_h: float | None = Field(
+        None, description="总泄放质量流量 kg/h"
+    )
+    header_diameter_mm: float | None = Field(None, description="总管直径 mm")
+    header_mach: float | None = Field(None, description="总管 Mach 数")
+    header_pressure_drop_kpa: float | None = Field(None, description="总管压降 kPa")
+    kod_diameter_mm: float | None = Field(None, description="KOD 直径 mm")
+    water_seal_height_mm: float | None = Field(None, description="水封高度 mm")
+    stack_height_m: float | None = Field(None, description="火炬高度 m")
+    stack_diameter_m: float | None = Field(None, description="火炬直径 m")
+    radiation_at_grade_kw_m2: float | None = Field(
+        None, description="地面辐射 kW/m²"
+    )
+    radiation_limit_kw_m2: float | None = Field(
+        None, description="BEDD 限值 kW/m²"
+    )
+    pass_: bool | None = Field(
+        None,
+        alias="pass",
+        description="辐射校验 PASS/FAIL（SPEC §3.2.3）",
+    )
+    flare_tip_diameter_mm: float | None = Field(
+        None, description="尖端直径 mm（来自 tip 计算）"
+    )
+    steam_for_smokeless_kg_h: float | None = Field(
+        None, description="无烟蒸汽消耗 kg/h"
+    )
+    radiation_check_json: dict | None = Field(
+        None, description="辐射校验完整产物（PCS-DICT-005 §3.1）"
+    )
+    input_json: dict | None = Field(None, description="入参（业务子结构）")
+    output_json: dict | None = Field(None, description="出参（业务子结构）")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class FlareResultUpdateRequest(BaseModel):
+    """FlareSystemResult 更新请求（PATCH /flare/results/{id}）。
+
+    字段子集（PATCH 仅允许业务字段；不可改 sign_status / tag_number / 溯源等）
+    """
+
+    calc_type: str | None = Field(None, max_length=32, description="计算类型")
+    total_relief_load_kg_h: float | None = Field(
+        None, description="总泄放质量流量 kg/h"
+    )
+    header_diameter_mm: float | None = Field(None, description="总管直径 mm")
+    header_mach: float | None = Field(None, description="总管 Mach 数")
+    header_pressure_drop_kpa: float | None = Field(
+        None, description="总管压降 kPa"
+    )
+    kod_diameter_mm: float | None = Field(None, description="KOD 直径 mm")
+    water_seal_height_mm: float | None = Field(None, description="水封高度 mm")
+    stack_height_m: float | None = Field(None, description="火炬高度 m")
+    stack_diameter_m: float | None = Field(None, description="火炬直径 m")
+    radiation_at_grade_kw_m2: float | None = Field(
+        None, description="地面辐射 kW/m²"
+    )
+    radiation_limit_kw_m2: float | None = Field(
+        None, description="BEDD 限值 kW/m²"
+    )
+    pass_: bool | None = Field(
+        None, alias="pass", description="辐射校验 PASS/FAIL"
+    )
+    flare_tip_diameter_mm: float | None = Field(None, description="尖端直径 mm")
+    steam_for_smokeless_kg_h: float | None = Field(
+        None, description="无烟蒸汽消耗 kg/h"
+    )
+    radiation_check_json: dict | None = Field(
+        None, description="辐射校验完整产物"
+    )
+    input_json: dict | None = Field(None, description="入参")
+    output_json: dict | None = Field(None, description="出参")
+
+    model_config = ConfigDict(populate_by_name=True)
+
+
+class FlareResultResponse(BaseModel):
+    """FlareSystemResult 单条响应（GET /flare/results/{id} 与 POST 201 body）。
+
+    字段：溯源（id / project_id / workspace_id / tag_number / standard_profile_code
+    / calc_type / sign_status / record_hash）+ 18 业务字段 + 时间戳。
+
+    字段映射（ORM → schema）：
+    - ORM flare_id → schema id（PK 重命名；前端统一用 id）
+    - ORM pass → schema pass_（保留 ORM 别名）
+    """
+
+    model_config = ConfigDict(
+        from_attributes=True, populate_by_name=True, serialize_by_alias=True
+    )
+
+    id: uuid.UUID = Field(..., description="flare_system_results.flare_id（PK）")
+    project_id: uuid.UUID = Field(..., description="项目 ID")
+    workspace_id: uuid.UUID = Field(..., description="工作区 ID")
+    tag_number: str = Field(..., description="位号")
+    standard_profile_code: str = Field(..., description="项目标准")
+    calc_type: str = Field(..., description="计算类型")
+    sign_status: str = Field(..., description="签审状态 9 态")
+    record_hash: str | None = Field(
+        None, description="record_hash（ADR-0028 §决策 4 reflection；16 hex）"
+    )
+    # 18 业务字段
+    total_relief_load_kg_h: float | None = Field(None, description="kg/h")
+    header_diameter_mm: float | None = Field(None, description="总管直径 mm")
+    header_mach: float | None = Field(None, description="总管 Mach 数")
+    header_pressure_drop_kpa: float | None = Field(None, description="总管压降 kPa")
+    kod_diameter_mm: float | None = Field(None, description="KOD 直径 mm")
+    water_seal_height_mm: float | None = Field(None, description="水封高度 mm")
+    stack_height_m: float | None = Field(None, description="火炬高度 m")
+    stack_diameter_m: float | None = Field(None, description="火炬直径 m")
+    radiation_at_grade_kw_m2: float | None = Field(
+        None, description="地面辐射 kW/m²"
+    )
+    radiation_limit_kw_m2: float | None = Field(None, description="BEDD kW/m²")
+    pass_: bool | None = Field(
+        None,
+        validation_alias="pass",
+        serialization_alias="pass",
+        description="辐射校验 PASS/FAIL",
+    )
+    flare_tip_diameter_mm: float | None = Field(None, description="尖端直径 mm")
+    steam_for_smokeless_kg_h: float | None = Field(
+        None, description="无烟蒸汽消耗 kg/h"
+    )
+    radiation_check_json: dict | None = Field(
+        None, description="辐射校验完整产物"
+    )
+    input_json: dict | None = Field(None, description="入参")
+    output_json: dict | None = Field(None, description="出参")
+
+    created_at: datetime = Field(..., description="创建时间")
+    updated_at: datetime | None = Field(None, description="更新时间")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _from_orm_rename(cls, data: Any) -> Any:
+        """ORM → schema 字段映射：ORM flare_id → schema id。
+
+        支持 dict 输入（来自 model_validate(record, from_attributes=True) 透传
+        的 ORM 属性访问）；attr 输入（record.xxx）也走同样的 getattr。
+        """
+        if data is None:
+            return data
+        # from_attributes=True 时，data 可能是 ORM 对象或 dict
+        flare_id = getattr(data, "flare_id", None)
+        if flare_id is not None and not isinstance(data, dict):
+            # ORM 对象：直接 setattr 等价于属性赋值（常量字符串 by ruff B010）
+            try:
+                data.id = flare_id  # noqa: B010
+            except AttributeError:
+                # 不可 set（如 MagicMock 已被 frozen）→ 转 dict 处理
+                if hasattr(data, "__dict__"):
+                    d = dict(data.__dict__)
+                    d["id"] = flare_id
+                    return d
+        return data
+
+
+class FlareResultListResponse(BaseModel):
+    """FlareSystemResult 列表响应（GET /flare/results）。
+
+    字段：
+    - items: FlareResultResponse 列表
+    - total: 命中条数（受 sign_status_filter 影响；OBSOLETE 等门禁态被过滤）
+    - limit / offset: 分页参数回显
+    """
+
+    items: list[FlareResultResponse] = Field(
+        ..., description="FlareSystemResult 列表"
+    )
+    total: int = Field(..., description="命中条数（默认 DRAFT/CHECKED filter）")
+    limit: int = Field(..., description="分页上限")
+    offset: int = Field(..., description="分页偏移")
