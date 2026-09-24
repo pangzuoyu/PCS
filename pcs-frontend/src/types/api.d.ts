@@ -2520,6 +2520,232 @@ export interface paths {
         patch: operations["update_cool_tower_result_api_v1_cool_tower_results__record_id__patch"];
         trace?: never;
     };
+    "/api/v1/psychro/humidity-ratio": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calc Humidity Ratio
+         * @description 湿度比 W（§3.2.5 P6-PSY-001 子项 1；kg 水 / kg 干空气）。
+         *
+         *     直调 ``chedl_wrapper.humid_air_humidity_ratio(T_K, RH, P_pa)``
+         *     （ADR-0030 V1.2 G-02 包装层）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calc_humidity_ratio_api_v1_psychro_humidity_ratio_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/psychro/dew-point": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calc Dew Point
+         * @description 露点温度 D（§3.2.5 子项 2；°C）。
+         *
+         *     chedl_wrapper 返回 K，本响应减 273.15 转 °C。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calc_dew_point_api_v1_psychro_dew_point_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/psychro/wet-bulb": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calc Wet Bulb
+         * @description 湿球温度 B（§3.2.5 子项 3；°C）。
+         *
+         *     chedl_wrapper 返回 K，本响应减 273.15 转 °C。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calc_wet_bulb_api_v1_psychro_wet_bulb_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/psychro/enthalpy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calc Enthalpy
+         * @description 比焓 H（§3.2.5 子项 4；kJ/kg dry air）。
+         *
+         *     chedl_wrapper 返回 J/kg，本响应 ÷1000 转 kJ/kg。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calc_enthalpy_api_v1_psychro_enthalpy_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/psychro/specific-volume": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calc Specific Volume
+         * @description 比容 V（§3.2.5 子项 5；m³/kg dry air）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calc_specific_volume_api_v1_psychro_specific_volume_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/psychro/cooling-coil": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calc Cooling Coil
+         * @description 冷却盘管显热 + 潜热（§3.2.5 子项 6；kW）。
+         *
+         *     计算链（直调 chedl_wrapper 两个函数，包装层未做单位换算）：
+         *
+         *     1. ``humid_air_coil_delta_h(T1_K, rh1, T2_K, rh2, P_pa)`` →
+         *        ``(Q_sensible_J_kg, Q_latent_J_kg)``（J/kg dry air）
+         *     2. 取平均状态 (T_avg, RH_avg) →
+         *        ``humid_air_specific_volume(T_avg_K, RH_avg, P_pa)`` → ``v_m3_kg``
+         *        （用于推算 m_dot_kg_s = q_air_m3_s / v_m3_kg）
+         *     3. 显热 kW = m_dot_kg_s × Q_sensible / 1000
+         *        潜热 kW = m_dot_kg_s × Q_latent / 1000
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calc_cooling_coil_api_v1_psychro_cooling_coil_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/psychro/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Psychro Results
+         * @description 按 project_id 列出 PsychroResult（GET list，分页）。
+         *
+         *     默认 sign_status filter = (DRAFT, CHECKED) — 排除 OBSOLETE 等门禁态。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        get: operations["list_psychro_results_api_v1_psychro_results_get"];
+        put?: never;
+        /**
+         * Create Psychro Result
+         * @description 创建 PsychroResult 行（POST → 201）。
+         *
+         *     ``save_psychro_result`` service 层自动 final record_hash
+         *     （ADR-0028 §决策 4），并自动从 ``get_coolprop_version()`` 兜底写入
+         *     ``coolprop_version`` 字段（payload 缺时；SPEC §3.2.5 溯源要求）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["create_psychro_result_api_v1_psychro_results_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/psychro/results/{record_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Psychro Result
+         * @description 按 id 取 PsychroResult（GET detail）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        get: operations["get_psychro_result_api_v1_psychro_results__record_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Delete Psychro Result
+         * @description 软删除 PsychroResult（DELETE → sign_status=OBSOLETE）。
+         *
+         *     软删而非物理删除（SPEC §3.2.3 P6-FLR-004 审计要求）；记录不再被
+         *     list 默认过滤（DRAFT/CHECKED filter）展示。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        delete: operations["delete_psychro_result_api_v1_psychro_results__record_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Psychro Result
+         * @description 更新 PsychroResult 业务字段（PATCH；仅 DRAFT/CHANGE_PENDING 可改）。
+         *
+         *     CHECKED / IN_APPROVAL / REVERSAL_PENDING 等锁定态拒绝更新（避免
+         *     评审中数据漂移）。project_id 由 ACL 在 Phase 后续 PATCH 透传；本
+         *     批次为 None（service 层不强制隔离）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        patch: operations["update_psychro_result_api_v1_psychro_results__record_id__patch"];
+        trace?: never;
+    };
     "/api/v1/vessel/calculate": {
         parameters: {
             query?: never;
@@ -4405,6 +4631,75 @@ export interface components {
             } | null;
         };
         /**
+         * CoolingCoilRequest
+         * @description 冷却盘管显热/潜热请求（POST /psychro/cooling-coil）。
+         *
+         *     字段（按 ASHRAE Handbook Fundamentals 2021 §1.2 拆分）：
+         *     - t1_c / t2_c: 入口/出口干球温度 °C
+         *     - rh1 / rh2: 入口/出口相对湿度 0~1
+         *     - p_pa: 大气压力 Pa（默认 101325）
+         *     - q_air_m3_s: 体积风量 m³/s（>0）
+         */
+        CoolingCoilRequest: {
+            /**
+             * T1 C
+             * @description 入口干球温度 °C
+             */
+            t1_c: number;
+            /**
+             * Rh1
+             * @description 入口相对湿度 0~1
+             */
+            rh1: number;
+            /**
+             * T2 C
+             * @description 出口干球温度 °C
+             */
+            t2_c: number;
+            /**
+             * Rh2
+             * @description 出口相对湿度 0~1
+             */
+            rh2: number;
+            /**
+             * P Pa
+             * @description 大气压力 Pa（默认 101325）
+             * @default 101325
+             */
+            p_pa: number;
+            /**
+             * Q Air M3 S
+             * @description 体积风量 m³/s
+             */
+            q_air_m3_s: number;
+        };
+        /**
+         * CoolingCoilResponse
+         * @description 冷却盘管显热/潜热响应（POST /psychro/cooling-coil）。
+         *
+         *     字段：
+         *     - sensible_heat_kw: 显热 kW（m_dot × Q_sensible / 1000）
+         *     - latent_heat_kw: 潜热 kW（m_dot × Q_latent / 1000）
+         *     - formula_ref: 公式溯源标记
+         */
+        CoolingCoilResponse: {
+            /**
+             * Sensible Heat Kw
+             * @description 显热 kW
+             */
+            sensible_heat_kw: number;
+            /**
+             * Latent Heat Kw
+             * @description 潜热 kW
+             */
+            latent_heat_kw: number;
+            /**
+             * Formula Ref
+             * @description 公式溯源标记（ASHRAE_HF2021_§1.2）
+             */
+            formula_ref: string;
+        };
+        /**
          * CreateAssetRequest
          * @description POST /assets 请求体。
          */
@@ -4735,6 +5030,48 @@ export interface components {
             outlet_stream_id: string;
         };
         /**
+         * DewPointRequest
+         * @description 露点请求（POST /psychro/dew-point）。
+         */
+        DewPointRequest: {
+            /**
+             * T C
+             * @description 干球温度 °C
+             */
+            t_c: number;
+            /**
+             * Rh
+             * @description 相对湿度 0~1
+             */
+            rh: number;
+            /**
+             * P Pa
+             * @description 大气压力 Pa（默认 101325）
+             * @default 101325
+             */
+            p_pa: number;
+        };
+        /**
+         * DewPointResponse
+         * @description 露点响应（POST /psychro/dew-point）。
+         *
+         *     字段：
+         *     - dew_point_c: 露点温度 °C（chedl_wrapper 返回 K，本响应减 273.15）
+         *     - formula_ref: 公式溯源标记
+         */
+        DewPointResponse: {
+            /**
+             * Dew Point C
+             * @description 露点温度 °C
+             */
+            dew_point_c: number;
+            /**
+             * Formula Ref
+             * @description 公式溯源标记（ASHRAE_RP-1845_CoolProp）
+             */
+            formula_ref: string;
+        };
+        /**
          * DiffResponse
          * @description GET /assets/{id}/diff 返回结构（深 diff 的三段式）。
          */
@@ -4821,6 +5158,53 @@ export interface components {
              * @default 1
              */
             parallel_branches: number;
+        };
+        /**
+         * EnthalpyRequest
+         * @description 比焓请求（POST /psychro/enthalpy）。
+         *
+         *     字段：
+         *     - t_c: 干球温度 °C
+         *     - rh: 相对湿度 0~1
+         *     - p_pa: 大气压力 Pa（默认 101325）
+         */
+        EnthalpyRequest: {
+            /**
+             * T C
+             * @description 干球温度 °C
+             */
+            t_c: number;
+            /**
+             * Rh
+             * @description 相对湿度 0~1
+             */
+            rh: number;
+            /**
+             * P Pa
+             * @description 大气压力 Pa（默认 101325）
+             * @default 101325
+             */
+            p_pa: number;
+        };
+        /**
+         * EnthalpyResponse
+         * @description 比焓响应（POST /psychro/enthalpy）。
+         *
+         *     字段：
+         *     - enthalpy_kj_kg: 比焓 kJ/kg dry air（chedl_wrapper 返回 J/kg，本响应 ÷1000）
+         *     - formula_ref: 公式溯源标记
+         */
+        EnthalpyResponse: {
+            /**
+             * Enthalpy Kj Kg
+             * @description 比焓 kJ/kg dry air
+             */
+            enthalpy_kj_kg: number;
+            /**
+             * Formula Ref
+             * @description 公式溯源标记（ASHRAE_RP-1845_CoolProp）
+             */
+            formula_ref: string;
         };
         /**
          * EnumItem
@@ -5957,6 +6341,53 @@ export interface components {
             };
         };
         /**
+         * HumidityRatioRequest
+         * @description 湿度比请求（POST /psychro/humidity-ratio）。
+         *
+         *     字段（按 SPEC §3.2.5 P6-PSY-001）：
+         *     - t_c: 干球温度 °C（>-273.15）
+         *     - rh: 相对湿度（0~1）
+         *     - p_pa: 大气压力 Pa（>0；默认海平面 101325）
+         */
+        HumidityRatioRequest: {
+            /**
+             * T C
+             * @description 干球温度 °C（华氏参考 0~50°C）
+             */
+            t_c: number;
+            /**
+             * Rh
+             * @description 相对湿度（无量纲，0~1）
+             */
+            rh: number;
+            /**
+             * P Pa
+             * @description 大气压力 Pa（默认海平面 101325）
+             * @default 101325
+             */
+            p_pa: number;
+        };
+        /**
+         * HumidityRatioResponse
+         * @description 湿度比响应（POST /psychro/humidity-ratio）。
+         *
+         *     字段：
+         *     - humidity_ratio_kg_kg: 湿度比 W（kg 水 / kg 干空气）
+         *     - formula_ref: 公式溯源标记 "ASHRAE_RP-1845_CoolProp"
+         */
+        HumidityRatioResponse: {
+            /**
+             * Humidity Ratio Kg Kg
+             * @description 湿度比 kg/kg
+             */
+            humidity_ratio_kg_kg: number;
+            /**
+             * Formula Ref
+             * @description 公式溯源标记（ASHRAE_RP-1845_CoolProp）
+             */
+            formula_ref: string;
+        };
+        /**
          * HydraulicsInputSchema
          * @description hydraulics 输入（对应 VesselHydraulicsInput 物理量）。
          */
@@ -7057,6 +7488,330 @@ export interface components {
             is_active?: boolean | null;
         };
         /**
+         * PsychroResultCreateRequest
+         * @description PsychroResult 创建请求（POST /psychro/results）。
+         *
+         *     字段按 PsychroResult ORM 列名（Task 18，P6-2 实施）平铺 ——
+         *     ``save_psychro_result`` service 直接 ``**payload`` 喂给 ORM，
+         *     字段名必须与列名严格一致：
+         *
+         *     - project_id: 项目 ID（RecordMixin FK → projects.project_id）
+         *     - workspace_id: 工作区 ID（业务隔离）
+         *     - tag_number: 位号（TaggedRecordMixin NOT NULL；项目内唯一）
+         *     - standard_profile_code: 项目标准（默认 "ASHRAE_FUND_2021"；
+         *       C-07 String(16) 锁定）
+         *     - calc_type: 计算类型（HUMIDITY_RATIO / DEW_POINT / WET_BULB /
+         *       ENTHALPY / SPECIFIC_VOLUME / COOLING_COIL；String(32) NOT NULL）
+         *     - sign_status: 签审状态（默认 DRAFT）
+         *
+         *     12 业务字段（PsychroResult __table__ 排除 PK + mixin 字段）：
+         *     - coolprop_version: CoolProp 版本（payload 缺时 service 自动从
+         *       get_coolprop_version() 写入；SPEC §3.2.5 coolprop_version 溯源）
+         *     - humidity_ratio_kg_kg / dew_point_c / wet_bulb_c / enthalpy_kj_kg /
+         *       specific_volume_m3_kg / sensible_heat_kw / latent_heat_kw
+         *     - input_json / output_json
+         */
+        PsychroResultCreateRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID（FK → projects）
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID（业务隔离）
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号（TaggedRecordMixin NOT NULL）
+             */
+            tag_number: string;
+            /**
+             * Standard Profile Code
+             * @description 项目标准（默认 ASHRAE_FUND_2021；C-07 String(16) 锁定）
+             * @default ASHRAE_FUND_2021
+             */
+            standard_profile_code: string;
+            /**
+             * Calc Type
+             * @description 计算类型（HUMIDITY_RATIO / DEW_POINT / WET_BULB / ENTHALPY / SPECIFIC_VOLUME / COOLING_COIL）
+             */
+            calc_type: string;
+            /**
+             * Sign Status
+             * @description 签审状态（DRAFT / IN_APPROVAL / CHECKED / CHECK_REJECTED / STALE / CHANGE_PENDING / CHANGED / REVERSAL_PENDING / OBSOLETE）
+             * @default DRAFT
+             */
+            sign_status: string;
+            /**
+             * Coolprop Version
+             * @description CoolProp 版本（如 '6.6.0'）；payload 缺时 service 自动从 get_coolprop_version() 写入（SPEC §3.2.5 溯源）
+             */
+            coolprop_version?: string | null;
+            /**
+             * Humidity Ratio Kg Kg
+             * @description 湿度比 kg/kg dry air
+             */
+            humidity_ratio_kg_kg?: number | null;
+            /**
+             * Dew Point C
+             * @description 露点温度 °C
+             */
+            dew_point_c?: number | null;
+            /**
+             * Wet Bulb C
+             * @description 湿球温度 °C
+             */
+            wet_bulb_c?: number | null;
+            /**
+             * Enthalpy Kj Kg
+             * @description 比焓 kJ/kg dry air
+             */
+            enthalpy_kj_kg?: number | null;
+            /**
+             * Specific Volume M3 Kg
+             * @description 比容 m³/kg dry air
+             */
+            specific_volume_m3_kg?: number | null;
+            /**
+             * Sensible Heat Kw
+             * @description 显热 kW（cooling_coil 专用）
+             */
+            sensible_heat_kw?: number | null;
+            /**
+             * Latent Heat Kw
+             * @description 潜热 kW（cooling_coil 专用）
+             */
+            latent_heat_kw?: number | null;
+            /**
+             * Input Json
+             * @description 入参（业务子结构）
+             */
+            input_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Output Json
+             * @description 出参（业务子结构）
+             */
+            output_json?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
+         * PsychroResultListResponse
+         * @description PsychroResult 列表响应（GET /psychro/results）。
+         *
+         *     字段：
+         *     - items: PsychroResultResponse 列表
+         *     - total: 命中条数（受 sign_status_filter 影响；OBSOLETE 等门禁态被过滤）
+         *     - limit / offset: 分页参数回显
+         */
+        PsychroResultListResponse: {
+            /**
+             * Items
+             * @description PsychroResult 列表
+             */
+            items: components["schemas"]["PsychroResultResponse"][];
+            /**
+             * Total
+             * @description 命中条数（默认 DRAFT/CHECKED filter）
+             */
+            total: number;
+            /**
+             * Limit
+             * @description 分页上限
+             */
+            limit: number;
+            /**
+             * Offset
+             * @description 分页偏移
+             */
+            offset: number;
+        };
+        /**
+         * PsychroResultResponse
+         * @description PsychroResult 单条响应（GET /psychro/results/{id} 与 POST 201 body）。
+         *
+         *     字段：溯源（id / project_id / workspace_id / tag_number /
+         *     standard_profile_code / calc_type / coolprop_version / sign_status /
+         *     record_hash）+ 10 业务字段 + 时间戳。
+         *
+         *     字段映射（ORM → schema）：
+         *     - ORM psychro_id → schema id（PK 重命名；前端统一用 id）
+         */
+        PsychroResultResponse: {
+            /**
+             * Id
+             * Format: uuid
+             * @description psychro_results.psychro_id（PK）
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description 工作区 ID
+             */
+            workspace_id: string;
+            /**
+             * Tag Number
+             * @description 位号
+             */
+            tag_number: string;
+            /**
+             * Standard Profile Code
+             * @description 项目标准
+             */
+            standard_profile_code: string;
+            /**
+             * Calc Type
+             * @description 计算类型
+             */
+            calc_type: string;
+            /**
+             * Coolprop Version
+             * @description CoolProp 版本（如 6.6.0）；record_hash 反射自动含
+             */
+            coolprop_version?: string | null;
+            /**
+             * Sign Status
+             * @description 签审状态 9 态
+             */
+            sign_status: string;
+            /**
+             * Record Hash
+             * @description record_hash（ADR-0028 §决策 4 reflection；16 hex）
+             */
+            record_hash?: string | null;
+            /**
+             * Humidity Ratio Kg Kg
+             * @description 湿度比 kg/kg dry air
+             */
+            humidity_ratio_kg_kg?: number | null;
+            /**
+             * Dew Point C
+             * @description 露点温度 °C
+             */
+            dew_point_c?: number | null;
+            /**
+             * Wet Bulb C
+             * @description 湿球温度 °C
+             */
+            wet_bulb_c?: number | null;
+            /**
+             * Enthalpy Kj Kg
+             * @description 比焓 kJ/kg dry air
+             */
+            enthalpy_kj_kg?: number | null;
+            /**
+             * Specific Volume M3 Kg
+             * @description 比容 m³/kg dry air
+             */
+            specific_volume_m3_kg?: number | null;
+            /**
+             * Sensible Heat Kw
+             * @description 显热 kW（cooling_coil 专用）
+             */
+            sensible_heat_kw?: number | null;
+            /**
+             * Latent Heat Kw
+             * @description 潜热 kW（cooling_coil 专用）
+             */
+            latent_heat_kw?: number | null;
+            /**
+             * Input Json
+             * @description 入参（业务子结构）
+             */
+            input_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Output Json
+             * @description 出参（业务子结构）
+             */
+            output_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description 创建时间
+             */
+            created_at: string;
+            /**
+             * Updated At
+             * @description 更新时间
+             */
+            updated_at?: string | null;
+        };
+        /**
+         * PsychroResultUpdateRequest
+         * @description PsychroResult 更新请求（PATCH /psychro/results/{id}）。
+         *
+         *     字段子集（PATCH 仅允许业务字段；不可改 sign_status / tag_number /
+         *     溯源 / standard_profile_code / calc_type / coolprop_version 等）。
+         */
+        PsychroResultUpdateRequest: {
+            /**
+             * Humidity Ratio Kg Kg
+             * @description 湿度比 kg/kg dry air
+             */
+            humidity_ratio_kg_kg?: number | null;
+            /**
+             * Dew Point C
+             * @description 露点温度 °C
+             */
+            dew_point_c?: number | null;
+            /**
+             * Wet Bulb C
+             * @description 湿球温度 °C
+             */
+            wet_bulb_c?: number | null;
+            /**
+             * Enthalpy Kj Kg
+             * @description 比焓 kJ/kg dry air
+             */
+            enthalpy_kj_kg?: number | null;
+            /**
+             * Specific Volume M3 Kg
+             * @description 比容 m³/kg dry air
+             */
+            specific_volume_m3_kg?: number | null;
+            /**
+             * Sensible Heat Kw
+             * @description 显热 kW（cooling_coil 专用）
+             */
+            sensible_heat_kw?: number | null;
+            /**
+             * Latent Heat Kw
+             * @description 潜热 kW（cooling_coil 专用）
+             */
+            latent_heat_kw?: number | null;
+            /**
+             * Input Json
+             * @description 入参（业务子结构）
+             */
+            input_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Output Json
+             * @description 出参（业务子结构）
+             */
+            output_json?: {
+                [key: string]: unknown;
+            } | null;
+        };
+        /**
          * PumpCurveRequest
          * @description 厂家泵曲线请求。
          */
@@ -7801,6 +8556,48 @@ export interface components {
              * @default EVEN_DEMAND_PROPORTIONAL
              */
             initial_flow_strategy: string;
+        };
+        /**
+         * SpecificVolumeRequest
+         * @description 比容请求（POST /psychro/specific-volume）。
+         */
+        SpecificVolumeRequest: {
+            /**
+             * T C
+             * @description 干球温度 °C
+             */
+            t_c: number;
+            /**
+             * Rh
+             * @description 相对湿度 0~1
+             */
+            rh: number;
+            /**
+             * P Pa
+             * @description 大气压力 Pa（默认 101325）
+             * @default 101325
+             */
+            p_pa: number;
+        };
+        /**
+         * SpecificVolumeResponse
+         * @description 比容响应（POST /psychro/specific-volume）。
+         *
+         *     字段：
+         *     - specific_volume_m3_kg: 比容 m³/kg dry air
+         *     - formula_ref: 公式溯源标记
+         */
+        SpecificVolumeResponse: {
+            /**
+             * Specific Volume M3 Kg
+             * @description 比容 m³/kg dry air
+             */
+            specific_volume_m3_kg: number;
+            /**
+             * Formula Ref
+             * @description 公式溯源标记（ASHRAE_RP-1845_CoolProp）
+             */
+            formula_ref: string;
         };
         /**
          * StackDesignRequest
@@ -9186,6 +9983,48 @@ export interface components {
             /**
              * Formula Ref
              * @description 公式来源标注（如 TEMA 9th §4.3）
+             */
+            formula_ref: string;
+        };
+        /**
+         * WetBulbRequest
+         * @description 湿球请求（POST /psychro/wet-bulb）。
+         */
+        WetBulbRequest: {
+            /**
+             * T C
+             * @description 干球温度 °C
+             */
+            t_c: number;
+            /**
+             * Rh
+             * @description 相对湿度 0~1
+             */
+            rh: number;
+            /**
+             * P Pa
+             * @description 大气压力 Pa（默认 101325）
+             * @default 101325
+             */
+            p_pa: number;
+        };
+        /**
+         * WetBulbResponse
+         * @description 湿球响应（POST /psychro/wet-bulb）。
+         *
+         *     字段：
+         *     - wet_bulb_c: 湿球温度 °C（等焓饱和温度近似）
+         *     - formula_ref: 公式溯源标记
+         */
+        WetBulbResponse: {
+            /**
+             * Wet Bulb C
+             * @description 湿球温度 °C
+             */
+            wet_bulb_c: number;
+            /**
+             * Formula Ref
+             * @description 公式溯源标记（ASHRAE_RP-1845_CoolProp）
              */
             formula_ref: string;
         };
@@ -13950,6 +14789,388 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CoolTowerResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calc_humidity_ratio_api_v1_psychro_humidity_ratio_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HumidityRatioRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HumidityRatioResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calc_dew_point_api_v1_psychro_dew_point_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DewPointRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DewPointResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calc_wet_bulb_api_v1_psychro_wet_bulb_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["WetBulbRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WetBulbResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calc_enthalpy_api_v1_psychro_enthalpy_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EnthalpyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EnthalpyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calc_specific_volume_api_v1_psychro_specific_volume_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SpecificVolumeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SpecificVolumeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calc_cooling_coil_api_v1_psychro_cooling_coil_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CoolingCoilRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CoolingCoilResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_psychro_results_api_v1_psychro_results_get: {
+        parameters: {
+            query: {
+                project_id: string;
+                standard_profile_code?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PsychroResultListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_psychro_result_api_v1_psychro_results_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PsychroResultCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PsychroResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_psychro_result_api_v1_psychro_results__record_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PsychroResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_psychro_result_api_v1_psychro_results__record_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_psychro_result_api_v1_psychro_results__record_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PsychroResultUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PsychroResultResponse"];
                 };
             };
             /** @description Validation Error */

@@ -7354,6 +7354,702 @@
         }
       }
     },
+    "/api/v1/psychro/humidity-ratio": {
+      "post": {
+        "tags": [
+          "psychro"
+        ],
+        "summary": "Calc Humidity Ratio",
+        "description": "湿度比 W（§3.2.5 P6-PSY-001 子项 1；kg 水 / kg 干空气）。\n\n直调 ``chedl_wrapper.humid_air_humidity_ratio(T_K, RH, P_pa)``\n（ADR-0030 V1.2 G-02 包装层）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calc_humidity_ratio_api_v1_psychro_humidity_ratio_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HumidityRatioRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HumidityRatioResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/psychro/dew-point": {
+      "post": {
+        "tags": [
+          "psychro"
+        ],
+        "summary": "Calc Dew Point",
+        "description": "露点温度 D（§3.2.5 子项 2；°C）。\n\nchedl_wrapper 返回 K，本响应减 273.15 转 °C。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calc_dew_point_api_v1_psychro_dew_point_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DewPointRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DewPointResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/psychro/wet-bulb": {
+      "post": {
+        "tags": [
+          "psychro"
+        ],
+        "summary": "Calc Wet Bulb",
+        "description": "湿球温度 B（§3.2.5 子项 3；°C）。\n\nchedl_wrapper 返回 K，本响应减 273.15 转 °C。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calc_wet_bulb_api_v1_psychro_wet_bulb_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/WetBulbRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WetBulbResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/psychro/enthalpy": {
+      "post": {
+        "tags": [
+          "psychro"
+        ],
+        "summary": "Calc Enthalpy",
+        "description": "比焓 H（§3.2.5 子项 4；kJ/kg dry air）。\n\nchedl_wrapper 返回 J/kg，本响应 ÷1000 转 kJ/kg。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calc_enthalpy_api_v1_psychro_enthalpy_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EnthalpyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EnthalpyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/psychro/specific-volume": {
+      "post": {
+        "tags": [
+          "psychro"
+        ],
+        "summary": "Calc Specific Volume",
+        "description": "比容 V（§3.2.5 子项 5；m³/kg dry air）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calc_specific_volume_api_v1_psychro_specific_volume_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SpecificVolumeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SpecificVolumeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/psychro/cooling-coil": {
+      "post": {
+        "tags": [
+          "psychro"
+        ],
+        "summary": "Calc Cooling Coil",
+        "description": "冷却盘管显热 + 潜热（§3.2.5 子项 6；kW）。\n\n计算链（直调 chedl_wrapper 两个函数，包装层未做单位换算）：\n\n1. ``humid_air_coil_delta_h(T1_K, rh1, T2_K, rh2, P_pa)`` →\n   ``(Q_sensible_J_kg, Q_latent_J_kg)``（J/kg dry air）\n2. 取平均状态 (T_avg, RH_avg) →\n   ``humid_air_specific_volume(T_avg_K, RH_avg, P_pa)`` → ``v_m3_kg``\n   （用于推算 m_dot_kg_s = q_air_m3_s / v_m3_kg）\n3. 显热 kW = m_dot_kg_s × Q_sensible / 1000\n   潜热 kW = m_dot_kg_s × Q_latent / 1000\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calc_cooling_coil_api_v1_psychro_cooling_coil_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CoolingCoilRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CoolingCoilResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/psychro/results": {
+      "post": {
+        "tags": [
+          "psychro"
+        ],
+        "summary": "Create Psychro Result",
+        "description": "创建 PsychroResult 行（POST → 201）。\n\n``save_psychro_result`` service 层自动 final record_hash\n（ADR-0028 §决策 4），并自动从 ``get_coolprop_version()`` 兜底写入\n``coolprop_version`` 字段（payload 缺时；SPEC §3.2.5 溯源要求）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "create_psychro_result_api_v1_psychro_results_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PsychroResultCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PsychroResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "psychro"
+        ],
+        "summary": "List Psychro Results",
+        "description": "按 project_id 列出 PsychroResult（GET list，分页）。\n\n默认 sign_status filter = (DRAFT, CHECKED) — 排除 OBSOLETE 等门禁态。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "list_psychro_results_api_v1_psychro_results_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "standard_profile_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Standard Profile Code"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PsychroResultListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/psychro/results/{record_id}": {
+      "get": {
+        "tags": [
+          "psychro"
+        ],
+        "summary": "Get Psychro Result",
+        "description": "按 id 取 PsychroResult（GET detail）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "get_psychro_result_api_v1_psychro_results__record_id__get",
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PsychroResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "psychro"
+        ],
+        "summary": "Update Psychro Result",
+        "description": "更新 PsychroResult 业务字段（PATCH；仅 DRAFT/CHANGE_PENDING 可改）。\n\nCHECKED / IN_APPROVAL / REVERSAL_PENDING 等锁定态拒绝更新（避免\n评审中数据漂移）。project_id 由 ACL 在 Phase 后续 PATCH 透传；本\n批次为 None（service 层不强制隔离）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "update_psychro_result_api_v1_psychro_results__record_id__patch",
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PsychroResultUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PsychroResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "psychro"
+        ],
+        "summary": "Delete Psychro Result",
+        "description": "软删除 PsychroResult（DELETE → sign_status=OBSOLETE）。\n\n软删而非物理删除（SPEC §3.2.3 P6-FLR-004 审计要求）；记录不再被\nlist 默认过滤（DRAFT/CHECKED filter）展示。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "delete_psychro_result_api_v1_psychro_results__record_id__delete",
+        "parameters": [
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/vessel/calculate": {
       "post": {
         "tags": [
@@ -11657,6 +12353,86 @@
         "title": "CoolTowerResultUpdateRequest",
         "description": "CoolingTowerResult 更新请求（PATCH /cool-tower/results/{id}）。\n\n字段子集（PATCH 仅允许业务字段；不可改 sign_status / tag_number /\n溯源 / standard_profile_code / calc_type 等）。"
       },
+      "CoolingCoilRequest": {
+        "properties": {
+          "t1_c": {
+            "type": "number",
+            "exclusiveMinimum": -273.15,
+            "title": "T1 C",
+            "description": "入口干球温度 °C"
+          },
+          "rh1": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Rh1",
+            "description": "入口相对湿度 0~1"
+          },
+          "t2_c": {
+            "type": "number",
+            "exclusiveMinimum": -273.15,
+            "title": "T2 C",
+            "description": "出口干球温度 °C"
+          },
+          "rh2": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Rh2",
+            "description": "出口相对湿度 0~1"
+          },
+          "p_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "P Pa",
+            "description": "大气压力 Pa（默认 101325）",
+            "default": 101325.0
+          },
+          "q_air_m3_s": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Q Air M3 S",
+            "description": "体积风量 m³/s"
+          }
+        },
+        "type": "object",
+        "required": [
+          "t1_c",
+          "rh1",
+          "t2_c",
+          "rh2",
+          "q_air_m3_s"
+        ],
+        "title": "CoolingCoilRequest",
+        "description": "冷却盘管显热/潜热请求（POST /psychro/cooling-coil）。\n\n字段（按 ASHRAE Handbook Fundamentals 2021 §1.2 拆分）：\n- t1_c / t2_c: 入口/出口干球温度 °C\n- rh1 / rh2: 入口/出口相对湿度 0~1\n- p_pa: 大气压力 Pa（默认 101325）\n- q_air_m3_s: 体积风量 m³/s（>0）"
+      },
+      "CoolingCoilResponse": {
+        "properties": {
+          "sensible_heat_kw": {
+            "type": "number",
+            "title": "Sensible Heat Kw",
+            "description": "显热 kW"
+          },
+          "latent_heat_kw": {
+            "type": "number",
+            "title": "Latent Heat Kw",
+            "description": "潜热 kW"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref",
+            "description": "公式溯源标记（ASHRAE_HF2021_§1.2）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "sensible_heat_kw",
+          "latent_heat_kw",
+          "formula_ref"
+        ],
+        "title": "CoolingCoilResponse",
+        "description": "冷却盘管显热/潜热响应（POST /psychro/cooling-coil）。\n\n字段：\n- sensible_heat_kw: 显热 kW（m_dot × Q_sensible / 1000）\n- latent_heat_kw: 潜热 kW（m_dot × Q_latent / 1000）\n- formula_ref: 公式溯源标记"
+      },
       "CreateAssetRequest": {
         "properties": {
           "category": {
@@ -12203,6 +12979,58 @@
         "title": "CvCalculateResponse",
         "description": "调节阀 Cv 计算响应（POST /api/v1/cv/calculate 201）。\n\n回填 CvResult 主键 + 关键结果字段 + outlet stream 锚点。"
       },
+      "DewPointRequest": {
+        "properties": {
+          "t_c": {
+            "type": "number",
+            "exclusiveMinimum": -273.15,
+            "title": "T C",
+            "description": "干球温度 °C"
+          },
+          "rh": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Rh",
+            "description": "相对湿度 0~1"
+          },
+          "p_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "P Pa",
+            "description": "大气压力 Pa（默认 101325）",
+            "default": 101325.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "t_c",
+          "rh"
+        ],
+        "title": "DewPointRequest",
+        "description": "露点请求（POST /psychro/dew-point）。"
+      },
+      "DewPointResponse": {
+        "properties": {
+          "dew_point_c": {
+            "type": "number",
+            "title": "Dew Point C",
+            "description": "露点温度 °C"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref",
+            "description": "公式溯源标记（ASHRAE_RP-1845_CoolProp）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "dew_point_c",
+          "formula_ref"
+        ],
+        "title": "DewPointResponse",
+        "description": "露点响应（POST /psychro/dew-point）。\n\n字段：\n- dew_point_c: 露点温度 °C（chedl_wrapper 返回 K，本响应减 273.15）\n- formula_ref: 公式溯源标记"
+      },
       "DiffResponse": {
         "properties": {
           "added": {
@@ -12333,6 +13161,58 @@
         ],
         "title": "EdgeReq",
         "description": "管网边请求。"
+      },
+      "EnthalpyRequest": {
+        "properties": {
+          "t_c": {
+            "type": "number",
+            "exclusiveMinimum": -273.15,
+            "title": "T C",
+            "description": "干球温度 °C"
+          },
+          "rh": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Rh",
+            "description": "相对湿度 0~1"
+          },
+          "p_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "P Pa",
+            "description": "大气压力 Pa（默认 101325）",
+            "default": 101325.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "t_c",
+          "rh"
+        ],
+        "title": "EnthalpyRequest",
+        "description": "比焓请求（POST /psychro/enthalpy）。\n\n字段：\n- t_c: 干球温度 °C\n- rh: 相对湿度 0~1\n- p_pa: 大气压力 Pa（默认 101325）"
+      },
+      "EnthalpyResponse": {
+        "properties": {
+          "enthalpy_kj_kg": {
+            "type": "number",
+            "title": "Enthalpy Kj Kg",
+            "description": "比焓 kJ/kg dry air"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref",
+            "description": "公式溯源标记（ASHRAE_RP-1845_CoolProp）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "enthalpy_kj_kg",
+          "formula_ref"
+        ],
+        "title": "EnthalpyResponse",
+        "description": "比焓响应（POST /psychro/enthalpy）。\n\n字段：\n- enthalpy_kj_kg: 比焓 kJ/kg dry air（chedl_wrapper 返回 J/kg，本响应 ÷1000）\n- formula_ref: 公式溯源标记"
       },
       "EnumItem": {
         "properties": {
@@ -14147,6 +15027,58 @@
         "title": "HeatResultResponse",
         "description": "GET /heat/{heat_id} 响应。"
       },
+      "HumidityRatioRequest": {
+        "properties": {
+          "t_c": {
+            "type": "number",
+            "exclusiveMinimum": -273.15,
+            "title": "T C",
+            "description": "干球温度 °C（华氏参考 0~50°C）"
+          },
+          "rh": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Rh",
+            "description": "相对湿度（无量纲，0~1）"
+          },
+          "p_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "P Pa",
+            "description": "大气压力 Pa（默认海平面 101325）",
+            "default": 101325.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "t_c",
+          "rh"
+        ],
+        "title": "HumidityRatioRequest",
+        "description": "湿度比请求（POST /psychro/humidity-ratio）。\n\n字段（按 SPEC §3.2.5 P6-PSY-001）：\n- t_c: 干球温度 °C（>-273.15）\n- rh: 相对湿度（0~1）\n- p_pa: 大气压力 Pa（>0；默认海平面 101325）"
+      },
+      "HumidityRatioResponse": {
+        "properties": {
+          "humidity_ratio_kg_kg": {
+            "type": "number",
+            "title": "Humidity Ratio Kg Kg",
+            "description": "湿度比 kg/kg"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref",
+            "description": "公式溯源标记（ASHRAE_RP-1845_CoolProp）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "humidity_ratio_kg_kg",
+          "formula_ref"
+        ],
+        "title": "HumidityRatioResponse",
+        "description": "湿度比响应（POST /psychro/humidity-ratio）。\n\n字段：\n- humidity_ratio_kg_kg: 湿度比 W（kg 水 / kg 干空气）\n- formula_ref: 公式溯源标记 \"ASHRAE_RP-1845_CoolProp\""
+      },
       "HydraulicsInputSchema": {
         "properties": {
           "D_m": {
@@ -15826,6 +16758,541 @@
         "title": "ProjectSymbolUpdateRequest",
         "description": "项目级流股符号更新请求体（PUT /projects/{id}/stream-symbols/{id}）。\n\n业务：override 字段重写 + name/category/is_active 增量更新；\npayload.model_dump(exclude_none=True) 排除 None 避免无意清空。"
       },
+      "PsychroResultCreateRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID（FK → projects）"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID（业务隔离）"
+          },
+          "tag_number": {
+            "type": "string",
+            "maxLength": 50,
+            "minLength": 1,
+            "title": "Tag Number",
+            "description": "位号（TaggedRecordMixin NOT NULL）"
+          },
+          "standard_profile_code": {
+            "type": "string",
+            "title": "Standard Profile Code",
+            "description": "项目标准（默认 ASHRAE_FUND_2021；C-07 String(16) 锁定）",
+            "default": "ASHRAE_FUND_2021"
+          },
+          "calc_type": {
+            "type": "string",
+            "maxLength": 32,
+            "minLength": 1,
+            "title": "Calc Type",
+            "description": "计算类型（HUMIDITY_RATIO / DEW_POINT / WET_BULB / ENTHALPY / SPECIFIC_VOLUME / COOLING_COIL）"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "签审状态（DRAFT / IN_APPROVAL / CHECKED / CHECK_REJECTED / STALE / CHANGE_PENDING / CHANGED / REVERSAL_PENDING / OBSOLETE）",
+            "default": "DRAFT"
+          },
+          "coolprop_version": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coolprop Version",
+            "description": "CoolProp 版本（如 '6.6.0'）；payload 缺时 service 自动从 get_coolprop_version() 写入（SPEC §3.2.5 溯源）"
+          },
+          "humidity_ratio_kg_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Humidity Ratio Kg Kg",
+            "description": "湿度比 kg/kg dry air"
+          },
+          "dew_point_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dew Point C",
+            "description": "露点温度 °C"
+          },
+          "wet_bulb_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wet Bulb C",
+            "description": "湿球温度 °C"
+          },
+          "enthalpy_kj_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enthalpy Kj Kg",
+            "description": "比焓 kJ/kg dry air"
+          },
+          "specific_volume_m3_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specific Volume M3 Kg",
+            "description": "比容 m³/kg dry air"
+          },
+          "sensible_heat_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sensible Heat Kw",
+            "description": "显热 kW（cooling_coil 专用）"
+          },
+          "latent_heat_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latent Heat Kw",
+            "description": "潜热 kW（cooling_coil 专用）"
+          },
+          "input_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Json",
+            "description": "入参（业务子结构）"
+          },
+          "output_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Json",
+            "description": "出参（业务子结构）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "calc_type"
+        ],
+        "title": "PsychroResultCreateRequest",
+        "description": "PsychroResult 创建请求（POST /psychro/results）。\n\n字段按 PsychroResult ORM 列名（Task 18，P6-2 实施）平铺 ——\n``save_psychro_result`` service 直接 ``**payload`` 喂给 ORM，\n字段名必须与列名严格一致：\n\n- project_id: 项目 ID（RecordMixin FK → projects.project_id）\n- workspace_id: 工作区 ID（业务隔离）\n- tag_number: 位号（TaggedRecordMixin NOT NULL；项目内唯一）\n- standard_profile_code: 项目标准（默认 \"ASHRAE_FUND_2021\"；\n  C-07 String(16) 锁定）\n- calc_type: 计算类型（HUMIDITY_RATIO / DEW_POINT / WET_BULB /\n  ENTHALPY / SPECIFIC_VOLUME / COOLING_COIL；String(32) NOT NULL）\n- sign_status: 签审状态（默认 DRAFT）\n\n12 业务字段（PsychroResult __table__ 排除 PK + mixin 字段）：\n- coolprop_version: CoolProp 版本（payload 缺时 service 自动从\n  get_coolprop_version() 写入；SPEC §3.2.5 coolprop_version 溯源）\n- humidity_ratio_kg_kg / dew_point_c / wet_bulb_c / enthalpy_kj_kg /\n  specific_volume_m3_kg / sensible_heat_kw / latent_heat_kw\n- input_json / output_json"
+      },
+      "PsychroResultListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/PsychroResultResponse"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "PsychroResult 列表"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "命中条数（默认 DRAFT/CHECKED filter）"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "分页上限"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset",
+            "description": "分页偏移"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "PsychroResultListResponse",
+        "description": "PsychroResult 列表响应（GET /psychro/results）。\n\n字段：\n- items: PsychroResultResponse 列表\n- total: 命中条数（受 sign_status_filter 影响；OBSOLETE 等门禁态被过滤）\n- limit / offset: 分页参数回显"
+      },
+      "PsychroResultResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id",
+            "description": "psychro_results.psychro_id（PK）"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "工作区 ID"
+          },
+          "tag_number": {
+            "type": "string",
+            "title": "Tag Number",
+            "description": "位号"
+          },
+          "standard_profile_code": {
+            "type": "string",
+            "title": "Standard Profile Code",
+            "description": "项目标准"
+          },
+          "calc_type": {
+            "type": "string",
+            "title": "Calc Type",
+            "description": "计算类型"
+          },
+          "coolprop_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Coolprop Version",
+            "description": "CoolProp 版本（如 6.6.0）；record_hash 反射自动含"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "签审状态 9 态"
+          },
+          "record_hash": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Record Hash",
+            "description": "record_hash（ADR-0028 §决策 4 reflection；16 hex）"
+          },
+          "humidity_ratio_kg_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Humidity Ratio Kg Kg",
+            "description": "湿度比 kg/kg dry air"
+          },
+          "dew_point_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dew Point C",
+            "description": "露点温度 °C"
+          },
+          "wet_bulb_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wet Bulb C",
+            "description": "湿球温度 °C"
+          },
+          "enthalpy_kj_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enthalpy Kj Kg",
+            "description": "比焓 kJ/kg dry air"
+          },
+          "specific_volume_m3_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specific Volume M3 Kg",
+            "description": "比容 m³/kg dry air"
+          },
+          "sensible_heat_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sensible Heat Kw",
+            "description": "显热 kW（cooling_coil 专用）"
+          },
+          "latent_heat_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latent Heat Kw",
+            "description": "潜热 kW（cooling_coil 专用）"
+          },
+          "input_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Json",
+            "description": "入参（业务子结构）"
+          },
+          "output_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Json",
+            "description": "出参（业务子结构）"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "创建时间"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At",
+            "description": "更新时间"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "workspace_id",
+          "tag_number",
+          "standard_profile_code",
+          "calc_type",
+          "sign_status",
+          "created_at"
+        ],
+        "title": "PsychroResultResponse",
+        "description": "PsychroResult 单条响应（GET /psychro/results/{id} 与 POST 201 body）。\n\n字段：溯源（id / project_id / workspace_id / tag_number /\nstandard_profile_code / calc_type / coolprop_version / sign_status /\nrecord_hash）+ 10 业务字段 + 时间戳。\n\n字段映射（ORM → schema）：\n- ORM psychro_id → schema id（PK 重命名；前端统一用 id）"
+      },
+      "PsychroResultUpdateRequest": {
+        "properties": {
+          "humidity_ratio_kg_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Humidity Ratio Kg Kg",
+            "description": "湿度比 kg/kg dry air"
+          },
+          "dew_point_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dew Point C",
+            "description": "露点温度 °C"
+          },
+          "wet_bulb_c": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Wet Bulb C",
+            "description": "湿球温度 °C"
+          },
+          "enthalpy_kj_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Enthalpy Kj Kg",
+            "description": "比焓 kJ/kg dry air"
+          },
+          "specific_volume_m3_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Specific Volume M3 Kg",
+            "description": "比容 m³/kg dry air"
+          },
+          "sensible_heat_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sensible Heat Kw",
+            "description": "显热 kW（cooling_coil 专用）"
+          },
+          "latent_heat_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Latent Heat Kw",
+            "description": "潜热 kW（cooling_coil 专用）"
+          },
+          "input_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Input Json",
+            "description": "入参（业务子结构）"
+          },
+          "output_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Json",
+            "description": "出参（业务子结构）"
+          }
+        },
+        "type": "object",
+        "title": "PsychroResultUpdateRequest",
+        "description": "PsychroResult 更新请求（PATCH /psychro/results/{id}）。\n\n字段子集（PATCH 仅允许业务字段；不可改 sign_status / tag_number /\n溯源 / standard_profile_code / calc_type / coolprop_version 等）。"
+      },
       "PumpCurveRequest": {
         "properties": {
           "pump_tag": {
@@ -17070,6 +18537,58 @@
         "type": "object",
         "title": "SolverConfigReq",
         "description": "求解配置（可选；缺省 SolverConfig 默认值）。"
+      },
+      "SpecificVolumeRequest": {
+        "properties": {
+          "t_c": {
+            "type": "number",
+            "exclusiveMinimum": -273.15,
+            "title": "T C",
+            "description": "干球温度 °C"
+          },
+          "rh": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Rh",
+            "description": "相对湿度 0~1"
+          },
+          "p_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "P Pa",
+            "description": "大气压力 Pa（默认 101325）",
+            "default": 101325.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "t_c",
+          "rh"
+        ],
+        "title": "SpecificVolumeRequest",
+        "description": "比容请求（POST /psychro/specific-volume）。"
+      },
+      "SpecificVolumeResponse": {
+        "properties": {
+          "specific_volume_m3_kg": {
+            "type": "number",
+            "title": "Specific Volume M3 Kg",
+            "description": "比容 m³/kg dry air"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref",
+            "description": "公式溯源标记（ASHRAE_RP-1845_CoolProp）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "specific_volume_m3_kg",
+          "formula_ref"
+        ],
+        "title": "SpecificVolumeResponse",
+        "description": "比容响应（POST /psychro/specific-volume）。\n\n字段：\n- specific_volume_m3_kg: 比容 m³/kg dry air\n- formula_ref: 公式溯源标记"
       },
       "StackDesignRequest": {
         "properties": {
@@ -19459,6 +20978,58 @@
         ],
         "title": "WeightSegmentResponse",
         "description": "单段重量 + 公式来源标注。"
+      },
+      "WetBulbRequest": {
+        "properties": {
+          "t_c": {
+            "type": "number",
+            "exclusiveMinimum": -273.15,
+            "title": "T C",
+            "description": "干球温度 °C"
+          },
+          "rh": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.0,
+            "title": "Rh",
+            "description": "相对湿度 0~1"
+          },
+          "p_pa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "P Pa",
+            "description": "大气压力 Pa（默认 101325）",
+            "default": 101325.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "t_c",
+          "rh"
+        ],
+        "title": "WetBulbRequest",
+        "description": "湿球请求（POST /psychro/wet-bulb）。"
+      },
+      "WetBulbResponse": {
+        "properties": {
+          "wet_bulb_c": {
+            "type": "number",
+            "title": "Wet Bulb C",
+            "description": "湿球温度 °C"
+          },
+          "formula_ref": {
+            "type": "string",
+            "title": "Formula Ref",
+            "description": "公式溯源标记（ASHRAE_RP-1845_CoolProp）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "wet_bulb_c",
+          "formula_ref"
+        ],
+        "title": "WetBulbResponse",
+        "description": "湿球响应（POST /psychro/wet-bulb）。\n\n字段：\n- wet_bulb_c: 湿球温度 °C（等焓饱和温度近似）\n- formula_ref: 公式溯源标记"
       },
       "WorkspaceCreate": {
         "properties": {
