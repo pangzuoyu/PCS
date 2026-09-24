@@ -254,3 +254,95 @@ async def test_device_naming_format(
     assert props.get("device") == expected_device, (
         f"device 应为 {expected_device!r}，实际 {props.get('device')!r}"
     )
+
+
+# ---------------------------------------------------------------------------
+# 6. P6-2 S-01 闪蒸路径：flash_check 子结构 + model_used 透传
+# ---------------------------------------------------------------------------
+
+
+async def test_persist_calculate_flash_path(
+    test_db, source_stream, project_id, workspace_id
+):
+    """P6-2 S-01 闪蒸路径：input_json 含 flash_check + output_json 含 model_used。
+
+    工况：水 200°C + 节流到 200 kPa → P_sat(200°C) ≈ 1.55 MPa；
+    P_outlet=200 kPa << P_sat → flashing=True + model_used=HEM。
+    验证：
+    1. input_json["flash_check"] 子结构完整（fluid/T_K/P_sat/vfrac/model_used）
+    2. output_json["model_used"] = "HEM"
+    3. ORM 平铺列 flashing=True（P6-2 S-01 已替代 P1<50 kPa 启发式）
+    4. outlet properties 透传 fluid/upstream_T_K/P_sat/model_used（物料平衡计算用）
+    """
+    req = _base_request(project_id, workspace_id)
+    req.update({
+        "P1_pa": 2_000_000.0,
+        "dP_pa": 1_800_000.0,  # P_outlet=200 kPa
+        "fluid": "WATER",
+        "upstream_T_K": 473.15,  # 200 °C
+        "rho_l_kg_m3": 864.0,
+        "rho_v_kg_m3": 7.8,
+    })
+    restriction_result = await RestrictionService.persist_calculate(
+        test_db, source_stream_id=source_stream.stream_id, request=req,
+    )
+
+    # 1. input_json 含 flash_check 子结构
+    input_json = restriction_result.input_json or {}
+    flash_check = input_json.get("flash_check")
+    assert flash_check is not None, "input_json 缺 flash_check 子结构"
+    assert flash_check["fluid"] == "WATER"
+    assert flash_check["upstream_T_K"] == 473.15
+    assert flash_check["P_sat_pa"] is not None
+    assert 1_500_000 < flash_check["P_sat_pa"] < 1_600_000
+    assert flash_check["vapor_fraction_at_outlet"] > 0.8
+    assert flash_check["model_used"] == "HEM"
+    assert flash_check["error_code"] is None
+
+    # 2. output_json 含 model_used = HEM
+    output_json = restriction_result.output_json or {}
+    assert output_json.get("model_used") == "HEM"
+    assert output_json.get("P_sat_pa") == flash_check["P_sat_pa"]
+
+    # 3. ORM 平铺列 flashing=True
+    assert restriction_result.flashing is True
+
+    # 4. outlet properties 透传 flash 元数据
+    stmt = select(Stream).where(Stream.upstream_stream_id == source_stream.stream_id)
+    outlet = (await test_db.execute(stmt)).scalar_one()
+    props = outlet.stream_properties_json or {}
+    assert props.get("fluid") == "WATER"
+    assert props.get("upstream_T_K") == 473.15
+    assert props.get("P_sat_pa") == flash_check["P_sat_pa"]
+    assert props.get("vapor_fraction_at_outlet") == flash_check["vapor_fraction_at_outlet"]
+    assert props.get("model_used") == "HEM"
+
+
+async def test_persist_calculate_non_flash_path(
+    test_db, source_stream, project_id, workspace_id
+):
+    """P6-2 S-01 非闪蒸路径：默认流体水 25°C → flashing=False + model_used=ISO_5167。
+
+    验证：
+    1. input_json["flash_check"] 仍存在（P_sat 已求）
+    2. output_json["model_used"] = "ISO_5167"
+    3. ORM 平铺列 flashing=False
+    """
+    req = _base_request(project_id, workspace_id)  # 默认 P1=200 kPa, P_outlet=190 kPa
+    req["fluid"] = "WATER"
+    req["upstream_T_K"] = 298.15  # 25 °C；P_sat ≈ 3.17 kPa << P_outlet=190 kPa → 不闪蒸
+    restriction_result = await RestrictionService.persist_calculate(
+        test_db, source_stream_id=source_stream.stream_id, request=req,
+    )
+
+    input_json = restriction_result.input_json or {}
+    flash_check = input_json.get("flash_check")
+    assert flash_check is not None
+    assert flash_check["P_sat_pa"] is not None
+    assert 3_000 < flash_check["P_sat_pa"] < 4_000
+    assert flash_check["model_used"] == "ISO_5167"
+    assert flash_check["vapor_fraction_at_outlet"] == 0.0
+
+    output_json = restriction_result.output_json or {}
+    assert output_json.get("model_used") == "ISO_5167"
+    assert restriction_result.flashing is False

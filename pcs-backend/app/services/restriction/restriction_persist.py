@@ -1,11 +1,16 @@
-"""restriction_persist 限制装置计算结果落库 + 出口物流（P6-1 Task 13 / ADR-0022）。
+"""restriction_persist 限制装置计算结果落库 + 出口物流（P6-1 Task 13 + P6-2 S-01 闪蒸联动）。
 
-完整实现 P6 SPEC §3.2.2.1~4 + §3.2.2.6：
+完整实现 P6 SPEC §3.2.2.1~4 + §3.2.2.6 + 评审委员会 2026-09-24 闪蒸路径裁决：
 
-- 调 RestrictionEngine.calculate 计算 13 键 payload（SPEC §3.2.2.6）
+- 调 RestrictionEngine.calculate 计算 13 键 payload（SPEC §3.2.2.6）+ flash 元数据
 - 计算 record_hash（数值规范化 → SHA-256 截断 16 hex；复用 calc_lineage）
 - 构造 RestrictionResult ORM 实例（v3_1 stub + 13 SPEC §3.2.2.6 字段）+ 落库 restriction_results
 - create_outlet_stream 出口物流链（DEVICE_CALCULATED, ISOENTHALPIC, RES-{tag}）
+
+P6-2 S-01 升级：
+- RestrictionEngine.calculate 改为 async（需要 await check_flashing）
+- input_json 新增 flash_check 子结构（fluid/T_K/P_sat_pa/vapor_fraction/model_used）
+- output_json 新增 model_used + F_t（HEM 工况）
 
 按 ADR-0022 V1.0 出口物流模型：
 - source_type='RESTRICTION_CALCULATED'（设备计算结果作为源）
@@ -31,8 +36,8 @@ from app.services.calc_lineage import compute_record_hash
 from app.services.outlet_stream import create_outlet_stream
 from app.services.restriction.restriction_engine import RestrictionEngine
 
-# P6-1 Task 13 formula_version：固定锚点（CIA 引擎版本对齐时一并 bump）
-_FORMULA_VERSION = "RESv1.0-p6-1-13"
+# P6-1 Task 13 formula_version（P6-2 S-01 升级闪蒸联动 + HEM 模型）
+_FORMULA_VERSION = "RESv1.1-p6-2-s01"
 
 # v3_1 stub 列 restriction_type 默认值（与 device_type 对齐；向后兼容）
 _STUB_RESTRICTION_TYPE_DEFAULT = "ORIFICE"
@@ -50,6 +55,9 @@ def _generate_tag_number(project_id: uuid.UUID) -> str:
 def _build_input_json(request: dict[str, Any], payload: dict[str, Any]) -> dict:
     """input_json：原始请求 + payload 关键字段（不回灌 ORM 列覆盖丢失字段）。
 
+    P6-2 S-01 新增 flash_check 子结构：记录闪蒸校核的流体/T/P_sat/vfrac/model_used，
+    便于审计与回归（P6-OPEN-008 评估是否升级为 ORM 平铺列）。
+
     request 中 UUID/datetime 等非 JSON 原生类型转字符串再序列化，避免 SQLAlchemy
     JSONB 序列化抛 TypeError。
     """
@@ -62,11 +70,23 @@ def _build_input_json(request: dict[str, Any], payload: dict[str, Any]) -> dict:
         "device_type": payload["device_type"],
         "fluid_phase": payload.get("fluid_phase", "LIQUID"),
         "design_stage": payload["design_stage"],
+        # P6-2 S-01 flash 元数据（JSONB 容器；不回灌 ORM 列）
+        "flash_check": {
+            "fluid": payload.get("fluid", "WATER"),
+            "upstream_T_K": payload.get("upstream_T_K", 298.15),
+            "P_sat_pa": payload.get("P_sat_pa"),
+            "vapor_fraction_at_outlet": payload.get("vapor_fraction_at_outlet", 0.0),
+            "model_used": payload.get("model_used", "ISO_5167"),
+            "error_code": payload.get("flash_error_code"),
+        },
     }
 
 
 def _build_output_json(payload: dict[str, Any]) -> dict:
-    """output_json：Restriction 计算结果 + 状态判定（service 层组装，不入 ORM 列）。"""
+    """output_json：Restriction 计算结果 + 状态判定 + P6-2 S-01 模型元数据。
+
+    service 层组装，不入 ORM 列。
+    """
     return {
         "C_discharge": payload["C_discharge"],
         "beta_ratio": payload["beta_ratio"],
@@ -75,11 +95,18 @@ def _build_output_json(payload: dict[str, Any]) -> dict:
         "flashing": payload["flashing"],
         "delta_omega_pa": payload["delta_omega_pa"],
         "stages": payload["stages"],
+        # P6-2 S-01 HEM 模型元数据
+        "model_used": payload.get("model_used", "ISO_5167"),
+        "P_sat_pa": payload.get("P_sat_pa"),
+        "vapor_fraction_at_outlet": payload.get("vapor_fraction_at_outlet", 0.0),
+        "G_hem_kg_s": payload.get("G_hem_kg_s"),
+        "rho_hem_kg_m3": payload.get("rho_hem_kg_m3"),
+        "F_t": payload.get("F_t"),
     }
 
 
 class RestrictionService:
-    """限制装置计算落库 service（P6-1 Task 13 / ADR-0022）。"""
+    """限制装置计算落库 service（P6-1 Task 13 + P6-2 S-01 闪蒸联动）。"""
 
     @staticmethod
     async def persist_calculate(
@@ -88,10 +115,11 @@ class RestrictionService:
         source_stream_id: uuid.UUID,
         request: dict[str, Any],
     ) -> RestrictionResult:
-        """调 RestrictionEngine + 落 restriction_results + record_hash + outlet stream。
+        """调 RestrictionEngine（async）+ 落 restriction_results + outlet stream。
 
         流程：
-        1. 调 RestrictionEngine.calculate(**engine_kwargs) 返回 13 键 payload
+        1. await RestrictionEngine().calculate(**engine_kwargs) 返回 13 键 payload
+           + flash 元数据（model_used / P_sat_pa / vapor_fraction_at_outlet）
         2. 构造 RestrictionResult ORM 实例（v3_1 stub + 13 SPEC §3.2.2.6 字段）
         3. db.add + db.flush（orifice_id 分配）
         4. record_hash = compute_record_hash(restriction_result)
@@ -102,19 +130,20 @@ class RestrictionService:
             db: 异步 session
             source_stream_id: 源流 UUID（写入 outlet.upstream_stream_id）
             request: dict 含 RestrictionEngine kwargs（device_type/D_pipe_m/d_solved_m/
-                     Re_D/P1_pa/dP_pa/rho1/stages） + 必填字段 project_id / workspace_id；
+                     Re_D/P1_pa/dP_pa/rho1/stages）+ P6-2 S-01 新字段（fluid/upstream_T_K/
+                     rho_l_kg_m3/rho_v_kg_m3/x_vapor_outlet）+ 必填 project_id/workspace_id；
                      tag_number 可选（缺省自生成）
 
         Returns:
             RestrictionResult ORM 实例（已 commit + refresh）
         """
-        # 1. RestrictionEngine.calculate → 13 键 payload
+        # 1. await RestrictionEngine.calculate → 13 键 payload + flash 元数据
         engine_kwargs = {
             k: v
             for k, v in request.items()
             if k not in ("project_id", "workspace_id", "tag_number")
         }
-        payload = RestrictionEngine().calculate(**engine_kwargs)
+        payload = await RestrictionEngine().calculate(**engine_kwargs)
 
         # 2. 解析必填上下文字段
         project_id: uuid.UUID = request["project_id"]
@@ -176,6 +205,14 @@ class RestrictionService:
                     "standard_profile_code", "ISO-5167"
                 ),
                 "design_stage": payload["design_stage"],
+                # P6-2 S-01 flash 元数据透传到 outlet（便于下游物料平衡计算）
+                "fluid": payload.get("fluid", "WATER"),
+                "upstream_T_K": payload.get("upstream_T_K", 298.15),
+                "P_sat_pa": payload.get("P_sat_pa"),
+                "vapor_fraction_at_outlet": payload.get(
+                    "vapor_fraction_at_outlet", 0.0
+                ),
+                "model_used": payload.get("model_used", "ISO_5167"),
             },
             project_id=restriction_result.project_id,
             workspace_id=restriction_result.workspace_id,

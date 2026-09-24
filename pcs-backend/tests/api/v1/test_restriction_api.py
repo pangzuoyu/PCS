@@ -1,13 +1,16 @@
-"""P6-1 Task 14: restriction_api POST /api/v1/restriction/calculate 端点契约测试。
+"""P6-1 Task 14 + P6-2 S-01: restriction_api POST /api/v1/restriction/calculate 端点契约测试。
 
-按 PCS-PLAN-P6-BATCH.md §Task 14 + SPEC §3.2.2.1~4 + §3.2.2.6 + ADR-0022 V1.0：
+按 PCS-PLAN-P6-BATCH.md §Task 14 + SPEC §3.2.2.1~4 + §3.2.2.6 + ADR-0022 V1.0 +
+评审委员会 2026-09-24 闪蒸路径裁决：
 
 端到端验证（in-memory SQLite + httpx async）：
 - POST /api/v1/restriction/calculate → 201 + orifice_id + outlet_stream_id + record_hash
-- OpenAPI /openapi.json 含 /restriction/calculate 路径 + 14 字段 schema
+- OpenAPI /openapi.json 含 /restriction/calculate 路径 + 19 字段 schema（含 P6-2 S-01 flash）
 - Pydantic extra='forbid' → 422 ValidationError（未知字段拦截）
 - standard_profile_code 缺省 → 默认 ISO-5167
 - outlet properties change_type='ISOENTHALPIC'（**关键区别 CV FRICTION**）
+- P6-2 S-01 闪蒸联动：response 含 flashing / P_sat_pa / vapor_fraction_at_outlet /
+  model_used 字段
 
 DB 测试 fixture 最简 pattern（参考 .wolf/cerebrum.md Do-Not-Repeat）：
 - 源流直接 ORM 构造（最简必填字段；restriction_persist 仅校验 project_id 一致）
@@ -268,3 +271,64 @@ async def test_restriction_calculate_isoentropic_outlet_change_type(
     assert props.get("device") == expected_device, (
         f"device 应为 {expected_device!r}，实际 {props.get('device')!r}"
     )
+
+
+# ============================================================================
+# 5. P6-2 S-01 闪蒸路径：response.flashing / P_sat_pa / model_used=HEM
+# ============================================================================
+
+
+@pytest.mark.asyncio
+async def test_restriction_calculate_flash_path_hem(
+    client, source_stream, project_id, workspace_id
+):
+    """P6-2 S-01 闪蒸路径：response.flashing=True + P_sat_pa 合理 + model_used=HEM。
+
+    工况：水 200°C + 节流到 200 kPa → P_sat ≈ 1.55 MPa > P_outlet=200 kPa → 闪蒸。
+    验证：
+    1. response.flashing = True（P6-2 S-01 替代 P1<50 kPa 启发式）
+    2. response.P_sat_pa 合理（1.5 MPa ~ 1.6 MPa 范围）
+    3. response.vapor_fraction_at_outlet > 0.8
+    4. response.model_used = "HEM"（API STD 520 Annex C 切换）
+    5. response 含新增字段（openapi 契约）
+    """
+    body = _orifice_body(project_id, workspace_id, source_stream.stream_id)
+    body.update({
+        "P1_pa": 2_000_000.0,
+        "dP_pa": 1_800_000.0,
+        "fluid": "WATER",
+        "upstream_T_K": 473.15,  # 200 °C
+        "rho_l_kg_m3": 864.0,
+        "rho_v_kg_m3": 7.8,
+    })
+
+    r = await client.post("/api/v1/restriction/calculate", json=body)
+    assert r.status_code == 201, r.text
+    resp = r.json()
+
+    # P6-2 S-01 闪蒸元数据
+    assert resp["flashing"] is True
+    assert resp["P_sat_pa"] is not None
+    assert 1_500_000 < resp["P_sat_pa"] < 1_600_000, (
+        f"水 200°C P_sat 应 ≈ 1.55 MPa，实际 {resp['P_sat_pa']}"
+    )
+    assert resp["vapor_fraction_at_outlet"] > 0.8
+    assert resp["model_used"] == "HEM"
+
+
+@pytest.mark.asyncio
+async def test_restriction_calculate_non_flash_default_iso_5167(
+    client, source_stream, project_id, workspace_id
+):
+    """P6-2 S-01 非闪蒸路径：response.model_used=ISO_5167（缺省 fluid/T 即水 25°C）。"""
+    body = _orifice_body(project_id, workspace_id, source_stream.stream_id)
+    # 缺省 fluid=WATER, upstream_T_K=298.15；P_outlet=190 kPa >> P_sat(水 25°C)=3.17 kPa
+    r = await client.post("/api/v1/restriction/calculate", json=body)
+    assert r.status_code == 201, r.text
+    resp = r.json()
+
+    assert resp["flashing"] is False
+    assert resp["P_sat_pa"] is not None
+    assert 3_000 < resp["P_sat_pa"] < 4_000
+    assert resp["vapor_fraction_at_outlet"] == 0.0
+    assert resp["model_used"] == "ISO_5167"

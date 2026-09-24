@@ -487,6 +487,28 @@ def _tsat_from_wagner(cas: str, P: float) -> float:
     return T_guess
 
 
+def calc_pure_fluid_bubble_point_pa(*, fluid: str, T_K: float) -> float:
+    """纯组分泡点压力 Pa（P6-2 S-01 adapter，包装 SATURATION）。
+
+    RESTRICTION 闪蒸校核用：给定流体名 + 上游温度 → 返回泡点压力 Pa。
+    若节流后压力 P_outlet < P_sat → 闪蒸工况（SPEC §3.2.2.1）。
+
+    Args:
+        fluid: 流体名（WATER / PROPANE / N_BUTANE 等；SATURATION 接受 fluid 名
+               或 CAS 号，大小写不敏感）
+        T_K: 系统温度 K
+
+    Returns:
+        P_sat Pa（泡点压力）
+
+    Raises:
+        SaturationInputError: fluid 不识别
+        SaturationRangeError: T > Tc（超临界）
+    """
+    P_sat, _h_fg = SATURATION(fluid=fluid, T=T_K)
+    return P_sat
+
+
 __all__ = [
     "PTFlashResult",
     "PT_FLASH",
@@ -497,6 +519,7 @@ __all__ = [
     "PH_FLASH",
     "PS_FLASH",
     "SATURATION",
+    "calc_pure_fluid_bubble_point_pa",
     "FlashConvergenceError",
     "SaturationInputError",
     "SaturationRangeError",

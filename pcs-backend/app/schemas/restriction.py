@@ -1,8 +1,12 @@
-"""限制装置计算 Pydantic schema（P6-1 Task 14 / SPEC §3.2.2）。
+"""限制装置计算 Pydantic schema（P6-1 Task 14 / SPEC §3.2.2 + P6-2 S-01 闪蒸联动）。
 
-RestrictionCalculateRequest 14 字段对齐 SPEC §3.2.2.1~4（孔板/文丘里/喷嘴/多级降压）
-+ §3.2.2.6（13 列 ORM schema）+ 上下文；RestrictionCalculateResponse 回填
-RestrictionResult 主键 + outlet stream。
+RestrictionCalculateRequest 字段对齐 SPEC §3.2.2.1~4（孔板/文丘里/喷嘴/多级降压）
++ §3.2.2.6（13 列 ORM schema）+ 上下文 + P6-2 S-01 闪蒸校核 + HEM 模型字段；
+RestrictionCalculateResponse 回填 RestrictionResult 主键 + 闪蒸元数据 + outlet stream。
+
+P6-2 S-01 新增：
+- Request：`fluid` / `upstream_T_K` / `rho_l_kg_m3` / `rho_v_kg_m3` / `x_vapor_outlet`
+- Response：`flashing` / `P_sat_pa` / `vapor_fraction_at_outlet` / `model_used`
 
 设计要点：
 - `extra='forbid'` 拒绝未知字段（V1.14 PsvCalculateRequest 历史教训；
@@ -13,8 +17,8 @@ RestrictionResult 主键 + outlet stream。
 
 不做：
 - 不实现 record_hash 算法（service 层复用 calc_lineage.compute_record_hash）
-- 不实现 RestrictionEngine 计算（Task 12 已交付）
-- 不实现 outlet stream（Task 13 已交付；本 schema 仅返回 outlet_stream_id）
+- 不实现 RestrictionEngine 计算（P6-1 已交付 + P6-2 S-01 升级）
+- 不实现 outlet stream（P6-1 Task 13 已交付；本 schema 仅返回 outlet_stream_id）
 """
 from __future__ import annotations
 
@@ -27,7 +31,8 @@ from pydantic import BaseModel, ConfigDict, Field
 class RestrictionCalculateRequest(BaseModel):
     """限制装置计算请求体（POST /api/v1/restriction/calculate）。
 
-    字段对齐 SPEC §3.2.2.1~4 孔板/文丘里/喷嘴/多级降压 + §3.2.2.6 schema。
+    字段对齐 SPEC §3.2.2.1~4 孔板/文丘里/喷嘴/多级降压 + §3.2.2.6 schema +
+    P6-2 S-01 闪蒸校核输入。
 
     严格模式：未知字段 → 422 ValidationError（不静默吞）。
     """
@@ -78,11 +83,42 @@ class RestrictionCalculateRequest(BaseModel):
         ..., description="源流 UUID（outlet.upstream_stream_id 锚点）"
     )
 
+    # P6-2 S-01 闪蒸校核输入（5 字段）
+    fluid: str = Field(
+        "WATER",
+        description=(
+            "上游流体名（P6-2 S-01 评审委员会裁决 2026-09-24；"
+            "调 P4 flash_service.calc_pure_fluid_bubble_point_pa 用；"
+            "支持 WATER / PROPANE / N_BUTANE / ISOPENTANE / N_HEXANE / METHANE / "
+            "ETHANE / METHANOL 或 CAS 号）"
+        ),
+    )
+    upstream_T_K: float = Field(
+        298.15,
+        description="上游温度 K（P6-2 S-01；缺省 25°C 标况）",
+    )
+    rho_l_kg_m3: float | None = Field(
+        None,
+        description="液体密度 kg/m³（P6-2 S-01 HEM 模型需要；缺省时 HEM 跳过 G_hem 计算）",
+    )
+    rho_v_kg_m3: float | None = Field(
+        None,
+        description="蒸汽密度 kg/m³（P6-2 S-01 HEM 模型需要；缺省时 HEM 跳过 G_hem 计算）",
+    )
+    x_vapor_outlet: float = Field(
+        0.0,
+        description=(
+            "节流后工况气相分率（0~1；P6-2 S-01 HEM 模型需要；"
+            "缺省 0 = 调用 check_flashing 内部估算）"
+        ),
+    )
+
 
 class RestrictionCalculateResponse(BaseModel):
     """限制装置计算响应（POST /api/v1/restriction/calculate 201）。
 
-    回填 RestrictionResult 主键 orifice_id + 关键结果字段 + outlet stream 锚点。
+    回填 RestrictionResult 主键 orifice_id + 关键结果字段 + flash 元数据 +
+    outlet stream 锚点。
     """
 
     model_config = ConfigDict(protected_namespaces=())
@@ -97,7 +133,28 @@ class RestrictionCalculateResponse(BaseModel):
     epsilon: float | None = Field(None, description="可膨胀性系数（液体 ≈ 1）")
     delta_P_pa: float = Field(..., description="压差 Pa")
     choked: bool = Field(..., description="是否阻塞流")
-    flashing: bool = Field(False, description="是否闪蒸（液体 + 低 P1 启发式判据）")
+    flashing: bool = Field(
+        False,
+        description=(
+            "是否闪蒸（P6-2 S-01 评审委员会裁决；"
+            "调 flash_service.calc_pure_fluid_bubble_point_pa 求 P_sat 与 P_outlet 对比）"
+        ),
+    )
+    P_sat_pa: float | None = Field(
+        None,
+        description="上游泡点压力 Pa（P6-2 S-01 flash_service 返回；fluid_unknown/超临界时 None）",
+    )
+    vapor_fraction_at_outlet: float = Field(
+        0.0,
+        description="节流后工况气相分率（0~1；P6-2 S-01 HEM 模型需要）",
+    )
+    model_used: str = Field(
+        "ISO_5167",
+        description=(
+            "调用的物理模型（P6-2 S-01）；"
+            "ISO_5167 = 单相走 ISO 5167；HEM = 闪蒸工况走 API STD 520 Annex C"
+        ),
+    )
     stages: int | None = Field(None, description="多级时级数（仅 MULTI_STAGE）")
     standard_profile_code: str = Field(..., description="执行标准 profile code（ISO 5167 系列）")
     record_hash: str = Field(..., description="16 hex 数值规范化哈希（SHA-256 截断）")
