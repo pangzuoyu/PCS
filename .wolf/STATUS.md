@@ -1126,4 +1126,115 @@ C6-b 修复要点：GB/T 12241 虽标 `incomplete_fallback`，但公式常数仍
 
 **P6-1 → P6-2 总进度**：8/38 tasks complete（21%）。下一批 11 task 推进 FLARE_SYS / COOL_TOWER / PSYCHRO。
 
+---
+
+## 🔍 评审委员会补证（2026-09-24，Conditional Closed 应对）
+
+> 背景：P6 架构评审委员会对 P6-1 批发"有条件通过"裁决（Conditional Closed）；本段为 C-01~C-07 工具化部分的核实结果，C-04 偏差验收数据 / C-07 标准策略需工艺室 + 技术负责人联合裁决。
+
+### C-01 补证：20 pre-existing failures 来源（bisect）
+
+**裁定：跨批遗留，P2 时代 bug，与 P6-1 无关。**
+
+| Fail | 引入 commit | 时代 | 根因 |
+|------|-------------|------|------|
+| `test_pipe_code_validator.py`（10 例）| `651e2bc feat(p2-sup-002)`（2026-Q2 era）| **P2** | `app/services/pipe_code_validator.py:22 class Severity(str, Enum): docstring "ERROR 拦截 / WARN 仅警告" — 但**无任何枚举成员**；`Severity.ERROR` AttributeError |
+| `test_stream_symbol_validator.py`（8 例）| `40b0415 feat(p2-sup-002)`（同期）| **P2** | `app/services/stream_symbol_validator.py:9 class Severity(str, Enum):` 同根因 |
+| `test_meta.py::test_get_enums_returns_required_groups`（1 例）| P5 期间引入 `StatelineDataMode` 等 enum | **P5** | 实际是 `app/api/v1/meta.py` 返回 `StreamDataMode` 但 enum 类为空 |
+
+**P5 验收"0 failed"复核**：P5 末 baseline 实测 = **1670 passed + 20 failed + 51 skipped**（Task 16 G-08 STATUS line 1054-1058 已记录）。"0 failed"系局部陈述（指 P5 模块范围，未含 P2 时代 validator）。
+
+**修复路径（不属于 P6-1 范围）**：
+```python
+class Severity(str, Enum):
+    ERROR = "ERROR"
+    WARN = "WARN"
+```
+登记入 P6+ LOW/INFO 滚动批；P3.2 时代 `sim_import_warnings` 表已用此 enum 但 P2 validator 漏定义。
+
+### C-03 补证：cv_results / restriction_results 字段完整性
+
+| 字段 | SPEC §3.2.1.6 (cv_results) | CvResult ORM | 判定 | SPEC §3.2.2.6 (restriction_results) | RestrictionResult ORM | 判定 |
+|------|---------------------------|--------------|------|-----------------------------------|-----------------------|------|
+| PK | `cv_calc_id` (BIGINT) | `cv_id uuid.UUID` | ✅ DICT V3.3 rename | `restriction_calc_id` (BIGINT) | `orifice_id uuid.UUID` | ✅ DICT V3.3 rename |
+| `tag_number NOT NULL` | (mixin 隐式) | `TaggedRecordMixin` | ✅ | (mixin 隐式) | `TaggedRecordMixin` | ✅ |
+| `project_id` / `workspace_id` | (mixin 隐式) | `RecordMixin` | ✅ | (mixin 隐式) | `RecordMixin` | ✅ |
+| `input_json / output_json JSONB` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| `record_hash VARCHAR(64) UNIQUE` | ✅ | `String(64)` via mixin | ✅ | ✅ | `String(64)` via mixin | ✅ |
+| **`standard_profile_code NOT NULL`** | **`VARCHAR(16) NOT NULL`** | **`String(32) NOT NULL`** | ⚠️ **HIGH 偏差** | (SPEC 未要求) | (无列) | ✅ |
+| SPEC §3.2.1.6 / §3.2.2.6 平铺字段 | 21 列 | 21 列（line 783 前）| ✅ | 13 列 | 13 列（line 783-854）| ✅ |
+
+**CvResult `standard_profile_code` 长度偏差（HIGH 缺陷）**：
+- SPEC §3.2.1.6 line 1283：`VARCHAR(16) NOT NULL`
+- Task 7 (a1a4716) ORM 实际：`String(32) NOT NULL`
+- 实际值（如 "API-60534" 9 字符 / "ISO-5167" 8 字符）均 ≤16 — **不影响数据**
+- 但**形式上违反 SPEC**，需 P6-2 启动前修正（回归 String(16)）+ alembic 迁移兼容性确认
+
+### C-05 补证：outlet_stream Literal 扩展验证
+
+```python
+# app/services/outlet_stream.py:42-55
+OutletSourceType = Literal[
+    "FLASH_CALCULATED",       # P3
+    "PIPE_CALCULATED",         # P3
+    "PUMP_CALCULATED",         # P3
+    "PIPE_NET_CALCULATED",     # P4-3-3
+    "VESSEL_CALCULATED",       # P5-1-4
+    "SEP_EQUIP_CALCULATED",    # P5-2-4
+    "PSV_CALCULATED",          # P5-3
+    "HEAT_CALCULATED",         # P5-4-5
+    "RESTRICTION_CALCULATED",  # P6-1 Task 13 ✅
+]
+```
+
+**`change_type` 入 properties 区分（ADR-0022 修正）**：
+- CV：`change_type="FRICTION_PRESSURE_DROP"`（控制阀为摩擦压降设备）✅
+- RESTRICTION：`change_type="ISOENTHALPIC"`（节流装置等熵焓降设备）✅（Ruling R-isoenthalpic）
+
+**CV 用 `source_type="DEVICE_CALCULATED"` 验证**：
+- CV (cv_persist.py line 178) 实际：`source_type="DEVICE_CALCULATED"`
+- OutletSourceType Literal **不含** `"DEVICE_CALCULATED"`（已含 9 种 CALCULATED 派生）
+- 历史原因：CV 是 P5 末/ P6-1 新增设备；落库时仍用 `DEVICE_CALCULATED`（P3 旧惯例），与 OutletSourceType Literal 不一致
+- **裁定**：LOW 风险，P6-2 启动前加 `"DEVICE_CALCULATED"` 入 OutletSourceType Literal（统一设备/计算源落库口径）
+
+### C-06 补证：record_hash 输入字段
+
+**结论**：`compute_record_hash` 走 ORM 反射路径（`calc_lineage.py:104`），自动排除 `_EXCLUDED_KEYS = {record_hash, created_at, created_by, updated_at, updated_by}`；**未声明模块级 RECORD_HASH_FIELDS**。
+
+| 模块 | PSV/CV/Restriction RECORD_HASH_FIELDS | 判定 |
+|------|---------------------------------------|------|
+| `app/services/psv/` | ❌ 无独立模块定义 | 用 calc_lineage 反射路径 |
+| `app/services/cv/` | ❌ 无 | 用 calc_lineage 反射路径 |
+| `app/services/restriction/` | ❌ 无 | 用 calc_lineage 反射路径 |
+
+**SPEC §3.2.1.6 line 1285 验收要求 `record_hash 含 standard 字段`**：
+- CvResult ORM 含 `standard_profile_code` 列（line 771）→ 反射路径自动含 ✅
+- RestrictionResult ORM 不含该列 → 但 SPEC §3.2.2.6 未要求该列 → ✅（SPEC 合规）
+- PSV Result ORM 含 `standard_profile_code` 列 → 反射路径自动含 ✅
+
+**裁定**：PASS（calc_lineage 反射路径已隐式满足 ADR-0028 §决策 4 契约）。
+
+### C-04 / C-07 待工艺室 + 技术负责人联合裁决
+
+- **C-04**：Cv/RESTRICTION 偏差验收数据（液体 Cv ≤1% / 气体 Cv ≤2% / 孔板 ≤1% / 文丘 ≤1% / 喷嘴 ≤1%）— Path A 自研 SPEC §3.2.1/3.2.2 简化公式，R1 裁决要求"与 fluids 完整 API 对比测试"；本批**未跑**该验证
+- **C-07**：CV `standard_profile_code` 策略（硬编码 vs 多标准）— CV 是否需真多标准引擎？GB/T 4213 与 IEC 60534 是否等同？需技术负责人 + 工艺室裁决
+
+### 评审委员会裁决应对清单
+
+| # | 行动 | 责任方 | 优先级 |
+|---|------|--------|--------|
+| A-01 | **C-01 已闭环**：20 failures 跨批遗留 P2 时代，与 P6-1 无关 | 测试工程师 | DONE |
+| A-02 | **C-03 部分通过**：CvResult `standard_profile_code` 长度 32 vs SPEC 16 HIGH | 开发工程师 | P6-2 启动前修 |
+| A-03 | **C-05 通过**：Literal 扩展完整，CV `DEVICE_CALCULATED` 口径不一致 LOW | 开发工程师 | P6-2 启动前加 Literal |
+| A-04 | **C-06 通过**：calc_lineage 反射路径满足 ADR-0028 §决策 4 契约 | — | DONE |
+| A-05 | **C-04 待跑**：偏差验收数据归档（≤1% / ≤2%） | 测试工程师 + 工艺室 | P6-2 批内 |
+| A-06 | **C-07 待裁**：CV 标准策略（硬编码 vs 多标准）| 技术负责人 + 工艺室 | P6-2 启动前 |
+| A-07 | **S-01 待裁**：RESTRICTION 闪蒸完整 FLASH 联校核路径 | 工艺室 | P6-2 批内 |
+| A-08 | **S-02 部署**：CI G-08 自动化门禁（"代码变更→OpenAPI 必须 regen"）| DevOps | P6-2 批内 |
+| A-09 | **S-03 归档**：Task 9 429 recovery 应对清单入 `docs/P6-IMPLEMENTATION-NOTES.md` | 实施团队 | P6-2 启动前 |
+
+**P6-1 → P6-2 启动阻塞**：
+- 硬阻塞：**C-07 CV 标准策略裁决**（未明确前 CV 模块不可扩展多标准）
+- 软阻塞：A-02 / A-03 / A-06 / A-08 实施
+
 **P6-0 触发分支**：`feature/p6-batch` worktree，HEAD `c5c7d9a`（Task 5 amend 后）
