@@ -164,6 +164,24 @@ class WorkspaceContextMissingError(PcsError):
     status = 422
 
 
+# ---------------------------------------------------------------------------
+# P6 FLARE_SYS 项目级泄放汇总（P6-FLR-001 / Task 19）
+# ---------------------------------------------------------------------------
+
+
+class FlareAggregatorInputError(PcsError):
+    """FLARE_SYS 泄放汇总输入不合法（422）。
+
+    与 P5-3-3 ``PsvAggregateInputError`` 同源（皆为 service 层聚合前置
+    校验），本类聚焦 FLARE_SYS 项目级聚合的输入校验（空 project_id /
+    空 standard_profile_code）。由 ``app.services.flare.aggregate_flare_load``
+    raise。
+    """
+
+    code = "FLARE_INPUT_ERROR"
+    status = 422
+
+
 __all__ = [
     "PcsError",
     "PreconditionViolation",
@@ -185,4 +203,6 @@ __all__ = [
     "WorkspaceNotFoundError",
     "WorkspaceTypeNotAllowedError",
     "WorkspaceContextMissingError",
+    # FLARE_SYS 项目级泄放汇总 (P6-FLR-001 / Task 19)
+    "FlareAggregatorInputError",
 ]
