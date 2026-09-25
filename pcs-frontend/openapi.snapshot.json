@@ -8056,7 +8056,7 @@
           "vessel"
         ],
         "summary": "Calculate Vessel",
-        "description": "POST /api/v1/vessel/calculate：vessel 尺寸 + 流体力学一次计算。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "POST /api/v1/vessel/calculate：vessel 尺寸 + 流体力学 + 两相 sizing 一次计算。\n\nP6-4 T2：可选 sizing_spec 触发 two_phase_separator_sizing_service（C-08 V1.2\n重写），填充 vessel_results 6 列 sizing；sizing_spec=None 时保持 V1.0 兼容。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
         "operationId": "calculate_vessel_api_v1_vessel_calculate_post",
         "parameters": [
           {
@@ -15726,6 +15726,42 @@
             "title": "Noise Sil Db",
             "description": "简化法噪音估算 dB（IEC 60534-8-3）"
           },
+          "fl": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fl",
+            "description": "Masonelian fl 修正系数（无量纲；SPEC §3.2.1.5 Eq.5；LIQUID 路径填充）"
+          },
+          "flash_steam_rate_kg_s": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Flash Steam Rate Kg S",
+            "description": "闪蒸蒸汽量估算 kg/s（强公式；LIQUID 路径填充；GAS/VAPOR 保持 None）"
+          },
+          "masonelian_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Masonelian Model",
+            "description": "Masonelian fl 模型口径：MASONELIAN_1973（默认）/ CHAPMAN_JANS / TONG"
+          },
           "standard_profile_code": {
             "type": "string",
             "title": "Standard Profile Code",
@@ -15761,7 +15797,7 @@
           "outlet_stream_id"
         ],
         "title": "CvCalculateResponse",
-        "description": "调节阀 Cv 计算响应（POST /api/v1/cv/calculate 201）。\n\n回填 CvResult 主键 + 关键结果字段 + outlet stream 锚点。"
+        "description": "调节阀 Cv 计算响应（POST /api/v1/cv/calculate 201）。\n\n回填 CvResult 主键 + 关键结果字段 + outlet stream 锚点。\n\nP6-4 Task 5（C-24 Masonelian fl）：V1.2 D3 严格 — fl / flash_steam_rate_kg_s\n走 JSONB 容器（output_json），masonelian_model 走 ORM 列。响应层 3 字段全部\nOptional（默认 None），保持 V1.0 兼容：仅 LIQUID 路径填充；GAS/VAPOR 路径\n闪蒸修正无强物理意义，保持 None。"
       },
       "DewPointRequest": {
         "properties": {
@@ -24610,6 +24646,173 @@
         "title": "SizingInputSchema",
         "description": "sizing 输入（对应 VesselSizingInput 物理量）。"
       },
+      "SizingSpecSchema": {
+        "properties": {
+          "vessel_shape": {
+            "type": "string",
+            "title": "Vessel Shape",
+            "description": "容器方位：VERTICAL 立式 / HORIZONTAL 卧式 / SPHERICAL 球罐"
+          },
+          "diameter_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Diameter M",
+            "description": "容器内径 m"
+          },
+          "length_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Length M",
+            "description": "切线长 m（立式=高度；卧式=切线；球罐=0）",
+            "default": 0.0
+          },
+          "head_type": {
+            "type": "string",
+            "title": "Head Type",
+            "description": "封头类型：HEMISPHERICAL 半球 / 2:1_ELLIPTICAL 2:1椭圆 / TORISPHERICAL 碟形 / FLAT 平封头"
+          },
+          "operating_pressure_kpa": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Operating Pressure Kpa",
+            "description": "操作压力 kPa(gauge)"
+          },
+          "operating_temperature_c": {
+            "type": "number",
+            "title": "Operating Temperature C",
+            "description": "操作温度 °C"
+          },
+          "oil_mass_rate_kg_d": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Oil Mass Rate Kg D",
+            "description": "油质量流量 kg/d"
+          },
+          "water_mass_rate_kg_d": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Water Mass Rate Kg D",
+            "description": "水质量流量 kg/d",
+            "default": 0.0
+          },
+          "gas_mass_rate_kg_d": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Gas Mass Rate Kg D",
+            "description": "气质量流量 kg/d"
+          },
+          "oil_density_kg_m3": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Oil Density Kg M3",
+            "description": "油密度 kg/m³"
+          },
+          "water_density_kg_m3": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Water Density Kg M3",
+            "description": "水密度 kg/m³"
+          },
+          "gas_density_kg_m3": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Gas Density Kg M3",
+            "description": "气密度 kg/m³"
+          },
+          "oil_sg": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Oil Sg",
+            "description": "油比重 SG（= oil_density/999.0）"
+          },
+          "water_sg": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Water Sg",
+            "description": "水比重 SG（= water_density/999.0）"
+          },
+          "gas_sg": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Gas Sg",
+            "description": "气比重 SG（= gas_density/1.225）"
+          },
+          "gas_mw_kg_kmol": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Gas Mw Kg Kmol",
+            "description": "气分子量 kg/kmol"
+          },
+          "k_factor": {
+            "type": "number",
+            "maximum": 1.0,
+            "minimum": 0.01,
+            "title": "K Factor",
+            "description": "Souders-Brown K 因子 m/s"
+          },
+          "nozzle_inlet_momentum_limit_kg_m_s2": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Nozzle Inlet Momentum Limit Kg M S2",
+            "description": "入口喷嘴动量限值 kg·m/s²"
+          },
+          "nozzle_outlet_momentum_limit_kg_m_s2": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Nozzle Outlet Momentum Limit Kg M S2",
+            "description": "出口喷嘴动量限值 kg·m/s²"
+          },
+          "instrument_response_time_s": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Instrument Response Time S",
+            "description": "仪表响应时间 t_c s"
+          },
+          "design_pressure_mpa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Design Pressure Mpa",
+            "description": "设计压力 MPa",
+            "default": 1.0
+          },
+          "n_vessels": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "N Vessels",
+            "description": "并联容器数",
+            "default": 1
+          },
+          "imperial_units": {
+            "type": "boolean",
+            "title": "Imperial Units",
+            "description": "是否输出英制转换字段",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "vessel_shape",
+          "diameter_m",
+          "head_type",
+          "operating_pressure_kpa",
+          "operating_temperature_c",
+          "oil_mass_rate_kg_d",
+          "gas_mass_rate_kg_d",
+          "oil_density_kg_m3",
+          "water_density_kg_m3",
+          "gas_density_kg_m3",
+          "oil_sg",
+          "water_sg",
+          "gas_sg",
+          "gas_mw_kg_kmol",
+          "k_factor",
+          "nozzle_inlet_momentum_limit_kg_m_s2",
+          "nozzle_outlet_momentum_limit_kg_m_s2",
+          "instrument_response_time_s"
+        ],
+        "title": "SizingSpecSchema",
+        "description": "两相分离器尺寸输入（对应 TwoPhaseSeparatorSizingInput）。\n\n可选字段（None = V1.0 兼容，不触发 sizing 计算）。\nP6-4 T2 C-08 V1.2 重写：5 段计算（Souders-Brown + CSA + 喷嘴 + 仪表 + 停留时间）。"
+      },
       "SolverConfigReq": {
         "properties": {
           "tolerance_m3_s": {
@@ -28167,6 +28370,17 @@
           "hydraulics": {
             "$ref": "#/components/schemas/HydraulicsInputSchema",
             "description": "vessel 流体力学校核输入"
+          },
+          "sizing_spec": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/SizingSpecSchema"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "description": "P6-4 T2 两相分离器尺寸（C-08 V1.2）；None = V1.0 兼容不计算"
           }
         },
         "type": "object",
@@ -28216,7 +28430,7 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Result",
-            "description": "合并 sizing + hydraulics 结果"
+            "description": "合并 sizing + hydraulics + sizing_spec 结果"
           },
           "outlet_stream_id": {
             "type": "string",

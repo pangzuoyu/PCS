@@ -83,6 +83,13 @@ async def cv_calculate(
         cavitation=cv_result.cavitation,
         flashing=cv_result.flashing,
         noise_sil_db=cv_result.noise_sil_db,
+        # P6-4 Task 5（C-24 Masonelian fl / SPEC §3.2.1.5）3 字段透传
+        # V1.2 D3：masonelian_model 走 ORM 列；fl/flash_steam_rate_kg_s 走
+        # output_json JSONB 容器（cerebrum.md Do-Not-Repeat）。
+        # Optional 默认 None：仅 LIQUID 路径填充；GAS/VAPOR 路径保持 V1.0 兼容。
+        fl=(cv_result.output_json or {}).get("fl"),
+        flash_steam_rate_kg_s=(cv_result.output_json or {}).get("flash_steam_rate_kg_s"),
+        masonelian_model=cv_result.masonelian_model,
         standard_profile_code=cv_result.standard_profile_code,
         design_stage=cv_result.design_stage.value
         if hasattr(cv_result.design_stage, "value")

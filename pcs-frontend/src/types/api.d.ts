@@ -2757,7 +2757,10 @@ export interface paths {
         put?: never;
         /**
          * Calculate Vessel
-         * @description POST /api/v1/vessel/calculate：vessel 尺寸 + 流体力学一次计算。
+         * @description POST /api/v1/vessel/calculate：vessel 尺寸 + 流体力学 + 两相 sizing 一次计算。
+         *
+         *     P6-4 T2：可选 sizing_spec 触发 two_phase_separator_sizing_service（C-08 V1.2
+         *     重写），填充 vessel_results 6 列 sizing；sizing_spec=None 时保持 V1.0 兼容。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
          */
@@ -5965,6 +5968,11 @@ export interface components {
          * @description 调节阀 Cv 计算响应（POST /api/v1/cv/calculate 201）。
          *
          *     回填 CvResult 主键 + 关键结果字段 + outlet stream 锚点。
+         *
+         *     P6-4 Task 5（C-24 Masonelian fl）：V1.2 D3 严格 — fl / flash_steam_rate_kg_s
+         *     走 JSONB 容器（output_json），masonelian_model 走 ORM 列。响应层 3 字段全部
+         *     Optional（默认 None），保持 V1.0 兼容：仅 LIQUID 路径填充；GAS/VAPOR 路径
+         *     闪蒸修正无强物理意义，保持 None。
          */
         CvCalculateResponse: {
             /**
@@ -6015,6 +6023,21 @@ export interface components {
              * @description 简化法噪音估算 dB（IEC 60534-8-3）
              */
             noise_sil_db?: number | null;
+            /**
+             * Fl
+             * @description Masonelian fl 修正系数（无量纲；SPEC §3.2.1.5 Eq.5；LIQUID 路径填充）
+             */
+            fl?: number | null;
+            /**
+             * Flash Steam Rate Kg S
+             * @description 闪蒸蒸汽量估算 kg/s（强公式；LIQUID 路径填充；GAS/VAPOR 保持 None）
+             */
+            flash_steam_rate_kg_s?: number | null;
+            /**
+             * Masonelian Model
+             * @description Masonelian fl 模型口径：MASONELIAN_1973（默认）/ CHAPMAN_JANS / TONG
+             */
+            masonelian_model?: string | null;
             /**
              * Standard Profile Code
              * @description 执行标准 profile code（C-07：默认 IEC_60534）
@@ -11417,6 +11440,135 @@ export interface components {
             K_factor_ms: number;
         };
         /**
+         * SizingSpecSchema
+         * @description 两相分离器尺寸输入（对应 TwoPhaseSeparatorSizingInput）。
+         *
+         *     可选字段（None = V1.0 兼容，不触发 sizing 计算）。
+         *     P6-4 T2 C-08 V1.2 重写：5 段计算（Souders-Brown + CSA + 喷嘴 + 仪表 + 停留时间）。
+         */
+        SizingSpecSchema: {
+            /**
+             * Vessel Shape
+             * @description 容器方位：VERTICAL 立式 / HORIZONTAL 卧式 / SPHERICAL 球罐
+             */
+            vessel_shape: string;
+            /**
+             * Diameter M
+             * @description 容器内径 m
+             */
+            diameter_m: number;
+            /**
+             * Length M
+             * @description 切线长 m（立式=高度；卧式=切线；球罐=0）
+             * @default 0
+             */
+            length_m: number;
+            /**
+             * Head Type
+             * @description 封头类型：HEMISPHERICAL 半球 / 2:1_ELLIPTICAL 2:1椭圆 / TORISPHERICAL 碟形 / FLAT 平封头
+             */
+            head_type: string;
+            /**
+             * Operating Pressure Kpa
+             * @description 操作压力 kPa(gauge)
+             */
+            operating_pressure_kpa: number;
+            /**
+             * Operating Temperature C
+             * @description 操作温度 °C
+             */
+            operating_temperature_c: number;
+            /**
+             * Oil Mass Rate Kg D
+             * @description 油质量流量 kg/d
+             */
+            oil_mass_rate_kg_d: number;
+            /**
+             * Water Mass Rate Kg D
+             * @description 水质量流量 kg/d
+             * @default 0
+             */
+            water_mass_rate_kg_d: number;
+            /**
+             * Gas Mass Rate Kg D
+             * @description 气质量流量 kg/d
+             */
+            gas_mass_rate_kg_d: number;
+            /**
+             * Oil Density Kg M3
+             * @description 油密度 kg/m³
+             */
+            oil_density_kg_m3: number;
+            /**
+             * Water Density Kg M3
+             * @description 水密度 kg/m³
+             */
+            water_density_kg_m3: number;
+            /**
+             * Gas Density Kg M3
+             * @description 气密度 kg/m³
+             */
+            gas_density_kg_m3: number;
+            /**
+             * Oil Sg
+             * @description 油比重 SG（= oil_density/999.0）
+             */
+            oil_sg: number;
+            /**
+             * Water Sg
+             * @description 水比重 SG（= water_density/999.0）
+             */
+            water_sg: number;
+            /**
+             * Gas Sg
+             * @description 气比重 SG（= gas_density/1.225）
+             */
+            gas_sg: number;
+            /**
+             * Gas Mw Kg Kmol
+             * @description 气分子量 kg/kmol
+             */
+            gas_mw_kg_kmol: number;
+            /**
+             * K Factor
+             * @description Souders-Brown K 因子 m/s
+             */
+            k_factor: number;
+            /**
+             * Nozzle Inlet Momentum Limit Kg M S2
+             * @description 入口喷嘴动量限值 kg·m/s²
+             */
+            nozzle_inlet_momentum_limit_kg_m_s2: number;
+            /**
+             * Nozzle Outlet Momentum Limit Kg M S2
+             * @description 出口喷嘴动量限值 kg·m/s²
+             */
+            nozzle_outlet_momentum_limit_kg_m_s2: number;
+            /**
+             * Instrument Response Time S
+             * @description 仪表响应时间 t_c s
+             */
+            instrument_response_time_s: number;
+            /**
+             * Design Pressure Mpa
+             * @description 设计压力 MPa
+             * @default 1
+             */
+            design_pressure_mpa: number;
+            /**
+             * N Vessels
+             * @description 并联容器数
+             * @default 1
+             */
+            n_vessels: number;
+            /**
+             * Imperial Units
+             * @description 是否输出英制转换字段
+             * @default false
+             */
+            imperial_units: boolean;
+        };
+        /**
          * SolverConfigReq
          * @description 求解配置（可选；缺省 SolverConfig 默认值）。
          */
@@ -13557,6 +13709,8 @@ export interface components {
             sizing: components["schemas"]["SizingInputSchema"];
             /** @description vessel 流体力学校核输入 */
             hydraulics: components["schemas"]["HydraulicsInputSchema"];
+            /** @description P6-4 T2 两相分离器尺寸（C-08 V1.2）；None = V1.0 兼容不计算 */
+            sizing_spec?: components["schemas"]["SizingSpecSchema"] | null;
         };
         /**
          * CalculateResponse
@@ -13593,7 +13747,7 @@ export interface components {
             lineage_ids?: string[];
             /**
              * Result
-             * @description 合并 sizing + hydraulics 结果
+             * @description 合并 sizing + hydraulics + sizing_spec 结果
              */
             result?: {
                 [key: string]: unknown;
