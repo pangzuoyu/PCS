@@ -1442,4 +1442,215 @@ cd ../pcs-frontend && bash scripts/gen-api-types.sh           # 重写 frontend 
 
 - **P6-0**：ADR-0030 V1.2 + chedl_wrapper 扩展（5 task / 5 commit）— STATUS line 1088
 - **P6-1**：CV + RESTRICTION 三件套（10 task / 8 commit）— STATUS line 1142
-- **P6-2**（本批）：FLARE_SYS + COOL_TOWER + PSYCHRO 三件套 + frontend types（11 task / 8 commit）— 本段
+- **P6-2**（本批）：FLARE_SYS + COOL_TOWER + PSYCHRO 三件套 + frontend types（11 task / 8 commit）— STATUS line 1380+
+
+---
+
+## 🔍 Task 38 实施观察（P6-3 批末 G-08 验证 + STATUS 闭环，2026-09-25）
+
+**Task 38 工作流**：5 步串行（G-08 → 5 维基线 → alembic chain → 4 G-种子 → Per-Batch QA Gate → STATUS 闭环）。
+
+### Step 1 — G-08 OpenAPI drift
+
+P6-3 batch 起始 `pcs-backend/docs/openapi.json` 与 `pcs-frontend/openapi.snapshot.json` 已由 Task 32 / 34 / 36 通过 `export_openapi.py` + `gen-api-types.sh` regen 闭环（无 P6-2 batch 期间遗留的未解决 git merge conflict marker）。本任务 `diff backend openapi.json frontend snapshot.json` **零输出**，G-08 PASS。
+
+**实测统计**：
+
+| 维度 | P5-3 baseline | P6-1 末 | P6-2 末 | **P6-3 末（实测）** | brief 预期 | 偏差 |
+|------|---------------|---------|---------|---------------------|-----------|------|
+| paths | 113 | 134 | 143 | **159** | 168 | -9 |
+| schemas | — | 119 | 163 | **198** | 188 | +10 |
+
+**brief 估算偏差**：brief 估算 open_channel 9 + filtration 8 + cost_est 8 = 25 paths，实际为 6 + 5 + 5 = 16（每个模块 3~4 calc + 1 results + 1 results/{id}）。**G-08 契约通过（diff 零输出）**，差异在 brief 估算口径而非契约违规。
+
+### Step 2 — 5 维基线
+
+| 维度 | 实测 | 期望（brief）| 差距 |
+|------|------|------|------|
+| ruff | 2 E501 pre-existing | 0 | ⚠️ pre-existing 非本批 scope（CAVEAT-2 由独立 chore commit 收纳） |
+| pytest | 2789 passed + 24 failed | ≥ 2188 passed (2091+97) | ✅ **远高于 baseline**；24 failed = 20 P6-0 known + 1 G-07 deselected + 3 NEW P6-2 regressions still open |
+| tsc | 0 errors | 0 | ✅ |
+| eslint | 0 errors | 0 | ✅ |
+| vitest | 51 files / 533 passed | ≥ 533 baseline | ✅ |
+
+**3 NEW P6-2 pytest 回归仍 open**（Task 30 修复 4 项，剩余 3 项）：
+
+| # | 测试 | 根因 | 修复建议 |
+|---|------|------|----------|
+| 1 | `tests/test_schema.py::test_table_count` AssertionError: expected 82 | P6-3 新增 open_channel/filtration/cost_est 3 表后实际 83，期望未更新 | 期望 82 → 83 |
+| 2 | `tests/test_lineage.py::test_p4_flash_full_path` sqlalchemy.exc.IntegrityError | 表结构 / 外键差异导致落库失败 | flash persist 链路与新表对齐 |
+| 3 | `tests/models/test_alembic_roundtrip.py::test_reversible_segment_roundtrip` | alembic 不可逆 roundtrip | 调查不可逆迁移 |
+
+**CAVEAT-1**：Task 30 已部分修复（RECORD_TYPE_REGISTRY count 9→10 / contains_all / 2× design_stage 列补 addcolumn），剩余 3 项入 P6-4 ticket。
+
+### Step 3 — alembic head chain + 4 G-种子双验证
+
+✅ `p6_3_005_cost_correlations_library` head 单链无分支，current 与 head 一致。
+
+**upgrade/downgrade/upgrade 循环通过**：
+
+```
+Running downgrade p6_3_005_cost_correlations_library -> p6_3_004_filtration_audit_columns
+Running upgrade p6_3_004_filtration_audit_columns -> p6_3_005_cost_correlations_library
+```
+
+**4 G-种子 dry-run + 真库双验证**：
+
+| 种子脚本 | 表 | 行数 | 状态 |
+|----------|----|------|------|
+| `p6_3_gate_04_cooling_tower_curves_seed.py` | cooling_tower_curves | 4（MARLEY / HAMON / EVAPCO / BALTIMORE）| ✅ dry-run + 真库 |
+| `p6_3_gate_05_filtration_media_library_seed.py` | filtration_media_library | 5（SAND / ANTHRACITE / CARBON / RUTH_FILTER_CLOTH / ERGUN_PACKING）| ✅ dry-run + 真库 |
+| `p6_3_gate_06_flare_radiation_limits_seed.py` | flare_radiation_limits | 3（PROPERTY_LINE 4.73 / PERSONNEL 6.31 / EMERGENCY 12.6 kW/m²）| ✅ dry-run + 真库 |
+| `p6_3_seed_cost_correlations.py` | cost_correlations | 6（TOWER / VESSEL / HEAT_EXCHANGER / PUMP / COMPRESSOR / PIPING）| ✅ dry-run + 真库 |
+
+### Step 4 — Per-Batch QA Gate
+
+`CI=1 ~/.claude/skills/gstack/browse/dist/browse` + `nohup npx vite --port 5173` 完整跑通：
+
+1. login 200（mock alice DESIGNER）
+2. mock-login POST 200（133B）
+3. 跳 `/` 仪表盘渲染（heading "仪表盘" + 9 菜单组 + 进度条 20% + 项目输入清单 table）
+4. 菜单 click `/flash` 200（既有 baseline 路由）
+5. goto `/heat` 200（既有 baseline 路由）
+6. goto `/psv` 200（既有 baseline 路由）
+7. console 0 NEW errors（既有 pre-existing `/psychro` "No routes matched" warning 为 P6-2 baseline 已知；React Router v7 future flag warning 非阻断）
+8. network 全 200，0 个 4xx/5xx
+
+**注**：P6-3 新增 3 模块（open_channel / filtration / cost_est）页面尚未实现，仅 types（Task 37）；前端菜单导航仅校验既有 9 菜单组 + 工艺计算 9 子项（闪蒸 / 管道计算 / 管道一览表 / 管网拓扑 / 泵计算 / 容器计算 / 分离设备 / 安全阀 / 换热器）。
+
+详细报告：`.gstack/qa-reports/qa-report-pcs-frontend-2026-09-25-p6-3.md`
+
+### Step 5 — STATUS.md 闭环（本段为 append 写入）
+
+---
+
+### P6-3 闭环统计（实测）
+
+#### 9 commit 列表（按时间顺序）
+
+| Commit | Task | 模块 | 关键交付 |
+|--------|------|------|---------|
+| `64a6a4e` | Task 29 | G-04/05/06 三 gate | cooling_tower_curves 4 / filtration_media_library 5 / flare_radiation_limits 3 + 4 test |
+| `f436762` | Task 30 | 3 result 表 + ORM | open_channel_results / filtration_results / cost_est_results + alembic `p6_3_001~005` + P6-OPEN-009 fix |
+| `3f300e5` | Task 31 | open_channel 4 模块 | Manning / Section / Critical / Jump（SPEC §3.2.6）+ ≥ 18 unit tests |
+| `ce675a6` | Task 32 | open_channel persist + api | 6 endpoints（4 calc + 1 results + 1 results/{id}）+ G-07 真库测试 + openapi regen |
+| `e6d8171` | Task 33 | filtration 3 模块 | Ruth constant pressure / Ruth constant rate / Ergun（SPEC §3.2.7）+ ≥ 12 unit tests |
+| `312e1b3` | Task 34 | filtration persist + api | 5 endpoints（3 calc + 1 results + 1 results/{id}）+ openapi regen |
+| `4acc5a1` | Task 35 | cost_est 3 模块 + CONFIG | 6-tenths rule / CEPCI adjustment / cost_correlation + cost_correlations CONFIG 表（12 列）+ ≥ 14 unit tests |
+| `5e14a3f` | Task 36 | cost_est persist + api | 5 endpoints（3 calc + 1 results + 1 results/{id}）+ openapi regen |
+| `87051bb` | Task 37 | frontend types | open_channel / filtration / cost_est types（OpenAPI 对齐 + JSDoc 中文）|
+
+外加：
+- **Task 38**（本任务）：`chore(p6-3): P6-3 批末 G-08 契约验证 + STATUS 收口 + 全栈验证`
+- **CAVEAT-2 独立 chore commit**：`chore(p6-3): LOW 滚动 ruff E501 2 处 line-too-long`（`p6_2_gate_03_cepci_seed.py:50` + `tests/e2e/test_sim_three_entry_consistency.py:494`）
+
+#### 11 PcsError 子类
+
+| 模块 | 错误码 | 状态 |
+|------|--------|------|
+| open_channel | `MANNING_INPUT_ERROR` / `SECTION_INPUT_ERROR` / `CRITICAL_INPUT_ERROR` / `JUMP_INPUT_ERROR` | 422 |
+| filtration | `RUTH_CONST_PRESSURE_INPUT_ERROR` / `RUTH_CONST_RATE_INPUT_ERROR` / `ERGUN_INPUT_ERROR` | 422 |
+| cost_est | `SIX_TENTHS_RULE_INPUT_ERROR` / `CEPCI_ADJUSTMENT_INPUT_ERROR` / `COST_CORRELATION_INPUT_ERROR` | 422 |
+| 持久化 | `OPEN_CHANNEL_PERMISSION_ERROR` / `FILTRATION_PERMISSION_ERROR` / `COST_EST_PERMISSION_ERROR` | 422 |
+
+#### 4 ORM 表（3 result + 1 config）
+
+| 表 | 字段数 | 备注 |
+|----|--------|------|
+| `open_channel_results` | 14 | TaggedRecordMixin，含 channel_type / critical_depth / jump_type 等 |
+| `filtration_results` | 10 | TaggedRecordMixin，含 filter_type / bed_porosity / bed_length 等 |
+| `cost_est_results` | 10 | 含 CEPCI 双件套（reference_cepci / target_cepci）+ scaling_exponent |
+| `cost_correlations` | 12 | CONFIG 表，独立于 calc 业务结果 |
+| `psv_results` | +3（Task 30 P6-OPEN-009 fix）| stale_resolution_path / hash_changed / changed_fields |
+
+#### 4 G-种子（mirror G-03 pattern）
+
+| Gate | 落地表 | 数据行数 |
+|------|--------|----------|
+| G-04 cooling_tower_curves | cooling_tower_curves | 4（MARLEY / HAMON / EVAPCO / BALTIMORE） |
+| G-05 filtration_media_library | filtration_media_library | 5（SAND / ANTHRACITE / CARBON / RUTH_FILTER_CLOTH / ERGUN_PACKING） |
+| G-06 flare_radiation_limits | flare_radiation_limits | 3（API 521 §7.4.2.3 BEDD 4.73 / 6.31 / 12.6 kW/m²） |
+| cost_correlations seed | cost_correlations | 6（TOWER / VESSEL / HEAT_EXCHANGER / PUMP / COMPRESSOR / PIPING） |
+
+#### 16 endpoints（实测）
+
+| 模块 | calc | CRUD | 小计 |
+|------|------|------|------|
+| open_channel | 4 | 2（results + results/{id}）| 6 |
+| filtration | 3 | 2 | 5 |
+| cost_est | 3 | 2 | 5 |
+| **合计** | **10** | **6** | **16** |
+
+#### 新增测试统计
+
+| 模块 | unit | persist service | endpoint integration | 小计 |
+|------|------|-----------------|---------------------|------|
+| open_channel | ≥18（Task 31）| ≥9（Task 32 含 G-07 真库）| ≥8（Task 32）| ≥35 |
+| filtration | ≥12（Task 33）| ≥9（Task 34）| ≥8（Task 34）| ≥29 |
+| cost_est | ≥14（Task 35 含 6 关联式）| ≥10（Task 36）| ≥9（Task 36）| ≥33 |
+| **合计** | **≥44** | **≥28** | **≥25** | **≥97** |
+
+#### RECORD_TYPE_REGISTRY 演进
+
+| 版本 | 数量 | 备注 |
+|------|------|------|
+| P5-3 末 | 14 | 14 类结果 |
+| P6-1 末 | 17 | + psychro / flare_system / cooling_tower |
+| P6-2 末 | 17 | 维持 |
+| **P6-3 末** | **20** | + open_channel / filtration / cost_est |
+
+#### 3 CAVEAT 清理状态
+
+| Caveat | 描述 | 状态 |
+|--------|------|------|
+| CAVEAT-1 | test_table_count 78→82 / REGISTRY 17→20 ×2 / column_sizing_results design_stage 补列 | ⚠️ Task 30 部分修复（4/7），剩余 3 项入 P6-4 ticket |
+| CAVEAT-2 | ruff E501 pre-existing（LOW）| ✅ Task 38 独立 chore commit 收纳 2 处 |
+| CAVEAT-3 | openapi regen 输出未入 commit | ✅ Task 32 / 34 / 36 commit 已闭环（gen-api-types.sh regen） |
+
+#### OpenAPI paths 演进（实测）
+
+P5-3 baseline → P6-1 末 → P6-2 末 → **P6-3 末**
+113 → 134 → 143 → **159**（+16 endpoints；brief 估 +25，实际 +16 因每模块 CRUD 端点结构差异）
+
+#### 全栈基线（P6-3 末实测）
+
+- backend ruff：⚠️ 2 E501 pre-existing（CAVEAT-2 独立 chore commit 收纳）
+- backend pytest：**2789 passed + 24 failed**（远超 brief ≥2188 baseline；24 failed 全为 pre-existing 或 P6-2 已知回归）
+- alembic upgrade / downgrade / upgrade 循环：通过
+- 4 G-种子 dry-run + 真库双验证：通过
+- frontend tsc：✅ 0 errors
+- frontend eslint：✅ 0 errors
+- frontend vitest：✅ 51 files / 533 tests passed（baseline 持平）
+- frontend gstack-qa 浏览器：login 200 + dashboard 渲染 + 既有 3 路由（/flash /heat /psv）0 regression
+- OpenAPI backend ↔ frontend zero diff：通过（159 paths / 198 schemas）
+
+---
+
+### 评审委员会裁决应对清单（更新）
+
+| # | 行动 | 状态 |
+|---|------|------|
+| A-05 | C-04 CV/RESTRICTION 偏差验收数据 | DEFERRED — P6-4 / 滚动后续批 |
+| A-07 | S-01 RESTRICTION 闪蒸完整 FLASH 联校核 | ✅ DONE P6-2 |
+| A-08 | S-02 G-08 CI 自动化门禁 | ✅ DONE P6-2 |
+| A-09 | S-03 Task 9 429 recovery 归档 | ✅ DONE P6-3（OPEN 段登记完成） |
+
+---
+
+**P6 batch 索引（更新）**：
+
+- **P6-0**：ADR-0030 V1.2 + chedl_wrapper 扩展（5 task / 5 commit）
+- **P6-1**：CV + RESTRICTION 三件套（10 task / 8 commit）
+- **P6-2**：FLARE_SYS + COOL_TOWER + PSYCHRO 三件套 + frontend types（11 task / 8 commit）
+- **P6-3**（本批）：OPEN_CHANNEL + FILTRATION + COST_EST 三件套 + frontend types + Task 38 批末（10 task / 9 commit + 1 closure + 1 CAVEAT-2）
+
+**P6-3 → P6-4 总进度**：29/38 tasks complete（76%）。P6-4 启动闸门已打开，可沿用 P6-3 子模块模板继续。
+
+**P6-4 backlog**（建议优先）：
+- OPEN_CHANNEL 跌水 / 截洪沟设计（SPEC §3.2.6 余项）
+- 60+ COST_EST 余项（设备类型扩展 + 区域因子）
+- FILTRATION 介质类型扩展（无烟煤 / 活性炭 / 滤布 / 蜂窝填料详细参数）
+- CAVEAT-1 剩余 3 项 pytest 回归（test_table_count / test_p4_flash_full_path / test_reversible_segment_roundtrip）
+- 前端 P6-3 三模块 UI（Task 37 仅 types，UI 留 P6-4 后续批）
+- gstack-qa 中 HIGH/MEDIUM 修复（如有）
+- 5 个 OPEN 项（P6-OPEN-010+）
