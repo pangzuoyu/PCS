@@ -1,0 +1,56 @@
+{
+  "_meta": {
+    "description": "闪蒸蒸汽量黄金 fixture（P6-4 Task 5 / C-24 / SPEC §3.2.1.5 强公式）。",
+    "version": "1.0",
+    "date": "2026-09-25",
+    "source": "SPEC §3.2.1.5 工程近似（强公式 + 工程经验 0.05 钳制）",
+    "tolerance": "rel=1e-4（强公式；brief D5 <0.1%）"
+  },
+  "cases": [
+    {
+      "Q_m3h": 100.0,
+      "SG": 1.0,
+      "P1_pa": 500000.0,
+      "P2_pa": 300000.0,
+      "Pv_pa": 2000.0,
+      "description": "typical water 100m3/h dP=2bar",
+      "expected_flash_rate_kg_s": 0.5577867023650156
+    },
+    {
+      "Q_m3h": 50.0,
+      "SG": 1.0,
+      "P1_pa": 1000000.0,
+      "P2_pa": 500000.0,
+      "Pv_pa": 5000.0,
+      "description": "high pressure 50m3/h",
+      "expected_flash_rate_kg_s": 0.34896705750977103
+    },
+    {
+      "Q_m3h": 200.0,
+      "SG": 0.85,
+      "P1_pa": 800000.0,
+      "P2_pa": 500000.0,
+      "Pv_pa": 3000.0,
+      "description": "oil-like 200m3/h",
+      "expected_flash_rate_kg_s": 0.8887494772061898
+    },
+    {
+      "Q_m3h": 100.0,
+      "SG": 1.0,
+      "P1_pa": 500000.0,
+      "P2_pa": 500000.0,
+      "Pv_pa": 2000.0,
+      "description": "P2==P1 boundary (no drop)",
+      "expected_flash_rate_kg_s": 0.0
+    },
+    {
+      "Q_m3h": 100.0,
+      "SG": 1.0,
+      "P1_pa": 500000.0,
+      "P2_pa": 100000.0,
+      "Pv_pa": 500000.0,
+      "description": "Pv==P1 (full vaporization)",
+      "expected_flash_rate_kg_s": 27.77777777777778
+    }
+  ]
+}
