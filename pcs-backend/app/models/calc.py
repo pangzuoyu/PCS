@@ -405,6 +405,9 @@ class VesselResult(TaggedRecordMixin, Base):
 
     业务：立式/卧式容器直径+长度+壁厚+封头类型+风载/地震载荷；
     input_json/output_json 双容器，含 TEMA 类型（仅换热器容器相关）。
+
+    P6-4 T2 sizing 6 列（C-08 V1.2 重写）：vmax / csa / nozzle / control /
+    residence_time。nullable（不破坏 V1.0 既有 sizing 行）。
     """
 
     __tablename__ = "vessel_results"
@@ -417,6 +420,25 @@ class VesselResult(TaggedRecordMixin, Base):
         nullable=False,
         default=DesignStage.BASIC,
         comment="设计阶段 BASIC/DETAIL（OPEN-009）",
+    )
+    # P6-4 T2 C-08 两相分离器尺寸 6 列（V1.2；nullable 兼容 V1.0 既有行）
+    vmax_m_s: Mapped[float | None] = mapped_column(
+        Float, comment="Souders-Brown Vmax = K × √((ρL − ρV) / ρV) [WS-CA-PR-010 §4.2]",
+    )
+    csa_min_m2: Mapped[float | None] = mapped_column(
+        Float, comment="最小所需气相 CSA = Q_gas / (Vmax × 0.85) [WS-CA-PR-010 §4.3]",
+    )
+    csa_actual_m2: Mapped[float | None] = mapped_column(
+        Float, comment="实际气相 CSA = π·D²/4 [WS-CA-PR-010 §4.3]",
+    )
+    nozzle_min_id_m: Mapped[float | None] = mapped_column(
+        Float, comment="入口喷嘴最小内径 = √(4m²/(π·N·ρ_mix)) [WS-CA-PR-010 §5.1]",
+    )
+    control_height_m: Mapped[float | None] = mapped_column(
+        Float, comment="仪表控制高度 H_c = t_c × Q / (3600·CSA) [WS-CA-PR-010 §5.3]",
+    )
+    residence_time_s: Mapped[float | None] = mapped_column(
+        Float, comment="实际停留时间 V_total / Q_per_vessel_m3_s [WS-CA-PR-010 §5]",
     )
 
 
