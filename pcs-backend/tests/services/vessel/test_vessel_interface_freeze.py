@@ -15,6 +15,7 @@ calc_partial_volume / calc_wetted_area / mass_iteration_loop 三个公共函数
 from __future__ import annotations
 
 import inspect
+import math
 
 from app.services.vessel.vessel_service import (
     MassIterationInput,
@@ -124,14 +125,61 @@ def test_freeze_mass_iteration_loop_signature():
 
 
 def test_freeze_partial_volume_input_fields():
-    """PartialVolumeInput 字段冻结（5 字段：含 n_vessels 默认 1）。"""
+    """PartialVolumeInput 字段冻结（8 字段：5 必填 + 3 Optional 预留 + n_vessels 默认 1）。"""
     from dataclasses import fields
 
     field_names = {f.name for f in fields(PartialVolumeInput)}
-    assert field_names == {"D_m", "L_m", "head_type", "H_m", "n_vessels"}
-    # n_vessels 默认 1（其余必填）
+    assert field_names == {"D_m", "L_m", "head_type", "H_m", "H1_m", "H2_m", "H3_m", "n_vessels"}
+    # n_vessels 默认 1；H1_m/H2_m/H3_m 默认 None（预留多段液位语义；当前未使用）
     n_vessels_field = next(f for f in fields(PartialVolumeInput) if f.name == "n_vessels")
     assert n_vessels_field.default == 1
+    for reserved in ("H1_m", "H2_m", "H3_m"):
+        f = next(fld for fld in fields(PartialVolumeInput) if fld.name == reserved)
+        assert f.default is None, f"{reserved} default must be None (reserved field)"
+
+
+def test_freeze_partial_volume_optional_levels():
+    """PartialVolumeInput H1_m/H2_m/H3_m Optional 默认 None 接受 + 单段语义兼容。
+
+    预留字段默认 None 时 calc_partial_volume 行为与 T3 既有调用等价（多段语义
+    通过 ADR-0041 扩展；当前实现走 H_m 单段路径）。
+    """
+    # 1. 默认 None 构造 = 与无 Optional 字段的调用等价
+    inp_default = PartialVolumeInput(D_m=1.0, L_m=3.0, head_type="HEMISPHERICAL", H_m=1.5)
+    assert inp_default.H1_m is None
+    assert inp_default.H2_m is None
+    assert inp_default.H3_m is None
+
+    # 2. 显式 None 等价于默认
+    inp_explicit = PartialVolumeInput(
+        D_m=1.0, L_m=3.0, head_type="HEMISPHERICAL", H_m=1.5,
+        H1_m=None, H2_m=None, H3_m=None,
+    )
+    assert inp_explicit.H1_m == inp_default.H1_m
+    assert inp_explicit.H2_m == inp_default.H2_m
+    assert inp_explicit.H3_m == inp_default.H3_m
+
+    # 3. calc_partial_volume 接受 None Optional 字段（frozen dataclass 不变）
+    result = calc_partial_volume(inp_default)
+    assert result.partial_volume_m3 > 0.0
+    assert result.total_volume_m3 > result.partial_volume_m3
+
+    # 4. 显式 float 值可接受（forward-compat：未来多段语义扩展）
+    inp_with_h = PartialVolumeInput(
+        D_m=1.0, L_m=3.0, head_type="HEMISPHERICAL", H_m=1.5,
+        H1_m=0.5, H2_m=1.0, H3_m=2.0,
+    )
+    assert inp_with_h.H1_m == 0.5
+    assert inp_with_h.H2_m == 1.0
+    assert inp_with_h.H3_m == 2.0
+    # 当前实现忽略 H1/H2/H3（单段语义），结果应与 inp_default 一致
+    result_with_h = calc_partial_volume(inp_with_h)
+    assert math.isclose(
+        result_with_h.partial_volume_m3, result.partial_volume_m3, rel_tol=1e-12,
+    ), (
+        f"H1/H2/H3 当前为预留字段，结果不应受其影响: "
+        f"{result_with_h.partial_volume_m3} vs {result.partial_volume_m3}"
+    )
 
 
 def test_freeze_wetted_area_input_fields():

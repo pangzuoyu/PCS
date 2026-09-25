@@ -509,6 +509,9 @@ class PartialVolumeInput:
     L_m: float
     head_type: HeadType
     H_m: float
+    H1_m: float | None = None
+    H2_m: float | None = None
+    H3_m: float | None = None
     n_vessels: int = 1
 
 
