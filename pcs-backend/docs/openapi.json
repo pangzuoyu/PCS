@@ -11808,6 +11808,66 @@
         }
       }
     },
+    "/api/v1/common/heating-value/calculate": {
+      "post": {
+        "tags": [
+          "common"
+        ],
+        "summary": "Calculate Heating Value",
+        "description": "计算混合气体热值 + 烟气组成（C-06 / spec §3.2.3.6）。\n\n业务：GPSA FIG. 23-2 + API 5B6 公式法，按 mol 分数加权计算 HHV / LHV /\n化学计量空气 / 烟气组成；纯函数无 DB 写入（CONFIG 表 ``compound_heating_values``\n由 seed 脚本单独录入；service 层直接读取硬编码 dict + 5 min TTL cache）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN（与本 router 其他端点同源）。",
+        "operationId": "calculate_heating_value_api_v1_common_heating_value_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/HeatingValueCalcRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HeatingValueCalcResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project_id}/imports/proii/preview": {
       "post": {
         "tags": [
@@ -18528,6 +18588,109 @@
         ],
         "title": "HeatResultResponse",
         "description": "GET /heat/{heat_id} 响应。"
+      },
+      "HeatingValueCalcRequest": {
+        "properties": {
+          "compositions": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "minItems": 1,
+            "title": "Compositions",
+            "description": "组分列表；每项含 cas (CAS 注册号) + mol_frac (摩尔分数)"
+          },
+          "excess_air_pct": {
+            "type": "number",
+            "maximum": 1000.0,
+            "minimum": 0.0,
+            "title": "Excess Air Pct",
+            "description": "过量空气百分比（0 = 化学计量；默认 0.0）",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "compositions"
+        ],
+        "title": "HeatingValueCalcRequest",
+        "description": "气体热值计算请求体（C-06 / spec §3.2.3.6）。\n\n业务：\n\n- ``compositions`` 为 ``[{\"cas\": str, \"mol_frac\": float}, ...]``，\n  至少 1 项；不要求和为 1（service 层自动归一化）。\n- ``excess_air_pct`` 过量空气百分比（默认 0 = 化学计量空气；\n  0~1000 范围内有效）。"
+      },
+      "HeatingValueCalcResponse": {
+        "properties": {
+          "feed_mw_kg_per_kmol": {
+            "type": "number",
+            "title": "Feed Mw Kg Per Kmol",
+            "description": "进料平均分子量（kg/kmol；g/mol 数值相同）"
+          },
+          "hhv_mj_per_sm3": {
+            "type": "number",
+            "title": "Hhv Mj Per Sm3",
+            "description": "高位热值（MJ/sm³；60°F 14.696 psia 标准条件）"
+          },
+          "hhv_btu_per_scf": {
+            "type": "number",
+            "title": "Hhv Btu Per Scf",
+            "description": "高位热值（BTU/SCF；与 sm³ 同基准条件）"
+          },
+          "lhv_mj_per_sm3": {
+            "type": "number",
+            "title": "Lhv Mj Per Sm3",
+            "description": "低位热值（MJ/sm³；gaseous H2O 生成条件）"
+          },
+          "lhv_btu_per_scf": {
+            "type": "number",
+            "title": "Lhv Btu Per Scf",
+            "description": "低位热值（BTU/SCF；gaseous H2O 生成条件）"
+          },
+          "stoichiometric_air_sm3_per_sm3": {
+            "type": "number",
+            "title": "Stoichiometric Air Sm3 Per Sm3",
+            "description": "化学计量空气体积（sm³ 空气 / sm³ 燃料）"
+          },
+          "flue_gas_sm3_per_sm3": {
+            "type": "number",
+            "title": "Flue Gas Sm3 Per Sm3",
+            "description": "完全燃烧烟气体积（sm³ 烟气 / sm³ 燃料）"
+          },
+          "flue_gas_composition": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Flue Gas Composition",
+            "description": "烟气体积分数 dict（CO2 / H2O / SO2 / N2 / O2；归一化和=1）"
+          },
+          "flue_gas_mw_kg_per_kmol": {
+            "type": "number",
+            "title": "Flue Gas Mw Kg Per Kmol",
+            "description": "烟气平均分子量（kg/kmol）"
+          },
+          "formula_ref": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Formula Ref",
+            "description": "CAS → 数据来源标记；GPSA_23-2 / API_5B6 / MENDELEEV_FALLBACK"
+          }
+        },
+        "type": "object",
+        "required": [
+          "feed_mw_kg_per_kmol",
+          "hhv_mj_per_sm3",
+          "hhv_btu_per_scf",
+          "lhv_mj_per_sm3",
+          "lhv_btu_per_scf",
+          "stoichiometric_air_sm3_per_sm3",
+          "flue_gas_sm3_per_sm3",
+          "flue_gas_composition",
+          "flue_gas_mw_kg_per_kmol",
+          "formula_ref"
+        ],
+        "title": "HeatingValueCalcResponse",
+        "description": "气体热值计算响应（C-06 / spec §3.2.3.6）。\n\n业务（GPSA FIG. 23-2 + API 5B6 公式法）：\n\n- ``feed_mw_kg_per_kmol`` 进料平均分子量（kg/kmol）；\n- ``hhv_mj_per_sm3`` 高位热值（MJ/sm³，60°F 14.696 psia 标准条件）；\n- ``hhv_btu_per_scf`` 高位热值（BTU/SCF，与 sm³ 同基准条件）；\n- ``lhv_mj_per_sm3`` / ``lhv_btu_per_scf`` 同上 LHV 版；\n- ``stoichiometric_air_sm3_per_sm3`` 化学计量空气（sm³ 空气 / sm³ 燃料）；\n- ``flue_gas_sm3_per_sm3`` 完全燃烧烟气（sm³ 烟气 / sm³ 燃料）；\n- ``flue_gas_composition`` 烟气体积分数 dict（CO2 / H2O / SO2 / N2 / O2）；\n- ``flue_gas_mw_kg_per_kmol`` 烟气平均分子量；\n- ``formula_ref`` CAS → 数据来源标记（GPSA FIG. 23-2 / API 5B6 / MENDELEEV_FALLBACK）。"
       },
       "HumidityRatioRequest": {
         "properties": {

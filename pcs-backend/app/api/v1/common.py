@@ -1,16 +1,18 @@
 """COMMON 物性 / 许用应力 / 介质安全 端点（P3.3 / spec §3.2.3 + §3.1.2）。
 
 端点：
-- GET /api/v1/common/materials/search      物质搜索（按名称/CAS/分子式）
-- GET /api/v1/common/materials/{cas}       物质完整物性
-- GET /api/v1/common/allowable-stress      材料许用应力（ASME B31.3 Table A-1 插值）
-- GET /api/v1/common/safety                介质安全（毒性 + 爆炸极限）
+- GET  /api/v1/common/materials/search           物质搜索（按名称/CAS/分子式）
+- GET  /api/v1/common/materials/{cas}            物质完整物性
+- GET  /api/v1/common/allowable-stress           材料许用应力（ASME B31.3 Table A-1 插值）
+- GET  /api/v1/common/safety                     介质安全（毒性 + 爆炸极限）
+- POST /api/v1/common/heating-value/calculate    气体热值计算（C-06 / P6-4）
 
-ACL：读 = DESIGNER + PROCESS_CONTROLLER + SYSTEM_ADMIN。
+ACL：读 / 写 = DESIGNER + PROCESS_CONTROLLER + SYSTEM_ADMIN。
 `current_actor / require_roles / _Actor` 与 config.py 同源。
 """
 from __future__ import annotations
 
+from dataclasses import asdict
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, Query
@@ -19,6 +21,8 @@ from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db  # noqa: F401  预留项目级 DB 注入位
 from app.schemas.common import (
     AllowableStressResult,
+    HeatingValueCalcRequest,
+    HeatingValueCalcResponse,
     MaterialDetail,
     MaterialSearchResult,
     SafetyResult,
@@ -67,3 +71,32 @@ async def get_safety(
     """介质毒性 + 爆炸极限（内置安全库）。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     return CommonService.safety_data(cas)
+
+
+# ---------------------------------------------------------------------------
+# C-06 气体热值计算（P6-4 / spec §3.2.3.6）
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/heating-value/calculate",
+    response_model=HeatingValueCalcResponse,
+)
+async def calculate_heating_value(
+    payload: HeatingValueCalcRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+):
+    """计算混合气体热值 + 烟气组成（C-06 / spec §3.2.3.6）。
+
+    业务：GPSA FIG. 23-2 + API 5B6 公式法，按 mol 分数加权计算 HHV / LHV /
+    化学计量空气 / 烟气组成；纯函数无 DB 写入（CONFIG 表 ``compound_heating_values``
+    由 seed 脚本单独录入；service 层直接读取硬编码 dict + 5 min TTL cache）。
+
+    ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN（与本 router 其他端点同源）。
+    """
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    result = CommonService.calculate_gas_heating_value(
+        payload.compositions,
+        payload.excess_air_pct,
+    )
+    return HeatingValueCalcResponse(**asdict(result))

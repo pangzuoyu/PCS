@@ -4057,6 +4057,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/common/heating-value/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calculate Heating Value
+         * @description 计算混合气体热值 + 烟气组成（C-06 / spec §3.2.3.6）。
+         *
+         *     业务：GPSA FIG. 23-2 + API 5B6 公式法，按 mol 分数加权计算 HHV / LHV /
+         *     化学计量空气 / 烟气组成；纯函数无 DB 写入（CONFIG 表 ``compound_heating_values``
+         *     由 seed 脚本单独录入；service 层直接读取硬编码 dict + 5 min TTL cache）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN（与本 router 其他端点同源）。
+         */
+        post: operations["calculate_heating_value_api_v1_common_heating_value_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}/imports/proii/preview": {
         parameters: {
             query?: never;
@@ -7737,6 +7763,104 @@ export interface components {
              */
             output_json?: {
                 [key: string]: unknown;
+            };
+        };
+        /**
+         * HeatingValueCalcRequest
+         * @description 气体热值计算请求体（C-06 / spec §3.2.3.6）。
+         *
+         *     业务：
+         *
+         *     - ``compositions`` 为 ``[{"cas": str, "mol_frac": float}, ...]``，
+         *       至少 1 项；不要求和为 1（service 层自动归一化）。
+         *     - ``excess_air_pct`` 过量空气百分比（默认 0 = 化学计量空气；
+         *       0~1000 范围内有效）。
+         */
+        HeatingValueCalcRequest: {
+            /**
+             * Compositions
+             * @description 组分列表；每项含 cas (CAS 注册号) + mol_frac (摩尔分数)
+             */
+            compositions: {
+                [key: string]: unknown;
+            }[];
+            /**
+             * Excess Air Pct
+             * @description 过量空气百分比（0 = 化学计量；默认 0.0）
+             * @default 0
+             */
+            excess_air_pct: number;
+        };
+        /**
+         * HeatingValueCalcResponse
+         * @description 气体热值计算响应（C-06 / spec §3.2.3.6）。
+         *
+         *     业务（GPSA FIG. 23-2 + API 5B6 公式法）：
+         *
+         *     - ``feed_mw_kg_per_kmol`` 进料平均分子量（kg/kmol）；
+         *     - ``hhv_mj_per_sm3`` 高位热值（MJ/sm³，60°F 14.696 psia 标准条件）；
+         *     - ``hhv_btu_per_scf`` 高位热值（BTU/SCF，与 sm³ 同基准条件）；
+         *     - ``lhv_mj_per_sm3`` / ``lhv_btu_per_scf`` 同上 LHV 版；
+         *     - ``stoichiometric_air_sm3_per_sm3`` 化学计量空气（sm³ 空气 / sm³ 燃料）；
+         *     - ``flue_gas_sm3_per_sm3`` 完全燃烧烟气（sm³ 烟气 / sm³ 燃料）；
+         *     - ``flue_gas_composition`` 烟气体积分数 dict（CO2 / H2O / SO2 / N2 / O2）；
+         *     - ``flue_gas_mw_kg_per_kmol`` 烟气平均分子量；
+         *     - ``formula_ref`` CAS → 数据来源标记（GPSA FIG. 23-2 / API 5B6 / MENDELEEV_FALLBACK）。
+         */
+        HeatingValueCalcResponse: {
+            /**
+             * Feed Mw Kg Per Kmol
+             * @description 进料平均分子量（kg/kmol；g/mol 数值相同）
+             */
+            feed_mw_kg_per_kmol: number;
+            /**
+             * Hhv Mj Per Sm3
+             * @description 高位热值（MJ/sm³；60°F 14.696 psia 标准条件）
+             */
+            hhv_mj_per_sm3: number;
+            /**
+             * Hhv Btu Per Scf
+             * @description 高位热值（BTU/SCF；与 sm³ 同基准条件）
+             */
+            hhv_btu_per_scf: number;
+            /**
+             * Lhv Mj Per Sm3
+             * @description 低位热值（MJ/sm³；gaseous H2O 生成条件）
+             */
+            lhv_mj_per_sm3: number;
+            /**
+             * Lhv Btu Per Scf
+             * @description 低位热值（BTU/SCF；gaseous H2O 生成条件）
+             */
+            lhv_btu_per_scf: number;
+            /**
+             * Stoichiometric Air Sm3 Per Sm3
+             * @description 化学计量空气体积（sm³ 空气 / sm³ 燃料）
+             */
+            stoichiometric_air_sm3_per_sm3: number;
+            /**
+             * Flue Gas Sm3 Per Sm3
+             * @description 完全燃烧烟气体积（sm³ 烟气 / sm³ 燃料）
+             */
+            flue_gas_sm3_per_sm3: number;
+            /**
+             * Flue Gas Composition
+             * @description 烟气体积分数 dict（CO2 / H2O / SO2 / N2 / O2；归一化和=1）
+             */
+            flue_gas_composition: {
+                [key: string]: number;
+            };
+            /**
+             * Flue Gas Mw Kg Per Kmol
+             * @description 烟气平均分子量（kg/kmol）
+             */
+            flue_gas_mw_kg_per_kmol: number;
+            /**
+             * Formula Ref
+             * @description CAS → 数据来源标记；GPSA_23-2 / API_5B6 / MENDELEEV_FALLBACK
+             */
+            formula_ref: {
+                [key: string]: string;
             };
         };
         /**
@@ -20000,6 +20124,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SafetyResult"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calculate_heating_value_api_v1_common_heating_value_calculate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HeatingValueCalcRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HeatingValueCalcResponse"];
                 };
             };
             /** @description Validation Error */
