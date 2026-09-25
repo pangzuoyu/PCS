@@ -349,8 +349,9 @@ def _compute_level_volume_curve(inp: VesselHydraulicsInput) -> str:
     """液位-容积曲线 JSON。
 
     11 个采样点：h = 0, 0.1D, 0.2D, ..., 1.0D（按封头 + 圆柱几何）。
-    包装层 chedl_wrapper.tank_level_to_volume 在 fluids 1.3.1 缺失时降级自研
-    （V1.9 F-13-5，2:1 椭圆封头 + 圆柱主体分段积分）。
+    P6-4 T3 重构：调 calc_partial_volume（D7 接口冻结的 C-12 公共服务），
+    取代原 chedl_wrapper.tank_level_to_volume 直调。结果与原实现严格一致
+    （h ≤ L 时 V_partial = V_head + V_cyl，分段积分同源）。
 
     Returns:
         JSON 字符串：{"h=0.00": 0.0, "h=0.20": ..., "h=2.00": ...}
@@ -358,7 +359,14 @@ def _compute_level_volume_curve(inp: VesselHydraulicsInput) -> str:
     levels = [inp.D_m * i / 10.0 for i in range(11)]
     curve = {
         f"h={h:.2f}m": round(
-            chedl_wrapper.tank_level_to_volume(D=inp.D_m, h=h, head_type="ellipse"),
+            calc_partial_volume(
+                PartialVolumeInput(
+                    D_m=inp.D_m,
+                    L_m=inp.L_m,
+                    head_type="2:1_ELLIPTICAL",
+                    H_m=h,
+                )
+            ).partial_volume_m3,
             4,
         )
         for h in levels
