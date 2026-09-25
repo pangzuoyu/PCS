@@ -29,7 +29,7 @@
     "mu_V_pa_s": 1.5e-5,
     "sigma_n_m": 0.02,
     "expected_flow_pattern": "INTERMITTENT",
-    "_expected_derivation": "水平 H_L(0)≈0.207；上坡 30°：B(θ)>1 → H_L(θ) > H_L(0)"
+    "_expected_derivation": "水平 H_L(0)≈0.463；上坡 30°：B(θ)>1 → H_L(θ) > H_L(0)"
   },
   "fr_out_of_range_high": {
     "_comment": "高流速 V_m=20 m/s, D=0.05m → Fr=20^2/(9.81·0.05)≈815 → is_beggs_brill_valid=False。",
