@@ -630,6 +630,40 @@ SPEC §12.4 V1.4 修订登记 + SUP-P5-PSV-002 V1.0 待评审状态标注
 
 ---
 
+## ✅ Done (P6-4 SPEC V1.1 5 项 🔴 必做闭环 — 2026-09-25)
+
+**Branch**: `feature/p6-4-batch` @ `364e424`（rebase 后）；BASE `main` @ `5538b9f`
+
+### 5 task 完成 + Final whole-branch reviewer APPROVE
+- T1 C-06 气体热值：5 commits + 10 tests (haiku APPROVE)
+- T2 C-08 两相分离器尺寸：8 commits + 22 tests (sonnet APPROVE)
+- T3 C-12 容器部分体积：4 commits + 17 tests (sonnet APPROVE) + 1 item 2 commit `62e91c3`
+- T5 C-24 Masonelian fl：5 commits + 17 tests (sonnet APPROVE_WITH_NITS, Ruling 13 FL<FF)
+- T4 C-17 显式水含量：4 commits + 28 tests (haiku APPROVE)
+- Phase 3 fix：2 test 修正（commit `917ae0e`）
+- ruff E501 fix：1 commit（commit `364e424`）
+- Co-Authored-By rebase：29/29 commits trailer 完备
+
+### Final reviewer (opus, agentId `a0be3ed75...`)
+- 1st round REQUEST_CHANGES（1 HIGH ruff E501 + 1 MEDIUM Co-Authored-By 漏尾）
+- Fix round R=1：直接处理（无 subagent — 2 mechanical fixes）
+- Post-fix verdict：APPROVE — branch ready to merge ✅
+
+### 硬约束全过
+- D7 ADR-0040 freeze: 签名 + 行为冻结至 2027-03-25；F1-F8 + F2.1 8 字段契约
+- D3 JSONB vs ORM: 仅 masonelian_model 1 列 ORM（p6_4_003 ADD COLUMN count=1）
+- D14 lru_cache maxsize=4096: runtime verified
+- ADR-0030 决策 6 chedl_wrapper: 直调既有函数，零新增 wrapper
+- Module 边界：5 个独立 service 文件，路径不重叠
+- V1.0 污染路径：empty diff（heat/weight_estimate_service.py 未触碰）
+
+### Open follow-ups
+- ADR-0041 Q4 2026：p2/p3/p7/p8/p9/p11 6 路径补 fixture / 单元测试笛卡尔积
+- P6-5+ 工艺工程师接管：真实 Kb 厂商数据 + GPSA 化合物替换 + C-08 Imperial 单位对账
+- 23 pre-existing pytest 失败（CAVEAT-3 / bug-099~101）：parked，非 P6-4 责任
+
+---
+
 ## 🚀 Next quest
 
 **Goal:** P6-2 主批启动（FLARE_SYS + COOL_TOWER + PSYCHRO 三件套 ~21 task）
@@ -1654,3 +1688,62 @@ P5-3 baseline → P6-1 末 → P6-2 末 → **P6-3 末**
 - 前端 P6-3 三模块 UI（Task 37 仅 types，UI 留 P6-4 后续批）
 - gstack-qa 中 HIGH/MEDIUM 修复（如有）
 - 5 个 OPEN 项（P6-OPEN-010+）
+
+---
+
+## ✅ CAVEAT-1 残留 3 项收口（2026-09-25）
+
+- **范围**：P6 批 follow-up #2 标定的 3 项 pytest 回归（test_table_count / test_p4_flash_full_path / test_reversible_segment_roundtrip）
+- **修复**：
+  - **CAVEAT-1 fix #1 表计数 82→83**（commit `feat(test): table_count 82→83 P6-3 Task 35 cost_correlations 落地`）：
+    - `pcs-backend/tests/test_schema.py` 注释追加 Task 35 落 cost_correlations（CONFIG 元数据表）= 83 终态
+    - 原因：Task 30 仅 ADD COLUMN 不动表数 = 82；Task 35 op.create_table = 83
+  - **CAVEAT-1 fix #2 calc_type fixture**（commit `feat(test): FlareSystemResult fixture 补 calc_type=RELIEF_SUMMARY`）：
+    - `pcs-backend/tests/test_lineage.py::test_p4_flash_full_path` FlareSystemResult 构造补 calc_type="RELIEF_SUMMARY"
+    - 原因：P6-2 Task 18 加 calc_type NOT NULL；valid 值 6 项枚举见 `app/models/calc.py` FlareSystemResult.calc_type comment
+    - 验证：grep `calc_type comment.*RELIEF_SUMMARY/HEADER_SIZING/KOD_SIZING/STACK_HEIGHT/RADIATION/FLARE_TIP`
+  - **CAVEAT-1 fix #3 p5_0_4a has_table 守卫**（commit `fix(alembic): p5_0_4a upgrade+downgrade 双 loop 加 has_table 守卫`）：
+    - `pcs-backend/alembic/versions/p5_0_4a_pk_rename_and_tag_number.py` 10 表 PK rename loop（upgrade + downgrade）加 `inspector.has_table()` 守卫
+    - 原因：chain 下游 P6-2 Task 18 drop+create cooling_tower_results/psychro_results + P6-3 Task 30 stub open_channel/filtration_results 在 p5_0_4a upgrade/downgrade 时点可能不存在；missing 表 skip
+- **测试**：3/3 CAVEAT-1 测试 PASS；worktree pytest 失败数 24→21（仅剩 21 pre-existing CAVEAT-3）
+- **buglog**：CAVEAT-3 21 项 root cause 合并为 3 条（bug-099 Severity 类空 / bug-100 StreamDataMode 空 / bug-101 G-07 real pcs_test）
+
+---
+
+## 🚧 CAVEAT-3 pre-existing（2026-09-25 开）
+
+**21 项 pre-existing pytest 失败，根因 3 条**：
+
+1. **Severity / PipeCodeSeverity 等枚举类空 body**（bug-099）：
+   - `pcs-backend/app/services/stream_symbol_validator.py` Severity 类仅 docstring 无成员
+   - `pcs-backend/app/services/pipe_code_validator.py` PipeCodeSeverity 类同样空
+   - 影响：tests/services/test_stream_symbol_validator.py × 7 + tests/services/test_pipe_code_validator.py × 11（含 test_has_errors* 2 个 helper）= 18 失败
+2. **StreamDataMode 枚举空 body**（bug-100）：
+   - `pcs-backend/app/services/meta_service.py` StreamDataMode 类仅 docstring 无 CHEMICAL/PETROLEUM/SOLID 成员
+   - 影响：tests/api/v1/test_meta.py::test_get_enums_returns_required_groups 1 失败
+3. **G-07 real pcs_test 集成测试 fixture 漂移**（bug-101）：
+   - `tests/services/cool_tower/test_heat_aggregator.py::test_heat_aggregator_g07_real_pcs_test` 1 失败
+   - P6-2 / P6-3 schema 改动未同步 fixture
+
+**当前状态**：未修复。本批仅关 CAVEAT-1；CAVEAT-3 入 P6-4 滚动批（与 OPEN 项并存）。
+
+
+---
+
+## ✅ PCS-SPEC-ADD-001 V1.1 审计修订（2026-09-25）
+
+- **触发**：用户审查 PCS-SPEC-ADD-001 V1.0 + Worley 24 个 xls 样本，要求研究当前完成 vs 新增补偏差及对后续计划影响
+- **方法**：
+  - Agent 1 抽 24 个 .xls 元数据（标准引用 / sheet 结构 / Validated 标记） → `/tmp/xls_metadata.json`（42 KB）
+  - Agent 2 PCS backend 静态扫描 + git history → `/tmp/cxx_coverage.json`（24 项实测覆盖度）
+- **关键发现**：
+  - **5 项 SPEC 状态与代码脱节**（虚高或低估）
+  - **4 个 xls 缺 Validated/Checked 标记**（C-08/C-10/C-20/C-21）—— 与 SPEC 虚高项完全重合 ⚠️
+  - xlrd 2.x 限制：BIFF8 公式仅缓存数值，无法直接拿公式文本
+- **修订**：
+  - §1 表 5 项状态修正（C-08/C-10/C-15/C-20/C-24）+ V1.1 增补说明引言
+  - §3 4 处覆盖度注记（C-08 整节重写 / C-10/C-15/C-20/C-24 加 V1.1 修正条）
+  - §6 工时实测分布修正（P5 重 / P6.5 轻；总差 34.5d → 30-37d）
+  - §9 变更记录 V1.1 条目
+- **buglog**：bug-102 SPEC V1.1 audit-based revision
+- **未做（待 P6-4 评审）**：附录 ATT-01 §7.1 评估汇总表「评级/验证」列不需改（评级基于 Excel 合理性，与 PCS backend 覆盖率独立）
