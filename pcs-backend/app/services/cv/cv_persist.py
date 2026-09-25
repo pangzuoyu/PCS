@@ -79,7 +79,12 @@ def _build_input_json(request: dict[str, Any], payload: dict[str, Any]) -> dict:
 
 
 def _build_output_json(payload: dict[str, Any]) -> dict:
-    """output_json：Cv 计算结果 + 状态判定（service 层组装，不入 ORM 列）。"""
+    """output_json：Cv 计算结果 + 状态判定 + 闪蒸修正（service 层组装，不入 ORM 列）。
+
+    P6-4 Task 5（C-24 Masonelian fl）：V1.2 D3 严格 —
+    fl / flash_steam_rate_kg_s 走 JSONB 容器（cerebrum.md Do-Not-Repeat：
+    避免 alembic 单列迁移开销）；masonelian_model 走 ORM 列（独立字段）。
+    """
     return {
         "Cv_calculated": payload["Cv_calculated"],
         "Cv_selected": payload["Cv_selected"],
@@ -87,6 +92,10 @@ def _build_output_json(payload: dict[str, Any]) -> dict:
         "cavitation": payload["cavitation"],
         "flashing": payload["flashing"],
         "noise_sil_db": payload["noise_sil_db"],
+        # P6-4 Task 5 C-24 Masonelian fl（V1.2 D3：JSONB 容器透传）
+        "fl": payload.get("fl"),
+        "flash_steam_rate_kg_s": payload.get("flash_steam_rate_kg_s"),
+        "masonelian_model": payload.get("masonelian_model"),
         "standard_profile_code": payload["standard_profile_code"],
     }
 
@@ -165,6 +174,8 @@ class CvService:
             cavitation=payload["cavitation"],
             flashing=payload["flashing"],
             noise_sil_db=payload["noise_sil_db"],
+            # P6-4 Task 5 C-24 Masonelian 模型口径字段（V1.2 D3：仅 1 列走 ORM）
+            masonelian_model=payload.get("masonelian_model"),
             standard_profile_code=payload["standard_profile_code"],
             design_stage=payload["design_stage"],
             # JSONB 容器
@@ -192,6 +203,10 @@ class CvService:
                 "cavitation": payload["cavitation"],
                 "flashing": payload["flashing"],
                 "noise_sil_db": payload["noise_sil_db"],
+                # P6-4 Task 5 C-24 Masonelian fl（outlet 流线也透传，便于前端可视化）
+                "fl": payload.get("fl"),
+                "flash_steam_rate_kg_s": payload.get("flash_steam_rate_kg_s"),
+                "masonelian_model": payload.get("masonelian_model"),
                 "standard_profile_code": payload["standard_profile_code"],
                 "design_stage": payload["design_stage"],
             },

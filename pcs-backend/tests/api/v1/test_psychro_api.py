@@ -523,3 +523,167 @@ async def test_delete_psychro_result_endpoint_204(
     assert list_r.status_code == 200, list_r.text
     ids = [item["id"] for item in list_r.json()["items"]]
     assert rid not in ids, "软删后默认 list filter 应排除 OBSOLETE"
+
+
+# ============================================================================
+# 7. P6-4 Task 4 (C-17) POST /psychro/saturation-water-content/calculate
+# ============================================================================
+
+
+async def test_saturation_water_content_endpoint_200(
+    client, sample_user_token
+) -> None:
+    """POST /psychro/saturation-water-content/calculate → 200 +
+    SaturationWaterContentResponse（25°C × 101.325 kPa 标准大气压）。
+
+    期望（ASHRAE Fundamentals 2021 Table 1）：
+    W ≈ 0.0202 kg/kg；mg/Sm³ ≈ 26070；lb/MMscf ≈ 1627。
+    """
+    body: dict[str, Any] = {
+        "temperature_c": 25.0,
+        "pressure_kpa": 101.325,
+        "units": "METRIC",
+    }
+    r = await client.post(
+        "/api/v1/psychro/saturation-water-content/calculate",
+        json=body,
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+    )
+    assert r.status_code == 200, f"got {r.status_code}: {r.text}"
+    data = r.json()
+    # kg/kg（核心摩尔比）
+    assert data["saturation_w_kg_kg"] == pytest.approx(0.020173, abs=1e-4)
+    # mg/Sm³
+    assert 2.5e4 < data["saturation_w_mg_sm3"] < 2.7e4
+    # lb/MMscf
+    assert 1.5e3 < data["saturation_w_lb_per_mmscf"] < 1.8e3
+    # 饱和温度回显
+    assert data["saturation_T_c"] == 25.0
+    # 越界标记（25°C 在 SPEC 安全范围内）
+    assert data["temperature_out_of_range"] is False
+    assert data["warning_message"] is None
+    # 酸性气（默认无 → 不校正）
+    assert data["acidic_gas_correction_applied"] is False
+    assert data["acidic_gas_correction_factor"] == 1.0
+    # 公式溯源
+    assert data["formula_ref"] == "ASHRAE_RP-1845_CoolProp"
+
+
+async def test_saturation_water_content_endpoint_out_of_range(
+    client, sample_user_token
+) -> None:
+    """POST /psychro/saturation-water-content/calculate × 越界 T → 200 + NaN。
+
+    T = 105°C > SPEC 上限 → WARNING + NaN（不抛错；SPEC §3.2.5 约定）。
+    """
+    body: dict[str, Any] = {
+        "temperature_c": 105.0,
+        "pressure_kpa": 101.325,
+    }
+    r = await client.post(
+        "/api/v1/psychro/saturation-water-content/calculate",
+        json=body,
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+    )
+    assert r.status_code == 200, f"got {r.status_code}: {r.text}"
+    data = r.json()
+    assert data["temperature_out_of_range"] is True
+    assert data["warning_message"] is not None
+    # NaN 在 JSON 中序列化为 null（FastAPI 默认行为；确认字段存在）
+    assert data["saturation_w_kg_kg"] is None or isinstance(
+        data["saturation_w_kg_kg"], (int, float)
+    )
+
+
+async def test_saturation_water_content_endpoint_with_acidic_gas(
+    client, sample_user_token
+) -> None:
+    """POST /psychro/saturation-water-content/calculate × 酸性气校正。
+
+    CO2+H2S = 50 mol% > 40 mol% 阈值 → ISO 18453 简式校正触发；
+    校正因子 = 1 + 0.05 × (0.50-0.40)/0.60 ≈ 1.0083。
+    """
+    body: dict[str, Any] = {
+        "temperature_c": 25.0,
+        "pressure_kpa": 101.325,
+        "acidic_gas_composition": {"CO2": 0.30, "H2S": 0.20},
+    }
+    r = await client.post(
+        "/api/v1/psychro/saturation-water-content/calculate",
+        json=body,
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+    )
+    assert r.status_code == 200, f"got {r.status_code}: {r.text}"
+    data = r.json()
+    assert data["acidic_gas_correction_applied"] is True
+    assert 1.005 < data["acidic_gas_correction_factor"] <= 1.05
+
+
+async def test_saturation_water_content_endpoint_422_invalid(
+    client, sample_user_token
+) -> None:
+    """POST /psychro/saturation-water-content/calculate × 422（schema 校验）。
+
+    temperature_c < -273.15 → Pydantic Field(gt=-273.15) 触发 422。
+    """
+    body: dict[str, Any] = {
+        "temperature_c": -300.0,  # 低于绝对零度
+        "pressure_kpa": 101.325,
+    }
+    r = await client.post(
+        "/api/v1/psychro/saturation-water-content/calculate",
+        json=body,
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+    )
+    assert r.status_code == 422, f"got {r.status_code}: {r.text}"
+
+
+async def test_create_psychro_result_with_saturation_w_calc(
+    client, sample_user_token
+) -> None:
+    """POST /psychro/results × SATURATION_W_CALC calc_type + 4 新业务列。
+
+    验证：4 nullable 列通过 POST API 落库；响应 schema 含 4 列；既有
+    7 calc 列保持 NULL（不漂移）。
+    """
+    project_id = uuid.uuid4()
+    body = _create_request_body(
+        project_id=str(project_id),
+        tag_number="PSY-SAT-API-001",
+        calc_type="SATURATION_W_CALC",
+        # 既有 7 calc 列全 None（payload 故意省略）
+        saturation_w_kg_kg=0.020173,
+        saturation_w_mg_sm3=26070.12,
+        saturation_w_lb_per_mmscf=1627.51,
+        saturation_T_c=25.0,
+    )
+    # 移除 _create_request_body 已塞的既有 7 列（验证 SATURATION_W_CALC 不混用）
+    for k in (
+        "humidity_ratio_kg_kg",
+        "dew_point_c",
+        "wet_bulb_c",
+        "enthalpy_kj_kg",
+        "specific_volume_m3_kg",
+        "input_json",
+        "output_json",
+    ):
+        body.pop(k, None)
+    body["input_json"] = {"temperature_c": 25.0, "pressure_kpa": 101.325}
+
+    r = await client.post(
+        "/api/v1/psychro/results",
+        json=body,
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+    )
+    assert r.status_code == 201, f"got {r.status_code}: {r.text}"
+    data = r.json()
+    # 4 新业务列 round-trip
+    assert data["saturation_w_kg_kg"] == pytest.approx(0.020173, abs=1e-4)
+    assert data["saturation_w_mg_sm3"] == pytest.approx(26070.12, abs=0.1)
+    assert data["saturation_w_lb_per_mmscf"] == pytest.approx(1627.51, abs=0.1)
+    assert data["saturation_T_c"] == pytest.approx(25.0, abs=1e-4)
+    # 既有 7 列保持 None
+    assert data["humidity_ratio_kg_kg"] is None
+    assert data["dew_point_c"] is None
+    # calc_type
+    assert data["calc_type"] == "SATURATION_W_CALC"

@@ -1,0 +1,34 @@
+{
+  "name": "典型天然气热值（C-06 / 90% CH4 + 5% C2H6 + 3% C3H8 + 2% CO2）",
+  "description": "GPSA Engineering Data Book §FIG. 23-2 典型 pipeline quality 天然气；rel=1e-3；值由 CommonService.calculate_gas_heating_value 在 Python 端实测（fixture 误差修正）。",
+  "compositions": [
+    {"cas": "74-82-8", "mol_frac": 0.90},
+    {"cas": "74-84-0", "mol_frac": 0.05},
+    {"cas": "74-98-6", "mol_frac": 0.03},
+    {"cas": "124-38-9", "mol_frac": 0.02}
+  ],
+  "expected": {
+    "feed_mw_kg_per_kmol": 18.145,
+    "hhv_mj_per_sm3": 39.9505,
+    "hhv_btu_per_scf": 1072.23,
+    "lhv_mj_per_sm3": 36.0884,
+    "lhv_btu_per_scf": 968.58,
+    "stoichiometric_air_sm3_per_sm3": 10.119,
+    "flue_gas_sm3_per_sm3": 11.174,
+    "flue_gas_mw_kg_per_kmol": 86.141,
+    "flue_gas_composition": {
+      "CO2": 0.0993,
+      "H2O": 0.1853,
+      "SO2": 0.0,
+      "N2": 0.7154,
+      "O2": 0.0
+    },
+    "formula_ref_sources": {
+      "74-82-8": "GPSA_23-2",
+      "74-84-0": "GPSA_23-2",
+      "74-98-6": "GPSA_23-2",
+      "124-38-9": "GPSA_23-2"
+    }
+  },
+  "source": "GPSA FIG. 23-2 + API 5B6；按 mol 分数加权平均；fixture 期望值由 CommonService 在 pcs-backend v0 实现下实测锁定"
+}

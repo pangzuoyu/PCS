@@ -405,6 +405,9 @@ class VesselResult(TaggedRecordMixin, Base):
 
     业务：立式/卧式容器直径+长度+壁厚+封头类型+风载/地震载荷；
     input_json/output_json 双容器，含 TEMA 类型（仅换热器容器相关）。
+
+    P6-4 T2 sizing 6 列（C-08 V1.2 重写）：vmax / csa / nozzle / control /
+    residence_time。nullable（不破坏 V1.0 既有 sizing 行）。
     """
 
     __tablename__ = "vessel_results"
@@ -417,6 +420,25 @@ class VesselResult(TaggedRecordMixin, Base):
         nullable=False,
         default=DesignStage.BASIC,
         comment="设计阶段 BASIC/DETAIL（OPEN-009）",
+    )
+    # P6-4 T2 C-08 两相分离器尺寸 6 列（V1.2；nullable 兼容 V1.0 既有行）
+    vmax_m_s: Mapped[float | None] = mapped_column(
+        Float, comment="Souders-Brown Vmax = K × √((ρL − ρV) / ρV) [WS-CA-PR-010 §4.2]",
+    )
+    csa_min_m2: Mapped[float | None] = mapped_column(
+        Float, comment="最小所需气相 CSA = Q_gas / (Vmax × 0.85) [WS-CA-PR-010 §4.3]",
+    )
+    csa_actual_m2: Mapped[float | None] = mapped_column(
+        Float, comment="实际气相 CSA = π·D²/4 [WS-CA-PR-010 §4.3]",
+    )
+    nozzle_min_id_m: Mapped[float | None] = mapped_column(
+        Float, comment="入口喷嘴最小内径 = √(4m²/(π·N·ρ_mix)) [WS-CA-PR-010 §5.1]",
+    )
+    control_height_m: Mapped[float | None] = mapped_column(
+        Float, comment="仪表控制高度 H_c = t_c × Q / (3600·CSA) [WS-CA-PR-010 §5.3]",
+    )
+    residence_time_s: Mapped[float | None] = mapped_column(
+        Float, comment="实际停留时间 V_total / Q_per_vessel_m3_s [WS-CA-PR-010 §5]",
     )
 
 
@@ -834,6 +856,18 @@ class CvResult(TaggedRecordMixin, Base):
         default=DesignStage.BASIC,
         comment="设计阶段 BASIC/DETAIL（OPEN-009）",
     )
+    # P6-4 Task 5 (C-24 Masonelian fl; SPEC §3.2.1.5 Eq.5)
+    # V1.2 D3 严格：仅加 1 列 nullable masonelian_model；fl / flash_steam_rate_kg_s
+    # 走 output_json JSONB 容器（cerebrum.md Do-Not-Repeat：避免 alembic 单列迁移开销）。
+    # 3 模型并存：MASONELIAN_1973（默认）/ CHAPMAN_JANS / TONG。
+    masonelian_model: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+        comment=(
+            "Masonelian fl 模型口径 [SPEC §3.2.1.5]："
+            "MASONELIAN_1973（默认 Eq.5）/ CHAPMAN_JANS / TONG"
+        ),
+    )
 
 
 class RestrictionResult(TaggedRecordMixin, Base):
@@ -959,6 +993,10 @@ class PsychroResult(TaggedRecordMixin, RecordMixin, Base):
     JSONB 容器。coolprop_version 字段溯源 CoolProp 库版本（如 "6.6.0"）。
     standard_profile_code 默认 ASHRAE_FUND_2021（C-07 锁定 String(16)）。
 
+    P6-4 Task 4（C-17 显式水含量）：4 nullable 业务字段（饱和 W 三单位 +
+    饱和温度），仅 PATCH/SATURATION_W_CALC 等显式 calc_type 落库时填；
+    既有 calc_type（HUMIDITY_RATIO 等）保持 NULL。
+
     RECORD_TYPE_REGISTRY 注册键 = "psychro_result"（P6-2 Task 18）。
     """
 
@@ -971,7 +1009,10 @@ class PsychroResult(TaggedRecordMixin, RecordMixin, Base):
     )
     calc_type: Mapped[str] = mapped_column(
         String(32), nullable=False,
-        comment="HUMIDITY_RATIO / DEW_POINT / WET_BULB / ENTHALPY / SPECIFIC_VOLUME / COOLING_COIL",
+        comment=(
+            "HUMIDITY_RATIO / DEW_POINT / WET_BULB / ENTHALPY / "
+            "SPECIFIC_VOLUME / COOLING_COIL / SATURATION_W_CALC"
+        ),
     )
     coolprop_version: Mapped[str | None] = mapped_column(
         String(16), nullable=True, comment="CoolProp 版本（如 6.6.0）；record_hash 反射自动含",
@@ -984,6 +1025,19 @@ class PsychroResult(TaggedRecordMixin, RecordMixin, Base):
     specific_volume_m3_kg: Mapped[float | None] = mapped_column(Float, comment="m³/kg")
     sensible_heat_kw: Mapped[float | None] = mapped_column(Float, comment="显热 kW（cooling_coil）")
     latent_heat_kw: Mapped[float | None] = mapped_column(Float, comment="潜热 kW（cooling_coil）")
+    # P6-4 Task 4（C-17 显式水含量 4 列 nullable）
+    saturation_w_kg_kg: Mapped[float | None] = mapped_column(
+        Float, comment="饱和水含量 kg 水/kg 干空气（SATURATION_W_CALC 专用；SPEC §3.2.5 §3.9.2）",
+    )
+    saturation_w_mg_sm3: Mapped[float | None] = mapped_column(
+        Float, comment="饱和水含量 mg 水/Sm³ 干空气（SATURATION_W_CALC；西欧常用）",
+    )
+    saturation_w_lb_per_mmscf: Mapped[float | None] = mapped_column(
+        Float, comment="饱和水含量 lb 水/MMscf 干空气（SATURATION_W_CALC；北美常用）",
+    )
+    saturation_T_c: Mapped[float | None] = mapped_column(
+        Float, comment="饱和温度 °C（SATURATION_W_CALC；service 入参温度回显）",
+    )
     # JSONB
     input_json: Mapped[dict | None] = mapped_column(JSONB, comment="入参（业务子结构）")
     output_json: Mapped[dict | None] = mapped_column(JSONB, comment="出参（业务子结构）")

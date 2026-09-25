@@ -1,0 +1,105 @@
+{
+  "_comment": "P6-4 T3 partial_volume 黄金 fixture（SPEC §3.4.4 C-12 + WS-CA-PR-013 Rev A）。SI 单位（m, m³）。手算对照 = WS-CA-PR-013 立式容器算例（D=1.8, L=4.5, 2:1 椭圆封头）。误差 <0.1%。",
+  "_expected_values_formula": {
+    "partial_volume_m3": "V_head_partial(Z_b) + π·D²/4·L_liq_cyl + V_head_partial(Z_t)",
+    "total_volume_m3": "π·D²/4·L + 2·V_head_full"
+  },
+  "cases": [
+    {
+      "id": "vert_2to1_h_eq_b",
+      "description": "WS-CA-PR-013 Case 1 立式 2:1 椭圆，H=b=D/4，封头刚好填满，V_partial = V_head_full",
+      "D_m": 1.8,
+      "L_m": 4.5,
+      "head_type": "2:1_ELLIPTICAL",
+      "H_m": 0.45,
+      "n_vessels": 1,
+      "expected": {
+        "partial_volume_m3": 0.7634,
+        "total_volume_m3": 12.9779,
+        "head_volume_m3": 0.7634,
+        "cylinder_volume_m3": 0.0,
+        "tol_pct": 0.001
+      }
+    },
+    {
+      "id": "vert_2to1_h_double_b",
+      "description": "WS-CA-PR-013 Case 1 H=2b=0.9，封头满 + 圆柱 D/4 段",
+      "D_m": 1.8,
+      "L_m": 4.5,
+      "head_type": "2:1_ELLIPTICAL",
+      "H_m": 0.9,
+      "n_vessels": 1,
+      "expected": {
+        "partial_volume_m3": 1.9085,
+        "total_volume_m3": 12.9779,
+        "head_volume_m3": 0.7634,
+        "cylinder_volume_m3": 1.1451,
+        "tol_pct": 0.001
+      }
+    },
+    {
+      "id": "vert_2to1_h_triple_b",
+      "description": "WS-CA-PR-013 Case 1 H=3b=1.35，封头满 + 圆柱 D/2 段",
+      "D_m": 1.8,
+      "L_m": 4.5,
+      "head_type": "2:1_ELLIPTICAL",
+      "H_m": 1.35,
+      "n_vessels": 1,
+      "expected": {
+        "partial_volume_m3": 3.0536,
+        "total_volume_m3": 12.9779,
+        "head_volume_m3": 0.7634,
+        "cylinder_volume_m3": 2.2902,
+        "tol_pct": 0.001
+      }
+    },
+    {
+      "id": "vert_2to1_multi_vessel",
+      "description": "多容器扩展：H=0.9 × n_vessels=3，验证 total 缩放（partial 单容器值不变）",
+      "D_m": 1.8,
+      "L_m": 4.5,
+      "head_type": "2:1_ELLIPTICAL",
+      "H_m": 0.9,
+      "n_vessels": 3,
+      "expected": {
+        "partial_volume_m3": 1.9085,
+        "total_volume_m3": 12.9779,
+        "head_volume_m3": 0.7634,
+        "cylinder_volume_m3": 1.1451,
+        "tol_pct": 0.001
+      }
+    },
+    {
+      "id": "vert_hemi_half_D",
+      "description": "半球封头 H=D/2=1.0，封头满 = π·D³/12 = 2π/3 ≈ 2.094，无圆柱段",
+      "D_m": 2.0,
+      "L_m": 4.5,
+      "head_type": "HEMISPHERICAL",
+      "H_m": 1.0,
+      "n_vessels": 1,
+      "expected": {
+        "partial_volume_m3": 2.0944,
+        "total_volume_m3": 18.3259,
+        "head_volume_m3": 2.0944,
+        "cylinder_volume_m3": 0.0,
+        "tol_pct": 0.001
+      }
+    },
+    {
+      "id": "vert_flat_H_eq_D",
+      "description": "平封头 H=D=1.8（封头 V=0），V_partial = π·D²/4·L_liq_cyl = π·0.81·1.8 ≈ 4.5804",
+      "D_m": 1.8,
+      "L_m": 4.5,
+      "head_type": "FLAT",
+      "H_m": 1.8,
+      "n_vessels": 1,
+      "expected": {
+        "partial_volume_m3": 4.5804,
+        "total_volume_m3": 11.4511,
+        "head_volume_m3": 0.0,
+        "cylinder_volume_m3": 4.5804,
+        "tol_pct": 0.001
+      }
+    }
+  ]
+}

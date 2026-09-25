@@ -10,14 +10,22 @@
    vessel 几何 + 物性
 7. commit + 返回 vessel_id + record_hash + outlet_stream_id
 
-input_json 双轨（ADR-0032 V1.1 决策 6）：
+P6-4 T2 扩展（C-08 V1.2 重写）：
+- 可选 sizing_spec_input → 调 calc_two_phase_separator_sizing
+- 落库时填充 vessel_results 6 列 sizing（vmax_m_s / csa_min_m2 /
+  csa_actual_m2 / nozzle_min_id_m / control_height_m / residence_time_s）
+- sizing_spec_input=None 时保持 V1.0 兼容（6 列 nullable 全部 NULL）
+
+input_json 双轨（ADR-0032 V1.1 决策 6）+ P6-4 T2 三轨：
   - sizing_input: VesselSizingInput dict（vessel_type + 物性 + 流量 + K 因子）
   - hydraulics_input: VesselHydraulicsInput dict（容器几何 + 进出料）
+  - sizing_spec_input: TwoPhaseSeparatorSizingInput dict（C-08 两相 sizing）
 
-output_json 合并结果：
+output_json 合并结果 + P6-4 T2：
   - sizing: VesselSizingResult dict（V_max / D_min / liquid_volume / check / confidence）
   - hydraulics: VesselHydraulicsResult dict
     （empty_time / overflow_ok / level_volume_curve_json / vent_capacity_m3_s）
+  - sizing_spec: TwoPhaseSeparatorSizingResult dict（C-08 V1.2 5 段计算输出）
 
 不做：
 - 不写 vessel_results 之外的派生表
@@ -36,6 +44,11 @@ from app.models.project import Stream
 from app.services.calc_entry import check_calc_inputs
 from app.services.calc_lineage import finalize_calc_record
 from app.services.outlet_stream import create_outlet_stream
+from app.services.vessel.two_phase_separator_sizing_service import (
+    TwoPhaseSeparatorSizingInput,
+    TwoPhaseSeparatorSizingResult,
+    calc_two_phase_separator_sizing,
+)
 from app.services.vessel.vessel_service import (
     VesselHydraulicsInput,
     VesselHydraulicsResult,
@@ -82,22 +95,28 @@ async def persist_vessel_calculate(
     source_stream_id: uuid.UUID,
     sizing_input: VesselSizingInput,
     hydraulics_input: VesselHydraulicsInput,
+    sizing_spec_input: TwoPhaseSeparatorSizingInput | None = None,
     actor: uuid.UUID | None = None,
 ) -> dict[str, Any]:
-    """vessel 计算落库：sizing + hydraulics 一次调用。
+    """vessel 计算落库：sizing + hydraulics + 可选 sizing_spec（C-08 V1.2）。
 
     Args:
         db: async session
         source_stream_id: 源流 UUID（提供 project_id/workspace_id + 三步守卫）
         sizing_input: VesselSizingInput dataclass
         hydraulics_input: VesselHydraulicsInput dataclass
+        sizing_spec_input: P6-4 T2 TwoPhaseSeparatorSizingInput（None = V1.0 兼容）
 
     Returns:
         {
             "calc_id": VesselResult.vessel_id,
             "record_hash": 16 hex,
             "stream_id": source_stream_id,
-            "result": { "sizing": dict, "hydraulics": dict },
+            "result": {
+                "sizing": dict,
+                "hydraulics": dict,
+                "sizing_spec": dict | None,
+            },
             "outlet_stream_id": outlet.stream_id,
             "outlet_stream_name": outlet.stream_name,
         }
@@ -119,24 +138,44 @@ async def persist_vessel_calculate(
             status=404,
         )
 
-    # 3. 调两次计算（纯函数，frozen dataclass → dataclass）
+    # 3. 调 P5-1-1/2 两次计算（纯函数，frozen dataclass → dataclass）
     sizing_result: VesselSizingResult = calc_vessel_sizing(sizing_input)
     hydraulics_result: VesselHydraulicsResult = calc_vessel_hydraulics(hydraulics_input)
 
-    # 4. 构造 VesselResult ORM（input_json + output_json 双轨）
-    record = VesselResult(
-        tag_number=_generate_tag_number(stream.project_id),
-        project_id=stream.project_id,
-        workspace_id=stream.workspace_id,
-        input_json={
-            "sizing": _dataclass_to_dict(sizing_input),
-            "hydraulics": _dataclass_to_dict(hydraulics_input),
-        },
-        output_json={
-            "sizing": _dataclass_to_dict(sizing_result),
-            "hydraulics": _dataclass_to_dict(hydraulics_result),
-        },
-    )
+    # 3b. P6-4 T2 可选 sizing_spec → C-08 V1.2 两相 sizing（5 段）
+    sizing_spec_result: TwoPhaseSeparatorSizingResult | None = None
+    if sizing_spec_input is not None:
+        sizing_spec_result = calc_two_phase_separator_sizing(sizing_spec_input)
+
+    # 4. 构造 VesselResult ORM（input_json + output_json 三轨；6 列 nullable）
+    input_json: dict[str, Any] = {
+        "sizing": _dataclass_to_dict(sizing_input),
+        "hydraulics": _dataclass_to_dict(hydraulics_input),
+    }
+    output_json: dict[str, Any] = {
+        "sizing": _dataclass_to_dict(sizing_result),
+        "hydraulics": _dataclass_to_dict(hydraulics_result),
+    }
+    record_kwargs: dict[str, Any] = {
+        "tag_number": _generate_tag_number(stream.project_id),
+        "project_id": stream.project_id,
+        "workspace_id": stream.workspace_id,
+        "input_json": input_json,
+        "output_json": output_json,
+    }
+    if sizing_spec_input is not None:
+        input_json["sizing_spec"] = _dataclass_to_dict(sizing_spec_input)
+        output_json["sizing_spec"] = _dataclass_to_dict(sizing_spec_result)
+        # P6-4 T2 填充 6 列 sizing
+        record_kwargs.update(
+            vmax_m_s=sizing_spec_result.vmax_m_s,
+            csa_min_m2=sizing_spec_result.csa_min_m2,
+            csa_actual_m2=sizing_spec_result.csa_actual_m2,
+            nozzle_min_id_m=sizing_spec_result.nozzle_inlet_min_id_m,
+            control_height_m=sizing_spec_result.control_height_m,
+            residence_time_s=sizing_spec_result.residence_time_s,
+        )
+    record = VesselResult(**record_kwargs)
     db.add(record)
     await db.flush()  # 让 vessel_id 落库（finalize 内 LineageTracker 需要 PK）
 
@@ -149,24 +188,35 @@ async def persist_vessel_calculate(
     )
 
     # 6. 出口物流（source_type=VESSEL_CALCULATED）
+    outlet_properties: dict[str, Any] = {
+        # vessel 几何 + 物性摘要（供下游 PIPE / PUMP 引用）
+        "_calc_type": "VESSEL",
+        "vessel_type": sizing_result.vessel_type,
+        "K_factor_ms": sizing_result.K_factor_ms,
+        "V_max_ms": sizing_result.V_max_ms,
+        "D_min_m": sizing_result.D_min_m,
+        "liquid_volume_m3": sizing_result.liquid_volume_m3,
+        "empty_time_s": hydraulics_result.empty_time_s,
+        "overflow_ok": hydraulics_result.overflow_ok,
+        "vent_capacity_m3_s": hydraulics_result.vent_capacity_m3_s,
+        "applicable_orientation": hydraulics_result.applicable_orientation,
+    }
+    if sizing_spec_result is not None:
+        # P6-4 T2 C-08 sizing 摘要（供下游 / 调试追溯）
+        outlet_properties["c08_vmax_m_s"] = sizing_spec_result.vmax_m_s
+        outlet_properties["c08_csa_min_m2"] = sizing_spec_result.csa_min_m2
+        outlet_properties["c08_csa_actual_m2"] = sizing_spec_result.csa_actual_m2
+        outlet_properties["c08_nozzle_inlet_id_m"] = (
+            sizing_spec_result.nozzle_inlet_min_id_m
+        )
+        outlet_properties["c08_control_height_m"] = sizing_spec_result.control_height_m
+        outlet_properties["c08_residence_time_s"] = sizing_spec_result.residence_time_s
     outlet = await create_outlet_stream(
         db,
         source_stream_id=source_stream_id,
         calc_type="VESSEL",
         source_type="VESSEL_CALCULATED",
-        properties={
-            # vessel 几何 + 物性摘要（供下游 PIPE / PUMP 引用）
-            "_calc_type": "VESSEL",
-            "vessel_type": sizing_result.vessel_type,
-            "K_factor_ms": sizing_result.K_factor_ms,
-            "V_max_ms": sizing_result.V_max_ms,
-            "D_min_m": sizing_result.D_min_m,
-            "liquid_volume_m3": sizing_result.liquid_volume_m3,
-            "empty_time_s": hydraulics_result.empty_time_s,
-            "overflow_ok": hydraulics_result.overflow_ok,
-            "vent_capacity_m3_s": hydraulics_result.vent_capacity_m3_s,
-            "applicable_orientation": hydraulics_result.applicable_orientation,
-        },
+        properties=outlet_properties,
         project_id=stream.project_id,
         workspace_id=stream.workspace_id,
     )
@@ -183,6 +233,11 @@ async def persist_vessel_calculate(
         "result": {
             "sizing": _dataclass_to_dict(sizing_result),
             "hydraulics": _dataclass_to_dict(hydraulics_result),
+            "sizing_spec": (
+                _dataclass_to_dict(sizing_spec_result)
+                if sizing_spec_result is not None
+                else None
+            ),
         },
         "outlet_stream_id": outlet.stream_id,
         "outlet_stream_name": outlet.stream_name,

@@ -7,12 +7,15 @@ DB UPDATE 状态字段；避免 ORM kwarg 拼装遗漏必填字段（tag_number 
 project_id FK / workspace_id）。
 
 PsychroResult 字段一览（Task 18 ORM）：
-- 业务（11 字段 = 7 平铺 Float + 2 JSONB 容器 + 2 溯源）：
+- 业务（15 字段 = 11 平铺 Float + 2 JSONB 容器 + 2 溯源）：
   - 溯源：standard_profile_code（默认 ASHRAE_FUND_2021）、calc_type、
     coolprop_version（自动从 get_coolprop_version() 写入）
   - 计算结果（6 calc_type 各自 result）：
     humidity_ratio_kg_kg / dew_point_c / wet_bulb_c / enthalpy_kj_kg /
     specific_volume_m3_kg / sensible_heat_kw / latent_heat_kw
+  - P6-4 Task 4（C-17 显式水含量 4 列；SATURATION_W_CALC calc_type）：
+    saturation_w_kg_kg / saturation_w_mg_sm3 / saturation_w_lb_per_mmscf /
+    saturation_T_c
   - JSONB 容器：input_json / output_json
 - mixin 字段：tag_number (NOT NULL via TaggedRecordMixin), project_id,
   workspace_id, sign_status, record_hash, audit 三件套
@@ -65,6 +68,11 @@ _PSYCHRO_BUSINESS_FIELDS: frozenset[str] = frozenset(
         "specific_volume_m3_kg",  # 业务
         "sensible_heat_kw",  # 业务（cooling_coil 专用）
         "latent_heat_kw",  # 业务（cooling_coil 专用）
+        # P6-4 Task 4 (C-17) — SATURATION_W_CALC calc_type 4 业务列
+        "saturation_w_kg_kg",  # 业务（饱和 W kg/kg dry air）
+        "saturation_w_mg_sm3",  # 业务（饱和 W mg/Sm³ dry air）
+        "saturation_w_lb_per_mmscf",  # 业务（饱和 W lb/MMscf dry air）
+        "saturation_T_c",  # 业务（饱和温度 °C）
         "input_json",  # JSONB
         "output_json",  # JSONB
     }
@@ -81,6 +89,11 @@ _PSYCHRO_UPDATE_FIELDS: frozenset[str] = frozenset(
         "specific_volume_m3_kg",
         "sensible_heat_kw",
         "latent_heat_kw",
+        # P6-4 Task 4 (C-17) — SATURATION_W_CALC 4 业务列
+        "saturation_w_kg_kg",
+        "saturation_w_mg_sm3",
+        "saturation_w_lb_per_mmscf",
+        "saturation_T_c",
         "input_json",
         "output_json",
     }

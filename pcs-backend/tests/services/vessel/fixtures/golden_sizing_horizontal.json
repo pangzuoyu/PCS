@@ -1,0 +1,54 @@
+{
+  "_comment": "P6-4 T2 C-08 两相分离器 sizing 黄金 fixture（horizontal 单相气液；SPEC §3.4.2 V1.2 + WS-CA-PR-010 Rev A）。SI 单位。强公式 <0.1%；K 因子表插值段 <1%。",
+  "_expected_values_formula": {
+    "stage1_volumetric": "oil_vol_bbl = oil_mass / (ρ_oil × 0.1589873); gas_vol_mmscfd = gas_mass / (ρ_gas × 28316.85)",
+    "stage2_mixed_density": "ρ_mix = (Σ Q_i × ρ_i) / (Σ Q_i)",
+    "stage3_souders_brown": "Vmax = K × √((ρL − ρV) / ρV)",
+    "stage4_csa": "A_min = Q_gas / (Vmax × 0.85); A_actual = π·D²/4",
+    "stage5_nozzle": "ID = √(4m² / (π × N × ρ_mix))",
+    "stage5_control": "H_c = t_c × Q_total_volumetric_m3_h / (3600 × CSA)",
+    "stage5_residence": "t_r = V_total_per_vessel / Q_per_vessel_m3_s"
+  },
+  "cases": [
+    {
+      "id": "horizontal_basic",
+      "description": "HORIZONTAL 卧式单相气液（WS-CA-PR-010 Rev A §3 卧式算例；HEMISPHERICAL 封头）",
+      "vessel_shape": "HORIZONTAL",
+      "diameter_m": 2.0,
+      "length_m": 6.0,
+      "head_type": "HEMISPHERICAL",
+      "operating_pressure_kpa": 600.0,
+      "operating_temperature_c": 70.0,
+      "oil_mass_rate_kg_d": 100000.0,
+      "water_mass_rate_kg_d": 0.0,
+      "gas_mass_rate_kg_d": 80000.0,
+      "oil_density_kg_m3": 850.0,
+      "water_density_kg_m3": 1000.0,
+      "gas_density_kg_m3": 12.0,
+      "oil_sg": 0.8509,
+      "water_sg": 1.0,
+      "gas_sg": 9.7959,
+      "gas_mw_kg_kmol": 19.5,
+      "k_factor": 0.08,
+      "nozzle_inlet_momentum_limit_kg_m_s2": 150.0,
+      "nozzle_outlet_momentum_limit_kg_m_s2": 80.0,
+      "instrument_response_time_s": 60.0,
+      "n_vessels": 1,
+      "expected": {
+        "oil_vol_rate_bbl_d": 739.9777,
+        "water_vol_rate_bbl_d": 0.0,
+        "gas_vol_rate_mmscfd": 0.2354,
+        "mixed_density_kg_m3": 26.5318,
+        "vmax_m_s": 0.6685,
+        "csa_min_m2": 0.1358,
+        "csa_actual_m2": 3.1416,
+        "nozzle_inlet_min_id_m": 0.0373,
+        "nozzle_outlet_min_id_m": 0.051,
+        "control_height_m": 1.4997,
+        "control_volume_m3": 23.0383,
+        "residence_time_s": 293.3993,
+        "tol_pct": 0.1
+      }
+    }
+  ]
+}

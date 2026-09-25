@@ -1,0 +1,140 @@
+{
+  "_comment": "P6-4 Task 4 (C-17 显式水含量) ASHRAE Fundamentals 2021 Table 1 黄金对账 fixture。10 个 (T_c, P_kpa) 组合 → 饱和 W（RH=1.0）。首次固化时间：2026-09-25，固化源：CoolProp.HumidAirProp.HAPropsSI（与 ASHRAE Fundamentals 2021 Chapter 1 Table 1 自洽生成；HAPropsSI 实现基于 ASHRAE RP-1845）。",
+  "_tolerance_rel": 1e-3,
+  "_tolerance_abs_mg_sm3": 0.5,
+  "_reference_standard": "ASHRAE Fundamentals 2021 Chapter 1, Table 1 (Saturation Pressure of Water Vapor / Saturation Humidity Ratio at Standard Atmospheric Pressure 101.325 kPa)",
+  "_coolprop_version": "6.6.0",
+  "points": [
+    {
+      "id": "T_-10C_101_325kPa",
+      "temperature_c": -10.0,
+      "pressure_kpa": 101.325,
+      "saturation_w_kg_kg": 0.001606201,
+      "saturation_w_mg_sm3": 2075.69,
+      "saturation_w_lb_per_mmscf": 129.58,
+      "notes": "ASHRAE Table 1 -10°C × 101.325 kPa；sub-zero 饱和水含量极小"
+    },
+    {
+      "id": "T_0C_101_325kPa",
+      "temperature_c": 0.0,
+      "pressure_kpa": 101.325,
+      "saturation_w_kg_kg": 0.003790035,
+      "saturation_w_mg_sm3": 4897.86,
+      "saturation_w_lb_per_mmscf": 305.76,
+      "notes": "ASHRAE Table 1 0°C × 101.325 kPa（冰点饱和 W）"
+    },
+    {
+      "id": "T_5C_101_325kPa",
+      "temperature_c": 5.0,
+      "pressure_kpa": 101.325,
+      "saturation_w_kg_kg": 0.005424654,
+      "saturation_w_mg_sm3": 7010.28,
+      "saturation_w_lb_per_mmscf": 437.64,
+      "notes": "ASHRAE Table 1 5°C"
+    },
+    {
+      "id": "T_10C_101_325kPa",
+      "temperature_c": 10.0,
+      "pressure_kpa": 101.325,
+      "saturation_w_kg_kg": 0.007662649,
+      "saturation_w_mg_sm3": 9902.44,
+      "saturation_w_lb_per_mmscf": 618.19,
+      "notes": "ASHRAE Table 1 10°C"
+    },
+    {
+      "id": "T_15C_101_325kPa",
+      "temperature_c": 15.0,
+      "pressure_kpa": 101.325,
+      "saturation_w_kg_kg": 0.010693767,
+      "saturation_w_mg_sm3": 13819.56,
+      "saturation_w_lb_per_mmscf": 862.73,
+      "notes": "ASHRAE Table 1 15°C"
+    },
+    {
+      "id": "T_20C_101_325kPa",
+      "temperature_c": 20.0,
+      "pressure_kpa": 101.325,
+      "saturation_w_kg_kg": 0.014760495,
+      "saturation_w_mg_sm3": 19074.99,
+      "saturation_w_lb_per_mmscf": 1190.81,
+      "notes": "ASHRAE Table 1 20°C"
+    },
+    {
+      "id": "T_25C_101_325kPa",
+      "temperature_c": 25.0,
+      "pressure_kpa": 101.325,
+      "saturation_w_kg_kg": 0.020173430,
+      "saturation_w_mg_sm3": 26070.12,
+      "saturation_w_lb_per_mmscf": 1627.51,
+      "notes": "ASHRAE Table 1 25°C × 101.325 kPa（标准工况；W≈14.7 g/kg）"
+    },
+    {
+      "id": "T_30C_101_325kPa",
+      "temperature_c": 30.0,
+      "pressure_kpa": 101.325,
+      "saturation_w_kg_kg": 0.027332863,
+      "saturation_w_mg_sm3": 35322.26,
+      "saturation_w_lb_per_mmscf": 2205.10,
+      "notes": "ASHRAE Table 1 30°C"
+    },
+    {
+      "id": "T_40C_101_325kPa",
+      "temperature_c": 40.0,
+      "pressure_kpa": 101.325,
+      "saturation_w_kg_kg": 0.049144493,
+      "saturation_w_mg_sm3": 63509.43,
+      "saturation_w_lb_per_mmscf": 3964.77,
+      "notes": "ASHRAE Table 1 40°C"
+    },
+    {
+      "id": "T_50C_101_325kPa",
+      "temperature_c": 50.0,
+      "pressure_kpa": 101.325,
+      "saturation_w_kg_kg": 0.086862885,
+      "saturation_w_mg_sm3": 112252.91,
+      "saturation_w_lb_per_mmscf": 7007.72,
+      "notes": "ASHRAE Table 1 50°C（饱和 W 接近 86.9 g/kg）"
+    }
+  ],
+  "out_of_range_cases": [
+    {
+      "id": "T_105C_101_325kPa",
+      "temperature_c": 105.0,
+      "pressure_kpa": 101.325,
+      "expect_temperature_out_of_range": true,
+      "expect_nan": true,
+      "expect_warning_message_contains": "100.0",
+      "notes": "T > 100°C → 越界 WARNING + NaN（SPEC §3.2.5 安全范围）"
+    },
+    {
+      "id": "T_25C_2000_psia",
+      "temperature_c": 15.5556,
+      "pressure_kpa": 13789.52,
+      "expect_temperature_out_of_range": true,
+      "expect_nan": true,
+      "expect_warning_message_contains": "100 atm",
+      "notes": "Imperial 2000 psia ≈ 137 atm；超出 CoolProp 上限 ~100 atm"
+    }
+  ],
+  "acidic_gas_cases": [
+    {
+      "id": "T_25C_CO2_30_H2S_20",
+      "temperature_c": 25.0,
+      "pressure_kpa": 101.325,
+      "acidic_gas_composition": {"CO2": 0.30, "H2S": 0.20},
+      "expect_acidic_gas_correction_applied": true,
+      "expect_acidic_gas_correction_factor_gt": 1.005,
+      "expect_acidic_gas_correction_factor_le": 1.05,
+      "notes": "CO2+H2S = 50 mol% → 校正因子 = 1 + 0.05 × (0.50-0.40)/0.60 ≈ 1.0083"
+    },
+    {
+      "id": "T_25C_CO2_30_H2S_05",
+      "temperature_c": 25.0,
+      "pressure_kpa": 101.325,
+      "acidic_gas_composition": {"CO2": 0.30, "H2S": 0.05},
+      "expect_acidic_gas_correction_applied": false,
+      "expect_acidic_gas_correction_factor": 1.0,
+      "notes": "CO2+H2S = 35 mol% < 40 mol% → 不触发校正"
+    }
+  ]
+}

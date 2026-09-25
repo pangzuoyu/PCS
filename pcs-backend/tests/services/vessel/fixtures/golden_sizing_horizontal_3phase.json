@@ -1,0 +1,54 @@
+{
+  "_comment": "P6-4 T2 C-08 两相分离器 sizing 黄金 fixture（horizontal 三相油气水；SPEC §3.4.2 V1.2 + WS-CA-PR-010 Rev A）。三相分流验证：oil+water+gas 体积流量 + ρ_mix 三相加权。强公式 <0.1%；K 因子表插值段 <1%。",
+  "_expected_values_formula": {
+    "stage1_volumetric": "oil_vol_bbl = oil_mass / (ρ_oil × 0.1589873); water_vol_bbl = water_mass / (ρ_water × 0.1589873); gas_vol_mmscfd = gas_mass / (ρ_gas × 28316.85)",
+    "stage2_mixed_density": "ρ_mix = (Σ Q_i × ρ_i) / (Σ Q_i)",
+    "stage3_souders_brown": "Vmax = K × √((ρL − ρV) / ρV); ρL = (oil_vol × ρ_oil + water_vol × ρ_water) / (oil_vol + water_vol)",
+    "stage4_csa": "A_min = Q_gas / (Vmax × 0.85); A_actual = π·D²/4",
+    "stage5_nozzle": "ID = √(4m² / (π × N × ρ_mix))",
+    "stage5_control": "H_c = t_c × Q_total_volumetric_m3_h / (3600 × CSA)",
+    "stage5_residence": "t_r = V_total_per_vessel / Q_per_vessel_m3_s"
+  },
+  "cases": [
+    {
+      "id": "horizontal_3phase",
+      "description": "HORIZONTAL 卧式三相（油+水+气；2:1_ELLIPTICAL 封头；强公式段 <0.1%）",
+      "vessel_shape": "HORIZONTAL",
+      "diameter_m": 2.5,
+      "length_m": 8.0,
+      "head_type": "2:1_ELLIPTICAL",
+      "operating_pressure_kpa": 800.0,
+      "operating_temperature_c": 80.0,
+      "oil_mass_rate_kg_d": 150000.0,
+      "water_mass_rate_kg_d": 50000.0,
+      "gas_mass_rate_kg_d": 80000.0,
+      "oil_density_kg_m3": 820.0,
+      "water_density_kg_m3": 1020.0,
+      "gas_density_kg_m3": 8.0,
+      "oil_sg": 0.8208,
+      "water_sg": 1.021,
+      "gas_sg": 6.5306,
+      "gas_mw_kg_kmol": 17.0,
+      "k_factor": 0.06,
+      "nozzle_inlet_momentum_limit_kg_m_s2": 200.0,
+      "nozzle_outlet_momentum_limit_kg_m_s2": 100.0,
+      "instrument_response_time_s": 45.0,
+      "n_vessels": 1,
+      "expected": {
+        "oil_vol_rate_bbl_d": 1150.5751,
+        "water_vol_rate_bbl_d": 308.324,
+        "gas_vol_rate_mmscfd": 0.3531,
+        "mixed_density_kg_m3": 27.3653,
+        "vmax_m_s": 0.62,
+        "csa_min_m2": 0.2196,
+        "csa_actual_m2": 4.9087,
+        "nozzle_inlet_min_id_m": 0.0494,
+        "nozzle_outlet_min_id_m": 0.0699,
+        "control_height_m": 1.0856,
+        "control_volume_m3": 43.3605,
+        "residence_time_s": 366.1424,
+        "tol_pct": 0.1
+      }
+    }
+  ]
+}

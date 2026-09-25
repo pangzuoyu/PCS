@@ -88,6 +88,75 @@ class CepciIndexSeries(Base):
     )
 
 
+class CompoundHeatingValues(Base):
+    """化合物热值库（compound_heating_values 表，P6-4 G-08 前置 gate 引入）。
+
+    业务（P6 SPEC §3.2.3.6 + GPSA Engineering Data Book FIG. 23-2）：
+
+    - ``cas`` CAS 注册号（UNIQUE 索引；如 ``74-82-8``=甲烷）；
+    - ``name`` 物质名（如 ``methane`` / ``H2S`` / ``n-butane``）；
+    - ``hhv_mj_kg`` 高位热值（MJ/kg，liquid H2O 生成条件）；
+    - ``lhv_mj_kg`` 低位热值（MJ/kg，gaseous H2O 生成条件）；
+    - ``mw_g_mol`` 分子量（g/mol；用于组分加权计算）；
+    - ``source`` 数据来源；开发填 ``SYNTHETIC_TEST_DATA``，工艺工程师用
+      GPSA FIG. 23-2 真实数据替换后改填期号（如 ``GPSA_ED13_FIG23-2``）；
+    - ``confirmed_by`` + ``confirmed_at`` 工艺室确认签字（占位字段）。
+
+    不继承 ``TaggedRecordMixin``（元数据表非业务计算记录）；改用
+    created_at/updated_at 直列 + server_default，便于运维 SQL 排查。
+
+    唯一约束：``cas``（CAS 注册号全球唯一）。
+    """
+
+    __tablename__ = "compound_heating_values"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+        comment="BIGINT 自增主键",
+    )
+    cas: Mapped[str] = mapped_column(
+        String(16), nullable=False, unique=True, index=True,
+        comment="CAS 注册号（UNIQUE 索引）；如 '74-82-8' = methane",
+    )
+    name: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment="物质名（如 'methane' / 'H2S' / 'n-butane'）",
+    )
+    hhv_mj_kg: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="高位热值 HHV（MJ/kg；liquid H2O 生成条件）",
+    )
+    lhv_mj_kg: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="低位热值 LHV（MJ/kg；gaseous H2O 生成条件）",
+    )
+    mw_g_mol: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="分子量（g/mol；用于组分加权计算）",
+    )
+    source: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment='数据来源；开发填 "SYNTHETIC_TEST_DATA"，'
+                '真实数据填如 "GPSA_ED13_FIG23-2"',
+    )
+    confirmed_by: Mapped[str | None] = mapped_column(
+        String(64), nullable=True,
+        comment="工艺室确认签字人（占位 NULL，工艺室签字后填入）",
+    )
+    confirmed_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+        comment="工艺室确认签字时间（占位 NULL，签字后填入）",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
+        comment="记录创建时间（DB server_default）",
+    )
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(),
+        comment="记录更新时间（DB onupdate 触发）",
+    )
+
+
 class CoolingTowerCurves(Base):
     """冷却塔特性曲线系数（cooling_tower_curves 表，P6-3 G-04 前置 gate 引入）。
 

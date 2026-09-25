@@ -12,6 +12,12 @@
 - 液体 cavitation / flashing 检测
 - 噪音 SIL 简化法（Task 3 未实现）
 
+P6-4 Task 5（C-24）补完：
+- §3.2.1.5 闪蒸工况修正：Masonelian fl（3 模型并存）+ flash_steam_rate_kg_s +
+  24 阀门厂库；本模块 calculate 仅追加 3 键 payload（fl / flash_steam_rate_kg_s /
+  masonelian_model），不动既有 _compute_Cv_liquid（V1.2 严格）；
+  公式实现见 ``flashing_correction.py`` 子模块。
+
 与 Task 3 chedl_wrapper.control_valve_* 的关系：
 - control_valve_C_liquid / control_valve_kv_liquid / control_valve_cv_gas：
   SPEC §3.2.1 简化公式自研（Path A 裁决），不调 fluids 完整 API；
@@ -31,6 +37,8 @@ from __future__ import annotations
 
 import math
 from typing import Any
+
+from app.services.exceptions import PcsError
 
 # IEC 60534-2-1 SI 标准常数（Nm³/h · bar 单位制，与 chedl_wrapper._N9_SI 一致）
 _N9_SI = 0.0865
@@ -298,6 +306,8 @@ class CvEngine:
     _DEFAULT_STANDARD_PROFILE = "IEC_60534"
     _DEFAULT_VALVE_TYPE = "GLOBE"
     _DEFAULT_DESIGN_STAGE = "BASIC"
+    # P6-4 Task 5（C-24 Masonelian fl）：默认 MASONELIAN_1973（SPEC §3.2.1.5 Eq.5）
+    _DEFAULT_MASONELIAN_MODEL = "MASONELIAN_1973"
 
     def calculate(self, **kwargs: Any) -> dict[str, Any]:
         """主入口：依据 fluid_phase 分流计算，返回 CvResult 21 键 payload。
@@ -347,6 +357,14 @@ class CvEngine:
             "cavitation": False,
             "flashing": False,
             "noise_sil_db": None,
+            # P6-4 Task 5（C-24 Masonelian fl / SPEC §3.2.1.5）3 键占位
+            # V1.2 D3：masonelian_model 走 ORM 列；fl / flash_steam_rate_kg_s 走
+            # output_json JSONB 容器（cerebrum.md Do-Not-Repeat）。
+            "fl": None,
+            "flash_steam_rate_kg_s": None,
+            "masonelian_model": kwargs.get(
+                "masonelian_model", self._DEFAULT_MASONELIAN_MODEL
+            ),
             # 标准代码（C-07 裁决：默认 IEC_60534，调用方可覆盖仅溯源）
             "standard_profile_code": kwargs.get(
                 "standard_profile_code", self._DEFAULT_STANDARD_PROFILE
@@ -399,4 +417,64 @@ class CvEngine:
                 dP_pa=dP_pa, Q_m3h=Q_for_noise, Kc=Kc
             )
 
+        # P6-4 Task 5（C-24 Masonelian fl + 闪蒸蒸汽量）
+        # 仅 LIQUID 路径计算（Masonelian fl / flash_steam_rate 是液体闪蒸工况修正；
+        # GAS/VAPOR 路径无 Pv / FL/FF 强物理意义，跳过）。masonelian_model 字段保留
+        # （即使用户走 GAS 也记录用户意图口径）。
+        if fluid_phase == "LIQUID":
+            try:
+                flash_result = self._compute_flash_correction(kwargs)
+                payload["fl"] = flash_result["fl"]
+                payload["flash_steam_rate_kg_s"] = flash_result["flash_steam_rate_kg_s"]
+                payload["masonelian_model"] = flash_result["masonelian_model"]
+            except (ValueError, PcsError):
+                # P6-4 T5 容差：若 P2_pa/Pv_pa 缺失或闪蒸修正前置不满足
+                # （如 x ≤ 0 物理越界、_flash_steam_rate_kg_s 参数非负校验失败），
+                # fl / flash_steam_rate_kg_s 留 None（JSONB 容器透传），
+                # masonelian_model 仍记录用户口径。Cv 主流程不因此失败。
+                # 422 由后续 CvCalculateRequest 层 Pydantic 校验守住。
+                payload["fl"] = None
+                payload["flash_steam_rate_kg_s"] = None
+                payload["masonelian_model"] = kwargs.get(
+                    "masonelian_model", self._DEFAULT_MASONELIAN_MODEL
+                )
+
         return payload
+
+    @staticmethod
+    def _compute_flash_correction(kwargs: dict[str, Any]) -> dict[str, Any]:
+        """P6-4 Task 5（C-24）：闪蒸工况修正（Masonelian fl + flash_steam_rate）。
+
+        委托 ``flashing_correction.calculate_flash_correction``，仅传 LIQUID
+        相关字段（Q_m3h / SG / dP_bar / P1_pa / P2_pa / Pv_pa / FL / FF /
+        masonelian_model）。vendor / valve_model 可选（kwargs 直传）。
+
+        关键边界：
+        - FL/FF 校验失败 → InvalidFLFFError 422（透传 PcsError envelope）
+        - x ≤ 0 或 x ≥ 1 → ValueError（透传 422 envelope）
+
+        Args:
+            kwargs: CvEngine.calculate 的 kwargs 子集
+
+        Returns:
+            dict 含 fl / flash_steam_rate_kg_s / masonelian_model（外加 x /
+            FL / FF / vendor / valve_model 元数据）
+        """
+        # 延迟导入打破 cv_engine ↔ flashing_correction 循环依赖
+        from app.services.cv.flashing_correction import calculate_flash_correction
+
+        return calculate_flash_correction(
+            Q_m3h=float(kwargs.get("Q_m3h", 0.0)),
+            SG=float(kwargs.get("SG", 1.0)),
+            dP_bar=float(kwargs.get("dP_bar", 0.0)),
+            P1_pa=float(kwargs.get("P1_pa", 0.0)),
+            P2_pa=float(kwargs.get("P2_pa", 0.0)),
+            Pv_pa=float(kwargs.get("Pv", 0.0)),
+            FL=float(kwargs.get("FL", 0.9)),
+            FF=float(kwargs.get("FF", 0.96)),
+            vendor=kwargs.get("vendor"),
+            valve_model=kwargs.get("valve_model"),
+            masonelian_model=kwargs.get(
+                "masonelian_model", CvEngine._DEFAULT_MASONELIAN_MODEL
+            ),
+        )

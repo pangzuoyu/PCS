@@ -19,6 +19,9 @@
 - POST /api/v1/psychro/cooling-coil
     body: CoolingCoilRequest
     response: CoolingCoilResponse（§3.2.5 子项 6）
+- POST /api/v1/psychro/saturation-water-content/calculate
+    body: SaturationWaterContentRequest
+    response: SaturationWaterContentResponse（§3.2.5 子项 7 — P6-4 Task 4 C-17）
 - POST   /api/v1/psychro/results        创建 PsychroResult（201）
 - GET    /api/v1/psychro/results        列出（分页，DRAFT/CHECKED filter）
 - GET    /api/v1/psychro/results/{id}   详情
@@ -59,6 +62,8 @@ from app.schemas.psychro import (
     PsychroResultListResponse,
     PsychroResultResponse,
     PsychroResultUpdateRequest,
+    SaturationWaterContentRequest,
+    SaturationWaterContentResponse,
     SpecificVolumeRequest,
     SpecificVolumeResponse,
     WetBulbRequest,
@@ -73,6 +78,10 @@ from app.services.chedl_wrapper import (  # P6-2 Task 26 — 6 calc 包装函数
     humid_air_wet_bulb,
 )
 from app.services.exceptions import PcsError
+from app.services.psychro import (  # P6-4 Task 4 (C-17) — 饱和水含量 service
+    SaturationWaterContentInput,
+    calc_saturation_water_content,
+)
 from app.services.psychro.psychro_persist_service import (  # P6-2 Task 26
     PsychroPersistInputError,
     save_psychro_result,
@@ -348,6 +357,54 @@ async def calc_cooling_coil(
         sensible_heat_kw=sensible_kw,
         latent_heat_kw=latent_kw,
         formula_ref=_FORMULA_REF_COIL,
+    )
+
+
+@router.post(
+    "/saturation-water-content/calculate",
+    response_model=SaturationWaterContentResponse,
+)
+async def calc_saturation_water_content_endpoint(
+    req: SaturationWaterContentRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> SaturationWaterContentResponse:
+    """饱和水含量 W_sat（§3.2.5 P6-PSY-001 §3.9.2 — P6-4 Task 4 C-17 显式水含量）。
+
+    直调 ``calc_saturation_water_content`` service（service 内 RH=1.0 直调
+    ``chedl_wrapper.humid_air_humidity_ratio``，不重复包装 CoolProp）：
+    - 3 独立单位输出（kg/kg / mg/Sm³ / lb/MMscf）
+    - ISO 18453 简式酸性气校正（CO2+H2S > 40 mol%）
+    - 温压越界（T ∉ [-50, 100]°C 或 P > ~100 atm）→ WARNING + NaN
+      （SPEC §3.2.5 "WARNING，不抛错"约定）
+    - D14 lru_cache(maxsize=4096)（service 层；同 (T, P, composition) 缓存命中）
+
+    ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    """
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    try:
+        result = calc_saturation_water_content(
+            SaturationWaterContentInput(
+                temperature_c=req.temperature_c,
+                pressure_kpa=req.pressure_kpa,
+                acidic_gas_composition=req.acidic_gas_composition or {},
+                units=req.units,
+            )
+        )
+    except PcsError as e:
+        raise _to_http(e) from e
+
+    del db  # 计算端点不写 DB
+    return SaturationWaterContentResponse(
+        saturation_w_kg_kg=result.saturation_w_kg_kg,
+        saturation_w_mg_sm3=result.saturation_w_mg_sm3,
+        saturation_w_lb_per_mmscf=result.saturation_w_lb_per_mmscf,
+        saturation_T_c=result.saturation_T_c,
+        temperature_out_of_range=result.temperature_out_of_range,
+        warning_message=result.warning_message,
+        acidic_gas_correction_applied=result.acidic_gas_correction_applied,
+        acidic_gas_correction_factor=result.acidic_gas_correction_factor,
+        formula_ref=result.formula_ref,
     )
 
 

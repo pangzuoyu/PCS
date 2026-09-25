@@ -33,6 +33,10 @@ from pydantic import BaseModel, ConfigDict, Field, model_validator
 # endpoint 内部 +273.15 转 K 喂给 chedl_wrapper 6 函数。
 _C_TO_K_OFFSET = 273.15
 
+# 饱和水含量（§3.2.5 P6-PSY-001 子项 7 — P6-4 Task 4 C-17 显式水含量）
+# 压力单位约定 kPa（公制 SI 默认；Imperial 转换由前端处理或调用方入参前换算）
+_KPA_PER_PA = 0.001
+
 # ============================================================================
 # 1. humidity-ratio（§3.2.5 P6-PSY-001 子项 1）
 # ============================================================================
@@ -253,14 +257,18 @@ class PsychroResultCreateRequest(BaseModel):
     - standard_profile_code: 项目标准（默认 "ASHRAE_FUND_2021"；
       C-07 String(16) 锁定）
     - calc_type: 计算类型（HUMIDITY_RATIO / DEW_POINT / WET_BULB /
-      ENTHALPY / SPECIFIC_VOLUME / COOLING_COIL；String(32) NOT NULL）
+      ENTHALPY / SPECIFIC_VOLUME / COOLING_COIL / SATURATION_W_CALC；
+      String(32) NOT NULL）
     - sign_status: 签审状态（默认 DRAFT）
 
-    12 业务字段（PsychroResult __table__ 排除 PK + mixin 字段）：
+    16 业务字段（PsychroResult __table__ 排除 PK + mixin 字段）：
     - coolprop_version: CoolProp 版本（payload 缺时 service 自动从
       get_coolprop_version() 写入；SPEC §3.2.5 coolprop_version 溯源）
     - humidity_ratio_kg_kg / dew_point_c / wet_bulb_c / enthalpy_kj_kg /
       specific_volume_m3_kg / sensible_heat_kw / latent_heat_kw
+    - P6-4 Task 4 C-17 4 列：
+      saturation_w_kg_kg / saturation_w_mg_sm3 /
+      saturation_w_lb_per_mmscf / saturation_T_c
     - input_json / output_json
     """
 
@@ -280,7 +288,7 @@ class PsychroResultCreateRequest(BaseModel):
         max_length=32,
         description=(
             "计算类型（HUMIDITY_RATIO / DEW_POINT / WET_BULB / ENTHALPY / "
-            "SPECIFIC_VOLUME / COOLING_COIL）"
+            "SPECIFIC_VOLUME / COOLING_COIL / SATURATION_W_CALC）"
         ),
     )
     sign_status: str = Field(
@@ -291,7 +299,7 @@ class PsychroResultCreateRequest(BaseModel):
         ),
     )
 
-    # 12 业务字段（按 ORM 列名平铺；service layer **payload 喂给 ORM）
+    # 16 业务字段（按 ORM 列名平铺；service layer **payload 喂给 ORM）
     coolprop_version: str | None = Field(
         None,
         max_length=16,
@@ -314,6 +322,19 @@ class PsychroResultCreateRequest(BaseModel):
     )
     latent_heat_kw: float | None = Field(
         None, description="潜热 kW（cooling_coil 专用）"
+    )
+    # P6-4 Task 4 (C-17) — 饱和水含量 4 业务列
+    saturation_w_kg_kg: float | None = Field(
+        None, description="饱和水含量 kg 水/kg 干空气（SATURATION_W_CALC 专用）",
+    )
+    saturation_w_mg_sm3: float | None = Field(
+        None, description="饱和水含量 mg 水/Sm³ 干空气（SATURATION_W_CALC；西欧常用）",
+    )
+    saturation_w_lb_per_mmscf: float | None = Field(
+        None, description="饱和水含量 lb 水/MMscf 干空气（SATURATION_W_CALC；北美常用）",
+    )
+    saturation_T_c: float | None = Field(
+        None, description="饱和温度 °C（SATURATION_W_CALC；service 入参回显）",
     )
     input_json: dict | None = Field(None, description="入参（业务子结构）")
     output_json: dict | None = Field(None, description="出参（业务子结构）")
@@ -341,6 +362,19 @@ class PsychroResultUpdateRequest(BaseModel):
     latent_heat_kw: float | None = Field(
         None, description="潜热 kW（cooling_coil 专用）"
     )
+    # P6-4 Task 4 (C-17) — 饱和水含量 4 业务列
+    saturation_w_kg_kg: float | None = Field(
+        None, description="饱和水含量 kg 水/kg 干空气（SATURATION_W_CALC 专用）",
+    )
+    saturation_w_mg_sm3: float | None = Field(
+        None, description="饱和水含量 mg 水/Sm³ 干空气（SATURATION_W_CALC；西欧常用）",
+    )
+    saturation_w_lb_per_mmscf: float | None = Field(
+        None, description="饱和水含量 lb 水/MMscf 干空气（SATURATION_W_CALC；北美常用）",
+    )
+    saturation_T_c: float | None = Field(
+        None, description="饱和温度 °C（SATURATION_W_CALC；service 入参回显）",
+    )
     input_json: dict | None = Field(None, description="入参（业务子结构）")
     output_json: dict | None = Field(None, description="出参（业务子结构）")
 
@@ -350,7 +384,7 @@ class PsychroResultResponse(BaseModel):
 
     字段：溯源（id / project_id / workspace_id / tag_number /
     standard_profile_code / calc_type / coolprop_version / sign_status /
-    record_hash）+ 10 业务字段 + 时间戳。
+    record_hash）+ 14 业务字段 + 时间戳。
 
     字段映射（ORM → schema）：
     - ORM psychro_id → schema id（PK 重命名；前端统一用 id）
@@ -373,7 +407,7 @@ class PsychroResultResponse(BaseModel):
     record_hash: str | None = Field(
         None, description="record_hash（ADR-0028 §决策 4 reflection；16 hex）"
     )
-    # 10 业务字段
+    # 14 业务字段（含 P6-4 Task 4 C-17 4 列）
     humidity_ratio_kg_kg: float | None = Field(
         None, description="湿度比 kg/kg dry air"
     )
@@ -388,6 +422,18 @@ class PsychroResultResponse(BaseModel):
     )
     latent_heat_kw: float | None = Field(
         None, description="潜热 kW（cooling_coil 专用）"
+    )
+    saturation_w_kg_kg: float | None = Field(
+        None, description="饱和水含量 kg 水/kg 干空气（SATURATION_W_CALC 专用）",
+    )
+    saturation_w_mg_sm3: float | None = Field(
+        None, description="饱和水含量 mg 水/Sm³ 干空气（SATURATION_W_CALC；西欧常用）",
+    )
+    saturation_w_lb_per_mmscf: float | None = Field(
+        None, description="饱和水含量 lb 水/MMscf 干空气（SATURATION_W_CALC；北美常用）",
+    )
+    saturation_T_c: float | None = Field(
+        None, description="饱和温度 °C（SATURATION_W_CALC；service 入参回显）",
     )
     input_json: dict | None = Field(None, description="入参（业务子结构）")
     output_json: dict | None = Field(None, description="出参（业务子结构）")
@@ -435,6 +481,93 @@ class PsychroResultListResponse(BaseModel):
     offset: int = Field(..., description="分页偏移")
 
 
+# ============================================================================
+# 8. 饱和水含量（§3.2.5 P6-PSY-001 §3.9.2 — P6-4 Task 4 C-17 显式水含量）
+# ============================================================================
+
+
+class SaturationWaterContentRequest(BaseModel):
+    """饱和水含量请求（POST /psychro/saturation-water-content/calculate）。
+
+    字段（按 SPEC §3.2.5 P6-PSY-001 §3.9.2 显式水含量）：
+    - temperature_c: 干球温度 °C（SPEC 安全范围 -50~100°C；超界返 WARNING）
+    - pressure_kpa: 大气压力 kPa（默认海平面 101.325；> 0）
+    - acidic_gas_composition: 酸性气摩尔分率 dict（None → 无校正；ISO 18453
+      简式校正仅在 CO2+H2S > 40 mol% 时触发）
+    - units: 单位制（"METRIC" 公制 SI / "IMPERIAL" 英制；不影响算法，仅标注）
+    """
+
+    temperature_c: float = Field(
+        ...,
+        gt=-273.15,
+        description=(
+            "干球温度 °C（SPEC §3.2.5 安全范围 -50~100°C；超界返 WARNING + NaN）"
+        ),
+    )
+    pressure_kpa: float = Field(
+        101.325,
+        gt=0,
+        description=(
+            "大气压力 kPa（默认海平面 101.325；> 0；超出 CoolProp 上限 ~100 atm 返 WARNING）"
+        ),
+    )
+    acidic_gas_composition: dict[str, float] | None = Field(
+        None,
+        description=(
+            "酸性气摩尔分率 dict（如 {\"CO2\": 0.30, \"H2S\": 0.20}）；"
+            "None → 无校正；ISO 18453 简式校正仅在 CO2+H2S > 40 mol% 时触发"
+        ),
+    )
+    units: str = Field(
+        "METRIC",
+        description="单位制（METRIC 公制 SI / IMPERIAL 英制；不影响算法，仅标注）",
+    )
+
+
+class SaturationWaterContentResponse(BaseModel):
+    """饱和水含量响应（POST /psychro/saturation-water-content/calculate）。
+
+    字段（按 SPEC §3.2.5 P6-PSY-001 §3.9.2）：
+    - saturation_w_kg_kg: 饱和水含量 kg 水 / kg 干空气（摩尔比）
+    - saturation_w_mg_sm3: 饱和水含量 mg 水 / Sm³ 干空气（西欧常用）
+    - saturation_w_lb_per_mmscf: 饱和水含量 lb 水 / MMscf 干空气（北美常用）
+    - saturation_T_c: 计算时实际使用的干球温度 °C
+    - temperature_out_of_range: True/False（< -50°C 或 > 100°C）
+    - warning_message: 越界警告（None 表示无警告）
+    - acidic_gas_correction_applied: True/False（CO2+H2S > 40 mol%）
+    - acidic_gas_correction_factor: ISO 18453 简式校正系数（默认 1.0）
+    - formula_ref: 公式溯源标记 "ASHRAE_RP-1845_CoolProp"
+    """
+
+    saturation_w_kg_kg: float = Field(
+        ..., description="饱和水含量 kg 水 / kg 干空气"
+    )
+    saturation_w_mg_sm3: float = Field(
+        ..., description="饱和水含量 mg 水 / Sm³ 干空气"
+    )
+    saturation_w_lb_per_mmscf: float = Field(
+        ..., description="饱和水含量 lb 水 / MMscf 干空气"
+    )
+    saturation_T_c: float = Field(
+        ..., description="计算时实际使用的干球温度 °C"
+    )
+    temperature_out_of_range: bool = Field(
+        ..., description="是否超出 SPEC §3.2.5 安全范围 [-50, 100]°C"
+    )
+    warning_message: str | None = Field(
+        None, description="越界警告（None 表示无警告；CoolProp 拒绝时含错误细节）"
+    )
+    acidic_gas_correction_applied: bool = Field(
+        ..., description="是否应用 ISO 18453 简式酸性气校正（CO2+H2S > 40 mol%）"
+    )
+    acidic_gas_correction_factor: float = Field(
+        ..., description="ISO 18453 简式校正系数（默认 1.0；上限 1.05）"
+    )
+    formula_ref: str = Field(
+        ..., description="公式溯源标记（ASHRAE_RP-1845_CoolProp）"
+    )
+
+
 __all__ = [
     # 6 calc 子项
     "HumidityRatioRequest",
@@ -449,6 +582,9 @@ __all__ = [
     "SpecificVolumeResponse",
     "CoolingCoilRequest",
     "CoolingCoilResponse",
+    # 饱和水含量（P6-4 Task 4 / C-17 显式水含量）
+    "SaturationWaterContentRequest",
+    "SaturationWaterContentResponse",
     # CRUD
     "PsychroResultCreateRequest",
     "PsychroResultUpdateRequest",

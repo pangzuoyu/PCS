@@ -1,0 +1,28 @@
+{
+  "name": "纯甲烷热值（C-06 / vs GPSA HHV 55.53 MJ/kg）",
+  "description": "100% CH4 单组分；用于单元测试基准对照（rel=1e-3）",
+  "compositions": [
+    {"cas": "74-82-8", "mol_frac": 1.0}
+  ],
+  "expected": {
+    "feed_mw_kg_per_kmol": 16.043,
+    "hhv_mj_per_sm3": 37.6055,
+    "hhv_btu_per_scf": 1009.3,
+    "lhv_mj_per_sm3": 33.8741,
+    "lhv_btu_per_scf": 909.15,
+    "stoichiometric_air_sm3_per_sm3": 9.5238,
+    "flue_gas_sm3_per_sm3": 10.5238,
+    "flue_gas_mw_kg_per_kmol": 80.039,
+    "flue_gas_composition": {
+      "CO2": 0.095,
+      "H2O": 0.19,
+      "SO2": 0.0,
+      "N2": 0.7149,
+      "O2": 0.0
+    },
+    "formula_ref_sources": {
+      "74-82-8": "GPSA_23-2"
+    }
+  },
+  "source": "GPSA FIG. 23-2 methane row（55.53 MJ/kg × 16.043 g/mol = 890.6 MJ/kmol；÷ 23.69 sm³/kmol = 37.61 MJ/sm³）"
+}

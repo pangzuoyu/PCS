@@ -91,6 +91,11 @@ class CvCalculateResponse(BaseModel):
     """调节阀 Cv 计算响应（POST /api/v1/cv/calculate 201）。
 
     回填 CvResult 主键 + 关键结果字段 + outlet stream 锚点。
+
+    P6-4 Task 5（C-24 Masonelian fl）：V1.2 D3 严格 — fl / flash_steam_rate_kg_s
+    走 JSONB 容器（output_json），masonelian_model 走 ORM 列。响应层 3 字段全部
+    Optional（默认 None），保持 V1.0 兼容：仅 LIQUID 路径填充；GAS/VAPOR 路径
+    闪蒸修正无强物理意义，保持 None。
     """
 
     model_config = ConfigDict(protected_namespaces=())
@@ -104,6 +109,21 @@ class CvCalculateResponse(BaseModel):
     cavitation: bool = Field(False, description="液体空化标记（IEC 60534-2-1 §5.3，LIQUID 路径）")
     flashing: bool = Field(False, description="液体闪蒸标记（IEC 60534-2-1 §5.4，LIQUID 路径）")
     noise_sil_db: float | None = Field(None, description="简化法噪音估算 dB（IEC 60534-8-3）")
+    # P6-4 Task 5（C-24 Masonelian fl / SPEC §3.2.1.5）3 字段
+    # V1.2 D3：masonelian_model 走 ORM 列；fl/flash_steam_rate_kg_s 走 JSONB 容器
+    # Optional 保持 V1.0 兼容（仅 LIQUID 路径填充；GAS/VAPOR 保持 None）
+    fl: float | None = Field(
+        None,
+        description="Masonelian fl 修正系数（无量纲；SPEC §3.2.1.5 Eq.5；LIQUID 路径填充）",
+    )
+    flash_steam_rate_kg_s: float | None = Field(
+        None,
+        description="闪蒸蒸汽量估算 kg/s（强公式；LIQUID 路径填充；GAS/VAPOR 保持 None）",
+    )
+    masonelian_model: str | None = Field(
+        None,
+        description="Masonelian fl 模型口径：MASONELIAN_1973（默认）/ CHAPMAN_JANS / TONG",
+    )
     standard_profile_code: str = Field(
         ...,
         description="执行标准 profile code（C-07：默认 IEC_60534）",

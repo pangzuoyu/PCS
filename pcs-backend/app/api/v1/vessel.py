@@ -8,8 +8,19 @@
                   vapor_flow_m3_s, residence_time_min, K_factor_ms },
         hydraulics: { D_m, L_m, h0_m, d_orifice_m, Cd_orifice,
                       Q_in_liquid_m3_s, d_overflow_m, h_overflow_m,
-                      Cd_overflow, orientation, thermal_breathing_factor? }
+                      Cd_overflow, orientation, thermal_breathing_factor? },
+        sizing_spec?: { vessel_shape, diameter_m, length_m, head_type,
+                        operating_pressure_kpa, operating_temperature_c,
+                        oil/water/gas_mass_rate_kg_d, oil/water/gas_density_kg_m3,
+                        oil/water/gas_sg, gas_mw_kg_kmol, k_factor,
+                        nozzle_inlet/outlet_momentum_limit_kg_m_s2,
+                        instrument_response_time_s, n_vessels?, imperial_units? }
     }
+
+P6-4 T2 扩展：可选 sizing_spec（C-08 两相分离器尺寸 V1.2 重写）触发
+two_phase_separator_sizing_service，填充 vessel_results 6 列 sizing
+（vmax_m_s / csa_min_m2 / csa_actual_m2 / nozzle_min_id_m / control_height_m /
+residence_time_s）。sizing_spec=None 时保持 V1.0 兼容（不写 6 列）。
 
 设计要点：
 - ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN（与 flash 一致）
@@ -31,6 +42,9 @@ from app.db.session import get_db
 from app.services.calc_entry import check_calc_inputs
 from app.services.exceptions import PcsError
 from app.services.vessel import vessel_persist
+from app.services.vessel.two_phase_separator_sizing_service import (
+    TwoPhaseSeparatorSizingInput,
+)
 from app.services.vessel.vessel_service import (
     VesselHydraulicsInput,
     VesselSizingInput,
@@ -81,12 +95,66 @@ class HydraulicsInputSchema(BaseModel):
     )
 
 
+class SizingSpecSchema(BaseModel):
+    """两相分离器尺寸输入（对应 TwoPhaseSeparatorSizingInput）。
+
+    可选字段（None = V1.0 兼容，不触发 sizing 计算）。
+    P6-4 T2 C-08 V1.2 重写：5 段计算（Souders-Brown + CSA + 喷嘴 + 仪表 + 停留时间）。
+    """
+
+    vessel_shape: str = Field(
+        ..., description="容器方位：VERTICAL 立式 / HORIZONTAL 卧式 / SPHERICAL 球罐",
+    )
+    diameter_m: float = Field(..., gt=0, description="容器内径 m")
+    length_m: float = Field(
+        0.0, ge=0, description="切线长 m（立式=高度；卧式=切线；球罐=0）",
+    )
+    head_type: str = Field(
+        ..., description=(
+            "封头类型：HEMISPHERICAL 半球 / 2:1_ELLIPTICAL 2:1椭圆 / "
+            "TORISPHERICAL 碟形 / FLAT 平封头"
+        ),
+    )
+    operating_pressure_kpa: float = Field(..., ge=0, description="操作压力 kPa(gauge)")
+    operating_temperature_c: float = Field(..., description="操作温度 °C")
+    oil_mass_rate_kg_d: float = Field(..., ge=0, description="油质量流量 kg/d")
+    water_mass_rate_kg_d: float = Field(0.0, ge=0, description="水质量流量 kg/d")
+    gas_mass_rate_kg_d: float = Field(..., ge=0, description="气质量流量 kg/d")
+    oil_density_kg_m3: float = Field(..., gt=0, description="油密度 kg/m³")
+    water_density_kg_m3: float = Field(..., gt=0, description="水密度 kg/m³")
+    gas_density_kg_m3: float = Field(..., gt=0, description="气密度 kg/m³")
+    oil_sg: float = Field(..., gt=0, description="油比重 SG（= oil_density/999.0）")
+    water_sg: float = Field(..., gt=0, description="水比重 SG（= water_density/999.0）")
+    gas_sg: float = Field(..., gt=0, description="气比重 SG（= gas_density/1.225）")
+    gas_mw_kg_kmol: float = Field(..., gt=0, description="气分子量 kg/kmol")
+    k_factor: float = Field(
+        ..., ge=0.01, le=1.0, description="Souders-Brown K 因子 m/s",
+    )
+    nozzle_inlet_momentum_limit_kg_m_s2: float = Field(
+        ..., gt=0, description="入口喷嘴动量限值 kg·m/s²",
+    )
+    nozzle_outlet_momentum_limit_kg_m_s2: float = Field(
+        ..., gt=0, description="出口喷嘴动量限值 kg·m/s²",
+    )
+    instrument_response_time_s: float = Field(
+        ..., gt=0, description="仪表响应时间 t_c s",
+    )
+    design_pressure_mpa: float = Field(1.0, gt=0, description="设计压力 MPa")
+    n_vessels: int = Field(1, ge=1, description="并联容器数")
+    imperial_units: bool = Field(False, description="是否输出英制转换字段")
+
+
 class CalculateRequest(BaseModel):
     """POST /vessel/calculate 请求体。"""
 
     source_stream_id: uuid.UUID = Field(..., description="输入流 UUID（必须 CHECKED）")
     sizing: SizingInputSchema = Field(..., description="vessel 尺寸计算输入")
     hydraulics: HydraulicsInputSchema = Field(..., description="vessel 流体力学校核输入")
+    sizing_spec: SizingSpecSchema | None = Field(
+        None, description=(
+            "P6-4 T2 两相分离器尺寸（C-08 V1.2）；None = V1.0 兼容不计算"
+        ),
+    )
 
 
 class CalculateResponse(BaseModel):
@@ -102,7 +170,7 @@ class CalculateResponse(BaseModel):
         default_factory=list, description="DataLineage 行 ID 列表"
     )
     result: dict[str, Any] = Field(
-        default_factory=dict, description="合并 sizing + hydraulics 结果"
+        default_factory=dict, description="合并 sizing + hydraulics + sizing_spec 结果"
     )
     outlet_stream_id: uuid.UUID = Field(..., description="出口流 UUID")
     outlet_stream_name: str = Field(..., description="出口流名称")
@@ -154,7 +222,10 @@ async def calculate_vessel(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> CalculateResponse:
-    """POST /api/v1/vessel/calculate：vessel 尺寸 + 流体力学一次计算。
+    """POST /api/v1/vessel/calculate：vessel 尺寸 + 流体力学 + 两相 sizing 一次计算。
+
+    P6-4 T2：可选 sizing_spec 触发 two_phase_separator_sizing_service（C-08 V1.2
+    重写），填充 vessel_results 6 列 sizing；sizing_spec=None 时保持 V1.0 兼容。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
@@ -167,6 +238,12 @@ async def calculate_vessel(
         # 1. Pydantic schema → dataclass 转换
         sizing_inp = VesselSizingInput(**req.sizing.model_dump())
         hydraulics_inp = VesselHydraulicsInput(**req.hydraulics.model_dump())
+        # P6-4 T2 可选 sizing_spec → TwoPhaseSeparatorSizingInput
+        sizing_spec_inp: TwoPhaseSeparatorSizingInput | None = None
+        if req.sizing_spec is not None:
+            sizing_spec_inp = TwoPhaseSeparatorSizingInput(
+                **req.sizing_spec.model_dump()
+            )
 
         # 2. service 层落库
         data = await vessel_persist.persist_vessel_calculate(
@@ -174,6 +251,7 @@ async def calculate_vessel(
             source_stream_id=req.source_stream_id,
             sizing_input=sizing_inp,
             hydraulics_input=hydraulics_inp,
+            sizing_spec_input=sizing_spec_inp,
             actor=user.user_id,
         )
     except PcsError as e:

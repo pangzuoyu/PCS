@@ -1,0 +1,120 @@
+{
+  "_meta": {
+    "description": "Masonelian fl 黄金 fixture（P6-4 Task 5 / C-24 / SPEC §3.2.1.5 Eq.5）。",
+    "version": "1.0",
+    "date": "2026-09-25",
+    "source": "Masonelian 1973 Eq.5 + Chapman-Jans / Tong 简化公式",
+    "tolerance": "rel=1e-4",
+    "test_cases": "18 = x ∈ {0.1, 0.3, 0.5, 0.7} × FL ∈ {0.9, 0.85} × 3 模型"
+  },
+  "cases": [
+    {
+      "FL": 0.9,
+      "x": 0.1,
+      "model": "MASONELIAN_1973",
+      "expected_fl": 0.8547846618779599
+    },
+    {
+      "FL": 0.9,
+      "x": 0.3,
+      "model": "MASONELIAN_1973",
+      "expected_fl": 0.7594823642050297
+    },
+    {
+      "FL": 0.9,
+      "x": 0.5,
+      "model": "MASONELIAN_1973",
+      "expected_fl": 0.649519052838329
+    },
+    {
+      "FL": 0.9,
+      "x": 0.7,
+      "model": "MASONELIAN_1973",
+      "expected_fl": 0.5104020906282097
+    },
+    {
+      "FL": 0.85,
+      "x": 0.1,
+      "model": "MASONELIAN_1973",
+      "expected_fl": 0.8072966251069621
+    },
+    {
+      "FL": 0.85,
+      "x": 0.3,
+      "model": "MASONELIAN_1973",
+      "expected_fl": 0.7172888995269725
+    },
+    {
+      "FL": 0.85,
+      "x": 0.5,
+      "model": "MASONELIAN_1973",
+      "expected_fl": 0.6134346610139774
+    },
+    {
+      "FL": 0.85,
+      "x": 0.7,
+      "model": "MASONELIAN_1973",
+      "expected_fl": 0.48204641892664246
+    },
+    {
+      "FL": 0.9,
+      "x": 0.1,
+      "model": "CHAPMAN_JANS",
+      "expected_fl": 0.7363636363636364
+    },
+    {
+      "FL": 0.9,
+      "x": 0.3,
+      "model": "CHAPMAN_JANS",
+      "expected_fl": 0.48461538461538456
+    },
+    {
+      "FL": 0.9,
+      "x": 0.5,
+      "model": "CHAPMAN_JANS",
+      "expected_fl": 0.3
+    },
+    {
+      "FL": 0.9,
+      "x": 0.7,
+      "model": "CHAPMAN_JANS",
+      "expected_fl": 0.15882352941176475
+    },
+    {
+      "FL": 0.85,
+      "x": 0.1,
+      "model": "CHAPMAN_JANS",
+      "expected_fl": 0.6954545454545454
+    },
+    {
+      "FL": 0.85,
+      "x": 0.3,
+      "model": "CHAPMAN_JANS",
+      "expected_fl": 0.4576923076923076
+    },
+    {
+      "FL": 0.85,
+      "x": 0.5,
+      "model": "CHAPMAN_JANS",
+      "expected_fl": 0.2833333333333333
+    },
+    {
+      "FL": 0.85,
+      "x": 0.7,
+      "model": "CHAPMAN_JANS",
+      "expected_fl": 0.15000000000000002
+    },
+    {
+      "FL": 0.9,
+      "x": 0.5,
+      "model": "TONG",
+      "expected_fl": 0.6363961030678928
+    },
+    {
+      "FL": 0.85,
+      "x": 0.5,
+      "model": "TONG",
+      "expected_fl": 0.6010407640085654
+    }
+  ]
+}
