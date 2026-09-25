@@ -1,0 +1,28 @@
+{
+  "case_id": "AS_2360_LIMIT_GOLDEN_001",
+  "description": "AS 2360.1.1 Limit 校核黄金算例（d=20mm < 25.4mm 触发 Limit + γ=1.4 阻塞流判定）",
+  "input": {
+    "orifice_diameter_m": 0.02,
+    "inlet_pressure_kpa": 1000.0,
+    "outlet_pressure_kpa": 500.0,
+    "fluid_density_kg_m3": 10.0,
+    "gas_specific_heat_ratio": 1.4,
+    "mass_flow_kg_s": 10.0,
+    "imperial_units": false
+  },
+  "expected": {
+    "orifice_diameter_in": 0.7874015748,
+    "is_limit_applicable": true,
+    "sonic_velocity_m_s": 374.1657386,
+    "critical_pressure_ratio": 0.5283,
+    "actual_pressure_ratio": 0.5,
+    "is_choked": true,
+    "warning_message_substring": "AS 2360.1.1 Limit",
+    "imperial_conversion": null
+  },
+  "tolerance": {
+    "rel_tol": 1e-3,
+    "abs_tol": 1e-6
+  },
+  "source": "SPEC §3.7.1 V1.1 + AS 2360.1.1-1993 (R2016) §4.2.3"
+}
