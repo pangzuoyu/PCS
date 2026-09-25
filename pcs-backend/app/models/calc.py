@@ -993,6 +993,10 @@ class PsychroResult(TaggedRecordMixin, RecordMixin, Base):
     JSONB 容器。coolprop_version 字段溯源 CoolProp 库版本（如 "6.6.0"）。
     standard_profile_code 默认 ASHRAE_FUND_2021（C-07 锁定 String(16)）。
 
+    P6-4 Task 4（C-17 显式水含量）：4 nullable 业务字段（饱和 W 三单位 +
+    饱和温度），仅 PATCH/SATURATION_W_CALC 等显式 calc_type 落库时填；
+    既有 calc_type（HUMIDITY_RATIO 等）保持 NULL。
+
     RECORD_TYPE_REGISTRY 注册键 = "psychro_result"（P6-2 Task 18）。
     """
 
@@ -1005,7 +1009,10 @@ class PsychroResult(TaggedRecordMixin, RecordMixin, Base):
     )
     calc_type: Mapped[str] = mapped_column(
         String(32), nullable=False,
-        comment="HUMIDITY_RATIO / DEW_POINT / WET_BULB / ENTHALPY / SPECIFIC_VOLUME / COOLING_COIL",
+        comment=(
+            "HUMIDITY_RATIO / DEW_POINT / WET_BULB / ENTHALPY / "
+            "SPECIFIC_VOLUME / COOLING_COIL / SATURATION_W_CALC"
+        ),
     )
     coolprop_version: Mapped[str | None] = mapped_column(
         String(16), nullable=True, comment="CoolProp 版本（如 6.6.0）；record_hash 反射自动含",
@@ -1018,6 +1025,19 @@ class PsychroResult(TaggedRecordMixin, RecordMixin, Base):
     specific_volume_m3_kg: Mapped[float | None] = mapped_column(Float, comment="m³/kg")
     sensible_heat_kw: Mapped[float | None] = mapped_column(Float, comment="显热 kW（cooling_coil）")
     latent_heat_kw: Mapped[float | None] = mapped_column(Float, comment="潜热 kW（cooling_coil）")
+    # P6-4 Task 4（C-17 显式水含量 4 列 nullable）
+    saturation_w_kg_kg: Mapped[float | None] = mapped_column(
+        Float, comment="饱和水含量 kg 水/kg 干空气（SATURATION_W_CALC 专用；SPEC §3.2.5 §3.9.2）",
+    )
+    saturation_w_mg_sm3: Mapped[float | None] = mapped_column(
+        Float, comment="饱和水含量 mg 水/Sm³ 干空气（SATURATION_W_CALC；西欧常用）",
+    )
+    saturation_w_lb_per_mmscf: Mapped[float | None] = mapped_column(
+        Float, comment="饱和水含量 lb 水/MMscf 干空气（SATURATION_W_CALC；北美常用）",
+    )
+    saturation_T_c: Mapped[float | None] = mapped_column(
+        Float, comment="饱和温度 °C（SATURATION_W_CALC；service 入参温度回显）",
+    )
     # JSONB
     input_json: Mapped[dict | None] = mapped_column(JSONB, comment="入参（业务子结构）")
     output_json: Mapped[dict | None] = mapped_column(JSONB, comment="出参（业务子结构）")
