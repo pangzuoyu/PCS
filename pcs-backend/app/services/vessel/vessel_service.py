@@ -438,3 +438,375 @@ def calc_vessel_hydraulics(inp: VesselHydraulicsInput) -> VesselHydraulicsResult
         vent_capacity_m3_s=vent_capacity_m3_s,
         applicable_orientation="vertical",
     )
+
+
+# ============================================================================
+# P6-4 T3 C-12 容器部分体积 + 润湿面积公共服务（V1.2 接口冻结 6 个月）
+#
+# 按 SPEC §3.4.4 C-12 增补：容器几何公共服务，供 C-07/C-08/C-10/C-20/C-21 调用。
+# 接口冻结至 2027-03-25（ADR-0040）：签名 + 行为不变；任何破坏性变更须新 ADR。
+#
+# 公式来源：WS-CA-PR-013 Rev A（"Partial Vessel Volume" 算例，Worley 标准计算）：
+#   - 2:1 椭圆封头：V_partial = π·Z·(3D² - 16Z²)/12（Z ≤ D/4）
+#   - 半球封头：V_partial = π·Z²·(R - Z/3), R = D/2
+#   - 碟形封头：V_partial = V_full · (Z/b)²（工程近似，Ri=D/r=0.1D 标准 F&D）
+#   - 平封头：V = 0
+#   - 圆柱主体：V_cyl = π·D²/4·L_liq（液位超过封头后）
+#   - 润湿面积：2:1 椭圆 A = π·D²·[1/4 + ln(2+√3)/(8√3)] ≈ π·D²·0.3451（半 oblate 椭球闭式）
+# ============================================================================
+
+
+# 封头类型字面量（V1.2 拼写修正：TORISPHERIAL → TORISPHERICAL，per SPEC §3.4.4）
+HeadType = Literal["HEMISPHERICAL", "2:1_ELLIPTICAL", "TORISPHERICAL", "FLAT"]
+# mass_iteration 子集：排除 TORISPHERICAL（圆锥+冠部几何复杂，迭代收敛难）
+MassIterationHeadType = Literal["HEMISPHERICAL", "2:1_ELLIPTICAL", "FLAT"]
+VesselShape = Literal["VERTICAL", "HORIZONTAL", "SPHERICAL"]
+MassModel = Literal["EMPTY", "OPERATING"]
+IterationVariable = Literal["D", "L"]
+
+# 2:1 椭圆封头表面积系数（半 oblate 椭球闭式积分结果）
+# A_2:1 = π·D²·[1/4 + ln(2+√3)/(8√3)] ≈ π·D²·0.3451
+# 推导：_head_partial_area 在 Z=b=D/4 时积分得 A_full
+_ELLIPSE_AREA_COEF: Final[float] = 0.25 + math.log(2.0 + math.sqrt(3.0)) / (
+    8.0 * math.sqrt(3.0)
+)  # ≈ 0.3451
+# 标准 ASME F&D 碟形封头深度系数（Ri=D, r=0.1D）
+_TORISPHERICAL_DEPTH_COEF: Final[float] = 0.169
+# 标准 ASME F&D 碟形封头体积系数（Perry's 8th Ed. Table 10-4）
+_TORISPHERICAL_VOLUME_COEF: Final[float] = 0.0806
+# 标准 ASME F&D 碟形封头表面积系数（工程近似，单头）
+_TORISPHERICAL_AREA_COEF: Final[float] = 1.20
+
+
+class MassIterationNotConvergedError(PcsError):
+    """mass_iteration_loop 50 次迭代未收敛（422）。
+
+    由 calc_vessel_sizing 配套算法在 WS-CA-PR-010.xls 5 段 sizing 中调用
+    Newton/bisection 求解容器 D 或 L；超出 max_iter 触发。
+    """
+
+    code = "MASS_ITERATION_NOT_CONVERGED"
+    status = 422
+
+
+@dataclass(frozen=True)
+class PartialVolumeInput:
+    """calc_partial_volume 输入（frozen dataclass，V1.2 接口冻结）。
+
+    物理量 SI 单位：长度 m。
+    H_m = 液位总高度（从容器底部内侧算起，含封头段）；≥ 0 且 ≤ L_m + 2·head_depth。
+    """
+
+    D_m: float
+    L_m: float
+    head_type: HeadType
+    H_m: float
+    n_vessels: int = 1
+
+
+@dataclass(frozen=True)
+class PartialVolumeResult:
+    """calc_partial_volume 输出（frozen dataclass，V1.2 接口冻结）。
+
+    字段：
+      - partial_volume_m3: 单容器部分液相体积
+      - total_volume_m3: 单容器总容积（n_vessels × 此值 = 多容器总容积）
+      - head_volume_m3: 单容器封头部分容积（底部 + 顶部封头，液位侵入部分）
+      - cylinder_volume_m3: 单容器筒体部分液相体积
+      - formula_ref: 公式溯源（dict[str, str]）
+    """
+
+    partial_volume_m3: float
+    total_volume_m3: float
+    head_volume_m3: float
+    cylinder_volume_m3: float
+    formula_ref: dict[str, str]
+
+
+@dataclass(frozen=True)
+class WettedAreaInput:
+    """calc_wetted_area 输入（frozen dataclass，V1.2 接口冻结）。"""
+
+    D_m: float
+    L_m: float
+    head_type: HeadType
+    H_m: float
+    n_vessels: int = 1
+
+
+@dataclass(frozen=True)
+class WettedAreaResult:
+    """calc_wetted_area 输出（frozen dataclass，V1.2 接口冻结）。
+
+    字段：
+      - wetted_area_m2: 单容器润湿面积
+      - total_wetted_area_m2: 单容器总外表面积（n_vessels × 此值 = 多容器总外表）
+      - head_area_m2: 单容器封头润湿面积（底部 + 顶部封头，液位接触部分）
+      - cylinder_area_m2: 单容器筒体润湿面积 = π·D·L_liq
+      - formula_ref: 公式溯源
+    """
+
+    wetted_area_m2: float
+    total_wetted_area_m2: float
+    head_area_m2: float
+    cylinder_area_m2: float
+    formula_ref: dict[str, str]
+
+
+def _head_depth(D_m: float, head_type: HeadType) -> float:
+    """单封头深度（m）。
+
+    HEMISPHERICAL: D/2；2:1_ELLIPTICAL: D/4；TORISPHERICAL (F&D): 0.169·D；FLAT: 0。
+    """
+    if head_type == "HEMISPHERICAL":
+        return D_m / 2.0
+    if head_type == "2:1_ELLIPTICAL":
+        return D_m / 4.0
+    if head_type == "TORISPHERICAL":
+        return _TORISPHERICAL_DEPTH_COEF * D_m
+    if head_type == "FLAT":
+        return 0.0
+    raise VesselInputError(f"未知的 head_type: {head_type!r}")
+
+
+def _head_full_volume(D_m: float, head_type: HeadType) -> float:
+    """单封头完整体积（m³）。
+
+    公式：
+      HEMISPHERICAL: π·D³/12
+      2:1_ELLIPTICAL: π·D³/24
+      TORISPHERICAL: 0.0806·D³（Perry's 8th Ed. 标准 F&D 近似）
+      FLAT: 0
+    """
+    if head_type == "HEMISPHERICAL":
+        return _PI * D_m**3 / 12.0
+    if head_type == "2:1_ELLIPTICAL":
+        return _PI * D_m**3 / 24.0
+    if head_type == "TORISPHERICAL":
+        return _TORISPHERICAL_VOLUME_COEF * D_m**3
+    if head_type == "FLAT":
+        return 0.0
+    raise VesselInputError(f"未知的 head_type: {head_type!r}")
+
+
+def _head_full_area(D_m: float, head_type: HeadType) -> float:
+    """单封头完整外表面积（m²）。
+
+    公式：
+      HEMISPHERICAL: π·D²/2
+      2:1_ELLIPTICAL: π·D²·[1/4 + ln(2+√3)/(8√3)] ≈ 0.3451·π·D²（半 oblate 椭球闭式）
+      TORISPHERICAL: 1.20·D²（Perry's 标准 F&D 近似）
+      FLAT: 0
+    """
+    if head_type == "HEMISPHERICAL":
+        return _PI * D_m**2 / 2.0
+    if head_type == "2:1_ELLIPTICAL":
+        return _PI * D_m**2 * _ELLIPSE_AREA_COEF
+    if head_type == "TORISPHERICAL":
+        return _TORISPHERICAL_AREA_COEF * D_m**2
+    if head_type == "FLAT":
+        return 0.0
+    raise VesselInputError(f"未知的 head_type: {head_type!r}")
+
+
+def _head_partial_volume(
+    D_m: float, head_type: HeadType, Z_m: float
+) -> float:
+    """单封头部分填充体积（m³），Z_m 为从封头顶点（apex）向上的填充高度。
+
+    公式（每头）：
+      HEMISPHERICAL: V = π·Z²·(R - Z/3), R = D/2（球缺体积公式）
+      2:1_ELLIPTICAL: V = π·Z·(3D² - 16Z²)/12（标准 2:1 椭圆积分）
+      TORISPHERICAL: V ≈ V_full · (Z/b)²（工程近似，b = 0.169·D）
+      FLAT: 0
+    """
+    if head_type == "FLAT":
+        return 0.0
+    b = _head_depth(D_m, head_type)
+    if b <= 0:
+        return 0.0
+    z_clamped = min(Z_m, b)
+    if z_clamped <= 0:
+        return 0.0
+    if head_type == "HEMISPHERICAL":
+        R = D_m / 2.0
+        return _PI * z_clamped**2 * (R - z_clamped / 3.0)
+    if head_type == "2:1_ELLIPTICAL":
+        return (
+            _PI
+            * z_clamped
+            * (3.0 * D_m**2 - 16.0 * z_clamped**2)
+            / 12.0
+        )
+    if head_type == "TORISPHERICAL":
+        return _head_full_volume(D_m, head_type) * (z_clamped / b) ** 2
+    raise VesselInputError(f"未知的 head_type: {head_type!r}")
+
+
+def _head_partial_area(
+    D_m: float, head_type: HeadType, Z_m: float
+) -> float:
+    """单封头部分润湿面积（m²），Z_m 为从封头顶点向上的填充高度。
+
+    公式：
+      HEMISPHERICAL: A = π·D·Z（球缺侧面积）
+      2:1_ELLIPTICAL: A = (π·D·Z·√(b²+3Z²))/(2b) + (π·D·b/(2√3))·ln(√3·Z/b + √(1+3Z²/b²))
+        ——半 oblate 椭球表面积闭式积分（Z=b 时为 A_full = π·D²·0.3451）
+      TORISPHERICAL: A ≈ A_full · (Z/b)（线性近似，b = 0.169·D）
+      FLAT: 0
+    """
+    if head_type == "FLAT":
+        return 0.0
+    b = _head_depth(D_m, head_type)
+    if b <= 0:
+        return 0.0
+    z_clamped = min(Z_m, b)
+    if z_clamped <= 0:
+        return 0.0
+    if head_type == "HEMISPHERICAL":
+        return _PI * D_m * z_clamped
+    if head_type == "2:1_ELLIPTICAL":
+        # 半 oblate 椭球表面积闭式积分（b = D/4，a = D/2）
+        # term1 = π·a·Z·√(b² + 3Z²)/b
+        # term2 = π·a·b/√3 · ln(√3·Z/b + √(1 + 3Z²/b²))
+        a = D_m / 2.0
+        term1 = (
+            _PI * a * z_clamped * math.sqrt(b**2 + 3.0 * z_clamped**2) / b
+        )
+        term2 = (
+            _PI
+            * a
+            * b
+            / math.sqrt(3.0)
+            * math.log(
+                math.sqrt(3.0) * z_clamped / b
+                + math.sqrt(1.0 + 3.0 * z_clamped**2 / b**2)
+            )
+        )
+        return term1 + term2
+    if head_type == "TORISPHERICAL":
+        return _head_full_area(D_m, head_type) * (z_clamped / b)
+    raise VesselInputError(f"未知的 head_type: {head_type!r}")
+
+
+def _validate_geometry_input(D_m: float, L_m: float, H_m: float) -> None:
+    """几何输入边界校验（D/L/H > 0）。"""
+    if D_m <= 0:
+        raise VesselInputError(f"D_m={D_m} 必须 > 0")
+    if L_m <= 0:
+        raise VesselInputError(f"L_m={L_m} 必须 > 0")
+    if H_m < 0:
+        raise VesselInputError(f"H_m={H_m} 必须 ≥ 0")
+
+
+def calc_partial_volume(inp: PartialVolumeInput) -> PartialVolumeResult:
+    """计算容器部分液相体积（V1.2 接口冻结，冻结至 2027-03-25）。
+
+    按 SPEC §3.4.4 C-12 算法：
+      V_partial = V_head_bottom + V_cyl + V_head_top
+      其中：
+        - V_head_bottom = _head_partial_volume(D, head_type, Z_b), Z_b = min(H, b)
+        - V_head_top = _head_partial_volume(D, head_type, Z_t), Z_t = max(0, H - L - b)
+        - V_cyl = π·D²/4·L_liq, L_liq = max(0, min(H - b, L) - max(0, H - L - b))
+
+    Args:
+        inp: PartialVolumeInput（frozen dataclass）
+
+    Returns:
+        PartialVolumeResult：单容器 partial_volume_m3 + total_volume_m3 + 头部/筒体分解。
+        n_vessels 缩放仅在调用方按 total_volume_m3 × n_vessels 计算；
+        partial_volume_m3 为单容器值，便于 C-07/C-08 sizing 等单容器模块直接复用。
+    """
+    D_m = inp.D_m
+    L_m = inp.L_m
+    head_type = inp.head_type
+    H_m = inp.H_m
+    _validate_geometry_input(D_m, L_m, H_m)
+    if inp.n_vessels < 1:
+        raise VesselInputError(f"n_vessels={inp.n_vessels} 必须 ≥ 1")
+
+    b = _head_depth(D_m, head_type)
+    r = D_m / 2.0
+    A_cs = _PI * r**2  # 圆柱横截面积
+
+    # 底部封头液位高度（不超过封头深度）
+    z_bottom = min(H_m, b)
+    V_head_bottom = _head_partial_volume(D_m, head_type, z_bottom)
+
+    # 顶部封头液位高度（液位超过 L + b 时才有）
+    z_top = max(0.0, H_m - L_m - b)
+    V_head_top = _head_partial_volume(D_m, head_type, z_top)
+
+    # 圆柱主体液位长度（不超过 L）
+    L_liq_bottom = max(0.0, H_m - b)  # 液位从底部封头顶起算
+    L_liq_top = max(0.0, H_m - L_m - b)  # 液位从顶部封头顶起算（向下）
+    L_liq_cyl = max(0.0, min(L_liq_bottom, L_m) - L_liq_top)
+    V_cyl = A_cs * L_liq_cyl
+
+    V_partial = V_head_bottom + V_cyl + V_head_top
+    V_total = A_cs * L_m + 2.0 * _head_full_volume(D_m, head_type)
+
+    return PartialVolumeResult(
+        partial_volume_m3=V_partial,
+        total_volume_m3=V_total,
+        head_volume_m3=V_head_bottom + V_head_top,
+        cylinder_volume_m3=V_cyl,
+        formula_ref={
+            "head": "see _head_partial_volume (HEMI/ELLIPSE/TORIS/FLAT 4 分支)",
+            "cylinder": "π·D²/4·L_liq",
+            "total": "π·D²/4·L + 2·V_head_full",
+        },
+    )
+
+
+def calc_wetted_area(inp: WettedAreaInput) -> WettedAreaResult:
+    """计算容器润湿面积（V1.2 接口冻结，冻结至 2027-03-25）。
+
+    按 SPEC §3.4.4 C-12 算法：
+      A_wetted = A_head_bottom + A_cyl + A_head_top
+      其中：
+        - A_head_bottom = _head_partial_area(D, head_type, Z_b)
+        - A_head_top = _head_partial_area(D, head_type, Z_t)
+        - A_cyl = π·D·L_liq
+
+    Args:
+        inp: WettedAreaInput（frozen dataclass）
+
+    Returns:
+        WettedAreaResult：单容器 wetted_area_m2 + total_wetted_area_m2 + 头/筒分解。
+    """
+    D_m = inp.D_m
+    L_m = inp.L_m
+    head_type = inp.head_type
+    H_m = inp.H_m
+    _validate_geometry_input(D_m, L_m, H_m)
+    if inp.n_vessels < 1:
+        raise VesselInputError(f"n_vessels={inp.n_vessels} 必须 ≥ 1")
+
+    b = _head_depth(D_m, head_type)
+
+    z_bottom = min(H_m, b)
+    A_head_bottom = _head_partial_area(D_m, head_type, z_bottom)
+
+    z_top = max(0.0, H_m - L_m - b)
+    A_head_top = _head_partial_area(D_m, head_type, z_top)
+
+    L_liq_bottom = max(0.0, H_m - b)
+    L_liq_top = max(0.0, H_m - L_m - b)
+    L_liq_cyl = max(0.0, min(L_liq_bottom, L_m) - L_liq_top)
+    A_cyl = _PI * D_m * L_liq_cyl
+
+    A_wetted = A_head_bottom + A_cyl + A_head_top
+    A_total = _PI * D_m * L_m + 2.0 * _head_full_area(D_m, head_type)
+
+    return WettedAreaResult(
+        wetted_area_m2=A_wetted,
+        total_wetted_area_m2=A_total,
+        head_area_m2=A_head_bottom + A_head_top,
+        cylinder_area_m2=A_cyl,
+        formula_ref={
+            "head": "see _head_partial_area (HEMI/ELLIPSE/TORIS/FLAT 4 分支)",
+            "cylinder": "π·D·L_liq",
+            "total": "π·D·L + 2·A_head_full",
+        },
+    )
