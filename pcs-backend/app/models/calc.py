@@ -856,6 +856,18 @@ class CvResult(TaggedRecordMixin, Base):
         default=DesignStage.BASIC,
         comment="设计阶段 BASIC/DETAIL（OPEN-009）",
     )
+    # P6-4 Task 5 (C-24 Masonelian fl; SPEC §3.2.1.5 Eq.5)
+    # V1.2 D3 严格：仅加 1 列 nullable masonelian_model；fl / flash_steam_rate_kg_s
+    # 走 output_json JSONB 容器（cerebrum.md Do-Not-Repeat：避免 alembic 单列迁移开销）。
+    # 3 模型并存：MASONELIAN_1973（默认）/ CHAPMAN_JANS / TONG。
+    masonelian_model: Mapped[str | None] = mapped_column(
+        String(32),
+        nullable=True,
+        comment=(
+            "Masonelian fl 模型口径 [SPEC §3.2.1.5]："
+            "MASONELIAN_1973（默认 Eq.5）/ CHAPMAN_JANS / TONG"
+        ),
+    )
 
 
 class RestrictionResult(TaggedRecordMixin, Base):
