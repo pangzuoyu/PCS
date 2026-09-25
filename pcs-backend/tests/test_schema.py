@@ -45,9 +45,11 @@ def test_table_count(inspector):
     #   flare_radiation_limits = 81（v3.1 schema 已 stub 0 张）
     # P6-3 Task 30 新增 p6_3_002 仅追加列（不动表数）= 82（v3.1 schema 已 stub
     #   open_channel_results / filtration_results / cost_est_results；Task 30
-    #   仅 ADD COLUMN IF NOT EXISTS 补齐派生字段）。表计数 82 = v3.1 schema + 历次
-    #   增改后稳定终态。
-    assert len(tables) == 82, f"expected 82 incl. alembic_version, got {len(tables)}"
+    #   仅 ADD COLUMN IF NOT EXISTS 补齐派生字段）。
+    # P6-4 T1 新增 p6_4_001 compound_heating_values CONFIG 表 = 83 + alembic_version
+    #   = 84 incl. alembic_version。
+    #   测试断言 84（含 alembic_version）= 实际 PCS 后端 schema 终态。
+    assert len(tables) == 84, f"expected 84 incl. alembic_version, got {len(tables)}"
 
 
 def test_required_tables_present(inspector):
