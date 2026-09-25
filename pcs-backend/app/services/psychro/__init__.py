@@ -10,11 +10,18 @@
   （save / list / get / update / soft_delete）镜像 Task 25
   cool_tower_persist_service pattern，PsychroResult ORM 落库 +
   record_hash reflection（ADR-0028 §决策 4）+ coolprop_version 自动填。
+- ``saturation_water_content_service`` 提供显式饱和水含量 service
+  （P6-4 C-17 / Task 4；RH=1.0 直调 chedl_wrapper + lru_cache + 三单位换算
+  + 酸性气校正）。
 
 Task 26: psychro persist + api（6 calc endpoint + 5 CRUD endpoint）。
+Task 4 (P6-4 C-17): saturation_water_content service + 4 nullable DB 列
++ /psychro/saturation-water-content/calculate endpoint。
 
 注意：6 个 calc endpoint 由 app/api/v1/psychro.py 直调 chedl_wrapper 6 函数；
 本 service 包**仅**负责 PsychroResult 持久化（不重复 chedl_wrapper 包装）。
+饱和水含量 endpoint 同理直调 ``calc_saturation_water_content`` service
+（包装层只在 service 内）。
 """
 from __future__ import annotations
 
@@ -29,6 +36,13 @@ from app.services.psychro.psychro_persist_service import (  # P6-2 Task 26
     soft_delete_psychro_result,
     update_psychro_result,
 )
+from app.services.psychro.saturation_water_content_service import (  # P6-4 Task 4 (C-17)
+    SaturationWaterContentInput,
+    SaturationWaterContentInputError,
+    SaturationWaterContentResult,
+    calc_saturation_water_content,
+    calc_saturation_water_content_metric,
+)
 
 __all__ = [
     # P6-2 Task 26 — coolprop_version 溯源 helper
@@ -40,4 +54,10 @@ __all__ = [
     "get_psychro_result",
     "update_psychro_result",
     "soft_delete_psychro_result",
+    # P6-4 Task 4 (C-17) — 显式水含量 service（饱和 W = RH=1.0）
+    "SaturationWaterContentInput",
+    "SaturationWaterContentInputError",
+    "SaturationWaterContentResult",
+    "calc_saturation_water_content",
+    "calc_saturation_water_content_metric",
 ]
