@@ -748,10 +748,12 @@ def calc_partial_volume(inp: PartialVolumeInput) -> PartialVolumeResult:
     z_top = max(0.0, H_m - L_m - b)
     V_head_top = _head_partial_volume(D_m, head_type, z_top)
 
-    # 圆柱主体液位长度（不超过 L）
-    L_liq_bottom = max(0.0, H_m - b)  # 液位从底部封头顶起算
-    L_liq_top = max(0.0, H_m - L_m - b)  # 液位从顶部封头顶起算（向下）
-    L_liq_cyl = max(0.0, min(L_liq_bottom, L_m) - L_liq_top)
+    # 圆柱主体液位长度：液体侵入顶部封头 ⇒ 圆柱必满
+    # 否则按 H_m - b（封头之上）截到 L_m
+    if z_top > 0.0:
+        L_liq_cyl = L_m  # 圆柱 100% 充满
+    else:
+        L_liq_cyl = max(0.0, min(H_m - b, L_m))
     V_cyl = A_cs * L_liq_cyl
 
     V_partial = V_head_bottom + V_cyl + V_head_top
@@ -802,9 +804,11 @@ def calc_wetted_area(inp: WettedAreaInput) -> WettedAreaResult:
     z_top = max(0.0, H_m - L_m - b)
     A_head_top = _head_partial_area(D_m, head_type, z_top)
 
-    L_liq_bottom = max(0.0, H_m - b)
-    L_liq_top = max(0.0, H_m - L_m - b)
-    L_liq_cyl = max(0.0, min(L_liq_bottom, L_m) - L_liq_top)
+    # 圆柱主体液位长度：液体侵入顶部封头 ⇒ 圆柱必满
+    if z_top > 0.0:
+        L_liq_cyl = L_m
+    else:
+        L_liq_cyl = max(0.0, min(H_m - b, L_m))
     A_cyl = _PI * D_m * L_liq_cyl
 
     A_wetted = A_head_bottom + A_cyl + A_head_top

@@ -1,0 +1,89 @@
+{
+  "_comment": "P6-4 T3 wetted_area 黄金 fixture（SPEC §3.4.4 C-12 + WS-CA-PR-013 Rev A）。SI 单位（m, m²）。手算对照 = WS-CA-PR-013 立式容器算例（D=1.8, L=4.5, 2:1 椭圆封头）。2:1 椭圆 A_full = π·D²·[1/4 + ln(2+√3)/(8√3)] ≈ 0.3451·π·D²（半 oblate 椭球闭式）。误差 <0.1%。",
+  "_expected_values_formula": {
+    "wetted_area_m2": "A_head_bottom + π·D·L_liq_cyl + A_head_top",
+    "total_wetted_area_m2": "π·D·L + 2·A_head_full"
+  },
+  "cases": [
+    {
+      "id": "vert_2to1_h_eq_b",
+      "description": "WS-CA-PR-013 Case 1 立式 2:1 椭圆，H=b=0.45，封头满润湿，无圆柱段",
+      "D_m": 1.8,
+      "L_m": 4.5,
+      "head_type": "2:1_ELLIPTICAL",
+      "H_m": 0.45,
+      "n_vessels": 1,
+      "expected": {
+        "wetted_area_m2": 3.5121,
+        "total_wetted_area_m2": 32.4712,
+        "head_area_m2": 3.5121,
+        "cylinder_area_m2": 0.0,
+        "tol_pct": 0.001
+      }
+    },
+    {
+      "id": "vert_2to1_h_double_b",
+      "description": "WS-CA-PR-013 Case 1 H=0.9，封头满 + 圆柱壳 D/4 段 π·D·(H-b)",
+      "D_m": 1.8,
+      "L_m": 4.5,
+      "head_type": "2:1_ELLIPTICAL",
+      "H_m": 0.9,
+      "n_vessels": 1,
+      "expected": {
+        "wetted_area_m2": 6.0568,
+        "total_wetted_area_m2": 32.4712,
+        "head_area_m2": 3.5121,
+        "cylinder_area_m2": 2.5447,
+        "tol_pct": 0.001
+      }
+    },
+    {
+      "id": "vert_2to1_h_triple_b",
+      "description": "WS-CA-PR-013 Case 1 H=1.35，封头满 + 圆柱壳 D/2 段 π·D·(H-b)",
+      "D_m": 1.8,
+      "L_m": 4.5,
+      "head_type": "2:1_ELLIPTICAL",
+      "H_m": 1.35,
+      "n_vessels": 1,
+      "expected": {
+        "wetted_area_m2": 8.6015,
+        "total_wetted_area_m2": 32.4712,
+        "head_area_m2": 3.5121,
+        "cylinder_area_m2": 5.0894,
+        "tol_pct": 0.001
+      }
+    },
+    {
+      "id": "vert_2to1_multi_vessel",
+      "description": "多容器扩展：H=0.9 × n_vessels=3，单容器 wetted_area 不变（partial 仅描述单容器）",
+      "D_m": 1.8,
+      "L_m": 4.5,
+      "head_type": "2:1_ELLIPTICAL",
+      "H_m": 0.9,
+      "n_vessels": 3,
+      "expected": {
+        "wetted_area_m2": 6.0568,
+        "total_wetted_area_m2": 32.4712,
+        "head_area_m2": 3.5121,
+        "cylinder_area_m2": 2.5447,
+        "tol_pct": 0.001
+      }
+    },
+    {
+      "id": "vert_hemi_half_D",
+      "description": "半球封头 H=D/2=1.0，封头满 = π·D²/2 = 2π ≈ 6.283；H=b 无圆柱段",
+      "D_m": 2.0,
+      "L_m": 4.5,
+      "head_type": "HEMISPHERICAL",
+      "H_m": 1.0,
+      "n_vessels": 1,
+      "expected": {
+        "wetted_area_m2": 6.2832,
+        "total_wetted_area_m2": 40.8407,
+        "head_area_m2": 6.2832,
+        "cylinder_area_m2": 0.0,
+        "tol_pct": 0.001
+      }
+    }
+  ]
+}
