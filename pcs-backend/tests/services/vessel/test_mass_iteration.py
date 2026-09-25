@@ -55,7 +55,11 @@ def test_mass_iteration_vertical_D_converges():
 
 
 def test_mass_iteration_horizontal_L_converges():
-    """HORIZONTAL + variable='L'：H=D/2 假设；D=2/target=2387/2:1 ELLIPSE → L=5.07。"""
+    """HORIZONTAL + variable='L'：H=D/2 假设；D=2/target=2387/2:1 ELLIPSE。
+
+    v7 公式正确解 L≈1.02（旧 v6 bug → 5.07 错解）。
+    解析：mass = π·(451·L + 300) ≈ 2387 → L = (2387 − 300)/(451·π) ≈ 1.0196
+    """
     inp = MassIterationInput(
         target_mass_kg=2387.0,
         rho_L_kg_m3=900.0,
@@ -69,7 +73,7 @@ def test_mass_iteration_horizontal_L_converges():
     )
     result = mass_iteration_loop(inp)
     assert result.converged
-    assert math.isclose(result.final_variable_m, 5.07, rel_tol=1e-2)
+    assert math.isclose(result.final_variable_m, 1.02, rel_tol=1e-2)
     assert abs(result.residual_kg) < 1e-3
     assert result.formula_ref["variable"] == "L"
 

@@ -138,9 +138,12 @@ def test_wetted_area_H_full_top_head_partial():
 
 
 def test_wetted_area_input_result_frozen_dataclasses():
-    """WettedAreaInput / WettedAreaResult 字段冻结校验。"""
+    """WettedAreaInput / WettedAreaResult 字段冻结校验。
+
+    ADR-0041 v7 F2.2 / F3（2026-09-25 冻结契约修订）：+1 vessel_shape / +1 vessel_shape_used
+    """
     in_fields = {f.name for f in fields(WettedAreaInput)}
-    expected_in = {"D_m", "L_m", "head_type", "H_m", "n_vessels"}
+    expected_in = {"D_m", "L_m", "head_type", "H_m", "n_vessels", "vessel_shape"}
     assert in_fields == expected_in
 
     out_fields = {f.name for f in fields(WettedAreaResult)}
@@ -150,6 +153,7 @@ def test_wetted_area_input_result_frozen_dataclasses():
         "head_area_m2",
         "cylinder_area_m2",
         "formula_ref",
+        "vessel_shape_used",
     }
     assert out_fields == expected_out
 

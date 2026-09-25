@@ -125,14 +125,23 @@ def test_freeze_mass_iteration_loop_signature():
 
 
 def test_freeze_partial_volume_input_fields():
-    """PartialVolumeInput 字段冻结（8 字段：5 必填 + 3 Optional 预留 + n_vessels 默认 1）。"""
+    """PartialVolumeInput 字段冻结（10 字段）。
+
+    组成：5 必填 + 3 Optional 预留（H1/H2/H3）+ n_vessels + vessel_shape 默认 VERTICAL。
+    """
     from dataclasses import fields
 
     field_names = {f.name for f in fields(PartialVolumeInput)}
-    assert field_names == {"D_m", "L_m", "head_type", "H_m", "H1_m", "H2_m", "H3_m", "n_vessels"}
-    # n_vessels 默认 1；H1_m/H2_m/H3_m 默认 None（预留多段液位语义；当前未使用）
+    # ADR-0041 v7 F2.1（2026-09-25 冻结契约修订）：+1 Optional vessel_shape
+    assert field_names == {
+        "D_m", "L_m", "head_type", "H_m", "H1_m", "H2_m", "H3_m",
+        "n_vessels", "vessel_shape",
+    }
+    # 默认值校验：n_vessels=1；H1/H2/H3=None；vessel_shape="VERTICAL"
     n_vessels_field = next(f for f in fields(PartialVolumeInput) if f.name == "n_vessels")
     assert n_vessels_field.default == 1
+    vessel_shape_field = next(f for f in fields(PartialVolumeInput) if f.name == "vessel_shape")
+    assert vessel_shape_field.default == "VERTICAL"
     for reserved in ("H1_m", "H2_m", "H3_m"):
         f = next(fld for fld in fields(PartialVolumeInput) if fld.name == reserved)
         assert f.default is None, f"{reserved} default must be None (reserved field)"
@@ -183,11 +192,16 @@ def test_freeze_partial_volume_optional_levels():
 
 
 def test_freeze_wetted_area_input_fields():
-    """WettedAreaInput 字段冻结。"""
+    """WettedAreaInput 字段冻结（6 字段：4 必填 + n_vessels + vessel_shape 默认 VERTICAL）。"""
     from dataclasses import fields
 
     field_names = {f.name for f in fields(WettedAreaInput)}
-    assert field_names == {"D_m", "L_m", "head_type", "H_m", "n_vessels"}
+    # ADR-0041 v7 F2.2（2026-09-25 冻结契约修订）：+1 Optional vessel_shape
+    assert field_names == {
+        "D_m", "L_m", "head_type", "H_m", "n_vessels", "vessel_shape",
+    }
+    vessel_shape_field = next(f for f in fields(WettedAreaInput) if f.name == "vessel_shape")
+    assert vessel_shape_field.default == "VERTICAL"
 
 
 def test_freeze_mass_iteration_input_fields():
@@ -215,7 +229,10 @@ def test_freeze_mass_iteration_input_fields():
 
 
 def test_freeze_result_dataclass_fields():
-    """Result dataclass 字段冻结（V1.2 接口冻结）。"""
+    """Result dataclass 字段冻结（V1.2 接口冻结）。
+
+    ADR-0041 v7 F3（2026-09-25 冻结契约修订）：+1 vessel_shape_used
+    """
     from dataclasses import fields
 
     # PartialVolumeResult
@@ -226,6 +243,7 @@ def test_freeze_result_dataclass_fields():
         "head_volume_m3",
         "cylinder_volume_m3",
         "formula_ref",
+        "vessel_shape_used",
     }
 
     # WettedAreaResult
@@ -236,6 +254,7 @@ def test_freeze_result_dataclass_fields():
         "head_area_m2",
         "cylinder_area_m2",
         "formula_ref",
+        "vessel_shape_used",
     }
 
     # MassIterationResult

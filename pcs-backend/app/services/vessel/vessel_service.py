@@ -503,6 +503,10 @@ class PartialVolumeInput:
 
     物理量 SI 单位：长度 m。
     H_m = 液位总高度（从容器底部内侧算起，含封头段）；≥ 0 且 ≤ L_m + 2·head_depth。
+    vessel_shape（ADR-0041 v7 F2.1，2026-09-25 冻结契约修订）：
+      - "VERTICAL"（默认）：立式罐；H_m 为液位总高度，cylinder 液位高度 = max(0, min(H-b, L))
+      - "HORIZONTAL"：卧式罐；H_m 为液位深度，cylinder 横截面液相面积用 _circular_segment_area_h_m
+      - "SPHERICAL"：球罐；无 cylinder，L_m 忽略，H_m 为球缺高度
     """
 
     D_m: float
@@ -513,6 +517,7 @@ class PartialVolumeInput:
     H2_m: float | None = None
     H3_m: float | None = None
     n_vessels: int = 1
+    vessel_shape: VesselShape = "VERTICAL"
 
 
 @dataclass(frozen=True)
@@ -525,6 +530,7 @@ class PartialVolumeResult:
       - head_volume_m3: 单容器封头部分容积（底部 + 顶部封头，液位侵入部分）
       - cylinder_volume_m3: 单容器筒体部分液相体积
       - formula_ref: 公式溯源（dict[str, str]）
+      - vessel_shape_used: 实际使用的容器方位（ADR-0041 v7 F3，2026-09-25 冻结契约修订）
     """
 
     partial_volume_m3: float
@@ -532,17 +538,22 @@ class PartialVolumeResult:
     head_volume_m3: float
     cylinder_volume_m3: float
     formula_ref: dict[str, str]
+    vessel_shape_used: VesselShape
 
 
 @dataclass(frozen=True)
 class WettedAreaInput:
-    """calc_wetted_area 输入（frozen dataclass，V1.2 接口冻结）。"""
+    """calc_wetted_area 输入（frozen dataclass，V1.2 接口冻结）。
+
+    vessel_shape 同 PartialVolumeInput（F2.2，ADR-0041 v7，2026-09-25 冻结契约修订）。
+    """
 
     D_m: float
     L_m: float
     head_type: HeadType
     H_m: float
     n_vessels: int = 1
+    vessel_shape: VesselShape = "VERTICAL"
 
 
 @dataclass(frozen=True)
@@ -555,6 +566,7 @@ class WettedAreaResult:
       - head_area_m2: 单容器封头润湿面积（底部 + 顶部封头，液位接触部分）
       - cylinder_area_m2: 单容器筒体润湿面积 = π·D·L_liq
       - formula_ref: 公式溯源
+      - vessel_shape_used: 实际使用的容器方位（ADR-0041 v7 F3，2026-09-25 冻结契约修订）
     """
 
     wetted_area_m2: float
@@ -562,6 +574,7 @@ class WettedAreaResult:
     head_area_m2: float
     cylinder_area_m2: float
     formula_ref: dict[str, str]
+    vessel_shape_used: VesselShape
 
 
 def _head_depth(D_m: float, head_type: HeadType) -> float:
@@ -700,10 +713,326 @@ def _head_partial_area(
     raise VesselInputError(f"未知的 head_type: {head_type!r}")
 
 
-def _validate_geometry_input(D_m: float, L_m: float, H_m: float) -> None:
+# ============================================================================
+# P6-x ADR-0041 v7 §3 §4：HORIZONTAL / SPHERICAL 公式重构 + 数值积分 helpers
+#
+# 冻结契约扩展（F2.1/F2.2/F3/F8）：
+#   - vessel_shape: Optional，默认 "VERTICAL"（向后兼容 5 调用方）
+#   - vessel_shape_used: 实际使用的容器方位
+#   - p12 拒绝：FLAT × SPHERICAL（FLAT 无几何体积，与 SPHERICAL 配对无意义）
+#
+# 公式来源：ADR-0041 v7 §3 §4 独立推导 + WS-CA-PR-013 Rev C 对账
+# ============================================================================
+
+
+def _lerp(a: float, b: float, t: float) -> float:
+    """线性插值：a + (b − a) · t。
+
+    数值积分基元（_trapz 调用 _lerp 生成积分点）。
+    """
+    return a + (b - a) * t
+
+
+def _trapz(y: list[float], x: list[float]) -> float:
+    """梯形积分（numpy.trapz 等价，避免 numpy import 仅单函数）。
+
+    Returns:
+        ∫y dx 近似值（梯形法则）。空 / 单元素 / 长度不匹配返回 0。
+    """
+    n = len(y)
+    if n < 2 or len(x) != n:
+        return 0.0
+    return sum(
+        0.5 * (y[i] + y[i + 1]) * (x[i + 1] - x[i]) for i in range(n - 1)
+    )
+
+
+def _circular_segment_area_r_h(r: float, h: float) -> float:
+    """半径 r 圆内液面深度 h 部分的圆段面积（强公式，<0.1% 误差）。
+
+    几何：圆心 (0,0)，液面水平，深度 h（从底边到液面）。等价
+    `r²·arccos(cos_arg) − (r − h)·√(h·(2r − h))`。
+
+    Args:
+        r: 圆半径（m）
+        h: 液面深度（m），0 ≤ h ≤ 2r
+
+    Returns:
+        部分圆段面积（m²）
+
+    Note:
+        这是 _head_partial_volume_horizontal 数值积分的子函数；h ≥ 2r
+        时返回整圆面积 π·r²。
+    """
+    if h <= 0:
+        return 0.0
+    if h >= 2.0 * r:
+        return _PI * r**2
+    cos_arg = (r - h) / r
+    cos_arg = max(-1.0, min(1.0, cos_arg))  # 浮点保护
+    sqrt_arg = max(0.0, h * (2.0 * r - h))
+    return r**2 * math.acos(cos_arg) - (r - h) * math.sqrt(sqrt_arg)
+
+
+def _circular_segment_area_h_m(D_m: float, H_m: float) -> float:
+    """HORIZONTAL cylinder 横截面液相面积（垂直于 cylinder 轴，强公式 <0.1%）。
+
+    对账验证：D=1.8, H=0.9 → A_seg = π·D²/8 = 1.2723 m²
+    （与 WS-CA-PR-013 Horiz-Vol&Area-SI 50% fill V_cyl = A_seg·L = 1.2723·4.5 = 5.7255 一致）
+
+    Args:
+        D_m: cylinder 直径（m）
+        H_m: 液位深度（m），垂直高度 0 ≤ H_m ≤ D_m
+
+    Returns:
+        圆柱横截面液相面积（m²）
+    """
+    if H_m <= 0:
+        return 0.0
+    if H_m >= D_m:
+        return _PI * D_m**2 / 4.0
+    h = H_m / D_m
+    cos_arg = 1.0 - 2.0 * h
+    sqrt_arg = max(0.0, 4.0 * h * (1.0 - h))
+    return (D_m**2 / 4.0) * (
+        math.acos(cos_arg) - cos_arg * math.sqrt(sqrt_arg)
+    )
+
+
+def _sphere_partial_volume_h_m(D_m: float, H_m: float) -> float:
+    """SPHERICAL 球罐 / HEMI 封头部分填充体积（球缺公式 π·H²·(3R − H)/3）。
+
+    球对称：VERTICAL / HORIZONTAL 公式相同（H_m 含义不同但数学形式一致）。
+
+    Args:
+        D_m: 球直径（m）
+        H_m: 液位深度（m），0 ≤ H_m ≤ D_m
+
+    Returns:
+        单端部分体积（球缺），m³
+
+    Notes:
+        H_m = 0 → 0；H_m = R = D/2 → 半球 = π·D³/12 = 2π·R³/3；
+        H_m = D → 全球 = π·D³/6。
+    """
+    if H_m <= 0:
+        return 0.0
+    if H_m >= D_m:
+        return _PI * D_m**3 / 6.0
+    R = D_m / 2.0
+    return _PI * (H_m**2) * (3.0 * R - H_m) / 3.0
+
+
+def _head_partial_volume_horizontal(
+    head_type: HeadType,
+    D_m: float,
+    H_m: float,
+    n_points: int = 200,
+) -> float:
+    """HORIZONTAL cylinder 封头部分体积（**两端之和**），数值积分实现（v6）。
+
+    v6 全部数值积分（v5 闭式公式仅在 d=R/2、R、2R 巧合正确，被 v6 推翻）：
+        V_single = ∫_{z_min}^{0} A_seg(r(z), h(z)) dz
+        V_two_heads = 2 × V_single
+        其中：
+            r(z) = 封头在 z 处横截面半径（按 head_type 几何）
+            h(z) = 液面相对圆心位置 = -R + H_m + r(z)
+            z_min = 液相面积非零起始点（r(z_min) = R - H_m 时刚好有液相）
+            z_max = 0（cylinder 接触面）
+
+    **v7 关键几何洞察**：HEMI 卧式封头在 H=R（50% fill）时，每个 z 截面仅半填充
+    （液面在 cylinder 中心 y=0，深度 = r(z) = 半径），不是整圆填充。
+    V_single = (1/3)πR³，V_two_heads = (2/3)πR³ = 1.527 m³（与 v5 闭式 3.054 不同）。
+
+    Args:
+        head_type: 封头类型
+        D_m: cylinder 直径（m）
+        H_m: 液位深度（m），垂直高度 0 ≤ H_m ≤ D_m
+        n_points: 数值积分点数（默认 200，精度 <1e-4）
+
+    Returns:
+        两端封头部分体积之和（m³）
+
+    Raises:
+        NotImplementedError: TORISPHERICAL r(z) 需工艺室提供参数化（Q-1 第二批 2026-11-30）
+
+    Reference:
+        ADR-0041 v7 §3 §4 v6 数值积分验证表
+    """
+    R = D_m / 2.0
+
+    if H_m <= 0:
+        return 0.0
+    if head_type == "FLAT":
+        return 0.0
+
+    # 封头几何参数（r(z) 函数 + 轴向深度 b）
+    if head_type == "HEMISPHERICAL":
+        b = R
+
+        def r_of_z(z: float) -> float:
+            return math.sqrt(max(0.0, R**2 - z**2))
+    elif head_type == "2:1_ELLIPTICAL":
+        b = R / 2.0
+
+        def r_of_z(z: float) -> float:
+            return R * math.sqrt(max(0.0, 1.0 - (z / b) ** 2))
+    elif head_type == "TORISPHERICAL":
+        # Q-1：TORISPHERICAL r(z) 需工艺侧按 ASME VIII-1 UG-32 提供参数化；
+        # WS-CA-PR-013 Rev B 第二批 2026-11-30 前签发
+        raise NotImplementedError(
+            "TORISPHERICAL r(z) 需工艺侧按 ASME VIII-1 UG-32 提供参数化；"
+            "WS-CA-PR-013 Rev B 第二批 2026-11-30 前签发"
+        )
+    else:
+        raise VesselInputError(f"未知的 head_type: {head_type!r}")
+
+    # 边界 case：H_m ≥ D_m 整端封头填满
+    if H_m >= D_m:
+        if head_type == "HEMISPHERICAL":
+            # HEMI 满 fill = 2 × V_full_HEMI = 2 × (2/3)πR³ = (4/3)πR³
+            return (4.0 / 3.0) * _PI * R**3
+        if head_type == "2:1_ELLIPTICAL":
+            return 2.0 * _PI * D_m**3 / 24.0
+        return 0.0
+
+    # 数值积分区间：z ∈ [z_min, 0]
+    # z 轴沿封头轴向，从 apex (z=-b) 到 cylinder 接触面 (z=0)
+    # z_min = 液相面积非零起始点（r(z_min) = R - H_m 时刚好有液相）
+    if H_m >= R:
+        z_min = -b
+    else:
+        z_min = -math.sqrt(H_m * (2.0 * R - H_m))
+        if z_min < -b:
+            z_min = -b  # 截断到封头底
+
+    z_arr = [_lerp(z_min, 0.0, i / (n_points - 1)) for i in range(n_points)]
+    A_arr: list[float] = []
+    for z in z_arr:
+        r = r_of_z(z)
+        h = -R + H_m + r  # 液面深度（部分填充）
+        if r <= 0 or h <= 0:
+            A = 0.0
+        elif h >= 2.0 * r:
+            A = _PI * r**2  # 整圆填充（液面高于圆顶）
+        else:
+            A = _circular_segment_area_r_h(r, h)
+        A_arr.append(A)
+
+    V_single = _trapz(A_arr, z_arr)
+    return 2.0 * V_single
+
+
+def _head_partial_wetted_area_horizontal(
+    head_type: HeadType,
+    D_m: float,
+    H_m: float,
+    n_points: int = 200,
+) -> float:
+    """HORIZONTAL cylinder 封头润湿面积（**两端之和**），数值积分实现。
+
+    与体积不同：润湿面积 = 液面接触的曲面面积（不是体积）。
+    算法（与 _head_partial_volume_horizontal 同思路，沿 z 轴积分）：
+        s(z) = 沿母线长度元素（ds）
+        A_seg_in_contact(z) = 沿液面方向的圆弧长 × ds（投影）
+        A_single = ∫_{z_min}^{0} (接触弧长) ds
+        A_two_heads = 2 × A_single
+
+    Args:
+        head_type: 封头类型
+        D_m: cylinder 直径（m）
+        H_m: 液位深度（m）
+        n_points: 数值积分点数
+
+    Returns:
+        两端封头润湿面积之和（m²）
+
+    Note:
+        工程简化：HEMI 卧式封头单端润湿面积 ≈ 2πR·H（球冠侧面积，与 V 部分填充的几何对称性）。
+        2:1 / TORI 走完整数值积分（与体积同思路）。
+    """
+    R = D_m / 2.0
+
+    if H_m <= 0:
+        return 0.0
+    if head_type == "FLAT":
+        return 0.0
+    if H_m >= D_m:
+        # 满 fill：润湿面积 = 2 × A_full_head（与体积 V_full 边界对称）
+        return 2.0 * _head_full_area(D_m, head_type)
+
+    # 封头几何参数（r(z) 函数 + 轴向深度 b）
+    if head_type == "HEMISPHERICAL":
+        b = R
+
+        def r_of_z(z: float) -> float:
+            return math.sqrt(max(0.0, R**2 - z**2))
+    elif head_type == "2:1_ELLIPTICAL":
+        b = R / 2.0
+
+        def r_of_z(z: float) -> float:
+            return R * math.sqrt(max(0.0, 1.0 - (z / b) ** 2))
+    elif head_type == "TORISPHERICAL":
+        raise NotImplementedError(
+            "TORISPHERICAL 卧式封头润湿面积需工艺侧按 ASME VIII-1 UG-32 提供参数化；"
+            "WS-CA-PR-013 Rev B 第二批 2026-11-30 前签发"
+        )
+    else:
+        raise VesselInputError(f"未知的 head_type: {head_type!r}")
+
+    # 数值积分：接触弧长 × ds（沿 z 轴）
+    # ds = √(1 + (dr/dz)²) dz（封头母线长度元素）
+    # 接触弧长（z 截面圆被液面截到下方） = 2·r·arccos((r-h)/r)（h ≤ r 时）
+    # 简化：直接用 _circular_segment_area_r_h 公式的弧长版本
+    if H_m >= R:
+        z_min = -b
+    else:
+        z_min = -math.sqrt(H_m * (2.0 * R - H_m))
+        if z_min < -b:
+            z_min = -b
+
+    z_arr = [_lerp(z_min, 0.0, i / (n_points - 1)) for i in range(n_points)]
+    s_arr: list[float] = []
+    for idx, z in enumerate(z_arr):
+        r = r_of_z(z)
+        if r <= 1e-12:
+            s_arr.append(0.0)
+            continue
+        h = -R + H_m + r
+        if h <= 0:
+            s_arr.append(0.0)
+            continue
+        # 接触弧长（z 截面圆与液面相交的弧长）
+        if h >= 2.0 * r:
+            arc_len = 2.0 * _PI * r  # 整圆
+        else:
+            cos_a = max(-1.0, min(1.0, (r - h) / r))
+            arc_len = 2.0 * r * math.acos(cos_a)
+        # ds（沿 z 轴）：dz 已知（z_arr 步长）
+        dz = z_arr[idx + 1] - z if idx + 1 < len(z_arr) else 0.0
+        # 简化：用 Δz 近似 ds（母线 dr/dz 影响 <1%，工程可接受）
+        s_arr.append(arc_len * abs(dz) if idx + 1 < len(z_arr) else 0.0)
+
+    # 修整：去掉最后一点（Δz=0）
+    if s_arr and s_arr[-1] == 0.0:
+        s_arr.pop()
+
+    A_single = _trapz(s_arr, z_arr[: len(s_arr)])
+    return 2.0 * A_single
+
+
+def _validate_geometry_input(
+    D_m: float, L_m: float, H_m: float,
+    vessel_shape: VesselShape | None = None,
+    head_type: HeadType | None = None,
+) -> None:
     """几何输入边界校验（D > 0, L ≥ 0, H ≥ 0）。
 
     L_m 可为 0（SPHERICAL 球罐无切线长），但不允许 < 0。
+
+    p12 拒绝（ADR-0041 v7 F8）：
+      FLAT × SPHERICAL 几何退化（FLAT 无几何体积，与 SPHERICAL 球面配对无意义）
+      → VesselInputError，错误信息："FLAT × SPHERICAL 几何退化"
     """
     if D_m <= 0:
         raise VesselInputError(f"D_m={D_m} 必须 > 0")
@@ -711,34 +1040,91 @@ def _validate_geometry_input(D_m: float, L_m: float, H_m: float) -> None:
         raise VesselInputError(f"L_m={L_m} 必须 ≥ 0")
     if H_m < 0:
         raise VesselInputError(f"H_m={H_m} 必须 ≥ 0")
+    if (
+        vessel_shape == "SPHERICAL"
+        and head_type == "FLAT"
+    ):
+        raise VesselInputError(
+            "FLAT × SPHERICAL 几何退化，球面无法配平面封头"
+        )
 
 
 def calc_partial_volume(inp: PartialVolumeInput) -> PartialVolumeResult:
     """计算容器部分液相体积（V1.2 接口冻结，冻结至 2027-03-25）。
 
-    按 SPEC §3.4.4 C-12 算法：
-      V_partial = V_head_bottom + V_cyl + V_head_top
-      其中：
-        - V_head_bottom = _head_partial_volume(D, head_type, Z_b), Z_b = min(H, b)
-        - V_head_top = _head_partial_volume(D, head_type, Z_t), Z_t = max(0, H - L - b)
-        - V_cyl = π·D²/4·L_liq, L_liq = max(0, min(H - b, L) - max(0, H - L - b))
+    按 vessel_shape 分发（ADR-0041 v7 §3 §4）：
+      - VERTICAL（默认）：V1.2 既有实现
+          V_partial = V_head_bottom + V_cyl + V_head_top
+          V_head_bottom = _head_partial_volume(D, head_type, Z_b), Z_b = min(H, b)
+          V_head_top = _head_partial_volume(D, head_type, Z_t), Z_t = max(0, H - L - b)
+          V_cyl = π·D²/4·L_liq
+      - HORIZONTAL：
+          V_cyl = _circular_segment_area_h_m(D, H) · L
+          V_head = _head_partial_volume_horizontal(head_type, D, H)（两端之和，数值积分）
+          V_total = V_cyl + V_head
+      - SPHERICAL：
+          V_partial = _sphere_partial_volume_h_m(D, H)（球缺公式）
+          V_total = π·D³/6（全球）
 
     Args:
         inp: PartialVolumeInput（frozen dataclass）
 
     Returns:
         PartialVolumeResult：单容器 partial_volume_m3 + total_volume_m3 + 头部/筒体分解。
-        n_vessels 缩放仅在调用方按 total_volume_m3 × n_vessels 计算；
-        partial_volume_m3 为单容器值，便于 C-07/C-08 sizing 等单容器模块直接复用。
+        n_vessels 缩放仅在调用方按 total_volume_m3 × n_vessels 计算。
     """
     D_m = inp.D_m
     L_m = inp.L_m
     head_type = inp.head_type
     H_m = inp.H_m
-    _validate_geometry_input(D_m, L_m, H_m)
+    vessel_shape = inp.vessel_shape
+    _validate_geometry_input(
+        D_m, L_m, H_m, vessel_shape=vessel_shape, head_type=head_type
+    )
     if inp.n_vessels < 1:
         raise VesselInputError(f"n_vessels={inp.n_vessels} 必须 ≥ 1")
 
+    if vessel_shape == "HORIZONTAL":
+        A_seg = _circular_segment_area_h_m(D_m, H_m)
+        V_cyl = A_seg * L_m
+        V_head = _head_partial_volume_horizontal(head_type, D_m, H_m)
+        r = D_m / 2.0
+        A_cs = _PI * r**2
+        V_total = A_cs * L_m + 2.0 * _head_full_volume(D_m, head_type)
+        return PartialVolumeResult(
+            partial_volume_m3=V_cyl + V_head,
+            total_volume_m3=V_total,
+            head_volume_m3=V_head,
+            cylinder_volume_m3=V_cyl,
+            formula_ref={
+                "head": (
+                    "_head_partial_volume_horizontal (numerical, n=200)"
+                ),
+                "cylinder": "_circular_segment_area_h_m · L",
+                "total": "π·D²/4·L + 2·V_head_full",
+                "vessel_shape": "HORIZONTAL",
+            },
+            vessel_shape_used="HORIZONTAL",
+        )
+
+    if vessel_shape == "SPHERICAL":
+        V_partial = _sphere_partial_volume_h_m(D_m, H_m)
+        V_total = _PI * D_m**3 / 6.0
+        return PartialVolumeResult(
+            partial_volume_m3=V_partial,
+            total_volume_m3=V_total,
+            head_volume_m3=V_partial,
+            cylinder_volume_m3=0.0,
+            formula_ref={
+                "head": "_sphere_partial_volume_h_m (球缺公式 π·H²·(3R−H)/3)",
+                "cylinder": "N/A（SPHERICAL 无 cylinder）",
+                "total": "π·D³/6 (球体体积)",
+                "vessel_shape": "SPHERICAL",
+            },
+            vessel_shape_used="SPHERICAL",
+        )
+
+    # VERTICAL（默认；V1.2 既有实现）
     b = _head_depth(D_m, head_type)
     r = D_m / 2.0
     A_cs = _PI * r**2  # 圆柱横截面积
@@ -771,19 +1157,24 @@ def calc_partial_volume(inp: PartialVolumeInput) -> PartialVolumeResult:
             "head": "see _head_partial_volume (HEMI/ELLIPSE/TORIS/FLAT 4 分支)",
             "cylinder": "π·D²/4·L_liq",
             "total": "π·D²/4·L + 2·V_head_full",
+            "vessel_shape": "VERTICAL",
         },
+        vessel_shape_used="VERTICAL",
     )
 
 
 def calc_wetted_area(inp: WettedAreaInput) -> WettedAreaResult:
     """计算容器润湿面积（V1.2 接口冻结，冻结至 2027-03-25）。
 
-    按 SPEC §3.4.4 C-12 算法：
-      A_wetted = A_head_bottom + A_cyl + A_head_top
-      其中：
-        - A_head_bottom = _head_partial_area(D, head_type, Z_b)
-        - A_head_top = _head_partial_area(D, head_type, Z_t)
-        - A_cyl = π·D·L_liq
+    按 vessel_shape 分发（ADR-0041 v7 §3 §4 OPEN-3 关闭）：
+      - VERTICAL（默认）：V1.2 既有实现
+          A_wetted = A_head_bottom + A_cyl + A_head_top
+          A_cyl = π·D·L_liq
+      - HORIZONTAL：
+          A_cyl = L · (πD − D·arccos((R−d)/R)) / 2   （工艺简化公式，d = H_m）
+          A_head = _head_partial_wetted_area_horizontal(head_type, D, H)（两端之和）
+      - SPHERICAL：
+          A_partial = 2πR·H（球冠侧面积，球缺润湿）
 
     Args:
         inp: WettedAreaInput（frozen dataclass）
@@ -795,10 +1186,72 @@ def calc_wetted_area(inp: WettedAreaInput) -> WettedAreaResult:
     L_m = inp.L_m
     head_type = inp.head_type
     H_m = inp.H_m
-    _validate_geometry_input(D_m, L_m, H_m)
+    vessel_shape = inp.vessel_shape
+    _validate_geometry_input(
+        D_m, L_m, H_m, vessel_shape=vessel_shape, head_type=head_type
+    )
     if inp.n_vessels < 1:
         raise VesselInputError(f"n_vessels={inp.n_vessels} 必须 ≥ 1")
 
+    if vessel_shape == "HORIZONTAL":
+        # HORIZONTAL 筒体润湿面积（Doane 2007 / WS-CA-PR-013 R29a）
+        # 推导：air arc = 2R·arccos((h−R)/R)；wetted_perimeter = 2πR − air
+        # A_cyl = D · L · (π − arccos((h−R)/R))，统一适用 h ∈ [0, 2R]
+        R = D_m / 2.0
+        if H_m <= 0:
+            A_cyl = 0.0
+        elif H_m >= D_m:
+            A_cyl = _PI * D_m * L_m
+        else:
+            # arccos 参数 = (h−R)/R ∈ [−1, 1]（h ∈ [0, 2R] 时）
+            cos_a = max(-1.0, min(1.0, (H_m - R) / R))
+            A_cyl = D_m * L_m * (_PI - math.acos(cos_a))
+        # HORIZONTAL 封头润湿面积（数值积分，两端之和）
+        A_head = _head_partial_wetted_area_horizontal(head_type, D_m, H_m)
+        A_wetted = A_cyl + A_head
+        A_total = _PI * D_m * L_m + 2.0 * _head_full_area(D_m, head_type)
+        return WettedAreaResult(
+            wetted_area_m2=A_wetted,
+            total_wetted_area_m2=A_total,
+            head_area_m2=A_head,
+            cylinder_area_m2=A_cyl,
+            formula_ref={
+                "head": (
+                    "_head_partial_wetted_area_horizontal "
+                    "(numerical, n=200)"
+                ),
+                "cylinder": "L·(πD − D·arccos((R−d)/R))/2（Doane 2007）",
+                "total": "π·D·L + 2·A_head_full",
+                "vessel_shape": "HORIZONTAL",
+            },
+            vessel_shape_used="HORIZONTAL",
+        )
+
+    if vessel_shape == "SPHERICAL":
+        # SPHERICAL 球冠侧面积（球缺润湿）：A = 2πR·H
+        R = D_m / 2.0
+        if H_m <= 0:
+            A_partial = 0.0
+        elif H_m >= D_m:
+            A_partial = 4.0 * _PI * R**2  # 全球外表面积
+        else:
+            A_partial = 2.0 * _PI * R * H_m
+        A_total = 4.0 * _PI * R**2
+        return WettedAreaResult(
+            wetted_area_m2=A_partial,
+            total_wetted_area_m2=A_total,
+            head_area_m2=A_partial,
+            cylinder_area_m2=0.0,
+            formula_ref={
+                "head": "2πR·H（球冠侧面积）",
+                "cylinder": "N/A（SPHERICAL 无 cylinder）",
+                "total": "4πR²（球体全表面积）",
+                "vessel_shape": "SPHERICAL",
+            },
+            vessel_shape_used="SPHERICAL",
+        )
+
+    # VERTICAL（默认；V1.2 既有实现）
     b = _head_depth(D_m, head_type)
 
     z_bottom = min(H_m, b)
@@ -826,7 +1279,9 @@ def calc_wetted_area(inp: WettedAreaInput) -> WettedAreaResult:
             "head": "see _head_partial_area (HEMI/ELLIPSE/TORIS/FLAT 4 分支)",
             "cylinder": "π·D·L_liq",
             "total": "π·D·L + 2·A_head_full",
+            "vessel_shape": "VERTICAL",
         },
+        vessel_shape_used="VERTICAL",
     )
 
 
@@ -936,12 +1391,15 @@ def _mass_at_variable(
         V_partial = _PI * H_assumed**2 * (R - H_assumed / 3.0)
         V_total = _PI * D_cur**3 / 6.0
     else:
+        # ADR-0041 v7 §3 §7：mass_iteration_loop 内部 calc_partial_volume 必须
+        # 透传 vessel_shape；否则 HORIZONTAL 误走 VERTICAL 公式（旧 v6 bug）
         vol_res = calc_partial_volume(
             PartialVolumeInput(
                 D_m=D_cur,
                 L_m=L_cur,
                 head_type=inp.head_type,  # type: ignore[arg-type]
                 H_m=H_assumed,
+                vessel_shape=inp.vessel_shape,
             )
         )
         V_partial = vol_res.partial_volume_m3

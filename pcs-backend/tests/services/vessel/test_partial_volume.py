@@ -195,9 +195,11 @@ def test_partial_volume_input_result_frozen_dataclasses():
     H1/H2/H3 是预留字段，当前实现忽略；forward-compat 多段语义待 ADR-0041 扩展。
     """
     pv_in_fields = {f.name for f in fields(PartialVolumeInput)}
+    # ADR-0041 v7 F2.1（2026-09-25 冻结契约修订）：+1 Optional vessel_shape
     expected_in = {
         "D_m", "L_m", "head_type", "H_m", "n_vessels",
-        "H1_m", "H2_m", "H3_m",  # ADR-0040 F2.1 预留
+        "H1_m", "H2_m", "H3_m",
+        "vessel_shape",
     }
     assert pv_in_fields == expected_in, (
         f"PartialVolumeInput 字段不匹配。缺失: {expected_in - pv_in_fields}，"
@@ -205,12 +207,14 @@ def test_partial_volume_input_result_frozen_dataclasses():
     )
 
     pv_out_fields = {f.name for f in fields(PartialVolumeResult)}
+    # ADR-0041 v7 F3（2026-09-25 冻结契约修订）：+1 vessel_shape_used
     expected_out = {
         "partial_volume_m3",
         "total_volume_m3",
         "head_volume_m3",
         "cylinder_volume_m3",
         "formula_ref",
+        "vessel_shape_used",
     }
     assert pv_out_fields == expected_out, (
         f"PartialVolumeResult 字段不匹配。缺失: {expected_out - pv_out_fields}，"
