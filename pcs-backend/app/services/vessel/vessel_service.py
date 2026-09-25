@@ -690,11 +690,14 @@ def _head_partial_area(
 
 
 def _validate_geometry_input(D_m: float, L_m: float, H_m: float) -> None:
-    """几何输入边界校验（D/L/H > 0）。"""
+    """几何输入边界校验（D > 0, L ≥ 0, H ≥ 0）。
+
+    L_m 可为 0（SPHERICAL 球罐无切线长），但不允许 < 0。
+    """
     if D_m <= 0:
         raise VesselInputError(f"D_m={D_m} 必须 > 0")
-    if L_m <= 0:
-        raise VesselInputError(f"L_m={L_m} 必须 > 0")
+    if L_m < 0:
+        raise VesselInputError(f"L_m={L_m} 必须 ≥ 0")
     if H_m < 0:
         raise VesselInputError(f"H_m={H_m} 必须 ≥ 0")
 
@@ -809,4 +812,314 @@ def calc_wetted_area(inp: WettedAreaInput) -> WettedAreaResult:
             "cylinder": "π·D·L_liq",
             "total": "π·D·L + 2·A_head_full",
         },
+    )
+
+
+# ============================================================================
+# P6-4 T3 C-12 质量迭代（mass_iteration_loop）：Newton 首选 + bisection fallback
+# ============================================================================
+
+
+@dataclass(frozen=True)
+class MassIterationInput:
+    """mass_iteration_loop 输入（frozen dataclass，V1.2 接口冻结）。
+
+    物理量 SI 单位：长度 m / 密度 kg/m³ / 质量 kg。
+
+    液位高度 H_assumed 按 vessel_shape 默认取值（mass_iteration_loop 内部固定）：
+      - VERTICAL: H = D（液位 = 直径，常见工程保守假设）
+      - HORIZONTAL: H = D/2（50% 液位，常见工程假设）
+      - SPHERICAL: H = D（满罐，无 cylinder）
+    """
+
+    target_mass_kg: float
+    rho_L_kg_m3: float
+    rho_V_kg_m3: float
+    vessel_shape: VesselShape
+    head_type: MassIterationHeadType
+    initial_D_m: float = 1.0
+    initial_L_m: float = 3.0
+    variable: IterationVariable = "D"
+    mass_model: MassModel = "OPERATING"
+
+
+@dataclass(frozen=True)
+class MassIterationResult:
+    """mass_iteration_loop 输出（frozen dataclass，V1.2 接口冻结）。
+
+    字段：
+      - converged: True = 收敛；False = 抛 MassIterationNotConvergedError 前最后状态
+      - iterations: 实际迭代次数（Newton + bisection 合计）
+      - final_variable_m: 收敛时 variable 终值（D 或 L）
+      - final_mass_kg: 用 final_variable_m 算出的 operating mass
+      - residual_kg: final_mass_kg - target_mass_kg
+      - formula_ref: 公式溯源（dict，含 method/tol/max_iter）
+    """
+
+    converged: bool
+    iterations: int
+    final_variable_m: float
+    final_mass_kg: float
+    residual_kg: float
+    formula_ref: dict[str, str]
+
+
+def _operating_fill_height(vessel_shape: VesselShape, D_m: float) -> float:
+    """OPERATING 模型下液位 H 假设（m）。"""
+    if vessel_shape == "VERTICAL":
+        return D_m
+    if vessel_shape == "HORIZONTAL":
+        return D_m / 2.0
+    if vessel_shape == "SPHERICAL":
+        return D_m
+    raise VesselInputError(f"未知的 vessel_shape: {vessel_shape!r}")
+
+
+def _validate_mass_iter_input(inp: MassIterationInput) -> None:
+    """mass_iteration_loop 输入物理量校验。"""
+    if inp.target_mass_kg <= 0:
+        raise VesselInputError(
+            f"target_mass_kg={inp.target_mass_kg} 必须 > 0"
+        )
+    if inp.rho_L_kg_m3 <= 0 or inp.rho_V_kg_m3 <= 0:
+        raise VesselInputError(
+            f"密度必须 > 0（ρ_L={inp.rho_L_kg_m3}, ρ_V={inp.rho_V_kg_m3}）"
+        )
+    if inp.rho_L_kg_m3 < inp.rho_V_kg_m3:
+        # OPERATING 下允许 ρ_L = ρ_V（罕见，但物理上不阻塞；倒置不合理）
+        raise VesselInputError(
+            f"ρ_L={inp.rho_L_kg_m3} 必须 ≥ ρ_V={inp.rho_V_kg_m3}"
+        )
+    if inp.initial_D_m <= 0:
+        raise VesselInputError(
+            f"initial_D_m={inp.initial_D_m} 必须 > 0"
+        )
+    # SPHERICAL 球罐无切线长（initial_L_m 可为 0）；VERTICAL/HORIZONTAL 必须 > 0
+    if inp.vessel_shape != "SPHERICAL" and inp.initial_L_m <= 0:
+        raise VesselInputError(
+            f"vessel_shape={inp.vessel_shape} 时 initial_L_m={inp.initial_L_m} 必须 > 0"
+        )
+
+
+def _mass_at_variable(
+    inp: MassIterationInput, variable_m: float
+) -> float:
+    """OPERATING 模型下 mass(D or L) 标量函数。
+
+    mass = ρ_L · V_partial(D, L, H_assumed) + ρ_V · (V_total - V_partial)
+
+    SPHERICAL 特殊处理：球体本身即"封头"，无圆柱；球缺公式 V = π·H²·(R - H/3)。
+    VERTICAL/HORIZONTAL 走 calc_partial_volume（V1.2 公共服务复用）。
+    """
+    D_cur = variable_m if inp.variable == "D" else inp.initial_D_m
+    L_cur = variable_m if inp.variable == "L" else inp.initial_L_m
+    H_assumed = _operating_fill_height(inp.vessel_shape, D_cur)
+
+    if inp.vessel_shape == "SPHERICAL":
+        # 球缺公式：V_partial = π·H²·(R - H/3), R = D/2
+        R = D_cur / 2.0
+        V_partial = _PI * H_assumed**2 * (R - H_assumed / 3.0)
+        V_total = _PI * D_cur**3 / 6.0
+    else:
+        vol_res = calc_partial_volume(
+            PartialVolumeInput(
+                D_m=D_cur,
+                L_m=L_cur,
+                head_type=inp.head_type,  # type: ignore[arg-type]
+                H_m=H_assumed,
+            )
+        )
+        V_partial = vol_res.partial_volume_m3
+        V_total = vol_res.total_volume_m3
+
+    return (
+        inp.rho_L_kg_m3 * V_partial
+        + inp.rho_V_kg_m3 * (V_total - V_partial)
+    )
+
+
+def _newton_iterate(
+    inp: MassIterationInput,
+    target_mass_kg: float,
+    x0: float,
+    tol: float,
+    max_iter: int,
+    h_deriv: float = 1e-4,
+) -> tuple[float, int, bool, float]:
+    """Newton 迭代（中心差分 Jacobian）。
+
+    Returns: (final_x, iterations, converged, residual)
+    """
+    x = x0
+    for i in range(1, max_iter + 1):
+        f_x = _mass_at_variable(inp, x) - target_mass_kg
+        if abs(f_x) < tol:
+            return x, i, True, f_x
+        x_plus = x + h_deriv
+        x_minus = x - h_deriv
+        if x_minus <= 0:
+            x_minus = max(x * 0.5, 1e-3)
+        f_plus = _mass_at_variable(inp, x_plus) - target_mass_kg
+        f_minus = _mass_at_variable(inp, x_minus) - target_mass_kg
+        deriv = (f_plus - f_minus) / (x_plus - x_minus)
+        if deriv == 0.0 or not math.isfinite(deriv):
+            return x, i, False, f_x
+        step = f_x / deriv
+        x_new = x - step
+        if x_new <= 0 or not math.isfinite(x_new):
+            return x, i, False, f_x
+        if abs(x_new - x) < 1e-5:
+            f_new = _mass_at_variable(inp, x_new) - target_mass_kg
+            return x_new, i, True, f_new
+        x = x_new
+    f_final = _mass_at_variable(inp, x) - target_mass_kg
+    return x, max_iter, abs(f_final) < tol, f_final
+
+
+def _bisection_iterate(
+    inp: MassIterationInput,
+    target_mass_kg: float,
+    x_center: float,
+    tol: float,
+    max_iter: int,
+) -> tuple[float, int, bool, float]:
+    """Bisection 迭代（需先扩展 bracket 找异号区间）。
+
+    Returns: (final_x, iterations, converged, residual)
+    """
+    if max_iter <= 0:
+        return x_center, 0, False, _mass_at_variable(inp, x_center) - target_mass_kg
+    # 扩展 bracket：[lo, hi]，要求 f(lo) · f(hi) < 0
+    lo = 1e-3
+    hi = max(x_center, inp.initial_D_m, inp.initial_L_m)
+    f_lo = _mass_at_variable(inp, lo) - target_mass_kg
+    f_hi = _mass_at_variable(inp, hi) - target_mass_kg
+    expansions = 0
+    while f_lo * f_hi > 0 and expansions < 25:
+        hi *= 2.0
+        f_hi = _mass_at_variable(inp, hi) - target_mass_kg
+        expansions += 1
+        if hi > 1e6:
+            break
+    if f_lo * f_hi > 0:
+        # 找不到异号区间，无法 bisect
+        return x_center, 0, False, _mass_at_variable(inp, x_center) - target_mass_kg
+
+    # 标准 bisect 循环
+    x_mid = (lo + hi) / 2.0
+    for i in range(1, max_iter + 1):
+        f_mid = _mass_at_variable(inp, x_mid) - target_mass_kg
+        if abs(f_mid) < tol or (hi - lo) / 2.0 < 1e-5:
+            return x_mid, i, True, f_mid
+        if f_lo * f_mid < 0:
+            hi = x_mid
+            f_hi = f_mid
+        else:
+            lo = x_mid
+            f_lo = f_mid
+        x_mid = (lo + hi) / 2.0
+    f_final = _mass_at_variable(inp, x_mid) - target_mass_kg
+    return x_mid, max_iter, abs(f_final) < tol, f_final
+
+
+def mass_iteration_loop(
+    inp: MassIterationInput,
+    tol: float = 1e-6,
+    max_iter: int = 50,
+) -> MassIterationResult:
+    """容器尺寸 Newton/bisection 迭代求解（V1.2 接口冻结，冻结至 2027-03-25）。
+
+    按 SPEC §3.4.4 C-12 + WS-CA-PR-010 §5.3 仪表控制高度：
+      求 variable ∈ {D, L} 使 operating mass = target_mass_kg。
+      mass = ρ_L · V_partial + ρ_V · (V_total - V_partial)
+      H_assumed 按 vessel_shape 默认取值（见 _operating_fill_height）。
+
+    收敛策略：
+      1. Newton 首选（中心差分 Jacobian，O(收敛²)）
+      2. 失败 / 不收敛 → bisection fallback（O(log N)，需异号 bracket）
+      3. 累计 max_iter 仍未收敛 → 抛 MassIterationNotConvergedError（422）
+
+    收敛判据：|Δmass| < tol kg（默认 1e-6 kg）OR |Δvariable| < 1e-5 m。
+
+    Args:
+        inp: MassIterationInput（frozen dataclass）
+        tol: 质量收敛容差（kg，默认 1e-6）
+        max_iter: Newton + bisection 累计最大迭代次数（默认 50）
+
+    Returns:
+        MassIterationResult：converged / iterations / final_variable_m / final_mass_kg
+        / residual_kg / formula_ref
+
+    Raises:
+        VesselInputError: 输入物理量越界（密度倒置 / 初始 D/L ≤ 0）
+        MassIterationNotConvergedError: Newton + bisection 累计超 max_iter 未收敛
+    """
+    if tol <= 0:
+        raise VesselInputError(f"tol={tol} 必须 > 0")
+    if max_iter <= 0:
+        raise VesselInputError(f"max_iter={max_iter} 必须 > 0")
+    _validate_mass_iter_input(inp)
+    if inp.mass_model == "EMPTY":
+        # EMPTY 需要材料密度（ρ_metal, ρ_insulation 等），本批不实现
+        raise VesselInputError(
+            "mass_model='EMPTY' 需要材料密度输入，本批仅实现 OPERATING"
+        )
+
+    x0 = inp.initial_D_m if inp.variable == "D" else inp.initial_L_m
+
+    # Newton 优先（最多 20 次，留 30 次给 bisection）
+    newton_max = min(max_iter, 20)
+    x_newton, it_newton, ok_newton, res_newton = _newton_iterate(
+        inp, inp.target_mass_kg, x0, tol, newton_max
+    )
+    if ok_newton:
+        f_mass = _mass_at_variable(inp, x_newton)
+        return MassIterationResult(
+            converged=True,
+            iterations=it_newton,
+            final_variable_m=x_newton,
+            final_mass_kg=f_mass,
+            residual_kg=res_newton,
+            formula_ref={
+                "method": "Newton",
+                "tol_kg": f"{tol:.1e}",
+                "max_iter": str(max_iter),
+                "vessel_shape": inp.vessel_shape,
+                "variable": inp.variable,
+            },
+        )
+
+    # Bisection fallback
+    bisect_max = max_iter - it_newton
+    x_bisect, it_bisect, ok_bisect, res_bisect = _bisection_iterate(
+        inp,
+        inp.target_mass_kg,
+        x_newton,
+        tol,
+        bisect_max,
+    )
+    total_iter = it_newton + it_bisect
+    if ok_bisect:
+        f_mass = _mass_at_variable(inp, x_bisect)
+        return MassIterationResult(
+            converged=True,
+            iterations=total_iter,
+            final_variable_m=x_bisect,
+            final_mass_kg=f_mass,
+            residual_kg=res_bisect,
+            formula_ref={
+                "method": "bisection",
+                "tol_kg": f"{tol:.1e}",
+                "max_iter": str(max_iter),
+                "vessel_shape": inp.vessel_shape,
+                "variable": inp.variable,
+            },
+        )
+
+    # 累计未收敛
+    raise MassIterationNotConvergedError(
+        f"mass_iteration_loop {total_iter} 次迭代未收敛："
+        f"Newton 起点 x0={x0:.4f}，bisection 终点 x={x_bisect:.4f}，"
+        f"residual={res_bisect:.4e} kg（> tol={tol:.1e}）。"
+        f"请检查 target_mass_kg 或 vessel_shape/head_type 物理一致性。"
     )
