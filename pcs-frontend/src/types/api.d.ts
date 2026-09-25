@@ -2671,6 +2671,36 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/psychro/saturation-water-content/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calc Saturation Water Content Endpoint
+         * @description 饱和水含量 W_sat（§3.2.5 P6-PSY-001 §3.9.2 — P6-4 Task 4 C-17 显式水含量）。
+         *
+         *     直调 ``calc_saturation_water_content`` service（service 内 RH=1.0 直调
+         *     ``chedl_wrapper.humid_air_humidity_ratio``，不重复包装 CoolProp）：
+         *     - 3 独立单位输出（kg/kg / mg/Sm³ / lb/MMscf）
+         *     - ISO 18453 简式酸性气校正（CO2+H2S > 40 mol%）
+         *     - 温压越界（T ∉ [-50, 100]°C 或 P > ~100 atm）→ WARNING + NaN
+         *       （SPEC §3.2.5 "WARNING，不抛错"约定）
+         *     - D14 lru_cache(maxsize=4096)（service 层；同 (T, P, composition) 缓存命中）
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calc_saturation_water_content_endpoint_api_v1_psychro_saturation_water_content_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/psychro/results": {
         parameters: {
             query?: never;
@@ -9754,14 +9784,18 @@ export interface components {
          *     - standard_profile_code: 项目标准（默认 "ASHRAE_FUND_2021"；
          *       C-07 String(16) 锁定）
          *     - calc_type: 计算类型（HUMIDITY_RATIO / DEW_POINT / WET_BULB /
-         *       ENTHALPY / SPECIFIC_VOLUME / COOLING_COIL；String(32) NOT NULL）
+         *       ENTHALPY / SPECIFIC_VOLUME / COOLING_COIL / SATURATION_W_CALC；
+         *       String(32) NOT NULL）
          *     - sign_status: 签审状态（默认 DRAFT）
          *
-         *     12 业务字段（PsychroResult __table__ 排除 PK + mixin 字段）：
+         *     16 业务字段（PsychroResult __table__ 排除 PK + mixin 字段）：
          *     - coolprop_version: CoolProp 版本（payload 缺时 service 自动从
          *       get_coolprop_version() 写入；SPEC §3.2.5 coolprop_version 溯源）
          *     - humidity_ratio_kg_kg / dew_point_c / wet_bulb_c / enthalpy_kj_kg /
          *       specific_volume_m3_kg / sensible_heat_kw / latent_heat_kw
+         *     - P6-4 Task 4 C-17 4 列：
+         *       saturation_w_kg_kg / saturation_w_mg_sm3 /
+         *       saturation_w_lb_per_mmscf / saturation_T_c
          *     - input_json / output_json
          */
         PsychroResultCreateRequest: {
@@ -9790,7 +9824,7 @@ export interface components {
             standard_profile_code: string;
             /**
              * Calc Type
-             * @description 计算类型（HUMIDITY_RATIO / DEW_POINT / WET_BULB / ENTHALPY / SPECIFIC_VOLUME / COOLING_COIL）
+             * @description 计算类型（HUMIDITY_RATIO / DEW_POINT / WET_BULB / ENTHALPY / SPECIFIC_VOLUME / COOLING_COIL / SATURATION_W_CALC）
              */
             calc_type: string;
             /**
@@ -9839,6 +9873,26 @@ export interface components {
              * @description 潜热 kW（cooling_coil 专用）
              */
             latent_heat_kw?: number | null;
+            /**
+             * Saturation W Kg Kg
+             * @description 饱和水含量 kg 水/kg 干空气（SATURATION_W_CALC 专用）
+             */
+            saturation_w_kg_kg?: number | null;
+            /**
+             * Saturation W Mg Sm3
+             * @description 饱和水含量 mg 水/Sm³ 干空气（SATURATION_W_CALC；西欧常用）
+             */
+            saturation_w_mg_sm3?: number | null;
+            /**
+             * Saturation W Lb Per Mmscf
+             * @description 饱和水含量 lb 水/MMscf 干空气（SATURATION_W_CALC；北美常用）
+             */
+            saturation_w_lb_per_mmscf?: number | null;
+            /**
+             * Saturation T C
+             * @description 饱和温度 °C（SATURATION_W_CALC；service 入参回显）
+             */
+            saturation_T_c?: number | null;
             /**
              * Input Json
              * @description 入参（业务子结构）
@@ -9891,7 +9945,7 @@ export interface components {
          *
          *     字段：溯源（id / project_id / workspace_id / tag_number /
          *     standard_profile_code / calc_type / coolprop_version / sign_status /
-         *     record_hash）+ 10 业务字段 + 时间戳。
+         *     record_hash）+ 14 业务字段 + 时间戳。
          *
          *     字段映射（ORM → schema）：
          *     - ORM psychro_id → schema id（PK 重命名；前端统一用 id）
@@ -9981,6 +10035,26 @@ export interface components {
              */
             latent_heat_kw?: number | null;
             /**
+             * Saturation W Kg Kg
+             * @description 饱和水含量 kg 水/kg 干空气（SATURATION_W_CALC 专用）
+             */
+            saturation_w_kg_kg?: number | null;
+            /**
+             * Saturation W Mg Sm3
+             * @description 饱和水含量 mg 水/Sm³ 干空气（SATURATION_W_CALC；西欧常用）
+             */
+            saturation_w_mg_sm3?: number | null;
+            /**
+             * Saturation W Lb Per Mmscf
+             * @description 饱和水含量 lb 水/MMscf 干空气（SATURATION_W_CALC；北美常用）
+             */
+            saturation_w_lb_per_mmscf?: number | null;
+            /**
+             * Saturation T C
+             * @description 饱和温度 °C（SATURATION_W_CALC；service 入参回显）
+             */
+            saturation_T_c?: number | null;
+            /**
              * Input Json
              * @description 入参（业务子结构）
              */
@@ -10049,6 +10123,26 @@ export interface components {
              * @description 潜热 kW（cooling_coil 专用）
              */
             latent_heat_kw?: number | null;
+            /**
+             * Saturation W Kg Kg
+             * @description 饱和水含量 kg 水/kg 干空气（SATURATION_W_CALC 专用）
+             */
+            saturation_w_kg_kg?: number | null;
+            /**
+             * Saturation W Mg Sm3
+             * @description 饱和水含量 mg 水/Sm³ 干空气（SATURATION_W_CALC；西欧常用）
+             */
+            saturation_w_mg_sm3?: number | null;
+            /**
+             * Saturation W Lb Per Mmscf
+             * @description 饱和水含量 lb 水/MMscf 干空气（SATURATION_W_CALC；北美常用）
+             */
+            saturation_w_lb_per_mmscf?: number | null;
+            /**
+             * Saturation T C
+             * @description 饱和温度 °C（SATURATION_W_CALC；service 入参回显）
+             */
+            saturation_T_c?: number | null;
             /**
              * Input Json
              * @description 入参（业务子结构）
@@ -10762,6 +10856,105 @@ export interface components {
              * @default INTERNAL_SAFETY_DB
              */
             source: string;
+        };
+        /**
+         * SaturationWaterContentRequest
+         * @description 饱和水含量请求（POST /psychro/saturation-water-content/calculate）。
+         *
+         *     字段（按 SPEC §3.2.5 P6-PSY-001 §3.9.2 显式水含量）：
+         *     - temperature_c: 干球温度 °C（SPEC 安全范围 -50~100°C；超界返 WARNING）
+         *     - pressure_kpa: 大气压力 kPa（默认海平面 101.325；> 0）
+         *     - acidic_gas_composition: 酸性气摩尔分率 dict（None → 无校正；ISO 18453
+         *       简式校正仅在 CO2+H2S > 40 mol% 时触发）
+         *     - units: 单位制（"METRIC" 公制 SI / "IMPERIAL" 英制；不影响算法，仅标注）
+         */
+        SaturationWaterContentRequest: {
+            /**
+             * Temperature C
+             * @description 干球温度 °C（SPEC §3.2.5 安全范围 -50~100°C；超界返 WARNING + NaN）
+             */
+            temperature_c: number;
+            /**
+             * Pressure Kpa
+             * @description 大气压力 kPa（默认海平面 101.325；> 0；超出 CoolProp 上限 ~100 atm 返 WARNING）
+             * @default 101.325
+             */
+            pressure_kpa: number;
+            /**
+             * Acidic Gas Composition
+             * @description 酸性气摩尔分率 dict（如 {"CO2": 0.30, "H2S": 0.20}）；None → 无校正；ISO 18453 简式校正仅在 CO2+H2S > 40 mol% 时触发
+             */
+            acidic_gas_composition?: {
+                [key: string]: number;
+            } | null;
+            /**
+             * Units
+             * @description 单位制（METRIC 公制 SI / IMPERIAL 英制；不影响算法，仅标注）
+             * @default METRIC
+             */
+            units: string;
+        };
+        /**
+         * SaturationWaterContentResponse
+         * @description 饱和水含量响应（POST /psychro/saturation-water-content/calculate）。
+         *
+         *     字段（按 SPEC §3.2.5 P6-PSY-001 §3.9.2）：
+         *     - saturation_w_kg_kg: 饱和水含量 kg 水 / kg 干空气（摩尔比）
+         *     - saturation_w_mg_sm3: 饱和水含量 mg 水 / Sm³ 干空气（西欧常用）
+         *     - saturation_w_lb_per_mmscf: 饱和水含量 lb 水 / MMscf 干空气（北美常用）
+         *     - saturation_T_c: 计算时实际使用的干球温度 °C
+         *     - temperature_out_of_range: True/False（< -50°C 或 > 100°C）
+         *     - warning_message: 越界警告（None 表示无警告）
+         *     - acidic_gas_correction_applied: True/False（CO2+H2S > 40 mol%）
+         *     - acidic_gas_correction_factor: ISO 18453 简式校正系数（默认 1.0）
+         *     - formula_ref: 公式溯源标记 "ASHRAE_RP-1845_CoolProp"
+         */
+        SaturationWaterContentResponse: {
+            /**
+             * Saturation W Kg Kg
+             * @description 饱和水含量 kg 水 / kg 干空气
+             */
+            saturation_w_kg_kg: number;
+            /**
+             * Saturation W Mg Sm3
+             * @description 饱和水含量 mg 水 / Sm³ 干空气
+             */
+            saturation_w_mg_sm3: number;
+            /**
+             * Saturation W Lb Per Mmscf
+             * @description 饱和水含量 lb 水 / MMscf 干空气
+             */
+            saturation_w_lb_per_mmscf: number;
+            /**
+             * Saturation T C
+             * @description 计算时实际使用的干球温度 °C
+             */
+            saturation_T_c: number;
+            /**
+             * Temperature Out Of Range
+             * @description 是否超出 SPEC §3.2.5 安全范围 [-50, 100]°C
+             */
+            temperature_out_of_range: boolean;
+            /**
+             * Warning Message
+             * @description 越界警告（None 表示无警告；CoolProp 拒绝时含错误细节）
+             */
+            warning_message?: string | null;
+            /**
+             * Acidic Gas Correction Applied
+             * @description 是否应用 ISO 18453 简式酸性气校正（CO2+H2S > 40 mol%）
+             */
+            acidic_gas_correction_applied: boolean;
+            /**
+             * Acidic Gas Correction Factor
+             * @description ISO 18453 简式校正系数（默认 1.0；上限 1.05）
+             */
+            acidic_gas_correction_factor: number;
+            /**
+             * Formula Ref
+             * @description 公式溯源标记（ASHRAE_RP-1845_CoolProp）
+             */
+            formula_ref: string;
         };
         /**
          * SectionCalcRequest
@@ -18036,6 +18229,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CoolingCoilResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calc_saturation_water_content_endpoint_api_v1_psychro_saturation_water_content_calculate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SaturationWaterContentRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SaturationWaterContentResponse"];
                 };
             };
             /** @description Validation Error */
