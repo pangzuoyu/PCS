@@ -1,0 +1,50 @@
+{
+  "_comment": "P6-4 T2 C-08 两相分离器 sizing 黄金 fixture（喷嘴动量校核边界；SPEC §3.4.2 V1.2 + WS-CA-PR-010 §5.1）。小动量限值（inlet 50 / outlet 30 kg·m/s²）→ 较大喷嘴 ID；强公式段 <0.1%。",
+  "_expected_values_formula": {
+    "stage5_nozzle": "ID_min = √(4m² / (π × N × ρ_mix)); N=50/30 kg·m/s²（小动量限值 → 较大 ID）",
+    "stage3_souders_brown": "Vmax = K × √((ρL − ρV) / ρV)",
+    "stage5_control": "H_c = t_c × Q_total_volumetric_m3_h / (3600 × CSA)"
+  },
+  "cases": [
+    {
+      "id": "nozzle_momentum_boundary",
+      "description": "喷嘴动量校核边界工况（小动量限值 → 较大喷嘴 ID；2:1_ELLIPTICAL 封头）",
+      "vessel_shape": "HORIZONTAL",
+      "diameter_m": 1.5,
+      "length_m": 4.0,
+      "head_type": "2:1_ELLIPTICAL",
+      "operating_pressure_kpa": 400.0,
+      "operating_temperature_c": 55.0,
+      "oil_mass_rate_kg_d": 80000.0,
+      "water_mass_rate_kg_d": 0.0,
+      "gas_mass_rate_kg_d": 60000.0,
+      "oil_density_kg_m3": 850.0,
+      "water_density_kg_m3": 1000.0,
+      "gas_density_kg_m3": 15.0,
+      "oil_sg": 0.8509,
+      "water_sg": 1.0,
+      "gas_sg": 12.2449,
+      "gas_mw_kg_kmol": 22.0,
+      "k_factor": 0.07,
+      "nozzle_inlet_momentum_limit_kg_m_s2": 50.0,
+      "nozzle_outlet_momentum_limit_kg_m_s2": 30.0,
+      "instrument_response_time_s": 25.0,
+      "n_vessels": 1,
+      "expected": {
+        "oil_vol_rate_bbl_d": 591.9822,
+        "water_vol_rate_bbl_d": 0.0,
+        "gas_vol_rate_mmscfd": 0.1413,
+        "mixed_density_kg_m3": 34.1954,
+        "vmax_m_s": 0.5223,
+        "csa_min_m2": 0.1043,
+        "csa_actual_m2": 1.7671,
+        "nozzle_inlet_min_id_m": 0.0442,
+        "nozzle_outlet_min_id_m": 0.0571,
+        "control_height_m": 0.6704,
+        "control_volume_m3": 7.9522,
+        "residence_time_s": 167.8179,
+        "tol_pct": 0.1
+      }
+    }
+  ]
+}

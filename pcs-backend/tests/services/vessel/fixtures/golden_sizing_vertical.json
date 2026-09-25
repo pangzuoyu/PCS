@@ -1,0 +1,54 @@
+{
+  "_comment": "P6-4 T2 C-08 两相分离器 sizing 黄金 fixture（vertical 单相气液；SPEC §3.4.2 V1.2 + WS-CA-PR-010 Rev A）。SI 单位（m, m², m³, m/s, s）。手算对照 = Souders-Brown Vmax + 5 段 sizing 强公式段（误差 <0.1%；WS-CA-PR-010 §3~§5 K 因子表插值段误差 <1%）。",
+  "_expected_values_formula": {
+    "stage1_volumetric": "oil_vol_bbl = oil_mass / (ρ_oil × 0.1589873); gas_vol_mmscfd = gas_mass / (ρ_gas × 28316.85)",
+    "stage2_mixed_density": "ρ_mix = (Σ Q_i × ρ_i) / (Σ Q_i)",
+    "stage3_souders_brown": "Vmax = K × √((ρL − ρV) / ρV)",
+    "stage4_csa": "A_min = Q_gas / (Vmax × 0.85); A_actual = π·D²/4",
+    "stage5_nozzle": "ID = √(4m² / (π × N × ρ_mix))",
+    "stage5_control": "H_c = t_c × Q_total_volumetric_m3_h / (3600 × CSA)",
+    "stage5_residence": "t_r = V_total_per_vessel / Q_per_vessel_m3_s"
+  },
+  "cases": [
+    {
+      "id": "vertical_basic",
+      "description": "VERTICAL 立式单相气液（WS-CA-PR-010 Rev A §3 立式算例 + §5.3 仪表间距）",
+      "vessel_shape": "VERTICAL",
+      "diameter_m": 2.0,
+      "length_m": 8.0,
+      "head_type": "2:1_ELLIPTICAL",
+      "operating_pressure_kpa": 500.0,
+      "operating_temperature_c": 60.0,
+      "oil_mass_rate_kg_d": 200000.0,
+      "water_mass_rate_kg_d": 0.0,
+      "gas_mass_rate_kg_d": 100000.0,
+      "oil_density_kg_m3": 800.0,
+      "water_density_kg_m3": 1000.0,
+      "gas_density_kg_m3": 10.0,
+      "oil_sg": 0.8008,
+      "water_sg": 1.0,
+      "gas_sg": 8.1633,
+      "gas_mw_kg_kmol": 18.0,
+      "k_factor": 0.05,
+      "nozzle_inlet_momentum_limit_kg_m_s2": 100.0,
+      "nozzle_outlet_momentum_limit_kg_m_s2": 50.0,
+      "instrument_response_time_s": 30.0,
+      "n_vessels": 1,
+      "expected": {
+        "oil_vol_rate_bbl_d": 1572.4526,
+        "water_vol_rate_bbl_d": 0.0,
+        "gas_vol_rate_mmscfd": 0.3531,
+        "mixed_density_kg_m3": 29.2683,
+        "vmax_m_s": 0.4444,
+        "csa_min_m2": 0.3064,
+        "csa_actual_m2": 3.1416,
+        "nozzle_inlet_min_id_m": 0.0724,
+        "nozzle_outlet_min_id_m": 0.1024,
+        "control_height_m": 1.1329,
+        "control_volume_m3": 27.2271,
+        "residence_time_s": 229.5048,
+        "tol_pct": 0.1
+      }
+    }
+  ]
+}
