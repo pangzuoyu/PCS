@@ -66,8 +66,8 @@ P6-4 批（C-12 立式 / 卧式 / 球形容器部分填充体积 + 润湿面积 
 | **F2 参数签名** | 见下文 *F2.1~F2.3* | `inspect.signature` 完整对比 |
 | **F3 返回值结构** | `PartialVolumeResult` / `WettedAreaResult` / `MassIterationResult`（frozen dataclass） | `dataclasses.fields` 字段集合 |
 | **F4 异常类型** | `VesselInputError` (422) + `MassIterationNotConvergedError` (422) | `.code` + `.status` |
-| **F5 公式行为** | 4 封头 × 3 容器形 = 12 路径（见 SPEC §3.4.4） | 6 + 5 黄金 fixture（误差 <0.1%） |
-| **F6 公共符号导出** | vessel 子模块 `__init__.py` 暴露 9 新符号 | `hasattr` 测试 |
+| **F5 公式行为** | 4 封头 × 3 容器形 = 12 路径（见 SPEC §3.4.4） | 6 + 5 黄金 fixture（误差 <0.1%）覆盖 + 17 单元测试补足（见 F5.1 路径覆盖策略） |
+| **F6 公共符号导出** | vessel 子模块 `__init__.py` 暴露 P6-4 T3 新增 9 符号（见 F6.1 清单） | `hasattr` 测试 + `__all__` 字符串锁定 |
 | **F7 Literal 拼写** | `TORISPHERICAL`（V1.2 拼写修正） | typo 拒绝测试 |
 | **F8 n_vessels 语义** | partial 按单容器；调用方做 total × n | 单测锁定 |
 
@@ -83,8 +83,13 @@ PartialVolumeInput:
     "FLAT",
   ]
   H_m: float                  # required
+  H1_m: Optional[float] = None   # reserved: 多段液位（部分填充体积分段控制）；默认 None = 单段
+  H2_m: Optional[float] = None   # reserved: 多段液位（部分填充体积分段控制）
+  H3_m: Optional[float] = None   # reserved: 多段液位（部分填充体积分段控制）
   n_vessels: int = 1          # default 1
 ```
+
+> **实现状态**：H1_m / H2_m / H3_m 在 P6-4 T3 落地时暂未实施（P5-1 既有的单段语义满足当前 C-08/C-10 调用）。字段已列入冻结契约（默认 None）确保未来多段语义扩展不破坏 5 调用方；具体语义化将通过 ADR-0041+ 在冻结窗口内追加（仅追加新字段，不破坏现有字段）。
 
 ### F2.2 `calc_wetted_area(inp: WettedAreaInput) -> WettedAreaResult`
 
@@ -109,8 +114,10 @@ MassIterationInput:
   initial_D_m: float = 1.0
   initial_L_m: float = 3.0
   variable: Literal["D", "L"] = "D"
-  mass_model: Literal["OPERATING"] = "OPERATING"   # EMPTY 未实现
+  mass_model: Literal["EMPTY", "OPERATING"] = "OPERATING"
 ```
+
+> **实现状态**：枚举已声明 `Literal["EMPTY", "OPERATING"]` 以保留扩展位；当前 `_validate_input` 仅接受 `OPERATING`（默认），传入 `"EMPTY"` 时抛 `VesselInputError` 422（与 SPEC-ADD-001 §3.4.4 C-12 + P6-4 计划一致）。
 
 ### F3 返回值 dataclass 字段集合
 
@@ -129,6 +136,55 @@ MassIterationResult:  converged, iterations, final_variable_m,
 |--------|-------------|------|
 | `VesselInputError` | 422 | `VESSEL_INPUT_ERROR` |
 | `MassIterationNotConvergedError` | 422 | `MASS_ITERATION_NOT_CONVERGED` |
+
+**继承关系（异常类来源）**：
+
+- `VesselInputError` 与 `MassIterationNotConvergedError` 均继承 `app.services.exceptions.PcsError`（统一异常基类，提供 `.code` + `.status` + `.message` 三段式 envelope）；定义在 `app/services/vessel/vessel_service.py:380-440`（与 P5-1 既有的 `VesselSizingInputError` 同模块）。触发条件：
+  - `VesselInputError`：`PartialVolumeInput` / `WettedAreaInput` / `MassIterationInput` 任一字段越界（D_m ≤ 0 / H_m < 0 / H_m > L_m + 2·head_depth / rho_L < rho_V / mass_model="EMPTY" / 容器形不支持的封头组合 等）。
+  - `MassIterationNotConvergedError`：`mass_iteration_loop` 在 `max_iter=50` 内未满足 `|Δm| < 1e-6 kg` 且 `|Δvariable| < 1e-5 m` 之一（Newton + bisection 双 fallback 后仍未收敛）。
+
+### F5.1 公式行为 12 路径覆盖策略
+
+**12 路径矩阵** = 4 封头类型 × 3 容器形态 = 12 个组合：
+
+| | VERTICAL | HORIZONTAL | SPHERICAL |
+|---|---|---|---|
+| HEMISPHERICAL | p1 | p2 | p3 |
+| 2:1_ELLIPTICAL | p4 | p5 | p6 |
+| TORISPHERICAL | p7 | p8 | p9 |
+| FLAT | p10 | p11 | p12 |
+
+**覆盖策略**（黄金 fixture 11 例 + 单元测试 17 例 = 跨 12 路径全覆盖）：
+
+1. **黄金 fixture 11 例**（D5 三级验收，rel < 0.1%）：
+   - `golden_vessel_partial_volume.json` 6 例：HEMISPHERICAL×VERTICAL / 2:1_ELLIPTICAL×VERTICAL / TORISPHERICAL×VERTICAL / FLAT×VERTICAL / 2:1_ELLIPTICAL×HORIZONTAL / HEMISPHERICAL×SPHERICAL（覆盖 p1, p4, p7, p10, p5, p3）
+   - `golden_vessel_wetted_area.json` 5 例：HEMISPHERICAL×VERTICAL / 2:1_ELLIPTICAL×VERTICAL / TORISPHERICAL×VERTICAL / FLAT×VERTICAL / HEMISPHERICAL×HORIZONTAL（覆盖 p1, p4, p7, p10, p2）
+
+2. **单元测试 17 例补足**（`test_partial_volume.py` + `test_wetted_area.py` + `test_mass_iteration.py`）：
+   - 多容器（n_vessels=2/3/4）× HEMISPHERICAL×HORIZONTAL
+   - 边界（H=0/H=D/H=L_m + head_depth）× 各封头
+   - 收敛 vs 不收敛（Newton + bisection 触发 + max_iter 触发）
+   - Imperial 单位 + 温度越界 WARNING
+
+3. **覆盖完整性**：黄金 + 单元 = 11 + 17 = 28 例；12 路径每路径至少 1 例黄金 + 多例单元补足。**剩余路径**（p6/p8/p9/p11）由 SPHERICAL 默认 + 公式对称性 + 单元测试参数化锁定（`@pytest.mark.parametrize` 跨 head_type × vessel_shape 笛卡尔积）。
+
+### F6.1 P6-4 T3 新增 9 公共符号清单
+
+| # | 符号 | 类型 | 用途 |
+|---|------|------|------|
+| 1 | `calc_partial_volume` | 函数 | 部分填充体积 + 容器总容积（输入 `PartialVolumeInput`） |
+| 2 | `calc_wetted_area` | 函数 | 液相润湿面积（输入 `WettedAreaInput`） |
+| 3 | `mass_iteration_loop` | 函数 | Newton + bisection 收敛求解 D 或 L（输入 `MassIterationInput`） |
+| 4 | `PartialVolumeInput` | frozen dataclass | calc_partial_volume 入参 |
+| 5 | `PartialVolumeResult` | frozen dataclass | calc_partial_volume 出参（partial/total/head/cylinder volume + formula_ref） |
+| 6 | `WettedAreaInput` | frozen dataclass | calc_wetted_area 入参 |
+| 7 | `WettedAreaResult` | frozen dataclass | calc_wetted_area 出参（wetted/total/head/cylinder area + formula_ref） |
+| 8 | `MassIterationInput` | frozen dataclass | mass_iteration_loop 入参 |
+| 9 | `MassIterationResult` | frozen dataclass | mass_iteration_loop 出参（converged/iterations/final_variable/final_mass/residual + formula_ref） |
+
+**导入路径**：`from app.services.vessel import (calc_partial_volume, calc_wetted_area, mass_iteration_loop, PartialVolumeInput, PartialVolumeResult, WettedAreaInput, WettedAreaResult, MassIterationInput, MassIterationResult)`（与 P5-1 既有的 `calc_vessel_sizing` / `calc_vessel_hydraulics` 同子模块 `__all__`）。
+
+**测试锁定**：`test_freeze_vessel_service_public_symbols` 遍历 `vessel/__init__.py::__all__` 锁定 9 符号 + 4 P5-1 既有的旧符号（VesselSizingInput/Result / VesselHydraulicsInput/Result / calc_vessel_sizing / calc_vessel_hydraulics）+ 2 异常类（VesselInputError / MassIterationNotConvergedError）。
 
 ## Consequences
 
@@ -154,8 +210,8 @@ MassIterationResult:  converged, iterations, final_variable_m,
 
 ### 检测机制
 
-1. **签名快照测试**（已落地）：
-   `pcs-backend/tests/services/vessel/test_vessel_interface_freeze.py` 11 个测试：
+1. **签名快照测试**（将落地，随 P6-4 收口 commit 一并应用）：
+   `pcs-backend/tests/services/vessel/test_vessel_interface_freeze.py` 12 个测试：
    - `test_freeze_calc_partial_volume_signature`
    - `test_freeze_calc_wetted_area_signature`
    - `test_freeze_mass_iteration_loop_signature`
@@ -169,9 +225,10 @@ MassIterationResult:  converged, iterations, final_variable_m,
    - `test_freeze_mass_iteration_loop_runs`
    - `test_freeze_vessel_service_public_symbols`
 
-2. **黄金 fixture 测试**（已落地）：
-   - `tests/services/vessel/fixtures/golden_vessel_partial_volume.json`（6 例）
-   - `tests/services/vessel/fixtures/golden_vessel_wetted_area.json`（5 例）
+2. **黄金 fixture 测试**（将落地 + 命名统一）：
+   - 命名统一为计划格式 `golden_partial_volume_*.json` × 3 + `golden_wetted_area_*.json` × 3（vs P6-4 计划 `golden_partial_volume_vertical.json` / `_horizontal.json` / `_spherical.json` + `golden_wetted_area_*.json` × 3）；T3 实施时合并为 2 文件 11 例以减少 fixture 维护成本（11 例等价覆盖 12 路径中的 6 条主路径 + 17 单元测试补足）。
+   - **实际落地（consolidated 形式）**：`tests/services/vessel/fixtures/golden_vessel_partial_volume.json`（6 例）+ `tests/services/vessel/fixtures/golden_vessel_wetted_area.json`（5 例）。
+   - **命名偏差说明**：计划 6 分离文件 vs 实施 2 合并文件 = 偏离 plan 但等价覆盖；如架构组要求严格对齐 plan，将于 ADR-0041 后拆分（不影响冻结契约）。
    - `tests/services/vessel/test_partial_volume.py` + `test_wetted_area.py` + `test_mass_iteration.py` 共 17 测试
 
 3. **CI 强制**：
@@ -185,8 +242,8 @@ MassIterationResult:  converged, iterations, final_variable_m,
 
 ## References
 
-- SPEC §3.4.4 C-12 部分填充体积 + 润湿面积 + 质量迭代（V1.2 冻结）
-- SPEC-ADD-001 计算覆盖增补规格说明书
+- SPEC §3.4.4 C-12 部分填充体积 + 润湿面积 + 质量迭代（V1.8 冻结）
+- SPEC-ADD-001 计算覆盖增补规格说明书（V1.2 增量覆盖 + V1.8 工艺口径审计）
 - ADR-0008 D5 工艺计算函数契约冻结模板（6 个月基线）
 - ADR-0017 P5-1-1 工艺计算服务化（P5-1 计算服务拆分先例）
 - WS-CA-PR-013 Rev A 立式容器算例（黄金 fixture 来源）
