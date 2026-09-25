@@ -1,0 +1,32 @@
+{
+  "name": "烷烃 C2-C4 间隔热值（40% C2H6 + 40% C3H8 + 20% n-C4H10）",
+  "description": "LPG 组成验证；rel=1e-3",
+  "compositions": [
+    {"cas": "74-84-0", "mol_frac": 0.4},
+    {"cas": "74-98-6", "mol_frac": 0.4},
+    {"cas": "106-97-8", "mol_frac": 0.2}
+  ],
+  "expected": {
+    "feed_mw_kg_per_kmol": 41.291,
+    "hhv_mj_per_sm3": 88.13,
+    "hhv_btu_per_scf": 2365.32,
+    "lhv_mj_per_sm3": 81.0503,
+    "lhv_btu_per_scf": 2175.31,
+    "stoichiometric_air_sm3_per_sm3": 22.381,
+    "flue_gas_sm3_per_sm3": 24.281,
+    "flue_gas_mw_kg_per_kmol": 191.682,
+    "flue_gas_composition": {
+      "CO2": 0.1153,
+      "H2O": 0.1565,
+      "SO2": 0.0,
+      "N2": 0.7282,
+      "O2": 0.0
+    },
+    "formula_ref_sources": {
+      "74-84-0": "GPSA_23-2",
+      "74-98-6": "GPSA_23-2",
+      "106-97-8": "GPSA_23-2"
+    }
+  },
+  "source": "GPSA FIG. 23-2 + API 5B6 三组分等差加权"
+}
