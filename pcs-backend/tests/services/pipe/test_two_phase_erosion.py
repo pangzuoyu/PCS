@@ -82,12 +82,19 @@ def test_api14e_erosion_two_phase_mix():
 
 
 # ---------------------------------------------------------------------------
-# 3) Imperial 双单位对账（Step 5）
+# 3) Imperial 双单位对账（Step 5 + Review Fix 3/4：golden 数值 + actual_v_ft_s）
 # ---------------------------------------------------------------------------
 
 
 def test_api14e_erosion_imperial_units():
-    """imperial_units=True 时 v_e_ft_s 应 = v_e_m_s / 0.3048。"""
+    """imperial_units=True 时 v_e_ft_s + actual_v_ft_s 必须命中 golden 数值。
+
+    ρ=999, C=122（C 默认 CONTINUOUS）：
+    - V_e = 122/√999 ≈ 3.8604 m/s
+    - actual_v = 10 / (999 · π·0.1²/4) ≈ 1.2732 m/s
+    - V_e_ft_s = 3.8604 / 0.3048 ≈ 12.6647 ft/s
+    - actual_v_ft_s = 1.2732 / 0.3048 ≈ 4.1765 ft/s
+    """
     inp = Api14eErosionInput(
         rho_mix_kg_m3=999.0,
         service_type="CONTINUOUS",
@@ -97,9 +104,19 @@ def test_api14e_erosion_imperial_units():
     )
     result = calc_api14e_erosion_velocity(inp)
     assert result.imperial_conversion is not None
+    # golden numeric values（pin literal 1/0.3048 + V_e + actual_v）
+    expected_v_e_m_s = 122.0 / math.sqrt(999.0)
+    expected_v_actual_m_s = 10.0 / (999.0 * math.pi * 0.1**2 / 4.0)
+    assert math.isclose(result.v_e_m_s, expected_v_e_m_s, rel_tol=1e-9)
+    assert math.isclose(result.actual_v_m_s, expected_v_actual_m_s, rel_tol=1e-9)
     assert math.isclose(
         result.imperial_conversion["v_e_ft_s"],
-        result.v_e_m_s / 0.3048,
+        expected_v_e_m_s / 0.3048,
+        rel_tol=1e-9,
+    )
+    assert math.isclose(
+        result.imperial_conversion["actual_v_ft_s"],
+        expected_v_actual_m_s / 0.3048,
         rel_tol=1e-9,
     )
 
@@ -138,7 +155,7 @@ def test_api14e_erosion_result_is_frozen():
 
 
 # ---------------------------------------------------------------------------
-# 6) is_erosion_safe 判定
+# 6) is_erosion_safe True 判定（actual_v < V_e）
 # ---------------------------------------------------------------------------
 
 
@@ -160,7 +177,57 @@ def test_api14e_erosion_is_safe_when_actual_below_limit():
 
 
 # ---------------------------------------------------------------------------
-# 7) formula_ref 存在 + 非空（review focus：spec 溯源）
+# 7) is_erosion_safe False 判定（Review Fix 1：实际流速超过 V_e）
+# ---------------------------------------------------------------------------
+
+
+def test_api14e_erosion_is_unsafe_when_actual_above_limit():
+    """actual_v > V_e 时 is_erosion_safe=False（Review Fix 1）。
+
+    ρ=999, C=122, D=0.1 m, mass_flow=200 kg/s：
+    - V_e = 122/√999 ≈ 3.86 m/s
+    - actual_v = 200 / (999 · π·0.1²/4) ≈ 25.49 m/s（远超 V_e → unsafe）
+    - actual_v_ft_s = 25.49 / 0.3048 ≈ 83.63 ft/s（imperial 对账）
+    """
+    inp = Api14eErosionInput(
+        rho_mix_kg_m3=999.0,
+        service_type="CONTINUOUS",
+        mass_flow_kg_s=200.0,
+        pipe_diameter_m=0.1,
+        imperial_units=True,
+    )
+    result = calc_api14e_erosion_velocity(inp)
+    assert result.is_erosion_safe is False
+    # actual_v_ft_s symmetry 验证（与 v_e_ft_s 对账同口径）
+    assert result.imperial_conversion is not None
+    expected_actual_v_m_s = 200.0 / (999.0 * math.pi * 0.1**2 / 4.0)
+    assert math.isclose(
+        result.imperial_conversion["actual_v_ft_s"],
+        expected_actual_v_m_s / 0.3048,
+        rel_tol=1e-9,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 8) C 因子范围校验（Review Fix 2：c_factor 越界 → raise）
+# ---------------------------------------------------------------------------
+
+
+def test_api14e_erosion_c_factor_out_of_range_raises():
+    """c_factor=999.0 越界（API 14E 范围 50~400）必须 raise Api14eErosionInputError。"""
+    inp = Api14eErosionInput(
+        rho_mix_kg_m3=999.0,
+        service_type="CONTINUOUS",
+        c_factor=999.0,
+    )
+    with pytest.raises(Api14eErosionInputError) as exc:
+        calc_api14e_erosion_velocity(inp)
+    assert exc.value.code == "API14E_EROSION_INPUT_ERROR"
+    assert exc.value.status == 422
+
+
+# ---------------------------------------------------------------------------
+# 9) formula_ref 存在 + 非空（review focus：spec 溯源）
 # ---------------------------------------------------------------------------
 
 
