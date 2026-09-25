@@ -47,7 +47,8 @@ def upgrade() -> None:
         sa.Column("cepci_value", sa.Float(), nullable=False,
                   comment="CEPCI 年度指数值；COST_EST 按 year 匹配"),
         sa.Column("source", sa.String(length=64), nullable=False,
-                  comment='数据来源；SYNTHETIC_TEST_DATA 或 "Chemical Engineering Magazine 2024-Q4"'),
+                  comment='数据来源；SYNTHETIC_TEST_DATA 或 "Chemical Engineering Magazine 2024-Q4"',  # noqa: E501
+                  ),
         sa.Column("confirmed_by", sa.String(length=64), nullable=True,
                   comment="工艺室确认签字人（占位 NULL）"),
         sa.Column("confirmed_at", sa.DateTime(timezone=True), nullable=True,
