@@ -30,6 +30,9 @@
 - Chisholm, D. (1983). Two-Phase Flow in Pipelines and Heat Exchangers.
 - Crane TP-410 (2009). Flow of Fluids Through Valves, Fittings, and Pipe.
 - Perry's Chemical Engineers' Handbook, 8th ed., §6.
+
+兄弟模块（同一 P4-2 两相流领域，逻辑独立）：
+- two_phase_erosion：API 14E 两相流冲蚀速度（P6-5/C-03；独立输入/输出契约）。
 """
 from __future__ import annotations
 

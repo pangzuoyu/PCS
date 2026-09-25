@@ -1,0 +1,42 @@
+{
+  "single_phase_water": {
+    "rho_mix_kg_m3": 999.0,
+    "service_type": "CONTINUOUS",
+    "c_factor": 100.0,
+    "mass_flow_kg_s": 10.0,
+    "pipe_diameter_m": 0.1,
+    "imperial_units": false,
+    "expected_v_e_m_s": 3.164,
+    "expected_v_e_ft_s": null,
+    "source": "V_e = C/sqrt(rho_mix); C=100; rho=999 (hand calc)"
+  },
+  "two_phase_mix": {
+    "rho_mix_kg_m3": 525.0,
+    "service_type": "CONTINUOUS",
+    "mass_flow_kg_s": 10.0,
+    "pipe_diameter_m": 0.1,
+    "expected_v_e_m_s": 5.327,
+    "source": "V_e = 122/sqrt(525); rho_mix = 0.5*1000 + 0.5*50 (vol-weighted avg)"
+  },
+  "imperial_units_water": {
+    "rho_mix_kg_m3": 999.0,
+    "service_type": "CONTINUOUS",
+    "mass_flow_kg_s": 10.0,
+    "pipe_diameter_m": 0.1,
+    "imperial_units": true,
+    "expected_v_e_m_s": 3.860,
+    "expected_v_e_ft_s": 12.664,
+    "source": "v_e_ft_s = v_e_m_s / 0.3048; 122/sqrt(999) -> ft/s"
+  },
+  "_metadata": {
+    "spec_ref": "SPEC V1.8 §3.2.1 表 3.2.1",
+    "formula": "V_e = C / sqrt(rho_mix)  [API 14E 5th Ed §4.3.2 Eq.4]",
+    "c_factor_table_si": {
+      "CONTINUOUS": 122.0,
+      "INTERMITTENT": 152.5,
+      "CORROSIVE_CONTINUOUS": 200.0,
+      "CORROSIVE_INTERMITTENT": 305.0
+    },
+    "imperial_conversion": "v_e_ft_s = v_e_m_s / 0.3048"
+  }
+}
