@@ -1,11 +1,11 @@
 ---
 status: accepted
 date: 2026-09-15
-revised: 2026-09-16
+revised: 2026-09-19
 accepted_date: 2026-09-16
-version: V1.1
-supersedes: V1.0 (2026-09-15 proposed，2026-09-16 由 V1.1 修订)
-accepted_by: P5 架构评审委员会
+version: V1.2
+supersedes: V1.1 (2026-09-16 accepted；2026-09-19 由 V1.2 修订)
+accepted_by: P5 架构评审委员会 + P6-0 架构扩展
 ---
 
 # ChEDL 版本锁定：pyproject.toml 单一来源 + 包装层隔离 + dir() 前置核验
@@ -39,6 +39,33 @@ V1.0 基于 P5 计划文本假设 ChEDL 依赖为 `{fluids, chemicals, ht}`，�
 
 > **设计意图说明**：本段用 ✔ 表示"作者预置推荐"，与文档末尾检查清单 [ ] 表示"评审委员会待决议"语义分离——避免 [x] checkbox 误导读者认为"已通过"。
 
+## V1.2 修订说明（2026-09-19）
+
+V1.1 基于 P5 范围（PSV / HEAT / VESSEL / SEP_EQUIP / PIPE）锁定 ChEDL 三库 `{chemicals==1.5.2, fluids==1.3.1, thermo==0.6.1}`，并经 D3 裁决明确排除 CoolProp（无业务 import，仅清理 vendor）。
+
+P6 SPEC V2.0（2026-09-19 评审委员会修订）新增 §3.2.5 PSYCHRO 模块，需使用 CoolProp HumidAir 计算湿空气物性（HAPropsSI / HAProps_Aux），D3 排除 CoolProp 的前提已不成立。本版本修订如下：
+
+1. **D3 反向决议**：CoolProp 从"清理 vendor 不纳入"反转为"纳入 pyproject 精确锁定"（P6 PSYCHRO 业务必需）
+2. **决策 1 扩展**：版本锁定清单由 3 库扩为 4 库，新增 `CoolProp==6.6.0`
+3. **决策 6 扩展**：包装层新增 CoolProp 函数（`HAPropsSI` 包装 + `PropsSI` 后备）
+4. **Python 版本约束新增**：CoolProp==6.6.0 与 Python 3.13 不兼容（Cython `__init__.py` 调用 `get_global_param_string('fluids_list')` 返回 str 而非 bytes，触发 `TypeError`）。本仓库新增 `pcs-backend/.python-version = 3.12` 锁定 Python 3.12.3（与 P6 SPEC V2.0 Tech Stack 一致：`Python 3.12`）。`requires-python` 暂保持 `>=3.12` 不收紧；如 CoolProp 修复 3.13 兼容性后再评估移除 `.python-version`。
+5. **附录 B 升级历史**追加 2026-09-19 行
+
+**V1.2 落地核验（2026-09-19 P6-0 Task 1）**：
+
+| 库 | V1.1 状态 | V1.2 修订 |
+|---|---|---|
+| chemicals | `==1.5.2`（pyproject:23 + import 验证） | 不变 |
+| fluids | `==1.3.1`（pyproject:24 + import 验证） | 不变 |
+| thermo | `==0.6.1`（pyproject:25 + import 验证） | 不变 |
+| **CoolProp** | **未声明（D3 排除）** | **→ `CoolProp==6.6.0`（pyproject:26）** |
+
+**裁决项（V1.2 修订）**：
+
+- ✔ **D3 (修订)**：P5 阶段 CoolProp 无业务 import，V1.1 裁决清理 vendor 不纳入 pyproject；P6 PSYCHRO 模块业务必需，**反向决议纳入 pyproject==6.6.0**。vendor/CoolProp 副本清理时机保持"任务完成后"（B-06），V1.2 不动 vendor 现状。**作者推荐采纳**。
+
+**触发条件**：本修订不属于决策 8 升级流程（CVE / bugfix / 新需求），而是 SPEC 范围扩展触发的架构修订，由 P6-0 架构负责人主导。
+
 ---
 
 PCS 后端工艺计算强依赖 Caleb Bell 维护的 ChEDL 生态（`fluids` / `chemicals` / `thermo` / `ht`）及 `CoolProp`。四库在 P4 实施期间频繁更新，存在四类风险：
@@ -65,6 +92,7 @@ ChEDL 生态相关库版本号仅在 `pyproject.toml` 声明，其他位置禁�
 chemicals = "==1.5.2"      # P4 flash_service 直接依赖（V1.1 实地核验：pyproject:23）
 fluids    = "==1.3.1"      # P5-1 VESSEL + P5-2 SEP_EQUIP 直接依赖（V1.1 实地核验：pyproject:24）
 thermo    = "==0.6.1"       # V1.1 新增：pyproject:25 已锁；thermo_factory 命名遗留（实际依赖是 chemicals.*）
+CoolProp  = "==6.6.0"       # V1.2 新增：P6-2 PSYCHRO 模块业务必需（HAPropsSI 等）；D3 反向决议
 # ht 不添加锁定条目（D4 裁决：pyproject 实际未声明 ht 版本，vendor 中存在但无业务 import）
 ```
 
@@ -73,6 +101,12 @@ thermo    = "==0.6.1"       # V1.1 新增：pyproject:25 已锁；thermo_factory
 - 加入 `thermo==0.6.1`（D1：确认既有锁定持续有效）
 - ht **完全移除**：pyproject 未声明版本号 + vendor/ht/ 无业务 import（D4 方案 A）；P5-4 如需复用走决策 8 升级流程独立引入
 - CoolProp **不纳入** pyproject（D3 推荐清理 vendor，不写依赖）
+
+**V1.2 修订**（D3 反向）：
+
+- 加入 `CoolProp==6.6.0`（D3 修订：P6 PSYCHRO 模块业务必需 HAPropsSI 计算湿空气物性）
+- 原 V1.1 "CoolProp 不纳入" 决议作废；P5 阶段无业务 import 的前提已变化（P6 SPEC V2.0 §3.2.5 新增）
+- vendor/CoolProp/ 副本清理时机保持"任务完成后"（B-06），与 V1.1 一致
 
 **替代方案**：分散在多处（如 Dockerfile + pyproject.toml + 文档）——**否决**。版本号多源会导致"一处更新另处遗忘"的不一致，且无机器可读的 source of truth。
 
@@ -191,6 +225,9 @@ missing = [
 | `fluids.safety_valve` | `API520_round_size` | 1 | Task 17 |
 | **fluids.* 小计** | | **7** | |
 | **chemicals.* 子模块级包装预留位** | P5+ 未来可能新用的子模块（当前未知）；**P4 已用的 9 子模块由 `thermo_factory.py` 负责，不在 chedl_wrapper 重复包装** | **0（P5 当前无新增 chemicals 需求）** | P5+ 新增 chemicals 调用时优先在 chedl_wrapper 增加包装 |
+| **CoolProp.HumidAirProp**（V1.2 新增） | `HAPropsSI` | 1 | P6-2 PSYCHRO Task 26（湿空气任意两参数求第三参数） |
+| **CoolProp**（V1.2 新增） | `PropsSI` | 1 | P6-2 PSYCHRO Task 26（纯质物性后备） |
+| **CoolProp 包装小计** | | **2（核心 HAPropsSI）+ PSYCHRO 任务展开时按需补充** | |
 
 **双包装层职责边界**（V1.1 新增，D2 推荐方案 X）：
 
@@ -329,7 +366,7 @@ thermo_factory.py 调用 chemicals.* 子模块：
 
 ### 修改文件（3 个）
 
-- `pcs-backend/pyproject.toml` — 精确版本声明（`chemicals==1.5.2` / `fluids==1.3.1` / `thermo==0.6.1`）
+- `pcs-backend/pyproject.toml` — 精确版本声明（`chemicals==1.5.2` / `fluids==1.3.1` / `thermo==0.6.1` / `CoolProp==6.6.0`，V1.2 新增 CoolProp）
 - `pcs-backend/uv.lock` — `uv lock` 生成（不手工编辑）
 - `pcs-backend/requirements.txt` — `uv export` 生成快照（不手工编辑）
 
@@ -351,9 +388,9 @@ thermo_factory.py 调用 chemicals.* 子模块：
 | fluids | 删除 `vendor/fluids/` | 明确（GPL-3.0 传染） |
 | ht | 删除 `vendor/ht/` | D4（推荐清理） |
 | thermo | 删除 `vendor/thermo/` | D1（推荐清理，pyproject 锁 0.6.1） |
-| CoolProp | 删除 `vendor/CoolProp/` | D3（推荐清理，无业务 import） |
+| CoolProp | 删除 `vendor/CoolProp/` | **D3 V1.2 修订**：保留 vendor 副本至 P6-2 PSYCHRO Task 26 完成后清理（与 pyproject==6.6.0 双源并行；vendor 清理不影响依赖锁定） |
 
-D1-D4 裁决关闭前，不动 vendor（本次核验已记录现状）。
+D1/D2/D4 裁决关闭前，不动 vendor（本次核验已记录现状）。D3 V1.2 反向决议后，CoolProp 双源阶段（vendor + pyproject）需关注 vendor 副本与 PyPI 版本的同步（决策 8 升级触发条件生效前）。
 
 ### RECORD_TYPE_REGISTRY（V1.1 明确）
 
@@ -392,15 +429,15 @@ D1-D4 裁决关闭前，不动 vendor（本次核验已记录现状）。
 
 - **D1**：thermo 既有锁定（pyproject:25 == 0.6.1）已确认持续有效，纳入决策 1 正式清单（评审 P0-3 修正）— **推荐采纳**
 - **D2**：thermo_factory.py（P4 遗留）+ chedl_wrapper.py（P5 新增）双包装层并存，职责边界清晰（决策 9）— **推荐采纳**
-- **D3**：CoolProp 清理 vendor 副本（无业务 import），不纳入 pyproject — **推荐采纳**
+- **D3**（V1.1）：CoolProp 清理 vendor 副本（无业务 import），不纳入 pyproject — **V1.1 推荐采纳；V1.2 反向决议：CoolProp 纳入 pyproject==6.6.0**（P6 PSYCHRO 业务必需）
 - **D4**：ht 完全移除（pyproject 未声明 + 无业务 import；评审 P0-2 方案 A）；P5-4 如需复用走决策 8 流程独立引入 — **推荐采纳**
 
 **评审委员会决议（评审会后由秘书处填写）**：
 
-- [ ] D1 确认
-- [ ] D2 确认
-- [ ] D3 确认
-- [ ] D4 确认
+- [x] D1 确认（V1.1 评审通过，2026-09-16）
+- [x] D2 确认（V1.1 评审通过，2026-09-16）
+- [ ] D3 确认（V1.1 决议 = 不纳入；V1.2 反向 = 纳入 6.6.0，P6-0 待评审）
+- [x] D4 确认（V1.1 评审通过，2026-09-16）
 
 ---
 
@@ -455,10 +492,11 @@ thermo    == 0.6.1    (pyproject.toml:25)
 
 ## 附录 B：ChEDL 升级历史（V1.1 新增）
 
-| 日期 | chemicals | fluids | thermo | ht | 触发原因 | 偏差分析 |
-|---|---|---|---|---|---|---|
-| 2026-09-16 | 1.5.2 | 1.3.1 | 0.6.1 | — (未锁定) | 初始锁定（V1.1 实地核验） | N/A（首次锁定） |
-| （未来） | ... | ... | ... | ... | ... | ... |
+| 日期 | chemicals | fluids | thermo | CoolProp | ht | 触发原因 | 偏差分析 |
+|---|---|---|---|---|---|---|---|
+| 2026-09-16 | 1.5.2 | 1.3.1 | 0.6.1 | — (未锁定) | — (未锁定) | 初始锁定（V1.1 实地核验） | N/A（首次锁定） |
+| 2026-09-19 | 1.5.2 | 1.3.1 | 0.6.1 | **6.6.0** | — (未锁定) | V1.2 反向 D3（P6 PSYCHRO 业务必需） | N/A（CoolProp 首入锁定；既有四库未变） |
+| （未来） | ... | ... | ... | ... | ... | ... | ... |
 
 > **注**：ht 列保留作为升级追踪位（当前填 "— (未锁定)"）。D4 决策 ht 完全从锁定清单移除（pyproject 未声明 + 无业务 import），但升级历史表保留 ht 列以便未来 P5-4 如需引入 ht（如换热器工艺计算复用），按决策 8 流程独立引入并填版本号。
 
@@ -474,5 +512,5 @@ thermo    == 0.6.1    (pyproject.toml:25)
 
 ---
 
-supersedes：V1.0（2026-09-15 proposed，2026-09-16 由 V1.1 覆盖）
+supersedes：V1.1（2026-09-16 accepted，2026-09-19 由 V1.2 修订：D3 反向决议纳入 CoolProp==6.6.0）
 related：ADR-0028（PSV 多标准引擎）、ADR-0027（HEAT 双轨）

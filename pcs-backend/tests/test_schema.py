@@ -36,7 +36,18 @@ def test_table_count(inspector):
     # P4-0-2 新增 two_phase_results = 74
     # P5-OPEN-005 新增 relief_results + column_sizing + mixer_results = 77
     # P5-0-5 Task 24 新增 project_calculation_standard_profiles = 78
-    assert len(tables) == 78, f"expected 78 incl. alembic_version, got {len(tables)}"
+    # P6-1 Task 7 新增 cv_results + restriction_results = 80（注：v3.1 schema
+    #   migration 提前含 cv_results / restriction_results stub，alembic chain
+    #   p6_1_001 仅做 alter；实际净增 +2 列别名）
+    # P6-2 Task 18 新增 flare_system_results + cooling_tower_results +
+    #   psychro_results = 81（v3.1 schema 已 stub，p6_2_001 alter 净增字段）
+    # P6-3 Task 29 新增 cooling_tower_curves + filtration_media_library +
+    #   flare_radiation_limits = 81（v3.1 schema 已 stub 0 张）
+    # P6-3 Task 30 新增 p6_3_002 仅追加列（不动表数）= 82（v3.1 schema 已 stub
+    #   open_channel_results / filtration_results / cost_est_results；Task 30
+    #   仅 ADD COLUMN IF NOT EXISTS 补齐派生字段）。表计数 82 = v3.1 schema + 历次
+    #   增改后稳定终态。
+    assert len(tables) == 82, f"expected 82 incl. alembic_version, got {len(tables)}"
 
 
 def test_required_tables_present(inspector):

@@ -129,17 +129,28 @@ def test_tank_level_to_volume_fallback_path():
 # ============================================================================
 
 
-def test_get_chedl_provenance_returns_7_entries():
-    """get_chedl_provenance() 必须返回 7 项（5 直调 + 2 fallback）。"""
+def test_get_chedl_provenance_returns_23_entries():
+    """get_chedl_provenance() 必须返回 23 项。
+
+    计数：5 fluids 直调 + 2 fallback + 6 Task 3（CV/RESTRICTION）
+       + 4 Task 4（OPEN_CHANNEL）+ 6 Task 5（PSYCHRO CoolProp 直调）。
+
+    P6-0 Task 3 扩展：原 7 项 → 13 项，新增 6 项 CV/RESTRICTION 函数。
+    P6-0 Task 4 扩展：13 项 → 17 项，新增 4 项 OPEN_CHANNEL 函数（Manning×2 + 临界水深 + 水跃）。
+    P6-0 Task 5 扩展：17 项 → 23 项，新增 6 项 PSYCHRO CoolProp 直调函数。
+    """
     prov = chedl_wrapper.get_chedl_provenance()
     assert isinstance(prov, dict)
-    assert len(prov) == 7, f"provenance 应有 7 项，实际 {len(prov)}: {list(prov.keys())}"
+    assert len(prov) == 23, (
+        f"provenance 应有 23 项，实际 {len(prov)}: {list(prov.keys())}"
+    )
 
 
 def test_get_chedl_provenance_contains_all_functions():
-    """provenance 字典键必须含全部 7 包装函数名。"""
+    """provenance 字典键必须含全部 23 包装函数名。"""
     prov = chedl_wrapper.get_chedl_provenance()
     expected = {
+        # 既有 7 项
         "v_Souders_Brown",
         "K_separator_Watkins",
         "K_separator_demister_York",
@@ -147,6 +158,25 @@ def test_get_chedl_provenance_contains_all_functions():
         "API520_round_size",
         "time_to_empty",
         "tank_level_to_volume",
+        # P6-0 6 项（Task 3）
+        "control_valve_C_liquid",
+        "control_valve_kv_liquid",
+        "control_valve_cv_gas",
+        "flow_meter_orifice",
+        "flow_meter_venturi",
+        "flow_meter_nozzle",
+        # P6-0 4 项（Task 4）
+        "manning_Q",
+        "manning_V",
+        "critical_depth_rectangular",
+        "hydraulic_jump_y2",
+        # P6-0 6 项（Task 5）
+        "humid_air_humidity_ratio",
+        "humid_air_dew_point",
+        "humid_air_wet_bulb",
+        "humid_air_enthalpy",
+        "humid_air_specific_volume",
+        "humid_air_coil_delta_h",
     }
     assert set(prov.keys()) == expected, (
         f"provenance 键不匹配。缺失: {expected - set(prov.keys())}，"
@@ -155,14 +185,26 @@ def test_get_chedl_provenance_contains_all_functions():
 
 
 def test_get_chedl_provenance_version_matches_locked():
-    """provenance 中的 ChEDL 版本必须与 Task 25 锁定一致（fluids==1.3.1）。"""
+    """provenance 中的 ChEDL 版本必须与 Task 25/Task 1 锁定一致。
+
+    双版本断言：fluids==1.3.1（17 项流体相关）+ CoolProp==6.6.0（6 项 PSYCHRO 直调）。
+    """
     prov = chedl_wrapper.get_chedl_provenance()
+    psychro_funcs = {
+        "humid_air_humidity_ratio",
+        "humid_air_dew_point",
+        "humid_air_wet_bulb",
+        "humid_air_enthalpy",
+        "humid_air_specific_volume",
+        "humid_air_coil_delta_h",
+    }
     for name, meta in prov.items():
         assert isinstance(meta, ChEDLProvenance), (
             f"{name} 应为 ChEDLProvenance 实例，实际 {type(meta)}"
         )
-        assert meta.chEDL_version == "1.3.1", (
-            f"{name} chEDL_version={meta.chEDL_version!r} != 锁定 '1.3.1'"
+        expected_version = "6.6.0" if name in psychro_funcs else "1.3.1"
+        assert meta.chEDL_version == expected_version, (
+            f"{name} chEDL_version={meta.chEDL_version!r} != 锁定 '{expected_version}'"
         )
 
 
@@ -218,13 +260,30 @@ def test_known_limitations_present_all_entries():
 
 
 def test_provenance_runtime_version_matches():
-    """provenance 中的 chEDL_version 应与运行时 fluids.__version__ 一致（双证据链）。"""
+    """provenance 中的 chEDL_version 应与运行时库 __version__ 一致（双证据链）。
+
+    双库版本：fluids==1.3.1（17 项流体）+ CoolProp==6.6.0（6 项 PSYCHRO 直调）。
+    """
+    import CoolProp
     import fluids
 
     prov = chedl_wrapper.get_chedl_provenance()
+    # PSYCHRO 6 函数走 CoolProp 路径；其余 17 项走 fluids 路径
+    psychro_funcs = {
+        "humid_air_humidity_ratio",
+        "humid_air_dew_point",
+        "humid_air_wet_bulb",
+        "humid_air_enthalpy",
+        "humid_air_specific_volume",
+        "humid_air_coil_delta_h",
+    }
     for name, meta in prov.items():
-        assert meta.chEDL_version == fluids.__version__, (
-            f"{name} provenance version {meta.chEDL_version} != 运行时 {fluids.__version__}"
+        expected_version = (
+            CoolProp.__version__ if name in psychro_funcs else fluids.__version__
+        )
+        assert meta.chEDL_version == expected_version, (
+            f"{name} provenance version {meta.chEDL_version} != "
+            f"运行时 {expected_version}"
         )
 
 
@@ -321,4 +380,941 @@ def test_K_Souders_Brown_theoretical_exists_in_chedl_and_wrapper():
     )
     assert "K_Souders_Brown_theoretical" in chedl_wrapper.__all__, (
         "K_Souders_Brown_theoretical 未加入 chedl_wrapper.__all__"
+    )
+
+
+# ============================================================================
+# P6-0 Task 3：CV/RESTRICTION 6 函数（Path A：SPEC §3.2.1/3.2.2 简化公式）
+# ============================================================================
+#
+# 设计依据：
+# - R1 ledger 裁决：Path A 自研（不调 fluids 完整 API）
+# - SPEC §3.2.1 line 149（液体 Cv 简化）+ §3.2.1.3 line 1058-1080（气体 Cv 含 Y 修正）
+# - SPEC §3.2.2.1 line 1382-1397（孔板 Reader-Harris 3 项截断）
+# - SPEC §3.2.2.3 line 1495-1511（ISA 1932 喷嘴完整公式）
+# - SPEC §3.2.2.2 line 1461（文丘里 C 范围中值）
+#
+# 验收：6 函数结果与 SPEC 公式手算值一致（rel <1e-9）。
+
+
+def test_control_valve_C_liquid_spec_formula():
+    """control_valve_C_liquid：SPEC §3.2.1 line 149 简化公式 Cv = Q·√(SG/ΔP)。
+
+    手算验证：Q=100, SG=1, ΔP=1 → Cv = 100·√1 = 100。
+    边界：Q=100, SG=0.8, ΔP=2.5 → Cv = 100·√(0.8/2.5) = 100·√0.32 = 56.5685。
+    """
+    # 标准工况（SG=1, ΔP=1 bar）
+    Cv_standard = chedl_wrapper.control_valve_C_liquid(Q_m3h=100.0, SG=1.0, dP_bar=1.0)
+    assert Cv_standard == pytest.approx(100.0, rel=1e-9), (
+        f"标准工况 Cv 应为 100.0，实际 {Cv_standard}"
+    )
+    # 介质工况（SG=0.8, ΔP=2.5 bar）
+    Cv_heavy = chedl_wrapper.control_valve_C_liquid(
+        Q_m3h=100.0, SG=0.8, dP_bar=2.5
+    )
+    expected_heavy = 100.0 * math.sqrt(0.8 / 2.5)
+    assert Cv_heavy == pytest.approx(expected_heavy, rel=1e-9), (
+        f"介质工况 Cv 应为 {expected_heavy}，实际 {Cv_heavy}"
+    )
+
+
+def test_control_valve_kv_liquid_spec_formula():
+    """control_valve_kv_liquid：SI Kv 简化公式 Kv = Q·√(ρ/(1000·ΔP))。
+
+    手算验证（水 Q=100, ρ=1000, ΔP=1 bar）：Kv = 100·√(1000/1000) = 100。
+    边界（ρ=800, ΔP=2 bar）：Kv = 100·√(800/2000) = 100·√0.4 = 63.2456。
+    """
+    # 标准工况（水）
+    Kv_water = chedl_wrapper.control_valve_kv_liquid(
+        Q_m3h=100.0, rho=1000.0, dP_bar=1.0
+    )
+    assert Kv_water == pytest.approx(100.0, rel=1e-9), (
+        f"水工况 Kv 应为 100.0，实际 {Kv_water}"
+    )
+    # 介质工况（轻质油 ρ=800）
+    Kv_oil = chedl_wrapper.control_valve_kv_liquid(
+        Q_m3h=100.0, rho=800.0, dP_bar=2.0
+    )
+    expected_oil = 100.0 * math.sqrt(800.0 / (1000.0 * 2.0))
+    assert Kv_oil == pytest.approx(expected_oil, rel=1e-9), (
+        f"轻油工况 Kv 应为 {expected_oil}，实际 {Kv_oil}"
+    )
+
+
+def test_control_valve_cv_gas_spec_formula_with_Y_correction():
+    """control_valve_cv_gas：SPEC §3.2.1.3 IEC 60534-2-1 §6.3 完整公式。
+
+    测试工况：空气 M=29, Q=100 Nm³/h, P1=10 bar, T1=300 K, Z=1, ΔP=1 bar,
+    γ=1.4, xT=0.7。
+    手算：
+        x = 0.1/1.0 = 0.1
+        F_γ = 1.4/1.4 = 1.0
+        Y = 1 - 0.1/(3·1.0·0.7) = 1 - 0.04762 = 0.95238
+        Cv = 100 / (0.0865·1·10·0.95238·√(0.1/(29·300·1)))
+    """
+    Cv_gas = chedl_wrapper.control_valve_cv_gas(
+        Q_Nm3h=100.0,
+        P1_pa=10.0 * 1e5,
+        T1_k=300.0,
+        M=29.0,
+        Z=1.0,
+        dP_pa=1.0 * 1e5,
+        gamma=1.4,
+        xT=0.7,
+    )
+    # 手算预期值
+    x = 0.1
+    F_gamma = 1.4 / 1.4
+    Y = 1.0 - x / (3.0 * F_gamma * 0.7)
+    expected_Cv = 100.0 / (
+        0.0865 * 1.0 * 10.0 * Y * math.sqrt(x / (29.0 * 300.0 * 1.0))
+    )
+    assert Cv_gas == pytest.approx(expected_Cv, rel=1e-9), (
+        f"气体 Cv 应为 {expected_Cv}，实际 {Cv_gas}"
+    )
+    # Y 修正一致性验证：Y 应严格等于 0.95238
+    assert Y == pytest.approx(0.95238, rel=1e-4), (
+        f"Y 修正系数应约 0.95238，实际 {Y}"
+    )
+
+
+def test_flow_meter_orifice_spec_reader_harris_3term():
+    """flow_meter_orifice：SPEC §3.2.2.1 Reader-Harris 3 项截断公式。
+
+    测试工况：D=0.1 m, d=0.05 m（β=0.5）, Re_D=1e6, P1=1 bar, ΔP=0.05 bar。
+    手算（β=0.5）：
+        β²=0.25, β⁴=0.0625, β⁸=0.00390625
+        C = 0.5961 + 0.0261·0.25 - 0.216·0.00390625
+          + 0.000521·(10⁶·0.5/1e6)^0.7
+          = 0.5961 + 0.006525 - 0.00084375 + 0.000521·0.5^0.7
+          = 0.601781 + 0.000521·0.61557
+          ≈ 0.602102
+    """
+    C, epsilon = chedl_wrapper.flow_meter_orifice(
+        D_m=0.1,
+        d_m=0.05,
+        Re_D=1.0e6,
+        P1_pa=1.0e5,
+        dP_pa=0.05 * 1.0e5,
+        rho1=1.2,
+    )
+    # 手算 C
+    beta = 0.5
+    beta2 = 0.25
+    beta4 = 0.0625
+    beta8 = 0.00390625
+    expected_C = (
+        0.5961
+        + 0.0261 * beta2
+        - 0.216 * beta8
+        + 0.000521 * (1.0e6 * beta / 1.0e6) ** 0.7
+    )
+    # 手算 ε（κ=1.4 简化）
+    x = 0.05  # ΔP/P1 = 0.05
+    expected_epsilon = 1.0 - (0.351 + 0.256 * beta4 + 0.93 * beta8) * x
+    assert C == pytest.approx(expected_C, rel=1e-9), (
+        f"Orifice C 应为 {expected_C}，实际 {C}"
+    )
+    assert epsilon == pytest.approx(expected_epsilon, rel=1e-9), (
+        f"Orifice ε 应为 {expected_epsilon}，实际 {epsilon}"
+    )
+    # 物理意义校验：β=0.5 典型 C ≈ 0.6，ε ≈ 0.97（5% 压差）
+    assert 0.55 < C < 0.65
+    assert 0.9 < epsilon < 1.0
+
+
+def test_flow_meter_venturi_spec_c_range_midpoint():
+    """flow_meter_venturi：SPEC §3.2.2.2 文丘里 C 取范围中值 0.99。
+
+    测试工况：D=0.1, d=0.06（β=0.6）, Re_D=2e6, P1=2 bar, ΔP=0.1 bar。
+    验证：
+        C = 0.99（铸造标准值）
+        ε = 1 - (0.65·β⁶ + 0.002)·x, 其中 x=0.05
+    """
+    C, epsilon = chedl_wrapper.flow_meter_venturi(
+        D_m=0.1,
+        d_m=0.06,
+        Re_D=2.0e6,
+        P1_pa=2.0e5,
+        dP_pa=0.1 * 1.0e5,
+        rho1=5.0,
+    )
+    assert C == pytest.approx(0.99, rel=1e-9), (
+        f"Venturi C 应为 0.99（SPEC 范围中值），实际 {C}"
+    )
+    # 手算 ε
+    beta = 0.6
+    x = 0.1 / 2.0  # = 0.05
+    expected_epsilon = 1.0 - (0.65 * beta ** 6 + 0.002) * x
+    assert epsilon == pytest.approx(expected_epsilon, rel=1e-9), (
+        f"Venturi ε 应为 {expected_epsilon}，实际 {epsilon}"
+    )
+
+
+def test_flow_meter_nozzle_spec_isa_1932_full_formula():
+    """flow_meter_nozzle：SPEC §3.2.2.3 ISA 1932 喷嘴完整公式。
+
+    测试工况：D=0.1 m, d=0.05 m（β=0.5）, Re_D=1e6, P1=1 bar, ΔP=0.05 bar。
+    手算：
+        β²=0.25, β^4.1, β^4.15
+        C = 0.9900 - 0.2262·0.5^4.1 - (0.00175·0.25 - 0.0033·0.5^4.15)·(10⁶/1e6)^1.15
+          = 0.9900 - 0.2262·0.05809 - (0.0004375 - 0.0033·0.05590)·1.0
+          = 0.9900 - 0.01314 - 0.0004375 + 0.0033·0.05590
+          ≈ 0.97643
+    """
+    C, epsilon = chedl_wrapper.flow_meter_nozzle(
+        D_m=0.1,
+        d_m=0.05,
+        Re_D=1.0e6,
+        P1_pa=1.0e5,
+        dP_pa=0.05 * 1.0e5,
+        rho1=1.2,
+    )
+    # 手算 C（ISA 1932 完整）
+    beta = 0.5
+    beta2 = 0.25
+    expected_C = (
+        0.9900
+        - 0.2262 * (beta ** 4.1)
+        - (0.00175 * beta2 - 0.0033 * (beta ** 4.15))
+        * (1.0e6 / 1.0e6) ** 1.15
+    )
+    # 手算 ε（ISO 5167-3 κ=1.4 简化）
+    beta4 = 0.5 ** 4
+    beta8 = 0.5 ** 8
+    x = 0.05
+    expected_epsilon = 1.0 - (0.7 * beta4 - 0.3 * beta8) * x
+    assert C == pytest.approx(expected_C, rel=1e-9), (
+        f"Nozzle C 应为 {expected_C}，实际 {C}"
+    )
+    assert epsilon == pytest.approx(expected_epsilon, rel=1e-9), (
+        f"Nozzle ε 应为 {expected_epsilon}，实际 {epsilon}"
+    )
+    # 物理意义校验：ISA 1932 典型 C ≈ 0.95~0.99
+    assert 0.9 < C < 1.0
+
+
+# ============================================================================
+# P6-0 provenance 接口扩展
+# ============================================================================
+
+
+def test_get_chedl_provenance_contains_p6_0_six_functions():
+    """provenance 字典键必须含全部 6 个 P6-0 新增函数名。"""
+    prov = chedl_wrapper.get_chedl_provenance()
+    expected_p6_0 = {
+        "control_valve_C_liquid",
+        "control_valve_kv_liquid",
+        "control_valve_cv_gas",
+        "flow_meter_orifice",
+        "flow_meter_venturi",
+        "flow_meter_nozzle",
+    }
+    assert expected_p6_0.issubset(set(prov.keys())), (
+        f"provenance 缺 P6-0 函数：{expected_p6_0 - set(prov.keys())}"
+    )
+
+
+def test_p6_0_provenance_fallback_metadata():
+    """P6-0 6 函数 provenance 必须显式标注 fallback_available=True + fallback_formula_ref。
+
+    Path A 设计决策：fluids 完整 API 不匹配 brief 简化签名，自研实现依赖 SPEC 简化公式。
+    """
+    prov = chedl_wrapper.get_chedl_provenance()
+    for fn_name in (
+        "control_valve_C_liquid",
+        "control_valve_kv_liquid",
+        "control_valve_cv_gas",
+        "flow_meter_orifice",
+        "flow_meter_venturi",
+        "flow_meter_nozzle",
+    ):
+        meta = prov[fn_name]
+        assert meta.fallback_available is True, (
+            f"{fn_name} fallback_available 应为 True（Path A 自研）"
+        )
+        assert meta.fallback_formula_ref, (
+            f"{fn_name} fallback_formula_ref 必须非空（SPEC § 公式追溯）"
+        )
+        assert meta.fallback_formula_ref.startswith("spec_p6_"), (
+            f"{fn_name} fallback_formula_ref 应以 'spec_p6_' 开头，"
+            f"实际 {meta.fallback_formula_ref!r}"
+        )
+        assert meta.known_limitations, (
+            f"{fn_name} known_limitations 必须列出（Path A 决策依据）"
+        )
+
+
+def test_chedl_wrapper_module_exports_all_13():
+    """chedl_wrapper 模块必须暴露全部 13 包装函数 + get_chedl_provenance。"""
+    import app.services.chedl_wrapper as cw
+
+    required_funcs = [
+        # 既有 7 项
+        "v_Souders_Brown",
+        "K_separator_Watkins",
+        "K_separator_demister_York",
+        "K_Souders_Brown_theoretical",
+        "v_terminal",
+        "API520_round_size",
+        "time_to_empty",
+        "tank_level_to_volume",
+        # P6-0 6 项
+        "control_valve_C_liquid",
+        "control_valve_kv_liquid",
+        "control_valve_cv_gas",
+        "flow_meter_orifice",
+        "flow_meter_venturi",
+        "flow_meter_nozzle",
+        "get_chedl_provenance",
+    ]
+    for fn_name in required_funcs:
+        assert hasattr(cw, fn_name), f"chedl_wrapper 缺 {fn_name}"
+        assert callable(getattr(cw, fn_name)), f"chedl_wrapper.{fn_name} 不可调用"
+
+
+# ============================================================================
+# P6-0 参数校验（防御性编程）
+# ============================================================================
+
+
+def test_control_valve_C_liquid_rejects_invalid_dP():
+    """control_valve_C_liquid 必须拒绝非正 ΔP（物理意义：零压差无穷大 Cv）。"""
+    with pytest.raises(ValueError, match="参数必须正数"):
+        chedl_wrapper.control_valve_C_liquid(Q_m3h=100.0, SG=1.0, dP_bar=0.0)
+    with pytest.raises(ValueError, match="参数必须正数"):
+        chedl_wrapper.control_valve_C_liquid(Q_m3h=100.0, SG=1.0, dP_bar=-1.0)
+
+
+def test_flow_meter_orifice_rejects_d_ge_D():
+    """flow_meter_orifice 必须拒绝 d ≥ D（β 范围 [0, 1]）。"""
+    with pytest.raises(ValueError, match="参数异常"):
+        chedl_wrapper.flow_meter_orifice(
+            D_m=0.1, d_m=0.1, Re_D=1e6, P1_pa=1e5, dP_pa=1e3, rho1=1.0
+        )
+    with pytest.raises(ValueError, match="参数异常"):
+        chedl_wrapper.flow_meter_orifice(
+            D_m=0.1, d_m=0.2, Re_D=1e6, P1_pa=1e5, dP_pa=1e3, rho1=1.0
+        )
+
+
+def test_control_valve_cv_gas_rejects_choked_negative_Y():
+    """control_valve_cv_gas 在 Y ≤ 0 时（极端压差比）必须报错而非返回 NaN。"""
+    # x = 0.5 (ΔP/P1), F_γ=1.0, xT=0.7 → Y = 1 - 0.5/(3·1·0.7) = 1 - 0.238 = 0.762 > 0
+    # 触发 Y ≤ 0：xT 极小，x = 0.9 → Y = 1 - 0.9/(3·1·0.1) = 1 - 3 = -2
+    with pytest.raises(ValueError, match="Y 计算出非正值"):
+        chedl_wrapper.control_valve_cv_gas(
+            Q_Nm3h=100.0,
+            P1_pa=10.0e5,
+            T1_k=300.0,
+            M=29.0,
+            Z=1.0,
+            dP_pa=9.0e5,  # x=0.9
+            gamma=1.4,
+            xT=0.1,  # 极端小 xT
+        )
+
+
+# ============================================================================
+# P6-0 Task 4：OPEN_CHANNEL 4 函数（Path A：SPEC §3.2.6 教科书简化公式）
+# ============================================================================
+#
+# 设计依据：
+# - R1 ledger 裁决：Path A 自研（不调 fluids.open_flow，brief 工程单位签名不匹配）
+# - SPEC §3.2.6 line 256-279：OPEN_CHANNEL 明渠流（Manning 公式、临界水深、水跃计算）
+# - P6-OPEN-001 决策：fluids.open_channel 缺失 4/5 函数，自研兜底（ADR-0030 决策 7 模式）
+# - 教科书公式：
+#     manning_Q(n, A, Rh, S) = (1/n) · A · Rh^(2/3) · S^(1/2)
+#     manning_V(n, Rh, S) = (1/n) · Rh^(2/3) · S^(1/2)
+#     critical_depth_rectangular(Q, b) = (Q²/(g·b²))^(1/3)   [矩形断面 y_c = (q²/g)^(1/3)]
+#     hydraulic_jump_y2(y1, Fr1) = y1 · 0.5·(√(1+8·Fr1²) - 1)   [共轭水深 Bélanger 方程]
+#
+# 验收：4 函数结果与教科书公式手算值一致（rel <1e-9）。
+
+
+def test_manning_Q_spec_formula():
+    """manning_Q：SPEC §3.2.6 Manning 流量 Q = (1/n)·A·Rh^(2/3)·S^(1/2)。
+
+    手算验证（典型混凝土渠道）：
+        n=0.013, A=2 m², Rh=1 m, S=0.001
+        Q = (1/0.013)·2·1·0.001^0.5 = 76.923·2·1·0.03162 ≈ 4.8661 m³/s
+    边界（n=0.025 天然土渠）：
+        n=0.025, A=2, Rh=1, S=0.001
+        Q = 40·2·1·0.03162 = 2.5298 m³/s
+    """
+    # 标准工况（混凝土 n=0.013）
+    Q_concrete = chedl_wrapper.manning_Q(n=0.013, A_m2=2.0, Rh_m=1.0, S=0.001)
+    expected_concrete = (1.0 / 0.013) * 2.0 * (1.0 ** (2.0 / 3.0)) * math.sqrt(0.001)
+    assert Q_concrete == pytest.approx(expected_concrete, rel=1e-9), (
+        f"混凝土渠道 Q 应为 {expected_concrete}，实际 {Q_concrete}"
+    )
+    # 量级合理（2 m², Rh=1m, S=0.001 典型数 m³/s 量级）
+    assert 4.0 < Q_concrete < 5.0
+
+    # 介质工况（天然土渠 n=0.025）—— 糙率大流量小
+    Q_earth = chedl_wrapper.manning_Q(n=0.025, A_m2=2.0, Rh_m=1.0, S=0.001)
+    expected_earth = (1.0 / 0.025) * 2.0 * (1.0 ** (2.0 / 3.0)) * math.sqrt(0.001)
+    assert Q_earth == pytest.approx(expected_earth, rel=1e-9), (
+        f"土渠 Q 应为 {expected_earth}，实际 {Q_earth}"
+    )
+    # n 增大 → Q 减小（物理意义：糙率大流阻大）
+    assert Q_earth < Q_concrete
+
+
+def test_manning_V_spec_formula():
+    """manning_V：SPEC §3.2.6 Manning 流速 V = (1/n)·Rh^(2/3)·S^(1/2)。
+
+    手算验证：
+        n=0.013, Rh=1 m, S=0.001
+        V = (1/0.013)·1·0.001^0.5 = 76.923·0.03162 ≈ 2.4331 m/s
+    """
+    V_concrete = chedl_wrapper.manning_V(n=0.013, Rh_m=1.0, S=0.001)
+    expected_V = (1.0 / 0.013) * (1.0 ** (2.0 / 3.0)) * math.sqrt(0.001)
+    assert V_concrete == pytest.approx(expected_V, rel=1e-9), (
+        f"混凝土 V 应为 {expected_V}，实际 {V_concrete}"
+    )
+    # 物理意义校验：V = Q/A = 4.8661/2 = 2.4331 m/s
+    Q_concrete = chedl_wrapper.manning_Q(n=0.013, A_m2=2.0, Rh_m=1.0, S=0.001)
+    assert V_concrete == pytest.approx(Q_concrete / 2.0, rel=1e-9), (
+        f"V 应等于 Q/A，实际 V={V_concrete} vs Q/A={Q_concrete / 2.0}"
+    )
+
+
+def test_critical_depth_rectangular_spec_formula():
+    """critical_depth_rectangular：矩形渠临界水深 y_c = (Q²/(g·b²))^(1/3)。
+
+    手算验证：
+        Q=1 m³/s, b=2 m, g=9.80665
+        y_c = (1²/(9.80665·4))^(1/3) = (0.02548)^(1/3) ≈ 0.2937 m
+    """
+    # 单宽流量 q = Q/b = 0.5 m²/s
+    y_c = chedl_wrapper.critical_depth_rectangular(Q_m3s=1.0, b_m=2.0)
+    g = 9.80665
+    expected_y_c = ((1.0 ** 2) / (g * (2.0 ** 2))) ** (1.0 / 3.0)
+    assert y_c == pytest.approx(expected_y_c, rel=1e-9), (
+        f"矩形 y_c 应为 {expected_y_c}，实际 {y_c}"
+    )
+    # 量级合理（q=0.5 m²/s 时 y_c ≈ 0.29 m）
+    assert 0.28 < y_c < 0.30
+
+    # 边界工况：流量翻倍 → y_c 增长 (2)^(2/3) ≈ 1.587 倍
+    y_c_2Q = chedl_wrapper.critical_depth_rectangular(Q_m3s=2.0, b_m=2.0)
+    ratio = y_c_2Q / y_c
+    assert ratio == pytest.approx(2.0 ** (2.0 / 3.0), rel=1e-9), (
+        f"y_c 与 Q^(2/3) 成正比，实际 ratio={ratio}"
+    )
+
+
+def test_hydraulic_jump_y2_spec_formula():
+    """hydraulic_jump_y2：共轭水深 y2 = y1·0.5·(√(1+8·Fr1²) - 1)。
+
+    Bélanger 方程（矩形断面水跃共轭水深）。
+
+    手算验证：
+        y1=0.5 m, Fr1=2.5
+        Fr1²=6.25
+        y2 = 0.5·0.5·(√(1+8·6.25) - 1) = 0.25·(√51 - 1)
+           = 0.25·(7.1414 - 1) = 0.25·6.1414 ≈ 1.5354 m
+    """
+    y2 = chedl_wrapper.hydraulic_jump_y2(y1=0.5, Fr1=2.5)
+    expected_y2 = 0.5 * 0.5 * (math.sqrt(1.0 + 8.0 * 2.5 ** 2) - 1.0)
+    assert y2 == pytest.approx(expected_y2, rel=1e-9), (
+        f"水跃共轭水深 y2 应为 {expected_y2}，实际 {y2}"
+    )
+    # 物理意义校验：Fr1>1（急流）→ y2 > y1（缓流）
+    assert y2 > 0.5, f"Fr1=2.5 急流 → y2 应大于 y1，实际 y2={y2}"
+
+    # 边界：Fr1=1（临界流）→ y2=y1（Bélanger 方程退化）
+    y2_critical = chedl_wrapper.hydraulic_jump_y2(y1=1.0, Fr1=1.0)
+    assert y2_critical == pytest.approx(1.0, rel=1e-9), (
+        f"Fr1=1 临界流 → y2 应等于 y1，实际 {y2_critical}"
+    )
+
+    # 边界：Fr1=4（强水跃）→ y2/y1 显著增大
+    y2_strong = chedl_wrapper.hydraulic_jump_y2(y1=1.0, Fr1=4.0)
+    expected_y2_strong = 0.5 * (math.sqrt(1.0 + 8.0 * 16.0) - 1.0)
+    assert y2_strong == pytest.approx(expected_y2_strong, rel=1e-9), (
+        f"Fr1=4 强水跃 y2 应为 {expected_y2_strong}，实际 {y2_strong}"
+    )
+    assert y2_strong > 5.0, f"Fr1=4 强水跃 → y2/y1 > 5，实际 {y2_strong}"
+
+
+# ============================================================================
+# P6-0 Task 4 provenance 接口扩展（OPEN_CHANNEL 4 函数）
+# ============================================================================
+
+
+def test_get_chedl_provenance_contains_p6_0_task4_four_functions():
+    """provenance 字典键必须含全部 4 个 P6-0 Task 4 新增函数名。"""
+    prov = chedl_wrapper.get_chedl_provenance()
+    expected_p6_0_t4 = {
+        "manning_Q",
+        "manning_V",
+        "critical_depth_rectangular",
+        "hydraulic_jump_y2",
+    }
+    assert expected_p6_0_t4.issubset(set(prov.keys())), (
+        f"provenance 缺 P6-0 Task 4 函数：{expected_p6_0_t4 - set(prov.keys())}"
+    )
+
+
+def test_p6_0_task4_provenance_fallback_metadata():
+    """P6-0 Task 4 4 函数 provenance 必须显式标注 fallback_available=True + fallback_formula_ref。
+
+    Path A 设计决策：fluids.open_channel 缺失 4/5 函数，自研实现依赖 SPEC §3.2.6 教科书公式。
+    """
+    prov = chedl_wrapper.get_chedl_provenance()
+    for fn_name in (
+        "manning_Q",
+        "manning_V",
+        "critical_depth_rectangular",
+        "hydraulic_jump_y2",
+    ):
+        meta = prov[fn_name]
+        assert meta.fallback_available is True, (
+            f"{fn_name} fallback_available 应为 True（Path A 自研）"
+        )
+        assert meta.fallback_formula_ref, (
+            f"{fn_name} fallback_formula_ref 必须非空（SPEC § 公式追溯）"
+        )
+        assert meta.fallback_formula_ref.startswith("spec_p6_"), (
+            f"{fn_name} fallback_formula_ref 应以 'spec_p6_' 开头，"
+            f"实际 {meta.fallback_formula_ref!r}"
+        )
+        assert meta.known_limitations, (
+            f"{fn_name} known_limitations 必须列出（Path A 决策依据）"
+        )
+
+
+def test_p6_0_task4_provenance_chedl_function_spec_p6_3_2_6():
+    """OPEN_CHANNEL 4 函数 provenance 的 chEDL_function 必须以 spec_p6_3.2.6 开头。
+
+    SPEC §3.2.6 是 OPEN_CHANNEL 明渠流的统一锚点。
+    """
+    prov = chedl_wrapper.get_chedl_provenance()
+    for fn_name in (
+        "manning_Q",
+        "manning_V",
+        "critical_depth_rectangular",
+        "hydraulic_jump_y2",
+    ):
+        meta = prov[fn_name]
+        assert meta.chEDL_function.startswith("spec_p6_3.2.6"), (
+            f"{fn_name} chEDL_function 应以 'spec_p6_3.2.6' 开头，"
+            f"实际 {meta.chEDL_function!r}"
+        )
+
+
+# ============================================================================
+# P6-0 Task 4 模块导出契约
+# ============================================================================
+
+
+def test_chedl_wrapper_module_exports_all_17():
+    """chedl_wrapper 模块必须暴露全部 17 包装函数 + get_chedl_provenance（13 + 4 Task 4）。"""
+    import app.services.chedl_wrapper as cw
+
+    required_funcs = [
+        # 既有 7 项
+        "v_Souders_Brown",
+        "K_separator_Watkins",
+        "K_separator_demister_York",
+        "K_Souders_Brown_theoretical",
+        "v_terminal",
+        "API520_round_size",
+        "time_to_empty",
+        "tank_level_to_volume",
+        # P6-0 Task 3 6 项
+        "control_valve_C_liquid",
+        "control_valve_kv_liquid",
+        "control_valve_cv_gas",
+        "flow_meter_orifice",
+        "flow_meter_venturi",
+        "flow_meter_nozzle",
+        # P6-0 Task 4 4 项
+        "manning_Q",
+        "manning_V",
+        "critical_depth_rectangular",
+        "hydraulic_jump_y2",
+        "get_chedl_provenance",
+    ]
+    for fn_name in required_funcs:
+        assert hasattr(cw, fn_name), f"chedl_wrapper 缺 {fn_name}"
+        assert callable(getattr(cw, fn_name)), f"chedl_wrapper.{fn_name} 不可调用"
+
+
+# ============================================================================
+# P6-0 Task 4 参数校验（防御性编程）
+# ============================================================================
+
+
+def test_manning_Q_rejects_non_positive_n():
+    """manning_Q 必须拒绝非正 Manning n（n≤0 无物理意义）。"""
+    with pytest.raises(ValueError, match="Manning"):
+        chedl_wrapper.manning_Q(n=0.0, A_m2=2.0, Rh_m=1.0, S=0.001)
+    with pytest.raises(ValueError, match="Manning"):
+        chedl_wrapper.manning_Q(n=-0.013, A_m2=2.0, Rh_m=1.0, S=0.001)
+
+
+def test_manning_V_rejects_non_positive_S():
+    """manning_V 必须拒绝负坡度 S（S<0 表示逆坡，无物理意义；S=0 视为临界水平态）。"""
+    with pytest.raises(ValueError, match="坡度"):
+        chedl_wrapper.manning_V(n=0.013, Rh_m=1.0, S=-0.001)
+
+
+def test_critical_depth_rectangular_rejects_non_positive_b():
+    """critical_depth_rectangular 必须拒绝非正渠宽 b（b≤0 无断面）。"""
+    with pytest.raises(ValueError, match="渠宽"):
+        chedl_wrapper.critical_depth_rectangular(Q_m3s=1.0, b_m=0.0)
+    with pytest.raises(ValueError, match="渠宽"):
+        chedl_wrapper.critical_depth_rectangular(Q_m3s=1.0, b_m=-1.0)
+
+
+def test_hydraulic_jump_y2_rejects_non_positive_y1():
+    """hydraulic_jump_y2 必须拒绝非正 y1（y1≤0 无上游水深）。"""
+    with pytest.raises(ValueError, match="y1"):
+        chedl_wrapper.hydraulic_jump_y2(y1=0.0, Fr1=2.5)
+    with pytest.raises(ValueError, match="y1"):
+        chedl_wrapper.hydraulic_jump_y2(y1=-0.5, Fr1=2.5)
+
+
+# ============================================================================
+# P6-0 Task 5：PSYCHRO 6 函数（CoolProp.HumidAirProp HAPropsSI 直调包装）
+# ============================================================================
+#
+# 设计依据（区别于 Task 3/4 Path A）：
+# - 与 Task 3 (CV) / Task 4 (OPEN_CHANNEL) 不同：CoolProp.HumidAirProp.HAPropsSI 签名
+#   `HAPropsSI(Output, Input1Name, Input1, Input2Name, Input2, Input3Name, Input3)`
+#   与 brief 完全一致，无须自研简化公式
+# - 顶部 import：from CoolProp import HumidAirProp as HA
+# - 直调路径：每个函数内部 `return HA.HAPropsSI(...)`，provenance fallback_available=False
+# - ASHRAE 验证值由 CoolProp 6.6.0 自身生成（已知参考工况 P=101325 Pa）：
+#     T=298.15K(25°C), RH=0.5:
+#       W≈0.00993 kg/kg, D≈287.02K (13.87°C), B≈291.03K (17.88°C),
+#       H≈50423 J/kg dry air, V≈0.858 m³/kg dry air
+#     T=303.15K(30°C), RH=0.6:
+#       W≈0.01612 kg/kg, H≈71365 J/kg dry air
+# - 容差建议：rel<1e-3 或 abs<10（对小值）
+# - ADR-0030 V1.2 锁定 CoolProp==6.6.0（Task 1 完成；本批核验）
+
+
+def test_humid_air_humidity_ratio_ashrae():
+    """humid_air_humidity_ratio：T=25°C, RH=0.5, P=101325 → W≈0.00993 kg/kg。
+
+    CoolProp.HumidAirProp.HAPropsSI('W','T',298.15,'R',0.5,'P',101325) ≈ 0.00993。
+    ASHRAE Handbook Fundamentals 2021 湿空气性质（一致）。
+    """
+    W = chedl_wrapper.humid_air_humidity_ratio(
+        T_k=298.15, RH=0.5, P_pa=101325.0
+    )
+    assert isinstance(W, float)
+    assert math.isfinite(W)
+    # 容差：rel<1e-3 或 abs<1e-5（绝对值小，rel 容差防止 trivial case）
+    assert W == pytest.approx(0.00993, rel=1e-3), (
+        f"湿度比 W 应约 0.00993 kg/kg，实际 {W}"
+    )
+    assert W > 0.0, f"湿度比必须正数，实际 {W}"
+    # 物理意义：T=25°C, RH=0.5 饱和水汽压约 3.17 kPa → W≈0.622·0.5·3.17/(101.325-1.585)≈0.00987
+    assert 0.008 < W < 0.012
+
+
+def test_humid_air_dew_point_ashrae():
+    """humid_air_dew_point：T=25°C, RH=0.5, P=101325 → D≈287.02K (13.87°C)。
+
+    CoolProp.HumidAirProp.HAPropsSI('D','T',298.15,'R',0.5,'P',101325) ≈ 287.02 K。
+    物理意义：露点温度 < 干球温度（RH<1 时）。
+    """
+    D = chedl_wrapper.humid_air_dew_point(
+        T_k=298.15, RH=0.5, P_pa=101325.0
+    )
+    assert isinstance(D, float)
+    assert math.isfinite(D)
+    # CoolProp 返回开尔文（D 以 K 为单位）
+    assert D == pytest.approx(287.02, rel=1e-3), (
+        f"露点 D 应约 287.02K，实际 {D}"
+    )
+    # 物理意义：RH=0.5 → 露点 < 干球温度
+    assert D < 298.15, f"露点应 < 干球温度，实际 D={D}"
+    # ASHRAE 范围：典型露点温度 13~14°C
+    assert 285.0 < D < 289.0
+
+
+def test_humid_air_wet_bulb_ashrae():
+    """humid_air_wet_bulb：T=25°C, RH=0.5, P=101325 → B≈291.03K (17.88°C)。
+
+    CoolProp.HumidAirProp.HAPropsSI('B','T',298.15,'R',0.5,'P',101325) ≈ 291.03 K。
+    物理意义：湿球温度介于露点（≈287K）和干球（298K）之间。
+    """
+    B = chedl_wrapper.humid_air_wet_bulb(
+        T_k=298.15, RH=0.5, P_pa=101325.0
+    )
+    assert isinstance(B, float)
+    assert math.isfinite(B)
+    assert B == pytest.approx(291.03, rel=1e-3), (
+        f"湿球 B 应约 291.03K，实际 {B}"
+    )
+    # 物理意义：露点 < 湿球 < 干球
+    assert 287.02 < B < 298.15, (
+        f"湿球应介于露点和干球之间，实际 B={B}"
+    )
+
+
+def test_humid_air_enthalpy_ashrae():
+    """humid_air_enthalpy：T=30°C, RH=0.6, P=101325 → H≈71365 J/kg dry air。
+
+    CoolProp.HumidAirProp.HAPropsSI('H','T',303.15,'R',0.6,'P',101325) ≈ 71365 J/kg dry air。
+    ASHRAE 干空气 Cp≈1006 J/(kg·K)，湿空气焓含水汽贡献。
+    """
+    H = chedl_wrapper.humid_air_enthalpy(
+        T_k=303.15, RH=0.6, P_pa=101325.0
+    )
+    assert isinstance(H, float)
+    assert math.isfinite(H)
+    # H 误差应 < 100 J/kg（高量级值，rel<2e-3 即可）
+    assert H == pytest.approx(71365.0, abs=100.0), (
+        f"焓 H 应约 71365 J/kg dry air，实际 {H}"
+    )
+    # 物理意义：T=30°C 标准大气压湿空气 H 约 70~80 kJ/kg
+    assert 60000.0 < H < 90000.0
+
+
+def test_humid_air_specific_volume_ashrae():
+    """humid_air_specific_volume：T=25°C, RH=0.5, P=101325 → V≈0.858 m³/kg dry air。
+
+    CoolProp.HumidAirProp.HAPropsSI('V','T',298.15,'R',0.5,'P',101325) ≈ 0.858 m³/kg dry air。
+    物理意义：理想气体定律 V ≈ Ra·T/P = 287.058·298.15/101325 ≈ 0.8447（干空气），湿空气略大。
+    """
+    V = chedl_wrapper.humid_air_specific_volume(
+        T_k=298.15, RH=0.5, P_pa=101325.0
+    )
+    assert isinstance(V, float)
+    assert math.isfinite(V)
+    assert V == pytest.approx(0.858, rel=1e-3), (
+        f"比容 V 应约 0.858 m³/kg dry air，实际 {V}"
+    )
+    # 物理意义：T=25°C 标准大气压湿空气 V 约 0.85~0.87 m³/kg
+    assert 0.84 < V < 0.88
+
+
+def test_humid_air_coil_delta_h_ashrae():
+    """humid_air_coil_delta_h：冷却盘管显热 + 潜热（J/kg dry air）。
+
+    测试工况（典型冷却盘管）：
+        T_in=303.15K(30°C), RH_in=0.6 → T_out=295.15K(22°C), RH_out=0.9, P=101325
+    公式：
+        H_in ≈ 71365.22 J/kg dry air
+        H_out ≈ 60309.58 J/kg dry air
+        Q_sensible = 1006 · (T_in - T_out) = 1006 · 8 = 8048 J/kg dry air
+        Q_latent = (H_in - H_out) - Q_sensible ≈ 11055.64 - 8048 = 3007.64 J/kg dry air
+    """
+    Q_sensible, Q_latent = chedl_wrapper.humid_air_coil_delta_h(
+        T_in=303.15, RH_in=0.6, T_out=295.15, RH_out=0.9, P_pa=101325.0
+    )
+    assert isinstance(Q_sensible, float)
+    assert isinstance(Q_latent, float)
+    assert math.isfinite(Q_sensible)
+    assert math.isfinite(Q_latent)
+
+    # 显热（cp_dry_air≈1006 J/(kg·K) × ΔT=8K = 8048 J/kg）
+    assert Q_sensible == pytest.approx(8048.0, abs=10.0), (
+        f"显热 Q_sensible 应约 8048 J/kg，实际 {Q_sensible}"
+    )
+
+    # 潜热（H_in - H_out 减去显热）
+    H_in = 71365.22
+    H_out = 60309.58
+    expected_latent = (H_in - H_out) - Q_sensible
+    assert Q_latent == pytest.approx(expected_latent, abs=50.0), (
+        f"潜热 Q_latent 应约 {expected_latent} J/kg，实际 {Q_latent}"
+    )
+    # 物理意义：T 降低 + RH 升高 → 显热 + 潜热均正（冷却除湿）
+    assert Q_sensible > 0, f"冷却盘管显热应正（放热），实际 {Q_sensible}"
+    assert Q_latent > 0, f"冷却盘管潜热应正（凝结放热），实际 {Q_latent}"
+
+
+# ============================================================================
+# P6-0 Task 5：PSYCHRO 6 函数 provenance 接口扩展
+# ============================================================================
+
+
+def test_get_chedl_provenance_contains_p6_0_task5_six_functions():
+    """provenance 字典键必须含全部 6 个 P6-0 Task 5 新增函数名（PSYCHRO）。"""
+    prov = chedl_wrapper.get_chedl_provenance()
+    expected_p6_0_t5 = {
+        "humid_air_humidity_ratio",
+        "humid_air_dew_point",
+        "humid_air_wet_bulb",
+        "humid_air_enthalpy",
+        "humid_air_specific_volume",
+        "humid_air_coil_delta_h",
+    }
+    assert expected_p6_0_t5.issubset(set(prov.keys())), (
+        f"provenance 缺 P6-0 Task 5 函数：{expected_p6_0_t5 - set(prov.keys())}"
+    )
+
+
+def test_p6_0_task5_provenance_coolprop_direct():
+    """PSYCHRO 6 函数 provenance 必须 chEDL_function 指向 CoolProp HAPropsSI + 无 fallback。
+
+    Task 5 设计决策：与 Task 3/4 Path A 不同——CoolProp.HumidAirProp.HAPropsSI 签名直接匹配
+    brief，无须自研简化公式；CoolProp 即权威实现，无 fallback 路径。
+    """
+    prov = chedl_wrapper.get_chedl_provenance()
+    for fn_name in (
+        "humid_air_humidity_ratio",
+        "humid_air_dew_point",
+        "humid_air_wet_bulb",
+        "humid_air_enthalpy",
+        "humid_air_specific_volume",
+        "humid_air_coil_delta_h",
+    ):
+        meta = prov[fn_name]
+        assert meta.chEDL_function == "coolprop_humidair_hapropssi", (
+            f"{fn_name} chEDL_function 应为 'coolprop_humidair_hapropssi'，"
+            f"实际 {meta.chEDL_function!r}"
+        )
+        assert meta.fallback_available is False, (
+            f"{fn_name} fallback_available 应为 False（CoolProp 即权威）"
+        )
+        assert meta.fallback_formula_ref is None, (
+            f"{fn_name} fallback_formula_ref 应为 None"
+        )
+        assert meta.known_limitations, (
+            f"{fn_name} known_limitations 必须列出（coolprop_version 锁定声明）"
+        )
+
+
+def test_p6_0_task5_provenance_coolprop_version_locked():
+    """PSYCHRO 6 函数 provenance chEDL_version 必须锁定 '6.6.0'（ADR-0030 V1.2 决策 5）。
+
+    Task 1 已锁定 CoolProp==6.6.0，本批测试再断言确保 wrapper 包装层与版本一致。
+    """
+    import CoolProp
+
+    # 双证据链：runtime version 与 locked version 一致
+    assert CoolProp.__version__ == "6.6.0", (
+        f"运行时 CoolProp 版本 {CoolProp.__version__!r} != ADR-0030 V1.2 锁定 '6.6.0'"
+    )
+    prov = chedl_wrapper.get_chedl_provenance()
+    for fn_name in (
+        "humid_air_humidity_ratio",
+        "humid_air_dew_point",
+        "humid_air_wet_bulb",
+        "humid_air_enthalpy",
+        "humid_air_specific_volume",
+        "humid_air_coil_delta_h",
+    ):
+        meta = prov[fn_name]
+        assert meta.chEDL_version == "6.6.0", (
+            f"{fn_name} chEDL_version={meta.chEDL_version!r} != 锁定 '6.6.0'"
+        )
+
+
+# ============================================================================
+# P6-0 Task 5：PSYCHRO 6 函数模块导出契约
+# ============================================================================
+
+
+def test_chedl_wrapper_module_exports_all_23():
+    """chedl_wrapper 模块必须暴露全部 23 包装函数 + get_chedl_provenance（17 + 6 Task 5）。
+
+    23 = 7 既有（P5-0 Task 26） + 6 P6-0 Task 3（CV/RESTRICTION） + 4 P6-0 Task 4
+    （OPEN_CHANNEL） + 6 P6-0 Task 5（PSYCHRO CoolProp）。
+    """
+    import app.services.chedl_wrapper as cw
+
+    required_funcs = [
+        # 既有 7 项（P5-0 Task 26）
+        "v_Souders_Brown",
+        "K_separator_Watkins",
+        "K_separator_demister_York",
+        "K_Souders_Brown_theoretical",
+        "v_terminal",
+        "API520_round_size",
+        "time_to_empty",
+        "tank_level_to_volume",
+        # P6-0 Task 3 6 项（CV/RESTRICTION）
+        "control_valve_C_liquid",
+        "control_valve_kv_liquid",
+        "control_valve_cv_gas",
+        "flow_meter_orifice",
+        "flow_meter_venturi",
+        "flow_meter_nozzle",
+        # P6-0 Task 4 4 项（OPEN_CHANNEL）
+        "manning_Q",
+        "manning_V",
+        "critical_depth_rectangular",
+        "hydraulic_jump_y2",
+        # P6-0 Task 5 6 项（PSYCHRO CoolProp）
+        "humid_air_humidity_ratio",
+        "humid_air_dew_point",
+        "humid_air_wet_bulb",
+        "humid_air_enthalpy",
+        "humid_air_specific_volume",
+        "humid_air_coil_delta_h",
+        "get_chedl_provenance",
+    ]
+    for fn_name in required_funcs:
+        assert hasattr(cw, fn_name), f"chedl_wrapper 缺 {fn_name}"
+        assert callable(getattr(cw, fn_name)), f"chedl_wrapper.{fn_name} 不可调用"
+
+
+# ============================================================================
+# P6-0 Task 5：PSYCHRO 6 函数参数校验（防御性编程）
+# ============================================================================
+
+
+def test_humid_air_humidity_ratio_rejects_invalid_RH():
+    """humid_air_humidity_ratio 必须拒绝非物理 RH（RH ∈ [0, 1]）。"""
+    # RH < 0
+    with pytest.raises(ValueError, match="RH"):
+        chedl_wrapper.humid_air_humidity_ratio(T_k=298.15, RH=-0.1, P_pa=101325.0)
+    # RH > 1
+    with pytest.raises(ValueError, match="RH"):
+        chedl_wrapper.humid_air_humidity_ratio(T_k=298.15, RH=1.5, P_pa=101325.0)
+
+
+def test_humid_air_enthalpy_rejects_negative_P():
+    """humid_air_enthalpy 必须拒绝非正压力（P≤0 无物理意义）。"""
+    with pytest.raises(ValueError, match="压力"):
+        chedl_wrapper.humid_air_enthalpy(T_k=303.15, RH=0.6, P_pa=0.0)
+    with pytest.raises(ValueError, match="压力"):
+        chedl_wrapper.humid_air_enthalpy(T_k=303.15, RH=0.6, P_pa=-101325.0)
+
+
+def test_humid_air_coil_delta_h_returns_tuple():
+    """humid_air_coil_delta_h 必须返回 (Q_sensible, Q_latent) 二元组。"""
+    result = chedl_wrapper.humid_air_coil_delta_h(
+        T_in=303.15, RH_in=0.6, T_out=295.15, RH_out=0.9, P_pa=101325.0
+    )
+    assert isinstance(result, tuple), f"应返回 tuple，实际 {type(result)}"
+    assert len(result) == 2, f"应返回 2 元组，实际 {len(result)} 元组"
+    Q_s, Q_l = result
+    assert isinstance(Q_s, float)
+    assert isinstance(Q_l, float)
+
+
+def test_humid_air_enthalpy_consistency_check_30C():
+    """humid_air_enthalpy 30°C/60% 与湿度比对照：ASHRAE Handbook 简式手算粗校。
+
+    ASHRAE Handbook Fundamentals 2021 湿空气焓（J/kg dry air）：
+        H = 1006 · T_C + W · (2501000 + 1860 · T_C)
+    其中 T_C 为干球温度（°C），W 为湿度比（kg/kg dry air）。
+
+    T_dry=30°C, W≈0.01612 → H ≈ 1006·30 + 0.01612·(2501000 + 1860·30)
+                              ≈ 30180 + 0.01612·2556800 ≈ 30180 + 41216 ≈ 71396 J/kg dry air
+    CoolProp 6.6.0 自洽值 ≈ 71365 J/kg dry air，偏差 < 1%（ASHRAE 验收标准）。
+    """
+    H = chedl_wrapper.humid_air_enthalpy(
+        T_k=303.15, RH=0.6, P_pa=101325.0
+    )
+    W = chedl_wrapper.humid_air_humidity_ratio(
+        T_k=303.15, RH=0.6, P_pa=101325.0
+    )
+    T_c = 303.15 - 273.15  # 30 °C
+    H_approx = 1006.0 * T_c + W * (2501000.0 + 1860.0 * T_c)
+    # CoolProp 与简式偏差应 < 1%（brief ASHRAE 验收标准）
+    rel_err = abs(H - H_approx) / H_approx
+    assert rel_err < 0.01, (
+        f"CoolProp H={H} 与 ASHRAE 简式 H_approx={H_approx} 偏差 {rel_err:.4%} > 1%"
     )

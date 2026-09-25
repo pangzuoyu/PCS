@@ -1,12 +1,15 @@
-"""P5-0-6 Task 25: ChEDL 版本锁定架构测试（ADR-0030）。
+"""P5-0-6 Task 25 + P6-0 Task 1: ChEDL 版本锁定架构测试（ADR-0030 V1.1 + V1.2）。
 
-锁定 PCS 三库（fluids / chemicals / thermo）到精确 ==X.Y.Z。
+锁定 PCS 四库（fluids / chemicals / thermo / CoolProp）到精确 ==X.Y.Z。
 pyproject.toml 是 source of truth，uv.lock 是机器可读副本，requirements.txt 是快照。
 
 P4 已闭环版本（2026-09-13 末态）：
   - fluids    == 1.3.1
   - chemicals == 1.5.2
   - thermo    == 0.6.1
+
+P6-0 V1.2 新增（2026-09-19，D3 反向决议）：
+  - CoolProp  == 6.6.0    # P6 PSYCHRO 业务必需（HAPropsSI）
 
 ADR-0030 决策 4：测试以 uv.lock 为准（机器可读）；requirements.txt 用集合比较（非字节）。
 ADR-0030 决策 5：dir() 前置核验通过（P0 时序修正）。
@@ -25,16 +28,21 @@ UV_LOCK = ROOT / "uv.lock"
 REQUIREMENTS = ROOT / "requirements.txt"
 ADR_0030 = ROOT.parent / "docs" / "adr" / "0030-chedl-version-lock.md"
 
-CHEDL_LIBS = ("fluids", "chemicals", "thermo")
+CHEDL_LIBS = ("fluids", "chemicals", "thermo", "CoolProp")
 LOCKED_VERSIONS = {
     "fluids": "1.3.1",
     "chemicals": "1.5.2",
     "thermo": "0.6.1",
+    "CoolProp": "6.6.0",
 }
 
 
 def _parse_uv_lock() -> dict[str, str]:
-    """解析 uv.lock 顶层 package 条目为 {name: version}（仅顶层直接依赖，过滤传递依赖）。"""
+    """解析 uv.lock 顶层 package 条目为 {name_lowercase: version}（仅顶层直接依赖，过滤传递依赖）。
+
+    注：uv.lock 中包名按 PyPI 规范全小写（如 `coolprop`），但 pyproject.toml 和 import 语句用
+    原始大小写（如 `CoolProp`）。本函数统一 lowercase 化，调用方用 `lib.lower()` 查找。
+    """
     assert UV_LOCK.exists(), f"uv.lock 不存在: {UV_LOCK}"
     with UV_LOCK.open("rb") as f:
         lock = tomllib.load(f)
@@ -43,7 +51,7 @@ def _parse_uv_lock() -> dict[str, str]:
         name = pkg.get("name")
         version = pkg.get("version")
         if name and version:
-            out[name] = version
+            out[name.lower()] = version
     return out
 
 
@@ -159,32 +167,57 @@ def test_thermo_version():
     )
 
 
+def test_coolprop_version_locked():
+    """uv.lock + runtime 都必须精确锁定 CoolProp == 6.6.0（ADR-0030 V1.2 / P6-0 Task 1）。
+
+    V1.2 反向决议 D3：P5 阶段无业务 import 不纳入；P6 PSYCHRO 模块业务必需 HAPropsSI 计算
+    湿空气物性，重新纳入 pyproject 锁定。版本 6.6.0 是 2026-09 PyPI 最新 stable。
+
+    注：CoolProp==6.6.0 与 Python 3.13 不兼容（Cython `get_global_param_string` 返回
+    str 而非 bytes）。本仓库 `pcs-backend/.python-version = 3.12` 锁定 Python 3.12；
+    如未来 CoolProp 修复 3.13 兼容性，可移除 `.python-version` 回归 Python 3.13。
+    """
+    uv_versions = _parse_uv_lock()
+    assert "coolprop" in uv_versions, "uv.lock 缺 CoolProp 条目"
+    assert uv_versions["coolprop"] == LOCKED_VERSIONS["CoolProp"], (
+        f"uv.lock 中 CoolProp 版本 {uv_versions['coolprop']}"
+        f" != 锁定 {LOCKED_VERSIONS['CoolProp']}"
+    )
+    import CoolProp
+
+    assert CoolProp.__version__ == LOCKED_VERSIONS["CoolProp"], (
+        "运行时 CoolProp.__version__ "
+        f"{CoolProp.__version__} != 锁定 {LOCKED_VERSIONS['CoolProp']}"
+    )
+
+
 def test_uv_lock_exists():
-    """uv.lock 必须存在且包含 ChEDL 三库条目。"""
+    """uv.lock 必须存在且包含 ChEDL 四库条目。"""
     assert UV_LOCK.exists(), f"uv.lock 不存在: {UV_LOCK}"
     uv_versions = _parse_uv_lock()
     for lib in CHEDL_LIBS:
-        assert lib in uv_versions, f"uv.lock 缺 {lib} 条目（ChEDL 三库之一必须存在）"
+        assert lib.lower() in uv_versions, f"uv.lock 缺 {lib} 条目（ChEDL 四库之一必须存在）"
 
 
 def test_requirements_matches_uv_lock():
-    """requirements.txt（uv export 快照）与 uv.lock 必须 ChEDL 三库版本一致。
+    """requirements.txt（uv export 快照）与 uv.lock 必须 ChEDL 四库版本一致。
 
     ADR-0030 决策 4：集合比较（非字节比较）—— uv export 输出格式因 uv 版本而异。
-    ChEDL 三库必须同时存在于两边且版本完全一致。
+    ChEDL 四库必须同时存在于两边且版本完全一致。
     """
     uv_versions = _parse_uv_lock()
     reqs = _parse_requirements()
     for lib in CHEDL_LIBS:
-        assert lib in reqs, f"requirements.txt 缺 {lib} 条目"
-        assert lib in uv_versions, f"uv.lock 缺 {lib} 条目"
-        assert reqs[lib] == uv_versions[lib], (
-            f"{lib}: requirements.txt={reqs[lib]} 与 uv.lock={uv_versions[lib]} 不一致"
+        lib_lc = lib.lower()
+        assert lib_lc in reqs, f"requirements.txt 缺 {lib} 条目"
+        assert lib_lc in uv_versions, f"uv.lock 缺 {lib} 条目"
+        assert reqs[lib_lc] == uv_versions[lib_lc], (
+            f"{lib}: requirements.txt={reqs[lib_lc]} 与 uv.lock={uv_versions[lib_lc]} 不一致"
         )
 
 
 def test_pyproject_declares_exact_chedl_versions():
-    """pyproject.toml 必须用 ==X.Y.Z 精确锁定 ChEDL 三库（ADR-0030 决策 2：禁止浮动）。"""
+    """pyproject.toml 必须用 ==X.Y.Z 精确锁定 ChEDL 四库（ADR-0030 决策 2：禁止浮动）。"""
     deps = _extract_dependency_versions()
     for lib in CHEDL_LIBS:
         assert lib in deps, f"pyproject.toml 缺 {lib} 依赖声明"

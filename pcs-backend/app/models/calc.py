@@ -302,6 +302,22 @@ class PsvResult(TaggedRecordMixin, Base):
         server_default=text("FALSE"),
         comment="防火保护（影响 FIRE 工况计算；§3.2）",
     )
+    # P6-OPEN-009 fix（ticket 091500e）：psv_results alembic drift 补 3 列
+    # 审计列护栏（calc_lineage §审计列护栏 注释）：stale_resolution_path /
+    # hash_changed / changed_fields 只经 calc_lineage.finalize_calc_record
+    # 或 CIA 引擎写，业务模块禁止直写；本批次只提供列（业务侧尚未触发审计链）。
+    stale_resolution_path: Mapped[str | None] = mapped_column(
+        Text, comment="stale 决策链 JSON（业务模块禁直写）"
+    )
+    hash_changed: Mapped[bool] = mapped_column(
+        Boolean,
+        nullable=False,
+        server_default=text("FALSE"),
+        comment="record_hash 变更标记（CIA 引擎写；业务模块禁直写）",
+    )
+    changed_fields: Mapped[dict | None] = mapped_column(
+        JSONB, comment="变更字段清单（CIA 引擎写；业务模块禁直写）"
+    )
     __table_args__ = (
         CheckConstraint(
             "(override_reason IS NULL AND override_approval_json IS NULL) OR "
@@ -335,17 +351,53 @@ class PsvResult(TaggedRecordMixin, Base):
     )
 
 
-class FlareSystemResult(TaggedRecordMixin, Base):
-    """火炬系统计算结果（flare_system_results 表）。
+class FlareSystemResult(TaggedRecordMixin, RecordMixin, Base):
+    """FLARE_SYS 火炬系统计算结果（flare_system_results 表，P6-2 Task 18 重构）。
 
-    业务：总管直径+背压+辐射热+排放量上限校核；result_json 承载节点
-    列表+每段管径与压降；用于 OPEN-5 火炬管网设计校验。
+    业务：泄放汇总 / 总管尺寸 / 分液罐尺寸 / 筒体高度 / 辐射校验 / 火炬头选型。
+    SPEC §3.2.3 + PCS-DICT-005 §3（radiation_check_json）+ PCS-DICT-007 §第五部分。
+
+    字段双轨：平铺 Float/Boolean 列（report 直接 SELECT）+ JSONB 容器
+    （input_json/output_json 业务子结构；radiation_check_json 独立 JSONB 存
+    PCS-DICT-005 §3.1 辐射校验完整产物）。
+    standard_profile_code 默认 API_521（C-07 锁定 String(16)）。
+
+    RECORD_TYPE_REGISTRY 注册键 = "flare_system_result"（P6-2 Task 18）。
     """
 
     __tablename__ = "flare_system_results"
     flare_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    input_json: Mapped[dict] = mapped_column(JSONB)
-    output_json: Mapped[dict] = mapped_column(JSONB)
+    # 溯源
+    standard_profile_code: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="API_521",
+        comment="API_521（SPEC §3.2.3 默认；C-07 String(16) 锁定）",
+    )
+    calc_type: Mapped[str] = mapped_column(
+        String(32), nullable=False,
+        comment="RELIEF_SUMMARY/HEADER_SIZING/KOD_SIZING/STACK_HEIGHT/RADIATION/FLARE_TIP",
+    )
+    # 结果（平铺字段，SPEC §3.2.3 字段平铺）
+    total_relief_load_kg_h: Mapped[float | None] = mapped_column(Float, comment="kg/h")
+    header_diameter_mm: Mapped[float | None] = mapped_column(Float, comment="mm")
+    header_mach: Mapped[float | None] = mapped_column(Float, comment="马赫数")
+    header_pressure_drop_kpa: Mapped[float | None] = mapped_column(Float, comment="kPa")
+    kod_diameter_mm: Mapped[float | None] = mapped_column(Float, comment="mm")
+    water_seal_height_mm: Mapped[float | None] = mapped_column(Float, comment="mm")
+    stack_height_m: Mapped[float | None] = mapped_column(Float, comment="m")
+    stack_diameter_m: Mapped[float | None] = mapped_column(Float, comment="m")
+    radiation_at_grade_kw_m2: Mapped[float | None] = mapped_column(Float, comment="kW/m²")
+    radiation_limit_kw_m2: Mapped[float | None] = mapped_column(Float, comment="kW/m²")
+    pass_: Mapped[bool | None] = mapped_column(
+        "pass", Boolean, nullable=True, comment="辐射校验 PASS/FAIL（SPEC §3.2.3）",
+    )
+    flare_tip_diameter_mm: Mapped[float | None] = mapped_column(Float, comment="mm")
+    steam_for_smokeless_kg_h: Mapped[float | None] = mapped_column(Float, comment="kg/h")
+    # JSONB 容器（PCS-DICT-005 §3.1 辐射校验独立列 + 通用 input/output）
+    radiation_check_json: Mapped[dict | None] = mapped_column(
+        JSONB, comment="PCS-DICT-005 §3.1 辐射校验完整产物",
+    )
+    input_json: Mapped[dict | None] = mapped_column(JSONB, comment="入参（业务子结构）")
+    output_json: Mapped[dict | None] = mapped_column(JSONB, comment="出参（业务子结构）")
 
 
 class VesselResult(TaggedRecordMixin, Base):
@@ -687,104 +739,360 @@ class HeatResult(TaggedRecordMixin, Base):
 
 
 class CvResult(TaggedRecordMixin, Base):
-    """调节阀 Cv 选型/校核结果（cv_results 表）。
+    """调节阀 Cv 选型/校核结果（cv_results 表，SPEC §3.2.1.6 + DICT V3.3）。
 
-    业务：调节阀流量系数 Cv + 阀体口径 + 噪声 + 闪蒸判定；
-    input_params/output_params JSONB 容器，含 sizing_method + 流体工况。
+    业务：调节阀流量系数 Cv + 阀体口径 + 噪声 + 闪蒸判定（IEC 60534-2-1/8-3）；
+    input_json/output_json JSONB 容器，含 sizing_method + 流体工况 +
+    noise 完整 L_p/L_w 序列。
+
+    PK 列名 = cv_id（DICT V3.3 §4.1，P5-0-4a rename 自 cv_calc_id）。
+    v3_1 既有 stub 列（cv_value/flow_rate/pressure_drop/choked_flow）保留以防
+    既有查询/测试引用；新字段由 cv_engine（Task 8）写入并启用。
+
+    RECORD_TYPE_REGISTRY 注册键 = "cv_result"（P6-1 Task 7 / ADR-0031）。
     """
 
     __tablename__ = "cv_results"
     cv_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    # 既有 v3_1 stub 列（保留；不被 cv_engine 写入）
     cv_value: Mapped[float] = mapped_column(Float)
     flow_rate: Mapped[float] = mapped_column(Float)
     pressure_drop: Mapped[float] = mapped_column(Float)
     choked_flow: Mapped[bool] = mapped_column(Boolean, default=False)
     input_json: Mapped[dict] = mapped_column(JSONB)
     output_json: Mapped[dict] = mapped_column(JSONB)
+    # P6-1 Task 7: SPEC §3.2.1.6 字段平铺 21 列
+    # 阀型 + 流体相（NOT NULL per SPEC §3.2.1.6）
+    valve_type: Mapped[str] = mapped_column(
+        String(32), comment="线性/等百分比/快开（SPEC §3.2.1.6）"
+    )
+    fluid_phase: Mapped[str] = mapped_column(
+        String(16), comment="LIQUID/GAS/VAPOR/TWO_PHASE（SPEC §3.2.1.6）"
+    )
+    # 工况（NOT NULL per SPEC for P1/P2/T1）
+    P1_pa: Mapped[float] = mapped_column(Float, comment="入口绝压 Pa（SPEC §3.2.1.6）")
+    P2_pa: Mapped[float] = mapped_column(Float, comment="出口绝压 Pa（SPEC §3.2.1.6）")
+    T1_k: Mapped[float] = mapped_column(Float, comment="入口温度 K（SPEC §3.2.1.6）")
+    Q_m3_per_h: Mapped[float | None] = mapped_column(
+        Float, comment="体积流量 m³/h（SPEC §3.2.1.6）"
+    )
+    # 物性（nullable per SPEC）
+    rho: Mapped[float | None] = mapped_column(
+        Float, comment="密度 kg/m³（SPEC §3.2.1.6，brief 短名）"
+    )
+    SG: Mapped[float | None] = mapped_column(
+        Float, comment="相对密度（SPEC §3.2.1.6）"
+    )
+    FL: Mapped[float | None] = mapped_column(
+        Float, comment="压力恢复系数（SPEC §3.2.1.6）"
+    )
+    xT: Mapped[float | None] = mapped_column(
+        Float, comment="压差比系数（SPEC §3.2.1.6）"
+    )
+    gamma: Mapped[float | None] = mapped_column(
+        Float, comment="比热比（SPEC §3.2.1.6）"
+    )
+    M: Mapped[float | None] = mapped_column(
+        Float, comment="分子量 g/mol（SPEC §3.2.1.6，brief 短名）"
+    )
+    Z: Mapped[float | None] = mapped_column(
+        Float, comment="压缩因子（SPEC §3.2.1.6）"
+    )
+    # 结果（NOT NULL per SPEC for Cv_calculated）
+    Cv_calculated: Mapped[float] = mapped_column(
+        Float, comment="计算 Cv（SPEC §3.2.1.6）"
+    )
+    Cv_selected: Mapped[float | None] = mapped_column(
+        Float, comment="圆整到标准系列的 Cv（SPEC §3.2.1.6）"
+    )
+    # 状态 Boolean（NOT NULL per SPEC for choked）
+    choked: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, default=False,
+        comment="是否阻塞流（SPEC §3.2.1.6）",
+    )
+    cavitation: Mapped[bool] = mapped_column(
+        Boolean, default=False, comment="液体空化标记（SPEC §3.2.1.6）"
+    )
+    flashing: Mapped[bool] = mapped_column(
+        Boolean, default=False, comment="液体闪蒸标记（SPEC §3.2.1.6）"
+    )
+    noise_sil_db: Mapped[float | None] = mapped_column(
+        Float, comment="简化法噪音 dB（SPEC §3.2.1.6）"
+    )
+    # 标准代码（NOT NULL per SPEC；SPEC §3.2.1.6 line 1283 VARCHAR(16)）
+    # 默认值由 CvEngine 注入；ORM 层无 server_default（防止写空值）
+    standard_profile_code: Mapped[str] = mapped_column(
+        String(16),
+        nullable=False,
+        server_default="IEC_60534",
+        comment="IEC_60534（GB/T 4213 等同采用；C-07 评审委员会裁决 2026-09-24）",
+    )
+    # 设计阶段（OPEN-009 + PsvResult 同模式）
+    design_stage: Mapped[DesignStage] = mapped_column(
+        Enum(DesignStage, name="design_stage_enum", native_enum=True),
+        nullable=False,
+        default=DesignStage.BASIC,
+        comment="设计阶段 BASIC/DETAIL（OPEN-009）",
+    )
 
 
 class RestrictionResult(TaggedRecordMixin, Base):
-    """限流孔板计算结果（restriction_results 表，R-ORF 限流孔板）。
+    """限流孔板计算结果（restriction_results 表，SPEC §3.2.2.6 + DICT V3.3）。
 
-    业务：限流孔板孔径+压降+多孔板组合判定；
-    result_json 承载孔径+数量+材质+最大允许压降。
+    业务：限流孔板孔径+压降+多孔板组合判定（ISO 5167-2/-3/-4）；
+    input_json/output_json JSONB 容器，含 sizing_method + 流体工况 +
+    阻塞流/闪蒸判定 + 多级降压级数 stages。
+
+    PK 列名 = orifice_id（DICT V3.3 §4.1，P5-0-4a rename 自 orifice_calc_id）。
+    v3_1 既有 stub 列 restriction_type 保留以防既有查询/测试引用；新字段由
+    cv_engine（Task 8）写入并启用。
+
+    RECORD_TYPE_REGISTRY 注册键 = "restriction_result"（P6-1 Task 7 / ADR-0031）。
     """
 
     __tablename__ = "restriction_results"
     orifice_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    # 既有 v3_1 stub 列（保留；不被 cv_engine 写入）
     restriction_type: Mapped[str] = mapped_column(String(30), comment="ORIFICE/PLATE/...")
     input_json: Mapped[dict] = mapped_column(JSONB)
     output_json: Mapped[dict] = mapped_column(JSONB)
+    # P6-1 Task 7: SPEC §3.2.2.6 字段平铺 13 列
+    # 装置类型（NOT NULL per SPEC §3.2.2.6）
+    device_type: Mapped[str] = mapped_column(
+        String(32), comment="ORIFICE/VENTURI/NOZZLE/MULTI_STAGE（§3.2.2.6）"
+    )
+    # 几何（NOT NULL per SPEC for D/d/beta/C）
+    D_pipe_m: Mapped[float] = mapped_column(
+        Float, comment="管道内径 m（SPEC §3.2.2.6）"
+    )
+    d_solved_m: Mapped[float] = mapped_column(
+        Float, comment="求解的孔径 m（SPEC §3.2.2.6）"
+    )
+    beta_ratio: Mapped[float] = mapped_column(
+        Float, comment="d/D（SPEC §3.2.2.6）"
+    )
+    C_discharge: Mapped[float] = mapped_column(
+        Float, comment="流出系数（SPEC §3.2.2.6）"
+    )
+    # 可膨胀性 / 雷诺数（nullable per SPEC）
+    epsilon: Mapped[float | None] = mapped_column(
+        Float, comment="可膨胀性系数（SPEC §3.2.2.6）"
+    )
+    Re_D: Mapped[float | None] = mapped_column(
+        Float, comment="雷诺数（SPEC §3.2.2.6）"
+    )
+    # 压差（NOT NULL per SPEC for delta_P_pa）
+    delta_P_pa: Mapped[float] = mapped_column(
+        Float, comment="压差 Pa（SPEC §3.2.2.6）"
+    )
+    delta_omega_pa: Mapped[float | None] = mapped_column(
+        Float, comment="永久压损 Pa（SPEC §3.2.2.6）"
+    )
+    # 状态 Boolean / Integer
+    choked: Mapped[bool] = mapped_column(
+        Boolean, default=False, comment="阻塞流（SPEC §3.2.2.6）"
+    )
+    flashing: Mapped[bool] = mapped_column(
+        Boolean, default=False, comment="闪蒸（SPEC §3.2.2.6）"
+    )
+    stages: Mapped[int | None] = mapped_column(
+        Integer, comment="多级时级数（SPEC §3.2.2.6）"
+    )
+    # 设计阶段（OPEN-009 + PsvResult 同模式）
+    design_stage: Mapped[DesignStage] = mapped_column(
+        Enum(DesignStage, name="design_stage_enum", native_enum=True),
+        nullable=False,
+        default=DesignStage.BASIC,
+        comment="设计阶段 BASIC/DETAIL（OPEN-009）",
+    )
 
 
-class CoolingTowerResult(TaggedRecordMixin, Base):
-    """凉水塔选型/校核结果（cooling_tower_results 表）。
+class CoolingTowerResult(TaggedRecordMixin, RecordMixin, Base):
+    """COOL_TOWER 冷却塔计算结果（cooling_tower_results 表，P6-2 Task 18 重构）。
 
-    业务：湿球温度+进/出口水温+风量+填料类型+逼近度；result_json 承载
-    型号匹配+风机功率+补充水量；用于循环水系统设计。
+    业务：Merkel 热力 / 循环水量 / 补充水量 / 风机功率。
+    SPEC §3.2.4 + PCS-DICT-007 §SUP-012（data_sheet_json 14 子结构）。
+
+    字段双轨：5 平铺 Float（duty/water_flow/makeup/fan_power/merkel_integral）
+    + JSONB 容器（data_sheet_json 14 子结构 + 通用 input/output）。
+    standard_profile_code 默认 CTI_ATC_105（C-07 锁定 String(16)）。
+
+    RECORD_TYPE_REGISTRY 注册键 = "cooling_tower_result"（P6-2 Task 18）。
     """
 
     __tablename__ = "cooling_tower_results"
     cooling_tower_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    input_json: Mapped[dict] = mapped_column(JSONB)
-    output_json: Mapped[dict] = mapped_column(JSONB)
+    # 溯源
+    standard_profile_code: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="CTI_ATC_105",
+        comment="CTI_ATC_105（SPEC §3.2.4 默认；C-07 String(16) 锁定）",
+    )
+    calc_type: Mapped[str] = mapped_column(
+        String(32), nullable=False,
+        comment="MERKEL / WATER_BALANCE / FAN_POWER / HEAT_AGGREGATE",
+    )
+    tower_type: Mapped[str | None] = mapped_column(
+        String(32), nullable=True,
+        comment="COUNTERFLOW_MECH / CROSSFLOW_MECH / NATURAL_DRAFT",
+    )
+    # 结果（5 平铺字段 + SUP-012 §3）
+    duty_kw: Mapped[float | None] = mapped_column(Float, comment="kW")
+    water_flow_m3h: Mapped[float | None] = mapped_column(Float, comment="m³/h")
+    makeup_water_m3h: Mapped[float | None] = mapped_column(Float, comment="m³/h")
+    fan_power_kw: Mapped[float | None] = mapped_column(Float, comment="kW")
+    merkel_integral: Mapped[float | None] = mapped_column(Float, comment="Merkel 积分值")
+    # JSONB
+    data_sheet_json: Mapped[dict | None] = mapped_column(
+        JSONB, comment="PCS-DICT-007 SUP-012 §3 14 子结构 data sheet",
+    )
+    input_json: Mapped[dict | None] = mapped_column(JSONB, comment="入参（业务子结构）")
+    output_json: Mapped[dict | None] = mapped_column(JSONB, comment="出参（业务子结构）")
 
 
-class PsychroResult(TaggedRecordMixin, Base):
-    """空气焓湿计算结果（psychro_results 表）。
+class PsychroResult(TaggedRecordMixin, RecordMixin, Base):
+    """PSYCHRO 湿空气计算结果（psychro_results 表，P6-2 Task 18 重构）。
 
-    业务：干/湿球温度+相对湿度+露点+比焓+比湿+空气密度；
-    input_json/output_json 双容器，用于通风空调设计。
+    业务：CoolProp HumidAir 包装 — 含湿量 / 露点 / 湿球 / 焓 / 比容 / 冷却盘管。
+    SPEC §3.2.5 + PCS-DICT-005 §4（6 calc_type）。
+
+    字段双轨：7 平铺 Float（6 calc_type 各自 result + sensible/latent heat）+
+    JSONB 容器。coolprop_version 字段溯源 CoolProp 库版本（如 "6.6.0"）。
+    standard_profile_code 默认 ASHRAE_FUND_2021（C-07 锁定 String(16)）。
+
+    RECORD_TYPE_REGISTRY 注册键 = "psychro_result"（P6-2 Task 18）。
     """
 
     __tablename__ = "psychro_results"
     psychro_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    calc_type: Mapped[str] = mapped_column(String(30))
-    input_json: Mapped[dict] = mapped_column(JSONB)
-    output_json: Mapped[dict] = mapped_column(JSONB)
+    # 溯源
+    standard_profile_code: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="ASHRAE_FUND_2021",
+        comment="ASHRAE_FUND_2021（SPEC §3.2.5 默认；C-07 String(16) 锁定）",
+    )
+    calc_type: Mapped[str] = mapped_column(
+        String(32), nullable=False,
+        comment="HUMIDITY_RATIO / DEW_POINT / WET_BULB / ENTHALPY / SPECIFIC_VOLUME / COOLING_COIL",
+    )
+    coolprop_version: Mapped[str | None] = mapped_column(
+        String(16), nullable=True, comment="CoolProp 版本（如 6.6.0）；record_hash 反射自动含",
+    )
+    # 结果（6 calc_type 各自的 result float + cooling_coil 双轨）
+    humidity_ratio_kg_kg: Mapped[float | None] = mapped_column(Float, comment="kg/kg")
+    dew_point_c: Mapped[float | None] = mapped_column(Float, comment="°C")
+    wet_bulb_c: Mapped[float | None] = mapped_column(Float, comment="°C")
+    enthalpy_kj_kg: Mapped[float | None] = mapped_column(Float, comment="kJ/kg")
+    specific_volume_m3_kg: Mapped[float | None] = mapped_column(Float, comment="m³/kg")
+    sensible_heat_kw: Mapped[float | None] = mapped_column(Float, comment="显热 kW（cooling_coil）")
+    latent_heat_kw: Mapped[float | None] = mapped_column(Float, comment="潜热 kW（cooling_coil）")
+    # JSONB
+    input_json: Mapped[dict | None] = mapped_column(JSONB, comment="入参（业务子结构）")
+    output_json: Mapped[dict | None] = mapped_column(JSONB, comment="出参（业务子结构）")
 
 
 class OpenChannelResult(TaggedRecordMixin, Base):
-    """明渠流计算结果（open_channel_results 表）。
+    """明渠流计算结果（open_channel_results 表，P6-3 Task 30 扩展）。
 
     业务：矩形/梯形/圆形明渠均匀流+临界水深+水跃+能量损失；
-    result_json 承载水深+流速+弗劳德数+水力坡度。
+    SPEC §3.2.6 — manning 公式+临界水深+水跃判定。
+
+    P6-3 Task 30 补齐派生字段（仅追加 nullable，不漂移既有 7 字段）：
+    critical_depth / froude_number / manning_n / hydraulic_radius +
+    jump 三件套（jump_type / conjugate_depth / energy_loss）。
+    Task 31（manning/section/critical/jump 4 模块）将消费这些字段落库。
     """
 
     __tablename__ = "open_channel_results"
     open_channel_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    channel_type: Mapped[str] = mapped_column(String(30))
-    cross_section_json: Mapped[dict] = mapped_column(JSONB)
-    flow_rate: Mapped[float] = mapped_column(Float)
-    depth: Mapped[float] = mapped_column(Float)
-    velocity: Mapped[float] = mapped_column(Float)
-    slope: Mapped[float] = mapped_column(Float)
+    # 既有 7 业务字段（v3.1 stub，P6-3 Task 30 不漂移）
+    channel_type: Mapped[str] = mapped_column(String(30), comment="RECT/TRAP/CIRC（SPEC §3.2.6）")
+    cross_section_json: Mapped[dict] = mapped_column(
+        JSONB, comment="{bottom_width, side_slope, diameter}（SPEC §3.2.6）"
+    )
+    flow_rate: Mapped[float] = mapped_column(Float, comment="m³/s")
+    depth: Mapped[float] = mapped_column(Float, comment="m（正常水深）")
+    velocity: Mapped[float] = mapped_column(Float, comment="m/s")
+    slope: Mapped[float] = mapped_column(Float, comment="m/m（水力坡度）")
+    # P6-3 Task 30 派生字段（SPEC §3.2.6；Task 31 manning/section/critical/jump 落库）
+    critical_depth: Mapped[float | None] = mapped_column(Float, comment="m（临界水深）")
+    froude_number: Mapped[float | None] = mapped_column(Float, comment="Fr 弗劳德数")
+    manning_n: Mapped[float | None] = mapped_column(Float, comment="糙率")
+    hydraulic_radius: Mapped[float | None] = mapped_column(Float, comment="m 水力半径")
+    # 水跃（Task 31 jump 模块落库用）
+    jump_type: Mapped[str | None] = mapped_column(
+        String(16), comment="NONE/UNDROWNED/DROWNED"
+    )
+    conjugate_depth: Mapped[float | None] = mapped_column(Float, comment="m 水跃共轭水深")
+    energy_loss: Mapped[float | None] = mapped_column(Float, comment="m 水跃能量损失")
 
 
 class FiltrationResult(TaggedRecordMixin, Base):
-    """过滤设备选型/校核结果（filtration_results 表）。
+    """过滤设备选型/校核结果（filtration_results 表，P6-3 Task 30 扩展）。
 
-    业务：袋式/滤芯/砂滤等过滤器精度+压降+反吹周期+容尘量；
-    result_json 承载型号+过滤面积+数量+材质。
+    业务：Ruth 恒压/恒速过滤 + Ergun 深层过滤；SPEC §3.2.7。
+    既有 4 业务字段 + P6-3 Task 30 补齐 6 派生字段（media 五件套 + filter_velocity）。
+    Task 33/34（ruth 恒压 / ruth 恒速 / ergun 3 模块）将消费这些字段落库。
     """
 
     __tablename__ = "filtration_results"
     filter_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    filter_type: Mapped[str] = mapped_column(String(30))
-    area: Mapped[float] = mapped_column(Float)
-    cycle_time: Mapped[float] = mapped_column(Float, comment="h")
-    pressure_drop: Mapped[float] = mapped_column(Float)
+    # 既有 4 业务字段（v3.1 stub，P6-3 Task 30 不漂移）
+    filter_type: Mapped[str] = mapped_column(
+        String(30),
+        comment="RUTH_CONST_PRESSURE/RUTH_CONST_RATE/ERGUN_DEEP_BED（SPEC §3.2.7）",
+    )
+    area: Mapped[float] = mapped_column(Float, comment="m² 过滤面积")
+    cycle_time: Mapped[float] = mapped_column(Float, comment="h 过滤周期")
+    pressure_drop: Mapped[float] = mapped_column(Float, comment="Pa 压降")
+    # P6-3 Task 30 派生字段（SPEC §3.2.7；Task 33/34 落库）
+    media_type: Mapped[str | None] = mapped_column(
+        String(32), comment="SAND/ANTHRACITE/CARBON/RUTH_FILTER_CLOTH/ERGUN_PACKING"
+    )
+    cake_resistance_alpha: Mapped[float | None] = mapped_column(
+        Float, comment="m/kg Ruth 滤饼比阻"
+    )
+    specific_resistance_r0: Mapped[float | None] = mapped_column(
+        Float, comment="1/m Ruth 单位阻力"
+    )
+    permeability_k: Mapped[float | None] = mapped_column(
+        Float, comment="m² Ergun 渗透率"
+    )
+    porosity_eps: Mapped[float | None] = mapped_column(
+        Float, comment="0~1 Ergun 孔隙率"
+    )
+    filter_velocity: Mapped[float | None] = mapped_column(
+        Float, comment="m/s 过滤速率"
+    )
 
 
 class CostEstResult(Base):
-    """cost_est 与设备一对一，不带 sign_status（跟随所属设备）。"""
+    """成本估算结果（cost_est_results 表，P6-3 Task 30 扩展）。
+
+    cost_est 与设备一对一，不带 sign_status（跟随所属设备）。
+    SPEC §3.2.8 — 六十法则 + CEPCI 调整。
+
+    P6-3 Task 30 补齐 6 派生字段（base_cost / CEPCI 双件套 + scaling_exponent
+    + correlation_source）。Task 35（六十法则 + CEPCI 调整模块）将消费这些
+    字段落库。
+    """
 
     __tablename__ = "cost_est_results"
     cost_est_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     equipment_id: Mapped[uuid.UUID] = mapped_column(
         ForeignKey("equipment_list.equipment_id"), unique=True
     )
-    estimated_cost: Mapped[float] = mapped_column(Numeric(18, 2))
+    # 既有 4 业务字段（v3.1 stub，P6-3 Task 30 不漂移）
+    estimated_cost: Mapped[float] = mapped_column(Numeric(18, 2), comment="估算成本")
     currency: Mapped[str] = mapped_column(String(10), default="USD")
-    cost_index_year: Mapped[int] = mapped_column(Integer)
+    cost_index_year: Mapped[int] = mapped_column(Integer, comment="目标年（CEPCI 索引年）")
+    # P6-3 Task 30 派生字段（SPEC §3.2.8；Task 35 落库）
+    base_cost: Mapped[float | None] = mapped_column(Numeric(18, 2), comment="基准年成本")
+    base_year: Mapped[int | None] = mapped_column(Integer, comment="基准年")
+    cepci_index_base: Mapped[float | None] = mapped_column(Float, comment="基准年 CEPCI")
+    cepci_index_target: Mapped[float | None] = mapped_column(Float, comment="目标年 CEPCI")
+    correlation_source: Mapped[str | None] = mapped_column(
+        String(64), comment="关联式来源（如 'Garrett1989_表5-21'）"
+    )
+    scaling_exponent: Mapped[float | None] = mapped_column(
+        Float, comment="缩放指数 n（六十法则 0.6 典型）"
+    )
     created_at = mapped_column(DateTime(timezone=True))

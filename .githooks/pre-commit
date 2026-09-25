@@ -1,0 +1,38 @@
+#!/bin/sh
+# A-08 G-08 OpenAPI 契约自动化门禁（pre-commit hook）
+#
+# CI 不做（单人开发裁决，.wolf/STATUS.md §锁定用户裁决）；本地 git hook 替代。
+# 仅在 pcs-backend/app/(api/v1|schemas)/ 或 pcs-frontend/src/types/ 改动时触发。
+#
+# 启用方式（仓库根执行一次）：
+#     git config core.hooksPath .githooks
+#
+# 跳过方式（紧急 commit）：
+#     git commit --no-verify
+#
+# 失败信息：commit 阻断；fix 见 pcs-backend/scripts/gate_08_openapi_contract.sh 注释
+
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+cd "$REPO_ROOT" || exit 1
+
+# 仅 OpenAPI/schemas 改动触发（性能优化）
+if ! git diff --cached --name-only | grep -qE '^(pcs-backend/app/(api/v1|schemas)/|pcs-frontend/src/types/)'; then
+    exit 0
+fi
+
+echo "[A-08] G-08 OpenAPI 契约门禁触发（OpenAPI/schemas 文件改动）..."
+echo "----------------------------------------"
+if ! bash pcs-backend/scripts/gate_08_openapi_contract.sh; then
+    echo ""
+    echo "----------------------------------------"
+    echo "[A-08] ❌ G-08 fail；commit 阻断"
+    echo "fix 步骤："
+    echo "  1. bash pcs-backend/scripts/gate_08_openapi_contract.sh"
+    echo "  2. 按错误提示修复（regen + drift + baseline）"
+    echo "  3. 重新 git add + git commit"
+    echo ""
+    echo "紧急跳过：git commit --no-verify（需登记到 backlog）"
+    exit 1
+fi
+
+exit 0

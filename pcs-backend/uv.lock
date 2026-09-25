@@ -325,6 +325,22 @@ wheels = [
 ]
 
 [[package]]
+name = "coolprop"
+version = "6.6.0"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/13/88/35c88960cf20cf483f1e2127ad999fce4528451ad37173064cdcb3834ebf/CoolProp-6.6.0.tar.gz", hash = "sha256:cf6fad704b3ae00f4df309cfd1e2ee48d155886b569a73f2cc38a57eda463082", size = 13995226, upload-time = "2023-11-29T15:09:38.459Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/18/29/2d714b1ab1bca2327dfdbffec48655b6439342943fca16f53f06d6ed7fea/CoolProp-6.6.0-cp312-cp312-macosx_10_9_x86_64.whl", hash = "sha256:2f738c22f4c81d7bc91567fe101502c5106cefc98a9afe884be72cf6908b3b7f", size = 2762944, upload-time = "2023-11-29T15:08:26.932Z" },
+    { url = "https://files.pythonhosted.org/packages/c5/1f/afc44f750118f476255e535e0151d59997c2d18bef64ec29c7cdcbe77cd3/CoolProp-6.6.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:e2ef2de94f51ec8f095fe772cdb22593245feeb7df76d3616eb19c5da1d4ac7f", size = 2540124, upload-time = "2023-11-29T15:08:29.153Z" },
+    { url = "https://files.pythonhosted.org/packages/16/27/31a9af5bad047c2ab0ea0c2856a3a7ed0095c2e8df97fc9d44bc40880724/CoolProp-6.6.0-cp312-cp312-manylinux_2_17_aarch64.manylinux2014_aarch64.whl", hash = "sha256:48f3de22cfbdb31e9a2f19aefb8074c25c57abba7ba6302eb331694e7bcc4b11", size = 6751476, upload-time = "2023-11-29T15:08:30.981Z" },
+    { url = "https://files.pythonhosted.org/packages/25/17/f78a106536e4f4f0e911d4adc7a8b11db545c3c8e9c8d2a3592cd69927e1/CoolProp-6.6.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:50f3339c3d590d2c86f9f2c055b9423001653344958000b8dcf7655710a5adee", size = 6998638, upload-time = "2023-11-29T15:08:32.758Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/a3/be74f44bb04c3ca5be6228a6812d39944cad06c041a351f8dd697648b1d7/CoolProp-6.6.0-cp312-cp312-musllinux_1_1_aarch64.whl", hash = "sha256:c556df424dcf93ce2e4b41f1f52537b94050ddf595df67eb7a76a1dd0d92263e", size = 6960848, upload-time = "2023-11-29T15:08:35.228Z" },
+    { url = "https://files.pythonhosted.org/packages/a1/43/51b12a6d21974ac5c425262185f30046fda25b93190e9bf2802844d7e1d4/CoolProp-6.6.0-cp312-cp312-musllinux_1_1_x86_64.whl", hash = "sha256:75dd59ea068a6385977815b0572dd824f8cb932a97432737392e3aba11782210", size = 7205374, upload-time = "2023-11-29T15:08:36.931Z" },
+    { url = "https://files.pythonhosted.org/packages/72/8a/a583f86428775c6435a8cfc60b866217cafc53890a59d2dabcec147abb0d/CoolProp-6.6.0-cp312-cp312-win32.whl", hash = "sha256:bfc5729c00376c00b33538d4685f4243ea43e69d618f2edd31729003a0fb1440", size = 1847159, upload-time = "2023-11-29T15:08:38.797Z" },
+    { url = "https://files.pythonhosted.org/packages/af/df/e266227c42c3178d92b432449aab9f9e0ab1a2b9043fc085cc125d7996ad/CoolProp-6.6.0-cp312-cp312-win_amd64.whl", hash = "sha256:809a8572515009a42386ce7381f7d11fd5c785657637cb402f722edf266a6fb3", size = 2012584, upload-time = "2023-11-29T15:08:40.858Z" },
+]
+
+[[package]]
 name = "coverage"
 version = "7.16.0"
 source = { registry = "https://pypi.org/simple" }
@@ -1239,6 +1255,7 @@ dependencies = [
     { name = "asyncpg" },
     { name = "authlib" },
     { name = "chemicals" },
+    { name = "coolprop" },
     { name = "fastapi" },
     { name = "fluids" },
     { name = "greenlet" },
@@ -1275,6 +1292,7 @@ requires-dist = [
     { name = "asyncpg", specifier = ">=0.29" },
     { name = "authlib", specifier = ">=1.3" },
     { name = "chemicals", specifier = "==1.5.2" },
+    { name = "coolprop", specifier = "==6.6.0" },
     { name = "fastapi", specifier = ">=0.115" },
     { name = "fluids", specifier = "==1.3.1" },
     { name = "greenlet", specifier = ">=3.0" },
