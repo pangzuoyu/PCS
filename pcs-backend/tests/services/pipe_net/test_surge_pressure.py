@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import json
 import math
+from dataclasses import FrozenInstanceError
 from pathlib import Path
 
 import pytest
@@ -285,6 +286,25 @@ def test_wave_speed_zero_wall_thickness_pure_fluid():
     result = calc_water_hammer_surge(inp)
     a_fluid = math.sqrt(2.2e9 / 999.0)
     assert math.isclose(result.wave_speed_m_s, a_fluid, rel_tol=1e-9)
+
+
+# ---------------------------------------------------------------------------
+# 8) 不可变结果（frozen dataclass，与 A1/A2 模式一致）
+# ---------------------------------------------------------------------------
+
+
+def test_surge_pressure_result_is_frozen():
+    """SurgePressureResult 必须 frozen（frozen=True）；不允许修改。"""
+    inp = SurgePressureInput(
+        fluid_density_kg_m3=999.0,
+        fluid_bulk_modulus_pa=2.2e9,
+        pipe_diameter_m=0.1,
+        flow_velocity_m_s=2.0,
+        valve_close_time_s=0.0,
+    )
+    result = calc_water_hammer_surge(inp)
+    with pytest.raises(FrozenInstanceError):
+        result.wave_speed_m_s = 0.0  # type: ignore[misc]
 
 
 # ---------------------------------------------------------------------------

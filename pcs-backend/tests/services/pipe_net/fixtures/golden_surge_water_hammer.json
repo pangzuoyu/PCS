@@ -19,9 +19,9 @@
     "pipe_diameter_m": 0.1,
     "wall_thickness_m": 0.005,
     "pipe_material": "CARBON_STEEL",
-    "expected_correction_term": 2.002,
-    "expected_wave_speed_m_s": 856.0,
-    "_expected_derivation": "correction = (2.2e9·0.1)/(200e9·0.005)·0.91 ≈ 2.002；a = 1483/√3.002 ≈ 856 m/s"
+    "expected_correction_term": 0.2002,
+    "expected_wave_speed_m_s": 1354.6,
+    "_expected_derivation": "correction = (2.2e9·0.1)/(200e9·0.005)·0.91 ≈ 0.2002；a = 1483/√1.2002 ≈ 1354.6 m/s"
   },
   "critical_close_time_1km": {
     "_comment": "L=1000m 水管道临界关阀时间 ≈ 1.348s（a≈1483 m/s）。",
