@@ -25,7 +25,7 @@ P6-4 批（C-12 立式 / 卧式 / 球形容器部分填充体积 + 润湿面积 
 
 ## Decision Drivers
 
-- **SPEC-ADD-001 V1.2 已冻结**（公式 + Literal 枚举拼写已锁）
+- **SPEC-ADD-001 V1.8 已冻结**（C-12 相关条款自 V1.2 起锁定，V1.8 全量审计通过；公式 + Literal 枚举拼写已锁）
 - **OpenWolf 工艺计算函数冻结窗口基线**（参考 ADR-0008 D5: 6 个月 = 180 天）
 - **C-12 在 5 调用方的覆盖窗口**：P6-5 C-07 / P6-6 C-08 / P6-7 C-10 / P6-8 C-20 / P6-9 C-21，最迟 P6-9 闭环（约 4 个月）
 - **解冻预算**：4 个月覆盖 + 1 个月 buffer + 1 个月下游整改
@@ -166,7 +166,7 @@ MassIterationResult:  converged, iterations, final_variable_m,
    - 收敛 vs 不收敛（Newton + bisection 触发 + max_iter 触发）
    - Imperial 单位 + 温度越界 WARNING
 
-3. **覆盖完整性**：黄金 + 单元 = 11 + 17 = 28 例；12 路径每路径至少 1 例黄金 + 多例单元补足。**剩余路径**（p6/p8/p9/p11）由 SPHERICAL 默认 + 公式对称性 + 单元测试参数化锁定（`@pytest.mark.parametrize` 跨 head_type × vessel_shape 笛卡尔积）。
+3. **覆盖完整性**：黄金 + 单元 = 11 + 17 = 28 例；12 路径每路径至少 1 例黄金 + 多例单元补足。**参数化测试显式包含 (head_type, vessel_shape) 全组合 = 4×3 = 12**（`@pytest.mark.parametrize` 在 `test_partial_volume.py` / `test_wetted_area.py` / `test_mass_iteration.py` 三处各自跑笛卡尔积），确保 p6/p8/p9/p11 至少各 1 例，避免依赖默认 + 对称性假设。
 
 ### F6.1 P6-4 T3 新增 9 公共符号清单
 
@@ -225,10 +225,7 @@ MassIterationResult:  converged, iterations, final_variable_m,
    - `test_freeze_mass_iteration_loop_runs`
    - `test_freeze_vessel_service_public_symbols`
 
-2. **黄金 fixture 测试**（将落地 + 命名统一）：
-   - 命名统一为计划格式 `golden_partial_volume_*.json` × 3 + `golden_wetted_area_*.json` × 3（vs P6-4 计划 `golden_partial_volume_vertical.json` / `_horizontal.json` / `_spherical.json` + `golden_wetted_area_*.json` × 3）；T3 实施时合并为 2 文件 11 例以减少 fixture 维护成本（11 例等价覆盖 12 路径中的 6 条主路径 + 17 单元测试补足）。
-   - **实际落地（consolidated 形式）**：`tests/services/vessel/fixtures/golden_vessel_partial_volume.json`（6 例）+ `tests/services/vessel/fixtures/golden_vessel_wetted_area.json`（5 例）。
-   - **命名偏差说明**：计划 6 分离文件 vs 实施 2 合并文件 = 偏离 plan 但等价覆盖；如架构组要求严格对齐 plan，将于 ADR-0041 后拆分（不影响冻结契约）。
+2. **黄金 fixture 测试**（将落地 + 命名偏差说明）：实际落地为 2 文件 11 例（`golden_vessel_partial_volume.json` 6 例 + `golden_vessel_wetted_area.json` 5 例），与计划 6 分离文件等价覆盖（11 + 17 单元 = 跨 12 路径全覆盖）；命名偏差不影响冻结契约，如架构组要求严格对齐 plan，将于 ADR-0041 后拆分。
    - `tests/services/vessel/test_partial_volume.py` + `test_wetted_area.py` + `test_mass_iteration.py` 共 17 测试
 
 3. **CI 强制**：
