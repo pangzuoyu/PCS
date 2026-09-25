@@ -1,0 +1,55 @@
+{
+  "_comment": "P6-5 Task B3: C-19 RESTRICTION 排污孔板（drain orifice）黄金算例 fixture。固化时间：2026-09-26。",
+  "_spec_ref": "SPEC §3.6.2 + §3.7.2 V1.1 + GB/T 308 Eq.2.2（排水孔板经验式）",
+  "_synthetic_marker": "Ftp = 1 - 0.0245·β^4.4 源 GB/T 308 经验式，无 ISO 5167 支撑，标 SYNTHETIC_TEST_DATA",
+  "cases": [
+    {
+      "id": "continuous_drain_beta_0p4",
+      "description": "连续排污 β=0.4，P₂/P₁=0.2 阻塞流（Ftp≈0.99956）",
+      "input": {
+        "orifice_diameter_m": 0.02,
+        "beta_ratio": 0.4,
+        "inlet_pressure_kpa": 500.0,
+        "outlet_pressure_kpa": 100.0,
+        "fluid_density_kg_m3": 999.0,
+        "mass_flow_kg_s": 5.0,
+        "drain_type": "CONTINUOUS",
+        "imperial_units": false
+      },
+      "expected": {
+        "orifice_area_m2": 0.0003141592653589793,
+        "ftp_factor": 0.9995632986110619,
+        "critical_pressure_ratio": 0.5282815090959457,
+        "actual_pressure_ratio": 0.2,
+        "is_choked": true,
+        "is_capacity_ok": true,
+        "tolerance": 1e-9,
+        "notes": "γ=1.4 → r_c ≈ 0.5283；Ftp = 1 - 0.0245 × 0.4^4.4 ≈ 0.99956"
+      }
+    },
+    {
+      "id": "intermittent_drain_beta_0p5",
+      "description": "间歇排污 β=0.5，P₂/P₁=0.8 非阻塞（容量无穷大）",
+      "input": {
+        "orifice_diameter_m": 0.02,
+        "beta_ratio": 0.5,
+        "inlet_pressure_kpa": 500.0,
+        "outlet_pressure_kpa": 400.0,
+        "fluid_density_kg_m3": 999.0,
+        "mass_flow_kg_s": 5.0,
+        "drain_type": "INTERMITTENT",
+        "imperial_units": false
+      },
+      "expected": {
+        "orifice_area_m2": 0.0003141592653589793,
+        "ftp_factor": 0.9989855,
+        "critical_pressure_ratio": 0.5282815090959457,
+        "actual_pressure_ratio": 0.8,
+        "is_choked": false,
+        "is_capacity_ok": true,
+        "tolerance": 1e-6,
+        "notes": "P₂/P₁=0.8 > r_c≈0.5283 → 非阻塞流；mass_max=inf"
+      }
+    }
+  ]
+}
