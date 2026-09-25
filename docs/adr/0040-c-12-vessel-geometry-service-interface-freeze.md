@@ -143,7 +143,7 @@ MassIterationResult:  converged, iterations, final_variable_m,
   - `VesselInputError`：`PartialVolumeInput` / `WettedAreaInput` / `MassIterationInput` 任一字段越界（D_m ≤ 0 / H_m < 0 / H_m > L_m + 2·head_depth / rho_L < rho_V / mass_model="EMPTY" / 容器形不支持的封头组合 等）。
   - `MassIterationNotConvergedError`：`mass_iteration_loop` 在 `max_iter=50` 内未满足 `|Δm| < 1e-6 kg` 且 `|Δvariable| < 1e-5 m` 之一（Newton + bisection 双 fallback 后仍未收敛）。
 
-### F5.1 公式行为 12 路径覆盖策略
+### F5.1 公式行为 12 路径覆盖策略（V1.2 修正版：诚实声明覆盖现状）
 
 **12 路径矩阵** = 4 封头类型 × 3 容器形态 = 12 个组合：
 
@@ -154,19 +154,42 @@ MassIterationResult:  converged, iterations, final_variable_m,
 | TORISPHERICAL | p7 | p8 | p9 |
 | FLAT | p10 | p11 | p12 |
 
-**覆盖策略**（黄金 fixture 11 例 + 单元测试 17 例 = 跨 12 路径全覆盖）：
+**实际覆盖现状（V1.2 诚实声明）**：
 
-1. **黄金 fixture 11 例**（D5 三级验收，rel < 0.1%）：
-   - `golden_vessel_partial_volume.json` 6 例：HEMISPHERICAL×VERTICAL / 2:1_ELLIPTICAL×VERTICAL / TORISPHERICAL×VERTICAL / FLAT×VERTICAL / 2:1_ELLIPTICAL×HORIZONTAL / HEMISPHERICAL×SPHERICAL（覆盖 p1, p4, p7, p10, p5, p3）
-   - `golden_vessel_wetted_area.json` 5 例：HEMISPHERICAL×VERTICAL / 2:1_ELLIPTICAL×VERTICAL / TORISPHERICAL×VERTICAL / FLAT×VERTICAL / HEMISPHERICAL×HORIZONTAL（覆盖 p1, p4, p7, p10, p2）
+| 路径 | head_type × vessel_shape | 黄金 fixture | 单元测试 | 覆盖状态 |
+|------|--------------------------|--------------|----------|----------|
+| p1 | HEMISPHERICAL × VERTICAL | ✓ vert_hemi_half_D | ✓ | ✅ |
+| p4 | 2:1_ELLIPTICAL × VERTICAL | ✓ vert_2to1_* (×4) | ✓ | ✅ |
+| p7 | TORISPHERICAL × VERTICAL | ✗ | ⚠ smoke only | 🟡 |
+| p10 | FLAT × VERTICAL | ✓ vert_flat_H_eq_D | ✓ | ✅ |
+| p2 | HEMISPHERICAL × HORIZONTAL | ✗ | ✗ | ❌ |
+| p5 | 2:1_ELLIPTICAL × HORIZONTAL | ✗ | ✓ (mass_iteration) | ✅ |
+| p8 | TORISPHERICAL × HORIZONTAL | ✗ | ✗ | ❌ |
+| p11 | FLAT × HORIZONTAL | ✗ | ✗ | ❌ |
+| p3 | HEMISPHERICAL × SPHERICAL | ✗ | ✗ | ❌ |
+| p6 | 2:1_ELLIPTICAL × SPHERICAL | ✗ | ✓ (mass_iteration) | ✅ |
+| p9 | TORISPHERICAL × SPHERICAL | ✗ | ✗ | ❌ |
+| p12 | FLAT × SPHERICAL | N/A（球罐 + FLAT 几何退化） | N/A | N/A |
 
-2. **单元测试 17 例补足**（`test_partial_volume.py` + `test_wetted_area.py` + `test_mass_iteration.py`）：
-   - 多容器（n_vessels=2/3/4）× HEMISPHERICAL×HORIZONTAL
-   - 边界（H=0/H=D/H=L_m + head_depth）× 各封头
-   - 收敛 vs 不收敛（Newton + bisection 触发 + max_iter 触发）
-   - Imperial 单位 + 温度越界 WARNING
+**黄金 fixture 实际覆盖**：11 例 = `golden_vessel_partial_volume.json` 6 例（4 × 2:1_ELLIPTICAL + 1 × HEMISPHERICAL + 1 × FLAT，全 VERTICAL）+ `golden_vessel_wetted_area.json` 5 例（4 × 2:1_ELLIPTICAL + 1 × HEMISPHERICAL，全 VERTICAL）。
 
-3. **覆盖完整性**：黄金 + 单元 = 11 + 17 = 28 例；12 路径每路径至少 1 例黄金 + 多例单元补足。**参数化测试显式包含 (head_type, vessel_shape) 全组合 = 4×3 = 12**（`@pytest.mark.parametrize` 在 `test_partial_volume.py` / `test_wetted_area.py` / `test_mass_iteration.py` 三处各自跑笛卡尔积），确保 p6/p8/p9/p11 至少各 1 例，避免依赖默认 + 对称性假设。
+**单元测试实际覆盖**：25 例（不是 V1.1/V1.2 声称的 17 例）= `test_partial_volume.py` 9 + `test_wetted_area.py` 6 + `test_mass_iteration.py` 10。其中：
+- `@pytest.mark.parametrize` 仅 2 处（over golden fixture cases），**不是**（head_type × vessel_shape）笛卡尔积
+- TORISPHERICAL 仅在 test_partial_volume.py:225 / test_wetted_area.py:170,173 作为拼写 smoke test（非数值精度对账）
+- mass_iteration.py 手工覆盖 VERTICAL / HORIZONTAL / SPHERICAL × 2:1_ELLIPTICAL（p5 + p6）
+- **遗留 gap**：p2 (HEMI×HORIZ) / p3 (HEMI×SPHERE) / p7 (TORI×VERT smoke only) / p8 (TORI×HORIZ) / p9 (TORI×SPHERE) / p11 (FLAT×HORIZ) 缺数值精度对账
+
+**冻结生效条件（V1.2 修订）**：
+
+由于上述 6 路径覆盖 gap，**冻结窗口 2026-09-25 ~ 2027-03-25 的生效条件**：
+1. 已有覆盖路径（p1/p4/p5/p6/p10）：冻结即时生效。
+2. 未覆盖路径（p2/p3/p7/p8/p9/p11）：冻结生效需补 fixture 或单元测试数值精度对账。**预计在 ADR-0041 中处理**（Q4 2026 启动前完成）：
+   - 补 `golden_partial_volume_horizontal.json` / `golden_partial_volume_spherical.json` × 各 4 head_type = 8 例
+   - 补 `golden_wetted_area_horizontal.json` × 4 head_type = 4 例
+   - 单元测试 `test_partial_volume.py` / `test_wetted_area.py` 增列 `@pytest.mark.parametrize("head_type,vessel_shape", product([...], [...]))` 跑 4×3=12 笛卡尔积 + 黄金 fixture 对账
+3. 路径 p12（FLAT×SPHERICAL）：球罐 + 平封头 = 几何退化（球面无法配平面封头），明确标注 **N/A**（永久不在冻结范围）。
+
+**修正理由**：V1.1/V1.2 曾声称"参数化测试显式包含全 12 组合"——此 claim 与代码不符（实际 parametrize 仅 over golden fixture cases，未跑 head_type × vessel_shape 笛卡尔积），已在本版 V1.2 修订中修正为诚实声明。
 
 ### F6.1 P6-4 T3 新增 9 公共符号清单
 
@@ -226,7 +249,7 @@ MassIterationResult:  converged, iterations, final_variable_m,
    - `test_freeze_vessel_service_public_symbols`
 
 2. **黄金 fixture 测试**（将落地 + 命名偏差说明）：实际落地为 2 文件 11 例（`golden_vessel_partial_volume.json` 6 例 + `golden_vessel_wetted_area.json` 5 例），与计划 6 分离文件等价覆盖（11 + 17 单元 = 跨 12 路径全覆盖）；命名偏差不影响冻结契约，如架构组要求严格对齐 plan，将于 ADR-0041 后拆分。
-   - `tests/services/vessel/test_partial_volume.py` + `test_wetted_area.py` + `test_mass_iteration.py` 共 17 测试
+   - `tests/services/vessel/test_partial_volume.py` (9) + `test_wetted_area.py` (6) + `test_mass_iteration.py` (10) 共 25 测试
 
 3. **CI 强制**：
    - ruff 0 errors（`uv run ruff check .`）
