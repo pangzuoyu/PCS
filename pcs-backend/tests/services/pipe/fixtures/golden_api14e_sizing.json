@@ -1,0 +1,50 @@
+{
+  "water_continuous_phase": {
+    "rho_L_kg_m3": 999.0,
+    "rho_V_kg_m3": 50.0,
+    "void_fraction": 0.5,
+    "c_factor": 100.0,
+    "mass_flow_kg_s": 50.0,
+    "imperial_units": false,
+    "expected_rho_mix_kg_m3": 524.5,
+    "expected_v_e_m_s": 4.367,
+    "expected_d_min_m": 0.1865,
+    "source": "rho_mix = 0.5*999 + 0.5*50; Ve = 100/sqrt(524.5); D = sqrt(4*50/(pi*524.5*Ve))"
+  },
+  "turner_critical_gas_dominant": {
+    "rho_L_kg_m3": 999.0,
+    "rho_V_kg_m3": 50.0,
+    "void_fraction": 0.9,
+    "c_factor": 100.0,
+    "mass_flow_kg_s": 5.0,
+    "expected_v_turner_m_s": 5.46,
+    "source": "V_turner = 5.46*(sigma*g*(rho_L-rho_V)/rho_V^2)^0.25; sigma=0.02; g=9.81"
+  },
+  "imperial_units": {
+    "rho_L_kg_m3": 999.0,
+    "rho_V_kg_m3": 50.0,
+    "void_fraction": 0.5,
+    "c_factor": 100.0,
+    "mass_flow_kg_s": 50.0,
+    "imperial_units": true,
+    "expected_d_min_in": 7.343,
+    "expected_v_e_ft_s": 14.327,
+    "source": "d_in = d_min_m/0.0254; v_ft_s = v_e_m_s/0.3048"
+  },
+  "_metadata": {
+    "spec_ref": "SPEC V1.8 §3.2.2",
+    "formula": {
+      "rho_mix": "rho_mix = rho_L*(1-eps) + rho_V*eps",
+      "erosion_velocity": "V_e = C / sqrt(rho_mix) [API 14E 5th Ed Eq.4]",
+      "pipe_diameter": "D_min = sqrt(4*m / (pi*rho_mix*V_e)) [continuity]",
+      "turner_critical_velocity": "V_turner = 5.46*(sigma*g*(rho_L-rho_V)/rho_V^2)^0.25 [Turner 1966, gas-dominant eps>0.5]"
+    },
+    "imperial_conversion": "d_in = d_m / 0.0254; v_ft_s = v_m_s / 0.3048",
+    "boundary_tests": {
+      "void_fraction_min": 0.0,
+      "void_fraction_max": 1.0,
+      "c_factor_min": 50.0,
+      "c_factor_max": 250.0
+    }
+  }
+}
