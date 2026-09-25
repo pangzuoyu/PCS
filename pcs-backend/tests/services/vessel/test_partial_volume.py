@@ -190,7 +190,8 @@ def test_partial_volume_invalid_n_vessels_raises():
 def test_partial_volume_input_result_frozen_dataclasses():
     """PartialVolumeInput / PartialVolumeResult 必须是 frozen dataclass。
 
-    ADR-0040 V1.2 §F2.1: 8 字段（5 必填 + H1_m/H2_m/H3_m Optional[float] = None 预留 + n_vessels=1）。
+    ADR-0040 V1.2 §F2.1: 8 字段（5 必填 + H1_m/H2_m/H3_m Optional[float] = None
+    预留 + n_vessels=1）。
     H1/H2/H3 是预留字段，当前实现忽略；forward-compat 多段语义待 ADR-0041 扩展。
     """
     pv_in_fields = {f.name for f in fields(PartialVolumeInput)}
