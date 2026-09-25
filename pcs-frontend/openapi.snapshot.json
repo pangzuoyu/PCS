@@ -9734,6 +9734,520 @@
         }
       }
     },
+    "/api/v1/cost-est/six-tenths-rule/calculate": {
+      "post": {
+        "tags": [
+          "cost-est"
+        ],
+        "summary": "Calculate Six Tenths Rule",
+        "description": "六十法则 + CEPCI 联合计算（§3.2.8 第一项 + 第二项）。\n\n流程：\n1. endpoint 调 ``calc_six_tenths_rule``（输入 reference_cost + ratio +\n   scaling_exponent → target_cost）\n2. 调 ``calc_cepci_adjustment``（CEPCI 时间/通胀调整 → final estimated_cost）\n3. ``save_six_tenths_rule_result`` service 层构造 CostEstResult 行；\n   禁止 endpoint 直构 ORM（红线 #1）\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_six_tenths_rule_api_v1_cost_est_six_tenths_rule_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SixTenthsRuleCalcRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SixTenthsRuleCalcResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cost-est/cepci-adjustment/calculate": {
+      "post": {
+        "tags": [
+          "cost-est"
+        ],
+        "summary": "Calculate Cepci Adjustment",
+        "description": "CEPCI 时间/通胀调整（§3.2.8 第二项 — 不含 60 法则）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_cepci_adjustment_api_v1_cost_est_cepci_adjustment_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CepciAdjustmentCalcRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CepciAdjustmentCalcResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cost-est/cost-correlation/calculate": {
+      "post": {
+        "tags": [
+          "cost-est"
+        ],
+        "summary": "Calculate Cost Correlation",
+        "description": "成本关联式查 CONFIG 表 + 计算（§3.2.8 第三项）。\n\n流程：endpoint 调 ``lookup_cost_correlation`` → 返回 ``estimated_cost +\ncorrelation_id`` → ``save_cost_correlation_result`` 落库。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calculate_cost_correlation_api_v1_cost_est_cost_correlation_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CostCorrelationCalcRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostCorrelationCalcResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cost-est/results": {
+      "post": {
+        "tags": [
+          "cost-est"
+        ],
+        "summary": "Create Cost Est Result",
+        "description": "直接创建 CostEstResult 行（POST → 201，不走 calc）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "create_cost_est_result_api_v1_cost_est_results_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CostEstCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostEstResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "cost-est"
+        ],
+        "summary": "List Cost Est Results",
+        "description": "按 equipment_id 列出 CostEstResult（GET list，分页）。\n\nCostEstResult 1:1 跟随 equipment；不传 equipment_id = 全量列表。\n无 OBSOLETE 态门禁（区别于 TaggedRecordMixin 表）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "list_cost_est_results_api_v1_cost_est_results_get",
+        "parameters": [
+          {
+            "name": "equipment_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equipment Id"
+            }
+          },
+          {
+            "name": "skip",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Skip"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostEstListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/cost-est/results/{result_id}": {
+      "get": {
+        "tags": [
+          "cost-est"
+        ],
+        "summary": "Get Cost Est Result",
+        "description": "按 cost_est_id 取 CostEstResult（GET detail）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "get_cost_est_result_api_v1_cost_est_results__result_id__get",
+        "parameters": [
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Result Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostEstResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": [
+          "cost-est"
+        ],
+        "summary": "Update Cost Est Result",
+        "description": "更新 CostEstResult 业务字段（PATCH）。\n\nCostEstResult 无 sign_status 列 → 不做\"锁定态\"门禁（区别于\nfiltration / open_channel）；所有状态可 PATCH。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "update_cost_est_result_api_v1_cost_est_results__result_id__patch",
+        "parameters": [
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Result Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CostEstUpdateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostEstResultResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "cost-est"
+        ],
+        "summary": "Soft Delete Cost Est Result",
+        "description": "物理删除 CostEstResult（DELETE 行；无 OBSOLETE 态）。\n\nCostEstResult 1:1 跟随 equipment；删除后 equipment 可重建 cost_est。\n返回删除前 cost_est_id + equipment_id + deleted_at 时间戳。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "soft_delete_cost_est_result_api_v1_cost_est_results__result_id__delete",
+        "parameters": [
+          {
+            "name": "result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Result Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CostEstDeleteResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/pipe-code-templates": {
       "get": {
         "tags": [
@@ -12540,6 +13054,199 @@
         "title": "BubbleDewResponse",
         "description": "POST /flash/bubble 与 POST /flash/dew 响应。"
       },
+      "CepciAdjustmentCalcRequest": {
+        "properties": {
+          "equipment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Equipment Id"
+          },
+          "reference_cost": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Reference Cost"
+          },
+          "reference_cepci": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Reference Cepci"
+          },
+          "target_cepci": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Target Cepci"
+          },
+          "estimated_cost": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Estimated Cost"
+          },
+          "currency": {
+            "type": "string",
+            "maxLength": 10,
+            "title": "Currency",
+            "default": "USD"
+          },
+          "cost_index_year": {
+            "type": "integer",
+            "maximum": 2200.0,
+            "minimum": 1900.0,
+            "title": "Cost Index Year",
+            "default": 2019
+          },
+          "base_cost": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Cost"
+          },
+          "base_year": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2200.0,
+                "minimum": 1900.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Year"
+          }
+        },
+        "type": "object",
+        "required": [
+          "equipment_id",
+          "reference_cost",
+          "reference_cepci",
+          "target_cepci",
+          "estimated_cost"
+        ],
+        "title": "CepciAdjustmentCalcRequest",
+        "description": "POST /cost-est/cepci-adjustment/calculate 请求（§3.2.8 第二项）。"
+      },
+      "CepciAdjustmentCalcResponse": {
+        "properties": {
+          "estimated_cost": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Estimated Cost",
+            "description": "估算投资 C₂"
+          },
+          "currency": {
+            "type": "string",
+            "maxLength": 10,
+            "title": "Currency",
+            "description": "货币代码",
+            "default": "USD"
+          },
+          "cost_index_year": {
+            "type": "integer",
+            "maximum": 2200.0,
+            "minimum": 1900.0,
+            "title": "Cost Index Year",
+            "description": "目标年",
+            "default": 2019
+          },
+          "base_cost": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Cost",
+            "description": "基准年成本 C₁"
+          },
+          "base_year": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2200.0,
+                "minimum": 1900.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Year",
+            "description": "基准年"
+          },
+          "cepci_index_base": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cepci Index Base",
+            "description": "基准 CEPCI"
+          },
+          "cepci_index_target": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cepci Index Target",
+            "description": "目标 CEPCI"
+          },
+          "scaling_exponent": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.5,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scaling Exponent",
+            "description": "六十法则 scaling 指数 n"
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id"
+          },
+          "equipment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Equipment Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "estimated_cost",
+          "result_id",
+          "equipment_id",
+          "created_at"
+        ],
+        "title": "CepciAdjustmentCalcResponse",
+        "description": "POST /cost-est/cepci-adjustment/calculate 响应（201）。\n\n与 ``CostEstCalcBase`` 镜像（无 scaling_exponent 必填）；额外填\nresult_id + equipment_id + created_at。"
+      },
       "ChecklistBulkSeed": {
         "properties": {
           "items": {
@@ -13526,6 +14233,573 @@
         ],
         "title": "CoolingCoilResponse",
         "description": "冷却盘管显热/潜热响应（POST /psychro/cooling-coil）。\n\n字段：\n- sensible_heat_kw: 显热 kW（m_dot × Q_sensible / 1000）\n- latent_heat_kw: 潜热 kW（m_dot × Q_latent / 1000）\n- formula_ref: 公式溯源标记"
+      },
+      "CostCorrelationCalcRequest": {
+        "properties": {
+          "equipment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Equipment Id"
+          },
+          "equipment_type": {
+            "type": "string",
+            "title": "Equipment Type",
+            "description": "TOWER/VESSEL/HEAT_EXCHANGER/PUMP/COMPRESSOR/PIPING"
+          },
+          "scale_parameter": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Scale Parameter"
+          },
+          "correlation_source": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Correlation Source"
+          },
+          "estimated_cost": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Estimated Cost"
+          },
+          "currency": {
+            "type": "string",
+            "maxLength": 10,
+            "title": "Currency",
+            "default": "USD"
+          },
+          "cost_index_year": {
+            "type": "integer",
+            "maximum": 2200.0,
+            "minimum": 1900.0,
+            "title": "Cost Index Year",
+            "default": 2019
+          },
+          "base_cost": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Cost"
+          },
+          "base_year": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2200.0,
+                "minimum": 1900.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Year"
+          }
+        },
+        "type": "object",
+        "required": [
+          "equipment_id",
+          "equipment_type",
+          "scale_parameter",
+          "correlation_source",
+          "estimated_cost"
+        ],
+        "title": "CostCorrelationCalcRequest",
+        "description": "POST /cost-est/cost-correlation/calculate 请求（§3.2.8 第三项）。"
+      },
+      "CostCorrelationCalcResponse": {
+        "properties": {
+          "estimated_cost": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Estimated Cost"
+          },
+          "currency": {
+            "type": "string",
+            "maxLength": 10,
+            "title": "Currency",
+            "default": "USD"
+          },
+          "cost_index_year": {
+            "type": "integer",
+            "maximum": 2200.0,
+            "minimum": 1900.0,
+            "title": "Cost Index Year",
+            "default": 2019
+          },
+          "base_cost": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Cost"
+          },
+          "base_year": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2200.0,
+                "minimum": 1900.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Year"
+          },
+          "correlation_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Source"
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id"
+          },
+          "equipment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Equipment Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "estimated_cost",
+          "result_id",
+          "equipment_id",
+          "created_at"
+        ],
+        "title": "CostCorrelationCalcResponse",
+        "description": "POST /cost-est/cost-correlation/calculate 响应（201）。"
+      },
+      "CostEstCreateRequest": {
+        "properties": {
+          "equipment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Equipment Id"
+          },
+          "estimated_cost": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Estimated Cost"
+          },
+          "currency": {
+            "type": "string",
+            "maxLength": 10,
+            "title": "Currency",
+            "default": "USD"
+          },
+          "cost_index_year": {
+            "type": "integer",
+            "maximum": 2200.0,
+            "minimum": 1900.0,
+            "title": "Cost Index Year",
+            "default": 2019
+          },
+          "base_cost": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Cost"
+          },
+          "base_year": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2200.0,
+                "minimum": 1900.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Year"
+          },
+          "cepci_index_base": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cepci Index Base"
+          },
+          "cepci_index_target": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cepci Index Target"
+          },
+          "correlation_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Source"
+          },
+          "scaling_exponent": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.5,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scaling Exponent"
+          }
+        },
+        "type": "object",
+        "required": [
+          "equipment_id",
+          "estimated_cost"
+        ],
+        "title": "CostEstCreateRequest",
+        "description": "POST /cost-est/results 直接创建请求（不走 calc）。\n\n必填：equipment_id + estimated_cost；其余字段 optional。"
+      },
+      "CostEstDeleteResponse": {
+        "properties": {
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id",
+            "description": "cost_est_id（PK）"
+          },
+          "equipment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Equipment Id",
+            "description": "设备 UUID"
+          },
+          "deleted_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Deleted At",
+            "description": "删除时间戳"
+          }
+        },
+        "type": "object",
+        "required": [
+          "result_id",
+          "equipment_id",
+          "deleted_at"
+        ],
+        "title": "CostEstDeleteResponse",
+        "description": "DELETE /cost-est/results/{id} 响应（物理删除；含删除时间戳）。"
+      },
+      "CostEstListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CostEstResultResponse"
+            },
+            "type": "array",
+            "title": "Items",
+            "description": "CostEstResult 列表"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "命中条数"
+          },
+          "skip": {
+            "type": "integer",
+            "title": "Skip",
+            "description": "分页偏移"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit",
+            "description": "分页上限"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "skip",
+          "limit"
+        ],
+        "title": "CostEstListResponse",
+        "description": "GET /cost-est/results 列表响应。"
+      },
+      "CostEstResultResponse": {
+        "properties": {
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id",
+            "description": "cost_est_id（PK）"
+          },
+          "equipment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Equipment Id",
+            "description": "设备 UUID"
+          },
+          "estimated_cost": {
+            "type": "number",
+            "title": "Estimated Cost",
+            "description": "估算成本"
+          },
+          "currency": {
+            "type": "string",
+            "title": "Currency",
+            "description": "货币代码"
+          },
+          "cost_index_year": {
+            "type": "integer",
+            "title": "Cost Index Year",
+            "description": "目标年"
+          },
+          "base_cost": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Cost"
+          },
+          "base_year": {
+            "anyOf": [
+              {
+                "type": "integer"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Year"
+          },
+          "cepci_index_base": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cepci Index Base"
+          },
+          "cepci_index_target": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cepci Index Target"
+          },
+          "correlation_source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Source"
+          },
+          "scaling_exponent": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scaling Exponent"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "创建时间"
+          }
+        },
+        "type": "object",
+        "required": [
+          "result_id",
+          "equipment_id",
+          "estimated_cost",
+          "currency",
+          "cost_index_year",
+          "created_at"
+        ],
+        "title": "CostEstResultResponse",
+        "description": "GET /cost-est/results/{id} 响应（含完整业务字段）。"
+      },
+      "CostEstUpdateRequest": {
+        "properties": {
+          "estimated_cost": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Estimated Cost"
+          },
+          "currency": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 10
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Currency"
+          },
+          "cost_index_year": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2200.0,
+                "minimum": 1900.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cost Index Year"
+          },
+          "base_cost": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Cost"
+          },
+          "base_year": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2200.0,
+                "minimum": 1900.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Year"
+          },
+          "cepci_index_base": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cepci Index Base"
+          },
+          "cepci_index_target": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cepci Index Target"
+          },
+          "correlation_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Correlation Source"
+          },
+          "scaling_exponent": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.5,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scaling Exponent"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "CostEstUpdateRequest",
+        "description": "PATCH /cost-est/results/{id} 请求（partial update）。"
       },
       "CreateAssetRequest": {
         "properties": {
@@ -22905,6 +24179,215 @@
         ],
         "title": "SimImportWarningListResponse",
         "description": "SIM 导入警告列表响应。\n\n业务：items 警告列表 + total 总数（用于前端分页 + 头部红点提示）。"
+      },
+      "SixTenthsRuleCalcRequest": {
+        "properties": {
+          "equipment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Equipment Id",
+            "description": "设备 UUID（FK → equipment_list）"
+          },
+          "reference_cost": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Reference Cost",
+            "description": "基准投资 C₁"
+          },
+          "reference_cepci": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Reference Cepci",
+            "description": "基准 CEPCI CEPCI₁"
+          },
+          "target_cepci": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Target Cepci",
+            "description": "目标 CEPCI CEPCI₂"
+          },
+          "scaling_exponent": {
+            "type": "number",
+            "maximum": 1.5,
+            "exclusiveMinimum": 0.0,
+            "title": "Scaling Exponent",
+            "description": "scaling 指数 n",
+            "default": 0.6
+          },
+          "estimated_cost": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Estimated Cost",
+            "description": "估算投资 C₂"
+          },
+          "currency": {
+            "type": "string",
+            "maxLength": 10,
+            "title": "Currency",
+            "default": "USD"
+          },
+          "cost_index_year": {
+            "type": "integer",
+            "maximum": 2200.0,
+            "minimum": 1900.0,
+            "title": "Cost Index Year",
+            "default": 2019
+          },
+          "base_cost": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Cost"
+          },
+          "base_year": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2200.0,
+                "minimum": 1900.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Year"
+          }
+        },
+        "type": "object",
+        "required": [
+          "equipment_id",
+          "reference_cost",
+          "reference_cepci",
+          "target_cepci",
+          "estimated_cost"
+        ],
+        "title": "SixTenthsRuleCalcRequest",
+        "description": "POST /cost-est/six-tenths-rule/calculate 请求。\n\n必填：equipment_id + reference_cost + reference_cepci + target_cepci +\nscaling_exponent + estimated_cost。"
+      },
+      "SixTenthsRuleCalcResponse": {
+        "properties": {
+          "estimated_cost": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Estimated Cost",
+            "description": "估算投资 C₂"
+          },
+          "currency": {
+            "type": "string",
+            "maxLength": 10,
+            "title": "Currency",
+            "description": "货币代码",
+            "default": "USD"
+          },
+          "cost_index_year": {
+            "type": "integer",
+            "maximum": 2200.0,
+            "minimum": 1900.0,
+            "title": "Cost Index Year",
+            "description": "目标年",
+            "default": 2019
+          },
+          "base_cost": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Cost",
+            "description": "基准年成本 C₁"
+          },
+          "base_year": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 2200.0,
+                "minimum": 1900.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Year",
+            "description": "基准年"
+          },
+          "cepci_index_base": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cepci Index Base",
+            "description": "基准 CEPCI"
+          },
+          "cepci_index_target": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cepci Index Target",
+            "description": "目标 CEPCI"
+          },
+          "scaling_exponent": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.5,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scaling Exponent",
+            "description": "六十法则 scaling 指数 n"
+          },
+          "result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Result Id",
+            "description": "cost_est_id（PK）"
+          },
+          "equipment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Equipment Id",
+            "description": "设备 UUID"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At",
+            "description": "创建时间"
+          }
+        },
+        "type": "object",
+        "required": [
+          "estimated_cost",
+          "result_id",
+          "equipment_id",
+          "created_at"
+        ],
+        "title": "SixTenthsRuleCalcResponse",
+        "description": "POST /cost-est/six-tenths-rule/calculate 响应（201）。\n\n与 ``CostEstCalcBase`` 镜像（已含 estimated_cost/currency/cost_index_year\n+ 6 派生列）；额外填 result_id（cost_est_id）+ equipment_id +\ncreated_at（CostEstResult 无 record_hash/sign_status 列）。"
       },
       "SizingInputSchema": {
         "properties": {

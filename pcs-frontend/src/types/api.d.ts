@@ -3265,6 +3265,153 @@ export interface paths {
         patch: operations["update_filtration_result_api_v1_filtration_results__result_id__patch"];
         trace?: never;
     };
+    "/api/v1/cost-est/six-tenths-rule/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calculate Six Tenths Rule
+         * @description 六十法则 + CEPCI 联合计算（§3.2.8 第一项 + 第二项）。
+         *
+         *     流程：
+         *     1. endpoint 调 ``calc_six_tenths_rule``（输入 reference_cost + ratio +
+         *        scaling_exponent → target_cost）
+         *     2. 调 ``calc_cepci_adjustment``（CEPCI 时间/通胀调整 → final estimated_cost）
+         *     3. ``save_six_tenths_rule_result`` service 层构造 CostEstResult 行；
+         *        禁止 endpoint 直构 ORM（红线 #1）
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calculate_six_tenths_rule_api_v1_cost_est_six_tenths_rule_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cost-est/cepci-adjustment/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calculate Cepci Adjustment
+         * @description CEPCI 时间/通胀调整（§3.2.8 第二项 — 不含 60 法则）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calculate_cepci_adjustment_api_v1_cost_est_cepci_adjustment_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cost-est/cost-correlation/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calculate Cost Correlation
+         * @description 成本关联式查 CONFIG 表 + 计算（§3.2.8 第三项）。
+         *
+         *     流程：endpoint 调 ``lookup_cost_correlation`` → 返回 ``estimated_cost +
+         *     correlation_id`` → ``save_cost_correlation_result`` 落库。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calculate_cost_correlation_api_v1_cost_est_cost_correlation_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cost-est/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Cost Est Results
+         * @description 按 equipment_id 列出 CostEstResult（GET list，分页）。
+         *
+         *     CostEstResult 1:1 跟随 equipment；不传 equipment_id = 全量列表。
+         *     无 OBSOLETE 态门禁（区别于 TaggedRecordMixin 表）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        get: operations["list_cost_est_results_api_v1_cost_est_results_get"];
+        put?: never;
+        /**
+         * Create Cost Est Result
+         * @description 直接创建 CostEstResult 行（POST → 201，不走 calc）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["create_cost_est_result_api_v1_cost_est_results_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/cost-est/results/{result_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Cost Est Result
+         * @description 按 cost_est_id 取 CostEstResult（GET detail）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        get: operations["get_cost_est_result_api_v1_cost_est_results__result_id__get"];
+        put?: never;
+        post?: never;
+        /**
+         * Soft Delete Cost Est Result
+         * @description 物理删除 CostEstResult（DELETE 行；无 OBSOLETE 态）。
+         *
+         *     CostEstResult 1:1 跟随 equipment；删除后 equipment 可重建 cost_est。
+         *     返回删除前 cost_est_id + equipment_id + deleted_at 时间戳。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        delete: operations["soft_delete_cost_est_result_api_v1_cost_est_results__result_id__delete"];
+        options?: never;
+        head?: never;
+        /**
+         * Update Cost Est Result
+         * @description 更新 CostEstResult 业务字段（PATCH）。
+         *
+         *     CostEstResult 无 sign_status 列 → 不做"锁定态"门禁（区别于
+         *     filtration / open_channel）；所有状态可 PATCH。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        patch: operations["update_cost_est_result_api_v1_cost_est_results__result_id__patch"];
+        trace?: never;
+    };
     "/api/v1/pipe-code-templates": {
         parameters: {
             query?: never;
@@ -4347,6 +4494,105 @@ export interface components {
             outlet_stream_name?: string | null;
         };
         /**
+         * CepciAdjustmentCalcRequest
+         * @description POST /cost-est/cepci-adjustment/calculate 请求（§3.2.8 第二项）。
+         */
+        CepciAdjustmentCalcRequest: {
+            /**
+             * Equipment Id
+             * Format: uuid
+             */
+            equipment_id: string;
+            /** Reference Cost */
+            reference_cost: number;
+            /** Reference Cepci */
+            reference_cepci: number;
+            /** Target Cepci */
+            target_cepci: number;
+            /** Estimated Cost */
+            estimated_cost: number;
+            /**
+             * Currency
+             * @default USD
+             */
+            currency: string;
+            /**
+             * Cost Index Year
+             * @default 2019
+             */
+            cost_index_year: number;
+            /** Base Cost */
+            base_cost?: number | null;
+            /** Base Year */
+            base_year?: number | null;
+        };
+        /**
+         * CepciAdjustmentCalcResponse
+         * @description POST /cost-est/cepci-adjustment/calculate 响应（201）。
+         *
+         *     与 ``CostEstCalcBase`` 镜像（无 scaling_exponent 必填）；额外填
+         *     result_id + equipment_id + created_at。
+         */
+        CepciAdjustmentCalcResponse: {
+            /**
+             * Estimated Cost
+             * @description 估算投资 C₂
+             */
+            estimated_cost: number;
+            /**
+             * Currency
+             * @description 货币代码
+             * @default USD
+             */
+            currency: string;
+            /**
+             * Cost Index Year
+             * @description 目标年
+             * @default 2019
+             */
+            cost_index_year: number;
+            /**
+             * Base Cost
+             * @description 基准年成本 C₁
+             */
+            base_cost?: number | null;
+            /**
+             * Base Year
+             * @description 基准年
+             */
+            base_year?: number | null;
+            /**
+             * Cepci Index Base
+             * @description 基准 CEPCI
+             */
+            cepci_index_base?: number | null;
+            /**
+             * Cepci Index Target
+             * @description 目标 CEPCI
+             */
+            cepci_index_target?: number | null;
+            /**
+             * Scaling Exponent
+             * @description 六十法则 scaling 指数 n
+             */
+            scaling_exponent?: number | null;
+            /**
+             * Result Id
+             * Format: uuid
+             */
+            result_id: string;
+            /**
+             * Equipment Id
+             * Format: uuid
+             */
+            equipment_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
          * ChecklistBulkSeed
          * @description 批量预置：种子脚本/一次性导入使用。
          */
@@ -4991,6 +5237,243 @@ export interface components {
              * @description 公式溯源标记（ASHRAE_HF2021_§1.2）
              */
             formula_ref: string;
+        };
+        /**
+         * CostCorrelationCalcRequest
+         * @description POST /cost-est/cost-correlation/calculate 请求（§3.2.8 第三项）。
+         */
+        CostCorrelationCalcRequest: {
+            /**
+             * Equipment Id
+             * Format: uuid
+             */
+            equipment_id: string;
+            /**
+             * Equipment Type
+             * @description TOWER/VESSEL/HEAT_EXCHANGER/PUMP/COMPRESSOR/PIPING
+             */
+            equipment_type: string;
+            /** Scale Parameter */
+            scale_parameter: number;
+            /** Correlation Source */
+            correlation_source: string;
+            /** Estimated Cost */
+            estimated_cost: number;
+            /**
+             * Currency
+             * @default USD
+             */
+            currency: string;
+            /**
+             * Cost Index Year
+             * @default 2019
+             */
+            cost_index_year: number;
+            /** Base Cost */
+            base_cost?: number | null;
+            /** Base Year */
+            base_year?: number | null;
+        };
+        /**
+         * CostCorrelationCalcResponse
+         * @description POST /cost-est/cost-correlation/calculate 响应（201）。
+         */
+        CostCorrelationCalcResponse: {
+            /** Estimated Cost */
+            estimated_cost: number;
+            /**
+             * Currency
+             * @default USD
+             */
+            currency: string;
+            /**
+             * Cost Index Year
+             * @default 2019
+             */
+            cost_index_year: number;
+            /** Base Cost */
+            base_cost?: number | null;
+            /** Base Year */
+            base_year?: number | null;
+            /** Correlation Source */
+            correlation_source?: string | null;
+            /**
+             * Result Id
+             * Format: uuid
+             */
+            result_id: string;
+            /**
+             * Equipment Id
+             * Format: uuid
+             */
+            equipment_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+        };
+        /**
+         * CostEstCreateRequest
+         * @description POST /cost-est/results 直接创建请求（不走 calc）。
+         *
+         *     必填：equipment_id + estimated_cost；其余字段 optional。
+         */
+        CostEstCreateRequest: {
+            /**
+             * Equipment Id
+             * Format: uuid
+             */
+            equipment_id: string;
+            /** Estimated Cost */
+            estimated_cost: number;
+            /**
+             * Currency
+             * @default USD
+             */
+            currency: string;
+            /**
+             * Cost Index Year
+             * @default 2019
+             */
+            cost_index_year: number;
+            /** Base Cost */
+            base_cost?: number | null;
+            /** Base Year */
+            base_year?: number | null;
+            /** Cepci Index Base */
+            cepci_index_base?: number | null;
+            /** Cepci Index Target */
+            cepci_index_target?: number | null;
+            /** Correlation Source */
+            correlation_source?: string | null;
+            /** Scaling Exponent */
+            scaling_exponent?: number | null;
+        };
+        /**
+         * CostEstDeleteResponse
+         * @description DELETE /cost-est/results/{id} 响应（物理删除；含删除时间戳）。
+         */
+        CostEstDeleteResponse: {
+            /**
+             * Result Id
+             * Format: uuid
+             * @description cost_est_id（PK）
+             */
+            result_id: string;
+            /**
+             * Equipment Id
+             * Format: uuid
+             * @description 设备 UUID
+             */
+            equipment_id: string;
+            /**
+             * Deleted At
+             * Format: date-time
+             * @description 删除时间戳
+             */
+            deleted_at: string;
+        };
+        /**
+         * CostEstListResponse
+         * @description GET /cost-est/results 列表响应。
+         */
+        CostEstListResponse: {
+            /**
+             * Items
+             * @description CostEstResult 列表
+             */
+            items: components["schemas"]["CostEstResultResponse"][];
+            /**
+             * Total
+             * @description 命中条数
+             */
+            total: number;
+            /**
+             * Skip
+             * @description 分页偏移
+             */
+            skip: number;
+            /**
+             * Limit
+             * @description 分页上限
+             */
+            limit: number;
+        };
+        /**
+         * CostEstResultResponse
+         * @description GET /cost-est/results/{id} 响应（含完整业务字段）。
+         */
+        CostEstResultResponse: {
+            /**
+             * Result Id
+             * Format: uuid
+             * @description cost_est_id（PK）
+             */
+            result_id: string;
+            /**
+             * Equipment Id
+             * Format: uuid
+             * @description 设备 UUID
+             */
+            equipment_id: string;
+            /**
+             * Estimated Cost
+             * @description 估算成本
+             */
+            estimated_cost: number;
+            /**
+             * Currency
+             * @description 货币代码
+             */
+            currency: string;
+            /**
+             * Cost Index Year
+             * @description 目标年
+             */
+            cost_index_year: number;
+            /** Base Cost */
+            base_cost?: number | null;
+            /** Base Year */
+            base_year?: number | null;
+            /** Cepci Index Base */
+            cepci_index_base?: number | null;
+            /** Cepci Index Target */
+            cepci_index_target?: number | null;
+            /** Correlation Source */
+            correlation_source?: string | null;
+            /** Scaling Exponent */
+            scaling_exponent?: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             * @description 创建时间
+             */
+            created_at: string;
+        };
+        /**
+         * CostEstUpdateRequest
+         * @description PATCH /cost-est/results/{id} 请求（partial update）。
+         */
+        CostEstUpdateRequest: {
+            /** Estimated Cost */
+            estimated_cost?: number | null;
+            /** Currency */
+            currency?: string | null;
+            /** Cost Index Year */
+            cost_index_year?: number | null;
+            /** Base Cost */
+            base_cost?: number | null;
+            /** Base Year */
+            base_year?: number | null;
+            /** Cepci Index Base */
+            cepci_index_base?: number | null;
+            /** Cepci Index Target */
+            cepci_index_target?: number | null;
+            /** Correlation Source */
+            correlation_source?: string | null;
+            /** Scaling Exponent */
+            scaling_exponent?: number | null;
         };
         /**
          * CreateAssetRequest
@@ -10641,6 +11124,131 @@ export interface components {
             items: components["schemas"]["SimImportWarningItem"][];
             /** Total */
             total: number;
+        };
+        /**
+         * SixTenthsRuleCalcRequest
+         * @description POST /cost-est/six-tenths-rule/calculate 请求。
+         *
+         *     必填：equipment_id + reference_cost + reference_cepci + target_cepci +
+         *     scaling_exponent + estimated_cost。
+         */
+        SixTenthsRuleCalcRequest: {
+            /**
+             * Equipment Id
+             * Format: uuid
+             * @description 设备 UUID（FK → equipment_list）
+             */
+            equipment_id: string;
+            /**
+             * Reference Cost
+             * @description 基准投资 C₁
+             */
+            reference_cost: number;
+            /**
+             * Reference Cepci
+             * @description 基准 CEPCI CEPCI₁
+             */
+            reference_cepci: number;
+            /**
+             * Target Cepci
+             * @description 目标 CEPCI CEPCI₂
+             */
+            target_cepci: number;
+            /**
+             * Scaling Exponent
+             * @description scaling 指数 n
+             * @default 0.6
+             */
+            scaling_exponent: number;
+            /**
+             * Estimated Cost
+             * @description 估算投资 C₂
+             */
+            estimated_cost: number;
+            /**
+             * Currency
+             * @default USD
+             */
+            currency: string;
+            /**
+             * Cost Index Year
+             * @default 2019
+             */
+            cost_index_year: number;
+            /** Base Cost */
+            base_cost?: number | null;
+            /** Base Year */
+            base_year?: number | null;
+        };
+        /**
+         * SixTenthsRuleCalcResponse
+         * @description POST /cost-est/six-tenths-rule/calculate 响应（201）。
+         *
+         *     与 ``CostEstCalcBase`` 镜像（已含 estimated_cost/currency/cost_index_year
+         *     + 6 派生列）；额外填 result_id（cost_est_id）+ equipment_id +
+         *     created_at（CostEstResult 无 record_hash/sign_status 列）。
+         */
+        SixTenthsRuleCalcResponse: {
+            /**
+             * Estimated Cost
+             * @description 估算投资 C₂
+             */
+            estimated_cost: number;
+            /**
+             * Currency
+             * @description 货币代码
+             * @default USD
+             */
+            currency: string;
+            /**
+             * Cost Index Year
+             * @description 目标年
+             * @default 2019
+             */
+            cost_index_year: number;
+            /**
+             * Base Cost
+             * @description 基准年成本 C₁
+             */
+            base_cost?: number | null;
+            /**
+             * Base Year
+             * @description 基准年
+             */
+            base_year?: number | null;
+            /**
+             * Cepci Index Base
+             * @description 基准 CEPCI
+             */
+            cepci_index_base?: number | null;
+            /**
+             * Cepci Index Target
+             * @description 目标 CEPCI
+             */
+            cepci_index_target?: number | null;
+            /**
+             * Scaling Exponent
+             * @description 六十法则 scaling 指数 n
+             */
+            scaling_exponent?: number | null;
+            /**
+             * Result Id
+             * Format: uuid
+             * @description cost_est_id（PK）
+             */
+            result_id: string;
+            /**
+             * Equipment Id
+             * Format: uuid
+             * @description 设备 UUID
+             */
+            equipment_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             * @description 创建时间
+             */
+            created_at: string;
         };
         /**
          * SizingInputSchema
@@ -18261,6 +18869,284 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["FiltrationResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calculate_six_tenths_rule_api_v1_cost_est_six_tenths_rule_calculate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SixTenthsRuleCalcRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SixTenthsRuleCalcResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calculate_cepci_adjustment_api_v1_cost_est_cepci_adjustment_calculate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CepciAdjustmentCalcRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CepciAdjustmentCalcResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calculate_cost_correlation_api_v1_cost_est_cost_correlation_calculate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CostCorrelationCalcRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostCorrelationCalcResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_cost_est_results_api_v1_cost_est_results_get: {
+        parameters: {
+            query?: {
+                equipment_id?: string | null;
+                skip?: number;
+                limit?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostEstListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_cost_est_result_api_v1_cost_est_results_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CostEstCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostEstResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_cost_est_result_api_v1_cost_est_results__result_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostEstResultResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    soft_delete_cost_est_result_api_v1_cost_est_results__result_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostEstDeleteResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_cost_est_result_api_v1_cost_est_results__result_id__patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CostEstUpdateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CostEstResultResponse"];
                 };
             };
             /** @description Validation Error */
