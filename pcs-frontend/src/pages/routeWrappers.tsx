@@ -45,8 +45,11 @@ type PipeClassLite = {
 
 import { BeddPage } from './bedd/BeddPage';
 import { AllowableStressPage } from './common/AllowableStressPage';
+import { HeatingValuePage } from './common/HeatingValuePage';
 import { PropertySearchPage } from './common/PropertySearchPage';
 import { ToxicityExplosivityPage } from './common/ToxicityExplosivityPage';
+import { CvComputePage } from './cv/CvComputePage';
+import { SaturationWaterContentPage } from './psychro/SaturationWaterContentPage';
 import { ApprovalPanelPage } from './config/ApprovalPanelPage';
 import { AssetListPage } from './config/AssetListPage';
 import { CoefficientTableEditorPage } from './config/CoefficientTableEditorPage';
@@ -198,6 +201,18 @@ export function PumpRoute(): JSX.Element {
 export function VesselRoute(): JSX.Element {
   // OPEN-4-1：移除 streams={[]} 注入，让 Page 走 streamApi 自取（CHECKED 列表）
   return <VesselComputePage />;
+}
+
+// === P6-5 前端补课：3 计算页（heating-value / saturation-water-content / cv）===
+export function HeatingValueRoute(): JSX.Element {
+  return <HeatingValuePage />;
+}
+export function SaturationWaterContentRoute(): JSX.Element {
+  return <SaturationWaterContentPage />;
+}
+export function CvRoute(): JSX.Element {
+  // 同 VesselRoute：streamApi 自取物流列表
+  return <CvComputePage />;
 }
 
 // === P5-2 SEP_EQUIP ===

@@ -37,6 +37,7 @@ const MENU_ITEMS: MenuItem[] = [
     { key: '/common/properties', label: '物性查询' },
     { key: '/common/stress', label: '许用应力' },
     { key: '/common/toxicity', label: '毒性爆炸' },
+    { key: '/common/heating-value', label: '气体热值' },
   ]),
   group('工艺计算', 'calc', [
     { key: '/flash', label: '闪蒸' },
@@ -48,6 +49,8 @@ const MENU_ITEMS: MenuItem[] = [
     { key: '/sep-equip', label: '分离设备' },
     { key: '/psv', label: '安全阀' },
     { key: '/heat', label: '换热器' },
+    { key: '/cv', label: '控制阀' },
+    { key: '/psychro/saturation-water-content', label: '饱和水含量' },
   ]),
   group('项目文档', 'docs', [
     { key: '/pms', label: 'PMS 规格' },

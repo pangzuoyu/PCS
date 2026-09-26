@@ -46,3 +46,14 @@ export interface ToxicityClass {
   explosive_limit_json?: { lel: number; uel: number };
   hazard_class: HazardClass;
 }
+// ---------------------------------------------------------------------------
+// 气体热值（C-06 / P6-4 T1；POST /common/heating-value/calculate）
+// ---------------------------------------------------------------------------
+
+import type { components } from './api';
+
+/** 气体热值计算请求：compositions [{cas, mol_frac}]（不要求和 1，service 归一化）+ excess_air_pct。 */
+export type HeatingValueCalcRequest = components['schemas']['HeatingValueCalcRequest'];
+
+/** 气体热值计算响应：HHV/LHV 双单位 + 化学计量空气 + 烟气组成/MW + formula_ref 溯源。 */
+export type HeatingValueCalcResponse = components['schemas']['HeatingValueCalcResponse'];

@@ -237,3 +237,16 @@ export interface PsychroResultListResponse {
   limit: number;                                   // 分页上限
   offset: number;                                  // 分页偏移
 }
+
+// ---------------------------------------------------------------------------
+// 饱和水含量（C-17 / P6-4 T4；POST /psychro/saturation-water-content/calculate）
+// api.d.ts 已 regen（P6-5+ G-08 baseline 滚动后），直接 re-export。
+// ---------------------------------------------------------------------------
+
+import type { components } from './api';
+
+/** 饱和水含量请求：temperature_c + pressure_kpa + acidic_gas_composition? + units（METRIC/IMPERIAL）。 */
+export type SaturationWaterContentRequest = components['schemas']['SaturationWaterContentRequest'];
+
+/** 饱和水含量响应：3 单位水含量 + 越界 warning + ISO 18453 酸性气校正 + formula_ref。 */
+export type SaturationWaterContentResponse = components['schemas']['SaturationWaterContentResponse'];

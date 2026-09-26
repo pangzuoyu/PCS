@@ -13,9 +13,11 @@ import {
   BeddRoute,
   CodeFormatRoute,
   CoefficientEditorRoute,
+  CvRoute,
   FlashRoute,
   FormulaEditorRoute,
   HeatRoute,
+  HeatingValueRoute,
   ImportWizardRoute,
   PipeClassListRoute,
   PipeLineListRoute,
@@ -26,6 +28,7 @@ import {
   PsvRoute,
   PsvStandardProfileRoute,
   PumpRoute,
+  SaturationWaterContentRoute,
   SepEquipRoute,
   StreamDetailRoute,
   StreamListRoute,
@@ -68,6 +71,7 @@ const router = createBrowserRouter([
       // 物性 / 许用应力 / 毒性爆炸
       { path: 'common/properties', element: <PropertySearchRoute /> },
       { path: 'common/stress', element: <AllowableStressRoute /> },
+      { path: 'common/heating-value', element: <HeatingValueRoute /> },
       { path: 'common/toxicity', element: <ToxicityRoute /> },
 
       // 工艺计算
@@ -83,6 +87,10 @@ const router = createBrowserRouter([
       { path: 'psv', element: <PsvRoute /> },
       { path: 'psv/standard-profile', element: <PsvStandardProfileRoute /> },
       { path: 'heat', element: <HeatRoute /> },
+
+      // 设备计算（P6-5 前端补课：CV + PSYCHRO 饱和水含量）
+      { path: 'cv', element: <CvRoute /> },
+      { path: 'psychro/saturation-water-content', element: <SaturationWaterContentRoute /> },
 
       // 项目文档 / 向导
       { path: 'pms', element: <PmsRoute /> },

@@ -222,6 +222,75 @@ const devOnlyMockHandlers = [
       { status: 201 },
     );
   }),
+
+  // === P6-5 前端补课：3 计算端点（heating-value / saturation-water-content / cv）===
+  //    固定 demo 输出（与 vessel/calculate 同模式），页面测试用 vi.mock 不走这里。
+  http.post("/api/v1/common/heating-value/calculate", async ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json(
+      {
+        feed_mw_kg_per_kmol: 17.4,
+        hhv_mj_per_sm3: 41.6,
+        hhv_btu_per_scf: 1116,
+        lhv_mj_per_sm3: 37.5,
+        lhv_btu_per_scf: 1006,
+        stoichiometric_air_sm3_per_sm3: 9.85,
+        flue_gas_sm3_per_sm3: 10.6,
+        flue_gas_composition: { CO2: 0.087, H2O: 0.173, N2: 0.73, O2: 0.0 },
+        flue_gas_mw_kg_per_kmol: 27.6,
+        formula_ref: { "74-82-8": "GPSA_23-2", mock: true },
+      },
+      { status: 200 },
+    );
+  }),
+
+  http.post("/api/v1/psychro/saturation-water-content/calculate", async ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    return HttpResponse.json(
+      {
+        saturation_w_kg_kg: 0.0201,
+        saturation_w_mg_sm3: 24700,
+        saturation_w_lb_per_mmscf: 1310,
+        saturation_T_c: 25.0,
+        temperature_out_of_range: false,
+        warning_message: null,
+        acidic_gas_correction_applied: false,
+        acidic_gas_correction_factor: 1.0,
+        formula_ref: "ASHRAE_RP-1845_CoolProp",
+      },
+      { status: 200 },
+    );
+  }),
+
+  http.post("/api/v1/cv/calculate", async ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const body = (await request.json().catch(() => ({}))) as {
+      fluid_phase?: string;
+    };
+    const isLiquid = body.fluid_phase === "LIQUID" || body.fluid_phase === "TWO_PHASE";
+    return HttpResponse.json(
+      {
+        cv_result_id: "00000000-0000-0000-0000-0000000000c7",
+        tag_number: "CV-0001",
+        fluid_phase: body.fluid_phase ?? "LIQUID",
+        Cv_calculated: 42.5,
+        Cv_selected: 50,
+        choked: false,
+        cavitation: false,
+        flashing: isLiquid,
+        noise_sil_db: 72.4,
+        // P6-4 C-24 三新字段：仅 LIQUID 路径填充（GAS 保持 null）
+        fl: isLiquid ? 0.85 : null,
+        flash_steam_rate_kg_s: isLiquid ? 0.0042 : null,
+        masonelian_model: isLiquid ? "MASONELIAN_1973" : null,
+        standard_profile_code: "IEC_60534",
+        design_stage: "BASIC",
+        record_hash: "msw-cv-hash",
+        outlet_stream_id: "00000000-0000-0000-0000-0000000000c8",
+      },
+      { status: 201 },
+    );
+  }),
 ];
 
 /** P5-3 PSV 计算 mock 响应 — 固定 FIRE 场景输出（V1.2 SPEC §7.11.5 字段对齐） */
