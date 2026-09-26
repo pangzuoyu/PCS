@@ -91,8 +91,8 @@
 
 | 跟踪号 | 类别 | 描述 | 状态 |
 |---|---|---|---|
-| SPEC-ADD-001-Q2-1 | SPEC 修订 | V1.2 §3.9.4 增补 C1 L/V_ref=242 设计工况推导 | 已 commit (`b70fb55`) |
-| SPEC-ADD-001-Q2-2 | SPEC 修订 | V1.2 §3.9.5 增补 C2 MEOH=6.63 物性表溯源 + 温度敏感性 | 已 commit (`b70fb55`) |
+| SPEC-ADD-001-Q2-1 | SPEC 修订 | C1 L/V_ref=242 设计工况推导 | 已并入主 SPEC **V1.10** §3.9.1.1（`d3e9e60`） |
+| SPEC-ADD-001-Q2-2 | SPEC 修订 | C2 MEOH=6.63 物性表溯源 + 温度敏感性 | 已并入主 SPEC **V1.10** §3.9.3.1（`d3e9e60`） |
 | TTL-TEST-001~003 | 后合并测试 | 3 个正式 TTL 单元测试（Q3 fix 配套） | **已落地**（merge `63d8e1a`） |
 | CI-P6-5-SEED | CI 任务 | alembic upgrade head + 4 seed 脚本在 pcs_test 库执行 | **已执行**（本批；本地 pcs_test，无 CI 环境 per 单人开发裁决） |
 
@@ -236,3 +236,16 @@ p6_5_005 后用 ORM metadata 全库程序化对比（不再手写表名清单）
 | ORM↔pcs drift 扫描 | **清零 ✓**（87 ORM 表全列一致） |
 | ORM↔pcs_test drift 扫描 | **清零 ✓** |
 | 全量回归（pcs_test） | 3173 passed / 5 skipped / 0 failed（保持） |
+
+---
+
+## [P6-5+] — SPEC V1.10 冻结（2026-09-26，commit d3e9e60）
+
+主 SPEC `PCS-SPEC-ADD-001` V1.9 → **V1.10（已冻结 — P6-4/P6-5+ 实施基线）**：
+
+- §3.9.1.1 并入 C1 L/V_ref=242 双层口径推导（Q2-1 v2）
+- §3.9.3.1 并入 C2 MEOH=6.63 lb/gal 物性溯源（Q2-2）
+- §0.1 V1.10 实施终态注记：24 项计算全部落地（P6-4 `849a1bb` + P6-5+ `f530daa`）
+- Q2 增补文档转编号 `PCS-SPEC-ADD-001-ATT-02`（Q2 工艺推导附件，git rename 保留历史）
+
+**P6-5+ 全部跟踪项闭环。** 剩余开口：SYNTHETIC_TEST_DATA → 真实厂商/GPSA 数据（P6-6+ 工艺工程师接管）。
