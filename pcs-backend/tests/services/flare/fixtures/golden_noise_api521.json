@@ -1,0 +1,88 @@
+[
+  {
+    "name": "ref_10m_10MW",
+    "flame_power_kw": 10.0,
+    "receiver_distance_m": 10.0,
+    "frequency_hz": 500.0,
+    "atmospheric_absorption_db_per_km": 1.5,
+    "directivity_factor_db": 3.0,
+    "expected": {
+      "sound_pressure_level_dbA": 127.985,
+      "leq_24h_dbA": 96.4013750790475
+    }
+  },
+  {
+    "name": "long_1000m_10MW",
+    "flame_power_kw": 10.0,
+    "receiver_distance_m": 1000.0,
+    "frequency_hz": 500.0,
+    "atmospheric_absorption_db_per_km": 1.5,
+    "directivity_factor_db": 3.0,
+    "expected": {
+      "sound_pressure_level_dbA": 86.5,
+      "leq_24h_dbA": 54.9163750790475
+    }
+  },
+  {
+    "name": "doubling_100m_to_200m_A0",
+    "flame_power_kw": 10.0,
+    "receiver_distance_m": 100.0,
+    "frequency_hz": 500.0,
+    "atmospheric_absorption_db_per_km": 0.0,
+    "directivity_factor_db": 3.0,
+    "expected": {
+      "sound_pressure_level_dbA": 108.0,
+      "leq_24h_dbA": 76.4163750790475
+    }
+  },
+  {
+    "name": "doubling_200m_A0",
+    "flame_power_kw": 10.0,
+    "receiver_distance_m": 200.0,
+    "frequency_hz": 500.0,
+    "atmospheric_absorption_db_per_km": 0.0,
+    "directivity_factor_db": 3.0,
+    "expected": {
+      "sound_pressure_level_dbA": 101.97940008672037,
+      "leq_24h_dbA": 70.39577516576787
+    }
+  },
+  {
+    "name": "leq_10min_6events_100m",
+    "flame_power_kw": 10.0,
+    "receiver_distance_m": 100.0,
+    "frequency_hz": 500.0,
+    "atmospheric_absorption_db_per_km": 1.5,
+    "directivity_factor_db": 3.0,
+    "event_duration_min": 10.0,
+    "n_events_per_24h": 6,
+    "expected": {
+      "sound_pressure_level_dbA": 107.85,
+      "leq_24h_dbA": 94.04788758288393
+    }
+  },
+  {
+    "name": "large_500m_50MW",
+    "flame_power_kw": 50000.0,
+    "receiver_distance_m": 500.0,
+    "frequency_hz": 500.0,
+    "atmospheric_absorption_db_per_km": 1.5,
+    "directivity_factor_db": 3.0,
+    "expected": {
+      "sound_pressure_level_dbA": 130.2602999566398,
+      "leq_24h_dbA": 98.67667503568731
+    }
+  },
+  {
+    "name": "small_50m_1MW",
+    "flame_power_kw": 1000.0,
+    "receiver_distance_m": 50.0,
+    "frequency_hz": 500.0,
+    "atmospheric_absorption_db_per_km": 1.5,
+    "directivity_factor_db": 3.0,
+    "expected": {
+      "sound_pressure_level_dbA": 133.94559991327964,
+      "leq_24h_dbA": 102.36197499232713
+    }
+  }
+]
