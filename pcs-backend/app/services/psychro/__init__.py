@@ -28,6 +28,20 @@ from __future__ import annotations
 from app.services.psychro.coolprop_version import (  # P6-2 Task 26
     get_coolprop_version,
 )
+from app.services.psychro.glycol_dehydration_service import (  # P6-5 Task C1 (C-16)
+    GlycolDehydrationError,
+    GlycolDehydrationInput,
+    GlycolDehydrationResult,
+    GlycolType,
+    calc_glycol_dehydration,
+)
+from app.services.psychro.hydrate_inhibition_service import (  # P6-5 Task C2 (C-18)
+    HydrateInhibitionError,
+    HydrateInhibitionInput,
+    HydrateInhibitionResult,
+    InhibitorType,
+    calc_hydrate_inhibition,
+)
 from app.services.psychro.psychro_persist_service import (  # P6-2 Task 26
     PsychroPersistInputError,
     get_psychro_result,
@@ -35,13 +49,6 @@ from app.services.psychro.psychro_persist_service import (  # P6-2 Task 26
     save_psychro_result,
     soft_delete_psychro_result,
     update_psychro_result,
-)
-from app.services.psychro.glycol_dehydration_service import (  # P6-5 Task C1 (C-16)
-    GlycolDehydrationError,
-    GlycolDehydrationInput,
-    GlycolDehydrationResult,
-    GlycolType,
-    calc_glycol_dehydration,
 )
 from app.services.psychro.saturation_water_content_service import (  # P6-4 Task 4 (C-17)
     SaturationWaterContentInput,
@@ -73,4 +80,10 @@ __all__ = [
     "GlycolDehydrationResult",
     "GlycolType",
     "calc_glycol_dehydration",
+    # P6-5 Task C2 (C-18) — 水合物抑制 service（Hammerschmidt + 注入率）
+    "HydrateInhibitionError",
+    "HydrateInhibitionInput",
+    "HydrateInhibitionResult",
+    "InhibitorType",
+    "calc_hydrate_inhibition",
 ]
