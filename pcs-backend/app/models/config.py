@@ -517,3 +517,237 @@ class CostCorrelationLibrary(Base):
             name="chk_cost_corr_b_nonneg",
         ),
     )
+
+
+class CompoundPasquillSigma(Base):
+    """Pasquill-Gifford σ 参数（Briggs 1973；C-22 扩散用）。
+
+    业务（P6 SPEC §3.10.2 + Briggs 1973）：
+
+    - ``stability_class`` 稳定度等级 UNIQUE A/B/C/D/E/F 6 类；
+    - ``a_y`` / ``b_y`` Briggs 横向扩散系数 σ_y = a_y·x·sqrt(1/(1+b_y·x))；
+    - ``a_z`` / ``b_z`` Briggs 垂向扩散系数 σ_z = a_z·x·sqrt(1/(1+b_z·x))；
+    - 6 行 A~F（Briggs 1973 城市/开阔地形经验系数）。
+    - ``source`` 数据来源；开发填 ``SYNTHETIC_TEST_DATA``，工艺工程师用
+      Briggs 1973 真实期号替换后改填具体期号；
+    - ``confirmed_by`` / ``confirmed_at`` 工艺室签字（占位字段）。
+
+    不继承 ``TaggedRecordMixin``（元数据表非业务计算记录）。
+    """
+
+    __tablename__ = "compound_pasquill_sigma"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+        comment="BIGINT 自增主键",
+    )
+    stability_class: Mapped[str] = mapped_column(
+        String(1), nullable=False, unique=True, index=True,
+        comment='Pasquill-Gifford 稳定度等级 UNIQUE：A/B/C/D/E/F',
+    )
+    a_y: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="Briggs 横向扩散系数 a_y（σ_y = a_y·x·sqrt(1/(1+b_y·x))）",
+    )
+    b_y: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="Briggs 横向扩散系数 b_y",
+    )
+    a_z: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="Briggs 垂向扩散系数 a_z（σ_z = a_z·x·sqrt(1/(1+b_z·x))）",
+    )
+    b_z: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="Briggs 垂向扩散系数 b_z",
+    )
+    source: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment='数据来源；开发填 "SYNTHETIC_TEST_DATA"，'
+                '真实数据填如 "Briggs_1973_open_terrain"',
+    )
+    confirmed_by: Mapped[str | None] = mapped_column(
+        String(64), nullable=True,
+        comment="工艺室确认签字人（占位 NULL，工艺室签字后填入）",
+    )
+    confirmed_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+        comment="工艺室确认签字时间（占位 NULL，签字后填入）",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
+        comment="记录创建时间（DB server_default）",
+    )
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(),
+        comment="记录更新时间（DB onupdate 触发）",
+    )
+
+
+class CompoundApi521Thresholds(Base):
+    """API 521 §5.15 辐射热通量阈值（C-22 致死/致伤用）。
+
+    业务（P6 SPEC §3.10.2 + API 521 §5.15 Table 5-15）：
+
+    - ``threshold_type`` 阈值类型 UNIQUE；如 ``INJURY``（4.7 kW/m² 致伤）
+      / ``LETHALITY``（12.6 kW/m² 致死）；
+    - ``flux_kw_m2`` 允许辐射热通量（kW/m²）；
+    - 2 行（INJURY/LETHALITY）。
+    - ``source`` 数据来源；开发填 ``SYNTHETIC_TEST_DATA``，工艺工程师用
+      API 521 真实期号替换后改填具体期号；
+    - ``confirmed_by`` / ``confirmed_at`` 工艺室签字（占位字段）。
+
+    不继承 ``TaggedRecordMixin``（元数据表非业务计算记录）。
+    """
+
+    __tablename__ = "compound_api521_thresholds"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+        comment="BIGINT 自增主键",
+    )
+    threshold_type: Mapped[str] = mapped_column(
+        String(32), nullable=False, unique=True, index=True,
+        comment='阈值类型 UNIQUE：如 "INJURY"/"LETHALITY"',
+    )
+    flux_kw_m2: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="允许辐射热通量（kW/m²）；API 521 §5.15 Table 5-15",
+    )
+    source: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment='数据来源；开发填 "SYNTHETIC_TEST_DATA"，'
+                '真实数据填如 "API521_§5.15_Table_5-15"',
+    )
+    confirmed_by: Mapped[str | None] = mapped_column(
+        String(64), nullable=True,
+        comment="工艺室确认签字人（占位 NULL，工艺室签字后填入）",
+    )
+    confirmed_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+        comment="工艺室确认签字时间（占位 NULL，签字后填入）",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
+        comment="记录创建时间（DB server_default）",
+    )
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(),
+        comment="记录更新时间（DB onupdate 触发）",
+    )
+
+
+class CompoundIso9613AtmosphericAbsorption(Base):
+    """ISO 9613-2 大气吸收系数（C-23 噪声用）。
+
+    业务（P6 SPEC §3.10.3 + ISO 9613-2）：
+
+    - ``temperature_c`` 温度（°C）+ ``humidity_pct`` 相对湿度（% RH）联合 UNIQUE；
+    - ``alpha_db_km`` 大气吸收系数 A（dB/km）；
+    - 4 行（10/15/20/25°C × 50% RH，标准工况）。
+    - ``source`` 数据来源；开发填 ``SYNTHETIC_TEST_DATA``，工艺工程师用
+      ISO 9613-2 真实期号替换后改填具体期号；
+    - ``confirmed_by`` / ``confirmed_at`` 工艺室签字（占位字段）。
+
+    不继承 ``TaggedRecordMixin``（元数据表非业务计算记录）。
+
+    唯一索引：``(temperature_c, humidity_pct)``。
+    """
+
+    __tablename__ = "compound_iso9613_atmospheric_absorption"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+        comment="BIGINT 自增主键",
+    )
+    temperature_c: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="温度（°C；与 humidity_pct 联合 UNIQUE）",
+    )
+    humidity_pct: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="相对湿度（% RH；与 temperature_c 联合 UNIQUE）",
+    )
+    alpha_db_km: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="大气吸收系数 A（dB/km；ISO 9613-2）",
+    )
+    source: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment='数据来源；开发填 "SYNTHETIC_TEST_DATA"，'
+                '真实数据填如 "ISO9613-2_§7"',
+    )
+    confirmed_by: Mapped[str | None] = mapped_column(
+        String(64), nullable=True,
+        comment="工艺室确认签字人（占位 NULL，工艺室签字后填入）",
+    )
+    confirmed_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+        comment="工艺室确认签字时间（占位 NULL，签字后填入）",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
+        comment="记录创建时间（DB server_default）",
+    )
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(),
+        comment="记录更新时间（DB onupdate 触发）",
+    )
+    __table_args__ = (
+        UniqueConstraint(
+            "temperature_c", "humidity_pct",
+            name="uq_compound_iso9613_temp_humidity",
+        ),
+    )
+
+
+class CompoundHammerschmidtK(Base):
+    """Hammerschmidt K 因子（C-18 水合物抑制用）。
+
+    业务（P6 SPEC §3.9.4 + Hammerschmidt 1934）：
+
+    - ``inhibitor_type`` 抑制剂类型 UNIQUE：MEOH / EG / DEG / TEG / NACL；
+    - ``K`` 温降常数（无量纲；Hammerschmidt 1934 Eq: ΔT = K·X / (M·(1-X))）；
+    - 5 行（MEOH=2335 / EG=2220 / DEG=2335 / TEG=2500 / NACL=1297）。
+    - ``source`` 数据来源；开发填 ``SYNTHETIC_TEST_DATA``，工艺工程师用
+      Hammerschmidt 1934 真实期号替换后改填具体期号；
+    - ``confirmed_by`` / ``confirmed_at`` 工艺室签字（占位字段）。
+
+    不继承 ``TaggedRecordMixin``（元数据表非业务计算记录）。
+    """
+
+    __tablename__ = "compound_hammerschmidt_K"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+        comment="BIGINT 自增主键",
+    )
+    inhibitor_type: Mapped[str] = mapped_column(
+        String(32), nullable=False, unique=True, index=True,
+        comment='抑制剂类型 UNIQUE：MEOH/EG/DEG/TEG/NACL',
+    )
+    K: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="Hammerschmidt K 因子（无量纲；ΔT = K·X / (M·(1-X))）",
+    )
+    source: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment='数据来源；开发填 "SYNTHETIC_TEST_DATA"，'
+                '真实数据填如 "Hammerschmidt_1934"',
+    )
+    confirmed_by: Mapped[str | None] = mapped_column(
+        String(64), nullable=True,
+        comment="工艺室确认签字人（占位 NULL，工艺室签字后填入）",
+    )
+    confirmed_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+        comment="工艺室确认签字时间（占位 NULL，签字后填入）",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
+        comment="记录创建时间（DB server_default）",
+    )
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(),
+        comment="记录更新时间（DB onupdate 触发）",
+    )

@@ -46,9 +46,10 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Literal
 
+from app.services._compound_config_cache import get_hammerschmidt_K_table
 from app.services.exceptions import PcsError
 
-# Hammerschmidt 1934 K 因子（按文献；H-2 v1 BLOCKER 锁定）
+# Hammerschmidt 1934 K 因子（按文献；H-2 v1 BLOCKER 锁定）— DB fallback
 _HAMMERSCHMIDT_K: Final[dict[str, float]] = {
     "MEOH": 2335.0,
     "EG": 2220.0,
@@ -56,6 +57,12 @@ _HAMMERSCHMIDT_K: Final[dict[str, float]] = {
     "TEG": 2500.0,
     "NACL": 1297.0,
 }
+
+
+def _resolve_hammerschmidt_K() -> dict[str, float]:
+    """5 min TTL 缓存加载 Hammerschmidt K 因子；DB 不可达时 fallback 到内联常量。"""
+    db_table = get_hammerschmidt_K_table()
+    return db_table if db_table else _HAMMERSCHMIDT_K
 
 # 抑制剂分子量（g/mol；MEOH=32.04 / EG=62.07 / DEG=106.12 / TEG=150.17 / NACL=58.44）
 _INHIBITOR_MW: Final[dict[str, float]] = {
@@ -184,7 +191,9 @@ def calc_hydrate_inhibition(
     """
     _validate_input(inp)
 
-    K = _HAMMERSCHMIDT_K[inp.hydrate_inhibitor_type]
+    # C5: 5 min TTL cache 加载；DB 失败 fallback 到内联 _HAMMERSCHMIDT_K
+    K_table = _resolve_hammerschmidt_K()
+    K = K_table[inp.hydrate_inhibitor_type]
     mw = _INHIBITOR_MW[inp.hydrate_inhibitor_type]
     rho = _INHIBITOR_DENSITY_LB_PER_GAL[inp.hydrate_inhibitor_type]
 

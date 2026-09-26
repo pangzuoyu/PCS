@@ -18,10 +18,15 @@ import math
 from dataclasses import dataclass
 from typing import Final, Literal
 
+from app.services._compound_config_cache import (
+    get_api521_thresholds_table,
+    get_pasquill_sigma_table,
+)
 from app.services.exceptions import PcsError
 
 PasquillClass = Literal["A", "B", "C", "D", "E", "F"]
 
+# 内联常量：fallback（DB 不可达 / 表空时使用）。
 _BRIGGS_SIGMA: Final[dict[str, tuple[float, float, float, float]]] = {
     "A": (0.22, 0.0001, 0.20, 0.0),
     "B": (0.16, 0.0001, 0.12, 0.0),
@@ -35,6 +40,26 @@ _HEAT_OF_COMBUSTION_MJ_PER_KG: Final[float] = 50.0
 
 _INJURY_THRESHOLD_KW_M2: Final[float] = 4.7
 _LETHALITY_THRESHOLD_KW_M2: Final[float] = 12.6
+
+
+def _resolve_pasquill_sigma() -> dict[str, tuple[float, float, float, float]]:
+    """5 min TTL 缓存加载 Briggs 1973 系数；DB 不可达时 fallback 到内联常量。
+
+    返回字典（DB 命中 → DB 数据；DB 失败 → _BRIGGS_SIGMA）。
+    """
+    db_table = get_pasquill_sigma_table()
+    return db_table if db_table else _BRIGGS_SIGMA
+
+
+def _resolve_api521_thresholds() -> tuple[float, float]:
+    """5 min TTL 缓存加载 API 521 §5.15 阈值；DB 不可达时 fallback 到内联常量。
+
+    返回 ``(injury_kw_m2, lethality_kw_m2)`` 元组。
+    """
+    db_table = get_api521_thresholds_table()
+    if db_table and "INJURY" in db_table and "LETHALITY" in db_table:
+        return db_table["INJURY"], db_table["LETHALITY"]
+    return _INJURY_THRESHOLD_KW_M2, _LETHALITY_THRESHOLD_KW_M2
 
 
 class DispersionInputError(PcsError):
@@ -113,7 +138,9 @@ def calc_dispersion(inp: DispersionInput) -> DispersionResult:
     x = inp.downwind_distance_m
     H = inp.release_height_m
     u = inp.wind_speed_m_s
-    a_y, b_y, a_z, b_z = _BRIGGS_SIGMA[inp.pasquill_stability_class]
+    # C5: 5 min TTL cache 加载；DB 失败 fallback 到内联 _BRIGGS_SIGMA
+    pasquill_table = _resolve_pasquill_sigma()
+    a_y, b_y, a_z, b_z = pasquill_table[inp.pasquill_stability_class]
 
     sigma_y = _sigma_briggs(x, a_y, b_y)
     sigma_z = _sigma_briggs(x, a_z, b_z)
@@ -126,8 +153,10 @@ def calc_dispersion(inp: DispersionInput) -> DispersionResult:
     Q_comb_w = inp.gas_release_rate_kg_s * _HEAT_OF_COMBUSTION_MJ_PER_KG * 1.0e6
     q_ref = Q_comb_w / (4.0 * math.pi * r_ref * r_ref) / 1000.0  # kW/m²
 
-    r_injury = _solve_distance_for_flux(Q_comb_w, _INJURY_THRESHOLD_KW_M2 * 1000.0)
-    r_lethality = _solve_distance_for_flux(Q_comb_w, _LETHALITY_THRESHOLD_KW_M2 * 1000.0)
+    # C5: 5 min TTL cache 加载 API 521 §5.15 阈值
+    injury_kw_m2, lethality_kw_m2 = _resolve_api521_thresholds()
+    r_injury = _solve_distance_for_flux(Q_comb_w, injury_kw_m2 * 1000.0)
+    r_lethality = _solve_distance_for_flux(Q_comb_w, lethality_kw_m2 * 1000.0)
 
     return DispersionResult(
         centerline_conc_mol_m3=conc,
@@ -141,8 +170,12 @@ def calc_dispersion(inp: DispersionInput) -> DispersionResult:
             "concentration": "API 521 §5.15 / Briggs 1973 (point source Gaussian, 含地面反射)",
             "sigma": "Briggs 1973 Pasquill-Gifford σ_y/z",
             "radiation": "API 521 §5.15 点源辐射模型 q = Q_comb/(4π·r²)",
-            "injury_threshold": "API 521 §5.15 Table 5-15 (4.7 kW/m²)",
-            "lethality_threshold": "API 521 §5.15 Table 5-15 (12.6 kW/m²)",
+            "injury_threshold": (
+                f"API 521 §5.15 Table 5-15 ({injury_kw_m2} kW/m²; C5: CONFIG 表优先)"
+            ),
+            "lethality_threshold": (
+                f"API 521 §5.15 Table 5-15 ({lethality_kw_m2} kW/m²; C5: CONFIG 表优先)"
+            ),
         },
     )
 

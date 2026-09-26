@@ -14,6 +14,7 @@ import math
 from dataclasses import dataclass
 from typing import Final
 
+from app.services._compound_config_cache import get_iso9613_abs_default_db_per_km
 from app.services.exceptions import PcsError
 
 _API_521_REFERENCE_LW_DBA: Final[float] = 145.0
@@ -22,6 +23,12 @@ _REFERENCE_FLAME_POWER_KW: Final[float] = 10.0
 _DEFAULT_ATM_ABS_DB_PER_KM: Final[float] = 1.5
 
 _24H_IN_MINUTES: Final[float] = 1440.0
+
+
+def _resolve_default_atm_abs_db_per_km() -> float:
+    """5 min TTL 缓存加载 ISO 9613-2 默认大气吸收系数；DB 不可达时 fallback 到内联常量。"""
+    db_value = get_iso9613_abs_default_db_per_km()
+    return db_value if db_value is not None else _DEFAULT_ATM_ABS_DB_PER_KM
 
 
 class FlareNoiseInputError(PcsError):
@@ -34,7 +41,8 @@ class FlareNoiseInput:
     flame_power_kw: float
     receiver_distance_m: float
     frequency_hz: float = 500.0
-    atmospheric_absorption_db_per_km: float = _DEFAULT_ATM_ABS_DB_PER_KM
+    # C5: None → 5 min TTL cache 解析（fallback 到内联 _DEFAULT_ATM_ABS_DB_PER_KM）
+    atmospheric_absorption_db_per_km: float | None = None
     directivity_factor_db: float = 3.0
     event_duration_min: float = 1.0
     n_events_per_24h: int = 1
@@ -56,7 +64,10 @@ def _validate_input(inp: FlareNoiseInput) -> None:
         raise FlareNoiseInputError(f"r={inp.receiver_distance_m} 必须 > 0")
     if inp.frequency_hz <= 0:
         raise FlareNoiseInputError(f"f={inp.frequency_hz} 必须 > 0")
-    if inp.atmospheric_absorption_db_per_km < 0:
+    if (
+        inp.atmospheric_absorption_db_per_km is not None
+        and inp.atmospheric_absorption_db_per_km < 0
+    ):
         raise FlareNoiseInputError("大气吸收系数必须 ≥ 0")
     if inp.event_duration_min <= 0:
         raise FlareNoiseInputError("事件持续时间必须 > 0")
@@ -86,11 +97,17 @@ def calc_flare_noise(inp: FlareNoiseInput) -> FlareNoiseResult:
     """
     _validate_input(inp)
 
+    # C5: 5 min TTL cache 解析大气吸收系数；None → cache fallback (1.5 dB/km)
+    if inp.atmospheric_absorption_db_per_km is None:
+        A_db_per_km = _resolve_default_atm_abs_db_per_km()
+    else:
+        A_db_per_km = inp.atmospheric_absorption_db_per_km
+
     L_w = _flame_power_to_lw(inp.flame_power_kw)
     L_p = (
         L_w
         - 20.0 * math.log10(inp.receiver_distance_m)
-        - inp.atmospheric_absorption_db_per_km * inp.receiver_distance_m / 1000.0
+        - A_db_per_km * inp.receiver_distance_m / 1000.0
         + inp.directivity_factor_db
     )
 
