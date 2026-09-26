@@ -93,8 +93,8 @@
 |---|---|---|---|
 | SPEC-ADD-001-Q2-1 | SPEC 修订 | V1.2 §3.9.4 增补 C1 L/V_ref=242 设计工况推导 | 已 commit (`b70fb55`) |
 | SPEC-ADD-001-Q2-2 | SPEC 修订 | V1.2 §3.9.5 增补 C2 MEOH=6.63 物性表溯源 + 温度敏感性 | 已 commit (`b70fb55`) |
-| TTL-TEST-001~003 | 后合并测试 | 3 个正式 TTL 单元测试（Q3 fix 配套） | **已落地**（本批） |
-| CI-P6-5-SEED | CI 任务 | alembic upgrade head + 4 seed 脚本在 CI pcs_test 库执行 | 待 CI 环境就绪 |
+| TTL-TEST-001~003 | 后合并测试 | 3 个正式 TTL 单元测试（Q3 fix 配套） | **已落地**（merge `63d8e1a`） |
+| CI-P6-5-SEED | CI 任务 | alembic upgrade head + 4 seed 脚本在 pcs_test 库执行 | **已执行**（本批；本地 pcs_test，无 CI 环境 per 单人开发裁决） |
 
 ### 分支状态
 
@@ -167,3 +167,42 @@
 |---|---|---|---|
 | ... | ... | ... | ... |
 ```
+
+---
+
+## [P6-5+] — follow-up: CI-P6-5-SEED 落地 + 全量回归暴露的 6 项修复（2026-09-26）
+
+### CI-P6-5-SEED 执行（pcs_test 对齐）
+
+| 步骤 | 结果 |
+|---|---|
+| `alembic upgrade head`（p6_4_004 → p6_5_004） | 4 迁移全过 |
+| 4 seed 脚本 | pasquill_sigma 6 行 / api521_thresholds 2 行 / iso9613 4 行 / hammerschmidt_K 5 行（合计 17 行，`SYNTHETIC_TEST_DATA` 标记） |
+| 表名核对 | `compound_hammerschmidt_K`（大写 K，与 ORM `config.py` 一致） |
+| flare+psychro 回归 | 186 passed / 0 skipped —— 原 5 个 DB 依赖 skip 全部解除并通过（seed 生效直接证据） |
+
+### 全量回归暴露的 6 项缺陷与修复
+
+首次对齐 pcs_test 后跑全量（3178 用例）暴露 24 failed；逐一定性后 6 项修复：
+
+| # | 缺陷 | 根因 | 严重度 | 修复 |
+|---|---|---|---|---|
+| 1 | 19 个 validator/meta 测试失败（`Severity` 无 `ERROR`、`StreamDataMode` 空） | commit `a5f9360`（P5c-low docstring 补全）误把 3 个枚举的成员行替换成 docstring | HIGH（SYM/FMT 验证器 + meta enums API 全挂） | 恢复成员：`Severity.ERROR/WARN` ×2 + `StreamDataMode.CHEMICAL/PETROLEUM/SOLID` |
+| 2 | `heat_results`/`vessel_results`/`cv_results`/`restriction_results`/`equipment_list` 真库 INSERT 必炸 | ORM `RecordMixin` 在 20 表映射审计三件套，历史迁移只落了 15 表（`p4_calc_audit_fields` 仅 5 表 + P6-2+ 新建表自带） | **HIGH（生产缺陷）** | 新迁移 `p6_5_005_audit_trio_drift_fix`：5 表 × 3 列 nullable（沿 P6-OPEN-009 psv 先例） |
+| 3 | `test_reversible_segment_roundtrip` 降级链炸（`psychro_results` RENAME 时表不存在） | `p6_2_001` downgrade 只 drop 不还原 v3_1 stub，下层 `p5_0_4a` downgrade 引用缺失表 | MEDIUM | `p6_2_001` downgrade 还原 cooling_tower/psychro 两张 stub（p5_0_4a 改名后 PK 形态；flare 在链上无创建者不还原） |
+| 4 | `test_table_count` 期望 84 实际 88 | P6-5 批次加 4 张 CONFIG 表未更新断言（实施时 pcs_test 未对齐故未暴露） | LOW | 断言 84 → 88 |
+| 5 | `test_p4_flash_full_path` NOT NULL 炸 | `FlareSystemResult.calc_type` NOT NULL（P6-2 加），测试 fixture 漏传 | LOW | fixture 补 `calc_type="RELIEF_SUMMARY"` |
+| 6 | `test_heat_aggregator_g07_real_pcs_test` 两连炸 | ①缺陷 2 的三件套缺失；②fixture 漏 `workspace_id`（RecordMixin NOT NULL，真库用例从未绿过） | MEDIUM | ①迁移矫正；②3 个 HeatResult 补 `workspace_id` |
+
+### 验证
+
+| 项 | 结果 |
+|---|---|
+| 24 个原失败用例重跑 | **24/24 通过** |
+| 全量回归（对齐 pcs_test） | **3173 passed / 5 skipped / 0 failed**（修复前 24 failed / 3149 passed） |
+| ruff（全部改动文件） | All checks passed |
+| roundtrip（head → p3sim 锚点 → head） | 通过（首次全链可逆） |
+
+### 已知残留
+
+- **pcs 开发库**（`DATABASE_URL` 默认指向）停在 `p6_3_002`，落后 10 个迁移（P6-4 ×4 + P6-5 ×4 + 矫正 ×1 + gate_03）。应用层连开发库时 CONFIG 服务走内联 fallback 常量（设计如此）；P6-4 起的 `*_results` 新列在开发库缺失会影响落库。是否推进开发库迁移待用户裁决。

@@ -287,6 +287,7 @@ async def test_heat_aggregator_g07_real_pcs_test() -> None:
     async with factory() as session:
         hr1 = HeatResult(
             project_id=project_id,
+            workspace_id=workspace_id,
             tag_number=f"HEAT-{uuid.uuid4().hex[:6]}",
             exchanger_category="SHELL_TUBE",
             duty=duty_shell,
@@ -297,6 +298,7 @@ async def test_heat_aggregator_g07_real_pcs_test() -> None:
         )
         hr2 = HeatResult(
             project_id=project_id,
+            workspace_id=workspace_id,
             tag_number=f"HEAT-{uuid.uuid4().hex[:6]}",
             exchanger_category="PLATE",
             duty=duty_plate,
@@ -307,6 +309,7 @@ async def test_heat_aggregator_g07_real_pcs_test() -> None:
         )
         hr3 = HeatResult(
             project_id=project_id,
+            workspace_id=workspace_id,
             tag_number=f"HEAT-{uuid.uuid4().hex[:6]}",
             exchanger_category="AIR_COOL",
             duty=duty_air,

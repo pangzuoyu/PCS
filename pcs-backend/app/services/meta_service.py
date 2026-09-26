@@ -61,6 +61,11 @@ class StreamDataMode(str, Enum):
     统一消费此 enum 渲染不同字段集（组分/石油/固体）。
     """
 
+    CHEMICAL = "CHEMICAL"
+    PETROLEUM = "PETROLEUM"
+    SOLID = "SOLID"
+
+
 # 状态色 + icon 与 pcs-frontend/src/styles/tokens.css + PCS-UI-SPEC §6.1 对齐
 _STATE_META: dict[str, dict[str, str]] = {
     "DRAFT":              {"color": "state-draft",           "icon": "EditOutlined"},
