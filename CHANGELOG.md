@@ -91,9 +91,9 @@
 
 | 跟踪号 | 类别 | 描述 | 状态 |
 |---|---|---|---|
-| SPEC-ADD-001-Q2-1 | SPEC 修订 | V1.2 §3.9.4 增补 C1 L/V_ref=242 设计工况推导 | 立项 |
-| SPEC-ADD-001-Q2-2 | SPEC 修订 | V1.2 §3.9.5 增补 C2 MEOH=6.63 物性表溯源 + 温度敏感性 | 立项 |
-| TTL-TEST-001~003 | 后合并测试 | 3 个正式 TTL 单元测试（Q3 fix 配套） | 待实施 |
+| SPEC-ADD-001-Q2-1 | SPEC 修订 | V1.2 §3.9.4 增补 C1 L/V_ref=242 设计工况推导 | 已 commit (`b70fb55`) |
+| SPEC-ADD-001-Q2-2 | SPEC 修订 | V1.2 §3.9.5 增补 C2 MEOH=6.63 物性表溯源 + 温度敏感性 | 已 commit (`b70fb55`) |
+| TTL-TEST-001~003 | 后合并测试 | 3 个正式 TTL 单元测试（Q3 fix 配套） | **已落地**（本批） |
 | CI-P6-5-SEED | CI 任务 | alembic upgrade head + 4 seed 脚本在 CI pcs_test 库执行 | 待 CI 环境就绪 |
 
 ### 分支状态
@@ -104,6 +104,39 @@
 - pytest flare+psychro: 181 passed / 5 skipped
 - C-12 frozen contract: 未触碰
 - SDD ledger: `.superpowers/sdd/2026-09-26-p6-5-batch/progress.md`
+
+---
+
+## [P6-5+] — follow-up: 3 TTL 正式单元测试（2026-09-26）
+
+### 范围
+
+架构组 Q3 裁决"合并后立即补测"——为 commit `e35064b` 的真实 5-min TTL 机制补 3 个正式单元测试，固化不变量回归。
+
+| 跟踪号 | 测试 | 验证不变量 |
+|---|---|---|
+| TTL-TEST-001 | `test_cache_ttl_expiry_triggers_reload` | TTL=300s：t=0 首次加载命中 loader；TTL 内命中 cache；t=301 触发重载 |
+| TTL-TEST-002 | `test_cache_clear_all_caches_forces_reload` | TTL 内连续命中 cache；`clear_all_caches()` 后下次调用强制重载 |
+| TTL-TEST-003 | `test_cache_per_key_isolation` | key A TTL 过期触发重载，key B 在 TTL 内继续命中 cache（per-key 隔离） |
+
+### 测试设计
+
+- **隔离 DB 依赖**：`patch.object(_compound_config_cache, "_load_with_fallback", ...)` 把 SQLAlchemy engine 装载短路为受控返回值；不依赖真库 / alembic / seed 数据
+- **可控时钟**：`patch.object(_compound_config_cache.time, "monotonic")` 模拟时间快进，避免 sleep 300s
+- **走公开入口**：用 `get_pasquill_sigma_table()` / `get_api521_thresholds_table()`，覆盖生产代码的真实 TTL 路径（含锁 + 缓存状态字典）
+
+### 验证
+
+| 项 | 命令 | 结果 |
+|---|---|---|
+| 新测试 | `uv run pytest tests/services/test_compound_config_cache.py -v` | 3 passed, 0 skipped, 0.51s |
+| 回归（cache consumers） | `uv run pytest tests/services/flare/ tests/services/psychro/ -q` | 181 passed, 5 skipped（与 C5 baseline 一致） |
+| ruff | `uv run ruff check tests/services/test_compound_config_cache.py app/services/_compound_config_cache.py` | All checks passed |
+
+### 文件
+
+- 新建：`pcs-backend/tests/services/test_compound_config_cache.py`（101 LOC）
+- 改动：0（仅新增测试文件，未触碰 `_compound_config_cache.py` 145 LOC 实现）
 
 ---
 
