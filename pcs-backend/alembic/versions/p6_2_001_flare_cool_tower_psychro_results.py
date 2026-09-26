@@ -321,12 +321,56 @@ def upgrade() -> None:
     )
 
 
-def downgrade() -> None:
-    """逆序 drop 3 张 P6-2 表；v3_1 stub 由 dd47298c9c38_v3_1_full_schema 重建。
+def _v31_stub_biz_columns(with_calc_type: bool = False) -> list[sa.Column]:
+    """v3_1 stub 业务列还原：input_json / output_json（psychro 另有 calc_type）。
 
-    alembic 不会自动重跑历史迁移；downgrade -1 后需手动 upgrade 恢复 stub。
+    dd47298c9c38 stub 形态 = PK + 容器列（psychro 多 calc_type）+ mixin；
+    本 helper 只给容器列，mixin 由 _create_calc_table 统一追加。
+    """
+    cols: list[sa.Column] = []
+    if with_calc_type:
+        cols.append(
+            sa.Column("calc_type", sa.String(length=30), nullable=False),
+        )
+    cols.append(
+        sa.Column("input_json", JSONB(astext_type=sa.Text()), nullable=False),
+    )
+    cols.append(
+        sa.Column("output_json", JSONB(astext_type=sa.Text()), nullable=False),
+    )
+    return cols
+
+
+def downgrade() -> None:
+    """逆序 drop 3 张 P6-2 表 + 还原 cooling_tower / psychro 两张 v3_1 stub。
+
+    stub 形态 = dd47298c9c38 v3_1 简化版 + p5_0_4a PK rename 后状态
+    （PK cooling_tower_id / psychro_id；psychro 含 calc_type），使后续
+    p5_0_4a downgrade 的 PK 改回（→ ct_calc_id / psychro_calc_id）可执行
+    （TODO-040 round-trip head→p3sim 锚点修复）。
+
+    flare_system_results 在 p6_2_001 之前链上无创建者（历史 stub 仅存在于
+    手工矫正过的库），不还原；upgrade 侧 if_exists=True 与此对称。
     """
     # 逆序 drop（3 张表之间无 FK）
     op.drop_table("psychro_results")
     op.drop_table("cooling_tower_results")
     op.drop_table("flare_system_results")
+
+    # 还原 v3_1 stub（p5_0_4a 改名后 PK；psychro 多 calc_type）
+    _create_calc_table(
+        "cooling_tower_results",
+        sa.Column(
+            "cooling_tower_id", sa.Uuid(), nullable=False,
+            comment="PK（DICT V3.3 §4.1；v3_1 stub 还原）",
+        ),
+        _v31_stub_biz_columns(),
+    )
+    _create_calc_table(
+        "psychro_results",
+        sa.Column(
+            "psychro_id", sa.Uuid(), nullable=False,
+            comment="PK（DICT V3.3 §4.1；v3_1 stub 还原）",
+        ),
+        _v31_stub_biz_columns(with_calc_type=True),
+    )

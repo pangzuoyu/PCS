@@ -48,8 +48,11 @@ def test_table_count(inspector):
     #   仅 ADD COLUMN IF NOT EXISTS 补齐派生字段）。
     # P6-4 T1 新增 p6_4_001 compound_heating_values CONFIG 表 = 83 + alembic_version
     #   = 84 incl. alembic_version。
-    #   测试断言 84（含 alembic_version）= 实际 PCS 后端 schema 终态。
-    assert len(tables) == 84, f"expected 84 incl. alembic_version, got {len(tables)}"
+    # P6-5 C5 新增 4 张 CONFIG 表（compound_pasquill_sigma /
+    #   compound_api521_thresholds / compound_iso9613_atmospheric_absorption /
+    #   compound_hammerschmidt_K）= 87 + alembic_version = 88 incl. alembic_version。
+    #   测试断言 88（含 alembic_version）= 实际 PCS 后端 schema 终态。
+    assert len(tables) == 88, f"expected 88 incl. alembic_version, got {len(tables)}"
 
 
 def test_required_tables_present(inspector):

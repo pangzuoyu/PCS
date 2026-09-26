@@ -432,6 +432,7 @@ async def test_p4_flash_full_path(db_session):
         project_id=uuid.uuid4(),
         workspace_id=uuid.uuid4(),
         tag_number="FL-001",
+        calc_type="RELIEF_SUMMARY",
         input_json={"feed": "C1", "heat_duty": 1.2e6},
         output_json={},
     )

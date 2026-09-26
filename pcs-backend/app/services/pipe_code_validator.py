@@ -22,6 +22,9 @@ from enum import Enum
 class Severity(str, Enum):
     """验证规则严重级别：ERROR 拦截 / WARN 仅警告。"""
 
+    ERROR = "ERROR"
+    WARN = "WARN"
+
 
 @dataclass
 class FmtValidationResult:
