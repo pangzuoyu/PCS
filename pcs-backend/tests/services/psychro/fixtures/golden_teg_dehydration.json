@@ -1,0 +1,51 @@
+{
+  "_comment": "P6-5 Task C1 (C-16 PSYCHRO 甘醇脱水) GPSA §20.4 + 经验 TEG 损失黄金对账 fixture。固化时间：2026-09-26。固化源：GPSA Engineering Data Book §20.4 (Fig.20-4 Tray Contactor + Eq.20-4 N_min + 经验 TEG 损失 0.5 gal/MMscf) + SPEC §3.9.1 V1.1。",
+  "_tolerance_rel": 1e-2,
+  "_reference_standard": "GPSA Engineering Data Book §20.4 + SPEC §3.9.1 V1.1",
+  "points": [
+    {
+      "_note": "Baseline 8 塔盘 + 3 gpm + 10 MMscfd + TEG 99.3% 效率",
+      "gas_flow_mmscfd": 10.0,
+      "inlet_water_lb_per_mmscf": 15.0,
+      "outlet_water_lb_per_mmscf": 0.1,
+      "glycol_type": "TEG",
+      "contactor_tray_count": 8,
+      "glycol_circulation_gpm": 3.0,
+      "expected_n_tray_minimum": 4,
+      "expected_tegloss_gal_d": 5.0
+    },
+    {
+      "_note": "高 L/V 修正 — 循环量加倍 (6 gpm) 时 L/V 提升，超容差带，N_min 由 4 减至 3（D_in 增）",
+      "gas_flow_mmscfd": 10.0,
+      "inlet_water_lb_per_mmscf": 15.0,
+      "outlet_water_lb_per_mmscf": 0.1,
+      "glycol_type": "TEG",
+      "contactor_tray_count": 6,
+      "glycol_circulation_gpm": 6.0,
+      "expected_n_tray_minimum": 3,
+      "expected_tegloss_gal_d": 5.0
+    },
+    {
+      "_note": "更大流量 50 MMscfd + 高 inlet 30 lb/MMscf + 按比例循环 150 gpm — y_in/y_out = 150（与 baseline 同）；L/V ≈ 1209（远超参考 242），c=0.5 修正后 N_min = 2",
+      "gas_flow_mmscfd": 50.0,
+      "inlet_water_lb_per_mmscf": 30.0,
+      "outlet_water_lb_per_mmscf": 0.2,
+      "glycol_type": "TEG",
+      "contactor_tray_count": 8,
+      "glycol_circulation_gpm": 150.0,
+      "expected_n_tray_minimum": 2,
+      "expected_tegloss_gal_d": 25.0
+    },
+    {
+      "_note": "DEG — 相对挥发度较低 → N_min 较高 (α=2.8 → ceil(5.01/1.03) ≈ 5)",
+      "gas_flow_mmscfd": 10.0,
+      "inlet_water_lb_per_mmscf": 15.0,
+      "outlet_water_lb_per_mmscf": 0.1,
+      "glycol_type": "DEG",
+      "contactor_tray_count": 8,
+      "glycol_circulation_gpm": 3.0,
+      "expected_n_tray_minimum": 5,
+      "expected_tegloss_gal_d": 5.0
+    }
+  ]
+}

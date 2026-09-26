@@ -36,6 +36,13 @@ from app.services.psychro.psychro_persist_service import (  # P6-2 Task 26
     soft_delete_psychro_result,
     update_psychro_result,
 )
+from app.services.psychro.glycol_dehydration_service import (  # P6-5 Task C1 (C-16)
+    GlycolDehydrationError,
+    GlycolDehydrationInput,
+    GlycolDehydrationResult,
+    GlycolType,
+    calc_glycol_dehydration,
+)
 from app.services.psychro.saturation_water_content_service import (  # P6-4 Task 4 (C-17)
     SaturationWaterContentInput,
     SaturationWaterContentInputError,
@@ -60,4 +67,10 @@ __all__ = [
     "SaturationWaterContentResult",
     "calc_saturation_water_content",
     "calc_saturation_water_content_metric",
+    # P6-5 Task C1 (C-16) — TEG/DEG 甘醇脱水 service（接触塔设计）
+    "GlycolDehydrationError",
+    "GlycolDehydrationInput",
+    "GlycolDehydrationResult",
+    "GlycolType",
+    "calc_glycol_dehydration",
 ]
