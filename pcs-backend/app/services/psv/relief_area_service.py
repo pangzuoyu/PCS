@@ -44,6 +44,10 @@ from dataclasses import dataclass
 from typing import Final, Literal
 
 from app.services.exceptions import PcsError
+from app.services.psv.api2000_emergency_service import (
+    Api2000ReliefInput,
+    calc_api2000_relief_capacity,
+)
 
 # ---------- 类型别名 ----------
 
@@ -437,6 +441,48 @@ def calc_relief_area(
     raise PsvReliefAreaInputError(f"standard={standard} 不支持")
 
 
+# ---------- API 2000 大气压/低压储罐委派（P6-5 B4）----------
+
+
+def calc_relief_area_api2000_atmospheric(
+    api2000_inp: Api2000ReliefInput,
+    *,
+    P_set_pa: float,
+    P_back_pa: float,
+    rho_g_kg_m3: float = 1.225,
+    T_k: float = 300.0,
+    M_kg_per_mol: float = 0.029,
+    k_cp_ratio: float = 1.4,
+    Z: float = 1.0,
+) -> ReliefAreaResult:
+    """API 2000 7th Ed 大气压/低压储罐 emergency/fire/vacuum 泄放面积委派。
+
+    步骤：
+      1. 委派 calc_api2000_relief_capacity 算通风量（W / m³/h）
+      2. 转换 m³/h → kg/s：mass_flow = Q_m3h * rho_g / 3600
+      3. 委派 calc_relief_area_api520_gas 算泄放面积（API 520 9th Ed. §5.6.3）
+
+    适用工况：API 2000 EMERGENCY / FIRE / VACUUM（储罐通风场景）；
+    非储罐场景（管道/容器 PSV）不走此入口，仍走 calc_relief_area(inp, standard="API")。
+    """
+    cap = calc_api2000_relief_capacity(api2000_inp)
+    q_m3h = cap.required_relief_rate_m3_h
+    mass_flow_kgs = q_m3h * rho_g_kg_m3 / 3600.0
+
+    gas_inp = ReliefAreaInput(
+        relief_mass_flow_kgs=mass_flow_kgs,
+        phase="GAS",
+        P_back_pa=P_back_pa,
+        P_set_pa=P_set_pa,
+        rho_L_kg_m3=rho_g_kg_m3,
+        T_k=T_k,
+        M_kg_per_mol=M_kg_per_mol,
+        Z=Z,
+        k_cp_ratio=k_cp_ratio,
+    )
+    return calc_relief_area_api520_gas(gas_inp)
+
+
 # ---------- 辅助 ----------
 
 
@@ -473,6 +519,7 @@ __all__ = [
     "calc_relief_area_api520_gas",
     "calc_relief_area_api520_liquid",
     "calc_relief_area_api520_two_phase",
+    "calc_relief_area_api2000_atmospheric",
     "calc_relief_area_gb12241",
     "PsvReliefAreaInputError",
 ]
