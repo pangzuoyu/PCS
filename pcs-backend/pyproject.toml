@@ -25,6 +25,7 @@ dependencies = [
     "thermo==0.6.1",
     "CoolProp==6.6.0",    # ADR-0030 V1.2 (P6-0)：P6 PSYCHRO 业务必需 (HAPropsSI)；D3 V1.1 反向决议
     "python-multipart>=0.0.32",
+    "xlrd>=2.0",
 ]
 
 [dependency-groups]
