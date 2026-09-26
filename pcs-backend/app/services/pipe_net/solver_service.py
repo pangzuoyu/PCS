@@ -20,6 +20,8 @@
 - 不引入新依赖（纯 Python；无 numpy）。
 - 高程修正：ρgΔz 静态部分从总 dp 中分离（不参与迭代）；最终压力回推时
   由 calc_chain 的 total_dp 自动包含 elevation。
+
+P6-5+C-13 浪涌压力（surge_pressure）独立模块；本文件仅复用 pipe_chain/topology。
 """
 from __future__ import annotations
 

@@ -1,0 +1,72 @@
+{
+  "_comment": "P6-5 Task B2 三相分离器 golden fixture：3 例覆盖 HORIZONTAL/VERTICAL + 低流量通过 + 高流量越界。手算对照见 SPEC §3.4.3 V1.5 + GPSA §4.4。",
+  "_formula_refs": {
+    "oil_water_interface": "H_ow = H·(ρ_w - ρ_oil)/(ρ_w - ρ_g) [SPEC §3.4.3 Eq.1]",
+    "residence_time": "t_r_liquid = V_partial / Q_liquid · 1440 [GPSA §4.4]",
+    "volumetric_flow": "Q = m_dot / ρ",
+    "vessel_partial_volume": "调用 C-12 calc_partial_volume (D7 接口冻结)"
+  },
+  "cases": [
+    {
+      "id": "horizontal_standard_low_flow",
+      "vessel_shape": "HORIZONTAL",
+      "diameter_m": 3.0,
+      "length_m": 10.0,
+      "head_type": "2:1_ELLIPTICAL",
+      "oil_mass_rate_kg_d": 100.0,
+      "water_mass_rate_kg_d": 50.0,
+      "gas_mass_rate_kg_d": 200.0,
+      "oil_density_kg_m3": 800.0,
+      "water_density_kg_m3": 1000.0,
+      "gas_density_kg_m3": 50.0,
+      "weir_height_m": 0.5,
+      "oil_water_interface_target_m": 0.4,
+      "expected": {
+        "is_residence_time_ok": true,
+        "h_total_m": 1.9,
+        "weir_height_m": 0.5,
+        "oil_water_interface_m": 0.4
+      }
+    },
+    {
+      "id": "horizontal_high_flow_residence_violation",
+      "vessel_shape": "HORIZONTAL",
+      "diameter_m": 1.0,
+      "length_m": 1.0,
+      "head_type": "FLAT",
+      "oil_mass_rate_kg_d": 100000.0,
+      "water_mass_rate_kg_d": 50000.0,
+      "gas_mass_rate_kg_d": 200000.0,
+      "oil_density_kg_m3": 800.0,
+      "water_density_kg_m3": 1000.0,
+      "gas_density_kg_m3": 50.0,
+      "weir_height_m": 0.3,
+      "oil_water_interface_target_m": 0.1,
+      "expected": {
+        "is_residence_time_ok": false,
+        "h_total_m": 0.475,
+        "weir_height_m": 0.3
+      }
+    },
+    {
+      "id": "vertical_moderate_flow",
+      "vessel_shape": "VERTICAL",
+      "diameter_m": 2.0,
+      "length_m": 4.0,
+      "head_type": "HEMISPHERICAL",
+      "oil_mass_rate_kg_d": 5000.0,
+      "water_mass_rate_kg_d": 2000.0,
+      "gas_mass_rate_kg_d": 10000.0,
+      "oil_density_kg_m3": 800.0,
+      "water_density_kg_m3": 1000.0,
+      "gas_density_kg_m3": 50.0,
+      "weir_height_m": 0.8,
+      "oil_water_interface_target_m": 0.4,
+      "expected": {
+        "is_residence_time_ok": true,
+        "h_total_m": 1.9,
+        "weir_height_m": 0.8
+      }
+    }
+  ]
+}

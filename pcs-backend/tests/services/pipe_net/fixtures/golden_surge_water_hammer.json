@@ -1,0 +1,32 @@
+{
+  "_comment": "P6-5+C-13 PIPE_NET 浪涌压力（水锤 + 段塞）golden fixture。固化时间：2026-09-26。",
+  "_source": "Joukowsky 1898 + Wylie & Streeter 1993（管壁修正）+ MOC 临界关阀。",
+  "_comment_calc": "水锤 ΔP = ρ·a·ΔV（Joukowsky 1898）。\na = √(K/ρ)（纯流体声速，零壁厚时退化）。\n含管壁修正（Wylie & Streeter 1993）：a = a_f / √(1 + (K·D)/(E·e)·C₁)，C₁ = 1-ν² ≈ 0.91。\n临界关阀时间 t_c = 2L/a；t_c ≥ 2L/a 时无完整水锤。",
+  "joukowsky_water_quick_closure": {
+    "fluid_density_kg_m3": 999.0,
+    "fluid_bulk_modulus_pa": 2.2e9,
+    "pipe_diameter_m": 0.1,
+    "flow_velocity_m_s": 2.0,
+    "valve_close_time_s": 0.0,
+    "expected_wave_speed_m_s": 1483.0,
+    "expected_surge_pressure_pa": 2962069.0,
+    "_expected_derivation": "a = √(2.2e9/999) = 1483.1 m/s；ΔP = 999·1483.1·2.0 ≈ 2.962e6 Pa"
+  },
+  "wall_correction_carbon_steel": {
+    "_comment": "壁厚修正后的声速示例：D=0.1m, e=5mm, E=200e9, C₁=0.91。",
+    "fluid_density_kg_m3": 999.0,
+    "fluid_bulk_modulus_pa": 2.2e9,
+    "pipe_diameter_m": 0.1,
+    "wall_thickness_m": 0.005,
+    "pipe_material": "CARBON_STEEL",
+    "expected_correction_term": 0.2002,
+    "expected_wave_speed_m_s": 1354.6,
+    "_expected_derivation": "correction = (2.2e9·0.1)/(200e9·0.005)·0.91 ≈ 0.2002；a = 1483/√1.2002 ≈ 1354.6 m/s"
+  },
+  "critical_close_time_1km": {
+    "_comment": "L=1000m 水管道临界关阀时间 ≈ 1.348s（a≈1483 m/s）。",
+    "pipe_length_m": 1000.0,
+    "expected_wave_speed_m_s": 1483.0,
+    "expected_critical_close_time_s": 1.348
+  }
+}

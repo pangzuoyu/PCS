@@ -1,0 +1,70 @@
+{
+  "_comment": "P6-5 Task B4: C-20 PSV API 2000 emergency/fire + 真空工况 黄金算例 fixture。固化时间：2026-09-26。",
+  "_spec_ref": "SPEC §3.5.1 V1.4 + API 2000 7th Ed §3.4 SI 严格换算",
+  "_formula_chain": "Q(Btu/hr) = 21000·F·A_ft2^0.82 -> Q_W = 43192·F·A_m2^0.82 (21000 × 0.293071 × 7.0178 ≈ 43192)",
+  "_blocker_note": "N-1 v4 BLOCKER: 系数必须是 43192 (v3 误算 43838)。不可硬编码 709200 imperial 原式。",
+  "_precomputed_notes": {
+    "case1_Q_W": "43192 × 50^0.82 ≈ 1.067969e6",
+    "case2_Q_W": "43192 × 0.5 × 200^0.82 ≈ 1.664248e6",
+    "case3_Q_m3h": "1013 × 50 = 50650"
+  },
+  "cases": [
+    {
+      "id": "fire_wetted_50m2_F1p0",
+      "description": "FIRE F=1.0, A=50 m2 -> Q(W) = 43192 * 50^0.82",
+      "input": {
+        "tank_volume_m3": 100.0,
+        "wetted_area_m2": 50.0,
+        "design_pressure_kpa": 20.0,
+        "vacuum_pressure_kpa": 0.5,
+        "fire_heat_input_w": null,
+        "environment_factor": 1.0,
+        "scenario": "FIRE"
+      },
+      "expected": {
+        "required_relief_rate_w": 1067969.1756653467,
+        "scenario_used": "FIRE",
+        "tolerance": 1e-2,
+        "notes": "43192*F*A^0.82 SI 主链; 验算 21000*0.293071*(10.7639*50)^0.82 = 43192*50^0.82"
+      }
+    },
+    {
+      "id": "fire_wetted_200m2_F0p5",
+      "description": "FIRE F=0.5 (部分保温), A=200 m2 -> Q(W) = 43192*0.5*200^0.82",
+      "input": {
+        "tank_volume_m3": 500.0,
+        "wetted_area_m2": 200.0,
+        "design_pressure_kpa": 30.0,
+        "vacuum_pressure_kpa": 1.0,
+        "fire_heat_input_w": null,
+        "environment_factor": 0.5,
+        "scenario": "FIRE"
+      },
+      "expected": {
+        "required_relief_rate_w": 1664247.5076953205,
+        "scenario_used": "FIRE",
+        "tolerance": 1e-2,
+        "notes": "F in [0, 1] (环境因子, 部分保温时 < 1)"
+      }
+    },
+    {
+      "id": "vacuum_wetted_50m2",
+      "description": "VACUUM A=50 m2 -> Q(m3/h) = 1013*50 = 50650 m3/h",
+      "input": {
+        "tank_volume_m3": 100.0,
+        "wetted_area_m2": 50.0,
+        "design_pressure_kpa": 20.0,
+        "vacuum_pressure_kpa": 0.5,
+        "fire_heat_input_w": null,
+        "environment_factor": 1.0,
+        "scenario": "VACUUM"
+      },
+      "expected": {
+        "required_relief_rate_m3_h": 50650.0,
+        "scenario_used": "VACUUM",
+        "tolerance": 1e-3,
+        "notes": "API 2000 §3.6 Q(m3/h) = 1013*A"
+      }
+    }
+  ]
+}

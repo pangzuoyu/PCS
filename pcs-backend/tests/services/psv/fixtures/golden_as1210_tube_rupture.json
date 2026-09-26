@@ -1,0 +1,86 @@
+{
+  "_comment": "P6-5 Task B5: C-21 PSV AS 1210/1797 + 管破裂 + 控制阀失效工况 黄金算例 fixture。固化时间：2026-09-26。",
+  "_spec_ref": "SPEC §3.7.2 V1.4 + AS 1210 §4.3.1/§4.3.2 + AS 1210 §4.4 + API 521 §3.4",
+  "_blocker_note": "L-2 v1 BLOCKER: SIGNAL_FAIL factor 必须 = 1.20（最严重）。FIRE_CASE 系数 43192（与 B4 共用，API 521 §3.4 SI 严格换算自 21000·F·A_ft²^0.82）。",
+  "_precomputed_notes": {
+    "case1_tube_rupture": "1.10 × 1000 = 1100 kPa",
+    "case2_cv_signal_fail": "1.20 × 1000 = 1200 kPa (L-2 BLOCKER)",
+    "case3_cv_air_fail": "1.10 × 1000 = 1100 kPa",
+    "case4_cv_power_fail": "1.15 × 1000 = 1150 kPa",
+    "case5_fire_case_capacity": "43192·1·50^0.82 / 2260000 ≈ 0.4730 kg/s"
+  },
+  "cases": [
+    {
+      "id": "tube_rupture_1p10_mawp1000",
+      "description": "TUBE_RUPTURE AS 1210 §4.3.1: set_p = 1.10 · MAWP = 1.10 · 1000 = 1100 kPa",
+      "input": {
+        "mawp_kpa": 1000.0,
+        "tube_rupture_mass_kg_s": 10.0,
+        "control_valve_failure_mode": "AIR_FAIL",
+        "fire_case_wetted_area_m2": 50.0,
+        "as1210_pressure_factor": 1.10,
+        "scenario": "TUBE_RUPTURE"
+      },
+      "expected": {
+        "required_set_pressure_kpa": 1100.0,
+        "as_standard": "AS 1210 §4.3.1",
+        "tolerance": 1e-6,
+        "notes": "管破裂 AS 1210 §4.3.1 默认 1.10·MAWP"
+      }
+    },
+    {
+      "id": "cv_signal_fail_1p20_mawp1000",
+      "description": "CONTROL_VALVE_FAILURE SIGNAL_FAIL: set_p = 1.20 · MAWP = 1.20 · 1000 = 1200 kPa (L-2 BLOCKER 最严重)",
+      "input": {
+        "mawp_kpa": 1000.0,
+        "tube_rupture_mass_kg_s": 10.0,
+        "control_valve_failure_mode": "SIGNAL_FAIL",
+        "fire_case_wetted_area_m2": 50.0,
+        "as1210_pressure_factor": 1.10,
+        "scenario": "CONTROL_VALVE_FAILURE"
+      },
+      "expected": {
+        "required_set_pressure_kpa": 1200.0,
+        "as_standard": "AS 1210 §4.3.2 (SIGNAL_FAIL)",
+        "tolerance": 1e-6,
+        "notes": "L-2 v1 BLOCKER: SIGNAL_FAIL factor 必须 = 1.20（最严重）"
+      }
+    },
+    {
+      "id": "cv_air_fail_1p10_mawp1000",
+      "description": "CONTROL_VALVE_FAILURE AIR_FAIL: set_p = 1.10 · MAWP = 1100 kPa",
+      "input": {
+        "mawp_kpa": 1000.0,
+        "tube_rupture_mass_kg_s": 10.0,
+        "control_valve_failure_mode": "AIR_FAIL",
+        "fire_case_wetted_area_m2": 50.0,
+        "as1210_pressure_factor": 1.10,
+        "scenario": "CONTROL_VALVE_FAILURE"
+      },
+      "expected": {
+        "required_set_pressure_kpa": 1100.0,
+        "as_standard": "AS 1210 §4.3.2 (AIR_FAIL)",
+        "tolerance": 1e-6,
+        "notes": "AIR_FAIL = 1.10"
+      }
+    },
+    {
+      "id": "cv_power_fail_1p15_mawp1000",
+      "description": "CONTROL_VALVE_FAILURE POWER_FAIL: set_p = 1.15 · MAWP = 1150 kPa",
+      "input": {
+        "mawp_kpa": 1000.0,
+        "tube_rupture_mass_kg_s": 10.0,
+        "control_valve_failure_mode": "POWER_FAIL",
+        "fire_case_wetted_area_m2": 50.0,
+        "as1210_pressure_factor": 1.10,
+        "scenario": "CONTROL_VALVE_FAILURE"
+      },
+      "expected": {
+        "required_set_pressure_kpa": 1150.0,
+        "as_standard": "AS 1210 §4.3.2 (POWER_FAIL)",
+        "tolerance": 1e-6,
+        "notes": "POWER_FAIL = 1.15"
+      }
+    }
+  ]
+}

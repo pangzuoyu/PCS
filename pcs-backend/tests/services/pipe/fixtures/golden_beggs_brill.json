@@ -1,0 +1,49 @@
+{
+  "_comment": "P6-5+C-15 Beggs-Brill 持液率 + Mandhane 1975 流型图 golden fixture。固化时间：2026-09-26。",
+  "_source": "Beggs-Brill 1973 + Mandhane 1975（被 BG-B 1973 引用为流型判别）+ Eaton-Flanning 1967（适用范围校验）。",
+  "_comment_calc": "Mandhane 1975 水平管流型图：L1 = 316·ρ_L^0.302, L2 = 0.000925·(ρ_L·ρ_V)^0.305, L3 = 0.1·ρ_L^-0.447。\nBeggs-Brill 1973 Eq.6 H_L(0) = a·λ_L^b / Fr^c；表 a/b/c：SEGREGATED=0.980/0.4846/0.0868，INTERMITTENT=0.845/0.5351/0.0173，DISTRIBUTED=1.065/0.5824/0.0609。\nFr = V_m^2/(g·D)；Eaton-Flanning 1967 校验 Fr ∈ [0.01, 10]。",
+  "stratified_wavy_horizontal": {
+    "v_sl_m_s": 0.5,
+    "v_sg_m_s": 1.0,
+    "pipe_diameter_m": 0.1,
+    "pipe_inclination_deg": 0.0,
+    "rho_L_kg_m3": 999.0,
+    "rho_V_kg_m3": 50.0,
+    "mu_L_pa_s": 1.0e-3,
+    "mu_V_pa_s": 1.5e-5,
+    "sigma_n_m": 0.02,
+    "expected_froude_number": 2.294,
+    "expected_flow_pattern": "INTERMITTENT",
+    "expected_h_l_theta0": 0.463,
+    "_expected_derivation": "V_m=1.5 m/s, λ_L=1/3, λ_V=2/3；Fr=1.5^2/(9.81·0.1)=2.2936；L1=2544, L2=0.025, L3=0.00456；λ_V=0.667>L3, λ_L=0.333>L2 → INTERMITTENT；a/b/c=0.845/0.5351/0.0173；H_L(0)=0.845·0.333^0.5351/2.2936^0.0173 ≈ 0.463"
+  },
+  "uphill_holdup_increase": {
+    "_comment": "上坡 θ=30° 持液率应 > 水平 θ=0° 持液率（BG-B 1973 倾角修正 B(θ) > 1）。",
+    "v_sl_m_s": 0.5,
+    "v_sg_m_s": 1.0,
+    "pipe_diameter_m": 0.1,
+    "pipe_inclination_deg": 30.0,
+    "rho_L_kg_m3": 999.0,
+    "rho_V_kg_m3": 50.0,
+    "mu_L_pa_s": 1.0e-3,
+    "mu_V_pa_s": 1.5e-5,
+    "sigma_n_m": 0.02,
+    "expected_flow_pattern": "INTERMITTENT",
+    "_expected_derivation": "水平 H_L(0)≈0.463；上坡 30°：B(θ)>1 → H_L(θ) > H_L(0)"
+  },
+  "fr_out_of_range_high": {
+    "_comment": "高流速 V_m=20 m/s, D=0.05m → Fr=20^2/(9.81·0.05)≈815 → is_beggs_brill_valid=False。",
+    "v_sl_m_s": 10.0,
+    "v_sg_m_s": 10.0,
+    "pipe_diameter_m": 0.05,
+    "pipe_inclination_deg": 0.0,
+    "rho_L_kg_m3": 999.0,
+    "rho_V_kg_m3": 50.0,
+    "mu_L_pa_s": 1.0e-3,
+    "mu_V_pa_s": 1.5e-5,
+    "sigma_n_m": 0.02,
+    "expected_froude_number": 815.5,
+    "expected_is_beggs_brill_valid": false,
+    "_expected_derivation": "Fr=20^2/(9.81·0.05)=815.5，远超 E-F 上限 10 → is_beggs_brill_valid=False"
+  }
+}
