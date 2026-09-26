@@ -1,0 +1,110 @@
+[
+  {
+    "name": "A_100m_CH4_1kg_s",
+    "gas_release_rate_kg_s": 1.0,
+    "molecular_weight_kg_kmol": 16.0,
+    "release_height_m": 10.0,
+    "wind_speed_m_s": 10.0,
+    "pasquill_stability_class": "A",
+    "ambient_temperature_k": 288.15,
+    "downwind_distance_m": 100.0,
+    "expected": {
+      "sigma_y_m": 21.89081818461976,
+      "sigma_z_m": 20.0,
+      "centerline_conc_mol_m3": 0.0040100643773649134,
+      "heat_intensity_kw_m2": 0.3978873577297384,
+      "r_injury_m": 29.095856169452823,
+      "r_lethality_m": 17.770301551910258
+    }
+  },
+  {
+    "name": "D_500m_C3H8_2kg_s",
+    "gas_release_rate_kg_s": 2.0,
+    "molecular_weight_kg_kmol": 44.0,
+    "release_height_m": 5.0,
+    "wind_speed_m_s": 5.0,
+    "pasquill_stability_class": "D",
+    "ambient_temperature_k": 298.15,
+    "downwind_distance_m": 500.0,
+    "expected": {
+      "sigma_y_m": 39.03600291794133,
+      "sigma_z_m": 22.677868380553633,
+      "centerline_conc_mol_m3": 0.0031903189337886026,
+      "heat_intensity_kw_m2": 0.03183098861837907,
+      "r_injury_m": 41.14775440369707,
+      "r_lethality_m": 25.13100146217114
+    }
+  },
+  {
+    "name": "D_200m_CH4_5kg_s",
+    "gas_release_rate_kg_s": 5.0,
+    "molecular_weight_kg_kmol": 16.0,
+    "release_height_m": 20.0,
+    "wind_speed_m_s": 3.0,
+    "pasquill_stability_class": "D",
+    "ambient_temperature_k": 300.0,
+    "downwind_distance_m": 200.0,
+    "expected": {
+      "sigma_y_m": 15.842360687626789,
+      "sigma_z_m": 10.52469623168435,
+      "centerline_conc_mol_m3": 0.03268937468562195,
+      "heat_intensity_kw_m2": 0.4973591971621729,
+      "r_injury_m": 65.06031225845315,
+      "r_lethality_m": 39.735602250741344
+    }
+  },
+  {
+    "name": "D_100m_CH4_10kg_s",
+    "gas_release_rate_kg_s": 10.0,
+    "molecular_weight_kg_kmol": 16.0,
+    "release_height_m": 30.0,
+    "wind_speed_m_s": 5.0,
+    "pasquill_stability_class": "D",
+    "ambient_temperature_k": 298.15,
+    "downwind_distance_m": 100.0,
+    "expected": {
+      "sigma_y_m": 7.960297521679913,
+      "sigma_z_m": 5.595028849441883,
+      "centerline_conc_mol_m3": 5.105582904313284e-07,
+      "heat_intensity_kw_m2": 3.9788735772973833,
+      "r_injury_m": 92.00917596813298,
+      "r_lethality_m": 56.19462761206129
+    }
+  },
+  {
+    "name": "B_250m_air_3kg_s",
+    "gas_release_rate_kg_s": 3.0,
+    "molecular_weight_kg_kmol": 28.97,
+    "release_height_m": 15.0,
+    "wind_speed_m_s": 8.0,
+    "pasquill_stability_class": "B",
+    "ambient_temperature_k": 290.0,
+    "downwind_distance_m": 250.0,
+    "expected": {
+      "sigma_y_m": 39.50918386598359,
+      "sigma_z_m": 30.0,
+      "centerline_conc_mol_m3": 0.0030677981148654306,
+      "heat_intensity_kw_m2": 0.19098593171027442,
+      "r_injury_m": 50.395501175208665,
+      "r_lethality_m": 30.779065153728634
+    }
+  },
+  {
+    "name": "F_50m_CH4_0.5kg_s",
+    "gas_release_rate_kg_s": 0.5,
+    "molecular_weight_kg_kmol": 16.0,
+    "release_height_m": 8.0,
+    "wind_speed_m_s": 6.0,
+    "pasquill_stability_class": "F",
+    "ambient_temperature_k": 285.0,
+    "downwind_distance_m": 50.0,
+    "expected": {
+      "sigma_y_m": 1.9950186722152659,
+      "sigma_z_m": 0.7940666671767443,
+      "centerline_conc_mol_m3": 9.534545846106484e-23,
+      "heat_intensity_kw_m2": 0.7957747154594768,
+      "r_injury_m": 20.573877201848536,
+      "r_lethality_m": 12.56550073108557
+    }
+  }
+]
