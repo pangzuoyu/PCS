@@ -206,3 +206,33 @@
 ### 已知残留
 
 - **pcs 开发库**（`DATABASE_URL` 默认指向）停在 `p6_3_002`，落后 10 个迁移（P6-4 ×4 + P6-5 ×4 + 矫正 ×1 + gate_03）。应用层连开发库时 CONFIG 服务走内联 fallback 常量（设计如此）；P6-4 起的 `*_results` 新列在开发库缺失会影响落库。是否推进开发库迁移待用户裁决。
+
+---
+
+## [P6-5+] — follow-up: pcs 开发库对齐 + ORM↔DB drift 终扫清零（2026-09-26）
+
+### pcs 开发库对齐（用户裁决"执行"）
+
+- `alembic upgrade head`：p6_3_002 → p6_5_006（12+1 迁移，含 P6-3 尾段 / P6-4 全部 / P6-5 全部）
+- 4 seed 脚本：compound_* 17 行入库（CONFIG 服务 DB 优先生效）
+- 开发库此前停在 p6_3_002，P6-4+ 新列全缺（bug-101 同模式的落库炸点）
+
+### p6_5_006 终扫迁移（3 表 6 列）
+
+p6_5_005 后用 ORM metadata 全库程序化对比（不再手写表名清单），暴露并修复：
+
+| 表 | 缺列 |
+|---|---|
+| `sep_equip_results` | 审计三件套 ×3（bug-101 清单遗漏，同为 P4 前旧表） |
+| `pipe_class_import_previews` | `created_by` / `updated_at`（TimestampMixin 未落迁移） |
+| `project_template_pipe_classes` | `created_by` |
+
+幂等 `ADD COLUMN IF NOT EXISTS` 写法，两库通用。
+
+### 验证
+
+| 项 | 结果 |
+|---|---|
+| ORM↔pcs drift 扫描 | **清零 ✓**（87 ORM 表全列一致） |
+| ORM↔pcs_test drift 扫描 | **清零 ✓** |
+| 全量回归（pcs_test） | 3173 passed / 5 skipped / 0 failed（保持） |
