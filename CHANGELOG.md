@@ -249,3 +249,14 @@ p6_5_005 后用 ORM metadata 全库程序化对比（不再手写表名清单）
 - Q2 增补文档转编号 `PCS-SPEC-ADD-001-ATT-02`（Q2 工艺推导附件，git rename 保留历史）
 
 **P6-5+ 全部跟踪项闭环。** 剩余开口：SYNTHETIC_TEST_DATA → 真实厂商/GPSA 数据（P6-6+ 工艺工程师接管）。
+
+---
+
+## [P6-5+] — follow-up: B 批 4 项（drift 守卫 / G-08 / STATUS / 前端 3 页）（2026-09-27）
+
+| # | 项 | commit | 结果 |
+|---|---|---|---|
+| 1 | ORM↔DB drift 守卫测试（bug-101/102 防回归，pcs_test-only） | `bba7625` | pcs_test PASS / 默认 skip |
+| 2 | G-08 openapi-baseline 滚动（Task 16/28 收口） | `384d8c7` | +37 端点 / +82 schema（P6-2~5 纯增量）；四阶段全过（161 paths / 203 schemas） |
+| 3 | `.wolf/STATUS.md` 重生成（/handoff，1749 行 → 紧凑版） | —（.wolf hooks 维护） | Next quest 更新为 P6-6+ |
+| 4 | 前端补课 3 计算页（P6-4 DECISION 推迟项） | `67633a9` | heating-value / saturation-water-content / cv；tsc 0 / eslint 0 / vitest 548 passed（基线 525） |
