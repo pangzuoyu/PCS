@@ -18,7 +18,7 @@
       },
       "expected": {
         "orifice_area_m2": 0.0003141592653589793,
-        "ftp_factor": 0.9995632986110619,
+        "ftp_factor": 0.9995652595543731,
         "critical_pressure_ratio": 0.5282815090959457,
         "actual_pressure_ratio": 0.2,
         "is_choked": true,
@@ -42,7 +42,7 @@
       },
       "expected": {
         "orifice_area_m2": 0.0003141592653589793,
-        "ftp_factor": 0.9989855,
+        "ftp_factor": 0.9988395295037654,
         "critical_pressure_ratio": 0.5282815090959457,
         "actual_pressure_ratio": 0.8,
         "is_choked": false,

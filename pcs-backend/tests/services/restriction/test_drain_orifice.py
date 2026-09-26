@@ -361,3 +361,18 @@ def test_golden_drain_orifice_fixture_present():
     data = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))
     assert "cases" in data
     assert len(data["cases"]) >= 1
+
+
+def test_golden_fixture_matches_implementation():
+    """Future-drift detector: golden fixture Ftp values must match Ftp = 1 - 0.0245*beta^4.4."""
+    if not FIXTURE_PATH.exists():
+        pytest.skip("golden_drain_orifice.json fixture 未创建（占位）")
+    cases = json.loads(FIXTURE_PATH.read_text(encoding="utf-8"))["cases"]
+    for case in cases:
+        beta = case["input"]["beta_ratio"]
+        expected = case["expected"]["ftp_factor"]
+        actual = 1.0 - 0.0245 * beta**4.4
+        assert math.isclose(actual, expected, rel_tol=1e-6, abs_tol=1e-9), (
+            f"Fixture drift: case={case['id']}, beta={beta}, "
+            f"expected={expected}, actual={actual}"
+        )
