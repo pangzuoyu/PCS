@@ -1,0 +1,217 @@
+{
+  "_doc": "P6-6A Task 2: C-05 API 14E 两相流管径 vs Worley 真实算例 WS-CA-PR-005 首次对账 fixture。",
+  "source": {
+    "xls": "WS-CA-PR-005.xls",
+    "xls_title": "Two Phase Line Sizing, Standard Calculation WS-CA-PR-005, Rev. 0, Validated by GRT 27-Jul-03（FLOW LINE DESIGN CALCULATIONS based on API RP14E）",
+    "xls_reference": "API RP 14E（sheet B13 明示 based on API RP14E）",
+    "dump": ".superpowers/sdd/2026-09-27-p6-6a-worley-reconciliation/worley_dump/WS-CA-PR-005.json",
+    "dump_note": "原 XLS 位于 sample/（gitignored 只读）；本 fixture 转录 dump 中公式缓存计算值（全 double 精度）。dump 无公式本体，XLS 内部 PVT 链常数不可直接恢复，见 root_cause_notes",
+    "spec_ref": "PCS-SPEC-ADD-001 V1.10 §3.2.2（C-05）+ §5 验收分级",
+    "service": "app/services/pipe/two_phase_sizing.py::calc_api14e_pipe_size"
+  },
+  "tolerance_policy": {
+    "spec_ref": "PCS-SPEC-ADD-001 V1.10 §5：经验拟合级 <1%（rel≤1e-2）",
+    "default_rel": 0.01,
+    "per_case_note": "各 case 在 SPEC 1e-2 门槛内按观测偏差收紧（收紧不违规，放宽才需登记理由）；每 case 的 rel + reason 见 cases[].tolerance"
+  },
+  "unit_conversion_factors": {
+    "_doc": "Worley 算例 → service SI 输入的换算/分解链常数（精确换算常数 + 标准物理常数）",
+    "lb_to_kg": 0.45359237,
+    "in_to_m": 0.0254,
+    "ft_to_m": 0.3048,
+    "lb_per_ft3_to_kg_per_m3": 16.018463373960138,
+    "lb_per_ft3_derivation": "0.45359237 / 0.3048^3 = 16.018463373960138",
+    "psi_to_pa": 6894.757293168361,
+    "p_atm_psi": 14.69595,
+    "p_atm_bar": 1.01325,
+    "r_universal_j_mol_k": 8.31446261815324,
+    "m_air_kg_per_mol": 0.0289625,
+    "rho_water_kg_m3": 1000.0,
+    "rho_water_note": "标准 SI 惯例 1000 kg/m³（≡62.4280 lb/ft³）。XLS 两 sheet 反解隐含 ρ_water=1000.894 kg/m³（跨 sheet 一致至 2.3e-7，互证同一内部常数簇），fixture 不采用反推常数而用标准值，ρ_mix 复现偏差 8.3e-4（见 root_cause_notes.xls_internal_pvt_constants）",
+    "gas_density_ideal_gas": "ρ_V = P_abs·(SG_g·M_air)/(Z·R·T)，P/T 取 XLS 自身输入 cell（Imp: 26.695950 psia/306.4833 K；SI: 1.84025 bar/306.48 K）",
+    "c_factor_english_to_si": {
+      "mapping": "English 100 <-> SI 122（×1.22 双单位制惯例；本 XLS SI sheet E33 直接显示 122.0，与 Task 1 WS-CA-PR-003 SI sheet C 表互证）",
+      "exact_factor": "C_SI = C_EN × 0.3048 × √16.018463373960138 = 121.9903（工程取整 122）",
+      "note": "Imp sheet 传 SI 制 c_factor=122.0；SI sheet E33=122.0 原值直传，取整引入 v_e 偏差 ≤7.9e-5"
+    }
+  },
+  "cases": [
+    {
+      "id": "api14e_english_sheet",
+      "sheet": "API14E_Imp",
+      "line_label": "1 of 2（Two Phase Line Sizing, Rev.0, validated 27-Jul-03）",
+      "description": "英制 sheet 主工况：油 80480 bbl/d（SG 0.755）+ 气 19.59688 MMscfd（GOR 243.5，SG 1.018），入口 12 psig/92°F，Z=0.9。XLS 内部 PVT 链给 ρ_mix=2.122466 lb/ft³、ṁ=948894.2 lb/h；选定 24in NB Sch 100（ID 19.2575 in，E39=10 为查表列索引）。对账冲蚀速度 + 最小管径 + 选定管内混合物流速（进/出口）。",
+      "xls_inputs": {
+        "E20": {"label": "Oil Flow", "value": 80480.0, "unit": "bbl/d"},
+        "E21": {"label": "Gas/Oil Ratio", "value": 243.5, "unit": "scf/bbl"},
+        "E22": {"label": "Gas Flow", "value": 19.59688, "unit": "MMscfd"},
+        "E23": {"label": "Oil Specific Gravity (Water=1)", "value": 0.755, "unit": "-"},
+        "E24": {"label": "Gas Specific Gravity (Air=1)", "value": 1.018, "unit": "-"},
+        "E25": {"label": "Water (Preliminary)", "value": "NIL", "unit": "(Assumed)"},
+        "E26": {"label": "Pipeline Inlet Pressure", "value": 12.0, "unit": "psig"},
+        "E27": {"label": "Pipeline Inlet Temp.", "value": 92.0, "unit": "deg F"},
+        "E28": {"label": "Gas Compressibility Factor (inlet)", "value": 0.9, "unit": "-"},
+        "E29": {"label": "Gas Volumetric Flow @ Inlet T,P", "value": 429496.8751944684, "unit": "acf/h（XLS 内部 PVT 链产物）"},
+        "E30": {"label": "Oil Volumetric Flow", "value": 18825.61333333333, "unit": "cu.ft/h"},
+        "E31": {"label": "Gas Volumetric Flow @ Outlet T,P", "value": 432089.02146697836, "unit": "acf/h（XLS 内部 PVT 链产物）"},
+        "E32": {"label": "Mixture Density @ Inlet T,P", "value": 2.122466034306257, "unit": "lb/cu.ft"},
+        "E33": {"label": "Erosional Velocity Constant", "value": 100.0, "unit": "English"},
+        "E38": {"label": "Selected Pipe Size (NB)", "value": 24.0, "unit": "inches"},
+        "E39": {"label": "Schedule（AB38:AC49 查表列索引，10→Sch 100）", "value": 10.0, "unit": "index"},
+        "E40": {"label": "Selected Pipe ID", "value": 19.25748031496063, "unit": "inches"},
+        "E43": {"label": "Total Fluid Flowrate", "value": 948894.2131621836, "unit": "lb/h"},
+        "E44": {"label": "Pipeline Length（仅 E47 压降用，out_of_scope）", "value": 20.0, "unit": "ft"}
+      },
+      "conversion_chain": [
+        "mass_flow_kg_s = 948894.2131621836 × 0.45359237 / 3600 = 119.55865972986669",
+        "P_abs = 12 + 14.695950 = 26.695950 psia × 6894.757293168361 = 184062.0959605579 Pa；T = (92−32)×5/9 + 273.15 = 306.4833333333333 K",
+        "rho_V = 184062.0959605579 × (1.018 × 0.0289625) / (0.9 × 8.31446261815324 × 306.4833333333333) = 2.3662718161066074 kg/m³（理想气体，XLS 自身 P/T/Z/SG）",
+        "rho_L = 0.755 × 1000.0 = 755.0 kg/m³（SG × 标准水密度）",
+        "void_fraction = E29/(E29+E30) = 429496.8751944684/448322.4885278018 = 0.958008768654116（XLS 自身入口体积 cell）",
+        "c_factor = 100（English）≡ 122（SI，×1.22 双单位制惯例）",
+        "ρ_mix 分解链 = 755.0×(1−ε) + 2.3662718161066074×ε = 33.970288814991655 vs E32×16.018463373960138 = 33.998644433009204（dev 8.3e-4，见 root_cause_notes）"
+      ],
+      "service_inputs": {
+        "mass_flow_kg_s": 119.55865972986669,
+        "rho_L_kg_m3": 755.0,
+        "rho_V_kg_m3": 2.3662718161066074,
+        "void_fraction": 0.958008768654116,
+        "c_factor": 122.0,
+        "imperial_units": true
+      },
+      "chain_inputs": {
+        "_doc": "链上速度复算输入：XLS 自身体积流量 cell + 选定管 ID（service 不接收选定管径，无法由 service_inputs 导出）",
+        "q_gas_inlet_ft3_h": 429496.8751944684,
+        "q_gas_outlet_ft3_h": 432089.02146697836,
+        "q_oil_ft3_h": 18825.61333333333,
+        "selected_pipe_id_in": 19.25748031496063
+      },
+      "expected": {
+        "v_e_ft_s": 68.64037152269356,
+        "d_min_in": 18.227794411937705
+      },
+      "expected_chain": {
+        "rho_mix_kg_m3": 33.998644433009204,
+        "v_inlet_ft_s": 61.600173256748064,
+        "v_outlet_ft_s": 61.956337989902075
+      },
+      "observed_rel_dev": {
+        "v_e_ft_s": 4.97e-04,
+        "d_min_in": 6.38e-04,
+        "rho_mix_kg_m3": 8.34e-04,
+        "v_inlet_ft_s": 5.07e-04,
+        "v_outlet_ft_s": 5.07e-04
+      },
+      "tolerance": {
+        "rel": 0.002,
+        "level": "收紧：SPEC §5 经验 1e-2 → 2e-3",
+        "reason": "最大偏差 8.3e-4（ρ_mix 分解链），全部量 ≤8.4e-4：主因 = XLS 内部 PVT 常数不可恢复（隐含 ρ_water=1000.894 vs 标准 1000）+ XLS 速度格隐含体积基准比显示 Q cell 高 5.1e-4（见 root_cause_notes）；2e-3 有 2.4 倍裕度"
+      }
+    },
+    {
+      "id": "api14e_si_sheet",
+      "sheet": "API14E_SI",
+      "line_label": "2 of 2（同一物理工况 SI 版：E 列输入为舍入换算值，自成独立链）",
+      "description": "SI sheet 同工况独立复算：油 12795.3 m³/d + 气 0.5549320588 MMsm³/d，入口 0.827 barg/33.33°C，Z=0.9，C=122（SI 原值）。选定 24in NB Sch 80（ID 501.84 mm，E39=9 为查表列索引——与 Imp sheet 的 Sch 100 不同，Worley 双 sheet 各自选型）。对账冲蚀速度 + 最小管径 + 选定管内混合物流速（进/出口）。",
+      "xls_inputs": {
+        "E20": {"label": "Oil Flow", "value": 12795.3, "unit": "m3/d（≈80480.013 bbl/d，H20）"},
+        "E21": {"label": "Gas/Oil Ratio", "value": 43.37, "unit": "Sm3/m3（≈243.504 scf/bbl）"},
+        "E22": {"label": "Gas Flow", "value": 0.5549320588324347, "unit": "MMsm3/d（≈19.597 MMscfd）"},
+        "E23": {"label": "Oil Specific Gravity (Water=1)", "value": 0.755, "unit": "-"},
+        "E24": {"label": "Gas Specific Gravity (Air=1)", "value": 1.018, "unit": "-"},
+        "E26": {"label": "Pipeline Inlet Pressure", "value": 0.827, "unit": "barg"},
+        "E27": {"label": "Pipeline Inlet Temp.", "value": 33.33, "unit": "deg C"},
+        "E28": {"label": "Gas Compressibility Factor (inlet)", "value": 0.9, "unit": "-"},
+        "E29": {"label": "Gas Volumetric Flow @ Inlet T,P", "value": 12164.540927940609, "unit": "am3/h（XLS 内部 PVT 链产物）"},
+        "E30": {"label": "Oil Volumetric Flow", "value": 533.0820425947733, "unit": "m3/h"},
+        "E31": {"label": "Gas Volumetric Flow @ Outlet T,P", "value": 12229.105712739456, "unit": "am3/h（XLS 内部 PVT 链产物）"},
+        "E32": {"label": "Mixture Density @ Inlet T,P", "value": 33.99187011763077, "unit": "kg/m3"},
+        "E33": {"label": "Erosional Velocity Constant", "value": 122.0, "unit": "SI"},
+        "E38": {"label": "Selected Pipe Size (NB)", "value": 24.0, "unit": "inches"},
+        "E39": {"label": "Schedule（AB38:AC49 查表列索引，9→Sch 80）", "value": 9.0, "unit": "index"},
+        "E40": {"label": "Selected Pipe ID", "value": 501.84, "unit": "mm"},
+        "E43": {"label": "Total Fluid Flowrate", "value": 430411.80139972124, "unit": "kg/h"},
+        "E44": {"label": "Pipeline Length（仅 E47 压降用，out_of_scope）", "value": 6.096, "unit": "m"}
+      },
+      "conversion_chain": [
+        "mass_flow_kg_s = 430411.80139972124 / 3600 = 119.55883372214478（XLS 已给 SI kg/h；与 Imp sheet 948894.213 lb/h×0.45359237 差 1.4e-6，双 sheet 互证）",
+        "P_abs = 0.827 + 1.01325 = 1.84025 bar = 184025.0 Pa；T = 33.33 + 273.15 = 306.48 K",
+        "rho_V = 184025.0 × (1.018 × 0.0289625) / (0.9 × 8.31446261815324 × 306.48) = 2.365820647406933 kg/m³（理想气体，XLS 自身 P/T/Z/SG）",
+        "rho_L = 0.755 × 1000.0 = 755.0 kg/m³",
+        "void_fraction = E29/(E29+E30) = 12164.540927940609/12697.622970535353 = 0.9580171781890373（XLS 自身入口体积 cell）",
+        "c_factor = E33 = 122.0（SI 原值直传，无单位映射）",
+        "ρ_mix 分解链 = 755.0×(1−ε) + 2.365820647406933×ε = 33.963527288006986 vs E32 = 33.99187011763077（dev 8.3e-4，见 root_cause_notes）"
+      ],
+      "service_inputs": {
+        "mass_flow_kg_s": 119.55883372214478,
+        "rho_L_kg_m3": 755.0,
+        "rho_V_kg_m3": 2.365820647406933,
+        "void_fraction": 0.9580171781890373,
+        "c_factor": 122.0,
+        "imperial_units": false
+      },
+      "chain_inputs": {
+        "_doc": "链上速度复算输入：XLS 自身体积流量 cell + 选定管 ID（service 不接收选定管径，无法由 service_inputs 导出）",
+        "q_gas_inlet_m3_h": 12164.540927940609,
+        "q_gas_outlet_m3_h": 12229.105712739456,
+        "q_oil_m3_h": 533.0820425947733,
+        "selected_pipe_id_m": 0.50184
+      },
+      "expected": {
+        "v_e_m_s": 20.925323586369977,
+        "d_min_m": 0.46299102020569194
+      },
+      "expected_chain": {
+        "rho_mix_kg_m3": 33.99187011763077,
+        "v_inlet_m_s": 17.841023333217382,
+        "v_outlet_m_s": 17.93174124433928
+      },
+      "observed_rel_dev": {
+        "v_e_m_s": 4.17e-04,
+        "d_min_m": 5.98e-04,
+        "rho_mix_kg_m3": 8.34e-04,
+        "v_inlet_m_s": 5.07e-04,
+        "v_outlet_m_s": 5.07e-04
+      },
+      "tolerance": {
+        "rel": 0.002,
+        "level": "收紧：SPEC §5 经验 1e-2 → 2e-3",
+        "reason": "最大偏差 8.3e-4（ρ_mix 分解链），全部量 ≤8.4e-4；根因同 English sheet（XLS 内部 PVT 常数 + 速度格隐含体积基准，两 sheet 偏差量级一致互证）；2e-3 有 2.4 倍裕度"
+      }
+    }
+  ],
+  "root_cause_notes": [
+    {
+      "id": "xls_internal_pvt_constants",
+      "finding": "dump 仅含公式缓存值无公式本体，XLS 内部 PVT 链常数不可直接恢复。由两 sheet 独立反解隐含水密度均得 1000.894 kg/m³（Imp 1000.8944036 / SI 1000.8941793，一致至 2.3e-7，互证同一内部常数簇）。fixture 采用标准物理常数（ρ_water=1000 / M_air=28.9625e-3 kg/mol / R=8.31446261815324 / P_atm=1.01325 bar）+ XLS 自身 P/T/Z/SG/体积 cell 分解，ρ_mix 复现偏差 8.3e-4，向 v_e/d_min 传播 ≤6.4e-4。旁证：Q_g@inlet 由标准状况理想气体重构偏差 8.4e-5，Q_o 用 5.614 ft³/bbl（非 5.6146）逐位重现 E30",
+      "ruling": "1(c) 手算舍入/内部常数族——SPEC 经验 1e-2 容差内通过，收紧至 2e-3，不改生产码"
+    },
+    {
+      "id": "xls_mass_volume_inconsistency",
+      "finding": "XLS 自身显示 cell 互不一致 ±0.3%：ṁ/Q_sum = 2.11654 vs E32 ρ_mix = 2.12247（Imp，0.28%；SI sheet 同 0.28%）；速度格（E45/E46）隐含体积流量比显示 Q cell 之和高 5.07e-4（进/出口同偏移，两 sheet 同）；d_min 格（E35）介于 ṁ 基重构（−8.1e-4）与 Q_sum 基重构（+5.9e-4）之间。与 Task 1 WS-CA-PR-003 GT sheet 的 ±0.3% 家族问题同源（Worley 模板中间量舍入），非 service 公式差异",
+      "ruling": "1(c) 手算舍入——容差内通过，仅登记"
+    },
+    {
+      "id": "schedule_index_not_value",
+      "finding": "E39 Schedule 值（Imp 10.0 / SI 9.0）是 AB38:AC49 查表列索引（1=Standard…9=Sch 80/10=Sch 100…12=Sch 160）非 schedule 数值——Task 1 台账教训的再次验证。Imp 索引 10→Sch 100（壁厚 X49=34.93 mm → ID=(559−2×34.93)/25.4=19.25748031496063 in 逐位重现 E40）；SI 索引 9→Sch 80（W49=28.58 → 501.84 mm 重现 E40）。两 sheet 实选不同 schedule（Sch 100 vs Sch 80），故 E45/E46 速度各按各 sheet 的 E40 对账，互不混用",
+      "ruling": "1(c) XLS 模板复制产物——转录登记，防后人误读 E39 为 schedule 数"
+    }
+  ],
+  "out_of_scope": [
+    {
+      "id": "pressure_drop",
+      "xls_refs": "E47 Total Pressure Drop（Imp 0.16017603 psi / SI 0.0097172568 bar）+ E44 Pipeline Length（20 ft / 6.096 m）",
+      "reason": "two_phase_sizing 模块无压降输出量。两相压降已落地模块为 pipe/two_phase_service（P4-2-4 Lockhart-Martinelli-Baker 族）与该 XLS 的简化混合 Darcy 链非同族（dump 无公式，Darcy 反解隐含 f≈4.6e-4 非物理）。更正 Task 1 台账措辞：压降并不属 C-05 对账范围"
+    },
+    {
+      "id": "turner_critical_velocity",
+      "xls_refs": "（无对应 XLS cell）",
+      "reason": "service 的 Turner 1966 临界携液校核（v_turner≈12.37 m/s、is_liquid_unloading_safe=True，σ 默认 0.02 N/m）在 XLS 中无对应输出（1980s 模板无该检查项），无对账基准，不参与断言"
+    },
+    {
+      "id": "selection_mawp_and_pipe_table",
+      "xls_refs": "E36 Maximum Allowable Working Pressure（29 psig / 2.0 barg，B37 '(assumed)' 输入假设）+ E38/E39/E40/E41 选型组 + 管表查询区 M25:Z57 + 索引表 AB38:AC49 + J41/J43 辅助 cell",
+      "reason": "选型查表量与假设输入非模块契约（service 只输出最小管径；不接收/返回选定管、MAWP）；管表区为查询数据非算例"
+    }
+  ]
+}
