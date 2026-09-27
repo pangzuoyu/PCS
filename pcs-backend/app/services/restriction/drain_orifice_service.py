@@ -3,6 +3,8 @@
 公式（GB/T 308 排水孔板 + GB/T 2624 流量孔板）：
   Ftp 修正（GB/T 308 Eq.2.2 排水孔板经验式）：Ftp = 1 - 0.0245·β^4.4
   阻塞判断：P₂/P₁ ≤ r_c（γ=1.4 时 r_c ≈ 0.528）
+  阻塞流质量流量：m_max = A × Cd × Y_cr^0.5 × Ftp × ρ × v_max
+    （OPEN-P6-6A-4 fix: Cd/Y_cr^0.5 加入，默认 1.0 保持向后兼容；Ruling 12）
 
 Q-11：Ftp 修正系数 GB/T 308 经验式（无 ISO 5167 标准支撑）
 """
@@ -32,6 +34,10 @@ class DrainOrificeInput:
     """排污孔板输入（frozen dataclass）。
 
     物理量 SI 单位：长度 m、压力 kPa、密度 kg/m³、流量 kg/s。
+
+    OPEN-P6-6A-4（Ruling 12）增补可选字段：
+      - discharge_coefficient: Cd（流量系数），默认 1.0（向后兼容 XLS PR-023 Cd=0.83932）
+      - expansion_factor: Y_cr^0.5（膨胀因子），默认 1.0（向后兼容 XLS PR-023 Y_cr^0.5=0.687）
     """
 
     orifice_diameter_m: float
@@ -42,6 +48,8 @@ class DrainOrificeInput:
     mass_flow_kg_s: float
     drain_type: Literal["CONTINUOUS", "INTERMITTENT"]
     imperial_units: bool = False
+    discharge_coefficient: float = 1.0
+    expansion_factor: float = 1.0
 
 
 @dataclass(frozen=True)
@@ -72,6 +80,15 @@ def _validate_input(inp: DrainOrificeInput) -> None:
         raise DrainOrificeInputError("密度必须 > 0")
     if inp.mass_flow_kg_s < 0:
         raise DrainOrificeInputError("流量不能为负")
+    # Ruling 12（OPEN-P6-6A-4）：Cd 与 Y_cr^0.5 ∈ (0, 1]（标准 orifice 范围）
+    if not (0.0 < inp.discharge_coefficient <= 1.0):
+        raise DrainOrificeInputError(
+            f"Cd={inp.discharge_coefficient} 越界 (0, 1]（Ruling 12）"
+        )
+    if not (0.0 < inp.expansion_factor <= 1.0):
+        raise DrainOrificeInputError(
+            f"Y_cr^0.5={inp.expansion_factor} 越界 (0, 1]（Ruling 12）"
+        )
 
 
 def calc_drain_orifice(inp: DrainOrificeInput) -> DrainOrificeResult:
@@ -82,7 +99,8 @@ def calc_drain_orifice(inp: DrainOrificeInput) -> DrainOrificeResult:
       - Ftp = 1 - 0.0245·β^4.4（GB/T 308 排水孔板 Eq.2.2 经验式）
       - critical_pressure_ratio r_c = (2/(γ+1))^(γ/(γ-1))
       - is_choked：P₂/P₁ ≤ r_c
-      - mass_flow_capacity：阻塞流时 v_max = √(2ΔP/ρ) → A·Ftp·ρ·v_max
+      - mass_flow_capacity：阻塞流时 v_max = √(2ΔP/ρ) →
+        m_max = A × Cd × Y_cr^0.5 × Ftp × ρ × v_max（OPEN-P6-6A-4 Ruling 12）
 
     Args:
         inp: DrainOrificeInput（frozen）
@@ -91,7 +109,7 @@ def calc_drain_orifice(inp: DrainOrificeInput) -> DrainOrificeResult:
         DrainOrificeResult（frozen）
 
     Raises:
-        DrainOrificeInputError: 输入校验失败（F2 β 越界、F5 非正极值）
+        DrainOrificeInputError: 输入校验失败（F2 β 越界、F5 非正极值、Ruling 12 Cd/Y_cr 越界）
     """
     _validate_input(inp)
 
@@ -104,7 +122,15 @@ def calc_drain_orifice(inp: DrainOrificeInput) -> DrainOrificeResult:
     if is_choked:
         delta_p_pa = (inp.inlet_pressure_kpa - inp.outlet_pressure_kpa) * 1000.0
         v_max = math.sqrt(2.0 * delta_p_pa / inp.fluid_density_kg_m3)
-        mass_max = a_orifice * ftp * inp.fluid_density_kg_m3 * v_max
+        # OPEN-P6-6A-4 Ruling 12：m_max 乘以 Cd × Y_cr^0.5（默认 1.0 保持向后兼容）
+        mass_max = (
+            a_orifice
+            * inp.discharge_coefficient
+            * inp.expansion_factor
+            * ftp
+            * inp.fluid_density_kg_m3
+            * v_max
+        )
     else:
         mass_max = float("inf")
     is_ok = inp.mass_flow_kg_s <= mass_max if is_choked else True
@@ -129,6 +155,15 @@ def calc_drain_orifice(inp: DrainOrificeInput) -> DrainOrificeResult:
             "ftp_correction": ("Ftp = 1 - 0.0245·β^4.4 [GB/T 308 Eq.2.2; SYNTHETIC_TEST_DATA]"),
             "critical_pressure_ratio": ("r_c = (2/(γ+1))^(γ/(γ-1))"),
             "drain_type": (f"{inp.drain_type}（CONTINUOUS=连续排污/INTERMITTENT=间歇排污）"),
+            "discharge_coefficient": (
+                f"Cd={inp.discharge_coefficient}（Ruling 12；默认 1.0；XLS PR-023 Cd=0.83932）"
+            ),
+            "expansion_factor": (
+                f"Y_cr^0.5={inp.expansion_factor}（Ruling 12；默认 1.0；XLS PR-023 Y_cr^0.5=0.687）"
+            ),
+            "mass_flow_capacity": (
+                "m_max = A × Cd × Y_cr^0.5 × Ftp × ρ × v_max（Ruling 12；阻塞流分支）"
+            ),
         },
     )
 

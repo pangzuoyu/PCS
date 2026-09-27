@@ -14,7 +14,7 @@ PCS service `calc_drain_orifice`: **Drain Orifice Capacity Check** (forward prob
 d, verify m_dot within capacity — GB/T 308 Ftp 经验式).
 
 **Ftp formula family difference** (Ruling 7 — main finding):
-  - **PCS service** (`drain_orifice_service.py:100`): `Ftp = 1 - 0.0245·β^4.4`
+  - **PCS service** (`drain_orifice_service.py:118`): `Ftp = 1 - 0.0245·β^4.4`
     (GB/T 308 Eq.2.2 排水孔板经验式)
   - **XLS** (PR-023 E39 = 1.0018989203786408): `Ftp = 1 + (k/2)·(2/(k+1))^((k+1)/(k-1))·β^4`
     (ISO 5167 general orifice empirical)
@@ -27,13 +27,21 @@ d, verify m_dot within capacity — GB/T 308 Ftp 经验式).
   - critical_pressure_ratio = (2/(γ+1))^(γ/(γ-1)) for γ=1.4 → 0.5283
   - actual_pressure_ratio = P2/P1 = 800/6300 = 0.1270
   - is_choked: 0.1270 < 0.5283 → True (matches XLS N16 "OK - Critical Flow")
-  - mass_flow_capacity (choked branch) with brief's ρ=58.52 → ≈4.606 kg/s
-  - is_capacity_ok: m_dot (1.89 kg/s) << mass_max (4.606 kg/s) → True
+  - mass_flow_capacity (choked branch, post-fix Cd/Y_cr) → ≈2.656 kg/s
+  - is_capacity_ok: m_dot (1.89 kg/s) < mass_max (2.656 kg/s) → True
 
-**OUT_OF_SCOPE** (per Ruling 7 + service scope):
-  - Ftp formula exact bit-for-bit match (formula family mismatch)
-  - Cd discharge coefficient (XLS N24=0.83932; PCS implicit 1.0)
-  - Y_cr expansion factor (XLS N27=0.687; PCS implicit 1.0)
+✅ **OPEN-P6-6A-4 Ruling 12 fix** (commit target):
+  PCS service calc_drain_orifice 现接受 `discharge_coefficient` (Cd, default 1.0) 与
+  `expansion_factor` (Y_cr^0.5, default 1.0) 作为可选输入。mass_flow_capacity 公式改为
+  `m_max = A × Cd × Y_cr^0.5 × Ftp × ρ × v_max`（Ruling 12）。Fixture 现 Cd=0.83932 +
+  Y_cr^0.5=0.6871656312856262（XLS N24 + N27）；post-fix mass_max ≈ 2.656 kg/s，
+  对应 XLS PR-023 在 d=15.204 mm 处计算结果，消除 1.74× over-prediction。
+  默认值 1.0 保持向后兼容（Open-P6-6A-4 前所有调用方零行为变化）。
+
+**OUT_OF_SCOPE** (per Ruling 7 + service scope; Ruling 12 CLOSED):
+  - Ftp formula exact bit-for-bit match (Ruling 7 family mismatch)
+  - ~~Cd discharge coefficient (XLS N24=0.83932; PCS implicit 1.0)~~ → CLOSED in OPEN-P6-6A-4
+  - ~~Y_cr expansion factor (XLS N27=0.687; PCS implicit 1.0)~~ → CLOSED in OPEN-P6-6A-4
   - d sizing iteration (XLS C29-C42; PCS takes d as input)
   - Fluid property derivation (XLS computes ρ from MW/P/T/z; PCS takes ρ as input)
   - Critical flow pressure ratio (Pcrit) XLS R44-T46 (different physical quantity)
@@ -41,17 +49,20 @@ d, verify m_dot within capacity — GB/T 308 Ftp 经验式).
   - Multiple iteration loops (XLS 2 iterations; PCS single pass)
   - Imperial unit display (XLS Q6)
   - Initial Cd estimate (XLS N23=0.847)
+  - Cd/Y_cr iterative computation (XLS estimates Cd then iterates with Ftp; PCS 仅消费输入值)
 
 SPEC §5 分级: C-19 强公式 0.1% (rel≤1e-3); 本批因 Ruling 7 Ftp formula family mismatch,
 强公式 0.1% 容差 used for algebraic identities (β, orifice_area, critical_p_ratio,
 actual_p_ratio); Ftp 容差放宽至 0.2% (Ruling 7 family mismatch); is_choked/is_capacity_ok
 bool EXACT; mass_flow_capacity choked-branch algebraic within 1% (brief ρ=58.52 rounding).
 
-处置结论: 全部通过 (代数恒等式 + 布尔 + Ruling 7 登记);
-无 Ruling 1(a) 代码修复; root_cause_notes 登记 8 项 (Ruling 7 family mismatch + Cd +
-Y_cr + d iteration + ρ derivation + Pcrit + metadata + iteration loops)
-+ out_of_scope 11 项 (Ftp bit-for-bit + Cd + Y_cr + d iteration + ρ + Pcrit + metadata +
-iter loops + imperial display + equation selector + initial Cd).
+处置结论: 全部通过 (代数恒等式 + 布尔 + Ruling 7 登记 + Ruling 12 fix);
+OPEN-P6-6A-4 服务改动（Ruling 12 fix）：DrainOrificeInput 加 2 optional 字段（Cd/Y_cr）；
+mass_flow_capacity 公式更新；root_cause_notes 登记 8 项 (Ruling 7 family mismatch + Cd + Y_cr
+状态=CLOSED + d iteration + ρ derivation + Pcrit + metadata + iteration loops)
++ out_of_scope 9 项 (Ftp bit-for-bit + d iteration + ρ + Pcrit + metadata + iter loops +
+imperial display + equation selector + initial Cd; 移除 xls_cd_discharge_coefficient_0p83932
++ xls_y_cr_expansion_factor_0p687，状态 CLOSED in OPEN-P6-6A-4)。
 """
 from __future__ import annotations
 
@@ -82,7 +93,11 @@ def _case_ids() -> list[str]:
 
 
 def _build_input(case: dict) -> DrainOrificeInput:
-    """Build DrainOrificeInput from case.service_inputs."""
+    """Build DrainOrificeInput from case.service_inputs.
+
+    ✅ OPEN-P6-6A-4 Ruling 12 fix: 现包含 discharge_coefficient (Cd) 与
+    expansion_factor (Y_cr^0.5)。缺省回退 1.0（向后兼容）。
+    """
     si = case["service_inputs"]
     return DrainOrificeInput(
         orifice_diameter_m=si["orifice_diameter_m"],
@@ -93,6 +108,8 @@ def _build_input(case: dict) -> DrainOrificeInput:
         mass_flow_kg_s=si["mass_flow_kg_s"],
         drain_type=si["drain_type"],
         imperial_units=si["imperial_units"],
+        discharge_coefficient=si.get("discharge_coefficient", 1.0),
+        expansion_factor=si.get("expansion_factor", 1.0),
     )
 
 
@@ -328,68 +345,183 @@ def test_is_choked_true_matches_xls_n16_critical_flow_flag() -> None:
 def test_mass_flow_capacity_choked_branch_and_is_capacity_ok() -> None:
     """mass_flow_capacity (choked branch) + is_capacity_ok — choked-branch derivation.
 
-    Choked branch formula (per PCS service code):
+    ✅ OPEN-P6-6A-4 Ruling 12 fix: mass_flow_capacity 公式含 Cd × Y_cr^0.5:
       v_max = √(2 × ΔP / ρ)
-      mass_max = A × Ftp × ρ × v_max
+      mass_max = A × Cd × Y_cr^0.5 × Ftp × ρ × v_max
 
-    For XLS PR-023 (blowdown):
+    For XLS PR-023 (blowdown) with Cd=0.83932 + Y_cr^0.5=0.6871656312856262:
       ΔP = (6300-800) × 1000 = 5.5e6 Pa
       ρ = 58.52 kg/m³ (brief's rounded value)
       v_max = √(2 × 5.5e6 / 58.52) = √187968.6 = 433.555 m/s
-      mass_max = 1.81558e-4 × 0.99986 × 58.52 × 433.555 ≈ 4.606 kg/s
+      mass_max = 1.81558e-4 × 0.83932 × 0.68717 × 0.99986 × 58.52 × 433.555 ≈ 2.656 kg/s
 
     XLS Q = 6803 kg/h = 1.88972 kg/s (XLS N18)
-    capacity_ratio = 1.88972 / 4.606 = 0.41 → is_capacity_ok = True
+    capacity_ratio = 1.88972 / 2.656 = 0.71 → is_capacity_ok = True
 
-    Verifies choked-branch mass_max formula derivation + is_capacity_ok bool.
-    Brief's mass_max ≈ 4.604 kg/s (rounded); PCS service gives ≈4.606 kg/s.
-    Bit-for-bit ρ-precision OUT_OF_SCOPE — XLS computes ρ on-the-fly; PCS takes ρ as input.
+    Pre-fix (Cd=1.0, Y_cr^0.5=1.0 implicit): mass_max ≈ 4.606 kg/s (1.74× over-prediction
+    vs XLS PR-023 at same d).
+    Post-fix: mass_max ≈ 2.656 kg/s, 消除 1.74× over-prediction。
     """
     case = WORLEY["cases"][0]
     si = case["service_inputs"]
 
-    # Hand-compute choked branch
+    # Hand-compute choked branch（含 Ruling 12 Cd × Y_cr^0.5）
     d = si["orifice_diameter_m"]
     beta = si["beta_ratio"]
     P1 = si["inlet_pressure_kpa"]
     P2 = si["outlet_pressure_kpa"]
     rho = si["fluid_density_kg_m3"]
+    cd = si["discharge_coefficient"]
+    y_cr = si["expansion_factor"]
     ftp = 1.0 - 0.0245 * beta**4.4
     A = math.pi * d**2 / 4.0
     delta_p_pa = (P1 - P2) * 1000.0
     v_max = math.sqrt(2.0 * delta_p_pa / rho)
-    expected_mass_max = A * ftp * rho * v_max
+    expected_mass_max_post_fix = A * cd * y_cr * ftp * rho * v_max
 
     # PCS service call
     inp = _build_input(case)
     result = calc_drain_orifice(inp)
 
-    # 1) mass_flow_capacity matches choked-branch formula EXACT (rel=1e-9, brief ρ rounding)
+    # 1) mass_flow_capacity matches choked-branch formula (Cd×Y_cr×Ftp×v_max) EXACT (rel=1e-9, brief ρ rounding)
     #    Note: brief's ρ=58.52 is rounded from 58.5198...; exact ρ would give exact match
-    assert result.mass_flow_capacity_kg_s == pytest.approx(expected_mass_max, rel=1e-9), (
-        f"PCS mass_max={result.mass_flow_capacity_kg_s!r} ≠ choked-branch={expected_mass_max!r}"
+    assert result.mass_flow_capacity_kg_s == pytest.approx(expected_mass_max_post_fix, rel=1e-9), (
+        f"PCS mass_max={result.mass_flow_capacity_kg_s!r} ≠ post-fix={expected_mass_max_post_fix!r}"
     )
 
-    # 2) mass_max ≈ 4.605 kg/s (matches brief's hand-computation ≈ 4.604)
-    assert 4.5 < result.mass_flow_capacity_kg_s < 4.7, (
-        f"mass_max={result.mass_flow_capacity_kg_s!r} 不在 (4.5, 4.7) brief 范围"
+    # 2) Post-fix mass_max ≈ 2.656 kg/s（消除 1.74× over-prediction）
+    assert 2.5 < result.mass_flow_capacity_kg_s < 2.8, (
+        f"mass_max={result.mass_flow_capacity_kg_s!r} 不在 (2.5, 2.8) post-fix 范围"
     )
 
-    # 3) mass_max >> XLS Q (1.89 kg/s) — large safety margin
+    # 3) mass_max > XLS Q (1.89 kg/s) — capacity ratio ~0.71 (Ruling 12)
     capacity_ratio = si["mass_flow_kg_s"] / result.mass_flow_capacity_kg_s
-    assert 0.35 < capacity_ratio < 0.50, (
-        f"capacity_ratio={capacity_ratio:.4f} 应 ~0.41 (m_dot/mass_max)"
+    assert 0.6 < capacity_ratio < 0.8, (
+        f"capacity_ratio={capacity_ratio:.4f} 应 ~0.71 (m_dot/mass_max_post_fix)"
     )
 
-    # 4) is_capacity_ok EXACT bool (True)
+    # 4) Pre-fix vs post-fix 对账（1.74× reduction 验证）
+    expected_mass_max_pre_fix = expected_mass_max_post_fix / (cd * y_cr)
+    assert expected_mass_max_pre_fix / expected_mass_max_post_fix == pytest.approx(1.0 / (cd * y_cr), rel=1e-9)
+
+    # 5) is_capacity_ok EXACT bool (True)
     assert result.is_capacity_ok is True, (
-        f"is_capacity_ok={result.is_capacity_ok!r} 应 True (m_dot << mass_max)"
+        f"is_capacity_ok={result.is_capacity_ok!r} 应 True (m_dot < mass_max)"
     )
 
-    # 5) is_capacity_ok type check
+    # 6) is_capacity_ok type check
     assert isinstance(result.is_capacity_ok, bool), (
         f"is_capacity_ok type={type(result.is_capacity_ok).__name__} 应 bool"
     )
+
+
+# ============================================================================
+# 5b) Ruling 12 fix verification — Cd × Y_cr^0.5 在 mass_flow_capacity 中
+# ============================================================================
+
+
+def test_cd_y_cr_default_one_backward_compat() -> None:
+    """OPEN-P6-6A-4 Ruling 12 backward compat: 默认 Cd=1.0, Y_cr^0.5=1.0 保持 pre-fix 行为。
+
+    旧调用方（未传 Cd/Y_cr）应得到 pre-fix mass_max ≈ 4.606 kg/s（1.74× over-prediction），
+    不应因 Ruling 12 fix 触发回归。
+    """
+    case = WORLEY["cases"][0]
+    si = case["service_inputs"]
+
+    # 显式构造默认 Cd/Y_cr=1.0 input
+    inp_default = DrainOrificeInput(
+        orifice_diameter_m=si["orifice_diameter_m"],
+        beta_ratio=si["beta_ratio"],
+        inlet_pressure_kpa=si["inlet_pressure_kpa"],
+        outlet_pressure_kpa=si["outlet_pressure_kpa"],
+        fluid_density_kg_m3=si["fluid_density_kg_m3"],
+        mass_flow_kg_s=si["mass_flow_kg_s"],
+        drain_type=si["drain_type"],
+        imperial_units=si["imperial_units"],
+        # discharge_coefficient, expansion_factor 默认 1.0
+    )
+    result_default = calc_drain_orifice(inp_default)
+
+    # 与 fixture.pre_fix_default 对账（保持 Ruling 12 前行为）
+    pre_fix_mass_max = case["expected"]["xls_tautology_expected"]["mass_max_kg_s_pre_fix_default"]
+    assert result_default.mass_flow_capacity_kg_s == pytest.approx(pre_fix_mass_max, rel=1e-9), (
+        f"Default Cd/Y_cr mass_max={result_default.mass_flow_capacity_kg_s!r} ≠ pre-fix={pre_fix_mass_max!r}"
+    )
+
+
+def test_cd_y_cr_post_fix_1p74x_reduction() -> None:
+    """OPEN-P6-6A-4 Ruling 12 post-fix: Cd × Y_cr^0.5 = 0.83932 × 0.68717 ≈ 0.5768,
+    mass_max 减少 1/(0.5768) ≈ 1.734× ≈ 1.74×，消除 over-prediction。
+
+    验证：
+      1) post-fix mass_max = pre_fix × Cd × Y_cr^0.5
+      2) reduction ratio = 1/(Cd × Y_cr^0.5) ≈ 1.734
+      3) post-fix mass_max 与 XLS PR-023 在 d=15.204 mm 处计算结果一致（Ruling 7 0.2% 容差内）
+    """
+    case = WORLEY["cases"][0]
+    si = case["service_inputs"]
+
+    # Pre-fix: 默认 Cd/Y_cr=1.0
+    inp_pre = DrainOrificeInput(
+        orifice_diameter_m=si["orifice_diameter_m"],
+        beta_ratio=si["beta_ratio"],
+        inlet_pressure_kpa=si["inlet_pressure_kpa"],
+        outlet_pressure_kpa=si["outlet_pressure_kpa"],
+        fluid_density_kg_m3=si["fluid_density_kg_m3"],
+        mass_flow_kg_s=si["mass_flow_kg_s"],
+        drain_type=si["drain_type"],
+        imperial_units=si["imperial_units"],
+    )
+    result_pre = calc_drain_orifice(inp_pre)
+
+    # Post-fix: XLS Cd/Y_cr
+    inp_post = _build_input(case)
+    result_post = calc_drain_orifice(inp_post)
+
+    cd = si["discharge_coefficient"]
+    y_cr = si["expansion_factor"]
+
+    # 1) post_fix = pre_fix × Cd × Y_cr^0.5（bit-for-bit）
+    expected_post_fix = result_pre.mass_flow_capacity_kg_s * cd * y_cr
+    assert result_post.mass_flow_capacity_kg_s == pytest.approx(expected_post_fix, rel=1e-12), (
+        f"post_fix mass_max={result_post.mass_flow_capacity_kg_s!r} ≠ pre_fix × Cd × Y_cr={expected_post_fix!r}"
+    )
+
+    # 2) Reduction ratio ≈ 1/(Cd × Y_cr^0.5) = 1/(0.83932 × 0.68717) ≈ 1.734
+    reduction_ratio = result_pre.mass_flow_capacity_kg_s / result_post.mass_flow_capacity_kg_s
+    expected_ratio = 1.0 / (cd * y_cr)
+    assert reduction_ratio == pytest.approx(expected_ratio, rel=1e-12), (
+        f"reduction_ratio={reduction_ratio:.4f} ≠ 预期 {expected_ratio:.4f}"
+    )
+    assert 1.7 < reduction_ratio < 1.8, (
+        f"reduction_ratio={reduction_ratio:.4f} 应 ≈1.74×（Ruling 12 fix）"
+    )
+
+    # 3) Post-fix mass_max 约 2.656 kg/s（XLS 在 d=15.204 mm 处）
+    assert 2.5 < result_post.mass_flow_capacity_kg_s < 2.8, (
+        f"post-fix mass_max={result_post.mass_flow_capacity_kg_s!r} 应 ≈2.656 kg/s"
+    )
+
+
+def test_formula_ref_includes_cd_y_cr_ruling_12() -> None:
+    """OPEN-P6-6A-4 Ruling 12: formula_ref 必含 Cd/Y_cr/mass_flow_capacity 三键。"""
+    case = WORLEY["cases"][0]
+    inp = _build_input(case)
+    result = calc_drain_orifice(inp)
+    formula_ref = result.formula_ref
+    assert "discharge_coefficient" in formula_ref, (
+        f"formula_ref 缺键 'discharge_coefficient'（Ruling 12）"
+    )
+    assert "expansion_factor" in formula_ref, (
+        f"formula_ref 缺键 'expansion_factor'（Ruling 12）"
+    )
+    assert "mass_flow_capacity" in formula_ref, (
+        f"formula_ref 缺键 'mass_flow_capacity'（Ruling 12）"
+    )
+    assert "Ruling 12" in formula_ref["discharge_coefficient"]
+    assert "Ruling 12" in formula_ref["expansion_factor"]
+    assert "Ruling 12" in formula_ref["mass_flow_capacity"]
 
 
 # ============================================================================
@@ -492,12 +624,15 @@ def test_worley_c19_root_cause_notes_registered() -> None:
 
 
 def test_worley_c19_out_of_scope_ledger_complete() -> None:
-    """fixture.out_of_scope 必须登记 11 项 (Ruling 7 family mismatch + service scope)."""
+    """fixture.out_of_scope 必须登记 9 项 (Ruling 7 family mismatch + service scope)。
+
+    ✅ OPEN-P6-6A-4 Ruling 12 fix 后，xls_cd_discharge_coefficient_0p83932 +
+    xls_y_cr_expansion_factor_0p687 已从 out_of_scope 移除（标记 CLOSED in
+    OPEN-P6-6A-4，PCS 服务现接受 Cd/Y_cr 作为输入）。
+    """
     registered = {o["id"] for o in WORLEY["out_of_scope"]}
     expected_ids = {
         "xls_ftp_iso_5167_formula_bit_for_bit_match",
-        "xls_cd_discharge_coefficient_0p83932",
-        "xls_y_cr_expansion_factor_0p687",
         "xls_d_sizing_iteration_E33_to_E42",
         "xls_fluid_property_derivation_rho",
         "xls_critical_flow_pressure_ratio_Pcrit",
@@ -510,6 +645,33 @@ def test_worley_c19_out_of_scope_ledger_complete() -> None:
     assert registered == expected_ids, (
         f"out_of_scope 集合不符: 已登记 {registered}, 预期 {expected_ids}"
     )
+
+
+def test_worley_c19_root_cause_notes_cd_y_cr_status_closed() -> None:
+    """OPEN-P6-6A-4 Ruling 12 fix: root_cause_notes 中 xls_cd_discharge_coefficient_out_of_scope
+    + xls_y_cr_expansion_factor_out_of_scope 必须标记 status='CLOSED in OPEN-P6-6A-4 (Ruling 12 fix)'。
+    """
+    registered = {n["id"]: n for n in WORLEY["root_cause_notes"]}
+    assert "xls_cd_discharge_coefficient_out_of_scope" in registered, (
+        "root_cause_notes 缺 xls_cd_discharge_coefficient_out_of_scope"
+    )
+    assert "xls_y_cr_expansion_factor_out_of_scope" in registered, (
+        "root_cause_notes 缺 xls_y_cr_expansion_factor_out_of_scope"
+    )
+    cd_note = registered["xls_cd_discharge_coefficient_out_of_scope"]
+    y_cr_note = registered["xls_y_cr_expansion_factor_out_of_scope"]
+    assert "status" in cd_note, "xls_cd_discharge_coefficient_out_of_scope 缺 status 字段"
+    assert "status" in y_cr_note, "xls_y_cr_expansion_factor_out_of_scope 缺 status 字段"
+    assert "CLOSED" in cd_note["status"], (
+        f"xls_cd_discharge_coefficient_out_of_scope.status={cd_note['status']!r} 应 CLOSED"
+    )
+    assert "CLOSED" in y_cr_note["status"], (
+        f"xls_y_cr_expansion_factor_out_of_scope.status={y_cr_note['status']!r} 应 CLOSED"
+    )
+    assert "OPEN-P6-6A-4" in cd_note["status"]
+    assert "OPEN-P6-6A-4" in y_cr_note["status"]
+    assert "Ruling 12" in cd_note["status_note"] or "OPEN-P6-6A-4" in cd_note["status_note"]
+    assert "Ruling 12" in y_cr_note["status_note"] or "OPEN-P6-6A-4" in y_cr_note["status_note"]
 
 
 def test_worley_c19_ruling_7_registration_complete() -> None:

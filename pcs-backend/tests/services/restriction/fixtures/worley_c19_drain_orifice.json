@@ -1,5 +1,5 @@
 {
-  "_doc": "P6-6A Task 11: C-19 RESTRICTION 排污孔板 vs Worley 真实算例 WS-CA-PR-023 首次对账 fixture。Blowdown Orifice Sizing (ISO 5167-style critical flow orifice), XLS Page 'WS-CA-PR-023'. ⚠️ Ruling 7 — FTP FORMULA FAMILY MISMATCH: PCS service calc_drain_orifice uses GB/T 308 Eq.2.2 (drain orifice empirical: Ftp = 1 - 0.0245·β^4.4); XLS PR-023 uses ISO 5167 general orifice empirical (Ftp = 1 + (k/2)·(2/(k+1))^((k+1)/(k-1))·β^4). For β=0.309 both ≈1.0 within 0.2%; Ftp formula exact match OUT_OF_SCOPE. 强公式 0.1% 容差 used for algebraic identities (β, orifice_area, critical_pressure_ratio, actual_pressure_ratio, is_choked); Ftp noted as 0.2% diff (Ruling 7).",
+  "_doc": "P6-6A Task 11: C-19 RESTRICTION 排污孔板 vs Worley 真实算例 WS-CA-PR-023 首次对账 fixture。Blowdown Orifice Sizing (ISO 5167-style critical flow orifice), XLS Page 'WS-CA-PR-023'. ⚠️ Ruling 7 — FTP FORMULA FAMILY MISMATCH: PCS service calc_drain_orifice uses GB/T 308 Eq.2.2 (drain orifice empirical: Ftp = 1 - 0.0245·β^4.4); XLS PR-023 uses ISO 5167 general orifice empirical (Ftp = 1 + (k/2)·(2/(k+1))^((k+1)/(k-1))·β^4). For β=0.309 both ≈1.0 within 0.2%; Ftp formula exact match OUT_OF_SCOPE. 强公式 0.1% 容差 used for algebraic identities (β, orifice_area, critical_pressure_ratio, actual_pressure_ratio, is_choked); Ftp noted as 0.2% diff (Ruling 7).✅ OPEN-P6-6A-4 Ruling 12 fix：drain_orifice_service 新增 Cd/Y_cr^0.5 可选输入字段（默认 1.0 向后兼容）；mass_flow_capacity 公式改为 m_max = A × Cd × Y_cr^0.5 × Ftp × ρ × v_max。fixture.cases[0].service_inputs 现含 discharge_coefficient=0.83932 + expansion_factor=0.6871656312856262；expected.mass_max_post_fix 验证 PCS post-fix ≈ XLS post-fix（2.66 kg/s）。原 xls_cd_discharge_coefficient_0p83932 + xls_y_cr_expansion_factor_0p687 out_of_scope 项标记 CLOSED in OPEN-P6-6A-4。",
   "source": {
     "xls": "WS-CA-PR-023.xls",
     "xls_title": "Blowdown Orifice Sizing Calculation, Standard Calculation WS-CA-PR-023, Rev. A, 'Issued for Review', Date 05-Feb-03",
@@ -116,7 +116,7 @@
         "N42_orifice_area_mm2": {"label": "Orifice area", "value": 181.55775368072992, "unit": "mm²"}
       },
       "service_inputs": {
-        "_doc": "PCS service input — given d (m), β (from E42/N21), P1 (kPa), P2 (kPa), ρ (kg/m³, derived from MW/P/T/z at XLS-side), m_dot (kg/s), drain_type (CONTINUOUS for blowdown).",
+        "_doc": "PCS service input — given d (m), β (from E42/N21), P1 (kPa), P2 (kPa), ρ (kg/m³, derived from MW/P/T/z at XLS-side), m_dot (kg/s), drain_type (CONTINUOUS for blowdown).✅ OPEN-P6-6A-4 Ruling 12 fix: 现包含 Cd (XLS N24=0.83932) 与 Y_cr^0.5 (XLS N27=0.6871656312856262)。",
         "orifice_diameter_m": 0.015204160997555617,
         "beta_ratio": 0.30890209259560375,
         "beta_ratio_derivation": "β = E42/N21 = 15.204160997555617/49.22 = 0.30890209... (using final iterated d; XLS W37 uses initial d E33 which gives β=0.3091952)",
@@ -127,7 +127,11 @@
         "mass_flow_kg_s": 1.8897222222222222,
         "mass_flow_derivation": "Q = 6803/3600 = 1.8897222... kg/s",
         "drain_type": "CONTINUOUS",
-        "imperial_units": false
+        "imperial_units": false,
+        "discharge_coefficient": 0.83932,
+        "discharge_coefficient_derivation": "XLS N24 = 0.83932 (Cd after 2 iterations with Ftp correction); PCS service post-fix consumes Cd as input (Ruling 12 OPEN-P6-6A-4)",
+        "expansion_factor": 0.6871656312856262,
+        "expansion_factor_derivation": "XLS N27 = 0.6871656312856262 (Y_cr^0.5 expansion factor at critical flow); PCS service post-fix consumes Y_cr^0.5 as input (Ruling 12 OPEN-P6-6A-4)"
       },
       "input_assumptions": {
         "_doc": "XLS Imperial/SI inputs converted to PCS service SI inputs via standard unit factors. XLS 'blowdown' is treated as CONTINUOUS drain (per task brief).",
@@ -167,12 +171,14 @@
           "ftp_gbt_vs_iso_rel_diff_derivation": "rel_diff = |Ftp_GB/T - Ftp_ISO|/Ftp_ISO = |0.99986 - 1.00190|/1.00190 = 0.00203 ≈ 0.2% (Ruling 7 formula family mismatch)",
           "is_choked_bool": true,
           "is_choked_bool_derivation": "P2/P1 = 0.12698 < r_c = 0.52828 → is_choked=True (matches XLS N16 'OK - Critical Flow')",
-          "mass_max_kg_s_from_choked": 4.605775244774297,
-          "mass_max_kg_s_derivation": "ΔP = (6300-800) × 1000 = 5.5e6 Pa; v_max = √(2×5.5e6/58.52) = √187968.6 = 433.555 m/s; mass_max = A × Ftp × ρ × v_max = 1.81558e-4 × 0.99986 × 58.52 × 433.555 = 4.6058 kg/s",
+          "mass_max_kg_s_pre_fix_default": 4.605775244774297,
+          "mass_max_kg_s_pre_fix_default_derivation": "OPEN-P6-6A-4 fix 前 (Cd=1.0, Y_cr^0.5=1.0 implicit): ΔP = (6300-800) × 1000 = 5.5e6 Pa; v_max = √(2×5.5e6/58.52) = √187968.6 = 433.555 m/s; mass_max = A × Ftp × ρ × v_max = 1.81558e-4 × 0.99986 × 58.52 × 433.555 = 4.6058 kg/s; OUT_OF_SCOPE before OPEN-P6-6A-4 (1.74× over-prediction vs XLS PR-023)",
+          "mass_max_kg_s_post_fix_with_cd_y_cr": 2.656,
+          "mass_max_kg_s_post_fix_derivation": "OPEN-P6-6A-4 Ruling 12 fix 后 (Cd=0.83932, Y_cr^0.5=0.6871656312856262): mass_max = A × Cd × Y_cr^0.5 × Ftp × ρ × v_max = 1.81558e-4 × 0.83932 × 0.68717 × 0.99986 × 58.52 × 433.555 = 2.656 kg/s; matches XLS PR-023 at d=15.204 mm (Ruling 7 family mismatch 0.2% within Ftp tolerance)",
           "mass_flow_xls_kg_s": 1.8897222222222222,
           "mass_flow_xls_derivation": "XLS Q = 6803 kg/h ÷ 3600 = 1.88972 kg/s (XLS N18)",
           "is_capacity_ok_bool": true,
-          "is_capacity_ok_bool_derivation": "m_dot (1.89 kg/s) << mass_max (4.605 kg/s) → capacity_ratio = m_dot/mass_max = 0.41 → is_capacity_ok = True"
+          "is_capacity_ok_bool_derivation": "Post-fix: m_dot (1.89 kg/s) < mass_max_post_fix (2.656 kg/s) → capacity_ratio = m_dot/mass_max_post_fix = 0.71 → is_capacity_ok = True. Pre-fix: ratio = 0.41 (1.89/4.61) — both OK; PCS post-fix matches XLS design within 0.71 capacity ratio"
         }
       },
       "per_field_tolerance": {
@@ -226,11 +232,15 @@
     },
     {
       "id": "xls_cd_discharge_coefficient_out_of_scope",
-      "finding": "XLS N24 = 0.83932 (Cd discharge coefficient, after 2 iterations with Ftp correction). PCS service does NOT compute Cd — it uses Cd=1.0 implicit in mass_flow_capacity formula (A × Ftp × ρ × v_max). Cd computation involves iteration (estimate Cd → compute Ftp → recompute Cd) which is OUT_OF_SCOPE for PCS service. Register: Cd bit-for-bit match OUT_OF_SCOPE per Ruling 7."
+      "finding": "XLS N24 = 0.83932 (Cd discharge coefficient, after 2 iterations with Ftp correction). PCS service does NOT compute Cd — it uses Cd=1.0 implicit in mass_flow_capacity formula (A × Ftp × ρ × v_max). Cd computation involves iteration (estimate Cd → compute Ftp → recompute Cd) which is OUT_OF_SCOPE for PCS service. Register: Cd bit-for-bit match OUT_OF_SCOPE per Ruling 7.",
+      "status": "CLOSED in OPEN-P6-6A-4 (Ruling 12 fix)",
+      "status_note": "OPEN-P6-6A-4 Ruling 12 fix: PCS service calc_drain_orifice 现接受 discharge_coefficient (Cd) 作为 optional 输入（默认 1.0 向后兼容）；mass_flow_capacity 公式改为 m_max = A × Cd × Y_cr^0.5 × Ftp × ρ × v_max。本 case service_inputs 现含 discharge_coefficient=0.83932；expected.mass_max_kg_s_post_fix_with_cd_y_cr=2.656 kg/s 与 XLS PR-023 在 d=15.204 mm 处 1.74× over-prediction 消除。Cd 计算（XLS 迭代部分）仍 OUT_OF_SCOPE；PCS 仅消费 Cd 作为输入。"
     },
     {
       "id": "xls_y_cr_expansion_factor_out_of_scope",
-      "finding": "XLS N27 = 0.6871656312856262 (Y_cr^0.5 expansion factor at critical flow). PCS service does NOT compute Y_cr — it uses Y_cr=1.0 implicit. Y_cr accounts for gas expansion at critical flow conditions; for ideal gas Y_cr≈1.0, but XLS uses 0.687 (real gas with k=1.18). Register: Y_cr bit-for-bit match OUT_OF_SCOPE per Ruling 7."
+      "finding": "XLS N27 = 0.6871656312856262 (Y_cr^0.5 expansion factor at critical flow). PCS service does NOT compute Y_cr — it uses Y_cr=1.0 implicit. Y_cr accounts for gas expansion at critical flow conditions; for ideal gas Y_cr≈1.0, but XLS uses 0.687 (real gas with k=1.18). Register: Y_cr bit-for-bit match OUT_OF_SCOPE per Ruling 7.",
+      "status": "CLOSED in OPEN-P6-6A-4 (Ruling 12 fix)",
+      "status_note": "OPEN-P6-6A-4 Ruling 12 fix: PCS service calc_drain_orifice 现接受 expansion_factor (Y_cr^0.5) 作为 optional 输入（默认 1.0 向后兼容）；mass_flow_capacity 公式改为 m_max = A × Cd × Y_cr^0.5 × Ftp × ρ × v_max。本 case service_inputs 现含 expansion_factor=0.6871656312856262；expected.mass_max_kg_s_post_fix_with_cd_y_cr=2.656 kg/s 与 XLS PR-023 在 d=15.204 mm 处一致（Ruling 7 family mismatch 0.2% 容差内）。Y_cr 计算（XLS 迭代部分）仍 OUT_OF_SCOPE；PCS 仅消费 Y_cr^0.5 作为输入。"
     },
     {
       "id": "xls_d_sizing_iteration_out_of_scope",
@@ -257,14 +267,6 @@
     {
       "id": "xls_ftp_iso_5167_formula_bit_for_bit_match",
       "rationale": "Ruling 7: XLS uses ISO 5167 general orifice empirical Ftp = 1 + (k/2)·(2/(k+1))^((k+1)/(k-1))·β^4; PCS uses GB/T 308 Eq.2.2 Ftp = 1 - 0.0245·β^4.4. Different formula families. For β=0.309 both ≈1.0 within 0.2% (PCS=0.99986, XLS=1.0019). For β>0.5 the formulas diverge. Direct bit-for-bit Ftp match OUT_OF_SCOPE; algebraic identity to GB/T 308 formula only."
-    },
-    {
-      "id": "xls_cd_discharge_coefficient_0p83932",
-      "rationale": "XLS N24 = 0.83932 (Cd after iteration). PCS service uses Cd=1.0 implicit in mass_flow_capacity formula. Cd computation is part of XLS iterative sizing algorithm (estimate Cd → compute Ftp → recompute Cd); OUT_OF_SCOPE per Ruling 7 (XLS inverse problem vs PCS forward problem)."
-    },
-    {
-      "id": "xls_y_cr_expansion_factor_0p687",
-      "rationale": "XLS N27 = 0.6871656312856262 (Y_cr^0.5 at critical flow). PCS service uses Y_cr=1.0 implicit. Y_cr accounts for gas expansion at critical flow; XLS uses real gas factor with k=1.18. OUT_OF_SCOPE per Ruling 7."
     },
     {
       "id": "xls_d_sizing_iteration_E33_to_E42",
