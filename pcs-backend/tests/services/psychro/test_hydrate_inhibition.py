@@ -57,17 +57,22 @@ def _baseline_input(**overrides):
 
 
 def test_hammerschmidt_methanol_depression():
-    """Hammerschmidt 1934 Eq：ΔT = K·X / (M·(1-X))
+    """Hammerschmidt 1934 Eq：ΔT_F = K·X / (M·(1-X))
 
-    MeOH MW=32.04, X=0.10（10 wt%）→ ΔT = 2335·0.10/(32.04·0.90) ≈ 8.10°C
-    H-2 v1 BLOCKER：K=2335 精确按文献。
+    MeOH MW=32.04, X=0.10（10 wt%）→ ΔT_F = 2335·0.10/(32.04·0.90) ≈ 8.10°F
+    H-2 v1 BLOCKER：K=2335 精确按文献 °F 标度（OPEN-P6-6A-3 fix）。
     """
     inp = _baseline_input()
     result = calc_hydrate_inhibition(inp)
-    delta_t_expected = 2335.0 * 0.10 / (32.04 * 0.90)
+    # K 是 Hammerschmidt 1934 文献 °F 标度；故 delta_t_f 是 raw 输出
+    delta_t_expected_f = 2335.0 * 0.10 / (32.04 * 0.90)
+    delta_t_expected_c = delta_t_expected_f * 5.0 / 9.0
     assert math.isclose(
-        result.hydrate_depression_c, delta_t_expected, rel_tol=1e-2
-    )
+        result.hydrate_depression_f, delta_t_expected_f, rel_tol=1e-2
+    ), f"d_F={result.hydrate_depression_f!r} ≠ 期望 {delta_t_expected_f!r}"
+    assert math.isclose(
+        result.hydrate_depression_c, delta_t_expected_c, rel_tol=1e-2
+    ), f"d_C={result.hydrate_depression_c!r} ≠ 期望 {delta_t_expected_c!r}"
 
 
 def test_hydrate_inhibition_nacl_salt_lower_k_factor():
@@ -271,11 +276,19 @@ def test_golden_fixture_cross_check():
             ),
         )
         result = calc_hydrate_inhibition(inp)
-        actual_dt = result.hydrate_depression_c
+        actual_dt_f = result.hydrate_depression_f
+        actual_dt_c = result.hydrate_depression_c
+        expected_f = expected["hydrate_depression_f"]
+        expected_c = expected["hydrate_depression_c"]
         assert (
-            abs(actual_dt - expected["hydrate_depression_c"]) / expected["hydrate_depression_c"]
-            < 1e-2
+            abs(actual_dt_f - expected_f) / expected_f < 1e-2
         ), (
-            f"{inp_dict}: ΔT_c {actual_dt} != "
-            f"expected {expected['hydrate_depression_c']}"
+            f"{inp_dict}: ΔT_F {actual_dt_f} != "
+            f"expected {expected_f}"
+        )
+        assert (
+            abs(actual_dt_c - expected_c) / expected_c < 1e-2
+        ), (
+            f"{inp_dict}: ΔT_C {actual_dt_c} != "
+            f"expected {expected_c}"
         )

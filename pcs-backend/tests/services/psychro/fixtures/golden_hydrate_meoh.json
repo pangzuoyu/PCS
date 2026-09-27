@@ -1,10 +1,11 @@
 {
-  "_comment": "P6-5 Task C2 (C-18 PSYCHRO 水合物抑制) Hammerschmidt 1934 + GPSA §20.3 黄金对账 fixture。固化时间：2026-09-26。固化源：Hammerschmidt 1934 Eq ΔT = K·X / (M·(1-X)) + GPSA Engineering Data Book §20.3 抑制剂注入率 + SPEC §3.9.4 V1.1 + H-2 v1 BLOCKER K 因子。",
+  "_comment": "P6-5 Task C2 (C-18 PSYCHRO 水合物抑制) Hammerschmidt 1934 + GPSA §20.3 黄金对账 fixture。固化时间：2026-09-26。固化源：Hammerschmidt 1934 Eq ΔT_F = K·X / (M·(1-X)) + GPSA Engineering Data Book §20.3 抑制剂注入率 + SPEC §3.9.4 V1.1 + H-2 v1 BLOCKER K 因子。OPEN-P6-6A-3 fix：K 按 Hammerschmidt 1934 文献 °F 标度计算 raw ΔT_F，再 ΔT_C = ΔT_F × 5/9。fixture 提供 _f 和 _c 双轨对账。",
   "_tolerance_rel": 1e-2,
   "_reference_standard": "Hammerschmidt 1934 + GPSA §20.3 + SPEC §3.9.4 V1.1",
+  "_k_scale_convention": "°F (Hammerschmidt 1934 paper convention; OPEN-P6-6A-3 fix)",
   "points": [
     {
-      "_note": "Baseline MeOH 10 wt% (K=2335, MW=32.04) → ΔT = 2335·0.1/(32.04·0.9) ≈ 8.10°C",
+      "_note": "Baseline MeOH 10 wt% (K=2335 °F, MW=32.04) → ΔT_F = 2335·0.1/(32.04·0.9) = 8.10°F；ΔT_C = 4.50°C",
       "gas_flow_mmscfd": 10.0,
       "operating_pressure_psia": 500.0,
       "operating_temperature_f": 40.0,
@@ -13,11 +14,12 @@
       "water_content_inlet_lb_per_mmscf": 20.0,
       "water_content_target_lb_per_mmscf": 1.0,
       "expected": {
-        "hydrate_depression_c": 8.10
+        "hydrate_depression_f": 8.10,
+        "hydrate_depression_c": 4.50
       }
     },
     {
-      "_note": "NaCl 10 wt% (K=1297, MW=58.44) → ΔT = 1297·0.1/(58.44·0.9) ≈ 2.47°C（盐类 K 因子显著小于醇类）",
+      "_note": "NaCl 10 wt% (K=1297 °F, MW=58.44) → ΔT_F = 1297·0.1/(58.44·0.9) = 2.47°F；ΔT_C = 1.37°C（盐类 K 因子显著小于醇类）",
       "gas_flow_mmscfd": 10.0,
       "operating_pressure_psia": 500.0,
       "operating_temperature_f": 40.0,
@@ -26,11 +28,12 @@
       "water_content_inlet_lb_per_mmscf": 20.0,
       "water_content_target_lb_per_mmscf": 1.0,
       "expected": {
-        "hydrate_depression_c": 2.47
+        "hydrate_depression_f": 2.47,
+        "hydrate_depression_c": 1.37
       }
     },
     {
-      "_note": "TEG 10 wt% (K=2500, MW=150.17) → ΔT = 2500·0.1/(150.17·0.9) ≈ 1.85°C",
+      "_note": "TEG 10 wt% (K=2500 °F, MW=150.17) → ΔT_F = 2500·0.1/(150.17·0.9) = 1.85°F；ΔT_C = 1.03°C",
       "gas_flow_mmscfd": 10.0,
       "operating_pressure_psia": 500.0,
       "operating_temperature_f": 40.0,
@@ -39,11 +42,12 @@
       "water_content_inlet_lb_per_mmscf": 20.0,
       "water_content_target_lb_per_mmscf": 1.0,
       "expected": {
-        "hydrate_depression_c": 1.85
+        "hydrate_depression_f": 1.85,
+        "hydrate_depression_c": 1.03
       }
     },
     {
-      "_note": "EG 20 wt% (K=2220, MW=62.07) → ΔT = 2220·0.2/(62.07·0.8) ≈ 8.94°C",
+      "_note": "EG 20 wt% (K=2220 °F, MW=62.07) → ΔT_F = 2220·0.2/(62.07·0.8) = 8.94°F；ΔT_C = 4.97°C",
       "gas_flow_mmscfd": 10.0,
       "operating_pressure_psia": 500.0,
       "operating_temperature_f": 40.0,
@@ -52,7 +56,8 @@
       "water_content_inlet_lb_per_mmscf": 20.0,
       "water_content_target_lb_per_mmscf": 1.0,
       "expected": {
-        "hydrate_depression_c": 8.94
+        "hydrate_depression_f": 8.94,
+        "hydrate_depression_c": 4.97
       }
     }
   ]

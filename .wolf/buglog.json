@@ -1636,6 +1636,101 @@
       "last_seen": "2026-09-18T22:00:00+08:00",
       "severity": "CRITICAL",
       "fix_commit": "4a3c052"
+    },
+    {
+      "id": "bug-099",
+      "timestamp": "2026-09-25T23:00:00+08:00",
+      "error_message": "HORIZONTAL cylinder 润湿面积公式错误：A_cyl = L·(πD − D·arccos((R−d)/R))/2 在 50% fill 时返回 6.36，测试期望 π/2·D·L = 12.73。test_wetted_area_HORIZONTAL_branch 失败",
+      "file": "pcs-backend/app/services/vessel/vessel_service.py:890-905",
+      "root_cause": "ADR-0041 v7 §3.8 工艺简化公式有 /2 冗余因子。正确推导：air arc = 2R·arccos((h−R)/R)；wetted_perimeter = 2πR − air = D·(π − arccos((h−R)/R))。h=0 (空): arccos(−1)=π → A=0 ✓；h=R (50%): arccos(0)=π/2 → A=π/2·D·L=12.73 ✓；h=2R (满): arccos(1)=0 → A=π·D·L ✓。统一适用 h ∈ [0, 2R]",
+      "fix": "(1) 移除 /2 因子；(2) 用 (H_m − R)/R 取代 (R − H_m)/R 以统一处理下半/上半填充（h ≤ R 和 h > R）；(3) 公式注释同步 ADR-0041 v7 引用；h ≤ R 边界 D·(π − arccos((R−h)/R)) 与 h > R 边界 D·(π − arccos((h−R)/R)) 等价（arccos 对称性）",
+      "tags": [
+        "P6-4-C-12",
+        "ADR-0041-v7",
+        "vessel-service",
+        "wetted-area",
+        "HORIZONTAL",
+        "formula-derivation"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-25T23:00:00+08:00",
+      "severity": "HIGH",
+      "fix_commit": "849a1bb"
+    },
+    {
+      "id": "bug-100",
+      "timestamp": "2026-09-26T13:35:00+08:00",
+      "error_message": "AttributeError: type object 'Severity' has no attribute 'ERROR'（stream_symbol_validator.py:66 / pipe_code_validator.py:91）；meta API /enums 的 StreamDataMode 返回空数组。19 个 validator/meta 测试失败",
+      "file": "pcs-backend/app/services/stream_symbol_validator.py:9 / pipe_code_validator.py:22 / meta_service.py:57",
+      "root_cause": "commit a5f9360（P5c-low 24 项 docstring 补全）把 3 个枚举的成员行误替换成 docstring：Severity.ERROR/WARN ×2 + StreamDataMode.CHEMICAL/PETROLEUM/SOLID 全部丢失，类体只剩 docstring。git log -L 可见 a5f9360 diff 直接删成员行",
+      "fix": "恢复全部成员行（保留 docstring）：Severity ERROR/WARN ×2 + StreamDataMode 三成员，对齐对照组 pipe_class_validator.Severity",
+      "fix_commit": "523f396",
+      "tags": [
+        "enum",
+        "docstring-regression",
+        "a5f9360",
+        "p6-5-seed-fixes"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-26T13:35:00+08:00"
+    },
+    {
+      "id": "bug-101",
+      "timestamp": "2026-09-26T13:35:00+08:00",
+      "error_message": "asyncpg UndefinedColumnError: column \"stale_resolution_path\" of relation \"heat_results\" does not exist。heat/vessel/cv/restriction/equipment_list 5 张表真 PG INSERT 必炸（G-07 真库用例暴露）",
+      "file": "pcs-backend/alembic/versions/p4_calc_audit_fields.py（根因；_TABLES 仅 5 表）+ app/models/mixins.py:105（RecordMixin 三件套映射全部 ~20 表）",
+      "root_cause": "ORM RecordMixin 在 20 张记录表映射 P4-0-1 审计三件套，但 p4_calc_audit_fields 只给 5 表加列（streams/piping/pump/flash/pipe_network），P6-2+ 新建表在 create_table 自带；heat_results/vessel_results/cv_results/restriction_results/equipment_list 5 张 P4 前旧表漏列。API 测试跑 sqlite（ORM metadata 建表含三件套）故长期掩盖",
+      "fix": "新迁移 p6_5_005_audit_trio_drift_fix：5 表 × 3 列 nullable（stale_resolution_path String(30) / hash_changed Boolean / changed_fields JSONB），沿 P6-OPEN-009 psv_results 补列先例（ticket 091500e）",
+      "fix_commit": "523f396",
+      "tags": [
+        "alembic-drift",
+        "audit-trio",
+        "RecordMixin",
+        "production-data-loss-risk",
+        "p6-5-seed-fixes"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-26T13:35:00+08:00"
+    },
+    {
+      "id": "bug-102",
+      "timestamp": "2026-09-26T14:05:00+08:00",
+      "error_message": "ORM↔DB 全库元数据扫描暴露 3 处残留 drift：sep_equip_results 缺审计三件套；pipe_class_import_previews 缺 created_by/updated_at；project_template_pipe_classes 缺 created_by",
+      "file": "pcs-backend/alembic/versions/p6_5_006_orm_db_drift_final_fix.py（修复）",
+      "root_cause": "bug-101 修复时用 ORM metadata 全表对比才发现：p6_5_005 的 5 表清单是手写表名清单，漏了 sep_equip_results（同为 P4 前旧表）；另两张 pipe_class 表的 TimestampMixin 列从未落迁移。教训：drift 清单必须从 ORM metadata 程序化生成，不能手写",
+      "fix": "迁移 p6_5_006_orm_db_drift_final_fix（幂等 ADD COLUMN IF NOT EXISTS）补 3 表 6 列；两库应用后全库扫描 drift 清零；全量回归 3173 passed / 0 failed",
+      "fix_commit": "e683fed",
+      "tags": [
+        "alembic-drift",
+        "audit-trio",
+        "TimestampMixin",
+        "metadata-scan",
+        "p6-5-seed-fixes"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-26T14:05:00+08:00"
+    },
+    {
+      "id": "bug-103",
+      "timestamp": "2026-09-27T14:30:00+08:00",
+      "error_message": "PCS hydrate_inhibition_service.py: Hammerschmidt 1934 K scale mis-interpretation — service treats K=2335 (literature °F scale) as °C scale, producing delta_t_c = K·X/(M·(1-X)) raw °C, then ×9/5 to get delta_t_f. Result: for XLS Hammerschmidt X=22.86%, PCS reported d_F=38.88°F vs XLS literature d_F=21.6°F (1.8× over-prediction).",
+      "file": "pcs-backend/app/services/psychro/hydrate_inhibition_service.py:202-205 (formula swap) + docs/formula_ref string updates",
+      "root_cause": "Original implementation interpreted K as °C-scale factor and called the raw output 'delta_t_c' before scaling. Per Hammerschmidt 1934 paper (and all standard GPSA references), K=2335 is in °F scale and the direct output is ΔT_F. The PCS code's 'delta_t_c = K·X/(M·(1-X))' was misnamed (raw °C) but actually computes a °F value. Then 'delta_t_f = delta_t_c * 9/5' scaled it again, producing 1.8× inflation. Identified during P6-6A Task 10 (Worley WS-CA-PR-020 cross-check): Ruling 6 root_cause_notes['xls_k_scale_F_vs_pcs_treats_C'] surfaced this K-scale defect.",
+      "fix": "OPEN-P6-6A-3: Swapped formula in calc_hydrate_inhibition to match Hammerschmidt 1934 paper convention. New code: delta_t_f = K·X/(M·(1-X)) (raw °F output, K in °F scale), then delta_t_c = delta_t_f × 5/9. Updated docstring (lines 185-188), formula_ref['hammerschmidt'] + formula_ref['k_factor'] strings, 14 hydrate_inhibition tests + 3 worley_c18 forward-algebra tests + golden_hydrate_meoh.json fixture (4 cases with both _f and _c expected values) + worley_c18_hydrate_inhibition.json fixture (renamed _d_C_algebra → _d_F_algebra, removed 'xls_hammerschmidt_K_scale_F_to_C_conversion' from out_of_scope, marked 'xls_k_scale_F_vs_pcs_treats_C' as FIXED). Post-fix: PCS d_F = 21.6°F for X=22.86% (matches XLS Hammerschmidt literature d_F=21.6°F bit-for-bit rel=1e-12).",
+      "fix_commit": "PENDING-OPEN-P6-6A-3",
+      "tags": [
+        "hammerschmidt-1934",
+        "K-scale",
+        "F-vs-C",
+        "unit-misinterpretation",
+        "OPEN-P6-6A-3",
+        "psychro",
+        "fixture-update",
+        "docstring"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-27T14:30:00+08:00"
     }
   ]
 }

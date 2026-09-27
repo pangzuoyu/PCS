@@ -6,7 +6,7 @@ fixture: tests/services/psychro/fixtures/worley_c18_hydrate_inhibition.json
 (含 Worley 原始输入 cell 坐标、单位换算链、Ruling 6 inversion + K scale defect 登记、
 容差分级与放宽理由)
 
-⚠️ **INVERSION + K SCALE DEFECT — Ruling 6**
+⚠️ **INVERSION DEFECT — Ruling 6 (K SCALE CLOSED in OPEN-P6-6A-3)**
 
 XLS-PR-020 Calculation sheet: **Methanol Hydrate Prevention** (dosing problem:
 target d → solve X → compute MeOH flowrate).
@@ -15,9 +15,11 @@ problem: X → compute d).
 
 **Direct numerical bit-for-bit match is meaningless** because:
   - Problem direction differs: XLS = INVERSE (d→X→flowrate); PCS = FORWARD (X→d)
-  - K scale interpretation differs: XLS K=2335 in °F (Hammerschmidt literature);
-    PCS service treats K as °C scale (`delta_t_c = K * X / (mw * (1-X))` raw °C
-    output, then ×9/5 for °F)
+  - ~~K scale interpretation differs: XLS K=2335 in °F (Hammerschmidt literature);
+    PCS service treats K as °C scale~~ RESOLVED in OPEN-P6-6A-3: PCS now uses
+    K_F=2335 in °F scale per Hammerschmidt 1934 paper; `delta_t_f = K * X / (mw
+    * (1-X))` raw °F output; `delta_t_c = delta_t_f * 5/9`. PCS d_F = XLS d_F
+    = 21.6°F for X=22.86% (bit-for-bit rel=1e-12).
   - XLS equation selector supports Hammerschmidt + Nielsen; PCS implements
     Hammerschmidt only
   - XLS injection rate uses Nielsen X (24.40%) for mass balance (E58=39.55 kg/hr);
@@ -25,9 +27,10 @@ problem: X → compute d).
 
 Test scope reduced to:
   1. **Algebra identity tests** (rel=1e-12, pure Hammerschmidt 1934 algebra):
-     - Forward formula: X=42% → d_C = K·X/(M·(1-X)) = 52.78
-     - Forward formula: X=22.86% (XLS Hammerschmidt inversion) → d_C = 21.6
-     - Forward formula: X=24.40% (XLS Nielsen inversion, for K-scale check)
+     - Forward formula: X=42% → d_F = K·X/(M·(1-X)) = 52.78°F
+     - Forward formula: X=22.86% (XLS Hammerschmidt inversion) → d_F = 21.6°F
+       (= XLS d_F bit-for-bit rel=1e-12, OPEN-P6-6A-3 fix)
+     - Forward formula: X=24.40% (XLS Nielsen inversion, K-scale consistency check)
      - Inversion: d_F=21.6 (XLS G37=12°C) → X = d_F·M/(K + d_F·M) = 0.228625
   2. **XLS injection rate mass balance** (rel=1e-12, XLS-specific algebra):
      - E58 = X_Nielsen × W_free / (1-X_Nielsen) = 0.244 × 122.5 / (1-0.244) = 39.55
@@ -39,16 +42,18 @@ Test scope reduced to:
   5. **Ruling 6 registration**: mapping_defect.ruling_id + root_cause_notes +
      out_of_scope 三层注册, 防 fixture 演进时漂移.
 
-SPEC §5 分级: C-18 强公式 1% (rel≤1e-2); 本批因 Ruling 6 inversion + K scale defect,
-强公式容差 NOT used; 仅 algebraic identity 用 rel=1e-12 严格一致 (pure algebra,
-no algorithm choice involved)。
+SPEC §5 分级: C-18 强公式 1% (rel≤1e-2); 本批因 Ruling 6 inversion defect (K scale
+CLOSED in OPEN-P6-6A-3), 强公式容差 NOT used; 仅 algebraic identity 用 rel=1e-12
+严格一致 (pure algebra, no algorithm choice involved)。
 
 处置结论: 全部通过 (3 sub-cases + sanity + Ruling 6 + injection rate cross-check);
-无 Ruling 1(a) 代码修复; root_cause_notes 登记 5 项 (Ruling 6 inversion defect + K
-scale F vs C + Nielsen X for injection + equation selector + pure MeOH assumption)
-+ out_of_scope 11 项 (bit-for-bit match + K scale conversion + Nielsen 1988 + MeOH
-injection rate + inlet MeOH + free water + equation selector + K factor table + MW
-table + secondary considerations + mixed-algorithm + water-phase state)。
+OPEN-P6-6A-3 Ruling 1(a) 代码修复 (K scale swap): PCS 现在用 K_F=2335 °F scale per
+Hammerschmidt 1934 paper; root_cause_notes 登记 5 项 (Ruling 6 inversion defect [K scale
+子项 CLOSED] + K scale F vs C [FIXED in OPEN-P6-6A-3] + Nielsen X for injection +
+equation selector + pure MeOH assumption) + out_of_scope 10 项 (bit-for-bit match +
+Nielsen 1988 + MeOH injection rate + inlet MeOH + free water + equation selector +
+K factor table + MW table + secondary considerations + mixed-algorithm + water-phase
+state)。
 """
 from __future__ import annotations
 
@@ -93,33 +98,34 @@ def test_hammerschmidt_forward_algebra_identity(sub_key: str) -> None:
          formula — for K-scale consistency check only, not a real use case)
       c) Mid-range X=42% (brief test point) → PCS d_C = 52.78
 
-    All three use pure Hammerschmidt 1934 algebra with K=2335 (H-2 v1 BLOCKER) and M=32.04
-    (Methanol). rel=1e-12 严格一致 — 验证 PCS service 代码 `delta_t_c = K * X / (mw * (1-X))`
-    实现正确性, independent of K scale interpretation or XLS value match.
+    All three use pure Hammerschmidt 1934 algebra with K=2335 °F (H-2 v1 BLOCKER) and M=32.04
+    (Methanol). rel=1e-12 严格一致 — 验证 PCS service 代码 `delta_t_f = K * X / (mw * (1-X))`
+    实现正确性 (K °F 标度 per Hammerschmidt 1934 paper, OPEN-P6-6A-3 fix), independent of XLS value match.
     """
     case = WORLEY["cases"][0]
     sub = case["service_inputs"]["sub_cases"][sub_key]
     X_wt_pct = sub["inhibitor_concentration_in_water_wt_pct"]
     X_frac = X_wt_pct / 100.0
-    K = 2335.0
+    K = 2335.0  # °F scale per Hammerschmidt 1934 (OPEN-P6-6A-3 fix)
     M = 32.04
 
-    # 手算 Hammerschmidt 1934 forward formula
-    expected_d_C = K * X_frac / (M * (1.0 - X_frac))
-    expected_d_F = expected_d_C * 9.0 / 5.0
+    # 手算 Hammerschmidt 1934 forward formula (K °F → ΔT_F)
+    expected_d_F = K * X_frac / (M * (1.0 - X_frac))
+    expected_d_C = expected_d_F * 5.0 / 9.0  # °F → °C
 
-    # fixture 登记的 tautology 期望值
+    # fixture 登记的 tautology 期望值 (per-case)
     tautology = case["expected"]["xls_tautology_expected"]
     if sub_key == "xls_hammerschmidt_X":
-        fixture_d_C = tautology["xls_X22p86_d_C_algebra"]
+        # XLS PR-020 Hammerschmidt X=22.86%, raw ΔT_F = 21.6°F (XLS G37=12°C × 9/5)
+        fixture_d_F = tautology["xls_X22p86_d_F_algebra"]
     elif sub_key == "xls_nielsen_X":
-        fixture_d_C = K * X_frac / (M * (1.0 - X_frac))
+        fixture_d_F = K * X_frac / (M * (1.0 - X_frac))
     else:
-        fixture_d_C = tautology["mid_range_X_d_C_algebra"]
+        fixture_d_F = tautology["mid_range_X_d_F_algebra"]
 
     # Tautology check: fixture.expected 与手算一致
-    assert fixture_d_C == pytest.approx(expected_d_C, rel=1e-12), (
-        f"{sub_key}: fixture d_C={fixture_d_C!r} ≠ 手算 d_C={expected_d_C!r}"
+    assert fixture_d_F == pytest.approx(expected_d_F, rel=1e-12), (
+        f"{sub_key}: fixture d_F={fixture_d_F!r} ≠ 手算 d_F={expected_d_F!r}"
     )
 
     # PCS service call
@@ -134,19 +140,19 @@ def test_hammerschmidt_forward_algebra_identity(sub_key: str) -> None:
     )
     result = calc_hydrate_inhibition(inp)
 
-    # 1) d_C EXACT (rel=1e-12)
-    assert result.hydrate_depression_c == pytest.approx(expected_d_C, rel=1e-12), (
-        f"{sub_key}: PCS d_C={result.hydrate_depression_c!r} ≠ 手算 d_C={expected_d_C!r}"
-    )
-
-    # 2) d_F EXACT (rel=1e-12) — PCS code: delta_t_f = delta_t_c * 9/5
+    # 1) d_F EXACT (rel=1e-12) — Hammerschmidt 1934 raw °F output
     assert result.hydrate_depression_f == pytest.approx(expected_d_F, rel=1e-12), (
         f"{sub_key}: PCS d_F={result.hydrate_depression_f!r} ≠ 手算 d_F={expected_d_F!r}"
     )
 
+    # 2) d_C EXACT (rel=1e-12) — PCS code: delta_t_c = delta_t_f * 5/9
+    assert result.hydrate_depression_c == pytest.approx(expected_d_C, rel=1e-12), (
+        f"{sub_key}: PCS d_C={result.hydrate_depression_c!r} ≠ 手算 d_C={expected_d_C!r}"
+    )
+
     # 3) ΔT > 0 for X∈(0,1) — service 物理范围 (H-2 v1)
-    assert result.hydrate_depression_c > 0.0, (
-        f"{sub_key}: d_C={result.hydrate_depression_c!r} ≤ 0 (X∈(0,1) 应 ΔT>0)"
+    assert result.hydrate_depression_f > 0.0, (
+        f"{sub_key}: d_F={result.hydrate_depression_f!r} ≤ 0 (X∈(0,1) 应 ΔT>0)"
     )
 
     # 4) is_safe bool — service 物理范围 flag
@@ -429,89 +435,67 @@ def test_service_returns_valid_result_for_xls_scenario() -> None:
 
 
 # ============================================================================
-# 6) K scale cross-check (Ruling 6 K scale defect evidence)
+# 6) K scale post-fix verification (OPEN-P6-6A-3) — was section 6 K scale defect
 # ============================================================================
 
 
-def test_k_scale_cross_check_xls_F_vs_pcs_C() -> None:
-    """Ruling 6 K scale defect evidence: K=2335 (Hammerschmidt literature °F scale)
-    vs PCS service treats K as °C scale.
+def test_k_scale_post_fix_xls_F_eq_pcs_F_bit_for_bit() -> None:
+    """OPEN-P6-6A-3 fix verification: PCS service d_F = XLS Hammerschmidt literature d_F.
 
-    Per Hammerschmidt 1934 literature: K=2335 in °F, output d in °F.
-    °C equivalent: K_C = K_F × 5/9 = 1297.2222.
+    Pre-fix: PCS service code `delta_t_c = K * X / (mw * (1 - X))` treated K as
+    °C scale and reported d_F = d_C × 9/5 = 38.88°F (1.8× over-prediction vs XLS
+    literature d_F=21.6°F).
 
-    PCS service code: `delta_t_c = K * X / (mw * (1 - X))` produces a raw value
-    that numerically equals XLS d_F=21.6 (when X=XLS Hammerschmidt X=22.86%).
-    PCS then multiplies by 9/5 to get delta_t_f=38.88.
+    Post-fix: PCS service uses K_F=2335 in °F scale per Hammerschmidt 1934 paper.
+    Code: delta_t_f = K * X / (mw * (1 - X)); delta_t_c = delta_t_f × 5/9.
 
-    Ruling 6 confirms: PCS service has K scale interpretation that differs from
-    literature convention. This test records the algebra:
-      - XLS Hammerschmidt literature d_F = K_F × X / (M × (1-X)) = 21.6 (in °F)
-      - PCS raw d_C = K × X / (M × (1-X)) = 21.6 (numerically equal to XLS d_F)
-      - PCS reported d_F = 21.6 × 9/5 = 38.88 (after ×9/5 scaling)
+    For XLS Hammerschmidt X=22.86% (G53):
+      - PCS d_F (post-fix) = 21.6°F (matches XLS d_F bit-for-bit rel=1e-12)
+      - PCS d_C (post-fix) = 12.0°C (matches XLS target d=12°C bit-for-bit)
 
-    Note: d_C = 21.6 in PCS raw units ≡ XLS d_F = 21.6 (numerically equal), but
-    PCS code does not implement K_F→K_C conversion (K_C = K_F × 5/9 = 1297.22).
-    Either PCS service is wrong (formula spec mismatch), or docstring/result field
-    naming is inconsistent. OUT_OF_SCOPE per Ruling 1.
+    This test verifies the fix end-to-end through PCS service.
     """
     case = WORLEY["cases"][0]
     tautology = case["expected"]["xls_tautology_expected"]
 
-    # XLS G37 d=12°C → d_F
-    xls_d_C = case["xls_inputs"]["G37_target_d_C"]["value"]
-    xls_d_F = xls_d_C * 9.0 / 5.0
+    # XLS literature convention d_F (from K_F=2335, X=22.86%)
+    expected_d_F_post_fix = tautology["delta_t_F_for_X22p86_post_fix"]
+    expected_d_F_pre_fix = tautology["delta_t_F_for_X22p86_pre_fix"]
 
-    # K scale conversion
-    K_F = 2335.0
-    K_C_equivalent = K_F * 5.0 / 9.0  # = 1297.2222
-
-    # Hammerschmidt literature d_F (from K_F):
-    X_hammerschmidt_wt_pct = case["xls_outputs"]["G53_hammerschmidt_X_wt_pct"]["value"]
-    X_hammerschmidt_frac = X_hammerschmidt_wt_pct / 100.0
-    M = 32.04
-
-    # XLS convention: d_F = K_F × X / (M × (1-X))
-    xls_convention_d_F = K_F * X_hammerschmidt_frac / (M * (1 - X_hammerschmidt_frac))
-
-    # PCS convention (raw °C): d_C = K × X / (M × (1-X))
-    pcs_convention_d_C_raw = K_F * X_hammerschmidt_frac / (M * (1 - X_hammerschmidt_frac))
-
-    # PCS convention (reported °F): d_F = d_C × 9/5
-    pcs_convention_d_F_reported = pcs_convention_d_C_raw * 9.0 / 5.0
-
-    # K_C equivalent (Hammerschmidt literature K_F→K_C):
-    # If PCS used K_C = K_F × 5/9, then d_C (correct) = K_C × X / (M × (1-X))
-    k_C_based_d_C = K_C_equivalent * X_hammerschmidt_frac / (M * (1 - X_hammerschmidt_frac))
-
-    # XLS d_F convention: K_F in °F scale, output in °F directly
-    assert xls_convention_d_F == pytest.approx(xls_d_F, rel=1e-12), (
-        f"XLS convention d_F={xls_convention_d_F!r} ≠ XLS d_F target={xls_d_F!r}"
+    # Sanity: pre-fix was 38.88°F (1.8× over-prediction vs XLS 21.6°F)
+    assert abs(expected_d_F_pre_fix - expected_d_F_post_fix) > 10.0, (
+        f"pre-fix d_F={expected_d_F_pre_fix} 与 post-fix d_F={expected_d_F_post_fix} "
+        f"差值 应 >10 (1.8× over-prediction); actual diff={abs(expected_d_F_pre_fix - expected_d_F_post_fix):.2f}"
     )
 
-    # PCS raw d_C numerically equals XLS d_F (Ruling 6 evidence)
-    assert pcs_convention_d_C_raw == pytest.approx(xls_d_F, rel=1e-12), (
-        f"PCS raw d_C={pcs_convention_d_C_raw!r} ≠ XLS d_F={xls_d_F!r}"
-        f" — Ruling 6: PCS treats K as °C scale, XLS uses °F; numerically equal here"
+    # PCS service call (real calc, end-to-end)
+    X_wt_pct = case["service_inputs"]["sub_cases"]["xls_hammerschmidt_X"][
+        "inhibitor_concentration_in_water_wt_pct"
+    ]
+    inp = HydrateInhibitionInput(
+        gas_flow_mmscfd=case["service_inputs"]["gas_flow_mmscfd"],
+        operating_pressure_psia=case["service_inputs"]["operating_pressure_psia"],
+        operating_temperature_f=case["service_inputs"]["operating_temperature_f"],
+        hydrate_inhibitor_type=case["service_inputs"]["hydrate_inhibitor_type"],
+        inhibitor_concentration_in_water_wt_pct=X_wt_pct,
+        water_content_inlet_lb_per_mmscf=20.0,
+        water_content_target_lb_per_mmscf=1.0,
+    )
+    result = calc_hydrate_inhibition(inp)
+
+    # 1) PCS d_F = expected post-fix value (21.6°F) — NOT the buggy 38.88°F
+    assert result.hydrate_depression_f == pytest.approx(expected_d_F_post_fix, rel=1e-12), (
+        f"PCS d_F={result.hydrate_depression_f!r} ≠ post-fix {expected_d_F_post_fix!r}"
+        f" (OPEN-P6-6A-3 fix not applied?)"
+    )
+    assert abs(result.hydrate_depression_f - expected_d_F_pre_fix) > 10.0, (
+        f"PCS d_F={result.hydrate_depression_f!r} = pre-fix buggy {expected_d_F_pre_fix!r}"
+        f" (OPEN-P6-6A-3 fix NOT applied; K scale still treated as °C)"
     )
 
-    # PCS reported d_F (after ×9/5) ≠ XLS d_F — K scale defect evidence
-    rel_diff = abs(pcs_convention_d_F_reported - xls_d_F) / xls_d_F
-    assert rel_diff > 0.5, (
-        f"PCS d_F_reported={pcs_convention_d_F_reported!r} vs XLS d_F={xls_d_F!r}"
-        f" rel_diff={rel_diff:.4f} 应 >50% (Ruling 6 K scale defect)"
-    )
-
-    # K_C equivalent (Hammerschmidt literature) would give d_C = 12 (XLS target)
-    assert k_C_based_d_C == pytest.approx(xls_d_C, rel=1e-12), (
-        f"K_C-based d_C={k_C_based_d_C!r} ≠ XLS d_C target={xls_d_C!r}"
-        f" (K_C = K_F × 5/9 = 1297.22 should give d_C=12)"
-    )
-
-    # fixture K_C equivalent registered
-    assert tautology["k_scale_C_equivalent"] == pytest.approx(K_C_equivalent, rel=1e-12), (
-        f"fixture k_scale_C_equivalent={tautology['k_scale_C_equivalent']!r} "
-        f"≠ K_F × 5/9 = {K_C_equivalent!r}"
+    # 2) PCS d_C = 12.0°C (matches XLS target d=12°C bit-for-bit)
+    assert result.hydrate_depression_c == pytest.approx(12.0, rel=1e-12), (
+        f"PCS d_C={result.hydrate_depression_c!r} ≠ XLS target d=12°C"
     )
 
 
@@ -521,10 +505,10 @@ def test_k_scale_cross_check_xls_F_vs_pcs_C() -> None:
 
 
 def test_worley_c18_root_cause_notes_registered() -> None:
-    """fixture.root_cause_notes 必须登记 5 项:
+    """fixture.root_cause_notes 必须登记 5 项 (OPEN-P6-6A-3 后 K scale 子项 CLOSED):
 
     - Ruling_6_inversion_defect_hydrate_dosing_vs_depression_K_scale (primary)
-    - xls_k_scale_F_vs_pcs_treats_C (Ruling 6 K scale 子项)
+    - xls_k_scale_F_vs_pcs_treats_C (Ruling 6 K scale 子项, FIXED in OPEN-P6-6A-3)
     - xls_uses_nielsen_X_for_injection_rate_not_hammerschmidt (Ruling 6 子项)
     - xls_equation_selector_G52_I52 (Ruling 6 子项)
     - xls_inlet_meoh_concentration_E55_100_pct_pure_assumption (Ruling 6 子项)
@@ -541,13 +525,29 @@ def test_worley_c18_root_cause_notes_registered() -> None:
         f"root_cause_notes 集合不符: 已登记 {registered}, 预期 {expected_ids}"
     )
 
+    # OPEN-P6-6A-3: K scale 子项 finding 必须标记 CLOSED
+    k_scale_note = next(
+        n for n in WORLEY["root_cause_notes"]
+        if n["id"] == "xls_k_scale_F_vs_pcs_treats_C"
+    )
+    assert (
+        "CLOSED" in k_scale_note["finding"]
+        or "FIXED" in k_scale_note["finding"]
+    ), (
+        f"xls_k_scale_F_vs_pcs_treats_C finding 应标记 CLOSED/FIXED (OPEN-P6-6A-3):"
+        f" {k_scale_note['finding']!r}"
+    )
+
 
 def test_worley_c18_out_of_scope_ledger_complete() -> None:
-    """fixture.out_of_scope 必须登记 11 项 Ruling 6 项 + XLS-only 项."""
+    """fixture.out_of_scope 必须登记 10 项 Ruling 6 inversion 项 + XLS-only 项.
+
+    OPEN-P6-6A-3: 'xls_hammerschmidt_K_scale_F_to_C_conversion' 已从 out_of_scope
+    移除 (K scale CLOSED); 剩余 10 项。
+    """
     registered = {o["id"] for o in WORLEY["out_of_scope"]}
     expected_ids = {
         "xls_bit_for_bit_value_match_d_C_or_d_F",
-        "xls_hammerschmidt_K_scale_F_to_C_conversion",
         "xls_nielsen_1988_equation",
         "xls_meoh_injection_rate_39_55_kg_hr",
         "xls_inlet_meoh_concentration_100_pct",

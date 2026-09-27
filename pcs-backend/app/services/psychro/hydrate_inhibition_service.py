@@ -182,8 +182,10 @@ def calc_hydrate_inhibition(
 
     计算步骤：
       1. _validate_input 边界拒绝（F2/F5）
-      2. Hammerschmidt ΔT（°C）= K·X / (M·(1-X))，其中 X = wt% / 100
-      3. ΔT_F = ΔT_C × 9/5
+      2. Hammerschmidt ΔT（°F）= K·X / (M·(1-X))，其中 X = wt% / 100
+        —— K 是 Hammerschmidt 1934 文献 °F 标度（OPEN-P6-6A-3 fix，
+        原代码按 °C 标度处理导致 1.8× over-prediction）
+      3. ΔT_C = ΔT_F × 5/9
       4. 水移除量 W_removed = Q_gas·(W_inlet - W_target)（lb/d）
       5. 注入率（lb/d）= W_removed / X_inhib（GPSA §20.3）
       6. 注入率（gal/d）= injection_lb_d / ρ_inhib（GPSA §20.3）
@@ -199,10 +201,11 @@ def calc_hydrate_inhibition(
 
     X = inp.inhibitor_concentration_in_water_wt_pct / 100.0
 
-    # 1. Hammerschmidt 1934 ΔT（°C）= K·X / (M·(1-X))
-    delta_t_c = K * X / (mw * (1.0 - X))
-    # 2. °C → °F
-    delta_t_f = delta_t_c * 9.0 / 5.0
+    # 1. Hammerschmidt 1934 ΔT（°F）= K·X / (M·(1-X))
+    #    K 是 °F 标度（OPEN-P6-6A-3 fix；Hammerschmidt 1934 paper convention）
+    delta_t_f = K * X / (mw * (1.0 - X))
+    # 2. °F → °C
+    delta_t_c = delta_t_f * 5.0 / 9.0
 
     # 3. 水移除量（lb/d）= Q_gas (MMscf/d) × (W_inlet - W_target) (lb/MMscf)
     water_removed_lb_d = inp.gas_flow_mmscfd * (
@@ -237,10 +240,11 @@ def calc_hydrate_inhibition(
         imperial_conversion=imperial,
         formula_ref={
             "hammerschmidt": (
-                "ΔT = K·X / (M·(1-X)) [Hammerschmidt 1934]"
+                "ΔT_F = K·X / (M·(1-X)) [Hammerschmidt 1934, K in °F scale]"
             ),
             "k_factor": (
-                f"K = {K}（H-2 v1: MEOH/DEG=2335; EG=2220; TEG=2500; NACL=1297）"
+                f"K = {K} °F（OPEN-P6-6A-3: MEOH/DEG=2335; EG=2220; "
+                f"TEG=2500; NACL=1297 — 文献 °F 标度）"
             ),
             "injection_rate": (
                 "Q_inhib = Q_gas·(W_inlet - W_target)/C [GPSA §20.3]"
