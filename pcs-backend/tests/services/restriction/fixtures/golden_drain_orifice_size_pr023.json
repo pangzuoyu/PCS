@@ -1,5 +1,6 @@
 {
   "_doc": "P6-6A-7 SPEC §3.7.2 C-19 排污孔板 sizing inverse problem 黄金 fixture. XLS-PR-023 inputs (P1=6300 kPa=63 bara, P2=800 kPa=8 bara, T=360.8 K, W=6803 kg/h=1.8897 kg/s, z=0.88, MW=24.52 kg/kmol, D=49.22 mm=0.04922 m, k=1.18, g=0.79, C=0.83932). Expected d ≈ 15.204 mm (XLS PR-023 E42 iterated value). [CONCERN: brief originally specified P2=4521 kPa=45.21 bara, but XLS PR-023 N15=8 bara=800 kPa. With P2=4521, p_ratio=0.7176 > r_c(1.18)=0.568 → NOT choked, contradicting expected is_choked=true. Corrected to P2=800 kPa from XLS ground truth.]",
+  "_doc_xls_vs_pcs_gap": "XLS PR-023 E42 d=0.01520m vs PCS converged d=0.01276m (16% gap). Per Ruling 7 (GB/T 308 Ftp vs ISO 5167 Ftp family mismatch, 0.2% per-formula tolerance) + Ruling 13 sub-2 (XLS oversizing safety margin convention vs PCS converges to exact W). PCS output is the SPEC §3.7.2 sizing solution for W=1.8897 kg/s; XLS d=15.20mm would give m_max=2.65 kg/s (40% over-capacity for W). Both are valid engineering choices; gap is documented here to prevent misreading.",
   "service_inputs": {
     "inlet_pressure_kpa": 6300.0,
     "outlet_pressure_kpa": 800.0,
