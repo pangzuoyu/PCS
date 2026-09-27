@@ -17,6 +17,33 @@
   ``temperature_out_of_range``；SPEC §3.2.5 安全范围约定）。
 - 公式版本标记：``SATURATION_W_v1.0-p6-4-task4``（与 psychro_persist 体系对齐）。
 
+**适用范围（Scope，OPEN-P6-6A-1 / Ruling 9 wording formalization）**：
+
+本 service **仅适用于湿空气**（~79% N₂ + 21% O₂ + 微量 CO₂/Ar，工作流
+体 dry air）。算法基于 ASHRAE RP-1845 / CoolProp HAPropsSI，输出三档
+单位均为 **dry air 基准**（kg 水 / kg 干空气 / mg/Sm³ 干空气 / lb/MMscf
+干空气）。
+
+**不适用于（OUT OF SCOPE，Ruling 9 working fluid defect）**：
+
+- 天然气 / 烃类气体饱和水含量 —— 应使用 Behr 相关式（McKetta-Wehe /
+  Carson-Davis / GPSA Fig. 20-XX 系列），分母是 wet gas 而非 dry air，
+  算法族与本 service 不同。
+- 强公式 0.1% 容差不适用于 Behr vs HAPropsSI 跨算法对比 —— P6-6A
+  T9 对账显示两者在典型工况下偏差 10-30%（非 0.1%）。
+
+**Ruling 9 三层注册**（P6-6A 批 9 Ruling 登记）：
+
+- mapping_defect.ruling_id = ``Ruling_9_working_fluid_defect_natural_gas_vs_humid_air``
+- 9 项 out_of_scope：bit-for-bit value match / Behr 系数 / 酸性气校正精度 /
+  wet/dry gas 语义 / Imperial/SI 双套 / T/P 限值 / 转换数据块 / 备注块
+- 5 cases 对账仅验证 unit conversion EXACT + OoM band + sanity assertions
+
+**批 B 立项评估**：落地 Behr natural gas water content 作为 PCS 新
+service（``calc_behr_natural_gas_water_content``）以覆盖 XLS-PR-019 物理
+范围；或维持现状仅 SPEC V1.2 注明 working fluid 差异 + 双算法族并存。
+工程团队裁决（OPEN-P6-6A-6 同源）。
+
 ashrae 黄金对账（SPEC §3.2.5 D5 三级验收）：
 - 10 点 ASHRAE Fundamentals 2021 Table 1（温度 -10~80°C × 101.325 kPa）
 - 强公式 ASHRAE_RP-1845_CoolProp（HAPropsSI）参考值 rel=1e-3（<0.1%）。
