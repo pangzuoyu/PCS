@@ -16,9 +16,9 @@
     "max_iter": 50
   },
   "expected": {
-    "orifice_diameter_m": 0.015204160997555617,
-    "orifice_area_m2": 0.0001815349,
-    "beta_ratio": 0.30890209,
+    "orifice_diameter_m": 0.012761815015983,
+    "orifice_area_m2": 0.0001279130,
+    "beta_ratio": 0.2592810852,
     "is_choked": true,
     "iterations_max": 15,
     "converged": true
@@ -29,5 +29,5 @@
     "orifice_area_m2": "rel=4e-3（d² 缩放）",
     "iterations_max": "≤15（Newton 简化版应在 10 步内收敛）"
   },
-  "_notes": "OPEN-P6-6A-7 SPEC §3.7.2 sizing 完整实现黄金 fixture. PCS forward calc_drain_orifice(d=15.204 mm) → m_max ≈ 1.8897 kg/s（OPEN-P6-6A-4 Ruling 12 fix 验证）; PCS inverse calc_drain_orifice_size(W=1.8897 kg/s) → d ≈ 15.204 mm（OPEN-P6-6A-7 验证）."
+  "_notes": "OPEN-P6-6A-7 SPEC §3.7.2 sizing 完整实现黄金 fixture. PCS forward calc_drain_orifice(d=12.762 mm) → m_max ≈ 1.8897 kg/s（OPEN-P6-6A-4 Ruling 12 fix 验证）; PCS inverse calc_drain_orifice_size(W=1.8897 kg/s) → d ≈ 12.762 mm（OPEN-P6-6A-7 验证 + Ruling 13 Y_cr@r_c 物理修正）."
 }

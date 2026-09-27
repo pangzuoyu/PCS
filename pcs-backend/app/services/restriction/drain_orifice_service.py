@@ -377,7 +377,11 @@ def calc_drain_orifice_size(inp: DrainOrificeSizeInput) -> DrainOrificeSizeResul
             d = inp.pipe_diameter_m * 0.5
             continue
         ftp = _ftp_factor(beta, inp.specific_heat_ratio, "GBT308")
-        y_cr_sq = _y_cr_sqrt(inp.specific_heat_ratio, p_ratio, beta)
+        # OPEN-P6-6A-7 Ruling 13 fix: Y_cr must use CRITICAL pressure ratio r_c,
+        # not actual p_ratio. By definition (ISO 5167) Y_cr is evaluated at r_c.
+        # At p_ratio=0.127 (choked) this would give Y_cr=0.2477 (artificially low);
+        # at r_c=0.568 (k=1.18) it gives Y_cr=0.687 — matches XLS PR-023.
+        y_cr_sq = _y_cr_sqrt(inp.specific_heat_ratio, r_c, beta)
         a_orifice = math.pi * d**2 / 4.0
         m_max = (
             a_orifice
