@@ -403,6 +403,18 @@
 3. **Forward / Inverse 必须同时存在** — 工艺计算通常有正反两个问题（capacity check + sizing），规格若列 增补要点即必须全部实现
 4. **物理公式易错点：Y_cr 必须用 r_c，不是 p_ratio** — bug-105 (f296a61) PCS 初次实现用 p_ratio 代入 _y_cr_sqrt 产生 0.2477 vs 正确 0.687 (r_c)。ISO 5167 Y_cr 定义就是 critical flow expansion factor，input 必为 r_c。
 
+### OPEN-P6-6A-5 ΔH_vap input — API 521 §3.4.4.3 (2026-09-28)
+
+**defect**: hardcoded `_DHVAP_KJ_KG = 2260.0` 是 placeholder（typical light hydrocarbon/water），违反 API 521 §3.4.4.3 "latent heat at relieving T/P" fluid-specific 要求。
+
+**fix strategy**: As1210ReliefInput 加 `delta_h_vap_kj_kg: float = _DHVAP_KJ_KG` 字段；默认 2260 保持 backward compat；用户传 208 / 425 / 510 等 fluid-specific 值。
+
+**守则**（避免重复犯错）:
+1. **流体物性（ΔH_vap / Cp / ρ / Z）必须 input 或 lookup**，不能 hardcode 常数 — API 521 §3.4.4.3 明确要求 fluid-specific
+2. **工程化 hardcode ≠ SPEC 默许** — 即便 hardcode "看起来对"（2260 ≈ water），也不能替代 fluid-specific 输入
+3. **worley_c21 默认 back-compat 是必须** — 字段 default=现有 hardcode；不破坏既有测试 + 用户体验
+4. **ΔH_vap 单字段修复 ≠ Ruling 9 完全闭环** — C_AS1210=2.457 vs PCS C=43192（39% Q diff）仍残留，独立 OPEN
+
 ## Decision Log
 
 - 管道计算等级按项目绑定（source=PROJECT）；class_id 全局唯一 PK，跨项目同码不同值需复合 PK 迁移（P3 复核）。

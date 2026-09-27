@@ -68,6 +68,16 @@ budget_tokens: 1500
 - **Ruling 13（Y_cr@r_c + d sizing 范围）CLOSED**
 - **OPEN-P6-6A-7 关闭**：6 OPEN-P6-6A-* 中 4 项关闭（#3 #4 #7）；剩余 #1（SPEC V1.2 wording formalization）/ #2（brief template）/ #5（T13 ΔH_vap）/ #6（T8 glycol dehydration）
 
+**OPEN-P6-6A-5 关闭（ΔH_vap fluid-specific input，2026-09-28）**：commits `e72e0db` + `628ef4d`
+- PCS `calc_as1210_relief_sizing` `_DHVAP_KJ_KG = 2260` hardcoded → 改为 As1210ReliefInput `delta_h_vap_kj_kg: float = _DHVAP_KJ_KG` 默认 2260（back-compat）
+- API 521 §3.4.4.3 "latent heat at relieving T/P" fluid-specific 要求满足
+- 7 unit tests：default back-compat 2260 / XLS 208 matches G35 within 1%（6761 vs 6766）/ propane 425 / zero raises / negative raises / formula_ref / 黄金 fixture load
+- worley_c21 fixture 新增 1 test：XLS PR-025 ΔH_vap=208 case → relief load ≈ G35=6766 kg/hr 经验 1% PASS
+- 黄金 fixture `golden_as1210_dhvap.json` 新建
+- **Ruling 14 ΔH_vap CLOSED**
+- **注**：Ruling 9 C_AS1210=2.457 vs PCS C=43192（39% Q diff）仍残留，独立 OPEN-P6-6A-?（待 ID 分配）
+- 366 psv tests passed / 0 failed (baseline 358 + 8 new)
+
 ---
 
 ## 🚀 Next quest
@@ -115,6 +125,6 @@ budget_tokens: 1500
 - **双库已对齐 head `p6_5_006`**：跑 schema 敏感测试前 `DATABASE_URL=postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs_test uv run alembic upgrade head`（CLAUDE.md 规则仍适用）
 - 全量回归基线：**3258 passed / 74 skipped**（OPEN-P6-6A-4 commit 后；增量 +840 vs OPEN-P6-6A-3 baseline 2418 = P6-6A Task 11 fixture-driven 测试 +3 新 worley_c19 test + 837 P6-6A 其他任务测试）
 - P6-6A-7 增量：**+11 net**（+6 sizing service tests + +4 sizing API tests + +1 Cd-out-of-range 422 test；post-merge 期望 3269 passed / 74 skipped / 0 failed）
-- buglog 最新 bug-101/102/103/104/105（审计三件套 drift / 手写清单教训 / OPEN-P6-6A-3 K scale / **OPEN-P6-6A-4 Cd/Y_cr^0.5 1.74× over-prediction** / **OPEN-P6-6A-7 Y_cr@r_c 物理修正**）
+- buglog 最新 bug-101/102/103/104/105/106（审计三件套 drift / 手写清单教训 / OPEN-P6-6A-3 K scale / **OPEN-P6-6A-4 Cd/Y_cr^0.5 1.74× over-prediction** / **OPEN-P6-6A-7 Y_cr@r_c 物理修正** / **OPEN-P6-6A-5 ΔH_vap fluid-specific input (e72e0db)**）
 - 无 CI/CD（单人开发裁决，勿再建议）；SPEC V1.10 已冻结为实施基线，后续改 SPEC 需新版本号
-- P6-6A 11 Rulings + Ruling 13 已登记：Ruling 1 零改动 / Ruling 2 表格化 / Ruling 3-8 mapping defects / Ruling 9 双 surface / Ruling 10 brief template / **Ruling 11 K scale CLOSED in OPEN-P6-6A-3 (e0d91a6)** / **Ruling 12 Cd/Y_cr CLOSED in OPEN-P6-6A-4 (c34d3f4)** / **Ruling 13 Y_cr@r_c + d sizing 范围 CLOSED in OPEN-P6-6A-7 (3250b42)**
+- P6-6A 11 Rulings + Ruling 13/14 已登记：Ruling 1 零改动 / Ruling 2 表格化 / Ruling 3-8 mapping defects / Ruling 9 双 surface / Ruling 10 brief template / **Ruling 11 K scale CLOSED in OPEN-P6-6A-3 (e0d91a6)** / **Ruling 12 Cd/Y_cr CLOSED in OPEN-P6-6A-4 (c34d3f4)** / **Ruling 13 Y_cr@r_c + d sizing 范围 CLOSED in OPEN-P6-6A-7 (3250b42)** / **Ruling 14 ΔH_vap fluid-specific input CLOSED in OPEN-P6-6A-5 (628ef4d)**

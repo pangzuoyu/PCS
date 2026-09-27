@@ -1790,6 +1790,30 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-09-28T13:30:00+08:00"
+    },
+    {
+      "id": "bug-106",
+      "timestamp": "2026-09-28T16:00:00+08:00",
+      "error_message": "ΔH_vap hardcoded 2260 kJ/kg 不符合 API 521 §3.4.4.3 fluid-specific 要求；XLS PR-025 隐含 208 kJ/kg，diff 10.87× (API path) / 18× (AS 1210 path)",
+      "file": "pcs-backend/app/services/psv/as1210_overpressure_service.py:38",
+      "root_cause": "PCS 用 2260 kJ/kg 作为 typical light hydrocarbon/water placeholder；XLS PR-025 隐含 208 kJ/kg（LNG/near-critical convention）；违反 API 521 §3.4.4.3 'latent heat at relieving T/P' fluid-specific 要求",
+      "fix": "As1210ReliefInput 加 delta_h_vap_kj_kg: float = _DHVAP_KJ_KG 字段（default 2260 back-compat）；FIRE_CASE 公式改用 inp.delta_h_vap_kj_kg；用户传 208 验证 matches XLS G35=6766 kg/hr within 经验 1%（PCS 6761）",
+      "fix_commit": "e72e0db",
+      "tags": [
+        "psv",
+        "fire_case",
+        "delta_h_vap",
+        "Ruling-14",
+        "OPEN-P6-6A-5",
+        "fluid-property-input",
+        "API-521-3.4.4.3",
+        "backward-compat",
+        "default-placeholder",
+        "PCS"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-28T16:00:00+08:00"
     }
   ]
 }
