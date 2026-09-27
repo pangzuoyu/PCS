@@ -36,6 +36,8 @@ _FIRE_COEFF_W: Final[float] = 43192.0
 _FIRE_ENV_FACTOR_DEFAULT: Final[float] = 1.0
 # ΔH_vap 默认 2260 kJ/kg（按典型轻烃/水简化）
 _DHVAP_KJ_KG: Final[float] = 2260.0
+# 火灾工况指数默认 0.82（API 521 §3.4 / AS 1210 §4.4 SI 严格换算）
+_FIRE_COEFF_EXP_DEFAULT: Final[float] = 0.82
 # F2 压力因子边界
 _PRESSURE_FACTOR_MIN: Final[float] = 1.05
 _PRESSURE_FACTOR_MAX: Final[float] = 1.30
@@ -73,6 +75,8 @@ class As1210ReliefInput:
     vessel_geometry: WettedAreaInput | None = None
     environment_factor: float = _FIRE_ENV_FACTOR_DEFAULT
     delta_h_vap_kj_kg: float = _DHVAP_KJ_KG
+    fire_case_coefficient: float = _FIRE_COEFF_W
+    fire_case_exponent: float = _FIRE_COEFF_EXP_DEFAULT
     imperial_units: bool = False
 
 
@@ -121,6 +125,10 @@ def _validate_input(inp: As1210ReliefInput) -> None:
         )
     if inp.delta_h_vap_kj_kg <= 0:
         raise As1210InputError(f"ΔH_vap={inp.delta_h_vap_kj_kg} 必须 > 0")
+    if inp.fire_case_coefficient <= 0:
+        raise As1210InputError(f"火灾系数={inp.fire_case_coefficient} 必须 > 0")
+    if not (0 < inp.fire_case_exponent <= 5):
+        raise As1210InputError(f"火灾指数={inp.fire_case_exponent} 越界 (0, 5]")
 
 
 def calc_as1210_relief_sizing(inp: As1210ReliefInput) -> As1210ReliefResult:
@@ -165,9 +173,9 @@ def calc_as1210_relief_sizing(inp: As1210ReliefInput) -> As1210ReliefResult:
     else:  # FIRE_CASE
         set_p = inp.as1210_pressure_factor * inp.mawp_kpa
         q_fire_w = (
-            _FIRE_COEFF_W
+            inp.fire_case_coefficient
             * inp.environment_factor
-            * a_wetted_used ** 0.82
+            * a_wetted_used ** inp.fire_case_exponent
         )
         capacity = q_fire_w / (inp.delta_h_vap_kj_kg * 1000.0)  # kJ/kg → J/kg
         as_std = "AS 1210 §4.4 + API 521 §3.4"
@@ -195,8 +203,9 @@ def calc_as1210_relief_sizing(inp: As1210ReliefInput) -> As1210ReliefResult:
                 f"(L-2 BLOCKER: SIGNAL_FAIL=1.20 最严重)"
             ),
             "fire_case": (
-                "AS 1210 §4.4 + API 521 §3.4 "
-                "Q(W) = 43192·F·A^0.82 [SI]; "
+                f"AS 1210 §4.4 + API 521 §3.4 "
+                f"Q(W) = {inp.fire_case_coefficient}·F·A^"
+                f"{inp.fire_case_exponent} [fluid-specific]; "
                 f"capacity = Q/(ΔH_vap·1000); ΔH_vap={inp.delta_h_vap_kj_kg} kJ/kg"
             ),
             "wetted_area_source": (
