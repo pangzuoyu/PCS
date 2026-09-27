@@ -244,7 +244,8 @@
     },
     {
       "id": "xls_d_sizing_iteration_out_of_scope",
-      "finding": "XLS C29-C42 contains the d sizing iteration loop: estimate d (E33=15.218589896550967 mm), compute β (W37), compute Cd/Y_cr/Ftp, recompute d (E42=15.204160997555617 mm). PCS service calc_drain_orifice is a CAPACITY CHECK (forward problem) — it takes d as input and verifies whether m_dot is within capacity. PCS service does NOT solve for d (inverse problem). Register: d sizing iteration OUT_OF_SCOPE per Ruling 7."
+      "status": "CLOSED in OPEN-P6-6A-7 (Sizing inverse problem)",
+      "status_note": "OPEN-P6-6A-7 Sizing inverse problem: PCS 新增 calc_drain_orifice_size(inp) 服务（SPEC §3.7.2 增补要点 1-4 完整实现：Ycr 计算 + Ftp 迭代 + 临界流判断 + 孔板直径迭代求解）。XLS PR-023 E42=15.204 mm 是 XLS 自身 ISO 5167 Ftp + 安全余量口径输出；PCS sizing 收敛到 d ≈ 12.762 mm（Ruling 7 GB/T 308 vs ISO 5167 Ftp family mismatch + Ruling 13 sub-2 XLS oversizing safety margin vs PCS exact W convergence；详见 golden_drain_orifice_size_pr023.json._doc_xls_vs_pcs_gap）。XLS d=15.20 mm 代入 PCS forward calc_drain_orifice 给 m_max=2.65 kg/s（vs W=1.89 kg/s 40% over-capacity）；PCS d=12.76 mm sizing 给 m_max=W exact。forward (calc_drain_orifice) 与 inverse (calc_drain_orifice_size) 自洽验证 PASS（test_forward_inverse_consistency）。"
     },
     {
       "id": "xls_fluid_property_derivation_rho_out_of_scope",
