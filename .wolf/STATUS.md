@@ -54,6 +54,20 @@ budget_tokens: 1500
 - bug-104 logged with full root_cause/fix
 - **Ruling 12 Cd/Y_cr CLOSED**
 
+**OPEN-P6-6A-7 关闭（C-19 排污孔板 sizing 完整实现，2026-09-28）**：commits `ce8556f→86d3310→f296a61→709c3bf→1644abf→a5fb167→4a75f38→07c4f6e→3250b42`（9 commits；worktree `feature/p6-6a-7-c19-sizing`）
+- **背景**：用户 2026-09-28 指出 OPEN-P6-6A-4 只完成 capacity check 公式精度（Cd/Y_cr^0.5 输入参数化），未实现 SPEC §3.7.2 要求的 sizing 完整功能（Ycr 计算 + Ftp 迭代 + 孔板直径迭代求解）。我当初把 SPEC 增补要点错判 OUT_OF_SCOPE，用户纠正后选 A 选项"现在补完 sizing"
+- **服务（ce8556f）**：`drain_orifice_service.py` +261 行（纯追加，forward `calc_drain_orifice` 零改动 — Ruling 1 honored）；新增 `DrainOrificeSizeInput` / `DrainOrificeSizeResult` / `DrainOrificeSizingNotConvergedError` / `calc_drain_orifice_size`；Newton 简化版 `d_new = d × sqrt(W/m_max)` + β 越界自动 bisection fallback；非阻塞流显式抛 `DrainOrificeInputError`
+- **测试（86d3310）**：黄金 fixture `golden_drain_orifice_size_pr023.json`（XLS PR-023 inputs + expected d）+ 6 单元测试（golden 对账 + forward↔inverse 自洽 + 非阻塞流 + 输入校验 × 3 + 不收敛抛错）
+- **物理修正（f296a61 + bug-105）**：`_y_cr_sqrt` 必须用 `r_c` 而非 `p_ratio`（ISO 5167 Y_cr 是 critical flow expansion factor，input 必为 r_c）；bug-105 logged
+- **文档修正（1644abf）**：fixture `_doc_xls_vs_pcs_gap` 显式说明 PCS d=12.762 mm vs XLS PR-023 E42 d=15.204 mm 16% gap（Ruling 7 GB/T 308 vs ISO 5167 Ftp family mismatch + Ruling 13 sub-2 XLS oversizing safety margin vs PCS exact W convergence）
+- **Fixture 翻转（a5fb167）**：`xls_d_sizing_iteration_out_of_scope` 标 CLOSED in OPEN-P6-6A-7（移除过时 `finding`；新增 `status` + `status_note` 658 chars 解释 PCS-XLS gap）
+- **API（4a75f38）**：`POST /api/v1/restriction/drain-orifice/size` + Pydantic schemas + 4 集成测试（happy path + 非阻塞流 + Cd-out-of-range Ruling 12 锁定 + ACL）。沿用 flare.py kod_sizing 模式（current_actor / require_roles / async / 无 DB 持久化）。OpenAPI regen clean（162 paths / 205 schemas）
+- **测试增强（07c4f6e）**：增 `test_drain_orifice_size_post_cd_out_of_range_422` 集成测试锁定 Ruling 12 Cd∈(0,1.0] invariant
+- **收口（3250b42）**：bug-104 加 follow_up（含完整 9 commit chain）；cerebrum.md 增 OPEN-P6-6A-7 Key Learning（含 4 守则：SPEC 增补要点不 OUT_OF_SCOPE / Ruling + XLS 迭代 ≠ OUT_OF_SCOPE / Forward + Inverse 必备 / Y_cr 必须用 r_c）
+- **验证**：72/72 restriction tests PASS（66 baseline + 6 sizing）；12/12 restriction API tests PASS（7 baseline + 4 sizing + 1 Cd-out-of-range）；全量 **3269 passed / 74 skipped / 0 failed**（OPEN-P6-6A-4 baseline 3258 → P6-6A-7 3269，+11 net）；gate_08 G-08 ✅；whole-branch review APPROVE
+- **Ruling 13（Y_cr@r_c + d sizing 范围）CLOSED**
+- **OPEN-P6-6A-7 关闭**：6 OPEN-P6-6A-* 中 4 项关闭（#3 #4 #7）；剩余 #1（SPEC V1.2 wording formalization）/ #2（brief template）/ #5（T13 ΔH_vap）/ #6（T8 glycol dehydration）
+
 ---
 
 ## 🚀 Next quest
@@ -63,7 +77,7 @@ budget_tokens: 1500
 - 范围：9 CONFIG 表替换 SYNTHETIC 标记 + 4 内联常量替换
 - 触发：T14 closure report sign-off + 工程团队接管真实 GPSA / Vendor / ISO / API 数据
 - 预计 5-7 工作日（Phase 1 CONFIG 并行 3-4 天 + Phase 2 service 集成 1-2 天 + ETL 1 天）
-- 解决 OPEN-P6-4-1/2 + OPEN-P6-6A-5（6 OPEN-P6-6A-* 中 3 项关闭）— **OPEN-P6-6A-3 已 e0d91a6 关闭**（Ruling 11 K scale）+ **OPEN-P6-6A-4 已关闭**（Ruling 12 Cd/Y_cr^0.5）
+- 解决 OPEN-P6-4-1/2 + OPEN-P6-6A-5（6 OPEN-P6-6A-* 中 4 项关闭）— **OPEN-P6-6A-3 已 e0d91a6 关闭**（Ruling 11 K scale）+ **OPEN-P6-6A-4 已 c34d3f4 关闭**（Ruling 12 Cd/Y_cr^0.5）+ **OPEN-P6-6A-7 已 3250b42 关闭**（Ruling 13 Y_cr@r_c + sizing 完整实现）
 
 **P6-6A 已完成（merged to main @ `09eb037`）**：worktree `PCS-worktrees/p6-6a-worley` @ `fddeae4`，15 commits，0 service 改动，11 Rulings 已登记，post-merge 56/56 spot-check PASS。
 
@@ -97,8 +111,10 @@ budget_tokens: 1500
 
 - main @ `c34d3f4`（P6-6A merge `09eb037` + OPEN-P6-6A-3 Ruling 11 K scale fix `e0d91a6` + OPEN-P6-6A-4 Ruling 12 Cd/Y_cr^0.5 fix `c34d3f4`）；working tree 仅 .wolf/*（hooks 维护）+ tests/models/test_orm_db_drift.py（**未 commit**——drift 守卫测试，pcs_test-only skipif，已验证 PASS/skip）
 - worktree `feature/p6-6a-worley` @ `fddeae4`（P6-6A 完整 15 commits，**已 merge 入 main @ 09eb037**，worktree 可清理）
+- **worktree `feature/p6-6a-7-c19-sizing` @ `3250b42`**（P6-6A-7 完整 9 commits，**待 merge 入 main**，whole-branch review APPROVE）
 - **双库已对齐 head `p6_5_006`**：跑 schema 敏感测试前 `DATABASE_URL=postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs_test uv run alembic upgrade head`（CLAUDE.md 规则仍适用）
 - 全量回归基线：**3258 passed / 74 skipped**（OPEN-P6-6A-4 commit 后；增量 +840 vs OPEN-P6-6A-3 baseline 2418 = P6-6A Task 11 fixture-driven 测试 +3 新 worley_c19 test + 837 P6-6A 其他任务测试）
-- buglog 最新 bug-101/102/103/104（审计三件套 drift / 手写清单教训 / OPEN-P6-6A-3 K scale / **OPEN-P6-6A-4 Cd/Y_cr^0.5 1.74× over-prediction**）
+- P6-6A-7 增量：**+11 net**（+6 sizing service tests + +4 sizing API tests + +1 Cd-out-of-range 422 test；post-merge 期望 3269 passed / 74 skipped / 0 failed）
+- buglog 最新 bug-101/102/103/104/105（审计三件套 drift / 手写清单教训 / OPEN-P6-6A-3 K scale / **OPEN-P6-6A-4 Cd/Y_cr^0.5 1.74× over-prediction** / **OPEN-P6-6A-7 Y_cr@r_c 物理修正**）
 - 无 CI/CD（单人开发裁决，勿再建议）；SPEC V1.10 已冻结为实施基线，后续改 SPEC 需新版本号
-- P6-6A 11 Rulings 已登记：Ruling 1 零改动 / Ruling 2 表格化 / Ruling 3-8 mapping defects / Ruling 9 双 surface / Ruling 10 brief template / **Ruling 11 K scale CLOSED in OPEN-P6-6A-3 (e0d91a6)** / **Ruling 12 Cd/Y_cr CLOSED in OPEN-P6-6A-4 (c34d3f4)**
+- P6-6A 11 Rulings + Ruling 13 已登记：Ruling 1 零改动 / Ruling 2 表格化 / Ruling 3-8 mapping defects / Ruling 9 双 surface / Ruling 10 brief template / **Ruling 11 K scale CLOSED in OPEN-P6-6A-3 (e0d91a6)** / **Ruling 12 Cd/Y_cr CLOSED in OPEN-P6-6A-4 (c34d3f4)** / **Ruling 13 Y_cr@r_c + d sizing 范围 CLOSED in OPEN-P6-6A-7 (3250b42)**
