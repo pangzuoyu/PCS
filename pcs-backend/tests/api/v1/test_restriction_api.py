@@ -416,6 +416,45 @@ async def test_drain_orifice_size_post_non_choked_422(client, sample_user_token)
 
 
 @pytest.mark.asyncio
+async def test_drain_orifice_size_post_cd_out_of_range_422(
+    client, sample_user_token
+):
+    """Cd 越界（Cd > 1.0）→ 422 Pydantic ValidationError（OPEN-P6-6A-7 Ruling 12 invariant）。
+
+    物理约束：流量系数 Cd ∈ (0, 1.0]（Ruling 12 锁定）。超出 1.0 在物理上无意义，
+    由 Pydantic `gt=0, le=1.0` 在 schema 层拦截；本测试确保该不变式在 API 边界
+    实际生效（非静默吞字段、非延后到 service 层报错）。回归路径：
+    - 若后续重构移除 `le=1.0` 约束 → 422 缺失 → 本测试失败
+    - 若 service 层增加额外的 Cd 检查 → 仍需 Pydantic 边界先行（保持关注点分离）
+    """
+    body = _drain_size_body(discharge_coefficient=1.5)  # 超出 Pydantic le=1.0
+
+    r = await client.post(
+        "/api/v1/restriction/drain-orifice/size",
+        json=body,
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+    )
+    assert r.status_code == 422, r.text
+    payload = r.json()
+    assert "detail" in payload
+    # Pydantic v2 le=1.0 违反 → 错误 type 为 "less_than_equal"，loc 含字段名
+    cd_errors = [
+        e for e in payload["detail"]
+        if "discharge_coefficient" in (e.get("loc") or [])
+    ]
+    assert len(cd_errors) >= 1, (
+        f"应至少 1 条 discharge_coefficient 字段错误，实际：{payload['detail']}"
+    )
+    assert any(
+        e.get("type") in ("less_than_equal", "greater_than")
+        for e in cd_errors
+    ), (
+        f"discharge_coefficient 越界应触发 less_than_equal 或 greater_than，"
+        f"实际：{[e.get('type') for e in cd_errors]}"
+    )
+
+
+@pytest.mark.asyncio
 async def test_drain_orifice_size_openapi_contract(client):
     """OpenAPI /openapi.json 含 /restriction/drain-orifice/size + DrainOrificeSize{Req,Resp}schema。
 
