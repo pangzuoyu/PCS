@@ -386,6 +386,23 @@
 - **回归**：66/66 restriction tests PASS；全量 3258 passed / 74 skipped；零回归到 P6-6A Task 11 worley_c19 测试（11 个）或旧 restriction_engine 测试（32 个）。
 - **commit target**：OPEN-P6-6A-4 fix（待提交）。
 
+### OPEN-P6-6A-7 Sizing — SPEC §3.7.2 完整闭环（2026-09-28）
+
+**defect**: OPEN-P6-6A-4（Ruling 12, commit c34d3f4）只修复了 capacity check 公式精度（Cd/Y_cr^0.5 输入参数化），没有实现 SPEC §3.7.2 要求的 sizing 完整功能（Ycr 计算、Ftp 迭代、孔板直径迭代求解）。PCS 当时仅 forward problem。
+
+**fix strategy**: 新增 calc_drain_orifice_size 服务（inverse problem）+ API + 黄金 fixture + 翻转 fixture out_of_scope 标签（xls_d_sizing_iteration_out_of_scope CLOSED in OPEN-P6-6A-7, commit a5fb167）+ bug-105 Y_cr@r_c 物理修正（commit f296a61）+ Ruling 12 锁定测试（Cd-out-of-range 422, commit 07c4f6e）。
+
+**正/逆向分工固化**（cerebrum.md 守则沿用）:
+- forward (capacity check): calc_drain_orifice(d, ..., m_dot) → m_max, is_capacity_ok
+- inverse (sizing): calc_drain_orifice_size(..., W) → d, converged, iterations
+- 两者自洽验证：d_size 喂给 forward → m_max ≈ W（test_forward_inverse_consistency）
+
+**守则**（避免重复犯错）:
+1. **不要把 SPEC 增补要点标 OUT_OF_SCOPE** — SPEC §3.x.y 增补要点是 binding requirement，fixture out_of_scope 必须配 status_note 说明裁决依据
+2. **Ruling N + XLS 迭代 ≠ OUT_OF_SCOPE** — XLS 算法细节是 reference，PCS 必须独立实现 SPEC 要求的算法（即使和 XLS 算法细节不同）
+3. **Forward / Inverse 必须同时存在** — 工艺计算通常有正反两个问题（capacity check + sizing），规格若列 增补要点即必须全部实现
+4. **物理公式易错点：Y_cr 必须用 r_c，不是 p_ratio** — bug-105 (f296a61) PCS 初次实现用 p_ratio 代入 _y_cr_sqrt 产生 0.2477 vs 正确 0.687 (r_c)。ISO 5167 Y_cr 定义就是 critical flow expansion factor，input 必为 r_c。
+
 ## Decision Log
 
 - 管道计算等级按项目绑定（source=PROJECT）；class_id 全局唯一 PK，跨项目同码不同值需复合 PK 迁移（P3 复核）。
