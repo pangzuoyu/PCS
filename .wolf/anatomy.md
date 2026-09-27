@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-18T01:46:15.927Z
-> Files: 713 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-09-27T16:01:02.240Z
+> Files: 781 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -98,6 +98,43 @@
 - `task-1.9.5-report.md` — Task 1.9.5 Report — equip-lib 沉淀 service + search/settle 端点 (~1240 tok)
 - `task-1.9.6-report.md` — Task 1.9.6 Report — 管道等级 Excel 批量导入 + 模板下载 (~1257 tok)
 
+## .superpowers/sdd/2026-09-26-p6-5-batch/
+
+- `progress.md` — SDD ledger — plan: docs/superpowers/plans/2026-09-26-p6-5-batch.md (~7464 tok)
+- `task-A1-brief.md` — Task A1: C-03 API 14E 两相流冲蚀速度 + C 因子 (~2068 tok)
+- `task-A1-report.md` — Task A1 Report: C-03 API 14E 两相流冲蚀速度 + C 因子 (~1855 tok)
+- `task-A2-brief.md` — Task A2: C-05 API 14E 两相流管道尺寸 (~2004 tok)
+- `task-A2-report.md` — Task A2 Report — C-05 API 14E 两相流管道尺寸 (~755 tok)
+- `task-A3-brief.md` — Task A3: C-13 PIPE_NET 浪涌压力（水锤 + 段塞） (~2284 tok)
+- `task-A3-report.md` — Task A3 Report — PIPE_NET 浪涌压力（水锤 + 段塞） (~1214 tok)
+- `task-A4-brief.md` — Task A4: C-15 Beggs-Brill 持液率 + Eaton-Flanning + Mandhane 1975 流型图 (~2974 tok)
+- `task-A4-report.md` — Task A4 Report — C-15 Beggs-Brill 持液率 + Eaton-Flanning + Mandhane 1975 流型图 (~1056 tok)
+- `task-A5-brief.md` — Task A5: 批 A 收口（lint + pytest + G-08 + commit） (~539 tok)
+- `task-A5-report.md` — Task A5 Report — 批 A 收口（lint + pytest + G-08 + commit） (~1074 tok)
+- `task-B1-brief.md` — Task B1: C-09 CV AS 2360.1.1（d<1in Limit + 声速理想气体） (~2183 tok)
+- `task-B1-report.md` — Task B1 Report — C-09 CV AS 2360.1.1 Limit 校核（d<1in + 声速 + 阻塞流） (~1261 tok)
+- `task-B2-brief.md` — Task B2: C-10 VESSEL 三相分离器（油水气 + 堰板 + 油水界面 + 停留时间） (~2470 tok)
+- `task-B2-report.md` — Task B2 Report — C-10 VESSEL 三相分离器（油水气 + 堰板 + 油水界面 + 停留时间） (~1406 tok)
+- `task-B3-brief.md` — Task B3: C-19 RESTRICTION 排污孔板 + Ftp + 临界流 (~1969 tok)
+- `task-B3-report.md` — Task B3 Report: C-19 RESTRICTION 排污孔板 + Ftp + 临界流 (~1441 tok)
+- `task-B4-brief.md` — Task B4: C-20 PSV API 2000 emergency/fire + 真空工况 (~2505 tok)
+- `task-B4-report.md` — Task B4 Report — C-20 PSV API 2000 emergency/fire + 真空工况 (~812 tok)
+- `task-B5-brief.md` — Task B5: C-21 PSV AS 1210/1797 + 管破裂 + 控制阀失效 (~2190 tok)
+- `task-B5-report.md` — Task B5 Report: C-21 PSV AS 1210/1797 + 管破裂 + 控制阀失效 (~1175 tok)
+- `task-B6-brief.md` — Task B6: 批 B 收口（lint + pytest + G-08 + commit） (~535 tok)
+- `task-B6-report.md` — Task B6 Report — 批 B 收口（lint + pytest + G-08 + commit） (~797 tok)
+- `task-C1-brief.md` — Task C1: C-16 PSYCHRO 甘醇脱水（TEG/DEG 含水 + 接触塔设计） (~2271 tok)
+- `task-C1-report.md` — Task C1 Report — C-16 PSYCHRO TEG/DEG 甘醇脱水 (~1405 tok)
+- `task-C2-brief.md` — Task C2: C-18 PSYCHRO 水合物抑制（Hammerschmidt + 抑制剂注入率） (~2206 tok)
+- `task-C2-report.md` — Task C2 Report — C-18 PSYCHRO 水合物抑制（Hammerschmidt + 注入率） (~1243 tok)
+- `task-C3-brief.md` — Task C3: C-22 FLARE 扩散（API 521 §5.15 + Pasquill-Gifford + 辐射热强度） (~2655 tok)
+- `task-C3-report.md` — Task C3 Report: C-22 FLARE 扩散（API 521 §5.15 + Pasquill-Gifford + 辐射热强度） (~1019 tok)
+- `task-C4-brief.md` — Task C4: C-23 FLARE 噪声（API 521 §6.4 + ISO 9613-2 + A 加权声压级） (~2138 tok)
+- `task-C4-report.md` — Task C4 Report: C-23 FLARE 噪声（API 521 §6.4 + ISO 9613-2 + A 加权声压级） (~846 tok)
+- `task-C5-brief.md` — Task C5: Batch C 收口（lint + pytest + G-08 + 4 CONFIG 表 + 4 alembic 迁移 + 4 seed + commit） (~2254 tok)
+- `task-C5-report.md` — Task C5 Report — Batch C 收口 (~2469 tok)
+- `task-C5q3-fix-report.md` — Task C5 Q3 Fix Report — Real 5-min TTL for compound_config_cache (~1314 tok)
+
 ## docs/
 
 - `P45-BATCH3-TYPE-MIGRATION.md` — P45 BATCH3 前端类型手动迁移登记 (~248 tok)
@@ -167,6 +204,10 @@
 - `2026-09-16-p45-frontend-sprint-batch3.md` — P4.5 批 3：P3/P4 计算页面 实施计划 (~5231 tok)
 - `2026-09-16-p45-frontend-sprint.md` — P4.5 前端补课 Sprint 实施计划 (~6176 tok)
 - `2026-09-17-p5-4-frontend-heat-ui.md` — P5-4 HEAT 前端 UI 实施计划（V1.3 对齐） (~13441 tok)
+- `2026-09-26-p6-5-batch.md` — P6-5+ 13 项工艺计算增补 — 三批并行实施计划 (~32314 tok)
+- `2026-09-26-p6-5-frontend-3pages.md` — P6-5 前端补课：3 计算页（heating-value / saturation-water-content / cv） (~213 tok)
+- `2026-09-27-p6-6a-worley-reconciliation.md` — P6-6A 实施计划 — Worley XLS 算例对账批（24 个真实工程算例） (~1227 tok)
+- `2026-09-27-p6-6b-data-source-replacement.md` — P6-6B 数据源替换批 — 9 CONFIG 表 + 4 内联常量 (~2262 tok)
 
 ## docs/superpowers/specs/
 
@@ -231,6 +272,7 @@
 - `p5_0_5_psv_multi_standard.py` — P5-0-5 Task 24a: PSV 多标准配置 + 9 类 registry。 (~3336 tok)
 - `p5_open_005_model_extension.py` — P5-0-1: 设备结果表扩展 + 双阶段设计下沉（SUP-008 §8.3.2/§8.3.3/§8.3.5 + §8.4 OPEN-009）。 (~3360 tok)
 - `p5_open_010_psv_valve_selection.py` — P5-OPEN-10 SUP-P5-PSV-002 V1.14 §3.1 PSV 选型 18 列 + 3 CHECK。 (~1963 tok)
+- `p6_5_006_orm_db_drift_final_fix.py` — P6-5 终扫：ORM↔DB 全库 drift 清零（p6_5_005 补扫，3 表）。 (~604 tok)
 
 ## pcs-backend/app/
 
@@ -417,6 +459,15 @@
 - `valve_selection_types.py` — SUP-P5-PSV-002 V1.14 §3.2 类型定义 + ValidatedParams 容器。 (~2288 tok)
 - `valve_validation.py` — SUP-P5-PSV-002 V1.14 §4.2 validate_valve_params（G7-G25 全拦截/警告）。 (~3649 tok)
 
+## pcs-backend/app/services/psychro/
+
+- `hydrate_inhibition_service.py` — 水合物抑制（SPEC §3.9.4 V1.8）。 (~2347 tok)
+- `saturation_water_content_service.py` — 饱和水含量 service（P6-4 C-17 / SPEC §3.2.5 P6-PSY-001）。 (~3737 tok)
+
+## pcs-backend/app/services/restriction/
+
+- `drain_orifice_service.py` — 排污孔板（drain orifice）计算（SPEC §3.6.2 + §3.7.2 V1.1）。 (~1647 tok)
+
 ## pcs-backend/app/services/sep_equip/
 
 - `__init__.py` — P5-2 SEP_EQUIP 气固/气液分离设备模块。 (~213 tok)
@@ -429,7 +480,7 @@
 
 - `__init__.py` — P5-1 vessel_service 容器计算模块。 (~133 tok)
 - `vessel_persist.py` — P5-1-4 vessel 计算落库 + outlet 流（service 层）。 (~1819 tok)
-- `vessel_service.py` — P5-1 vessel_service（Souders-Brown + 流体力学）。 (~3981 tok)
+- `vessel_service.py` — P5-1 vessel_service（Souders-Brown + 流体力学）。 (~14312 tok)
 
 ## pcs-backend/app/workers/
 
@@ -442,6 +493,7 @@
 
 - `export_openapi.py` — 导出 OpenAPI 3.1 spec 到 docs/openapi.json（不启 uvicorn，直接调 app.openapi）。 (~398 tok)
 - `extract_pipe_classes_kaimen.py` — kaimen SPC-0004 管道等级种子重生成工具（P2-OPEN-001 第二数据源）。 (~4091 tok)
+- `validate_brief.py` — Assert brief content matches plan table row for task N. (~926 tok)
 
 ## pcs-backend/tests/
 
@@ -559,6 +611,7 @@
 - `test_alembic_roundtrip.py` — P3.x SIM-39 / TODO-040: Alembic migration round-trip 单测（可逆段）。 (~1232 tok)
 - `test_enums.py` — AuditAction 枚举测试：CONFIG_* 8 项（P2 Sprint 1.1）。 (~264 tok)
 - `test_htri_template_schema.py` — HTRI 解析模板 schema 测试（Task 1.10.3，V1.4 P2-OPEN-005）。 (~676 tok)
+- `test_orm_db_drift.py` — ORM↔DB 元数据 drift 守卫（bug-101/bug-102 防回归）。 (~723 tok)
 - `test_pipe_class_migration.py` — SUP-002 PC-1 迁移验证测试。 (~3255 tok)
 - `test_sign_status_9states_ratify.py` — P5-0-3 Task 3: StreamSignStatus 9 态扩展 ratify（plan §批 P5-0 §Task 3）。 (~1116 tok)
 - `test_sim_tower_model.py` — P3.x SIM-16: sim_tower_results 表 + COLUMN SUMMARY 解析 测试。 (~1465 tok)
@@ -574,6 +627,10 @@
 - `test_formula.py` — Pydantic schema 契约测试：formula.parameters_json（D16）。 (~449 tok)
 - `test_project_template_schema.py` — test_record_approval_config_valid, test_stream_approval_config_levels_1_to_2, test_numbering_config_ (~773 tok)
 - `test_stream_schema.py` — P3.2 SIM-1：Stream / StreamStatePoint Pydantic schema 契约测试。 (~1278 tok)
+
+## pcs-backend/tests/scripts/
+
+- `test_validate_brief.py` — OPEN-P6-6A-2: validate_brief.py 单元测试（CLI subprocess + 临时 brief 文件）。 (~1355 tok)
 
 ## pcs-backend/tests/seeds/
 
@@ -686,6 +743,25 @@
 - `test_relief_area.py` — P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 + ω 法两相流）测试。 (~5114 tok)
 - `test_valve_validation.py` — SUP-P5-PSV-002 V1.14 §4.2 validate_valve_params 测试（G7-G25 全拦截/警告）。 (~7230 tok)
 
+## pcs-backend/tests/services/psychro/
+
+- `test_hydrate_inhibition.py` — P6-5 Task C2 (C-18 PSYCHRO 水合物抑制) hydrate_inhibition_service 单元测试。 (~3074 tok)
+- `test_saturation_scope_docstring.py` — OPEN-P6-6A-1: 饱和水含量 service docstring scope 段 防回归测试。 (~790 tok)
+- `test_worley_c18.py` — P6-6A Task 10: C-18 PSYCHRO 水合物抑制 vs Worley 真实算例 WS-CA-PR-020 对账测试。 (~7976 tok)
+
+## pcs-backend/tests/services/psychro/fixtures/
+
+- `golden_hydrate_meoh.json` (~763 tok)
+- `worley_c18_hydrate_inhibition.json` — pressure: d, d (~8024 tok)
+
+## pcs-backend/tests/services/restriction/
+
+- `test_worley_c19.py` — P6-6A Task 11: C-19 RESTRICTION 排污孔板 vs Worley 真实算例 WS-CA-PR-023 对账测试。 (~9083 tok)
+
+## pcs-backend/tests/services/restriction/fixtures/
+
+- `worley_c19_drain_orifice.json` (~8848 tok)
+
 ## pcs-backend/tests/services/sep_equip/
 
 - `__init__.py` — P5-2 SEP_EQUIP 气固/气液分离设备测试包。 (~10 tok)
@@ -701,9 +777,13 @@
 ## pcs-backend/tests/services/vessel/
 
 - `__init__.py` (~0 tok)
+- `test_mass_iteration.py` — P6-4 T3 C-12 mass_iteration_loop 测试（V1.2 接口冻结）。 (~2604 tok)
+- `test_partial_volume.py` — P6-4 T3 C-12 calc_partial_volume 测试（V1.2 接口冻结）。 (~2361 tok)
 - `test_vessel_hydraulics.py` — P5-1-2 vessel 流体力学校核（fluids.tanks 排空/液位-容积/溢流/放空）测试。 (~3524 tok)
+- `test_vessel_interface_freeze.py` — P6-4 T3 D7 接口冻结签名快照测试（item 37 + ADR-0040）。 (~3304 tok)
 - `test_vessel_persist.py` — P5-1-4 vessel_persist service 层测试。 (~2905 tok)
 - `test_vessel_sizing.py` — P5-1-1 vessel_service 核心：calc_vessel_sizing 测试。 (~2285 tok)
+- `test_wetted_area.py` — P6-4 T3 C-12 calc_wetted_area 测试（V1.2 接口冻结）。 (~1628 tok)
 
 ## pcs-backend/tests/services/vessel/fixtures/
 
@@ -727,15 +807,18 @@
 
 ## pcs-frontend/src/
 
-- `App.tsx` — router — renders form (~842 tok)
+- `App.tsx` — router — renders form (~964 tok)
 - `main.tsx` — Dev 环境挂载 MSW worker；prod 构建时本 if 块被 tree-shake 移除 (~235 tok)
 - `vite-env.d.ts` — / <reference types="vite/client" /> (~56 tok)
 
 ## pcs-frontend/src/api/
 
 - `client.ts` — Exports api, TokenResponse, authApi (~335 tok)
+- `common.ts` — COMMON 计算 API 客户端（P6-5 前端补课 / 3 计算页）。 (~242 tok)
+- `cv.ts` — CV 控制阀计算 API 客户端（P6-5 前端补课 / 3 计算页）。 (~200 tok)
 - `heat.ts` — P5-4 HEAT 计算 + 重量估算 API 客户端（V1.3 SPEC §7.11.6）。 (~764 tok)
 - `psv.ts` — P5-3 PSV 计算 + 项目标准配置 API 客户端（V1.2 SPEC §7.11.5）。 (~350 tok)
+- `psychro.ts` — PSYCHRO 计算 API 客户端（P6-5 前端补课 / 3 计算页）。 (~251 tok)
 - `sepEquip.ts` — SEP_EQUIP 分离设备计算 API 客户端（P5 frontend 全栈收口 / OPEN-4-2）。 (~436 tok)
 - `sprint1.ts` — Exports workspaceApi, checklistApi (~519 tok)
 - `stream.ts` — streams API 客户端（项目级 SIM 流列表 + 单流详情）。 (~240 tok)
@@ -774,12 +857,12 @@
 
 ## pcs-frontend/src/layouts/
 
-- `MainLayout.tsx` — 在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。 (~1429 tok)
+- `MainLayout.tsx` — 在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。 (~1473 tok)
 
 ## pcs-frontend/src/mocks/
 
 - `browser.ts` — MSW browser worker — dev 环境挂载（P45-0-5） (~78 tok)
-- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~5520 tok)
+- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~5689 tok)
 
 ## pcs-frontend/src/mocks/seed/
 
@@ -796,7 +879,7 @@
 
 - `DashboardPage.tsx` — workspaceProjectId (~362 tok)
 - `LoginPage.tsx` — MOCK_ACCOUNTS — renders form (~618 tok)
-- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~2604 tok)
+- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~2766 tok)
 
 ## pcs-frontend/src/pages/bedd/
 
@@ -805,6 +888,7 @@
 ## pcs-frontend/src/pages/common/
 
 - `AllowableStressPage.tsx` — AllowableStressPage — 许用应力（P45-3-3 / Task 30）。 (~773 tok)
+- `HeatingValuePage.tsx` — COMMON 气体热值计算页（P6-5 前端补课 / 3 计算页之一）。 (~3115 tok)
 - `PropertySearchPage.tsx` — PropertySearchPage — 组分物性查询（P45-3-3 / Task 30）。 (~972 tok)
 - `ToxicityExplosivityPage.tsx` — ToxicityExplosivityPage — 毒性爆炸（P45-3-3 / Task 30）。 (~1084 tok)
 
@@ -816,6 +900,10 @@
 - `DiffViewer.tsx` — DiffViewer — 通用版本对比组件（P45-2-8 / Task 26）。 (~2510 tok)
 - `FormulaEditorPage.tsx` — FormulaEditorPage — 公式编辑器（P45-2-4 / Task 22）。 (~3843 tok)
 - `TemplateFilePage.tsx` — TemplateFilePage — 模板文件管理（P45-2-6 / Task 24）。 (~1834 tok)
+
+## pcs-frontend/src/pages/cv/
+
+- `CvComputePage.tsx` — CV 控制阀 Cv 计算页（P6-5 前端补课 / 3 计算页之三）。 (~3534 tok)
 
 ## pcs-frontend/src/pages/flash/
 
@@ -848,6 +936,10 @@
 
 - `PsvComputePage.tsx` — PsvComputePage — PSV 安全阀计算界面（V1.2 SPEC §7.11.5）。 (~17828 tok)
 - `PsvStandardProfilePage.tsx` — PsvStandardProfilePage — 项目级 PSV 标准配置（V1.2 SPEC §7.11.5）。 (~3772 tok)
+
+## pcs-frontend/src/pages/psychro/
+
+- `SaturationWaterContentPage.tsx` — PSYCHRO 饱和水含量计算页（P6-5 前端补课 / 3 计算页之二）。 (~2556 tok)
 
 ## pcs-frontend/src/pages/pump/
 
@@ -943,6 +1035,7 @@
 ## pcs-frontend/tests/pages/common/
 
 - `AllowableStressPage.test.tsx` — AllowableStressPage 测试（P45-3-3 / Task 30）。 (~456 tok)
+- `HeatingValuePage.test.tsx` — HeatingValuePage 测试（P6-5 前端补课 / 3 计算页之一）。 (~853 tok)
 - `PropertySearchPage.test.tsx` — PropertySearchPage 测试（P45-3-3 / Task 30）。 (~716 tok)
 - `ToxicityExplosivityPage.test.tsx` — ToxicityExplosivityPage 测试（P45-3-3 / Task 30）。 (~649 tok)
 
@@ -954,6 +1047,10 @@
 - `DiffViewer.test.tsx` — DiffViewer 测试（P45-2-8 / Task 26）。 (~1350 tok)
 - `FormulaEditorPage.test.tsx` — FormulaEditorPage 测试（P45-2-4 / Task 22）。 (~1897 tok)
 - `TemplateFilePage.test.tsx` — TemplateFilePage 测试（P45-2-6 / Task 24）。 (~1481 tok)
+
+## pcs-frontend/tests/pages/cv/
+
+- `CvComputePage.test.tsx` — CvComputePage 测试（P6-5 前端补课 / 3 计算页之三）。 (~1363 tok)
 
 ## pcs-frontend/tests/pages/flash/
 
@@ -985,6 +1082,10 @@
 ## pcs-frontend/tests/pages/psv/
 
 - `PsvComputePage.test.tsx` — PsvComputePage 测试（P5-3-6 + 多工况 P5-3-7，对齐 V1.2 SPEC §7.11.5）。 (~3705 tok)
+
+## pcs-frontend/tests/pages/psychro/
+
+- `SaturationWaterContentPage.test.tsx` — SaturationWaterContentPage 测试（P6-5 前端补课 / 3 计算页之二）。 (~832 tok)
 
 ## pcs-frontend/tests/pages/pump/
 
@@ -1037,8 +1138,11 @@
 - `PCS-DICT-ALL-003 V3.5.md` — Declares ReportService (~2545 tok)
 - `PCS-REQ-2026-002-SUP-008PCS 数据模型对齐与 Excel 导入增补规格说明书.md` — Declares enum (~6293 tok)
 - `PCS-REQ-2026-DF-001：P4模块数据流架构规范.md` — PIPE计算——单依赖（stream） (~2974 tok)
+- `PCS-SPEC-ADD-001 计算覆盖增补规格说明书.md` (~11164 tok)
+- `PCS-SPEC-ADD-001-ATT-02 Q2 工艺推导附件.md` — v2 修订附录（数值一致性修复，2026-09-26） (~2339 tok)
 - `PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md` — Declares FK (~5554 tok)
 - `PCS-SPEC-P3-SIM SIM 模块 输入.md` — Declares VAPOR (~14092 tok)
 - `schema_compact_dict.md` (~5674 tok)
+- `SPEC-ADD-001-Q2 SPEC V1.2 增补文档.md` — v2 修订附录（数值一致性修复，2026-09-26） (~2306 tok)
 - `SUP-P5-PSV-001 PSV 多标准.md` (~13713 tok)
 - `SUP-P5-PSV-002-V1.14-STATUS.md` — SUP-P5-PSV-002 V1.14 落地状态（后端契约扩展） (~1286 tok)

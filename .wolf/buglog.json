@@ -1731,6 +1731,33 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-27T14:30:00+08:00"
+    },
+    {
+      "id": "bug-104",
+      "timestamp": "2026-09-28T09:00:00+08:00",
+      "error_message": "PCS drain_orifice_service.py: Cd/Y_cr^0.5 implicit default 1.0 → mass_flow_capacity 公式 A×Ftp×ρ×v_max 缺少 Cd×Y_cr 系数，与 ISO 5167 blowdown orifice 计算口径不一致（XLS PR-023 mass_max = A×Cd×Y_cr^0.5×Ftp×ρ×v_max）。XLS N24=0.83932 + N27=0.6871656312856262 → PCS over-prediction 1.74× vs XLS PR-023 在 d=15.204 mm 处计算结果（4.606 vs 2.656 kg/s）。",
+      "file": "pcs-backend/app/services/restriction/drain_orifice_service.py:43-52 (DrainOrificeInput 加 2 optional 字段) + 84-91 (validation 加 Cd/Y_cr 越界校验) + 125-133 (mass_flow_capacity 公式乘 Cd×Y_cr^0.5) + 158-166 (formula_ref 加 3 键)；fixtures/worley_c19_drain_orifice.json service_inputs + expected.mass_max_kg_s_post_fix_with_cd_y_cr + root_cause_notes.status CLOSED + out_of_scope 移除 xls_cd/y_cr 项",
+      "root_cause": "原 drain_orifice_service.mass_flow_capacity 实现用简化公式 A×Ftp×ρ×v_max，假设 Cd=1.0 与 Y_cr^0.5=1.0（适用于理想 orifice 简化校核）。该假设对实际工程 orifice（如 blowdown）显著 over-predicts：典型 Cd=0.83~0.95（实测 orifice β/Re 依赖）+ Y_cr^0.5<1.0（气体可压缩性膨胀因子），1/(Cd×Y_cr^0.5)≈1.74× → PCS capacity 比 XLS PR-023 大约 1.74 倍。P6-6A Task 11 首次对账时识别为 Ruling 7 OUT_OF_SCOPE（'Cd computation is part of XLS iterative sizing algorithm'），决定推迟到 OPEN-P6-6A-4 解决。",
+      "fix": "OPEN-P6-6A-4 Ruling 12 fix: 给 DrainOrificeInput 加 2 optional 字段 discharge_coefficient (Cd) 与 expansion_factor (Y_cr^0.5)，均默认 1.0（保持向后兼容，零行为变化给旧调用方）。新增 _validate_input 校验 Cd/Y_cr ∈ (0, 1]。mass_flow_capacity 公式更新为 m_max = A × Cd × Y_cr^0.5 × Ftp × ρ × v_max。formula_ref 加 3 键（discharge_coefficient / expansion_factor / mass_flow_capacity）含 Ruling 12 引用 + XLS PR-023 Cd=0.83932 / Y_cr^0.5=0.6871656312856262 字串。Fixture worley_c19_drain_orifice.json: service_inputs 加 Cd + Y_cr^0.5 输入；expected.xls_tautology_expected.mass_max_kg_s_pre_fix_default（旧 4.606）+ mass_max_kg_s_post_fix_with_cd_y_cr（新 2.656）；root_cause_notes 中 xls_cd_discharge_coefficient_out_of_scope 与 xls_y_cr_expansion_factor_out_of_scope 状态标 CLOSED in OPEN-P6-6A-4；out_of_scope 移除这 2 项（11→9）。Test worley_c19.py: _build_input 传 Cd/Y_cr；test_mass_flow_capacity_choked_branch_and_is_capacity_ok 改用 post-fix 期望（mass_max ≈ 2.656 kg/s, capacity_ratio ≈ 0.71）；新增 test_cd_y_cr_default_one_backward_compat 验证默认 1.0 不破坏旧调用方；新增 test_cd_y_cr_post_fix_1p74x_reduction 验证 reduction ratio = 1/(Cd×Y_cr^0.5) ≈ 1.734；新增 test_formula_ref_includes_cd_y_cr_ruling_12；新增 test_worley_c19_root_cause_notes_cd_y_cr_status_closed 验证 CLOSED 标记；test_worley_c19_out_of_scope_ledger_complete 期望改 9 项。验证：PCS default 调用方 mass_max = 4.606 kg/s 不变（旧 32 个 test 零回归）；PCS post-fix mass_max = 2.656 kg/s 与 XLS PR-023 在 d=15.204 mm 处计算一致（Ruling 7 family mismatch 0.2% 容差内）。66/66 restriction tests PASS。",
+      "fix_commit": "c34d3f4",
+      "tags": [
+        "drain-orifice",
+        "Cd",
+        "Y_cr",
+        "Ruling-12",
+        "OPEN-P6-6A-4",
+        "1.74x-over-prediction",
+        "frozen-dataclass-extend",
+        "formula-update",
+        "fixture-update",
+        "backward-compat",
+        "test-regression",
+        "PCS",
+        "restriction"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-28T09:00:00+08:00"
     }
   ]
 }

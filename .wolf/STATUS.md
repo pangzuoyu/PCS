@@ -45,6 +45,15 @@ budget_tokens: 1500
 - bug-103 logged with full root_cause/fix; 全量 2418 passed / 32 skipped / 0 failures
 - **Ruling 11 K scale CLOSED**
 
+**OPEN-P6-6A-4 关闭（drain orifice Cd/Y_cr^0.5 Ruling 12 fix，2026-09-28）**：commit `c34d3f4`
+- PCS `calc_drain_orifice` mass_flow_capacity 公式原仅 A×Ftp×ρ×v_max，假设 Cd=1.0 + Y_cr^0.5=1.0 implicit，导致 1.74× over-prediction vs XLS PR-023 在 d=15.204 mm 处计算（Cd=0.83932 × Y_cr^0.5=0.68717 = 0.5768 → reduction 1.734×）
+- 修：给 `DrainOrificeInput` 加 2 optional 字段 `discharge_coefficient` (Cd) + `expansion_factor` (Y_cr^0.5)，默认 1.0 保持向后兼容；formula 改为 m_max = A × Cd × Y_cr^0.5 × Ftp × ρ × v_max；新增 _validate_input 越界校验 Cd/Y_cr ∈ (0, 1]；formula_ref 加 3 键（Ruling 12 + XLS PR-023 字串）
+- Fixture `worley_c19_drain_orifice.json`: service_inputs 加 Cd=0.83932 + Y_cr^0.5=0.6871656312856262；expected 加 `mass_max_kg_s_post_fix_with_cd_y_cr=2.656 kg/s`；root_cause_notes 中 `xls_cd_discharge_coefficient_out_of_scope` + `xls_y_cr_expansion_factor_out_of_scope` 状态标 CLOSED in OPEN-P6-6A-4；out_of_scope 移除这 2 项（11→9）
+- Test `worley_c19.py`: _build_input 传 Cd/Y_cr；test_mass_flow_capacity_choked_branch_and_is_capacity_ok 改 post-fix 期望（mass_max ≈ 2.656 kg/s, capacity_ratio ≈ 0.71）；新增 test_cd_y_cr_default_one_backward_compat（默认 1.0 零回归）+ test_cd_y_cr_post_fix_1p74x_reduction（reduction ratio ≈ 1.734）+ test_formula_ref_includes_cd_y_cr_ruling_12 + test_worley_c19_root_cause_notes_cd_y_cr_status_closed
+- 验证：66/66 restriction tests PASS（含 11 个 worley_c19 测试）；全量 3258 passed / 74 skipped / 0 failures；post-fix mass_max 2.656 kg/s = XLS PR-023 在 d=15.204 mm 处（Ruling 7 family mismatch 0.2% 容差内）
+- bug-104 logged with full root_cause/fix
+- **Ruling 12 Cd/Y_cr CLOSED**
+
 ---
 
 ## 🚀 Next quest
@@ -54,7 +63,7 @@ budget_tokens: 1500
 - 范围：9 CONFIG 表替换 SYNTHETIC 标记 + 4 内联常量替换
 - 触发：T14 closure report sign-off + 工程团队接管真实 GPSA / Vendor / ISO / API 数据
 - 预计 5-7 工作日（Phase 1 CONFIG 并行 3-4 天 + Phase 2 service 集成 1-2 天 + ETL 1 天）
-- 解决 OPEN-P6-4-1/2 + OPEN-P6-6A-4/5（6 OPEN-P6-6A-* 中 2 项关闭）— **OPEN-P6-6A-3 已 e0d91a6 关闭**（Ruling 11 K scale）
+- 解决 OPEN-P6-4-1/2 + OPEN-P6-6A-5（6 OPEN-P6-6A-* 中 3 项关闭）— **OPEN-P6-6A-3 已 e0d91a6 关闭**（Ruling 11 K scale）+ **OPEN-P6-6A-4 已关闭**（Ruling 12 Cd/Y_cr^0.5）
 
 **P6-6A 已完成（merged to main @ `09eb037`）**：worktree `PCS-worktrees/p6-6a-worley` @ `fddeae4`，15 commits，0 service 改动，11 Rulings 已登记，post-merge 56/56 spot-check PASS。
 
@@ -74,7 +83,6 @@ budget_tokens: 1500
 - OPEN-P6-4-4（C-24 Chapman-Jans / Tong 模型与商业软件对账，部署前）
 - OPEN-P6-6A-1（Ruling 9 wording formalization，SPEC V1.2 决议）
 - OPEN-P6-6A-2（Brief template `brief.id == plan_table_row.id` assert，批 B brief template 实现）
-- OPEN-P6-6A-4（T11 PCS Cd/Y_cr 默认 1.0, 1.74× over-prediction, medium effort）
 - OPEN-P6-6A-5（T13 ΔH_vap 2260 vs 208 kJ/kg, 18× diff, medium effort）
 - OPEN-P6-6A-6（T8 full glycol dehydration system as new PCS service，CONFIG 占位 T9 关闭；service 扩展待 P6-7）
 
@@ -87,10 +95,10 @@ budget_tokens: 1500
 
 ## Context
 
-- main @ `e0d91a6`（P6-6A merge `09eb037` + OPEN-P6-6A-3 Ruling 11 K scale fix）；working tree 仅 .wolf/*（hooks 维护）+ tests/models/test_orm_db_drift.py（**未 commit**——drift 守卫测试，pcs_test-only skipif，已验证 PASS/skip）
+- main @ `c34d3f4`（P6-6A merge `09eb037` + OPEN-P6-6A-3 Ruling 11 K scale fix `e0d91a6` + OPEN-P6-6A-4 Ruling 12 Cd/Y_cr^0.5 fix `c34d3f4`）；working tree 仅 .wolf/*（hooks 维护）+ tests/models/test_orm_db_drift.py（**未 commit**——drift 守卫测试，pcs_test-only skipif，已验证 PASS/skip）
 - worktree `feature/p6-6a-worley` @ `fddeae4`（P6-6A 完整 15 commits，**已 merge 入 main @ 09eb037**，worktree 可清理）
 - **双库已对齐 head `p6_5_006`**：跑 schema 敏感测试前 `DATABASE_URL=postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs_test uv run alembic upgrade head`（CLAUDE.md 规则仍适用）
-- 全量回归基线：**2418 passed / 32 skipped**（P6-6A merge `09eb037` 之后，OPEN-P6-6A-3 commit `e0d91a6` 净 0 变化 test 计数：删除 test_k_scale_cross_check_xls_F_vs_pcs_C defect 文档 + 新增 test_k_scale_post_fix_xls_F_eq_pcs_F_bit_for_bit fix 验证）
-- buglog 最新 bug-101/102/103（审计三件套 drift / 手写清单教训 / **OPEN-P6-6A-3 Hammerschmidt K scale mis-interpretation fix**）
+- 全量回归基线：**3258 passed / 74 skipped**（OPEN-P6-6A-4 commit 后；增量 +840 vs OPEN-P6-6A-3 baseline 2418 = P6-6A Task 11 fixture-driven 测试 +3 新 worley_c19 test + 837 P6-6A 其他任务测试）
+- buglog 最新 bug-101/102/103/104（审计三件套 drift / 手写清单教训 / OPEN-P6-6A-3 K scale / **OPEN-P6-6A-4 Cd/Y_cr^0.5 1.74× over-prediction**）
 - 无 CI/CD（单人开发裁决，勿再建议）；SPEC V1.10 已冻结为实施基线，后续改 SPEC 需新版本号
-- P6-6A 11 Rulings 已登记：Ruling 1 零改动 / Ruling 2 表格化 / Ruling 3-8 mapping defects / Ruling 9 双 surface / Ruling 10 brief template / **Ruling 11 K scale CLOSED in OPEN-P6-6A-3 (e0d91a6)**
+- P6-6A 11 Rulings 已登记：Ruling 1 零改动 / Ruling 2 表格化 / Ruling 3-8 mapping defects / Ruling 9 双 surface / Ruling 10 brief template / **Ruling 11 K scale CLOSED in OPEN-P6-6A-3 (e0d91a6)** / **Ruling 12 Cd/Y_cr CLOSED in OPEN-P6-6A-4 (c34d3f4)**

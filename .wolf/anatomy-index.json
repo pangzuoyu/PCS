@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-09-18T01:46:15.927Z",
-    "fileCount": 713,
+    "lastScanned": "2026-09-27T16:01:02.240Z",
+    "fileCount": 781,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "701635c0b2968d0f772c511f8e104369eea11c24a512cac972651398e0fc39ef",
-    "storeUpdatedAt": "2026-09-18T01:46:15.938Z",
-    "rootHash": "e2d359e7b5dfaccd"
+    "renderedHash": "a9839893894c451479842160c4848d20dc4e0c6b37bbf734a6a5cf39d005f16c",
+    "storeUpdatedAt": "2026-09-27T16:01:02.251Z",
+    "rootHash": "c9ec6a731693b0ca"
   },
   "files": {
     "CLAUDE.md": {
@@ -1757,19 +1757,19 @@
     },
     "pcs-frontend/src/App.tsx": {
       "description": "router — renders form",
-      "tokens": 842,
-      "hash": "30f53a28609768b8",
-      "size": 3020,
-      "mtimeMs": 1789629942175.8247,
-      "updatedAt": "2026-09-17T07:25:42.224Z",
+      "tokens": 964,
+      "hash": "78aacefe07c23e19",
+      "size": 3479,
+      "mtimeMs": 1790445288170.4363,
+      "updatedAt": "2026-09-26T17:54:48.219Z",
       "source": "hook",
       "symbols": [
         {
           "name": "App",
           "kind": "fn",
-          "startLine": 94,
-          "endLine": 96,
-          "tokens": 23
+          "startLine": 103,
+          "endLine": 109,
+          "tokens": 38
         }
       ]
     },
@@ -1834,32 +1834,32 @@
     },
     "pcs-frontend/src/layouts/MainLayout.tsx": {
       "description": "在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。",
-      "tokens": 1429,
-      "hash": "14c88ce81f971d3c",
-      "size": 5314,
-      "mtimeMs": 1789629951528.0872,
-      "updatedAt": "2026-09-17T07:25:51.586Z",
+      "tokens": 1473,
+      "hash": "c327555cce537215",
+      "size": 5491,
+      "mtimeMs": 1790445291174.4128,
+      "updatedAt": "2026-09-26T17:54:51.219Z",
       "source": "hook",
       "symbols": [
         {
           "name": "group",
           "kind": "fn",
           "startLine": 14,
-          "endLine": 59,
-          "tokens": 448
+          "endLine": 62,
+          "tokens": 492
         },
         {
           "name": "findSelectedKeys",
           "kind": "fn",
-          "startLine": 60,
-          "endLine": 72,
+          "startLine": 63,
+          "endLine": 75,
           "tokens": 96
         },
         {
           "name": "MainLayout",
           "kind": "fn",
-          "startLine": 73,
-          "endLine": 151,
+          "startLine": 76,
+          "endLine": 154,
           "tokens": 725
         }
       ]
@@ -18655,19 +18655,19 @@
     },
     "pcs-frontend/src/mocks/handlers.ts": {
       "description": "MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16）",
-      "tokens": 5520,
-      "hash": "355435226678d050",
-      "size": 20123,
-      "mtimeMs": 1789663733576.75,
-      "updatedAt": "2026-09-17T16:48:53.623Z",
+      "tokens": 5689,
+      "hash": "98ff97ee95cf2dfe",
+      "size": 20793,
+      "mtimeMs": 1790445344847.993,
+      "updatedAt": "2026-09-26T17:55:44.896Z",
       "source": "hook",
       "symbols": [
         {
           "name": "isAuthed",
           "kind": "fn",
-          "startLine": 29,
-          "endLine": 413,
-          "tokens": 5190
+          "startLine": 30,
+          "endLine": 422,
+          "tokens": 5348
         }
       ]
     },
@@ -20739,208 +20739,222 @@
     },
     "pcs-frontend/src/pages/routeWrappers.tsx": {
       "description": "路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化）",
-      "tokens": 2604,
-      "hash": "1871e36c8c7966a5",
-      "size": 9596,
-      "mtimeMs": 1789641976877.7095,
-      "updatedAt": "2026-09-17T10:46:16.922Z",
+      "tokens": 2766,
+      "hash": "f462501a1a5eb8c5",
+      "size": 10198,
+      "mtimeMs": 1790445262471.6372,
+      "updatedAt": "2026-09-26T17:54:22.521Z",
       "source": "hook",
       "symbols": [
         {
           "name": "useFetch",
           "kind": "fn",
-          "startLine": 73,
-          "endLine": 88,
+          "startLine": 76,
+          "endLine": 91,
           "tokens": 144
         },
         {
           "name": "ApprovalPanelRoute",
           "kind": "fn",
-          "startLine": 89,
-          "endLine": 91,
+          "startLine": 92,
+          "endLine": 94,
           "tokens": 28
         },
         {
           "name": "AssetListRoute",
           "kind": "fn",
-          "startLine": 92,
-          "endLine": 95,
+          "startLine": 95,
+          "endLine": 98,
           "tokens": 47
         },
         {
           "name": "CoefficientEditorRoute",
           "kind": "fn",
-          "startLine": 96,
-          "endLine": 98,
+          "startLine": 99,
+          "endLine": 101,
           "tokens": 31
         },
         {
           "name": "FormulaEditorRoute",
           "kind": "fn",
-          "startLine": 99,
-          "endLine": 102,
+          "startLine": 102,
+          "endLine": 105,
           "tokens": 50
         },
         {
           "name": "TemplateFileRoute",
           "kind": "fn",
-          "startLine": 103,
-          "endLine": 107,
+          "startLine": 106,
+          "endLine": 110,
           "tokens": 33
         },
         {
           "name": "StreamListRoute",
           "kind": "fn",
-          "startLine": 108,
-          "endLine": 111,
+          "startLine": 111,
+          "endLine": 114,
           "tokens": 52
         },
         {
           "name": "StreamDetailRoute",
           "kind": "fn",
-          "startLine": 112,
-          "endLine": 131,
+          "startLine": 115,
+          "endLine": 134,
           "tokens": 221
         },
         {
           "name": "ImportWizardRoute",
           "kind": "fn",
-          "startLine": 132,
-          "endLine": 136,
+          "startLine": 135,
+          "endLine": 139,
           "tokens": 29
         },
         {
           "name": "PipeClassListRoute",
           "kind": "fn",
-          "startLine": 137,
-          "endLine": 140,
+          "startLine": 140,
+          "endLine": 143,
           "tokens": 50
         },
         {
           "name": "SymbolTableRoute",
           "kind": "fn",
-          "startLine": 141,
-          "endLine": 143,
+          "startLine": 144,
+          "endLine": 146,
           "tokens": 28
         },
         {
           "name": "CodeFormatRoute",
           "kind": "fn",
-          "startLine": 144,
-          "endLine": 148,
+          "startLine": 147,
+          "endLine": 151,
           "tokens": 38
         },
         {
           "name": "PropertySearchRoute",
           "kind": "fn",
-          "startLine": 149,
-          "endLine": 152,
+          "startLine": 152,
+          "endLine": 155,
           "tokens": 58
         },
         {
           "name": "AllowableStressRoute",
           "kind": "fn",
-          "startLine": 153,
-          "endLine": 156,
+          "startLine": 156,
+          "endLine": 159,
           "tokens": 56
         },
         {
           "name": "ToxicityRoute",
           "kind": "fn",
-          "startLine": 157,
-          "endLine": 162,
+          "startLine": 160,
+          "endLine": 165,
           "tokens": 56
         },
         {
           "name": "FlashRoute",
           "kind": "fn",
-          "startLine": 163,
-          "endLine": 170,
+          "startLine": 166,
+          "endLine": 173,
           "tokens": 54
         },
         {
           "name": "PipeRoute",
           "kind": "fn",
-          "startLine": 171,
-          "endLine": 179,
+          "startLine": 174,
+          "endLine": 182,
           "tokens": 60
         },
         {
           "name": "PipeLineListRoute",
           "kind": "fn",
-          "startLine": 180,
-          "endLine": 183,
+          "startLine": 183,
+          "endLine": 186,
           "tokens": 55
         },
         {
           "name": "PipeNetRoute",
           "kind": "fn",
-          "startLine": 184,
-          "endLine": 187,
+          "startLine": 187,
+          "endLine": 190,
           "tokens": 44
         },
         {
           "name": "PumpRoute",
           "kind": "fn",
-          "startLine": 188,
-          "endLine": 197,
+          "startLine": 191,
+          "endLine": 200,
           "tokens": 60
         },
         {
           "name": "VesselRoute",
           "kind": "fn",
-          "startLine": 198,
-          "endLine": 203,
-          "tokens": 50
+          "startLine": 201,
+          "endLine": 206,
+          "tokens": 63
+        },
+        {
+          "name": "HeatingValueRoute",
+          "kind": "fn",
+          "startLine": 207,
+          "endLine": 209,
+          "tokens": 24
+        },
+        {
+          "name": "SaturationWaterContentRoute",
+          "kind": "fn",
+          "startLine": 210,
+          "endLine": 212,
+          "tokens": 30
+        },
+        {
+          "name": "CvRoute",
+          "kind": "fn",
+          "startLine": 213,
+          "endLine": 218,
+          "tokens": 38
         },
         {
           "name": "SepEquipRoute",
           "kind": "fn",
-          "startLine": 204,
-          "endLine": 209,
+          "startLine": 219,
+          "endLine": 224,
           "tokens": 46
         },
         {
           "name": "PsvRoute",
           "kind": "fn",
-          "startLine": 210,
-          "endLine": 215,
+          "startLine": 225,
+          "endLine": 230,
           "tokens": 54
         },
         {
           "name": "HeatRoute",
           "kind": "fn",
-          "startLine": 216,
-          "endLine": 220,
+          "startLine": 231,
+          "endLine": 235,
           "tokens": 30
         },
         {
           "name": "PsvStandardProfileRoute",
           "kind": "fn",
-          "startLine": 221,
-          "endLine": 225,
+          "startLine": 236,
+          "endLine": 240,
           "tokens": 40
         },
         {
           "name": "PmsRoute",
           "kind": "fn",
-          "startLine": 226,
-          "endLine": 229,
+          "startLine": 241,
+          "endLine": 244,
           "tokens": 46
         },
         {
           "name": "BeddRoute",
           "kind": "fn",
-          "startLine": 230,
-          "endLine": 233,
-          "tokens": 50
-        },
-        {
-          "name": "WizardRoute",
-          "kind": "fn",
-          "startLine": 234,
-          "endLine": 263,
-          "tokens": 184
+          "startLine": 245,
+          "endLine": 278,
+          "tokens": 234
         }
       ]
     },
@@ -22685,11 +22699,11 @@
     },
     "pcs-backend/app/services/vessel/vessel_service.py": {
       "description": "P5-1 vessel_service（Souders-Brown + 流体力学）。",
-      "tokens": 3981,
-      "hash": "b8b291073e858167",
-      "size": 16813,
-      "mtimeMs": 1789602174703.7124,
-      "updatedAt": "2026-09-16T23:42:54.749Z",
+      "tokens": 14312,
+      "hash": "b7fe4cf34bfa6bbe",
+      "size": 59009,
+      "mtimeMs": 1790352953280.865,
+      "updatedAt": "2026-09-25T16:15:53.335Z",
       "source": "hook",
       "symbols": [
         {
@@ -22780,22 +22794,127 @@
           "name": "_compute_level_volume_curve",
           "kind": "fn",
           "startLine": 348,
-          "endLine": 368,
-          "tokens": 178
+          "endLine": 376,
+          "tokens": 245
         },
         {
           "name": "_compute_vent_capacity",
           "kind": "fn",
-          "startLine": 369,
-          "endLine": 396,
+          "startLine": 377,
+          "endLine": 404,
           "tokens": 279
         },
         {
           "name": "calc_vessel_hydraulics",
           "kind": "fn",
-          "startLine": 397,
-          "endLine": 440,
-          "tokens": 462
+          "startLine": 405,
+          "endLine": 488,
+          "tokens": 929
+        },
+        {
+          "name": "MassIterationNotConvergedError",
+          "kind": "class",
+          "startLine": 489,
+          "endLine": 500,
+          "tokens": 85
+        },
+        {
+          "name": "PartialVolumeInput",
+          "kind": "class",
+          "startLine": 501,
+          "endLine": 523,
+          "tokens": 196
+        },
+        {
+          "name": "PartialVolumeResult",
+          "kind": "class",
+          "startLine": 524,
+          "endLine": 544,
+          "tokens": 174
+        },
+        {
+          "name": "WettedAreaInput",
+          "kind": "class",
+          "startLine": 545,
+          "endLine": 559,
+          "tokens": 93
+        },
+        {
+          "name": "WettedAreaResult",
+          "kind": "class",
+          "startLine": 560,
+          "endLine": 579,
+          "tokens": 162
+        },
+        {
+          "name": "_head_depth",
+          "kind": "fn",
+          "startLine": 580,
+          "endLine": 595,
+          "tokens": 138
+        },
+        {
+          "name": "_head_full_volume",
+          "kind": "fn",
+          "startLine": 596,
+          "endLine": 615,
+          "tokens": 164
+        },
+        {
+          "name": "_head_full_area",
+          "kind": "fn",
+          "startLine": 616,
+          "endLine": 635,
+          "tokens": 178
+        },
+        {
+          "name": "_head_partial_volume",
+          "kind": "fn",
+          "startLine": 636,
+          "endLine": 669,
+          "tokens": 284
+        },
+        {
+          "name": "_head_partial_area",
+          "kind": "fn",
+          "startLine": 670,
+          "endLine": 727,
+          "tokens": 534
+        },
+        {
+          "name": "_lerp",
+          "kind": "fn",
+          "startLine": 728,
+          "endLine": 735,
+          "tokens": 44
+        },
+        {
+          "name": "_trapz",
+          "kind": "fn",
+          "startLine": 736,
+          "endLine": 749,
+          "tokens": 95
+        },
+        {
+          "name": "_circular_segment_area_r_h",
+          "kind": "fn",
+          "startLine": 750,
+          "endLine": 776,
+          "tokens": 188
+        },
+        {
+          "name": "_circular_segment_area_h_m",
+          "kind": "fn",
+          "startLine": 777,
+          "endLine": 801,
+          "tokens": 191
+        },
+        {
+          "name": "_sphere_partial_volume_h_m",
+          "kind": "fn",
+          "startLine": 802,
+          "endLine": 1598,
+          "tokens": 7273
         }
       ]
     },
@@ -28568,6 +28687,1615 @@
       "mtimeMs": 1789695975873.8552,
       "updatedAt": "2026-09-18T01:46:15.927Z",
       "source": "hook"
+    },
+    "pcs-backend/tests/services/vessel/test_mass_iteration.py": {
+      "description": "P6-4 T3 C-12 mass_iteration_loop 测试（V1.2 接口冻结）。",
+      "tokens": 2604,
+      "hash": "f6795ec699bdafd6",
+      "size": 9508,
+      "mtimeMs": 1790352849895.9429,
+      "updatedAt": "2026-09-25T16:14:09.944Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_mass_iteration_vertical_D_converges",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 56,
+          "tokens": 291
+        },
+        {
+          "name": "test_mass_iteration_horizontal_L_converges",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 85,
+          "tokens": 278
+        },
+        {
+          "name": "test_mass_iteration_spherical_D_converges",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 110,
+          "tokens": 255
+        },
+        {
+          "name": "test_mass_iteration_vertical_L_converges",
+          "kind": "fn",
+          "startLine": 111,
+          "endLine": 131,
+          "tokens": 212
+        },
+        {
+          "name": "test_mass_iteration_hemi_D_converges",
+          "kind": "fn",
+          "startLine": 132,
+          "endLine": 165,
+          "tokens": 362
+        },
+        {
+          "name": "test_mass_iteration_no_converge_raises",
+          "kind": "fn",
+          "startLine": 166,
+          "endLine": 191,
+          "tokens": 252
+        },
+        {
+          "name": "test_mass_iteration_invalid_target_raises",
+          "kind": "fn",
+          "startLine": 192,
+          "endLine": 207,
+          "tokens": 138
+        },
+        {
+          "name": "test_mass_iteration_rho_L_less_than_V_raises",
+          "kind": "fn",
+          "startLine": 208,
+          "endLine": 223,
+          "tokens": 138
+        },
+        {
+          "name": "test_mass_iteration_EMPTY_not_implemented",
+          "kind": "fn",
+          "startLine": 224,
+          "endLine": 244,
+          "tokens": 188
+        },
+        {
+          "name": "test_mass_iteration_dataclasses_frozen",
+          "kind": "fn",
+          "startLine": 245,
+          "endLine": 280,
+          "tokens": 285
+        }
+      ]
+    },
+    "pcs-backend/tests/services/vessel/test_vessel_interface_freeze.py": {
+      "description": "P6-4 T3 D7 接口冻结签名快照测试（item 37 + ADR-0040）。",
+      "tokens": 3304,
+      "hash": "234ac2b10ece1d1a",
+      "size": 12591,
+      "mtimeMs": 1790352957464.8608,
+      "updatedAt": "2026-09-25T16:15:57.515Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_signature_dict",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 66,
+          "tokens": 250
+        },
+        {
+          "name": "test_freeze_calc_partial_volume_signature",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 81,
+          "tokens": 139
+        },
+        {
+          "name": "test_freeze_calc_wetted_area_signature",
+          "kind": "fn",
+          "startLine": 82,
+          "endLine": 96,
+          "tokens": 134
+        },
+        {
+          "name": "test_freeze_mass_iteration_loop_signature",
+          "kind": "fn",
+          "startLine": 97,
+          "endLine": 126,
+          "tokens": 274
+        },
+        {
+          "name": "test_freeze_partial_volume_input_fields",
+          "kind": "fn",
+          "startLine": 127,
+          "endLine": 149,
+          "tokens": 296
+        },
+        {
+          "name": "test_freeze_partial_volume_optional_levels",
+          "kind": "fn",
+          "startLine": 150,
+          "endLine": 193,
+          "tokens": 467
+        },
+        {
+          "name": "test_freeze_wetted_area_input_fields",
+          "kind": "fn",
+          "startLine": 194,
+          "endLine": 206,
+          "tokens": 155
+        },
+        {
+          "name": "test_freeze_mass_iteration_input_fields",
+          "kind": "fn",
+          "startLine": 207,
+          "endLine": 230,
+          "tokens": 195
+        },
+        {
+          "name": "test_freeze_result_dataclass_fields",
+          "kind": "fn",
+          "startLine": 231,
+          "endLine": 276,
+          "tokens": 337
+        },
+        {
+          "name": "test_freeze_exception_classes_exist",
+          "kind": "fn",
+          "startLine": 277,
+          "endLine": 289,
+          "tokens": 159
+        },
+        {
+          "name": "test_freeze_calc_partial_volume_runs",
+          "kind": "fn",
+          "startLine": 290,
+          "endLine": 299,
+          "tokens": 91
+        },
+        {
+          "name": "test_freeze_calc_wetted_area_runs",
+          "kind": "fn",
+          "startLine": 300,
+          "endLine": 309,
+          "tokens": 84
+        },
+        {
+          "name": "test_freeze_mass_iteration_loop_runs",
+          "kind": "fn",
+          "startLine": 310,
+          "endLine": 331,
+          "tokens": 191
+        },
+        {
+          "name": "test_freeze_vessel_service_public_symbols",
+          "kind": "fn",
+          "startLine": 332,
+          "endLine": 355,
+          "tokens": 221
+        }
+      ]
+    },
+    "pcs-backend/tests/services/vessel/test_partial_volume.py": {
+      "description": "P6-4 T3 C-12 calc_partial_volume 测试（V1.2 接口冻结）。",
+      "tokens": 2361,
+      "hash": "a6b58013cb3c4ed6",
+      "size": 8915,
+      "mtimeMs": 1790352860351.9368,
+      "updatedAt": "2026-09-25T16:14:20.413Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_load_golden_cases",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 33,
+          "tokens": 38
+        },
+        {
+          "name": "_case_to_input",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 51,
+          "tokens": 145
+        },
+        {
+          "name": "test_golden_partial_volume",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 96,
+          "tokens": 449
+        },
+        {
+          "name": "test_partial_volume_H_zero",
+          "kind": "fn",
+          "startLine": 97,
+          "endLine": 109,
+          "tokens": 122
+        },
+        {
+          "name": "test_partial_volume_H_full",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 121,
+          "tokens": 109
+        },
+        {
+          "name": "test_partial_volume_2to1_partial_head_fill",
+          "kind": "fn",
+          "startLine": 122,
+          "endLine": 141,
+          "tokens": 237
+        },
+        {
+          "name": "test_partial_volume_n_vessels_scales_total",
+          "kind": "fn",
+          "startLine": 142,
+          "endLine": 160,
+          "tokens": 204
+        },
+        {
+          "name": "test_partial_volume_invalid_D_raises",
+          "kind": "fn",
+          "startLine": 161,
+          "endLine": 170,
+          "tokens": 81
+        },
+        {
+          "name": "test_partial_volume_invalid_n_vessels_raises",
+          "kind": "fn",
+          "startLine": 171,
+          "endLine": 189,
+          "tokens": 163
+        },
+        {
+          "name": "test_partial_volume_input_result_frozen_dataclasses",
+          "kind": "fn",
+          "startLine": 190,
+          "endLine": 235,
+          "tokens": 447
+        },
+        {
+          "name": "test_partial_volume_head_type_literal_torispherical",
+          "kind": "fn",
+          "startLine": 236,
+          "endLine": 254,
+          "tokens": 191
+        }
+      ]
+    },
+    "pcs-backend/tests/services/vessel/test_wetted_area.py": {
+      "description": "P6-4 T3 C-12 calc_wetted_area 测试（V1.2 接口冻结）。",
+      "tokens": 1628,
+      "hash": "3ebeb25912f2fed6",
+      "size": 6104,
+      "mtimeMs": 1790352884506.9211,
+      "updatedAt": "2026-09-25T16:14:44.553Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_load_golden_cases",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 33,
+          "tokens": 38
+        },
+        {
+          "name": "_case_to_input",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 51,
+          "tokens": 139
+        },
+        {
+          "name": "test_golden_wetted_area",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 96,
+          "tokens": 427
+        },
+        {
+          "name": "test_2to1_elliptical_full_head_area",
+          "kind": "fn",
+          "startLine": 97,
+          "endLine": 109,
+          "tokens": 130
+        },
+        {
+          "name": "test_wetted_area_H_zero",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 122,
+          "tokens": 117
+        },
+        {
+          "name": "test_wetted_area_H_full_top_head_partial",
+          "kind": "fn",
+          "startLine": 123,
+          "endLine": 139,
+          "tokens": 172
+        },
+        {
+          "name": "test_wetted_area_input_result_frozen_dataclasses",
+          "kind": "fn",
+          "startLine": 140,
+          "endLine": 170,
+          "tokens": 283
+        },
+        {
+          "name": "test_wetted_area_torisph_partial_fill",
+          "kind": "fn",
+          "startLine": 171,
+          "endLine": 184,
+          "tokens": 157
+        }
+      ]
+    },
+    "docs/superpowers/plans/2026-09-26-p6-5-batch.md": {
+      "description": "P6-5+ 13 项工艺计算增补 — 三批并行实施计划",
+      "tokens": 32314,
+      "hash": "ea68f017419b1b8c",
+      "size": 147893,
+      "mtimeMs": 1790355095360.2034,
+      "updatedAt": "2026-09-25T16:51:35.406Z",
+      "source": "hook"
+    },
+    "spec/PCS-SPEC-ADD-001 计算覆盖增补规格说明书.md": {
+      "description": "",
+      "tokens": 11164,
+      "hash": "c476fa18c21aa898",
+      "size": 75011,
+      "mtimeMs": 1790421188702.8115,
+      "updatedAt": "2026-09-26T11:13:08.753Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/progress.md": {
+      "description": "SDD ledger — plan: docs/superpowers/plans/2026-09-26-p6-5-batch.md",
+      "tokens": 7464,
+      "hash": "cdfaf89ccde7aa21",
+      "size": 32480,
+      "mtimeMs": 1790396214200.9236,
+      "updatedAt": "2026-09-26T04:16:54.245Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-A1-brief.md": {
+      "description": "Task A1: C-03 API 14E 两相流冲蚀速度 + C 因子",
+      "tokens": 2068,
+      "hash": "81eab9660765bbc7",
+      "size": 8889,
+      "mtimeMs": 1790355257193.7437,
+      "updatedAt": "2026-09-25T16:54:17.245Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-A2-brief.md": {
+      "description": "Task A2: C-05 API 14E 两相流管道尺寸",
+      "tokens": 2004,
+      "hash": "df5dab52dd9c017f",
+      "size": 8661,
+      "mtimeMs": 1790355295077.939,
+      "updatedAt": "2026-09-25T16:54:55.138Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-A3-brief.md": {
+      "description": "Task A3: C-13 PIPE_NET 浪涌压力（水锤 + 段塞）",
+      "tokens": 2284,
+      "hash": "445bd36a0307d31b",
+      "size": 10084,
+      "mtimeMs": 1790355305658.2593,
+      "updatedAt": "2026-09-25T16:55:05.717Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-A4-brief.md": {
+      "description": "Task A4: C-15 Beggs-Brill 持液率 + Eaton-Flanning + Mandhane 1975 流型图",
+      "tokens": 2974,
+      "hash": "f0ec5518209b6d69",
+      "size": 13085,
+      "mtimeMs": 1790355318946.6533,
+      "updatedAt": "2026-09-25T16:55:18.989Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-A5-brief.md": {
+      "description": "Task A5: 批 A 收口（lint + pytest + G-08 + commit）",
+      "tokens": 539,
+      "hash": "5333f6ce1a353935",
+      "size": 2375,
+      "mtimeMs": 1790355332118.0356,
+      "updatedAt": "2026-09-25T16:55:32.168Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-B1-brief.md": {
+      "description": "Task B1: C-09 CV AS 2360.1.1（d<1in Limit + 声速理想气体）",
+      "tokens": 2183,
+      "hash": "8d63496d63659f77",
+      "size": 9458,
+      "mtimeMs": 1790355348733.5056,
+      "updatedAt": "2026-09-25T16:55:48.780Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-B2-brief.md": {
+      "description": "Task B2: C-10 VESSEL 三相分离器（油水气 + 堰板 + 油水界面 + 停留时间）",
+      "tokens": 2470,
+      "hash": "b6d7502cc0a87331",
+      "size": 10629,
+      "mtimeMs": 1790355406996.055,
+      "updatedAt": "2026-09-25T16:56:47.049Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-B3-brief.md": {
+      "description": "Task B3: C-19 RESTRICTION 排污孔板 + Ftp + 临界流",
+      "tokens": 1969,
+      "hash": "4a805380a0cb99bf",
+      "size": 8444,
+      "mtimeMs": 1790355422181.4348,
+      "updatedAt": "2026-09-25T16:57:02.234Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-B4-brief.md": {
+      "description": "Task B4: C-20 PSV API 2000 emergency/fire + 真空工况",
+      "tokens": 2505,
+      "hash": "dbd88d8d0ab964fa",
+      "size": 10585,
+      "mtimeMs": 1790355441643.9082,
+      "updatedAt": "2026-09-25T16:57:21.692Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-B5-brief.md": {
+      "description": "Task B5: C-21 PSV AS 1210/1797 + 管破裂 + 控制阀失效",
+      "tokens": 2190,
+      "hash": "e2a4ee5212aaabd4",
+      "size": 9323,
+      "mtimeMs": 1790355457273.2776,
+      "updatedAt": "2026-09-25T16:57:37.328Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-B6-brief.md": {
+      "description": "Task B6: 批 B 收口（lint + pytest + G-08 + commit）",
+      "tokens": 535,
+      "hash": "58cd1dcee5e9f9a5",
+      "size": 2306,
+      "mtimeMs": 1790355462597.4011,
+      "updatedAt": "2026-09-25T16:57:42.652Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-C1-brief.md": {
+      "description": "Task C1: C-16 PSYCHRO 甘醇脱水（TEG/DEG 含水 + 接触塔设计）",
+      "tokens": 2271,
+      "hash": "5038ac89eac9a04c",
+      "size": 9779,
+      "mtimeMs": 1790355479413.785,
+      "updatedAt": "2026-09-25T16:57:59.460Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-C2-brief.md": {
+      "description": "Task C2: C-18 PSYCHRO 水合物抑制（Hammerschmidt + 抑制剂注入率）",
+      "tokens": 2206,
+      "hash": "0b485ae3d8d62b9c",
+      "size": 9339,
+      "mtimeMs": 1790355495040.1323,
+      "updatedAt": "2026-09-25T16:58:15.089Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-C3-brief.md": {
+      "description": "Task C3: C-22 FLARE 扩散（API 521 §5.15 + Pasquill-Gifford + 辐射热强度）",
+      "tokens": 2655,
+      "hash": "4195b248f8cc6783",
+      "size": 11469,
+      "mtimeMs": 1790355513862.5396,
+      "updatedAt": "2026-09-25T16:58:33.912Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-C4-brief.md": {
+      "description": "Task C4: C-23 FLARE 噪声（API 521 §6.4 + ISO 9613-2 + A 加权声压级）",
+      "tokens": 2138,
+      "hash": "bc0e8e93eadd5c28",
+      "size": 9097,
+      "mtimeMs": 1790355527886.8352,
+      "updatedAt": "2026-09-25T16:58:47.936Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-C5-brief.md": {
+      "description": "Task C5: Batch C 收口（lint + pytest + G-08 + 4 CONFIG 表 + 4 alembic 迁移 + 4 seed + commit）",
+      "tokens": 2254,
+      "hash": "58a1f71dd0055144",
+      "size": 9770,
+      "mtimeMs": 1790355546075.209,
+      "updatedAt": "2026-09-25T16:59:06.120Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-A1-report.md": {
+      "description": "Task A1 Report: C-03 API 14E 两相流冲蚀速度 + C 因子",
+      "tokens": 1855,
+      "hash": "a480240479bb7358",
+      "size": 8843,
+      "mtimeMs": 1790356154303.4263,
+      "updatedAt": "2026-09-25T17:09:14.351Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-A2-report.md": {
+      "description": "Task A2 Report — C-05 API 14E 两相流管道尺寸",
+      "tokens": 755,
+      "hash": "854363ccb286a507",
+      "size": 3125,
+      "mtimeMs": 1790356649082.978,
+      "updatedAt": "2026-09-25T17:17:29.128Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-A3-report.md": {
+      "description": "Task A3 Report — PIPE_NET 浪涌压力（水锤 + 段塞）",
+      "tokens": 1214,
+      "hash": "32d479bd43c291d1",
+      "size": 5102,
+      "mtimeMs": 1790357727372.009,
+      "updatedAt": "2026-09-25T17:35:27.418Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-A4-report.md": {
+      "description": "Task A4 Report — C-15 Beggs-Brill 持液率 + Eaton-Flanning + Mandhane 1975 流型图",
+      "tokens": 1056,
+      "hash": "a6b0a1376368d184",
+      "size": 5284,
+      "mtimeMs": 1790358158272.758,
+      "updatedAt": "2026-09-25T17:42:38.316Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-A5-report.md": {
+      "description": "Task A5 Report — 批 A 收口（lint + pytest + G-08 + commit）",
+      "tokens": 1074,
+      "hash": "a84474e8eff45fab",
+      "size": 4401,
+      "mtimeMs": 1790358335935.3135,
+      "updatedAt": "2026-09-25T17:45:35.982Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-B1-report.md": {
+      "description": "Task B1 Report — C-09 CV AS 2360.1.1 Limit 校核（d<1in + 声速 + 阻塞流）",
+      "tokens": 1261,
+      "hash": "d71b37de8467a27f",
+      "size": 6397,
+      "mtimeMs": 1790358597360.1094,
+      "updatedAt": "2026-09-25T17:49:57.413Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-B2-report.md": {
+      "description": "Task B2 Report — C-10 VESSEL 三相分离器（油水气 + 堰板 + 油水界面 + 停留时间）",
+      "tokens": 1406,
+      "hash": "4ae306f198f68484",
+      "size": 7060,
+      "mtimeMs": 1790358998139.953,
+      "updatedAt": "2026-09-25T17:56:38.221Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-B3-report.md": {
+      "description": "Task B3 Report: C-19 RESTRICTION 排污孔板 + Ftp + 临界流",
+      "tokens": 1441,
+      "hash": "4da32e26673d7460",
+      "size": 5901,
+      "mtimeMs": 1790380904780.2488,
+      "updatedAt": "2026-09-26T00:01:44.829Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-B4-report.md": {
+      "description": "Task B4 Report — C-20 PSV API 2000 emergency/fire + 真空工况",
+      "tokens": 812,
+      "hash": "cfc2d15f33bcb546",
+      "size": 3814,
+      "mtimeMs": 1790381312008.6519,
+      "updatedAt": "2026-09-26T00:08:32.055Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-B5-report.md": {
+      "description": "Task B5 Report: C-21 PSV AS 1210/1797 + 管破裂 + 控制阀失效",
+      "tokens": 1175,
+      "hash": "757ee3bce99f28fc",
+      "size": 4850,
+      "mtimeMs": 1790381630171.0886,
+      "updatedAt": "2026-09-26T00:13:50.219Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-B6-report.md": {
+      "description": "Task B6 Report — 批 B 收口（lint + pytest + G-08 + commit）",
+      "tokens": 797,
+      "hash": "fc218c91c8f7999d",
+      "size": 3675,
+      "mtimeMs": 1790381773122.6157,
+      "updatedAt": "2026-09-26T00:16:13.169Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-C1-report.md": {
+      "description": "Task C1 Report — C-16 PSYCHRO TEG/DEG 甘醇脱水",
+      "tokens": 1405,
+      "hash": "fbfc212312fb758b",
+      "size": 7321,
+      "mtimeMs": 1790382159488.3828,
+      "updatedAt": "2026-09-26T00:22:39.539Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-C2-report.md": {
+      "description": "Task C2 Report — C-18 PSYCHRO 水合物抑制（Hammerschmidt + 注入率）",
+      "tokens": 1243,
+      "hash": "97d04856a53370d5",
+      "size": 6674,
+      "mtimeMs": 1790382405963.0454,
+      "updatedAt": "2026-09-26T00:26:46.019Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-C3-report.md": {
+      "description": "Task C3 Report: C-22 FLARE 扩散（API 521 §5.15 + Pasquill-Gifford + 辐射热强度）",
+      "tokens": 1019,
+      "hash": "8f459c188ac63499",
+      "size": 4125,
+      "mtimeMs": 1790382731564.7292,
+      "updatedAt": "2026-09-26T00:32:11.610Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-C4-report.md": {
+      "description": "Task C4 Report: C-23 FLARE 噪声（API 521 §6.4 + ISO 9613-2 + A 加权声压级）",
+      "tokens": 846,
+      "hash": "257460749a0d4e6a",
+      "size": 3549,
+      "mtimeMs": 1790383073315.5857,
+      "updatedAt": "2026-09-26T00:37:53.359Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-C5-report.md": {
+      "description": "Task C5 Report — Batch C 收口",
+      "tokens": 2469,
+      "hash": "721384f55c44c170",
+      "size": 9936,
+      "mtimeMs": 1790384076750.402,
+      "updatedAt": "2026-09-26T00:54:36.802Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/2026-09-26-p6-5-batch/task-C5q3-fix-report.md": {
+      "description": "Task C5 Q3 Fix Report — Real 5-min TTL for compound_config_cache",
+      "tokens": 1314,
+      "hash": "778e71b953b55f9a",
+      "size": 5418,
+      "mtimeMs": 1790394687200.4934,
+      "updatedAt": "2026-09-26T03:51:27.248Z",
+      "source": "hook"
+    },
+    "spec/SPEC-ADD-001-Q2 SPEC V1.2 增补文档.md": {
+      "description": "v2 修订附录（数值一致性修复，2026-09-26）",
+      "tokens": 2306,
+      "hash": "2be04daa88bcfddc",
+      "size": 13514,
+      "mtimeMs": 1790395926161.789,
+      "updatedAt": "2026-09-26T04:12:06.206Z",
+      "source": "hook"
+    },
+    "pcs-backend/alembic/versions/p6_5_006_orm_db_drift_final_fix.py": {
+      "description": "P6-5 终扫：ORM↔DB 全库 drift 清零（p6_5_005 补扫，3 表）。",
+      "tokens": 604,
+      "hash": "1e9a1a0d43eeafea",
+      "size": 2417,
+      "mtimeMs": 1790400860793.039,
+      "updatedAt": "2026-09-26T05:34:20.840Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 24,
+          "endLine": 51,
+          "tokens": 259
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 70,
+          "tokens": 171
+        }
+      ]
+    },
+    "spec/PCS-SPEC-ADD-001-ATT-02 Q2 工艺推导附件.md": {
+      "description": "v2 修订附录（数值一致性修复，2026-09-26）",
+      "tokens": 2339,
+      "hash": "9c3ab328ea73d81b",
+      "size": 13767,
+      "mtimeMs": 1790421167677.8667,
+      "updatedAt": "2026-09-26T11:12:47.730Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/models/test_orm_db_drift.py": {
+      "description": "ORM↔DB 元数据 drift 守卫（bug-101/bug-102 防回归）。",
+      "tokens": 723,
+      "hash": "11f539174e3ee9a8",
+      "size": 3110,
+      "mtimeMs": 1790421362921.8499,
+      "updatedAt": "2026-09-26T11:16:02.972Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_orm_columns_exist_in_db",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 77,
+          "tokens": 402
+        }
+      ]
+    },
+    "docs/superpowers/plans/2026-09-26-p6-5-frontend-3pages.md": {
+      "description": "P6-5 前端补课：3 计算页（heating-value / saturation-water-content / cv）",
+      "tokens": 213,
+      "hash": "557ff9ce794e039c",
+      "size": 1113,
+      "mtimeMs": 1790421635608.9033,
+      "updatedAt": "2026-09-26T11:20:35.654Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/api/common.ts": {
+      "description": "COMMON 计算 API 客户端（P6-5 前端补课 / 3 计算页）。",
+      "tokens": 242,
+      "hash": "33a52643bc4d144b",
+      "size": 972,
+      "mtimeMs": 1790421724689.6934,
+      "updatedAt": "2026-09-26T11:22:04.748Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/api/psychro.ts": {
+      "description": "PSYCHRO 计算 API 客户端（P6-5 前端补课 / 3 计算页）。",
+      "tokens": 251,
+      "hash": "954ac511efd5dbf1",
+      "size": 999,
+      "mtimeMs": 1790421726633.7246,
+      "updatedAt": "2026-09-26T11:22:06.687Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/api/cv.ts": {
+      "description": "CV 控制阀计算 API 客户端（P6-5 前端补课 / 3 计算页）。",
+      "tokens": 200,
+      "hash": "fab37c790a802b2c",
+      "size": 823,
+      "mtimeMs": 1790444961668.9763,
+      "updatedAt": "2026-09-26T17:49:21.717Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/pages/common/HeatingValuePage.tsx": {
+      "description": "COMMON 气体热值计算页（P6-5 前端补课 / 3 计算页之一）。",
+      "tokens": 3115,
+      "hash": "f7fe64163b49f89a",
+      "size": 11639,
+      "mtimeMs": 1790445507251.2659,
+      "updatedAt": "2026-09-26T17:58:27.299Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "PcsErrorEnvelope",
+          "kind": "section",
+          "startLine": 37,
+          "endLine": 40,
+          "tokens": 20
+        },
+        {
+          "name": "extractPcsError",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 49,
+          "tokens": 96
+        },
+        {
+          "name": "coerceNum",
+          "kind": "fn",
+          "startLine": 50,
+          "endLine": 54,
+          "tokens": 49
+        },
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 55,
+          "endLine": 88,
+          "tokens": 272
+        },
+        {
+          "name": "HeatingValuePage",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 328,
+          "tokens": 2409
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/psychro/SaturationWaterContentPage.tsx": {
+      "description": "PSYCHRO 饱和水含量计算页（P6-5 前端补课 / 3 计算页之二）。",
+      "tokens": 2556,
+      "hash": "42d4a8b1f384159e",
+      "size": 9621,
+      "mtimeMs": 1790445508165.2524,
+      "updatedAt": "2026-09-26T17:58:28.219Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "PcsErrorEnvelope",
+          "kind": "section",
+          "startLine": 34,
+          "endLine": 37,
+          "tokens": 20
+        },
+        {
+          "name": "extractPcsError",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 46,
+          "tokens": 96
+        },
+        {
+          "name": "coerceNum",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 51,
+          "tokens": 49
+        },
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 52,
+          "endLine": 58,
+          "tokens": 50
+        },
+        {
+          "name": "SaturationWaterContentPage",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 272,
+          "tokens": 2098
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/cv/CvComputePage.tsx": {
+      "description": "CV 控制阀 Cv 计算页（P6-5 前端补课 / 3 计算页之三）。",
+      "tokens": 3534,
+      "hash": "5e874f164fcb9d44",
+      "size": 13172,
+      "mtimeMs": 1790445508369.2495,
+      "updatedAt": "2026-09-26T17:58:28.419Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "PcsErrorEnvelope",
+          "kind": "section",
+          "startLine": 40,
+          "endLine": 43,
+          "tokens": 20
+        },
+        {
+          "name": "extractPcsError",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 52,
+          "tokens": 96
+        },
+        {
+          "name": "coerceNum",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 57,
+          "tokens": 49
+        },
+        {
+          "name": "StreamLite",
+          "kind": "section",
+          "startLine": 58,
+          "endLine": 62,
+          "tokens": 20
+        },
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 63,
+          "endLine": 75,
+          "tokens": 111
+        },
+        {
+          "name": "NumberField",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 104,
+          "tokens": 146
+        },
+        {
+          "name": "BoolTag",
+          "kind": "fn",
+          "startLine": 105,
+          "endLine": 108,
+          "tokens": 46
+        },
+        {
+          "name": "CvComputePage",
+          "kind": "fn",
+          "startLine": 109,
+          "endLine": 357,
+          "tokens": 2727
+        }
+      ]
+    },
+    "pcs-frontend/tests/pages/common/HeatingValuePage.test.tsx": {
+      "description": "HeatingValuePage 测试（P6-5 前端补课 / 3 计算页之一）。",
+      "tokens": 853,
+      "hash": "6790de474927631c",
+      "size": 3256,
+      "mtimeMs": 1790445390919.632,
+      "updatedAt": "2026-09-26T17:56:30.967Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/pages/psychro/SaturationWaterContentPage.test.tsx": {
+      "description": "SaturationWaterContentPage 测试（P6-5 前端补课 / 3 计算页之二）。",
+      "tokens": 832,
+      "hash": "29fde90ca763449d",
+      "size": 3128,
+      "mtimeMs": 1790445395942.5928,
+      "updatedAt": "2026-09-26T17:56:35.993Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/pages/cv/CvComputePage.test.tsx": {
+      "description": "CvComputePage 测试（P6-5 前端补课 / 3 计算页之三）。",
+      "tokens": 1363,
+      "hash": "268447f7530fe97b",
+      "size": 5147,
+      "mtimeMs": 1790445413034.4587,
+      "updatedAt": "2026-09-26T17:56:53.081Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "selectStreamAndCalculate",
+          "kind": "fn",
+          "startLine": 50,
+          "endLine": 133,
+          "tokens": 966
+        }
+      ]
+    },
+    "docs/superpowers/plans/2026-09-27-p6-6a-worley-reconciliation.md": {
+      "description": "P6-6A 实施计划 — Worley XLS 算例对账批（24 个真实工程算例）",
+      "tokens": 1227,
+      "hash": "6f9603a7663b351d",
+      "size": 7165,
+      "mtimeMs": 1790456819070.3552,
+      "updatedAt": "2026-09-26T21:06:59.119Z",
+      "source": "hook"
+    },
+    "docs/superpowers/plans/2026-09-27-p6-6b-data-source-replacement.md": {
+      "description": "P6-6B 数据源替换批 — 9 CONFIG 表 + 4 内联常量",
+      "tokens": 2262,
+      "hash": "d94b173dd8452648",
+      "size": 11712,
+      "mtimeMs": 1790514095270.6584,
+      "updatedAt": "2026-09-27T13:01:35.317Z",
+      "source": "hook"
+    },
+    "pcs-backend/scripts/validate_brief.py": {
+      "description": "Assert brief content matches plan table row for task N.",
+      "tokens": 926,
+      "hash": "1649cf1c50a73317",
+      "size": 3245,
+      "mtimeMs": 1790514537269.5046,
+      "updatedAt": "2026-09-27T13:08:57.320Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 28,
+          "endLine": 96,
+          "tokens": 674
+        }
+      ]
+    },
+    "pcs-backend/tests/scripts/test_validate_brief.py": {
+      "description": "OPEN-P6-6A-2: validate_brief.py 单元测试（CLI subprocess + 临时 brief 文件）。",
+      "tokens": 1355,
+      "hash": "8623ddbe4f8fc412",
+      "size": 4936,
+      "mtimeMs": 1790514546357.9067,
+      "updatedAt": "2026-09-27T13:09:06.405Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_run_validator",
+          "kind": "fn",
+          "startLine": 24,
+          "endLine": 44,
+          "tokens": 159
+        },
+        {
+          "name": "_write_files",
+          "kind": "fn",
+          "startLine": 45,
+          "endLine": 59,
+          "tokens": 130
+        },
+        {
+          "name": "test_pass_when_brief_matches_expected_ids",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 73,
+          "tokens": 156
+        },
+        {
+          "name": "test_fail_when_brief_missing_expected_id",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 89,
+          "tokens": 170
+        },
+        {
+          "name": "test_fail_when_brief_has_foreign_id",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 111,
+          "tokens": 227
+        },
+        {
+          "name": "test_fail_when_plan_file_missing",
+          "kind": "fn",
+          "startLine": 112,
+          "endLine": 120,
+          "tokens": 91
+        },
+        {
+          "name": "test_fail_when_brief_file_missing",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 136,
+          "tokens": 138
+        },
+        {
+          "name": "test_id_order_invariant",
+          "kind": "fn",
+          "startLine": 137,
+          "endLine": 149,
+          "tokens": 121
+        }
+      ]
+    },
+    "pcs-backend/app/services/psychro/saturation_water_content_service.py": {
+      "description": "饱和水含量 service（P6-4 C-17 / SPEC §3.2.5 P6-PSY-001）。",
+      "tokens": 3737,
+      "hash": "11d19ef465c758d5",
+      "size": 16171,
+      "mtimeMs": 1790514596163.9983,
+      "updatedAt": "2026-09-27T13:09:56.212Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "SaturationWaterContentInputError",
+          "kind": "class",
+          "startLine": 103,
+          "endLine": 115,
+          "tokens": 71
+        },
+        {
+          "name": "SaturationWaterContentInput",
+          "kind": "class",
+          "startLine": 116,
+          "endLine": 162,
+          "tokens": 456
+        },
+        {
+          "name": "SaturationWaterContentResult",
+          "kind": "class",
+          "startLine": 163,
+          "endLine": 188,
+          "tokens": 244
+        },
+        {
+          "name": "_iso_18453_correction",
+          "kind": "fn",
+          "startLine": 189,
+          "endLine": 219,
+          "tokens": 257
+        },
+        {
+          "name": "_to_unit_outputs",
+          "kind": "fn",
+          "startLine": 220,
+          "endLine": 235,
+          "tokens": 144
+        },
+        {
+          "name": "_calc_saturation_w_cached",
+          "kind": "fn",
+          "startLine": 236,
+          "endLine": 264,
+          "tokens": 247
+        },
+        {
+          "name": "calc_saturation_water_content",
+          "kind": "fn",
+          "startLine": 265,
+          "endLine": 355,
+          "tokens": 934
+        },
+        {
+          "name": "calc_saturation_water_content_metric",
+          "kind": "fn",
+          "startLine": 356,
+          "endLine": 395,
+          "tokens": 353
+        }
+      ]
+    },
+    "pcs-backend/tests/services/psychro/test_saturation_scope_docstring.py": {
+      "description": "OPEN-P6-6A-1: 饱和水含量 service docstring scope 段 防回归测试。",
+      "tokens": 790,
+      "hash": "e6060764cdffd983",
+      "size": 3228,
+      "mtimeMs": 1790514675734.983,
+      "updatedAt": "2026-09-27T13:11:15.781Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_module_docstring",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 38,
+          "tokens": 90
+        },
+        {
+          "name": "TestScopeDocstring",
+          "kind": "class",
+          "startLine": 39,
+          "endLine": 93,
+          "tokens": 516
+        }
+      ]
+    },
+    "pcs-backend/app/services/psychro/hydrate_inhibition_service.py": {
+      "description": "水合物抑制（SPEC §3.9.4 V1.8）。",
+      "tokens": 2347,
+      "hash": "50752ea21b579ec7",
+      "size": 9438,
+      "mtimeMs": 1790514779047.2944,
+      "updatedAt": "2026-09-27T13:12:59.101Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_resolve_hammerschmidt_K",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 88,
+          "tokens": 212
+        },
+        {
+          "name": "HydrateInhibitionError",
+          "kind": "class",
+          "startLine": 89,
+          "endLine": 96,
+          "tokens": 47
+        },
+        {
+          "name": "HydrateInhibitionInput",
+          "kind": "class",
+          "startLine": 97,
+          "endLine": 122,
+          "tokens": 286
+        },
+        {
+          "name": "HydrateInhibitionResult",
+          "kind": "class",
+          "startLine": 123,
+          "endLine": 150,
+          "tokens": 275
+        },
+        {
+          "name": "_validate_input",
+          "kind": "fn",
+          "startLine": 151,
+          "endLine": 177,
+          "tokens": 259
+        },
+        {
+          "name": "calc_hydrate_inhibition",
+          "kind": "fn",
+          "startLine": 178,
+          "endLine": 266,
+          "tokens": 850
+        }
+      ]
+    },
+    "pcs-backend/tests/services/psychro/test_hydrate_inhibition.py": {
+      "description": "P6-5 Task C2 (C-18 PSYCHRO 水合物抑制) hydrate_inhibition_service 单元测试。",
+      "tokens": 3074,
+      "hash": "677365914764e7ef",
+      "size": 11440,
+      "mtimeMs": 1790514866091.6697,
+      "updatedAt": "2026-09-27T13:14:26.143Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_baseline_input",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 58,
+          "tokens": 147
+        },
+        {
+          "name": "test_hammerschmidt_methanol_depression",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 77,
+          "tokens": 234
+        },
+        {
+          "name": "test_hydrate_inhibition_nacl_salt_lower_k_factor",
+          "kind": "fn",
+          "startLine": 78,
+          "endLine": 98,
+          "tokens": 218
+        },
+        {
+          "name": "test_hydrate_inhibition_inhibitor_injection_rate",
+          "kind": "fn",
+          "startLine": 99,
+          "endLine": 129,
+          "tokens": 322
+        },
+        {
+          "name": "test_hydrate_inhibition_concentration_out_of_range_raises",
+          "kind": "fn",
+          "startLine": 130,
+          "endLine": 147,
+          "tokens": 183
+        },
+        {
+          "name": "test_hydrate_inhibition_per_inhibitor_k_factor",
+          "kind": "fn",
+          "startLine": 148,
+          "endLine": 183,
+          "tokens": 403
+        },
+        {
+          "name": "test_hydrate_inhibition_result_is_frozen",
+          "kind": "fn",
+          "startLine": 184,
+          "endLine": 191,
+          "tokens": 80
+        },
+        {
+          "name": "test_hydrate_inhibition_input_is_frozen",
+          "kind": "fn",
+          "startLine": 192,
+          "endLine": 198,
+          "tokens": 66
+        },
+        {
+          "name": "test_imperial_units_default_false",
+          "kind": "fn",
+          "startLine": 199,
+          "endLine": 206,
+          "tokens": 75
+        },
+        {
+          "name": "test_imperial_units_true_yields_conversion",
+          "kind": "fn",
+          "startLine": 207,
+          "endLine": 220,
+          "tokens": 169
+        },
+        {
+          "name": "test_reject_zero_gas_flow",
+          "kind": "fn",
+          "startLine": 221,
+          "endLine": 227,
+          "tokens": 66
+        },
+        {
+          "name": "test_reject_zero_pressure",
+          "kind": "fn",
+          "startLine": 228,
+          "endLine": 234,
+          "tokens": 69
+        },
+        {
+          "name": "test_reject_zero_concentration",
+          "kind": "fn",
+          "startLine": 235,
+          "endLine": 246,
+          "tokens": 130
+        },
+        {
+          "name": "test_formula_ref_documents_hammerschmidt_gpsa",
+          "kind": "fn",
+          "startLine": 247,
+          "endLine": 256,
+          "tokens": 119
+        },
+        {
+          "name": "test_golden_fixture_cross_check",
+          "kind": "fn",
+          "startLine": 257,
+          "endLine": 294,
+          "tokens": 475
+        }
+      ]
+    },
+    "pcs-backend/tests/services/psychro/fixtures/golden_hydrate_meoh.json": {
+      "description": "",
+      "tokens": 763,
+      "hash": "f410bbd8b103f600",
+      "size": 2847,
+      "mtimeMs": 1790514863594.6062,
+      "updatedAt": "2026-09-27T13:14:23.642Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/psychro/test_worley_c18.py": {
+      "description": "P6-6A Task 10: C-18 PSYCHRO 水合物抑制 vs Worley 真实算例 WS-CA-PR-020 对账测试。",
+      "tokens": 7976,
+      "hash": "3ea7bf3d7bfd1f90",
+      "size": 28913,
+      "mtimeMs": 1790515092200.4814,
+      "updatedAt": "2026-09-27T13:18:12.263Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_case_ids",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 90,
+          "tokens": 116
+        },
+        {
+          "name": "test_hammerschmidt_forward_algebra_identity",
+          "kind": "fn",
+          "startLine": 91,
+          "endLine": 171,
+          "tokens": 1053
+        },
+        {
+          "name": "test_hammerschmidt_inversion_algebra_identity",
+          "kind": "fn",
+          "startLine": 172,
+          "endLine": 220,
+          "tokens": 548
+        },
+        {
+          "name": "test_xls_injection_rate_mass_balance_nielsen_X",
+          "kind": "fn",
+          "startLine": 221,
+          "endLine": 280,
+          "tokens": 797
+        },
+        {
+          "name": "test_input_chain_k_factor_and_mw_exact_match",
+          "kind": "fn",
+          "startLine": 281,
+          "endLine": 353,
+          "tokens": 752
+        },
+        {
+          "name": "test_service_returns_valid_result_for_xls_scenario",
+          "kind": "fn",
+          "startLine": 354,
+          "endLine": 441,
+          "tokens": 984
+        },
+        {
+          "name": "test_k_scale_post_fix_xls_F_eq_pcs_F_bit_for_bit",
+          "kind": "fn",
+          "startLine": 442,
+          "endLine": 506,
+          "tokens": 901
+        },
+        {
+          "name": "test_worley_c18_root_cause_notes_registered",
+          "kind": "fn",
+          "startLine": 507,
+          "endLine": 541,
+          "tokens": 409
+        },
+        {
+          "name": "test_worley_c18_out_of_scope_ledger_complete",
+          "kind": "fn",
+          "startLine": 542,
+          "endLine": 566,
+          "tokens": 292
+        },
+        {
+          "name": "test_worley_c18_ruling_6_registration_complete",
+          "kind": "fn",
+          "startLine": 567,
+          "endLine": 614,
+          "tokens": 574
+        },
+        {
+          "name": "test_worley_c18_fixture_structure_basics",
+          "kind": "fn",
+          "startLine": 615,
+          "endLine": 653,
+          "tokens": 456
+        }
+      ]
+    },
+    "pcs-backend/tests/services/psychro/fixtures/worley_c18_hydrate_inhibition.json": {
+      "description": "pressure: d, d",
+      "tokens": 8024,
+      "hash": "a3456a41ec9ae927",
+      "size": 28828,
+      "mtimeMs": 1790515050315.7136,
+      "updatedAt": "2026-09-27T13:17:30.365Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/services/restriction/drain_orifice_service.py": {
+      "description": "排污孔板（drain orifice）计算（SPEC §3.6.2 + §3.7.2 V1.1）。",
+      "tokens": 1647,
+      "hash": "33756775f322b64f",
+      "size": 6469,
+      "mtimeMs": 1790515477959.7566,
+      "updatedAt": "2026-09-27T13:24:38.009Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "DrainOrificeInputError",
+          "kind": "class",
+          "startLine": 25,
+          "endLine": 32,
+          "tokens": 46
+        },
+        {
+          "name": "DrainOrificeInput",
+          "kind": "class",
+          "startLine": 33,
+          "endLine": 55,
+          "tokens": 188
+        },
+        {
+          "name": "DrainOrificeResult",
+          "kind": "class",
+          "startLine": 56,
+          "endLine": 69,
+          "tokens": 98
+        },
+        {
+          "name": "_validate_input",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 93,
+          "tokens": 294
+        },
+        {
+          "name": "calc_drain_orifice",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 177,
+          "tokens": 834
+        }
+      ]
+    },
+    "pcs-backend/tests/services/restriction/fixtures/worley_c19_drain_orifice.json": {
+      "description": "",
+      "tokens": 8848,
+      "hash": "95c7fddc2dbfd03c",
+      "size": 31973,
+      "mtimeMs": 1790524862194.4275,
+      "updatedAt": "2026-09-27T16:01:02.240Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/restriction/test_worley_c19.py": {
+      "description": "P6-6A Task 11: C-19 RESTRICTION 排污孔板 vs Worley 真实算例 WS-CA-PR-023 对账测试。",
+      "tokens": 9083,
+      "hash": "09c283377d429069",
+      "size": 33260,
+      "mtimeMs": 1790515574208.7122,
+      "updatedAt": "2026-09-27T13:26:14.261Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_case_ids",
+          "kind": "fn",
+          "startLine": 91,
+          "endLine": 94,
+          "tokens": 22
+        },
+        {
+          "name": "_build_input",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 120,
+          "tokens": 296
+        },
+        {
+          "name": "test_orifice_area_matches_xls_algebra_identity",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 169,
+          "tokens": 554
+        },
+        {
+          "name": "test_critical_and_actual_pressure_ratios_algebra_identity",
+          "kind": "fn",
+          "startLine": 170,
+          "endLine": 232,
+          "tokens": 729
+        },
+        {
+          "name": "test_ftp_gbt308_algebra_identity_with_ruling_7_iso_5167_mismatch",
+          "kind": "fn",
+          "startLine": 233,
+          "endLine": 303,
+          "tokens": 860
+        },
+        {
+          "name": "test_is_choked_true_matches_xls_n16_critical_flow_flag",
+          "kind": "fn",
+          "startLine": 304,
+          "endLine": 344,
+          "tokens": 413
+        },
+        {
+          "name": "test_mass_flow_capacity_choked_branch_and_is_capacity_ok",
+          "kind": "fn",
+          "startLine": 345,
+          "endLine": 422,
+          "tokens": 947
+        },
+        {
+          "name": "test_cd_y_cr_default_one_backward_compat",
+          "kind": "fn",
+          "startLine": 423,
+          "endLine": 452,
+          "tokens": 358
+        },
+        {
+          "name": "test_cd_y_cr_post_fix_1p74x_reduction",
+          "kind": "fn",
+          "startLine": 453,
+          "endLine": 506,
+          "tokens": 626
+        },
+        {
+          "name": "test_formula_ref_includes_cd_y_cr_ruling_12",
+          "kind": "fn",
+          "startLine": 507,
+          "endLine": 531,
+          "tokens": 295
+        },
+        {
+          "name": "test_service_returns_valid_result_for_xls_blowdown_scenario",
+          "kind": "fn",
+          "startLine": 532,
+          "endLine": 607,
+          "tokens": 784
+        },
+        {
+          "name": "test_worley_c19_root_cause_notes_registered",
+          "kind": "fn",
+          "startLine": 608,
+          "endLine": 625,
+          "tokens": 222
+        },
+        {
+          "name": "test_worley_c19_out_of_scope_ledger_complete",
+          "kind": "fn",
+          "startLine": 626,
+          "endLine": 649,
+          "tokens": 278
+        },
+        {
+          "name": "test_worley_c19_root_cause_notes_cd_y_cr_status_closed",
+          "kind": "fn",
+          "startLine": 650,
+          "endLine": 676,
+          "tokens": 433
+        },
+        {
+          "name": "test_worley_c19_ruling_7_registration_complete",
+          "kind": "fn",
+          "startLine": 677,
+          "endLine": 722,
+          "tokens": 589
+        },
+        {
+          "name": "test_worley_c19_fixture_structure_basics",
+          "kind": "fn",
+          "startLine": 723,
+          "endLine": 756,
+          "tokens": 420
+        }
+      ]
     }
   }
 }

@@ -374,6 +374,18 @@
 - 文档体系：增补文件声明修改，不直接改基线；基线升版显式请求才做。
 - SUP-002 plan 模式：保留 V1.3 baseline + 文末 V1.4 关键修正段作为执行期 patch 来源。
 
+### OPEN-P6-6A-4 Ruling 12 — drain orifice Cd/Y_cr^0.5 fix（bug-104, 2026-09-28）
+
+- **缺陷**：PCS `calc_drain_orifice` mass_flow_capacity 公式仅 A×Ftp×ρ×v_max，假设 Cd=1.0 + Y_cr^0.5=1.0 implicit → 对 blowdown orifice 等真实工程场景 over-predict 1.74× vs XLS PR-023 在 d=15.204 mm 处（Cd=0.83932 × Y_cr^0.5=0.6871656312856262 = 0.5768）。
+- **修复策略**：给 `DrainOrificeInput` 加 2 optional 字段（`discharge_coefficient`, `expansion_factor`），默认 1.0 **保持向后兼容**（零行为变化给旧调用方）；公式改为 m_max = A × Cd × Y_cr^0.5 × Ftp × ρ × v_max；新增 _validate_input 校验 Cd/Y_cr ∈ (0, 1]；formula_ref 加 3 键含 Ruling 12 字串。
+- **正/逆向分工**：PCS service 是**正向 capacity check**（给定 d，验证 m_dot ≤ m_max）；XLS PR-023 是**逆向 sizing**（给定 Q，求 d，含 Cd/Y_cr 迭代）。PCS **消费** Cd/Y_cr 作为输入，**不算** Cd/Y_cr 公式 —— 那属于 sizing service 范畴，仍 OUT_OF_SCOPE。
+- **守则**：
+  - 任何 PCS service 加 optional 输入字段都**必须默认 1.0/0/False 等"零行为变化"值**，避免回归旧调用方
+  - "bit-for-bit match" 类 OUT_OF_SCOPE 与 "service 接受输入并应用" 类 CLOSED 是不同维度 —— 修复时区分清楚
+  - 写 fixture 时同时记录 pre-fix（向后兼容证据）+ post-fix（修复验证）双值，便于回归追溯
+- **回归**：66/66 restriction tests PASS；全量 3258 passed / 74 skipped；零回归到 P6-6A Task 11 worley_c19 测试（11 个）或旧 restriction_engine 测试（32 个）。
+- **commit target**：OPEN-P6-6A-4 fix（待提交）。
+
 ## Decision Log
 
 - 管道计算等级按项目绑定（source=PROJECT）；class_id 全局唯一 PK，跨项目同码不同值需复合 PK 迁移（P3 复核）。
@@ -473,3 +485,21 @@
   psv_results 7 列迁移 + Task 18 端点 G7/G8/G9 拦截 + Task 17 孔口
   override 逻辑；后端测试 +15 / E2E +2；前端无需改动（G7/G8/G9 错误码
   解析已闭环）
+
+
+## P6-4 Task 2 weight estimation decision (2026-09-26 user ruling)
+
+重量估算（Welded shell + heads + nozzles + skirt/saddle）**非真实需求**。
+- Task 2 (C-08) = WS-CA-PR-010 sizing（5 段计算），已由 bbc75c8 + 873b9df 闭环。
+- 重量估算若将来要做：走独立 ADR（如 ADR-0044）+ 独立服务 + compound_material_density CONFIG 表族。
+- 当前 P6-4 batch 不引入重量功能，避免范围蔓延。
+
+## Do-Not-Repeat: C-08 ≠ weight estimation
+
+C-08 = WS-CA-PR-010 = two_phase_separator sizing（5 段：Souders-Brown / CSA / 喷嘴 / 仪表 / 停留时间）。
+不是 4 段累加重量（cylinder + heads + nozzles + skirt）。
+P6-4 plan V1.0 把 C-08 设计为 weight_estimate 是错误，已在 V1.1 撤销。
+
+API: 
+入口:  → 
+测试:  (16 passed)
