@@ -1,0 +1,235 @@
+{
+  "_doc": "P6-6A Task 4: C-09 AS 2360.1.1 Limit 校核 vs Worley 真实算例 WS-CA-PR-007 对账 fixture。",
+  "source": {
+    "xls": "WS-CA-PR-007.xls",
+    "xls_title": "Flow Orifice Sizing to AS 2360.1.1-1993, Standard Calculation WS-CA-PR-007, Rev.1, Issued for Use (1-Apr-2003)",
+    "xls_reference": "AS 2360.1.1-1993 (R2016) §4.2.3 Limit Factor + §6.3.3/8.3 Sizing",
+    "dump": ".superpowers/sdd/2026-09-27-p6-6a-worley-reconciliation/worley_dump/WS-CA-PR-007.json",
+    "dump_note": "原 XLS 位于 sample/（gitignored 只读）；本 fixture 转录 dump 中公式缓存计算值（全 double 精度）",
+    "spec_ref": "PCS-SPEC-ADD-001 V1.10 §3.6.1（C-09）+ §5 验收分级",
+    "service": "app/services/cv/as_2360_1_1_service.py::calc_as_2360_1_1_limit"
+  },
+  "tolerance_policy": {
+    "spec_ref": "PCS-SPEC-ADD-001 V1.10 §5：经验拟合级 <1%（rel≤1e-2）",
+    "default_rel": 0.001,
+    "per_case_note": "sonic velocity a = √(γ·P₁/ρ) 同公式同单位制，SI case 偏差 0（bit-for-bit），Imp case 受 kPa/psia + lb/ft³/kg/m³ 换算误差累积 ≤1e-6；统一收紧 1e-3（远低于 SPEC 1e-2 经验门槛）"
+  },
+  "unit_conversion_factors": {
+    "_doc": "Worley Imp 算例 → service SI 输入的换算链（精确常数）",
+    "lb_to_kg": 0.45359237,
+    "in_to_m": 0.0254,
+    "ft_to_m": 0.3048,
+    "lb_per_ft3_to_kg_per_m3": 16.018463373960138,
+    "lb_per_ft3_derivation": "0.45359237 / 0.3048^3 = 16.018463373960138",
+    "psia_to_kpa": 6.894757293168361,
+    "psia_to_kpa_derivation": "6894.757293168361 Pa/psia / 1000 = 6.894757293168361 kPa/psia"
+  },
+  "cases": [
+    {
+      "id": "si_case_1",
+      "sheet": "SI",
+      "column": "I",
+      "description": "SI Case I（P1=517.241 kPa）：从 XLS SI sheet I 列直接取 orifice d=25.193mm 与 P1=517.241kPa 调 service，对账 sonic velocity vs XLS r44 I 列。",
+      "xls_inputs": {
+        "I17": {"label": "qm", "value": 0.09560939783320735, "unit": "kg/s"},
+        "I18": {"label": "P1", "value": 517.2413793103449, "unit": "kPa(abs)"},
+        "I19": {"label": "dP", "value": 12.7, "unit": "kPa"},
+        "I22": {"label": "ρ", "value": 4.100592663783438, "unit": "kg/m3"},
+        "I23": {"label": "γ (k)", "value": 1.25, "unit": "-"},
+        "I39": {"label": "d_orifice (sizing output)", "value": 0.02519309881749429, "unit": "m"},
+        "I44": {"label": "Sonic velocity (XLS output)", "value": 397.0802822336978, "unit": "m/s"}
+      },
+      "conversion_chain": [
+        "P1_SI = 517.2413793103449 kPa（XLS 原值）",
+        "ρ_SI = 4.100592663783438 kg/m³（XLS 原值）",
+        "d_orifice = 0.02519309881749429 m（来自 XLS I39 sizing 输出，作为 service 输入 d_orifice）",
+        "P2 = P1 - dP = 517.2413793103449 - 12.7 = 504.5413793103449 kPa"
+      ],
+      "service_inputs": {
+        "orifice_diameter_m": 0.02519309881749429,
+        "inlet_pressure_kpa": 517.2413793103449,
+        "outlet_pressure_kpa": 504.5413793103449,
+        "fluid_density_kg_m3": 4.100592663783438,
+        "gas_specific_heat_ratio": 1.25,
+        "mass_flow_kg_s": 0.09560939783320735,
+        "imperial_units": false
+      },
+      "expected": {
+        "sonic_velocity_m_s": 397.0802822336978,
+        "is_limit_applicable": true,
+        "is_choked": false,
+        "actual_pressure_ratio": 0.9754466666666667
+      },
+      "observed_rel_dev": {
+        "sonic_velocity_m_s": 0.0
+      },
+      "tolerance": {
+        "rel": 0.001,
+        "level": "收紧：SPEC §5 经验 1e-2 → 1e-3",
+        "reason": "a = √(γ·P₁/ρ) 同公式同单位制直算，bit-for-bit 0 偏差"
+      }
+    },
+    {
+      "id": "si_case_jk",
+      "sheet": "SI",
+      "column": "J/K",
+      "description": "SI Case J/K（P1=618.566 kPa）：XLS J/K 列 r18 显示同 517.241 但 r26（converted Pa）为 618566.379 → P1_JK = 618.566 kPa。Sonic velocity 434.235 m/s vs XLS J44/K44。",
+      "xls_inputs": {
+        "I17": {"label": "qm", "value": 0.09560939783320735, "unit": "kg/s"},
+        "J26": {"label": "P1 (converted)", "value": 618566.3793103449, "unit": "Pa"},
+        "I19": {"label": "dP", "value": 12.7, "unit": "kPa"},
+        "I22": {"label": "ρ", "value": 4.100592663783438, "unit": "kg/m3"},
+        "I23": {"label": "γ (k)", "value": 1.25, "unit": "-"},
+        "J39": {"label": "d_orifice (sizing output)", "value": 0.025176436760373757, "unit": "m"},
+        "J44": {"label": "Sonic velocity (XLS output)", "value": 434.2350216249145, "unit": "m/s"}
+      },
+      "conversion_chain": [
+        "P1_JK = 618566.3793103449 / 1000 = 618.5663793103449 kPa（XLS J26 转换值，非 r18 输入格；r18 输入格 J18=517.241 系 XLS 录入瑕疵，J/K 实际计算使用 r26）",
+        "ρ_SI = 4.100592663783438 kg/m³",
+        "d_orifice = 0.025176436760373757 m（XLS J39 sizing 输出）",
+        "P2 = P1 - dP = 618.5663793103449 - 12.7 = 605.8663793103449 kPa"
+      ],
+      "service_inputs": {
+        "orifice_diameter_m": 0.025176436760373757,
+        "inlet_pressure_kpa": 618.5663793103449,
+        "outlet_pressure_kpa": 605.8663793103449,
+        "fluid_density_kg_m3": 4.100592663783438,
+        "gas_specific_heat_ratio": 1.25,
+        "mass_flow_kg_s": 0.09560939783320735,
+        "imperial_units": false
+      },
+      "expected": {
+        "sonic_velocity_m_s": 434.2350216249145,
+        "is_limit_applicable": true,
+        "is_choked": false,
+        "actual_pressure_ratio": 0.9794686545780914
+      },
+      "observed_rel_dev": {
+        "sonic_velocity_m_s": 0.0
+      },
+      "tolerance": {
+        "rel": 0.001,
+        "level": "收紧：SPEC §5 经验 1e-2 → 1e-3",
+        "reason": "a = √(γ·P₁/ρ) 同公式同单位制直算，bit-for-bit 0 偏差"
+      }
+    },
+    {
+      "id": "imp_case",
+      "sheet": "Imp",
+      "column": "I/J/K (all 3 columns same)",
+      "description": "Imp Case：Imperial 单位制 P1=75 psia, dP=1.8415 psi, ρ=0.256 lb/ft³, γ=1.25, d_orifice 同 SI J/K。Sonic velocity 1302.565 ft/s vs XLS Imp r44。Imp sheet 三列 I/J/K 输出值完全相同（XLS 录入/重复列，无额外 variant）。",
+      "xls_inputs": {
+        "I17": {"label": "qm", "value": 0.21081872222222223, "unit": "lb/s"},
+        "I18": {"label": "P1", "value": 75.0, "unit": "psia"},
+        "I19": {"label": "dP", "value": 1.8415, "unit": "psi"},
+        "I20": {"label": "μ", "value": 0.0113, "unit": "cP"},
+        "I21": {"label": "D", "value": 4.026, "unit": "in"},
+        "I22": {"label": "ρ", "value": 0.256, "unit": "lb/ft3"},
+        "I23": {"label": "γ (k)", "value": 1.25, "unit": "-"},
+        "I26": {"label": "P1 (converted psfa)", "value": 10800.0, "unit": "psf(abs)"},
+        "I39": {"label": "d_orifice (sizing output)", "value": 0.082670669295501, "unit": "ft"},
+        "I40": {"label": "d_orifice (sizing output)", "value": 0.9920480315460121, "unit": "in"},
+        "I44": {"label": "Sonic velocity (XLS output)", "value": 1302.5650775489107, "unit": "ft/s"}
+      },
+      "conversion_chain": [
+        "P1_SI = 75.0 × 6.894757293168361 = 517.1067969876271 kPa",
+        "ρ_SI = 0.256 × 16.018463373960138 = 4.1007266237337953 kg/m³",
+        "d_orifice = 0.025176436760373757 m（同 SI J/K，XLS Imp I40 = 0.9920480315460121 in × 0.0254 = 0.0251760... m；与 SI J/K 0.025176436760373757 在 1e-9 一致）",
+        "P2_SI = (75.0 - 1.8415) × 6.894757293168361 = 504.4100861985252 kPa",
+        "qm_SI 仅作 service 正向校验（F5），不影响 sonic velocity；qm_SI = 0.21081872222222223 × 0.45359237 = 0.0956160... kg/s（与 SI case 0.0956094 差 6.9e-6，属 XLS Imp/sheet 独立微差，非关键）"
+      ],
+      "service_inputs": {
+        "orifice_diameter_m": 0.025176436760373757,
+        "inlet_pressure_kpa": 517.1067969876271,
+        "outlet_pressure_kpa": 504.4100861985252,
+        "fluid_density_kg_m3": 4.1007266237337953,
+        "gas_specific_heat_ratio": 1.25,
+        "mass_flow_kg_s": 0.09561606433522268,
+        "imperial_units": true
+      },
+      "expected": {
+        "sonic_velocity_m_s": 397.02213522601024,
+        "is_limit_applicable": true,
+        "is_choked": false,
+        "actual_pressure_ratio": 0.9754466666666667
+      },
+      "observed_rel_dev": {
+        "sonic_velocity_m_s_vs_xls_ft_s": 7.55e-07
+      },
+      "tolerance": {
+        "rel": 0.001,
+        "level": "收紧：SPEC §5 经验 1e-2 → 1e-3",
+        "reason": "换算链累积误差 ≤7.6e-7（psia→kPa + lb/ft³→kg/m³ 两级常数精确，无舍入）"
+      }
+    }
+  ],
+  "root_cause_notes": [
+    {
+      "id": "xls_is_sizing_not_limit",
+      "finding": "XLS WS-CA-PR-007 标题 + 输入（qm, P1, dP, μ, D, ρ, γ）+ 输出（b, d, Cd, e, ReD, Dw, max_velocity, sonic_velocity）均为 orifice sizing（AS 2360.1.1 §6.3.3 / §8.3 系列）。PCS service calc_as_2360_1_1_limit 是 limit factor check（d<1in 触发 + sonic velocity + choked 判定，对应 AS 2360.1.1 §4.2.3 Limit Factor）。两套算法族不同，仅 sonic velocity a = √(γ·P/ρ) 与 d limit check（r39 直接给出 d_orifice）是直接交叠。其余 XLS 行（b/Cd/e/ReD/Dw/max_velocity）登记 out_of_scope，不参与 assert。",
+      "ruling": "3 — 算法族错配，缩小对账范围 + 透明登记"
+    },
+    {
+      "id": "plan_mapping_defect",
+      "finding": "P6-6A plan 表格行 4 描述为 'cv/（AS 2360 d<1in）经验 1%'，但对应算例 WS-CA-PR-007 是 orifice sizing 非 limit check。Plan-mapping defect；本批通过缩窄对账范围 + 透明登记 mapping defect 兜底，不主张改 plan。批末 review 时由主控判定是否需要单独 patching plan。",
+      "ruling": "3 — plan mapping defect，登记批 B + 批末主控处置"
+    },
+    {
+      "id": "xls_j18_k18_p1_artifact",
+      "finding": "SI Case J/K：XLS r18 输入格 J18/K18 仍显示 517.241（与 I18 同），但 r26 converted Pa 为 618566.379（与 I26 517241 不同），说明 P1_JK = 618.566 kPa。XLS 录入瑕疵（输入格未同步更新）；按 r26/1000 取值后 sonic velocity bit-for-bit 一致。",
+      "ruling": "XLS 录入瑕疵，按 converted cell 取值；登记 out_of_scope: xls_input_artifact"
+    }
+  ],
+  "out_of_scope": [
+    {
+      "id": "beta_ratio_b",
+      "xls_refs": "SI I33/J33/K33 = 0.24636/0.24619/0.24619",
+      "reason": "Sizing 输出（b = d/D 反算），service 不计算该量"
+    },
+    {
+      "id": "expansion_factor_e",
+      "xls_refs": "SI I34/J34/K34 = 0.99192/0.99324/0.99324",
+      "reason": "Sizing 输出（可压缩膨胀因子 e1），service 不计算该量"
+    },
+    {
+      "id": "reynolds_number_ReD",
+      "xls_refs": "SI I37/J37/K37 = 88837.93",
+      "reason": "Sizing 输出（ReD = 4qm/(πDμ)），service 不计算该量"
+    },
+    {
+      "id": "discharge_coefficient_C",
+      "xls_refs": "SI I38/J38/K38 = 0.59804/0.59803/0.59803；Imp I38 = 0.59797",
+      "reason": "Sizing 输出（系数 C），service 不计算该量"
+    },
+    {
+      "id": "pressure_loss_Dw",
+      "xls_refs": "SI I41 = 11813.26 Pa / 11.81 kPa；Imp I41 = 246.65 psf / 1.71 psi",
+      "reason": "Sizing 输出（总压损 Dw），service 不计算该量；属 C-08/C-10 压降领域而非 AS 2360.1.1 Limit"
+    },
+    {
+      "id": "max_velocity",
+      "xls_refs": "SI I43/J43/K43 = 78.21/78.32/78.32 m/s；Imp I43 = 256.56 ft/s",
+      "reason": "Sizing 输出（最大流速 4qm/(πb²D²C)），service 不计算该量"
+    },
+    {
+      "id": "relative_tapping_L1_L2",
+      "xls_refs": "SI I35/I36 = 0.24839",
+      "reason": "Sizing 输出（相对取压位置 L1/L2），service 不计算该量"
+    },
+    {
+      "id": "as2360_sizing_limits_checklist",
+      "xls_refs": "SI B47..B57 OK/N/A 判定区（t≥0.75, ReD≥3150, d≥12.5mm, 50≤D≤1000mm, 0.2≤b≤0.75, Corner tap, Flange D-D/2, Flow must be subsonic）",
+      "reason": "Sizing 自带的 8 条 Limits 静态检查清单，非 service 的 d<1in Limit 触发逻辑；判定结果 OK/N/A 是 sizing 内部一致性校验，不映射到 service 输出"
+    },
+    {
+      "id": "xls_input_artifact",
+      "xls_refs": "SI J18/K18 = 517.241（与 I18 同），但 J26/K26 = 618566 Pa",
+      "reason": "XLS 输入格未同步更新（录入瑕疵），按 converted cell r26/1000 取值；仅本批 case J/K 涉及，无 service 影响"
+    },
+    {
+      "id": "imp_j_k_column_duplication",
+      "xls_refs": "Imp I/J/K 三列全 63 行全等值（XLS variant 列重复）",
+      "reason": "Imp sheet 无 case variant（I/J/K 三列同），不构成额外对账 case；fixture case3 imp 仅取 I 列即可"
+    }
+  ]
+}
