@@ -72,6 +72,7 @@ class As1210ReliefInput:
     scenario: Scenario
     vessel_geometry: WettedAreaInput | None = None
     environment_factor: float = _FIRE_ENV_FACTOR_DEFAULT
+    delta_h_vap_kj_kg: float = _DHVAP_KJ_KG
     imperial_units: bool = False
 
 
@@ -118,6 +119,8 @@ def _validate_input(inp: As1210ReliefInput) -> None:
             f"控制阀失效模式={inp.control_valve_failure_mode} 不在 "
             f"{list(_CV_FAILURE_FACTORS.keys())} 中"
         )
+    if inp.delta_h_vap_kj_kg <= 0:
+        raise As1210InputError(f"ΔH_vap={inp.delta_h_vap_kj_kg} 必须 > 0")
 
 
 def calc_as1210_relief_sizing(inp: As1210ReliefInput) -> As1210ReliefResult:
@@ -166,7 +169,7 @@ def calc_as1210_relief_sizing(inp: As1210ReliefInput) -> As1210ReliefResult:
             * inp.environment_factor
             * a_wetted_used ** 0.82
         )
-        capacity = q_fire_w / (_DHVAP_KJ_KG * 1000.0)  # kJ/kg → J/kg
+        capacity = q_fire_w / (inp.delta_h_vap_kj_kg * 1000.0)  # kJ/kg → J/kg
         as_std = "AS 1210 §4.4 + API 521 §3.4"
         pressure_factor = inp.as1210_pressure_factor
 
@@ -194,7 +197,7 @@ def calc_as1210_relief_sizing(inp: As1210ReliefInput) -> As1210ReliefResult:
             "fire_case": (
                 "AS 1210 §4.4 + API 521 §3.4 "
                 "Q(W) = 43192·F·A^0.82 [SI]; "
-                f"capacity = Q/(ΔH_vap·1000); ΔH_vap={_DHVAP_KJ_KG} kJ/kg"
+                f"capacity = Q/(ΔH_vap·1000); ΔH_vap={inp.delta_h_vap_kj_kg} kJ/kg"
             ),
             "wetted_area_source": (
                 "调用 C-12 calc_wetted_area (D7 接口冻结) "
