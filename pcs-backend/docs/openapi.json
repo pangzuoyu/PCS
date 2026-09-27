@@ -8700,6 +8700,66 @@
         }
       }
     },
+    "/api/v1/restriction/drain-orifice/size": {
+      "post": {
+        "tags": [
+          "restriction"
+        ],
+        "summary": "Calculate Drain Orifice Size",
+        "description": "POST /api/v1/restriction/drain-orifice/size：排污孔板 sizing（OPEN-P6-6A-7）。\n\nInverse problem：已知泄放量 W + 工况反推 orifice diameter d。\n仅适用于阻塞流场景（SPEC §3.7.2 sizing 仅在临界流成立；非阻塞流抛\nDrainOrificeInputError → install_exception_handlers 转 422 envelope）。\n\n不写 DB（落库由 restriction_persist 统一处理；sizing 是独立纯计算，\n沿用 flare.py kod-sizing / header-sizing 模式）。\n\nACL：DESIGNER / PROCESS_CONTROLLER",
+        "operationId": "calculate_drain_orifice_size_api_v1_restriction_drain_orifice_size_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DrainOrificeSizeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrainOrificeSizeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/open-channel/manning/calculate": {
       "post": {
         "tags": [
@@ -15935,6 +15995,216 @@
         "type": "object",
         "title": "DiffResponse",
         "description": "GET /assets/{id}/diff 返回结构（深 diff 的三段式）。"
+      },
+      "DrainOrificeSizeRequest": {
+        "properties": {
+          "inlet_pressure_kpa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Inlet Pressure Kpa",
+            "description": "上游压力 P₁（kPa）"
+          },
+          "outlet_pressure_kpa": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Outlet Pressure Kpa",
+            "description": "下游压力 P₂（kPa）"
+          },
+          "temperature_k": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Temperature K",
+            "description": "流体温度 K"
+          },
+          "relief_flow_kg_s": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Relief Flow Kg S",
+            "description": "泄放量 W（kg/s）"
+          },
+          "compressibility_z": {
+            "type": "number",
+            "maximum": 1.5,
+            "exclusiveMinimum": 0.0,
+            "title": "Compressibility Z",
+            "description": "可压缩系数 z（理想气体 ≈ 1.0）"
+          },
+          "molecular_weight_kg_kmol": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Molecular Weight Kg Kmol",
+            "description": "分子量 MW（kg/kmol）"
+          },
+          "pipe_diameter_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Pipe Diameter M",
+            "description": "上游管径 D（m）"
+          },
+          "specific_heat_ratio": {
+            "type": "number",
+            "exclusiveMinimum": 1.0,
+            "title": "Specific Heat Ratio",
+            "description": "比热比 k = Cp/Cv（γ）"
+          },
+          "specific_gravity": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Specific Gravity",
+            "description": "比重（相对空气）"
+          },
+          "discharge_coefficient": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Discharge Coefficient",
+            "description": "流量系数 Cd（XLS PR-023 默认 0.83932）",
+            "default": 0.83932
+          },
+          "initial_d_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Initial D M",
+            "description": "d 迭代初值（默认 15 mm）",
+            "default": 0.015
+          },
+          "tol": {
+            "type": "number",
+            "maximum": 0.01,
+            "exclusiveMinimum": 0.0,
+            "title": "Tol",
+            "description": "收敛判据（相对 W）",
+            "default": 1e-06
+          },
+          "max_iter": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Max Iter",
+            "description": "Newton/bisection 最大迭代",
+            "default": 50
+          },
+          "imperial_units": {
+            "type": "boolean",
+            "title": "Imperial Units",
+            "description": "是否返回英制单位（目前保留字段，service 未输出）",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "inlet_pressure_kpa",
+          "outlet_pressure_kpa",
+          "temperature_k",
+          "relief_flow_kg_s",
+          "compressibility_z",
+          "molecular_weight_kg_kmol",
+          "pipe_diameter_m",
+          "specific_heat_ratio",
+          "specific_gravity"
+        ],
+        "title": "DrainOrificeSizeRequest",
+        "description": "排污孔板 sizing 请求体（POST /api/v1/restriction/drain-orifice/size）。\n\nOPEN-P6-6A-7 inverse problem：已知泄放量 W + 工况反推 orifice diameter d。\n仅适用于阻塞流场景（SPEC §3.7.2 sizing 仅在临界流成立）。\n\n严格模式：未知字段 → 422 ValidationError（与 RestrictionCalculateRequest 一致）。"
+      },
+      "DrainOrificeSizeResponse": {
+        "properties": {
+          "orifice_diameter_m": {
+            "type": "number",
+            "title": "Orifice Diameter M",
+            "description": "求解得到的孔径 d（m）"
+          },
+          "orifice_area_m2": {
+            "type": "number",
+            "title": "Orifice Area M2",
+            "description": "孔径截面积 A（m²）"
+          },
+          "beta_ratio": {
+            "type": "number",
+            "title": "Beta Ratio",
+            "description": "直径比 β = d/D"
+          },
+          "ftp_factor": {
+            "type": "number",
+            "title": "Ftp Factor",
+            "description": "Ftp 修正系数（GB/T 308 Eq.2.2 经验式）"
+          },
+          "y_cr_sqrt": {
+            "type": "number",
+            "title": "Y Cr Sqrt",
+            "description": "Y_cr^0.5（Ruling 12 一致）"
+          },
+          "critical_pressure_ratio": {
+            "type": "number",
+            "title": "Critical Pressure Ratio",
+            "description": "临界压力比 r_c"
+          },
+          "actual_pressure_ratio": {
+            "type": "number",
+            "title": "Actual Pressure Ratio",
+            "description": "实际压力比 P₂/P₁"
+          },
+          "is_choked": {
+            "type": "boolean",
+            "title": "Is Choked",
+            "description": "是否阻塞流（sizing 仅适用临界流）"
+          },
+          "iterations": {
+            "type": "integer",
+            "title": "Iterations",
+            "description": "实际迭代次数"
+          },
+          "converged": {
+            "type": "boolean",
+            "title": "Converged",
+            "description": "是否收敛（未收敛 → 422）"
+          },
+          "residual_kg_s": {
+            "type": "number",
+            "title": "Residual Kg S",
+            "description": "残差 |m_max - W|（kg/s）"
+          },
+          "formula_ref": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Formula Ref",
+            "description": "公式溯源 dict"
+          },
+          "imperial_conversion": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imperial Conversion",
+            "description": "英制换算（imperial_units=True 时填充；当前 sizing 未启用）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "orifice_diameter_m",
+          "orifice_area_m2",
+          "beta_ratio",
+          "ftp_factor",
+          "y_cr_sqrt",
+          "critical_pressure_ratio",
+          "actual_pressure_ratio",
+          "is_choked",
+          "iterations",
+          "converged",
+          "residual_kg_s",
+          "formula_ref"
+        ],
+        "title": "DrainOrificeSizeResponse",
+        "description": "排污孔板 sizing 响应（POST /api/v1/restriction/drain-orifice/size 200）。\n\n字段对齐 service 层 DrainOrificeSizeResult（frozen dataclass）。"
       },
       "EdgeFlowJson": {
         "properties": {

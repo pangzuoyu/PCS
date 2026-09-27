@@ -332,3 +332,137 @@ async def test_restriction_calculate_non_flash_default_iso_5167(
     assert 3_000 < resp["P_sat_pa"] < 4_000
     assert resp["vapor_fraction_at_outlet"] == 0.0
     assert resp["model_used"] == "ISO_5167"
+
+
+# ============================================================================
+# 6. P6-6A-7 drain orifice sizing（POST /restriction/drain-orifice/size）
+# ============================================================================
+
+
+import json as _json
+from pathlib import Path as _Path
+
+_FIX_DIR = _Path(__file__).parent.parent.parent / "services" / "restriction" / "fixtures"
+
+
+def _drain_size_body(**overrides: Any) -> dict[str, Any]:
+    """最小 sizing 请求（XLS PR-023 黄金 fixture；OPEN-P6-6A-7）。"""
+    golden = _json.loads(
+        (_FIX_DIR / "golden_drain_orifice_size_pr023.json").read_text()
+    )
+    body = dict(golden["service_inputs"])
+    body.update(overrides)
+    return body
+
+
+@pytest.mark.asyncio
+async def test_drain_orifice_size_post_success(client, sample_user_token):
+    """POST /restriction/drain-orifice/size 黄金 fixture → 200 + d ≈ 12.762 mm。
+
+    ACL：DESIGNER 默认（sample_user_token 默认 DESIGNER 角色）。
+    XLS PR-023 E42 报 d=15.204 mm vs PCS 收敛 d=12.762 mm（19% gap；fixture._doc_xls_vs_pcs_gap
+    文档化 Ruling 7 family mismatch + XLS safety margin convention）。本测试断言 PCS 收敛值。
+    """
+    r = await client.post(
+        "/api/v1/restriction/drain-orifice/size",
+        json=_drain_size_body(),
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+    )
+    assert r.status_code == 200, r.text
+    resp = r.json()
+
+    # 黄金 fixture 期望 d ≈ 12.762 mm；Ruling 7 family mismatch 0.2% 容差
+    expected = 0.012761815015983
+    assert resp["orifice_diameter_m"] == pytest.approx(expected, rel=2e-3)
+    assert resp["is_choked"] is True
+    assert resp["converged"] is True
+    assert resp["iterations"] <= 15
+    assert resp["beta_ratio"] == pytest.approx(0.2593, rel=2e-3)
+    assert "formula_ref" in resp
+    assert "fluid_density" in resp["formula_ref"]
+
+
+@pytest.mark.asyncio
+async def test_drain_orifice_size_post_no_auth_rejected(client):
+    """缺 auth → 401/403（current_actor 拦截；ACL DESIGNER / PROCESS_CONTROLLER）。
+
+    current_actor 依赖先校验 bearer token（缺 → 401 MISSING_BEARER）；
+    即使有 token，require_roles 仍可能抛 403。两条路径都属 ACL 拒绝。
+    """
+    r = await client.post(
+        "/api/v1/restriction/drain-orifice/size",
+        json=_drain_size_body(),
+    )
+    assert r.status_code in (401, 403), r.text
+
+
+@pytest.mark.asyncio
+async def test_drain_orifice_size_post_non_choked_422(client, sample_user_token):
+    """非阻塞流（P2/P1 > r_c）→ 422 DRAIN_ORIFICE_INPUT_ERROR（sizing 仅适用临界流）。
+
+    service 层 DrainOrificeInputError 由 install_exception_handlers 兜底转 422 envelope。
+    """
+    # P2 = 0.95 * P1 → p_ratio=0.95 > r_c(1.18)≈0.568 → 非阻塞
+    body = _drain_size_body(outlet_pressure_kpa=0.95 * 6300.0)
+    r = await client.post(
+        "/api/v1/restriction/drain-orifice/size",
+        json=body,
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+    )
+    assert r.status_code == 422, r.text
+    payload = r.json()
+    assert payload.get("code") == "DRAIN_ORIFICE_INPUT_ERROR"
+    assert "非阻塞流" in payload.get("message", "")
+
+
+@pytest.mark.asyncio
+async def test_drain_orifice_size_openapi_contract(client):
+    """OpenAPI /openapi.json 含 /restriction/drain-orifice/size + DrainOrificeSize{Req,Resp}schema。
+
+    契约：
+    - 路径存在 + POST 方法
+    - Request schema 含关键必填字段（8 工况 + 3 收敛控制）
+    - Response schema 含关键计算字段（orifice_diameter_m, beta_ratio, converged, iterations）
+    """
+    r = await client.get("/openapi.json")
+    assert r.status_code == 200, r.text
+    spec = r.json()
+
+    path = "/api/v1/restriction/drain-orifice/size"
+    assert path in spec["paths"], (
+        f"OpenAPI 缺路径 {path}: {list(spec['paths'])}"
+    )
+    post = spec["paths"][path].get("post")
+    assert post is not None, f"OpenAPI {path} 缺 POST 方法"
+    assert "requestBody" in post
+    assert "200" in post["responses"]
+
+    schemas = spec.get("components", {}).get("schemas", {})
+    assert "DrainOrificeSizeRequest" in schemas, (
+        f"OpenAPI 缺 DrainOrificeSizeRequest schema：{list(schemas)}"
+    )
+    req_props = schemas["DrainOrificeSizeRequest"]["properties"]
+    for field in (
+        "inlet_pressure_kpa", "outlet_pressure_kpa", "temperature_k",
+        "relief_flow_kg_s", "compressibility_z", "molecular_weight_kg_kmol",
+        "pipe_diameter_m", "specific_heat_ratio", "specific_gravity",
+        "discharge_coefficient", "initial_d_m", "tol", "max_iter",
+        "imperial_units",
+    ):
+        assert field in req_props, (
+            f"DrainOrificeSizeRequest 缺字段 {field}: {list(req_props)}"
+        )
+
+    assert "DrainOrificeSizeResponse" in schemas, (
+        f"OpenAPI 缺 DrainOrificeSizeResponse schema：{list(schemas)}"
+    )
+    resp_props = schemas["DrainOrificeSizeResponse"]["properties"]
+    for field in (
+        "orifice_diameter_m", "orifice_area_m2", "beta_ratio", "ftp_factor",
+        "y_cr_sqrt", "critical_pressure_ratio", "actual_pressure_ratio",
+        "is_choked", "iterations", "converged", "residual_kg_s",
+        "formula_ref",
+    ):
+        assert field in resp_props, (
+            f"DrainOrificeSizeResponse 缺字段 {field}: {list(resp_props)}"
+        )

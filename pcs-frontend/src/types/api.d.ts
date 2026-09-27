@@ -3005,6 +3005,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/restriction/drain-orifice/size": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calculate Drain Orifice Size
+         * @description POST /api/v1/restriction/drain-orifice/size：排污孔板 sizing（OPEN-P6-6A-7）。
+         *
+         *     Inverse problem：已知泄放量 W + 工况反推 orifice diameter d。
+         *     仅适用于阻塞流场景（SPEC §3.7.2 sizing 仅在临界流成立；非阻塞流抛
+         *     DrainOrificeInputError → install_exception_handlers 转 422 envelope）。
+         *
+         *     不写 DB（落库由 restriction_persist 统一处理；sizing 是独立纯计算，
+         *     沿用 flare.py kod-sizing / header-sizing 模式）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER
+         */
+        post: operations["calculate_drain_orifice_size_api_v1_restriction_drain_orifice_size_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/open-channel/manning/calculate": {
         parameters: {
             query?: never;
@@ -6158,6 +6187,169 @@ export interface components {
             changed?: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * DrainOrificeSizeRequest
+         * @description 排污孔板 sizing 请求体（POST /api/v1/restriction/drain-orifice/size）。
+         *
+         *     OPEN-P6-6A-7 inverse problem：已知泄放量 W + 工况反推 orifice diameter d。
+         *     仅适用于阻塞流场景（SPEC §3.7.2 sizing 仅在临界流成立）。
+         *
+         *     严格模式：未知字段 → 422 ValidationError（与 RestrictionCalculateRequest 一致）。
+         */
+        DrainOrificeSizeRequest: {
+            /**
+             * Inlet Pressure Kpa
+             * @description 上游压力 P₁（kPa）
+             */
+            inlet_pressure_kpa: number;
+            /**
+             * Outlet Pressure Kpa
+             * @description 下游压力 P₂（kPa）
+             */
+            outlet_pressure_kpa: number;
+            /**
+             * Temperature K
+             * @description 流体温度 K
+             */
+            temperature_k: number;
+            /**
+             * Relief Flow Kg S
+             * @description 泄放量 W（kg/s）
+             */
+            relief_flow_kg_s: number;
+            /**
+             * Compressibility Z
+             * @description 可压缩系数 z（理想气体 ≈ 1.0）
+             */
+            compressibility_z: number;
+            /**
+             * Molecular Weight Kg Kmol
+             * @description 分子量 MW（kg/kmol）
+             */
+            molecular_weight_kg_kmol: number;
+            /**
+             * Pipe Diameter M
+             * @description 上游管径 D（m）
+             */
+            pipe_diameter_m: number;
+            /**
+             * Specific Heat Ratio
+             * @description 比热比 k = Cp/Cv（γ）
+             */
+            specific_heat_ratio: number;
+            /**
+             * Specific Gravity
+             * @description 比重（相对空气）
+             */
+            specific_gravity: number;
+            /**
+             * Discharge Coefficient
+             * @description 流量系数 Cd（XLS PR-023 默认 0.83932）
+             * @default 0.83932
+             */
+            discharge_coefficient: number;
+            /**
+             * Initial D M
+             * @description d 迭代初值（默认 15 mm）
+             * @default 0.015
+             */
+            initial_d_m: number;
+            /**
+             * Tol
+             * @description 收敛判据（相对 W）
+             * @default 0.000001
+             */
+            tol: number;
+            /**
+             * Max Iter
+             * @description Newton/bisection 最大迭代
+             * @default 50
+             */
+            max_iter: number;
+            /**
+             * Imperial Units
+             * @description 是否返回英制单位（目前保留字段，service 未输出）
+             * @default false
+             */
+            imperial_units: boolean;
+        };
+        /**
+         * DrainOrificeSizeResponse
+         * @description 排污孔板 sizing 响应（POST /api/v1/restriction/drain-orifice/size 200）。
+         *
+         *     字段对齐 service 层 DrainOrificeSizeResult（frozen dataclass）。
+         */
+        DrainOrificeSizeResponse: {
+            /**
+             * Orifice Diameter M
+             * @description 求解得到的孔径 d（m）
+             */
+            orifice_diameter_m: number;
+            /**
+             * Orifice Area M2
+             * @description 孔径截面积 A（m²）
+             */
+            orifice_area_m2: number;
+            /**
+             * Beta Ratio
+             * @description 直径比 β = d/D
+             */
+            beta_ratio: number;
+            /**
+             * Ftp Factor
+             * @description Ftp 修正系数（GB/T 308 Eq.2.2 经验式）
+             */
+            ftp_factor: number;
+            /**
+             * Y Cr Sqrt
+             * @description Y_cr^0.5（Ruling 12 一致）
+             */
+            y_cr_sqrt: number;
+            /**
+             * Critical Pressure Ratio
+             * @description 临界压力比 r_c
+             */
+            critical_pressure_ratio: number;
+            /**
+             * Actual Pressure Ratio
+             * @description 实际压力比 P₂/P₁
+             */
+            actual_pressure_ratio: number;
+            /**
+             * Is Choked
+             * @description 是否阻塞流（sizing 仅适用临界流）
+             */
+            is_choked: boolean;
+            /**
+             * Iterations
+             * @description 实际迭代次数
+             */
+            iterations: number;
+            /**
+             * Converged
+             * @description 是否收敛（未收敛 → 422）
+             */
+            converged: boolean;
+            /**
+             * Residual Kg S
+             * @description 残差 |m_max - W|（kg/s）
+             */
+            residual_kg_s: number;
+            /**
+             * Formula Ref
+             * @description 公式溯源 dict
+             */
+            formula_ref: {
+                [key: string]: string;
+            };
+            /**
+             * Imperial Conversion
+             * @description 英制换算（imperial_units=True 时填充；当前 sizing 未启用）
+             */
+            imperial_conversion?: {
+                [key: string]: number;
+            } | null;
         };
         /**
          * EdgeFlowJson
@@ -18782,6 +18974,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RestrictionCalculateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calculate_drain_orifice_size_api_v1_restriction_drain_orifice_size_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DrainOrificeSizeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DrainOrificeSizeResponse"];
                 };
             };
             /** @description Validation Error */

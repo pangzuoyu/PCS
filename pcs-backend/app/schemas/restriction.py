@@ -1,8 +1,12 @@
-"""限制装置计算 Pydantic schema（P6-1 Task 14 / SPEC §3.2.2 + P6-2 S-01 闪蒸联动）。
+"""限制装置计算 Pydantic schema（P6-1 Task 14 / SPEC §3.2.2 + P6-2 S-01 闪蒸联动 +
+P6-6A-7 drain orifice sizing inverse problem）。
 
 RestrictionCalculateRequest 字段对齐 SPEC §3.2.2.1~4（孔板/文丘里/喷嘴/多级降压）
 + §3.2.2.6（13 列 ORM schema）+ 上下文 + P6-2 S-01 闪蒸校核 + HEM 模型字段；
 RestrictionCalculateResponse 回填 RestrictionResult 主键 + 闪蒸元数据 + outlet stream。
+
+DrainOrificeSizeRequest / DrainOrificeSizeResponse（OPEN-P6-6A-7 / SPEC §3.7.2）：
+排污孔板 sizing inverse problem（已知泄放量 W + 工况反推 orifice diameter d）。
 
 P6-2 S-01 新增：
 - Request：`fluid` / `upstream_T_K` / `rho_l_kg_m3` / `rho_v_kg_m3` / `x_vapor_outlet`
@@ -19,6 +23,7 @@ P6-2 S-01 新增：
 - 不实现 record_hash 算法（service 层复用 calc_lineage.compute_record_hash）
 - 不实现 RestrictionEngine 计算（P6-1 已交付 + P6-2 S-01 升级）
 - 不实现 outlet stream（P6-1 Task 13 已交付；本 schema 仅返回 outlet_stream_id）
+- 不实现 drain-orifice sizing 计算（P6-6A-7 service 已交付）
 """
 from __future__ import annotations
 
@@ -26,6 +31,71 @@ import uuid
 from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
+
+# ---------------------------------------------------------------------------
+# P6-6A-7 / OPEN-P6-6A-7：drain orifice sizing（inverse problem；SPEC §3.7.2）
+# ---------------------------------------------------------------------------
+
+
+class DrainOrificeSizeRequest(BaseModel):
+    """排污孔板 sizing 请求体（POST /api/v1/restriction/drain-orifice/size）。
+
+    OPEN-P6-6A-7 inverse problem：已知泄放量 W + 工况反推 orifice diameter d。
+    仅适用于阻塞流场景（SPEC §3.7.2 sizing 仅在临界流成立）。
+
+    严格模式：未知字段 → 422 ValidationError（与 RestrictionCalculateRequest 一致）。
+    """
+
+    model_config = ConfigDict(extra="forbid", protected_namespaces=())
+
+    inlet_pressure_kpa: float = Field(..., gt=0, description="上游压力 P₁（kPa）")
+    outlet_pressure_kpa: float = Field(..., ge=0, description="下游压力 P₂（kPa）")
+    temperature_k: float = Field(..., gt=0, description="流体温度 K")
+    relief_flow_kg_s: float = Field(..., gt=0, description="泄放量 W（kg/s）")
+    compressibility_z: float = Field(
+        ..., gt=0, le=1.5, description="可压缩系数 z（理想气体 ≈ 1.0）"
+    )
+    molecular_weight_kg_kmol: float = Field(..., gt=0, description="分子量 MW（kg/kmol）")
+    pipe_diameter_m: float = Field(..., gt=0, description="上游管径 D（m）")
+    specific_heat_ratio: float = Field(
+        ..., gt=1.0, description="比热比 k = Cp/Cv（γ）"
+    )
+    specific_gravity: float = Field(..., gt=0, description="比重（相对空气）")
+    discharge_coefficient: float = Field(
+        default=0.83932, gt=0, le=1.0, description="流量系数 Cd（XLS PR-023 默认 0.83932）"
+    )
+    initial_d_m: float = Field(default=0.015, gt=0, description="d 迭代初值（默认 15 mm）")
+    tol: float = Field(default=1e-6, gt=0, le=1e-2, description="收敛判据（相对 W）")
+    max_iter: int = Field(default=50, ge=1, le=200, description="Newton/bisection 最大迭代")
+    imperial_units: bool = Field(
+        default=False, description="是否返回英制单位（目前保留字段，service 未输出）"
+    )
+
+
+class DrainOrificeSizeResponse(BaseModel):
+    """排污孔板 sizing 响应（POST /api/v1/restriction/drain-orifice/size 200）。
+
+    字段对齐 service 层 DrainOrificeSizeResult（frozen dataclass）。
+    """
+
+    model_config = ConfigDict(protected_namespaces=())
+
+    orifice_diameter_m: float = Field(..., description="求解得到的孔径 d（m）")
+    orifice_area_m2: float = Field(..., description="孔径截面积 A（m²）")
+    beta_ratio: float = Field(..., description="直径比 β = d/D")
+    ftp_factor: float = Field(..., description="Ftp 修正系数（GB/T 308 Eq.2.2 经验式）")
+    y_cr_sqrt: float = Field(..., description="Y_cr^0.5（Ruling 12 一致）")
+    critical_pressure_ratio: float = Field(..., description="临界压力比 r_c")
+    actual_pressure_ratio: float = Field(..., description="实际压力比 P₂/P₁")
+    is_choked: bool = Field(..., description="是否阻塞流（sizing 仅适用临界流）")
+    iterations: int = Field(..., description="实际迭代次数")
+    converged: bool = Field(..., description="是否收敛（未收敛 → 422）")
+    residual_kg_s: float = Field(..., description="残差 |m_max - W|（kg/s）")
+    formula_ref: dict[str, str] = Field(..., description="公式溯源 dict")
+    imperial_conversion: dict[str, float] | None = Field(
+        default=None,
+        description="英制换算（imperial_units=True 时填充；当前 sizing 未启用）",
+    )
 
 
 class RestrictionCalculateRequest(BaseModel):
@@ -161,4 +231,10 @@ class RestrictionCalculateResponse(BaseModel):
     outlet_stream_id: uuid.UUID = Field(..., description="出口流 UUID（RESTRICTION_CALCULATED）")
 
 
-__all__ = ["RestrictionCalculateRequest", "RestrictionCalculateResponse"]
+__all__ = [
+    "RestrictionCalculateRequest",
+    "RestrictionCalculateResponse",
+    # OPEN-P6-6A-7 / SPEC §3.7.2 drain orifice sizing（inverse problem）
+    "DrainOrificeSizeRequest",
+    "DrainOrificeSizeResponse",
+]
