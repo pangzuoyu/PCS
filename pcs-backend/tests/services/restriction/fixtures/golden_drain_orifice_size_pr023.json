@@ -1,0 +1,33 @@
+{
+  "_doc": "P6-6A-7 SPEC §3.7.2 C-19 排污孔板 sizing inverse problem 黄金 fixture. XLS-PR-023 inputs (P1=6300 kPa=63 bara, P2=800 kPa=8 bara, T=360.8 K, W=6803 kg/h=1.8897 kg/s, z=0.88, MW=24.52 kg/kmol, D=49.22 mm=0.04922 m, k=1.18, g=0.79, C=0.83932). Expected d ≈ 15.204 mm (XLS PR-023 E42 iterated value). [CONCERN: brief originally specified P2=4521 kPa=45.21 bara, but XLS PR-023 N15=8 bara=800 kPa. With P2=4521, p_ratio=0.7176 > r_c(1.18)=0.568 → NOT choked, contradicting expected is_choked=true. Corrected to P2=800 kPa from XLS ground truth.]",
+  "service_inputs": {
+    "inlet_pressure_kpa": 6300.0,
+    "outlet_pressure_kpa": 800.0,
+    "temperature_k": 360.8,
+    "relief_flow_kg_s": 1.8897,
+    "compressibility_z": 0.88,
+    "molecular_weight_kg_kmol": 24.52,
+    "pipe_diameter_m": 0.04922,
+    "specific_heat_ratio": 1.18,
+    "specific_gravity": 0.79,
+    "discharge_coefficient": 0.83932,
+    "initial_d_m": 0.015218589896550967,
+    "tol": 1e-6,
+    "max_iter": 50
+  },
+  "expected": {
+    "orifice_diameter_m": 0.015204160997555617,
+    "orifice_area_m2": 0.0001815349,
+    "beta_ratio": 0.30890209,
+    "is_choked": true,
+    "iterations_max": 15,
+    "converged": true
+  },
+  "_expected_tolerance": {
+    "orifice_diameter_m": "rel=2e-3（Ruling 7 family mismatch 0.2% + Newton 收敛容差累加）",
+    "beta_ratio": "rel=2e-3",
+    "orifice_area_m2": "rel=4e-3（d² 缩放）",
+    "iterations_max": "≤15（Newton 简化版应在 10 步内收敛）"
+  },
+  "_notes": "OPEN-P6-6A-7 SPEC §3.7.2 sizing 完整实现黄金 fixture. PCS forward calc_drain_orifice(d=15.204 mm) → m_max ≈ 1.8897 kg/s（OPEN-P6-6A-4 Ruling 12 fix 验证）; PCS inverse calc_drain_orifice_size(W=1.8897 kg/s) → d ≈ 15.204 mm（OPEN-P6-6A-7 验证）."
+}
