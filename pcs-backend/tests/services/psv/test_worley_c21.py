@@ -94,8 +94,18 @@ _FIXTURE_PATH = (
 WORLEY = json.loads(_FIXTURE_PATH.read_text(encoding="utf-8"))
 
 
-def _build_input_fire_case(case: dict) -> As1210ReliefInput:
-    """Build As1210ReliefInput for FIRE_CASE scenario from case.service_inputs."""
+def _build_input_fire_case(
+    case: dict, delta_h_vap_kj_kg: float | None = None
+) -> As1210ReliefInput:
+    """Build As1210ReliefInput for FIRE_CASE scenario from case.service_inputs.
+
+    Args:
+        case: fixture case dict (worley_c21_as1210.json).
+        delta_h_vap_kj_kg: optional fluid-specific ΔH_vap override (kJ/kg).
+            If None: don't pass field (use service default 2260 kJ/kg — backward
+            compat with T0 era). If float: pass delta_h_vap_kj_kg= explicitly
+            to match XLS PR-025 implied ΔH_vap=208 kJ/kg (Ruling 14).
+    """
     si = case["service_inputs"]
     vg = si["vessel_geometry"]
     geom = WettedAreaInput(
@@ -106,7 +116,7 @@ def _build_input_fire_case(case: dict) -> As1210ReliefInput:
         n_vessels=vg["n_vessels"],
         vessel_shape=vg["vessel_shape"],
     )
-    return As1210ReliefInput(
+    kwargs = dict(
         mawp_kpa=si["mawp_kpa"],
         tube_rupture_mass_kg_s=si["tube_rupture_mass_kg_s"],
         control_valve_failure_mode=si["control_valve_failure_mode"],
@@ -117,6 +127,9 @@ def _build_input_fire_case(case: dict) -> As1210ReliefInput:
         environment_factor=si["environment_factor"],
         imperial_units=si["imperial_units"],
     )
+    if delta_h_vap_kj_kg is not None:
+        kwargs["delta_h_vap_kj_kg"] = delta_h_vap_kj_kg
+    return As1210ReliefInput(**kwargs)
 
 
 def _build_input_tube_rupture(case: dict) -> As1210ReliefInput:
@@ -703,3 +716,62 @@ def test_worley_c21_fixture_structure_basics() -> None:
         "vessel_shape",
     ):
         assert k in vg, f"vessel_geometry 缺键 {k!r}"
+
+
+# ============================================================================
+# 7) OPEN-P6-6A-5 T2 — FIRE_CASE ΔH_vap=208 matches XLS PR-025 G35 within 经验 1%
+# ============================================================================
+
+
+def test_worley_c21_fire_case_xls_dhvap_208_matches_g35_within_1pct() -> None:
+    """OPEN-P6-6A-5 Ruling 14: ΔH_vap fluid-specific field → XLS PR-025 API 520
+    path G35 对账（经验 1% 容差 per SPEC §5）。
+
+    XLS API 520 path G35=6766.45 kg/hr (Natural Gas liquefied, ΔH_vap≈208 kJ/kg
+    implied per `xls_implied_dh_vap_xls_kj_kg`=207.88 in fixture)。
+    PCS 用 _build_input_fire_case(delta_h_vap_kj_kg=208.0) 调 service →
+    capacity × 3600 ≈ 6761 kg/hr, diff -0.076%（within 经验 1%）。
+
+    NOTE: XLS AS 1210 path G55=11253.17 kg/hr 是 OUT_OF_SCOPE per Ruling 9
+    （formula family mismatch, ΔH_vap 解释不同 — 不是 PCS ΔH_vap=208 对账目标）。
+    """
+    case = WORLEY["cases"][0]
+    exp = case["expected"]
+
+    # XLS PR-025 API 520 path G35=6766.45 kg/hr (target — 对账 PCS ΔH_vap=208)
+    _XLS_G35_API520_PATH_KG_HR = 6766.45
+
+    # 显式传 ΔH_vap=208 → PCS FIRE_CASE capacity 对账 XLS API 520 path G35
+    inp = _build_input_fire_case(case, delta_h_vap_kj_kg=208.0)
+    result = calc_as1210_relief_sizing(inp)
+
+    capacity_kg_hr = result.required_relief_capacity_kg_s * 3600.0
+    # PCS 6761 vs XLS G35 6766.45 ≈ 0.076% diff（within 经验 1%）
+    assert capacity_kg_hr == pytest.approx(
+        _XLS_G35_API520_PATH_KG_HR, rel=1e-2
+    ), (
+        f"PCS ΔH_vap=208 capacity={capacity_kg_hr!r} kg/hr"
+        f" vs XLS G35={_XLS_G35_API520_PATH_KG_HR} diff > 1%"
+        f" (Ruling 14 XLS PR-025 对账失败)"
+    )
+    # Ruling 9 OUT_OF_SCOPE sanity: PCS ΔH_vap=208 应与 XLS AS 1210 path G55
+    # magnitude 不同（C_AS1210 不同 basis），不应误判 PASS
+    assert capacity_kg_hr < exp["xls_relief_AS1210_G55_kg_hr_OUT_OF_SCOPE"], (
+        f"Ruling 9: PCS ΔH_vap=208={capacity_kg_hr!r} kg/hr 应 < "
+        f"XLS AS 1210 G55={exp['xls_relief_AS1210_G55_kg_hr_OUT_OF_SCOPE']!r}"
+        f" (AS 1210 path magnitude larger)"
+    )
+    # 物理 sanity：ΔH_vap=208 应比默认 2260 容量大 ~10.9×
+    capacity_2260_kg_hr_default = (
+        (43192.0 * exp["xls_Awet_API_G33"] ** 0.82) / (2260.0 * 1000.0) * 3600.0
+    )
+    assert capacity_kg_hr > capacity_2260_kg_hr_default * 10.0, (
+        f"ΔH_vap=208 应比默认 2260 容量大 ~10.9×, 实际 ratio="
+        f"{capacity_kg_hr / capacity_2260_kg_hr_default:.2f}"
+    )
+
+    # formula_ref 透出 ΔH_vap=208
+    assert "208" in result.formula_ref["fire_case"], (
+        f"formula_ref.fire_case={result.formula_ref['fire_case']!r}"
+        f" 应包含 '208' (实际 ΔH_vap)"
+    )

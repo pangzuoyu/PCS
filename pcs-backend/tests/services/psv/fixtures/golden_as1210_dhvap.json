@@ -1,0 +1,55 @@
+{
+  "_doc": "OPEN-P6-6A-5 T2 golden fixture — ΔH_vap fluid-specific input field. PCS matches XLS PR-025 API 520 path G35 within 经验 1% when delta_h_vap_kj_kg=208 (XLS implied). Source: tests/services/psv/fixtures/worley_c21_as1210.json + commit e72e0db (T1 ΔH_vap field).",
+  "_spec_ref": "SPEC §3.7.2 V1.4 + AS 1210 §4.4 + API 521 §3.4 + Ruling 14 OPEN-P6-6A-5",
+  "_precomputed_notes": {
+    "q_fire_w_W": "43192 × 1.0 × 14.666481633974485^0.82 ≈ 390652.48 W ≈ 390.65 kW",
+    "capacity_208_kg_s": "390652.48 / (208 × 1000) ≈ 1.8781 kg/s × 3600 ≈ 6761 kg/hr",
+    "xls_G35_diff": "XLS G35=6766.45 kg/hr vs PCS 6761.29 kg/hr diff -0.0762% (within 经验 1%)",
+    "xls_implied_dh_vap_kj_kg": "Q_G54 × 3600 / relief_G55 = 649808.14 × 3600 / (11253.17 × 1000) ≈ 207.88 kJ/kg (matches 208 within rounding)"
+  },
+  "inputs": {
+    "mawp_kpa": 1000.0,
+    "tube_rupture_mass_kg_s": 10.0,
+    "control_valve_failure_mode": "AIR_FAIL",
+    "fire_case_wetted_area_m2": 0.0,
+    "as1210_pressure_factor": 1.10,
+    "scenario": "FIRE_CASE",
+    "environment_factor": 1.0,
+    "delta_h_vap_kj_kg": 208.0,
+    "vessel_geometry": {
+      "D_m": 2.5,
+      "L_m": 10.0,
+      "head_type": "FLAT",
+      "H_m": 1.8673944398508298,
+      "n_vessels": 1,
+      "vessel_shape": "VERTICAL"
+    }
+  },
+  "expected": {
+    "capacity_kg_s": 1.8781369308335163,
+    "capacity_kg_hr": 6761.292951000659,
+    "q_fire_w": 390652.4816133714,
+    "set_p_kpa": 1100.0,
+    "converged": true,
+    "as_standard": "AS 1210 §4.4 + API 521 §3.4",
+    "notes": "T1 ΔH_vap field test. PCS capacity with fluid-specific ΔH_vap=208 matches XLS PR-025 API 520 path G35=6766.45 within 0.0762% (经验 1% 容差 per SPEC §5)."
+  },
+  "tolerance_policy": {
+    "rel": 0.01,
+    "abs": 0.1,
+    "rationale": "经验 1% 容差 per SPEC §5; XLS PR-025 容差分级 C-21 经验 1% (rel≤0.01)"
+  },
+  "xls_cross_ref": {
+    "xls_source": "sample/Process caculation from Worley/WS-CA-PR-025.xls SI sheet",
+    "xls_cells": {
+      "G33_Awet_m2": 14.666481633974485,
+      "G34_Q_W": 390724.83806486497,
+      "G35_relief_kg_hr": 6766.45
+    },
+    "pcs_path": "API 521 (Ruling 9: PCS uses API 521 path, XLS uses API 520 path → both within 经验 1%)",
+    "diff_pct": -0.0762,
+    "tolerance_pct": 1.0,
+    "verdict": "PASS"
+  },
+  "ruling_ref": "OPEN-P6-6A-5 Ruling 14: ΔH_vap fluid-specific input via As1210ReliefInput.delta_h_vap_kj_kg (default 2260 kJ/kg backward-compat; 208 for natural gas liquefied per XLS PR-025)"
+}

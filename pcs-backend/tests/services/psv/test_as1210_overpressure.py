@@ -383,3 +383,203 @@ def test_golden_fixture_matches_implementation():
             f"Fixture drift: case={case['id']}, scenario={scenario}, "
             f"expected={expected_p}, actual={actual_p}"
         )
+
+
+# ============================================================================
+# OPEN-P6-6A-5 T2 — ΔH_vap fluid-specific input field tests
+# Back-compat + XLS PR-025 208 case + propane 425 case + validation
+# ============================================================================
+
+
+def _fire_case_vessel_geometry() -> WettedAreaInput:
+    """XLS PR-025 真实 vessel geometry (FLAT head, H_liquid=1.867m → A_wet=14.66648 m²)."""
+    return WettedAreaInput(
+        D_m=2.5, L_m=10.0, head_type="FLAT", H_m=1.8673944398508298,
+        n_vessels=1, vessel_shape="VERTICAL",
+    )
+
+
+def test_fire_case_default_dhvap_2260_backward_compat():
+    """OPEN-P6-6A-5 Ruling 14 back-compat：不传 delta_h_vap_kj_kg → 用默认 2260 kJ/kg。
+
+    PCS capacity = 43192 × 1.0 × 14.66648^0.82 / (2260 × 1000) ≈ 0.1729 kg/s。
+    """
+    geom = _fire_case_vessel_geometry()
+    inp = As1210ReliefInput(
+        mawp_kpa=1000.0, tube_rupture_mass_kg_s=10.0,
+        control_valve_failure_mode="AIR_FAIL",
+        fire_case_wetted_area_m2=0.0,
+        as1210_pressure_factor=1.10, scenario="FIRE_CASE",
+        vessel_geometry=geom,
+    )
+    # 故意不传 delta_h_vap_kj_kg
+    assert "delta_h_vap_kj_kg" not in inp.__dataclass_fields__ or (
+        inp.delta_h_vap_kj_kg == 2260.0
+    )
+    result = calc_as1210_relief_sizing(inp)
+    expected = (43192.0 * 14.666481633974485 ** 0.82) / 2260000.0
+    assert math.isclose(result.required_relief_capacity_kg_s, expected, rel_tol=1e-6)
+    assert math.isclose(result.required_relief_capacity_kg_s, 0.17285508035989886, rel_tol=1e-4)
+
+
+def test_fire_case_custom_dhvap_xls_208_matches_api_520_path_g35():
+    """OPEN-P6-6A-5 Ruling 14 XLS PR-025 对账：ΔH_vap=208 kJ/kg (XLS implied)
+    → PCS capacity ≈ 1.878 kg/s ≈ 6761 kg/hr, 与 XLS API 520 path G35=6766.45
+    容差 0.076%（within 经验 1% per SPEC §5）。
+
+    这是 T1 引入 delta_h_vap_kj_kg 字段的核心目的：让 PCS FIRE_CASE 能用 XLS
+    隐式 ΔH_vap≈208 (natural gas liquefied) 对账 XLS API 520 path。
+    """
+    geom = _fire_case_vessel_geometry()
+    inp = As1210ReliefInput(
+        mawp_kpa=1000.0, tube_rupture_mass_kg_s=10.0,
+        control_valve_failure_mode="AIR_FAIL",
+        fire_case_wetted_area_m2=0.0,
+        as1210_pressure_factor=1.10, scenario="FIRE_CASE",
+        vessel_geometry=geom,
+        delta_h_vap_kj_kg=208.0,
+    )
+    result = calc_as1210_relief_sizing(inp)
+    expected_kg_s = (43192.0 * 14.666481633974485 ** 0.82) / (208.0 * 1000.0)
+    assert math.isclose(
+        result.required_relief_capacity_kg_s, expected_kg_s, rel_tol=1e-6
+    )
+    capacity_kg_hr = result.required_relief_capacity_kg_s * 3600.0
+    # PCS 6761 vs XLS G35 6766.45 = 0.076% diff（within 经验 1%）
+    assert math.isclose(capacity_kg_hr, 6766.45, rel_tol=1e-2), (
+        f"capacity_kg_hr={capacity_kg_hr} 应 ≈ XLS G35 6766.45 within 1%"
+    )
+
+
+def test_fire_case_custom_dhvap_propane_425_standard():
+    """OPEN-P6-6A-5 Ruling 14 propane 标准 ΔH_vap=425 kJ/kg (GPSA Databook 典型值)。
+
+    PCS capacity ≈ 0.9192 kg/s × 3600 ≈ 3309 kg/hr。
+    """
+    geom = _fire_case_vessel_geometry()
+    inp = As1210ReliefInput(
+        mawp_kpa=1000.0, tube_rupture_mass_kg_s=10.0,
+        control_valve_failure_mode="AIR_FAIL",
+        fire_case_wetted_area_m2=0.0,
+        as1210_pressure_factor=1.10, scenario="FIRE_CASE",
+        vessel_geometry=geom,
+        delta_h_vap_kj_kg=425.0,
+    )
+    result = calc_as1210_relief_sizing(inp)
+    expected_kg_s = (43192.0 * 14.666481633974485 ** 0.82) / (425.0 * 1000.0)
+    assert math.isclose(
+        result.required_relief_capacity_kg_s, expected_kg_s, rel_tol=1e-6
+    )
+    assert math.isclose(
+        result.required_relief_capacity_kg_s, 0.919182309678521, rel_tol=1e-4
+    )
+
+
+def test_fire_case_dhvap_zero_raises_As1210InputError():
+    """F2: delta_h_vap_kj_kg <= 0 抛 As1210InputError。"""
+    geom = _fire_case_vessel_geometry()
+    inp = As1210ReliefInput(
+        mawp_kpa=1000.0, tube_rupture_mass_kg_s=10.0,
+        control_valve_failure_mode="AIR_FAIL",
+        fire_case_wetted_area_m2=0.0,
+        as1210_pressure_factor=1.10, scenario="FIRE_CASE",
+        vessel_geometry=geom,
+        delta_h_vap_kj_kg=0.0,
+    )
+    with pytest.raises(As1210InputError):
+        calc_as1210_relief_sizing(inp)
+
+
+def test_fire_case_dhvap_negative_raises_As1210InputError():
+    """F2: delta_h_vap_kj_kg < 0 抛 As1210InputError。"""
+    geom = _fire_case_vessel_geometry()
+    inp = As1210ReliefInput(
+        mawp_kpa=1000.0, tube_rupture_mass_kg_s=10.0,
+        control_valve_failure_mode="AIR_FAIL",
+        fire_case_wetted_area_m2=0.0,
+        as1210_pressure_factor=1.10, scenario="FIRE_CASE",
+        vessel_geometry=geom,
+        delta_h_vap_kj_kg=-100.0,
+    )
+    with pytest.raises(As1210InputError):
+        calc_as1210_relief_sizing(inp)
+
+
+def test_formula_ref_includes_actual_dhvap_value():
+    """OPEN-P6-6A-5 Ruling 14 formula_ref 必须透出实际 ΔH_vap 值（不只硬编码 2260）。"""
+    geom = _fire_case_vessel_geometry()
+    inp = As1210ReliefInput(
+        mawp_kpa=1000.0, tube_rupture_mass_kg_s=10.0,
+        control_valve_failure_mode="AIR_FAIL",
+        fire_case_wetted_area_m2=0.0,
+        as1210_pressure_factor=1.10, scenario="FIRE_CASE",
+        vessel_geometry=geom,
+        delta_h_vap_kj_kg=208.0,
+    )
+    result = calc_as1210_relief_sizing(inp)
+    fire_ref = result.formula_ref["fire_case"]
+    assert "208" in fire_ref, (
+        f"formula_ref.fire_case={fire_ref!r} 应包含 '208' (实际传入 ΔH_vap)"
+    )
+    assert "ΔH_vap" in fire_ref or "delta_h_vap" in fire_ref.lower(), (
+        f"formula_ref.fire_case={fire_ref!r} 应包含 'ΔH_vap' 字段标识"
+    )
+
+
+# ============================================================================
+# OPEN-P6-6A-5 T2 — Golden fixture (XLS PR-025 ΔH_vap=208 case)
+# ============================================================================
+
+
+def test_golden_as1210_dhvap_fixture_loads_and_matches_implementation():
+    """OPEN-P6-6A-5 T2 golden fixture (golden_as1210_dhvap.json) 加载 + 字段对账。"""
+    fixture_path = (
+        Path(__file__).parent / "fixtures" / "golden_as1210_dhvap.json"
+    )
+    if not fixture_path.exists():
+        pytest.skip("golden_as1210_dhvap.json fixture 未创建（占位）")
+    data = json.loads(fixture_path.read_text(encoding="utf-8"))
+    assert "_doc" in data
+    assert "inputs" in data
+    assert "expected" in data
+    assert "tolerance_policy" in data
+    assert "xls_cross_ref" in data
+    inp_dict = data["inputs"]
+    geom = WettedAreaInput(
+        D_m=inp_dict["vessel_geometry"]["D_m"],
+        L_m=inp_dict["vessel_geometry"]["L_m"],
+        head_type=inp_dict["vessel_geometry"]["head_type"],
+        H_m=inp_dict["vessel_geometry"]["H_m"],
+        n_vessels=inp_dict["vessel_geometry"]["n_vessels"],
+        vessel_shape=inp_dict["vessel_geometry"]["vessel_shape"],
+    )
+    inp = As1210ReliefInput(
+        mawp_kpa=inp_dict["mawp_kpa"],
+        tube_rupture_mass_kg_s=inp_dict.get("tube_rupture_mass_kg_s", 10.0),
+        control_valve_failure_mode=inp_dict.get(
+            "control_valve_failure_mode", "AIR_FAIL"
+        ),
+        fire_case_wetted_area_m2=inp_dict.get("fire_case_wetted_area_m2", 0.0),
+        as1210_pressure_factor=inp_dict["as1210_pressure_factor"],
+        scenario=inp_dict["scenario"],
+        vessel_geometry=geom,
+        environment_factor=inp_dict.get("environment_factor", 1.0),
+        delta_h_vap_kj_kg=inp_dict["delta_h_vap_kj_kg"],
+    )
+    result = calc_as1210_relief_sizing(inp)
+    rel_tol = data["tolerance_policy"].get("rel", 1e-2)
+    # capacity 容差对账（fixture.expected.capacity_kg_s）
+    assert math.isclose(
+        result.required_relief_capacity_kg_s,
+        data["expected"]["capacity_kg_s"],
+        rel_tol=rel_tol,
+    ), (
+        f"PCS capacity={result.required_relief_capacity_kg_s!r} ≠ "
+        f"golden fixture={data['expected']['capacity_kg_s']!r}"
+    )
+    # set_p 对账
+    assert math.isclose(
+        result.required_set_pressure_kpa,
+        data["expected"]["set_p_kpa"],
+        rel_tol=1e-6,
+    )
