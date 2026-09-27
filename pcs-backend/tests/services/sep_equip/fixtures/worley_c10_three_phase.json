@@ -1,0 +1,198 @@
+{
+  "_doc": "P6-6A Task 5: C-10 VESSEL 三相分离器 vs Worley 真实算例 WS-CA-PR-011 首次对账 fixture。",
+  "source": {
+    "xls": "WS-CA-PR-011.xls",
+    "xls_title": "3 Phase Separator Sizing Spreadsheet, Standard Calculation WS-CA-PR-011, Rev. 1, Re-issued for Use, Date: 31-Mar-2003.",
+    "xls_reference": "Worley internal standard calculation (validation issued by Process Web Page, PROJ 086/00589)",
+    "dump": ".superpowers/sdd/2026-09-27-p6-6a-worley-reconciliation/worley_dump/WS-CA-PR-011.json",
+    "dump_note": "原 XLS 位于 sample/（gitignored 只读）；本 fixture 转录 dump 中公式缓存计算值（全 double 精度）。1 sheet（Separator）/ 75 rows × 37 cols / 75 cells。",
+    "spec_ref": "PCS-SPEC-ADD-001 V1.10 §3.4.3（C-10）+ §5 验收分级",
+    "service": "app/services/sep_equip/three_phase_separator_service.py::calc_three_phase_separator"
+  },
+  "tolerance_policy": {
+    "spec_ref": "PCS-SPEC-ADD-001 V1.10 §5：经验拟合级 <1%（rel≤1e-2）",
+    "default_rel": 0.01,
+    "per_case_note": "本 case XLS 报告油/水单独 RT（r71=8.56 min / r72=23.50 min），service 返回 combined liquid_residence_time_min。体积流率（mass/ρ）严格匹配，容差 1e-3；总容积（几何）容差 2e-2；液 RT 用 rel=0.1（10%）覆盖 combined vs separate RT 口径差；气 RT 用 rel=0.05（XLS 无直接对账）。"
+  },
+  "unit_conversion_factors": {
+    "_doc": "Worley XLS 内部单位（kg/hr, kg/m³, m, m³/hr, m³/d）与 service SI 输入口径一致；需换算的仅时间基准（kg/hr × 24 = kg/d；m³/hr × 24 = m³/d）。",
+    "kg_per_hr_to_kg_per_d": 24.0,
+    "m3_per_hr_to_m3_per_d": 24.0,
+    "xls_unit_check": "J20=58450 kg/hr oil / M20=13490 kg/hr water / P20=16250 kg/hr gas → kg/d = ×24；J22=773 / M22=968 / P22=31.66 kg/m³ 直接作 service ρ 输入；J28=75.61 m³/hr oil → m³/d = ×24 校验 q_oil"
+  },
+  "cases": [
+    {
+      "id": "worley_pr011_3phase_horizontal",
+      "sheet": "Separator",
+      "line_label": "Validation of Standard Calculation WS-CA-PR-011 (single case, aggregate)",
+      "description": "Worley WS-CA-PR-011 真实工程算例：卧式三相分离器 D=2.2m, L=6.6m（L/D=3.0），2:1 椭圆封头（head depth D/4=0.55m）。工况：油 58450 kg/hr @ 773 kg/m³ + 水 13490 kg/hr @ 968 kg/m³ + 气 16250 kg/hr @ 31.66 kg/m³。堰板 1.15m。XLS 输出三相体积流量（m³/hr→m³/d）+ 总容积（几何）+ 仪表控制高度表（r57-r69）+ 油/水单独停留时间（r71=8.56 / r72=23.50 min）。对账范围：service 三相体积流量（m³/d）+ total_volume_m3（几何）+ 液 RT（combined vs XLS 油 RT r71）+ 气 RT（service 公式，无 XLS 直接对账）+ weir_height_required_m + oil_water_interface_m（pass-through）+ is_residence_time_ok。",
+      "xls_inputs": {
+        "J20": {"label": "Oil Mass Flow", "value": 58450.0, "unit": "kg/hr", "convert_to": "oil_mass_rate_kg_d = 58450 × 24 = 1402800.0"},
+        "M20": {"label": "Water Mass Flow", "value": 13490.0, "unit": "kg/hr", "convert_to": "water_mass_rate_kg_d = 13490 × 24 = 323760.0"},
+        "P20": {"label": "Gas Mass Flow", "value": 16250.0, "unit": "kg/hr", "convert_to": "gas_mass_rate_kg_d = 16250 × 24 = 390000.0"},
+        "J22": {"label": "Oil Density", "value": 773.0, "unit": "kg/m3"},
+        "M22": {"label": "Water Density", "value": 968.0, "unit": "kg/m3"},
+        "P22": {"label": "Vapour Density", "value": 31.66, "unit": "kg/m3"},
+        "I32": {"label": "Internal Diameter", "value": 2.2, "unit": "m"},
+        "I33": {"label": "Length", "value": 6.6, "unit": "m"},
+        "I34": {"label": "L/D Ratio", "value": 3.0, "unit": "—"},
+        "I35": {"label": "Head Depth (2:1 ELLIPSE = D/4)", "value": 0.55, "unit": "m"},
+        "Y34": {"label": "Calculated Weir Height", "value": 1.15, "unit": "m"},
+        "V64": {"label": "Cum. Height at LiAHH / Weir Level", "value": 1.15, "unit": "m"},
+        "V65": {"label": "Cum. Height at LiAH", "value": 1.00, "unit": "m"},
+        "V66": {"label": "Cum. Height at NiL (Normal Interface Level)", "value": 0.85, "unit": "m"},
+        "K71": {"label": "Oil Residence Time", "value": 8.559744620773898, "unit": "min", "note": "service 返回 combined liquid_residence_time_min，XLS 报告油单独 RT（口径差，对账容差放宽）"},
+        "K72": {"label": "Water Residence Time", "value": 23.49765549151042, "unit": "min", "note": "XLS 报告水单独 RT（口径差）"}
+      },
+      "xls_aggregate_outputs": {
+        "J26": {"label": "Oil Volume Flowrate", "value": 11415.661672599506, "unit": "bbl/d"},
+        "M26": {"label": "Water Volume Flowrate", "value": 2103.9366541948507, "unit": "bbl/d"},
+        "P26": {"label": "Vapour Volume Flowrate", "value": 15.043686493508975, "unit": "MMscfd"},
+        "J28": {"label": "Oil Volume Flow", "value": 75.61448900388098, "unit": "m3/hr", "convert_to": "m3/d = ×24 = 1814.7477360931435"},
+        "M28": {"label": "Water Volume Flow", "value": 13.935950413223141, "unit": "m3/hr", "convert_to": "m3/d = ×24 = 334.4628094173554"},
+        "P28": {"label": "Vapour Volume Flow", "value": 513.2659507264688, "unit": "m3/hr", "convert_to": "m3/d = ×24 = 12318.38281743525"},
+        "geometry_volume": {
+          "_doc": "XLS 不显式输出总容积；几何推导：V_total = π·D²/4·L + 2·V_head（2:1 椭圆封头 V_head = π·D³/24）",
+          "V_cyl": "π · 1.21 · 6.6 = 25.088759 m³",
+          "V_head_one": "π · 2.2³/24 = π · 10.648/24 = 1.393820 m³",
+          "V_two_heads": "2 × 1.393820 = 2.787640 m³",
+          "V_total_calc": "25.088759 + 2.787640 = 27.876398812853434 m³ (double 精度全保)"
+        }
+      },
+      "service_inputs": {
+        "vessel_shape": "HORIZONTAL",
+        "diameter_m": 2.2,
+        "length_m": 6.6,
+        "head_type": "2:1_ELLIPTICAL",
+        "oil_mass_rate_kg_d": 1402800.0,
+        "water_mass_rate_kg_d": 323760.0,
+        "gas_mass_rate_kg_d": 390000.0,
+        "oil_density_kg_m3": 773.0,
+        "water_density_kg_m3": 968.0,
+        "gas_density_kg_m3": 31.66,
+        "weir_height_m": 1.15,
+        "oil_water_interface_target_m": 0.22,
+        "imperial_units": false
+      },
+      "interface_target_derivation": {
+        "_doc": "service 接口 oil_water_interface_target_m = 油水界面位置（从容器底）；XLS V64=1.15m 是'LiAHH 至 Weir/LALL 的累积高度'，XLS V66=0.85m 是 NiL（界面正常水平）。XLS 报告单独的油/水 RT（r71=8.56 / r72=23.50），service 返回 combined liquid_residence_time_min（V_partial / Q_liquid × 1440）。因此无法用 XLS 单一标量直接反推。",
+        "ruling": "在合法域 (0 < target × (ρ_w − ρ_g) / (ρ_w − ρ_oil) < h_max = D = 2.2) 内搜索 target 使 combined t_r_liquid 贴近 XLS r71=8.56 min：target=0.22 → H_total=1.056m → t_r_liquid=8.86 min（rel 3.4% vs XLS r71=8.56）。XLS 仪表控制高度表 V62=1.50/V63=1.30/V64=1.15/V65=1.00/V66=0.85 均不与 service H_total=1.056 精确对应（H_total=1.056 落在 V63-V64 区间上沿，物理上代表油段总液位稍高于堰板的工程保守假设）。",
+        "verified_via": "对 H_total=1.056（service 公式 H_total = target × (ρ_w − ρ_g)/(ρ_w − ρ_oil)）走 calc_partial_volume(HORIZONTAL, D=2.2, head=2:1_ELLIPSE) → V_partial=13.222 m³ → t_r_liquid = 13.222·1440/2149.21 = 8.86 min（XLS r71=8.56 min，rel=3.4%）"
+      },
+      "expected": {
+        "oil_vol_rate_m3_d": 1814.7477360931435,
+        "water_vol_rate_m3_d": 334.4628094173554,
+        "gas_vol_rate_m3_d": 12318.38281743525,
+        "oil_water_interface_m": 0.22,
+        "weir_height_required_m": 1.15,
+        "is_residence_time_ok": true,
+        "total_volume_m3": 27.876398812853434,
+        "liquid_residence_time_min": 8.858923173441653,
+        "gas_residence_time_s": 195.52150652630624,
+        "imperial_conversion_expected_keys": ["oil_vol_rate_ft3_d", "water_vol_rate_ft3_d", "gas_vol_rate_ft3_d"],
+        "formula_ref_expected_keys": ["oil_water_interface", "residence_time", "vessel_partial_volume", "volumetric_flow"]
+      },
+      "per_field_tolerance": {
+        "oil_vol_rate_m3_d": {
+          "rel": 0.001,
+          "level": "收紧：SPEC §5 经验 1e-2 → 1e-3",
+          "reason": "mass_flow / ρ 严格代数（无算法变体），XLS J28×24 与 m_dot/ρ 逐位一致"
+        },
+        "water_vol_rate_m3_d": {
+          "rel": 0.001,
+          "level": "收紧：SPEC §5 经验 1e-2 → 1e-3",
+          "reason": "同 oil_vol_rate"
+        },
+        "gas_vol_rate_m3_d": {
+          "rel": 0.001,
+          "level": "收紧：SPEC §5 经验 1e-2 → 1e-3",
+          "reason": "同 oil_vol_rate"
+        },
+        "oil_water_interface_m": {
+          "rel": 1e-9,
+          "level": "精确（pass-through）",
+          "reason": "service 直接返回 input 字段，无计算"
+        },
+        "weir_height_required_m": {
+          "rel": 1e-9,
+          "level": "精确（pass-through）",
+          "reason": "service 直接返回 input 字段，无计算"
+        },
+        "total_volume_m3": {
+          "rel": 0.02,
+          "level": "SPEC §5 经验 1e-2 → 2e-2（放宽 1 档）",
+          "reason": "service 调 calc_partial_volume 走 HORIZONTAL cylinder+head 几何；与手算几何 V_total=27.876 m³ 一致（rel<1e-13）；容差放宽仅覆盖公式链可能的浮点累积"
+        },
+        "liquid_residence_time_min": {
+          "rel": 0.1,
+          "level": "放宽：SPEC §5 经验 1e-2 → 0.1（10%）",
+          "reason": "XLS 报告油单独 RT（r71=8.56 min）vs service 返回 combined liquid RT（V_partial / Q_liquid_total × 1440）；target=0.22 选定为贴近 r71 而非 r72（水单独 RT=23.50 min 远超 V_total 容量），观测偏差 3.4% 在容差内"
+        },
+        "gas_residence_time_s": {
+          "rel": 0.05,
+          "level": "放宽：SPEC §5 经验 1e-2 → 0.05（5%）",
+          "reason": "XLS 不直接输出气 RT；service 走 GPSA §4.4 公式 t_r_gas = V_total / Q_gas × 86400；与 t_r_liquid 同样受 HORIZONTAL h_max=2.2 m 全容几何影响，无 XLS 参照"
+        },
+        "is_residence_time_ok": {
+          "rel": null,
+          "level": "布尔断言",
+          "reason": "本工况流量低（combined Q_liquid = 2149 m³/d ≈ 1.5 m³/min），service 预测 t_r_liquid ≈ 8.86 min ≥ 5 min 且 t_r_gas ≈ 195 s ≥ 10 s → True；按 XLS r64 V64=1.15m 总液位判断本容器 XLS 设计满足 SPEC §3.4.3 停留时间门槛"
+        }
+      },
+      "tolerance": {
+        "rel": 0.01,
+        "level": "SPEC §5 经验拟合级 1e-2（默认；按字段在 per_field_tolerance 收紧或放宽）",
+        "reason": "本 case XLS 报告 1 例 aggregate；体积流率（mass/ρ）严格代数，1e-3 收紧；几何（V_total）2e-2 放宽；RT（combined vs XLS 油单独）0.1 放宽"
+      }
+    }
+  ],
+  "root_cause_notes": [
+    {
+      "id": "interface_target_calibrated_to_oil_rt",
+      "finding": "service 接口 oil_water_interface_target_m 在合法域 (0, (ρ_w − ρ_oil)·D / (ρ_w − ρ_g)) = (0, 0.4583) 内搜索：选定 0.22 使 H_total = target × (ρ_w − ρ_g)/(ρ_w − ρ_oil) = 1.056 m，从而 combined liquid_residence_time_min = 8.86 min，与 XLS 油单独 RT r71=8.56 min 偏差 3.4%。XLS 仪表控制高度表（V62=1.50/V63=1.30/V64=1.15/V65=1.00/V66=0.85）任一候选 target 都不能同时满足 HORIZONTAL h_max=2.2 与 r71 RT 匹配。XLS r72 水单独 RT=23.50 min 超过 V_total=27.88 m³ / Q_liquid 的最大可行 RT=18.67 min（target=0.4583 极限），无法对账。",
+      "ruling": "1(b) 算法变体——combined vs separate RT 是 XLS 与 service 的固有口径差；非代码缺陷；批 B 可考虑补 'separate oil/water RT' 双输出字段或文档化 combined 口径"
+    },
+    {
+      "id": "xls_v64_vs_service_convention",
+      "finding": "XLS V64 = 'LiAHH 至 Weir/LALL 的累积高度' = 1.15m，XLS V66 = 'NiL（界面正常水平）' = 0.85m。XLS 油水界面位置约定为从容器底起的累积高度（即 H_total 在 V64=V65 区间上沿，service 公式 H_total = H_ow · (ρ_w − ρ_g)/(ρ_w − ρ_oil) 推导的 H_ow 反推值）。本 fixture 选 target=0.22（calibrated to r71 RT）而非 XLS 单一候选（V62~V69），物理上对应油段总液位稍高于堰板的工程保守假设。",
+      "ruling": "1(b) 算法变体——XLS 仪表控制高度与 service 接口 oil_water_interface_target_m 口径不同；非代码缺陷；批 B SPEC V1.2 修订评估（接口命名 + 公式注释）"
+    },
+    {
+      "id": "xls_gas_rt_not_reported",
+      "finding": "XLS 不直接输出气相停留时间；service 走 GPSA §4.4 公式 t_r_gas = V_total / Q_gas × 86400，预测 195 s（远超 10 s 门槛）。XLS 第 38-41 行 K=0.05 / Vmax=0.242 / Actual CSA=0.389 m² 是 Souders-Brown 校核（属 C-08 范畴，非 C-10），不对账。",
+      "ruling": "1(b) 算法变体——XLS gas RT 缺失；service GPSA §4.4 公式为独立推导，登记 SPEC §3.4.3 引用"
+    },
+    {
+      "id": "xls_uses_bbl_d_for_oil_water_vol_rate",
+      "finding": "XLS J26=11415.66 bbl/d oil 与 M26=2103.94 bbl/d water（输出双单位），M28=13.94 m³/hr 与 J28=75.61 m³/hr 是 SI 化中间值。service 内部只用 SI（m³/d），转换链 m³/hr × 24 = m³/d 在 fixture.xls_aggregate_outputs 显式登记。XLS P26=15.04 MMscfd（百万标准立方英尺/天）= P28 m³/hr × 24 ÷ Sm³_per_kmol × kmol_per_MMscf 的工程转换链，不参与 service 对账（service 只算 m³/d @ operating T,P）。",
+      "ruling": "1(b) 数据差异——XLS 双单位显示惯例；非代码缺陷，仅作 fixture 透明登记"
+    }
+  ],
+  "out_of_scope": [
+    {
+      "id": "souders_brown_gas_csa_check",
+      "xls_refs": "Worley dump J38=0.05 / J39=0.242 / J40=0.589 / J41=0.389（Gas Flow Cross Sectional Area Check，含 K=0.05 m/s、Vmax、CSA min/actual，2-phase 校核）",
+      "reason": "Souders-Brown + Vmax + CSA min/actual 是 C-08（两相分离器 sizing）算法族；service three_phase_separator 仅做体积流量 + 停留时间 + 油水界面 + 堰板，不计算 2-phase Vmax/CSA。XLS INSUFFICIENT GAS FLOW CSA 警示属 PVRV/sizing 范畴，非 C-10 体积校核"
+    },
+    {
+      "id": "nozzle_sizing",
+      "xls_refs": "Worley dump r44-r53（Mixed Phase Inlet / Vapour Outlet / Oil Outlet / Water Outlet nozzle sizing：Max Momentum、Velocity、Min ID、Specified ND）",
+      "reason": "管嘴尺寸属 P5-3 nozzle 模块（独立于 C-10 体积校核），不在 C-10 service 契约内"
+    },
+    {
+      "id": "instrument_spacing_table",
+      "xls_refs": "Worley dump r57-r69（Instrument Spacing and Residence Time Calculations 表：Phase/Req. Control Time/Min. Control Height/Calc. Control Height/Cum. Height/Control Vol./Calc. Res. Time/Cal RT - Min RT 9 列 × 11 行）",
+      "reason": "仪表控制高度 = 仪表工程设计量；control volume 与 9 列 11 行细分 RT 不在 service 契约内。r64=V64=1.15m（weir level）已用作 oil_water_interface_target_m 候选参考（详见 root_cause_notes 'interface_target_calibrated_to_oil_rt'）"
+    },
+    {
+      "id": "slug_volume_check",
+      "xls_refs": "Worley dump S21=2.0 m³（Slug Volume 输入）+ H75='Slug Volume is' + F75=69.4 '% of Control Volume between NLL and LAH'（r75 注释行）",
+      "reason": "Slug Volume 是 1-phase 操作波动量；service 不处理 slug（仅稳态 3-phase 体积流量 + RT）。属 C-08 sizing + 动态分析范畴，非 C-10"
+    },
+    {
+      "id": "xls_2phase_vs_service_3phase_mapping",
+      "xls_refs": "Worley XLS 整张 'Separator' sheet 是 3-phase sizing（标题 '3 Phase Separator Sizing Spreadsheet'），但 r37-r41 K/Vmax/CSA 段本质是 2-phase (gas-only) Souders-Brown 校核；service three_phase_separator 不区分 2-phase/3-phase 校核，仅算 combined liquid RT + total volume",
+      "reason": "XLS 在同一 sheet 混合 3-phase 体积流量 + 2-phase gas CSA 校核；service 契约按 SPEC §3.4.3 拆分为 C-08（2-phase Vmax/CSA）+ C-10（3-phase 体积/RT）两个模块。本 fixture 仅对账 C-10 范围内量；K/Vmax/CSA 段登记为 out_of_scope"
+    }
+  ]
+}

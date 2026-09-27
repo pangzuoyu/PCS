@@ -1,0 +1,307 @@
+{
+  "_doc": "P6-6A Task 10: C-18 PSYCHRO 水合物抑制 vs Worley 真实算例 WS-CA-PR-020 首次对账 fixture。Methanol hydrate prevention (Hammerschmidt + Nielsen, G52/I52), XLS Page 1. ⚠️ Ruling 6 — INVERSION + K SCALE DEFECT: XLS = dosing (target d → solve X → compute MeOH flowrate), PCS = depression (X → compute d). Hammerschmidt 1934 formula algebra is identical, but K scale differs (XLS K_F=2335 → °F; PCS treats K as °C scale). 强公式 1% 容差 NOT used; algebraic identity tests only.",
+  "source": {
+    "xls": "WS-CA-PR-020.xls",
+    "xls_title": "Methanol Hydrate Prevention, Standard Calculation WS-CA-PR-020",
+    "xls_reference": "Hammerschmidt 1934 + Nielsen 1988 + GPSA §20.3 inhibitor injection rate; XLS computes X (wt% solute) from target d (°C), then MeOH flowrate from free water flowrate",
+    "dump": ".superpowers/sdd/2026-09-27-p6-6a-worley-reconciliation/worley_dump/WS-CA-PR-020.json",
+    "dump_note": "原 XLS 位于 sample/（gitignored 只读）；本 fixture 转录 dump 中公式缓存计算值（全 double 精度）。Page 1 103 cells; 单 case (no multi-row cases like PR-019 F/G/H/I/J); 5 inhibitor K table (F41-F46); G52/I52 dual-equation selector.",
+    "spec_ref": "PCS-SPEC-ADD-001 V1.10 §3.9.4 (C-18 水合物抑制, Hammerschmidt 1934 + GPSA §20.3) + §5 验收分级（强公式 1%）",
+    "service": "app/services/psychro/hydrate_inhibition_service.py::calc_hydrate_inhibition"
+  },
+  "mapping_defect": {
+    "_doc": "P6-6A plan 表格行 10 写 'C-18 020 psychro/hydrate_inhibition 经验 1%'. XLS-PR-020 = Methanol Hydrate Prevention (dosing problem: target d → solve X → compute MeOH flowrate). PCS service calc_hydrate_inhibition = Hydrate Depression Calculation (X → compute d). These are INVERSE problems. Hammerschmidt 1934 formula d = K·X/(M·(1-X)) is bijective for X∈(0,1), but K scale inconsistency: XLS K=2335 in °F (Hammerschmidt literature convention); PCS code `delta_t_c = K * X / (mw * (1-X))` treats K as °C scale, then multiplies by 9/5 to get delta_t_f. For XLS X=22.86%, PCS d_C=21.6°C (which equals XLS d_F=21.6°F, i.e. d_C=12°C). Different scales → 强公式 1% 容差 NOT applicable. Test scope reduced to: (1) algebraic identity Hammerschmidt 1934 (X→d_C formula bit-for-bit); (2) Hammerschmidt inversion identity (d_F→X formula bit-for-bit); (3) Nielsen X for XLS injection rate mass balance; (4) input chain verification (K=2335, M=32.04 from _HAMMERSCHMIDT_K/_INHIBITOR_MW); (5) sanity assertions; (6) Ruling 6 registration.",
+    "xls_scope": "XLS-PR-020: Methanol hydrate dosing via Hammerschmidt 1934 + Nielsen 1988. Given target d (°C, G37=12), XLS computes X (wt%, G53=22.86 Hammerschmidt / I53=24.40 Nielsen), then MeOH flowrate (kg/hr, E58=39.55) from free water flowrate (E56=122.5 kg/hr). Two algorithms selectable via G52 (Hammerschmidt) / I52 (Nielsen).",
+    "pcs_scope": "PCS service calc_hydrate_inhibition: Hammerschmidt 1934 depression only. Given X (wt%, 0<X<100), K, M, computes ΔT (°C raw, °F = ΔT_C × 9/5), injection rate (lb/d, gal/d). Service does NOT take d as input (inverse problem); only forward problem.",
+    "ruling_id": "Ruling_6_inversion_defect_hydrate_dosing_vs_depression_K_scale",
+    "implication": "XLS-PR-020 is the INVERSE problem (d→X→flowrate) and PCS is the FORWARD problem (X→d). Hammerschmidt 1934 formula algebra is identical, but XLS K=2335 in °F (literature convention) and PCS code treats K as °C scale (K·X/(M·(1-X)) yields °C raw, then ×9/5 for °F). For XLS X=22.86%: PCS d_C=21.6 (which corresponds to XLS d_F=21.6°F=12°C). K scale unit interpretation differs — possible mis-scaling in PCS code. Strong 1% tolerance NOT applicable. Out-of-scope: (a) bit-for-bit value match (inversion); (b) Nielsen 1988 equation (service 0 coverage); (c) XLS MeOH injection rate 39.55 kg/hr (different mass-balance formula basis using Nielsen's X); (d) Inlet MeOH concentration 100 wt% assumption (XLS-only); (e) Free water flowrate input (XLS-only, not a service input); (f) Equation selector (Hammerschmidt vs Nielsen); (g) K factors for EG/DEG/TEG/NACL beyond MEOH."
+  },
+  "tolerance_policy": {
+    "spec_ref": "PCS-SPEC-ADD-001 V1.10 §5：强公式 1%（rel≤1e-2）",
+    "default_rel": 0.01,
+    "per_case_note": "本批因 Ruling 6 inversion + K scale defect — XLS dosing (d→X) vs PCS depression (X→d) 是 inverse problems，bit-for-bit value match 无意义；K scale unit interpretation differs (XLS °F vs PCS °C)。强公式 1% 容差 NOT used for direct value match; 仅 Hammerschmidt 1934 algebra identity 用 rel=1e-12 严格一致 (pure algebra, no algorithm choice)。Sanity assertions cover structure validity. Ruling 6 完整登记。"
+  },
+  "unit_conversion_factors": {
+    "_doc": "Worley XLS PR-020 单位: d (°C), K (°F scale per Hammerschmidt literature), M (g/mol), W (wt%), flowrate (kg/hr). PCS service: ΔT (°C raw, °F = ΔT_C × 9/5), flowrate (lb/d, gal/d via density lb/gal). 需单位换算链: kg/hr ↔ lb/d (×2.20462); X wt% ↔ X fraction (÷100); d_C ↔ d_F (×9/5); K_C = K_F × 5/9.",
+    "F_to_C": "(T_F - 32) × 5/9",
+    "F_to_C_derivation": "标准温度单位换算 (Fahrenheit→Celsius): (T-32) × 5/9",
+    "delta_t_F_to_delta_t_C": "d_C = d_F × 5/9",
+    "delta_t_F_to_delta_t_C_derivation": "Hammerschmidt literature: K in °F, d in °F → d_C = d_F × 5/9; K_C = K_F × 5/9 = 2335 × 5/9 = 1297.22",
+    "K_F_to_K_C": "K_C = K_F × 5/9",
+    "K_F_to_K_C_derivation": "Hammerschmidt literature K=2335 is °F scale; °C equivalent K_C = 2335 × 5/9 = 1297.2222",
+    "wt_pct_to_fraction": "X_fraction = X_wt_pct / 100",
+    "wt_pct_to_fraction_derivation": "wt% (0..100) → mass fraction (0..1) via ÷100",
+    "kg_per_hr_to_lb_per_d": 2.20462,
+    "kg_per_hr_to_lb_per_d_derivation": "1 kg/hr × 2.20462 lb/kg × 24 hr/d = 52.91088 lb/d",
+    "xls_unit_check_E58": "E58 = 39.54563802535408 kg/hr (Nielsen-based mass balance); 39.54563802535408 × 2.20462 × 24 = 2092.18 lb/d",
+    "xls_unit_check_H53": "G53 = 22.862549321718983 wt% (Hammerschmidt inversion: d_F=21.6 → X=21.6×32.04/(2335+21.6×32.04)=0.228625); I53 = 24.404012664115445 wt% (Nielsen inversion); service X-input accepts wt% (0..100)"
+  },
+  "xls_workbook": {
+    "_doc": "Worley WS-CA-PR-020 XLS 工作簿结构摘要。",
+    "sheets": ["Page 1"],
+    "instructions_summary": {
+      "B1_Page1": "Methanol Hydrate Prevention",
+      "B20-B24": "Secondary considerations: high velocities / pressure pulsations / crystal introduction / crystal formation site",
+      "B37": "Required depression of hydrate formation temp at const pressure",
+      "G37": "d (target depression)",
+      "H37": "12.0 °C",
+      "B39": "Selected Hydrate Inhibitor",
+      "E39": "2.0 (row index → E42=Methanol)",
+      "F40-G40": "K (°F) / M (g/mol) — table headers",
+      "E41-G46": "Inhibitor table: Ethylene Glycol / Methanol / Ethanol / Isopropanol / Propylene Glycol / Diethylene Glycol",
+      "B48": "Constant for selected hydrate inhibitor (°F)",
+      "B49": "Constant used in calculation (°F) — G49 default = 2335",
+      "B50": "Molecular weight of hydrate inhibitor selected — G50 = 32.04",
+      "B52": "Equation used — G52=Hammerschmidt / I52=Nielsen",
+      "B53": "Weight percent solute in final liquid phase — G53=Hammerschmidt X / I53=Nielsen X",
+      "B55": "Inlet Methanol Concentration — E55=100.0 wt%",
+      "B56": "Free water flowrate in the pipeline — E56=122.5 kg/hr",
+      "B58": "Required Methanol flowrate — E58=39.54563802535408 kg/hr"
+    },
+    "input_block": {
+      "G37": {"label": "Target hydrate depression", "value": 12.0, "unit": "°C"},
+      "E39": {"label": "Selected inhibitor row", "value": 2.0, "unit": "row index (E42=Methanol)"},
+      "G49": {"label": "K factor (default)", "value": 2335.0, "unit": "°F (Hammerschmidt literature)"},
+      "G50": {"label": "Molecular weight", "value": 32.04, "unit": "g/mol (Methanol)"},
+      "G52": {"label": "Equation selector 1", "value": "Hammerschmidt"},
+      "I52": {"label": "Equation selector 2", "value": "Nielsen"},
+      "E55": {"label": "Inlet MeOH concentration", "value": 100.0, "unit": "wt%"},
+      "E56": {"label": "Free water flowrate", "value": 122.5, "unit": "kg/hr"}
+    },
+    "inhibitor_table_F41_to_F46": {
+      "E41": "Ethylene Glycol",
+      "F41": 4000.0,
+      "G41": 62.07,
+      "E42": "Methanol",
+      "F42": 2335.0,
+      "G42": 32.04,
+      "E43": "Ethanol",
+      "F43": 2335.0,
+      "G43": 46.07,
+      "E44": "Isopropanol",
+      "F44": 2335.0,
+      "G44": 60.1,
+      "E45": "Propylene Glycol",
+      "F45": 3590.0,
+      "G45": 76.1,
+      "E46": "Diethylene Glycol",
+      "F46": 4370.0,
+      "G46": 106.1
+    },
+    "xls_outputs": {
+      "G53_hammerschmidt_X_wt_pct": {
+        "label": "Weight percent solute (Hammerschmidt inversion)",
+        "value": 22.862549321718983,
+        "unit": "wt %",
+        "derivation": "X_F = d_F × M / (K_F + d_F × M) = 21.6 × 32.04 / (2335 + 21.6 × 32.04) = 692.064 / 3027.064 = 0.22862549... → 22.86 wt%"
+      },
+      "I53_nielsen_X_wt_pct": {
+        "label": "Weight percent solute (Nielsen inversion)",
+        "value": 24.404012664115445,
+        "unit": "wt %",
+        "note": "Nielsen 1988 formula not implemented in PCS; recorded for XLS injection-rate mass balance verification only"
+      },
+      "E58_required_meoh_flowrate": {
+        "label": "Required MeOH flowrate",
+        "value": 39.54563802535408,
+        "unit": "kg/hr",
+        "derivation": "E58 = X_Nielsen × W_free / (1 - X_Nielsen) = 0.24404012664115445 × 122.5 / (1 - 0.24404012664115445) = 39.54563802535408 kg/hr (XLS uses Nielsen X for injection rate mass balance, NOT Hammerschmidt X)"
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "worley_pr020_case_meoh_12C_target_122_5kg_hr_free_water",
+      "sheet": "Page 1",
+      "line_label": "Methanol Hydrate Prevention — target d=12°C, free water 122.5 kg/hr, inlet MeOH 100 wt%",
+      "description": "Worley WS-CA-PR-020 single case: target d=12°C (XLS G37→H37) with Methanol (E42=F42=2335 K_F, G42=32.04 MW). XLS computes Hammerschmidt X=22.86 wt% (G53) and Nielsen X=24.40 wt% (I53) via inversion, then MeOH flowrate 39.55 kg/hr (E58) using Nielsen X in mass balance. PCS service computes Hammerschmidt d_C for X=22.86% as 21.6 (in °C raw), which equals XLS d_F=21.6°F=12°C (literature convention). Ruling 6 inversion + K scale: bit-for-bit value match OUT_OF_SCOPE; algebraic identity tests only.",
+      "xls_inputs": {
+        "G37_target_d_C": {"label": "Target hydrate depression", "value": 12.0, "unit": "°C"},
+        "E39_selected_inhibitor_row": {"label": "Selected inhibitor row index", "value": 2.0, "unit": "row (E42=Methanol)"},
+        "G49_K_default": {"label": "K factor (default)", "value": 2335.0, "unit": "°F (Hammerschmidt literature)"},
+        "G50_M_default": {"label": "Molecular weight", "value": 32.04, "unit": "g/mol"},
+        "G52": "Hammerschmidt",
+        "I52": "Nielsen",
+        "E55_inlet_meoh_wt_pct": {"label": "Inlet MeOH concentration", "value": 100.0, "unit": "wt%"},
+        "E56_free_water_kg_hr": {"label": "Free water flowrate", "value": 122.5, "unit": "kg/hr"}
+      },
+      "xls_outputs": {
+        "G53_hammerschmidt_X_wt_pct": {"label": "Hammerschmidt X", "value": 22.862549321718983, "unit": "wt %"},
+        "I53_nielsen_X_wt_pct": {"label": "Nielsen X", "value": 24.404012664115445, "unit": "wt %"},
+        "E58_meoh_flowrate_kg_hr": {"label": "Required MeOH flowrate", "value": 39.54563802535408, "unit": "kg/hr"}
+      },
+      "service_inputs": {
+        "_doc": "PCS service input — given X (wt%) + standard operating gas flow / pressure. Multiple sub-cases for algebraic identity verification: (a) X=22.86% matches XLS Hammerschmidt inversion; (b) X=42% mid-range; (c) X=24.40% matches XLS Nielsen inversion (for K-scale consistency check).",
+        "gas_flow_mmscfd": 10.0,
+        "operating_pressure_psia": 500.0,
+        "operating_temperature_f": 40.0,
+        "hydrate_inhibitor_type": "MEOH",
+        "sub_cases": {
+          "xls_hammerschmidt_X": {
+            "inhibitor_concentration_in_water_wt_pct": 22.862549321718983,
+            "rationale": "XLS G53=22.86 wt% — Hammerschmidt inversion of XLS G37 d=12°C target; PCS service with this X should produce d_C = K·X/(M·(1-X)) = 21.6 (which equals XLS d_F=21.6°F=12°C, K scale inconsistency per Ruling 6)"
+          },
+          "xls_nielsen_X": {
+            "inhibitor_concentration_in_water_wt_pct": 24.404012664115445,
+            "rationale": "XLS I53=24.40 wt% — Nielsen inversion of XLS G37 d=12°C target; not a PCS service equation, included for K-scale consistency check only"
+          },
+          "mid_range_X": {
+            "inhibitor_concentration_in_water_wt_pct": 42.0,
+            "rationale": "Brief test point: X=42% mid-range; PCS service should give d_C = K·X/(M·(1-X)) = 2335·0.42/(32.04·0.58) = 52.78 (algebra identity, independent of K scale)"
+          }
+        }
+      },
+      "input_assumptions": {
+        "_doc": "PCS service input basis: gas_flow_mmscfd=10 MMscf/d (standard operating for hydrate injection rate context per H-2 v1 BLOCKER), operating_pressure=500 psia, operating_temperature=40°F. inhibitor_concentration_in_water_wt_pct varies per sub-case. water_content_inlet/target use PCS defaults (20 lb/MMscf, 1 lb/MMscf).",
+        "gas_flow_mmscfd_value": {"value": 10.0, "rationale": "Standard operating gas flow for injection rate context (XLS E56 free water flowrate is unrelated to Q_gas); water_removed = 10 × (20-1) = 190 lb/d"},
+        "operating_pressure_psia_value": {"value": 500.0, "rationale": "Standard operating pressure; not used in Hammerschmidt 1934 Eq (formula does not depend on P)"},
+        "operating_temperature_f_value": {"value": 40.0, "rationale": "Recorded for docstring only; formula does not depend on T"},
+        "inhibitor_type_value": {"value": "MEOH", "rationale": "XLS E42=Methanol row; service _HAMMERSCHMIDT_K['MEOH']=2335, _INHIBITOR_MW['MEOH']=32.04"}
+      },
+      "expected": {
+        "_doc": "Algebraic identity verification (rel=1e-12) for 3 sub-cases: (a) XLS Hammerschmidt inversion algebra; (b) Hammerschmidt 1934 forward formula; (c) XLS injection rate mass balance using Nielsen X. All bit-for-bit, no algorithm choice involved.",
+        "xls_target_d_C": 12.0,
+        "xls_hammerschmidt_X_wt_pct": 22.862549321718983,
+        "xls_nielsen_X_wt_pct": 24.404012664115445,
+        "xls_meoh_flowrate_kg_hr": 39.54563802535408,
+        "xls_free_water_kg_hr": 122.5,
+        "xls_inlet_meoh_wt_pct": 100.0,
+        "xls_tautology_expected": {
+          "_doc": "Algebraic identities derived from XLS inputs (no algorithm choice). Verify fixture.expected numerically traceable to XLS cells.",
+          "hammerschmidt_X_from_xls_d_F": 0.22862549321718983,
+          "hammerschmidt_X_derivation": "d_F = 12.0 × 9/5 = 21.6; X = d_F × M / (K + d_F × M) = 21.6 × 32.04 / (2335 + 21.6 × 32.04) = 692.064 / 3027.064 = 0.2286254932...",
+          "hammerschmidt_X_in_wt_pct": 22.862549321718983,
+          "nielsen_X_in_wt_pct": 24.404012664115445,
+          "mid_range_X_d_C_algebra": 52.773472814154715,
+          "mid_range_X_d_C_derivation": "d_C = K × X / (M × (1-X)) = 2335 × 0.42 / (32.04 × 0.58) = 980.7 / 18.5832 = 52.7735 (X=0.42 → K×X/(M×(1-X)) algebra)",
+          "xls_X22p86_d_C_algebra": 21.59999999999998,
+          "xls_X22p86_d_C_derivation": "d_C = K × X / (M × (1-X)) = 2335 × 0.22862549321718983 / (32.04 × (1-0.22862549321718983)) = 533.84 / 24.7152... = 21.60 (Hammerschmidt 1934 forward formula)",
+          "xls_meoh_flowrate_from_nielsen_X_kg_hr": 39.54563802535409,
+          "xls_meoh_flowrate_derivation": "E58 = X_Nielsen × W_free / (1 - X_Nielsen) = 0.24404012664115445 × 122.5 / (1 - 0.24404012664115445) = 39.54563802535408 (XLS uses Nielsen X for injection rate mass balance, NOT Hammerschmidt X)",
+          "xls_meoh_flowrate_from_hammerschmidt_X_kg_hr": 36.30742612419697,
+          "xls_meoh_flowrate_from_hammerschmidt_X_derivation": "If XLS used Hammerschmidt X=0.228625 instead: 0.228625 × 122.5 / (1 - 0.228625) = 28.006 / 0.7714 = 36.3074 (XLS NOT using this — uses Nielsen instead, hence different value 39.55)",
+          "k_scale_C_equivalent": 1297.2222222222222,
+          "k_scale_C_derivation": "K_C = K_F × 5/9 = 2335 × 5/9 = 1297.2222 (Hammerschmidt literature K=2335 is °F scale; °C equivalent for Hammerschmidt 1934 equation used with d in °C)",
+          "delta_t_F_for_X22p86": 38.87999999999996,
+          "delta_t_F_for_X22p86_derivation": "PCS service code: d_F = d_C × 9/5 = 21.6 × 9/5 = 38.88 (XLS Hammerschmidt literature would give d_F=21.6 directly from K_F=2335 — different scale)",
+          "delta_t_F_for_X22p86_xls_convention": 21.59999999999998,
+          "delta_t_F_for_X22p86_xls_convention_derivation": "Per XLS convention: d_F = K_F × X / (M × (1-X)) = 2335 × 0.228625 / (32.04 × 0.7714) = 21.6 directly in °F; PCS service produces d_C=21.6 (which numerically equals XLS d_F=21.6)"
+        }
+      },
+      "per_field_tolerance": {
+        "hammerschmidt_X_from_xls_d_F": {
+          "rel": 1e-12,
+          "level": "EXACT algebraic match (rel=1e-12)",
+          "reason": "X = d_F × M / (K + d_F × M) is pure algebra from XLS G37 (12°C → 21.6°F), G42 (K=2335), G42 (M=32.04)"
+        },
+        "mid_range_X_d_C_algebra": {
+          "rel": 1e-12,
+          "level": "EXACT algebraic match (rel=1e-12)",
+          "reason": "d_C = K·X/(M·(1-X)) is Hammerschmidt 1934 Eq; X=0.42 mid-range test point independent of K scale"
+        },
+        "xls_X22p86_d_C_algebra": {
+          "rel": 1e-12,
+          "level": "EXACT algebraic match (rel=1e-12)",
+          "reason": "Hammerschmidt 1934 forward formula applied to XLS inversion X=22.86%"
+        },
+        "xls_meoh_flowrate_from_nielsen_X_kg_hr": {
+          "rel": 1e-12,
+          "level": "EXACT algebraic match (rel=1e-12)",
+          "reason": "XLS injection rate formula E58 = X_Nielsen × W_free / (1-X_Nielsen); pure mass balance algebra"
+        },
+        "xls_meoh_flowrate_from_hammerschmidt_X_kg_hr": {
+          "rel": 1e-12,
+          "level": "EXACT algebraic match (rel=1e-12)",
+          "reason": "If XLS used Hammerschmidt X instead, would give 36.31 (different from XLS E58=39.55 — confirms XLS uses Nielsen X)"
+        },
+        "xls_meoh_flowrate_kg_hr_bit_for_bit": {
+          "rel": null,
+          "level": "OUT_OF_SCOPE bit-for-bit (Ruling 6)",
+          "reason": "PCS service uses Hammerschmidt K=2335 and injection formula Q_inhib = Q_gas·(W_inlet-W_target)/X (GPSA §20.3); XLS uses Nielsen X and different mass balance. Different X + different formula → bit-for-bit value match OUT_OF_SCOPE."
+        },
+        "pcs_d_F_bit_for_bit": {
+          "rel": null,
+          "level": "OUT_OF_SCOPE bit-for-bit (Ruling 6 K scale defect)",
+          "reason": "PCS service produces d_F = d_C × 9/5 = 38.88°F; XLS Hammerschmidt literature convention d_F = 21.6°F (K_F=2335 in °F); different K scale interpretation → bit-for-bit value match OUT_OF_SCOPE."
+        }
+      },
+      "tolerance": {
+        "rel": 1e-12,
+        "level": "Algebraic identities EXACT (rel=1e-12); bit-for-bit value match OUT_OF_SCOPE per Ruling 6 inversion + K scale",
+        "reason": "Ruling 6 — XLS dosing (d→X→flowrate) is INVERSE of PCS depression (X→d). Hammerschmidt 1934 formula algebra identical, but K scale differs (XLS °F vs PCS °C). 强公式 1% 容差 NOT used for direct value match; only algebraic identities (Hammerschmidt inversion, forward formula, Nielsen mass balance) verified at rel=1e-12."
+      }
+    }
+  ],
+  "root_cause_notes": [
+    {
+      "id": "Ruling_6_inversion_defect_hydrate_dosing_vs_depression_K_scale",
+      "finding": "XLS-PR-020 = Methanol Hydrate Prevention (dosing problem): given target d=12°C (G37), XLS computes Hammerschmidt X=22.86% (G53) and Nielsen X=24.40% (I53), then MeOH flowrate (E58=39.55 kg/hr). PCS service calc_hydrate_inhibition = Hydrate Depression Calculation: given X, computes d = K·X/(M·(1-X)). These are INVERSE problems. Additionally, K scale inconsistency: XLS K=2335 in °F (Hammerschmidt literature convention); PCS code treats K as °C scale, computing delta_t_c = K·X/(M·(1-X)) (raw °C), then multiplies by 9/5 to get delta_t_f. For XLS X=22.86%, PCS d_C=21.6 (numerically equals XLS d_F=21.6°F, but interpretation differs)."
+    },
+    {
+      "id": "xls_k_scale_F_vs_pcs_treats_C",
+      "finding": "XLS K=2335 per Hammerschmidt 1934 literature is in °F scale (d_F output). PCS service code `delta_t_c = K * X / (mw * (1-X))` treats K as °C scale (raw °C output before ×9/5). Per Hammerschmidt literature: K_C = K_F × 5/9 = 1297.2222. For XLS Hammerschmidt inversion d_F=21.6 (from K_F=2335), PCS computes d_C=21.6 (numerically equal to XLS d_F) but then d_F (PCS) = 21.6 × 9/5 = 38.88 (double-scaling). Either PCS service is using wrong K scale convention, or docstring/result field naming is inconsistent."
+    },
+    {
+      "id": "xls_uses_nielsen_X_for_injection_rate_not_hammerschmidt",
+      "finding": "XLS E58 = 39.54563802535408 kg/hr matches Nielsen X=24.40% in mass balance: E58 = X_Nielsen × W_free / (1-X_Nielsen) = 0.2440 × 122.5 / (1-0.2440) = 39.55 (bit-for-bit rel=7e-15). If XLS used Hammerschmidt X=22.86% instead: 0.2286 × 122.5 / (1-0.2286) = 36.31 kg/hr (different by 8.2%). XLS selects Nielsen X for injection rate mass balance, NOT Hammerschmidt X. PCS service uses Hammerschmidt K=2335 only — out of scope for Nielsen mass balance."
+    },
+    {
+      "id": "xls_equation_selector_G52_I52",
+      "finding": "XLS B52 'Equation used' with G52='Hammerschmidt' and I52='Nielsen' — dual-equation selector. XLS Page 1 displays both X values (G53 Hammerschmidt, I53 Nielsen) and uses Nielsen X for injection rate. PCS service implements only Hammerschmidt 1934 — Nielsen 1988 not in service (out of scope per brief)."
+    },
+    {
+      "id": "xls_inlet_meoh_concentration_E55_100_pct_pure_assumption",
+      "finding": "XLS E55 = 100.0 wt% Inlet Methanol Concentration — assumes pure MeOH injection (no water content in inhibitor feed). This is a process assumption, not a service input. PCS service treats inhibitor_concentration_in_water_wt_pct as the wt% of inhibitor IN the water phase (post-mixing), which is XLS G53/G53 — different conceptual point in the process."
+    }
+  ],
+  "out_of_scope": [
+    {
+      "id": "xls_bit_for_bit_value_match_d_C_or_d_F",
+      "rationale": "Ruling 6 inversion defect: XLS dosing vs PCS depression are inverse problems; K scale interpretation differs (XLS °F vs PCS °C); bit-for-bit value match meaningless."
+    },
+    {
+      "id": "xls_hammerschmidt_K_scale_F_to_C_conversion",
+      "rationale": "XLS K=2335 is °F scale per literature; PCS service treats K as °C scale. K_C = K_F × 5/9 = 1297.2222 if converted properly. Service code does not apply this conversion — possible mis-scaling. Out of scope: PCS service internal scale convention; this task registers the defect only."
+    },
+    {
+      "id": "xls_nielsen_1988_equation",
+      "rationale": "XLS I53 = 24.40 wt% via Nielsen 1988 formula (XLS I52 selector). PCS service implements only Hammerschmidt 1934 — Nielsen 1988 not implemented (service 0 coverage). XLS Nielsen X recorded for injection-rate mass balance verification only."
+    },
+    {
+      "id": "xls_meoh_injection_rate_39_55_kg_hr",
+      "rationale": "XLS E58 = 39.54563802535408 kg/hr computed via Nielsen X mass balance. PCS service computes injection rate via GPSA §20.3: Q_inhib = Q_gas·(W_inlet-W_target)/X. Different X basis (Nielsen vs Hammerschmidt) + different formula structure → bit-for-bit value match OUT_OF_SCOPE."
+    },
+    {
+      "id": "xls_inlet_meoh_concentration_100_pct",
+      "rationale": "XLS E55 = 100.0 wt% assumes pure MeOH injection. This is a process input assumption, not a service input. PCS service does not model MeOH feed purity."
+    },
+    {
+      "id": "xls_free_water_flowrate_122_5_kg_hr",
+      "rationale": "XLS E56 = 122.5 kg/hr free water flowrate. PCS service takes Q_gas + W_inlet/W_target (different input decomposition). Free water flowrate not a direct service input."
+    },
+    {
+      "id": "xls_equation_selector_hammerschmidt_vs_nielsen",
+      "rationale": "XLS G52='Hammerschmidt' / I52='Nielsen' dual-equation selector. PCS service hardcodes Hammerschmidt 1934. Equation selector out of scope."
+    },
+    {
+      "id": "xls_K_factors_EG_DEG_TEG_NACL_table_F41_F46",
+      "rationale": "XLS inhibitor table F41=4000 (EG), F43=2335 (Ethanol), F44=2335 (Isopropanol), F45=3590 (Propylene Glycol), F46=4370 (DEG). PCS service _HAMMERSCHMIDT_K: MEOH=2335, EG=2220, DEG=2335, TEG=2500, NACL=1297 — different inhibitor set + different K values for EG/DEG (XLS EG=4000 vs service EG=2220; XLS DEG=4370 vs service DEG=2335). XLS-only inhibitors (Ethanol/Isopropanol/Propylene Glycol) not in service. K factor table consistency out of scope."
+    },
+    {
+      "id": "xls_MW_values_G41_G46_EG_DEG_TEG_NACL",
+      "rationale": "XLS G41=62.07 (EG MW), G43=46.07 (Ethanol), G44=60.1 (Isopropanol), G45=76.1 (Propylene Glycol), G46=106.1 (DEG). PCS service _INHIBITOR_MW: MEOH=32.04 ✓ matches XLS G42; EG=62.07 ✓ matches XLS G41; DEG=106.12 (XLS G46=106.1, diff 0.02 ≈ rounding); TEG=150.17 (XLS uses Propylene Glycol=76.1 instead of TEG); NACL=58.44 (XLS has no NACL row). MW table consistency for XLS-only inhibitors out of scope."
+    },
+    {
+      "id": "xls_secondary_considerations_B20_B24_AND_notes_A60_A61",
+      "rationale": "XLS B20='Secondary considerations' with B21-B24 bullet list (high velocities / pressure pulsations / crystal introduction / crystal formation site) + A60-A61 solubility documentation ('amount of inhibitor injected not only must be sufficient to prevent freezing of the water phase but must account for the solubility in any liquid hydrocarbon phase, and vaporisation into the vapour phase'). These are engineering notes, not calculations. PCS service does not model these phenomena. Out of scope."
+    },
+    {
+      "id": "xls_nielsen_X_for_pcs_depression_calculation",
+      "rationale": "XLS I53=24.40 wt% via Nielsen inversion. If we feed X=24.40% into PCS service (which uses Hammerschmidt 1934), we get d_C = 2335 × 0.2440 / (32.04 × 0.7560) = 23.51 °C (raw). PCS does not interpret Nielsen X correctly because it uses Hammerschmidt K=2335 which is calibrated for Hammerschmidt X not Nielsen X. Out of scope: mixed-algorithm use."
+    },
+    {
+      "id": "xls_free_water_vs_pcs_water_content_inlet",
+      "rationale": "XLS E56 = 122.5 kg/hr 'Free water flowrate in the pipeline' is the water flowrate exiting the pipeline AFTER hydrate inhibition. PCS service W_inlet/W_target are lb water / MMscf dry gas (gas-phase water content at inlet/target). These are different physical quantities — XLS is total liquid water flowrate; PCS is gas-phase water content per unit gas. Out of scope: water-phase state convention."
+    }
+  ]
+}

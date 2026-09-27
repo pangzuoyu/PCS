@@ -1,0 +1,225 @@
+{
+  "_doc": "P6-6A Task 7: C-15 PIPE 持液率 vs Worley 真实算例 WS-CA-PR-016 首次对账 fixture。",
+  "source": {
+    "xls": "WS-CA-PR-016.xls",
+    "xls_title": "LIQUID HOLDUP CHANGE AND SLUG CATCHER SIZING, Standard Calculation WS-CA-PR-016, Case: Slug catcher onshore for Subsea Wells at Kipper",
+    "xls_reference": "Eaton's correlation 1967 (wet-gas pipelines, P≤1500 psig, flat topography) + Cunliffe method 1978 (slug catcher sizing)",
+    "dump": ".superpowers/sdd/2026-09-27-p6-6a-worley-reconciliation/worley_dump/WS-CA-PR-016.json",
+    "dump_note": "原 XLS 位于 sample/（gitignored 只读）；本 fixture 转录 dump 中公式缓存计算值（全 double 精度）。2 sheets（Instructions 27×2 / Calc 67×29）。Instructions 显式声明：'based on Eaton's correlation' + 'slugcatcher sizing based on the Cunliffe method'",
+    "spec_ref": "PCS-SPEC-ADD-001 V1.10 §3.2.3（C-15 PIPE 持液率与流型）+ §5 验收分级（图版 5%）",
+    "service": "app/services/pipe/holdup_correlation.py::calc_beggs_brill_holdup"
+  },
+  "mapping_defect": {
+    "_doc": "P6-6A plan 表格行 7 写 'C-15 016 pipe/holdup_correlation 图版 5%'，但 XLS-PR-016 主体用 Eaton 1967 + Cunliffe 1978 两套算法，与 PCS service 实现的 Beggs-Brill 1973 + Mandhane 1975 是不同持液率算法族。两套对'湿气管线持液率'给出相近 OoM 数量级（XLS RL≈0.13 / PCS h_L(0)≈0.14）但不应预期严格相等。处置：本批对账范围收窄至 input chain + sanity assertions + OoM cross-validation；Eaton's H_L + Cunliffe slug catcher 全 out_of_scope。",
+    "xls_correlation_family": "Eaton et al. 1967 (wet-gas, P≤1500 psig, relatively flat) + Cunliffe 1978 (slug catcher sizing)",
+    "pcs_correlation_family": "Beggs-Brill 1973 (H_L(0) + 倾角修正) + Mandhane 1975 (flow pattern map) + Eaton-Flanning 1967 (Fr range validation only)",
+    "ruling_id": "Ruling_4_mapping_defect_eaton_vs_beggs_brill",
+    "implication": "两套对账'湿气管线持液率'目标物理量，但公式族不同；不能 assert 严格相等。本 fixture 强制走 sanity + OoM cross-validation 路径，Eaton's NLV/NGV/ND/NL/NE/RL 全 out_of_scope。"
+  },
+  "tolerance_policy": {
+    "spec_ref": "PCS-SPEC-ADD-001 V1.10 §5：图版 5%（rel≤5e-2）",
+    "default_rel": 0.05,
+    "per_case_note": "本 case 因 Ruling 4 mapping defect（Eaton vs Beggs-Brill 不同算法族），实际对账范围仅含 input chain + sanity assertions + OoM cross-validation，不 assert 严格数值相等；每 case 的 per_field_tolerance 见 cases[].per_field_tolerance"
+  },
+  "unit_conversion_factors": {
+    "_doc": "Worley XLS PR-016 输入单位：ft³/min（Q）/ ft/s（VSG, VSL）/ in（D）/ lb/ft³（ρL）/ cp（μL）/ dyne/cm（σ）；输出 m³/s（Q）、m/s（VSG/VSL）、kg/m³（ρL）、Pa·s（μL）、N/m（σ）。PCS service 全 SI 输入。",
+    "ft3_per_min_to_m3_per_s": 4.7194744320000005e-4,
+    "ft3_per_min_derivation": "1 ft³/min = (0.3048)³ m³ / 60 s = 0.028316846592 m³ / 60 s = 4.719474432e-4 m³/s",
+    "ft_to_m": 0.3048,
+    "in_to_m": 0.0254,
+    "lb_per_ft3_to_kg_per_m3": 16.018463373960138,
+    "lb_per_ft3_derivation": "0.45359237 kg/lb / (0.3048 m/ft)³ = 16.018463373960138 kg/m³ per (lb/ft³)",
+    "cp_to_pa_s": 0.001,
+    "dyne_per_cm_to_n_per_m": 0.001,
+    "psia_to_pa": 6894.757293168361,
+    "xls_unit_check": "K20=0.1179868608 m³/s = 250 ft³/min × 4.719474432e-4；K21=0.0047194744 m³/s = 10 ft³/min × 4.719474432e-4；K23=880.99 kg/m³ = 55 × 16.01846337（XLS 内部保留 880.99 不带更高精度）；X20=21.22065907891938 ft/s；X21=0.8488263631567752 ft/s"
+  },
+  "xls_workbook": {
+    "_doc": "Worley WS-CA-PR-016 XLS 工作簿结构摘要。",
+    "sheets": ["Instructions", "Calc"],
+    "instructions_summary": {
+      "B2": "Based on 'Condensate flow in wet-gas lines can be predicted', R.S. Cunliffe, Oil and Gas Journal, Oct 30, 1978",
+      "B3": "First part uses Eaton's correlation to estimate liquid holdup (wet-gas pipelines, P≤1500 psig, flat topography)",
+      "B4": "Second part uses Cunliffe method to predict held-up liquid displacement (slug catcher sizing)"
+    },
+    "input_block": {
+      "range": "Calc H17-H24",
+      "H17_in": {"label": "Pipe internal diameter, D", "value": 6.0, "unit": "in"},
+      "H18_psia": {"label": "Pressure, P", "value": 400.0, "unit": "psia", "_note": "XLS 显式压力，但 service 不接收（P 仅供 Eaton 隐式 density 派生用；XLS 未提供 ρ_V/μ_V）"},
+      "H19_psia": {"label": "Base press for gas measurements, PB", "value": 14.7, "unit": "psia", "_note": "同上：XLS Eaton 输入但 service 不接收"},
+      "H20_ft3_per_min": {"label": "Gas flowrate, Q_gas", "value": 250.0, "unit": "actual ft³/min"},
+      "H21_ft3_per_min": {"label": "Liquid flowrate, Q_liq", "value": 10.0, "unit": "ft³/min"},
+      "H22_cp": {"label": "Liquid viscosity, μL", "value": 20.0, "unit": "cp"},
+      "H23_lb_per_ft3": {"label": "Liquid density, ρL", "value": 55.0, "unit": "lb/ft³"},
+      "H24_dyne_per_cm": {"label": "Liquid surface tension, σ", "value": 15.0, "unit": "dyne/cm"}
+    },
+    "derived_block": {
+      "range": "Calc X20-X21",
+      "X20_ft_per_s": {"label": "Superficial gas velocity, VSG", "value": 21.22065907891938, "unit": "ft/s"},
+      "X21_ft_per_s": {"label": "Superficial liquid velocity, VSL", "value": 0.8488263631567752, "unit": "ft/s"}
+    },
+    "eaton_calc_block": {
+      "range": "Calc H25-H30",
+      "H25_NLV": {"label": "Liquid velocity influence No. NLV", "value": 2.276357611360488},
+      "H26_NGV": {"label": "Gas velocity influence No. NGV", "value": 56.9089402840122},
+      "H27_ND": {"label": "Pipe diameter influence No. ND", "value": 115.72421451450859},
+      "H28_NL": {"label": "Liquid viscosity influence No. NL", "value": 0.15156523653893825},
+      "H29_NE": {"label": "Correlation parameter, NE", "value": 0.044408098815346624, "_note": "Eaton NE valid range: 0.006 < NE < 0.7"},
+      "H30_RL": {"label": "Liquid holdup fraction, RL (Eaton's correlation)", "value": 0.1324420655343484, "unit": "fraction", "_note": "Eaton 1967 输出；out_of_scope（不同算法族）"}
+    },
+    "pipe_length_block": {
+      "H32": {"label": "Pipe length", "value": 1.207, "unit": "km", "_note": "XLS 显式长度，但 service 不接收（service 只输出 h_L，无管线长度维度）"},
+      "H33": {"label": "Approx. liquid holdup in pipe", "value": 2.9160370036844623, "unit": "m³", "_note": "H30 × H32 × A_pipe 派生，service 不输出"}
+    },
+    "cunliffe_slug_catcher_block": {
+      "range": "Calc N38-N67",
+      "description": "Cunliffe 1978 slug catcher sizing（initial/final 双工况）：gas flowrate + predicted liquid holdup + condensate rate + GOR + total liquid rate + residence time + incremental flowrate + transition period flowrate + max liquid outflow rate + liquid accumulation",
+      "_note": "完全 out_of_scope（不同算法族 + 物理维度 slug catcher 体积）"
+    }
+  },
+  "cases": [
+    {
+      "id": "worley_pr016_wet_gas_horizontal",
+      "sheet": "Calc",
+      "line_label": "LIQUID HOLDUP CHANGE AND SLUG CATCHER SIZING — Kipper subsea onshore slug catcher",
+      "description": "Worley WS-CA-PR-016 真实工程算例（Kipper subsea well 湿气管线持液率 + slug catcher 尺寸）：6 in 水平管 × 250 ft³/min 实际气体 + 10 ft³/min 液体；ρL=55 lb/ft³（≈881 kg/m³）/ μL=20 cp / σ=15 dyne/cm。XLS 主体用 Eaton 1967 + Cunliffe 1978（不同算法族）；PCS service 实现 Beggs-Brill 1973 + Mandhane 1975（Ruling 4 mapping defect 登记）。对账范围：input chain (VSG/VSL ft/s → m/s) + sanity assertions (PCS service 返回合法结构) + OoM cross-validation (XLS Eaton RL=0.1324 vs PCS h_L(0) 同数量级)。Eaton's NLV/NGV/ND/NL/NE/RL 全 out_of_scope，Cunliffe N38-N67 slug catcher sizing 全 out_of_scope。",
+      "xls_inputs": {
+        "H17_in": {"label": "Pipe internal diameter, D", "value": 6.0, "unit": "in"},
+        "H20_ft3_per_min": {"label": "Gas flowrate, Q_gas_actual", "value": 250.0, "unit": "actual ft³/min"},
+        "H21_ft3_per_min": {"label": "Liquid flowrate, Q_liq", "value": 10.0, "unit": "ft³/min"},
+        "H22_cp": {"label": "Liquid viscosity, μL", "value": 20.0, "unit": "cp"},
+        "H23_lb_per_ft3": {"label": "Liquid density, ρL", "value": 55.0, "unit": "lb/ft³"},
+        "H24_dyne_per_cm": {"label": "Liquid surface tension, σ", "value": 15.0, "unit": "dyne/cm"},
+        "X20_ft_per_s": {"label": "Superficial gas velocity, VSG", "value": 21.22065907891938, "unit": "ft/s"},
+        "X21_ft_per_s": {"label": "Superficial liquid velocity, VSL", "value": 0.8488263631567752, "unit": "ft/s"},
+        "K20_m3_per_s": {"label": "Gas flowrate, Q_gas_actual（XLS SI 派生）", "value": 0.11798686080000002, "unit": "m³/s", "_formula": "250 ft³/min × 4.719474432e-4 m³/s per ft³/min"},
+        "K21_m3_per_s": {"label": "Liquid flowrate, Q_liq（XLS SI 派生）", "value": 0.004719474432000001, "unit": "m³/s"},
+        "K23_kg_per_m3": {"label": "Liquid density, ρL（XLS SI 派生）", "value": 880.99, "unit": "kg/m³"},
+        "H30_RL_eaton": {"label": "Liquid holdup fraction, RL (Eaton 1967)", "value": 0.1324420655343484, "unit": "fraction", "_note": "OUT_OF_SCOPE：不同算法族（Ruling 4）"}
+      },
+      "service_inputs": {
+        "v_sl_m_s": 0.25872227549018506,
+        "v_sg_m_s": 6.468056887254627,
+        "pipe_diameter_m": 0.1524,
+        "pipe_inclination_deg": 0.0,
+        "rho_L_kg_m3": 880.99,
+        "rho_V_kg_m3": 30.0,
+        "mu_L_pa_s": 0.02,
+        "mu_V_pa_s": 1.0e-5,
+        "sigma_n_m": 0.015,
+        "imperial_units": false
+      },
+      "input_assumptions": {
+        "_doc": "XLS 未显式提供 ρ_V、μ_V（XLS Eaton 输入表无气相密度/粘度栏）。本 fixture 假设典型湿气（wet-gas，400 psia ≈ 27.6 bar 工程典型值）。",
+        "rho_V_kg_m3": {"value": 30.0, "rationale": "典型湿气（400 psia ≈ 27.6 bar 甲烷基湿气）：理想气体 ρ_V = P·M_gas/(Z·R·T)；M_gas≈20 kg/kmol / Z≈0.9 / T≈320 K → ρ_V ≈ 26~30 kg/m³。取 30.0 kg/m³ 圆整值。", "flagged_risk": "[flagged_risk] XLS 不给 ρ_V——PCS h_L(0) 对 ρ_V 敏感度经 λ_L/λ_V 路径传导，但量级 ~1e-2/30 ≈ 3e-4 量级，影响可忽略。批 B 或 SPEC V1.2 评估是否补 XLS 隐式 PVT 派生（需 Worley 内部 PVT 文档）。"},
+        "mu_V_pa_s": {"value": 1.0e-5, "rationale": "典型天然气粘度 ~1e-5 Pa·s（API RP14E 工程惯例）。service 不显式使用 μ_V（仅 _validate_input 检查 >0），实际算法对粘气不敏感。", "flagged_risk": "[flagged_risk] 实际无影响（μ_V 仅在 _validate_input 检验 >0）。"}
+      },
+      "expected": {
+        "_doc": "PCS service 期望输出：INTERMITTENT 流型 + h_L(0)≈0.139 + h_L(θ=0)≡h_L(0) + Fr≈30.27（>10 → is_beggs_brill_valid=False，仅作 Eaton-Flanning 范围外提示）。与 XLS Eaton RL=0.1324 不同算法族但同数量级（QoM ratio ≈ 1.05），不 assert 严格数值相等。",
+        "flow_pattern": "INTERMITTENT",
+        "h_l_theta0": 0.13934258277780995,
+        "h_l_theta": 0.13934258277780995,
+        "froude_number": 30.26637202941037,
+        "is_beggs_brill_valid": false,
+        "formula_ref_expected_keys": [
+          "mandhane_flow_pattern",
+          "beggs_brill_h_l",
+          "inclination_correction",
+          "eaton_flanning"
+        ],
+        "imperial_conversion_expected": null
+      },
+      "xls_tautology_expected": {
+        "_doc": "Input chain 独立复算（VSG/VSL ft/s → m/s 纯转换，rel<1e-12）+ OoM cross-validation（XLS Eaton RL=0.1324 ∈ PCS h_L(0) 区间）。",
+        "v_sl_m_s_from_xls_x21": 0.25872227549018506,
+        "v_sg_m_s_from_xls_x20": 6.468056887254627,
+        "v_sl_rel_diff_xls_vs_pcs_input": 0.0,
+        "v_sg_rel_diff_xls_vs_pcs_input": 0.0,
+        "xls_eaton_RL": 0.1324420655343484,
+        "xls_eaton_RL_in_pcs_band_lower": 0.01,
+        "xls_eaton_RL_in_pcs_band_upper": 0.5
+      },
+      "per_field_tolerance": {
+        "flow_pattern": {
+          "rel": null,
+          "level": "枚举等值断言",
+          "reason": "service 走 Mandhane 1975 流型图（不依赖 Eaton）；XLS Eaton 不输出流型，无对账对象，但本 case 物理场景应映射到 INTERMITTENT（湿气+低 VSL=0.26 m/s）。"
+        },
+        "h_l_theta0": {
+          "rel": null,
+          "level": "区间断言（OoM cross-validation）",
+          "reason": "Ruling 4 mapping defect（Eaton vs Beggs-Brill）→ 不 assert 严格相等；assert 0.01 < h_l_theta0 < 0.5 覆盖 XLS Eaton RL=0.1324 同数量级。"
+        },
+        "h_l_theta": {
+          "rel": null,
+          "level": "恒等断言（θ=0）",
+          "reason": "倾角=0 时 _beggs_brill_inclination_correction 走恒等分支（|θ|<1e-6°），h_L(θ) ≡ h_L(0)（exact）"
+        },
+        "froude_number": {
+          "rel": 0.01,
+          "level": "PCS service 内部一致性（不与 XLS 比）",
+          "reason": "Fr=V_m²/(g·D) 由输入确定，rel=1e-2 是浮点精度门槛；XLS 不输出 Fr，无对账对象"
+        },
+        "is_beggs_brill_valid": {
+          "rel": null,
+          "level": "布尔断言（Fr 范围校验）",
+          "reason": "Fr≈30.27 > 10 → is_beggs_brill_valid=False（Eaton-Flanning 适用范围外提示）；XLS 不输出此标志，纯 PCS 自检"
+        },
+        "formula_ref": {
+          "rel": null,
+          "level": "字段完整性（dict 键存在性）",
+          "reason": "service 必须返回 4 键：mandhane_flow_pattern / beggs_brill_h_l / inclination_correction / eaton_flanning"
+        },
+        "imperial_conversion": {
+          "rel": null,
+          "level": "exact None",
+          "reason": "imperial_units=False → imperial_conversion 必须 None"
+        }
+      },
+      "tolerance": {
+        "rel": 0.05,
+        "level": "SPEC §5 图版 5%（rel≤5e-2），本批不 assert 严格数值相等",
+        "reason": "Ruling 4 mapping defect——XLS Eaton 1967 + Cunliffe 1978 vs PCS Beggs-Brill 1973 + Mandhane 1975 是不同持液率算法族。本 case 对账范围收窄至 input chain + sanity assertions + OoM cross-validation；Eaton's NLV/NGV/ND/NL/NE/RL 全 out_of_scope；Cunliffe slug catcher sizing 全 out_of_scope。"
+      }
+    }
+  ],
+  "root_cause_notes": [
+    {
+      "id": "Ruling_4_mapping_defect_eaton_vs_beggs_brill",
+      "finding": "P6-6A plan 表格行 7 'C-15 016 pipe/holdup_correlation 图版 5%' 与 XLS-PR-016 主体算法族错配。XLS Calc 主体用 Eaton et al. 1967（湿气管线持液率经验式，参数 NLV/NGV/ND/NL/NE 推导 RL）+ Cunliffe 1978（slug catcher sizing，11 步法）；PCS service `calc_beggs_brill_holdup` 实现 Beggs-Brill 1973（H_L(0) = a·λ_L^b/Fr^c + 倾角修正）+ Mandhane 1975（流型图）+ Eaton-Flanning 1967（仅 Fr 范围校验，非主计算）。两套对'湿气管线持液率'目标物理量同数量级（XLS Eaton RL=0.1324 vs PCS h_L(0)=0.1393，QoM ratio 1.053），但不同算法族不应预期严格数值相等。处置：本批对账范围收窄至 input chain (VSG/VSL ft/s → m/s rel<1e-12) + sanity assertions + OoM cross-validation；Eaton's NLV/NGV/ND/NL/NE/RL 全 out_of_scope；Cunliffe slug catcher sizing (N38-N67) 全 out_of_scope。批 B 立项评估：(a) 落地 Eaton 1967 作为 `calc_eaton_holdup` service 与 Cunliffe 1978 作为 `calc_cunliffe_slug_catcher` service（= Worley XLS 原算法），与现有 Beggs-Brill 并列；或 (b) 维持现状仅 SPEC V1.2 注明算法族差异。",
+      "ruling": "Ruling 4 算法族映射缺陷——XLS 主算法（Eaton 1967 + Cunliffe 1978）vs PCS 主算法（Beggs-Brill 1973 + Mandhane 1975）非严格对账关系；对账范围收窄 + 透明登记 mapping defect 防静默通过；out_of_scope 5 项全列（见下）。"
+    },
+    {
+      "id": "rho_V_mu_V_assumed",
+      "finding": "XLS-PR-016 不显式提供气相密度 ρ_V 与粘度 μ_V（XLS H17-H24 Eaton 输入表只列 ρL/μL/σ）。PCS service `calc_beggs_brill_holdup` 必须接收 ρ_V 与 μ_V 才能计算。本 fixture 假设：ρ_V=30.0 kg/m³（典型湿气，400 psia≈27.6 bar 甲烷基）/ μ_V=1e-5 Pa·s（典型天然气）。μ_V 对结果不敏感（仅 _validate_input 校验 >0）；ρ_V 影响经 λ_L/λ_V 路径传导（量级 ~3e-4/30），相对 h_L(0) 量级 0.139 影响 <1e-3，可忽略。",
+      "ruling": "Ruling 1(b) 接口口径——XLS 不接收 ρ_V（Eaton 公式不显式使用 ρ_V），PCS 强制 ρ_V 输入；非代码缺陷；登记供批 B / SPEC V1.2 评估。"
+    }
+  ],
+  "out_of_scope": [
+    {
+      "id": "eaton_correlation_parameters",
+      "xls_refs": "XLS H25 NLV=2.276357611360488 / H26 NGV=56.9089402840122 / H27 ND=115.72421451450859 / H28 NL=0.15156523653893825 / H29 NE=0.044408098815346624",
+      "reason": "Eaton 1967 算法族参数；PCS service 不实现 Eaton 算法（仅 BG-B + Mandhane + Eaton-Flanning Fr 范围校验）。out_of_scope 防 fixture 演进时静默丢失。"
+    },
+    {
+      "id": "eaton_HL_value_RL",
+      "xls_refs": "XLS H30 RL=0.1324420655343484（Eaton's correlation 输出）",
+      "reason": "Eaton 1967 vs Beggs-Brill 1973 是不同算法族（Ruling 4）；XLS Eaton RL 与 PCS h_L(0) 不直接对账；走 OoM cross-validation 路径（assert 0.01 < h_L(0) < 0.5 + XLS Eaton RL=0.1324 落在此区间）。"
+    },
+    {
+      "id": "cunliffe_slug_catcher_sizing",
+      "xls_refs": "XLS Calc N38-N67（11 步 slug catcher sizing）：gas flowrate / predicted liquid holdup / condensate rate / GOR / total liquid rate / residence time / incremental flowrate / transition period flowrate / max liquid outflow rate / liquid accumulation",
+      "reason": "Cunliffe 1978 slug catcher sizing 是不同物理维度（slug catcher 体积而非持液率分数）+ 不同算法族；PCS service 不实现 Cunliffe；out_of_scope。"
+    },
+    {
+      "id": "xls_pipe_length_holdup_volume",
+      "xls_refs": "XLS H32 pipe length=1.207 km + H33 approx. liquid holdup volume=2.9160370036844623 m³",
+      "reason": "XLS 显式管线长度并派生持液体积（V_L=RL × L × A_pipe）；PCS service 不接收管长（仅持液率分数 h_L，无长度维度）；out_of_scope。"
+    },
+    {
+      "id": "xls_inclined_pipe_cases",
+      "xls_refs": "XLS 未指定管倾角（PR-016 适用 flat topography 假设）",
+      "reason": "XLS 仅含水平管工况；PCS service 倾角修正分支（_beggs_brill_inclination_correction）out_of_scope（XLS 无对账对象）；登记防 fixture 演进时静默丢失。"
+    }
+  ]
+}

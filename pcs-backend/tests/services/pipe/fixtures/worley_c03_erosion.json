@@ -1,0 +1,243 @@
+{
+  "_doc": "P6-6A Task 1: C-03 API 14E 冲蚀速度 vs Worley 真实算例 WS-CA-PR-003 首次对账 fixture。",
+  "source": {
+    "xls": "WS-CA-PR-003.xls",
+    "xls_title": "Two Phase Pressure Drop and Erosional Velocity According to API14E, Standard Calculation WS-CA-PR-003, Rev. 3, Re-Issued for Use (12-Aug-02)",
+    "xls_reference": "API RP 14E, Recommended Practice for Design and Installation of Offshore Production Platform Piping Systems, 5th Ed., 1-Oct-91",
+    "dump": ".superpowers/sdd/2026-09-27-p6-6a-worley-reconciliation/worley_dump/WS-CA-PR-003.json",
+    "dump_note": "原 XLS 位于 sample/（gitignored 只读）；本 fixture 转录 dump 中公式缓存计算值（全 double 精度）",
+    "spec_ref": "PCS-SPEC-ADD-001 V1.10 §3.2.1（C-03）+ §5 验收分级",
+    "service": "app/services/pipe/two_phase_erosion.py::calc_api14e_erosion_velocity"
+  },
+  "tolerance_policy": {
+    "spec_ref": "PCS-SPEC-ADD-001 V1.10 §5：经验拟合级 <1%（rel≤1e-2）",
+    "default_rel": 0.01,
+    "per_case_note": "各 case 在 SPEC 1e-2 门槛内按观测偏差收紧（收紧不违规，放宽才需登记理由）；每 case 的 rel + reason 见 cases[].tolerance"
+  },
+  "unit_conversion_factors": {
+    "_doc": "Worley 英制算例 → service SI 输入的换算链（精确常数，非近似）",
+    "lb_to_kg": 0.45359237,
+    "in_to_m": 0.0254,
+    "ft_to_m": 0.3048,
+    "lb_per_ft3_to_kg_per_m3": 16.018463373960138,
+    "lb_per_ft3_derivation": "0.45359237 / 0.3048^3 = 16.018463373960138",
+    "c_factor_english_to_si": {
+      "mapping": "English 100/125/150-200/250 <-> SI 122/152.5/183-244/305（×1.22，API 14E 双单位制惯例；Worley 两 sheet C 表互证）",
+      "exact_factor": "C_SI = C_EN × 0.3048 × √16.018463373960138；C_EN=100 → C_SI=121.9903（工程取整 122）",
+      "note": "service 输入传 SI 制 c_factor=122.0；由此引入 v_e 偏差 ≤8e-5（见 case2/case3 观测）"
+    }
+  },
+  "cases": [
+    {
+      "id": "api14e_si_example",
+      "sheet": "API14E (SI)",
+      "line_label": "Example",
+      "description": "SI 制 Example 工况：两相混合物 61705.022 kg/h、ρ_mix=357.209 kg/m³、ID 97.282 mm、C=122（SI 连续 service）。XLS 输出面积/体积流量/实际流速/冲蚀速度全精度值。",
+      "xls_inputs": {
+        "L12": {"label": "Mixture Mass Flow Rate", "value": 61705.022, "unit": "kg/h"},
+        "L13": {"label": "Actual Mixture Density", "value": 357.209, "unit": "kg/m3"},
+        "L14": {"label": "Pipe Internal Diameter", "value": 97.282, "unit": "mm"},
+        "L16": {"label": "C-Factor (in SI units)", "value": 122.0, "unit": "SI"}
+      },
+      "conversion_chain": [
+        "mass_flow_kg_s = 61705.022 / 3600 = 17.140283888888888（SI 原值，仅时间基准换算）",
+        "rho_mix_kg_m3 = 357.209（SI 原值）",
+        "pipe_diameter_m = 97.282 / 1000 = 0.097282（SI 原值）",
+        "c_factor = 122.0（SI 原值，service_type=CONTINUOUS 默认一致）"
+      ],
+      "service_inputs": {
+        "rho_mix_kg_m3": 357.209,
+        "service_type": "CONTINUOUS",
+        "c_factor": 122.0,
+        "mass_flow_kg_s": 17.140283888888888,
+        "pipe_diameter_m": 0.097282,
+        "imperial_units": false
+      },
+      "expected": {
+        "v_e_m_s": 6.4550354903838185,
+        "actual_v_m_s": 6.455646483801984,
+        "is_erosion_safe": false,
+        "is_erosion_safe_note": "XLS 无显式判定格；按其自身两值 v_actual(6.45565) > v_e(6.45504) 推断 unsafe，service 判定须一致"
+      },
+      "expected_chain": {
+        "_doc": "XLS 输出但非 service 返回量的链上量（测试内由同输入直接复算对账）",
+        "area_m2": 0.0074328587213495995,
+        "vol_flow_m3_h": 172.74206976867882
+      },
+      "observed_rel_dev": {
+        "v_e_m_s": 0.0,
+        "actual_v_m_s": 2.34e-06,
+        "area_m2": 2.34e-06,
+        "vol_flow_m3_h": 2.2e-16
+      },
+      "tolerance": {
+        "rel": 0.0001,
+        "level": "收紧：SPEC §5 经验 1e-2 → 1e-4",
+        "reason": "同公式同单位制直算，v_e 零偏差；area/actual_v 偏差 2.34e-6 根因 = XLS 面积格硬编码 π=3.1416（4 位舍入，见 root_cause_notes），1e-4 仍有 40 倍裕度"
+      }
+    },
+    {
+      "id": "api14e_english_example",
+      "sheet": "API14E (English)",
+      "line_label": "Example",
+      "description": "同一物理工况的英制版：136036 lb/h、ρ=22.3 lb/ft³、ID 3.83 in、C=100（英制连续 service）。经换算链转 SI 调 service，imperial_units=True 对账 ft/s 输出。",
+      "xls_inputs": {
+        "L12": {"label": "Mixture Mass Flow Rate", "value": 136036.0, "unit": "lb/h"},
+        "L13": {"label": "Actual Mixture Density", "value": 22.3, "unit": "lb/ft3"},
+        "L14": {"label": "Pipe Internal Diameter", "value": 3.83, "unit": "in"},
+        "L16": {"label": "C-Factor (label says SI, value is English-units constant)", "value": 100.0, "unit": "English"}
+      },
+      "conversion_chain": [
+        "mass_flow_kg_s = 136036 × 0.45359237 / 3600 = 17.140247679255555",
+        "rho_mix_kg_m3 = 22.3 × 16.018463373960138 = 357.2117332393111",
+        "pipe_diameter_m = 3.83 × 0.0254 = 0.097282（精确）",
+        "c_factor = 100（English）≡ 122（SI，×1.22 双单位制惯例，Worley SI sheet C 表互证）"
+      ],
+      "service_inputs": {
+        "rho_mix_kg_m3": 357.2117332393111,
+        "service_type": "CONTINUOUS",
+        "c_factor": 122.0,
+        "mass_flow_kg_s": 17.140247679255555,
+        "pipe_diameter_m": 0.097282,
+        "imperial_units": true
+      },
+      "expected": {
+        "v_e_ft_s": 21.17617749438134,
+        "actual_v_ft_s": 21.17978525600898,
+        "is_erosion_safe": false,
+        "is_erosion_safe_note": "v_actual(21.17979) > v_e(21.17618) → unsafe；service 判定须一致"
+      },
+      "expected_chain": {
+        "area_in2": 11.52092711906083,
+        "vol_flow_ft3_h": 6100.269058295964
+      },
+      "observed_rel_dev": {
+        "v_e_ft_s": 7.93e-05,
+        "actual_v_ft_s": 2.2e-16,
+        "area_in2": 1.1e-16,
+        "vol_flow_ft3_h": 1.1e-16
+      },
+      "tolerance": {
+        "rel": 0.001,
+        "level": "收紧：SPEC §5 经验 1e-2 → 1e-3",
+        "reason": "actual_v/面积/体积流量机器精度吻合；v_e 偏差 7.9e-5 根因 = English C=100 → SI 取整 122（精确值 121.9903），1e-3 有 12 倍裕度"
+      }
+    },
+    {
+      "id": "gt_format_flowline",
+      "sheet": "GT-format-API14E",
+      "line_label": "STD_calc_009 flowline (Worley ABB JV, validated 1999-08-26)",
+      "description": "GT 格式流量管线算例（API RP14E flowline sizing）：油 80480 bbl/d + 气 19.59688 MMscfd（GOR 243.5），入口 12 barg/92°C，ρ_mix=9.58497 lb/ft³（XLS 内部 PVT 链产物，直接作 service 输入），C=100（英制），选定管 19in ID=333.34 mm。对账冲蚀速度 + 入口实际流速。",
+      "xls_inputs": {
+        "E31": {"label": "Mixture Density", "value": 9.584974934355172, "unit": "lb/cu.ft"},
+        "E32": {"label": "Erosional Velocity Constant", "value": 100.0, "unit": "English"},
+        "E39": {"label": "Selected Pipe ID", "value": 333.34, "unit": "mm"},
+        "E42": {"label": "Total Fluid Flowrate", "value": 430548.988854088, "unit": "kg/h"}
+      },
+      "conversion_chain": [
+        "rho_mix_kg_m3 = 9.584974934355172 × 16.018463373960138 = 153.5365699262943",
+        "mass_flow_kg_s = 430548.988854088 / 3600 = 119.59694134835777（XLS 已给 SI kg/h）",
+        "pipe_diameter_m = 333.34 / 1000 = 0.33334（XLS 已给 mm）",
+        "c_factor = 100（English）≡ 122（SI）"
+      ],
+      "service_inputs": {
+        "rho_mix_kg_m3": 153.5365699262943,
+        "service_type": "CONTINUOUS",
+        "c_factor": 122.0,
+        "mass_flow_kg_s": 119.59694134835777,
+        "pipe_diameter_m": 0.33334,
+        "imperial_units": true
+      },
+      "expected": {
+        "v_e_ft_s": 32.30014777470371,
+        "actual_v_ft_s": 29.368910376725772,
+        "actual_v_note": "对账 B44 'Mixture Velocity @ Inlet T,P'（出口流速 B45 需出口 ρ，XLS 未单列，不对账）",
+        "is_erosion_safe": true,
+        "is_erosion_safe_note": "v_actual(29.369) < v_e(32.300) → safe；service 判定须一致"
+      },
+      "expected_chain": {},
+      "observed_rel_dev": {
+        "v_e_ft_s": 7.93e-05,
+        "actual_v_ft_s": 2.9e-03
+      },
+      "tolerance": {
+        "rel": 0.01,
+        "level": "SPEC §5 经验拟合级 1e-2（未放宽）",
+        "reason": "v_e 偏差 7.9e-5（C 100→122 取整）；actual_v 偏差 2.9e-3 根因 = XLS 内部质量/体积链自洽性约 ±0.3%（ṁ/ρ 隐含体积流量 vs XLS 引用的入口体积流量差 0.23%），属 XLS 手算中间量舍入，在经验级容差内"
+      }
+    }
+  ],
+  "c_factor_table": {
+    "_doc": "XLS 假设区 C 因子表 vs service 默认值（_C_FACTOR_BY_SERVICE，SPEC §3.2.1 表 3.2.1）。C33/C34 为 API 14E 腐蚀抑制语境（inhibition or corrosion resistant alloys or no corrosion）。",
+    "xls_si_sheet": {
+      "sheet": "API14E (SI)",
+      "cells": {
+        "Z31": {"label": "continuous service", "value": 122.0},
+        "Z32": {"label": "intermittent service", "value": 152.5},
+        "Z33": {"label": "inhibition / CRA / no corrosion; continuous service", "value": "183 - 244"},
+        "Z34": {"label": "inhibition / CRA / no corrosion; intermittent service", "value": "up to 305"}
+      }
+    },
+    "xls_english_sheet": {
+      "sheet": "API14E (English)",
+      "cells": {
+        "Z31": 100.0,
+        "Z32": 125.0,
+        "Z33": "150 - 200",
+        "Z34": 250.0
+      },
+      "note": "英制表 ×1.22 与 SI 表逐项吻合（100→122 / 125→152.5 / 150-200→183-244 / 250→305）"
+    },
+    "services": [
+      {"service_type": "CONTINUOUS", "mode": "exact", "xls_si_value": 122.0},
+      {"service_type": "INTERMITTENT", "mode": "exact", "xls_si_value": 152.5},
+      {"service_type": "CORROSIVE_CONTINUOUS", "mode": "in_range", "xls_si_range": [183.0, 244.0]},
+      {"service_type": "CORROSIVE_INTERMITTENT", "mode": "upper_bound", "xls_si_value": 305.0}
+    ],
+    "resolve_note": "测试经公共 API 反解默认 C（ρ=100 → v_e=C/10），不 import 私有 _C_FACTOR_BY_SERVICE"
+  },
+  "root_cause_notes": [
+    {
+      "id": "xls_pi_31416",
+      "finding": "API14E (SI) sheet 面积格（L17）硬编码 π=3.1416（4 位舍入）：以 D=0.097282 复算 π=3.1416 时面积逐位重现 0.0074328587213495995，全精度 math.pi 则差 2.34e-6；该 sheet 流速（L19）由 Q/该面积格 求出故同偏差。API14E (English) sheet 面积格（L17）却用全精度 π（逐位吻合）。两 sheet 内部不一致，偏差 ≤2.4e-6，远低于容差，无需处置（Ruling 1(c) 观察登记，不放宽容差）",
+      "ruling": "1(c) 手算舍入——通过容差内，仅登记"
+    },
+    {
+      "id": "c_factor_english_to_si_rounding",
+      "finding": "English C=100 精确 SI 换算 121.9903（×0.3048×√16.0185），工程惯例与 Worley SI 表均取 122；service/SPEC 同取 122，v_e 偏差 ≤7.9e-5",
+      "ruling": "标准双单位制取整——通过容差内，仅登记"
+    },
+    {
+      "id": "gt_mass_volume_chain",
+      "finding": "GT sheet 自身 ṁ(949145 lb/h)/ρ(9.585 lb/ft³) 隐含体积流量 99036 ft³/h，与其引用的入口体积流量之和 99267 ft³/h 差 0.23%；actual_v 对账偏差 0.29% 与此同量级，属 XLS 内部中间量舍入而非 service 公式差异",
+      "ruling": "1(c) 手算舍入——SPEC 经验 1% 容差内通过"
+    }
+  ],
+  "out_of_scope": [
+    {
+      "id": "pressure_drop",
+      "xls_refs": "API14E 两 sheet L21/L22（kPa/m、kPa；psi/100ft、psi）+ 假设 Moody f=0.015 + 输入 Equivalent Length",
+      "reason": "two_phase_erosion 模块不计算压降（无该输出量）；压降属 C-05 pipe/two_phase_sizing 对账范围（Task 2）"
+    },
+    {
+      "id": "salama_venkatesh",
+      "xls_refs": "Sal&Vent (SI)/(English) 两 sheet（h=10 mpy、P=1055000 kPa、Ws、K=0.071、b=0.75、A=374507623 等）",
+      "reason": "Salama & Venkatesh（OTC 4485）另一冲蚀模型，PCS 未实现该算法，无对应 service，不参与对账；如后续立项按变体算法另行登记"
+    },
+    {
+      "id": "gt_min_pipe_id",
+      "xls_refs": "GT E34 = 317.67890309954663 mm（12.50704342911601 in）",
+      "reason": "最小管径为选型导出量，非 service 输出契约；旁证复算（入口 Q/v_e）得 12.5108 in，差 0.03%，与 GT 链路舍入一致"
+    },
+    {
+      "id": "gt_other_outputs",
+      "xls_refs": "GT MAWP 29 barg、Selected Schedule、Superficial gas/liquid velocity、Vapour Volume Fraction、Froude Number、Mixture Velocity @ Outlet、压降 0.0754 bar",
+      "reason": "超出 C-03 冲蚀速度模块契约（出口流速需出口 ρ；其余属 PVT/流型/压降范围）"
+    },
+    {
+      "id": "empty_sheets",
+      "xls_refs": "Units / Open / C Value 三 sheet 0 非空 cell",
+      "reason": "空 sheet，无算例"
+    }
+  ]
+}
