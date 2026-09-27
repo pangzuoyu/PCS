@@ -292,8 +292,8 @@
       "rationale": "XLS G41=62.07 (EG MW), G43=46.07 (Ethanol), G44=60.1 (Isopropanol), G45=76.1 (Propylene Glycol), G46=106.1 (DEG). PCS service _INHIBITOR_MW: MEOH=32.04 ✓ matches XLS G42; EG=62.07 ✓ matches XLS G41; DEG=106.12 (XLS G46=106.1, diff 0.02 ≈ rounding); TEG=150.17 (XLS uses Propylene Glycol=76.1 instead of TEG); NACL=58.44 (XLS has no NACL row). MW table consistency for XLS-only inhibitors out of scope."
     },
     {
-      "id": "xls_secondary_considerations_block_B20_B24",
-      "rationale": "XLS B20='Secondary considerations' with B21-B24 bullet list (high velocities / pressure pulsations / crystal introduction / crystal formation site). These are engineering notes, not calculations. PCS service does not model these phenomena. Out of scope."
+      "id": "xls_secondary_considerations_B20_B24_AND_notes_A60_A61",
+      "rationale": "XLS B20='Secondary considerations' with B21-B24 bullet list (high velocities / pressure pulsations / crystal introduction / crystal formation site) + A60-A61 solubility documentation ('amount of inhibitor injected not only must be sufficient to prevent freezing of the water phase but must account for the solubility in any liquid hydrocarbon phase, and vaporisation into the vapour phase'). These are engineering notes, not calculations. PCS service does not model these phenomena. Out of scope."
     },
     {
       "id": "xls_nielsen_X_for_pcs_depression_calculation",

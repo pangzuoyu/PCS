@@ -285,9 +285,6 @@ def test_input_chain_k_factor_and_mw_exact_match() -> None:
 
     # 5 inhibitor K values from XLS table F41-F46 should match PCS constants
     xls_K_table = {
-        "Ethylene Glycol": case["xls_inputs"]["G49_K_default"]["value"],  # Methanol row
-    }
-    xls_K_table = {
         "EG": 4000.0,
         "MEOH": 2335.0,
         "Ethanol": 2335.0,
@@ -558,7 +555,7 @@ def test_worley_c18_out_of_scope_ledger_complete() -> None:
         "xls_equation_selector_hammerschmidt_vs_nielsen",
         "xls_K_factors_EG_DEG_TEG_NACL_table_F41_F46",
         "xls_MW_values_G41_G46_EG_DEG_TEG_NACL",
-        "xls_secondary_considerations_block_B20_B24",
+        "xls_secondary_considerations_B20_B24_AND_notes_A60_A61",
         "xls_nielsen_X_for_pcs_depression_calculation",
         "xls_free_water_vs_pcs_water_content_inlet",
     }
