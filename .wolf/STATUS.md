@@ -34,6 +34,16 @@ budget_tokens: 1500
 - 全量 3242 passed / 74 skipped / 0 failed（baseline +69 tests）
 - T14 closure report: `.superpowers/sdd/.../task-14-report.md` (182 lines)
 - 批 B 计划立项：`docs/superpowers/plans/2026-09-27-p6-6b-data-source-replacement.md`
+- **merge 入 main**：`09eb037 merge(p6-6a): Worley 24 XLS 算例对账批 (15 commits)`（2026-09-27）
+- post-merge spot-check：T1 C-03 + T9 C-17 + T0 extract 56 tests PASS，0 regression
+
+**OPEN-P6-6A-3 关闭（K scale F→F fix，2026-09-27）**：commit `e0d91a6`
+- Hammerschmidt 1934 K scale mis-interpretation：原 `delta_t_c = K·X/(M·(1-X))` 把 K_F=2335 当 °C 处理，导致 d_F=38.88°F（1.8× over-prediction vs XLS literature 21.6°F）
+- 修：公式 swap → `delta_t_f = K·X/(M·(1-X))`（K °F scale per paper, raw °F output），`delta_t_c = delta_t_f × 5/9`
+- 4 fixture 字段重命名 `_d_C_algebra` → `_d_F_algebra` + 黄金 fixture 增 _f/_c 双轨 + worley_c18 fixture 删 `xls_hammerschmidt_K_scale_F_to_C_conversion` out_of_scope + 标 `xls_k_scale_F_vs_pcs_treats_C` root_cause CLOSED
+- `test_k_scale_cross_check_xls_F_vs_pcs_C`（defect 文档）→ `test_k_scale_post_fix_xls_F_eq_pcs_F_bit_for_bit`（fix 验证）；PCS d_F=21.6°F = XLS d_F=21.6°F bit-for-bit rel=1e-12
+- bug-103 logged with full root_cause/fix; 全量 2418 passed / 32 skipped / 0 failures
+- **Ruling 11 K scale CLOSED**
 
 ---
 
@@ -44,22 +54,28 @@ budget_tokens: 1500
 - 范围：9 CONFIG 表替换 SYNTHETIC 标记 + 4 内联常量替换
 - 触发：T14 closure report sign-off + 工程团队接管真实 GPSA / Vendor / ISO / API 数据
 - 预计 5-7 工作日（Phase 1 CONFIG 并行 3-4 天 + Phase 2 service 集成 1-2 天 + ETL 1 天）
-- 解决 OPEN-P6-4-1/2 + OPEN-P6-6A-3/4/5 部分（6 OPEN-P6-6A-* 中 3 项关闭）
+- 解决 OPEN-P6-4-1/2 + OPEN-P6-6A-4/5（6 OPEN-P6-6A-* 中 2 项关闭）— **OPEN-P6-6A-3 已 e0d91a6 关闭**（Ruling 11 K scale）
 
-**P6-6A 已完成（merge pending）**：worktree `PCS-worktrees/p6-6a-worley` @ `fddeae4`，15 commits，0 service 改动，11 Rulings 已登记。
+**P6-6A 已完成（merged to main @ `09eb037`）**：worktree `PCS-worktrees/p6-6a-worley` @ `fddeae4`，15 commits，0 service 改动，11 Rulings 已登记，post-merge 56/56 spot-check PASS。
+
+**OPEN-P6-6A-3 已关闭（commit `e0d91a6`）**：Hammerschmidt 1934 K scale fix（Ruling 11）。
 
 **后续（待用户裁决）**：
-1. P6-6A merge 到 main（worktree `feature/p6-6a-worley` 当前 15 commits）
-2. P6-6B 启动确认（工程团队接管厂商数据采集）
-3. SPEC V1.2 修订（10 项 deferred candidates 中 6 项 wording 决议）
-4. G-08 OpenAPI baseline drift 收口（P6-2/3/4 累积，Task 16/28）
-5. 前端 wrapper 3 页（heating-value / saturation-water-content / cv，P6-4 裁决推迟项）
+1. ~~P6-6A merge 到 main~~ ✓ done `09eb037`
+2. ~~OPEN-P6-6A-3 K scale fix~~ ✓ done `e0d91a6`
+3. P6-6B 启动确认（工程团队接管厂商数据采集）
+4. SPEC V1.2 修订（10 项 deferred candidates 中 6 项 wording 决议）
+5. G-08 OpenAPI baseline drift 收口（P6-2/3/4 累积，Task 16/28）
+6. 前端 wrapper 3 页（heating-value / saturation-water-content / cv，P6-4 裁决推迟项）
 
 **未解决问题**：
+- OPEN-P6-4-2（Kb 厂商真实数据 LESER/Consolidated/AG，部署前）
 - OPEN-P6-4-3（C-08 Imperial 单位支持范围）
-- OPEN-P6-4-4（C-24 Chapman-Jans / Tong 模型与商业软件对账）
+- OPEN-P6-4-4（C-24 Chapman-Jans / Tong 模型与商业软件对账，部署前）
 - OPEN-P6-6A-1（Ruling 9 wording formalization，SPEC V1.2 决议）
 - OPEN-P6-6A-2（Brief template `brief.id == plan_table_row.id` assert，批 B brief template 实现）
+- OPEN-P6-6A-4（T11 PCS Cd/Y_cr 默认 1.0, 1.74× over-prediction, medium effort）
+- OPEN-P6-6A-5（T13 ΔH_vap 2260 vs 208 kJ/kg, 18× diff, medium effort）
 - OPEN-P6-6A-6（T8 full glycol dehydration system as new PCS service，CONFIG 占位 T9 关闭；service 扩展待 P6-7）
 
 **验收**：P6-6B 后 source 字段去 SYNTHETIC 标记 + gate 报告签字 + 黄金 fixture 重对账。
@@ -71,10 +87,10 @@ budget_tokens: 1500
 
 ## Context
 
-- main @ `3bc9f3f`；working tree 仅 .wolf/*（hooks 维护）+ tests/models/test_orm_db_drift.py（**未 commit**——drift 守卫测试，pcs_test-only skipif，已验证 PASS/skip）
-- worktree `feature/p6-6a-worley` @ `fddeae4`（P6-6A 完整 15 commits，**待 merge**）
+- main @ `e0d91a6`（P6-6A merge `09eb037` + OPEN-P6-6A-3 Ruling 11 K scale fix）；working tree 仅 .wolf/*（hooks 维护）+ tests/models/test_orm_db_drift.py（**未 commit**——drift 守卫测试，pcs_test-only skipif，已验证 PASS/skip）
+- worktree `feature/p6-6a-worley` @ `fddeae4`（P6-6A 完整 15 commits，**已 merge 入 main @ 09eb037**，worktree 可清理）
 - **双库已对齐 head `p6_5_006`**：跑 schema 敏感测试前 `DATABASE_URL=postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs_test uv run alembic upgrade head`（CLAUDE.md 规则仍适用）
-- 全量回归基线：**3242 passed / 74 skipped**（P6-6A 之后 +69 tests；须带 pcs_test DATABASE_URL）
-- buglog 最新 bug-100~102（枚举剥离 / 审计三件套 drift / 手写清单教训）；drift 守卫测试 = bug-101/102 防回归
+- 全量回归基线：**2418 passed / 32 skipped**（P6-6A merge `09eb037` 之后，OPEN-P6-6A-3 commit `e0d91a6` 净 0 变化 test 计数：删除 test_k_scale_cross_check_xls_F_vs_pcs_C defect 文档 + 新增 test_k_scale_post_fix_xls_F_eq_pcs_F_bit_for_bit fix 验证）
+- buglog 最新 bug-101/102/103（审计三件套 drift / 手写清单教训 / **OPEN-P6-6A-3 Hammerschmidt K scale mis-interpretation fix**）
 - 无 CI/CD（单人开发裁决，勿再建议）；SPEC V1.10 已冻结为实施基线，后续改 SPEC 需新版本号
-- P6-6A 11 Rulings 已登记：Ruling 1 零改动 / Ruling 2 表格化 / Ruling 3-8 mapping defects / Ruling 9 双 surface / Ruling 10 brief template / Ruling 11 K scale
+- P6-6A 11 Rulings 已登记：Ruling 1 零改动 / Ruling 2 表格化 / Ruling 3-8 mapping defects / Ruling 9 双 surface / Ruling 10 brief template / **Ruling 11 K scale CLOSED in OPEN-P6-6A-3 (e0d91a6)**

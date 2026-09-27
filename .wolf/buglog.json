@@ -1717,7 +1717,7 @@
       "file": "pcs-backend/app/services/psychro/hydrate_inhibition_service.py:202-205 (formula swap) + docs/formula_ref string updates",
       "root_cause": "Original implementation interpreted K as °C-scale factor and called the raw output 'delta_t_c' before scaling. Per Hammerschmidt 1934 paper (and all standard GPSA references), K=2335 is in °F scale and the direct output is ΔT_F. The PCS code's 'delta_t_c = K·X/(M·(1-X))' was misnamed (raw °C) but actually computes a °F value. Then 'delta_t_f = delta_t_c * 9/5' scaled it again, producing 1.8× inflation. Identified during P6-6A Task 10 (Worley WS-CA-PR-020 cross-check): Ruling 6 root_cause_notes['xls_k_scale_F_vs_pcs_treats_C'] surfaced this K-scale defect.",
       "fix": "OPEN-P6-6A-3: Swapped formula in calc_hydrate_inhibition to match Hammerschmidt 1934 paper convention. New code: delta_t_f = K·X/(M·(1-X)) (raw °F output, K in °F scale), then delta_t_c = delta_t_f × 5/9. Updated docstring (lines 185-188), formula_ref['hammerschmidt'] + formula_ref['k_factor'] strings, 14 hydrate_inhibition tests + 3 worley_c18 forward-algebra tests + golden_hydrate_meoh.json fixture (4 cases with both _f and _c expected values) + worley_c18_hydrate_inhibition.json fixture (renamed _d_C_algebra → _d_F_algebra, removed 'xls_hammerschmidt_K_scale_F_to_C_conversion' from out_of_scope, marked 'xls_k_scale_F_vs_pcs_treats_C' as FIXED). Post-fix: PCS d_F = 21.6°F for X=22.86% (matches XLS Hammerschmidt literature d_F=21.6°F bit-for-bit rel=1e-12).",
-      "fix_commit": "PENDING-OPEN-P6-6A-3",
+      "fix_commit": "e0d91a6",
       "tags": [
         "hammerschmidt-1934",
         "K-scale",
