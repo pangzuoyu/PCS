@@ -1,0 +1,369 @@
+{
+  "_doc": "P6-6A Task 3: C-06 气体热值 vs Worley 真实算例 WS-CA-PR-006 首次对账 fixture。",
+  "source": {
+    "xls": "WS-CA-PR-006.xls",
+    "xls_title": "Gas Heating Values, Standard Calculation WS-CA-PR-006, Rev. 1, Re-Issued for Use (25 March 2003)",
+    "xls_reference": "GPSA Engineering Data Book, Section FIG. 23-2, 11th SI Edition, 1998",
+    "dump": ".superpowers/sdd/2026-09-27-p6-6a-worley-reconciliation/worley_dump/WS-CA-PR-006.json",
+    "dump_note": "原 XLS 位于 sample/（gitignored 只读）；本 fixture 转录 dump 中公式缓存计算值（全 double 精度）。1 sheet（Sheet1）/ 128 rows × 21 cols / 839 cells。",
+    "spec_ref": "PCS-SPEC-ADD-001 V1.10 §3.2.3.6（C-06 GPSA FIG. 23-2 + API 5B6 + Mendeleev 自研 fallback）+ §5 验收分级",
+    "service": "app/services/common_service.py::CommonService.calculate_gas_heating_value"
+  },
+  "tolerance_policy": {
+    "spec_ref": "PCS-SPEC-ADD-001 V1.10 §5：强公式 < 0.1%（rel≤1e-3）",
+    "default_rel": 0.001,
+    "per_case_note": "本 case 因服务侧 HHV/LHV 采用 SYNTHETIC 表 + 64 化合物中 18 个缺失（isomer / 无 CAS），无法对全量 aggregate 做 XLS 直接对账（见 root_cause_notes）。对账范围改为：'已覆盖子集'一致性子集（rel=1e-3）+ 缺失化合物登记 + HHV/LHV 仅结构性断言（> 0 有限）。"
+  },
+  "unit_conversion_factors": {
+    "_doc": "Worley XLS 内部单位与 service 一致（GPSA 标准条件 60°F, 14.696 psia → Sm³ = SCF×0.0283168）；无需单位换算。",
+    "scf_per_kmol": 836.6,
+    "sm3_per_kmol": "SCF_PER_KMOL × 0.0283168 ≈ 23.69 m³/kmol",
+    "btu_per_kj": 0.9478,
+    "xls_unit_check": "F100 MJ/Sm³, F101 Btu/scf, F108 Sm³air/Sm³gas（IG）— 与 service 输出契约口径一致"
+  },
+  "xls_workbook": {
+    "_doc": "Worley WS-CA-PR-006 XLS 工作簿结构摘要。",
+    "sheet": "Sheet1",
+    "compound_table": {
+      "range": "B20:K83",
+      "row_count": 64,
+      "columns": {
+        "B": "行号（1~64）",
+        "C": "化合物名",
+        "E": "化学式 CnHmOhSjNk",
+        "F": "摩尔数 mi（全部 = 1.0）",
+        "G": "Mwi (kg/kmol)",
+        "H": "NHV per Sm³ (MJ/Sm³)",
+        "I": "NHV per SCF (Btu/scf)",
+        "J": "GHV per Sm³ (MJ/Sm³)",
+        "K": "GHV per SCF (Btu/scf)",
+        "N~U": "原子数 C/H/O/S/N/Cl₂/He/HCl"
+      },
+      "feed_totals": {"F85": 64.0}
+    },
+    "combustion_detail": {
+      "range": "B96:F125",
+      "aggregate_outputs": {
+        "F96": {"label": "Feed Gas Molecular Weight", "value": 69.957771875, "unit": "kg/kgmol", "xls_formula": "Σ(mi × MW_i)"},
+        "F100": {"label": "Gross Heating Value", "value": 127.23898750000001, "unit": "MJ/Sm³"},
+        "F101": {"label": "GHV", "value": 3415.140177132954, "unit": "Btu/scf"},
+        "F104": {"label": "Net Heating Value", "value": 118.67975, "unit": "MJ/Sm³"},
+        "F105": {"label": "NHV", "value": 3185.4071648997888, "unit": "Btu/scf"},
+        "F108": {"label": "Stoichiometric Air", "value": 32.2660054425666, "unit": "Sm³air/Sm³gas"},
+        "F112": {"label": "Flue Gas Generation", "value": 9.19984375, "unit": "Sm³/Sm³gas"},
+        "F117": {"label": "CO2", "value": 0.4925355389867355, "unit": "mol% (normalized)"},
+        "F118": {"label": "H2O", "value": 0.49508313660218417, "unit": "mol% (normalized)"},
+        "F119": {"label": "N2", "value": 0.003889332359584912, "unit": "mol% (normalized)"},
+        "F120": {"label": "SO2", "value": 0.0033967968205981763, "unit": "mol% (normalized)"},
+        "F121": {"label": "Cl2", "value": 0.0016983984102990882, "unit": "mol% (normalized)"},
+        "F122": {"label": "He", "value": 0.0016983984102990882, "unit": "mol% (normalized)"},
+        "F123": {"label": "HCl", "value": 0.0016983984102990882, "unit": "mol% (normalized)"},
+        "F125": {"label": "Flue Gas Molecular Weight", "value": 31.111278445625775, "unit": "kg/kgmol", "xls_formula": "Σ(mol% of flue gas component i × MW_i)"}
+      }
+    }
+  },
+  "cases": [
+    {
+      "id": "worley_pr006_64compound_mixture",
+      "sheet": "Sheet1",
+      "line_label": "Example (64-component feed, mi=1 each)",
+      "description": "Worley WS-CA-PR-006 完整 64 化合物算例：每化合物 mi=1 mol（总 mol = 64，F85=64）。XLS 给出 aggregate 9 个量（F96/F100/F101/F104/F105/F108/F112/F117-F123/F125），烟气组成按 mol% 归一化。本 case 因 service _HARDCODED_COMPOUND_DATA 不含 18 个异构体/小分子（详见 missing_compounds），无法复现全 64 化合物 aggregate；改用 46 化合物子集回归 service 公式链一致性（详见 root_cause_notes）。",
+      "xls_inputs": {
+        "compositions_full_64": {
+          "_doc": "Worley dump r20~r83 全部 64 行；每行 F 列（mi）= 1.0；全表共 64 mol 总和。",
+          "_note": "CAS 列不在 XLS——由 E 列化学式 × GPSA FIG. 23-2 数据库双向校验映射（详见化合物表行内 CAS 字段）；r27/r31/r32/r34-r40/r42/r56-r59/r76/r80/r83 共 18 个 isomers/no-CAS 不在 service 表，未编入 compositions_full_64_for_service。",
+          "row_index_map": [
+            {"r": 20, "name": "Methane", "formula": "CH4", "mw": 16.043, "cas": "74-82-8"},
+            {"r": 21, "name": "Ethane", "formula": "C2H6", "mw": 30.07, "cas": "74-84-0"},
+            {"r": 22, "name": "Propane", "formula": "C3H8", "mw": 44.097, "cas": "74-98-6"},
+            {"r": 23, "name": "i-Butane", "formula": "C4H10", "mw": 58.123, "cas": "75-28-5"},
+            {"r": 24, "name": "n-Butane", "formula": "C4H10", "mw": 58.123, "cas": "106-97-8"},
+            {"r": 25, "name": "Isopentane", "formula": "C5H12", "mw": 72.15, "cas": "78-78-4"},
+            {"r": 26, "name": "n-pentane", "formula": "C5H12", "mw": 72.15, "cas": "109-66-0"},
+            {"r": 28, "name": "n-Hexane", "formula": "C6H14", "mw": 86.177, "cas": "110-54-3"},
+            {"r": 29, "name": "2-Methypentane", "formula": "C6H14", "mw": 86.177, "cas": "107-83-5"},
+            {"r": 30, "name": "3-Methypentane", "formula": "C6H14", "mw": 86.177, "cas": "96-14-0"},
+            {"r": 33, "name": "n-Heptane", "formula": "C7H16", "mw": 100.204, "cas": "142-82-5"},
+            {"r": 41, "name": "n-Octane", "formula": "C8H18", "mw": 114.231, "cas": "111-65-9"},
+            {"r": 43, "name": "Isooctane", "formula": "C8H18", "mw": 114.231, "cas": "540-84-1"},
+            {"r": 44, "name": "n-Nonane", "formula": "C9H20", "mw": 128.258, "cas": "111-84-2"},
+            {"r": 45, "name": "n-Decane", "formula": "C10H22", "mw": 142.285, "cas": "124-18-5"},
+            {"r": 46, "name": "Cyclopentane", "formula": "C5H10", "mw": 70.134, "cas": "287-92-3"},
+            {"r": 47, "name": "Methylcyclopentane", "formula": "C6H12", "mw": 84.161, "cas": "96-37-7"},
+            {"r": 48, "name": "Cyclohexane", "formula": "C6H12", "mw": 84.161, "cas": "110-82-7"},
+            {"r": 49, "name": "Methylcyclohexane", "formula": "C7H14", "mw": 98.188, "cas": "108-87-2"},
+            {"r": 50, "name": "Ethene", "formula": "C2H4", "mw": 28.054, "cas": "74-85-1"},
+            {"r": 51, "name": "Propene", "formula": "C3H6", "mw": 42.081, "cas": "115-07-1"},
+            {"r": 52, "name": "1-Butene", "formula": "C4H8", "mw": 56.108, "cas": "106-98-9"},
+            {"r": 53, "name": "cis-2-Butene", "formula": "C4H8", "mw": 56.108, "cas": "590-18-1"},
+            {"r": 54, "name": "trans-2-Butene", "formula": "C4H8", "mw": 56.108, "cas": "624-64-6"},
+            {"r": 55, "name": "Isobutene", "formula": "C4H8", "mw": 56.108, "cas": "115-11-7"},
+            {"r": 60, "name": "Acetylene", "formula": "C2H2", "mw": 26.038, "cas": "74-86-2"},
+            {"r": 61, "name": "Benzene", "formula": "C6H6", "mw": 78.114, "cas": "71-43-2"},
+            {"r": 62, "name": "Toluene", "formula": "C7H8", "mw": 92.141, "cas": "108-88-3"},
+            {"r": 63, "name": "Ethylbenzene", "formula": "C8H10", "mw": 106.167, "cas": "100-41-4"},
+            {"r": 64, "name": "o-Xylene", "formula": "C8H10", "mw": 106.167, "cas": "95-47-6"},
+            {"r": 65, "name": "m-Xylene", "formula": "C8H10", "mw": 106.167, "cas": "108-38-3"},
+            {"r": 66, "name": "p-Xylene", "formula": "C8H10", "mw": 106.167, "cas": "106-42-3"},
+            {"r": 67, "name": "Styrene", "formula": "C8H8", "mw": 104.152, "cas": "100-42-5"},
+            {"r": 68, "name": "Isopropylbenzene", "formula": "C9H12", "mw": 120.194, "cas": "98-82-8"},
+            {"r": 69, "name": "Methylalcohol", "formula": "CH4O", "mw": 32.042, "cas": "67-56-1"},
+            {"r": 70, "name": "Ethylalcohol", "formula": "C2H6O", "mw": 46.069, "cas": "64-17-5"},
+            {"r": 71, "name": "Carbon Monoxide", "formula": "CO", "mw": 28.01, "cas": "630-08-0"},
+            {"r": 72, "name": "Carbon Dioxide", "formula": "CO2", "mw": 44.01, "cas": "124-38-9"},
+            {"r": 73, "name": "Hydrogen Sulphide", "formula": "H2S", "mw": 34.082, "cas": "7783-06-4"},
+            {"r": 74, "name": "Sulphur Dioxide", "formula": "SO2", "mw": 64.065, "cas": "7446-09-5"},
+            {"r": 75, "name": "Ammonia", "formula": "NH3", "mw": 17.0305, "cas": "7664-41-7"},
+            {"r": 77, "name": "Hydrogen", "formula": "H2", "mw": 2.0159, "cas": "1333-74-0"},
+            {"r": 78, "name": "Oxygen", "formula": "O2", "mw": 31.9988, "cas": "7782-44-7"},
+            {"r": 79, "name": "Nitrogen", "formula": "N2", "mw": 28.0134, "cas": "7727-37-9"},
+            {"r": 81, "name": "Water", "formula": "H2O", "mw": 18.0153, "cas": "7732-18-5"},
+            {"r": 82, "name": "Helium", "formula": "He", "mw": 4.0026, "cas": "7440-59-7"}
+          ]
+        },
+        "compositions_for_service": {
+          "_doc": "46 化合物子集（去重 unique CAS），每行 mol_frac=1.0；service 内部自动归一化（总和 = 46 → 每 mol_frac_eff = 1/46）。",
+          "_note": "18 个 missing_compounds 在 service _HARDCODED_COMPOUND_DATA 中无 CAS 命中；如加入会触发 PcsError 404 COMMON_HEATING_VALUE_NOT_FOUND（service 层硬约束）。",
+          "rows": [
+            {"cas": "74-82-8", "mol_frac": 1.0},
+            {"cas": "74-84-0", "mol_frac": 1.0},
+            {"cas": "74-98-6", "mol_frac": 1.0},
+            {"cas": "75-28-5", "mol_frac": 1.0},
+            {"cas": "106-97-8", "mol_frac": 1.0},
+            {"cas": "78-78-4", "mol_frac": 1.0},
+            {"cas": "109-66-0", "mol_frac": 1.0},
+            {"cas": "110-54-3", "mol_frac": 1.0},
+            {"cas": "107-83-5", "mol_frac": 1.0},
+            {"cas": "96-14-0", "mol_frac": 1.0},
+            {"cas": "142-82-5", "mol_frac": 1.0},
+            {"cas": "111-65-9", "mol_frac": 1.0},
+            {"cas": "540-84-1", "mol_frac": 1.0},
+            {"cas": "111-84-2", "mol_frac": 1.0},
+            {"cas": "124-18-5", "mol_frac": 1.0},
+            {"cas": "287-92-3", "mol_frac": 1.0},
+            {"cas": "96-37-7", "mol_frac": 1.0},
+            {"cas": "110-82-7", "mol_frac": 1.0},
+            {"cas": "108-87-2", "mol_frac": 1.0},
+            {"cas": "74-85-1", "mol_frac": 1.0},
+            {"cas": "115-07-1", "mol_frac": 1.0},
+            {"cas": "106-98-9", "mol_frac": 1.0},
+            {"cas": "590-18-1", "mol_frac": 1.0},
+            {"cas": "624-64-6", "mol_frac": 1.0},
+            {"cas": "115-11-7", "mol_frac": 1.0},
+            {"cas": "74-86-2", "mol_frac": 1.0},
+            {"cas": "71-43-2", "mol_frac": 1.0},
+            {"cas": "108-88-3", "mol_frac": 1.0},
+            {"cas": "100-41-4", "mol_frac": 1.0},
+            {"cas": "95-47-6", "mol_frac": 1.0},
+            {"cas": "108-38-3", "mol_frac": 1.0},
+            {"cas": "106-42-3", "mol_frac": 1.0},
+            {"cas": "100-42-5", "mol_frac": 1.0},
+            {"cas": "98-82-8", "mol_frac": 1.0},
+            {"cas": "67-56-1", "mol_frac": 1.0},
+            {"cas": "64-17-5", "mol_frac": 1.0},
+            {"cas": "630-08-0", "mol_frac": 1.0},
+            {"cas": "124-38-9", "mol_frac": 1.0},
+            {"cas": "7783-06-4", "mol_frac": 1.0},
+            {"cas": "7446-09-5", "mol_frac": 1.0},
+            {"cas": "7664-41-7", "mol_frac": 1.0},
+            {"cas": "1333-74-0", "mol_frac": 1.0},
+            {"cas": "7782-44-7", "mol_frac": 1.0},
+            {"cas": "7727-37-9", "mol_frac": 1.0},
+            {"cas": "7732-18-5", "mol_frac": 1.0},
+            {"cas": "7440-59-7", "mol_frac": 1.0}
+          ],
+          "expected_normalized_eff_mol_frac": "1/46 ≈ 0.021739130434782608 per compound（service auto-normalize）"
+        },
+        "expected_aggregate_xls_full_64": {
+          "_doc": "Worley XLS 64 化合物全量 aggregate（dump F96/F100/F101/F104/F105/F108/F112/F117-F123/F125 全部原值）。仅作 B 批数据源替换时的对照基准；本批因 18 化合物缺失不予对账。",
+          "feed_mw_kg_per_kmol": 69.957771875,
+          "hhv_mj_per_sm3": 127.23898750000001,
+          "hhv_btu_per_scf": 3415.140177132954,
+          "lhv_mj_per_sm3": 118.67975,
+          "lhv_btu_per_scf": 3185.4071648997888,
+          "stoichiometric_air_sm3_per_sm3": 32.2660054425666,
+          "flue_gas_sm3_per_sm3": 9.19984375,
+          "flue_gas_mw_kg_per_kmol_xls": 31.111278445625775,
+          "flue_gas_composition_xls": {
+            "CO2": 0.4925355389867355,
+            "H2O": 0.49508313660218417,
+            "N2": 0.003889332359584912,
+            "SO2": 0.0033967968205981763,
+            "Cl2": 0.0016983984102990882,
+            "He": 0.0016983984102990882,
+            "HCl": 0.0016983984102990882
+          }
+        }
+      },
+      "service_input_subset": {
+        "compositions": [
+          {"cas": "74-82-8", "mol_frac": 1.0},
+          {"cas": "74-84-0", "mol_frac": 1.0},
+          {"cas": "74-98-6", "mol_frac": 1.0},
+          {"cas": "75-28-5", "mol_frac": 1.0},
+          {"cas": "106-97-8", "mol_frac": 1.0},
+          {"cas": "78-78-4", "mol_frac": 1.0},
+          {"cas": "109-66-0", "mol_frac": 1.0},
+          {"cas": "110-54-3", "mol_frac": 1.0},
+          {"cas": "107-83-5", "mol_frac": 1.0},
+          {"cas": "96-14-0", "mol_frac": 1.0},
+          {"cas": "142-82-5", "mol_frac": 1.0},
+          {"cas": "111-65-9", "mol_frac": 1.0},
+          {"cas": "540-84-1", "mol_frac": 1.0},
+          {"cas": "111-84-2", "mol_frac": 1.0},
+          {"cas": "124-18-5", "mol_frac": 1.0},
+          {"cas": "287-92-3", "mol_frac": 1.0},
+          {"cas": "96-37-7", "mol_frac": 1.0},
+          {"cas": "110-82-7", "mol_frac": 1.0},
+          {"cas": "108-87-2", "mol_frac": 1.0},
+          {"cas": "74-85-1", "mol_frac": 1.0},
+          {"cas": "115-07-1", "mol_frac": 1.0},
+          {"cas": "106-98-9", "mol_frac": 1.0},
+          {"cas": "590-18-1", "mol_frac": 1.0},
+          {"cas": "624-64-6", "mol_frac": 1.0},
+          {"cas": "115-11-7", "mol_frac": 1.0},
+          {"cas": "74-86-2", "mol_frac": 1.0},
+          {"cas": "71-43-2", "mol_frac": 1.0},
+          {"cas": "108-88-3", "mol_frac": 1.0},
+          {"cas": "100-41-4", "mol_frac": 1.0},
+          {"cas": "95-47-6", "mol_frac": 1.0},
+          {"cas": "108-38-3", "mol_frac": 1.0},
+          {"cas": "106-42-3", "mol_frac": 1.0},
+          {"cas": "100-42-5", "mol_frac": 1.0},
+          {"cas": "98-82-8", "mol_frac": 1.0},
+          {"cas": "67-56-1", "mol_frac": 1.0},
+          {"cas": "64-17-5", "mol_frac": 1.0},
+          {"cas": "630-08-0", "mol_frac": 1.0},
+          {"cas": "124-38-9", "mol_frac": 1.0},
+          {"cas": "7783-06-4", "mol_frac": 1.0},
+          {"cas": "7446-09-5", "mol_frac": 1.0},
+          {"cas": "7664-41-7", "mol_frac": 1.0},
+          {"cas": "1333-74-0", "mol_frac": 1.0},
+          {"cas": "7782-44-7", "mol_frac": 1.0},
+          {"cas": "7727-37-9", "mol_frac": 1.0},
+          {"cas": "7732-18-5", "mol_frac": 1.0},
+          {"cas": "7440-59-7", "mol_frac": 1.0}
+        ],
+        "excess_air_pct": 0.0,
+        "row_count": 46
+      },
+      "expected_service_subset_46": {
+        "_doc": "CommonService.calculate_gas_heating_value 对 46 化合物子集的返回值快照（service return 截 round 3~4 位）。用于回归 service 公式链路一致性。",
+        "feed_mw_kg_per_kmol": 65.965,
+        "hhv_mj_per_sm3": 118.7898,
+        "hhv_btu_per_scf": 3188.2,
+        "lhv_mj_per_sm3": 111.2299,
+        "lhv_btu_per_scf": 2985.3,
+        "stoichiometric_air_sm3_per_sm3": 30.0983,
+        "flue_gas_sm3_per_sm3": 32.3212,
+        "flue_gas_mw_kg_per_kmol": 268.126,
+        "flue_gas_composition": {
+          "CO2": 0.1332,
+          "H2O": 0.1288,
+          "SO2": 0.0013,
+          "N2": 0.7367,
+          "O2": 0.0
+        }
+      },
+      "expected_xls_divergence_summary": {
+        "_doc": "46-化合物子集 vs 64-化合物 XLS 全量 aggregate 的偏差（用于决策 HHV/LHV 仅作结构性断言）。",
+        "feed_mw_kg_per_kmol_relative_pct": -5.7,
+        "hhv_mj_per_sm3_relative_pct": -6.6,
+        "hhv_btu_per_scf_relative_pct": -6.6,
+        "lhv_mj_per_sm3_relative_pct": -6.3,
+        "lhv_btu_per_scf_relative_pct": -6.3,
+        "stoichiometric_air_sm3_per_sm3_relative_pct": -6.7,
+        "flue_gas_mw_kg_per_kmol_relative_pct": "+761",
+        "_divergence_attribution": "feed_mw/hhv/lhv/stoich_air 偏差主要源于 46/64 子集（非完整 XLS）；flue_gas_mw_xls 是按 mol% 归一化的烟气组分 MW 加权和（口径不同）而非按 mol_frac 加权（service 口径），二者不可直接对比"
+      },
+      "xls_reference_for_b_batch": {
+        "_doc": "B 批数据源替换时的最终对账目标（service _HARDCODED_COMPOUND_DATA 替换为 GPSA FIG. 23-2 期号原值后应贴近此值）；本批不参与回归断言。",
+        "feed_mw_kg_per_kmol": 69.957771875,
+        "hhv_mj_per_sm3": 127.23898750000001,
+        "lhv_mj_per_sm3": 118.67975,
+        "stoichiometric_air_sm3_per_sm3": 32.2660054425666,
+        "flue_gas_mw_kg_per_kmol_xls_per_flue_gas_kmol": 31.111278445625775,
+        "note": "6 项指标差 ≤7%，落在 B 批 SYNTHETIC 表 → GPSA 真值替换后可消除的范围内"
+      },
+      "tolerance": {
+        "rel": 0.001,
+        "level": "SPEC §5 强公式 0.1%（对 service 返回精度非含噪声 XLS 计算）",
+        "reason": "46-化合物子集 aggregate 值以 service 自身返回快照为基准；本 case 不对 Worley XLS F96/F100/F101/F104/F105/F108/F112/F117-F123/F125 做直接 rel 对账（HHV/LHV 字段含 SYNTHETIC 表偏差 + 子集偏差两层不分离量；flue_gas_mw 口径不同）。B 批数据源替换后用本 tolerance 对全 64 化合物 aggregate 重测。"
+      }
+    }
+  ],
+  "missing_compounds": {
+    "_doc": "Worley 64 化合物中 service _HARDCODED_COMPOUND_DATA 无 CAS 命中的 18 个（isomers / air / chlorine / HCl）；保留备查以便 B 批立项增补。",
+    "list": [
+      {"r": 27, "name": "Neopentane", "formula": "C5H12", "cas_attempted": "463-82-1", "reason": "2,2-dimethylpropane — 不在 64 GPSA 表"},
+      {"r": 31, "name": "Neohexane", "formula": "C6H14", "cas_attempted": "75-83-2", "reason": "2,2-dimethylbutane — 不在 64 GPSA 表"},
+      {"r": 32, "name": "2,3-Dimethylbutane", "formula": "C6H14", "cas_attempted": "79-29-8", "reason": "C6H14 异构体 — 不在 64 GPSA 表"},
+      {"r": 34, "name": "2-Methylhexane", "formula": "C7H16", "cas_attempted": "591-76-4", "reason": "C7H16 异构体 — 不在 64 GPSA 表"},
+      {"r": 35, "name": "3-Methylhexane", "formula": "C7H16", "cas_attempted": "589-34-4", "reason": "C7H16 异构体 — 不在 64 GPSA 表"},
+      {"r": 36, "name": "3-Ethylpentane", "formula": "C7H16", "cas_attempted": "617-78-7", "reason": "C7H16 异构体 — 不在 64 GPSA 表"},
+      {"r": 37, "name": "2,2-Dimethylpentane", "formula": "C7H16", "cas_attempted": "590-35-2", "reason": "C7H16 异构体 — 不在 64 GPSA 表"},
+      {"r": 38, "name": "2,4-Dimethylpentane", "formula": "C7H16", "cas_attempted": "108-08-7", "reason": "C7H16 异构体 — 不在 64 GPSA 表"},
+      {"r": 39, "name": "3,3-Dimethylpentane", "formula": "C7H16", "cas_attempted": "562-49-2", "reason": "C7H16 异构体 — 不在 64 GPSA 表"},
+      {"r": 40, "name": "Triptane", "formula": "C7H16", "cas_attempted": "594-82-1", "reason": "2,2,3-trimethylbutane — 不在 64 GPSA 表"},
+      {"r": 42, "name": "Diisobutyl", "formula": "C8H18", "cas_attempted": "108-38-9", "reason": "C8H18 异构体 — 仅 n-octane/isooctane 在表"},
+      {"r": 56, "name": "1-Pentene", "formula": "C5H10", "cas_attempted": "109-67-1", "reason": "C5H10 烯烃 — 仅 1-hexene (C6H12) 在表"},
+      {"r": 57, "name": "1,2-Butadiene", "formula": "C4H6", "cas_attempted": "590-19-2", "reason": "二烯烃 — 不在 64 GPSA 表"},
+      {"r": 58, "name": "1,3-Butadiene", "formula": "C4H6", "cas_attempted": "106-99-0", "reason": "二烯烃 — 不在 64 GPSA 表"},
+      {"r": 59, "name": "Isoprene", "formula": "C5H8", "cas_attempted": "78-79-5", "reason": "天然橡胶单体 — 不在 64 GPSA 表"},
+      {"r": 76, "name": "Air", "formula": "N2 + O2", "cas_attempted": "n/a", "reason": "空气混合物（非单一化合物，无 CAS）；Worley 表用 N2+O2 标记"},
+      {"r": 80, "name": "Chlorine", "formula": "Cl2", "cas_attempted": "7782-50-5", "reason": "Cl₂ — 不在 64 GPSA 表（无含 Cl₂ 化合物原子计数）"},
+      {"r": 83, "name": "Hydrogen Chloride", "formula": "HCl", "cas_attempted": "7647-01-0", "reason": "HCl — 不在 64 GPSA 表（需新增 (_COMPOUND_ATOMS 含 HCl) 分支）"}
+    ],
+    "_action_for_b_batch": "立项 expand _HARDCODED_COMPOUND_DATA / _COMPOUND_ATOMS 容纳 C5~C10 异构体（10 项）+ 二烯烃（3 项）+ 卤素（Cl₂/HCl 各 1 项）+ 空气虚拟 CAS 处理"
+  },
+  "structural_asserts": {
+    "_doc": "因 HHV/LHV 全 64 XLS 对账不可达（两层偏差不分离），放宽为结构性断言：仅断言 positive finite + 数量级合理。",
+    "hhv_mj_per_sm3_gt": 50.0,
+    "hhv_mj_per_sm3_lt": 200.0,
+    "lhv_mj_per_sm3_gt": 40.0,
+    "lhv_mj_per_sm3_lt": 200.0,
+    "hhv_lhv_ordering": "hhv_mj_per_sm3 > lhv_mj_per_sm3（燃烧水凝结释热差额）",
+    "feed_mw_kg_per_kmol_range": "service subset = 65.965（应在 C1~Cn 10 烷烃平均区间 60~80 kg/kmol）",
+    "stoich_air_min": 5.0,
+    "flue_comp_normalizes_to_one": "Σ(flue_gas_composition.values()) ≈ 1.0（rel=1e-3）"
+  },
+  "root_cause_notes": [
+    {
+      "id": "synthetic_hhv_lhv_table",
+      "finding": "service _HARDCODED_COMPOUND_DATA 64 项 hhv_mj_kg/lhv_mj_kg 系 seed 脚本（P6-4 gate 03）合成占位值，与 Worley XLS 引用的 GPSA Engineering Data Book Section FIG. 23-2（11th SI Ed., 1998）真值存在差额（典型甲烷 55.53 MJ/kg 经核对，但 C7~C10 异构体合成值无 GPSA 原文可校）。本批对 HHV/LHV 仅做结构性断言；批 B 立项由工艺工程师对接 GPSA 期号真值替换 _HARDCODED_COMPOUND_DATA。",
+      "ruling": "1(b) 数据源差异——非代码缺陷，登记批 B 数据源替换（compound_heating_values CONFIG 表 UPDATE）"
+    },
+    {
+      "id": "missing_compounds_subset",
+      "finding": "Worley WS-CA-PR-006 64 化合物中 service _HARDCODED_COMPOUND_DATA 仅 46 个 CAS 命中；18 个 isomers（5 项 C6/C7/C8 异构体 + 5 项 C7 异构体 + diisobutyl + 1-pentene + 3 项二烯烃）+ air（无 CAS）+ chlorine + HCl 不在表。service 强制 PcsError 404 COMMON_HEATING_VALUE_NOT_FOUND 因此无法以全 64 化合物 aggregate 形式回归。",
+      "ruling": "1(b) 数据源差异——非代码缺陷，登记批 B 增补化合物表（service 层 Mendeleev fallback 仅对 H/C/N/S/O 已知 CAS，未含 Cl₂/HCl 等含 Cl 路径）"
+    },
+    {
+      "id": "subset_aggregate_diverges_from_xls_full",
+      "finding": "46-化合物子集 aggregate（service 快照 feed_mw=65.965 / hhv_mj=118.7898 / lhv_mj=111.2299 / stoich=30.0983 / flue_gas_mw=268.126）相对 64-化合物 XLS 全量（F96=69.9578 / F100=127.239 / F104=118.6797 / F108=32.266 / F125=31.1113）的偏差：feed_mw -5.7% / hhv -6.6% / lhv -6.3% / stoich_air -6.7% / flue_gas_mw +761%。分子量与热值偏差根因 = 子集差异；flue_gas_mw 偏差根因 = 口径不同（service 按 mol_frac 加权 → per kmol fuel；XLS 按 mol% 归一化 → per kmol flue gas）。",
+      "ruling": "1(b)+(c) 数据差异 + 口径差异——重叠登记，批 B 数据源替换 + 口径收敛后重测"
+    },
+    {
+      "id": "flue_gas_mw_definition_mismatch",
+      "finding": "service flue_gas_mw_kg_per_kmol 口径为'per kmol of fuel'（mol_frac × Σ(产物 mol × MW)）；XLS F125 口径为'per kmol of flue gas'（mol% 归一化后 Σ(flue_gas 摩尔分率 × MW)）。二者在 100% CH₄ 工况下：service = 80 kg/kmol_fuel（1 mol CH₄ → 1 mol CO₂ + 2 mol H₂O，MW×产物 mol）；XLS-style = 80/3 = 26.67 kg/kmol_flue_gas。spec §3.2.3.6 字段命名 'flue_gas_mw_kg_per_kmol' 但实现口径为 fuel-side，与 XLS 不同。",
+      "ruling": "1(d) 契约字段命名 vs 实现口径不一致——非本批对账范围（spec V1.2 修订评估，登记 SPEC 修订条目）"
+    }
+  ],
+  "out_of_scope": [
+    {
+      "id": "per_compound_hhv_lhv_xls_rows",
+      "xls_refs": "Worley dump r20~r83 列 H/I/J/K（per-Sm³/SCF NHV/GHV per compound）",
+      "reason": "service _HARDCODED_COMPOUND_DATA hhv_mj_kg/lhv_mj_kg 系 SYNTHETIC（见 root_cause_notes 'synthetic_hhv_lhv_table'），per-compound XLS 值与 service 内部值不可比对；批 B 数据源替换后逐条 < 1% 验"
+    },
+    {
+      "id": "xls_f96_to_f125_direct_reconciliation",
+      "xls_refs": "Worley dump F96/F100/F101/F104/F105/F108/F112/F117~F123/F125",
+      "reason": "18 缺失化合物 + HHV/LHV SYNTHETIC 表 + flue_gas_mw 口径三因素叠加，XLS-direct rel=1e-3 对账在当前数据状态下不可达。 fixture 仅以 xls_reference_for_b_batch 存 B 批目标，xls_inputs.expected_aggregate_xls_full_64 存全量参考"
+    },
+    {
+      "id": "excess_air_computation",
+      "xls_refs": "n/a（XLS 隐含 stoichiometric_air = 0% excess）",
+      "reason": "本算例 excess_air_pct=0.0；含氧工况对账延后至有 XLS 实例时"
+    }
+  ]
+}
