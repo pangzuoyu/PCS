@@ -120,6 +120,30 @@ def get_iso9613_abs_default_db_per_km() -> float | None:
 
 
 # -----------------------------------------------------------------------------
+# 5. 管材弹性模量 E（C-13 surge_pressure）
+# -----------------------------------------------------------------------------
+def get_pipe_E_modulus_table() -> dict[str, float] | None:
+    """从 ``pipe_e_modulus`` 表加载 E 模量（psi → Pa 换算）。
+
+    返回 ``{grade: E_Pa}`` 字典；DB 不可达时返回 None，由 service fallback
+    到内联 5 等级 X42/X52/X65/X70/X80 圆整值（30e6 psi = 206.84e9 Pa）。
+    """
+    from app.models.config import PipeEModulus
+
+    _PSI_TO_PA = 6894.76
+
+    def loader() -> dict[str, float] | None:
+        def query(session) -> dict[str, float] | None:
+            rows = session.execute(select(PipeEModulus)).scalars().all()
+            if not rows:
+                return None
+            return {r.grade: r.e_psi * _PSI_TO_PA for r in rows}
+        return _load_with_fallback(query)
+
+    return _get_cached_or_reload("pipe_E_modulus", loader)
+
+
+# -----------------------------------------------------------------------------
 # 4. Hammerschmidt K 因子（C-18 hydrate_inhibition_service）
 # -----------------------------------------------------------------------------
 def get_hammerschmidt_K_table() -> dict[str, float] | None:
@@ -142,5 +166,6 @@ __all__: Final[list[str]] = [
     "get_api521_thresholds_table",
     "get_iso9613_abs_default_db_per_km",
     "get_hammerschmidt_K_table",
+    "get_pipe_E_modulus_table",
     "clear_all_caches",
 ]

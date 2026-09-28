@@ -247,10 +247,12 @@ def test_surge_pressure_unknown_material_raises():
 
 
 def test_wave_speed_wall_correction_reduces_velocity():
-    """壁厚 e=5mm + 碳钢 → a < 纯流体声速（管壁弹性修正生效）。
+    """壁厚 e=5mm + API 5L X65 → a < 纯流体声速（管壁弹性修正生效）。
 
-    K=2.2e9, ρ=999, D=0.1m, E=200e9, e=0.005, C₁=0.91
-    correction = (K·D)/(E·e)·C₁ ≈ 2.002 → a ≈ a_f / √3.002 ≈ 856 m/s
+    P6-6B T3 起 pipe_material 走 pipe_e_modulus CONFIG 表（API 5L X65=30e6 psi
+    = 206.8428 GPa 工程圆整值）。
+    K=2.2e9, ρ=999, D=0.1m, E=206.8428e9, e=0.005, C₁=0.91
+    correction ≈ 0.1936 → a ≈ a_f / √1.1936 ≈ 1358 m/s
     """
     inp = SurgePressureInput(
         fluid_density_kg_m3=999.0,
@@ -259,12 +261,12 @@ def test_wave_speed_wall_correction_reduces_velocity():
         flow_velocity_m_s=2.0,
         valve_close_time_s=0.0,
         wall_thickness_m=0.005,
-        pipe_material="CARBON_STEEL",
+        pipe_material="X65",
     )
     result = calc_water_hammer_surge(inp)
     a_fluid = math.sqrt(2.2e9 / 999.0)
-    # 修正项
-    E = 200e9
+    # 修正项（用 X65=30e6 psi=206.8428e9 工程圆整值）
+    E = 30_000_000 * 6894.76
     c1 = 0.91
     correction = (2.2e9 * 0.1) / (E * 0.005) * c1
     expected_a = a_fluid / math.sqrt(1.0 + correction)

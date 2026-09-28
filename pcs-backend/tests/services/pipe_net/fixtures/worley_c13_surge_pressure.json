@@ -12,7 +12,7 @@
   "tolerance_policy": {
     "spec_ref": "PCS-SPEC-ADD-001 V1.10 §5：强公式 < 0.1%（rel≤1e-3）",
     "default_rel": 0.001,
-    "per_case_note": "本 case 因 Worley XLS L24 E=207 GPa（API 5L line pipe, Table 2 范围 200~210 GPa 的中段取值），PCS service _PIPE_E_MODULUS_PA['CARBON_STEEL']=200e9，硬编码差 7 GPa（约 3.5%），导致 wave_speed_m_s 和 surge_pressure_pa 偏 ~0.4%（≈ 4 m/s + 0.1 bar），超出 强公式 0.1% 容差。处置：wave_speed_m_s / surge_pressure_pa 容差放宽至 rel=5e-3（覆盖 E modulus mismatch 工程化圆整差），其余字段（critical_close_time_s / is_joukowsky_applicable boolean / formula_ref 完整性）保持 rel=1e-3。同时通过 Wylie-Streeter 独立手算（E_xls=207e9）证明 XLS 公式解释正确，XLS L31=1302.4134 m/s 复算 rel=0。"
+    "per_case_note": "本 case Worley XLS L24 E=207 GPa（API 5L line pipe, Table 2 范围 200~210 GPa 中段）；P6-6B T3 起 PCS service 走 pipe_e_modulus CONFIG 表（API 5L X65 = 30e6 psi = 206.8428 GPa 工程圆整值）；E_xls 与 E_pcs 差 ≈ 0.076%（rel ≈ 7.6e-4），远低于强公式 0.1% 容差。fixture.service_inputs.pipe_material='X65'（API 5L line pipe），覆盖 XLS 取值口径。"
   },
   "unit_conversion_factors": {
     "_doc": "Worley XLS 内部单位：密度 kg/m³、模量 GN/m²（= 1e9 Pa）、几何 mm/m、流速 m/s、压力 bar（= 1e5 Pa）。PCS service 全 SI 输入。",
@@ -67,7 +67,7 @@
       "id": "worley_pr014_joukowsky_carbon_steel",
       "sheet": "PIPELINE SURGE PRESSURE",
       "line_label": "Validation of Standard Calculation 086/00589-CA-PR-014 Rev. A (single case, Joukowsky applicable)",
-      "description": "Worley WS-CA-PR-014 真实工程算例：原油管线水锤校验。管径 429 mm × 壁厚 14 mm × 长度 684 m，材质碳钢（XLS L24 E=207 GPa；service CARBON_STEEL=200 GPa），两端锚固（C₁=0.91），流体水（ρ=998 kg/m³, K=2.193 GPa），流速 v=1.9371 m/s（由 Q=1008 m³/hr 派生），关阀时间 ts=1.0 s < tc=1.05 s → Joukowsky 适用。XLS 输出波速 c=1302.4134 m/s（L31），管周期 tc=1.0504 s（L32），最大浪涌压力 Pi=25.1787 bar（L33 = ρ·c·v / 1e5）。对账范围：wave_speed_m_s（Wylie-Streeter 含管壁修正）+ surge_pressure_pa（Joukowsky 1898）+ critical_close_time_s（MOC 边界）+ is_joukowsky_applicable 布尔 + formula_ref 完整性。",
+      "description": "Worley WS-CA-PR-014 真实工程算例：原油管线水锤校验。管径 429 mm × 壁厚 14 mm × 长度 684 m，材质 API 5L line pipe X65（XLS L24 E=207 GPa；P6-6B T3 起 PCS service pipe_e_modulus X65=206.8428 GPa，rel 差 ≈ 0.076%），两端锚固（C₁=0.91），流体水（ρ=998 kg/m³, K=2.193 GPa），流速 v=1.9371 m/s（由 Q=1008 m³/hr 派生），关阀时间 ts=1.0 s < tc=1.05 s → Joukowsky 适用。XLS 输出波速 c=1302.4134 m/s（L31），管周期 tc=1.0504 s（L32），最大浪涌压力 Pi=25.1787 bar（L33 = ρ·c·v / 1e5）。对账范围：wave_speed_m_s（Wylie-Streeter 含管壁修正）+ surge_pressure_pa（Joukowsky 1898）+ critical_close_time_s（MOC 边界）+ is_joukowsky_applicable 布尔 + formula_ref 完整性。",
       "xls_inputs": {
         "L14_kg_m3": {"label": "Liquid Density (ρ)", "value": 998.0, "unit": "kg/m³"},
         "L16_gn_m2": {"label": "Bulk Modulus (K)", "value": 2.193, "unit": "GN/m²"},
@@ -75,7 +75,7 @@
         "AF15_mm": {"label": "Wall Thickness (e)", "value": 14.0, "unit": "mm"},
         "AF16_m": {"label": "Pipeline Length (L)", "value": 684.0, "unit": "m"},
         "AF17_s": {"label": "Valve Closure Time (ts)", "value": 1.0, "unit": "s"},
-        "L24_gn_m2": {"label": "Young's modulus (E)", "value": 207.0, "unit": "GN/m²", "_note": "XLS 取值 207（GPa），PCS CARBON_STEEL=200，硬编码差 7 GPa → 详见 root_cause_notes 'E_modulus_carbon_steel_mismatch'"},
+        "L24_gn_m2": {"label": "Young's modulus (E)", "value": 207.0, "unit": "GN/m²", "_note": "XLS 取值 207（GPa）；P6-6B T3 起 PCS service pipe_material='X65' 走 pipe_e_modulus CONFIG 表（API 5L X65 = 30e6 psi = 206.8428 GPa 工程圆整），与 XLS 差 ≈ 0.076%（远低于 0.1% 容差）"},
         "L25": {"label": "Poisson's Ratio (μ)", "value": 0.3, "unit": "—"},
         "AF26_C1": {"label": "Anchor Coefficient (C₁)", "value": 0.91, "unit": "—", "_formula": "C₁ = 1 - μ² = 1 - 0.09"},
         "L17_m3_per_hr": {"label": "Fluid Flowrate (Q)", "value": 1008.0, "unit": "m³/hr", "_note": "派生 v = Q/(π·D²/4)/3600"},
@@ -96,45 +96,45 @@
         "pipe_length_m": 684.0,
         "flow_velocity_m_s": 1.9371067997122686,
         "valve_close_time_s": 1.0,
-        "pipe_material": "CARBON_STEEL",
+        "pipe_material": "X65",
         "imperial_units": false
       },
       "expected": {
-        "_doc": "PCS service 期望输出（CARBON_STEEL=200e9 → a=1297.2466 m/s → Pi=2507879 Pa）；与 XLS (E=207e9 → a=1302.4134 m/s → Pi=2517868 Pa) 差 ≈ 0.4%（详见 root_cause_notes 'E_modulus_carbon_steel_mismatch'）。",
-        "wave_speed_m_s": 1297.2465580910155,
-        "surge_pressure_pa": 2507879.3183304074,
-        "critical_close_time_s": 1.0545407646220864,
+        "_doc": "PCS service 期望输出（X65=206.8428e9 Pa 即 30e6 psi → a=1302.3005 m/s → Pi=2517649.86 Pa）；与 XLS (E=207e9 → a=1302.4134 m/s → Pi=2517868.02 Pa) 差 ≈ 0.009%（远低于 0.1% 强公式容差）。",
+        "wave_speed_m_s": 1302.3005488426968,
+        "surge_pressure_pa": 2517649.8579354272,
+        "critical_close_time_s": 1.0504487625411753,
         "is_joukowsky_applicable": true,
         "formula_ref_expected_keys": ["wave_speed", "joukowsky", "critical_close_time"],
         "imperial_conversion_expected": null
       },
       "xls_tautology_expected": {
-        "_doc": "Wylie-Streeter 公式独立手算（E_xls=207e9）→ a_xls=1302.4134 m/s 复现 XLS L31；证明 XLS 公式解释正确（与 service 实现同构，仅 E 取值不同）。",
+        "_doc": "Wylie-Streeter 公式独立手算（E_xls=207e9）→ a_xls=1302.4134 m/s 复现 XLS L31；证明 XLS 公式解释正确（与 service 实现同构，仅 E 取值不同）。P6-6B T3 起 E_pcs（X65）=206.8428 GPa 与 E_xls=207 GPa 差 ≈ 0.076%。",
         "wave_speed_m_s_with_xls_e": 1302.4133992422635,
         "surge_pressure_pa_with_xls_e": 2517868.024005141,
-        "wave_speed_rel_diff_xls_e_vs_pcs_e": 3.967128e-03,
-        "surge_pressure_rel_diff_xls_e_vs_pcs_e": 3.967128e-03
+        "wave_speed_rel_diff_xls_e_vs_pcs_e": 8.678e-05,
+        "surge_pressure_rel_diff_xls_e_vs_pcs_e": 8.678e-05
       },
       "per_field_tolerance": {
         "wave_speed_m_s": {
-          "rel": 0.005,
-          "level": "放宽：SPEC §5 强公式 1e-3 → 5e-3",
-          "reason": "XLS L24 E=207e9 vs PCS service CARBON_STEEL=200e9（硬编码工程化圆整差 ~3.5%），导致 wave_speed 偏 ~0.4%；放宽至 5e-3 覆盖该 mismatch。Wylie-Streeter 公式独立手算（E_xls=207e9）复现 XLS L31=1302.4134 m/s rel=0，证明 XLS 公式解释正确"
+          "rel": 0.001,
+          "level": "SPEC §5 强公式 1e-3（标准档）",
+          "reason": "XLS L24 E=207e9 vs PCS service X65=206.8428e9（pipe_e_modulus CONFIG 表，30e6 psi 工程圆整），rel 差 ≈ 0.009%，远低于 0.1% 强公式容差。Wylie-Streeter 公式独立手算（E_xls=207e9）复现 XLS L31=1302.4134 m/s rel=0，证明 XLS 公式解释正确"
         },
         "surge_pressure_pa": {
-          "rel": 0.005,
-          "level": "放宽：SPEC §5 强公式 1e-3 → 5e-3",
+          "rel": 0.001,
+          "level": "SPEC §5 强公式 1e-3（标准档）",
           "reason": "同 wave_speed_m_s（直接 ρ·a·v 传递 a 的偏差）"
         },
         "critical_close_time_s": {
-          "rel": 0.005,
-          "level": "放宽：SPEC §5 强公式 1e-3 → 5e-3",
-          "reason": "tc = 2L/a 同样受 a 偏差传递；XLS L32=1.0504 vs PCS=1.0545，rel 差 0.39%"
+          "rel": 0.001,
+          "level": "SPEC §5 强公式 1e-3（标准档）",
+          "reason": "tc = 2L/a 同样受 a 偏差传递；XLS L32=1.0504 vs PCS=1.0504，rel 差 ≈ 0.009%"
         },
         "is_joukowsky_applicable": {
           "rel": null,
           "level": "布尔断言",
-          "reason": "ts=1.0 < tc_pcs=1.0545 < tc_xls=1.0504 → 两侧均 Joukowsky 适用，布尔值一致"
+          "reason": "ts=1.0 < tc_pcs=1.0504 < tc_xls=1.0504 → 两侧均 Joukowsky 适用，布尔值一致"
         },
         "formula_ref": {
           "rel": null,
@@ -143,17 +143,17 @@
         }
       },
       "tolerance": {
-        "rel": 0.005,
-        "level": "SPEC §5 强公式 1e-3 → 5e-3（放宽 1 档，覆盖 E modulus mismatch）",
-        "reason": "本 case E modulus mismatch 是 XLS L24=207e9 与 service 硬编码 200e9 的工程化圆整差（Table 2 范围 200~210 GPa，XLS 取中段），非代码缺陷。登记批 B 评估：是否放开 CARBON_STEEL E 取值范围为材料枚举值（200/205/207/210），或新增配置表 E_lookup_by_grade"
+        "rel": 0.001,
+        "level": "SPEC §5 强公式 1e-3（标准档，无放宽）",
+        "reason": "P6-6B T3 起 PCS service pipe_material='X65' 走 pipe_e_modulus CONFIG 表（API 5L X65 = 30e6 psi = 206.8428 GPa），与 XLS L24 E=207 GPa 差 ≈ 0.076%（远低于 0.1% 强公式容差）；恢复 SPEC §5 标准容差，不再需要放宽"
       }
     }
   ],
   "root_cause_notes": [
     {
-      "id": "E_modulus_carbon_steel_mismatch",
-      "finding": "XLS L24 E=207 GN/m²（API 5L line pipe 碳钢，XLS Table 2 Steel 范围 200-210 GN/m² 的中段取值）；PCS service _PIPE_E_MODULUS_PA['CARBON_STEEL']=200e9 Pa（硬编码下界值）。7 GPa 工程化圆整差（约 3.5%），按 Wylie-Streeter 公式传递到 wave_speed_m_s 和 surge_pressure_pa 上各偏 ~0.4%（XLS L31=1302.4134 vs service 算时 1297.2466，差 5.17 m/s；XLS L33=25.1787 bar vs service 算时 25.0788 bar，差 0.0999 bar）。",
-      "ruling": "Ruling 1(b) 工程化数据圆整——XLS 取 Table 2 范围中段值，service 取下界值，均属合法工程口径；非代码缺陷。wave_speed_m_s / surge_pressure_pa / critical_close_time_s 容差放宽至 rel=5e-3 覆盖 mismatch。批 B 立项评估：(a) 放开 CARBON_STEEL E=200e9 为 E_lookup_by_grade 配置表（API 5L X42/X52/X65/X70 各 207/207/207/207 GN/m² 全为 207）或 (b) 维持硬编码仅 SPEC V1.2 注明 E modulus 取值约定"
+      "id": "E_modulus_x65_xls_match",
+      "finding": "P6-6B T3 起 PCS service pipe_material='X65' 走 pipe_e_modulus CONFIG 表（API 5L X65 = 30e6 psi = 206.8428 GPa 工程圆整值）；与 XLS L24 E=207 GPa 差 ≈ 0.076%（远低于 SPEC §5 强公式 0.1% 容差）。本 case E 取值口径不再需要放宽容差。",
+      "ruling": "Ruling 1(a) 闭环——P6-6B T3 把 E modulus 字典（_PIPE_E_MODULUS_PA 5 项碳钢/不锈钢/...）替换为 pipe_e_modulus CONFIG 表（8 项管材等级 X42/X52/X65/X70/X80 + ASTM A106/A335）；fixture.service_inputs.pipe_material='CARBON_STEEL' → 'X65'，service 实现同构（Wylie-Streeter 含管壁修正），仅 E 取值源从硬编码改为 DB（5 min TTL 缓存；DB 不可达时 fallback 到内联 5 等级 X42~X80 圆整值）。wave_speed_m_s / surge_pressure_pa / critical_close_time_s 容差恢复 SPEC §5 强公式 1e-3 标准档。"
     },
     {
       "id": "xls_v_derivation",
@@ -174,8 +174,8 @@
     },
     {
       "id": "xls_table_2_material_properties",
-      "xls_refs": "XLS Table 2 (V42-AA49) 材料 Young's modulus / Poisson's ratio 表（8 行材质）",
-      "reason": "service pipe_material 枚举走 _PIPE_E_MODULUS_PA 硬编码 5 项（CARBON_STEEL=200e9 / STAINLESS=195e9 / DUCTILE_IRON=165e9 / PVC=3e9 / HDPE=1e9），未含 Table 2 的 Cast Iron/Concrete/GRP/Aluminium/Titanium/Fibre Cement。XLS E=207e9 落于 Table 2 Steel 范围 200-210 中段，但 service 硬编码 200——本对账的 E mismatch 根因（详见 root_cause_notes 'E_modulus_carbon_steel_mismatch'），登记 out_of_scope 防 fixture 演进时静默丢失"
+      "xls_refs": "XLS Table 2 (V42-AA49) 材料 Young's modulus / Poisson's ratio 表（8 行材质：Cast Iron/Steel/Concrete/PVC/GRP/Aluminium/Titanium/Fibre Cement）",
+      "reason": "P6-6B T3 起 service pipe_material 枚举走 pipe_e_modulus CONFIG 表（API 5L X42/X52/X65/X70/X80 + ASTM A106 A106-B + ASTM A335 A335-P11/A335-P22 共 8 项管材等级），已覆盖 XLS Table 2 的 Steel 范围 200-210 GPa；Table 2 余项（Cast Iron/Concrete/GRP/Aluminium/Titanium/Fibre Cement）非管材等级（多为非金属/特殊合金），未纳入 pipe_e_modulus（适用 pipe_net 浪涌压力管线场景）。登记 out_of_scope 防 fixture 演进时静默丢失"
     },
     {
       "id": "xls_imperial_unit_display",
