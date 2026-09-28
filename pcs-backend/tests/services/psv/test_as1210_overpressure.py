@@ -863,3 +863,102 @@ def test_golden_as1210_fire_coeff_fixture_loads_and_matches_implementation():
         data["expected"]["set_p_kpa"],
         rel_tol=1e-6,
     )
+
+
+# ============================================================================
+# P6-7 T7 OPEN-P6-6A-5 真正关闭 — fire_case_standard 枚举（API_521 / AS_1210）
+# 工艺室 2026-09-28 签署"分 path 并存"裁决；放弃 2.457 系数。
+# ============================================================================
+
+
+def test_fire_case_standard_api_521_default():
+    """T7：默认 API_521 (43192) — OPEN-P6-6A-5 真正关闭。
+
+    不传 fire_case_coefficient 时，effective_coeff 取 _resolve_fire_case_coefficient
+    ("API_521") 的 fallback 值 43192.0；formula_ref 必须透出标准 + 实际系数。
+    """
+    inp = As1210ReliefInput(
+        mawp_kpa=1000.0, tube_rupture_mass_kg_s=10.0,
+        control_valve_failure_mode="AIR_FAIL",
+        fire_case_wetted_area_m2=10.0,
+        as1210_pressure_factor=1.10,
+        scenario="FIRE_CASE",
+        delta_h_vap_kj_kg=2260.0,
+        fire_case_standard="API_521",  # 显式指定（与 default 一致）
+    )
+    result = calc_as1210_relief_sizing(inp)
+    assert result.formula_ref["fire_case_standard"] == "API_521"
+    assert result.formula_ref["coefficient"] == 43192.0
+    # algebraic EXACT 对账：capacity = 43192 × 10^0.82 / (2260 × 1000)
+    expected_capacity = (43192.0 * 10.0 ** 0.82) / (2260.0 * 1000.0)
+    assert math.isclose(
+        result.required_relief_capacity_kg_s, expected_capacity, rel_tol=1e-10
+    )
+
+
+def test_fire_case_standard_as_1210_path_a():
+    """T7：AS_1210 path (a) (7.2e4)。
+
+    不传 fire_case_coefficient 时，effective_coeff 取 _resolve_fire_case_coefficient
+    ("AS_1210") 的 7.2e4（AS 1210 §4.4 SI 严格换算）；formula_ref 必须透出。
+    """
+    inp = As1210ReliefInput(
+        mawp_kpa=1000.0, tube_rupture_mass_kg_s=10.0,
+        control_valve_failure_mode="AIR_FAIL",
+        fire_case_wetted_area_m2=10.0,
+        as1210_pressure_factor=1.10,
+        scenario="FIRE_CASE",
+        delta_h_vap_kj_kg=2260.0,
+        fire_case_standard="AS_1210",
+    )
+    result = calc_as1210_relief_sizing(inp)
+    assert result.formula_ref["fire_case_standard"] == "AS_1210"
+    assert result.formula_ref["coefficient"] == 7.2e4
+    # algebraic EXACT 对账：capacity = 7.2e4 × 10^0.82 / (2260 × 1000)
+    expected_capacity = (7.2e4 * 10.0 ** 0.82) / (2260.0 * 1000.0)
+    assert math.isclose(
+        result.required_relief_capacity_kg_s, expected_capacity, rel_tol=1e-10
+    )
+
+
+def test_fire_case_standard_default_omitted_is_api_521():
+    """T7 back-compat：不传 fire_case_standard → 默认 "API_521"。
+
+    OPEN-P6-6A-8 Ruling 15 / worley_c21 XLS G54/G55 对账测试不传
+    fire_case_standard 仍走 API_521 默认系数 43192.0；
+    用户显式 fire_case_coefficient 覆盖优先级保留（worley_c21 用 71866）。
+    """
+    inp_no_standard = As1210ReliefInput(
+        mawp_kpa=1000.0, tube_rupture_mass_kg_s=10.0,
+        control_valve_failure_mode="AIR_FAIL",
+        fire_case_wetted_area_m2=10.0,
+        as1210_pressure_factor=1.10,
+        scenario="FIRE_CASE",
+        delta_h_vap_kj_kg=2260.0,
+    )
+    # default 是 "API_521"
+    assert inp_no_standard.fire_case_standard == "API_521"
+    result = calc_as1210_relief_sizing(inp_no_standard)
+    assert result.formula_ref["fire_case_standard"] == "API_521"
+    assert result.formula_ref["coefficient"] == 43192.0
+
+
+def test_fire_case_standard_unknown_raises():
+    """T7 边界：传入非法 fire_case_standard → _resolve_fire_case_coefficient 抛 ValueError。
+
+    注：As1210ReliefInput 是 frozen dataclass 不是 Pydantic，Literal 仅 type-check
+    阶段生效；运行时 _resolve_fire_case_coefficient 通过 ``if standard == "..."``
+    分支兜底，未知值抛 ValueError。
+    """
+    inp = As1210ReliefInput(
+        mawp_kpa=1000.0, tube_rupture_mass_kg_s=10.0,
+        control_valve_failure_mode="AIR_FAIL",
+        fire_case_wetted_area_m2=10.0,
+        as1210_pressure_factor=1.10,
+        scenario="FIRE_CASE",
+        delta_h_vap_kj_kg=2260.0,
+    )
+    # 模拟运行时注入未知标准（绕过 Literal 类型检查）
+    object.__setattr__(inp, "fire_case_standard", "ASME_8_DIV1")
+    with pytest.raises(ValueError, match="Unknown fire_case_standard"):
+        calc_as1210_relief_sizing(inp)

@@ -11,14 +11,21 @@
 公式溯源：
   - TUBE_RUPTURE：AS 1210 §4.3.1 set_p = pressure_factor · MAWP
   - CV FAILURE：AS 1210 §4.3.2 AIR_FAIL=1.10 / SIGNAL_FAIL=1.20 / POWER_FAIL=1.15
-  - FIRE_CASE：Q(W) = 43192·F·A^0.82 [API 521 §3.4 SI 严格换算]
+  - FIRE_CASE：Q(W) = coeff·F·A^0.82
+    - API_521（默认）：coeff=43192 [API 521 §3.4 SI 严格换算]
+    - AS_1210 path (a)：coeff=7.2e4 [AS 1210 §4.4 SI 严格换算]
+    - fire_case_standard 枚举选系数（OPEN-P6-6A-5 真正关闭，P6-7 T7）
+    - **放弃 2.457 系数**（工艺室追溯来源不明）
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Final, Literal
 
-from app.services._compound_config_cache import get_delta_h_vap_table
+from app.services._compound_config_cache import (
+    get_api521_thresholds_table,
+    get_delta_h_vap_table,
+)
 from app.services.exceptions import PcsError
 from app.services.vessel.vessel_service import (
     WettedAreaInput,
@@ -51,6 +58,7 @@ _CV_FAIL_CAPACITY_FRACTION: Final[float] = 0.5
 
 Scenario = Literal["TUBE_RUPTURE", "CONTROL_VALVE_FAILURE", "FIRE_CASE"]
 CvFailureMode = Literal["AIR_FAIL", "SIGNAL_FAIL", "POWER_FAIL"]
+FireCaseStandard = Literal["API_521", "AS_1210"]
 
 
 class As1210InputError(PcsError):
@@ -79,6 +87,7 @@ class As1210ReliefInput:
     use_xls_convention: bool = False  # P6-6B T12: True → XLS 208 (DB), False → 2260
     fire_case_coefficient: float = _FIRE_COEFF_W
     fire_case_exponent: float = _FIRE_COEFF_EXP_DEFAULT
+    fire_case_standard: FireCaseStandard = "API_521"
     imperial_units: bool = False
 
 
@@ -121,6 +130,28 @@ def _resolve_delta_h_vap(use_xls_convention: bool = False) -> float:
         "XLS_CONVENTION_208" if use_xls_convention else "TYPICAL_2260",
         _DHVAP_KJ_KG,
     )
+
+
+def _resolve_fire_case_coefficient(standard: FireCaseStandard) -> float:
+    """从 ``compound_api521_thresholds`` CONFIG 表读取 fire coefficient。
+
+    Returns:
+        API_521 → 43192.0（W = 43192·F·A^0.82，CONFIG 表
+        ``FIRE_COEFF_DEFAULT`` key 优先；DB 不可达或 key 缺失时 fallback 到
+        内联 43192.0）；AS_1210 → 7.2e4（path (a) m' = 7.2e4·F·A^0.82/L，
+        AS 1210 §4.4 SI 严格换算，P6-6A-8 Ruling 15）。
+
+    OPEN-P6-6A-5 真正关闭（工艺室 2026-09-28 签署"分 path 并存"裁决）；
+    **放弃 2.457 系数**（工艺室追溯来源不明，参见 P6-7 T7 brief）。
+    """
+    if standard == "API_521":
+        table = get_api521_thresholds_table()  # 5 min TTL 缓存
+        if table is not None:
+            return table.get("FIRE_COEFF_DEFAULT", 43192.0)
+        return 43192.0  # 内联 fallback
+    if standard == "AS_1210":
+        return 7.2e4  # AS 1210 path (a) 默认值，硬编码
+    raise ValueError(f"Unknown fire_case_standard: {standard!r}")
 
 
 def _validate_input(inp: As1210ReliefInput) -> None:
@@ -187,6 +218,14 @@ def calc_as1210_relief_sizing(inp: As1210ReliefInput) -> As1210ReliefResult:
     else:
         dh_vap_resolved = inp.delta_h_vap_kj_kg
 
+    # P6-7 T7 OPEN-P6-6A-5 真正关闭：fire_case_standard 选系数；
+    # 用户显式 fire_case_coefficient != 默认 43192 时（worley_c21 /
+    # OPEN-P6-6A-8 Ruling 15 XLS G54/G55 对账）保留用户覆盖优先级。
+    if inp.fire_case_coefficient != _FIRE_COEFF_W:
+        effective_coeff = inp.fire_case_coefficient
+    else:
+        effective_coeff = _resolve_fire_case_coefficient(inp.fire_case_standard)
+
     if inp.scenario == "TUBE_RUPTURE":
         set_p = inp.as1210_pressure_factor * inp.mawp_kpa
         capacity = inp.tube_rupture_mass_kg_s
@@ -201,7 +240,7 @@ def calc_as1210_relief_sizing(inp: As1210ReliefInput) -> As1210ReliefResult:
     else:  # FIRE_CASE
         set_p = inp.as1210_pressure_factor * inp.mawp_kpa
         q_fire_w = (
-            inp.fire_case_coefficient
+            effective_coeff
             * inp.environment_factor
             * a_wetted_used ** inp.fire_case_exponent
         )
@@ -232,7 +271,7 @@ def calc_as1210_relief_sizing(inp: As1210ReliefInput) -> As1210ReliefResult:
             ),
             "fire_case": (
                 f"AS 1210 §4.4 + API 521 §3.4 "
-                f"Q(W) = {inp.fire_case_coefficient}·F·A^"
+                f"Q(W) = {effective_coeff}·F·A^"
                 f"{inp.fire_case_exponent} [fluid-specific]; "
                 f"capacity = Q/(ΔH_vap·1000); ΔH_vap={dh_vap_resolved} kJ/kg"
             ),
@@ -240,6 +279,8 @@ def calc_as1210_relief_sizing(inp: As1210ReliefInput) -> As1210ReliefResult:
                 "调用 C-12 calc_wetted_area (D7 接口冻结) "
                 "if vessel_geometry else inp.fire_case_wetted_area_m2"
             ),
+            "fire_case_standard": inp.fire_case_standard,
+            "coefficient": effective_coeff,
         },
     )
 
@@ -251,4 +292,5 @@ __all__ = [
     "calc_as1210_relief_sizing",
     "Scenario",
     "CvFailureMode",
+    "FireCaseStandard",
 ]
