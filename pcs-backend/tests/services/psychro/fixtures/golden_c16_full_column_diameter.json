@@ -1,0 +1,59 @@
+{
+  "_meta": {
+    "open_item": "OPEN-P6-6A-6 (子任务 3)",
+    "topic": "C-16 Full Column Diameter (K=7.1121 6 工况标定)",
+    "confidence": "A",
+    "source": "Worley 标准算例库（6 接触塔算例）+ ADR-0045 Rev B K=7.1121",
+    "delivered_by": "工艺室 2026-10-15",
+    "delivered_at": "2026-10-15",
+    "file": "tests/services/psychro/fixtures/golden_c16_full_column_diameter.json"
+  },
+  "k_recommended": 7.1121,
+  "k_uncertainty_pct": 1.05,
+  "validity_domain": {
+    "sg": [0.55, 0.65],
+    "teg_wt_pct": [98.5, 99.8],
+    "p_psia": [800, 1500],
+    "Q_mmscfd": [100, 400]
+  },
+  "cases": [
+    {
+      "case_id": "worley_c16_case1_q288_sg060_teg99_p1000",
+      "Q_mmscfd": 288, "sg": 0.60, "teg_wt_pct": 99.0, "p_psia": 1000,
+      "xls_e40_in": 120.76, "K": 7.1187,
+      "D_calc": 120.70, "residual_pct": 0.05
+    },
+    {
+      "case_id": "worley_c16_case2_q150_sg060_teg99_p1000",
+      "Q_mmscfd": 150, "sg": 0.60, "teg_wt_pct": 99.0, "p_psia": 1000,
+      "xls_e40_in": 86.05, "K": 7.0253,
+      "D_calc": 87.10, "residual_pct": 1.22
+    },
+    {
+      "case_id": "worley_c16_case3_q400_sg062_teg995_p1200",
+      "Q_mmscfd": 400, "sg": 0.62, "teg_wt_pct": 99.5, "p_psia": 1200,
+      "xls_e40_in": 142.85, "K": 7.1428,
+      "D_calc": 142.21, "residual_pct": 0.45
+    },
+    {
+      "case_id": "worley_c16_case4_q200_sg058_teg985_p800",
+      "Q_mmscfd": 200, "sg": 0.58, "teg_wt_pct": 98.5, "p_psia": 800,
+      "xls_e40_in": 99.20, "K": 7.0145,
+      "D_calc": 100.61, "residual_pct": 1.42
+    },
+    {
+      "case_id": "worley_c16_case5_q350_sg065_teg992_p1500",
+      "Q_mmscfd": 350, "sg": 0.65, "teg_wt_pct": 99.2, "p_psia": 1500,
+      "xls_e40_in": 134.55, "K": 7.1912,
+      "D_calc": 133.98, "residual_pct": 0.42
+    },
+    {
+      "case_id": "worley_c16_case6_q100_sg055_teg998_p1000",
+      "Q_mmscfd": 100, "sg": 0.55, "teg_wt_pct": 99.8, "p_psia": 1000,
+      "xls_e40_in": 71.80, "K": 7.1800,
+      "D_calc": 71.18, "residual_pct": 0.86
+    }
+  ],
+  "tolerance_rel": 0.05,
+  "cv_pct": 1.05
+}
