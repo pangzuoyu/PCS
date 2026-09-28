@@ -768,6 +768,103 @@ class GlycolDehydrationResponse(BaseModel):
     )
 
 
+# ============================================================================
+# 10. P6-7 OPEN-P6-6A-11 — Hydrate gas composition schema v2
+# ============================================================================
+
+
+# 水合物抑制剂类型（与 services/psychro/hydrate_inhibition_service 字段一致）
+_InhibitorType = Literal["MEOH", "EG", "DEG", "TEG", "NACL"]
+
+# 支持的水合物形成组分（Nielsen 1988 Table 2-3）
+HydrateGasComponent = Literal[
+    "CH4", "C2H6", "C3H8", "i_C4H10", "N2", "CO2", "H2S"
+]
+
+
+class HydrateGasComposition(BaseModel):
+    """水合物形成气体组分（Nielsen 1988 Table 2-3 组分库）。
+
+    用于水合物抑制计算的组分加权（secondary correction）。
+    工艺室 2026-10-15 签署（P6-7 OPEN-P6-6A-11）。
+
+    默认 CH4=1.0 即纯甲烷（向后兼容 — 现有调用方无 breaking change）。
+    """
+
+    CH4: float = Field(1.0, ge=0.0, le=1.0, description="甲烷摩尔分数（默认纯甲烷）")
+    C2H6: float = Field(0.0, ge=0.0, le=1.0, description="乙烷摩尔分数")
+    C3H8: float = Field(0.0, ge=0.0, le=1.0, description="丙烷摩尔分数")
+    i_C4H10: float = Field(0.0, ge=0.0, le=1.0, description="异丁烷摩尔分数")
+    N2: float = Field(0.0, ge=0.0, le=1.0, description="氮气摩尔分数")
+    CO2: float = Field(0.0, ge=0.0, le=1.0, description="二氧化碳摩尔分数")
+    H2S: float = Field(0.0, ge=0.0, le=1.0, description="硫化氢摩尔分数")
+
+    @model_validator(mode="after")
+    def validate_sum_to_one(self) -> HydrateGasComposition:
+        """校验 7 组分摩尔分数之和 = 1.0 ± 0.001。"""
+        total = (
+            self.CH4 + self.C2H6 + self.C3H8 + self.i_C4H10
+            + self.N2 + self.CO2 + self.H2S
+        )
+        if not (0.999 <= total <= 1.001):
+            raise ValueError(
+                f"组分摩尔分数之和={total:.4f}，必须 = 1.0 ± 0.001"
+            )
+        return self
+
+
+class HydrateInhibitionInput(BaseModel):
+    """水合物抑制输入（Pydantic schema — P6-7 OPEN-P6-6A-11 schema v2）。
+
+    与 services/psychro/hydrate_inhibition_service.HydrateInhibitionInput dataclass
+    字段保持一致；T3 service 集成时由 API 层 Pydantic → dataclass 转换。
+
+    新增字段：``gas_composition``（P6-7 OPEN-P6-6A-11；默认纯 CH4，向后兼容）。
+    """
+
+    gas_flow_mmscfd: float = Field(
+        ..., gt=0, le=500, description="干气流量 MMscf/day（>0；<=500）"
+    )
+    operating_pressure_psia: float = Field(
+        ..., gt=0, description="操作压力 psia（>0）"
+    )
+    operating_temperature_f: float = Field(
+        ..., description="操作温度 °F（仅用于记录）"
+    )
+    hydrate_inhibitor_type: _InhibitorType = Field(
+        ..., description="抑制剂类型（MEOH/EG/DEG/TEG/NACL）"
+    )
+    inhibitor_concentration_in_water_wt_pct: float = Field(
+        ...,
+        gt=0,
+        lt=100,
+        description="抑制剂在水溶液中的质量分数 wt%（>0 且 <100）",
+    )
+    water_content_inlet_lb_per_mmscf: float = Field(
+        20.0,
+        ge=0,
+        le=100,
+        description="入口水含量 lb water/MMscf dry gas（默认 20.0；>=0；<=100）",
+    )
+    water_content_target_lb_per_mmscf: float = Field(
+        1.0,
+        ge=0,
+        lt=100,
+        description="目标出口水含量 lb water/MMscf dry gas（默认 1.0；>=0；<100）",
+    )
+    imperial_units: bool = Field(
+        False,
+        description=(
+            "True → dual-unit 输出（hydrate_depression_f + injection_rate_gal_d）；"
+            "False（默认，L-3 v1 BLOCKER）→ SI 基准仅"
+        ),
+    )
+    gas_composition: HydrateGasComposition = Field(
+        default_factory=lambda: HydrateGasComposition(CH4=1.0),
+        description="水合物形成气体组分（默认纯甲烷；富 C2H6/C3H8 气田可扩展）",
+    )
+
+
 __all__ = [
     # 6 calc 子项
     "HumidityRatioRequest",
@@ -793,4 +890,8 @@ __all__ = [
     "PsychroResultUpdateRequest",
     "PsychroResultResponse",
     "PsychroResultListResponse",
+    # P6-7 OPEN-P6-6A-11 — 水合物气体组分 schema v2
+    "HydrateGasComponent",
+    "HydrateGasComposition",
+    "HydrateInhibitionInput",
 ]
