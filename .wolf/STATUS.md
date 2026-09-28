@@ -80,11 +80,13 @@ budget_tokens: 1500
 
 **OPEN-P6-6A-8 关闭（fire_case_coefficient + fire_case_exponent fluid-specific，2026-09-28）**：commits `bc95487` + `f1c2be1`
 - PCS `_FIRE_COEFF_W = 43192.0` hardcoded → As1210ReliefInput 加 fire_case_coefficient + fire_case_exponent 双字段（默认 43192 + 0.82 back-compat）
-- 6 unit tests：default back-compat / XLS G54 EXACT (71866×0.82=649810 W) / AS 1210 path with ΔH_vap=208 matches G55 within 0.06% / linear exponent 1.0 / coefficient zero raises / exponent zero raises / formula_ref
-- 黄金 fixture `golden_as1210_fire_coeff.json` 新建（XLS G54 EXACT + G55 within 1%）
-- worley_c21 fixture 扩展 1 test：AS 1210 path G54/G55 within 容差
+- 7 unit tests + 1 golden fixture loader + 1 worley_c21 扩展 = 10 new psv tests（366 → 376）
+- XLS PR-025 AS 1210 path (a) 验证：coefficient=71866 + exponent=0.82 + ΔH_vap=208 → G54=649808 W within 0.029% + G55=11253 kg/hr within 0.029%（整合 Ruling 14 ΔH_vap + Ruling 15 coeff/exp）
+- 黄金 fixture `golden_as1210_fire_coeff.json` 新建（XLS G54 EXACT + G55 within 容差）
+- 默认 back-compat 验证：coeff=43192 + exp=0.82 保持 API 521 §3.4 行为（worley_c21 sanity guard 防 silent fallthrough）
 - **Ruling 15 fire_case 双字段 CLOSED**
 - **注**：AS 1210 §4.4 path (b) gas/vapor (m·Y_p) + jet fire 110,000 W/m² 不在本批（结构差异），独立 OPEN-P6-6A-9（待 ID）
+- **merge 入 main @ d636337（fast-forward, 2026-09-28）**：post-merge spot-check 376 psv tests PASS, 0 regression
 
 ---
 
