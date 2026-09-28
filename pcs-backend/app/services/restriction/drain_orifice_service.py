@@ -148,7 +148,10 @@ def _resolve_cd_y_cr(fluid: str) -> tuple[float, float]:
     return table[fluid]
 
 
-def calc_drain_orifice(inp: DrainOrificeInput) -> DrainOrificeResult:
+def calc_drain_orifice(
+    inp: DrainOrificeInput,
+    _resolved_cd_y_cr: tuple[float, float] | None = None,
+) -> DrainOrificeResult:
     """排污孔板（drain orifice）尺寸校核（SPEC §3.6.2 + §3.7.2 V1.1）。
 
     计算项：
@@ -161,6 +164,10 @@ def calc_drain_orifice(inp: DrainOrificeInput) -> DrainOrificeResult:
 
     Args:
         inp: DrainOrificeInput（frozen）
+        _resolved_cd_y_cr: P6-6B T13 内部 override（P6-6B feature flag
+            集成测试入口）。``None`` → 走原路径（用 ``inp.discharge_coefficient``
+            / ``inp.expansion_factor``，向后兼容）；提供 ``(Cd, Y_cr)`` 元组
+            → 覆盖输入的 Cd / Y_cr^0.5。
 
     Returns:
         DrainOrificeResult（frozen）
@@ -169,6 +176,15 @@ def calc_drain_orifice(inp: DrainOrificeInput) -> DrainOrificeResult:
         DrainOrificeInputError: 输入校验失败（F2 β 越界、F5 非正极值、Ruling 12 Cd/Y_cr 越界）
     """
     _validate_input(inp)
+
+    # P6-6B T13：feature flag 集成 — 当 `_resolved_cd_y_cr` 提供时 override 输入。
+    # 默认 None → 使用 inp.discharge_coefficient / inp.expansion_factor（向后兼容）。
+    if _resolved_cd_y_cr is not None:
+        cd_used, y_cr_used = _resolved_cd_y_cr
+        y_cr_sqrt_used = math.sqrt(y_cr_used)
+    else:
+        cd_used = inp.discharge_coefficient
+        y_cr_sqrt_used = inp.expansion_factor
 
     a_orifice = math.pi * inp.orifice_diameter_m**2 / 4.0
     # GB/T 308 Eq.2.2 Ftp = 1 - 0.0245·β^4.4（标 SYNTHETIC_TEST_DATA）
@@ -182,8 +198,8 @@ def calc_drain_orifice(inp: DrainOrificeInput) -> DrainOrificeResult:
         # OPEN-P6-6A-4 Ruling 12：m_max 乘以 Cd × Y_cr^0.5（默认 1.0 保持向后兼容）
         mass_max = (
             a_orifice
-            * inp.discharge_coefficient
-            * inp.expansion_factor
+            * cd_used
+            * y_cr_sqrt_used
             * ftp
             * inp.fluid_density_kg_m3
             * v_max
@@ -326,7 +342,10 @@ def _ftp_factor(beta: float, k: float, family: str = "GBT308") -> float:
     raise ValueError(f"Unknown Ftp family: {family}")
 
 
-def calc_drain_orifice_size(inp: DrainOrificeSizeInput) -> DrainOrificeSizeResult:
+def calc_drain_orifice_size(
+    inp: DrainOrificeSizeInput,
+    _resolved_cd_y_cr: tuple[float, float] | None = None,
+) -> DrainOrificeSizeResult:
     """排污孔板 sizing（SPEC §3.7.2 inverse problem；OPEN-P6-6A-7）。
 
     算法（WS-CA-PR-023 复刻）：
@@ -340,6 +359,10 @@ def calc_drain_orifice_size(inp: DrainOrificeSizeInput) -> DrainOrificeSizeResul
 
     Args:
         inp: DrainOrificeSizeInput（frozen）
+        _resolved_cd_y_cr: P6-6B T13 内部 override（feature flag 集成测试入口）。
+            ``None`` → 用 ``inp.discharge_coefficient``（向后兼容）；
+            提供 ``(Cd, Y_cr)`` 元组 → 仅 override Cd（sizing 内部用
+            ``_y_cr_sqrt`` 公式计算 Y_cr^0.5，与 XLS Y_cr 同义）。
 
     Returns:
         DrainOrificeSizeResult（frozen）
@@ -371,6 +394,13 @@ def calc_drain_orifice_size(inp: DrainOrificeSizeInput) -> DrainOrificeSizeResul
         raise DrainOrificeInputError("initial_d_m 必须 > 0")
     if inp.max_iter <= 0:
         raise DrainOrificeInputError("max_iter 必须 > 0")
+
+    # P6-6B T13：feature flag 集成 — `_resolved_cd_y_cr` 提供时 override Cd
+    # （Y_cr 由 _y_cr_sqrt 在 r_c 处直接计算，与 XLS Y_cr 同义，故不重复 override）。
+    # 默认 None → 用 inp.discharge_coefficient（向后兼容）。
+    cd_used = inp.discharge_coefficient
+    if _resolved_cd_y_cr is not None:
+        cd_used, _ = _resolved_cd_y_cr
 
     # 2. 流体密度（理想气体）ρ = MW × P / (z × R × 1000 × T)
     #    P: kPa → Pa（×1000）；MW 单位 kg/kmol → kg/mol（÷1000）
@@ -423,7 +453,7 @@ def calc_drain_orifice_size(inp: DrainOrificeSizeInput) -> DrainOrificeSizeResul
         a_orifice = math.pi * d**2 / 4.0
         m_max = (
             a_orifice
-            * inp.discharge_coefficient
+            * cd_used
             * y_cr_sq
             * ftp
             * rho

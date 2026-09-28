@@ -4,6 +4,7 @@
 """
 
 import json
+import math
 from pathlib import Path
 
 import pytest
@@ -140,6 +141,36 @@ def test_not_converged_raises():
     )
     with pytest.raises(DrainOrificeSizingNotConvergedError, match="d 迭代"):
         calc_drain_orifice_size(impatient_inp)
+
+
+# ─────────────────────────────────────────────────────────────
+# Test 7: P6-6B T13 feature flag 集成 — `_resolved_cd_y_cr` override Cd
+# ─────────────────────────────────────────────────────────────
+@pytest.mark.unit
+def test_resolved_cd_y_cr_override_shrinks_orifice_diameter():
+    """P6-6B T13：Cd override 真正生效 → orifice diameter 反比于 sqrt(Cd)。
+
+    两个运行都用相同的 inp（含 default Cd=0.83932），但第二个调用通过
+    `_resolved_cd_y_cr=(0.5, 0.687)` override Cd 为 0.5；sizing 求解的 d 应
+    小于用 default Cd 的 d（m_max ∝ Cd → Cd 减半 → m_max 减半 → 需更小 d）。
+    """
+    inp_default = _build_input()
+    inp_resolved = DrainOrificeSizeInput(**{**inp_default.__dict__})
+
+    result_default = calc_drain_orifice_size(inp_default)
+    result_resolved = calc_drain_orifice_size(
+        inp_resolved, _resolved_cd_y_cr=(0.5, 0.687),
+    )
+
+    assert result_default.converged
+    assert result_resolved.converged
+    # Cd 减小（0.83932 → 0.5）→ m_max ∝ Cd 减小 → 需更大 d 才能满足 W
+    assert result_resolved.orifice_diameter_m > result_default.orifice_diameter_m
+    # d ∝ 1/sqrt(Cd)：d_resolved / d_default ≈ sqrt(Cd_default / Cd_resolved)
+    expected_ratio = math.sqrt(0.83932 / 0.5)
+    assert result_resolved.orifice_diameter_m / result_default.orifice_diameter_m == (
+        pytest.approx(expected_ratio, rel=5e-2)
+    )
 
 
 # ─────────────────────────────────────────────────────────────

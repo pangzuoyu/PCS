@@ -376,3 +376,45 @@ def test_golden_fixture_matches_implementation():
             f"Fixture drift: case={case['id']}, beta={beta}, "
             f"expected={expected}, actual={actual}"
         )
+
+
+# ============================================================================
+# P6-6B T13 feature flag 集成（OPEN-P6-6A-4 关闭）
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_resolved_cd_y_cr_override_applies_to_mass_flow_capacity():
+    """P6-6B T13：`_resolved_cd_y_cr` override 真正生效（NATURAL_GAS XLS convention）。
+
+    当 `_resolved_cd_y_cr=(0.83932, 0.687)` 提供时，m_max 应乘以
+    Cd × Y_cr^0.5 = 0.83932 × sqrt(0.687)；back-compat（None）保持 Cd=1.0。
+    """
+    inp_default = DrainOrificeInput(
+        orifice_diameter_m=0.02,
+        beta_ratio=0.4,
+        inlet_pressure_kpa=500.0,
+        outlet_pressure_kpa=100.0,
+        fluid_density_kg_m3=999.0,
+        mass_flow_kg_s=5.0,
+        drain_type="CONTINUOUS",
+    )
+    inp_resolved = DrainOrificeInput(
+        orifice_diameter_m=0.02,
+        beta_ratio=0.4,
+        inlet_pressure_kpa=500.0,
+        outlet_pressure_kpa=100.0,
+        fluid_density_kg_m3=999.0,
+        mass_flow_kg_s=5.0,
+        drain_type="CONTINUOUS",
+    )
+    result_default = calc_drain_orifice(inp_default)
+    result_resolved = calc_drain_orifice(
+        inp_resolved, _resolved_cd_y_cr=(0.83932, 0.687),
+    )
+    expected_factor = 0.83932 * math.sqrt(0.687)
+    assert math.isclose(
+        result_resolved.mass_flow_capacity_kg_s,
+        result_default.mass_flow_capacity_kg_s * expected_factor,
+        rel_tol=1e-9,
+    )
