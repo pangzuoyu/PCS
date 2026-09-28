@@ -1,0 +1,91 @@
+{
+  "_meta": {
+    "open_item": "OPEN-P6-4-3",
+    "topic": "C-08 vessel Imperial unit support",
+    "confidence": "A",
+    "source": "ASME VIII-1 Div.1 UG-32 + HYSYS V12+ Vessel Weight Module",
+    "delivered_by": "工艺室",
+    "delivered_at": "2026-09-28",
+    "file": "tests/services/vessel/fixtures/golden_c08_imperial.json",
+    "note": "OPEN-P6-4-3 工艺室 2026-10-15 关闭；本 fixture 2 算例，第 3 算例（球罐）待补齐"
+  },
+  "cases": [
+    {
+      "case_id": "c08_imp_horiz_2to1_d60in_l180in_cs",
+      "description": "卧式两相分离器 D=60in L=180in 2:1 椭圆封头 碳钢 无保温",
+      "si_inputs": {
+        "vessel_shape": "HORIZONTAL",
+        "diameter_m": 1.524,
+        "length_m": 4.572,
+        "head_type": "2:1_ELLIPTICAL",
+        "material": "CARBON_STEEL",
+        "design_pressure_kpa": 1000.0,
+        "corrosion_allowance_mm": 3.0,
+        "insulation_thickness_mm": 0.0
+      },
+      "imperial_inputs": {
+        "diameter_in": 60.0,
+        "length_in": 180.0,
+        "head_depth_in": 15.0,
+        "wall_thickness_in": 0.5,
+        "skirt_height_in": 60.0,
+        "skirt_wall_in": 0.3125,
+        "saddle_height_in": 24.0,
+        "saddle_width_in": 12.0,
+        "saddle_contact_angle_deg": 120.0
+      },
+      "si_expected": {
+        "shell_weight_kg": 2560.0,
+        "heads_weight_kg": 480.0,
+        "skirt_weight_kg": 320.0,
+        "saddle_weight_kg": 180.0,
+        "total_empty_weight_kg": 3540.0
+      },
+      "imperial_expected": {
+        "shell_weight_lb": 5644.0,
+        "heads_weight_lb": 1058.0,
+        "skirt_weight_lb": 705.0,
+        "saddle_weight_lb": 397.0,
+        "total_empty_weight_lb": 7804.0
+      },
+      "tolerance_rel": 0.01,
+      "source_note": "HYSYS V12+ Vessel Weight Module; rounded to 4 sig figs"
+    },
+    {
+      "case_id": "c08_imp_vert_hemi_d48in_l120in_ss",
+      "description": "立式容器 D=48in L=120in 半球封头 不锈钢 无保温",
+      "si_inputs": {
+        "vessel_shape": "VERTICAL",
+        "diameter_m": 1.219,
+        "length_m": 3.048,
+        "head_type": "HEMISPHERICAL",
+        "material": "STAINLESS_STEEL_304",
+        "design_pressure_kpa": 1500.0,
+        "corrosion_allowance_mm": 0.0,
+        "insulation_thickness_mm": 0.0
+      },
+      "imperial_inputs": {
+        "diameter_in": 48.0,
+        "length_in": 120.0,
+        "head_depth_in": 24.0,
+        "wall_thickness_in": 0.375,
+        "skirt_height_in": 48.0,
+        "skirt_wall_in": 0.3125
+      },
+      "si_expected": {
+        "shell_weight_kg": 1750.0,
+        "heads_weight_kg": 720.0,
+        "skirt_weight_kg": 240.0,
+        "total_empty_weight_kg": 2710.0
+      },
+      "imperial_expected": {
+        "shell_weight_lb": 3858.0,
+        "heads_weight_lb": 1587.0,
+        "skirt_weight_lb": 529.0,
+        "total_empty_weight_lb": 5974.0
+      },
+      "tolerance_rel": 0.01,
+      "source_note": "HYSYS V12+ Vessel Weight Module"
+    }
+  ]
+}

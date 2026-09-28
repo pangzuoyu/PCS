@@ -1,0 +1,93 @@
+{
+  "_meta": {
+    "open_item": "OPEN-P6-6A-10",
+    "topic": "AS 1210 §4.4 path (b) + Jet fire",
+    "confidence": "B",
+    "source": "AS 1210-2010 §8.6.2.4 (public excerpts) + HYSYS V12+ PSV Module",
+    "delivered_by": "工艺室",
+    "delivered_at": "2026-09-28",
+    "file": "tests/services/psv/fixtures/golden_as1210_path_b_jet_fire.json",
+    "caveat": "AS 1210-2010 原 PDF 采购中（SAI Global 报价 2026-10-15 前到位）; 当前值基于教材引用 + HYSYS 对账"
+  },
+  "path_b_gas_vapor_fixture": [
+    {
+      "case_id": "as1210_path_b_ch4_1000psia",
+      "description": "气体储罐 CH4 @ 1000 psia 火灾工况",
+      "inputs": {
+        "vessel_volume_m3": 5.0,
+        "design_pressure_psia": 1000.0,
+        "m_gas_stored_kg": 220.0,
+        "c_w_kj_per_m3_k": 3900.0,
+        "t_wall_mm": 20.0,
+        "t_o_k": 300.0,
+        "m_p_prime_kg_s": 0.0
+      },
+      "expected": {
+        "Y_p_per_s": 4.27e-4,
+        "m_prime_kg_s": 0.094
+      },
+      "tolerance_rel": 0.01,
+      "source_note": "HYSYS V12+ PSV Module"
+    },
+    {
+      "case_id": "as1210_path_b_c3_800psia",
+      "description": "气体储罐 C3H8 @ 800 psia 火灾工况",
+      "inputs": {
+        "vessel_volume_m3": 3.0,
+        "design_pressure_psia": 800.0,
+        "m_gas_stored_kg": 95.0,
+        "c_w_kj_per_m3_k": 3900.0,
+        "t_wall_mm": 15.0,
+        "t_o_k": 290.0,
+        "m_p_prime_kg_s": 0.0
+      },
+      "expected": {
+        "Y_p_per_s": 5.83e-4,
+        "m_prime_kg_s": 0.055
+      },
+      "tolerance_rel": 0.01,
+      "source_note": "HYSYS V12+ PSV Module"
+    }
+  ],
+  "jet_fire_fixture": [
+    {
+      "case_id": "jetfire_ch4_1000psia",
+      "description": "CH4 喷射火灾（热通量 110,000 W/m²）",
+      "inputs": {
+        "vessel_volume_m3": 5.0,
+        "design_pressure_psia": 1000.0,
+        "m_gas_stored_kg": 220.0,
+        "c_w_kj_per_m3_k": 3900.0,
+        "t_wall_mm": 20.0,
+        "t_r_k": 620.0,
+        "m_p_prime_kg_s": 0.0
+      },
+      "expected": {
+        "Y_t_per_s": 2.27e-3,
+        "m_prime_kg_s": 0.499
+      },
+      "tolerance_rel": 0.01,
+      "source_note": "HYSYS V12+ PSV Module (jet fire mode)"
+    },
+    {
+      "case_id": "jetfire_c3_800psia",
+      "description": "C3H8 喷射火灾",
+      "inputs": {
+        "vessel_volume_m3": 3.0,
+        "design_pressure_psia": 800.0,
+        "m_gas_stored_kg": 95.0,
+        "c_w_kj_per_m3_k": 3900.0,
+        "t_wall_mm": 15.0,
+        "t_r_k": 600.0,
+        "m_p_prime_kg_s": 0.0
+      },
+      "expected": {
+        "Y_t_per_s": 3.13e-3,
+        "m_prime_kg_s": 0.297
+      },
+      "tolerance_rel": 0.01,
+      "source_note": "HYSYS V12+ PSV Module (jet fire mode)"
+    }
+  ],
+  "follow_up_note": "OPEN-P6-6A-10 工艺室 2026-11-15 关闭；AS 1210-2010 PDF 到位后 confidence B 升级为 A"
+}

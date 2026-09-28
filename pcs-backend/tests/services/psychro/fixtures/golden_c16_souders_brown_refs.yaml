@@ -1,0 +1,30 @@
+_meta:
+  open_item: "OPEN-P6-6A-9.1"
+  topic: "Souders-Brown 30x discrepancy root cause literature references"
+  confidence: "A"
+  delivered_by: "工艺室"
+  delivered_at: "2026-09-28"
+  file: "tests/services/psychro/fixtures/golden_c16_souders_brown_refs.yaml"
+
+references:
+  primary_1:
+    title: "GPSA Engineering Data Book 13th Edition"
+    section: "§20.4 - Glycol Dehydration"
+    equation: "Eq.20-3 (contactor allowable superficial velocity, standard conditions)"
+    note: "TEG contactor sizing 使用标准态气速 (ft/s at 60°F, 14.7 psia)"
+  primary_2:
+    title: "Kohl & Nielsen, Gas Purification 5th Edition"
+    chapter: "Chapter 7 - Absorption of Water Vapor by Dehydrating Solutions"
+    equation: "Eq.7-14 (allowable gas velocity as function of tray spacing & fluid properties)"
+    note: "TEG contactor 设计气速 20-30% flooding"
+  xls_reference:
+    title: "Worley WS-PR-018 Standard Calculation"
+    section: "TEG Contactor Sizing"
+    note: "XLS E40=120.76 in @ Q_gas=288 MMscfd / 120°F / 1000 psia; 设计气速 41.91 ft/s (标准态当量)"
+
+root_cause_confirmed:
+  v3_error: "V_actual_scfs 计算使用实际工况体积流量 (~203,200 ft³/s)，应为标准状态流量 (3,333.33 ft³/s)"
+  factor: "标准态↔实际态换算因子 = (T_std/T_actual) × (P_actual/P_std) × Z ≈ 68.0"
+  consequence: "v3 计算的 column diameter 高估 30 倍"
+
+adr_action: "ADR-0045 Rev B 应引用以上文献；工艺室 2026-10-15 前交付 ADR-0045 Rev B 草稿"

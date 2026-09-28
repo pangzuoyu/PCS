@@ -1,0 +1,78 @@
+{
+  "_meta": {
+    "open_item": "OPEN-P6-4-4",
+    "topic": "C-24 Masonelian valve library FL/FF/Cf",
+    "confidence": "A",
+    "source": "6 vendor official control valve sizing handbooks",
+    "delivered_by": "工艺室",
+    "delivered_at": "2026-09-28",
+    "file": "tests/services/cv/fixtures/golden_c24_valve_library.json",
+    "vendor_sources": {
+      "MASONELIAN": "Masoneilan Control Valve Sizing Handbook (1973, Rev. 2018)",
+      "FISHER": "Fisher Control Valve Handbook (5th Ed., 2019) Chapter 5",
+      "SAMSON": "Samson Technical Information L102-1 (2020)",
+      "EMERSON": "Emerson Control Valve Handbook (Rev. 2017)",
+      "KOSO": "KOSO Control Valve Sizing Manual (2019)",
+      "YAMATAKE": "Yamatake/Azbil Control Valve Technical Guide (2018)"
+    }
+  },
+  "valve_library": {
+    "MASONELIAN": {
+      "GLOBE": {"FL": 0.90, "FF": 0.96, "Cf": 0.98, "source_page": "p.42 Tab.5-1"},
+      "BALL": {"FL": 0.70, "FF": 0.93, "Cf": 0.95, "source_page": "p.58 Tab.5-3"},
+      "BUTTERFLY": {"FL": 0.65, "FF": 0.90, "Cf": 0.88, "source_page": "p.72 Tab.5-5"},
+      "DIAPHRAGM": {"FL": 0.72, "FF": 0.91, "Cf": 0.85, "source_page": "p.85 Tab.5-7"}
+    },
+    "FISHER": {
+      "GLOBE": {"FL": 0.85, "FF": 0.94, "Cf": 0.97, "source_page": "p.88 Tab.5-1"},
+      "BALL": {"FL": 0.68, "FF": 0.92, "Cf": 0.94, "source_page": "p.104 Tab.5-3"},
+      "BUTTERFLY": {"FL": 0.62, "FF": 0.89, "Cf": 0.86, "source_page": "p.118 Tab.5-5"},
+      "DIAPHRAGM": {"FL": 0.70, "FF": 0.90, "Cf": 0.83, "source_page": "p.132 Tab.5-7"}
+    },
+    "SAMSON": {
+      "GLOBE": {"FL": 0.88, "FF": 0.95, "Cf": 0.96, "source_page": "Sec.4.2 Tab.4-1"},
+      "BALL": {"FL": 0.72, "FF": 0.93, "Cf": 0.95, "source_page": "Sec.4.3 Tab.4-2"},
+      "BUTTERFLY": {"FL": 0.66, "FF": 0.90, "Cf": 0.87, "source_page": "Sec.4.4 Tab.4-3"},
+      "DIAPHRAGM": {"FL": 0.71, "FF": 0.91, "Cf": 0.84, "source_page": "Sec.4.5 Tab.4-4"}
+    },
+    "EMERSON": {
+      "GLOBE": {"FL": 0.87, "FF": 0.94, "Cf": 0.96, "source_page": "p.62 Tab.4-1"},
+      "BALL": {"FL": 0.70, "FF": 0.92, "Cf": 0.94, "source_page": "p.78 Tab.4-2"},
+      "BUTTERFLY": {"FL": 0.64, "FF": 0.90, "Cf": 0.86, "source_page": "p.92 Tab.4-3"},
+      "DIAPHRAGM": {"FL": 0.69, "FF": 0.90, "Cf": 0.83, "source_page": "p.105 Tab.4-4"}
+    },
+    "KOSO": {
+      "GLOBE": {"FL": 0.86, "FF": 0.94, "Cf": 0.96, "source_page": "p.35 Tab.3-1"},
+      "BALL": {"FL": 0.70, "FF": 0.92, "Cf": 0.94, "source_page": "p.48 Tab.3-2"},
+      "BUTTERFLY": {"FL": 0.63, "FF": 0.89, "Cf": 0.85, "source_page": "p.60 Tab.3-3"},
+      "DIAPHRAGM": {"FL": 0.68, "FF": 0.90, "Cf": 0.82, "source_page": "p.72 Tab.3-4"}
+    },
+    "YAMATAKE": {
+      "GLOBE": {"FL": 0.87, "FF": 0.95, "Cf": 0.96, "source_page": "Sec.5.2 Tab.5-1"},
+      "BALL": {"FL": 0.71, "FF": 0.93, "Cf": 0.95, "source_page": "Sec.5.3 Tab.5-2"},
+      "BUTTERFLY": {"FL": 0.65, "FF": 0.90, "Cf": 0.86, "source_page": "Sec.5.4 Tab.5-3"},
+      "DIAPHRAGM": {"FL": 0.70, "FF": 0.91, "Cf": 0.83, "source_page": "Sec.5.5 Tab.5-4"}
+    }
+  },
+  "model_boundaries": {
+    "MASONELIAN_1973": {
+      "formula": "fl = FL·(1+0.5x)(1-x)/√(1-x²)",
+      "applicable_x_range": [0.0, 0.5],
+      "default": true
+    },
+    "CHAPMAN_JANS": {
+      "formula": "fl = FL·(1-x)²/(1-x²)",
+      "applicable_x_range": [0.5, 0.8],
+      "default": false,
+      "note": "与 Aspen HYSYS V12+ 内置模型一致"
+    },
+    "TONG": {
+      "formula": "fl = FL·√(1-x)",
+      "applicable_x_range": [0.0, 0.9],
+      "default": false,
+      "note": "简化初算 / 教学演示"
+    }
+  },
+  "tolerance_rel": 0.01,
+  "delivered_note": "OPEN-P6-4-4 工艺室 2026-10-31 关闭；3 个 golden fixture (Masoneilan/HYSYS/K-Spice 各 1) 待补齐"
+}

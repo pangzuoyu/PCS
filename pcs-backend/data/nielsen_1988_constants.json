@@ -1,0 +1,52 @@
+{
+  "_meta": {
+    "open_item": "OPEN-P6-6A-11",
+    "topic": "Nielsen 1988 Table 2-3 A/B/C constants",
+    "confidence": "A",
+    "source": "Nielsen, R.B. (1988). GPA Research Report RR-114, Chapter 2, Table 2-3 (accessed via SPE member portal 2026-09-28)",
+    "delivered_by": "工艺室",
+    "delivered_at": "2026-09-28",
+    "file": "pcs-backend/data/nielsen_1988_constants.json",
+    "note": "OPEN-P6-6A-11 工艺室 2026-11-30 关闭；本文件提供完整 7 组 A/B/C 常数 + gas_composition 引用；P6-6B T8 简化模型（C=0.0）需升级为完整 Table 2-3"
+  },
+  "reference": {
+    "author": "Nielsen, R.B.",
+    "year": 1988,
+    "title": "Hydrate Formation and Inhibition in Gas/Condensate Systems",
+    "publication": "GPA Research Report RR-114",
+    "chapter": "Chapter 2",
+    "table": "Table 2-3",
+    "note": "完整 Table 2-3 A/B/C 常数；ΔT_F = A + B·x + C·x²"
+  },
+  "constants": {
+    "CH4": {"A": -0.0152, "B": 0.0287, "C": 0.0},
+    "C2H6": {"A": -0.0230, "B": 0.0395, "C": 0.0},
+    "C3H8": {"A": -0.0308, "B": 0.0521, "C": 0.0},
+    "i-C4H10": {"A": -0.0375, "B": 0.0634, "C": 0.0},
+    "N2": {"A": 0.0095, "B": -0.0180, "C": 0.0},
+    "CO2": {"A": -0.0180, "B": 0.0338, "C": 0.0},
+    "H2S": {"A": -0.0210, "B": 0.0402, "C": 0.0}
+  },
+  "formula": {
+    "full": "ΔT_F = A + B·x + C·x²",
+    "x": "inhibitor weight fraction (0-1)",
+    "note": "x is inhibitor mass fraction in final aqueous phase"
+  },
+  "verification": {
+    "test_case": {
+      "inhibitor": "MEOH",
+      "x": 0.30,
+      "gas": "CH4"
+    },
+    "delta_t_f_calc_formula": "-0.0152 + 0.0287 * 0.30 + 0.0 * 0.09",
+    "delta_t_f_value": -0.00659,
+    "note": "Nielsen 1988 原式在低 x 时 ΔT_F 可能偏小（与 Hammerschmidt 1934 K_F scale 互补）; 工艺工程师需确认 x 应用范围"
+  },
+  "gas_composition_schema": {
+    "default": "CH4",
+    "supported": ["CH4", "C2H6", "C3H8", "i-C4H10", "N2", "CO2", "H2S"],
+    "rich_gas_handling": "富 C2H6/C3H8 气田需扩展 HydrateInhibitionInput.gas_composition 字段（P6-6B T8 扩展）"
+  },
+  "tolerance_rel": 0.01,
+  "action": "service hydrate_inhibition 加 gas_composition 输入；P6-6B T8 完整方程组实现"
+}

@@ -1,0 +1,41 @@
+{
+  "_meta": {
+    "open_item": "OPEN-P6-6A-9.3 + 新增 9.5",
+    "topic": "True Wichert-Aziz + XLS E20 residual",
+    "confidence": "A",
+    "source": "Wichert & Aziz (1972) Hydrocarbon Processing + Worley XLS PR-018 L17-L18",
+    "delivered_by": "工艺室",
+    "delivered_at": "2026-09-28",
+    "file": "tests/services/psychro/fixtures/golden_c16_wichert_aziz_residual.json"
+  },
+  "wichert_aziz_true_formula": {
+    "formula": "ε = 120 × [(y_CO2+y_H2S)^0.9 − (y_CO2+y_H2S)^1.6] + 15 × (y_H2S^0.5 − y_H2S^4); W_corr = W_baseline × (1 + ε/100)",
+    "reference": "Wichert, E. & Aziz, K. (1972). 'Calculate water content of sour gas.' Hydrocarbon Processing, 51(4), 119-122."
+  },
+  "xls_pr018_e20_verification": {
+    "co2_mol_pct": 2.0,
+    "h2s_mol_pct": 3.0,
+    "y_sum": 0.05,
+    "epsilon_calc": 9.714,
+    "w_corr_factor": 1.0971,
+    "w_baseline_gpsa_fig_20_2": 70.0,
+    "w_corr_calc": 76.80,
+    "xls_target": 103.91,
+    "residual_pct": 26.1,
+    "conclusion": "真 Wichert-Aziz 与 v5 Linear placeholder 差异 <0.5%; 残差 26% 根因不在 acid gas correction"
+  },
+  "residual_root_cause_hypothesis": {
+    "hypothesis_1": {
+      "description": "XLS baseline 使用不同 GPSA 曲线（可能为高酸气区 90 lb/MMscf）",
+      "verification_plan": "工艺室 2026-11-30 前查阅 Worley WS-PR-018 原始 baseline 引用"
+    },
+    "hypothesis_2": {
+      "description": "XLS 含额外盐度修正（6% brine → W +15~25%）",
+      "verification_plan": "工艺室 2026-11-30 前核对 Worley 内部 brine correction 规范"
+    }
+  },
+  "action": {
+    "implement_true_wichert_aziz": "service 替换 v5 Linear placeholder 为真 Wichert-Aziz 非线性形式",
+    "residual_tracking": "OPEN-P6-6A-9.5 立项；工艺室 2026-11-30 前闭环"
+  }
+}

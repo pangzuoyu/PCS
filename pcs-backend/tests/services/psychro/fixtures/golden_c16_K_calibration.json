@@ -1,0 +1,36 @@
+{
+  "_meta": {
+    "open_item": "OPEN-P6-6A-9.2",
+    "topic": "K=7.1187 multi-condition calibration",
+    "confidence": "A",
+    "source": "Worley standard calculation library (6 TEG contactor cases)",
+    "delivered_by": "工艺室",
+    "delivered_at": "2026-09-28",
+    "file": "tests/services/psychro/fixtures/golden_c16_K_calibration.json"
+  },
+  "cases": [
+    {"case_id": "worley_c16_case1", "Q_mmscfd": 288, "sg": 0.60, "teg_wt_pct": 99.0, "p_psia": 1000, "xls_e40_in": 120.76, "K": 7.1187},
+    {"case_id": "worley_c16_case2", "Q_mmscfd": 150, "sg": 0.60, "teg_wt_pct": 99.0, "p_psia": 1000, "xls_e40_in": 86.05, "K": 7.0253},
+    {"case_id": "worley_c16_case3", "Q_mmscfd": 400, "sg": 0.62, "teg_wt_pct": 99.5, "p_psia": 1200, "xls_e40_in": 142.85, "K": 7.1428},
+    {"case_id": "worley_c16_case4", "Q_mmscfd": 200, "sg": 0.58, "teg_wt_pct": 98.5, "p_psia": 800, "xls_e40_in": 99.20, "K": 7.0145},
+    {"case_id": "worley_c16_case5", "Q_mmscfd": 350, "sg": 0.65, "teg_wt_pct": 99.2, "p_psia": 1500, "xls_e40_in": 134.55, "K": 7.1912},
+    {"case_id": "worley_c16_case6", "Q_mmscfd": 100, "sg": 0.55, "teg_wt_pct": 99.8, "p_psia": 1000, "xls_e40_in": 71.80, "K": 7.1800}
+  ],
+  "statistics": {
+    "mean_K": 7.1121,
+    "stdev_K": 0.0748,
+    "cv_pct": 1.05,
+    "min_K": 7.0145,
+    "max_K": 7.1912,
+    "n_cases": 6
+  },
+  "validity_domain_upgraded": {
+    "sg": [0.55, 0.65],
+    "teg_wt_pct": [98.5, 99.8],
+    "p_psia": [800, 1500],
+    "Q_mmscfd": [100, 400],
+    "K_recommended": 7.1121,
+    "K_uncertainty_pct": 1.05
+  },
+  "adr_action": "ADR-0045 Rev B 适用范围升级为上述 domain；K 从 7.1187 改为 7.1121（均值）"
+}
