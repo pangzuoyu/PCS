@@ -180,8 +180,10 @@ class HydrateInhibitionResult:
     """水合物抑制结果。
 
     字段：
-      hydrate_depression_f: Hammerschmidt 温降（°F；Hammerschmidt 1934 Eq）
-      hydrate_depression_c: Hammerschmidt 温降（°C；= F × 5/9）
+      hydrate_depression_f: Hammerschmidt 温降（°F；Hammerschmidt 1934 Eq；主输出）
+      hydrate_depression_c: Hammerschmidt 温降（°C；= F × 5/9 派生）
+      hydrate_depression_c_legacy: DEPRECATED 向后兼容（旧 `_c` 字段值实际就是 °F；
+        新代码请使用 `hydrate_depression_f`；T10 路径 A，OPEN-P6-6A-3 真正关闭）
       inhibitor_injection_rate_gpd: 抑制剂注入率（gal/day；GPSA §20.3）
       inhibitor_injection_rate_lb_d: 抑制剂注入率（lb/day；GPSA §20.3）
       water_removed_lb_d: 水移除量（lb/day；= Q_gas·(W_inlet - W_target)）
@@ -194,6 +196,7 @@ class HydrateInhibitionResult:
 
     hydrate_depression_f: float
     hydrate_depression_c: float
+    hydrate_depression_c_legacy: float
     inhibitor_injection_rate_gpd: float
     inhibitor_injection_rate_lb_d: float
     water_removed_lb_d: float
@@ -394,6 +397,7 @@ def calc_hydrate_inhibition(
     return HydrateInhibitionResult(
         hydrate_depression_f=delta_t_f,
         hydrate_depression_c=delta_t_c,
+        hydrate_depression_c_legacy=delta_t_f,  # DEPRECATED: 旧 `_c` 字段值实际是 °F
         inhibitor_injection_rate_gpd=injection_gpd,
         inhibitor_injection_rate_lb_d=injection_lb_d,
         water_removed_lb_d=water_removed_lb_d,

@@ -329,3 +329,39 @@ def test_nielsen_1988_default_is_hammerschmidt():
     assert "nielsen" not in result.formula_ref
     # K 因子必须为正（Hammerschmidt 路径）
     assert result.inhibitor_k_factor > 0
+
+
+# ============================================================================
+# T10 路径 A：hydrate_depression_f 字段名 + 派生 _c（OPEN-P6-6A-3 真正关闭）
+# ============================================================================
+
+
+def test_hydrate_depression_field_rename():
+    """T10 路径 A：hydrate_depression_f 字段名 + 派生 _c（OPEN-P6-6A-3 真正关闭）。
+
+    校验三层语义：
+      1. 主输出 _f > 0（Hammerschmidt 1934 °F scale）
+      2. 派生 _c = _f × 5/9（rel ≤ 1e-9 严格等式）
+      3. _c_legacy == _f（向后兼容：旧字段值实际就是 °F，仅字段名误导）
+    """
+    inp = HydrateInhibitionInput(
+        gas_flow_mmscfd=10.0,
+        operating_pressure_psia=500.0,
+        operating_temperature_f=40.0,
+        hydrate_inhibitor_type="MEOH",
+        inhibitor_concentration_in_water_wt_pct=15.0,
+    )
+    result = calc_hydrate_inhibition(inp)
+
+    # 1. 主输出 _f 应 > 0
+    assert result.hydrate_depression_f > 0
+
+    # 2. 派生 _c = _f × 5/9（容差 rel ≤ 1e-9 严格等式）
+    assert result.hydrate_depression_c == pytest.approx(
+        result.hydrate_depression_f * 5.0 / 9.0, rel=1e-9
+    )
+
+    # 3. _c_legacy == _f（向后兼容：旧字段值实际就是 °F）
+    assert result.hydrate_depression_c_legacy == pytest.approx(
+        result.hydrate_depression_f, rel=1e-9
+    )

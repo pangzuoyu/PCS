@@ -160,6 +160,9 @@
       },
       "expected": {
         "_doc": "Algebraic identity verification (rel=1e-12) for 3 sub-cases: (a) XLS Hammerschmidt inversion algebra; (b) Hammerschmidt 1934 forward formula; (c) XLS injection rate mass balance using Nielsen X. All bit-for-bit, no algorithm choice involved.",
+        "hydrate_depression_f": 21.6,
+        "hydrate_depression_c": 12.0,
+        "hydrate_depression_c_legacy": 21.6,
         "xls_target_d_C": 12.0,
         "xls_hammerschmidt_X_wt_pct": 22.862549321718983,
         "xls_nielsen_X_wt_pct": 24.404012664115445,
