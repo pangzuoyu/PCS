@@ -97,6 +97,16 @@ budget_tokens: 1500
 - bug-108 logged; cerebrum Key Learning appended
 - **Ruling 9 docs CLOSED**
 
+**G-08 OpenAPI baseline drift 收口（2026-09-28）**：commit `68daa60` chore(g-08)
+- baseline `384d8c7` (P6-5+ 终态, 850.1K) → 当前 `68daa60` (873.9K)；delta +23.8K
+- 纯增量：+2 paths / +4 schemas / 0 removed
+- 新增 paths：
+  - `/api/v1/psychro/glycol-dehydration/calculate` (P6-6A-6 `5cced07`, Ruling 5 closure v4)
+  - `/api/v1/restriction/drain-orifice/size` (P6-6A-7 `3250b42`, Ruling 12/13 closure)
+- 新增 schemas：`GlycolDehydrationRequest/Response` + `DrainOrificeSizeRequest/Response`
+- 全部 ACL 正确（psychro: DESIGNER/PROCESS_CONTROLLER/SYSTEM_ADMIN；restriction: DESIGNER/PROCESS_CONTROLLER）
+- phase 1-4 全过：regen backend → regen frontend snapshot+types → drift=0 → baseline 一致
+
 **SPEC V1.11 → V1.12 wording-only micro-revision（2026-09-28）**：commit `2c2d5b9` docs(spec)
 - 6 修订 + ATT-02 同步，2 files +39/-8（主 SPEC +37/-7, ATT-02 +2/-1），docs-only zero code/schema/test 改动
 - Fix 1 §3.9.2 C-17 OPEN-P6-6A-2 → OPEN-P6-6A-9.x（typo fix，1 行）
@@ -153,7 +163,7 @@ budget_tokens: 1500
 2. ~~OPEN-P6-6A-3 K scale fix~~ ✓ done `e0d91a6`
 3. P6-6B 启动确认（工程团队接管厂商数据采集）
 4. ~~SPEC V1.2 修订~~ ✓ done `2c2d5b9`（V1.11 → V1.12 wording-only 6 修订 + OPEN-P6-6A-10 新立）
-5. G-08 OpenAPI baseline drift 收口（P6-2/3/4 累积，Task 16/28）
+5. ~~G-08 OpenAPI baseline drift 收口~~ ✓ done `68daa60`（+2 paths / +4 schemas / 0 removed；P6-6A-6/7 全部已 merge main）
 6. 前端 wrapper 3 页（heating-value / saturation-water-content / cv，P6-4 裁决推迟项）
 
 **未解决问题**：
