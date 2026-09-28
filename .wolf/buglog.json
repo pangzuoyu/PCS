@@ -1861,7 +1861,10 @@
         "no-implementation-change",
         "PCS"
       ],
-      "related_bugs": ["bug-106", "bug-107"],
+      "related_bugs": [
+        "bug-106",
+        "bug-107"
+      ],
       "occurrences": 1,
       "last_seen": "2026-09-28T08:00:00+08:00"
     },
@@ -1967,16 +1970,17 @@
       "fix": "v5.1 plan P-1: JSON log10_coefficients: null → Day-0 Gate 必跑（numpy lstsq + scipy curve_fit 比较 3 形式）；P-2: _DewpointResult 字段名统一；P-3: 30× 根因弱化为推测待 P6-6B 验证（OPEN-P6-6A-9.1）；P-4: _calc_behr_water_content 调用 _correct_behr_for_acid_gas（DRY）",
       "fix_commit": "95bb442",
       "tags": [
-        "v5.1_P-1",
-        "v5.1_P-2",
-        "v5.1_P-3",
-        "v5.1_P-4",
+        "v5.1-P-1",
+        "v5.1-P-2",
+        "v5.1-P-3",
+        "v5.1-P-4",
         "Behr-coefficients",
         "Day-0-Gate",
         "ADR-0045-Rev-A"
       ],
       "occurrences": 1,
-      "last_seen": "2026-09-28"
+      "last_seen": "2026-09-28",
+      "related_bugs": []
     }
   ]
 }

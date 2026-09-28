@@ -53,10 +53,10 @@ SPOTS = [
 def test_load_behr_coefficients_success():
     """behr_coefficients.json 主 log10_coefficients 数值完整 → _load 返回该系数。"""
     # 验证当前模块加载的 _BEHR_COEFFS 与 JSON 一致
-    with resources.files("app.services.psychro.data").joinpath(
+    p = resources.files("app.services.psychro.data").joinpath(
         "behr_coefficients.json"
-    ) as p:
-        data = json.loads(p.read_text())
+    )
+    data = json.loads(p.read_text())
 
     expected = data["log10_coefficients"]
     assert expected is not None, "JSON log10_coefficients must not be null"
@@ -173,10 +173,10 @@ def test_load_behr_coefficients_8_spot_checks_residual_within_5pct():
     )
 
     # 与 JSON calibration_max_rel_err 一致 (Day-1 Gate)
-    with resources.files("app.services.psychro.data").joinpath(
+    p = resources.files("app.services.psychro.data").joinpath(
         "behr_coefficients.json"
-    ) as p:
-        data = json.loads(p.read_text())
+    )
+    data = json.loads(p.read_text())
     json_max = data.get("calibration_max_rel_err")
     assert json_max is not None
     assert max_rel_err == pytest.approx(json_max, abs=1e-4), (
