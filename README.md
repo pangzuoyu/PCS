@@ -79,8 +79,16 @@ cd pcs-backend
 DATABASE_URL=postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs_test \
     uv run alembic upgrade head
 DATABASE_URL=postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs_test \
-    uv run pytest -q
+    uv run pytest -q                # baseline 3269 passed / 74 skipped
 uv run ruff check .               # 0 错为目标
+
+# 前端（pcs-frontend/）
+npx vitest run                     # baseline 548 passed / 54 files
+npx tsc --noEmit                   # 0 错为目标
+npx eslint src/ tests/            # 0 错为目标
+
+# OpenAPI 契约门禁（G-08，每批末必跑）
+bash pcs-backend/scripts/gate_08_openapi_contract.sh --check-baseline
 ```
 
 ## 当前进度
@@ -101,12 +109,18 @@ uv run ruff check .               # 0 错为目标
 | **P5 (c)** | MEDIUM 滚动次批 5 项（APP ErrorBoundary / VESSEL/SEP PROJECT_ID / VESSEL NaN 兜底 / VESSEL/SEP sign_status 去伪造） | CLOSED |
 | **P5 (d)~(g)** | MEDIUM 滚动第三~六批 共 33 项（累计 MEDIUM 48 项全部收口） | CLOSED |
 | **P5 (h)** | **LOW/INFO 滚动首批 105 项**（38 个 `docs(p5c-low)` commit，覆盖 7 api/v1 + 7 service + 1 core 文件、11 schema 文件 159 字段中文 description、alembic E501 修复；全栈 ruff 0 错 + pytest 2225 passed） | **CLOSED 2026-09-18** |
+| **P6-0/1/2/3** | **工艺覆盖增补（COMMON 加热值 C-06 + VESSEL 重量 C-08 + 部分体积 C-12 + PSYCHRO 饱和 W C-17 + CV Masonelian fl C-24 + 4 张 CONFIG 表 + 6 个新 API）**；pytest 1976+ → 2418 baseline + 3208 after P6-5 | **CLOSED** |
+| **P6-4** | **P6-0/1/2/3 增补 5 项 🔴 必做**（COMMON 加热值 CONFIG 表 + VESSEL 重量 service + VESSEL 部分体积 + PSYCHRO 饱和 W + CV Masonelian fl；4 alembic 迁移 + 6 service + 6 API + 24 测试 + GPSA/API 黄金 fixture） | **CLOSED** |
+| **P6-5** | **PSYCHRO 增补 3 项**（C-16 甘醇脱水 TEG-only v3 + C-17 显式水含量 + C-18 Hammerschmidt 水合物抑制；V1.3 → V1.5 → V1.6 SPEC 修订 + Hammerschmidt K 标度 OPEN-P6-6A-3 fix + Nielsen 缺口登记 OPEN-P6-6A-11） | **CLOSED 2026-09-23** |
+| **P6-6A** | **Worley C-21/C-19/C-16 全栈交付**（15 commits：OPEN-P6-6A-3 K scale fix + OPEN-P6-6A-4 Cd/Y_cr^0.5 + OPEN-P6-6A-7 Y_cr@r_c + 11 Rulings 闭环；C-21 PSV fire coeff API 521 §3.4 + AS 1210 §4.4 path (a) + Ruling 14 ΔH_vap + Ruling 15 fire_case coeff/exp；C-19 排污孔板 sizing inverse POST API；C-16 glycol dehydration v4 Ruling 5 OUT_OF_SCOPE 12 fields + ADR-0045 Rev A K=7.1187 单点标定 + Day-0 Gate 形式决策 + brentq 逆 dewpoint + Linear placeholder 三铁律 + JSON 启动期加载；post-merge spot-check 376 psv + 11 glycol integration tests PASS） | **CLOSED 2026-09-28** |
 
 ### ⏳ 待启动批次
 
-- **P5-1**：calculate 入口接 Guard + 9 态 enum 扩展 + 文件上传契约冻结（详见 `docs/superpowers/plans/2026-09-16-p45-frontend-sprint-batch3.md` §P5 冻结点）
-- **P5-HEAT**：换热器 / PSV / HTRI 导入异步任务契约
-- **P5-LF (i+)**：LOW/INFO 滚动继续批（batch h 105 项已闭环，剩余清单持续扫描）
+- **P6-6B**（2026-09-27 plan 已立项）：9 CONFIG 表 SYNTHETIC → 真实厂商数据 + 4 内联常量替换；解决 OPEN-P6-4-1/2 + OPEN-P6-6A-5 + 6 OPEN-P6-6A-* 中 4 项（工程团队接管 GPSA / Vendor / ISO / API 真实数据），5-7 工作日
+- **P6-7**：OPEN-P6-6A-6 full glycol dehydration system as new PCS service 扩展
+- **OPEN-P6-6A-9.1~9.4**：C-16 glycol 工程任务（30× 差异根因完整验证 / K=7.1187 多工况标定 / 真 Wichert-Aziz 非线性形式 / brentq low-T Bukacek 1990 extension）
+- **OPEN-P6-6A-10**：PSV C-21 AS 1210 §4.4 path (b) gas/vapor m·Y_p + Jet fire 110,000 W/m²（V1.12 docs 主题预留）
+- **OPEN-P6-6A-11**：C-18 Nielsen 方程覆盖缺口（MeOH ≤50 wt% 切 Nielsen + WARNING，~1.0 天，P6-6B 入批）
 
 ### 已落地工艺能力
 
@@ -114,23 +128,32 @@ uv run ruff check .               # 0 错为目标
 - **管道**：预定流速法 / 设定压力降法（HG/T 20570.6-95）+ ASME B31.3 壁厚 + 18 OD 档 Sch 表 + 单相 Darcy-Weisbach + 两相 Lockhart-Martinelli-Baker
 - **管网**：拓扑校验 + Hardy-Cross 流量分配 + 节点压力回推
 - **精度护栏**：3 流态分支（LAMINAR / TRANSITION 2000–4000 强制 WARNING / TURBULENT）+ confidence HIGH/MEDIUM/LOW + Crane TP-410 K 表 reynolds_applicable 标注 + get_fitting_k Re 参数预留（P5+ Hooper 2-K / Darby 3-K 接入）
+- **COMMON 物性 + 加热值**（P6-4 C-06）：GPSA FIG. 23-2 化合物热值 HHV/LHV 双单位 + 化学计量空气 + 烟气组成（CO₂/H₂O/N₂/SO₂）+ Mendeleev 自研 fallback；64 种化合物 seed + `compound_heating_values` CONFIG 表
+- **VESSEL 重量 + 部分体积**（P6-4 C-08/C-12）：立/卧/球 × 4 封头 5 段累加（shell cylinder + heads + nozzles + skirt/saddle）+ 4 封头部分体积 + 润湿面积 + 质量 iteration Newton/bisection
+- **PSYCHRO 饱和 W + 甘醇脱水 + 水合物抑制**（P6-4/5/6A C-17/C-16/C-18）：
+  - 饱和水含量 = RH=1.0 直调 CoolProp HAPropsSI（ASHRAE RP-1845 溯源）
+  - FULL 甘醇脱水系统（`POST /psychro/glycol-dehydration/calculate`）：TEG only + 12 OUT_OF_SCOPE fields（water_dewpoint_f / adjusted_dewpoint_f / lean_glycol_concentration / stripping_gas_scf_per_gal_teg / column_diameter_full_in / column_height_ft / number_of_transfer_units / mass_h2o_removed_lb_s / reboiler_duty_btu_hr / column_csa_ft2 / dewpoint_unavailable_reason / acid_gas_corrected）+ Behr 逆算 + ADR-0045 Rev A K=7.1187 + Linear placeholder 三铁律
+  - 水合物抑制 Hammerschmidt 1934 温降公式（MeOH ≤25 wt% / EG ≤60-70 wt%）；Nielsen 方程待 OPEN-P6-6A-11 补
+- **CV Masonelian fl + 阀门厂库**（P6-4 C-24）：3 模型并存（Masonelian 1973 Eq.5 + Chapman-Jans + Tong）+ 24 阀门厂组合 GL/BALL × MASONELIAN/FISHER/CROSBY/IMO/DRESSER + flash_steam_rate
+- **PSV 火灾泄放**（P6-6A-5 C-21）：API 521 §3.4 default 43192 + AS 1210 §4.4 path (a) 7.2×10⁴ 液化 + fire_case coeff/exp 双字段（Ruling 15 闭环）；path (b) gas/vapor + Jet fire 110,000 W/m² 待 OPEN-P6-6A-10
+- **限制孔板（Restriction）**（P6-6A-4/7 C-19）：Cd/Y_cr^0.5 + Newton/bisection sizing inverse POST API + Y_cr@r_c 物理修正（bug-105）
 - **血缘与哈希**：record_hash 数值规范化 16 hex + DataLineage 只追加 + finalize_calc_record 统一收口
-- **前端模块**（P4.5 批 3）：SIM 物流导入向导 + 详情页 / PIPE_CLASS 等级 + 符号表 + 代码格式设计器 / COMMON 物性查询 + 许用应力 + 毒性爆炸 / FLASH/PIPE/PUMP 计算界面 / PIPE_NET 拓扑 V1（手写 SVG）/ PMS 管道材料规格 + BEDD 文档 + 项目向导；StateBadge 9 态 + SignatureMatrix 共享组件 + ModuleLayout 2×2 网格；前端 vitest 约 131 项测试通过
+- **前端模块**（P4.5 批 3 + P6-5 补课）：SIM 物流导入向导 + 详情页 / PIPE_CLASS 等级 + 符号表 + 代码格式设计器 / COMMON 物性查询 + 许用应力 + 毒性爆炸 + 加热值（`HeatingValuePage`）/ FLASH/PIPE/PUMP 计算界面 / PIPE_NET 拓扑 V1（手写 SVG）/ PMS 管道材料规格 + BEDD 文档 + 项目向导 / PSYCHRO 饱和水含量（`SaturationWaterContentPage`）/ CV 控制阀（`CvComputePage`，含 Masonelian fl 3 字段）；StateBadge 9 态 + SignatureMatrix 共享组件 + ModuleLayout 2×2 网格；vitest 548 passed / 54 files
 - **状态机双轨**：记录级 9 态机（DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED/STALE/CHANGE_PENDING/CHANGED/REVERSAL_PENDING/OBSOLETE，StateMachineService.transition 驱动）+ 资源级 5 态机（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE，ConfigStateMachine 驱动公司模板 + 项目级轻量状态机）
 - **配置资产**：公司管号模板 / 管架 / 流股符号三资源均挂 ConfigAsset（V1.4 §0.5 INT-OPEN-01），走 fork → project → 5 态机全流程；FMT-9 条规则验证 + PSV-22 字段完整闭环
-- **文档完整度**（P5 批 h LOW/INFO 滚动）：38 个 `docs(p5c-low)` commit 闭环 105 项公共 API docstring（含 5 态机端点、CRUD 端点、Pydantic 字段中文 description）；全栈 ruff 0 错 + pytest 2225 passed 基线锁定
+- **OpenAPI 契约门禁 G-08**：3 阶段 regen + 1 阶段 baseline 一致性（`pcs-backend/scripts/gate_08_openapi_contract.sh`），163 paths / 207 schemas / 0 drift；pre-commit 自动跑
+- **文档完整度**（P5 批 h LOW/INFO 滚动 + P6-6A SPEC V1.11→V1.12 wording-only 6 修订）：38 个 `docs(p5c-low)` commit 闭环 105 项公共 API docstring；V1.12 wording 增补 C-16 12 result fields + C-19 Rulings 12/13 闭环链 + C-17 OPEN ID fix + C-21 OPEN-P6-6A-10 新立 + ATT-02 标题同步
 
-### Backlog（P5+）
+### Backlog（OPEN 队列）
 
-- Hooper 2-K / Darby 3-K 低 Re K 值修正（get_fitting_k Re 参数预留位）
-- `fluids.two_phase` Beggs-Brill 交叉校核
-- `fluids.fittings` K_from_f 交叉校核
-- ChEDL 版本锁定 ADR（fluids / thermo / chemicals 频繁更新，需复现性）
-- P4-2-6：热损失 + 混合黏度
-- 控制阀 / PSV（独立批次，不在 P4 范围）
-- PIPE_NET 完整版（reactflow 拖拽 / 自动布局 / 环路检测 / 序列化）
-- 前端类型 P5-1 由 OpenAPI 生成的 `api.d.ts` 替换 7 个 V1 mock 类型文件
-- MSW handlers P5-1 后按真实 OpenAPI 重写
+- **OPEN-P6-4-2**（P6-6B 入批）：Kb 厂商真实数据（LESER / Consolidated / AG），PSV C-08 Kb 替换
+- **OPEN-P6-4-3**（P6-6B 入批）：C-08 vessel 模块 Imperial 单位（lb/ft³）支持范围
+- **OPEN-P6-4-4**（P6-6B 入批）：C-24 CV Masonelian fl / Chapman-Jans / Tong 模型与商业软件（Masonelian 官方）正式对账
+- **OPEN-P6-6A-6**（待 P6-7）：T8 full glycol dehydration system as new PCS service 扩展
+- **OPEN-P6-6A-9.1~9.4**（P6-6B 工程团队接管）：C-16 glycol 工程任务 4 子项（30× 根因 / K 多工况标定 / 真 Wichert-Aziz / brentq low-T）
+- **OPEN-P6-6A-10**（P6-6B 入批）：PSV C-21 AS 1210 §4.4 path (b) gas/vapor + Jet fire
+- **OPEN-P6-6A-11**（P6-6B 入批）：C-18 Nielsen 方程覆盖缺口，~1.0 天
+- **历史 backlog**：Hooper 2-K / Darby 3-K 低 Re K 值修正（get_fitting_k Re 参数预留位）；`fluids.two_phase` Beggs-Brill 交叉校核；`fluids.fittings` K_from_f 交叉校核；ChEDL 版本锁定 ADR（fluids / thermo / chemicals 频繁更新，需复现性）；P4-2-6 热损失 + 混合黏度；PIPE_NET 完整版（reactflow 拖拽 / 自动布局 / 环路检测 / 序列化）
 
 详细收口报告见 `docs/PCS-P*-CLOSE-REPORT.md`；延后项见 [`TODOS.md`](./TODOS.md)。
 
