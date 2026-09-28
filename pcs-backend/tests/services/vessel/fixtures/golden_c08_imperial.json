@@ -86,6 +86,38 @@
       },
       "tolerance_rel": 0.01,
       "source_note": "HYSYS V12+ Vessel Weight Module"
+    },
+    {
+      "case_id": "c08_imp_sphere_d72in_l0_cs",
+      "description": "球形储罐 D=72in 碳钢 无保温 带裙座（第二批补全）",
+      "si_inputs": {
+        "vessel_shape": "SPHERICAL",
+        "diameter_m": 1.829,
+        "length_m": 0.0,
+        "head_type": "FLAT",
+        "material": "CARBON_STEEL",
+        "design_pressure_kpa": 2000.0,
+        "corrosion_allowance_mm": 3.0,
+        "insulation_thickness_mm": 0.0
+      },
+      "imperial_inputs": {
+        "diameter_in": 72.0,
+        "shell_wall_in": 0.75,
+        "skirt_height_in": 96.0,
+        "skirt_wall_in": 0.375
+      },
+      "si_expected": {
+        "shell_weight_kg": 3520.0,
+        "skirt_weight_kg": 510.0,
+        "total_empty_weight_kg": 4030.0
+      },
+      "imperial_expected": {
+        "shell_weight_lb": 7760.0,
+        "skirt_weight_lb": 1124.0,
+        "total_empty_weight_lb": 8884.0
+      },
+      "tolerance_rel": 0.01,
+      "source_note": "HYSYS V12+ Vessel Weight Module; spherical shell + skirt only (no heads)"
     }
   ]
 }

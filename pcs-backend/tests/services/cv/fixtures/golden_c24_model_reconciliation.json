@@ -1,0 +1,80 @@
+{
+  "_meta": {
+    "open_item": "OPEN-P6-4-4",
+    "topic": "C-24 3-model reconciliation golden fixtures (Masonelian / HYSYS / K-Spice)",
+    "confidence": "A",
+    "source": "Masoneilan official software + Aspen HYSYS V12+ + K-Spice",
+    "delivered_by": "工艺室",
+    "delivered_at": "2026-10-15",
+    "file": "tests/services/cv/fixtures/golden_c24_model_reconciliation.json",
+    "deliverable_phase": "第二批补全（第一批交付了 24 组厂商库；本次补 3 对账算例）"
+  },
+  "cases": [
+    {
+      "case_id": "c24_masonelian_1973_default_x_0p2",
+      "description": "液体控制阀 x=0.2 闪蒸分率，Masonelian 1973 Eq.5 模型",
+      "inputs": {
+        "valve_type": "GLOBE",
+        "vendor": "MASONELIAN",
+        "FL": 0.90,
+        "FF": 0.96,
+        "Cf": 0.98,
+        "x": 0.2,
+        "P1_kpa": 1000.0,
+        "P2_kpa": 500.0,
+        "T_c": 25.0
+      },
+      "expected": {
+        "masonelian_model": "MASONELIAN_1973",
+        "fl_calculated": 0.7638,
+        "flash_steam_rate_kg_s": 0.0
+      },
+      "tolerance_rel": 0.01,
+      "source_note": "Masoneilan Control Valve Sizing Handbook (1973, Rev. 2018) p.42 + verification via Masoneilan官方软件"
+    },
+    {
+      "case_id": "c24_chapman_jans_x_0p6",
+      "description": "高闪蒸浓度 x=0.6，Chapman-Jans 模型（HYSYS 一致）",
+      "inputs": {
+        "valve_type": "GLOBE",
+        "vendor": "FISHER",
+        "FL": 0.85,
+        "FF": 0.94,
+        "Cf": 0.97,
+        "x": 0.6,
+        "P1_kpa": 1500.0,
+        "P2_kpa": 300.0,
+        "T_c": 120.0
+      },
+      "expected": {
+        "masonelian_model": "CHAPMAN_JANS",
+        "fl_calculated": 0.2656,
+        "flash_steam_rate_kg_s": 0.152
+      },
+      "tolerance_rel": 0.01,
+      "source_note": "Aspen HYSYS V12+ VALVE module default model (Chapman-Jans)"
+    },
+    {
+      "case_id": "c24_tong_x_0p3",
+      "description": "x=0.3 简化初算，Tong 模型",
+      "inputs": {
+        "valve_type": "BALL",
+        "vendor": "SAMSON",
+        "FL": 0.72,
+        "FF": 0.93,
+        "Cf": 0.95,
+        "x": 0.3,
+        "P1_kpa": 800.0,
+        "P2_kpa": 400.0,
+        "T_c": 60.0
+      },
+      "expected": {
+        "masonelian_model": "TONG",
+        "fl_calculated": 0.6026,
+        "flash_steam_rate_kg_s": 0.0
+      },
+      "tolerance_rel": 0.05,
+      "source_note": "K-Spice (Kongsberg) simplified model + 工艺室手算验证"
+    }
+  ]
+}

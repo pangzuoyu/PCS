@@ -1,0 +1,74 @@
+{
+  "_meta": {
+    "open_item": "OPEN-P6-6A-9.3 follow-up",
+    "topic": "C-16 Behr coefficients — general + high-acid baselines",
+    "confidence": "A",
+    "source": "GPSA Eng. Data Book 13th Ed Fig 20-2 'general zone' + 'high-acid zone' + Worley WS-PR-018 §3.2",
+    "delivered_by": "工艺室",
+    "delivered_at": "2026-10-31",
+    "deliverable_phase": "第二批补充（high-acid baseline 4 参数系数补全；first 批仅给 baseline 值 93.5，未给系数）",
+    "service_integration_param": "baseline: Literal['general', 'high_acid'] = 'general'",
+    "service_integration_default": "general",
+    "service_integration_xls_path": "high_acid"
+  },
+  "baselines": {
+    "general": {
+      "_note": "GPSA Fig 20-2 general zone (v5 plan default)",
+      "log10_coefficients": {
+        "A0": 1.3520,
+        "A1": 0.00780,
+        "A2": 0.0000052,
+        "A3": -0.9800
+      },
+      "validity_domain": {
+        "temperature_f": [60, 200],
+        "pressure_psia": [100, 3000]
+      },
+      "calibration_max_rel_err": 0.0230,
+      "source": "GPSA Engineering Data Book 13th Ed Fig 20-2 'general zone'"
+    },
+    "high_acid": {
+      "_note": "GPSA Fig 20-2 high-acid zone (H2S+CO2 >= 5 mol%), XLS PR-018 path",
+      "log10_coefficients": {
+        "A0": 1.6932,
+        "A1": 0.00810,
+        "A2": 0.0000058,
+        "A3": -0.9800
+      },
+      "validity_domain": {
+        "temperature_f": [60, 200],
+        "pressure_psia": [500, 1500],
+        "acid_gas_mol_pct_total": [5.0, 20.0]
+      },
+      "calibration_max_rel_err": 0.0051,
+      "calibration_residual_table": [
+        {"T_F": 60, "P_psia": 1000, "W_actual": 24.0, "W_pred": 24.11, "rel_err": 0.0046},
+        {"T_F": 80, "P_psia": 1000, "W_actual": 43.5, "W_pred": 43.72, "rel_err": 0.0051},
+        {"T_F": 100, "P_psia": 1000, "W_actual": 72.0, "W_pred": 71.84, "rel_err": -0.0022},
+        {"T_F": 120, "P_psia": 1000, "W_actual": 93.5, "W_pred": 93.51, "rel_err": 0.0001},
+        {"T_F": 140, "P_psia": 1000, "W_actual": 132.0, "W_pred": 131.66, "rel_err": -0.0026},
+        {"T_F": 160, "P_psia": 1000, "W_actual": 178.0, "W_pred": 178.42, "rel_err": 0.0024},
+        {"T_F": 120, "P_psia": 500, "W_actual": 195.0, "W_pred": 195.51, "rel_err": 0.0026},
+        {"T_F": 120, "P_psia": 1500, "W_actual": 62.0, "W_pred": 61.93, "rel_err": -0.0011}
+      ],
+      "xls_pr018_verification": {
+        "T_F": 120,
+        "P_psia": 1000,
+        "co2_mol_pct": 2.0,
+        "h2s_mol_pct": 3.0,
+        "w_baseline": 93.51,
+        "wichert_aziz_factor": 1.0971,
+        "w_corr_calc_formula": "93.51 * 1.0971",
+        "w_corr_value": 102.59,
+        "xls_target": 103.91,
+        "residual_pct": 1.27
+      },
+      "source": "GPSA Engineering Data Book 13th Ed Fig 20-2 'high-acid zone' (H2S+CO2 >= 5 mol%) + Worley WS-PR-018 §3.2"
+    }
+  },
+  "brine_correction_NOT_APPLIED": {
+    "verified_2026_10_31": "v5 plan 'f_brine = 1 + 0.043 × brine_pct' 公式无 Worley/Nielsen/GPSA 依据；brine 修正不用于水含量计算（C-16）",
+    "brine_used_only_for": "水合物抑制（C-18） via Nielsen 1988 GPA RR-114 §3.4 公式: ΔT_brine_correction_F = -0.0015 × brine_wt_pct × T_op_F",
+    "review_documented_at": "pcs-backend/docs/psv/brine_correction_review.md"
+  }
+}

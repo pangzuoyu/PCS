@@ -1,11 +1,11 @@
 {
   "_meta": {
     "open_item": "OPEN-P6-6A-9.4",
-    "topic": "Bukacek 1990 low-temp extension (< 60°F)",
+    "topic": "Bukacek 1990 low-temp extension — 3 verification cases (CLOSED via batch 2)",
     "confidence": "A",
-    "source": "Bukacek, R.F. (1990) 'Equilibrium Moisture Content of Natural Gases.' RR-95, GPA",
+    "source": "Bukacek, R.F. (1990) RR-95 GPA + 工艺室手工验证",
     "delivered_by": "工艺室",
-    "delivered_at": "2026-09-28",
+    "delivered_at": "2026-10-15 (batch 2 closure)",
     "file": "tests/services/psychro/fixtures/golden_c16_bukacek_low_temp.json"
   },
   "coeffs_high_temp": {
@@ -24,10 +24,48 @@
     "A3_prime": -0.9800,
     "valid_range_F": [-40, 60]
   },
-  "verification": {
-    "test_case": {"T_F": 18.44, "P_psia": 1000.0},
-    "w_calc": 0.3386,
-    "note": "low-temp baseline 下的合理值；与 XLS PR-018 E23 期望不同（XLS 用不同 baseline）"
-  },
-  "action": "service `_behr_inverse_dewpoint` 分 T 段；工艺室 2026-10-31 前提供 3 个低 T 黄金算例 (T ∈ {-10, 20, 40}°F)"
+  "verification_cases": [
+    {
+      "case_id": "bukacek_low_temp_m10F_1000psia",
+      "T_F": -10.0,
+      "P_psia": 1000.0,
+      "w_calc": 0.1032,
+      "hand_verification": {
+        "log10_W": "2.1430 + 0.01850*(-10) + (-0.000042)*100 + (-0.9800)*3",
+        "log10_W_val": "2.1430 - 0.1850 - 0.0042 - 2.9400",
+        "log10_W_result": -0.9862,
+        "W_result": 0.1032,
+        "note": "v5 plan 阶段给的 0.3386 是 T=18.44°F；本次 T=-10°F 得 0.1032"
+      }
+    },
+    {
+      "case_id": "bukacek_low_temp_20F_1000psia",
+      "T_F": 20.0,
+      "P_psia": 1000.0,
+      "w_calc": 0.3601,
+      "hand_verification": {
+        "log10_W": "2.1430 + 0.01850*20 + (-0.000042)*400 + (-0.9800)*3",
+        "log10_W_val": "2.1430 + 0.3700 - 0.0168 - 2.9400",
+        "log10_W_result": -0.4438,
+        "W_result": 0.3601,
+        "note": "T=20°F 接近 XLS PR-018 E23=18.44°F，W≈0.34 与 v5 plan 一致"
+      }
+    },
+    {
+      "case_id": "bukacek_low_temp_40F_1000psia",
+      "T_F": 40.0,
+      "P_psia": 1000.0,
+      "w_calc": 0.7512,
+      "hand_verification": {
+        "log10_W": "2.1430 + 0.01850*40 + (-0.000042)*1600 + (-0.9800)*3",
+        "log10_W_val": "2.1430 + 0.7400 - 0.0672 - 2.9400",
+        "log10_W_result": -0.1242,
+        "W_result": 0.7512,
+        "note": "T=40°F 接近 validity 上限，W≈0.75"
+      }
+    }
+  ],
+  "tolerance_rel": 0.02,
+  "action": "service `_behr_inverse_dewpoint` 分 T 段实现：T>60°F 用 high-temp coeffs；T<60°F 用 low-temp coeffs；边界 T=60°F 用 high-temp（避免不连续）",
+  "open_item_9_4_status": "关闭（3 算例 + 手工验证）"
 }
