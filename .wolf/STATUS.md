@@ -178,6 +178,26 @@ budget_tokens: 1500
 - **OPEN-P6-6A-3 / OPEN-P6-6A-5 真正关闭**：T10 路径 A 后 OPEN-P6-6A-3 全闭环；T11 fire_case 双 path 注册后 OPEN-P6-6A-5 全闭环
 - **P6-7 启动前置**：2026-10-15 批 OPEN 闭环后即可启动 P6-7 glycol service 扩展 + 工艺室 4 批 fixture 集成
 
+**P6-7 服务集成批落地（2026-10-31，10 commits active，T5 partial + T2 partial）**：commits `eb824eb`..`6ed6a50`
+- **范围**：工艺室 3 批交付物（OPEN 队列 6 项）服务代码集成 + ADR-0045 Rev B 实施 + OPEN 关闭登记
+- **T1 (eb824eb)**：`psychro.py` `HydrateGasComposition` schema v2（OPEN-P6-6A-11 代码侧 schema 部分）
+- **T3 (c6caacb)**：C-18 Nielsen 1988 完整方程组 + gas_composition + brine（OPEN-P6-6A-11 代码侧闭环，工艺 + 代码双闭环）
+- **T4 (f58d9e4 + 0aec803)**：C-08 两相分离器 sizing imperial 测试（OPEN-P6-4-3 Path A 决议代码侧重定义闭环）
+- **T5 (8acf6c6 + ea5ec30)**：C-24 CV Masonelian 3-model + 24 厂商库（OPEN-P6-4-4 部分关闭：24 厂商库 PASS + 3-model 待 fixture 修复后重跑）
+- **T6 (dfd702b)**：T10 hydrate_inhibition 字段名 `_c` → `_f` + 派生 `_c` + `_c_legacy` deprecated（OPEN-P6-6A-3 真正关闭）
+- **T7 (5dbd09e)**：T11 fire_case 分 path 并存 + 放弃 2.457 系数（OPEN-P6-6A-5 真正关闭）
+- **T9 (29048f9)**：Bukacek 1990 T<60°F 延伸 `_behr_inverse_dewpoint` 分 T 段（OPEN-P6-6A-9.4 代码侧闭环）
+- **T2 (6f6ca9d)**：C-16 Behr baseline 选择 general/high_acid（OPEN-P6-6A-9.3 + 9.5 部分关闭：code 正确 + general OK；high_acid 待 fixture 修复后重跑）
+- **T8 (6ed6a50)**：AS 1210 §4.4 path (b) + Jet fire service path（OPEN-P6-6A-10 代码侧就位，工艺侧 confidence B → A 升级待 2026-11-15）
+- **验收**：G-08 phase 1-4 全过；pytest 386+ psv + psychro 各模块 0 break；ruff 各 touched 文件 0 errors；vitest 548/548 PASS（前端不动）
+- **Schema sync**：tests/test_schema.py table_count 88 → 93（P6-6B 净新增 5 张 CONFIG 表：pipe_e_modulus / compound_nielsen_1988_params / glycol_dehydration_full_system / compound_delta_h_vap_natural_gas / drain_orifice_Cd_Y_cr）
+- **Parked findings（cross-task, non-blocking, batch-end 清理候选）**：
+  - T3 工艺室标定 -0.00645 vs PCS 严格 -0.00754 (~17% 差异，工艺室后续澄清)
+  - T2 `pcs-backend/data/behr_coefficients.json` high_acid 系数不自洽（工艺室 2026-11-15 重发）
+  - T8 fixture 3-sig-fig 近似（C3H8 path b 1.81% diff，dual-tolerance 容纳）
+  - T9 brief 模板高温系数 vs v5.1 JSON fit 不一致（implementer 沿用 JSON）
+  - 2 ruff errors pre-existing in `app/services/psychro/glycol_dehydration_service.py` (lines 352 E501 / 676 F841 T_LOW unused, both from P6-6A-6 8aaa68d)
+
 ---
 
 ## 🚀 Next quest

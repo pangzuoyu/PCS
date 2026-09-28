@@ -589,6 +589,21 @@ API:
 入口:  → 
 测试:  (16 passed)
 
+### C-08 V1.2 redesign + OPEN-P6-4-3 重定义（Path A，2026-10-31）
+
+C-08 在 P6-4 V1.2 重构中：
+- **删除** `vessel_weight_estimate_service.py`（BEM/AEM 壁厚→重量路径）
+- **新增** `two_phase_separator_sizing_service.py`（WS-CA-PR-010 Rev A §3~§5 + SPEC §3.4.2；5 段 sizing：Vmax/CSA/nozzle/control_height/residence）
+- 输出 13 字段（`TwoPhaseSeparatorSizingResult`）：vmax_m_s / csa_min_m2 / csa_actual_m2 / nozzle_inlet_min_id_m / nozzle_outlet_min_id_m / control_height_m / control_volume_m3 / residence_time_s / mixed_density_kg_m3 / oil_vol_rate_bbl_d / water_vol_rate_bbl_d / gas_vol_rate_mmscfd / imperial_conversion (dict)
+
+**OPEN-P6-4-3 重定义**（用户 Path A 裁决，2026-10-31）：
+- 原 OPEN："C-08 vessel Imperial 单位支持范围"（重量语义）
+- 新 OPEN："C-08 两相分离器 sizing imperial 闭环"
+- 处理：保留原 fixture `golden_c08_imperial.json`（重量语义，记录工艺室原始意图）为文档性参考；新建 sizing fixture `golden_c08_sizing_imperial.json`（13 字段 + imperial_conversion）；不撤销 P6-4 V1.2 redesign
+- rationale：尊重当前架构（5 段 sizing 是 P6-4 重构成果）；工艺室 fixture 误用旧 C-08 语义
+
+**SPEC §3.4.2 + WS-CA-PR-010 Rev A 引用**（sizing 字段溯源）。
+
 ### P6-6B 工艺工程师对 OPEN 队列的决策（2026-09-28）
 
 工艺工程师签署 OPEN-P6-4-3 / 4-4 / 6A-9（9.1~9.4 + 新增 9.5）/ 6A-10 / 6A-11 + T10 / T11 全部 11 项。
@@ -635,3 +650,19 @@ API:
 P6-7 启动条件（按工艺室承诺日期）：
 - 2026-10-15 批 OPEN 闭环 → P6-7 启动前置数据齐全
 - 全部 11 项关闭后 → P6-8（工程团队部署 + ETL 重新对账）启动
+
+## P6-7 批关键决策（2026-10-31）
+
+- **C-08 V1.2 redesign + OPEN-P6-4-3 重定义（Path A）**：详见 §"C-08 V1.2 redesign + OPEN-P6-4-3 重定义"（已记录）
+- **T10 hydrate_inhibition 字段名 `_c` → `_f`（OPEN-P6-6A-3 真正关闭）**：
+  - 公式层 `e0d91a6`（P6-6A-3 Ruling 11 K °F scale）+ 字段名层（`hydrate_depression_c` → `hydrate_depression_f`）+ CONFIG 表层（`hammerschmidt_K` P6-6B T7）三层全闭环
+  - 新增 `hydrate_depression_c = _f × 5/9` 派生字段；保留 `hydrate_depression_c_legacy` deprecated 向后兼容
+  - CHANGELOG.md 标注 Breaking Change
+- **T11 fire_case 分 path 并存（OPEN-P6-6A-5 真正关闭）**：
+  - `FireCaseStandard = Literal["API_521", "AS_1210"]` + 放弃 2.457 系数（工艺室追溯来源不明，工艺 2026-09-28 签署）
+  - **T8 扩展** `Literal["API_521", "AS_1210", "Jet fire"]`（AS 1210 §4.4 path (b) + Jet fire 110,000 W/m²）
+  - 路径决策：API_521 默认 + AS_1210 path (a)/(b) 双 path 注册
+- **OPEN-P6-6A-9.3 + 9.5 + 11 闭环**：工艺室 2026-10-15 GPA RR-114 Table 2-3 完整 7 组常数（A/B/C）+ ADR-0045 Rev B（工艺室 2026-10-15 签署）+ T3 完整方程组 `ΔT_F = A + B·x + C·x²` + 气组分加权 + brine 修正（仅 C-18）
+- **OPEN-P6-6A-9.5 工艺室 fixture 修正需求**：`pcs-backend/data/behr_coefficients.json` 工艺室 2026-10-31 版两 baseline 系数均不自洽（general 系数 ≡ v5 form A 失败集，264× 偏差；high_acid 系数回算 W=0.6438 vs 标定 93.5，差 145×），需工艺室 2026-11-15 重发
+- **OPEN-P6-6A-10 代码侧就位**：AS 1210 §4.4 path (b) + Jet fire 110,000 W/m² service path（T8 落地）；工艺侧 confidence B → A 升级待工艺室 2026-11-15 AS 1210-2010 PDF 到位（SAI Global 采购中）
+- **Schema sync（批末）**：tests/test_schema.py table_count 88 → 93（P6-6B 净新增 5 张 CONFIG 表未及时同步，P6-7 收口一并修订）
