@@ -875,3 +875,72 @@ class CompoundNielsen1988Params(Base):
         DateTime(timezone=True), onupdate=func.now(),
         comment="记录更新时间（ORM onupdate 触发）",
     )
+
+
+class GlycolDehydrationFullSystem(Base):
+    """C-16 glycol dehydration full system 典型工况范围（P6-6B CONFIG 占位）。
+
+    业务（P6 SPEC §3.9.1 + GPSA Fig. 20-XX + McKetta-Wehe）：
+
+    - ``parameter`` UNIQUE：典型工况参数名（TEG 浓度 / reboiler temperature
+      / stripping gas rate / column diameter / column height / NTU /
+      reflux ratio / contactor pressure / water removal efficiency /
+      reboiler duty）；
+    - ``min_value`` 数值最小值；
+    - ``max_value`` 数值最大值；
+    - ``unit`` 数值单位；
+    - ``notes`` 工程备注；
+    - 估算 10 行典型工况范围（per GPSA Fig. 20-XX + McKetta-Wehe 公开值）；
+    - ``source`` / ``confirmed_by`` / ``confirmed_at`` 字段同其他 CONFIG 表。
+
+    不继承 ``TaggedRecordMixin``（元数据表非业务计算记录）。
+    服务扩展待 P6-7。
+    """
+
+    __tablename__ = "glycol_dehydration_full_system"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+        comment="BIGINT 自增主键",
+    )
+    parameter: Mapped[str] = mapped_column(
+        String(64), nullable=False, unique=True, index=True,
+        comment="典型工况参数 UNIQUE：teg_concentration / reboiler_temperature 等",
+    )
+    min_value: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="数值最小值",
+    )
+    max_value: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="数值最大值",
+    )
+    unit: Mapped[str] = mapped_column(
+        String(32), nullable=False,
+        comment="数值单位（wt% / °F / scf/gal TEG / ft / NTU / - / psia / % / kBtu/hr）",
+    )
+    notes: Mapped[str | None] = mapped_column(
+        String(256), nullable=True,
+        comment="工程备注（典型工况语境）",
+    )
+    source: Mapped[str] = mapped_column(
+        String(128), nullable=False,
+        comment='数据来源；本批填 "GPSA Fig. 20-XX + McKetta-Wehe '
+                '(TBD engineer verify)"',
+    )
+    confirmed_by: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment='本批填 "P6-6B_ENG_TEAM_TBD"；工艺工程师二次核对后改填实际签字人',
+    )
+    confirmed_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+        comment="工艺室确认签字时间（占位 NULL，工艺室签字后填入）",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
+        comment="记录创建时间（DB server_default）",
+    )
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(),
+        comment="记录更新时间（ORM onupdate 触发）",
+    )

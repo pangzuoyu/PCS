@@ -74,6 +74,10 @@ Behr 系数（P6-6A-6 v5.1 Day-0 Gate）：
 P6-6A-6 v5.1 Ruling 5 OUT_OF_SCOPE 闭环：
 
   FULL system 仅 TEG；DEG 抛 GlycolDehydrationError
+
+P6-6B T9 OUT_OF_SCOPE 4 子模块（reboiler / stripping / full column /
+lean glycol）等待 P6-7 服务扩展；CONFIG 表已占位
+``glycol_dehydration_full_system``（10 行典型工况范围）。
 """
 from __future__ import annotations
 
