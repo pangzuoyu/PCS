@@ -1814,6 +1814,31 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-28T16:00:00+08:00"
+    },
+    {
+      "id": "bug-107",
+      "timestamp": "2026-09-28T00:12:11Z",
+      "error_message": "PCS 硬编码 _FIRE_COEFF_W = 43192 单一 API 521 §3.4 SI 系数；XLS PR-025 AS 1210 path G54 用 7.2×10⁴ 不同 basis，39% Q diff",
+      "file": "pcs-backend/app/services/psv/as1210_overpressure_service.py:_FIRE_COEFF_W + As1210ReliefInput schema",
+      "root_cause": "公式族硬编码（API 521 only），不支持 AS 1210 §4.4 path (a) 等其他标准（AS 1210 path (a) liquefied 系数 71866、path (b) gas/vapor 结构差异公式 m·Y_p 完全独立，jet fire 110,000 W/m² 第三族）。PCS fire_case 公式 Q = 63600 × F × A^0.82 仅暴露单一 SI 系数族",
+      "fix": "OPEN-P6-6A-8 Ruling 15 fix: As1210ReliefInput 加 fire_case_coefficient + fire_case_exponent 双字段（默认 43192 + 0.82 back-compat，与 API 521 §3.4.2 SI 公式族完全等价）；用户传 71866 + 0.82 + ΔH_vap=208 验证 matches XLS G54=649808.14 W EXACT + G55=11253.17 kg/hr within 0.06%。formula_ref 扩 fire_case_coefficient + fire_case_exponent 含 Ruling 15 引用 + AS 1210 §4.4 path (a) 字串。fire_case 公式改用 inp.fire_case_coefficient × F × A**inp.fire_case_exponent 路径。coeff≤0 raise PsvFireCaseInputError；exp≤0 raise PsvFireCaseInputError。6 unit tests: default back-compat / XLS G54 EXACT (71866×0.82=649810 W) / AS 1210 path with ΔH_vap=208 matches G55 within 0.06% / linear exponent 1.0 / coefficient zero raises / exponent zero raises / formula_ref。黄金 fixture golden_as1210_fire_coeff.json 新建（XLS G54 EXACT + G55 within 1%）。worley_c21 fixture 扩展 1 test: AS 1210 path G54/G55 within 容差。376 psv tests passed / 0 failed (baseline 366 + 10 new); 全量 3285 passed regression.",
+      "fix_commit": "bc95487",
+      "tags": [
+        "psv",
+        "fire_case",
+        "as1210",
+        "Ruling 15",
+        "OPEN-P6-6A-8",
+        "formula-coefficient-parameterization",
+        "fluid-property-input",
+        "AS-1210-4.4-path-a",
+        "backward-compat",
+        "default-placeholder",
+        "PCS"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-28T00:12:11Z"
     }
   ]
 }

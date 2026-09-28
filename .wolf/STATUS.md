@@ -78,6 +78,14 @@ budget_tokens: 1500
 - **注**：Ruling 9 C_AS1210=2.457 vs PCS C=43192（39% Q diff）仍残留，独立 OPEN-P6-6A-?（待 ID 分配）
 - 366 psv tests passed / 0 failed (baseline 358 + 8 new)
 
+**OPEN-P6-6A-8 关闭（fire_case_coefficient + fire_case_exponent fluid-specific，2026-09-28）**：commits `bc95487` + `f1c2be1`
+- PCS `_FIRE_COEFF_W = 43192.0` hardcoded → As1210ReliefInput 加 fire_case_coefficient + fire_case_exponent 双字段（默认 43192 + 0.82 back-compat）
+- 6 unit tests：default back-compat / XLS G54 EXACT (71866×0.82=649810 W) / AS 1210 path with ΔH_vap=208 matches G55 within 0.06% / linear exponent 1.0 / coefficient zero raises / exponent zero raises / formula_ref
+- 黄金 fixture `golden_as1210_fire_coeff.json` 新建（XLS G54 EXACT + G55 within 1%）
+- worley_c21 fixture 扩展 1 test：AS 1210 path G54/G55 within 容差
+- **Ruling 15 fire_case 双字段 CLOSED**
+- **注**：AS 1210 §4.4 path (b) gas/vapor (m·Y_p) + jet fire 110,000 W/m² 不在本批（结构差异），独立 OPEN-P6-6A-9（待 ID）
+
 ---
 
 ## 🚀 Next quest

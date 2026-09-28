@@ -415,6 +415,20 @@
 3. **worley_c21 默认 back-compat 是必须** — 字段 default=现有 hardcode；不破坏既有测试 + 用户体验
 4. **ΔH_vap 单字段修复 ≠ Ruling 9 完全闭环** — C_AS1210=2.457 vs PCS C=43192（39% Q diff）仍残留，独立 OPEN
 
+### OPEN-P6-6A-8 fire_case coefficient/exponent — Ruling 15 (2026-09-28)
+
+**defect**: PCS 硬编码 `_FIRE_COEFF_W = 43192`（API 521 §3.4 SI 单一公式族）；AS 1210 §4.4 path (a) 用 7.2×10⁴ 系数（XLS 用 71866），39% Q diff。
+
+**fix strategy**: As1210ReliefInput 加 fire_case_coefficient + fire_case_exponent 双字段（默认 43192 + 0.82 back-compat）；用户传 71866 + 0.82 + ΔH_vap=208 对齐 AS 1210 path (a) liquefied。
+
+**scope 限定**：本批仅覆盖 AS 1210 §4.4 path (a) 液化气体/液体（m' = coeff × F × A^0.82 / L）；path (b) 气体（m·Y_p 完全不同结构）和 jet fire 110,000 W/m² 独立路径不在本批。
+
+**守则**:
+1. **公式族 (coefficient + exponent) 不应硬编码** — API 521/AS 1210/GOST 等标准各有 coefficient 数值，但 exponent 通常同 0.82；系数可参数化
+2. **ΔH_vap 单位差异（J/kg vs kJ/kg）需显式转换** — AS 1210 path (a) 用 J/kg；PCS ΔH_vap 字段为 kJ/kg × 1000 转换正确处理
+3. **黄金 fixture cross-check 必须 XLS EXACT** — coefficient 反推公式（coeff = XLS_Q / (F × A^exp)）是验证一致性最直接方式
+4. **path (b) / jet fire 等结构差异公式不在本批 scope** — 双字段方案不解决 m·Y_p 公式族；登记为 OPEN-P6-6A-9 后续
+
 ## Decision Log
 
 - 管道计算等级按项目绑定（source=PROJECT）；class_id 全局唯一 PK，跨项目同码不同值需复合 PK 迁移（P3 复核）。
