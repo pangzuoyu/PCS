@@ -88,6 +88,15 @@ budget_tokens: 1500
 - **注**：AS 1210 §4.4 path (b) gas/vapor (m·Y_p) + jet fire 110,000 W/m² 不在本批（结构差异），独立 OPEN-P6-6A-9（待 ID）
 - **merge 入 main @ d636337（fast-forward, 2026-09-28）**：post-merge spot-check 376 psv tests PASS, 0 regression
 
+**OPEN-P6-6A-1 关闭（Ruling 9 wording formalization，2026-09-28）**：commit `8b2e1c2` docs(spec)
+- SPEC V1.10 → V1.11 docs-only micro-revision（V1.10 实施基线保持冻结）
+- §3.5.2 C-21 加"火灾泄放公式口径"sub-section（API 521 §3.4 default 43192 / AS 1210 §4.4 path (a) 7.2×10⁴ 液化 / path (b) m·Y_p 气体 / Jet fire 110,000 W/m²）+ "流体特定输入"子段（Ruling 14 ΔH_vap + Ruling 15 fire_case coeff/exp）
+- §3.9.2 C-17 加"working fluid 口径澄清"（XLS WS-CA-PR-019 natural gas vs PCS humid air 范围边界 + worley_c17 fixture mapping_defect OoM ≥ 10 引用）
+- §0.1 加 V1.11 wording 注记（Ruling 9 双 surface 闭环链 cfdbe2d + fddeae4 + e72e0db + bc95487）；§9 changelog V1.11 row
+- 26+/2- diff 单文件 docs-only，0 测试影响
+- bug-108 logged; cerebrum Key Learning appended
+- **Ruling 9 docs CLOSED**
+
 ---
 
 ## 🚀 Next quest
@@ -115,10 +124,9 @@ budget_tokens: 1500
 - OPEN-P6-4-2（Kb 厂商真实数据 LESER/Consolidated/AG，部署前）
 - OPEN-P6-4-3（C-08 Imperial 单位支持范围）
 - OPEN-P6-4-4（C-24 Chapman-Jans / Tong 模型与商业软件对账，部署前）
-- OPEN-P6-6A-1（Ruling 9 wording formalization，SPEC V1.2 决议）
 - OPEN-P6-6A-2（Brief template `brief.id == plan_table_row.id` assert，批 B brief template 实现）
-- OPEN-P6-6A-5（T13 ΔH_vap 2260 vs 208 kJ/kg, 18× diff, medium effort）
 - OPEN-P6-6A-6（T8 full glycol dehydration system as new PCS service，CONFIG 占位 T9 关闭；service 扩展待 P6-7）
+- OPEN-P6-6A-9（AS 1210 §4.4 path (b) gas/vapor m·Y_p + jet fire 110,000 W/m²，独立 OPEN 立项）
 
 **验收**：P6-6B 后 source 字段去 SYNTHETIC 标记 + gate 报告签字 + 黄金 fixture 重对账。
 **待用户裁决**：是否先核实 C-18 Nielsen 方程覆盖缺口（SPEC §3.9.3 要点含 Nielsen，P6-5 只落了 Hammerschmidt）。

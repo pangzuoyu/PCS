@@ -1839,6 +1839,31 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-28T00:12:11Z"
+    },
+    {
+      "id": "bug-108",
+      "timestamp": "2026-09-28T08:00:00+08:00",
+      "error_message": "Ruling 9 双 surface wording 未在 SPEC 文档化：C-17 surface (XLS WS-CA-PR-019 natural gas 饱和 W ≠ PCS humid air 饱和 W，5 cases OoM ≥ 10 mapping_defect) + C-21 surface (XLS WS-CA-PR-025 AS 1210 path formula family mismatch) 仅在 fixture / commit message 描述，SPEC V1.10 §3.5.2/§3.9.2 段落缺 formal wording",
+      "file": "spec/PCS-SPEC-ADD-001 计算覆盖增补规格说明书.md",
+      "root_cause": "P6-6A Worley 批次登记的 Ruling 9 docs 决议延后；OPEN-P6-6A-1 立项但未执行；代码已闭环（OPEN-P6-6A-5 + OPEN-P6-6A-8），但 SPEC wording 未 formalize 阻塞后续 Ruling 9 引用追溯",
+      "fix": "OPEN-P6-6A-1 fix: SPEC V1.10 → V1.11 docs-only micro-revision；§3.5.2 C-21 加 '火灾泄放公式口径' sub-section（API 521 default 43192 / AS 1210 §4.4 path (a) 7.2×10⁴ 液化 / path (b) m·Y_p 气体 / Jet fire 110,000 W/m²）+ '流体特定输入' 子段（Ruling 14 ΔH_vap + Ruling 15 fire_case coeff/exp）；§3.9.2 C-17 加 'working fluid 口径澄清'（XLS natural gas vs PCS humid air 范围边界 + worley_c17 fixture mapping_defect OoM ≥ 10 引用）；§0.1 加 V1.11 wording 注记（Ruling 9 双 surface 闭环链 cfdbe2d + fddeae4 + e72e0db + bc95487）；§9 changelog V1.11 row。V1.10 实施基线保持冻结，V1.11 仅 wording 增补不引入新实施项。26+/2- diff 单文件 docs-only。",
+      "fix_commit": "8b2e1c2",
+      "tags": [
+        "spec",
+        "Ruling 9",
+        "wording-formalization",
+        "OPEN-P6-6A-1",
+        "C-17-working-fluid",
+        "C-21-fire-formula-basis",
+        "AS-1210-4.4",
+        "API-521-3.4",
+        "docs-only",
+        "no-implementation-change",
+        "PCS"
+      ],
+      "related_bugs": ["bug-106", "bug-107"],
+      "occurrences": 1,
+      "last_seen": "2026-09-28T08:00:00+08:00"
     }
   ]
 }

@@ -429,6 +429,20 @@
 3. **黄金 fixture cross-check 必须 XLS EXACT** — coefficient 反推公式（coeff = XLS_Q / (F × A^exp)）是验证一致性最直接方式
 4. **path (b) / jet fire 等结构差异公式不在本批 scope** — 双字段方案不解决 m·Y_p 公式族；登记为 OPEN-P6-6A-9 后续
 
+### OPEN-P6-6A-1 Ruling 9 wording formalization — SPEC V1.11 docs-only (2026-09-28)
+
+**defect**: P6-6A Worley 批次登记的 Ruling 9 双 surface（C-17 working fluid defect + C-21 AS 1210 vs API 521 hardcode）仅在 fixture `mapping_defect` 字段 + commit message 描述；SPEC V1.10 §3.5.2/§3.9.2 段落缺 formal wording，阻塞后续 Ruling 9 引用追溯。
+
+**fix strategy**: docs-only micro-revision SPEC V1.10 → V1.11；§3.5.2 C-21 加"火灾泄放公式口径"分项 + "流体特定输入"子段；§3.9.2 C-17 加"working fluid 口径澄清"；§0.1 加 V1.11 注记 + §9 changelog V1.11 row。V1.10 实施基线保持冻结，V1.11 仅 wording 增补。
+
+**scope 限定**：本批仅 SPEC wording docs-only，0 代码改动、0 测试改动、0 schema 改动。代码闭环已通过 OPEN-P6-6A-5（Ruling 14 ΔH_vap fluid-specific input）+ OPEN-P6-6A-8（Ruling 15 fire_case 双字段）完成；OPEN-P6-6A-1 仅 formalize 已闭环的 wording。
+
+**守则**:
+1. **Ruling docs final 必须显式跨 surface** — Ruling 9 双 surface (C-17 working fluid + C-21 fire formula) 在 SPEC wording 必须分别列出代码闭环链（commit SHA），避免后续追溯断裂
+2. **docs-only micro-revision 不引入新实施项** — V1.10 实施基线已冻结，V1.11 改动必须 wording-only；新实施项走独立 SPEC 版本号（V1.12+）
+3. **SPEC §9 changelog 必须精确列闭环链** — single-line description 必须含 commit SHA + OPEN ID + Ruling 编号，便于 grep 反查
+4. **working fluid 范围边界必须显式声明** — XLS 工况 vs PCS 服务的 working fluid 差异（如 natural gas vs humid air）必须在 SPEC 段落明确，worley fixture `mapping_defect` 是 SPEC wording 的事实依据
+
 ## Decision Log
 
 - 管道计算等级按项目绑定（source=PROJECT）；class_id 全局唯一 PK，跨项目同码不同值需复合 PK 迁移（P3 复核）。
