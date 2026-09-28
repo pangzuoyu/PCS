@@ -1,14 +1,26 @@
-"""TEG/DEG 甘醇脱水 service（P6-5 C-16 / SPEC §3.9.1 V1.1）。
+"""TEG/DEG 甘醇脱水 service（P6-5 C-16 / P6-6A-6 / SPEC §3.9.1 V1.1）。
 
 按 SPEC §3.9.1 计算 TEG/DEG 接触塔脱水（GPSA §20.4 + Campbell 2000）：
 
-5 段计算：
+P6-5 v2 5 段计算（contact-tower-only）：
 
   1. 入口水含量（lb water / MMscf dry gas）
   2. 接触塔塔盘设计（N_min 公式 — GPSA §20.4 Eq.20-4）
   3. 甘醇循环量（gpm；GPSA 经验 3 gpm/MMscf）
   4. TEG 损失（GPSA 经验 0.5 gal/MMscf）
   5. 脱水效率 η = 1 - outlet/inlet
+
+P6-6A-6 v5.1 FULL glycol dehydration system 扩展：
+
+  6. 接触塔高度（H = NTU × HETP）
+  7. 接触塔全径（D_full = K·sqrt(Q)；K=7.1187 单点标定，ADR-0045 Rev A）
+  8. 截面积（CSA = π·D²/4）
+  9. 水的露点（Behr 反函数 via brentq + Newton fallback）
+  10. 酸气修正后的露点（Linear placeholder, P6-6B 接管真 Wichert-Aziz）
+  11. 调整后露点（diff method, XLS PR-018 E25）
+  12. Stripping gas rate（GPSA §20.4 Eq.20-5）
+  13. Reboiler duty（简式焓平衡 3 项）
+  14. 传质单元数 NTU（Kremser）
 
 公式（GPSA §20.4 Eq.20-4）：
 
@@ -20,9 +32,21 @@
 
   D_in = (12 + 2·Q^(1/3)·1.5) × (L/V)^0.5    L/V 修正（M-4 v2）
 
+P6-6A-6 v5.1 FULL system 直径（ADR-0045 Rev A）：
+
+  D_full_in = K × sqrt(Q_gas_mmscfd)         单点标定 K=7.1187
+  K = 120.76 / sqrt(288)                     XLS PR-018 E40 单点反算
+
 TEG 损失（GPSA 经验）：
 
   TEG loss = 0.5 × Q_gas (gal/day)            单点估算
+
+Behr 系数（P6-6A-6 v5.1 Day-0 Gate）：
+
+  log10(W) = A0 + A1·T_F + A2·T_F² + A3·log10(P_psia)
+  A0 = 3.3552846960018585, A1 = 0.018921959032034738
+  A2 = -4.608271243464537e-05, A3 = -1.034805419984532
+  max_rel_err = 4.866% vs GPSA Fig 20-2 8 spot checks
 
 单位约定：
 
@@ -46,11 +70,18 @@ TEG 损失（GPSA 经验）：
 塔盘不足处理（不抛错，仅标记）：
 
   - contactor_tray_count < N_min → is_tray_count_ok=False
+
+P6-6A-6 v5.1 Ruling 5 OUT_OF_SCOPE 闭环：
+
+  FULL system 仅 TEG；DEG 抛 GlycolDehydrationError
 """
 from __future__ import annotations
 
+import json
+import logging
 import math
 from dataclasses import dataclass
+from importlib import resources
 from typing import Final, Literal
 
 from app.services.exceptions import PcsError
@@ -73,6 +104,117 @@ _LV_TOLERANCE: Final[float] = 0.05
 _LV_N_CORRECTION_EXP: Final[float] = 0.5
 _LV_D_CORRECTION_EXP: Final[float] = 0.5
 
+# P6-6A-6 v5.1 — FULL system bounds
+_LEAN_GLYCOL_MIN: Final[float] = 0.95
+_LEAN_GLYCOL_MAX: Final[float] = 0.999
+_FLOODING_C_SB_MIN: Final[float] = 0.30
+_FLOODING_C_SB_MAX: Final[float] = 0.80
+_ALPHA_MIN: Final[float] = 1.0
+_ALPHA_MAX: Final[float] = 50.0
+_CO2_MOL_PCT_MIN: Final[float] = 0.0
+_CO2_MOL_PCT_MAX: Final[float] = 100.0
+_H2S_MOL_PCT_MIN: Final[float] = 0.0
+_H2S_MOL_PCT_MAX: Final[float] = 100.0
+
+# P6-6A-6 v5.1 — physical bounds (column height, lean glycol)
+_COLUMN_HEIGHT_MAX_FT: Final[float] = 200.0
+_HETP_DEFAULT_FT: Final[float] = 4.0  # GPSA §20.4 typical for structured packing
+
+# P6-6A-6 v5.1 — Behr constants (H-2 + B-2 落实 — K 单点标定 ADR-0045 Rev A)
+_FULL_COLUMN_K_DEFAULT: Final[float] = 7.1187
+_FULL_COLUMN_XLS_Q_MMSCF_MIN: Final[float] = 144.0  # 288 ± 50%
+_FULL_COLUMN_XLS_Q_MMSCF_MAX: Final[float] = 432.0
+
+# Behr 反函数 bracket
+_BEHR_DEWPOINT_BRACKET: Final[tuple[float, float]] = (60.0, 200.0)
+_BEHR_DEWPOINT_EXTRAPOLATED_THRESHOLD_F: Final[float] = 60.0
+_BEHR_DEWPOINT_EXTRAPOLATION_WARNING_TOL_F: Final[float] = 1e-4
+
+# P6-6A-6 v5.1 — Behr fallback coefficients (used when JSON missing or invalid)
+_BEHR_FALLBACK_COEFS: Final[dict[str, float]] = {
+    "A0": 1.0, "A1": 0.020, "A2": 0.0, "A3": -1.5,
+}
+
+_LOGGER = logging.getLogger(__name__)
+
+
+def _load_behr_coefficients() -> dict[str, float]:
+    """Load Bukacek + GPSA calibration coefficients from JSON sidecar.
+
+    v4 changes (B-2 落实):
+    - 启动期加载 (module-level call below); RuntimeError on schema invalid
+    - JSON 缺失 → fallback 系数 WARNING 不 crash
+    - JSON 打包 via importlib.resources (wheel package_data)
+    - Schema 校验仅做字段类型检查，不跑 spot check（spot check 移到 pytest）
+
+    v5.1 changes:
+    - log10_coefficients 为 None → 尝试 fallback_coefficients
+    - 否则 RuntimeError
+    """
+    try:
+        with resources.files("app.services.psychro.data").joinpath(
+            "behr_coefficients.json"
+        ) as p:
+            data = json.loads(p.read_text())
+    except (FileNotFoundError, ModuleNotFoundError) as e:
+        _LOGGER.warning(
+            "behr_coefficients.json 缺失，使用 fallback 系数: %s", e,
+        )
+        return _BEHR_FALLBACK_COEFS
+
+    coeffs = data.get("log10_coefficients")
+    if coeffs and all(
+        isinstance(coeffs.get(k), (int, float))
+        for k in ("A0", "A1", "A2", "A3")
+    ):
+        return {
+            "A0": float(coeffs["A0"]),
+            "A1": float(coeffs["A1"]),
+            "A2": float(coeffs["A2"]),
+            "A3": float(coeffs["A3"]),
+        }
+
+    # 主系数缺失 → 尝试 fallback_coefficients
+    fallback = data.get("fallback_coefficients")
+    if fallback and all(
+        isinstance(fallback.get(k), (int, float))
+        for k in ("A0", "A1", "A2", "A3")
+    ):
+        _LOGGER.warning(
+            "behr_coefficients.json log10_coefficients 为 null，使用 fallback_coefficients"
+        )
+        return {
+            "A0": float(fallback["A0"]),
+            "A1": float(fallback["A1"]),
+            "A2": float(fallback["A2"]),
+            "A3": float(fallback["A3"]),
+        }
+    raise RuntimeError(
+        "behr_coefficients.json schema 无效：log10_coefficients 和 fallback_coefficients "
+        "都缺少 A0/A1/A2/A3 数值字段"
+    )
+
+
+# Module-level eager load (v5 B-2 关键变更 — 启动期而非首请求)
+_BEHR_COEFFS: Final[dict[str, float]] = _load_behr_coefficients()
+
+
+# P6-6A-6 v5.1 — Acid gas linear correction placeholder coefficients (H-1 落实)
+_ACID_GAS_CO2_COEF: Final[float] = 0.024
+_ACID_GAS_H2S_COEF: Final[float] = 0.018
+
+# P6-6A-6 v5.1 — Reboiler duty 简式焓平衡 3 项 (GPSA §20.4)
+# NOTE: 这些是工艺侧占位常数；P6-6B 接管 TEG 物性精确值
+_REBOILER_CP_TEG_BTU_PER_LB_F: Final[float] = 0.55  # TEG 比热
+_REBOILER_CP_WATER_BTU_PER_LB_F: Final[float] = 1.0  # 水比热
+_REBOILER_DT_F: Final[float] = 30.0  # rich-to-lean TEG ΔT
+_REBOILER_DH_VAP_BTU_PER_LB: Final[float] = 1000.0  # 水蒸发潜热近似
+# Reboiler 输出单位换算：BTU/hr → kW
+_BTU_PER_HR_PER_KW: Final[float] = 3412.14
+
+# P6-6A-6 v5.1 — Stripping gas placeholder (GPSA §20.4 Eq.20-5 simplified)
+_STRIPPING_K_DEFAULT: Final[float] = 1.5  # placeholder; P6-6B 接管真值
+
 GlycolType = Literal["TEG", "DEG"]
 
 
@@ -81,6 +223,21 @@ class GlycolDehydrationError(PcsError):
 
     code = "GLYCOL_DEHYDRATION_INPUT_ERROR"
     status = 422
+
+
+@dataclass(frozen=True)
+class _DewpointResult:
+    """Behr 反函数结果 (frozen dataclass) — 三态显式避免 tuple 歧义。
+
+    三态语义:
+      FOUND          — dewpoint_f 非 None, extrapolated=False, reason=None
+      EXTRAPOLATED   — dewpoint_f 非 None, extrapolated=True (T<60°F Antoine 外推), reason=外推说明
+      NOT_FOUND      — dewpoint_f=None, extrapolated=False/True, reason="brentq and Newton both failed"
+    """
+
+    dewpoint_f: float | None
+    extrapolated: bool = False
+    reason: str | None = None
 
 
 @dataclass(frozen=True)
@@ -97,6 +254,18 @@ class GlycolDehydrationInput:
       relative_volatility: α = glycol/H2O 相对挥发度（TEG 默认 4.5；DEG 默认 2.8）
       imperial_units: True → dual-unit 输出（tegloss_gal_d + diameter_ft）；
         False（默认，L-3 v1 BLOCKER 修定）→ SI 基准仅
+
+    P6-6A-6 v5.1 追加（10 optional — Ruling 1 现有字段零改动）：
+      temperature_f: 接触塔温度 °F（Behr 反函数 / stripping gas 用）
+      pressure_psia: 接触塔压力 psia（Behr 反函数 / stripping gas 用）
+      lean_glycol_concentration: 贫甘醇浓度（质量分率；reboiler duty 用）
+      vapour_space_ft: 蒸汽空间 ft（column height 增量）
+      sump_height_ft: 集液段高度 ft（column height 增量）
+      hetp_ft: 等板高度 ft（column height = NTU × HETP）
+      approach_to_equilibrium_f: 露点接近度 °F（adjusted dewpoint）
+      flooding_c_sb: Souders-Brown C_sb（v5.1 预留，v5 helper 不使用 — ADR-0045 Rev A）
+      co2_mol_pct: CO2 摩尔百分比（acid gas correction）
+      h2s_mol_pct: H2S 摩尔百分比（acid gas correction）
     """
 
     gas_flow_mmscfd: float
@@ -107,6 +276,17 @@ class GlycolDehydrationInput:
     glycol_circulation_rate_gpm: float
     relative_volatility: float = _TEG_RELATIVE_VOLATILITY_DEFAULT
     imperial_units: bool = False  # L-3 v1 BLOCKER: SI base per Global Constraints
+    # P6-6A-6 v5.1 — 10 optional fields appended (Ruling 1: zero change to existing 8)
+    temperature_f: float | None = None
+    pressure_psia: float | None = None
+    lean_glycol_concentration: float | None = None
+    vapour_space_ft: float | None = None
+    sump_height_ft: float | None = None
+    hetp_ft: float | None = None
+    approach_to_equilibrium_f: float = 5.0  # GPSA §20.4 typical
+    flooding_c_sb: float = 0.65  # reserved; ADR-0045 Rev A (P6-6B 接管)
+    co2_mol_pct: float = 0.0
+    h2s_mol_pct: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -121,6 +301,20 @@ class GlycolDehydrationResult:
       contactor_diameter_in: 接触塔直径（inch；GPSA 经验 + L/V 修正）
       imperial_conversion: dual-unit 输出（仅 imperial_units=True）
       formula_ref: 公式引用（GPSA §20.4 Eq.20-4 等）
+
+    P6-6A-6 v5.1 追加（12 optional — Ruling 1 现有字段零改动）：
+      water_dewpoint_f: 水的露点 °F（Behr 反函数；T<60°F 标记 extrapolated）
+      adjusted_dewpoint_f: 调整后露点 °F（diff method）
+      lean_glycol_concentration: 贫甘醇浓度回显
+      stripping_gas_scf_per_gal_teg: 汽提气率 SCF/gal TEG（GPSA §20.4 Eq.20-5）
+      column_diameter_full_in: 接触塔全径 inch（K=7.1187 单点标定）
+      column_height_ft: 接触塔高度 ft（NTU × HETP + vapour space + sump）
+      number_of_transfer_units: NTU（Kremser）
+      mass_h2o_removed_lb_s: 脱水速率 lb/s
+      reboiler_duty_btu_hr: 再沸器负荷 BTU/hr（简式焓平衡 3 项）
+      column_csa_ft2: 截面积 ft²
+      dewpoint_unavailable_reason: dewpoint 不可用原因（如缺 T/P）
+      acid_gas_corrected: acid gas correction 是否生效（bool）
     """
 
     dehydration_efficiency: float
@@ -130,6 +324,19 @@ class GlycolDehydrationResult:
     contactor_diameter_in: float
     imperial_conversion: dict[str, float] | None
     formula_ref: dict[str, str]
+    # P6-6A-6 v5.1 — 12 optional fields appended (Ruling 1: zero change to existing 7)
+    water_dewpoint_f: float | None = None
+    adjusted_dewpoint_f: float | None = None
+    lean_glycol_concentration: float | None = None
+    stripping_gas_scf_per_gal_teg: float | None = None
+    column_diameter_full_in: float | None = None
+    column_height_ft: float | None = None
+    number_of_transfer_units: float | None = None
+    mass_h2o_removed_lb_s: float | None = None
+    reboiler_duty_btu_hr: float | None = None
+    column_csa_ft2: float | None = None
+    dewpoint_unavailable_reason: str | None = None
+    acid_gas_corrected: bool = False
 
 
 def _resolve_relative_volatility(
@@ -173,6 +380,323 @@ def _validate_input(inp: GlycolDehydrationInput) -> None:
         raise GlycolDehydrationError(
             f"α={inp.relative_volatility} 必须 > 1（volatility ratio）"
         )
+    # P6-6A-6 v5.1 — additional FULL system bounds
+    if not (_ALPHA_MIN <= inp.relative_volatility <= _ALPHA_MAX):
+        raise GlycolDehydrationError(
+            f"relative_volatility={inp.relative_volatility} 越界 "
+            f"[{_ALPHA_MIN}, {_ALPHA_MAX}]"
+        )
+    if inp.lean_glycol_concentration is not None and not (
+        _LEAN_GLYCOL_MIN <= inp.lean_glycol_concentration <= _LEAN_GLYCOL_MAX
+    ):
+        raise GlycolDehydrationError(
+            f"lean_glycol_concentration={inp.lean_glycol_concentration} "
+            f"必须在 [{_LEAN_GLYCOL_MIN}, {_LEAN_GLYCOL_MAX}]"
+        )
+    if not (
+        _FLOODING_C_SB_MIN <= inp.flooding_c_sb <= _FLOODING_C_SB_MAX
+    ):
+        raise GlycolDehydrationError(
+            f"flooding_c_sb={inp.flooding_c_sb} "
+            f"必须在 [{_FLOODING_C_SB_MIN}, {_FLOODING_C_SB_MAX}]"
+        )
+    if not (_CO2_MOL_PCT_MIN <= inp.co2_mol_pct <= _CO2_MOL_PCT_MAX):
+        raise GlycolDehydrationError(
+            f"co2_mol_pct={inp.co2_mol_pct} 越界 [0, 100]"
+        )
+    if not (_H2S_MOL_PCT_MIN <= inp.h2s_mol_pct <= _H2S_MOL_PCT_MAX):
+        raise GlycolDehydrationError(
+            f"h2s_mol_pct={inp.h2s_mol_pct} 越界 [0, 100]"
+        )
+
+
+# ============================================================================
+# P6-6A-6 v5.1 — Private helpers (Ruling 9: 不入 __all__)
+# ============================================================================
+
+
+def _correct_behr_for_acid_gas(
+    w_baseline: float, co2_mol_pct: float, h2s_mol_pct: float,
+) -> float:
+    """Linear acid gas correction placeholder (NON-Wichert-Aziz).
+
+    ⚠️ 本函数**不是** Wichert-Aziz 公式 —— Wichert-Aziz 是非线性形式（reference）:
+        ε = 120 × [(y_CO2+y_H2S)^0.9 − (y_CO2+y_H2S)^1.6]
+            + 15 × (y_H2S^0.5 − y_H2S^4)
+        W_corr = W_baseline × (1 + ε/100)
+
+    本函数是**线性 placeholder**（v5 plan 阶段占位）:
+        W_corr = W_baseline × (1 + 0.024·co2_mol_pct + 0.018·h2s_mol_pct)
+
+    与 XLS PR-018 E20=103.91 对照:
+        GPSA baseline (120°F, 1000 psia) = 70
+        线性修正 +5% 酸气 = 70 × 1.102 = 77.1
+        残差 = (103.91 − 77.1)/103.91 = 25.8% 未解释
+
+    XLS PR-018 E20 残差可能来自:
+        (a) XLS 用不同 baseline（非 GPSA Fig 20-2）
+        (b) XLS 工况含额外酸气/盐度
+        (c) XLS 内部用非线性 Wichert-Aziz
+
+    P6-6B 工艺工程师接管真 Wichert-Aziz + XLS 残差根因。
+
+    Source: [LINEAR_PLACEHOLDER, NON-WICHERT-AZIZ, P6-6B PICKUP]
+    Range: co2/h2s ∈ [0, 100] mol%
+    """
+    return w_baseline * (
+        1.0 + _ACID_GAS_CO2_COEF * co2_mol_pct
+        + _ACID_GAS_H2S_COEF * h2s_mol_pct
+    )
+
+
+def _calc_behr_water_content_lb_per_mmscf(
+    temperature_f: float, pressure_psia: float,
+    co2_mol_pct: float = 0.0,
+    h2s_mol_pct: float = 0.0,
+) -> tuple[float, bool]:
+    """Behr correlation via Bukacek (1990) + GPSA Fig 20-2 + Linear acid gas placeholder.
+
+    Form (v5.1 Day-0 Gate Form A — Bukacek baseline × GPSA calibration × acid gas):
+        log10(W_baseline) = A0 + A1·T_F + A2·T_F² + A3·log10(P_psia)
+        W_baseline = 10^(...)
+        W_corr = W_baseline × (1 + 0.024·co2_mol_pct + 0.018·h2s_mol_pct)  # Linear placeholder
+        W = W_corr
+
+    Source: Bukacek (1990) "Water content of natural gas"
+            GPSA Engineering Data Book 13th Ed §20.4 Fig 20-2 (8-point matrix fit)
+            Coefficients: pcs-backend/data/behr_coefficients.json (loaded at startup)
+            Acid gas correction: Linear placeholder [P6-6B PICKUP, NON-WICHERT-AZIZ]
+    Calibration: 8 spot checks (60/80/100/120/140/160°F @ 1000 psia + 120°F @ 500/1500 psia),
+                 max relative error = 4.866% per Day-0 Gate fit (acceptable < 5%).
+    XLS PR-018 E20=103.91 (high acid gas CO2+H2S=5%) 验证:
+        W_baseline(120°F, 1000 psia) ≈ 72.10 lb/MMscf (Day-0 Gate fit)
+        W_corr(72.10, +5% acid gas) = 72.10 × 1.102 = 79.46
+        偏差 ~24% — 工艺侧待校正 P6-6B 接管
+
+    NOT Behr (1981) primary 原文 — 适用于 natural gas (sg 0.6).
+    PRIVATE helper (_ 前缀 + 不入 __all__), **不**与 calc_saturation_water_content 互调
+    (Ruling 9 working fluid 边界: natural gas vs humid air).
+
+    v5.1 P-4 落实: 本函数**调用** _correct_behr_for_acid_gas 而**不**在此处重复公式。
+
+    Args:
+        temperature_f: Temperature [°F] ∈ [60, 200]
+        pressure_psia: Pressure [psia] ∈ [100, 3000]
+        co2_mol_pct: CO2 摩尔百分比 (default 0)
+        h2s_mol_pct: H2S 摩尔百分比 (default 0)
+    Returns:
+        (water_content_lb_per_mmscf, acid_gas_corrected_flag)
+    """
+    log_w = (
+        _BEHR_COEFFS["A0"]
+        + _BEHR_COEFFS["A1"] * temperature_f
+        + _BEHR_COEFFS["A2"] * temperature_f ** 2
+        + _BEHR_COEFFS["A3"] * math.log10(pressure_psia)
+    )
+    w_baseline = 10 ** log_w
+    acid_gas_corrected = (co2_mol_pct > 0) or (h2s_mol_pct > 0)
+    if acid_gas_corrected:
+        w_corr = _correct_behr_for_acid_gas(w_baseline, co2_mol_pct, h2s_mol_pct)
+        return (w_corr, True)
+    return (w_baseline, False)
+
+
+def _behr_inverse_dewpoint(
+    target_w_lb_per_mmscf: float, pressure_psia: float,
+    co2_mol_pct: float = 0.0, h2s_mol_pct: float = 0.0,
+) -> _DewpointResult:
+    """Behr 反函数 — 给定 W 反算 T_dew (°F), scipy brentq + Newton fallback.
+
+    v5.1 完整实现 (B-3 + H-3 落实):
+        求解 f(T) = W_baseline(T, P) - W_target = 0
+        若 f(60°F) × f(200°F) 同号 → 扩展 bracket 到 [-100°F, 300°F]
+        若 brentq 失败 (maxiter=100) → Newton fallback (analytical derivative)
+        若都失败 → 返回 _DewpointResult(None, ..., reason="...")
+        若 T < 60°F → extrapolated=True, reason="T<60°F extrapolation, accuracy±20%"
+
+    Returns:
+        _DewpointResult dataclass (frozen): 三态显式 FOUND/EXTRAPOLATED/NOT_FOUND
+    """
+    from scipy.optimize import brentq
+
+    T_LOW: Final[float] = 60.0
+    T_BRACKET: tuple[float, float] = (_BEHR_DEWPOINT_BRACKET[0], _BEHR_DEWPOINT_BRACKET[1])
+    T_EXTENDED_BRACKET: tuple[float, float] = (-100.0, 300.0)
+
+    def _residual_w(T_f: float) -> float:
+        w, _ = _calc_behr_water_content_lb_per_mmscf(
+            T_f, pressure_psia, co2_mol_pct, h2s_mol_pct,
+        )
+        return w - target_w_lb_per_mmscf
+
+    dewpoint_f: float | None = None
+
+    try:
+        # 缩 bracket 到 f(a)·f(b) < 0
+        a, b = T_BRACKET
+        fa, fb = _residual_w(a), _residual_w(b)
+        if fa * fb > 0:
+            a, b = T_EXTENDED_BRACKET
+            fa, fb = _residual_w(a), _residual_w(b)
+            if fa * fb > 0:
+                raise ValueError("no sign change in extended bracket")
+        dewpoint_f = brentq(_residual_w, a, b, maxiter=100, xtol=1e-4)
+    except Exception:
+        # Newton fallback (analytical derivative of log10 form)
+        try:
+            T = 60.0  # 初值
+            for _ in range(50):
+                w, _ = _calc_behr_water_content_lb_per_mmscf(
+                    T, pressure_psia, co2_mol_pct, h2s_mol_pct,
+                )
+                dw_dT = w * math.log(10) * (
+                    _BEHR_COEFFS["A1"] + 2 * _BEHR_COEFFS["A2"] * T
+                )
+                if abs(dw_dT) < 1e-10:
+                    break
+                delta = (w - target_w_lb_per_mmscf) / dw_dT
+                T -= delta
+                if abs(delta) < _BEHR_DEWPOINT_EXTRAPOLATION_WARNING_TOL_F:
+                    break
+            dewpoint_f = T
+        except Exception:
+            return _DewpointResult(
+                dewpoint_f=None,
+                extrapolated=False,
+                reason="brentq and Newton both failed",
+            )
+
+    if (
+        dewpoint_f is not None
+        and dewpoint_f < _BEHR_DEWPOINT_EXTRAPOLATED_THRESHOLD_F
+    ):
+        return _DewpointResult(
+            dewpoint_f=dewpoint_f,
+            extrapolated=True,
+            reason=(
+                f"T<{_BEHR_DEWPOINT_EXTRAPOLATED_THRESHOLD_F:.0f}°F "
+                f"extrapolation (T={dewpoint_f:.1f}°F), accuracy ±20%"
+            ),
+        )
+    return _DewpointResult(dewpoint_f=dewpoint_f, extrapolated=False, reason=None)
+
+
+def _calc_number_of_transfer_units(
+    inlet_w_lb_per_mmscf: float,
+    outlet_w_lb_per_mmscf: float,
+    alpha: float,
+) -> float:
+    """NTU (Number of Transfer Units) via Kremser for TEG dehydration.
+
+    Kremser simplified form (GPSA §20.4):
+        NTU = (W_in/W_out - 1) / (α - 1)
+
+    Args:
+        inlet_w_lb_per_mmscf: 入口水含量 lb/MMscf
+        outlet_w_lb_per_mmscf: 出口水含量 lb/MMscf
+        alpha: 相对挥发度 α = glycol/H2O
+    Returns:
+        NTU（无量纲）
+    """
+    if alpha <= 1.0:
+        raise GlycolDehydrationError(
+            f"alpha={alpha} 必须 > 1（NTU 公式分母 α-1）"
+        )
+    if outlet_w_lb_per_mmscf <= 0:
+        return 0.0
+    return (inlet_w_lb_per_mmscf / outlet_w_lb_per_mmscf - 1.0) / (alpha - 1.0)
+
+
+def _calc_column_height_ft(ntu: float, hetp_ft: float) -> float:
+    """Column height = NTU × HETP (GPSA §20.4).
+
+    简化：不加 vapour_space / sump（由 caller 决定是否叠加）。
+    """
+    return ntu * hetp_ft
+
+
+def _calc_full_column_diameter_in(
+    gas_flow_mmscfd: float,
+    flooding_c_sb: float = 0.65,  # NOTE: reserved for P6-6B 工艺扩展; v5.1 helper 不使用
+) -> float:
+    """Full column diameter via XLS PR-018 K=7.1187 single-point calibration.
+
+    v5 修订 (H-2 落实) — 撤回 v4 物理依据（"gas-continuous vs liquid-continuous" 论断
+    与主流文献不符）。本公式 = Souders-Brown 在 (sg=0.6, TEG=99%, P=1000 psia,
+    T=120°F) 工况下的**标定简化式**，K 值由 XLS PR-018 E40=120.76 in @ Q=288
+    MMscfd 单点反算。
+
+    30× 偏差根因 (B-1 落实):
+        v3 用 Souders-Brown 计算时 V_actual 用了实际态气速（~3.19 ft/s 实际 flooding，
+        实际态设计气速 ~2.71 ft/s），但 XLS E40=120.76 in 对应**标准态当量气速**
+        V_std = 3333.33 ft³/s sizing。
+
+    ADR-0045 Rev A 定性:
+        - K=7.1187 = Souders-Brown 在 XLS PR-018 工况下的标定简化式
+        - **单点标定**，适用范围未经多工况验证
+        - 越界 (sg/TEG/P/T 偏离 XLS PR-018 工况) WARNING `[K_UNVERIFIED_OUT_OF_XLS_CONDITIONS]`
+
+    容差: rel ≤ 1e-2 (XLS E40 验证 within 1e-3; K 标定常数)
+
+    Args:
+        gas_flow_mmscfd: 气体流量 [MMscf/d] ∈ [1, 500]
+        flooding_c_sb: # reserved, unused in v5.1 (P6-6B 工艺接管)
+    Returns:
+        Full column diameter [in]
+    """
+    return _FULL_COLUMN_K_DEFAULT * math.sqrt(gas_flow_mmscfd)
+
+
+def _calc_reboiler_duty_btu_hr(
+    glycol_circulation_rate_gpm: float,
+    lean_glycol_concentration: float | None,
+    inlet_w_lb_per_mmscf: float,
+    outlet_w_lb_per_mmscf: float,
+    gas_flow_mmscfd: float,
+) -> float:
+    """Reboiler duty 简式焓平衡 3 项 (GPSA §20.4)。
+
+    Q_reboiler = m_TEG·Cp_TEG·ΔT + m_H2O·Cp_H2O·ΔT + m_H2O·ΔH_vap
+
+    m_TEG = circulation_gpm × 1440 min/d × TEG_density [lb/d]
+    m_H2O = (W_in - W_out) × Q_gas [lb/d]
+    总能量 = 各分量 [BTU/day] → 转换 [BTU/hr] by / 24
+    """
+    m_teg_lb_d = glycol_circulation_rate_gpm * 1440.0 * _TEG_DENSITY_LB_PER_GAL
+    m_water_lb_d = (
+        (inlet_w_lb_per_mmscf - outlet_w_lb_per_mmscf) * gas_flow_mmscfd
+    )
+    q_teg_btu_d = m_teg_lb_d * _REBOILER_CP_TEG_BTU_PER_LB_F * _REBOILER_DT_F
+    q_water_sensible_btu_d = (
+        m_water_lb_d * _REBOILER_CP_WATER_BTU_PER_LB_F * _REBOILER_DT_F
+    )
+    q_water_vap_btu_d = m_water_lb_d * _REBOILER_DH_VAP_BTU_PER_LB
+    return (q_teg_btu_d + q_water_sensible_btu_d + q_water_vap_btu_d) / 24.0
+
+
+def _calc_stripping_gas_rate_scf_per_gal_teg(
+    temperature_f: float,
+    pressure_psia: float,
+    lean_glycol_concentration: float | None,
+) -> float:
+    """Stripping gas rate (GPSA §20.4 Eq.20-5 simplified)。
+
+    简式：
+        SGR = k_strip × (P_sat_TEG / P_total) × (1 - X_lean) / X_lean
+
+    注：占位实现，使用 _STRIPPING_K_DEFAULT；P6-6B 接管真 P_sat_TEG（Antoine 方程）。
+
+    Args:
+        temperature_f: 接触塔温度 °F
+        pressure_psia: 接触塔压力 psia
+        lean_glycol_concentration: 贫甘醇浓度（质量分率；None 时使用默认 0.99）
+    Returns:
+        Stripping gas rate [SCF stripping gas / gal TEG]
+    """
+    x_lean = lean_glycol_concentration if lean_glycol_concentration is not None else 0.99
+    # 简化：温度压力影响占位（P6-6B 接管 P_sat_TEG via Antoine）
+    pressure_factor = (temperature_f + 459.67) / pressure_psia
+    return _STRIPPING_K_DEFAULT * pressure_factor * (1.0 - x_lean) / x_lean
 
 
 def calc_glycol_dehydration(
@@ -180,14 +704,20 @@ def calc_glycol_dehydration(
 ) -> GlycolDehydrationResult:
     """TEG/DEG 甘醇脱水主计算入口。
 
-    计算步骤：
+    计算步骤（P6-5 v2 5 段 + P6-6A-6 v5.1 FULL 9 段）：
       1. _validate_input 边界拒绝（F2/F5）
       2. 脱水效率 η = 1 - outlet/inlet
       3. L/V 比 = circulation_gpm / water_removed_lb_d（M-4 v2 BLOCKER）
       4. N_min（GPSA §20.4 Eq.20-4）+ L/V 修正
       5. TEG 损失（GPSA 经验）
       6. 接触塔直径（GPSA 经验 + L/V 修正）
-      7. 封装 result（imperial 双单位若启用）
+      7. (P6-6A-6 v5.1) FULL 系统：NTU + HETP + D_full + CSA
+      8. (P6-6A-6 v5.1) Behr 反函数 dewpoint（仅当 T/P 提供）
+      9. (P6-6A-6 v5.1) Stripping gas + Reboiler duty
+      10. 封装 result（imperial 双单位若启用）
+
+    P6-6A-6 v5.1 Ruling 5 OUT_OF_SCOPE 闭环:
+      - FULL system 仅 TEG；DEG 抛 GlycolDehydrationError
     """
     _validate_input(inp)
 
@@ -250,6 +780,107 @@ def calc_glycol_dehydration(
             "contactor_diameter_ft": d_in / 12.0,
         }
 
+    # ========== P6-6A-6 v5.1 — FULL system calculations ==========
+
+    # 7. Ruling 5 OUT_OF_SCOPE 字段计算（仅 TEG 全套）
+    if inp.glycol_type != "TEG":
+        raise GlycolDehydrationError(
+            "FULL glycol dehydration system 仅支持 TEG；"
+            "DEG 仅有 partial coverage（Ruling 5）"
+        )
+
+    # alpha 来源：inp.relative_volatility（默认 4.5，与 SPEC §3.9.1 一致）
+    alpha_v51 = inp.relative_volatility
+
+    # 7.1 mass_h2o_removed_lb_s
+    mass_h2o_removed_lb_s = (
+        (inp.inlet_water_content_lb_per_mmscf - inp.outlet_water_content_lb_per_mmscf)
+        * inp.gas_flow_mmscfd
+        / 86400.0
+    )
+
+    # 7.2 NTU（Kremser; alpha = inp.relative_volatility, default 4.5）
+    ntu = _calc_number_of_transfer_units(
+        inp.inlet_water_content_lb_per_mmscf,
+        inp.outlet_water_content_lb_per_mmscf,
+        alpha_v51,
+    )
+
+    # 7.3-7.5 column_height, diameter, CSA (v5 TEG Contactor Sizing)
+    hetp = inp.hetp_ft if inp.hetp_ft is not None else _HETP_DEFAULT_FT
+    column_height_ft = _calc_column_height_ft(ntu, hetp)
+    if column_height_ft > _COLUMN_HEIGHT_MAX_FT:
+        raise GlycolDehydrationError(
+            f"column_height_ft={column_height_ft} 超过工程上限 {_COLUMN_HEIGHT_MAX_FT}"
+        )
+    column_diameter_full_in = _calc_full_column_diameter_in(
+        inp.gas_flow_mmscfd,
+        inp.flooding_c_sb,  # reserved, unused in v5.1 (per ADR-0045 Rev A)
+    )
+    column_csa_ft2 = math.pi / 4.0 * (column_diameter_full_in / 12.0) ** 2
+
+    # 7.6 dewpoint + adjusted_dewpoint (v5 _DewpointResult dataclass + T<60°F extrapolation)
+    dewpoint_unavailable_reason: str | None = None
+    water_dewpoint_f: float | None = None
+    adjusted_dewpoint_f: float | None = None
+    if inp.temperature_f is None or inp.pressure_psia is None:
+        dewpoint_unavailable_reason = (
+            "temperature_f/pressure_psia 缺省；Behr dewpoint 计算不可用"
+        )
+    else:
+        dp_result = _behr_inverse_dewpoint(
+            inp.outlet_water_content_lb_per_mmscf,
+            inp.pressure_psia,
+            co2_mol_pct=inp.co2_mol_pct,
+            h2s_mol_pct=inp.h2s_mol_pct,
+        )
+        if dp_result.dewpoint_f is None:
+            dewpoint_unavailable_reason = dp_result.reason
+        else:
+            water_dewpoint_f = dp_result.dewpoint_f
+            adjusted_dewpoint_f = water_dewpoint_f - inp.approach_to_equilibrium_f
+            if dp_result.extrapolated:
+                dewpoint_unavailable_reason = dp_result.reason
+
+    # 7.7 K 单点标定越界检查（v5 修订 H-2 落实）
+    formula_ref_d_full = (
+        "D_full = K × sqrt(Q_gas) [GPSA §20.4 TEG Contactor Sizing; "
+        "K=7.1187 from Worley PR-018 E40 single-point calibration; "
+        "ADR-0045 Rev A]"
+    )
+    if not (
+        _FULL_COLUMN_XLS_Q_MMSCF_MIN
+        <= inp.gas_flow_mmscfd
+        <= _FULL_COLUMN_XLS_Q_MMSCF_MAX
+    ):
+        formula_ref_d_full += " [K_UNVERIFIED_OUT_OF_XLS_CONDITIONS]"
+
+    # 7.8 stripping gas rate (v5 with acid gas input)
+    stripping_gas_scf_per_gal_teg: float | None = None
+    if inp.temperature_f is not None and inp.pressure_psia is not None:
+        stripping_gas_scf_per_gal_teg = _calc_stripping_gas_rate_scf_per_gal_teg(
+            inp.temperature_f,
+            inp.pressure_psia,
+            inp.lean_glycol_concentration,
+        )
+
+    # 7.9 reboiler duty
+    reboiler_duty_btu_hr = _calc_reboiler_duty_btu_hr(
+        inp.glycol_circulation_rate_gpm,
+        inp.lean_glycol_concentration,
+        inp.inlet_water_content_lb_per_mmscf,
+        inp.outlet_water_content_lb_per_mmscf,
+        inp.gas_flow_mmscfd,
+    )
+
+    # 7.10 v5.1: 纯逻辑判断 (H-3 落实 — 删 v4 Step 7.9 冗余调用)
+    acid_gas_corrected: bool = (
+        inp.co2_mol_pct > 0.0
+    ) or (
+        inp.h2s_mol_pct > 0.0
+    )
+
+    # Step 8. 扩展 result（12 字段追加含 dewpoint_unavailable_reason + acid_gas_corrected）
     return GlycolDehydrationResult(
         dehydration_efficiency=efficiency,
         n_tray_minimum=n_min_corrected,
@@ -272,15 +903,55 @@ def calc_glycol_dehydration(
                 f"L/V = {l_over_v:.3f} gal TEG / lb H₂O"
                 f"（N_min 修正 {l_v_n_correction:.3f}; D_in 修正 {l_v_d_correction:.3f}）"
             ),
+            # P6-6A-6 v5.1 — FULL system formulas
+            "ntu": "NTU = (W_in/W_out - 1)/(α - 1) [Kremser]",
+            "column_height": "H = NTU × HETP [GPSA §20.4]",
+            "column_diameter_full": formula_ref_d_full,
+            "mass_h2o_removed": "ṁ = (W_in - W_out) × Q × 1e6/86400 [lb/s]",
+            "stripping_gas": (
+                "SGR = k_strip × (P_sat_TEG/P) × (1-X)/X [GPSA §20.4 Eq.20-5; "
+                "placeholder P_sat_TEG]"
+            ),
+            "reboiler_duty": (
+                "Q = m_TEG·Cp·ΔT + m_H2O·Cp·ΔT + m_H2O·ΔH_vap [GPSA §20.4]"
+            ),
+            "water_dewpoint": (
+                "Behr inverse via brentq/Newton returning _DewpointResult frozen "
+                "dataclass [scipy; XLS PR-018 E23; v5.1 with acid gas; "
+                "T<60°F Antoine extrapolation WARNING]"
+            ),
+            "adjusted_dewpoint": (
+                "= water_dewpoint - approach_to_equilibrium [diff method; "
+                "XLS PR-018 E25]"
+            ),
+            "acid_gas_correction": (
+                "W_corr = W_baseline × (1 + 0.024·CO2 + 0.018·H2S) "
+                "[LINEAR_PLACEHOLDER, NON-WICHERT-AZIZ; 真 Wichert-Aziz: "
+                "ε = 120·[(y_CO2+y_H2S)^0.9 − (y_CO2+y_H2S)^1.6] + "
+                "15·(y_H2S^0.5 − y_H2S^4); P6-6B PICKUP]"
+            ),
         },
+        # P6-6A-6 v5.1 — 12 new optional result fields
+        water_dewpoint_f=water_dewpoint_f,
+        adjusted_dewpoint_f=adjusted_dewpoint_f,
+        lean_glycol_concentration=inp.lean_glycol_concentration,
+        stripping_gas_scf_per_gal_teg=stripping_gas_scf_per_gal_teg,
+        column_diameter_full_in=column_diameter_full_in,
+        column_height_ft=column_height_ft,
+        number_of_transfer_units=ntu,
+        mass_h2o_removed_lb_s=mass_h2o_removed_lb_s,
+        reboiler_duty_btu_hr=reboiler_duty_btu_hr,
+        column_csa_ft2=column_csa_ft2,
+        dewpoint_unavailable_reason=dewpoint_unavailable_reason,
+        acid_gas_corrected=acid_gas_corrected,
     )
 
 
+# P6-6A-6 v5.1 Ruling 9: _calc_* helpers / _DewpointResult 私有化，不入 __all__
 __all__ = [
     "GlycolDehydrationInput",
     "GlycolDehydrationResult",
     "GlycolDehydrationError",
-    "GlycolDehydrationInput",
     "calc_glycol_dehydration",
     "GlycolType",
 ]

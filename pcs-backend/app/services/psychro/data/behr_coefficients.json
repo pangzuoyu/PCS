@@ -1,0 +1,80 @@
+{
+  "form": "A_log10_quadratic",
+  "_form_candidates": {
+    "A_log10_quadratic_4param": "log10(W) = A0 + A1*T_F + A2*T_F^2 + A3*log10(P_psia)",
+    "B_katz_3param": "log10(W) = a - b/T_F + c*log10(P_psia)",
+    "C_behr_original_nonlinear": "W = A*P^(-B)*exp(C/T_F)"
+  },
+  "_day0_gate_selection": {
+    "date": "2026-09-28",
+    "task": "P6-6A-6 T1 Step 2 (v5.1 Day-0 Gate form decision)",
+    "selected_form": "A_log10_quadratic",
+    "max_rel_err": 0.04866,
+    "selection_reason": "Form A is the only candidate with max_rel_err < 5% (4.866%). Form B (Katz) 14.42% fail; Form C (Behr original nonlinear) curve_fit did not converge (covariance not estimable, returned initial p0 = 100% rel_err).",
+    "spot_check_residuals": [
+      {"T_F": 60, "P_psia": 1000, "W_actual": 16, "W_pred": 16.61, "rel_err": 0.03793},
+      {"T_F": 80, "P_psia": 1000, "W_actual": 31, "W_pred": 29.49, "rel_err": 0.04866},
+      {"T_F": 100, "P_psia": 1000, "W_actual": 50, "W_pred": 48.11, "rel_err": 0.03780},
+      {"T_F": 120, "P_psia": 1000, "W_actual": 70, "W_pred": 72.10, "rel_err": 0.02995},
+      {"T_F": 140, "P_psia": 1000, "W_actual": 95, "W_pred": 99.25, "rel_err": 0.04472},
+      {"T_F": 160, "P_psia": 1000, "W_actual": 130, "W_pred": 125.51, "rel_err": 0.03457},
+      {"T_F": 120, "P_psia": 500, "W_actual": 147, "W_pred": 147.71, "rel_err": 0.00485},
+      {"T_F": 120, "P_psia": 1500, "W_actual": 47, "W_pred": 47.39, "rel_err": 0.00831}
+    ]
+  },
+  "_v5_form_A_failed_with_arch_groups_coefficients": {
+    "test_case": "T=120, P=1000, spot check W=70",
+    "log10_coefficients_v5": {"A0": 1.3520, "A1": 0.00780, "A2": 0.0000052, "A3": -0.9800},
+    "predicted": "log10(W) = 1.3520 + 0.9360 + 0.07488 - 2.940 = -0.57712; W = 10^(-0.57712) = 0.2648",
+    "actual_spot": 70,
+    "rel_err": 0.996,
+    "_verdict": "v5 形式 A 4 系数完全失败；架构组验证 264× 偏差；已撤回"
+  },
+  "_v3_form_A_also_failed": {
+    "log10_coefficients_v3": {"A0": 1.5808, "A1": 0.00770, "A2": 0.0000080, "A3": -0.943},
+    "predicted_at_T120_P1000": 0.618,
+    "actual_spot": 70,
+    "rel_err": 0.991,
+    "_verdict": "v3 形式 A 4 系数也失败；113× 偏差；4-param log10 二次形式本身可能不充分"
+  },
+  "baseline_reference": "Bukacek (1990) GPSA Engineering Data Book §20.4 Fig 20-2",
+  "calibration_reference": "GPSA Fig 20-2 8-point matrix fit + Worley PR-018 L17-L18",
+  "log10_coefficients": {
+    "A0": 3.3552846960018585,
+    "A1": 0.018921959032034738,
+    "A2": -4.608271243464537e-05,
+    "A3": -1.034805419984532
+  },
+  "fallback_coefficients": {
+    "A0": 3.3552846960018585,
+    "A1": 0.018921959032034738,
+    "A2": -4.608271243464537e-05,
+    "A3": -1.034805419984532
+  },
+  "calibration_max_rel_err": 0.04866,
+  "calibration_residual_table": [
+    {"T_F": 60, "P_psia": 1000, "W_actual": 16, "W_pred": 16.61, "rel_err": 0.03793},
+    {"T_F": 80, "P_psia": 1000, "W_actual": 31, "W_pred": 29.49, "rel_err": 0.04866},
+    {"T_F": 100, "P_psia": 1000, "W_actual": 50, "W_pred": 48.11, "rel_err": 0.03780},
+    {"T_F": 120, "P_psia": 1000, "W_actual": 70, "W_pred": 72.10, "rel_err": 0.02995},
+    {"T_F": 140, "P_psia": 1000, "W_actual": 95, "W_pred": 99.25, "rel_err": 0.04472},
+    {"T_F": 160, "P_psia": 1000, "W_actual": 130, "W_pred": 125.51, "rel_err": 0.03457},
+    {"T_F": 120, "P_psia": 500, "W_actual": 147, "W_pred": 147.71, "rel_err": 0.00485},
+    {"T_F": 120, "P_psia": 1500, "W_actual": 47, "W_pred": 47.39, "rel_err": 0.00831}
+  ],
+  "validity_domain": {
+    "temperature_f": [60, 200],
+    "pressure_psia": [100, 3000],
+    "_note": "v5.1: 单点 K 标定的 T/P 域；sg/TEG 域在 ADR-0045 Rev A 单点声明"
+  },
+  "xls_worley_pr018_target": {
+    "T_F": 120, "P_psia": 1000, "W_lb_per_mmscf": 103.91,
+    "note": "high acid gas (CO2+H2S=5%) shifts curve up vs GPSA Fig 20-2 baseline; v5 Linear placeholder reproduces only ~25% of correction; residual 25.8% unexplained — XLS 工况含 8 列酸气 + 6% 盐度或非线性基线，P6-6B 接管真 Wichert-Aziz"
+  },
+  "acid_gas_correction_linear_placeholder_v5": {
+    "form": "W_corr = W_baseline * (1 + 0.024*co2_mol_pct + 0.018*h2s_mol_pct)",
+    "co2_coef": 0.024,
+    "h2s_coef": 0.018,
+    "source": "[LINEAR_PLACEHOLDER, NON-WICHERT-AZIZ, P6-6B PICKUP] — 真 Wichert-Aziz: ε = 120·[(y_CO2+y_H2S)^0.9 − (y_CO2+y_H2S)^1.6] + 15·(y_H2S^0.5 − y_H2S^4); W_corr = W_baseline × (1+ε/100)"
+  }
+}
