@@ -95,7 +95,10 @@ WORLEY = json.loads(_FIXTURE_PATH.read_text(encoding="utf-8"))
 
 
 def _build_input_fire_case(
-    case: dict, delta_h_vap_kj_kg: float | None = None
+    case: dict,
+    delta_h_vap_kj_kg: float | None = None,
+    fire_case_coefficient: float | None = None,
+    fire_case_exponent: float | None = None,
 ) -> As1210ReliefInput:
     """Build As1210ReliefInput for FIRE_CASE scenario from case.service_inputs.
 
@@ -105,6 +108,14 @@ def _build_input_fire_case(
             If None: don't pass field (use service default 2260 kJ/kg — backward
             compat with T0 era). If float: pass delta_h_vap_kj_kg= explicitly
             to match XLS PR-025 implied ΔH_vap=208 kJ/kg (Ruling 14).
+        fire_case_coefficient: optional fluid-specific fire coefficient override
+            (W). If None: don't pass field (use service default 43192 — API 521
+            §3.4 SI strict conversion backward compat). If float: pass
+            fire_case_coefficient= explicitly to match XLS PR-025 AS 1210 path
+            implicit coefficient=71866 W (Ruling 15).
+        fire_case_exponent: optional fluid-specific fire exponent override
+            (dimensionless). If None: don't pass field (use service default 0.82).
+            If float: pass fire_case_exponent= explicitly.
     """
     si = case["service_inputs"]
     vg = si["vessel_geometry"]
@@ -129,6 +140,10 @@ def _build_input_fire_case(
     )
     if delta_h_vap_kj_kg is not None:
         kwargs["delta_h_vap_kj_kg"] = delta_h_vap_kj_kg
+    if fire_case_coefficient is not None:
+        kwargs["fire_case_coefficient"] = fire_case_coefficient
+    if fire_case_exponent is not None:
+        kwargs["fire_case_exponent"] = fire_case_exponent
     return As1210ReliefInput(**kwargs)
 
 
@@ -774,4 +789,89 @@ def test_worley_c21_fire_case_xls_dhvap_208_matches_g35_within_1pct() -> None:
     assert "208" in result.formula_ref["fire_case"], (
         f"formula_ref.fire_case={result.formula_ref['fire_case']!r}"
         f" 应包含 '208' (实际 ΔH_vap)"
+    )
+
+
+# ============================================================================
+# 8) OPEN-P6-6A-8 T2 — FIRE_CASE AS 1210 path coefficient override matches
+#    XLS PR-025 G54/G55 (Ruling 15 closes Ruling 9 OUT_OF_SCOPE on AS 1210 path)
+# ============================================================================
+
+
+def test_worley_c21_fire_case_as1210_path_matches_g54_g55() -> None:
+    """OPEN-P6-6A-8 Ruling 15: fire_case_coefficient fluid-specific input via
+    _build_input_fire_case(fire_case_coefficient=71866) + ΔH_vap=208 →
+    PCS FIRE_CASE 对账 XLS PR-025 AS 1210 path G54/G55。
+
+    Closes Ruling 9 OUT_OF_SCOPE on AS 1210 path: pre-Ruling 15 PCS hardcoded
+    API 521 coefficient=43192 (corresponds to XLS API 520 path C=323.66), and
+    XLS AS 1210 path used C_AS1210=2.457 different basis → 1.66× magnitude diff
+    on G54, 18× diff on G55. Ruling 15 introduces fire_case_coefficient
+    override; XLS PR-025 AS 1210 path implicitly uses ~71866 (= 7.2×10⁴ SI
+    strict, AS 1210 §4.4 eqn. 8.6.2.3(1)).
+
+    PCS q_fire_w = 71866 × 1.0 × 14.666481633974485^0.82 ≈ 649996.09 W vs
+    XLS G54=649808.14 W rel_diff ≈ 0.029% (within XLS EXACT rel≤1e-3 per
+    SPEC §5 AS 1210 path).
+
+    PCS capacity × 3600 ≈ 11249.93 kg/hr vs XLS G55=11253.17 kg/hr rel_diff ≈
+    0.029% (within XLS 1% per SPEC §5).
+    """
+    case = WORLEY["cases"][0]
+    exp = case["expected"]
+
+    # XLS PR-025 AS 1210 path targets
+    _XLS_G54_AS1210_PATH_W = exp["xls_Q_AS1210_G54_W_OUT_OF_SCOPE"]
+    _XLS_G55_AS1210_PATH_KG_HR = exp["xls_relief_AS1210_G55_kg_hr_OUT_OF_SCOPE"]
+
+    # 显式传 fire_case_coefficient=71866 + ΔH_vap=208 → PCS FIRE_CASE 对账 AS 1210 path
+    inp = _build_input_fire_case(
+        case,
+        delta_h_vap_kj_kg=208.0,
+        fire_case_coefficient=71866.0,
+        fire_case_exponent=0.82,
+    )
+    result = calc_as1210_relief_sizing(inp)
+
+    capacity_kg_hr = result.required_relief_capacity_kg_s * 3600.0
+    implied_q_fire_w = result.required_relief_capacity_kg_s * 208.0 * 1000.0
+
+    # 1) q_fire_w vs XLS G54 within rel≤1e-3 (XLS EXACT per SPEC §5 AS 1210 path)
+    assert implied_q_fire_w == pytest.approx(_XLS_G54_AS1210_PATH_W, rel=1e-3), (
+        f"PCS q_fire_w={implied_q_fire_w!r} vs XLS G54={_XLS_G54_AS1210_PATH_W!r}"
+        f" rel_diff > 1e-3 容差 (Ruling 15 AS 1210 path G54 对账失败)"
+    )
+
+    # 2) capacity vs XLS G55 within rel≤1% (XLS 1% per SPEC §5)
+    assert capacity_kg_hr == pytest.approx(_XLS_G55_AS1210_PATH_KG_HR, rel=1e-2), (
+        f"PCS capacity={capacity_kg_hr!r} kg/hr"
+        f" vs XLS G55={_XLS_G55_AS1210_PATH_KG_HR!r} diff > 1%"
+        f" (Ruling 15 AS 1210 path G55 对账失败)"
+    )
+
+    # 3) Ruling 15 整合 Ruling 14: ΔH_vap + coefficient 共同作用,
+    #    而非各自孤立的 fluid-specific 输入
+    #    formula_ref 必须同时透出 71866 (coefficient) + 208 (ΔH_vap)
+    fire_ref = result.formula_ref["fire_case"]
+    assert "71866" in fire_ref, (
+        f"formula_ref.fire_case={fire_ref!r} 应包含 '71866' (实际 coefficient)"
+    )
+    assert "208" in fire_ref, (
+        f"formula_ref.fire_case={fire_ref!r} 应包含 '208' (实际 ΔH_vap)"
+    )
+
+    # 4) Sanity: 默认 coefficient (43192) 不应通过 G54 对账 — 防止 silent fallthrough
+    inp_default = _build_input_fire_case(
+        case,
+        delta_h_vap_kj_kg=208.0,
+        # 不传 fire_case_coefficient → 默认 43192 (API 521 §3.4)
+    )
+    assert inp_default.fire_case_coefficient == 43192.0
+    result_default = calc_as1210_relief_sizing(inp_default)
+    q_default = result_default.required_relief_capacity_kg_s * 208.0 * 1000.0
+    default_diff_pct = abs(q_default - _XLS_G54_AS1210_PATH_W) / _XLS_G54_AS1210_PATH_W
+    assert default_diff_pct > 0.3, (
+        f"默认 coefficient=43192 q_fire_w={q_default!r} vs XLS G54={_XLS_G54_AS1210_PATH_W!r}"
+        f" diff_pct={default_diff_pct:.4%} 应 > 30% (API 520 vs AS 1210 path magnitude 1.66×)"
+        f" — 防止 silent fallthrough 误判 Ruling 15 验证通过"
     )

@@ -1,0 +1,61 @@
+{
+  "_doc": "OPEN-P6-6A-8 T2 golden fixture — fire_case_coefficient + fire_case_exponent fluid-specific input fields. PCS matches XLS PR-025 AS 1210 path G54 (q_fire_w) within 1e-3 and G55 (capacity) within 经验 1% when fire_case_coefficient=71866 (7.2×10⁴ AS 1210 §4.4 eqn. 8.6.2.3(1) SI strict) + fire_case_exponent=0.82 + ΔH_vap=208. Source: tests/services/psv/fixtures/worley_c21_as1210.json XLS G54/G55 + commit bc95487 (T1 fire_case_coefficient/exponent field).",
+  "_spec_ref": "SPEC §3.7.2 V1.4 + AS 1210 §4.4 + API 521 §3.4 + Ruling 14 OPEN-P6-6A-5 + Ruling 15 OPEN-P6-6A-8",
+  "_precomputed_notes": {
+    "q_fire_w_W_AS1210": "71866 × 1.0 × 14.666481633974485^0.82 ≈ 649996.09 W",
+    "capacity_208_kg_s": "649996.09 / (208 × 1000) ≈ 3.12498 kg/s × 3600 ≈ 11249.93 kg/hr",
+    "xls_G54_diff": "XLS G54=649808.14 W vs PCS 649996.09 W diff +0.0289% (within rel≤1e-3 XLS EXACT per SPEC §5)",
+    "xls_G55_diff": "XLS G55=11253.17 kg/hr vs PCS 11249.93 kg/hr diff -0.0287% (within rel≤1% per SPEC §5)",
+    "as1210_vs_api521_coeff": "AS 1210 §4.4 path uses 7.2×10⁴ (71866) vs API 521 §3.4 default 43192 — 1.66× magnitude diff. Ruling 9 OUT_OF_SCOPE pre-existing; Ruling 15 closes G54/G55 verification with fluid-specific coefficient input.",
+    "back_compat_default": "Leaving fire_case_coefficient / fire_case_exponent unset preserves API 521 §3.4 (coefficient=43192, exponent=0.82) — verified by test_fire_case_default_43192_0p82_backward_compat"
+  },
+  "inputs": {
+    "mawp_kpa": 1000.0,
+    "tube_rupture_mass_kg_s": 10.0,
+    "control_valve_failure_mode": "AIR_FAIL",
+    "fire_case_wetted_area_m2": 0.0,
+    "as1210_pressure_factor": 1.10,
+    "scenario": "FIRE_CASE",
+    "environment_factor": 1.0,
+    "delta_h_vap_kj_kg": 208.0,
+    "fire_case_coefficient": 71866.0,
+    "fire_case_exponent": 0.82,
+    "vessel_geometry": {
+      "D_m": 2.5,
+      "L_m": 10.0,
+      "head_type": "FLAT",
+      "H_m": 1.8673944398508298,
+      "n_vessels": 1,
+      "vessel_shape": "VERTICAL"
+    }
+  },
+  "expected": {
+    "capacity_kg_s": 3.1249812157640644,
+    "capacity_kg_hr": 11249.932376750632,
+    "q_fire_w": 649996.0928789254,
+    "set_p_kpa": 1100.0,
+    "converged": true,
+    "as_standard": "AS 1210 §4.4 + API 521 §3.4",
+    "notes": "T1 fire_case_coefficient/exponent field test. PCS with fluid-specific coefficient=71866 (AS 1210 §4.4) + ΔH_vap=208 (Ruling 14) matches XLS PR-025 AS 1210 path G54=649808.14 W within 0.0289% (XLS EXACT rel≤1e-3) and G55=11253.17 kg/hr within 0.0287% (XLS 1% per SPEC §5). Integration of Ruling 14 + Ruling 15 closes AS 1210 path G54/G55 verification (previously OUT_OF_SCOPE per Ruling 9 since PCS hardcoded API 521 coefficient)."
+  },
+  "tolerance_policy": {
+    "q_fire_w_rel": 0.001,
+    "capacity_rel": 0.01,
+    "rationale": "q_fire_w rel=1e-3 XLS EXACT (SPEC §5 AS 1210 path); capacity rel=1e-2 XLS 1% 容差 (SPEC §5 C-21 经验 1%). Closes Ruling 15 verification against XLS PR-025 G54/G55."
+  },
+  "xls_cross_ref": {
+    "xls_source": "sample/Process caculation from Worley/WS-CA-PR-025.xls SI sheet",
+    "xls_cells": {
+      "G33_Awet_m2": 14.666481633974485,
+      "G54_Q_W_AS1210_path": 649808.1438365723,
+      "G55_relief_kg_hr_AS1210_path": 11253.171626956226
+    },
+    "pcs_path": "AS 1210 §4.4 + API 521 §3.4 (Ruling 15: fire_case_coefficient fluid-specific input via As1210ReliefInput.fire_case_coefficient; default 43192 backward-compat with API 521 §3.4 SI strict conversion)",
+    "diff_q_fire_w_pct": 0.0289,
+    "diff_capacity_pct": -0.0287,
+    "tolerance_q_fire_w_pct": 0.1,
+    "tolerance_capacity_pct": 1.0,
+    "verdict": "PASS"
+  },
+  "ruling_ref": "OPEN-P6-6A-8 Ruling 15: fire_case_coefficient + fire_case_exponent fluid-specific input via As1210ReliefInput (default 43192 / 0.82 backward-compat with API 521 §3.4; 71866 / 0.82 for AS 1210 §4.4 path per XLS PR-025 G54/G55). Closes Ruling 9 OUT_OF_SCOPE on AS 1210 path G54/G55 by allowing fluid-specific coefficient override."
+}
