@@ -406,6 +406,9 @@ class GlycolDehydrationInput:
     flooding_c_sb: float = 0.65  # reserved; ADR-0045 Rev A (P6-6B 接管)
     co2_mol_pct: float = 0.0
     h2s_mol_pct: float = 0.0
+    # P6-8 T5 — OPEN-P6-6A-6 集成（向后兼容；None → service 内部推导）
+    reboiler_temperature_f: float = 400.0  # 默认与 ReboilerStrippingInput 一致
+    teg_circulation_rate_gal_lb: float | None = None  # None → from glycol_circulation_rate_gpm
 
 
 @dataclass(frozen=True)
@@ -456,6 +459,12 @@ class GlycolDehydrationResult:
     column_csa_ft2: float | None = None
     dewpoint_unavailable_reason: str | None = None
     acid_gas_corrected: bool = False
+    # P6-8 T5 — OPEN-P6-6A-6 集成 4 outputs + WARNING 字段
+    reboiler_duty_kw: float | None = None  # Q_total × 0.000293071
+    stripping_gas_rate_scf_gal: float | None = None  # T1 calc_reboiler_stripping
+    lean_glycol_concentration_wt_pct: float | None = None  # T4 GPSA Fig 20-4
+    full_column_diameter_in: float | None = None  # T3 K=7.1121 6 工况标定
+    warnings: list[str] = field(default_factory=list)  # 工艺未对账 warning 列表
 
 
 def _resolve_relative_volatility(
@@ -1047,6 +1056,51 @@ def calc_glycol_dehydration(
         inp.h2s_mol_pct > 0.0
     )
 
+    # ========== P6-8 T5 — OPEN-P6-6A-6 集成（4 子模块 outputs + WARNING） ==========
+
+    # 7.11 T1 Reboiler Duty + Stripping Gas Rate（OPEN-P6-6A-6 子任务 1+2）
+    # 完整焓平衡 +10% 设计裕度 + Antoine v5 plan + WARNING 透出
+    water_removed_lb_d_t5 = (
+        (inp.inlet_water_content_lb_per_mmscf - inp.outlet_water_content_lb_per_mmscf)
+        * inp.gas_flow_mmscfd
+    )
+    water_removal_rate_lb_hr = water_removed_lb_d_t5 / 24.0
+    # teg_circulation_rate_gal_lb: API 显式传 → 用；否则从 glycol_circulation_rate_gpm 推导
+    if inp.teg_circulation_rate_gal_lb is not None:
+        teg_circ_gal_lb = inp.teg_circulation_rate_gal_lb
+    else:
+        glycol_gal_d_t5 = inp.glycol_circulation_rate_gpm * 1440.0
+        teg_circ_gal_lb = glycol_gal_d_t5 / max(water_removed_lb_d_t5, 1e-6)
+
+    reb_strip_input = ReboilerStrippingInput(
+        water_removal_rate_lb_hr=water_removal_rate_lb_hr,
+        teg_circulation_rate_gal_lb=teg_circ_gal_lb,
+        teg_density_lb_gal=_TEG_DENSITY_LB_PER_GAL,
+        reboiler_temperature_f=inp.reboiler_temperature_f,
+        contactor_temperature_f=inp.temperature_f if inp.temperature_f is not None else 120.0,
+        contactor_pressure_psia=inp.pressure_psia if inp.pressure_psia is not None else 1000.0,
+        reflux_ratio=0.25,
+        lean_glycol_concentration_wt_pct=(
+            inp.lean_glycol_concentration if inp.lean_glycol_concentration is not None else 0.99
+        ),
+    )
+    reb_strip_result = calc_reboiler_stripping(reb_strip_input)
+    # T1 完整焓平衡覆盖 v5.1 简式版（OPEN-P6-6A-6 工艺 2026-11-15 前未对账）
+    reboiler_duty_btu_hr = reb_strip_result.q_total_btu_hr
+    reboiler_duty_kw_t5 = reb_strip_result.q_total_btu_hr * 0.000293071
+    stripping_gas_rate_scf_gal_t5 = reb_strip_result.sgr_scf_gal_teg
+    warnings_t5: list[str] = list(reb_strip_result.warnings)
+
+    # 7.12 T4 Lean Glycol Concentration（OPEN-P6-6A-6 子任务 4）
+    lean_glycol_wt_pct_t5, lean_glycol_warnings = _calc_lean_glycol_concentration_wt_pct(
+        reboiler_temperature_f=inp.reboiler_temperature_f,
+        stripping_gas_scf_gal=stripping_gas_rate_scf_gal_t5,
+    )
+    warnings_t5.extend(lean_glycol_warnings)
+
+    # 7.13 T3 Full Column Diameter（OPEN-P6-6A-6 子任务 3；与 v5.1 同 helper）
+    full_column_diameter_in_t5 = column_diameter_full_in
+
     # Step 8. 扩展 result（12 字段追加含 dewpoint_unavailable_reason + acid_gas_corrected）
     return GlycolDehydrationResult(
         dehydration_efficiency=efficiency,
@@ -1111,6 +1165,12 @@ def calc_glycol_dehydration(
         column_csa_ft2=column_csa_ft2,
         dewpoint_unavailable_reason=dewpoint_unavailable_reason,
         acid_gas_corrected=acid_gas_corrected,
+        # P6-8 T5 — OPEN-P6-6A-6 集成 4 outputs + WARNING 字段
+        reboiler_duty_kw=reboiler_duty_kw_t5,
+        stripping_gas_rate_scf_gal=stripping_gas_rate_scf_gal_t5,
+        lean_glycol_concentration_wt_pct=lean_glycol_wt_pct_t5,
+        full_column_diameter_in=full_column_diameter_in_t5,
+        warnings=warnings_t5,
     )
 
 

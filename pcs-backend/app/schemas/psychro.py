@@ -679,6 +679,18 @@ class GlycolDehydrationRequest(BaseModel):
         le=100.0,
         description="H2S 摩尔百分比（acid gas correction；0~100；v4 新增 H-1）",
     )
+    # P6-8 T5 — OPEN-P6-6A-6 集成 2 optional inputs（向后兼容；默认值与 T1 helper 一致）
+    reboiler_temperature_f: float = Field(
+        400.0,
+        ge=300.0,
+        le=450.0,
+        description="再沸器温度 °F（T1 完整焓平衡 + T4 GPSA Fig 20-4 用；默认 400.0；300~450）",
+    )
+    teg_circulation_rate_gal_lb: float | None = Field(
+        None,
+        gt=0,
+        description="TEG 循环量 gal/lb 水（None → service 由 glycol_circulation_rate_gpm 推导）",
+    )
 
 
 class GlycolDehydrationResponse(BaseModel):
@@ -765,6 +777,27 @@ class GlycolDehydrationResponse(BaseModel):
     acid_gas_corrected: bool = Field(
         False,
         description="acid gas correction 是否生效（v4 新增 H-1；CO2 或 H2S > 0 时 True）",
+    )
+    # P6-8 T5 — OPEN-P6-6A-6 集成 4 outputs + WARNING 字段
+    reboiler_duty_kw: float | None = Field(
+        None,
+        description="Reboiler Duty (kW); 1 BTU/hr = 0.000293071 kW",
+    )
+    stripping_gas_rate_scf_gal: float | None = Field(
+        None,
+        description="Stripping Gas Rate (scf/gal TEG); GPSA §20.4 Eq.20-5 + Antoine v5 plan",
+    )
+    lean_glycol_concentration_wt_pct: float | None = Field(
+        None,
+        description="Lean Glycol Concentration (wt%); GPSA Fig 20-4 4 数据点 + 插值",
+    )
+    full_column_diameter_in: float | None = Field(
+        None,
+        description="Full Column Diameter (in); D_full = 7.1187 × √(Q_gas_mmscfd); ADR-0045 Rev A",
+    )
+    warnings: list[str] = Field(
+        default_factory=list,
+        description="工艺未对账 warning 列表（如 TEG_CIRCULATION_RATE_UNVERIFIED 等）",
     )
 
 

@@ -456,6 +456,8 @@ async def calc_glycol_dehydration_endpoint(
                 flooding_c_sb=req.flooding_c_sb,  # v3
                 co2_mol_pct=req.co2_mol_pct,  # v4
                 h2s_mol_pct=req.h2s_mol_pct,  # v4
+                reboiler_temperature_f=req.reboiler_temperature_f,  # P6-8 T5
+                teg_circulation_rate_gal_lb=req.teg_circulation_rate_gal_lb,  # P6-8 T5
             )
         )
     except PcsError as e:
@@ -497,6 +499,12 @@ async def calc_glycol_dehydration_endpoint(
         dewpoint_unavailable_reason=result.dewpoint_unavailable_reason,  # v3
         acid_gas_corrected=result.acid_gas_corrected,  # v4
         glycol_type=req.glycol_type,
+        # P6-8 T5 — OPEN-P6-6A-6 集成 4 outputs + WARNING 字段
+        reboiler_duty_kw=result.reboiler_duty_kw,
+        stripping_gas_rate_scf_gal=result.stripping_gas_rate_scf_gal,
+        lean_glycol_concentration_wt_pct=result.lean_glycol_concentration_wt_pct,
+        full_column_diameter_in=result.full_column_diameter_in,
+        warnings=list(result.warnings),
     )
 
 

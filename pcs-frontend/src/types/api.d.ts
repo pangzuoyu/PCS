@@ -7865,6 +7865,17 @@ export interface components {
              * @default 0
              */
             h2s_mol_pct: number;
+            /**
+             * Reboiler Temperature F
+             * @description 再沸器温度 °F（T1 完整焓平衡 + T4 GPSA Fig 20-4 用；默认 400.0；300~450）
+             * @default 400
+             */
+            reboiler_temperature_f: number;
+            /**
+             * Teg Circulation Rate Gal Lb
+             * @description TEG 循环量 gal/lb 水（None → service 由 glycol_circulation_rate_gpm 推导）
+             */
+            teg_circulation_rate_gal_lb?: number | null;
         };
         /**
          * GlycolDehydrationResponse
@@ -7987,6 +7998,31 @@ export interface components {
              * @default false
              */
             acid_gas_corrected: boolean;
+            /**
+             * Reboiler Duty Kw
+             * @description Reboiler Duty (kW); 1 BTU/hr = 0.000293071 kW
+             */
+            reboiler_duty_kw?: number | null;
+            /**
+             * Stripping Gas Rate Scf Gal
+             * @description Stripping Gas Rate (scf/gal TEG); GPSA §20.4 Eq.20-5 + Antoine v5 plan
+             */
+            stripping_gas_rate_scf_gal?: number | null;
+            /**
+             * Lean Glycol Concentration Wt Pct
+             * @description Lean Glycol Concentration (wt%); GPSA Fig 20-4 4 数据点 + 插值
+             */
+            lean_glycol_concentration_wt_pct?: number | null;
+            /**
+             * Full Column Diameter In
+             * @description Full Column Diameter (in); D_full = 7.1187 × √(Q_gas_mmscfd); ADR-0045 Rev A
+             */
+            full_column_diameter_in?: number | null;
+            /**
+             * Warnings
+             * @description 工艺未对账 warning 列表（如 TEG_CIRCULATION_RATE_UNVERIFIED 等）
+             */
+            warnings?: string[];
         };
         /** HTTPValidationError */
         HTTPValidationError: {

@@ -736,3 +736,119 @@ def test_behr_high_acid_no_acid_gas_above_general():
     assert w_high_acid > w_general, (
         f"high_acid {w_high_acid} 应 > general {w_general} (high-acid zone W 上移)"
     )
+
+
+# ============================================================================
+# P6-8 T5 — OPEN-P6-6A-6 集成 API 集成测试（4 子模块 outputs + WARNING 字段）
+# ============================================================================
+
+
+def test_glycol_dehydration_4_submodules_integration():
+    """T5 P6-8 4 子模块 service 级集成测试（OPEN-P6-6A-6 集成）。
+
+    验证:
+    - reboiler_duty_btu_hr 被 T1 完整焓平衡覆盖（> 0）
+    - reboiler_duty_kw = btu_hr × 0.000293071
+    - stripping_gas_rate_scf_gal 由 T1 calc_reboiler_stripping 算得
+    - lean_glycol_concentration_wt_pct 由 T4 GPSA Fig 20-4 算得
+    - full_column_diameter_in 由 T3 K=7.1187 算得
+    - WARNING 字段透出 TEG_CIRCULATION_RATE_UNVERIFIED（显式 teg_circulation_rate_gal_lb=3.0 触发）
+    """
+    inp = GlycolDehydrationInput(
+        gas_flow_mmscfd=10.0,
+        inlet_water_content_lb_per_mmscf=40.0,
+        outlet_water_content_lb_per_mmscf=1.0,
+        glycol_type="TEG",
+        contactor_tray_count=8,
+        glycol_circulation_rate_gpm=30.0,  # 10 MMscf × 3 gpm/MMscf (≤100 API bound)
+        temperature_f=120.0,
+        pressure_psia=1000.0,
+        lean_glycol_concentration=0.99,
+        reboiler_temperature_f=400.0,  # T1 + T4 default
+        teg_circulation_rate_gal_lb=3.0,  # 显式传 → TEG_CIRCULATION_RATE_UNVERIFIED 触发
+    )
+    result = calc_glycol_dehydration(inp)
+
+    # T1 Reboiler Duty (完整焓平衡 + 10% 设计裕度)
+    assert result.reboiler_duty_btu_hr is not None and result.reboiler_duty_btu_hr > 0
+    assert result.reboiler_duty_kw is not None
+    assert abs(
+        result.reboiler_duty_kw - result.reboiler_duty_btu_hr * 0.000293071
+    ) < 1e-6, (
+        f"reboiler_duty_kw {result.reboiler_duty_kw} 应 = "
+        f"btu_hr × 0.000293071 = {result.reboiler_duty_btu_hr * 0.000293071}"
+    )
+
+    # T1 Stripping Gas Rate (GPSA §20.4 Eq.20-5 + Antoine v5 plan)
+    assert result.stripping_gas_rate_scf_gal is not None
+    assert result.stripping_gas_rate_scf_gal > 0
+
+    # T4 Lean Glycol Concentration (GPSA Fig 20-4 4 数据点 + 插值)
+    assert result.lean_glycol_concentration_wt_pct is not None
+    # T=400°F + SGR≥0 → 应在 [99.3, 99.9] wt% 区间内
+    assert 99.0 <= result.lean_glycol_concentration_wt_pct <= 100.0, (
+        f"lean_glycol_concentration_wt_pct {result.lean_glycol_concentration_wt_pct}"
+        " 应在 99~100 wt%"
+    )
+
+    # T3 Full Column Diameter (K=7.1187 单点标定)
+    assert result.full_column_diameter_in is not None
+    assert result.full_column_diameter_in > 0
+    # K=7.1187 × sqrt(10) ≈ 22.51
+    assert 20.0 <= result.full_column_diameter_in <= 25.0, (
+        f"full_column_diameter_in {result.full_column_diameter_in} 应 ~22.51 in @ 10 MMscfd"
+    )
+
+    # WARNING 字段：显式 teg_circulation_rate_gal_lb=3.0 → TEG_CIRCULATION_RATE_UNVERIFIED 必透出
+    assert any("TEG_CIRCULATION_RATE_UNVERIFIED" in w for w in result.warnings), (
+        f"显式 teg_circulation_rate_gal_lb=3.0 应触发 WARNING，实际: {result.warnings}"
+    )
+
+
+async def test_glycol_dehydration_4_submodules_api_endpoint(
+    client, sample_user_token
+) -> None:
+    """T5 P6-8 POST /psychro/glycol-dehydration/calculate 端点级集成测试。
+
+    验证 API 层 4 outputs + WARNING 字段透出（OPEN-P6-6A-6 集成）。
+    """
+    body: dict = {
+        "gas_flow_mmscfd": 10.0,
+        "inlet_water_content_lb_per_mmscf": 40.0,
+        "outlet_water_content_lb_per_mmscf": 1.0,
+        "contactor_tray_count": 8,
+        "glycol_circulation_rate_gpm": 30.0,  # ≤100 API bound
+        "glycol_type": "TEG",
+        "temperature_f": 120.0,
+        "pressure_psia": 1000.0,
+        "lean_glycol_concentration": 0.99,
+        "reboiler_temperature_f": 400.0,
+        "teg_circulation_rate_gal_lb": 3.0,  # 显式传 → TEG_CIRCULATION_RATE_UNVERIFIED 触发
+    }
+    r = await client.post(
+        "/api/v1/psychro/glycol-dehydration/calculate",
+        json=body,
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+    )
+    assert r.status_code == 200, f"got {r.status_code}: {r.text}"
+    data = r.json()
+
+    # 4 outputs + WARNING 字段都在 response body
+    assert "reboiler_duty_kw" in data
+    assert "stripping_gas_rate_scf_gal" in data
+    assert "lean_glycol_concentration_wt_pct" in data
+    assert "full_column_diameter_in" in data
+    assert "warnings" in data
+
+    # 数值断言（与 service 层一致）
+    assert data["reboiler_duty_kw"] > 0
+    assert abs(
+        data["reboiler_duty_kw"] - data["reboiler_duty_btu_hr"] * 0.000293071
+    ) < 1e-6
+    assert data["stripping_gas_rate_scf_gal"] > 0
+    assert 99.0 <= data["lean_glycol_concentration_wt_pct"] <= 100.0
+    assert 20.0 <= data["full_column_diameter_in"] <= 25.0
+
+    # WARNING 字段透出
+    assert isinstance(data["warnings"], list)
+    assert any("TEG_CIRCULATION_RATE_UNVERIFIED" in w for w in data["warnings"])
