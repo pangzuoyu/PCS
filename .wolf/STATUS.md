@@ -164,7 +164,7 @@ budget_tokens: 1500
 3. P6-6B 启动确认（工程团队接管厂商数据采集）
 4. ~~SPEC V1.2 修订~~ ✓ done `2c2d5b9`（V1.11 → V1.12 wording-only 6 修订 + OPEN-P6-6A-10 新立）
 5. ~~G-08 OpenAPI baseline drift 收口~~ ✓ done `68daa60`（+2 paths / +4 schemas / 0 removed；P6-6A-6/7 全部已 merge main）
-6. 前端 wrapper 3 页（heating-value / saturation-water-content / cv，P6-4 裁决推迟项）
+6. ~~前端 wrapper 3 页~~ ✓ done P6-5 补课（`HeatingValuePage.tsx:11.4K` + `SaturationWaterContentPage.tsx:9.4K` + `CvComputePage.tsx:12.9K`，路由 `routeWrappers.tsx:48/51/52` + `208/211/215`，vitest 15/15 PASS）
 
 **未解决问题**：
 - OPEN-P6-4-2（Kb 厂商真实数据 LESER/Consolidated/AG，部署前）
@@ -176,7 +176,7 @@ budget_tokens: 1500
 **验收**：P6-6B 后 source 字段去 SYNTHETIC 标记 + gate 报告签字 + 黄金 fixture 重对账。
 **待用户裁决**：是否先核实 C-18 Nielsen 方程覆盖缺口（SPEC §3.9.3 要点含 Nielsen，P6-5 只落了 Hammerschmidt）。
 
-**次优先（B 批剩余）**：G-08 OpenAPI baseline drift 收口（P6-2/3/4 累积，Task 16/28）→ 前端 wrapper 3 页（heating-value / saturation-water-content / cv，P6-4 裁决推迟项）。
+**次优先（B 批剩余）**：均已收口（G-08 `68daa60` + 前端 3 页 P6-5 补课）。
 
 ---
 
