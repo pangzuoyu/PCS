@@ -1,0 +1,172 @@
+{
+  "_meta": {
+    "open_item": "OPEN-P6-4-3 (redefined Path A)",
+    "topic": "C-08 two-phase separator sizing imperial unit support",
+    "confidence": "B",
+    "source": "工艺室 Path A 决议（V1.2 redesign 后 sizing 路径）+ P6-7 implementer service 实测值（待工艺室 2026-11-15 前提供黄金值；当前用 service 输出作 baseline）",
+    "delivered_by": "工艺室 + P6-7 implementer",
+    "delivered_at": "2026-10-31",
+    "file": "tests/services/vessel/fixtures/golden_c08_sizing_imperial.json",
+    "note": "原 fixture golden_c08_imperial.json 保留为文档性参考（重量语义，反映 P6-4 V1.2 redesign 前 C-08 解读）。本 fixture 按 sizing 语义落 3 算例（HORIZONTAL + VERTICAL + SPHERICAL），验证 imperial_conversion 字段双单位转换。SI 与 imperial 值均为 service 实测输出，rel ≤ 2e-2 容差冗余覆盖未来微调。"
+  },
+  "conversion_factors": {
+    "vmax_m_s_to_ft_s": 0.3048,
+    "csa_m2_to_ft2": 0.09290304,
+    "nozzle_id_m_to_in": 0.0254,
+    "control_height_m_to_ft": 0.3048,
+    "residence_time_s_to_min": 60.0,
+    "density_kg_m3_to_lb_ft3": 0.062428
+  },
+  "cases": [
+    {
+      "case_id": "c08_sizing_imp_horiz_ch4_hemispherical",
+      "description": "卧式两相分离器 HORIZONTAL D=2.0m L=6.0m HEMISPHERICAL 封头 imperial_units 验证",
+      "si_inputs": {
+        "vessel_shape": "HORIZONTAL",
+        "diameter_m": 2.0,
+        "length_m": 6.0,
+        "head_type": "HEMISPHERICAL",
+        "operating_pressure_kpa": 600.0,
+        "operating_temperature_c": 70.0,
+        "oil_mass_rate_kg_d": 100000.0,
+        "water_mass_rate_kg_d": 0.0,
+        "gas_mass_rate_kg_d": 80000.0,
+        "oil_density_kg_m3": 850.0,
+        "water_density_kg_m3": 1000.0,
+        "gas_density_kg_m3": 12.0,
+        "oil_sg": 0.8509,
+        "water_sg": 1.0,
+        "gas_sg": 9.7959,
+        "gas_mw_kg_kmol": 19.5,
+        "k_factor": 0.08,
+        "nozzle_inlet_momentum_limit_kg_m_s2": 150.0,
+        "nozzle_outlet_momentum_limit_kg_m_s2": 80.0,
+        "instrument_response_time_s": 60.0,
+        "n_vessels": 1,
+        "imperial_units": true
+      },
+      "si_expected": {
+        "vmax_m_s": 0.6685,
+        "csa_min_m2": 0.1358,
+        "csa_actual_m2": 3.1416,
+        "nozzle_inlet_min_id_m": 0.0373,
+        "nozzle_outlet_min_id_m": 0.0510,
+        "control_height_m": 1.4997,
+        "residence_time_s": 293.3993,
+        "mixed_density_kg_m3": 26.5318
+      },
+      "imperial_expected": {
+        "vmax_ft_s": 2.1933,
+        "csa_min_ft2": 1.4616,
+        "csa_actual_ft2": 33.8158,
+        "nozzle_inlet_min_id_in": 1.4671,
+        "nozzle_outlet_min_id_in": 2.0089,
+        "control_height_ft": 4.9202,
+        "residence_time_min": 4.8900,
+        "rho_mix_lb_ft3": 1.6563
+      },
+      "tolerance_rel": 0.02,
+      "source_note": "service 实测 baseline；工艺室 2026-10-31 估测值（待 2026-11-15 提供黄金值）"
+    },
+    {
+      "case_id": "c08_sizing_imp_vert_ch4_2to1_elliptical",
+      "description": "立式两相分离器 VERTICAL D=2.0m L=8.0m 2:1_ELLIPTICAL 封头 imperial_units 验证",
+      "si_inputs": {
+        "vessel_shape": "VERTICAL",
+        "diameter_m": 2.0,
+        "length_m": 8.0,
+        "head_type": "2:1_ELLIPTICAL",
+        "operating_pressure_kpa": 500.0,
+        "operating_temperature_c": 60.0,
+        "oil_mass_rate_kg_d": 200000.0,
+        "water_mass_rate_kg_d": 0.0,
+        "gas_mass_rate_kg_d": 100000.0,
+        "oil_density_kg_m3": 800.0,
+        "water_density_kg_m3": 1000.0,
+        "gas_density_kg_m3": 10.0,
+        "oil_sg": 0.8008,
+        "water_sg": 1.0,
+        "gas_sg": 8.1633,
+        "gas_mw_kg_kmol": 18.0,
+        "k_factor": 0.05,
+        "nozzle_inlet_momentum_limit_kg_m_s2": 100.0,
+        "nozzle_outlet_momentum_limit_kg_m_s2": 50.0,
+        "instrument_response_time_s": 30.0,
+        "n_vessels": 1,
+        "imperial_units": true
+      },
+      "si_expected": {
+        "vmax_m_s": 0.4444,
+        "csa_min_m2": 0.3064,
+        "csa_actual_m2": 3.1416,
+        "nozzle_inlet_min_id_m": 0.0724,
+        "nozzle_outlet_min_id_m": 0.1024,
+        "control_height_m": 1.1329,
+        "residence_time_s": 229.5048,
+        "mixed_density_kg_m3": 29.2683
+      },
+      "imperial_expected": {
+        "vmax_ft_s": 1.4580,
+        "csa_min_ft2": 3.2980,
+        "csa_actual_ft2": 33.8158,
+        "nozzle_inlet_min_id_in": 2.8512,
+        "nozzle_outlet_min_id_in": 4.0322,
+        "control_height_ft": 3.7168,
+        "residence_time_min": 3.8251,
+        "rho_mix_lb_ft3": 1.8272
+      },
+      "tolerance_rel": 0.02,
+      "source_note": "service 实测 baseline；工艺室 2026-10-31 估测值（待 2026-11-15 提供黄金值）"
+    },
+    {
+      "case_id": "c08_sizing_imp_sphere_ch4_hemispherical",
+      "description": "球形储罐 SPHERICAL D=3.0m length=0 HEMISPHERICAL 封头 imperial_units 验证",
+      "si_inputs": {
+        "vessel_shape": "SPHERICAL",
+        "diameter_m": 3.0,
+        "length_m": 0.0,
+        "head_type": "HEMISPHERICAL",
+        "operating_pressure_kpa": 1000.0,
+        "operating_temperature_c": 50.0,
+        "oil_mass_rate_kg_d": 50000.0,
+        "water_mass_rate_kg_d": 0.0,
+        "gas_mass_rate_kg_d": 30000.0,
+        "oil_density_kg_m3": 780.0,
+        "water_density_kg_m3": 1000.0,
+        "gas_density_kg_m3": 6.0,
+        "oil_sg": 0.7808,
+        "water_sg": 1.0,
+        "gas_sg": 4.898,
+        "gas_mw_kg_kmol": 16.5,
+        "k_factor": 0.04,
+        "nozzle_inlet_momentum_limit_kg_m_s2": 120.0,
+        "nozzle_outlet_momentum_limit_kg_m_s2": 60.0,
+        "instrument_response_time_s": 20.0,
+        "n_vessels": 1,
+        "imperial_units": true
+      },
+      "si_expected": {
+        "vmax_m_s": 0.4543,
+        "csa_min_m2": 0.1499,
+        "csa_actual_m2": 7.0686,
+        "nozzle_inlet_min_id_m": 0.0240,
+        "nozzle_outlet_min_id_m": 0.0339,
+        "control_height_m": 0.1658,
+        "residence_time_s": 241.1980,
+        "mixed_density_kg_m3": 15.7975
+      },
+      "imperial_expected": {
+        "vmax_ft_s": 1.4905,
+        "csa_min_ft2": 1.6131,
+        "csa_actual_ft2": 76.0856,
+        "nozzle_inlet_min_id_in": 0.9447,
+        "nozzle_outlet_min_id_in": 1.3361,
+        "control_height_ft": 0.5441,
+        "residence_time_min": 4.0200,
+        "rho_mix_lb_ft3": 0.9862
+      },
+      "tolerance_rel": 0.02,
+      "source_note": "service 实测 baseline；工艺室 2026-10-31 估测值（待 2026-11-15 提供黄金值）"
+    }
+  ]
+}
