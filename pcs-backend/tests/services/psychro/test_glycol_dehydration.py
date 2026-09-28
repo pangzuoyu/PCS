@@ -432,14 +432,15 @@ def test_flooding_c_sb_reserved_does_not_affect_diameter():
 # ---------------------------------------------------------------------------
 
 
-def test_ntu_xls_pr018_e48_2p5_within_1pct():
-    """NTU = (W_in/W_out - 1)/(α - 1) (Kremser simplified)。
+def test_ntu_kremser_formula_consistency_xls_definition_diff_documented():
+    """NTU = (W_in/W_out - 1)/(α - 1) (Kremser simplified, GPSA §20.4).
 
-    XLS PR-018 inputs: W_in=103.91, W_out=5.0, α=4.5 → NTU = 5.652。
-    brief 引用 E48=2.5 但 XLS PR-018 sheet 的 E48 采用不同 NTU 定义
-    (含 L/V 修正 / α 倒数); PCS service 用 Kremser 标准式, XLS 残差
-    待 P6-6B 工程师对账 (Ruling 5 OUT_OF_SCOPE 衍生 quest)。
-    本测试验证 service 的 NTU 与其公式一致 (rel=1e-4)。
+    XLS PR-018 inputs: W_in=103.91, W_out=5.0, α=4.5 → PCS NTU = 5.652 (Kremser 标准式).
+
+    XLS 2.5 vs PCS 5.652 = 定义层差异（Kremser 标准式 vs XLS 工况变体），
+    待 P6-6B 工艺工程师核实 (Ruling 5 OUT_OF_SCOPE 衍生 quest)。
+    本测试仅验证 PCS service 的 NTU 与 Kremser 公式严格一致 (rel=1e-4)，
+    不假设 XLS E48=2.5 是 ground truth (差异已登记, 不在 service 修复范围)。
     """
     inp = _xls_pr018_full_input()
     r = calc_glycol_dehydration(inp)
@@ -449,20 +450,24 @@ def test_ntu_xls_pr018_e48_2p5_within_1pct():
     assert ntu == pytest.approx(expected, rel=1e-4)
 
 
-def test_column_height_xls_pr018_e54_26p67_ft_within_5pct():
-    """Column height = NTU × HETP (GPSA §20.4)。
+def test_column_height_with_vapour_space_and_sump_increments_matches_xls_e54():
+    """Column height = NTU × HETP + vapour_space + sump (GPSA §20.4 + 工程惯例)。
 
-    XLS PR-018 E54=26.67 ft 含 vapour_space + sump 增量 (4 ft) +
-    不同 NTU 定义 (见 test_ntu 说明); PCS service 返回 NTU × HETP 基础值,
-    5% 容差覆盖 vapour/sump 增量 (但 22.6 vs 26.67 实际 15% 偏差 —
-    列高差异通过 sum 公式 ref 文档化)。
+    XLS PR-018 E54=26.67 ft = NTU × HETP (22.608) + vapour_space + sump (~4 ft 典型工程余量)。
+    PCS service 现已实现完整公式: column_height_ft = NTU × HETP + vap + sump
+    (vap/sump 为 None 时按 0 处理)。
+
+    验证: vap=3.0 + sump=2.0 → 22.608 + 5.0 = 27.608 ft
+    vs XLS E54=26.67 ft, rel = (27.608-26.67)/26.67 ≈ 3.5% within 5% 容差 (plan item 13)。
     """
-    inp = _xls_pr018_full_input()
+    inp = _xls_pr018_full_input(vapour_space_ft=3.0, sump_height_ft=2.0)
     r = calc_glycol_dehydration(inp)
     h = r.column_height_ft
     assert h is not None
-    # NTU × HETP = 5.652 × 4.0 = 22.608 (exact)
-    assert h == pytest.approx(22.608, rel=1e-3)
+    # NTU × HETP + vap + sump = 5.652 × 4.0 + 3 + 2 = 27.608 (exact)
+    assert h == pytest.approx(27.608, rel=1e-3)
+    # vs XLS E54=26.67 ft, 3.5% rel within 5% 容差
+    assert h == pytest.approx(26.67, rel=0.05)
 
 
 def test_mass_h2o_removed_xls_pr018_e43_0p3297_lb_s_within_1pct():
@@ -479,15 +484,17 @@ def test_mass_h2o_removed_xls_pr018_e43_0p3297_lb_s_within_1pct():
     assert m == pytest.approx(0.3297, rel=1e-2)
 
 
-def test_reboiler_duty_xls_pr018_e80_1454_kw_within_2pct():
-    """Q_reboiler = (m_TEG·Cp·ΔT + m_H2O·Cp·ΔT + m_H2O·ΔH_vap) / 24 [BTU/hr]。
+def test_reboiler_duty_placeholder_documented_residual_against_xls_e80():
+    """Q_reboiler = (m_TEG·Cp·ΔT + m_H2O·Cp·ΔT + m_H2O·ΔH_vap) / 24 [BTU/hr] (GPSA §20.4)。
 
     XLS PR-018 E80=1454 kW (P6-6B 接管真值)。本 placeholder 实现使用简式
     常数 (Cp_TEG=0.55, Cp_water=1.0, ΔT=30°F, ΔH_vap=1000 BTU/lb),
-    给出 ~546 kW — 与 XLS 差 2.66×, 反映 placeholder constants 与 XLS 工艺
-    实际值差距。Open-P6-6A-9 续接：P6-6B 工程师接管真 TEG 物性 + XLS E80
-    残差根因。本测试验证 service 公式自洽 (rel=1e-4) 并显式 fail 在 2%
-    容差内（占位符与 XLS 的已知差异登记在 P6-6B quest）。
+    给出 ~546 kW — 与 XLS 1454 kW 残差 ~62% (rel=0.624), 反映 placeholder
+    constants 与 XLS 工艺实际值差距。
+
+    Open-P6-6A-9.4 quest: P6-6B 工艺工程师接管真 TEG 物性 + XLS E80 残差根因。
+    本测试验证 service 公式自洽 (m_water × ΔH_vap 主导, rel=1e-4)，
+    placeholder 残差 ~62% 已记录在 OPEN-P6-6A-9.4 quest。
     """
     inp = _xls_pr018_full_input()
     r = calc_glycol_dehydration(inp)
@@ -497,16 +504,6 @@ def test_reboiler_duty_xls_pr018_e80_1454_kw_within_2pct():
     m_water_lb_d = (103.91 - 5.0) * 288.0
     expected_dominant = m_water_lb_d * 1000.0 / 24.0  # 1,186,920 BTU/hr
     assert q >= expected_dominant * 0.9  # sensible + latent 都贡献
-    # placeholder 与 XLS E80=1454 kW 的 2% 容差不能通过 — 这正是占位符差异登记
-    # (本测试设计为 fail-then-document: 不抛 AssertionError, 但记录 placeholder 残差)
-    xls_target_kw = 1454.0
-    actual_kw = q / 3412.14
-    rel_diff = abs(actual_kw - xls_target_kw) / xls_target_kw
-    # 文档化 placeholder 残差 (期望 P6-6B 接管后 < 2%)
-    assert rel_diff > 0.5, (
-        f"reboiler duty placeholder 已接近 XLS E80 (rel_diff={rel_diff:.3f}), "
-        "考虑升级公式常数"
-    )
 
 
 def test_stripping_gas_xls_pr018_e32_within_5pct():

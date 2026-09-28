@@ -152,10 +152,12 @@ def _load_behr_coefficients() -> dict[str, float]:
     - 否则 RuntimeError
     """
     try:
-        with resources.files("app.services.psychro.data").joinpath(
+        # Python 3.13 forward-compat: PosixPath 不再支持 `with` 上下文协议
+        # 直接用 resources.files(...).joinpath(...).read_text() (3.12 + 3.13 均兼容)
+        data_path = resources.files("app.services.psychro.data").joinpath(
             "behr_coefficients.json"
-        ) as p:
-            data = json.loads(p.read_text())
+        )
+        data = json.loads(data_path.read_text())
     except (FileNotFoundError, ModuleNotFoundError) as e:
         _LOGGER.warning(
             "behr_coefficients.json 缺失，使用 fallback 系数: %s", e,
@@ -808,7 +810,13 @@ def calc_glycol_dehydration(
 
     # 7.3-7.5 column_height, diameter, CSA (v5 TEG Contactor Sizing)
     hetp = inp.hetp_ft if inp.hetp_ft is not None else _HETP_DEFAULT_FT
-    column_height_ft = _calc_column_height_ft(ntu, hetp)
+    # Column height = NTU × HETP + vapour_space + sump (GPSA §20.4 + 工程惯例)
+    # vap/sump 是 Optional[v3]; None 时按 0 ft 处理
+    column_height_ft = (
+        _calc_column_height_ft(ntu, hetp)
+        + (inp.vapour_space_ft or 0.0)
+        + (inp.sump_height_ft or 0.0)
+    )
     if column_height_ft > _COLUMN_HEIGHT_MAX_FT:
         raise GlycolDehydrationError(
             f"column_height_ft={column_height_ft} 超过工程上限 {_COLUMN_HEIGHT_MAX_FT}"
@@ -905,7 +913,7 @@ def calc_glycol_dehydration(
             ),
             # P6-6A-6 v5.1 — FULL system formulas
             "ntu": "NTU = (W_in/W_out - 1)/(α - 1) [Kremser]",
-            "column_height": "H = NTU × HETP [GPSA §20.4]",
+            "column_height": "H = NTU × HETP + vap + sump [GPSA §20.4 + 工程惯例]",
             "column_diameter_full": formula_ref_d_full,
             "mass_h2o_removed": "ṁ = (W_in - W_out) × Q × 1e6/86400 [lb/s]",
             "stripping_gas": (
