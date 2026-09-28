@@ -18828,6 +18828,27 @@
             "title": "H2S Mol Pct",
             "description": "H2S 摩尔百分比（acid gas correction；0~100；v4 新增 H-1）",
             "default": 0.0
+          },
+          "reboiler_temperature_f": {
+            "type": "number",
+            "maximum": 450.0,
+            "minimum": 300.0,
+            "title": "Reboiler Temperature F",
+            "description": "再沸器温度 °F（T1 完整焓平衡 + T4 GPSA Fig 20-4 用；默认 400.0；300~450）",
+            "default": 400.0
+          },
+          "teg_circulation_rate_gal_lb": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Teg Circulation Rate Gal Lb",
+            "description": "TEG 循环量 gal/lb 水（None → service 由 glycol_circulation_rate_gpm 推导）"
           }
         },
         "type": "object",
@@ -18984,6 +19005,62 @@
             "title": "Acid Gas Corrected",
             "description": "acid gas correction 是否生效（v4 新增 H-1；CO2 或 H2S > 0 时 True）",
             "default": false
+          },
+          "reboiler_duty_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reboiler Duty Kw",
+            "description": "Reboiler Duty (kW); 1 BTU/hr = 0.000293071 kW"
+          },
+          "stripping_gas_rate_scf_gal": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripping Gas Rate Scf Gal",
+            "description": "Stripping Gas Rate (scf/gal TEG); GPSA §20.4 Eq.20-5 + Antoine v5 plan"
+          },
+          "lean_glycol_concentration_wt_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Lean Glycol Concentration Wt Pct",
+            "description": "Lean Glycol Concentration (wt%); GPSA Fig 20-4 4 数据点 + 插值"
+          },
+          "full_column_diameter_in": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Full Column Diameter In",
+            "description": "Full Column Diameter (in); D_full = 7.1187 × √(Q_gas_mmscfd); ADR-0045 Rev A"
+          },
+          "warnings": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Warnings",
+            "description": "工艺未对账 warning 列表（如 TEG_CIRCULATION_RATE_UNVERIFIED 等）"
           }
         },
         "type": "object",

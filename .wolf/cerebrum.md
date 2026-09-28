@@ -666,3 +666,25 @@ P6-7 启动条件（按工艺室承诺日期）：
 - **OPEN-P6-6A-9.5 工艺室 fixture 修正需求**：`pcs-backend/data/behr_coefficients.json` 工艺室 2026-10-31 版两 baseline 系数均不自洽（general 系数 ≡ v5 form A 失败集，264× 偏差；high_acid 系数回算 W=0.6438 vs 标定 93.5，差 145×），需工艺室 2026-11-15 重发
 - **OPEN-P6-6A-10 代码侧就位**：AS 1210 §4.4 path (b) + Jet fire 110,000 W/m² service path（T8 落地）；工艺侧 confidence B → A 升级待工艺室 2026-11-15 AS 1210-2010 PDF 到位（SAI Global 采购中）
 - **Schema sync（批末）**：tests/test_schema.py table_count 88 → 93（P6-6B 净新增 5 张 CONFIG 表未及时同步，P6-7 收口一并修订）
+
+## P6-8 批关键决策（2026-11-15）
+
+- **P6-8 glycol dehydration service 集成（OPEN-P6-6A-6 闭环）**：
+  - 4 子模块 service path 全落地（Reboiler Duty + Stripping Gas Rate + Full Column Diameter + Lean Glycol Concentration）
+  - API 端点 `/api/v1/psychro/glycol-dehydration/calculate` 扩展 4 outputs + WARNING 字段 `TEG_CIRCULATION_RATE_UNVERIFIED` + 2 新 inputs（`reboiler_temperature_f` / `teg_circulation_rate_gal_lb`）
+  - ADR-0045 Rev B 工艺室 2026-10-15 签署（K=7.1121 6 工况标定 + high-acid baseline 选择 + 真 Wichert-Aziz 实现）
+  - 工艺室 Path A1A1 决议（2026-10-31）：Reboiler Duty 完整焓平衡 + WARNING / Antoine v5 plan 原值 / Lean Glycol 现有 4 数据点插值
+  - 3 项 limitation 待工艺室 2026-11-15 对账：Reboiler Duty TEG 循环量（+216% 偏差）/ Antoine 系数（DIPPR 验证）/ Lean Glycol 完整 Fig 20-4 曲线
+
+- **OPEN-P6-6A-6 代码侧闭环**：
+  - 服务代码集成 4 子模块 helpers（`_calc_reboiler_duty_btu_hr` / `_calc_stripping_gas_rate_scf_gal_teg` / `_calc_full_column_diameter_in` / `_calc_lean_glycol_concentration_wt_pct`）
+  - OpenAPI regen OK（163 paths / 207 schemas / drift=0）
+  - 前端 types regen OK
+  - 5 commits active（c89d091 / 6506796 / 9497b5f / 21eb943 / 1e85dc4）
+
+- **后续 P6-9 PICKUP**：
+  - SGR 单位混算修复（psi vs mmHg 量纲统一）
+  - 返回值单位约定统一（wt% vs 质量分率）
+  - pyproject.toml `extend-exclude = ["**/fixtures/**"]` ruff B018 修复
+  - column_diameter_full_in + full_column_diameter_in 双字段冗余清理
+  - 3 ruff errors pre-existing 清理（service line 354 E501 / 678 F841）

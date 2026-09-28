@@ -198,6 +198,29 @@ budget_tokens: 1500
   - T9 brief 模板高温系数 vs v5.1 JSON fit 不一致（implementer 沿用 JSON）
   - 2 ruff errors pre-existing in `app/services/psychro/glycol_dehydration_service.py` (lines 352 E501 / 676 F841 T_LOW unused, both from P6-6A-6 8aaa68d)
 
+**P6-8 glycol dehydration service 集成批落地（2026-11-15，5 commits active）**：commits `c89d091`..`1e85dc4`
+- **范围**：工艺室 2026-10-31 4 子模块计算逻辑服务集成 + ADR-0045 Rev B 实施确认 + OPEN-P6-6A-6 代码侧闭环
+- **T1 (c89d091)**：Reboiler Duty + Stripping Gas Rate service path（OPEN-P6-6A-6 子任务 1+2）+ WARNING 字段 `TEG_CIRCULATION_RATE_UNVERIFIED`
+- **T2 (6506796)**：Stripping Gas Rate fixture 3 算例 + 测试（XLS E32 + 380°F + 250→300°F 钳制）
+- **T3 (9497b5f)**：Full Column Diameter fixture K=7.1121 6 工况 + K-CV 验证（OPEN-P6-6A-6 子任务 3）
+- **T4 (21eb943)**：Lean Glycol Concentration service path + GPSA Fig 20-4 4 数据点插值（OPEN-P6-6A-6 子任务 4）
+- **T5 (1e85dc4)**：API 端点扩展 4 outputs + WARNING 字段 + OpenAPI regen drift=0
+- **T6+T7**：verify only（fixtures 完整性 + pytest/vitest/OpenAPI/G-08/ruff 全过）
+- **验收**：pytest 各模块 0 break（5 pre-existing failures 属 OPEN-P6-4-4 / OPEN-P6-6A-9 待工艺室 fixture 重发）；vitest 548/548；G-08 phase 1-4 全过（baseline 滚动）；ruff 各 touched files 0 new errors
+- **OPEN-P6-6A-6 代码侧闭环**（4 子模块 + API 集成 + WARNING）
+- **Parked findings (跨 task LOW/MEDIUM/non-blocking)**：
+  - T1 F1: brief Step 1 `contactor_temperature_f le=300` vs impl `le=200`
+  - T1 F3: brief q_total 16.18M vs impl 10.40M（brief 数值有误）
+  - T1 F4: SGR 单位混算（psi vs mmHg），待 P6-9 PICKUP 修复
+  - T2 O-T2-1: fixture JSON 末尾缺换行符
+  - T3 F1 (MEDIUM): ruff B018 false-positive on fixtures/ JSON（pyproject.toml extend-exclude out of scope）
+  - T4 F2: 返回值单位约定（wt% vs 质量分率），P6-9 PICKUP 必统一
+  - T5 F5/F6: 双字段冗余同源 + reboiler_duty_btu_hr 字段名不变但实现被 T1 覆盖
+- **3 项 limitation 待工艺室 2026-11-15 对账**：Reboiler Duty TEG 循环量（+216% 偏差）/ Antoine 系数（待 DIPPR 验证）/ Leon Glycol 完整 Fig 20-4 曲线
+- **OPEN 队列变化**：
+  - ✅ OPEN-P6-6A-6 代码侧闭环（4 子模块 service path 全落地）
+  - ⚠️ OPEN-P6-4-4 + OPEN-P6-6A-9.5 + OPEN-P6-6A-10 待 fixture 重发 / PDF 升级 / 对账（工艺室 2026-11-15）
+
 ---
 
 ## 🚀 Next quest
