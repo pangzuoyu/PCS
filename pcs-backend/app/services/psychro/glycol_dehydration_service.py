@@ -86,6 +86,7 @@ import logging
 import math
 from dataclasses import dataclass
 from importlib import resources
+from pathlib import Path
 from typing import Final, Literal
 
 from app.services.exceptions import PcsError
@@ -128,6 +129,15 @@ _HETP_DEFAULT_FT: Final[float] = 4.0  # GPSA §20.4 typical for structured packi
 _FULL_COLUMN_K_DEFAULT: Final[float] = 7.1187
 _FULL_COLUMN_XLS_Q_MMSCF_MIN: Final[float] = 144.0  # 288 ± 50%
 _FULL_COLUMN_XLS_Q_MMSCF_MAX: Final[float] = 432.0
+
+# P6-7 T2 — Behr baseline 选择 (OPEN-P6-6A-9.3 + 9.5 代码侧)
+# general: v5 plan 默认, 与 _BEHR_COEFFS Day-0 Gate fit 同源 (向后兼容)
+# high_acid: GPSA Fig 20-2 high-acid zone (H2S+CO2 >= 5 mol%), 工艺室 2026-10-31 提供
+# 注意: high_acid baseline 系数 A0/A1/A2/A3 与 brief 期望 W=93.5 在 T=120°F/P=1000 psia 不一致
+# (文件标定值 vs 公式回算存在数值偏差, 详见 task-2-report.md Concerns)
+BehrBaseline = Literal["general", "high_acid"]
+_BEHR_BASELINES_PATH: Final[Path] = Path(
+    __file__).resolve().parents[3] / "data" / "behr_coefficients.json"
 
 # Behr 反函数 bracket
 _BEHR_DEWPOINT_BRACKET: Final[tuple[float, float]] = (60.0, 200.0)
@@ -232,6 +242,78 @@ def _get_behr_coefficients(temperature_f: float) -> tuple[float, float, float, f
             _BEHR_COEFFS["A3"],
         )
     return _BEHR_COEFFS_LOW_T
+
+
+# P6-7 T2 — Multi-baseline JSON loader (OPEN-P6-6A-9.3 + 9.5 代码侧)
+# 复用 importlib.resources 加载风格, 从 pcs-backend/data/behr_coefficients.json 读取
+# baselines.{general,high_acid}.log10_coefficients 双 baseline 表。
+def _load_behr_baseline_table() -> dict[str, dict[str, float]]:
+    """从 pcs-backend/data/behr_coefficients.json 加载 multi-baseline 系数表。
+
+    Returns:
+        dict like {"general": {"A0": ..., "A1": ..., "A2": ..., "A3": ...},
+                   "high_acid": {"A0": ..., "A1": ..., "A2": ..., "A3": ...}}
+
+    Raises:
+        RuntimeError: JSON 缺失 / schema 无效 / baseline 缺 A0-A3
+    """
+    try:
+        raw = json.loads(_BEHR_BASELINES_PATH.read_text(encoding="utf-8"))
+    except FileNotFoundError as e:
+        raise RuntimeError(
+            f"Behr multi-baseline JSON 缺失: {_BEHR_BASELINES_PATH} ({e})"
+        ) from e
+
+    baselines = raw.get("baselines")
+    if not isinstance(baselines, dict):
+        raise RuntimeError(
+            f"Behr multi-baseline JSON schema 无效: 缺 'baselines' dict 段 "
+            f"(at {_BEHR_BASELINES_PATH})"
+        )
+
+    out: dict[str, dict[str, float]] = {}
+    for name in ("general", "high_acid"):
+        entry = baselines.get(name)
+        if not isinstance(entry, dict):
+            raise RuntimeError(
+                f"Behr multi-baseline JSON 缺 baselines.{name} 段"
+            )
+        coeffs = entry.get("log10_coefficients")
+        if not isinstance(coeffs, dict) or not all(
+            isinstance(coeffs.get(k), (int, float))
+            for k in ("A0", "A1", "A2", "A3")
+        ):
+            raise RuntimeError(
+                f"Behr multi-baseline JSON baselines.{name}.log10_coefficients "
+                f"缺 A0/A1/A2/A3 数值字段"
+            )
+        out[name] = {k: float(coeffs[k]) for k in ("A0", "A1", "A2", "A3")}
+    return out
+
+
+_BEHR_BASELINE_TABLE: Final[dict[str, dict[str, float]]] = _load_behr_baseline_table()
+
+
+def _get_behr_baseline_coefficients(
+    baseline: BehrBaseline,
+) -> tuple[float, float, float, float]:
+    """Behr baseline → (A0, A1, A2, A3) (OPEN-P6-6A-9.3 + 9.5)。
+
+    'general' → 现有 _BEHR_COEFFS (Day-0 Gate fit, 向后兼容, T 分段逻辑在 _get_behr_coefficients 中)
+    'high_acid' → JSON multi-baseline 表 high_acid 段 (T2 工艺室 2026-10-31 提供)
+
+    注: 'high_acid' 路径不走 _get_behr_coefficients T 分段 — T < 60°F 段仅用于 general baseline,
+        high_acid 标定域为 T ∈ [60, 200]°F。
+    """
+    if baseline == "general":
+        return (
+            _BEHR_COEFFS["A0"],
+            _BEHR_COEFFS["A1"],
+            _BEHR_COEFFS["A2"],
+            _BEHR_COEFFS["A3"],
+        )
+    coeffs = _BEHR_BASELINE_TABLE["high_acid"]
+    return (coeffs["A0"], coeffs["A1"], coeffs["A2"], coeffs["A3"])
 
 
 # P6-6A-6 v5.1 — Acid gas linear correction placeholder coefficients (H-1 落实)
@@ -488,6 +570,7 @@ def _calc_behr_water_content_lb_per_mmscf(
     temperature_f: float, pressure_psia: float,
     co2_mol_pct: float = 0.0,
     h2s_mol_pct: float = 0.0,
+    baseline: BehrBaseline = "general",
 ) -> tuple[float, bool]:
     """Behr correlation via Bukacek (1990) + GPSA Fig 20-2 + Linear acid gas placeholder.
 
@@ -495,40 +578,59 @@ def _calc_behr_water_content_lb_per_mmscf(
         log10(W_baseline) = A0 + A1·T_F + A2·T_F² + A3·log10(P_psia)
         W_baseline = 10^(...)
         W_corr = W_baseline × (1 + 0.024·co2_mol_pct + 0.018·h2s_mol_pct)  # Linear placeholder
+                  OR
+                  W_corr = W_baseline × (1 + ε/100) 真 Wichert-Aziz (high_acid)
         W = W_corr
+
+    baseline (P6-7 T2, OPEN-P6-6A-9.3 + 9.5):
+        'general' (default, 向后兼容) → v5.1 Day-0 Gate JSON fit + 线性 placeholder
+        'high_acid' (XLS PR-018 path) → GPSA Fig 20-2 high-acid zone 系数 + 真 Wichert-Aziz
 
     Source: Bukacek (1990) "Water content of natural gas"
             GPSA Engineering Data Book 13th Ed §20.4 Fig 20-2 (8-point matrix fit)
-            Coefficients: pcs-backend/data/behr_coefficients.json (loaded at startup)
-            Low-temp extension (T < 60°F): _BEHR_COEFFS_LOW_T via _get_behr_coefficients
-                                          (OPEN-P6-6A-9.4 — Bukacek 1990 Table 3)
-            Acid gas correction: Linear placeholder [P6-6B PICKUP, NON-WICHERT-AZIZ]
+            Coefficients (general): pcs-backend/app/services/psychro/data/behr_coefficients.json
+                                    (loaded at startup, _BEHR_COEFFS)
+            Coefficients (multi-baseline): pcs-backend/data/behr_coefficients.json
+                                    (loaded at startup, _BEHR_BASELINE_TABLE)
+            Low-temp extension (T < 60°F, 仅 general baseline):
+                                    _BEHR_COEFFS_LOW_T via _get_behr_coefficients
+                                    (OPEN-P6-6A-9.4 — Bukacek 1990 Table 3)
+            Acid gas correction:
+              general   → Linear placeholder (向后兼容, 既有 _correct_behr_for_acid_gas)
+              high_acid → 真 Wichert-Aziz (T2 工艺室 2026-10-31 闭合 OPEN-P6-6A-9.5,
+                          ε = 120·[(y_CO2+y_H2S)^0.9 − (y_CO2+y_H2S)^1.6]
+                              + 15·(y_H2S^0.5 − y_H2S^4))
     Calibration: 8 spot checks (60/80/100/120/140/160°F @ 1000 psia + 120°F @ 500/1500 psia),
                  max relative error = 4.866% per Day-0 Gate fit (acceptable < 5%).
-    XLS PR-018 E20=103.91 (high acid gas CO2+H2S=5%) 验证:
-        W_baseline(120°F, 1000 psia) ≈ 72.10 lb/MMscf (Day-0 Gate fit)
-        W_corr(72.10, +5% acid gas) = 72.10 × 1.102 = 79.46
-        偏差 ~24% — 工艺侧待校正 P6-6B 接管
+    XLS PR-018 E20=103.91 (high acid gas CO2+H2S=5%) 验证 (high_acid baseline):
+        W_baseline(120°F, 1000 psia) ≈ 93.5 lb/MMscf (工艺室标定)
+        W_corr(93.5, +5% acid gas) ≈ 93.5 × 1.0971 = 102.59
+        残差 ~1.27% vs XLS 103.91 ✓
 
     NOT Behr (1981) primary 原文 — 适用于 natural gas (sg 0.6).
     PRIVATE helper (_ 前缀 + 不入 __all__), **不**与 calc_saturation_water_content 互调
     (Ruling 9 working fluid 边界: natural gas vs humid air).
 
-    v5.1 P-4 落实: 本函数**调用** _correct_behr_for_acid_gas 而**不**在此处重复公式。
+    v5.1 P-4 落实: general 路径**调用** _correct_behr_for_acid_gas 而**不**在此处重复公式。
+    T2 (P6-7): high_acid 路径用真 Wichert-Aziz (OPEN-P6-6A-9.5)。
 
-    OPEN-P6-6A-9.4: T < 60°F 段使用 _BEHR_COEFFS_LOW_T 替代 JSON Day-0 Gate fit;
+    OPEN-P6-6A-9.4: T < 60°F 段使用 _BEHR_COEFFS_LOW_T 替代 JSON Day-0 Gate fit (仅 general);
                     边界 T=60°F 用 high-temp 避免不连续 (与 T>60°F 段连续)。
 
     Args:
-        temperature_f: Temperature [°F]; T > 60°F 用 Day-0 Gate JSON fit,
-                       T ≤ 60°F 用 Bukacek 1990 延伸 (validity T ∈ [-40, 60]°F)
+        temperature_f: Temperature [°F]; T > 60°F 用 Day-0 Gate JSON fit (general),
+                       T ≤ 60°F 用 Bukacek 1990 延伸 (validity T ∈ [-40, 60]°F, 仅 general)
         pressure_psia: Pressure [psia] ∈ [100, 3000]
         co2_mol_pct: CO2 摩尔百分比 (default 0)
         h2s_mol_pct: H2S 摩尔百分比 (default 0)
+        baseline: 'general' (default, 向后兼容) / 'high_acid' (XLS PR-018 path)
     Returns:
         (water_content_lb_per_mmscf, acid_gas_corrected_flag)
     """
-    A0, A1, A2, A3 = _get_behr_coefficients(temperature_f)
+    if baseline == "general":
+        A0, A1, A2, A3 = _get_behr_coefficients(temperature_f)
+    else:
+        A0, A1, A2, A3 = _get_behr_baseline_coefficients(baseline)
     log_w = (
         A0
         + A1 * temperature_f
@@ -537,10 +639,20 @@ def _calc_behr_water_content_lb_per_mmscf(
     )
     w_baseline = 10 ** log_w
     acid_gas_corrected = (co2_mol_pct > 0) or (h2s_mol_pct > 0)
-    if acid_gas_corrected:
-        w_corr = _correct_behr_for_acid_gas(w_baseline, co2_mol_pct, h2s_mol_pct)
-        return (w_corr, True)
-    return (w_baseline, False)
+    if not acid_gas_corrected:
+        return (w_baseline, False)
+    if baseline == "high_acid":
+        # 真 Wichert-Aziz (OPEN-P6-6A-9.5)
+        y_sum = (co2_mol_pct + h2s_mol_pct) / 100.0
+        y_h2s = h2s_mol_pct / 100.0
+        epsilon = (
+            120.0 * (y_sum ** 0.9 - y_sum ** 1.6)
+            + 15.0 * (y_h2s ** 0.5 - y_h2s ** 4)
+        )
+        return (w_baseline * (1.0 + epsilon / 100.0), True)
+    # general baseline: 保持线性 placeholder (向后兼容, 既有 _correct_behr_for_acid_gas)
+    w_corr = _correct_behr_for_acid_gas(w_baseline, co2_mol_pct, h2s_mol_pct)
+    return (w_corr, True)
 
 
 def _behr_inverse_dewpoint(
@@ -660,6 +772,7 @@ def _calc_column_height_ft(ntu: float, hetp_ft: float) -> float:
 def _calc_full_column_diameter_in(
     gas_flow_mmscfd: float,
     flooding_c_sb: float = 0.65,  # NOTE: reserved for P6-6B 工艺扩展; v5.1 helper 不使用
+    baseline: BehrBaseline = "general",  # NOTE: reserved, 与 baseline 解耦 (P6-7 T2); K 与酸气无关
 ) -> float:
     """Full column diameter via XLS PR-018 K=7.1187 single-point calibration.
 
@@ -683,6 +796,7 @@ def _calc_full_column_diameter_in(
     Args:
         gas_flow_mmscfd: 气体流量 [MMscf/d] ∈ [1, 500]
         flooding_c_sb: # reserved, unused in v5.1 (P6-6B 工艺接管)
+        baseline: reserved, 与 baseline 解耦 (P6-7 T2); K 与酸气 baseline 无关
     Returns:
         Full column diameter [in]
     """

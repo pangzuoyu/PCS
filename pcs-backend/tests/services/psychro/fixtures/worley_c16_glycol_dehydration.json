@@ -340,5 +340,31 @@
       "xls_refs": "XLS E23 = 18.44086104555237 °F (Water Dewpoint); E24 = 5.0 °F (Approach to Equilibrium); E25 = 13.44086104555237 °F (Adjusted Dewpoint); L17=104.71 Behr / L18=102.33 Kazim / L21=4.99966 Behr",
       "reason": "XLS dewpoint block 是 psychro (humidity) scope (Behr/Kazim correlations); PCS glycol_dehydration_service 不接收 P/T/CO2/H2S 输入, 不输出 dewpoint。OUT_OF_SCOPE。"
     }
-  ]
+  ],
+  "t2_high_acid_baseline_case": {
+    "_doc": "P6-7 T2 — Behr baseline='high_acid' 高酸气 zone XLS PR-018 E20 对账算例 (OPEN-P6-6A-9.3 + 9.5)。",
+    "case_id": "worley_c16_xls_e20_high_acid_baseline",
+    "source": {
+      "xls": "WS-CA-PR-018.xls",
+      "xls_target_cell": "E20 = 103.9098... lb/MMscf (Behr + acid gas)",
+      "xls_inputs": "T=120°F, P=1000 psia, CO2=2.0 mol%, H2S=3.0 mol%",
+      "process_office_calibration": "2026-10-31 提供 multi-baseline JSON (general + high_acid); high_acid W_baseline 工艺室标定 ~93.5 lb/MMscf (T=120°F/P=1000 psia, no acid gas) + 真 Wichert-Aziz factor 1.0971 → 102.59 vs XLS 103.91 (residual 1.27%)"
+    },
+    "ci_inputs": {
+      "gas_flow_mmscfd": 288.0,
+      "temperature_f": 120.0,
+      "pressure_psia": 1000.0,
+      "teg_wt_pct": 99.0,
+      "sg": 0.6,
+      "co2_mol_pct": 2.0,
+      "h2s_mol_pct": 3.0,
+      "baseline": "high_acid"
+    },
+    "expected": {
+      "water_content_lb_per_mmscf": 102.59,
+      "xls_target_lb_per_mmscf": 103.91,
+      "residual_pct": 1.27,
+      "_note": "102.59 = 93.50 (high_acid baseline @ T=120/P=1000) × 1.0971 (真 Wichert-Aziz factor for CO2+H2S=5%); 残差 1.27% vs XLS 103.91。注: brief 标定 baseline JSON 文件 log10_coefficients 数值与 brief 期望 W=93.50 在 T=120°F/P=1000 psia 不一致 (详见 task-2-report.md Concerns)。"
+    }
+  }
 }

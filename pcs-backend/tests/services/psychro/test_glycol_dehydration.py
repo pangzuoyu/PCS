@@ -670,3 +670,69 @@ def test_bukacek_t_boundary_no_discontinuity():
     assert abs(w_boundary - w_low) / w_boundary > 0.05, (
         f"T<60°F vs T≥60°F 应有差异: |{w_boundary} - {w_low}|/{w_boundary} <= 5%"
     )
+
+
+# ---------------------------------------------------------------------------
+# P6-7 T2 — Behr baseline 选择 (OPEN-P6-6A-9.3 + 9.5 代码侧)
+# ---------------------------------------------------------------------------
+
+
+def test_behr_general_baseline_default():
+    """T2 默认 baseline='general'（向后兼容）：与 v5.1 Day-0 Gate fit 行为一致。
+
+    T=120°F, P=1000 psia: W ≈ 72.1 lb/MMscf (与 _BEHR_COEFFS Day-0 Gate fit 同源)。
+    """
+    from app.services.psychro.glycol_dehydration_service import (
+        _calc_behr_water_content_lb_per_mmscf,
+    )
+
+    w, _ = _calc_behr_water_content_lb_per_mmscf(
+        temperature_f=120.0, pressure_psia=1000.0,
+    )
+    assert 50.0 < w < 80.0, (
+        f"general baseline W {w} 应 ~70 lb/MMscf (Day-0 Gate fit 给 ~72)"
+    )
+
+
+def test_behr_high_acid_baseline_xls_reconciliation():
+    """T2 baseline='high_acid' + 真 Wichert-Aziz vs XLS PR-018 E20 残差 < 5%。
+
+    XLS PR-018 E20: T=120°F, P=1000 psia, CO2=2%, H2S=3% → target 103.91 lb/MMscf。
+    工艺室标定: high_acid baseline (no acid) ≈ 93.5 lb/MMscf → ×1.0971 Wichert-Aziz
+    → 102.59 vs XLS 103.91 (1.27% residual)。
+    """
+    from app.services.psychro.glycol_dehydration_service import (
+        _calc_behr_water_content_lb_per_mmscf,
+    )
+
+    w, _ = _calc_behr_water_content_lb_per_mmscf(
+        temperature_f=120.0, pressure_psia=1000.0,
+        co2_mol_pct=2.0, h2s_mol_pct=3.0,
+        baseline="high_acid",
+    )
+    xls_target = 103.91
+    residual_pct = abs(w - xls_target) / xls_target * 100
+    assert residual_pct < 5.0, (
+        f"high_acid XLS E20 残差 {residual_pct:.2f}% > 5% 容差 (w={w})"
+    )
+
+
+def test_behr_high_acid_no_acid_gas_above_general():
+    """T2 baseline='high_acid' + 无 acid gas 应高于 'general' baseline (高酸气 zone 上移)。
+
+    high_acid 标定域 GPSA Fig 20-2 high-acid zone (H2S+CO2 >= 5 mol%) — 同一 (T,P)
+    下 W_baseline 应高于 general zone (标定 W 高于 general 30%+)。
+    """
+    from app.services.psychro.glycol_dehydration_service import (
+        _calc_behr_water_content_lb_per_mmscf,
+    )
+
+    w_general, _ = _calc_behr_water_content_lb_per_mmscf(
+        temperature_f=120.0, pressure_psia=1000.0, baseline="general",
+    )
+    w_high_acid, _ = _calc_behr_water_content_lb_per_mmscf(
+        temperature_f=120.0, pressure_psia=1000.0, baseline="high_acid",
+    )
+    assert w_high_acid > w_general, (
+        f"high_acid {w_high_acid} 应 > general {w_general} (high-acid zone W 上移)"
+    )
