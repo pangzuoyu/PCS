@@ -39,6 +39,7 @@ from app.services.psychro.hydrate_inhibition_service import (  # P6-5 Task C2 (C
     HydrateInhibitionError,
     HydrateInhibitionInput,
     HydrateInhibitionResult,
+    InhibitorModel,
     InhibitorType,
     calc_hydrate_inhibition,
 )
@@ -84,6 +85,7 @@ __all__ = [
     "HydrateInhibitionError",
     "HydrateInhibitionInput",
     "HydrateInhibitionResult",
+    "InhibitorModel",  # P6-6B T8 — Hammerschmidt/Nielsen 双模型枚举
     "InhibitorType",
     "calc_hydrate_inhibition",
 ]

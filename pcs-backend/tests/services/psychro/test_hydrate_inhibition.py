@@ -33,6 +33,7 @@ if str(_BACKEND_ROOT) not in sys.path:
 from app.services.psychro import (  # noqa: E402
     HydrateInhibitionError,
     HydrateInhibitionInput,
+    InhibitorModel,
     calc_hydrate_inhibition,
 )
 
@@ -292,3 +293,39 @@ def test_golden_fixture_cross_check():
             f"{inp_dict}: ΔT_C {actual_dt_c} != "
             f"expected {expected_c}"
         )
+
+# ============================================================================
+# Nielsen 1988 备选 path（P6-6B T8 引入）
+# ============================================================================
+
+
+def test_nielsen_1988_model_basic_depression():
+    """NIELSEN_1988 备选 path：ΔT_F = A + B·x；DB fallback 到内联常量。
+
+    MeOH 10 wt% (MEOH) → CH4 component（_NIELSEN_DEFAULT_COMPONENT）；
+    A=0.0227 / B=0.0067（C=0.0）；x_mol ≈ 0.0311（按 wt% 近似换算）。
+    δT_F = 0.0227 + 0.0067·0.0311 ≈ 0.0229 °F
+    """
+    inp = _baseline_input(
+        hydrate_inhibitor_type="MEOH",
+        inhibitor_concentration_in_water_wt_pct=10.0,
+    )
+    result = calc_hydrate_inhibition(
+        inp, inhibitor_model=InhibitorModel.NIELSEN_1988,
+    )
+    # ΔT_F = A + B·x_mol（A=0.0227 B=0.0067, x_mol 按 MeOH MW=32.04 换算）
+    assert result.hydrate_depression_f > 0
+    assert result.hydrate_depression_f < 1.0  # 简化模型预期 ~0.023 °F 量级
+    assert "nielsen" in result.formula_ref
+    assert "Nielsen 1988" in result.formula_ref["nielsen"]
+
+
+def test_nielsen_1988_default_is_hammerschmidt():
+    """默认 backward compat：不传 inhibitor_model → HAMMERSCHMIDT_1934。"""
+    inp = _baseline_input()
+    result = calc_hydrate_inhibition(inp)
+    # Hammerschmidt 路径 formula_ref 含 hammerschmidt 键
+    assert "hammerschmidt" in result.formula_ref
+    assert "nielsen" not in result.formula_ref
+    # K 因子必须为正（Hammerschmidt 路径）
+    assert result.inhibitor_k_factor > 0
