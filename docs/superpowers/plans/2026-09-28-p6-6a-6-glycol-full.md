@@ -1,8 +1,14 @@
-# P6-6A-6 实施计划 — C-16 甘醇脱水 FULL 系统（关 Ruling 5 mapping defect）v5
+# P6-6A-6 实施计划 — C-16 甘醇脱水 FULL 系统（关 Ruling 5 mapping defect）v5.1
 
-> **v5 changelog**: 架构组 v4 驳回 (2026-09-28)，修 3 BLOCKING + 3 HIGH + 4 MEDIUM；v1/v2/v3/v4 → `.superpowers/sdd/2026-09-28-p6-6a-6-glycol-full.{v1,v2,v3,v4}/`；**撤回 ADR-0045 物理依据**（"gas-continuous vs liquid-continuous" 论断结构错误）；**新增 OPEN-P6-6A-9** Souders-Brown 30× 差异根因分析；Behr 系数 Day-1 Gate 强制要求残差表。
+> **v5.1 changelog** (2026-09-28)：执行前必办 4 项 P-1~P-4 落地。
+> - P-1：架构组独立验算 v5 给的 4 系数（A0=1.3520/A1=0.00780/A2=0.0000052/A3=-0.9800）在 T=120/P=1000 下预测 W=0.2648 vs spot check 70（**264× 偏差**）；v3 形式 A 系数也失败（**113× 偏差**）。**4-param log10 二次形式可能不充分**。T1 Step 0（**新增 Day-0 Gate**）必须用 numpy lstsq + curve_fit 比较 3 种候选形式（4-param log10 二次 / Katz 3-param / Behr 原式非线性），选 max_rel_err < 5% 的形式；JSON `log10_coefficients` 初始 null，由 Day-0 Gate 拟合填入。架构组预给的 v5 系数**撤回**。
+> - P-2：`_DewpointResult` 字段名统一（`dewpoint_f`/`extrapolated`/`reason`），删除 R-13 中的 `dp.found`/`dp.T_f`。
+> - P-3：ADR-0045 Rev A 30× 根因弱化为"架构组数学推测，文献依据待 P6-6B 验证"；新增 OPEN-P6-6A-9.1 子项要求 P6-6B 工程师补 3 项验证。
+> - P-4：`_calc_behr_water_content` **调用** `_correct_behr_for_acid_gas`（去重 acid gas 修正公式）。
+>
+> v5 changelog：架构组 v4 驳回 (2026-09-28)，修 3 BLOCKING + 3 HIGH + 4 MEDIUM；v1/v2/v3/v4 → `.superpowers/sdd/2026-09-28-p6-6a-6-glycol-full.{v1,v2,v3,v4}/`；**撤回 ADR-0045 物理依据**（"gas-continuous vs liquid-continuous" 论断结构错误）；**新增 OPEN-P6-6A-9** Souders-Brown 30× 差异根因分析；Behr 系数 Day-1 Gate 强制要求残差表。
 
-## v4→v5 主要修复（架构组 v4 审查响应）
+## v5→v5.1 主要修正（执行前必办 4 项）
 
 | Issue | v4 缺陷 | v5 修复 |
 |---|---|---|
@@ -17,6 +23,13 @@
 | **M-3** 测试计数混乱 | v4 matrix 说 35 但 list 数实际 26+10+11=47；"18 unit" 包含 10 baseline | **重数（v5 架构组直接给数）**：T1 main = 19 new（M-4 去重后）, T1 load = 4 new（集中 8 spot check 残差验证）, T2 = 10 new, T3 = 11 new = **44 new total**；baseline 96 + 44 = **≥140** |
 | **M-4** test_behr_load_coefficients.py 8 spot check 与主测试重复 | v4 load 文件 8 spot check + 主测试 8 spot check 重复 | **去重**：load 文件集中 8 spot check 残差验证（4 tests: success + fallback + RuntimeError + 8 spot check max_rel_err）；主测试文件删 8 spot check 主测，仅保留 acid gas + inverse + full column + 11 字段对账等核心（19 tests）|
 
+| Issue | v5 缺陷 | v5.1 修复 |
+|---|---|---|
+| **P-1** Behr 系数架构组核算未在 plan 中显式复现 | v5 给的 4 系数（A0=1.3520/A1=0.00780/A2=0.0000052/A3=-0.9800）经架构组独立验算在 T=120/P=1000 下预测 W=0.2648 vs spot check 70（**264× 偏差**）；v3 形式 A 系数也失败（**113× 偏差**）| **撤回 v5 预给系数**；JSON `log10_coefficients: null`；**新增 T1 Step 0 Day-0 Gate** — 用 numpy lstsq + curve_fit 比较 3 种候选形式（4-param log10 二次 / Katz 3-param / Behr 原式非线性），选 max_rel_err < 5% 的形式；手动填实际拟合系数；3 形式全失败 → halt + 报架构组 + 工程化近似（分段线性 / 表格插值）|
+| **P-2** _DewpointResult dataclass 字段名不统一 | T1 Step 6 定义 `dewpoint_f`/`extrapolated`/`reason`；R-13 缓解用 `dp.found`/`dp.T_f`/`dp.reason` | **统一字段名** — R-13 改为 `dp.dewpoint_f`/`dp.extrapolated`/`dp.reason`；删除 `dp.found`/`dp.T_f` 旧名引用 |
+| **P-3** ADR-0045 Rev A "Souders-Brown 标准态换算"根因需独立验证 | v5 断言"v3 混淆标准态 vs 实际态"为根因，但未提供 XLS 为何用标准态气速的文献依据 | **弱化为"架构组数学推测，文献依据待 P6-6B 验证"**；OPEN-P6-6A-9.1 子项要求 P6-6B 工程师补 3 项验证：(a) 审查 v3 PR 混淆代码行；(b) 找到 Worley/GPSA/行业规范的文献依据；(c) 文献不支持则修订 ADR-0045 |
+| **P-4** _calc_behr_water_content 与 _correct_behr_for_acid_gas 职责重叠 | acid gas 修正公式 `w_baseline × (1 + 0.024·co2 + 0.018·h2s)` 在两个 helper 重复出现；未来修公式需改两处（违反 DRY）| **去重** — `_calc_behr_water_content` 调用 `_correct_behr_for_acid_gas` 而**不**在内部重复公式；修改 acid gas 公式只需改一处 |
+
 ## Global Constraints（v5 修订）
 
 - **Ruling 1 (additive extension)**: frozen dataclass **现有 7 字段零改动**；追加 10 input optional（含 v3 `flooding_c_sb` reserved + v4 `co2_mol_pct`/`h2s_mol_pct`）+ 12 result optional（含 v3 `dewpoint_unavailable_reason` + v4 `acid_gas_corrected`）
@@ -27,22 +40,22 @@
 - DB：不新增 ORM 列；JSONB 容器
 - **Ruling 5 OUT_OF_SCOPE 闭环**：12 result 字段（含 `acid_gas_corrected`）全部填值
 - **v5 修订：ADR-0045 Rev A**（B-1 落实）：撤回 v4 物理依据；保留 Souders-Brown 物理模型 + sqrt(Q) 作为 K 标定简化式；K=7.1187 **单点标定**，适用范围未经多工况验证；Superseded by ADR-0046（待 P6-6B 起草）；3 条撤回条件
-- **v5 修订：Behr 系数 plan 阶段给全**（B-2 落实）：A0=1.3520 / A1=0.00780 / A2=0.0000052 / A3=-0.9800；max_rel_err=2.30% < 5%；fallback 系数同；模块级 `_BEHR_COEFFS = _load_behr_coefficients()` + RuntimeError on schema invalid + JSON 打包 via `importlib.resources` + wheel `package_data`
+- **v5.1 修订：Behr 系数形式决策 Day-0 Gate 必跑**（P-1 落实）：**撤回 v5 预给系数**；JSON `log10_coefficients: null`；T1 Step 0 用 numpy lstsq + curve_fit 比较 3 种候选形式（4-param log10 二次 / Katz 3-param / Behr 原式非线性），选 max_rel_err < 5% 的形式；3 形式全失败 → halt + 报架构组 + 工程化近似（分段线性 / 表格插值）；模块级 `_BEHR_COEFFS = _load_behr_coefficients()` + RuntimeError on schema invalid + JSON 打包 via `importlib.resources` + wheel `package_data`
 - **v5 修订：Linear acid gas placeholder (NON-Wichert-Aziz)**（H-1 落实）：`W_corr = W_baseline × (1 + 0.024·co2_mol_pct + 0.018·h2s_mol_pct)`；docstring 明确标注**非线性 Wichert-Aziz** 形式（`ε = 120·[(y_CO2+y_H2S)^0.9 − (y_CO2+y_H2S)^1.6] + 15·(y_H2S^0.5 − y_H2S^4)`）作 reference；XLS E20=103.91 vs W_corr=77.1 残差 25.8% 不可解释 → XLS 工况可能含 8 列酸气 + 6% 盐度或不同 baseline；P6-6B 工艺接管真 Wichert-Aziz
 - **v5 修订：_behr_inverse_dewpoint 返回 `_DewpointResult` frozen dataclass**（B-3 落实）：`(dewpoint_f: float | None, extrapolated: bool, reason: str | None)`；三态显式 FOUND / EXTRAPOLATED / NOT_FOUND；scipy.optimize.brentq + bracket [-40°F, 200°F] + T<60°F extrapolation WARNING + Newton fallback
 - **v5 修订：K=7.1187 单点标定**（H-2 落实）：越界 WARNING 改为 `[K_UNVERIFIED_OUT_OF_XLS_CONDITIONS]`；不再声明 sg/TEG/P 三维 scope
 
-## Review Focus（v5 修订）
+## Review Focus（v5.1 修订）
 
-1. **Behr 8 spot check max_rel_err > 5%** → T1 implementer 跑 `calibrate_behr_coefficients.py` 验证残差与 plan 一致（plan 阶段 max_rel_err=2.30%）；若不一致 → halt T1 + 报架构组 + 等待系数复核（M-2 落实）
-2. **JSON 缺失/Schema 错误** → fallback 系数（A0=1.3520 等）WARNING 不 crash；RuntimeError 仅在 schema 字段类型错误时抛（启动期 fail-fast）
+1. **Behr 形式决策 Day-0 Gate max_rel_err > 5%（3 形式全失败）** → T1 implementer 跑 `calibrate_behr_coefficients.py`（v5.1 改写为 3 形式对比脚本）→ 若 3 形式全 > 5% → halt T1 + 报架构组 + 工程化近似（分段线性 / 表格插值）（**v5.1 P-1 落实**）
+2. **JSON 缺失/Schema 错误** → fallback 系数（A0=1.0/A1=0.020/A2=0.0/A3=-1.5 — 通用占位）WARNING 不 crash；RuntimeError 仅在 schema 字段类型错误时抛（启动期 fail-fast）
 3. **K=7.1187 越界**（v5 修订）→ 越界 `[K_UNVERIFIED_OUT_OF_XLS_CONDITIONS]`；**不**再声明 sg∈[0.55, 0.80]/TEG∈[98, 99.9]/P∈[100, 3000] 三维 scope
 4. **DEG full system** → TEG only；DEG 抛 `GlycolDehydrationError("FULL 仅 TEG；DEG partial coverage")`
 5. **flooding_c_sb 输入越界** → 默认 0.65 reserved（P6-6B）；[0.30, 0.80] 接受；越界抛 422
 6. **alpha 越界** → inp.relative_volatility ∈ [1.0, 50.0]；越界抛 422
-7. **_behr_inverse_dewpoint T < 60°F 外推** → 18.44°F 在 validity_domain 外；T_min=-40°F 默认（Antoine 外推）；`reason="T<60°F extrapolation, accuracy±20%"` 写入 `dp_result.reason`
+7. **_behr_inverse_dewpoint T < 60°F 外推** → 18.44°F 在 validity_domain 外；T_min=-40°F 默认（Antoine 外推）；`reason="T<60°F extrapolation, accuracy±20%"` 写入 `dp_result.reason`（`dp_result.reason` 字段名 v5.1 P-2 统一）
 
-## Task 1: service 扩展（v5 — 12 result optional + 10 input optional + 8 private helper + `_DewpointResult` frozen dataclass + 系数 JSON 启动期加载 + Linear placeholder + K 单点标定 + Day-1 Gate）
+## Task 1: service 扩展（v5.1 — 12 result optional + 10 input optional + 8 private helper + `_DewpointResult` frozen dataclass + 系数 JSON 启动期加载 + Linear placeholder + K 单点标定 + **Day-0 Gate 形式决策** + Day-1 Gate + `_calc_behr` 去重调用 `_correct`）
 
 **Files:**
 - Create: `pcs-backend/data/behr_coefficients.json`（v5 系数 sidecar；plan 阶段给全 4 系数 A0=1.3520/A1=0.00780/A2=0.0000052/A3=-0.9800 + 8 spot checks 残差表 max_rel_err=0.0230 + fallback 段 + acid_gas_correction_linear_placeholder_v5 段）
@@ -67,43 +80,52 @@
 
 实际 v5 result 字段 = 7 existing + **12 new**（含 `dewpoint_unavailable_reason` + `acid_gas_corrected`）。Test count v5 校正为 44 new tests（T1 主测 19 + T1 load 4 + T2 reconciliation 10 + T3 integration 11）；baseline 96 + 44 = **≥140**。
 
-**Behr 系数 sidecar JSON**（v5 修订，**plan 阶段给全** — B-2 落实）：
+**Behr 系数 sidecar JSON**（v5.1 修订，**系数待 Day-1 Gate 验证** — B-2 + P-1 落实）：
+
+> ⚠️ **v5.1 重要变更**：架构组独立验算 v5 给的 4 系数（A0=1.3520/A1=0.00780/A2=0.0000052/A3=-0.9800）在 T=120°F/P=1000 psia 下预测 W=0.2648 lb/MMscf，与 spot check 70 差 264 倍。**4 参数 log10 二次形式本身可能无法拟合 8 spot checks**。
+>
+> **行动**：T1 Step 0（Day-0 Gate，**早于** Day-1 Gate）必须：
+> 1. 用 numpy lstsq 实际跑 3 种形式的拟合，比较 max_rel_err：
+>    - 形式 A（4-param log10 二次）：`log10(W) = A0 + A1·T + A2·T² + A3·log10(P)`
+>    - 形式 B（Katz 3-param）：`log10(W) = a − b/T + c·log10(P)`
+>    - 形式 C（Behr 原式非线性）：`W = A·P^(-B)·exp(C/T)`（scipy curve_fit）
+> 2. 选 max_rel_err < 5% 的形式；写实际系数入 JSON
+> 3. 若 3 种形式全失败 → halt T1 + 报架构组 + 考虑工程化近似（如分段线性）
 
 ```json
 {
-  "form": "bukacek_1990_with_gpsa_calibration",
-  "formula": "log10(W) = A0 + A1*T_F + A2*T_F^2 + A3*log10(P_psia)",
+  "form": "PENDING_T1_DAY0_GATE_FORM_DECISION",
+  "_form_candidates": {
+    "A_log10_quadratic_4param": "log10(W) = A0 + A1*T_F + A2*T_F^2 + A3*log10(P_psia)",
+    "B_katz_3param": "log10(W) = a - b/T_F + c*log10(P_psia)",
+    "C_behr_original_nonlinear": "W = A*P^(-B)*exp(C/T_F)"
+  },
+  "_v5_form_A_failed": {
+    "test_case": "T=120, P=1000, spot check W=70",
+    "log10_coefficients_v5": {"A0": 1.3520, "A1": 0.00780, "A2": 0.0000052, "A3": -0.9800},
+    "predicted": "log10(W) = 1.3520 + 0.9360 + 0.07488 - 2.940 = -0.57712; W = 10^(-0.57712) = 0.2648",
+    "actual_spot": 70,
+    "rel_err": 0.996,
+    "_verdict": "v5 形式 A 4 系数完全失败；架构组验证 264× 偏差"
+  },
+  "_v3_form_A_also_failed": {
+    "log10_coefficients_v3": {"A0": 1.5808, "A1": 0.00770, "A2": 0.0000080, "A3": -0.943},
+    "predicted_at_T120_P1000": 0.618,
+    "actual_spot": 70,
+    "rel_err": 0.991,
+    "_verdict": "v3 形式 A 4 系数也失败；113× 偏差；4-param log10 二次形式本身可能不充分"
+  },
   "baseline_reference": "Bukacek (1990) GPSA Engineering Data Book §20.4 Fig 20-2",
   "calibration_reference": "GPSA Fig 20-2 8-point matrix fit + Worley PR-018 L17-L18",
-  "log10_coefficients": {
-    "A0": 1.3520,
-    "A1": 0.00780,
-    "A2": 0.0000052,
-    "A3": -0.9800,
-    "_source": "架构组 numpy lstsq on 8 GPSA Fig 20-2 spots (v5 plan 阶段给全); max_rel_err=2.30%"
-  },
-  "fallback_coefficients": {
-    "A0": 1.3520,
-    "A1": 0.00780,
-    "A2": 0.0000052,
-    "A3": -0.9800,
-    "_warning": "FALLBACK 系数同主系数；JSON 缺失/损坏时使用；service 启动期不 panic"
-  },
-  "calibration_max_rel_err": 0.0230,
-  "calibration_residual_table": [
-    {"T_F": 60, "P_psia": 1000, "W_actual": 16, "W_pred": 16.28, "rel_err": 0.0175},
-    {"T_F": 80, "P_psia": 1000, "W_actual": 31, "W_pred": 30.51, "rel_err": -0.0158},
-    {"T_F": 100, "P_psia": 1000, "W_actual": 50, "W_pred": 51.15, "rel_err": 0.0230},
-    {"T_F": 120, "P_psia": 1000, "W_actual": 70, "W_pred": 69.77, "rel_err": -0.0033},
-    {"T_F": 140, "P_psia": 1000, "W_actual": 95, "W_pred": 93.60, "rel_err": -0.0147},
-    {"T_F": 160, "P_psia": 1000, "W_actual": 130, "W_pred": 131.14, "rel_err": 0.0088},
-    {"T_F": 120, "P_psia": 500, "W_actual": 147, "W_pred": 148.32, "rel_err": 0.0090},
-    {"T_F": 120, "P_psia": 1500, "W_actual": 47, "W_pred": 46.55, "rel_err": -0.0096}
-  ],
+  "log10_coefficients": null,
+  "fallback_coefficients": null,
+  "calibration_max_rel_err": null,
+  "calibration_residual_table": null,
+  "_placeholder_fallback_pending": "T1 Step 0 选定形式后填入；fallback 系数与主系相同",
   "validity_domain": {
     "temperature_f": [60, 200],
     "pressure_psia": [100, 3000],
-    "_note": "v5: 单点 K 标定的 T/P 域；sg/TEG 域在 ADR-0045 Rev A 单点声明"
+    "_note": "v5.1: 单点 K 标定的 T/P 域；sg/TEG 域在 ADR-0045 Rev A 单点声明"
   },
   "xls_worley_pr018_target": {
     "T_F": 120, "P_psia": 1000, "W_lb_per_mmscf": 103.91,
@@ -118,44 +140,128 @@
 }
 ```
 
-**`pcs-backend/scripts/dev/calibrate_behr_coefficients.py`**（v5 修订，**作为可重复性验证脚本** — 非生成脚本；plan 阶段系数已给全）：
+**`pcs-backend/scripts/dev/calibrate_behr_coefficients.py`**（v5.1 修订，**形式决策 + 拟合脚本** — Day-0 Gate 必跑；取代 v5 的"验证脚本"定位）：
 
 ```python
 #!/usr/bin/env python
-"""Verify Behr coefficients against GPSA Fig 20-2 8-point matrix residual table.
+"""Behr coefficient FORM DECISION + FIT script — Day-0 Gate (T1 Step 0).
 
-v5 修订 (B-2 落实): plan 阶段已给全 4 个系数 (A0=1.3520/A1=0.00780/A2=0.0000052/A3=-0.9800)；
-本脚本作为可重复性验证脚本，用于：
-  (a) 未来扩展 spot check 时重新拟合
-  (b) T1 implementer Day-1 Gate 验证 plan 残差表与脚本输出一致
-  (c) 系数复核时的 sanity check
+v5.1 修订 (B-2 + P-1 落实): v5 plan 阶段给的 4-param log10 二次形式系数
+(A0=1.3520/A1=0.00780/A2=0.0000052/A3=-0.9800) 经架构组独立验算在 T=120, P=1000
+下预测 W=0.2648 vs spot check 70 (264× 偏差)；v3 形式 A 系数也失败。
+
+本脚本作为形式决策 + 拟合脚本，用于：
+  (a) 比较 3 种候选形式的 max_rel_err：4-param log10 二次 / Katz 3-param / Behr 原式非线性
+  (b) 选定 max_rel_err < 5% 的形式；用 numpy lstsq / scipy curve_fit 拟合
+  (c) 写实际拟合系数入 JSON sidecar + 打印残差表
 
 Usage: cd pcs-backend && uv run python scripts/dev/calibrate_behr_coefficients.py
-Output: prints 残差表 + max_rel_err; 若与 plan 不一致 → halt + 报架构组
+Output:
+  - 形式 A/B/C 的 max_rel_err 对比表
+  - 选定形式的实际拟合系数、残差表
+  - 若 3 种形式全 > 5% → halt + 报架构组（**不**写 JSON）
 """
-import numpy as np, sys
+import numpy as np
+from scipy.optimize import curve_fit
 
-# v5 plan 阶段给全的 4 个系数
-A0, A1, A2, A3 = 1.3520, 0.00780, 0.0000052, -0.9800
-
-# 8 GPSA Fig 20-2 spot checks (v5: 4T × 2P 矩阵抽样)
+# 8 GPSA Fig 20-2 spot checks (v5.1: 4T × 2P 矩阵抽样)
 SPOTS = [
     (60, 1000, 16), (80, 1000, 31), (100, 1000, 50), (120, 1000, 70),
     (140, 1000, 95), (160, 1000, 130),
     (120, 500, 147), (120, 1500, 47),
 ]
+T_SPOTS = np.array([s[0] for s in SPOTS], dtype=float)
+P_SPOTS = np.array([s[1] for s in SPOTS], dtype=float)
+W_SPOTS = np.array([s[2] for s in SPOTS], dtype=float)
 
-max_rel_err = 0.0
+
+def fit_form_A_log10_quadratic() -> tuple[dict, float]:
+    """形式 A：log10(W) = A0 + A1·T + A2·T² + A3·log10(P)（numpy lstsq）。"""
+    X = np.column_stack([
+        np.ones_like(T_SPOTS),
+        T_SPOTS,
+        T_SPOTS ** 2,
+        np.log10(P_SPOTS),
+    ])
+    y = np.log10(W_SPOTS)
+    coeffs, *_ = np.linalg.lstsq(X, y, rcond=None)
+    A0, A1, A2, A3 = coeffs
+    w_pred = 10 ** (A0 + A1 * T_SPOTS + A2 * T_SPOTS ** 2 + A3 * np.log10(P_SPOTS))
+    max_rel_err = float(np.max(np.abs(w_pred - W_SPOTS) / W_SPOTS))
+    return {"A0": float(A0), "A1": float(A1), "A2": float(A2), "A3": float(A3)}, max_rel_err
+
+
+def fit_form_B_katz() -> tuple[dict, float]:
+    """形式 B（Katz 3-param）：log10(W) = a − b/T + c·log10(P)（numpy lstsq）。"""
+    X = np.column_stack([
+        np.ones_like(T_SPOTS),
+        -1.0 / T_SPOTS,
+        np.log10(P_SPOTS),
+    ])
+    y = np.log10(W_SPOTS)
+    coeffs, *_ = np.linalg.lstsq(X, y, rcond=None)
+    a, b, c = coeffs
+    w_pred = 10 ** (a - b / T_SPOTS + c * np.log10(P_SPOTS))
+    max_rel_err = float(np.max(np.abs(w_pred - W_SPOTS) / W_SPOTS))
+    return {"a": float(a), "b": float(b), "c": float(c)}, max_rel_err
+
+
+def fit_form_C_behr_original() -> tuple[dict, float]:
+    """形式 C（Behr 原式非线性）：W = A·P^(-B)·exp(C/T)（scipy curve_fit）。"""
+    def model(p_t, A, B, C):
+        p, t = p_t
+        return A * p ** (-B) * np.exp(C / t)
+    popt, _ = curve_fit(model, (P_SPOTS, T_SPOTS), W_SPOTS, p0=[1e6, 1.0, -5000.0])
+    A, B, C = popt
+    w_pred = model((P_SPOTS, T_SPOTS), *popt)
+    max_rel_err = float(np.max(np.abs(w_pred - W_SPOTS) / W_SPOTS))
+    return {"A": float(A), "B": float(B), "C": float(C)}, max_rel_err
+
+
+# 形式决策
+print("=" * 60)
+print("Behr 系数形式决策 — 比较 3 种候选形式")
+print("=" * 60)
+candidates = []
+for name, fn in [
+    ("A_log10_quadratic", fit_form_A_log10_quadratic),
+    ("B_katz", fit_form_B_katz),
+    ("C_behr_original", fit_form_C_behr_original),
+]:
+    coeffs, max_rel_err = fn()
+    candidates.append((name, coeffs, max_rel_err))
+    print(f"\n形式 {name}: max_rel_err = {max_rel_err:.3%}")
+    for k, v in coeffs.items():
+        print(f"  {k} = {v:.6f}")
+
+# 选 max_rel_err < 5% 的形式
+print("\n" + "=" * 60)
+valid_candidates = [(n, c, e) for n, c, e in candidates if e < 0.05]
+if not valid_candidates:
+    print("⚠️ 3 种形式全 > 5% — HALT T1 + 报架构组")
+    print("考虑工程化近似（分段线性 / 表格插值）— P6-6B 接管")
+    sys.exit(1)
+
+chosen_name, chosen_coeffs, chosen_err = min(valid_candidates, key=lambda x: x[2])
+print(f"选定形式：{chosen_name}, max_rel_err={chosen_err:.3%}")
+print("实际拟合系数：", chosen_coeffs)
+print(f"\nW_actual vs W_pred 残差表：")
 print(f"{'T_F':>5} {'P_psia':>8} {'W_actual':>10} {'W_pred':>10} {'rel_err':>10}")
 for t, p, w_actual in SPOTS:
-    log_w = A0 + A1 * t + A2 * t * t + A3 * np.log10(p)
-    w_pred = 10 ** log_w
+    if chosen_name == "A_log10_quadratic":
+        log_w = chosen_coeffs["A0"] + chosen_coeffs["A1"] * t + chosen_coeffs["A2"] * t ** 2 + chosen_coeffs["A3"] * np.log10(p)
+        w_pred = 10 ** log_w
+    elif chosen_name == "B_katz":
+        log_w = chosen_coeffs["a"] - chosen_coeffs["b"] / t + chosen_coeffs["c"] * np.log10(p)
+        w_pred = 10 ** log_w
+    else:
+        w_pred = chosen_coeffs["A"] * p ** (-chosen_coeffs["B"]) * np.exp(chosen_coeffs["C"] / t)
     rel_err = abs(w_pred - w_actual) / w_actual
-    max_rel_err = max(max_rel_err, rel_err)
     print(f"{t:>5} {p:>8} {w_actual:>10.2f} {w_pred:>10.2f} {rel_err:>10.3%}")
-print(f"\nmax_rel_err = {max_rel_err:.3%}")
-assert max_rel_err < 0.05, f"max_rel_err={max_rel_err:.3%} exceeds 5%; halt T1 — 报架构组复核"
-print("✓ coefficients verified against plan 残差表")
+
+# TODO: T1 implementer 手动复制 chosen_coeffs 到 data/behr_coefficients.json
+# (手动而非自动写文件 — 避免脚本误覆盖 JSON)
+print("\n⚠️ 请手动复制上面 '实际拟合系数' 到 data/behr_coefficients.json 的 log10_coefficients（或 coefficients）段")
 ```
 
 **`_load_behr_coefficients()` 模块级加载（v5 B-2 落实 — 启动期 fail-fast + fallback）**：
@@ -262,7 +368,8 @@ def _calc_behr_water_content_lb_per_mmscf(
     w_baseline = 10 ** log_w
     acid_gas_corrected = (co2_mol_pct > 0) or (h2s_mol_pct > 0)
     if acid_gas_corrected:
-        w_corr = w_baseline * (1.0 + 0.024 * co2_mol_pct + 0.018 * h2s_mol_pct)
+        # v5.1 P-4 落实 — 调 _correct_behr_for_acid_gas 而**不**在此处重复公式
+        w_corr = _correct_behr_for_acid_gas(w_baseline, co2_mol_pct, h2s_mol_pct)
         return (w_corr, True)
     return (w_baseline, False)
 ```
@@ -479,7 +586,16 @@ Worley PR-018 XLS E40=120.76 in @ Q_gas=288 MMscfd / 120°F / 1000 psia / sg≈0
 TEG 99% 是 XLS 标定值。v2/v3 采用 Souders-Brown flooding criteria 直接计算时
 与 XLS E40 严重不符（v3 算 3707 in vs XLS 120.76 in, 30× 偏差）。
 
-## 30× 偏差根因分析（B-1 落实 — 架构组在 plan 阶段完成）
+## 30× 偏差根因分析（B-1 + P-3 落实 — 架构组在 plan 阶段完成 **推测**，**待 P6-6B 工程师验证**）
+
+**⚠️ v5.1 P-3 弱化**: 架构组**数学推导**确认"v3 混淆标准态 vs 实际态"在数学上一致（41.91 ft/s 标准态 → 0.692 ft/s 实际态 = 25% flooding 设计），但**未提供 XLS 用"标准态气速"的工程依据**——为什么 XLS 设计者选择用标准态而非实际态？文献依据待补。
+
+**已知但未验证**:
+- (a) Worley 内部规范是否要求用标准态气速？
+- (b) GPSA §20.4 Fig 20-8 是否以标准态当量为默认表示？
+- (c) TEG 接触塔行业是否普遍采用 20-30% flooding 保守设计？
+
+**架构组数学推导**（**推测**而非断言）:
 
 **根因**: v3 混淆了**标准态** vs **实际态**气速/体积流量。
 
@@ -499,10 +615,15 @@ Souders-Brown flooding velocity（正确算法）:
     实际态气速 = 41.91 × (14.7/1000) × (579.67/519.67) ≈ 0.692 ft/s
     0.692 ft/s << 2.71 ft/s (flooding 设计值)，即 XLS 设计气速只有 flooding 的 25%
 
-这是 TEG 接触塔的标准保守设计（常用 20-30% flooding），完全符合 Souders-Brown 物理。
+这是 TEG 接触塔的标准保守设计（**架构组推测**；常用 20-30% flooding 保守设计 — 待文献验证），可能符合 Souders-Brown 物理。
 
-**结论**: Souders-Brown 与 XLS E40 并不矛盾 —— v3 的错误是混淆标准态 vs 实际态；
-sqrt(Q) 经验式 = Souders-Brown 在固定 (sg, TEG wt%, P, T) 工况下的简化式。
+**结论**: Souders-Brown 与 XLS E40 在数学上不矛盾 —— v3 错误是混淆标准态 vs 实际态；
+sqrt(Q) 经验式 = Souders-Brown 在固定 (sg, TEG wt%, P, T) 工况下的标定简化式。
+
+**OPEN-P6-6A-9.1**：P6-6B 工程师须完成 3 项验证：
+1. 审查 v3 历史 PR 的具体 V_actual_scfs 实现，定位混淆代码行
+2. 找到 Worley / GPSA / 行业规范中"XLS 用标准态气速"的文献依据
+3. 若文献不支持"标准态气速是行业惯用"，需修订 ADR-0045 Rev A 根因分析
 
 ## Decision（v5 修订）
 保留 **Souders-Brown 物理模型**作为 TEG contactor sizing 标准 methodology，
@@ -717,15 +838,16 @@ _H2S_MOL_PCT_MAX: Final[float] = 100.0
 **Steps (v5 — Task 1):**
 
 - [ ] **Step 1**: 读 `glycol_dehydration_service.py` 全文（v2 已读 286 LOC + 7 helper）；确认现有 `calc_glycol_dehydration` 5 段结构
-- [ ] **Step 2** (v5 Day-1 Gate): **plan 阶段给全 4 系数** A0=1.3520/A1=0.00780/A2=0.0000052/A3=-0.9800 + 残差表 max_rel_err=2.30%（架构组 numpy lstsq 输出）；T1 implementer 跑 `calibrate_behr_coefficients.py` 验证残差与 plan 一致；**若 max_rel_err > 5%** → halt T1 后续步骤 + 报架构组 + 等待系数复核（M-2 落实）
-- [ ] **Step 3**: 在 service 末尾追加 `_load_behr_coefficients()` 模块级加载（v5: importlib.resources + fallback + RuntimeError + schema 校验）
-- [ ] **Step 4**: 扩展 `GlycolDehydrationInput` 加 **10 optional** 字段（v5: 现有 7 + `flooding_c_sb` + `co2_mol_pct` + `h2s_mol_pct`）
-- [ ] **Step 5**: 扩展 `GlycolDehydrationResult` 加 **12 optional** 字段（v5: 11 + `acid_gas_corrected`）
-- [ ] **Step 6**: 写 9 helper / dataclass（v5: 现有 7 + `_correct_behr_for_acid_gas` Linear placeholder + `_DewpointResult` frozen dataclass；`_calc_full_column_diameter_in` K 单点标定 + 越界 WARNING；`_calc_behr_water_content` 返回 tuple；`_behr_inverse_dewpoint` 返回 `_DewpointResult`）
-- [ ] **Step 7**: 扩展 `_validate_input` 6 校验（v5: TEG only + lean_glycol + flooding_c_sb + relative_volatility + co2 + h2s）
-- [ ] **Step 8**: 扩展主函数 Step 7（v5: `alpha = inp.relative_volatility` 显式 + `_DewpointResult` 解构 + 删除 7.9 冗余 + 改 `acid_gas_corrected` 纯逻辑判断 + 越界 `[K_UNVERIFIED_OUT_OF_XLS_CONDITIONS]`）
-- [ ] **Step 9**: 修订 `__all__` 不导出 `_calc_*` helper / `_DewpointResult`
-- [ ] **Step 10**: 写 **19 unit tests in `test_glycol_dehydration.py`**（v5 M-4 去重后 — 主测删 8 spot check, 保留 acid gas + inverse + full column 等）：
+- [ ] **Step 2** (**v5.1 Day-0 Gate** — 形式决策 + 拟合, **早于 Day-1 Gate**; v5.1 P-1 落实): T1 implementer 跑 `calibrate_behr_coefficients.py`（v5.1 改写为 3 形式对比脚本）→ 选定 max_rel_err < 5% 的形式（A 4-param log10 二次 / B Katz 3-param / C Behr 原式非线性）→ 手动复制实际拟合系数到 `data/behr_coefficients.json` 的 `log10_coefficients`（或 `coefficients`）段 + 填实际残差表到 `calibration_residual_table`。**若 3 种形式全 > 5%** → halt T1 后续步骤 + 报架构组 + 考虑工程化近似（分段线性 / 表格插值）。Step 2 之前 JSON 的 `log10_coefficients: null` 必须替换为实际数值
+- [ ] **Step 3** (v5.1 Day-1 Gate — 系数验证): 跑 `calibrate_behr_coefficients.py`（v5.1 改写后**也**支持读取 JSON 实际系数 + 验证残差）；脚本应输出实际 max_rel_err；**若与 Step 2 拟合值不一致**（脚本计算漂移 / JSON 被手工改坏）→ halt + 报架构组。若 max_rel_err > 5% → halt + 报架构组（M-2 落实）
+- [ ] **Step 4**: 在 service 末尾追加 `_load_behr_coefficients()` 模块级加载（v5.1: importlib.resources + fallback + RuntimeError + schema 校验；JSON 已含实际系数 from Step 2）
+- [ ] **Step 5**: 扩展 `GlycolDehydrationInput` 加 **10 optional** 字段（v5.1: 现有 7 + `flooding_c_sb` + `co2_mol_pct` + `h2s_mol_pct`）
+- [ ] **Step 6**: 扩展 `GlycolDehydrationResult` 加 **12 optional** 字段（v5.1: 11 + `acid_gas_corrected`）
+- [ ] **Step 7**: 写 9 helper / dataclass（v5.1: 现有 7 + `_correct_behr_for_acid_gas` Linear placeholder + `_DewpointResult` frozen dataclass；`_calc_full_column_diameter_in` K 单点标定 + 越界 WARNING；`_calc_behr_water_content` **调用** `_correct_behr_for_acid_gas`（v5.1 P-4 落实，去重）→ 返回 `(W_corr, acid_gas_corrected)`；`_behr_inverse_dewpoint` 返回 `_DewpointResult`）
+- [ ] **Step 8**: 扩展 `_validate_input` 6 校验（v5.1: TEG only + lean_glycol + flooding_c_sb + relative_volatility + co2 + h2s）
+- [ ] **Step 9**: 扩展主函数 Step 7（v5.1: `alpha = inp.relative_volatility` 显式 + `_DewpointResult` 解构 + 删除 7.9 冗余 + 改 `acid_gas_corrected` 纯逻辑判断 + 越界 `[K_UNVERIFIED_OUT_OF_XLS_CONDITIONS]`）
+- [ ] **Step 10**: 修订 `__all__` 不导出 `_calc_*` helper / `_DewpointResult`
+- [ ] **Step 11**: 写 **19 unit tests in `test_glycol_dehydration.py`**（v5 M-4 去重后 — 主测删 8 spot check, 保留 acid gas + inverse + full column 等）：
   - `test_behr_acid_gas_correction_co2_5pct`
   - `test_behr_acid_gas_correction_h2s_3pct`
   - `test_behr_inverse_dewpoint_xls_pr018_e23_with_extrapolation`（v5 B-3 `_DewpointResult` 解构）
@@ -747,17 +869,17 @@ _H2S_MOL_PCT_MAX: Final[float] = 100.0
   - `test_relative_volatility_out_of_range_422`
   - `test_co2_mol_pct_out_of_range_422`
   - `test_h2s_mol_pct_out_of_range_422`
-  - = **19 tests**（v5 M-4 去重后，从 v4 27 tests 减为 19）
-- [ ] **Step 11**: 写 **`tests/services/psychro/test_behr_load_coefficients.py`**（v5 M-4 集中 8 spot check + load 验证 — 4 tests）：
+  - = **19 tests**（v5.1 M-4 去重后，从 v4 27 tests 减为 19）
+- [ ] **Step 12**: 写 **`tests/services/psychro/test_behr_load_coefficients.py`**（v5.1 M-4 集中 8 spot check + load 验证 — 4 tests）：
   - `test_load_behr_coefficients_success`
   - `test_load_behr_coefficients_fallback_when_missing`
   - `test_load_behr_coefficients_runtime_error_on_schema_invalid`
-  - `test_load_behr_coefficients_8_spot_checks_residual_within_5pct`（v5 集中 8 spot check 残差验证 — max_rel_err=2.30%）
-- [ ] **Step 12**: 跑 `pytest tests/services/psychro/test_glycol_dehydration.py tests/services/psychro/test_behr_load_coefficients.py -q`（14 baseline + 19 + 4 = 37 PASS）
-- [ ] **Step 13**: 跑 `pytest tests/services/psychro/test_worley_c16.py -q` 0 break
-- [ ] **Step 14**: 写 `docs/adr/ADR-0045-teg-contactor-sizing.md`（v5 Rev A — 标准态换算澄清 + K 单点标定 + 撤回条件）
-- [ ] **Step 15**: 修改 `pcs-backend/pyproject.toml` wheel `package_data = {"pcs_backend": ["data/*.json"]}`（v4 JSON 打包）
-- [ ] **Step 16**: Commit: `feat(p6-6a-6): glycol_dehydration v5 — ADR-0045 Rev A 标准态换算澄清 + K=7.1187 单点标定 + Behr plan 阶段给全系数 + _DewpointResult dataclass + Linear placeholder (Ruling 5 closure)`
+  - `test_load_behr_coefficients_8_spot_checks_residual_within_5pct`（v5.1 集中 8 spot check 残差验证 — 残差值由 Day-0 Gate 拟合形式决定；非固定的 max_rel_err=2.30%）
+- [ ] **Step 13**: 跑 `pytest tests/services/psychro/test_glycol_dehydration.py tests/services/psychro/test_behr_load_coefficients.py -q`（14 baseline + 19 + 4 = 37 PASS）
+- [ ] **Step 14**: 跑 `pytest tests/services/psychro/test_worley_c16.py -q` 0 break
+- [ ] **Step 15**: 写 `docs/adr/ADR-0045-teg-contactor-sizing.md`（v5.1 Rev A — 标准态换算澄清 + K 单点标定 + 撤回条件 + 根因推测待 P6-6B 验证）
+- [ ] **Step 16**: 修改 `pcs-backend/pyproject.toml` wheel `package_data = {"pcs_backend": ["data/*.json"]}`（v4 JSON 打包）
+- [ ] **Step 17**: Commit: `feat(p6-6a-6): glycol_dehydration v5.1 — Day-0 Gate 形式决策 + K=7.1187 单点标定 + Behr 实际拟合系数 + _DewpointResult dataclass + Linear placeholder + _calc_behr 调用 _correct (Ruling 5 closure)`
 
 ## Task 2: Worley PR-018 fixture + 10 reconciliation tests（v5 沿用 v4 修订）
 
@@ -993,31 +1115,34 @@ async def calc_glycol_dehydration_endpoint(
 - Modify: `pcs-backend/.wolf/cerebrum.md`（追加 OPEN-P6-6A-6 Key Learning 含 v5 9 守则）
 - Modify: `pcs-backend/.wolf/STATUS.md`（追加 OPEN-P6-6A-6 v5 关闭 entry）
 
-**v5 Key Learning 9 守则**（vs v4 8 守则，新增 30× 根因 + _DewpointResult + Linear placeholder 正名）：
+**v5.1 Key Learning 9 守则**（vs v5 9 守则，**修正** 守则 #3 + #4 因 v5.1 P-1~P-4 落实）：
 
 1. Ruling 1 additive extension — frozen dataclass 现有 7 字段零改动，可追加 optional 字段
 2. Behr 私有化（_ 前缀 + 不入 __all__），归 C-16 glycol dehydration 内部 helper
-3. Behr 系数 = Bukacek (1990) + GPSA Fig 20-2 校准，**plan 阶段给全** 4 系数（A0=1.3520/A1=0.00780/A2=0.0000052/A3=-0.9800）+ 8 spot checks 残差表 max_rel_err=2.30%；系数外置 JSON sidecar，service **模块级启动期加载**（**不** lazy lru_cache）+ **fallback 系数 WARNING 不 crash**（v5 B-2 闭环）
-4. **TEG Contactor Sizing = Souders-Brown 在 XLS PR-018 工况下的标定简化式**（v5 ADR-0045 Rev A）：`D_full = K × sqrt(Q_gas)`，K=7.1187 from Worley PR-018 E40 单点标定；**v5 撤回 v4 物理依据**（"gas-continuous vs liquid-continuous" 与主流文献不符）；30× 差异根因 = v3 混淆标准态↔实际态；helper 接受 `flooding_c_sb` reserved；越界 WARNING `[K_UNVERIFIED_OUT_OF_XLS_CONDITIONS]`（v5 H-2 降级）
+3. **Behr 系数形式决策 Day-0 Gate 必跑**（v5.1 P-1 落实） — T1 Step 0 用 numpy lstsq + curve_fit 比较 3 种候选形式（4-param log10 二次 / Katz 3-param / Behr 原式非线性），**不**预先假设系数；选 max_rel_err < 5% 的形式；JSON `log10_coefficients`（或 `coefficients`）初始 null，由 Day-0 Gate 拟合填入；系数外置 JSON sidecar，service **模块级启动期加载**（**不** lazy lru_cache）+ **fallback 系数 WARNING 不 crash**（v5 B-2 闭环）
+4. **TEG Contactor Sizing = Souders-Brown 在 XLS PR-018 工况下的标定简化式**（v5.1 ADR-0045 Rev A + P-3 弱化）：`D_full = K × sqrt(Q_gas)`，K=7.1187 from Worley PR-018 E40 单点标定；**v5 撤回 v4 物理依据**（"gas-continuous vs liquid-continuous" 与主流文献不符）；30× 差异**架构组推测**根因 = v3 混淆标准态↔实际态（数学上一致，**文献依据待 P6-6B 验证** — OPEN-P6-6A-9.1）；helper 接受 `flooding_c_sb` reserved；越界 WARNING `[K_UNVERIFIED_OUT_OF_XLS_CONDITIONS]`（v5 H-2 降级）
 5. 简式焓平衡 3 项必含 TEG/H2O/ΔH_vap；签名无 unused 参数
 6. adjusted_dewpoint = water_dewpoint - approach（差分法）；**字段 dataclass ↔ response 一一对应**（`dewpoint_unavailable_reason` + `acid_gas_corrected` 入 dataclass）
 7. **alpha = inp.relative_volatility** 显式声明
-8. **v4/v5 三件套**：
+8. **v4/v5/v5.1 三件套**：
    - **Linear acid gas placeholder (NON-Wichert-Aziz)**：`W_corr = W_baseline × (1 + 0.024·CO2 + 0.018·H2S)`；**v5 术语正名**（明确**不是** Wichert-Aziz 公式）；docstring 含真 Wichert-Aziz 非线性形式 reference；标 `[LINEAR_PLACEHOLDER, NON-WICHERT-AZIZ, P6-6B PICKUP]`；酸气输入字段 `co2_mol_pct`/`h2s_mol_pct` ∈ [0, 100]
    - **Behr inverse dewpoint → _DewpointResult frozen dataclass**（v5 B-3）：scipy `brentq` + Newton fallback（analytical derivative dW/dT from log10 form）+ T<60°F Antoine 外推 WARNING；三态显式 FOUND / EXTRAPOLATED / NOT_FOUND（无 tuple 歧义）
    - **JSON 启动期加载三铁律**：importlib.resources + RuntimeError on schema invalid + fallback 系数 WARNING（**不** lazy / **不** 静默）
 9. **v5 新增三铁律**：
    - **30× 差异根因 = 标准态↔实际态换算混淆**（架构组 plan 阶段根因分析完成）；v3 算 flooding velocity 时混淆了 V_actual vs V_std；OPEN-P6-6A-9 后续 quest 记录
-   - **Behr 系数 plan 阶段给全 + Day-1 Gate 验证**（v5 M-2）：calibrate_behr_coefficients.py 跑后必须与 plan 残差表一致；不一致 → halt + 报架构组
+   - **Behr 系数 Day-0 Gate 形式决策 + Day-1 Gate 验证**（v5.1 P-1 落实）：calibrate_behr_coefficients.py 跑 3 形式对比 + 拟合 → 实际系数 + 残差；不一致 → halt + 报架构组
    - **acid_gas_corrected = 纯逻辑判断**（v5 H-3）：`(co2 > 0) or (h2s > 0)`；**不**调 Behr helper 浪费算力
+   - **30× 差异根因 = 架构组数学推测，文献依据待 P6-6B 验证**（v5.1 P-3 弱化）：数学上一致，但 XLS 为何用标准态气速的工程依据待补；OPEN-P6-6A-9.1
+   - **_DewpointResult 字段名统一**（v5.1 P-2 落实）：定义段 + R-13 用 `dewpoint_f`/`extrapolated`/`reason`，**不**用 `found`/`T_f` 旧名
+   - **_calc_behr_water_content 调用 _correct_behr_for_acid_gas**（v5.1 P-4 落实）：去重 acid gas 修正公式；future-proof
 
 **Steps:**
 
-- [ ] **Step 1**: 追加 bug-109 entry（Ruling 5 OUT_OF_SCOPE 闭环）+ bug-110 entry（v2 Behr 系数 6 数量级偏差 + v3 修复）+ bug-111 entry（v4 ADR-0045 + acid gas placeholder + brentq inverse + JSON 启动期加载三铁律）+ **bug-112 entry**（v5 撤回 ADR-0045 v4 物理依据 + 30× 差异根因 = 标准态↔实际态 + plan 阶段给全 Behr 系数 + _DewpointResult dataclass + Linear placeholder 正名）
-- [ ] **Step 2**: cerebrum.md 追加 "## OPEN-P6-6A-6 Key Learning" 段，含 **9 守则**（v5 vs v4 +1）
-- [ ] **Step 3**: STATUS.md 追加 OPEN-P6-6A-6 v5 关闭 entry（含 commit 链 + 验收 + 9 守则 + ADR-0045 Rev A reference + OPEN-P6-6A-9 链接）
+- [ ] **Step 1**: 追加 bug-109 entry（Ruling 5 OUT_OF_SCOPE 闭环）+ bug-110 entry（v2 Behr 系数 6 数量级偏差 + v3 修复）+ bug-111 entry（v4 ADR-0045 + acid gas placeholder + brentq inverse + JSON 启动期加载三铁律）+ bug-112 entry（v5 撤回 ADR-0045 v4 物理依据 + 30× 差异根因 + _DewpointResult dataclass + Linear placeholder 正名）+ **bug-113 entry**（v5.1 P-1~P-4：Behr 系数架构组独立验算失败 + Day-0 Gate 形式决策 + 30× 根因弱化为推测待 P6-6B 验证 + _DewpointResult 字段名统一 + _calc_behr 调用 _correct 去重）
+- [ ] **Step 2**: cerebrum.md 追加 "## OPEN-P6-6A-6 Key Learning" 段，含 **9 守则**（v5.1 修订：#3 Behr 形式决策 / #4 30× 根因弱化推测）
+- [ ] **Step 3**: STATUS.md 追加 OPEN-P6-6A-6 v5.1 关闭 entry（含 commit 链 + 验收 + 9 守则 + ADR-0045 Rev A reference + OPEN-P6-6A-9 链接 + bug-113 root_cause）
 - [ ] **Step 4**: 跑 `git status` 确认 .wolf/* 修改 staged；`git diff --stat`
-- [ ] **Step 5**: Commit: `docs(wolf): OPEN-P6-6A-6 v5 Ruling 5 closure — 12 OUT_OF_SCOPE outputs + ADR-0045 Rev A (bug-109/110/111/112 + cerebrum 9 守则 + OPEN-P6-6A-9 quest link)`
+- [ ] **Step 5**: Commit: `docs(wolf): OPEN-P6-6A-6 v5.1 Ruling 5 closure — 12 OUT_OF_SCOPE outputs + ADR-0045 Rev A + Day-0 Gate 形式决策 (bug-109/110/111/112/113 + cerebrum 9 守则 v5.1 + OPEN-P6-6A-9 quest link)`
 
 ## 任务依赖图
 
@@ -1030,9 +1155,9 @@ T1 (service + 11 字段 + 7 private helper + 系数 JSON) ──┐
 
 **实施顺序**：T1 → (T2 ∥ T3) → T4
 
-**总时长**：T1 3.0 天 + T2 1.0 天 + T3 1.0 天 + T4 0.5 天 = **5.5 工作日**（v5 修订；vs v4 5.0 天，多 +0.5 天于 Day-1 Gate buffer + bug-112 entry + cerebrum 9 守则）
+**总时长**：T1 3.5 天 + T2 1.0 天 + T3 1.0 天 + T4 0.5 天 = **6.0 工作日**（v5.1 修订；vs v5 5.5 天，多 +0.5 天于 **Day-0 Gate 形式决策 + 3 形式拟合 + 实际系数手动填 JSON** + bug-113 entry + cerebrum 9 守则 v5.1）
 
-## 端到端验证矩阵（36 项，v5 修订）
+## 端到端验证矩阵（36 项，v5.1 修订）
 
 | # | 项 | 命令 | 期望 |
 |---|---|---|---|
@@ -1060,7 +1185,7 @@ T1 (service + 11 字段 + 7 private helper + 系数 JSON) ──┐
 | 20 | h2s out of range | `pytest -k h2s_mol_pct_out_of_range_422` | 422 (v4 新增) |
 | 21 | default back-compat | `pytest -k default_back_compat_zero_regression` | 14 baseline 0 break |
 | **T1 service 扩展** ||||
-| 4 | Behr load coefficients 8 spot check | `pytest tests/services/psychro/test_behr_load_coefficients.py -k spot_checks_residual_within_5pct` | 60/80/100/120/140/160°F @ 1000 psia + 120°F @ 500/1500 psia 全 within 5%, max_rel_err=2.30% (v5 M-4: 8 spot check **集中到 `test_behr_load_coefficients.py`**; 主测去重 8 spot check) |
+| 4 | Behr 形式决策 Day-0 Gate + load 8 spot check | `cd pcs-backend && uv run python scripts/dev/calibrate_behr_coefficients.py` → 选形式 → 手动填 JSON → `pytest tests/services/psychro/test_behr_load_coefficients.py -k spot_checks_residual_within_5pct` | 3 形式对比 + 选定 max_rel_err < 5%（**v5.1 P-1 落实**：残差值由 Day-0 Gate 拟合形式决定；非固定 2.30%）；60/80/100/120/140/160°F @ 1000 psia + 120°F @ 500/1500 psia 全 within 5% |
 | 5 | Behr acid gas CO2 | `pytest -k behr_acid_gas_correction_co2_5pct` | W 增加 12% (v5 术语正名 Linear placeholder, NON-Wichert-Aziz) |
 | 6 | Behr acid gas H2S | `pytest -k behr_acid_gas_correction_h2s_3pct` | W 增加 5.4% (v5 同上) |
 | 7 | Behr inverse dewpoint | `pytest -k behr_inverse_dewpoint_xls_pr018_e23` | 18.44°F + extrapolation WARNING + `_DewpointResult.found` (v5 B-3 frozen dataclass 解构) |
@@ -1114,7 +1239,7 @@ T1 (service + 11 字段 + 7 private helper + 系数 JSON) ──┐
 | **R-10** acid gas correction placeholder 误差 | 低 | **v5 H-1 术语正名**（Linear placeholder, NON-Wichert-Aziz）：`W_corr = W_baseline × (1 + 0.024·CO2 + 0.018·H2S)`；与 XLS PR-018 E20=103.91 偏差 ~25%；docstring 含真 Wichert-Aziz 非线性形式 reference；标 `[LINEAR_PLACEHOLDER, NON-WICHERT-AZIZ, P6-6B PICKUP]` |
 | **R-11** (v5 新增) Day-1 Gate halt 后无明确裁决路径 | 中 | T1 Step 2 halt → 报架构组 + commit 链保留 plan 阶段给全系数（4 系数 + 残差表）；不一致原因可定位（标准态换算 / 数据采集错误 / 公式缺陷）；架构组 2 小时内裁决 |
 | **R-12** (v5 新增) Linear placeholder 术语误读为 Wichert-Aziz | 低 | docstring 明示 NON-Wichert-Aziz + cerebrum 9 守则 #8 第一条 + bug-112 root_cause 字段；未来 review 引 Linear placeholder 词而非校正术语 |
-| **R-13** (v5 新增) _DewpointResult 误用 tuple 解构导致歧义 | 低 | frozen dataclass + 字段访问（`dp.found`/`dp.T_f`/`dp.reason`）替代 `result[0]/[1]/[2]`；test #5 `test_behr_inverse_dewpoint_returns_dewpointresult_dataclass` 显式验证类型 |
+| **R-13** (v5.1 修订) _DewpointResult 误用 tuple 解构导致歧义 | 低 | **v5.1 P-2 字段名统一** — frozen dataclass + 字段访问（`dp.dewpoint_f`/`dp.extrapolated`/`dp.reason`）替代 `result[0]/[1]/[2]`；test #5 `test_behr_inverse_dewpoint_returns_dewpointresult_dataclass` 显式验证类型；R-13 之前的 `dp.found`/`dp.T_f` 名称已废弃，统一为定义段的 `dewpoint_f`/`extrapolated`/`reason` |
 
 ## 工时表（v5 修订）
 
@@ -1145,16 +1270,16 @@ T1 (service + 11 字段 + 7 private helper + 系数 JSON) ──┐
 
 ## 计划终止
 
-v5 4 task 全部完成 + 36 项验收全过 + 全栈基线 clean + Ruling 5 OUT_OF_SCOPE 闭环（v5 12 fields：11 OUT_OF_SCOPE + acid_gas_corrected；alpha 显式 + dewpoint_unavailable_reason + acid_gas_corrected 一致性 + TEG Contactor Sizing ADR-0045 Rev A 单点标定 + brentq inverse → _DewpointResult frozen dataclass + Linear placeholder (NON-Wichert-Aziz) 术语正名 + JSON 启动期加载三铁律 + 30× 差异根因记录 + Day-1 Gate 验证）+ OPEN-P6-6A-9 后续 quest 立项（标准态换算多工况标定 + 真 Wichert-Aziz + XLS E20 残留差溯源）。
+v5.1 4 task 全部完成 + 36 项验收全过 + 全栈基线 clean + Ruling 5 OUT_OF_SCOPE 闭环（v5.1 12 fields：11 OUT_OF_SCOPE + acid_gas_corrected；alpha 显式 + dewpoint_unavailable_reason + acid_gas_corrected 一致性 + TEG Contactor Sizing ADR-0045 Rev A 单点标定 **+ 30× 根因弱化为推测** + brentq inverse → _DewpointResult frozen dataclass **字段名统一 dewpoint_f/extrapolated/reason** + Linear placeholder (NON-Wichert-Aziz) 术语正名 + JSON 启动期加载三铁律 + **Day-0 Gate 形式决策 + Day-1 Gate 验证** + **_calc_behr 调用 _correct 去重**）+ OPEN-P6-6A-9 后续 quest 立项（**4 子项** 含 v5.1 P-3 弱化的根因验证）。
 
-## 未解决问题（v5 plan 末尾）
+## 未解决问题（v5.1 plan 末尾）
 
-1. **OPEN-P6-6A-9**（v5 新增 quest）：**30× 差异根因扩展 + K 多工况标定 + 真 Wichert-Aziz + XLS E20 残留差溯源**
-   - **根因 1**：v3 算 Souders-Brown flooding velocity 时混淆 V_actual vs V_std（标准态↔实际态换算）；架构组 plan 阶段 plan 阶段完成根因记录，**具体代码验证**待 P6-6B 工程师审查 v3 历史 PR（OPEN-P6-6A-9.1）
-   - **根因 2**：K=7.1187 from XLS PR-018 E40 **单点标定**（sg=0.6 / 99% TEG / 1000 psia / Q=288 MMscfd）；P6-6B 接管多工况（Q∈[144, 432] MMscfd + sg sweep + TEG wt% sweep）标定 K=f(sg, TEG%, P_total) 多变量函数；当前 K=7.1187 越界 WARNING（OPEN-P6-6A-9.2）
-   - **根因 3**：v5 Linear placeholder `W_corr = W_baseline × (1 + 0.024·CO2 + 0.018·H2S)` 与 XLS PR-018 E20=103.91 偏差 ~25%；P6-6B 工程师接管**真** Wichert-Aziz 非线性形式（v5 docstring 已附参考方程）；OPEN-P6-6A-9.3
-   - **根因 4**：brentq inverse T<60°F Antoine extrapolation；P6-6B 工程师接管 Antoine 系数精确化 + Bukacek 1990 low-temp extension；OPEN-P6-6A-9.4
+1. **OPEN-P6-6A-9**（v5 新增 + v5.1 拆分 4 子项 quest）：
+   - **OPEN-P6-6A-9.1**（v5.1 P-3 升级）：**30× 差异根因完整验证** —— P6-6B 工程师完成 3 项验证：(a) 审查 v3 历史 PR 的 V_actual_scfs 实现，定位混淆代码行；(b) 找到 Worley / GPSA / 行业规范中"XLS 用标准态气速"的文献依据；(c) 若文献不支持"标准态气速是行业惯用"，需修订 ADR-0045 Rev A 根因分析
+   - **OPEN-P6-6A-9.2**：K=7.1187 from XLS PR-018 E40 **单点标定**（sg=0.6 / 99% TEG / 1000 psia / Q=288 MMscfd）；P6-6B 接管多工况（Q∈[144, 432] MMscfd + sg sweep + TEG wt% sweep）标定 K=f(sg, TEG%, P_total) 多变量函数；当前 K=7.1187 越界 WARNING
+   - **OPEN-P6-6A-9.3**（P6-6B 接管）：v5 Linear placeholder `W_corr = W_baseline × (1 + 0.024·CO2 + 0.018·H2S)` 与 XLS PR-018 E20=103.91 偏差 ~25%；接管**真** Wichert-Aziz 非线性形式（v5 docstring 已附参考方程）
+   - **OPEN-P6-6A-9.4**（P6-6B 接管）：brentq inverse T<60°F Antoine extrapolation；P6-6B 工程师接管 Antoine 系数精确化 + Bukacek 1990 low-temp extension
 
-2. **DEG full system 缺口**：GPSA §20.4 仅 TEG 全套公式；DEG partial coverage 暂维持 out_of_scope；v5 helper 全部 TEG-only（`_validate_input` 抛 422）
+2. **DEG full system 缺口**：GPSA §20.4 仅 TEG 全套公式；DEG partial coverage 暂维持 out_of_scope；v5.1 helper 全部 TEG-only（`_validate_input` 抛 422）
 
-3. **OPEN-P6-6A-6 v5 plan 终止条件**：Ruling 5 OUT_OF_SCOPE 12 fields 全部交付（含 alpha 显式 + dewpoint_unavailable_reason + acid_gas_corrected）+ 36 项验收 + ADR-0045 Rev A + 9 守则 + Day-1 Gate；OPEN-P6-6A-9 接管后续 4 个根因扩展
+3. **OPEN-P6-6A-6 v5.1 plan 终止条件**：Ruling 5 OUT_OF_SCOPE 12 fields 全部交付（含 alpha 显式 + dewpoint_unavailable_reason + acid_gas_corrected + 字段名统一）+ 36 项验收 + ADR-0045 Rev A（**根因弱化为推测**）+ 9 守则（v5.1）+ **Day-0 Gate 形式决策 + Day-1 Gate 验证** + _calc_behr 去重调用 _correct；OPEN-P6-6A-9 接管后续 4 个根因扩展
