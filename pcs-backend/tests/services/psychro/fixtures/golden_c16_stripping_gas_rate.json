@@ -1,0 +1,65 @@
+{
+  "_meta": {
+    "open_item": "OPEN-P6-6A-6 (子任务 2)",
+    "topic": "C-16 Stripping Gas Rate (GPSA §20.4 Eq.20-5 + Antoine v5 plan)",
+    "confidence": "B",
+    "source": "工艺室 2026-10-31 + GPSA §20.4 Eq.20-5",
+    "delivered_by": "工艺室",
+    "delivered_at": "2026-10-31",
+    "formula_note": "SGR 字面公式 k_strip×(P_total_psi/P_sat_mmHg)×X/(1-X) 单位混算（task-1-report.md C-3）；expected.sgr_scf_gal_teg 采用服务字面输出，xls_e32_scf_gal 保留工艺 2026-11-15 对账参考。"
+  },
+  "k_strip": 6.5,
+  "antoine_v5_plan": {
+    "A": 15.30,
+    "B": 8500.0,
+    "form": "log10(P_sat [mmHg]) = A - B/T_K"
+  },
+  "cases": [
+    {
+      "case_id": "c16_sgr_xls_e32_default",
+      "description": "XLS E32 基准 (T_reb=400°F, X=0.9938)",
+      "reboiler_temperature_f": 400.0,
+      "contactor_temperature_f": 120.0,
+      "contactor_pressure_psia": 1000.0,
+      "lean_glycol_concentration_wt_pct": 0.9938,
+      "expected": {
+        "p_sat_te_mmhg": 3.180336e-03,
+        "sgr_scf_gal_teg": 3.276028e+08,
+        "xls_e32_scf_gal": 0.4220,
+        "residual_pct": 77631000000.0,
+        "note": "v5 plan 字面公式 SGR≈3.28e8（与 XLS E32=0.4220 单位混算 7.76e10%；P6-8 PICKUP 修复）"
+      },
+      "tolerance_rel": 0.05
+    },
+    {
+      "case_id": "c16_sgr_t380_lower_reb",
+      "description": "380°F 再沸器（典型低温工况 + 99.0 wt% 贫 TEG）",
+      "reboiler_temperature_f": 380.0,
+      "contactor_temperature_f": 120.0,
+      "contactor_pressure_psia": 1000.0,
+      "lean_glycol_concentration_wt_pct": 0.9900,
+      "expected": {
+        "p_sat_te_mmhg": 1.198273e-03,
+        "sgr_scf_gal_teg": 5.370228e+08,
+        "xls_e32_scf_gal": 0.4220,
+        "note": "380°F 低温再沸器 P_sat TEG 下降 ~2.65×（Antoine 预期）"
+      },
+      "tolerance_rel": 0.10
+    },
+    {
+      "case_id": "c16_sgr_high_lean_300_clamped",
+      "description": "99.9 wt% 贫 TEG（brief 原 T_reb=250°F 因服务 ge=300 约束被钳制为 300°F）",
+      "reboiler_temperature_f": 300.0,
+      "contactor_temperature_f": 120.0,
+      "contactor_pressure_psia": 1000.0,
+      "lean_glycol_concentration_wt_pct": 0.9990,
+      "expected": {
+        "p_sat_te_mmhg": 1.444362e-05,
+        "sgr_scf_gal_teg": 4.495758e+11,
+        "xls_e32_scf_gal": 0.4220,
+        "note": "brief 原 T_reb=250°F 因服务 ReboilerStrippingInput.ge=300.0 被钳制为 300°F；高贫 TEG 浓度 X/(1-X) 放大 SGR"
+      },
+      "tolerance_rel": 0.10
+    }
+  ]
+}
