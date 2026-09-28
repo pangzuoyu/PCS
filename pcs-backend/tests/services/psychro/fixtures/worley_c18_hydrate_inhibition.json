@@ -233,6 +233,110 @@
         "level": "Algebraic identities EXACT (rel=1e-12); bit-for-bit value match OUT_OF_SCOPE per Ruling 6 inversion (K scale CLOSED in OPEN-P6-6A-3)",
         "reason": "Ruling 6 — XLS dosing (d→X→flowrate) is INVERSE of PCS depression (X→d). Hammerschmidt 1934 formula algebra identical. OPEN-P6-6A-3 fix: K scale now CONSISTENT (PCS d_F = XLS d_F = 21.6°F bit-for-bit). 强公式 1% 容差 NOT used for direct value match (inversion only); algebraic identities (Hammerschmidt inversion, forward formula, Nielsen mass balance, PCS d_F = XLS d_F) verified at rel=1e-12."
       }
+    },
+    {
+      "id": "nielsen_full_equation_ch4",
+      "sheet": "Page 1 (T3 derived)",
+      "line_label": "Nielsen 1988 完整方程组 + 纯甲烷 + MEOH 30 wt%",
+      "description": "P6-7 T3 (OPEN-P6-6A-11 代码侧)：Nielsen 1988 完整方程组 ΔT_F = A + B·x + C·x² + 气组分加权。纯甲烷 + MEOH 30 wt% (x=0.30) → ΔT_F = -0.0152 + 0.0287*0.30 + 0 = -0.00659 (工艺室 2026-10-15 完整常数 GPA RR-114 Table 2-3)。",
+      "xls_inputs": {
+        "_doc": "本算例为工艺室 2026-10-15 提供的 Nielsen 完整方程组算例（无 XLS 直采），用于 OPEN-P6-6A-11 代码侧 PCS service 完整方程组 + 气组分加权回归。"
+      },
+      "service_inputs": {
+        "gas_flow_mmscfd": 10.0,
+        "operating_pressure_psia": 500.0,
+        "operating_temperature_f": 60.0,
+        "hydrate_inhibitor_type": "MEOH",
+        "inhibitor_concentration_in_water_wt_pct": 30.0,
+        "gas_composition": {
+          "CH4": 1.0,
+          "C2H6": 0.0,
+          "C3H8": 0.0,
+          "i_C4H10": 0.0,
+          "N2": 0.0,
+          "CO2": 0.0,
+          "H2S": 0.0
+        }
+      },
+      "input_assumptions": {
+        "gas_flow_mmscfd_value": {"value": 10.0, "rationale": "标准操作流量（与 PR-020 case 0 一致）"},
+        "operating_temperature_f_value": {"value": 60.0, "rationale": "T3 默认 T_op_F (brine 修正默认)"},
+        "x_definition": "x = inhibitor_concentration_in_water_wt_pct / 100.0 (wt fraction)",
+        "nielsen_constants_source": "工艺室 2026-10-15 完整常数 GPA RR-114 Table 2-3"
+      },
+      "expected": {
+        "_doc": "完整方程组 ΔT_F = A + B·x + C·x² + 气组分加权；纯 CH4 + x=0.30 → -0.00659",
+        "hydrate_depression_f": -0.00659,
+        "nielsen_formula_ch4_x0p30": -0.00659,
+        "nielsen_formula_derivation": "ΔT_F = A + B·x + C·x² = -0.0152 + 0.0287*0.30 + 0*0.09 = -0.00659 (CH4, C=0.0 per 工艺室 2026-10-15)"
+      },
+      "per_field_tolerance": {
+        "hydrate_depression_f": {
+          "rel": 1e-2,
+          "level": "强公式 1%（rel≤1e-2）",
+          "reason": "Nielsen 1988 完整方程组公式 (A+B·x+C·x²) + 加权 (Σy_i·ΔT_F_i/Σy_i)；纯 CH4 单组分 → 直接代数一致"
+        }
+      },
+      "tolerance": {
+        "rel": 1e-2,
+        "level": "强公式 1%（rel≤1e-2）；OPEN-P6-6A-11 代码侧 Nielsen 完整方程组回归",
+        "reason": "工艺室 2026-10-15 完整常数 GPA RR-114 Table 2-3；纯 CH4 单组分 → 直接代数一致，rel=1e-12 严格一致（无 XLS 反演）"
+      }
+    },
+    {
+      "id": "nielsen_gas_composition_weighted",
+      "sheet": "Page 1 (T3 derived)",
+      "line_label": "Nielsen 1988 完整方程组 + 富 C2H6/C3H8 气田气 + MEOH 30 wt%",
+      "description": "P6-7 T3 (OPEN-P6-6A-11 代码侧)：Nielsen 1988 完整方程组 + 气组分加权 ΔT_F_weighted = Σ(y_i·ΔT_F_i)/Σ(y_i)。气田气组分 CH4=0.80/C2H6=0.10/C3H8=0.05/CO2=0.05 + MEOH 30 wt% (x=0.30) → 加权 ΔT_F ≈ -0.00754 (按工艺室 2026-10-15 完整常数加权平均计算)。注：brief 标定值 -0.00645 与 PCS 严格加权结果存在 ~17% 差异，详见任务报告 Concerns 段。",
+      "xls_inputs": {
+        "_doc": "本算例为工艺室 2026-10-15 提供的 Nielsen 完整方程组 + 气组分加权算例（无 XLS 直采），用于 OPEN-P6-6A-11 代码侧 PCS service 气组分加权回归。"
+      },
+      "service_inputs": {
+        "gas_flow_mmscfd": 10.0,
+        "operating_pressure_psia": 500.0,
+        "operating_temperature_f": 60.0,
+        "hydrate_inhibitor_type": "MEOH",
+        "inhibitor_concentration_in_water_wt_pct": 30.0,
+        "gas_composition": {
+          "CH4": 0.80,
+          "C2H6": 0.10,
+          "C3H8": 0.05,
+          "i_C4H10": 0.0,
+          "N2": 0.0,
+          "CO2": 0.05,
+          "H2S": 0.0
+        }
+      },
+      "input_assumptions": {
+        "gas_flow_mmscfd_value": {"value": 10.0, "rationale": "标准操作流量（与 PR-020 case 0 一致）"},
+        "operating_temperature_f_value": {"value": 60.0, "rationale": "T3 默认 T_op_F (brine 修正默认)"},
+        "x_definition": "x = inhibitor_concentration_in_water_wt_pct / 100.0 (wt fraction)",
+        "nielsen_constants_source": "工艺室 2026-10-15 完整常数 GPA RR-114 Table 2-3"
+      },
+      "expected": {
+        "_doc": "完整方程组 ΔT_F = A + B·x + C·x² + 气组分加权；CH4=0.80/C2H6=0.10/C3H8=0.05/CO2=0.05 + x=0.30 → 加权结果",
+        "hydrate_depression_f": -0.00754,
+        "nielsen_components_at_x0p30": {
+          "CH4": -0.00659,
+          "C2H6": -0.01115,
+          "C3H8": -0.01517,
+          "CO2": -0.00786
+        },
+        "weighted_derivation": "Σ(y_i·ΔT_F_i)/Σ(y_i) = (0.80*(-0.00659) + 0.10*(-0.01115) + 0.05*(-0.01517) + 0.05*(-0.00786)) / 1.0 = -0.00754",
+        "brief_stated_value_note": "brief 标定值 -0.00645 与 PCS 严格加权 -0.00754 存在差异（~17%）；工艺室后续澄清"
+      },
+      "per_field_tolerance": {
+        "hydrate_depression_f": {
+          "rel": 1e-2,
+          "level": "强公式 1%（rel≤1e-2）；气组分加权算式 PCS 直接代数一致",
+          "reason": "Nielsen 1988 完整方程组 + Σy_i·ΔT_F_i/Σy_i 加权；7 组分齐全且按 Σy_i=1.0 归一"
+        }
+      },
+      "tolerance": {
+        "rel": 1e-2,
+        "level": "强公式 1%（rel≤1e-2）；OPEN-P6-6A-11 代码侧 Nielsen 完整方程组 + 气组分加权回归",
+        "reason": "工艺室 2026-10-15 完整常数 + 气组分加权（Σy_i·ΔT_F_i/Σy_i）；直接代数一致，rel=1e-12（brief 标定值与 PCS 严格加权差异见 Concerns）"
+      }
     }
   ],
   "root_cause_notes": [

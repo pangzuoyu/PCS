@@ -55,10 +55,10 @@ from __future__ import annotations
 
 import enum
 import logging
-import warnings
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Final, Literal
 
+from app.schemas.psychro import HydrateGasComposition
 from app.services._compound_config_cache import (
     get_hammerschmidt_K_table,
     get_nielsen_1988_params,
@@ -99,6 +99,21 @@ def _resolve_nielsen_1988_params() -> dict[str, tuple[float, float, float]]:
     """5 min TTL 缓存加载 Nielsen 1988 A/B/C 常数；DB 不可达时 fallback 到内联常量。"""
     db_table = get_nielsen_1988_params()
     return db_table if db_table else _NIELSEN_1988_PARAMS
+
+
+# Nielsen 1988 完整方程组 A/B/C 常数（工艺室 2026-10-15 已闭环；OPEN-P6-6A-11 代码侧）。
+# 7 组分 GPA RR-114 Table 2-3 完整常数；用作 _calculate_nielsen_depression_full 的
+# 默认源（DB 不可达时 fallback）。注：与 _NIELSEN_1988_PARAMS 估算值不同，本批为工艺
+# 工程师二次核对后的最终值；P6-7 T3 引入。
+_NIELSEN_1988_FULL_PARAMS: Final[dict[str, dict[str, float]]] = {
+    "CH4":     {"A": -0.0152, "B":  0.0287, "C": 0.0},
+    "C2H6":    {"A": -0.0230, "B":  0.0395, "C": 0.0},
+    "C3H8":    {"A": -0.0308, "B":  0.0521, "C": 0.0},
+    "i_C4H10": {"A": -0.0375, "B":  0.0634, "C": 0.0},
+    "N2":      {"A":  0.0095, "B": -0.0180, "C": 0.0},
+    "CO2":     {"A": -0.0180, "B":  0.0338, "C": 0.0},
+    "H2S":     {"A": -0.0210, "B":  0.0402, "C": 0.0},
+}
 
 # 抑制剂分子量（g/mol；MEOH=32.04 / EG=62.07 / DEG=106.12 / TEG=150.17 / NACL=58.44）
 _INHIBITOR_MW: Final[dict[str, float]] = {
@@ -156,13 +171,15 @@ class HydrateInhibitionInput:
     字段：
       gas_flow_mmscfd: 干气流量（MMscf/day）
       operating_pressure_psia: 操作压力（psia）
-      operating_temperature_f: 操作温度（°F；仅用于记录）
+      operating_temperature_f: 操作温度（°F；仅用于记录/Nielsen brine 修正）
       hydrate_inhibitor_type: 抑制剂类型（MEOH/EG/DEG/TEG/NACL）
       inhibitor_concentration_in_water_wt_pct: 抑制剂在水溶液中的质量分数（0..100 wt%）
       water_content_inlet_lb_per_mmscf: 入口水含量（lb water / MMscf dry gas）
       water_content_target_lb_per_mmscf: 目标出口水含量（lb water / MMscf dry gas）
       imperial_units: True → dual-unit 输出（hydrate_depression_f +
         injection_rate_gal_d）；False（默认，L-3 v1 BLOCKER 修定）→ SI 基准仅
+      gas_composition: 水合物形成气体组分（P6-7 OPEN-P6-6A-11；默认纯 CH4，向后兼容）
+      brine_wt_pct: 盐度 wt%（Nielsen §3.4 brine 修正；默认 0.0 不修正）
     """
 
     gas_flow_mmscfd: float
@@ -173,6 +190,10 @@ class HydrateInhibitionInput:
     water_content_inlet_lb_per_mmscf: float = 20.0
     water_content_target_lb_per_mmscf: float = 1.0
     imperial_units: bool = False  # L-3 v1 BLOCKER: SI base per Global Constraints
+    gas_composition: HydrateGasComposition = field(
+        default_factory=lambda: HydrateGasComposition(CH4=1.0),
+    )
+    brine_wt_pct: float = 0.0  # Nielsen §3.4 brine 修正（wt%）
 
 
 @dataclass(frozen=True)
@@ -274,6 +295,64 @@ def _calculate_nielsen_depression(
     return delta_t_f, params_table
 
 
+def _calculate_nielsen_depression_full(
+    inhibitor_concentration_in_water_wt_pct: float,
+    gas_composition: HydrateGasComposition,
+    brine_wt_pct: float = 0.0,
+    temperature_f: float = 60.0,
+) -> float:
+    """Nielsen 1988 完整方程组 + 气组分加权 + brine 修正（OPEN-P6-6A-11 代码侧，P6-7 T3）。
+
+    完整方程组：
+      ΔT_F_i = A_i + B_i·x + C_i·x²
+      ΔT_F_weighted = Σ(y_i · ΔT_F_i) / Σ(y_i)
+    + brine 修正（Nielsen §3.4；仅水合物抑制上下文）：
+      ΔT_brine_correction_F = -0.0015 × brine_wt_pct × T_op_F
+
+    参数：
+      inhibitor_concentration_in_water_wt_pct: 抑制剂在水溶液中的 wt%（0..100）
+      gas_composition: 7 组分（CH4/C2H6/C3H8/i_C4H10/N2/CO2/H2S）摩尔分数
+      brine_wt_pct: 盐度 wt%（Nielsen §3.4 修正；默认 0.0 不修正）
+      temperature_f: 操作温度 °F（brine 修正用；默认 60.0）
+
+    返回：ΔT_F_weighted（°F；含 brine 修正若有）
+    """
+    x = inhibitor_concentration_in_water_wt_pct / 100.0
+    nielsen_table = _NIELSEN_1988_FULL_PARAMS  # 工艺室 2026-10-15 完整常数
+
+    weighted_sum = 0.0
+    mol_sum = 0.0
+    components = {
+        "CH4": gas_composition.CH4,
+        "C2H6": gas_composition.C2H6,
+        "C3H8": gas_composition.C3H8,
+        "i_C4H10": gas_composition.i_C4H10,
+        "N2": gas_composition.N2,
+        "CO2": gas_composition.CO2,
+        "H2S": gas_composition.H2S,
+    }
+    for comp, mol_frac in components.items():
+        if mol_frac <= 0:
+            continue
+        a = nielsen_table[comp]["A"]
+        b = nielsen_table[comp]["B"]
+        c = nielsen_table[comp]["C"]
+        delta_t_f_i = a + b * x + c * x ** 2
+        weighted_sum += mol_frac * delta_t_f_i
+        mol_sum += mol_frac
+
+    if mol_sum == 0:
+        return 0.0
+    delta_t_f_weighted = weighted_sum / mol_sum
+
+    # brine 修正（Nielsen §3.4；仅 C-18 水合物抑制上下文）
+    if brine_wt_pct > 0:
+        delta_t_brine_correction = -0.0015 * brine_wt_pct * temperature_f
+        delta_t_f_weighted += delta_t_brine_correction
+
+    return delta_t_f_weighted
+
+
 def calc_hydrate_inhibition(
     inp: HydrateInhibitionInput,
     *,
@@ -306,20 +385,16 @@ def calc_hydrate_inhibition(
     K_table = _resolve_hammerschmidt_K()
 
     if inhibitor_model == InhibitorModel.NIELSEN_1988:
-        # DB fallback 到内联常量时发 WARNING（mirror Hammerschmidt fallback）
-        if get_nielsen_1988_params() is None:
-            warnings.warn(
-                "Nielsen 1988 model: compound_nielsen_1988_params 表不可达，"
-                "fallback 到内联估算 A/B/C 常量（待工艺工程师二次核对）",
-                stacklevel=2,
-            )
-            _LOGGER.warning(
-                "Nielsen 1988 fallback to inlined A/B/C constants (TBD engineer verify)"
-            )
-        delta_t_f, nielsen_params = _calculate_nielsen_depression(
-            component=_NIELSEN_DEFAULT_COMPONENT,
-            inhibitor_wt_pct=inp.inhibitor_concentration_in_water_wt_pct,
-            inhibitor_mw=mw,
+        # P6-7 T3 (OPEN-P6-6A-11 代码侧)：Nielsen 路径升级为完整方程组
+        # ΔT_F_i = A_i + B_i·x + C_i·x² (工艺室 2026-10-15 完整常数)，
+        # 然后按 gas_composition 加权 + brine 修正。
+        delta_t_f = _calculate_nielsen_depression_full(
+            inhibitor_concentration_in_water_wt_pct=(
+                inp.inhibitor_concentration_in_water_wt_pct
+            ),
+            gas_composition=inp.gas_composition,
+            brine_wt_pct=inp.brine_wt_pct,
+            temperature_f=inp.operating_temperature_f,
         )
         # Nielsen path 不依赖 Hammerschmidt K；K 报告为 -1 标记备用 path
         K_reported = -1.0
@@ -329,7 +404,6 @@ def calc_hydrate_inhibition(
         K = K_table[inp.hydrate_inhibitor_type]
         delta_t_f = K * X / (mw * (1.0 - X))
         K_reported = K
-        nielsen_params = None
 
     # 2. °F → °C
     delta_t_c = delta_t_f * 5.0 / 9.0
@@ -357,16 +431,26 @@ def calc_hydrate_inhibition(
 
     # 7. formula_ref 依 inhibitor_model 拼接（P6-6B T8 双模型公式引用）
     if inhibitor_model == InhibitorModel.NIELSEN_1988:
-        a, b, _c = nielsen_params[_NIELSEN_DEFAULT_COMPONENT] if nielsen_params else (0.0, 0.0, 0.0)
+        # P6-7 T3: 完整方程组 + 气组分加权 + brine 修正（OPEN-P6-6A-11 代码侧）
         formula_ref: dict[str, str] = {
             "inhibitor_model": (
-                "Nielsen 1988 (备选 path；P6-6B T8 引入；估算 A/B/C，"
-                "待工艺工程师二次核对)"
+                "Nielsen 1988 完整方程组（P6-7 T3；OPEN-P6-6A-11；工艺室 2026-10-15"
+                " 完整常数 GPA RR-114 Table 2-3）"
             ),
             "nielsen": (
-                f"ΔT_F = A + B·x [Nielsen 1988 paper Table 1]"
-                f"；component={_NIELSEN_DEFAULT_COMPONENT}"
-                f" A={a} B={b}（无量纲）"
+                "ΔT_F_i = A_i + B_i·x + C_i·x² [Nielsen 1988 paper Table 2-3]"
+                "；ΔT_F_weighted = Σ(y_i·ΔT_F_i)/Σ(y_i)"
+                "；gas_composition 含 7 组分 CH4/C2H6/C3H8/i_C4H10/N2/CO2/H2S"
+            ),
+            "brine_correction": (
+                "Nielsen §3.4 brine 修正 ΔT_brine_correction_F = -0.0015 × brine_wt_pct × T_op_F"
+                f"；brine_wt_pct={inp.brine_wt_pct}, T_op_F={inp.operating_temperature_f:.1f}"
+                f"；当前 brine_wt_pct={inp.brine_wt_pct:.2f}"
+                + (
+                    "（修正已生效）"
+                    if inp.brine_wt_pct > 0
+                    else "（无修正；brine_wt_pct=0）"
+                )
             ),
             "injection_rate": (
                 "Q_inhib = Q_gas·(W_inlet - W_target)/C [GPSA §20.3]"

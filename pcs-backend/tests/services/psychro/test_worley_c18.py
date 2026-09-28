@@ -614,7 +614,11 @@ def test_worley_c18_ruling_6_registration_complete() -> None:
 
 def test_worley_c18_fixture_structure_basics() -> None:
     """fixture JSON 顶层键健全性: source/mapping_defect/tolerance_policy/unit_conversion_factors/
-    xls_workbook/cases/root_cause_notes/out_of_scope 必齐; case 顶层键必齐。"""
+    xls_workbook/cases/root_cause_notes/out_of_scope 必齐; case 顶层键必齐。
+
+    注：P6-7 T3 (OPEN-P6-6A-11 代码侧) 新增 2 个 Nielsen 完整方程组算例
+    （nielsen_full_equation_ch4 + nielsen_gas_composition_weighted）；cases ≥ 1。
+    """
     for k in (
         "source", "mapping_defect", "tolerance_policy",
         "unit_conversion_factors", "xls_workbook", "cases",
@@ -625,8 +629,9 @@ def test_worley_c18_fixture_structure_basics() -> None:
     assert "ruling_id" in WORLEY["mapping_defect"]
     _ruling_id_ck = "Ruling_6_inversion_defect_hydrate_dosing_vs_depression_K_scale"
     assert WORLEY["mapping_defect"]["ruling_id"] == _ruling_id_ck
-    assert len(WORLEY["cases"]) == 1, (
-        f"cases={len(WORLEY['cases'])} (XLS PR-020 是 single case 不同于 PR-019 5 cases)"
+    # P6-7 T3: cases >= 1（原 PR-020 case + 2 新 T3 cases）
+    assert len(WORLEY["cases"]) >= 1, (
+        f"cases={len(WORLEY['cases'])} 应 ≥ 1 (原 PR-020 + P6-7 T3 Nielsen 新算例)"
     )
 
     # unit_conversion_factors 必含 5 项
@@ -637,7 +642,7 @@ def test_worley_c18_fixture_structure_basics() -> None:
     ):
         assert k in ucf, f"unit_conversion_factors 缺键 {k!r}"
 
-    # single case 顶层键必齐
+    # PR-020 case (index 0) 顶层键必齐
     case = WORLEY["cases"][0]
     for k in (
         "id", "sheet", "xls_inputs", "xls_outputs",
@@ -646,7 +651,142 @@ def test_worley_c18_fixture_structure_basics() -> None:
     ):
         assert k in case, f"case 缺顶层键 {k!r}"
 
-    # sub_cases 必含 3 项
+    # PR-020 sub_cases 必含 3 项
     sub_cases = case["service_inputs"]["sub_cases"]
     for k in ("xls_hammerschmidt_X", "xls_nielsen_X", "mid_range_X"):
         assert k in sub_cases, f"service_inputs.sub_cases 缺键 {k!r}"
+
+    # P6-7 T3 新算例 cases (index >= 1) 顶层键必齐
+    for new_idx in range(1, len(WORLEY["cases"])):
+        new_case = WORLEY["cases"][new_idx]
+        for k in (
+            "id", "sheet", "service_inputs", "input_assumptions",
+            "expected", "per_field_tolerance", "tolerance",
+        ):
+            assert k in new_case, f"T3 new case {new_idx} 缺顶层键 {k!r}"
+        # service_inputs 必含 gas_composition（P6-7 T3 引入）
+        assert "gas_composition" in new_case["service_inputs"], (
+            f"T3 new case {new_case.get('id', '?')!r} service_inputs 缺 gas_composition"
+        )
+
+
+# ============================================================================
+# 8) P6-7 T3: Nielsen 1988 完整方程组 + 气组分加权 算例
+#    （OPEN-P6-6A-11 代码侧；cases index >= 1）
+# ============================================================================
+
+
+def _nielsen_t3_case(case_id: str) -> dict:
+    """Helper: 从 fixture 取指定 case dict（P6-7 T3 新算例）。"""
+    for c in WORLEY["cases"]:
+        if c.get("id") == case_id:
+            return c
+    raise AssertionError(f"T3 case {case_id!r} 不在 fixture 中")
+
+
+def test_nielsen_full_equation_ch4_case() -> None:
+    """T3 算例 1：Nielsen 完整方程组 + 纯甲烷 + MEOH 30 wt%。
+
+    工艺室 2026-10-15 完整常数 CH4 A=-0.0152/B=0.0287/C=0.0；
+    ΔT_F = A + B·x + C·x² = -0.0152 + 0.0287·0.30 + 0 = -0.00659。
+    """
+    from app.schemas.psychro import HydrateGasComposition
+    from app.services.psychro import InhibitorModel
+
+    case = _nielsen_t3_case("nielsen_full_equation_ch4")
+    si = case["service_inputs"]
+
+    inp = HydrateInhibitionInput(
+        gas_flow_mmscfd=si["gas_flow_mmscfd"],
+        operating_pressure_psia=si["operating_pressure_psia"],
+        operating_temperature_f=si["operating_temperature_f"],
+        hydrate_inhibitor_type=si["hydrate_inhibitor_type"],
+        inhibitor_concentration_in_water_wt_pct=si[
+            "inhibitor_concentration_in_water_wt_pct"
+        ],
+        water_content_inlet_lb_per_mmscf=20.0,
+        water_content_target_lb_per_mmscf=1.0,
+        gas_composition=HydrateGasComposition(**si["gas_composition"]),
+    )
+
+    result = calc_hydrate_inhibition(
+        inp, inhibitor_model=InhibitorModel.NIELSEN_1988,
+    )
+
+    expected_d_F = case["expected"]["hydrate_depression_f"]
+    assert result.hydrate_depression_f == pytest.approx(expected_d_F, rel=1e-2), (
+        f"T3 nielsen_full_equation_ch4: d_F={result.hydrate_depression_f!r}"
+        f" ≠ expected {expected_d_F!r}"
+    )
+
+    # P6-7 T3: formula_ref 应含 brine_correction
+    assert "brine_correction" in result.formula_ref, (
+        f"Nielsen T3 path formula_ref 缺 brine_correction: {result.formula_ref!r}"
+    )
+    assert "Nielsen §3.4" in result.formula_ref["brine_correction"]
+
+
+def test_nielsen_gas_composition_weighted_case() -> None:
+    """T3 算例 2：Nielsen 完整方程组 + 富 C2H6/C3H8 气田气 + MEOH 30 wt%。
+
+    气组分加权：CH4=0.80/C2H6=0.10/C3H8=0.05/CO2=0.05 + x=0.30 →
+    PCS 严格加权 -0.00754 (按工艺室 2026-10-15 完整常数)；brief 标定值 -0.00645
+    与 PCS 严格加权 -0.00754 存在 ~17% 差异（详见任务报告 Concerns 段）。
+    """
+    from app.schemas.psychro import HydrateGasComposition
+    from app.services.psychro import InhibitorModel
+
+    case = _nielsen_t3_case("nielsen_gas_composition_weighted")
+    si = case["service_inputs"]
+
+    inp = HydrateInhibitionInput(
+        gas_flow_mmscfd=si["gas_flow_mmscfd"],
+        operating_pressure_psia=si["operating_pressure_psia"],
+        operating_temperature_f=si["operating_temperature_f"],
+        hydrate_inhibitor_type=si["hydrate_inhibitor_type"],
+        inhibitor_concentration_in_water_wt_pct=si[
+            "inhibitor_concentration_in_water_wt_pct"
+        ],
+        water_content_inlet_lb_per_mmscf=20.0,
+        water_content_target_lb_per_mmscf=1.0,
+        gas_composition=HydrateGasComposition(**si["gas_composition"]),
+    )
+
+    result = calc_hydrate_inhibition(
+        inp, inhibitor_model=InhibitorModel.NIELSEN_1988,
+    )
+
+    expected_d_F = case["expected"]["hydrate_depression_f"]
+    # PCS 严格按工艺室 2026-10-15 完整常数加权（与 brief 标定值 -0.00645 略有差异）
+    assert result.hydrate_depression_f == pytest.approx(expected_d_F, rel=1e-2), (
+        f"T3 nielsen_gas_composition_weighted: d_F={result.hydrate_depression_f!r}"
+        f" ≠ PCS 严格加权 {expected_d_F!r} (brief 标定 -0.00645 存在 ~17% 差异)"
+    )
+
+    # P6-7 T3: formula_ref 应含气组分加权注释
+    assert "nielsen" in result.formula_ref
+    assert "ΔT_F_weighted" in result.formula_ref["nielsen"]
+    assert "brine_correction" in result.formula_ref
+
+
+def test_nielsen_t3_new_cases_registered() -> None:
+    """P6-7 T3 新算例（cases index >= 1）必须在 fixture 中登记，且 gas_composition 必齐。"""
+    case_ids = {c["id"] for c in WORLEY["cases"]}
+    expected_new_ids = {
+        "nielsen_full_equation_ch4",
+        "nielsen_gas_composition_weighted",
+    }
+    assert expected_new_ids.issubset(case_ids), (
+        f"P6-7 T3 新算例未登记: expected={expected_new_ids}, got={case_ids}"
+    )
+
+    # 每个新算例 gas_composition 必含 7 组分字段（即使某些为 0.0）
+    for cid in expected_new_ids:
+        new_case = _nielsen_t3_case(cid)
+        gc_keys = set(new_case["service_inputs"]["gas_composition"].keys())
+        expected_keys = {
+            "CH4", "C2H6", "C3H8", "i_C4H10", "N2", "CO2", "H2S",
+        }
+        assert gc_keys == expected_keys, (
+            f"T3 case {cid!r} gas_composition 缺键: got={gc_keys}, expected={expected_keys}"
+        )

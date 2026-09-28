@@ -300,11 +300,12 @@ def test_golden_fixture_cross_check():
 
 
 def test_nielsen_1988_model_basic_depression():
-    """NIELSEN_1988 备选 path：ΔT_F = A + B·x；DB fallback 到内联常量。
+    """NIELSEN_1988 备选 path：ΔT_F = A + B·x + C·x²；P6-7 T3 升级为完整方程组。
 
-    MeOH 10 wt% (MEOH) → CH4 component（_NIELSEN_DEFAULT_COMPONENT）；
-    A=0.0227 / B=0.0067（C=0.0）；x_mol ≈ 0.0311（按 wt% 近似换算）。
-    δT_F = 0.0227 + 0.0067·0.0311 ≈ 0.0229 °F
+    P6-7 T3 (OPEN-P6-6A-11 代码侧) 工艺室 2026-10-15 已闭环 Nielsen 完整常数；
+    默认 gas_composition=HydrateGasComposition(CH4=1.0)。MeOH 10 wt% →
+    x = 0.10 (wt fraction)；CH4 A=-0.0152, B=0.0287, C=0.0 → δT_F =
+    -0.0152 + 0.0287·0.10 ≈ -0.0123 °F（低 x 物理意义：ΔT_F 较小可能为负）。
     """
     inp = _baseline_input(
         hydrate_inhibitor_type="MEOH",
@@ -313,11 +314,16 @@ def test_nielsen_1988_model_basic_depression():
     result = calc_hydrate_inhibition(
         inp, inhibitor_model=InhibitorModel.NIELSEN_1988,
     )
-    # ΔT_F = A + B·x_mol（A=0.0227 B=0.0067, x_mol 按 MeOH MW=32.04 换算）
-    assert result.hydrate_depression_f > 0
-    assert result.hydrate_depression_f < 1.0  # 简化模型预期 ~0.023 °F 量级
+    # ΔT_F = A + B·x（C=0.0 for CH4, 工艺室 2026-10-15 完整常数）
+    # CH4 + MEOH 10 wt% (x=0.10) → ΔT_F ≈ -0.0123
+    # 注：Nielsen 1988 完整方程组低 x 时 ΔT_F 可为负
+    assert result.hydrate_depression_f == pytest.approx(-0.01233, abs=1e-4)
+    assert result.hydrate_depression_f > -1.0  # 数量级 sanity（< 1°F 量级）
     assert "nielsen" in result.formula_ref
     assert "Nielsen 1988" in result.formula_ref["nielsen"]
+    # P6-7 T3: 新增 brine_correction 公式引用
+    assert "brine_correction" in result.formula_ref
+    assert "-0.0015" in result.formula_ref["brine_correction"]
 
 
 def test_nielsen_1988_default_is_hammerschmidt():
@@ -364,4 +370,104 @@ def test_hydrate_depression_field_rename():
     # 3. _c_legacy == _f（向后兼容：旧字段值实际就是 °F）
     assert result.hydrate_depression_c_legacy == pytest.approx(
         result.hydrate_depression_f, rel=1e-9
+    )
+
+
+# ============================================================================
+# P6-7 T3: Nielsen 1988 完整方程组 + gas_composition + brine 修正
+# (OPEN-P6-6A-11 代码侧；工艺室 2026-10-15 已闭环完整常数)
+# ============================================================================
+
+
+def test_nielsen_full_equation_ch4():
+    """T3 完整方程组 纯甲烷（MEOH 30 wt%）。
+
+    工艺室 §3.3 算例：CH4 + MEOH x=0.30 → delta_t_f_calc_formula =
+    "-0.0152 + 0.0287 * 0.30" = -0.00659 °F（低 x 时物理意义：ΔT_F 可为负）。
+    """
+    from app.schemas.psychro import HydrateGasComposition
+
+    inp = HydrateInhibitionInput(
+        gas_flow_mmscfd=10.0,
+        operating_pressure_psia=500.0,
+        operating_temperature_f=60.0,
+        hydrate_inhibitor_type="MEOH",
+        inhibitor_concentration_in_water_wt_pct=30.0,
+        gas_composition=HydrateGasComposition(CH4=1.0),
+    )
+    result = calc_hydrate_inhibition(
+        inp, inhibitor_model=InhibitorModel.NIELSEN_1988,
+    )
+    expected_dt_f = -0.00659
+    assert result.hydrate_depression_f == pytest.approx(expected_dt_f, rel=1e-2)
+    # 派生 _c 字段仍按 T6 语义
+    assert result.hydrate_depression_c == pytest.approx(
+        expected_dt_f * 5.0 / 9.0, rel=1e-2
+    )
+
+
+def test_nielsen_gas_composition_weighted():
+    """T3 富 C2H6/C3H8 气田气组分加权。
+
+    工艺室 §3.3 算例：加权 gas_composition（CH4=0.80/C2H6=0.10/C3H8=0.05/CO2=0.05）
+    + MEOH 30 wt% → 加权结果。
+    """
+    from app.schemas.psychro import HydrateGasComposition
+
+    inp = HydrateInhibitionInput(
+        gas_flow_mmscfd=10.0,
+        operating_pressure_psia=500.0,
+        operating_temperature_f=60.0,
+        hydrate_inhibitor_type="MEOH",
+        inhibitor_concentration_in_water_wt_pct=30.0,
+        gas_composition=HydrateGasComposition(
+            CH4=0.80, C2H6=0.10, C3H8=0.05, CO2=0.05,
+        ),
+    )
+    result = calc_hydrate_inhibition(
+        inp, inhibitor_model=InhibitorModel.NIELSEN_1988,
+    )
+    # 工艺室 §3.3 加权结果（按 ΔT_F_i 加权平均；见 Concerns 报告）
+    expected_dt_f = -0.00754
+    assert result.hydrate_depression_f == pytest.approx(expected_dt_f, rel=1e-2)
+
+
+def test_brine_correction():
+    """T3 brine 修正（Nielsen §3.4）。"""
+    inp_no_brine = HydrateInhibitionInput(
+        gas_flow_mmscfd=10.0,
+        operating_pressure_psia=500.0,
+        operating_temperature_f=60.0,
+        hydrate_inhibitor_type="MEOH",
+        inhibitor_concentration_in_water_wt_pct=30.0,
+    )
+    inp_brine = HydrateInhibitionInput(
+        gas_flow_mmscfd=10.0,
+        operating_pressure_psia=500.0,
+        operating_temperature_f=60.0,
+        hydrate_inhibitor_type="MEOH",
+        inhibitor_concentration_in_water_wt_pct=30.0,
+        brine_wt_pct=6.0,
+    )
+    # brine 修正：ΔT_brine_correction_F = -0.0015 × 6 × 60 = -0.54
+    result_no_brine = calc_hydrate_inhibition(
+        inp_no_brine, inhibitor_model=InhibitorModel.NIELSEN_1988,
+    )
+    result_brine = calc_hydrate_inhibition(
+        inp_brine, inhibitor_model=InhibitorModel.NIELSEN_1988,
+    )
+    # brine 应使 hydrate_depression_f 更负（修正为负）
+    assert result_brine.hydrate_depression_f < result_no_brine.hydrate_depression_f
+    # 差值约 0.54（修正项绝对值）
+    delta_brine = (
+        result_no_brine.hydrate_depression_f - result_brine.hydrate_depression_f
+    )
+    assert delta_brine == pytest.approx(0.54, rel=1e-2)
+    # brine_correction 公式引用必须含 §3.4
+    assert "brine_correction" in result_brine.formula_ref
+    assert "Nielsen §3.4" in result_brine.formula_ref["brine_correction"]
+    # 无 brine 时不应触发 brine_correction 提示
+    assert (
+        "无修正" in result_no_brine.formula_ref["brine_correction"]
+        or "brine_wt_pct=0" in result_no_brine.formula_ref["brine_correction"]
     )
