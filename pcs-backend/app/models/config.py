@@ -877,6 +877,68 @@ class CompoundNielsen1988Params(Base):
     )
 
 
+class CompoundDeltaHVapNaturalGas(Base):
+    """ΔH_vap 蒸发潜热（natural gas 路径，PSV C-21 fire case）。
+
+    业务（P6 SPEC §3.5.2 + Ruling 9 双 surface + OPEN-P6-6A-5）：
+
+    - ``convention`` UNIQUE（口径标识）；两行：
+      - ``TYPICAL_2260``：GPSA §3.4 typical natural gas ΔH_vap = 2260 kJ/kg
+        （向后兼容默认口径，OPEN-P6-6A-5 Ruling 14 back-compat）；
+      - ``XLS_CONVENTION_208``：XLS PR-025 隐式 ΔH_vap = 208 kJ/kg（liquefied
+        natural gas 口径；OPEN-P6-6A-5 Ruling 9/14 关闭此 OPEN 项）。
+    - ``dh_vap_kj_kg`` ΔH_vap 数值（kJ/kg）；
+    - ``notes`` 工程备注；
+    - ``source`` 数据来源；本批录 GPSA common 公开典型值
+      （2260 = GPSA §3.4 typical；208 = XLS PR-025 implicit），由工艺室
+      签字确认；``source`` 填 ``'GPSA §3.4 typical + XLS PR-025 implicit'``。
+    - ``confirmed_by`` / ``confirmed_at`` 工艺室签字（占位字段）。
+
+    不继承 ``TaggedRecordMixin``（元数据表非业务计算记录）。
+
+    唯一索引：``convention``。
+    """
+
+    __tablename__ = "compound_delta_h_vap_natural_gas"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+        comment="BIGINT 自增主键",
+    )
+    convention: Mapped[str] = mapped_column(
+        String(32), nullable=False, unique=True, index=True,
+        comment='口径标识 UNIQUE："TYPICAL_2260" / "XLS_CONVENTION_208"',
+    )
+    dh_vap_kj_kg: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="ΔH_vap 蒸发潜热（kJ/kg；GPSA §3.4 / XLS PR-025 implicit）",
+    )
+    notes: Mapped[str | None] = mapped_column(
+        String(256), nullable=True,
+        comment="工程备注（GPSA / XLS 隐式口径溯源）",
+    )
+    source: Mapped[str] = mapped_column(
+        String(128), nullable=False,
+        comment='数据来源；本批填 "GPSA §3.4 typical + XLS PR-025 implicit"',
+    )
+    confirmed_by: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment='本批填 "P6-6B_ENG_TEAM"；工艺工程师二次核对后改填实际签字人',
+    )
+    confirmed_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+        comment="工艺室确认签字时间（占位 NULL，工艺室签字后填入）",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
+        comment="记录创建时间（DB server_default）",
+    )
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(),
+        comment="记录更新时间（ORM onupdate 触发）",
+    )
+
+
 class GlycolDehydrationFullSystem(Base):
     """C-16 glycol dehydration full system 典型工况范围（P6-6B CONFIG 占位）。
 

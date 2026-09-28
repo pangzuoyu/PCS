@@ -179,6 +179,31 @@ def get_nielsen_1988_params() -> dict[str, tuple[float, float, float]] | None:
     return _get_cached_or_reload("nielsen_1988_params", loader)
 
 
+# -----------------------------------------------------------------------------
+# 7. ΔH_vap 蒸发潜热（natural gas 路径，C-21 fire case；P6-6B T12 引入）
+# -----------------------------------------------------------------------------
+def get_delta_h_vap_table() -> dict[str, float] | None:
+    """从 ``compound_delta_h_vap_natural_gas`` 表加载 ΔH_vap（kJ/kg）。
+
+    返回 ``{convention: dh_vap_kj_kg}`` 字典；DB 不可达或表为空时返回
+    ``None``，由 service fallback 到内联 2260（默认值，OPEN-P6-6A-5
+    Ruling 14 back-compat 默认口径）。
+    """
+    from app.models.config import CompoundDeltaHVapNaturalGas
+
+    def loader() -> dict[str, float] | None:
+        def query(session) -> dict[str, float] | None:
+            rows = session.execute(
+                select(CompoundDeltaHVapNaturalGas)
+            ).scalars().all()
+            if not rows:
+                return None
+            return {r.convention: r.dh_vap_kj_kg for r in rows}
+        return _load_with_fallback(query)
+
+    return _get_cached_or_reload("delta_h_vap_natural_gas", loader)
+
+
 __all__: Final[list[str]] = [
     "get_pasquill_sigma_table",
     "get_api521_thresholds_table",
@@ -186,5 +211,6 @@ __all__: Final[list[str]] = [
     "get_hammerschmidt_K_table",
     "get_nielsen_1988_params",
     "get_pipe_E_modulus_table",
+    "get_delta_h_vap_table",
     "clear_all_caches",
 ]

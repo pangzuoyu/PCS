@@ -18,6 +18,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Final, Literal
 
+from app.services._compound_config_cache import get_delta_h_vap_table
 from app.services.exceptions import PcsError
 from app.services.vessel.vessel_service import (
     WettedAreaInput,
@@ -75,6 +76,7 @@ class As1210ReliefInput:
     vessel_geometry: WettedAreaInput | None = None
     environment_factor: float = _FIRE_ENV_FACTOR_DEFAULT
     delta_h_vap_kj_kg: float = _DHVAP_KJ_KG
+    use_xls_convention: bool = False  # P6-6B T12: True → XLS 208 (DB), False → 2260
     fire_case_coefficient: float = _FIRE_COEFF_W
     fire_case_exponent: float = _FIRE_COEFF_EXP_DEFAULT
     imperial_units: bool = False
@@ -99,6 +101,26 @@ class As1210ReliefResult:
     pressure_factor: float
     imperial_conversion: dict[str, float] | None
     formula_ref: dict[str, str]
+
+
+def _resolve_delta_h_vap(use_xls_convention: bool = False) -> float:
+    """从 ``compound_delta_h_vap_natural_gas`` CONFIG 表加载 ΔH_vap。
+
+    默认 ``use_xls_convention=False`` → ``TYPICAL_2260`` (2260 kJ/kg, GPSA
+    §3.4 typical natural gas, 向后兼容默认口径)；
+    ``use_xls_convention=True`` → ``XLS_CONVENTION_208`` (208 kJ/kg, XLS
+    PR-025 implicit convention, OPEN-P6-6A-5 Ruling 9/14 关闭)；
+    DB 不可达或表为空时 fallback 到内联 2260（默认值，向后兼容）。
+
+    P6-6B T12 引入；open OPEN-P6-6A-5 关闭。
+    """
+    table = get_delta_h_vap_table()
+    if table is None:
+        return _DHVAP_KJ_KG
+    return table.get(
+        "XLS_CONVENTION_208" if use_xls_convention else "TYPICAL_2260",
+        _DHVAP_KJ_KG,
+    )
 
 
 def _validate_input(inp: As1210ReliefInput) -> None:
@@ -159,6 +181,12 @@ def calc_as1210_relief_sizing(inp: As1210ReliefInput) -> As1210ReliefResult:
         wa_result = calc_wetted_area(inp.vessel_geometry)
         a_wetted_used = wa_result.wetted_area_m2
 
+    # P6-6B T12: use_xls_convention 切换 ΔH_vap 口径（默认 False → 2260 GPSA 2260 向后兼容）。
+    if inp.use_xls_convention:
+        dh_vap_resolved = _resolve_delta_h_vap(use_xls_convention=True)
+    else:
+        dh_vap_resolved = inp.delta_h_vap_kj_kg
+
     if inp.scenario == "TUBE_RUPTURE":
         set_p = inp.as1210_pressure_factor * inp.mawp_kpa
         capacity = inp.tube_rupture_mass_kg_s
@@ -177,7 +205,7 @@ def calc_as1210_relief_sizing(inp: As1210ReliefInput) -> As1210ReliefResult:
             * inp.environment_factor
             * a_wetted_used ** inp.fire_case_exponent
         )
-        capacity = q_fire_w / (inp.delta_h_vap_kj_kg * 1000.0)  # kJ/kg → J/kg
+        capacity = q_fire_w / (dh_vap_resolved * 1000.0)  # kJ/kg → J/kg
         as_std = "AS 1210 §4.4 + API 521 §3.4"
         pressure_factor = inp.as1210_pressure_factor
 
@@ -206,7 +234,7 @@ def calc_as1210_relief_sizing(inp: As1210ReliefInput) -> As1210ReliefResult:
                 f"AS 1210 §4.4 + API 521 §3.4 "
                 f"Q(W) = {inp.fire_case_coefficient}·F·A^"
                 f"{inp.fire_case_exponent} [fluid-specific]; "
-                f"capacity = Q/(ΔH_vap·1000); ΔH_vap={inp.delta_h_vap_kj_kg} kJ/kg"
+                f"capacity = Q/(ΔH_vap·1000); ΔH_vap={dh_vap_resolved} kJ/kg"
             ),
             "wetted_area_source": (
                 "调用 C-12 calc_wetted_area (D7 接口冻结) "
