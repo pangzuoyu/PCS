@@ -701,6 +701,68 @@ class CompoundIso9613AtmosphericAbsorption(Base):
     )
 
 
+class PipeEModulus(Base):
+    """管材弹性模量 E（pipe_e_modulus 表，P6-6B T3 引入；C-13 Joukowsky 用）。
+
+    业务（P6 SPEC §3.2.3 V1.8 + API 5L (2018) / ASTM A106 / ASTM A335）：
+
+    - ``grade`` 管材等级 UNIQUE（如 API 5L ``X42/X52/X65/X70/X80`` +
+      ASTM A106 ``A106-B`` + ASTM A335 ``A335-P11/A335-P22``）；
+    - ``e_psi`` 弹性模量 E（psi，典型值 70°F；30,000,000 psi = 206.84 GPa）；
+    - ``spec_source`` 标准来源（``API 5L`` / ``ASTM A106`` / ``ASTM A335``）；
+    - ``source`` 数据来源；本批录入即用 API 5L (2018) + ASTM A106/A335
+      真实公开值（非合成），``source`` 直接填
+      ``'API 5L (2018) + ASTM A106/A335'``；由工艺工程师签字确认；
+    - ``confirmed_by`` / ``confirmed_at`` 工艺室签字（占位字段）。
+
+    不继承 ``TaggedRecordMixin``（元数据表非业务计算记录）。
+
+    唯一约束：``grade``（管材等级唯一）。
+    """
+
+    __tablename__ = "pipe_e_modulus"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+        comment="BIGINT 自增主键",
+    )
+    grade: Mapped[str] = mapped_column(
+        String(32), nullable=False, unique=True, index=True,
+        comment='管材等级 UNIQUE：API 5L "X42/X52/X65/X70/X80" / '
+                'ASTM A106 "A106-B" / ASTM A335 "A335-P11/A335-P22"',
+    )
+    e_psi: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment=(
+            "弹性模量 E（psi；典型值 70°F）；Wylie-Streeter 含管壁修正用"
+        ),
+    )
+    spec_source: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment='标准来源："API 5L" / "ASTM A106" / "ASTM A335"',
+    )
+    source: Mapped[str] = mapped_column(
+        String(128), nullable=False,
+        comment='数据来源；本批填 "API 5L (2018) + ASTM A106/A335" 真实公开值',
+    )
+    confirmed_by: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment="工艺室确认签字人",
+    )
+    confirmed_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+        comment="工艺室确认签字时间",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
+        comment="记录创建时间（DB server_default）",
+    )
+    updated_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(),
+        comment="记录更新时间（DB onupdate 触发）",
+    )
+
+
 class CompoundHammerschmidtK(Base):
     """Hammerschmidt K 因子（C-18 水合物抑制用）。
 
