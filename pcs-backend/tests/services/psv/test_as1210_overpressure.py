@@ -962,3 +962,280 @@ def test_fire_case_standard_unknown_raises():
     object.__setattr__(inp, "fire_case_standard", "ASME_8_DIV1")
     with pytest.raises(ValueError, match="Unknown fire_case_standard"):
         calc_as1210_relief_sizing(inp)
+
+
+# ============================================================================
+# P6-7 T8 OPEN-P6-6A-10 — AS 1210 §4.4 path (b) gas/vapor + Jet fire (110,000 W/m²)
+# 工艺室 2026-09-28 落库 golden_as1210_path_b_jet_fire.json（2 path b + 2 jet fire
+# 算例，CH4 @ 1000 psia + C3H8 @ 800 psia，tolerance_rel=0.01）。
+# ============================================================================
+
+
+def test_fire_case_path_b_gas_vapor_ch4():
+    """T8：AS 1210 §4.4 path (b) gas/vapor CH4 @ 1000 psia。
+
+    标准标识 "AS_1210" + m_gas_stored_kg=220 > 0 → calc_fire_case 路由到
+    _path_b_gas_vapor 公式：m' = m·Y_p + m'_p，Y_p = 10000/(C_w·t·T_o)。
+    Y_p = 10000 / (3900 × 20 × 300) = 4.27350e-4；m' = 220 × 4.27350e-4 ≈ 0.0940 kg/s
+    （golden fixture expected = 0.094，rel_diff 0.043% within 1% 容差）。
+    """
+    from app.services.psv.as1210_overpressure_service import (
+        FireCaseInput,
+        calc_fire_case,
+    )
+
+    inp = FireCaseInput(
+        wetted_area_m2=5.0,  # path (b) 不使用；保持向后兼容 schema 字段
+        fire_case_standard="AS_1210",
+        m_gas_stored_kg=220.0,
+        c_w_kj_per_m3_k=3900.0,
+        t_wall_mm=20.0,
+        t_o_k=300.0,
+        m_p_prime_kg_s=0.0,
+    )
+    result = calc_fire_case(inp)
+    # 公式路由正确性：标准 = "AS_1210"（path (b) 与 path (a) 共用标准标识）
+    assert result.formula_ref["fire_case_standard"] == "AS_1210"
+    # path (b) 热通量 10,000 W/m² pool fire
+    assert result.formula_ref["heat_flux_w_m2"] == 10_000.0
+    # capacity algebraic EXACT vs golden fixture expected
+    expected_y_p = 10_000.0 / (3900.0 * 20.0 * 300.0)
+    expected_capacity = 220.0 * expected_y_p
+    assert math.isclose(
+        result.required_mass_flow_kg_s, expected_capacity, rel_tol=1e-10
+    )
+    # 工艺室 fixture 对账（CH4 @ 1000 psia：expected 0.094）
+    assert math.isclose(
+        result.required_mass_flow_kg_s, 0.094, rel_tol=0.01
+    )
+    # formula_ref 含 calculation 字符串（path (b) 公式溯源）
+    assert "path (b)" in result.formula_ref["calculation"]
+    assert "10000" in result.formula_ref["calculation"]
+
+
+def test_fire_case_jet_fire_ch4():
+    """T8：AS 1210 §4.4 Jet fire CH4 @ 1000 psia（110,000 W/m²）。
+
+    标准标识 "Jet fire" → calc_fire_case 路由到 _jet_fire 公式：
+    m' = m·Y_t + m'_p，Y_t = 110000/(C_w·t·T_r)。
+    Y_t = 110000 / (3900 × 20 × 620) = 2.2746e-3；m' = 220 × 2.2746e-3 ≈ 0.500 kg/s
+    （golden fixture expected = 0.499，rel_diff 0.30% within 1% 容差）。
+    """
+    from app.services.psv.as1210_overpressure_service import (
+        FireCaseInput,
+        calc_fire_case,
+    )
+
+    inp = FireCaseInput(
+        fire_case_standard="Jet fire",
+        m_gas_stored_kg=220.0,
+        c_w_kj_per_m3_k=3900.0,
+        t_wall_mm=20.0,
+        t_r_k=620.0,
+        m_p_prime_kg_s=0.0,
+    )
+    result = calc_fire_case(inp)
+    # 公式路由正确性：标准 = "Jet fire"
+    assert result.formula_ref["fire_case_standard"] == "Jet fire"
+    # Jet fire 热通量 110,000 W/m²
+    assert result.formula_ref["heat_flux_w_m2"] == 110_000.0
+    # capacity algebraic EXACT vs golden fixture expected
+    expected_y_t = 110_000.0 / (3900.0 * 20.0 * 620.0)
+    expected_capacity = 220.0 * expected_y_t
+    assert math.isclose(
+        result.required_mass_flow_kg_s, expected_capacity, rel_tol=1e-10
+    )
+    # 工艺室 fixture 对账（CH4 @ 1000 psia：expected 0.499）
+    assert math.isclose(
+        result.required_mass_flow_kg_s, 0.499, rel_tol=0.01
+    )
+    # formula_ref 含 calculation 字符串（Jet fire 公式溯源）
+    assert "jet fire" in result.formula_ref["calculation"].lower()
+    assert "110000" in result.formula_ref["calculation"]
+
+
+def test_golden_as1210_path_b_jet_fire_4_cases():
+    """T8：4 算例 fixture（golden_as1210_path_b_jet_fire.json）加载测试。
+
+    path_b_gas_vapor_fixture × 2 + jet_fire_fixture × 2 = 4 cases。
+    每个 case 必须含 case_id / inputs / expected 字段；fixture 4 算例在
+    calc_fire_case 中 algebraic EXACT 计算后与 expected.m_prime_kg_s 容差 1%。
+    工艺室 fixture 期望值是 3-sig-fig 近似（CH4 算例 C3H8 算例差 1.8% 内），
+    容差取 rel_tol=0.01 + abs_tol=0.005 双门限。
+    """
+    from app.services.psv.as1210_overpressure_service import (
+        FireCaseInput,
+        calc_fire_case,
+    )
+
+    fixture_path = (
+        Path(__file__).parent / "fixtures" / "golden_as1210_path_b_jet_fire.json"
+    )
+    assert fixture_path.exists(), (
+        f"golden_as1210_path_b_jet_fire.json 未落库：{fixture_path}"
+    )
+    data = json.loads(fixture_path.read_text(encoding="utf-8"))
+
+    # 结构校验
+    assert "_meta" in data
+    assert data["_meta"]["open_item"] == "OPEN-P6-6A-10"
+    assert "path_b_gas_vapor_fixture" in data
+    assert "jet_fire_fixture" in data
+    assert len(data["path_b_gas_vapor_fixture"]) == 2
+    assert len(data["jet_fire_fixture"]) == 2
+
+    # 4 算例：字段完整性 + capacity 容差对账（rel=0.01 + abs=0.005 容差）
+    path_b_cases = data["path_b_gas_vapor_fixture"]
+    jet_fire_cases = data["jet_fire_fixture"]
+
+    # ---- path (b) gas/vapor × 2 ----
+    for case in path_b_cases:
+        assert "case_id" in case
+        assert "inputs" in case
+        assert "expected" in case
+        inputs = case["inputs"]
+        expected = case["expected"]
+        tol = case.get("tolerance_rel", 0.01)
+        inp = FireCaseInput(
+            fire_case_standard="AS_1210",
+            m_gas_stored_kg=inputs["m_gas_stored_kg"],
+            c_w_kj_per_m3_k=inputs["c_w_kj_per_m3_k"],
+            t_wall_mm=inputs["t_wall_mm"],
+            t_o_k=inputs["t_o_k"],
+            m_p_prime_kg_s=inputs.get("m_p_prime_kg_s", 0.0),
+        )
+        result = calc_fire_case(inp)
+        # 工艺室 fixture 容差对账（rel=1% + abs=0.005 双门限，容纳 3-sig-fig 近似）
+        assert math.isclose(
+            result.required_mass_flow_kg_s,
+            expected["m_prime_kg_s"],
+            rel_tol=tol,
+            abs_tol=0.005,
+        ), (
+            f"path (b) case_id={case['case_id']}: "
+            f"PCS m'={result.required_mass_flow_kg_s!r} ≠ "
+            f"fixture expected={expected['m_prime_kg_s']!r} "
+            f"rel_tol={tol} abs_tol=0.005"
+        )
+        # algebraic EXACT 校验（公式实现 vs 工艺室公式一致）
+        y_p = 10_000.0 / (
+            inputs["c_w_kj_per_m3_k"] * inputs["t_wall_mm"] * inputs["t_o_k"]
+        )
+        expected_m_prime_exact = inputs["m_gas_stored_kg"] * y_p + inputs.get(
+            "m_p_prime_kg_s", 0.0
+        )
+        assert math.isclose(
+            result.required_mass_flow_kg_s,
+            expected_m_prime_exact,
+            rel_tol=1e-10,
+        )
+
+    # ---- Jet fire × 2 ----
+    for case in jet_fire_cases:
+        assert "case_id" in case
+        assert "inputs" in case
+        assert "expected" in case
+        inputs = case["inputs"]
+        expected = case["expected"]
+        tol = case.get("tolerance_rel", 0.01)
+        inp = FireCaseInput(
+            fire_case_standard="Jet fire",
+            m_gas_stored_kg=inputs["m_gas_stored_kg"],
+            c_w_kj_per_m3_k=inputs["c_w_kj_per_m3_k"],
+            t_wall_mm=inputs["t_wall_mm"],
+            t_r_k=inputs["t_r_k"],
+            m_p_prime_kg_s=inputs.get("m_p_prime_kg_s", 0.0),
+        )
+        result = calc_fire_case(inp)
+        # 工艺室 fixture 容差对账（rel=1% + abs=0.005 双门限，容纳 3-sig-fig 近似）
+        assert math.isclose(
+            result.required_mass_flow_kg_s,
+            expected["m_prime_kg_s"],
+            rel_tol=tol,
+            abs_tol=0.005,
+        ), (
+            f"Jet fire case_id={case['case_id']}: "
+            f"PCS m'={result.required_mass_flow_kg_s!r} ≠ "
+            f"fixture expected={expected['m_prime_kg_s']!r} "
+            f"rel_tol={tol} abs_tol=0.005"
+        )
+        # algebraic EXACT 校验
+        y_t = 110_000.0 / (
+            inputs["c_w_kj_per_m3_k"] * inputs["t_wall_mm"] * inputs["t_r_k"]
+        )
+        expected_m_prime_exact = inputs["m_gas_stored_kg"] * y_t + inputs.get(
+            "m_p_prime_kg_s", 0.0
+        )
+        assert math.isclose(
+            result.required_mass_flow_kg_s,
+            expected_m_prime_exact,
+            rel_tol=1e-10,
+        )
+
+
+def test_fire_case_standard_jet_fire_in_literal():
+    """T8：FireCaseStandard Literal 必须包含 "Jet fire"（OPEN-P6-6A-10 扩展）。"""
+    import typing
+
+    from app.services.psv.as1210_overpressure_service import FireCaseStandard
+
+    # typing.get_args 验证 Literal 包含 "Jet fire"
+    assert "Jet fire" in typing.get_args(FireCaseStandard)
+    assert "API_521" in typing.get_args(FireCaseStandard)
+    assert "AS_1210" in typing.get_args(FireCaseStandard)
+
+
+def test_fire_case_api_521_backward_compat_in_calc_fire_case():
+    """T8 back-compat：fire_case_standard="API_521" + 不传 path (b) 字段 →
+    calc_fire_case 走既有 API 521 公式（Q = 43192·F·A^0.82 / L）。
+
+    与 calc_as1210_relief_sizing 的 T7 既行为 algebraic EXACT 一致（系数 43192）。
+    """
+    from app.services.psv.as1210_overpressure_service import (
+        FireCaseInput,
+        calc_fire_case,
+    )
+
+    inp = FireCaseInput(
+        wetted_area_m2=10.0,
+        latent_heat_kj_kg=2260.0,
+        environment_factor_F=1.0,
+        fire_case_standard="API_521",
+    )
+    result = calc_fire_case(inp)
+    assert result.formula_ref["fire_case_standard"] == "API_521"
+    assert result.formula_ref["coefficient"] == 43192.0
+    expected_capacity = (43192.0 * 1.0 * 10.0 ** 0.82) / (2260.0 * 1000.0)
+    assert math.isclose(
+        result.required_mass_flow_kg_s, expected_capacity, rel_tol=1e-10
+    )
+
+
+def test_fire_case_as_1210_path_a_backward_compat_in_calc_fire_case():
+    """T8 back-compat：fire_case_standard="AS_1210" + 不传 path (b) 字段 →
+    calc_fire_case 走既有 path (a) 公式（Q = 7.2e4·F·A^0.82 / L）。
+
+    关键 guardrail：m_gas_stored_kg 默认 0.0，必须触发 path (a) 而非 path (b)；
+    与 calc_as1210_relief_sizing T7 既行为 algebraic EXACT 一致（系数 7.2e4）。
+    """
+    from app.services.psv.as1210_overpressure_service import (
+        FireCaseInput,
+        calc_fire_case,
+    )
+
+    inp = FireCaseInput(
+        wetted_area_m2=10.0,
+        latent_heat_kj_kg=2260.0,
+        environment_factor_F=1.0,
+        fire_case_standard="AS_1210",
+        # m_gas_stored_kg 默认 0.0 → 走 path (a)
+    )
+    result = calc_fire_case(inp)
+    assert result.formula_ref["fire_case_standard"] == "AS_1210"
+    assert result.formula_ref["coefficient"] == 7.2e4
+    expected_capacity = (7.2e4 * 1.0 * 10.0 ** 0.82) / (2260.0 * 1000.0)
+    assert math.isclose(
+        result.required_mass_flow_kg_s, expected_capacity, rel_tol=1e-10
+    )
+    # formula_ref 应是 path (a) 而非 path (b)
+    assert "path (a)" in result.formula_ref["calculation"]

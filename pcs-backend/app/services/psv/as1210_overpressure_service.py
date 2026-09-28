@@ -16,11 +16,15 @@
     - AS_1210 path (a)：coeff=7.2e4 [AS 1210 §4.4 SI 严格换算]
     - fire_case_standard 枚举选系数（OPEN-P6-6A-5 真正关闭，P6-7 T7）
     - **放弃 2.457 系数**（工艺室追溯来源不明）
+  - FIRE_CASE path (b) gas/vapor（NEW T8 OPEN-P6-6A-10）：
+    m' = m·Y_p + m'_p, Y_p = 10000 / (C_w·t·T_o)（10,000 W/m² pool fire）
+  - FIRE_CASE Jet fire（NEW T8 OPEN-P6-6A-10）：
+    m' = m·Y_t + m'_p, Y_t = 110000 / (C_w·t·T_r)（110,000 W/m² jet fire）
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Final, Literal
+from dataclasses import dataclass, field
+from typing import Any, Final, Literal
 
 from app.services._compound_config_cache import (
     get_api521_thresholds_table,
@@ -58,7 +62,13 @@ _CV_FAIL_CAPACITY_FRACTION: Final[float] = 0.5
 
 Scenario = Literal["TUBE_RUPTURE", "CONTROL_VALVE_FAILURE", "FIRE_CASE"]
 CvFailureMode = Literal["AIR_FAIL", "SIGNAL_FAIL", "POWER_FAIL"]
-FireCaseStandard = Literal["API_521", "AS_1210"]
+# T8 OPEN-P6-6A-10: 增加 "Jet fire" 标准（path (b) gas/vapor 仍用 "AS_1210" 标准
+# 标识，通过 m_gas_stored_kg > 0 在 calc_fire_case 内分支 path (a)/(b)）。
+FireCaseStandard = Literal["API_521", "AS_1210", "Jet fire"]
+# Jet fire 热通量（AS 1210 §4.4 jet fire 路径 vs pool fire 10,000 W/m²）
+_JET_FIRE_HEAT_FLUX_W_M2: Final[float] = 110_000.0
+# AS 1210 §4.4 pool fire 热通量（path (b) gas/vapor 默认）
+_POOL_FIRE_HEAT_FLUX_W_M2: Final[float] = 10_000.0
 
 
 class As1210InputError(PcsError):
@@ -139,7 +149,9 @@ def _resolve_fire_case_coefficient(standard: FireCaseStandard) -> float:
         API_521 → 43192.0（W = 43192·F·A^0.82，CONFIG 表
         ``FIRE_COEFF_DEFAULT`` key 优先；DB 不可达或 key 缺失时 fallback 到
         内联 43192.0）；AS_1210 → 7.2e4（path (a) m' = 7.2e4·F·A^0.82/L，
-        AS 1210 §4.4 SI 严格换算，P6-6A-8 Ruling 15）。
+        AS 1210 §4.4 SI 严格换算，P6-6A-8 Ruling 15）；
+        Jet fire → 110_000.0（AS 1210 §4.4 jet fire 热通量 W/m²，
+        P6-7 T8 OPEN-P6-6A-10；用于 calc_fire_case 路由分支 heat flux 上限）。
 
     OPEN-P6-6A-5 真正关闭（工艺室 2026-09-28 签署"分 path 并存"裁决）；
     **放弃 2.457 系数**（工艺室追溯来源不明，参见 P6-7 T7 brief）。
@@ -151,6 +163,8 @@ def _resolve_fire_case_coefficient(standard: FireCaseStandard) -> float:
         return 43192.0  # 内联 fallback
     if standard == "AS_1210":
         return 7.2e4  # AS 1210 path (a) 默认值，硬编码
+    if standard == "Jet fire":
+        return _JET_FIRE_HEAT_FLUX_W_M2  # 110_000.0 W/m²，AS 1210 §4.4 jet fire
     raise ValueError(f"Unknown fire_case_standard: {standard!r}")
 
 
@@ -285,6 +299,224 @@ def calc_as1210_relief_sizing(inp: As1210ReliefInput) -> As1210ReliefResult:
     )
 
 
+# ============================================================================
+# T8 OPEN-P6-6A-10 — AS 1210 §4.4 path (b) gas/vapor + Jet fire (110,000 W/m²)
+# path (b) gas/vapor 标准标识仍为 "AS_1210"；通过 m_gas_stored_kg > 0 在
+# calc_fire_case 内分支 path (a) 既有公式 vs path (b) m' = m·Y_p + m'_p 公式。
+# Jet fire 是独立 FireCaseStandard 枚举值，路由到 _jet_fire 公式。
+# ============================================================================
+
+
+@dataclass(frozen=True)
+class FireCaseInput:
+    """T8 火灾工况输入（AS 1210 path (b) + Jet fire + 既有 path (a) + API 521）。
+
+    字段：
+      - wetted_area_m2: 润湿面积 m²（API_521 / AS_1210 path (a) 用）
+      - latent_heat_kj_kg: 气化潜热 kJ/kg（API_521 / AS_1210 path (a) 用）
+      - environment_factor_F: 环境因子 F（默认 1.0 无保温）
+      - fire_case_standard: 标准枚举（"API_521" / "AS_1210" / "Jet fire"）
+      - m_gas_stored_kg: 气体储罐质量 kg（path (b) gas/vapor + Jet fire）
+      - c_w_kj_per_m3_k: 壁面体积热容 C_w kJ/(m³·K)（path (b) + Jet fire）
+      - t_wall_mm: 壁厚 t mm（path (b) + Jet fire）
+      - t_o_k: 设计温度 T_o K（path (b) gas/vapor）
+      - t_r_k: 泄放温度 T_r K（Jet fire）
+      - m_p_prime_kg_s: 其他泄放流量 m'_p kg/s（path (b) + Jet fire 加项）
+
+    T8 OPEN-P6-6A-10：path (b) 与 Jet fire 字段默认 0.0，不传时 calc_fire_case
+    仍走既有 API_521 / AS_1210 path (a) 公式（向后兼容 T7 既有行为）。
+    """
+
+    wetted_area_m2: float = 0.0
+    latent_heat_kj_kg: float = 0.0
+    environment_factor_F: float = 1.0
+    fire_case_standard: FireCaseStandard = "API_521"
+    m_gas_stored_kg: float = 0.0
+    c_w_kj_per_m3_k: float = 0.0
+    t_wall_mm: float = 0.0
+    t_o_k: float = 0.0
+    t_r_k: float = 0.0
+    m_p_prime_kg_s: float = 0.0
+
+
+@dataclass(frozen=True)
+class FireCaseResult:
+    """T8 火灾工况计算结果。
+
+    字段：
+      - required_mass_flow_kg_s: 所需泄放质量流量 kg/s
+      - formula_ref: 公式溯源（含 fire_case_standard + coefficient + calculation）
+    """
+
+    required_mass_flow_kg_s: float
+    formula_ref: dict[str, Any] = field(default_factory=dict)
+
+
+def _path_b_gas_vapor(
+    m_gas_stored_kg: float,
+    c_w_kj_per_m3_k: float,
+    t_wall_mm: float,
+    t_o_k: float,
+    m_p_prime_kg_s: float = 0.0,
+) -> float:
+    """AS 1210 §4.4 path (b) gas/vapor（T8 OPEN-P6-6A-10）。
+
+    m' = m · Y_p + m'_p
+    Y_p = 10,000 / (C_w · t · T_o)  [10,000 W/m² = pool fire 热通量]
+
+    Args:
+        m_gas_stored_kg: 气体储罐质量 m（kg）
+        c_w_kj_per_m3_k: 壁面体积热容 C_w（kJ/(m³·K)）
+        t_wall_mm: 壁厚 t（mm）
+        t_o_k: 设计温度 T_o（K）
+        m_p_prime_kg_s: 其他泄放流量 m'_p（kg/s，加项）
+
+    Returns:
+        m' = m · Y_p + m'_p（kg/s）
+    """
+    y_p = _POOL_FIRE_HEAT_FLUX_W_M2 / (c_w_kj_per_m3_k * t_wall_mm * t_o_k)
+    return m_gas_stored_kg * y_p + m_p_prime_kg_s
+
+
+def _jet_fire(
+    m_gas_stored_kg: float,
+    c_w_kj_per_m3_k: float,
+    t_wall_mm: float,
+    t_r_k: float,
+    m_p_prime_kg_s: float = 0.0,
+) -> float:
+    """AS 1210 §4.4 jet fire 110,000 W/m²（T8 OPEN-P6-6A-10）。
+
+    m' = m · Y_t + m'_p
+    Y_t = 110,000 / (C_w · t · T_r)  [110,000 W/m² = jet fire 热通量]
+
+    与 path (b) gas/vapor 公式形态一致，热通量从 pool fire 10,000 升至
+    jet fire 110,000；泄放温度用 T_r（relief temperature）而非 T_o。
+
+    Args:
+        m_gas_stored_kg: 气体储罐质量 m（kg）
+        c_w_kj_per_m3_k: 壁面体积热容 C_w（kJ/(m³·K)）
+        t_wall_mm: 壁厚 t（mm）
+        t_r_k: 泄放温度 T_r（K）
+        m_p_prime_kg_s: 其他泄放流量 m'_p（kg/s，加项）
+
+    Returns:
+        m' = m · Y_t + m'_p（kg/s）
+    """
+    y_t = _JET_FIRE_HEAT_FLUX_W_M2 / (c_w_kj_per_m3_k * t_wall_mm * t_r_k)
+    return m_gas_stored_kg * y_t + m_p_prime_kg_s
+
+
+def calc_fire_case(inp: FireCaseInput) -> FireCaseResult:
+    """T8 火灾工况计算入口（3-way 路由 by fire_case_standard）。
+
+    路由：
+      - "Jet fire" → _jet_fire() 公式（m' = m·Y_t + m'_p，Y_t = 110000/(C_w·t·T_r)）
+      - "AS_1210" + m_gas_stored_kg > 0 → _path_b_gas_vapor()（path (b) gas/vapor）
+      - "AS_1210" + m_gas_stored_kg == 0 → path (a) 既有公式
+        （Q = 7.2e4·F·A^0.82, capacity = Q/(L·1000)）
+      - "API_521" → 既有公式（Q = 43192·F·A^0.82, capacity = Q/(L·1000)）
+
+    Args:
+        inp: FireCaseInput（frozen）
+
+    Returns:
+        FireCaseResult（frozen，含 required_mass_flow_kg_s + formula_ref）
+
+    T8 OPEN-P6-6A-10：本函数是 AS 1210 §4.4 path (b) + Jet fire 的代码侧入口，
+    与 calc_as1210_relief_sizing 完全独立（后者仍走 T7 既有的 Q-based 公式）。
+    """
+    if inp.fire_case_standard == "Jet fire":
+        mass_flow = _jet_fire(
+            inp.m_gas_stored_kg,
+            inp.c_w_kj_per_m3_k,
+            inp.t_wall_mm,
+            inp.t_r_k,
+            inp.m_p_prime_kg_s,
+        )
+        return FireCaseResult(
+            required_mass_flow_kg_s=mass_flow,
+            formula_ref={
+                "fire_case_standard": "Jet fire",
+                "coefficient": _JET_FIRE_HEAT_FLUX_W_M2,
+                "calculation": (
+                    "AS 1210 §4.4 jet fire (110,000 W/m²): "
+                    "m' = m·Y_t + m'_p, Y_t = 110000/(C_w·t·T_r)"
+                ),
+                "heat_flux_w_m2": _JET_FIRE_HEAT_FLUX_W_M2,
+                "Y_t_per_s": (
+                    _JET_FIRE_HEAT_FLUX_W_M2
+                    / (
+                        inp.c_w_kj_per_m3_k
+                        * inp.t_wall_mm
+                        * inp.t_r_k
+                    )
+                    if (inp.c_w_kj_per_m3_k > 0 and inp.t_wall_mm > 0 and inp.t_r_k > 0)
+                    else None
+                ),
+            },
+        )
+
+    if inp.fire_case_standard == "AS_1210" and inp.m_gas_stored_kg > 0:
+        # path (b) gas/vapor：m_gas_stored_kg > 0 触发；与既有 path (a) 公式
+        # 完全独立（path (b) 不依赖 wetted_area / latent_heat）
+        mass_flow = _path_b_gas_vapor(
+            inp.m_gas_stored_kg,
+            inp.c_w_kj_per_m3_k,
+            inp.t_wall_mm,
+            inp.t_o_k,
+            inp.m_p_prime_kg_s,
+        )
+        return FireCaseResult(
+            required_mass_flow_kg_s=mass_flow,
+            formula_ref={
+                "fire_case_standard": "AS_1210",
+                "coefficient": _POOL_FIRE_HEAT_FLUX_W_M2,
+                "calculation": (
+                    "AS 1210 §4.4 path (b) gas/vapor: "
+                    "m' = m·Y_p + m'_p, Y_p = 10000/(C_w·t·T_o)"
+                ),
+                "heat_flux_w_m2": _POOL_FIRE_HEAT_FLUX_W_M2,
+                "Y_p_per_s": (
+                    _POOL_FIRE_HEAT_FLUX_W_M2
+                    / (
+                        inp.c_w_kj_per_m3_k
+                        * inp.t_wall_mm
+                        * inp.t_o_k
+                    )
+                    if (
+                        inp.c_w_kj_per_m3_k > 0
+                        and inp.t_wall_mm > 0
+                        and inp.t_o_k > 0
+                    )
+                    else None
+                ),
+            },
+        )
+
+    # 既 path (a) AS_1210 / API_521：Q = coeff·F·A^0.82, capacity = Q/(L·1000)
+    if inp.fire_case_standard == "API_521":
+        coeff = 43192.0
+        clause = "API 521 §3.4 (SI)"
+    else:  # AS_1210 path (a)
+        coeff = 7.2e4
+        clause = "AS 1210 §4.4 path (a) (SI)"
+    q_fire_w = coeff * inp.environment_factor_F * inp.wetted_area_m2 ** 0.82
+    mass_flow = q_fire_w / (inp.latent_heat_kj_kg * 1000.0) if inp.latent_heat_kj_kg > 0 else 0.0
+    return FireCaseResult(
+        required_mass_flow_kg_s=mass_flow,
+        formula_ref={
+            "fire_case_standard": inp.fire_case_standard,
+            "coefficient": coeff,
+            "calculation": (
+                f"{clause}: Q(W) = {coeff}·F·A^0.82; "
+                f"capacity = Q/(ΔH_vap·1000); ΔH_vap={inp.latent_heat_kj_kg} kJ/kg"
+            ),
+            "heat_flux_w_m2": None,
+        },
+    )
+
+
 __all__ = [
     "As1210ReliefInput",
     "As1210ReliefResult",
@@ -293,4 +525,9 @@ __all__ = [
     "Scenario",
     "CvFailureMode",
     "FireCaseStandard",
+    "FireCaseInput",
+    "FireCaseResult",
+    "calc_fire_case",
+    "_path_b_gas_vapor",
+    "_jet_fire",
 ]
