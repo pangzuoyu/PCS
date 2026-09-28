@@ -113,14 +113,15 @@ bash pcs-backend/scripts/gate_08_openapi_contract.sh --check-baseline
 | **P6-4** | **P6-0/1/2/3 增补 5 项 🔴 必做**（COMMON 加热值 CONFIG 表 + VESSEL 重量 service + VESSEL 部分体积 + PSYCHRO 饱和 W + CV Masonelian fl；4 alembic 迁移 + 6 service + 6 API + 24 测试 + GPSA/API 黄金 fixture） | **CLOSED** |
 | **P6-5** | **PSYCHRO 增补 3 项**（C-16 甘醇脱水 TEG-only v3 + C-17 显式水含量 + C-18 Hammerschmidt 水合物抑制；V1.3 → V1.5 → V1.6 SPEC 修订 + Hammerschmidt K 标度 OPEN-P6-6A-3 fix + Nielsen 缺口登记 OPEN-P6-6A-11） | **CLOSED 2026-09-23** |
 | **P6-6A** | **Worley C-21/C-19/C-16 全栈交付**（15 commits：OPEN-P6-6A-3 K scale fix + OPEN-P6-6A-4 Cd/Y_cr^0.5 + OPEN-P6-6A-7 Y_cr@r_c + 11 Rulings 闭环；C-21 PSV fire coeff API 521 §3.4 + AS 1210 §4.4 path (a) + Ruling 14 ΔH_vap + Ruling 15 fire_case coeff/exp；C-19 排污孔板 sizing inverse POST API；C-16 glycol dehydration v4 Ruling 5 OUT_OF_SCOPE 12 fields + ADR-0045 Rev A K=7.1187 单点标定 + Day-0 Gate 形式决策 + brentq 逆 dewpoint + Linear placeholder 三铁律 + JSON 启动期加载；post-merge spot-check 376 psv + 11 glycol integration tests PASS） | **CLOSED 2026-09-28** |
+| **P6-6B** | **数据源替换批（13 commits）**：9 张 CONFIG 表 metadata 闭环（compound_heating_values T1 64 行 / pipe_E_modulus T3 8 行 / pasquill_sigma T4 6 行 / api521_thresholds T5 2 行 / iso9613 T6 4 行 / hammerschmidt_K T7 5 行 / nielsen_1988_params T8 7 行 + service 备选 path / glycol_dehydration_full_system T9 10 行 + OUT_OF_SCOPE docs 引用 / delta_h_vap_natural_gas T12 2 行 + service 双字段切换 / drain_orifice_Cd_Y_cr T13 6 行 + service feature flag + R=1 fix 集成）；OPEN-P6-4-1 关闭 + OPEN-P6-6A-4/5 形式关闭 + OPEN-P6-6A-6 部分关闭；T2 _VALVE_LIBRARY 真实 Kb 推迟到上线后（OPEN-P6-4-2）；T10/T11 service 集成路径决策待工程团队；G-08 phase 1-4 全过、pytest 各模块 0 break、ruff 0 errors on touched files、pcs_test head `p6_6b_013_drain_orifice_Cd_Y_cr` | **CLOSED 2026-09-28** |
 
 ### ⏳ 待启动批次
 
-- **P6-6B**（2026-09-27 plan 已立项）：9 CONFIG 表 SYNTHETIC → 真实厂商数据 + 4 内联常量替换；解决 OPEN-P6-4-1/2 + OPEN-P6-6A-5 + 6 OPEN-P6-6A-* 中 4 项（工程团队接管 GPSA / Vendor / ISO / API 真实数据），5-7 工作日
-- **P6-7**：OPEN-P6-6A-6 full glycol dehydration system as new PCS service 扩展
-- **OPEN-P6-6A-9.1~9.4**：C-16 glycol 工程任务（30× 差异根因完整验证 / K=7.1187 多工况标定 / 真 Wichert-Aziz 非线性形式 / brentq low-T Bukacek 1990 extension）
-- **OPEN-P6-6A-10**：PSV C-21 AS 1210 §4.4 path (b) gas/vapor m·Y_p + Jet fire 110,000 W/m²（V1.12 docs 主题预留）
-- **OPEN-P6-6A-11**：C-18 Nielsen 方程覆盖缺口（MeOH ≤50 wt% 切 Nielsen + WARNING，~1.0 天，P6-6B 入批）
+- **P6-7**（OPEN-P6-6A-6 后续）：glycol dehydration service 4 子模块扩展（reboiler / stripping / full column / lean glycol）+ T9 CONFIG 典型工况范围已就位
+- **OPEN-P6-6A-9.1~9.4**（P6-6B 工程团队接管）：C-16 glycol 工程任务（30× 差异根因完整验证 / K=7.1187 多工况标定 / 真 Wichert-Aziz 非线性形式 / brentq low-T Bukacek 1990 extension）
+- **OPEN-P6-6A-10**（P6-6B 工程团队接管）：PSV C-21 AS 1210 §4.4 path (b) gas/vapor m·Y_p + Jet fire 110,000 W/m²（V1.12 docs 主题预留）
+- **OPEN-P6-6A-11**（P6-6B 工程团队接管）：C-18 Nielsen 方程覆盖缺口（MeOH ≤50 wt% 切 Nielsen + WARNING，~1.0 天，**P6-6B T8 已部分落地 Nielsen 备选 path，A/B/C 精度待工艺工程师二次核对**）
+- **P6-6B T10/T11 决策路径**（工程团队接管）：Hammerschmidt K_F→K_C service 集成 + API 521 → AS 1210 service 集成
 
 ### 已落地工艺能力
 
