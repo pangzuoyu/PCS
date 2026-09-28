@@ -7774,6 +7774,66 @@
         }
       }
     },
+    "/api/v1/psychro/glycol-dehydration/calculate": {
+      "post": {
+        "tags": [
+          "psychro"
+        ],
+        "summary": "Calc Glycol Dehydration Endpoint",
+        "description": "FULL 甘醇脱水系统（§3.9.1 — P6-6A-6 Ruling 5 closure, v4）。\n\n11 OUT_OF_SCOPE 字段 + 现有 7 字段 + dewpoint_unavailable_reason +\nacid_gas_corrected；TEG only（DEG v5.1 Ruling 5 FULL system 不支持，\nservice 层抛 GlycolDehydrationError → 422）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "calc_glycol_dehydration_endpoint_api_v1_psychro_glycol_dehydration_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GlycolDehydrationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GlycolDehydrationResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/psychro/results": {
       "post": {
         "tags": [
@@ -8683,6 +8743,66 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/RestrictionCalculateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/restriction/drain-orifice/size": {
+      "post": {
+        "tags": [
+          "restriction"
+        ],
+        "summary": "Calculate Drain Orifice Size",
+        "description": "POST /api/v1/restriction/drain-orifice/size：排污孔板 sizing（OPEN-P6-6A-7）。\n\nInverse problem：已知泄放量 W + 工况反推 orifice diameter d。\n仅适用于阻塞流场景（SPEC §3.7.2 sizing 仅在临界流成立；非阻塞流抛\nDrainOrificeInputError → install_exception_handlers 转 422 envelope）。\n\n不写 DB（落库由 restriction_persist 统一处理；sizing 是独立纯计算，\n沿用 flare.py kod-sizing / header-sizing 模式）。\n\nACL：DESIGNER / PROCESS_CONTROLLER",
+        "operationId": "calculate_drain_orifice_size_api_v1_restriction_drain_orifice_size_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DrainOrificeSizeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DrainOrificeSizeResponse"
                 }
               }
             }
@@ -15936,6 +16056,216 @@
         "title": "DiffResponse",
         "description": "GET /assets/{id}/diff 返回结构（深 diff 的三段式）。"
       },
+      "DrainOrificeSizeRequest": {
+        "properties": {
+          "inlet_pressure_kpa": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Inlet Pressure Kpa",
+            "description": "上游压力 P₁（kPa）"
+          },
+          "outlet_pressure_kpa": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Outlet Pressure Kpa",
+            "description": "下游压力 P₂（kPa）"
+          },
+          "temperature_k": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Temperature K",
+            "description": "流体温度 K"
+          },
+          "relief_flow_kg_s": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Relief Flow Kg S",
+            "description": "泄放量 W（kg/s）"
+          },
+          "compressibility_z": {
+            "type": "number",
+            "maximum": 1.5,
+            "exclusiveMinimum": 0.0,
+            "title": "Compressibility Z",
+            "description": "可压缩系数 z（理想气体 ≈ 1.0）"
+          },
+          "molecular_weight_kg_kmol": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Molecular Weight Kg Kmol",
+            "description": "分子量 MW（kg/kmol）"
+          },
+          "pipe_diameter_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Pipe Diameter M",
+            "description": "上游管径 D（m）"
+          },
+          "specific_heat_ratio": {
+            "type": "number",
+            "exclusiveMinimum": 1.0,
+            "title": "Specific Heat Ratio",
+            "description": "比热比 k = Cp/Cv（γ）"
+          },
+          "specific_gravity": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Specific Gravity",
+            "description": "比重（相对空气）"
+          },
+          "discharge_coefficient": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Discharge Coefficient",
+            "description": "流量系数 Cd（XLS PR-023 默认 0.83932）",
+            "default": 0.83932
+          },
+          "initial_d_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Initial D M",
+            "description": "d 迭代初值（默认 15 mm）",
+            "default": 0.015
+          },
+          "tol": {
+            "type": "number",
+            "maximum": 0.01,
+            "exclusiveMinimum": 0.0,
+            "title": "Tol",
+            "description": "收敛判据（相对 W）",
+            "default": 1e-06
+          },
+          "max_iter": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Max Iter",
+            "description": "Newton/bisection 最大迭代",
+            "default": 50
+          },
+          "imperial_units": {
+            "type": "boolean",
+            "title": "Imperial Units",
+            "description": "是否返回英制单位（目前保留字段，service 未输出）",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "inlet_pressure_kpa",
+          "outlet_pressure_kpa",
+          "temperature_k",
+          "relief_flow_kg_s",
+          "compressibility_z",
+          "molecular_weight_kg_kmol",
+          "pipe_diameter_m",
+          "specific_heat_ratio",
+          "specific_gravity"
+        ],
+        "title": "DrainOrificeSizeRequest",
+        "description": "排污孔板 sizing 请求体（POST /api/v1/restriction/drain-orifice/size）。\n\nOPEN-P6-6A-7 inverse problem：已知泄放量 W + 工况反推 orifice diameter d。\n仅适用于阻塞流场景（SPEC §3.7.2 sizing 仅在临界流成立）。\n\n严格模式：未知字段 → 422 ValidationError（与 RestrictionCalculateRequest 一致）。"
+      },
+      "DrainOrificeSizeResponse": {
+        "properties": {
+          "orifice_diameter_m": {
+            "type": "number",
+            "title": "Orifice Diameter M",
+            "description": "求解得到的孔径 d（m）"
+          },
+          "orifice_area_m2": {
+            "type": "number",
+            "title": "Orifice Area M2",
+            "description": "孔径截面积 A（m²）"
+          },
+          "beta_ratio": {
+            "type": "number",
+            "title": "Beta Ratio",
+            "description": "直径比 β = d/D"
+          },
+          "ftp_factor": {
+            "type": "number",
+            "title": "Ftp Factor",
+            "description": "Ftp 修正系数（GB/T 308 Eq.2.2 经验式）"
+          },
+          "y_cr_sqrt": {
+            "type": "number",
+            "title": "Y Cr Sqrt",
+            "description": "Y_cr^0.5（Ruling 12 一致）"
+          },
+          "critical_pressure_ratio": {
+            "type": "number",
+            "title": "Critical Pressure Ratio",
+            "description": "临界压力比 r_c"
+          },
+          "actual_pressure_ratio": {
+            "type": "number",
+            "title": "Actual Pressure Ratio",
+            "description": "实际压力比 P₂/P₁"
+          },
+          "is_choked": {
+            "type": "boolean",
+            "title": "Is Choked",
+            "description": "是否阻塞流（sizing 仅适用临界流）"
+          },
+          "iterations": {
+            "type": "integer",
+            "title": "Iterations",
+            "description": "实际迭代次数"
+          },
+          "converged": {
+            "type": "boolean",
+            "title": "Converged",
+            "description": "是否收敛（未收敛 → 422）"
+          },
+          "residual_kg_s": {
+            "type": "number",
+            "title": "Residual Kg S",
+            "description": "残差 |m_max - W|（kg/s）"
+          },
+          "formula_ref": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Formula Ref",
+            "description": "公式溯源 dict"
+          },
+          "imperial_conversion": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imperial Conversion",
+            "description": "英制换算（imperial_units=True 时填充；当前 sizing 未启用）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "orifice_diameter_m",
+          "orifice_area_m2",
+          "beta_ratio",
+          "ftp_factor",
+          "y_cr_sqrt",
+          "critical_pressure_ratio",
+          "actual_pressure_ratio",
+          "is_choked",
+          "iterations",
+          "converged",
+          "residual_kg_s",
+          "formula_ref"
+        ],
+        "title": "DrainOrificeSizeResponse",
+        "description": "排污孔板 sizing 响应（POST /api/v1/restriction/drain-orifice/size 200）。\n\n字段对齐 service 层 DrainOrificeSizeResult（frozen dataclass）。"
+      },
       "EdgeFlowJson": {
         "properties": {
           "edge_id": {
@@ -18327,6 +18657,354 @@
         ],
         "title": "GenerateRequest",
         "description": "管道代码生成请求体（POST /project-pipe-code-configs/{id}/generate）。\n\n业务：project_id 限定项目；input_segments 用户输入字段值（与模板\nformat_definition_json 字段对应）；返回生成的完整管道代码字符串。"
+      },
+      "GlycolDehydrationRequest": {
+        "properties": {
+          "gas_flow_mmscfd": {
+            "type": "number",
+            "maximum": 500.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Gas Flow Mmscfd",
+            "description": "干气流量 MMscf/day（>0；<=500）"
+          },
+          "inlet_water_content_lb_per_mmscf": {
+            "type": "number",
+            "maximum": 100.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Inlet Water Content Lb Per Mmscf",
+            "description": "入口水含量 lb water / MMscf dry gas（>0；<=100）"
+          },
+          "outlet_water_content_lb_per_mmscf": {
+            "type": "number",
+            "exclusiveMaximum": 100.0,
+            "minimum": 0.0,
+            "title": "Outlet Water Content Lb Per Mmscf",
+            "description": "出口水含量 lb water / MMscf dry gas（>=0 且 < inlet；<100）"
+          },
+          "contactor_tray_count": {
+            "type": "integer",
+            "maximum": 50.0,
+            "minimum": 1.0,
+            "title": "Contactor Tray Count",
+            "description": "接触塔实际塔盘数（>=1；<=50）"
+          },
+          "glycol_circulation_rate_gpm": {
+            "type": "number",
+            "maximum": 100.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Glycol Circulation Rate Gpm",
+            "description": "甘醇循环量 gal/min（GPSA 经验 3 gpm/MMscf；>0；<=100）"
+          },
+          "glycol_type": {
+            "type": "string",
+            "enum": [
+              "TEG",
+              "DEG"
+            ],
+            "title": "Glycol Type",
+            "description": "甘醇类型（TEG 三甘醇；DEG 二甘醇 — FULL system v5.1 Ruling 5 DEG 不支持）",
+            "default": "TEG"
+          },
+          "relative_volatility": {
+            "type": "number",
+            "maximum": 50.0,
+            "exclusiveMinimum": 1.0,
+            "title": "Relative Volatility",
+            "description": "TEG/H2O 相对挥发度 α（典型 4.5；DEG 较低 2.8；>1；<=50）",
+            "default": 4.5
+          },
+          "imperial_units": {
+            "type": "boolean",
+            "title": "Imperial Units",
+            "description": "True → dual-unit 输出（tegloss_gal_d + diameter_ft）；False → SI 基准仅",
+            "default": false
+          },
+          "temperature_f": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 200.0,
+                "minimum": 60.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Temperature F",
+            "description": "接触塔温度 °F（Behr 反函数 / stripping gas 用；60~200）"
+          },
+          "pressure_psia": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 3000.0,
+                "minimum": 14.7
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Psia",
+            "description": "接触塔压力 psia（Behr 反函数 / stripping gas 用；14.7~3000）"
+          },
+          "lean_glycol_concentration": {
+            "type": "number",
+            "maximum": 0.999,
+            "minimum": 0.95,
+            "title": "Lean Glycol Concentration",
+            "description": "贫甘醇浓度 质量分率（0.95~0.999；默认 0.99）",
+            "default": 0.99
+          },
+          "vapour_space_ft": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 30.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vapour Space Ft",
+            "description": "蒸汽空间 ft（column height 增量；0~30）"
+          },
+          "sump_height_ft": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 20.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Sump Height Ft",
+            "description": "集液段高度 ft（column height 增量；0~20）"
+          },
+          "hetp_ft": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 20.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Hetp Ft",
+            "description": "等板高度 ft（column height = NTU × HETP；1.0~20.0）"
+          },
+          "approach_to_equilibrium_f": {
+            "type": "number",
+            "maximum": 20.0,
+            "minimum": 0.0,
+            "title": "Approach To Equilibrium F",
+            "description": "露点接近度 °F（adjusted dewpoint；GPSA §20.4 typical 5.0）",
+            "default": 5.0
+          },
+          "flooding_c_sb": {
+            "type": "number",
+            "maximum": 0.8,
+            "minimum": 0.3,
+            "title": "Flooding C Sb",
+            "description": "Souders-Brown C_sb（v5.1 预留，v5 helper 不使用 — ADR-0045 Rev A；0.30~0.80）",
+            "default": 0.65
+          },
+          "co2_mol_pct": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Co2 Mol Pct",
+            "description": "CO2 摩尔百分比（acid gas correction；0~100；v4 新增 H-1）",
+            "default": 0.0
+          },
+          "h2s_mol_pct": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "H2S Mol Pct",
+            "description": "H2S 摩尔百分比（acid gas correction；0~100；v4 新增 H-1）",
+            "default": 0.0
+          }
+        },
+        "type": "object",
+        "required": [
+          "gas_flow_mmscfd",
+          "inlet_water_content_lb_per_mmscf",
+          "outlet_water_content_lb_per_mmscf",
+          "contactor_tray_count",
+          "glycol_circulation_rate_gpm"
+        ],
+        "title": "GlycolDehydrationRequest",
+        "description": "FULL 甘醇脱水系统请求（POST /psychro/glycol-dehydration/calculate）。\n\n字段（按 SPEC §3.9.1 + GPSA §20.4；P6-6A-6 v5.1 Ruling 5 closure）：\n\n- 既有 8 必填：gas_flow / inlet / outlet / tray_count / circulation /\n  glycol_type / relative_volatility / imperial_units\n- 10 optional（v4 新增 acid gas）：temperature_f / pressure_psia /\n  lean_glycol_concentration / vapour_space_ft / sump_height_ft /\n  hetp_ft / approach_to_equilibrium_f / flooding_c_sb /\n  co2_mol_pct / h2s_mol_pct"
+      },
+      "GlycolDehydrationResponse": {
+        "properties": {
+          "dehydration_efficiency": {
+            "type": "number",
+            "title": "Dehydration Efficiency",
+            "description": "脱水效率 η = 1 - outlet/inlet（无量纲 0..1）"
+          },
+          "n_tray_minimum": {
+            "type": "integer",
+            "title": "N Tray Minimum",
+            "description": "最小塔盘数（GPSA §20.4 Eq.20-4，含 L/V 修正）"
+          },
+          "is_tray_count_ok": {
+            "type": "boolean",
+            "title": "Is Tray Count Ok",
+            "description": "实际塔盘数 ≥ N_min（bool）"
+          },
+          "teg_loss_gpd": {
+            "type": "number",
+            "title": "Teg Loss Gpd",
+            "description": "TEG 损失 gal/day（GPSA 经验 0.5 × Q）"
+          },
+          "contactor_diameter_in": {
+            "type": "number",
+            "title": "Contactor Diameter In",
+            "description": "接触塔直径 inch（GPSA 经验 + L/V 修正）"
+          },
+          "imperial_conversion": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "type": "number"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Imperial Conversion",
+            "description": "dual-unit 输出（仅 imperial_units=True；None → 仅 SI）"
+          },
+          "formula_ref": {
+            "additionalProperties": {
+              "type": "string"
+            },
+            "type": "object",
+            "title": "Formula Ref",
+            "description": "公式引用（GPSA §20.4 Eq.20-4 等）"
+          },
+          "glycol_type": {
+            "type": "string",
+            "title": "Glycol Type",
+            "description": "甘醇类型回显（TEG / DEG）"
+          },
+          "water_dewpoint_f": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Water Dewpoint F",
+            "description": "水的露点 °F（Behr 反函数；T<60°F 标记 extrapolated）"
+          },
+          "adjusted_dewpoint_f": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Adjusted Dewpoint F",
+            "description": "调整后露点 °F（diff method；缺 T/P 时 None）"
+          },
+          "lean_glycol_concentration": {
+            "type": "number",
+            "title": "Lean Glycol Concentration",
+            "description": "贫甘醇浓度回显（service 计算值；输入为 None 时使用 service 默认）"
+          },
+          "stripping_gas_scf_per_gal_teg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Stripping Gas Scf Per Gal Teg",
+            "description": "汽提气率 SCF/gal TEG（GPSA §20.4 Eq.20-5）"
+          },
+          "column_diameter_full_in": {
+            "type": "number",
+            "title": "Column Diameter Full In",
+            "description": "接触塔全径 inch（K=7.1187 单点标定 ADR-0045 Rev A）"
+          },
+          "column_height_ft": {
+            "type": "number",
+            "title": "Column Height Ft",
+            "description": "接触塔高度 ft（NTU × HETP + vapour space + sump）"
+          },
+          "number_of_transfer_units": {
+            "type": "number",
+            "title": "Number Of Transfer Units",
+            "description": "传质单元数 NTU（Kremser）"
+          },
+          "mass_h2o_removed_lb_s": {
+            "type": "number",
+            "title": "Mass H2O Removed Lb S",
+            "description": "脱水速率 lb/s"
+          },
+          "reboiler_duty_btu_hr": {
+            "type": "number",
+            "title": "Reboiler Duty Btu Hr",
+            "description": "再沸器负荷 BTU/hr（简式焓平衡 3 项）"
+          },
+          "column_csa_ft2": {
+            "type": "number",
+            "title": "Column Csa Ft2",
+            "description": "截面积 ft²"
+          },
+          "dewpoint_unavailable_reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Dewpoint Unavailable Reason",
+            "description": "dewpoint 不可用原因（如缺 T/P 时填 'temperature_f required'）"
+          },
+          "acid_gas_corrected": {
+            "type": "boolean",
+            "title": "Acid Gas Corrected",
+            "description": "acid gas correction 是否生效（v4 新增 H-1；CO2 或 H2S > 0 时 True）",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "dehydration_efficiency",
+          "n_tray_minimum",
+          "is_tray_count_ok",
+          "teg_loss_gpd",
+          "contactor_diameter_in",
+          "formula_ref",
+          "glycol_type",
+          "lean_glycol_concentration",
+          "column_diameter_full_in",
+          "column_height_ft",
+          "number_of_transfer_units",
+          "mass_h2o_removed_lb_s",
+          "reboiler_duty_btu_hr",
+          "column_csa_ft2"
+        ],
+        "title": "GlycolDehydrationResponse",
+        "description": "FULL 甘醇脱水系统响应（POST /psychro/glycol-dehydration/calculate）。\n\n字段（v4 Ruling 5 closure）：\n- 既有 8 字段（dehydration_efficiency / n_tray_minimum / is_tray_count_ok /\n  teg_loss_gpd / contactor_diameter_in / imperial_conversion / formula_ref /\n  glycol_type）\n- 12 optional（v4 含 acid_gas_corrected）：water_dewpoint_f /\n  adjusted_dewpoint_f / lean_glycol_concentration /\n  stripping_gas_scf_per_gal_teg / column_diameter_full_in /\n  column_height_ft / number_of_transfer_units / mass_h2o_removed_lb_s /\n  reboiler_duty_btu_hr / column_csa_ft2 / dewpoint_unavailable_reason /\n  acid_gas_corrected"
       },
       "HTTPValidationError": {
         "properties": {
