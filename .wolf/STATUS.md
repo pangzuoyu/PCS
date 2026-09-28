@@ -97,6 +97,17 @@ budget_tokens: 1500
 - bug-108 logged; cerebrum Key Learning appended
 - **Ruling 9 docs CLOSED**
 
+**SPEC V1.11 → V1.12 wording-only micro-revision（2026-09-28）**：commit `2c2d5b9` docs(spec)
+- 6 修订 + ATT-02 同步，2 files +39/-8（主 SPEC +37/-7, ATT-02 +2/-1），docs-only zero code/schema/test 改动
+- Fix 1 §3.9.2 C-17 OPEN-P6-6A-2 → OPEN-P6-6A-9.x（typo fix，1 行）
+- Fix 2 §3.9.1 C-16 列 12 result fields 全名 + 类型 + Ruling 5 + ADR-0045 Rev A ref（10~15 行大段）
+- Fix 3 §3.7.2 C-19 Ruling 12/13 闭环链补全（c34d3f4 + ce8556f→3250b42），不补 POST 路由
+- Fix 4 §8 "V1.7 未解决" 2 项 → P6-6B 解决中 + 引 plan `2026-09-27-p6-6b-data-source-replacement.md`
+- Fix 5 §3.5.2 C-21 AS 1210 path (b) + Jet fire OPEN-P6-6A-9 → OPEN-P6-6A-10 新立（PSV C-21 主题预留）
+- Fix 6 §9 V1.12 row + ATT-02 标题 V1.10 → V1.12 + §7.2 changelog 同步
+- reviewer（haiku）PASS：6 fix 全部按用户裁决落实
+- 4 deferred candidates（OPEN-P6-4-2/3/4 + OPEN-P6-6A-9.x 4 子项）保留至 P6-6B 工程团队接管
+
 **OPEN-P6-6A-2 关闭（Brief template `brief.id == plan_table_row.id` assert，2026-09-27）**：commit `955d25a` feat(tools)
 - 工具 `pcs-backend/scripts/validate_brief.py`（96 行）：controller dispatch 前断言 brief 含 expected-ids 且无 foreign-ids，防止 brief template 复制粘贴残留（如 T9 brief 误标 C-18 vs PR-019，实为 C-17）
 - CLI 接口：`--plan <plan> --task-n <N> --brief <brief.md> --expected-ids <ids...> --foreign-ids <ids...>`
@@ -141,7 +152,7 @@ budget_tokens: 1500
 1. ~~P6-6A merge 到 main~~ ✓ done `09eb037`
 2. ~~OPEN-P6-6A-3 K scale fix~~ ✓ done `e0d91a6`
 3. P6-6B 启动确认（工程团队接管厂商数据采集）
-4. SPEC V1.2 修订（10 项 deferred candidates 中 6 项 wording 决议）
+4. ~~SPEC V1.2 修订~~ ✓ done `2c2d5b9`（V1.11 → V1.12 wording-only 6 修订 + OPEN-P6-6A-10 新立）
 5. G-08 OpenAPI baseline drift 收口（P6-2/3/4 累积，Task 16/28）
 6. 前端 wrapper 3 页（heating-value / saturation-water-content / cv，P6-4 裁决推迟项）
 
@@ -150,7 +161,7 @@ budget_tokens: 1500
 - OPEN-P6-4-3（C-08 Imperial 单位支持范围）
 - OPEN-P6-4-4（C-24 Chapman-Jans / Tong 模型与商业软件对账，部署前）
 - OPEN-P6-6A-6（T8 full glycol dehydration system as new PCS service，CONFIG 占位 T9 关闭；service 扩展待 P6-7）
-- OPEN-P6-6A-9（AS 1210 §4.4 path (b) gas/vapor m·Y_p + jet fire 110,000 W/m²，独立 OPEN 立项）
+- OPEN-P6-6A-10（AS 1210 §4.4 path (b) gas/vapor m·Y_p + jet fire 110,000 W/m²，V1.12 docs 新立，PSV C-21 主题预留）
 
 **验收**：P6-6B 后 source 字段去 SYNTHETIC 标记 + gate 报告签字 + 黄金 fixture 重对账。
 **待用户裁决**：是否先核实 C-18 Nielsen 方程覆盖缺口（SPEC §3.9.3 要点含 Nielsen，P6-5 只落了 Hammerschmidt）。
