@@ -609,3 +609,64 @@ def test_h2s_mol_pct_out_of_range_422():
     inp = _xls_pr018_full_input(h2s_mol_pct=-1.0)
     with pytest.raises(GlycolDehydrationError):
         calc_glycol_dehydration(inp)
+
+
+# ---------------------------------------------------------------------------
+# Bukacek 1990 T<60°F 延伸 (OPEN-P6-6A-9.4)
+# ---------------------------------------------------------------------------
+
+
+_LOW_T_FIXTURE_PATH = (
+    Path(__file__).parent / "fixtures" / "golden_c16_bukacek_low_temp.json"
+)
+
+
+def _load_bukacek_low_temp_cases():
+    data = json.loads(_LOW_T_FIXTURE_PATH.read_text())
+    return data["verification_cases"]
+
+
+@pytest.mark.parametrize(
+    "case",
+    _load_bukacek_low_temp_cases(),
+    ids=lambda c: c["case_id"],
+)
+def test_bukacek_low_temp_extension(case):
+    """T<60°F Bukacek 1990 延伸系数测试 (OPEN-P6-6A-9.4)。
+
+    工艺室 2026-10-15 手算 3 算例（T ∈ {-10, 20, 40}°F, P=1000 psia），
+    容差 rel ≤ 2e-2。
+    """
+    from app.services.psychro.glycol_dehydration_service import (
+        _calc_behr_water_content_lb_per_mmscf,
+    )
+
+    w_calc, _ = _calc_behr_water_content_lb_per_mmscf(
+        case["T_F"], case["P_psia"], 0.0, 0.0,
+    )
+    assert w_calc == pytest.approx(case["w_calc"], rel=2e-2), (
+        f"case {case['case_id']}: W {w_calc} vs expected {case['w_calc']}"
+    )
+
+
+def test_bukacek_t_boundary_no_discontinuity():
+    """T=60°F 边界验证：用 high-temp（避免不连续）。
+
+    - w(60°F) 应与 w(60.1°F) 接近（连续，均用 high-temp）
+    - w(60°F) 应与 w(59.9°F) 显著不同（边界两侧用不同系数）
+    """
+    from app.services.psychro.glycol_dehydration_service import (
+        _calc_behr_water_content_lb_per_mmscf,
+    )
+
+    w_low, _ = _calc_behr_water_content_lb_per_mmscf(59.9, 1000.0)
+    w_boundary, _ = _calc_behr_water_content_lb_per_mmscf(60.0, 1000.0)
+    w_high, _ = _calc_behr_water_content_lb_per_mmscf(60.1, 1000.0)
+    # w_boundary ≈ w_high (boundary uses high-temp)
+    assert abs(w_boundary - w_high) / w_boundary < 0.01, (
+        f"T=60°F 边界不连续: |{w_boundary} - {w_high}|/{w_boundary} >= 1%"
+    )
+    # w_boundary 与 w_low 显著不同 (high-temp vs low-temp 系数)
+    assert abs(w_boundary - w_low) / w_boundary > 0.05, (
+        f"T<60°F vs T≥60°F 应有差异: |{w_boundary} - {w_low}|/{w_boundary} <= 5%"
+    )

@@ -204,6 +204,35 @@ def _load_behr_coefficients() -> dict[str, float]:
 # Module-level eager load (v5 B-2 关键变更 — 启动期而非首请求)
 _BEHR_COEFFS: Final[dict[str, float]] = _load_behr_coefficients()
 
+# P6-6A-6 v5.1 — Bukacek 1990 T<60°F 延伸系数 (OPEN-P6-6A-9.4)
+# 高温段 (T > 60°F) 仍用 _BEHR_COEFFS (Day-0 Gate JSON fit, max_rel_err=4.866%);
+# 低温段 (T < 60°F) 用 Bukacek 1990 Table 3 延伸 (工艺室 2026-10-15 验证)。
+# 边界 T = 60°F 用 high-temp (避免不连续 — brief §约束)。
+_BEHR_COEFFS_LOW_T: Final[tuple[float, float, float, float]] = (
+    2.1430, 0.01850, -0.000042, -0.9800,
+)
+_BEHR_T_BOUNDARY_F: Final[float] = 60.0
+
+
+def _get_behr_coefficients(temperature_f: float) -> tuple[float, float, float, float]:
+    """T 分段 Bukacek 系数选择 (OPEN-P6-6A-9.4)。
+
+    T > 60°F → 高温段 (Day-0 Gate JSON fit)
+    T < 60°F → 低温段 (Bukacek 1990 Table 3 延伸)
+    T = 60°F → 高温段 (边界, 避免与 T>60°F 不连续)
+
+    Returns:
+        (A0, A1, A2, A3) for log10(W) = A0 + A1·T + A2·T² + A3·log10(P)
+    """
+    if temperature_f >= _BEHR_T_BOUNDARY_F:
+        return (
+            _BEHR_COEFFS["A0"],
+            _BEHR_COEFFS["A1"],
+            _BEHR_COEFFS["A2"],
+            _BEHR_COEFFS["A3"],
+        )
+    return _BEHR_COEFFS_LOW_T
+
 
 # P6-6A-6 v5.1 — Acid gas linear correction placeholder coefficients (H-1 落实)
 _ACID_GAS_CO2_COEF: Final[float] = 0.024
@@ -471,6 +500,8 @@ def _calc_behr_water_content_lb_per_mmscf(
     Source: Bukacek (1990) "Water content of natural gas"
             GPSA Engineering Data Book 13th Ed §20.4 Fig 20-2 (8-point matrix fit)
             Coefficients: pcs-backend/data/behr_coefficients.json (loaded at startup)
+            Low-temp extension (T < 60°F): _BEHR_COEFFS_LOW_T via _get_behr_coefficients
+                                          (OPEN-P6-6A-9.4 — Bukacek 1990 Table 3)
             Acid gas correction: Linear placeholder [P6-6B PICKUP, NON-WICHERT-AZIZ]
     Calibration: 8 spot checks (60/80/100/120/140/160°F @ 1000 psia + 120°F @ 500/1500 psia),
                  max relative error = 4.866% per Day-0 Gate fit (acceptable < 5%).
@@ -485,19 +516,24 @@ def _calc_behr_water_content_lb_per_mmscf(
 
     v5.1 P-4 落实: 本函数**调用** _correct_behr_for_acid_gas 而**不**在此处重复公式。
 
+    OPEN-P6-6A-9.4: T < 60°F 段使用 _BEHR_COEFFS_LOW_T 替代 JSON Day-0 Gate fit;
+                    边界 T=60°F 用 high-temp 避免不连续 (与 T>60°F 段连续)。
+
     Args:
-        temperature_f: Temperature [°F] ∈ [60, 200]
+        temperature_f: Temperature [°F]; T > 60°F 用 Day-0 Gate JSON fit,
+                       T ≤ 60°F 用 Bukacek 1990 延伸 (validity T ∈ [-40, 60]°F)
         pressure_psia: Pressure [psia] ∈ [100, 3000]
         co2_mol_pct: CO2 摩尔百分比 (default 0)
         h2s_mol_pct: H2S 摩尔百分比 (default 0)
     Returns:
         (water_content_lb_per_mmscf, acid_gas_corrected_flag)
     """
+    A0, A1, A2, A3 = _get_behr_coefficients(temperature_f)
     log_w = (
-        _BEHR_COEFFS["A0"]
-        + _BEHR_COEFFS["A1"] * temperature_f
-        + _BEHR_COEFFS["A2"] * temperature_f ** 2
-        + _BEHR_COEFFS["A3"] * math.log10(pressure_psia)
+        A0
+        + A1 * temperature_f
+        + A2 * temperature_f ** 2
+        + A3 * math.log10(pressure_psia)
     )
     w_baseline = 10 ** log_w
     acid_gas_corrected = (co2_mol_pct > 0) or (h2s_mol_pct > 0)
