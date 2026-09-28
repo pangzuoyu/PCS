@@ -105,6 +105,23 @@ budget_tokens: 1500
 - 245+ insertions 单次提交；已 merge 入 main @ 955d25a
 - **OPEN-P6-6A-2 CLOSED**（brief template copy-paste typo guard 已落地）
 
+**OPEN-P6-6A-6 关闭（glycol dehydration v5.1 — Ruling 5 OUT_OF_SCOPE 12 fields + ADR-0045 Rev A + Day-0 Gate 形式决策，2026-09-28）**：commits `95bb442` → `8aaa68d` → `ee3c40e` → `1391a5a` → `5cced07`（5 commits；worktree `feature/p6-6a-6-glycol-full`）
+- **背景**：P6-6A Worley 批登记的 Ruling 5 要求 C-16 glycol dehydration 服务实现 11 OUT_OF_SCOPE outputs + acid_gas_corrected 共 12 fields 闭环（含 ADR-0045 TEG Contactor Sizing K 标定 + brentq 逆 dewpoint + acid gas placeholder + JSON 启动期加载三铁律）。v5 plan 阶段架构组预给 Behr 系数 (A0=1.3520/A1=0.00780/A2=0.0000052/A3=-0.9800) 独立验算失败（T=120/P=1000 预测 W=0.2648 vs spot 70，264× 偏差）+ v3 形式 A 也失败（113× 偏差），用户裁决 v5.1 必须 Day-0 Gate 形式决策 + 实际拟合系数 + 30× 根因弱化为推测待 P6-6B 验证
+- **v5.1 plan P-1~P-4 修正（95bb442）**：执行前必办 4 项——P-1 Day-0 Gate 形式决策必跑（numpy lstsq + scipy curve_fit 比较 3 形式）+ JSON log10_coefficients null；P-2 _DewpointResult 字段名统一（dewpoint_f/extrapolated/reason）；P-3 30× 根因弱化为推测待 P6-6B 验证（OPEN-P6-6A-9.1）；P-4 _calc_behr_water_content 调用 _correct_behr_for_acid_gas 去重
+- **T1 service v5.1（8aaa68d）**：glycol_dehydration_service.py 扩 12 result fields + 8 helper（_calc_behr_water_content / _correct_behr_for_acid_gas / _calculate_full_column_diameter / _calculate_ntu / _calculate_column_height / _calculate_reboiler_duty / _calculate_dewpoint_inverse / _validate_input）+ _DewpointResult frozen dataclass + 模块级 `_BEHR_COEFFS = load_behr_coefficients()` 启动期加载 + K=7.1187 from Worley PR-018 E40 单点标定 + 越界 WARNING `[K_UNVERIFIED_OUT_OF_XLS_CONDITIONS]` + Linear placeholder (NON-Wichert-Aziz) 术语正名 + acid_gas_corrected 纯逻辑判断 `(co2 > 0) or (h2s > 0)` + α=inp.relative_volatility 显式声明 + _validate_input 422 校验 7 字段（co2/h2s/lean_glycol/flooding_c_sb/relative_volatility）
+- **T1 fix REQUEST_CHANGES（ee3c40e）**：4 reviewer fixes — vap/sump column_height + 3 test rename + Python 3.13 forward-compat（dict[str, float] | None 显式声明）
+- **T2 fixture v4（1391a5a）**：worley_c16_glycol_dehydration.json 扩 11 OUT_OF_SCOPE outputs（acid_gas_corrected + co2/h2s inputs + dewpoint_unavailable_reason + flooding_c_sb 等）+ 10 parameterized tests（Ruling 5 closure 状态 v4）
+- **T3 API v4（5cced07）**：`/psychro/glycol-dehydration/calculate` v4 API + Pydantic schemas（GlycolDehydrationInput/Output）+ 11 集成测试（happy path TEGS / happy path acid gas / DEG 422 / T/P 缺 → None + reason / co2/h2s 422 / ACL designer-only 等）+ OpenAPI/frontend types regen
+- **docs 收口（本批 T4）**：bug-109/110/111/112/113 entries（id/timestamp/error_message/file/root_cause/fix/fix_commit/tags/occurrences/last_seen + fix_commit 必填）+ cerebrum.md 9 守则 v5.1（#3 Behr Day-0 Gate + #4 30× 根因弱化推测 + #8 Linear placeholder 三铁律）+ OPEN-P6-6A-6 v5.1 关闭 entry
+- **bug-109 fix_commit**: `5cced07`（Ruling 5 OUT_OF_SCOPE 12 fields API 暴露闭环）
+- **bug-110 fix_commit**: `8aaa68d`（Behr 系数 v5.1 Day-0 Gate 实际拟合 + K=7.1187）
+- **bug-111 fix_commit**: `8aaa68d`（v4 ADR-0045 + acid gas placeholder + brentq inverse + JSON 启动期加载三铁律）
+- **bug-112 fix_commit**: `8aaa68d`（v5 ADR-0045 Rev A 撤回 v4 物理依据 + _DewpointResult dataclass + Linear placeholder 正名）
+- **bug-113 fix_commit**: `95bb442`（v5.1 plan P-1~P-4 落实 + 30× 根因弱化推测 + Day-0 Gate 形式决策必跑）
+- **验收**：(a) ruff 0 errors；(c) `vitest run` ≥ 525 baseline PASS（v3 M-5 frontend 验收）；(d) 36 项端到端验证全过，含 worley_c16 fixture `ruling_5_closure_status_v4`；(e) console 无 antd/React/TS error；OpenAPI drift=0 + frontend tsc 0 errors
+- **OPEN-P6-6A-9 立项（4 子项 quest）**：OPEN-P6-6A-9.1 30× 差异根因完整验证（P6-6B 工程师 3 项：V_actual_scfs 混淆代码行定位 + XLS 标况气速文献依据 + 修订 ADR-0045 Rev A）；OPEN-P6-6A-9.2 K=7.1187 多工况标定（Q∈[144,432] MMscfd + sg sweep + TEG wt% sweep）；OPEN-P6-6A-9.3 真 Wichert-Aziz 非线性形式（接管 v5 Linear placeholder ~25% 偏差）；OPEN-P6-6A-9.4 brentq inverse T<60°F Bukacek 1990 low-temp extension
+- **Ruling 5 OUT_OF_SCOPE 12 fields CLOSED**（11 OUT_OF_SCOPE + acid_gas_corrected，alpha 显式 + dewpoint_unavailable_reason + acid_gas_corrected 一致性 + TEG Contactor Sizing ADR-0045 Rev A 单点标定 + 30× 根因弱化为推测 + brentq inverse → _DewpointResult frozen dataclass 字段名统一 + Linear placeholder 术语正名 + JSON 启动期加载三铁律 + Day-0 Gate 形式决策 + Day-1 Gate 验证 + _calc_behr 去重调用 _correct）
+
 ---
 
 ## 🚀 Next quest

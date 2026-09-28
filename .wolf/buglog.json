@@ -1864,6 +1864,119 @@
       "related_bugs": ["bug-106", "bug-107"],
       "occurrences": 1,
       "last_seen": "2026-09-28T08:00:00+08:00"
+    },
+    {
+      "id": "bug-109",
+      "timestamp": "2026-09-28T12:00:00+08:00",
+      "error_message": "Ruling 5 OUT_OF_SCOPE 11 outputs + acid_gas_corrected 缺 API 暴露（C-16 glycol dehydration 12 fields 闭环未交付）",
+      "file": "pcs-backend/app/services/psychro/glycol_dehydration_service.py + pcs-backend/tests/services/psychro/fixtures/worley_c16_glycol_dehydration.json + pcs-backend/app/api/v1/psychro.py + pcs-backend/app/schemas/psychro.py",
+      "root_cause": "Ruling 5 决议 C-16 glycol dehydration 实施里固 11 OUT_OF_SCOPE outputs（alpha / dewpoint / column_diameter / ntu / height / reboiler duty / flooding_c_sb 等）+ acid_gas_corrected 共 12 fields 全部需 API 暴露；T1/T2/T3 实施前 PCS service 仅 minimal forward problem（water_content + lean_glycol_purity），未实现 full system 二相气液接触塔计算、Brent 逆 dewpoint、acid gas 校正、JSON 启动期加载等一揽子扩面。",
+      "fix": "Ruling 5 OUT_OF_SCOPE 闭环: T1 (8aaa68d v5.1 service) 扩 12 result fields + 8 helper + _DewpointResult frozen dataclass + JSON log10_coefficients 启动期加载 + ADR-0045 Rev A K=7.1187 单点标定 + Linear placeholder (NON-Wichert-Aziz) + brentq inverse + acid_gas_corrected 纯逻辑判断；T2 (1391a5a v4 fixture) 扩 10 expected + acid_gas_corrected + co2/h2s inputs；T3 (5cced07 v4 API) 扩 /psychro/glycol-dehydration/calculate 路由 + 11 集成测试 + OpenAPI/frontend types regen。Ruling 5 OUT_OF_SCOPE 11 项 + acid_gas_corrected = 12 全部闭环，44 net tests（psychro baseline 96 → 140）。",
+      "fix_commit": "5cced07",
+      "tags": [
+        "Ruling-5",
+        "OUT_OF_SCOPE",
+        "12-fields",
+        "glycol-dehydration",
+        "OPEN-P6-6A-6",
+        "acid-gas-corrected",
+        "alpha-explicit",
+        "C-16",
+        "PCS"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-28"
+    },
+    {
+      "id": "bug-110",
+      "timestamp": "2026-09-28T12:00:00+08:00",
+      "error_message": "v2 Behr 系数 6 数量级偏差 + v3 形式 A 仍 113× 偏差（Behr log10 系数拟合质量问题未独立验算）",
+      "file": "pcs-backend/app/services/psychro/glycol_dehydration_service.py + pcs-backend/app/services/psychro/data/behr_coefficients.json + pcs-backend/scripts/dev/calibrate_behr_coefficients.py",
+      "root_cause": "v2 Behr 系数（4-param log10 form: A0=1.3520/A1=0.00780/A2=0.0000052/A3=-0.9800）在 T=120/P=1000 预测 W vs spot 偏差 6 数量级（约 10^6× 比例错误，疑似常数单位/scaling 系数误算）；v3 形式 A 修复后仍 113× 偏差（form A 拟合不够，log10 系数仍偏）。架构组 plan 阶段未独立验算 Behr 系数 → 反复重做形式决策浪费时间（v2→v3→v5→v5.1 Day-0 Gate 4 轮迭代）。",
+      "fix": "v5.1 (95bb442 P-1 Day-0 Gate 形式决策必跑 + 8aaa68d 实施) 实际拟合系数 via numpy lstsq + scipy curve_fit 比较 3 形式（4-param log10 二次 / Katz 3-param / Behr 原式非线性）+ 残差验证 max_rel_err < 5%；v5.1 service (8aaa68d) 模块级 _BEHR_COEFFS = load_behr_coefficients() 启动期加载 + RuntimeError on schema invalid + fallback 系数 WARNING 不 crash + K=7.1187 from Worley PR-018 E40 单点标定。8 spot check (60/80/100/120/140/160°F @ 1000 psia + 120°F @ 500/1500 psia) 残差 within 5%。",
+      "fix_commit": "8aaa68d",
+      "tags": [
+        "Behr-coefficients",
+        "Day-0-Gate",
+        "log10-form",
+        "spot-check",
+        "v5.1-P-1",
+        "OPEN-P6-6A-6",
+        "calibration-script",
+        "K=7.1187",
+        "PCS"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-28"
+    },
+    {
+      "id": "bug-111",
+      "timestamp": "2026-09-28T12:00:00+08:00",
+      "error_message": "v4 glycol_dehydration_service 缺 4 关键功能：ADR-0045 TEG Contactor Sizing + acid gas placeholder + brentq inverse + JSON 启动期加载三铁律",
+      "file": "pcs-backend/app/services/psychro/glycol_dehydration_service.py + pcs-backend/app/services/psychro/data/behr_coefficients.json + pcs-backend/pyproject.toml",
+      "root_cause": "v3 PCS minimal forward problem 仅 water_content + lean_glycol_purity + relative_volatility validation；v4 spec 要求扩 4 关键功能：(a) TEG Contactor Sizing (D_full = K×sqrt(Q) Souders-Brown 简化式) 必须 ADR-0045 决议 K 物理依据；(b) acid gas 校正 placeholder（CO2/H2S 输入 → W 增加）; (c) brentq 逆 dewpoint（W → T_f 反解）; (d) Behr 系数 JSON 启动期加载三铁律（不 lazy lru_cache / 不静默）。v4 plan 8 守则 #3/#4/#8 + spec §3.9.4 范围。",
+      "fix": "v4 + v5.1 实施 (8aaa68d): (a) _calculate_full_column_diameter helper 接受 Q_MMscfd/sg_TEG/P_total + ADR-0045 K=7.1187 (单点标定, v5 撤回 v4 'gas-continuous vs liquid-continuous' 物理依据) + 越界 WARNING [K_UNVERIFIED_OUT_OF_XLS_CONDITIONS]；(b) _correct_behr_for_acid_gas (W_corr = W_baseline × (1 + 0.024·CO2 + 0.018·H2S), v5 H-1 术语正名 Linear placeholder NON-Wichert-Aziz, docstring 含真 Wichert-Aziz 参考) + co2_mol_pct/h2s_mol_pct ∈ [0,100]；(c) _DewpointResult frozen dataclass (v5 B-3, dewpoint_f/extrapolated/reason FOUND/EXTRAPOLATED/NOT_FOUND 三态) + scipy brentq + Newton fallback (analytical derivative dW/dT from log10 form) + Antoine extrapolation WARNING (T<60°F)；(d) importlib.resources 加载 + RuntimeError on schema invalid + WARNING fallback 不 crash (v4 三铁律)；pyproject.toml 加 package_data = {pcs_backend: [data/*.json]}。",
+      "fix_commit": "8aaa68d",
+      "tags": [
+        "ADR-0045",
+        "Souders-Brown",
+        "acid-gas-placeholder",
+        "brentq-inverse",
+        "JSON-loading",
+        "importlib-resources",
+        "v4-features",
+        "OPEN-P6-6A-6",
+        "PCS"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-28"
+    },
+    {
+      "id": "bug-112",
+      "timestamp": "2026-09-28T12:00:00+08:00",
+      "error_message": "v5 ADR-0045 v4 物理依据错误（gas-continuous vs liquid-continuous 与主流文献不符）+ 30× 差异根因 + _DewpointResult tuple 解构歧义 + Linear placeholder 误读为 Wichert-Aziz",
+      "file": "pcs-backend/docs/adr/ADR-0045-teg-contactor-sizing.md + pcs-backend/app/services/psychro/glycol_dehydration_service.py",
+      "root_cause": "(a) v4 ADR-0045 物理依据 'gas-continuous vs liquid-continuous' 与主流文献（Worley / GPSA Engineering Data Book §20.4）不符 — 实际 TEG contactor 是液相连续操作；(b) 30× 差异根因 = v3 service 算 flooding velocity 时混淆了 V_actual vs V_std（数学上一致，但文献依据待 P6-6B 验证）；(c) v4 _DewpointResult 原为 tuple 解构，歧义 caller 写 result[0]/[1]/[2] 不知字段顺序；(d) Linear placeholder 系数 0.024·CO2 + 0.018·H2S 易被未来 reviewer 误读为 Wichert-Aziz 公式（Wichert-Aziz 实为非线性形式）。",
+      "fix": "v5 + v5.1 落实 (8aaa68d + 95bb442): (a) ADR-0045 Rev A 标准态换算澄清 + 撤回 v4 物理依据 + K=7.1187 from Worley PR-018 E40 单点标定 + 30× 根因弱化为推测待 P6-6B 验证 (OPEN-P6-6A-9.1)；(b) v5 30× 差异根因记录为「v3 混淆 V_actual vs V_std」(OPEN-P6-6A-9)；(c) v5 B-3 _DewpointResult frozen dataclass + v5.1 P-2 字段名统一 dewpoint_f/extrapolated/reason；(d) v5 H-1 Linear placeholder 术语正名 (NON-Wichert-Aziz) + docstring 明示 + cerebrum 9 守则 #8 第一条 + bug-112 root_cause 字段锁定未来 reviewer 误读；OPEN-P6-6A-9 4 子项 quest 立项（9.1 根因验证 / 9.2 K 多工况标定 / 9.3 真 Wichert-Aziz / 9.4 brentq low-T Bukacek）。",
+      "fix_commit": "8aaa68d",
+      "tags": [
+        "ADR-0045-Rev-A",
+        "K=7.1187",
+        "30x-root-cause",
+        "_DewpointResult-dataclass",
+        "Linear-placeholder",
+        "NON-Wichert-Aziz",
+        "OPEN-P6-6A-9",
+        "v5-revocation",
+        "OPEN-P6-6A-6",
+        "PCS"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-09-28"
+    },
+    {
+      "id": "bug-113",
+      "timestamp": "2026-09-28T12:00:00+08:00",
+      "error_message": "v5 Behr 系数架构组独立验算失败 (264× 偏差) + v3 形式 A 也失败 (113×) — Day-0 Gate 形式决策必跑",
+      "file": "docs/superpowers/plans/2026-09-28-p6-6a-6-glycol-full.md + app/services/psychro/glycol_dehydration_service.py",
+      "root_cause": "v5 plan 预给 Behr 系数 (A0=1.3520/A1=0.00780/A2=0.0000052/A3=-0.9800) 在 T=120/P=1000 预测 W=0.2648 vs spot 70（264× 偏差）；v3 形式 A 也失败（113× 偏差）。架构组未独立验算就 plan 阶段给定系数。30× 差异根因（实际 K=7.1187 vs 文献 ~240）= 架构组数学推测标准态↔实际态换算混淆（文献依据待 P6-6B 验证）。",
+      "fix": "v5.1 plan P-1: JSON log10_coefficients: null → Day-0 Gate 必跑（numpy lstsq + scipy curve_fit 比较 3 形式）；P-2: _DewpointResult 字段名统一；P-3: 30× 根因弱化为推测待 P6-6B 验证（OPEN-P6-6A-9.1）；P-4: _calc_behr_water_content 调用 _correct_behr_for_acid_gas（DRY）",
+      "fix_commit": "95bb442",
+      "tags": [
+        "v5.1_P-1",
+        "v5.1_P-2",
+        "v5.1_P-3",
+        "v5.1_P-4",
+        "Behr-coefficients",
+        "Day-0-Gate",
+        "ADR-0045-Rev-A"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-28"
     }
   ]
 }

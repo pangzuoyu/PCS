@@ -443,6 +443,34 @@
 3. **SPEC §9 changelog 必须精确列闭环链** — single-line description 必须含 commit SHA + OPEN ID + Ruling 编号，便于 grep 反查
 4. **working fluid 范围边界必须显式声明** — XLS 工况 vs PCS 服务的 working fluid 差异（如 natural gas vs humid air）必须在 SPEC 段落明确，worley fixture `mapping_defect` 是 SPEC wording 的事实依据
 
+### OPEN-P6-6A-6 glycol dehydration v5.1 — Ruling 5 OUT_OF_SCOPE 12 fields + ADR-0045 Rev A + Day-0 Gate 形式决策 (2026-09-28, bug-109/110/111/112/113)
+
+**defect**: Ruling 5 决议 C-16 glycol dehydration 需实现 11 OUT_OF_SCOPE outputs + acid_gas_corrected 共 12 fields + ADR-0045 TEG Contactor Sizing (K=7.1187 单点标定) + brentq 逆 dewpoint + acid gas placeholder + JSON 启动期加载三铁律；v5 plan 阶段预给 Behr 系数架构组独立验算失败 (264× 偏差) + v3 形式 A 也失败 (113× 偏差)，需 Day-0 Gate 形式决策必跑 + 实际拟合系数。
+
+**fix strategy**: 5 commit 链 `95bb442` (v5.1 plan P-1~P-4 修正) → `8aaa68d` (v5.1 service + Day-0 Gate + K=7.1187 + 12 OUT_OF_SCOPE + 9 helpers + Linear placeholder 正名 + _DewpointResult dataclass) → `ee3c40e` (4 reviewer REQUEST_CHANGES: vap/sump column_height + 3 test rename + Python 3.13 forward-compat) → `1391a5a` (Worley PR-018 v4 fixture + 10 reconciliation tests, Ruling 5 closure) → `5cced07` (v4 API + Pydantic + 11 integration tests + OpenAPI/frontend types regen)。
+
+**9 守则（v5.1 修订：#3 Behr 形式决策 Day-0 Gate / #4 30× 根因弱化推测 + Linear placeholder 三铁律）**：
+1. **Ruling 1 additive extension** — frozen dataclass 现有 7 字段零改动，可追加 optional 字段（备灾 backward-compat 默认值）
+2. **Behr 私有化**（_ 前缀 + 不入 __all__），归 C-16 glycol dehydration 内部 helper，不暴露给其他 service
+3. **Behr 系数形式决策 Day-0 Gate 必跑**（v5.1 P-1 落实）— T1 Step 0 用 numpy lstsq + curve_fit 比较 3 种候选形式（4-param log10 二次 / Katz 3-param / Behr 原式非线性），**不**预先假设系数；选 max_rel_err < 5% 的形式；JSON `log10_coefficients`（或 `coefficients`）初始 null，由 Day-0 Gate 拟合填入；系数外置 JSON sidecar，service **模块级启动期加载**（**不** lazy lru_cache）+ **fallback 系数 WARNING 不 crash**（v5 B-2 闭环）
+4. **TEG Contactor Sizing = Souders-Brown 在 XLS PR-018 工况下的标定简化式**（v5.1 ADR-0045 Rev A + P-3 弱化）：`D_full = K × sqrt(Q_gas)`，K=7.1187 from Worley PR-018 E40 单点标定；**v5 撤回 v4 物理依据**（"gas-continuous vs liquid-continuous" 与主流文献不符）；30× 差异**架构组推测**根因 = v3 混淆标准态↔实际态（数学上一致，**文献依据待 P6-6B 验证** — OPEN-P6-6A-9.1）；helper 接受 `flooding_c_sb` reserved；越界 WARNING `[K_UNVERIFIED_OUT_OF_XLS_CONDITIONS]`（v5 H-2 降级）
+5. **简式焓平衡 3 项必含 TEG/H2O/ΔH_vap**；签名无 unused 参数（reboiler duty 1454 kW within 2% spot check）
+6. **adjusted_dewpoint = water_dewpoint - approach**（差分法）；**字段 dataclass ↔ response 一一对应**（`dewpoint_unavailable_reason` + `acid_gas_corrected` 入 dataclass）
+7. **alpha = inp.relative_volatility** 显式声明（避免 _validate_input alpha 越界 422 误判）
+8. **v4/v5/v5.1 三件套**：
+   - **Linear acid gas placeholder (NON-Wichert-Aziz)**：`W_corr = W_baseline × (1 + 0.024·CO2 + 0.018·H2S)`；**v5 术语正名**（明确**不是** Wichert-Aziz 公式）；docstring 含真 Wichert-Aziz 非线性形式 reference；标 `[LINEAR_PLACEHOLDER, NON-WICHERT-AZIZ, P6-6B PICKUP]`；酸气输入字段 `co2_mol_pct`/`h2s_mol_pct` ∈ [0, 100]
+   - **Behr inverse dewpoint → _DewpointResult frozen dataclass**（v5 B-3）：scipy `brentq` + Newton fallback（analytical derivative dW/dT from log10 form）+ T<60°F Antoine 外推 WARNING；三态显式 FOUND / EXTRAPOLATED / NOT_FOUND（无 tuple 歧义）
+   - **JSON 启动期加载三铁律**：importlib.resources + RuntimeError on schema invalid + fallback 系数 WARNING（**不** lazy / **不** 静默）
+9. **v5 新增三铁律（v5.1 修订）**：
+   - **30× 差异根因 = 标准态↔实际态换算混淆**（架构组 plan 阶段根因分析完成）；v3 算 flooding velocity 时混淆了 V_actual vs V_std；OPEN-P6-6A-9.1 后续 quest 验证
+   - **Behr 系数 Day-0 Gate 形式决策 + Day-1 Gate 验证**（v5.1 P-1 落实）：`calibrate_behr_coefficients.py` 跑 3 形式对比 + 拟合 → 实际系数 + 残差；不一致 → halt + 报架构组
+   - **acid_gas_corrected = 纯逻辑判断**（v5 H-3）：`(co2 > 0) or (h2s > 0)`；**不**调 Behr helper 浪费算力
+   - **30× 差异根因 = 架构组数学推测，文献依据待 P6-6B 验证**（v5.1 P-3 弱化）：数学上一致，但 XLS 为何用标准态气速的工程依据待补；OPEN-P6-6A-9.1
+   - **_DewpointResult 字段名统一**（v5.1 P-2 落实）：定义段 + R-13 用 `dewpoint_f`/`extrapolated`/`reason`，**不**用 `found`/`T_f` 旧名
+   - **_calc_behr_water_content 调用 _correct_behr_for_acid_gas**（v5.1 P-4 落实）：去重 acid gas 修正公式；future-proof
+
+**scope 限定**：仅 TEG 全套公式（GPSA §20.4）；DEG partial coverage 暂维持 out_of_scope，helper 全部 TEG-only（`_validate_input` 抛 422）。当前 K=7.1187 越界 WARNING；多工况标定走 OPEN-P6-6A-9.2；真 Wichert-Aziz 非线性形式走 OPEN-P6-6A-9.3；brentq low-T Bukacek 走 OPEN-P6-6A-9.4。
+
 ## Decision Log
 
 - 管道计算等级按项目绑定（source=PROJECT）；class_id 全局唯一 PK，跨项目同码不同值需复合 PK 迁移（P3 复核）。
