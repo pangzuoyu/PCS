@@ -80,18 +80,21 @@ baseline：3242 passed + 74 skipped。
 
 ## 4 内联常量替换
 
-### T10. Hammerschmidt K_F=2335 → K_C=1297.22（**Ruling 11 关闭**）
+### T10. Hammerschmidt K_F=2335 → K_C=1297.22（**OPEN-P6-6A-3 真正关闭**）
 - **当前**：`app/services/restriction/drain_orifice_service.py` 或 hydrate 关联 service 硬编码 `K=2335`
 - **目标**：service 启动时载入 `hammerschmidt_K` CONFIG 表 → K_F→K_C 转换（1297.22）；或 docs 明确 `hydrate_depression_c` 字段名改为 `_f`
 - **commit**：1
 - **决议路径**：A) service 改（preferred — 关闭 OPEN-P6-6A-3）；B) docs-only（less invasive，carry OPEN-P6-6A-3）
-- **决策待工程团队**
+- **决策**：**工艺室 2026-09-28 签署路径 A**（service 改 + 字段名修正 `_c` → `_f`，语义 Bug 修复 + `hydrate_depression_c = _f × 5/9` 派生 + `_c_legacy` deprecated 向后兼容；OPEN-P6-6A-3 真正关闭）— ~0.5 天
+- **实施日期**：2026-10-15
 
-### T11. API 521 fire coefficient 43192 → AS 1210 coefficient 2.457（**Ruling 9 2nd surface 部分关闭**）
+### T11. API 521 fire coefficient 43192 → AS 1210 path 分支注册（**OPEN-P6-6A-5 真正关闭**）
 - **当前**：`app/services/psv/as1210_overpressure_service.py` 硬编码 43192
-- **目标**：service 从 `api521_thresholds` CONFIG 表读取；同时加载 AS 1210 路径（2.457）备选
+- **目标**：service 从 `api521_thresholds` CONFIG 表读取；同时加载 AS 1210 路径备选
 - **commit**：1
-- **验收**：T13 C-21 测试 fire_case 双 path 注册；OPEN-P6-6A-5 部分关闭（ΔH_vap 口径仍 18× diff）
+- **决策**：**工艺室 2026-09-28 签署分 path 并存**（`fire_case_standard: Literal["API_521", "AS_1210"] = "API_521"` 默认；**放弃 2.457 系数**——来源不明，工艺室追溯为 XLS PR-025 内部 BTU/hr basis 转换或不同 ΔH_vap 假设；保留 API 521 §3.4 (43192) 主流标准默认 + AS 1210 path (a) 7.2×10⁴（已有）+ path (b) m·Y_p（OPEN-P6-6A-10））
+- **验收**：T13 C-21 测试 fire_case 双 path 注册；OPEN-P6-6A-5 真正关闭（ΔH_vap 由 T12 关闭）
+- **实施日期**：2026-10-15
 
 ### T12. ΔH_vap 2260 kJ/kg（**OPEN-P6-6A-5 关闭**）
 - **当前**：PCS hardcoded 2260 kJ/kg；XLS PR-025 implicit 208 kJ/kg（差距 18×）

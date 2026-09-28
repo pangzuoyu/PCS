@@ -588,3 +588,50 @@ P6-4 plan V1.0 把 C-08 设计为 weight_estimate 是错误，已在 V1.1 撤销
 API: 
 入口:  → 
 测试:  (16 passed)
+
+### P6-6B 工艺工程师对 OPEN 队列的决策（2026-09-28）
+
+工艺工程师签署 OPEN-P6-4-3 / 4-4 / 6A-9（9.1~9.4 + 新增 9.5）/ 6A-10 / 6A-11 + T10 / T11 全部 11 项。
+
+#### 关键决策
+
+| OPEN | 决策 | 工时 | 关闭日期 |
+|---|---|---|---|
+| OPEN-P6-4-3 | 接受；Imperial 白名单 + Skirt/Saddle 圆整值表（in/ft 步进）；工艺室提供 2~3 fixture（HYSYS 对账，rel ≤ 1e-2） | 1.0 天 | 2026-10-15 |
+| OPEN-P6-4-4 | 接受；3 模型容差 rel ≤ 1e-2；24 组合厂商数据（FL/FF/Cf）+ 3 对账 fixture（Masoneilan/HYSYS/K-Spice） | 1.0 天 | 2026-10-31 |
+| OPEN-P6-6A-9.1 | 根因确认：v3 V_actual_scfs 用了实际工况体积流量（~203,200 ft³/s），正确用标准态（3333.33 ft³/s）；换算因子 ≈ 68.0。ADR-0045 Rev B 补充 GPSA §20.4 Eq.20-3 + Kohl-Nielsen Ch.7 Eq.7-14 引用 | 1.0 天 | 2026-10-15 |
+| OPEN-P6-6A-9.2 | K=7.1187 6 工况验证 CV=1.05% < 5% ✅；单点 K 实际适用 [sg ∈ 0.55-0.65, TEG wt% ∈ 98.5-99.8, P ∈ 800-1500 psia, Q ∈ 100-400 MMscfd]；适用范围升级 | 0.5 天 | 2026-10-15 |
+| OPEN-P6-6A-9.3 | 真 Wichert-Aziz 实现（Wichert & Aziz 1972, HC Processing）；XLS PR-018 E20=103.91 残差 26% 归因 XLS baseline（≠ GPSA 70 lb/MMscf）或盐度修正；归 OPEN-P6-6A-9.5 新增 | 1.0 天 | 2026-10-31 |
+| OPEN-P6-6A-9.4 | Bukacek 1990 Table 3 low-temp 系数：A0'=2.1430, A1'=0.01850, A2'=-0.000042, A3'=-0.9800；_behr_inverse_dewpoint T < 60°F 分支 | 0.5 天 | 2026-10-31 |
+| **OPEN-P6-6A-9.5** | **新增**：XLS PR-018 E20=103.91 baseline 溯源（6% brine 盐度修正 +15~25%）+ 完整 XLS baseline 表 | 0.5 天 | 2026-11-30 |
+| OPEN-P6-6A-10 | AS 1210 §4.4 path (b) gas/vapor: `m' = m·Y_p + m'_p`（Y_p = 10,000 / (C_w·t·T_o)）；Jet fire 110,000 W/m²: `Y_t = 110,000/(C_w·t·T_r)`；2+2 黄金算例 | 1.0 天 | 2026-11-15 |
+| OPEN-P6-6A-11 | Nielsen 1988 (GPA RR-114) Table 2-3 A/B/C 完整常数（7 组）：CH4=(-0.0152, 0.0287, 0.0) / C2H6=(-0.0230, 0.0395, 0.0) / C3H8=(-0.0308, 0.0521, 0.0) / i-C4H10=(-0.0375, 0.0634, 0.0) / N2=(0.0095, -0.0180, 0.0) / CO2=(-0.0180, 0.0338, 0.0) / H2S=(-0.0210, 0.0402, 0.0)；v5 简化（C=0.0）vs Table 2-3（C≠0）— 升级；gas_composition 输入 | 1.0 天 | 2026-11-30 |
+| **T10** | **路径 A**（推翻 progress.md 旧裁决）：service 改 + 字段名修正（`_c` → `_f`）+ CONFIG 表闭环；新增 `hydrate_depression_c: float = _f × 5/9` 派生字段；保留 `_c_legacy` deprecated 向后兼容 | 0.5 天 | 2026-10-15 |
+| **T11** | **分 path 并存**：`fire_case_standard: Literal["API_521", "AS_1210"] = "API_521"` 默认；**放弃 2.457 系数**（来源不明，工艺室追溯为 XLS PR-025 内部 BTU/hr basis 转换或不同 ΔH_vap 假设）；AS 1210 path (a) 7.2×10⁴（已有）+ path (b)（OPEN-P6-6A-10） | 0.5 天 | 2026-10-15 |
+
+#### 总工时
+
+~8.5 天（工艺室 + service 集成），按 OPEN 项关闭日期分 3 批：
+
+- **2026-10-15 批**：OPEN-P6-4-3, 9.1, 9.2, T10, T11（3.5 天）
+- **2026-10-31 批**：OPEN-P6-4-4, 9.3, 9.4（3.0 天）
+- **2026-11-15 批**：OPEN-P6-6A-10（1.0 天）
+- **2026-11-30 批**：OPEN-P6-6A-11, 9.5（2.0 天）
+
+#### Ruling 关闭状态
+
+- **OPEN-P6-6A-3**（K scale）：T10 路径 A 后**真正关闭**（公式 + 字段名 + CONFIG 表全闭环）
+- **OPEN-P6-6A-5**（ΔH_vap）：T11 fire_case 双 path 注册后**关闭**（T12 已关闭 ΔH_vap 双字段 + T11 关闭 fire_case 双 path）
+
+#### 重要约束（工艺室明确）
+
+1. **T11 放弃 2.457**：来源不明（XLS PR-025 内部 BTU/hr basis 转换或不同 ΔH_vap 假设）；保留 API 521 §3.4 (43192) 作为主流标准默认；AS 1210 path (a) 7.2×10⁴ + path (b) m·Y_p（OPEN-P6-6A-10）
+2. **T10 breaking change**：`hydrate_depression_c` 字段名修正为 `_f`（语义 Bug，实际输出 °F 值）；保留 `_c_legacy` deprecated 向后兼容；CHANGELOG 标注 breaking
+3. **OPEN-P6-6A-9.2 K 范围升级**：单点 K=7.1187 实际适用 6 工况（CV=1.05%），ADR-0045 Rev B 更新适用范围声明
+4. **OPEN-P6-6A-9.3 残差归因**：真 Wichert-Aziz 实现后与 v5 Linear placeholder 几乎相同（差 0.4%）；XLS E20 残差 26% 不在 acid gas correction，归 OPEN-P6-6A-9.5（XLS baseline 溯源 + 盐度修正）
+
+#### Next batch 触发
+
+P6-7 启动条件（按工艺室承诺日期）：
+- 2026-10-15 批 OPEN 闭环 → P6-7 启动前置数据齐全
+- 全部 11 项关闭后 → P6-8（工程团队部署 + ETL 重新对账）启动

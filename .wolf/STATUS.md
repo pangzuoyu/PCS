@@ -162,19 +162,44 @@ budget_tokens: 1500
 - **验收**：G-08 phase 1-3 全过（0 OPENAPI drift，metadata-only 改动无新路径）；pytest 各模块 0 break；ruff 0 errors on touched files；pcs_test head `p6_6b_013_drain_orifice_Cd_Y_cr`
 - **Parked findings (跨批 LOW/INFO 11 项，batch-end 清理)**：T3 4 项 doc-style nit + T8 4 项 spec deviation + T12 3 项 ruff/seed 偏差
 
+**P6-6B 工艺工程师对 OPEN 队列的决策（2026-09-28，工艺室签署）**：全部 11 项（OPEN-P6-4-3 / 4-4 / 6A-9 9.1~9.4 + 新增 9.5 / 6A-10 / 6A-11 + T10 / T11）已锁定输入与决策，详见 `.wolf/cerebrum.md` §"P6-6B 工艺工程师对 OPEN 队列的决策"
+- **关键决策摘要**：
+  - **T10 路径 A**（推翻 progress.md 旧 docs-only 裁决）：service 改 + 字段名修正（`_c` → `_f`，语义 Bug）+ CONFIG 表闭环 + `hydrate_depression_c = _f × 5/9` 派生 + `_c_legacy` deprecated；OPEN-P6-6A-3 真正关闭
+  - **T11 放弃 2.457**：工艺室追溯来源不明（XLS PR-025 内部 BTU/hr basis 转换或不同 ΔH_vap 假设）；改分 path 并存（API_521 默认 + AS_1210 path (a) 7.2×10⁴ + path (b) OPEN-P6-6A-10）
+  - **OPEN-P6-6A-9.2 K 范围升级**：单点 K=7.1187 实测 6 工况 CV=1.05% < 5%；适用范围 [sg ∈ 0.55-0.65, TEG wt% ∈ 98.5-99.8, P ∈ 800-1500 psia, Q ∈ 100-400 MMscfd]；ADR-0045 Rev B 更新
+  - **OPEN-P6-6A-9.5 新增**：XLS PR-018 E20=103.91 baseline 残差 26% 归因 XLS baseline（≠ GPSA 70 lb/MMscf）+ 6% brine 盐度修正 +15~25%
+  - **OPEN-P6-6A-9.3 残差归因**：真 Wichert-Aziz 实现后与 v5 Linear placeholder 几乎相同（差 0.4%）；XLS E20 残差 26% 不在 acid gas correction
+  - **OPEN-P6-6A-11 Nielsen 精确常数**：Nielsen 1988 (GPA RR-114) Table 2-3 A/B/C 完整常数 7 组（CH4/C2H6/C3H8/i-C4H10/N2/CO2/H2S）；v5 简化（C=0.0）升级为完整 Table 2-3
+- **总工时 ~8.5 天**，按关闭日期分 4 批：
+  - **2026-10-15**：OPEN-P6-4-3 + 9.1 + 9.2 + T10 + T11（3.5 天）
+  - **2026-10-31**：OPEN-P6-4-4 + 9.3 + 9.4（3.0 天）
+  - **2026-11-15**：OPEN-P6-6A-10（1.0 天）
+  - **2026-11-30**：OPEN-P6-6A-11 + 9.5（2.0 天）
+- **OPEN-P6-6A-3 / OPEN-P6-6A-5 真正关闭**：T10 路径 A 后 OPEN-P6-6A-3 全闭环；T11 fire_case 双 path 注册后 OPEN-P6-6A-5 全闭环
+- **P6-7 启动前置**：2026-10-15 批 OPEN 闭环后即可启动 P6-7 glycol service 扩展 + 工艺室 4 批 fixture 集成
+
 ---
 
 ## 🚀 Next quest
 
-**P6-7 glycol dehydration service 扩展（OPEN-P6-6A-6 后续）**：
-- Plan: 待定
-- 范围：4 子模块（reboiler / stripping / full column / lean glycol）从 OUT_OF_SCOPE → 落地
-- 触发：T9 CONFIG `glycol_dehydration_full_system` 10 行典型工况范围已就位 + 工艺工程师提供 reboiler duty / stripping gas rate / 4 子模块计算逻辑
-- 预计 5-7 工作日
+**P6-7 glycol dehydration service 扩展（OPEN-P6-6A-6 后续 + OPEN-P6-6A-9.x 4 子项 + OPEN-P6-6A-9.5）**：
+- Plan: 待定（**2026-10-15 工艺室承诺 OPEN-P6-6A-9.1/9.2 闭环后启动**，ADR-0045 Rev B 起草 + K 适用范围升级）
+- 范围：
+  - OPEN-P6-6A-6：4 子模块（reboiler / stripping / full column / lean glycol）从 OUT_OF_SCOPE → 落地
+  - OPEN-P6-6A-9.1：ADR-0045 Rev B 起草 + GPSA §20.4 Eq.20-3 + Kohl-Nielsen Ch.7 Eq.7-14 引用补充
+  - OPEN-P6-6A-9.2：K=7.1187 6 工况标定 [sg ∈ 0.55-0.65, TEG wt% ∈ 98.5-99.8, P ∈ 800-1500 psia, Q ∈ 100-400 MMscfd]（CV=1.05% < 5%）
+  - OPEN-P6-6A-9.3：真 Wichert-Aziz（Wichert & Aziz 1972 HC Processing）
+  - OPEN-P6-6A-9.4：Bukacek 1990 Table 3 low-temp T<60°F 系数（A0'=2.1430, A1'=0.01850, A2'=-0.000042, A3'=-0.9800）
+  - OPEN-P6-6A-9.5（新增）：XLS PR-018 E20 baseline 溯源 + 6% brine 盐度修正
+- 触发：T9 CONFIG `glycol_dehydration_full_system` 10 行典型工况范围已就位 + 工艺工程师 4 批 fixture 集成
+- 预计 8.5 工作日（按工艺室 4 批 OPEN 关闭日期分阶段推进）
 
-**P6-6B 已完成（merged to main @ `68daa60` → `af0a054`）**：13 commits，0 service 关键改动（仅 T8/T12/T13 service 集成向后兼容），OPEN-P6-4-1 关闭 + OPEN-P6-6A-4/5 形式关闭 + OPEN-P6-6A-6 部分关闭（CONFIG 占位 T9）；T2 推迟 OPEN-P6-4-2 上线后；T10/T11 决策路径待工程团队
+**P6-6B 已完成（merged to main @ `68daa60` → `af0a054`）**：13 commits active（T2 skipped），OPEN-P6-4-1 关闭 + OPEN-P6-6A-4/5 形式关闭 + OPEN-P6-6A-6 部分关闭（CONFIG 占位 T9）；OPEN-P6-4-2 推迟上线后；T10 路径 A + T11 分 path 并存工艺室 2026-09-28 签署（详见 `.wolf/cerebrum.md`）
 
-**OPEN-P6-6A-3 已关闭（commit `e0d91a6`）**：Hammerschmidt 1934 K scale fix（Ruling 11）。
+**OPEN-P6-6A-3 K scale**：
+- 公式层：`e0d91a6`（Ruling 11 K °F scale per paper）已闭环
+- 字段名层：**T10 路径 A 待 2026-10-15 闭环**（`_c` → `_f` 修正语义 Bug + `hydrate_depression_c` 派生 + `_c_legacy` deprecated 向后兼容）
+- 工艺室签署：T10 路径 A（service 改 + CONFIG 表闭环）；`hammerschmidt_K` CONFIG 表同时含 K_F + K_C 两列
 
 **后续（待用户裁决）**：
 1. ~~P6-6A merge 到 main~~ ✓ done `09eb037`
@@ -184,17 +209,23 @@ budget_tokens: 1500
 5. ~~G-08 OpenAPI baseline drift 收口~~ ✓ done `68daa60`（+2 paths / +4 schemas / 0 removed；P6-6A-6/7 全部已 merge main）
 6. ~~前端 wrapper 3 页~~ ✓ done P6-5 补课（`HeatingValuePage.tsx:11.4K` + `SaturationWaterContentPage.tsx:9.4K` + `CvComputePage.tsx:12.9K`，路由 `routeWrappers.tsx:48/51/52` + `208/211/215`，vitest 15/15 PASS）
 
-**未解决问题**：
+**未解决问题**（工艺室 2026-09-28 签署，详见 `.wolf/cerebrum.md` §"P6-6B 工艺工程师对 OPEN 队列的决策"）：
 - OPEN-P6-4-2（Kb 厂商真实数据 LESER/Consolidated/AG，**上线后** P6-6B+ 启动）
-- OPEN-P6-4-3（C-08 Imperial 单位支持范围）
-- OPEN-P6-4-4（C-24 Chapman-Jans / Tong 模型与商业软件对账，部署前）
-- OPEN-P6-6A-6（T8 full glycol dehydration system as new PCS service，CONFIG 占位 T9 关闭；service 扩展待 P6-7）
-- OPEN-P6-6A-10（AS 1210 §4.4 path (b) gas/vapor m·Y_p + jet fire 110,000 W/m²，V1.12 docs 新立，PSV C-21 主题预留）
-- OPEN-P6-6A-11（C-18 Nielsen 方程覆盖：MeOH ≤50 wt% 段切 Nielsen + WARNING；SPEC §3.9.3 要求 BOTH Hammerschmidt + Nielsen，P6-5 只落 Hammerschmidt，P6-6B 入批，~1.0 天）
+- OPEN-P6-4-3（C-08 vessel Imperial 单位白名单；工艺室 2026-10-15 关闭，~1.0 天）
+- OPEN-P6-4-4（C-24 CV Masonelian fl 三模型对账；工艺室 2026-10-31 关闭，~1.0 天）
+- OPEN-P6-6A-6（T8 full glycol dehydration service 扩展待 P6-7）
+- OPEN-P6-6A-9.1（30× 差异根因完整验证；工艺室 2026-10-15 关闭，~1.0 天）
+- OPEN-P6-6A-9.2（K=7.1187 6 工况 CV=1.05%；工艺室 2026-10-15 关闭，~0.5 天）
+- OPEN-P6-6A-9.3（真 Wichert-Aziz 实现；工艺室 2026-10-31 关闭，~1.0 天）
+- OPEN-P6-6A-9.4（Bukacek 1990 T<60°F；工艺室 2026-10-31 关闭，~0.5 天）
+- **OPEN-P6-6A-9.5（新增，2026-09-28）**：XLS PR-018 E20 baseline 溯源 + 6% brine 盐度修正；工艺室 2026-11-30 关闭，~0.5 天
+- OPEN-P6-6A-10（AS 1210 §4.4 path (b) gas/vapor m·Y_p + Jet fire 110,000 W/m²；工艺室 2026-11-15 关闭，~1.0 天）
+- OPEN-P6-6A-11（C-18 Nielsen Table 2-3 完整 A/B/C 7 组常数 + gas_composition 输入；工艺室 2026-11-30 关闭，~1.0 天；P6-6B T8 已部分落地 InhibitorModel + 双模型分支，A/B/C 待工艺工程师 PDF 抄录）
+- **OPEN-P6-6A-3**（T10 路径 A 真正关闭，~0.5 天，2026-10-15）
+- **OPEN-P6-6A-5**（T11 fire_case 双 path 注册关闭，~0.5 天，2026-10-15）
 
 **验收**：P6-6B 后 source 字段去 SYNTHETIC 标记 + gate 报告签字 + 黄金 fixture 重对账。
-
-**次优先（B 批剩余）**：均已收口（G-08 `68daa60` + 前端 3 页 P6-5 补课）。
+**Next batch 触发**：2026-10-15 批 OPEN 闭环后 P6-7 启动；全部 11 项关闭后 P6-8（部署 + ETL 重新对账）启动。
 
 ---
 
