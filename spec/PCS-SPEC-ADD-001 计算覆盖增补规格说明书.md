@@ -1,7 +1,7 @@
 PCS-SPEC-ADD-001 计算覆盖增补规格说明书
 文档编号：PCS-SPEC-ADD-001
-版本：**V1.10**（已冻结 — P6-4/P6-5+ 实施基线）
-编制日期：2026-09-26
+版本：**V1.11**（V1.10 实施基线冻结 + V1.11 Ruling 9 wording 增补）
+编制日期：2026-09-28
 关联文档：PCS-PLAN V1.3、PCS-SPEC-P3-SIM V1.1、SUP-002 V1.4、SUP-007、**ADR-0030**、**ATT-02（Q2 工艺推导附件）**
 目的：对现有开发计划做 C-01~C-24 全覆盖审计，将未覆盖/部分覆盖的工艺计算增补进已有模块，不新增独立模块。
 
@@ -26,6 +26,10 @@ PCS-SPEC-ADD-001 计算覆盖增补规格说明书
 > - **P6-5+ 批**（merge `f530daa`；架构组 Q1/Q2/Q3 裁决闭环 `e35064b`~`e683fed`）：C-03/C-05/C-09/C-10/C-13/C-15/C-16/C-18/C-19/C-20/C-21/C-22/C-23 共 13 项 + 4 张 compound_* CONFIG 表 + 5-min TTL 缓存
 > - V1.4 审计口径下的"未覆盖/部分覆盖"状态自 V1.10 起全部翻转为**已实施**；剩余开口仅为数据源升级（SYNTHETIC_TEST_DATA → 真实厂商/GPSA 数据，P6-6+ 工艺工程师接管）
 > - Q2 架构裁决增补（C1 L/V_ref=242 双层口径 + C2 MEOH=6.63 物性溯源）已并入 §3.9.1 / §3.9.3；全量推导见 **ATT-02**（PCS-SPEC-ADD-001-ATT-02 Q2 工艺推导附件）
+
+> **V1.11 Ruling 9 wording 闭环（2026-09-28，OPEN-P6-6A-1）**：V1.10 实施基线保持冻结，V1.11 仅 wording 增补，不引入新实施项。Ruling 9 双 surface docs final：
+> - **C-17 第 1 surface**（commit `cfdbe2d`）：XLS WS-CA-PR-019 natural gas 饱和 W ≠ PCS humid air 饱和 W；worley_c17_saturation_w.json fixture 5 cases 登记为 mapping_defect（OoM ≥ 10）。详见 §3.9.2 working fluid 口径澄清。
+> - **C-21 第 2 surface**（commit `fddeae4`）：XLS WS-CA-PR-025 AS 1210 path formula family ≠ PCS API 521 hardcode。闭环路径：OPEN-P6-6A-5（Ruling 14 ΔH_vap fluid-specific input，commit `e72e0db`）+ OPEN-P6-6A-8（Ruling 15 fire_case_coefficient + fire_case_exponent fluid-specific，commit `bc95487`）。详见 §3.5.2 火灾泄放公式口径 + 流体特定输入。
 
 口径定义：0% = 未覆盖；1~99% = 部分覆盖；100% = 已覆盖。
 
@@ -567,6 +571,17 @@ AS 1210/AS 1797 安全阀尺寸
 
 安全阀孔口圆整（D~T）
 
+**火灾泄放公式口径**（Ruling 9 第 2 surface 闭环于 OPEN-P6-6A-5 + OPEN-P6-6A-8）：
+
+- **API 521 §3.4**（PCS 默认 back-compat）：Q(W) = 43,192 · F · A^0.82（A 单位 m²，W 基准）
+- **AS 1210 §4.4 路径 (a) 液化气体/液体**：m' = (7.2×10⁴ · F · A^0.82) / L（L 单位 J/kg；用户传 coeff=71866 ≈ 7.2×10⁴ 即对齐此路径）
+- **AS 1210 §4.4 路径 (b) 气体/蒸汽**：m' = m · Y_p + m'_p，Y_p = 10,000 / (C_w · t · T_o)（**结构差异**，OPEN-P6-6A-9 待立项，本批不在范围）
+- **Jet fire**（AS 1210 §4.4 燃烧火焰）：Y_t = 110,000 / (C_w · t · T_r)（独立路径，OPEN-P6-6A-9 待立项，本批不在范围）
+
+**流体特定输入**（Ruling 14 ΔH_vap + Ruling 15 fire_case 系数/指数）：
+- 默认 `fire_case_coefficient=43192`、`fire_case_exponent=0.82`、`ΔH_vap=2260 kJ/kg` 保持 API 521 §3.4 back-compat
+- 用户传 `fire_case_coefficient=71866`（AS 1210 §4.4 7.2×10⁴）+ `fire_case_exponent=0.82` + `ΔH_vap=208 kJ/kg` 对齐 AS 1210 path (a)（XLS PR-025 G54/G55 验证 ≤0.03% 容差）
+
 验收：**V1.7 修订与 §5 分级一致** — API 520 Kd/Kb <1%（经验拟合段），与 API 520/521 例题计算一致
 
 工时估算：C-20 1~1.5 天 + C-21 2~2.5 天 = 3~4 天（V1.5 修订；与 §6 P5.3 表对齐）
@@ -918,7 +933,15 @@ SI/Imperial 双单位
 
 与 C-16、C-18 联动
 
+**working fluid 口径澄清**（Ruling 9 第 1 surface，OPEN-P6-6A-1 wording 闭环；XLS-PR-019 fixture 5 cases 登记为 mapping_defect）：
+
+- **XLS WS-CA-PR-019**：natural gas（丙烷/丁烷重烃气相）饱和水含量，基准 GPSA Engineering Data Book / GPSA Table 20-1
+- **PCS `chedl_wrapper.humid_air_humidity_ratio`**：基准为 humid air（ASHRAE RP-1845）
+- **范围边界**：PCS C-17 服务仅适用于湿空气工况；natural gas / 酸性气工况饱和水含量需用专门物性表（GPSA Table 20-1 / McCabe / Campbell 系列），不在 PCS 范围。worley_c17_saturation_w.json fixture 5 cases XLS-PCS OoM ≥ 10 已登记为 mapping_defect（commit `cfdbe2d`）。
+
 验收：与 Excel 对账误差 <0.1%
+
+**注**：C-17 working fluid 完整范围澄清（acidic gas 修正公式 + GPSA Table 20-1 集成策略）待 OPEN-P6-6A-2 决议（独立 SPEC V1.x wording 项）。
 
 3.9.3 C-18 水合物抑制
 输入
@@ -1113,6 +1136,7 @@ V1.1	2026-09-25	审计复核：5 项状态修正（C-08/C-10/C-15/C-20/C-24）+ 
 **V1.8**	**2026-09-25**	**微调：附件标题版本 V1.5→V1.6，关联文档 V1.6→V1.7；主文档 §8 标题与内部标签 V1.6→V1.7；附件 §6.1 标签简化（"V1.2/V1.3：同步 SPEC §5 三级验收（V1.6 修订措辞；分级验收为 SPEC §5 V1.2 引入）" → "V1.2 引入三级验收；V1.6 同步措辞"）；§6 标题追加 V1.7/V1.8 无工时变更说明；里程碑影响标题追加 V1.7/V1.8 无工时变更**	**工艺室（pangzy）**
 **V1.9**	**2026-09-26**	**修订：§3.2.3 C-15 流型判别主算法 Taitel-Dukler 1976 K/T/F/X → Mandhane 1975（依据 BG-B 1973 原文引用 + P6-5 实施简化）；Taitel-Dukler 1976 延后至 PRD 立项补；Eaton-Flanning 1967 保留为 BG-B 适用范围校验（Fr 区间 + Lockhart-Martinelli）；§7.1 附件 C-15 标准列同步修订措辞；§9 作者字段 V1.9；附件标题版本 V1.6→V1.7，关联文档 V1.8→V1.9；附件 §3.1 C-15 标准列同步修订**	**工艺室（pangzy）**
 **V1.10**	**2026-09-26**	**Q2 架构裁决增补 + 冻结：§3.9.1.1 新增 C1 L/V_ref=242 参考工况推导（双层口径：GPSA 曲线读数 25.15/7.30/17.85 追溯 + 工程圆整 25/7/18 正文；4320/17.85=242.02 算术自洽；单位澄清 gal/lb）；§3.9.3.1 新增 C2 MEOH=6.63 lb/gal 物性溯源（GPSA §20.3 20°C 基准 6.61 + 0.3% 裕度；NIST SRD 69 交叉验证；温度修正公式 ±1.0% 验证）；§0.1 加 V1.10 实施终态注记（P6-4/P6-5+ 全部 24 项落地，本版起冻结为实施基线）；Q2 增补文档改编号 PCS-SPEC-ADD-001-ATT-02**	**工艺室（pangzy）**
+**V1.11**	**2026-09-28**	**OPEN-P6-6A-1 Ruling 9 wording 闭环（docs-only micro-revision）：§3.5.2 C-21 火灾泄放公式口径分项（API 521 §3.4 default 43192 / AS 1210 §4.4 路径 (a) 7.2×10⁴ 液化气体 / 路径 (b) m·Y_p 气体 / Jet fire 110,000 W/m²）+ 流体特定输入段（Ruling 14 ΔH_vap + Ruling 15 fire_case coeff/exp fluid-specific，OPEN-P6-6A-5/8 闭环链）；§3.9.2 C-17 working fluid 口径澄清（XLS WS-CA-PR-019 natural gas 饱和 W ≠ PCS humid air 饱和 W，worley_c17 fixture 5 cases mapping_defect OoM ≥ 10 范围边界）；§0.1 加 V1.11 wording 注记（Ruling 9 双 surface 闭环链 cfdbe2d + fddeae4 + e72e0db + bc95487）。V1.10 实施基线保持冻结，V1.11 仅 wording 增补不引入新实施项**	**工艺室（pangzy）**
 本 Spec 供项目组内部评审，评审通过后并入 PCS-PLAN V1.4。**V1.10 已冻结为 P6-4/P6-5+ 实施基线。**
 
 Excel 计算方法合理性评估报告
