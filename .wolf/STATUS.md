@@ -97,6 +97,14 @@ budget_tokens: 1500
 - bug-108 logged; cerebrum Key Learning appended
 - **Ruling 9 docs CLOSED**
 
+**OPEN-P6-6A-2 关闭（Brief template `brief.id == plan_table_row.id` assert，2026-09-27）**：commit `955d25a` feat(tools)
+- 工具 `pcs-backend/scripts/validate_brief.py`（96 行）：controller dispatch 前断言 brief 含 expected-ids 且无 foreign-ids，防止 brief template 复制粘贴残留（如 T9 brief 误标 C-18 vs PR-019，实为 C-17）
+- CLI 接口：`--plan <plan> --task-n <N> --brief <brief.md> --expected-ids <ids...> --foreign-ids <ids...>`
+- 退出码：0=OK / 1=brief 内容不符 / 2=文件缺失
+- 7 unit tests：PASS / MISSING-id / FOREIGN-id / plan 缺失 / brief 缺失 / id 顺序无关（parametrize ×2）
+- 245+ insertions 单次提交；已 merge 入 main @ 955d25a
+- **OPEN-P6-6A-2 CLOSED**（brief template copy-paste typo guard 已落地）
+
 ---
 
 ## 🚀 Next quest
@@ -124,7 +132,6 @@ budget_tokens: 1500
 - OPEN-P6-4-2（Kb 厂商真实数据 LESER/Consolidated/AG，部署前）
 - OPEN-P6-4-3（C-08 Imperial 单位支持范围）
 - OPEN-P6-4-4（C-24 Chapman-Jans / Tong 模型与商业软件对账，部署前）
-- OPEN-P6-6A-2（Brief template `brief.id == plan_table_row.id` assert，批 B brief template 实现）
 - OPEN-P6-6A-6（T8 full glycol dehydration system as new PCS service，CONFIG 占位 T9 关闭；service 扩展待 P6-7）
 - OPEN-P6-6A-9（AS 1210 §4.4 path (b) gas/vapor m·Y_p + jet fire 110,000 W/m²，独立 OPEN 立项）
 
