@@ -12,6 +12,13 @@ OPEN-P6-6A-7 增补 sizing（inverse problem）：
   仅适用于阻塞流（SPEC §3.7.2 sizing 仅在临界流场景成立）。
 
 Q-11：Ftp 修正系数 GB/T 308 经验式（无 ISO 5167 标准支撑）
+
+P6-6B T13 feature flag（OPEN-P6-6A-4 关闭）：
+  ``_USE_XLS_CD_Y_CR: bool = False``（模块级常量；默认 False）— 当设 True
+  时，``_resolve_cd_y_cr(fluid)`` 从 ``drain_orifice_Cd_Y_cr`` CONFIG 表加载
+  XLS convention（NATURAL_GAS Cd=0.83932 / Y_cr=0.687 等）；默认 False
+  → 返回 (1.0, 1.0) 保持向后兼容现有 drain_orifice API 行为。
+  ⚠️ **需 ETL 重新对账后再切 True**（影响所有现有 drain_orifice 计算结果）。
 """
 
 from __future__ import annotations
@@ -20,6 +27,7 @@ import math
 from dataclasses import dataclass
 from typing import Final, Literal
 
+from app.services._compound_config_cache import get_drain_orifice_Cd_Y_cr_table
 from app.services.exceptions import PcsError
 
 _GAMMA_DEFAULT: Final[float] = 1.4
@@ -27,6 +35,13 @@ _M2_TO_IN2: Final[float] = 0.0254**2  # 1 in² = (0.0254 m)²
 _KPA_PER_PSIA: Final[float] = 0.1450377
 _R_GAS: Final[float] = 8.314462618  # J/(mol·K)，理想气体常数
 _MOL_PER_KMOL: Final[float] = 1000.0  # 1 kmol = 1000 mol（MW 单位换算用）
+
+# P6-6B T13：XLS convention feature flag（OPEN-P6-6A-4 关闭）。
+# 默认 False → 现有 drain_orifice API 行为（Cd=1.0 / Y_cr=1.0，向后兼容）；
+# 设 True → ``_resolve_cd_y_cr`` 从 ``drain_orifice_Cd_Y_cr`` CONFIG 表加载
+# XLS PR-023 + Miller 1990 取值。⚠️ 切 True 前必须先 ETL 重新对账
+# （影响 1.74× capacity 修正）。
+_USE_XLS_CD_Y_CR: Final[bool] = False
 
 
 class DrainOrificeInputError(PcsError):
@@ -108,6 +123,29 @@ def _validate_input(inp: DrainOrificeInput) -> None:
         raise DrainOrificeInputError(
             f"Y_cr^0.5={inp.expansion_factor} 越界 (0, 1]（Ruling 12）"
         )
+
+
+def _resolve_cd_y_cr(fluid: str) -> tuple[float, float]:
+    """从 ``drain_orifice_Cd_Y_cr`` CONFIG 表加载 (Cd, Y_cr)。
+
+    默认 ``_USE_XLS_CD_Y_CR=False`` → 返回 ``(1.0, 1.0)`` 保持向后兼容；
+    设 True → 从 CONFIG 表 lookup。
+
+    P6-6B T13 引入；OPEN-P6-6A-4 关闭（feature flag 默认 False）。
+
+    Args:
+        fluid: 介质标识（NATURAL_GAS / AIR / STEAM / WATER / N2 / CO2）
+
+    Returns:
+        (Cd, Y_cr) 元组；DB 不可达 / fluid 不在表内 / flag 关闭时返回
+        ``(1.0, 1.0)``。
+    """
+    if not _USE_XLS_CD_Y_CR:
+        return 1.0, 1.0
+    table = get_drain_orifice_Cd_Y_cr_table()
+    if table is None or fluid not in table:
+        return 1.0, 1.0
+    return table[fluid]
 
 
 def calc_drain_orifice(inp: DrainOrificeInput) -> DrainOrificeResult:

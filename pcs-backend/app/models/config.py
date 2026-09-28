@@ -939,6 +939,77 @@ class CompoundDeltaHVapNaturalGas(Base):
     )
 
 
+class DrainOrificeCdYCr(Base):
+    """Drain orifice Cd/Y_cr 流量系数（C-19 排污孔板 OPEN-P6-6A-4 关闭）。
+
+    业务（P6 SPEC §3.7.2 + Ruling 12 + Ruling 13）：
+
+    - ``fluid`` UNIQUE：``NATURAL_GAS`` / ``AIR`` / ``STEAM`` / ``WATER`` /
+      ``N2`` / ``CO2``；
+    - ``beta_range_min`` / ``beta_range_max`` β 直径比范围（无量纲）；
+    - ``cd`` 流量系数（无量纲；XLS PR-023 + Miller 1990 取值）；
+    - ``y_cr`` 临界压力比（无量纲；XLS PR-023 + Miller 1990 取值）；
+    - ``notes`` 工程备注；
+    - ``source`` 数据来源；本批填 ``'XLS PR-023 + Miller (1990) discharge coefficients'``；
+    - ``confirmed_by`` / ``confirmed_at`` 工艺室签字（占位字段）。
+
+    不继承 ``TaggedRecordMixin``（元数据表非业务计算记录）。
+
+    唯一索引：``fluid``。
+    """
+
+    __tablename__ = "drain_orifice_Cd_Y_cr"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+        comment="BIGINT 自增主键",
+    )
+    fluid: Mapped[str] = mapped_column(
+        String(16), nullable=False, unique=True, index=True,
+        comment='介质 UNIQUE："NATURAL_GAS" / "AIR" / "STEAM" / "WATER" / "N2" / "CO2"',
+    )
+    beta_range_min: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="β 直径比下限（无量纲；典型 0.0）",
+    )
+    beta_range_max: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="β 直径比上限（无量纲；典型 0.7）",
+    )
+    cd: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="Cd 流量系数（无量纲；XLS PR-023 + Miller 1990 取值）",
+    )
+    y_cr: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="Y_cr 临界压力比（无量纲；XLS PR-023 + Miller 1990 取值）",
+    )
+    notes: Mapped[str | None] = mapped_column(
+        String(256), nullable=True,
+        comment="工程备注（XLS PR-023 / Miller 1990 取值溯源）",
+    )
+    source: Mapped[str] = mapped_column(
+        String(128), nullable=False,
+        comment='数据来源；本批填 "XLS PR-023 + Miller (1990) discharge coefficients"',
+    )
+    confirmed_by: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment='本批填 "P6-6B_ENG_TEAM"；工艺工程师二次核对后改填实际签字人',
+    )
+    confirmed_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+        comment="工艺室确认签字时间（占位 NULL，工艺室签字后填入）",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
+        comment="记录创建时间（DB server_default）",
+    )
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(),
+        comment="记录更新时间（ORM onupdate 触发）",
+    )
+
+
 class GlycolDehydrationFullSystem(Base):
     """C-16 glycol dehydration full system 典型工况范围（P6-6B CONFIG 占位）。
 

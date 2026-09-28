@@ -204,6 +204,29 @@ def get_delta_h_vap_table() -> dict[str, float] | None:
     return _get_cached_or_reload("delta_h_vap_natural_gas", loader)
 
 
+# -----------------------------------------------------------------------------
+# 8. Drain orifice Cd/Y_cr 流量系数（C-19 drain_orifice_service；P6-6B T13 引入）
+# -----------------------------------------------------------------------------
+def get_drain_orifice_Cd_Y_cr_table() -> dict[str, tuple[float, float]] | None:
+    """从 ``drain_orifice_Cd_Y_cr`` 表加载介质 → (Cd, Y_cr)。
+
+    返回 ``{fluid: (cd, y_cr)}`` 字典；DB 不可达或表为空时返回 ``None``，
+    由 service fallback 到 (1.0, 1.0)（默认值，向后兼容现有 drain_orifice
+    API 行为；OPEN-P6-6A-4 Ruling 12 back-compat 默认口径）。
+    """
+    from app.models.config import DrainOrificeCdYCr
+
+    def loader() -> dict[str, tuple[float, float]] | None:
+        def query(session) -> dict[str, tuple[float, float]] | None:
+            rows = session.execute(select(DrainOrificeCdYCr)).scalars().all()
+            if not rows:
+                return None
+            return {r.fluid: (r.cd, r.y_cr) for r in rows}
+        return _load_with_fallback(query)
+
+    return _get_cached_or_reload("drain_orifice_Cd_Y_cr", loader)
+
+
 __all__: Final[list[str]] = [
     "get_pasquill_sigma_table",
     "get_api521_thresholds_table",
@@ -212,5 +235,6 @@ __all__: Final[list[str]] = [
     "get_nielsen_1988_params",
     "get_pipe_E_modulus_table",
     "get_delta_h_vap_table",
+    "get_drain_orifice_Cd_Y_cr_table",
     "clear_all_caches",
 ]
