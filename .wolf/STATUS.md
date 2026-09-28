@@ -141,6 +141,7 @@ budget_tokens: 1500
 - **bug-113 fix_commit**: `95bb442`（v5.1 plan P-1~P-4 落实 + 30× 根因弱化推测 + Day-0 Gate 形式决策必跑）
 - **验收**：(a) ruff 0 errors；(c) `vitest run` ≥ 525 baseline PASS（v3 M-5 frontend 验收）；(d) 36 项端到端验证全过，含 worley_c16 fixture `ruling_5_closure_status_v4`；(e) console 无 antd/React/TS error；OpenAPI drift=0 + frontend tsc 0 errors
 - **OPEN-P6-6A-9 立项（4 子项 quest）**：OPEN-P6-6A-9.1 30× 差异根因完整验证（P6-6B 工程师 3 项：V_actual_scfs 混淆代码行定位 + XLS 标况气速文献依据 + 修订 ADR-0045 Rev A）；OPEN-P6-6A-9.2 K=7.1187 多工况标定（Q∈[144,432] MMscfd + sg sweep + TEG wt% sweep）；OPEN-P6-6A-9.3 真 Wichert-Aziz 非线性形式（接管 v5 Linear placeholder ~25% 偏差）；OPEN-P6-6A-9.4 brentq inverse T<60°F Bukacek 1990 low-temp extension
+- **OPEN-P6-6A-11 立项（C-18 Nielsen 方程覆盖缺口，2026-09-28）**：核实发现 SPEC §3.9.3 要求 BOTH Hammerschmidt (MeOH ≤25 wt%) + Nielsen (MeOH ≤50 wt%)，P6-5 仅落 Hammerschmidt；MeOH > 25 wt% 工况无对应方程静默外推，超出 Hammerschmidt 验证域（验收线 <3%）。范围：Nielsen 1991 方程分支（按 GPSA §20.3 Fig 20-13 拟合）+ MeOH > 25 wt% 自动切换 + WARNING [NIELSEN_AUTO_SWITCH] + 黄金 fixture 3 点对账（Nielsen 1991 paper Fig 5 vs Hammerschmidt 切点）。预估 ~1.0 天；P6-6B 工程团队接管
 - **Ruling 5 OUT_OF_SCOPE 12 fields CLOSED**（11 OUT_OF_SCOPE + acid_gas_corrected，alpha 显式 + dewpoint_unavailable_reason + acid_gas_corrected 一致性 + TEG Contactor Sizing ADR-0045 Rev A 单点标定 + 30× 根因弱化为推测 + brentq inverse → _DewpointResult frozen dataclass 字段名统一 + Linear placeholder 术语正名 + JSON 启动期加载三铁律 + Day-0 Gate 形式决策 + Day-1 Gate 验证 + _calc_behr 去重调用 _correct）
 
 ---
@@ -172,9 +173,9 @@ budget_tokens: 1500
 - OPEN-P6-4-4（C-24 Chapman-Jans / Tong 模型与商业软件对账，部署前）
 - OPEN-P6-6A-6（T8 full glycol dehydration system as new PCS service，CONFIG 占位 T9 关闭；service 扩展待 P6-7）
 - OPEN-P6-6A-10（AS 1210 §4.4 path (b) gas/vapor m·Y_p + jet fire 110,000 W/m²，V1.12 docs 新立，PSV C-21 主题预留）
+- OPEN-P6-6A-11（C-18 Nielsen 方程覆盖：MeOH ≤50 wt% 段切 Nielsen + WARNING；SPEC §3.9.3 要求 BOTH Hammerschmidt + Nielsen，P6-5 只落 Hammerschmidt，P6-6B 入批，~1.0 天）
 
 **验收**：P6-6B 后 source 字段去 SYNTHETIC 标记 + gate 报告签字 + 黄金 fixture 重对账。
-**待用户裁决**：是否先核实 C-18 Nielsen 方程覆盖缺口（SPEC §3.9.3 要点含 Nielsen，P6-5 只落了 Hammerschmidt）。
 
 **次优先（B 批剩余）**：均已收口（G-08 `68daa60` + 前端 3 页 P6-5 补课）。
 
