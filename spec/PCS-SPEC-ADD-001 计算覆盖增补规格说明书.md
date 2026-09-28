@@ -1,6 +1,6 @@
 PCS-SPEC-ADD-001 计算覆盖增补规格说明书
 文档编号：PCS-SPEC-ADD-001
-版本：**V1.11**（V1.10 实施基线冻结 + V1.11 Ruling 9 wording 增补）
+版本：**V1.12**（V1.10 实施基线冻结 + V1.11 Ruling 9 wording 增补 + V1.12 wording-only micro-revision）
 编制日期：2026-09-28
 关联文档：PCS-PLAN V1.3、PCS-SPEC-P3-SIM V1.1、SUP-002 V1.4、SUP-007、**ADR-0030**、**ATT-02（Q2 工艺推导附件）**
 目的：对现有开发计划做 C-01~C-24 全覆盖审计，将未覆盖/部分覆盖的工艺计算增补进已有模块，不新增独立模块。
@@ -575,8 +575,8 @@ AS 1210/AS 1797 安全阀尺寸
 
 - **API 521 §3.4**（PCS 默认 back-compat）：Q(W) = 43,192 · F · A^0.82（A 单位 m²，W 基准）
 - **AS 1210 §4.4 路径 (a) 液化气体/液体**：m' = (7.2×10⁴ · F · A^0.82) / L（L 单位 J/kg；用户传 coeff=71866 ≈ 7.2×10⁴ 即对齐此路径）
-- **AS 1210 §4.4 路径 (b) 气体/蒸汽**：m' = m · Y_p + m'_p，Y_p = 10,000 / (C_w · t · T_o)（**结构差异**，OPEN-P6-6A-9 待立项，本批不在范围）
-- **Jet fire**（AS 1210 §4.4 燃烧火焰）：Y_t = 110,000 / (C_w · t · T_r)（独立路径，OPEN-P6-6A-9 待立项，本批不在范围）
+- **AS 1210 §4.4 路径 (b) 气体/蒸汽**：m' = m · Y_p + m'_p，Y_p = 10,000 / (C_w · t · T_o)（**结构差异**，OPEN-P6-6A-10 待立项，本批不在范围）
+- **Jet fire**（AS 1210 §4.4 燃烧火焰）：Y_t = 110,000 / (C_w · t · T_r)（独立路径，OPEN-P6-6A-10 待立项，本批不在范围）
 
 **流体特定输入**（Ruling 14 ΔH_vap + Ruling 15 fire_case 系数/指数）：
 - 默认 `fire_case_coefficient=43192`、`fire_case_exponent=0.82`、`ΔH_vap=2260 kJ/kg` 保持 API 521 §3.4 back-compat
@@ -737,6 +737,12 @@ Ftp 迭代
 
 孔板直径迭代求解
 
+**V1.12 wording 增补（OPEN-P6-6A-4 + OPEN-P6-6A-7 Ruling 12/13 闭环链）**：
+
+- **Ruling 12**（drain orifice Cd/Y_cr^0.5 fix，commit `c34d3f4`）**CLOSED**：Cd/Y_cr 作为输入参数化（默认 1.0 保持 back-compat），mass_flow_capacity 公式升级为 m_max = A × Cd × Y_cr^0.5 × Ftp × ρ × v_max；formula_ref 增 3 键含 Ruling 12 字串；Y_cr@r_c 物理修正（bug-105 commit `f296a61`）。
+- **Ruling 13**（sizing inverse 完整实现 + 范围，commits `ce8556f→3250b42`）**CLOSED**：`calc_drain_orifice_size` 反问题（给定 Q 求 d）+ Newton/bisection 迭代 + 黄金 fixture XLS-PR-023 d=12.762 mm 对账 + Cd-out-of-range 422 集成测试（commit `07c4f6e`）。
+- **正/逆向分工固化**：PCS forward = capacity check（给定 d 验证 m_dot ≤ m_max）；XLS = sizing inverse（给定 Q 求 d）。sizing 路由路径锁定见 OPEN-P6-6A-7 完整实现。
+
 验收：与 Excel 对账误差 <0.1%
 
 工时估算：0.5 天（V1.5 修订；与 §6 P6.2 表对齐）
@@ -858,6 +864,27 @@ TEG 浓度、汽提气量
 
 再沸器热负荷
 
+**V1.12 wording 增补（OPEN-P6-6A-6 v5.1 12 result fields 全名 + Ruling 5/ADR-0045 Rev A 闭环链）**：
+
+> `GlycolDehydrationResult` frozen dataclass（7 现有 + 5 OUT_OF_SCOPE = 12 result fields）。Ruling 1 现有字段零改动；v5.1 追加 12 optional 字段向后兼容。
+
+- **现有 7（V1.11 锁定）**：`dehydration_efficiency` / `n_tray_minimum` / `is_tray_count_ok` / `teg_loss_gpd` / `contactor_diameter_in` / `imperial_conversion` / `formula_ref` + `glycol_type`
+- **v5.1 追加 12（OPEN-P6-6A-6 Ruling 5 OUT_OF_SCOPE 闭环 + acid_gas_corrected）**：
+  - `water_dewpoint_f`：水的露点 °F（Behr 反函数 via brentq + Newton fallback；T<60°F 标记 extrapolated）
+  - `adjusted_dewpoint_f`：调整后露点 °F（diff method, XLS PR-018 E25）
+  - `lean_glycol_concentration`：贫甘醇浓度回显
+  - `stripping_gas_scf_per_gal_teg`：汽提气率 SCF/gal TEG（GPSA §20.4 Eq.20-5）
+  - `column_diameter_full_in`：接触塔全径 inch（**K=7.1187 单点标定**，ADR-0045 Rev A）
+  - `column_height_ft`：接触塔高度 ft（NTU × HETP + vapour space + sump）
+  - `number_of_transfer_units`：NTU（Kremser）
+  - `mass_h2o_removed_lb_s`：脱水速率 lb/s
+  - `reboiler_duty_btu_hr`：再沸器负荷 BTU/hr（简式焓平衡 3 项）
+  - `column_csa_ft2`：截面积 ft²
+  - `dewpoint_unavailable_reason`：dewpoint 不可用原因（如缺 T/P）
+  - `acid_gas_corrected`（v4 H-1）：acid gas correction 是否生效（bool；Linear placeholder，P6-6B 接管真 Wichert-Aziz）
+
+**实现落点**：`pcs-backend/app/services/psychro/glycol_dehydration_service.py:294 GlycolDehydrationResult` frozen dataclass；接口契约冻结（v5.1 12 optional 字段向后兼容，零破坏性变更）。
+
 算法来源：WS-CA-PR-018
 
 增补要点
@@ -871,6 +898,8 @@ TEG 物性
 传质单元数
 
 再沸器热负荷
+
+**V1.12 增补（5 项 OUT_OF_SCOPE 闭环）**：Brentq low-T 露点反函数 + Linear acid gas placeholder + stripping gas + reboiler duty + NTU Kremser（详见 OPEN-P6-6A-9.x 立项范围）
 
 验收：**V1.7 修订与 §5 分级一致** — Behr/Kazim 水含量相关式 <1%（经验拟合段）；塔径/传质单元数强公式段 <0.1%
 
@@ -941,7 +970,7 @@ SI/Imperial 双单位
 
 验收：与 Excel 对账误差 <0.1%
 
-**注**：C-17 working fluid 完整范围澄清（acidic gas 修正公式 + GPSA Table 20-1 集成策略）待 OPEN-P6-6A-2 决议（独立 SPEC V1.x wording 项）。
+**注**：C-17 working fluid 完整范围澄清（acidic gas 修正公式 + GPSA Table 20-1 集成策略）已纳入 OPEN-P6-6A-9.x 立项范围（C-16 30× 根因验证 / K 多工况标定 / 真 Wichert-Aziz / brentq low-T Bukacek 1990 extension 4 子项 quest；STATUS.md:122）。
 
 3.9.3 C-18 水合物抑制
 输入
@@ -1119,9 +1148,9 @@ API 2000/520/521/931 数据量大	数据录入	用 Excel 批量导入 + 单元�
 - ✅ 验收分级：V1.2 §5 强公式 <0.1% / 经验拟合 <1% / 图版查表 <3%。
 - ✅ §0.1 状态清单终态：V1.4 与覆盖表逐项对齐（C-08 移未覆盖 / C-15 移部分覆盖 25% / C-24 移部分覆盖 50% / C-10 部分覆盖 20% 口径统一）。
 
-**V1.7 未解决**：
-- ❓ API 2000/520/521/931 数据来源：Excel 内置 vs 外部数据库 — 仍待 P6.3 工艺室确认
-- ❓ 工时已按 V1.3 表重算（合计 32~40 天中心 36 天，V1.6 修订），分摊方案（是否压缩 P6 其他任务或延长阶段）待项目组裁决
+**P6-6B 解决中**：
+- 🔄 API 2000/520/521/931 数据来源：Excel 内置 vs 外部数据库 — 由 P6-6B 数据源替换批接管（含 9 CONFIG 表替换 + 4 内联常量替换；详见 plan `docs/superpowers/plans/2026-09-27-p6-6b-data-source-replacement.md`）
+- 🔄 工时已按 V1.3 表重算（合计 32~40 天中心 36 天，V1.6 修订），分摊方案（是否压缩 P6 其他任务或延长阶段）由 P6-6B 工程团队裁决
 
 9. 变更记录
 版本	日期	变更	作者
@@ -1137,6 +1166,7 @@ V1.1	2026-09-25	审计复核：5 项状态修正（C-08/C-10/C-15/C-20/C-24）+ 
 **V1.9**	**2026-09-26**	**修订：§3.2.3 C-15 流型判别主算法 Taitel-Dukler 1976 K/T/F/X → Mandhane 1975（依据 BG-B 1973 原文引用 + P6-5 实施简化）；Taitel-Dukler 1976 延后至 PRD 立项补；Eaton-Flanning 1967 保留为 BG-B 适用范围校验（Fr 区间 + Lockhart-Martinelli）；§7.1 附件 C-15 标准列同步修订措辞；§9 作者字段 V1.9；附件标题版本 V1.6→V1.7，关联文档 V1.8→V1.9；附件 §3.1 C-15 标准列同步修订**	**工艺室（pangzy）**
 **V1.10**	**2026-09-26**	**Q2 架构裁决增补 + 冻结：§3.9.1.1 新增 C1 L/V_ref=242 参考工况推导（双层口径：GPSA 曲线读数 25.15/7.30/17.85 追溯 + 工程圆整 25/7/18 正文；4320/17.85=242.02 算术自洽；单位澄清 gal/lb）；§3.9.3.1 新增 C2 MEOH=6.63 lb/gal 物性溯源（GPSA §20.3 20°C 基准 6.61 + 0.3% 裕度；NIST SRD 69 交叉验证；温度修正公式 ±1.0% 验证）；§0.1 加 V1.10 实施终态注记（P6-4/P6-5+ 全部 24 项落地，本版起冻结为实施基线）；Q2 增补文档改编号 PCS-SPEC-ADD-001-ATT-02**	**工艺室（pangzy）**
 **V1.11**	**2026-09-28**	**OPEN-P6-6A-1 Ruling 9 wording 闭环（docs-only micro-revision）：§3.5.2 C-21 火灾泄放公式口径分项（API 521 §3.4 default 43192 / AS 1210 §4.4 路径 (a) 7.2×10⁴ 液化气体 / 路径 (b) m·Y_p 气体 / Jet fire 110,000 W/m²）+ 流体特定输入段（Ruling 14 ΔH_vap + Ruling 15 fire_case coeff/exp fluid-specific，OPEN-P6-6A-5/8 闭环链）；§3.9.2 C-17 working fluid 口径澄清（XLS WS-CA-PR-019 natural gas 饱和 W ≠ PCS humid air 饱和 W，worley_c17 fixture 5 cases mapping_defect OoM ≥ 10 范围边界）；§0.1 加 V1.11 wording 注记（Ruling 9 双 surface 闭环链 cfdbe2d + fddeae4 + e72e0db + bc95487）。V1.10 实施基线保持冻结，V1.11 仅 wording 增补不引入新实施项**	**工艺室（pangzy）**
+**V1.12**	**2026-09-28**	**docs-only 同步主 SPEC V1.12（6 项 wording-only 修订）：§3.5.2 C-21 AS 1210 path (b) + Jet fire OPEN-P6-6A-9 → OPEN-P6-6A-10（新立 PSV C-21 主题预留）；§3.7.2 C-19 排污孔板 Ruling 12/13 闭环链（OPEN-P6-6A-4 + OPEN-P6-6A-7 wording 增补，commit `c34d3f4` + `ce8556f→3250b42` + `f296a61` + `07c4f6e`）；§3.9.1 C-16 12 result fields 全名 + 类型 + Ruling 5 / ADR-0045 Rev A 闭环链；§3.9.2 C-17 OPEN-P6-6A-2 stale ID → OPEN-P6-6A-9.x 立项范围；§8 V1.7 未解决 2 项 → P6-6B 解决中（引 plan `2026-09-27-p6-6b-data-source-replacement.md`）；ATT-02 标题版本 V1.7 → V1.12 + §7.2 changelog V1.12 row 同步。零代码/schema/test 改动**	**工艺室（pangzy）**
 本 Spec 供项目组内部评审，评审通过后并入 PCS-PLAN V1.4。**V1.10 已冻结为 P6-4/P6-5+ 实施基线。**
 
 Excel 计算方法合理性评估报告

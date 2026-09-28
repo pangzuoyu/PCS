@@ -1,6 +1,6 @@
 Q2 工艺推导附件（Q2-1 + Q2-2）
 文档编号：PCS-SPEC-ADD-001-ATT-02
-关联：PCS-SPEC-ADD-001 **V1.10** §3.9.1.1 / §3.9.3.1（正文增补已并入；本附件保留全量推导，V1.2 时代的 §3.9.4/§3.9.5 章节号在本附件内部保留原编号以便追溯）
+关联：PCS-SPEC-ADD-001 **V1.12** §3.9.1.1 / §3.9.3.1（正文增补已并入；本附件保留全量推导，V1.2 时代的 §3.9.4/§3.9.5 章节号在本附件内部保留原编号以便追溯）
 编制：工艺工程师（架构组委派）
 日期：2026-09-26
 目的：完成 Q2 两项 follow-up——C1 L/V_ref=242 设计工况推导 + C2 MEOH=6.63 lb/gal 物性表溯源
@@ -320,3 +320,4 @@ C2 MEOH = 6.63 lb/gal 溯源未受 v2 修订影响：
 | 关联代码 | `pcs-backend/app/services/psychro/glycol_dehydration_service.py`（C1 L/V）<br>`pcs-backend/app/services/psychro/hydrate_inhibition_service.py:78-84`（C2 `_INHIBITOR_DENSITY_LB_PER_GAL`） |
 | 主线落地 | 已合并到 main（merge commit f530daa） |
 | 并入正式版 | ✅ 已完成（2026-09-26）：主 SPEC **V1.10** §3.9.1.1（C1）+ §3.9.3.1（C2）；本附件转编号 PCS-SPEC-ADD-001-ATT-02，保留全量推导供追溯 |
+| V1.12 同步 | ✅ 2026-09-28：标题关联文档指针 V1.10 → V1.12（docs-only 同步主 SPEC V1.12 wording-only micro-revision；零内容/推导改动） |
