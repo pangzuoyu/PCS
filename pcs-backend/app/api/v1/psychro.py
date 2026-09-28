@@ -56,6 +56,8 @@ from app.schemas.psychro import (
     DewPointResponse,
     EnthalpyRequest,
     EnthalpyResponse,
+    GlycolDehydrationRequest,
+    GlycolDehydrationResponse,
     HumidityRatioRequest,
     HumidityRatioResponse,
     PsychroResultCreateRequest,
@@ -79,7 +81,9 @@ from app.services.chedl_wrapper import (  # P6-2 Task 26 — 6 calc 包装函数
 )
 from app.services.exceptions import PcsError
 from app.services.psychro import (  # P6-4 Task 4 (C-17) — 饱和水含量 service
+    GlycolDehydrationInput,
     SaturationWaterContentInput,
+    calc_glycol_dehydration,
     calc_saturation_water_content,
 )
 from app.services.psychro.psychro_persist_service import (  # P6-2 Task 26
@@ -405,6 +409,94 @@ async def calc_saturation_water_content_endpoint(
         acidic_gas_correction_applied=result.acidic_gas_correction_applied,
         acidic_gas_correction_factor=result.acidic_gas_correction_factor,
         formula_ref=result.formula_ref,
+    )
+
+
+# ============================================================================
+# 8. P6-6A-6 (Ruling 5 closure, v4) POST /psychro/glycol-dehydration/calculate
+# ============================================================================
+
+
+@router.post(
+    "/glycol-dehydration/calculate",
+    response_model=GlycolDehydrationResponse,
+)
+async def calc_glycol_dehydration_endpoint(
+    req: GlycolDehydrationRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+) -> GlycolDehydrationResponse:
+    """FULL 甘醇脱水系统（§3.9.1 — P6-6A-6 Ruling 5 closure, v4）。
+
+    11 OUT_OF_SCOPE 字段 + 现有 7 字段 + dewpoint_unavailable_reason +
+    acid_gas_corrected；TEG only（DEG v5.1 Ruling 5 FULL system 不支持，
+    service 层抛 GlycolDehydrationError → 422）。
+
+    ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    """
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    try:
+        result = calc_glycol_dehydration(
+            GlycolDehydrationInput(
+                gas_flow_mmscfd=req.gas_flow_mmscfd,
+                inlet_water_content_lb_per_mmscf=req.inlet_water_content_lb_per_mmscf,
+                outlet_water_content_lb_per_mmscf=req.outlet_water_content_lb_per_mmscf,
+                glycol_type=req.glycol_type,
+                contactor_tray_count=req.contactor_tray_count,
+                glycol_circulation_rate_gpm=req.glycol_circulation_rate_gpm,
+                relative_volatility=req.relative_volatility,
+                imperial_units=req.imperial_units,
+                temperature_f=req.temperature_f,
+                pressure_psia=req.pressure_psia,
+                lean_glycol_concentration=req.lean_glycol_concentration,
+                vapour_space_ft=req.vapour_space_ft,
+                sump_height_ft=req.sump_height_ft,
+                hetp_ft=req.hetp_ft,
+                approach_to_equilibrium_f=req.approach_to_equilibrium_f,
+                flooding_c_sb=req.flooding_c_sb,  # v3
+                co2_mol_pct=req.co2_mol_pct,  # v4
+                h2s_mol_pct=req.h2s_mol_pct,  # v4
+            )
+        )
+    except PcsError as e:
+        raise _to_http(e) from e
+
+    del db  # 计算端点不写 DB
+    return GlycolDehydrationResponse(
+        dehydration_efficiency=result.dehydration_efficiency,
+        n_tray_minimum=result.n_tray_minimum,
+        is_tray_count_ok=result.is_tray_count_ok,
+        teg_loss_gpd=result.teg_loss_gpd,
+        contactor_diameter_in=result.contactor_diameter_in,
+        imperial_conversion=result.imperial_conversion,
+        formula_ref=result.formula_ref,
+        water_dewpoint_f=result.water_dewpoint_f,
+        adjusted_dewpoint_f=result.adjusted_dewpoint_f,
+        lean_glycol_concentration=result.lean_glycol_concentration
+        if result.lean_glycol_concentration is not None
+        else req.lean_glycol_concentration,
+        stripping_gas_scf_per_gal_teg=result.stripping_gas_scf_per_gal_teg,
+        column_diameter_full_in=result.column_diameter_full_in
+        if result.column_diameter_full_in is not None
+        else 0.0,
+        column_height_ft=result.column_height_ft
+        if result.column_height_ft is not None
+        else 0.0,
+        number_of_transfer_units=result.number_of_transfer_units
+        if result.number_of_transfer_units is not None
+        else 0.0,
+        mass_h2o_removed_lb_s=result.mass_h2o_removed_lb_s
+        if result.mass_h2o_removed_lb_s is not None
+        else 0.0,
+        reboiler_duty_btu_hr=result.reboiler_duty_btu_hr
+        if result.reboiler_duty_btu_hr is not None
+        else 0.0,
+        column_csa_ft2=result.column_csa_ft2
+        if result.column_csa_ft2 is not None
+        else 0.0,
+        dewpoint_unavailable_reason=result.dewpoint_unavailable_reason,  # v3
+        acid_gas_corrected=result.acid_gas_corrected,  # v4
+        glycol_type=req.glycol_type,
     )
 
 

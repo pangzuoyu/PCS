@@ -2701,6 +2701,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/psychro/glycol-dehydration/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Calc Glycol Dehydration Endpoint
+         * @description FULL 甘醇脱水系统（§3.9.1 — P6-6A-6 Ruling 5 closure, v4）。
+         *
+         *     11 OUT_OF_SCOPE 字段 + 现有 7 字段 + dewpoint_unavailable_reason +
+         *     acid_gas_corrected；TEG only（DEG v5.1 Ruling 5 FULL system 不支持，
+         *     service 层抛 GlycolDehydrationError → 422）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["calc_glycol_dehydration_endpoint_api_v1_psychro_glycol_dehydration_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/psychro/results": {
         parameters: {
             query?: never;
@@ -7725,6 +7751,242 @@ export interface components {
             input_segments: {
                 [key: string]: unknown;
             };
+        };
+        /**
+         * GlycolDehydrationRequest
+         * @description FULL 甘醇脱水系统请求（POST /psychro/glycol-dehydration/calculate）。
+         *
+         *     字段（按 SPEC §3.9.1 + GPSA §20.4；P6-6A-6 v5.1 Ruling 5 closure）：
+         *
+         *     - 既有 8 必填：gas_flow / inlet / outlet / tray_count / circulation /
+         *       glycol_type / relative_volatility / imperial_units
+         *     - 10 optional（v4 新增 acid gas）：temperature_f / pressure_psia /
+         *       lean_glycol_concentration / vapour_space_ft / sump_height_ft /
+         *       hetp_ft / approach_to_equilibrium_f / flooding_c_sb /
+         *       co2_mol_pct / h2s_mol_pct
+         */
+        GlycolDehydrationRequest: {
+            /**
+             * Gas Flow Mmscfd
+             * @description 干气流量 MMscf/day（>0；<=500）
+             */
+            gas_flow_mmscfd: number;
+            /**
+             * Inlet Water Content Lb Per Mmscf
+             * @description 入口水含量 lb water / MMscf dry gas（>0；<=100）
+             */
+            inlet_water_content_lb_per_mmscf: number;
+            /**
+             * Outlet Water Content Lb Per Mmscf
+             * @description 出口水含量 lb water / MMscf dry gas（>=0 且 < inlet；<100）
+             */
+            outlet_water_content_lb_per_mmscf: number;
+            /**
+             * Contactor Tray Count
+             * @description 接触塔实际塔盘数（>=1；<=50）
+             */
+            contactor_tray_count: number;
+            /**
+             * Glycol Circulation Rate Gpm
+             * @description 甘醇循环量 gal/min（GPSA 经验 3 gpm/MMscf；>0；<=100）
+             */
+            glycol_circulation_rate_gpm: number;
+            /**
+             * Glycol Type
+             * @description 甘醇类型（TEG 三甘醇；DEG 二甘醇 — FULL system v5.1 Ruling 5 DEG 不支持）
+             * @default TEG
+             * @enum {string}
+             */
+            glycol_type: "TEG" | "DEG";
+            /**
+             * Relative Volatility
+             * @description TEG/H2O 相对挥发度 α（典型 4.5；DEG 较低 2.8；>1；<=50）
+             * @default 4.5
+             */
+            relative_volatility: number;
+            /**
+             * Imperial Units
+             * @description True → dual-unit 输出（tegloss_gal_d + diameter_ft）；False → SI 基准仅
+             * @default false
+             */
+            imperial_units: boolean;
+            /**
+             * Temperature F
+             * @description 接触塔温度 °F（Behr 反函数 / stripping gas 用；60~200）
+             */
+            temperature_f?: number | null;
+            /**
+             * Pressure Psia
+             * @description 接触塔压力 psia（Behr 反函数 / stripping gas 用；14.7~3000）
+             */
+            pressure_psia?: number | null;
+            /**
+             * Lean Glycol Concentration
+             * @description 贫甘醇浓度 质量分率（0.95~0.999；默认 0.99）
+             * @default 0.99
+             */
+            lean_glycol_concentration: number;
+            /**
+             * Vapour Space Ft
+             * @description 蒸汽空间 ft（column height 增量；0~30）
+             */
+            vapour_space_ft?: number | null;
+            /**
+             * Sump Height Ft
+             * @description 集液段高度 ft（column height 增量；0~20）
+             */
+            sump_height_ft?: number | null;
+            /**
+             * Hetp Ft
+             * @description 等板高度 ft（column height = NTU × HETP；1.0~20.0）
+             */
+            hetp_ft?: number | null;
+            /**
+             * Approach To Equilibrium F
+             * @description 露点接近度 °F（adjusted dewpoint；GPSA §20.4 typical 5.0）
+             * @default 5
+             */
+            approach_to_equilibrium_f: number;
+            /**
+             * Flooding C Sb
+             * @description Souders-Brown C_sb（v5.1 预留，v5 helper 不使用 — ADR-0045 Rev A；0.30~0.80）
+             * @default 0.65
+             */
+            flooding_c_sb: number;
+            /**
+             * Co2 Mol Pct
+             * @description CO2 摩尔百分比（acid gas correction；0~100；v4 新增 H-1）
+             * @default 0
+             */
+            co2_mol_pct: number;
+            /**
+             * H2S Mol Pct
+             * @description H2S 摩尔百分比（acid gas correction；0~100；v4 新增 H-1）
+             * @default 0
+             */
+            h2s_mol_pct: number;
+        };
+        /**
+         * GlycolDehydrationResponse
+         * @description FULL 甘醇脱水系统响应（POST /psychro/glycol-dehydration/calculate）。
+         *
+         *     字段（v4 Ruling 5 closure）：
+         *     - 既有 8 字段（dehydration_efficiency / n_tray_minimum / is_tray_count_ok /
+         *       teg_loss_gpd / contactor_diameter_in / imperial_conversion / formula_ref /
+         *       glycol_type）
+         *     - 12 optional（v4 含 acid_gas_corrected）：water_dewpoint_f /
+         *       adjusted_dewpoint_f / lean_glycol_concentration /
+         *       stripping_gas_scf_per_gal_teg / column_diameter_full_in /
+         *       column_height_ft / number_of_transfer_units / mass_h2o_removed_lb_s /
+         *       reboiler_duty_btu_hr / column_csa_ft2 / dewpoint_unavailable_reason /
+         *       acid_gas_corrected
+         */
+        GlycolDehydrationResponse: {
+            /**
+             * Dehydration Efficiency
+             * @description 脱水效率 η = 1 - outlet/inlet（无量纲 0..1）
+             */
+            dehydration_efficiency: number;
+            /**
+             * N Tray Minimum
+             * @description 最小塔盘数（GPSA §20.4 Eq.20-4，含 L/V 修正）
+             */
+            n_tray_minimum: number;
+            /**
+             * Is Tray Count Ok
+             * @description 实际塔盘数 ≥ N_min（bool）
+             */
+            is_tray_count_ok: boolean;
+            /**
+             * Teg Loss Gpd
+             * @description TEG 损失 gal/day（GPSA 经验 0.5 × Q）
+             */
+            teg_loss_gpd: number;
+            /**
+             * Contactor Diameter In
+             * @description 接触塔直径 inch（GPSA 经验 + L/V 修正）
+             */
+            contactor_diameter_in: number;
+            /**
+             * Imperial Conversion
+             * @description dual-unit 输出（仅 imperial_units=True；None → 仅 SI）
+             */
+            imperial_conversion?: {
+                [key: string]: number;
+            } | null;
+            /**
+             * Formula Ref
+             * @description 公式引用（GPSA §20.4 Eq.20-4 等）
+             */
+            formula_ref: {
+                [key: string]: string;
+            };
+            /**
+             * Glycol Type
+             * @description 甘醇类型回显（TEG / DEG）
+             */
+            glycol_type: string;
+            /**
+             * Water Dewpoint F
+             * @description 水的露点 °F（Behr 反函数；T<60°F 标记 extrapolated）
+             */
+            water_dewpoint_f?: number | null;
+            /**
+             * Adjusted Dewpoint F
+             * @description 调整后露点 °F（diff method；缺 T/P 时 None）
+             */
+            adjusted_dewpoint_f?: number | null;
+            /**
+             * Lean Glycol Concentration
+             * @description 贫甘醇浓度回显（service 计算值；输入为 None 时使用 service 默认）
+             */
+            lean_glycol_concentration: number;
+            /**
+             * Stripping Gas Scf Per Gal Teg
+             * @description 汽提气率 SCF/gal TEG（GPSA §20.4 Eq.20-5）
+             */
+            stripping_gas_scf_per_gal_teg?: number | null;
+            /**
+             * Column Diameter Full In
+             * @description 接触塔全径 inch（K=7.1187 单点标定 ADR-0045 Rev A）
+             */
+            column_diameter_full_in: number;
+            /**
+             * Column Height Ft
+             * @description 接触塔高度 ft（NTU × HETP + vapour space + sump）
+             */
+            column_height_ft: number;
+            /**
+             * Number Of Transfer Units
+             * @description 传质单元数 NTU（Kremser）
+             */
+            number_of_transfer_units: number;
+            /**
+             * Mass H2O Removed Lb S
+             * @description 脱水速率 lb/s
+             */
+            mass_h2o_removed_lb_s: number;
+            /**
+             * Reboiler Duty Btu Hr
+             * @description 再沸器负荷 BTU/hr（简式焓平衡 3 项）
+             */
+            reboiler_duty_btu_hr: number;
+            /**
+             * Column Csa Ft2
+             * @description 截面积 ft²
+             */
+            column_csa_ft2: number;
+            /**
+             * Dewpoint Unavailable Reason
+             * @description dewpoint 不可用原因（如缺 T/P 时填 'temperature_f required'）
+             */
+            dewpoint_unavailable_reason?: string | null;
+            /**
+             * Acid Gas Corrected
+             * @description acid gas correction 是否生效（v4 新增 H-1；CO2 或 H2S > 0 时 True）
+             * @default false
+             */
+            acid_gas_corrected: boolean;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -18456,6 +18718,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SaturationWaterContentResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    calc_glycol_dehydration_endpoint_api_v1_psychro_glycol_dehydration_calculate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GlycolDehydrationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["GlycolDehydrationResponse"];
                 };
             };
             /** @description Validation Error */

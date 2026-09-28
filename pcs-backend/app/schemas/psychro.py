@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -568,6 +568,206 @@ class SaturationWaterContentResponse(BaseModel):
     )
 
 
+# ============================================================================
+# 9. P6-6A-6 (Ruling 5 closure, v4) FULL 甘醇脱水系统（SPEC §3.9.1）
+# ============================================================================
+
+
+class GlycolDehydrationRequest(BaseModel):
+    """FULL 甘醇脱水系统请求（POST /psychro/glycol-dehydration/calculate）。
+
+    字段（按 SPEC §3.9.1 + GPSA §20.4；P6-6A-6 v5.1 Ruling 5 closure）：
+
+    - 既有 8 必填：gas_flow / inlet / outlet / tray_count / circulation /
+      glycol_type / relative_volatility / imperial_units
+    - 10 optional（v4 新增 acid gas）：temperature_f / pressure_psia /
+      lean_glycol_concentration / vapour_space_ft / sump_height_ft /
+      hetp_ft / approach_to_equilibrium_f / flooding_c_sb /
+      co2_mol_pct / h2s_mol_pct
+    """
+
+    gas_flow_mmscfd: float = Field(
+        ..., gt=0, le=500, description="干气流量 MMscf/day（>0；<=500）"
+    )
+    inlet_water_content_lb_per_mmscf: float = Field(
+        ...,
+        gt=0,
+        le=100,
+        description="入口水含量 lb water / MMscf dry gas（>0；<=100）",
+    )
+    outlet_water_content_lb_per_mmscf: float = Field(
+        ...,
+        ge=0,
+        lt=100,
+        description="出口水含量 lb water / MMscf dry gas（>=0 且 < inlet；<100）",
+    )
+    contactor_tray_count: int = Field(
+        ..., ge=1, le=50, description="接触塔实际塔盘数（>=1；<=50）"
+    )
+    glycol_circulation_rate_gpm: float = Field(
+        ...,
+        gt=0,
+        le=100,
+        description="甘醇循环量 gal/min（GPSA 经验 3 gpm/MMscf；>0；<=100）",
+    )
+    glycol_type: Literal["TEG", "DEG"] = Field(
+        "TEG",
+        description="甘醇类型（TEG 三甘醇；DEG 二甘醇 — FULL system v5.1 Ruling 5 DEG 不支持）",
+    )
+    relative_volatility: float = Field(
+        4.5,
+        gt=1.0,
+        le=50.0,
+        description="TEG/H2O 相对挥发度 α（典型 4.5；DEG 较低 2.8；>1；<=50）",
+    )
+    imperial_units: bool = Field(
+        False,
+        description="True → dual-unit 输出（tegloss_gal_d + diameter_ft）；False → SI 基准仅",
+    )
+    # P6-6A-6 v5.1 — 10 optional（API 默认值 = dataclass 默认值 一一对应）
+    temperature_f: float | None = Field(
+        None,
+        ge=60,
+        le=200,
+        description="接触塔温度 °F（Behr 反函数 / stripping gas 用；60~200）",
+    )
+    pressure_psia: float | None = Field(
+        None,
+        ge=14.7,
+        le=3000,
+        description="接触塔压力 psia（Behr 反函数 / stripping gas 用；14.7~3000）",
+    )
+    lean_glycol_concentration: float = Field(
+        0.99,
+        ge=0.95,
+        le=0.999,
+        description="贫甘醇浓度 质量分率（0.95~0.999；默认 0.99）",
+    )
+    vapour_space_ft: float | None = Field(
+        None, ge=0, le=30, description="蒸汽空间 ft（column height 增量；0~30）"
+    )
+    sump_height_ft: float | None = Field(
+        None, ge=0, le=20, description="集液段高度 ft（column height 增量；0~20）"
+    )
+    hetp_ft: float | None = Field(
+        None,
+        ge=1.0,
+        le=20.0,
+        description="等板高度 ft（column height = NTU × HETP；1.0~20.0）",
+    )
+    approach_to_equilibrium_f: float = Field(
+        5.0,
+        ge=0,
+        le=20,
+        description="露点接近度 °F（adjusted dewpoint；GPSA §20.4 typical 5.0）",
+    )
+    flooding_c_sb: float = Field(
+        0.65,
+        ge=0.30,
+        le=0.80,
+        description="Souders-Brown C_sb（v5.1 预留，v5 helper 不使用 — ADR-0045 Rev A；0.30~0.80）",
+    )
+    co2_mol_pct: float = Field(
+        0.0,
+        ge=0.0,
+        le=100.0,
+        description="CO2 摩尔百分比（acid gas correction；0~100；v4 新增 H-1）",
+    )
+    h2s_mol_pct: float = Field(
+        0.0,
+        ge=0.0,
+        le=100.0,
+        description="H2S 摩尔百分比（acid gas correction；0~100；v4 新增 H-1）",
+    )
+
+
+class GlycolDehydrationResponse(BaseModel):
+    """FULL 甘醇脱水系统响应（POST /psychro/glycol-dehydration/calculate）。
+
+    字段（v4 Ruling 5 closure）：
+    - 既有 8 字段（dehydration_efficiency / n_tray_minimum / is_tray_count_ok /
+      teg_loss_gpd / contactor_diameter_in / imperial_conversion / formula_ref /
+      glycol_type）
+    - 12 optional（v4 含 acid_gas_corrected）：water_dewpoint_f /
+      adjusted_dewpoint_f / lean_glycol_concentration /
+      stripping_gas_scf_per_gal_teg / column_diameter_full_in /
+      column_height_ft / number_of_transfer_units / mass_h2o_removed_lb_s /
+      reboiler_duty_btu_hr / column_csa_ft2 / dewpoint_unavailable_reason /
+      acid_gas_corrected
+    """
+
+    dehydration_efficiency: float = Field(
+        ..., description="脱水效率 η = 1 - outlet/inlet（无量纲 0..1）"
+    )
+    n_tray_minimum: int = Field(
+        ..., description="最小塔盘数（GPSA §20.4 Eq.20-4，含 L/V 修正）"
+    )
+    is_tray_count_ok: bool = Field(
+        ..., description="实际塔盘数 ≥ N_min（bool）"
+    )
+    teg_loss_gpd: float = Field(
+        ..., description="TEG 损失 gal/day（GPSA 经验 0.5 × Q）"
+    )
+    contactor_diameter_in: float = Field(
+        ..., description="接触塔直径 inch（GPSA 经验 + L/V 修正）"
+    )
+    imperial_conversion: dict[str, float] | None = Field(
+        None,
+        description="dual-unit 输出（仅 imperial_units=True；None → 仅 SI）",
+    )
+    formula_ref: dict[str, str] = Field(
+        ..., description="公式引用（GPSA §20.4 Eq.20-4 等）"
+    )
+    glycol_type: str = Field(
+        ..., description="甘醇类型回显（TEG / DEG）"
+    )
+    # P6-6A-6 v5.1 — 12 optional fields（v4 含 acid_gas_corrected）
+    water_dewpoint_f: float | None = Field(
+        None,
+        description="水的露点 °F（Behr 反函数；T<60°F 标记 extrapolated）",
+    )
+    adjusted_dewpoint_f: float | None = Field(
+        None,
+        description="调整后露点 °F（diff method；缺 T/P 时 None）",
+    )
+    lean_glycol_concentration: float = Field(
+        ...,
+        description="贫甘醇浓度回显（service 计算值；输入为 None 时使用 service 默认）",
+    )
+    stripping_gas_scf_per_gal_teg: float | None = Field(
+        None,
+        description="汽提气率 SCF/gal TEG（GPSA §20.4 Eq.20-5）",
+    )
+    column_diameter_full_in: float = Field(
+        ...,
+        description="接触塔全径 inch（K=7.1187 单点标定 ADR-0045 Rev A）",
+    )
+    column_height_ft: float = Field(
+        ...,
+        description="接触塔高度 ft（NTU × HETP + vapour space + sump）",
+    )
+    number_of_transfer_units: float = Field(
+        ..., description="传质单元数 NTU（Kremser）"
+    )
+    mass_h2o_removed_lb_s: float = Field(
+        ..., description="脱水速率 lb/s"
+    )
+    reboiler_duty_btu_hr: float = Field(
+        ..., description="再沸器负荷 BTU/hr（简式焓平衡 3 项）"
+    )
+    column_csa_ft2: float = Field(
+        ..., description="截面积 ft²"
+    )
+    dewpoint_unavailable_reason: str | None = Field(
+        None,
+        description="dewpoint 不可用原因（如缺 T/P 时填 'temperature_f required'）",
+    )
+    acid_gas_corrected: bool = Field(
+        False,
+        description="acid gas correction 是否生效（v4 新增 H-1；CO2 或 H2S > 0 时 True）",
+    )
+
+
 __all__ = [
     # 6 calc 子项
     "HumidityRatioRequest",
@@ -585,6 +785,9 @@ __all__ = [
     # 饱和水含量（P6-4 Task 4 / C-17 显式水含量）
     "SaturationWaterContentRequest",
     "SaturationWaterContentResponse",
+    # P6-6A-6 (Ruling 5 closure, v4) FULL 甘醇脱水系统
+    "GlycolDehydrationRequest",
+    "GlycolDehydrationResponse",
     # CRUD
     "PsychroResultCreateRequest",
     "PsychroResultUpdateRequest",
