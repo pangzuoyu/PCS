@@ -168,7 +168,7 @@ budget_tokens: 1500
 6. ~~前端 wrapper 3 页~~ ✓ done P6-5 补课（`HeatingValuePage.tsx:11.4K` + `SaturationWaterContentPage.tsx:9.4K` + `CvComputePage.tsx:12.9K`，路由 `routeWrappers.tsx:48/51/52` + `208/211/215`，vitest 15/15 PASS）
 
 **未解决问题**：
-- OPEN-P6-4-2（Kb 厂商真实数据 LESER/Consolidated/AG，部署前）
+- OPEN-P6-4-2（Kb 厂商真实数据 LESER/Consolidated/AG，**上线后** P6-6B+ 启动）
 - OPEN-P6-4-3（C-08 Imperial 单位支持范围）
 - OPEN-P6-4-4（C-24 Chapman-Jans / Tong 模型与商业软件对账，部署前）
 - OPEN-P6-6A-6（T8 full glycol dehydration system as new PCS service，CONFIG 占位 T9 关闭；service 扩展待 P6-7）

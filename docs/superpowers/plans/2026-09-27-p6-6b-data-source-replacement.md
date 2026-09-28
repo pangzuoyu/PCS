@@ -23,12 +23,13 @@ baseline：3242 passed + 74 skipped。
 - **验收**：`pytest tests/services/common/test_heating_value_calc.py`；64 行 `source` 字段去 SYNTHETIC 标记；`confirmed_by` 非 PLACEHOLDER
 - **OPEN-P6-4-1** 关闭
 
-### T2. `_VALVE_LIBRARY` 真实 Kb 厂商数据（C-24 阀门厂库）
+### T2. _VALVE_LIBRARY 真实 Kb 厂商数据（C-24 阀门厂库）
 - **当前**：24 组合合成（`SYNTHETIC_TEST_DATA`）；默认 FL/FF/Cf 圆整值
 - **目标**：LESER / Consolidated / AG / Farris / Anderson Greenwood 5 厂商 × 4 阀型（GLOBE/BALL/BUTTERFLY/DIAPHRAGM）= 20 组合；真实厂商数据手册 PDF 抄录
 - **commit**：2（vendor catalog extract + library dict 替换）
 - **验收**：`pytest tests/services/cv/test_flashing_correction.py -k valve_library`；20 组合 `source='<vendor_name> catalog'`；OPEN-P6-4-2 关闭
 - **风险**：厂商手册 PDF 不可下载 → 工艺室调取纸质件
+- **状态（2026-09-28）**：**推迟到上线后** — 厂商账号访问需采购流程，部署前 P6-6B 启动时本 task 仅维护 `SYNTHETIC_TEST_DATA` 标记 + `confirmed_by='PLACEHOLDER_DEFER'` 闭环，真实 Kb 抄录到 P6-6B+（上线后批）独立启动
 
 ### T3. `pipe_E_modulus`（C-13 Joukowsky 输入）
 - **当前**：T6 测试 fixture 内联 5 等级硬编码（无 CONFIG 表）
