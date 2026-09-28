@@ -144,25 +144,42 @@ budget_tokens: 1500
 - **OPEN-P6-6A-11 立项（C-18 Nielsen 方程覆盖缺口，2026-09-28）**：核实发现 SPEC §3.9.3 要求 BOTH Hammerschmidt (MeOH ≤25 wt%) + Nielsen (MeOH ≤50 wt%)，P6-5 仅落 Hammerschmidt；MeOH > 25 wt% 工况无对应方程静默外推，超出 Hammerschmidt 验证域（验收线 <3%）。范围：Nielsen 1991 方程分支（按 GPSA §20.3 Fig 20-13 拟合）+ MeOH > 25 wt% 自动切换 + WARNING [NIELSEN_AUTO_SWITCH] + 黄金 fixture 3 点对账（Nielsen 1991 paper Fig 5 vs Hammerschmidt 切点）。预估 ~1.0 天；P6-6B 工程团队接管
 - **Ruling 5 OUT_OF_SCOPE 12 fields CLOSED**（11 OUT_OF_SCOPE + acid_gas_corrected，alpha 显式 + dewpoint_unavailable_reason + acid_gas_corrected 一致性 + TEG Contactor Sizing ADR-0045 Rev A 单点标定 + 30× 根因弱化为推测 + brentq inverse → _DewpointResult frozen dataclass 字段名统一 + Linear placeholder 术语正名 + JSON 启动期加载三铁律 + Day-0 Gate 形式决策 + Day-1 Gate 验证 + _calc_behr 去重调用 _correct）
 
+**P6-6B 数据源替换批落地（2026-09-28，13 commits active，T2 跳过 OPEN-P6-4-2 上线后）**：commits `287ea9c`..`af0a054`
+- **范围**：9 张 CONFIG 表 metadata 闭环 + 4 个内联常量替换（service 集成）；T10/T11 决策点路径 A/B 推迟到工程团队
+- **T1** `compound_heating_values` 64 行 metadata 闭环（OPEN-P6-4-1 关闭）
+- **T2** `_VALVE_LIBRARY` 真实 Kb 厂商数据 — **跳过**（OPEN-P6-4-2 上线后推迟，commit `dc124f7`）
+- **T3** `pipe_e_modulus` CONFIG 表 + ORM + 8 行 seed + C-13 service 集成（CARBON_STEEL 等旧 5 材质枚举彻底移除）
+- **T4** `compound_pasquill_sigma` 6 行 metadata 闭环（EPA ISC3 + Briggs 1973）
+- **T5** `compound_api521_thresholds` 2 行 metadata 闭环（API 521 §3.4 + AS 1210 §4.4）
+- **T6** `compound_iso9613_atmospheric_absorption` 4 行 metadata 闭环（ISO 9613-2 1996）
+- **T7** `compound_hammerschmidt_K` 5 行 metadata 闭环（Hammerschmidt 1934 + Nielsen 1988 + GPSA Fig. 20-XX）
+- **T8** `compound_nielsen_1988_params` 新建 CONFIG 表 + 7 行 seed + hydrate_inhibition service Nielsen 1988 备选 path（InhibitorModel 枚举 + 双模型分支 + 默认向后兼容 Hammerschmidt）；A/B/C 估算值待工艺工程师二次核对
+- **T9** `glycol_dehydration_full_system` 10 行典型工况范围（CONFIG 占位）+ glycol_dehydration_service docstring 加 OUT_OF_SCOPE 引用 4 子模块（reboiler/stripping/full column/lean glycol 待 P6-7 service 扩展）
+- **T10** Hammerschmidt K_F=2335 → K_C=1297.22 service 集成 — **路径待工程团队**
+- **T11** API 521 fire coeff 43192 → AS 1210 2.457 service 集成 — **路径待工程团队**
+- **T12** `delta_h_vap_natural_gas` 2 行 metadata 闭环 + service 双字段切换（`use_xls_convention` 默认 False，2260 保留向后兼容，XLS 208 字段可选；OPEN-P6-6A-5 形式关闭）
+- **T13** `drain_orifice_Cd_Y_cr` 6 行 metadata + service feature flag `_USE_XLS_CD_Y_CR` 默认 False + `_resolved_cd_y_cr` 内部 override 参数集成（R=1 fix 闭环；OPEN-P6-6A-4 形式关闭；CONFIG + 双轨方案就位，待 ETL 对账后启用 XLS convention）
+- **验收**：G-08 phase 1-3 全过（0 OPENAPI drift，metadata-only 改动无新路径）；pytest 各模块 0 break；ruff 0 errors on touched files；pcs_test head `p6_6b_013_drain_orifice_Cd_Y_cr`
+- **Parked findings (跨批 LOW/INFO 11 项，batch-end 清理)**：T3 4 项 doc-style nit + T8 4 项 spec deviation + T12 3 项 ruff/seed 偏差
+
 ---
 
 ## 🚀 Next quest
 
-**P6-6B 数据源替换批启动（2026-09-27，Subagent-driven 待工程团队开工）**：
-- Plan: `docs/superpowers/plans/2026-09-27-p6-6b-data-source-replacement.md`
-- 范围：9 CONFIG 表替换 SYNTHETIC 标记 + 4 内联常量替换
-- 触发：T14 closure report sign-off + 工程团队接管真实 GPSA / Vendor / ISO / API 数据
-- 预计 5-7 工作日（Phase 1 CONFIG 并行 3-4 天 + Phase 2 service 集成 1-2 天 + ETL 1 天）
-- 解决 OPEN-P6-4-1/2 + OPEN-P6-6A-5（6 OPEN-P6-6A-* 中 4 项关闭）— **OPEN-P6-6A-3 已 e0d91a6 关闭**（Ruling 11 K scale）+ **OPEN-P6-6A-4 已 c34d3f4 关闭**（Ruling 12 Cd/Y_cr^0.5）+ **OPEN-P6-6A-7 已 3250b42 关闭**（Ruling 13 Y_cr@r_c + sizing 完整实现）
+**P6-7 glycol dehydration service 扩展（OPEN-P6-6A-6 后续）**：
+- Plan: 待定
+- 范围：4 子模块（reboiler / stripping / full column / lean glycol）从 OUT_OF_SCOPE → 落地
+- 触发：T9 CONFIG `glycol_dehydration_full_system` 10 行典型工况范围已就位 + 工艺工程师提供 reboiler duty / stripping gas rate / 4 子模块计算逻辑
+- 预计 5-7 工作日
 
-**P6-6A 已完成（merged to main @ `09eb037`）**：worktree `PCS-worktrees/p6-6a-worley` @ `fddeae4`，15 commits，0 service 改动，11 Rulings 已登记，post-merge 56/56 spot-check PASS。
+**P6-6B 已完成（merged to main @ `68daa60` → `af0a054`）**：13 commits，0 service 关键改动（仅 T8/T12/T13 service 集成向后兼容），OPEN-P6-4-1 关闭 + OPEN-P6-6A-4/5 形式关闭 + OPEN-P6-6A-6 部分关闭（CONFIG 占位 T9）；T2 推迟 OPEN-P6-4-2 上线后；T10/T11 决策路径待工程团队
 
 **OPEN-P6-6A-3 已关闭（commit `e0d91a6`）**：Hammerschmidt 1934 K scale fix（Ruling 11）。
 
 **后续（待用户裁决）**：
 1. ~~P6-6A merge 到 main~~ ✓ done `09eb037`
 2. ~~OPEN-P6-6A-3 K scale fix~~ ✓ done `e0d91a6`
-3. P6-6B 启动确认（工程团队接管厂商数据采集）
+3. ~~P6-6B 启动确认~~ ✓ done（13 commits `287ea9c`..`af0a054`，OPEN-P6-4-1 关闭，OPEN-P6-4-2/3/4 + OPEN-P6-6A-5/6 部分关闭；OPEN-P6-6A-4/5 形式关闭 — 详见 P6-6B 批落地 entry）
 4. ~~SPEC V1.2 修订~~ ✓ done `2c2d5b9`（V1.11 → V1.12 wording-only 6 修订 + OPEN-P6-6A-10 新立）
 5. ~~G-08 OpenAPI baseline drift 收口~~ ✓ done `68daa60`（+2 paths / +4 schemas / 0 removed；P6-6A-6/7 全部已 merge main）
 6. ~~前端 wrapper 3 页~~ ✓ done P6-5 补课（`HeatingValuePage.tsx:11.4K` + `SaturationWaterContentPage.tsx:9.4K` + `CvComputePage.tsx:12.9K`，路由 `routeWrappers.tsx:48/51/52` + `208/211/215`，vitest 15/15 PASS）
