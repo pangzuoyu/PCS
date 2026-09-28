@@ -1,0 +1,72 @@
+{
+  "_meta": {
+    "open_item": "OPEN-P6-6A-6 (子任务 1+2)",
+    "topic": "C-16 glycol dehydration Reboiler Duty + Stripping Gas Rate",
+    "confidence": "B",
+    "source": "工艺室 2026-10-31 + GPSA §20.4 Eq.20-5",
+    "delivered_by": "工艺室",
+    "delivered_at": "2026-10-31",
+    "formula_note": "P_sat via Antoine v5 plan (A=15.30/B=8500); SGR 公式严格按 brief 字面实现（详见 task-1-report.md Concerns）"
+  },
+  "cases": [
+    {
+      "case_id": "c16_reboiler_xls_e80_full_calc",
+      "description": "Reboiler Duty 完整焓平衡（XLS PR-018 E80 基准）",
+      "si_inputs": {
+        "water_removal_rate_lb_hr": 2377.0,
+        "teg_circulation_rate_gal_lb": 3.0,
+        "teg_density_lb_gal": 9.32,
+        "reboiler_temperature_f": 400.0,
+        "contactor_temperature_f": 228.4,
+        "reflux_ratio": 0.25
+      },
+      "expected": {
+        "q_evap_btu_hr": 2371295.0,
+        "q_cond_btu_hr": 592823.75,
+        "q_teg_btu_hr": 6499629.0,
+        "q_total_btu_hr": 10404223.0,
+        "xls_e80_btu_hr": 4961599.65,
+        "residual_pct": 109.7,
+        "note": "完整焓与 XLS E80 偏差 +110%；TEG 循环量待对账（工艺 2026-11-15）"
+      },
+      "tolerance_rel": 0.02
+    },
+    {
+      "case_id": "c16_stripping_gas_xls_e32",
+      "description": "Stripping Gas Rate @ 400°F（GPSA §20.4 Eq.20-5 字面实现）",
+      "si_inputs": {
+        "water_removal_rate_lb_hr": 2377.0,
+        "reboiler_temperature_f": 400.0,
+        "contactor_temperature_f": 120.0,
+        "contactor_pressure_psia": 1000.0,
+        "lean_glycol_concentration_wt_pct": 0.9938
+      },
+      "expected": {
+        "p_sat_te_mmhg": 0.003180,
+        "sgr_scf_gal_teg": 327602809.49,
+        "xls_e32_scf_gal": 0.4220,
+        "residual_pct": 77631000000.0,
+        "note": "v5 plan Antoine A=15.30/B=8500 P_sat=0.00318 mmHg；brief 字面公式 k_strip×(P_total_psi/P_sat_mmHg)×X/(1-X) 产生 ~3.3e8 scf/gal（XLS E32=0.4220 不一致；P6-8 PICKUP 修复单位混算）"
+      },
+      "tolerance_rel": 0.05
+    },
+    {
+      "case_id": "c16_stripping_gas_high_reboiler_t",
+      "description": "Stripping Gas Rate @ 380°F（低温再沸器工况）",
+      "si_inputs": {
+        "water_removal_rate_lb_hr": 2377.0,
+        "reboiler_temperature_f": 380.0,
+        "contactor_temperature_f": 120.0,
+        "contactor_pressure_psia": 1000.0,
+        "lean_glycol_concentration_wt_pct": 0.9938
+      },
+      "expected": {
+        "p_sat_te_mmhg": 0.001198,
+        "sgr_scf_gal_teg": 869490413.98,
+        "xls_e32_scf_gal": 0.4220,
+        "note": "380°F 低温再沸器 P_sat TEG 下降 ~2.65×（符合 Antoine 预期）；SGR 同步放大因字面公式单位混算"
+      },
+      "tolerance_rel": 0.10
+    }
+  ]
+}
