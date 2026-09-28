@@ -1275,6 +1275,76 @@ def _calc_stripping_gas_rate_scf_gal_teg(
     return p_sat_te_mmhg, sgr
 
 
+@dataclass(frozen=True)
+class LeanGlycolDataPoint:
+    """GPSA Fig 20-4 数据点（再沸器温度 + 汽提气速率 → 贫 TEG 浓度）。"""
+
+    reboiler_temperature_f: float
+    stripping_gas_scf_gal: float
+    lean_glycol_concentration_wt_pct: float
+
+
+# GPSA Fig 20-4 数据点（工艺室 2026-10-31 抄录 4 数据点；完整曲线待 2026-11-15）
+_GPSA_FIG_20_4_DATA_POINTS: tuple[LeanGlycolDataPoint, ...] = (
+    # (T_reboiler_F, SGR_scf_gal, lean_glycol_wt_pct)
+    LeanGlycolDataPoint(380.0, 0.0, 98.8),
+    LeanGlycolDataPoint(400.0, 0.0, 99.3),
+    LeanGlycolDataPoint(400.0, 3.0, 99.7),
+    LeanGlycolDataPoint(400.0, 6.0, 99.9),
+)
+
+
+def _calc_lean_glycol_concentration_wt_pct(
+    reboiler_temperature_f: float,
+    stripping_gas_scf_gal: float,
+) -> tuple[float, list[str]]:
+    """贫 TEG 浓度（GPSA Fig 20-4 数据点 + 插值, OPEN-P6-6A-6 子任务 4）。
+
+    T_reboiler 维度：双线性插值（先 T 后 SGR）
+    T=400°F 段用 SGR 线性插值；T≠400°F 用 T=380/400 两段线性
+
+    Returns:
+        (lean_glycol_concentration_wt_pct, warnings)
+    """
+    warnings: list[str] = []
+
+    # 按 T 分组
+    if reboiler_temperature_f <= 380.0:
+        # T=380°F 段：仅 SGR=0 数据点
+        return _GPSA_FIG_20_4_DATA_POINTS[0].lean_glycol_concentration_wt_pct, warnings
+    elif reboiler_temperature_f >= 400.0:
+        # T=400°F 段：SGR 线性插值（3 个数据点）
+        T = 400.0
+        points = [p for p in _GPSA_FIG_20_4_DATA_POINTS if p.reboiler_temperature_f == T]
+        if stripping_gas_scf_gal <= points[0].stripping_gas_scf_gal:
+            return points[0].lean_glycol_concentration_wt_pct, warnings
+        elif stripping_gas_scf_gal >= points[-1].stripping_gas_scf_gal:
+            return points[-1].lean_glycol_concentration_wt_pct, warnings
+        # 线性插值
+        for i in range(len(points) - 1):
+            x1 = points[i].stripping_gas_scf_gal
+            y1 = points[i].lean_glycol_concentration_wt_pct
+            x2 = points[i + 1].stripping_gas_scf_gal
+            y2 = points[i + 1].lean_glycol_concentration_wt_pct
+            if x1 <= stripping_gas_scf_gal <= x2:
+                lean_glycol = y1 + (stripping_gas_scf_gal - x1) * (y2 - y1) / (x2 - x1)
+                return lean_glycol, warnings
+    else:
+        # T=380~400°F 段：T 线性插值（仅 SGR=0 数据点可用）
+        # 注：完整 Fig 20-4 曲线待工艺室 2026-11-15 抄录
+        T = reboiler_temperature_f
+        # 双线性插值（sgr=0 段）
+        lean_at_380 = _GPSA_FIG_20_4_DATA_POINTS[0].lean_glycol_concentration_wt_pct  # 98.8
+        lean_at_400 = _GPSA_FIG_20_4_DATA_POINTS[1].lean_glycol_concentration_wt_pct  # 99.3
+        lean_glycol = lean_at_380 + (T - 380.0) * (lean_at_400 - lean_at_380) / (400.0 - 380.0)
+        warnings.append(
+            "LEAN_GLYCOL_INTERPOLATION_PARTIAL: "
+            "仅 380/400°F 两数据点线性插值；完整 Fig 20-4 待工艺室 2026-11-15 抄录"
+        )
+
+    return _GPSA_FIG_20_4_DATA_POINTS[0].lean_glycol_concentration_wt_pct, warnings
+
+
 def calc_reboiler_stripping(inp: ReboilerStrippingInput) -> ReboilerStrippingResult:
     """Reboiler Duty + Stripping Gas Rate 主入口（OPEN-P6-6A-6 子任务 1+2）。
 

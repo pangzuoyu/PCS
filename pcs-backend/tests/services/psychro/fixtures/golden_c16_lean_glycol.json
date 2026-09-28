@@ -1,0 +1,40 @@
+{
+  "_meta": {
+    "open_item": "OPEN-P6-6A-6 (子任务 4)",
+    "topic": "C-16 Lean Glycol Concentration (GPSA Fig 20-4 数据点插值)",
+    "confidence": "B",
+    "source": "GPSA Fig 20-4（工艺室 2026-10-31 抄录 4 数据点）；完整曲线待 2026-11-15",
+    "delivered_by": "工艺室",
+    "delivered_at": "2026-10-31",
+    "file": "tests/services/psychro/fixtures/golden_c16_lean_glycol.json"
+  },
+  "data_points_reference": [
+    {"reboiler_temperature_f": 380.0, "stripping_gas_scf_gal": 0.0, "lean_glycol_concentration_wt_pct": 98.8},
+    {"reboiler_temperature_f": 400.0, "stripping_gas_scf_gal": 0.0, "lean_glycol_concentration_wt_pct": 99.3},
+    {"reboiler_temperature_f": 400.0, "stripping_gas_scf_gal": 3.0, "lean_glycol_concentration_wt_pct": 99.7},
+    {"reboiler_temperature_f": 400.0, "stripping_gas_scf_gal": 6.0, "lean_glycol_concentration_wt_pct": 99.9}
+  ],
+  "cases": [
+    {
+      "case_id": "c16_lean_glycol_t380_sgr0",
+      "reboiler_temperature_f": 380.0,
+      "stripping_gas_scf_gal": 0.0,
+      "expected": {"lean_glycol_concentration_wt_pct": 98.8}
+    },
+    {
+      "case_id": "c16_lean_glycol_t400_sgr0_xls_e29_interp",
+      "reboiler_temperature_f": 400.0,
+      "stripping_gas_scf_gal": 0.0,
+      "expected": {"lean_glycol_concentration_wt_pct": 99.3},
+      "xls_e29_ref": 0.9938,
+      "xls_note": "XLS E29=0.9938 @ 400°F + 0.422 scf/gal（接近 0 scf/gal 插值）"
+    },
+    {
+      "case_id": "c16_lean_glycol_t400_sgr3",
+      "reboiler_temperature_f": 400.0,
+      "stripping_gas_scf_gal": 3.0,
+      "expected": {"lean_glycol_concentration_wt_pct": 99.7}
+    }
+  ],
+  "tolerance_rel": 0.01
+}
