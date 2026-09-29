@@ -1335,8 +1335,7 @@ def _calc_lean_glycol_concentration_wt_pct(
             "LEAN_GLYCOL_INTERPOLATION_PARTIAL: "
             "仅 380/400°F 两数据点线性插值；完整 Fig 20-4 待工艺室 2026-11-15 抄录"
         )
-
-    return _GPSA_FIG_20_4_DATA_POINTS[0].lean_glycol_concentration_wt_pct, warnings
+        return lean_glycol, warnings
 
 
 def calc_reboiler_stripping(inp: ReboilerStrippingInput) -> ReboilerStrippingResult:

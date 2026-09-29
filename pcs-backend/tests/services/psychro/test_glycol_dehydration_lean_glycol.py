@@ -114,3 +114,34 @@ def test_t_below_380_returns_first_point() -> None:
     """T<380°F → 钳到 380°F 数据点 98.8 wt%。"""
     lean, _warnings = _calc_lean_glycol_concentration_wt_pct(350.0, 0.0)
     assert abs(lean - 98.8) < 1e-9
+
+
+# ============================================================================
+# CRITICAL F1 else-branch regression tests (P6-9-PICKUP-2 T1)
+# 修复前 line 1339 总返回 98.8 → 现应正确插值
+# ============================================================================
+
+
+def test_lean_glycol_interp_at_390F_0scf() -> None:
+    """T=390°F + SGR=0 → 双线性插值 ~99.05（98.8 + 0.25 = 380→400 中点）。"""
+    lean, warnings = _calc_lean_glycol_concentration_wt_pct(390.0, 0.0)
+    assert lean == pytest.approx(99.05, abs=0.01), (
+        f"T=390°F 插值失败：98.8 + (390-380)*(99.3-98.8)/20 = 99.05，实际 {lean}"
+    )
+    assert any("LEAN_GLYCOL_INTERPOLATION_PARTIAL" in w for w in warnings)
+
+
+def test_lean_glycol_interp_at_395F_1p5scf() -> None:
+    """T=395°F + SGR=1.5 → ~99.175（98.8 + 0.375 = 380→400 间 75% 位置）。"""
+    lean, _warnings = _calc_lean_glycol_concentration_wt_pct(395.0, 1.5)
+    assert lean == pytest.approx(99.175, abs=0.01), (
+        f"T=395°F 插值失败：98.8 + (395-380)*(99.3-98.8)/20 = 99.175，实际 {lean}"
+    )
+
+
+def test_lean_glycol_interp_at_385F_0p5scf() -> None:
+    """T=385°F + SGR=0.5 → ~98.925（98.8 + 0.125 = 380→400 间 25% 位置）。"""
+    lean, _warnings = _calc_lean_glycol_concentration_wt_pct(385.0, 0.5)
+    assert lean == pytest.approx(98.925, abs=0.01), (
+        f"T=385°F 插值失败：98.8 + (385-380)*(99.3-98.8)/20 = 98.925，实际 {lean}"
+    )
