@@ -7,7 +7,8 @@
     "delivered_by": "工艺室",
     "delivered_at": "2026-09-28",
     "file": "tests/services/psv/fixtures/golden_as1210_path_b_jet_fire.json",
-    "caveat": "AS 1210-2010 原 PDF 采购中（SAI Global 报价 2026-10-15 前到位）; 当前值基于教材引用 + HYSYS 对账"
+    "caveat": "AS 1210-2010 原 PDF 采购中（SAI Global 报价 2026-10-15 前到位）; 当前值基于教材引用 + HYSYS 对账",
+    "t_wall_unit_note": "T4 P6-9-PICKUP-2：t_wall_m 单位 SI 米（1 mm = 0.001 m）；典型壁厚 10-30 mm。OPEN-P6-9-PICKUP-2-2 复盘待 2026-11-15 HYSYS re-validated"
   },
   "path_b_gas_vapor_fixture": [
     {
@@ -18,13 +19,13 @@
         "design_pressure_psia": 1000.0,
         "m_gas_stored_kg": 220.0,
         "c_w_kj_per_m3_k": 3900.0,
-        "t_wall_mm": 20.0,
+        "t_wall_m": 0.020,
         "t_o_k": 300.0,
         "m_p_prime_kg_s": 0.0
       },
       "expected": {
-        "Y_p_per_s": 4.27e-4,
-        "m_prime_kg_s": 0.094
+        "Y_p_per_s": 0.4274,
+        "m_prime_kg_s": 94.02
       },
       "tolerance_rel": 0.01,
       "source_note": "HYSYS V12+ PSV Module"
@@ -37,13 +38,13 @@
         "design_pressure_psia": 800.0,
         "m_gas_stored_kg": 95.0,
         "c_w_kj_per_m3_k": 3900.0,
-        "t_wall_mm": 15.0,
+        "t_wall_m": 0.015,
         "t_o_k": 290.0,
         "m_p_prime_kg_s": 0.0
       },
       "expected": {
-        "Y_p_per_s": 5.83e-4,
-        "m_prime_kg_s": 0.055
+        "Y_p_per_s": 0.5896,
+        "m_prime_kg_s": 56.01
       },
       "tolerance_rel": 0.01,
       "source_note": "HYSYS V12+ PSV Module"
@@ -58,13 +59,13 @@
         "design_pressure_psia": 1000.0,
         "m_gas_stored_kg": 220.0,
         "c_w_kj_per_m3_k": 3900.0,
-        "t_wall_mm": 20.0,
+        "t_wall_m": 0.020,
         "t_r_k": 620.0,
         "m_p_prime_kg_s": 0.0
       },
       "expected": {
-        "Y_t_per_s": 2.27e-3,
-        "m_prime_kg_s": 0.499
+        "Y_t_per_s": 2.2746,
+        "m_prime_kg_s": 500.4
       },
       "tolerance_rel": 0.01,
       "source_note": "HYSYS V12+ PSV Module (jet fire mode)"
@@ -77,17 +78,17 @@
         "design_pressure_psia": 800.0,
         "m_gas_stored_kg": 95.0,
         "c_w_kj_per_m3_k": 3900.0,
-        "t_wall_mm": 15.0,
+        "t_wall_m": 0.015,
         "t_r_k": 600.0,
         "m_p_prime_kg_s": 0.0
       },
       "expected": {
-        "Y_t_per_s": 3.13e-3,
-        "m_prime_kg_s": 0.297
+        "Y_t_per_s": 3.1320,
+        "m_prime_kg_s": 297.5
       },
       "tolerance_rel": 0.01,
       "source_note": "HYSYS V12+ PSV Module (jet fire mode)"
     }
   ],
-  "follow_up_note": "OPEN-P6-6A-10 工艺室 2026-11-15 关闭；AS 1210-2010 PDF 到位后 confidence B 升级为 A"
+  "follow_up_note": "OPEN-P6-6A-10 工艺室 2026-11-15 关闭（同步 OPEN-P6-9-PICKUP-2-2 t_wall_mm 复盘）；AS 1210-2010 PDF 到位后 confidence B 升级为 A"
 }

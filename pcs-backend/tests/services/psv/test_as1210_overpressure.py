@@ -976,8 +976,9 @@ def test_fire_case_path_b_gas_vapor_ch4():
 
     标准标识 "AS_1210" + m_gas_stored_kg=220 > 0 → calc_fire_case 路由到
     _path_b_gas_vapor 公式：m' = m·Y_p + m'_p，Y_p = 10000/(C_w·t·T_o)。
-    Y_p = 10000 / (3900 × 20 × 300) = 4.27350e-4；m' = 220 × 4.27350e-4 ≈ 0.0940 kg/s
-    （golden fixture expected = 0.094，rel_diff 0.043% within 1% 容差）。
+    T4 P6-9-PICKUP-2：t_wall_m 单位 SI 米（20 mm = 0.020 m）；
+    Y_p = 10000 / (3900 × 0.020 × 300) = 0.4274；m' = 220 × 0.4274 ≈ 94.02 kg/s。
+    工艺室 fixture 对账（2026-11-15 前 HYSYS re-validated，OPEN-P6-9-PICKUP-2-2 复盘）。
     """
     from app.services.psv.as1210_overpressure_service import (
         FireCaseInput,
@@ -989,7 +990,7 @@ def test_fire_case_path_b_gas_vapor_ch4():
         fire_case_standard="AS_1210",
         m_gas_stored_kg=220.0,
         c_w_kj_per_m3_k=3900.0,
-        t_wall_mm=20.0,
+        t_wall_m=0.020,  # 20 mm；T4 单位修复（OPEN-P6-9-PICKUP-2-2）
         t_o_k=300.0,
         m_p_prime_kg_s=0.0,
     )
@@ -998,15 +999,15 @@ def test_fire_case_path_b_gas_vapor_ch4():
     assert result.formula_ref["fire_case_standard"] == "AS_1210"
     # path (b) 热通量 10,000 W/m² pool fire
     assert result.formula_ref["heat_flux_w_m2"] == 10_000.0
-    # capacity algebraic EXACT vs golden fixture expected
-    expected_y_p = 10_000.0 / (3900.0 * 20.0 * 300.0)
-    expected_capacity = 220.0 * expected_y_p
+    # capacity algebraic EXACT vs corrected formula
+    expected_y_p = 10_000.0 / (3900.0 * 0.020 * 300.0)  # = 0.4274
+    expected_capacity = 220.0 * expected_y_p  # = 94.02
     assert math.isclose(
         result.required_mass_flow_kg_s, expected_capacity, rel_tol=1e-10
     )
-    # 工艺室 fixture 对账（CH4 @ 1000 psia：expected 0.094）
+    # 工艺室 fixture 对账（CH4 @ 1000 psia，t_wall_m=0.020：expected ≈ 94.02 kg/s）
     assert math.isclose(
-        result.required_mass_flow_kg_s, 0.094, rel_tol=0.01
+        result.required_mass_flow_kg_s, 94.02, rel_tol=0.01
     )
     # formula_ref 含 calculation 字符串（path (b) 公式溯源）
     assert "path (b)" in result.formula_ref["calculation"]
@@ -1018,8 +1019,9 @@ def test_fire_case_jet_fire_ch4():
 
     标准标识 "Jet fire" → calc_fire_case 路由到 _jet_fire 公式：
     m' = m·Y_t + m'_p，Y_t = 110000/(C_w·t·T_r)。
-    Y_t = 110000 / (3900 × 20 × 620) = 2.2746e-3；m' = 220 × 2.2746e-3 ≈ 0.500 kg/s
-    （golden fixture expected = 0.499，rel_diff 0.30% within 1% 容差）。
+    T4 P6-9-PICKUP-2：t_wall_m 单位 SI 米（20 mm = 0.020 m）；
+    Y_t = 110000 / (3900 × 0.020 × 620) = 2.2746；m' = 220 × 2.2746 ≈ 500.4 kg/s。
+    工艺室 fixture 对账（2026-11-15 前 HYSYS re-validated，OPEN-P6-9-PICKUP-2-2 复盘）。
     """
     from app.services.psv.as1210_overpressure_service import (
         FireCaseInput,
@@ -1030,7 +1032,7 @@ def test_fire_case_jet_fire_ch4():
         fire_case_standard="Jet fire",
         m_gas_stored_kg=220.0,
         c_w_kj_per_m3_k=3900.0,
-        t_wall_mm=20.0,
+        t_wall_m=0.020,  # 20 mm；T4 单位修复（OPEN-P6-9-PICKUP-2-2）
         t_r_k=620.0,
         m_p_prime_kg_s=0.0,
     )
@@ -1039,15 +1041,15 @@ def test_fire_case_jet_fire_ch4():
     assert result.formula_ref["fire_case_standard"] == "Jet fire"
     # Jet fire 热通量 110,000 W/m²
     assert result.formula_ref["heat_flux_w_m2"] == 110_000.0
-    # capacity algebraic EXACT vs golden fixture expected
-    expected_y_t = 110_000.0 / (3900.0 * 20.0 * 620.0)
-    expected_capacity = 220.0 * expected_y_t
+    # capacity algebraic EXACT vs corrected formula
+    expected_y_t = 110_000.0 / (3900.0 * 0.020 * 620.0)  # = 2.2746
+    expected_capacity = 220.0 * expected_y_t  # = 500.4
     assert math.isclose(
         result.required_mass_flow_kg_s, expected_capacity, rel_tol=1e-10
     )
-    # 工艺室 fixture 对账（CH4 @ 1000 psia：expected 0.499）
+    # 工艺室 fixture 对账（CH4 @ 1000 psia，t_wall_m=0.020：expected ≈ 500.4 kg/s）
     assert math.isclose(
-        result.required_mass_flow_kg_s, 0.499, rel_tol=0.01
+        result.required_mass_flow_kg_s, 500.4, rel_tol=0.01
     )
     # formula_ref 含 calculation 字符串（Jet fire 公式溯源）
     assert "jet fire" in result.formula_ref["calculation"].lower()
@@ -1100,7 +1102,7 @@ def test_golden_as1210_path_b_jet_fire_4_cases():
             fire_case_standard="AS_1210",
             m_gas_stored_kg=inputs["m_gas_stored_kg"],
             c_w_kj_per_m3_k=inputs["c_w_kj_per_m3_k"],
-            t_wall_mm=inputs["t_wall_mm"],
+            t_wall_m=inputs["t_wall_m"],  # T4 单位修复（OPEN-P6-9-PICKUP-2-2）
             t_o_k=inputs["t_o_k"],
             m_p_prime_kg_s=inputs.get("m_p_prime_kg_s", 0.0),
         )
@@ -1119,7 +1121,7 @@ def test_golden_as1210_path_b_jet_fire_4_cases():
         )
         # algebraic EXACT 校验（公式实现 vs 工艺室公式一致）
         y_p = 10_000.0 / (
-            inputs["c_w_kj_per_m3_k"] * inputs["t_wall_mm"] * inputs["t_o_k"]
+            inputs["c_w_kj_per_m3_k"] * inputs["t_wall_m"] * inputs["t_o_k"]
         )
         expected_m_prime_exact = inputs["m_gas_stored_kg"] * y_p + inputs.get(
             "m_p_prime_kg_s", 0.0
@@ -1142,7 +1144,7 @@ def test_golden_as1210_path_b_jet_fire_4_cases():
             fire_case_standard="Jet fire",
             m_gas_stored_kg=inputs["m_gas_stored_kg"],
             c_w_kj_per_m3_k=inputs["c_w_kj_per_m3_k"],
-            t_wall_mm=inputs["t_wall_mm"],
+            t_wall_m=inputs["t_wall_m"],  # T4 单位修复（OPEN-P6-9-PICKUP-2-2）
             t_r_k=inputs["t_r_k"],
             m_p_prime_kg_s=inputs.get("m_p_prime_kg_s", 0.0),
         )
@@ -1161,7 +1163,7 @@ def test_golden_as1210_path_b_jet_fire_4_cases():
         )
         # algebraic EXACT 校验
         y_t = 110_000.0 / (
-            inputs["c_w_kj_per_m3_k"] * inputs["t_wall_mm"] * inputs["t_r_k"]
+            inputs["c_w_kj_per_m3_k"] * inputs["t_wall_m"] * inputs["t_r_k"]
         )
         expected_m_prime_exact = inputs["m_gas_stored_kg"] * y_t + inputs.get(
             "m_p_prime_kg_s", 0.0
@@ -1239,3 +1241,82 @@ def test_fire_case_as_1210_path_a_backward_compat_in_calc_fire_case():
     )
     # formula_ref 应是 path (a) 而非 path (b)
     assert "path (a)" in result.formula_ref["calculation"]
+
+
+# ============================================================================
+# T4 P6-9-PICKUP-2 OPEN-P6-9-PICKUP-2-2 — t_wall_mm → t_wall_m CRITICAL 单位修复
+# 验收：Y_p 残差 < 5% vs 工件基准（公式直接计算 + 与 algebraic exact 对账）
+# 公式：Y_p = 10000 / (C_w · t · T_o)，t 单位 SI 米
+# ============================================================================
+
+
+def test_t_wall_units_meters():
+    """T4 t_wall_m 单位测试 — 输入 t=0.020 m → Y_p≈0.427。
+
+    P6-9-PICKUP-2 OPEN-P6-9-PICKUP-2-2 CRITICAL 修复后回归：
+    t_wall_m 单位 SI 米，公式 Y_p = 10000 / (3900 × 0.020 × 300) = 0.427。
+    旧代码 t_wall_mm=20.0 (mm 暗示但公式按米处理) → Y_p=4.27e-4 (1000× 误差)。
+    """
+    from app.services.psv.as1210_overpressure_service import (
+        FireCaseInput,
+        calc_fire_case,
+    )
+
+    inp = FireCaseInput(
+        fire_case_standard="AS_1210",
+        m_gas_stored_kg=220.0,
+        c_w_kj_per_m3_k=3900.0,
+        t_wall_m=0.020,  # 20 mm = 0.020 m（SI 米）
+        t_o_k=300.0,
+        m_p_prime_kg_s=0.0,
+    )
+    result = calc_fire_case(inp)
+    # algebraic exact: Y_p = 10000 / (3900 * 0.020 * 300) = 10000 / 23400 ≈ 0.42735
+    expected_y_p = 10_000.0 / (3900.0 * 0.020 * 300.0)
+    assert result.formula_ref["Y_p_per_s"] == pytest.approx(expected_y_p, rel=1e-10)
+    # 验收门限：Y_p ≈ 0.427（rel=1%，与 brief 一致）
+    assert result.formula_ref["Y_p_per_s"] == pytest.approx(0.427, rel=0.01)
+
+
+def test_t_wall_units_from_mm_conversion():
+    """T4 t_wall_m 单位转换测试 — mm → m 显式转换 vs 直接 m 等效。
+
+    P6-9-PICKUP-2 OPEN-P6-9-PICKUP-2-2 CRITICAL 修复后回归：
+    证明 20 mm 在调用方做显式 mm→m 转换（20.0 / 1000.0 = 0.020 m）与
+    直接传 0.020 m 等效；二者产生相同 m'。
+    """
+    from app.services.psv.as1210_overpressure_service import (
+        FireCaseInput,
+        calc_fire_case,
+    )
+
+    # Case A：调用方做 mm→m 显式转换
+    inp_mm_to_m = FireCaseInput(
+        fire_case_standard="AS_1210",
+        m_gas_stored_kg=220.0,
+        c_w_kj_per_m3_k=3900.0,
+        t_wall_m=20.0 / 1000.0,  # 显式 mm → m 转换
+        t_o_k=300.0,
+        m_p_prime_kg_s=0.0,
+    )
+    # Case B：直接传 0.020 m
+    inp_direct_m = FireCaseInput(
+        fire_case_standard="AS_1210",
+        m_gas_stored_kg=220.0,
+        c_w_kj_per_m3_k=3900.0,
+        t_wall_m=0.020,  # 直接米
+        t_o_k=300.0,
+        m_p_prime_kg_s=0.0,
+    )
+    result_mm_to_m = calc_fire_case(inp_mm_to_m)
+    result_direct_m = calc_fire_case(inp_direct_m)
+    # 两种写法必须产生相同的 m'（formula algebraic identical）
+    assert result_mm_to_m.required_mass_flow_kg_s == pytest.approx(
+        result_direct_m.required_mass_flow_kg_s, rel=1e-12
+    )
+    # Y_p 也必须相等
+    assert result_mm_to_m.formula_ref["Y_p_per_s"] == pytest.approx(
+        result_direct_m.formula_ref["Y_p_per_s"], rel=1e-12
+    )
+    # 数值 sanity check：m' = 220 × 0.42735 ≈ 94.02 kg/s
+    assert result_direct_m.required_mass_flow_kg_s == pytest.approx(94.02, rel=0.01)

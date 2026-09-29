@@ -318,13 +318,16 @@ class FireCaseInput:
       - fire_case_standard: 标准枚举（"API_521" / "AS_1210" / "Jet fire"）
       - m_gas_stored_kg: 气体储罐质量 kg（path (b) gas/vapor + Jet fire）
       - c_w_kj_per_m3_k: 壁面体积热容 C_w kJ/(m³·K)（path (b) + Jet fire）
-      - t_wall_mm: 壁厚 t mm（path (b) + Jet fire）
+      - t_wall_m: 壁厚 t 米（SI 米；1 mm = 0.001 m）（path (b) + Jet fire）
+        —— T4 P6-9-PICKUP-2 CRITICAL 单位修复（OPEN-P6-9-PICKUP-2-2 复盘）
       - t_o_k: 设计温度 T_o K（path (b) gas/vapor）
       - t_r_k: 泄放温度 T_r K（Jet fire）
       - m_p_prime_kg_s: 其他泄放流量 m'_p kg/s（path (b) + Jet fire 加项）
 
     T8 OPEN-P6-6A-10：path (b) 与 Jet fire 字段默认 0.0，不传时 calc_fire_case
     仍走既有 API_521 / AS_1210 path (a) 公式（向后兼容 T7 既有行为）。
+    T4 P6-9-PICKUP-2：t_wall_m 单位为 SI 米（非毫米）；公式 Y_p = 10000/(C_w·t·T_o)
+    直接使用 t·C_w·T_o，无内部单位换算。
     """
 
     wetted_area_m2: float = 0.0
@@ -333,7 +336,8 @@ class FireCaseInput:
     fire_case_standard: FireCaseStandard = "API_521"
     m_gas_stored_kg: float = 0.0
     c_w_kj_per_m3_k: float = 0.0
-    t_wall_mm: float = 0.0
+    # T4 P6-9-PICKUP-2：单位 SI 米（1 mm = 0.001 m）；典型壁厚 10–30 mm = 0.010–0.030 m
+    t_wall_m: float = 0.0
     t_o_k: float = 0.0
     t_r_k: float = 0.0
     m_p_prime_kg_s: float = 0.0
@@ -355,7 +359,7 @@ class FireCaseResult:
 def _path_b_gas_vapor(
     m_gas_stored_kg: float,
     c_w_kj_per_m3_k: float,
-    t_wall_mm: float,
+    t_wall_m: float,
     t_o_k: float,
     m_p_prime_kg_s: float = 0.0,
 ) -> float:
@@ -367,21 +371,22 @@ def _path_b_gas_vapor(
     Args:
         m_gas_stored_kg: 气体储罐质量 m（kg）
         c_w_kj_per_m3_k: 壁面体积热容 C_w（kJ/(m³·K)）
-        t_wall_mm: 壁厚 t（mm）
+        t_wall_m: 壁厚 t（米 SI；1 mm = 0.001 m）—— T4 P6-9-PICKUP-2
+          CRITICAL 单位修复（OPEN-P6-9-PICKUP-2-2 复盘）
         t_o_k: 设计温度 T_o（K）
         m_p_prime_kg_s: 其他泄放流量 m'_p（kg/s，加项）
 
     Returns:
         m' = m · Y_p + m'_p（kg/s）
     """
-    y_p = _POOL_FIRE_HEAT_FLUX_W_M2 / (c_w_kj_per_m3_k * t_wall_mm * t_o_k)
+    y_p = _POOL_FIRE_HEAT_FLUX_W_M2 / (c_w_kj_per_m3_k * t_wall_m * t_o_k)
     return m_gas_stored_kg * y_p + m_p_prime_kg_s
 
 
 def _jet_fire(
     m_gas_stored_kg: float,
     c_w_kj_per_m3_k: float,
-    t_wall_mm: float,
+    t_wall_m: float,
     t_r_k: float,
     m_p_prime_kg_s: float = 0.0,
 ) -> float:
@@ -396,14 +401,15 @@ def _jet_fire(
     Args:
         m_gas_stored_kg: 气体储罐质量 m（kg）
         c_w_kj_per_m3_k: 壁面体积热容 C_w（kJ/(m³·K)）
-        t_wall_mm: 壁厚 t（mm）
+        t_wall_m: 壁厚 t（米 SI；1 mm = 0.001 m）—— T4 P6-9-PICKUP-2
+          CRITICAL 单位修复（OPEN-P6-9-PICKUP-2-2 复盘）
         t_r_k: 泄放温度 T_r（K）
         m_p_prime_kg_s: 其他泄放流量 m'_p（kg/s，加项）
 
     Returns:
         m' = m · Y_t + m'_p（kg/s）
     """
-    y_t = _JET_FIRE_HEAT_FLUX_W_M2 / (c_w_kj_per_m3_k * t_wall_mm * t_r_k)
+    y_t = _JET_FIRE_HEAT_FLUX_W_M2 / (c_w_kj_per_m3_k * t_wall_m * t_r_k)
     return m_gas_stored_kg * y_t + m_p_prime_kg_s
 
 
@@ -430,7 +436,7 @@ def calc_fire_case(inp: FireCaseInput) -> FireCaseResult:
         mass_flow = _jet_fire(
             inp.m_gas_stored_kg,
             inp.c_w_kj_per_m3_k,
-            inp.t_wall_mm,
+            inp.t_wall_m,
             inp.t_r_k,
             inp.m_p_prime_kg_s,
         )
@@ -448,10 +454,10 @@ def calc_fire_case(inp: FireCaseInput) -> FireCaseResult:
                     _JET_FIRE_HEAT_FLUX_W_M2
                     / (
                         inp.c_w_kj_per_m3_k
-                        * inp.t_wall_mm
+                        * inp.t_wall_m
                         * inp.t_r_k
                     )
-                    if (inp.c_w_kj_per_m3_k > 0 and inp.t_wall_mm > 0 and inp.t_r_k > 0)
+                    if (inp.c_w_kj_per_m3_k > 0 and inp.t_wall_m > 0 and inp.t_r_k > 0)
                     else None
                 ),
             },
@@ -463,7 +469,7 @@ def calc_fire_case(inp: FireCaseInput) -> FireCaseResult:
         mass_flow = _path_b_gas_vapor(
             inp.m_gas_stored_kg,
             inp.c_w_kj_per_m3_k,
-            inp.t_wall_mm,
+            inp.t_wall_m,
             inp.t_o_k,
             inp.m_p_prime_kg_s,
         )
@@ -481,12 +487,12 @@ def calc_fire_case(inp: FireCaseInput) -> FireCaseResult:
                     _POOL_FIRE_HEAT_FLUX_W_M2
                     / (
                         inp.c_w_kj_per_m3_k
-                        * inp.t_wall_mm
+                        * inp.t_wall_m
                         * inp.t_o_k
                     )
                     if (
                         inp.c_w_kj_per_m3_k > 0
-                        and inp.t_wall_mm > 0
+                        and inp.t_wall_m > 0
                         and inp.t_o_k > 0
                     )
                     else None
