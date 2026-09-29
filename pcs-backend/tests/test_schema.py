@@ -52,14 +52,15 @@ def test_table_count(inspector):
     #   compound_api521_thresholds / compound_iso9613_atmospheric_absorption /
     #   compound_hammerschmidt_K）= 87 + alembic_version = 88 incl. alembic_version。
     # P6-6B 净新增 5 张 CONFIG 表（p6_6b_003 pipe_e_modulus /
-    #   p6_6b_008 compound_nielsen_1988_params / p6_6b_009
-    #   glycol_dehydration_full_system / p6_6b_012
+    #   p6_6b_009 glycol_dehydration_full_system / p6_6b_012
     #   compound_delta_h_vap_natural_gas / p6_6b_013 drain_orifice_Cd_Y_cr，
-    #   其余 p6_6b_001/004/005/006/007 均为 ALTER 不增表数）= 92 + alembic_version
-    #   = 93 incl. alembic_version。
-    #   测试断言 93（含 alembic_version）= 实际 PCS 后端 schema 终态
-    #   （P6-7 批末收口 2026-10-31 同步）。
-    assert len(tables) == 93, f"expected 93 incl. alembic_version, got {len(tables)}"
+    #   其余 p6_6b_001/004/005/006/007 均为 ALTER 不增表数）= 91 + alembic_version
+    #   = 92 incl. alembic_version。
+    #   P6-9-PICKUP-3 T1 删除 compound_nielsen_1988_params（P6-6B T8 表）= 91 +
+    #   alembic_version = 92 incl. alembic_version。
+    #   测试断言 92（含 alembic_version）= 实际 PCS 后端 schema 终态
+    #   （P6-9-PICKUP-3 2026-11-15 同步）。
+    assert len(tables) == 92, f"expected 92 incl. alembic_version, got {len(tables)}"
 
 
 def test_required_tables_present(inspector):

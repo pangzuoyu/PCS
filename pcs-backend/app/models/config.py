@@ -815,68 +815,6 @@ class CompoundHammerschmidtK(Base):
     )
 
 
-class CompoundNielsen1988Params(Base):
-    """Nielsen 1988 现代水合物抑制参数（C-18 modern hydrate inhibition）。
-
-    业务（P6 SPEC §3.9.4 + Nielsen 1988 paper Table 1-3）：
-
-    - ``component`` UNIQUE：CH4 / C2H6 / C3H8 / I-C4H6 / N2 / CO2 / H2S；
-    - ``a`` / ``b`` / ``c`` 三常数（无量纲；Nielsen 1988 Table 1 抄录）；
-      本批用 **估算值**（user ruling 2026-09-27），需工艺工程师从 Nielsen
-      1988 PDF 二次核对。``source`` 字段标记
-      ``'Nielsen 1988 (paper Table 1, TBD engineer verify)'``，``confirmed_by``
-      占位 ``'P6-6B_ENG_TEAM_TBD'``，提示需二次核对。
-    - 7 行 CH4/C2H6/C3H8/I-C4H6/N2/CO2/H2S；
-    - ``source`` / ``confirmed_by`` / ``confirmed_at`` 字段同其他 CONFIG 表。
-
-    不继承 ``TaggedRecordMixin``（元数据表非业务计算记录）。
-    """
-
-    __tablename__ = "compound_nielsen_1988_params"
-
-    id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True,
-        comment="BIGINT 自增主键",
-    )
-    component: Mapped[str] = mapped_column(
-        String(16), nullable=False, unique=True, index=True,
-        comment='组分 UNIQUE：CH4/C2H6/C3H8/I-C4H6/N2/CO2/H2S',
-    )
-    a: Mapped[float] = mapped_column(
-        Float, nullable=False,
-        comment="Nielsen 1988 A 常数（无量纲）",
-    )
-    b: Mapped[float] = mapped_column(
-        Float, nullable=False,
-        comment="Nielsen 1988 B 常数（无量纲）",
-    )
-    c: Mapped[float] = mapped_column(
-        Float, nullable=False,
-        comment="Nielsen 1988 C 常数（无量纲；本批估算全为 0.0）",
-    )
-    source: Mapped[str] = mapped_column(
-        String(128), nullable=False,
-        comment='数据来源；本批填 "Nielsen 1988 (paper Table 1, TBD engineer verify)"'
-                '—— 工艺工程师二次核对后改填真实期号',
-    )
-    confirmed_by: Mapped[str] = mapped_column(
-        String(64), nullable=False,
-        comment='本批填 "P6-6B_ENG_TEAM_TBD"；工艺工程师二次核对后改填实际签字人',
-    )
-    confirmed_at: Mapped[datetime.datetime | None] = mapped_column(
-        DateTime(timezone=True), nullable=True,
-        comment="工艺室确认签字时间（占位 NULL，工艺室签字后填入）",
-    )
-    created_at: Mapped[datetime.datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now(),
-        comment="记录创建时间（DB server_default）",
-    )
-    updated_at: Mapped[datetime.datetime | None] = mapped_column(
-        DateTime(timezone=True), onupdate=func.now(),
-        comment="记录更新时间（ORM onupdate 触发）",
-    )
-
-
 class CompoundDeltaHVapNaturalGas(Base):
     """ΔH_vap 蒸发潜热（natural gas 路径，PSV C-21 fire case）。
 

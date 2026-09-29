@@ -162,25 +162,7 @@ def get_hammerschmidt_K_table() -> dict[str, float] | None:
 
 
 # -----------------------------------------------------------------------------
-# 6. Nielsen 1988 A/B/C 常数（C-18 hydrate_inhibition_service 备选 path）
-# -----------------------------------------------------------------------------
-def get_nielsen_1988_params() -> dict[str, tuple[float, float, float]] | None:
-    """从 ``compound_nielsen_1988_params`` 表加载 A/B/C 常数。"""
-    from app.models.config import CompoundNielsen1988Params
-
-    def loader() -> dict[str, tuple[float, float, float]] | None:
-        def query(session) -> dict[str, tuple[float, float, float]] | None:
-            rows = session.execute(select(CompoundNielsen1988Params)).scalars().all()
-            if not rows:
-                return None
-            return {r.component: (r.a, r.b, r.c) for r in rows}
-        return _load_with_fallback(query)
-
-    return _get_cached_or_reload("nielsen_1988_params", loader)
-
-
-# -----------------------------------------------------------------------------
-# 7. ΔH_vap 蒸发潜热（natural gas 路径，C-21 fire case；P6-6B T12 引入）
+# 6. ΔH_vap 蒸发潜热（natural gas 路径，C-21 fire case；P6-6B T12 引入）
 # -----------------------------------------------------------------------------
 def get_delta_h_vap_table() -> dict[str, float] | None:
     """从 ``compound_delta_h_vap_natural_gas`` 表加载 ΔH_vap（kJ/kg）。
@@ -232,7 +214,6 @@ __all__: Final[list[str]] = [
     "get_api521_thresholds_table",
     "get_iso9613_abs_default_db_per_km",
     "get_hammerschmidt_K_table",
-    "get_nielsen_1988_params",
     "get_pipe_E_modulus_table",
     "get_delta_h_vap_table",
     "get_drain_orifice_Cd_Y_cr_table",
