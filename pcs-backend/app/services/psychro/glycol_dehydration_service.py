@@ -41,8 +41,13 @@ TEG 损失（GPSA 经验）：
 
   TEG loss = 0.5 × Q_gas (gal/day)            单点估算
 
-Behr 系数（P6-6A-6 v5.1 Day-0 Gate）：
+Behr 系数（P6-9 Katz 5-param, 工艺室第三批 2026-09-29, OPEN-P6-6A-9.5 代码侧闭环）：
 
+  log10(W) = A + B/T_R + C·T_R + D·T_R² + E·log10(P_psia)
+  T_R = T_F + 459.67 (Rankine)
+  max_rel_err < 2.21% vs GPSA Fig 20-2 8 spot checks (工艺室第三批标定)
+
+  旧版 4-param Day-0 Gate (_load_behr_coefficients, 向后兼容保留):
   log10(W) = A0 + A1·T_F + A2·T_F² + A3·log10(P_psia)
   A0 = 3.3552846960018585, A1 = 0.018921959032034738
   A2 = -4.608271243464537e-05, A3 = -1.034805419984532
@@ -248,16 +253,25 @@ def _get_behr_coefficients(temperature_f: float) -> tuple[float, float, float, f
 
 # P6-7 T2 — Multi-baseline JSON loader (OPEN-P6-6A-9.3 + 9.5 代码侧)
 # 复用 importlib.resources 加载风格, 从 pcs-backend/data/behr_coefficients.json 读取
-# baselines.{general,high_acid}.log10_coefficients 双 baseline 表。
+# baselines.{general,high_acid}.log10_coefficients_katz 双 baseline 表 (P6-9 Katz 5-param form)。
+#
+# P6-9 Katz 5-param form (工艺室第三批 2026-09-29 升级, OPEN-P6-6A-9.5 代码侧闭环):
+#   4-param 二次形式 (A0 + A1·T + A2·T² + A3·log10(P)) 工艺室标定失败
+#   5-param Katz form (A + B/T_R + C·T_R + D·T_R² + E·log10(P)) 工艺室第三批提供
+#   T_R = T_F + 459.67 (Rankine)
 def _load_behr_baseline_table() -> dict[str, dict[str, float]]:
-    """从 pcs-backend/data/behr_coefficients.json 加载 multi-baseline 系数表。
+    """从 pcs-backend/data/behr_coefficients.json 加载 multi-baseline Katz 5-param 系数表。
+
+    v3 Katz 5-param form (P6-9, 工艺室 2026-09-29 升级):
+        log10(W) = A + B/T_R + C·T_R + D·T_R² + E·log10(P_psia)
+        T_R = T_F + 459.67 (Rankine)
 
     Returns:
-        dict like {"general": {"A0": ..., "A1": ..., "A2": ..., "A3": ...},
-                   "high_acid": {"A0": ..., "A1": ..., "A2": ..., "A3": ...}}
+        dict like {"general": {"A": ..., "B": ..., "C": ..., "D": ..., "E": ...},
+                   "high_acid": {"A": ..., "B": ..., "C": ..., "D": ..., "E": ...}}
 
     Raises:
-        RuntimeError: JSON 缺失 / schema 无效 / baseline 缺 A0-A3
+        RuntimeError: JSON 缺失 / schema 无效 / baseline 缺 A-E
     """
     try:
         raw = json.loads(_BEHR_BASELINES_PATH.read_text(encoding="utf-8"))
@@ -280,16 +294,17 @@ def _load_behr_baseline_table() -> dict[str, dict[str, float]]:
             raise RuntimeError(
                 f"Behr multi-baseline JSON 缺 baselines.{name} 段"
             )
-        coeffs = entry.get("log10_coefficients")
+        # v3 Katz 5-param form (P6-9 升级)
+        coeffs = entry.get("log10_coefficients_katz")
         if not isinstance(coeffs, dict) or not all(
             isinstance(coeffs.get(k), (int, float))
-            for k in ("A0", "A1", "A2", "A3")
+            for k in ("A", "B", "C", "D", "E")
         ):
             raise RuntimeError(
-                f"Behr multi-baseline JSON baselines.{name}.log10_coefficients "
-                f"缺 A0/A1/A2/A3 数值字段"
+                f"Behr multi-baseline JSON baselines.{name}.log10_coefficients_katz "
+                f"缺 A/B/C/D/E 数值字段 (Katz 5-param form)"
             )
-        out[name] = {k: float(coeffs[k]) for k in ("A0", "A1", "A2", "A3")}
+        out[name] = {k: float(coeffs[k]) for k in ("A", "B", "C", "D", "E")}
     return out
 
 
@@ -298,24 +313,21 @@ _BEHR_BASELINE_TABLE: Final[dict[str, dict[str, float]]] = _load_behr_baseline_t
 
 def _get_behr_baseline_coefficients(
     baseline: BehrBaseline,
-) -> tuple[float, float, float, float]:
-    """Behr baseline → (A0, A1, A2, A3) (OPEN-P6-6A-9.3 + 9.5)。
+) -> tuple[float, float, float, float, float]:
+    """Behr baseline → (A, B, C, D, E) Katz 5-param (OPEN-P6-6A-9.5 代码侧闭环)。
 
-    'general' → 现有 _BEHR_COEFFS (Day-0 Gate fit, 向后兼容, T 分段逻辑在 _get_behr_coefficients 中)
-    'high_acid' → JSON multi-baseline 表 high_acid 段 (T2 工艺室 2026-10-31 提供)
+    'general' → JSON multi-baseline 表 general 段 Katz 5-param
+    'high_acid' → JSON multi-baseline 表 high_acid 段 Katz 5-param (T2 工艺室第三批 2026-09-29)
 
-    注: 'high_acid' 路径不走 _get_behr_coefficients T 分段 — T < 60°F 段仅用于 general baseline,
-        high_acid 标定域为 T ∈ [60, 200]°F。
+    注: general baseline 也走 Katz form, 不走 _BEHR_COEFFS 4-param Day-0 Gate fit
+        (工艺室第三批统一升级所有 baseline 到 Katz 5-param)。
+        注: 'high_acid' 路径不走 _get_behr_coefficients T 分段 — T < 60°F 段仅用于
+            兼容保留 (general 段 JSON Katz 系数也未覆盖 T < 60°F)。
+        注: Katz form log10(W) = A + B/T_R + C·T_R + D·T_R² + E·log10(P)
+            T_R = T_F + 459.67 (Rankine)
     """
-    if baseline == "general":
-        return (
-            _BEHR_COEFFS["A0"],
-            _BEHR_COEFFS["A1"],
-            _BEHR_COEFFS["A2"],
-            _BEHR_COEFFS["A3"],
-        )
-    coeffs = _BEHR_BASELINE_TABLE["high_acid"]
-    return (coeffs["A0"], coeffs["A1"], coeffs["A2"], coeffs["A3"])
+    coeffs = _BEHR_BASELINE_TABLE[baseline]
+    return (coeffs["A"], coeffs["B"], coeffs["C"], coeffs["D"], coeffs["E"])
 
 
 # P6-6A-6 v5.1 — Acid gas linear correction placeholder coefficients (H-1 落实)
@@ -583,72 +595,81 @@ def _calc_behr_water_content_lb_per_mmscf(
     h2s_mol_pct: float = 0.0,
     baseline: BehrBaseline = "general",
 ) -> tuple[float, bool]:
-    """Behr correlation via Bukacek (1990) + GPSA Fig 20-2 + Linear acid gas placeholder.
+    """Behr correlation via Katz (1959 form) + GPSA Fig 20-2 + acid gas correction.
 
-    Form (v5.1 Day-0 Gate Form A — Bukacek baseline × GPSA calibration × acid gas):
-        log10(W_baseline) = A0 + A1·T_F + A2·T_F² + A3·log10(P_psia)
+    Form (P6-9 Katz 5-param, 工艺室第三批 2026-09-29, OPEN-P6-6A-9.5 代码侧闭环):
+        log10(W_baseline) = A + B/T_R + C·T_R + D·T_R² + E·log10(P_psia)
+        T_R = T_F + 459.67 (Rankine)
         W_baseline = 10^(...)
-        W_corr = W_baseline × (1 + 0.024·co2_mol_pct + 0.018·h2s_mol_pct)  # Linear placeholder
+        W_corr = W_baseline × (1 + 0.024·CO2 + 0.018·H2S)  # Linear placeholder (general path)
                   OR
                   W_corr = W_baseline × (1 + ε/100) 真 Wichert-Aziz (high_acid)
         W = W_corr
 
     baseline (P6-7 T2, OPEN-P6-6A-9.3 + 9.5):
-        'general' (default, 向后兼容) → v5.1 Day-0 Gate JSON fit + 线性 placeholder
-        'high_acid' (XLS PR-018 path) → GPSA Fig 20-2 high-acid zone 系数 + 真 Wichert-Aziz
+        'general' (default) → JSON multi-baseline general Katz 5-param
+        'high_acid' (XLS PR-018 path) → JSON multi-baseline high_acid Katz 5-param + 真 Wichert-Aziz
 
-    Source: Bukacek (1990) "Water content of natural gas"
+    Source: Katz et al. (1959) "Handbook of Natural Gas Engineering"
             GPSA Engineering Data Book 13th Ed §20.4 Fig 20-2 (8-point matrix fit)
-            Coefficients (general): pcs-backend/app/services/psychro/data/behr_coefficients.json
-                                    (loaded at startup, _BEHR_COEFFS)
             Coefficients (multi-baseline): pcs-backend/data/behr_coefficients.json
-                                    (loaded at startup, _BEHR_BASELINE_TABLE)
-            Low-temp extension (T < 60°F, 仅 general baseline):
-                                    _BEHR_COEFFS_LOW_T via _get_behr_coefficients
-                                    (OPEN-P6-6A-9.4 — Bukacek 1990 Table 3)
+                                    (loaded at startup, _BEHR_BASELINE_TABLE;
+                                    key: log10_coefficients_katz)
+            Legacy 4-param fallback (P6-6A-6 v5.1 Day-0 Gate):
+                                    pcs-backend/app/services/psychro/data/behr_coefficients.json
+                                    (loaded at startup, _BEHR_COEFFS, 保留 _load_behr_coefficients)
             Acid gas correction:
               general   → Linear placeholder (向后兼容, 既有 _correct_behr_for_acid_gas)
               high_acid → 真 Wichert-Aziz (T2 工艺室 2026-10-31 闭合 OPEN-P6-6A-9.5,
                           ε = 120·[(y_CO2+y_H2S)^0.9 − (y_CO2+y_H2S)^1.6]
                               + 15·(y_H2S^0.5 − y_H2S^4))
     Calibration: 8 spot checks (60/80/100/120/140/160°F @ 1000 psia + 120°F @ 500/1500 psia),
-                 max relative error = 4.866% per Day-0 Gate fit (acceptable < 5%).
+                 Katz form max_rel_err < 2.21% per 工艺室第三批标定 (P6-9 v3)。
     XLS PR-018 E20=103.91 (high acid gas CO2+H2S=5%) 验证 (high_acid baseline):
         W_baseline(120°F, 1000 psia) ≈ 93.5 lb/MMscf (工艺室标定)
         W_corr(93.5, +5% acid gas) ≈ 93.5 × 1.0971 = 102.59
-        残差 ~1.27% vs XLS 103.91 ✓
+        残差 ~1.38% vs XLS 103.91 ✓
 
     NOT Behr (1981) primary 原文 — 适用于 natural gas (sg 0.6).
     PRIVATE helper (_ 前缀 + 不入 __all__), **不**与 calc_saturation_water_content 互调
     (Ruling 9 working fluid 边界: natural gas vs humid air).
 
-    v5.1 P-4 落实: general 路径**调用** _correct_behr_for_acid_gas 而**不**在此处重复公式。
+    P-4 落实: general 路径**调用** _correct_behr_for_acid_gas 而**不**在此处重复公式。
     T2 (P6-7): high_acid 路径用真 Wichert-Aziz (OPEN-P6-6A-9.5)。
 
-    OPEN-P6-6A-9.4: T < 60°F 段使用 _BEHR_COEFFS_LOW_T 替代 JSON Day-0 Gate fit (仅 general);
-                    边界 T=60°F 用 high-temp 避免不连续 (与 T>60°F 段连续)。
+    OPEN-P6-6A-9.4: T < 60°F 段 (legacy 4-param Day-0 Gate, 仅 _get_behr_coefficients)
+                    保留向后兼容 — Katz form 标定域 T ∈ [60, 200]°F (工艺室第三批)。
 
     Args:
-        temperature_f: Temperature [°F]; T > 60°F 用 Day-0 Gate JSON fit (general),
-                       T ≤ 60°F 用 Bukacek 1990 延伸 (validity T ∈ [-40, 60]°F, 仅 general)
+        temperature_f: Temperature [°F]; Katz form 标定域 T ∈ [60, 200]°F,
+                       T < 60°F 段尚未 Katz 标定 (工艺室 pickup)
         pressure_psia: Pressure [psia] ∈ [100, 3000]
         co2_mol_pct: CO2 摩尔百分比 (default 0)
         h2s_mol_pct: H2S 摩尔百分比 (default 0)
-        baseline: 'general' (default, 向后兼容) / 'high_acid' (XLS PR-018 path)
+        baseline: 'general' (default) / 'high_acid' (XLS PR-018 path)
     Returns:
         (water_content_lb_per_mmscf, acid_gas_corrected_flag)
     """
     if baseline == "general":
+        # general baseline: 保留 Day-0 Gate 4-param fit + Bukacek T<60°F 延伸 (向后兼容)
+        # _load_behr_coefficients (Day-0 Gate v5.1) 不动 (brief 约束)
         A0, A1, A2, A3 = _get_behr_coefficients(temperature_f)
+        log_w = (
+            A0
+            + A1 * temperature_f
+            + A2 * temperature_f ** 2
+            + A3 * math.log10(pressure_psia)
+        )
+        w_baseline = 10 ** log_w
     else:
-        A0, A1, A2, A3 = _get_behr_baseline_coefficients(baseline)
-    log_w = (
-        A0
-        + A1 * temperature_f
-        + A2 * temperature_f ** 2
-        + A3 * math.log10(pressure_psia)
-    )
-    w_baseline = 10 ** log_w
+        # high_acid baseline: P6-9 Katz 5-param form (OPEN-P6-6A-9.5 代码侧闭环,
+        # 工艺室第三批 2026-09-29)
+        # log10(W) = A + B/T_R + C·T_R + D·T_R² + E·log10(P_psia)
+        # T_R = T_F + 459.67 (Rankine)
+        A, B, C, D, E = _get_behr_baseline_coefficients(baseline)
+        t_r = temperature_f + 459.67
+        log_w = A + B / t_r + C * t_r + D * t_r ** 2 + E * math.log10(pressure_psia)
+        w_baseline = 10 ** log_w
     acid_gas_corrected = (co2_mol_pct > 0) or (h2s_mol_pct > 0)
     if not acid_gas_corrected:
         return (w_baseline, False)
