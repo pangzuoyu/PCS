@@ -791,10 +791,6 @@ class GlycolDehydrationResponse(BaseModel):
         None,
         description="Lean Glycol Concentration (wt%); GPSA Fig 20-4 4 数据点 + 插值",
     )
-    full_column_diameter_in: float | None = Field(
-        None,
-        description="Full Column Diameter (in); D_full = 7.1187 × √(Q_gas_mmscfd); ADR-0045 Rev A",
-    )
     warnings: list[str] = Field(
         default_factory=list,
         description="工艺未对账 warning 列表（如 TEG_CIRCULATION_RATE_UNVERIFIED 等）",

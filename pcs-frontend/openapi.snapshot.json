@@ -19042,18 +19042,6 @@
             "title": "Lean Glycol Concentration Wt Pct",
             "description": "Lean Glycol Concentration (wt%); GPSA Fig 20-4 4 数据点 + 插值"
           },
-          "full_column_diameter_in": {
-            "anyOf": [
-              {
-                "type": "number"
-              },
-              {
-                "type": "null"
-              }
-            ],
-            "title": "Full Column Diameter In",
-            "description": "Full Column Diameter (in); D_full = 7.1187 × √(Q_gas_mmscfd); ADR-0045 Rev A"
-          },
           "warnings": {
             "items": {
               "type": "string"

@@ -503,7 +503,6 @@ async def calc_glycol_dehydration_endpoint(
         reboiler_duty_kw=result.reboiler_duty_kw,
         stripping_gas_rate_scf_gal=result.stripping_gas_rate_scf_gal,
         lean_glycol_concentration_wt_pct=result.lean_glycol_concentration_wt_pct,
-        full_column_diameter_in=result.full_column_diameter_in,
         warnings=list(result.warnings),
     )
 

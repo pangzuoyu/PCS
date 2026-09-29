@@ -54,6 +54,12 @@ def test_stripping_gas_rate(case: dict) -> None:
     expected.sgr_scf_gal_teg 是服务字面公式输出（task-1-report.md C-3）：
     验证服务公式在不同 T / X 条件下输出一致性（不验证 XLS 工程对账，
     工程对账待工艺室 2026-11-15 Antoine 系数 + 公式修复后回归）。
+
+    P6-8 PICKUP 修复说明：fixture _meta.formula_note 标注的 expected.sgr_scf_gal_teg
+    是旧公式字面输出（psi/mmHg 单位混算），修复后 SGR 增 51.7149×。本测试改为：
+    1. P_sat_te_mmhg 比对 fixture 旧值（公式未改，应不变）；
+    2. SGR 改为公式自洽检查（与同公式重算值对比），保证修复后不被 fixture
+       旧值污染。
     """
     inp = ReboilerStrippingInput(
         water_removal_rate_lb_hr=2377.0,
@@ -71,17 +77,25 @@ def test_stripping_gas_rate(case: dict) -> None:
     sgr = result.sgr_scf_gal_teg
     p_sat = result.p_sat_te_mmhg
 
-    expected_sgr = case["expected"]["sgr_scf_gal_teg"]
     expected_p_sat = case["expected"]["p_sat_te_mmhg"]
 
-    if expected_sgr > 0:
-        assert abs(sgr - expected_sgr) / expected_sgr <= tol, (
-            f"case {case['case_id']}: SGR {sgr:.6e} vs expected {expected_sgr:.6e} "
-            f"(rel tol {tol})"
-        )
-
+    # P_sat_te_mmhg 仅依赖 T_reb·Antoine 系数（psi/mmHg 转换不影响）
     if expected_p_sat > 0:
         assert abs(p_sat - expected_p_sat) / expected_p_sat <= tol, (
             f"case {case['case_id']}: P_sat_te {p_sat:.6e} mmHg vs "
             f"expected {expected_p_sat:.6e} mmHg (rel tol {tol})"
         )
+
+    # SGR 公式自洽：与同输入下重算值对比（P6-8 PICKUP 修复 psi→mmHg 单位混算，
+    # fixture 旧值作废 — 见 _meta.formula_note）
+    t_k = (case["reboiler_temperature_f"] - 32.0) * 5.0 / 9.0 + 273.15
+    p_sat_recomputed = 10.0 ** (15.30 - 8500.0 / t_k)
+    p_total_mmhg = case["contactor_pressure_psia"] * 51.7149
+    x_frac = case["lean_glycol_concentration_wt_pct"]
+    sgr_recomputed = (
+        6.5 * (p_total_mmhg / p_sat_recomputed) * x_frac / (1.0 - x_frac)
+    )
+    assert abs(sgr - sgr_recomputed) / sgr_recomputed <= 1e-9, (
+        f"case {case['case_id']}: SGR {sgr:.6e} vs formula recompute "
+        f"{sgr_recomputed:.6e} (公式自洽)"
+    )

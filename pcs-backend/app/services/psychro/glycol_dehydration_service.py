@@ -285,8 +285,10 @@ class _DewpointResult:
 
     三态语义:
       FOUND          — dewpoint_f 非 None, extrapolated=False, reason=None
-      EXTRAPOLATED   — dewpoint_f 非 None, extrapolated=True (T<60°F Antoine 外推), reason=外推说明
-      NOT_FOUND      — dewpoint_f=None, extrapolated=False/True, reason="brentq and Newton both failed"
+      EXTRAPOLATED   — dewpoint_f 非 None, extrapolated=True (T<60°F Antoine 外推),
+                       reason=外推说明
+      NOT_FOUND      — dewpoint_f=None, extrapolated=False/True,
+                       reason="brentq and Newton both failed"
     """
 
     dewpoint_f: float | None
@@ -398,7 +400,6 @@ class GlycolDehydrationResult:
     reboiler_duty_kw: float | None = None  # Q_total × 0.000293071
     stripping_gas_rate_scf_gal: float | None = None  # T1 calc_reboiler_stripping
     lean_glycol_concentration_wt_pct: float | None = None  # T4 GPSA Fig 20-4
-    full_column_diameter_in: float | None = None  # T3 K=7.1121 6 工况标定
     warnings: list[str] = field(default_factory=list)  # 工艺未对账 warning 列表
 
 
@@ -616,7 +617,6 @@ def _behr_inverse_dewpoint(
     """
     from scipy.optimize import brentq
 
-    T_LOW: Final[float] = 60.0
     T_BRACKET: tuple[float, float] = (_BEHR_DEWPOINT_BRACKET[0], _BEHR_DEWPOINT_BRACKET[1])
     T_EXTENDED_BRACKET: tuple[float, float] = (-100.0, 300.0)
 
@@ -1035,9 +1035,6 @@ def calc_glycol_dehydration(
     )
     warnings_t5.extend(lean_glycol_warnings)
 
-    # 7.13 T3 Full Column Diameter（OPEN-P6-6A-6 子任务 3；与 v5.1 同 helper）
-    full_column_diameter_in_t5 = column_diameter_full_in
-
     # Step 8. 扩展 result（12 字段追加含 dewpoint_unavailable_reason + acid_gas_corrected）
     return GlycolDehydrationResult(
         dehydration_efficiency=efficiency,
@@ -1106,7 +1103,6 @@ def calc_glycol_dehydration(
         reboiler_duty_kw=reboiler_duty_kw_t5,
         stripping_gas_rate_scf_gal=stripping_gas_rate_scf_gal_t5,
         lean_glycol_concentration_wt_pct=lean_glycol_wt_pct_t5,
-        full_column_diameter_in=full_column_diameter_in_t5,
         warnings=warnings_t5,
     )
 
@@ -1265,9 +1261,10 @@ def _calc_stripping_gas_rate_scf_gal_teg(
     p_sat_te_mmhg = 10.0 ** log10_p_sat_mmhg
 
     # SGR = k_strip × (P_total / P_sat) × X / (1 − X)
-    p_total_psi = contactor_pressure_psia
+    # P_total 单位转换：psi → mmHg (1 psi = 51.7149 mmHg)
+    p_total_mmhg = contactor_pressure_psia * 51.7149
     x_frac = lean_glycol_concentration_wt_pct  # 已是质量分率 (0..1)
-    sgr = k_strip * (p_total_psi / p_sat_te_mmhg) * x_frac / (1.0 - x_frac)
+    sgr = k_strip * (p_total_mmhg / p_sat_te_mmhg) * x_frac / (1.0 - x_frac)
 
     return p_sat_te_mmhg, sgr
 

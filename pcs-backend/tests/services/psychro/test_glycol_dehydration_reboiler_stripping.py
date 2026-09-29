@@ -47,7 +47,14 @@ def _load_cases() -> list[dict]:
     ids=lambda c: c["case_id"],
 )
 def test_reboiler_stripping(case: dict) -> None:
-    """T1 Reboiler Duty + Stripping Gas Rate 黄金 fixture 对账（OPEN-P6-6A-6）。"""
+    """T1 Reboiler Duty + Stripping Gas Rate 黄金 fixture 对账（OPEN-P6-6A-6）。
+
+    P6-8 PICKUP 修复说明：fixture 中 sgr_scf_gal_teg 是旧公式字面输出
+    （psi/mmHg 单位混算），修复后 SGR 增 51.7149×。fixture _meta.note
+    标注待 P6-8 PICKUP 修复。本测试跳过 sgr_scf_gal_teg 数值比对（详见
+    test_glycol_dehydration_stripping_gas.py 中的公式自洽检查），
+    其余字段照常比对 fixture 旧值。
+    """
     inp = ReboilerStrippingInput(**case["si_inputs"])
     result = calc_reboiler_stripping(inp)
 
@@ -55,6 +62,9 @@ def test_reboiler_stripping(case: dict) -> None:
     for key, expected_val in case["expected"].items():
         # 文档字段不参与数值验证（XLS 基准 / 残差 / 注释）
         if key in ("xls_e80_btu_hr", "xls_e32_scf_gal", "residual_pct", "note"):
+            continue
+        # sgr_scf_gal_teg：fixture 旧值基于 psi/mmHg 混算公式，跳过 sgr
+        if key == "sgr_scf_gal_teg":
             continue
         actual_val = getattr(result, key)
         if expected_val == 0:

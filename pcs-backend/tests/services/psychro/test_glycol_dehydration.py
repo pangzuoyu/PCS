@@ -343,7 +343,8 @@ def test_behr_inverse_dewpoint_returns_dewpointresult_dataclass():
     三态语义: FOUND / EXTRAPOLATED / NOT_FOUND 显式区分，避免 tuple 歧义。
     """
     from app.services.psychro.glycol_dehydration_service import (
-        _DewpointResult, _behr_inverse_dewpoint,
+        _behr_inverse_dewpoint,
+        _DewpointResult,
     )
 
     dp = _behr_inverse_dewpoint(
@@ -759,7 +760,7 @@ def test_glycol_dehydration_4_submodules_integration():
     - reboiler_duty_kw = btu_hr × 0.000293071
     - stripping_gas_rate_scf_gal 由 T1 calc_reboiler_stripping 算得
     - lean_glycol_concentration_wt_pct 由 T4 GPSA Fig 20-4 算得
-    - full_column_diameter_in 由 T3 K=7.1187 算得
+    - column_diameter_full_in 由 T3 K=7.1187 算得（沿用既有字段）
     - WARNING 字段透出 TEG_CIRCULATION_RATE_UNVERIFIED（显式 teg_circulation_rate_gal_lb=3.0 触发）
     """
     inp = GlycolDehydrationInput(
@@ -799,12 +800,12 @@ def test_glycol_dehydration_4_submodules_integration():
         " 应在 99~100 wt%"
     )
 
-    # T3 Full Column Diameter (K=7.1187 单点标定)
-    assert result.full_column_diameter_in is not None
-    assert result.full_column_diameter_in > 0
+    # T3 Full Column Diameter (K=7.1187 单点标定) — 沿用既有 column_diameter_full_in
+    assert result.column_diameter_full_in is not None
+    assert result.column_diameter_full_in > 0
     # K=7.1187 × sqrt(10) ≈ 22.51
-    assert 20.0 <= result.full_column_diameter_in <= 25.0, (
-        f"full_column_diameter_in {result.full_column_diameter_in} 应 ~22.51 in @ 10 MMscfd"
+    assert 20.0 <= result.column_diameter_full_in <= 25.0, (
+        f"column_diameter_full_in {result.column_diameter_full_in} 应 ~22.51 in @ 10 MMscfd"
     )
 
     # WARNING 字段：显式 teg_circulation_rate_gal_lb=3.0 → TEG_CIRCULATION_RATE_UNVERIFIED 必透出
@@ -845,7 +846,6 @@ async def test_glycol_dehydration_4_submodules_api_endpoint(
     assert "reboiler_duty_kw" in data
     assert "stripping_gas_rate_scf_gal" in data
     assert "lean_glycol_concentration_wt_pct" in data
-    assert "full_column_diameter_in" in data
     assert "warnings" in data
 
     # 数值断言（与 service 层一致）
@@ -855,7 +855,8 @@ async def test_glycol_dehydration_4_submodules_api_endpoint(
     ) < 1e-6
     assert data["stripping_gas_rate_scf_gal"] > 0
     assert 99.0 <= data["lean_glycol_concentration_wt_pct"] <= 100.0
-    assert 20.0 <= data["full_column_diameter_in"] <= 25.0
+    # full_column_diameter_in 字段已删除，沿用既有 column_diameter_full_in
+    assert 20.0 <= data["column_diameter_full_in"] <= 25.0
 
     # WARNING 字段透出
     assert isinstance(data["warnings"], list)

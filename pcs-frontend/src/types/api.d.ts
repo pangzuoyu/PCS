@@ -8014,11 +8014,6 @@ export interface components {
              */
             lean_glycol_concentration_wt_pct?: number | null;
             /**
-             * Full Column Diameter In
-             * @description Full Column Diameter (in); D_full = 7.1187 × √(Q_gas_mmscfd); ADR-0045 Rev A
-             */
-            full_column_diameter_in?: number | null;
-            /**
              * Warnings
              * @description 工艺未对账 warning 列表（如 TEG_CIRCULATION_RATE_UNVERIFIED 等）
              */
