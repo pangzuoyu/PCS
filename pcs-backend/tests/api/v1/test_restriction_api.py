@@ -18,8 +18,10 @@ DB 测试 fixture 最简 pattern（参考 .wolf/cerebrum.md Do-Not-Repeat）：
 """
 from __future__ import annotations
 
+import json as _json
 import re
 import uuid
+from pathlib import Path as _Path
 from typing import Any
 
 import pytest
@@ -338,9 +340,6 @@ async def test_restriction_calculate_non_flash_default_iso_5167(
 # 6. P6-6A-7 drain orifice sizing（POST /restriction/drain-orifice/size）
 # ============================================================================
 
-
-import json as _json
-from pathlib import Path as _Path
 
 _FIX_DIR = _Path(__file__).parent.parent.parent / "services" / "restriction" / "fixtures"
 
