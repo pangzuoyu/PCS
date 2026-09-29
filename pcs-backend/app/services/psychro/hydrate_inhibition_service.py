@@ -15,11 +15,12 @@ K 因子（按文献，H-2 v1 修定）：
   TEG = 2500
   NACL = 1297
 
-Nielsen 1988 现代水合物抑制（备选 path，P6-6B T8 引入）：
-  ΔT_F = A + B·x
+Nielsen 1988 现代水合物抑制（备选 path，P6-6B T8 引入，P6-7 T3 升级完整方程组）：
+  ΔT_F_i = A_i + B_i·x + C_i·x²；ΔT_F_weighted = Σ(y_i·ΔT_F_i) / Σ(y_i)
+  + brine 修正 ΔT_brine_correction_F = -0.0015 × brine_wt_pct × T_op_F
   x = 抑制剂在水溶液中的摩尔分数（0..1）
-  A/B/C 常数按组分（CH4/C2H6/C3H8/I-C4H6/N2/CO2/H2S）从
-  ``compound_nielsen_1988_params`` 表加载；C 常数未启用，记 0.0。
+  A/B/C 常数按组分（CH4/C2H6/C3H8/i_C4H10/N2/CO2/H2S）取自工艺室
+  2026-10-15 GPA RR-114 Table 2-3 完整常数（GPA RR-114 Table 2-3）。
 
 GPSA §20.3 抑制剂注入率：
   Q_inhib (lb/d) = Q_gas · (W_inlet - W_target) / X_inhib
@@ -61,7 +62,6 @@ from typing import Final, Literal
 from app.schemas.psychro import HydrateGasComposition
 from app.services._compound_config_cache import (
     get_hammerschmidt_K_table,
-    get_nielsen_1988_params,
 )
 from app.services.exceptions import PcsError
 
@@ -83,28 +83,9 @@ def _resolve_hammerschmidt_K() -> dict[str, float]:
     return db_table if db_table else _HAMMERSCHMIDT_K
 
 
-# Nielsen 1988 A/B/C 常数（7 组分估算值；待工艺工程师二次核对）— DB fallback
-_NIELSEN_1988_PARAMS: Final[dict[str, tuple[float, float, float]]] = {
-    "CH4":    (0.0227, 0.0067, 0.0),
-    "C2H6":   (0.0250, 0.0080, 0.0),
-    "C3H8":   (0.0270, 0.0095, 0.0),
-    "I-C4H6": (0.0300, 0.0105, 0.0),
-    "N2":     (0.0160, 0.0040, 0.0),
-    "CO2":    (0.0200, 0.0055, 0.0),
-    "H2S":    (0.0290, 0.0090, 0.0),
-}
-
-
-def _resolve_nielsen_1988_params() -> dict[str, tuple[float, float, float]]:
-    """5 min TTL 缓存加载 Nielsen 1988 A/B/C 常数；DB 不可达时 fallback 到内联常量。"""
-    db_table = get_nielsen_1988_params()
-    return db_table if db_table else _NIELSEN_1988_PARAMS
-
-
 # Nielsen 1988 完整方程组 A/B/C 常数（工艺室 2026-10-15 已闭环；OPEN-P6-6A-11 代码侧）。
 # 7 组分 GPA RR-114 Table 2-3 完整常数；用作 _calculate_nielsen_depression_full 的
-# 默认源（DB 不可达时 fallback）。注：与 _NIELSEN_1988_PARAMS 估算值不同，本批为工艺
-# 工程师二次核对后的最终值；P6-7 T3 引入。
+# 默认源（DB 不可达时 fallback）。P6-7 T3 引入。
 _NIELSEN_1988_FULL_PARAMS: Final[dict[str, dict[str, float]]] = {
     "CH4":     {"A": -0.0152, "B":  0.0287, "C": 0.0},
     "C2H6":    {"A": -0.0230, "B":  0.0395, "C": 0.0},
@@ -142,19 +123,15 @@ class InhibitorModel(enum.Enum):
 
     - ``HAMMERSCHMIDT_1934``（默认，向后兼容 H-2 v1 BLOCKER）：
       ΔT_F = K·X / (M·(1-X))，K 从 ``compound_hammerschmidt_K`` 表加载。
-    - ``NIELSEN_1988``（备选 path，P6-6B T8）：
-      ΔT_F = A + B·x，A/B/C 从 ``compound_nielsen_1988_params`` 表加载；
-      简化模型按 inhibitor 类型（CH4/C2H6/C3H8/I-C4H6/N2/CO2/H2S）选
-      常数组；本批 A/B/C 为估算值，待工艺工程师二次核对。
+    - ``NIELSEN_1988``（备选 path，P6-6B T8，P6-7 T3 升级完整方程组）：
+      ΔT_F_i = A_i + B_i·x + C_i·x²；按 gas_composition（CH4/C2H6/C3H8/i_C4H10/
+      N2/CO2/H2S）加权 ΔT_F_weighted = Σ(y_i·ΔT_F_i) / Σ(y_i)；+ Nielsen §3.4
+      brine 修正 ΔT_brine_correction_F = -0.0015 × brine_wt_pct × T_op_F。
+      A/B/C 常数取自工艺室 2026-10-15 GPA RR-114 Table 2-3 完整常数。
     """
 
     HAMMERSCHMIDT_1934 = "HAMMERSCHMIDT_1934"
     NIELSEN_1988 = "NIELSEN_1988"
-
-
-# Nielsen 1988 模型当前默认抑制剂的组分标识（MEOH → CH4 占主导近似）
-# 本批简化用 dominant gas component = "CH4"；后续批次按气体组分输入扩展。
-_NIELSEN_DEFAULT_COMPONENT: Final[str] = "CH4"
 
 
 class HydrateInhibitionError(PcsError):
@@ -255,46 +232,6 @@ def _validate_input(inp: HydrateInhibitionInput) -> None:
         )
 
 
-def _calculate_nielsen_depression(
-    component: str,
-    inhibitor_wt_pct: float,
-    inhibitor_mw: float,
-) -> tuple[float, dict[str, tuple[float, float, float]]]:
-    """Nielsen 1988 简化 ΔT_F 计算（C-18 备选 path；P6-6B T8 引入）。
-
-    简化模型：ΔT_F = A + B·x
-      - x = 抑制剂在水溶液中的 **摩尔分数**（本批按 wt% 近似换算
-        x ≈ X_wt × MW_water / (X_wt × MW_water + (1 − X_wt) × MW_inhib)，
-        MW_water=18.015 g/mol）；
-      - A/B/C 常数从 ``compound_nielsen_1988_params`` 表加载（C 常数
-        本批记 0.0，留待工艺工程师扩展完整 Nielsen 方程）。
-
-    返回 ``(delta_t_f, params_table)``；后者供 formula_ref 引用。
-    DB 加载失败由 ``_resolve_nielsen_1988_params`` fallback 到内联估算
-    常量；fallback 触发 ``warnings.warn`` + 日志 WARNING。
-
-    ⚠️ **简化模型**：A/B/C 为估算值（user ruling 2026-09-27），待工艺
-    工程师从 Nielsen 1988 PDF 二次核对；本函数不替代完整 Nielsen 1988
-    论文 Table 2-3 方程组。
-    """
-    params_table = _resolve_nielsen_1988_params()
-    if component not in params_table:
-        raise HydrateInhibitionError(
-            f"Nielsen 1988 model 不支持的组分 '{component}'"
-            f"；支持：{sorted(params_table.keys())}"
-        )
-    a, b, _c = params_table[component]
-    # wt% → 摩尔分数近似（按 inhibitor MW 标定）
-    x_wt = inhibitor_wt_pct / 100.0
-    mw_water = 18.015
-    x_mol = (
-        (x_wt / inhibitor_mw)
-        / ((x_wt / inhibitor_mw) + ((1.0 - x_wt) / mw_water))
-    )
-    delta_t_f = a + b * x_mol
-    return delta_t_f, params_table
-
-
 def _calculate_nielsen_depression_full(
     inhibitor_concentration_in_water_wt_pct: float,
     gas_composition: HydrateGasComposition,
@@ -365,9 +302,9 @@ def calc_hydrate_inhibition(
       2. 根据 ``inhibitor_model`` 选温降模型：
          - HAMMERSCHMIDT_1934（默认，H-2 v1 BLOCKER 向后兼容）：
            ΔT_F = K·X / (M·(1-X))，K = Hammerschmidt 1934 文献 °F 标度
-         - NIELSEN_1988（P6-6B T8 备选 path）：
-           ΔT_F = A + B·x，A/B 从 ``compound_nielsen_1988_params`` 表
-           加载；DB 不可达 fallback 内联估算常量 + warnings.warn + WARNING 日志
+         - NIELSEN_1988（P6-6B T8 备选 path；P6-7 T3 升级完整方程组）：
+           ΔT_F_i = A_i + B_i·x + C_i·x²，按 gas_composition 加权 +
+           Nielsen §3.4 brine 修正（常数取自工艺室 2026-10-15 GPA RR-114 Table 2-3）
       3. ΔT_C = ΔT_F × 5/9
       4. 水移除量 W_removed = Q_gas·(W_inlet - W_target)（lb/d）
       5. 注入率（lb/d）= W_removed / X_inhib（GPSA §20.3）
