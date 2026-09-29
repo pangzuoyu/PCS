@@ -688,3 +688,75 @@ P6-7 启动条件（按工艺室承诺日期）：
   - pyproject.toml `extend-exclude = ["**/fixtures/**"]` ruff B018 修复
   - column_diameter_full_in + full_column_diameter_in 双字段冗余清理
   - 3 ruff errors pre-existing 清理（service line 354 E501 / 678 F841）
+
+### P6-9 PICKUP 回退 — Behr Katz 系数数值 bug（2026-09-29）
+
+工艺室第三批交付 v2 Katz 5-param 系数 `pcs-backend/data/behr_coefficients.json`：
+- general: A=4.8412 / B=-2.1083e3 / C=8.8132e-3 / D=-7.6312e-6 / E=-0.9805
+- high_acid: A=4.9821 / B=-2.1023e3 / C=8.9521e-3 / D=-7.7814e-6 / E=-0.9803
+
+**数值 bug**：公式 `log10(W) = A + B/T_R + C·T_R + D·T_R² + E·log10(P)` 下 T=120°F/P=1000 psia 实测 W=9.7512（high_acid），工艺室声称 93.41（偏差 89.71%，远超 5% 容差）。独立 LSTSQ 拟合给出 max_rel_err=4.48% 系数 [345.49, -67652.92, -0.577, 3.30e-4, -1.038]（与 JSON 完全不同）。
+
+**回退操作**：T9 service commit `e223c19` 已回退（commit `1a7e15f`），JSON fixture 也 checkout 至 HEAD（保留 v1 旧 JSON）。OPEN-P6-6A-9.5 仍为 partial closure，待工艺室 2026-11-15 重发正确 Katz 系数后回归。
+
+**关键约束**：T9 service升级代码本身正确（Katz 5-param 公式实现无误）；问题在 JSON 数据层（工艺室 third 批系数未经验证直接落库）。后续 fix 必须工艺室 + 架构组双重复核系数 + max_rel_err 验证后才能落库。
+
+**OPEN-P6-6A-9.5 状态**：待工艺室 2026-11-15 重发正确 Katz 系数（建议附带 8 spot checks 验证脚本输出对比）。
+
+### P6-9 PICKUP 闭环 — Behr grid 查表 + 双线性插值（2026-09-29）
+
+工艺室第三批交付 v3 + 服务代码升级（commit `1e440fc` + `3b881d8`）：
+- 放弃 4-param quadratic / Katz 5-param / Behr 3-param 经验公式拟合（均失败）
+- 改用查表 + 双线性插值（v3 工艺室交付）
+- general grid: 7 T × 4 P = 28 节点；W(T=120°F,P=1000 psia)=93.0
+- high_acid grid: 7 T × 4 P = 28 节点；W(T=120°F,P=1000 psia)=93.5
+- 服务代码使用 grid 查表 + 双线性插值（T≥60°F）；T<60°F 保留 Bukacek 1990 公式（OPEN-P6-6A-9.4 已闭环）
+- XLS E20 残差 1.29% < 5% 容差 ✓（high_acid 93.5 × Wichert-Aziz 1.0971 = 102.57 vs XLS 103.91）
+- pytest 84/84 PASS（T1+T2+T3+T4+T5+T6 + 7 rewritten grid tests）
+- ruff 0 new errors
+
+**OPEN-P6-6A-9.5 代码侧闭环**（工艺 + 代码 双闭环）。
+**OPEN-P6-4-4 fixture 修复**（v2 一致性校验 + 工艺室手算验证）。
+**OPEN-P6-6A-10** 待工艺室 AS 1210-2010 PDF 2026-11-15 到位（仍 OPEN）。
+
+### 架构组对 P5+P6 Review 裁决（2026-10-31）
+
+架构组接受 Review "NOT READY TO MERGE" 结论；批准启动 P6-9-PICKUP-2 批（~2.5 天）。
+
+**严重性调整**：
+- t_wall_mm 单位歧义：**HIGH → CRITICAL**（100× 误差若触发生产路径后果同 CRITICAL）
+- HIGH F3 standards（untracked file）：**HIGH → MEDIUM**（无功能影响，仅版本控制卫生）
+
+**最终 CRITICAL 数**：5 项（F1 lean glycol / F2 SGR / F3 C-24 reconciliation / t_wall_mm / 隐含 F_high）
+
+**P6-9-PICKUP-2 范围**：
+| # | 项 | 优先级 |
+|---|---|---|
+| 1 | CRITICAL F1（lean glycol else-branch） patch + 3 regression tests | P0 |
+| 2 | CRITICAL F2（SGR 公式反转） patch + 对账 + 工艺室复盘 | P0 |
+| 3 | CRITICAL F3（C-24 reconciliation） fixture + service + test | P0 |
+| 4 | CRITICAL t_wall_mm 重命名 + 单位测试 + HYSYS 对账 | P0 |
+| 5 | HIGH F1（nielsen dead code） delete + verify | P1 |
+| 6 | HIGH F2（_USE_XLS_CD_Y_CR） service + test | P1 |
+| 7 | MEDIUM F3（untracked file） git add | P2 |
+| 8 | MEDIUM 清单 + 分级 文档 | P2 |
+
+**验收标准**：
+- pytest psychro 全量 100% pass
+- pytest cv 全量 100% pass（F3 reconciliation 3/3）
+- XLS PR-018 E32=0.4220 对账通过（rel < 5%）
+- t_wall_m 单位测试通过（20 mm → 0.020 m 转换 + Y_p=4.27e-4）
+- G-08 phase 1-4 drift=0
+- ruff 0 new errors
+
+**OPEN 项影响**：
+- OPEN-P6-4-4：已关闭 → **⚠️ 回退 partial closure**（F3 修复后重新关闭）
+- OPEN-P6-6A-10：关联 t_wall_mm 修复
+- OPEN-P6-6A-11：关联 dead code 删除
+- **新增 OPEN-P6-9-PICKUP-2-1**：F2 SGR 公式复盘
+- **新增 OPEN-P6-9-PICKUP-2-2**：t_wall_mm 单位复盘
+
+### P6-9-PICKUP-2 复盘跟踪（2026-11-15）
+
+- **OPEN-P6-9-PICKUP-2-1 (F2 SGR 公式复盘)**：T2 修复 GPSA §20.4 Eq.20-5 后发现 k_strip=6.5 与 XLS 工况不自洽（工艺室 Fig 20-7 实验拟合常数通常 ~0.018 量级，差 ~360×）。工艺室须提交 XLS E32=0.4220 scf/gal 校准报告，2026-11-15 前到。fixture golden_c16_reboiler_stripping.json 第 3 算例 XLS E32 对账仍 FAIL（residual 100% vs 5% target）—— k_strip 工艺室校准是验收阻点。
+- **OPEN-P6-9-PICKUP-2-2 (t_wall_mm 复盘)**：T4 修复 t_wall_mm → t_wall_m 后，工艺室 HYSYS re-validated 算例 2026-11-15 前到，对账当前 fixture 4 算例（Y_p 0.4274/0.5896，Y_t 2.2746/3.1320）vs HYSYS。OPEN-P6-6A-10 工艺室 2026-11-15 关闭（同步 OPEN-P6-9-PICKUP-2-2 跟踪）。

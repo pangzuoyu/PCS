@@ -221,6 +221,24 @@ budget_tokens: 1500
   - ✅ OPEN-P6-6A-6 代码侧闭环（4 子模块 service path 全落地）
   - ⚠️ OPEN-P6-4-4 + OPEN-P6-6A-9.5 + OPEN-P6-6A-10 待 fixture 重发 / PDF 升级 / 对账（工艺室 2026-11-15）
 
+**P6-9-PICKUP-2 批落地（2026-11-15，6 commits active）**：commits `258d857`, `b599420`, `a9956c2` 等
+- **范围**：4 项 CRITICAL + 2 项 HIGH 修复
+- **T1 (eb2e4c9)**：CRITICAL F1 `_calc_lean_glycol_concentration_wt_pct` else-branch patch + 3 regression tests
+- **T2 (0c631c3)**：CRITICAL F2 SGR 公式反转 patch (GPSA §20.4 Eq.20-5)
+- **T3 (4645d78)**：CRITICAL F3 C-24 reconciliation service x 显式 + consistency check
+- **T4 (258d857)**：CRITICAL t_wall_mm → t_wall_m 单位歧义修复
+- **T5 (b599420)**：HIGH F1 nielsen dead code 删除
+- **T6 (a9956c2)**：HIGH F2 `_USE_XLS_CD_Y_CR` feature flag 接入
+- **T7**：MEDIUM F3 untracked test file commit
+- **T8**：批末收口（验证 + docs + push）
+
+- **验收**：3513+ passed（1 pre-existing T2 fail 豁免）+ ruff 0 new errors
+- **OPEN 队列影响**：
+  - OPEN-P6-4-4：已关闭 → ⚠️ partial closure（待工艺室 v2 fixture 签署）
+  - OPEN-P6-9-PICKUP-2-1：新增 F2 SGR 公式复盘跟踪
+  - OPEN-P6-9-PICKUP-2-2：新增 t_wall_mm 复盘跟踪
+  - OPEN-P6-6A-10：关联 t_wall_m 修复（仍待 AS 1210-2010 PDF 升级 confidence B → A）
+
 ---
 
 ## 🚀 Next quest
@@ -256,6 +274,7 @@ budget_tokens: 1500
 - OPEN-P6-4-2（Kb 厂商真实数据 LESER/Consolidated/AG，**上线后** P6-6B+ 启动）
 - OPEN-P6-4-3（C-08 vessel Imperial 单位白名单；工艺室 2026-10-15 关闭，~1.0 天）
 - OPEN-P6-4-4（C-24 CV Masonelian fl 三模型对账；工艺室 2026-10-31 关闭，~1.0 天）
+  - ⚠️ **partial closure（2026-10-31 P6-9 PICKUP-2 T3）**：service 端 x 显式 + consistency check + 工艺室 fixture re-issue 已落 `4645d78`；3/3 reconciliation PASS + back-compat 回归 PASS；待工艺室 fixture 重新签署后重新关闭（v2 fixture 用 P1/Pv_kpa/T_c 自洽输入）
 - OPEN-P6-6A-6（T8 full glycol dehydration service 扩展待 P6-7）
 - OPEN-P6-6A-9.1（30× 差异根因完整验证；工艺室 2026-10-15 关闭，~1.0 天）
 - OPEN-P6-6A-9.2（K=7.1187 6 工况 CV=1.05%；工艺室 2026-10-15 关闭，~0.5 天）
