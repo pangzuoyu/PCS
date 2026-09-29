@@ -418,3 +418,107 @@ def test_resolved_cd_y_cr_override_applies_to_mass_flow_capacity():
         result_default.mass_flow_capacity_kg_s * expected_factor,
         rel_tol=1e-9,
     )
+
+
+# ============================================================================
+# P6-9-PICKUP-2 T6：feature flag `_USE_XLS_CD_Y_CR` 接入 — public `fluid` 参数
+# ============================================================================
+
+
+@pytest.mark.unit
+def test_drain_orifice_xls_cd_y_cr_lookup(monkeypatch):
+    """T6：`_USE_XLS_CD_Y_CR=True` + ``fluid='WATER'`` → 自动调
+    ``_resolve_cd_y_cr('WATER')`` 从 CONFIG 表 lookup Cd / Y_cr^0.5。
+
+    flag-driven path：m_max 应等于 baseline × (lookup_Cd × sqrt(lookup_Y_cr))。
+    """
+    WATER_CD = 0.85
+    WATER_Y_CR = 0.70
+    # flag → True
+    monkeypatch.setattr(drain_orifice_service, "_USE_XLS_CD_Y_CR", True)
+    # CONFIG table reader mock：WATER → (Cd=0.85, Y_cr=0.70)
+    monkeypatch.setattr(
+        drain_orifice_service,
+        "get_drain_orifice_Cd_Y_cr_table",
+        lambda: {"WATER": (WATER_CD, WATER_Y_CR)},
+    )
+
+    inp_default = DrainOrificeInput(
+        orifice_diameter_m=0.02,
+        beta_ratio=0.4,
+        inlet_pressure_kpa=500.0,
+        outlet_pressure_kpa=100.0,
+        fluid_density_kg_m3=999.0,
+        mass_flow_kg_s=5.0,
+        drain_type="CONTINUOUS",
+    )
+    inp_lookup = DrainOrificeInput(
+        orifice_diameter_m=0.02,
+        beta_ratio=0.4,
+        inlet_pressure_kpa=500.0,
+        outlet_pressure_kpa=100.0,
+        fluid_density_kg_m3=999.0,
+        mass_flow_kg_s=5.0,
+        drain_type="CONTINUOUS",
+    )
+    # back-compat baseline（flag=False / fluid=None）：Cd=1.0, Y_cr^0.5=1.0
+    monkeypatch.setattr(drain_orifice_service, "_USE_XLS_CD_Y_CR", False)
+    result_baseline = calc_drain_orifice(inp_default)
+    # flag-driven lookup path
+    monkeypatch.setattr(drain_orifice_service, "_USE_XLS_CD_Y_CR", True)
+    result_lookup = calc_drain_orifice(inp_lookup, fluid="WATER")
+
+    expected_factor = WATER_CD * math.sqrt(WATER_Y_CR)
+    assert math.isclose(
+        result_lookup.mass_flow_capacity_kg_s,
+        result_baseline.mass_flow_capacity_kg_s * expected_factor,
+        rel_tol=1e-9,
+    )
+
+
+@pytest.mark.unit
+def test_drain_orifice_back_compat_default(monkeypatch):
+    """T6：``fluid=None`` → back-compat 路径（即使 flag=True）。
+
+    flag=True 但 fluid=None → 仍走 ``inp.discharge_coefficient`` /
+    ``inp.expansion_factor``；inp 设非默认值时应反映在 m_max 上。
+    """
+    monkeypatch.setattr(drain_orifice_service, "_USE_XLS_CD_Y_CR", True)
+    # 即使 CONFIG table 存在 WATER 条目，fluid=None 也不触发 lookup
+    monkeypatch.setattr(
+        drain_orifice_service,
+        "get_drain_orifice_Cd_Y_cr_table",
+        lambda: {"WATER": (0.85, 0.70)},
+    )
+
+    inp_default_cd_y = DrainOrificeInput(
+        orifice_diameter_m=0.02,
+        beta_ratio=0.4,
+        inlet_pressure_kpa=500.0,
+        outlet_pressure_kpa=100.0,
+        fluid_density_kg_m3=999.0,
+        mass_flow_kg_s=5.0,
+        drain_type="CONTINUOUS",
+        discharge_coefficient=0.95,
+        expansion_factor=0.85,
+    )
+    inp_baseline = DrainOrificeInput(
+        orifice_diameter_m=0.02,
+        beta_ratio=0.4,
+        inlet_pressure_kpa=500.0,
+        outlet_pressure_kpa=100.0,
+        fluid_density_kg_m3=999.0,
+        mass_flow_kg_s=5.0,
+        drain_type="CONTINUOUS",
+    )
+    # fluid=None → back-compat，走 inp 默认
+    result_back_compat = calc_drain_orifice(inp_default_cd_y, fluid=None)
+    # baseline（默认 Cd=1.0, Y_cr^0.5=1.0）
+    result_baseline = calc_drain_orifice(inp_baseline)
+
+    expected_factor = 0.95 * 0.85
+    assert math.isclose(
+        result_back_compat.mass_flow_capacity_kg_s,
+        result_baseline.mass_flow_capacity_kg_s * expected_factor,
+        rel_tol=1e-9,
+    )

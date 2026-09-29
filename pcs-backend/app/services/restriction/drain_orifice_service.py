@@ -150,6 +150,7 @@ def _resolve_cd_y_cr(fluid: str) -> tuple[float, float]:
 
 def calc_drain_orifice(
     inp: DrainOrificeInput,
+    fluid: str | None = None,
     _resolved_cd_y_cr: tuple[float, float] | None = None,
 ) -> DrainOrificeResult:
     """排污孔板（drain orifice）尺寸校核（SPEC §3.6.2 + §3.7.2 V1.1）。
@@ -164,10 +165,14 @@ def calc_drain_orifice(
 
     Args:
         inp: DrainOrificeInput（frozen）
-        _resolved_cd_y_cr: P6-6B T13 内部 override（P6-6B feature flag
-            集成测试入口）。``None`` → 走原路径（用 ``inp.discharge_coefficient``
-            / ``inp.expansion_factor``，向后兼容）；提供 ``(Cd, Y_cr)`` 元组
-            → 覆盖输入的 Cd / Y_cr^0.5。
+        fluid: 介质标识（NATURAL_GAS / AIR / STEAM / WATER / N2 / CO2）；
+            P6-9-PICKUP-2 T6 — flag-driven 覆盖入口。当 ``_USE_XLS_CD_Y_CR=True``
+            且 ``fluid`` 非 None → 自动调 ``_resolve_cd_y_cr(fluid)`` 从
+            ``drain_orifice_Cd_Y_cr`` CONFIG 表 lookup Cd / Y_cr^0.5。
+            ``None`` → 走原路径（向后兼容）。
+        _resolved_cd_y_cr: P6-6B T13 内部 override（legacy 集成测试入口）。
+            ``None`` → 走原路径；提供 ``(Cd, Y_cr)`` 元组 → 覆盖输入的
+            Cd / Y_cr^0.5。优先级高于 ``fluid``（显式 override）。
 
     Returns:
         DrainOrificeResult（frozen）
@@ -177,10 +182,15 @@ def calc_drain_orifice(
     """
     _validate_input(inp)
 
-    # P6-6B T13：feature flag 集成 — 当 `_resolved_cd_y_cr` 提供时 override 输入。
-    # 默认 None → 使用 inp.discharge_coefficient / inp.expansion_factor（向后兼容）。
+    # P6-9-PICKUP-2 T6：feature flag 接入。优先级：
+    #   1. ``_resolved_cd_y_cr`` 显式 override（legacy 集成测试入口，最高）
+    #   2. ``_USE_XLS_CD_Y_CR=True`` + ``fluid`` 非 None → ``_resolve_cd_y_cr`` 自动 lookup
+    #   3. back-compat：``inp.discharge_coefficient`` / ``inp.expansion_factor``
     if _resolved_cd_y_cr is not None:
         cd_used, y_cr_used = _resolved_cd_y_cr
+        y_cr_sqrt_used = math.sqrt(y_cr_used)
+    elif _USE_XLS_CD_Y_CR and fluid is not None:
+        cd_used, y_cr_used = _resolve_cd_y_cr(fluid)
         y_cr_sqrt_used = math.sqrt(y_cr_used)
     else:
         cd_used = inp.discharge_coefficient
@@ -344,6 +354,7 @@ def _ftp_factor(beta: float, k: float, family: str = "GBT308") -> float:
 
 def calc_drain_orifice_size(
     inp: DrainOrificeSizeInput,
+    fluid: str | None = None,
     _resolved_cd_y_cr: tuple[float, float] | None = None,
 ) -> DrainOrificeSizeResult:
     """排污孔板 sizing（SPEC §3.7.2 inverse problem；OPEN-P6-6A-7）。
@@ -359,10 +370,15 @@ def calc_drain_orifice_size(
 
     Args:
         inp: DrainOrificeSizeInput（frozen）
-        _resolved_cd_y_cr: P6-6B T13 内部 override（feature flag 集成测试入口）。
+        fluid: 介质标识（NATURAL_GAS / AIR / STEAM / WATER / N2 / CO2）；
+            P6-9-PICKUP-2 T6 — flag-driven 覆盖入口。当 ``_USE_XLS_CD_Y_CR=True``
+            且 ``fluid`` 非 None → 自动调 ``_resolve_cd_y_cr(fluid)`` 覆盖 Cd。
+            注：sizing 内部 Y_cr^0.5 由 ``_y_cr_sqrt`` 在 r_c 处直接计算
+            （与 XLS Y_cr 同义），仅 override Cd。
+            ``None`` → 走原路径（向后兼容）。
+        _resolved_cd_y_cr: P6-6B T13 内部 override（legacy 集成测试入口）。
             ``None`` → 用 ``inp.discharge_coefficient``（向后兼容）；
-            提供 ``(Cd, Y_cr)`` 元组 → 仅 override Cd（sizing 内部用
-            ``_y_cr_sqrt`` 公式计算 Y_cr^0.5，与 XLS Y_cr 同义）。
+            提供 ``(Cd, Y_cr)`` 元组 → 仅 override Cd（与 ``fluid`` 同义但优先级高）。
 
     Returns:
         DrainOrificeSizeResult（frozen）
@@ -395,12 +411,17 @@ def calc_drain_orifice_size(
     if inp.max_iter <= 0:
         raise DrainOrificeInputError("max_iter 必须 > 0")
 
-    # P6-6B T13：feature flag 集成 — `_resolved_cd_y_cr` 提供时 override Cd
-    # （Y_cr 由 _y_cr_sqrt 在 r_c 处直接计算，与 XLS Y_cr 同义，故不重复 override）。
-    # 默认 None → 用 inp.discharge_coefficient（向后兼容）。
+    # P6-9-PICKUP-2 T6：feature flag 接入。优先级：
+    #   1. ``_resolved_cd_y_cr`` 显式 override（legacy，最高）
+    #   2. ``_USE_XLS_CD_Y_CR=True`` + ``fluid`` 非 None → ``_resolve_cd_y_cr`` 自动 lookup
+    #   3. back-compat：``inp.discharge_coefficient``
+    # 注：Y_cr^0.5 由 ``_y_cr_sqrt`` 在 r_c 处直接计算（与 XLS Y_cr 同义），
+    # 仅 override Cd。
     cd_used = inp.discharge_coefficient
     if _resolved_cd_y_cr is not None:
         cd_used, _ = _resolved_cd_y_cr
+    elif _USE_XLS_CD_Y_CR and fluid is not None:
+        cd_used, _ = _resolve_cd_y_cr(fluid)
 
     # 2. 流体密度（理想气体）ρ = MW × P / (z × R × 1000 × T)
     #    P: kPa → Pa（×1000）；MW 单位 kg/kmol → kg/mol（÷1000）
