@@ -98,9 +98,11 @@ def test_hammerschmidt_forward_algebra_identity(sub_key: str) -> None:
          formula — for K-scale consistency check only, not a real use case)
       c) Mid-range X=42% (brief test point) → PCS d_C = 52.78
 
-    All three use pure Hammerschmidt 1934 algebra with K=2335 °F (H-2 v1 BLOCKER) and M=32.04
-    (Methanol). rel=1e-12 严格一致 — 验证 PCS service 代码 `delta_t_f = K * X / (mw * (1-X))`
-    实现正确性 (K °F 标度 per Hammerschmidt 1934 paper, OPEN-P6-6A-3 fix), independent of XLS value match.
+    All three use pure Hammerschmidt 1934 algebra with K=2335 °F (H-2 v1 BLOCKER)
+    and M=32.04 (Methanol). rel=1e-12 严格一致 — 验证 PCS service 代码
+    `delta_t_f = K * X / (mw * (1-X))` 实现正确性
+    (K °F 标度 per Hammerschmidt 1934 paper, OPEN-P6-6A-3 fix),
+    independent of XLS value match.
     """
     case = WORLEY["cases"][0]
     sub = case["service_inputs"]["sub_cases"][sub_key]
@@ -463,9 +465,10 @@ def test_k_scale_post_fix_xls_F_eq_pcs_F_bit_for_bit() -> None:
     expected_d_F_pre_fix = tautology["delta_t_F_for_X22p86_pre_fix"]
 
     # Sanity: pre-fix was 38.88°F (1.8× over-prediction vs XLS 21.6°F)
-    assert abs(expected_d_F_pre_fix - expected_d_F_post_fix) > 10.0, (
+    diff = abs(expected_d_F_pre_fix - expected_d_F_post_fix)
+    assert diff > 10.0, (
         f"pre-fix d_F={expected_d_F_pre_fix} 与 post-fix d_F={expected_d_F_post_fix} "
-        f"差值 应 >10 (1.8× over-prediction); actual diff={abs(expected_d_F_pre_fix - expected_d_F_post_fix):.2f}"
+        f"差值 应 >10 (1.8× over-prediction); actual diff={diff:.2f}"
     )
 
     # PCS service call (real calc, end-to-end)
