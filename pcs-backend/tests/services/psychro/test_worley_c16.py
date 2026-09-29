@@ -429,7 +429,8 @@ def test_water_dewpoint_f_xls_e23_extrapolation_warning_self_consistent(
 
     XLS rel 残差已知 (PCS ~22.7°F vs XLS 18.44°F, rel 23% > 5% 容差);
     本测试仅断言 PCS extrapolated 状态 + dewpoint_f > 0 + reason 非空,
-    XLS 残差登记在 fixture.ruling_5_closure.tolerance_per_field.water_dewpoint_f.xls_residual_reason。
+    XLS 残差登记在 fixture.ruling_5_closure.tolerance_per_field
+    .water_dewpoint_f.xls_residual_reason。
     """
     case = next(c for c in WORLEY["cases"] if c["id"] == case_id)
     r = calc_glycol_dehydration(_build_xls_input(case))
@@ -557,7 +558,8 @@ def test_column_diameter_full_in_single_point_K_calibrated_matches_xls_e40(
 ) -> None:
     """column_diameter_full_in = K × sqrt(Q_gas) [K=7.1187 from Worley PR-018 E40 单点标定]。
 
-    PCS=Q×sqrt(K)=7.1187×sqrt(288)=120.808 in vs XLS E40=120.76 in (rel 0.04%) — within 1e-2 容差 ✓。
+    PCS=Q×sqrt(K)=7.1187×sqrt(288)=120.808 in vs XLS E40=120.76 in
+    (rel 0.04%) — within 1e-2 容差 ✓。
     ADR-0045 Rev A: K=7.1187 是 v5.1 单点标定, 越界检查在 service line 859-864。
     """
     case = next(c for c in WORLEY["cases"] if c["id"] == case_id)
