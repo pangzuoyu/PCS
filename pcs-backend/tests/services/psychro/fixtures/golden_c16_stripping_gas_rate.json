@@ -6,7 +6,7 @@
     "source": "工艺室 2026-10-31 + GPSA §20.4 Eq.20-5",
     "delivered_by": "工艺室",
     "delivered_at": "2026-10-31",
-    "formula_note": "SGR 字面公式 k_strip×(P_total_psi/P_sat_mmHg)×X/(1-X) 单位混算（task-1-report.md C-3）；expected.sgr_scf_gal_teg 采用服务字面输出，xls_e32_scf_gal 保留工艺 2026-11-15 对账参考。"
+    "formula_note": "F2 patch (P6-9-PICKUP-2 2026-10-31) 公式反转: SGR = k_strip × (P_sat,TEG/P_total) × (1-X)/X [GPSA §20.4 Eq.20-5]。修复前 (k×(P_total/P_sat)×X/(1-X)) 残差 4e12% vs XLS。修复后 SGR 实际值极小 (1e-9~1e-12 范围，因 P_sat_te 极小且 X≈1)。xls_e32_scf_gal 保留工艺 2026-11-15 对账参考；参见 task-2-report.md Concerns（F2 XLS 基准量级差异）。"
   },
   "k_strip": 6.5,
   "antoine_v5_plan": {
@@ -24,10 +24,10 @@
       "lean_glycol_concentration_wt_pct": 0.9938,
       "expected": {
         "p_sat_te_mmhg": 3.180336e-03,
-        "sgr_scf_gal_teg": 3.276028e+08,
+        "sgr_scf_gal_teg": 2.493810e-09,
         "xls_e32_scf_gal": 0.4220,
-        "residual_pct": 77631000000.0,
-        "note": "v5 plan 字面公式 SGR≈3.28e8（与 XLS E32=0.4220 单位混算 7.76e10%；P6-8 PICKUP 修复）"
+        "residual_pct": 100.0,
+        "note": "F2 patch 后 GPSA Eq.20-5 实际值 2.49e-9 scf/gal；XLS E32=0.4220 量级差 ~1e8，工艺室 2026-11-15 对账"
       },
       "tolerance_rel": 0.05
     },
@@ -40,11 +40,11 @@
       "lean_glycol_concentration_wt_pct": 0.9900,
       "expected": {
         "p_sat_te_mmhg": 1.198273e-03,
-        "sgr_scf_gal_teg": 5.370228e+08,
+        "sgr_scf_gal_teg": 1.521312e-09,
         "xls_e32_scf_gal": 0.4220,
-        "note": "380°F 低温再沸器 P_sat TEG 下降 ~2.65×（Antoine 预期）"
+        "note": "380°F 低温再沸器 P_sat TEG 下降 ~2.65×（Antoine 预期）；SGR 同步下降"
       },
-      "tolerance_rel": 0.10
+      "tolerance_rel": 0.05
     },
     {
       "case_id": "c16_sgr_high_lean_300_clamped",
@@ -55,9 +55,9 @@
       "lean_glycol_concentration_wt_pct": 0.9990,
       "expected": {
         "p_sat_te_mmhg": 1.444362e-05,
-        "sgr_scf_gal_teg": 4.495758e+11,
+        "sgr_scf_gal_teg": 1.817222e-12,
         "xls_e32_scf_gal": 0.4220,
-        "note": "brief 原 T_reb=250°F 因服务 ReboilerStrippingInput.ge=300.0 被钳制为 300°F；高贫 TEG 浓度 X/(1-X) 放大 SGR"
+        "note": "brief 原 T_reb=250°F 因服务 ReboilerStrippingInput.ge=300.0 被钳制为 300°F；高贫 TEG 浓度 X≈1 + T_reb 低 → P_sat_te 极小 (1.4e-5) → SGR 极小 (1.8e-12)"
       },
       "tolerance_rel": 0.10
     }

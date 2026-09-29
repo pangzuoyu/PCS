@@ -1237,14 +1237,18 @@ def _calc_stripping_gas_rate_scf_gal_teg(
     contactor_pressure_psia: float,
     lean_glycol_concentration_wt_pct: float,
 ) -> tuple[float, float]:
-    """Stripping Gas Rate 计算（OPEN-P6-6A-6 子任务 2）。
+    """Stripping Gas Rate 计算（OPEN-P6-6A-6 子任务 2, F2 P6-9-PICKUP-2 patch）。
 
-    GPSA §20.4 Eq.20-5 简式：
-        SGR = k_strip × (P_total / P_sat,TEG) × X / (1 - X)
+    GPSA §20.4 Eq.20-5 简式（工艺室 2026-10-31 复盘后确认）：
+        SGR = k_strip × (P_sat,TEG / P_total) × (1 - X) / X
             k_strip ≈ 6.5（经验常数）
             P_sat,TEG via Antoine 简式（v5 plan 原值 A=15.30 / B=8500）：
                 log10(P_mmHg) = A − B / T_K
             X = 贫甘醇质量分率
+
+    ⚠️ F2 patch (2026-10-31): 修复前公式 `k×(P_total/P_sat)×X/(1−X)` 比例项
+    和 X-fraction 项双双反向，残差 4e12% vs XLS。修复后形式与 GPSA §20.4 Eq.20-5
+    标准形式一致（OPEN-P6-9-PICKUP-2-1 工艺室复盘跟踪）。
 
     注：函数名 `_scf_gal_teg`（无 `per_`）区别于 calc_glycol_dehydration 内
     占位版 _calc_stripping_gas_rate_scf_per_gal_teg（用 P6-6B 占位 P_sat）。
@@ -1260,11 +1264,11 @@ def _calc_stripping_gas_rate_scf_gal_teg(
     log10_p_sat_mmhg = a_te - b_te / t_k
     p_sat_te_mmhg = 10.0 ** log10_p_sat_mmhg
 
-    # SGR = k_strip × (P_total / P_sat) × X / (1 − X)
+    # SGR = k_strip × (P_sat / P_total) × (1 - X) / X（GPSA §20.4 Eq.20-5）
     # P_total 单位转换：psi → mmHg (1 psi = 51.7149 mmHg)
     p_total_mmhg = contactor_pressure_psia * 51.7149
     x_frac = lean_glycol_concentration_wt_pct  # 已是质量分率 (0..1)
-    sgr = k_strip * (p_total_mmhg / p_sat_te_mmhg) * x_frac / (1.0 - x_frac)
+    sgr = k_strip * (p_sat_te_mmhg / p_total_mmhg) * (1.0 - x_frac) / x_frac
 
     return p_sat_te_mmhg, sgr
 
@@ -1377,7 +1381,7 @@ def calc_reboiler_stripping(inp: ReboilerStrippingInput) -> ReboilerStrippingRes
                 "(+10% 设计裕度; GPSA §20.4)"
             ),
             "stripping": (
-                "SGR = k_strip × (P_total/P_sat,TEG) × X/(1-X) "
+                "SGR = k_strip × (P_sat,TEG/P_total) × (1-X)/X "
                 "[GPSA §20.4 Eq.20-5; P_sat via Antoine v5 plan A=15.30/B=8500]"
             ),
         },
