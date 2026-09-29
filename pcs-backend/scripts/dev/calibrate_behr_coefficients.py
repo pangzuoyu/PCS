@@ -102,11 +102,16 @@ if not valid_candidates:
 chosen_name, chosen_coeffs, chosen_err = min(valid_candidates, key=lambda x: x[2])
 print(f"选定形式：{chosen_name}, max_rel_err={chosen_err:.3%}")
 print("实际拟合系数：", chosen_coeffs)
-print(f"\nW_actual vs W_pred 残差表：")
+print("\nW_actual vs W_pred 残差表：")
 print(f"{'T_F':>5} {'P_psia':>8} {'W_actual':>10} {'W_pred':>10} {'rel_err':>10}")
 for t, p, w_actual in SPOTS:
     if chosen_name == "A_log10_quadratic":
-        log_w = chosen_coeffs["A0"] + chosen_coeffs["A1"] * t + chosen_coeffs["A2"] * t ** 2 + chosen_coeffs["A3"] * np.log10(p)
+        log_w = (
+            chosen_coeffs["A0"]
+            + chosen_coeffs["A1"] * t
+            + chosen_coeffs["A2"] * t ** 2
+            + chosen_coeffs["A3"] * np.log10(p)
+        )
         w_pred = 10 ** log_w
     elif chosen_name == "B_katz":
         log_w = chosen_coeffs["a"] - chosen_coeffs["b"] / t + chosen_coeffs["c"] * np.log10(p)
@@ -118,4 +123,8 @@ for t, p, w_actual in SPOTS:
 
 # TODO: T1 implementer 手动复制 chosen_coeffs 到 data/behr_coefficients.json
 # (手动而非自动写文件 — 避免脚本误覆盖 JSON)
-print("\n⚠️ 请手动复制上面 '实际拟合系数' 到 data/behr_coefficients.json 的 log10_coefficients（或 coefficients）段")
+msg = (
+    "\n⚠️ 请手动复制上面 '实际拟合系数' 到 data/behr_coefficients.json 的 "
+    "log10_coefficients（或 coefficients）段"
+)
+print(msg)
