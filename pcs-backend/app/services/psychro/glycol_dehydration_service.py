@@ -81,11 +81,11 @@ lean glycol）等待 P6-7 服务扩展；CONFIG 表已占位
 """
 from __future__ import annotations
 
+import bisect
 import json
 import logging
 import math
 from dataclasses import dataclass, field
-from importlib import resources
 from pathlib import Path
 from typing import Final, Literal
 
@@ -132,190 +132,125 @@ _FULL_COLUMN_K_DEFAULT: Final[float] = 7.1187
 _FULL_COLUMN_XLS_Q_MMSCF_MIN: Final[float] = 144.0  # 288 ± 50%
 _FULL_COLUMN_XLS_Q_MMSCF_MAX: Final[float] = 432.0
 
-# P6-7 T2 — Behr baseline 选择 (OPEN-P6-6A-9.3 + 9.5 代码侧)
-# general: v5 plan 默认, 与 _BEHR_COEFFS Day-0 Gate fit 同源 (向后兼容)
-# high_acid: GPSA Fig 20-2 high-acid zone (H2S+CO2 >= 5 mol%), 工艺室 2026-10-31 提供
-# 注意: high_acid baseline 系数 A0/A1/A2/A3 与 brief 期望 W=93.5 在 T=120°F/P=1000 psia 不一致
-# (文件标定值 vs 公式回算存在数值偏差, 详见 task-2-report.md Concerns)
+# P6-8 T9r — Behr baseline 选择 (OPEN-P6-6A-9.5 代码侧闭环)
+# general: v3 grid 默认, GPSA Fig 20-2 general zone (McKetta-Wehe sweet gas)
+# high_acid: GPSA Fig 20-2 high-acid zone (H2S+CO2 >= 5 mol%), 工艺室 2026-09-29 v3 grid 交付
 BehrBaseline = Literal["general", "high_acid"]
-_BEHR_BASELINES_PATH: Final[Path] = Path(
-    __file__).resolve().parents[3] / "data" / "behr_coefficients.json"
 
 # Behr 反函数 bracket
 _BEHR_DEWPOINT_BRACKET: Final[tuple[float, float]] = (60.0, 200.0)
 _BEHR_DEWPOINT_EXTRAPOLATED_THRESHOLD_F: Final[float] = 60.0
 _BEHR_DEWPOINT_EXTRAPOLATION_WARNING_TOL_F: Final[float] = 1e-4
 
-# P6-6A-6 v5.1 — Behr fallback coefficients (used when JSON missing or invalid)
-_BEHR_FALLBACK_COEFS: Final[dict[str, float]] = {
-    "A0": 1.0, "A1": 0.020, "A2": 0.0, "A3": -1.5,
-}
-
 _LOGGER = logging.getLogger(__name__)
 
+# P6-8 T9r — Grid 查表 + 双线性插值 (OPEN-P6-6A-9.5 闭环)
+# 工艺室 2026-09-29 第三批交付 v3 (查表 + 双线性插值)
+_BEHR_GRID_PATH: Final[Path] = Path(
+    __file__).resolve().parents[3] / "data" / "behr_coefficients.json"
 
-def _load_behr_coefficients() -> dict[str, float]:
-    """Load Bukacek + GPSA calibration coefficients from JSON sidecar.
-
-    v4 changes (B-2 落实):
-    - 启动期加载 (module-level call below); RuntimeError on schema invalid
-    - JSON 缺失 → fallback 系数 WARNING 不 crash
-    - JSON 打包 via importlib.resources (wheel package_data)
-    - Schema 校验仅做字段类型检查，不跑 spot check（spot check 移到 pytest）
-
-    v5.1 changes:
-    - log10_coefficients 为 None → 尝试 fallback_coefficients
-    - 否则 RuntimeError
-    """
-    try:
-        # Python 3.13 forward-compat: PosixPath 不再支持 `with` 上下文协议
-        # 直接用 resources.files(...).joinpath(...).read_text() (3.12 + 3.13 均兼容)
-        data_path = resources.files("app.services.psychro.data").joinpath(
-            "behr_coefficients.json"
-        )
-        data = json.loads(data_path.read_text())
-    except (FileNotFoundError, ModuleNotFoundError) as e:
-        _LOGGER.warning(
-            "behr_coefficients.json 缺失，使用 fallback 系数: %s", e,
-        )
-        return _BEHR_FALLBACK_COEFS
-
-    coeffs = data.get("log10_coefficients")
-    if coeffs and all(
-        isinstance(coeffs.get(k), (int, float))
-        for k in ("A0", "A1", "A2", "A3")
-    ):
-        return {
-            "A0": float(coeffs["A0"]),
-            "A1": float(coeffs["A1"]),
-            "A2": float(coeffs["A2"]),
-            "A3": float(coeffs["A3"]),
-        }
-
-    # 主系数缺失 → 尝试 fallback_coefficients
-    fallback = data.get("fallback_coefficients")
-    if fallback and all(
-        isinstance(fallback.get(k), (int, float))
-        for k in ("A0", "A1", "A2", "A3")
-    ):
-        _LOGGER.warning(
-            "behr_coefficients.json log10_coefficients 为 null，使用 fallback_coefficients"
-        )
-        return {
-            "A0": float(fallback["A0"]),
-            "A1": float(fallback["A1"]),
-            "A2": float(fallback["A2"]),
-            "A3": float(fallback["A3"]),
-        }
-    raise RuntimeError(
-        "behr_coefficients.json schema 无效：log10_coefficients 和 fallback_coefficients "
-        "都缺少 A0/A1/A2/A3 数值字段"
-    )
-
-
-# Module-level eager load (v5 B-2 关键变更 — 启动期而非首请求)
-_BEHR_COEFFS: Final[dict[str, float]] = _load_behr_coefficients()
-
-# P6-6A-6 v5.1 — Bukacek 1990 T<60°F 延伸系数 (OPEN-P6-6A-9.4)
-# 高温段 (T > 60°F) 仍用 _BEHR_COEFFS (Day-0 Gate JSON fit, max_rel_err=4.866%);
+# P6-6A-6 v5.1 — Bukacek 1990 T<60°F 延伸系数 (OPEN-P6-6A-9.4, 已闭环)
 # 低温段 (T < 60°F) 用 Bukacek 1990 Table 3 延伸 (工艺室 2026-10-15 验证)。
-# 边界 T = 60°F 用 high-temp (避免不连续 — brief §约束)。
-_BEHR_COEFFS_LOW_T: Final[tuple[float, float, float, float]] = (
+# 边界 T = 60°F 用 grid high-temp (避免不连续 — brief §约束)。
+_BEHR_MIX_LOW_T: Final[tuple[float, float, float, float]] = (
     2.1430, 0.01850, -0.000042, -0.9800,
 )
 _BEHR_T_BOUNDARY_F: Final[float] = 60.0
 
 
-def _get_behr_coefficients(temperature_f: float) -> tuple[float, float, float, float]:
-    """T 分段 Bukacek 系数选择 (OPEN-P6-6A-9.4)。
+@dataclass(frozen=True)
+class BehrGrid:
+    """Behr 查表 + 双线性插值（工艺室 v3 交付）。
 
-    T > 60°F → 高温段 (Day-0 Gate JSON fit)
-    T < 60°F → 低温段 (Bukacek 1990 Table 3 延伸)
-    T = 60°F → 高温段 (边界, 避免与 T>60°F 不连续)
-
-    Returns:
-        (A0, A1, A2, A3) for log10(W) = A0 + A1·T + A2·T² + A3·log10(P)
+    字段:
+      name: 'general' | 'high_acid'
+      t_grid: T grid (°F)
+      p_grid: P grid (psia)
+      w_grid: W grid (lb/MMscf), shape=(len(t_grid), len(p_grid))
     """
-    if temperature_f >= _BEHR_T_BOUNDARY_F:
-        return (
-            _BEHR_COEFFS["A0"],
-            _BEHR_COEFFS["A1"],
-            _BEHR_COEFFS["A2"],
-            _BEHR_COEFFS["A3"],
-        )
-    return _BEHR_COEFFS_LOW_T
+
+    name: str
+    t_grid: tuple[float, ...]
+    p_grid: tuple[float, ...]
+    w_grid: tuple[tuple[float, ...], ...]
 
 
-# P6-7 T2 — Multi-baseline JSON loader (OPEN-P6-6A-9.3 + 9.5 代码侧)
-# 复用 importlib.resources 加载风格, 从 pcs-backend/data/behr_coefficients.json 读取
-# baselines.{general,high_acid}.log10_coefficients 双 baseline 表。
-def _load_behr_baseline_table() -> dict[str, dict[str, float]]:
-    """从 pcs-backend/data/behr_coefficients.json 加载 multi-baseline 系数表。
-
-    Returns:
-        dict like {"general": {"A0": ..., "A1": ..., "A2": ..., "A3": ...},
-                   "high_acid": {"A0": ..., "A1": ..., "A2": ..., "A3": ...}}
+def _load_behr_grids() -> dict[str, BehrGrid]:
+    """从 pcs-backend/data/behr_coefficients.json 加载 grid（v3 工艺室交付）。
 
     Raises:
-        RuntimeError: JSON 缺失 / schema 无效 / baseline 缺 A0-A3
+        RuntimeError: JSON 缺失 / schema 无效
     """
     try:
-        raw = json.loads(_BEHR_BASELINES_PATH.read_text(encoding="utf-8"))
+        raw = json.loads(_BEHR_GRID_PATH.read_text(encoding="utf-8"))
     except FileNotFoundError as e:
         raise RuntimeError(
-            f"Behr multi-baseline JSON 缺失: {_BEHR_BASELINES_PATH} ({e})"
+            f"Behr grid JSON 缺失: {_BEHR_GRID_PATH} ({e})"
         ) from e
 
-    baselines = raw.get("baselines")
-    if not isinstance(baselines, dict):
+    grids_raw = raw.get("grid")
+    if not isinstance(grids_raw, dict):
         raise RuntimeError(
-            f"Behr multi-baseline JSON schema 无效: 缺 'baselines' dict 段 "
-            f"(at {_BEHR_BASELINES_PATH})"
+            f"Behr grid JSON schema 无效: 缺 'grid' dict 段 (at {_BEHR_GRID_PATH})"
         )
 
-    out: dict[str, dict[str, float]] = {}
+    out: dict[str, BehrGrid] = {}
     for name in ("general", "high_acid"):
-        entry = baselines.get(name)
+        entry = grids_raw.get(name)
         if not isinstance(entry, dict):
-            raise RuntimeError(
-                f"Behr multi-baseline JSON 缺 baselines.{name} 段"
-            )
-        coeffs = entry.get("log10_coefficients")
-        if not isinstance(coeffs, dict) or not all(
-            isinstance(coeffs.get(k), (int, float))
-            for k in ("A0", "A1", "A2", "A3")
-        ):
-            raise RuntimeError(
-                f"Behr multi-baseline JSON baselines.{name}.log10_coefficients "
-                f"缺 A0/A1/A2/A3 数值字段"
-            )
-        out[name] = {k: float(coeffs[k]) for k in ("A0", "A1", "A2", "A3")}
+            raise RuntimeError(f"Behr grid JSON 缺 grid.{name} 段")
+        out[name] = BehrGrid(
+            name=name,
+            t_grid=tuple(entry["t_grid_f"]),
+            p_grid=tuple(entry["p_grid_psia"]),
+            w_grid=tuple(tuple(row) for row in entry["w_grid_lb_per_mmscf"]),
+        )
     return out
 
 
-_BEHR_BASELINE_TABLE: Final[dict[str, dict[str, float]]] = _load_behr_baseline_table()
+# Module-level eager load (启动期 fail-fast on schema invalid)
+_BEHR_GRIDS: Final[dict[str, BehrGrid]] = _load_behr_grids()
 
 
-def _get_behr_baseline_coefficients(
-    baseline: BehrBaseline,
-) -> tuple[float, float, float, float]:
-    """Behr baseline → (A0, A1, A2, A3) (OPEN-P6-6A-9.3 + 9.5)。
+def _bilinear_interp_behr(
+    grid: BehrGrid,
+    temperature_f: float,
+    pressure_psia: float,
+) -> tuple[float, bool]:
+    """Behr grid 双线性插值。
 
-    'general' → 现有 _BEHR_COEFFS (Day-0 Gate fit, 向后兼容, T 分段逻辑在 _get_behr_coefficients 中)
-    'high_acid' → JSON multi-baseline 表 high_acid 段 (T2 工艺室 2026-10-31 提供)
-
-    注: 'high_acid' 路径不走 _get_behr_coefficients T 分段 — T < 60°F 段仅用于 general baseline,
-        high_acid 标定域为 T ∈ [60, 200]°F。
+    Returns:
+        (w_value, extrap_used) - extrap_used 为 True 表示越界 clamp
     """
-    if baseline == "general":
-        return (
-            _BEHR_COEFFS["A0"],
-            _BEHR_COEFFS["A1"],
-            _BEHR_COEFFS["A2"],
-            _BEHR_COEFFS["A3"],
-        )
-    coeffs = _BEHR_BASELINE_TABLE["high_acid"]
-    return (coeffs["A0"], coeffs["A1"], coeffs["A2"], coeffs["A3"])
+    t_grid = grid.t_grid
+    p_grid = grid.p_grid
+    w_grid = grid.w_grid
+
+    # 越界 clamp
+    t_q = max(t_grid[0], min(t_grid[-1], temperature_f))
+    p_q = max(p_grid[0], min(p_grid[-1], pressure_psia))
+    extrap_used = (t_q != temperature_f) or (p_q != pressure_psia)
+
+    # 找 T bracket
+    i = max(0, min(bisect.bisect_right(t_grid, t_q) - 1, len(t_grid) - 2))
+    j = max(0, min(bisect.bisect_right(p_grid, p_q) - 1, len(p_grid) - 2))
+
+    t0, t1 = t_grid[i], t_grid[i + 1]
+    p0, p1 = p_grid[j], p_grid[j + 1]
+    w00 = w_grid[i][j]
+    w01 = w_grid[i][j + 1]
+    w10 = w_grid[i + 1][j]
+    w11 = w_grid[i + 1][j + 1]
+
+    ft = (t_q - t0) / (t1 - t0) if t1 > t0 else 0.0
+    fp = (p_q - p0) / (p1 - p0) if p1 > p0 else 0.0
+    w = (
+        w00 * (1 - ft) * (1 - fp)
+        + w01 * (1 - ft) * fp
+        + w10 * ft * (1 - fp)
+        + w11 * ft * fp
+    )
+    return w, extrap_used
 
 
 # P6-6A-6 v5.1 — Acid gas linear correction placeholder coefficients (H-1 落实)
@@ -582,76 +517,73 @@ def _calc_behr_water_content_lb_per_mmscf(
     co2_mol_pct: float = 0.0,
     h2s_mol_pct: float = 0.0,
     baseline: BehrBaseline = "general",
-) -> tuple[float, bool]:
-    """Behr correlation via Bukacek (1990) + GPSA Fig 20-2 + Linear acid gas placeholder.
+) -> tuple[float, list[str]]:
+    """Behr correlation: Grid 查表 + 双线性插值 (T >= 60°F) + Bukacek (T < 60°F) + Acid gas.
 
-    Form (v5.1 Day-0 Gate Form A — Bukacek baseline × GPSA calibration × acid gas):
-        log10(W_baseline) = A0 + A1·T_F + A2·T_F² + A3·log10(P_psia)
-        W_baseline = 10^(...)
-        W_corr = W_baseline × (1 + 0.024·co2_mol_pct + 0.018·h2s_mol_pct)  # Linear placeholder
-                  OR
-                  W_corr = W_baseline × (1 + ε/100) 真 Wichert-Aziz (high_acid)
-        W = W_corr
+    P6-8 T9r (OPEN-P6-6A-9.5 代码侧闭环):
+      工艺室 2026-09-29 第三批交付 v3 grid (7 T × 4 P 矩阵, general + high_acid)
+      替代经验公式拟合（4-param quadratic / Katz 5-param / Behr 3-param 均失败）;
+      无拟合误差, 无 Jacobian 病态。
 
-    baseline (P6-7 T2, OPEN-P6-6A-9.3 + 9.5):
-        'general' (default, 向后兼容) → v5.1 Day-0 Gate JSON fit + 线性 placeholder
-        'high_acid' (XLS PR-018 path) → GPSA Fig 20-2 high-acid zone 系数 + 真 Wichert-Aziz
+      T >= 60°F 段: grid 查表 + 双线性插值
+      T < 60°F 段: Bukacek 1990 Table 3 延伸 (OPEN-P6-6A-9.4 已闭环)
+      Acid gas correction:
+        general   → Linear placeholder (向后兼容, 既有 _correct_behr_for_acid_gas)
+        high_acid → 真 Wichert-Aziz (T2 工艺室 2026-10-31 闭合 OPEN-P6-6A-9.5,
+                    ε = 120·[(y_CO2+y_H2S)^0.9 − (y_CO2+y_H2S)^1.6]
+                        + 15·(y_H2S^0.5 − y_H2S^4))
 
-    Source: Bukacek (1990) "Water content of natural gas"
-            GPSA Engineering Data Book 13th Ed §20.4 Fig 20-2 (8-point matrix fit)
-            Coefficients (general): pcs-backend/app/services/psychro/data/behr_coefficients.json
-                                    (loaded at startup, _BEHR_COEFFS)
-            Coefficients (multi-baseline): pcs-backend/data/behr_coefficients.json
-                                    (loaded at startup, _BEHR_BASELINE_TABLE)
-            Low-temp extension (T < 60°F, 仅 general baseline):
-                                    _BEHR_COEFFS_LOW_T via _get_behr_coefficients
-                                    (OPEN-P6-6A-9.4 — Bukacek 1990 Table 3)
-            Acid gas correction:
-              general   → Linear placeholder (向后兼容, 既有 _correct_behr_for_acid_gas)
-              high_acid → 真 Wichert-Aziz (T2 工艺室 2026-10-31 闭合 OPEN-P6-6A-9.5,
-                          ε = 120·[(y_CO2+y_H2S)^0.9 − (y_CO2+y_H2S)^1.6]
-                              + 15·(y_H2S^0.5 − y_H2S^4))
-    Calibration: 8 spot checks (60/80/100/120/140/160°F @ 1000 psia + 120°F @ 500/1500 psia),
-                 max relative error = 4.866% per Day-0 Gate fit (acceptable < 5%).
-    XLS PR-018 E20=103.91 (high acid gas CO2+H2S=5%) 验证 (high_acid baseline):
-        W_baseline(120°F, 1000 psia) ≈ 93.5 lb/MMscf (工艺室标定)
+    XLS PR-018 E20=103.91 验证 (high_acid baseline):
+        W_baseline(120°F, 1000 psia) = 93.5 lb/MMscf (v3 grid 直接读出)
         W_corr(93.5, +5% acid gas) ≈ 93.5 × 1.0971 = 102.59
-        残差 ~1.27% vs XLS 103.91 ✓
+        残差 ~1.27% vs XLS 103.91 ✓ (< 5% 容差)
+
+    Source: pcs-backend/data/behr_coefficients.json v3 (工艺室 2026-09-29 交付)
+            GPSA Engineering Data Book 13th Ed §20.4 Fig 20-2
+            Bukacek (1990) "Water content of natural gas" (low-T extension)
+            Wichert & Aziz (1972) HP 51(4) 119-122 (high_acid acid gas correction)
 
     NOT Behr (1981) primary 原文 — 适用于 natural gas (sg 0.6).
     PRIVATE helper (_ 前缀 + 不入 __all__), **不**与 calc_saturation_water_content 互调
     (Ruling 9 working fluid 边界: natural gas vs humid air).
 
-    v5.1 P-4 落实: general 路径**调用** _correct_behr_for_acid_gas 而**不**在此处重复公式。
-    T2 (P6-7): high_acid 路径用真 Wichert-Aziz (OPEN-P6-6A-9.5)。
-
-    OPEN-P6-6A-9.4: T < 60°F 段使用 _BEHR_COEFFS_LOW_T 替代 JSON Day-0 Gate fit (仅 general);
-                    边界 T=60°F 用 high-temp 避免不连续 (与 T>60°F 段连续)。
-
     Args:
-        temperature_f: Temperature [°F]; T > 60°F 用 Day-0 Gate JSON fit (general),
-                       T ≤ 60°F 用 Bukacek 1990 延伸 (validity T ∈ [-40, 60]°F, 仅 general)
-        pressure_psia: Pressure [psia] ∈ [100, 3000]
+        temperature_f: Temperature [°F]; T >= 60°F 用 grid 查表 + 双线性插值,
+                       T < 60°F 用 Bukacek 1990 延伸 (validity T ∈ [-40, 60]°F, 仅 general)
+        pressure_psia: Pressure [psia] ∈ [500, 2000] (grid validity domain);
+                       越界 clamp + WARNING
         co2_mol_pct: CO2 摩尔百分比 (default 0)
         h2s_mol_pct: H2S 摩尔百分比 (default 0)
         baseline: 'general' (default, 向后兼容) / 'high_acid' (XLS PR-018 path)
     Returns:
-        (water_content_lb_per_mmscf, acid_gas_corrected_flag)
+        (water_content_lb_per_mmscf, warnings)
+        warnings 列表可能含:
+          - "BEHR_GRID_EXTRAPOLATED: T/P out of validity domain; clamp to nearest grid"
     """
-    if baseline == "general":
-        A0, A1, A2, A3 = _get_behr_coefficients(temperature_f)
+    warnings: list[str] = []
+    if temperature_f < _BEHR_T_BOUNDARY_F:
+        # 低 T 段：Bukacek 1990 Table 3 公式（OPEN-P6-6A-9.4 已闭环，仅 general baseline）
+        A0, A1, A2, A3 = _BEHR_MIX_LOW_T
+        log10_w = (
+            A0
+            + A1 * temperature_f
+            + A2 * temperature_f ** 2
+            + A3 * math.log10(pressure_psia)
+        )
+        w_baseline = 10 ** log10_w
     else:
-        A0, A1, A2, A3 = _get_behr_baseline_coefficients(baseline)
-    log_w = (
-        A0
-        + A1 * temperature_f
-        + A2 * temperature_f ** 2
-        + A3 * math.log10(pressure_psia)
-    )
-    w_baseline = 10 ** log_w
-    acid_gas_corrected = (co2_mol_pct > 0) or (h2s_mol_pct > 0)
-    if not acid_gas_corrected:
-        return (w_baseline, False)
+        # 高 T 段：grid 查表 + 双线性插值（v3 工艺室交付）
+        grid = _BEHR_GRIDS[baseline]
+        w_baseline, extrap_used = _bilinear_interp_behr(grid, temperature_f, pressure_psia)
+        if extrap_used:
+            warnings.append(
+                "BEHR_GRID_EXTRAPOLATED: T/P out of validity domain; clamp to nearest grid"
+            )
+
+    # Acid gas correction
+    acid_gas_applied = (co2_mol_pct > 0) or (h2s_mol_pct > 0)
+    if not acid_gas_applied:
+        return (w_baseline, warnings)
     if baseline == "high_acid":
         # 真 Wichert-Aziz (OPEN-P6-6A-9.5)
         y_sum = (co2_mol_pct + h2s_mol_pct) / 100.0
@@ -660,10 +592,10 @@ def _calc_behr_water_content_lb_per_mmscf(
             120.0 * (y_sum ** 0.9 - y_sum ** 1.6)
             + 15.0 * (y_h2s ** 0.5 - y_h2s ** 4)
         )
-        return (w_baseline * (1.0 + epsilon / 100.0), True)
+        return (w_baseline * (1.0 + epsilon / 100.0), warnings)
     # general baseline: 保持线性 placeholder (向后兼容, 既有 _correct_behr_for_acid_gas)
     w_corr = _correct_behr_for_acid_gas(w_baseline, co2_mol_pct, h2s_mol_pct)
-    return (w_corr, True)
+    return (w_corr, warnings)
 
 
 def _behr_inverse_dewpoint(
@@ -707,16 +639,21 @@ def _behr_inverse_dewpoint(
                 raise ValueError("no sign change in extended bracket")
         dewpoint_f = brentq(_residual_w, a, b, maxiter=100, xtol=1e-4)
     except Exception:
-        # Newton fallback (analytical derivative of log10 form)
+        # Newton fallback (numerical derivative; grid lookup 无 closed-form derivative)
         try:
             T = 60.0  # 初值
+            h_deriv = 1e-2  # 中央差分步长 (°F)
             for _ in range(50):
                 w, _ = _calc_behr_water_content_lb_per_mmscf(
                     T, pressure_psia, co2_mol_pct, h2s_mol_pct,
                 )
-                dw_dT = w * math.log(10) * (
-                    _BEHR_COEFFS["A1"] + 2 * _BEHR_COEFFS["A2"] * T
+                w_plus, _ = _calc_behr_water_content_lb_per_mmscf(
+                    T + h_deriv, pressure_psia, co2_mol_pct, h2s_mol_pct,
                 )
+                w_minus, _ = _calc_behr_water_content_lb_per_mmscf(
+                    T - h_deriv, pressure_psia, co2_mol_pct, h2s_mol_pct,
+                )
+                dw_dT = (w_plus - w_minus) / (2.0 * h_deriv)
                 if abs(dw_dT) < 1e-10:
                     break
                 delta = (w - target_w_lb_per_mmscf) / dw_dT

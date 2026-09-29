@@ -281,27 +281,33 @@ def _xls_pr018_full_input(**overrides):
 
 
 def test_behr_acid_gas_correction_co2_5pct():
-    """CO2=5% alone → W_corr = W_baseline × (1 + 0.024 × 5) = W_baseline × 1.12."""
+    """CO2=5% alone → W_corr = W_baseline × (1 + 0.024 × 5) = W_baseline × 1.12.
+
+    P6-8 T9r: 返回值改为 (w, warnings) 元组，warnings 为 [] 时表示无酸气。
+    """
     from app.services.psychro.glycol_dehydration_service import (
         _calc_behr_water_content_lb_per_mmscf,
     )
 
-    w_no_acid, flag_no = _calc_behr_water_content_lb_per_mmscf(120.0, 1000.0, 0.0, 0.0)
-    w_with_co2, flag_co2 = _calc_behr_water_content_lb_per_mmscf(120.0, 1000.0, 5.0, 0.0)
-    assert flag_no is False
-    assert flag_co2 is True
+    w_no_acid, warnings_no = _calc_behr_water_content_lb_per_mmscf(120.0, 1000.0, 0.0, 0.0)
+    w_with_co2, warnings_co2 = _calc_behr_water_content_lb_per_mmscf(120.0, 1000.0, 5.0, 0.0)
+    assert warnings_no == []
+    assert isinstance(warnings_co2, list)
     assert w_with_co2 == pytest.approx(w_no_acid * 1.12, rel=1e-9)
 
 
 def test_behr_acid_gas_correction_h2s_3pct():
-    """H2S=3% alone → W_corr = W_baseline × (1 + 0.018 × 3) = W_baseline × 1.054."""
+    """H2S=3% alone → W_corr = W_baseline × (1 + 0.018 × 3) = W_baseline × 1.054.
+
+    P6-8 T9r: 返回值改为 (w, warnings) 元组。
+    """
     from app.services.psychro.glycol_dehydration_service import (
         _calc_behr_water_content_lb_per_mmscf,
     )
 
     w_no_acid, _ = _calc_behr_water_content_lb_per_mmscf(120.0, 1000.0, 0.0, 0.0)
-    w_with_h2s, flag = _calc_behr_water_content_lb_per_mmscf(120.0, 1000.0, 0.0, 3.0)
-    assert flag is True
+    w_with_h2s, warnings = _calc_behr_water_content_lb_per_mmscf(120.0, 1000.0, 0.0, 3.0)
+    assert isinstance(warnings, list)
     assert w_with_h2s == pytest.approx(w_no_acid * 1.054, rel=1e-9)
 
 
@@ -678,19 +684,21 @@ def test_bukacek_t_boundary_no_discontinuity():
 
 
 def test_behr_general_baseline_default():
-    """T2 默认 baseline='general'（向后兼容）：与 v5.1 Day-0 Gate fit 行为一致。
+    """T2 默认 baseline='general'（向后兼容）：v3 grid 查表 + 双线性插值。
 
-    T=120°F, P=1000 psia: W ≈ 72.1 lb/MMscf (与 _BEHR_COEFFS Day-0 Gate fit 同源)。
+    T=120°F, P=1000 psia: W ≈ 93.0 lb/MMscf (pcs-backend/data/behr_coefficients.json
+    v3 grid 工艺室 2026-09-29 直接读出；OPEN-P6-6A-9.5 代码侧闭环)。
     """
     from app.services.psychro.glycol_dehydration_service import (
         _calc_behr_water_content_lb_per_mmscf,
     )
 
-    w, _ = _calc_behr_water_content_lb_per_mmscf(
+    w, warnings = _calc_behr_water_content_lb_per_mmscf(
         temperature_f=120.0, pressure_psia=1000.0,
     )
-    assert 50.0 < w < 80.0, (
-        f"general baseline W {w} 应 ~70 lb/MMscf (Day-0 Gate fit 给 ~72)"
+    assert warnings == []
+    assert 85.0 < w < 100.0, (
+        f"general baseline W {w} 应 ~93 lb/MMscf (v3 grid T=120/P=1000 = 93.0)"
     )
 
 

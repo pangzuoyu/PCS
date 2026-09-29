@@ -1,24 +1,23 @@
-"""P6-6A-6 v5.1 — Behr coefficients JSON sidecar load tests (M-4 dedupe to 4 tests).
+"""P6-8 T9r — Behr grid 加载测试 (OPEN-P6-6A-9.5 代码侧闭环)。
 
-Step 12 brief 要求: 4 tests 集中 8 spot check 残差验证 + load 行为验证。
+工艺室 2026-09-29 第三批交付 v3 grid (查表 + 双线性插值) 替代经验公式拟合
+(4-param / Katz 5-param / Behr 3-param 均失败)。
 
 覆盖:
-  1. test_load_behr_coefficients_success — JSON 主系数非空 → 返回主系数
-  2. test_load_behr_coefficients_fallback_when_missing — JSON 缺失 → fallback 系数 WARNING
-  3. test_load_behr_coefficients_runtime_error_on_schema_invalid — JSON 主+fallback 均缺 → RuntimeError
-  4. test_load_behr_coefficients_8_spot_checks_residual_within_5pct — 8 GPSA spot checks 残差 ≤ 5%
+  1. test_load_behr_grids_success — JSON grid 段 → 返回 BehrGrid general+high_acid
+  2. test_load_behr_grids_runtime_error_when_missing — JSON 缺失 → RuntimeError
+  3. test_load_behr_grids_runtime_error_on_schema_invalid — JSON 缺 grid 段 → RuntimeError
+  4. test_load_behr_grids_spot_check_120F_1000psia — v3 grid 标定点
+     general=93.0 / high_acid=93.5 (T=120°F / P=1000 psia, grid 节点直接读出)
 
 测试策略:
-  - 测试 1/2/3 直接调用 _load_behr_coefficients() (模块私有) + 临时修改 JSON
-  - 测试 4 使用 Day-0 Gate 实际拟合系数 + 公式再计算残差
-  - 残差容差 ≤ 5% per Day-0 Gate max_rel_err=4.866% (Step 2 Day-0 Gate pass)
+  - 直接调用 _load_behr_grids() (模块私有) + 临时修改 JSON
+  - spot check 验证 grid 标定点与 v3 calibration 表一致
 """
 from __future__ import annotations
 
 import json
-import math
 import sys
-from importlib import resources
 from pathlib import Path
 
 import pytest
@@ -27,75 +26,62 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[3]
 if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
-# P6-6A-6 v5.1 Ruling 9: 直接导入私有 _load_behr_coefficients (测试目的)
+# P6-8 T9r — 直接导入私有 _load_behr_grids / _BEHR_GRIDS (测试目的)
 from app.services.psychro.glycol_dehydration_service import (  # noqa: E402
-    _load_behr_coefficients,
-    _BEHR_COEFFS,
+    _BEHR_GRIDS,
+    BehrGrid,
+    _bilinear_interp_behr,
+    _load_behr_grids,
 )
 
-
 # ---------------------------------------------------------------------------
-# 8 GPSA Fig 20-2 spot checks (4T × 2P 矩阵抽样, 与 Day-0 Gate script 一致)
-# ---------------------------------------------------------------------------
-
-SPOTS = [
-    (60, 1000, 16), (80, 1000, 31), (100, 1000, 50), (120, 1000, 70),
-    (140, 1000, 95), (160, 1000, 130),
-    (120, 500, 147), (120, 1500, 47),
-]
-
-
-# ---------------------------------------------------------------------------
-# 1) JSON 主系数非空 → 返回主系数
+# 1) JSON grid 段 → 返回 BehrGrid general+high_acid
 # ---------------------------------------------------------------------------
 
 
-def test_load_behr_coefficients_success():
-    """behr_coefficients.json 主 log10_coefficients 数值完整 → _load 返回该系数。"""
-    # 验证当前模块加载的 _BEHR_COEFFS 与 JSON 一致
-    p = resources.files("app.services.psychro.data").joinpath(
-        "behr_coefficients.json"
-    )
-    data = json.loads(p.read_text())
+def test_load_behr_grids_success():
+    """pcs-backend/data/behr_coefficients.json v3 grid 段 → general+high_acid 双 baseline。
 
-    expected = data["log10_coefficients"]
-    assert expected is not None, "JSON log10_coefficients must not be null"
-    assert all(
-        isinstance(expected[k], (int, float))
-        for k in ("A0", "A1", "A2", "A3")
-    ), "JSON log10_coefficients A0-A3 must be numeric"
-
-    # _load_behr_coefficients 直接调用结果
-    coeffs = _load_behr_coefficients()
-    for k in ("A0", "A1", "A2", "A3"):
-        assert coeffs[k] == pytest.approx(expected[k], rel=1e-12)
-
-    # 模块级 _BEHR_COEFFS 与 JSON 一致
-    for k in ("A0", "A1", "A2", "A3"):
-        assert _BEHR_COEFFS[k] == pytest.approx(expected[k], rel=1e-12)
-
-
-# ---------------------------------------------------------------------------
-# 2) JSON 缺失 → fallback 系数 (WARNING 不 crash)
-# ---------------------------------------------------------------------------
-
-
-def test_load_behr_coefficients_fallback_when_missing(monkeypatch):
-    """JSON 文件 not found → _load 返回 _BEHR_FALLBACK_COEFS + WARNING log。
-
-    v5.1 B-2 落实: importlib.resources 文件不存在 → fallback 系数,
-    不 crash (区别 v3/v4 早期版本)。
+    验证:
+      - _BEHR_GRIDS 包含 general + high_acid
+      - BehrGrid dataclass 字段 (t_grid / p_grid / w_grid) 完整
+      - 模块级 _BEHR_GRIDS 与 _load_behr_grids() 直接调用结果一致
     """
+    grids = _load_behr_grids()
+
+    assert set(grids.keys()) == {"general", "high_acid"}
+    for name in ("general", "high_acid"):
+        g = grids[name]
+        assert isinstance(g, BehrGrid)
+        assert g.name == name
+        assert len(g.t_grid) == 7  # T ∈ [60, 80, 100, 120, 140, 160, 200]
+        assert len(g.p_grid) == 4  # P ∈ [500, 1000, 1500, 2000]
+        assert len(g.w_grid) == len(g.t_grid)
+        assert all(len(row) == len(g.p_grid) for row in g.w_grid)
+
+    # 模块级 _BEHR_GRIDS 与 _load_behr_grids() 一致
+    assert set(_BEHR_GRIDS.keys()) == set(grids.keys())
+    for name, g in grids.items():
+        assert _BEHR_GRIDS[name].t_grid == g.t_grid
+        assert _BEHR_GRIDS[name].p_grid == g.p_grid
+        assert _BEHR_GRIDS[name].w_grid == g.w_grid
+
+
+# ---------------------------------------------------------------------------
+# 2) JSON 缺失 → RuntimeError (P6-8 T9r fail-fast)
+# ---------------------------------------------------------------------------
+
+
+def test_load_behr_grids_runtime_error_when_missing(monkeypatch, tmp_path):
+    """JSON 文件缺失 → RuntimeError (启动期 fail-fast, 防 silent wrong coefficients)。"""
+    # 把 _BEHR_GRID_PATH 重定向到不存在的路径
     import app.services.psychro.glycol_dehydration_service as _svc
 
-    def _raise_fnf(pkg):
-        raise FileNotFoundError("simulated missing JSON sidecar")
+    missing_path = tmp_path / "behr_coefficients_missing.json"
+    monkeypatch.setattr(_svc, "_BEHR_GRID_PATH", missing_path)
 
-    monkeypatch.setattr(_svc.resources, "files", _raise_fnf)
-
-    coeffs = _load_behr_coefficients()
-    # fallback 系数 = _BEHR_FALLBACK_COEFS (4 字段 A0/A1/A2/A3)
-    assert coeffs == {"A0": 1.0, "A1": 0.020, "A2": 0.0, "A3": -1.5}
+    with pytest.raises(RuntimeError, match="Behr grid JSON 缺失"):
+        _load_behr_grids()
 
 
 # ---------------------------------------------------------------------------
@@ -103,83 +89,85 @@ def test_load_behr_coefficients_fallback_when_missing(monkeypatch):
 # ---------------------------------------------------------------------------
 
 
-def test_load_behr_coefficients_runtime_error_on_schema_invalid(
-    monkeypatch, tmp_path,
-):
-    """JSON 存在但 log10_coefficients 与 fallback_coefficients 均无 A0-A3 数值 → RuntimeError。
-
-    v5.1 B-2: 启动期 fail-fast, 防止 silent wrong coefficients 进入生产。
-    """
-    from pathlib import Path
-
-    bad_json = tmp_path / "behr_coefficients.json"
-    bad_json.write_text(
-        json.dumps({
-            "form": "INVALID",
-            "log10_coefficients": None,
-            "fallback_coefficients": None,
-        })
-    )
-
-    # 改 service 模块的 _load_behr_coefficients 函数内部使用 importlib.resources
-    # 为更简洁：monkeypatch service module 的 resources import path
+def test_load_behr_grids_runtime_error_on_schema_invalid(monkeypatch, tmp_path):
+    """JSON 存在但缺 'grid' dict 段 → RuntimeError (防 silent wrong coefficients)。"""
     import app.services.psychro.glycol_dehydration_service as _svc
 
-    class _FakeAnchor:
-        def joinpath(self, _name):
-            return Path(str(bad_json))
-
-    def _patched_files(pkg):
-        if pkg == "app.services.psychro.data":
-            return _FakeAnchor()
-        raise AssertionError(f"unexpected pkg {pkg!r}")
-
-    monkeypatch.setattr(_svc.resources, "files", _patched_files)
+    bad_json = tmp_path / "behr_coefficients_bad.json"
+    bad_json.write_text(
+        json.dumps({
+            "_meta": {"open_item": "INVALID"},
+            # 缺 'grid' 段
+        })
+    )
+    monkeypatch.setattr(_svc, "_BEHR_GRID_PATH", bad_json)
 
     with pytest.raises(RuntimeError, match="schema 无效"):
-        _load_behr_coefficients()
+        _load_behr_grids()
 
 
-# ---------------------------------------------------------------------------
-# 4) 8 spot checks 残差 ≤ 5% (Day-0 Gate 验证)
-# ---------------------------------------------------------------------------
+def test_load_behr_grids_runtime_error_on_missing_baseline(monkeypatch, tmp_path):
+    """JSON grid 段缺 baseline (general/high_acid) → RuntimeError。"""
+    import app.services.psychro.glycol_dehydration_service as _svc
 
-
-def test_load_behr_coefficients_8_spot_checks_residual_within_5pct():
-    """8 GPSA Fig 20-2 spot checks vs 主 log10_coefficients 拟合值 → max rel_err < 5%。
-
-    P6-6A-6 v5.1 Day-0 Gate 选定形式 A (4-param log10 二次), 实际 max_rel_err=4.866%。
-    本测试作为 Day-1 Gate 验证: 重跑 spot check, 残差一致。
-    """
-    coeffs = _load_behr_coefficients()
-    a0, a1, a2, a3 = coeffs["A0"], coeffs["A1"], coeffs["A2"], coeffs["A3"]
-
-    max_rel_err = 0.0
-    residuals = []
-    for t_f, p_psia, w_actual in SPOTS:
-        log_w = a0 + a1 * t_f + a2 * t_f ** 2 + a3 * math.log10(p_psia)
-        w_pred = 10 ** log_w
-        rel_err = abs(w_pred - w_actual) / w_actual
-        residuals.append({
-            "T_F": t_f, "P_psia": p_psia,
-            "W_actual": w_actual, "W_pred": w_pred,
-            "rel_err": rel_err,
+    bad_json = tmp_path / "behr_coefficients_partial.json"
+    bad_json.write_text(
+        json.dumps({
+            "grid": {
+                "general": {  # 仅 general, 缺 high_acid
+                    "t_grid_f": [60, 200],
+                    "p_grid_psia": [500, 2000],
+                    "w_grid_lb_per_mmscf": [[1.0, 0.5], [10.0, 5.0]],
+                },
+            },
         })
-        max_rel_err = max(max_rel_err, rel_err)
+    )
+    monkeypatch.setattr(_svc, "_BEHR_GRID_PATH", bad_json)
 
-    # Day-0 Gate max_rel_err=4.866% ≤ 5% (Step 2 Gate pass)
-    assert max_rel_err < 0.05, (
-        f"max_rel_err={max_rel_err:.4%} 超 5% Day-0 Gate 阈值；残差表: {residuals}"
-    )
+    with pytest.raises(RuntimeError, match="grid.high_acid"):
+        _load_behr_grids()
 
-    # 与 JSON calibration_max_rel_err 一致 (Day-1 Gate)
-    p = resources.files("app.services.psychro.data").joinpath(
-        "behr_coefficients.json"
+
+# ---------------------------------------------------------------------------
+# 4) v3 grid 标定点 (T=120°F / P=1000 psia) — 工艺室 2026-09-29 标定
+# ---------------------------------------------------------------------------
+
+
+def test_load_behr_grids_spot_check_120F_1000psia():
+    """v3 grid 直接节点验证: general(120°F/1000 psia)=93.0; high_acid=93.5。
+
+    工艺室 2026-09-29 第三批交付 v3 标定值；OPEN-P6-6A-9.5 闭环核心证据。
+    """
+    # grid 直接节点 (T=120°F, P=1000 psia) — w_grid[3][1]
+    assert _BEHR_GRIDS["general"].w_grid[3][1] == 93.0
+    assert _BEHR_GRIDS["high_acid"].w_grid[3][1] == 93.5
+
+
+def test_bilinear_interp_grid_node_exact_match():
+    """双线性插值在 grid 节点上精确还原 (无插值误差)。"""
+    # T=120°F, P=1000 psia — 通用节点验证
+    w_general, extrap = _bilinear_interp_behr(
+        _BEHR_GRIDS["general"], 120.0, 1000.0,
     )
-    data = json.loads(p.read_text())
-    json_max = data.get("calibration_max_rel_err")
-    assert json_max is not None
-    assert max_rel_err == pytest.approx(json_max, abs=1e-4), (
-        f"Day-1 Gate 不一致：脚本 max_rel_err={max_rel_err:.6f} "
-        f"≠ JSON calibration_max_rel_err={json_max:.6f}"
+    w_high_acid, extrap_ha = _bilinear_interp_behr(
+        _BEHR_GRIDS["high_acid"], 120.0, 1000.0,
     )
+    assert extrap is False  # 节点查询无 clamp
+    assert extrap_ha is False
+    assert w_general == pytest.approx(93.0, rel=1e-12)
+    assert w_high_acid == pytest.approx(93.5, rel=1e-12)
+
+
+def test_bilinear_interp_out_of_domain_emits_extrap_flag():
+    """越界 T/P → clamp 到最近节点 + extrap_used=True。
+
+    注: extrap 仅在 helper 层返回, _calc_behr_water_content_lb_per_mmscf 把它
+    转成 WARNING "BEHR_GRID_EXTRAPOLATED: ..." 透出。
+    """
+    # T=300°F (网格上限 200°F) → clamp 到 200°F
+    w, extrap = _bilinear_interp_behr(
+        _BEHR_GRIDS["general"], 300.0, 1000.0,
+    )
+    assert extrap is True
+    # P=1000 psia 在 general grid T=200°F 行 → w_grid[6][1] = 320.0
+    assert w == pytest.approx(320.0, rel=1e-12)
