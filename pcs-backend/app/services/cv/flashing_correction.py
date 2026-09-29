@@ -362,13 +362,16 @@ def calculate_flash_correction(
     vendor: str | None = None,
     valve_model: str | None = None,
     masonelian_model: MasonelianModel = _DEFAULT_MASONELIAN_MODEL,
+    x: float | None = None,
 ) -> dict[str, float | str]:
-    """闪蒸工况修正主入口（P6-4 Task 5）。
+    """闪蒸工况修正主入口（P6-4 Task 5 / P6-9 PICKUP-2 T3）。
 
     计算：
     1. _validate_fl_ff(FL, FF)（V1.2 严格校验；越界抛 InvalidFLFFError 422）
     2. (可选) lookup_valve_params(vendor, valve_model) → 若传
-    3. x = dP / P1
+    3. x（P6-9 PICKUP-2 T3 显式参数）：
+       - 传 x=float → 直接使用（架构组裁决 a；OPEN-P6-4-4 partial closure）
+       - None → back-compat 推断 x = dP / P1
     4. fl = _masonelian_fl(FL, x, model)
     5. flash_steam_rate_kg_s = _flash_steam_rate_kg_s(Q, SG, P1, P2, Pv)
 
@@ -384,13 +387,15 @@ def calculate_flash_correction(
         vendor: 厂商（可选；None 时跳过阀门厂查表）
         valve_model: 阀型（可选）
         masonelian_model: Masonelian 模型口径（默认 MASONELIAN_1973）
+        x: 显式 flash fraction（无量纲；P6-9 PICKUP-2 T3 架构组裁决 a）。
+           None 时从 dP/P1 推断（back-compat）；传值时强制使用。
 
     Returns:
         dict 含：
         - fl: Masonelian fl 修正系数（无量纲）
         - flash_steam_rate_kg_s: 闪蒸蒸汽量（kg/s）
         - masonelian_model: 模型口径字符串
-        - x: 压差比 = dP / P1（无量纲）
+        - x: flash fraction（无量纲；显式或推断）
         - vendor: 厂商（若提供）
         - valve_model: 阀型（若提供）
 
@@ -409,12 +414,16 @@ def calculate_flash_correction(
         # 再次校验（阀门厂数据理论上合规，但防御越界）
         _validate_fl_ff(FL, FF)
 
-    # 3. x = dP / P1（Pa → Pa；dP_bar → Pa）
-    dP_pa = dP_bar * 1.0e5
-    x = dP_pa / P1_pa if P1_pa > 0 else 0.0
+    # 3. x 解析（P6-9 PICKUP-2 T3：显式优先；None 时 back-compat 推断）
+    if x is not None:
+        x_effective = float(x)
+    else:
+        # back-compat: x = dP / P1
+        dP_pa = dP_bar * 1.0e5
+        x_effective = dP_pa / P1_pa if P1_pa > 0 else 0.0
 
     # 4. fl（Masonelian 修正系数）
-    fl = _masonelian_fl(FL, x, masonelian_model)
+    fl = _masonelian_fl(FL, x_effective, masonelian_model)
 
     # 5. flash_steam_rate_kg_s（闪蒸蒸汽量）
     flash_rate = _flash_steam_rate_kg_s(Q_m3h, SG, P1_pa, P2_pa, Pv_pa)
@@ -423,7 +432,7 @@ def calculate_flash_correction(
         "fl": fl,
         "flash_steam_rate_kg_s": flash_rate,
         "masonelian_model": masonelian_model,
-        "x": x,
+        "x": x_effective,
         "FL": FL,
         "FF": FF,
     }

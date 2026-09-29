@@ -18,6 +18,10 @@ P6-4 Task 5（C-24）补完：
   masonelian_model），不动既有 _compute_Cv_liquid（V1.2 严格）；
   公式实现见 ``flashing_correction.py`` 子模块。
 
+P6-9 PICKUP-2 T3（OPEN-P6-4-4 partial closure）补完：
+- 显式 x 参数（架构组裁决 a — 修复 x_p 推断 bug）；
+- _validate_flash_consistency(x, T_c, P1_kpa, P2_kpa, Pv_kpa) 入口强制校验。
+
 与 Task 3 chedl_wrapper.control_valve_* 的关系：
 - control_valve_C_liquid / control_valve_kv_liquid / control_valve_cv_gas：
   SPEC §3.2.1 简化公式自研（Path A 裁决），不调 fluids 完整 API；
@@ -38,7 +42,10 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from app.services.exceptions import PcsError
+from app.services.exceptions import (
+    InvalidFlashConsistencyError,
+    PcsError,
+)
 
 # IEC 60534-2-1 SI 标准常数（Nm³/h · bar 单位制，与 chedl_wrapper._N9_SI 一致）
 _N9_SI = 0.0865
@@ -275,6 +282,96 @@ def _compute_noise_sil(dP_pa: float, Q_m3h: float, Kc: float) -> float:
 
 
 # ============================================================================
+# 闪蒸一致性校验（P6-9 PICKUP-2 T3；OPEN-P6-4-4 partial closure）
+# ============================================================================
+
+
+def _water_saturation_pressure_kpa(T_c: float) -> float:
+    """水的饱和蒸汽压（kPa；T_c 单位 °C；NIST Antoine 近似）。
+
+    公式源：NIST Antoine 方程（水，1-374°C 两段拼接，单位 mmHg）：
+        log10(P_mmHg) = A - B / (T_c + C)
+
+    - Region 1（1-100°C）：A=8.07131, B=1730.63, C=233.426
+    - Region 2（100-374°C）：A=8.14019, B=1810.94, C=244.485
+
+    单位换算：1 mmHg = 0.133322 kPa；故 P_kpa = P_mmHg × 0.133322。
+
+    用途：P6-9 PICKUP-2 T3 闪蒸一致性校验入口（架构组裁决 a）；
+    返回 kPa。精度 ~1%（vs NIST steam table；不参与公式分支，
+    仅用于校验 P1/Pv 比值；测试 fixture 直接传 Pv_kpa 优先）。
+
+    Args:
+        T_c: 温度（°C；有效范围 [1, 374]）
+
+    Returns:
+        饱和蒸汽压（kPa）
+
+    Raises:
+        ValueError: T_c 超出 Antoine 有效范围
+    """
+    if not (1.0 <= T_c <= 374.0):
+        raise ValueError(
+            f"_water_saturation_pressure_kpa T_c={T_c}°C 超出 Antoine 有效范围 [1, 374]"
+        )
+    if T_c <= 100.0:
+        a, b, c = 8.07131, 1730.63, 233.426
+    else:
+        a, b, c = 8.14019, 1810.94, 244.485
+    log_p_mmhg = a - b / (T_c + c)
+    p_mmhg = 10.0 ** log_p_mmhg
+    return p_mmhg * 0.133322  # mmHg → kPa
+
+
+def _validate_flash_consistency(
+    x: float,
+    T_c: float,
+    P1_kpa: float,
+    P2_kpa: float,
+    Pv_kpa: float,
+) -> None:
+    """闪蒸一致性校验（架构组 T3 裁决 a；OPEN-P6-4-4 partial closure）。
+
+    校验规则（P6-9 PICKUP-2 T3；架构组 2026-10-31 裁决）：
+    - x == 0 且 P2 < Pv → 应闪蒸但 flash fraction 为 0，不一致
+    - x > 0 且 P2 >= Pv → 无闪蒸但 flash fraction > 0，不一致
+    - P1 < Pv × 0.95 → 入口压力远低于蒸汽压，应为气态而非液态闪蒸工况
+
+    Args:
+        x: 闪蒸分率（无量纲；0 = 无闪蒸，>0 = 部分闪蒸）
+        T_c: 温度（°C；用于存档/溯源）
+        P1_kpa: 阀入口绝压（kPa）
+        P2_kpa: 阀出口绝压（kPa）
+        Pv_kpa: 入口温度下饱和蒸汽压（kPa）
+
+    Raises:
+        InvalidFlashConsistencyError: 任一规则违背（HTTP 422）
+    """
+    details = {
+        "x": x,
+        "T_c": T_c,
+        "P1_kpa": P1_kpa,
+        "P2_kpa": P2_kpa,
+        "Pv_kpa": Pv_kpa,
+    }
+    if x == 0 and P2_kpa < Pv_kpa:
+        raise InvalidFlashConsistencyError(
+            f"x=0 但 P2={P2_kpa} kPa < Pv={Pv_kpa} kPa；应闪蒸",
+            details=details,
+        )
+    if x > 0 and P2_kpa >= Pv_kpa:
+        raise InvalidFlashConsistencyError(
+            f"x={x} > 0 但 P2={P2_kpa} kPa >= Pv={Pv_kpa} kPa；无闪蒸",
+            details=details,
+        )
+    if P1_kpa < Pv_kpa * 0.95:
+        raise InvalidFlashConsistencyError(
+            f"P1={P1_kpa} kPa 远低于 Pv={Pv_kpa} kPa（< 0.95 Pv）；入口应为气态",
+            details=details,
+        )
+
+
+# ============================================================================
 # CvEngine 主入口（P6-1 Task 8）
 # ============================================================================
 
@@ -319,6 +416,11 @@ class CvEngine:
         - 通用：valve_type（可选，默认 GLOBE），Kc（噪音系数，默认 1.0）
         - standard_profile_code（可选，默认 IEC_60534，C-07 裁决）；
           仅溯源不参与公式分支，调用方传值时仅校验非空字符串。
+        - x（P6-9 PICKUP-2 T3；可选）：显式 flash fraction（无量纲）。
+          None 时 back-compat 推断 x = (P1-P2)/P1（带 warning）；
+          传值时与 (T_c, P1_kpa, P2_kpa, Pv_kpa) 跑一致性校验。
+        - T_c（P6-9 PICKUP-2 T3；可选）：温度（°C）。仅当 x + T_c 均提供时
+          跑 _validate_flash_consistency；Pv 从 T_c 经 Antoine 近似推算。
 
         Returns:
             dict 含 CvResult ORM 21 键（choked/cavitation/flashing/noise_sil_db
@@ -329,6 +431,27 @@ class CvEngine:
             raise ValueError(
                 f"CvEngine.calculate fluid_phase 必须 ∈ {{LIQUID/GAS/VAPOR/TWO_PHASE}}："
                 f"实际 {fluid_phase!r}"
+            )
+
+        # P6-9 PICKUP-2 T3：显式 x 参数 + 闪蒸一致性校验（架构组裁决 a）
+        # 仅 LIQUID 路径生效（GAS/VAPOR 无 flash 语义）；x + T_c 齐备才校验。
+        x_explicit = kwargs.get("x")
+        T_c = kwargs.get("T_c")
+        if (
+            fluid_phase == "LIQUID"
+            and x_explicit is not None
+            and T_c is not None
+        ):
+            # Pv 从 T_c 经 Antoine 推算（kPa）— 精度 ~1%，仅校验用
+            Pv_kpa = _water_saturation_pressure_kpa(float(T_c))
+            P1_kpa = float(kwargs.get("P1_pa", 0.0)) / 1.0e3
+            P2_kpa = float(kwargs.get("P2_pa", 0.0)) / 1.0e3
+            _validate_flash_consistency(
+                x=float(x_explicit),
+                T_c=float(T_c),
+                P1_kpa=P1_kpa,
+                P2_kpa=P2_kpa,
+                Pv_kpa=Pv_kpa,
             )
 
         # 初始化 21 键 payload（对齐 CvResult ORM schema）
@@ -477,4 +600,7 @@ class CvEngine:
             masonelian_model=kwargs.get(
                 "masonelian_model", CvEngine._DEFAULT_MASONELIAN_MODEL
             ),
+            # P6-9 PICKUP-2 T3：显式 flash fraction 透传
+            # （架构组裁决 a — 修复 x_p 推断 bug）
+            x=kwargs.get("x"),
         )

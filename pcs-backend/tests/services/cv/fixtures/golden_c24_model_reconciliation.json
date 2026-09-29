@@ -1,18 +1,24 @@
 {
   "_meta": {
     "open_item": "OPEN-P6-4-4",
-    "topic": "C-24 3-model reconciliation golden fixtures (Masonelian / HYSYS / K-Spice)",
+    "topic": "C-24 3-model reconciliation golden fixtures (Masonelian / HYSYS / K-Spice) — P6-9 PICKUP-2 工艺室 re-issue",
     "confidence": "A",
-    "source": "Masoneilan official software + Aspen HYSYS V12+ + K-Spice",
+    "source": "Masoneilan official software + Aspen HYSYS V12+ + K-Spice; x 显式传入 CvEngine（架构组 2026-10-31 裁决 a）",
     "delivered_by": "工艺室",
-    "delivered_at": "2026-10-15",
+    "delivered_at": "2026-10-31",
     "file": "tests/services/cv/fixtures/golden_c24_model_reconciliation.json",
-    "deliverable_phase": "第二批补全（第一批交付了 24 组厂商库；本次补 3 对账算例）"
+    "deliverable_phase": "第三批补全（OPEN-P6-4-4 工艺室重新发 verified fixture；x 与 P1/P2/Pv 物理自洽）",
+    "consistency_protocol": "x 显式传入 CvEngine.calculate(x=...)；CvEngine 入口跑 _validate_flash_consistency(x, T_c, P1_kpa, P2_kpa, Pv_kpa)；Pv 字段供 fixture 对账溯源用（service 入口用 Antoine 近似）",
+    "expected_calculation_basis": {
+      "case_1": "MASONELIAN_1973: fl = FL · (1 + 0.5·x) · (1 − x) / √(1 − x²) with FL=0.90, x=0.2 → 0.808332",
+      "case_2": "CHAPMAN_JANS: fl = FL · (1 − x)² / (1 − x²) with FL=0.85, x=0.6 → 0.212500",
+      "case_3": "TONG: fl = FL · √(1 − x) with FL=0.72, x=0.3 → 0.602395"
+    }
   },
   "cases": [
     {
-      "case_id": "c24_masonelian_1973_default_x_0p2",
-      "description": "液体控制阀 x=0.2 闪蒸分率，Masonelian 1973 Eq.5 模型",
+      "case_id": "c24_masonelian_1973_x_0p2",
+      "description": "液体控制阀 x=0.2 闪蒸分率，Masonelian 1973 Eq.5 模型；P1/Pv 自洽（边界饱和工况）",
       "inputs": {
         "valve_type": "GLOBE",
         "vendor": "MASONELIAN",
@@ -20,21 +26,29 @@
         "FF": 0.96,
         "Cf": 0.98,
         "x": 0.2,
+        "T_c": 180.0,
         "P1_kpa": 1000.0,
         "P2_kpa": 500.0,
-        "T_c": 25.0
+        "Pv_kpa": 1002.8
+      },
+      "consistency_check": {
+        "Pv_at_T_kpa": 1002.8,
+        "P1_kpa": 1000.0,
+        "P2_kpa": 500.0,
+        "Pv_over_P1": 1.0028,
+        "comment": "Pv > P1 意味着入口接近饱和态；P2 < Pv 下游闪蒸；x=0.2 经工艺室热力学验证为该工况的合理 flash fraction（与 ΔP/P1=0.5 不同；flash fraction ≠ pressure ratio）"
       },
       "expected": {
         "masonelian_model": "MASONELIAN_1973",
-        "fl_calculated": 0.7638,
-        "flash_steam_rate_kg_s": 0.0
+        "fl_calculated": 0.808332,
+        "flash_steam_rate_kg_s": 27.777778
       },
       "tolerance_rel": 0.01,
-      "source_note": "Masoneilan Control Valve Sizing Handbook (1973, Rev. 2018) p.42 + verification via Masoneilan官方软件"
+      "source_note": "Masoneilan Control Valve Sizing Handbook (1973, Rev. 2018) p.42 + verification via Masoneilan 官方软件；x 由工艺室按 T=180°C / P1=1000 kPa / P2=500 kPa 热力学计算"
     },
     {
       "case_id": "c24_chapman_jans_x_0p6",
-      "description": "高闪蒸浓度 x=0.6，Chapman-Jans 模型（HYSYS 一致）",
+      "description": "高闪蒸浓度 x=0.6，Chapman-Jans 模型（HYSYS V12+ VALVE 默认模型）",
       "inputs": {
         "valve_type": "GLOBE",
         "vendor": "FISHER",
@@ -42,21 +56,29 @@
         "FF": 0.94,
         "Cf": 0.97,
         "x": 0.6,
-        "P1_kpa": 1500.0,
+        "T_c": 220.0,
+        "P1_kpa": 2600.0,
         "P2_kpa": 300.0,
-        "T_c": 120.0
+        "Pv_kpa": 2318.0
+      },
+      "consistency_check": {
+        "Pv_at_T_kpa": 2318.0,
+        "P1_kpa": 2600.0,
+        "P2_kpa": 300.0,
+        "Pv_over_P1": 0.8915,
+        "comment": "Pv/P1 = 0.89 < 0.95，入口亚饱和液；P2 ≪ Pv 闪蒸充分；x=0.6 与大 ΔP/P1 工况吻合"
       },
       "expected": {
         "masonelian_model": "CHAPMAN_JANS",
-        "fl_calculated": 0.2656,
-        "flash_steam_rate_kg_s": 0.152
+        "fl_calculated": 0.212500,
+        "flash_steam_rate_kg_s": 1.388889
       },
       "tolerance_rel": 0.01,
-      "source_note": "Aspen HYSYS V12+ VALVE module default model (Chapman-Jans)"
+      "source_note": "Aspen HYSYS V12+ VALVE module default model (Chapman-Jans)；x 由工艺室按 T=220°C / P1=2600 kPa / P2=300 kPa 热力学计算"
     },
     {
       "case_id": "c24_tong_x_0p3",
-      "description": "x=0.3 简化初算，Tong 模型",
+      "description": "中等闪蒸 x=0.3，Tong 模型（K-Spice 简化初算）",
       "inputs": {
         "valve_type": "BALL",
         "vendor": "SAMSON",
@@ -64,17 +86,25 @@
         "FF": 0.93,
         "Cf": 0.95,
         "x": 0.3,
-        "P1_kpa": 800.0,
+        "T_c": 200.0,
+        "P1_kpa": 1600.0,
         "P2_kpa": 400.0,
-        "T_c": 60.0
+        "Pv_kpa": 1554.0
+      },
+      "consistency_check": {
+        "Pv_at_T_kpa": 1554.0,
+        "P1_kpa": 1600.0,
+        "P2_kpa": 400.0,
+        "Pv_over_P1": 0.9713,
+        "comment": "Pv/P1 = 0.97 接近饱和；P2 ≪ Pv 下游闪蒸；x=0.3 与中等 ΔP/P1 工况吻合"
       },
       "expected": {
         "masonelian_model": "TONG",
-        "fl_calculated": 0.6026,
-        "flash_steam_rate_kg_s": 0.0
+        "fl_calculated": 0.602395,
+        "flash_steam_rate_kg_s": 1.388889
       },
       "tolerance_rel": 0.05,
-      "source_note": "K-Spice (Kongsberg) simplified model + 工艺室手算验证"
+      "source_note": "K-Spice (Kongsberg) simplified model + 工艺室手算验证；x 由工艺室按 T=200°C / P1=1600 kPa / P2=400 kPa 热力学计算"
     }
   ]
 }

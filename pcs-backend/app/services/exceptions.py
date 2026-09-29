@@ -182,6 +182,26 @@ class FlareAggregatorInputError(PcsError):
     status = 422
 
 
+# ---------------------------------------------------------------------------
+# CV 闪蒸一致性校验（P6-9 PICKUP-2 T3 / OPEN-P6-4-4 partial closure）
+# ---------------------------------------------------------------------------
+
+
+class InvalidFlashConsistencyError(PcsError):
+    """CvEngine 闪蒸一致性校验失败（HTTP 422；OPEN-P6-4-4 架构组裁决 a）。
+
+    触发场景（P6-9 PICKUP-2 T3；架构组 2026-10-31 裁决）：
+    - x == 0 但 P2 < Pv（应闪蒸但 flash fraction 为 0）
+    - x > 0 但 P2 >= Pv（无闪蒸但 flash fraction > 0）
+    - P1 < Pv × 0.95（入口压力远低于蒸汽压，应为气态而非液态闪蒸）
+
+    由 ``app.services.cv.cv_engine._validate_flash_consistency`` raise。
+    """
+
+    code = "CV_INVALID_FLASH_CONSISTENCY"
+    status = 422
+
+
 __all__ = [
     "PcsError",
     "PreconditionViolation",
@@ -205,4 +225,6 @@ __all__ = [
     "WorkspaceContextMissingError",
     # FLARE_SYS 项目级泄放汇总 (P6-FLR-001 / Task 19)
     "FlareAggregatorInputError",
+    # CV 闪蒸一致性校验（P6-9 PICKUP-2 T3）
+    "InvalidFlashConsistencyError",
 ]
