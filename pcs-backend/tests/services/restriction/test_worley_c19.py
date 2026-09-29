@@ -383,8 +383,8 @@ def test_mass_flow_capacity_choked_branch_and_is_capacity_ok() -> None:
     inp = _build_input(case)
     result = calc_drain_orifice(inp)
 
-    # 1) mass_flow_capacity matches choked-branch formula (Cd×Y_cr×Ftp×v_max) EXACT (rel=1e-9, brief ρ rounding)
-    #    Note: brief's ρ=58.52 is rounded from 58.5198...; exact ρ would give exact match
+    # 1) mass_flow_capacity matches choked-branch formula (Cd×Y_cr×Ftp×v_max)
+    #    EXACT (rel=1e-9, brief ρ rounding); brief's ρ=58.52 rounded from 58.5198...
     assert result.mass_flow_capacity_kg_s == pytest.approx(expected_mass_max_post_fix, rel=1e-9), (
         f"PCS mass_max={result.mass_flow_capacity_kg_s!r} ≠ post-fix={expected_mass_max_post_fix!r}"
     )
@@ -402,7 +402,8 @@ def test_mass_flow_capacity_choked_branch_and_is_capacity_ok() -> None:
 
     # 4) Pre-fix vs post-fix 对账（1.74× reduction 验证）
     expected_mass_max_pre_fix = expected_mass_max_post_fix / (cd * y_cr)
-    assert expected_mass_max_pre_fix / expected_mass_max_post_fix == pytest.approx(1.0 / (cd * y_cr), rel=1e-9)
+    ratio = expected_mass_max_pre_fix / expected_mass_max_post_fix
+    assert ratio == pytest.approx(1.0 / (cd * y_cr), rel=1e-9)
 
     # 5) is_capacity_ok EXACT bool (True)
     assert result.is_capacity_ok is True, (
@@ -445,8 +446,9 @@ def test_cd_y_cr_default_one_backward_compat() -> None:
 
     # 与 fixture.pre_fix_default 对账（保持 Ruling 12 前行为）
     pre_fix_mass_max = case["expected"]["xls_tautology_expected"]["mass_max_kg_s_pre_fix_default"]
-    assert result_default.mass_flow_capacity_kg_s == pytest.approx(pre_fix_mass_max, rel=1e-9), (
-        f"Default Cd/Y_cr mass_max={result_default.mass_flow_capacity_kg_s!r} ≠ pre-fix={pre_fix_mass_max!r}"
+    actual = result_default.mass_flow_capacity_kg_s
+    assert actual == pytest.approx(pre_fix_mass_max, rel=1e-9), (
+        f"Default Cd/Y_cr mass_max={actual!r} ≠ pre-fix={pre_fix_mass_max!r}"
     )
 
 
@@ -484,8 +486,9 @@ def test_cd_y_cr_post_fix_1p74x_reduction() -> None:
 
     # 1) post_fix = pre_fix × Cd × Y_cr^0.5（bit-for-bit）
     expected_post_fix = result_pre.mass_flow_capacity_kg_s * cd * y_cr
-    assert result_post.mass_flow_capacity_kg_s == pytest.approx(expected_post_fix, rel=1e-12), (
-        f"post_fix mass_max={result_post.mass_flow_capacity_kg_s!r} ≠ pre_fix × Cd × Y_cr={expected_post_fix!r}"
+    actual_post = result_post.mass_flow_capacity_kg_s
+    assert actual_post == pytest.approx(expected_post_fix, rel=1e-12), (
+        f"post_fix mass_max={actual_post!r} ≠ pre_fix × Cd × Y_cr={expected_post_fix!r}"
     )
 
     # 2) Reduction ratio ≈ 1/(Cd × Y_cr^0.5) = 1/(0.83932 × 0.68717) ≈ 1.734
@@ -511,13 +514,13 @@ def test_formula_ref_includes_cd_y_cr_ruling_12() -> None:
     result = calc_drain_orifice(inp)
     formula_ref = result.formula_ref
     assert "discharge_coefficient" in formula_ref, (
-        f"formula_ref 缺键 'discharge_coefficient'（Ruling 12）"
+        "formula_ref 缺键 'discharge_coefficient'（Ruling 12）"
     )
     assert "expansion_factor" in formula_ref, (
-        f"formula_ref 缺键 'expansion_factor'（Ruling 12）"
+        "formula_ref 缺键 'expansion_factor'（Ruling 12）"
     )
     assert "mass_flow_capacity" in formula_ref, (
-        f"formula_ref 缺键 'mass_flow_capacity'（Ruling 12）"
+        "formula_ref 缺键 'mass_flow_capacity'（Ruling 12）"
     )
     assert "Ruling 12" in formula_ref["discharge_coefficient"]
     assert "Ruling 12" in formula_ref["expansion_factor"]
@@ -648,8 +651,9 @@ def test_worley_c19_out_of_scope_ledger_complete() -> None:
 
 
 def test_worley_c19_root_cause_notes_cd_y_cr_status_closed() -> None:
-    """OPEN-P6-6A-4 Ruling 12 fix: root_cause_notes 中 xls_cd_discharge_coefficient_out_of_scope
-    + xls_y_cr_expansion_factor_out_of_scope 必须标记 status='CLOSED in OPEN-P6-6A-4 (Ruling 12 fix)'。
+    """OPEN-P6-6A-4 Ruling 12 fix: root_cause_notes 中
+    xls_cd_discharge_coefficient_out_of_scope + xls_y_cr_expansion_factor_out_of_scope
+    必须标记 status='CLOSED in OPEN-P6-6A-4 (Ruling 12 fix)'。
     """
     registered = {n["id"]: n for n in WORLEY["root_cause_notes"]}
     assert "xls_cd_discharge_coefficient_out_of_scope" in registered, (
