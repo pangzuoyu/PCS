@@ -22,6 +22,7 @@
 - **CI/CD 不做**（per memory 单人开发裁决）
 - **PcsError 子类 + frozen dataclass + formula_ref dict** 模式不可破（项目级 service 模式）
 - **UTIL 权威源（D1 裁决 1A）**: Sprint 2 起 5 表（`utility_power_items` / `utility_fuel_gas` / `utility_heat_exchange` / `utility_energy_summary` / `catalyst_loading`）为唯一权威写入路径；`util_results.consumption_json` JSONB 字段 **deprecated**（Sprint 1 遗留，仅 backward compat 读，Sprint 2 起不再更新）；Sprint 4 综合能耗验收读 5 表聚合
+- **历史/audit 线索保留原则（D1/D2/D3 共同裁决）**: 数据演进（JSONB → 5 表 / 沉淀解耦 / 状态联动）保留历史指针与 audit 字段，用显式状态字段（deprecated / source_sign_status）表达语义，不用级联删除或静默覆盖
 - **ChEDL 包装层不可破**: 业务代码禁直接 `import fluids.*`（ADR-0030）
 - **追溯链完整**: 设备记录通过 SourceModule + SourceRecordID + SourceService（V1.4 新增）三重溯源
 - **门禁哈希仅设计参数**: 商务/采购字段不参与门禁哈希
@@ -42,6 +43,7 @@
 5. **EQUIP_LIB 沉淀审批解耦** — 沉淀后记录与源项目解耦；若 source_project_id 未清空则复用库反污染源项目（Spec §3.2.3（3））
 6. **UTIL 双写权威性（D1 裁决 1A）** — Sprint 2 起 5 表是唯一权威写入路径；若 `summary_service` 仍写 JSONB 或 JSONB 读路径被误认为权威 → Sprint 4 综合能耗验收偏差 > 2%（Spec §3.2.2（3））；需在 Sprint 2 Task S2-7 Step 2.5 切换写路径 + Step 2.6 数据回填
 7. **sync_from_source 并发 CHECKED（D2 裁决 2A）** — 两路 SourceModule 同 (project_id, tag_number) 并发 CHECKED 时，若无 advisory lock 会 IntegrityError 500 或静默覆盖；advisory lock key 必须按 SPEC V1.4 §2.5 用 (project_id, tag_number) 复合，非全局 tag_number（Spec §3.2.1）；同时修复 Task S1-2 ORM `unique=True` 误伤跨项目同名位号
+8. **EQUIP_LIB 沉淀源 OBSOLETE 联动（D3 裁决 3A）** — 源 EQUIP_LIST OBSOLETE 后复用库记录**不消失**（沉淀是稳定副本）；`source_record_id` 保留为 audit 线索；源状态用 `source_sign_status` 镜像（pull 模式读时 join）；若误用 cascade DELETE → 复用库资产随项目退役蒸发（Spec §3.2.3（3））
 6. **UTIL 双写权威性（D1 裁决 1A）** — Sprint 2 起 5 表是唯一权威写入路径；若 `summary_service` 仍写 JSONB 或 JSONB 读路径被误认为权威 → Sprint 4 综合能耗验收偏差 > 2%（Spec §3.2.2（3））；需在 Sprint 2 Task S2-7 Step 2.5 切换写路径 + Step 2.6 数据回填
 
 ---
@@ -617,7 +619,7 @@ SEED_DATA = [
 ### Task S3-1: EQUIP_LIB 检索服务（TypeCode + 工艺条件 + 尺寸参数 + 关键词）
 
 **Files**:
-- Create: `pcs-backend/app/models/equipment_lib.py`（复用设备库 ORM）
+- Create: `pcs-backend/app/models/equipment_lib.py`（复用设备库 ORM；含 `source_record_id` SET NULL + `source_sign_status` + `source_obsolete_at` 2 字段镜像源状态，D3 裁决 3A pull 模式）
 - Create: `pcs-backend/alembic/versions/p7_open_009_007_equipment_lib.py`
 - Create: `pcs-backend/app/services/equip_lib/search_service.py`
 - Create: `pcs-backend/app/services/equip_lib/persist_service.py`
@@ -677,9 +679,21 @@ SEED_DATA = [
 
 **Interfaces**:
 - Consumes: `EquipmentList` ORM + 标准化字段（标准图号 / 适用条件 / 材质 / 重量 / 关键尺寸 / 原项目位号）
-- Produces: 沉淀记录（与源项目解耦）+ 审批流
+- Produces: 沉淀记录（保留 `source_record_id` audit 线索；解耦 `source_project_id`）+ 审批流
 
-- [ ] **Step 1]: 写 failing test — 验证沉淀后 source_project_id = NULL（Review Focus #5）
+**工时**: +0.5 人日（D3 裁决 3A：2 字段镜像 + 源状态 pull 模式 + 边界测试）
+
+- [ ] **Step 1]: 写 failing test — 验证沉淀后 `source_project_id = NULL` 但 `source_record_id` 保留（D3 裁决 3A + Review Focus #5）
+
+```python
+# tests/services/equip_lib/test_settle_service.py
+def test_settle_keeps_source_record_id_but_clears_source_project_id(db_session):
+    """D3 裁决 3A: 沉淀保留 source_record_id（audit 线索），仅解耦 source_project_id"""
+    lib = settle_from_equip_list(equip_id, db)
+    assert lib.source_project_id is None       # 解耦
+    assert lib.source_record_id == equip_id    # 保留 audit 线索
+    assert lib.source_tag_number == "P-101A"   # 保留
+```
 
 - [ ] **Step 2]: 跑 test 验证失败
 
@@ -687,7 +701,24 @@ SEED_DATA = [
 
 - [ ] **Step 4]: API 沉淀 + 待审批列表
 
-- [ ] **Step 5]: 边界测试 — 缺少必填字段（标准图号 / 材质）抛 `SettleValidationError`
+- [ ] **Step 5]: 边界测试 — 缺少必填字段（标准图号 / 材质）抛 `SettleValidationError` + 源 EQUIP_LIST OBSOLETE 后复用库记录仍存在（D3 裁决 3A pull 模式）
+
+```python
+# tests/services/equip_lib/test_settle_service.py
+def test_obsolete_source_does_not_remove_lib_record(db_session):
+    """D3 裁决 3A: 源 OBSOLETE 后复用库记录仍存在（沉淀是稳定副本）"""
+    lib = settle_from_equip_list(equip_id, db)
+    equip = db.get(EquipmentList, equip_id)
+    equip.sign_status = "OBSOLETE"
+    db.commit()
+
+    # 复用库记录仍在（不 cascade DELETE）
+    assert db.get(EquipmentLib, lib.id) is not None
+
+    # pull 模式：读时源状态为 OBSOLETE
+    result = search_with_source_status({}, db)
+    assert result[0].source_sign_status_live == "OBSOLETE"
+```
 
 - [ ] **Step 6]: pytest 全量 0 regression
 
@@ -908,7 +939,7 @@ SEED_DATA = [
 | Sprint 0（已完成）| 5 docs | ~1.5 人周 |
 | Sprint 1 | 5 任务 | ~4.3–5.5 人周（含 T0 +0.5–1 人日 + D2 advisory lock +0.5 人日）|
 | Sprint 2 | 7 任务 | ~4.5–5.5 人周（迁移本身 0.8 人周 + service/API/fixture 全口径 2–3 人周 + API 整合 + G-08 验证 + JSONB→5 表回填 0.5–0.7 人周 + 工艺室签署 follow-up 缓冲 0.5 人周 + 对账超差应急 1.0 人周）|
-| Sprint 3 | 3 任务 | ~1–1.5 人周 |
+| Sprint 3 | 3 任务 | ~1.5–2 人周（含 D3 source_sign_status 镜像 +0.5 人日）|
 | Sprint 4 | 4 任务 | ~2–2.5 人周 |
 | 收口 + wolf + workspace cleanup | 1 | ~0.3 人周 |
 | **总计** | **24 任务** | **~13.5–16.7 人周**（算术：1.5 + 4.2–5.4 + 4.5–5.5 + 1–1.5 + 2–2.5 + 0.3）|
@@ -940,6 +971,7 @@ P7 Sprint 1-4 完成后：
 | 10 | R-02 方案 A 工艺室签署 vs P6 时间窗 | 10-08~10-29 四节点与 5D-2 启动窗口重叠 | 2026-10-08 前 |
 | 11 | UTIL 双写权威性（D1 裁决 1A）| Sprint 2 起 5 表权威 + JSONB deprecated；Sprint 1 JSONB 写路径须在 Sprint 2 Task S2-7 Step 2.5 关闭 + Step 2.6 数据回填（jsonb_to_5tables_migration.py）| Sprint 2 Task S2-7 末 |
 | 12 | sync_from_source 并发控制（D2 裁决 2A）| advisory lock per (project_id, tag_number) + UNIQUE 复合约束双保险；Sprint 4 Task S4-3 复用同锁 key；Task S1-2 ORM `unique=True` 误伤跨项目位号 → 改 UniqueConstraint(project_id, tag_number) | Sprint 1 Task S1-4 末 |
+| 13 | EQUIP_LIB 沉淀源 OBSOLETE 联动（D3 裁决 3A）| source_record_id 保留 + cascade=SET NULL + source_sign_status 镜像（pull 模式读时 join）；Task S3-3 Step 1 明确 source_record_id 保留（不仅 source_project_id 解耦）| Sprint 3 Task S3-3 末 |
 
 ## 关联
 
