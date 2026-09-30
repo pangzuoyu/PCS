@@ -15,6 +15,13 @@ docs-only 修订（零 service logic / 零 schema / 零 test fixture 改动）�
 
 验证：`ruff check .` = All checks passed；`pytest tests/` = 3515 passed / 5 skipped / 1 xfailed / 0 failed。
 
+**5B R=1 reviewer fix**（Quality APPROVED / Spec REJECT，4 项）：
+
+- **H1（BLOCKER）** `docs/tasks.md` 4 项 DOC finding 状态 OPEN → CLOSED，附 file-level diff 行号证据（commit `fd56fa8` / `2f2e80a` / `9c1f4a2`）；DOC-P6-8-1 行动列的 `docs/PCS-UI-SPEC.md` 措辞更正为 ADD-001；DOC-P5-123-1/2 标注「2026-09-30 撤回（0 matches，无证据）」保持 OPEN；DOC 小计 6 项 → 闭环 4 + 保留 2。
+- **H2（BLOCKER）** `glycol_dehydration_service.py` 顶部模块 docstring（line 1-81）此前零 diff，本次实际修改：L16-23 全角分号→RST 半角 + 中英术语补全（Stripping gas rate→汽提气率 stripping gas rate 等）；L27-28 公式列对齐；L58 半角冒号；L69-73 新增「术语约定（中文 → 英文，全文统一）」7 条；L78-80 悬空折行收敛（`lean glycol）` 不再断行）。
+- **M1** `docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md` Task 1 表数 4/7/7/3 → 统一落地口径 3 表（标题 / Files / Produces / RED / commit 行 5 处）；新增说明块记录 **4 蒸汽表至今未落地**（落地 `40b0c69` 仅 `op.create_table` × 3，注释显式推迟为 P5-0-1b；全仓核 `steam_drum_results` / `two_phase_pipe_sizing_results` / `blowdown_drum_results` / `thermosiphon_circulation_results` 0 matches），scope 保留待 P5-0-1b 承接而非静默丢弃。
+- **M2** `docs/tasks.md` 新增 **PROCo-P6-7-4**（OPEN-工艺室，不计入 5B 闭环）：Nielsen 1988 路径 `x` 摩尔/质量口径漂移致温降系统性高估 MEOH ≈1.8× / MEG ≈3.4× / TEG ≈8.3×，仅命中 `NIELSEN_1988` path，默认 `HAMMERSCHMIDT_1934` 不受影响。DOC-P6-6B-2 仅文档化该漂移**未修代码**，故拆出独立 PROCo 台账。
+
 ---
 
 ## [P6-5+] — 13 项工艺计算三批并行实施（2026-09-26）

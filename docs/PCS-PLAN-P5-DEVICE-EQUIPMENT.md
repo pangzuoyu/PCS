@@ -40,19 +40,21 @@
 
 ### 批 P5-0 — 数据模型层（7 task：Task 1~4 主 + Task 24/25/26 前置，全部批内执行；含 P5-0-4a 二次修订，Task 4 内）
 
-#### Task 1: P5-0-1 P5-OPEN-005 模型扩展（relief_results + column_sizing + mixer_results + 4 蒸汽表 + design_stage）
+#### Task 1: P5-0-1 P5-OPEN-005 模型扩展（relief_results + column_sizing + mixer_results + design_stage）
+
+> **4 蒸汽表未落地说明**（2026-09-30 核）：本 Task 原计划 7 表（3 P5-OPEN-005 表 + 4 蒸汽表）。落地 commit `40b0c69` 仅创建 **3 表**（`op.create_table` × 3，registry 同步 +3 → 8 类），并在 `calc_lineage.py` 注释中把 4 蒸汽表显式推迟为 **P5-0-1b**（"P5-0-1b（4 蒸汽表）后 +4 = 13 类"）。经核 `app/models/` 与 `alembic/versions/` 全仓无 `steam_drum_results` / `two_phase_pipe_sizing_results` / `blowdown_drum_results` / `thermosiphon_circulation_results` 任何一处 —— **4 蒸汽表至今未落地**，非本批删除。下方表数统一为落地口径 3 表；4 蒸汽表 scope 保留待 P5-0-1b 承接。
 
 **Files**:
 - Create: `alembic/versions/p5_open_005_model_extension.py`
-- Modify: `app/models/calc.py`（新增 4 表 ORM + 现有表加 design_stage 列）
+- Modify: `app/models/calc.py`（新增 3 表 ORM + 现有表加 design_stage 列）
 - Test: `tests/models/test_p5_model_extension.py`
 
 **接口**:
-- Produces: `relief_results` / `column_sizing_results` / `mixer_results` / `steam_drum_results` / `two_phase_pipe_sizing_results` / `blowdown_drum_results` / `thermosiphon_circulation_results` 7 表 ORM；`vessel_results.design_stage` / `psv_results.design_stage` / `column_sizing_results.design_stage` 三列（BASIC/DETAIL）
+- Produces: `relief_results` / `column_sizing_results` / `mixer_results` 3 表 ORM；`vessel_results.design_stage` / `psv_results.design_stage` / `column_sizing_results.design_stage` 三列（BASIC/DETAIL）。**4 蒸汽表推迟至 P5-0-1b**
 - **RECORD_TYPE_REGISTRY 即时注册**（裁决 #11 时机修正）：P5-0-1 完成后立即在 `app/services/calc_lineage.py` 注册 3 表 + 现有 5 表 = **8 类**（落地 commit `40b0c69` 口径；后续批次累加至 20 类）；新增测试断言 registry 完整性（防止 Task 4 主键 rename 后落库验证空跑）
 
 **Steps**:
-1. RED: 写 7 表 ORM 存在性 + design_stage 列存在性 + alembic 迁移 head 跑通测试 + **RECORD_TYPE_REGISTRY 8 类注册断言**
+1. RED: 写 3 表 ORM 存在性 + design_stage 列存在性 + alembic 迁移 head 跑通测试 + **RECORD_TYPE_REGISTRY 8 类注册断言**
 2. GREEN: 按 SUP-008 V1.1 §2.2-§2.6 + §8.4 + SUP-010 V1.1 §3.1 建表；design_stage 加列（BASIC/DETAIL 枚举）；calc_lineage.RECORD_TYPE_REGISTRY 同步追加
 3. 测试：DICT V3.7/V3.9 字段对齐；alembic upgrade head OK；列存在性；registry 完整性
 4. commit: `feat(p5-0-1): model extension (3 tables + design_stage + registry 8 类)`

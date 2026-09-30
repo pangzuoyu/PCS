@@ -13,19 +13,19 @@ P6-5 v2 5 段计算（contact-tower-only）：
 P6-6A-6 v5.1 FULL glycol dehydration system 扩展：
 
   6. 接触塔高度（H = NTU × HETP）
-  7. 接触塔全径（D_full = K·sqrt(Q)；K=7.1187 单点标定，ADR-0045 Rev A）
+  7. 接触塔全径（D_full = K·sqrt(Q)；K = 7.1187 单点标定，ADR-0045 Rev A）
   8. 截面积（CSA = π·D²/4）
   9. 水的露点（Behr 反函数 via brentq + Newton fallback）
-  10. 酸气修正后的露点（Linear placeholder, P6-6B 接管真 Wichert-Aziz）
-  11. 调整后露点（diff method, XLS PR-018 E25）
-  12. Stripping gas rate（GPSA §20.4 Eq.20-5）
-  13. Reboiler duty（简式焓平衡 3 项）
+  10. 酸气修正后的露点（Linear placeholder；P6-6B 接管真 Wichert-Aziz）
+  11. 调整后露点（diff method，XLS PR-018 E25）
+  12. 汽提气率 stripping gas rate（GPSA §20.4 Eq.20-5）
+  13. 再沸器负荷 reboiler duty（简式焓平衡 3 项）
   14. 传质单元数 NTU（Kremser）
 
 公式（GPSA §20.4 Eq.20-4）：
 
-  N_min = ln(y_in / y_out) / ln(α)            原始公式
-  N_min_final = ceil(N_min × (L/V)^-0.5)     L/V 修正（M-4 v2 BLOCKER）
+  N_min = ln(y_in / y_out) / ln(α)          原始公式
+  N_min_final = ceil(N_min × (L/V)^-0.5)   L/V 修正（M-4 v2 BLOCKER）
   α = TEG/H2O 相对挥发度（典型 4.5；DEG 较低 2.8）
 
 接触塔直径（GPSA §20.4 经验）：
@@ -55,7 +55,7 @@ Behr 系数（P6-6A-6 v5.1 Day-0 Gate）：
 
 冻结接口（A1-A4 + B1-B5 批次一致性）：
 
-  - dataclass(frozen=True)：Input + Result
+  - dataclass(frozen=True): Input + Result
   - PcsError 子类（code/status 字段）
   - formula_ref dict 标注公式来源（GPSA §20.4 Eq.20-4 等）
 
@@ -75,9 +75,18 @@ P6-6A-6 v5.1 Ruling 5 OUT_OF_SCOPE 闭环：
 
   FULL system 仅 TEG；DEG 抛 GlycolDehydrationError
 
-P6-6B T9 OUT_OF_SCOPE 4 子模块（reboiler / stripping / full column /
-lean glycol）等待 P6-7 服务扩展；CONFIG 表已占位
-``glycol_dehydration_full_system``（10 行典型工况范围）。
+P6-6B T9 OUT_OF_SCOPE 4 子模块（reboiler / stripping / full column / lean glycol）
+等待 P6-7 服务扩展；CONFIG 表已占位 ``glycol_dehydration_full_system``（10 行典型工况范围）。
+
+术语约定（中文 → 英文，全文统一）：
+
+  - 甘醇：glycol；按分子量区分二甘醇（DEG）/ 三甘醇（TEG）
+  - 接触塔：contactor（塔盘 tray 型；本 service 仅 tray，不含 structured packing 计算）
+  - 塔盘：tray；N_min 为最小塔盘数，contactor_tray_count 为实际塔盘数
+  - 贫甘醇：lean glycol（浓度 wt%，见 lean_glycol_concentration_wt_pct）
+  - 汽提气：stripping gas（SCF/gal TEG）
+  - 露点：dewpoint（°F；Behr 反函数求解，缺 T/P 时置 None）
+  - 再沸器：reboiler（负荷 BTU/hr 主输出，kW 派生见 reboiler_duty_kw）
 """
 from __future__ import annotations
 

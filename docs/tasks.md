@@ -33,10 +33,11 @@
 | PROCo-P6-7-3 | P6-7 | `pcs-backend/tests/services/psychro/test_*_fixtures*.py`（T8 path b） | fixture 3-sig-fig 近似（C3H8 path b 1.81% diff, dual-tolerance 容纳） | LOW/INFO | OPEN-工艺室 |
 | PROCo-P6-8-1 | P6-8 | `pcs-backend/app/services/psychro/glycol_dehydration_service.py`（T1 contactor_temperature_f 范围校验） | brief Step 1 `contactor_temperature_f le=300` vs impl `le=200`（工艺室口径差异） | LOW | 待澄清 |
 | PROCo-P6-8-3 | P6-8 | `glycol_dehydration_service.py`（T1 SGR 单位混算） | SGR 单位混算（psi vs mmHg），P6-9-PICKUP-2 T2 部分修复（公式结构），**Antoine A=15.30/B=8500 待工艺室校准** | LOW | OPEN-P6-9-PICKUP-2-1（xfail） |
+| PROCo-P6-7-4 | P6-7 | `pcs-backend/app/services/psychro/hydrate_inhibition_service.py:257`（Nielsen 1988 path） | **Nielsen 1988 路径 `x` 摩尔/质量口径漂移**：Nielsen 原式 `x` 为液相**摩尔**分数，代码取 `inhibitor_concentration_in_water_wt_pct / 100.0` 即**质量**分数。质量分数数值恒大于同 wt% 对应的摩尔分数（M_wt = 1/(1 + (M_inhib/M_water)(w/w)·(1-w)/w) 量级），致 `NIELSEN_1988` 路径温降系统性高估：MEOH ≈1.8× / MEG ≈3.4× / TEG ≈8.3×。**仅命中 `NIELSEN_1988` 显式 path；默认 `HAMMERSCHMIDT_1934` 不受影响**（该路径用 Hammerschmidt 质量分数式，本就无漂移） | MEDIUM | **OPEN-工艺室**：待 Nielsen 1988 原文复核 + 工艺室裁定口径（按 mol frac 重算 vs 保留 wt% 近似并登记容差）｜**2026-09-30 由 P6-9-PICKUP-5 5B DOC-P6-6B-2 拆出**：该项仅文档化口径漂移（docstring 摩尔→质量），**未修代码**，故不计入 5B 闭环 |
 
 > **dropped PROCo-P6-8-{2,4}**：brief q_total 数值偏差已 P6-9-PICKUP-2 闭环；Fig 20-4 完整曲线 HIGH 范畴同 PICKUP-2 T1 else-branch 部分修复（remaining 工艺室交付走 OPEN-P6-9-PICKUP-2-1，不重复登记 LOW）
 
-**小计**：5 项（2 OPEN-工艺室 + 1 待 OPEN-P6-6A-9.5 + 1 待澄清 + 1 OPEN-P6-9-PICKUP-2-1）→ **保留 OPEN（P6-9-PICKUP-6 范围外）**
+**小计**：6 项（3 OPEN-工艺室 + 1 待 OPEN-P6-6A-9.5 + 1 待澄清 + 1 OPEN-P6-9-PICKUP-2-1）→ **全部保留 OPEN（P6-9-PICKUP-5/6 范围外）**。其中 PROCo-P6-7-4 为 P6-9-PICKUP-5 5B 新增登记。
 
 ### 代码卫生（自动化工具可修）
 
@@ -63,17 +64,17 @@
 
 | ID | Batch | 文件 / 范围 | 描述 | 严重性 | 行动 |
 |---|---|---|---|---|---|
-| DOC-P6-6B-1 | P6-6B | `pcs-backend/app/services/psychro/glycol_dehydration_service.py` docstring (T3 4 项) | docstring nit（4 项 doc-style + 中文标点 + rst格式） | LOW | 人工 review — **OPEN**：P6-9-PICKUP-6 未改动该文件 docstring |
-| DOC-P6-6B-2 | P6-6B | `pcs-backend/app/services/hydrate_inhibition_service.py` (T8 4 项) | spec deviation（4 项 spec 与实现小幅漂移） | LOW | SPEC V1.13 修订预留 — **OPEN**：P6-9-PICKUP-6 未改动该 service 文件 |
-| DOC-P6-8-1 | P6-8 | `docs/PCS-UI-SPEC.md` §3.9.1.1 C-16 | P6-8 实施后 12 result fields 文档同步（部分含 OUT_OF_SCOPE 引用） | INFO | SPEC V1.13 修订预留 — **OPEN**：`docs/PCS-UI-SPEC.md` 仍为 V1.0，`grep "C-16"` = 0（2026-09-30 核） |
-| DOC-P5-0-1 | P5-0 | `docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md` | P5-0 实施后 5 commits 部分内容与计划文档 nit（待沉淀） | LOW | 人工 review — **OPEN**：P6-9-PICKUP-6 未改动该 plan 文件 |
-| DOC-P5-123-1 | P5-123 | `docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md` | P5-123 实施后 5 commits 部分内容与计划文档 nit（待沉淀） | LOW | 人工 review — **OPEN**：P6-9-PICKUP-6 未改动该 plan 文件 |
-| DOC-P5-123-2 | P5-123 | `README.md` / `CHANGELOG.md` | P5-123 commit message 格式 nit（待沉淀） | INFO | 人工 review — **OPEN**：P6-9-PICKUP-6 CHANGELOG/README 改动为 P6-9-PICKUP-4 批记述，未涉 P5-123 commit message 格式 |
+| DOC-P6-6B-1 | P6-6B | `pcs-backend/app/services/psychro/glycol_dehydration_service.py` docstring (T3 4 项) | docstring nit（4 项 doc-style + 中文标点 + rst格式） | LOW | 人工 review — **CLOSED** via P6-9-PICKUP-5 5B commit `fd56fa8` + 本 commit（5B R=1 fix）（file-level diff，行号为 5B R=1 fix commit 落地后终态）：顶部模块 docstring L16-23 全角分号→RST 半角 + 中英术语补全（`Stripping gas rate`→`汽提气率 stripping gas rate` 等）；L27-28 公式列对齐；L58 半角冒号；L78-79 悬空折行收敛（`lean glycol）` 不再断行）；L81-88 新增「术语约定（中文 → 英文，全文统一）」7 条；`_DewpointResult` L296-300 三态改 RST 列表；`GlycolDehydrationInput` L335 补 P6-8 T5 的 2 字段；`GlycolDehydrationResult` L391 补 P6-8 T5 的 4 输出 + `warnings`；常量 L115 `gal H2O`→`lb H2O`） |
+| DOC-P6-6B-2 | P6-6B | `pcs-backend/app/services/psychro/hydrate_inhibition_service.py` (T8 4 项) | spec deviation（4 项 spec 与实现小幅漂移） | LOW | SPEC V1.13 修订预留 — **CLOSED** via P6-9-PICKUP-5 5B commit `fd56fa8`（file-level diff：L21 摩尔分数→质量分数（wt%/100 粗换）；L51-52 模块 docstring 尾段同步；L257 新增行内注释说明不做摩尔质量换算。零数值改动，零 fixture 改动。**遗留量级偏差见 PROCo-P6-7-4**） |
+| DOC-P6-8-1 | P6-8 | `spec/PCS-SPEC-ADD-001 计算覆盖增补规格说明书.md` §3.9.1 C-16 | P6-8 实施后 12 result fields 文档同步（部分含 OUT_OF_SCOPE 引用） | INFO | **CLOSED** via P6-9-PICKUP-5 5B commit `2f2e80a`（file-level diff：版本头 L3 V1.12→V1.13；§3.9.1 L883-896 新增 V1.13 段登记 P6-8 T5 的 4 字段，L896 字段总数对账 7+12+4=23（`dataclasses.fields` 实测一致）；§3.9.1 实现落点行号 `:294`→`:356`；§9 变更记录 L1182 增 V1.13 row。V1.10 实施基线冻结声明保留。**注：原行动列误指 `docs/PCS-UI-SPEC.md`，user ruling 2026-09-30 更正为 ADD-001**） |
+| DOC-P5-0-1 | P5-0 | `docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md` | P5-0 实施后 5 commits 部分内容与计划文档 nit（待沉淀） | LOW | 人工 review — **CLOSED** via P6-9-PICKUP-5 5B commit `fd56fa8` + 本 commit（5B R=1 fix）（file-level diff，行号为 5B R=1 fix commit 落地后终态）：L41 P5-0 章节头补 P5-0-4a 标注；L54 registry 12 类→8 类（落地 `40b0c69`）+ 注明累加至 20 类；L57 RED 步同步；L60 Task 1 commit 行 7 tables→3 tables；L112 Task 4 commit 行 `p5-0-4`→`p5-0-4a`（落地 `34ab33e`）；L520 前置任务章节头 `Task 24/25`→`Task 24/25/26`；**M1** Task 1 表数 4/7/7/3 → 统一落地口径 3 表（L45 新增说明块记录 4 蒸汽表至今未落地、推迟为 P5-0-1b，scope 保留） |
+| DOC-P5-123-1 | P5-123 | `docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md` | P5-123 实施后 5 commits 部分内容与计划文档 nit（待沉淀） | LOW | 人工 review — **OPEN（撤回）**：user ruling 2026-09-30 撤回；`grep -c "P5-123"` = 0（全仓无对应 finding 可溯），无证据支撑，不予闭环 |
+| DOC-P5-123-2 | P5-123 | `README.md` / `CHANGELOG.md` | P5-123 commit message 格式 nit（待沉淀） | INFO | 人工 review — **OPEN（撤回）**：user ruling 2026-09-30 撤回；同 DOC-P5-123-1，0 matches 无证据，不予闭环 |
 
 > **dropped DOC-P6-7-1**：brief 模板高温系数 nit（LOW 范畴，P6-9-PICKUP-6 brief 模板批改时一并 sweep）
 > **dropped DOC-P6-8-2**：brief Step 1 `contactor_temperature_f le=300` 文字与 impl `le=200` 偏差（PROCo-P6-8-1 已登记同源 finding，避免重复）
 
-**小计**：6 项（3 类：SPEC 修订预留 + brief 模板 sweep + commit message 格式）→ **P6-9-PICKUP-6 全部 6 项保留 OPEN**（本批为 docs-only 批，未实际编辑 service docstring / SPEC / plan / README / CHANGELOG）
+**小计**：6 项 → **P6-9-PICKUP-5 5B 闭环 4 项**（DOC-P6-6B-1 / DOC-P6-6B-2 / DOC-P6-8-1 / DOC-P5-0-1，均有 file-level diff 证据）；**保留 OPEN 2 项**（DOC-P5-123-1 / DOC-P5-123-2 — user ruling 2026-09-30 撤回，0 matches 无证据）
 
 ### 重构（需要重构 plan）
 
