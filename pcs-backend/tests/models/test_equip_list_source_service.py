@@ -238,7 +238,8 @@ def test_p7_s1_001_chains_on_previous_head() -> None:
     assert script.get_revision(mod.down_revision) is not None, (
         f"down_revision {mod.down_revision} 不在迁移图中（迁移链断裂）"
     )
-    # p7_s1_001 之后无分叉多 head：head 必须仍是 p7_s1_001
-    assert script.get_current_head() == mod.revision, (
-        f"alembic head 应为 {mod.revision}，实为 {script.get_current_head()}"
+    # p7_s1_001 必须入图（未删改）：walk_revisions 含 p7_s1_001
+    # 不断言 single-head —— 下一迁移（S1-3 / Sprint 2）落地即换 head。
+    assert any(r.revision == mod.revision for r in script.walk_revisions()), (
+        f"alembic 迁移图中无 {mod.revision}（迁移被删改或未入图）"
     )
