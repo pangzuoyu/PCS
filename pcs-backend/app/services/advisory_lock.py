@@ -5,7 +5,10 @@ pg_advisory_xact_lock(classid, objid) — 事务结束释放；同 classid+objid
 
 from __future__ import annotations
 
+from uuid import UUID
+
 from sqlalchemy import text
+from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
@@ -19,3 +22,23 @@ async def acquire_record_lock(
         text("SELECT pg_advisory_xact_lock(:c, :o)"),
         {"c": classid, "o": objid},
     )
+
+
+async def acquire_equip_list_lock(
+    session: AsyncSession, *, project_id: UUID, tag_number: str
+) -> None:
+    """Per D2 裁决 2A: lock per (project_id, tag_number) for new EquipmentList INSERT serialization.
+
+    Uses PG ``hashtext`` composite key. SQLite raises ``OperationalError`` (no
+    ``hashtext``/``pg_advisory_xact_lock``) → silently no-op (single-thread
+    happy path OK; concurrent test gates ``pcs_test`` only).
+    """
+    key = f"{project_id}::{tag_number}"
+    try:
+        await session.execute(
+            text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+            {"key": key},
+        )
+    except OperationalError:
+        # SQLite (no hashtext / pg_advisory_xact_lock) — skip lock
+        return
