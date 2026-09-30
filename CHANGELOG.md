@@ -8,7 +8,7 @@
 
 docs-only 修订（零 service logic / 零 schema / 零 test fixture 改动）：
 
-- **DOC-P6-8-1** `spec/PCS-SPEC-ADD-001 计算覆盖增补规格说明书.md` V1.12 → V1.13：§3.9.1 C-16 `GlycolDehydrationResult` 字段清单由 V1.12 冻结的 12 项同步至 23 项，新增 V1.13 段登记 P6-8 T5 追加的 4 项（`reboiler_duty_kw` / `stripping_gas_rate_scf_gal` / `lean_glycol_concentration_wt_pct` / `warnings`）+ 字段总数对账（7 + 12 + 4 = 23，与 `dataclasses.fields` 实测一致）；§3.9.1「实现落点」行号 `:294` → `:356`；§9 changelog 增 V1.13 row。V1.10 实施基线保持冻结。
+- **DOC-P6-8-1** `spec/PCS-SPEC-ADD-001 计算覆盖增补规格说明书.md` V1.12 → V1.13：§3.9.1 C-16 `GlycolDehydrationResult` 字段清单由 V1.12 冻结的 12 项同步至 23 项，新增 V1.13 段登记 P6-8 T5 追加的 4 项（`reboiler_duty_kw` / `stripping_gas_rate_scf_gal` / `lean_glycol_concentration_wt_pct` / `warnings`）+ 字段总数对账（7 + 12 + 4 = 23，与 `dataclasses.fields` 实测一致）；§3.9.1「实现落点」行号 `:294` → `:365`；§9 changelog 增 V1.13 row。V1.10 实施基线保持冻结。
 - **DOC-P5-0-1** `docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md` P5-0 章节 4 处 nit 对齐落地 commit 口径：Task 1 commit 行 `7 tables + registry 12 类` → `3 tables + registry 8 类`（落地 `40b0c69`）；Task 1 registry 断言 12 类 → 8 类；Task 4 commit 行 `p5-0-4` → `p5-0-4a`（落地 `34ab33e`）；P5-0 章节头补 P5-0-4a 二次修订标注；前置任务章节头 `Task 24/25` → `Task 24/25/26`。
 - **DOC-P6-6B-1** `app/services/psychro/glycol_dehydration_service.py` docstring 一致性：`_DewpointResult` 三态列表改 RST 显式（`- FOUND:` / `- EXTRAPOLATED:` / `- NOT_FOUND:`）；`GlycolDehydrationInput` 补 P6-8 T5 的 2 个未文档化 optional 字段（`reboiler_temperature_f` / `teg_circulation_rate_gal_lb`）；`GlycolDehydrationResult` 补 P6-8 T5 的 4 个未文档化输出 + `warnings`（result 字段数 12 → 23）；`_LV_REFERENCE` 注释单位 `gal TEG / gal H2O` → `gal TEG / lb H2O`（SPEC §3.9.1.1 明记 brief 原文 "gal/gal" 为笔误）。
 - **DOC-P6-6B-2** `app/services/psychro/hydrate_inhibition_service.py` spec deviation：模块 docstring 两处「`x` 摩尔分数」改为「质量分数（wt% / 100 粗换，非摩尔分数）」，与 `_calculate_nielsen_depression_full` line 257 实际算法（`wt_pct / 100.0`，无摩尔质量换算）对齐；同步新增行内注释。**纯 docstring/注释，零数值改动**。
@@ -17,8 +17,8 @@ docs-only 修订（零 service logic / 零 schema / 零 test fixture 改动）�
 
 **5B R=1 reviewer fix**（Quality APPROVED / Spec REJECT，4 项）：
 
-- **H1（BLOCKER）** `docs/tasks.md` 4 项 DOC finding 状态 OPEN → CLOSED，附 file-level diff 行号证据（commit `fd56fa8` / `2f2e80a` / `9c1f4a2`）；DOC-P6-8-1 行动列的 `docs/PCS-UI-SPEC.md` 措辞更正为 ADD-001；DOC-P5-123-1/2 标注「2026-09-30 撤回（0 matches，无证据）」保持 OPEN；DOC 小计 6 项 → 闭环 4 + 保留 2。
-- **H2（BLOCKER）** `glycol_dehydration_service.py` 顶部模块 docstring（line 1-81）此前零 diff，本次实际修改：L16-23 全角分号→RST 半角 + 中英术语补全（Stripping gas rate→汽提气率 stripping gas rate 等）；L27-28 公式列对齐；L58 半角冒号；L69-73 新增「术语约定（中文 → 英文，全文统一）」7 条；L78-80 悬空折行收敛（`lean glycol）` 不再断行）。
+- **H1（BLOCKER）** `docs/tasks.md` 4 项 DOC finding 状态 OPEN → CLOSED，附 file-level diff 行号证据（commit `fd56fa8` / `2f2e80a` / 5B R=1 fix commit）；DOC-P6-8-1 行动列的 `docs/PCS-UI-SPEC.md` 措辞更正为 ADD-001；DOC-P5-123-1/2 标注「2026-09-30 撤回（0 matches，无证据）」保持 OPEN；DOC 小计 6 项 → 闭环 4 + 保留 2。
+- **H2（BLOCKER）** `glycol_dehydration_service.py` 顶部模块 docstring（line 1-81）此前零 diff，本次实际修改：L16-23 ASCII 标点 → 全角 CJK 标点（`Linear placeholder, ` → `Linear placeholder；`；`diff method, ` → `diff method，`）+ 中英术语补全（`Stripping gas rate`→`汽提气率 stripping gas rate` / `Reboiler duty`→`再沸器负荷 reboiler duty` 等）；L27-28 公式列对齐；L58 全角冒号 `：` → 半角 `: `；L81-88 新增「术语约定（中文 → 英文，全文统一）」7 条；L78-79 悬空折行收敛（`lean glycol）` 不再断行渲染为新段落）。
 - **M1** `docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md` Task 1 表数 4/7/7/3 → 统一落地口径 3 表（标题 / Files / Produces / RED / commit 行 5 处）；新增说明块记录 **4 蒸汽表至今未落地**（落地 `40b0c69` 仅 `op.create_table` × 3，注释显式推迟为 P5-0-1b；全仓核 `steam_drum_results` / `two_phase_pipe_sizing_results` / `blowdown_drum_results` / `thermosiphon_circulation_results` 0 matches），scope 保留待 P5-0-1b 承接而非静默丢弃。
 - **M2** `docs/tasks.md` 新增 **PROCo-P6-7-4**（OPEN-工艺室，不计入 5B 闭环）：Nielsen 1988 路径 `x` 摩尔/质量口径漂移致温降系统性高估 MEOH ≈1.8× / MEG ≈3.4× / TEG ≈8.3×，仅命中 `NIELSEN_1988` path，默认 `HAMMERSCHMIDT_1934` 不受影响。DOC-P6-6B-2 仅文档化该漂移**未修代码**，故拆出独立 PROCo 台账。
 
