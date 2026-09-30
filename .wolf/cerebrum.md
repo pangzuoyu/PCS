@@ -760,3 +760,21 @@ P6-7 启动条件（按工艺室承诺日期）：
 
 - **OPEN-P6-9-PICKUP-2-1 (F2 SGR 公式复盘)**：T2 修复 GPSA §20.4 Eq.20-5 后发现 k_strip=6.5 与 XLS 工况不自洽（工艺室 Fig 20-7 实验拟合常数通常 ~0.018 量级，差 ~360×）。工艺室须提交 XLS E32=0.4220 scf/gal 校准报告，2026-11-15 前到。fixture golden_c16_reboiler_stripping.json 第 3 算例 XLS E32 对账仍 FAIL（residual 100% vs 5% target）—— k_strip 工艺室校准是验收阻点。
 - **OPEN-P6-9-PICKUP-2-2 (t_wall_mm 复盘)**：T4 修复 t_wall_mm → t_wall_m 后，工艺室 HYSYS re-validated 算例 2026-11-15 前到，对账当前 fixture 4 算例（Y_p 0.4274/0.5896，Y_t 2.2746/3.1320）vs HYSYS。OPEN-P6-6A-10 工艺室 2026-11-15 关闭（同步 OPEN-P6-9-PICKUP-2-2 跟踪）。
+
+### P6-9-PICKUP-4 债务清理（2026-09-30，5 commits）
+
+P6-9-PICKUP-2/3 残留债务清理：
+- `f9f1360` T1 修复 9 pre-existing pytest failures（8 DB drift PASS + 1 SGR XLS E32 XFAIL → OPEN-P6-9-PICKUP-2-1 跟踪）
+- `15b6edd` T3 docs/tasks.md 21 LOW/INFO 项 4 维分类 + 推荐下游 batch（数学一致性修正，21 IDs vs upstream）
+- `6271db7` T3 fix R=1 合并多余项至 21 IDs（对齐 ce-code-review-summary）
+- `b15512a` T4 docs/tasks.md 工艺室 2026-11-15 交付跟踪位预留（OPEN-P6-6A-10 / OPEN-P6-9-PICKUP-2-1/2）
+
+OPEN 状态变化预测：
+- OPEN-P6-4-4 → 工艺室 re-issue fixture 已落（golden_c24_model_reconciliation.json），需 per-batch 完整集成测试
+- OPEN-P6-6A-9.5 → k_strip 校准待工艺室 2026-11-15
+- OPEN-P6-6A-10 → AS 1210 PDF 跟踪位建立（b15512a）
+- OPEN-P6-9-PICKUP-2-1/2 → SGR/t_wall 跟踪位建立（b15512a）
+
+下游推荐 batch：
+- P6-9-PICKUP-5（~2.0 天）：工艺 7 + 重构 2 = 9 项（工艺室交付触发）
+- P6-9-PICKUP-6（~1.0 天）：HYG 8 + DOC 6 = 14 项（无外部依赖，可与 PICKUP-5 并行）

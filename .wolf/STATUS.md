@@ -329,3 +329,11 @@ ce-code-review P5+P6 全范围（5 batch，47 commits / 34 findings）review 累
 ### 引用
 - 5 个 ce-code-review agent handback reports（per batch）
 - docs/ce-code-review-p5-p6-summary.md（已 commit cf51fdf）
+
+**P6-9-PICKUP-4 债务清理（2026-09-30，4 commits active）**：commits `f9f1360`, `15b6edd`, `6271db7`, `b15512a`
+- T1 (f9f1360)：CRITICAL F1 修复 9 pre-existing pytest failures（8 DB drift PASS + 1 SGR XLS E32 XFAIL → OPEN-P6-9-PICKUP-2-1 跟踪）
+- T2 (no-op done)：前置 P6-9-PICKUP-3 T3-batch-1 f8260aa 已覆盖 ruff 5 errors 修复
+- T3 (15b6edd + 6271db7)：docs/tasks.md 21 LOW/INFO 项 4 维分类 + 推荐下游 batch（P6-9-PICKUP-5 + P6-9-PICKUP-6）+ 数学一致性 fix
+- T4 (b15512a)：docs/tasks.md 工艺室 2026-11-15 交付跟踪位预留
+
+验收：pytest 3515 passed + 5 skipped + 1 xfailed / ruff 0 errors / G-08 phase 1-4 drift=0 / push origin/main 成功
