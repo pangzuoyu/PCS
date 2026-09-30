@@ -220,3 +220,65 @@ async def test_invalid_transition_raises(db_session):
             actor_user_id=uuid.uuid4(),
             actor_role="DESIGNER",
         )
+
+@pytest.mark.asyncio
+async def test_stale_resolved_audit_contains_three_fields(db_session):
+    """R-03 T0 (D8 9A): STALE_RESOLVED 转移写 audit 含 stale_resolution_path / hash_changed / changed_fields 三字段"""
+    import uuid
+
+    from app.models.calc import PipingResult
+    from app.models.enums import AuditAction, RecordSignStatus9, StateTransition
+    from app.services.state_machine import StateMachineService
+
+    # 准备 STALE 记录（RESOLVE_STALE_NO_CHANGE 前置条件是 STALE）
+    rec = PipingResult(
+        project_id=uuid.uuid4(),
+        workspace_id=uuid.uuid4(),
+        seq_no=1,
+        line_no="P-100",
+        line_size="2\"",
+        material_class="A1",
+        fluid_code="W",
+        fluid_name="Water",
+        fluid_phase="L",
+        fluid_category="NORMAL",
+        source_pid="P&ID-001",
+        line_from="V-100",
+        line_to="P-101",
+        norm_oper_press=1.0,
+        max_oper_press=1.5,
+        norm_oper_temp=40.0,
+        max_oper_temp=80.0,
+        design_press=2.0,
+        design_temp=100.0,
+        piping_category="GC2",
+        pressure_test_medium="WATER",
+        pressure_test_press=3.0,
+        check_class="II",
+        sign_status=RecordSignStatus9.STALE,
+    )
+    db_session.add(rec)
+    await db_session.flush()
+    sm = StateMachineService(db_session)
+    await sm.transition(
+        record=rec,
+        transition=StateTransition.RESOLVE_STALE_NO_CHANGE,
+        actor_user_id=uuid.uuid4(),
+        actor_role="CHECKER",
+    )
+
+    # 验证 audit 含三字段
+    from app.models.system import AuditLog
+    from sqlalchemy import select
+    audit = (
+        await db_session.execute(
+            select(AuditLog).where(
+                AuditLog.resource_id == str(rec.pipe_id),
+                AuditLog.action == AuditAction.STALE_RESOLVED_NO_CHANGE.value,
+            )
+        )
+    ).scalar_one()
+    detail = audit.detail_json
+    assert detail["stale_resolution_path"] == "RESOLVE_NO_CHANGE"
+    assert isinstance(detail["hash_changed"], bool)
+    assert isinstance(detail["changed_fields"], list)

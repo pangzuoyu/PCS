@@ -180,20 +180,26 @@ class StateMachineService:
         resource_id: uuid.UUID,
         user_id: uuid.UUID | None,
         detail: dict | None,
+        extra: dict | None = None,
     ) -> None:
         """状态机迁移审计写入（AuditLog 行 + 字段快照）。
 
         业务：审计记录 state 变更（from_status/to_status）+ 操作者；
-        detail dict 携带 before/after 字段快照（供 P5+ 合规审计追溯）。
+        detail dict 携带 before/after 字段快照（供 P5+ 合规审计追溯）；
+        extra dict（R-03 T0 / D8 9A 补）合并至 detail（如 stale_resolution_path /
+        hash_changed / changed_fields）— P7-OPEN-007 三元决策用。
         """
         from app.services.audit_service import AuditService
 
+        merged_detail = dict(detail or {})
+        if extra:
+            merged_detail.update(extra)
         await AuditService(self.session).write(
             action=action,
             resource_type=resource_type,
             resource_id=resource_id,
             user_id=user_id,
-            detail=detail,
+            detail=merged_detail,
         )
 
     async def _create_snapshot_if_needed(
@@ -312,6 +318,8 @@ class StateMachineService:
             raise InvalidTransition(from_status.value, transition.value)
         to_status = ALLOWED_TRANSITIONS[key]
 
+        # R-03 T0 / D8 9A：STALE_RESOLVED 转移前捕获 record_hash 以计算 hash_changed
+        old_hash = getattr(record, "record_hash", None)
         record.sign_status = to_status
         if transition == StateTransition.PASS_CHECK:
             record.approval_step = None
@@ -349,6 +357,20 @@ class StateMachineService:
         )
         # TODO-044 结构化：审计回链快照（CREATED/RESTORED 互斥，同一转移不并存）
         snapshot = created_snapshot or restored_snapshot
+        # R-03 T0 / D8 9A：STALE_RESOLVED 转移追加三字段（stale_resolution_path / hash_changed / changed_fields）
+        extra: dict | None = None
+        if transition in (StateTransition.RESOLVE_STALE_NO_CHANGE, StateTransition.RESOLVE_STALE_CHANGED):
+            new_hash = getattr(record, "record_hash", None)
+            cf = getattr(record, "changed_fields", None) or {}
+            extra = {
+                "stale_resolution_path": (
+                    "RESOLVE_NO_CHANGE"
+                    if transition == StateTransition.RESOLVE_STALE_NO_CHANGE
+                    else "RESOLVE_CHANGED"
+                ),
+                "hash_changed": (old_hash != new_hash),
+                "changed_fields": sorted(cf.keys()) if isinstance(cf, dict) else [],
+            }
         await self._write_audit(
             action=TRANSITION_AUDIT_ACTION[transition],
             resource_type=_record_table_name(record),
@@ -369,5 +391,6 @@ class StateMachineService:
                     else None
                 ),
             },
+            extra=extra,
         )
         return record
