@@ -27,7 +27,7 @@ if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
 # P6-8 T9r — 直接导入私有 _load_behr_grids / _BEHR_GRIDS (测试目的)
-from app.services.psychro.glycol_dehydration_service import (  # noqa: E402
+from app.services.psychro._glycol_dehydration.behr import (  # noqa: E402
     _BEHR_GRIDS,
     BehrGrid,
     _bilinear_interp_behr,
@@ -75,7 +75,7 @@ def test_load_behr_grids_success():
 def test_load_behr_grids_runtime_error_when_missing(monkeypatch, tmp_path):
     """JSON 文件缺失 → RuntimeError (启动期 fail-fast, 防 silent wrong coefficients)。"""
     # 把 _BEHR_GRID_PATH 重定向到不存在的路径
-    import app.services.psychro.glycol_dehydration_service as _svc
+    import app.services.psychro._glycol_dehydration.behr as _svc
 
     missing_path = tmp_path / "behr_coefficients_missing.json"
     monkeypatch.setattr(_svc, "_BEHR_GRID_PATH", missing_path)
@@ -91,7 +91,7 @@ def test_load_behr_grids_runtime_error_when_missing(monkeypatch, tmp_path):
 
 def test_load_behr_grids_runtime_error_on_schema_invalid(monkeypatch, tmp_path):
     """JSON 存在但缺 'grid' dict 段 → RuntimeError (防 silent wrong coefficients)。"""
-    import app.services.psychro.glycol_dehydration_service as _svc
+    import app.services.psychro._glycol_dehydration.behr as _svc
 
     bad_json = tmp_path / "behr_coefficients_bad.json"
     bad_json.write_text(
@@ -108,7 +108,7 @@ def test_load_behr_grids_runtime_error_on_schema_invalid(monkeypatch, tmp_path):
 
 def test_load_behr_grids_runtime_error_on_missing_baseline(monkeypatch, tmp_path):
     """JSON grid 段缺 baseline (general/high_acid) → RuntimeError。"""
-    import app.services.psychro.glycol_dehydration_service as _svc
+    import app.services.psychro._glycol_dehydration.behr as _svc
 
     bad_json = tmp_path / "behr_coefficients_partial.json"
     bad_json.write_text(

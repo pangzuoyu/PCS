@@ -25,6 +25,11 @@ Task 4 (P6-4 C-17): saturation_water_content service + 4 nullable DB 列
 """
 from __future__ import annotations
 
+from app.services.psychro._glycol_dehydration import (  # P6-9-PICKUP-5 5C (REF-P6-8-2)
+    ReboilerStrippingInput,
+    ReboilerStrippingResult,
+    calc_reboiler_stripping,
+)
 from app.services.psychro.coolprop_version import (  # P6-2 Task 26
     get_coolprop_version,
 )
@@ -81,6 +86,11 @@ __all__ = [
     "GlycolDehydrationResult",
     "GlycolType",
     "calc_glycol_dehydration",
+    # P6-9-PICKUP-5 5C (REF-P6-8-2) — 再沸器负荷 + 汽提气率 standalone 服务
+    # （实现已移至 psychro/_glycol_dehydration/reboilers.py）
+    "ReboilerStrippingInput",
+    "ReboilerStrippingResult",
+    "calc_reboiler_stripping",
     # P6-5 Task C2 (C-18) — 水合物抑制 service（Hammerschmidt + 注入率）
     "HydrateInhibitionError",
     "HydrateInhibitionInput",

@@ -285,7 +285,7 @@ def test_behr_acid_gas_correction_co2_5pct():
 
     P6-8 T9r: 返回值改为 (w, warnings) 元组，warnings 为 [] 时表示无酸气。
     """
-    from app.services.psychro.glycol_dehydration_service import (
+    from app.services.psychro._glycol_dehydration.behr import (
         _calc_behr_water_content_lb_per_mmscf,
     )
 
@@ -301,7 +301,7 @@ def test_behr_acid_gas_correction_h2s_3pct():
 
     P6-8 T9r: 返回值改为 (w, warnings) 元组。
     """
-    from app.services.psychro.glycol_dehydration_service import (
+    from app.services.psychro._glycol_dehydration.behr import (
         _calc_behr_water_content_lb_per_mmscf,
     )
 
@@ -322,7 +322,7 @@ def test_behr_inverse_dewpoint_xls_pr018_e23_with_extrapolation():
     实测 dewpoint 通常 < 60°F (GPSA Fig 20-2 在 5 lb/MMscf @ 1000 psia ~ 22°F);
     返回值应带 extrapolated=True + reason 含 "T<60°F" 说明。
     """
-    from app.services.psychro.glycol_dehydration_service import (
+    from app.services.psychro._glycol_dehydration.dewpoint import (
         _behr_inverse_dewpoint,
     )
 
@@ -342,7 +342,7 @@ def test_behr_inverse_dewpoint_returns_dewpointresult_dataclass():
 
     三态语义: FOUND / EXTRAPOLATED / NOT_FOUND 显式区分，避免 tuple 歧义。
     """
-    from app.services.psychro.glycol_dehydration_service import (
+    from app.services.psychro._glycol_dehydration.dewpoint import (
         _behr_inverse_dewpoint,
         _DewpointResult,
     )
@@ -360,7 +360,7 @@ def test_behr_inverse_dewpoint_returns_dewpointresult_dataclass():
 
 def test_behr_inverse_dewpoint_not_found_returns_reason():
     """极端 W (负值或 0) → brentq/Newton 失败 → 返回 dewpoint_f=None + reason。"""
-    from app.services.psychro.glycol_dehydration_service import (
+    from app.services.psychro._glycol_dehydration.dewpoint import (
         _behr_inverse_dewpoint,
     )
 
@@ -644,7 +644,7 @@ def test_bukacek_low_temp_extension(case):
     工艺室 2026-10-15 手算 3 算例（T ∈ {-10, 20, 40}°F, P=1000 psia），
     容差 rel ≤ 2e-2。
     """
-    from app.services.psychro.glycol_dehydration_service import (
+    from app.services.psychro._glycol_dehydration.behr import (
         _calc_behr_water_content_lb_per_mmscf,
     )
 
@@ -662,7 +662,7 @@ def test_bukacek_t_boundary_no_discontinuity():
     - w(60°F) 应与 w(60.1°F) 接近（连续，均用 high-temp）
     - w(60°F) 应与 w(59.9°F) 显著不同（边界两侧用不同系数）
     """
-    from app.services.psychro.glycol_dehydration_service import (
+    from app.services.psychro._glycol_dehydration.behr import (
         _calc_behr_water_content_lb_per_mmscf,
     )
 
@@ -690,7 +690,7 @@ def test_behr_general_baseline_default():
     T=120°F, P=1000 psia: W ≈ 93.0 lb/MMscf (pcs-backend/data/behr_coefficients.json
     v3 grid 工艺室 2026-09-29 直接读出；OPEN-P6-6A-9.5 代码侧闭环)。
     """
-    from app.services.psychro.glycol_dehydration_service import (
+    from app.services.psychro._glycol_dehydration.behr import (
         _calc_behr_water_content_lb_per_mmscf,
     )
 
@@ -710,7 +710,7 @@ def test_behr_high_acid_baseline_xls_reconciliation():
     工艺室标定: high_acid baseline (no acid) ≈ 93.5 lb/MMscf → ×1.0971 Wichert-Aziz
     → 102.59 vs XLS 103.91 (1.27% residual)。
     """
-    from app.services.psychro.glycol_dehydration_service import (
+    from app.services.psychro._glycol_dehydration.behr import (
         _calc_behr_water_content_lb_per_mmscf,
     )
 
@@ -732,7 +732,7 @@ def test_behr_high_acid_no_acid_gas_above_general():
     high_acid 标定域 GPSA Fig 20-2 high-acid zone (H2S+CO2 >= 5 mol%) — 同一 (T,P)
     下 W_baseline 应高于 general zone (标定 W 高于 general 30%+)。
     """
-    from app.services.psychro.glycol_dehydration_service import (
+    from app.services.psychro._glycol_dehydration.behr import (
         _calc_behr_water_content_lb_per_mmscf,
     )
 

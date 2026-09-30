@@ -22,7 +22,7 @@ _BACKEND_ROOT = Path(__file__).resolve().parents[3]
 if str(_BACKEND_ROOT) not in sys.path:
     sys.path.insert(0, str(_BACKEND_ROOT))
 
-from app.services.psychro.glycol_dehydration_service import (  # noqa: E402
+from app.services.psychro._glycol_dehydration.reboilers import (  # noqa: E402
     ReboilerStrippingInput,
     calc_reboiler_stripping,
 )
