@@ -75,6 +75,11 @@ class EquipmentList(TaggedRecordMixin, Base):
         Uuid, comment="多态 source"
     )
     source_module: Mapped[str | None] = mapped_column(String(30))
+    source_service: Mapped[str | None] = mapped_column(
+        String(64),
+        comment="V1.4 新增（SPEC §3.2.1（2）来源组）：区分同模块多子服务，"
+        "如 C-08/C-07/C-10 三个 VESSEL 子服务共用 TypeCode D/V/T/R",
+    )
     vendor: Mapped[str | None] = mapped_column(String(200))
     vendor_model: Mapped[str | None] = mapped_column(String(100))
     design_parameters_json: Mapped[dict | None] = mapped_column(JSONB)
