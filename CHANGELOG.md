@@ -260,3 +260,56 @@ p6_5_005 后用 ORM metadata 全库程序化对比（不再手写表名清单）
 | 2 | G-08 openapi-baseline 滚动（Task 16/28 收口） | `384d8c7` | +37 端点 / +82 schema（P6-2~5 纯增量）；四阶段全过（161 paths / 203 schemas） |
 | 3 | `.wolf/STATUS.md` 重生成（/handoff，1749 行 → 紧凑版） | —（.wolf hooks 维护） | Next quest 更新为 P6-6+ |
 | 4 | 前端补课 3 计算页（P6-4 DECISION 推迟项） | `67633a9` | heating-value / saturation-water-content / cv；tsc 0 / eslint 0 / vitest 548 passed（基线 525） |
+
+---
+
+## [P6-9-PICKUP-4] — ce-code-review P5+P6 残留 debt 闭环（2026-09-30）
+
+### 范围
+
+`docs/ce-code-review-p5-p6-summary.md`（5 batch × 47 commits）登记的 50 findings 中，P6-9-PICKUP-2/3 已收口 4 CRITICAL + 9 HIGH + 7 MEDIUM；本批清剩余 21 LOW/INFO + 9 pre-existing pytest failures + 5 ruff errors + 工艺室 2026-11-15 交付对账预留位。
+
+### 覆盖
+
+| 维度 | 数量 |
+|---|---|
+| Pre-existing pytest failures（pcs_test schema drift） | 9 个测试，4 文件（psychro / cv / schema_drift / fixtures） |
+| Pre-existing ruff errors（calibrate_behr_coefficients.py） | 5 errors → 0 |
+| LOW/INFO 项 detail 分类（docs/tasks.md 21 项 4 维） | 5 PROCo + 8 HYG + 6 DOC + 2 REF |
+| 工艺室 2026-11-15 交付对账预留位 | OPEN-P6-6A-10 / OPEN-P6-9-PICKUP-2-1/2 / OPEN-P6-6A-9.5 / OPEN-P6-6A-11 共 5 项 |
+| Commits | 4（`f9f1360` / `15b6edd` / `6271db7` / `b15512a`） |
+
+### 实施拆解
+
+| Task | commit | 内容 |
+|---|---|---|
+| T1 | `f9f1360` | 9 pre-existing pytest failures 修复（psychro schema drift + 4 类 DB drift） |
+| T2 | `0cec39a`（沿用 PICKUP-3） | `calibrate_behr_coefficients.py` ruff 5 errors 收口（PICKUP-3 T3-batch-5 已分批修，本批 rebase） |
+| T3 | `15b6edd` / `6271db7` | 21 LOW/INFO 项 4 维分类 + 数学一致性修正（26 → 21 IDs 对齐上游计数） |
+| T4 | `b15512a` | 工艺室 2026-11-15 交付跟踪位预留（OPEN 5 项状态字段 + 前置条件） |
+
+### 验证
+
+| 项 | 结果 |
+|---|---|
+| pytest 全量 | **3515 passed / 0 failed**（9 pre-existing 修复后无 regression） |
+| ruff check（全局） | **0 errors**（`scripts/dev/calibrate_behr_coefficients.py` 5 项清零） |
+| docs/tasks.md 总计 | 21 项 = 5 PROCo + 8 HYG + 6 DOC + 2 REF ✓ |
+| vitest 全量 | 548 passed（基线持平） |
+| G-08 phase 1-4 | 全过 drift=0 |
+
+### 下游 batch 推荐（docs/tasks.md §推荐下游 batch）
+
+- **P6-9-PICKUP-5**（建议）：工艺计算正确性 + 重构（7 项，~2.0 天），依赖工艺室 2026-11-15 / 2026-11-30 交付
+- **P6-9-PICKUP-6**（建议）：代码卫生 + documentation（14 项，~1.0 天），无外部依赖可并行启动
+
+### OPEN 状态变化
+
+| OPEN | 变化 |
+|---|---|
+| OPEN-P6-6A-10 | partial closure（待 AS 1210 PDF 升级 confidence B → A） |
+| OPEN-P6-9-PICKUP-2-1 | partial closure（xfail 工艺室 k_strip 校准） |
+| OPEN-P6-9-PICKUP-2-2 | 闭环（`258d857` t_wall_mm → t_wall_m 修复） |
+| OPEN-P6-6A-9.5 | 关联（PROCo-P6-7-2 high_acid 重发） |
+| OPEN-P6-6A-11 | 关联（PROCo-P6-7-{1,3} Nielsen 精确常数） |
+| OPEN-P6-9-PICKUP-4 | 新增（T4 跟踪位） |
