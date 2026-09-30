@@ -1,4 +1,4 @@
-"""Sprint 3：equipment_type_codes.project_id 改 nullable。
+"""Sprint 3：equipment_type_codes.project_id 改 nullable.
 
 V3.3 字典语义：project_id NULL = 公司级默认；项目级覆写 P2+ 模板导入后启用。
 
@@ -21,7 +21,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """equipment_type_codes.project_id 改 nullable（P1 Sprint3 / DICT V3.3）。
+    """equipment_type_codes.project_id 改 nullable（P1 Sprint3 / DICT V3.3）.
 
     步骤：
     - A. DROP CONSTRAINT pk_equipment_type_codes CASCADE（PG 不允许 PK 列可空）
@@ -58,7 +58,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """equipment_type_codes PK/FK 回退 nullable=False（P1 Sprint3 逆向）。
+    """equipment_type_codes PK/FK 回退 nullable=False（P1 Sprint3 逆向）.
 
     步骤（与 upgrade 相反）：
     - DROP CONSTRAINT fk_equipment_list_type_code_composite（FK 到复合 PK）

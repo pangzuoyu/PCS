@@ -1,4 +1,4 @@
-"""P6-3 Task 32：open_channel_results 补 3 列（审计列护栏 + P6-OPEN-009 模式）。
+"""P6-3 Task 32：open_channel_results 补 3 列（审计列护栏 + P6-OPEN-009 模式).
 
 依据：
 - P6 计划 §Task 32（open_channel persist + api 9 endpoints）
@@ -32,7 +32,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """open_channel_results 补 3 列（P6-OPEN-009 模式 + RecordMixin 补齐）。
+    """open_channel_results 补 3 列（P6-OPEN-009 模式 + RecordMixin 补齐).
 
     列定义参考 p6_2_001：stale_resolution_path String(30) / hash_changed Bool
     server_default FALSE / changed_fields JSONB。
@@ -53,7 +53,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """逆序删除 3 列（DDL 幂等：IF EXISTS）。"""
+    """逆序删除 3 列（DDL 幂等：IF EXISTS）."""
     op.execute(
         "ALTER TABLE open_channel_results DROP COLUMN IF EXISTS changed_fields"
     )

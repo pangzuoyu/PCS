@@ -1,4 +1,4 @@
-"""add htri_template_schemas
+"""add htri_template_schemas.
 
 Revision ID: 2026_09_03_1000_add_htri_template_schemas
 Revises: 2026_09_03_0900_add_template_version_seq
@@ -13,7 +13,7 @@ revision = "2026_09_03_1000_add_htri_template_schemas"
 down_revision = "2026_09_03_0900_add_template_version_seq"
 
 def upgrade():
-    """htri_template_schemas 主表创建（HEAT/HTRI 模板 schema）。
+    """htri_template_schemas 主表创建（HEAT/HTRI 模板 schema）.
 
     步骤：
     - schema_id UUID PK
@@ -49,7 +49,7 @@ def upgrade():
     )
 
 def downgrade():
-    """htri_template_schemas 表删除（HEAT/HTRI 模板 schema 落地逆向）。
+    """htri_template_schemas 表删除（HEAT/HTRI 模板 schema 落地逆向）.
 
     步骤：
     - DROP TABLE htri_template_schemas

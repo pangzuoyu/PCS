@@ -1,4 +1,4 @@
-"""add TemplateFile.template_version_seq
+"""add TemplateFile.template_version_seq.
 
 Revision ID: 2026_09_03_0900_add_template_version_seq
 Revises: 2026_09_03_0800_add_toe_conversion
@@ -15,7 +15,7 @@ down_revision = "2026_09_03_0800_add_toe_conversion"
 
 
 def upgrade():
-    """template_files 加 template_version_seq 字段（V1.4 P2-OPEN-005 / Task 1.10.2）。
+    """template_files 加 template_version_seq 字段（V1.4 P2-OPEN-005 / Task 1.10.2）.
 
     步骤：
     - template_version_seq Integer NOT NULL default 0：模板版本序列号
@@ -36,7 +36,7 @@ def upgrade():
 
 
 def downgrade():
-    """template_files 删 template_version_seq 字段（V1.4 P2-OPEN-005 落地逆向）。
+    """template_files 删 template_version_seq 字段（V1.4 P2-OPEN-005 落地逆向）.
 
     步骤：
     - DROP COLUMN template_version_seq

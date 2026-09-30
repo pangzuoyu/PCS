@@ -1,4 +1,4 @@
-"""P3.x SIM-17+18: streams 表 8 字段扩展。
+"""P3.x SIM-17+18: streams 表 8 字段扩展.
 
 spec §3.2.4 + ADD-002 §3.6：
 - SIM-17 (4 字段)：simulation_status / tear_stream / estimated / stream_properties_json
@@ -25,7 +25,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """streams SIM 字段扩展（P3.2 SIM-17 §3.2.4 物性来源标注）。
+    """Streams SIM 字段扩展（P3.2 SIM-17 §3.2.4 物性来源标注).
 
     步骤：
     - simulation_status (varchar 30)：SOLVED/ESTIMATED/MEASURED/MANUAL/UNKNOWN
@@ -120,7 +120,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """streams 删 SIM-17/18 8 字段 + 2 索引（P3.2 SIM 落地逆向）。
+    """Streams 删 SIM-17/18 8 字段 + 2 索引（P3.2 SIM 落地逆向).
 
     步骤：
     - DROP INDEX ix_streams_estimated

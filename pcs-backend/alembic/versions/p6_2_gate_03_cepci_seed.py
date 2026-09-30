@@ -1,4 +1,4 @@
-"""P6-2 G-03：CEPCI 年度指数 CONFIG 表（cepci_index_series）+ 唯一索引。
+"""P6-2 G-03：CEPCI 年度指数 CONFIG 表（cepci_index_series）+ 唯一索引.
 
 按 P6 计划 §Task 17 硬性前置 gate G-03：
 
@@ -24,7 +24,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """创建 cepci_index_series 表 + ix_cepci_year 唯一索引。
+    """创建 cepci_index_series 表 + ix_cepci_year 唯一索引.
 
     字段定义严格对齐 ``app/models/config.py:CepciIndexSeries`` ORM：
 
@@ -68,7 +68,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """逆序删除：先 drop index 再 drop table（FK 引用顺序与 upgrade 反向）。
+    """逆序删除：先 drop index 再 drop table（FK 引用顺序与 upgrade 反向).
 
     当前表无外键引用，downgrade 仅做 DDL 逆序即可。
     """

@@ -1,4 +1,4 @@
-"""merge p2s2 equipment chain with p2s110 template chain
+"""merge p2s2 equipment chain with p2s110 template chain.
 
 Revision ID: 15421f7d5afb
 Revises: 2026_09_03_1000_add_htri_template_schemas, p2_sprint2_equipment_engineering

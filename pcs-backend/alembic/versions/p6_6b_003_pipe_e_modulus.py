@@ -1,4 +1,4 @@
-"""P6-6B T3: ``pipe_e_modulus`` CONFIG 表（C-13 Joukowsky 输入）。
+"""P6-6B T3: ``pipe_e_modulus`` CONFIG 表（C-13 Joukowsky 输入).
 
 依据：
 
@@ -32,7 +32,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """创建 ``pipe_e_modulus`` 表（C-13 PIPE_NET 浪涌压力 E 模量）。
+    """创建 ``pipe_e_modulus`` 表（C-13 PIPE_NET 浪涌压力 E 模量).
 
     字段定义严格对齐 ``app/models/config.py:PipeEModulus``。
     """
@@ -92,6 +92,6 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删除 ``pipe_e_modulus`` 表（T3 测试 / 回滚用）。"""
+    """删除 ``pipe_e_modulus`` 表（T3 测试 / 回滚用）."""
     op.drop_index("ix_pipe_e_modulus_grade", table_name="pipe_e_modulus")
     op.drop_table("pipe_e_modulus")

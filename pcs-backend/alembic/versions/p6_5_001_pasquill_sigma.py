@@ -1,4 +1,4 @@
-"""P6-5 compound_pasquill_sigma CONFIG 表（C-22 Pasquill-Gifford 扩散 / SPEC §3.10.2）。
+"""P6-5 compound_pasquill_sigma CONFIG 表（C-22 Pasquill-Gifford 扩散 / SPEC §3.10.2).
 
 依据：
 
@@ -32,7 +32,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """创建 ``compound_pasquill_sigma`` 表（C-22 Pasquill-Gifford 扩散）。
+    """创建 ``compound_pasquill_sigma`` 表（C-22 Pasquill-Gifford 扩散).
 
     字段定义严格对齐 ``app/models/config.py:CompoundPasquillSigma``。
     """
@@ -93,5 +93,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删除 ``compound_pasquill_sigma`` 表（C5 测试 / 回滚用）。"""
+    """删除 ``compound_pasquill_sigma`` 表（C5 测试 / 回滚用）."""
     op.drop_table("compound_pasquill_sigma")

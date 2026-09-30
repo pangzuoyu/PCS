@@ -1,4 +1,4 @@
-"""P6-4 compound_heating_values CONFIG 表（C-06 气体热值 / SPEC §3.2.3.6）。
+"""P6-4 compound_heating_values CONFIG 表（C-06 气体热值 / SPEC §3.2.3.6).
 
 依据：
 
@@ -33,7 +33,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """创建 ``compound_heating_values`` 表（C-06 气体热值 / SPEC §3.2.3.6）。
+    """创建 ``compound_heating_values`` 表（C-06 气体热值 / SPEC §3.2.3.6).
 
     字段定义严格对齐 ``app/models/config.py:CompoundHeatingValues``。
     """
@@ -98,7 +98,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删除 ``compound_heating_values`` 表（Task 1 测试 / 回滚用）。"""
+    """删除 ``compound_heating_values`` 表（Task 1 测试 / 回滚用）."""
     op.drop_index(
         "ix_compound_heating_values_hhv",
         table_name="compound_heating_values",

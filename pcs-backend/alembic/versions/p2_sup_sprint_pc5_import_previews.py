@@ -1,4 +1,4 @@
-"""SUP Sprint PC-5: pipe_class_import_previews 表（V1.4 §0.6/§三、#6）。
+"""SUP Sprint PC-5: pipe_class_import_previews 表（V1.4 §0.6/§三、#6).
 
 import_id 暂存选 DB 表方案（.wolf/cerebrum 未决问题 #3 已选）：服务端 preview 后
 返 import_id，前端确认时携带 import_id，服务端按 import_id 取预览结果重放。包含
@@ -21,7 +21,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """pipe_class_import_previews 主表创建（PC-5 / V1.4 §0.6/§三、#6）。
+    """pipe_class_import_previews 主表创建（PC-5 / V1.4 §0.6/§三、#6).
 
     步骤：
     - 主表 pipe_class_import_previews：import_id (PK UUID) + actor_id (FK→users)
@@ -58,7 +58,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """pipe_class_import_previews 表 + 索引删除（PC-5 落地逆向）。
+    """pipe_class_import_previews 表 + 索引删除（PC-5 落地逆向).
 
     步骤：
     - DROP INDEX ix_pc_import_previews_expires_at

@@ -1,4 +1,4 @@
-"""P3.x SIM-31: streams 表 2 个液相字段（ORM 列） + 3 个 JSONB 字段。
+"""P3.x SIM-31: streams 表 2 个液相字段（ORM 列） + 3 个 JSONB 字段.
 
 spec §1.2.1 + ADD-001 §3.5：
 
@@ -30,7 +30,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """streams 液相对称 2 字段 + 索引（P3.x SIM-31 / spec §1.2.1）。
+    """Streams 液相对称 2 字段 + 索引（P3.x SIM-31 / spec §1.2.1).
 
     步骤：
     - liquid_fraction Float NULL：液相分率（0~1），对称 vapor_fraction
@@ -68,7 +68,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """streams 删 liquid_fraction + specific_gravity 字段 + 索引（P3.2 SIM 落地逆向）。
+    """Streams 删 liquid_fraction + specific_gravity 字段 + 索引（P3.2 SIM 落地逆向).
 
     步骤（顺序与 upgrade 逆序）：
     - DROP INDEX ix_streams_liquid_fraction

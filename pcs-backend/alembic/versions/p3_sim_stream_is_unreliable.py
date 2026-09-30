@@ -1,4 +1,4 @@
-"""P3.2 SIM-10.1：streams.is_unreliable 列（用户 2026-09-09 裁决）。
+"""P3.2 SIM-10.1：streams.is_unreliable 列（用户 2026-09-09 裁决).
 
 落地理由：
 - 下游过滤刚需（SIM-11 E2E + 后续 P 阶段下游计算模块需稳定识别 unreliable）
@@ -29,7 +29,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """streams 加 is_unreliable 字段（P3.2 SIM-10.1 / 用户 2026-09-09 裁决）。
+    """Streams 加 is_unreliable 字段（P3.2 SIM-10.1 / 用户 2026-09-09 裁决).
 
     步骤：
     - is_unreliable Boolean NULL：未设置（默认 None 等价 False）
@@ -51,7 +51,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """streams 删 is_unreliable 字段（P3.2 SIM-10.1 逆向）。
+    """Streams 删 is_unreliable 字段（P3.2 SIM-10.1 逆向).
 
     步骤：
     - DROP COLUMN streams.is_unreliable

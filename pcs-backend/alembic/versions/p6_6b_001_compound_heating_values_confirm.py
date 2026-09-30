@@ -1,4 +1,4 @@
-"""P6-6B T1: ``compound_heating_values`` process metadata 闭环（OPEN-P6-4-1）。
+"""P6-6B T1: ``compound_heating_values`` process metadata 闭环（OPEN-P6-4-1).
 
 P6-4 阶段工艺工程师已抄录 64 种化合物 HHV/LHV/MW（GPSA FIG. 23-2 +
 API 5B6 公开值），当时落库使用 ``source='SYNTHETIC_TEST_DATA'`` +
@@ -35,7 +35,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """UPDATE 64 行 ``compound_heating_values`` 的 metadata 字段。
+    """UPDATE 64 行 ``compound_heating_values`` 的 metadata 字段.
 
     仅匹配 ``source='SYNTHETIC_TEST_DATA'``；其他来源行不动。
     一次性 UPDATE（同 PG 事务原子），配合 ``confirmed_at`` 设固定日期
@@ -51,7 +51,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """还原为占位 metadata（互逆于 upgrade）。
+    """还原为占位 metadata（互逆于 upgrade).
 
     仅匹配本迁移升级过的行（即 ``source='GPSA FIG. 23-2 (2022) + API 5B6'``
     且 ``confirmed_by='P6-6B_ENG_TEAM'``），不影响后续工艺工程师签字过的

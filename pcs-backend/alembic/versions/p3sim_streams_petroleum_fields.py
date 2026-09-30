@@ -1,4 +1,4 @@
-"""P3.x SIM-34: 炼油专用 5 字段 + 蒸馏曲线 8 种 schema。
+"""P3.x SIM-34: 炼油专用 5 字段 + 蒸馏曲线 8 种 schema.
 
 spec ADD-001 §3.8 + §3.9 + plan §SIM-34：
 
@@ -42,7 +42,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """streams 炼油专用 5 字段扩展（P3.x SIM-34 / ADD-001 §3.8-3.9）。
+    """Streams 炼油专用 5 字段扩展（P3.x SIM-34 / ADD-001 §3.8-3.9).
 
     步骤：
     - 4 个 Float：rvp（Reid 蒸汽压 psi）/ tvp（True 蒸汽压 psi）/
@@ -107,7 +107,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """streams 删 5 石油特征字段（P3.2 SIM 落地逆向）。
+    """Streams 删 5 石油特征字段（P3.2 SIM 落地逆向).
 
     步骤：
     - DROP COLUMN distillation_curves（蒸馏曲线 JSONB）

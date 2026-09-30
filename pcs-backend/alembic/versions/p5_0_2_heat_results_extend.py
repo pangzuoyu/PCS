@@ -1,4 +1,4 @@
-"""P5-0-2 Task 2: heat_results 双轨字段扩展（ADR-0027 V1.0）。
+"""P5-0-2 Task 2: heat_results 双轨字段扩展（ADR-0027 V1.0).
 
 按 ADR-0027 V1.0 决策 1/5：
 1. **旧轨 9 标量保留**（P5-OPEN-006 向后兼容承诺）：
@@ -116,7 +116,7 @@ _NEW_3_JSONB: list[tuple[str]] = [
 
 
 def upgrade() -> None:
-    """heat_results 双轨字段扩展（P5-0-2 Task 2 / ADR-0027 V1.0 决策 1/5）。
+    """heat_results 双轨字段扩展（P5-0-2 Task 2 / ADR-0027 V1.0 决策 1/5).
 
     步骤（A → C 三段）：
     - A. 9 旧标量保留（P5-OPEN-006 向后兼容承诺）：
@@ -165,7 +165,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """heat_results 双轨 9+39+3 字段回退（P5-0-2 ADR-0027 逆向）。
+    """heat_results 双轨 9+39+3 字段回退（P5-0-2 ADR-0027 逆向).
 
     步骤（与 upgrade 逆序，loop reversed）：
     - 1. 3 JSONB 回退（loop reversed _NEW_3_JSONB）

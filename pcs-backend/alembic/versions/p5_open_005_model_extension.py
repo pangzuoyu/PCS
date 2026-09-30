@@ -1,4 +1,4 @@
-"""P5-0-1: 设备结果表扩展 + 双阶段设计下沉（SUP-008 §8.3.2/§8.3.3/§8.3.5 + §8.4 OPEN-009）。
+"""P5-0-1: 设备结果表扩展 + 双阶段设计下沉（SUP-008 §8.3.2/§8.3.3/§8.3.5 + §8.4 OPEN-009).
 
 P5-OPEN-005（V1.3）：3 张设备结果表 + design_stage 下沉：
 
@@ -130,6 +130,7 @@ _RECORD_MIXIN_COLUMNS = [
 
 
 def upgrade() -> None:
+    """应用 P5-OPEN-005 模型扩展迁移."""
     # 1. 创建 relief_scenario_enum（6 态）
     relief_scenario_enum.create(op.get_bind(), checkfirst=True)
 
@@ -310,6 +311,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """回退 P5-OPEN-005 模型扩展迁移."""
     # 顺序与 upgrade 相反：drop tables → drop enum
     op.drop_index("ix_mixer_results_workspace_id", table_name="mixer_results")
     op.drop_index("ix_mixer_results_project_id", table_name="mixer_results")

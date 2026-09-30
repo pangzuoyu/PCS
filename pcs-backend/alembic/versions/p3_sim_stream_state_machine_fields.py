@@ -1,4 +1,4 @@
-"""P3.2 SIM-13：streams 状态机字段补齐（用户裁决 P0 闭环 D-1）。
+"""P3.2 SIM-13：streams 状态机字段补齐（用户裁决 P0 闭环 D-1).
 
 落地理由：
 - P1 StateMachineService.transition()（app/services/state_machine.py）
@@ -34,7 +34,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """streams 状态机字段补齐（P3.2 SIM-13 / P0 闭环 D-1）。
+    """Streams 状态机字段补齐（P3.2 SIM-13 / P0 闭环 D-1).
 
     步骤：
     - change_pending_since timestamp NULL（INITIATE_CHANGE / MARK_STALE 触发时间）
@@ -79,7 +79,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """streams 删 3 状态机字段（P3.2 SIM-12 逆向）。
+    """Streams 删 3 状态机字段（P3.2 SIM-12 逆向).
 
     步骤（顺序与 upgrade 逆序）：
     - DROP COLUMN change_resolved_by

@@ -1,4 +1,4 @@
-"""P4-0-1: 计算链审计字段（5 表 × 3 列）。
+"""P4-0-1: 计算链审计字段（5 表 × 3 列).
 
 streams / piping_results / pump_results / flash_results / pipe_network_results
 五表各加 3 列：
@@ -33,7 +33,7 @@ _TABLES = (
 
 
 def upgrade() -> None:
-    """P4-0-1 计算链审计字段（5 表 × 3 列 / ADR-0031）。
+    """P4-0-1 计算链审计字段（5 表 × 3 列 / ADR-0031).
 
     步骤（5 表循环：streams / piping_results / pump_results /
     flash_results / pipe_network_results）：
@@ -79,7 +79,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """5 表 × 3 审计字段删除（P4 ADR-0031 护栏逆向）。
+    """5 表 × 3 审计字段删除（P4 ADR-0031 护栏逆向).
 
     步骤（循环 _TABLES）：
     - DROP COLUMN changed_fields

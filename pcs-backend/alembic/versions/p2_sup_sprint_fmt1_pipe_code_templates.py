@@ -1,4 +1,4 @@
-"""SUP Sprint FMT-1: pipe_code_templates + project_pipe_code_configs 两表（V1.4 §11.1/§11.2）。
+"""SUP Sprint FMT-1: pipe_code_templates + project_pipe_code_configs 两表（V1.4 §11.1/§11.2).
 
 公司级模板：template_id UUID PK + asset_id FK→config_assets（INT-OPEN-01
 asset_subtype=PIPE_CODE_TEMPLATE）+ template_name str100 UNIQUE + 5 态 status。
@@ -21,7 +21,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """pipe_code_templates 主表创建（FMT-1 / SUP-002 §11.5 公司管号模板）。
+    """pipe_code_templates 主表创建（FMT-1 / SUP-002 §11.5 公司管号模板).
 
     步骤：
     - 主表 pipe_code_templates：template_id (PK UUID) + asset_id (FK→config_assets) +
@@ -97,7 +97,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """pipe_code_templates + project_pipe_code_configs 双表删除（FMT-1 落地逆向）。
+    """pipe_code_templates + project_pipe_code_configs 双表删除（FMT-1 落地逆向).
 
     步骤：
     - DROP INDEX ix_project_pipe_code_configs_project_id

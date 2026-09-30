@@ -1,4 +1,4 @@
-"""P6-4 psychro_results 加 4 列 saturation W（C-17 显式水含量 / SPEC §3.2.5 P6-PSY-001）。
+"""P6-4 psychro_results 加 4 列 saturation W（C-17 显式水含量 / SPEC §3.2.5 P6-PSY-001).
 
 依据：
 
@@ -35,7 +35,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """psychro_results 加 4 列 saturation W（C-17 V1.2 严格 4 列）。
+    """psychro_results 加 4 列 saturation W（C-17 V1.2 严格 4 列).
 
     4 列 nullable（不破坏 V1.0/V1.1 既有 psychro_results 行）：
       - saturation_w_kg_kg Float NULL：饱和 W kg 水 / kg 干空气（SPEC §3.2.5）
@@ -85,7 +85,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """psychro_results 删 4 列 saturation W（Task 4 测试 / 回滚用）。"""
+    """psychro_results 删 4 列 saturation W（Task 4 测试 / 回滚用）."""
     op.drop_column("psychro_results", "saturation_T_c")
     op.drop_column("psychro_results", "saturation_w_lb_per_mmscf")
     op.drop_column("psychro_results", "saturation_w_mg_sm3")

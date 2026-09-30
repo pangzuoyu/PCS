@@ -1,4 +1,4 @@
-"""P6-5 compound_iso9613_atmospheric_absorption CONFIG 表（C-23 ISO 9613-2 大气吸收）。
+"""P6-5 compound_iso9613_atmospheric_absorption CONFIG 表（C-23 ISO 9613-2 大气吸收).
 
 依据：
 
@@ -31,7 +31,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """创建 ``compound_iso9613_atmospheric_absorption`` 表（C-23 大气吸收系数）。
+    """创建 ``compound_iso9613_atmospheric_absorption`` 表（C-23 大气吸收系数).
 
     字段定义严格对齐 ``app/models/config.py:CompoundIso9613AtmosphericAbsorption``。
     """
@@ -84,5 +84,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删除 ``compound_iso9613_atmospheric_absorption`` 表（C5 测试 / 回滚用）。"""
+    """删除 ``compound_iso9613_atmospheric_absorption`` 表（C5 测试 / 回滚用）."""
     op.drop_table("compound_iso9613_atmospheric_absorption")

@@ -1,4 +1,4 @@
-"""SUP Sprint PC-4: config_approvals.version_id 改 nullable（V1.4 §2.4/§五、#1）。
+"""SUP Sprint PC-4: config_approvals.version_id 改 nullable（V1.4 §2.4/§五、#1).
 
 项目级管道等级审批不挂 ConfigVersion（CATEGORY_5 公司级专属），其审批行
 ConfigApproval.version_id 应为 NULL、project_class_id 必填。PC-1 仅加了
@@ -23,7 +23,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """config_approvals.version_id 改 nullable（PC-4 / V1.4 §2.4/§五、#1）。
+    """config_approvals.version_id 改 nullable（PC-4 / V1.4 §2.4/§五、#1).
 
     步骤：
     - config_approvals.version_id Uuid() → nullable=True
@@ -44,7 +44,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """config_approvals.version_id 回滚 nullable=False（PC-4 落地逆向）。
+    """config_approvals.version_id 回滚 nullable=False（PC-4 落地逆向).
 
     步骤：
     - DELETE FROM config_approvals WHERE version_id IS NULL（先清项目级审批）

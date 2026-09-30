@@ -1,4 +1,4 @@
-"""Sprint 3：bootstrap 修复 alembic_version.version_num 列宽。
+"""Sprint 3：bootstrap 修复 alembic_version.version_num 列宽.
 
 历史：Sprint 2 upgrade head 时发现 alembic_version.version_num 是 VARCHAR(32)，
 装不下 'p1sprint1_checklist_schema_upgrade'（37 字符）。已手动 ALTER 到 VARCHAR(64)。
@@ -21,7 +21,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """bootstrap 修复 alembic_version.version_num 列宽（P1 Sprint3）。
+    """Bootstrap 修复 alembic_version.version_num 列宽（P1 Sprint3）.
 
     步骤：
     - 探测 information_schema 当前 column character_maximum_length
@@ -52,7 +52,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """bootstrap alembic_version.version_num 列宽 32→64 不还原（P1 Sprint3）。
+    """Bootstrap alembic_version.version_num 列宽 32→64 不还原（P1 Sprint3）.
 
     步骤：
     - noop（pass）：列已扩到 64 不回退到 32

@@ -1,4 +1,4 @@
-"""P6-6B T8: ``compound_nielsen_1988_params`` CONFIG 表（C-18 现代水合物抑制）。
+"""P6-6B T8: ``compound_nielsen_1988_params`` CONFIG 表（C-18 现代水合物抑制).
 
 依据 P6-6B 计划 Task 8 + brief（2026-09-27）：
 
@@ -34,7 +34,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """创建 ``compound_nielsen_1988_params`` 表（C-18 现代水合物抑制参数）。
+    """创建 ``compound_nielsen_1988_params`` 表（C-18 现代水合物抑制参数).
 
     字段定义严格对齐 ``app/models/config.py:CompoundNielsen1988Params``。
     """
@@ -97,7 +97,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删除 ``compound_nielsen_1988_params`` 表（T8 测试 / 回滚用）。"""
+    """删除 ``compound_nielsen_1988_params`` 表（T8 测试 / 回滚用）."""
     op.drop_index(
         "ix_compound_nielsen_1988_params_component",
         table_name="compound_nielsen_1988_params",

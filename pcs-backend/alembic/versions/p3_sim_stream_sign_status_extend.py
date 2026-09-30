@@ -1,4 +1,4 @@
-"""P3.2 SIM-13：streamsignstatus PG enum 扩展为 9 态（用户裁决 P0 闭环 D-1）。
+"""P3.2 SIM-13：streamsignstatus PG enum 扩展为 9 态（用户裁决 P0 闭环 D-1).
 
 落地理由：
 - P1 StateMachineService.transition()（app/services/state_machine.py）
@@ -30,7 +30,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """streamsignstatus PG enum 扩展为 9 态（P3.2 SIM-13 / P0 闭环 D-1）。
+    """Streamsignstatus PG enum 扩展为 9 态（P3.2 SIM-13 / P0 闭环 D-1).
 
     步骤（ALTER TYPE ADD VALUE IF NOT EXISTS 幂等）：
     - +CHECK_REJECTED
@@ -56,7 +56,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """streamsignstatus PG enum 扩展回退不可执行（cerebrum 2026-09-08 锁定）。
+    """Streamsignstatus PG enum 扩展回退不可执行（cerebrum 2026-09-08 锁定).
 
     不可逆警告：PG enum ADD VALUE 不可 DROP VALUE；如需回退需手动执行：
     - ALTER TABLE streams ALTER COLUMN sign_status TYPE varchar(20)

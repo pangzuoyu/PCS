@@ -1,4 +1,4 @@
-"""Sprint 1：project_input_checklist schema 对齐 DICT-ALL-003 V3.1 表44。
+"""Sprint 1：project_input_checklist schema 对齐 DICT-ALL-003 V3.1 表44.
 
 P0 baseline（dd47298c9c38）只建了 status/note 三字段，偏离 V3.1：
 - status 三态 PENDING/READY/BLOCKED → 五态 NOT_STARTED/IN_PROGRESS/
@@ -25,7 +25,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """project_input_checklist schema 对齐 DICT-ALL-003 V3.1 表 44（P1 Sprint1）。
+    """project_input_checklist schema 对齐 DICT-ALL-003 V3.1 表 44（P1 Sprint1）.
 
     步骤：
     - module varchar(30)：模块分组（DI/WS/PSV/HEAT 等）
@@ -77,7 +77,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """project_input_checklist 删 7 字段（V3.1 升级逆向）。
+    """project_input_checklist 删 7 字段（V3.1 升级逆向）.
 
     步骤（顺序与 upgrade 逆序）：
     - DROP COLUMN assumption_reason

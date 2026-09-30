@@ -1,4 +1,4 @@
-"""P6-4 vessel_results 加 6 列 sizing（C-08 两相分离器尺寸 / SPEC §3.4.2 V1.2）。
+"""P6-4 vessel_results 加 6 列 sizing（C-08 两相分离器尺寸 / SPEC §3.4.2 V1.2).
 
 依据：
 
@@ -37,7 +37,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """vessel_results 加 6 列 sizing（C-08 V1.2 重写）。
+    """vessel_results 加 6 列 sizing（C-08 V1.2 重写).
 
     6 列 nullable（不破坏 V1.0 现有 sizing 行）：
       - vmax_m_s Float NULL：Souders-Brown Vmax
@@ -92,7 +92,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """vessel_results 删 6 列 sizing（Task 2 测试 / 回滚用）。"""
+    """vessel_results 删 6 列 sizing（Task 2 测试 / 回滚用）."""
     op.drop_column("vessel_results", "residence_time_s")
     op.drop_column("vessel_results", "control_height_m")
     op.drop_column("vessel_results", "nozzle_min_id_m")

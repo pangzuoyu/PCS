@@ -1,4 +1,4 @@
-"""P6-6B T13: ``drain_orifice_Cd_Y_cr`` CONFIG 表（OPEN-P6-6A-4 关闭）。
+"""P6-6B T13: ``drain_orifice_Cd_Y_cr`` CONFIG 表（OPEN-P6-6A-4 关闭).
 
 依据 P6-6B 计划 Task 13 + brief（2026-09-27）：
 
@@ -38,7 +38,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """创建 ``drain_orifice_Cd_Y_cr`` 表（C-19 排污孔板 Cd/Y_cr lookup）。
+    """创建 ``drain_orifice_Cd_Y_cr`` 表（C-19 排污孔板 Cd/Y_cr lookup).
 
     字段定义严格对齐 ``app/models/config.py:DrainOrificeCdYCr``。
     """
@@ -108,7 +108,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删除 ``drain_orifice_Cd_Y_cr`` 表（T13 测试 / 回滚用）。"""
+    """删除 ``drain_orifice_Cd_Y_cr`` 表（T13 测试 / 回滚用）."""
     op.drop_index(
         "ix_drain_orifice_Cd_Y_cr_fluid",
         table_name="drain_orifice_Cd_Y_cr",

@@ -1,4 +1,4 @@
-"""Sprint 3：equipment_list 补 actual_data_status / calc_status / equipment_status 列。
+"""Sprint 3：equipment_list 补 actual_data_status / calc_status / equipment_status 列.
 
 DICT-ALL-003 V3.3 §2.4（ADR-0025）+ DICT-002 设备表字典：
 - equipment_status：N=New/E=Existing/D=Delete/M=Modified/F=Future（DICT-002 单字母）
@@ -21,7 +21,7 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
-    """equipment_list 补 3 个状态列（P1 Sprint3 DICT-002 设备字典）。
+    """equipment_list 补 3 个状态列（P1 Sprint3 DICT-002 设备字典）.
 
     步骤（A → E 共 5 段）：
     - A. 创建 3 个 PG native enum：equipmentstatus（N/E/D/M/F 单字母）/
@@ -107,7 +107,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """equipment_list 删 3 状态机字段 + 2 索引 + 3 enum（P1 Sprint3 逆向）。
+    """equipment_list 删 3 状态机字段 + 2 索引 + 3 enum（P1 Sprint3 逆向）.
 
     步骤：
     - DROP INDEX ix_equipment_list_actual_data_status

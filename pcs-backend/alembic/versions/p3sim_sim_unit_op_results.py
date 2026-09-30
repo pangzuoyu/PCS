@@ -1,4 +1,4 @@
-"""P3.x SIM-15: sim_unit_op_results + 6 专用结果表。
+"""P3.x SIM-15: sim_unit_op_results + 6 专用结果表.
 
 spec §5.5 + audit V2.0 E-1：
 - sim_unit_op_results 主表：13 类单元公共字段
@@ -26,7 +26,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """SIM 单元操作结果主表 sim_unit_op_results 创建（P3.2 SIM 批次）。
+    """SIM 单元操作结果主表 sim_unit_op_results 创建（P3.2 SIM 批次).
 
     步骤：
     - 主表 sim_unit_op_results：unit_op_id (PK UUID) + import_id (FK→sim_imports) +
@@ -156,7 +156,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """sim_unit_op_results + 6 单元类型子表 + 2 索引删除（P3.2 SIM 落地逆向）。
+    """sim_unit_op_results + 6 单元类型子表 + 2 索引删除（P3.2 SIM 落地逆向).
 
     步骤：
     - DROP TABLE sim_calculator_results（子表）

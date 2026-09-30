@@ -1,4 +1,4 @@
-"""SUP-002 PC-1: 管道等级差异迁移 + ORM（V1.4）。
+"""SUP-002 PC-1: 管道等级差异迁移 + ORM（V1.4).
 
 Revision ID: p2_sup_sprint_pc1_pipe_class_upgrade
 Revises: p2_s110_fix_toe_timestamptz
@@ -46,7 +46,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """PC-1 管架 upgrade：基础列放宽 + base_material + ConfigAsset FK + 3 态 → 5 态。
+    """PC-1 管架 upgrade：基础列放宽 + base_material + ConfigAsset FK + 3 态 → 5 态.
 
     步骤（A → F 共 6 段）：
     - A. pipe_classes 基础列：class_id varchar(20→50) + base_material + asset_id FK
@@ -253,7 +253,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """PC-1 管架 5 态机改造逆向（F → A）。
+    """PC-1 管架 5 态机改造逆向（F → A).
 
     步骤（按 E → A 顺序逆向）：
     - E 逆向：config_approvals.project_class_id FK + 列删除

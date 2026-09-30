@@ -1,4 +1,4 @@
-"""P3.2 SIM-10：stream_state_points (stream_id, case_type, state_label) 唯一约束。
+"""P3.2 SIM-10：stream_state_points (stream_id, case_type, state_label) 唯一约束.
 
 闭环 bug-062：SV05 仅 intra-batch 查重（seen_keys 集合），跨批次 duplicate 漏掉。
 DB 层 UniqueConstraint 提供最后兜底，commit 时 SQLAlchemy IntegrityError 由
@@ -24,7 +24,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """stream_state_points 加 UNIQUE(stream_id, case_type, state_label) 约束（P3.2 SIM-10）。
+    """stream_state_points 加 UNIQUE(stream_id, case_type, state_label) 约束（P3.2 SIM-10).
 
     步骤：
     - uq_stream_state_points_label UNIQUE（stream_id + case_type + state_label）
@@ -44,7 +44,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """stream_state_points 删 UNIQUE(stream_id, case_type, state_label) 约束（P3.2 SIM-10 逆向）。
+    """stream_state_points 删 UNIQUE(stream_id, case_type, state_label) 约束（P3.2 SIM-10 逆向).
 
     步骤：
     - DROP CONSTRAINT uq_stream_state_points_label

@@ -1,4 +1,5 @@
-"""SUP Sprint INT-1: project_templates 增 pipe_code_template_id 列
+"""SUP Sprint INT-1: project_templates 增 pipe_code_template_id 列.
+
 + project_template_pipe_classes 关联表（V1.4 §15）。
 
 INT-DROP-01 撤销 stream_symbol_table_id 列（公司符号表无聚合实体）。
@@ -19,7 +20,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """项目模板 × 管架/管号 集成（INT-1 + PC-OPEN-04，V1.4 §15）。
+    """项目模板 × 管架/管号 集成（INT-1 + PC-OPEN-04，V1.4 §15).
 
     步骤：
     - A. project_templates 加 pipe_code_template_id UUID NULL + FK→pipe_code_templates
@@ -83,7 +84,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """project_template_pipe_classes 表 + FK + 字段删除（INT-1 落地逆向）。
+    """project_template_pipe_classes 表 + FK + 字段删除（INT-1 落地逆向).
 
     步骤：
     - DROP TABLE project_template_pipe_classes（项目模板与管架类关联表）

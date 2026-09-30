@@ -1,4 +1,4 @@
-"""P6-1 Task 7: cv_results 表加列（SPEC §3.2.1.6）。
+"""P6-1 Task 7: cv_results 表加列（SPEC §3.2.1.6).
 
 按 SPEC §3.2.1.6（Web 版 P6）+ DICT V3.3 PK 命名：
 
@@ -105,7 +105,7 @@ _CV_NEW_COLUMNS: list[tuple[str, sa.Column]] = [
 
 
 def upgrade() -> None:
-    """cv_results 净增 21 列 + 2 索引（P6-1 Task 7 / SPEC §3.2.1.6）。"""
+    """cv_results 净增 21 列 + 2 索引（P6-1 Task 7 / SPEC §3.2.1.6)."""
     # 1. ADD COLUMN × 21（按 SPEC §3.2.1.6 字段平铺）
     for _name, col in _CV_NEW_COLUMNS:
         op.add_column("cv_results", col)
@@ -126,7 +126,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """cv_results 净增 21 列 + 2 索引回退（P6-1 Task 7 逆向）。"""
+    """cv_results 净增 21 列 + 2 索引回退（P6-1 Task 7 逆向)."""
     # 1. DROP INDEX × 2（先 drop 索引避免依赖残留）
     op.drop_index("ix_cv_results_standard_profile_code", "cv_results")
     op.drop_index("ix_cv_results_record_hash", "cv_results")

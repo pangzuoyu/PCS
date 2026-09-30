@@ -1,4 +1,4 @@
-"""P6-5 compound_api521_thresholds CONFIG 表（C-22 API 521 §5.15 致死/致伤阈值）。
+"""P6-5 compound_api521_thresholds CONFIG 表（C-22 API 521 §5.15 致死/致伤阈值).
 
 依据：
 
@@ -31,7 +31,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """创建 ``compound_api521_thresholds`` 表（C-22 API 521 §5.15 阈值）。
+    """创建 ``compound_api521_thresholds`` 表（C-22 API 521 §5.15 阈值).
 
     字段定义严格对齐 ``app/models/config.py:CompoundApi521Thresholds``。
     """
@@ -80,5 +80,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删除 ``compound_api521_thresholds`` 表（C5 测试 / 回滚用）。"""
+    """删除 ``compound_api521_thresholds`` 表（C5 测试 / 回滚用）."""
     op.drop_table("compound_api521_thresholds")

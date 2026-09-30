@@ -1,4 +1,4 @@
-"""P4-TASK0 本体论扩展（ADR-0031 残余）。
+"""P4-TASK0 本体论扩展（ADR-0031 残余).
 
 两套增量：
 1. data_lineage 表加 4 列：D4/D5 扩展
@@ -26,7 +26,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """P4-TASK0 lineage 本体论扩展（ADR-0031 残余，D4/D5）。
+    """P4-TASK0 lineage 本体论扩展（ADR-0031 残余，D4/D5).
 
     步骤：
     - A. data_lineage 加 4 列：record_hash_at_track(16) /
@@ -89,7 +89,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """data_lineage D4/D5 + two_phase_results.record_hash 字段删除（P4 TASK0 逆向）。
+    """data_lineage D4/D5 + two_phase_results.record_hash 字段删除（P4 TASK0 逆向).
 
     步骤：
     - DROP COLUMN two_phase_results.record_hash

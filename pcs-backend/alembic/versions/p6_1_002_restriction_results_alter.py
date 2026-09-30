@@ -1,4 +1,4 @@
-"""P6-1 Task 7: restriction_results 表加列（SPEC §3.2.2.6）。
+"""P6-1 Task 7: restriction_results 表加列（SPEC §3.2.2.6).
 
 按 SPEC §3.2.2.6（Web 版 P6）+ DICT V3.3 PK 命名：
 
@@ -83,7 +83,7 @@ _RES_NEW_COLUMNS: list[tuple[str, sa.Column]] = [
 
 
 def upgrade() -> None:
-    """restriction_results 净增 13 列 + 1 索引（P6-1 Task 7 / SPEC §3.2.2.6）。"""
+    """restriction_results 净增 13 列 + 1 索引（P6-1 Task 7 / SPEC §3.2.2.6)."""
     # 1. ADD COLUMN × 13（按 SPEC §3.2.2.6 字段平铺）
     for _name, col in _RES_NEW_COLUMNS:
         op.add_column("restriction_results", col)
@@ -98,7 +98,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """restriction_results 净增 13 列 + 1 索引回退（P6-1 Task 7 逆向）。"""
+    """restriction_results 净增 13 列 + 1 索引回退（P6-1 Task 7 逆向)."""
     # 1. DROP INDEX × 1（先 drop 索引避免依赖残留）
     op.drop_index("ix_restriction_results_record_hash", "restriction_results")
 

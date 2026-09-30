@@ -1,4 +1,4 @@
-"""SUP Sprint PC-3: config_assets 加 asset_subtype 列（PIPE_CLASS 等）。
+"""SUP Sprint PC-3: config_assets 加 asset_subtype 列（PIPE_CLASS 等).
 
 V1.4 §0.5/INT-OPEN-01 裁决：ConfigAsset 增 asset_subtype str30 可空列；name 前缀不可靠。
 CATEGORY_5 管道等级资产 = (category='CATEGORY_5', asset_subtype='PIPE_CLASS')；
@@ -23,7 +23,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """config_assets 加 asset_subtype 列（PC-3 / V1.4 §0.5/INT-OPEN-01）。
+    """config_assets 加 asset_subtype 列（PC-3 / V1.4 §0.5/INT-OPEN-01).
 
     步骤：
     - asset_subtype varchar(30) NULL：PIPE_CLASS / STREAM_SYMBOL / PIPE_CODE_TEMPLATE
@@ -50,7 +50,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """config_assets 删 asset_subtype 字段 + 索引（PC-3 落地逆向）。
+    """config_assets 删 asset_subtype 字段 + 索引（PC-3 落地逆向).
 
     步骤：
     - DROP INDEX ix_config_assets_asset_subtype

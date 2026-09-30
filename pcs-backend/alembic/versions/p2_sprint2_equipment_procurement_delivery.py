@@ -1,4 +1,4 @@
-"""P2 Sprint 2：equipment_list 扩容（采购 10 + 图纸 3 + 交付 5 + 安装 5 + 重量 3 = 26 项）。
+"""P2 Sprint 2：equipment_list 扩容（采购 10 + 图纸 3 + 交付 5 + 安装 5 + 重量 3 = 26 项).
 
 跳过：
 - vendor（item 15）：Task 3.1 已新增
@@ -19,7 +19,7 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
-    """equipment_list 采购+到货 字段扩展（P2 sprint2 equipment 段 §四+§五）。
+    """equipment_list 采购+到货 字段扩展（P2 sprint2 equipment 段 §四+§五).
 
     步骤：
     - §四 采购字段（跳过 §15 vendor）：alternate_vendor + order_date +
@@ -137,7 +137,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """equipment_list §四/§五/§六/§七/§八 采购+图纸+交付+安装+重量 14 字段回退（P2 Sprint2 逆向）。
+    """equipment_list §四/§五/§六/§七/§八 采购+图纸+交付+安装+重量 14 字段回退（P2 Sprint2 逆向).
 
     步骤（按章节逆序）：
     - §八 重量（3 字段）：weigh_cells / full_weight / empty_weight

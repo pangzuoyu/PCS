@@ -1,4 +1,4 @@
-"""Sprint 2：状态机快照字段。
+"""Sprint 2：状态机快照字段.
 
 - record_change_snapshots.snapshot_status：ADR-0024 V3.3 引入
   ACTIVE/CONSUMED/ABANDONED；nullable=True 不破坏 P0 老快照。
@@ -21,7 +21,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """record_change_snapshots 补 snapshot_status 字段（P1 Sprint2 / ADR-0024 V3.3）。
+    """record_change_snapshots 补 snapshot_status 字段（P1 Sprint2 / ADR-0024 V3.3）.
 
     步骤：
     - snapshot_status varchar(20) NULL：ACTIVE/CONSUMED/ABANDONED 三态
@@ -50,7 +50,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """record_change_snapshots 删 snapshot_status 字段 + 索引（P1 Sprint2 逆向）。
+    """record_change_snapshots 删 snapshot_status 字段 + 索引（P1 Sprint2 逆向）.
 
     步骤：
     - DROP INDEX ix_record_change_snapshots_snapshot_status

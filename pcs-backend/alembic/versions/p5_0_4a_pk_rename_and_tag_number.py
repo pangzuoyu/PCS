@@ -1,4 +1,4 @@
-"""P5-0-4a Task 4a: PK rename + tag_number 统一（DICT V3.3 字典约定对齐）。
+"""P5-0-4a Task 4a: PK rename + tag_number 统一（DICT V3.3 字典约定对齐).
 
 P5-0-4 拆分 4a/4b（2026-09-16 用户裁决）：
 - **4a（本迁移）**：PK rename 10 表 + column_sizing.tag_number 统一
@@ -70,7 +70,7 @@ _PK_RENAMES: list[tuple[str, str, str]] = [
 
 
 def upgrade() -> None:
-    """PK rename 10 表 + column_sizing.tag_number 统一（P5-0-4a / DICT V3.3）。
+    """PK rename 10 表 + column_sizing.tag_number 统一（P5-0-4a / DICT V3.3).
 
     步骤：
     - A. PK rename 10 表（移除 `_calc` 后缀）：
@@ -117,7 +117,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """10 表 PK rename + column_sizing tag_number 字段统一回退（P5-0-4a 逆向）。
+    """10 表 PK rename + column_sizing tag_number 字段统一回退（P5-0-4a 逆向).
 
     步骤：
     - 1. column_sizing 回退（4 步反向操作）

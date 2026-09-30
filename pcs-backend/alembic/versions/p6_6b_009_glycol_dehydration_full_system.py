@@ -1,4 +1,4 @@
-"""P6-6B T9: ``glycol_dehydration_full_system`` CONFIG 表（C-16 glycol dehydration）。
+"""P6-6B T9: ``glycol_dehydration_full_system`` CONFIG 表（C-16 glycol dehydration).
 
 依据 P6-6B 计划 Task 9 + brief（2026-09-27）：
 
@@ -37,7 +37,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """创建 ``glycol_dehydration_full_system`` 表（C-16 典型工况范围）。
+    """创建 ``glycol_dehydration_full_system`` 表（C-16 典型工况范围).
 
     字段定义严格对齐
     ``app/models/config.py:GlycolDehydrationFullSystem``。
@@ -110,7 +110,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删除 ``glycol_dehydration_full_system`` 表（T9 测试 / 回滚用）。"""
+    """删除 ``glycol_dehydration_full_system`` 表（T9 测试 / 回滚用）."""
     op.drop_index(
         "ix_glycol_dehydration_full_system_parameter",
         table_name="glycol_dehydration_full_system",

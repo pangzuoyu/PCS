@@ -1,4 +1,4 @@
-"""P3.2 SIM streams schema 升级（修正版 10 字段，2026-09-08）。
+"""P3.2 SIM streams schema 升级（修正版 10 字段，2026-09-08).
 
 净新增 9 列 + 2 个 CHECK 约束：
 
@@ -33,7 +33,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """P3.2 SIM streams schema 升级（修正版，10 字段 + 2 CHECK）。
+    """P3.2 SIM streams schema 升级（修正版，10 字段 + 2 CHECK).
 
     步骤：
     - streams 9 新字段：case_type(20) + surface_tension / api_gravity /
@@ -111,7 +111,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """streams 删 9 字段 + 2 case_type CHECK 约束（P3.2 SIM 落地逆向）。
+    """Streams 删 9 字段 + 2 case_type CHECK 约束（P3.2 SIM 落地逆向).
 
     步骤：
     - DROP CONSTRAINT ck_stream_state_points_case_type

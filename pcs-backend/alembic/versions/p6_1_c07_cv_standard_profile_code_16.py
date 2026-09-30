@@ -1,4 +1,4 @@
-"""P6-1.5 C-07: cv_results.standard_profile_code 字段宽度 32→16 回归（评审委员会 2026-09-24）。
+"""P6-1.5 C-07: cv_results.standard_profile_code 字段宽度 32→16 回归（评审委员会 2026-09-24).
 
 按 C-07 裁决：GB/T 4213 等同采用 IEC 60534-2-1:2011，无公式差异；
 standard_profile_code 字段仅溯源不参与公式分支，最大值 `IEC_60534` 9 字符，
@@ -23,7 +23,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """cv_results.standard_profile_code：String(32) → String(16) + NOT NULL 默认 IEC_60534。
+    """cv_results.standard_profile_code：String(32) → String(16) + NOT NULL 默认 IEC_60534.
 
     1. ALTER COLUMN TYPE：String(32) → String(16)
        存量数据应已 ≤16 字符（pre-existing 值 "API-60534" 9 字符 < 16）；
@@ -50,7 +50,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """cv_results.standard_profile_code 长度回归逆向：String(16) → String(32)。
+    """cv_results.standard_profile_code 长度回归逆向：String(16) → String(32).
 
     逆序：先去除 NOT NULL/server_default，再扩列宽到 32。
     """

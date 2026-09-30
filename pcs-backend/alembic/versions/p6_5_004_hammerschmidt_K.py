@@ -1,4 +1,4 @@
-"""P6-5 compound_hammerschmidt_K CONFIG 表（C-18 Hammerschmidt K 因子）。
+"""P6-5 compound_hammerschmidt_K CONFIG 表（C-18 Hammerschmidt K 因子).
 
 依据：
 
@@ -30,7 +30,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """创建 ``compound_hammerschmidt_K`` 表（C-18 水合物抑制 K 因子）。
+    """创建 ``compound_hammerschmidt_K`` 表（C-18 水合物抑制 K 因子).
 
     字段定义严格对齐 ``app/models/config.py:CompoundHammerschmidtK``。
     """
@@ -79,5 +79,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删除 ``compound_hammerschmidt_K`` 表（C5 测试 / 回滚用）。"""
+    """删除 ``compound_hammerschmidt_K`` 表（C5 测试 / 回滚用）."""
     op.drop_table("compound_hammerschmidt_K")

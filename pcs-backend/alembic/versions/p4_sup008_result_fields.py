@@ -1,4 +1,4 @@
-"""P4-0-2: SUP-008 OPEN-008 表扩展 + OPEN-009 design_stage。
+"""P4-0-2: SUP-008 OPEN-008 表扩展 + OPEN-009 design_stage.
 
 SUP-008 V1.1 §8.3 / OPEN-008（管/泵/两相结果字段）+ OPEN-009（设计阶段 BASIC/DETAIL）：
 
@@ -89,7 +89,7 @@ two_phase_check_enum = postgresql.ENUM(
 
 
 def upgrade() -> None:
-    """SUP-008 结果字段扩展 + two_phase_results 新表（P4-0-2 / 169 列）。
+    """SUP-008 结果字段扩展 + two_phase_results 新表（P4-0-2 / 169 列).
 
     步骤（A → E 共 5 段）：
     - A. 6 个 PG enum 类型创建：
@@ -285,7 +285,8 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """6 enum + piping +11 + pump +4 + design_stage + two_phase_results 落地逆向
+    """6 enum + piping +11 + pump +4 + design_stage + two_phase_results 落地逆向.
+
     （P4 SUP-008 逆向）。
 
     步骤：

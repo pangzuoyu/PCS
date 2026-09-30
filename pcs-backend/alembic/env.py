@@ -1,4 +1,4 @@
-"""alembic 同步迁移。Base 来源于 app.db.base（全部 ORM 已注册）。"""
+"""alembic 同步迁移。Base 来源于 app.db.base（全部 ORM 已注册）."""
 
 from logging.config import fileConfig
 
@@ -21,6 +21,7 @@ target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:
+    """离线模式：仅输出 SQL 脚本，不建立真实连接."""
     url = config.get_main_option("sqlalchemy.url")
     context.configure(
         url=url,
@@ -34,6 +35,7 @@ def run_migrations_offline() -> None:
 
 
 def run_migrations_online() -> None:
+    """在线模式：建立真实连接并执行迁移."""
     connectable = engine_from_config(
         config.get_section(config.config_ini_section, {}),
         prefix="sqlalchemy.",

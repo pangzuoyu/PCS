@@ -1,4 +1,4 @@
-"""P6-6B T7: ``compound_hammerschmidt_K`` process metadata 闭环（C-18 水合物抑制）。
+"""P6-6B T7: ``compound_hammerschmidt_K`` process metadata 闭环（C-18 水合物抑制).
 
 P6-5 阶段工艺工程师已抄录 5 行 Hammerschmidt 1934 OG + Nielsen 1988 +
 GPSA Fig. 20-XX 温降常数（``MEOH=2335 / EG=2220 / DEG=2335 /
@@ -37,7 +37,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """UPDATE 5 行 ``compound_hammerschmidt_K`` 的 metadata 字段。
+    """UPDATE 5 行 ``compound_hammerschmidt_K`` 的 metadata 字段.
 
     仅匹配 ``source='SYNTHETIC_TEST_DATA'``；其他来源行不动。
     一次性 UPDATE（同 PG 事务原子），配合 ``confirmed_at`` 设固定日期
@@ -57,7 +57,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """还原为占位 metadata（互逆于 upgrade）。
+    """还原为占位 metadata（互逆于 upgrade).
 
     仅匹配本迁移升级过的行（即 ``source='Hammerschmidt 1934 OG /
     Nielsen 1988 / GPSA Fig. 20-XX'`` 且 ``confirmed_by='P6-6B_ENG_TEAM'``），

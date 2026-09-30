@@ -1,4 +1,4 @@
-"""P6-6B T12: ``compound_delta_h_vap_natural_gas`` CONFIG 表（OPEN-P6-6A-5 关闭）。
+"""P6-6B T12: ``compound_delta_h_vap_natural_gas`` CONFIG 表（OPEN-P6-6A-5 关闭).
 
 依据 P6-6B 计划 Task 12 + brief（2026-09-27）：
 
@@ -34,7 +34,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """创建 ``compound_delta_h_vap_natural_gas`` 表（C-21 fire case ΔH_vap 双 surface）。
+    """创建 ``compound_delta_h_vap_natural_gas`` 表（C-21 fire case ΔH_vap 双 surface).
 
     字段定义严格对齐
     ``app/models/config.py:CompoundDeltaHVapNaturalGas``。
@@ -93,7 +93,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删除 ``compound_delta_h_vap_natural_gas`` 表（T12 测试 / 回滚用）。"""
+    """删除 ``compound_delta_h_vap_natural_gas`` 表（T12 测试 / 回滚用）."""
     op.drop_index(
         "ix_compound_delta_h_vap_natural_gas_convention",
         table_name="compound_delta_h_vap_natural_gas",

@@ -1,4 +1,4 @@
-"""P6-5 CI-P6-5-SEED 收口：审计三件套 drift 矫正（5 表 × 3 列）。
+"""P6-5 CI-P6-5-SEED 收口：审计三件套 drift 矫正（5 表 × 3 列).
 
 背景（2026-09-26 pcs_test 对齐后暴露）：
 
@@ -44,7 +44,7 @@ _DRIFT_TABLES: tuple[str, ...] = (
 
 
 def upgrade() -> None:
-    """5 张 drift 表各加 P4-0-1 审计三件套（nullable，对齐 RecordMixin）。"""
+    """5 张 drift 表各加 P4-0-1 审计三件套（nullable，对齐 RecordMixin）."""
     for table in _DRIFT_TABLES:
         op.add_column(
             table,
@@ -77,7 +77,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """5 张 drift 表删审计三件套（与 upgrade 互逆）。"""
+    """5 张 drift 表删审计三件套（与 upgrade 互逆）."""
     for table in _DRIFT_TABLES:
         op.drop_column(table, "changed_fields")
         op.drop_column(table, "hash_changed")

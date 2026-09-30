@@ -1,4 +1,4 @@
-"""v3.1 full schema (53 tables, ADR-0023)
+"""v3.1 full schema (53 tables, ADR-0023).
 
 Revision ID: dd47298c9c38
 Revises:

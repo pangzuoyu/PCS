@@ -1,4 +1,4 @@
-"""P6-9-PICKUP-3 T1: 删除 ``compound_nielsen_1988_params`` CONFIG 表。
+"""P6-9-PICKUP-3 T1: 删除 ``compound_nielsen_1988_params`` CONFIG 表.
 
 依据 P6-9-PICKUP-3 brief（2026-11-15）：
 
@@ -25,7 +25,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """删除 ``compound_nielsen_1988_params`` 表（T1 清理目标）。"""
+    """删除 ``compound_nielsen_1988_params`` 表（T1 清理目标）."""
     op.drop_index(
         "ix_compound_nielsen_1988_params_component",
         table_name="compound_nielsen_1988_params",
@@ -34,7 +34,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """还原 ``p6_6b_008`` 等价 DDL（rollback 对称需要）。
+    """还原 ``p6_6b_008`` 等价 DDL（rollback 对称需要).
 
     字段定义严格对齐 ``p6_6b_008_nielsen_1988_params.py::upgrade``。
     """

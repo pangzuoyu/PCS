@@ -1,4 +1,4 @@
-"""P5-OPEN-10 SUP-P5-PSV-002 V1.14 §3.1 PSV 选型 18 列 + 3 CHECK。
+"""P5-OPEN-10 SUP-P5-PSV-002 V1.14 §3.1 PSV 选型 18 列 + 3 CHECK.
 
 按 SUP-P5-PSV-002 V1.14（SPEC §3.1 + §4.1 + §4.2）：
 
@@ -40,6 +40,7 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """应用 P5-OPEN-010 PSV 阀门选择迁移."""
     # 1. psv_results 加 18 列（与 ORM 定义一一对应；nullable=True 兼容存量）
     op.add_column(
         "psv_results",
@@ -176,6 +177,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """回退 P5-OPEN-010 PSV 阀门选择迁移."""
     # 逆序：先 drop 列约束，再 drop 列
     op.drop_constraint("psv_orifice_overridden_check", "psv_results", type_="check")
     op.drop_constraint("psv_cdtp_check", "psv_results", type_="check")

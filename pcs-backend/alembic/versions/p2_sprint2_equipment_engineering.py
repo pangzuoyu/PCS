@@ -1,4 +1,4 @@
-"""P2 Sprint 2：equipment_list 扩容（来源 4 + 标识 5 + 类型 4 + 工程 8 = 21 项）。
+"""P2 Sprint 2：equipment_list 扩容（来源 4 + 标识 5 + 类型 4 + 工程 8 = 21 项).
 
 跳过：
 - equipment_description（§二 item 10）：Task 3.1 已由 description 重命名
@@ -24,7 +24,7 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
-    """equipment_list 工程字段扩展（P2 sprint2 equipment §一来源）。
+    """equipment_list 工程字段扩展（P2 sprint2 equipment §一来源).
 
     步骤：
     - in_package (Boolean)：是否纳入 3D/ESR/P&ID 设计包
@@ -113,7 +113,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """equipment_list §一/§二/§三/§九 21 字段回退（P2 Sprint2 逆向）。
+    """equipment_list §一/§二/§三/§九 21 字段回退（P2 Sprint2 逆向).
 
     步骤（按章节逆序）：
     - §九 工程（8 字段）：mst_number / emts_number / registration_number /

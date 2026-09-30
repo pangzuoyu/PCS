@@ -1,4 +1,4 @@
-"""P3.x SIM-33: 气相物性 9 字段（ORM 列） + 液相物性命名对齐 + SIM-31 JSONB 3 字段迁 ORM。
+"""P3.x SIM-33: 气相物性 9 字段（ORM 列） + 液相物性命名对齐 + SIM-31 JSONB 3 字段迁 ORM.
 
 spec §1.2.1 + ADD-001 §3.5/§3.6：
 
@@ -73,7 +73,7 @@ _NEW_LIQUID_FROM_JSONB = (
 
 
 def upgrade() -> None:
-    """streams 气相 9 字段 + 液相命名对齐 + SIM-31 JSONB 提升 ORM（P3.x SIM-33）。
+    """Streams 气相 9 字段 + 液相命名对齐 + SIM-31 JSONB 提升 ORM（P3.x SIM-33).
 
     步骤：
     - A. 液相 7 列重命名（spec §3.6 liquid_ 前缀）：
@@ -117,7 +117,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """streams 删 7 液相重命名 + 9 气相 + 3 JSONB→ORM（P3.2 SIM 落地逆向）。
+    """Streams 删 7 液相重命名 + 9 气相 + 3 JSONB→ORM（P3.2 SIM 落地逆向).
 
     步骤（与 upgrade 逆序）：
     - 1. 移除 SIM-31 JSONB → ORM 3 列（loop _NEW_LIQUID_FROM_JSONB）

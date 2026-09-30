@@ -1,4 +1,4 @@
-"""P4-4-4 PUMP 链：pump_results 加 input_json / output_json 两列（与 PIPE/PIPE_NET 一致）。
+"""P4-4-4 PUMP 链：pump_results 加 input_json / output_json 两列（与 PIPE/PIPE_NET 一致).
 
 约束：与 P4-0-2 SUP-008 不冲突（仅增量加列，不改既有列语义）。
 DOWN-REVISION = p4_sup008_result_fields（最新迁移基线）。
@@ -17,7 +17,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """pump_results 加 input_json / output_json 两列（P4-4-4 PUMP 链）。
+    """pump_results 加 input_json / output_json 两列（P4-4-4 PUMP 链).
 
     步骤：
     - input_json JSONB NULL：PUMP 链入参容器
@@ -47,7 +47,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """pump_results 删 input_json + output_json 字段（P4 落地逆向）。
+    """pump_results 删 input_json + output_json 字段（P4 落地逆向).
 
     步骤（顺序与 upgrade 逆序）：
     - DROP COLUMN pump_results.output_json

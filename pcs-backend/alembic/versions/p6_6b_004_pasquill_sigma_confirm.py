@@ -1,4 +1,4 @@
-"""P6-6B T4: ``compound_pasquill_sigma`` process metadata 闭环（C-22 大气扩散）。
+"""P6-6B T4: ``compound_pasquill_sigma`` process metadata 闭环（C-22 大气扩散).
 
 P6-5 阶段工艺工程师已抄录 6 行 Pasquill-Gifford 稳定度系数
 (``a_y``/``b_y``/``a_z``/``b_z``；Briggs 1973 open terrain)，当时落库使用
@@ -36,7 +36,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """UPDATE 6 行 ``compound_pasquill_sigma`` 的 metadata 字段。
+    """UPDATE 6 行 ``compound_pasquill_sigma`` 的 metadata 字段.
 
     仅匹配 ``source='SYNTHETIC_TEST_DATA'``；其他来源行不动。
     一次性 UPDATE（同 PG 事务原子），配合 ``confirmed_at`` 设固定日期
@@ -52,7 +52,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """还原为占位 metadata（互逆于 upgrade）。
+    """还原为占位 metadata（互逆于 upgrade).
 
     仅匹配本迁移升级过的行（即 ``source='EPA ISC3 (1995) User's Guide +
     Briggs (1973)'`` 且 ``confirmed_by='P6-6B_ENG_TEAM'``），不影响后续

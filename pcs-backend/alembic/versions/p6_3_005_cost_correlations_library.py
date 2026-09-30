@@ -1,4 +1,4 @@
-"""P6-3 cost_correlations CONFIG 表（SPEC §3.2.8 第三项）。
+"""P6-3 cost_correlations CONFIG 表（SPEC §3.2.8 第三项).
 
 依据：
 
@@ -36,7 +36,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """创建 ``cost_correlations`` 表（SPEC §3.2.8 第三项）。
+    """创建 ``cost_correlations`` 表（SPEC §3.2.8 第三项).
 
     字段定义严格对齐 ``app/models/config.py:CostCorrelationLibrary``。
     """
@@ -102,5 +102,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删除 ``cost_correlations`` 表（Task 35 测试 / 回滚用）。"""
+    """删除 ``cost_correlations`` 表（Task 35 测试 / 回滚用）."""
     op.drop_table("cost_correlations")

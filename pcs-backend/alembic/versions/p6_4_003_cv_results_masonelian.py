@@ -1,4 +1,4 @@
-"""P6-4 cv_results 加 1 列 masonelian_model（C-24 Masonelian fl / SPEC §3.2.1.5）。
+"""P6-4 cv_results 加 1 列 masonelian_model（C-24 Masonelian fl / SPEC §3.2.1.5).
 
 依据：
 
@@ -32,7 +32,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """cv_results 加 1 列 masonelian_model（C-24 V1.2 D3 严格 1 列）。
+    """cv_results 加 1 列 masonelian_model（C-24 V1.2 D3 严格 1 列).
 
     1 列 nullable（不破坏 V1.0/V1.1 既有 cv_results 行）：
       - masonelian_model String(32) NULL：MASONELIAN_1973 / CHAPMAN_JANS / TONG
@@ -51,5 +51,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """cv_results 删 1 列 masonelian_model（Task 5 测试 / 回滚用）。"""
+    """cv_results 删 1 列 masonelian_model（Task 5 测试 / 回滚用）."""
     op.drop_column("cv_results", "masonelian_model")

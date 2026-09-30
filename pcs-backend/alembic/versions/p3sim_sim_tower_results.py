@@ -1,4 +1,4 @@
-"""P3.x SIM-16: sim_tower_results 表（COLUMN SUMMARY 存档）。
+"""P3.x SIM-16: sim_tower_results 表（COLUMN SUMMARY 存档).
 
 spec §5.5 + audit V2.0 E-1：
 - 每条 COLUMN 单元操作 → 1 行
@@ -26,7 +26,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """sim_tower_results 主表创建（SIM-16 / spec §5.5 COLUMN SUMMARY 存档）。
+    """sim_tower_results 主表创建（SIM-16 / spec §5.5 COLUMN SUMMARY 存档).
 
     步骤：
     - 主表 sim_tower_results：tower_id (PK UUID) + import_id (FK→sim_imports ON DELETE CASCADE)
@@ -91,7 +91,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """sim_tower_results 表 + 索引删除（P3.2 SIM 落地逆向）。
+    """sim_tower_results 表 + 索引删除（P3.2 SIM 落地逆向).
 
     步骤：
     - DROP INDEX ix_sim_tower_results_import_id

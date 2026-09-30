@@ -1,4 +1,4 @@
-"""P6-3 Task 30：3 张结果表迁移 + P6-OPEN-009 修复 + column_sizing design_stage 补列。
+"""P6-3 Task 30：3 张结果表迁移 + P6-OPEN-009 修复 + column_sizing design_stage 补列.
 
 依据：
 - P6 计划 §Task 30（3 张 P6-3 结果表：open_channel_results / filtration_results /
@@ -34,7 +34,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """追加 3 张结果表 Task 30 扩展字段 + P6-OPEN-009 psv_results 3 列。
+    """追加 3 张结果表 Task 30 扩展字段 + P6-OPEN-009 psv_results 3 列.
 
     模式：``ALTER TABLE ... ADD COLUMN IF NOT EXISTS`` 幂等；
     pcs_test 上 v3.1 schema migration 已建 3 张结果表（含 mixin 字段），
@@ -152,7 +152,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """逆序删除本迁移添加的列。
+    """逆序删除本迁移添加的列.
 
     注：3 张结果表（open_channel_results / filtration_results / cost_est_results）
     本迁移未创建（v3.1 schema migration 创建），故不 drop。本迁移仅追加列，

@@ -1,4 +1,4 @@
-"""pcs_toe_conversion_factors 时间戳列矫正（终审 F3）
+"""pcs_toe_conversion_factors 时间戳列矫正（终审 F3).
 
 Revision ID: p2_s110_fix_toe_timestamptz
 Revises: p2_s110_doc_no_project_id
@@ -26,7 +26,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """pcs_toe_conversion_factors 时间戳列矫正（P2 Sprint1 §110 / 终审 F3）。
+    """pcs_toe_conversion_factors 时间戳列矫正（P2 Sprint1 §110 / 终审 F3）.
 
     步骤：
     - created_at：DateTime → DateTime(timezone=True)（PG AT TIME ZONE 'UTC' 转）
@@ -54,7 +54,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """pcs_toe_conversion_factors 时区列矫正回退（P2 S110 终审 F3 逆向）。
+    """pcs_toe_conversion_factors 时区列矫正回退（P2 S110 终审 F3 逆向）.
 
     步骤：
     - ALTER COLUMN updated_at SET NOT NULL

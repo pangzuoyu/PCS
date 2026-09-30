@@ -1,4 +1,4 @@
-"""P5-0-5 Task 24a: PSV 多标准配置 + 9 类 registry。
+"""P5-0-5 Task 24a: PSV 多标准配置 + 9 类 registry.
 
 按 SUP-P5-PSV-001 §3 + ADR-0028 V1.1（决策 10a G1-G6 门禁 + 决策 11 GB 分层阈值）：
 1. **新表** `project_calculation_standard_profiles`：项目级 PSV/VESSEL/HEAT 等 discipline 标准配置
@@ -40,6 +40,7 @@ depends_on = None
 
 
 def upgrade() -> None:
+    """应用 P5-0.5 PSV 多标准字段迁移."""
     # 1. btree_gist 扩展（EXCLUDE USING gist 需要，跨类型 = 运算符支持）
     op.execute("CREATE EXTENSION IF NOT EXISTS btree_gist")
 
@@ -305,6 +306,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
+    """回退 P5-0.5 PSV 多标准字段迁移."""
     # 1. relief_results 回退
     op.drop_index(
         "idx_relief_results_migrated_default", table_name="relief_results"

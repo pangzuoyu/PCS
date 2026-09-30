@@ -1,4 +1,4 @@
-"""P2 Sprint 1 Step 0：配置层 ORM 修正对齐 DICT V3.3。
+"""P2 Sprint 1 Step 0：配置层 ORM 修正对齐 DICT V3.3.
 
 修正内容（D13 裁决）：
 - config_approvals：rename comments → comment + add approver_id
@@ -27,7 +27,7 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
-    """配置层字段修复（P2 sprint1：config_approvals/formula_definitions/coefficient_tables）。
+    """配置层字段修复（P2 sprint1：config_approvals/formula_definitions/coefficient_tables).
 
     步骤：
     - config_approvals：加 approver_id (UUID nullable) + rename comments→comment
@@ -132,7 +132,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """P2 Sprint1 配置层字段修复 5 张表逆向。
+    """P2 Sprint1 配置层字段修复 5 张表逆向.
 
     步骤（按 A → E 顺序逆向 E → A）：
     - E. config_approvals：comment→comments 重命名 + 删 approver_id

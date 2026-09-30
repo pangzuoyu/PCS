@@ -1,4 +1,4 @@
-"""P6-3 G-04/05/06：3 张 CONFIG 元数据表新建。
+"""P6-3 G-04/05/06：3 张 CONFIG 元数据表新建.
 
 含 cooling_tower_curves / filtration_media_library / flare_radiation_limits
 三张 CONFIG 元数据表，被 OPEN_CHANNEL / FILTRATION / flare radiation_check
@@ -34,7 +34,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """创建 cooling_tower_curves / filtration_media_library / flare_radiation_limits。
+    """创建 cooling_tower_curves / filtration_media_library / flare_radiation_limits.
 
     字段定义严格对齐 ``app/models/config.py`` 中 3 个 ORM class：
 
@@ -236,7 +236,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """逆序删除 3 张表（无外键引用，仅 DDL 逆序）。
+    """逆序删除 3 张表（无外键引用，仅 DDL 逆序).
 
     顺序：flare_radiation_limits → filtration_media_library →
     cooling_tower_curves（与创建顺序反向）。

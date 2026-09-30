@@ -1,4 +1,4 @@
-"""P5-4 HEAT: duty 列拆分为 duty_legacy + duty_calc（ADR-0027 V1.0 决策 5）。
+"""P5-4 HEAT: duty 列拆分为 duty_legacy + duty_calc（ADR-0027 V1.0 决策 5).
 
 按 ADR-0027 V1.0 决策 5 跟踪项（"P5-4 实施时按需拆分"）：
 原 heat_results.duty 同时承载 9 旧 P4 上游值与 SUP-009 P5 计算结果，业务语义模糊。
@@ -29,7 +29,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """heat_results.duty 拆分为 duty_legacy + duty_calc（P5-4 HEAT / ADR-0027 V1.0 决策 5）。
+    """heat_results.duty 拆分为 duty_legacy + duty_calc（P5-4 HEAT / ADR-0027 V1.0 决策 5).
 
     步骤：
     - A. 加 duty_legacy Float NULL：P4 上游 duty（heat_data_service._store 写入 inp.duty）
@@ -63,7 +63,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """heat_results.duty 拆字段逆向（P5-4 HEAT duty 拆分回滚）。
+    """heat_results.duty 拆字段逆向（P5-4 HEAT duty 拆分回滚).
 
     步骤：
     - UPDATE duty 兜底回填：duty_legacy 与 duty_calc 任一非空 → 写回 duty

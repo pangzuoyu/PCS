@@ -1,4 +1,4 @@
-"""P6-2 Task 18: flare_system_results / cooling_tower_results / psychro_results 表重构。
+"""P6-2 Task 18: flare_system_results / cooling_tower_results / psychro_results 表重构.
 
 按 P6 计划 §Task 18 硬性：
 
@@ -62,7 +62,7 @@ _recordsignstatus_enum = postgresql.ENUM(
 
 
 def _mixin_columns() -> list[sa.Column]:
-    """TaggedRecordMixin + RecordMixin + TimestampMixin 全套列。
+    """TaggedRecordMixin + RecordMixin + TimestampMixin 全套列.
 
     不含 PK；不含 UNIQUE / FK 约束（由调用方独立声明）。
     顺序：tag_number → sign_status → record_hash → 审计列 → declared_attr FK 列 →
@@ -130,7 +130,7 @@ def _mixin_columns() -> list[sa.Column]:
 
 
 def _flare_biz_columns() -> list[sa.Column]:
-    """flare_system_results 业务字段（不含 PK / mixin）。"""
+    """flare_system_results 业务字段（不含 PK / mixin)."""
     return [
         # 溯源
         sa.Column(
@@ -168,7 +168,7 @@ def _flare_biz_columns() -> list[sa.Column]:
 
 
 def _cool_tower_biz_columns() -> list[sa.Column]:
-    """cooling_tower_results 业务字段（不含 PK / mixin）。
+    """cooling_tower_results 业务字段（不含 PK / mixin).
 
     业务：COOL_TOWER 冷却塔 — SPEC §3.2.4 + PCS-DICT-007 SUP-012 14 子结构。
     """
@@ -205,7 +205,7 @@ def _cool_tower_biz_columns() -> list[sa.Column]:
 
 
 def _psychro_biz_columns() -> list[sa.Column]:
-    """psychro_results 业务字段（不含 PK / mixin）。
+    """psychro_results 业务字段（不含 PK / mixin).
 
     业务：PSYCHRO 湿空气 — SPEC §3.2.5 + CoolProp HumidAir 包装。
     """
@@ -247,7 +247,7 @@ def _create_calc_table(
     pk_col: sa.Column,
     biz_cols: list[sa.Column],
 ) -> None:
-    """建表：业务字段 + mixin 全套 + 4 索引 + (project_id, tag_number) UNIQUE。
+    """建表：业务字段 + mixin 全套 + 4 索引 + (project_id, tag_number) UNIQUE.
 
     索引（4 个）：project_id / workspace_id / sign_status / created_at。
     约束：FK(project_id) / FK(workspace_id) / UNIQUE(project_id, tag_number) /
@@ -288,7 +288,7 @@ def _create_calc_table(
 
 
 def upgrade() -> None:
-    """drop 3 张 stub 表（if_exists 容错）+ 重建 P6-2 完整 schema + 索引。
+    """Drop 3 张 stub 表（if_exists 容错）+ 重建 P6-2 完整 schema + 索引.
 
     pcs_test 验证 3 张表 COUNT(*) = 0（2026-09-24），drop+create 无数据丢失。
     if_exists=True 让 upgrade → downgrade → upgrade 循环幂等（downgrade 已 drop，
@@ -322,7 +322,7 @@ def upgrade() -> None:
 
 
 def _v31_stub_biz_columns(with_calc_type: bool = False) -> list[sa.Column]:
-    """v3_1 stub 业务列还原：input_json / output_json（psychro 另有 calc_type）。
+    """v3_1 stub 业务列还原：input_json / output_json（psychro 另有 calc_type).
 
     dd47298c9c38 stub 形态 = PK + 容器列（psychro 多 calc_type）+ mixin；
     本 helper 只给容器列，mixin 由 _create_calc_table 统一追加。
@@ -342,7 +342,7 @@ def _v31_stub_biz_columns(with_calc_type: bool = False) -> list[sa.Column]:
 
 
 def downgrade() -> None:
-    """逆序 drop 3 张 P6-2 表 + 还原 cooling_tower / psychro 两张 v3_1 stub。
+    """逆序 drop 3 张 P6-2 表 + 还原 cooling_tower / psychro 两张 v3_1 stub.
 
     stub 形态 = dd47298c9c38 v3_1 简化版 + p5_0_4a PK rename 后状态
     （PK cooling_tower_id / psychro_id；psychro 含 calc_type），使后续

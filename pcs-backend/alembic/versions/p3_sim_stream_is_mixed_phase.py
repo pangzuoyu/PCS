@@ -1,4 +1,4 @@
-"""P3.2 SIM-10.2：streams.is_mixed_phase 列（MIXED 相持久化标记）。
+"""P3.2 SIM-10.2：streams.is_mixed_phase 列（MIXED 相持久化标记).
 
 落地理由（用户 2026-09-09 提案）：
 - PRO/II parser 遇 MIXED 相时，SIM-V01 BLOCK 需绕过（phase 置 None 避免 BLOCK）
@@ -30,7 +30,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """streams 加 is_mixed_phase 字段（P3.2 SIM-10.2 / 用户 2026-09-09 提案）。
+    """Streams 加 is_mixed_phase 字段（P3.2 SIM-10.2 / 用户 2026-09-09 提案).
 
     步骤：
     - is_mixed_phase Boolean NULL：未设置（默认 None 等价 False）
@@ -53,7 +53,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """streams 删 is_mixed_phase 字段（P3.2 SIM-10.2 逆向）。
+    """Streams 删 is_mixed_phase 字段（P3.2 SIM-10.2 逆向).
 
     步骤：
     - DROP COLUMN streams.is_mixed_phase

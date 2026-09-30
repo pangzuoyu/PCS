@@ -56,11 +56,21 @@ dev = [
 line-length = 100
 target-version = "py312"
 exclude = ["vendor", ".venv"]
-extend-exclude = ["**/fixtures/**", "**/alembic/versions/**", "**/migrations/**"]
+extend-exclude = ["**/fixtures/**", "**/migrations/**"]
 
 [tool.ruff.lint]
-select = ["E", "F", "I", "UP", "B"]
+select = ["E", "F", "I", "UP", "B", "D"]
 ignore = ["UP042", "B008"]  # UP042: str+enum.Enum 是 SA 2.0 习惯；B008: FastAPI Depends() in defaults 是官方推荐
+
+[tool.ruff.lint.extend-per-file-ignores]
+# P6-9-PICKUP-5 5A staged scope (user ruling 2026-09-30)
+# HYG-P6-6B-1 closure: 本批仅 alembic/versions/ 全量清 D 规则。
+# app/ tests/ scripts/ 仍豁免 D —— 采用分批推进（staged adoption），非永久豁免；
+# 全局启用 D 会一次性暴露 12263 errors，超出 5A 授权范围（不动 service code / tests）。
+# 后续批次逐目录解除豁免，收敛到 D 全局生效。
+"app/**" = ["D"]
+"tests/**" = ["D"]
+"scripts/**" = ["D"]
 
 [tool.mypy]
 python_version = "3.12"

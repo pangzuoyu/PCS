@@ -1,4 +1,4 @@
-"""SUP Sprint FMT-3: project_pipe_code_sequences 计数器表（auto_increment 并发）。
+"""SUP Sprint FMT-3: project_pipe_code_sequences 计数器表（auto_increment 并发).
 
 FMT-OPEN-01：scope_key 默认 ``project_id + stream_symbol`` 组合键；用独立
 计数器表防并发竞态（UPSERT 原子自增）。
@@ -18,7 +18,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """project_pipe_code_sequences 计数器表（FMT-3 / FMT-OPEN-01）。
+    """project_pipe_code_sequences 计数器表（FMT-3 / FMT-OPEN-01).
 
     步骤：
     - 主表 project_pipe_code_sequences：config_id (UUID FK) + scope_key (varchar 50)
@@ -47,7 +47,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """project_pipe_code_sequences 表删除（FMT-1b 计数器落地逆向）。
+    """project_pipe_code_sequences 表删除（FMT-1b 计数器落地逆向).
 
     步骤：
     - DROP TABLE project_pipe_code_sequences

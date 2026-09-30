@@ -1,4 +1,5 @@
-"""add pcs_toe_conversion_factors
+"""add pcs_toe_conversion_factors.
+
 Revision ID: 2026_09_03_0800_add_toe_conversion
 Revises: p2_sprint2_equipment_procurement_delivery
 Create Date: 2026-09-03
@@ -15,7 +16,7 @@ down_revision = "p2_sprint2_equipment_procurement_delivery"
 
 
 def upgrade():
-    """pcs_toe_conversion_factors 主表 + 默认 6 项 seed（V1.4 P2-OPEN-005）。
+    """pcs_toe_conversion_factors 主表 + 默认 6 项 seed（V1.4 P2-OPEN-005）.
 
     步骤：
     - A. 创建主表 pcs_toe_conversion_factors：id PK autoinc / fuel_type(30) /
@@ -62,7 +63,7 @@ def upgrade():
 
 
 def downgrade():
-    """pcs_toe_conversion_factors 表删除（TOE 综合能耗转换因子 seed 落地逆向）。
+    """pcs_toe_conversion_factors 表删除（TOE 综合能耗转换因子 seed 落地逆向）.
 
     步骤：
     - DROP TABLE pcs_toe_conversion_factors

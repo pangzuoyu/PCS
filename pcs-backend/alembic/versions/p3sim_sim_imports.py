@@ -1,4 +1,4 @@
-"""P3.x SIM-14：sim_imports + sim_import_warnings 表（stateful preview，D-4 等价闭环）。
+"""P3.x SIM-14：sim_imports + sim_import_warnings 表（stateful preview，D-4 等价闭环).
 
 spec §5.5 + 用户 2026-09-09 裁决（D-4 闭环条件）：
 - preview 阶段：解析后写入 sim_imports（status=PREVIEW，含 preview_streams_json +
@@ -33,7 +33,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """SIM 导入批次主表 sim_imports + 4 enum 创建（P3.2 SIM 批次）。
+    """SIM 导入批次主表 sim_imports + 4 enum 创建（P3.2 SIM 批次).
 
     步骤：
     - 3 个 PG enum：simimporttype (PROII/EXCEL) + simimportstatus (PREVIEW/COMMITTED/EXPIRED)
@@ -152,7 +152,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """sim_imports + sim_import_warnings 双表 + 3 enum 删除（P3.2 SIM 落地逆向）。
+    """sim_imports + sim_import_warnings 双表 + 3 enum 删除（P3.2 SIM 落地逆向).
 
     步骤：
     - DROP TABLE sim_import_warnings

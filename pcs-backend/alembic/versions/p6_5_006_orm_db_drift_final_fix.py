@@ -1,4 +1,4 @@
-"""P6-5 终扫：ORM↔DB 全库 drift 清零（p6_5_005 补扫，3 表）。
+"""P6-5 终扫：ORM↔DB 全库 drift 清零（p6_5_005 补扫，3 表).
 
 p6_5_005 修了审计三件套 5 表 drift 后，全库 ORM↔DB 元数据扫描又暴露
 3 处（手写表名清单遗漏）：
@@ -22,7 +22,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """3 表补列（幂等 IF NOT EXISTS，对齐各表 ORM 定义）。"""
+    """3 表补列（幂等 IF NOT EXISTS，对齐各表 ORM 定义）."""
     # 1. sep_equip_results 审计三件套（同 p6_5_005 定义）
     for col_ddl in (
         "stale_resolution_path VARCHAR(30)",
@@ -50,7 +50,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """3 表删补列（幂等 IF EXISTS，与 upgrade 互逆）。"""
+    """3 表删补列（幂等 IF EXISTS，与 upgrade 互逆）."""
     op.execute(
         "ALTER TABLE project_template_pipe_classes "
         "DROP COLUMN IF EXISTS created_by"

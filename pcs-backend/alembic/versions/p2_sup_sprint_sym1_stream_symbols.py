@@ -1,4 +1,4 @@
-"""SUP Sprint SYM-1: stream_symbols + project_stream_symbols 两表（V1.4 §7.1/§7.2）。
+"""SUP Sprint SYM-1: stream_symbols + project_stream_symbols 两表（V1.4 §7.1/§7.2).
 
 公司级符号表：symbol_id UUID PK + asset_id FK→config_assets（V1.4 §0.5/§INT-OPEN-01
 asset_subtype=STREAM_SYMBOL）+ symbol str10 UNIQUE + 5 态 status。
@@ -24,7 +24,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """stream_symbols 主表创建（SYM-1 / SUP-002 §8 公司流股符号）。
+    """stream_symbols 主表创建（SYM-1 / SUP-002 §8 公司流股符号).
 
     步骤：
     - 主表 stream_symbols：symbol_id (PK UUID) + asset_id (FK→config_assets) +
@@ -100,7 +100,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """stream_symbols + project_stream_symbols 双表 + 索引删除（SYM-1 落地逆向）。
+    """stream_symbols + project_stream_symbols 双表 + 索引删除（SYM-1 落地逆向).
 
     步骤：
     - DROP TABLE project_stream_symbols

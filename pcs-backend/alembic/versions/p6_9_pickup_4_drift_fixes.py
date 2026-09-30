@@ -1,4 +1,4 @@
-"""P6-9-PICKUP-4 T1: pcs_test DB schema drift 修复。
+"""P6-9-PICKUP-4 T1: pcs_test DB schema drift 修复.
 
 依据 P6-9-PICKUP-4 brief（2026-09-30）：9 个 pre-existing pytest failures 中
 8 个根因是 pcs_test DB 与迁移声明 schema 不一致（历史 diff）：
@@ -29,7 +29,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """修复 pcs_test 8 个 DB drift 失败（T1 / 单迁移收口）。
+    """修复 pcs_test 8 个 DB drift 失败（T1 / 单迁移收口).
 
     6 段（顺序无关）：
     - A. design_stage server_default 'BASIC'（4 表，sup008 + open_005 漏配）
@@ -115,7 +115,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """本迁移为「drift 修复」迁移，downgrade 故意 NO-OP。
+    """本迁移为「drift 修复」迁移，downgrade 故意 NO-OP.
 
     设计原因：
     - upgrade 修复 4 类 schema drift（design_stage server_default / 3 索引 /

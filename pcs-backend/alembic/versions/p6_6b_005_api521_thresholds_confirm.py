@@ -1,4 +1,4 @@
-"""P6-6B T5: ``compound_api521_thresholds`` process metadata 闭环（C-21 fire case 阈值）。
+"""P6-6B T5: ``compound_api521_thresholds`` process metadata 闭环（C-21 fire case 阈值).
 
 P6-5 阶段工艺工程师已抄录 2 行 API 521 (2020) §3.4 + AS 1210 §4.4
 致死/致伤辐射热通量阈值（``INJURY`` 4.7 kW/m² / ``LETHALITY`` 12.6 kW/m²），
@@ -36,7 +36,7 @@ depends_on = None
 
 
 def upgrade() -> None:
-    """UPDATE 2 行 ``compound_api521_thresholds`` 的 metadata 字段。
+    """UPDATE 2 行 ``compound_api521_thresholds`` 的 metadata 字段.
 
     仅匹配 ``source='SYNTHETIC_TEST_DATA'``；其他来源行不动。
     一次性 UPDATE（同 PG 事务原子），配合 ``confirmed_at`` 设固定日期
@@ -52,7 +52,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """还原为占位 metadata（互逆于 upgrade）。
+    """还原为占位 metadata（互逆于 upgrade).
 
     仅匹配本迁移升级过的行（即 ``source='API 521 (2020) §3.4 + AS 1210
     §4.4'`` 且 ``confirmed_by='P6-6B_ENG_TEAM'``），不影响后续工艺工程师

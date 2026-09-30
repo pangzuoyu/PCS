@@ -1,4 +1,4 @@
-"""doc_no_sequences 补 project_id + 三列 UQ（DICT V3.4）
+"""doc_no_sequences 补 project_id + 三列 UQ（DICT V3.4).
 
 DICT-ALL-003 V3.4 §68 要求 doc_no_sequences 含 project_id UUID FK +
 UQ(project_id, template_id, scope_key)。此前 DB 缺 project_id 列、只有
@@ -22,7 +22,7 @@ depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
-    """doc_no_sequences 补 project_id + 三列 UQ（P2 Sprint1 §110 / DICT V3.4 §68）。
+    """doc_no_sequences 补 project_id + 三列 UQ（P2 Sprint1 §110 / DICT V3.4 §68）.
 
     步骤：
     - A. doc_no_sequences 加 project_id UUID NULL + FK→projects
@@ -55,7 +55,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """doc_no_sequences 回退 project_id + 三列 UQ（P2 S110 逆向）。
+    """doc_no_sequences 回退 project_id + 三列 UQ（P2 S110 逆向）.
 
     步骤：
     - DROP CONSTRAINT uq_doc_no_sequences_proj_template_scope

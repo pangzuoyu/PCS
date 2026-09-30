@@ -1,4 +1,4 @@
-"""P2 Sprint 2：equipment_list 命名修正（7 项）。"""
+"""P2 Sprint 2：equipment_list 命名修正（7 项)."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ depends_on: str | None = None
 
 
 def upgrade() -> None:
-    """equipment_list 命名修正（P2 Sprint2 Task 3.1，6 重命名 + 1 字段升级）。
+    """equipment_list 命名修正（P2 Sprint2 Task 3.1，6 重命名 + 1 字段升级).
 
     步骤：
     - A. 6 列重命名（与 brief §九/§十一致）：
@@ -77,7 +77,7 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """6 重命名 + vendor_id→vendor 三步走回退（P2 Sprint2 逆向）。
+    """6 重命名 + vendor_id→vendor 三步走回退（P2 Sprint2 逆向).
 
     步骤：
     - 1. ADD COLUMN equipment_list.vendor_id Uuid NULL（恢复 FK 列）
