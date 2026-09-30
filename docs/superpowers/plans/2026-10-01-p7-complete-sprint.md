@@ -13,7 +13,7 @@
 ## Global Constraints
 
 - **SPEC V1.4 权威版本**: 字段/枚举/权限/错误码以 OpenAPI + meta API 为准；SPEC 冲突时以 OpenAPI 为准
-- **P7 总工时**: SPEC V1.4 §4.6 口径 10–13 人周 + R-03 T0 0.5–1 人日 = **10.5–14 人周**（仅 Sprint 1-4 主体）；本计划口径（含 Sprint 0 mock 评估 1.5 人周 + Sprint 1-4 主体 + 收口 + wolf + workspace cleanup）**~13.5–16.7 人周**
+- **P7 总工时**: SPEC V1.4 §4.6 口径 10–13 人周 + R-03 T0 0.5–1 人日 = **10.5–14 人周**（仅 Sprint 1-4 主体）；本计划口径（含 Sprint 0 mock 评估 1.5 人周 + Sprint 1-4 主体 + 收口 + wolf + workspace cleanup）**~14.0–18.2 人周**（D5 5A 工艺室 buffer 0.5 → 1.5 人周 + 对账应急 1.0 → 0.5 人周合并后调整）
 - **启动前必备评估**: SPEC V1.4 §4.6 口径 4–7 人日（P7-OPEN-007 3–5 人日 + P7-OPEN-008 1–2 人日）；mock 决议后实际 = **0.5–1 人日**（P7-OPEN-007/008 mock 已闭环于 `docs/P7-OPEN-007-physical-semantics-evaluation.md` + `docs/P7-OPEN-008-rule-registry-form-evaluation.md`；仅剩 R-03 T0 落地）
 - **R-02 = 方案 A**: UTIL 5 表迁移 + catalyst_loading + auxiliary_consumption 4 字段；工艺室 2026-10-XX 签署四节点
 - **R-03 = 待补采**: T0（StateMachineService 强制写入三字段）+ T1（pcs_test fixture ≥30 行）+ 30 天窗口后重跑 P7-OPEN-007 评估
@@ -979,6 +979,7 @@ def test_rollback_after_downstream_stale(db_session):
 | R-10 R-02 否决导致 Sprint 2 全部重排 | 高 | Sprint 2 计划 mock R-02=A；真实会议否决时按 V1.4.1 micro-revision 修订 |
 | R-11 R-03 T0 延期 → Sprint 1 末未落地 | 中 | S1-1 排在 Sprint 1 第 1 任务；T0 截止 P7 Sprint 0 末 |
 | R-12 双向耦合（R-03 ↔ R-04）spec 未覆盖 | 低 | V1.4.1 加「R-03/R-04 联动重评」注记；SPEC V1.4 §4.7 已记录 |
+| R-13 工艺室 buffer 不足（D5 裁决 5A）| 高 | 工艺室 2026-10-XX 签署四节点 10-08/10-15/10-22/10-29 任一延期 1 周即 Sprint 2 阻塞；buffer 已 0.5 → 1.5 人周 + 对账应急 1.0 → 0.5 人周合并 | Sprint 2 工艺室 fixture 落地前 |
 
 ## 工时表
 
@@ -986,7 +987,7 @@ def test_rollback_after_downstream_stale(db_session):
 |---|---|---|
 | Sprint 0（已完成）| 5 docs | ~1.5 人周 |
 | Sprint 1 | 5 任务 | ~4.3–5.5 人周（含 T0 +0.5–1 人日 + D2 advisory lock +0.5 人日）|
-| Sprint 2 | 7 任务 | ~4.5–5.5 人周（迁移本身 0.8 人周 + service/API/fixture 全口径 2–3 人周 + API 整合 + G-08 验证 + JSONB→5 表回填 0.5–0.7 人周 + 工艺室签署 follow-up 缓冲 0.5 人周 + 对账超差应急 1.0 人周）|
+| Sprint 2 | 7 任务 | ~5.0–6.5 人周（迁移本身 0.8 人周 + service/API/fixture 全口径 2–3 人周 + API 整合 + G-08 验证 + JSONB→5 表回填 0.5–0.7 人周 + **工艺室 buffer 1.5 人周（D5 裁决 5A）** + **对账应急 0.5 人周（D5 裁决 5A）**）|
 | Sprint 3 | 3 任务 | ~1.5–2 人周（含 D3 source_sign_status 镜像 +0.5 人日）|
 | Sprint 4 | 4 任务 | ~2.5–3 人周（含 D4 emit_event + state_machine listener + 幂等性 + rollback 测试 +0.5 人日）|
 | 收口 + wolf + workspace cleanup | 1 | ~0.3 人周 |
