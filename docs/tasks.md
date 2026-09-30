@@ -132,3 +132,25 @@
 - `docs/ce-code-review-p5-p6-summary.md`：50 findings 全范围 review summary（`cf51fdf` 落地）
 - `.wolf/STATUS.md` 第 308-331 行：P6-9-PICKUP-3 findings 累积登记（21 LOW/INFO 分级）
 - `docs/superpowers/plans/2026-09-30-p6-9-pickup-4-debt-cleanup-final.md` T3：本文档对应 plan
+
+## 工艺室 2026-11-15 交付跟踪位（P6-9-PICKUP-4 闭环后）
+
+| OPEN ID | 主题 | 前置条件 | 状态 | 关联下游 |
+|---|---|---|---|---|
+| OPEN-P6-6A-10 | AS 1210 PDF 到位 | 工艺室 PDF delivery | 待交付 | P6-9-PICKUP-5 + 5 → A 升级 |
+| OPEN-P6-9-PICKUP-2-1 | F2 SGR 公式校准 | 工艺室校准报告 | 待交付 | pytest xfail 重测 |
+| OPEN-P6-9-PICKUP-2-2 | t_wall HYSYS 对账 | 工艺室 HYSYS 验证 | 待交付 | fixture 数值重算 |
+
+## 工艺室 2026-11-15 触发条件
+
+- AS 1210 PDF 物理收到 + 数字可查对账
+- 校准报告 → STG 模拟值与 GPSA Fig 20-7 实测值一致
+- HYSYS 重做校验 → t_wall_m 实测 < 5% rel_err
+
+## 影响范围（OPEN 状态变化）
+
+| OPEN | 交付前 | 交付后 |
+|---|---|---|
+| OPEN-P6-6A-10 | partial closure | confidence B → A 升级 + partial closure → close |
+| OPEN-P6-9-PICKUP-2-1 | partial closure（k_strip 待校准）| 校准后重测 pytest → close |
+| OPEN-P6-9-PICKUP-2-2 | partial closure（t_wall HYSYS 待验证）| HYSYS 后 fixture 数值重算 → close |
