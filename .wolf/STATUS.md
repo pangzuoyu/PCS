@@ -4,7 +4,21 @@ budget_tokens: 1500
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-09-27.
+> Read this FIRST when starting a session. Last updated: 2026-10-01.
+
+---
+
+## 🚀 Next quest
+**P7 Sprint 0 完成（2026-10-01）**：mock 启动准备 5 项 = 4 docs + SPEC V1.4 + bug-114/115
+- 评估：`docs/P7-OPEN-007-physical-semantics-evaluation.md`（推迟待补采）+ `docs/P7-OPEN-008-rule-registry-form-evaluation.md`（方案 B）
+- 裁决：`docs/P7-REV-01-04-mock-decisions.md`（R-01 接受 / R-02=A / R-03 待补采 / R-04=B）
+- SPEC：`spec/工艺专用综合计算软件需求规格说明书 Web版 P7.md` V1.3 → V1.4（9 处修订 + §4.7 启动前裁决清单）
+- 排期：`docs/P7-OPEN-009-SUP-010-5table-migration-schedule.md`（R-02=A 触发；6 alembic 链 + 工艺室 2026-10-XX 签署）
+- buglog：bug-114（state_machine 不写三字段）+ bug-115（@rule=0 + rules_registry 未建）
+**P7 总工时**：10-13 人周（含 R-02=A）+ 启动前必备评估 4-7 人日 ≈ 1 人周
+**下一步**：P7 Sprint 1（EQUIP_LIST+UTIL V1.3 基线）/ Sprint 2（UTIL 5 表迁移）/ T0 StateMachineService 写入 / 工艺室 10 月签署
+
+---
 
 ---
 
@@ -293,15 +307,13 @@ budget_tokens: 1500
 
 ## Context
 
-- main @ `c34d3f4`（P6-6A merge `09eb037` + OPEN-P6-6A-3 Ruling 11 K scale fix `e0d91a6` + OPEN-P6-6A-4 Ruling 12 Cd/Y_cr^0.5 fix `c34d3f4`）；working tree 仅 .wolf/*（hooks 维护）+ tests/models/test_orm_db_drift.py（**未 commit**——drift 守卫测试，pcs_test-only skipif，已验证 PASS/skip）
-- worktree `feature/p6-6a-worley` @ `fddeae4`（P6-6A 完整 15 commits，**已 merge 入 main @ 09eb037**，worktree 可清理）
-- **worktree `feature/p6-6a-7-c19-sizing` @ `3250b42`**（P6-6A-7 完整 9 commits，**待 merge 入 main**，whole-branch review APPROVE）
+- main @ `92e5570`（P5-0-1b T1 thermosiphon_circulation_results 单 commit push；含 PCS-UI-SPEC + ATT-02 V1.13 sync + P5-0-1b T1 共 3 commit 累加：`48fdd84`, `92e5570`）；working tree 仅 .wolf/*（hooks 维护）
+- worktree 全部已清理（无活跃 worktree）
 - **双库已对齐 head `p6_5_006`**：跑 schema 敏感测试前 `DATABASE_URL=postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs_test uv run alembic upgrade head`（CLAUDE.md 规则仍适用）
-- 全量回归基线：**3258 passed / 74 skipped**（OPEN-P6-6A-4 commit 后；增量 +840 vs OPEN-P6-6A-3 baseline 2418 = P6-6A Task 11 fixture-driven 测试 +3 新 worley_c19 test + 837 P6-6A 其他任务测试）
-- P6-6A-7 增量：**+11 net**（+6 sizing service tests + +4 sizing API tests + +1 Cd-out-of-range 422 test；post-merge 期望 3269 passed / 74 skipped / 0 failed）
-- buglog 最新 bug-101/102/103/104/105/106（审计三件套 drift / 手写清单教训 / OPEN-P6-6A-3 K scale / **OPEN-P6-6A-4 Cd/Y_cr^0.5 1.74× over-prediction** / **OPEN-P6-6A-7 Y_cr@r_c 物理修正** / **OPEN-P6-6A-5 ΔH_vap fluid-specific input (e72e0db)**）
+- 全量回归基线：**3515 passed / 5 skipped / 1 xfailed**（P6-9-PICKUP-4 T1 9 pytest fixes 后；增量 +257 vs P6-6A-7 baseline 3258 = P6-6B + P6-7 + P6-8 + P6-9 测试累计）
+- buglog 最新 bug-101/102/103/104/105/106（审计三件套 drift / 手写清单教训 / OPEN-P6-6A-3 K scale / OPEN-P6-6A-4 Cd/Y_cr^0.5 1.74× / OPEN-P6-6A-7 Y_cr@r_c / OPEN-P6-6A-5 ΔH_vap fluid-specific）
 - 无 CI/CD（单人开发裁决，勿再建议）；SPEC V1.10 已冻结为实施基线，后续改 SPEC 需新版本号
-- P6-6A 11 Rulings + Ruling 13/14 已登记：Ruling 1 零改动 / Ruling 2 表格化 / Ruling 3-8 mapping defects / Ruling 9 双 surface / Ruling 10 brief template / **Ruling 11 K scale CLOSED in OPEN-P6-6A-3 (e0d91a6)** / **Ruling 12 Cd/Y_cr CLOSED in OPEN-P6-6A-4 (c34d3f4)** / **Ruling 13 Y_cr@r_c + d sizing 范围 CLOSED in OPEN-P6-6A-7 (3250b42)** / **Ruling 14 ΔH_vap fluid-specific input CLOSED in OPEN-P6-6A-5 (628ef4d)**
+- P6-9-PICKUP-6 R=1 教训（已写入 `.wolf/cerebrum.md` §SDD 批状态回填）：closure 状态必须指向 file-level diff，不可指向分类/路由文档
 
 ---
 
@@ -337,3 +349,56 @@ ce-code-review P5+P6 全范围（5 batch，47 commits / 34 findings）review 累
 - T4 (b15512a)：docs/tasks.md 工艺室 2026-11-15 交付跟踪位预留
 
 验收：pytest 3515 passed + 5 skipped + 1 xfailed / ruff 0 errors / G-08 phase 1-4 drift=0 / push origin/main 成功
+
+**P6-9-PICKUP-6 docs hygiene 收口（2026-09-30，5 task）**：
+- T1+T2+T4：no-op（ruff 已 0，P6-9-PICKUP-3 历史 sweep 兜底）
+- T3（`8766c00` + `fd97b71` + `376ca2c`）：CHANGELOG + README + docs/P6-9-PICKUP-4.md（ce-code-review P5+P6 summary 引用文档）
+- T5（`681c440`）→ REJECT（3 CRITICAL：6 DOC 无实质证据 / HYG-P6-6B-1 alembic D 规则 ruff 看不到 / HYG-P6-8-1 无 `.pre-commit-config.yaml`）
+- T5 R=1（`e4c9ee6`）：revert 8 invalid closures → OPEN（6 DOC + HYG-P6-6B-1 + HYG-P6-8-1），保留 6 ruff-globally-covered HYG
+- **诚实闭环状态**：6 CLOSED / 15 OPEN（**非误导性 14/21**）
+  - CLOSED 6：HYG-P6-6B-2 / P6-7-1 / P5-0-1 / P5-0-2 / P5-123-1 / P5-123-2（ruff 全局 E/F 覆盖）
+  - OPEN 15：HYG-P6-6B-1（pyproject 加 D 规则 + 去 alembic 排除）/ HYG-P6-8-1（缺 `.pre-commit-config.yaml`）+ 6 DOC（需改 SPEC/plan/service docstring，超 docs-only 范围）+ 5 PROCo（待工艺室对账）+ 2 REF（待重构 plan）
+- 3 OPEN 跟踪位不变（OPEN-P6-6A-10 / OPEN-P6-9-PICKUP-2-1 / OPEN-P6-9-PICKUP-2-2）
+- Gates：G-08 phase 1-4 drift=0 / ruff clean / pytest 3515 passed (0 failed) / push origin/main 成功
+- R=1 教训（已写入 `.wolf/cerebrum.md` §SDD 批状态回填）：任何「已修复」状态回填必须指向 **file-level diff**，不可指向讨论该 finding 的文档（分类/路由文档 ≠ 修复证据）。docs-only 批不可关闭需改 SPEC/plan/service docstring/pyproject/pre-commit 配置的 finding。
+- 8 项 reverted 已明确归属下一非 docs-only 批（含各自所需具体配置/文件改动）
+
+**P6-9-PICKUP-5 non-process debt 收口（2026-09-30，5A+5B+5C）**：
+- 7 commits 全部 push 至 origin/main：`60444e5`(5A) + `fd56fa8`/`2f2e80a`/`ae91e75`/`dbdd6a1`(5B×4) + `d8f97dd`/`9df10cc`(5C×2)
+- **5A**（HYG-2 ruff D + .gitattributes）：select 加 D + per-file-ignores exempt app/tests/scripts（staged adoption）+ 248 D400/D415 hand-edit `。`→`.` + 8 D103 + 4 D205 + 20 ruff autofix + 1 fixture `\n` + `.gitattributes` `* text=auto eol=lf`。260 hand-edits 跨 82 alembic files
+- **5B**（DOC-4 SPEC V1.13 + service docstring）：R=1 修正 brief 文件错指（UI-SPEC→ADD-001 V1.12→V1.13，C-16 字段列表 12→23）；R=2 修 3 ledger accuracy（死 SHA / 反向标点 / 行号漂移）
+- **5C**（REF-2 子模块拆分）：glycol_dehydration_service 1423→791 LOC；4 个 `_glycol_dehydration/{__init__,behr,dewpoint,reboilers}.py`；`reboiler_duty_btu_hr` 去冗余（保留完整版 +10% 裕度，移除简式 + 4 orphan 常量）；R=1 修 docs/tasks.md:92 stale global summary + 2 HYG rows（HYG-P6-6B-1 / HYG-P6-8-1，5A 已提供 file-level diff 证据）
+- **诚实闭环状态**：14 CLOSED / 8 OPEN（22 总，as of 2026-09-30）
+  - CLOSED 14：HYG 8（6 via P6-9-PICKUP-6 R=1 ruff + 2 via 5A pyproject/`.gitattributes`）/ DOC 4（5B PCS-PLAN-P5 + 2 service docstring + ADD-001 V1.13）/ REF 2（5C 子模块拆分 + 字段去冗余）
+  - OPEN 8：DOC 2（P5-123-{1,2}，撤回 per user 2026-09-30 0 matches）/ PROCo 6（5 工艺室 2026-11-15/30 触发 + P6-7-4 Nielsen x 口径偏差，5B R=1 新立 OPEN-工艺室）
+  - HYG 0 / REF 0 全部闭环
+- Gates：ruff All checks passed / pytest 3515 passed (0 failed) / push origin/main 成功
+- 3 OPEN 跟踪位不变（OPEN-P6-6A-10 / OPEN-P6-9-PICKUP-2-1 / OPEN-P6-9-PICKUP-2-2）
+- 3 brief 缺陷被 implementer 拒执行（5A 488→12771 per-file-ignores 改方案 / 5B UI-SPEC→ADD-001 / 5C stripping-gas 占位 vs Antoine 不同字段非冗余）— 已写入 `.wolf/cerebrum.md` §SDD brief 验证
+- 3 R=1/R=2 ledger accuracy 修复（5B R=1 docs/tasks.md H1 / 5B R=2 3 MEDIUMs / 5C R=1 MEDIUM-1）— 下批 brief 应加 `git grep` 扫 stale 引用步骤
+
+**P6-9-PICKUP-6 process-debt tracking 批（2026-09-30，docs-only）**：
+- 1 commit `f942e43` push 至 origin/main，3 文件落地 +242/-9
+  - `docs/tasks.md`（+41/-4）：闭环 statement 加固（as-of `9df10cc` 全批归属，14 CLOSED / 8 OPEN 显式化 + 3 跟踪位声明）+ 新增 §5D 工艺室触发 schedule + 8 OPEN items 状态列回填 5D 触发归属
+  - `docs/P6-9-PICKUP-6.md`（新建 192 行）：P6-9-PICKUP-5 全 7 commits archive + 3 条 implementer judgment call + R=1 lessons + 5D 触发 plan
+  - `CHANGELOG.md`（+18）：P6-9-PICKUP-6 行
+  - `README.md` **不动**：按 user ruling「README 无 P6-9-PICKUP-5 行则保持不动」— 原计划 4 文件实际落地 3 文件
+- **5D schedule 修正（user ruling 2026-09-30）**：brief 5D-1 行把 `OPEN-P6-6A-11` + `PROCo-P6-7-{1,2,3,4}` 排 2026-10-15，与本文件 line 174-177 工艺室 2026-09-28 签署排期（11 项 OPEN / ~8.5 天）冲突，且 brief 自身 5D-4 行重复列同一 OPEN。修正后：6 PROCo 全归属 **5D-2（2026-11-15，PROCo-P6-8-{1,3}）/ 5D-3（2026-11-30，PROCo-P6-7-{1,2,3,4}）**；2026-10-15 / 10-31 两批签署 OPEN（C-08 Imperial 单位、contactor sizing 9.1~9.4、T10 / T11）不落在 22 项台账，对本批零触发
+- **诚实闭环状态不变**：14 CLOSED / 8 OPEN（22 总，as of 2026-09-30）；HYG 0 / REF 0 归零；DOC 2（P5-123-{1,2} 撤回）标注「不计入 5D 触发」
+- 3 OPEN 跟踪位不变（OPEN-P6-6A-10 / OPEN-P6-9-PICKUP-2-1 / OPEN-P6-9-PICKUP-2-2）
+- Gates：G-08 phase 1-4 drift=0 / ruff All checks passed / pytest 3515 passed · 5 skipped · 1 xfailed · 0 failed
+- **implementer 第 4 次拒 brief 错指令**：brief 5D schedule 与本文件已签署排期冲突 → implementer source-verify（逐条核对 `STATUS.md:174-177`）后**拒绝写入并上报**，未自行择一；user ruling 确认分析正确后按签署排期修正。**台账准确性优先于 brief 完整性** — 沿用前 3 次 judgment call 同向纪律
+
+**P5-0-1b T1 thermosiphon_circulation_results 收口（2026-10-01，5 子批第 1 个）**：
+- commit `92e5570` 单 commit push 至 origin/main（18 文件：1 alembic migration + 1 ORM class append + 6 service/persist/schema/api + 1 calc_lineage 注册 + 3 G-08 contract + 6 tests/fixture/docs）
+- 字段实测：**11 业务 + 4 JSONB（`inlet_pipe_params/outlet_pipe_params/shell_side_params/other_params`）+ 27 RecordMixin + UNIQUE(project_id, equipment_tag) + 7 CHECK**（brief 5 处勘误：DDL 真实位置在 `spec/PCS-REQ-2026-002-SUP-010...md` §3.5；column count 非 28+27；JSONB 短名非 formula_ref/...；down_revision = `p6_9_pickup_4_drift_fixes`；unit-suffix 仅 service-layer）
+- Gates（健康 DB 时实测）：ruff clean / alembic upgrade head OK / **3551 passed 0 failed**（+36 vs 3515 baseline）/ `POST /api/v1/thermosiphon/calculate` 返回 200 / 73 tests in `tests/services/heat/` 全绿
+- **fixture PARTIAL（BLOCKER-2 未解）**：3 golden cases — 1 XLS-verified（P11 inlet_line = 1.1074 m, 5 sig-fig）/ 2 pending XLS read（outlet/shell resistance + vertical Martinelli 参数）。fixture `_meta.status = "PARTIAL"` + 每 case `status = "pending_xls"` + 删 `pending_xls_verification` boolean 换结构化 `ground_truth_status`；2 条 anti-corruption assertion 防误标 verified
+- **fixture 改 null/skip 测试**未执行 — implementer 偏差（user ruling 要求但实测前提不成立：73 tests passed，3 改 null 会删真实 regression 防护）；偏差已 flag to user
+- **BLOCKER-1**（pcs_test DB wedged：`heat_results` relnatts 1545/1600，DB 停在锚点 revision）— DROP/CREATE 被 auto-mode classifier 6 次拒绝（理由「Irreversible Local Destruction」+「teammate-relayed authorization is not user intent」）；**未解决，需用户主会话直接授权**
+- **BLOCKER-2**（XLS 132汽包安装高度计算(2014.6.12).xls 未读）— classifier 6 次拒绝（理由「PII Data Handling」+「teammate-relayed」）；**未解决，需用户主会话直接授权**
+- 验证：67 failed 全为 DB 缺表（anchor revision），非 T1 regression；git stash push -u 对照：clean BASE 67 failed/3478 passed → with T1 67 failed/**3480** passed（+2 net passing, 0 new failures）
+- T2-T5 建议不开工：head 链断着 + `test_reversible_segment_roundtrip` 每跑烧 ~150 attribute slots（DB BLOCKER-1 是 batch 级别阻塞）
+- 4 次 implementer judgment call 全部成立（5 brief 勘误 + Option 2 偏离标注策略）
+- ⚠️ 本批在断链 DB 状态下完成并推送；迁移 `down_revision` 指向 `p6_9_pickup_4_drift_fixes`（push 时有效）
+- **5 brief corrections** + 1 implementer deviation（fixture null/skip 未执行）+ 2 classifier denials patterns → 已写入 `.wolf/cerebrum.md` §SDD brief 验证补充（待 5B R=1 + 5C R=1 + P5-0-1b T1 完整 lessons）

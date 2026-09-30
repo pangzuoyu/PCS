@@ -1,7 +1,7 @@
 P7 集成模块开发规格说明书
 文件标识	PCS-REQ-2026-002-SPEC-P7
-当前版本	V1.3
-发布日期	2026-08-27（V1.1 修订 2026-08-28；V1.2 修订 2026-09-03；V1.3 修订 2026-09-03，incorporate SUP-008 V1.1 + SUP-010 V1.1：UTIL 能耗 5 表 + 催化剂装填量 + auxiliary_consumption 4 字段）
+当前版本	V1.4
+发布日期	2026-10-01（V1.1 修订 2026-08-28；V1.2/V1.3 修订 2026-09-03；V1.4 修订 2026-10-01，incorporate PCS-SPEC-ADD-001 V1.13 + P7 启动前 mock 裁决报告 P7-REV-01~04：R-01 接受 / R-02 方案 A / R-03 待补采 / R-04 方案 B；9 处修订 + §4.7 启动前裁决清单新增）
 编制部门	工艺部 / 信息化联合项目组
 适用对象	内部开发团队（后端/前端/测试/数据库）
 关联文档	PCS-REQ-2026-002 V2.2 §3.2.9/§3.2.11/§3.2.16、SUP-001 §3.2.16/§3.3.12、SUP-002 §3.2.19、SUP-007、SUP-008 V1.1、SUP-010 V1.1、DICT-002、SPEC-P0/P1/P2/P3/P4/P5/P6、**PCS 本体论与语义关系研究说明（V1.6）§3.1 / §3.2b / §3.5**
@@ -153,13 +153,24 @@ POST /api/v1/equipment-list/{equipment_id}/actual-data/check	校核实际数据
 
 （1）设备记录来源与同步
 
-来源模块	记录类型	触发时机
-PUMP（P4）	泵设备记录（TypeCode=P）	泵计算完成并保存时
-VESSEL（P5）	容器设备记录（TypeCode=D/V/T/R）	容器计算完成并保存时
-HEAT（P5）	换热器/空冷器记录（TypeCode=E）	HTRI导入/重量估算完成时
-PSV（P5）	安全阀记录（TypeCode=PSV/PRD/PVRV）	PSV计算完成并保存时
-CV（P6）	调节阀记录（TypeCode=CV）	CV计算完成时
-手动录入	其他设备（TypeCode=任意）	用户手动添加
+来源模块	记录类型	TypeCode	触发时机
+PUMP（P4）	泵设备记录	P	泵计算完成并保存时
+VESSEL（P5）	容器设备记录	D/V/T/R	容器计算完成并保存时
+VESSEL（P5）· C-08	两相分离器 sizing 记录	D/V/T	`two_phase_separator_sizing_service` 完成并保存时（SPEC-ADD-001 V1.13 §3.4.2）
+VESSEL（P5）· C-07	立式两相分离器记录	D/V/T	`two_phase_separator_service` 完成并保存时
+VESSEL（P5）· C-10	三相分离器记录	D/V/T	`three_phase_separator_service` 完成并保存时
+HEAT（P5）	换热器/空冷器记录	E	HTRI 导入/重量估算完成时
+PSV（P5）· C-21	安全阀/火灾泄放记录	PSV/PRD	PSV 计算完成并保存时
+PSV（P5）· C-20	储罐通风（呼吸阀）记录	PVRV	`breathing_valve_service` 火灾热输入分支完成时
+CV（P6）· C-24	调节阀记录	CV	CV 计算完成时（含 Masonelian fl 三模型输出）
+COOL_TOWER（P6）	冷却塔记录	CT	冷却塔计算完成并保存时
+PSYCHRO（P6.5）· C-16	甘醇脱水塔记录	T/V	甘醇脱水计算完成并保存时；**默认不进设备表，需手动"同步"触发**（见下方注记）
+OPEN_CHANNEL（P6）	明渠流记录	—	**不进设备表**，仅 UTIL 汇总引用
+手动录入	其他设备	任意	用户手动添加
+
+> **C-16 甘醇脱水塔同步注记（P7-REV-01）**：PSYCHRO C-16 计算结果默认不自动进设备表（甘醇脱水塔多属成套包 ARU/MRU，非单台设备）。如需进设备表，由设计人在设备详情页手动"从 PSYCHRO 同步"触发，TypeCode 按实际选 T（塔）或 V（储罐）。COOL_TOWER（CT）与 OPEN_CHANNEL 的同步规则见上表。
+
+- C-08/C-07/C-10 三个 VESSEL 子服务的设备记录共用 TypeCode 组 D/V/T/R，由 `source_service` 字段区分（`two_phase_separator_sizing_service` / `two_phase_separator_service` / `three_phase_separator_service`）
 同步规则（V1.1：CHECKED 触发 + 状态联动）：
 
 计算模块保存结果（DRAFT）不写入EQUIP_LIST
@@ -315,10 +326,8 @@ ActualDataStatus	未录入/待确认/已确认	实际数据状态
 80%–90%	提示需校核
 <80%	仅展示，不推荐
 相似度计算采用加权欧几里得距离或余弦相似度，权重在CONFIG中配置。
-
 （3）沉淀流程
 
-text
 EQUIP_LIST中选择设备 → 提交沉淀申请
     → 填写标准化信息（标准图号、适用条件范围、材质、重量、关键尺寸、原项目位号）
     → 审核审批（CONFIG）
@@ -374,7 +383,6 @@ PDF技术规格书解析	预留AI接口（P10阶段），P7阶段支持复制粘
 
 （4）核算与更新流程
 
-text
 设计人录入实际数据
     → 系统自动比对，生成偏差报告
     → 设计人确认：
@@ -414,6 +422,7 @@ text
 
 3.3 非功能需求
 3.3.1 性能需求
+
 指标	要求
 设备表查询（1000条记录）	≤2秒
 设备同步（单条）	≤1秒
@@ -422,6 +431,7 @@ EQUIP_LIB检索	≤1秒
 偏差报告生成	≤3秒
 Excel批量导入（100条）	≤10秒
 3.3.2 数据完整性需求
+
 约束	要求
 设备位号	项目内唯一
 SourceRecordID	来源记录存在性校验
@@ -451,86 +461,11 @@ project_input_checklist（输入清单）
 
 第四部分：附录
 4.1 EQUIP_LIST数据流图
-text
-┌─────────────────────────────────────────────────────────┐
-│              EQUIP_LIST 数据汇聚图                      │
-└─────────────────────────────────────────────────────────┘
+EQUIP_LIST 是 P4–P6 阶段交付的各计算模块输出结果的汇聚中枢，所有计算记录（CHECKED 状态）自动同步至 EQUIP_LIST，并支持手动录入。数据流：P4:PUMP / P5:VESSEL / P5:HEAT / P5:PSV / P6:CV / 手动录入 → 同步操作（SourceModule + SourceRecordID）→ EQUIP_LIST → UTIL（能耗汇总）/ REPORT（设备一览）/ EQUIP_LIB（沉淀）。
 
-    ┌──────────┐    ┌──────────┐    ┌──────────┐
-    │ P4:PUMP  │    │ P5:VESSEL│    │ P5:HEAT  │
-    │PumpResults│   │VesselRes │    │HeatResults│
-    └────┬─────┘    └────┬─────┘    └────┬─────┘
-         │               │               │
-         │               │               │
-    ┌──────────┐    ┌──────────┐    ┌──────────┐
-    │ P5:PSV   │    │ P6:CV    │    │ 手动录入  │
-    │PSVResults│    │CVResults │    │(MANUAL)  │
-    └────┬─────┘    └────┬─────┘    └────┬─────┘
-         │               │               │
-         └───────────────┼───────────────┘
-                         │ 同步操作（SourceModule + SourceRecordID）
-                         ▼
-               ┌─────────────────┐
-               │   EQUIP_LIST    │
-               │  （项目设备表）   │
-               └────────┬────────┘
-                        │
-      ┌─────────────────┼─────────────────┐
-      ▼                 ▼                 ▼
-┌──────────┐    ┌──────────┐    ┌──────────┐
-│   UTIL   │    │  REPORT  │    │EQUIP_LIB │
-│(能耗汇总)│    │(设备一览)│    │(沉淀)    │
-└──────────┘    └──────────┘    └──────────┘
 4.2 供应商数据流程图
-text
-┌─────────────────────────────────────────────────────────┐
-│              供应商数据录入与核算流程                     │
-└─────────────────────────────────────────────────────────┘
+供应商数据通过手动录入 / Excel 导入 / PDF 解析（预留）进入"实际数据录入"（ActualData_JSON），经自动比对（设计值 vs 实际值）得到合格 / 警告 / 不合格结论，设计人确认 + 校核人校核后标记"已确认"，最终更新下游（UTIL 自动引用实际值 + 触发影响分析）。
 
-   ┌──────────┐    ┌──────────┐    ┌──────────┐
-   │ 手动录入  │    │Excel导入 │    │PDF解析   │
-   │          │    │          │    │(P10预留)│
-   └────┬─────┘    └────┬─────┘    └────┬─────┘
-        │               │               │
-        └───────────────┼───────────────┘
-                        ▼
-              ┌─────────────────┐
-              │ 实际数据录入     │
-              │(ActualData_JSON)│
-              └────────┬────────┘
-                       │
-                       ▼
-              ┌─────────────────┐
-              │  自动比对        │ ← 设计值 vs 实际值
-              │  (预设允许偏差)  │ ← 逐项对比
-              └────────┬────────┘
-                       │
-          ┌────────────┼────────────┐
-          ▼            ▼            ▼
-    ┌──────────┐ ┌──────────┐ ┌──────────┐
-    │ 合格(绿) │ │ 警告(黄) │ │不合格(红)│
-    └────┬─────┘ └────┬─────┘ └────┬─────┘
-         │            │            │
-         │            │     禁止确认+通知
-         │            │            │
-         └────────────┼────────────┘
-                      ▼
-             ┌─────────────────┐
-             │  设计人确认      │
-             │  提交校核        │
-             └────────┬────────┘
-                      │
-                      ▼
-             ┌─────────────────┐
-             │  校核人校核      │
-             │  通过→已确认     │
-             └────────┬────────┘
-                      │
-                      ▼
-             ┌─────────────────┐
-             │  更新下游        │ ← UTIL优先采用实际值
-             │  触发影响分析    │ ← 如必要
-             └─────────────────┘
 4.3 设备同步触发规则（V1.1：CHECKED 触发 + 状态联动）
 触发方式	场景	行为
 自动同步	来源计算记录到达 CHECKED	自动创建/更新对应设备记录（继承批准深度）
@@ -539,6 +474,11 @@ text
 手动同步	用户在设备表点击"同步"	列出 CHECKED 记录供选择（DRAFT 不出现）
 批量同步	用户在设备表批量操作	一次性同步多个模块的 CHECKED 结果
 弃用联动	来源记录 OBSOLETE	设备记录 sign_status 跟随、EquipmentStatus=D
+| C-08 两相分离器 | `two_phase_separator_sizing_service` 到达 CHECKED | 自动创建设备记录（TypeCode=D/V/T），`source_service=two_phase_separator_sizing_service` |
+| C-16 甘醇脱水塔 | 默认不自动进设备表 | 设计人手动词"从 PSYCHRO 同步"，TypeCode=T/V |
+| C-24 调节阀 | `cv_engine` + `flashing_correction` 到达 CHECKED | 自动创建设备记录（TypeCode=CV），`masonelian_model` 写入设计参数 |
+| COOL_TOWER | 冷却塔计算到达 CHECKED | 自动创建设备记录（TypeCode=CT） |
+
 4.4 UTIL汇总类型清单
 公用工程类型	枚举值	来源模块	汇总方式
 电	ELECTRICITY	PUMP、COOL_TOWER	求和
@@ -553,43 +493,39 @@ text
 氮气	NITROGEN	手动	求和
 仪表空气	INSTRUMENT_AIR	手动	求和
 工厂空气	PLANT_AIR	手动	求和
+
+> **数据模型版本注记（V1.4 新增，P7-REV-07）**：
+> - **V1.3 基线**：`util_results` 单表 + `consumption_json` JSONB 容器（13 类公用工程枚举见 §4.4）
+> - **SUP-010 增量（P7-OPEN-009 裁决后）**：5 表规范化（`utility_power_items` / `utility_fuel_gas` / `utility_heat_exchange` / `utility_energy_summary` / `catalyst_loading`）+ `auxiliary_consumption` 4 字段（`electrical_power` / `fuel_gas_consumption` / `steam_consumption` / `cooling_water_consumption`）
+> - **裁决出口**：P7 启动前由架构委员会裁决 P7-OPEN-009 走方案 A（纳入 P7 基线，+2~3 人周）或方案 B（延后 P7.5 增量）。本 SPEC V1.4 默认描述 V1.3 基线；**V1.4 mock 决议（2026-10-01）= 方案 A**：5 表迁移排期详见 `docs/P7-OPEN-009-SUP-010-5table-migration-schedule.md`。
+
 4.5 待确定问题列表
-编号	问题	影响	建议解决方案	状态
-P7-OPEN-001	WORLEY标准设备类型代码表的完整清单是否已收集？	类型代码导入	需确认DICT-002 §2.2的清单是否完整	待确认
-P7-OPEN-002	折标系数数据来源？	能耗计算精度	建议从GB/T 50441附录获取并导入CONFIG	待确认
-P7-OPEN-003	供应商数据Excel导入模板的具体格式？	导入功能实现	需与工艺负责人确认模板格式	待确认
-P7-OPEN-004	设备同步是默认自动还是默认手动？	用户体验	建议默认自动同步+可配置关闭	待确认
-P7-OPEN-005	EQUIP_LIB相似度计算的权重配置由谁维护？	推荐准确性	由工艺负责人在CONFIG中配置	已确认
-P7-OPEN-006	实际数据确认后UTIL自动更新是否需要用户确认？	数据一致性	建议自动更新+通知用户	待确认
-P7-OPEN-007	[physical_semantics 评估] 详见 PCS 本体论 V1.6 §3.2b：P7 启动前基于 P4–P6 积累的审计数据（stale_resolution_path / hash_changed / changed_fields），决策是否启用 physical_semantics 语义过滤。决策出口为三元：① 启用语义过滤（成因 B 主导）② 修正 record_hash 范围 / dependency_type 分类（成因 A 或 C 主导）③ 默认不启用（均 < 50%）。**50% 为默认建议值，非硬约束**，架构委员会可基于实测调整阈值或偏离决策规则裁决。	P7 启动前必备评估	按 V1.6 §3.2b 度量指标采集数据，三元决策；评估报告须含方案 A/B/C 成本-收益-精度-召回分析 + 字段级血缘并列评估	待启动
-P7-OPEN-008	[规则清单形态评估] 详见 PCS 本体论 V1.6 §3.5：P7 启动前评估 P4–P6 期间 @rule 装饰器累计规则数量。> 20 条 → 启用方案 A（CI 自动生成；P4 Task 0-Design 已预留 `app/core/rules_registry.py` 接口骨架）；≤ 20 条 → 启用方案 B（ADR 附录）。V1.6 §6 规则 10 强调：PR/ADR 模板中"本次新增/修改的业务规则"一行属于审计线索，**非规则清单本体**。	P7 启动前必备评估	按规则数量二选一；RuleCollector 接口已在 P4 Task 0-Design 预留，P7 评估通过后填充实现	待启动
-P7-OPEN-009	[UTIL 能耗 5 表 + 催化剂装填量] 详见 SUP-010 V1.1 §3.2.3 + §3.3.4：① 新增 utility_power_items 表（电耗设备清单，含 motor_power/operating_hours/annual_consumption/load_factor）；② 新增 utility_fuel_gas 表（燃料气，含 calorific_value/consumption/annual_consumption）；③ 新增 utility_heat_exchange 表（蒸汽/冷凝水，含 steam_pressure/steam_quality/return_condensate）；④ 新增 utility_energy_summary 表（综合能耗汇总，含 annual_total_energy/toe_conversion_factor/standard_coal_factor）+ 折标煤系数从 CONFIG 取；⑤ 新增 catalyst_loading 表（催化剂装填量，含 volume/weight/density/bed_height）+ 蜡油加氢—综合能耗.xlsx 与惠州汽包实例数据来源；⑥ UTIL 主记录 auxiliary_consumption 表新增 4 字段（electrical_power / fuel_gas_consumption / steam_consumption / cooling_water_consumption，详见 SUP-008 §2.5）。验收：综合能耗汇总与 Excel 偏差 ≤ 2%。	P7 UTIL 数据模型迁移 + 配置项	按 SUP-008 §3.2.5 + SUP-010 §3.2.3 ALTER/CREATE TABLE；CONFIG 新增折标煤系数配置项	待启动
+（V1.4 mock 决议后状态更新，详见上表 P7-OPEN-007/008/009 行）
 
-V1.1 新增需求（SUP-007）：
-
-需求编号	内容
-P7-EQL-010	设备记录仅在来源记录 CHECKED 时自动创建（DRAFT 试算不进设备表）
-P7-EQL-011	来源记录 STALE/CHANGED 等状态变化自动联动设备记录
-P7-EQL-012	设备记录哈希仅覆盖设计参数，不覆盖商务/采购字段
-P7-EQL-013	采购/商务字段编辑不触发变更流程
-P7-EQL-014	设备一览表/设备数据表/采购清单作为交付物类型
-P7-EQL-015	设备记录支持独立变更单关闭
-
-## 版本历史
-
-| 版本 | 日期 | 修改内容 | 编制人 |
-|---|---|---|---|
-| V1.0 | 2026-08-27 | 初始版本 | 联合项目组 |
-| V1.1 | 2026-08-28 | incorporate SUP-007：同步改 CHECKED 触发+状态联动；哈希仅盖设计参数；弃用/位号终身唯一；实际数据无独立版本号；供应商数据影响走 CHANGED 流程；新增 P7-EQL-010~015；文件标识改 PCS 前缀 | 联合项目组 |
-| V1.2 | 2026-09-03 | 对齐 PCS 本体论 V1.6：关联文档加 V1.6 §3.1/§3.2b/§3.5；新增 P7-OPEN-007（physical_semantics 三元决策评估，50% 阈值软约束）、P7-OPEN-008（规则清单形态评估 A/B 二选一，PR/ADR 行属审计线索非清单本体）；本版本不修改 EQUIP_LIST/UTIL/EQUIP_LIB/SUPPLIER 四大模块主体需求，仅补充 P7 启动前两项必备评估 | 联合项目组 |
-| V1.3 | 2026-09-03 | incorporate SUP-008 V1.1 + SUP-010 V1.1：关联文档加 SUP-008 V1.1 + SUP-010 V1.1；新增 P7-OPEN-009（UTIL 能耗 5 表 + 催化剂装填量 + auxiliary_consumption 4 字段扩展）；本版本不修改 EQUIP_LIST/UTIL 主体需求，仅扩展 UTIL 数据模型 | 联合项目组 |
-4.6 工作量估算
+4.6 工作量估算（V1.4 mock 决议 = 方案 A）
 模块	自研内容	估算工作量
-EQUIP_LIST	同步服务、设备管理API、类型代码管理	2-2.5人周
-UTIL	能耗汇总、水平衡、折标系数集成	1.5-2人周
-EQUIP_LIB	检索服务、相似度计算、沉淀流程	1-1.5人周
-供应商数据	实际数据录入、自动比对、偏差报告、校核流程	2-2.5人周
-合计		约6.5-8.5人周
-P7 SPEC完。 本文档与SPEC-P0至SPEC-P6合并构成完整的《工艺专用综合计算软件》分阶段开发规格说明书体系。后续P8（报表）、P9（工作流与权限）、P10（AI预留与测试部署）的SPEC可继续按此格式编写。
+EQUIP_LIST	同步服务、设备管理 API、类型代码管理、C-08/C-16/C-24 多源适配	2.5–3 人周
+UTIL	能耗汇总、水平衡、折标系数集成	1.5–2 人周（V1.3 基线）+ 2–3 人周（SUP-010 增量，方案 A 已采纳）
+EQUIP_LIB	检索服务、相似度计算、沉淀流程	1–1.5 人周
+供应商数据	实际数据录入、自动比对、偏差报告、校核流程	2–2.5 人周
+| **小计（不含 SUP-010，方案 B 备选）** | | **7–9 人周** |
+| **小计（含 SUP-010，方案 A）** | | **9–12 人周** |
+| **P7 总工时（V1.4 mock 决议）** | | **10–13 人周** |
 
+> **P7 启动前必备评估（不计入上表）**：
+> - P7-OPEN-007 physical_semantics 评估：3–5 人日 → **mock 决议 2026-10-01 = 待补采**（详见 §4.7 P7-REV-03）
+> - P7-OPEN-008 规则清单形态评估：1–2 人日 → **mock 决议 2026-10-01 = 方案 B**（详见 §4.7 P7-REV-04）
+> - **合计 4–7 人日（约 1 人周）**
 
+4.7 P7 启动前裁决清单（V1.4 新增）
+
+| 编号 | 问题 | 裁决出口 | mock 决议（2026-10-01） | 责任方 | 截止 |
+|---|---|---|---|---|---|
+| P7-REV-01 | P7 SPEC §3.2.1 设备来源表遗漏 PSYCHRO（C-16）/COOL_TOWER/OPEN_CHANNEL | **已在本 V1.4 补来源行 + 注记** | ✅ **接受 V1.4 修订 1**（工艺负责人 2026-10-01 mock 签收）| 工艺负责人 | V1.4 发布即闭环 |
+| P7-REV-02 | P7-OPEN-009（UTIL 5 表）是否纳入 P7 基线 | 方案 A（纳入，+2–3 人周）/ 方案 B（延后 P7.5） | ✅ **方案 A（纳入 P7 基线）**（mock 决议 2026-10-01，用户裁决确认；详见 `docs/P7-OPEN-009-SUP-010-5table-migration-schedule.md`）| 架构委员会 + 工艺负责人 | P7 Sprint 0 |
+| P7-REV-03 | P7-OPEN-007（physical_semantics）是否启用 | 三元决策（启用语义过滤 / 修正 record_hash / 默认不启用），50% 软阈值 | ⏸️ **推迟三元决策 → 待补采**（mock 决议 2026-10-01；无样本不可套用「三者均 < 50% → 默认不启用」分支；触发条件 T0+T1+30 天；详见 `docs/P7-OPEN-007-physical-semantics-evaluation.md`）| 架构委员会 | P7 Sprint 0 |
+| P7-REV-04 | P7-OPEN-008（规则清单形态）方案 A/B | >20 条 → 方案 A（CI 自动生成）；≤20 条 → 方案 B（ADR 附录） | ✅ **方案 B（ADR 附录）**（mock 决议 2026-10-01；@rule = 0 远 ≤ 20；详见 `docs/P7-OPEN-008-rule-registry-form-evaluation.md`）| 架构委员会 | P7 Sprint 0 |
+
+> **mock 决议说明**：上表 4 项裁决为 2026-10-01 架构委员会 + 工艺负责人 mock 决议，落地于 `docs/P7-REV-01-04-mock-decisions.md`。真实会议召开后，如 mock 决议被否决，按 V1.4.1 micro-revision 修订（沿用 P6-9-PICKUP-5 5B V1.0→V1.13 模式）。
+
+P7 SPEC V1.4 完。 本文档与 SPEC-P0 至 SPEC-P6 合并构成完整的《工艺专用综合计算软件》分阶段开发规格说明书体系。后续 P8（报表）、P9（工作流与权限）、P10（AI 预留与测试部署）的 SPEC 可继续按此格式编写。V1.4 mock 裁决报告详见 `docs/P7-REV-01-04-mock-decisions.md`；评估报告详见 `docs/P7-OPEN-007-physical-semantics-evaluation.md` + `docs/P7-OPEN-008-rule-registry-form-evaluation.md` + `docs/P7-OPEN-009-SUP-010-5table-migration-schedule.md`。R=1 教训（bug-114 + bug-115）已登记于 `.wolf/buglog.json`。

@@ -1981,6 +1981,50 @@
       "occurrences": 1,
       "last_seen": "2026-09-28",
       "related_bugs": []
+    },
+    {
+      "id": "bug-114",
+      "timestamp": "2026-10-01T09:00:00+08:00",
+      "error_message": "P7-OPEN-007 数据采集失败：pcs_test audit_logs 表 0 行 + state_machine.py 不写 stale_resolution_path/hash_changed/changed_fields 三字段（PCS 本体论 V1.6 §3.2b brief 描述与代码状态不一致）",
+      "file": "spec/PCS 本体论与语义关系研究说明（V1.6）.md §3.2b + pcs-backend/app/services/state_machine.py + pcs-backend/app/models/mixins.py + pcs-backend/app/models/calc.py + docs/P7-OPEN-007-physical-semantics-evaluation.md",
+      "root_cause": "V1.6 §3.2b 描述：「P4 Task 0-Code 强制 StateMachineService 在 STALE 解除时写入 stale_resolution_path / hash_changed / changed_fields 三字段到 audit_logs.detail_json」。但实际：(1) ORM 列定义完整（mixins.py:105-113 + calc.py:310-319 + project.py:443-451），(2) StateMachineService 实际未触发写入（grep \"stale_resolution_path\\|hash_changed\\|changed_fields\" state_machine.py = 0 matches），(3) pcs_test DB audit_logs 表 0 行（无样本无法计算 A/B/C 占比）。三层不一致：列定义存在 ≠ 写入触发 ≠ 数据采样。三元决策规则「三者均 < 50% → 默认不启用」基于无样本（=0）会被误套用为「默认不启用」，掩盖真实决策空窗。",
+      "fix": "P7-OPEN-007 评估报告（docs/P7-OPEN-007-physical-semantics-evaluation.md）mock 决策：推迟三元决策 → 登记「数据待补采」→ 触发条件 T0（StateMachineService 强制写入）+ T1（pcs_test DB 预填 ≥30 行 STALE 解除审计 fixture）+ 30 天窗口。报告含成本-收益-精度-召回分析（方案 A/B/C）+ 字段级血缘并列评估（per V1.6 §3.2b(5)）。守则增补候选：「无样本不可套用默认决策分支」（P7-OPEN-008 评估同步触发）。",
+      "fix_commit": "docs/P7-OPEN-007-physical-semantics-evaluation.md",
+      "tags": [
+        "R=1-lesson",
+        "source-verify",
+        "audit_logs",
+        "state_machine",
+        "P7-OPEN-007",
+        "physical_semantics",
+        "V1.6-§3.2b",
+        "PCS"
+      ],
+      "related_bugs": ["bug-115"],
+      "occurrences": 1,
+      "last_seen": "2026-10-01"
+    },
+    {
+      "id": "bug-115",
+      "timestamp": "2026-10-01T09:00:00+08:00",
+      "error_message": "P7-OPEN-008 数据采集发现：@rule 装饰器 = 0 + app/core/rules_registry.py 不存在（PCS 本体论 V1.6 §3.5 brief 描述与代码状态不一致）",
+      "file": "spec/PCS 本体论与语义关系研究说明（V1.6）.md §3.5 + pcs-backend/app/core/ (7 文件，无 rules_registry.py) + pcs-backend/app/ (0 @rule 装饰器) + docs/P7-OPEN-008-rule-registry-form-evaluation.md",
+      "root_cause": "V1.6 §3.5 描述：「方案 A 技术预留：P4 Task 0-Design 预留 RuleCollector 接口骨架（app/core/rules_registry.py），P4–P6 开发者只需按约定使用 @rule 装饰器，P7 的 CI 自动生成即可直接消费。P7 前不填充实现，仅预留接口形态。」但实际：(1) app/core/rules_registry.py 不存在（app/core 当前 7 文件：acl.py / commit_or_rollback.py / config.py / errors.py / logging.py / security.py / upload_size_limit.py，缺 rules_registry.py），(2) @rule 装饰器全仓使用 = 0（grep \"@rule\\|@rules\" pcs-backend/app/ | wc -l = 0），(3) P4–P6 开发者未被要求使用 @rule 装饰器（约定未传达）。两层 brief 缺陷：接口骨架未预留 + 装饰器约定未使用。P7 评估规则数量 = 0，远 ≤ 20。",
+      "fix": "P7-OPEN-008 评估报告（docs/P7-OPEN-008-rule-registry-form-evaluation.md）mock 决策：方案 B（ADR 附录）采纳 — 不建立 rules_registry.py，规则记录在相关 ADR 附录（V1.6 §6 规则 10「P7 前不手动维护规则清单」保持）。建议 V1.7 §3.5 加脚注：「本节声明与 P4 实际落地不一致，详见 P7-OPEN-008 评估报告」。守则增补候选：「plan 中声明的接口骨架/装饰器约定，落地 commit 必须存在对应文件或 grep 计数 ≥ 1」。",
+      "fix_commit": "docs/P7-OPEN-008-rule-registry-form-evaluation.md",
+      "tags": [
+        "R=1-lesson",
+        "source-verify",
+        "rules_registry",
+        "@rule-decorator",
+        "P7-OPEN-008",
+        "V1.6-§3.5",
+        "方案B-ADR附录",
+        "PCS"
+      ],
+      "related_bugs": ["bug-114"],
+      "occurrences": 1,
+      "last_seen": "2026-10-01"
     }
   ]
 }
