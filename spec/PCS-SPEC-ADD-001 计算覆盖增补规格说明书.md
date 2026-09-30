@@ -1,7 +1,7 @@
 PCS-SPEC-ADD-001 计算覆盖增补规格说明书
 文档编号：PCS-SPEC-ADD-001
-版本：**V1.12**（V1.10 实施基线冻结 + V1.11 Ruling 9 wording 增补 + V1.12 wording-only micro-revision）
-编制日期：2026-09-28
+版本：**V1.13**（V1.10 实施基线冻结 + V1.11 Ruling 9 wording 增补 + V1.12/V1.13 wording-only micro-revision）
+编制日期：2026-09-30
 关联文档：PCS-PLAN V1.3、PCS-SPEC-P3-SIM V1.1、SUP-002 V1.4、SUP-007、**ADR-0030**、**ATT-02（Q2 工艺推导附件）**
 目的：对现有开发计划做 C-01~C-24 全覆盖审计，将未覆盖/部分覆盖的工艺计算增补进已有模块，不新增独立模块。
 
@@ -883,7 +883,19 @@ TEG 浓度、汽提气量
   - `dewpoint_unavailable_reason`：dewpoint 不可用原因（如缺 T/P）
   - `acid_gas_corrected`（v4 H-1）：acid gas correction 是否生效（bool；Linear placeholder，P6-6B 接管真 Wichert-Aziz）
 
-**实现落点**：`pcs-backend/app/services/psychro/glycol_dehydration_service.py:294 GlycolDehydrationResult` frozen dataclass；接口契约冻结（v5.1 12 optional 字段向后兼容，零破坏性变更）。
+**V1.13 wording 增补（P6-8 T5 — C-16 12 → 23 result fields 同步）**：
+
+> P6-8 T5（OPEN-P6-6A-6 集成）向 `GlycolDehydrationResult` 追加 3 个 optional 输出 + 1 个 warnings 列表（共 4 字段），V1.12 冻结的 12 字段清单未回填。V1.13 为 docs-only 同步，**零代码/schema/test 改动**，现有字段与类型一律不动。
+
+- **P6-8 T5 追加 4（相对 V1.12 的 12 字段）**：
+  - `reboiler_duty_kw`：再沸器负荷 kW（`reboiler_duty_btu_hr × 0.000293071`；SI 基准输出）
+  - `stripping_gas_rate_scf_gal`：汽提气率 SCF/gal TEG（T1 `calc_reboiler_stripping` 独立于 v5.1 的 `stripping_gas_scf_per_gal_teg`）
+  - `lean_glycol_concentration_wt_pct`：贫甘醇浓度 wt%（T4 GPSA Fig 20-4 查表；区别于 v5.1 的无量纲 `lean_glycol_concentration` 回显）
+  - `warnings`：工艺未对账 warning 列表（`list[str]`，默认空）
+
+**字段总数对账**：7（V1.11 锁定）+ 12（v5.1 追加）+ 4（P6-8 T5 追加）= **23**，与 `dataclasses.fields(GlycolDehydrationResult)` 实测一致。`glycol_type` 为 `GlycolDehydrationInput` 输入侧字段，不计入 result。
+
+**实现落点**：`pcs-backend/app/services/psychro/glycol_dehydration_service.py:356 GlycolDehydrationResult` frozen dataclass；接口契约冻结（v5.1 12 optional + P6-8 T5 4 项向后兼容，零破坏性变更）。
 
 算法来源：WS-CA-PR-018
 
@@ -1167,6 +1179,7 @@ V1.1	2026-09-25	审计复核：5 项状态修正（C-08/C-10/C-15/C-20/C-24）+ 
 **V1.10**	**2026-09-26**	**Q2 架构裁决增补 + 冻结：§3.9.1.1 新增 C1 L/V_ref=242 参考工况推导（双层口径：GPSA 曲线读数 25.15/7.30/17.85 追溯 + 工程圆整 25/7/18 正文；4320/17.85=242.02 算术自洽；单位澄清 gal/lb）；§3.9.3.1 新增 C2 MEOH=6.63 lb/gal 物性溯源（GPSA §20.3 20°C 基准 6.61 + 0.3% 裕度；NIST SRD 69 交叉验证；温度修正公式 ±1.0% 验证）；§0.1 加 V1.10 实施终态注记（P6-4/P6-5+ 全部 24 项落地，本版起冻结为实施基线）；Q2 增补文档改编号 PCS-SPEC-ADD-001-ATT-02**	**工艺室（pangzy）**
 **V1.11**	**2026-09-28**	**OPEN-P6-6A-1 Ruling 9 wording 闭环（docs-only micro-revision）：§3.5.2 C-21 火灾泄放公式口径分项（API 521 §3.4 default 43192 / AS 1210 §4.4 路径 (a) 7.2×10⁴ 液化气体 / 路径 (b) m·Y_p 气体 / Jet fire 110,000 W/m²）+ 流体特定输入段（Ruling 14 ΔH_vap + Ruling 15 fire_case coeff/exp fluid-specific，OPEN-P6-6A-5/8 闭环链）；§3.9.2 C-17 working fluid 口径澄清（XLS WS-CA-PR-019 natural gas 饱和 W ≠ PCS humid air 饱和 W，worley_c17 fixture 5 cases mapping_defect OoM ≥ 10 范围边界）；§0.1 加 V1.11 wording 注记（Ruling 9 双 surface 闭环链 cfdbe2d + fddeae4 + e72e0db + bc95487）。V1.10 实施基线保持冻结，V1.11 仅 wording 增补不引入新实施项**	**工艺室（pangzy）**
 **V1.12**	**2026-09-28**	**docs-only 同步主 SPEC V1.12（6 项 wording-only 修订）：§3.5.2 C-21 AS 1210 path (b) + Jet fire OPEN-P6-6A-9 → OPEN-P6-6A-10（新立 PSV C-21 主题预留）；§3.7.2 C-19 排污孔板 Ruling 12/13 闭环链（OPEN-P6-6A-4 + OPEN-P6-6A-7 wording 增补，commit `c34d3f4` + `ce8556f→3250b42` + `f296a61` + `07c4f6e`）；§3.9.1 C-16 12 result fields 全名 + 类型 + Ruling 5 / ADR-0045 Rev A 闭环链；§3.9.2 C-17 OPEN-P6-6A-2 stale ID → OPEN-P6-6A-9.x 立项范围；§8 V1.7 未解决 2 项 → P6-6B 解决中（引 plan `2026-09-27-p6-6b-data-source-replacement.md`）；ATT-02 标题版本 V1.7 → V1.12 + §7.2 changelog V1.12 row 同步。零代码/schema/test 改动**	**工艺室（pangzy）**
+**V1.13**	**2026-09-30**	**docs-only micro-revision（P6-9-PICKUP-5 5B / DOC-P6-8-1）：§3.9.1 C-16 `GlycolDehydrationResult` 字段清单由 V1.12 冻结的 12 项同步至 23 项 —— 新增 V1.13 段落登记 P6-8 T5（OPEN-P6-6A-6 集成）追加的 4 项 `reboiler_duty_kw`（`reboiler_duty_btu_hr × 0.000293071`）/ `stripping_gas_rate_scf_gal`（T1 `calc_reboiler_stripping`）/ `lean_glycol_concentration_wt_pct`（T4 GPSA Fig 20-4 查表）/ `warnings`（`list[str]`），并附字段总数对账（7 V1.11 锁定 + 12 v5.1 + 4 P6-8 T5 = 23，与 `dataclasses.fields` 实测一致；`glycol_type` 属输入侧不计入）；§3.9.1「实现落点」行号引用 `:294` → `:356`（P6-8 T5 字段追加后行号下移）。V1.10 实施基线保持冻结，V1.13 仅 wording 同步不引入新实施项。零代码/schema/test 改动**	**工艺室（pangzy）**
 本 Spec 供项目组内部评审，评审通过后并入 PCS-PLAN V1.4。**V1.10 已冻结为 P6-4/P6-5+ 实施基线。**
 
 Excel 计算方法合理性评估报告

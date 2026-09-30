@@ -4,10 +4,11 @@
 
 ---
 
-## [P6-9-PICKUP-5] — 3 项 DOC 闭环（5B，2026-09-30）
+## [P6-9-PICKUP-5] — 4 项 DOC 闭环（5B，2026-09-30）
 
 docs-only 修订（零 service logic / 零 schema / 零 test fixture 改动）：
 
+- **DOC-P6-8-1** `spec/PCS-SPEC-ADD-001 计算覆盖增补规格说明书.md` V1.12 → V1.13：§3.9.1 C-16 `GlycolDehydrationResult` 字段清单由 V1.12 冻结的 12 项同步至 23 项，新增 V1.13 段登记 P6-8 T5 追加的 4 项（`reboiler_duty_kw` / `stripping_gas_rate_scf_gal` / `lean_glycol_concentration_wt_pct` / `warnings`）+ 字段总数对账（7 + 12 + 4 = 23，与 `dataclasses.fields` 实测一致）；§3.9.1「实现落点」行号 `:294` → `:356`；§9 changelog 增 V1.13 row。V1.10 实施基线保持冻结。
 - **DOC-P5-0-1** `docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md` P5-0 章节 4 处 nit 对齐落地 commit 口径：Task 1 commit 行 `7 tables + registry 12 类` → `3 tables + registry 8 类`（落地 `40b0c69`）；Task 1 registry 断言 12 类 → 8 类；Task 4 commit 行 `p5-0-4` → `p5-0-4a`（落地 `34ab33e`）；P5-0 章节头补 P5-0-4a 二次修订标注；前置任务章节头 `Task 24/25` → `Task 24/25/26`。
 - **DOC-P6-6B-1** `app/services/psychro/glycol_dehydration_service.py` docstring 一致性：`_DewpointResult` 三态列表改 RST 显式（`- FOUND:` / `- EXTRAPOLATED:` / `- NOT_FOUND:`）；`GlycolDehydrationInput` 补 P6-8 T5 的 2 个未文档化 optional 字段（`reboiler_temperature_f` / `teg_circulation_rate_gal_lb`）；`GlycolDehydrationResult` 补 P6-8 T5 的 4 个未文档化输出 + `warnings`（result 字段数 12 → 23）；`_LV_REFERENCE` 注释单位 `gal TEG / gal H2O` → `gal TEG / lb H2O`（SPEC §3.9.1.1 明记 brief 原文 "gal/gal" 为笔误）。
 - **DOC-P6-6B-2** `app/services/psychro/hydrate_inhibition_service.py` spec deviation：模块 docstring 两处「`x` 摩尔分数」改为「质量分数（wt% / 100 粗换，非摩尔分数）」，与 `_calculate_nielsen_depression_full` line 257 实际算法（`wt_pct / 100.0`，无摩尔质量换算）对齐；同步新增行内注释。**纯 docstring/注释，零数值改动**。
