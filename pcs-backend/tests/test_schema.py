@@ -60,7 +60,9 @@ def test_table_count(inspector):
     #   alembic_version = 92 incl. alembic_version。
     #   测试断言 92（含 alembic_version）= 实际 PCS 后端 schema 终态
     #   （P6-9-PICKUP-3 2026-11-15 同步）。
-    assert len(tables) == 92, f"expected 92 incl. alembic_version, got {len(tables)}"
+    # P5-0-1b T1 新增 thermosiphon_circulation_results（SUP-010 §3.5 热虹吸循环
+    #   安装高度）= 93 incl. alembic_version。
+    assert len(tables) == 93, f"expected 93 incl. alembic_version, got {len(tables)}"
 
 
 def test_required_tables_present(inspector):

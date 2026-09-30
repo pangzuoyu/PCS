@@ -8820,6 +8820,66 @@
         }
       }
     },
+    "/api/v1/thermosiphon/calculate": {
+      "post": {
+        "tags": [
+          "thermosiphon"
+        ],
+        "summary": "Thermosiphon Calculate",
+        "description": "POST /api/v1/thermosiphon/calculate：热虹吸循环安装高度计算。\n\n纯计算，不落库（落库由 ThermosiphonCirculationPersistService 负责）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "operationId": "thermosiphon_calculate_api_v1_thermosiphon_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ThermosiphonCalculateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ThermosiphonCalculateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/open-channel/manning/calculate": {
       "post": {
         "tags": [
@@ -27431,6 +27491,196 @@
         ],
         "title": "StreamResponse",
         "description": "完整响应：含 sign_status + 审计字段。"
+      },
+      "ThermosiphonCalculateRequest": {
+        "properties": {
+          "circulation_type": {
+            "type": "string",
+            "enum": [
+              "HORIZONTAL",
+              "VERTICAL"
+            ],
+            "title": "Circulation Type",
+            "description": "循环类型"
+          },
+          "shell_diameter_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Shell Diameter M",
+            "description": "壳程直径 Ds（m）"
+          },
+          "drum_diameter_m": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Drum Diameter M",
+            "description": "汽包直径（m）"
+          },
+          "drum_liquid_level_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Drum Liquid Level M",
+            "description": "汽包液位高 H1（m）"
+          },
+          "drum_liquid_density_kg_m3": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Drum Liquid Density Kg M3",
+            "description": "汽包液体密度 ρ（kg/m³）"
+          },
+          "shell_avg_density_kg_m3": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Shell Avg Density Kg M3",
+            "description": "壳程两相流平均密度（kg/m³）"
+          },
+          "drum_temperature_c": {
+            "type": "number",
+            "exclusiveMinimum": -273.15,
+            "title": "Drum Temperature C",
+            "description": "汽包液体温度（°C）",
+            "default": 0.0
+          },
+          "inlet_pressure_drop_const_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Inlet Pressure Drop Const M",
+            "description": "入口管线摩阻常数项 P11（m 液柱）",
+            "default": 0.0
+          },
+          "inlet_pressure_drop_coeff": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Inlet Pressure Drop Coeff",
+            "description": "入口管线摩阻系数 P12（m/m，乘 Hx）",
+            "default": 0.0
+          },
+          "outlet_pressure_drop_const_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Outlet Pressure Drop Const M",
+            "description": "出口管线摩阻常数项 P11（m 液柱）",
+            "default": 0.0
+          },
+          "outlet_pressure_drop_coeff": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Outlet Pressure Drop Coeff",
+            "description": "出口管线摩阻系数 P12（m/m，乘 Hx）",
+            "default": 0.0
+          },
+          "shell_pressure_drop_const_m": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Shell Pressure Drop Const M",
+            "description": "壳程摩阻常数项 P11（m 液柱）",
+            "default": 0.0
+          },
+          "shell_pressure_drop_coeff": {
+            "type": "number",
+            "minimum": 0.0,
+            "title": "Shell Pressure Drop Coeff",
+            "description": "壳程摩阻系数 P12（m/m，乘 Hx）",
+            "default": 0.0
+          },
+          "safety_factor": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Safety Factor",
+            "description": "最终安装高度余量倍数",
+            "default": 1.5
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "circulation_type",
+          "shell_diameter_m",
+          "drum_diameter_m",
+          "drum_liquid_level_m",
+          "drum_liquid_density_kg_m3",
+          "shell_avg_density_kg_m3"
+        ],
+        "title": "ThermosiphonCalculateRequest",
+        "description": "POST /api/v1/thermosiphon/calculate 请求体（SUP-010 §3.5）。"
+      },
+      "ThermosiphonCalculateResponse": {
+        "properties": {
+          "installation_height_calc_m": {
+            "type": "number",
+            "title": "Installation Height Calc M",
+            "description": "计算安装高度 Hx（m）"
+          },
+          "installation_height_final_m": {
+            "type": "number",
+            "title": "Installation Height Final M",
+            "description": "最终安装高度 Hxo（m）"
+          },
+          "driving_coeff_per_m": {
+            "type": "number",
+            "title": "Driving Coeff Per M",
+            "description": "驱动压头梯度（m/m）"
+          },
+          "resistance_const_m": {
+            "type": "number",
+            "title": "Resistance Const M",
+            "description": "ΣP11 总阻力常数项（m 液柱）"
+          },
+          "resistance_coeff_per_m": {
+            "type": "number",
+            "title": "Resistance Coeff Per M",
+            "description": "ΣP12 总阻力系数（m/m）"
+          },
+          "circulation_drive_ratio": {
+            "type": "number",
+            "title": "Circulation Drive Ratio",
+            "description": "循环推动力 / 总压降之比"
+          },
+          "check_result": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "FAIL"
+            ],
+            "title": "Check Result",
+            "description": "校核结果 PASS / FAIL"
+          },
+          "formula_ref_standard": {
+            "type": "string",
+            "title": "Formula Ref Standard",
+            "description": "公式溯源：标准"
+          },
+          "formula_ref_version": {
+            "type": "string",
+            "title": "Formula Ref Version",
+            "description": "公式溯源：版本"
+          },
+          "formula_ref_clause": {
+            "type": "string",
+            "title": "Formula Ref Clause",
+            "description": "公式溯源：条款"
+          },
+          "formula_ref_source": {
+            "type": "string",
+            "title": "Formula Ref Source",
+            "description": "公式溯源：数据来源"
+          }
+        },
+        "type": "object",
+        "required": [
+          "installation_height_calc_m",
+          "installation_height_final_m",
+          "driving_coeff_per_m",
+          "resistance_const_m",
+          "resistance_coeff_per_m",
+          "circulation_drive_ratio",
+          "check_result",
+          "formula_ref_standard",
+          "formula_ref_version",
+          "formula_ref_clause",
+          "formula_ref_source"
+        ],
+        "title": "ThermosiphonCalculateResponse",
+        "description": "POST /api/v1/thermosiphon/calculate 响应体（200）。\n\n字段对齐 service 层 ThermosiphonCirculationResult（frozen dataclass）。"
       },
       "TokenResponse": {
         "properties": {

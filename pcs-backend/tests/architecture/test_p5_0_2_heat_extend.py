@@ -158,9 +158,11 @@ def test_record_type_registry_count_is_10():
     +FlareSystemResult / +CoolingTowerResult / +PsychroResult → 17 类。
     **P6-3 Task 30 修订**（SPEC §3.2.6/§3.2.7/§3.2.8）：
     +OpenChannelResult / +FiltrationResult / +CostEstResult → 20 类。
+    **P5-0-1b T1 修订**（SUP-010 §3.5 热虹吸循环安装高度）：
+    +ThermosiphonCirculationResult → 21 类。
     """
-    assert len(RECORD_TYPE_REGISTRY) == 20, (
-        f"REGISTRY 应 20 类（P6-3 Task 30 +OpenChannelResult/+FiltrationResult/+CostEstResult），"
+    assert len(RECORD_TYPE_REGISTRY) == 21, (
+        f"REGISTRY 应 21 类（P5-0-1b T1 +ThermosiphonCirculationResult），"
         f"实际 {len(RECORD_TYPE_REGISTRY)}: {list(RECORD_TYPE_REGISTRY.keys())}"
     )
 

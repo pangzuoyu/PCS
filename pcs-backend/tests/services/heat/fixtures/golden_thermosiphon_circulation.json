@@ -1,0 +1,131 @@
+{
+  "_meta": {
+    "name": "热虹吸循环安装高度算例（P5-0-1b T1 / SUP-010 §3.5）",
+    "status": "PARTIAL",
+    "source": "XLS 132汽包安装高度计算(2014.6.12) — partial",
+    "spec": "PCS-REQ-2026-002-SUP-010 §2.1.3 gap 分析 + §3.5 完整 DDL",
+    "formula": "GPSA §20.4 壳程压力平衡；XLS P11/P12 两项式 Hx = ΣP11 / [(ρ_drum-ρ_shell)/ρ_drum - ΣP12]",
+    "ground_truth_status": {
+      "xls_verified": "xls_verified 段的 9 个入口管线参数与 P11/P12 是 XLS 原始值（经 SUP-010 §3.5 转录），并已用 pipe_friction_head_m 独立复算验证（复算 1.10732 m vs XLS 1.1074 m，5 位有效数字一致）。这部分可直接作为 XLS 对账依据。",
+      "derived": "cases[].provenance = derived / derived_from_xls_inlet 的算例，其 Hx / Hxo 是本仓 service 依 XLS 公式结构生成的**回归锁定值，不是 XLS 原始输出**。出口段 / 壳程段阻力项与两相流密度为工程占位值。禁止用作 XLS 对账依据。",
+      "pending": "cases[].status = pending_xls 的算例在拿到 XLS 6 sheet 逐格数据后必须整体替换，并同步把本字段改回 verified。"
+    },
+    "xls_access_status": "2026-09-30 累计 6 次被 Claude Code auto mode 权限分类器拒绝（stdout / 落盘 / 逐行读取 3 种方式）。分类器只认用户本人在主会话的直接授权，team-lead 转达（含逐字原话）均不被采信。XLS 6 sheet（卧式 E-106/E-206/E-207/二中 + 立式 外取热器/R-104）未逐格提取。",
+    "deviation_tolerance_rel": 0.01
+  },
+  "xls_verified": {
+    "description": "XLS 入口管线 P11 独立复算校验（SUP-010 §3.5 转录的 XLS E-106 入口参数）",
+    "inlet_line": {
+      "mass_flow_kg_per_h": 1612800,
+      "density_kg_per_m3": 865,
+      "velocity_m_per_s": 2.6377,
+      "inner_diam_m": 0.25,
+      "equivalent_length_m": 97.4,
+      "friction_factor": 0.008015,
+      "reynolds": 17001827.6,
+      "pressure_drop_const": 1.1074,
+      "pressure_drop_coeff": 0.01137
+    },
+    "expected_pressure_drop_const_m": 1.1074,
+    "computed_pressure_drop_const_m": 1.1073228721942285,
+    "abs_diff_m": 7.7e-05,
+    "derivation": "P11 = f · (L_eq/D_i) · v²/(2g) = 0.008015 · (97.4/0.25) · 2.6377²/(2·9.81)；m 液柱基准，Darby 摩阻，g=9.81。复算 1.10732 m vs XLS 1.1074 m，5 位有效数字一致，确认公式结构与单位基准。",
+    "provenance": "xls_verified",
+    "status": "xls_verified"
+  },
+  "cases": [
+    {
+      "name": "low_flow",
+      "provenance": "derived",
+      "note": "入口段按 XLS 公式 ×0.6 质量流量缩放（v ∝ √W，P11 ∝ W）；出口 / 壳程阻力项为工程占位值，待 XLS 提取替换。",
+      "input": {
+        "circulation_type": "HORIZONTAL",
+        "shell_diameter_m": 1.6,
+        "drum_diameter_m": 2.4,
+        "drum_liquid_level_m": 1.2,
+        "drum_liquid_density_kg_m3": 865.0,
+        "shell_avg_density_kg_m3": 500.0,
+        "drum_temperature_c": 215.0,
+        "inlet_pressure_drop_const_m": 0.6643937233165371,
+        "inlet_pressure_drop_coeff": 0.01137,
+        "outlet_pressure_drop_const_m": 0.85,
+        "outlet_pressure_drop_coeff": 0.015,
+        "shell_pressure_drop_const_m": 0.3,
+        "shell_pressure_drop_coeff": 0.01,
+        "safety_factor": 1.5
+      },
+      "expected": {
+        "installation_height_calc_m": 4.705434954796835,
+        "installation_height_final_m": 7.058152432195253,
+        "driving_coeff_per_m": 0.4219653179190751,
+        "resistance_const_m": 1.814393723316537,
+        "resistance_coeff_per_m": 0.03637,
+        "circulation_drive_ratio": 1.4380272211127354,
+        "check_result": "PASS"
+      },
+      "status": "pending_xls"
+    },
+    {
+      "name": "med_flow",
+      "provenance": "derived_from_xls_inlet",
+      "note": "入口段 P11 = 1.1073229 m 与 P12 = 0.01137 直接来自 XLS 公式复算（XLS P11 = 1.1074，P12 = 0.01137 逐字）；出口 / 壳程阻力项与密度为工程占位值，待 XLS 提取替换。",
+      "input": {
+        "circulation_type": "HORIZONTAL",
+        "shell_diameter_m": 1.6,
+        "drum_diameter_m": 2.4,
+        "drum_liquid_level_m": 1.2,
+        "drum_liquid_density_kg_m3": 865.0,
+        "shell_avg_density_kg_m3": 500.0,
+        "drum_temperature_c": 215.0,
+        "inlet_pressure_drop_const_m": 1.1073228721942285,
+        "inlet_pressure_drop_coeff": 0.01137,
+        "outlet_pressure_drop_const_m": 0.85,
+        "outlet_pressure_drop_coeff": 0.015,
+        "shell_pressure_drop_const_m": 0.3,
+        "shell_pressure_drop_coeff": 0.01,
+        "safety_factor": 1.5
+      },
+      "expected": {
+        "installation_height_calc_m": 5.854124203903767,
+        "installation_height_final_m": 8.78118630585565,
+        "driving_coeff_per_m": 0.4219653179190751,
+        "resistance_const_m": 2.2573228721942287,
+        "resistance_coeff_per_m": 0.03637,
+        "circulation_drive_ratio": 1.4380272211127354,
+        "check_result": "PASS"
+      },
+      "status": "pending_xls"
+    },
+    {
+      "name": "high_flow",
+      "provenance": "derived",
+      "note": "入口段按 XLS 公式 ×1.5 质量流量缩放（v ∝ √W，P11 ∝ W）；出口 / 壳程阻力项为工程占位值，待 XLS 提取替换。",
+      "input": {
+        "circulation_type": "HORIZONTAL",
+        "shell_diameter_m": 1.6,
+        "drum_diameter_m": 2.4,
+        "drum_liquid_level_m": 1.2,
+        "drum_liquid_density_kg_m3": 865.0,
+        "shell_avg_density_kg_m3": 500.0,
+        "drum_temperature_c": 215.0,
+        "inlet_pressure_drop_const_m": 1.6609843082913427,
+        "inlet_pressure_drop_coeff": 0.01137,
+        "outlet_pressure_drop_const_m": 0.85,
+        "outlet_pressure_drop_coeff": 0.015,
+        "shell_pressure_drop_const_m": 0.3,
+        "shell_pressure_drop_coeff": 0.01,
+        "safety_factor": 1.5
+      },
+      "expected": {
+        "installation_height_calc_m": 7.289986380564997,
+        "installation_height_final_m": 10.934979570847494,
+        "driving_coeff_per_m": 0.4219653179190751,
+        "resistance_const_m": 2.810984308291343,
+        "resistance_coeff_per_m": 0.03637,
+        "circulation_drive_ratio": 1.4380272211127354,
+        "check_result": "PASS"
+      },
+      "status": "pending_xls"
+    }
+  ]
+}

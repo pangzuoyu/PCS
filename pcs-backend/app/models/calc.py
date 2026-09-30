@@ -19,6 +19,7 @@ from sqlalchemy import (
     Numeric,
     String,
     Text,
+    UniqueConstraint,
     Uuid,
     text,
 )
@@ -1150,3 +1151,131 @@ class CostEstResult(Base):
         Float, comment="缩放指数 n（六十法则 0.6 典型）"
     )
     created_at = mapped_column(DateTime(timezone=True))
+
+
+class ThermosiphonCirculationResult(RecordMixin, Base):
+    """热虹吸循环安装高度计算结果（SUP-010 §3.5，thermosiphon_circulation_results）。
+
+    卧式/立式热虹吸蒸汽发生器（自循环）壳程压力平衡，求汽包与蒸汽发生器标高差。
+    数据来源：132汽包安装高度计算(2014.6.12).xls（6 sheet：E-106/E-206/E-207/二中
+    卧式 4 + 外取热器/R-104 立式 2），见 SUP-010 §2.1.3 gap 分析。
+
+    决策说明：
+    - RecordMixin 而非 TaggedRecordMixin（业务位号字段是 equipment_tag 非
+      tag_number；tag_number 留空，与 column_sizing / mixer_results 同模式）。
+      (project_id, equipment_tag) 唯一性由 DB UNIQUE + service 层共同强制。
+    - DDL 列名保留 SUP-010 §3.5 逐字命名（shell_diameter 等，不带单位后缀）；
+      单位后缀（_m / _kgs / _kg_m3）只在 service / schema 层显式
+      （工艺室 §5.2 要求，DDL 层不强制）。
+    - 4 个 JSONB 容器按 §3.5 逐字命名：inlet_pipe_params / outlet_pipe_params /
+      shell_side_params / other_params。formula_ref / input_json / output_json
+      只在 service / schema 层（P5-0 sibling 模式），不入 DDL。
+
+    平衡式（service 层，m 液柱基准；GPSA §20.4 壳程压力平衡）：
+        Hx·[(ρ_drum - ρ_shell)/ρ_drum - ΣP12] = ΣP11
+    其中 P11 = 沿程/局部损失常数项（m），P12 = 随 Hx 线性增长的几何项系数（m/m）。
+    """
+
+    __tablename__ = "thermosiphon_circulation_results"
+    __table_args__ = (
+        # SUP-010 §3.5 UNIQUE(project_id, equipment_tag)
+        UniqueConstraint(
+            "project_id", "equipment_tag", name="uq_thermosiphon_circulation_results_tag"
+        ),
+        CheckConstraint(
+            "circulation_type IN ('HORIZONTAL', 'VERTICAL')",
+            name="thermosiphon_circulation_type_chk",
+        ),
+        CheckConstraint(
+            "check_result IS NULL OR check_result IN ('PASS', 'FAIL')",
+            name="thermosiphon_check_result_chk",
+        ),
+        CheckConstraint(
+            "safety_factor > 0", name="thermosiphon_safety_factor_chk"
+        ),
+        CheckConstraint(
+            "shell_diameter IS NULL OR shell_diameter > 0",
+            name="thermosiphon_shell_diameter_chk",
+        ),
+        CheckConstraint(
+            "drum_diameter IS NULL OR drum_diameter > 0",
+            name="thermosiphon_drum_diameter_chk",
+        ),
+        CheckConstraint(
+            "drum_liquid_level IS NULL OR drum_liquid_level >= 0",
+            name="thermosiphon_drum_liquid_level_chk",
+        ),
+        CheckConstraint(
+            "circulation_drive_ratio IS NULL OR circulation_drive_ratio > 0",
+            name="thermosiphon_drive_ratio_chk",
+        ),
+    )
+
+    thermosiphon_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4
+    )
+    # 基本标识（SUP-010 §3.5）
+    equipment_tag: Mapped[str] = mapped_column(
+        String(50), nullable=False, comment="蒸汽发生器编号（如 E-106）"
+    )
+    equipment_name: Mapped[str | None] = mapped_column(
+        String(200), comment="设备名称"
+    )
+    circulation_type: Mapped[str] = mapped_column(
+        String(30),
+        nullable=False,
+        comment="循环类型：HORIZONTAL / VERTICAL（XLS 立式 2 sheet 带 Martinelli 参数）",
+    )
+    # 主要几何参数
+    shell_diameter: Mapped[float | None] = mapped_column(
+        Float, comment="壳体壳径 Ds（m）"
+    )
+    drum_diameter: Mapped[float | None] = mapped_column(
+        Float, comment="汽包直径（m）"
+    )
+    drum_liquid_level: Mapped[float | None] = mapped_column(
+        Float, comment="汽包液位高 H1（m）"
+    )
+    # 计算结果
+    installation_height_calc: Mapped[float | None] = mapped_column(
+        Float, comment="计算安装高度 Hx（m）"
+    )
+    installation_height_final: Mapped[float | None] = mapped_column(
+        Float, comment="最终安装高度 Hxo（取 1.5 倍余量，m）"
+    )
+    safety_factor: Mapped[float] = mapped_column(
+        Float,
+        nullable=False,
+        default=1.5,
+        server_default=text("1.5"),
+        comment="安全余量倍数（SUP-010 §3.5 default 1.5）",
+    )
+    check_result: Mapped[str | None] = mapped_column(
+        String(20), comment="校核结果：PASS / FAIL"
+    )
+    circulation_drive_ratio: Mapped[float | None] = mapped_column(
+        Float,
+        comment="（立式）循环推动力 / 总压力降之比；SUP-010 §2.1.3 立式特有列",
+    )
+    # 详细参数 JSONB（适应卧式 / 立式差异；SUP-010 §3.5 逐字命名）
+    inlet_pipe_params: Mapped[dict | None] = mapped_column(
+        JSONB,
+        comment="入口管线参数 {mass_flow_kg_per_h, density_kg_per_m3, velocity_m_per_s, "
+        "inner_diam_m, equivalent_length_m, friction_factor, reynolds, "
+        "pressure_drop_const, pressure_drop_coeff}",
+    )
+    outlet_pipe_params: Mapped[dict | None] = mapped_column(
+        JSONB,
+        comment="出口管线参数（inlet 基础上增 vapor_fraction / mixture_density / "
+        "mixture_viscosity）",
+    )
+    shell_side_params: Mapped[dict | None] = mapped_column(
+        JSONB,
+        comment="壳程参数 {avg_density, static_head, friction_drop, flow_area, "
+        "baffle_spacing, baffle_count}",
+    )
+    other_params: Mapped[dict | None] = mapped_column(
+        JSONB,
+        comment="其他参数（立式特有 Martinelli Xtt / φ / 混合密度 / 沸腾区压降 / "
+        "动能损失）",
+    )

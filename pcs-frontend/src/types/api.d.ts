@@ -3060,6 +3060,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/thermosiphon/calculate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Thermosiphon Calculate
+         * @description POST /api/v1/thermosiphon/calculate：热虹吸循环安装高度计算。
+         *
+         *     纯计算，不落库（落库由 ThermosiphonCirculationPersistService 负责）。
+         *
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         */
+        post: operations["thermosiphon_calculate_api_v1_thermosiphon_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/open-channel/manning/calculate": {
         parameters: {
             query?: never;
@@ -13110,6 +13134,155 @@ export interface components {
             updated_at?: string | null;
         };
         /**
+         * ThermosiphonCalculateRequest
+         * @description POST /api/v1/thermosiphon/calculate 请求体（SUP-010 §3.5）。
+         */
+        ThermosiphonCalculateRequest: {
+            /**
+             * Circulation Type
+             * @description 循环类型
+             * @enum {string}
+             */
+            circulation_type: "HORIZONTAL" | "VERTICAL";
+            /**
+             * Shell Diameter M
+             * @description 壳程直径 Ds（m）
+             */
+            shell_diameter_m: number;
+            /**
+             * Drum Diameter M
+             * @description 汽包直径（m）
+             */
+            drum_diameter_m: number;
+            /**
+             * Drum Liquid Level M
+             * @description 汽包液位高 H1（m）
+             */
+            drum_liquid_level_m: number;
+            /**
+             * Drum Liquid Density Kg M3
+             * @description 汽包液体密度 ρ（kg/m³）
+             */
+            drum_liquid_density_kg_m3: number;
+            /**
+             * Shell Avg Density Kg M3
+             * @description 壳程两相流平均密度（kg/m³）
+             */
+            shell_avg_density_kg_m3: number;
+            /**
+             * Drum Temperature C
+             * @description 汽包液体温度（°C）
+             * @default 0
+             */
+            drum_temperature_c: number;
+            /**
+             * Inlet Pressure Drop Const M
+             * @description 入口管线摩阻常数项 P11（m 液柱）
+             * @default 0
+             */
+            inlet_pressure_drop_const_m: number;
+            /**
+             * Inlet Pressure Drop Coeff
+             * @description 入口管线摩阻系数 P12（m/m，乘 Hx）
+             * @default 0
+             */
+            inlet_pressure_drop_coeff: number;
+            /**
+             * Outlet Pressure Drop Const M
+             * @description 出口管线摩阻常数项 P11（m 液柱）
+             * @default 0
+             */
+            outlet_pressure_drop_const_m: number;
+            /**
+             * Outlet Pressure Drop Coeff
+             * @description 出口管线摩阻系数 P12（m/m，乘 Hx）
+             * @default 0
+             */
+            outlet_pressure_drop_coeff: number;
+            /**
+             * Shell Pressure Drop Const M
+             * @description 壳程摩阻常数项 P11（m 液柱）
+             * @default 0
+             */
+            shell_pressure_drop_const_m: number;
+            /**
+             * Shell Pressure Drop Coeff
+             * @description 壳程摩阻系数 P12（m/m，乘 Hx）
+             * @default 0
+             */
+            shell_pressure_drop_coeff: number;
+            /**
+             * Safety Factor
+             * @description 最终安装高度余量倍数
+             * @default 1.5
+             */
+            safety_factor: number;
+        };
+        /**
+         * ThermosiphonCalculateResponse
+         * @description POST /api/v1/thermosiphon/calculate 响应体（200）。
+         *
+         *     字段对齐 service 层 ThermosiphonCirculationResult（frozen dataclass）。
+         */
+        ThermosiphonCalculateResponse: {
+            /**
+             * Installation Height Calc M
+             * @description 计算安装高度 Hx（m）
+             */
+            installation_height_calc_m: number;
+            /**
+             * Installation Height Final M
+             * @description 最终安装高度 Hxo（m）
+             */
+            installation_height_final_m: number;
+            /**
+             * Driving Coeff Per M
+             * @description 驱动压头梯度（m/m）
+             */
+            driving_coeff_per_m: number;
+            /**
+             * Resistance Const M
+             * @description ΣP11 总阻力常数项（m 液柱）
+             */
+            resistance_const_m: number;
+            /**
+             * Resistance Coeff Per M
+             * @description ΣP12 总阻力系数（m/m）
+             */
+            resistance_coeff_per_m: number;
+            /**
+             * Circulation Drive Ratio
+             * @description 循环推动力 / 总压降之比
+             */
+            circulation_drive_ratio: number;
+            /**
+             * Check Result
+             * @description 校核结果 PASS / FAIL
+             * @enum {string}
+             */
+            check_result: "PASS" | "FAIL";
+            /**
+             * Formula Ref Standard
+             * @description 公式溯源：标准
+             */
+            formula_ref_standard: string;
+            /**
+             * Formula Ref Version
+             * @description 公式溯源：版本
+             */
+            formula_ref_version: string;
+            /**
+             * Formula Ref Clause
+             * @description 公式溯源：条款
+             */
+            formula_ref_clause: string;
+            /**
+             * Formula Ref Source
+             * @description 公式溯源：数据来源
+             */
+            formula_ref_source: string;
+        };
+        /**
          * TokenResponse
          * @description JWT token 响应（POST /auth/login 响应体）。
          *
@@ -19337,6 +19510,41 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DrainOrificeSizeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    thermosiphon_calculate_api_v1_thermosiphon_calculate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ThermosiphonCalculateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ThermosiphonCalculateResponse"];
                 };
             };
             /** @description Validation Error */

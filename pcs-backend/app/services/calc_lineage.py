@@ -38,6 +38,7 @@ from app.models.calc import (
     ReliefResult,
     RestrictionResult,
     SepEquipResult,
+    ThermosiphonCirculationResult,
     TwoPhaseResult,
     VesselResult,
 )
@@ -60,8 +61,10 @@ from app.services.lineage_extension import attach_lineage_d45
 # （SPEC §3.2.6/§3.2.7/§3.2.8）→ 20 类
 # Stream 不登记（Stream 是物流不是计算记录）。
 # 后续扩展：
-#   P5-0-1b（4 蒸汽表）后 +4 = 24 类（Q4 约束 3 修订：原 13 → 14 因 +HeatResult +VesselResult，
-#   现 14 → 16 因 +CvResult +RestrictionResult → 17 因 +3 P6-2 → 20 因 +3 P6-3）
+#   P5-0-1b T1 已登记 ThermosiphonCirculationResult（SUP-010 §3.5）→ 21 类
+#   P5-0-1b T2-T5（3 蒸汽表）后 +3 = 24 类（Q4 约束 3 修订：原 13 → 14 因
+#   +HeatResult +VesselResult，14 → 16 因 +CvResult +RestrictionResult →
+#   17 因 +3 P6-2 → 20 因 +3 P6-3）
 RECORD_TYPE_REGISTRY: dict[str, type] = {
     "PipingResult": PipingResult,
     "PumpResult": PumpResult,
@@ -91,6 +94,8 @@ RECORD_TYPE_REGISTRY: dict[str, type] = {
     "OpenChannelResult": OpenChannelResult,
     "FiltrationResult": FiltrationResult,
     "CostEstResult": CostEstResult,
+    # P5-0-1b T1 新增（2026-09-30，SUP-010 §3.5 热虹吸循环安装高度）
+    "ThermosiphonCirculationResult": ThermosiphonCirculationResult,
 }
 
 # record_hash 截断长度（16 hex = 64 bit，与 cia_engine._CONTENT_HASH_PREFIX 一致）
