@@ -18,7 +18,7 @@ K 因子（按文献，H-2 v1 修定）：
 Nielsen 1988 现代水合物抑制（备选 path，P6-6B T8 引入，P6-7 T3 升级完整方程组）：
   ΔT_F_i = A_i + B_i·x + C_i·x²；ΔT_F_weighted = Σ(y_i·ΔT_F_i) / Σ(y_i)
   + brine 修正 ΔT_brine_correction_F = -0.0015 × brine_wt_pct × T_op_F
-  x = 抑制剂在水溶液中的摩尔分数（0..1）
+  x = 抑制剂在水溶液中的质量分数（0..1；由 wt% / 100 粗换，非摩尔分数）
   A/B/C 常数按组分（CH4/C2H6/C3H8/i_C4H10/N2/CO2/H2S）取自工艺室
   2026-10-15 GPA RR-114 Table 2-3 完整常数（GPA RR-114 Table 2-3）。
 
@@ -49,8 +49,8 @@ GPSA §20.3 抑制剂注入率：
   - ΔT > 0 → is_safe=True（温降为正即有效抑制）
 
 InhibitorModel（P6-6B T8）：默认 ``HAMMERSCHMIDT_1934``（向后兼容）；
-``NIELSEN_1988`` 为现代水合物抑制备选 path（需用户提供组分 ``x`` 摩尔分数，
-本批用 wt% 近似换算）。
+``NIELSEN_1988`` 为现代水合物抑制备选 path（Nielsen 原始 ``x`` 为液相摩尔分数；
+本批代码以用户输入的 wt% / 100 做质量分数粗换，不做摩尔质量换算）。
 """
 from __future__ import annotations
 
@@ -254,6 +254,7 @@ def _calculate_nielsen_depression_full(
 
     返回：ΔT_F_weighted（°F；含 brine 修正若有）
     """
+    # x = 质量分数粗换（wt% / 100）；Nielsen 原始 x 为液相摩尔分数，本批不做摩尔质量换算
     x = inhibitor_concentration_in_water_wt_pct / 100.0
     nielsen_table = _NIELSEN_1988_FULL_PARAMS  # 工艺室 2026-10-15 完整常数
 

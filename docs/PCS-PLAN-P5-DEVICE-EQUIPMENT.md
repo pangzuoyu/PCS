@@ -38,7 +38,7 @@
 
 ## 任务清单（26 task；Task 24/25/26 为 P5-0-5/P5-0-6/P5-0-7 前置执行）
 
-### 批 P5-0 — 数据模型层（7 task：Task 1~4 主 + Task 24/25/26 前置，全部批内执行）
+### 批 P5-0 — 数据模型层（7 task：Task 1~4 主 + Task 24/25/26 前置，全部批内执行；含 P5-0-4a 二次修订，Task 4 内）
 
 #### Task 1: P5-0-1 P5-OPEN-005 模型扩展（relief_results + column_sizing + mixer_results + 4 蒸汽表 + design_stage）
 
@@ -49,13 +49,13 @@
 
 **接口**:
 - Produces: `relief_results` / `column_sizing_results` / `mixer_results` / `steam_drum_results` / `two_phase_pipe_sizing_results` / `blowdown_drum_results` / `thermosiphon_circulation_results` 7 表 ORM；`vessel_results.design_stage` / `psv_results.design_stage` / `column_sizing_results.design_stage` 三列（BASIC/DETAIL）
-- **RECORD_TYPE_REGISTRY 即时注册**（裁决 #11 时机修正）：P5-0-1 完成后立即在 `app/services/calc_lineage.py` 注册 7 表 + 现有 5 表 = **12 类**；新增测试断言 registry 完整性（防止 Task 4 主键 rename 后落库验证空跑）
+- **RECORD_TYPE_REGISTRY 即时注册**（裁决 #11 时机修正）：P5-0-1 完成后立即在 `app/services/calc_lineage.py` 注册 3 表 + 现有 5 表 = **8 类**（落地 commit `40b0c69` 口径；后续批次累加至 20 类）；新增测试断言 registry 完整性（防止 Task 4 主键 rename 后落库验证空跑）
 
 **Steps**:
-1. RED: 写 7 表 ORM 存在性 + design_stage 列存在性 + alembic 迁移 head 跑通测试 + **RECORD_TYPE_REGISTRY 12 类注册断言**
+1. RED: 写 7 表 ORM 存在性 + design_stage 列存在性 + alembic 迁移 head 跑通测试 + **RECORD_TYPE_REGISTRY 8 类注册断言**
 2. GREEN: 按 SUP-008 V1.1 §2.2-§2.6 + §8.4 + SUP-010 V1.1 §3.1 建表；design_stage 加列（BASIC/DETAIL 枚举）；calc_lineage.RECORD_TYPE_REGISTRY 同步追加
 3. 测试：DICT V3.7/V3.9 字段对齐；alembic upgrade head OK；列存在性；registry 完整性
-4. commit: `feat(p5-0-1): model extension (7 tables + design_stage + registry 12 类)`
+4. commit: `feat(p5-0-1): model extension (3 tables + design_stage + registry 8 类)`
 
 #### Task 2: P5-0-2 P5-OPEN-006 HEAT 旧字段清洗 + ADR-0027
 
@@ -107,7 +107,7 @@
 1. RED: 主键 rename 后 ORM 字段名匹配测试 + P5 模块平铺字段或 data_sheet_json 写入读出测试
 2. GREEN: rename 主键 + SUP-001~014 字段平铺；旧 FK 同步 rename
 3. 测试：rename 全覆盖 + 平铺字段与 DICT V3.3 对齐
-4. commit: `feat(p5-0-4): PK rename + flatten per DICT V3.3`
+4. commit: `feat(p5-0-4a): PK rename 10 表 + column_sizing.tag_number 统一（DICT V3.3 对齐）`
 
 
 ### 批 P5-1 — VESSEL 容器计算（4 task）
@@ -515,7 +515,7 @@
 3. 测试：3 端点 + HEAT_EXCHANGE 出口物流独立编号 + ACL + 三步守卫 + heat_results.duty_w/total_weight_kg 字段可读
 4. commit: `feat(p5-4-5): HEAT API + persist + outlet_stream + UTIL 预留`
 
-### 批 P5-0 前置任务（Task 24/25 — P5-0-5/P5-0-6，与主 P5-0 批同步执行）
+### 批 P5-0 前置任务（Task 24/25/26 — P5-0-5/P5-0-6/P5-0-7，与主 P5-0 批同步执行）
 
 > **执行顺序**：F-01 方案 A 决策 + **D-08 时序细化**（问题3 明确）。Task 24/25 编为末尾但**前置执行**——P5-1 启动前必须完成。
 > - **Task 25（P5-0-6 ChEDL 版本锁定）**：在 **P5-0 批最开始执行，先于 Task 1**（独立无依赖，仅修改 pyproject.toml + uv.lock + ADR；P5-1 启动前 ChEDL 已锁定，避免风险窗口过大）

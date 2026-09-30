@@ -103,11 +103,11 @@ _TEG_LOSS_GAL_PER_MMSCF: Final[float] = 0.5
 _TEG_DENSITY_LB_PER_GAL: Final[float] = 9.35
 # 水密度（lb/gal；标准）
 _WATER_DENSITY_LB_PER_GAL: Final[float] = 8.34
-# GPSA §20.4 L/V 参考值（gal TEG / gal H2O；典型 3 gpm/MMscf × 1440 min/d 设计）
+# GPSA §20.4 L/V 参考值（gal TEG / lb H2O；典型 3 gpm/MMscf × 1440 min/d 设计）
 _LV_REFERENCE: Final[float] = 242.0
 # L/V 容差带（±5%）：在此范围内 correction = 1.0 避免浮点边界误升 N_min
 _LV_TOLERANCE: Final[float] = 0.05
-# L/V 修正指数：c=0.5（与 brief 公式 1/sqrt(L/V) 对齐；含 L/V_ref 归一化）
+# L/V 修正指数：c = 0.5（与 brief 公式 1/sqrt(L/V) 对齐；含 L/V_ref 归一化）
 _LV_N_CORRECTION_EXP: Final[float] = 0.5
 _LV_D_CORRECTION_EXP: Final[float] = 0.5
 
@@ -284,11 +284,11 @@ class _DewpointResult:
     """Behr 反函数结果 (frozen dataclass) — 三态显式避免 tuple 歧义。
 
     三态语义:
-      FOUND          — dewpoint_f 非 None, extrapolated=False, reason=None
-      EXTRAPOLATED   — dewpoint_f 非 None, extrapolated=True (T<60°F Antoine 外推),
-                       reason=外推说明
-      NOT_FOUND      — dewpoint_f=None, extrapolated=False/True,
-                       reason="brentq and Newton both failed"
+      - FOUND: dewpoint_f 非 None, extrapolated=False, reason=None
+      - EXTRAPOLATED: dewpoint_f 非 None, extrapolated=True (T<60°F Antoine 外推),
+        reason=外推说明
+      - NOT_FOUND: dewpoint_f=None, extrapolated=False/True,
+        reason="brentq and Newton both failed"
     """
 
     dewpoint_f: float | None
@@ -322,6 +322,10 @@ class GlycolDehydrationInput:
       flooding_c_sb: Souders-Brown C_sb（v5.1 预留，v5 helper 不使用 — ADR-0045 Rev A）
       co2_mol_pct: CO2 摩尔百分比（acid gas correction）
       h2s_mol_pct: H2S 摩尔百分比（acid gas correction）
+
+    P6-8 T5 追加（2 optional — OPEN-P6-6A-6 集成，向后兼容）：
+      reboiler_temperature_f: 再沸器温度 °F（默认 400.0，与 ReboilerStrippingInput 一致）
+      teg_circulation_rate_gal_lb: TEG 循环量 lb/d（None → 由 glycol_circulation_rate_gpm 换算）
     """
 
     gas_flow_mmscfd: float
@@ -374,6 +378,12 @@ class GlycolDehydrationResult:
       column_csa_ft2: 截面积 ft²
       dewpoint_unavailable_reason: dewpoint 不可用原因（如缺 T/P）
       acid_gas_corrected: acid gas correction 是否生效（bool）
+
+    P6-8 T5 追加（4 outputs + warning — OPEN-P6-6A-6 集成，向后兼容）：
+      reboiler_duty_kw: 再沸器负荷 kW（reboiler_duty_btu_hr × 0.000293071）
+      stripping_gas_rate_scf_gal: 汽提气率 SCF/gal TEG（T1 calc_reboiler_stripping）
+      lean_glycol_concentration_wt_pct: 贫甘醇浓度 wt%（T4 GPSA Fig 20-4 查表）
+      warnings: 工艺未对账 warning 列表（默认空 list）
     """
 
     dehydration_efficiency: float
