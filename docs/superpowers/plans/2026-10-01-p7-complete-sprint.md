@@ -23,6 +23,7 @@
 - **PcsError 子类 + frozen dataclass + formula_ref dict** 模式不可破（项目级 service 模式）
 - **UTIL 权威源（D1 裁决 1A）**: Sprint 2 起 5 表（`utility_power_items` / `utility_fuel_gas` / `utility_heat_exchange` / `utility_energy_summary` / `catalyst_loading`）为唯一权威写入路径；`util_results.consumption_json` JSONB 字段 **deprecated**（Sprint 1 遗留，仅 backward compat 读，Sprint 2 起不再更新）；Sprint 4 综合能耗验收读 5 表聚合
 - **历史/audit 线索保留原则（D1/D2/D3 共同裁决）**: 数据演进（JSONB → 5 表 / 沉淀解耦 / 状态联动）保留历史指针与 audit 字段，用显式状态字段（deprecated / source_sign_status）表达语义，不用级联删除或静默覆盖
+- **跨模块变更所有权（D4 裁决 4A）**: 状态机统一所有门禁迁移；业务模块（Supplier/UtilResults/EquipmentList）通过 `emit_event()` 发事件，不直接触发门禁迁移；事件需幂等性（event_id 去重）；rollback 分阶段（事件撤回 / 门禁回滚 / CIA 反向恢复 — 是否实现 CIA 反向恢复待 P7 Sprint 4 user 裁决）
 - **ChEDL 包装层不可破**: 业务代码禁直接 `import fluids.*`（ADR-0030）
 - **追溯链完整**: 设备记录通过 SourceModule + SourceRecordID + SourceService（V1.4 新增）三重溯源
 - **门禁哈希仅设计参数**: 商务/采购字段不参与门禁哈希
@@ -44,6 +45,7 @@
 6. **UTIL 双写权威性（D1 裁决 1A）** — Sprint 2 起 5 表是唯一权威写入路径；若 `summary_service` 仍写 JSONB 或 JSONB 读路径被误认为权威 → Sprint 4 综合能耗验收偏差 > 2%（Spec §3.2.2（3））；需在 Sprint 2 Task S2-7 Step 2.5 切换写路径 + Step 2.6 数据回填
 7. **sync_from_source 并发 CHECKED（D2 裁决 2A）** — 两路 SourceModule 同 (project_id, tag_number) 并发 CHECKED 时，若无 advisory lock 会 IntegrityError 500 或静默覆盖；advisory lock key 必须按 SPEC V1.4 §2.5 用 (project_id, tag_number) 复合，非全局 tag_number（Spec §3.2.1）；同时修复 Task S1-2 ORM `unique=True` 误伤跨项目同名位号
 8. **EQUIP_LIB 沉淀源 OBSOLETE 联动（D3 裁决 3A）** — 源 EQUIP_LIST OBSOLETE 后复用库记录**不消失**（沉淀是稳定副本）；`source_record_id` 保留为 audit 线索；源状态用 `source_sign_status` 镜像（pull 模式读时 join）；若误用 cascade DELETE → 复用库资产随项目退役蒸发（Spec §3.2.3（3））
+9. **供应商实际值 CHANGED 流程所有权（D4 裁决 4A）** — Supplier 只发 `emit_event('actual_data_replaces_design', ...)`，**不直接调 state_machine**；state_machine 监听事件走 EquipmentList CHANGED；UtilResults **不进 CHANGED**（只重算）+ CIA 评估；若 Supplier 直接迁移门禁 → 职责泄漏 + 跨模块协调复杂（Spec §3.2.4（6））
 6. **UTIL 双写权威性（D1 裁决 1A）** — Sprint 2 起 5 表是唯一权威写入路径；若 `summary_service` 仍写 JSONB 或 JSONB 读路径被误认为权威 → Sprint 4 综合能耗验收偏差 > 2%（Spec §3.2.2（3））；需在 Sprint 2 Task S2-7 Step 2.5 切换写路径 + Step 2.6 数据回填
 
 ---
@@ -802,11 +804,57 @@ def test_obsolete_source_does_not_remove_lib_record(db_session):
 
 - [ ] **Step 3]: 实现 confirmation_service（设计人 + 校核人流程）
 
-- [ ] **Step 4]: UTIL 实际值优先触发（per Sprint 1 Task S1-5 boundary）
+- [ ] **Step 4**: UTIL 实际值优先触发（per Sprint 1 Task S1-5 boundary）— D4 裁决 4A: 改 emit_event 模式（不直接调 state_machine）
 
-- [ ] **Step 5]: CIA 触发（实际值导致设计值被替换 → CHANGED 流程）
+- [ ] **Step 5**: CIA 触发（实际值导致设计值被替换 → CHANGED 流程）— D4 裁决 4A: Supplier 调 `emit_event('actual_data_replaces_design', equipment_id, diff, event_id=uuid4())`；**不直接调 state_machine**；state_machine listener 走 EquipmentList.CHANGED + UtilResults.recalculate（不进门禁）+ CIA.evaluate
 
-- [ ] **Step 6]: pytest 全量 0 regression
+```python
+# pcs-backend/app/services/supplier/confirmation_service.py
+def confirm_actual_data(equipment_id: UUID, actor: User, db: Session):
+    """D4 裁决 4A: 确认实际数据 → 检测设计值替换 → 发事件（不直接迁移门禁）"""
+    equip = db.get(EquipmentList, equipment_id)
+    diff = compute_design_diff(equip)
+    if not diff.affects_downstream:
+        equip.actual_data_status = "已确认"
+        db.commit()
+        return
+    emit_event(
+        event_type="actual_data_replaces_design",
+        payload={"equipment_id": str(equipment_id), "diff": diff.to_dict(),
+                 "actor_id": str(actor.id), "event_id": str(uuid4())},
+        db=db,
+    )
+
+# pcs-backend/app/services/state_machine.py (D4 裁决 4A listener)
+def on_actual_data_replaces_design(event, db):
+    """Supplier 发事件 → state_machine 走 CHANGED 门禁迁移"""
+    equipment_id = UUID(event.payload["equipment_id"])
+    equip = db.get(EquipmentList, equipment_id)
+    equip.transition_to("CHANGED")
+    audit_service.write(action="CHANGED_BY_ACTUAL_DATA",
+                       resource_type="equipment_list", resource_id=equipment_id,
+                       detail_json={"diff": event.payload["diff"], "event_id": event.event_id})
+    recalculate_for_equipment(equipment_id, db)
+    evaluate_downstream(equipment_id, db)
+
+register_listener("actual_data_replaces_design", on_actual_data_replaces_design)
+```
+
+- [ ] **Step 6**: pytest 全量 0 regression + D4 幂等性测试 + rollback 分阶段测试（rollback 边界 TBD — 见 §未解决问题 #14）
+
+```python
+# tests/services/supplier/test_confirmation_service.py (D4 裁决 4A)
+def test_actual_data_event_idempotent(db_session):
+    """D4 裁决 4A: 同 event_id 重复 emit 只触发一次 CHANGED"""
+    event_id = str(uuid4())
+    emit_event("actual_data_replaces_design", {"equipment_id": ..., "event_id": event_id}, db)
+    emit_event("actual_data_replaces_design", {"equipment_id": ..., "event_id": event_id}, db)
+    assert db.query(AuditLog).filter_by(action="CHANGED_BY_ACTUAL_DATA").count() == 1
+
+def test_rollback_after_downstream_stale(db_session):
+    """D4 裁决 4A: 下游已 STALE，CIA 反向恢复 + state_machine 回滚（rollback 边界 TBD）"""
+    ...
+```
 
 - [ ] **Step 7]: 单 commit — `feat(p7-s4): 供应商核算 + UTIL 实际值更新 (T3)`
 
@@ -940,7 +988,7 @@ def test_obsolete_source_does_not_remove_lib_record(db_session):
 | Sprint 1 | 5 任务 | ~4.3–5.5 人周（含 T0 +0.5–1 人日 + D2 advisory lock +0.5 人日）|
 | Sprint 2 | 7 任务 | ~4.5–5.5 人周（迁移本身 0.8 人周 + service/API/fixture 全口径 2–3 人周 + API 整合 + G-08 验证 + JSONB→5 表回填 0.5–0.7 人周 + 工艺室签署 follow-up 缓冲 0.5 人周 + 对账超差应急 1.0 人周）|
 | Sprint 3 | 3 任务 | ~1.5–2 人周（含 D3 source_sign_status 镜像 +0.5 人日）|
-| Sprint 4 | 4 任务 | ~2–2.5 人周 |
+| Sprint 4 | 4 任务 | ~2.5–3 人周（含 D4 emit_event + state_machine listener + 幂等性 + rollback 测试 +0.5 人日）|
 | 收口 + wolf + workspace cleanup | 1 | ~0.3 人周 |
 | **总计** | **24 任务** | **~13.5–16.7 人周**（算术：1.5 + 4.2–5.4 + 4.5–5.5 + 1–1.5 + 2–2.5 + 0.3）|
 
@@ -972,6 +1020,7 @@ P7 Sprint 1-4 完成后：
 | 11 | UTIL 双写权威性（D1 裁决 1A）| Sprint 2 起 5 表权威 + JSONB deprecated；Sprint 1 JSONB 写路径须在 Sprint 2 Task S2-7 Step 2.5 关闭 + Step 2.6 数据回填（jsonb_to_5tables_migration.py）| Sprint 2 Task S2-7 末 |
 | 12 | sync_from_source 并发控制（D2 裁决 2A）| advisory lock per (project_id, tag_number) + UNIQUE 复合约束双保险；Sprint 4 Task S4-3 复用同锁 key；Task S1-2 ORM `unique=True` 误伤跨项目位号 → 改 UniqueConstraint(project_id, tag_number) | Sprint 1 Task S1-4 末 |
 | 13 | EQUIP_LIB 沉淀源 OBSOLETE 联动（D3 裁决 3A）| source_record_id 保留 + cascade=SET NULL + source_sign_status 镜像（pull 模式读时 join）；Task S3-3 Step 1 明确 source_record_id 保留（不仅 source_project_id 解耦）| Sprint 3 Task S3-3 末 |
+| 14 | 供应商实际值 CHANGED 所有权（D4 裁决 4A）| state_machine 拥有触发权；Supplier/UtilResults/EquipmentList 通过 emit_event 发事件；事件幂等性 + rollback 分阶段；rollback 边界（TBD — P7 Sprint 4 是否实现 CIA 反向恢复？需 user 裁决）| Sprint 4 Task S4-3 末 |
 
 ## 关联
 
