@@ -13,8 +13,8 @@
 ## Global Constraints
 
 - **SPEC V1.4 权威版本**: 字段/枚举/权限/错误码以 OpenAPI + meta API 为准；SPEC 冲突时以 OpenAPI 为准
-- **P7 总工时**: SPEC V1.4 §4.6 口径 10–13 人周 + R-03 T0 0.5–1 人日 = **10.5–14 人周**（仅 Sprint 1-4 主体）；本计划口径（含 Sprint 0 mock 评估 + 收口 + wolf + workspace cleanup）**~12.5–15.3 人周**
-- **启动前必备评估**: 4.5–8 人日 ≈ 1 人周+
+- **P7 总工时**: SPEC V1.4 §4.6 口径 10–13 人周 + R-03 T0 0.5–1 人日 = **10.5–14 人周**（仅 Sprint 1-4 主体）；本计划口径（含 Sprint 0 mock 评估 1.5 人周 + Sprint 1-4 主体 + 收口 + wolf + workspace cleanup）**~13.5–16.7 人周**
+- **启动前必备评估**: SPEC V1.4 §4.6 口径 4–7 人日（P7-OPEN-007 3–5 人日 + P7-OPEN-008 1–2 人日）；mock 决议后实际 = **0.5–1 人日**（P7-OPEN-007/008 mock 已闭环于 `docs/P7-OPEN-007-physical-semantics-evaluation.md` + `docs/P7-OPEN-008-rule-registry-form-evaluation.md`；仅剩 R-03 T0 落地）
 - **R-02 = 方案 A**: UTIL 5 表迁移 + catalyst_loading + auxiliary_consumption 4 字段；工艺室 2026-10-XX 签署四节点
 - **R-03 = 待补采**: T0（StateMachineService 强制写入三字段）+ T1（pcs_test fixture ≥30 行）+ 30 天窗口后重跑 P7-OPEN-007 评估
 - **R-04 = 方案 B**: 不建立 `app/core/rules_registry.py`；不引入 `@rule` 装饰器
@@ -766,7 +766,7 @@ SEED_DATA = [
 - `pcs-backend/app/models/equip_list.py`（S1-2）
 - `pcs-backend/app/models/equipment_type_codes.py`（S1-3）
 - `pcs-backend/app/services/equip_list/sync_service.py`（S1-4）
-- `pcs-backend/app/models/util_results.py`（**注**：Sprint 1 Task S1-5 建表后文件名统一为 `util.py`，避免 Sprint 2 又改 `util.py` 时两文件并存冲突；详见 Task S1-5 Files 字段）
+- `pcs-backend/app/models/util.py`（S1-5；与 Sprint 2 Task S2-1~6 append 同一文件）
 
 ### Sprint 2
 - `pcs-backend/app/models/util.py`（S2-1/2/3/5/6 5 张表）
@@ -825,7 +825,7 @@ SEED_DATA = [
 | S4-V4 | 综合能耗验收 | `pytest tests/services/util/test_utility_energy_summary_service.py -v` | 蜡油加氢 ≤ 2% PASS |
 | 收-V1 | G-08 | `bash pcs-backend/scripts/gate_08_openapi_contract.sh --check-baseline` | baseline diff = 0 |
 | 收-V2 | ruff | `cd pcs-backend && uv run ruff check .` | All checks passed! |
-| 收-V3 | pytest 全量 | `cd pcs-backend && DATABASE_URL=... uv run pytest tests/ -q` | ≥ 3800 passed, 0 failed |
+| 收-V3 | pytest 全量 | `cd pcs-backend && DATABASE_URL=... uv run pytest tests/ -q` | ≥ 3515 passed（baseline，P6-9-PICKUP-5 R=1 后）+ 0 failed；P7 新增测试数按各 Task 实际产出（估算 ≥ 285，验收时以实际为准）|
 | 收-V4 | SPEC V1.4 覆盖 | 手工 review 25 任务 vs §3.2.1-§3.2.4 + §4.5 + §4.7 | 100% |
 
 ## 风险 + 缓解
@@ -851,15 +851,15 @@ SEED_DATA = [
 |---|---|---|
 | Sprint 0（已完成）| 5 docs | ~1.5 人周 |
 | Sprint 1 | 5 任务 | ~4.2–5.4 人周（含 T0 +0.5–1 人日）|
-| Sprint 2 | 7 任务 | ~4.5–5.5 人周（迁移本身 0.8 人周 + 全口径 3–4 人周 + API 整合 0.2–0.4 人周）|
+| Sprint 2 | 7 任务 | ~4.5–5.5 人周（迁移本身 0.8 人周 + service/API/fixture 全口径 2–3 人周 + API 整合 + G-08 验证 0.2–0.4 人周 + 工艺室签署 follow-up 缓冲 0.5 人周 + 对账超差应急 1.0 人周）|
 | Sprint 3 | 3 任务 | ~1–1.5 人周 |
 | Sprint 4 | 4 任务 | ~2–2.5 人周 |
 | 收口 + wolf + workspace cleanup | 1 | ~0.3 人周 |
-| **总计** | **24 任务** | **~12.5–15.3 人周** |
+| **总计** | **24 任务** | **~13.5–16.7 人周**（算术：1.5 + 4.2–5.4 + 4.5–5.5 + 1–1.5 + 2–2.5 + 0.3）|
 
 > **双口径说明**：
 > - **SPEC V1.4 §4.6 口径**：10–13 人周（含 SUP-010 方案 A）+ R-03 T0 0.5–1 人日 = **10.5–14 人周**（仅 P7 启动后 Sprint 1-4 主体）
-> - **本计划口径**：~12.5–15.3 人周（含 Sprint 0 mock 评估 + 收口 + wolf + workspace cleanup）
+> - **本计划口径**：~13.5–16.7 人周（含 Sprint 0 mock 评估 1.5 人周 + Sprint 1-4 11.7–13.4 人周 + 收口 + wolf + workspace cleanup 0.3 人周）
 
 ## 后续
 
