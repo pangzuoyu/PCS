@@ -3,7 +3,7 @@
 > 来源：P6-9-PICKUP-4 T3（2026-09-30）
 > 上游：`docs/ce-code-review-p5-p6-summary.md` 50 findings（5 batch × 47 commits）
 > 中游：`docs/superpowers/plans/2026-11-15-p6-9-pickup-3-debt-cleanup.md` T5 累积登记（`93a1417`）
-> 本文件：21 LOW/INFO 项 4 维分类 + 下游 batch 推荐
+> 本文件：22 LOW/INFO 项 4 维分类 + 下游 batch 推荐（上游 21 项 + P6-9-PICKUP-5 5B R=1 新立 PROCo-P6-7-4）
 
 ## 来源 + 分布
 
@@ -20,7 +20,7 @@
 
 ---
 
-## P6-9-PICKUP-5 候选跟踪（21 LOW/INFO 4 维分类）
+## P6-9-PICKUP-5 候选跟踪（22 LOW/INFO 4 维分类）
 
 ### 工艺计算正确性（需工艺室对账）
 
@@ -45,10 +45,10 @@
 
 | ID | Batch | 文件 / 范围 | 描述 | 严重性 | 工具 |
 |---|---|---|---|---|---|
-| HYG-P6-6B-1 | P6-6B | `pcs-backend/alembic/versions/*` (T3 4 项) | doc-string 格式 nit（4 项 ruff D规则） | LOW | `ruff --fix` — **OPEN**：`pyproject.toml` `extend-exclude` 含 `**/alembic/versions/**` 且 `select=["E","F","I","UP","B"]` 无 D 规则，ruff 全局检查不覆盖本项；修复需改 pyproject 配置（超出 docs-only 批范围） |
+| HYG-P6-6B-1 | P6-6B | `pcs-backend/alembic/versions/*` (T3 4 项) | doc-string 格式 nit（4 项 ruff D规则） | LOW | `ruff --fix` — **CLOSED** via P6-9-PICKUP-5 5A commit `60444e5`（file-level diff）：`pyproject.toml` `extend-exclude` 移除 `**/alembic/versions/**`（原 `["**/fixtures/**","**/alembic/versions/**","**/migrations/**"]` → `["**/fixtures/**","**/migrations/**"]`），`select` 由 `["E","F","I","UP","B"]` 增补 `"D"`；同 commit 15 个 `alembic/versions/p6_*.py` 全量清 D 规则。D 规则对 `app/**` / `tests/**` / `scripts/**` 采用 `extend-per-file-ignores` 分批推进（staged adoption，pyproject 内已注明理由：全局启用将暴露 12263 errors，超出 5A 授权范围），非永久豁免 |
 | HYG-P6-6B-2 | P6-6B | `pcs-backend/app/services/psychro/*` (T12 3 项) | ruff/seed 偏差（3 项 E501/F841） | LOW | `ruff --fix` — **CLOSED** via P6-9-PICKUP-3 ruff 18 fixes |
 | HYG-P6-7-1 | P6-7 | `app/services/psychro/glycol_dehydration_service.py` lines 352 / 676 | 2 ruff errors pre-existing（E501 长行 + F841 unused `T_LOW`） | LOW | `ruff --fix`（P6-9-PICKUP-3 已分 5 批修过同批类似文件，本项残留）— **CLOSED** via P6-9-PICKUP-3 ruff 18 fixes |
-| HYG-P6-8-1 | P6-8 | `pcs-backend/tests/services/psychro/fixtures/*.json` | fixture JSON 末尾缺换行符（T2 O-T2-1） | INFO | `pre-commit end-of-file-fixer` — **OPEN**：仓库无 `.pre-commit-config.yaml`，hook 从未启用；`golden_c16_stripping_gas_rate.json` 末字节仍为 `}`（2026-09-30 核） |
+| HYG-P6-8-1 | P6-8 | `pcs-backend/tests/services/psychro/fixtures/*.json` | fixture JSON 末尾缺换行符（T2 O-T2-1） | INFO | `pre-commit end-of-file-fixer` — **CLOSED** via P6-9-PICKUP-5 5A commit `60444e5`（file-level diff，`golden_c16_stripping_gas_rate.json`：`-}` / *No newline at end of file* → `+}`，末字节 0x0a 已核）；根因（仓库无 `.pre-commit-config.yaml`）以 `.gitattributes`（`* text=auto eol=lf`）替代闭环 —— user ruling 2026-09-30 跳过 pre-commit 外部集成，**非**引入 pre-commit config |
 | HYG-P5-0-1 | P5-0 | `pcs-backend/app/services/psv/*` | pre-existing ruff/whitespace 类（与 P5-3 ruff 18 累积同类） | LOW | `ruff --fix` — **CLOSED** via P6-9-PICKUP-3 ruff 18 fixes |
 | HYG-P5-0-2 | P5-0 | `pcs-backend/tests/services/psv/*` | pre-existing ruff nit（待沉淀） | LOW | `ruff --fix` — **CLOSED** via P6-9-PICKUP-3 ruff 18 fixes |
 | HYG-P5-123-1 | P5-123 | `pcs-backend/app/services/heat_exchanger/*` | pre-existing whitespace / unused imports | LOW | `ruff --fix` — **CLOSED** via P6-9-PICKUP-3 ruff 18 fixes |
@@ -87,9 +87,29 @@
 
 **小计**：2 项 → **P6-9-PICKUP-5 5C 闭环 2 项**（REF-P6-8-1 字段去冗余 + REF-P6-8-2 子模块拆分，均有 file-level diff 证据）；**0 项保留 OPEN**
 
-### 总计：21 项 = 5 + 8 + 6 + 2 ✓
+### 总计：22 项 = 6 + 8 + 6 + 2 ✓
 
-**P6-9-PICKUP-6 收口（2026-09-30，R=1 修正后）**：**仅 6 项 CLOSED**（HYG 6 项，均在 ruff 全局检查覆盖范围内）。**15 项保留 OPEN** = 5 PROCo-*（待工艺室对账）+ 2 REF-P6-8-*（待重构 plan）+ 2 HYG（需改 `pyproject.toml` ruff 配置 / 需引入 pre-commit config）+ 6 DOC（需实际编辑 service docstring / SPEC / plan / README / CHANGELOG）。
+**闭环状态：as of 2026-09-30**（P6-9-PICKUP-5 5C + R=1 修正后）
+
+| 维度 | 总数 | CLOSED | OPEN |
+|---|---|---|---|
+| HYG（hygiene） | 8 | **8** | 0 |
+| DOC（文档） | 6 | 4 | 2 |
+| PROCo（工艺正确性） | 6 | 0 | **6** |
+| REF（重构） | 2 | **2** | 0 |
+| **合计** | **22** | **14** | **8** |
+
+**14 项 CLOSED**，逐批 file-level diff 证据来源：
+- P6-9-PICKUP-6 R=1 闭环 **6 项**（HYG-P6-6B-2 / HYG-P6-7-1 / HYG-P5-0-1 / HYG-P5-0-2 / HYG-P5-123-1 / HYG-P5-123-2，均在 ruff 全局检查覆盖范围内）
+- P6-9-PICKUP-5 5A（`60444e5`）闭环 **2 项**（HYG-P6-6B-1 / HYG-P6-8-1）
+- P6-9-PICKUP-5 5B 闭环 **4 项**（DOC-P6-6B-1 / DOC-P6-6B-2 / DOC-P6-8-1 / DOC-P5-0-1）
+- P6-9-PICKUP-5 5C 本 commit 闭环 **2 项**（REF-P6-8-1 字段去冗余 + REF-P6-8-2 `_glycol_dehydration/` 子模块拆分）
+
+**8 项保留 OPEN**：
+- PROCo-P6-7-{1,2,3,4} + PROCo-P6-8-{1,3} 共 **6 项** —— 全部待工艺室标定对账（OPEN-P6-6A-9.5 / OPEN-P6-6A-11 2026-11-15 / OPEN-P6-9-PICKUP-2-1；PROCo-P6-8-1 为待澄清、PROCo-P6-8-3 为 xfail）
+- DOC-P5-123-{1,2} 共 **2 项** —— user ruling 2026-09-30 撤回；`grep -c "P5-123"` = 0（全仓无对应 finding 可溯），无证据支撑，不予闭环
+
+> **注**：本段取代 P6-9-PICKUP-6 单批视角的旧表述（原「仅 6 项 CLOSED / 15 项保留 OPEN」）。该口径在 5A / 5B / 5C 落地后已失效 —— 5A + 5B + 5C 合计再闭环 8 项，HYG 与 REF 两个维度均已归零。
 
 > **本批实际范围**：P6-9-PICKUP-6 为 **docs-only 批**。仅当 finding 落在 ruff 全局检查（`select=["E","F","I","UP","B"]`、排除 `**/fixtures/**` + `**/alembic/versions/**` + `**/migrations/**`）覆盖范围内时方可闭环。**超出该范围者一律保留 OPEN，转后续非 docs 批处理**：`docs/P6-9-PICKUP-4.md` 系分类/路由文档，不构成 finding 的实际修复证据。3 OPEN 跟踪位（OPEN-P6-6A-10 / OPEN-P6-9-PICKUP-2-1 / OPEN-P6-9-PICKUP-2-2）不变。
 
@@ -97,14 +117,14 @@
 
 ## 推荐下游 batch
 
-### P6-9-PICKUP-5（建议）：工艺计算正确性 + 重构（7 项）
+### P6-9-PICKUP-5（执行中）：工艺计算正确性 + 重构（8 项登记，2 项已闭环）
 
 **范围**：
-- PROCo-P6-7-{1,2,3}：工艺室标定对账 3 项（待 OPEN-P6-6A-9.5 / OPEN-P6-6A-11 2026-11-15 / 2026-11-30 交付）
+- PROCo-P6-7-{1,2,3,4}：工艺室标定对账 4 项（待 OPEN-P6-6A-9.5 / OPEN-P6-6A-11 2026-11-15 / 2026-11-30 交付；PROCo-P6-7-4 待 Nielsen 1988 原文复核 + 工艺室裁定 x 摩尔/质量口径，5B R=1 新立）
 - PROCo-P6-8-{1,3}：glycol dehydration 2 子模块精度校准（待 OPEN-P6-9-PICKUP-2-1 工艺室 k_strip + Antoine A/B 校准交付）
-- REF-P6-8-{1,2}：2 项 glycol 重构（拆分 `_glycol_dehydration/` 子模块 + 字段命名去冗余）
+- REF-P6-8-{1,2}：2 项 glycol 重构 —— **已闭环**（5A 2 HYG + 5B 4 DOC + 5C 2 REF；REF 2 项见 5C 本 commit）
 
-**触发**：OPEN-P6-6A-9.5 / OPEN-P6-6A-11 / OPEN-P6-9-PICKUP-2-1 工艺室交付后启动
+**触发**：PROCo 6 项待 OPEN-P6-6A-9.5 / OPEN-P6-6A-11 / OPEN-P6-9-PICKUP-2-1 工艺室交付后启动
 
 **预计工时**：~2.0 天（依赖工艺室交付）
 
@@ -112,10 +132,10 @@
 
 **实际闭环 6 项**（ruff 全局检查覆盖范围内）：HYG-P6-6B-2 / HYG-P6-7-1 / HYG-P5-0-1 / HYG-P5-0-2 / HYG-P5-123-1 / HYG-P5-123-2
 
-**转出 8 项 → 需非 docs 批**：
-- HYG-P6-6B-1：需改 `pyproject.toml`（移除 `**/alembic/versions/**` 排除 + `select` 加 `D`）后 ruff 方可见，属 meta-config 变更
-- HYG-P6-8-1：需引入 `.pre-commit-config.yaml` 并启用 `end-of-file-fixer`（仓库当前无此文件）
-- DOC-* 6 项：需实际编辑 service docstring / `docs/PCS-UI-SPEC.md` / `docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md` / `README.md` / `CHANGELOG.md`
+**转出 8 项 → 需非 docs 批**（**均已在 P6-9-PICKUP-5 闭环**，本段保留为历史记录）：
+- HYG-P6-6B-1：需改 `pyproject.toml`（移除 `**/alembic/versions/**` 排除 + `select` 加 `D`）后 ruff 方可见，属 meta-config 变更 → **CLOSED** via 5A `60444e5`
+- HYG-P6-8-1：需引入 `.pre-commit-config.yaml` 并启用 `end-of-file-fixer`（仓库当前无此文件）→ **CLOSED** via 5A `60444e5`（`.gitattributes` 替代方案，user ruling 跳过 pre-commit 外部集成）
+- DOC-* 6 项：需实际编辑 service docstring / `docs/PCS-UI-SPEC.md` / `docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md` / `README.md` / `CHANGELOG.md` → **4 项 CLOSED** via 5B（DOC-P6-6B-1 / DOC-P6-6B-2 / DOC-P6-8-1 / DOC-P5-0-1）；DOC-P5-123-{1,2} 撤回不予闭环
 
 **触发**：转出项随下一非 docs-only 批启动，无外部依赖
 
