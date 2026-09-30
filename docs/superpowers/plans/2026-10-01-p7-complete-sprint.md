@@ -1021,7 +1021,7 @@ P7 Sprint 1-4 完成后：
 | 11 | UTIL 双写权威性（D1 裁决 1A）| Sprint 2 起 5 表权威 + JSONB deprecated；Sprint 1 JSONB 写路径须在 Sprint 2 Task S2-7 Step 2.5 关闭 + Step 2.6 数据回填（jsonb_to_5tables_migration.py）| Sprint 2 Task S2-7 末 |
 | 12 | sync_from_source 并发控制（D2 裁决 2A）| advisory lock per (project_id, tag_number) + UNIQUE 复合约束双保险；Sprint 4 Task S4-3 复用同锁 key；Task S1-2 ORM `unique=True` 误伤跨项目位号 → 改 UniqueConstraint(project_id, tag_number) | Sprint 1 Task S1-4 末 |
 | 13 | EQUIP_LIB 沉淀源 OBSOLETE 联动（D3 裁决 3A）| source_record_id 保留 + cascade=SET NULL + source_sign_status 镜像（pull 模式读时 join）；Task S3-3 Step 1 明确 source_record_id 保留（不仅 source_project_id 解耦）| Sprint 3 Task S3-3 末 |
-| 14 | 供应商实际值 CHANGED 所有权（D4 裁决 4A）| state_machine 拥有触发权；Supplier/UtilResults/EquipmentList 通过 emit_event 发事件；事件幂等性 + rollback 分阶段；rollback 边界（TBD — P7 Sprint 4 是否实现 CIA 反向恢复？需 user 裁决）| Sprint 4 Task S4-3 末 |
+| 14 | 供应商实际值 CHANGED 所有权（D4 裁决 4A + rollback 仅记）| state_machine 拥有触发权；Supplier/UtilResults/EquipmentList 通过 emit_event 发事件；事件幂等性 + rollback 仅 audit 记录（不实现 CIA 反向恢复，推 P8）；已确认实际数据修改走人工退回（per SPEC V1.4 §3.2.4（5））| Sprint 4 Task S4-3 末 |
 
 ## 关联
 
