@@ -23,6 +23,7 @@
 - **PcsError 子类 + frozen dataclass + formula_ref dict** 模式不可破（项目级 service 模式）
 - **UTIL 权威源（D1 裁决 1A）**: Sprint 2 起 5 表（`utility_power_items` / `utility_fuel_gas` / `utility_heat_exchange` / `utility_energy_summary` / `catalyst_loading`）为唯一权威写入路径；`util_results.consumption_json` JSONB 字段 **deprecated**（Sprint 1 遗留，仅 backward compat 读，Sprint 2 起不再更新）；Sprint 4 综合能耗验收读 5 表聚合
 - **历史/audit 线索保留原则（D1/D2/D3 共同裁决）**: 数据演进（JSONB → 5 表 / 沉淀解耦 / 状态联动）保留历史指针与 audit 字段，用显式状态字段（deprecated / source_sign_status）表达语义，不用级联删除或静默覆盖
+- **测试覆盖规范（D6 裁决 7A）**: 每 Task Step 5 引用 §Test Coverage Standard（4 类最小覆盖：边界/异常/黄金/集成），不在 Task 重复列具体条目
 - **跨模块变更所有权（D4 裁决 4A）**: 状态机统一所有门禁迁移；业务模块（Supplier/UtilResults/EquipmentList）通过 `emit_event()` 发事件，不直接触发门禁迁移；事件需幂等性（event_id 去重）；rollback 分阶段（事件撤回 / 门禁回滚 / CIA 反向恢复 — 是否实现 CIA 反向恢复待 P7 Sprint 4 user 裁决）
 - **ChEDL 包装层不可破**: 业务代码禁直接 `import fluids.*`（ADR-0030）
 - **追溯链完整**: 设备记录通过 SourceModule + SourceRecordID + SourceService（V1.4 新增）三重溯源
@@ -32,6 +33,17 @@
 - **bug-114**: pcs_test audit_logs 表 0 行 + state_machine.py 不写三字段 → T0 落地前 P7-OPEN-007 三元决策不可用
 - **bug-115**: @rule 装饰器 = 0 + app/core/rules_registry.py 不存在 → 不建立规则管理工具
 - **未解决问题 10 项**: 见文末 §未解决问题跟踪位（含 #2 #3 #10 工艺室签署 + #1 T0 + #6 Sprint 依赖链 + #8 双向耦合）
+
+## Test Coverage Standard (D6 裁决 7A)
+
+每 Task 的 Step 5 边界测试必须覆盖以下 4 类（实施时引用此 Section，不在每 Task 重复列）：
+
+1. **边界（Boundary）**: 输入字段约束（如 load_factor ∈ (0, 1] / end_date > start_date / motor_power > 0）；用 pytest.mark.parametrize 覆盖边界值 + 边界外 1-2 例
+2. **异常（Exception）**: 服务层错误路径（如 NotFoundError / ValidationError / RangeError / CapacityError）；用 pytest.raises 显式断言异常类型 + 错误信息
+3. **黄金（Golden）**: 工艺室/SPEC 推导的确定值（如蜡油加氢实例、Sprint 2 SUP-010 5 表 fixture）；fixture 标注溯源（工艺室签署日期 + Excel 文件名）
+4. **集成（Integration）**: API 端到端测试（POST + GET 验证副作用）；调用链 > 2 模块时必须含集成测试
+
+实施检查：每个 Task 完成时 （边界+异常+黄金+集成 4 类的最小覆盖）。
 
 ## Review Focus
 
