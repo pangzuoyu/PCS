@@ -1,7 +1,7 @@
 PCS-UI-SPEC.md
 yaml
 文件标识: PCS-UI-SPEC-2026-002
-当前版本: V1.0
+当前版本: V1.4
 发布日期: 2026-09-15
 适用对象: 前端开发（Claude Code）、UI 走查、测试
 依据文档:
