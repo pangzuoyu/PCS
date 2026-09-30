@@ -41,6 +41,8 @@
 4. **供应商数据偏差报告「不合格」拒绝确认** — 不合格项必须禁止确认 + 通知供应商；若校验缺失则不合格数据被误标合格（Spec §3.2.4（3））
 5. **EQUIP_LIB 沉淀审批解耦** — 沉淀后记录与源项目解耦；若 source_project_id 未清空则复用库反污染源项目（Spec §3.2.3（3））
 6. **UTIL 双写权威性（D1 裁决 1A）** — Sprint 2 起 5 表是唯一权威写入路径；若 `summary_service` 仍写 JSONB 或 JSONB 读路径被误认为权威 → Sprint 4 综合能耗验收偏差 > 2%（Spec §3.2.2（3））；需在 Sprint 2 Task S2-7 Step 2.5 切换写路径 + Step 2.6 数据回填
+7. **sync_from_source 并发 CHECKED（D2 裁决 2A）** — 两路 SourceModule 同 (project_id, tag_number) 并发 CHECKED 时，若无 advisory lock 会 IntegrityError 500 或静默覆盖；advisory lock key 必须按 SPEC V1.4 §2.5 用 (project_id, tag_number) 复合，非全局 tag_number（Spec §3.2.1）；同时修复 Task S1-2 ORM `unique=True` 误伤跨项目同名位号
+6. **UTIL 双写权威性（D1 裁决 1A）** — Sprint 2 起 5 表是唯一权威写入路径；若 `summary_service` 仍写 JSONB 或 JSONB 读路径被误认为权威 → Sprint 4 综合能耗验收偏差 > 2%（Spec §3.2.2（3））；需在 Sprint 2 Task S2-7 Step 2.5 切换写路径 + Step 2.6 数据回填
 
 ---
 
@@ -175,18 +177,21 @@ def resolve_stale(record: Record, ...):
 ```python
 # pcs-backend/app/models/equip_list.py
 from sqlalchemy.orm import Mapped, mapped_column
-from sqlalchemy import String, JSON, ForeignKey
+from sqlalchemy import String, JSON, ForeignKey, UniqueConstraint, text
 from app.models.mixins import RecordMixin
 from app.models.base import Base
 
 class EquipmentList(Base, RecordMixin):
     __tablename__ = "equipment_list"
+    __table_args__ = (
+        UniqueConstraint("project_id", "tag_number", name="uq_equip_list_project_tag"),
+    )
 
     project_id: Mapped[UUID] = mapped_column(ForeignKey("projects.project_id"))
     workspace_id: Mapped[UUID] = mapped_column(ForeignKey("workspaces.workspace_id"))
 
     # 标识
-    tag_number: Mapped[str] = mapped_column(String(50), unique=True)
+    tag_number: Mapped[str] = mapped_column(String(50))  # D2 裁决 2A: 去掉 unique=True（全局唯一），改用 (project_id, tag_number) 复合唯一
     equipment_description: Mapped[str | None] = mapped_column(String(500))
     equipment_name_cn: Mapped[str | None] = mapped_column(String(200))
 
@@ -262,6 +267,8 @@ class EquipmentList(Base, RecordMixin):
 - Consumes: `EquipmentList` ORM（Task S1-2）+ 各 SourceModule 的 ORM（PUMP/VESSEL/HEAT/PSV/CV/COOL_TOWER/PSYCHRO/OPEN_CHANNEL）
 - Produces: API `GET/PUT/POST /api/v1/equipment-list` + 同步触发器（CHECKED 触发）
 
+**工时**: +0.5 人日（D2 裁决 2A：advisory lock + 并发集成测试）
+
 - [ ] **Step 1**: 写 failing test — 验证 PUMP CHECKED 时自动创建 EquipmentList 记录 + SourceService="pump_service"
 
 - [ ] **Step 2**: 跑 test 验证失败
@@ -275,6 +282,13 @@ def sync_from_source(source_module: str, source_service: str, source_record_id: 
     source = get_source_record(source_module, source_service, source_record_id, db)
     if source.sign_status != "CHECKED":
         raise SyncError(f"Source record not CHECKED: {source.sign_status}")
+
+    # D2 裁决 2A: advisory lock per (project_id, tag_number) — 与 calc_lineage 已有模式一致
+    # 锁 key 复合（项目内唯一，per SPEC V1.4 §2.5）— 防止两路并发 CHECKED 触发 race condition
+    db.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"{source.project_id}::{source.tag_number}"},
+    )
 
     existing = db.query(EquipmentList).filter_by(
         project_id=source.project_id,
@@ -307,7 +321,33 @@ def sync_from_source(source_module: str, source_service: str, source_record_id: 
 
 - [ ] **Step 4**: 跑 test 验证通过
 
-- [ ] **Step 5**: 边界测试 — STALE 重算哈希不变时联动恢复 CHECKED（Review Focus #1）
+- [ ] **Step 5**: 边界测试 — STALE 重算哈希不变时联动恢复 CHECKED（Review Focus #1）+ 并发 sync_from_source 同 (project_id, tag_number) 一成功一等待（D2 裁决 2A）
+
+```python
+# tests/services/equip_list/test_sync_service.py
+def test_concurrent_sync_same_tag_one_succeeds(db_session_factory):
+    """D2 裁决 2A: 两路并发 sync_from_source 同 (project_id, tag_number)"""
+    import threading
+    results = []
+    barrier = threading.Barrier(2)
+
+    def _sync():
+        try:
+            sync_from_source("PUMP", "pump_service", source_id, db_session_factory())
+            results.append("ok")
+        except Exception as e:
+            results.append(type(e).__name__)
+
+    t1 = threading.Thread(target=_sync)
+    t2 = threading.Thread(target=_sync)
+    t1.start(); t2.start(); t1.join(); t2.join()
+    assert results.count("ok") == 1  # 一成功
+    # DB 中仅一条 EquipmentList 记录
+    db = db_session_factory()
+    assert db.query(EquipmentList).filter_by(
+        project_id=p, tag_number=tag
+    ).count() == 1
+```
 
 - [ ] **Step 6**: pytest 全量 0 regression
 
@@ -866,7 +906,7 @@ SEED_DATA = [
 | Sprint | 子任务数 | 工时 |
 |---|---|---|
 | Sprint 0（已完成）| 5 docs | ~1.5 人周 |
-| Sprint 1 | 5 任务 | ~4.2–5.4 人周（含 T0 +0.5–1 人日）|
+| Sprint 1 | 5 任务 | ~4.3–5.5 人周（含 T0 +0.5–1 人日 + D2 advisory lock +0.5 人日）|
 | Sprint 2 | 7 任务 | ~4.5–5.5 人周（迁移本身 0.8 人周 + service/API/fixture 全口径 2–3 人周 + API 整合 + G-08 验证 + JSONB→5 表回填 0.5–0.7 人周 + 工艺室签署 follow-up 缓冲 0.5 人周 + 对账超差应急 1.0 人周）|
 | Sprint 3 | 3 任务 | ~1–1.5 人周 |
 | Sprint 4 | 4 任务 | ~2–2.5 人周 |
@@ -899,6 +939,7 @@ P7 Sprint 1-4 完成后：
 | 9 | P7 SPEC V1.4 残留修补 | 已闭环（commits `a902d2f` 主体 + `4f0d671` 残留修补 — 4 残留 + 5 次要）| ✅ 已完成 — source-verify 证明：`grep -c "P7-OPEN-007\\|P7-OPEN-008\\|P7-OPEN-009" spec/...P7.md = 20 ≥ 3` + `grep -c "R-02 落地要求" spec/...P7.md = 1` + `grep -c "R-03（待补采）落地要求" spec/...P7.md = 1` + `grep -c "^## 版本历史" spec/...P7.md = 1` + `grep -c "\| 触发方式 \| 场景 \| 行为 \|" spec/...P7.md = 1` |
 | 10 | R-02 方案 A 工艺室签署 vs P6 时间窗 | 10-08~10-29 四节点与 5D-2 启动窗口重叠 | 2026-10-08 前 |
 | 11 | UTIL 双写权威性（D1 裁决 1A）| Sprint 2 起 5 表权威 + JSONB deprecated；Sprint 1 JSONB 写路径须在 Sprint 2 Task S2-7 Step 2.5 关闭 + Step 2.6 数据回填（jsonb_to_5tables_migration.py）| Sprint 2 Task S2-7 末 |
+| 12 | sync_from_source 并发控制（D2 裁决 2A）| advisory lock per (project_id, tag_number) + UNIQUE 复合约束双保险；Sprint 4 Task S4-3 复用同锁 key；Task S1-2 ORM `unique=True` 误伤跨项目位号 → 改 UniqueConstraint(project_id, tag_number) | Sprint 1 Task S1-4 末 |
 
 ## 关联
 
