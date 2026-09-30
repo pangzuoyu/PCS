@@ -28,12 +28,12 @@
 
 | ID | Batch | 文件 / 范围 | 描述 | 严重性 | 状态 |
 |---|---|---|---|---|---|
-| PROCo-P6-7-1 | P6-7 | `pcs-backend/app/services/hydrate_inhibition_service.py`（T3 Nielsen 1988） | 工艺室标定 -0.00645 vs PCS 严格 -0.00754（~17% 差异），工艺室后续澄清 | LOW | OPEN-工艺室 |
-| PROCo-P6-7-2 | P6-7 | `pcs-backend/data/behr_coefficients.json`（T2 Behr high_acid） | high_acid 系数不自洽（工艺室 2026-11-15 重发） | LOW | 待 OPEN-P6-6A-9.5 |
-| PROCo-P6-7-3 | P6-7 | `pcs-backend/tests/services/psychro/test_*_fixtures*.py`（T8 path b） | fixture 3-sig-fig 近似（C3H8 path b 1.81% diff, dual-tolerance 容纳） | LOW/INFO | OPEN-工艺室 |
-| PROCo-P6-8-1 | P6-8 | `pcs-backend/app/services/psychro/glycol_dehydration_service.py`（T1 contactor_temperature_f 范围校验） | brief Step 1 `contactor_temperature_f le=300` vs impl `le=200`（工艺室口径差异） | LOW | 待澄清 |
-| PROCo-P6-8-3 | P6-8 | `glycol_dehydration_service.py`（T1 SGR 单位混算） | SGR 单位混算（psi vs mmHg），P6-9-PICKUP-2 T2 部分修复（公式结构），**Antoine A=15.30/B=8500 待工艺室校准** | LOW | OPEN-P6-9-PICKUP-2-1（xfail） |
-| PROCo-P6-7-4 | P6-7 | `pcs-backend/app/services/psychro/hydrate_inhibition_service.py:257`（Nielsen 1988 path） | **Nielsen 1988 路径 `x` 摩尔/质量口径漂移**：Nielsen 原式 `x` 为液相**摩尔**分数，代码取 `inhibitor_concentration_in_water_wt_pct / 100.0` 即**质量**分数。质量分数数值恒大于同 wt% 对应的摩尔分数（M_wt = 1/(1 + (M_inhib/M_water)(w/w)·(1-w)/w) 量级），致 `NIELSEN_1988` 路径温降系统性高估：MEOH ≈1.8× / MEG ≈3.4× / TEG ≈8.3×。**仅命中 `NIELSEN_1988` 显式 path；默认 `HAMMERSCHMIDT_1934` 不受影响**（该路径用 Hammerschmidt 质量分数式，本就无漂移） | MEDIUM | **OPEN-工艺室**：待 Nielsen 1988 原文复核 + 工艺室裁定口径（按 mol frac 重算 vs 保留 wt% 近似并登记容差）｜**2026-09-30 由 P6-9-PICKUP-5 5B DOC-P6-6B-2 拆出**：该项仅文档化口径漂移（docstring 摩尔→质量），**未修代码**，故不计入 5B 闭环 |
+| PROCo-P6-7-1 | P6-7 | `pcs-backend/app/services/hydrate_inhibition_service.py`（T3 Nielsen 1988） | 工艺室标定 -0.00645 vs PCS 严格 -0.00754（~17% 差异），工艺室后续澄清 | LOW | OPEN-工艺室 → **5D-3 触发（2026-11-30 后）**，对应 OPEN-P6-6A-11（Nielsen Table 2-3 完整常数） |
+| PROCo-P6-7-2 | P6-7 | `pcs-backend/data/behr_coefficients.json`（T2 Behr high_acid） | high_acid 系数不自洽（工艺室 2026-11-15 重发） | LOW | 待 OPEN-P6-6A-9.5 → **5D-3 触发（2026-11-30 后）**，对应 OPEN-P6-6A-9.5（XLS E20 baseline + 6% brine） |
+| PROCo-P6-7-3 | P6-7 | `pcs-backend/tests/services/psychro/test_*_fixtures*.py`（T8 path b） | fixture 3-sig-fig 近似（C3H8 path b 1.81% diff, dual-tolerance 容纳） | LOW/INFO | OPEN-工艺室 → **5D-3 触发（2026-11-30 后）**，对应 OPEN-P6-6A-11（Nielsen Table 2-3 完整常数） |
+| PROCo-P6-8-1 | P6-8 | `pcs-backend/app/services/psychro/glycol_dehydration_service.py`（T1 contactor_temperature_f 范围校验） | brief Step 1 `contactor_temperature_f le=300` vs impl `le=200`（工艺室口径差异） | LOW | 待澄清 → **5D-2 触发（2026-11-15 后）**。**无独立签署 OPEN**：随 OPEN-P6-6A-10 AS 1210 PDF 交付后的 glycol dehydration 精度复核一并对账 |
+| PROCo-P6-8-3 | P6-8 | `glycol_dehydration_service.py`（T1 SGR 单位混算） | SGR 单位混算（psi vs mmHg），P6-9-PICKUP-2 T2 部分修复（公式结构），**Antoine A=15.30/B=8500 待工艺室校准** | LOW | OPEN-P6-9-PICKUP-2-1（xfail）→ **5D-2 触发（2026-11-15 后）**，对应 OPEN-P6-9-PICKUP-2-1（工艺室 k_strip 校准报告） |
+| PROCo-P6-7-4 | P6-7 | `pcs-backend/app/services/psychro/hydrate_inhibition_service.py:257`（Nielsen 1988 path） | **Nielsen 1988 路径 `x` 摩尔/质量口径漂移**：Nielsen 原式 `x` 为液相**摩尔**分数，代码取 `inhibitor_concentration_in_water_wt_pct / 100.0` 即**质量**分数。质量分数数值恒大于同 wt% 对应的摩尔分数（M_wt = 1/(1 + (M_inhib/M_water)(w/w)·(1-w)/w) 量级），致 `NIELSEN_1988` 路径温降系统性高估：MEOH ≈1.8× / MEG ≈3.4× / TEG ≈8.3×。**仅命中 `NIELSEN_1988` 显式 path；默认 `HAMMERSCHMIDT_1934` 不受影响**（该路径用 Hammerschmidt 质量分数式，本就无漂移） | MEDIUM | **OPEN-工艺室**：待 Nielsen 1988 原文复核 + 工艺室裁定口径（按 mol frac 重算 vs 保留 wt% 近似并登记容差）｜**2026-09-30 由 P6-9-PICKUP-5 5B DOC-P6-6B-2 拆出**：该项仅文档化口径漂移（docstring 摩尔→质量），**未修代码**，故不计入 5B 闭环｜→ **5D-3 触发（2026-11-30 后）**，对应 OPEN-P6-6A-11（Nielsen 1988 原文复核 + 工艺室裁定 x 摩尔/质量口径） |
 
 > **dropped PROCo-P6-8-{2,4}**：brief q_total 数值偏差已 P6-9-PICKUP-2 闭环；Fig 20-4 完整曲线 HIGH 范畴同 PICKUP-2 T1 else-branch 部分修复（remaining 工艺室交付走 OPEN-P6-9-PICKUP-2-1，不重复登记 LOW）
 
@@ -68,8 +68,8 @@
 | DOC-P6-6B-2 | P6-6B | `pcs-backend/app/services/psychro/hydrate_inhibition_service.py` (T8 4 项) | spec deviation（4 项 spec 与实现小幅漂移） | LOW | SPEC V1.13 修订预留 — **CLOSED** via P6-9-PICKUP-5 5B commit `fd56fa8`（file-level diff：L21 摩尔分数→质量分数（wt%/100 粗换）；L51-52 模块 docstring 尾段同步；L257 新增行内注释说明不做摩尔质量换算。零数值改动，零 fixture 改动。**遗留量级偏差见 PROCo-P6-7-4**） |
 | DOC-P6-8-1 | P6-8 | `spec/PCS-SPEC-ADD-001 计算覆盖增补规格说明书.md` §3.9.1 C-16 | P6-8 实施后 12 result fields 文档同步（部分含 OUT_OF_SCOPE 引用） | INFO | **CLOSED** via P6-9-PICKUP-5 5B commit `2f2e80a`（file-level diff：版本头 L3 V1.12→V1.13；§3.9.1 L883-896 新增 V1.13 段登记 P6-8 T5 的 4 字段，L896 字段总数对账 7+12+4=23（`dataclasses.fields` 实测一致）；§3.9.1 实现落点行号 `:294`→`:365`（`ae91e75` 顶部 docstring 增 9 行后再校准）；§9 变更记录 L1182 增 V1.13 row。V1.10 实施基线冻结声明保留。**注：原行动列误指 `docs/PCS-UI-SPEC.md`，user ruling 2026-09-30 更正为 ADD-001**） |
 | DOC-P5-0-1 | P5-0 | `docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md` | P5-0 实施后 5 commits 部分内容与计划文档 nit（待沉淀） | LOW | 人工 review — **CLOSED** via P6-9-PICKUP-5 5B commit `fd56fa8` + 本 commit（5B R=1 fix）（file-level diff，行号为 5B R=1 fix commit 落地后终态）：L41 P5-0 章节头补 P5-0-4a 标注；L54 registry 12 类→8 类（落地 `40b0c69`）+ 注明累加至 20 类；L57 RED 步同步；L60 Task 1 commit 行 7 tables→3 tables；L112 Task 4 commit 行 `p5-0-4`→`p5-0-4a`（落地 `34ab33e`）；L520 前置任务章节头 `Task 24/25`→`Task 24/25/26`；**M1** Task 1 表数 4/7/7/3 → 统一落地口径 3 表（L45 新增说明块记录 4 蒸汽表至今未落地、推迟为 P5-0-1b，scope 保留） |
-| DOC-P5-123-1 | P5-123 | `docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md` | P5-123 实施后 5 commits 部分内容与计划文档 nit（待沉淀） | LOW | 人工 review — **OPEN（撤回）**：user ruling 2026-09-30 撤回；`grep -c "P5-123"` = 0（全仓无对应 finding 可溯），无证据支撑，不予闭环 |
-| DOC-P5-123-2 | P5-123 | `README.md` / `CHANGELOG.md` | P5-123 commit message 格式 nit（待沉淀） | INFO | 人工 review — **OPEN（撤回）**：user ruling 2026-09-30 撤回；同 DOC-P5-123-1，0 matches 无证据，不予闭环 |
+| DOC-P5-123-1 | P5-123 | `docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md` | P5-123 实施后 5 commits 部分内容与计划文档 nit（待沉淀） | LOW | 人工 review — **OPEN（撤回）**：user ruling 2026-09-30 撤回；`grep -c "P5-123"` = 0（全仓无对应 finding 可溯），无证据支撑，不予闭环。**保留 OPEN 跟踪位；不计入 5D 触发**（撤回决策与 OPEN 状态并存，无工艺室交付依赖） |
+| DOC-P5-123-2 | P5-123 | `README.md` / `CHANGELOG.md` | P5-123 commit message 格式 nit（待沉淀） | INFO | 人工 review — **OPEN（撤回）**：user ruling 2026-09-30 撤回；同 DOC-P5-123-1，0 matches 无证据，不予闭环。**保留 OPEN 跟踪位；不计入 5D 触发** |
 
 > **dropped DOC-P6-7-1**：brief 模板高温系数 nit（LOW 范畴，P6-9-PICKUP-6 brief 模板批改时一并 sweep）
 > **dropped DOC-P6-8-2**：brief Step 1 `contactor_temperature_f le=300` 文字与 impl `le=200` 偏差（PROCo-P6-8-1 已登记同源 finding，避免重复）
@@ -89,7 +89,11 @@
 
 ### 总计：22 项 = 6 + 8 + 6 + 2 ✓
 
-**闭环状态：as of 2026-09-30**（P6-9-PICKUP-5 5C + R=1 修正后）
+**闭环状态：as of 2026-09-30**（P6-9-PICKUP-5 5A/5B/5C + 5B R=1/R=2 + 5C R=1 + P6-9-PICKUP-6 R=1 全部修正后；本轮 docs-only 复核起算点 `9df10cc`，状态较上一版无变化）
+
+- **14 项 CLOSED**：HYG 8 / DOC 4 / REF 2 / PROCo 0 —— HYG 0 / REF 0 已全部归零
+- **8 项 OPEN**：DOC 2（P5-123-{1,2} user ruling 撤回，0 matches 无证据）+ PROCo 6（待工艺室 2026-11-15 / 2026-11-30 两批交付触发，见下文 §5D 工艺室触发 schedule）
+- 3 OPEN 跟踪位不变：OPEN-P6-6A-10 / OPEN-P6-9-PICKUP-2-1 / OPEN-P6-9-PICKUP-2-2
 
 | 维度 | 总数 | CLOSED | OPEN |
 |---|---|---|---|
@@ -152,6 +156,25 @@
 | OPEN-P6-9-PICKUP-2-2 | （t_wall_mm 复盘报告，HIGH 已修） | 已闭环（`258d857`） |
 | OPEN-P6-6A-9.5 | PROCo-P6-7-2（high_acid 系数据源） | 工艺室 2026-11-30 重发 |
 | OPEN-P6-6A-11 | PROCo-P6-7-{1,3}（Nielsen 精确常数 + 3-sig-fig） | 工艺室 2026-11-30 完整 Table 2-3 |
+
+---
+
+## 5D 工艺室触发 schedule
+
+> 权威来源：`.wolf/STATUS.md:174-177`「P6-6B 工艺工程师对 OPEN 队列的决策」（工艺室 2026-09-28 签署，11 项 OPEN，总工时 ~8.5 天）。
+> 本表为上述签署排期在 22 项 LOW/INFO 台账上的投影：**仅列本批 8 项 OPEN finding 的触发归属**，签署表中与本台账无交集的 OPEN 项仍以 `STATUS.md` 为准。
+
+| 触发日期 | 工艺室交付 OPEN items | 本批 PROCo 触发 | 5D 子批 | 工时估算 |
+|---|---|---|---|---|
+| 2026-10-15 | OPEN-P6-4-3 + OPEN-P6-6A-9.{1,2} + T10 + T11 | （本批无 PROCo 触发） | 5D-0 — 其他模块消化 | n/a |
+| 2026-10-31 | OPEN-P6-4-4 + OPEN-P6-6A-9.{3,4}（真 Wichert-Aziz + Bukacek low-T） | （本批无 PROCo 触发） | 5D-1 — 其他模块消化 | n/a |
+| 2026-11-15 | OPEN-P6-6A-10（AS 1210 PDF）+ OPEN-P6-9-PICKUP-2-{1,2}（F2 SGR + t_wall HYSYS） | PROCo-P6-8-{1,3} | 5D-2 综合工艺室交付 | ~2.5 天 |
+| 2026-11-30 | OPEN-P6-6A-11（Nielsen Table 2-3）+ OPEN-P6-6A-9.5（XLS E20 baseline + 6% brine） | PROCo-P6-7-{1,2,3,4} | 5D-3 Nielsen + Behr 综合交付 | ~2.0 天 |
+| 上线后 | OPEN-P6-4-2（Kb 厂商数据） | （无 PROCo 触发） | 5D-5 上线后批 | 推迟 |
+
+**总计**：6 PROCo OPEN items 全部归属 5D-2 / 5D-3 两批（2026-11-15 + 2026-11-30）。2026-10-15 与 2026-10-31 两批的签署 OPEN（C-08 Imperial 单位、contactor sizing 9.1~9.4、T10 / T11 路径）不落在本 22 项台账，对本批零触发。
+
+**DOC-P5-123-{1,2} 不计入 5D 触发**：user ruling 2026-09-30 撤回，`grep -c "P5-123"` = 0，无证据可溯，保留 OPEN 跟踪位但无工艺室交付依赖。
 
 ---
 

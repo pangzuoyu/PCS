@@ -4,6 +4,24 @@
 
 ---
 
+## [P6-9-PICKUP-6] — process-debt tracking 批（docs-only，2026-09-30）
+
+docs-only 批（零 service code / 零 schema / 零 alembic / 零 DB / 零 test fixture / 零 API 改动）。本批为 P6-9-PICKUP-5 的跟踪批，落地 3 个文件（`docs/tasks.md` + 本 CHANGELOG + 新建 `docs/P6-9-PICKUP-6.md`）—— 原计划 4 文件含 `README.md`，按 user ruling 2026-09-30「README 无 P6-9-PICKUP-5 行则保持不动」未改动。
+
+- **docs/tasks.md**
+  - 闭环 statement 加固：as-of date stamp 扩展为 `9df10cc` 起算点全批归属（5A/5B/5C + 5B R=1/R=2 + 5C R=1 + P6-9-PICKUP-6 R=1），显式列出 14 CLOSED（HYG 8 / DOC 4 / REF 2 / PROCo 0）+ 8 OPEN（DOC 2 撤回 + PROCo 6）+ 3 OPEN 跟踪位不变。
+  - 新增 §5D 工艺室触发 schedule：以 `.wolf/STATUS.md:174-177` 工艺工程师 2026-09-28 签署排期为权威源，投影到 22 项 LOW/INFO 台账。
+  - 8 OPEN items 状态列回填 5D 触发归属：PROCo-P6-7-{1,2,3,4} → **5D-3（2026-11-30）**；PROCo-P6-8-{1,3} → **5D-2（2026-11-15）**；DOC-P5-123-{1,2} 保持 OPEN 并标注「不计入 5D 触发」。
+- **docs/P6-9-PICKUP-6.md**（新建，192 行）：P6-9-PICKUP-5 全 7 commits archive —— HYG-2（5A `60444e5`）/ DOC-4（5B `fd56fa8` + `2f2e80a` + `ae91e75` + `dbdd6a1`）/ REF-2（5C `d8f97dd` + `9df10cc`），含 3 条 implementer judgment call、R=1 lessons、5D 触发 plan。
+
+**5D schedule 修正裁决（user ruling 2026-09-30）**：原 brief 5D-1 行把 `OPEN-P6-6A-11` + `PROCo-P6-7-{1,2,3,4}` 排在 2026-10-15，与工艺室签署排期（2026-11-30）冲突，且 brief 自身 5D-4 行重复列出同一 OPEN。修正后 6 PROCo 全部归属 5D-2 / 5D-3 两批；2026-10-15 / 2026-10-31 两批的签署 OPEN（C-08 Imperial 单位、contactor sizing 9.1~9.4、T10 / T11）不落在本台账，对本批零触发。
+
+**状态**：14 CLOSED / 8 OPEN 保持不变（HYG 0 / REF 0 归零）。3 OPEN 跟踪位（OPEN-P6-6A-10 / OPEN-P6-9-PICKUP-2-1 / OPEN-P6-9-PICKUP-2-2）不变。
+
+验证：`ruff check .` = All checks passed!；`pytest tests/` = 3515 passed / 5 skipped / 1 xfailed / 0 failed；G-08 phase 1-4 drift=0。
+
+---
+
 ## [P6-9-PICKUP-5] — 4 项 DOC 闭环（5B，2026-09-30）
 
 docs-only 修订（零 service logic / 零 schema / 零 test fixture 改动）：
