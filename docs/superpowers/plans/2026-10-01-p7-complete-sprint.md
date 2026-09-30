@@ -23,6 +23,8 @@
 - **PcsError 子类 + frozen dataclass + formula_ref dict** 模式不可破（项目级 service 模式）
 - **UTIL 权威源（D1 裁决 1A）**: Sprint 2 起 5 表（`utility_power_items` / `utility_fuel_gas` / `utility_heat_exchange` / `utility_energy_summary` / `catalyst_loading`）为唯一权威写入路径；`util_results.consumption_json` JSONB 字段 **deprecated**（Sprint 1 遗留，仅 backward compat 读，Sprint 2 起不再更新）；Sprint 4 综合能耗验收读 5 表聚合
 - **历史/audit 线索保留原则（D1/D2/D3 共同裁决）**: 数据演进（JSONB → 5 表 / 沉淀解耦 / 状态联动）保留历史指针与 audit 字段，用显式状态字段（deprecated / source_sign_status）表达语义，不用级联删除或静默覆盖
+- **audit_logs 性能（D8 裁决 9A）**: T0 + CHANGED 流程高频写入 → Sprint 1 JSONB GIN 索引 + Sprint 4 后 monthly partition（保留 6 月）；异步队列可选（仅高峰需求）
+- **audit_logs 性能（D8 裁决 9A）**: T0 + CHANGED 流程高频写入 → Sprint 1 JSONB GIN 索引 + Sprint 4 后 monthly partition（保留 6 月）；异步队列可选（仅高峰需求）
 - **测试覆盖规范（D6 + D7 裁决 7A/8A）**: 每 Task Step 5 引用 §Test Coverage Standard（5 类最小覆盖：边界/异常/黄金/集成 + alembic 降级）；不在 Task 重复列具体条目
 - **跨模块变更所有权（D4 裁决 4A）**: 状态机统一所有门禁迁移；业务模块（Supplier/UtilResults/EquipmentList）通过 `emit_event()` 发事件，不直接触发门禁迁移；事件需幂等性（event_id 去重）；rollback 分阶段（事件撤回 / 门禁回滚 / CIA 反向恢复 — 是否实现 CIA 反向恢复待 P7 Sprint 4 user 裁决）
 - **ChEDL 包装层不可破**: 业务代码禁直接 `import fluids.*`（ADR-0030）
@@ -173,7 +175,9 @@ def resolve_stale(record: Record, ...):
 
 - [ ] **Step 5**: 跑全量 pytest 验证 0 regression — `cd pcs-backend && DATABASE_URL=... uv run pytest tests/ -q` 期望 3515+ passed, 0 failed
 
-- [ ] **Step 6**: 单 commit — `feat(p7-s1): StateMachineService 强制写入 audit_logs 三字段 (R-03 T0)`
+- [ ] **Step 6**: 单 commit — 
+
+**D8 裁决 9A 补**：audit_logs.detail_json 加 JSONB GIN 索引（优化 detail_json 字段查询）；alembic 迁移 ；pcs-backend/alembic/versions/p7_s1_002_audit_logs_jsonb_gin.py 新建`feat(p7-s1): StateMachineService 强制写入 audit_logs 三字段 (R-03 T0)`
 
 ### Task S1-2: EQUIP_LIST ORM model（含 SourceService V1.4 新字段）
 
@@ -1035,6 +1039,8 @@ P7 Sprint 1-4 完成后：
 | 12 | sync_from_source 并发控制（D2 裁决 2A）| advisory lock per (project_id, tag_number) + UNIQUE 复合约束双保险；Sprint 4 Task S4-3 复用同锁 key；Task S1-2 ORM `unique=True` 误伤跨项目位号 → 改 UniqueConstraint(project_id, tag_number) | Sprint 1 Task S1-4 末 |
 | 13 | EQUIP_LIB 沉淀源 OBSOLETE 联动（D3 裁决 3A）| source_record_id 保留 + cascade=SET NULL + source_sign_status 镜像（pull 模式读时 join）；Task S3-3 Step 1 明确 source_record_id 保留（不仅 source_project_id 解耦）| Sprint 3 Task S3-3 末 |
 | 14 | 供应商实际值 CHANGED 所有权（D4 裁决 4A + rollback 仅记）| state_machine 拥有触发权；Supplier/UtilResults/EquipmentList 通过 emit_event 发事件；事件幂等性 + rollback 仅 audit 记录（不实现 CIA 反向恢复，推 P8）；已确认实际数据修改走人工退回（per SPEC V1.4 §3.2.4（5））| Sprint 4 Task S4-3 末 |
+| 15 | audit_logs 高频写入性能（D8 裁决 9A）| Sprint 1 已加 JSONB GIN 索引（p7_s1_002）；Sprint 4 后加 monthly partition（保留 6 月，p7_s4_001_audit_logs_partition）；异步队列可选 | Sprint 1 Task S1-1 末 / Sprint 4 后增量 || state_machine 拥有触发权；Supplier/UtilResults/EquipmentList 通过 emit_event 发事件；事件幂等性 + rollback 仅 audit 记录（不实现 CIA 反向恢复，推 P8）；已确认实际数据修改走人工退回（per SPEC V1.4 §3.2.4（5））| Sprint 4 Task S4-3 末 |
+| 15 | audit_logs 高频写入性能（D8 裁决 9A）| Sprint 1 已加 JSONB GIN 索引（p7_s1_002）；Sprint 4 后加 monthly partition（保留 6 月，p7_s4_001_audit_logs_partition）；异步队列可选 | Sprint 1 Task S1-1 末 / Sprint 4 后增量 || state_machine 拥有触发权；Supplier/UtilResults/EquipmentList 通过 emit_event 发事件；事件幂等性 + rollback 仅 audit 记录（不实现 CIA 反向恢复，推 P8）；已确认实际数据修改走人工退回（per SPEC V1.4 §3.2.4（5））| Sprint 4 Task S4-3 末 |
 
 ## 关联
 
