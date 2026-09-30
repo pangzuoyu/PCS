@@ -302,3 +302,30 @@ budget_tokens: 1500
 - buglog 最新 bug-101/102/103/104/105/106（审计三件套 drift / 手写清单教训 / OPEN-P6-6A-3 K scale / **OPEN-P6-6A-4 Cd/Y_cr^0.5 1.74× over-prediction** / **OPEN-P6-6A-7 Y_cr@r_c 物理修正** / **OPEN-P6-6A-5 ΔH_vap fluid-specific input (e72e0db)**）
 - 无 CI/CD（单人开发裁决，勿再建议）；SPEC V1.10 已冻结为实施基线，后续改 SPEC 需新版本号
 - P6-6A 11 Rulings + Ruling 13/14 已登记：Ruling 1 零改动 / Ruling 2 表格化 / Ruling 3-8 mapping defects / Ruling 9 双 surface / Ruling 10 brief template / **Ruling 11 K scale CLOSED in OPEN-P6-6A-3 (e0d91a6)** / **Ruling 12 Cd/Y_cr CLOSED in OPEN-P6-6A-4 (c34d3f4)** / **Ruling 13 Y_cr@r_c + d sizing 范围 CLOSED in OPEN-P6-6A-7 (3250b42)** / **Ruling 14 ΔH_vap fluid-specific input CLOSED in OPEN-P6-6A-5 (628ef4d)**
+
+---
+
+## P6-9-PICKUP-3 findings 累积登记（2026-11-15）
+
+### 来源
+ce-code-review P5+P6 全范围（5 batch，47 commits / 34 findings）review 累积。
+
+### 严重性分类（actual）
+| 等级 | 数量 |
+|---|---|
+| CRITICAL | 4 |
+| HIGH | 10 |
+| MEDIUM | 12 |
+| LOW | 16 |
+| INFO | 8 |
+| **总计** | **50** |
+
+### 状态
+- 4 CRITICAL：全部修复（P6-9-PICKUP-2 批 6 commits 落地）
+- 10 HIGH：8 修复 + 2 部分修复
+- 12 MEDIUM：累积到 P6-9-PICKUP-3（部分修）
+- 16 LOW / 8 INFO：累积登记（本批），下批 P6-9-PICKUP-4 评估
+
+### 引用
+- 5 个 ce-code-review agent handback reports（per batch）
+- docs/ce-code-review-p5-p6-summary.md（已 commit cf51fdf）
