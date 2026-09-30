@@ -4,7 +4,7 @@ P7 集成模块开发规格说明书
 发布日期	2026-10-01（V1.1 修订 2026-08-28；V1.2/V1.3 修订 2026-09-03；V1.4 修订 2026-10-01，incorporate PCS-SPEC-ADD-001 V1.13 + P7 启动前 mock 裁决报告 P7-REV-01~04：R-01 接受 / R-02 方案 A / R-03 待补采 / R-04 方案 B；9 处修订 + §4.7 启动前裁决清单新增）
 编制部门	工艺部 / 信息化联合项目组
 适用对象	内部开发团队（后端/前端/测试/数据库）
-关联文档	PCS-REQ-2026-002 V2.2 §3.2.9/§3.2.11/§3.2.16、SUP-001 §3.2.16/§3.3.12、SUP-002 §3.2.19、SUP-007、SUP-008 V1.1、SUP-010 V1.1、DICT-002、SPEC-P0/P1/P2/P3/P4/P5/P6、**PCS 本体论与语义关系研究说明（V1.6）§3.1 / §3.2b / §3.5**
+关联文档	PCS-REQ-2026-002 V2.2 §3.2.9/§3.2.11/§3.2.16、SUP-001 §3.2.16/§3.3.12、SUP-002 §3.2.19、SUP-007、SUP-008 V1.1、SUP-010 V1.1、DICT-002、SPEC-P0/P1/P2/P3/P4/P5/P6、**PCS-SPEC-ADD-001 V1.13 + ATT-02**、**PCS 本体论与语义关系研究说明（V1.6）§3.1 / §3.2b / §3.5**、**P7-REV-01-04-mock-decisions.md**、**P7-OPEN-007-physical-semantics-evaluation.md**、**P7-OPEN-008-rule-registry-form-evaluation.md**、**P7-OPEN-009-SUP-010-5table-migration-schedule.md**
 第一部分：引言
 1.1 目的
 本文档定义P7阶段（集成模块）的完整需求规格，明确EQUIP_LIST设备表、UTIL公用工程及能耗、EQUIP_LIB复用设备库和供应商数据录入与核算四个集成模块的详细功能需求、接口规范和验收标准。P7阶段是各计算模块输出结果的汇聚层，也是报表生成和签署流程的数据基础。
@@ -196,7 +196,7 @@ EQUIP_LIST表完整字段见DICT-002 §3.1–§3.5，包含以下字段组：
 字段组	主要字段
 标识	TagNumber, EquipmentDescription, EquipmentNameCN, PackageNo, SubProject, UnitNo
 类型	TypeCode, EquipmentSubType, EquipmentCategory, IsPressureVessel
-来源	SourceModule, SourceRecordID, InPackage, DataSources
+来源	SourceModule, SourceRecordID, **SourceService**（V1.4 新增，区分同模块多子服务）, InPackage, DataSources
 状态	EquipmentStatus(N/E/D/M/F), CalcStatus, SignStatus（RecordSignStatus 9 态门禁，与来源记录联动）, ActualDataStatus
 设计参数	DesignParameters_JSON（按设备类型动态定义）
 采购	Vendor, AlternateVendor, OrderDate, PO Number, Cost, GPE规格
@@ -217,6 +217,8 @@ EQUIP_LIST表完整字段见DICT-002 §3.1–§3.5，包含以下字段组：
 成套设备	ARU、MRU、LOS（润滑油系统）、SOS（密封油系统）
 其他	H（料斗）、F（加热炉）、CT（冷却塔）、X（离子交换器）
 类型代码存储在CONFIG CATEGORY_5标准数据库中，各项目不得自定义。允许扩展但需在CONFIG中登记审批。
+
+> **V1.4 对齐注记**：CT（冷却塔）、T（塔）、V（储罐/球罐）、PVRV（呼吸阀）已在 DICT-002 §2.2 登记；C-16 甘醇脱水塔按实际选 T 或 V；C-08 两相分离器按实际选 D（压力容器）或 V。
 
 （4）设备状态管理
 
@@ -467,15 +469,17 @@ EQUIP_LIST 是 P4–P6 阶段交付的各计算模块输出结果的汇聚中枢
 供应商数据通过手动录入 / Excel 导入 / PDF 解析（预留）进入"实际数据录入"（ActualData_JSON），经自动比对（设计值 vs 实际值）得到合格 / 警告 / 不合格结论，设计人确认 + 校核人校核后标记"已确认"，最终更新下游（UTIL 自动引用实际值 + 触发影响分析）。
 
 4.3 设备同步触发规则（V1.1：CHECKED 触发 + 状态联动）
-触发方式	场景	行为
-自动同步	来源计算记录到达 CHECKED	自动创建/更新对应设备记录（继承批准深度）
-状态联动	来源记录 STALE/CHANGE_PENDING/CHANGED/关闭	设备记录自动进入相同状态，无需手动确认
-联动恢复	STALE 重算哈希不变	设备记录联动恢复 CHECKED
-手动同步	用户在设备表点击"同步"	列出 CHECKED 记录供选择（DRAFT 不出现）
-批量同步	用户在设备表批量操作	一次性同步多个模块的 CHECKED 结果
-弃用联动	来源记录 OBSOLETE	设备记录 sign_status 跟随、EquipmentStatus=D
+
+| 触发方式 | 场景 | 行为 |
+|---|---|---|
+| 自动同步 | 来源计算记录到达 CHECKED | 自动创建/更新对应设备记录（继承批准深度） |
+| 状态联动 | 来源记录 STALE/CHANGE_PENDING/CHANGED/关闭 | 设备记录自动进入相同状态，无需手动确认 |
+| 联动恢复 | STALE 重算哈希不变 | 设备记录联动恢复 CHECKED |
+| 手动同步 | 用户在设备表点击"同步" | 列出 CHECKED 记录供选择（DRAFT 不出现） |
+| 批量同步 | 用户在设备表批量操作 | 一次性同步多个模块的 CHECKED 结果 |
+| 弃用联动 | 来源记录 OBSOLETE | 设备记录 sign_status 跟随、EquipmentStatus=D |
 | C-08 两相分离器 | `two_phase_separator_sizing_service` 到达 CHECKED | 自动创建设备记录（TypeCode=D/V/T），`source_service=two_phase_separator_sizing_service` |
-| C-16 甘醇脱水塔 | 默认不自动进设备表 | 设计人手动词"从 PSYCHRO 同步"，TypeCode=T/V |
+| C-16 甘醇脱水塔 | 默认不自动进设备表 | 设计人手动"从 PSYCHRO 同步"，TypeCode=T/V |
 | C-24 调节阀 | `cv_engine` + `flashing_correction` 到达 CHECKED | 自动创建设备记录（TypeCode=CV），`masonelian_model` 写入设计参数 |
 | COOL_TOWER | 冷却塔计算到达 CHECKED | 自动创建设备记录（TypeCode=CT） |
 
@@ -500,7 +504,20 @@ EQUIP_LIST 是 P4–P6 阶段交付的各计算模块输出结果的汇聚中枢
 > - **裁决出口**：P7 启动前由架构委员会裁决 P7-OPEN-009 走方案 A（纳入 P7 基线，+2~3 人周）或方案 B（延后 P7.5 增量）。本 SPEC V1.4 默认描述 V1.3 基线；**V1.4 mock 决议（2026-10-01）= 方案 A**：5 表迁移排期详见 `docs/P7-OPEN-009-SUP-010-5table-migration-schedule.md`。
 
 4.5 待确定问题列表
-（V1.4 mock 决议后状态更新，详见上表 P7-OPEN-007/008/009 行）
+
+> **V1.4 状态更新（2026-10-01 mock 决议）**：P7-OPEN-007/008/009 三行已按 mock 决议更新；P7-OPEN-001~006 保持 V1.3 状态。P7-OPEN-007/008/009 的完整评估链见 `docs/P7-OPEN-007-physical-semantics-evaluation.md` / `docs/P7-OPEN-008-rule-registry-form-evaluation.md` / `docs/P7-OPEN-009-SUP-010-5table-migration-schedule.md`。
+
+| 编号 | 问题 | 影响 | 建议解决方案 | 状态 |
+|---|---|---|---|---|
+| P7-OPEN-001 | WORLEY 标准设备类型代码表的完整清单是否已收集？ | 类型代码导入 | 需确认 DICT-002 §2.2 的清单是否完整 | 待确认 |
+| P7-OPEN-002 | 折标系数数据来源？ | 能耗计算精度 | 建议从 GB/T 50441 附录获取并导入 CONFIG | **V1.4 部分闭环**：SUP-010 方案 A 已含 `config_energy_conversion_factors.py` seed；`confirmed_by` 待工艺室 2026-10 签署 |
+| P7-OPEN-003 | 供应商数据 Excel 导入模板的具体格式？ | 导入功能实现 | 需与工艺负责人确认模板格式 | 待确认 |
+| P7-OPEN-004 | 设备同步是默认自动还是默认手动？ | 用户体验 | 建议默认自动同步 + 可配置关闭 | 待确认 |
+| P7-OPEN-005 | EQUIP_LIB 相似度计算的权重配置由谁维护？ | 推荐准确性 | 由工艺负责人在 CONFIG 中配置 | 已确认 |
+| P7-OPEN-006 | 实际数据确认后 UTIL 自动更新是否需要用户确认？ | 数据一致性 | 建议自动更新 + 通知用户 | 待确认 |
+| P7-OPEN-007 | [physical_semantics 评估] PCS 本体论 V1.6 §3.2b 三元决策。**R-03 mock 决议**：数据样本 = 0（pcs_test audit_logs 0 行 + state_machine.py 三字段 0 matches）→ **推迟三元决策，登记「数据待补采」**。触发条件：T0（StateMachineService 强制写入 stale_resolution_path / hash_changed / changed_fields 三字段，纳入 P7 Sprint 0）+ T1（pcs_test 预填 ≥30 行 STALE 解除 fixture）+ 30 天窗口后重评 | P7 启动前必备评估 | 按 V1.6 §3.2b 度量指标采集；T0 落地后 30 天重跑评估脚本 | **待补采 — 触发：T0+T1+30 天** |
+| P7-OPEN-008 | [规则清单形态评估] PCS 本体论 V1.6 §3.5 方案 A/B。**R-04 mock 决议**：规则计数 = 0（grep `@rule` = 0；`app/core/rules_registry.py` 不存在）→ **方案 B（ADR 附录）采纳**。不建立 rules_registry.py；不引入 @rule 装饰器；规则记录在相关 ADR 附录；PR/ADR 模板「本次新增/修改的业务规则」审计线索保留。重新评估触发：规则数 > 20 / 新模块 / 法规要求 | P7 启动前必备评估 | 方案 B 落地；V1.6 §3.5 加脚注「本节声明与 P4 实际落地不一致」 | **方案 B 已采纳** |
+| P7-OPEN-009 | [UTIL 能耗 5 表 + 催化剂装填量] SUP-010 V1.1 §3.2.3 + §3.3.4。**R-02 mock 决议 = 方案 A（纳入 P7 基线）**：6 项迁移（5 表 + auxiliary_consumption 4 字段）+ ~4.0 工作日 + 工艺室 2026-10 签署四节点（10-08 / 10-15 / 10-22 / 10-29）。验收：综合能耗汇总与 Excel 偏差 ≤ 2% | P7 UTIL 数据模型迁移 + 配置项 | SUP-008 §3.2.5 + SUP-010 §3.2.3 ALTER/CREATE TABLE；CONFIG 新增折标煤系数配置项 | **方案 A 已裁决（2026-10-01）** |
 
 4.6 工作量估算（V1.4 mock 决议 = 方案 A）
 模块	自研内容	估算工作量
@@ -515,7 +532,12 @@ EQUIP_LIB	检索服务、相似度计算、沉淀流程	1–1.5 人周
 > **P7 启动前必备评估（不计入上表）**：
 > - P7-OPEN-007 physical_semantics 评估：3–5 人日 → **mock 决议 2026-10-01 = 待补采**（详见 §4.7 P7-REV-03）
 > - P7-OPEN-008 规则清单形态评估：1–2 人日 → **mock 决议 2026-10-01 = 方案 B**（详见 §4.7 P7-REV-04）
-> - **合计 4–7 人日（约 1 人周）**
+> - **R-03 T0（StateMachineService 强制写入三字段）**：+0.5~1 人日（P7 Sprint 0 前置，不计入上表；bug-114）
+> - **合计 4.5–8 人日（约 1 人周+）**
+
+> **口径注记**：UTIL 5 表「+2~3 人周」为全口径（ORM + alembic + service + API + fixture + 工艺室对账）；`docs/P7-OPEN-009-SUP-010-5table-migration-schedule.md` §3 的「~4.0 工作日」为迁移本身（不含 service/API/fixture）。两者不矛盾，取全口径计入 §4.6。
+
+> **P7 总工时**：8–10 人周（不含 SUP-010）/ 10.5–14 人周（含 SUP-010 方案 A + R-03 T0 计入）。
 
 4.7 P7 启动前裁决清单（V1.4 新增）
 
@@ -527,5 +549,36 @@ EQUIP_LIB	检索服务、相似度计算、沉淀流程	1–1.5 人周
 | P7-REV-04 | P7-OPEN-008（规则清单形态）方案 A/B | >20 条 → 方案 A（CI 自动生成）；≤20 条 → 方案 B（ADR 附录） | ✅ **方案 B（ADR 附录）**（mock 决议 2026-10-01；@rule = 0 远 ≤ 20；详见 `docs/P7-OPEN-008-rule-registry-form-evaluation.md`）| 架构委员会 | P7 Sprint 0 |
 
 > **mock 决议说明**：上表 4 项裁决为 2026-10-01 架构委员会 + 工艺负责人 mock 决议，落地于 `docs/P7-REV-01-04-mock-decisions.md`。真实会议召开后，如 mock 决议被否决，按 V1.4.1 micro-revision 修订（沿用 P6-9-PICKUP-5 5B V1.0→V1.13 模式）。
+
+> **R-02（方案 A）落地要求**：6 项迁移（`utility_power_items` / `utility_fuel_gas` / `utility_heat_exchange` / `utility_energy_summary` / `catalyst_loading` / `auxiliary_consumption` 4 字段）排期详见 `docs/P7-OPEN-009-SUP-010-5table-migration-schedule.md`：
+> - 迁移链：`p7_open_009_001` → `_002` → `_003` → `_004`（ALTER）→ `_005` → `_006`
+> - 工时：~4.0 工作日（6 项迁移 + 工艺室签署 follow-up + 单 commit 验证）
+> - **工艺室 10 月签署四节点**（原 5D-2 时间窗 2026-11-15 提前）：2026-10-08 初步对账 / 10-15 正式签署 / 10-22 PCS 集成 fixture / 10-29 收口 + 单 commit
+> - 折标系数 seed：`pcs-backend/app/seeds/config_energy_conversion_factors.py`，`confirmed_by=NULL` 起步，工艺室签署后 fill
+> - 验收：综合能耗汇总与 蜡油加氢—综合能耗.xlsx 偏差 ≤ 2%
+>
+> **R-03（待补采）落地要求**：
+> - **T0**（P7 Sprint 0 前置）：`StateMachineService` 强制写入 `stale_resolution_path` / `hash_changed` / `changed_fields` 三字段（+0.5~1 人日，未在 §4.6 计入；bug-114）
+> - **T1**：pcs_test DB 预填 ≥30 行 STALE 解除 fixture（工艺室签署，与 P6-9-PICKUP-6 5D-2 时间窗 2026-11-15 重叠）
+> - **30 天窗口**：T0 + T1 落地后 30 天重跑 P7-OPEN-007 评估脚本
+>
+> **R-04（方案 B）落地要求**：
+> - ❌ 不建立 `app/core/rules_registry.py`（bug-115）
+> - ❌ 不引入 `@rule` 装饰器
+> - ✅ 规则记录在相关 ADR 附录
+> - ✅ PR/ADR 模板审计线索保留
+> - V1.6 §3.5 加脚注：「本节声明与 P4 实际落地不一致（接口骨架未预留 + 装饰器使用 = 0），详见 P7-OPEN-008 评估报告」
+>
+> **R-03 ↔ R-04 双向耦合注记**：R-04 方案 B 若 R-03 重评触发「启用语义过滤」→ 可能反向需求规则管理工具；反之 R-03 若触发「修正 record_hash / dependency_type」→ 新增/修改业务规则 → 触发 R-04 重评（规则数可能 > 20）。建议 V1.4.1 加「R-03/R-04 联动重评」注记。
+
+## 版本历史
+
+| 版本 | 日期 | 修改内容 | 编制人 |
+|---|---|---|---|
+| V1.0 | 2026-08-27 | 初始版本 | 联合项目组 |
+| V1.1 | 2026-08-28 | incorporate SUP-007：同步改 CHECKED 触发+状态联动；哈希仅盖设计参数；弃用/位号终身唯一；实际数据无独立版本号；供应商数据影响走 CHANGED 流程；新增 P7-EQL-010~015；文件标识改 PCS 前缀 | 联合项目组 |
+| V1.2 | 2026-09-03 | 对齐 PCS 本体论 V1.6：关联文档加 V1.6 §3.1/§3.2b/§3.5；新增 P7-OPEN-007（physical_semantics 三元决策评估）、P7-OPEN-008（规则清单形态评估）；本版本不修改四大模块主体需求 | 联合项目组 |
+| V1.3 | 2026-09-03 | incorporate SUP-008 V1.1 + SUP-010 V1.1：关联文档加 SUP-008 V1.1 + SUP-010 V1.1；新增 P7-OPEN-009（UTIL 能耗 5 表 + 催化剂装填量 + auxiliary_consumption 4 字段扩展） | 联合项目组 |
+| **V1.4** | **2026-10-01** | **incorporate PCS-SPEC-ADD-001 V1.13 + P7-REV-01~04 mock 决议（R-01 接受 / R-02 方案 A / R-03 待补采 / R-04 方案 B）：§3.2.1（1）表 1 补 C-08/C-16/C-24/COOL_TOWER/PSYCHRO 来源行 + TypeCode 映射（R-01）；§3.2.1（2）加 SourceService 字段；§3.2.1（3）加 CT/T/V/PVRV 对齐注记；§3.2.2（5）/§4.4 加数据模型版本注记（V1.3 单表 JSONB vs SUP-010 5 表，R-02 = 方案 A）；§4.3 同步触发规则补 C-08/C-16/C-24/COOL_TOWER 行；§4.5 P7-OPEN-007 状态改"待补采"、P7-OPEN-008 改"方案 B 已采纳"、P7-OPEN-009 改"方案 A 已裁决"（R-02~04）；§4.6 工作量 10.5–14 人周（含 SUP-010 + R-03 T0）；§4.7 新增裁决清单 R-01~04 + mock 决议 + R-02/R-03/R-04 落地要求；关联文档加 SPEC-ADD-001 V1.13 + ATT-02 + 4 份 mock 决议文件** | **联合项目组** |
 
 P7 SPEC V1.4 完。 本文档与 SPEC-P0 至 SPEC-P6 合并构成完整的《工艺专用综合计算软件》分阶段开发规格说明书体系。后续 P8（报表）、P9（工作流与权限）、P10（AI 预留与测试部署）的 SPEC 可继续按此格式编写。V1.4 mock 裁决报告详见 `docs/P7-REV-01-04-mock-decisions.md`；评估报告详见 `docs/P7-OPEN-007-physical-semantics-evaluation.md` + `docs/P7-OPEN-008-rule-registry-form-evaluation.md` + `docs/P7-OPEN-009-SUP-010-5table-migration-schedule.md`。R=1 教训（bug-114 + bug-115）已登记于 `.wolf/buglog.json`。
