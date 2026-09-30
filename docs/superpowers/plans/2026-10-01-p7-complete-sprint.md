@@ -23,7 +23,7 @@
 - **PcsError 子类 + frozen dataclass + formula_ref dict** 模式不可破（项目级 service 模式）
 - **UTIL 权威源（D1 裁决 1A）**: Sprint 2 起 5 表（`utility_power_items` / `utility_fuel_gas` / `utility_heat_exchange` / `utility_energy_summary` / `catalyst_loading`）为唯一权威写入路径；`util_results.consumption_json` JSONB 字段 **deprecated**（Sprint 1 遗留，仅 backward compat 读，Sprint 2 起不再更新）；Sprint 4 综合能耗验收读 5 表聚合
 - **历史/audit 线索保留原则（D1/D2/D3 共同裁决）**: 数据演进（JSONB → 5 表 / 沉淀解耦 / 状态联动）保留历史指针与 audit 字段，用显式状态字段（deprecated / source_sign_status）表达语义，不用级联删除或静默覆盖
-- **测试覆盖规范（D6 裁决 7A）**: 每 Task Step 5 引用 §Test Coverage Standard（4 类最小覆盖：边界/异常/黄金/集成），不在 Task 重复列具体条目
+- **测试覆盖规范（D6 + D7 裁决 7A/8A）**: 每 Task Step 5 引用 §Test Coverage Standard（5 类最小覆盖：边界/异常/黄金/集成 + alembic 降级）；不在 Task 重复列具体条目
 - **跨模块变更所有权（D4 裁决 4A）**: 状态机统一所有门禁迁移；业务模块（Supplier/UtilResults/EquipmentList）通过 `emit_event()` 发事件，不直接触发门禁迁移；事件需幂等性（event_id 去重）；rollback 分阶段（事件撤回 / 门禁回滚 / CIA 反向恢复 — 是否实现 CIA 反向恢复待 P7 Sprint 4 user 裁决）
 - **ChEDL 包装层不可破**: 业务代码禁直接 `import fluids.*`（ADR-0030）
 - **追溯链完整**: 设备记录通过 SourceModule + SourceRecordID + SourceService（V1.4 新增）三重溯源
@@ -42,6 +42,7 @@
 2. **异常（Exception）**: 服务层错误路径（如 NotFoundError / ValidationError / RangeError / CapacityError）；用 pytest.raises 显式断言异常类型 + 错误信息
 3. **黄金（Golden）**: 工艺室/SPEC 推导的确定值（如蜡油加氢实例、Sprint 2 SUP-010 5 表 fixture）；fixture 标注溯源（工艺室签署日期 + Excel 文件名）
 4. **集成（Integration）**: API 端到端测试（POST + GET 验证副作用）；调用链 > 2 模块时必须含集成测试
+5. **降级（Downgrade）（D7 裁决 8A，仅 alembic Task 适用）**: 每个 alembic 迁移 Task Step 6 加 1 个 downgrade 测试（FAILED: No 'script_location' key found in configuration. + verify schema rollback）；复用 pcs-backend/tests/test_alembic_downgrade.py 模式；生产事故时救命
 
 实施检查：每个 Task 完成时 （边界+异常+黄金+集成 4 类的最小覆盖）。
 
