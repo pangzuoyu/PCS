@@ -21,6 +21,7 @@
 - **pytest baseline**: 3515 passed (P6-9-PICKUP-5 R=1 后)
 - **CI/CD 不做**（per memory 单人开发裁决）
 - **PcsError 子类 + frozen dataclass + formula_ref dict** 模式不可破（项目级 service 模式）
+- **UTIL 权威源（D1 裁决 1A）**: Sprint 2 起 5 表（`utility_power_items` / `utility_fuel_gas` / `utility_heat_exchange` / `utility_energy_summary` / `catalyst_loading`）为唯一权威写入路径；`util_results.consumption_json` JSONB 字段 **deprecated**（Sprint 1 遗留，仅 backward compat 读，Sprint 2 起不再更新）；Sprint 4 综合能耗验收读 5 表聚合
 - **ChEDL 包装层不可破**: 业务代码禁直接 `import fluids.*`（ADR-0030）
 - **追溯链完整**: 设备记录通过 SourceModule + SourceRecordID + SourceService（V1.4 新增）三重溯源
 - **门禁哈希仅设计参数**: 商务/采购字段不参与门禁哈希
@@ -39,6 +40,7 @@
 3. **UTIL V1.3 基线 consumption_json JSONB 容差** — 综合能耗汇总与 Excel 偏差 ≤ 2%；若 JSONB 容器 schema 不校验则容差超限（Spec §3.2.2（3））
 4. **供应商数据偏差报告「不合格」拒绝确认** — 不合格项必须禁止确认 + 通知供应商；若校验缺失则不合格数据被误标合格（Spec §3.2.4（3））
 5. **EQUIP_LIB 沉淀审批解耦** — 沉淀后记录与源项目解耦；若 source_project_id 未清空则复用库反污染源项目（Spec §3.2.3（3））
+6. **UTIL 双写权威性（D1 裁决 1A）** — Sprint 2 起 5 表是唯一权威写入路径；若 `summary_service` 仍写 JSONB 或 JSONB 读路径被误认为权威 → Sprint 4 综合能耗验收偏差 > 2%（Spec §3.2.2（3））；需在 Sprint 2 Task S2-7 Step 2.5 切换写路径 + Step 2.6 数据回填
 
 ---
 
@@ -314,7 +316,7 @@ def sync_from_source(source_module: str, source_service: str, source_record_id: 
 ### Task S1-5: UTIL V1.3 基线（util_results 单表 + consumption_json JSONB）
 
 **Files**:
-- Create: `pcs-backend/app/models/util.py`（UtilResults ORM 含 consumption_json JSONB；Sprint 2 Task S2-1~6 在此文件 append 5 表）
+- Create: `pcs-backend/app/models/util.py`（UtilResults ORM 含 consumption_json JSONB **+ jsonb_deprecated bool 字段（默认 False，Sprint 2 起置 True）**；Sprint 2 Task S2-1~6 在此文件 append 5 表）
 - Create: `pcs-backend/app/services/util/summary_service.py`（能耗汇总 service）
 - Create: `pcs-backend/app/services/util/persist_service.py`
 - Create: `pcs-backend/app/schemas/util.py`
@@ -334,7 +336,15 @@ def sync_from_source(source_module: str, source_service: str, source_record_id: 
 
 - [ ] **Step 4**: 实现 summary_service（求和 + 折标系数 CONFIG）
 
-- [ ] **Step 5**: 边界测试 — 实际值优先规则（ActualDataStatus=已确认 时优先用实际值）
+- [ ] **Step 5**: 边界测试 — 实际值优先规则（ActualDataStatus=已确认 时优先用实际值）+ JSONB deprecated 标记默认 False（Sprint 1 阶段 JSONB 仍权威）
+
+```python
+# tests/services/util/test_summary_service.py
+def test_jsonb_deprecated_marker_defaults_false(db_session):
+    """Sprint 1 阶段 JSONB 仍权威；Sprint 2 起 jsonb_deprecated=True"""
+    r = UtilResults(project_id=..., workspace_id=..., consumption_json={...})
+    assert r.jsonb_deprecated is False  # Sprint 1
+```
 
 - [ ] **Step 6**: pytest 全量 0 regression
 
@@ -544,7 +554,13 @@ SEED_DATA = [
 - Modify: `pcs-backend/app/api/v1/util.py`（扩展 6 端点：5 表 + recalculate）
 - Modify: `pcs-backend/tests/services/util/test_util_api.py`（集成测试）
 
-**工时**: 0.2–0.4 人日（G-08 验证 + API 集成；含在 Sprint 2 总工时）
+**工时**: 0.5–0.7 人日（G-08 验证 + API 集成 + JSONB → 5 表数据回填 + summary_service 写路径切换；含在 Sprint 2 总工时）
+
+- [ ] **Step 1**: 跑 G-08 — `bash pcs-backend/scripts/gate_08_openapi_contract.sh --check-baseline` 期望 baseline diff = 0
+
+- [ ] **Step 2.5**: `summary_service` 改为只写 5 表 + JSONB 字段标 `jsonb_deprecated=True`（Sprint 1 遗留记录）；新增记录 `consumption_json` 留 NULL
+
+- [ ] **Step 2.6**: 数据迁移脚本 `pcs-backend/app/services/util/jsonb_to_5tables_migration.py`：从 Sprint 1 JSONB 回填 5 表（一次性）；回填后 `jsonb_deprecated=True` + 校验聚合值与原 JSONB 总和偏差 ≤ 1%（容差源于浮点精度）
 
 - [ ] **Step 1]: 跑 G-08 — `bash pcs-backend/scripts/gate_08_openapi_contract.sh --check-baseline` 期望 baseline diff = 0
 
@@ -851,7 +867,7 @@ SEED_DATA = [
 |---|---|---|
 | Sprint 0（已完成）| 5 docs | ~1.5 人周 |
 | Sprint 1 | 5 任务 | ~4.2–5.4 人周（含 T0 +0.5–1 人日）|
-| Sprint 2 | 7 任务 | ~4.5–5.5 人周（迁移本身 0.8 人周 + service/API/fixture 全口径 2–3 人周 + API 整合 + G-08 验证 0.2–0.4 人周 + 工艺室签署 follow-up 缓冲 0.5 人周 + 对账超差应急 1.0 人周）|
+| Sprint 2 | 7 任务 | ~4.5–5.5 人周（迁移本身 0.8 人周 + service/API/fixture 全口径 2–3 人周 + API 整合 + G-08 验证 + JSONB→5 表回填 0.5–0.7 人周 + 工艺室签署 follow-up 缓冲 0.5 人周 + 对账超差应急 1.0 人周）|
 | Sprint 3 | 3 任务 | ~1–1.5 人周 |
 | Sprint 4 | 4 任务 | ~2–2.5 人周 |
 | 收口 + wolf + workspace cleanup | 1 | ~0.3 人周 |
@@ -882,6 +898,7 @@ P7 Sprint 1-4 完成后：
 | 8 | R-03 ↔ R-04 双向耦合 | R-03→R-04 与 R-04→R-03 均成立；建议 V1.4.1 加「R-03/R-04 联动重评」注记 | 重评时 |
 | 9 | P7 SPEC V1.4 残留修补 | 已闭环（commits `a902d2f` 主体 + `4f0d671` 残留修补 — 4 残留 + 5 次要）| ✅ 已完成 — source-verify 证明：`grep -c "P7-OPEN-007\\|P7-OPEN-008\\|P7-OPEN-009" spec/...P7.md = 20 ≥ 3` + `grep -c "R-02 落地要求" spec/...P7.md = 1` + `grep -c "R-03（待补采）落地要求" spec/...P7.md = 1` + `grep -c "^## 版本历史" spec/...P7.md = 1` + `grep -c "\| 触发方式 \| 场景 \| 行为 \|" spec/...P7.md = 1` |
 | 10 | R-02 方案 A 工艺室签署 vs P6 时间窗 | 10-08~10-29 四节点与 5D-2 启动窗口重叠 | 2026-10-08 前 |
+| 11 | UTIL 双写权威性（D1 裁决 1A）| Sprint 2 起 5 表权威 + JSONB deprecated；Sprint 1 JSONB 写路径须在 Sprint 2 Task S2-7 Step 2.5 关闭 + Step 2.6 数据回填（jsonb_to_5tables_migration.py）| Sprint 2 Task S2-7 末 |
 
 ## 关联
 
