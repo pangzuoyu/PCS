@@ -30,12 +30,17 @@ def golden_fixture() -> dict:
 
 
 def test_orm_tablename_and_columns():
+    """UtilityHeatExchange ORM 定义正确 (表名 + 16 列).
+
+    R1 §7.1 + §7.2 新增 pressure_level 9 档 + medium_type 10 类.
+    """
     assert UtilityHeatExchange.__tablename__ == "utility_heat_exchange"
     col_names = [c.name for c in UtilityHeatExchange.__table__.columns]
     expected = {
         "id", "project_id", "workspace_id", "equipment_id", "equipment_tag",
         "steam_pressure_mpa_gauge", "steam_quality_pct",
         "return_condensate_pct", "temperature_class",
+        "pressure_level", "medium_type",
         "steam_consumption_t_h", "operating_hours_per_year",
         "annual_consumption_t", "source", "created_at", "updated_at",
     }

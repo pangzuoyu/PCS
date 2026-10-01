@@ -35,12 +35,15 @@ def golden_fixture() -> dict:
 
 
 def test_orm_tablename_and_columns():
-    """UtilityFuelGas ORM 定义正确 (表名 + 13 列)."""
+    """UtilityFuelGas ORM 定义正确 (表名 + 14 列).
+
+    R1 §7.3 新增 gas_source 字段 (气源分类).
+    """
     assert UtilityFuelGas.__tablename__ == "utility_fuel_gas"
     col_names = [c.name for c in UtilityFuelGas.__table__.columns]
     expected = {
         "id", "project_id", "workspace_id", "equipment_id", "equipment_tag",
-        "fuel_type", "calorific_value_kcal_nm3", "consumption_nm3_h",
+        "fuel_type", "gas_source", "calorific_value_kcal_nm3", "consumption_nm3_h",
         "operating_phase", "operating_hours_per_year", "annual_consumption_nm3",
         "source", "created_at", "updated_at",
     }

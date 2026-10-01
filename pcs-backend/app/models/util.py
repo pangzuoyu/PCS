@@ -245,7 +245,16 @@ class UtilityFuelGas(Base):
     )
     fuel_type: Mapped[str] = mapped_column(
         String(32), nullable=False, server_default="NATURAL_GAS",
-        comment="燃料类型: NATURAL_GAS / REFINERY_GAS / LPG / LNG / OTHERS",
+        comment="燃料类型: NATURAL_GAS / REFINERY_GAS / LPG / LNG / OTHERS "
+                "(R0 deprecated; R1 §7.3 新增 gas_source 3 类)",
+    )
+    gas_source: Mapped[str | None] = mapped_column(
+        String(32), nullable=True,
+        comment=(
+            "气源分类 (R1 §7.3 GB 30251-2024 附录A): "
+            "OILFIELD_GAS (油田气 0.93 kg标油/Nm³) / GASFIELD_GAS (气田气 0.85) / "
+            "REFINERY_FUEL_GAS (炼厂燃料气 950 kg标油/t)"
+        ),
     )
     calorific_value_kcal_nm3: Mapped[float] = mapped_column(
         Float, nullable=False,
@@ -334,7 +343,8 @@ class UtilityHeatExchange(Base):
         Float, nullable=False,
         comment=(
             "蒸汽压力 (MPa 表压 gauge; "
-            "LP 0.3~0.8 / MP 1.0~2.5 / HP 3.5~10 / ULTRA_HIGH >10)"
+            "LP 0.3~0.8 / MP 1.0~2.5 / HP 3.5~10 / ULTRA_HIGH >10) "
+            "(R0 deprecated; R1 §7.1 新增 pressure_level 9 档)"
         ),
     )
     steam_quality_pct: Mapped[float] = mapped_column(
@@ -347,7 +357,26 @@ class UtilityHeatExchange(Base):
     )
     temperature_class: Mapped[str] = mapped_column(
         String(16), nullable=False,
-        comment="蒸汽温度等级: LP (低压) / MP (中压) / HP (高压) / ULTRA_HIGH (超高压)",
+        comment="蒸汽温度等级: LP (低压) / MP (中压) / HP (高压) / ULTRA_HIGH (超高压) "
+                "(R0 deprecated; R1 §7.1 新增 pressure_level 9 档)",
+    )
+    pressure_level: Mapped[str | None] = mapped_column(
+        String(32), nullable=True,
+        comment=(
+            "蒸汽压力等级 (R1 §7.1 GB 30251-2024 附录A 9 档): "
+            "GE_7_0_MPA / 4_5_TO_7_0_MPA / 3_0_TO_4_5_MPA / 2_0_TO_3_0_MPA / "
+            "1_2_TO_2_0_MPA / 0_8_TO_1_2_MPA / 0_6_TO_0_8_MPA / 0_3_TO_0_6_MPA / "
+            "LT_0_3_MPA"
+        ),
+    )
+    medium_type: Mapped[str | None] = mapped_column(
+        String(32), nullable=True,
+        comment=(
+            "介质类型 (R1 §7.2): STEAM / FRESH_WATER / CIRCULATING_WATER / "
+            "SOFTENED_WATER / DEMINERALIZED_WATER / LP_DEAERATED_WATER / "
+            "HP_DEAERATED_WATER / TURBINE_CONDENSATE / 120C_CONDENSATE_TREATED / "
+            "120C_CONDENSATE_REUSABLE"
+        ),
     )
     steam_consumption_t_h: Mapped[float] = mapped_column(
         Float, nullable=False,
@@ -456,6 +485,15 @@ class UtilityEnergySummary(Base):
     annual_total_energy: Mapped[float] = mapped_column(
         Float, nullable=False,
         comment="年度总能耗 (MJ/yr; canonical unit)",
+    )
+    electricity_value_type: Mapped[str | None] = mapped_column(
+        String(16), nullable=True,
+        comment=(
+            "电当量值/等价值选择 (R1 §5 GB 30251-2024 §6.1.1): "
+            "EQUIVALENT (当量值 0.086 kg标油/kWh - 其他产品用) / "
+            "EQUIVALENT_VALUE (等价值 0.21 kg标油/kWh - 炼油/乙烯用); "
+            "NULL = 默认 EQUIVALENT"
+        ),
     )
     toe_conversion_factor: Mapped[float] = mapped_column(
         Float, nullable=False,

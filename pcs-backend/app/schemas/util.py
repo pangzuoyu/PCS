@@ -158,12 +158,23 @@ class UtilPowerItemResponse(BaseModel):
 
 
 class UtilFuelGasCreateRequest(BaseModel):
-    """手动创建 UtilityFuelGas (T2 燃料气)."""
+    """手动创建 UtilityFuelGas (T2 燃料气).
+
+    R1 §7.3 新增 gas_source 3 类 (OILFIELD_GAS/GASFIELD_GAS/REFINERY_FUEL_GAS)
+    GB 30251-2024 附录A 油气源分类.
+    """
 
     project_id: uuid.UUID = Field(..., description="项目 UUID")
     workspace_id: uuid.UUID = Field(..., description="workspace UUID")
     equipment_tag: str = Field(..., min_length=1, max_length=64, description="设备位号")
-    fuel_type: str = Field("NATURAL_GAS", max_length=32, description="燃料类型")
+    fuel_type: str = Field("NATURAL_GAS", max_length=32, description="燃料类型 (R0 字段, R1 deprecated)")
+    gas_source: str | None = Field(
+        None, max_length=32,
+        description=(
+            "气源分类 (R1 §7.3): OILFIELD_GAS (油田气 0.93) / "
+            "GASFIELD_GAS (气田气 0.85) / REFINERY_FUEL_GAS (炼厂燃料气 950 kg/t)"
+        ),
+    )
     calorific_value_kcal_nm3: float = Field(
         ..., gt=0, le=20000, description="低位热值 (kcal/Nm³)"
     )
@@ -202,13 +213,16 @@ class UtilFuelGasResponse(BaseModel):
 
 
 class UtilHeatExchangeCreateRequest(BaseModel):
-    """手动创建 UtilityHeatExchange (T3 蒸汽/冷凝水)."""
+    """手动创建 UtilityHeatExchange (T3 蒸汽/冷凝水).
+
+    R1 §7.1 + §7.2 新增 pressure_level 9 档 + medium_type 10 类.
+    """
 
     project_id: uuid.UUID = Field(..., description="项目 UUID")
     workspace_id: uuid.UUID = Field(..., description="workspace UUID")
     equipment_tag: str = Field(..., min_length=1, max_length=64, description="设备位号")
     steam_pressure_mpa_gauge: float = Field(
-        ..., gt=0, description="蒸汽压力 (MPa gauge)"
+        ..., gt=0, description="蒸汽压力 (MPa gauge; R0 字段, R1 deprecated)"
     )
     steam_quality_pct: float = Field(
         ..., ge=0, le=100, description="蒸汽干度"
@@ -217,7 +231,24 @@ class UtilHeatExchangeCreateRequest(BaseModel):
         ..., ge=0, le=100, description="冷凝水回收率"
     )
     temperature_class: str = Field(
-        ..., max_length=16, description="LP/MP/HP/ULTRA_HIGH"
+        ..., max_length=16, description="LP/MP/HP/ULTRA_HIGH (R0 字段, R1 deprecated)"
+    )
+    pressure_level: str | None = Field(
+        None, max_length=32,
+        description=(
+            "压力等级 (R1 §7.1 GB 30251-2024 9 档): "
+            "GE_7_0_MPA / 4_5_TO_7_0_MPA / 3_0_TO_4_5_MPA / 2_0_TO_3_0_MPA / "
+            "1_2_TO_2_0_MPA / 0_8_TO_1_2_MPA / 0_6_TO_0_8_MPA / 0_3_TO_0_6_MPA / LT_0_3_MPA"
+        ),
+    )
+    medium_type: str | None = Field(
+        None, max_length=32,
+        description=(
+            "介质类型 (R1 §7.2): STEAM / FRESH_WATER / CIRCULATING_WATER / "
+            "SOFTENED_WATER / DEMINERALIZED_WATER / LP_DEAERATED_WATER / "
+            "HP_DEAERATED_WATER / TURBINE_CONDENSATE / 120C_CONDENSATE_TREATED / "
+            "120C_CONDENSATE_REUSABLE"
+        ),
     )
     steam_consumption_t_h: float = Field(..., gt=0, description="小时消耗 (t/h)")
     operating_hours_per_year: float = Field(
@@ -250,11 +281,23 @@ class UtilHeatExchangeResponse(BaseModel):
 
 
 class UtilEnergySummaryAggregateRequest(BaseModel):
-    """触发 T5 综合能耗汇总 (utility_energy_summary_service.summarize_energy_year)."""
+    """触发 T5 综合能耗汇总 (utility_energy_summary_service.summarize_energy_year).
+
+    R1 §5: electricity_value_type 选择当量值/等价值.
+    """
 
     project_id: uuid.UUID = Field(..., description="项目 UUID")
     workspace_id: uuid.UUID = Field(..., description="workspace UUID")
     business_year: int = Field(2026, ge=2020, le=2100, description="业务年度")
+    electricity_value_type: str = Field(
+        "EQUIVALENT",
+        max_length=16,
+        description=(
+            "电当量值/等价值 (R1 §5 GB 30251-2024 §6.1.1): "
+            "EQUIVALENT (当量值 0.086 kg标油/kWh - 其他产品用; 默认) / "
+            "EQUIVALENT_VALUE (等价值 0.21 kg标油/kWh - 炼油/乙烯用)"
+        ),
+    )
 
 
 class UtilEnergySummaryResponse(BaseModel):
