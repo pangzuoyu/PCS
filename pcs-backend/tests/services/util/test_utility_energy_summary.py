@@ -53,6 +53,13 @@ SEED_FACTORS = [
         "source": "GB_30251_2024_APPENDIX_A",
     },
     {
+        "energy_type": "ELECTRICITY",
+        "value_type": "EQUIVALENT_VALUE",
+        "toe_factor": 0.21,             # kWh → kg 标油 (等价值; 炼油/乙烯)
+        "standard_coal_factor": 0.30,   # 0.21 / 0.7
+        "source": "GB_30251_2024_APPENDIX_A",
+    },
+    {
         "energy_type": "FUEL_GAS",
         "sub_type": "GASFIELD_GAS",
         "toe_factor": 0.85,             # Nm³ → kg 标油 (气田气)
@@ -357,3 +364,56 @@ async def test_service_tolerance_check_within_2pct(
     # 容差 ≈ 1%, ≤ 2% → OK
     assert summary_with_tol.tolerance_status == "OK"
     assert summary_with_tol.tolerance_pct == pytest.approx(1.0, abs=0.01)
+
+
+@pytest.mark.asyncio
+async def test_service_electricity_value_type_persisted(
+    db_session, seeded_config_factors
+):
+    """R1 §5: electricity_value_type 持久化到 UtilityEnergySummary.
+
+    验证 EQUIVALENT_VALUE (炼油/乙烯用) → total_toe 翻 2.44 倍 (0.21/0.086).
+    """
+    project_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+
+    # 注入 1 条 power item (100 kWh/yr)
+    db_session.add(
+        UtilityPowerItem(
+            project_id=project_id,
+            workspace_id=workspace_id,
+            equipment_tag="P-R1-TEST",
+            motor_power_kw=10.0,
+            operating_hours_per_year=10000.0,
+            load_factor=1.0,
+            annual_consumption_kwh=100.0,
+        )
+    )
+    await db_session.commit()
+
+    # 1. EQUIVALENT (默认; 其他产品)
+    s_equiv = await summarize_energy_year(
+        db=db_session,
+        project_id=project_id,
+        workspace_id=workspace_id,
+        business_year=2027,
+        electricity_value_type="EQUIVALENT",
+    )
+    assert s_equiv.electricity_value_type == "EQUIVALENT"
+    equiv_total = s_equiv.total_toe
+
+    # 2. EQUIVALENT_VALUE (炼油/乙烯)
+    s_value = await summarize_energy_year(
+        db=db_session,
+        project_id=project_id,
+        workspace_id=workspace_id,
+        business_year=2027,
+        electricity_value_type="EQUIVALENT_VALUE",
+    )
+    assert s_value.electricity_value_type == "EQUIVALENT_VALUE"
+    value_total = s_value.total_toe
+
+    # 等价值 = 当量值 × 0.21/0.086 ≈ 2.44 倍
+    assert value_total == pytest.approx(equiv_total * 0.21 / 0.086, rel=1e-3)
+    # 验证不变量: 总能源消耗字段相同 (单位换算不变)
+    assert s_equiv.electricity_kwh_yr == s_value.electricity_kwh_yr

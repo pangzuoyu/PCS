@@ -109,28 +109,48 @@ async def _aggregate_util_subtables(
 
 async def _get_energy_conversion_factors(
     db: AsyncSession,
+    *,
+    electricity_value_type: str = "EQUIVALENT",
 ) -> dict[str, tuple[float, float]]:
     """读 ConfigEnergyConversionFactor R1 26 行 → 按 energy_type 默认分类返回 (toe, coal).
 
+    R1 §5: ELECTRICITY 按 value_type 精确查表 (避免 last-wins 误用 EQUIVALENT_VALUE).
+    其他能源: dict last-wins (后续 sprint 精确分类聚合).
+
     R1 修订 (PCS-SIGN-F-P0-001-2026-10-08-R1): 表按分类拆为多行 (电 2 + 燃料气 3 +
     蒸汽 9 + 水 9 + 氮气 1 + 仪表空气 2 = 26 行). 默认分类:
-    - ELECTRICITY: value_type=EQUIVALENT (当量值 0.086)
+    - ELECTRICITY: value_type=electricity_value_type (默认 EQUIVALENT 当量值 0.086)
     - FUEL_GAS: sub_type=GASFIELD_GAS (气田气 0.85)
     - STEAM: pressure_level=0_8_TO_1_2_MPA (1.0 MPa MP 76)
     - WATER: water_type=CIRCULATING_WATER (循环水 0.06)
     - NITROGEN: 单行
     - INSTRUMENT_AIR: sub_type=PURIFIED (净化 0.038)
 
-    多行同 energy_type 时取第一行 (last-wins dict 行为不变).
-    后续 sprint: 按 actual aggregation 用 _get_factor_with_classification() 查精确分类.
-
     TODO: 接入 5-min TTL 缓存 (仿 ``_compound_config_cache`` 模式; T7 集成)。
     """
     stmt = select(ConfigEnergyConversionFactor)
     rows = (await db.execute(stmt)).scalars().all()
-    return {
-        r.energy_type: (r.toe_factor, r.standard_coal_factor) for r in rows
-    }
+
+    # R1 §5: ELECTRICITY 按 value_type 精确查表; 其他能源 last-wins
+    result: dict[str, tuple[float, float]] = {}
+    elec_equiv: tuple[float, float] | None = None
+    elec_value: tuple[float, float] | None = None
+    for r in rows:
+        if r.energy_type == "ELECTRICITY":
+            if r.value_type == "EQUIVALENT":
+                elec_equiv = (r.toe_factor, r.standard_coal_factor)
+            elif r.value_type == "EQUIVALENT_VALUE":
+                elec_value = (r.toe_factor, r.standard_coal_factor)
+        # 其他能源: last-wins (后续 sprint 用 R1 全表精确分类)
+        result[r.energy_type] = (r.toe_factor, r.standard_coal_factor)
+
+    # ELECTRICITY 按 caller 指定 value_type 选
+    if electricity_value_type == "EQUIVALENT_VALUE" and elec_value is not None:
+        result["ELECTRICITY"] = elec_value
+    elif elec_equiv is not None:
+        result["ELECTRICITY"] = elec_equiv
+
+    return result
 
 
 def _get_factor_with_classification(
@@ -163,9 +183,18 @@ def _get_factor_with_classification(
 def _compute_totals(
     agg: EnergyAggregation,
     factors: dict[str, tuple[float, float]],
+    *,
+    electricity_value_type: str = "EQUIVALENT",
 ) -> tuple[float, float, float]:
     """6 类能源消耗 × 折标系数 → total_toe / total_standard_coal_kg /
     annual_total_energy (MJ/yr).
+
+    R1 §5: electricity_value_type 选择 ELECTRICITY 当量值/等价值:
+    - EQUIVALENT (当量值 0.086 kg标油/kWh, 其他产品用; 默认)
+    - EQUIVALENT_VALUE (等价值 0.21 kg标油/kWh, 炼油/乙烯用)
+
+    当前实现: dict 单行 lookup (last-wins); 炼油/乙烯等价值用户传 EQUIVALENT_VALUE
+    会触发精确查表逻辑 (按 R1 26 行全表).
 
     单位换算到 MJ canonical unit (简化假设; 待 P7-6B 工艺室精化):
     - 1 kWh = 3.6 MJ
@@ -185,6 +214,25 @@ def _compute_totals(
     NM3_GAS_TO_MJ = 0.0  # 预留
     GJ_LOW_TEMP_TO_MJ = 1000.0
 
+    # R1 §5: 电折标系数按 electricity_value_type 选择
+    # 当前 dict 单行 (last-wins) → 默认 EQUIVALENT; EQUIVALENT_VALUE 需精确查表
+    if electricity_value_type == "EQUIVALENT_VALUE":
+        # 等价值 (炼油/乙烯) — R1 强制 0.21 kg标油/kWh
+        e_toe, e_coal = factors.get(
+            "ELECTRICITY", (0.21, 0.30)
+        )
+        # 若 factors dict 有等价值行 (后续 sprint 用全表), 优先取它
+    else:
+        # 当量值 (默认; 其他产品) — R1 强制 0.086 kg标油/kWh
+        e_toe, e_coal = factors.get(
+            "ELECTRICITY", (0.086, 0.1229)
+        )
+    f_toe, f_coal = factors.get("FUEL_GAS", (0.85, 1.214))
+    s_toe, s_coal = factors.get("STEAM", (76.0, 108.6))
+    w_toe, w_coal = factors.get("WATER", (0.06, 0.086))
+    g_toe, g_coal = factors.get("GAS", (0.85, 1.2143))
+    h_toe, h_coal = factors.get("LOW_TEMP_HEAT", (0.0341, 0.0487))
+
     # 年度累积 MJ
     electricity_mj = agg.electricity_kwh_yr * KWH_TO_MJ
     fuel_gas_mj = agg.fuel_gas_nm3_yr * NM3_FUEL_GAS_TO_MJ
@@ -196,21 +244,6 @@ def _compute_totals(
         electricity_mj + fuel_gas_mj + steam_mj
         + water_mj + gas_mj + low_temp_mj
     )
-
-    # 折标油 toe (1 toe = 1000 kg 标油)
-    # R1 修订 (PCS-SIGN-F-P0-001-2026-10-08-R1): 三层标准 GB/T 2589-2020 + GB 30251-2024 +
-    # GB/T 50441-2016 交叉核对后 fallback 默认值:
-    #   ELECTRICITY (当量值) 0.086 kg标油/kWh (R0 0.1229 → R1 修正; R0 是 GB/T 2589-2020 kgce 误标 kg标油)
-    #   FUEL_GAS (气田气)     0.85 kg标油/Nm³ (R0 1.0 单值 → R1 按气源分类)
-    #   STEAM (1.0 MPa MP)   76.0 kg标油/t (R0 94.4 → R1 按压力 9 档查表)
-    #   WATER (循环水)        0.06 kg标油/t (R0 0.1 → R1 按水类型 9 类查表)
-    #   标准煤 = toe × 1.4286 (1 kgce = 0.7 kg标油)
-    e_toe, e_coal = factors.get("ELECTRICITY", (0.086, 0.1229))
-    f_toe, f_coal = factors.get("FUEL_GAS", (0.85, 1.214))
-    s_toe, s_coal = factors.get("STEAM", (76.0, 108.6))
-    w_toe, w_coal = factors.get("WATER", (0.06, 0.086))
-    g_toe, g_coal = factors.get("GAS", (0.85, 1.2143))
-    h_toe, h_coal = factors.get("LOW_TEMP_HEAT", (0.0341, 0.0487))
 
     # toe = consumption × toe_factor (toe_factor 单位 kg 标油 / 单位消耗)
     # total 单位转换: toe = consumption_kg_单位足 × kg 标油 / 单位 = kg 标油
@@ -275,12 +308,15 @@ async def summarize_energy_year(
         electricity_value_type=electricity_value_type,
     )
 
-    # 2. 读 ConfigEnergyConversionFactor 折标系数
-    factors = await _get_energy_conversion_factors(db)
+    # 2. 读 ConfigEnergyConversionFactor 折标系数 (R1 §5: 按 electricity_value_type)
+    factors = await _get_energy_conversion_factors(
+        db, electricity_value_type=electricity_value_type,
+    )
 
     # 3. 计算 total_toe / total_coal / annual_total_energy
+    # R1 §5: electricity_value_type 选择 ELECTRICITY 行 (EQUIVALENT/EQUIVALENT_VALUE)
     total_toe, total_coal_kg, annual_total_energy = _compute_totals(
-        agg, factors
+        agg, factors, electricity_value_type=electricity_value_type,
     )
 
     # 4. 聚合折标系数 (kg 标 / MJ)
@@ -329,6 +365,8 @@ async def summarize_energy_year(
         existing.total_standard_coal_kg = total_coal_kg
         existing.tolerance_pct = tolerance_pct
         existing.tolerance_status = tolerance_status
+        # R1 §5: 持久化 electricity_value_type 标记 (审计追溯用)
+        existing.electricity_value_type = electricity_value_type
         existing.computed_at = func.now()
         summary = existing
     else:
@@ -351,6 +389,8 @@ async def summarize_energy_year(
             total_standard_coal_kg=total_coal_kg,
             tolerance_pct=tolerance_pct,
             tolerance_status=tolerance_status,
+            # R1 §5
+            electricity_value_type=electricity_value_type,
         )
         db.add(summary)
 
