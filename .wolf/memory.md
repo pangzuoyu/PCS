@@ -344,3 +344,15 @@
 | 14:31 | Created pcs-backend/alembic/versions/p7_open_009_004_auxiliary_consumption_4fields.py | — | ~1030 |
 | 14:32 | Edited pcs-backend/app/models/util.py | expanded (+24 lines) | ~395 |
 | 14:32 | Created pcs-backend/tests/services/util/test_auxiliary_consumption.py | — | ~765 |
+| 16:55 | Created pcs-backend/alembic/versions/p7_open_009_005_utility_energy_summary.py | — | ~2201 |
+| 16:59 | Edited pcs-backend/app/models/util.py | 13→14 lines | ~51 |
+| 17:03 | Created pcs-backend/app/services/util/utility_energy_summary_service.py | — | ~2958 |
+| 17:03 | Created pcs-backend/tests/services/util/fixtures/golden_utility_energy_summary.json | — | ~998 |
+| 17:04 | Created pcs-backend/tests/services/util/fixtures/golden_utility_energy_summary.json | — | ~1019 |
+| 17:06 | Created pcs-backend/tests/services/util/test_utility_energy_summary.py | — | ~2889 |
+| 17:06 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 5→4 lines | ~34 |
+| 17:06 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 2→2 lines | ~18 |
+| 17:08 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | inline fix | ~15 |
+| 17:08 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 8→8 lines | ~210 |
+| 17:09 | Edited pcs-backend/tests/services/util/fixtures/golden_utility_energy_summary.json | 10→10 lines | ~95 |
+| 17:09 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | expanded (+30 lines) | ~277 |

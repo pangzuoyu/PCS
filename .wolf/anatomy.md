@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-01T06:32:29.445Z
-> Files: 812 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-01T09:09:51.569Z
+> Files: 816 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -278,6 +278,7 @@
 - `p7_open_009_002_utility_fuel_gas.py` — P7 Sprint 2 T2: utility_fuel_gas 表 (燃料气). (~1639 tok)
 - `p7_open_009_003_utility_heat_exchange.py` — P7 Sprint 2 T3: utility_heat_exchange 表 (蒸汽/冷凝水). (~1762 tok)
 - `p7_open_009_004_auxiliary_consumption_4fields.py` — P7 Sprint 2 T4: auxiliary_consumption 4 字段 ALTER (util_results). (~1030 tok)
+- `p7_open_009_005_utility_energy_summary.py` — P7 Sprint 2 T5: utility_energy_summary 表 (综合能耗汇总). (~2201 tok)
 - `p7_open_009_t0_config_energy_conversion_factors.py` — P7 Sprint 2 T0: config_energy_conversion_factors CONFIG 表 (折标煤系数). (~856 tok)
 - `p7_s1_002_audit_logs_jsonb_gin.py` — audit_logs.detail_json 加 JSONB GIN 索引（P7-Sprint 1 T0 / D8 裁决 9A）。 (~387 tok)
 
@@ -356,7 +357,7 @@
 - `sim_unit_op.py` — P3.x SIM-15: sim_unit_op_results + 6 专用结果表（单元 SUMMARY 存档）。 (~1967 tok)
 - `stream_symbol.py` — 物流符号表 ORM（SUP-002 §7.1/§7.2）。 (~563 tok)
 - `system.py` — Declares DataLineage (~2468 tok)
-- `util.py` — S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。 (~3946 tok)
+- `util.py` — S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。 (~5233 tok)
 
 ## pcs-backend/app/schemas/
 
@@ -499,6 +500,7 @@
 - `persist_service.py` — S1-5b UTIL persist service。 (~1030 tok)
 - `source_aggregator.py` — S1-5b SourceModule → 13 类公用工程 consumption_json 聚合。 (~1848 tok)
 - `summary_service.py` — S1-5 R3: util_results → 13 类聚合 + 折标煤计算。 (~970 tok)
+- `utility_energy_summary_service.py` — P7 Sprint 2 T5: 综合能耗汇总 service (utility_energy_summary). (~2948 tok)
 
 ## pcs-backend/app/services/vessel/
 
@@ -810,12 +812,14 @@
 ## pcs-backend/tests/services/util/
 
 - `test_auxiliary_consumption.py` — P7 Sprint 2 T4: auxiliary_consumption 4 字段 ALTER 测试. (~765 tok)
+- `test_utility_energy_summary.py` — P7 Sprint 2 T5: utility_energy_summary service 测试. (~3013 tok)
 - `test_utility_fuel_gas.py` — P7 Sprint 2 T2: utility_fuel_gas 测试. (~1723 tok)
 - `test_utility_heat_exchange.py` — P7 Sprint 2 T3: utility_heat_exchange 测试. (~1447 tok)
 - `test_utility_power_items.py` — P7 Sprint 2 T1: utility_power_items 测试. (~1624 tok)
 
 ## pcs-backend/tests/services/util/fixtures/
 
+- `golden_utility_energy_summary.json` (~1019 tok)
 - `golden_utility_fuel_gas.json` (~878 tok)
 - `golden_utility_heat_exchange.json` (~751 tok)
 - `golden_utility_power_items.json` (~933 tok)

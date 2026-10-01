@@ -1,0 +1,91 @@
+{
+  "_meta": {
+    "description": "P7 Sprint 2 T5 utility_energy_summary 黄金 fixture (3 算例)",
+    "schema_version": "1.0",
+    "source": "SYNTHETIC_TEST_DATA",
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "spec_ref": "P7 SPEC V1.4 §3.2.2(5) + P7-OPEN-009 §1 #4 + §6 验收 ≤2%",
+    "notes": "3 算例: 小型 / 中型 / 大型 综合能耗. 折标系数 from config_energy_conversion_factors (T0 已 seed 6 行). unit_to_mj: 1kWh=3.6MJ / 1Nm³ fuel_gas=38MJ / 1t steam=2778MJ / 1GJ low_temp=1000MJ / water/gas=0MJ. expected 数值由 service _compute_totals 公式手算验证 (Case 1 仅电+蒸汽; Case 2 电+燃料+蒸汽; Case 3 大型含燃料 MAX 工况)."
+  },
+  "cases": [
+    {
+      "case_id": "T5_CASE_01_SMALL",
+      "description": "小型炼化装置 (1 泵 + 1 蒸汽用户)",
+      "business_year": 2026,
+      "power_items": [
+        {"equipment_tag": "P-101", "annual_consumption_kwh": 102000.0}
+      ],
+      "fuel_gas_items": [],
+      "heat_exchange_items": [
+        {"equipment_tag": "ST-LP-101", "annual_consumption_t": 20000.0}
+      ],
+      "expected": {
+        "electricity_kwh_yr": 102000.0,
+        "fuel_gas_nm3_yr": 0.0,
+        "steam_t_yr": 20000.0,
+        "annual_total_energy_mj": 55927200.0,
+        "total_toe_kg": 14055.8,
+        "total_toe_tonne": 14.0558,
+        "total_standard_coal_kg": 43380.0,
+        "tolerance_status": "NA"
+      }
+    },
+    {
+      "case_id": "T5_CASE_02_MEDIUM",
+      "description": "中型化工装置 (4 泵 + 1 燃料气炉 STEADY + 3 蒸汽用户)",
+      "business_year": 2026,
+      "power_items": [
+        {"equipment_tag": "P-201", "annual_consumption_kwh": 591300.0},
+        {"equipment_tag": "P-202", "annual_consumption_kwh": 1080000.0},
+        {"equipment_tag": "P-203", "annual_consumption_kwh": 13200.0},
+        {"equipment_tag": "P-204", "annual_consumption_kwh": 8882500.0}
+      ],
+      "fuel_gas_items": [
+        {"equipment_tag": "H-202", "operating_phase": "STEADY", "annual_consumption_nm3": 1600000.0}
+      ],
+      "heat_exchange_items": [
+        {"equipment_tag": "ST-MP-201", "annual_consumption_t": 42000.0},
+        {"equipment_tag": "ST-MP-202", "annual_consumption_t": 19500.0},
+        {"equipment_tag": "ST-HP-301", "annual_consumption_t": 64000.0}
+      ],
+      "expected": {
+        "electricity_kwh_yr": 10567000.0,
+        "fuel_gas_nm3_yr": 1600000.0,
+        "steam_t_yr": 125500.0,
+        "annual_total_energy_mj": 447480200.0,
+        "total_toe_kg": 2908222.3,
+        "total_toe_tonne": 2908.2223,
+        "total_standard_coal_kg": 6568457.3,
+        "tolerance_status": "NA"
+      }
+    },
+    {
+      "case_id": "T5_CASE_03_LARGE",
+      "description": "大型炼化装置 (2 大压缩机 + 2 燃料气炉工况 + 2 蒸汽等级)",
+      "business_year": 2026,
+      "power_items": [
+        {"equipment_tag": "C-401", "annual_consumption_kwh": 11592000.0},
+        {"equipment_tag": "C-501", "annual_consumption_kwh": 38720000.0}
+      ],
+      "fuel_gas_items": [
+        {"equipment_tag": "H-202", "operating_phase": "STEADY", "annual_consumption_nm3": 1600000.0},
+        {"equipment_tag": "H-202", "operating_phase": "MAX", "annual_consumption_nm3": 375000.0}
+      ],
+      "heat_exchange_items": [
+        {"equipment_tag": "ST-UH-401", "annual_consumption_t": 120000.0},
+        {"equipment_tag": "ST-HP-301", "annual_consumption_t": 64000.0}
+      ],
+      "expected": {
+        "electricity_kwh_yr": 50312000.0,
+        "fuel_gas_nm3_yr": 1975000.0,
+        "steam_t_yr": 184000.0,
+        "annual_total_energy_mj": 767325200.0,
+        "total_toe_kg": 8172328.8,
+        "total_toe_tonne": 8172.3288,
+        "total_standard_coal_kg": 23167515.4,
+        "tolerance_status": "NA"
+      }
+    }
+  ]
+}

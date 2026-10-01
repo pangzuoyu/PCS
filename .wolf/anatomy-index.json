@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-01T06:32:29.445Z",
-    "fileCount": 812,
+    "lastScanned": "2026-10-01T09:09:51.569Z",
+    "fileCount": 816,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "1287141d716acad83417f3f682d12017b2ac93e500b223ef26a0345dbfa4ba5f",
-    "storeUpdatedAt": "2026-10-01T06:32:29.456Z",
-    "rootHash": "728bf07e5574ba47"
+    "renderedHash": "f3630a97dba39d0657640e4c56d7688440ffbfda456c3747ea675cd20e173f78",
+    "storeUpdatedAt": "2026-10-01T09:09:51.583Z",
+    "rootHash": "273dc4047e0daba5"
   },
   "files": {
     "CLAUDE.md": {
@@ -31261,40 +31261,47 @@
     },
     "pcs-backend/app/models/util.py": {
       "description": "S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。",
-      "tokens": 3946,
-      "hash": "d086076aac80b241",
-      "size": 15340,
-      "mtimeMs": 1790836322190.0374,
-      "updatedAt": "2026-10-01T06:32:02.245Z",
+      "tokens": 5233,
+      "hash": "14277df359e5f48d",
+      "size": 20264,
+      "mtimeMs": 1790845165857.393,
+      "updatedAt": "2026-10-01T08:59:25.915Z",
       "source": "hook",
       "symbols": [
         {
           "name": "UtilResults",
           "kind": "class",
-          "startLine": 38,
-          "endLine": 114,
+          "startLine": 39,
+          "endLine": 115,
           "tokens": 779
         },
         {
           "name": "UtilityPowerItem",
           "kind": "class",
-          "startLine": 115,
-          "endLine": 192,
+          "startLine": 116,
+          "endLine": 193,
           "tokens": 864
         },
         {
           "name": "UtilityFuelGas",
           "kind": "class",
-          "startLine": 193,
-          "endLine": 279,
+          "startLine": 194,
+          "endLine": 280,
           "tokens": 997
         },
         {
           "name": "UtilityHeatExchange",
           "kind": "class",
-          "startLine": 280,
-          "endLine": 375,
+          "startLine": 281,
+          "endLine": 377,
           "tokens": 1059
+        },
+        {
+          "name": "UtilityEnergySummary",
+          "kind": "class",
+          "startLine": 378,
+          "endLine": 493,
+          "tokens": 1284
         }
       ]
     },
@@ -31602,6 +31609,146 @@
           "startLine": 65,
           "endLine": 83,
           "tokens": 211
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p7_open_009_005_utility_energy_summary.py": {
+      "description": "P7 Sprint 2 T5: utility_energy_summary 表 (综合能耗汇总).",
+      "tokens": 2201,
+      "hash": "a435e5c883571e70",
+      "size": 8347,
+      "mtimeMs": 1790844943749.5083,
+      "updatedAt": "2026-10-01T08:55:43.798Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 234,
+          "tokens": 1692
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 235,
+          "endLine": 244,
+          "tokens": 122
+        }
+      ]
+    },
+    "pcs-backend/app/services/util/utility_energy_summary_service.py": {
+      "description": "P7 Sprint 2 T5: 综合能耗汇总 service (utility_energy_summary).",
+      "tokens": 2948,
+      "hash": "eeb3e477ab5d9e05",
+      "size": 11281,
+      "mtimeMs": 1790845680205.8599,
+      "updatedAt": "2026-10-01T09:08:00.252Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "EnergyAggregation",
+          "kind": "class",
+          "startLine": 46,
+          "endLine": 56,
+          "tokens": 75
+        },
+        {
+          "name": "_aggregate_util_subtables",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 101,
+          "tokens": 451
+        },
+        {
+          "name": "_get_energy_conversion_factors",
+          "kind": "fn",
+          "startLine": 102,
+          "endLine": 115,
+          "tokens": 128
+        },
+        {
+          "name": "_compute_totals",
+          "kind": "fn",
+          "startLine": 116,
+          "endLine": 185,
+          "tokens": 695
+        },
+        {
+          "name": "summarize_energy_year",
+          "kind": "fn",
+          "startLine": 186,
+          "endLine": 297,
+          "tokens": 1174
+        }
+      ]
+    },
+    "pcs-backend/tests/services/util/fixtures/golden_utility_energy_summary.json": {
+      "description": "",
+      "tokens": 1019,
+      "hash": "8eb730d868969d6e",
+      "size": 3762,
+      "mtimeMs": 1790845770727.0925,
+      "updatedAt": "2026-10-01T09:09:30.781Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/util/test_utility_energy_summary.py": {
+      "description": "P7 Sprint 2 T5: utility_energy_summary service 测试.",
+      "tokens": 3013,
+      "hash": "4b831094d85cb812",
+      "size": 10964,
+      "mtimeMs": 1790845791518.917,
+      "updatedAt": "2026-10-01T09:09:51.569Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "seeded_config_factors",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 94,
+          "tokens": 81
+        },
+        {
+          "name": "golden_fixture",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 104,
+          "tokens": 80
+        },
+        {
+          "name": "test_orm_tablename_and_columns",
+          "kind": "fn",
+          "startLine": 105,
+          "endLine": 115,
+          "tokens": 130
+        },
+        {
+          "name": "test_golden_fixture_loads_3_cases",
+          "kind": "fn",
+          "startLine": 116,
+          "endLine": 121,
+          "tokens": 40
+        },
+        {
+          "name": "test_service_aggregates_t1t2t3_within_tolerance",
+          "kind": "fn",
+          "startLine": 122,
+          "endLine": 240,
+          "tokens": 1241
+        },
+        {
+          "name": "test_service_idempotent_overwrites_same_year_source",
+          "kind": "fn",
+          "startLine": 241,
+          "endLine": 285,
+          "tokens": 341
+        },
+        {
+          "name": "test_service_tolerance_check_within_2pct",
+          "kind": "fn",
+          "startLine": 286,
+          "endLine": 341,
+          "tokens": 489
         }
       ]
     }

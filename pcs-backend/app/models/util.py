@@ -23,6 +23,7 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     Index,
+    Integer,
     String,
     UniqueConstraint,
     Uuid,
@@ -366,6 +367,123 @@ class UtilityHeatExchange(Base):
     )
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False,
+        comment="记录创建时间 (DB server_default)",
+    )
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(), nullable=True,
+        comment="记录更新时间 (ORM onupdate 触发)",
+    )
+
+
+class UtilityEnergySummary(Base):
+    """综合能耗汇总 (P7 Sprint 2 T5 / P7-OPEN-009 §1 #4).
+
+    业务 (P7 SPEC V1.4 §3.2.2(5) + §4.6):
+
+    - 存项目年度综合能耗汇总 (折标油 + 折标煤).
+    - 业务字段: 6 类能源 annual 消耗 (electricity/fuel_gas/steam/water/
+      gas/low_temp_heat) + 3 spec 字段 (annual_total_energy /
+      toe_conversion_factor / standard_coal_factor) + 2 derived
+      (total_toe / total_standard_coal_kg) + 2 容差 (tolerance_pct /
+      tolerance_status).
+    - 聚合 service: T1 utility_power_items + T2 utility_fuel_gas +
+      T3 utility_heat_exchange + cooling_water 待 P7-6B + 折标系数
+      ConfigEnergyConversionFactor (5-min TTL 缓存).
+    - 容差校验 ≤2% per P7-OPEN-009 §6.
+    - FK project_id / workspace_id CASCADE.
+    - UNIQUE(project_id, business_year, source) 同源同年防重复.
+    - 不继承 TaggedRecordMixin.
+    """
+
+    __tablename__ = "utility_energy_summary"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id", "business_year", "source",
+            name="uq_utility_energy_summary_project_year_source",
+        ),
+        Index("ix_utility_energy_summary_project", "project_id"),
+        Index("ix_utility_energy_summary_workspace", "workspace_id"),
+        Index("ix_utility_energy_summary_year", "business_year"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4,
+        comment="UUID 主键 (uuid.uuid4 default)",
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=False,
+        comment="项目 ID (FK projects.project_id)",
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workspaces.workspace_id", ondelete="CASCADE"), nullable=False,
+        comment="工作区 ID (FK workspaces.workspace_id)",
+    )
+    business_year: Mapped[int] = mapped_column(
+        Integer, nullable=False,
+        comment="业务年度 (e.g., 2026; summary 是 annual aggregation)",
+    )
+    source: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default="CALCULATION",
+        comment="数据来源: CALCULATION / XLS_REFERENCE",
+    )
+    electricity_kwh_yr: Mapped[float | None] = mapped_column(
+        Float, nullable=True,
+        comment="年用电量 (kWh/yr; 聚合 utility_power_items)",
+    )
+    fuel_gas_nm3_yr: Mapped[float | None] = mapped_column(
+        Float, nullable=True,
+        comment="年燃料气消耗量 (Nm³/yr; 聚合 utility_fuel_gas)",
+    )
+    steam_t_yr: Mapped[float | None] = mapped_column(
+        Float, nullable=True,
+        comment="年蒸汽消耗量 (t/yr; 聚合 utility_heat_exchange)",
+    )
+    water_t_yr: Mapped[float | None] = mapped_column(
+        Float, nullable=True,
+        comment="年新鲜水消耗量 (t/yr; 待 P7-6B 冷却水子表落地)",
+    )
+    gas_nm3_yr: Mapped[float | None] = mapped_column(
+        Float, nullable=True,
+        comment="年工艺气体消耗量 (Nm³/yr; 预留字段)",
+    )
+    low_temp_heat_gj_yr: Mapped[float | None] = mapped_column(
+        Float, nullable=True,
+        comment="年低温余热 (GJ/yr; 预留字段)",
+    )
+    annual_total_energy: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="年度总能耗 (MJ/yr; canonical unit)",
+    )
+    toe_conversion_factor: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="聚合折标油系数 (kg 标油/MJ)",
+    )
+    standard_coal_factor: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="聚合折标煤系数 (kg 标煤/MJ)",
+    )
+    total_toe: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="年度折标油总量 (tonne oil equivalent)",
+    )
+    total_standard_coal_kg: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="年度折标煤总量 (kg 标煤)",
+    )
+    tolerance_pct: Mapped[float | None] = mapped_column(
+        Float, nullable=True,
+        comment="容差 (vs XLS_REFERENCE; ≤2% per P7-OPEN-009 §6)",
+    )
+    tolerance_status: Mapped[str] = mapped_column(
+        String(16), nullable=False, server_default="OK",
+        comment="容差校验状态: OK / EXCEEDED / NA",
+    )
+    computed_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(),
+        comment="服务计算时间 (DB server_default)",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now(),
         comment="记录创建时间 (DB server_default)",
     )
     updated_at: Mapped[datetime.datetime | None] = mapped_column(

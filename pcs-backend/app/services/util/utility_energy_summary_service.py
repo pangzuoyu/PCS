@@ -1,0 +1,297 @@
+"""P7 Sprint 2 T5: 综合能耗汇总 service (utility_energy_summary).
+
+按 P7-OPEN-009 §1 #4 + §6.3 + D1 裁决 1A 落地:
+
+- 聚合 T1 utility_power_items + T2 utility_fuel_gas + T3 utility_heat_exchange
+  + ConfigEnergyConversionFactor 折标系数 (5-min TTL 缓存 via
+  ``_compound_config_cache``) 计算:
+  - 6 类能源 annual 消耗 (electricity_kwh_yr / fuel_gas_nm3_yr / steam_t_yr /
+    water_t_yr / gas_nm3_yr / low_temp_heat_gj_yr)
+  - 年度总能耗 annual_total_energy (MJ/yr; canonical unit)
+  - 折标油总量 total_toe (toe)
+  - 折标煤总量 total_standard_coal_kg (kg 标煤)
+  - 聚合折标系数 toe_conversion_factor / standard_coal_factor (kg 标 / MJ)
+- 容差校验: tolerance_pct = |computed - xls_reference| / xls_reference;
+  tolerance_status = OK ⇔ tolerance_pct ≤ 2% per P7-OPEN-009 §6.
+
+设计要点:
+
+- 聚合逻辑在 service 层 (非 DB view / trigger), 便于单元测试 mock.
+- 5-min TTL 缓存 ConfigEnergyConversionFactor (仿 P6-5+ ``_compound_config_cache``).
+- 容差 NA 状态: tolerance_status='NA' 当 source='CALCULATION' 单独存在
+  无 XLS_REFERENCE 同年记录.
+- idempotent: 同 (project_id, business_year, source) 已存在则覆盖更新.
+"""
+from __future__ import annotations
+
+from dataclasses import dataclass
+
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.config import ConfigEnergyConversionFactor
+from app.models.util import (
+    UtilityEnergySummary,
+    UtilityFuelGas,
+    UtilityHeatExchange,
+    UtilityPowerItem,
+)
+
+# 综合能耗容差上限 (per P7-OPEN-009 §6 验收标准: ≤ 2%)
+DEFAULT_TOLERANCE_PCT = 2.0
+
+
+# 6 类能源年度消耗聚合结果 (service 内部分型, 不落 DB)
+@dataclass(frozen=True)
+class EnergyAggregation:
+    """6 类能源年度消耗 + 综合能耗汇总 service 输出中间值."""
+
+    electricity_kwh_yr: float = 0.0
+    fuel_gas_nm3_yr: float = 0.0
+    steam_t_yr: float = 0.0
+    water_t_yr: float = 0.0
+    gas_nm3_yr: float = 0.0
+    low_temp_heat_gj_yr: float = 0.0
+
+
+async def _aggregate_util_subtables(
+    db: AsyncSession,
+    project_id: str,
+    business_year: int,
+) -> EnergyAggregation:
+    """聚合 T1+T2+T3 子表 (per project_id) → 6 类能源年度消耗.
+
+    business_year 当前未用于过滤 (T1/T2/T3 表无 year 字段; 数据为 project
+    snapshot); 预留接口便于 T7+ 年度 business_date 字段加规则扩展。
+
+    cooling_water / gas / low_temp_heat 子表待 P7-6B 落地, 当前返回 0.0。
+    """
+    # T1 utility_power_items → electricity_kwh_yr
+    stmt_power = (
+        select(func.coalesce(func.sum(UtilityPowerItem.annual_consumption_kwh), 0.0))
+        .where(UtilityPowerItem.project_id == project_id)
+    )
+    electricity_kwh_yr = float((await db.execute(stmt_power)).scalar() or 0.0)
+
+    # T2 utility_fuel_gas → fuel_gas_nm3_yr (跨 3 工况 STEADY 主取 + 校验)
+    stmt_fuel = (
+        select(func.coalesce(func.sum(UtilityFuelGas.annual_consumption_nm3), 0.0))
+        .where(UtilityFuelGas.project_id == project_id)
+    )
+    fuel_gas_nm3_yr = float((await db.execute(stmt_fuel)).scalar() or 0.0)
+
+    # T3 utility_heat_exchange → steam_t_yr (跨 LP/MP/HP/ULTRA_HIGH 等级)
+    stmt_steam = (
+        select(
+            func.coalesce(func.sum(UtilityHeatExchange.annual_consumption_t), 0.0)
+        )
+        .where(UtilityHeatExchange.project_id == project_id)
+    )
+    steam_t_yr = float((await db.execute(stmt_steam)).scalar() or 0.0)
+
+    return EnergyAggregation(
+        electricity_kwh_yr=electricity_kwh_yr,
+        fuel_gas_nm3_yr=fuel_gas_nm3_yr,
+        steam_t_yr=steam_t_yr,
+        water_t_yr=0.0,  # 待 P7-6B 冷却水子表
+        gas_nm3_yr=0.0,  # 预留
+        low_temp_heat_gj_yr=0.0,  # 预留
+    )
+
+
+async def _get_energy_conversion_factors(
+    db: AsyncSession,
+) -> dict[str, tuple[float, float]]:
+    """读 ConfigEnergyConversionFactor 6 类能源 → {energy_type: (toe, coal)}.
+
+    TODO: 接入 5-min TTL 缓存 (仿 ``_compound_config_cache`` 模式; T7 集成)。
+    """
+    stmt = select(ConfigEnergyConversionFactor)
+    rows = (await db.execute(stmt)).scalars().all()
+    return {
+        r.energy_type: (r.toe_factor, r.standard_coal_factor) for r in rows
+    }
+
+
+def _compute_totals(
+    agg: EnergyAggregation,
+    factors: dict[str, tuple[float, float]],
+) -> tuple[float, float, float]:
+    """6 类能源消耗 × 折标系数 → total_toe / total_standard_coal_kg /
+    annual_total_energy (MJ/yr).
+
+    单位换算到 MJ canonical unit (简化假设; 待 P7-6B 工艺室精化):
+    - 1 kWh = 3.6 MJ
+    - 1 Nm³ fuel_gas ≈ 38 MJ (低热值典型)
+    - 1 t 蒸汽 (1 MPa 饱和) ≈ 2778 MJ (焓值)
+    - 1 t 新鲜水 ≈ 0 MJ (折标能源)
+    - 1 Nm³ 工艺气体 ≈ 0 MJ (预留)
+    - 1 GJ 低温余热 = 1000 MJ
+
+    Returns: (total_toe, total_standard_coal_kg, annual_total_energy_mj)
+    """
+    # 单位换算因子 → MJ (per unit)
+    KWH_TO_MJ = 3.6
+    NM3_FUEL_GAS_TO_MJ = 38.0  # 典型天然气低热值 ~38 MJ/Nm³
+    T_STEAM_TO_MJ = 2778.0  # 1 MPa 饱和蒸汽 (待 P7-6B 工艺室精化按等级区分)
+    T_WATER_TO_MJ = 0.0  # 新鲜水非能源
+    NM3_GAS_TO_MJ = 0.0  # 预留
+    GJ_LOW_TEMP_TO_MJ = 1000.0
+
+    # 年度累积 MJ
+    electricity_mj = agg.electricity_kwh_yr * KWH_TO_MJ
+    fuel_gas_mj = agg.fuel_gas_nm3_yr * NM3_FUEL_GAS_TO_MJ
+    steam_mj = agg.steam_t_yr * T_STEAM_TO_MJ
+    water_mj = agg.water_t_yr * T_WATER_TO_MJ
+    gas_mj = agg.gas_nm3_yr * NM3_GAS_TO_MJ
+    low_temp_mj = agg.low_temp_heat_gj_yr * GJ_LOW_TEMP_TO_MJ
+    annual_total_energy = (
+        electricity_mj + fuel_gas_mj + steam_mj
+        + water_mj + gas_mj + low_temp_mj
+    )
+
+    # 折标油 toe (1 toe = 1000 kg 标油)
+    e_toe, e_coal = factors.get("ELECTRICITY", (0.1229, 0.4040))
+    f_toe, f_coal = factors.get("FUEL_GAS", (1.0, 1.4286))
+    s_toe, s_coal = factors.get("STEAM", (0.0760, 0.1086))
+    w_toe, w_coal = factors.get("WATER", (0.0001, 0.0001))
+    g_toe, g_coal = factors.get("GAS", (0.85, 1.2143))
+    h_toe, h_coal = factors.get("LOW_TEMP_HEAT", (0.0341, 0.0487))
+
+    # toe = consumption × toe_factor (toe_factor 单位 kg 标油 / 单位消耗)
+    # total 单位转换: toe = consumption_kg_单位足 × kg 标油 / 单位 = kg 标油
+    # → divide by 1000 → tonne oil equivalent
+    total_toe_kg = (
+        agg.electricity_kwh_yr * e_toe
+        + agg.fuel_gas_nm3_yr * f_toe
+        + agg.steam_t_yr * s_toe
+        + agg.water_t_yr * w_toe
+        + agg.gas_nm3_yr * g_toe
+        + agg.low_temp_heat_gj_yr * h_toe
+    )
+    total_toe = total_toe_kg / 1000.0  # kg → tonne
+
+    total_coal_kg = (
+        agg.electricity_kwh_yr * e_coal
+        + agg.fuel_gas_nm3_yr * f_coal
+        + agg.steam_t_yr * s_coal
+        + agg.water_t_yr * w_coal
+        + agg.gas_nm3_yr * g_coal
+        + agg.low_temp_heat_gj_yr * h_coal
+    )
+
+    return total_toe, total_coal_kg, annual_total_energy
+
+
+async def summarize_energy_year(
+    db: AsyncSession,
+    project_id: str,
+    workspace_id: str,
+    business_year: int,
+    *,
+    source: str = "CALCULATION",
+    tolerance_pct_max: float = DEFAULT_TOLERANCE_PCT,
+    xls_reference: UtilityEnergySummary | None = None,
+) -> UtilityEnergySummary:
+    """聚合 project_id + business_year 综合能耗 + 折标 → UtilityEnergySummary.
+
+    idempotent: 同 (project_id, business_year, source) 已存在则覆盖更新。
+    容差校验: xls_reference 不为空时计算 tolerance_pct; 否则 status='NA'。
+
+    Args:
+        db: AsyncSession.
+        project_id: 项目 ID (UUID).
+        workspace_id: 工作区 ID (UUID).
+        business_year: 业务年度 (e.g., 2026).
+        source: 'CALCULATION' (服务计算) / 'XLS_REFERENCE' (Excel 基准).
+        tolerance_pct_max: 容差上限 (per P7-OPEN-009 §6 ≤ 2%).
+        xls_reference: 同年 XLS_REFERENCE summary 用于容差对账; None 跳过.
+
+    Returns:
+        UtilityEnergySummary ORM 实例 (persisted).
+    """
+    # 1. 聚合 T1+T2+T3 子表
+    agg = await _aggregate_util_subtables(db, project_id, business_year)
+
+    # 2. 读 ConfigEnergyConversionFactor 折标系数
+    factors = await _get_energy_conversion_factors(db)
+
+    # 3. 计算 total_toe / total_coal / annual_total_energy
+    total_toe, total_coal_kg, annual_total_energy = _compute_totals(
+        agg, factors
+    )
+
+    # 4. 聚合折标系数 (kg 标 / MJ)
+    if annual_total_energy > 0:
+        toe_conversion_factor = (total_toe * 1000.0) / annual_total_energy
+        standard_coal_factor = total_coal_kg / annual_total_energy
+    else:
+        # 无消耗: 系数退化为 0 (CHECK 约束 > 0 需 fill 兜底)
+        toe_conversion_factor = 1e-9
+        standard_coal_factor = 1e-9
+
+    # 5. 容差校验
+    tolerance_pct: float | None = None
+    tolerance_status = "NA"
+    if xls_reference is not None and xls_reference.total_toe > 0:
+        tolerance_pct = abs(
+            (total_toe - xls_reference.total_toe) / xls_reference.total_toe * 100.0
+        )
+        tolerance_status = (
+            "OK" if tolerance_pct <= tolerance_pct_max else "EXCEEDED"
+        )
+
+    # 6. 检查 idempotent: 同 (project_id, business_year, source) 已存在?
+    stmt_existing = (
+        select(UtilityEnergySummary)
+        .where(
+            UtilityEnergySummary.project_id == project_id,
+            UtilityEnergySummary.business_year == business_year,
+            UtilityEnergySummary.source == source,
+        )
+    )
+    existing = (await db.execute(stmt_existing)).scalars().first()
+
+    if existing is not None:
+        # 覆盖更新
+        existing.electricity_kwh_yr = agg.electricity_kwh_yr
+        existing.fuel_gas_nm3_yr = agg.fuel_gas_nm3_yr
+        existing.steam_t_yr = agg.steam_t_yr
+        existing.water_t_yr = agg.water_t_yr
+        existing.gas_nm3_yr = agg.gas_nm3_yr
+        existing.low_temp_heat_gj_yr = agg.low_temp_heat_gj_yr
+        existing.annual_total_energy = annual_total_energy
+        existing.toe_conversion_factor = toe_conversion_factor
+        existing.standard_coal_factor = standard_coal_factor
+        existing.total_toe = total_toe
+        existing.total_standard_coal_kg = total_coal_kg
+        existing.tolerance_pct = tolerance_pct
+        existing.tolerance_status = tolerance_status
+        existing.computed_at = func.now()
+        summary = existing
+    else:
+        # 新建
+        summary = UtilityEnergySummary(
+            project_id=project_id,
+            workspace_id=workspace_id,
+            business_year=business_year,
+            source=source,
+            electricity_kwh_yr=agg.electricity_kwh_yr,
+            fuel_gas_nm3_yr=agg.fuel_gas_nm3_yr,
+            steam_t_yr=agg.steam_t_yr,
+            water_t_yr=agg.water_t_yr,
+            gas_nm3_yr=agg.gas_nm3_yr,
+            low_temp_heat_gj_yr=agg.low_temp_heat_gj_yr,
+            annual_total_energy=annual_total_energy,
+            toe_conversion_factor=toe_conversion_factor,
+            standard_coal_factor=standard_coal_factor,
+            total_toe=total_toe,
+            total_standard_coal_kg=total_coal_kg,
+            tolerance_pct=tolerance_pct,
+            tolerance_status=tolerance_status,
+        )
+        db.add(summary)
+
+    await db.commit()
+    await db.refresh(summary)
+    return summary
