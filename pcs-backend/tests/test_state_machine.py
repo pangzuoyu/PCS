@@ -8,7 +8,8 @@ import pytest
 def test_state_transition_enum_has_13_entries():
     from app.models.enums import StateTransition
 
-    assert len(StateTransition) == 13, sorted(s.value for s in StateTransition)
+    # D4 4A 14 个事件（13 user-driven + SYNC_FROM_SOURCE 系统事件）
+    assert len(StateTransition) == 14, sorted(s.value for s in StateTransition)
 
 
 def test_snapshot_status_enum_has_3_entries():
@@ -18,7 +19,7 @@ def test_snapshot_status_enum_has_3_entries():
 
 
 def test_allowed_transitions_complete_13_events():
-    """ALLOWED_TRANSITIONS 应覆盖全部 13 个 StateTransition。"""
+    """ALLOWED_TRANSITIONS 应覆盖全部 14 个 StateTransition（含 SYNC_FROM_SOURCE）。"""
     from app.models.enums import StateTransition
     from app.services.state_machine import ALLOWED_TRANSITIONS
 

@@ -143,6 +143,8 @@ class StateTransition(str, enum.Enum):
     RESOLVE_STALE_NO_CHANGE = "RESOLVE_STALE_NO_CHANGE"
     RESOLVE_STALE_CHANGED = "RESOLVE_STALE_CHANGED"
     OBSOLETE = "OBSOLETE"
+    # D4 4A 回修 Sprint 1 sync_from_source：sync 导入走 state_machine 写 audit
+    SYNC_FROM_SOURCE = "SYNC_FROM_SOURCE"
 
 
 class UserStatus(str, enum.Enum):

@@ -22,11 +22,21 @@ from uuid import UUID
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.enums import StateTransition, to_value
 from app.models.equipment import EquipmentList, EquipmentTypeCode
-from app.models.enums import to_value
 from app.services.advisory_lock import acquire_equip_list_lock
 from app.services.equip_list.source_resolver import get_source_record
 from app.services.equip_list.type_code_map import derive_type_code
+from app.services.state_machine import (
+    SYSTEM_ROLE,
+    SYSTEM_USER_ID,
+    StateMachineService,
+)
+
+# D4 4A + 选项 2：sync_from_source 系统 actor 用 SYSTEM 角色（专用，非 SYSADMIN）
+# SYSTEM_USER_ID 是真实 user_id（...0001 末段）— 见 state_machine.py 常量
+SYNC_SYSTEM_ACTOR_USER_ID = SYSTEM_USER_ID
+SYNC_SYSTEM_ACTOR_ROLE = SYSTEM_ROLE
 
 
 async def _resolve_type_code_fk(
@@ -124,7 +134,9 @@ async def sync_from_source(
     type_code = derive_type_code(source_module)
 
     if existing is not None:
-        existing.sign_status = source.sign_status
+        # D4 4A：sign_status 通过 state_machine.transition 写 audit（不再直接 ORM UPDATE）
+        old_sign_status = existing.sign_status
+        new_sign_status = to_value(source.sign_status)
         existing.equipment_status = "E"  # Existing
         existing.approval_step = source.approval_step
         existing.approval_depth = source.approval_depth
@@ -136,6 +148,21 @@ async def sync_from_source(
             project_id, type_code, db
         )
         existing.type_code = type_code
+
+        if old_sign_status != new_sign_status:
+            # 状态变化走 state_machine.transition → audit trail + TRANSITION_ROLES ACL
+            # （idempotent re-sync 状态相同则跳过 transition）
+            sm = StateMachineService(db)
+            existing = await sm.transition(
+                record=existing,
+                transition=StateTransition.SYNC_FROM_SOURCE,
+                actor_user_id=SYNC_SYSTEM_ACTOR_USER_ID,
+                actor_role=SYNC_SYSTEM_ACTOR_ROLE,
+                reason=(
+                    f"sync_from_source: module={source_module} "
+                    f"source_record_id={source_record_id}"
+                ),
+            )
         await db.commit()
         await db.refresh(existing)
         return existing

@@ -30,14 +30,25 @@ depends_on: str | tuple[str, ...] | None = None
 
 
 def upgrade() -> None:
+    # F-P0-005 修复：CONCURRENTLY 不能在 alembic transaction 内跑；
+    # 必须先 COMMIT 退出当前事务，再 CONCURRENTLY 建索引，最后再开新事务。
+    # See: https://alembic.sqlalchemy.org/en/latest/cookbook.html#create-index-concurrently
+    op.execute("COMMIT")
     op.create_index(
         "ix_audit_logs_detail_json_gin",
         "audit_logs",
         ["detail_json"],
         postgresql_using="gin",
         postgresql_ops={"detail_json": "jsonb_path_ops"},
+        postgresql_concurrently=True,
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_audit_logs_detail_json_gin", table_name="audit_logs")
+    # 与 upgrade 对称：CONCURRENTLY drop 也需 COMMIT 退出事务
+    op.execute("COMMIT")
+    op.drop_index(
+        "ix_audit_logs_detail_json_gin",
+        table_name="audit_logs",
+        postgresql_concurrently=True,
+    )

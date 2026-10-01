@@ -113,7 +113,7 @@ class User(Base):
     roles: Mapped[list[str]] = mapped_column(
         JSONB,
         default=list,
-        comment="ApprovalRole 7 值：DESIGNER/CHECKER/REVIEWER/APPROVER/SYSADMIN/PROCESS_CONTROLLER/DATA_ADMIN",  # noqa: E501
+        comment="ApprovalRole 8 值：DESIGNER/CHECKER/REVIEWER/APPROVER/SYSADMIN/PROCESS_CONTROLLER/DATA_ADMIN/SYSTEM (D4 4A 系统自动行为专用)",  # noqa: E501
     )
     ad_groups: Mapped[list[str]] = mapped_column(JSONB, default=list)
     status: Mapped[str] = mapped_column(String(20), default=UserStatus.ACTIVE.value)

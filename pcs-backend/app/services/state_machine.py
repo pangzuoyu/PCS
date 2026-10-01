@@ -25,6 +25,12 @@ if TYPE_CHECKING:
     from app.models.mixins import RecordMixin
 
 
+# D4 4A + 选项 2：sync_from_source 系统 actor 常量
+# SYSTEM_USER_ID 是专用 UUID（...0001 末段识别，非 nil），SYSTEM 角色非 SYSADMIN 弱权限
+SYSTEM_USER_ID = uuid.UUID("00000000-0000-0000-0000-000000000001")
+SYSTEM_ROLE = "SYSTEM"
+
+
 def _record_pk(record: RecordMixin) -> uuid.UUID:
     """Extract PK UUID via mapper inspection (RecordMixin 不自带 __tablename__)。"""
     mapper = inspect(record.__class__)
@@ -77,6 +83,24 @@ ALLOWED_TRANSITIONS: dict[
         RecordSignStatus9.CHECKED,
     (RecordSignStatus9.STALE, StateTransition.RESOLVE_STALE_CHANGED):
         RecordSignStatus9.CHANGE_PENDING,
+    # D4 4A：sync_from_source 把 SourceService V1.4 CHECKED 状态推 EquipmentList
+    # 覆盖 8 个 syncable from_status → CHECKED；OBSOLETE 不允许（sync 不能 un-obsolete）
+    (RecordSignStatus9.DRAFT, StateTransition.SYNC_FROM_SOURCE):
+        RecordSignStatus9.CHECKED,
+    (RecordSignStatus9.IN_APPROVAL, StateTransition.SYNC_FROM_SOURCE):
+        RecordSignStatus9.CHECKED,
+    (RecordSignStatus9.CHECK_REJECTED, StateTransition.SYNC_FROM_SOURCE):
+        RecordSignStatus9.CHECKED,
+    (RecordSignStatus9.CHECKED, StateTransition.SYNC_FROM_SOURCE):
+        RecordSignStatus9.CHECKED,  # idempotent re-sync
+    (RecordSignStatus9.STALE, StateTransition.SYNC_FROM_SOURCE):
+        RecordSignStatus9.CHECKED,
+    (RecordSignStatus9.CHANGE_PENDING, StateTransition.SYNC_FROM_SOURCE):
+        RecordSignStatus9.CHECKED,
+    (RecordSignStatus9.CHANGED, StateTransition.SYNC_FROM_SOURCE):
+        RecordSignStatus9.CHECKED,
+    (RecordSignStatus9.REVERSAL_PENDING, StateTransition.SYNC_FROM_SOURCE):
+        RecordSignStatus9.CHECKED,
     # OBSOLETE：任意态
     (RecordSignStatus9.DRAFT, StateTransition.OBSOLETE): RecordSignStatus9.OBSOLETE,
     (RecordSignStatus9.IN_APPROVAL, StateTransition.OBSOLETE):
@@ -108,6 +132,8 @@ TRANSITION_ROLES: dict[StateTransition, set[str]] = {
     StateTransition.RESOLVE_STALE_NO_CHANGE: {"CHECKER", "SYSADMIN"},
     StateTransition.RESOLVE_STALE_CHANGED: {"CHECKER", "DESIGNER", "SYSADMIN"},
     StateTransition.OBSOLETE: {"DESIGNER", "CHECKER", "APPROVER", "SYSADMIN"},
+    # D4 4A：sync_from_source 仅系统账户 (SYSTEM 角色) 触发；非用户驱动
+    StateTransition.SYNC_FROM_SOURCE: {"SYSTEM"},
 }
 
 
@@ -126,6 +152,8 @@ TRANSITION_AUDIT_ACTION: dict[StateTransition, AuditAction] = {
     StateTransition.RESOLVE_STALE_NO_CHANGE: AuditAction.STALE_RESOLVED_NO_CHANGE,
     StateTransition.RESOLVE_STALE_CHANGED: AuditAction.STALE_RESOLVED_CHANGED,
     StateTransition.OBSOLETE: AuditAction.RECORD_OBSOLETED,
+    # D4 4A：sync_from_source 写 RECORD_TRANSITION audit (from→to + sync reason)
+    StateTransition.SYNC_FROM_SOURCE: AuditAction.RECORD_TRANSITION,
 }
 
 
