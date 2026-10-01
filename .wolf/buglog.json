@@ -2082,7 +2082,7 @@
       "file": "pcs-backend/app/api/v1/equip_list.py:1",
       "root_cause": "Pre-existing across PCS: each endpoint accepts project_id from client without checking current_actor.user_id has UserProject(project_id, role) association. Per process_engineering_ruling F-P1-005_sprint1_F-P0-004_same_root: F-P0-004 (Sprint 1 review) + F-P1-005 (Sprint 2 review) are same root. Amplified by F-P0-003 (audit bypass) — now F-P0-003 fixed in P7-S1-HOTFIX-A so audit trail catches IDOR abuse.",
       "fix": "BLOCKER-3 登记（非修复）：P7-7+ UserProject model 立项（user_projects 关联表 + _check_user_project_access 守卫覆盖 30+ routes）。预估 2-3 人周。本批只登记 + 临时缓解（audit trail 恢复）。",
-      "fix_commit": "PENDING",
+      "fix_commit": "d17fc88",
       "tags": [
         "ce-code-review",
         "p7-s1-hotfix-A",
