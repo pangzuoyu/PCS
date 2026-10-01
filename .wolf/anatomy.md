@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-01T05:20:28.110Z
-> Files: 807 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-01T05:30:45.461Z
+> Files: 810 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -276,6 +276,7 @@
 - `p6_9_pickup_4_drift_fixes.py` — P6-9-PICKUP-4 T1: pcs_test DB schema drift 修复. (~1411 tok)
 - `p7_open_009_001_utility_power_items.py` — P7 Sprint 2 T1: utility_power_items 表（电耗设备清单). (~1312 tok)
 - `p7_open_009_002_utility_fuel_gas.py` — P7 Sprint 2 T2: utility_fuel_gas 表 (燃料气). (~1639 tok)
+- `p7_open_009_003_utility_heat_exchange.py` — P7 Sprint 2 T3: utility_heat_exchange 表 (蒸汽/冷凝水). (~1762 tok)
 - `p7_open_009_t0_config_energy_conversion_factors.py` — P7 Sprint 2 T0: config_energy_conversion_factors CONFIG 表 (折标煤系数). (~856 tok)
 - `p7_s1_002_audit_logs_jsonb_gin.py` — audit_logs.detail_json 加 JSONB GIN 索引（P7-Sprint 1 T0 / D8 裁决 9A）。 (~387 tok)
 
@@ -808,11 +809,13 @@
 ## pcs-backend/tests/services/util/
 
 - `test_utility_fuel_gas.py` — P7 Sprint 2 T2: utility_fuel_gas 测试. (~1723 tok)
+- `test_utility_heat_exchange.py` — P7 Sprint 2 T3: utility_heat_exchange 测试. (~1447 tok)
 - `test_utility_power_items.py` — P7 Sprint 2 T1: utility_power_items 测试. (~1624 tok)
 
 ## pcs-backend/tests/services/util/fixtures/
 
 - `golden_utility_fuel_gas.json` (~878 tok)
+- `golden_utility_heat_exchange.json` (~751 tok)
 - `golden_utility_power_items.json` (~933 tok)
 
 ## pcs-backend/tests/services/vessel/

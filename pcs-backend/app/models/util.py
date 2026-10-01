@@ -251,3 +251,100 @@ class UtilityFuelGas(Base):
         DateTime(timezone=True), onupdate=func.now(), nullable=True,
         comment="记录更新时间 (ORM onupdate 触发)",
     )
+
+
+class UtilityHeatExchange(Base):
+    """蒸汽 / 冷凝水 (P7 Sprint 2 T3 / P7-OPEN-009 §1 #3).
+
+    业务 (P7 SPEC V1.4 §3.2.2(5) + §4.6):
+
+    - 存蒸汽 (HP/MP/LP/ULTRA_HIGH 等级) + 冷凝水消耗 / 回收数据。
+    - 业务字段：steam_pressure_mpa_gauge / steam_quality_pct /
+      return_condensate_pct / temperature_class enum (LP/MP/HP/ULTRA_HIGH)
+      / steam_consumption_t_h / operating_hours_per_year /
+      annual_consumption_t + 6 CHECK 约束。
+    - FK equipment_id → equipment_list.equipment_id (nullable)。
+    - UNIQUE(project_id, equipment_tag) 防重复录入。
+    - annual_consumption_t = steam_consumption_t_h × operating_hours_per_year
+      (service 层计算 + DB 存结果)。
+
+    不继承 TaggedRecordMixin (公用工程记录)。
+    """
+
+    __tablename__ = "utility_heat_exchange"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id", "equipment_tag",
+            name="uq_utility_heat_exchange_project_equipment_tag",
+        ),
+        Index("ix_utility_heat_exchange_project", "project_id"),
+        Index("ix_utility_heat_exchange_workspace", "workspace_id"),
+        Index("ix_utility_heat_exchange_temperature_class", "temperature_class"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4,
+        comment="UUID 主键 (uuid.uuid4 default)",
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=False,
+        comment="项目 ID (FK projects.project_id)",
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workspaces.workspace_id", ondelete="CASCADE"), nullable=False,
+        comment="工作区 ID (FK workspaces.workspace_id)",
+    )
+    equipment_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("equipment_list.equipment_id", ondelete="SET NULL"), nullable=True,
+        comment="设备 ID (FK equipment_list.equipment_id)",
+    )
+    equipment_tag: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment="设备位号 (项目内唯一)",
+    )
+    steam_pressure_mpa_gauge: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment=(
+            "蒸汽压力 (MPa 表压 gauge; "
+            "LP 0.3~0.8 / MP 1.0~2.5 / HP 3.5~10 / ULTRA_HIGH >10)"
+        ),
+    )
+    steam_quality_pct: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="蒸汽干度 (% dryness; 0~100)",
+    )
+    return_condensate_pct: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="冷凝水回收率 (% condensate return; 0~100)",
+    )
+    temperature_class: Mapped[str] = mapped_column(
+        String(16), nullable=False,
+        comment="蒸汽温度等级: LP (低压) / MP (中压) / HP (高压) / ULTRA_HIGH (超高压)",
+    )
+    steam_consumption_t_h: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="小时蒸汽消耗量 (t/h)",
+    )
+    operating_hours_per_year: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="8000",
+        comment="年运行小时数 (h/yr; ≤ 8760)",
+    )
+    annual_consumption_t: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment=(
+            "年蒸汽消耗量 (t/yr; "
+            "= steam_consumption_t_h × operating_hours_per_year)"
+        ),
+    )
+    source: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default="MANUAL",
+        comment="数据来源: HEAT 汇总 / PMS / MANUAL / CALC",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False,
+        comment="记录创建时间 (DB server_default)",
+    )
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(), nullable=True,
+        comment="记录更新时间 (ORM onupdate 触发)",
+    )

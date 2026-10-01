@@ -1,0 +1,85 @@
+{
+  "_meta": {
+    "description": "P7 Sprint 2 T3 utility_heat_exchange 黄金 fixture (6 算例, 4 蒸汽等级)",
+    "schema_version": "1.0",
+    "source": "SYNTHETIC_TEST_DATA",
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "spec_ref": "P7 SPEC V1.4 §3.2.2(5) + P7-OPEN-009 §1 #3",
+    "notes": "6 算例覆盖 LP/MP/HP/ULTRA_HIGH 4 个蒸汽等级 + 冷凝水回收率梯度 (30%/70%/95%). 压力 LP 0.5 / MP 1.6 / HP 4.0 / ULTRA_HIGH 13.5 MPa. 蒸汽干度 80~99.5%."
+  },
+  "cases": [
+    {
+      "case_id": "T3_CASE_01",
+      "equipment_tag": "ST-LP-101",
+      "temperature_class": "LP",
+      "steam_pressure_mpa_gauge": 0.5,
+      "steam_quality_pct": 99.5,
+      "return_condensate_pct": 95.0,
+      "steam_consumption_t_h": 2.5,
+      "operating_hours_per_year": 8000.0,
+      "annual_consumption_t": 20000.0,
+      "source": "HEAT"
+    },
+    {
+      "case_id": "T3_CASE_02",
+      "equipment_tag": "ST-LP-102",
+      "temperature_class": "LP",
+      "steam_pressure_mpa_gauge": 0.8,
+      "steam_quality_pct": 98.0,
+      "return_condensate_pct": 70.0,
+      "steam_consumption_t_h": 1.5,
+      "operating_hours_per_year": 7200.0,
+      "annual_consumption_t": 10800.0,
+      "source": "PMS"
+    },
+    {
+      "case_id": "T3_CASE_03",
+      "equipment_tag": "ST-MP-201",
+      "temperature_class": "MP",
+      "steam_pressure_mpa_gauge": 1.6,
+      "steam_quality_pct": 99.0,
+      "return_condensate_pct": 85.0,
+      "steam_consumption_t_h": 5.0,
+      "operating_hours_per_year": 8400.0,
+      "annual_consumption_t": 42000.0,
+      "source": "PMS"
+    },
+    {
+      "case_id": "T3_CASE_04",
+      "equipment_tag": "ST-MP-202",
+      "temperature_class": "MP",
+      "steam_pressure_mpa_gauge": 2.5,
+      "steam_quality_pct": 95.0,
+      "return_condensate_pct": 60.0,
+      "steam_consumption_t_h": 3.0,
+      "operating_hours_per_year": 6500.0,
+      "annual_consumption_t": 19500.0,
+      "source": "MANUAL"
+    },
+    {
+      "case_id": "T3_CASE_05",
+      "equipment_tag": "ST-HP-301",
+      "temperature_class": "HP",
+      "steam_pressure_mpa_gauge": 4.0,
+      "steam_quality_pct": 99.5,
+      "return_condensate_pct": 90.0,
+      "steam_consumption_t_h": 8.0,
+      "operating_hours_per_year": 8000.0,
+      "annual_consumption_t": 64000.0,
+      "source": "PMS"
+    },
+    {
+      "case_id": "T3_CASE_06",
+      "equipment_tag": "ST-UH-401",
+      "temperature_class": "ULTRA_HIGH",
+      "steam_pressure_mpa_gauge": 13.5,
+      "steam_quality_pct": 99.9,
+      "return_condensate_pct": 95.0,
+      "steam_consumption_t_h": 15.0,
+      "operating_hours_per_year": 8000.0,
+      "annual_consumption_t": 120000.0,
+      "source": "HEAT"
+    }
+  ]
+}

@@ -337,3 +337,7 @@
 | 13:19 | Created pcs-backend/tests/services/util/fixtures/golden_utility_fuel_gas.json | — | ~878 |
 | 13:19 | Created pcs-backend/tests/services/util/test_utility_fuel_gas.py | — | ~1717 |
 | 13:20 | Edited pcs-backend/tests/services/util/test_utility_fuel_gas.py | 1→4 lines | ~35 |
+| 13:29 | Created pcs-backend/alembic/versions/p7_open_009_003_utility_heat_exchange.py | — | ~1765 |
+| 13:29 | Created pcs-backend/tests/services/util/fixtures/golden_utility_heat_exchange.json | — | ~751 |
+| 13:30 | Created pcs-backend/tests/services/util/test_utility_heat_exchange.py | — | ~1447 |
+| 13:30 | Edited pcs-backend/alembic/versions/p7_open_009_003_utility_heat_exchange.py | "蒸汽压力 (MPa 表压 gauge; LP 0." → "蒸汽压力 (MPa gauge; LP 0.3-0" | ~22 |

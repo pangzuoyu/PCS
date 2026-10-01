@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-01T05:20:28.110Z",
-    "fileCount": 807,
+    "lastScanned": "2026-10-01T05:30:45.461Z",
+    "fileCount": 810,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "340853d6d556eb805a89eef369b1aacbd165d08603da616eb67ac16588a3adda",
-    "storeUpdatedAt": "2026-10-01T05:20:28.121Z",
-    "rootHash": "533499a7a10d3399"
+    "renderedHash": "7c67c794ba99ce467c3d1eab0f8abaa6ef15fbbc11e204ed08184891a7a4801f",
+    "storeUpdatedAt": "2026-10-01T05:30:45.472Z",
+    "rootHash": "f50194411808af71"
   },
   "files": {
     "CLAUDE.md": {
@@ -31437,6 +31437,100 @@
           "startLine": 149,
           "endLine": 175,
           "tokens": 279
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p7_open_009_003_utility_heat_exchange.py": {
+      "description": "P7 Sprint 2 T3: utility_heat_exchange 表 (蒸汽/冷凝水).",
+      "tokens": 1762,
+      "hash": "a71c64bc8bae69a6",
+      "size": 6552,
+      "mtimeMs": 1790832645410.0752,
+      "updatedAt": "2026-10-01T05:30:45.461Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 183,
+          "tokens": 1362
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 184,
+          "endLine": 198,
+          "tokens": 135
+        }
+      ]
+    },
+    "pcs-backend/tests/services/util/fixtures/golden_utility_heat_exchange.json": {
+      "description": "",
+      "tokens": 751,
+      "hash": "89c487995c79e6bb",
+      "size": 2690,
+      "mtimeMs": 1790832593573.1694,
+      "updatedAt": "2026-10-01T05:29:53.622Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/util/test_utility_heat_exchange.py": {
+      "description": "P7 Sprint 2 T3: utility_heat_exchange 测试.",
+      "tokens": 1447,
+      "hash": "a015c70463a29ed0",
+      "size": 5150,
+      "mtimeMs": 1790832611914.7798,
+      "updatedAt": "2026-10-01T05:30:11.959Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "golden_fixture",
+          "kind": "fn",
+          "startLine": 27,
+          "endLine": 31,
+          "tokens": 32
+        },
+        {
+          "name": "test_orm_tablename_and_columns",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 44,
+          "tokens": 161
+        },
+        {
+          "name": "test_golden_fixture_loads_6_cases",
+          "kind": "fn",
+          "startLine": 45,
+          "endLine": 57,
+          "tokens": 140
+        },
+        {
+          "name": "test_golden_fixture_temperature_class_enum",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 65,
+          "tokens": 82
+        },
+        {
+          "name": "test_golden_fixture_values_within_check_ranges",
+          "kind": "fn",
+          "startLine": 66,
+          "endLine": 80,
+          "tokens": 159
+        },
+        {
+          "name": "test_orm_roundtrip_all_6_cases",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 125,
+          "tokens": 474
+        },
+        {
+          "name": "test_orm_unique_constraint_per_project_equipment_tag",
+          "kind": "fn",
+          "startLine": 126,
+          "endLine": 151,
+          "tokens": 235
         }
       ]
     }
