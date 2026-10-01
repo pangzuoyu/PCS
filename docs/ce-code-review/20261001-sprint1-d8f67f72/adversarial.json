@@ -1,0 +1,401 @@
+{
+  "review_id": "20261001-sprint1-d8f67f72",
+  "reviewer": "adversarial-sprint1",
+  "persona": "chaos-engineer / adversarial-reviewer",
+  "scope": "branch-remote 496b84d..8ea056b (P7 Sprint 1 batch)",
+  "intent": "equipment_list + util foundation. 3 alembic migrations + 12 API endpoints + state_machine audit + advisory_lock + 8 SourceModule dispatcher + summary_service 13 类聚合 + G-08 baseline roll",
+  "techniques_applied": [
+    "assumption_violation",
+    "composition_failures",
+    "cascade_construction",
+    "abuse_cases",
+    "silent_pass_verification_mechanism_fidelity"
+  ],
+  "findings": [
+    {
+      "id": "ADV-001",
+      "title": "State machine audit bypass — direct SQL UPDATE on sign_status skips audit + AC",
+      "scenario": "Operator runs `UPDATE equipment_list SET sign_status='CHECKED', approval_step=NULL WHERE equipment_id=...` directly (psql/SQLAlchemy core/management script). No audit_logs row is written; no advisory lock acquired; no record_change_snapshot taken; no hash_changed diff recorded. The 9-state machine guard (ALLOWED_TRANSITIONS) is bypassed entirely because `transition()` is a Python method, not a DB trigger.",
+      "trigger_sequence": [
+        "1. Attacker/operator opens psql with PCS_DB_WRITE role",
+        "2. UPDATE equipment_list SET sign_status='CHECKED' WHERE equipment_id=<target>",
+        "3. SELECT from audit_logs WHERE resource_id=<target> AND action LIKE '%TRANSITION%' → 0 rows",
+        "4. audit dashboard (R-03 T0) reports no transition ever occurred",
+        "5. Downstream cascade: EquipmentList CHECKED → triggers aggregate_and_save → summary consumes silently"
+      ],
+      "code_anchor": "pcs-backend/app/services/state_machine.py:278-405 (transition is Python-only, no DB trigger installed)",
+      "verification_mechanism_violated": "audit_logs (R-03 T0 / D8 9A 强写保证) bypassable",
+      "severity": "CRITICAL",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "Install Postgres trigger on equipment_list/util_results/*Result tables: BEFORE UPDATE OF sign_status → RAISE EXCEPTION 'use StateMachineService.transition'; or use a dedicated stored procedure that both writes audit + updates status."
+    },
+    {
+      "id": "ADV-002",
+      "title": "advisory_lock silent no-op on OperationalError → silent serialization failure in production",
+      "scenario": "PCS deploys with DATABASE_URL=postgres://... but pg_hba.conf misconfigured, or connection pool exhausted mid-call. `pg_advisory_xact_lock` raises OperationalError; the except branch (advisory_lock.py:45-54) only logs a warning and returns. Subsequent INSERT/UPDATE proceeds without lock. Two concurrent sync_from_source calls for same (project_id, tag_number) race → one wins INSERT, second raises IntegrityError OR writes duplicate EquipmentList (since FK constraint allows duplicate (project_id, tag_number) per S1-2 plan brief commentary, line 23-25 of p7_s1_001 migration).",
+      "trigger_sequence": [
+        "1. PG connection pool hits max_connections; SQLAlchemy raises OperationalError on lock acquire",
+        "2. except clause logs warning, returns None-like",
+        "3. Concurrent sync_from_source proceeds without serialization",
+        "4. Two EquipmentList rows for same (project_id, tag_number) created",
+        "5. list_equipment_records returns duplicates; downstream cascade: aggregate_and_save picks latest by util_result_id, drifts"
+      ],
+      "code_anchor": "pcs-backend/app/services/advisory_lock.py:40-54 (OperationalError → silent no-op)",
+      "verification_mechanism_violated": "advisory_lock serialization invariant",
+      "severity": "HIGH",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "Re-raise on OperationalError in production; SQLite fallback should be feature-flagged (DATABASE_URL=sqlite:// for tests only). Add a CI guard that fails the deploy if DB is SQLite in non-test env."
+    },
+    {
+      "id": "ADV-003",
+      "title": "SourceModule dispatcher — invalid module silently dropped, partial aggregation returns 13×0.0",
+      "scenario": "Caller invokes `aggregate_consumption(project_id, db, modules=['PUMP', 'BOGUS_MODULE'])`. _AGGREGATORS.get('BOGUS_MODULE') returns None; the `if aggregator is None: continue` branch silently skips. Result is `{ELECTRICITY: <sum>, <all-other-cats>: 0.0}` with no indication BOGUS_MODULE was unrecognized. Operations dashboard reports clean 13-class output, but PUMP aggregated alone. If BOGUS_MODULE was the intended primary data source, decision-makers see 0s and approve.",
+      "trigger_sequence": [
+        "1. Frontend adds new module 'HEAT_PUMP' but forgets backend registration",
+        "2. POST /api/v1/util/aggregate with modules=['HEAT_PUMP']",
+        "3. Result: all 13 cats = 0.0",
+        "4. User accepts zero-utilization report for HEAT_PUMP source data",
+        "5. Real HEAT_PUMP results exist in DB but unreported"
+      ],
+      "code_anchor": "pcs-backend/app/services/util/source_aggregator.py:173-178 (silent skip)",
+      "verification_mechanism_violated": "no warning when partial aggregation",
+      "severity": "HIGH",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "Raise UnsupportedSourceModuleError for unknown modules; let API layer map to 400 INVALID_MODULE. Or return a structured response with `aggregation_warnings: ['UNKNOWN_MODULE: BOGUS_MODULE']`."
+    },
+    {
+      "id": "ADV-004",
+      "title": "summary_service silently coalesces 'absent' vs 'explicit 0' in consumption_json",
+      "scenario": "Source aggregator only fills 7 of 13 categories (ELECTRICITY+4 STEAM+CONDENSATE+COOLING_WATER+MAKEUP_WATER). The other 6 (CHILLED_WATER, FUEL_GAS, NITROGEN, INSTRUMENT_AIR, PLANT_AIR, TOTAL) are absent from consumption_json. summarize() calls `consumption.get(cat.value, 0.0)` → all 6 → 0.0. Dashboard shows 'CHILLED_WATER: 0.0 t/h' which operations read as 'confirmed zero usage' but is actually 'no data'. Energy audit trail confuses zero-usage facilities with facilities that haven't entered data.",
+      "trigger_sequence": [
+        "1. UtilResults row exists with consumption_json={ELECTRICITY: 100, STEAM_HP: 50}",
+        "2. GET /api/v1/util/summary",
+        "3. Response includes by_category.CHILLED_WATER=0.0",
+        "4. Auditor reports facility uses zero chilled water",
+        "5. Reality: facility uses 500 t/h but no measurement was taken"
+      ],
+      "code_anchor": "pcs-backend/app/services/util/summary_service.py:62-64",
+      "verification_mechanism_violated": "by_category truthfulness (missing ≠ zero)",
+      "severity": "HIGH",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "Use a sentinel (e.g., float('nan')) or separate `measured_categories: list[str]` and `by_category: dict[str, float]` so consumers can distinguish measured vs unmeasured."
+    },
+    {
+      "id": "ADV-005",
+      "title": "ToeConversionService.seed_defaults commits mid-flight — pollutes caller transaction",
+      "scenario": "Caller is in middle of larger transaction (e.g., alembic upgrade+migration). Caller invokes seed_defaults; function does `await session.commit()` at line 53, even though seed_defaults is documented as 'idempotent seed'. Any uncommitted changes in the caller's session get committed by seed_defaults's commit. Also: if caller's session has a SAVEPOINT, the commit releases it. Caller's later `session.rollback()` becomes no-op for the seed data.",
+      "trigger_sequence": [
+        "1. Migration script starts a transaction, updates aux rows (uncommitted)",
+        "2. Calls await ToeConversionService.seed_defaults(session)",
+        "3. seed_defaults sees empty toe table, inserts 6 rows, COMMITS",
+        "4. Caller's aux rows ALSO committed (side effect)",
+        "5. Caller's later ROLLBACK only rolls back post-seed work"
+      ],
+      "code_anchor": "pcs-backend/app/services/toe_conversion_service.py:53 (await session.commit() in seed_defaults)",
+      "verification_mechanism_violated": "transaction isolation contract of caller",
+      "severity": "MEDIUM",
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "Remove the explicit commit; let caller control transaction boundary. Or use session.flush() and document commit ownership."
+    },
+    {
+      "id": "ADV-006",
+      "title": "state_machine RESOLVE_STALE_CHANGED records hash_changed=false — semantic mismatch with audit consumers",
+      "scenario": "Per ADR-0024, RESOLVE_STALE_CHANGED is STALE → CHANGE_PENDING transition. The DATA hasn't changed yet (APPLY_CHANGE will apply data edits). So old_record_hash == new_record_hash, and audit_logs.detail_json.hash_changed = False. R-03 T0 spec said: 'STALE_RESOLVED 三元决策 (stale_resolution_path, hash_changed, changed_fields)' — consumers (e.g., G-08 baseline reports) expect hash_changed=true on CHANGED path. Reports silently treat CHANGED-path resolutions as NO_CHANGE.",
+      "trigger_sequence": [
+        "1. Record goes STALE → RESOLVE_STALE_CHANGED (intent to change acknowledged)",
+        "2. audit_logs row: {action: STALE_RESOLVED_CHANGED, hash_changed: false, stale_resolution_path: 'RESOLVE_CHANGED'}",
+        "3. G-08 baseline diff treats this as 'no data drift'",
+        "4. APPLY_CHANGE happens later, hash actually changes, but no separate audit tags 'drift'",
+        "5. Drift report undercounts true stale-resolution churn"
+      ],
+      "code_anchor": "pcs-backend/app/services/state_machine.py:362-382 (hash captured before mutation, no actual mutation in RESOLVE_STALE_CHANGED)",
+      "verification_mechanism_violated": "audit_logs STALE_RESOLVED 3-tuple fidelity",
+      "severity": "HIGH",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "Either: (a) record hash_changed=null/sentinel for 'pending-applied' semantics, or (b) capture pre-STALE hash baseline at MARK_STALE and diff at APPLY_CHANGE instead of RESOLVE_STALE_CHANGED."
+    },
+    {
+      "id": "ADV-007",
+      "title": "aggregate_and_save unconditionally overwrites manual entries for 6 unmapped categories",
+      "scenario": "Operator manually POSTs /api/v1/util/results with full 13-cat consumption_json including CHILLED_WATER=200. Later, another operator triggers POST /api/v1/util/aggregate. aggregate_and_save calls source_aggregator which only fills 7 categories; the resulting consumption_json has CHILLED_WATER=0.0 (absent → 0 in aggregator default). The previous manual CHILLED_WATER=200 is silently overwritten. summary_service now reports CHILLED_WATER=0.0.",
+      "trigger_sequence": [
+        "1. POST /api/v1/util/results {consumption_json: {..., CHILLED_WATER: 200}} (manual entry)",
+        "2. PUMP goes CHECKED, downstream triggers aggregate_and_save",
+        "3. New UtilResults row created with consumption_json missing CHILLED_WATER",
+        "4. summary returns CHILLED_WATER=0.0",
+        "5. Historical 200 t/h chilled water usage erased"
+      ],
+      "code_anchor": "pcs-backend/app/services/util/source_aggregator.py:46-150 (only 4 source modules, 6 categories never populated)",
+      "verification_mechanism_violated": "manual data preservation invariant",
+      "severity": "HIGH",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "aggregate_and_save should accept `merge_with_existing: bool` flag, or fetch latest UtilResults and merge category-by-category (zero-fill only absent). Or: split into separate aggregation per source module with merge semantics."
+    },
+    {
+      "id": "ADV-008",
+      "title": "_resolve_type_code_fk race: project-level override added between SELECT and INSERT",
+      "scenario": "T0: EquipmentList row A exists for (project_X, tag_Y) with equipment_type_project_id=NULL (company-level 'P'). T1: User adds project-level override (project_X, 'P') row to equipment_type_codes. T2: sync_from_source called for new source_record for (project_X, tag_Z) and type_code='P'. _resolve_type_code_fk SELECT project-level → sees override → returns project_X. INSERT new EquipmentList with equipment_type_project_id=project_X. OK. BUT: T0': sync_from_source called BEFORE T1 for new source_record (project_X, tag_Z, type_code='P') — _resolve_type_code_fk sees no override → returns None → INSERT with equipment_type_project_id=NULL. After T1, this row uses company-level 'P' but the project override exists. Subsequent re-sync won't update because existing != None check is bypassed (existing.equipment_type_project_id = None → no update on type_code path). Actually code DOES re-resolve: 'I1 fix: 复合 FK target 重解析' updates existing.equipment_type_project_id. OK, so this race is benign in current code. But the SELECT in _resolve_type_code_fk isn't under advisory_lock — race window: SELECT sees no override, INSERT happens, then override is added — FK constraint fails (project_id mismatch).",
+      "trigger_sequence": [
+        "1. Operator adds equipment_type_codes row (project_X, 'NEW_TYPE') at T0",
+        "2. Concurrent sync_from_source for source_record with type_code='NEW_TYPE' fires",
+        "3. _resolve_type_code_fk runs SELECT — depends on transaction isolation",
+        "4. Under READ COMMITTED: SELECT may see no override (before T0 commit) → returns None",
+        "5. INSERT fails with FK violation: type_code='NEW_TYPE' but equipment_type_project_id=None → (None, 'NEW_TYPE') doesn't exist",
+        "6. sync_from_source raises IntegrityError, partial state in audit_logs"
+      ],
+      "code_anchor": "pcs-backend/app/services/equip_list/sync_service.py:51-61 (SELECT outside advisory_lock scope)",
+      "verification_mechanism_violated": "FK referential integrity under concurrent override",
+      "severity": "MEDIUM",
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "Wrap _resolve_type_code_fk SELECT + INSERT in same advisory_lock acquired on (project_id, type_code), or retry on FK violation with 2nd resolve."
+    },
+    {
+      "id": "ADV-009",
+      "title": "source_aggregator emits 0.0 for unmeasured categories, indistinguishable from 'no source data'",
+      "scenario": "Project has 0 PUMP results (process design phase). GET /api/v1/util/aggregate returns consumption_json with ELECTRICITY=0.0. Auditor cannot tell: (a) no pumps designed yet (phase 1), (b) pumps designed but DRAFT (not yet CHECKED), (c) pumps exist but power_consumption_json missing selected_motor_power_kw. All three cases map to 0.0. summary aggregates 0 → toe_total=0 → standard_coal_total=0. Reports look like 'zero energy use' which is the correct answer only for case (a).",
+      "trigger_sequence": [
+        "1. Project has 5 PUMP source rows, all in DRAFT status",
+        "2. POST /api/v1/util/aggregate",
+        "3. source_aggregator filters sign_status == 'CHECKED' → 0 rows → ELECTRICITY=0.0",
+        "4. summary returns ELECTRICITY=0.0, toe_total=0",
+        "5. Auditor sees 'zero energy use' — actually '5 pumps unverified'"
+      ],
+      "code_anchor": "pcs-backend/app/services/util/source_aggregator.py:54-66 (filter sign_status='CHECKED' silently drops non-CHECKED)",
+      "verification_mechanism_violated": "data-completeness signal absent from output",
+      "severity": "MEDIUM",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "Return `unaggregated_counts: {PUMP: {draft: 5, checked: 0}, ...}` alongside consumption_json. Or raise if any source module has draft count > 0."
+    },
+    {
+      "id": "ADV-010",
+      "title": "G-08 baseline rolled AFTER endpoint code committed — drift window silent-pass",
+      "scenario": "Per scope: 12 API endpoints + G-08 baseline roll happen in same batch. Order matters: if endpoints added first (commits 2a7277e, 500d212), then baseline regenerated (8ea056b G-08 roll), there's a window where the live code has undocumented fields. CI checks 'openapi-baseline.json matches committed spec' but if both regen + endpoint addition land in same batch, CI doesn't see the drift window. The committed openapi.json is the canonical post-batch state. But test fixtures (tests/api/v1/test_util.py, test_equip_list.py) may have been written against the OLD OpenAPI (pre-endpoints). Snapshots could lag.",
+      "trigger_sequence": [
+        "1. Endpoint code merged: POST /util/power-items with field X",
+        "2. OpenAPI baseline regenerated: now contains X",
+        "3. CI: openapi-baseline.json == openapi.json → PASS (snapshot valid)",
+        "4. But frontend pcs-frontend/openapi.snapshot.json was last regenerated BEFORE endpoint commit",
+        "5. Frontend types (src/types/api.d.ts) don't include X → TypeScript field missing → 500 on hit",
+        "6. User POSTs /util/power-items with field X → backend accepts, frontend can't render response"
+      ],
+      "code_anchor": "pcs-backend/docs/openapi-baseline.json + pcs-frontend/openapi.snapshot.json (regen ordering)",
+      "verification_mechanism_violated": "G-08 baseline sync drift between backend & frontend snapshots",
+      "severity": "HIGH",
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "Require frontend snapshot regen as part of same PR / CI gate; fail CI if pcs-frontend/openapi.snapshot.json mtime < pcs-backend/docs/openapi.json mtime."
+    },
+    {
+      "id": "ADV-011",
+      "title": "audit_logs JSONB GIN (jsonb_path_ops) useless for non-containment queries",
+      "scenario": "Migration p7_s1_002 creates GIN index with jsonb_path_ops operator class. This operator class supports ONLY the @> containment operator — NOT ?, ?|, ?&, @?, @@. Existing audit_logs queries that use key-existence (e.g., `WHERE detail_json ? 'stale_resolution_path'`) cannot use this index → full table scan. As audit_logs grows to millions of rows, every key-existence query becomes O(N).",
+      "trigger_sequence": [
+        "1. Audit logs accumulate to 10M rows",
+        "2. Compliance query: SELECT * FROM audit_logs WHERE detail_json ? 'stale_resolution_path'",
+        "3. PG query planner: GIN index unusable for ? operator → sequential scan",
+        "4. Query takes 30+ seconds → CI test timeout → spurious test failures",
+        "5. Compliance reports delayed"
+      ],
+      "code_anchor": "pcs-backend/alembic/versions/p7_s1_002_audit_logs_jsonb_gin.py:32-39",
+      "verification_mechanism_violated": "GIN index operator class scope mismatch",
+      "severity": "MEDIUM",
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "Use default jsonb_ops (no operator class arg) which supports all JSONB ops; OR add a second GIN index with default ops for key-existence queries; OR drop path_ops and accept the 30% storage cost."
+    },
+    {
+      "id": "ADV-012",
+      "title": "summary_service generic write loop — persist layer silently drops 6 of 13 categories on aggregate_and_save",
+      "scenario": "aggregate_and_save writes the aggregator's consumption_json which has only 7 categories populated. The other 6 categories are simply absent from the dict (not zero — absent). When summary_service.summarize reads it back, missing keys get .get(..., 0.0) → 0.0. No log/warning that 6 categories were dropped at write time. PII/data-loss signal absent.",
+      "trigger_sequence": [
+        "1. Project has PUMP+HEAT+COOL_TOWER+OPEN_CHANNEL data (4 sources, 7 categories)",
+        "2. aggregate_and_save inserts UtilResults with consumption_json={ELECTRICITY: x, STEAM_HP: y, STEAM_MP: z, STEAM_LP: w, CONDENSATE: v, COOLING_WATER: u, MAKEUP_WATER: t}",
+        "3. 6 categories (CHILLED_WATER, FUEL_GAS, NITROGEN, INSTRUMENT_AIR, PLANT_AIR, TOTAL) absent",
+        "4. summarize → 6 zeros in by_category response",
+        "5. Comparison to prior manual-entry data shows drop — but cause hidden"
+      ],
+      "code_anchor": "pcs-backend/app/services/util/persist_service.py:62-91 (no zero-fill at write)",
+      "verification_mechanism_violated": "schema stability (13-key contract) at storage layer",
+      "severity": "HIGH",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "At save_util_results, zero-fill all 13 categories explicitly: `consumption_json = {c.value: consumption_json.get(c.value, 0.0) for c in utility_categories()}`."
+    },
+    {
+      "id": "ADV-013",
+      "title": "RESOLVE_STALE_CHANGED audit extra — changed_fields uses record.changed_fields but schema doesn't define it on all RecordMixin subclasses",
+      "scenario": "state_machine.py:364 does `cf = getattr(record, 'changed_fields', None) or {}`. If a RecordMixin subclass doesn't define changed_fields column, getattr returns None → `or {}` → empty dict → changed_fields=[] in audit. For RESOLVE_STALE_CHANGED where data DID change, the audit shows no changed_fields. R-03 T0 3-tuple (stale_resolution_path, hash_changed, changed_fields) incomplete: 2 of 3 fields always default. Compliance audit 'what fields actually changed' unanswerable.",
+      "trigger_sequence": [
+        "1. EquipmentList instance has no changed_fields column",
+        "2. RESOLVE_STALE_CHANGED called after PUMP motor_power_kw update",
+        "3. audit_logs.detail_json = {stale_resolution_path: 'RESOLVE_CHANGED', hash_changed: false, changed_fields: []}",
+        "4. Compliance query: 'what fields changed in this stale resolution' → empty result",
+        "5. Audit trail loses field-level diff capability"
+      ],
+      "code_anchor": "pcs-backend/app/services/state_machine.py:362-382",
+      "verification_mechanism_violated": "R-03 T0 3-tuple fidelity",
+      "severity": "MEDIUM",
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "Compute changed_fields inline by diffing record's __dict__ against last snapshot, OR ensure all RecordMixin subclasses define changed_fields JSONB column."
+    },
+    {
+      "id": "ADV-014",
+      "title": "query_by_fuel_year silently returns stale coefficient on year-rollover (e.g., 2027 query → 2026 row)",
+      "scenario": "query_by_fuel_year(year=2027) executes `WHERE effective_year <= 2027 ORDER BY effective_year DESC LIMIT 1`. If only 2026 rows exist (default seed), returns 2026 row. No warning. 2027 operations use 2026 coefficient. GB/T 2589 coefficient updates land in 2027 row but seed_defaults is idempotent and won't insert 2027 row automatically. Year-rollover job not in scope.",
+      "trigger_sequence": [
+        "1. Date crosses 2027-01-01",
+        "2. Operator triggers /util/aggregate with year=2027 (or default 2026 still)",
+        "3. query_by_fuel_year(2027) returns 2026 row (only exists)",
+        "4. summary toe_total uses 2026 coefficient (GB 2589-2020) for 2027 data",
+        "5. New 2027 GB/T update never reflected"
+      ],
+      "code_anchor": "pcs-backend/app/services/toe_conversion_service.py:67-81",
+      "verification_mechanism_violated": "temporal freshness of coefficients",
+      "severity": "HIGH",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "Add staleness check: if (year - max(effective_year)) > 1, raise PcsError TOE_STALE; or add a year-rollover Alembic migration that auto-inserts next-year rows with carryover coefficients."
+    },
+    {
+      "id": "ADV-015",
+      "title": "acquire_equip_list_lock session autocommit mode → lock released immediately after acquire",
+      "scenario": "If AsyncSession is configured with AUTOCOMMIT isolation level (some AsyncSession factories default this for psycopg3), each statement is its own transaction. `pg_advisory_xact_lock` is acquired in tx1 → released immediately. The subsequent SELECT/INSERT in sync_from_source run in separate transactions → no serialization. Two concurrent sync_from_source calls race.",
+      "trigger_sequence": [
+        "1. AsyncSession configured with AUTOCOMMIT (or implicit per-statement autocommit)",
+        "2. acquire_equip_list_lock acquires and immediately releases lock",
+        "3. Two threads both pass through SELECT existing (both see no row)",
+        "4. Both INSERT new EquipmentList → unique constraint violation OR duplicate row (per migration commentary, no UNIQUE(project_id, tag_number) at DB level)",
+        "5. Two EquipmentList rows for same tag"
+      ],
+      "code_anchor": "pcs-backend/app/services/advisory_lock.py:41-44 (pg_advisory_xact_lock scope depends on outer tx)",
+      "verification_mechanism_violated": "advisory_lock serialization under autocommit",
+      "severity": "HIGH",
+      "confidence": 50,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "Use pg_advisory_lock (session-level) instead of pg_advisory_xact_lock; or document session.begin() requirement at caller; or wrap sync_from_source in explicit transaction."
+    },
+    {
+      "id": "ADV-016",
+      "title": "audit_logs detail_json GIN — partition inheritance fragile under monthly partitioning (Sprint 4 risk)",
+      "scenario": "p7_s1_002 migration creates GIN index on audit_logs table. Migration docstring notes: 'Sprint 4 monthly partition 后此索引会随 partition 自动继承'. PG 11+ requires partition parents to have NO indexes — child partitions inherit, but the index name conflict can break. If Sprint 4 partitioning is done via declarative partitioning with PARTITION BY RANGE (created_at), and the GIN index was created on the parent, it must be dropped first (or partition swap requires ATTACH PARTITION with index recreation). Subtle migration failure.",
+      "trigger_sequence": [
+        "1. Sprint 4 work begins: ALTER TABLE audit_logs PARTITION BY RANGE (created_at)",
+        "2. PG: cannot partition a table with indexes directly — requires index drop + table rewrite",
+        "3. Dev runs raw SQL: DROP INDEX, ALTER TABLE PARTITION BY, CREATE TABLE ... PARTITION OF",
+        "4. Forgetting to re-create GIN on parent / children → audit_logs query performance degrades silently",
+        "5. Compliance query takes 10x longer, no alert"
+      ],
+      "code_anchor": "pcs-backend/alembic/versions/p7_s1_002_audit_logs_jsonb_gin.py:8-14 (forward-looking claim without test)",
+      "verification_mechanism_violated": "future-proofing claim not load-tested",
+      "severity": "LOW",
+      "confidence": 50,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "Document the partition-prep SQL in Sprint 4 task; add integration test that partition-swap + index re-creation works."
+    },
+    {
+      "id": "ADV-017",
+      "title": "CASCADE: G-08 baseline + audit JSONB + state_machine RESOLVE_STALE — multiple silent-passes compound",
+      "scenario": "Compound cascade: (a) RESOLVE_STALE_CHANGED records hash_changed=false (ADV-006) → G-08 baseline diff treats as no-drift; (b) audit JSONB GIN only supports @> (ADV-011) → compliance can't drill into hash_changed=false cases via `?` operator; (c) summary_service silently coalesces absent→0 (ADV-004) → by_category shows 0s for unmeasured; (d) G-08 baseline rolled same batch as endpoint additions (ADV-010) → no CI catches it. End state: auditors see 'no drift, 13 categories all 0' for projects that are mid-transition. Reports say 'facility uses 0 of everything' — false negative.",
+      "trigger_sequence": [
+        "1. Project mid-Sprint: 5 PUMPs in DRAFT, 3 HEATs in IN_APPROVAL, 2 PUMPs CHECKED then STALE",
+        "2. Operator triggers aggregate_and_save",
+        "3. source_aggregator returns 7-cat partial with zeros (ADV-007)",
+        "4. summary returns zeros for 6 categories (ADV-004)",
+        "5. RESOLVE_STALE_CHANGED on 2 PUMPs writes hash_changed=false (ADV-006)",
+        "6. G-08 diff report: 'no drift' (ADV-006 + ADV-010)",
+        "7. Compliance dashboard: 'project uses 0 of all 13 utilities' (ADV-004 + ADV-012)",
+        "8. Sprint retrospective misses the bug — all 3 metrics 'green'"
+      ],
+      "code_anchor": "ADV-004 + ADV-006 + ADV-007 + ADV-010 (cascade)",
+      "verification_mechanism_violated": "compound verification (multiple silent-passes)",
+      "severity": "CRITICAL",
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "Add explicit 'data-completeness' marker to UtilResults (e.g., `aggregation_status: PARTIAL|COMPLETE` and `measured_categories: list[str]`); add G-08 drift detector that flags hash_changed=false on RESOLVE_STALE_CHANGED; add E2E test for ADV-017 chain."
+    },
+    {
+      "id": "ADV-018",
+      "title": "equipment_list JSONB detail_json GIN — same jsonb_path_ops trap as audit_logs",
+      "scenario": "Same ADV-011 trap but for equipment_list table. Per p7_s1_001 migration commentary: 'EquipmentList ORM 早已存在 (app/models/equipment.py:58, 96 列)'. If equipment_list.detail_json is a JSONB column and gets a GIN index added later, the same jsonb_path_ops vs jsonb_ops trap applies. Not in this batch but flagged for future-proof.",
+      "trigger_sequence": [
+        "1. Future batch adds JSONB GIN on equipment_list.detail_json",
+        "2. Same jsonb_path_ops limitation",
+        "3. Same silent-pass scenario as ADV-011"
+      ],
+      "code_anchor": "future-risk, not in this batch",
+      "verification_mechanism_violated": "future GIN operator class trap",
+      "severity": "LOW",
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "remediation_sketch": "When GIN added to equipment_list, default to jsonb_ops (supports all operators)."
+    }
+  ],
+  "summary": {
+    "total_findings": 18,
+    "by_severity": {
+      "CRITICAL": 2,
+      "HIGH": 8,
+      "MEDIUM": 4,
+      "LOW": 4
+    },
+    "by_confidence": {
+      "100": 8,
+      "75": 8,
+      "50": 2
+    },
+    "by_technique": {
+      "assumption_violation": ["ADV-004", "ADV-007", "ADV-009", "ADV-012", "ADV-014"],
+      "composition_failures": ["ADV-008", "ADV-010", "ADV-017"],
+      "cascade_construction": ["ADV-006", "ADV-011", "ADV-017"],
+      "abuse_cases": ["ADV-001", "ADV-002", "ADV-005", "ADV-013", "ADV-015"],
+      "silent_pass_verification_mechanism_fidelity": ["ADV-001", "ADV-002", "ADV-006", "ADV-009", "ADV-011", "ADV-013", "ADV-014", "ADV-017"]
+    },
+    "verification_mechanisms_under_scrutiny": {
+      "audit_logs (R-03 T0 / D8 9A 强写)": ["ADV-001", "ADV-006", "ADV-013"],
+      "advisory_lock (D2 裁决 2A 跨表锁)": ["ADV-002", "ADV-008", "ADV-015"],
+      "G-08 OpenAPI baseline": ["ADV-010", "ADV-017"],
+      "consumption_json 13-key contract": ["ADV-004", "ADV-007", "ADV-012"]
+    },
+    "top_3_critical_paths_to_fix": [
+      "ADV-001 (CRITICAL): state_machine.transition 是 Python-only，无 DB trigger — direct SQL UPDATE 完全 bypass audit/advisory_lock/snapshot",
+      "ADV-017 (CRITICAL): 4 个 HIGH findings 级联 — 项目中段状态被 4 个静默通过层叠掩盖",
+      "ADV-007 (HIGH): aggregate_and_save 覆盖 6 类手动数据 — 公用工程历史数据静默丢失"
+    ]
+  },
+  "open_questions": [
+    "Q1: PCS 是否计划在 Sprint 2+ 加 Postgres trigger 强制 state_machine.transition 走 service layer?（ADV-001 root fix）",
+    "Q2: aggregate_and_save 是否计划支持 merge mode（保留手动数据）？（ADV-007 root fix）",
+    "Q3: TOE 系数 year-rollover job 是否在 Sprint 2/3 scope？（ADV-014 root fix）",
+    "Q4: G-08 baseline 是否计划加 frontend-snapshot-mtime CI gate？（ADV-010 root fix）",
+    "Q5: 是否所有 RecordMixin subclass 都已定义 changed_fields JSONB 列？（ADV-013 verification）",
+    "Q6: 部署 PCS_DB_WRITE 角色是否限制 psql 直连？（ADV-001 mitigation）"
+  ]
+}

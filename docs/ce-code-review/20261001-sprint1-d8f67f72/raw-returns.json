@@ -1,0 +1,7 @@
+[
+  {"reviewer": "correctness", "findings_count": 11, "p0": 2, "p1": 3, "p2": 3, "p3": 3, "artifact": "correctness.json"},
+  {"reviewer": "data-migration", "findings_count": 6, "critical": 1, "high": 1, "medium": 1, "low": 1, "info": 2, "artifact": "data-migration.json"},
+  {"reviewer": "security", "findings_count": 22, "critical": 2, "high": 4, "medium": 7, "low": 7, "info": 2, "artifact": "security.json"},
+  {"reviewer": "adversarial", "findings_count": 18, "critical": 2, "high": 8, "medium": 4, "low": 4, "artifact": "adversarial.json"},
+  {"reviewer": "api-contract", "findings_count": 9, "high": 1, "medium": 2, "low": 3, "info": 3, "artifact": "api-contract.json"}
+]

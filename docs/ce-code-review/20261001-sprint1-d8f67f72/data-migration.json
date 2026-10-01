@@ -1,0 +1,252 @@
+{
+  "reviewer": "data-migration-sprint1",
+  "run_id": "20261001-sprint1-d8f67f72",
+  "review_base": "496b84d",
+  "review_head": "8ea056b",
+  "scope": [
+    "pcs-backend/alembic/versions/p7_s1_001_equipment_list_source_service.py",
+    "pcs-backend/alembic/versions/p7_s1_002_audit_logs_jsonb_gin.py",
+    "pcs-backend/alembic/versions/p7_s1_005_util_results.py",
+    "pcs-backend/scripts/p6_9_pickup_4_drift_fixes.py (parent)"
+  ],
+  "migration_chain": {
+    "order": [
+      "p6_9_pickup_4_drift_fixes",
+      "p5_0_1b_1_thermosiphon",
+      "p7_s1_001",
+      "p7_s1_005",
+      "p7_s1_002"
+    ],
+    "linear": true,
+    "note": "p7_s1_002 numbered < p7_s1_005 but chain correctly lists 002 as the descendant. M3 fix docstring explicitly preserves plan V2.2 names to avoid alembic rename risk; future plans should renumber."
+  },
+  "schema_drift": {
+    "util_results_indexes_orm_vs_migration": {
+      "severity": "HIGH",
+      "confidence": 100,
+      "migration_declares": [
+        "ix_util_results_project",
+        "ix_util_results_workspace",
+        "ix_util_results_project_workspace (composite)"
+      ],
+      "orm_util_results_declares": [
+        "__table_args__: Index(\"ix_util_results_project\", \"project_id\")",
+        "column workspace_id with index=True (auto-creates ix_util_results_workspace)"
+      ],
+      "missing_in_orm": [
+        "ix_util_results_project_workspace (composite index not in ORM)"
+      ],
+      "impact": "SQLite pcs_test DB via Base.metadata.create_all will lack the composite (project_id, workspace_id) index. Production has it via migration, but the contract between ORM (DDL source-of-truth for tests) and migration (DDL source-of-truth for prod) diverges. Risk of test-vs-prod index divergence breaking query plans.",
+      "fix": "Add Index(\"ix_util_results_project_workspace\", \"project_id\", \"workspace_id\") to UtilResults.__table_args__ (and optionally remove the redundant __table_args__ Index since the column already has index=True — but the migration explicitly names both, so keep both for parity)."
+    },
+    "util_results_inline_index_collision": {
+      "severity": "MEDIUM",
+      "confidence": 100,
+      "detail": "UtilResults declares both __table_args__=Index(\"ix_util_results_project\", ...) AND column project_id with index=True (implicit). SQLAlchemy will emit a duplicate-index warning at create_all time. Migration op.create_index also creates the same index. Two paths to the same DB index is brittle.",
+      "fix": "Pick one declaration site. Recommend keeping column-level index=True (matches workspaces_id pattern), and remove __table_args__ Index."
+    },
+    "equipment_type_codes_seed_not_in_migration": {
+      "severity": "MEDIUM",
+      "confidence": 100,
+      "detail": "S1-3 seed for equipment_type_codes lives in EquipmentTypeCodeService.seed_defaults (app/services/), NOT in alembic migration. Initial prod deploys table dd47298c9c38 created it empty; seed only fires when the service is invoked (no startup hook found in app lifespan).",
+      "impact": "After migration upgrade, equipment_type_codes may be empty until the first API call that triggers seed. The composite FK on equipment_list.type_code→equipment_type_codes.type_code allows inserts without seeding; but seeding happens lazily and is NOT atomic with migration roll.",
+      "fix": "Either (a) add a migration that does INSERT ... ON CONFLICT DO NOTHING for the 31 codes, or (b) wire EquipmentTypeCodeService.seed_defaults into FastAPI startup lifespan."
+    },
+    "audit_logs_detail_json_gin_orm_match": {
+      "severity": "INFO",
+      "confidence": 100,
+      "detail": "AuditLog ORM (app/models/system.py:122) declares detail_json as JSONB. Original table ddl in dd47298c9c38_v3_1_full_schema_53_tables_adr_0023.py also creates JSONB detail_json column. GIN index addition is purely additive — no column-type mismatch.",
+      "match": true
+    },
+    "equipment_list_source_service_orm_match": {
+      "severity": "INFO",
+      "confidence": 100,
+      "detail": "EquipmentList ORM (app/models/equipment.py) declares source_service as String(64), nullable=True, with identical comment. Migration matches exactly.",
+      "match": true
+    }
+  },
+  "migration_correctness": {
+    "p7_s1_001_equipment_list_source_service": {
+      "severity": "OK",
+      "confidence": 100,
+      "checks": {
+        "nullable": true,
+        "not_null_without_backfill": false,
+        "precision_loss": false,
+        "ddl_additive": true,
+        "downgrade_reversible": true,
+        "comment_preserved": true,
+        "type_regression": false
+      },
+      "detail": "add_column String(64) nullable=True — PG 11+ metadata-only (no table rewrite). Nullable avoids backfill requirement (per V1.4 design: source service = data migration concern, not infra change). Downgrade op.drop_column reverses cleanly. Historical rows have NULL which is semantically correct (legacy rows have no source service).",
+      "production_data_impact": "Zero. Existing equipment_list rows receive NULL for new source_service column. Composite UNIQUE/project_id+tag_number NOT added (per D2 ruling and TaggedRecordMixin convention enforced at service level)."
+    },
+    "p7_s1_002_audit_logs_detail_json_gin": {
+      "severity": "CRITICAL",
+      "confidence": 100,
+      "blocking": true,
+      "checks": {
+        "uses_concurrently": false,
+        "if_not_exists_for_concurrently": false,
+        "ddl_additive": true,
+        "downgrade_reversible": true,
+        "hot_table": true,
+        "lock_type": "SHARE (blocks INSERT/UPDATE/DELETE)"
+      },
+      "detail": "CREATE INDEX ix_audit_logs_detail_json_gin on audit_logs (detail_json) USING gin with jsonb_path_ops. Does NOT use postgresql_concurrently=True. audit_logs is a hot, append-only audit table with active production INSERTs (audit_service.write() is called on every state change). Building a GIN index on a populated audit_logs table without CONCURRENTLY acquires a SHARE lock that blocks all DML for the duration of the build (seconds-to-minutes depending on row count and jsonb_path_ops generation). GIN build is CPU + I/O heavy; blocking window scales with table size.",
+      "production_impact": "All audit logging (every state change, every login, every mutation that goes through audit_service) will queue behind the SHARE lock for the entire build. This will surface as: (1) HTTP request latency for any write path that touches audit_logs, (2) potential connection-pool exhaustion if backlog grows, (3) downstream events emitted by audit writes stall, (4) if pool is fixed-size, frontend write requests time out (504) during build window.",
+      "fix": "Add postgresql_concurrently=True to op.create_index (requires if_not_exists=True or pre-check). This makes the build take an extra table scan + extra-row scan but releases the SHARE lock immediately and allows DML during build. Trade-off acceptable for a hot audit table. Alternative: run CREATE INDEX CONCURRENTLY manually in a pre-deploy step outside the migration.",
+      "jsonb_path_ops_choice": "GOOD — supports containment @> only, index ~30% smaller than default GIN, matches documented R-03 T0 containment query pattern (WHERE detail_json @> '{\"stale_resolution_path\": ...}')."
+    },
+    "p7_s1_005_util_results_new_table": {
+      "severity": "OK",
+      "confidence": 100,
+      "checks": {
+        "new_table_no_existing_data": true,
+        "fk_declared": true,
+        "jsonb_deprecated_default_safe": true,
+        "downgrade_reversible": true
+      },
+      "detail": "CREATE TABLE util_results with PK util_result_id (UUID), FK projects, FK workspaces, business_date (Date, nullable), consumption_json (JSONB NOT NULL with comment '13 类 flat'), jsonb_deprecated (BOOL NOT NULL DEFAULT false with explicit comment for Sprint 2 marker), source (VARCHAR(200) nullable), created_at (NOT NULL DEFAULT now()), updated_at (nullable). New table; no existing data to migrate. FK references existing projects/workspaces (created in dd47298c9c38). Downgrade reverses cleanly.",
+      "production_impact": "Zero on existing tables. New empty table created; no backfill required (Sprint 1 JSONB authoritative; Sprint 2 will populate jsonb_deprecated=True after 5-table migration).",
+      "jsonb_deprecated_marker": "GOOD — explicit bool column + server_default=false + comment makes Sprint 2 transition contractually clear. Server default ensures existing rows are JSONB-authoritative without manual UPDATE.",
+      "consumption_json_not_null": "GOOD — non-null JSONB column means schema enforces 13-class payload; avoids nullable JSON trap.",
+      "concern": "updated_at is nullable=True with NO server_default and NO onupdate trigger. TimestampMixin in app/models/mixins.py may set onupdate=func.now() at ORM level, but DB has no DEFAULT or trigger. After a row is INSERTed, updated_at stays NULL until ORM layer updates it. For pure-API writes through PUT/POST endpoints the ORM will set it; for raw SQL or bulk imports it will stay NULL. Document the contract or add DB-level trigger.",
+      "concern_severity": "LOW (consistency quirk, not a blocker)"
+    },
+    "util_results_timestampmixin_mismatch": {
+      "severity": "LOW",
+      "confidence": 75,
+      "detail": "Migration declares created_at NOT NULL DEFAULT now(), updated_at nullable WITHOUT default. UtilResults inherits TimestampMixin (per app/models/util.py docstring). Need to verify TimestampMixin in app/models/mixins.py matches (does it add onupdate=func.now() to updated_at?). If TimestampMixin sets onupdate=func.now() at ORM level, the ORM will populate updated_at on UPDATE statements — but DB-level there is no enforcement.",
+      "fix": "Verify TimestampMixin matches the migration. If diverged, either align migration DDL or document that updated_at is ORM-managed (not DB-enforced)."
+    }
+  },
+  "deploy_window_risks": {
+    "audit_logs_gin_lock_window": {
+      "severity": "CRITICAL",
+      "window": "minutes (depends on row count)",
+      "during_build_blocked": [
+        "INSERT into audit_logs",
+        "UPDATE audit_logs (rare)",
+        "DELETE audit_logs (rare)"
+      ],
+      "downstream_impact": [
+        "audit_service.write() queues — every state change, login, mutation",
+        "request latency spike on all write paths",
+        "connection pool exhaustion risk",
+        "frontend 504 risk on write operations"
+      ],
+      "recommendation": "DO NOT deploy p7_s1_002 in production during peak hours. Either (a) modify migration to use postgresql_concurrently=True, or (b) execute CREATE INDEX CONCURRENTLY ix_audit_logs_detail_json_gin ON audit_logs USING gin (detail_json jsonb_path_ops); manually before/after migration deploy. The migration downgrade op.drop_index is non-CONCURRENTLY (acceptable — drops are quick metadata ops)."
+    },
+    "equipment_list_source_service_add": {
+      "severity": "OK",
+      "window": "sub-second (PG 11+ metadata-only)",
+      "detail": "add_column nullable=True without DEFAULT — PG 11+ does metadata-only ALTER TABLE. No table rewrite, no row-level lock for long duration. Brief AccessExclusiveLock for catalog update."
+    },
+    "util_results_create_table": {
+      "severity": "OK",
+      "window": "sub-second to seconds",
+      "detail": "CREATE TABLE on empty table — minimal lock. FK validation fast (parent tables small). Indexes build on empty table — instant."
+    }
+  },
+  "verification_sql_post_deploy": {
+    "p7_s1_001_equipment_list_source_service": [
+      "SELECT column_name, data_type, character_maximum_length, is_nullable FROM information_schema.columns WHERE table_name = 'equipment_list' AND column_name = 'source_service'; — expect: source_service | character varying | 64 | YES",
+      "SELECT pg_catalog.pg_get_coldef(c.oid, a.attnum, TRUE) FROM pg_attribute a JOIN pg_class c ON a.attrelid = c.oid JOIN pg_namespace n ON c.relnamespace = n.oid WHERE n.nspname='public' AND c.relname='equipment_list' AND a.attname='source_service'; — verify comment preserved",
+      "SELECT count(*) FROM equipment_list WHERE source_service IS NULL; — expect: total row count (no backfill, all legacy rows have NULL)",
+      "SELECT count(*) FROM information_schema.columns WHERE table_name='equipment_list'; — expect: 97 columns (96 + 1 source_service)"
+    ],
+    "p7_s1_002_audit_logs_detail_json_gin": [
+      "SELECT indexname, indexdef FROM pg_indexes WHERE tablename = 'audit_logs' AND indexname = 'ix_audit_logs_detail_json_gin'; — expect: USING gin (detail_json jsonb_path_ops)",
+      "SELECT pg_size_pretty(pg_relation_size('ix_audit_logs_detail_json_gin')); — verify index built (non-zero size)",
+      "EXPLAIN (ANALYZE, BUFFERS) SELECT * FROM audit_logs WHERE detail_json @> '{\"key\": \"value\"}'::jsonb; — expect: Bitmap Index Scan on ix_audit_logs_detail_json_gin (NOT Seq Scan)",
+      "SELECT count(*) FROM audit_logs; — record baseline row count BEFORE index build for future re-evaluation"
+    ],
+    "p7_s1_005_util_results": [
+      "SELECT table_name FROM information_schema.tables WHERE table_name='util_results'; — expect: 1 row",
+      "SELECT column_name, data_type, is_nullable, column_default FROM information_schema.columns WHERE table_name='util_results' ORDER BY ordinal_position; — verify all 10 columns present (util_result_id, project_id, workspace_id, business_date, consumption_json, jsonb_deprecated, source, created_by, created_at, updated_at)",
+      "SELECT indexname, indexdef FROM pg_indexes WHERE tablename='util_results' ORDER BY indexname; — expect 3 indexes: ix_util_results_project, ix_util_results_workspace, ix_util_results_project_workspace",
+      "SELECT pg_get_triggerdef(oid) FROM pg_trigger WHERE tgrelid = 'util_results'::regclass; — expect: empty (no triggers; updated_at is ORM-managed, not DB-enforced)",
+      "INSERT INTO util_results (project_id, workspace_id, consumption_json) VALUES ((SELECT project_id FROM projects LIMIT 1), (SELECT workspace_id FROM workspaces LIMIT 1), '{\"power\": 100.0}'::jsonb); — verify insert path works and jsonb_deprecated defaults to false"
+    ],
+    "production_data_compatibility": [
+      "SELECT count(*), source_service FROM equipment_list GROUP BY source_service; — distribution of source_service (all NULL expected initially)",
+      "SELECT count(*) FROM audit_logs; — production audit row count (size determines GIN build window)",
+      "SELECT pg_size_pretty(pg_total_relation_size('audit_logs')); — table size informs GIN build time estimate"
+    ]
+  },
+  "rollback_paths": {
+    "p7_s1_001_downgrade": {
+      "exists": true,
+      "reversibility": "FULL",
+      "detail": "alembic downgrade -1 drops source_service column. Since no backfill happened, no data loss. op.drop_column is fast (metadata-only).",
+      "production_safety": "SAFE"
+    },
+    "p7_s1_002_downgrade": {
+      "exists": true,
+      "reversibility": "FULL",
+      "detail": "alembic downgrade -1 drops ix_audit_logs_detail_json_gin. op.drop_index is non-CONCURRENTLY (acceptable — DROP INDEX acquires ACCESS EXCLUSIVE for microseconds on a built index). No data loss (index is auxiliary).",
+      "production_safety": "SAFE"
+    },
+    "p7_s1_005_downgrade": {
+      "exists": true,
+      "reversibility": "FULL",
+      "detail": "alembic downgrade -1 drops all 3 indexes then drops util_results table. Reverses cleanly. CAVEAT — if production has already inserted data into util_results between upgrade and downgrade, that data is lost. Verify empty table before downgrade.",
+      "production_safety": "CONDITIONAL (verify util_results empty before downgrade)"
+    }
+  },
+  "blocking_issues": [
+    {
+      "id": "DM-P7S1-001",
+      "severity": "CRITICAL",
+      "file": "pcs-backend/alembic/versions/p7_s1_002_audit_logs_jsonb_gin.py",
+      "title": "audit_logs GIN index build without CONCURRENTLY will block all audit writes",
+      "recommendation": "Add postgresql_concurrently=True and if_not_exists=True to op.create_index, OR execute CREATE INDEX CONCURRENTLY manually in pre-deploy. Without this, every audit_logs INSERT during build will queue and likely cause user-visible 504s."
+    },
+    {
+      "id": "DM-P7S1-002",
+      "severity": "HIGH",
+      "file": "pcs-backend/app/models/util.py",
+      "title": "UtilResults ORM missing composite (project_id, workspace_id) index declaration — schema drift vs migration",
+      "recommendation": "Add Index(\"ix_util_results_project_workspace\", \"project_id\", \"workspace_id\") to __table_args__ so SQLite test DB (via create_all) matches prod DDL."
+    },
+    {
+      "id": "DM-P7S1-003",
+      "severity": "MEDIUM",
+      "file": "pcs-backend/app/services/equipment_type_code_service.py",
+      "title": "EquipmentTypeCodes seed (31 codes) is service-level, not migration-rolled — not atomic with schema deploy",
+      "recommendation": "Add a migration that does INSERT ... ON CONFLICT DO NOTHING for the 31 codes, OR wire EquipmentTypeCodeService.seed_defaults into FastAPI lifespan startup."
+    }
+  ],
+  "informational_observations": [
+    {
+      "id": "DM-P7S1-INFO-001",
+      "title": "Migration chain numbering intentionally out-of-order (p7_s1_002 chains AFTER p7_s1_005)",
+      "detail": "M3 fix docstring preserves plan V2.2 filenames. Chain is valid and linear; just unusual numbering. Future plans should renumber."
+    },
+    {
+      "id": "DM-P7S1-INFO-002",
+      "title": "util_results updated_at column has no DB-level DEFAULT or trigger",
+      "detail": "ORM-managed only. For raw SQL writes updated_at will stay NULL. Document contract or add trigger."
+    },
+    {
+      "id": "DM-P7S1-INFO-003",
+      "title": "equipment_list source_service column added nullable without DEFAULT",
+      "detail": "On PG 11+ this is metadata-only (fast). Confirm production PG version >= 11; if older, table rewrite would be required."
+    }
+  ],
+  "approval_recommendation": {
+    "decision": "BLOCK",
+    "rationale": "CRITICAL DM-P7S1-001 (audit_logs GIN without CONCURRENTLY) requires fix; HIGH DM-P7S1-002 (util_results schema drift) requires alignment. After both fixes, MEDIUM DM-P7S1-003 (seed atomicity) should be addressed but is not strictly deploy-blocking."
+  },
+  "summary": {
+    "files_reviewed": 4,
+    "critical_issues": 1,
+    "high_issues": 1,
+    "medium_issues": 1,
+    "low_issues": 1,
+    "informational": 3,
+    "deploy_blockers": ["DM-P7S1-001", "DM-P7S1-002"],
+    "migration_correctness_overall": "1 critical (lock window), 1 high (schema drift), rest safe"
+  }
+}

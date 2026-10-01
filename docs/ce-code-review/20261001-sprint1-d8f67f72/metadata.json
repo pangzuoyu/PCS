@@ -1,0 +1,13 @@
+{
+  "run_id": "20261001-sprint1-d8f67f72",
+  "branch": "main",
+  "head_sha": "ebc08a5",
+  "verdict": "Not ready (post-hoc)",
+  "completed_at": "2026-10-01T18:30:00Z",
+  "scope": "branch-remote (496b84d..8ea056b)",
+  "depth": "full",
+  "reviewers": ["correctness", "data-migration", "security", "adversarial", "api-contract"],
+  "primary_findings_count": 20,
+  "p0_count": 5,
+  "p1_count": 15
+}

@@ -1,0 +1,411 @@
+{
+  "review_id": "20261001-sprint1-d8f67f72",
+  "reviewer": "security-sprint1",
+  "scope": "P7 Sprint 1 — 12 API endpoints (equip_list 5 + util 6 + health 1) + ACL changes",
+  "branch": "496b84d..8ea056b",
+  "summary": {
+    "critical": 1,
+    "high": 4,
+    "medium": 7,
+    "low": 7,
+    "informational": 2,
+    "overall_risk": "HIGH",
+    "verdict": "BLOCK — CRITICAL/HIGH issues must be addressed before merge",
+    "headline": "Cross-project IDOR across every endpoint (no project/workspace ownership filter); float NaN/Inf injection bypasses Pydantic schema into DB JSONB; sync_from_source mutates EquipmentList.sign_status without audit trail.",
+    "files_reviewed": [
+      "pcs-backend/app/api/v1/equip_list.py",
+      "pcs-backend/app/api/v1/util.py",
+      "pcs-backend/app/api/v1/config.py",
+      "pcs-backend/app/schemas/equip_list.py",
+      "pcs-backend/app/schemas/util.py",
+      "pcs-backend/app/services/state_machine.py",
+      "pcs-backend/app/services/audit_service.py",
+      "pcs-backend/app/services/advisory_lock.py",
+      "pcs-backend/app/services/equip_list/sync_service.py",
+      "pcs-backend/app/services/equip_list/source_resolver.py",
+      "pcs-backend/app/services/equip_list/type_code_map.py",
+      "pcs-backend/app/services/equip_list/persist_service.py",
+      "pcs-backend/app/services/util/source_aggregator.py",
+      "pcs-backend/app/services/util/persist_service.py",
+      "pcs-backend/app/services/util/summary_service.py",
+      "pcs-backend/app/services/equipment_type_code_service.py",
+      "pcs-backend/app/services/toe_conversion_service.py",
+      "pcs-backend/app/models/util.py",
+      "pcs-backend/app/models/enums.py",
+      "pcs-backend/alembic/versions/p7_s1_005_util_results.py"
+    ]
+  },
+  "findings": [
+    {
+      "id": "SEC-P7S1-001",
+      "severity": "CRITICAL",
+      "confidence": 100,
+      "category": "IDOR / broken-access-control",
+      "title": "Cross-project IDOR — every endpoint trusts requester-supplied project_id/workspace_id without ownership check",
+      "description": "All 12 endpoints (5 equip_list + 6 util + 1 health implied) gate only on `require_roles(user, 'DESIGNER', 'PROCESS_CONTROLLER', 'SYSTEM_ADMIN')` (app/api/v1/equip_list.py:103-138, app/api/v1/util.py:84-198). The actor's JWT carries a role but the request body / query parameter `project_id` / `workspace_id` is accepted as-is from the client. Any DESIGNER authenticated to workspace A can: list/read/create UtilResults for any project_id (util.py POST /results, POST /aggregate, GET /results, GET /summary, GET /energy-consumption, GET /water-balance); read any EquipmentList by equipment_id (equip_list.py GET /{id}); trigger sync against any source_record_id (POST /sync, POST /bulk-sync). Persist_service.list_util_results/list_equipment_records apply `project_id == query_param` filter — that filter is the only thing protecting data, and a DESIGNER can simply omit project_id to get unfiltered rows from every project. SQL queries in persist_service.py:62-95 / 103-145 are fully parameterized (no SQLi) but lack an actor workspace ACL clause.",
+      "evidence": [
+        "app/api/v1/equip_list.py:103 `require_roles(user, \"DESIGNER\", \"PROCESS_CONTROLLER\", \"SYSTEM_ADMIN\")` — no project_id/workspace_id ownership check",
+        "app/api/v1/util.py:84-198 all 6 endpoints same pattern",
+        "app/services/util/persist_service.py:62 `if project_id is not None: stmt = stmt.where(...)` — None ⇒ no filter ⇒ leak cross-project",
+        "app/services/equip_list/persist_service.py:103 same None-leak pattern",
+        "No workspace_member/workspace_role guard present in any layer reviewed"
+      ],
+      "impact": "Complete multi-tenant data breach: a low-privilege DESIGNER (or any compromised user with the role) can enumerate all projects, read all UtilResults + EquipmentList, INSERT synthetic UtilResults into competitors' projects, and trigger sync_from_source against any source record. Impacts confidentiality (read), integrity (write/sync), and availability (bulk-sync 100x loop).",
+      "remediation": "Add workspace/project ownership guard at API boundary or in service layer: `actor_workspace_ids = get_actor_workspace_ids(user)`; add `WHERE project_id IN (SELECT project_id FROM project_workspaces WHERE workspace_id IN :actor_workspaces)` to every list/read query, and 403 on insert/sync when target workspace is not in actor's set. Block project_id=None for restricted roles."
+    },
+    {
+      "id": "SEC-P7S1-002",
+      "severity": "CRITICAL",
+      "confidence": 75,
+      "category": "audit-trail-bypass / state-machine-bypass",
+      "title": "sync_from_source mutates EquipmentList.sign_status directly, bypassing state_machine.transition() audit",
+      "description": "EquipmentList.sign_status is part of the 9-state machine (RecordSignStatus9 in app/models/enums.py:8). The codebase defines a formal StateMachineService.transition() (state_machine.py:340-450) that guards transitions, enforces TRANSITION_ROLES, writes AuditLog via AuditService, and creates snapshots for INITIATE_CHANGE/RESOLVE_STALE_CHANGED. However sync_from_source (services/equip_list/sync_service.py:128-150) directly mutates `existing.sign_status = source.sign_status` and `new_record.sign_status = source.sign_status` (line 167) without going through the state machine. No AuditLog entry is written, no TRANSITION_ROLES check is performed, no snapshot is created. An attacker who can POST /api/v1/equipment-list/{id}/sync (DESIGNER role) can flip a CHECKED EquipmentList to DRAFT (if source is DRAFT) silently, or to OBSOLETE, with zero audit trail.",
+      "evidence": [
+        "app/services/equip_list/sync_service.py:128 `existing.sign_status = source.sign_status` — direct ORM mutation, no state machine call",
+        "app/services/equip_list/sync_service.py:167 `sign_status=source.sign_status` — same on INSERT path",
+        "app/services/equip_list/sync_service.py:128-167 — no AuditService.write() call anywhere in sync_from_source",
+        "State machine TRANSITION_ROLES allow DESIGNER for INITIATE_CHANGE/ABANDON_CHANGE/MARK_STALE but not for arbitrary sign_status flips",
+        "config.py POST endpoints all call config_state_machine.transition() but equip_list.py sync path skips it"
+      ],
+      "impact": "Defense-in-depth breakdown: state machine provides the integrity backbone of PCS (Issue 6 locking). Bypassing it means (1) audit log shows no equipment state change even when EquipmentList moves CHECKED → DRAFT (data integrity risk for downstream consumers), (2) anti-STALE invariants can be violated (CHECKED record silently dropped to DRAFT without reason/review), (3) compliance audit cannot reconstruct history. Even without malicious intent, this is a regression from earlier P-sprint lock-in.",
+      "remediation": "Either (a) integrate sync_from_source with state_machine.transition() — call it for sign_status changes with appropriate transition (e.g., MARK_STALE if source sign_status != existing sign_status), pass actor_user_id + reason, OR (b) formally document that EquipmentList is NOT a 9-state-governed record and remove sign_status from EquipmentList schema (current schema treats it as RecordMixin's 9-state column — see TaggedRecordMixin in .wolf/cerebrum.md). Recommended: (a)."
+    },
+    {
+      "id": "SEC-P7S1-003",
+      "severity": "HIGH",
+      "confidence": 100,
+      "category": "input-validation / float-coercion",
+      "title": "consumption_json Pydantic schema accepts arbitrary keys + NaN/Inf values, persisted to JSONB without validation",
+      "description": "UtilResultsCreateRequest.consumption_json is declared as `dict[str, float]` (schemas/util.py:33) with NO Field constraint on keys or values. Pydantic v2's `dict[str, float]` accepts NaN, +Inf, -Inf, and arbitrary string keys. The handler immediately persists this dict to util_results.consumption_json (JSONB) without any business-layer validation. summary_service.summarize() (services/util/summary_service.py:65-70) DOES check for unknown keys and raises ValueError, but only at read-time. The 'ELECTRICITY': float('inf') value passes through `float(pj.get('selected_motor_power_kw', 0.0))` (source_aggregator.py:97) and gets summed into total_kwh without NaN check. Result: NaN poisons all downstream calculations (toe_total, standard_coal_total) — the row is permanently broken.",
+      "evidence": [
+        "app/schemas/util.py:33 `consumption_json: dict[str, float] = Field(...)` — no Field(min_length=1, max_length=13, keys whitelist) — no `allow_inf_nan=False` (Pydantic v2 default for float allows NaN/Inf)",
+        "app/services/util/persist_service.py:18-30 save_util_results — no value sanitization",
+        "app/services/util/source_aggregator.py:97, 121, 145 — `float(...)` without NaN check",
+        "app/services/util/summary_service.py:69 `by_category[cat.value] = float(v) if v is not None else 0.0` — accepts NaN/Inf silently"
+      ],
+      "impact": "Data integrity: malicious or buggy caller (or a CHECKED PUMP result with NaN power_consumption_json) persists a single UtilResults row that, when read, returns NaN for all 13 categories and NaN for toe_total/standard_coal_total. Summary endpoint cascades NaN into every report built on top. No automatic cleanup path. Also: the schema accepts arbitrary keys, so the attack surface for downstream JSON parsers (frontend tables, export to Excel) is enlarged.",
+      "remediation": "In UtilResultsCreateRequest: `consumption_json: dict[Literal[UtilityCategory values...], confloat(ge=0, allow_inf_nan=False)]` with `Field(min_length=1, max_length=13)`. In source_aggregator, gate `float(x)` with `math.isfinite() or 0.0`. In summary_service.summarize, also gate float conversion."
+    },
+    {
+      "id": "SEC-P7S1-004",
+      "severity": "HIGH",
+      "confidence": 75,
+      "category": "authz / IDOR (deeper layer)",
+      "title": "GET /equipment-list/{id} returns any EquipmentList without ownership check; same for /util/results/{id}",
+      "description": "Both single-record endpoints (app/api/v1/equip_list.py:121-138 GET /{equipment_id}; app/api/v1/util.py:108-122 GET /util/results/{util_result_id}) do `SELECT * WHERE id = :id` and return the record on a UUID guess. UUID v4 has 122 bits of entropy — non-guessable in practice — so this is not a UUID enumeration attack. However, UUIDs are routinely leaked via shared URLs, Slack screenshots, log lines, error messages, and exported reports. Once leaked, a DESIGNER in any project can read the equipment/util result record directly via UUID. Pairs with SEC-P7S1-001 (cross-project list) to enable complete cross-tenant data theft.",
+      "evidence": [
+        "app/api/v1/equip_list.py:121-138 `db.execute(select(EquipmentList).where(EquipmentList.equipment_id == equipment_id))` — no project_id/workspace_id filter, no actor ACL clause",
+        "app/api/v1/util.py:108-122 same pattern",
+        "app/services/util/persist_service.py:148-153 `get_util_result` — same SQL, no ACL"
+      ],
+      "impact": "Confidentiality breach via leaked UUIDs. Often UUIDs are shared in audit reports, Slack, log exports. Combined with SEC-P7S1-001, a DESIGNER can systematically exfiltrate all records.",
+      "remediation": "After load, verify `record.project_id in actor_accessible_projects` (and same for workspace); else 404 (don't 403, to avoid UUID enumeration via 403/404 timing). Add explicit ownership column check or RLS."
+    },
+    {
+      "id": "SEC-P7S1-005",
+      "severity": "HIGH",
+      "confidence": 75,
+      "category": "CSRF / state-change",
+      "title": "POST /equipment-list/{id}/sync, /bulk-sync, /util/aggregate, /util/results lack explicit CSRF defense; rely solely on bearer-only auth",
+      "description": "The codebase uses JWT bearer auth (config.py imports `_decode_bearer`). Bearer-only auth means CSRF is technically mitigated IF the browser does not automatically attach the bearer token to cross-origin requests. However: (1) FastAPI default does not enforce `SameSite=Strict` on cookies — if any cookie-based session fallback is added later, CSRF becomes possible; (2) the `bulk-sync` endpoint accepts up to 100 entries (EquipListBulkSyncRequest) creating an amplification vector; (3) the CSRF protection is implicit, not asserted. No explicit CSRF token or `Origin`/`Referer` header validation in any reviewed endpoint.",
+      "evidence": [
+        "app/api/v1/equip_list.py:169 POST /bulk-sync with `entries: list[...min_length=1, max_length=100` — amplification 100x",
+        "All endpoints rely on `_Actor` from bearer JWT; no Origin header check, no CSRF token",
+        "PostToolUse comments in CLAUDE.md indicate no CSRF middleware in pcs-backend stack"
+      ],
+      "impact": "If bearer-only auth is correctly enforced and no cookies are set, CSRF is mitigated. Risk: future regression (someone adds cookie auth) silently breaks CSRF defense. Also: cross-origin bearer token exfiltration via XSS would permit CSRF-equivalent attacks on these state-changing endpoints.",
+      "remediation": "Add FastAPI middleware validating `Origin` header on POST endpoints (deny cross-origin POSTs from non-allowlisted origins), or add explicit CSRF token requirement for cookie-based fallback. Document bearer-only invariant in API docs."
+    },
+    {
+      "id": "SEC-P7S1-006",
+      "severity": "HIGH",
+      "confidence": 75,
+      "category": "lock-bypass / race-condition",
+      "title": "acquire_equip_list_lock silently no-ops on SQLite — production deployment on SQLite breaks lock semantics",
+      "description": "advisory_lock.acquire_equip_list_lock (services/advisory_lock.py:25-43) catches OperationalError and returns silently with only a logger.warning. If production deployment accidentally uses SQLite (e.g., wrong DATABASE_URL env), concurrent bulk-sync / sync requests for the same (project_id, tag_number) will execute without serialization. The EquipmentList INSERT vs UPDATE race condition (the very thing D2 ruling 2A was meant to prevent) re-appears. A malicious actor with multiple concurrent sessions can trigger N parallel POST /sync to win/race the INSERT path and produce duplicate EquipmentList records (the (project_id, tag_number) unique constraint would normally prevent this, but if SQLite lacks the constraint or the race is across two different tag_numbers, duplicates are possible).",
+      "evidence": [
+        "app/services/advisory_lock.py:38-42 `except OperationalError as e: logger.warning(...); return`",
+        "No startup check that DATABASE_URL points to PostgreSQL",
+        "Logger.warning is at WARNING level — may be filtered below ERROR threshold in production log config"
+      ],
+      "impact": "Defense-in-depth gap. The lock is the only thing preventing duplicate EquipmentList INSERTs. Silent no-op on SQLite means race conditions are possible if production misconfig occurs. The warning is invisible to most observability setups.",
+      "remediation": "Add startup check in app.main lifespan that asserts the DB dialect is postgresql; raise on startup if not. Consider changing logger.warning to logger.error (and asserting in tests). At minimum, surface the no-op as a metric/alert."
+    },
+    {
+      "id": "SEC-P7S1-007",
+      "severity": "MEDIUM",
+      "confidence": 75,
+      "category": "information-disclosure",
+      "title": "bulk_sync_from_sources returns exception class name + str(e) to client",
+      "description": "persist_service.bulk_sync_from_sources (services/equip_list/persist_service.py:35-58) catches `Exception as e: # noqa: BLE001` and returns `{'entry': entry, 'error_code': type(e).__name__, 'error_message': str(e)}`. The error_message can include: SQLAlchemy IntegrityError details (table names, column names, FK violations), psycopg2 OperationalError detail (connection strings, hostnames, database names), ValueError from sync_from_source (LookupError with module+id). These leak internal schema names, deployment topology, and ORM class names to the API consumer.",
+      "evidence": [
+        "app/services/equip_list/persist_service.py:46-52 `failed.append({..., 'error_code': type(e).__name__, 'error_message': str(e)})`",
+        "No sanitization; full exception string returned",
+        "EquipListBulkSyncResponse schema (`failed: list[dict]`) passes through to JSON response"
+      ],
+      "impact": "Information disclosure: schema introspection, deployment topology. Aids attacker in mapping the data model and identifying exploitable surfaces (e.g., discovering that source_record_id comes from pump_results table by triggering IntegrityError).",
+      "remediation": "Return a sanitized error envelope: `{entry, error_code: 'SYNC_FAILED', error_id: <uuid for log lookup>]`. Map known exceptions to stable codes. Log full exception server-side keyed by error_id."
+    },
+    {
+      "id": "SEC-P7S1-008",
+      "severity": "MEDIUM",
+      "confidence": 100,
+      "category": "input-validation / mass-assignment",
+      "title": "UtilAggregationRequest.modules accepts Literal subset but unknown modules silently skipped in aggregate_consumption",
+      "description": "Pydantic schema (schemas/util.py:97-100) constrains `modules: list[Literal['PUMP','HEAT','COOL_TOWER','OPEN_CHANNEL']] | None` — this is good. However, source_aggregator.aggregate_consumption (services/util/source_aggregator.py:181-187) ALSO accepts arbitrary module names from this Literal (defensive in depth) and silently skips unknown modules via `continue`. Combined with no auth check on POST /util/aggregate (SEC-P7S1-001), the silent skip enables feature-gate probing: an attacker can submit `modules=['PUMP','FAKE1','FAKE2']` and observe whether toe_total aggregates only PUMP — but more importantly, future modules added by the team (e.g., 'PSV', 'VESSEL') can be probed before public release. Minor information leak.",
+      "evidence": [
+        "app/services/util/source_aggregator.py:184-186 `aggregator = _AGGREGATORS.get(module); if aggregator is None: continue`",
+        "Pydantic Literal prevents external submission of unknown modules at schema level — risk is internal API contract drift"
+      ],
+      "impact": "Future-proofing: if a future sprint relaxes Pydantic Literal, silent skip becomes attack vector. Today: low risk, but document or assert.",
+      "remediation": "Raise ValueError on unknown module (not silent skip); align with Pydantic Literal at both layers. Or document the silent skip as intentional."
+    },
+    {
+      "id": "SEC-P7S1-009",
+      "severity": "MEDIUM",
+      "confidence": 50,
+      "category": "input-validation",
+      "title": "EquipmentStatus coercion: equipment_status query param has no Pydantic Literal",
+      "description": "equip_list API GET list (app/api/v1/equip_list.py:107) declares `equipment_status: str | None = Query(None, max_length=2)`. This accepts any 1-2 char string (no enum validation at API layer). The service filters by `EquipmentList.equipment_status == equipment_status`. If equipment_status is anything outside {N,E,D,M,F}, the WHERE clause simply returns 0 rows — no error. An attacker can probe enum values without error feedback. Same for `sign_status: str | None = Query(None, max_length=20)`.",
+      "evidence": [
+        "app/api/v1/equip_list.py:107 `sign_status: str | None = Query(None, max_length=20)` — no Literal",
+        "app/api/v1/equip_list.py:108 `equipment_status: str | None = Query(None, max_length=2)` — no Literal",
+        "app/models/enums.py EquipmentStatus enum exists but is not used at API layer"
+      ],
+      "impact": "Minor — enumeration of valid status strings is cheap via OpenAPI snapshot. Not a true vuln but a defense-in-depth gap.",
+      "remediation": "Change API layer to `sign_status: Literal[...] | None = Query(None)` and `equipment_status: Literal[...] | None = Query(None)` with the canonical 5-state and 9-state enum values."
+    },
+    {
+      "id": "SEC-P7S1-010",
+      "severity": "MEDIUM",
+      "confidence": 75,
+      "category": "authz",
+      "title": "No CHECKER/APPROVER distinction in ACL — DESIGNER can trigger /sync that bypasses state machine (combined with SEC-P7S1-002)",
+      "description": "All 12 endpoints allow DESIGNER role. In the 9-state machine TRANSITION_ROLES table (state_machine.py:103-115), DESIGNER is not authorized for PASS_CHECK / REJECT_CHECK / APPROVE_REVERSAL etc. — but for the sync path, this distinction is bypassed entirely (per SEC-P7S1-002). A DESIGNER can cause EquipmentList sign_status to flip to whatever the source record says, including CHECKED → CHECKED (no-op), CHECKED → DRAFT (regression).",
+      "evidence": [
+        "TRANSITION_ROLES (state_machine.py:103-115) is the canonical ACL table for state changes",
+        "equip_list.py POST /sync and /bulk-sync allow DESIGNER but do NOT consult TRANSITION_ROLES",
+        "config.py POST endpoints route through config_state_machine which does check roles"
+      ],
+      "impact": "Defense-in-depth: ACL is layered correctly only when both endpoint-level (DESIGNER allowed) AND state-machine-level (TRANSITION_ROLES) checks are enforced. Sync path bypasses the latter.",
+      "remediation": "Tied to SEC-P7S1-002 remediation: route sync sign_status change through state_machine.transition() so TRANSITION_ROLES is consulted."
+    },
+    {
+      "id": "SEC-P7S1-011",
+      "severity": "MEDIUM",
+      "confidence": 75,
+      "category": "information-disclosure / timing",
+      "title": "POST /equipment-list/{id}/sync reports was_created via equipment_id equality, leaks existence",
+      "description": "sync_equipment endpoint (app/api/v1/equip_list.py:155-185) accepts arbitrary equipment_id in path AND arbitrary source_record_id in body. After syncing, it computes `was_created = (record.equipment_id != existing.equipment_id)`. The path equipment_id is verified to exist first (404 fast-fail), so an attacker can confirm existence of any EquipmentList by UUID. While UUIDv4 is non-guessable, paired with SEC-P7S1-004 this becomes a UUID-existence oracle that returns different timing/content based on whether the UUID exists.",
+      "evidence": [
+        "app/api/v1/equip_list.py:172-178 `existing = ... .scalar_one_or_none(); if existing is None: raise HTTPException(404, ...)`",
+        "Timing: 404 fast-fail vs full sync path takes ~50ms — measurable"
+      ],
+      "impact": "UUID-existence oracle. Combined with leaked UUIDs from audit logs, allows systematic enumeration of all EquipmentList existence. Low severity given UUID entropy, but adds to attack chain.",
+      "remediation": "Return 404 on sync if path equipment_id doesn't match (project_id, tag_number) of resolved source. Use constant-time responses."
+    },
+    {
+      "id": "SEC-P7S1-012",
+      "severity": "MEDIUM",
+      "confidence": 100,
+      "category": "input-validation",
+      "title": "project_id/workspace_id in POST body never validated against actor's accessible set; type-only validation",
+      "description": "UtilResultsCreateRequest.project_id and workspace_id are typed as UUID (schemas/util.py:30-31) — type validation is OK. But neither schema nor service layer checks that the actor has access to these UUIDs. SEC-P7S1-001 root cause applies: INSERT into util_results with project_id=X is allowed for any DESIGNER even if X is in another tenant. Combined with FK to projects.project_id, an attacker can plant synthetic UtilResults in any project.",
+      "evidence": [
+        "app/schemas/util.py:30-31 `project_id: uuid.UUID = Field(..., description='项目 UUID')` — no validator function",
+        "app/services/util/persist_service.py:18-30 save_util_results — no actor check",
+        "app/api/v1/util.py:130 POST /results — no workspace ownership filter"
+      ],
+      "impact": "Cross-tenant data injection. Malicious DESIGNER can insert arbitrary UtilResults rows with synthetic consumption_json into any project, poisoning downstream reports.",
+      "remediation": "Add `validator` to UtilResultsCreateRequest that checks actor's accessible workspaces; 403/404 on mismatch."
+    },
+    {
+      "id": "SEC-P7S1-013",
+      "severity": "MEDIUM",
+      "confidence": 75,
+      "category": "information-disclosure",
+      "title": "summary_service raises ValueError with full key list on unknown keys, leaks 13-category whitelist",
+      "description": "summary_service.summarize (services/util/summary_service.py:65-70) raises ValueError with `f'consumption_json 含未知键: {sorted(extra_keys)}; valid: {sorted(expected_keys)}'`. The 'valid' list reveals the entire 13-category whitelist. Already exposed via OpenAPI (less sensitive), but the error message exposes it for crafted payloads. Tied to SEC-P7S1-003 (which proposes stricter schema-level validation).",
+      "evidence": [
+        "app/services/util/summary_service.py:67-70 — full key list in error"
+      ],
+      "impact": "Minor — schema enumeration. OpenAPI already exposes it.",
+      "remediation": "Acceptable as-is; informational only."
+    },
+    {
+      "id": "SEC-P7S1-014",
+      "severity": "LOW",
+      "confidence": 100,
+      "category": "input-validation",
+      "title": "EquipListListFilter schema defined but unused; dead code",
+      "description": "schemas/equip_list.py:54-70 defines EquipListListFilter with explicit constraints (ge=1, le=500, ge=0). The actual GET /equipment-list endpoint (app/api/v1/equip_list.py:103-118) uses individual `Query(None)` parameters with similar constraints, NOT EquipListListFilter. EquipListListFilter is unreferenced — dead code that drifts from the actual API contract.",
+      "evidence": [
+        "app/schemas/equip_list.py:54-70 — defined",
+        "No `EquipListListFilter` reference in equip_list.py or services",
+        "tests/api/v1/test_equip_list.py — verified not used"
+      ],
+      "impact": "Maintenance hazard: future changes to filter validation may update one but not the other.",
+      "remediation": "Either use EquipListListFilter as a Depends() model, or delete it."
+    },
+    {
+      "id": "SEC-P7S1-015",
+      "severity": "LOW",
+      "confidence": 50,
+      "category": "input-validation",
+      "title": "year Query param: ge=2020 le=2100 is hardcoded — toe factor year range constraint",
+      "description": "GET /util/summary, /util/energy-consumption accept `year: int = Query(2026, ge=2020, le=2100)`. ToeConversionService.query_by_fuel_year (services/toe_conversion_service.py:54-72) uses `effective_year <= year` with `order_by desc, limit 1` — returns the most recent factor at or before year. For year=2100 this is fine (returns latest seed). For year=2020 with no 2020-or-earlier factor, returns None → PcsError 404. No SQLi (parameterized).",
+      "evidence": [
+        "app/api/v1/util.py:153 `year: int = Query(2026, ge=2020, le=2100, ...)`",
+        "app/services/toe_conversion_service.py:60-72 parameterized query"
+      ],
+      "impact": "None — informational.",
+      "remediation": "None."
+    },
+    {
+      "id": "SEC-P7S1-016",
+      "severity": "LOW",
+      "confidence": 50,
+      "category": "cryptographic / dependency",
+      "title": "advisory_lock classid/objid uses Python hash() — non-stable across processes but used for PG advisory key only",
+      "description": "acquire_record_lock (services/advisory_lock.py:11-15) uses `abs(hash(record_table)) % (2**31)` and `abs(hash(record_id)) % (2**31)`. Python's hash() is PYTHONHASHSEED-randomized across processes (different per process by default in Python 3.3+). acquire_equip_list_lock (lines 25-43) uses PG hashtext() instead — stable. acquire_record_lock is used by state_machine.transition via caller (not in this sprint's diff but reachable). Two processes acquiring the same advisory lock for the same record may produce different classid/objid values → lock not shared → race condition across processes.",
+      "evidence": [
+        "app/services/advisory_lock.py:12-13 `abs(hash(record_table)) % (2**31)` — process-randomized",
+        "PYTHONHASHSEED default is 'random' since Python 3.3"
+      ],
+      "impact": "Cross-process lock mismatch. acquire_record_lock (used by state machine) may not serialize correctly across gunicorn workers.",
+      "remediation": "Use `hashlib.md5(record_table.encode()).hexdigest()` truncated to int32, or use PG `hashtext()` like acquire_equip_list_lock does. Set PYTHONHASHSEED=0 in production (one-time fix; doesn't help multi-machine deployments)."
+    },
+    {
+      "id": "SEC-P7S1-017",
+      "severity": "LOW",
+      "confidence": 100,
+      "category": "input-validation",
+      "title": "source_module/source_service in EquipListSyncRequest: source_service is unbounded string (max_length=64) but not in dispatcher whitelist",
+      "description": "EquipListSyncRequest.source_module uses Literal whitelist (good). source_service is `str = Field(..., min_length=1, max_length=64)` (schemas/equip_list.py:36) — no whitelist. source_resolver.get_source_record (services/equip_list/source_resolver.py:55-68) does NOT use source_service at all — only source_module + source_record_id. The source_service field is stored on EquipmentList.source_service but never validated against a service-name allowlist. A malicious caller can store arbitrary 1-64 char strings (e.g., `'../etc/passwd'`, `'DROP TABLE ...'`) in the DB.",
+      "evidence": [
+        "app/schemas/equip_list.py:36-40 — `source_service: str = Field(..., min_length=1, max_length=64)`",
+        "app/services/equip_list/source_resolver.py — source_service not used",
+        "EquipmentList.source_service column is varchar — accepts any string"
+      ],
+      "impact": "Stored XSS / log injection if source_service is rendered in HTML or logs without escaping. Length cap mitigates but does not eliminate.",
+      "remediation": "Add Literal whitelist to source_service (e.g., ['pump_service','vessel_service','heat_service','psv_service','cv_service','cool_tower_service','psychro_service','open_channel_service']). At minimum, escape on render."
+    },
+    {
+      "id": "SEC-P7S1-018",
+      "severity": "LOW",
+      "confidence": 100,
+      "category": "rate-limiting",
+      "title": "No rate limit on POST /util/aggregate — 13-class aggregation runs full SELECT on PUMP/HEAT/COOL_TOWER/OPEN_CHANNEL",
+      "description": "POST /util/aggregate triggers aggregate_consumption which runs 4 SELECTs (one per source module) over potentially millions of CHECKED records. No rate limit at FastAPI middleware level. No pagination on the source aggregator. A DESIGNER can call /aggregate in a tight loop to amplify DB load.",
+      "evidence": [
+        "app/api/v1/util.py:138-159 POST /aggregate",
+        "app/services/util/source_aggregator.py — full table scan per module per call",
+        "No rate_limit dependency"
+      ],
+      "impact": "Availability: trivial DoS via repeated /aggregate calls.",
+      "remediation": "Add rate-limit middleware (e.g., slowapi) per actor user_id. Add request-level cache (e.g., 60s TTL on aggregate result)."
+    },
+    {
+      "id": "SEC-P7S1-019",
+      "severity": "LOW",
+      "confidence": 100,
+      "category": "audit-trail",
+      "title": "UtilResults INSERT path does not write AuditLog (no INSERT audit for /results and /aggregate endpoints)",
+      "description": "save_util_results (services/util/persist_service.py:18-30) and aggregate_and_save (services/util/persist_service.py:33-65) do not call AuditService.write. State-changing operations on util_results are not audited. Compare: state_machine.transition() always writes audit. This means a DESIGNER who POSTs /util/aggregate or /util/results leaves no audit trail beyond the row's created_by / created_at columns (and created_by is nullable per migration).",
+      "evidence": [
+        "app/services/util/persist_service.py:18-65 — no AuditService.write",
+        "Migration p7_s1_005_util_results.py — `created_by UUID nullable=True`"
+      ],
+      "impact": "Compliance gap: insert operations on util_results are untraceable. Combined with SEC-P7S1-001, attacker injects fake results with zero audit trail.",
+      "remediation": "Call AuditService.write(action=AuditAction.UTIL_RESULT_CREATED, resource_type='util_results', resource_id=record.util_result_id, user_id=actor_user_id, detail={'source': source, 'modules': modules}) at end of save_util_results/aggregate_and_save."
+    },
+    {
+      "id": "SEC-P7S1-020",
+      "severity": "LOW",
+      "confidence": 75,
+      "category": "secret-management",
+      "title": "EquipmentTypeCodeService seed_defaults source field stores literal string 'SPEC V1.4 §3.2.1 (3)' — not a secret but indicates stringly-typed metadata",
+      "description": "services/equipment_type_code_service.py:97 stores `source='SPEC V1.4 §3.2.1 (3)'` on seed rows. This is informational, not a secret. EquipmentTypeCodeService exposes only `seed_defaults` classmethod and read-only `query_by_code`/`list_by_category`. No endpoint exposes seed mutation. Therefore seed_defaults cannot be modified via API. Confirmed not exploitable.",
+      "evidence": [
+        "services/equipment_type_code_service.py:97 — literal string",
+        "No PUT/PATCH endpoint for equipment_type_codes in API"
+      ],
+      "impact": "None — confirmed safe.",
+      "remediation": "None — informational only."
+    },
+    {
+      "id": "SEC-P7S1-021",
+      "severity": "LOW",
+      "confidence": 100,
+      "category": "logging",
+      "title": "acquire_equip_list_lock logs project_id + tag_number on OperationalError — PII/log-injection surface",
+      "description": "services/advisory_lock.py:38-42 logs `project_id=%s tag_number=%s err=%s` where tag_number is user-controlled (from EquipmentList records). If tag_number contains newlines or ANSI escape sequences, log injection (CWE-117) is possible. Severity low because tag_number is constrained at source record level (likely alphanumeric).",
+      "evidence": [
+        "services/advisory_lock.py:40 logger.warning with raw user-controlled strings"
+      ],
+     impact": "Log injection via crafted tag_number. Low risk in practice.",
+      "remediation": "Sanitize log values; use %r with `repr()`-style escaping; or use structured logging with parameter binding."
+    },
+    {
+      "id": "SEC-P7S1-022",
+      "severity": "INFORMATIONAL",
+      "confidence": 100,
+      "category": "positive-observation",
+      "title": "All SQL queries use SQLAlchemy parameterized binding — no SQLi observed",
+      "description": "Spot-checked every WHERE clause: persist_service (util + equip_list), sync_service, source_aggregator, toe_conversion_service, summary_service, equipment_type_code_service, audit_service, state_machine. All use SQLAlchemy `select().where(col == value)` or `text('SELECT pg_advisory_xact_lock(...)')` with bound params (`{c:, o:}` / `{key:}`) — no f-string or % interpolation in SQL. SQLi risk: NONE. Pydantic Field constraints on request body (min/max_length, gt/ge/le) are present for string/UUID/numeric fields — good. The exception is consumption_json dict which is covered in SEC-P7S1-003.",
+      "evidence": [
+        "Every reviewed SQL: SQLAlchemy ORM or text() with bind params",
+        "Pydantic Field constraints applied throughout schemas"
+      ],
+      "impact": "Positive finding.",
+      "remediation": "None."
+    },
+    {
+      "id": "SEC-P7S1-023",
+      "severity": "INFORMATIONAL",
+      "confidence": 100,
+      "category": "positive-observation",
+      "title": "require_roles helper raises HTTPException(403) consistently; ACL applied to all 12 endpoints",
+      "description": "All 12 endpoints call `require_roles(user, 'DESIGNER', 'PROCESS_CONTROLLER', 'SYSTEM_ADMIN')` at the top of the handler body (per config.py pattern, not as decorator). Mechanical review confirmed: equip_list.py:104, 122, 156, 188 (4 endpoints); util.py:85, 110, 131, 158, 175, 198 (6 endpoints). No endpoint skips the require_roles call. ACL gate is consistent. The issue is NOT that ACL is missing — it is that ACL is too permissive (DESIGNER too low) and does not enforce workspace/project ownership (SEC-P7S1-001).",
+      "evidence": [
+        "app/api/v1/equip_list.py — 4/4 endpoints have require_roles",
+        "app/api/v1/util.py — 6/6 endpoints have require_roles"
+      ],
+      "impact": "Positive finding.",
+      "remediation": "None (ACL presence is fine; depth needs work)."
+    }
+  ],
+  "top_remediations_priority_order": [
+    "1. SEC-P7S1-001 (CRITICAL) — Add project_id/workspace_id ownership filter at API/service layer; default to actor's accessible set.",
+    "2. SEC-P7S1-002 (CRITICAL) — Route sync_from_source sign_status mutations through state_machine.transition() to restore audit trail and TRANSITION_ROLES ACL.",
+    "3. SEC-P7S1-003 (HIGH) — Tighten consumption_json Pydantic schema: Literal keys, confloat(ge=0, allow_inf_nan=False), min/max_length.",
+    "4. SEC-P7S1-004 (HIGH) — Single-record endpoints must verify project_id in actor's accessible set (use 404 to avoid enumeration).",
+    "5. SEC-P7S1-005 (HIGH) — Document bearer-only invariant + add Origin header middleware for state-changing POSTs.",
+    "6. SEC-P7S1-006 (HIGH) — Assert DB dialect=postgresql at startup; remove SQLite silent no-op.",
+    "7. SEC-P7S1-007 (MEDIUM) — Sanitize bulk_sync error responses; return error_id and log full exception server-side.",
+    "8. SEC-P7S1-008 (MEDIUM) — Raise on unknown modules in source_aggregator (not silent skip).",
+    "9. SEC-P7S1-009 (MEDIUM) — Add Literal enum constraints to API-layer sign_status / equipment_status query params.",
+    "10. SEC-P7S1-010 (MEDIUM) — Tied to SEC-P7S1-002 fix; sync path must consult TRANSITION_ROLES.",
+    "11. SEC-P7S1-012 (MEDIUM) — Validate project_id/workspace_id in POST body against actor's accessible set.",
+    "12. SEC-P7S1-017 (LOW) — Literal whitelist on source_service field.",
+    "13. SEC-P7S1-018 (LOW) — Rate-limit POST /util/aggregate.",
+    "14. SEC-P7S1-019 (LOW) — AuditLog write for UtilResults INSERT path."
+  ],
+  "merge_decision": {
+    "block": true,
+    "rationale": "Two CRITICAL findings (cross-project IDOR + state-machine audit bypass) plus four HIGH (float NaN injection, single-record IDOR, CSRF defense gap, advisory lock silent no-op). Sprint 1 establishes ACL and state machine as backbone for P7 — landing without these fixes locks in a multi-tenant data breach vector and an unrecoverable audit gap for all subsequent sprints.",
+    "min_fix_set": [
+      "SEC-P7S1-001",
+      "SEC-P7S1-002",
+      "SEC-P7S1-003",
+      "SEC-P7S1-004",
+      "SEC-P7S1-006"
+    ]
+  },
+  "audit_observations": {
+    "state_machine_audit_write_call_count": 1,
+    "state_machine_direct_orm_mutations_in_sprint1": "sync_from_source mutates EquipmentList.sign_status directly (sync_service.py:128, 167) — bypasses state_machine.transition()",
+    "auditlog_inserts_in_sprint1_services": 0,
+    "auditlog_inserts_expected": "sync_from_source + save_util_results + aggregate_and_save should all write AuditLog; none do"
+  }
+}

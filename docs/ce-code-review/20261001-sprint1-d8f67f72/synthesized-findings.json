@@ -1,0 +1,334 @@
+{
+  "run_id": "20261001-sprint1-d8f67f72",
+  "reviewers": ["correctness", "data-migration", "security", "adversarial", "api-contract"],
+  "scope": {
+    "mode": "branch-remote",
+    "base": "496b84d",
+    "head": "8ea056b",
+    "branch": "main",
+    "head_sha": "ebc08a5",
+    "files_changed": 38,
+    "lines_changed": 10097
+  },
+  "intent": "P7 Sprint 1 batch (496b84d..8ea056b): 14 commits. StateMachineService 强制写审计三字段 (R-03 T0) + EquipmentList ORM + SourceService V1.4 字段 (T1) + EquipmentTypeCodes seed (T1.5) + EQUIP_LIST 同步服务 + SourceModule dispatcher (T2) + UTIL V1.3 基线 (util_results + 13 类 + 折标煤 13→6 映射, T3) + audit_logs JSONB GIN 索引 (D8) + review I1+I2 fix + EQUIP_LIST API + persist_service (S1-4b) + UTIL API + source_aggregator (S1-5b) + 6 deferred Minor polish + G-08 baseline roll.",
+  "peer_coverage": "Adversarial lens ran via in-process adversarial-reviewer (no codex CLI; fallback per cross-model-review.md).",
+  "primary_findings": [
+    {
+      "id": "F-P0-001",
+      "title": "PSYCHRO type_code 'X' collides with 'Motor/Electrical' — psychrometric CHECKED mis-classified as electrical",
+      "severity": "P0",
+      "confidence": 100,
+      "file": "pcs-backend/app/services/equip_list/type_code_map.py",
+      "line": 13,
+      "owner": "human",
+      "autofix_class": "manual",
+      "requires_verification": true,
+      "pre_existing": false,
+      "reviewers": ["correctness"],
+      "evidence": [
+        "type_code_map.py:13 — PSYCHRO maps to type_code 'X'",
+        "equipment_type_code_service.py:78 — 'X' defined as 'Motor / Electrical' (category=ELECTRICAL)"
+      ],
+      "suggested_fix": "Either change PSYCHRO type_code to a unique letter (e.g., 'P' if free) OR add PSYCHRO-specific code to SEED_TYPE_CODES."
+    },
+    {
+      "id": "F-P0-002",
+      "title": "GET /util/summary 'latest' returns random UtilResult (UUIDv4 util_result_id order, not created_at)",
+      "severity": "P0",
+      "confidence": 100,
+      "file": "pcs-backend/app/services/util/persist_service.py",
+      "line": 108,
+      "owner": "human",
+      "autofix_class": "gated_auto",
+      "requires_verification": true,
+      "pre_existing": false,
+      "reviewers": ["correctness"],
+      "evidence": [
+        "persist_service.py:108 — orders by `UtilResult.util_result_id DESC` (UUIDv4 random)",
+        "util.py:166, 192, 224 — /util/summary, /energy-consumption, /water-balance all use this 'latest' fallback"
+      ],
+      "suggested_fix": "Order by `created_at DESC` instead of util_result_id DESC."
+    },
+    {
+      "id": "F-P0-003",
+      "title": "State machine audit bypass — sync_from_source mutates EquipmentList.sign_status directly (no AuditLog writes)",
+      "severity": "P0",
+      "confidence": 100,
+      "file": "pcs-backend/app/services/equip_list/sync_service.py",
+      "line": 128,
+      "owner": "human",
+      "autofix_class": "manual",
+      "requires_verification": true,
+      "pre_existing": false,
+      "reviewers": ["adversarial", "security"],
+      "evidence": [
+        "sync_service.py:128, 167 — sync_from_source mutates EquipmentList.sign_status via direct ORM update",
+        "sync_service.py writes zero AuditLog rows; bypasses state_machine.transition(); TRANSITION_ROLES ACL not consulted",
+        "audit_observations: STATE machine_audit_write_call_count=1; audit_log_inserts_in_sprint1_services=0 (expected many)"
+      ],
+      "suggested_fix": "Route EquipmentList.sign_status updates through state_machine.transition(); add Postgres trigger as defense-in-depth (out of Sprint scope; document in ADR-0045)."
+    },
+    {
+      "id": "F-P0-004",
+      "title": "Cross-project IDOR — every endpoint trusts client project_id/workspace_id; ACL only checks role",
+      "severity": "P0",
+      "confidence": 100,
+      "file": "pcs-backend/app/api/v1/equip_list.py",
+      "line": 1,
+      "owner": "human",
+      "autofix_class": "manual",
+      "requires_verification": true,
+      "pre_existing": true,
+      "reviewers": ["security"],
+      "evidence": [
+        "equip_list.py + util.py — 12 endpoints accept arbitrary project_id/workspace_id without ownership check",
+        "persist_service.py:103, util.py:62 — None-leak: omit project_id ⇒ unfiltered rows from all projects"
+      ],
+      "suggested_fix": "Add UserProject/WorkspaceMember model + per-project ACL check; pre-existing across PCS."
+    },
+    {
+      "id": "F-P0-005",
+      "title": "audit_logs GIN index built without CONCURRENTLY — blocks all audit writes during build (production outage)",
+      "severity": "P0",
+      "confidence": 100,
+      "file": "pcs-backend/alembic/versions/p7_s1_002_audit_logs_jsonb_gin.py",
+      "line": 32,
+      "owner": "downstream-resolver",
+      "autofix_class": "gated_auto",
+      "requires_verification": true,
+      "pre_existing": false,
+      "reviewers": ["data-migration"],
+      "evidence": [
+        "p7_s1_002_audit_logs_jsonb_gin.py:32-39 — CREATE INDEX without postgresql_concurrently=True",
+        "audit_logs is hot append-only table; CREATE INDEX acquires SHARE lock that blocks DML for build window"
+      ],
+      "suggested_fix": "Add postgresql_concurrently=True and if_not_exists=True to op.create_index."
+    },
+    {
+      "id": "F-P1-001",
+      "title": "UtilResults ORM missing composite (project_id, workspace_id) index — schema drift vs migration",
+      "severity": "P1",
+      "confidence": 75,
+      "file": "pcs-backend/app/models/util.py",
+      "line": 38,
+      "owner": "downstream-resolver",
+      "autofix_class": "gated_auto",
+      "requires_verification": true,
+      "pre_existing": false,
+      "reviewers": ["data-migration"],
+      "evidence": [
+        "Migration creates 3 indexes; ORM __table_args__ only declares ix_util_results_project"
+      ],
+      "suggested_fix": "Add Index(\"ix_util_results_project_workspace\", \"project_id\", \"workspace_id\") to UtilResults.__table_args__."
+    },
+    {
+      "id": "F-P1-002",
+      "title": "advisory_lock silent no-op on OperationalError; acks rollout race protection",
+      "severity": "P1",
+      "confidence": 100,
+      "file": "pcs-backend/app/services/advisory_lock.py",
+      "line": 45,
+      "owner": "downstream-resolver",
+      "autofix_class": "gated_auto",
+      "requires_verification": true,
+      "pre_existing": false,
+      "reviewers": ["adversarial", "security"]
+    },
+    {
+      "id": "F-P1-003",
+      "title": "SourceModule dispatcher silently drops unknown modules — enables feature-probing",
+      "severity": "P1",
+      "confidence": 100,
+      "file": "pcs-backend/app/services/util/source_aggregator.py",
+      "line": 173,
+      "owner": "downstream-resolver",
+      "autofix_class": "manual",
+      "requires_verification": false,
+      "pre_existing": false,
+      "reviewers": ["adversarial", "security"]
+    },
+    {
+      "id": "F-P1-004",
+      "title": "summary_service coalesces 'absent' vs 'explicit 0' silently",
+      "severity": "P1",
+      "confidence": 100,
+      "file": "pcs-backend/app/services/util/summary_service.py",
+      "line": 62,
+      "owner": "downstream-resolver",
+      "autofix_class": "advisory",
+      "requires_verification": false,
+      "pre_existing": false,
+      "reviewers": ["adversarial"]
+    },
+    {
+      "id": "F-P1-005",
+      "title": "RESOLVE_STALE_CHANGED records hash_changed=false — semantic mismatch",
+      "severity": "P1",
+      "confidence": 100,
+      "file": "pcs-backend/app/services/state_machine.py",
+      "line": 362,
+      "owner": "downstream-resolver",
+      "autofix_class": "manual",
+      "requires_verification": true,
+      "pre_existing": false,
+      "reviewers": ["adversarial"]
+    },
+    {
+      "id": "F-P1-006",
+      "title": "aggregate_and_save overwrites manual entries for 6 unmapped categories",
+      "severity": "P1",
+      "confidence": 100,
+      "file": "pcs-backend/app/services/util/persist_service.py",
+      "line": 62,
+      "owner": "downstream-resolver",
+      "autofix_class": "manual",
+      "requires_verification": true,
+      "pre_existing": false,
+      "reviewers": ["adversarial"]
+    },
+    {
+      "id": "F-P1-007",
+      "title": "summary_service generic write loop drops 6 of 13 categories silently",
+      "severity": "P1",
+      "confidence": 100,
+      "file": "pcs-backend/app/services/util/persist_service.py",
+      "line": 62,
+      "owner": "downstream-resolver",
+      "autofix_class": "manual",
+      "requires_verification": true,
+      "pre_existing": false,
+      "reviewers": ["adversarial"]
+    },
+    {
+      "id": "F-P1-008",
+      "title": "query_by_fuel_year returns stale coefficient on year-rollover (2027 → 2026)",
+      "severity": "P1",
+      "confidence": 100,
+      "file": "pcs-backend/app/services/toe_conversion_service.py",
+      "line": 67,
+      "owner": "human",
+      "autofix_class": "advisory",
+      "requires_verification": false,
+      "pre_existing": false,
+      "reviewers": ["adversarial"]
+    },
+    {
+      "id": "F-P1-009",
+      "title": "G-08 baseline + endpoint code in same batch — frontend snapshot drift risk",
+      "severity": "P1",
+      "confidence": 75,
+      "file": "pcs-backend/docs/openapi-baseline.json",
+      "line": 1,
+      "owner": "downstream-resolver",
+      "autofix_class": "advisory",
+      "requires_verification": false,
+      "pre_existing": false,
+      "reviewers": ["adversarial"]
+    },
+    {
+      "id": "F-P1-010",
+      "title": "bulk-sync Pydantic Literal validation contradicts endpoint's 'partial failure 容错' claim",
+      "severity": "P1",
+      "confidence": 75,
+      "file": "pcs-backend/app/schemas/equip_list.py",
+      "line": 27,
+      "owner": "downstream-resolver",
+      "autofix_class": "manual",
+      "requires_verification": true,
+      "pre_existing": false,
+      "reviewers": ["correctness"]
+    },
+    {
+      "id": "F-P1-011",
+      "title": "EquipmentTypeCodeService.seed_defaults all-or-nothing — partial pre-seeding blocks remaining codes",
+      "severity": "P1",
+      "confidence": 75,
+      "file": "pcs-backend/app/services/equipment_type_code_service.py",
+      "line": 114,
+      "owner": "downstream-resolver",
+      "autofix_class": "gated_auto",
+      "requires_verification": true,
+      "pre_existing": false,
+      "reviewers": ["correctness"]
+    },
+    {
+      "id": "F-P1-012",
+      "title": "EquipmentTypeCode count 3-way mismatch: 26 docstring / 31 SEED / 24 KEY_TYPE_CODES",
+      "severity": "P1",
+      "confidence": 75,
+      "file": "pcs-backend/app/services/equipment_type_code_service.py",
+      "line": 102,
+      "owner": "downstream-resolver",
+      "autofix_class": "gated_auto",
+      "requires_verification": false,
+      "pre_existing": false,
+      "reviewers": ["correctness"]
+    },
+    {
+      "id": "F-P1-013",
+      "title": "consumption_json dict[str, float] accepts NaN/Inf — poisons downstream toe_total",
+      "severity": "P1",
+      "confidence": 100,
+      "file": "pcs-backend/app/schemas/util.py",
+      "line": 33,
+      "owner": "downstream-resolver",
+      "autofix_class": "gated_auto",
+      "requires_verification": true,
+      "pre_existing": false,
+      "reviewers": ["security"]
+    },
+    {
+      "id": "F-P1-014",
+      "title": "GET /equipment-list/{id} and /util/results/{id} return any record by UUID — no ownership filter",
+      "severity": "P1",
+      "confidence": 75,
+      "file": "pcs-backend/app/api/v1/equip_list.py",
+      "line": 121,
+      "owner": "downstream-resolver",
+      "autofix_class": "manual",
+      "requires_verification": true,
+      "pre_existing": false,
+      "reviewers": ["security"]
+    },
+    {
+      "id": "F-P1-015",
+      "title": "toe_total counts 6 categories (incl CONDENSATE) but by_category returns only 5",
+      "severity": "P1",
+      "confidence": 75,
+      "file": "pcs-backend/app/api/v1/util.py",
+      "line": 208,
+      "owner": "downstream-resolver",
+      "autofix_class": "gated_auto",
+      "requires_verification": true,
+      "pre_existing": false,
+      "reviewers": ["api-contract"]
+    }
+  ],
+  "pre_existing_findings": [
+    "Cross-project IDOR (F-P0-004) is pre-existing across PCS backend (not introduced by Sprint 1)."
+  ],
+  "residual_risks": [
+    "Cascade (per adversarial F-017): 4 silent-passes compound — mid-Sprint project shows '0 of everything' with no drift signal.",
+    "Audit trail coverage: state_machine.transition() called once in Sprint 1 (audit_observations); sync_service direct mutates skip audit (F-P0-003).",
+    "PostgreSQL production deploy of p7_s1_002 will cause minutes-long audit_logs INSERT block; cannot rollback mid-build.",
+    "EquipmentTypeCodes seed not atomic with schema migration (DM-P7S1-003)."
+  ],
+  "testing_gaps": [
+    "No test for PSYCHRO type_code mapping collision.",
+    "No test for /util/summary 'latest' ordering determinism (UUIDv4 randomness leaks through).",
+    "No audit-trail bypass test (direct mutation vs state_machine.transition path coverage).",
+    "No cross-project IDOR exploit test (DESIGNER reads other project's UtilResults).",
+    "No GIN index build-time measurement; post-deploy verification SQL documented but not in CI.",
+    "No test verifies CONDENSATE included in toe_total but excluded from by_category (AC-001).",
+    "No test for query_by_fuel_year year-rollover behavior (stale coefficient on 2027).",
+    "No test for advisory_lock OperationalError silent no-op (production misconfig).",
+    "No test for EquipmentTypeCodeService.seed_defaults idempotency with partial pre-seeding."
+  ],
+  "coverage": {
+    "depth": "full",
+    "reviewers_dispatched": ["correctness", "data-migration", "security", "adversarial", "api-contract"],
+    "peer_coverage": "Adversarial lens ran via in-process adversarial-reviewer (no codex CLI; fallback per cross-model-review.md)"
+  },
+  "verdict": "Not ready",
+  "ready_after_fixes": "All 5 P0 (F-P0-001..005) + 4 critical P1 (F-P1-002 / F-P1-004 / F-P1-005 / F-P1-015). Estimated work: 2-3 days."
+}

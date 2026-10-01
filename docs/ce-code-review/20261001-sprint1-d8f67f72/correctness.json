@@ -1,0 +1,334 @@
+{
+  "review_id": "20261001-sprint1-d8f67f72",
+  "reviewer": "correctness-sprint1",
+  "intent": "P7 Sprint 1 batch: equipment_list + util infrastructure foundation",
+  "branch_range": "496b84d..8ea056b",
+  "scope": "lines added in Sprint 1 diff",
+  "summary": {
+    "total_findings": 11,
+    "by_severity": {"P0": 2, "P1": 3, "P2": 3, "P3": 3},
+    "pre_existing": 0,
+    "highest_risk_files": [
+      "pcs-backend/app/services/equip_list/type_code_map.py",
+      "pcs-backend/app/services/util/persist_service.py",
+      "pcs-backend/app/api/v1/equip_list.py",
+      "pcs-backend/app/services/equipment_type_code_service.py",
+      "pcs-backend/app/api/v1/util.py"
+    ]
+  },
+  "findings": [
+    {
+      "id": "F1",
+      "severity": "P0",
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "human",
+      "pre_existing": false,
+      "title": "PSYCHRO SourceModule maps to type_code 'X' which collides with Motor/Electrical in SEED_TYPE_CODES",
+      "files": [
+        "pcs-backend/app/services/equip_list/type_code_map.py",
+        "pcs-backend/app/services/equipment_type_code_service.py"
+      ],
+      "anchor_evidence": "type_code_map.py:13 — 'PSYCHRO': 'X'",
+      "evidence": [
+        "pcs-backend/app/services/equip_list/type_code_map.py:13 — \"PSYCHRO\": \"X\"",
+        "pcs-backend/app/services/equipment_type_code_service.py:78 — {\"type_code\": \"X\", \"equipment_description\": \"Motor / Electrical\", \"description_cn\": \"电机/电气\", \"category\": \"ELECTRICAL\"}",
+        "Every PsychroResult CHECKED → sync_from_source creates EquipmentList(type_code='X', equipment_type_project_id=project_or_None) — the FK resolves to the 'Motor / Electrical' company-level row, so a psychrometric calculation result is mis-classified as an electrical device on the EquipmentList page",
+        "PSYCHRO has no dedicated entry in SEED_TYPE_CODES (no 'PSY' / 'HUM' code), so the FK target falls back to whatever 'X' resolves to",
+        "Spec V1.4 §3.2.1's PSYCHRO is a humidity/psychrometric calculation, not an electrical asset — the equipment_type_code mismatch silently corrupts downstream procurement/category reporting"
+      ],
+      "fix": "Add a dedicated code (e.g. 'PSY' for Psychrometrics) to SEED_TYPE_CODES with category='OTHER'/'INSTRUMENT', then change type_code_map to {\"PSYCHRO\": \"PSY\"}. Migration required: update company-level row (project_id IS NULL, type_code='PSY'). Until then, gate PSYCHRO SourceModule sync (do not call sync_from_source for PSYCHRO) or raise on collision.",
+      "risk_if_unfixed": "Every psychrometric record synced into EquipmentList shows as a 'Motor / Electrical' device. Cross-category reports (equipment count by category, electrical BOM rollup, is_process_equipment filter) will be silently wrong. Latent until first PSYCHRO sync.",
+      "test_signal": "No test exercises PSYCHRO→sync path; the issue is invisible to the suite. Adding an assertion in test_sync_service.py that PSYCHRO.sync → equipment.category != 'ELECTRICAL' (or that a dedicated PSYCHRO code exists in seed) would catch this."
+    },
+    {
+      "id": "F2",
+      "severity": "P0",
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "human",
+      "pre_existing": false,
+      "title": "Util summary endpoint 'latest' semantics is broken — orders by util_result_id DESC (UUIDv4, random) instead of creation time",
+      "files": [
+        "pcs-backend/app/services/util/persist_service.py",
+        "pcs-backend/app/api/v1/util.py"
+      ],
+      "anchor_evidence": "persist_service.py:108 — stmt = stmt.order_by(UtilResults.util_result_id.desc()).limit(limit).offset(offset)",
+      "evidence": [
+        "pcs-backend/app/services/util/persist_service.py:108 — order_by(UtilResults.util_result_id.desc())",
+        "pcs-backend/app/models/util.py:33 — util_result_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)",
+        "util_result_id is UUIDv4 (default=uuid.uuid4); DESC ordering is lexical/random, not chronological",
+        "pcs-backend/app/api/v1/util.py:166 — comment '# 默认最新一条（按 util_result_id DESC）' explicitly relies on this ordering for 'latest' semantics, but UUIDv4 lexical order has no correlation with insertion time",
+        "All three summary endpoints (/summary, /energy-consumption, /water-balance) use this fallback when util_result_id is omitted → user-visible 'latest snapshot' is essentially a random pick across all UtilResults rows",
+        "Multi-aggregate projects (where source_aggregator runs after every CHECKED batch) will see summary flicker between unrelated time windows"
+      ],
+      "fix": "Add a created_at-desc index, and change list_util_results to order by UtilResults.created_at.desc() (TimestampMixin provides created_at). Alternative: add a column 'is_latest' bool and partition. Quickest: add ix_util_results_created_at and order by (created_at DESC, util_result_id DESC) for tie-breaking.",
+      "risk_if_unfixed": "End users opening /api/v1/util/summary without util_result_id get non-deterministic results; toe_total can fluctuate between calls without any underlying data change. Auditing a project at two different times shows different snapshots with no warning.",
+      "test_signal": "Existing tests always pass util_result_id explicitly; the bug is invisible. Add test: seed 3 UtilResults with explicit created_at, then assert summary returns the row with latest created_at (not random UUID)."
+    },
+    {
+      "id": "F3",
+      "severity": "P1",
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "human",
+      "pre_existing": false,
+      "title": "bulk-sync endpoint claim of 'partial failure 容错' is contradicted by Pydantic Literal all-or-nothing validation",
+      "files": [
+        "pcs-backend/app/schemas/equip_list.py",
+        "pcs-backend/app/api/v1/equip_list.py"
+      ],
+      "anchor_evidence": "schemas/equip_list.py:27 — source_module: Literal[\"PUMP\", \"VESSEL\", \"HEAT\", \"PSV\", \"CV\", \"COOL_TOWER\", \"PSYCHRO\", \"OPEN_CHANNEL\"]",
+      "evidence": [
+        "pcs-backend/app/schemas/equip_list.py:27 — source_module: Literal[...] enforces strict enum match in Pydantic v2",
+        "pcs-backend/app/api/v1/equip_list.py:88 — endpoint description: '批量 sync_from_source（1-100 条目）；partial failure 容错'",
+        "pcs-backend/app/services/equip_list/persist_service.py:34 — bulk_sync_from_sources wraps each sync_from_source in try/except precisely to support partial failure",
+        "PCS Pydantic validation runs BEFORE the service layer → any entry with an unknown source_module (or any other Literal field violation) rejects the entire batch with HTTP 422; the per-entry try/except is unreachable for that case",
+        "tests/api/v1/test_equip_list.py:158 — test_api_bulk_sync_equipment_partial_failure demonstrates this contradiction: it sends one valid + one INVALID_MODULE entry and asserts status_code == 422, not 200 with partial failure",
+        "Real partial failure (e.g., one entry's source_record_id not found in DB) does work because that raises LookupError after Pydantic passes — but the documented 'partial failure' contract is misleading"
+      ],
+      "fix": "Either (a) relax source_module from Literal to str + Pydantic str(max_length=30), letting the service layer's UnsupportedSourceModuleError surface as a per-entry failure; or (b) update endpoint docstring + tests to reflect 'partial failure only for runtime errors (LookupError/ValueError), not schema violations'. Recommend (a) for the user-facing claim to hold.",
+      "risk_if_unfixed": "Integration test gate (P7 Sprint 1 I5 fix verifying partial failure) cannot validate the documented behavior. Frontend 'retry failed entries' UX depends on the false promise — users will see one bad entry wipe out 99 good ones with no 200 response.",
+      "test_signal": "test_api_bulk_sync_equipment_partial_failure asserts 422, codifying the broken behavior as expected. Either update the test to expect 200 + succeeded/failed split, or relax the schema."
+    },
+    {
+      "id": "F4",
+      "severity": "P1",
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "title": "EquipmentTypeCodeService seed_defaults is all-or-nothing idempotent — partial existing data blocks re-seed forever",
+      "files": [
+        "pcs-backend/app/services/equipment_type_code_service.py"
+      ],
+      "anchor_evidence": "equipment_type_code_service.py:114 — if existing: return 0",
+      "evidence": [
+        "pcs-backend/app/services/equipment_type_code_service.py:114-115 — existing = set(...); if existing: return 0 (early-return on ANY existing row)",
+        "Seed loop starts at line 122 only if existing is empty",
+        "If a project admin pre-seeds even one type_code (e.g., manually adding 'P' for Pump before the app code path runs), seed_defaults becomes a no-op forever — the remaining 30 codes never get inserted",
+        "No upsert / merge logic; no per-code existence check inside the loop",
+        "Docstring '幂等 seed 26 个核心 type_code' reinforces the (wrong) expectation that seed is idempotent and additive — but additive only when zero rows exist",
+        "Test test_seed_defaults_creates_key_codes only verifies fresh-DB path; no test exercises the 'partial pre-seed' failure mode"
+      ],
+      "fix": "Change early-return to per-entry check: `existing_set = set(...)`; iterate SEED_TYPE_CODES; for each entry not in existing_set, session.add(...); await session.commit(); return len(added). This is true UPSERT-idempotent and supports SEED_TYPE_CODES additions over time.",
+      "risk_if_unfixed": "Hotfix scenarios (add new type_code 'XYZ' to SEED_TYPE_CODES in Sprint 2) won't propagate to existing DBs — production DBs stuck on partial seed. Also blocks the planned '80 codes 全清单工艺工程师扩字' follow-up.",
+      "test_signal": "Add test: seed_defaults with one pre-existing row → assert second call returns 30 (added 30 new, skipped 1), not 0."
+    },
+    {
+      "id": "F5",
+      "severity": "P1",
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "title": "EquipmentTypeCode count documentation says 26 but SEED_TYPE_CODES has 31 entries — docstring/test/code three-way inconsistency",
+      "files": [
+        "pcs-backend/app/services/equipment_type_code_service.py",
+        "pcs-backend/tests/services/test_equipment_type_code_service.py"
+      ],
+      "anchor_evidence": "equipment_type_code_service.py:102 — seed 26 个核心 type_code",
+      "evidence": [
+        "pcs-backend/app/services/equipment_type_code_service.py:102 — class docstring: 'seed_defaults 幂等 seed 26 个核心 type_code（公司级默认，project_id NULL）'",
+        "pcs-backend/app/services/equipment_type_code_service.py:109 — method docstring repeats '幂等 seed 26 个核心 type_code'",
+        "SEED_TYPE_CODES tuple (lines 58-95) has 31 entries (counted: ROTATING×5 + STATIC×11 + PACKAGE×2 + ELECTRICAL×2 + INSTRUMENT×6 + OTHER×5 = 31)",
+        "KEY_TYPE_CODES tuple (lines 23-54) has 24 entries — yet another count",
+        "pcs-backend/tests/services/test_equipment_type_code_service.py:50 — assertion: 'expected 31 SEED_TYPE_CODES entries, got {count}' (M7 strict)",
+        "A future reader trusting the docstring '26' will be confused; a future code reviewer seeing 26 vs actual 31 may think 5 entries are dead code"
+      ],
+      "fix": "Replace '26 个核心 type_code' with '31 个核心 type_code' in both class+method docstrings. Update TODOS.md note if it references 26.",
+      "risk_if_unfixed": "Documentation drift — minor, but the test assertion `assert count == 31` will appear to be a test bug to anyone who reads the docstring. The P7-Sprint 1 review ledger already calls out 'doc must match code' as a recurring Minor.",
+      "test_signal": "The strict count test (==31) catches code regression; nothing catches doc drift. Consider a docstring-text assertion or lint rule."
+    },
+    {
+      "id": "F6",
+      "severity": "P2",
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "pre_existing": false,
+      "title": "save_util_results lacks explicit rollback on commit failure — session may carry half-applied state into next request",
+      "files": [
+        "pcs-backend/app/services/util/persist_service.py"
+      ],
+      "anchor_evidence": "persist_service.py:42-45 — db.add(record); await db.commit(); await db.refresh(record); return record",
+      "evidence": [
+        "pcs-backend/app/services/util/persist_service.py:42-45 — db.add + commit + refresh with no try/except",
+        "aggregate_and_save calls save_util_results after aggregate_consumption; if commit fails (FK violation, network glitch on remote PG), the AsyncSession is in an aborted state",
+        "FastAPI dependency `get_db` typically yields session per-request, so abort is scoped — but `aggregate_and_save` may be called within an outer transaction (manual commit boundary) where partial state poisons subsequent ops",
+        "SQLAlchemy 2.0 AsyncSession auto-rollbacks on next use, but the explicit pattern (try/except/rollback/raise) is more defensive and produces clearer stack traces",
+        "Compare to ToeConversionService.seed_defaults (toe_conversion_service.py:34) which also lacks try/except — same pattern, same risk; both are P2 rather than P1 because the FastAPI session-per-request model contains the blast radius"
+      ],
+      "fix": "Wrap commit in try/except; on failure, await db.rollback() and re-raise. Or use a context-manager pattern. Apply consistently across save_util_results, aggregate_and_save, and EquipmentList persist path.",
+      "risk_if_unfixed": "In aggregate_and_save with an outer transaction (e.g., a batch job), a commit failure in save_util_results leaves the session in error state; subsequent queries in the same transaction raise PendingRollbackError, requiring manual rollback at every call site.",
+      "test_signal": "Hard to test without mock commit failure. Could add a unit test with a side_effect=IntegrityError mock on session.commit."
+    },
+    {
+      "id": "F7",
+      "severity": "P2",
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "pre_existing": false,
+      "title": "sync_equipment API 'was_created' semantic conflates 'tag changed' with 'record created' — path equipment_id can dangle",
+      "files": [
+        "pcs-backend/app/api/v1/equip_list.py",
+        "pcs-backend/app/services/equip_list/sync_service.py"
+      ],
+      "anchor_evidence": "equip_list.py:60 — was_created = (record.equipment_id != existing.equipment_id)",
+      "evidence": [
+        "pcs-backend/app/api/v1/equip_list.py:60 — was_created = (record.equipment_id != existing.equipment_id)",
+        "sync_from_source uses (project_id, tag_number) as the natural key, NOT equipment_id (sync_service.py:80-89 looks up by project_id+tag_number)",
+        "If client calls POST /equipment-list/{A}/sync with body.source_record_id pointing to a source with tag_number='P-999' (different from A's tag_number='P-001'), sync_from_source inserts a new EquipmentList for 'P-999' and updates 'P-001' via the lock",
+        "Result: was_created=True is returned, but equipment_id 'A' still points to the old 'P-001' record (unchanged). Client gets a misleading success signal — a new record was created, but not the one referenced by the path",
+        "Conversely, if the new source has the same (project_id, tag_number) as 'A', the existing 'A' record is updated in place, and was_created=False. This is the only case where the response is meaningful"
+      ],
+      "fix": "Document the contract: equipment_id in path is advisory; the canonical key is (project_id, tag_number) from the source_record. Either (a) drop equipment_id from the path (use POST /equipment-list/sync with body), or (b) verify post-sync that record.equipment_id matches path equipment_id, and return 409 if they diverge.",
+      "risk_if_unfixed": "Client UX breaks for the 're-tag a piece of equipment' workflow. Audit trail shows misleading was_created flags, making reconciliation harder.",
+      "test_signal": "Add test: sync with a different source tag_number than the path equipment_id's tag_number → assert response explicitly indicates tag changed (or returns 409)."
+    },
+    {
+      "id": "F8",
+      "severity": "P2",
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "title": "list_util_results API discards pagination metadata — returns bare list, inconsistent with EquipListListResponse wrapper",
+      "files": [
+        "pcs-backend/app/api/v1/util.py",
+        "pcs-backend/app/services/util/persist_service.py"
+      ],
+      "anchor_evidence": "util.py:63-79 — async def list_util_results(...) -> list[UtilResultsResponse]",
+      "evidence": [
+        "pcs-backend/app/api/v1/util.py:63 — return type list[UtilResultsResponse] (bare list)",
+        "pcs-backend/app/api/v1/util.py:67-68 — rows, _total = await persist_service.list_util_results(...); _total discarded",
+        "persist_service.list_util_results returns (rows, total) tuple — total is computed but unused by API",
+        "EquipListListResponse (schemas/equip_list.py:106) wraps items + total + limit + offset; UTIL API has no equivalent schema",
+        "Frontend pagination UIs expecting total/limit/offset cannot render a 'page X of Y' for UtilResults; they have to infer from item count"
+      ],
+      "fix": "Add UtilResultsListResponse schema (mirroring EquipListListResponse) and return it from list_util_results endpoint. Or document 'no pagination metadata by design' and limit to fixed N most-recent rows.",
+      "risk_if_unfixed": "Frontend breaks when scaling beyond 100 records (no paging UI affordance). Inconsistent API surface across /equipment-list and /util/results — same pattern, different shapes.",
+      "test_signal": "Test exists but doesn't assert total. Add assertion that response.total == expected for seeded fixtures."
+    },
+    {
+      "id": "F9",
+      "severity": "P3",
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "title": "category_map docstring counts are arithmetically wrong (claims 5+4+1+6+1=17, actual is 13)",
+      "files": [
+        "pcs-backend/app/services/util/category_map.py"
+      ],
+      "anchor_evidence": "category_map.py:8 — 13 = 5 + 4 STEAM 子类 + 1 CONDENSATE + 6 + TOTAL_PLACEHOLDER = 13 keys",
+      "evidence": [
+        "pcs-backend/app/services/util/category_map.py:8 — '13 = 5 + 4 STEAM 子类 + 1 CONDENSATE + 1 CONDENSATE + 6 + TOTAL_PLACEHOLDER = 13 keys' (per docstring text in diff)",
+        "Actual count: UtilityCategory enum has 13 members; correct decomposition is 1 ELECTRICITY + 3 STEAM (HP/MP/LP) + 1 CONDENSATE + 1 FUEL_GAS = 6 energy + 6 non-energy (COOLING/CHILLED/MAKEUP/N2/AIR/PLANT_AIR) + 1 TOTAL = 13",
+        "Comment double-counts STEAM (says '5 类能源 + 4 STEAM 子类' but STEAM_HP/MP/LP/FUEL_GAS is already in '5 类能源')",
+        "Code is correct (13 keys), only the docstring arithmetic is wrong"
+      ],
+      "fix": "Replace docstring text with accurate decomposition, e.g.: '13 = 6 能源类（ELECTRICITY/STEAM×3/CONDENSATE/FUEL_GAS）+ 6 非能源类（COOLING/CHILLED/MAKEUP/N2/AIR/PLANT_AIR）+ 1 TOTAL 占位 = 13 keys'",
+      "risk_if_unfixed": "Future SPEC V1.5 maintainer reads the comment, trusts the 5+4+1 count, and writes the wrong expansion list. Pure documentation; no runtime risk.",
+      "test_signal": "test_utility_categories_count_is_13 (tests/services/util/test_summary_service.py:18) verifies count, not docstring. Add a docstring grep test."
+    },
+    {
+      "id": "F10",
+      "severity": "P3",
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "pre_existing": false,
+      "title": "water-balance response hardcodes year=2026 instead of accepting a year query param",
+      "files": [
+        "pcs-backend/app/api/v1/util.py"
+      ],
+      "anchor_evidence": "util.py:245 — year=2026,  # water 无 TOE 年份依赖",
+      "evidence": [
+        "pcs-backend/app/api/v1/util.py:245 — return UtilWaterBalanceResponse(..., year=2026, ...)",
+        "Comment justifies hardcode: 'water 无 TOE 年份依赖' (water has no TOE year dependency)",
+        "However, business_date on UtilResults may span multiple years; clients querying an old business_date record see year=2026 even if the data is from 2024",
+        "/energy-consumption and /summary both accept `year` query param; /water-balance does not → API surface inconsistency",
+        "If a future sprint adds TOE conversion for water (e.g., chilled water electricity multiplier), the year hardcode becomes a silent bug"
+      ],
+      "fix": "Accept `year: int = Query(2026)` parameter; pass through to response. Or derive from record.business_date.year with default 2026.",
+      "risk_if_unfixed": "Cosmetic inconsistency; no immediate data corruption. Long-term: prevents forward-compatible API evolution.",
+      "test_signal": "Add test: query water-balance with business_date=2024-06-15 → assert response.year reflects 2024 (or whatever contract is decided)."
+    },
+    {
+      "id": "F11",
+      "severity": "P3",
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "pre_existing": false,
+      "title": "list_equipment_records orders by equipment_id (UUIDv4) — non-deterministic across paginated calls",
+      "files": [
+        "pcs-backend/app/services/equip_list/persist_service.py"
+      ],
+      "anchor_evidence": "persist_service.py:97 — stmt = stmt.order_by(EquipmentList.equipment_id).limit(limit).offset(offset)",
+      "evidence": [
+        "pcs-backend/app/services/equip_list/persist_service.py:97 — order_by(EquipmentList.equipment_id) ascending",
+        "EquipmentList.equipment_id is UUIDv4 default=uuid.uuid4 (models/equipment.py) — lexical order is random",
+        "Paginating with limit=100, offset=0 then offset=100 may return overlapping or missing rows across calls",
+        "No ORDER BY for created_at — pagination is fundamentally broken for >500 records"
+      ],
+      "fix": "Order by EquipmentList.created_at ASC + (equipment_id ASC as tiebreaker), or by tag_number ASC for stable human-readable ordering. Add ix_equipment_list_created_at index.",
+      "risk_if_unfixed": "Pagination flicker when list grows past limit; clients see 'phantom' updates between page loads.",
+      "test_signal": "Add test: seed N>limit EquipmentList records, paginate through, assert union of pages == seeded set with no duplicates."
+    }
+  ],
+  "explicitly_checked_no_issue": [
+    {
+      "name": "advisory_lock SQLite no-op",
+      "verdict": "correct as designed — M5 fix logs warning; concurrent test gated to pcs_test (Postgres); single-thread happy path is OK",
+      "files": ["pcs-backend/app/services/advisory_lock.py"]
+    },
+    {
+      "name": "toe_conversion_service.seed_defaults idempotency",
+      "verdict": "early-return on any existing row is fine for the 6 fixed fuel_types; Alembic migration p2_1_10_seed_toe covers production",
+      "files": ["pcs-backend/app/services/toe_conversion_service.py"]
+    },
+    {
+      "name": "state_machine STALE_RESOLVED three-field audit write",
+      "verdict": "extra dict correctly merged into detail via _write_audit (state_machine.py:175-195); hash_changed computed from old_hash vs getattr(record,'record_hash'); M2 fix correctly handles dict/list/None cf formats",
+      "files": ["pcs-backend/app/services/state_machine.py"]
+    },
+    {
+      "name": "13 → 6 fuel_type mapping completeness",
+      "verdict": "ELECTRICITY/STEAM_HP/MP/LP/CONDENSATE/FUEL_GAS correctly mapped to ToeConversionFactor.fuel_type; 7 non-energy correctly map to None and skip TOE; STEAM_HP+MP+LP+CONDENSATE correctly share STEAM TOE coefficient",
+      "files": ["pcs-backend/app/services/util/category_map.py", "pcs-backend/app/services/util/summary_service.py"]
+    },
+    {
+      "name": "SourceModule dispatcher 8-module coverage",
+      "verdict": "_MODULE_DISPATCH covers PUMP/VESSEL/HEAT/PSV/CV/COOL_TOWER/PSYCHRO/OPEN_CHANNEL; raise UnsupportedSourceModuleError on unknown",
+      "files": ["pcs-backend/app/services/equip_list/source_resolver.py"]
+    },
+    {
+      "name": "composite FK company-level fallback (I1 fix)",
+      "verdict": "_resolve_type_code_fk checks project-level first, falls back to None for company-level row; verified by test_sync_from_source_uses_company_level_type_code_when_no_project_override",
+      "files": ["pcs-backend/app/services/equip_list/sync_service.py"]
+    },
+    {
+      "name": "migration chain p7_s1_001 → p7_s1_005 → p7_s1_002",
+      "verdict": "down_revision chain is correct; p7_s1_002 runs last as expected (audit_logs already exists at p7_s1_005)",
+      "files": ["pcs-backend/alembic/versions/p7_s1_001_equipment_list_source_service.py", "pcs-backend/alembic/versions/p7_s1_002_audit_logs_jsonb_gin.py", "pcs-backend/alembic/versions/p7_s1_005_util_results.py"]
+    },
+    {
+      "name": "util_results jsonb_deprecated default",
+      "verdict": "ORM default=False + server_default='false'; tests confirm",
+      "files": ["pcs-backend/app/models/util.py", "pcs-backend/tests/services/util/test_summary_service.py"]
+    },
+    {
+      "name": "summary_service.summarize multi-year tolerance",
+      "verdict": "year parameter flows correctly to query_by_fuel_year_batch; effective_year <= year clause + DESC order take latest prior factor",
+      "files": ["pcs-backend/app/services/util/summary_service.py", "pcs-backend/app/services/toe_conversion_service.py"]
+    },
+    {
+      "name": "summary_service strict 13-key validation",
+      "verdict": "M8 fix rejects unknown keys (extra_keys = set(consumption.keys()) - expected_keys); missing valid keys default to 0.0; ordering preserves UtilityCategory iteration order",
+      "files": ["pcs-backend/app/services/util/summary_service.py"]
+    }
+  ]
+}

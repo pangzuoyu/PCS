@@ -1,0 +1,135 @@
+{
+  "review_id": "20261001-sprint1-d8f67f72",
+  "reviewer": "api-contract-sprint1",
+  "scope": "496b84d..8ea056b",
+  "batch": "P7 Sprint 1 (12+ endpoints + G-08 baseline)",
+  "summary": {
+    "endpoints_added_total": 19,
+    "endpoints_breakdown": {
+      "equipment_list": 4,
+      "util": 15
+    },
+    "note": "Intent text states '12 new endpoints' but actual count is 19: equip_list has 4 (list / get / sync / bulk-sync); util has 15 (results-list / results-get / results-post / aggregate / summary / energy-consumption / power-items POST+GET / fuel-gas-items POST+GET / heat-exchange-items POST+GET / energy-summary POST+GET).",
+    "g08_baseline_integrity": "PASS — pcs-backend/docs/openapi-baseline.json is byte-identical to pcs-backend/docs/openapi.json. All 179 paths and 229 schemas match exactly.",
+    "frontend_snapshot": "PASS — pcs-frontend/openapi.snapshot.json identical to pcs-backend/docs/openapi.json.",
+    "router_wiring": "PASS — both equip_list_router (line 59) and util_router (line 72) included in app/api/v1/__init__.py.",
+    "breaking_changes": "NONE — purely additive (new routes only). No field renames, no removed endpoints, no version drops.",
+    "error_envelope": "CONSISTENT — all errors go through install_exception_handlers (app/core/errors.py) with ErrorResponse{code, message, detail, trace_id}. HTTPException detail is mapped to message; structured code prefixes HTTP_<status>."
+  },
+  "findings": [
+    {
+      "id": "AC-001",
+      "severity": "HIGH",
+      "category": "response-shape-inconsistency",
+      "title": "UtilEnergyConsumptionResponse toe_total accounts for 6 keys but by_category only returns 5",
+      "location": "pcs-backend/app/api/v1/util.py:208-221 ; pcs-backend/app/services/util/summary_service.py:84-92",
+      "detail": "summary_service.summarize computes toe_total from 6 categories: ELECTRICITY + STEAM_HP + STEAM_MP + STEAM_LP + CONDENSATE + FUEL_GAS (per TOE_FUEL_TYPE_BY_CATEGORY; CONDENSATE→STEAM). /util/energy-consumption filters by_category to a hardcoded set {ELECTRICITY, STEAM_HP, STEAM_MP, STEAM_LP, FUEL_GAS} that excludes CONDENSATE. Consumers verifying toe_total ≈ f(by_category) will silently fail. Either include CONDENSATE in the filter set, or recompute toe_total on the filtered subset.",
+      "breaking": false,
+      "confidence": 95,
+      "fix": "Add UtilityCategory.CONDENSATE.value to energy_keys set at util.py:208-214 OR subtract CONDENSATE's contribution from toe_total before returning."
+    },
+    {
+      "id": "AC-002",
+      "severity": "MEDIUM",
+      "category": "missing-pydantic-discipline",
+      "title": "EquipListBulkSyncResponse.failed typed as list[dict], not a structured schema",
+      "location": "pcs-backend/app/schemas/equip_list.py:137-140 ; pcs-backend/app/services/equip_list/persist_service.py:53-59",
+      "detail": "failed is declared `list[dict] = Field(default_factory=list, description='失败条目：{ entry, error_code, error_message }')`. Persist_service emits {entry, error_code, error_message}, but the schema accepts arbitrary dicts. OpenAPI emits `additionalProperties: true` and frontend api.d.ts resolves to `{[key: string]: unknown}[]` — full loss of type safety. Consumers have no compile-time signal when the persisted shape drifts.",
+      "breaking": false,
+      "confidence": 90,
+      "fix": "Define `class EquipListBulkSyncFailedEntry(BaseModel): entry: dict; error_code: str; error_message: str` and use `list[EquipListBulkSyncFailedEntry]`."
+    },
+    {
+      "id": "AC-003",
+      "severity": "MEDIUM",
+      "category": "request-response-shape-inconsistency",
+      "title": "UtilResultsResponse.consumption_json typed as bare dict, but request is dict[str, float]",
+      "location": "pcs-backend/app/schemas/util.py:28-46",
+      "detail": "Request validates `dict[str, float]` (line 28-31). Response declares bare `dict (line 42)` with no value-type constraint. summary_service raises if a value is non-numeric, so the asymmetry is in the schema only — runtime is float. Frontend receives `generated: any` instead of `Record<string, number>`. Mismatched contract surface invites schema drift on either side.",
+      "breaking": false,
+      "confidence": 80,
+      "fix": "Change response to `consumption_json: dict[str, float]`."
+    },
+    {
+      "id": "AC-004",
+      "severity": "LOW",
+      "category": "dead-code",
+      "title": "EquipListListFilter schema defined but never referenced",
+      "location": "pcs-backend/app/schemas/equip_list.py:61-75",
+      "detail": "Class is defined but never imported in any router, never used as response_model or in Query() FastAPI deps. list_equipment builds its own Query() params directly (equip_list.py:74-82). Either dead code (delete) or aspirational (wire it via Depends()). Currently bloats the OpenAPI surface.",
+      "breaking": false,
+      "confidence": 85,
+      "fix": "Delete the class, or use it as a Depends() to consolidate filter param validation."
+    },
+    {
+      "id": "AC-005",
+      "severity": "LOW",
+      "category": "undocumented-behavior-change",
+      "title": "UtilWaterBalanceResponse hardcodes year=2026, no year query param unlike sibling endpoints",
+      "location": "pcs-backend/app/api/v1/util.py:252",
+      "detail": "Siblings /util/summary and /util/energy-consumption accept `year` Query (ge=2020, le=2100). /util/water-balance hardcodes year=2026 in the response and does not accept year. Comment in code: 'water 无 TOE 年份依赖' — but the response still emits a year field, so the year is meaningful for the consumer even if unused internally. Inconsistent surface.",
+      "breaking": false,
+      "confidence": 70,
+      "fix": "Either remove `year` from response, or accept year Query and pass through."
+    },
+    {
+      "id": "AC-006",
+      "severity": "LOW",
+      "category": "missing-enum-constraint",
+      "title": "UtilEnergySummaryResponse.tolerance_status is required str without enum",
+      "location": "pcs-backend/app/schemas/util.py:260",
+      "detail": "Field is `tolerance_status: str` (required). Model derives it from computed tolerance_pct; downstream code likely uses 2-3 states (PASS/WARN/FAIL etc.). Without a Literal or Enum constraint, contract drift is silent.",
+      "breaking": false,
+      "confidence": 60,
+      "fix": "Replace with `Literal['PASS', 'WARN', 'FAIL']` (or actual values) once tokens are pinned."
+    },
+    {
+      "id": "AC-007",
+      "severity": "INFO",
+      "category": "intentional-design",
+      "title": "source_module enum differs between endpoints (sync=8, aggregator=4)",
+      "location": "pcs-backend/app/schemas/equip_list.py:36-39 ; pcs-backend/app/schemas/util.py:89-92",
+      "detail": "EquipListSyncRequest allows PUMP/VESSEL/HEAT/PSV/CV/COOL_TOWER/PSYCHRO/OPEN_CHANNEL (8); UtilAggregationRequest allows PUMP/HEAT/COOL_TOWER/OPEN_CHANNEL (4). Intentional per source_aggregator design (only 4 modules feed consumption_json). Documented in source comments. Documented in matched literals for both.",
+      "breaking": false,
+      "confidence": 100,
+      "fix": "None — confirmed intentional. Consider adding the discrepancy to API docs."
+    },
+    {
+      "id": "AC-008",
+      "severity": "INFO",
+      "category": "sentinel-handling",
+      "title": "annual_consumption_* fields default to derived value when request omits",
+      "location": "pcs-backend/app/api/v1/util.py:389-393, 452-456, 517-520",
+      "detail": "POST /util/power-items, /util/fuel-gas-items, /heat-exchange-items all derive annual_consumption_* server-side when client omits. Response always includes the computed value as required non-nullable float. Additive contract — no client-side breakage.",
+      "breaking": false,
+      "confidence": 100,
+      "fix": "None."
+    },
+    {
+      "id": "AC-009",
+      "severity": "INFO",
+      "category": "api-router-wiring",
+      "title": "All 19 new endpoints reachable via /api/v1",
+      "location": "pcs-backend/app/api/v1/__init__.py:12,38,59,72",
+      "detail": "equip_list_router (line 12 import, line 59 include) → 4 endpoints under /api/v1/equipment-list*. util_router (line 38 import, line 72 include) → 15 endpoints under /api/v1/util/*. Both routers included exactly once.",
+      "breaking": false,
+      "confidence": 100,
+      "fix": "None."
+    },
+    {
+      "id": "AC-010",
+      "severity": "INFO",
+      "category": "versioning",
+      "title": "No SemVer bump despite new public surface",
+      "location": "intentional additive release on /api/v1 prefix",
+      "detail": "All endpoints added under existing /api/v1 prefix without version increment. Additive-only changes are SemVer-compatible per the repo's existing pattern (prior P6 batches followed the same convention). Frontend openapi.snapshot.json was regenerated and matches backend.",
+      "breaking": false,
+      "confidence": 100,
+      "fix": "None."
+    }
+  ],
+  "approved": false,
+  "blocking_issues": ["AC-001"],
+  "warnings": ["AC-003"],
+  "ship_recommendation": "HOLD — fix AC-001 (toe_total/by_category mismatch) before merge. AC-002 and AC-003 can ship with follow-up since they are additive-only drift risks."
+}
