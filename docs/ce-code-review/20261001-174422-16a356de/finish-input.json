@@ -1,0 +1,68 @@
+{
+  "run_id": "20261001-174422-16a356de",
+  "run_dir": "/tmp/compound-engineering-1000/ce-code-review/20261001-174422-16a356de",
+  "skill_dir": "/home/pangzy/.claude/plugins/cache/compound-engineering-plugin/compound-engineering/3.28.2/skills/ce-code-review",
+  "docs_root": "docs",
+  "mode": { "agent": false, "apply_local": false, "grouping": "auto", "depth": "auto" },
+  "invocation": {
+    "arguments": "P7 Sprint 2 批 (commit 85d1215..7c16e3d): BLOCKER-1 解锁 + T0 config_energy_conversion_factors + T1 utility_power_items + T2 utility_fuel_gas + T3 utility_heat_exchange + T4 auxiliary_consumption 4 字段 ALTER + T5 utility_energy_summary + service + T7 UTIL 5 表 API 整合 + G-08 baseline roll (含 8 端点 + 9 schemas + 4 integration tests)",
+    "constraints": []
+  },
+  "scope": {
+    "mode": "standalone",
+    "base": "85d1215",
+    "diff_a": "85d1215",
+    "diff_b": null,
+    "pr": { "number": null, "url": null, "title": null, "body": null, "base_ref_name": null, "head_ref_oid": null, "head_ref": null, "base_ref": null, "has_prior_comments": false },
+    "branch": "main",
+    "head_sha": "8f5f65e",
+    "files": "/tmp/compound-engineering-1000/ce-code-review/20261001-174422-16a356de/files.txt",
+    "diff": "/tmp/compound-engineering-1000/ce-code-review/20261001-174422-16a356de/full.diff",
+    "tree_is_reviewed_head": true,
+    "untracked_excluded": []
+  },
+  "intent": {
+    "summary": "P7 Sprint 2 batch implements UTIL 5-table schema + 综合能耗 service (per P7-OPEN-009 + D1 裁决 1A). Adds 5 new tables (T0 CONFIG + T1/T2/T3 utility sub-types + T5 summary), T4 ALTER util_results 4 字段, T5 service 聚合 T1+T2+T3 + ConfigEnergyConversionFactor 折标 + ≤2% tolerance check, 8 new API endpoints + G-08 baseline roll.",
+    "confidence": "explicit"
+  },
+  "plan": {
+    "path": "docs/P7-OPEN-009-SUP-010-5table-migration-schedule.md",
+    "source": "inferred",
+    "requirements": [],
+    "implementation_units": [],
+    "settled_decisions": []
+  },
+  "roster": {
+    "selected": [
+      { "reviewer": "correctness", "tier": "session", "reason": "always-on core" },
+      { "reviewer": "data-migration", "tier": "mid", "reason": "hard_block_full triggered by 6 alembic migrations" },
+      { "reviewer": "security", "tier": "session", "reason": "8 new API endpoints with ACL changes (auth/data boundary)" },
+      { "reviewer": "adversarial", "tier": "session", "reason": "auth + persistence writes; in-process fallback (no codex CLI)" }
+    ],
+    "standards": { "criteria": ["/home/pangzy/code_project/PCS/CLAUDE.md"], "fallback_named": false, "not_run_reason": null },
+    "packs": { "root": [], "errors": [], "warnings": [] }
+  },
+  "collection": {
+    "returns": "/tmp/compound-engineering-1000/ce-code-review/20261001-174422-16a356de/raw-returns.json",
+    "unstructured_returns": [],
+    "failed_reviewers": [],
+    "bound_exceeded": [],
+    "fast_pass": { "emitted_preliminary": false, "candidates": [] }
+  },
+  "peer": {
+    "selected": false,
+    "target": null,
+    "route": null,
+    "preference_source": "default",
+    "outcome": "in-process-fallback",
+    "artifact": null,
+    "coverage": "Adversarial lens ran via in-process adversarial-reviewer (no codex CLI available; fallback per cross-model-review.md)."
+  },
+  "coverage_notes": [
+    "depth: full (hard_block_full=true triggered by 6 alembic migrations)",
+    "reviewers selected: 4 (correctness + data-migration + security + adversarial)",
+    "reviewers skipped: project-standards (CLAUDE.md is project-level only, low-value for code review of new tables), testing (5 new test files but most are basic CRUD; deferred to testing-reviewer slot), performance (DB queries reasonable, no cache concerns beyond F-05), maintainability (large structural but no major smell), reliability (no clear retry/circuit-breaker), agent-native (no agent surfaces), learnings (no solutions/ corpus)",
+    "scope mode: standalone (current checkout main, 85d1215..HEAD)",
+    "32 changed files; 22998 changed lines (4617 exec, 3494 exec_nontest); size_band: large"
+  ]
+}

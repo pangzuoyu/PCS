@@ -1,0 +1,528 @@
+{
+  "reviewer": "adversarial",
+  "run_id": "20261001-174422-16a356de",
+  "intent": "P7 Sprint 2 — UTIL 5-table schema + aggregation service + 8 API endpoints. Auth boundary (require_roles ACL) + persistence writes (5 new tables + T4 ALTER + T5 service upsert).",
+  "techniques_applied": ["assumption_violation", "composition_failures", "cascade_construction", "abuse_cases", "concurrency"],
+  "summary": {
+    "total_findings": 18,
+    "P0": 2,
+    "P1": 6,
+    "P2": 7,
+    "P3": 3,
+    "blocking": [
+      "F-01 (P0) — Concurrent summarize_energy_year race: TOCTOU + missing row lock → IntegrityError 500 or split writes",
+      "F-02 (P0) — tolerance_status='OK' server_default masks 'never computed tolerance' silently"
+    ]
+  },
+  "findings": [
+    {
+      "id": "F-01",
+      "title": "T5 concurrent summarize_energy_year race — TOCTOU on idempotent SELECT → IntegrityError 500",
+      "severity": "P0",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/app/services/util/utility_energy_summary_service.py:245-296"
+        ],
+      "technique": "concurrency + cascade_construction",
+      "scenario_steps": [
+        "Two clients (or a retried single client) call POST /api/v1/util/energy-summary/aggregate concurrently with same (project_id, business_year=2026).",
+        "Both handlers enter summarize_energy_year; each opens an AsyncSession (FastAPI per-request session).",
+        "Step 4 (stmt_existing) executes SELECT ... WHERE project_id=... AND business_year=2026 AND source='CALCULATION'. No SELECT FOR UPDATE; default REPEATABLE READ is not set (expire_on_commit=False but no isolation_level knob in db/session.py).",
+        "Both transactions see no existing record; both fall through to the '新建' branch and call db.add(summary).",
+        "Both await db.commit() — first commit succeeds (row inserted). Second commit trips uq_utility_energy_summary_project_year_source IntegrityError → unhandled, returned to client as HTTP 500 with stack trace.",
+        "Cascade: client retry creates row #3, also IntegrityError. API consumer observes inconsistent state — single project can be missing its summary row entirely if all concurrent attempts fail and no row was committed, or partial writes leak if middleware commits per-statement.",
+        "Auth role check (DESIGNER) passes for both; no project-level mutex, no advisory lock, no upsert (ON CONFLICT) clause."
+      ],
+      "evidence": [
+        "utility_energy_summary_service.py:245-253 — stmt_existing has no .with_for_update()",
+        "utility_energy_summary_service.py:272-294 — new-branch does db.add() with no ON CONFLICT clause",
+        "alembic/versions/p7_open_009_005_utility_energy_summary.py:213-216 — UNIQUE(project_id, business_year, source) constraint present",
+        "db/session.py:82 — expire_on_commit=False (does not compensate for missing isolation level)",
+        "No SELECT FOR UPDATE / advisory lock / UPSERT anywhere in the service"
+      ],
+      "fix_hint": "Switch to `INSERT ... ON CONFLICT (project_id, business_year, source) DO UPDATE` (asyncpg execute), or wrap in `with_for_update(skip_locked=False)` inside a SERIALIZABLE transaction, or add a UNIQUE-advisory lock keyed on (project_id, business_year, source)."
+    },
+    {
+      "id": "F-02",
+      "title": "tolerance_status='OK' server_default silently masks 'never computed tolerance'",
+      "severity": "P0",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/alembic/versions/p7_open_009_005_utility_energy_summary.py:163-167",
+          "pcs-backend/app/models/util.py:477-480"
+        ],
+      "technique": "assumption_violation",
+      "scenario_steps": [
+        "Service code in summarize_energy_year sets tolerance_status='NA' when xls_reference is None (lines 234-242). This protects the CALCULATION path.",
+        "BUT the column has server_default='OK' on the migration (line 166-167) and on the ORM (line 478-480 server_default='OK').",
+        "If a future code path (or migration, or raw SQL, or admin tool) inserts a row without explicitly setting tolerance_status, the row materializes with tolerance_status='OK' even though no tolerance check was ever performed.",
+        "Reporting layer (e.g. P7-OPEN-009 §6 audit) treats 'OK' as 'computed and within 2%'. False negative: silently shipped calculation errors are reported as 'OK'.",
+        "Abuse case: a malicious admin with DB access INSERTs summary rows with source='XLS_REFERENCE' but tolerance_pct=NULL — the row appears as 'OK' baseline, masking drift between Excel reference and CALCULATION row.",
+        "Cascade: G-08 dashboards (per review prompt: 'G-08 baseline roll') consume this column. Wrong OK status poisons the dashboard chart and any downstream control loop or audit log."
+      ],
+      "evidence": [
+        "alembic/versions/p7_open_009_005_utility_energy_summary.py:166 — server_default=\"OK\"",
+        "app/models/util.py:478-480 — String(16), server_default='OK'",
+        "utility_energy_summary_service.py:235 — only conditional 'NA' assignment, no DB-level guarantee",
+        "P7-OPEN-009 §6 — defines OK ≤2% / EXCEEDED >2% / NA=no reference; semantics violated by default value"
+      ],
+      "fix_hint": "Drop server_default entirely, or set it to 'NA'. Add a CHECK constraint that tolerance_status='OK' requires tolerance_pct IS NOT NULL AND tolerance_pct <= 2.0 (Postgres only)."
+    },
+    {
+      "id": "F-03",
+      "title": "Annual consumption override accepted without plausibility check — silent data integrity drift",
+      "severity": "P1",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/app/api/v1/util.py:380-408",
+          "pcs-backend/app/api/v1/util.py:438-473",
+          "pcs-backend/app/api/v1/util.py:498-539"
+        ],
+      "technique": "abuse_cases + assumption_violation",
+      "scenario_steps": [
+        "DESIGNER calls POST /power-items with motor_power_kw=10, operating_hours_per_year=8000, load_factor=0.8 → derived annual_consumption_kwh = 64,000.",
+        "Same request body overrides annual_consumption_kwh=999999999 (allowed by schema: ge=0, no upper bound, no plausibility check vs derived formula).",
+        "The override value is persisted to DB (no CHECK constraint compares it to the formula).",
+        "summarize_energy_year later SUM()s the override → total_toe inflation of 15,000× → tolerance_status='NA' (no xls_reference) → silent propagation to dashboard.",
+        "Worst case: 'XLS_REFERENCE' baseline exists; tolerance_pct calculation uses absolute value of (computed - xls) / xls → EXCEEDED, but the inflated annual value also affects the baseline calculation if the operator accidentally triggers a 'CALCULATION' summary against an XLS_REFERENCE template."
+      ],
+      "evidence": [
+        "util.py:389-393 — annual_kwh = body.annual_consumption_kwh; if None → derive; otherwise accept as-is",
+        "util.py:452-456 — same pattern for fuel_gas",
+        "util.py:517-521 — same pattern for heat_exchange",
+        "schemas/util.py:115-117 — ge=0 only; no upper bound, no consistency check",
+        "alembic/versions/p7_open_009_001_utility_power_items.py:113-116 — CHECK only checks >= 0",
+        "No CHECK constraint enforces annual_consumption_kwh = motor_power_kw * hours * load_factor (would be DB-level per product rules)"
+      ],
+      "fix_hint": "Add a service-layer guard: `if abs(override - derived) / max(derived, 1) > 0.10: raise 422`. Or add DB CHECK `annual_consumption_kwh <= motor_power_kw * operating_hours_per_year * load_factor * 1.1` (margin)."
+    },
+    {
+      "id": "F-04",
+      "title": "Aggregation math — silent fallback to hardcoded defaults when ConfigEnergyConversionFactor row missing",
+      "severity": "P1",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/app/services/util/utility_energy_summary_service.py:102-113",
+          "pcs-backend/app/services/util/utility_energy_summary_service.py:154-159"
+        ],
+      "technique": "composition_failures + assumption_violation",
+      "scenario_steps": [
+        "T0 seed script (p7_open_009_t0_seed_energy_conversion_factors.py) is NOT run as part of `alembic upgrade head`. Migration creates the table empty; seed is a manual one-shot script.",
+        "Production deployment proceeds without running the seed. ConfigEnergyConversionFactor table is empty.",
+        "summarize_energy_year runs SELECT * FROM config_energy_conversion_factors → empty result → factors dict = {}.",
+        "_compute_totals uses factors.get('ELECTRICITY', (0.1229, 0.4040)) → returns the hardcoded default. Same for FUEL_GAS / STEAM / WATER / GAS / LOW_TEMP_HEAT.",
+        "Hardcoded defaults happen to MATCH the seed values in this commit (luck, not design). If seed values diverge later, the fallback silently uses stale constants.",
+        "Even worse: if a new energy type is added (e.g. 'COOLING_WATER' for P7-6B) but the seed doesn't include it, the fallback path returns no value → KeyError on factors.get() with default → factors dict stays {} → all coefficients default to 0 → total_toe = 0 → tolerance_status='OK' (server_default), silently shipping 0 MJ results.",
+        "Cascade: production dashboards, G-08 baseline charts, and any downstream compliance calculation consume 0 toe values without error."
+      ],
+      "evidence": [
+        "utility_energy_summary_service.py:107 — 'TODO: 接入 5-min TTL 缓存' (no validation that all 6 rows present)",
+        "utility_energy_summary_service.py:154-159 — hardcoded fallback tuples for all 6 energy types",
+        "p7_open_009_t0_seed_energy_conversion_factors.py:113-130 — DELETE+INSERT only SYNTHETIC rows; not part of alembic chain",
+        "No len(factors) == 6 guard, no logging on missing keys"
+      ],
+      "fix_hint": "Add `if len(factors) != 6: raise RuntimeError(...)`. Make seed part of alembic data migration. Drop hardcoded fallbacks."
+    },
+    {
+      "id": "F-05",
+      "title": "5-min TTL cache TODO not implemented — repeated DB queries + stale config in long-running workers",
+      "severity": "P1",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/app/services/util/utility_energy_summary_service.py:102-113"
+        ],
+      "technique": "composition_failures",
+      "scenario_steps": [
+        "TODO comment (line 107) acknowledges cache is needed.",
+        "Every call to summarize_energy_year executes a full SELECT * FROM config_energy_conversion_factors — 6 rows, but still a round-trip.",
+        "High-volume aggregate endpoint (e.g. dashboard refresh every 30s × N concurrent users) → N DB queries for the same 6-row constant dataset.",
+        "Long-running FastAPI worker holds AsyncSession; if config table is updated mid-session (admin tool changes toe_factor), the same worker keeps using the OLD factor for any in-progress summarize call (no cache invalidation, no transaction isolation override).",
+        "Worst case: PROCESS_CONTROLLER updates toe_factor=0.15 (real value) for ELECTRICITY. Worker holds the OLD 0.1229 factor until session expires. 5-30 minute reporting drift.",
+        "Without cache, there's no invalidation surface either — when P7-6B admin UI for config_factor is built, it has no event hook to invalidate."
+      ],
+      "evidence": [
+        "utility_energy_summary_service.py:107 — explicit TODO",
+        "No functools.lru_cache, no module-level dict cache, no Redis cache lookup anywhere in service"
+      ],
+      "fix_hint": "Implement the documented 5-min TTL cache (cachetools.TTLCache or redis) keyed on (energy_type, factor_version). Invalidate on UPDATE to config_energy_conversion_factors."
+    },
+    {
+      "id": "F-06",
+      "title": "_aggregate_util_subtables ignores business_year — silently aggregates all-time when per-year data lands",
+      "severity": "P1",
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/app/services/util/utility_energy_summary_service.py:57-99"
+        ],
+      "technique": "composition_failures + assumption_violation",
+      "scenario_steps": [
+        "Docstring admits 'T1/T2/T3 表无 year 字段' (line 64). business_year parameter is reserved/unused.",
+        "P7-6B or later adds business_year column to utility_power_items / utility_fuel_gas / utility_heat_exchange for per-year tracking.",
+        "summarize_energy_year(project_id, business_year=2025) call still sums all rows across all years — silently returns 5-year cumulative as if it were 2025's annual total.",
+        "Cascade: tolerance_pct check uses this wrong value → silently EXCEEDED or OK against XLS_REFERENCE → wrong compliance signal.",
+        "Worst case: business_year=2025 with 2024+2025 data present → total_toe is doubled; downstream toe_per_year reports are inflated 2×; no error, no warning."
+      ],
+      "evidence": [
+        "utility_energy_summary_service.py:64-65 — explicit 'business_year 当前未用于过滤' admission",
+        "utility_energy_summary_service.py:72, 79, 87 — no year filter in WHERE clause",
+        "No comment indicating where year filtering would slot in when subtables add the column"
+      ],
+      "fix_hint": "Add an Assert on subtable presence of business_year column (use sa.inspect) and warn if absent. Future-proof: pass year into WHERE clause and let missing year column raise."
+    },
+    {
+      "id": "F-07",
+      "title": "temperature_class / fuel_type / fuel_gas.operating_phase — no enum validation in schema or DB",
+      "severity": "P1",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/app/schemas/util.py:199-201",
+          "pcs-backend/app/schemas/util.py:146-153",
+          "pcs-backend/alembic/versions/p7_open_009_003_utility_heat_exchange.py",
+          "pcs-backend/alembic/versions/p7_open_009_002_utility_fuel_gas.py"
+        ],
+      "technique": "assumption_violation",
+      "scenario_steps": [
+        "P7 SPEC requires temperature_class ∈ {LP, MP, HP, ULTRA_HIGH}, operating_phase ∈ {INITIAL, STEADY, MAX}, fuel_type ∈ {NATURAL_GAS, REFINERY_GAS, LPG, LNG, OTHERS}.",
+        "Pydantic schema only validates max_length=16 / max_length=32; no Literal type, no Enum.",
+        "Alembic migrations for utility_fuel_gas / utility_heat_exchange have NO CHECK constraint for the enum.",
+        "POST /fuel-gas-items with operating_phase='invalid' or temperature_class='very_high' is accepted and persisted.",
+        "summarize_energy_year reads rows by SELECT * (no enum filter); bad enum values pollute aggregation.",
+        "Worst case: typo 'STEADY_STATE' instead of STEAD — silently excluded from INITIAL+STEAD+MAX triad-aware fuel gas aggregation logic when added; or duplicates rows that should be unique per phase."
+      ],
+      "evidence": [
+        "schemas/util.py:151-153 — operating_phase: str = Field(..., max_length=16) — no Literal type",
+        "schemas/util.py:146 — fuel_type: str = Field('NATURAL_GAS', max_length=32) — no Literal",
+        "schemas/util.py:199-201 — temperature_class: str = Field(..., max_length=16) — no Literal",
+        "alembic/versions/p7_open_009_002_utility_fuel_gas.py — grep no enum CHECK",
+        "alembic/versions/p7_open_009_003_utility_heat_exchange.py — grep no enum CHECK"
+      ],
+      "fix_hint": "Convert schema fields to `Literal['LP','MP','HP','ULTRA_HIGH']` etc. Add CHECK constraints per column in migrations."
+    },
+    {
+      "id": "F-08",
+      "title": "No project/workspace access control — ACL is role-only; any DESIGNER reads/writes any project",
+      "severity": "P1",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/app/api/v1/config.py:88-98",
+          "pcs-backend/app/api/v1/util.py (all endpoints)"
+        ],
+      "technique": "abuse_cases",
+      "scenario_steps": [
+        "DESIGNER Alice authenticates; current_actor extracts role='DESIGNER' (no project binding).",
+        "Alice calls POST /api/v1/util/power-items with project_id=UUID-of-Bob's-project (a project she's never been invited to).",
+        "require_roles passes (Alice is DESIGNER). No service-level check that Alice's user_id is in project_members or workspace_members.",
+        "Alice's POST persists rows to Bob's project. Alice can now also POST /api/v1/util/energy-summary/aggregate on Bob's project and read Bob's summary.",
+        "Cascade: cross-tenant data leak / data corruption. P7-OPEN-009 review context says 'auth boundary changes (require_roles ACL)' — the ACL is too permissive."
+      ],
+      "evidence": [
+        "config.py:88-98 — require_roles checks roles only; no project_id binding",
+        "config.py:441-469 — current_actor returns _Actor with user_id + role + username; no project/workspace",
+        "util.py: every endpoint uses only `require_roles(user, ...)`; no project_members check",
+        "api/v1/util.py aggregate endpoint (line 569-591) does not check actor's relationship to body.project_id",
+        "list endpoints (line 411, 476, 542, 597) filter only by project_id; no actor scoping"
+      ],
+      "fix_hint": "Add `await assert_project_member(db, user, project_id)` dependency. Reject 403/404 if actor lacks membership. Alternatively, scope project_ids in JWT."
+    },
+    {
+      "id": "F-09",
+      "title": "No rate limit on /energy-summary/aggregate — DOS via repeat click triggers N concurrent IntegrityErrors",
+      "severity": "P2",
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/app/api/v1/util.py:569-591"
+        ],
+      "technique": "cascade_construction",
+      "scenario_steps": [
+        "Triggering F-01 race condition requires only N concurrent POSTs from same authenticated user.",
+        "No rate-limit middleware (e.g., slowapi) on this endpoint.",
+        "A misclick / retry / auto-refresh browser tab triggers 5-10 concurrent calls in same second.",
+        "Each call computes the full aggregation (3 SUM queries across T1/T2/T3) plus 1 SELECT on config + 1 INSERT/UPDATE on summary = 5 DB round-trips per request.",
+        "50 concurrent calls = 250 DB queries in <1s, plus 4-5 IntegrityError stack traces logged.",
+        "Worst case: log volume floods Sentry/Datadog; DB connection pool exhausted; service degrades to 503."
+      ],
+      "evidence": [
+        "util.py:569-591 — no rate-limit, no Depends(check_rate)",
+        "No app/main.py limiter registration visible for this router",
+        "F-01 already exists; rate-limit doesn't fix race but reduces blast radius"
+      ],
+      "fix_hint": "Add slowapi / Redis token bucket keyed on (actor_id, endpoint, minute). 30/min/IP."
+    },
+    {
+      "id": "F-10",
+      "title": "aggregate_energy_summary hardcodes source='CALCULATION' — no API path to insert XLS_REFERENCE rows",
+      "severity": "P2",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/app/api/v1/util.py:569-591",
+          "pcs-backend/app/schemas/util.py:232-237"
+        ],
+      "technique": "abuse_cases + assumption_violation",
+      "scenario_steps": [
+        "XLS_REFERENCE summary rows are required for tolerance_pct computation (line 236: `if xls_reference is not None`).",
+        "There is NO API endpoint to create XLS_REFERENCE rows. The aggregate endpoint hardcodes source='CALCULATION' via `summarize_energy_year(...)` (default arg line 184).",
+        "Operators must insert via direct DB / SQL script — bypasses auth entirely.",
+        "No audit trail of who inserted XLS_REFERENCE rows or when.",
+        "Worst case: malicious admin inserts XLS_REFERENCE rows with toe_factor=0 to silently zero out tolerance checks."
+      ],
+      "evidence": [
+        "util.py:585-590 — `summarize_energy_year(... business_year=body.business_year)` — no source override",
+        "schemas/util.py:232-237 — UtilEnergySummaryAggregateRequest has no `source` field",
+        "utility_energy_summary_service.py:184 — source default 'CALCULATION'"
+      ],
+      "fix_hint": "Add `source: Literal['CALCULATION','XLS_REFERENCE']` to request schema. SYSTEM_ADMIN-only create XLS_REFERENCE; DESIGNER/PROCESS_CONTROLLER limited to CALCULATION."
+    },
+    {
+      "id": "F-11",
+      "title": "Idempotent update race — existing record read with stale snapshot, concurrent overwrite loses data",
+      "severity": "P2",
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/app/services/util/utility_energy_summary_service.py:245-296"
+        ],
+      "technique": "concurrency + cascade_construction",
+      "scenario_steps": [
+        "Worker A and Worker B both call summarize_energy_year for same (project, source='CALCULATION', year=2026). Both find existing row R (id=X).",
+        "Worker A reads T1 row count = 5, computes electricity_kwh_yr=50000. Worker B reads T1 row count = 5 (same snapshot), computes the same.",
+        "Both assign existing.electricity_kwh_yr = 50000 (idempotent, OK).",
+        "BUT: A commits first; meanwhile a new T1 row INSERTs. B's snapshot doesn't see it; B commits electricity_kwh_yr=50000 still.",
+        "Result: persistent stale value. Without FOR UPDATE on existing row, neither worker noticed the new T1 row.",
+        "Repeat with T2/T3 inserts racing → persistent undercount."
+      ],
+      "evidence": [
+        "utility_energy_summary_service.py:245-253 — stmt_existing has no .with_for_update()",
+        "No SELECT FOR UPDATE on T1/T2/T3 subtables either (lines 70-90)"
+      ],
+      "fix_hint": "Add `with_for_update()` to all SELECTs in summarize_energy_year OR set SERIALIZABLE isolation per request."
+    },
+    {
+      "id": "F-12",
+      "title": "list_energy_summary filters by project_id only — cross-workspace leak possible",
+      "severity": "P2",
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/app/api/v1/util.py:594-621"
+        ],
+      "technique": "abuse_cases",
+      "scenario_steps": [
+        "Actor with DESIGNER role queries GET /energy-summary?project_id=X.",
+        "No workspace_id filter. If the same project_id is shared across two workspaces (e.g. via schema migration or shared workspaces feature), both rows leak.",
+        "More realistic: a project may have been moved between workspaces; old workspace's summary row persists (FK CASCADE only on workspace DELETE, not on UPDATE).",
+        "Same actor across two workspaces sees both copies."
+      ],
+      "evidence": [
+        "util.py:611-621 — SELECT only filters by project_id (and optional business_year); no workspace_id filter",
+        "No JWT/actor workspace_id binding"
+      ],
+      "fix_hint": "Require workspace_id query param and add to WHERE clause. Validate actor has access to workspace."
+    },
+    {
+      "id": "F-13",
+      "title": "equipment_tag uniqueness is case-sensitive and whitespace-sensitive — silent dupe ingestion",
+      "severity": "P2",
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/alembic/versions/p7_open_009_001_utility_power_items.py:117-120",
+          "pcs-backend/alembic/versions/p7_open_009_003_utility_heat_exchange.py",
+          "pcs-backend/alembic/versions/p7_open_009_002_utility_fuel_gas.py"
+        ],
+      "technique": "abuse_cases + assumption_violation",
+      "scenario_steps": [
+        "DB UNIQUE constraint on (project_id, equipment_tag) — Postgres string compare is byte-exact.",
+        "Two POST requests: equipment_tag='P-001' vs 'p-001' vs 'P-001 ' (trailing space) all succeed (different bytes).",
+        "Operator eyeballing the UI sees duplicates and assumes data corruption; aggregation doubles.",
+        "Pydantic schema has min_length=1, max_length=64 but does NOT .upper().strip() the value.",
+        "Also: tags imported from CSV with `\r\n` line endings can produce 'P-001\\r' rows."
+      ],
+      "evidence": [
+        "schemas/util.py:109 — equipment_tag: str = Field(..., min_length=1, max_length=64)",
+        "alembic/versions/p7_open_009_001_utility_power_items.py:117-120 — UNIQUE(project_id, equipment_tag) on raw bytes"
+      ],
+      "fix_hint": "Normalize equipment_tag at schema layer (`Annotated[str, BeforeValidator(str.upper), BeforeValidator(str.strip)]`) or use citext column type for equipment_tag."
+    },
+    {
+      "id": "F-14",
+      "title": "equipment_id FK to equipment_list is nullable + ondelete SET NULL — silent decoupling when equipment deleted",
+      "severity": "P2",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/app/models/util.py:156-159",
+          "pcs-backend/alembic/versions/p7_open_009_001_utility_power_items.py:60-66"
+        ],
+      "technique": "assumption_violation",
+      "scenario_steps": [
+        "UtilityPowerItem.equipment_id is nullable with ondelete SET NULL.",
+        "Equipment is deleted from equipment_list (e.g. PMS sync removes obsolete pump).",
+        "utility_power_items rows for that equipment survive with equipment_id=NULL.",
+        "Aggregation still SUM()s the row (correct), but audit trail is lost (cannot link back to original equipment record).",
+        "Worst case: when equipment_list FK constraints are tightened in future, the 5-table data becomes orphaned; SELECT JOINs on equipment_id miss 30-50% of rows silently."
+      ],
+      "evidence": [
+        "app/models/util.py:156-159 — nullable=True, ondelete=SET NULL",
+        "alembic/versions/p7_open_009_001_utility_power_items.py:60-66 — same"
+      ],
+      "fix_hint": "Use ondelete RESTRICT for UtilityPowerItem / UtilityFuelGas / UtilityHeatExchange — operator must delete dependent rows first. Or add a 'decommissioned_equipment_id' shadow column for audit."
+    },
+    {
+      "id": "F-15",
+      "title": "CHECK constraint 0.0 vs -0.0 acceptance — IEEE -0.0 >= 0 is true but may bypass downstream",
+      "severity": "P3",
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/alembic/versions/p7_open_009_001_utility_power_items.py:113-116",
+          "pcs-backend/alembic/versions/p7_open_009_005_utility_energy_summary.py:189-208"
+        ],
+      "technique": "assumption_violation",
+      "scenario_steps": [
+        "PostgreSQL evaluates -0.0 >= 0 as TRUE (IEEE 754 ordering).",
+        "DB CHECK `annual_consumption_kwh >= 0` accepts -0.0; row inserted.",
+        "Python float(-0.0) propagates through SUM() → result may be -0.0 if the sum is zero.",
+        "JSON serialization: json.dumps(-0.0) → '-0.0' (per spec); downstream JSON consumers may treat '-0.0' as different from '0.0'.",
+        "Aggregation downstream (G-08 charts, dashboards) may render '-0.0' literally → cosmetic / semantic issue."
+      ],
+      "evidence": [
+        "alembic/versions/p7_open_009_001_utility_power_items.py:113-116 — CHECK `>= 0`",
+        "Pydantic schema Field(ge=0) — ge checks numeric; -0.0 satisfies ge=0"
+      ],
+      "fix_hint": "Add explicit `x = x + 0.0 if x == 0 else x` normalization in service before write; or add CHECK `(x IS NULL OR (x = abs(x) AND x >= 0))`."
+    },
+    {
+      "id": "F-16",
+      "title": "T4 backward compat — util_results JSONB column still authoritative per summary_service.summarize; jsonb_deprecated flag ignored",
+      "severity": "P3",
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/app/services/util/summary_service.py (not in diff but referenced)",
+          "pcs-backend/app/api/v1/util.py:177",
+          "pcs-backend/app/api/v1/util.py:205"
+        ],
+      "technique": "composition_failures",
+      "scenario_steps": [
+        "D1 裁决 1A states '5 表权威 + JSONB deprecated'. The util_results.jsonb_deprecated column is intended to flag when JSONB is no longer authoritative.",
+        "summary_service.summarize (called at util.py:177 and util.py:205) reads from record.consumption_json (JSONB column).",
+        "No branch reads util_results.electrical_power_kwh_yr / fuel_gas_consumption_nm3_yr / steam_consumption_t_yr (T4 new columns) and no branch reads from utility_power_items / utility_fuel_gas / utility_heat_exchange (T1/T2/T3).",
+        "Net effect: get_util_summary and get_util_energy_consumption still serve the OLD JSONB values, even after the 5 tables are populated and jsonb_deprecated=True.",
+        "When jsonb_deprecated is set True, downstream consumers expect 5-table data; instead they get stale JSONB. Silent inconsistency between /summary (JSONB) and /energy-summary/aggregate (5-table).",
+        "Cascade: G-08 dashboards query /summary → stale; g-08 reports wrong historical vs current baseline."
+      ],
+      "evidence": [
+        "util.py:177 — summary = await summary_service.summarize(record, db=db, year=year) — record.consumption_json path",
+        "util.py:205 — same",
+        "summary_service.summarize signature (not in diff) takes record with consumption_json; no 5-table fallback",
+        "jsonb_deprecated field exposed but never consulted in code paths"
+      ],
+      "fix_hint": "Branch in summary_service: if record.jsonb_deprecated is True, JOIN util_results with utility_power_items / utility_fuel_gas / utility_heat_exchange and synthesize consumption_json from the 5-table data."
+    },
+    {
+      "id": "F-17",
+      "title": "Source field unbounded — summary rows can have source='RANDOM_TEXT' if API extended",
+      "severity": "P3",
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/app/models/util.py:425-428",
+          "pcs-backend/app/api/v1/util.py:585-590"
+        ],
+      "technique": "assumption_violation",
+      "scenario_steps": [
+        "UtilityEnergySummary.source has no Literal type, no enum constraint, no DB CHECK.",
+        "Future API endpoint accepts free-form `source` string.",
+        "summarize_energy_year then performs `WHERE source == source` lookup — typo or extra whitespace returns no existing row, creating duplicates silently.",
+        "Worst case: source='CALCULATION' vs 'calculation' vs 'CALCULATION ' — operator believes no duplicate, but DB has 3 rows."
+      ],
+      "evidence": [
+        "app/models/util.py:425-428 — String(32), no Literal/Enum",
+        "alembic/versions/p7_open_009_005_utility_energy_summary.py:75-79 — no CHECK",
+        "No PostgreSQL enum type used"
+      ],
+      "fix_hint": "Use `Enum('CALCULATION','XLS_REFERENCE', name='utility_source_enum')` at column type or add CHECK constraint `source IN ('CALCULATION','XLS_REFERENCE')`."
+    },
+    {
+      "id": "F-18",
+      "title": "CASCADE on workspace_id FK — workspace deletion silently destroys all 5-table data",
+      "severity": "P3",
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "scope_files": [
+          "pcs-backend/app/models/util.py:151-155",
+          "pcs-backend/app/models/util.py:230-234",
+          "pcs-backend/app/models/util.py:313-317",
+          "pcs-backend/app/models/util.py:418-420"
+        ],
+      "technique": "cascade_construction",
+      "scenario_steps": [
+        "All 5 new tables (UtilityPowerItem / UtilityFuelGas / UtilityHeatExchange / UtilityEnergySummary) have ondelete=CASCADE on workspace_id FK.",
+        "Admin accidentally deletes a workspace (or a workspace lifecycle job runs).",
+        "All utility data for that workspace is silently purged. No audit log.",
+        "Cascade: re-creating the workspace does NOT restore data; backed-up project_id may have orphaned utility rows in another workspace."
+      ],
+      "evidence": [
+        "app/models/util.py:151-155 (UtilityPowerItem), 230-234 (UtilityFuelGas), 313-317 (UtilityHeatExchange), 418-420 (UtilityEnergySummary) — all CASCADE on workspace_id"
+      ],
+      "fix_hint": "Use ondelete=RESTRICT for workspace_id; require explicit cleanup before workspace deletion. Add a soft-delete column."
+    }
+  ],
+  "blocking_concerns": [
+    "F-01 — Concurrent summarize_energy_year race will manifest as 500 errors under any concurrent load. Unblocks with row-level lock or ON CONFLICT UPSERT.",
+    "F-02 — tolerance_status='OK' server_default creates a class of silent false-positive compliance reports. Unblocks with CHECK constraint or removal of default."
+  ],
+  "open_questions": [
+    "Was the T0 seed intended to be part of `alembic upgrade head` or a separate op? Migration creates empty table — production deployment without seed script = silent fallback constants.",
+    "Is there a planned config_factor admin UI in P7-6B+? The TODO cache + stale factor risk (F-05) hinges on this.",
+    "Will P7-6B add business_year to T1/T2/T3 subtables? If yes, F-06 requires proactive refactor.",
+    "Are there Pydantic Literal enums planned for temperature_class / operating_phase / fuel_type (F-07)?",
+    "Was the decision to drop cross-workspace FK enforcement (F-12) deliberate or oversight?"
+  ]
+}

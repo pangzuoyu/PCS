@@ -1,0 +1,208 @@
+{
+  "reviewer": "correctness",
+  "scope": "P7 Sprint 2 batch — UTIL 5-table schema + 综合能耗 service (T0/T1/T2/T3/T4/T5)",
+  "summary": "Reviewed 32 changed files. Found 1 P0 critical unit-conversion bug (steam/water toe_factor 1000x too small), 1 P0 zero-tolerance guard misses xls_reference with NULL total_toe, 1 P1 idempotent race, 1 P1 func.now() ORM-set may fail on SQLite, 2 P2 unit/tolerance edge cases, 1 P2 year-dimension mixing, 1 P2 default tolerance_status contradiction, and 1 pre-existing P3 in summary_service.",
+  "findings": [
+    {
+      "title": "Steam/Water toe_factor applied with t (tonne) inputs but factor defined per kg — totals 1000x too small",
+      "severity": "P0",
+      "file": "pcs-backend/app/services/util/utility_energy_summary_service.py",
+      "line": 167,
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "evidence": [
+        "pcs-backend/app/services/util/utility_energy_summary_service.py:167 — `agg.steam_t_yr * s_toe` multiplies TONNES by toe_factor 0.0760",
+        "pcs-backend/app/models/config.py:1051-1056 — ConfigEnergyConversionFactor.toe_factor comment explicitly states `蒸汽=kg` (steam unit = kg) but `annual_consumption_t` is in tonnes/yr",
+        "pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py:64-66 — seed value 0.0760 annotated `kg 蒸汽 → kg 标油` and `76 kg 标油/t`; numerically 0.0760 kg/kg = 76 kg/t, but service applies it as if per-tonne (no ×1000 conversion of steam_t_yr)",
+        "pcs-backend/tests/services/util/fixtures/golden_utility_energy_summary.json:28 — T5_CASE_01_SMALL: 20,000 t steam → expected total_toe_tonne=14.0558 (≈ 1520 kg steam toe); a real refinery's annual steam gives tens of thousands of tonnes of toe — numbers confirm a 1000x undercount",
+        "Same unit bug applies to WATER: agg.water_t_yr * w_toe with w_toe=0.0001 (per kg, per model docstring) but water_t_yr is in t/yr; off by 1000x"
+      ],
+      "first_evidence": "pcs-backend/app/services/util/utility_energy_summary_service.py:167 — `agg.steam_t_yr * s_toe` multiplies TONNES by toe_factor 0.0760",
+      "suggested_fix": "Pick one of two reconciliations:\n  (A) Treat toe_factor as per-tonne for steam/water (matches service math) — update ConfigEnergyConversionFactor docstring (line 1027) and seed comment (line 65, 70) to explicitly state `蒸汽=t`、`水=t` instead of `=kg`. Confirm with工艺室 which unit GB/T 50441 appendix uses.\n  (B) Treat toe_factor as per-kg (matches config model docstring) — change service to `agg.steam_t_yr * 1000 * s_toe` (and `* 1000 * w_toe` for water). Recompute golden fixture expected values (e.g., T5_CASE_01 total_toe_tonne should become ~14055.8 tonne, not 14.0558).\nEither way, recalibrate golden_utility_energy_summary.json expected totals and re-run vitest. The unit inconsistency between model/seed/service is a foot-gun regardless of which side is canonical."
+    },
+    {
+      "title": "tolerance_pct guard `xls_reference.total_toe > 0` raises TypeError when total_toe is None",
+      "severity": "P0",
+      "file": "pcs-backend/app/services/util/utility_energy_summary_service.py",
+      "line": 236,
+      "confidence": 75,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "evidence": [
+        "pcs-backend/app/services/util/utility_energy_summary_service.py:236 — `if xls_reference is not None and xls_reference.total_toe > 0:`",
+        "model utility.py:465 — total_toe declared `nullable=False`, but service callers can construct an xls_reference ORM instance with total_toe unset → Python None; `None > 0` raises TypeError in CPython",
+        "test_utility_energy_summary.py:320 — the test happens to set `annual_total_energy=0.0` and `toe_conversion_factor=1e-9`, but `total_toe` defaults to NOT NULL default per ORM, so the path isn't covered",
+        "If xls_reference row is committed via raw SQL or partial inserts (e.g., bulk import future), total_toe may be NULL, breaking the service call"
+      ],
+      "first_evidence": "pcs-backend/app/services/util/utility_energy_summary_service.py:236 — `if xls_reference is not None and xls_reference.total_toe > 0:`",
+      "suggested_fix": "Replace `and xls_reference.total_toe > 0` with `and xls_reference.total_toe is not None and xls_reference.total_toe > 0`. Or use a helper: `xls_reference_total_toe = (xls_reference.total_toe or 0.0) if xls_reference is not None else None`."
+    },
+    {
+      "title": "Idempotent update has TOCTOU race: two concurrent summarize calls both miss existing row and one fails IntegrityError",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/util/utility_energy_summary_service.py",
+      "line": 245,
+      "confidence": 75,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "evidence": [
+        "pcs-backend/app/services/util/utility_energy_summary_service.py:245-253 — non-locking SELECT for existing row, then INSERT-or-UPDATE outside any transaction isolation",
+        "model util.py:399-403 — UNIQUE(project_id, business_year, source) will reject the second concurrent INSERT",
+        "AsyncSession default isolation is READ COMMITTED in PG; the SELECT-UPDATE gap allows a duplicate INSERT that violates UNIQUE",
+        "Endpoint POST /energy-summary/aggregate does not wrap in a transaction or use SELECT FOR UPDATE",
+        "No retry / IntegrityError handler — caller gets an opaque 500 instead of a clean idempotent overwrite"
+      ],
+      "first_evidence": "pcs-backend/app/services/util/utility_energy_summary_service.py:245-253 — non-locking SELECT then INSERT-or-UPDATE without transaction wrap",
+      "suggested_fix": "Either:\n  (A) Use `INSERT ... ON CONFLICT (project_id, business_year, source) DO UPDATE SET ...` raw SQL (PG-specific upsert).\n  (B) Catch IntegrityError, re-query for existing, and apply the UPDATE branch.\n  (C) Wrap SELECT + INSERT in a single SERIALIZABLE transaction.\nRecommend (A) for atomicity; (B) is portable but racy."
+    },
+    {
+      "title": "ORM-set `existing.computed_at = func.now()` may execute as raw SQL in UPDATE on PostgreSQL but fail on SQLite (test backend)",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/util/utility_energy_summary_service.py",
+      "line": 270,
+      "confidence": 50,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "evidence": [
+        "pcs-backend/app/services/util/utility_energy_summary_service.py:270 — `existing.computed_at = func.now()`",
+        "Migration p7_open_009_005_utility_energy_summary.py:170-175 — `computed_at` column has `server_default=sa.func.now()` which fires only on INSERT; explicit assignment is required for UPDATE",
+        "SQLAlchemy 2.x may serialize `func.now()` as a literal SQL expression in UPDATE for PG; SQLite via aiosqlite may render it as a bound parameter and error with `no such function: now`",
+        "Tests run on SQLite in-memory per test docstring; idempotent test calls summarize_energy_year twice and expects 2nd call to succeed — if SQLite rejects, the test would fail"
+      ],
+      "first_evidence": "pcs-backend/app/services/util/utility_energy_summary_service.py:270 — `existing.computed_at = func.now()`",
+      "suggested_fix": "Use a Python-side datetime: `existing.computed_at = datetime.datetime.now(datetime.timezone.utc)`. Or define `onupdate=func.now()` on the ORM column (line 489 already has `onupdate=func.now()`!) — but the column attribute is then ALSO explicitly set in code, defeating the onupdate. Either remove the explicit line OR keep onupdate and rely on it; do not set both."
+    },
+    {
+      "title": "T5 service writes water_t_yr / gas_nm3_yr / low_temp_heat_gj_yr as 0.0 even though they are nullable",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/util/utility_energy_summary_service.py",
+      "line": 260,
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "evidence": [
+        "model util.py:441-452 — water_t_yr / gas_nm3_yr / low_temp_heat_gj_yr all declared nullable=True with comments `待 P7-6B 落地 / 预留字段`",
+        "service util.py:260-262, 281-283 — writes 0.0 literal instead of None, conflating 'aggregated and equals zero' with 'no source data yet'",
+        "Per SERVICE-COMMENT line 67-69 `cooling_water / gas / low_temp_heat 子表待 P7-6B 落地, 当前返回 0.0`, but those three are explicitly marked nullable in model — 0.0 makes them indistinguishable from real zero-consumption projects",
+        "Downstream queries like `WHERE water_t_yr IS NULL` to find projects awaiting cooling-water aggregation will return empty set"
+      ],
+      "first_evidence": "pcs-backend/app/services/util/utility_energy_summary_service.py:260-262 — writes 0.0 for nullable fields awaiting P7-6B",
+      "suggested_fix": "Either keep 0.0 and document the convention (drop nullable), OR write NULL when the source subtable is empty. Recommended: write NULL until the corresponding subtable exists; the `annual_total_energy` and `total_toe` formulas already tolerate 0/NULL inputs."
+    },
+    {
+      "title": "T5 service ignores `business_year` when aggregating T1/T2/T3 — projects with multi-year data will mix years",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/util/utility_energy_summary_service.py",
+      "line": 64,
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "evidence": [
+        "pcs-backend/app/services/util/utility_energy_summary_service.py:62-68 — `_aggregate_util_subtables` explicitly says `business_year 当前未用于过滤 (T1/T2/T3 表无 year 字段; 数据为 project snapshot); 预留接口`",
+        "models util.py:421-424 — UtilityEnergySummary.business_year is non-null Integer with comment `业务年度 ... annual aggregation`",
+        "models util.py:115-191 / 194-279 / 281-377 — UtilityPowerItem / UtilityFuelGas / UtilityHeatExchange have NO year column; aggregation always picks all rows for project_id",
+        "If T1 data is recorded for year 2025 and 2026 in the same project, calling summarize for business_year=2026 will sum both years' annual_consumption_kwh — wrong",
+        "Docstring acknowledges this as 'snapshot'; consider whether this is intentional or a hidden semantic footgun"
+      ],
+      "first_evidence": "pcs-backend/app/services/util/utility_energy_summary_service.py:62-68 — `business_year 当前未用于过滤`",
+      "suggested_fix": "Add `business_year` column to T1/T2/T3 tables OR enforce in service that only one year's worth of subtable rows may exist per project_id. For Sprint 2 minimum, document the snapshot assumption in API docs and add a CHECK that warns when subtable rows were created across multiple years for the same project."
+    },
+    {
+      "title": "tolerance_status default conflict: ORM server_default='OK' but service initial value is 'NA'",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/util/utility_energy_summary_service.py",
+      "line": 235,
+      "confidence": 100,
+      "autofix_class": "advisory",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "evidence": [
+        "pcs-backend/app/services/util/utility_energy_summary_service.py:234-235 — `tolerance_pct: float | None = None; tolerance_status = \"NA\"` initialised when xls_reference is None",
+        "model util.py:478 — `tolerance_status: ... server_default=\"OK\"` — server default is 'OK', service code path is 'NA'",
+        "Migration ck constraint L210 enforces tolerance_status IN ('OK', 'EXCEEDED', 'NA') — both literals are valid",
+        "Service-vs-server-default divergence: if service ever constructs UtilityEnergySummary directly without populating tolerance_status, ORM applies server_default 'OK'; service path always overrides to 'NA' then potentially 'OK'/'EXCEEDED' — confusing for any caller that reads raw attribute before commit",
+        "API endpoint aggregate_energy_summary never passes xls_reference → all freshly-created rows have tolerance_status='NA' (fine) but server_default in any direct INSERT via raw SQL would set 'OK' (inconsistent with API behavior)"
+      ],
+      "first_evidence": "pcs-backend/app/services/util/utility_energy_summary_service.py:234-235 — `tolerance_status = \"NA\"`",
+      "suggested_fix": "Align server_default with service semantics: change server_default from `\"OK\"` to `\"NA\"` in util.py:478 (and migration L166). Document the semantic: NA means no XLS reference yet."
+    },
+    {
+      "title": "_compute_totals unit constants (KWH_TO_MJ, NM3_FUEL_GAS_TO_MJ, T_STEAM_TO_MJ, GJ_LOW_TEMP_TO_MJ) are hardcoded with TODO — values diverge from per-unit toe_factor semantics",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/util/utility_energy_summary_service.py",
+      "line": 134,
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "evidence": [
+        "pcs-backend/app/services/util/utility_energy_summary_service.py:134-139 — `KWH_TO_MJ = 3.6`, `NM3_FUEL_GAS_TO_MJ = 38.0`, `T_STEAM_TO_MJ = 2778.0`, `GJ_LOW_TEMP_TO_MJ = 1000.0`",
+        "Comment L123-129 says `(简化假设; 待 P7-6B 工艺室精化)` — these are placeholder simplifications, not authoritative values",
+        "2778 MJ/t for 1 MPa saturated steam implies 66 kg 标油/t at standard TOE conversion (1 toe = 41.868 GJ), but toe_factor seeded as 0.076 kg/kg = 76 kg/t — internal inconsistency between MJ-total and toe-total derivations",
+        "Cruise 38 MJ/Nm³ for fuel gas is a 'typical LHV' but real calorific_value_kcal_nm3 is recorded per-row in T2 (model util.py:247-250) and is NEVER used by the service — fuel_gas_mj assumes 38 MJ/Nm³ universally, ignoring recorded calorific_value",
+        "annual_total_energy computed from these constants differs from total_toe/coal-derived totals; the formula `toe_conversion_factor = total_toe*1000/annual_total_energy` produces a derived factor that mixes the two assumptions"
+      ],
+      "first_evidence": "pcs-backend/app/services/util/utility_energy_summary_service.py:134-139 — hardcoded unit_to_mj constants with TODO",
+      "suggested_fix": "(A) Compute energy MJ from per-row calorific_value when available: `fuel_gas_mj = sum(annual_consumption_nm3 * calorific_value_kcal_nm3 * 4.1868 / 1000)` (kcal→kJ conversion: 4.1868 kJ/kcal; divide by 1000 for MJ).\n(B) For steam, compute MJ from steam quality × latent heat + sensible heat: `steam_mj = annual_consumption_t * 1000 * (steam_quality_pct/100 * latent_heat_kj_kg + sensible_heat_kj_per_kg) / 1000`.\n(C) Until P7-6B delivers authoritative values, document current constants as 'assumption-based' and add a per-input bypass in service signature."
+    },
+    {
+      "title": "summary_service.summarize computes toe_total/standard_coal_total for STEAM categories without unit conversion (t/h × per-kg factor)",
+      "severity": "P3",
+      "file": "pcs-backend/app/services/util/summary_service.py",
+      "line": 91,
+      "confidence": 50,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": true,
+      "evidence": [
+        "pcs-backend/app/services/util/summary_service.py:91-92 — `toe_total += qty * float(toe_row.toe_conversion_factor)` and `standard_coal_total += qty * float(toe_row.standard_coal_factor)`",
+        "category_map.py:44-58 — STEAM_HP/MP/LP + CONDENSATE units are `t/h`",
+        "config_domain.py:342-344 — ToeConversionFactor.toe_conversion_factor/standard_coal_factor units are unitless multipliers (unspecified)",
+        "Pre-existing service (not modified by Sprint 2); ambiguous unit interpretation likely matches 13-class legacy convention where t/h is treated as nominal — flag for review but mark pre_existing"
+      ],
+      "first_evidence": "pcs-backend/app/services/util/summary_service.py:91-92 — qty * toe_conversion_factor",
+      "suggested_fix": "Out of scope for Sprint 2; flag in TODOS.md for follow-up. Verify with 工艺室 whether STEAM TOE is per-tonne or per-kg; align with the new ConfigEnergyConversionFactor model decisions."
+    }
+  ],
+  "residual_risks": [
+    "P0 unit bug (steam/water 1000x): if shipped, all 综合能耗 reports will be 0.1% of real numbers and tolerance vs XLS_REFERENCE will always show EXCEEDED — UI dashboards will break.",
+    "Race condition: high concurrency on POST /energy-summary/aggregate (e.g., nightly batch) will produce intermittent IntegrityError 500s.",
+    "NaN compat for CHECK constraints: PostgreSQL evaluates NaN comparisons as NULL → INSERT violates NOT NULL/CHECK if total_toe / annual_total_energy ever becomes NaN. The service currently can't produce NaN from finite float inputs, but if DB returns NaN (impossible for Float type) it would slip through.",
+    "func.now() in ORM attribute assignment on SQLite: if SQLite is used for any production deployment, idempotent update path will fail.",
+    "Year-dimension mixing: a project with multi-year equipment data will silently aggregate across years.",
+    "GET /util/summary and GET /util/energy-consumption still read from UtilResults.consumption_json (13-class JSONB) via summary_service.summarize, NOT from the new 5-table aggregation. After Sprint 2 the JSONB path and the 5-table path produce DIFFERENT toe_total numbers for the same project — consumers don't know which to trust."
+  ],
+  "testing_gaps": [
+    "No test for tolerance_pct with xls_reference.total_toe = None (NoneType vs 0.0 vs positive).",
+    "No test for concurrent summarize calls — race window untested.",
+    "Golden fixture expected values are computed by hand-derivation from the buggy service; they will pass tests even if the bug exists. No independent cross-check against GB/T 50441 appendix or工艺室-computed 外部估计.",
+    "API tests in test_util_sprint2.py only cover zero-consumption path; no test asserts total_toe > 0 after a single T1 row insert via API → the 1000x bug would not surface from API tests.",
+    "No test for `existing.computed_at = func.now()` SQLite compat — if tests run on PG only (not SQLite), the bug won't surface in CI.",
+    "No test verifies the JSONB-vs-5-table dual paths produce consistent totals for the same project data.",
+    "No test for water/gas/low_temp_heat None-vs-0 semantics; consumers can't tell aggregated-zero from not-yet-aggregated.",
+    "summary_service tests don't verify STEAM unit conversion with hand-calculated MJ total."
+  ],
+  "reviewer_notes": {
+    "primary_tier_scope": "All 32 changed files reviewed; hot paths: utility_energy_summary_service.py, util.py (api/v1), util.py (models), 6 alembic versions, util.py (schemas), config.py (ConfigEnergyConversionFactor).",
+    "secondary_scope": "summary_service.py toe calculation used by existing 13-class JSONB path.",
+    "pre_existing_flag": "summary_service.py:91 unit ambiguity is pre-existing (Sprint 1) and not modified by Sprint 2 — flagged pre_existing: true.",
+    "false_positives_avoided": "Idempotent update IS a real race but practical probability is low; flagged P1 not P0.",
+    "tests_passing_due_to_compounding_bugs": "Golden fixture Case 1 computes 20000 t × 0.0760 = 1520 kg — only correct if factor is per-tonne, not per-kg. Either the model docstring is wrong or the service is wrong; fixture follows service. Tests pass either way (wrong-on-both-sides)."
+  }
+}

@@ -1,0 +1,6 @@
+[
+  {"reviewer": "correctness", "findings_count": 9, "p0": 2, "p1": 2, "p2": 4, "p3": 1, "artifact": "correctness.json"},
+  {"reviewer": "data-migration", "findings_count": 7, "p0": 0, "p1": 2, "p2": 3, "p3": 2, "artifact": "data-migration.json"},
+  {"reviewer": "security", "findings_count": 5, "p0": 0, "p1": 0, "p2": 2, "p3": 3, "artifact": "security.json"},
+  {"reviewer": "adversarial", "findings_count": 18, "p0": 2, "p1": 6, "p2": 7, "p3": 3, "artifact": "adversarial.json"}
+]

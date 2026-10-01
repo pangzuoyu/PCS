@@ -1,0 +1,182 @@
+{
+  "reviewer": "security",
+  "review_id": "20261001-174422-16a356de",
+  "batch": "P7 Sprint 2 (T1+T2+T3 CRUD + T5 aggregate/list + G-08 OpenAPI baseline)",
+  "scope": "pcs-backend/app/api/v1/util.py (8 new endpoints), pcs-backend/app/schemas/util.py (9 Pydantic schemas), pcs-backend/app/services/util/utility_energy_summary_service.py (T5 service), pcs-backend/app/models/util.py (5 new ORM)",
+  "summary": {
+    "critical": 0,
+    "high": 0,
+    "medium": 2,
+    "low": 3,
+    "verdict": "ACCEPTABLE — no auth bypass, no SQLi, no secrets. IDOR and integrity-override are pre-existing codebase patterns; not blockers for this batch."
+  },
+  "findings": [
+    {
+      "id": "SEC-P7S2-001",
+      "severity": "P2",
+      "confidence": 75,
+      "title": "IDOR — project_id not validated against user ownership",
+      "category": "authz",
+      "owasp": "A01:2021 Broken Access Control",
+      "cwe": "CWE-639",
+      "pre_existing": true,
+      "autofix_class": "advisory",
+      "owner": "downstream-resolver",
+      "evidence": [
+        "pcs-backend/app/api/v1/util.py:411-430 list_power_items — accepts project_id UUID Query without ownership check",
+        "pcs-backend/app/api/v1/util.py:476-495 list_fuel_gas — same pattern",
+        "pcs-backend/app/api/v1/util.py:542-561 list_heat_exchange — same pattern",
+        "pcs-backend/app/api/v1/util.py:594-621 list_energy_summary — same pattern",
+        "pcs-backend/app/api/v1/util.py:380-408 create_power_item — body.project_id not bound to user.workspace",
+        "No UserProject/WorkspaceMember model exists in pcs-backend/app/models/ (grep returns empty)",
+        "current_actor (config.py:441-469) decodes JWT to _Actor but does not load project memberships",
+        "require_roles checks role string only — DESIGNER can pass for any project_id"
+      ],
+      "description": "All 8 new endpoints accept arbitrary project_id/workspace_id from caller and skip any per-user project authorization check. A DESIGNER with a valid JWT can read or write any project's utility data by guessing or enumerating project UUIDs. require_roles gates role (DESIGNER/PROCESS_CONTROLLER/SYSTEM_ADMIN) but not project scope. Impact: cross-tenant data exposure and tampering within the lowest privileged role. Pre-existing across the whole PCS backend (no ownership table exists), not introduced by this batch.",
+      "exploit_path": "Attacker authenticates as DESIGNER, calls GET /api/v1/util/power-items?project_id=<victim-uuid>. require_roles passes. List returns victim's equipment_tag list. POST with attacker-chosen consumption values writes to victim's project.",
+      "remediation": "Add UserProject membership table; have current_actor load allowed project_ids; reject queries where requested project_id is not in actor's allowed set. Alternatively, derive project_id from a workspace_id the user already owns and reject mismatch.",
+      "blocker": false,
+      "rationale": "Pattern-level architectural gap, not introduced by Sprint 2. Not a release blocker for T1-T5 endpoints because Sprint 1 endpoints in the same file already expose the same behavior — fixing this in isolation would inconsistently protect some endpoints and not others."
+    },
+    {
+      "id": "SEC-P7S2-002",
+      "severity": "P2",
+      "confidence": 75,
+      "title": "annual_consumption override bypasses derived formula (T1/T2/T3 integrity)",
+      "category": "input_validation",
+      "owasp": "A04:2021 Insecure Design",
+      "cwe": "CWE-20",
+      "pre_existing": false,
+      "autofix_class": "manual",
+      "owner": "human",
+      "evidence": [
+        "pcs-backend/app/schemas/util.py:115-117 annual_consumption_kwh: float | None = Field(None, ge=0) — only constraint is non-negative",
+        "pcs-backend/app/schemas/util.py:157-159 annual_consumption_nm3: float | None = Field(None, ge=0)",
+        "pcs-backend/app/schemas/util.py:206-208 annual_consumption_t: float | None = Field(None, ge=0)",
+        "pcs-backend/app/api/v1/util.py:389-393 — if user supplies annual_kwh, the derived formula is skipped entirely",
+        "pcs-backend/app/api/v1/util.py:452-456 — same for fuel_gas",
+        "pcs-backend/app/api/v1/util.py:517-521 — same for heat_exchange",
+        "No reconciliation check between user-supplied value and derived formula",
+        "Service downstream: utility_energy_summary_service aggregates these values into project-level TOE / 标煤 reports (T5)"
+      ],
+      "description": "When the caller supplies annual_consumption_kwh (or _nm3, _t), the API layer accepts the value verbatim without comparing against the derived formula (motor_power × hours × load_factor, etc.). A DESIGNER can submit annual_consumption_kwh=1e15 for a 15 kW motor — well above any physically plausible value — and the record is persisted. Downstream, utility_energy_summary_service aggregates these into project-level TOE/standard_coal totals; an inflated value contaminates the regulatory-energy report. Not a confidentiality breach (no secrets), but data-integrity impact on regulatory submissions (折标煤).",
+      "exploit_path": "Attacker calls POST /api/v1/util/power-items with motor_power_kw=1, operating_hours_per_year=1, load_factor=0.01 (so derived ≈ 0.01 kWh) but annual_consumption_kwh=1e9. Server persists 1e9. Subsequent T5 aggregate produces inflated TOE.",
+      "remediation": "Option A: reject the override field entirely and always derive server-side. Option B: accept override only if |override - derived| / derived <= tolerance_pct (e.g. 5%). Option C: store both `derived` and `client_supplied` and require explicit flag + justification when they differ.",
+      "blocker": false,
+      "rationale": "Data integrity, not auth bypass. Pattern matches Sprint 1 util_results endpoints which accept arbitrary consumption_json from caller, so consistent with existing posture. Worth fixing but not a security blocker for this batch."
+    },
+    {
+      "id": "SEC-P7S2-003",
+      "severity": "P3",
+      "confidence": 50,
+      "title": "Unconstrained string fields — source / fuel_type / temperature_class / operating_phase",
+      "category": "input_validation",
+      "owasp": "A04:2021 Insecure Design",
+      "cwe": "CWE-20",
+      "pre_existing": true,
+      "autofix_class": "advisory",
+      "owner": "downstream-resolver",
+      "evidence": [
+        "pcs-backend/app/schemas/util.py:118-120 source: str | None = Field('MANUAL', max_length=32)",
+        "pcs-backend/app/schemas/util.py:146 fuel_type: str = Field('NATURAL_GAS', max_length=32)",
+        "pcs-backend/app/schemas/util.py:151-153 operating_phase: str = Field(..., max_length=16)",
+        "pcs-backend/app/schemas/util.py:199-201 temperature_class: str = Field(..., max_length=16)",
+        "DB column source has COMMENT listing enum PMS/MANUAL/CALC but no CHECK constraint enforces it",
+        "fuel_type column comment lists NATURAL_GAS/REFINERY_GAS/LPG/LNG/OTHERS but no CHECK"
+      ],
+      "description": "String fields intended as enum-like are typed as plain `str` with only max_length constraint. Caller can supply arbitrary values (e.g., source='XSS_PAYLOAD_HERE', temperature_class='NOT_A_REAL_CLASS'). Pydantic does not validate against the documented enum. Risk is data quality, not security — strings are not rendered as HTML and are not used in SQL literals (all queries are parameterized).",
+      "exploit_path": "Attacker submits source='<script>alert(1)</script>'. Server stores as-is. If a future frontend renders this field without escaping, XSS occurs. Currently no XSS sink in batch.",
+      "remediation": "Use Literal['PMS','MANUAL','CALC'] or Pydantic Enum. Add CHECK constraints at DB layer.",
+      "blocker": false,
+      "rationale": "Advisory; no current exploit path. Pattern inherited from Sprint 1 util_results.source (also unconstrained)."
+    },
+    {
+      "id": "SEC-P7S2-004",
+      "severity": "P3",
+      "confidence": 25,
+      "title": "JWT role default permissive (DESIGNER) — token without role claim defaults to lowest privilege",
+      "category": "auth",
+      "owasp": "A07:2021 Identification & Auth Failures",
+      "cwe": "CWE-287",
+      "pre_existing": true,
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "evidence": [
+        "pcs-backend/app/api/v1/config.py:460 role = payload.get('role', 'DESIGNER') — missing role defaults to DESIGNER",
+        "This is the SAME pattern used by all util endpoints via require_roles"
+      ],
+      "description": "current_actor (Sprint 1) defaults `role` to 'DESIGNER' when JWT omits the claim. Since DESIGNER is the lowest privilege role in this batch's require_roles call, an attacker who can mint a token without the `role` claim still passes auth and gets minimum access. Direction is safe (no privilege escalation), but it means the ACL check is only as strong as the JWT issuer. Pre-existing across all PCS endpoints.",
+      "exploit_path": "None directly — missing role claim yields lowest privilege. Not a vulnerability in this batch.",
+      "remediation": "Reject tokens without explicit `role` claim (fail-closed).",
+      "blocker": false,
+      "rationale": "Pre-existing across all PCS API. Direction is safe (lowest default). Out of scope for batch fix."
+    },
+    {
+      "id": "SEC-P7S2-005",
+      "severity": "P3",
+      "confidence": 25,
+      "title": "XLS_REFERENCE tolerance_status leak surface — verified safe",
+      "category": "data_exposure",
+      "owasp": "A01:2021 Broken Access Control",
+      "cwe": "CWE-200",
+      "pre_existing": false,
+      "autofix_class": "advisory",
+      "owner": "downstream-resolver",
+      "evidence": [
+        "pcs-backend/app/services/util/utility_energy_summary_service.py:194 xls_reference parameter — service-level only",
+        "pcs-backend/app/api/v1/util.py:569-591 aggregate_energy_summary — body schema UtilEnergySummaryAggregateRequest has NO source/xls_reference field",
+        "Source is hardcoded to 'CALCULATION' at API layer",
+        "Tolerance status returned is enum string 'OK'/'EXCEEDED'/'NA' — no underlying reference value exposed",
+        "tolerance_pct is a float ratio, no raw XLS value leaked"
+      ],
+      "description": "Concern was that the new API endpoints might expose XLS_REFERENCE-derived tolerance data or allow client to inject XLS_REFERENCE as source. Verified: aggregate_energy_summary does not accept source override (always CALCULATION), and tolerance_pct is just a ratio. No data leak.",
+      "exploit_path": "None.",
+      "remediation": "None needed. Continue to keep xls_reference service-internal.",
+      "blocker": false,
+      "rationale": "Clean — explicit verification done. Listed for completeness of the checklist."
+    }
+  ],
+  "checked_negatives": [
+    "SQL injection — all queries use SQLAlchemy bound parameters (where(Project.id == x)); no f-strings, .format(), or string concatenation in any query",
+    "SQL injection via project_id/equipment_tag — both UUID and str types are parameterized; FastAPI validates UUID format before query",
+    "Missing auth — every endpoint has current_actor dependency; missing/invalid JWT → 401",
+    "Missing ACL — all 8 endpoints verified to call require_roles(user, 'DESIGNER', 'PROCESS_CONTROLLER', 'SYSTEM_ADMIN')",
+    "Hardcoded secrets — no API keys, passwords, or tokens in new code",
+    "Command injection — no os.system, subprocess, eval, exec calls",
+    "SSRF/path traversal — endpoints do not fetch URLs or read filesystem paths",
+    "Mass assignment — Pydantic models explicitly enumerate fields; no **kwargs or attribute assignment from raw dict",
+    "Float NaN/Inf — Pydantic Field(gt=0, le=8760) rejects NaN (NaN>0 == False) and Inf (Inf<=8760 == False); 422 returned",
+    "Sensitive logging — no print() or logger.info/calls in new endpoints that emit project_id, equipment_tag, or tokens",
+    "CSRF — Bearer token in Authorization header; browsers cannot set this cross-origin without explicit CORS allowlist",
+    "Unbounded queries — list endpoints have limit ge=1 le=500 and offset ge=0; prevent DoS via giant result sets",
+    "equipment_tag length DoS — bounded by String(64) in DB and max_length=64 in Pydantic",
+    "source field length DoS — bounded max_length=32 in Pydantic and String(32) in DB",
+    "Path param enumeration — all {id} path params are uuid.UUID (no integer enumeration)",
+    "Raw SQL — no execute(text(...)) calls; all queries go through select() ORM API"
+  ],
+  "test_coverage_assessment": {
+    "covered": [
+      "test_util_sprint2.py covers 201/200 happy paths for T1 + T5 with DESIGNER token",
+      "ACL positive case (DESIGNER allowed) tested",
+      "Annual_consumption derivation path tested (line 99 omits annual_consumption_kwh)"
+    ],
+    "gaps": [
+      "No test for ACL denial (non-DESIGNER role → 403)",
+      "No test for missing/invalid JWT → 401",
+      "No test for annual_consumption override with implausibly large value (SEC-P7S2-002 exploit path)",
+      "No test for cross-project access by DESIGNER (SEC-P7S2-001 exploit path)",
+      "No test for source field XSS-style payload (SEC-P7S2-003)"
+    ]
+  },
+  "recommendations": [
+    "P2 SEC-P7S2-001: address IDOR via project membership table in a dedicated batch (cross-cutting)",
+    "P2 SEC-P7S2-002: decide on annual_consumption override policy (reject, tolerance-check, or audit-log)",
+    "P3 items: defer to TODOS.md"
+  ],
+  "ship_decision": "APPROVE-with-followup — no P0/P1. Two P2 (one pre-existing, one new) registered for next batch.",
+  "open_questions": [
+    "Is there a documented product decision on whether DESIGNER should be able to access any project_id, or only assigned projects? If the latter, SEC-P7S2-001 becomes a P1.",
+    "Is annual_consumption_kwh override (T1/T2/T3) intentional to support CALC-source corrections (e.g., PMS-derived values that differ from formula)? If yes, add a tolerance check + audit log; if no, remove the field.",
+    "Will frontend render source / equipment_tag / fuel_type strings directly? If yes, escape on output (already FastAPI JSON default); if rendered in HTML, ensure template autoescape."
+  ]
+}

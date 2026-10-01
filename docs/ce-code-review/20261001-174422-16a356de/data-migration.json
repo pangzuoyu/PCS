@@ -1,0 +1,300 @@
+{
+  "reviewer": "data-migration",
+  "run_id": "20261001-174422-16a356de",
+  "review_base": "85d1215",
+  "intent": "P7 Sprint 2 batch: 6 alembic migrations (T0 CONFIG + T1/T2/T3 utility sub-types + T4 ALTER util_results + T5 summary) + 4 nullable Float fields + CHECK constraints + 1 seed script.",
+  "scope_tier": "primary: lines in pcs-backend/alembic/versions/p7_open_009_*.py + util_results ALTER + scripts/p7_open_009_t0_seed_energy_conversion_factors.py + openapi.json/openapi-baseline.json drift check",
+  "summary": {
+    "p0_count": 0,
+    "p1_count": 2,
+    "p2_count": 3,
+    "p3_count": 2,
+    "verdict": "PASS_WITH_FIXES",
+    "overall_assessment": "All 6 migrations + 1 ALTER are mechanically correct DDL (UUID PKs, FK ondelete CASCADE/SET NULL consistent across all 5 new tables, CHECK ranges bounded correctly, enum column lengths fit values, no NOT NULL-without-backfill hazards since all 4 T4 ALTER fields are nullable Float). Migration chain integrity verified: p7_s1_005 → p7_s1_002 → T0 → T1 → T2 → T3 → T4 → T5. Index model↔migration parity confirmed. Two P1 issues require human attention: (1) 4 new util_results columns not exposed in UtilResultsResponse (likely intentional aggregator-output pattern but undocumented in spec diff); (2) seed script runs OUT-OF-BAND of alembic and there is no post-deploy SQL guard in the migration to assert config_energy_conversion_factors has 6 rows."
+  },
+  "findings": [
+    {
+      "id": "DM-P7S2-001",
+      "title": "SCHEMA DRIFT: 4 new util_results columns missing from UtilResultsResponse in openapi.json + openapi-baseline.json",
+      "severity": "P1",
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "pre_existing": false,
+      "evidence": [
+        "pcs-backend/alembic/versions/p7_open_009_004_auxiliary_consumption_4fields.py:39-74 ADD COLUMN electrical_power_kwh_yr / fuel_gas_consumption_nm3_yr / steam_consumption_t_yr / cooling_water_consumption_t_yr to util_results",
+        "docs/openapi.json UtilResultsResponse properties (sampled): ['util_result_id','project_id','workspace_id','business_date','consumption_json','jsonb_deprecated','source','created_at','updated_at'] — 4 new fields NOT present",
+        "docs/openapi-baseline.json UtilResultsResponse identical to openapi.json (md5 b7577023... both files) — baseline also missing 4 fields",
+        "app/models/util.py:87-106 declares all 4 fields with nullable=True matching migration, so model↔DB is aligned but API contract lags"
+      ],
+      "rationale": "T4 ALTER adds 4 columns to util_results (auxiliary_consumption aggregator outputs). UtilResultsResponse Pydantic schema in app/schemas/util.py did NOT add corresponding fields, so the regenerated openapi.json does not surface them. This may be intentional (callers consume them via utility_energy_summary endpoints per D1 裁决 1A '5 表权威 + JSONB deprecated'), but the migration docstring claims '聚合 T1/T2/T3 子表 annual_consumption' (aggregation results stored in util_results), implying the values ARE queryable via util_results. If a frontend or external consumer reads UtilResultsResponse expecting these fields, they will silently get undefined. No util_results API endpoint surfaces them.",
+      "recommendation": "Either (a) extend UtilResultsResponse + UtilResultsCreateRequest with the 4 nullable fields in a follow-up Sprint 2.x patch (manual, gated by review of frontend consumers), or (b) document explicitly in P7-OPEN-009 §3.2.2 that util_results.electrical_power_kwh_yr et al. are write-only aggregator outputs consumed only via the utility_energy_summary API. Add docstring comment in app/models/util.py:87 pointing to consumer endpoint.",
+      "post_deploy_verification": "SELECT column_name FROM information_schema.columns WHERE table_name='util_results' AND column_name IN ('electrical_power_kwh_yr','fuel_gas_consumption_nm3_yr','steam_consumption_t_yr','cooling_water_consumption_t_yr'); — expect 4 rows."
+    },
+    {
+      "id": "DM-P7S2-002",
+      "title": "OUT-OF-BAND seed script: config_energy_conversion_factors seed not enforced by migration",
+      "severity": "P1",
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "evidence": [
+        "pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py:140-167 main() runs DELETE+INSERT outside alembic chain",
+        "pcs-backend/alembic/versions/p7_open_009_t0_config_energy_conversion_factors.py:35-88 upgrade() only creates the table, no data insert",
+        "pcs-backend/app/services/util/utility_energy_summary_service.py:154-159 _compute_totals uses hardcoded fallback (0.1229/0.4040 for ELECTRICITY, 1.0/1.4286 for FUEL_GAS, etc.) when DB rows missing — masks deploy order bug"
+      ],
+      "rationale": "T0 migration creates config_energy_conversion_factors table but does NOT seed 6 rows. Seeding is a separate script invoked manually (`uv run python scripts/p7_open_009_t0_seed_energy_conversion_factors.py`). Deployer may forget, leading to empty config table. Service fallback hardcodes the same factor values, so summarize_energy_year will appear to work but produce values derived from code-embedded constants rather than GB/T 50441-confirmed coefficients — defeating the CONFIG-table audit trail. Process note in the script: '工艺室 2026-10-15 签署后填 confirmed_by/confirmed_at' — until then all 6 rows have NULL confirmed_by/confirmed_at.",
+      "recommendation": "Add a follow-up migration `p7_open_009_t0b_seed_energy_conversion_factors` that does an INSERT...ON CONFLICT (energy_type) DO NOTHING for the 6 SYNTHETIC_TEST_DATA rows, so the deploy is reproducible from `alembic upgrade head` alone. Alternative: keep separate script but add a post-deploy SQL assertion (`SELECT COUNT(*) FROM config_energy_conversion_factors WHERE source='SYNTHETIC_TEST_DATA'`) to deploy runbook + alert on != 6.",
+      "post_deploy_verification": "SELECT energy_type, toe_factor, standard_coal_factor, source, confirmed_by, confirmed_at FROM config_energy_conversion_factors ORDER BY energy_type; — expect exactly 6 rows; confirm_by/at may all be NULL until 工艺室 2026-10-15 签字."
+    },
+    {
+      "id": "DM-P7S2-003",
+      "title": "CHECK constraint addition on util_results (T4) requires full table scan + ACCESS EXCLUSIVE",
+      "severity": "P2",
+      "confidence": 50,
+      "autofix_class": "advisory",
+      "owner": "release",
+      "pre_existing": false,
+      "evidence": [
+        "pcs-backend/alembic/versions/p7_open_009_004_auxiliary_consumption_4fields.py:75-97 op.create_check_constraint for 4 ck_util_results_*_non_negative without NOT VALID clause",
+        "PostgreSQL op.create_check_constraint defaults to VALIDATE which scans the table under ACCESS EXCLUSIVE LOCK"
+      ],
+      "rationale": "On a production util_results table with N rows (typically <10k for an early-stage system, but could grow), the 4 CREATE CHECK constraints take an ACCESS EXCLUSIVE LOCK during validation. Existing rows have NULL for the 4 new columns (nullable=True, no DEFAULT), so they pass validation trivially, but the lock duration is proportional to row count. For util_results with millions of rows (post-Sprint 3 scaling), this is a 5-30s blocking window per constraint = up to 2 minutes total. Could use `ALTER TABLE ... ADD CONSTRAINT ... CHECK (...) NOT VALID` followed by `VALIDATE CONSTRAINT` later (takes ShareUpdateExclusiveLock, non-blocking).",
+      "recommendation": "For now acceptable (util_results is small). For Sprint 3+ when row count grows, refactor T4 to use NOT VALID + manual VALIDATE CONSTRAINT in a separate migration. Document expected deploy window in P7-OPEN-009 release notes.",
+      "post_deploy_verification": "SELECT conname FROM pg_constraint WHERE conrelid='util_results'::regclass AND contype='c'; — expect 4 ck_util_results_*_non_negative constraints."
+    },
+    {
+      "id": "DM-P7S2-004",
+      "title": "T4 ALTER util_results.electrical_power_kwh_yr et al. silently insert NULL on existing rows — no backfill despite P7-OPEN-009 §6.3 spec",
+      "severity": "P2",
+      "confidence": 50,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "evidence": [
+        "pcs-backend/alembic/versions/p7_open_009_004_auxiliary_consumption_4fields.py:39-74 ADD COLUMN ... nullable=True (no DEFAULT) for all 4 fields",
+        "p7_open_009_004 docstring: '字段 nullable=True 起步（backward compat：Sprint 1 存量数据无值）；service 层 fallback 到 consumption_json JSONB 取值 (D1 裁决 1A)'",
+        "pcs-backend/app/services/util/utility_energy_summary_service.py does not backfill util_results.electrical_power_kwh_yr from consumption_json — it queries T1/T2/T3 subtables directly"
+      ],
+      "rationale": "Sprint 1 data in util_results.consumption_json already contains 13-category flat dict with electricity_kwh / fuel_gas_nm3 / steam_t etc. T4 added 4 dedicated columns but did NOT backfill from consumption_json. Post-deploy, summary APIs will read T1/T2/T3 subtables (which are empty for Sprint 1 projects) and return total_toe=0 / total_standard_coal_kg=0 — silently diverging from the consumption_json ground truth. D1 裁决 1A explicitly chose '5 表权威 + JSONB deprecated' so this divergence is intentional for new records, but historical util_results rows lose their pre-Sprint-2 numbers unless backfilled.",
+      "recommendation": "If Sprint 1 projects have historical consumption_json data that should be preserved, add a separate backfill migration `p7_open_009_004b_backfill_auxiliary_from_jsonb` that reads util_results.consumption_json → util_results.electrical_power_kwh_yr etc. for rows where the new columns are NULL. Otherwise accept the divergence and document that pre-Sprint-2 projects must re-enter data via new T1/T2/T3 endpoints.",
+      "post_deploy_verification": "SELECT COUNT(*) AS total, COUNT(electrical_power_kwh_yr) AS with_electrical FROM util_results; — if total > with_electrical, pre-Sprint-2 rows are NULL and backfill decision applies."
+    },
+    {
+      "id": "DM-P7S2-005",
+      "title": "Migration chain relies on T0 seed run — no migration guards against re-run failures",
+      "severity": "P2",
+      "confidence": 50,
+      "autofix_class": "advisory",
+      "owner": "release",
+      "pre_existing": false,
+      "evidence": [
+        "pcs-backend/alembic/versions/p7_open_009_t0_config_energy_conversion_factors.py:40-88 op.create_table without IF NOT EXISTS",
+        "pcs-backend/alembic/versions/p7_open_009_001_utility_power_items.py:39-121 op.create_table without IF NOT EXISTS",
+        "Same pattern in T2/T3/T5 migrations"
+      ],
+      "rationale": "If alembic upgrade head fails partway (e.g., timeout mid-T3), re-running will raise `relation already exists` errors. Modern alembic supports `op.create_table(..., if_not_exists=True)` for idempotency. Recovery from partial apply requires manual `DROP TABLE ... CASCADE` + re-upgrade. This is standard alembic behavior and not a bug per se, but the migration docstring does not document the recovery procedure.",
+      "recommendation": "Add a rollback section to P7-OPEN-009 §6 deploy runbook: if alembic upgrade fails partway, run `alembic downgrade -1` (reverses one migration at a time) before re-attempting. For automated CI, wrap alembic upgrade in a retry that detects `DuplicateTable` and treats it as already-applied.",
+      "post_deploy_verification": "SELECT version_num FROM alembic_version; — expect p7_open_009_005_utility_energy_summary. SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename IN ('config_energy_conversion_factors','utility_power_items','utility_fuel_gas','utility_heat_exchange','utility_energy_summary'); — expect 5 rows."
+    },
+    {
+      "id": "DM-P7S2-006",
+      "title": "Hardcoded unit conversion constants in service bypass config table — drift risk",
+      "severity": "P3",
+      "confidence": 50,
+      "autofix_class": "advisory",
+      "owner": "downstream-resolver",
+      "pre_existing": false,
+      "evidence": [
+        "pcs-backend/app/services/util/utility_energy_summary_service.py:134-139 KWH_TO_MJ = 3.6, NM3_FUEL_GAS_TO_MJ = 38.0, T_STEAM_TO_MJ = 2778.0 hardcoded",
+        "service file line 154-159 uses hardcoded fallback factor dict for ENERGY when DB rows missing"
+      ],
+      "rationale": "Service hardcodes (1) unit conversion to MJ canonical and (2) fallback factor values when DB rows missing. These constants should live in CONFIG tables per the project's P6-5+ CONFIG pattern (compound_* tables + 5-min TTL cache). Current implementation works but creates two sources of truth (hardcoded code vs config_energy_conversion_factors DB). Future engineering changes will diverge unless migrated.",
+      "recommendation": "File as OPEN-P7-S2-FOLLOWUP: add `unit_conversion_factors` CONFIG table in P7-6B with same 5-min TTL cache pattern. Service then reads both config_energy_conversion_factors AND unit_conversion_factors from DB."
+    },
+    {
+      "id": "DM-P7S2-007",
+      "title": "downgrade() index drop order is non-symmetric for utility_heat_exchange",
+      "severity": "P3",
+      "confidence": 25,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "pre_existing": false,
+      "evidence": [
+        "pcs-backend/alembic/versions/p7_open_009_003_utility_heat_exchange.py:184-198 downgrade drops ix_utility_heat_exchange_temperature_class → ix_utility_heat_exchange_workspace → ix_utility_heat_exchange_project (reverse of create order is project → workspace → temperature_class)"
+      ],
+      "rationale": "Cosmetic: index drop order does not match create order. Functionally equivalent since none of the indexes are FK-dependent, but asymmetric to convention. No runtime impact.",
+      "recommendation": "Optional cosmetic reorder to project → workspace → temperature_class for symmetry with upgrade()."
+    }
+  ],
+  "migration_chain_verification": {
+    "chain_order": [
+      "p5_0_1b_1_thermosiphon",
+      "p7_s1_001",
+      "p7_s1_005",
+      "p7_s1_002 (file name; revision applied AFTER p7_s1_005 per down_revision chain)",
+      "p7_open_009_t0_config_energy_conversion_factors",
+      "p7_open_009_001_utility_power_items",
+      "p7_open_009_002_utility_fuel_gas",
+      "p7_open_009_003_utility_heat_exchange",
+      "p7_open_009_004_auxiliary_consumption_4fields",
+      "p7_open_009_005_utility_energy_summary"
+    ],
+    "chain_valid": true,
+    "head_revision": "p7_open_009_005_utility_energy_summary"
+  },
+  "per_migration_checklist": {
+    "p7_open_009_t0_config_energy_conversion_factors": {
+      "schema_version_stamp": "ok",
+      "justified": true,
+      "tables": ["config_energy_conversion_factors"],
+      "indexes": [],
+      "unique_constraints": ["uq_config_energy_conversion_factors_energy_type"],
+      "check_constraints": [],
+      "fk_ondelete_consistency": "n/a (no FK)",
+      "downgrade_complete": true,
+      "issues": ["DM-P7S2-002 seed script out-of-band"]
+    },
+    "p7_open_009_001_utility_power_items": {
+      "schema_version_stamp": "ok",
+      "justified": true,
+      "tables": ["utility_power_items"],
+      "indexes": ["ix_utility_power_items_project", "ix_utility_power_items_workspace"],
+      "unique_constraints": ["uq_utility_power_items_project_equipment_tag"],
+      "check_constraints": [
+        "ck_utility_power_items_motor_power_positive",
+        "ck_utility_power_items_hours_in_year",
+        "ck_utility_power_items_load_factor_range",
+        "ck_utility_power_items_consumption_non_negative"
+      ],
+      "fk_ondelete_consistency": "CASCADE on projects/workspaces, SET NULL on equipment_list — matches ORM model + D1 plan",
+      "downgrade_complete": true,
+      "issues": []
+    },
+    "p7_open_009_002_utility_fuel_gas": {
+      "schema_version_stamp": "ok",
+      "justified": true,
+      "tables": ["utility_fuel_gas"],
+      "indexes": [
+        "ix_utility_fuel_gas_project",
+        "ix_utility_fuel_gas_workspace",
+        "ix_utility_fuel_gas_fuel_type"
+      ],
+      "unique_constraints": ["uq_utility_fuel_gas_project_equipment_phase"],
+      "check_constraints": [
+        "ck_utility_fuel_gas_calorific_value_range",
+        "ck_utility_fuel_gas_consumption_positive",
+        "ck_utility_fuel_gas_hours_in_year",
+        "ck_utility_fuel_gas_annual_consumption_non_negative",
+        "ck_utility_fuel_gas_operating_phase_enum"
+      ],
+      "fk_ondelete_consistency": "consistent",
+      "downgrade_complete": true,
+      "issues": [],
+      "notes": "operating_phase enum length(16) accommodates max 'INITIAL' (7 chars) + headroom; column length ok for known values"
+    },
+    "p7_open_009_003_utility_heat_exchange": {
+      "schema_version_stamp": "ok",
+      "justified": true,
+      "tables": ["utility_heat_exchange"],
+      "indexes": [
+        "ix_utility_heat_exchange_project",
+        "ix_utility_heat_exchange_workspace",
+        "ix_utility_heat_exchange_temperature_class"
+      ],
+      "unique_constraints": ["uq_utility_heat_exchange_project_equipment_tag"],
+      "check_constraints": [
+        "ck_utility_heat_exchange_pressure_positive",
+        "ck_utility_heat_exchange_quality_pct_range",
+        "ck_utility_heat_exchange_return_condensate_pct_range",
+        "ck_utility_heat_exchange_hours_in_year",
+        "ck_utility_heat_exchange_annual_consumption_non_negative",
+        "ck_utility_heat_exchange_temperature_class_enum"
+      ],
+      "fk_ondelete_consistency": "consistent",
+      "downgrade_complete": true,
+      "issues": ["DM-P7S2-007 cosmetic index drop order asymmetry"]
+    },
+    "p7_open_009_004_auxiliary_consumption_4fields": {
+      "schema_version_stamp": "ok",
+      "justified": true,
+      "alter_type": "ALTER TABLE util_results ADD 4 nullable Float columns",
+      "columns_added": [
+        "electrical_power_kwh_yr",
+        "fuel_gas_consumption_nm3_yr",
+        "steam_consumption_t_yr",
+        "cooling_water_consumption_t_yr"
+      ],
+      "nullable_all": true,
+      "default_present": false,
+      "check_constraints": [
+        "ck_util_results_electrical_power_non_negative",
+        "ck_util_results_fuel_gas_non_negative",
+        "ck_util_results_steam_non_negative",
+        "ck_util_results_cooling_water_non_negative"
+      ],
+      "downgrade_complete": true,
+      "issues": [
+        "DM-P7S2-001 columns not exposed in API response",
+        "DM-P7S2-003 ACCESS EXCLUSIVE during CHECK constraint validation",
+        "DM-P7S2-004 no backfill from consumption_json for Sprint 1 historical data"
+      ]
+    },
+    "p7_open_009_005_utility_energy_summary": {
+      "schema_version_stamp": "ok",
+      "justified": true,
+      "tables": ["utility_energy_summary"],
+      "indexes": [
+        "ix_utility_energy_summary_project",
+        "ix_utility_energy_summary_workspace",
+        "ix_utility_energy_summary_year"
+      ],
+      "unique_constraints": ["uq_utility_energy_summary_project_year_source"],
+      "check_constraints": [
+        "ck_utility_energy_summary_total_non_negative",
+        "ck_utility_energy_summary_toe_factor_positive",
+        "ck_utility_energy_summary_coal_factor_positive",
+        "ck_utility_energy_summary_total_toe_non_negative",
+        "ck_utility_energy_summary_total_coal_non_negative",
+        "ck_utility_energy_summary_tolerance_status_enum"
+      ],
+      "fk_ondelete_consistency": "consistent (CASCADE on projects/workspaces, no equipment FK)",
+      "downgrade_complete": true,
+      "issues": ["DM-P7S2-006 hardcoded conversion constants in service"]
+    }
+  },
+  "post_deploy_verification_sql": {
+    "1_migration_head": "SELECT version_num FROM alembic_version; -- expect: p7_open_009_005_utility_energy_summary",
+    "2_table_existence": "SELECT tablename FROM pg_tables WHERE schemaname='public' AND tablename IN ('config_energy_conversion_factors','utility_power_items','utility_fuel_gas','utility_heat_exchange','utility_energy_summary') ORDER BY tablename; -- expect 5 rows",
+    "3_util_results_columns": "SELECT column_name, data_type, is_nullable FROM information_schema.columns WHERE table_name='util_results' AND column_name IN ('electrical_power_kwh_yr','fuel_gas_consumption_nm3_yr','steam_consumption_t_yr','cooling_water_consumption_t_yr') ORDER BY column_name; -- expect 4 rows, all nullable=YES, data_type=double precision",
+    "4_check_constraints": "SELECT conname FROM pg_constraint WHERE conrelid='util_results'::regclass AND contype='c' AND conname LIKE 'ck_util_results_%_non_negative'; -- expect 4 rows",
+    "5_config_seed_count": "SELECT COUNT(*) FROM config_energy_conversion_factors; -- expect 6 after seed script runs (else 0)",
+    "6_sprint1_backcompat": "SELECT COUNT(*) AS total, COUNT(electrical_power_kwh_yr) AS populated FROM util_results; -- if total > populated, decide on backfill (DM-P7S2-004)",
+    "7_unique_constraints": "SELECT conname FROM pg_constraint WHERE contype='u' AND conrelid IN ('config_energy_conversion_factors'::regclass,'utility_power_items'::regclass,'utility_fuel_gas'::regclass,'utility_heat_exchange'::regclass,'utility_energy_summary'::regclass) ORDER BY conname; -- expect 5 rows",
+    "8_indexes_created": "SELECT indexname FROM pg_indexes WHERE schemaname='public' AND indexname LIKE 'ix_utility_%' OR indexname LIKE 'ix_config_%' ORDER BY indexname; -- expect 9 rows (3+3+3 from 5 tables, plus 1 config and 3 utility_*)"
+  },
+  "rollback_path": {
+    "full_rollback": "alembic downgrade p7_open_009_004  # reverses T5\n                     alembic downgrade p7_open_009_003  # reverses T4 (drops 4 columns + 4 CHECK)\n                     alembic downgrade p7_open_009_002  # reverses T3\n                     alembic downgrade p7_open_009_001  # reverses T2\n                     alembic downgrade p7_open_009_t0_config_energy_conversion_factors  # reverses T1\n                     alembic downgrade p7_s1_002  # reverses T0 (drops config_energy_conversion_factors table)",
+    "downgrade_completeness": "verified — each migration's downgrade() reverses its upgrade() in entirety (DROP TABLE / DROP INDEX / DROP COLUMN / DROP CONSTRAINT)",
+    "data_loss_warning": "rollback to pre-T5 drops utility_energy_summary table (loses computed summary data); rollback to pre-T0 drops config_energy_conversion_factors (loses seed data — re-runnable via script).",
+    "migration_specific_notes": [
+      "T4 downgrade drops 4 ck_util_results_*_non_negative constraints then 4 columns — correct reverse order",
+      "T0 downgrade drops the whole table — no partial rollback possible (acceptable since T0 has only metadata + seed data)"
+    ]
+  },
+  "deploy_window_assessment": {
+    "locking_operations": [
+      "T0~T5 CREATE TABLE — each takes ACCESS EXCLUSIVE on the new table only (non-blocking on existing tables)",
+      "T4 ALTER TABLE util_results ADD COLUMN 4 nullable Float — PostgreSQL 11+ metadata-only, near-instant",
+      "T4 CREATE 4 CHECK constraints on util_results — FULL TABLE SCAN + ACCESS EXCLUSIVE; proportional to util_results row count"
+    ],
+    "estimated_lock_duration_seconds": "5-30s per CHECK constraint × 4 = up to 120s worst case if util_results > 1M rows; <5s expected at current scale (hundreds to low thousands of util_results rows)",
+    "recommendation": "deploy during low-traffic window; consider NOT VALID + manual VALIDATE CONSTRAINT split in P7-6B if row count grows beyond 100k"
+  },
+  "open_questions": [
+    "DM-P7S2-001: Should UtilResultsResponse expose the 4 new aggregator columns, or are they strictly write-only consumed via utility_energy_summary API?",
+    "DM-P7S2-002: When will seed script run in deploy runbook — pre-upgrade, post-upgrade, or CI step? Should it be folded into alembic as a data migration?",
+    "DM-P7S2-004: Should util_results.consumption_json be backfilled into the 4 new columns for Sprint 1 historical projects, or accept the divergence and require re-entry via T1/T2/T3 endpoints?"
+  ]
+}
