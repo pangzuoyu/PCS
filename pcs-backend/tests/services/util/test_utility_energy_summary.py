@@ -67,10 +67,24 @@ SEED_FACTORS = [
         "source": "GB_30251_2024_APPENDIX_A",
     },
     {
+        "energy_type": "FUEL_GAS",
+        "sub_type": "OILFIELD_GAS",
+        "toe_factor": 0.93,             # Nm³ → kg 标油 (油田气)
+        "standard_coal_factor": 1.328571,  # 0.93 / 0.7
+        "source": "GB_30251_2024_APPENDIX_A",
+    },
+    {
         "energy_type": "STEAM",
         "pressure_level": "0_8_TO_1_2_MPA",
         "toe_factor": 76.0,             # t → kg 标油 (1.0 MPa MP 蒸汽)
         "standard_coal_factor": 108.571429,  # 76.0 / 0.7
+        "source": "GB_30251_2024_APPENDIX_A",
+    },
+    {
+        "energy_type": "STEAM",
+        "pressure_level": "GE_7_0_MPA",
+        "toe_factor": 92.0,             # t → kg 标油 (≥7.0 MPa 高压蒸汽)
+        "standard_coal_factor": 131.428571,  # 92.0 / 0.7
         "source": "GB_30251_2024_APPENDIX_A",
     },
     {
@@ -167,7 +181,7 @@ async def test_service_aggregates_t1t2t3_within_tolerance(
                 )
             )
 
-        # 2. 注入 T2 fuel_gas_items (含 operating_phase)
+        # 2. 注入 T2 fuel_gas_items (含 operating_phase + R1 §7.3 gas_source)
         for item in case["fuel_gas_items"]:
             db_session.add(
                 UtilityFuelGas(
@@ -175,6 +189,7 @@ async def test_service_aggregates_t1t2t3_within_tolerance(
                     workspace_id=workspace_id,
                     equipment_tag=item["equipment_tag"],
                     fuel_type="NATURAL_GAS",
+                    gas_source="GASFIELD_GAS",  # R1 §7.3
                     calorific_value_kcal_nm3=8500.0,
                     consumption_nm3_h=100.0,
                     operating_phase=item["operating_phase"],
@@ -183,7 +198,7 @@ async def test_service_aggregates_t1t2t3_within_tolerance(
                 )
             )
 
-        # 3. 注入 T3 heat_exchange_items (temperature_class 默认 MP)
+        # 3. 注入 T3 heat_exchange_items (temperature_class 默认 MP; R1 加 pressure_level)
         for item in case["heat_exchange_items"]:
             db_session.add(
                 UtilityHeatExchange(
@@ -194,6 +209,7 @@ async def test_service_aggregates_t1t2t3_within_tolerance(
                     steam_quality_pct=99.0,
                     return_condensate_pct=80.0,
                     temperature_class="MP",
+                    pressure_level="0_8_TO_1_2_MPA",  # R1 §7.1
                     steam_consumption_t_h=5.0,
                     operating_hours_per_year=8000.0,
                     annual_consumption_t=item["annual_consumption_t"],
@@ -506,3 +522,63 @@ async def test_service_aggregates_by_gas_source(
 
     # fuel_gas_nm3_yr (R0 单值) 等于分类总和
     assert agg.fuel_gas_nm3_yr == pytest.approx(1200000.0)
+
+
+@pytest.mark.asyncio
+async def test_compute_totals_uses_classified_factors(
+    db_session, seeded_config_factors
+):
+    """R1 §7.1+§7.3: _compute_totals 按分类查 R1 系数 (替代单值 fallback).
+
+    验证: 注入 2 个不同 pressure_level 蒸汽, 总 toe 应按各自档位系数计算
+    (不是按 fallback 单值 76.0).
+    """
+    from app.services.util.utility_energy_summary_service import (
+        _aggregate_util_subtables, _compute_totals,
+        _get_factors_by_classification,
+    )
+
+    project_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+
+    # 注入 1 条 MP (0_8_TO_1_2_MPA = 76) + 1 条 HP (GE_7_0_MPA = 92)
+    db_session.add_all([
+        UtilityHeatExchange(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="ST-MP", temperature_class="MP",
+            pressure_level="0_8_TO_1_2_MPA",
+            steam_pressure_mpa_gauge=1.0, steam_quality_pct=99.0,
+            return_condensate_pct=80.0, steam_consumption_t_h=1.0,
+            operating_hours_per_year=8400, annual_consumption_t=8400.0,
+        ),
+        UtilityHeatExchange(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="ST-HP", temperature_class="HP",
+            pressure_level="GE_7_0_MPA",
+            steam_pressure_mpa_gauge=10.0, steam_quality_pct=99.0,
+            return_condensate_pct=80.0, steam_consumption_t_h=1.0,
+            operating_hours_per_year=8400, annual_consumption_t=8400.0,
+        ),
+    ])
+    await db_session.commit()
+
+    agg = await _aggregate_util_subtables(db_session, project_id, 2027)
+    factors_by_class = await _get_factors_by_classification(db_session)
+
+    # 注入测试 ELECTRICITY row 0 (避免 ELECTRICITY 0 触发 fallback)
+    # 实际计算时 f_toe/f_coal 来自 seeded factors dict 单值
+
+    # 计算 (不传 electricity_value_type 默认 EQUIVALENT)
+    from app.services.util.utility_energy_summary_service import _get_factors_default
+    factors = await _get_factors_default(db_session)
+
+    _, total_coal_kg, _ = _compute_totals(
+        agg, factors,
+        electricity_value_type="EQUIVALENT",
+        factors_by_class=factors_by_class,
+    )
+
+    # 期望: MP 8400 × 108.571429 + HP 8400 × 131.428571
+    #     = 911,999.99 + 1,103,999.99 ≈ 2,016,000 kg
+    expected_steam_coal = 8400 * 108.571429 + 8400 * 131.428571
+    assert total_coal_kg == pytest.approx(expected_steam_coal, rel=1e-3)

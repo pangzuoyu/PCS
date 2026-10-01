@@ -169,12 +169,83 @@ async def _get_energy_conversion_factors(
     - NITROGEN: 单行
     - INSTRUMENT_AIR: sub_type=PURIFIED (净化 0.038)
 
-    TODO: 接入 5-min TTL 缓存 (仿 ``_compound_config_cache`` 模式; T7 集成)。
+    Returns:
+        dict[energy_type, (toe_factor, standard_coal_factor)] 单值 (last-wins)
+
+    注: 分类精确查表用 _get_factors_by_classification() 替代.
+    """
+    return await _get_factors_default(db, electricity_value_type=electricity_value_type)
+
+
+async def _get_factors_by_classification(
+    db: AsyncSession,
+) -> dict[str, dict[str, tuple[float, float]]]:
+    """读 R1 全表 26 行 → 按 (energy_type, classification) 二级 dict 返回.
+
+    Returns:
+        {
+            'STEAM': {
+                'GE_7_0_MPA': (92.0, 131.4),
+                '0_8_TO_1_2_MPA': (76.0, 108.6),
+                ...
+            },
+            'FUEL_GAS': {
+                'OILFIELD_GAS': (0.93, 1.329),
+                'GASFIELD_GAS': (0.85, 1.214),
+                'REFINERY_FUEL_GAS': (950.0, 1357.1),
+            },
+            'WATER': {  # 9 类
+                'FRESH_WATER': (0.15, 0.21),
+                ...
+            },
+            ...
+        }
+
+    classification_key 优先级:
+    - ELECTRICITY: value_type
+    - FUEL_GAS / INSTRUMENT_AIR: sub_type
+    - STEAM: pressure_level
+    - WATER: water_type
     """
     stmt = select(ConfigEnergyConversionFactor)
     rows = (await db.execute(stmt)).scalars().all()
 
-    # R1 §5: ELECTRICITY 按 value_type 精确查表; 其他能源 last-wins
+    result: dict[str, dict[str, tuple[float, float]]] = {}
+
+    for r in rows:
+        # 选择分类字段
+        if r.energy_type == "ELECTRICITY":
+            key = r.value_type  # EQUIVALENT / EQUIVALENT_VALUE
+        elif r.energy_type in ("FUEL_GAS", "INSTRUMENT_AIR"):
+            key = r.sub_type  # OILFIELD_GAS / GASFIELD_GAS / REFINERY_FUEL_GAS / PURIFIED / NON_PURIFIED
+        elif r.energy_type == "STEAM":
+            key = r.pressure_level  # 9 档
+        elif r.energy_type == "WATER":
+            key = r.water_type  # 9 类
+        else:
+            # NITROGEN / GAS / LOW_TEMP_HEAT (无分类) — 用 energy_type 作 key
+            key = r.energy_type
+
+        if key is None:
+            continue  # 跳过 NULL 分类 (未回填)
+
+        result.setdefault(r.energy_type, {})[key] = (r.toe_factor, r.standard_coal_factor)
+
+    return result
+
+
+async def _get_factors_default(
+    db: AsyncSession,
+    *,
+    electricity_value_type: str = "EQUIVALENT",
+) -> dict[str, tuple[float, float]]:
+    """读 R1 26 行 → 默认单值 (last-wins by energy_type).
+
+    R1 §5: ELECTRICITY 按 value_type 精确查表; 其他能源 last-wins.
+    """
+    stmt = select(ConfigEnergyConversionFactor)
+    rows = (await db.execute(stmt)).scalars().all()
+
     result: dict[str, tuple[float, float]] = {}
     elec_equiv: tuple[float, float] | None = None
     elec_value: tuple[float, float] | None = None
@@ -228,6 +299,7 @@ def _compute_totals(
     factors: dict[str, tuple[float, float]],
     *,
     electricity_value_type: str = "EQUIVALENT",
+    factors_by_class: dict[str, dict[str, tuple[float, float]]] | None = None,
 ) -> tuple[float, float, float]:
     """6 类能源消耗 × 折标系数 → total_toe / total_standard_coal_kg /
     annual_total_energy (MJ/yr).
@@ -264,12 +336,16 @@ def _compute_totals(
         e_toe, e_coal = factors.get(
             "ELECTRICITY", (0.21, 0.30)
         )
-        # 若 factors dict 有等价值行 (后续 sprint 用全表), 优先取它
     else:
         # 当量值 (默认; 其他产品) — R1 强制 0.086 kg标油/kWh
         e_toe, e_coal = factors.get(
             "ELECTRICITY", (0.086, 0.1229)
         )
+
+    # R1 §7.1+§7.3: STEAM 按 9 档 pressure_level 分类查 R1 系数;
+    # FUEL_GAS 按 3 类 gas_source 分类查 R1 系数 (替代单值 fallback).
+    # 注: factors 参数 (单值 last-wins dict) 与 factors_by_class (R1 全表分类 dict) 都接收.
+    # 本期: 优先用 *_by_* 分类聚合 + 分类 R1 系数; 退化为 factors 单值.
     f_toe, f_coal = factors.get("FUEL_GAS", (0.85, 1.214))
     s_toe, s_coal = factors.get("STEAM", (76.0, 108.6))
     w_toe, w_coal = factors.get("WATER", (0.06, 0.086))
@@ -288,13 +364,57 @@ def _compute_totals(
         + water_mj + gas_mj + low_temp_mj
     )
 
+    # R1 §7.1 + §7.3: STEAM + FUEL_GAS 按分类聚合 + 分类 R1 系数.
+    # 若 factors_by_class 提供 + agg 有 *_by_* dict 数据 → 用分类精确计算;
+    # 否则退化到单值 (R0 兼容).
+    steam_toe_kg = 0.0
+    steam_coal_kg = 0.0
+    fuel_toe_kg = 0.0
+    fuel_coal_kg = 0.0
+
+    if (
+        factors_by_class
+        and agg.steam_t_by_pressure_level
+        and factors_by_class.get("STEAM")
+    ):
+        # R1 §7.1: 蒸汽按 9 档 pressure_level 分类查 R1 系数
+        for pressure_level, t_amount in agg.steam_t_by_pressure_level.items():
+            s_pair = factors_by_class["STEAM"].get(pressure_level)
+            if s_pair is None:
+                continue  # 未回填该档, 跳过
+            s_toe_class, s_coal_class = s_pair
+            steam_toe_kg += t_amount * s_toe_class
+            steam_coal_kg += t_amount * s_coal_class
+    else:
+        # R0 兼容: 单值 fallback
+        steam_toe_kg = agg.steam_t_yr * s_toe
+        steam_coal_kg = agg.steam_t_yr * s_coal
+
+    if (
+        factors_by_class
+        and agg.fuel_gas_by_source
+        and factors_by_class.get("FUEL_GAS")
+    ):
+        # R1 §7.3: 燃料气按 3 类 gas_source 分类查 R1 系数
+        for gas_source, nm3_amount in agg.fuel_gas_by_source.items():
+            f_pair = factors_by_class["FUEL_GAS"].get(gas_source)
+            if f_pair is None:
+                continue  # 未回填该源, 跳过
+            f_toe_class, f_coal_class = f_pair
+            fuel_toe_kg += nm3_amount * f_toe_class
+            fuel_coal_kg += nm3_amount * f_coal_class
+    else:
+        # R0 兼容: 单值 fallback
+        fuel_toe_kg = agg.fuel_gas_nm3_yr * f_toe
+        fuel_coal_kg = agg.fuel_gas_nm3_yr * f_coal
+
     # toe = consumption × toe_factor (toe_factor 单位 kg 标油 / 单位消耗)
     # total 单位转换: toe = consumption_kg_单位足 × kg 标油 / 单位 = kg 标油
     # → divide by 1000 → tonne oil equivalent
     total_toe_kg = (
         agg.electricity_kwh_yr * e_toe
-        + agg.fuel_gas_nm3_yr * f_toe
-        + agg.steam_t_yr * s_toe
+        + fuel_toe_kg
+        + steam_toe_kg
         + agg.water_t_yr * w_toe
         + agg.gas_nm3_yr * g_toe
         + agg.low_temp_heat_gj_yr * h_toe
@@ -303,8 +423,8 @@ def _compute_totals(
 
     total_coal_kg = (
         agg.electricity_kwh_yr * e_coal
-        + agg.fuel_gas_nm3_yr * f_coal
-        + agg.steam_t_yr * s_coal
+        + fuel_coal_kg
+        + steam_coal_kg
         + agg.water_t_yr * w_coal
         + agg.gas_nm3_yr * g_coal
         + agg.low_temp_heat_gj_yr * h_coal
@@ -355,11 +475,15 @@ async def summarize_energy_year(
     factors = await _get_energy_conversion_factors(
         db, electricity_value_type=electricity_value_type,
     )
+    # R1 §7.1+§7.3: 分类精确查表 (R1 全表 26 行)
+    factors_by_class = await _get_factors_by_classification(db)
 
     # 3. 计算 total_toe / total_coal / annual_total_energy
     # R1 §5: electricity_value_type 选择 ELECTRICITY 行 (EQUIVALENT/EQUIVALENT_VALUE)
     total_toe, total_coal_kg, annual_total_energy = _compute_totals(
-        agg, factors, electricity_value_type=electricity_value_type,
+        agg, factors,
+        electricity_value_type=electricity_value_type,
+        factors_by_class=factors_by_class,
     )
 
     # 4. 聚合折标系数 (kg 标 / MJ)
