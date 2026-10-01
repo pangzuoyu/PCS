@@ -6082,6 +6082,354 @@
         }
       }
     },
+    "/api/v1/equipment-list": {
+      "get": {
+        "tags": [
+          "equipment-list"
+        ],
+        "summary": "List Equipment",
+        "description": "分页查询 EquipmentList；按 project/workspace/source_module/sign/equipment status 过滤。",
+        "operationId": "list_equipment_api_v1_equipment_list_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "workspace_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "source_module",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 30
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Source Module"
+            }
+          },
+          {
+            "name": "sign_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 20
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Sign Status"
+            }
+          },
+          {
+            "name": "equipment_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 2
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equipment Status"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EquipListListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/equipment-list/{equipment_id}": {
+      "get": {
+        "tags": [
+          "equipment-list"
+        ],
+        "summary": "Get Equipment",
+        "description": "单条 EquipmentList 查询。",
+        "operationId": "get_equipment_api_v1_equipment_list__equipment_id__get",
+        "parameters": [
+          {
+            "name": "equipment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Equipment Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EquipListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/equipment-list/{equipment_id}/sync": {
+      "post": {
+        "tags": [
+          "equipment-list"
+        ],
+        "summary": "Sync Equipment",
+        "description": "手动 trigger sync_from_source（已有 equipment_id 的 source_record）。\n\n注：equipment_id 参数保留用于 API 一致性（resource-action pattern），但实际\nsync 由 body.source_record_id 决定；同步结果会写到同 (project_id, tag_number)\nEquipmentList（即本 equipment_id）。",
+        "operationId": "sync_equipment_api_v1_equipment_list__equipment_id__sync_post",
+        "parameters": [
+          {
+            "name": "equipment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Equipment Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EquipListSyncRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EquipListSyncResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/equipment-list/bulk-sync": {
+      "post": {
+        "tags": [
+          "equipment-list"
+        ],
+        "summary": "Bulk Sync Equipment",
+        "description": "批量 sync_from_source（1-100 条目）；partial failure 容错。",
+        "operationId": "bulk_sync_equipment_api_v1_equipment_list_bulk_sync_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EquipListBulkSyncRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EquipListBulkSyncResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/flash/calculate": {
       "post": {
         "tags": [
@@ -8863,6 +9211,524 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/ThermosiphonCalculateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/util/results": {
+      "get": {
+        "tags": [
+          "util"
+        ],
+        "summary": "List Util Results",
+        "description": "按过滤条件分页查询 UtilResults。",
+        "operationId": "list_util_results_api_v1_util_results_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "workspace_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UtilResultsResponse"
+                  },
+                  "title": "Response List Util Results Api V1 Util Results Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "util"
+        ],
+        "summary": "Create Util Results",
+        "description": "手动 create UtilResults（带 consumption_json）。",
+        "operationId": "create_util_results_api_v1_util_results_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UtilResultsCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UtilResultsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/util/results/{util_result_id}": {
+      "get": {
+        "tags": [
+          "util"
+        ],
+        "summary": "Get Util Result",
+        "description": "单条 UtilResults 查询。",
+        "operationId": "get_util_result_api_v1_util_results__util_result_id__get",
+        "parameters": [
+          {
+            "name": "util_result_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Util Result Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UtilResultsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/util/aggregate": {
+      "post": {
+        "tags": [
+          "util"
+        ],
+        "summary": "Aggregate Util Results",
+        "description": "触发 source_aggregator + INSERT UtilResults（一体化）。",
+        "operationId": "aggregate_util_results_api_v1_util_aggregate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UtilAggregationRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UtilResultsResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/util/summary": {
+      "get": {
+        "tags": [
+          "util"
+        ],
+        "summary": "Get Util Summary",
+        "description": "13 类聚合 + 折标煤（来自 summary_service.summarize）。",
+        "operationId": "get_util_summary_api_v1_util_summary_get",
+        "parameters": [
+          {
+            "name": "util_result_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "指定 UtilResults ID；缺省 = 最新一条",
+              "title": "Util Result Id"
+            },
+            "description": "指定 UtilResults ID；缺省 = 最新一条"
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2100,
+              "minimum": 2020,
+              "description": "折标煤查询年份",
+              "default": 2026,
+              "title": "Year"
+            },
+            "description": "折标煤查询年份"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UtilSummaryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/util/energy-consumption": {
+      "get": {
+        "tags": [
+          "util"
+        ],
+        "summary": "Get Util Energy Consumption",
+        "description": "仅能源 5 类 + TOE（filter 6 能源 from summary）。",
+        "operationId": "get_util_energy_consumption_api_v1_util_energy_consumption_get",
+        "parameters": [
+          {
+            "name": "util_result_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Util Result Id"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 2100,
+              "minimum": 2020,
+              "default": 2026,
+              "title": "Year"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UtilEnergyConsumptionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/util/water-balance": {
+      "get": {
+        "tags": [
+          "util"
+        ],
+        "summary": "Get Util Water Balance",
+        "description": "仅水 3 类（COOLING_WATER + CHILLED_WATER + MAKEUP_WATER）。",
+        "operationId": "get_util_water_balance_api_v1_util_water_balance_get",
+        "parameters": [
+          {
+            "name": "util_result_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Util Result Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UtilWaterBalanceResponse"
                 }
               }
             }
@@ -16805,6 +17671,333 @@
         ],
         "title": "EquipLibSettleRequest",
         "description": "标准化信息校验规则（必填项照 P7 表）：材质/关键尺寸/原项目位号/投用日期必填；\n标准图号如有则必填→简化为可选字段+非空校验由前端承担（P2）；重量必填（如有）。"
+      },
+      "EquipListBulkSyncRequest": {
+        "properties": {
+          "entries": {
+            "items": {
+              "$ref": "#/components/schemas/EquipListSyncRequest"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Entries",
+            "description": "1-100 个 sync 条目"
+          }
+        },
+        "type": "object",
+        "required": [
+          "entries"
+        ],
+        "title": "EquipListBulkSyncRequest",
+        "description": "批量 sync 入口。\n\n业务：项目初始化或 CHECKED 触发器重启后，批量拉取所有 source_module=...\n的 CHECKED 记录 → 同步到 EquipmentList。每个 entry 独立失败不影响其他。"
+      },
+      "EquipListBulkSyncResponse": {
+        "properties": {
+          "succeeded": {
+            "items": {
+              "$ref": "#/components/schemas/EquipListSyncResponse"
+            },
+            "type": "array",
+            "title": "Succeeded"
+          },
+          "failed": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Failed",
+            "description": "失败条目：{ entry, error_code, error_message }"
+          }
+        },
+        "type": "object",
+        "title": "EquipListBulkSyncResponse",
+        "description": "批量 sync 响应：每条目 success / failure 分开报告。"
+      },
+      "EquipListListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EquipListResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total",
+            "description": "满足过滤条件的总记录数（不含 limit/offset）"
+          },
+          "limit": {
+            "type": "integer",
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "EquipListListResponse",
+        "description": "EquipmentList 列表 API 响应（含分页元数据）。"
+      },
+      "EquipListResponse": {
+        "properties": {
+          "equipment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Equipment Id"
+          },
+          "equipment_type_project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment Type Project Id"
+          },
+          "type_code": {
+            "type": "string",
+            "title": "Type Code"
+          },
+          "equipment_name": {
+            "type": "string",
+            "title": "Equipment Name"
+          },
+          "equipment_description": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment Description"
+          },
+          "tag_number": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tag Number"
+          },
+          "vendor": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor"
+          },
+          "vendor_model": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vendor Model"
+          },
+          "source_module": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Module"
+          },
+          "source_service": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Service"
+          },
+          "source_record_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source Record Id"
+          },
+          "procurement_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Procurement Status"
+          },
+          "installation_location": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Installation Location"
+          },
+          "net_weight": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Net Weight"
+          },
+          "equipment_status": {
+            "type": "string",
+            "title": "Equipment Status"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "equipment_id",
+          "equipment_type_project_id",
+          "type_code",
+          "equipment_name",
+          "equipment_status",
+          "sign_status",
+          "project_id",
+          "workspace_id"
+        ],
+        "title": "EquipListResponse",
+        "description": "EquipmentList 单条记录 API 响应。\n\n字段命名 1:1 映射 EquipmentList ORM；含 V1.4 source_service。\n不含 calc_lineage / approval_detail 等深度字段（按需单独 GET）。"
+      },
+      "EquipListSyncRequest": {
+        "properties": {
+          "source_module": {
+            "type": "string",
+            "enum": [
+              "PUMP",
+              "VESSEL",
+              "HEAT",
+              "PSV",
+              "CV",
+              "COOL_TOWER",
+              "PSYCHRO",
+              "OPEN_CHANNEL"
+            ],
+            "title": "Source Module",
+            "description": "源模块（PUMP/VESSEL/HEAT/PSV/CV/COOL_TOWER/PSYCHRO/OPEN_CHANNEL）"
+          },
+          "source_service": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Source Service",
+            "description": "源 service 名（如 pump_service / vessel_service）"
+          },
+          "source_record_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Source Record Id",
+            "description": "源记录 PK（如 PumpResult.pump_id）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source_module",
+          "source_service",
+          "source_record_id"
+        ],
+        "title": "EquipListSyncRequest",
+        "description": "手动触发 sync_from_source API body。\n\n业务：用户在前端 EquipmentListPage 点 \"重新同步\" 按钮 → POST 此 body\n→ 后端调 sync_from_source → EquipmentList 记录更新（equipment_status=\"E\"\n联动 + V1.4 source_service 字段写入）。"
+      },
+      "EquipListSyncResponse": {
+        "properties": {
+          "item": {
+            "$ref": "#/components/schemas/EquipListResponse"
+          },
+          "was_created": {
+            "type": "boolean",
+            "title": "Was Created"
+          }
+        },
+        "type": "object",
+        "required": [
+          "item",
+          "was_created"
+        ],
+        "title": "EquipListSyncResponse",
+        "description": "sync API 响应。\n\nReturns:\n    EquipListResponse: 同步后的 EquipmentList 记录\n    was_created: True=新建（equipment_status=\"N\"）/ False=更新（equipment_status=\"E\"）"
       },
       "ErgunCalcRequest": {
         "properties": {
@@ -28055,6 +29248,321 @@
         ],
         "title": "UpsertStandardProfileRequest",
         "description": "POST /standard-profile 请求体。"
+      },
+      "UtilAggregationRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 UUID"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "workspace UUID"
+          },
+          "modules": {
+            "anyOf": [
+              {
+                "items": {
+                  "type": "string",
+                  "enum": [
+                    "PUMP",
+                    "HEAT",
+                    "COOL_TOWER",
+                    "OPEN_CHANNEL"
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Modules",
+            "description": "要聚合的 SourceModule；默认全部 4 个"
+          },
+          "business_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Date",
+            "description": "业务日期"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "数据来源描述（默认 'source_aggregator'）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id"
+        ],
+        "title": "UtilAggregationRequest",
+        "description": "触发 source_aggregator + 写入 UtilResults。"
+      },
+      "UtilEnergyConsumptionResponse": {
+        "properties": {
+          "by_category": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "By Category",
+            "description": "5 能源类消耗量：ELECTRICITY / STEAM_HP / STEAM_MP / STEAM_LP / FUEL_GAS"
+          },
+          "toe_total": {
+            "type": "number",
+            "title": "Toe Total"
+          },
+          "standard_coal_total": {
+            "type": "number",
+            "title": "Standard Coal Total"
+          },
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          }
+        },
+        "type": "object",
+        "required": [
+          "by_category",
+          "toe_total",
+          "standard_coal_total",
+          "year"
+        ],
+        "title": "UtilEnergyConsumptionResponse",
+        "description": "能源专项（5 类进 TOE：ELECTRICITY + STEAM×4 + FUEL_GAS）。"
+      },
+      "UtilResultsCreateRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 UUID"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "workspace UUID"
+          },
+          "business_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Date",
+            "description": "业务日期（折标煤按年查询用）"
+          },
+          "consumption_json": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "Consumption Json",
+            "description": "13 类公用工程 flat {category: float_quantity} map"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "数据来源描述"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "consumption_json"
+        ],
+        "title": "UtilResultsCreateRequest",
+        "description": "手动创建 UtilResults（带 consumption_json 13 类 flat map）。"
+      },
+      "UtilResultsResponse": {
+        "properties": {
+          "util_result_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Util Result Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id"
+          },
+          "business_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Business Date"
+          },
+          "consumption_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Consumption Json"
+          },
+          "jsonb_deprecated": {
+            "type": "boolean",
+            "title": "Jsonb Deprecated"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "util_result_id",
+          "project_id",
+          "workspace_id",
+          "consumption_json",
+          "jsonb_deprecated"
+        ],
+        "title": "UtilResultsResponse",
+        "description": "UtilResults 单条记录响应。"
+      },
+      "UtilSummaryResponse": {
+        "properties": {
+          "by_category": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "By Category",
+            "description": "13 类公用工程消耗量 {category: float}"
+          },
+          "toe_total": {
+            "type": "number",
+            "title": "Toe Total",
+            "description": "折标油当量总和（仅 6 类能源）"
+          },
+          "standard_coal_total": {
+            "type": "number",
+            "title": "Standard Coal Total",
+            "description": "标煤总和"
+          },
+          "jsonb_deprecated": {
+            "type": "boolean",
+            "title": "Jsonb Deprecated",
+            "description": "Sprint 1 False JSONB 权威"
+          },
+          "year": {
+            "type": "integer",
+            "title": "Year",
+            "description": "折标煤查询年份"
+          }
+        },
+        "type": "object",
+        "required": [
+          "by_category",
+          "toe_total",
+          "standard_coal_total",
+          "jsonb_deprecated",
+          "year"
+        ],
+        "title": "UtilSummaryResponse",
+        "description": "13 类聚合 + 折标煤响应（来自 summary_service.summarize）。"
+      },
+      "UtilWaterBalanceResponse": {
+        "properties": {
+          "by_category": {
+            "additionalProperties": {
+              "type": "number"
+            },
+            "type": "object",
+            "title": "By Category",
+            "description": "3 水类消耗量：COOLING_WATER / CHILLED_WATER / MAKEUP_WATER"
+          },
+          "total_water_t": {
+            "type": "number",
+            "title": "Total Water T",
+            "description": "3 类总和"
+          },
+          "year": {
+            "type": "integer",
+            "title": "Year"
+          }
+        },
+        "type": "object",
+        "required": [
+          "by_category",
+          "total_water_t",
+          "year"
+        ],
+        "title": "UtilWaterBalanceResponse",
+        "description": "水平衡专项（3 类：COOLING_WATER + CHILLED_WATER + MAKEUP_WATER）。"
       },
       "ValidateRequest": {
         "properties": {

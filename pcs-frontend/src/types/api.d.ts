@@ -2139,6 +2139,90 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/equipment-list": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Equipment
+         * @description 分页查询 EquipmentList；按 project/workspace/source_module/sign/equipment status 过滤。
+         */
+        get: operations["list_equipment_api_v1_equipment_list_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/equipment-list/{equipment_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Equipment
+         * @description 单条 EquipmentList 查询。
+         */
+        get: operations["get_equipment_api_v1_equipment_list__equipment_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/equipment-list/{equipment_id}/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Sync Equipment
+         * @description 手动 trigger sync_from_source（已有 equipment_id 的 source_record）。
+         *
+         *     注：equipment_id 参数保留用于 API 一致性（resource-action pattern），但实际
+         *     sync 由 body.source_record_id 决定；同步结果会写到同 (project_id, tag_number)
+         *     EquipmentList（即本 equipment_id）。
+         */
+        post: operations["sync_equipment_api_v1_equipment_list__equipment_id__sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/equipment-list/bulk-sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Bulk Sync Equipment
+         * @description 批量 sync_from_source（1-100 条目）；partial failure 容错。
+         */
+        post: operations["bulk_sync_equipment_api_v1_equipment_list_bulk_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/flash/calculate": {
         parameters: {
             query?: never;
@@ -3078,6 +3162,130 @@ export interface paths {
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
          */
         post: operations["thermosiphon_calculate_api_v1_thermosiphon_calculate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/util/results": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Util Results
+         * @description 按过滤条件分页查询 UtilResults。
+         */
+        get: operations["list_util_results_api_v1_util_results_get"];
+        put?: never;
+        /**
+         * Create Util Results
+         * @description 手动 create UtilResults（带 consumption_json）。
+         */
+        post: operations["create_util_results_api_v1_util_results_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/util/results/{util_result_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Util Result
+         * @description 单条 UtilResults 查询。
+         */
+        get: operations["get_util_result_api_v1_util_results__util_result_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/util/aggregate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aggregate Util Results
+         * @description 触发 source_aggregator + INSERT UtilResults（一体化）。
+         */
+        post: operations["aggregate_util_results_api_v1_util_aggregate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/util/summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Util Summary
+         * @description 13 类聚合 + 折标煤（来自 summary_service.summarize）。
+         */
+        get: operations["get_util_summary_api_v1_util_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/util/energy-consumption": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Util Energy Consumption
+         * @description 仅能源 5 类 + TOE（filter 6 能源 from summary）。
+         */
+        get: operations["get_util_energy_consumption_api_v1_util_energy_consumption_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/util/water-balance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Util Water Balance
+         * @description 仅水 3 类（COOLING_WATER + CHILLED_WATER + MAKEUP_WATER）。
+         */
+        get: operations["get_util_water_balance_api_v1_util_water_balance_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -6635,6 +6843,150 @@ export interface components {
              * @description 源项目 ID
              */
             source_project_id?: string | null;
+        };
+        /**
+         * EquipListBulkSyncRequest
+         * @description 批量 sync 入口。
+         *
+         *     业务：项目初始化或 CHECKED 触发器重启后，批量拉取所有 source_module=...
+         *     的 CHECKED 记录 → 同步到 EquipmentList。每个 entry 独立失败不影响其他。
+         */
+        EquipListBulkSyncRequest: {
+            /**
+             * Entries
+             * @description 1-100 个 sync 条目
+             */
+            entries: components["schemas"]["EquipListSyncRequest"][];
+        };
+        /**
+         * EquipListBulkSyncResponse
+         * @description 批量 sync 响应：每条目 success / failure 分开报告。
+         */
+        EquipListBulkSyncResponse: {
+            /** Succeeded */
+            succeeded?: components["schemas"]["EquipListSyncResponse"][];
+            /**
+             * Failed
+             * @description 失败条目：{ entry, error_code, error_message }
+             */
+            failed?: {
+                [key: string]: unknown;
+            }[];
+        };
+        /**
+         * EquipListListResponse
+         * @description EquipmentList 列表 API 响应（含分页元数据）。
+         */
+        EquipListListResponse: {
+            /** Items */
+            items: components["schemas"]["EquipListResponse"][];
+            /**
+             * Total
+             * @description 满足过滤条件的总记录数（不含 limit/offset）
+             */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /**
+         * EquipListResponse
+         * @description EquipmentList 单条记录 API 响应。
+         *
+         *     字段命名 1:1 映射 EquipmentList ORM；含 V1.4 source_service。
+         *     不含 calc_lineage / approval_detail 等深度字段（按需单独 GET）。
+         */
+        EquipListResponse: {
+            /**
+             * Equipment Id
+             * Format: uuid
+             */
+            equipment_id: string;
+            /** Equipment Type Project Id */
+            equipment_type_project_id: string | null;
+            /** Type Code */
+            type_code: string;
+            /** Equipment Name */
+            equipment_name: string;
+            /** Equipment Description */
+            equipment_description?: string | null;
+            /** Tag Number */
+            tag_number?: string | null;
+            /** Vendor */
+            vendor?: string | null;
+            /** Vendor Model */
+            vendor_model?: string | null;
+            /** Source Module */
+            source_module?: string | null;
+            /** Source Service */
+            source_service?: string | null;
+            /** Source Record Id */
+            source_record_id?: string | null;
+            /** Procurement Status */
+            procurement_status?: string | null;
+            /** Installation Location */
+            installation_location?: string | null;
+            /** Net Weight */
+            net_weight?: number | null;
+            /** Equipment Status */
+            equipment_status: string;
+            /** Sign Status */
+            sign_status: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * EquipListSyncRequest
+         * @description 手动触发 sync_from_source API body。
+         *
+         *     业务：用户在前端 EquipmentListPage 点 "重新同步" 按钮 → POST 此 body
+         *     → 后端调 sync_from_source → EquipmentList 记录更新（equipment_status="E"
+         *     联动 + V1.4 source_service 字段写入）。
+         */
+        EquipListSyncRequest: {
+            /**
+             * Source Module
+             * @description 源模块（PUMP/VESSEL/HEAT/PSV/CV/COOL_TOWER/PSYCHRO/OPEN_CHANNEL）
+             * @enum {string}
+             */
+            source_module: "PUMP" | "VESSEL" | "HEAT" | "PSV" | "CV" | "COOL_TOWER" | "PSYCHRO" | "OPEN_CHANNEL";
+            /**
+             * Source Service
+             * @description 源 service 名（如 pump_service / vessel_service）
+             */
+            source_service: string;
+            /**
+             * Source Record Id
+             * Format: uuid
+             * @description 源记录 PK（如 PumpResult.pump_id）
+             */
+            source_record_id: string;
+        };
+        /**
+         * EquipListSyncResponse
+         * @description sync API 响应。
+         *
+         *     Returns:
+         *         EquipListResponse: 同步后的 EquipmentList 记录
+         *         was_created: True=新建（equipment_status="N"）/ False=更新（equipment_status="E"）
+         */
+        EquipListSyncResponse: {
+            item: components["schemas"]["EquipListResponse"];
+            /** Was Created */
+            was_created: boolean;
         };
         /**
          * ErgunCalcRequest
@@ -13456,6 +13808,181 @@ export interface components {
             approved_by?: string | null;
         };
         /**
+         * UtilAggregationRequest
+         * @description 触发 source_aggregator + 写入 UtilResults。
+         */
+        UtilAggregationRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 UUID
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description workspace UUID
+             */
+            workspace_id: string;
+            /**
+             * Modules
+             * @description 要聚合的 SourceModule；默认全部 4 个
+             */
+            modules?: ("PUMP" | "HEAT" | "COOL_TOWER" | "OPEN_CHANNEL")[] | null;
+            /**
+             * Business Date
+             * @description 业务日期
+             */
+            business_date?: string | null;
+            /**
+             * Source
+             * @description 数据来源描述（默认 'source_aggregator'）
+             */
+            source?: string | null;
+        };
+        /**
+         * UtilEnergyConsumptionResponse
+         * @description 能源专项（5 类进 TOE：ELECTRICITY + STEAM×4 + FUEL_GAS）。
+         */
+        UtilEnergyConsumptionResponse: {
+            /**
+             * By Category
+             * @description 5 能源类消耗量：ELECTRICITY / STEAM_HP / STEAM_MP / STEAM_LP / FUEL_GAS
+             */
+            by_category: {
+                [key: string]: number;
+            };
+            /** Toe Total */
+            toe_total: number;
+            /** Standard Coal Total */
+            standard_coal_total: number;
+            /** Year */
+            year: number;
+        };
+        /**
+         * UtilResultsCreateRequest
+         * @description 手动创建 UtilResults（带 consumption_json 13 类 flat map）。
+         */
+        UtilResultsCreateRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 UUID
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description workspace UUID
+             */
+            workspace_id: string;
+            /**
+             * Business Date
+             * @description 业务日期（折标煤按年查询用）
+             */
+            business_date?: string | null;
+            /**
+             * Consumption Json
+             * @description 13 类公用工程 flat {category: float_quantity} map
+             */
+            consumption_json: {
+                [key: string]: number;
+            };
+            /**
+             * Source
+             * @description 数据来源描述
+             */
+            source?: string | null;
+        };
+        /**
+         * UtilResultsResponse
+         * @description UtilResults 单条记录响应。
+         */
+        UtilResultsResponse: {
+            /**
+             * Util Result Id
+             * Format: uuid
+             */
+            util_result_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+            /** Business Date */
+            business_date?: string | null;
+            /** Consumption Json */
+            consumption_json: {
+                [key: string]: unknown;
+            };
+            /** Jsonb Deprecated */
+            jsonb_deprecated: boolean;
+            /** Source */
+            source?: string | null;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * UtilSummaryResponse
+         * @description 13 类聚合 + 折标煤响应（来自 summary_service.summarize）。
+         */
+        UtilSummaryResponse: {
+            /**
+             * By Category
+             * @description 13 类公用工程消耗量 {category: float}
+             */
+            by_category: {
+                [key: string]: number;
+            };
+            /**
+             * Toe Total
+             * @description 折标油当量总和（仅 6 类能源）
+             */
+            toe_total: number;
+            /**
+             * Standard Coal Total
+             * @description 标煤总和
+             */
+            standard_coal_total: number;
+            /**
+             * Jsonb Deprecated
+             * @description Sprint 1 False JSONB 权威
+             */
+            jsonb_deprecated: boolean;
+            /**
+             * Year
+             * @description 折标煤查询年份
+             */
+            year: number;
+        };
+        /**
+         * UtilWaterBalanceResponse
+         * @description 水平衡专项（3 类：COOLING_WATER + CHILLED_WATER + MAKEUP_WATER）。
+         */
+        UtilWaterBalanceResponse: {
+            /**
+             * By Category
+             * @description 3 水类消耗量：COOLING_WATER / CHILLED_WATER / MAKEUP_WATER
+             */
+            by_category: {
+                [key: string]: number;
+            };
+            /**
+             * Total Water T
+             * @description 3 类总和
+             */
+            total_water_t: number;
+            /** Year */
+            year: number;
+        };
+        /**
          * ValidateRequest
          * @description 管道代码验证请求体（POST /project-pipe-code-configs/{id}/validate）。
          *
@@ -17996,6 +18523,150 @@ export interface operations {
             };
         };
     };
+    list_equipment_api_v1_equipment_list_get: {
+        parameters: {
+            query?: {
+                project_id?: string | null;
+                workspace_id?: string | null;
+                source_module?: string | null;
+                sign_status?: string | null;
+                equipment_status?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipListListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_equipment_api_v1_equipment_list__equipment_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                equipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sync_equipment_api_v1_equipment_list__equipment_id__sync_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                equipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EquipListSyncRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipListSyncResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    bulk_sync_equipment_api_v1_equipment_list_bulk_sync_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EquipListBulkSyncRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipListBulkSyncResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     calculate_flash_api_v1_flash_calculate_post: {
         parameters: {
             query?: never;
@@ -19545,6 +20216,248 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ThermosiphonCalculateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_util_results_api_v1_util_results_get: {
+        parameters: {
+            query?: {
+                project_id?: string | null;
+                workspace_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilResultsResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_util_results_api_v1_util_results_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UtilResultsCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilResultsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_util_result_api_v1_util_results__util_result_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                util_result_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilResultsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    aggregate_util_results_api_v1_util_aggregate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UtilAggregationRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilResultsResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_util_summary_api_v1_util_summary_get: {
+        parameters: {
+            query?: {
+                /** @description 指定 UtilResults ID；缺省 = 最新一条 */
+                util_result_id?: string | null;
+                /** @description 折标煤查询年份 */
+                year?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilSummaryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_util_energy_consumption_api_v1_util_energy_consumption_get: {
+        parameters: {
+            query?: {
+                util_result_id?: string | null;
+                year?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilEnergyConsumptionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_util_water_balance_api_v1_util_water_balance_get: {
+        parameters: {
+            query?: {
+                util_result_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilWaterBalanceResponse"];
                 };
             };
             /** @description Validation Error */
