@@ -417,3 +417,92 @@ async def test_service_electricity_value_type_persisted(
     assert value_total == pytest.approx(equiv_total * 0.21 / 0.086, rel=1e-3)
     # 验证不变量: 总能源消耗字段相同 (单位换算不变)
     assert s_equiv.electricity_kwh_yr == s_value.electricity_kwh_yr
+
+
+@pytest.mark.asyncio
+async def test_service_aggregates_by_pressure_level(
+    db_session, seeded_config_factors
+):
+    """R1 §7.1: utility_heat_exchange 按 pressure_level 9 档分类聚合.
+
+    验证: 注入 2 个 pressure_level 各 1 条记录, 聚合 dict 含 2 个 key 且合计正确.
+    """
+    from app.services.util.utility_energy_summary_service import (
+        _aggregate_util_subtables, EnergyAggregation,
+    )
+
+    project_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+
+    # 注入 2 个不同压力等级的蒸汽记录
+    db_session.add_all([
+        UtilityHeatExchange(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="ST-MP-001", temperature_class="MP",
+            pressure_level="0_8_TO_1_2_MPA",
+            steam_pressure_mpa_gauge=1.0, steam_quality_pct=99.0,
+            return_condensate_pct=80.0, steam_consumption_t_h=10.0,
+            operating_hours_per_year=8000, annual_consumption_t=80000.0,
+        ),
+        UtilityHeatExchange(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="ST-HP-001", temperature_class="HP",
+            pressure_level="GE_7_0_MPA",
+            steam_pressure_mpa_gauge=10.0, steam_quality_pct=99.0,
+            return_condensate_pct=80.0, steam_consumption_t_h=5.0,
+            operating_hours_per_year=8000, annual_consumption_t=40000.0,
+        ),
+    ])
+    await db_session.commit()
+
+    agg = await _aggregate_util_subtables(db_session, project_id, 2027)
+
+    # R1 分类聚合
+    assert agg.steam_t_by_pressure_level is not None
+    assert agg.steam_t_by_pressure_level["0_8_TO_1_2_MPA"] == pytest.approx(80000.0)
+    assert agg.steam_t_by_pressure_level["GE_7_0_MPA"] == pytest.approx(40000.0)
+
+    # steam_t_yr (R0 单值) 等于分类总和
+    assert agg.steam_t_yr == pytest.approx(120000.0)
+
+
+@pytest.mark.asyncio
+async def test_service_aggregates_by_gas_source(
+    db_session, seeded_config_factors
+):
+    """R1 §7.3: utility_fuel_gas 按 gas_source 3 类分类聚合."""
+    from app.services.util.utility_energy_summary_service import (
+        _aggregate_util_subtables,
+    )
+
+    project_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+
+    # 注入 2 个不同气源的燃料气记录
+    db_session.add_all([
+        UtilityFuelGas(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="F-GASFIELD-001", fuel_type="NATURAL_GAS",
+            gas_source="GASFIELD_GAS", calorific_value_kcal_nm3=8500.0,
+            consumption_nm3_h=100.0, operating_phase="STEADY",
+            operating_hours_per_year=8000, annual_consumption_nm3=800000.0,
+        ),
+        UtilityFuelGas(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="F-OILFIELD-001", fuel_type="OTHERS",
+            gas_source="OILFIELD_GAS", calorific_value_kcal_nm3=9000.0,
+            consumption_nm3_h=50.0, operating_phase="STEADY",
+            operating_hours_per_year=8000, annual_consumption_nm3=400000.0,
+        ),
+    ])
+    await db_session.commit()
+
+    agg = await _aggregate_util_subtables(db_session, project_id, 2027)
+
+    # R1 分类聚合
+    assert agg.fuel_gas_by_source is not None
+    assert agg.fuel_gas_by_source["GASFIELD_GAS"] == pytest.approx(800000.0)
+    assert agg.fuel_gas_by_source["OILFIELD_GAS"] == pytest.approx(400000.0)
+
+    # fuel_gas_nm3_yr (R0 单值) 等于分类总和
+    assert agg.fuel_gas_nm3_yr == pytest.approx(1200000.0)

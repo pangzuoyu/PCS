@@ -44,7 +44,15 @@ DEFAULT_TOLERANCE_PCT = 2.0
 # 6 类能源年度消耗聚合结果 (service 内部分型, 不落 DB)
 @dataclass(frozen=True)
 class EnergyAggregation:
-    """6 类能源年度消耗 + 综合能耗汇总 service 输出中间值."""
+    """6 类能源年度消耗 + R1 分类聚合 service 输出中间值.
+
+    R1 修订 (PCS-SIGN-F-P0-001-2026-10-08-R1):
+    - steam_t_by_pressure_level: 9 档蒸汽 (GE_7_0_MPA / ... / LT_0_3_MPA)
+    - fuel_gas_by_source: 3 类气源 (OILFIELD_GAS / GASFIELD_GAS / REFINERY_FUEL_GAS)
+    - water_by_type: 9 类水 (FRESH_WATER / ... / 120C_CONDENSATE_REUSABLE)
+    - steam_t_yr / fuel_gas_nm3_yr / water_t_yr: 保留向后兼容 (R0 单值聚合);
+      新计算用 *_by_* dict 字段.
+    """
 
     electricity_kwh_yr: float = 0.0
     fuel_gas_nm3_yr: float = 0.0
@@ -52,6 +60,10 @@ class EnergyAggregation:
     water_t_yr: float = 0.0
     gas_nm3_yr: float = 0.0
     low_temp_heat_gj_yr: float = 0.0
+    # R1 §7 分类聚合字段 (按 GB 30251-2024 附录A 9 档 / 3 类 / 9 类)
+    steam_t_by_pressure_level: dict[str, float] | None = None
+    fuel_gas_by_source: dict[str, float] | None = None
+    water_by_type: dict[str, float] | None = None
 
 
 async def _aggregate_util_subtables(
@@ -79,31 +91,62 @@ async def _aggregate_util_subtables(
     )
     electricity_kwh_yr = float((await db.execute(stmt_power)).scalar() or 0.0)
 
-    # T2 utility_fuel_gas → fuel_gas_nm3_yr (R1: 按 gas_source 聚合)
-    #   后续 sprint: 按 3 类气源分别聚合, 应用对应 R1 系数 (气田气 0.85 / 油田气 0.93 / 炼厂燃料气 950/t)
-    stmt_fuel = (
+    # T2 utility_fuel_gas → fuel_gas_nm3_yr (R1 §7.3: 按 gas_source 3 类聚合)
+    stmt_fuel_total = (
         select(func.coalesce(func.sum(UtilityFuelGas.annual_consumption_nm3), 0.0))
         .where(UtilityFuelGas.project_id == project_id)
     )
-    fuel_gas_nm3_yr = float((await db.execute(stmt_fuel)).scalar() or 0.0)
+    fuel_gas_nm3_yr = float((await db.execute(stmt_fuel_total)).scalar() or 0.0)
 
-    # T3 utility_heat_exchange → steam_t_yr (R1: 按 pressure_level 9 档聚合)
-    #   后续 sprint: 按 9 档分别聚合, 应用对应 R1 系数 (76/72/66/...)
-    stmt_steam = (
+    # R1 §7.3: 按 gas_source 3 类分别聚合 (OILFIELD_GAS/GASFIELD_GAS/REFINERY_FUEL_GAS)
+    stmt_fuel_by_source = (
+        select(
+            UtilityFuelGas.gas_source,
+            func.coalesce(func.sum(UtilityFuelGas.annual_consumption_nm3), 0.0),
+        )
+        .where(UtilityFuelGas.project_id == project_id)
+        .where(UtilityFuelGas.gas_source.is_not(None))
+        .group_by(UtilityFuelGas.gas_source)
+    )
+    fuel_rows = (await db.execute(stmt_fuel_by_source)).all()
+    fuel_gas_by_source: dict[str, float] = {
+        row.gas_source: float(row[1]) for row in fuel_rows if row.gas_source
+    }
+
+    # T3 utility_heat_exchange → steam_t_yr (R1 §7.1: 按 pressure_level 9 档聚合)
+    stmt_steam_total = (
         select(
             func.coalesce(func.sum(UtilityHeatExchange.annual_consumption_t), 0.0)
         )
         .where(UtilityHeatExchange.project_id == project_id)
     )
-    steam_t_yr = float((await db.execute(stmt_steam)).scalar() or 0.0)
+    steam_t_yr = float((await db.execute(stmt_steam_total)).scalar() or 0.0)
+
+    # R1 §7.1: 按 pressure_level 9 档分别聚合 (GE_7_0_MPA / ... / LT_0_3_MPA)
+    stmt_steam_by_pressure = (
+        select(
+            UtilityHeatExchange.pressure_level,
+            func.coalesce(func.sum(UtilityHeatExchange.annual_consumption_t), 0.0),
+        )
+        .where(UtilityHeatExchange.project_id == project_id)
+        .where(UtilityHeatExchange.pressure_level.is_not(None))
+        .group_by(UtilityHeatExchange.pressure_level)
+    )
+    steam_rows = (await db.execute(stmt_steam_by_pressure)).all()
+    steam_t_by_pressure_level: dict[str, float] = {
+        row.pressure_level: float(row[1]) for row in steam_rows if row.pressure_level
+    }
 
     return EnergyAggregation(
         electricity_kwh_yr=electricity_kwh_yr,
         fuel_gas_nm3_yr=fuel_gas_nm3_yr,
         steam_t_yr=steam_t_yr,
-        water_t_yr=0.0,  # 待 P7-6B 冷却水子表
-        gas_nm3_yr=0.0,  # 预留
-        low_temp_heat_gj_yr=0.0,  # 预留
+        water_t_yr=0.0,  # 待 P7-6B 冷却水子表 + R1 §7.2 9 类聚合
+        gas_nm3_yr=0.0,
+        low_temp_heat_gj_yr=0.0,
+        steam_t_by_pressure_level=steam_t_by_pressure_level,
+        fuel_gas_by_source=fuel_gas_by_source,
+        water_by_type=None,  # 待 R1 §7.2 冷却水子表
     )
 
 
