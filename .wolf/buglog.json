@@ -2299,7 +2299,7 @@
       "file": "docs/PCS-SIGN-F-P0-001-2026-10-08-R1.md",
       "root_cause": "R0 基于 GB/T 50441-2016 单层核对与三层标准冲突; R1 撤回并重做 (commit 3acf0fb). 现 5 签齐 (工艺室 3 + 信息化 2) 于 2026-10-08 同日.",
       "fix": "R1 SIGNED OFF + 出厂禁令解除. PCS 综合能耗报告允许出厂. Sprint 2 T5 ≤2% 验收可恢复.",
-      "fix_commit": "PENDING",
+      "fix_commit": "d9ab428",
       "tags": [
         "p7-s2",
         "F-P0-001-R1",
