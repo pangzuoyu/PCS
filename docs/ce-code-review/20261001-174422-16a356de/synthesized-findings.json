@@ -9,9 +9,23 @@
     "files_changed": 32,
     "lines_changed": 22998
   },
-  "intent": "P7 Sprint 2 batch implements UTIL 5-table schema + 综合能耗 service (per P7-OPEN-009 + D1 裁决 1A). Adds 5 new tables (T0 CONFIG + T1/T2/T3 utility sub-types + T5 summary), T4 ALTER util_results 4 字段, T5 service 聚合 T1+T2+T3 + ConfigEnergyConversionFactor 折标 + ≤2% tolerance check, 8 new API endpoints + G-08 baseline roll.",
+  "intent": "P7 Sprint 2 batch implements UTIL 5-table schema + 综合能耗 service (per P7-OPEN-009 + D1 裁决 1A). Adds 5 new tables (T0 CONFIG + T1/T2/T3 utility sub-types + T5 summary), T4 ALTER util_results 4 字段, T5 service 聚合 T1+T2/T3 + ConfigEnergyConversionFactor 折标 + ≤2% tolerance check, 8 new API endpoints + G-08 baseline roll.",
   "plan_source": "docs/P7-OPEN-009-SUP-010-5table-migration-schedule.md",
-  "peer_coverage": "Adversarial lens ran via in-process adversarial-reviewer (no codex CLI available).",
+  "peer_coverage": "Adversarial lens ran via in-process adversarial-reviewer (no codex CLI; fallback per cross-model-review.md).",
+  "process_engineering_rulings": {
+    "F-P0-001_GB_T_50441_coefficient_correction": {
+      "session": "Sprint 2 code review 工艺工程师正式确认 (2026-10-01)",
+      "ruling": "PCS 折标系数统一 per-tonne (质量类) + per-Nm³/kWh (体积/电类) 混合口径",
+      "original_seed_to_corrected_per_tonne": {
+        "ELECTRICITY": {"original": 0.1229, "corrected": 0.1229, "unit": "per-kWh", "delta": "no change"},
+        "FUEL_GAS": {"original": 1.0, "corrected": 1.0, "unit": "per-Nm³", "delta": "no change"},
+        "STEAM": {"original": 0.0760, "corrected": 94.4, "unit": "per-tonne", "delta": "+1240x — 0.0760 是 GB/T 50441-2004 旧版 per-kg；当 per-tonne 用则 1000x 错 + 2004 vs 2016 选错"},
+        "WATER": {"original": 0.0001, "corrected": 0.1, "unit": "per-tonne", "delta": "+1000x — 0.0001 是 GB/T 50441-2016 附录 A per-kg 直接抄，当 per-tonne 用则 1000x 错"},
+        "NITROGEN": {"original": 0.0004, "corrected": 0.0004, "unit": "per-Nm³", "delta": "no change"},
+        "INSTRUMENT_AIR": {"original": 0.00012, "corrected": 0.00012, "unit": "per-Nm³", "delta": "no change"}
+      },
+      "report_amendment": "Sprint 2 review 原始 F-P0-001 描述 (Pick A or B) 不完整。正确修复 = (A) 改 docstring + seed 数值 (蒸汽 0.0760 → 94.4; 水 0.0001 → 0.1) + 加 TODO 禁综合能耗报告出厂直到 10-08 签署 + golden fixture 重算 (Case 1 差异 ~24% 远超 2% 验收容差). Service 不修改。"
+  },
   "primary_findings": [
     {
       "id": "F-P0-001",
@@ -26,10 +40,10 @@
       "pre_existing": false,
       "reviewers": ["correctness", "adversarial"],
       "evidence": [
-        "pcs-backend/app/services/util/utility_energy_summary_service.py:167 — `agg.steam_t_yr * s_toe` multiplies TONNES by toe_factor 0.0760 (per kg in config model docstring; service treats as per-tonne)",
-        "Golden fixture Case 1: 20000 t × 0.0760 = 1520 kg — only correct if factor is per-tonne, not per-kg. Either model docstring or service is wrong; fixture follows service. Tests pass either way (wrong-on-both-sides)."
+        "pcs-backend/app/services/util/utility_energy_summary_service.py:167 — `agg.steam_t_yr * s_toe` multiplies TONNES by toe_factor 0.0760 (per kg in config model docstring; service treats as per-tonne)"
       ],
-      "suggested_fix": "Pick one: (A) Update ConfigEnergyConversionFactor docstring + seed comment to say steam/water toe_factor is per-tonne (matches service math). (B) Service: change to `agg.steam_t_yr * 1000 * s_toe` (and `* 1000 * w_toe` for water) and recompute golden fixture. Confirm with 工艺室 which unit GB/T 50441 appendix uses."
+      "process_engineering_correction": "Per 工艺工程师正式确认 (2026-10-01): toe_factor 统一 per-tonne. service 数学正确. seed 数值需修正: STEAM 0.0760 → 94.4 (GB/T 50441-2004 旧版 per-kg → 2016 版 per-tonne); WATER 0.0001 → 0.1 (GB/T 50441-2016 附录 A per-kg × 1000 → per-tonne). 不改 service, 改 seed + docstring. golden fixture Case 1 差异 ~24% 远超 2% 验收容差, 需重算.",
+      "suggested_fix": "(A) 改 ConfigEnergyConversionFactor docstring + seed 数值 (STEAM 94.4 / WATER 0.1 per-tonne); (B) 加 TODO 禁综合能耗报告出厂直到 10-08 工艺室签署; (C) 改 golden fixture 标注 PENDING_SIGN_OFF + 重算 case 1 (蒸汽 1520 → 1888000 kg 标油)."
     },
     {
       "id": "F-P0-002",
@@ -44,10 +58,10 @@
       "pre_existing": false,
       "reviewers": ["correctness", "adversarial"],
       "evidence": [
-        "utility_energy_summary_service.py:245-296 — non-locking SELECT then INSERT-or-UPDATE branch without `for_update()` or transaction wrap",
-        "Two concurrent POSTs to /api/v1/util/energy-summary/aggregate for same (project_id, business_year, source) both pass SELECT, both fall into 'new' branch, both call db.add(); second commit trips UNIQUE(project_id, business_year, source) → 500."
+        "utility_energy_summary_service.py:245-296 — non-locking SELECT then INSERT-or-UPDATE branch without `for_update()` or transaction wrap"
       ],
-      "suggested_fix": "Use `INSERT ... ON CONFLICT (project_id, business_year, source) DO UPDATE SET ...` raw PG SQL (asyncpg upsert), OR catch IntegrityError and re-apply UPDATE branch."
+      "process_engineering_correction": "Per 工艺工程师 2026-10-01: 复用 D2 2A 模式 (advisory lock per key) 而非 upsert/catch-retry. 与 sync_from_source 的 advisory_lock.py 实现一致.",
+      "suggested_fix": "Use `pg_advisory_xact_lock(hashtext('utility_energy_summary' || project_id || business_year || source))` 在 summarize_transaction_id_phase 入口 — 复用 D2 2A advisory_lock 服务模式 (sync_service 已用)."
     },
     {
       "id": "F-P0-003",
@@ -61,9 +75,7 @@
       "requires_verification": false,
       "pre_existing": false,
       "reviewers": ["correctness"],
-      "evidence": [
-        "utility_energy_summary_service.py:236 — `if xls_reference is not None and xls_reference.total_toe > 0:`"
-      ],
+      "process_engineering_correction": "1 行修复 + 补 regression test (test_tolerance_pct_none_guard).",
       "suggested_fix": "Replace `and xls_reference.total_toe > 0` with `and xls_reference.total_toe is not None and xls_reference.total_toe > 0`."
     },
     {
@@ -78,11 +90,8 @@
       "requires_verification": true,
       "pre_existing": false,
       "reviewers": ["adversarial"],
-      "evidence": [
-        "alembic/versions/p7_open_009_005_utility_energy_summary.py:163-167 — server_default='OK'",
-        "app/models/util.py:477-480 — server_default='OK' on column"
-      ],
-      "suggested_fix": "Drop server_default (force explicit assignment in service) OR change to 'NA'. Add CHECK: tolerance_status='OK' ⇒ tolerance_pct IS NOT NULL AND tolerance_pct <= 2.0."
+      "process_engineering_correction": "D1 1A 的延伸 — '用显式状态字段表达语义，不用默认值掩蔽'. 删 server_default='OK', 改 server_default='NA'. 加 CHECK 约束.",
+      "suggested_fix": "Drop server_default='OK' (force explicit assignment in service) OR change to 'NA'. Add CHECK: tolerance_status='OK' ⇒ tolerance_pct IS NOT NULL AND tolerance_pct <= 2.0."
     },
     {
       "id": "F-P1-001",
@@ -95,12 +104,7 @@
       "autofix_class": "manual",
       "requires_verification": true,
       "pre_existing": false,
-      "reviewers": ["security", "adversarial"],
-      "evidence": [
-        "app/schemas/util.py:115-117, 157-159, 206-208 — annual_consumption fields are user-overridable with only ge=0",
-        "app/services/util/utility_energy_summary_service.py:70-99 — derived formula bypassed if client overrides"
-      ],
-      "suggested_fix": "Reject client override in T1/T2/T3 schema (only server-side derives); OR add plausibility check (annual_consumption <= motor_power × 8760)."
+      "reviewers": ["security", "adversarial"]
     },
     {
       "id": "F-P1-002",
@@ -113,11 +117,7 @@
       "autofix_class": "advisory",
       "requires_verification": false,
       "pre_existing": false,
-      "reviewers": ["adversarial"],
-      "evidence": [
-        "utility_energy_summary_service.py:102-113 — `_get_energy_conversion_factors` reads ConfigEnergyConversionFactor on every call; no caching"
-      ],
-      "suggested_fix": "Implement 5-min TTL cache (仿 _compound_config_cache.py 模式) before T7 release."
+      "reviewers": ["adversarial"]
     },
     {
       "id": "F-P1-003",
@@ -130,15 +130,11 @@
       "autofix_class": "advisory",
       "requires_verification": false,
       "pre_existing": false,
-      "reviewers": ["correctness", "adversarial"],
-      "evidence": [
-        "utility_energy_summary_service.py:62-68 — `business_year 当前未用于过滤 (T1/T2/T3 表无 year 字段; 数据为 project snapshot)`"
-      ],
-      "suggested_fix": "Add business_year to T1/T2/T3 subtables OR enforce single-year-per-project invariant. Document snapshot semantics."
+      "reviewers": ["correctness", "adversarial"]
     },
     {
       "id": "F-P1-004",
-      "title": "T5 service falls back to hardcoded defaults when ConfigEnergyConversionFactor row missing — silent data drift",
+      "title": "T5 service falls back to hardcoded defaults when CONFIG row missing — silent data drift",
       "severity": "P1",
       "confidence": 75,
       "file": "pcs-backend/app/services/util/utility_energy_summary_service.py",
@@ -147,15 +143,11 @@
       "autofix_class": "manual",
       "requires_verification": true,
       "pre_existing": false,
-      "reviewers": ["adversarial"],
-      "evidence": [
-        "utility_energy_summary_service.py:102-113, 154-159 — `_get_energy_conversion_factors` returns dict; service uses `factors.get(energy_type, (0.1229, 0.4040))` — silent fallback"
-      ],
-      "suggested_fix": "Raise if missing factors; require all 6 energy_type rows seeded before summary can compute. Surface ConfigurationError to API caller."
+      "reviewers": ["adversarial"]
     },
     {
       "id": "F-P1-005",
-      "title": "No project/workspace access control — ACL is role-only; any DESIGNER reads/writes any project",
+      "title": "Pre-existing cross-project IDOR — ACL role-only (Sprint 1 F-P0-004 同源, BLOCKER-3)",
       "severity": "P1",
       "confidence": 75,
       "file": "pcs-backend/app/api/v1/util.py",
@@ -165,11 +157,7 @@
       "requires_verification": true,
       "pre_existing": true,
       "reviewers": ["security", "adversarial"],
-      "evidence": [
-        "app/api/v1/util.py:411-430, 476-495, 542-561, 594-621, 380-408 — all 8 new endpoints accept arbitrary project_id/workspace_id",
-        "app/api/v1/config.py:88-98 (require_roles) + 441-469 (current_actor) — role gate only, no project membership check"
-      ],
-      "suggested_fix": "Out of Sprint 2 scope; flag for P7-7+ UserProject/WorkspaceMember model + per-project ACL check. Pre-existing across PCS backend."
+      "process_engineering_correction": "pre-existing across PCS (Sprint 1 review F-P0-004 已登记). 与 Sprint 1 同问题. 不阻塞 Sprint 2 修复批; 登记为 BLOCKER-3, P7-7+ UserProject model 范围."
     },
     {
       "id": "F-P1-006",
@@ -182,11 +170,7 @@
       "autofix_class": "gated_auto",
       "requires_verification": true,
       "pre_existing": false,
-      "reviewers": ["correctness"],
-      "evidence": [
-        "utility_energy_summary_service.py:270 — `existing.computed_at = func.now()` ORM-set explicit; column already has onupdate=func.now()"
-      ],
-      "suggested_fix": "Remove explicit assignment and rely on existing `onupdate=func.now()` (model util.py:489 already has it)."
+      "reviewers": ["correctness"]
     },
     {
       "id": "F-P1-007",
@@ -199,16 +183,11 @@
       "autofix_class": "advisory",
       "requires_verification": false,
       "pre_existing": false,
-      "reviewers": ["data-migration"],
-      "evidence": [
-        "app/schemas/util.py:35-47 — UtilResultsResponse lacks 4 new util_results columns (electrical_power_kwh_yr, fuel_gas_consumption_nm3_yr, steam_consumption_t_yr, cooling_water_consumption_t_yr)",
-        "T4 migration adds 4 columns but they're not exposed via API"
-      ],
-      "suggested_fix": "Document in SPEC V1.4.1: 4 columns are aggregator-output-only (written by T5 service, consumed via utility_energy_summary API, not via UtilResultsResponse). OR add to schema if consumers need raw read."
+      "reviewers": ["data-migration"]
     },
     {
       "id": "F-P1-008",
-      "title": "T0 seed script runs out-of-band of alembic — deployer may forget, masking factor source-of-truth",
+      "title": "T0 seed script runs out-of-band of alembic — R=1 变体登记",
       "severity": "P1",
       "confidence": 75,
       "file": "pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py",
@@ -218,11 +197,7 @@
       "requires_verification": true,
       "pre_existing": false,
       "reviewers": ["data-migration"],
-      "evidence": [
-        "alembic/versions/p7_open_009_t0_config_energy_conversion_factors.py — only creates empty table",
-        "scripts/p7_open_009_t0_seed_energy_conversion_factors.py — seed runs separately"
-      ],
-      "suggested_fix": "Fold seed into follow-up migration `p7_open_009_t0b_seed_*` for reproducibility."
+      "process_engineering_correction": "登记 R=1 变体, 不阻塞 Sprint 2. 工艺室对账后处理."
     },
     {
       "id": "F-P2-001",
@@ -382,36 +357,58 @@
     }
   ],
   "pre_existing_findings": [
-    "summary_service.summarize STEAM unit interpretation pre-existing (Sprint 1); out of scope (per comparison vs new ConfigEnergyConversionFactor)"
+    "summary_service.summarize STEAM unit interpretation pre-existing (Sprint 1); out of scope (per comparison vs new ConfigEnergyConversionFactor)",
+    "F-P1-005 / Sprint 1 F-P0-004: pre-existing cross-project IDOR across PCS; BLOCKER-3 (P7-7+ UserProject model)"
   ],
   "residual_risks": [
-    "P0-001 unit bug: shipped 综合能耗 reports will be 0.1% of real numbers if per-kg interpretation; tolerance vs XLS_REFERENCE will always show EXCEEDED — UI dashboards break.",
-    "Idempotent race (P0-002): nightly batch concurrent POST /energy-summary/aggregate will produce intermittent IntegrityError 500s.",
-    "func.now() ORM-set (P1-006): if SQLite used in production, idempotent UPDATE path will fail.",
-    "Year-dimension mixing (P1-003): multi-year equipment data silently aggregated across years.",
-    "GET /util/summary + GET /util/energy-consumption still read JSONB path (13-class) via summary_service.summarize, NOT from new 5-table aggregation — same project produces DIFFERENT toe_total numbers from the two paths; consumers don't know which to trust.",
-    "NaN compat: PG evaluates NaN as NULL → INSERT violates CHECK if total_toe ever becomes NaN (currently impossible from finite inputs)."
+    "F-P0-001 corrected seed values (STEAM 94.4 / WATER 0.1) will shift golden fixture Case 1 by ~24% (远超 2% 容差); re-test pass required after seed correction",
+    "F-P0-001 confirmed_by field needs工艺室签字 fill (10-08 议程第 1 项)",
+    "F-P0-002 advisory lock reuse requires adding pg_advisory_xact_lock call to summarize_energy_year (and tests)",
+    "F-P0-003 fix needs regression test test_tolerance_pct_none_guard",
+    "NaN compat: PG evaluates NaN as NULL → INSERT violates CHECK if total_toe ever becomes NaN (currently impossible from finite inputs)",
+    "Year-dimension mixing (F-P1-003): multi-year equipment data silently aggregated across years",
+    "GET /util/summary + GET /util/energy-consumption still read JSONB path (13-class) via summary_service.summarize, NOT from new 5-table aggregation — same project produces DIFFERENT toe_total numbers from the two paths"
   ],
   "testing_gaps": [
-    "No test for tolerance_pct with xls_reference.total_toe = None (NoneType vs 0.0 vs positive).",
-    "No test for concurrent summarize calls — race window untested.",
-    "Golden fixture expected values computed by hand-derive from buggy service; no independent cross-check vs GB/T 50441 appendix.",
-    "API tests in test_util_sprint2.py only cover zero-consumption path; the 1000x bug will not surface from API tests.",
-    "No test verifies `existing.computed_at = func.now()` SQLite compat.",
-    "No test verifies JSONB-vs-5-table dual paths produce consistent totals for same project data.",
-    "No test for water/gas/low_temp_heat None-vs-0 semantics; consumers can't tell aggregated-zero from not-yet-aggregated.",
-    "No 403 test for non-DESIGNER role.",
-    "No 401 test for missing/invalid JWT.",
-    "No test for implausibly large annual_consumption override (F-P1-001 exploit).",
-    "No test for cross-project DESIGNER access (F-P1-005 exploit).",
-    "summary_service tests don't verify STEAM unit conversion with hand-calculated MJ total."
+    "No test for tolerance_pct with xls_reference.total_toe = None",
+    "No test for concurrent summarize calls — race window untested",
+    "Golden fixture expected values need re-derivation after F-P0-001 seed correction (STEAM 94.4 / WATER 0.1 per-tonne)",
+    "API tests in test_util_sprint2.py only cover zero-consumption path",
+    "No test verifies `existing.computed_at = func.now()` SQLite compat",
+    "No test verifies JSONB-vs-5-table dual paths produce consistent totals",
+    "No test for water/gas/low_temp_heat None-vs-0 semantics",
+    "summary_service tests don't verify STEAM unit conversion with hand-calculated MJ total"
   ],
+  "layered_response": {
+    "batch_A_immediate_T7_closure_pre": {
+      "estimated_time": "0.5 day",
+      "items": ["F-P0-003", "F-P0-004", "F-P1-007"],
+      "scope": "1-line fixes + schema补齐; no DB schema change",
+      "scope_note": "F-P0-003 需回归测试; F-P0-004 删 server_default + 加 CHECK; F-P1-007 补 4 列到 UtilResultsResponse"
+    },
+    "batch_B_post_10_08_sign_off": {
+      "estimated_time": "0.5 day",
+      "items": ["F-P0-001", "F-P1-001", "F-P1-002"],
+      "scope": "工艺室签署后修正; 改 seed + docstring + golden fixture 重算; 5-min TTL cache",
+      "scope_note": "前置依赖: 10-08 工艺室对账议程第 1 项签字"
+    },
+    "batch_C_post_Sprint2_closure": {
+      "estimated_time": "0.5 day",
+      "items": ["F-P0-002", "F-P1-003", "F-P1-004", "F-P1-006"],
+      "scope": "advisory lock per (project, year, source) — 复用 D2 2A 模式; T1/T2/T3 加 business_year; CONFIG 缺行显式报错; SQLite 兼容",
+      "scope_note": "F-P0-002 与 sync_from_source 共用 advisory_lock.py"
+    },
+    "batch_D_log_only_no_fix": {
+      "items": ["F-P1-005 (BLOCKER-3)", "F-P1-008 (R=1 变体)"],
+      "scope": "登记不修; BLOCKER-3 走 P7-7+ UserProject model; R=1 变体走 P7-3 process workflow",
+      "scope_note": "F-P1-005 与 Sprint 1 F-P0-004 同源 (pre-existing IDOR)"
+    }
+  },
   "coverage": {
     "depth": "full",
     "reviewers_dispatched": ["correctness", "data-migration", "security", "adversarial"],
-    "reviewers_skipped": ["project-standards (CLAUDE.md project-level only, low-value)", "testing (5 new test files but basic CRUD)", "performance (DB queries reasonable, F-P1-002 already flagged)", "maintainability (large structural but no major smell)", "reliability (no clear retry/circuit-breaker)", "agent-native (no agent surfaces)", "learnings (no solutions/ corpus)"],
     "peer_coverage": "Adversarial lens ran via in-process adversarial-reviewer (no codex CLI; fallback per cross-model-review.md)"
   },
-  "verdict": "Not ready",
-  "ready_after_fixes": "Fix all 4 P0 + critical P1 items (F-P1-001, F-P1-002, F-P1-005, F-P1-007) before merge. After fixes: Ready."
+  "verdict": "Not ready — process engineering analysis layered 批次 A/B/C/D 响应",
+  "ready_after_fixes": "Batch A (F-P0-003 + F-P0-004 + F-P1-007) for Sprint 2 T7 closure. Batch B + C after工艺室签字."
 }

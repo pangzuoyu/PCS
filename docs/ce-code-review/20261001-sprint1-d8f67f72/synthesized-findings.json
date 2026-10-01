@@ -11,7 +11,32 @@
     "lines_changed": 10097
   },
   "intent": "P7 Sprint 1 batch (496b84d..8ea056b): 14 commits. StateMachineService 强制写审计三字段 (R-03 T0) + EquipmentList ORM + SourceService V1.4 字段 (T1) + EquipmentTypeCodes seed (T1.5) + EQUIP_LIST 同步服务 + SourceModule dispatcher (T2) + UTIL V1.3 基线 (util_results + 13 类 + 折标煤 13→6 映射, T3) + audit_logs JSONB GIN 索引 (D8) + review I1+I2 fix + EQUIP_LIST API + persist_service (S1-4b) + UTIL API + source_aggregator (S1-5b) + 6 deferred Minor polish + G-08 baseline roll.",
-  "peer_coverage": "Adversarial lens ran via in-process adversarial-reviewer (no codex CLI; fallback per cross-model-review.md).",
+  "process_engineering_rulings": {
+    "F-P0-003_D4_4A_relationship": {
+      "session": "Sprint 1 retrospective review 工艺工程师 2026-10-01",
+      "ruling": "F-P0-003 是 D4 裁决 4A 未落地的证据 — D4 4A 的 'state_machine 拥有 CHANGED 流程触发权' 不仅适用 Sprint 4, 需回修 Sprint 1 的 sync_from_source.",
+      "fix_pattern": "sync_from_source 不应直接 ORM UPDATE EquipmentList.sign_status; 应调 state_machine.transition(record=existing, to_status=source.sign_status, actor=system_actor, reason='sync_from_source'). 这样写 audit_logs + 走 TRANSITION_ROLES ACL.",
+      "scope_extension": "D4 4A 落地范围扩展回 Sprint 1."
+    },
+    "F-P0-004_BLOCKER_3_registration": {
+      "session": "Sprint 1 retrospective review 工艺工程师 2026-10-01",
+      "ruling": "F-P0-004 (cross-project IDOR) 是 pre-existing across PCS (Sprint 1 review 与 Sprint 2 review F-P1-005 同源). 不阻塞 Sprint 1 hotfix 批; 登记为 BLOCKER-3, P7-7+ UserProject model 范围.",
+      "related_finding": "Sprint 2 review F-P1-005 是同一根因 — 2 个 review 共用 BLOCKER-3."
+    },
+    "F-P0-005_alembic_transaction_complexity": {
+      "session": "Sprint 1 retrospective review 工艺工程师 2026-10-01",
+      "ruling": "原报告说 '加 postgresql_concurrently=True' 不完整. CONCURRENTLY 在 alembic transaction 内不能跑 — 需 op.execute('COMMIT') 或在 migration 里禁 transaction.",
+      "fix_pattern": "def upgrade(): op.execute('COMMIT')  # 结束 alembic 事务\nop.create_index('ix_audit_logs_detail_json_gin', 'audit_logs', ['detail_json'], postgresql_using='gin', postgresql_concurrently=True, if_not_exists=True).",
+      "complexity_correction": "修复复杂度被原报告低估."
+    },
+    "F-P1-005_sprint1_F-P0-004_same_root": {
+      "ruling": "F-P1-005 (Sprint 2 review) 与 F-P0-004 (Sprint 1 review) 同源 — 都是 pre-existing cross-project IDOR. 应合并登记为 BLOCKER-3.",
+      "rationale": "F-P0-003 (audit bypass) 是 F-P0-004 (IDOR) 的放大器. 修复顺序: 先 F-P0-003 恢复 audit trail; F-P0-004 可延后 (登记 BLOCKER-3). 因为有了 audit trail, 即使 IDOR 存在, 也能被审计发现."
+    },
+    "F-P1-009_G08_baseline_drift_R1": {
+      "ruling": "G-08 baseline 与 endpoint 代码同批 = silent drift risk. 登记为 R=1 变体; P7-3 process workflow (前端 snapshot-mtime CI gate) 跟进."
+    }
+  },
   "primary_findings": [
     {
       "id": "F-P0-001",
@@ -24,12 +49,7 @@
       "autofix_class": "manual",
       "requires_verification": true,
       "pre_existing": false,
-      "reviewers": ["correctness"],
-      "evidence": [
-        "type_code_map.py:13 — PSYCHRO maps to type_code 'X'",
-        "equipment_type_code_service.py:78 — 'X' defined as 'Motor / Electrical' (category=ELECTRICAL)"
-      ],
-      "suggested_fix": "Either change PSYCHRO type_code to a unique letter (e.g., 'P' if free) OR add PSYCHRO-specific code to SEED_TYPE_CODES."
+      "reviewers": ["correctness"]
     },
     {
       "id": "F-P0-002",
@@ -42,16 +62,11 @@
       "autofix_class": "gated_auto",
       "requires_verification": true,
       "pre_existing": false,
-      "reviewers": ["correctness"],
-      "evidence": [
-        "persist_service.py:108 — orders by `UtilResult.util_result_id DESC` (UUIDv4 random)",
-        "util.py:166, 192, 224 — /util/summary, /energy-consumption, /water-balance all use this 'latest' fallback"
-      ],
-      "suggested_fix": "Order by `created_at DESC` instead of util_result_id DESC."
+      "reviewers": ["correctness"]
     },
     {
       "id": "F-P0-003",
-      "title": "State machine audit bypass — sync_from_source mutates EquipmentList.sign_status directly (no AuditLog writes)",
+      "title": "State machine audit bypass — sync_from_source mutates EquipmentList.sign_status directly (no AuditLog writes; D4 4A 未落地证据)",
       "severity": "P0",
       "confidence": 100,
       "file": "pcs-backend/app/services/equip_list/sync_service.py",
@@ -61,16 +76,12 @@
       "requires_verification": true,
       "pre_existing": false,
       "reviewers": ["adversarial", "security"],
-      "evidence": [
-        "sync_service.py:128, 167 — sync_from_source mutates EquipmentList.sign_status via direct ORM update",
-        "sync_service.py writes zero AuditLog rows; bypasses state_machine.transition(); TRANSITION_ROLES ACL not consulted",
-        "audit_observations: STATE machine_audit_write_call_count=1; audit_log_inserts_in_sprint1_services=0 (expected many)"
-      ],
-      "suggested_fix": "Route EquipmentList.sign_status updates through state_machine.transition(); add Postgres trigger as defense-in-depth (out of Sprint scope; document in ADR-0045)."
+      "process_engineering_correction": "F-P0-003 是 D4 4A 未落地的证据. 修复 = 调 state_machine.transition(record, to_status, actor, reason) 而非直接 ORM UPDATE. D4 4A 落地范围扩展回 Sprint 1.",
+      "suggested_fix": "Replace direct `existing.sign_status = source.sign_status` with `state_machine.transition(record=existing, to_status=source.sign_status, actor=system_actor, reason='sync_from_source')` — write AuditLog + TRANSITION_ROLES."
     },
     {
       "id": "F-P0-004",
-      "title": "Cross-project IDOR — every endpoint trusts client project_id/workspace_id; ACL only checks role",
+      "title": "Pre-existing cross-project IDOR — every endpoint trusts client project_id (BLOCKER-3, P7-7+ UserProject model)",
       "severity": "P0",
       "confidence": 100,
       "file": "pcs-backend/app/api/v1/equip_list.py",
@@ -80,15 +91,12 @@
       "requires_verification": true,
       "pre_existing": true,
       "reviewers": ["security"],
-      "evidence": [
-        "equip_list.py + util.py — 12 endpoints accept arbitrary project_id/workspace_id without ownership check",
-        "persist_service.py:103, util.py:62 — None-leak: omit project_id ⇒ unfiltered rows from all projects"
-      ],
-      "suggested_fix": "Add UserProject/WorkspaceMember model + per-project ACL check; pre-existing across PCS."
+      "process_engineering_correction": "登记为 BLOCKER-3. 与 Sprint 2 review F-P1-005 同源. 不阻塞 Sprint 1 hotfix 批; F-P0-003 (audit bypass) 修复后, IDOR 越权可被追溯.",
+      "suggested_fix": "Add UserProject/WorkspaceMember model + per-project ACL check (P7-7+ scope)."
     },
     {
       "id": "F-P0-005",
-      "title": "audit_logs GIN index built without CONCURRENTLY — blocks all audit writes during build (production outage)",
+      "title": "audit_logs GIN index built WITHOUT CONCURRENTLY — alembic transaction complexity underestimated",
       "severity": "P0",
       "confidence": 100,
       "file": "pcs-backend/alembic/versions/p7_s1_002_audit_logs_jsonb_gin.py",
@@ -98,11 +106,8 @@
       "requires_verification": true,
       "pre_existing": false,
       "reviewers": ["data-migration"],
-      "evidence": [
-        "p7_s1_002_audit_logs_jsonb_gin.py:32-39 — CREATE INDEX without postgresql_concurrently=True",
-        "audit_logs is hot append-only table; CREATE INDEX acquires SHARE lock that blocks DML for build window"
-      ],
-      "suggested_fix": "Add postgresql_concurrently=True and if_not_exists=True to op.create_index."
+      "process_engineering_correction": "postgresql_concurrently=True 不能在 alembic transaction 内跑. 需 op.execute('COMMIT') 结束 alembic 事务 或 在 migration 里禁 transaction.",
+      "suggested_fix": "def upgrade(): op.execute('COMMIT')  # 结束 alembic 事务\nop.create_index('ix_audit_logs_detail_json_gin', 'audit_logs', ['detail_json'], postgresql_using='gin', postgresql_concurrently=True, if_not_exists=True)."
     },
     {
       "id": "F-P1-001",
@@ -115,11 +120,7 @@
       "autofix_class": "gated_auto",
       "requires_verification": true,
       "pre_existing": false,
-      "reviewers": ["data-migration"],
-      "evidence": [
-        "Migration creates 3 indexes; ORM __table_args__ only declares ix_util_results_project"
-      ],
-      "suggested_fix": "Add Index(\"ix_util_results_project_workspace\", \"project_id\", \"workspace_id\") to UtilResults.__table_args__."
+      "reviewers": ["data-migration"]
     },
     {
       "id": "F-P1-002",
@@ -162,7 +163,7 @@
     },
     {
       "id": "F-P1-005",
-      "title": "RESOLVE_STALE_CHANGED records hash_changed=false — semantic mismatch",
+      "title": "RESOLVE_STALE_CHANGED records hash_changed=false — semantic mismatch (同源 F-P0-003)",
       "severity": "P1",
       "confidence": 100,
       "file": "pcs-backend/app/services/state_machine.py",
@@ -171,7 +172,8 @@
       "autofix_class": "manual",
       "requires_verification": true,
       "pre_existing": false,
-      "reviewers": ["adversarial"]
+      "reviewers": ["adversarial"],
+      "process_engineering_correction": "与 F-P0-003 同源 — 'state machine 未走 transition'. 应合并修复."
     },
     {
       "id": "F-P1-006",
@@ -214,7 +216,7 @@
     },
     {
       "id": "F-P1-009",
-      "title": "G-08 baseline + endpoint code in same batch — frontend snapshot drift risk",
+      "title": "G-08 baseline + endpoint code in same batch — frontend snapshot drift risk (R=1 变体)",
       "severity": "P1",
       "confidence": 75,
       "file": "pcs-backend/docs/openapi-baseline.json",
@@ -223,7 +225,8 @@
       "autofix_class": "advisory",
       "requires_verification": false,
       "pre_existing": false,
-      "reviewers": ["adversarial"]
+      "reviewers": ["adversarial"],
+      "process_engineering_correction": "登记为 R=1 变体; P7-3 process workflow (前端 snapshot-mtime CI gate) 跟进."
     },
     {
       "id": "F-P1-010",
@@ -305,30 +308,81 @@
     }
   ],
   "pre_existing_findings": [
-    "Cross-project IDOR (F-P0-004) is pre-existing across PCS backend (not introduced by Sprint 1)."
+    "F-P0-004 (cross-project IDOR) is pre-existing across PCS (registered BLOCKER-3).",
+    "F-P1-005 (Sprint 2 review) 与 F-P0-004 同源 (IDOR + state machine audit bypass) — 合并登记 BLOCKER-3."
   ],
   "residual_risks": [
-    "Cascade (per adversarial F-017): 4 silent-passes compound — mid-Sprint project shows '0 of everything' with no drift signal.",
-    "Audit trail coverage: state_machine.transition() called once in Sprint 1 (audit_observations); sync_service direct mutates skip audit (F-P0-003).",
-    "PostgreSQL production deploy of p7_s1_002 will cause minutes-long audit_logs INSERT block; cannot rollback mid-build.",
-    "EquipmentTypeCodes seed not atomic with schema migration (DM-P7S1-003)."
+    "F-P0-003 (audit bypass) + F-P0-004 (IDOR) 组合 = 静默越权. F-P0-003 修复后, F-P0-004 可被 audit trail 发现. 修复顺序: 先 F-P0-003 → 再 BLOCKER-3.",
+    "Cascade (per adversarial F-017): 4 silent-passes compound — mid-Sprint project shows '0 of all 13 utilities' with no drift signal.",
+    "F-P0-005 alembic CONCURRENTLY migration has additional complexity (transaction commit before index); should be tested in staging first.",
+    "audit_logs.detail_json GIN index jsonb_path_ops works for containment; useless for non-containment queries (F-P1-009 / adversarial-011)."
   ],
   "testing_gaps": [
     "No test for PSYCHRO type_code mapping collision.",
-    "No test for /util/summary 'latest' ordering determinism (UUIDv4 randomness leaks through).",
+    "No test for /util/summary 'latest' ordering determinism (UUIDv4 randomness).",
     "No audit-trail bypass test (direct mutation vs state_machine.transition path coverage).",
     "No cross-project IDOR exploit test (DESIGNER reads other project's UtilResults).",
     "No GIN index build-time measurement; post-deploy verification SQL documented but not in CI.",
     "No test verifies CONDENSATE included in toe_total but excluded from by_category (AC-001).",
-    "No test for query_by_fuel_year year-rollover behavior (stale coefficient on 2027).",
-    "No test for advisory_lock OperationalError silent no-op (production misconfig).",
+    "No test for query_by_fuel_year year-rollover behavior.",
+    "No test for advisory_lock OperationalError silent no-op.",
     "No test for EquipmentTypeCodeService.seed_defaults idempotency with partial pre-seeding."
   ],
+  "layered_response": {
+    "batch_A_hotfix_immediate": {
+      "estimated_time": "1 day",
+      "items": [
+        "F-P0-001 (PSYCHRO type_code 'X' collision)",
+        "F-P0-002 (latest order by created_at)",
+        "F-P0-003 (audit bypass — D4 4A 落地到 sync_from_source)",
+        "F-P0-005 (GIN CONCURRENTLY + alembic COMMIT)",
+        "F-P1-005 (与 F-P0-003 合并修 — state machine hash_changed semantics)",
+        "F-P1-013 (consumption_json NaN/Inf 约束)",
+        "F-P1-015 (toe_total vs by_category CONDENSATE 不一致)"
+      ],
+      "scope": "Sprint 1 hotfix 分支; 不需 DB schema migration; 仅需 F-P0-005 单独 alembic migration",
+      "scope_note": "F-P0-001 PSYCHRO type_code 修复方案: 改 PSYCHRO type_code 为唯一字母 (e.g. 'P' if free) 或 加 PSYCHRO-specific code 到 SEED_TYPE_CODES."
+    },
+    "batch_B_sprint2_fix": {
+      "estimated_time": "1 day",
+      "items": [
+        "Sprint 1 F-P1-002 (advisory_lock OperationalError)",
+        "Sprint 1 F-P1-003 (SourceModule dispatcher)",
+        "Sprint 1 F-P1-004 (summary_service absent vs explicit 0)",
+        "Sprint 1 F-P1-007 (write loop drops 6/13)",
+        "Sprint 1 F-P1-010 (bulk-sync Pydantic Literal)",
+        "Sprint 2 F-P0-003 + F-P1-001 + F-P1-007"
+      ],
+      "scope": "Sprint 2 修复批; 与 Sprint 2 code review 批次 B 合并"
+    },
+    "batch_C_post_sprint2_closure": {
+      "estimated_time": "0.5 day",
+      "items": [
+        "Sprint 1 F-P1-001 (composite index)",
+        "Sprint 1 F-P1-006 (aggregate_and_save overwrites manual)",
+        "Sprint 1 F-P1-008 (year-rollover)",
+        "Sprint 1 F-P1-011 (seed all-or-nothing)",
+        "Sprint 1 F-P1-012 (count 3-way mismatch)",
+        "Sprint 1 F-P1-014 (UUID ownership filter)"
+      ],
+      "scope": "Sprint 2 收口后清理"
+    },
+    "batch_D_log_only_no_fix": {
+      "items": [
+        "F-P0-004 (BLOCKER-3: pre-existing IDOR; P7-7+ UserProject model)",
+        "F-P1-009 (R=1 变体: G-08 baseline 同批; P7-3 snapshot-mtime CI gate)",
+        "Sprint 2 F-P1-005 (BLOCKER-3 同 F-P0-004; P7-7+ 范围)"
+      ],
+      "scope": "登记不修"
+    }
+  },
+  "process_problem_identified": "Sprint 1 ship 前未过 code review — 5 P0 进入 main. 流程修正: Sprint 2 及以后, code review 作为 ship 前 gate (不是 post-hoc). 登记 R=1 变体."
+  ,
   "coverage": {
     "depth": "full",
     "reviewers_dispatched": ["correctness", "data-migration", "security", "adversarial", "api-contract"],
     "peer_coverage": "Adversarial lens ran via in-process adversarial-reviewer (no codex CLI; fallback per cross-model-review.md)"
   },
-  "verdict": "Not ready",
-  "ready_after_fixes": "All 5 P0 (F-P0-001..005) + 4 critical P1 (F-P1-002 / F-P1-004 / F-P1-005 / F-P1-015). Estimated work: 2-3 days."
+  "verdict": "Not ready (post-hoc; Sprint 1 ship 前未过 review 导致 5 P0 进 main)",
+  "ready_after_fixes": "Batch A (F-P0-001/002/003/005 + F-P1-005/013/015) + Batch B + Batch C. Batch D 不阻塞."
 }
