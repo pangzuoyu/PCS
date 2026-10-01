@@ -442,10 +442,15 @@ ce-code-review P5+P6 全范围（5 batch，47 commits / 34 findings）review 累
 - D8 gap 0
 - Final review I1-I3 (I1 RE-GRADED Critical → fixed via `_resolve_type_code_fk`)
 
-**Deferred minors (8 ledger, 2 closed)**：
+**Deferred minors (8 ledger, 8 closed)**：
+- ✅ M1 closed (to_value helper centralize @ `8339c0d`; app/models/enums.py:374 + 2 callers)
+- ✅ M2 closed (changed_fields 双格式兼容 @ `66021ee`; state_machine.py:365-381)
+- ✅ M3 closed (migration numbering comment @ `66021ee`; p7_s1_002_audit_logs_jsonb_gin.py inline docstring)
+- ✅ M4 closed (_BACKEND_DIR pathlib walk-up @ `8339c0d`; tests/models/test_equip_list_source_service.py:41-50)
 - ✅ M5 closed (logger.warning)
+- ✅ M6 closed (summary 6 separate queries → 1 IN-clause @ `76d38a8`; summary_service.py:70-80)
 - ✅ M7 closed (strict `count == 31`)
-- 仍 deferred: M1 (to_value helper centralize) / M2 (changed_fields JSONB dict/list) / M3 (migration filename numbering) / M4 (_BACKEND_DIR hardcoded) / M6 (summary 6 separate queries) / M8 (wording 模糊)
+- ✅ M8 closed (wording 模糊 @ `8339c0d`; summary_service.py:53-58 + 其他)
 
 ## 🚀 Next quest
 
