@@ -1015,3 +1015,68 @@ class GlycolDehydrationFullSystem(Base):
         DateTime(timezone=True), onupdate=func.now(),
         comment="记录更新时间（ORM onupdate 触发）",
     )
+
+
+class ConfigEnergyConversionFactor(Base):
+    """折标油 / 折标煤系数（P7 Sprint 2 T0 / 综合能耗汇总 CONFIG 元数据）。
+
+    业务（P7 SPEC V1.4 §3.2.2（5）+ §4.6 + P7-OPEN-009 §6.3 + GB/T 50441 附录）：
+
+    - ``energy_type`` UNIQUE：6 类能源 ELECTRICITY / FUEL_GAS / STEAM /
+      WATER / GAS / LOW_TEMP_HEAT；
+    - ``toe_factor`` 折标油系数（kg 标油 / 单位消耗量；电=kWh、燃料=kg/m³、
+      蒸汽=kg、水=kg、气体=m³、低温余热=GJ）；
+    - ``standard_coal_factor`` 折标煤系数（kg 标煤 / 单位消耗量；同 toe_factor
+      单位口径）；
+    - 6 行（每类能源 1 行；工艺室 2026-10-15 签署后填 confirmed_by/confirmed_at）。
+    - ``source`` 数据来源；开发填 ``SYNTHETIC_TEST_DATA``，工艺工程师用
+      GB/T 50441 附录真实值替换后改填具体期号；
+    - ``confirmed_by`` / ``confirmed_at`` 工艺室签字（占位字段）。
+
+    不继承 ``TaggedRecordMixin``（元数据表非业务计算记录）。
+
+    唯一索引：``energy_type``。
+    """
+
+    __tablename__ = "config_energy_conversion_factors"
+
+    id: Mapped[int] = mapped_column(
+        Integer, primary_key=True, autoincrement=True,
+        comment="BIGINT 自增主键",
+    )
+    energy_type: Mapped[str] = mapped_column(
+        String(32), nullable=False, unique=True, index=True,
+        comment='能源类型 UNIQUE：ELECTRICITY/FUEL_GAS/STEAM/WATER/GAS/LOW_TEMP_HEAT',
+    )
+    toe_factor: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment=(
+            "折标油系数（kg 标油/单位消耗量；"
+            "电 kWh/燃料 m³/蒸汽 kg/水 kg/气体 m³/低温余热 GJ）"
+        ),
+    )
+    standard_coal_factor: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="折标煤系数（kg 标煤 / 单位消耗量；同 toe_factor 单位口径）",
+    )
+    source: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment='数据来源；开发填 "SYNTHETIC_TEST_DATA"，'
+                '真实数据填如 "GB_T_50441_APPENDIX"',
+    )
+    confirmed_by: Mapped[str | None] = mapped_column(
+        String(64), nullable=True,
+        comment="工艺室确认签字人（占位 NULL，工艺室 2026-10-15 签署后填入）",
+    )
+    confirmed_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+        comment="工艺室确认签字时间（占位 NULL，签字后填入）",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(),
+        comment="记录创建时间（DB server_default）",
+    )
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(),
+        comment="记录更新时间（ORM onupdate 触发）",
+    )

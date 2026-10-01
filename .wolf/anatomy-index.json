@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-09-27T16:01:02.240Z",
-    "fileCount": 781,
+    "lastScanned": "2026-10-01T04:39:07.683Z",
+    "fileCount": 800,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "a9839893894c451479842160c4848d20dc4e0c6b37bbf734a6a5cf39d005f16c",
-    "storeUpdatedAt": "2026-09-27T16:01:02.251Z",
-    "rootHash": "c9ec6a731693b0ca"
+    "renderedHash": "ea5849398f362ab7614492c5d73361368ce475b7d3b0204823849a0fde82def9",
+    "storeUpdatedAt": "2026-10-01T04:39:07.693Z",
+    "rootHash": "a9103448d48c0a48"
   },
   "files": {
     "CLAUDE.md": {
@@ -390,11 +390,11 @@
     },
     ".gitignore": {
       "description": "Git ignore rules",
-      "tokens": 34,
-      "hash": "92f82dba9860abfd",
-      "size": 127,
-      "mtimeMs": 1788174157577.5066,
-      "updatedAt": "2026-08-31T11:02:37.618Z",
+      "tokens": 46,
+      "hash": "11a0a00eb5b55a17",
+      "size": 169,
+      "mtimeMs": 1790829547635.1494,
+      "updatedAt": "2026-10-01T04:39:07.683Z",
       "source": "hook"
     },
     "docker-compose.yml": {
@@ -521,11 +521,11 @@
     },
     "pcs-backend/app/api/v1/__init__.py": {
       "description": "",
-      "tokens": 845,
-      "hash": "220ffcc2ba668782",
-      "size": 2956,
-      "mtimeMs": 1789627095844.8672,
-      "updatedAt": "2026-09-17T06:38:15.893Z",
+      "tokens": 1270,
+      "hash": "23a5b17ca5f93396",
+      "size": 4444,
+      "mtimeMs": 1790825573028.9724,
+      "updatedAt": "2026-10-01T03:32:53.078Z",
       "source": "hook"
     },
     "pcs-backend/tests/__init__.py": {
@@ -2659,11 +2659,11 @@
     },
     "pcs-backend/tests/test_state_machine.py": {
       "description": "Sprint 2 状态机守卫测试（ALLOWED_TRANSITIONS 矩阵）。",
-      "tokens": 1956,
-      "hash": "80dc64e4777ac64c",
-      "size": 6981,
-      "mtimeMs": 1788234999587.544,
-      "updatedAt": "2026-09-01T03:56:39.626Z",
+      "tokens": 3788,
+      "hash": "2e4ceb0fe40bf579",
+      "size": 13666,
+      "mtimeMs": 1790826212317.4436,
+      "updatedAt": "2026-10-01T03:43:32.363Z",
       "source": "hook",
       "symbols": [
         {
@@ -2761,18 +2761,39 @@
           "name": "test_invalid_transition_raises",
           "kind": "fn",
           "startLine": 177,
-          "endLine": 222,
-          "tokens": 404
+          "endLine": 224,
+          "tokens": 410
+        },
+        {
+          "name": "test_stale_resolved_audit_contains_three_fields",
+          "kind": "fn",
+          "startLine": 225,
+          "endLine": 286,
+          "tokens": 575
+        },
+        {
+          "name": "test_stale_resolved_changed_audit_path",
+          "kind": "fn",
+          "startLine": 287,
+          "endLine": 355,
+          "tokens": 652
+        },
+        {
+          "name": "test_stale_resolved_changed_fields_list_format",
+          "kind": "fn",
+          "startLine": 356,
+          "endLine": 420,
+          "tokens": 599
         }
       ]
     },
     "pcs-backend/app/services/state_machine.py": {
       "description": "状态机（Sprint 2 核心）。",
-      "tokens": 3788,
-      "hash": "a5052f8d03382cf3",
-      "size": 13988,
-      "mtimeMs": 1789229837956.1729,
-      "updatedAt": "2026-09-12T16:17:18.003Z",
+      "tokens": 4804,
+      "hash": "6607fa52922a87aa",
+      "size": 18192,
+      "mtimeMs": 1790826187139.375,
+      "updatedAt": "2026-10-01T03:43:07.193Z",
       "source": "hook",
       "symbols": [
         {
@@ -2793,33 +2814,49 @@
           "name": "InvalidTransition",
           "kind": "class",
           "startLine": 148,
-          "endLine": 156,
-          "tokens": 80
+          "endLine": 157,
+          "tokens": 102
         },
         {
           "name": "RoleForbidden",
           "kind": "class",
-          "startLine": 157,
-          "endLine": 160,
+          "startLine": 158,
+          "endLine": 161,
           "tokens": 16
         },
         {
           "name": "StateMachineService",
           "kind": "class",
-          "startLine": 161,
-          "endLine": 334,
-          "tokens": 1849
+          "startLine": 162,
+          "endLine": 405,
+          "tokens": 2843
         }
       ]
     },
     "pcs-backend/app/services/advisory_lock.py": {
       "description": "Postgres advisory lock（事务级）防止并发状态转移。",
-      "tokens": 171,
-      "hash": "a015ab6137230cbb",
-      "size": 672,
-      "mtimeMs": 1788232548798.3433,
-      "updatedAt": "2026-09-01T03:15:48.848Z",
-      "source": "hook"
+      "tokens": 506,
+      "hash": "1581eaf7c97c09f1",
+      "size": 1876,
+      "mtimeMs": 1790815370246.0933,
+      "updatedAt": "2026-10-01T00:42:50.289Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "acquire_record_lock",
+          "kind": "fn",
+          "startLine": 18,
+          "endLine": 29,
+          "tokens": 106
+        },
+        {
+          "name": "acquire_equip_list_lock",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 55,
+          "tokens": 301
+        }
+      ]
     },
     "pcs-backend/app/api/deps.py": {
       "description": "FastAPI 依赖（Sprint 2）。",
@@ -6254,19 +6291,19 @@
     },
     "pcs-backend/app/services/toe_conversion_service.py": {
       "description": "ToeConversionService — 折标煤系数组 CRUD（Task 1.10.1 / V1.4 P2-OPEN-005）。",
-      "tokens": 1098,
-      "hash": "9fbe119413c95f86",
-      "size": 3998,
-      "mtimeMs": 1788402247930.3418,
-      "updatedAt": "2026-09-03T02:24:07.982Z",
+      "tokens": 1745,
+      "hash": "5155b2cad45c39ea",
+      "size": 6689,
+      "mtimeMs": 1790827783478.7825,
+      "updatedAt": "2026-10-01T04:09:43.530Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ToeConversionService",
           "kind": "class",
           "startLine": 20,
-          "endLine": 114,
-          "tokens": 936
+          "endLine": 173,
+          "tokens": 1583
         }
       ]
     },
@@ -30294,6 +30331,906 @@
           "startLine": 723,
           "endLine": 756,
           "tokens": 420
+        }
+      ]
+    },
+    "pcs-backend/app/services/equip_list/sync_service.py": {
+      "description": "S1-4 EQUIP_LIST 同步服务（sync_from_source）。",
+      "tokens": 1641,
+      "hash": "941e5135ec4347ce",
+      "size": 6280,
+      "mtimeMs": 1790826056360.8833,
+      "updatedAt": "2026-10-01T03:40:56.412Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_resolve_type_code_fk",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 63,
+          "tokens": 316
+        },
+        {
+          "name": "sync_from_source",
+          "kind": "fn",
+          "startLine": 64,
+          "endLine": 170,
+          "tokens": 1070
+        }
+      ]
+    },
+    "pcs-backend/tests/services/equip_list/test_sync_service.py": {
+      "description": "S1-4 EQUIP_LIST 同步服务测试（P7-Sprint 1 T2）。",
+      "tokens": 3106,
+      "hash": "a6406c52cec69734",
+      "size": 11487,
+      "mtimeMs": 1790826071006.9507,
+      "updatedAt": "2026-10-01T03:41:11.065Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "pws_setup",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 133,
+          "tokens": 639
+        },
+        {
+          "name": "test_sync_from_source_creates_equipment_list",
+          "kind": "fn",
+          "startLine": 134,
+          "endLine": 160,
+          "tokens": 278
+        },
+        {
+          "name": "test_sync_from_source_updates_existing_equipment_list",
+          "kind": "fn",
+          "startLine": 161,
+          "endLine": 191,
+          "tokens": 278
+        },
+        {
+          "name": "test_sync_from_source_uses_company_level_type_code_when_no_project_override",
+          "kind": "fn",
+          "startLine": 192,
+          "endLine": 269,
+          "tokens": 665
+        },
+        {
+          "name": "test_sync_from_source_unsupported_module_raises",
+          "kind": "fn",
+          "startLine": 270,
+          "endLine": 282,
+          "tokens": 120
+        },
+        {
+          "name": "test_sync_from_source_concurrent_same_tag_serializes",
+          "kind": "fn",
+          "startLine": 283,
+          "endLine": 333,
+          "tokens": 530
+        }
+      ]
+    },
+    "pcs-backend/tests/services/test_equipment_type_code_service.py": {
+      "description": "S1-3 EquipmentTypeCodeService seed 测试（P7-Sprint 1 T1.5）。",
+      "tokens": 698,
+      "hash": "eb325ddf55ee5474",
+      "size": 2672,
+      "mtimeMs": 1790815360432.2163,
+      "updatedAt": "2026-10-01T00:42:40.483Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_seed_defaults_creates_key_codes",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 47,
+          "tokens": 232
+        },
+        {
+          "name": "test_seed_defaults_is_idempotent",
+          "kind": "fn",
+          "startLine": 48,
+          "endLine": 56,
+          "tokens": 89
+        },
+        {
+          "name": "test_seed_defaults_categorizes_correctly",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 67,
+          "tokens": 164
+        }
+      ]
+    },
+    "pcs-backend/app/schemas/equip_list.py": {
+      "description": "S1-4b EQUIP_LIST API schemas。",
+      "tokens": 1225,
+      "hash": "204163f0728a0a1b",
+      "size": 4912,
+      "mtimeMs": 1790815591178.5508,
+      "updatedAt": "2026-10-01T00:46:31.230Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "EquipListSyncRequest",
+          "kind": "class",
+          "startLine": 28,
+          "endLine": 48,
+          "tokens": 207
+        },
+        {
+          "name": "EquipListBulkSyncRequest",
+          "kind": "class",
+          "startLine": 49,
+          "endLine": 60,
+          "tokens": 90
+        },
+        {
+          "name": "EquipListListFilter",
+          "kind": "class",
+          "startLine": 61,
+          "endLine": 82,
+          "tokens": 256
+        },
+        {
+          "name": "EquipListResponse",
+          "kind": "class",
+          "startLine": 83,
+          "endLine": 111,
+          "tokens": 252
+        },
+        {
+          "name": "EquipListListResponse",
+          "kind": "class",
+          "startLine": 112,
+          "endLine": 120,
+          "tokens": 64
+        },
+        {
+          "name": "EquipListSyncResponse",
+          "kind": "class",
+          "startLine": 121,
+          "endLine": 132,
+          "tokens": 76
+        },
+        {
+          "name": "EquipListBulkSyncResponse",
+          "kind": "class",
+          "startLine": 133,
+          "endLine": 141,
+          "tokens": 86
+        }
+      ]
+    },
+    "pcs-backend/app/services/equip_list/persist_service.py": {
+      "description": "S1-4b EQUIP_LIST persist service（bulk_sync + update + list helper）。",
+      "tokens": 1344,
+      "hash": "35a3fe38d319b644",
+      "size": 4986,
+      "mtimeMs": 1790815440519.2786,
+      "updatedAt": "2026-10-01T00:44:00.566Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "bulk_sync_from_sources",
+          "kind": "fn",
+          "startLine": 26,
+          "endLine": 62,
+          "tokens": 325
+        },
+        {
+          "name": "list_equipment_records",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 113,
+          "tokens": 540
+        },
+        {
+          "name": "update_equipment_status",
+          "kind": "fn",
+          "startLine": 114,
+          "endLine": 142,
+          "tokens": 256
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/equip_list.py": {
+      "description": "S1-4b EQUIP_LIST API endpoints。",
+      "tokens": 1956,
+      "hash": "3757173666b98ac6",
+      "size": 7156,
+      "mtimeMs": 1790826063974.9187,
+      "updatedAt": "2026-10-01T03:41:04.025Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_to_response",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 72,
+          "tokens": 364
+        },
+        {
+          "name": "list_equipment",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 104,
+          "tokens": 343
+        },
+        {
+          "name": "get_equipment",
+          "kind": "fn",
+          "startLine": 105,
+          "endLine": 127,
+          "tokens": 229
+        },
+        {
+          "name": "sync_equipment",
+          "kind": "fn",
+          "startLine": 128,
+          "endLine": 174,
+          "tokens": 431
+        },
+        {
+          "name": "bulk_sync_equipment",
+          "kind": "fn",
+          "startLine": 175,
+          "endLine": 191,
+          "tokens": 193
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_equip_list.py": {
+      "description": "S1-4b EQUIP_LIST API 测试（in-memory SQLite + httpx async client）。",
+      "tokens": 2178,
+      "hash": "b1cae7aa63844a79",
+      "size": 7840,
+      "mtimeMs": 1790815549586.8923,
+      "updatedAt": "2026-10-01T00:45:49.639Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "pws_setup_with_pump",
+          "kind": "fn",
+          "startLine": 46,
+          "endLine": 128,
+          "tokens": 696
+        },
+        {
+          "name": "test_api_list_equipment_200",
+          "kind": "fn",
+          "startLine": 129,
+          "endLine": 154,
+          "tokens": 215
+        },
+        {
+          "name": "test_api_get_equipment_404_when_missing",
+          "kind": "fn",
+          "startLine": 155,
+          "endLine": 163,
+          "tokens": 92
+        },
+        {
+          "name": "test_api_sync_equipment_200",
+          "kind": "fn",
+          "startLine": 164,
+          "endLine": 192,
+          "tokens": 278
+        },
+        {
+          "name": "test_api_bulk_sync_equipment_partial_failure",
+          "kind": "fn",
+          "startLine": 193,
+          "endLine": 219,
+          "tokens": 281
+        },
+        {
+          "name": "test_api_list_equipment_process_controller_allowed",
+          "kind": "fn",
+          "startLine": 220,
+          "endLine": 237,
+          "tokens": 162
+        },
+        {
+          "name": "test_api_list_equipment_unauthenticated_401",
+          "kind": "fn",
+          "startLine": 238,
+          "endLine": 242,
+          "tokens": 54
+        }
+      ]
+    },
+    "pcs-backend/app/services/util/source_aggregator.py": {
+      "description": "S1-5b SourceModule → 13 类公用工程 consumption_json 聚合。",
+      "tokens": 1848,
+      "hash": "d54ca1c1172424dd",
+      "size": 6994,
+      "mtimeMs": 1790825514949.8782,
+      "updatedAt": "2026-10-01T03:31:55.006Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_aggregate_pump",
+          "kind": "fn",
+          "startLine": 46,
+          "endLine": 66,
+          "tokens": 213
+        },
+        {
+          "name": "_aggregate_heat",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 107,
+          "tokens": 452
+        },
+        {
+          "name": "_aggregate_cool_tower",
+          "kind": "fn",
+          "startLine": 108,
+          "endLine": 124,
+          "tokens": 177
+        },
+        {
+          "name": "_aggregate_open_channel",
+          "kind": "fn",
+          "startLine": 125,
+          "endLine": 152,
+          "tokens": 260
+        },
+        {
+          "name": "aggregate_consumption",
+          "kind": "fn",
+          "startLine": 153,
+          "endLine": 180,
+          "tokens": 226
+        }
+      ]
+    },
+    "pcs-backend/app/schemas/util.py": {
+      "description": "S1-5b UTIL API schemas。",
+      "tokens": 899,
+      "hash": "71f5669f54a8e3ed",
+      "size": 3569,
+      "mtimeMs": 1790825528880.1543,
+      "updatedAt": "2026-10-01T03:32:08.935Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "UtilResultsCreateRequest",
+          "kind": "class",
+          "startLine": 22,
+          "endLine": 34,
+          "tokens": 150
+        },
+        {
+          "name": "UtilResultsResponse",
+          "kind": "class",
+          "startLine": 35,
+          "endLine": 48,
+          "tokens": 99
+        },
+        {
+          "name": "UtilSummaryResponse",
+          "kind": "class",
+          "startLine": 49,
+          "endLine": 60,
+          "tokens": 132
+        },
+        {
+          "name": "UtilEnergyConsumptionResponse",
+          "kind": "class",
+          "startLine": 61,
+          "endLine": 72,
+          "tokens": 93
+        },
+        {
+          "name": "UtilWaterBalanceResponse",
+          "kind": "class",
+          "startLine": 73,
+          "endLine": 83,
+          "tokens": 93
+        },
+        {
+          "name": "UtilAggregationRequest",
+          "kind": "class",
+          "startLine": 84,
+          "endLine": 97,
+          "tokens": 161
+        }
+      ]
+    },
+    "pcs-backend/app/services/util/persist_service.py": {
+      "description": "S1-5b UTIL persist service。",
+      "tokens": 1030,
+      "hash": "89422203f24a6607",
+      "size": 3922,
+      "mtimeMs": 1790825541830.4028,
+      "updatedAt": "2026-10-01T03:32:21.886Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "save_util_results",
+          "kind": "fn",
+          "startLine": 27,
+          "endLine": 61,
+          "tokens": 235
+        },
+        {
+          "name": "aggregate_and_save",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 93,
+          "tokens": 253
+        },
+        {
+          "name": "list_util_results",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 116,
+          "tokens": 263
+        },
+        {
+          "name": "get_util_result",
+          "kind": "fn",
+          "startLine": 117,
+          "endLine": 126,
+          "tokens": 82
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/util.py": {
+      "description": "S1-5b UTIL API endpoints。",
+      "tokens": 2590,
+      "hash": "2bf21d72064b3f93",
+      "size": 9348,
+      "mtimeMs": 1790825636438.0085,
+      "updatedAt": "2026-10-01T03:33:56.492Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_to_response",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 59,
+          "tokens": 188
+        },
+        {
+          "name": "list_util_results",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 80,
+          "tokens": 216
+        },
+        {
+          "name": "get_util_result",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 100,
+          "tokens": 186
+        },
+        {
+          "name": "create_util_results",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 123,
+          "tokens": 211
+        },
+        {
+          "name": "aggregate_util_results",
+          "kind": "fn",
+          "startLine": 124,
+          "endLine": 142,
+          "tokens": 199
+        },
+        {
+          "name": "get_util_summary",
+          "kind": "fn",
+          "startLine": 143,
+          "endLine": 179,
+          "tokens": 422
+        },
+        {
+          "name": "get_util_energy_consumption",
+          "kind": "fn",
+          "startLine": 180,
+          "endLine": 216,
+          "tokens": 439
+        },
+        {
+          "name": "get_util_water_balance",
+          "kind": "fn",
+          "startLine": 217,
+          "endLine": 246,
+          "tokens": 349
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_util.py": {
+      "description": "S1-5b UTIL API 测试（in-memory SQLite + httpx async client）。",
+      "tokens": 1959,
+      "hash": "2414f591ec9d8f88",
+      "size": 7072,
+      "mtimeMs": 1790825593404.3225,
+      "updatedAt": "2026-10-01T03:33:13.454Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "pws_setup",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 103,
+          "tokens": 495
+        },
+        {
+          "name": "test_api_create_util_results_201",
+          "kind": "fn",
+          "startLine": 104,
+          "endLine": 120,
+          "tokens": 171
+        },
+        {
+          "name": "test_api_aggregate_util_results_201",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 145,
+          "tokens": 248
+        },
+        {
+          "name": "test_api_get_util_summary_200",
+          "kind": "fn",
+          "startLine": 146,
+          "endLine": 163,
+          "tokens": 172
+        },
+        {
+          "name": "test_api_get_util_energy_consumption_200",
+          "kind": "fn",
+          "startLine": 164,
+          "endLine": 181,
+          "tokens": 173
+        },
+        {
+          "name": "test_api_get_util_water_balance_200",
+          "kind": "fn",
+          "startLine": 182,
+          "endLine": 199,
+          "tokens": 168
+        },
+        {
+          "name": "test_api_get_util_summary_process_controller_allowed",
+          "kind": "fn",
+          "startLine": 200,
+          "endLine": 211,
+          "tokens": 109
+        },
+        {
+          "name": "test_api_list_util_results_unauthenticated_401",
+          "kind": "fn",
+          "startLine": 212,
+          "endLine": 216,
+          "tokens": 57
+        }
+      ]
+    },
+    "pcs-backend/app/services/util/summary_service.py": {
+      "description": "S1-5 R3: util_results → 13 类聚合 + 折标煤计算。",
+      "tokens": 970,
+      "hash": "05c3d6a0c9d42b46",
+      "size": 3875,
+      "mtimeMs": 1790827791461.7695,
+      "updatedAt": "2026-10-01T04:09:51.511Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "summarize",
+          "kind": "fn",
+          "startLine": 27,
+          "endLine": 101,
+          "tokens": 763
+        }
+      ]
+    },
+    "pcs-backend/tests/models/test_equip_list_source_service.py": {
+      "description": "P7 Task S1-2：equipment_list 补 SourceService（SPEC V1.4 §3.2.1（2）来源组 V1.4 新增）。",
+      "tokens": 2854,
+      "hash": "b346f31349d47176",
+      "size": 11518,
+      "mtimeMs": 1790826092508.0437,
+      "updatedAt": "2026-10-01T03:41:32.555Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_orm_columns",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 60,
+          "tokens": 46
+        },
+        {
+          "name": "_load_migration",
+          "kind": "fn",
+          "startLine": 61,
+          "endLine": 73,
+          "tokens": 130
+        },
+        {
+          "name": "test_equipment_list_has_source_service_column",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 81,
+          "tokens": 88
+        },
+        {
+          "name": "test_source_service_is_nullable_string64",
+          "kind": "fn",
+          "startLine": 82,
+          "endLine": 89,
+          "tokens": 114
+        },
+        {
+          "name": "test_equipment_list_source_traceability_trio_present",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 101,
+          "tokens": 146
+        },
+        {
+          "name": "test_equipment_list_spec_v14_field_groups_preserved",
+          "kind": "fn",
+          "startLine": 102,
+          "endLine": 135,
+          "tokens": 489
+        },
+        {
+          "name": "test_equipment_list_carries_s1_1_audit_trio",
+          "kind": "fn",
+          "startLine": 136,
+          "endLine": 148,
+          "tokens": 147
+        },
+        {
+          "name": "test_equipment_list_table_registered_once",
+          "kind": "fn",
+          "startLine": 149,
+          "endLine": 178,
+          "tokens": 333
+        },
+        {
+          "name": "_sqlite_engine_with_stub_equipment_list",
+          "kind": "fn",
+          "startLine": 179,
+          "endLine": 198,
+          "tokens": 164
+        },
+        {
+          "name": "_column_names",
+          "kind": "fn",
+          "startLine": 199,
+          "endLine": 203,
+          "tokens": 45
+        },
+        {
+          "name": "test_p7_s1_001_migration_adds_then_drops_source_service",
+          "kind": "fn",
+          "startLine": 204,
+          "endLine": 233,
+          "tokens": 313
+        },
+        {
+          "name": "test_p7_s1_001_chains_on_previous_head",
+          "kind": "fn",
+          "startLine": 234,
+          "endLine": 255,
+          "tokens": 265
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p7_s1_002_audit_logs_jsonb_gin.py": {
+      "description": "audit_logs.detail_json 加 JSONB GIN 索引（P7-Sprint 1 T0 / D8 裁决 9A）。",
+      "tokens": 387,
+      "hash": "456e36d1dee7fa34",
+      "size": 1714,
+      "mtimeMs": 1790826238949.508,
+      "updatedAt": "2026-10-01T03:43:58.998Z",
+      "source": "hook"
+    },
+    "pcs-backend/alembic/versions/p6_9_pickup_4_drift_fixes.py": {
+      "description": "P6-9-PICKUP-4 T1: pcs_test DB schema drift 修复.",
+      "tokens": 1411,
+      "hash": "a0ce0155c144b670",
+      "size": 5758,
+      "mtimeMs": 1790828657641.7102,
+      "updatedAt": "2026-10-01T04:24:17.691Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 117,
+          "tokens": 803
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 118,
+          "endLine": 140,
+          "tokens": 280
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p7_open_009_t0_config_energy_conversion_factors.py": {
+      "description": "P7 Sprint 2 T0: config_energy_conversion_factors CONFIG 表 (折标煤系数).",
+      "tokens": 856,
+      "hash": "fd12167acef88232",
+      "size": 3569,
+      "mtimeMs": 1790829278126.8992,
+      "updatedAt": "2026-10-01T04:34:38.175Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 90,
+          "tokens": 544
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 91,
+          "endLine": 94,
+          "tokens": 42
+        }
+      ]
+    },
+    "pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py": {
+      "description": "P7 Sprint 2 T0: config_energy_conversion_factors CONFIG 数据录入（折标煤系数）。",
+      "tokens": 1641,
+      "hash": "b99207e34df8a987",
+      "size": 6859,
+      "mtimeMs": 1790829053464.5671,
+      "updatedAt": "2026-10-01T04:30:53.515Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_print_rows",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 105,
+          "tokens": 207
+        },
+        {
+          "name": "_replace_seed_rows",
+          "kind": "fn",
+          "startLine": 106,
+          "endLine": 139,
+          "tokens": 342
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 140,
+          "endLine": 172,
+          "tokens": 217
+        }
+      ]
+    },
+    "pcs-backend/app/models/config.py": {
+      "description": "成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。",
+      "tokens": 10605,
+      "hash": "99965164dbdd0370",
+      "size": 45175,
+      "mtimeMs": 1790829279872.8938,
+      "updatedAt": "2026-10-01T04:34:39.926Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "CepciIndexSeries",
+          "kind": "class",
+          "startLine": 34,
+          "endLine": 90,
+          "tokens": 596
+        },
+        {
+          "name": "CompoundHeatingValues",
+          "kind": "class",
+          "startLine": 91,
+          "endLine": 159,
+          "tokens": 694
+        },
+        {
+          "name": "CoolingTowerCurves",
+          "kind": "class",
+          "startLine": 160,
+          "endLine": 245,
+          "tokens": 848
+        },
+        {
+          "name": "FiltrationMediaLibrary",
+          "kind": "class",
+          "startLine": 246,
+          "endLine": 336,
+          "tokens": 872
+        },
+        {
+          "name": "FlareRadiationLimits",
+          "kind": "class",
+          "startLine": 337,
+          "endLine": 411,
+          "tokens": 714
+        },
+        {
+          "name": "CostCorrelationLibrary",
+          "kind": "class",
+          "startLine": 412,
+          "endLine": 521,
+          "tokens": 1071
+        },
+        {
+          "name": "CompoundPasquillSigma",
+          "kind": "class",
+          "startLine": 522,
+          "endLine": 586,
+          "tokens": 647
+        },
+        {
+          "name": "CompoundApi521Thresholds",
+          "kind": "class",
+          "startLine": 587,
+          "endLine": 639,
+          "tokens": 521
+        },
+        {
+          "name": "CompoundIso9613AtmosphericAbsorption",
+          "kind": "class",
+          "startLine": 640,
+          "endLine": 703,
+          "tokens": 602
+        },
+        {
+          "name": "PipeEModulus",
+          "kind": "class",
+          "startLine": 704,
+          "endLine": 765,
+          "tokens": 622
+        },
+        {
+          "name": "CompoundHammerschmidtK",
+          "kind": "class",
+          "startLine": 766,
+          "endLine": 817,
+          "tokens": 526
+        },
+        {
+          "name": "CompoundDeltaHVapNaturalGas",
+          "kind": "class",
+          "startLine": 818,
+          "endLine": 879,
+          "tokens": 658
+        },
+        {
+          "name": "DrainOrificeCdYCr",
+          "kind": "class",
+          "startLine": 880,
+          "endLine": 950,
+          "tokens": 716
+        },
+        {
+          "name": "GlycolDehydrationFullSystem",
+          "kind": "class",
+          "startLine": 951,
+          "endLine": 1019,
+          "tokens": 689
+        },
+        {
+          "name": "ConfigEnergyConversionFactor",
+          "kind": "class",
+          "startLine": 1020,
+          "endLine": 1083,
+          "tokens": 659
         }
       ]
     }

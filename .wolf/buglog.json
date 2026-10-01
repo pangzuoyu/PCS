@@ -34,6 +34,22 @@
       "last_seen": "2026-08-31T12:52:34.861Z"
     },
     {
+      "id": "bug-002",
+      "timestamp": "2026-09-16T16:45:00Z",
+      "error_message": "alembic.ProgrammingError: column tag_number of relation column_sizing already exists",
+      "file": "pcs-backend/alembic/versions/p5_0_4a_pk_rename_and_tag_number.py",
+      "root_cause": "Q2 路径 A 实施误判：DICT V3.3 字典约定要求 column_sizing 位号统一为 tag_number，但 P5-0-1a migration 同时创建了 column_tag（业务 NOT NULL+UNIQUE）+ tag_number（RecordMixin mixin nullable）。我假设是 RENAME COLUMN，但实际 tag_number 已存在。正确路径：drop UNIQUE → drop column column_tag → alter tag_number NOT NULL → create UNIQUE(project_id, tag_number)。",
+      "fix": "改 alembic migration DDL：op.drop_constraint(uq_column_sizing_tag) + op.drop_column(column_tag) + op.alter_column(tag_number, nullable=False) + op.create_unique_constraint(project_id, tag_number)。同步修改 test_p5_0_4a_pk_rename.py 的 alembic 迁移契约断言。",
+      "tags": [
+        "ddl-design",
+        "p5-0-4a",
+        "alembic",
+        "column_sizing"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-16T16:45:00Z"
+    },
+    {
       "id": "bug-003",
       "timestamp": "2026-08-31T13:30:00.000Z",
       "error_message": "psycopg.errors.DuplicateTable: relation \"uq_flash_results_project_id\" already exists; then equipment_list FK InvalidForeignKey",
@@ -501,6 +517,19 @@
       "last_seen": "2026-09-01T08:18:10.245Z"
     },
     {
+      "id": "bug-031",
+      "timestamp": "2026-09-01T13:01:09Z",
+      "error_message": "alembic upgrade head failed with NameError: name Enum is not defined",
+      "root_cause": "added native enum columns in equipment.py without importing Enum from sqlalchemy",
+      "fix": "added Enum to sqlalchemy import list in app/models/equipment.py",
+      "tags": [
+        "alembic",
+        "enum",
+        "sprint3",
+        "import"
+      ]
+    },
+    {
       "id": "bug-032",
       "timestamp": "2026-09-01T08:24:38.515Z",
       "error_message": "Wrong reference: refresh should be flush",
@@ -611,19 +640,6 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-09-01T12:17:25.256Z"
-    },
-    {
-      "id": "bug-031",
-      "timestamp": "2026-09-01T13:01:09Z",
-      "error_message": "alembic upgrade head failed with NameError: name Enum is not defined",
-      "root_cause": "added native enum columns in equipment.py without importing Enum from sqlalchemy",
-      "fix": "added Enum to sqlalchemy import list in app/models/equipment.py",
-      "tags": [
-        "alembic",
-        "enum",
-        "sprint3",
-        "import"
-      ]
     },
     {
       "id": "bug-040",
@@ -1124,99 +1140,6 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-09-13"
-    },
-    {
-      "id": "QA-2026-09-16-001",
-      "timestamp": "2026-09-16T03:32:00Z",
-      "error_message": "POST /api/v1/auth/mock-login → 404 Not Found; dev login flow fully broken",
-      "file": "pcs-frontend/src/mocks/handlers.ts",
-      "root_cause": "P4.5 批 1 引入 MSW handlers 时只覆盖了 OpenAPI 5 个 meta 端点；mock-login 不在 OpenAPI 中且未单独注册；OpenAPI drift 校验仅检查 handlers 数组。",
-      "fix": "拆分为 handlers (OpenAPI-validated, 5 端点) + devOnlyMockHandlers (dev-only, mock-login)；browser.ts 同时挂载。Commit d924b10。",
-      "tags": [
-        "msw",
-        "handlers",
-        "login",
-        "openapi-drift",
-        "qa-critical"
-      ],
-      "occurrences": 1,
-      "first_seen": "2026-09-16T03:32:00Z",
-      "last_seen": "2026-09-16T03:32:00Z",
-      "related_bugs": [],
-      "introduced_at_batch": "P4.5 批 1",
-      "caught_at_batch": "P4.5 批 3 末"
-    },
-    {
-      "id": "QA-2026-09-16-002",
-      "timestamp": "2026-09-16T03:32:00Z",
-      "error_message": "登录后 / 仅渲染空白 Dashboard；21 个 P4.5 批 2/3 页面无路由",
-      "file": "pcs-frontend/src/App.tsx + layouts/MainLayout.tsx + new pages/routeWrappers.tsx",
-      "root_cause": "批 2 落地 16 个 Page 组件但 App.tsx 只挂 /login + / 两条原始路由；批 3 落地 5 个 Page 同样未挂。MainLayout 菜单仅有 1 项。",
-      "fix": "新建 routeWrappers.tsx (21 包装器 + 空 fixtures)；App.tsx 按 6 领域分组挂 21 路由；MainLayout 改 group 菜单 + findSelectedKeys + defaultOpenKeys。Commit 18da2ca。",
-      "tags": [
-        "routing",
-        "frontend",
-        "page-mount",
-        "qa-critical"
-      ],
-      "occurrences": 1,
-      "first_seen": "2026-09-16T03:32:00Z",
-      "last_seen": "2026-09-16T03:32:00Z",
-      "related_bugs": [],
-      "introduced_at_batch": "P4.5 批 2",
-      "caught_at_batch": "P4.5 批 3 末"
-    },
-    {
-      "id": "QA-2026-09-16-003",
-      "timestamp": "2026-09-16T03:32:00Z",
-      "error_message": "[antd: message] Static function can not consume context like dynamic theme",
-      "file": "pcs-frontend/src/pages/LoginPage.tsx + main.tsx",
-      "root_cause": "LoginPage.tsx:2 静态 import 'message' from 'antd'；main.tsx 缺 <AntdApp> 包裹，ConfigProvider 动态主题无法传给静态 message。",
-      "fix": "LoginPage 改 App.useApp() 拿 message；main.tsx 在 ConfigProvider 内层包 <AntdApp>。Commit a827d03。",
-      "tags": [
-        "antd",
-        "message",
-        "app-context",
-        "qa-critical"
-      ],
-      "occurrences": 1,
-      "first_seen": "2026-09-16T03:32:00Z",
-      "last_seen": "2026-09-16T03:32:00Z",
-      "related_bugs": [],
-      "introduced_at_batch": "P4.5 批 1（继承自 P0 LoginPage）",
-      "caught_at_batch": "P4.5 批 3 末"
-    },
-    {
-      "id": "QA-2026-09-16-004",
-      "timestamp": "2026-09-16T04:19:08.111835Z",
-      "error_message": "TypeError: Cannot read properties of undefined (reading toLowerCase) at StateBadge.toKebab",
-      "file": "pcs-frontend/src/components/common/StateBadge.tsx",
-      "root_cause": "seedChecklist 用 COMPLETED/PENDING/BLOCKED，但 InputChecklistPanel.STATUS_TO_BADGE 只映射 5 态 (NOT_STARTED/IN_PROGRESS/VERIFIED/ASSUMED/NOT_APPLICABLE)，导致 STATUS_TO_BADGE[record.status] 返回 undefined。StateBadge 未对 undefined 做防御。",
-      "fix": "seedChecklist 改用 ChecklistStatus 5 态；StateBadge toKebab 加 null/undefined 防御，STATUS_META 未命中时回退 DRAFT",
-      "tags": [
-        "frontend",
-        "msw",
-        "seed",
-        "defensive-coding"
-      ],
-      "occurrences": 1,
-      "last_seen": "2026-09-16T04:19:08.111849Z"
-    },
-    {
-      "id": "bug-002",
-      "timestamp": "2026-09-16T16:45:00Z",
-      "error_message": "alembic.ProgrammingError: column tag_number of relation column_sizing already exists",
-      "file": "pcs-backend/alembic/versions/p5_0_4a_pk_rename_and_tag_number.py",
-      "root_cause": "Q2 路径 A 实施误判：DICT V3.3 字典约定要求 column_sizing 位号统一为 tag_number，但 P5-0-1a migration 同时创建了 column_tag（业务 NOT NULL+UNIQUE）+ tag_number（RecordMixin mixin nullable）。我假设是 RENAME COLUMN，但实际 tag_number 已存在。正确路径：drop UNIQUE → drop column column_tag → alter tag_number NOT NULL → create UNIQUE(project_id, tag_number)。",
-      "fix": "改 alembic migration DDL：op.drop_constraint(uq_column_sizing_tag) + op.drop_column(column_tag) + op.alter_column(tag_number, nullable=False) + op.create_unique_constraint(project_id, tag_number)。同步修改 test_p5_0_4a_pk_rename.py 的 alembic 迁移契约断言。",
-      "tags": [
-        "ddl-design",
-        "p5-0-4a",
-        "alembic",
-        "column_sizing"
-      ],
-      "occurrences": 1,
-      "last_seen": "2026-09-16T16:45:00Z"
     },
     {
       "id": "bug-077",
@@ -2000,7 +1923,9 @@
         "V1.6-§3.2b",
         "PCS"
       ],
-      "related_bugs": ["bug-115"],
+      "related_bugs": [
+        "bug-115"
+      ],
       "occurrences": 1,
       "last_seen": "2026-10-01"
     },
@@ -2022,7 +1947,131 @@
         "方案B-ADR附录",
         "PCS"
       ],
-      "related_bugs": ["bug-114"],
+      "related_bugs": [
+        "bug-114"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-01"
+    },
+    {
+      "id": "QA-2026-09-16-001",
+      "timestamp": "2026-09-16T03:32:00Z",
+      "error_message": "POST /api/v1/auth/mock-login → 404 Not Found; dev login flow fully broken",
+      "file": "pcs-frontend/src/mocks/handlers.ts",
+      "root_cause": "P4.5 批 1 引入 MSW handlers 时只覆盖了 OpenAPI 5 个 meta 端点；mock-login 不在 OpenAPI 中且未单独注册；OpenAPI drift 校验仅检查 handlers 数组。",
+      "fix": "拆分为 handlers (OpenAPI-validated, 5 端点) + devOnlyMockHandlers (dev-only, mock-login)；browser.ts 同时挂载。Commit d924b10。",
+      "tags": [
+        "msw",
+        "handlers",
+        "login",
+        "openapi-drift",
+        "qa-critical"
+      ],
+      "occurrences": 1,
+      "first_seen": "2026-09-16T03:32:00Z",
+      "last_seen": "2026-09-16T03:32:00Z",
+      "related_bugs": [],
+      "introduced_at_batch": "P4.5 批 1",
+      "caught_at_batch": "P4.5 批 3 末"
+    },
+    {
+      "id": "QA-2026-09-16-002",
+      "timestamp": "2026-09-16T03:32:00Z",
+      "error_message": "登录后 / 仅渲染空白 Dashboard；21 个 P4.5 批 2/3 页面无路由",
+      "file": "pcs-frontend/src/App.tsx + layouts/MainLayout.tsx + new pages/routeWrappers.tsx",
+      "root_cause": "批 2 落地 16 个 Page 组件但 App.tsx 只挂 /login + / 两条原始路由；批 3 落地 5 个 Page 同样未挂。MainLayout 菜单仅有 1 项。",
+      "fix": "新建 routeWrappers.tsx (21 包装器 + 空 fixtures)；App.tsx 按 6 领域分组挂 21 路由；MainLayout 改 group 菜单 + findSelectedKeys + defaultOpenKeys。Commit 18da2ca。",
+      "tags": [
+        "routing",
+        "frontend",
+        "page-mount",
+        "qa-critical"
+      ],
+      "occurrences": 1,
+      "first_seen": "2026-09-16T03:32:00Z",
+      "last_seen": "2026-09-16T03:32:00Z",
+      "related_bugs": [],
+      "introduced_at_batch": "P4.5 批 2",
+      "caught_at_batch": "P4.5 批 3 末"
+    },
+    {
+      "id": "QA-2026-09-16-003",
+      "timestamp": "2026-09-16T03:32:00Z",
+      "error_message": "[antd: message] Static function can not consume context like dynamic theme",
+      "file": "pcs-frontend/src/pages/LoginPage.tsx + main.tsx",
+      "root_cause": "LoginPage.tsx:2 静态 import 'message' from 'antd'；main.tsx 缺 <AntdApp> 包裹，ConfigProvider 动态主题无法传给静态 message。",
+      "fix": "LoginPage 改 App.useApp() 拿 message；main.tsx 在 ConfigProvider 内层包 <AntdApp>。Commit a827d03。",
+      "tags": [
+        "antd",
+        "message",
+        "app-context",
+        "qa-critical"
+      ],
+      "occurrences": 1,
+      "first_seen": "2026-09-16T03:32:00Z",
+      "last_seen": "2026-09-16T03:32:00Z",
+      "related_bugs": [],
+      "introduced_at_batch": "P4.5 批 1（继承自 P0 LoginPage）",
+      "caught_at_batch": "P4.5 批 3 末"
+    },
+    {
+      "id": "QA-2026-09-16-004",
+      "timestamp": "2026-09-16T04:19:08.111835Z",
+      "error_message": "TypeError: Cannot read properties of undefined (reading toLowerCase) at StateBadge.toKebab",
+      "file": "pcs-frontend/src/components/common/StateBadge.tsx",
+      "root_cause": "seedChecklist 用 COMPLETED/PENDING/BLOCKED，但 InputChecklistPanel.STATUS_TO_BADGE 只映射 5 态 (NOT_STARTED/IN_PROGRESS/VERIFIED/ASSUMED/NOT_APPLICABLE)，导致 STATUS_TO_BADGE[record.status] 返回 undefined。StateBadge 未对 undefined 做防御。",
+      "fix": "seedChecklist 改用 ChecklistStatus 5 态；StateBadge toKebab 加 null/undefined 防御，STATUS_META 未命中时回退 DRAFT",
+      "tags": [
+        "frontend",
+        "msw",
+        "seed",
+        "defensive-coding"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-09-16T04:19:08.111849Z"
+    },
+    {
+      "id": "bug-116",
+      "timestamp": "2026-10-01T07:15:00+08:00",
+      "error_message": "source.sign_status in SQLite test fixture was passed as str ('CHECKED'); sync_service did source.sign_status.value which raised AttributeError: 'str' object has no attribute 'value'",
+      "file": "pcs-backend/app/services/equip_list/sync_service.py:62 (sync_from_source sign_status check) + pcs-backend/tests/services/equip_list/test_sync_service.py:91 (pws_setup fixture sign_status=RecordSignStatus9.CHECKED)",
+      "root_cause": "SQLite native_enum auto-downgrades to VARCHAR; test fixture constructed PumpResult with str directly so SQLAlchemy did not convert to enum, source.sign_status attribute read back as str rather than RecordSignStatus9 enum. Production code uses enum, but test fixture consistency principle requires sync_service accept str (defensive coding).",
+      "fix": "sync_service lines 62-66 accept enum + str: ss_value = _ss.value if hasattr(_ss, \"value\") else _ss; test fixture changed to RecordSignStatus9.CHECKED enum for consistency; test assertion uses _sign_status_value() helper accepting dual format. Lesson: cross-DB enum attribute service must accept enum + str dual format.",
+      "fix_commit": "29ee1e1",
+      "tags": [
+        "R=1-lesson",
+        "source-verify",
+        "sign_status",
+        "enum-str-dual-format",
+        "SQLite-native_enum",
+        "S1-4",
+        "PCS"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-01"
+    },
+    {
+      "id": "bug-117",
+      "timestamp": "2026-10-01T07:42:00+08:00",
+      "error_message": "EquipmentList 复合 FK (equipment_type_project_id, type_code) → equipment_type_codes(project_id, type_code) 生产 PG 首次 sync_from_source 触发 FK violation — T1.5 seed 仅 31 公司级 (project_id NULL) codes，无项目级 override 时 sync_service 直接写 source.project_id 失败",
+      "file": "pcs-backend/app/services/equip_list/sync_service.py (sync_from_source INSERT + UPDATE path) + pcs-backend/app/models/equipment.py:63-67 (composite FK constraint)",
+      "root_cause": "T1-2 brief 在 T2 implementer 提交时 EquipmentList ORM 已存在 (equipment.py:58, 96 列 + composite FK)，T1.5 (S1-3) seed 仅落 31 公司级 (project_id NULL) codes (per Q3 ruling — seed 既有表非 CONFIG CATEGORY_5)。T2 (S1-4) sync_service 实现时未考虑：当 source.project_id 无对应项目级 type_code override 时，EquipmentList.equipment_type_project_id=source.project_id 触发 FK 违反 — 因 (source.project_id, type_code) 不在 equipment_type_codes 中。SQLite 测试通过仅因 conftest FK pragma OFF；生产 PG 必触发 violation。Final whole-branch review (opus) I1 finding re-graded from Important to Critical due to first sync call production break。",
+      "fix": "新增 _resolve_type_code_fk(project_id, type_code, db) — priority: 项目级 (source.project_id, type_code) override 优先；fallback 公司级 (NULL, type_code) T1.5 seed (production-safe)。sync_from_service INSERT + UPDATE path 均调用 resolver。EquipmentList.equipment_type_project_id 设 None（公司级 fallback）或 source.project_id（项目级 override）。新增 test_sync_from_source_uses_company_level_type_code_when_no_project_override 验证。",
+      "fix_commit": "7b07008",
+      "tags": [
+        "final-review",
+        "I1-critical",
+        "composite-FK",
+        "EquipmentList",
+        "sync_service",
+        "production-blocker",
+        "P7-Sprint-1",
+        "PCS"
+      ],
+      "related_bugs": [
+        "bug-116"
+      ],
       "occurrences": 1,
       "last_seen": "2026-10-01"
     }

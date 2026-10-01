@@ -264,3 +264,64 @@
 | 21:26 | Edited pcs-backend/tests/services/restriction/test_worley_c19.py | 2→2 lines | ~53 |
 | 21:26 | Edited pcs-backend/tests/services/restriction/fixtures/worley_c19_drain_orifice.json | 2→2 lines | ~135 |
 | 00:01 | Edited pcs-backend/tests/services/restriction/fixtures/worley_c19_drain_orifice.json | 2→2 lines | ~143 |
+| 08:20 | Edited pcs-backend/app/services/equip_list/sync_service.py | added 1 condition(s) | ~1655 |
+| 08:21 | Edited pcs-backend/tests/services/equip_list/test_sync_service.py | added 1 import(s) | ~64 |
+| 08:21 | Edited pcs-backend/tests/services/equip_list/test_sync_service.py | modified test_sync_from_source_uses_company_level_type_code_when_no_project_override() | ~691 |
+| 08:21 | Edited pcs-backend/tests/test_state_machine.py | modified test_stale_resolved_changed_audit_path() | ~710 |
+| 07:42 | I1+I2 review fix commit 7b07008: 3 files +195/-4, _resolve_type_code_fk 公司级 fallback + RESOLVE_STALE_CHANGED path test | commit | 0 regression |
+| 07:43 | bug-117 logged (composite FK production blocker, fix_commit=7b07008) | buglog | bug-116 sign_status 保留 |
+| 07:44 | Sprint 1 final review 收口: 0 Critical + 3 Important (I1/I2 fix, I3 auto) + 8 Minor (deferred) | review | ledgered M1-M8 |
+| 08:42 | Edited pcs-backend/tests/services/test_equipment_type_code_service.py | 10→12 lines | ~171 |
+| 08:42 | Edited pcs-backend/app/services/advisory_lock.py | modified acquire_record_lock() | ~506 |
+| 07:55 | M5+M7 review follow-up commit fdb4cdc: 2 files +16/-3, strict count==31 + logger.warning for SQLite | commit | 7 passed + 1 skip |
+| 08:43 | Created pcs-backend/app/schemas/equip_list.py | — | ~1236 |
+| 08:44 | Created pcs-backend/app/services/equip_list/persist_service.py | — | ~1344 |
+| 08:44 | Created pcs-backend/app/api/v1/equip_list.py | — | ~1969 |
+| 08:44 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~59 |
+| 08:44 | Edited pcs-backend/app/api/v1/__init__.py | 1→2 lines | ~32 |
+| 08:45 | Created pcs-backend/tests/api/v1/test_equip_list.py | — | ~2178 |
+| 08:46 | Edited pcs-backend/app/schemas/equip_list.py | 7→6 lines | ~48 |
+| 08:46 | Edited pcs-backend/app/api/v1/equip_list.py | 6→5 lines | ~69 |
+| 08:05 | S1-4b EQUIP_LIST API commit 500d212: 5 files +714, 6 schemas + persist + 4 endpoints + 6 api tests | commit | 0 regression |
+| 11:30 | Created pcs-backend/app/services/util/source_aggregator.py | — | ~1708 |
+| 11:31 | Created pcs-backend/app/services/util/source_aggregator.py | — | ~1848 |
+| 11:32 | Created pcs-backend/app/schemas/util.py | — | ~899 |
+| 11:32 | Created pcs-backend/app/services/util/persist_service.py | — | ~1030 |
+| 11:32 | Created pcs-backend/app/api/v1/util.py | — | ~2584 |
+| 11:32 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~79 |
+| 11:32 | Edited pcs-backend/app/api/v1/__init__.py | 1→2 lines | ~35 |
+| 11:33 | Created pcs-backend/tests/api/v1/test_util.py | — | ~1959 |
+| 11:33 | Edited pcs-backend/app/api/v1/util.py | 8→8 lines | ~78 |
+| 08:25 | S1-5b UTIL API + source_aggregator commit 2a7277e: 6 files +862, 6 schemas + 4 module aggregators + 6 endpoints + 7 api tests | commit | 0 regression |
+| 08:30 | Session handoff: Sprint 1 + 全部 follow-up 完成 (11 commits main, 3542 passed + 0 new failed, 19+3 rulings, 8 minors 6 deferred) | handoff | Sprint 2 待启动 |
+| 11:40 | Edited pcs-backend/app/services/equip_list/sync_service.py | added 1 import(s) | ~87 |
+| 11:40 | Edited pcs-backend/app/services/equip_list/sync_service.py | 5→3 lines | ~44 |
+| 11:40 | Edited pcs-backend/app/api/v1/equip_list.py | added 1 import(s) | ~50 |
+| 11:41 | Edited pcs-backend/app/api/v1/equip_list.py | hasattr() → to_value() | ~68 |
+| 11:41 | Edited pcs-backend/tests/services/equip_list/test_sync_service.py | 20→20 lines | ~263 |
+| 11:41 | Edited pcs-backend/app/services/util/summary_service.py | 8→10 lines | ~121 |
+| 11:41 | Edited pcs-backend/tests/models/test_equip_list_source_service.py | modified is_file() | ~177 |
+| 11:43 | Edited pcs-backend/app/services/state_machine.py | modified in() | ~345 |
+| 11:43 | Edited pcs-backend/tests/test_state_machine.py | modified test_stale_resolved_changed_fields_list_format() | ~662 |
+| 11:43 | Edited pcs-backend/alembic/versions/p7_s1_002_audit_logs_jsonb_gin.py | 4→7 lines | ~100 |
+| 08:35 | M1+M4+M8 polish commit 8339c0d: 6 files +49/-12, to_value() + pathlib walk-up + wording | commit | 49 passed + 1 skip |
+| 08:40 | M2+M3 polish commit 66021ee: 3 files +79/-1, changed_fields list compat + migration numbering comment | commit | 50 passed + 1 skip |
+| 12:09 | Edited pcs-backend/app/services/toe_conversion_service.py | modified query_by_fuel_year() | ~769 |
+| 12:09 | Edited pcs-backend/app/services/util/summary_service.py | modified items() | ~287 |
+| 08:45 | M6 perf polish commit 76d38a8: 2 files +60/-3, batch ToeConversionFactor query (6 → 1 IN-clause, -83% round-trips) | commit | 12 passed |
+| 12:13 | Session end: 66 writes across 24 files (progress.md, __init__.py, test_sync_service.py, advisory_lock.py, type_code_map.py) | 24 reads | ~59038 tok |
+
+## Session: 2026-10-01 12:13
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 12:24 | Edited pcs-backend/alembic/versions/p6_9_pickup_4_drift_fixes.py | 12→13 lines | ~164 |
+| 12:28 | Created pcs-backend/alembic/versions/p7_open_009_t0_config_energy_conversion_factors.py | — | ~842 |
+| 12:29 | Created pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py | — | ~1642 |
+| 12:30 | Edited pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py | inline fix | ~14 |
+| 12:33 | Edited pcs-backend/alembic/versions/p7_open_009_t0_config_energy_conversion_factors.py | 3→3 lines | ~22 |
+| 12:33 | Edited pcs-backend/alembic/versions/p7_open_009_t0_config_energy_conversion_factors.py | "折标油系数（kg 标油 / 单位消耗量；电=kWh" → "折标油系数（kg 标油/单位消耗量；电 kWh/燃" | ~23 |
+| 12:33 | Edited pcs-backend/app/models/config.py | "折标油系数（kg 标油 / 单位消耗量；电=kWh" → "折标油系数（kg 标油/单位消耗量；电 kWh/燃" | ~22 |
+| 12:34 | Edited pcs-backend/alembic/versions/p7_open_009_t0_config_energy_conversion_factors.py | 4→7 lines | ~61 |
+| 12:34 | Edited pcs-backend/app/models/config.py | 4→7 lines | ~57 |
+| 12:39 | Edited .gitignore | 2→3 lines | ~6 |

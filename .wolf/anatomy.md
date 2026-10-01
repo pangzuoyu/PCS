@@ -1,11 +1,11 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-09-27T16:01:02.240Z
-> Files: 781 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-01T04:39:07.683Z
+> Files: 800 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
-- `.gitignore` — Git ignore rules (~34 tok)
+- `.gitignore` — Git ignore rules (~46 tok)
 - `CLAUDE.md` — OpenWolf (~175 tok)
 - `CONTEXT.md` — PCS（工艺专用综合计算软件） (~1524 tok)
 - `docker-compose.yml` — Docker Compose services (~309 tok)
@@ -273,6 +273,9 @@
 - `p5_open_005_model_extension.py` — P5-0-1: 设备结果表扩展 + 双阶段设计下沉（SUP-008 §8.3.2/§8.3.3/§8.3.5 + §8.4 OPEN-009）。 (~3360 tok)
 - `p5_open_010_psv_valve_selection.py` — P5-OPEN-10 SUP-P5-PSV-002 V1.14 §3.1 PSV 选型 18 列 + 3 CHECK。 (~1963 tok)
 - `p6_5_006_orm_db_drift_final_fix.py` — P6-5 终扫：ORM↔DB 全库 drift 清零（p6_5_005 补扫，3 表）。 (~604 tok)
+- `p6_9_pickup_4_drift_fixes.py` — P6-9-PICKUP-4 T1: pcs_test DB schema drift 修复. (~1411 tok)
+- `p7_open_009_t0_config_energy_conversion_factors.py` — P7 Sprint 2 T0: config_energy_conversion_factors CONFIG 表 (折标煤系数). (~856 tok)
+- `p7_s1_002_audit_logs_jsonb_gin.py` — audit_logs.detail_json 加 JSONB GIN 索引（P7-Sprint 1 T0 / D8 裁决 9A）。 (~387 tok)
 
 ## pcs-backend/app/
 
@@ -286,13 +289,14 @@
 
 ## pcs-backend/app/api/v1/
 
-- `__init__.py` (~845 tok)
+- `__init__.py` (~1270 tok)
 - `auth.py` — POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。 (~1054 tok)
 - `change_impact.py` — Change Impact API（Sprint 3）。 (~579 tok)
 - `checklist.py` — Checklist API（Sprint 1）。 (~641 tok)
 - `common.py` — COMMON 物性 / 许用应力 / 介质安全 端点（P3.3 / spec §3.2.3 + §3.1.2）。 (~712 tok)
 - `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~4817 tok)
 - `equip_lib.py` — equip-lib 端点（Task 1.9.5 / P2-EQL-001）。 (~530 tok)
+- `equip_list.py` — S1-4b EQUIP_LIST API endpoints。 (~1956 tok)
 - `health.py` — Health endpoint（async via check_database_async，Sprint 1）。 (~164 tok)
 - `heat.py` — P5-4-5 HEAT API：HTRI 导入 + 详情读 + 重量估算 3 端点契约。 (~3771 tok)
 - `imports.py` — P3.2 SIM-10 + P3.x SIM-14：PRO/II + Excel 导入 stateful preview/commit API。 (~2758 tok)
@@ -308,6 +312,7 @@
 - `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~3677 tok)
 - `stream_symbols.py` — 物流符号表端点（SYM-3 / SUP-002 §8）。 (~1973 tok)
 - `streams.py` — P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。 (~6380 tok)
+- `util.py` — S1-5b UTIL API endpoints。 (~2590 tok)
 - `vessel.py` — P5-1-4 VESSEL API：POST /calculate 端点契约。 (~1967 tok)
 - `workspaces.py` — Workspace API（Sprint 1）。 (~551 tok)
 
@@ -332,6 +337,7 @@
 - `__init__.py` — 全部 ORM 模型。alembic/env.py 依赖本包导入即注册全部表。 (~240 tok)
 - `calc.py` — Declares FlashResult (~9229 tok)
 - `config_domain.py` — Declares ConfigAsset (~3612 tok)
+- `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~10605 tok)
 - `deliverable.py` — Declares Deliverable (~2550 tok)
 - `enums.py` — Declares class (~2579 tok)
 - `equipment.py` — Declares EquipmentTypeCode (~2614 tok)
@@ -354,11 +360,13 @@
 - `common.py` — COMMON API schemas（Pydantic v2；P3.3 / spec §3.2.3）。 (~646 tok)
 - `config.py` — Config API request/response schemas（Pydantic v2；Task 2.8）。 (~435 tok)
 - `equip_lib.py` — equip-lib 沉淀 schemas（Task 1.9.5 / P2-EQL-001 + P7 §3.2.3(4) 标准化要求）。 (~375 tok)
+- `equip_list.py` — S1-4b EQUIP_LIST API schemas。 (~1225 tok)
 - `formula.py` — 公式参数与单测 Pydantic schema（D16）。 (~235 tok)
 - `pipe_class.py` — PipeClass API schemas（Pydantic v2；Task 1.9.1 / P2-STD-001）。 (~580 tok)
 - `project_template.py` — Pydantic: ApprovalStep (~504 tok)
 - `records.py` — Record 通用 Pydantic schemas（Sprint 2）。 (~186 tok)
 - `stream.py` — P3.2 SIM Stream / StreamStatePoint Pydantic v2 Schema（spec V1.6 §3.2 + §5.3）。 (~4400 tok)
+- `util.py` — S1-5b UTIL API schemas。 (~899 tok)
 - `workspace.py` — Workspace Pydantic schemas（Sprint 1）。 (~281 tok)
 
 ## pcs-backend/app/seeds/
@@ -373,7 +381,7 @@
 ## pcs-backend/app/services/
 
 - `__init__.py` — package marker (~5 tok)
-- `advisory_lock.py` — Postgres advisory lock（事务级）防止并发状态转移。 (~171 tok)
+- `advisory_lock.py` — Postgres advisory lock（事务级）防止并发状态转移。 (~506 tok)
 - `alias_registry.py` — P3.x SIM-30：组分别名注册表（spec §8.3：≥50 项常见别名）。 (~2504 tok)
 - `audit_service.py` — AuditService：审计统一入口（Issue 6 锁定）。 (~478 tok)
 - `calc_lineage.py` — P4-0-1 统一计算记录收口（ADR-0031）。 (~1602 tok)
@@ -425,15 +433,20 @@
 - `record_cancellation_service.py` — RecordCancellationService — 记录弃用 (RECORD_CANCELLATION) 闭环（ADR-0009 + ADR-0002）。 (~2108 tok)
 - `report_service.py` — ReportService — P2 Sprint 3 Task 5.1 + 5.2。 (~1071 tok)
 - `reversal_approval_service.py` — ReversalApprovalService — 反向签署 (REVERSAL_APPROVAL) 闭环（ADR-0010 + ADR-0002）。 (~2980 tok)
-- `state_machine.py` — 状态机（Sprint 2 核心）。 (~3788 tok)
+- `state_machine.py` — 状态机（Sprint 2 核心）。 (~4804 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~6334 tok)
 - `stream_symbol_service.py` — StreamSymbolService — 公司级 CRUD + 项目级 fork（SUP-002 §7/§8）。 (~4972 tok)
 - `stream_symbol_validator.py` — SYM 验证规则（SUP-002 §4.2/§7 派生 6 条）。 (~873 tok)
 - `template_service.py` — TemplateService — 模板文件上传 + sha256 + Jinja2 渲染（Task 2.6）。 (~1398 tok)
-- `toe_conversion_service.py` — ToeConversionService — 折标煤系数组 CRUD（Task 1.10.1 / V1.4 P2-OPEN-005）。 (~1098 tok)
+- `toe_conversion_service.py` — ToeConversionService — 折标煤系数组 CRUD（Task 1.10.1 / V1.4 P2-OPEN-005）。 (~1745 tok)
 - `ui_schema_service.py` — uiSchema 服务 — 表单节点契约（P45-2-0 / Task 18.5）。 (~2729 tok)
 - `unreliable_stream_guard.py` — P3.x SIM-39 / TODO-037: 不可靠物流下游计算硬拒绝守卫。 (~557 tok)
 - `workspace_service.py` — WorkspaceService（Sprint 1）。 (~1329 tok)
+
+## pcs-backend/app/services/equip_list/
+
+- `persist_service.py` — S1-4b EQUIP_LIST persist service（bulk_sync + update + list helper）。 (~1344 tok)
+- `sync_service.py` — S1-4 EQUIP_LIST 同步服务（sync_from_source）。 (~1641 tok)
 
 ## pcs-backend/app/services/heat/
 
@@ -476,6 +489,12 @@
 - `mist_eliminator_service.py` — P5-2-2 丝网除沫器（York 法 + Souders-Brown K 因子）。 (~1493 tok)
 - `sep_equip_persist.py` — P5-2-4 sep_equip 计算落库 + outlet 流（service 层）。 (~1744 tok)
 
+## pcs-backend/app/services/util/
+
+- `persist_service.py` — S1-5b UTIL persist service。 (~1030 tok)
+- `source_aggregator.py` — S1-5b SourceModule → 13 类公用工程 consumption_json 聚合。 (~1848 tok)
+- `summary_service.py` — S1-5 R3: util_results → 13 类聚合 + 折标煤计算。 (~970 tok)
+
 ## pcs-backend/app/services/vessel/
 
 - `__init__.py` — P5-1 vessel_service 容器计算模块。 (~133 tok)
@@ -493,6 +512,7 @@
 
 - `export_openapi.py` — 导出 OpenAPI 3.1 spec 到 docs/openapi.json（不启 uvicorn，直接调 app.openapi）。 (~398 tok)
 - `extract_pipe_classes_kaimen.py` — kaimen SPC-0004 管道等级种子重生成工具（P2-OPEN-001 第二数据源）。 (~4091 tok)
+- `p7_open_009_t0_seed_energy_conversion_factors.py` — P7 Sprint 2 T0: config_energy_conversion_factors CONFIG 数据录入（折标煤系数）。 (~1641 tok)
 - `validate_brief.py` — Assert brief content matches plan table row for task N. (~926 tok)
 
 ## pcs-backend/tests/
@@ -516,7 +536,7 @@
 - `test_mock_auth.py` — Mock auth + 生产环境禁用契约。 (~692 tok)
 - `test_records.py` — Records API 端到端（Sprint 2）。 (~1716 tok)
 - `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~1805 tok)
-- `test_state_machine.py` — Sprint 2 状态机守卫测试（ALLOWED_TRANSITIONS 矩阵）。 (~1956 tok)
+- `test_state_machine.py` — Sprint 2 状态机守卫测试（ALLOWED_TRANSITIONS 矩阵）。 (~3788 tok)
 - `test_vendor_smoke.py` — vendor 接线冒烟测试（Task 1.9.0）。 (~250 tok)
 - `test_workspace.py` — Workspace API/服务测试。 (~508 tok)
 
@@ -525,6 +545,7 @@
 - `test_common.py` — COMMON 物性/许用应力/介质安全 API 测试（P3.3 / spec §3.2.3）。 (~1820 tok)
 - `test_config.py` — Config API 端点测试（Task 2.8 — P2 Sprint 1.7）。 (~3414 tok)
 - `test_equip_lib.py` — equip-lib 沉淀 + 检索测试（Task 1.9.5 / P2-EQL-001，CATEGORY_6 复用审批链）。 (~1003 tok)
+- `test_equip_list.py` — S1-4b EQUIP_LIST API 测试（in-memory SQLite + httpx async client）。 (~2178 tok)
 - `test_heat_api.py` — P5-4-5 HEAT API + 落库 + outlet_stream + weight 集成测试。 (~3544 tok)
 - `test_imports_api.py` — P3.2 SIM-10 + P3.x SIM-14：PRO/II + Excel 导入 stateful preview/commit API 测试。 (~5274 tok)
 - `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3016 tok)
@@ -543,6 +564,7 @@
 - `test_streams_state_machine_api.py` — P3.2 SIM-13：物流状态机 6 端点 API 测试（闭环审计 D-1）。 (~2253 tok)
 - `test_streams_update_status_restriction.py` — P3.x SIM-32：PATCH /streams/{id} 端点状态限制。 (~2153 tok)
 - `test_toe_error_envelope.py` — services.PcsError 错误信封 API 测试（终审 F2 / V1.4 P2-OPEN-005）。 (~380 tok)
+- `test_util.py` — S1-5b UTIL API 测试（in-memory SQLite + httpx async client）。 (~1959 tok)
 - `test_vessel_api.py` — P5-1-4 VESSEL API + 落库 + 出口物流 集成测试。 (~3072 tok)
 
 ## pcs-backend/tests/architecture/
@@ -610,6 +632,7 @@
 
 - `test_alembic_roundtrip.py` — P3.x SIM-39 / TODO-040: Alembic migration round-trip 单测（可逆段）。 (~1232 tok)
 - `test_enums.py` — AuditAction 枚举测试：CONFIG_* 8 项（P2 Sprint 1.1）。 (~264 tok)
+- `test_equip_list_source_service.py` — P7 Task S1-2：equipment_list 补 SourceService（SPEC V1.4 §3.2.1（2）来源组 V1.4 新增）。 (~2854 tok)
 - `test_htri_template_schema.py` — HTRI 解析模板 schema 测试（Task 1.10.3，V1.4 P2-OPEN-005）。 (~676 tok)
 - `test_orm_db_drift.py` — ORM↔DB 元数据 drift 守卫（bug-101/bug-102 防回归）。 (~723 tok)
 - `test_pipe_class_migration.py` — SUP-002 PC-1 迁移验证测试。 (~3255 tok)
@@ -650,6 +673,7 @@
 - `test_config_state_machine.py` — ConfigStateMachine 5 态骨架测试（Task 1.2）+ 双段签测试（Task 1.3）。 (~1996 tok)
 - `test_conflict_resolver.py` — P3.2 SIM-7：三级冲突检测服务契约测试（spec V1.6 §3.4）。 (~2338 tok)
 - `test_data_lineage_reverse_query.py` — P3.x SIM-23: DataLineage 反向查询（spec §2 引用追踪 + E-3）。 (~1524 tok)
+- `test_equipment_type_code_service.py` — S1-3 EquipmentTypeCodeService seed 测试（P7-Sprint 1 T1.5）。 (~698 tok)
 - `test_excel_parser.py` — P3.2 SIM-5：Excel 批量导入解析器契约测试（spec 第二部分）。 (~1592 tok)
 - `test_export_service.py` — ExportService 测试（P2 Sprint 3 Task 5.3）。 (~1015 tok)
 - `test_formula_engine_preconditions.py` — FormulaEngine.evaluate_preconditions 单元测试（Task 1.8.1）。 (~796 tok)
@@ -703,6 +727,10 @@
 - `test_toe_conversion_service.py` — ToeConversionService 折标煤系数组测试（Task 1.10.1 / V1.4 P2-OPEN-005）。 (~820 tok)
 - `test_ui_schema_drift.py` — uiSchema ↔ Pydantic Schema drift 检测（P45-1-15 / Task 20）。 (~1476 tok)
 - `test_unreliable_stream_guard.py` — P3.x SIM-39 / TODO-037: 不可靠物流下游计算硬拒绝守卫。 (~1029 tok)
+
+## pcs-backend/tests/services/equip_list/
+
+- `test_sync_service.py` — S1-4 EQUIP_LIST 同步服务测试（P7-Sprint 1 T2）。 (~3106 tok)
 
 ## pcs-backend/tests/services/heat/
 
