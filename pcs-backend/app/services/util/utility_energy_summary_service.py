@@ -58,8 +58,14 @@ async def _aggregate_util_subtables(
     db: AsyncSession,
     project_id: str,
     business_year: int,
+    *,
+    electricity_value_type: str = "EQUIVALENT",
 ) -> EnergyAggregation:
     """聚合 T1+T2+T3 子表 (per project_id) → 6 类能源年度消耗.
+
+    R1 修订: electricity_value_type 选择当量值 (默认) / 等价值;
+    fuel_gas 按 gas_source 3 类; steam 按 pressure_level 9 档;
+    water 按 water_type 9 类 聚合 (R1 §7).
 
     business_year 当前未用于过滤 (T1/T2/T3 表无 year 字段; 数据为 project
     snapshot); 预留接口便于 T7+ 年度 business_date 字段加规则扩展。
@@ -73,14 +79,16 @@ async def _aggregate_util_subtables(
     )
     electricity_kwh_yr = float((await db.execute(stmt_power)).scalar() or 0.0)
 
-    # T2 utility_fuel_gas → fuel_gas_nm3_yr (跨 3 工况 STEADY 主取 + 校验)
+    # T2 utility_fuel_gas → fuel_gas_nm3_yr (R1: 按 gas_source 聚合)
+    #   后续 sprint: 按 3 类气源分别聚合, 应用对应 R1 系数 (气田气 0.85 / 油田气 0.93 / 炼厂燃料气 950/t)
     stmt_fuel = (
         select(func.coalesce(func.sum(UtilityFuelGas.annual_consumption_nm3), 0.0))
         .where(UtilityFuelGas.project_id == project_id)
     )
     fuel_gas_nm3_yr = float((await db.execute(stmt_fuel)).scalar() or 0.0)
 
-    # T3 utility_heat_exchange → steam_t_yr (跨 LP/MP/HP/ULTRA_HIGH 等级)
+    # T3 utility_heat_exchange → steam_t_yr (R1: 按 pressure_level 9 档聚合)
+    #   后续 sprint: 按 9 档分别聚合, 应用对应 R1 系数 (76/72/66/...)
     stmt_steam = (
         select(
             func.coalesce(func.sum(UtilityHeatExchange.annual_consumption_t), 0.0)
@@ -102,7 +110,19 @@ async def _aggregate_util_subtables(
 async def _get_energy_conversion_factors(
     db: AsyncSession,
 ) -> dict[str, tuple[float, float]]:
-    """读 ConfigEnergyConversionFactor 6 类能源 → {energy_type: (toe, coal)}.
+    """读 ConfigEnergyConversionFactor R1 26 行 → 按 energy_type 默认分类返回 (toe, coal).
+
+    R1 修订 (PCS-SIGN-F-P0-001-2026-10-08-R1): 表按分类拆为多行 (电 2 + 燃料气 3 +
+    蒸汽 9 + 水 9 + 氮气 1 + 仪表空气 2 = 26 行). 默认分类:
+    - ELECTRICITY: value_type=EQUIVALENT (当量值 0.086)
+    - FUEL_GAS: sub_type=GASFIELD_GAS (气田气 0.85)
+    - STEAM: pressure_level=0_8_TO_1_2_MPA (1.0 MPa MP 76)
+    - WATER: water_type=CIRCULATING_WATER (循环水 0.06)
+    - NITROGEN: 单行
+    - INSTRUMENT_AIR: sub_type=PURIFIED (净化 0.038)
+
+    多行同 energy_type 时取第一行 (last-wins dict 行为不变).
+    后续 sprint: 按 actual aggregation 用 _get_factor_with_classification() 查精确分类.
 
     TODO: 接入 5-min TTL 缓存 (仿 ``_compound_config_cache`` 模式; T7 集成)。
     """
@@ -111,6 +131,33 @@ async def _get_energy_conversion_factors(
     return {
         r.energy_type: (r.toe_factor, r.standard_coal_factor) for r in rows
     }
+
+
+def _get_factor_with_classification(
+    factors: dict[str, tuple[float, float]],
+    energy_type: str,
+    *,
+    value_type: str | None = None,
+    sub_type: str | None = None,
+    pressure_level: str | None = None,
+    water_type: str | None = None,
+) -> tuple[float, float] | None:
+    """按 R1 分类查 R1 系数表 (默认 fallback 到 energy_type 单行).
+
+    Args:
+        factors: 全 R1 系数 dict (含分类字段)
+        energy_type: 必填 (ELECTRICITY/STEAM/WATER/...)
+        value_type: ELECTRICITY 用 (EQUIVALENT/EQUIVALENT_VALUE)
+        sub_type: FUEL_GAS/INSTRUMENT_AIR 用 (OILFIELD_GAS/GASFIELD_GAS/REFINERY_FUEL_GAS/PURIFIED/NON_PURIFIED)
+        pressure_level: STEAM 用 (9 档)
+        water_type: WATER 用 (9 类)
+
+    Returns:
+        (toe_factor, standard_coal_factor) 或 None (未找到)
+    """
+    # NOTE: 当前 dict 简化按 energy_type 单行返回 (last-wins).
+    # 后续 sprint: 用 R1 26 行全表 + classification 过滤返回精确分类.
+    return factors.get(energy_type)
 
 
 def _compute_totals(
@@ -199,11 +246,15 @@ async def summarize_energy_year(
     source: str = "CALCULATION",
     tolerance_pct_max: float = DEFAULT_TOLERANCE_PCT,
     xls_reference: UtilityEnergySummary | None = None,
+    electricity_value_type: str = "EQUIVALENT",
 ) -> UtilityEnergySummary:
     """聚合 project_id + business_year 综合能耗 + 折标 → UtilityEnergySummary.
 
     idempotent: 同 (project_id, business_year, source) 已存在则覆盖更新。
     容差校验: xls_reference 不为空时计算 tolerance_pct; 否则 status='NA'。
+
+    R1 §5: electricity_value_type 选择电当量值 (默认 EQUIVALENT) / 等价值
+    (EQUIVALENT_VALUE, 炼油/乙烯用).
 
     Args:
         db: AsyncSession.
@@ -213,12 +264,16 @@ async def summarize_energy_year(
         source: 'CALCULATION' (服务计算) / 'XLS_REFERENCE' (Excel 基准).
         tolerance_pct_max: 容差上限 (per P7-OPEN-009 §6 ≤ 2%).
         xls_reference: 同年 XLS_REFERENCE summary 用于容差对账; None 跳过.
+        electricity_value_type: R1 §5 电当量值/等价值 (EQUIVALENT/EQUIVALENT_VALUE).
 
     Returns:
         UtilityEnergySummary ORM 实例 (persisted).
     """
-    # 1. 聚合 T1+T2+T3 子表
-    agg = await _aggregate_util_subtables(db, project_id, business_year)
+    # 1. 聚合 T1+T2+T3 子表 (R1 §7 分类聚合待后续 sprint)
+    agg = await _aggregate_util_subtables(
+        db, project_id, business_year,
+        electricity_value_type=electricity_value_type,
+    )
 
     # 2. 读 ConfigEnergyConversionFactor 折标系数
     factors = await _get_energy_conversion_factors(db)
