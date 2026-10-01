@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-01T05:30:45.461Z",
-    "fileCount": 810,
+    "lastScanned": "2026-10-01T06:32:29.445Z",
+    "fileCount": 812,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "7c67c794ba99ce467c3d1eab0f8abaa6ef15fbbc11e204ed08184891a7a4801f",
-    "storeUpdatedAt": "2026-10-01T05:30:45.472Z",
-    "rootHash": "f50194411808af71"
+    "renderedHash": "1287141d716acad83417f3f682d12017b2ac93e500b223ef26a0345dbfa4ba5f",
+    "storeUpdatedAt": "2026-10-01T06:32:29.456Z",
+    "rootHash": "728bf07e5574ba47"
   },
   "files": {
     "CLAUDE.md": {
@@ -31261,26 +31261,40 @@
     },
     "pcs-backend/app/models/util.py": {
       "description": "S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。",
-      "tokens": 1617,
-      "hash": "827567e328f6c5f2",
-      "size": 6434,
-      "mtimeMs": 1790830287670.754,
-      "updatedAt": "2026-10-01T04:51:27.720Z",
+      "tokens": 3946,
+      "hash": "d086076aac80b241",
+      "size": 15340,
+      "mtimeMs": 1790836322190.0374,
+      "updatedAt": "2026-10-01T06:32:02.245Z",
       "source": "hook",
       "symbols": [
         {
           "name": "UtilResults",
           "kind": "class",
           "startLine": 38,
-          "endLine": 90,
-          "tokens": 506
+          "endLine": 114,
+          "tokens": 779
         },
         {
           "name": "UtilityPowerItem",
           "kind": "class",
-          "startLine": 91,
-          "endLine": 167,
+          "startLine": 115,
+          "endLine": 192,
           "tokens": 864
+        },
+        {
+          "name": "UtilityFuelGas",
+          "kind": "class",
+          "startLine": 193,
+          "endLine": 279,
+          "tokens": 997
+        },
+        {
+          "name": "UtilityHeatExchange",
+          "kind": "class",
+          "startLine": 280,
+          "endLine": 375,
+          "tokens": 1059
         }
       ]
     },
@@ -31531,6 +31545,63 @@
           "startLine": 126,
           "endLine": 151,
           "tokens": 235
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p7_open_009_004_auxiliary_consumption_4fields.py": {
+      "description": "P7 Sprint 2 T4: auxiliary_consumption 4 字段 ALTER (util_results).",
+      "tokens": 1030,
+      "hash": "e344ba76b4d3aabe",
+      "size": 3980,
+      "mtimeMs": 1790836315932.982,
+      "updatedAt": "2026-10-01T06:31:56.001Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 99,
+          "tokens": 562
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 113,
+          "tokens": 200
+        }
+      ]
+    },
+    "pcs-backend/tests/services/util/test_auxiliary_consumption.py": {
+      "description": "P7 Sprint 2 T4: auxiliary_consumption 4 字段 ALTER 测试.",
+      "tokens": 765,
+      "hash": "3a6e6fcb9cc1b4d0",
+      "size": 2889,
+      "mtimeMs": 1790836349395.2712,
+      "updatedAt": "2026-10-01T06:32:29.445Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_orm_has_4_auxiliary_columns",
+          "kind": "fn",
+          "startLine": 21,
+          "endLine": 39,
+          "tokens": 190
+        },
+        {
+          "name": "test_backward_compat_null_auxiliary_fields",
+          "kind": "fn",
+          "startLine": 40,
+          "endLine": 64,
+          "tokens": 230
+        },
+        {
+          "name": "test_orm_with_all_4_auxiliary_fields",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 83,
+          "tokens": 211
         }
       ]
     }

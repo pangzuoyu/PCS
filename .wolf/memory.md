@@ -341,3 +341,6 @@
 | 13:29 | Created pcs-backend/tests/services/util/fixtures/golden_utility_heat_exchange.json | — | ~751 |
 | 13:30 | Created pcs-backend/tests/services/util/test_utility_heat_exchange.py | — | ~1447 |
 | 13:30 | Edited pcs-backend/alembic/versions/p7_open_009_003_utility_heat_exchange.py | "蒸汽压力 (MPa 表压 gauge; LP 0." → "蒸汽压力 (MPa gauge; LP 0.3-0" | ~22 |
+| 14:31 | Created pcs-backend/alembic/versions/p7_open_009_004_auxiliary_consumption_4fields.py | — | ~1030 |
+| 14:32 | Edited pcs-backend/app/models/util.py | expanded (+24 lines) | ~395 |
+| 14:32 | Created pcs-backend/tests/services/util/test_auxiliary_consumption.py | — | ~765 |

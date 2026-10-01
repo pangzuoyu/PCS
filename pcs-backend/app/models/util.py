@@ -80,6 +80,30 @@ class UtilResults(TimestampMixin, Base):
         comment="Sprint 1 False JSONB 权威；Sprint 2 起 True 表示已迁移 5 表",
     )
 
+    # T4 auxiliary_consumption 4 字段（聚合 T1/T2/T3 子表 annual_consumption +
+    # cooling_water 子表待立；Sprint 1 存量数据 NULL；service 层 fallback 到
+    # consumption_json JSONB 取值（D1 裁决 1A：5 表权威 + JSONB deprecated））
+    electrical_power_kwh_yr: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+        comment="年用电量 (kWh/yr; 聚合 utility_power_items.annual_consumption_kwh)",
+    )
+    fuel_gas_consumption_nm3_yr: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+        comment="年燃料气消耗量 (Nm³/yr; 聚合 utility_fuel_gas.annual_consumption_nm3)",
+    )
+    steam_consumption_t_yr: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+        comment="年蒸汽消耗量 (t/yr; 聚合 utility_heat_exchange.annual_consumption_t)",
+    )
+    cooling_water_consumption_t_yr: Mapped[float | None] = mapped_column(
+        Float,
+        nullable=True,
+        comment="年冷却水消耗量 (t/yr; 待 P7-6B 冷却水子表落地后聚合)",
+    )
+
     # 元信息
     source: Mapped[str | None] = mapped_column(
         String(200),

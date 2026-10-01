@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-01T05:30:45.461Z
-> Files: 810 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-01T06:32:29.445Z
+> Files: 812 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -277,6 +277,7 @@
 - `p7_open_009_001_utility_power_items.py` — P7 Sprint 2 T1: utility_power_items 表（电耗设备清单). (~1312 tok)
 - `p7_open_009_002_utility_fuel_gas.py` — P7 Sprint 2 T2: utility_fuel_gas 表 (燃料气). (~1639 tok)
 - `p7_open_009_003_utility_heat_exchange.py` — P7 Sprint 2 T3: utility_heat_exchange 表 (蒸汽/冷凝水). (~1762 tok)
+- `p7_open_009_004_auxiliary_consumption_4fields.py` — P7 Sprint 2 T4: auxiliary_consumption 4 字段 ALTER (util_results). (~1030 tok)
 - `p7_open_009_t0_config_energy_conversion_factors.py` — P7 Sprint 2 T0: config_energy_conversion_factors CONFIG 表 (折标煤系数). (~856 tok)
 - `p7_s1_002_audit_logs_jsonb_gin.py` — audit_logs.detail_json 加 JSONB GIN 索引（P7-Sprint 1 T0 / D8 裁决 9A）。 (~387 tok)
 
@@ -355,7 +356,7 @@
 - `sim_unit_op.py` — P3.x SIM-15: sim_unit_op_results + 6 专用结果表（单元 SUMMARY 存档）。 (~1967 tok)
 - `stream_symbol.py` — 物流符号表 ORM（SUP-002 §7.1/§7.2）。 (~563 tok)
 - `system.py` — Declares DataLineage (~2468 tok)
-- `util.py` — S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。 (~1617 tok)
+- `util.py` — S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。 (~3946 tok)
 
 ## pcs-backend/app/schemas/
 
@@ -808,6 +809,7 @@
 
 ## pcs-backend/tests/services/util/
 
+- `test_auxiliary_consumption.py` — P7 Sprint 2 T4: auxiliary_consumption 4 字段 ALTER 测试. (~765 tok)
 - `test_utility_fuel_gas.py` — P7 Sprint 2 T2: utility_fuel_gas 测试. (~1723 tok)
 - `test_utility_heat_exchange.py` — P7 Sprint 2 T3: utility_heat_exchange 测试. (~1447 tok)
 - `test_utility_power_items.py` — P7 Sprint 2 T1: utility_power_items 测试. (~1624 tok)
