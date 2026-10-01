@@ -495,6 +495,16 @@ class UtilityEnergySummary(Base):
             "NULL = 默认 EQUIVALENT"
         ),
     )
+    r1_classification_json: Mapped[dict | None] = mapped_column(
+        JSONB, nullable=True,
+        comment=(
+            "R1 分类聚合结果 (F-P0-001 R1 §7): "
+            "{steam_by_pressure_level: {GE_7_0_MPA: float}, "
+            "fuel_gas_by_source: {OILFIELD_GAS: float}, "
+            "water_by_type: {FRESH_WATER: float}}; "
+            "null = R0 单值聚合 (向后兼容)"
+        ),
+    )
     toe_conversion_factor: Mapped[float] = mapped_column(
         Float, nullable=False,
         comment="聚合折标油系数 (kg 标油/MJ)",

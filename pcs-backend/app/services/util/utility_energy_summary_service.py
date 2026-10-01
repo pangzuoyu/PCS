@@ -66,6 +66,30 @@ class EnergyAggregation:
     water_by_type: dict[str, float] | None = None
 
 
+def _build_r1_classification(agg: EnergyAggregation) -> dict | None:
+    """Build R1 §7 分类聚合 dict (3 类) for JSONB 持久化.
+
+    Returns:
+        {
+            "steam_by_pressure_level": {"GE_7_0_MPA": 8400.0, ...}  # 9 档
+            "fuel_gas_by_source": {"OILFIELD_GAS": 1600000.0, ...}  # 3 类
+            "water_by_type": {"FRESH_WATER": 100.0, ...}  # 9 类
+        }
+        None 当全部 *_by_* 都为空 (R0 单值聚合路径).
+
+    字段全空时返回 None 而非空 dict, 避免存储冗余 (P7-6B 冷却水子表落地后
+    water_by_type 自动填充; NULL 即未启用 R1 分类聚合, 简化下游查询).
+    """
+    parts: dict[str, dict[str, float]] = {}
+    if agg.steam_t_by_pressure_level:
+        parts["steam_by_pressure_level"] = dict(agg.steam_t_by_pressure_level)
+    if agg.fuel_gas_by_source:
+        parts["fuel_gas_by_source"] = dict(agg.fuel_gas_by_source)
+    if agg.water_by_type:
+        parts["water_by_type"] = dict(agg.water_by_type)
+    return parts or None
+
+
 async def _aggregate_util_subtables(
     db: AsyncSession,
     project_id: str,
@@ -534,6 +558,8 @@ async def summarize_energy_year(
         existing.tolerance_status = tolerance_status
         # R1 §5: 持久化 electricity_value_type 标记 (审计追溯用)
         existing.electricity_value_type = electricity_value_type
+        # R1 §7: 持久化分类聚合结果 (3 类 dict)
+        existing.r1_classification_json = _build_r1_classification(agg)
         existing.computed_at = func.now()
         summary = existing
     else:
@@ -558,6 +584,8 @@ async def summarize_energy_year(
             tolerance_status=tolerance_status,
             # R1 §5
             electricity_value_type=electricity_value_type,
+            # R1 §7: 分类聚合结果 (3 类 dict)
+            r1_classification_json=_build_r1_classification(agg),
         )
         db.add(summary)
 

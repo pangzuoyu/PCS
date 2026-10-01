@@ -582,3 +582,158 @@ async def test_compute_totals_uses_classified_factors(
     #     = 911,999.99 + 1,103,999.99 ≈ 2,016,000 kg
     expected_steam_coal = 8400 * 108.571429 + 8400 * 131.428571
     assert total_coal_kg == pytest.approx(expected_steam_coal, rel=1e-3)
+
+
+@pytest.mark.asyncio
+async def test_service_persists_r1_classification_json(
+    db_session, seeded_config_factors
+):
+    """R1 §7: summarize_energy_year 持久化 r1_classification_json 字段.
+
+    验证: 注入 MP+HP 蒸汽 + GASFIELD_GAS 燃料气 → 落库 r1_classification_json
+    含 steam_by_pressure_level + fuel_gas_by_source (water_by_type 待 P7-6B).
+    """
+    project_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+
+    # 注入 MP+HP 蒸汽 + GASFIELD_GAS 燃料气
+    db_session.add_all([
+        UtilityHeatExchange(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="ST-MP", temperature_class="MP",
+            pressure_level="0_8_TO_1_2_MPA",
+            steam_pressure_mpa_gauge=1.0, steam_quality_pct=99.0,
+            return_condensate_pct=80.0, steam_consumption_t_h=1.0,
+            operating_hours_per_year=8000, annual_consumption_t=8000.0,
+        ),
+        UtilityHeatExchange(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="ST-HP", temperature_class="HP",
+            pressure_level="GE_7_0_MPA",
+            steam_pressure_mpa_gauge=10.0, steam_quality_pct=99.0,
+            return_condensate_pct=80.0, steam_consumption_t_h=0.5,
+            operating_hours_per_year=8000, annual_consumption_t=4000.0,
+        ),
+        UtilityFuelGas(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="F-001", fuel_type="NATURAL_GAS",
+            gas_source="GASFIELD_GAS",
+            calorific_value_kcal_nm3=8500.0, consumption_nm3_h=200.0,
+            operating_phase="STEADY", operating_hours_per_year=8000,
+            annual_consumption_nm3=1600000.0,
+        ),
+    ])
+    await db_session.commit()
+
+    summary = await summarize_energy_year(
+        db=db_session,
+        project_id=project_id,
+        workspace_id=workspace_id,
+        business_year=2026,
+    )
+
+    # 1. electricity_value_type 默认 EQUIVALENT 持久化
+    assert summary.electricity_value_type == "EQUIVALENT"
+
+    # 2. r1_classification_json 持久化 (dict round-trip)
+    assert summary.r1_classification_json is not None
+    r1 = summary.r1_classification_json
+    assert r1["steam_by_pressure_level"]["0_8_TO_1_2_MPA"] == pytest.approx(8000.0)
+    assert r1["steam_by_pressure_level"]["GE_7_0_MPA"] == pytest.approx(4000.0)
+    assert r1["fuel_gas_by_source"]["GASFIELD_GAS"] == pytest.approx(1600000.0)
+    # water_by_type 未落地 (P7-6B 冷却水子表待 P7-6B)
+    assert "water_by_type" not in r1
+
+
+@pytest.mark.asyncio
+async def test_service_persists_equivalent_value_type(
+    db_session, seeded_config_factors
+):
+    """R1 §5: EQUIVALENT_VALUE (炼油/乙烯) 持久化.
+
+    验证: 等价值选择持久化到 electricity_value_type 字段.
+    """
+    project_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+
+    db_session.add(
+        UtilityPowerItem(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="P-EV",
+            motor_power_kw=10.0, operating_hours_per_year=8000,
+            load_factor=0.8, annual_consumption_kwh=100000.0,
+        )
+    )
+    await db_session.commit()
+
+    summary = await summarize_energy_year(
+        db=db_session,
+        project_id=project_id,
+        workspace_id=workspace_id,
+        business_year=2026,
+        electricity_value_type="EQUIVALENT_VALUE",
+    )
+
+    assert summary.electricity_value_type == "EQUIVALENT_VALUE"
+    # EQUIVALENT_VALUE 系数 0.21 → 100000 × 0.21 / 1000 = 21.0 tonne
+    assert summary.total_toe == pytest.approx(21.0, abs=1e-3)
+
+
+@pytest.mark.asyncio
+async def test_service_persists_r1_classification_on_idempotent_overwrite(
+    db_session, seeded_config_factors
+):
+    """R1 §7: 同 (project, year, source) 覆盖更新时, r1_classification_json 也覆盖.
+
+    验证: 二次调用更新分类聚合 dict (非 INSERT NULL).
+    """
+    project_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+
+    # 第一次: 仅 MP 蒸汽
+    db_session.add(
+        UtilityHeatExchange(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="ST-MP", temperature_class="MP",
+            pressure_level="0_8_TO_1_2_MPA",
+            steam_pressure_mpa_gauge=1.0, steam_quality_pct=99.0,
+            return_condensate_pct=80.0, steam_consumption_t_h=1.0,
+            operating_hours_per_year=8000, annual_consumption_t=1000.0,
+        )
+    )
+    await db_session.commit()
+
+    s1 = await summarize_energy_year(
+        db=db_session,
+        project_id=project_id,
+        workspace_id=workspace_id,
+        business_year=2026,
+    )
+    first_id = s1.id
+    assert s1.r1_classification_json is not None
+    assert s1.r1_classification_json["steam_by_pressure_level"]["0_8_TO_1_2_MPA"] == pytest.approx(1000.0)
+
+    # 第二次: 加 HP 蒸汽
+    db_session.add(
+        UtilityHeatExchange(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="ST-HP", temperature_class="HP",
+            pressure_level="GE_7_0_MPA",
+            steam_pressure_mpa_gauge=10.0, steam_quality_pct=99.0,
+            return_condensate_pct=80.0, steam_consumption_t_h=1.0,
+            operating_hours_per_year=8000, annual_consumption_t=2000.0,
+        )
+    )
+    await db_session.commit()
+
+    s2 = await summarize_energy_year(
+        db=db_session,
+        project_id=project_id,
+        workspace_id=workspace_id,
+        business_year=2026,
+    )
+    # 同 ID (覆盖更新)
+    assert s2.id == first_id
+    # 分类聚合覆盖更新 (含新增 HP)
+    assert s2.r1_classification_json["steam_by_pressure_level"]["0_8_TO_1_2_MPA"] == pytest.approx(1000.0)
+    assert s2.r1_classification_json["steam_by_pressure_level"]["GE_7_0_MPA"] == pytest.approx(2000.0)

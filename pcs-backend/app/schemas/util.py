@@ -321,6 +321,8 @@ class UtilEnergySummaryResponse(BaseModel):
     total_standard_coal_kg: float
     tolerance_pct: float | None = None
     tolerance_status: str
+    electricity_value_type: str | None = None
+    r1_classification: dict[str, dict[str, float]] | None = None
     computed_at: str | None = None
     created_at: str | None = None
     updated_at: str | None = None
