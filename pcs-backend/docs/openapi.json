@@ -9746,6 +9746,524 @@
         }
       }
     },
+    "/api/v1/util/power-items": {
+      "post": {
+        "tags": [
+          "util"
+        ],
+        "summary": "Create Power Item",
+        "description": "T1 手动创建电耗设备清单条目 (annual_consumption_kwh 缺省=派生).",
+        "operationId": "create_power_item_api_v1_util_power_items_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UtilPowerItemCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UtilPowerItemResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "util"
+        ],
+        "summary": "List Power Items",
+        "description": "T1 列出某项目下所有电耗设备清单 (按 equipment_tag 升序).",
+        "operationId": "list_power_items_api_v1_util_power_items_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "项目 UUID",
+              "title": "Project Id"
+            },
+            "description": "项目 UUID"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UtilPowerItemResponse"
+                  },
+                  "title": "Response List Power Items Api V1 Util Power Items Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/util/fuel-gas-items": {
+      "post": {
+        "tags": [
+          "util"
+        ],
+        "summary": "Create Fuel Gas",
+        "description": "T2 手动创建燃料气消耗条目 (annual_consumption_nm3 缺省=派生).",
+        "operationId": "create_fuel_gas_api_v1_util_fuel_gas_items_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UtilFuelGasCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UtilFuelGasResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "util"
+        ],
+        "summary": "List Fuel Gas",
+        "description": "T2 列出某项目下所有燃料气消耗条目 (按 equipment_tag + phase 升序).",
+        "operationId": "list_fuel_gas_api_v1_util_fuel_gas_items_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "项目 UUID",
+              "title": "Project Id"
+            },
+            "description": "项目 UUID"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UtilFuelGasResponse"
+                  },
+                  "title": "Response List Fuel Gas Api V1 Util Fuel Gas Items Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/util/heat-exchange-items": {
+      "post": {
+        "tags": [
+          "util"
+        ],
+        "summary": "Create Heat Exchange",
+        "description": "T3 手动创建蒸汽/冷凝水条目 (annual_consumption_t 缺省=派生).",
+        "operationId": "create_heat_exchange_api_v1_util_heat_exchange_items_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UtilHeatExchangeCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UtilHeatExchangeResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "util"
+        ],
+        "summary": "List Heat Exchange",
+        "description": "T3 列出某项目下所有蒸汽/冷凝水条目 (按 equipment_tag 升序).",
+        "operationId": "list_heat_exchange_api_v1_util_heat_exchange_items_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "项目 UUID",
+              "title": "Project Id"
+            },
+            "description": "项目 UUID"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UtilHeatExchangeResponse"
+                  },
+                  "title": "Response List Heat Exchange Api V1 Util Heat Exchange Items Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/util/energy-summary/aggregate": {
+      "post": {
+        "tags": [
+          "util"
+        ],
+        "summary": "Aggregate Energy Summary",
+        "description": "T5 触发综合能耗汇总 (聚合 T1+T2+T3 + 折标系数 CONFIG).",
+        "operationId": "aggregate_energy_summary_api_v1_util_energy_summary_aggregate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UtilEnergySummaryAggregateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UtilEnergySummaryResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/util/energy-summary": {
+      "get": {
+        "tags": [
+          "util"
+        ],
+        "summary": "List Energy Summary",
+        "description": "T5 列出某项目综合能耗汇总 (按 business_year 升序).",
+        "operationId": "list_energy_summary_api_v1_util_energy_summary_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "项目 UUID",
+              "title": "Project Id"
+            },
+            "description": "项目 UUID"
+          },
+          {
+            "name": "business_year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 2100,
+                  "minimum": 2020
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "业务年度过滤 (None=全部)",
+              "title": "Business Year"
+            },
+            "description": "业务年度过滤 (None=全部)"
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UtilEnergySummaryResponse"
+                  },
+                  "title": "Response List Energy Summary Api V1 Util Energy Summary Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/open-channel/manning/calculate": {
       "post": {
         "tags": [
@@ -29351,6 +29869,791 @@
         ],
         "title": "UtilEnergyConsumptionResponse",
         "description": "能源专项（5 类进 TOE：ELECTRICITY + STEAM×4 + FUEL_GAS）。"
+      },
+      "UtilEnergySummaryAggregateRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 UUID"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "workspace UUID"
+          },
+          "business_year": {
+            "type": "integer",
+            "maximum": 2100.0,
+            "minimum": 2020.0,
+            "title": "Business Year",
+            "description": "业务年度",
+            "default": 2026
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id"
+        ],
+        "title": "UtilEnergySummaryAggregateRequest",
+        "description": "触发 T5 综合能耗汇总 (utility_energy_summary_service.summarize_energy_year)."
+      },
+      "UtilEnergySummaryResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id"
+          },
+          "business_year": {
+            "type": "integer",
+            "title": "Business Year"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "electricity_kwh_yr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Electricity Kwh Yr"
+          },
+          "fuel_gas_nm3_yr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fuel Gas Nm3 Yr"
+          },
+          "steam_t_yr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Steam T Yr"
+          },
+          "water_t_yr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Water T Yr"
+          },
+          "gas_nm3_yr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gas Nm3 Yr"
+          },
+          "low_temp_heat_gj_yr": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Low Temp Heat Gj Yr"
+          },
+          "annual_total_energy": {
+            "type": "number",
+            "title": "Annual Total Energy"
+          },
+          "toe_conversion_factor": {
+            "type": "number",
+            "title": "Toe Conversion Factor"
+          },
+          "standard_coal_factor": {
+            "type": "number",
+            "title": "Standard Coal Factor"
+          },
+          "total_toe": {
+            "type": "number",
+            "title": "Total Toe"
+          },
+          "total_standard_coal_kg": {
+            "type": "number",
+            "title": "Total Standard Coal Kg"
+          },
+          "tolerance_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tolerance Pct"
+          },
+          "tolerance_status": {
+            "type": "string",
+            "title": "Tolerance Status"
+          },
+          "computed_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Computed At"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "workspace_id",
+          "business_year",
+          "source",
+          "annual_total_energy",
+          "toe_conversion_factor",
+          "standard_coal_factor",
+          "total_toe",
+          "total_standard_coal_kg",
+          "tolerance_status"
+        ],
+        "title": "UtilEnergySummaryResponse",
+        "description": "UtilityEnergySummary 单条响应 (T5)."
+      },
+      "UtilFuelGasCreateRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 UUID"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "workspace UUID"
+          },
+          "equipment_tag": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Equipment Tag",
+            "description": "设备位号"
+          },
+          "fuel_type": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Fuel Type",
+            "description": "燃料类型",
+            "default": "NATURAL_GAS"
+          },
+          "calorific_value_kcal_nm3": {
+            "type": "number",
+            "maximum": 20000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Calorific Value Kcal Nm3",
+            "description": "低位热值 (kcal/Nm³)"
+          },
+          "consumption_nm3_h": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Consumption Nm3 H",
+            "description": "小时消耗量 (Nm³/h)"
+          },
+          "operating_phase": {
+            "type": "string",
+            "maxLength": 16,
+            "title": "Operating Phase",
+            "description": "INITIAL/STEADY/MAX"
+          },
+          "operating_hours_per_year": {
+            "type": "number",
+            "maximum": 8760.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Operating Hours Per Year",
+            "description": "年运行小时",
+            "default": 8000.0
+          },
+          "annual_consumption_nm3": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annual Consumption Nm3",
+            "description": "年消耗量 (Nm³/yr; 缺省=service 计算)"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "数据来源",
+            "default": "MANUAL"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "equipment_tag",
+          "calorific_value_kcal_nm3",
+          "consumption_nm3_h",
+          "operating_phase"
+        ],
+        "title": "UtilFuelGasCreateRequest",
+        "description": "手动创建 UtilityFuelGas (T2 燃料气)."
+      },
+      "UtilFuelGasResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id"
+          },
+          "equipment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment Id"
+          },
+          "equipment_tag": {
+            "type": "string",
+            "title": "Equipment Tag"
+          },
+          "fuel_type": {
+            "type": "string",
+            "title": "Fuel Type"
+          },
+          "calorific_value_kcal_nm3": {
+            "type": "number",
+            "title": "Calorific Value Kcal Nm3"
+          },
+          "consumption_nm3_h": {
+            "type": "number",
+            "title": "Consumption Nm3 H"
+          },
+          "operating_phase": {
+            "type": "string",
+            "title": "Operating Phase"
+          },
+          "operating_hours_per_year": {
+            "type": "number",
+            "title": "Operating Hours Per Year"
+          },
+          "annual_consumption_nm3": {
+            "type": "number",
+            "title": "Annual Consumption Nm3"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "workspace_id",
+          "equipment_tag",
+          "fuel_type",
+          "calorific_value_kcal_nm3",
+          "consumption_nm3_h",
+          "operating_phase",
+          "operating_hours_per_year",
+          "annual_consumption_nm3",
+          "source"
+        ],
+        "title": "UtilFuelGasResponse",
+        "description": "UtilityFuelGas 单条响应 (T2)."
+      },
+      "UtilHeatExchangeCreateRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 UUID"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "workspace UUID"
+          },
+          "equipment_tag": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Equipment Tag",
+            "description": "设备位号"
+          },
+          "steam_pressure_mpa_gauge": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Steam Pressure Mpa Gauge",
+            "description": "蒸汽压力 (MPa gauge)"
+          },
+          "steam_quality_pct": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Steam Quality Pct",
+            "description": "蒸汽干度"
+          },
+          "return_condensate_pct": {
+            "type": "number",
+            "maximum": 100.0,
+            "minimum": 0.0,
+            "title": "Return Condensate Pct",
+            "description": "冷凝水回收率"
+          },
+          "temperature_class": {
+            "type": "string",
+            "maxLength": 16,
+            "title": "Temperature Class",
+            "description": "LP/MP/HP/ULTRA_HIGH"
+          },
+          "steam_consumption_t_h": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Steam Consumption T H",
+            "description": "小时消耗 (t/h)"
+          },
+          "operating_hours_per_year": {
+            "type": "number",
+            "maximum": 8760.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Operating Hours Per Year",
+            "description": "年运行小时",
+            "default": 8000.0
+          },
+          "annual_consumption_t": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annual Consumption T",
+            "description": "年消耗量 (t/yr; 缺省=service 计算)"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "数据来源",
+            "default": "MANUAL"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "equipment_tag",
+          "steam_pressure_mpa_gauge",
+          "steam_quality_pct",
+          "return_condensate_pct",
+          "temperature_class",
+          "steam_consumption_t_h"
+        ],
+        "title": "UtilHeatExchangeCreateRequest",
+        "description": "手动创建 UtilityHeatExchange (T3 蒸汽/冷凝水)."
+      },
+      "UtilHeatExchangeResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id"
+          },
+          "equipment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment Id"
+          },
+          "equipment_tag": {
+            "type": "string",
+            "title": "Equipment Tag"
+          },
+          "steam_pressure_mpa_gauge": {
+            "type": "number",
+            "title": "Steam Pressure Mpa Gauge"
+          },
+          "steam_quality_pct": {
+            "type": "number",
+            "title": "Steam Quality Pct"
+          },
+          "return_condensate_pct": {
+            "type": "number",
+            "title": "Return Condensate Pct"
+          },
+          "temperature_class": {
+            "type": "string",
+            "title": "Temperature Class"
+          },
+          "steam_consumption_t_h": {
+            "type": "number",
+            "title": "Steam Consumption T H"
+          },
+          "operating_hours_per_year": {
+            "type": "number",
+            "title": "Operating Hours Per Year"
+          },
+          "annual_consumption_t": {
+            "type": "number",
+            "title": "Annual Consumption T"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "workspace_id",
+          "equipment_tag",
+          "steam_pressure_mpa_gauge",
+          "steam_quality_pct",
+          "return_condensate_pct",
+          "temperature_class",
+          "steam_consumption_t_h",
+          "operating_hours_per_year",
+          "annual_consumption_t",
+          "source"
+        ],
+        "title": "UtilHeatExchangeResponse",
+        "description": "UtilityHeatExchange 单条响应 (T3)."
+      },
+      "UtilPowerItemCreateRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 UUID"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "workspace UUID"
+          },
+          "equipment_tag": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Equipment Tag",
+            "description": "设备位号"
+          },
+          "motor_power_kw": {
+            "type": "number",
+            "exclusiveMinimum": 0.0,
+            "title": "Motor Power Kw",
+            "description": "电机额定功率 (kW)"
+          },
+          "operating_hours_per_year": {
+            "type": "number",
+            "maximum": 8760.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Operating Hours Per Year",
+            "description": "年运行小时 (h/yr)"
+          },
+          "load_factor": {
+            "type": "number",
+            "maximum": 1.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Load Factor",
+            "description": "负荷率"
+          },
+          "annual_consumption_kwh": {
+            "anyOf": [
+              {
+                "type": "number",
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annual Consumption Kwh",
+            "description": "年用电量 (kWh/yr; 缺省=service 计算)"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "数据来源 PMS/MANUAL/CALC",
+            "default": "MANUAL"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "equipment_tag",
+          "motor_power_kw",
+          "operating_hours_per_year",
+          "load_factor"
+        ],
+        "title": "UtilPowerItemCreateRequest",
+        "description": "手动创建 UtilityPowerItem (T1 电耗设备清单)."
+      },
+      "UtilPowerItemResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id"
+          },
+          "equipment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment Id"
+          },
+          "equipment_tag": {
+            "type": "string",
+            "title": "Equipment Tag"
+          },
+          "motor_power_kw": {
+            "type": "number",
+            "title": "Motor Power Kw"
+          },
+          "operating_hours_per_year": {
+            "type": "number",
+            "title": "Operating Hours Per Year"
+          },
+          "load_factor": {
+            "type": "number",
+            "title": "Load Factor"
+          },
+          "annual_consumption_kwh": {
+            "type": "number",
+            "title": "Annual Consumption Kwh"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "workspace_id",
+          "equipment_tag",
+          "motor_power_kw",
+          "operating_hours_per_year",
+          "load_factor",
+          "annual_consumption_kwh",
+          "source"
+        ],
+        "title": "UtilPowerItemResponse",
+        "description": "UtilityPowerItem 单条响应 (T1)."
       },
       "UtilResultsCreateRequest": {
         "properties": {

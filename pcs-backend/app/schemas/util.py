@@ -94,3 +94,170 @@ class UtilAggregationRequest(BaseModel):
     source: str | None = Field(
         None, max_length=200, description="数据来源描述（默认 'source_aggregator'）"
     )
+
+
+# ============================================================================
+# P7 Sprint 2 T1-T5 schemas (UTIL 5 表 API 整合)
+# ============================================================================
+
+
+class UtilPowerItemCreateRequest(BaseModel):
+    """手动创建 UtilityPowerItem (T1 电耗设备清单)."""
+
+    project_id: uuid.UUID = Field(..., description="项目 UUID")
+    workspace_id: uuid.UUID = Field(..., description="workspace UUID")
+    equipment_tag: str = Field(..., min_length=1, max_length=64, description="设备位号")
+    motor_power_kw: float = Field(..., gt=0, description="电机额定功率 (kW)")
+    operating_hours_per_year: float = Field(
+        ..., gt=0, le=8760, description="年运行小时 (h/yr)"
+    )
+    load_factor: float = Field(..., gt=0, le=1, description="负荷率")
+    annual_consumption_kwh: float | None = Field(
+        None, ge=0, description="年用电量 (kWh/yr; 缺省=service 计算)"
+    )
+    source: str | None = Field(
+        "MANUAL", max_length=32, description="数据来源 PMS/MANUAL/CALC"
+    )
+
+
+class UtilPowerItemResponse(BaseModel):
+    """UtilityPowerItem 单条响应 (T1)."""
+
+    id: uuid.UUID
+    project_id: uuid.UUID
+    workspace_id: uuid.UUID
+    equipment_id: uuid.UUID | None = None
+    equipment_tag: str
+    motor_power_kw: float
+    operating_hours_per_year: float
+    load_factor: float
+    annual_consumption_kwh: float
+    source: str
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class UtilFuelGasCreateRequest(BaseModel):
+    """手动创建 UtilityFuelGas (T2 燃料气)."""
+
+    project_id: uuid.UUID = Field(..., description="项目 UUID")
+    workspace_id: uuid.UUID = Field(..., description="workspace UUID")
+    equipment_tag: str = Field(..., min_length=1, max_length=64, description="设备位号")
+    fuel_type: str = Field("NATURAL_GAS", max_length=32, description="燃料类型")
+    calorific_value_kcal_nm3: float = Field(
+        ..., gt=0, le=20000, description="低位热值 (kcal/Nm³)"
+    )
+    consumption_nm3_h: float = Field(..., gt=0, description="小时消耗量 (Nm³/h)")
+    operating_phase: str = Field(
+        ..., max_length=16, description="INITIAL/STEADY/MAX"
+    )
+    operating_hours_per_year: float = Field(
+        8000.0, gt=0, le=8760, description="年运行小时"
+    )
+    annual_consumption_nm3: float | None = Field(
+        None, ge=0, description="年消耗量 (Nm³/yr; 缺省=service 计算)"
+    )
+    source: str | None = Field(
+        "MANUAL", max_length=32, description="数据来源"
+    )
+
+
+class UtilFuelGasResponse(BaseModel):
+    """UtilityFuelGas 单条响应 (T2)."""
+
+    id: uuid.UUID
+    project_id: uuid.UUID
+    workspace_id: uuid.UUID
+    equipment_id: uuid.UUID | None = None
+    equipment_tag: str
+    fuel_type: str
+    calorific_value_kcal_nm3: float
+    consumption_nm3_h: float
+    operating_phase: str
+    operating_hours_per_year: float
+    annual_consumption_nm3: float
+    source: str
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class UtilHeatExchangeCreateRequest(BaseModel):
+    """手动创建 UtilityHeatExchange (T3 蒸汽/冷凝水)."""
+
+    project_id: uuid.UUID = Field(..., description="项目 UUID")
+    workspace_id: uuid.UUID = Field(..., description="workspace UUID")
+    equipment_tag: str = Field(..., min_length=1, max_length=64, description="设备位号")
+    steam_pressure_mpa_gauge: float = Field(
+        ..., gt=0, description="蒸汽压力 (MPa gauge)"
+    )
+    steam_quality_pct: float = Field(
+        ..., ge=0, le=100, description="蒸汽干度"
+    )
+    return_condensate_pct: float = Field(
+        ..., ge=0, le=100, description="冷凝水回收率"
+    )
+    temperature_class: str = Field(
+        ..., max_length=16, description="LP/MP/HP/ULTRA_HIGH"
+    )
+    steam_consumption_t_h: float = Field(..., gt=0, description="小时消耗 (t/h)")
+    operating_hours_per_year: float = Field(
+        8000.0, gt=0, le=8760, description="年运行小时"
+    )
+    annual_consumption_t: float | None = Field(
+        None, ge=0, description="年消耗量 (t/yr; 缺省=service 计算)"
+    )
+    source: str | None = Field("MANUAL", max_length=32, description="数据来源")
+
+
+class UtilHeatExchangeResponse(BaseModel):
+    """UtilityHeatExchange 单条响应 (T3)."""
+
+    id: uuid.UUID
+    project_id: uuid.UUID
+    workspace_id: uuid.UUID
+    equipment_id: uuid.UUID | None = None
+    equipment_tag: str
+    steam_pressure_mpa_gauge: float
+    steam_quality_pct: float
+    return_condensate_pct: float
+    temperature_class: str
+    steam_consumption_t_h: float
+    operating_hours_per_year: float
+    annual_consumption_t: float
+    source: str
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class UtilEnergySummaryAggregateRequest(BaseModel):
+    """触发 T5 综合能耗汇总 (utility_energy_summary_service.summarize_energy_year)."""
+
+    project_id: uuid.UUID = Field(..., description="项目 UUID")
+    workspace_id: uuid.UUID = Field(..., description="workspace UUID")
+    business_year: int = Field(2026, ge=2020, le=2100, description="业务年度")
+
+
+class UtilEnergySummaryResponse(BaseModel):
+    """UtilityEnergySummary 单条响应 (T5)."""
+
+    id: uuid.UUID
+    project_id: uuid.UUID
+    workspace_id: uuid.UUID
+    business_year: int
+    source: str
+    electricity_kwh_yr: float | None = None
+    fuel_gas_nm3_yr: float | None = None
+    steam_t_yr: float | None = None
+    water_t_yr: float | None = None
+    gas_nm3_yr: float | None = None
+    low_temp_heat_gj_yr: float | None = None
+    annual_total_energy: float
+    toe_conversion_factor: float
+    standard_coal_factor: float
+    total_toe: float
+    total_standard_coal_kg: float
+    tolerance_pct: float | None = None
+    tolerance_status: str
+    computed_at: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None

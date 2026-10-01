@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-01T09:09:51.569Z
-> Files: 816 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-01T09:19:46.830Z
+> Files: 817 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -317,7 +317,7 @@
 - `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~3677 tok)
 - `stream_symbols.py` — 物流符号表端点（SYM-3 / SUP-002 §8）。 (~1973 tok)
 - `streams.py` — P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。 (~6380 tok)
-- `util.py` — S1-5b UTIL API endpoints。 (~2590 tok)
+- `util.py` — S1-5b UTIL API endpoints。 (~6521 tok)
 - `vessel.py` — P5-1-4 VESSEL API：POST /calculate 端点契约。 (~1967 tok)
 - `workspaces.py` — Workspace API（Sprint 1）。 (~551 tok)
 
@@ -571,6 +571,7 @@
 - `test_streams_state_machine_api.py` — P3.2 SIM-13：物流状态机 6 端点 API 测试（闭环审计 D-1）。 (~2253 tok)
 - `test_streams_update_status_restriction.py` — P3.x SIM-32：PATCH /streams/{id} 端点状态限制。 (~2153 tok)
 - `test_toe_error_envelope.py` — services.PcsError 错误信封 API 测试（终审 F2 / V1.4 P2-OPEN-005）。 (~380 tok)
+- `test_util_sprint2.py` — P7 Sprint 2 T7: UTIL 5 表 API 端点测试. (~2010 tok)
 - `test_util.py` — S1-5b UTIL API 测试（in-memory SQLite + httpx async client）。 (~1959 tok)
 - `test_vessel_api.py` — P5-1-4 VESSEL API + 落库 + 出口物流 集成测试。 (~3072 tok)
 

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-01T09:09:51.569Z",
-    "fileCount": 816,
+    "lastScanned": "2026-10-01T09:19:46.830Z",
+    "fileCount": 817,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "f3630a97dba39d0657640e4c56d7688440ffbfda456c3747ea675cd20e173f78",
-    "storeUpdatedAt": "2026-10-01T09:09:51.583Z",
-    "rootHash": "273dc4047e0daba5"
+    "renderedHash": "5237db56acc3762992af3a16cb6bb43d27c210a77ef001990f0c2709ccb7d178",
+    "storeUpdatedAt": "2026-10-01T09:19:46.841Z",
+    "rootHash": "6b7641a89871f7b4"
   },
   "files": {
     "CLAUDE.md": {
@@ -30782,68 +30782,173 @@
     },
     "pcs-backend/app/api/v1/util.py": {
       "description": "S1-5b UTIL API endpoints。",
-      "tokens": 2590,
-      "hash": "2bf21d72064b3f93",
-      "size": 9348,
-      "mtimeMs": 1790825636438.0085,
-      "updatedAt": "2026-10-01T03:33:56.492Z",
+      "tokens": 6521,
+      "hash": "c6506188c578b29e",
+      "size": 23473,
+      "mtimeMs": 1790846304159.7397,
+      "updatedAt": "2026-10-01T09:18:24.228Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_to_response",
           "kind": "fn",
-          "startLine": 44,
-          "endLine": 59,
+          "startLine": 52,
+          "endLine": 67,
           "tokens": 188
         },
         {
           "name": "list_util_results",
           "kind": "fn",
-          "startLine": 60,
-          "endLine": 80,
+          "startLine": 68,
+          "endLine": 88,
           "tokens": 216
         },
         {
           "name": "get_util_result",
           "kind": "fn",
-          "startLine": 81,
-          "endLine": 100,
+          "startLine": 89,
+          "endLine": 108,
           "tokens": 186
         },
         {
           "name": "create_util_results",
           "kind": "fn",
-          "startLine": 101,
-          "endLine": 123,
+          "startLine": 109,
+          "endLine": 131,
           "tokens": 211
         },
         {
           "name": "aggregate_util_results",
           "kind": "fn",
-          "startLine": 124,
-          "endLine": 142,
+          "startLine": 132,
+          "endLine": 150,
           "tokens": 199
         },
         {
           "name": "get_util_summary",
           "kind": "fn",
-          "startLine": 143,
-          "endLine": 179,
+          "startLine": 151,
+          "endLine": 187,
           "tokens": 422
         },
         {
           "name": "get_util_energy_consumption",
           "kind": "fn",
-          "startLine": 180,
-          "endLine": 216,
+          "startLine": 188,
+          "endLine": 224,
           "tokens": 439
         },
         {
           "name": "get_util_water_balance",
           "kind": "fn",
-          "startLine": 217,
-          "endLine": 246,
-          "tokens": 349
+          "startLine": 225,
+          "endLine": 262,
+          "tokens": 446
+        },
+        {
+          "name": "_power_item_to_response",
+          "kind": "fn",
+          "startLine": 263,
+          "endLine": 279,
+          "tokens": 200
+        },
+        {
+          "name": "_fuel_gas_to_response",
+          "kind": "fn",
+          "startLine": 280,
+          "endLine": 298,
+          "tokens": 231
+        },
+        {
+          "name": "_heat_exchange_to_response",
+          "kind": "fn",
+          "startLine": 299,
+          "endLine": 318,
+          "tokens": 259
+        },
+        {
+          "name": "_energy_summary_to_response",
+          "kind": "fn",
+          "startLine": 319,
+          "endLine": 344,
+          "tokens": 336
+        },
+        {
+          "name": "_derive_annual_consumption_kw",
+          "kind": "fn",
+          "startLine": 345,
+          "endLine": 353,
+          "tokens": 63
+        },
+        {
+          "name": "_derive_annual_consumption_nm3",
+          "kind": "fn",
+          "startLine": 354,
+          "endLine": 361,
+          "tokens": 51
+        },
+        {
+          "name": "_derive_annual_consumption_t",
+          "kind": "fn",
+          "startLine": 362,
+          "endLine": 379,
+          "tokens": 132
+        },
+        {
+          "name": "create_power_item",
+          "kind": "fn",
+          "startLine": 380,
+          "endLine": 411,
+          "tokens": 334
+        },
+        {
+          "name": "list_power_items",
+          "kind": "fn",
+          "startLine": 412,
+          "endLine": 442,
+          "tokens": 293
+        },
+        {
+          "name": "create_fuel_gas",
+          "kind": "fn",
+          "startLine": 443,
+          "endLine": 476,
+          "tokens": 358
+        },
+        {
+          "name": "list_fuel_gas",
+          "kind": "fn",
+          "startLine": 477,
+          "endLine": 507,
+          "tokens": 305
+        },
+        {
+          "name": "create_heat_exchange",
+          "kind": "fn",
+          "startLine": 508,
+          "endLine": 542,
+          "tokens": 391
+        },
+        {
+          "name": "list_heat_exchange",
+          "kind": "fn",
+          "startLine": 543,
+          "endLine": 573,
+          "tokens": 306
+        },
+        {
+          "name": "aggregate_energy_summary",
+          "kind": "fn",
+          "startLine": 574,
+          "endLine": 596,
+          "tokens": 218
+        },
+        {
+          "name": "list_energy_summary",
+          "kind": "fn",
+          "startLine": 597,
+          "endLine": 622,
+          "tokens": 288
         }
       ]
     },
@@ -31749,6 +31854,52 @@
           "startLine": 286,
           "endLine": 341,
           "tokens": 489
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_util_sprint2.py": {
+      "description": "P7 Sprint 2 T7: UTIL 5 表 API 端点测试.",
+      "tokens": 2010,
+      "hash": "81b017a746759794",
+      "size": 7259,
+      "mtimeMs": 1790846386782.8787,
+      "updatedAt": "2026-10-01T09:19:46.830Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "pws_with_config_factors",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 81,
+          "tokens": 305
+        },
+        {
+          "name": "test_api_create_power_item_201_with_derived_annual",
+          "kind": "fn",
+          "startLine": 82,
+          "endLine": 106,
+          "tokens": 267
+        },
+        {
+          "name": "test_api_list_power_items_filter_by_project",
+          "kind": "fn",
+          "startLine": 107,
+          "endLine": 142,
+          "tokens": 360
+        },
+        {
+          "name": "test_api_aggregate_energy_summary_201_with_zero_consumption",
+          "kind": "fn",
+          "startLine": 143,
+          "endLine": 167,
+          "tokens": 274
+        },
+        {
+          "name": "test_api_list_energy_summary_filter_by_year",
+          "kind": "fn",
+          "startLine": 168,
+          "endLine": 201,
+          "tokens": 354
         }
       ]
     }

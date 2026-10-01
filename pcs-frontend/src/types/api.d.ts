@@ -3292,6 +3292,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/util/power-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Power Items
+         * @description T1 列出某项目下所有电耗设备清单 (按 equipment_tag 升序).
+         */
+        get: operations["list_power_items_api_v1_util_power_items_get"];
+        put?: never;
+        /**
+         * Create Power Item
+         * @description T1 手动创建电耗设备清单条目 (annual_consumption_kwh 缺省=派生).
+         */
+        post: operations["create_power_item_api_v1_util_power_items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/util/fuel-gas-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Fuel Gas
+         * @description T2 列出某项目下所有燃料气消耗条目 (按 equipment_tag + phase 升序).
+         */
+        get: operations["list_fuel_gas_api_v1_util_fuel_gas_items_get"];
+        put?: never;
+        /**
+         * Create Fuel Gas
+         * @description T2 手动创建燃料气消耗条目 (annual_consumption_nm3 缺省=派生).
+         */
+        post: operations["create_fuel_gas_api_v1_util_fuel_gas_items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/util/heat-exchange-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Heat Exchange
+         * @description T3 列出某项目下所有蒸汽/冷凝水条目 (按 equipment_tag 升序).
+         */
+        get: operations["list_heat_exchange_api_v1_util_heat_exchange_items_get"];
+        put?: never;
+        /**
+         * Create Heat Exchange
+         * @description T3 手动创建蒸汽/冷凝水条目 (annual_consumption_t 缺省=派生).
+         */
+        post: operations["create_heat_exchange_api_v1_util_heat_exchange_items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/util/energy-summary/aggregate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Aggregate Energy Summary
+         * @description T5 触发综合能耗汇总 (聚合 T1+T2+T3 + 折标系数 CONFIG).
+         */
+        post: operations["aggregate_energy_summary_api_v1_util_energy_summary_aggregate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/util/energy-summary": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Energy Summary
+         * @description T5 列出某项目综合能耗汇总 (按 business_year 升序).
+         */
+        get: operations["list_energy_summary_api_v1_util_energy_summary_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/open-channel/manning/calculate": {
         parameters: {
             query?: never;
@@ -13860,6 +13972,389 @@ export interface components {
             year: number;
         };
         /**
+         * UtilEnergySummaryAggregateRequest
+         * @description 触发 T5 综合能耗汇总 (utility_energy_summary_service.summarize_energy_year).
+         */
+        UtilEnergySummaryAggregateRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 UUID
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description workspace UUID
+             */
+            workspace_id: string;
+            /**
+             * Business Year
+             * @description 业务年度
+             * @default 2026
+             */
+            business_year: number;
+        };
+        /**
+         * UtilEnergySummaryResponse
+         * @description UtilityEnergySummary 单条响应 (T5).
+         */
+        UtilEnergySummaryResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+            /** Business Year */
+            business_year: number;
+            /** Source */
+            source: string;
+            /** Electricity Kwh Yr */
+            electricity_kwh_yr?: number | null;
+            /** Fuel Gas Nm3 Yr */
+            fuel_gas_nm3_yr?: number | null;
+            /** Steam T Yr */
+            steam_t_yr?: number | null;
+            /** Water T Yr */
+            water_t_yr?: number | null;
+            /** Gas Nm3 Yr */
+            gas_nm3_yr?: number | null;
+            /** Low Temp Heat Gj Yr */
+            low_temp_heat_gj_yr?: number | null;
+            /** Annual Total Energy */
+            annual_total_energy: number;
+            /** Toe Conversion Factor */
+            toe_conversion_factor: number;
+            /** Standard Coal Factor */
+            standard_coal_factor: number;
+            /** Total Toe */
+            total_toe: number;
+            /** Total Standard Coal Kg */
+            total_standard_coal_kg: number;
+            /** Tolerance Pct */
+            tolerance_pct?: number | null;
+            /** Tolerance Status */
+            tolerance_status: string;
+            /** Computed At */
+            computed_at?: string | null;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * UtilFuelGasCreateRequest
+         * @description 手动创建 UtilityFuelGas (T2 燃料气).
+         */
+        UtilFuelGasCreateRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 UUID
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description workspace UUID
+             */
+            workspace_id: string;
+            /**
+             * Equipment Tag
+             * @description 设备位号
+             */
+            equipment_tag: string;
+            /**
+             * Fuel Type
+             * @description 燃料类型
+             * @default NATURAL_GAS
+             */
+            fuel_type: string;
+            /**
+             * Calorific Value Kcal Nm3
+             * @description 低位热值 (kcal/Nm³)
+             */
+            calorific_value_kcal_nm3: number;
+            /**
+             * Consumption Nm3 H
+             * @description 小时消耗量 (Nm³/h)
+             */
+            consumption_nm3_h: number;
+            /**
+             * Operating Phase
+             * @description INITIAL/STEADY/MAX
+             */
+            operating_phase: string;
+            /**
+             * Operating Hours Per Year
+             * @description 年运行小时
+             * @default 8000
+             */
+            operating_hours_per_year: number;
+            /**
+             * Annual Consumption Nm3
+             * @description 年消耗量 (Nm³/yr; 缺省=service 计算)
+             */
+            annual_consumption_nm3?: number | null;
+            /**
+             * Source
+             * @description 数据来源
+             * @default MANUAL
+             */
+            source: string | null;
+        };
+        /**
+         * UtilFuelGasResponse
+         * @description UtilityFuelGas 单条响应 (T2).
+         */
+        UtilFuelGasResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+            /** Equipment Id */
+            equipment_id?: string | null;
+            /** Equipment Tag */
+            equipment_tag: string;
+            /** Fuel Type */
+            fuel_type: string;
+            /** Calorific Value Kcal Nm3 */
+            calorific_value_kcal_nm3: number;
+            /** Consumption Nm3 H */
+            consumption_nm3_h: number;
+            /** Operating Phase */
+            operating_phase: string;
+            /** Operating Hours Per Year */
+            operating_hours_per_year: number;
+            /** Annual Consumption Nm3 */
+            annual_consumption_nm3: number;
+            /** Source */
+            source: string;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * UtilHeatExchangeCreateRequest
+         * @description 手动创建 UtilityHeatExchange (T3 蒸汽/冷凝水).
+         */
+        UtilHeatExchangeCreateRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 UUID
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description workspace UUID
+             */
+            workspace_id: string;
+            /**
+             * Equipment Tag
+             * @description 设备位号
+             */
+            equipment_tag: string;
+            /**
+             * Steam Pressure Mpa Gauge
+             * @description 蒸汽压力 (MPa gauge)
+             */
+            steam_pressure_mpa_gauge: number;
+            /**
+             * Steam Quality Pct
+             * @description 蒸汽干度
+             */
+            steam_quality_pct: number;
+            /**
+             * Return Condensate Pct
+             * @description 冷凝水回收率
+             */
+            return_condensate_pct: number;
+            /**
+             * Temperature Class
+             * @description LP/MP/HP/ULTRA_HIGH
+             */
+            temperature_class: string;
+            /**
+             * Steam Consumption T H
+             * @description 小时消耗 (t/h)
+             */
+            steam_consumption_t_h: number;
+            /**
+             * Operating Hours Per Year
+             * @description 年运行小时
+             * @default 8000
+             */
+            operating_hours_per_year: number;
+            /**
+             * Annual Consumption T
+             * @description 年消耗量 (t/yr; 缺省=service 计算)
+             */
+            annual_consumption_t?: number | null;
+            /**
+             * Source
+             * @description 数据来源
+             * @default MANUAL
+             */
+            source: string | null;
+        };
+        /**
+         * UtilHeatExchangeResponse
+         * @description UtilityHeatExchange 单条响应 (T3).
+         */
+        UtilHeatExchangeResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+            /** Equipment Id */
+            equipment_id?: string | null;
+            /** Equipment Tag */
+            equipment_tag: string;
+            /** Steam Pressure Mpa Gauge */
+            steam_pressure_mpa_gauge: number;
+            /** Steam Quality Pct */
+            steam_quality_pct: number;
+            /** Return Condensate Pct */
+            return_condensate_pct: number;
+            /** Temperature Class */
+            temperature_class: string;
+            /** Steam Consumption T H */
+            steam_consumption_t_h: number;
+            /** Operating Hours Per Year */
+            operating_hours_per_year: number;
+            /** Annual Consumption T */
+            annual_consumption_t: number;
+            /** Source */
+            source: string;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * UtilPowerItemCreateRequest
+         * @description 手动创建 UtilityPowerItem (T1 电耗设备清单).
+         */
+        UtilPowerItemCreateRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 UUID
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description workspace UUID
+             */
+            workspace_id: string;
+            /**
+             * Equipment Tag
+             * @description 设备位号
+             */
+            equipment_tag: string;
+            /**
+             * Motor Power Kw
+             * @description 电机额定功率 (kW)
+             */
+            motor_power_kw: number;
+            /**
+             * Operating Hours Per Year
+             * @description 年运行小时 (h/yr)
+             */
+            operating_hours_per_year: number;
+            /**
+             * Load Factor
+             * @description 负荷率
+             */
+            load_factor: number;
+            /**
+             * Annual Consumption Kwh
+             * @description 年用电量 (kWh/yr; 缺省=service 计算)
+             */
+            annual_consumption_kwh?: number | null;
+            /**
+             * Source
+             * @description 数据来源 PMS/MANUAL/CALC
+             * @default MANUAL
+             */
+            source: string | null;
+        };
+        /**
+         * UtilPowerItemResponse
+         * @description UtilityPowerItem 单条响应 (T1).
+         */
+        UtilPowerItemResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+            /** Equipment Id */
+            equipment_id?: string | null;
+            /** Equipment Tag */
+            equipment_tag: string;
+            /** Motor Power Kw */
+            motor_power_kw: number;
+            /** Operating Hours Per Year */
+            operating_hours_per_year: number;
+            /** Load Factor */
+            load_factor: number;
+            /** Annual Consumption Kwh */
+            annual_consumption_kwh: number;
+            /** Source */
+            source: string;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
          * UtilResultsCreateRequest
          * @description 手动创建 UtilResults（带 consumption_json 13 类 flat map）。
          */
@@ -20458,6 +20953,284 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UtilWaterBalanceResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_power_items_api_v1_util_power_items_get: {
+        parameters: {
+            query: {
+                /** @description 项目 UUID */
+                project_id: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilPowerItemResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_power_item_api_v1_util_power_items_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UtilPowerItemCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilPowerItemResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_fuel_gas_api_v1_util_fuel_gas_items_get: {
+        parameters: {
+            query: {
+                /** @description 项目 UUID */
+                project_id: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilFuelGasResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_fuel_gas_api_v1_util_fuel_gas_items_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UtilFuelGasCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilFuelGasResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_heat_exchange_api_v1_util_heat_exchange_items_get: {
+        parameters: {
+            query: {
+                /** @description 项目 UUID */
+                project_id: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilHeatExchangeResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_heat_exchange_api_v1_util_heat_exchange_items_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UtilHeatExchangeCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilHeatExchangeResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    aggregate_energy_summary_api_v1_util_energy_summary_aggregate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UtilEnergySummaryAggregateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilEnergySummaryResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_energy_summary_api_v1_util_energy_summary_get: {
+        parameters: {
+            query: {
+                /** @description 项目 UUID */
+                project_id: string;
+                /** @description 业务年度过滤 (None=全部) */
+                business_year?: number | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilEnergySummaryResponse"][];
                 };
             };
             /** @description Validation Error */
