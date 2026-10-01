@@ -32,6 +32,7 @@ from app.models.enums import RecordSignStatus9
 from app.models.project import Project, Stream, Workspace
 from app.services.equip_list.source_resolver import UnsupportedSourceModuleError
 from app.services.equip_list.sync_service import sync_from_source
+from app.services.equipment_type_code_service import EquipmentTypeCodeService
 
 
 # Module-level gate: 并发测试需 pcs_test PG 库（SQLite 无 pg_advisory_xact_lock）
@@ -185,6 +186,84 @@ async def test_sync_from_source_updates_existing_equipment_list(db_session, pws_
         )
     ).scalars().all()
     assert len(rows) == 1
+
+
+@pytest.mark.asyncio
+async def test_sync_from_source_uses_company_level_type_code_when_no_project_override(
+    db_session,
+):
+    """Final-review I1 fix: 无项目级 type_code override 时 → equipment_type_project_id=None（公司级 fallback）。
+
+    T1.5 seed 仅 seed 公司级（project_id NULL）codes；sync_from_source 在无项目级
+    override 时必须 fallback 到公司级 FK target，否则生产 PG 首次 sync 触发 FK violation。
+    """
+    project_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+    pump_id = uuid.uuid4()
+
+    # 仅 seed 公司级（不建项目级 override）
+    await EquipmentTypeCodeService.seed_defaults(db_session)
+
+    # Project + Workspace + PumpResult
+    ws = Workspace(
+        workspace_id=workspace_id,
+        workspace_type="FORMAL",
+        project_id=project_id,
+        name="t",
+    )
+    proj = Project(
+        project_id=project_id,
+        project_no=f"P-{project_id.hex[:8]}",
+        project_name="t",
+        owner_company="t",
+        location="t",
+        project_type="test",
+        design_phase="BASIC",
+        unit_system="SI",
+        status="ACTIVE",
+        workspace_id=workspace_id,
+    )
+    stream = Stream(
+        stream_id=uuid.uuid4(),
+        project_id=project_id,
+        workspace_id=workspace_id,
+        stream_name="S-test",
+        case_type="NORMAL",
+        data_mode="CHEMICAL",
+        source_type="MANUAL_ENTRY",
+        approval_depth=1,
+        press=200_000.0,
+        temp=298.15,
+        composition_json={"H2O": 1.0},
+    )
+    pump = PumpResult(
+        pump_id=pump_id,
+        project_id=project_id,
+        workspace_id=workspace_id,
+        tag_number="P-2002",
+        sign_status=RecordSignStatus9.CHECKED,
+        approval_depth=2,
+        basic_info_json={},
+        fluid_properties_json={},
+        flow_rates_json={},
+        suction_calculation_json={},
+        discharge_calculation_json={},
+        differential_pressure_json={},
+        design_pressure_json={},
+        power_consumption_json={},
+    )
+    db_session.add_all([ws, proj, stream, pump])
+    await db_session.commit()
+
+    result = await sync_from_source(
+        source_module="PUMP",
+        source_service="pump_service",
+        source_record_id=pump_id,
+        db=db_session,
+    )
+    # I1 fix: equipment_type_project_id 应为 None（公司级 fallback）
+    assert result.equipment_type_project_id is None
+    assert result.type_code == "P"
 
 
 @pytest.mark.asyncio

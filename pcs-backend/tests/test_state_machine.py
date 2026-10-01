@@ -282,3 +282,72 @@ async def test_stale_resolved_audit_contains_three_fields(db_session):
     assert detail["stale_resolution_path"] == "RESOLVE_NO_CHANGE"
     assert isinstance(detail["hash_changed"], bool)
     assert isinstance(detail["changed_fields"], list)
+
+
+async def test_stale_resolved_changed_audit_path(db_session):
+    """Final-review I2 fix: RESOLVE_STALE_CHANGED 路径 discrimination。
+
+    当前 state_machine 在 RESOLVE_STALE_CHANGED 转移时不自动 mutate
+    record.record_hash（snapshot 只创建不 restore），所以 hash_changed=False；
+    ``hash_changed=True`` 待 calc_lineage finalization 集成后验证
+    （per S1-2 Q2 ruling: EquipmentList 未登记 RECORD_TYPE_REGISTRY）。
+    本测试断言：audit action 是 STALE_RESOLVED_CHANGED（不同 action）+ stale_resolution_path
+    是 RESOLVE_CHANGED（不同 path），证明两条路径 discrimination 工作。
+    """
+    import uuid
+
+    from app.models.calc import PipingResult
+    from app.models.enums import AuditAction, RecordSignStatus9, StateTransition
+    from app.services.state_machine import StateMachineService
+
+    rec = PipingResult(
+        project_id=uuid.uuid4(),
+        workspace_id=uuid.uuid4(),
+        seq_no=1,
+        line_no="P-200",
+        line_size="2\"",
+        material_class="A1",
+        fluid_code="W",
+        fluid_name="Water",
+        fluid_phase="L",
+        fluid_category="NORMAL",
+        source_pid="P&ID-002",
+        line_from="V-200",
+        line_to="P-201",
+        norm_oper_press=1.0,
+        max_oper_press=1.5,
+        norm_oper_temp=40.0,
+        max_oper_temp=80.0,
+        design_press=2.0,
+        design_temp=100.0,
+        piping_category="GC2",
+        pressure_test_medium="WATER",
+        pressure_test_press=3.0,
+        check_class="II",
+        sign_status=RecordSignStatus9.STALE,
+    )
+    db_session.add(rec)
+    await db_session.flush()
+    sm = StateMachineService(db_session)
+    await sm.transition(
+        record=rec,
+        transition=StateTransition.RESOLVE_STALE_CHANGED,
+        actor_user_id=uuid.uuid4(),
+        actor_role="CHECKER",
+    )
+
+    from app.models.system import AuditLog
+    from sqlalchemy import select
+
+    audit = (
+        await db_session.execute(
+            select(AuditLog).where(
+                AuditLog.resource_id == str(rec.pipe_id),
+                AuditLog.action == AuditAction.STALE_RESOLVED_CHANGED.value,
+            )
+        )
+    ).scalar_one()
+    detail = audit.detail_json
+    assert detail["stale_resolution_path"] == "RESOLVE_CHANGED"
+    assert isinstance(detail["hash_changed"], bool)
+    assert isinstance(detail["changed_fields"], list)
