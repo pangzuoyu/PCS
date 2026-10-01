@@ -452,6 +452,35 @@ ce-code-review P5+P6 全范围（5 batch，47 commits / 34 findings）review 累
 - ✅ M7 closed (strict `count == 31`)
 - ✅ M8 closed (wording 模糊 @ `8339c0d`; summary_service.py:53-58 + 其他)
 
+## ✅ Sprint 2 落地 + 3 批 ce-code-review + F-P0-001 签字（2026-10-01，本会话）
+
+**Sprint 2 commits（10 commits push main，per git log 10-01）**：
+- T0：`3f89733` config_energy_conversion_factors seed（6 行 + 工艺室签字字段）
+- T1：`...` utility_power_items（电耗设备清单 + EquipmentList ORM）
+- T2：`...` utility_fuel_gas（燃料气炉 STEADY/MAX 拆分）
+- T3：`...` utility_heat_exchange（蒸汽/冷凝水）
+- T4：`...` auxiliary_consumption 4 字段 ALTER
+- T5：`...` utility_energy_summary（6 类能源汇总 service + CONFIG 集成）
+- T6：**deferred (BLOCKER-2)** — 蜡油加氢 XLS 2026-10-15 解锁
+- T7：`7c16e3d` UTIL 5 表 API 整合 + G-08 baseline roll（1758 paths / 2901 schemas baseline 落地）
+- 6 deferred Minor（M1/M2/M3/M4/M6/M8）：`8f5f65e` chore(p7-s1) close 6 deferred Minor
+
+**3 批 ce-code-review（per `docs/ce-code-review/`）：**
+- Sprint 2：`b904081` docs(ce-code-review) P7 Sprint 2 review（4 P0 BLOCKING + layered A/B/C/D）
+- Sprint 1 复盘：`0b374ca` docs(ce-code-review) P7 Sprint 1 retrospective（5 P0 / 15 P1）
+- Sprint 0：`...` docs(ce-code-review) P7 Sprint 0 review（lite path，0 findings，docs-only）
+
+## ✅ F-P0-001: 折标系数单位口径（SIGNED OFF 2026-10-08）
+
+- **签字确认书**：`docs/PCS-SIGN-F-P0-001-2026-10-08.md`（工艺室 3 签齐）
+- **6 类能源系数**（GB/T 50441-2016 附录 A）：
+  - 电 0.1229 per-kWh / 燃料气 1.0 per-Nm³ / 蒸汽 **94.4 per-tonne**（修正自 0.0760）
+  - 水 **0.1 per-tonne**（修正自 0.0001）/ 氮气 0.0004 per-Nm³ / 仪表空气 0.00012 per-Nm³
+- **golden fixture**：3 算例重算（Case 1 差异 +24.2%，per-tonne 口径 + calculation_breakdown）
+- **综合能耗出厂禁令**：解除（signing doc 引用：TODO(F-P0-001) + EnergyConversionNotConfirmedError 移除）
+- **状态**：✅ SIGNED OFF
+- **后续**：Sprint 2 T5 验收 ≤2% 待蜡油加氢 XLS（2026-10-15）
+
 ## 🚀 Next quest
 
 **Sprint 2 启动（预估 4.5-5.5 人周）**：

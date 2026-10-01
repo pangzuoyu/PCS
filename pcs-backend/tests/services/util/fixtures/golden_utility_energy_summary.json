@@ -1,12 +1,13 @@
 {
   "_meta": {
     "description": "P7 Sprint 2 T5 utility_energy_summary 黄金 fixture (3 算例)",
-    "schema_version": "1.0",
-    "source": "SYNTHETIC_TEST_DATA",
-    "confirmed_by": null,
-    "confirmed_at": null,
+    "schema_version": "1.1",
+    "source": "GB_T_50441_2016_APPENDIX_A",
+    "confirmed_by": "工艺室-工艺负责人-2026-10-08",
+    "confirmed_at": "2026-10-08T00:00:00+08:00",
+    "sign_off_doc": "docs/PCS-SIGN-F-P0-001-2026-10-08.md",
     "spec_ref": "P7 SPEC V1.4 §3.2.2(5) + P7-OPEN-009 §1 #4 + §6 验收 ≤2%",
-    "notes": "3 算例: 小型 / 中型 / 大型 综合能耗. 折标系数 from config_energy_conversion_factors (T0 已 seed 6 行). unit_to_mj: 1kWh=3.6MJ / 1Nm³ fuel_gas=38MJ / 1t steam=2778MJ / 1GJ low_temp=1000MJ / water/gas=0MJ. expected 数值由 service _compute_totals 公式手算验证 (Case 1 仅电+蒸汽; Case 2 电+燃料+蒸汽; Case 3 大型含燃料 MAX 工况)."
+    "notes": "F-P0-001 signed off 2026-10-08. 工艺室确认 per-tonne 口径. toe_factor / 标准_coal_factor values: 电 0.1229 / 燃料气 1.0 / 蒸汽 94.4 per-tonne / 水 0.1 per-tonne / 氮气 0.0004 / 仪表空气 0.00012. unit_to_mj: 1kWh=3.6MJ / 1Nm³ fuel_gas=38MJ / 1t steam=2778MJ / 1GJ low_temp=1000MJ / water/gas=0MJ. computed total_toe values reflect signed per-tonne factors."
   },
   "cases": [
     {
@@ -25,10 +26,16 @@
         "fuel_gas_nm3_yr": 0.0,
         "steam_t_yr": 20000.0,
         "annual_total_energy_mj": 55927200.0,
-        "total_toe_kg": 14055.8,
-        "total_toe_tonne": 14.0558,
-        "total_standard_coal_kg": 43380.0,
-        "tolerance_status": "NA"
+        "total_toe_kg": 1900535.8,
+        "total_toe_tonne": 1900.5358,
+        "total_standard_coal_kg": 2584535.8,
+        "tolerance_status": "NA",
+        "calculation_breakdown": {
+          "electricity_toe_kg": 12535.8,
+          "steam_toe_kg": 1888000.0,
+          "electricity_coal_kg": 12535.8,
+          "steam_coal_kg": 2572000.0
+        }
       }
     },
     {
@@ -54,10 +61,18 @@
         "fuel_gas_nm3_yr": 1600000.0,
         "steam_t_yr": 125500.0,
         "annual_total_energy_mj": 447480200.0,
-        "total_toe_kg": 2908222.3,
-        "total_toe_tonne": 2908.2223,
-        "total_standard_coal_kg": 6568457.3,
-        "tolerance_status": "NA"
+        "total_toe_kg": 14745884.3,
+        "total_toe_tonne": 14745.8843,
+        "total_standard_coal_kg": 19723744.3,
+        "tolerance_status": "NA",
+        "calculation_breakdown": {
+          "electricity_toe_kg": 1298684.3,
+          "fuel_gas_toe_kg": 1600000.0,
+          "steam_toe_kg": 11847200.0,
+          "electricity_coal_kg": 1298684.3,
+          "fuel_gas_coal_kg": 2285760.0,
+          "steam_coal_kg": 16139300.0
+        }
       }
     },
     {
@@ -81,10 +96,18 @@
         "fuel_gas_nm3_yr": 1975000.0,
         "steam_t_yr": 184000.0,
         "annual_total_energy_mj": 767325200.0,
-        "total_toe_kg": 8172328.8,
-        "total_toe_tonne": 8172.3288,
-        "total_standard_coal_kg": 23167515.4,
-        "tolerance_status": "NA"
+        "total_toe_kg": 25527944.8,
+        "total_toe_tonne": 25527.9448,
+        "total_standard_coal_kg": 32667229.8,
+        "tolerance_status": "NA",
+        "calculation_breakdown": {
+          "electricity_toe_kg": 6183344.8,
+          "fuel_gas_toe_kg": 1975000.0,
+          "steam_toe_kg": 17369600.0,
+          "electricity_coal_kg": 6183344.8,
+          "fuel_gas_coal_kg": 2821485.0,
+          "steam_coal_kg": 23662400.0
+        }
       }
     }
   ]

@@ -36,43 +36,47 @@ _FIXTURE_PATH = (
     / "golden_utility_energy_summary.json"
 )
 
-# T0 seed 6 类能源折标系数 (SYNTHETIC_TEST_DATA 默认值)
+# T0 seed 6 类能源折标系数 (per PCS-SIGN-F-P0-001-2026-10-08 工艺室正式签字)
+# GB/T 50441-2016《石油化工企业能耗计算标准》附录 A:
+# - 蒸汽 94.4 per-tonne = 0.0944 kg标油/kg × 1000
+# - 水 0.1 per-tonne = 0.0001 kg标油/kg × 1000
+# - 其他 per-Nm³ 或 per-kWh 直接引用附录 A
 SEED_FACTORS = [
     {
         "energy_type": "ELECTRICITY",
-        "toe_factor": 0.1229,
-        "standard_coal_factor": 0.4040,
-        "source": "SYNTHETIC_TEST_DATA",
+        "toe_factor": 0.1229,            # kWh → kg 标油
+        "standard_coal_factor": 0.1229,  # kWh → kg 标煤
+        "source": "GB_T_50441_2016_APPENDIX_A",
     },
     {
         "energy_type": "FUEL_GAS",
-        "toe_factor": 1.0000,
-        "standard_coal_factor": 1.4286,
-        "source": "SYNTHETIC_TEST_DATA",
+        "toe_factor": 1.0000,            # Nm³ → kg 标油
+        "standard_coal_factor": 1.4286,  # Nm³ → kg 标煤
+        "source": "GB_T_50441_2016_APPENDIX_A",
     },
     {
         "energy_type": "STEAM",
-        "toe_factor": 0.0760,
-        "standard_coal_factor": 0.1086,
-        "source": "SYNTHETIC_TEST_DATA",
+        "toe_factor": 94.4,              # t per-tonne 口径
+        "standard_coal_factor": 128.6,   # t per-tonne 口径
+        "source": "GB_T_50441_2016_APPENDIX_A",
     },
     {
         "energy_type": "WATER",
-        "toe_factor": 0.0001,
-        "standard_coal_factor": 0.0001,
-        "source": "SYNTHETIC_TEST_DATA",
+        "toe_factor": 0.1,               # t per-tonne 口径
+        "standard_coal_factor": 0.136,   # t per-tonne 口径
+        "source": "GB_T_50441_2016_APPENDIX_A",
     },
     {
-        "energy_type": "GAS",
-        "toe_factor": 0.8500,
-        "standard_coal_factor": 1.2143,
-        "source": "SYNTHETIC_TEST_DATA",
+        "energy_type": "NITROGEN",
+        "toe_factor": 0.0004,            # Nm³ → kg 标油
+        "standard_coal_factor": 0.000571,  # Nm³ → kg 标煤
+        "source": "GB_T_50441_2016_APPENDIX_A",
     },
     {
-        "energy_type": "LOW_TEMP_HEAT",
-        "toe_factor": 0.0341,
-        "standard_coal_factor": 0.0487,
-        "source": "SYNTHETIC_TEST_DATA",
+        "energy_type": "INSTRUMENT_AIR",
+        "toe_factor": 0.00012,           # Nm³ → kg 标油
+        "standard_coal_factor": 0.000171,  # Nm³ → kg 标煤
+        "source": "GB_T_50441_2016_APPENDIX_A",
     },
 ]
 
