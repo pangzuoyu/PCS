@@ -5,11 +5,14 @@ pg_advisory_xact_lock(classid, objid) — 事务结束释放；同 classid+objid
 
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.exc import OperationalError
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 
 async def acquire_record_lock(
@@ -39,6 +42,14 @@ async def acquire_equip_list_lock(
             text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
             {"key": key},
         )
-    except OperationalError:
-        # SQLite (no hashtext / pg_advisory_xact_lock) — skip lock
+    except OperationalError as e:
+        # M5 fix: 加 logger.warning 让 SQLite production 误部署 get visibility
+        # (Sentry / log aggregator 可 capture；否则 silent no-op 无察觉)
+        logger.warning(
+            "acquire_equip_list_lock skipped (SQLite OperationalError, "
+            "no pg_advisory_xact_lock): project_id=%s tag_number=%s err=%s",
+            project_id,
+            tag_number,
+            e,
+        )
         return

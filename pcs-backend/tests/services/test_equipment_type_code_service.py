@@ -39,7 +39,9 @@ async def test_seed_defaults_creates_key_codes(db_session: AsyncSession):
     missing = set(KEY_TYPE_CODES) - found
     assert not missing, f"missing key type codes: {missing}"
 
-    assert count >= 30
+    # M7 fix: 严格断言 (==31) 替代宽松断言 (>=30)，catch silent seed-list regression
+    # 当前 SEED_TYPE_CODES 共 31 entries；扩展/缩减时必须同步更新此断言
+    assert count == 31, f"expected 31 SEED_TYPE_CODES entries, got {count}"
 
 
 @pytest.mark.asyncio
