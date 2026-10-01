@@ -164,7 +164,11 @@ async def test_api_get_util_summary_200(
 async def test_api_get_util_energy_consumption_200(
     client, sample_user_token, pws_setup
 ):
-    """GET /api/v1/util/energy-consumption 200 + 5 energy categories filtered。"""
+    """GET /api/v1/util/energy-consumption 200 + 6 energy categories filtered。
+
+    F-P1-015 fix: 由 5 类扩展到 6 类 (含 CONDENSATE)，与 toe_total 计算口径一致
+    (CONDENSATE 按 STEAM 折标).
+    """
     pws = pws_setup
     r = await client.get(
         f"/api/v1/util/energy-consumption?util_result_id={pws['util_result_id']}",
@@ -172,9 +176,9 @@ async def test_api_get_util_energy_consumption_200(
     )
     assert r.status_code == 200
     body = r.json()
-    # 仅 5 能源类
+    # F-P1-015 fix: 6 能源类 (含 CONDENSATE)
     assert set(body["by_category"].keys()) == {
-        "ELECTRICITY", "STEAM_HP", "STEAM_MP", "STEAM_LP", "FUEL_GAS",
+        "ELECTRICITY", "STEAM_HP", "STEAM_MP", "STEAM_LP", "FUEL_GAS", "CONDENSATE",
     }
     assert body["toe_total"] > 0
 

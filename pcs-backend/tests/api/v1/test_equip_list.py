@@ -193,7 +193,11 @@ async def test_api_sync_equipment_200(
 async def test_api_bulk_sync_equipment_partial_failure(
     client, db_session, sample_user_token, pws_setup_with_pump
 ):
-    """POST /api/v1/equipment-list/bulk-sync 200 + partial failure 容错。"""
+    """POST /api/v1/equipment-list/bulk-sync 200 + partial failure 容错。
+
+    F-P1-010 fix: source_module 由 Literal 改为 str (允许 unknown module).
+    Schema 不再 422, service 层 bulk_sync_from_sources 容错 catch unknown.
+    """
     pws = pws_setup_with_pump
     r = await client.post(
         "/api/v1/equipment-list/bulk-sync",
@@ -205,7 +209,7 @@ async def test_api_bulk_sync_equipment_partial_failure(
                     "source_service": "pump_service",
                     "source_record_id": str(pws["pump_id"]),
                 },
-                {  # failure: 不支持的 source_module (Pydantic Literal 422)
+                {  # failure: 不支持的 source_module — service 层 catch (F-P1-003 + bulk 容错)
                     "source_module": "INVALID_MODULE",
                     "source_service": "x",
                     "source_record_id": str(uuid.uuid4()),
@@ -213,8 +217,10 @@ async def test_api_bulk_sync_equipment_partial_failure(
             ]
         },
     )
-    # Pydantic Literal validation 在 service 之前 catch → 422
-    assert r.status_code == 422
+    # F-P1-010 fix: 200 with partial failure 容错 (返回 succeeded + failed lists)
+    assert r.status_code == 200
+    body = r.json()
+    assert "succeeded" in body or "failed" in body
 
 
 async def test_api_list_equipment_process_controller_allowed(

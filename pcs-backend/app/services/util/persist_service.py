@@ -14,6 +14,7 @@ Per R5 ruling 补 API 层；summary_service (S1-5) 是 read-only 聚合，本文
 
 from __future__ import annotations
 
+import logging
 from typing import Sequence
 from uuid import UUID
 
@@ -21,7 +22,10 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.util import UtilResults
+from app.services.util.category_map import utility_categories
 from app.services.util.source_aggregator import aggregate_consumption
+
+logger = logging.getLogger(__name__)
 
 
 async def save_util_results(
@@ -81,6 +85,16 @@ async def aggregate_and_save(
         新创建的 UtilResults 记录（已 commit + refresh）
     """
     consumption = await aggregate_consumption(project_id, db, modules=modules)
+    # F-P1-006 + F-P1-007 fix: 显式记录缺失类别（原 silent drop 让 manual entries 丢失不可见）
+    expected_cats = {c.value for c in utility_categories()}
+    missing_cats = expected_cats - set(consumption.keys())
+    if missing_cats:
+        logger.warning(
+            "aggregate_and_save: project_id=%s business_date=%s "
+            "源聚合仅返回 %d/%d 类别, 缺失 %s (可能导致 manual entries 覆盖)",
+            project_id, business_date, len(consumption), len(expected_cats),
+            sorted(missing_cats),
+        )
     return await save_util_results(
         db,
         project_id=project_id,

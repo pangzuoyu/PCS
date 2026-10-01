@@ -99,27 +99,32 @@ SEED_TYPE_CODES: tuple[dict, ...] = (
 class EquipmentTypeCodeService:
     """设备类型代码 service（equipment_type_codes 表，复合 PK (project_id, type_code)）。
 
-    业务：seed_defaults 幂等 seed 26 个核心 type_code（公司级默认，project_id NULL）；
+    业务：seed_defaults 幂等 seed 31 个核心 type_code（公司级默认，project_id NULL）；
     query_by_code / list_by_category 提供 read-only 查询；项目级覆写 P2+ 模板导入后
     启用（不属本 service 范围）。
+
+    F-P1-012 fix: 数量注释对齐 — 真实 seed 31 个（KEY_TYPE_CODES 24 + 7 常用补充）
     """
 
     @classmethod
     async def seed_defaults(cls, session: AsyncSession) -> int:
-        """幂等 seed 26 个核心 type_code（公司级默认，project_id NULL）。
+        """幂等 seed 31 个核心 type_code（公司级默认，project_id NULL）。
+
+        F-P1-011 fix: 由 all-or-nothing 改为 per-entry 增量（partial pre-seeding
+        不阻塞剩余 type_codes seed）。
 
         Returns:
-            新增行数（幂等：第二次返回 0）。
+            新增行数（幂等：第二次返回 0；partial pre-seed → 只增 missing 项）。
         """
         existing_stmt = select(EquipmentTypeCode.type_code).where(
             EquipmentTypeCode.project_id.is_(None)
         )
         existing = set((await session.execute(existing_stmt)).scalars().all())
-        if existing:
-            return 0
 
         new_count = 0
         for entry in SEED_TYPE_CODES:
+            if entry["type_code"] in existing:
+                continue  # F-P1-011 fix: 跳过已存在项
             session.add(
                 EquipmentTypeCode(
                     project_id=None,  # 公司级默认
@@ -134,5 +139,6 @@ class EquipmentTypeCodeService:
                 )
             )
             new_count += 1
-        await session.commit()
+        if new_count > 0:
+            await session.commit()
         return new_count

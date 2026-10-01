@@ -3,16 +3,23 @@
 配套 auxiliary_consumption + utility_energy_summary。fuel_type 枚举：
 GAS / DIESEL / COAL / STEAM / ELECTRICITY / OTHER。effective_year +
 effective_from / effective_to 控制生效区间。
+
+F-P1-008 fix: query_by_fuel_year / query_by_fuel_year_batch 加 effective_from/to
+生效区间检查 — 原仅 effective_year 过滤导致 mid-year 切换系数时 stale 数据返回
+(year=2027 January 但 effective_from=2027-06-01 的 2027 entry 已匹配)。
 """
 from __future__ import annotations
 
 import datetime as dt
+import logging
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.config_domain import ToeConversionFactor
 from app.services.exceptions import PcsError
+
+logger = logging.getLogger(__name__)
 
 VALID_FUEL_TYPES = {"GAS", "DIESEL", "COAL", "STEAM", "ELECTRICITY", "OTHER"}
 
@@ -57,17 +64,31 @@ class ToeConversionService:
     async def query_by_fuel_year(
         cls, session: AsyncSession, fuel_type: str, year: int
     ) -> ToeConversionFactor:
-        """按 fuel_type + year 查询；year 超出时返回最近的已知年。"""
+        """按 fuel_type + year 查询；year 超出时返回最近的已知年。
+
+        F-P1-008 fix: 加 effective_from/to 区间检查 + stale WARNING
+        （仅 effective_year 过滤会让 mid-year 切换系数 year-rollover 时返 stale）。
+        """
         if fuel_type not in VALID_FUEL_TYPES:
             raise PcsError(
                 f"未知 fuel_type: {fuel_type}",
                 code="TOE_INVALID_FUEL",
                 status=422,
             )
+        # F-P1-008: 用 effective_from/to 精确生效区间
+        query_date = dt.date(year, 12, 31)  # year-rollover 检查取年末
         stmt = (
             select(ToeConversionFactor)
             .where(ToeConversionFactor.fuel_type == fuel_type)
             .where(ToeConversionFactor.effective_year <= year)
+            .where(
+                (ToeConversionFactor.effective_from.is_(None))
+                | (ToeConversionFactor.effective_from <= query_date)
+            )
+            .where(
+                (ToeConversionFactor.effective_to.is_(None))
+                | (ToeConversionFactor.effective_to >= dt.date(year, 1, 1))
+            )
             .order_by(ToeConversionFactor.effective_year.desc())
             .limit(1)
         )
@@ -77,6 +98,13 @@ class ToeConversionService:
                 f"无 {fuel_type} 折标煤系数",
                 code="TOE_NOT_FOUND",
                 status=404,
+            )
+        if result.effective_year < year:
+            # F-P1-008: year-rollover stale WARNING — 用最新已知年但 caller 可能期望新系数
+            logger.warning(
+                "query_by_fuel_year: fuel_type=%s year=%d → 回退到 %d "
+                "(无 year=%d exact entry, 可能 stale)",
+                fuel_type, year, result.effective_year, year,
             )
         return result
 
@@ -111,10 +139,20 @@ class ToeConversionService:
                 status=422,
             )
         # 单 IN-clause 查询所有匹配行；Python-side 按 fuel_type 分组取 latest
+        # F-P1-008 fix: 加 effective_from/to 区间检查
+        query_date = dt.date(year, 12, 31)
         stmt = (
             select(ToeConversionFactor)
             .where(ToeConversionFactor.fuel_type.in_(fuel_types))
             .where(ToeConversionFactor.effective_year <= year)
+            .where(
+                (ToeConversionFactor.effective_from.is_(None))
+                | (ToeConversionFactor.effective_from <= query_date)
+            )
+            .where(
+                (ToeConversionFactor.effective_to.is_(None))
+                | (ToeConversionFactor.effective_to >= dt.date(year, 1, 1))
+            )
             .order_by(ToeConversionFactor.fuel_type, ToeConversionFactor.effective_year.desc())
         )
         rows = (await session.execute(stmt)).scalars().all()
@@ -122,6 +160,13 @@ class ToeConversionService:
         result: dict[str, ToeConversionFactor] = {}
         for row in rows:
             if row.fuel_type not in result:  # first wins (latest)
+                # F-P1-008: stale detection
+                if row.effective_year < year:
+                    logger.warning(
+                        "query_by_fuel_year_batch: fuel_type=%s year=%d "
+                        "→ 回退到 %d (无 year=%d exact entry, 可能 stale)",
+                        row.fuel_type, year, row.effective_year, year,
+                    )
                 result[row.fuel_type] = row
         return result
 

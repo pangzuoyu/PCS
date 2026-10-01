@@ -107,7 +107,12 @@ async def get_equipment(
     db: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[_Actor, Depends(current_actor)],
 ) -> EquipListResponse:
-    """单条 EquipmentList 查询。"""
+    """单条 EquipmentList 查询。
+
+    F-P1-014 + BLOCKER-3: 当前仅 require_roles role 校验, 未做
+    _check_user_project_access(db, user, record.project_id) 校验.
+    P7-7+ UserProject model 立项后加 (P7 Sprint 主线外 BLOCKER-3).
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     from fastapi import HTTPException
 

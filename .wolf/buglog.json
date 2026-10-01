@@ -2074,6 +2074,200 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-10-01"
+    },
+    {
+      "id": "bug-119",
+      "timestamp": "2026-10-01T22:00:00Z",
+      "error_message": "F-P1-002 advisory_lock silent no-op on PG OperationalError",
+      "file": "app/services/advisory_lock.py",
+      "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
+      "fix": "dialect-aware fail-fast: PG→re-raise, SQLite→silent no-op",
+      "fix_commit": "PENDING",
+      "tags": [
+        "p7-s1-hotfix",
+        "F-P1-002"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-01T22:00:00Z"
+    },
+    {
+      "id": "bug-120",
+      "timestamp": "2026-10-01T22:00:00Z",
+      "error_message": "F-P1-003 SourceModule dispatcher silently drops unknown modules",
+      "file": "app/services/util/source_aggregator.py",
+      "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
+      "fix": "logger.warning added (was silent continue)",
+      "fix_commit": "PENDING",
+      "tags": [
+        "p7-s1-hotfix",
+        "F-P1-003"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-01T22:00:00Z"
+    },
+    {
+      "id": "bug-121",
+      "timestamp": "2026-10-01T22:00:00Z",
+      "error_message": "F-P1-004 summary_service coalesces absent vs explicit 0 silently",
+      "file": "app/services/util/summary_service.py",
+      "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
+      "fix": "logger.warning on missing fuel_type",
+      "fix_commit": "PENDING",
+      "tags": [
+        "p7-s1-hotfix",
+        "F-P1-004"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-01T22:00:00Z"
+    },
+    {
+      "id": "bug-122",
+      "timestamp": "2026-10-01T22:00:00Z",
+      "error_message": "F-P1-006 + F-P1-007 aggregate_and_save drops categories silently",
+      "file": "app/services/util/persist_service.py",
+      "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
+      "fix": "logger.warning lists missing categories",
+      "fix_commit": "PENDING",
+      "tags": [
+        "p7-s1-hotfix",
+        "F-P1-006",
+        "F-P1-007"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-01T22:00:00Z"
+    },
+    {
+      "id": "bug-123",
+      "timestamp": "2026-10-01T22:00:00Z",
+      "error_message": "F-P1-010 bulk-sync Pydantic Literal contradicts partial failure",
+      "file": "app/schemas/equip_list.py",
+      "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
+      "fix": "Literal[8] → str + length constraint",
+      "fix_commit": "PENDING",
+      "tags": [
+        "p7-s1-hotfix",
+        "F-P1-010"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-01T22:00:00Z"
+    },
+    {
+      "id": "bug-124",
+      "timestamp": "2026-10-01T22:00:00Z",
+      "error_message": "F-P1-011 EquipmentTypeCodeService.seed_defaults all-or-nothing",
+      "file": "app/services/equipment_type_code_service.py",
+      "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
+      "fix": "per-entry partial seed (skip existing)",
+      "fix_commit": "PENDING",
+      "tags": [
+        "p7-s1-hotfix",
+        "F-P1-011"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-01T22:00:00Z"
+    },
+    {
+      "id": "bug-125",
+      "timestamp": "2026-10-01T22:00:00Z",
+      "error_message": "F-P1-013 consumption_json accepts NaN/Inf — poisons toe_total",
+      "file": "app/schemas/util.py",
+      "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
+      "fix": "field_validator reject non-finite",
+      "fix_commit": "PENDING",
+      "tags": [
+        "p7-s1-hotfix",
+        "F-P1-013"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-01T22:00:00Z"
+    },
+    {
+      "id": "bug-126",
+      "timestamp": "2026-10-01T22:00:00Z",
+      "error_message": "F-P1-015 toe_total 6 categories but by_category 5",
+      "file": "app/api/v1/util.py",
+      "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
+      "fix": "add CONDENSATE to energy_keys (5→6)",
+      "fix_commit": "PENDING",
+      "tags": [
+        "p7-s1-hotfix",
+        "F-P1-015"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-01T22:00:00Z"
+    },
+    {
+      "id": "bug-127",
+      "timestamp": "2026-10-01T22:00:00Z",
+      "error_message": "F-P1-001 UtilResults missing composite (project_id, workspace_id) index",
+      "file": "app/models/util.py",
+      "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
+      "fix": "add Index ix_util_results_project_workspace",
+      "fix_commit": "PENDING",
+      "tags": [
+        "p7-s1-hotfix",
+        "F-P1-001"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-01T22:00:00Z"
+    },
+    {
+      "id": "bug-128",
+      "timestamp": "2026-10-01T22:00:00Z",
+      "error_message": "F-P1-008 query_by_fuel_year returns stale coefficient on year-rollover",
+      "file": "app/services/toe_conversion_service.py",
+      "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
+      "fix": "add effective_from/to check + stale WARNING",
+      "fix_commit": "PENDING",
+      "tags": [
+        "p7-s1-hotfix",
+        "F-P1-008"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-01T22:00:00Z"
+    },
+    {
+      "id": "bug-129",
+      "timestamp": "2026-10-01T22:00:00Z",
+      "error_message": "F-P1-012 EquipmentTypeCode count 3-way mismatch (26/31/24)",
+      "file": "app/services/equipment_type_code_service.py",
+      "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
+      "fix": "docstring 26 → 31 (真实 seed 数量)",
+      "fix_commit": "PENDING",
+      "tags": [
+        "p7-s1-hotfix",
+        "F-P1-012"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-01T22:00:00Z"
+    },
+    {
+      "id": "bug-130",
+      "timestamp": "2026-10-01T22:00:00Z",
+      "error_message": "F-P1-014 GET endpoints return any record by UUID (BLOCKER-3 partial)",
+      "file": "app/api/v1/equip_list.py + app/api/v1/util.py",
+      "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
+      "fix": "docstring note BLOCKER-3 incomplete (P7-7+ UserProject model)",
+      "fix_commit": "PENDING",
+      "tags": [
+        "p7-s1-hotfix",
+        "F-P1-014",
+        "BLOCKER-3"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-01T22:00:00Z"
     }
   ]
 }

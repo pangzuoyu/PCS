@@ -35,6 +35,10 @@ async def acquire_equip_list_lock(
     Uses PG ``hashtext`` composite key. SQLite raises ``OperationalError`` (no
     ``hashtext``/``pg_advisory_xact_lock``) → silently no-op (single-thread
     happy path OK; concurrent test gates ``pcs_test`` only).
+
+    F-P1-002 fix: dialect-aware. SQLite → no-op (test path OK).
+    PostgreSQL → re-raise OperationalError (生产环境必须有锁，不容 silent no-op
+    否则 race condition silently un-protected).
     """
     key = f"{project_id}::{tag_number}"
     try:
@@ -43,13 +47,19 @@ async def acquire_equip_list_lock(
             {"key": key},
         )
     except OperationalError as e:
-        # M5 fix: 加 logger.warning 让 SQLite production 误部署 get visibility
-        # (Sentry / log aggregator 可 capture；否则 silent no-op 无察觉)
+        dialect = session.bind.dialect.name if session.bind else "unknown"
+        if dialect == "postgresql":
+            # 生产 PG 不应该 OperationalError — re-raise fail-fast
+            logger.error(
+                "acquire_equip_list_lock failed on postgresql: "
+                "project_id=%s tag_number=%s err=%s",
+                project_id, tag_number, e,
+            )
+            raise
+        # SQLite 测试路径: no-op (M5 logger.warning 已落地)
         logger.warning(
-            "acquire_equip_list_lock skipped (SQLite OperationalError, "
-            "no pg_advisory_xact_lock): project_id=%s tag_number=%s err=%s",
-            project_id,
-            tag_number,
-            e,
+            "acquire_equip_list_lock skipped (SQLite, no pg_advisory_xact_lock): "
+            "project_id=%s tag_number=%s",
+            project_id, tag_number,
         )
         return

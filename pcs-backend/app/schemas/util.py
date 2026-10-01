@@ -12,15 +12,20 @@ Per R5 ruling 补 API 层；与 summary_service (S1-5) 协同：
 
 from __future__ import annotations
 
+import math
 import uuid
 from datetime import date
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 
 class UtilResultsCreateRequest(BaseModel):
-    """手动创建 UtilResults（带 consumption_json 13 类 flat map）。"""
+    """手动创建 UtilResults（带 consumption_json 13 类 flat map）。
+
+    F-P1-013 fix: 拒绝 NaN/Inf — 防止下游 toe_total 计算被污染
+    (math.nan × factor = nan, math.inf × factor = inf).
+    """
 
     project_id: uuid.UUID = Field(..., description="项目 UUID")
     workspace_id: uuid.UUID = Field(..., description="workspace UUID")
@@ -30,6 +35,17 @@ class UtilResultsCreateRequest(BaseModel):
         description="13 类公用工程 flat {category: float_quantity} map",
     )
     source: str | None = Field(None, max_length=200, description="数据来源描述")
+
+    @field_validator("consumption_json")
+    @classmethod
+    def _reject_nan_inf(cls, v: dict[str, float]) -> dict[str, float]:
+        for cat, qty in v.items():
+            if not math.isfinite(qty):
+                raise ValueError(
+                    f"consumption_json[{cat!r}]={qty} 不是 finite "
+                    f"(NaN/Inf 拒绝 — 污染下游 toe_total)"
+                )
+        return v
 
 
 class UtilResultsResponse(BaseModel):
@@ -59,11 +75,15 @@ class UtilSummaryResponse(BaseModel):
 
 
 class UtilEnergyConsumptionResponse(BaseModel):
-    """能源专项（5 类进 TOE：ELECTRICITY + STEAM×4 + FUEL_GAS）。"""
+    """能源专项（6 类进 TOE：ELECTRICITY + STEAM×3 + FUEL_GAS + CONDENSATE）。
+
+    F-P1-015 fix: 由 5 类扩展到 6 类 — 与 toe_total 计算口径一致 (CONDENSATE 按
+    STEAM 折标计算入 toe_total 但 by_category 之前漏掉, 致客户端无法解释)。
+    """
 
     by_category: dict[str, float] = Field(
         ...,
-        description="5 能源类消耗量：ELECTRICITY / STEAM_HP / STEAM_MP / STEAM_LP / FUEL_GAS",
+        description="6 能源类消耗量：ELECTRICITY / STEAM_HP / STEAM_MP / STEAM_LP / FUEL_GAS / CONDENSATE",
     )
     toe_total: float
     standard_coal_total: float

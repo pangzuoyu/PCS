@@ -31,12 +31,20 @@ class EquipListSyncRequest(BaseModel):
     业务：用户在前端 EquipmentListPage 点 "重新同步" 按钮 → POST 此 body
     → 后端调 sync_from_source → EquipmentList 记录更新（equipment_status="E"
     联动 + V1.4 source_service 字段写入）。
+
+    F-P1-010 fix: source_module 由 Literal 8 值改为 str + 长度约束。Literal 太
+    严格会在 Pydantic 422 reject 未在白名单的 module，但 bulk_sync_from_sources
+    设计意图是 partial failure 容错（service 层 catch 未知 module）。改 str 后
+    未知 module 进入 service，由 source_aggregator F-P1-003 WARNING + bulk
+    容错逻辑处理。
     """
 
-    source_module: Literal[
-        "PUMP", "VESSEL", "HEAT", "PSV", "CV",
-        "COOL_TOWER", "PSYCHRO", "OPEN_CHANNEL",
-    ] = Field(..., description="源模块（PUMP/VESSEL/HEAT/PSV/CV/COOL_TOWER/PSYCHRO/OPEN_CHANNEL）")
+    source_module: str = Field(
+        ...,
+        min_length=1,
+        max_length=32,
+        description="源模块名（PUMP/VESSEL/HEAT/PSV/CV/COOL_TOWER/PSYCHRO/OPEN_CHANNEL 等）",
+    )
     source_service: str = Field(
         ...,
         min_length=1,

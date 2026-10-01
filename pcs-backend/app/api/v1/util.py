@@ -91,7 +91,12 @@ async def get_util_result(
     db: Annotated[AsyncSession, Depends(get_db)],
     user: Annotated[_Actor, Depends(current_actor)],
 ) -> UtilResultsResponse:
-    """单条 UtilResults 查询。"""
+    """单条 UtilResults 查询。
+
+    F-P1-014 + BLOCKER-3: 当前仅 require_roles role 校验, 未做
+    _check_user_project_access(db, user, record.project_id) 校验.
+    P7-7+ UserProject model 立项后加 (P7 Sprint 主线外 BLOCKER-3).
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     record = await persist_service.get_util_result(db, util_result_id)
     if record is None:
@@ -204,13 +209,14 @@ async def get_util_energy_consumption(
         record = rows[0]
     summary = await summary_service.summarize(record, db=db, year=year)
 
-    # 仅 5 能源类（filter from 13）
+    # 6 能源类（filter from 13）— 与 toe_total 计算口径一致 (F-P1-015 fix)
     energy_keys = {
         UtilityCategory.ELECTRICITY.value,
         UtilityCategory.STEAM_HP.value,
         UtilityCategory.STEAM_MP.value,
         UtilityCategory.STEAM_LP.value,
         UtilityCategory.FUEL_GAS.value,
+        UtilityCategory.CONDENSATE.value,  # 冷凝水按 STEAM 折标
     }
     by_category = {k: v for k, v in summary["by_category"].items() if k in energy_keys}
     return UtilEnergyConsumptionResponse(

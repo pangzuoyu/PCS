@@ -13,7 +13,11 @@ R5: 最小范围；本服务仅做 read-only 聚合，不写库（persist_servic
 
 from __future__ import annotations
 
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.models.util import UtilResults
 from app.services.toe_conversion_service import ToeConversionService
@@ -87,7 +91,14 @@ async def summarize(
             continue  # 非能源类 / TOTAL 占位
         toe_row = toe_lookup.get(fuel_type)
         if toe_row is None:
-            continue  # 该 fuel_type 缺 TOE 系数（不计入 TOE）
+            # F-P1-004 fix: 区分 absent vs explicit 0 — 缺 TOE 系数记 WARNING
+            # （原 silent skip 让 fuel_type 配置缺漏无法察觉）
+            logger.warning(
+                "summary_service: fuel_type=%s (category=%s, qty=%s) "
+                "缺 TOE 系数 — 不计入 toe_total (区别于 qty=0 显式零)",
+                fuel_type, cat_value, qty,
+            )
+            continue
         toe_total += qty * float(toe_row.toe_conversion_factor)
         standard_coal_total += qty * float(toe_row.standard_coal_factor)
 

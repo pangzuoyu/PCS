@@ -51,6 +51,9 @@ class UtilResults(TimestampMixin, Base):
     __tablename__ = "util_results"
     __table_args__ = (
         Index("ix_util_results_project", "project_id"),
+        # F-P1-001 fix: 加 (project_id, workspace_id) 复合索引 — 跨 workspace
+        # 过滤查询 (project_id, workspace_id) 走复合索引避免回表
+        Index("ix_util_results_project_workspace", "project_id", "workspace_id"),
     )
 
     util_result_id: Mapped[uuid.UUID] = mapped_column(

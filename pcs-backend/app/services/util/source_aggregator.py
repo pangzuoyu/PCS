@@ -26,10 +26,13 @@ source_aggregator 读取 source module ORM 结果，转换为 flat
 
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+
+logger = logging.getLogger(__name__)
 
 from app.models.calc import (
     CoolingTowerResult,
@@ -173,7 +176,14 @@ async def aggregate_consumption(
     for module in modules:
         aggregator = _AGGREGATORS.get(module)
         if aggregator is None:
-            continue  # 未知 module 跳过（不抛异常，partial aggregation）
+            # F-P1-003 fix: 不再 silent drop — 记 WARNING 让 feature-probing
+            # / 配置错误可见（Sentry / log aggregator 可捕获）
+            logger.warning(
+                "source_aggregator: unknown SourceModule=%s skipped "
+                "(available=%s)",
+                module, sorted(_AGGREGATORS.keys()),
+            )
+            continue
         module_result = await aggregator(project_id, db)
         result.update(module_result)
     return result
