@@ -9,6 +9,7 @@ from app.api.v1.cool_tower import router as cool_tower_router  # P6-2 Task 25
 from app.api.v1.cost_est import router as cost_est_router  # P6-3 Task 36
 from app.api.v1.cv import router as cv_router  # P6-1 Task 10
 from app.api.v1.equip_lib import router as equip_lib_router
+from app.api.v1.equip_list import router as equip_list_router  # P7-Sprint 1 S1-4b
 from app.api.v1.filtration import router as filtration_router  # P6-3 Task 34
 from app.api.v1.flare import router as flare_router  # P6-2 Task 20
 from app.api.v1.flash import router as flash_router
@@ -54,6 +55,7 @@ api_router.include_router(pump_router)
 api_router.include_router(stream_symbols_router)
 api_router.include_router(streams_router)
 api_router.include_router(equip_lib_router)
+api_router.include_router(equip_list_router)  # P7-Sprint 1 S1-4b
 api_router.include_router(flash_router)
 api_router.include_router(flare_router)  # P6-2 Task 20
 api_router.include_router(cool_tower_router)  # P6-2 Task 25
