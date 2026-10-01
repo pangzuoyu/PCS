@@ -79,16 +79,17 @@ def upgrade() -> None:
     )
 
     # E. equipment_type_codes 复合 UNIQUE（替代原 PK 的唯一性语义）
-    # DROP IF EXISTS + ADD 保证幂等（round-trip re-upgrade 阶段
-    # p1_sprint3_nullable up 也会 ADD CONSTRAINT，避免 DuplicateTable）
+    # 幂等：仅在不存在时 ADD（避免 DROP CASCADE 触发 fk_equipment_list_type_code_composite 重建）
+    # p1_sprint3_nullable up 阶段已 ADD 此约束，重复运行需 IF NOT EXISTS 守门
     op.execute(
-        "ALTER TABLE equipment_type_codes "
-        "DROP CONSTRAINT IF EXISTS uq_equipment_type_codes_project_type"
-    )
-    op.execute(
+        "DO $$ BEGIN "
+        "IF NOT EXISTS (SELECT 1 FROM pg_constraint "
+        "               WHERE conname = 'uq_equipment_type_codes_project_type') THEN "
         "ALTER TABLE equipment_type_codes "
         "ADD CONSTRAINT uq_equipment_type_codes_project_type "
-        "UNIQUE (project_id, type_code)"
+        "UNIQUE (project_id, type_code); "
+        "END IF; "
+        "END $$"
     )
 
     # F. cepci_index_series_year → ix_cepci_year 重命名（round-trip 兼容）
