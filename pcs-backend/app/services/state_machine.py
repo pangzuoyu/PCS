@@ -362,6 +362,15 @@ class StateMachineService:
         if transition in (StateTransition.RESOLVE_STALE_NO_CHANGE, StateTransition.RESOLVE_STALE_CHANGED):
             new_hash = getattr(record, "record_hash", None)
             cf = getattr(record, "changed_fields", None) or {}
+            # M2 fix: changed_fields 双格式兼容 — dict (legacy) emit sorted keys,
+            # list (CIA 引擎 future) emit as-is preserves order；其他 type 静默 fallback []
+            # 避免 list 误吞 + silent data loss
+            if isinstance(cf, dict):
+                changed_fields_value: list[str] = sorted(cf.keys())
+            elif isinstance(cf, list):
+                changed_fields_value = [str(x) for x in cf]
+            else:
+                changed_fields_value = []
             extra = {
                 "stale_resolution_path": (
                     "RESOLVE_NO_CHANGE"
@@ -369,7 +378,7 @@ class StateMachineService:
                     else "RESOLVE_CHANGED"
                 ),
                 "hash_changed": (old_hash != new_hash),
-                "changed_fields": sorted(cf.keys()) if isinstance(cf, dict) else [],
+                "changed_fields": changed_fields_value,
             }
         await self._write_audit(
             action=TRANSITION_AUDIT_ACTION[transition],

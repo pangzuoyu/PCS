@@ -21,6 +21,9 @@ from alembic import op
 revision: str = "p7_s1_002"
 # 当前 head 是 p7_s1_005（util_results）；本 D8 gap 补在 T0 落地后立即执行，
 # 但 filename 沿用 plan V2.2 指定的 p7_s1_002_audit_logs_jsonb_gin.py
+# M3 fix: filename p7_s1_002 编号 < p7_s1_005 chain 顺序（p7_s1_002 在 p7_s1_005 之后落）；
+# 此处故意保留 plan V2.2 指定文件名，避免 alembic rename 风险。Future plan revision
+# 应统一编号规则。
 down_revision: str | None = "p7_s1_005"
 branch_labels: str | tuple[str, ...] | None = None
 depends_on: str | tuple[str, ...] | None = None

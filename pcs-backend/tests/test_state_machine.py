@@ -351,3 +351,69 @@ async def test_stale_resolved_changed_audit_path(db_session):
     assert detail["stale_resolution_path"] == "RESOLVE_CHANGED"
     assert isinstance(detail["hash_changed"], bool)
     assert isinstance(detail["changed_fields"], list)
+
+
+async def test_stale_resolved_changed_fields_list_format(db_session):
+    """Final-review M2 fix: changed_fields list 格式保留顺序（不 silent [] swallow）。
+
+    CIA 引擎 future 写入可能用 list 格式（per SPEC §4.7 三元决策）；
+    state_machine 需保留 list 元素顺序，list 误吞 [] 是 silent data loss。
+    """
+    import uuid
+
+    from app.models.calc import PipingResult
+    from app.models.enums import AuditAction, RecordSignStatus9, StateTransition
+    from app.services.state_machine import StateMachineService
+
+    rec = PipingResult(
+        project_id=uuid.uuid4(),
+        workspace_id=uuid.uuid4(),
+        seq_no=1,
+        line_no="P-300",
+        line_size="2\"",
+        material_class="A1",
+        fluid_code="W",
+        fluid_name="Water",
+        fluid_phase="L",
+        fluid_category="NORMAL",
+        source_pid="P&ID-003",
+        line_from="V-300",
+        line_to="P-301",
+        norm_oper_press=1.0,
+        max_oper_press=1.5,
+        norm_oper_temp=40.0,
+        max_oper_temp=80.0,
+        design_press=2.0,
+        design_temp=100.0,
+        piping_category="GC2",
+        pressure_test_medium="WATER",
+        pressure_test_press=3.0,
+        check_class="II",
+        sign_status=RecordSignStatus9.STALE,
+        # M2 fix: list 格式（per CIA 引擎 future spec）
+        changed_fields=["line_size", "fluid_phase", "design_press"],
+    )
+    db_session.add(rec)
+    await db_session.flush()
+    sm = StateMachineService(db_session)
+    await sm.transition(
+        record=rec,
+        transition=StateTransition.RESOLVE_STALE_NO_CHANGE,
+        actor_user_id=uuid.uuid4(),
+        actor_role="CHECKER",
+    )
+
+    from app.models.system import AuditLog
+    from sqlalchemy import select
+
+    audit = (
+        await db_session.execute(
+            select(AuditLog).where(
+                AuditLog.resource_id == str(rec.pipe_id),
+                AuditLog.action == AuditAction.STALE_RESOLVED_NO_CHANGE.value,
+            )
+        )
+    ).scalar_one()
+    detail = audit.detail_json
+    # M2 fix: list 保留顺序，不应被 silent [] 吞
+    assert detail["changed_fields"] == ["line_size", "fluid_phase", "design_press"]
