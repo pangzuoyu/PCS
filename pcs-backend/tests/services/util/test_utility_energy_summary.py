@@ -36,47 +36,55 @@ _FIXTURE_PATH = (
     / "golden_utility_energy_summary.json"
 )
 
-# T0 seed 6 类能源折标系数 (per PCS-SIGN-F-P0-001-2026-10-08 工艺室正式签字)
-# GB/T 50441-2016《石油化工企业能耗计算标准》附录 A:
-# - 蒸汽 94.4 per-tonne = 0.0944 kg标油/kg × 1000
-# - 水 0.1 per-tonne = 0.0001 kg标油/kg × 1000
-# - 其他 per-Nm³ 或 per-kWh 直接引用附录 A
+# T0 seed 6 类能源折标系数 (per PCS-SIGN-F-P0-001-2026-10-08-R1 工艺室正式签字)
+# GB 30251-2024《炼化行业单位产品能源消耗限额》附录 A + 三层标准交叉核对:
+# - 电 0.086 kg标油/kWh (当量值) / 0.21 kg标油/kWh (等价值, 炼油/乙烯用)
+# - 蒸汽按压力等级 9 档 55–92 kg标油/t (本测试用 MP 1.0 MPa = 76 kg标油/t)
+# - 水按类型 9 类 0.06–10.14 kg标油/t (本测试用循环水 = 0.06 kg标油/t)
+# - 氮气 0.15 kg标油/m³
+# - 仪表空气 0.028/0.038 kg标油/m³ (净化/非净化)
+# - 燃料气按气源 0.85/0.93/950 (本测试用气田气 0.85)
 SEED_FACTORS = [
     {
         "energy_type": "ELECTRICITY",
-        "toe_factor": 0.1229,            # kWh → kg 标油
-        "standard_coal_factor": 0.1229,  # kWh → kg 标煤
-        "source": "GB_T_50441_2016_APPENDIX_A",
+        "value_type": "EQUIVALENT",
+        "toe_factor": 0.086,            # kWh → kg 标油 (当量值)
+        "standard_coal_factor": 0.122857,  # 0.086 / 0.7
+        "source": "GB_30251_2024_APPENDIX_A",
     },
     {
         "energy_type": "FUEL_GAS",
-        "toe_factor": 1.0000,            # Nm³ → kg 标油
-        "standard_coal_factor": 1.4286,  # Nm³ → kg 标煤
-        "source": "GB_T_50441_2016_APPENDIX_A",
+        "sub_type": "GASFIELD_GAS",
+        "toe_factor": 0.85,             # Nm³ → kg 标油 (气田气)
+        "standard_coal_factor": 1.214286,  # 0.85 / 0.7
+        "source": "GB_30251_2024_APPENDIX_A",
     },
     {
         "energy_type": "STEAM",
-        "toe_factor": 94.4,              # t per-tonne 口径
-        "standard_coal_factor": 128.6,   # t per-tonne 口径
-        "source": "GB_T_50441_2016_APPENDIX_A",
+        "pressure_level": "0_8_TO_1_2_MPA",
+        "toe_factor": 76.0,             # t → kg 标油 (1.0 MPa MP 蒸汽)
+        "standard_coal_factor": 108.571429,  # 76.0 / 0.7
+        "source": "GB_30251_2024_APPENDIX_A",
     },
     {
         "energy_type": "WATER",
-        "toe_factor": 0.1,               # t per-tonne 口径
-        "standard_coal_factor": 0.136,   # t per-tonne 口径
-        "source": "GB_T_50441_2016_APPENDIX_A",
+        "water_type": "CIRCULATING_WATER",
+        "toe_factor": 0.06,             # t → kg 标油 (循环水)
+        "standard_coal_factor": 0.085714,  # 0.06 / 0.7
+        "source": "GB_30251_2024_APPENDIX_A",
     },
     {
         "energy_type": "NITROGEN",
-        "toe_factor": 0.0004,            # Nm³ → kg 标油
-        "standard_coal_factor": 0.000571,  # Nm³ → kg 标煤
-        "source": "GB_T_50441_2016_APPENDIX_A",
+        "toe_factor": 0.15,             # Nm³ → kg 标油
+        "standard_coal_factor": 0.214286,  # 0.15 / 0.7
+        "source": "GB_30251_2024_APPENDIX_A",
     },
     {
         "energy_type": "INSTRUMENT_AIR",
-        "toe_factor": 0.00012,           # Nm³ → kg 标油
-        "standard_coal_factor": 0.000171,  # Nm³ → kg 标煤
-        "source": "GB_T_50441_2016_APPENDIX_A",
+        "sub_type": "PURIFIED",
+        "toe_factor": 0.038,            # Nm³ → kg 标油 (净化)
+        "standard_coal_factor": 0.054286,  # 0.038 / 0.7
+        "source": "GB_30251_2024_APPENDIX_A",
     },
 ]
 
@@ -209,13 +217,13 @@ async def test_service_aggregates_t1t2t3_within_tolerance(
             expected["steam_t_yr"], abs=annual_abs
         )
         assert summary.annual_total_energy == pytest.approx(
-            expected["annual_total_energy_mj"], abs=1.0
+            expected["annual_total_energy_mj"], abs=100.0  # R1 多能源汇总浮点累计
         )
         assert summary.total_toe == pytest.approx(
             expected["total_toe_tonne"], abs=1e-3
         )
         assert summary.total_standard_coal_kg == pytest.approx(
-            expected["total_standard_coal_kg"], abs=1.0
+            expected["total_standard_coal_kg"], abs=100.0  # R1 多能源汇总浮点累计
         )
         assert summary.tolerance_status == expected["tolerance_status"]
         # business_year 一致

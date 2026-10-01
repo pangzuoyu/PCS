@@ -1,13 +1,13 @@
 {
   "_meta": {
-    "description": "P7 Sprint 2 T5 utility_energy_summary 黄金 fixture (3 算例)",
-    "schema_version": "1.1",
-    "source": "GB_T_50441_2016_APPENDIX_A",
-    "confirmed_by": "工艺室-工艺负责人-2026-10-08",
+    "description": "P7 Sprint 2 T5 utility_energy_summary 黄金 fixture (4 算例)",
+    "schema_version": "1.2",
+    "source": "GB_30251_2024_APPENDIX_A (R1 修订后)",
+    "confirmed_by": "工艺室-工艺负责人-2026-10-08 (R1)",
     "confirmed_at": "2026-10-08T00:00:00+08:00",
-    "sign_off_doc": "docs/PCS-SIGN-F-P0-001-2026-10-08.md",
+    "sign_off_doc": "docs/PCS-SIGN-F-P0-001-2026-10-08-R1.md",
     "spec_ref": "P7 SPEC V1.4 §3.2.2(5) + P7-OPEN-009 §1 #4 + §6 验收 ≤2%",
-    "notes": "F-P0-001 signed off 2026-10-08. 工艺室确认 per-tonne 口径. toe_factor / 标准_coal_factor values: 电 0.1229 / 燃料气 1.0 / 蒸汽 94.4 per-tonne / 水 0.1 per-tonne / 氮气 0.0004 / 仪表空气 0.00012. unit_to_mj: 1kWh=3.6MJ / 1Nm³ fuel_gas=38MJ / 1t steam=2778MJ / 1GJ low_temp=1000MJ / water/gas=0MJ. computed total_toe values reflect signed per-tonne factors."
+    "notes": "F-P0-001 R1 修订 (2026-10-08). 工艺室确认基于三层标准 (GB/T 2589-2020 + GB 30251-2024 + GB/T 50441-2016). R0 系数 (电 0.1229 / 蒸汽 94.4 / 水 0.1 / 氮气 0.0004 / 仪表空气 0.00012) 已 RETRACTED. R1 系数: 电 0.086 当量值 / 燃料气 0.85 (气田气) / 蒸汽 76 (1.0 MPa MP 9 档中此档) / 水 0.06 (循环水 9 类中此类) / 氮气 0.15 / 仪表空气 0.038. unit_to_mj: 1kWh=3.6MJ / 1Nm³ fuel_gas=38MJ / 1t steam=2778MJ / 1GJ low_temp=1000MJ / water/gas=0MJ. computed total_toe values reflect R1 signed factors (kbce = 0.7 kg标油)."
   },
   "cases": [
     {
@@ -32,15 +32,17 @@
         "fuel_gas_nm3_yr": 0.0,
         "steam_t_yr": 20000.0,
         "annual_total_energy_mj": 55927200.0,
-        "total_toe_kg": 1900535.8,
-        "total_toe_tonne": 1900.5358,
-        "total_standard_coal_kg": 2584535.8,
+        "total_toe_kg": 1528772.0,
+        "total_toe_tonne": 1528.772,
+        "total_standard_coal_kg": 2183960.0,
         "tolerance_status": "NA",
         "calculation_breakdown": {
-          "electricity_toe_kg": 12535.8,
-          "steam_toe_kg": 1888000.0,
-          "electricity_coal_kg": 12535.8,
-          "steam_coal_kg": 2572000.0
+          "electricity_toe_kg": 8772.0,
+          "fuel_gas_toe_kg": 0.0,
+          "steam_toe_kg": 1520000.0,
+          "electricity_coal_kg": 12531.4,
+          "fuel_gas_coal_kg": 0.0,
+          "steam_coal_kg": 2171428.6
         }
       }
     },
@@ -92,17 +94,17 @@
         "fuel_gas_nm3_yr": 1600000.0,
         "steam_t_yr": 125500.0,
         "annual_total_energy_mj": 447480200.0,
-        "total_toe_kg": 14745884.3,
-        "total_toe_tonne": 14745.8843,
-        "total_standard_coal_kg": 19723744.3,
+        "total_toe_kg": 11806762.0,
+        "total_toe_tonne": 11806.762,
+        "total_standard_coal_kg": 16866801.9,
         "tolerance_status": "NA",
         "calculation_breakdown": {
-          "electricity_toe_kg": 1298684.3,
-          "fuel_gas_toe_kg": 1600000.0,
-          "steam_toe_kg": 11847200.0,
-          "electricity_coal_kg": 1298684.3,
-          "fuel_gas_coal_kg": 2285760.0,
-          "steam_coal_kg": 16139300.0
+          "electricity_toe_kg": 908762.0,
+          "fuel_gas_toe_kg": 1360000.0,
+          "steam_toe_kg": 9538000.0,
+          "electricity_coal_kg": 1298229.9,
+          "fuel_gas_coal_kg": 1942857.6,
+          "steam_coal_kg": 13625714.3
         }
       }
     },
@@ -147,17 +149,17 @@
         "fuel_gas_nm3_yr": 1975000.0,
         "steam_t_yr": 184000.0,
         "annual_total_energy_mj": 767325200.0,
-        "total_toe_kg": 25527944.8,
-        "total_toe_tonne": 25527.9448,
-        "total_standard_coal_kg": 32667229.8,
+        "total_toe_kg": 19989582.0,
+        "total_toe_tonne": 19989.582,
+        "total_standard_coal_kg": 28556539.2,
         "tolerance_status": "NA",
         "calculation_breakdown": {
-          "electricity_toe_kg": 6183344.8,
-          "fuel_gas_toe_kg": 1975000.0,
-          "steam_toe_kg": 17369600.0,
-          "electricity_coal_kg": 6183344.8,
-          "fuel_gas_coal_kg": 2821485.0,
-          "steam_coal_kg": 23662400.0
+          "electricity_toe_kg": 4326832.0,
+          "fuel_gas_toe_kg": 1678750.0,
+          "steam_toe_kg": 13984000.0,
+          "electricity_coal_kg": 6181181.4,
+          "fuel_gas_coal_kg": 2398214.9,
+          "steam_coal_kg": 19977142.9
         }
       }
     },
@@ -384,18 +386,18 @@
         "electricity_kwh_yr": 61480591.0,
         "fuel_gas_nm3_yr": 24694992.0,
         "steam_t_yr": 29668.72,
-        "annual_total_energy_mj": 1242159516.7,
-        "total_toe_kg": 35051683.4,
-        "total_toe_tonne": 35051.6834,
-        "total_standard_coal_kg": 46650627.1,
+        "annual_total_energy_mj": 1242159527.8,
+        "total_toe_kg": 28532896.7,
+        "total_toe_tonne": 28532.8967,
+        "total_standard_coal_kg": 40761279.4,
         "tolerance_status": "NA",
         "calculation_breakdown": {
-          "electricity_toe_kg": 7555964.6,
-          "fuel_gas_toe_kg": 24694992.0,
-          "steam_toe_kg": 2800726.8,
-          "electricity_coal_kg": 7555964.6,
-          "fuel_gas_coal_kg": 35279265.6,
-          "steam_coal_kg": 3815396.9
+          "electricity_toe_kg": 5287330.8,
+          "fuel_gas_toe_kg": 20990743.2,
+          "steam_toe_kg": 2254822.7,
+          "electricity_coal_kg": 7553321.0,
+          "fuel_gas_coal_kg": 29986783.1,
+          "steam_coal_kg": 3221175.3
         }
       }
     }

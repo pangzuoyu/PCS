@@ -18,6 +18,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -1020,39 +1021,87 @@ class GlycolDehydrationFullSystem(Base):
 class ConfigEnergyConversionFactor(Base):
     """折标油 / 折标煤系数（P7 Sprint 2 T0 / 综合能耗汇总 CONFIG 元数据）。
 
-    业务（P7 SPEC V1.4 §3.2.2（5）+ §4.6 + P7-OPEN-009 §6.3 + GB/T 50441 附录）：
+    业务（P7 SPEC V1.4 §3.2.2（5）+ §4.6 + P7-OPEN-009 §6.3 + 三层标准
+    GB/T 2589-2020 + GB 30251-2024 + GB/T 50441-2016）：
 
-    - ``energy_type`` UNIQUE：6 类能源 ELECTRICITY / FUEL_GAS / STEAM /
-      WATER / GAS / LOW_TEMP_HEAT；
+    - R1 修订（PCS-SIGN-F-P0-001-2026-10-08-R1）：从单行/类拆为多行/类
+      - 电：2 行（当量值 EQUIVALENT / 等价值 EQUIVALENT_VALUE）
+      - 蒸汽：9 行（按 pressure_level 9 档）
+      - 水：9 行（按 water_type 9 类）
+      - 燃料气：3 行（按 sub_type 油田气/气田气/炼厂燃料气）
+      - 仪表空气：2 行（按 sub_type 净化/非净化）
+      - 氮气：1 行
+    - 复合 UNIQUE (energy_type, value_type, sub_type, pressure_level, water_type)
     - ``toe_factor`` 折标油系数（kg 标油 / 单位消耗量；电=kWh、燃料=kg/m³、
       蒸汽=kg、水=kg、气体=m³、低温余热=GJ）；
     - ``standard_coal_factor`` 折标煤系数（kg 标煤 / 单位消耗量；同 toe_factor
       单位口径）；
-    - 6 行（每类能源 1 行；工艺室 2026-10-15 签署后填 confirmed_by/confirmed_at）。
-    - ``source`` 数据来源；开发填 ``SYNTHETIC_TEST_DATA``，工艺工程师用
-      GB/T 50441 附录真实值替换后改填具体期号；
+    - ``source`` 数据来源；GB 30251-2024 附录A + GB/T 2589-2020 + GB/T 50441-2016
     - ``confirmed_by`` / ``confirmed_at`` 工艺室签字（占位字段）。
 
     不继承 ``TaggedRecordMixin``（元数据表非业务计算记录）。
 
-    唯一索引：``energy_type``。
+    复合索引：``energy_type`` + value_type/sub_type/pressure_level/water_type。
     """
 
     __tablename__ = "config_energy_conversion_factors"
+    __table_args__ = (
+        UniqueConstraint(
+            "energy_type", "value_type", "sub_type",
+            "pressure_level", "water_type",
+            name="uq_config_energy_conversion_factors_classification",
+        ),
+    )
 
     id: Mapped[int] = mapped_column(
         Integer, primary_key=True, autoincrement=True,
         comment="BIGINT 自增主键",
     )
     energy_type: Mapped[str] = mapped_column(
-        String(32), nullable=False, unique=True, index=True,
-        comment='能源类型 UNIQUE：ELECTRICITY/FUEL_GAS/STEAM/WATER/GAS/LOW_TEMP_HEAT',
+        String(32), nullable=False, index=True,
+        comment=(
+            "能源类型：ELECTRICITY/FUEL_GAS/STEAM/WATER/GAS/LOW_TEMP_HEAT/NITROGEN/"
+            "INSTRUMENT_AIR"
+        ),
+    )
+    value_type: Mapped[str | None] = mapped_column(
+        String(32), nullable=True,
+        comment=(
+            "电当量/等价值 (GB 30251-2024 §6.1.1): "
+            "ELECTRICITY: EQUIVALENT / EQUIVALENT_VALUE; 其他能源: NULL"
+        ),
+    )
+    sub_type: Mapped[str | None] = mapped_column(
+        String(32), nullable=True,
+        comment=(
+            "子类（按能源类型不同）: "
+            "FUEL_GAS: OILFIELD_GAS/GASFIELD_GAS/REFINERY_FUEL_GAS; "
+            "INSTRUMENT_AIR: PURIFIED/NON_PURIFIED"
+        ),
+    )
+    pressure_level: Mapped[str | None] = mapped_column(
+        String(32), nullable=True,
+        comment=(
+            "蒸汽压力等级 (GB 30251-2024 附录A 9 档): "
+            "GE_7_0_MPA / 4_5_TO_7_0_MPA / 3_0_TO_4_5_MPA / 2_0_TO_3_0_MPA / "
+            "1_2_TO_2_0_MPA / 0_8_TO_1_2_MPA / 0_6_TO_0_8_MPA / 0_3_TO_0_6_MPA / "
+            "LT_0_3_MPA"
+        ),
+    )
+    water_type: Mapped[str | None] = mapped_column(
+        String(32), nullable=True,
+        comment=(
+            "水类型 (GB 30251-2024 附录A 9 类): "
+            "FRESH_WATER / CIRCULATING_WATER / SOFTENED_WATER / DEMINERALIZED_WATER / "
+            "LP_DEAERATED_WATER / HP_DEAERATED_WATER / TURBINE_CONDENSATE / "
+            "120C_CONDENSATE_TREATED / 120C_CONDENSATE_REUSABLE"
+        ),
     )
     toe_factor: Mapped[float] = mapped_column(
         Float, nullable=False,
         comment=(
             "折标油系数（kg 标油/单位消耗量；"
-            "电 kWh/燃料 m³/蒸汽 kg/水 kg/气体 m³/低温余热 GJ）"
+            "电 kWh/燃料 m³/蒸汽 t/水 t/氮气 m³/仪表空气 m³）"
         ),
     )
     standard_coal_factor: Mapped[float] = mapped_column(
@@ -1061,16 +1110,18 @@ class ConfigEnergyConversionFactor(Base):
     )
     source: Mapped[str] = mapped_column(
         String(64), nullable=False,
-        comment='数据来源；开发填 "SYNTHETIC_TEST_DATA"，'
-                '真实数据填如 "GB_T_50441_APPENDIX"',
+        comment=(
+            '数据来源；GB_30251_2024_APPENDIX_A + '
+            'GB_T_2589_2020_APPENDIX_A + GB_T_50441_2016_APPENDIX'
+        ),
     )
     confirmed_by: Mapped[str | None] = mapped_column(
         String(64), nullable=True,
-        comment="工艺室确认签字人（占位 NULL，工艺室 2026-10-15 签署后填入）",
+        comment="工艺室确认签字人（占位 NULL，工艺室 R1 签署后填入）",
     )
     confirmed_at: Mapped[datetime.datetime | None] = mapped_column(
         DateTime(timezone=True), nullable=True,
-        comment="工艺室确认签字时间（占位 NULL，签字后填入）",
+        comment="工艺室确认签字时间（占位 NULL，R1 签字后填入）",
     )
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(),

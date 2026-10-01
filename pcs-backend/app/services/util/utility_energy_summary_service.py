@@ -151,10 +151,17 @@ def _compute_totals(
     )
 
     # 折标油 toe (1 toe = 1000 kg 标油)
-    e_toe, e_coal = factors.get("ELECTRICITY", (0.1229, 0.4040))
-    f_toe, f_coal = factors.get("FUEL_GAS", (1.0, 1.4286))
-    s_toe, s_coal = factors.get("STEAM", (0.0760, 0.1086))
-    w_toe, w_coal = factors.get("WATER", (0.0001, 0.0001))
+    # R1 修订 (PCS-SIGN-F-P0-001-2026-10-08-R1): 三层标准 GB/T 2589-2020 + GB 30251-2024 +
+    # GB/T 50441-2016 交叉核对后 fallback 默认值:
+    #   ELECTRICITY (当量值) 0.086 kg标油/kWh (R0 0.1229 → R1 修正; R0 是 GB/T 2589-2020 kgce 误标 kg标油)
+    #   FUEL_GAS (气田气)     0.85 kg标油/Nm³ (R0 1.0 单值 → R1 按气源分类)
+    #   STEAM (1.0 MPa MP)   76.0 kg标油/t (R0 94.4 → R1 按压力 9 档查表)
+    #   WATER (循环水)        0.06 kg标油/t (R0 0.1 → R1 按水类型 9 类查表)
+    #   标准煤 = toe × 1.4286 (1 kgce = 0.7 kg标油)
+    e_toe, e_coal = factors.get("ELECTRICITY", (0.086, 0.1229))
+    f_toe, f_coal = factors.get("FUEL_GAS", (0.85, 1.214))
+    s_toe, s_coal = factors.get("STEAM", (76.0, 108.6))
+    w_toe, w_coal = factors.get("WATER", (0.06, 0.086))
     g_toe, g_coal = factors.get("GAS", (0.85, 1.2143))
     h_toe, h_coal = factors.get("LOW_TEMP_HEAT", (0.0341, 0.0487))
 
