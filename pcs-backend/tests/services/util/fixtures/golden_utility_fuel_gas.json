@@ -1,0 +1,101 @@
+{
+  "_meta": {
+    "description": "P7 Sprint 2 T2 utility_fuel_gas 黄金 fixture (8 算例, 涵盖 3 工况)",
+    "schema_version": "1.0",
+    "source": "SYNTHETIC_TEST_DATA",
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "spec_ref": "P7 SPEC V1.4 §3.2.2(5) + P7-OPEN-009 §1 #2",
+    "notes": "8 算例: 3 设备 × INITIAL/STEADY/MAX 工况 + 2 燃料类型变体. 热值范围 8500~9500 kcal/Nm³ (典型天然气); 小时消耗 100~300 Nm³/h; 年运行 4000~8760 h. UNIQUE 约束保证每设备每工况 1 行."
+  },
+  "cases": [
+    {
+      "case_id": "T2_CASE_01",
+      "equipment_tag": "H-101",
+      "fuel_type": "NATURAL_GAS",
+      "calorific_value_kcal_nm3": 8500.0,
+      "consumption_nm3_h": 200.0,
+      "operating_phase": "INITIAL",
+      "operating_hours_per_year": 7200.0,
+      "annual_consumption_nm3": 1440000.0,
+      "source": "PMS"
+    },
+    {
+      "case_id": "T2_CASE_02",
+      "equipment_tag": "H-101",
+      "fuel_type": "NATURAL_GAS",
+      "calorific_value_kcal_nm3": 8500.0,
+      "consumption_nm3_h": 250.0,
+      "operating_phase": "STEADY",
+      "operating_hours_per_year": 8000.0,
+      "annual_consumption_nm3": 2000000.0,
+      "source": "PMS"
+    },
+    {
+      "case_id": "T2_CASE_03",
+      "equipment_tag": "H-101",
+      "fuel_type": "NATURAL_GAS",
+      "calorific_value_kcal_nm3": 8500.0,
+      "consumption_nm3_h": 300.0,
+      "operating_phase": "MAX",
+      "operating_hours_per_year": 2000.0,
+      "annual_consumption_nm3": 600000.0,
+      "source": "PMS"
+    },
+    {
+      "case_id": "T2_CASE_04",
+      "equipment_tag": "H-202",
+      "fuel_type": "REFINERY_GAS",
+      "calorific_value_kcal_nm3": 9500.0,
+      "consumption_nm3_h": 150.0,
+      "operating_phase": "INITIAL",
+      "operating_hours_per_year": 6500.0,
+      "annual_consumption_nm3": 975000.0,
+      "source": "PMS"
+    },
+    {
+      "case_id": "T2_CASE_05",
+      "equipment_tag": "H-202",
+      "fuel_type": "REFINERY_GAS",
+      "calorific_value_kcal_nm3": 9500.0,
+      "consumption_nm3_h": 200.0,
+      "operating_phase": "STEADY",
+      "operating_hours_per_year": 8000.0,
+      "annual_consumption_nm3": 1600000.0,
+      "source": "PMS"
+    },
+    {
+      "case_id": "T2_CASE_06",
+      "equipment_tag": "H-202",
+      "fuel_type": "REFINERY_GAS",
+      "calorific_value_kcal_nm3": 9500.0,
+      "consumption_nm3_h": 250.0,
+      "operating_phase": "MAX",
+      "operating_hours_per_year": 1500.0,
+      "annual_consumption_nm3": 375000.0,
+      "source": "PMS"
+    },
+    {
+      "case_id": "T2_CASE_07",
+      "equipment_tag": "H-303",
+      "fuel_type": "NATURAL_GAS",
+      "calorific_value_kcal_nm3": 8800.0,
+      "consumption_nm3_h": 100.0,
+      "operating_phase": "STEADY",
+      "operating_hours_per_year": 8760.0,
+      "annual_consumption_nm3": 876000.0,
+      "source": "MANUAL"
+    },
+    {
+      "case_id": "T2_CASE_08",
+      "equipment_tag": "H-404",
+      "fuel_type": "LPG",
+      "calorific_value_kcal_nm3": 12000.0,
+      "consumption_nm3_h": 50.0,
+      "operating_phase": "INITIAL",
+      "operating_hours_per_year": 4000.0,
+      "annual_consumption_nm3": 200000.0,
+      "source": "MANUAL"
+    }
+  ]
+}

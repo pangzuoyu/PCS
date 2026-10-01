@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-01T04:53:31.504Z
-> Files: 804 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-01T05:20:28.110Z
+> Files: 807 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -275,6 +275,7 @@
 - `p6_5_006_orm_db_drift_final_fix.py` — P6-5 终扫：ORM↔DB 全库 drift 清零（p6_5_005 补扫，3 表）。 (~604 tok)
 - `p6_9_pickup_4_drift_fixes.py` — P6-9-PICKUP-4 T1: pcs_test DB schema drift 修复. (~1411 tok)
 - `p7_open_009_001_utility_power_items.py` — P7 Sprint 2 T1: utility_power_items 表（电耗设备清单). (~1312 tok)
+- `p7_open_009_002_utility_fuel_gas.py` — P7 Sprint 2 T2: utility_fuel_gas 表 (燃料气). (~1639 tok)
 - `p7_open_009_t0_config_energy_conversion_factors.py` — P7 Sprint 2 T0: config_energy_conversion_factors CONFIG 表 (折标煤系数). (~856 tok)
 - `p7_s1_002_audit_logs_jsonb_gin.py` — audit_logs.detail_json 加 JSONB GIN 索引（P7-Sprint 1 T0 / D8 裁决 9A）。 (~387 tok)
 
@@ -806,10 +807,12 @@
 
 ## pcs-backend/tests/services/util/
 
+- `test_utility_fuel_gas.py` — P7 Sprint 2 T2: utility_fuel_gas 测试. (~1723 tok)
 - `test_utility_power_items.py` — P7 Sprint 2 T1: utility_power_items 测试. (~1624 tok)
 
 ## pcs-backend/tests/services/util/fixtures/
 
+- `golden_utility_fuel_gas.json` (~878 tok)
 - `golden_utility_power_items.json` (~933 tok)
 
 ## pcs-backend/tests/services/vessel/

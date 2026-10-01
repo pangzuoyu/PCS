@@ -332,3 +332,8 @@
 | 12:53 | Created pcs-backend/tests/services/util/test_utility_power_items.py | — | ~1642 |
 | 12:53 | Edited pcs-backend/tests/services/util/test_utility_power_items.py | 11→9 lines | ~42 |
 | 12:53 | Edited pcs-backend/tests/services/util/test_utility_power_items.py | 11→11 lines | ~138 |
+| 13:18 | Created pcs-backend/alembic/versions/p7_open_009_002_utility_fuel_gas.py | — | ~1662 |
+| 13:18 | Edited pcs-backend/alembic/versions/p7_open_009_002_utility_fuel_gas.py | 7→6 lines | ~42 |
+| 13:19 | Created pcs-backend/tests/services/util/fixtures/golden_utility_fuel_gas.json | — | ~878 |
+| 13:19 | Created pcs-backend/tests/services/util/test_utility_fuel_gas.py | — | ~1717 |
+| 13:20 | Edited pcs-backend/tests/services/util/test_utility_fuel_gas.py | 1→4 lines | ~35 |

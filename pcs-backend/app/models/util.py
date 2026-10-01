@@ -164,3 +164,90 @@ class UtilityPowerItem(Base):
         DateTime(timezone=True), onupdate=func.now(), nullable=True,
         comment="记录更新时间 (ORM onupdate 触发)",
     )
+
+
+class UtilityFuelGas(Base):
+    """燃料气消耗 (P7 Sprint 2 T2 / P7-OPEN-009 §1 #2).
+
+    业务 (P7 SPEC V1.4 §3.2.2(5) + §4.6):
+
+    - 存燃料气 (natural gas / refinery gas / LPG / LNG 等) 消耗量
+      含热值 + 小时消耗量 + 年消耗量。
+    - 业务字段：fuel_type / calorific_value_kcal_nm3 / consumption_nm3_h /
+      operating_phase (INITIAL/STEADY/MAX 初期/末期/最大工况) /
+      operating_hours_per_year / annual_consumption_nm3 + 5 CHECK 约束。
+    - FK equipment_id → equipment_list.equipment_id (nullable)。
+    - UNIQUE(project_id, equipment_tag, operating_phase) 每设备每工况 1 行。
+    - annual_consumption_nm3 = consumption_nm3_h × operating_hours_per_year
+      (service 层计算 + DB 存结果)。
+
+    不继承 TaggedRecordMixin (公用工程记录)。
+    """
+
+    __tablename__ = "utility_fuel_gas"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id", "equipment_tag", "operating_phase",
+            name="uq_utility_fuel_gas_project_equipment_phase",
+        ),
+        Index("ix_utility_fuel_gas_project", "project_id"),
+        Index("ix_utility_fuel_gas_workspace", "workspace_id"),
+        Index("ix_utility_fuel_gas_fuel_type", "fuel_type"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4,
+        comment="UUID 主键 (uuid.uuid4 default)",
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=False,
+        comment="项目 ID (FK projects.project_id)",
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workspaces.workspace_id", ondelete="CASCADE"), nullable=False,
+        comment="工作区 ID (FK workspaces.workspace_id)",
+    )
+    equipment_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("equipment_list.equipment_id", ondelete="SET NULL"), nullable=True,
+        comment="设备 ID (FK equipment_list.equipment_id)",
+    )
+    equipment_tag: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment="设备位号 (项目内唯一, 与 operating_phase 联合 UNIQUE)",
+    )
+    fuel_type: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default="NATURAL_GAS",
+        comment="燃料类型: NATURAL_GAS / REFINERY_GAS / LPG / LNG / OTHERS",
+    )
+    calorific_value_kcal_nm3: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="低位热值 (kcal/Nm³; 典型天然气 8000~9000)",
+    )
+    consumption_nm3_h: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="小时消耗量 (Nm³/h)",
+    )
+    operating_phase: Mapped[str] = mapped_column(
+        String(16), nullable=False,
+        comment="操作工况: INITIAL (初期) / STEADY (末期/稳态) / MAX (最大工况)",
+    )
+    operating_hours_per_year: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="8000",
+        comment="该工况年运行小时数 (h/yr; ≤ 8760)",
+    )
+    annual_consumption_nm3: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="年消耗量 (Nm³/yr; = consumption_nm3_h × operating_hours_per_year)",
+    )
+    source: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default="MANUAL",
+        comment="数据来源: PMS / MANUAL / CALC",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False,
+        comment="记录创建时间 (DB server_default)",
+    )
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(), nullable=True,
+        comment="记录更新时间 (ORM onupdate 触发)",
+    )

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-01T04:53:31.504Z",
-    "fileCount": 804,
+    "lastScanned": "2026-10-01T05:20:28.110Z",
+    "fileCount": 807,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "b2571a02576bb74dbe9b5da5cf6ba9f49558a861e288f470478fc42e89fc57a2",
-    "storeUpdatedAt": "2026-10-01T04:53:31.515Z",
-    "rootHash": "314c0d0ba333a108"
+    "renderedHash": "340853d6d556eb805a89eef369b1aacbd165d08603da616eb67ac16588a3adda",
+    "storeUpdatedAt": "2026-10-01T05:20:28.121Z",
+    "rootHash": "533499a7a10d3399"
   },
   "files": {
     "CLAUDE.md": {
@@ -31343,6 +31343,100 @@
           "startLine": 140,
           "endLine": 172,
           "tokens": 294
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p7_open_009_002_utility_fuel_gas.py": {
+      "description": "P7 Sprint 2 T2: utility_fuel_gas 表 (燃料气).",
+      "tokens": 1639,
+      "hash": "ba3aaf1b2740ee2e",
+      "size": 6215,
+      "mtimeMs": 1790831901774.2598,
+      "updatedAt": "2026-10-01T05:18:21.823Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 176,
+          "tokens": 1262
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 177,
+          "endLine": 182,
+          "tokens": 101
+        }
+      ]
+    },
+    "pcs-backend/tests/services/util/fixtures/golden_utility_fuel_gas.json": {
+      "description": "",
+      "tokens": 878,
+      "hash": "e656d5dc447ac7d7",
+      "size": 3169,
+      "mtimeMs": 1790831978673.761,
+      "updatedAt": "2026-10-01T05:19:38.721Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/util/test_utility_fuel_gas.py": {
+      "description": "P7 Sprint 2 T2: utility_fuel_gas 测试.",
+      "tokens": 1723,
+      "hash": "975a5a8ca7efe5d4",
+      "size": 6350,
+      "mtimeMs": 1790832028052.2458,
+      "updatedAt": "2026-10-01T05:20:28.110Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "golden_fixture",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 36,
+          "tokens": 44
+        },
+        {
+          "name": "test_orm_tablename_and_columns",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 49,
+          "tokens": 158
+        },
+        {
+          "name": "test_golden_fixture_loads_8_cases",
+          "kind": "fn",
+          "startLine": 50,
+          "endLine": 63,
+          "tokens": 155
+        },
+        {
+          "name": "test_golden_fixture_operating_phase_enum",
+          "kind": "fn",
+          "startLine": 64,
+          "endLine": 72,
+          "tokens": 102
+        },
+        {
+          "name": "test_golden_fixture_values_within_check_ranges",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 88,
+          "tokens": 174
+        },
+        {
+          "name": "test_orm_roundtrip_all_8_cases",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 148,
+          "tokens": 586
+        },
+        {
+          "name": "test_orm_unique_constraint_per_project_equipment_phase",
+          "kind": "fn",
+          "startLine": 149,
+          "endLine": 175,
+          "tokens": 279
         }
       ]
     }
