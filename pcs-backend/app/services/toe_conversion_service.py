@@ -81,6 +81,51 @@ class ToeConversionService:
         return result
 
     @classmethod
+    async def query_by_fuel_year_batch(
+        cls, session: AsyncSession, fuel_types: list[str], year: int
+    ) -> dict[str, ToeConversionFactor]:
+        """M6 fix: 批量按 fuel_types + year 查询 latest per fuel_type。
+
+        单 IN-clause 查询代替 N 次单查询（summary_service N 个 category 共享 fuel_type
+        时去重），典型 3 unique fuel_types (ELECTRICITY/STEAM/GAS) → 1 query。
+
+        Args:
+            session: AsyncSession
+            fuel_types: fuel_type 白名单子集（必须 ⊆ VALID_FUEL_TYPES）
+            year: 折标煤查询年份
+
+        Returns:
+            dict {fuel_type: ToeConversionFactor}（仅含命中的 fuel_type；
+            未命中者 absent → 调用方需处理 TOE_NOT_FOUND 风险）
+
+        Raises:
+            PcsError TOE_INVALID_FUEL 422 if any fuel_type not in VALID_FUEL_TYPES
+        """
+        if not fuel_types:
+            return {}
+        invalid = set(fuel_types) - VALID_FUEL_TYPES
+        if invalid:
+            raise PcsError(
+                f"未知 fuel_type: {sorted(invalid)}",
+                code="TOE_INVALID_FUEL",
+                status=422,
+            )
+        # 单 IN-clause 查询所有匹配行；Python-side 按 fuel_type 分组取 latest
+        stmt = (
+            select(ToeConversionFactor)
+            .where(ToeConversionFactor.fuel_type.in_(fuel_types))
+            .where(ToeConversionFactor.effective_year <= year)
+            .order_by(ToeConversionFactor.fuel_type, ToeConversionFactor.effective_year.desc())
+        )
+        rows = (await session.execute(stmt)).scalars().all()
+        # 每 fuel_type 取 first（已按 effective_year DESC 排序，first = latest）
+        result: dict[str, ToeConversionFactor] = {}
+        for row in rows:
+            if row.fuel_type not in result:  # first wins (latest)
+                result[row.fuel_type] = row
+        return result
+
+    @classmethod
     async def create(
         cls,
         session: AsyncSession,

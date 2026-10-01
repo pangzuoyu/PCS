@@ -67,15 +67,27 @@ async def summarize(
                 f"consumption_json[{cat.value!r}] 非数值: {v!r}"
             ) from e
 
+    # M6 fix: 收集 unique fuel_types → 单 IN-clause 查询代替 N 次单查询
+    # 13 类公用工程 → 至多 3 unique fuel_types (ELECTRICITY/STEAM/GAS)
+    # 13 类 → 7 类 None 跳过 + 4 STEAM 子类共享 STEAM + ELECTRICITY + FUEL_GAS = 3 unique
+    fuel_types = {
+        ft for ft in (TOE_FUEL_TYPE_BY_CATEGORY.get(c) for c in by_category) if ft is not None
+    }
+    toe_lookup: dict = {}
+    if fuel_types:
+        toe_lookup = await ToeConversionService.query_by_fuel_year_batch(
+            db, fuel_types=list(fuel_types), year=year
+        )
+
     toe_total = 0.0
     standard_coal_total = 0.0
     for cat_value, qty in by_category.items():
         fuel_type = TOE_FUEL_TYPE_BY_CATEGORY.get(cat_value)
         if fuel_type is None:
             continue  # 非能源类 / TOTAL 占位
-        toe_row = await ToeConversionService.query_by_fuel_year(
-            db, fuel_type=fuel_type, year=year
-        )
+        toe_row = toe_lookup.get(fuel_type)
+        if toe_row is None:
+            continue  # 该 fuel_type 缺 TOE 系数（不计入 TOE）
         toe_total += qty * float(toe_row.toe_conversion_factor)
         standard_coal_total += qty * float(toe_row.standard_coal_factor)
 
