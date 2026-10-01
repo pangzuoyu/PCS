@@ -2268,6 +2268,29 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-10-01T22:00:00Z"
+    },
+    {
+      "id": "bug-131",
+      "timestamp": "2026-10-01T23:30:00Z",
+      "error_message": "BLOCKER-3 partial fix: UserProject model + service + admin API + 2 endpoint guards (equip_list GET / util GET)",
+      "file": "pcs-backend/app/models/project.py:UserProject + app/services/user_project_service.py + app/api/v1/user_projects.py + alembic p7_open_010",
+      "root_cause": "P7-7+ 立项 BLOCKER-3 全面修复 (Phase 3 全面硬化). F-P0-004 + F-P1-014 + F-P1-005 同源修复载体. 23 API 文件用 project_id, 本批仅 apply guard 到 2 个 (equip_list GET + util GET). 剩余 21 文件待后续 sprint 接力.",
+      "fix": "UserProject (user_id+project_id+role_in_project) + grant/revoke/list service + admin API 4 endpoints (grant/revoke/me/{user_id}) + check_user_project_access guard 应用到 2 endpoint. 10 service tests + 全套现有测试 70 pass.",
+      "fix_commit": "PENDING",
+      "tags": [
+        "p7-7",
+        "BLOCKER-3",
+        "cross-project-IDOR",
+        "partial-fix"
+      ],
+      "related_bugs": [
+        "F-P0-004",
+        "F-P1-014",
+        "F-P1-005",
+        "bug-118"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-01T23:30:00Z"
     }
   ]
 }

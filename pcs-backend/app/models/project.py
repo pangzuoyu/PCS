@@ -14,6 +14,7 @@ from sqlalchemy import (
     Enum,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     UniqueConstraint,
@@ -118,6 +119,60 @@ class User(Base):
     ad_groups: Mapped[list[str]] = mapped_column(JSONB, default=list)
     status: Mapped[str] = mapped_column(String(20), default=UserStatus.ACTIVE.value)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class UserProject(TimestampMixin, Base):
+    """用户-项目关联表（user_projects 表，P7-7+ BLOCKER-3 修复）。
+
+    业务：每个用户对每个项目有 1 行 (user_id, project_id, role_in_project)。
+    - role_in_project: 项目内角色 (DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER)
+      与全局 roles 区分 (避免用户全局角色干扰项目级 ACL)
+    - granted_by + granted_at: 谁授予 + 何时（audit trail）
+    - revoked_at: NULL=有效；非空=已撤销（保留历史）
+
+    复合 PK (user_id, project_id) — 每用户每项目 1 行（最多 1 个有效角色）。
+    解决 BLOCKER-3: 每 endpoint 信任 client project_id → IDOR。
+    _check_user_project_access 守卫查 user_projects 校验访问权。
+    """
+
+    __tablename__ = "user_projects"
+    __table_args__ = (
+        Index("ix_user_projects_user", "user_id"),
+        Index("ix_user_projects_project", "project_id"),
+        Index("ix_user_projects_active", "user_id", "project_id", "revoked_at"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False,
+        comment="用户 ID (FK users.user_id)"
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=False,
+        comment="项目 ID (FK projects.project_id)"
+    )
+    role_in_project: Mapped[str] = mapped_column(
+        String(32), nullable=False,
+        comment="项目内角色: DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER (与全局 roles 区分)"
+    )
+    granted_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.user_id"), nullable=True,
+        comment="授权人 (FK users.user_id; SYSTEM 角色授权时可为 NULL)"
+    )
+    granted_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False,
+        comment="授权时间"
+    )
+    revoked_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), nullable=True,
+        comment="撤销时间 (NULL = 当前有效)"
+    )
+    revoked_by: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.user_id"), nullable=True,
+        comment="撤销人 (FK users.user_id)"
+    )
 
 
 class Stream(TimestampMixin, Base):

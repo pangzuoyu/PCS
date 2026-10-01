@@ -109,14 +109,14 @@ async def get_equipment(
 ) -> EquipListResponse:
     """单条 EquipmentList 查询。
 
-    F-P1-014 + BLOCKER-3: 当前仅 require_roles role 校验, 未做
-    _check_user_project_access(db, user, record.project_id) 校验.
-    P7-7+ UserProject model 立项后加 (P7 Sprint 主线外 BLOCKER-3).
+    BLOCKER-3 修复: 查 UserProject 行 (user_id=user.user_id, project_id=record.project_id,
+    revoked_at IS NULL) → 404 防 IDOR。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     from fastapi import HTTPException
 
     from app.models.equipment import EquipmentList
+    from app.services.user_project_service import UserProjectService
     from sqlalchemy import select
 
     record = (
@@ -126,6 +126,15 @@ async def get_equipment(
     ).scalar_one_or_none()
     if record is None:
         raise HTTPException(status_code=404, detail=f"EquipmentList not found: {equipment_id}")
+    # BLOCKER-3 守卫: 用户必须有 record.project_id 访问权
+    has_access = await UserProjectService.check_user_project_access(
+        db, user_id=user.user_id, project_id=record.project_id,
+    )
+    if not has_access:
+        raise HTTPException(
+            status_code=404,
+            detail=f"EquipmentList not found: {equipment_id}",  # 不泄漏存在性
+        )
     return _to_response(record)
 
 

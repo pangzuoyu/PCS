@@ -93,15 +93,25 @@ async def get_util_result(
 ) -> UtilResultsResponse:
     """单条 UtilResults 查询。
 
-    F-P1-014 + BLOCKER-3: 当前仅 require_roles role 校验, 未做
-    _check_user_project_access(db, user, record.project_id) 校验.
-    P7-7+ UserProject model 立项后加 (P7 Sprint 主线外 BLOCKER-3).
+    BLOCKER-3 修复: 查 UserProject 行 (user_id=user.user_id, project_id=record.project_id,
+    revoked_at IS NULL) → 404 防 IDOR。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     record = await persist_service.get_util_result(db, util_result_id)
     if record is None:
         raise HTTPException(
             status_code=404, detail=f"UtilResults not found: {util_result_id}"
+        )
+    # BLOCKER-3 守卫
+    from app.services.user_project_service import UserProjectService
+
+    has_access = await UserProjectService.check_user_project_access(
+        db, user_id=user.user_id, project_id=record.project_id,
+    )
+    if not has_access:
+        raise HTTPException(
+            status_code=404,
+            detail=f"UtilResults not found: {util_result_id}",  # 不泄漏存在性
         )
     return _to_response(record)
 
