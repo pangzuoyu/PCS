@@ -37,6 +37,7 @@ from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
+from app.api.v1._guard import check_project_access_or_404
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
 from app.models.psv_standards import ProjectCalculationStandardProfile
@@ -159,8 +160,12 @@ async def get_psv_standard_profile(
     """查项目当前默认 PSV 标准配置；无 → 200 null（前端按"未配置"展示）。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫: user 必须是 project_id 的有效 UserProject 成员。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id, actor_roles=user.roles,
+    )
     from sqlalchemy import select
 
     stmt = (
@@ -205,8 +210,12 @@ async def upsert_psv_standard_profile(
     4. DB EXCLUDE USING gist 兜底冲突 → IntegrityError → 转 PcsError
 
     ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫: user 必须是 project_id 的有效 UserProject 成员。
     """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id, actor_roles=user.roles,
+    )
 
     # 1. CUSTOM 必填校验
     if req.profile_code == "CUSTOM":

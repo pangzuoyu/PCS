@@ -28,6 +28,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
+from app.api.v1._guard import check_record_access_or_404
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
 from app.schemas.open_channel import (
@@ -453,6 +454,7 @@ async def get_open_channel_result(
     """按 open_channel_id 取 OpenChannelResult（GET detail）。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫: record.project_id 必须属于 user。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     try:
@@ -467,6 +469,11 @@ async def get_open_channel_result(
         raise _to_http(
             CorePcsError(code=e.code, message=e.message, status=422)
         ) from e
+
+    # BLOCKER-3 守卫
+    await check_record_access_or_404(
+        db, user_id=user.user_id, record=record, actor_roles=user.roles,
+    )
 
     return OpenChannelResultResponse.model_validate(record, from_attributes=True)
 

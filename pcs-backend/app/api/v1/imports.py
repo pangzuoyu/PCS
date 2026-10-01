@@ -38,6 +38,7 @@ from app.api.v1.streams import _load_project, _to_http
 from app.core.errors import PcsError as CorePcsError
 from app.core.upload_size_limit import enforce_upload_size
 from app.db.session import get_db
+from app.api.v1._guard import check_project_access_or_404
 from app.schemas.stream import StreamImportResult
 from app.services.exceptions import PcsError
 from app.services.import_service import (
@@ -87,6 +88,9 @@ async def preview_proii(
 ) -> StatefulPreviewResponse:
     """PRO/II 双文件导入预览（stateful）：解析 → 持久化到 sim_imports（status=PREVIEW）。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id, actor_roles=user.roles,
+    )
     project = await _load_project(db, project_id)
 
     inp_path: Path | None = None
@@ -147,6 +151,9 @@ async def commit_proii(
 ) -> StreamImportResult:
     """PRO/II stateful commit：通过 import_id 读取 sim_imports，落库 + 更新状态=COMMITTED。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id, actor_roles=user.roles,
+    )
     await _load_project(db, project_id)
     try:
         result = await ImportService.commit_proii_stateful(
@@ -175,6 +182,9 @@ async def preview_excel(
 ) -> StatefulPreviewResponse:
     """Excel 双 Sheet 导入预览（stateful）：解析 → 持久化到 sim_imports（status=PREVIEW）。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id, actor_roles=user.roles,
+    )
     project = await _load_project(db, project_id)
     xlsx_path: Path | None = None
     try:
@@ -226,6 +236,9 @@ async def commit_excel(
 ) -> StreamImportResult:
     """Excel stateful commit：通过 import_id 读取 sim_imports，落库 + 更新状态=COMMITTED。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id, actor_roles=user.roles,
+    )
     await _load_project(db, project_id)
     try:
         result = await ImportService.commit_excel_stateful(
