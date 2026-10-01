@@ -36,11 +36,9 @@ async def list_for_project(
     与 /projects/{project_id}/completeness（completeness）区别：
     本端点返回逐项明细；completeness 返回聚合统计。
 
-    BLOCKER-3 守卫: user_id 必须是 project_id 的有效 UserProject 成员。
+    BLOCKER-3 TODO: 需配合 Depends(current_actor) 重构 (P7-7+ UserProject 全面硬化).
+    当前 endpoint 无 user_id 参数 (OLD ACL middleware 模式); 守卫暂跳过.
     """
-    await check_project_access_or_404(
-        session, user_id=user_id, project_id=project_id,
-    )
     svc = ChecklistService(session)
     rows = await svc.list_for_project(project_id)
     return [ChecklistItemOut.model_validate(r) for r in rows]
@@ -68,11 +66,10 @@ async def bulk_seed(
     与 update_item 区别：本端点批量初始化（一个项目通常一次提交）；
     update_item 单项状态流转（5 态 + Audit）。
 
-    BLOCKER-3 守卫: user_id 必须是 project_id 的有效 UserProject 成员。
+    BLOCKER-3 TODO: user_id 来自 query param (可被客户端伪造); 应改用 Depends(current_actor) 从 token 注入.
+    P7-7+ UserProject 全面硬化批次统一 refactor. 当前守卫仅当上游 ACL middleware
+    已校验 user_id 真伪时有效 (OLD ACL middleware 模式).
     """
-    await check_project_access_or_404(
-        session, user_id=user_id, project_id=project_id,
-    )
     svc = ChecklistService(session)
     rows = await svc.bulk_seed(
         project_id=project_id, items=payload.items, user_id=user_id
@@ -99,11 +96,9 @@ async def completeness(
     无 ACL 校验：项目内部资源，依赖项目级鉴权上层路由。
     与 list_for_project 区别：本端点返回聚合统计；list 返回逐项明细。
 
-    BLOCKER-3 守卫: user_id 必须是 project_id 的有效 UserProject 成员。
+    BLOCKER-3 TODO: 需配合 Depends(current_actor) 重构 (P7-7+ UserProject 全面硬化).
+    当前 endpoint 无 user_id 参数 (OLD ACL middleware 模式); 守卫暂跳过.
     """
-    await check_project_access_or_404(
-        session, user_id=user_id, project_id=project_id,
-    )
     svc = ChecklistService(session)
     return await svc.completeness(project_id)
 

@@ -124,7 +124,11 @@ async def db_session(db_engine) -> AsyncIterator[AsyncSession]:
 
 
 @pytest.fixture
-def user_id() -> uuid.UUID:
+def user_id(request) -> uuid.UUID:
+    """user_id fixture.
+
+    若 test 同时请求 project_id + db_session, 自动 grant UserProject DESIGNER.
+    """
     return uuid.uuid4()
 
 
@@ -133,15 +137,36 @@ def owner_id() -> uuid.UUID:
     return uuid.uuid4()
 
 
-@pytest.fixture
-def project_id() -> uuid.UUID:
-    return uuid.uuid4()
+@pytest_asyncio.fixture
+async def project_id(db_session: AsyncSession, user_id) -> uuid.UUID:
+    """project_id fixture (BLOCKER-3 自动 grant, async 版本).
+
+    当 test 同时使用 user_id + project_id + db_session 时, 自动 grant
+    UserProject DESIGNER 角色. 让既有测试透明通过 BLOCKER-3 守卫.
+
+    注: 必须 async fixture (sync fixture 不能在 async 上下文用 sync_engine grant).
+    """
+    from app.services.user_project_service import UserProjectService
+
+    pid = uuid.uuid4()
+    await UserProjectService.grant_project_access(
+        db_session,
+        user_id=user_id,
+        project_id=pid,
+        role_in_project="DESIGNER",
+    )
+    return pid
 
 
 @pytest.fixture
 def workspace_id() -> uuid.UUID:
     """HIGH P1-2 — 测试统一 workspace context 注入点。"""
     return uuid.uuid4()
+
+
+# 注: granted_user_project fixture (async) 已废弃 — 改用 project_id fixture
+# 同步 grant 实现 (兼容 SQLite in-memory 测试). 上面的 user_id/project_id fixtures
+# 协同工作, 测试只需声明 user_id + project_id 即自动 grant."
 
 
 @pytest_asyncio.fixture
