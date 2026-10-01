@@ -2082,7 +2082,7 @@
       "file": "app/services/advisory_lock.py",
       "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
       "fix": "dialect-aware fail-fast: PG→re-raise, SQLite→silent no-op",
-      "fix_commit": "PENDING",
+      "fix_commit": "5fe913a",
       "tags": [
         "p7-s1-hotfix",
         "F-P1-002"
@@ -2098,7 +2098,7 @@
       "file": "app/services/util/source_aggregator.py",
       "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
       "fix": "logger.warning added (was silent continue)",
-      "fix_commit": "PENDING",
+      "fix_commit": "5fe913a",
       "tags": [
         "p7-s1-hotfix",
         "F-P1-003"
@@ -2114,7 +2114,7 @@
       "file": "app/services/util/summary_service.py",
       "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
       "fix": "logger.warning on missing fuel_type",
-      "fix_commit": "PENDING",
+      "fix_commit": "5fe913a",
       "tags": [
         "p7-s1-hotfix",
         "F-P1-004"
@@ -2130,7 +2130,7 @@
       "file": "app/services/util/persist_service.py",
       "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
       "fix": "logger.warning lists missing categories",
-      "fix_commit": "PENDING",
+      "fix_commit": "5fe913a",
       "tags": [
         "p7-s1-hotfix",
         "F-P1-006",
@@ -2147,7 +2147,7 @@
       "file": "app/schemas/equip_list.py",
       "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
       "fix": "Literal[8] → str + length constraint",
-      "fix_commit": "PENDING",
+      "fix_commit": "5fe913a",
       "tags": [
         "p7-s1-hotfix",
         "F-P1-010"
@@ -2163,7 +2163,7 @@
       "file": "app/services/equipment_type_code_service.py",
       "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
       "fix": "per-entry partial seed (skip existing)",
-      "fix_commit": "PENDING",
+      "fix_commit": "5fe913a",
       "tags": [
         "p7-s1-hotfix",
         "F-P1-011"
@@ -2179,7 +2179,7 @@
       "file": "app/schemas/util.py",
       "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
       "fix": "field_validator reject non-finite",
-      "fix_commit": "PENDING",
+      "fix_commit": "5fe913a",
       "tags": [
         "p7-s1-hotfix",
         "F-P1-013"
@@ -2195,7 +2195,7 @@
       "file": "app/api/v1/util.py",
       "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
       "fix": "add CONDENSATE to energy_keys (5→6)",
-      "fix_commit": "PENDING",
+      "fix_commit": "5fe913a",
       "tags": [
         "p7-s1-hotfix",
         "F-P1-015"
@@ -2211,7 +2211,7 @@
       "file": "app/models/util.py",
       "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
       "fix": "add Index ix_util_results_project_workspace",
-      "fix_commit": "PENDING",
+      "fix_commit": "5fe913a",
       "tags": [
         "p7-s1-hotfix",
         "F-P1-001"
@@ -2227,7 +2227,7 @@
       "file": "app/services/toe_conversion_service.py",
       "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
       "fix": "add effective_from/to check + stale WARNING",
-      "fix_commit": "PENDING",
+      "fix_commit": "5fe913a",
       "tags": [
         "p7-s1-hotfix",
         "F-P1-008"
@@ -2243,7 +2243,7 @@
       "file": "app/services/equipment_type_code_service.py",
       "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
       "fix": "docstring 26 → 31 (真实 seed 数量)",
-      "fix_commit": "PENDING",
+      "fix_commit": "5fe913a",
       "tags": [
         "p7-s1-hotfix",
         "F-P1-012"
@@ -2259,7 +2259,7 @@
       "file": "app/api/v1/equip_list.py + app/api/v1/util.py",
       "root_cause": "see P7 Sprint 1 retrospective review (ce-code-review synthesized-findings.json)",
       "fix": "docstring note BLOCKER-3 incomplete (P7-7+ UserProject model)",
-      "fix_commit": "PENDING",
+      "fix_commit": "5fe913a",
       "tags": [
         "p7-s1-hotfix",
         "F-P1-014",
