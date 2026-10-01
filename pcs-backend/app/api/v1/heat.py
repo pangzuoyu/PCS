@@ -33,6 +33,7 @@ from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
+from app.api.v1._guard import check_project_access_or_404, check_record_access_or_404
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
 from app.services.exceptions import PcsError
@@ -242,8 +243,12 @@ async def import_htri(
     """POST /api/v1/heat/import-htri：HTRI 文件 → HeatResult 落库。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫：user 必须是 project_id 的有效 UserProject 成员。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id, actor_roles=user.roles,
+    )
 
     # 1. 读上传文件 → 写 tmp → 解析（parse_htri 接收 Path）
     content = await file.read()
@@ -310,6 +315,7 @@ async def get_heat(
     """GET /api/v1/heat/{heat_id}：HeatResult 详情（input_json / output_json / record_hash）。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫：record.project_id 必须属于 user。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
 
@@ -322,6 +328,11 @@ async def get_heat(
             message=f"HeatResult {heat_id} 不存在",
             status=404,
         )
+
+    # BLOCKER-3 守卫
+    await check_record_access_or_404(
+        db, user_id=user.user_id, record=record, actor_roles=user.roles,
+    )
 
     return HeatResultResponse(
         calc_id=record.heat_exchanger_id,
@@ -355,8 +366,20 @@ async def estimate_weight_endpoint(
     weight_formula_ref（P7 UTIL 综合消费）。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫：heat_id 对应 record.project_id 必须属于 user。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+
+    # BLOCKER-3 守卫: 先查 record 后再 service 调用
+    from app.models.calc import HeatResult
+    pre_record = await db.get(HeatResult, heat_id)
+    if pre_record is None:
+        raise CorePcsError(
+            code="HEAT_NOT_FOUND", message=f"HeatResult {heat_id} 不存在", status=404,
+        )
+    await check_record_access_or_404(
+        db, user_id=user.user_id, record=pre_record, actor_roles=user.roles,
+    )
 
     weight_input = WeightEstimateInput(**req.model_dump())
     try:

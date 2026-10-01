@@ -33,6 +33,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
+from app.api.v1._guard import check_project_access_or_404, check_record_access_or_404
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
 from app.models.enums import RecordSignStatus9
@@ -237,8 +238,12 @@ async def create_cool_tower_result(
     （ADR-0028 §决策 4），返回创建后的完整 CoolingTowerResult 行。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=req.project_id, actor_roles=user.roles,
+    )
     # 字符串 sign_status → enum（非法字面 → 422 PcsError envelope）
     try:
         sign_status_enum = RecordSignStatus9(req.sign_status)
@@ -324,6 +329,7 @@ async def get_cool_tower_result(
     """按 id 取 CoolingTowerResult（GET detail）。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫：record.project_id 必须属于 user。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     record = await get_cool_tower_result_service(db, record_id=record_id)
@@ -331,6 +337,10 @@ async def get_cool_tower_result(
         raise HTTPException(
             status_code=404, detail="CoolingTowerResult not found"
         )
+    # BLOCKER-3 守卫
+    await check_record_access_or_404(
+        db, user_id=user.user_id, record=record, actor_roles=user.roles,
+    )
     return CoolTowerResultResponse.model_validate(record, from_attributes=True)
 
 
