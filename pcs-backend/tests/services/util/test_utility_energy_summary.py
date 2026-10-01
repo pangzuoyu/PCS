@@ -117,9 +117,12 @@ def test_orm_tablename_and_columns():
     assert "tolerance_status" in col_names
 
 
-def test_golden_fixture_loads_3_cases(golden_fixture):
+def test_golden_fixture_loads_4_cases(golden_fixture):
+    """Case 1-3 合成算例 + Case 4 蜡油加氢 XLS 真实算例 (D 步 BLOCKER-2)."""
     cases = golden_fixture["cases"]
-    assert len(cases) == 3
+    assert len(cases) == 4
+    # Case 4 必含蜡油加氢标记
+    assert any("WAXY_OIL_HYDRO" in c["case_id"] for c in cases)
 
 
 @pytest.mark.asyncio
@@ -192,15 +195,18 @@ async def test_service_aggregates_t1t2t3_within_tolerance(
             business_year=case["business_year"],
         )
 
-        # 5. 验证聚合结果 (容差 1e-6 浮动点)
+        # 5. 验证聚合结果 (容差: Case 1-3 用 1e-3 浮点级; Case 4 (蜡油加氢 XLS) 大累积值用 1.0)
+        #     Case 4 年累积 60M+ kWh, 24M+ Nm3, 多项 sum 累计误差 ~0.1
+        is_case4 = "WAXY_OIL_HYDRO" in case["case_id"]
+        annual_abs = 1.0 if is_case4 else 1e-3
         assert summary.electricity_kwh_yr == pytest.approx(
-            expected["electricity_kwh_yr"], abs=1e-3
+            expected["electricity_kwh_yr"], abs=annual_abs
         )
         assert summary.fuel_gas_nm3_yr == pytest.approx(
-            expected["fuel_gas_nm3_yr"], abs=1e-3
+            expected["fuel_gas_nm3_yr"], abs=annual_abs
         )
         assert summary.steam_t_yr == pytest.approx(
-            expected["steam_t_yr"], abs=1e-3
+            expected["steam_t_yr"], abs=annual_abs
         )
         assert summary.annual_total_energy == pytest.approx(
             expected["annual_total_energy_mj"], abs=1.0
