@@ -28,7 +28,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
-from app.api.v1._guard import check_record_access_or_404
+from app.api.v1._guard import check_project_access_or_404, check_record_access_or_404
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
 from app.schemas.open_channel import (
@@ -107,8 +107,12 @@ async def calculate_manning(
     落 OpenChannelResult 行；禁止 endpoint 直构 ORM（红线 #1）。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=req.project_id, actor_roles=user.roles,
+    )
     try:
         # 1. 调 calc（ManningInput）
         inp = ManningInput(
@@ -179,8 +183,12 @@ async def calculate_section(
     """最优水力断面（§3.2.6 第二项）。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=req.project_id, actor_roles=user.roles,
+    )
     try:
         inp = SectionInput(
             channel_type=req.channel_type,
@@ -250,8 +258,12 @@ async def calculate_critical(
     """临界水深 + Froude 数（§3.2.6 第三项）。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=req.project_id, actor_roles=user.roles,
+    )
     bottom_width = req.cross_section_json.get("bottom_width") or 0.0
     try:
         h_c = calc_critical_depth(req.flow_rate, bottom_width)
@@ -319,8 +331,12 @@ async def calculate_jump(
     """水跃 Bélanger + 能量损失 + 跃型判定（§3.2.6 第四项）。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=req.project_id, actor_roles=user.roles,
+    )
     try:
         inp = JumpInput(h1=req.depth, v1=req.velocity)
         calc_r = calc_hydraulic_jump(inp)
@@ -390,8 +406,12 @@ async def create_open_channel_result(
     """直接创建 OpenChannelResult 行（POST → 201，不走 calc）。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=req.project_id, actor_roles=user.roles,
+    )
     payload = req.model_dump(
         exclude={"project_id", "workspace_id", "tag_number"}
     )
@@ -425,8 +445,12 @@ async def list_open_channel_results(
     """按 project_id 列出 OpenChannelResult（GET list，分页）。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫：user 必须是 project_id 的有效 UserProject 成员。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id, actor_roles=user.roles,
+    )
     records = await list_open_channel_results_service(
         db,
         project_id=project_id,
@@ -492,8 +516,22 @@ async def update_open_channel_result(
     仅 DRAFT / CHANGE_PENDING 可改；CHECKED 等锁定态拒绝。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫：record.project_id 必须属于 user。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 守卫: 先查 record 后再 service 调用
+    from sqlalchemy import select as _sa_select
+    from app.models.calc import OpenChannelResult
+    pre_record = (await db.execute(
+        _sa_select(OpenChannelResult).where(OpenChannelResult.result_id == result_id)
+    )).scalar_one_or_none()
+    if pre_record is None:
+        raise HTTPException(
+            status_code=404, detail="OpenChannelResult not found"
+        )
+    await check_record_access_or_404(
+        db, user_id=user.user_id, record=pre_record, actor_roles=user.roles,
+    )
     patch = req.model_dump(exclude_unset=True)
     try:
         record = await update_open_channel_result_service(
@@ -524,8 +562,22 @@ async def soft_delete_open_channel_result(
     位号加 ``__OBSOLETE_<ts>`` 后缀，stale_resolution_path 标记。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫：record.project_id 必须属于 user。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 守卫: 先查 record 后再 service 调用
+    from sqlalchemy import select as _sa_select
+    from app.models.calc import OpenChannelResult
+    pre_record = (await db.execute(
+        _sa_select(OpenChannelResult).where(OpenChannelResult.result_id == result_id)
+    )).scalar_one_or_none()
+    if pre_record is None:
+        raise HTTPException(
+            status_code=404, detail="OpenChannelResult not found"
+        )
+    await check_record_access_or_404(
+        db, user_id=user.user_id, record=pre_record, actor_roles=user.roles,
+    )
     try:
         record = await soft_delete_open_channel_result_service(
             db, result_id=result_id

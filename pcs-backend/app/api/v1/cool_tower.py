@@ -107,6 +107,10 @@ async def aggregate_heat_load(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 守卫
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=req.project_id, actor_roles=user.roles,
+    )
     try:
         # 字符串 sign_status → enum（非法字面 → 422 PcsError envelope）
         sign_status_filter = tuple(
@@ -358,8 +362,22 @@ async def update_cool_tower_result(
     批次为 None（service 层不强制隔离）。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫：record.project_id 必须属于 user。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 守卫: 先查 record 后再 service 调用
+    from sqlalchemy import select as _sa_select
+    from app.models.cool_tower import CoolTowerResult
+    pre_record = (await db.execute(
+        _sa_select(CoolTowerResult).where(CoolTowerResult.cool_tower_id == record_id)
+    )).scalar_one_or_none()
+    if pre_record is None:
+        raise HTTPException(
+            status_code=404, detail="CoolingTowerResult not found"
+        )
+    await check_record_access_or_404(
+        db, user_id=user.user_id, record=pre_record, actor_roles=user.roles,
+    )
     payload = req.model_dump(exclude_unset=True)
     try:
         record = await update_cool_tower_result_service(

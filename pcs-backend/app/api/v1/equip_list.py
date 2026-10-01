@@ -154,6 +154,7 @@ async def sync_equipment(
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     from fastapi import HTTPException
 
+    from app.api.v1._guard import check_record_access_or_404
     from app.models.equipment import EquipmentList
     from sqlalchemy import select
 
@@ -167,6 +168,11 @@ async def sync_equipment(
         raise HTTPException(
             status_code=404, detail=f"EquipmentList not found: {equipment_id}"
         )
+
+    # BLOCKER-3 守卫
+    await check_record_access_or_404(
+        db, user_id=user.user_id, record=existing, actor_roles=user.roles,
+    )
 
     record = await sync_service.sync_from_source(
         source_module=body.source_module,
