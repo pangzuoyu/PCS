@@ -19,11 +19,12 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
+from app.api.v1._guard import check_project_access_or_404
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
 from app.services.exceptions import PcsError
@@ -151,8 +152,23 @@ async def calculate_flash(
     """POST /api/v1/flash/calculate：PT/PH/PS_FLASH + SATURATION 统一入口。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫：req.stream_id 对应 stream.project_id 必须属于 user。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 守卫: 先查 stream 拿 project_id
+    from sqlalchemy import select as _sa_select
+    from app.models.stream import Stream
+    stream_row = (await db.execute(
+        _sa_select(Stream).where(Stream.stream_id == req.stream_id)
+    )).scalar_one_or_none()
+    if stream_row is None:
+        raise HTTPException(
+            status_code=404, detail="Stream not found"
+        )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=stream_row.project_id,
+        actor_roles=user.roles,
+    )
     try:
         data = await flash_persist.persist_calculate(
             db,
@@ -190,8 +206,25 @@ async def calculate_bubble(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> BubbleDewResponse:
-    """POST /api/v1/flash/bubble：mode=T 给 T 算 P_bubble；mode=P 给 P 算 T_bubble。"""
+    """POST /api/v1/flash/bubble：mode=T 给 T 算 P_bubble；mode=P 给 P 算 T_bubble。
+
+    BLOCKER-3 守卫：req.stream_id 对应 stream.project_id 必须属于 user。
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 守卫: 先查 stream 拿 project_id
+    from sqlalchemy import select as _sa_select
+    from app.models.stream import Stream
+    stream_row = (await db.execute(
+        _sa_select(Stream).where(Stream.stream_id == req.stream_id)
+    )).scalar_one_or_none()
+    if stream_row is None:
+        raise HTTPException(
+            status_code=404, detail="Stream not found"
+        )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=stream_row.project_id,
+        actor_roles=user.roles,
+    )
     try:
         data = await flash_persist.persist_bubble(
             db,
@@ -226,8 +259,25 @@ async def calculate_dew(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
 ) -> BubbleDewResponse:
-    """POST /api/v1/flash/dew：mode=T 给 T 算 P_dew；mode=P 给 P 算 T_dew。"""
+    """POST /api/v1/flash/dew：mode=T 给 T 算 P_dew；mode=P 给 P 算 T_dew。
+
+    BLOCKER-3 守卫：req.stream_id 对应 stream.project_id 必须属于 user。
+    """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 守卫: 先查 stream 拿 project_id
+    from sqlalchemy import select as _sa_select
+    from app.models.stream import Stream
+    stream_row = (await db.execute(
+        _sa_select(Stream).where(Stream.stream_id == req.stream_id)
+    )).scalar_one_or_none()
+    if stream_row is None:
+        raise HTTPException(
+            status_code=404, detail="Stream not found"
+        )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=stream_row.project_id,
+        actor_roles=user.roles,
+    )
     try:
         data = await flash_persist.persist_dew(
             db,

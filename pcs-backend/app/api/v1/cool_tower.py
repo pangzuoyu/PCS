@@ -306,8 +306,12 @@ async def list_cool_tower_results(
     默认 sign_status filter = (DRAFT, CHECKED) — 排除 OBSOLETE 等门禁态。
 
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+    BLOCKER-3 守卫：user 必须是 project_id 的有效 UserProject 成员。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id, actor_roles=user.roles,
+    )
     records = await list_cool_tower_results_service(
         db,
         project_id=project_id,
