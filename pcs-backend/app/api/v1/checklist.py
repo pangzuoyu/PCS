@@ -15,6 +15,7 @@ from app.schemas.checklist import (
     ChecklistItemPut,
 )
 from app.services.checklist_service import ChecklistService
+from app.api.v1._guard import check_project_access_or_404
 
 router = APIRouter(prefix="/checklist", tags=["checklist"])
 
@@ -34,7 +35,12 @@ async def list_for_project(
     无 ACL 校验：项目内部资源，依赖项目级鉴权上层路由。
     与 /projects/{project_id}/completeness（completeness）区别：
     本端点返回逐项明细；completeness 返回聚合统计。
+
+    BLOCKER-3 守卫: user_id 必须是 project_id 的有效 UserProject 成员。
     """
+    await check_project_access_or_404(
+        session, user_id=user_id, project_id=project_id,
+    )
     svc = ChecklistService(session)
     rows = await svc.list_for_project(project_id)
     return [ChecklistItemOut.model_validate(r) for r in rows]
@@ -61,7 +67,12 @@ async def bulk_seed(
 
     与 update_item 区别：本端点批量初始化（一个项目通常一次提交）；
     update_item 单项状态流转（5 态 + Audit）。
+
+    BLOCKER-3 守卫: user_id 必须是 project_id 的有效 UserProject 成员。
     """
+    await check_project_access_or_404(
+        session, user_id=user_id, project_id=project_id,
+    )
     svc = ChecklistService(session)
     rows = await svc.bulk_seed(
         project_id=project_id, items=payload.items, user_id=user_id
@@ -87,7 +98,12 @@ async def completeness(
 
     无 ACL 校验：项目内部资源，依赖项目级鉴权上层路由。
     与 list_for_project 区别：本端点返回聚合统计；list 返回逐项明细。
+
+    BLOCKER-3 守卫: user_id 必须是 project_id 的有效 UserProject 成员。
     """
+    await check_project_access_or_404(
+        session, user_id=user_id, project_id=project_id,
+    )
     svc = ChecklistService(session)
     return await svc.completeness(project_id)
 
