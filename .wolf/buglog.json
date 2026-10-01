@@ -2291,6 +2291,27 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-10-01T23:30:00Z"
+    },
+    {
+      "id": "bug-132",
+      "timestamp": "2026-10-08T00:00:00+08:00",
+      "error_message": "F-P0-001 R1 签字确认 5 签齐 + 出厂禁令解除",
+      "file": "docs/PCS-SIGN-F-P0-001-2026-10-08-R1.md",
+      "root_cause": "R0 基于 GB/T 50441-2016 单层核对与三层标准冲突; R1 撤回并重做 (commit 3acf0fb). 现 5 签齐 (工艺室 3 + 信息化 2) 于 2026-10-08 同日.",
+      "fix": "R1 SIGNED OFF + 出厂禁令解除. PCS 综合能耗报告允许出厂. Sprint 2 T5 ≤2% 验收可恢复.",
+      "fix_commit": "PENDING",
+      "tags": [
+        "p7-s2",
+        "F-P0-001-R1",
+        "工艺室签字",
+        "出厂禁令解除"
+      ],
+      "related_bugs": [
+        "F-P0-001",
+        "bug-118"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-08T00:00:00+08:00"
     }
   ]
 }
