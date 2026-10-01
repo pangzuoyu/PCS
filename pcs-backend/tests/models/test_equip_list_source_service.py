@@ -38,7 +38,16 @@ from sqlalchemy.orm import class_mapper
 
 from app.models.equipment import EquipmentList
 
-_BACKEND_DIR = Path(__file__).resolve().parents[2]
+# M4 fix: 取代 `_BACKEND_DIR = Path(__file__).resolve().parents[2]` magic number
+# 向上 walk-up 直到找到 alembic.ini 标记（pcs-backend 根的 canonical landmark）
+_BACKEND_DIR = Path(__file__).resolve().parent
+while not (_BACKEND_DIR / "alembic.ini").is_file():
+    parent = _BACKEND_DIR.parent
+    if parent == _BACKEND_DIR:
+        raise RuntimeError(
+            "Could not find pcs-backend root (no alembic.ini found in any ancestor)"
+        )
+    _BACKEND_DIR = parent
 _MIGRATION_PATH = (
     _BACKEND_DIR / "alembic" / "versions" / "p7_s1_001_equipment_list_source_service.py"
 )

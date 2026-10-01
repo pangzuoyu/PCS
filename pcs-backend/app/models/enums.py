@@ -364,3 +364,30 @@ class ReliefScenario(str, enum.Enum):
     COOLING_FAILURE = "COOLING_FAILURE"
     UPSET = "UPSET"
 
+
+
+# ---------------------------------------------------------------------------
+# M1 fix: 通用 helper — 跨 DB enum/str dual-format 兼容
+# ---------------------------------------------------------------------------
+
+
+def to_value(value) -> str:
+    """接受 enum 或 str，返回底层 str value。
+
+    用途：跨 DB 测试兼容性 — SQLite native_enum 自动降级为 VARCHAR，SQLAlchemy
+    读回时 column 属性是 str 而非 enum。生产 PG 走 enum；测试 fixture 偶用 str 方便。
+
+    Examples:
+        >>> to_value(RecordSignStatus9.CHECKED)
+        'CHECKED'
+        >>> to_value("CHECKED")
+        'CHECKED'
+
+    Notes:
+        bug-116 起源：sync_service 原本 `source.sign_status.value` 在 SQLite 测
+        试 fixture 用 str 构造 PumpResult 时 AttributeError 失败。
+        M1 fix：centralize 到此处供 sync_service + api/v1/equip_list + tests 复用。
+    """
+    if hasattr(value, "value"):
+        return str(value.value)
+    return str(value)

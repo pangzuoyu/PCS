@@ -23,6 +23,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.equipment import EquipmentList, EquipmentTypeCode
+from app.models.enums import to_value
 from app.services.advisory_lock import acquire_equip_list_lock
 from app.services.equip_list.source_resolver import get_source_record
 from app.services.equip_list.type_code_map import derive_type_code
@@ -92,10 +93,8 @@ async def sync_from_source(
         raise LookupError(
             f"source record not found: module={source_module} id={source_record_id}"
         )
-    # Accept both enum (RecordSignStatus9.CHECKED) and plain str
-    # (SQLite native_enum downgrade; fixture convenience).
-    _ss = source.sign_status
-    ss_value = _ss.value if hasattr(_ss, "value") else _ss
+    # M1 fix: 跨 DB enum/str dual-format 兼容（centralize 到 models.enums.to_value）
+    ss_value = to_value(source.sign_status)
     if ss_value != "CHECKED":
         raise ValueError(
             f"source record not CHECKED: module={source_module} "

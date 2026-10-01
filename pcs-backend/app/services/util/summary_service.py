@@ -50,8 +50,10 @@ async def summarize(
     expected_keys = {c.value for c in utility_categories()}
     extra_keys = set(consumption.keys()) - expected_keys
     if extra_keys:
+        # M8 fix: wording "未知键" 替代 "含非 13 类键" — 缺 key 合法（默认 0），
+        # 仅 reject 未识别的 key
         raise ValueError(
-            f"consumption_json 含非 13 类键: {sorted(extra_keys)}; "
+            f"consumption_json 含未知键: {sorted(extra_keys)}; "
             f"valid: {sorted(expected_keys)}"
         )
 

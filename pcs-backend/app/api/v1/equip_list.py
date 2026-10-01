@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
+from app.models.enums import to_value
 from app.schemas.equip_list import (
     EquipListBulkSyncRequest,
     EquipListBulkSyncResponse,
@@ -43,8 +44,7 @@ def _to_response(record) -> EquipListResponse:
 
     sign_status 接受 enum 或 str（per bug-116 lesson：跨 DB dual-format）。
     """
-    ss = record.sign_status
-    ss_value = ss.value if hasattr(ss, "value") else ss
+    ss_value = to_value(record.sign_status)
     return EquipListResponse(
         equipment_id=record.equipment_id,
         equipment_type_project_id=record.equipment_type_project_id,

@@ -28,7 +28,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.calc import PumpResult
 from app.models.equipment import EquipmentList, EquipmentTypeCode
-from app.models.enums import RecordSignStatus9
+from app.models.enums import RecordSignStatus9, to_value
 from app.models.project import Project, Stream, Workspace
 from app.services.equip_list.source_resolver import UnsupportedSourceModuleError
 from app.services.equip_list.sync_service import sync_from_source
@@ -43,9 +43,9 @@ skip_unless_pcs_test = pytest.mark.skipif(
 )
 
 
-def _sign_status_value(ss) -> str:
-    """Accept both enum (RecordSignStatus9) and plain str."""
-    return ss.value if hasattr(ss, "value") else ss
+# M1 fix: 删除本地 _sign_status_value helper，统一用 app.models.enums.to_value
+# (跨 DB enum/str dual-format 兼容)
+_sign_status_value = to_value
 
 
 # ---------------------------------------------------------------------------
