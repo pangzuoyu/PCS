@@ -1,0 +1,113 @@
+{
+  "_meta": {
+    "description": "P7 Sprint 2 T1 utility_power_items 黄金 fixture (10 算例)",
+    "schema_version": "1.0",
+    "source": "SYNTHETIC_TEST_DATA",
+    "confirmed_by": null,
+    "confirmed_at": null,
+    "spec_ref": "P7 SPEC V1.4 §3.2.2(5) + P7-OPEN-009 §1 #1",
+    "notes": "10 个典型电耗设备算例 (PUMP/COMPRESSOR/FAN), 覆盖小/中/大功率 + 各种年运行小时 + 负荷率. annual_consumption_kwh 由 service 层从 motor_power_kw × operating_hours_per_year × load_factor 计算填入, 本 fixture 中直接给值用于验证 DB CHECK 约束 + round-trip."
+  },
+  "cases": [
+    {
+      "case_id": "T1_CASE_01",
+      "equipment_tag": "P-101A",
+      "equipment_type": "PUMP",
+      "motor_power_kw": 15.0,
+      "operating_hours_per_year": 8000.0,
+      "load_factor": 0.85,
+      "annual_consumption_kwh": 102000.0,
+      "source": "MANUAL"
+    },
+    {
+      "case_id": "T1_CASE_02",
+      "equipment_tag": "P-201B",
+      "equipment_type": "PUMP",
+      "motor_power_kw": 75.0,
+      "operating_hours_per_year": 8760.0,
+      "load_factor": 0.90,
+      "annual_consumption_kwh": 591300.0,
+      "source": "PMS"
+    },
+    {
+      "case_id": "T1_CASE_03",
+      "equipment_tag": "P-301",
+      "equipment_type": "PUMP",
+      "motor_power_kw": 200.0,
+      "operating_hours_per_year": 7200.0,
+      "load_factor": 0.75,
+      "annual_consumption_kwh": 1080000.0,
+      "source": "PMS"
+    },
+    {
+      "case_id": "T1_CASE_04",
+      "equipment_tag": "C-401",
+      "equipment_type": "COMPRESSOR",
+      "motor_power_kw": 1500.0,
+      "operating_hours_per_year": 8400.0,
+      "load_factor": 0.92,
+      "annual_consumption_kwh": 11592000.0,
+      "source": "PMS"
+    },
+    {
+      "case_id": "T1_CASE_05",
+      "equipment_tag": "C-501",
+      "equipment_type": "COMPRESSOR",
+      "motor_power_kw": 5500.0,
+      "operating_hours_per_year": 8000.0,
+      "load_factor": 0.88,
+      "annual_consumption_kwh": 38720000.0,
+      "source": "PMS"
+    },
+    {
+      "case_id": "T1_CASE_06",
+      "equipment_tag": "F-601",
+      "equipment_type": "FAN",
+      "motor_power_kw": 30.0,
+      "operating_hours_per_year": 6500.0,
+      "load_factor": 0.70,
+      "annual_consumption_kwh": 136500.0,
+      "source": "MANUAL"
+    },
+    {
+      "case_id": "T1_CASE_07",
+      "equipment_tag": "F-602",
+      "equipment_type": "FAN",
+      "motor_power_kw": 75.0,
+      "operating_hours_per_year": 7200.0,
+      "load_factor": 0.80,
+      "annual_consumption_kwh": 432000.0,
+      "source": "PMS"
+    },
+    {
+      "case_id": "T1_CASE_08",
+      "equipment_tag": "P-102",
+      "equipment_type": "PUMP",
+      "motor_power_kw": 5.5,
+      "operating_hours_per_year": 4000.0,
+      "load_factor": 0.60,
+      "annual_consumption_kwh": 13200.0,
+      "source": "MANUAL"
+    },
+    {
+      "case_id": "T1_CASE_09",
+      "equipment_tag": "P-103",
+      "equipment_type": "PUMP",
+      "motor_power_kw": 1100.0,
+      "operating_hours_per_year": 8500.0,
+      "load_factor": 0.95,
+      "annual_consumption_kwh": 8882500.0,
+      "source": "CALC"
+    },
+    {
+      "case_id": "T1_CASE_10",
+      "equipment_tag": "M-701",
+      "equipment_type": "MIXER",
+      "motor_power_kw": 250.0,
+      "operating_hours_per_year": 5000.0,
+      "load_factor": 0.65,
+      "annual_consumption_kwh": 812500.0,
+      "source": "MANUAL"
+    }
+  ]
+}

@@ -325,3 +325,10 @@
 | 12:34 | Edited pcs-backend/alembic/versions/p7_open_009_t0_config_energy_conversion_factors.py | 4→7 lines | ~61 |
 | 12:34 | Edited pcs-backend/app/models/config.py | 4→7 lines | ~57 |
 | 12:39 | Edited .gitignore | 2→3 lines | ~6 |
+| 12:51 | Created pcs-backend/alembic/versions/p7_open_009_001_utility_power_items.py | — | ~1292 |
+| 12:51 | Edited pcs-backend/app/models/util.py | expanded (+13 lines) | ~123 |
+| 12:52 | Edited pcs-backend/alembic/versions/p7_open_009_001_utility_power_items.py | expanded (+6 lines) | ~214 |
+| 12:52 | Created pcs-backend/tests/services/util/fixtures/golden_utility_power_items.json | — | ~933 |
+| 12:53 | Created pcs-backend/tests/services/util/test_utility_power_items.py | — | ~1642 |
+| 12:53 | Edited pcs-backend/tests/services/util/test_utility_power_items.py | 11→9 lines | ~42 |
+| 12:53 | Edited pcs-backend/tests/services/util/test_utility_power_items.py | 11→11 lines | ~138 |
