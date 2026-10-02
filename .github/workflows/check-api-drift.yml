@@ -1,0 +1,74 @@
+# F-P3-002 集成: check-api-drift.sh + check_migration_idempotency.sh CI
+#
+# 触发: push main + pull_request
+# 步骤:
+#   1. 启动 PostgreSQL (pcs + pcs_test)
+#   2. 跑 pcs-backend alembic upgrade head (锁 schema 头)
+#   3. 跑 export_openapi.py → 重写 openapi.json
+#   4. 跑 check-api-drift.sh → 比较前后端 OpenAPI
+#   5. 跑 check_migration_idempotency.sh → 校验 p7_s2_* migrations
+#
+# CI fail 触发: api drift 或 migration 缺 idempotency guard
+
+name: api-drift-and-migration-guard
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  api-drift:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: pcs
+          POSTGRES_PASSWORD: pcs_dev
+          POSTGRES_DB: pcs
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U pcs"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - uses: astral-sh/setup-uv@v3
+
+      - name: Install backend deps
+        working-directory: pcs-backend
+        run: uv sync
+
+      - name: Run alembic upgrade head (pcs)
+        working-directory: pcs-backend
+        env:
+          DATABASE_URL: postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs
+        run: uv run alembic -c alembic.ini upgrade head
+
+      - name: Export OpenAPI snapshot
+        working-directory: pcs-backend
+        run: uv run python scripts/export_openapi.py
+
+      - name: Run check-api-drift (semantic)
+        working-directory: pcs-frontend
+        run: bash scripts/check-api-drift.sh
+
+      - name: Run check-migration-idempotency (p7_s2_*)
+        working-directory: pcs-backend
+        run: uv run python scripts/check_migration_idempotency.py
+
+      - name: Typecheck frontend
+        working-directory: pcs-frontend
+        run: |
+          npm ci
+          npm run typecheck
