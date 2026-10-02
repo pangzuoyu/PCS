@@ -138,11 +138,17 @@ async def _aggregate_util_subtables(
     }
 
     # T3 utility_heat_exchange → steam_t_yr (R1 §7.1: 按 pressure_level 9 档聚合)
+    # 注: utility_heat_exchange R1 加 medium_type (含 STEAM + 9 类水). 仅
+    # 注: medium_type='STEAM' 或 NULL 的行算蒸汽; 其余归 water_by_type 桶.
     stmt_steam_total = (
         select(
             func.coalesce(func.sum(UtilityHeatExchange.annual_consumption_t), 0.0)
         )
         .where(UtilityHeatExchange.project_id == project_id)
+        .where(
+            (UtilityHeatExchange.medium_type == "STEAM")
+            | (UtilityHeatExchange.medium_type.is_(None))
+        )
     )
     steam_t_yr = float((await db.execute(stmt_steam_total)).scalar() or 0.0)
 
@@ -161,16 +167,40 @@ async def _aggregate_util_subtables(
         row.pressure_level: float(row[1]) for row in steam_rows if row.pressure_level
     }
 
+    # R1 §7.2 (P7-6B): 水消耗按 water_type 9 类聚合 (medium_type != 'STEAM')
+    # 注: utility_heat_exchange.medium_type 包含 STEAM + 9 类水 (FRESH_WATER / ...
+    # 注: 120C_CONDENSATE_REUSABLE). 蒸汽记录 medium_type='STEAM' + pressure_level=...
+    # 注: 水记录 medium_type='XXX_WATER' (or LP/HP_DEAERATED_WATER / CONDENSATE_*)
+    # 注: 这里聚合 medium_type != 'STEAM' 的年消耗 → water_by_type dict.
+    # 注: water_t_yr = 蒸汽消耗 + 水消耗 (R0 单值兼容, 6 类能源 row 31)
+    stmt_water_by_type = (
+        select(
+            UtilityHeatExchange.medium_type,
+            func.coalesce(func.sum(UtilityHeatExchange.annual_consumption_t), 0.0),
+        )
+        .where(UtilityHeatExchange.project_id == project_id)
+        .where(UtilityHeatExchange.medium_type.is_not(None))
+        .where(UtilityHeatExchange.medium_type != "STEAM")
+        .group_by(UtilityHeatExchange.medium_type)
+    )
+    water_rows = (await db.execute(stmt_water_by_type)).all()
+    water_by_type: dict[str, float] = {
+        row.medium_type: float(row[1]) for row in water_rows if row.medium_type
+    }
+
+    # R0 兼容: water_t_yr = 水消耗 (medium_type != 'STEAM' 行的 annual_consumption_t)
+    water_t_yr = sum(water_by_type.values()) if water_by_type else 0.0
+
     return EnergyAggregation(
         electricity_kwh_yr=electricity_kwh_yr,
         fuel_gas_nm3_yr=fuel_gas_nm3_yr,
         steam_t_yr=steam_t_yr,
-        water_t_yr=0.0,  # 待 P7-6B 冷却水子表 + R1 §7.2 9 类聚合
+        water_t_yr=water_t_yr,  # R1 §7.2 (P7-6B) 水消耗年累积 (medium_type != STEAM)
         gas_nm3_yr=0.0,
         low_temp_heat_gj_yr=0.0,
         steam_t_by_pressure_level=steam_t_by_pressure_level,
         fuel_gas_by_source=fuel_gas_by_source,
-        water_by_type=None,  # 待 R1 §7.2 冷却水子表
+        water_by_type=water_by_type or None,  # R1 §7.2 (P7-6B) 水按 medium_type 9 类聚合
     )
 
 
@@ -432,6 +462,26 @@ def _compute_totals(
         fuel_toe_kg = agg.fuel_gas_nm3_yr * f_toe
         fuel_coal_kg = agg.fuel_gas_nm3_yr * f_coal
 
+    # R1 §7.2: 水按 water_type 9 类分类查 R1 系数 (替代 R0 单值 fallback)
+    water_toe_kg = 0.0
+    water_coal_kg = 0.0
+    if (
+        factors_by_class
+        and agg.water_by_type
+        and factors_by_class.get("WATER")
+    ):
+        for water_type, t_amount in agg.water_by_type.items():
+            w_pair = factors_by_class["WATER"].get(water_type)
+            if w_pair is None:
+                continue  # 未回填该水类, 跳过
+            w_toe_class, w_coal_class = w_pair
+            water_toe_kg += t_amount * w_toe_class
+            water_coal_kg += t_amount * w_coal_class
+    else:
+        # R0 兼容: 单值 fallback
+        water_toe_kg = agg.water_t_yr * w_toe
+        water_coal_kg = agg.water_t_yr * w_coal
+
     # toe = consumption × toe_factor (toe_factor 单位 kg 标油 / 单位消耗)
     # total 单位转换: toe = consumption_kg_单位足 × kg 标油 / 单位 = kg 标油
     # → divide by 1000 → tonne oil equivalent
@@ -439,7 +489,7 @@ def _compute_totals(
         agg.electricity_kwh_yr * e_toe
         + fuel_toe_kg
         + steam_toe_kg
-        + agg.water_t_yr * w_toe
+        + water_toe_kg
         + agg.gas_nm3_yr * g_toe
         + agg.low_temp_heat_gj_yr * h_toe
     )
@@ -449,7 +499,7 @@ def _compute_totals(
         agg.electricity_kwh_yr * e_coal
         + fuel_coal_kg
         + steam_coal_kg
-        + agg.water_t_yr * w_coal
+        + water_coal_kg
         + agg.gas_nm3_yr * g_coal
         + agg.low_temp_heat_gj_yr * h_coal
     )

@@ -95,6 +95,13 @@ SEED_FACTORS = [
         "source": "GB_30251_2024_APPENDIX_A",
     },
     {
+        "energy_type": "WATER",
+        "water_type": "FRESH_WATER",
+        "toe_factor": 0.15,             # t → kg 标油 (新鲜水)
+        "standard_coal_factor": 0.214286,  # 0.15 / 0.7
+        "source": "GB_30251_2024_APPENDIX_A",
+    },
+    {
         "energy_type": "NITROGEN",
         "toe_factor": 0.15,             # Nm³ → kg 标油
         "standard_coal_factor": 0.214286,  # 0.15 / 0.7
@@ -737,3 +744,120 @@ async def test_service_persists_r1_classification_on_idempotent_overwrite(
     # 分类聚合覆盖更新 (含新增 HP)
     assert s2.r1_classification_json["steam_by_pressure_level"]["0_8_TO_1_2_MPA"] == pytest.approx(1000.0)
     assert s2.r1_classification_json["steam_by_pressure_level"]["GE_7_0_MPA"] == pytest.approx(2000.0)
+
+
+@pytest.mark.asyncio
+async def test_service_aggregates_water_by_type(
+    db_session, seeded_config_factors
+):
+    """R1 §7.2 (P7-6B): water_by_type 聚合 (medium_type != STEAM → 9 类水)."""
+    from app.services.util.utility_energy_summary_service import (
+        _aggregate_util_subtables,
+    )
+
+    project_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+
+    # 注入 2 条水记录 (CIRCULATING_WATER + DEMINERALIZED_WATER) + 1 条蒸汽 (STEAM 不计入水)
+    db_session.add_all([
+        UtilityHeatExchange(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="CW-001", temperature_class="LP",
+            medium_type="CIRCULATING_WATER",
+            steam_pressure_mpa_gauge=0.5, steam_quality_pct=0,
+            return_condensate_pct=0, steam_consumption_t_h=10.0,
+            operating_hours_per_year=8000, annual_consumption_t=80000.0,
+        ),
+        UtilityHeatExchange(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="DM-001", temperature_class="LP",
+            medium_type="DEMINERALIZED_WATER",
+            steam_pressure_mpa_gauge=0.5, steam_quality_pct=0,
+            return_condensate_pct=0, steam_consumption_t_h=0.5,
+            operating_hours_per_year=8000, annual_consumption_t=4000.0,
+        ),
+        UtilityHeatExchange(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="ST-MP", temperature_class="MP",
+            medium_type="STEAM",
+            pressure_level="0_8_TO_1_2_MPA",
+            steam_pressure_mpa_gauge=1.0, steam_quality_pct=99.0,
+            return_condensate_pct=80.0, steam_consumption_t_h=1.0,
+            operating_hours_per_year=8000, annual_consumption_t=5000.0,
+        ),
+    ])
+    await db_session.commit()
+
+    agg = await _aggregate_util_subtables(db_session, project_id, 2027)
+
+    # R1 §7.2: 水按 medium_type 9 类聚合
+    assert agg.water_by_type is not None
+    assert agg.water_by_type["CIRCULATING_WATER"] == pytest.approx(80000.0)
+    assert agg.water_by_type["DEMINERALIZED_WATER"] == pytest.approx(4000.0)
+    # STEAM 不入水桶 (走 steam bucket)
+    assert "STEAM" not in agg.water_by_type
+
+    # R0 兼容: water_t_yr = 水总消耗
+    assert agg.water_t_yr == pytest.approx(84000.0)
+    # steam_t_yr 仅含蒸汽记录 (medium_type='STEAM')
+    assert agg.steam_t_yr == pytest.approx(5000.0)
+    # 蒸汽按 pressure_level 分类聚合
+    assert agg.steam_t_by_pressure_level["0_8_TO_1_2_MPA"] == pytest.approx(5000.0)
+
+
+@pytest.mark.asyncio
+async def test_compute_totals_uses_water_classified_factors(
+    db_session, seeded_config_factors
+):
+    """R1 §7.2: _compute_totals 按 water_type 9 类分类查 R1 系数 (替代单值 fallback).
+
+    验证: 注入 2 类水 (CIRCULATING_WATER=0.06 + FRESH_WATER=0.15), 总 toe 按
+    分类计算 (80000*0.06 + 4000*0.15 / 1000 = 5.4 tonne).
+    """
+    from app.services.util.utility_energy_summary_service import (
+        _aggregate_util_subtables, _compute_totals,
+        _get_factors_by_classification, _get_factors_default,
+    )
+
+    project_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+
+    # 注入 2 类水记录
+    db_session.add_all([
+        UtilityHeatExchange(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="CW", medium_type="CIRCULATING_WATER",
+            temperature_class="LP",
+            steam_pressure_mpa_gauge=0.5, steam_quality_pct=0,
+            return_condensate_pct=0, steam_consumption_t_h=10.0,
+            operating_hours_per_year=8000, annual_consumption_t=80000.0,
+        ),
+        UtilityHeatExchange(
+            project_id=project_id, workspace_id=workspace_id,
+            equipment_tag="FW", medium_type="FRESH_WATER",
+            temperature_class="LP",
+            steam_pressure_mpa_gauge=0.5, steam_quality_pct=0,
+            return_condensate_pct=0, steam_consumption_t_h=0.5,
+            operating_hours_per_year=8000, annual_consumption_t=4000.0,
+        ),
+    ])
+    await db_session.commit()
+
+    agg = await _aggregate_util_subtables(db_session, project_id, 2027)
+    factors_by_class = await _get_factors_by_classification(db_session)
+    factors = await _get_factors_default(db_session)
+
+    # 计算 (水部分用分类 R1 系数)
+    total_toe, total_coal_kg, _ = _compute_totals(
+        agg, factors,
+        electricity_value_type="EQUIVALENT",
+        factors_by_class=factors_by_class,
+    )
+
+    # 期望: 80000 × 0.06 + 4000 × 0.15 = 4800 + 600 = 5400 kg toe = 5.4 tonne
+    expected_water_toe_kg = 80000 * 0.06 + 4000 * 0.15  # 5400
+    assert total_toe == pytest.approx(expected_water_toe_kg / 1000.0, abs=1e-3)
+
+    # coal_kg 期望: 80000 × 0.085714 + 4000 × 0.214286 = 6857 + 857 = 7714 kg
+    expected_water_coal_kg = 80000 * 0.085714 + 4000 * 0.214286
+    assert total_coal_kg == pytest.approx(expected_water_coal_kg, abs=1.0)
