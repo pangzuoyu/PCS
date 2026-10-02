@@ -22,6 +22,7 @@ import pytest
 import pytest_asyncio
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.security import create_access_token
 from app.models.project import Stream
 
 _HASH_RE = re.compile(r"^[0-9a-f]{16}$")
@@ -52,6 +53,16 @@ async def source_stream(db: AsyncSession, project_id, workspace_id) -> Stream:
     await db.commit()
     await db.refresh(s)
     return s
+
+
+def _auth_headers(user_id: uuid.UUID, role: str = "DESIGNER") -> dict[str, str]:
+    """P7-7+ BLOCKER-3: cv_calculate 需 Bearer + project_id 用户关联 — 用 JWT 携带 user_id 声明."""
+    token = create_access_token(
+        subject="test-cv",
+        role=role,
+        extra={"user_id": str(user_id)},
+    )
+    return {"Authorization": f"Bearer {token}"}
 
 
 def _liquid_body(
@@ -91,12 +102,13 @@ def _liquid_body(
 
 @pytest.mark.asyncio
 async def test_cv_calculate_post_success(
-    client, source_stream, project_id, workspace_id
+    client, source_stream, project_id, user_id, workspace_id
 ):
     """POST /cv/calculate happy path：201 + cv_result_id + outlet_stream_id + record_hash。"""
     r = await client.post(
         "/api/v1/cv/calculate",
         json=_liquid_body(project_id, workspace_id, source_stream.stream_id),
+        headers=_auth_headers(user_id),
     )
     assert r.status_code == 201, r.text
     body = r.json()
@@ -177,13 +189,13 @@ async def test_cv_calculate_openapi_contract(client):
 
 @pytest.mark.asyncio
 async def test_cv_calculate_invalid_input_missing_source_stream(
-    client, project_id, workspace_id
+    client, project_id, user_id, workspace_id
 ):
     """缺 source_stream_id → 422 Pydantic ValidationError（extra='forbid' + 必填拦截）。"""
     body = _liquid_body(project_id, workspace_id, source_stream_id=uuid.uuid4())
     del body["source_stream_id"]
 
-    r = await client.post("/api/v1/cv/calculate", json=body)
+    r = await client.post("/api/v1/cv/calculate", json=body, headers=_auth_headers(user_id))
     assert r.status_code == 422, r.text
     payload = r.json()
     # Pydantic ValidationError 标准 envelope：detail[*].type 包含 "missing"
@@ -202,13 +214,13 @@ async def test_cv_calculate_invalid_input_missing_source_stream(
 
 @pytest.mark.asyncio
 async def test_cv_calculate_invalid_input_unknown_field(
-    client, source_stream, project_id, workspace_id
+    client, source_stream, project_id, user_id, workspace_id
 ):
     """未知字段 → 422（extra='forbid' 严格模式；不静默吞字段）。"""
     body = _liquid_body(project_id, workspace_id, source_stream.stream_id)
     body["unknown_field_xyz"] = "should be rejected"
 
-    r = await client.post("/api/v1/cv/calculate", json=body)
+    r = await client.post("/api/v1/cv/calculate", json=body, headers=_auth_headers(user_id))
     assert r.status_code == 422, r.text
     payload = r.json()
     # extra='forbid' → Pydantic 抛 "extra_forbidden" 类型错误
@@ -227,7 +239,7 @@ async def test_cv_calculate_invalid_input_unknown_field(
 
 @pytest.mark.asyncio
 async def test_cv_calculate_standard_profile_code_default(
-    client, source_stream, project_id, workspace_id
+    client, source_stream, project_id, user_id, workspace_id
 ):
     """缺省 standard_profile_code → 默认 IEC_60534（C-07 评审委员会 2026-09-24 裁决）。
 
@@ -237,6 +249,6 @@ async def test_cv_calculate_standard_profile_code_default(
     body = _liquid_body(project_id, workspace_id, source_stream.stream_id)
     assert "standard_profile_code" not in body  # 确认未传
 
-    r = await client.post("/api/v1/cv/calculate", json=body)
+    r = await client.post("/api/v1/cv/calculate", json=body, headers=_auth_headers(user_id))
     assert r.status_code == 201, r.text
     assert r.json()["standard_profile_code"] == "IEC_60534"

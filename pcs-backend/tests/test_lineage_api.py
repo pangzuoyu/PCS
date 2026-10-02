@@ -3,6 +3,9 @@
 GET /lineage/{record_type}/{record_id}/upstream
 GET /lineage/{record_type}/{record_id}/downstream
 GET /lineage/{record_type}/{record_id}/graph
+
+P7-7+ BLOCKER-3 集成: lineage 3 endpoint 加 Depends(current_actor) 守卫.
+测试用 _auth_headers(user_id) helper 生成 Bearer token.
 """
 
 from __future__ import annotations
@@ -11,7 +14,19 @@ import uuid
 
 import pytest
 
+from app.core.security import create_access_token
+
 pytestmark = pytest.mark.asyncio
+
+
+def _auth_headers(user_id: uuid.UUID, role: str = "DESIGNER") -> dict[str, str]:
+    """P7-7+ BLOCKER-3: lineage 需 Bearer + actor 关联 — 用 JWT 携带 user_id."""
+    token = create_access_token(
+        subject="test-lineage",
+        role=role,
+        extra={"user_id": str(user_id)},
+    )
+    return {"Authorization": f"Bearer {token}"}
 
 
 def _make_pipe(**overrides):
@@ -57,15 +72,16 @@ async def _flush_full(session, *objs):
 
 # === upstream ===
 
-async def test_upstream_empty_when_no_lineage(client):
+async def test_upstream_empty_when_no_lineage(client, user_id):
     r = await client.get(
         f"/api/v1/lineage/PipingResult/{uuid.uuid4()}/upstream"
+, headers=_auth_headers(user_id)
     )
     assert r.status_code == 200
     assert r.json() == []
 
 
-async def test_upstream_traverses_parent_chain(client, db_session):
+async def test_upstream_traverses_parent_chain(client, db_session, user_id):
     """返回 parent_lineage_id 链上的所有祖先。"""
     from app.services.lineage import LineageTracker
 
@@ -81,6 +97,7 @@ async def test_upstream_traverses_parent_chain(client, db_session):
 
     r = await client.get(
         f"/api/v1/lineage/PipingResult/{pipe.pipe_id}/upstream"
+, headers=_auth_headers(user_id)
     )
     assert r.status_code == 200
     chain = r.json()
@@ -89,7 +106,7 @@ async def test_upstream_traverses_parent_chain(client, db_session):
     assert chain[1]["lineage_id"] == str(n1.lineage_id)
 
 
-async def test_upstream_respects_max_depth(client, db_session):
+async def test_upstream_respects_max_depth(client, db_session, user_id):
     """max_depth 限制遍历深度。"""
     from app.services.lineage import LineageTracker
 
@@ -105,6 +122,7 @@ async def test_upstream_respects_max_depth(client, db_session):
 
     r = await client.get(
         f"/api/v1/lineage/PipingResult/{pipe.pipe_id}/upstream?max_depth=1"
+, headers=_auth_headers(user_id)
     )
     assert r.status_code == 200
     chain = r.json()
@@ -113,14 +131,15 @@ async def test_upstream_respects_max_depth(client, db_session):
 
 # === downstream ===
 
-async def test_downstream_404_when_no_lineage(client):
+async def test_downstream_404_when_no_lineage(client, user_id):
     r = await client.get(
         f"/api/v1/lineage/PipingResult/{uuid.uuid4()}/downstream"
+, headers=_auth_headers(user_id)
     )
     assert r.status_code == 404
 
 
-async def test_downstream_returns_bfs(client, db_session):
+async def test_downstream_returns_bfs(client, db_session, user_id):
     """downstream 基于 latest lineage（最新一条）向下找子节点。"""
     from app.services.lineage import LineageTracker
 
@@ -137,6 +156,7 @@ async def test_downstream_returns_bfs(client, db_session):
 
     r = await client.get(
         f"/api/v1/lineage/PipingResult/{pipe.pipe_id}/downstream"
+, headers=_auth_headers(user_id)
     )
     assert r.status_code == 200
     children = r.json()
@@ -144,7 +164,7 @@ async def test_downstream_returns_bfs(client, db_session):
     assert children == []
 
 
-async def test_downstream_returns_children_of_latest(client, db_session):
+async def test_downstream_returns_children_of_latest(client, db_session, user_id):
     """以 latest lineage 为 parent_lineage_id 的节点被返回。"""
     from app.services.lineage import LineageTracker
 
@@ -165,6 +185,7 @@ async def test_downstream_returns_children_of_latest(client, db_session):
     # latest 是 gc；gc 没有 children → 返回空
     r = await client.get(
         f"/api/v1/lineage/PipingResult/{pipe.pipe_id}/downstream"
+, headers=_auth_headers(user_id)
     )
     assert r.status_code == 200
     assert r.json() == []
@@ -172,14 +193,15 @@ async def test_downstream_returns_children_of_latest(client, db_session):
 
 # === graph ===
 
-async def test_graph_404_when_no_lineage(client):
+async def test_graph_404_when_no_lineage(client, user_id):
     r = await client.get(
         f"/api/v1/lineage/PipingResult/{uuid.uuid4()}/graph"
+, headers=_auth_headers(user_id)
     )
     assert r.status_code == 404
 
 
-async def test_graph_returns_root_up_down(client, db_session):
+async def test_graph_returns_root_up_down(client, db_session, user_id):
     """graph 端点返回 root（latest lineage）+ upstream + downstream。"""
     from app.services.lineage import LineageTracker
 
@@ -193,6 +215,7 @@ async def test_graph_returns_root_up_down(client, db_session):
 
     r = await client.get(
         f"/api/v1/lineage/PipingResult/{pipe.pipe_id}/graph"
+, headers=_auth_headers(user_id)
     )
     assert r.status_code == 200
     body = r.json()
@@ -208,10 +231,11 @@ async def test_graph_returns_root_up_down(client, db_session):
     assert body["downstream"] == []
 
 
-async def test_lineage_endpoint_serialization_envelope(client):
+async def test_lineage_endpoint_serialization_envelope(client, user_id):
     """序列化字段完整性。"""
     r = await client.get(
         f"/api/v1/lineage/PipingResult/{uuid.uuid4()}/upstream"
+, headers=_auth_headers(user_id)
     )
     assert r.status_code == 200
     assert r.json() == []  # 无血缘返回空列表，无需字段

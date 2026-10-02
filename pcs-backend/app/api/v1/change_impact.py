@@ -7,10 +7,13 @@ POST /change-impact/{record_type}/{record_id}/confirm-recalc
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1._guard import check_record_access_or_404
+from app.api.v1.config import _Actor, current_actor
 from app.db.session import get_db
 from app.services.cia_engine import (
     CIAEngine,
@@ -25,9 +28,14 @@ router = APIRouter(prefix="/change-impact", tags=["change-impact"])
 async def confirm_recalc(
     record_type: str,
     record_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
     session: AsyncSession = Depends(get_db),
 ):
-    """强制触发 CIA 扫描 + 传播 + 设备联动。"""
+    """强制触发 CIA 扫描 + 传播 + 设备联动。
+
+    BLOCKER-3 P7-7+ IDOR 防护: actor 必须有 record.project_id 访问权
+    (先 fetch PipingResult 拿 project_id, 再 check_record_access_or_404).
+    """
     # 仅支持已纳入 CIA 的 record 类型
     if record_type not in {"PipingResult"}:
         return {
@@ -38,6 +46,17 @@ async def confirm_recalc(
             "equipment_affected": 0,
             "note": f"record_type {record_type} not in CIA scope",
         }
+    # BLOCKER-3 P7-7+: 拉 PipingResult 拿 project_id, 验证 actor 访问权
+    from sqlalchemy import select as _sa_select
+    from app.models.calc import PipingResult
+    pre_record = (await session.execute(
+        _sa_select(PipingResult).where(PipingResult.pipe_id == record_id)
+    )).scalar_one_or_none()
+    if pre_record is not None:
+        await check_record_access_or_404(
+            session, user_id=user.user_id, record=pre_record,
+            actor_roles=user.roles,
+        )
     # 拉取最新 lineage + current hash
     tracker = LineageTracker(session)
     latest = await tracker.latest(record_type=record_type, record_id=record_id)

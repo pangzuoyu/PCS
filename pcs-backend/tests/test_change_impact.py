@@ -1,6 +1,9 @@
 """Change Impact API 端到端测试（Sprint 3）。
 
 POST /change-impact/{record_type}/{record_id}/confirm-recalc
+
+P7-7+ BLOCKER-3 集成: confirm_recalc 加 Depends(current_actor) 守卫, 测试用
+_auth_headers(user_id) helper 生成带 user_id 声明 JWT.
 """
 
 from __future__ import annotations
@@ -9,7 +12,19 @@ import uuid
 
 import pytest
 
+from app.core.security import create_access_token
+
 pytestmark = pytest.mark.asyncio
+
+
+def _auth_headers(user_id: uuid.UUID, role: str = "DESIGNER") -> dict[str, str]:
+    """P7-7+ BLOCKER-3: confirm_recalc 需 Bearer + actor 关联 — 用 JWT 携带 user_id."""
+    token = create_access_token(
+        subject="test-change-impact",
+        role=role,
+        extra={"user_id": str(user_id)},
+    )
+    return {"Authorization": f"Bearer {token}"}
 
 
 def _make_pipe(**overrides):
@@ -55,10 +70,11 @@ async def _flush_full(session, *objs):
 
 # === confirm-recalc ===
 
-async def test_confirm_recalc_no_lineage(client):
+async def test_confirm_recalc_no_lineage(client, user_id):
     """无血缘时：scan=0 + propagation=0 + lineage=null。"""
     r = await client.post(
-        f"/api/v1/change-impact/PipingResult/{uuid.uuid4()}/confirm-recalc"
+        f"/api/v1/change-impact/PipingResult/{uuid.uuid4()}/confirm-recalc",
+        headers=_auth_headers(user_id),
     )
     assert r.status_code == 200
     body = r.json()
@@ -69,10 +85,11 @@ async def test_confirm_recalc_no_lineage(client):
     assert body["latest_lineage"] is None
 
 
-async def test_confirm_recalc_unsupported_type(client):
+async def test_confirm_recalc_unsupported_type(client, user_id):
     """非 PipingResult 类型：返回 note。"""
     r = await client.post(
-        f"/api/v1/change-impact/FlashResult/{uuid.uuid4()}/confirm-recalc"
+        f"/api/v1/change-impact/FlashResult/{uuid.uuid4()}/confirm-recalc",
+        headers=_auth_headers(user_id),
     )
     assert r.status_code == 200
     body = r.json()
@@ -81,10 +98,11 @@ async def test_confirm_recalc_unsupported_type(client):
     assert "not in CIA scope" in body["note"]
 
 
-async def test_confirm_recalc_with_lineage_no_mismatch(client, db_session):
-    """有血缘且 hash 一致：scan=0。"""
+async def test_confirm_recalc_with_lineage_no_mismatch(client, db_session, user_id, project_id):
+    """有血缘且 hash 一致：scan=0."""
     pipe = _make_pipe()
     await _flush_full(db_session, pipe)
+    await db_session.commit()
 
     # 通过 lineage_ctx 写一条血缘（hash 与当前一致）
     from app.services.lineage import LineageTracker, _compute_hash
@@ -97,7 +115,8 @@ async def test_confirm_recalc_with_lineage_no_mismatch(client, db_session):
     await db_session.commit()
 
     r = await client.post(
-        f"/api/v1/change-impact/PipingResult/{pipe.pipe_id}/confirm-recalc"
+        f"/api/v1/change-impact/PipingResult/{pipe.pipe_id}/confirm-recalc",
+        headers=_auth_headers(user_id),
     )
     assert r.status_code == 200
     body = r.json()
@@ -107,8 +126,8 @@ async def test_confirm_recalc_with_lineage_no_mismatch(client, db_session):
     assert body["latest_lineage"]["source"] == "SEED"
 
 
-async def test_confirm_recalc_hash_mismatch_marks_stale(client, db_session):
-    """hash 写错时：scan 检测出 mismatch 并标 STALE。"""
+async def test_confirm_recalc_hash_mismatch_marks_stale(client, db_session, user_id):
+    """hash 写错时：scan 检测出 mismatch 并标 STALE."""
     from app.models.enums import RecordSignStatus9
     from app.services.lineage import LineageTracker
 
@@ -126,17 +145,19 @@ async def test_confirm_recalc_hash_mismatch_marks_stale(client, db_session):
     await db_session.commit()
 
     r = await client.post(
-        f"/api/v1/change-impact/PipingResult/{pipe.pipe_id}/confirm-recalc"
+        f"/api/v1/change-impact/PipingResult/{pipe.pipe_id}/confirm-recalc",
+        headers=_auth_headers(user_id),
     )
     assert r.status_code == 200
     body = r.json()
     assert body["marked_stale"] == 1
 
 
-async def test_confirm_recalc_response_envelope(client):
-    """返回字段完整性。"""
+async def test_confirm_recalc_response_envelope(client, user_id):
+    """返回字段完整性."""
     r = await client.post(
-        f"/api/v1/change-impact/PipingResult/{uuid.uuid4()}/confirm-recalc"
+        f"/api/v1/change-impact/PipingResult/{uuid.uuid4()}/confirm-recalc",
+        headers=_auth_headers(user_id),
     )
     body = r.json()
     for k in (

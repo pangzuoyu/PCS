@@ -22,10 +22,14 @@
 """
 from __future__ import annotations
 
+from typing import Annotated
+
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1._guard import check_project_access_or_404
+from app.api.v1.config import _Actor, current_actor
 from app.db.session import get_db
 from app.models.project import Stream
 from app.schemas.cv import CvCalculateRequest, CvCalculateResponse
@@ -41,11 +45,13 @@ router = APIRouter(prefix="/cv", tags=["cv"])
 )
 async def cv_calculate(
     req: CvCalculateRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
     db: AsyncSession = Depends(get_db),
 ) -> CvCalculateResponse:
     """POST /api/v1/cv/calculate：调节阀 Cv 单工况计算落库。
 
     流程：
+    0. BLOCKER-3 P7-7+ 守卫: actor 必须有 req.project_id 访问权 (防 IDOR)
     1. CvService.persist_calculate（调 CvEngine + 落 cv_results + outlet stream）
     2. 查 outlet stream（upstream_stream_id == source_stream_id）
     3. 组装 CvCalculateResponse 返回
@@ -53,6 +59,11 @@ async def cv_calculate(
     Returns:
         201 + cv_result_id + outlet_stream_id + 关键计算字段
     """
+    # BLOCKER-3 P7-7+ IDOR 防护: project_id 来自 body, 必须 actor 验证访问权
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=req.project_id,
+        actor_roles=user.roles,
+    )
     try:
         cv_result = await CvService.persist_calculate(
             db,

@@ -4,15 +4,21 @@
 - GET /lineage/{record_type}/{record_id}/upstream
 - GET /lineage/{record_type}/{record_id}/downstream
 - GET /lineage/{record_type}/{record_id}/graph（upstream + downstream 完整图）
+
+P7-7+ BLOCKER-3 IDOR 防护: actor 必须有 record.project_id 访问权
+(读血缘也算访问数据; 防止恶意用户跨 project 探测血缘拓扑)
 """
 
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1._guard import check_record_access_or_404
+from app.api.v1.config import _Actor, current_actor
 from app.db.session import get_db
 from app.services.lineage import LineageTracker
 
@@ -23,12 +29,14 @@ router = APIRouter(prefix="/lineage", tags=["lineage"])
 async def upstream(
     record_type: str,
     record_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
     max_depth: int = Query(10, ge=1, le=50),
     session: AsyncSession = Depends(get_db),
 ):
     """GET 上游血缘链（沿计算记录向上回溯）。
 
     步骤：
+    0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)
     1. LineageTracker.upstream 按 record_type + record_id 直接递归回溯
        （不走 latest()，因为上游追溯用最近一次就行）
     2. max_depth 限 1..50（防止极深递归触发 N+1 风暴）
@@ -38,6 +46,9 @@ async def upstream(
     与 downstream 区别：upstream 直接按 (record_type, record_id) 递归；
     downstream 需 latest() 解析（跨多次重算取最近一次）。
     """
+    await _guard_record_access(
+        session, user, record_type, record_id
+    )
     tracker = LineageTracker(session)
     chain = await tracker.upstream(
         record_type=record_type, record_id=record_id, max_depth=max_depth
@@ -49,6 +60,7 @@ async def upstream(
 async def downstream(
     record_type: str,
     record_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
     max_depth: int = Query(10, ge=1, le=50),
     session: AsyncSession = Depends(get_db),
 ):
@@ -66,6 +78,9 @@ async def downstream(
     与 upstream 区别：upstream 沿 record_type+record_id 直接递归；
     downstream 需 latest() 解析到 lineage_id 再传，跨多次重算。
     """
+    await _guard_record_access(
+        session, user, record_type, record_id
+    )
     tracker = LineageTracker(session)
     latest = await tracker.latest(record_type=record_type, record_id=record_id)
     if latest is None:
@@ -78,12 +93,14 @@ async def downstream(
 async def graph(
     record_type: str,
     record_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
     max_depth: int = Query(10, ge=1, le=50),
     session: AsyncSession = Depends(get_db),
 ):
     """取记录的全谱系图（root + upstream + downstream）。
 
     步骤：
+    0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)
     1. 查最新 LineageRecord（lineage_id；不存在 → 404 no lineage for record）
     2. 上溯祖先（upstream）：从最新版本反向追踪到源头参数表
     3. 下溯派生（downstream）：从当前 lineage_id 出发追到所有派生版本
@@ -92,6 +109,9 @@ async def graph(
 
     参数 max_depth 限制上下游遍历深度（1-50，默认 10，防爆栈）。
     """
+    await _guard_record_access(
+        session, user, record_type, record_id
+    )
     tracker = LineageTracker(session)
     latest = await tracker.latest(record_type=record_type, record_id=record_id)
     if latest is None:
@@ -123,3 +143,27 @@ def _serialize(lineage) -> dict:
         "change_summary": lineage.change_summary,
         "occurred_at": lineage.occurred_at.isoformat() if lineage.occurred_at else None,
     }
+
+
+async def _guard_record_access(
+    session: AsyncSession,
+    user: _Actor,
+    record_type: str,
+    record_id: uuid.UUID,
+) -> None:
+    """P7-7+ BLOCKER-3: 拉 record (PipingResult) 拿 project_id, 验证访问权.
+
+    record 不存在时跳过 (lineage endpoint 本身后续会返 404 no lineage for record).
+    """
+    if record_type != "PipingResult":
+        return  # lineage 仅对 PipingResult 做访问校验
+    from sqlalchemy import select as _sa_select
+    from app.models.calc import PipingResult
+    pre = (await session.execute(
+        _sa_select(PipingResult).where(PipingResult.pipe_id == record_id)
+    )).scalar_one_or_none()
+    if pre is None:
+        return  # 不存在 → 让 lineage endpoint 自然 404
+    await check_record_access_or_404(
+        session, user_id=user.user_id, record=pre, actor_roles=user.roles,
+    )
