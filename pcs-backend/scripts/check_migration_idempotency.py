@@ -56,14 +56,15 @@ def check_migration(path: Path) -> list[str]:
 
 def main() -> int:
     violations: list[str] = []
+    # P7 Sprint 2 + 3 (F-P3-002 fix 涵盖范围扩展 — 含 p7_s3_* 新批)
+    checked_prefixes = ("p7_s2_", "p7_s3_")
     for path in sorted(MIGRATIONS_DIR.glob("p7_*.py")):
-        # 仅检查 p7_s2_* 新批 (含 F-P3-002 提交后)
-        if not path.name.startswith("p7_s2_"):
+        if not any(path.name.startswith(p) for p in checked_prefixes):
             continue
         violations.extend(check_migration(path))
 
     if not violations:
-        print(f"OK: 0 violations in p7_s2_* migrations")
+        print(f"OK: 0 violations in p7_s2_/p7_s3_* migrations")
         return 0
 
     print(f"FAIL: {len(violations)} violations:")
