@@ -1,19 +1,26 @@
 """Workspace API（Sprint 1）。
 
 POST /workspaces/import 已推迟到 P1.2（设计缺陷6裁决）。
+
+F-P3-003 Sprint 3: PATCH /workspaces/{workspace_id}/archive 端点（SYSTEM_ADMIN）。
 """
 
 from __future__ import annotations
 
 import uuid
+from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi import status as http_status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
-from app.models.enums import WorkspaceType
+from app.models.enums import WorkspaceStatus, WorkspaceType
+from app.models.project import Workspace
 from app.schemas.workspace import WorkspaceCreate, WorkspaceOut
+from app.services.advisory_lock import acquire_record_lock
 from app.services.workspace_service import WorkspaceService
 
 router = APIRouter(prefix="/workspaces", tags=["workspaces"])
@@ -96,3 +103,42 @@ async def get_workspace(
     await svc.touch(workspace_id)
     await session.commit()
     return WorkspaceOut.model_validate(ws)
+
+
+@router.patch("/{workspace_id}/archive", response_model=WorkspaceOut)
+async def archive_workspace(
+    workspace_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
+    session: AsyncSession = Depends(get_db),
+) -> WorkspaceOut:
+    """归档 workspace (F-P3-003 Sprint 3 / Issue 2 校准).
+
+    PATCH /workspaces/{workspace_id}/archive — 改 status='ARCHIVED', 不删数据.
+
+    ACL: SYSTEM_ADMIN. archive 后 FK RESTRICT 允许显式删 (但当前无 DELETE 端点).
+
+    D2 2A 模式: 同 workspace_id 串行 archive (advisory lock), 防并发竞态.
+    与 PCS 已用 advisory_lock.py 模式一致 (sync_from_source.actor 等).
+
+    幂等: 重复归档返回 200 (不报 409), 避免误判.
+    """
+    require_roles(user, "SYSTEM_ADMIN")
+    # D2 2A: 事务级 advisory lock (同 workspace_id 串行 archive, 防并发竞态).
+    # 复用 advisory_lock.acquire_record_lock (classid/objid 双参, PG+SQLite 兼容).
+    await acquire_record_lock(
+        session, record_table="workspaces", record_id=str(workspace_id)
+    )
+    record = (
+        await session.execute(
+            select(Workspace).where(Workspace.workspace_id == workspace_id)
+        )
+    ).scalar_one_or_none()
+    if record is None:
+        raise HTTPException(status_code=404, detail="workspace not found")
+    if record.status == WorkspaceStatus.ARCHIVED.value:
+        # 幂等返回 (避免 409 误判)
+        return WorkspaceOut.model_validate(record)
+    record.status = WorkspaceStatus.ARCHIVED.value
+    await session.commit()
+    await session.refresh(record)
+    return WorkspaceOut.model_validate(record)

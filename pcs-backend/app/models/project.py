@@ -26,7 +26,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.models.enums import StreamSignStatus, UserStatus
+from app.models.enums import StreamSignStatus, UserStatus, WorkspaceStatus
 from app.models.mixins import TimestampMixin
 
 
@@ -34,7 +34,11 @@ class Project(TimestampMixin, Base):
     """项目根实体（projects 表，所有业务数据归属的根节点）。
 
     业务：project_code 全局唯一；name 显示名；customer/customer_code 业主信息；
-    status 走 5 态 ACTIVE/ARCHIVED；所有业务记录通过 project_id 外键关联。
+    status 当前仅 ACTIVE (default), ARCHIVED/IN_PROGRESS/CLOSED 等 5-state 设计
+    待业务需求驱动落地 (登记 P7-6B follow-up); 所有业务记录通过 project_id 外键关联。
+
+    F-P3-003 Sprint 3 (Issue 2 校准): Project 状态仅 ACTIVE. ARCHIVED 在
+    Workspace 层落地, 不进 Project 状态机。
     """
 
     __tablename__ = "projects"
@@ -75,6 +79,8 @@ class Workspace(Base):
 
     业务：owner_id 工作区拥有者；retention_days TTL（None=永久，PERSONAL=90，
     TEMPORARY=7）；last_active_at 自动清理锚点（与 retention_days 联动计算）。
+    F-P3-003 Sprint 3: status 2-state ACTIVE/ARCHIVED (默认 ACTIVE),
+    PATCH /workspaces/{id}/archive 改 ARCHIVED（不删数据）。
     """
 
     __tablename__ = "workspaces"
@@ -87,6 +93,11 @@ class Workspace(Base):
         ForeignKey("projects.project_id"), index=True
     )
     name: Mapped[str] = mapped_column(String(200))
+    status: Mapped[str] = mapped_column(
+        String(20), nullable=False,
+        default=WorkspaceStatus.ACTIVE.value,
+        comment="F-P3-003: ACTIVE / ARCHIVED 2-state",
+    )
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now()
     )

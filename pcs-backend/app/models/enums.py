@@ -69,6 +69,20 @@ class WorkspaceType(str, enum.Enum):
     TEMPORARY = "TEMPORARY"
 
 
+class WorkspaceStatus(str, enum.Enum):
+    """工作区状态（F-P3-003 Sprint 3, Issue 2 校准 — 仅 workspace 落地 2-state）。
+
+    业务：ACTIVE 默认值，PATCH /workspaces/{id}/archive 改为 ARCHIVED。
+    不删数据, 仅改 status. FK RESTRICT 允许显式删 (但当前无 DELETE 端点).
+
+    与 ProjectStatus 5-state 区分: Project 维持仅 ACTIVE default (Issue 2 拆出),
+    待业务需求驱动落地 ARCHIVED/IN_PROGRESS/CLOSED 等 5-state.
+    """
+
+    ACTIVE = "ACTIVE"
+    ARCHIVED = "ARCHIVED"
+
+
 class SnapshotStatus(str, enum.Enum):
     """V3.3 § 4.1 字典；record_change_snapshots.snapshot_status 列。"""
 
@@ -175,6 +189,10 @@ class AuditAction(str, enum.Enum):
     RECORD_UPDATED = "RECORD_UPDATED"
     RECORD_OBSOLETED = "RECORD_OBSOLETED"
     TAG_NUMBER_RELEASED = "TAG_NUMBER_RELEASED"  # P1.2 编号回滚
+
+    # === CONFIG 元数据（F-P0-001 R1 / P7 Sprint 3 Issue 6）===
+    CONFIG_R1_BACKFILL = "CONFIG_R1_BACKFILL"  # R1 修订折标系数回填 audit
+    CONFIG_R1_REVISION = "CONFIG_R1_REVISION"  # 工艺室 R1 修订
 
     # === 状态机（P1 Sprint 2） ===
     RECORD_TRANSITION = "RECORD_TRANSITION"

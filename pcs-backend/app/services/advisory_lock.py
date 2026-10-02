@@ -18,13 +18,34 @@ logger = logging.getLogger(__name__)
 async def acquire_record_lock(
     session: AsyncSession, *, record_table: str, record_id: str
 ) -> None:
-    """事务级 advisory lock：相同 (table, id) 串行执行。"""
+    """事务级 advisory lock：相同 (table, id) 串行执行。
+
+    dialect-aware: SQLite → no-op (test path OK). PostgreSQL → re-raise on error
+    (production 必须有锁, 不容 silent no-op 否则 race condition silently un-protected).
+    与 acquire_equip_list_lock 模式一致 (F-P3-003 Sprint 3 workspace archive 用).
+    """
     classid = abs(hash(record_table)) % (2**31)
     objid = abs(hash(record_id)) % (2**31)
-    await session.execute(
-        text("SELECT pg_advisory_xact_lock(:c, :o)"),
-        {"c": classid, "o": objid},
-    )
+    try:
+        await session.execute(
+            text("SELECT pg_advisory_xact_lock(:c, :o)"),
+            {"c": classid, "o": objid},
+        )
+    except OperationalError as e:
+        dialect = session.bind.dialect.name if session.bind else "unknown"
+        if dialect == "postgresql":
+            logger.error(
+                "acquire_record_lock failed on postgresql: "
+                "table=%s id=%s err=%s",
+                record_table, record_id, e,
+            )
+            raise
+        logger.warning(
+            "acquire_record_lock skipped (SQLite, no pg_advisory_xact_lock): "
+            "table=%s id=%s",
+            record_table, record_id,
+        )
+        return
 
 
 async def acquire_equip_list_lock(

@@ -34,7 +34,8 @@ class WorkspaceOut(BaseModel):
     """工作区出参（GET /workspaces 响应体）。
 
     业务：含 workspace_id + workspace_type + name + owner_id + retention_days
-    + last_active_at；from_attributes=True 直接绑 ORM 行（Workspace）。
+    + last_active_at + status（F-P3-003 Sprint 3 新增）；
+    from_attributes=True 直接绑 ORM 行（Workspace）。
     """
 
     workspace_id: uuid.UUID = Field(..., description="工作区 ID")
@@ -45,6 +46,10 @@ class WorkspaceOut(BaseModel):
     created_at: datetime = Field(..., description="创建时间")
     last_active_at: datetime | None = Field(None, description="最近活跃时间")
     retention_days: int | None = Field(None, description="数据保留天数")
+    status: str = Field(
+        default="ACTIVE",
+        description="F-P3-003: ACTIVE / ARCHIVED 2-state",
+    )
 
     model_config = {"from_attributes": True}
 
