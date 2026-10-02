@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.v1.audit import router as audit_router  # F-P2-009 Sprint 3 / Issue 7
 from app.api.v1.auth import router as auth_router
 from app.api.v1.change_impact import router as change_impact_router
 from app.api.v1.checklist import router as checklist_router
@@ -80,3 +81,4 @@ api_router.include_router(common_router)
 api_router.include_router(imports_router)
 api_router.include_router(sim_imports_query_router)
 api_router.include_router(sim_imports_query_root_router)
+api_router.include_router(audit_router)  # F-P2-009 Sprint 3
