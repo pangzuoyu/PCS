@@ -22,6 +22,9 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const tokens = await authApi.mockLogin(mockUser);
+      // F-P7-S2 QA fix: 先 setSession (含 accessToken), 再调 /auth/me
+      // 否则 axios 请求拦截器读不到 token, /auth/me 401 → clearSession → 死循环
+      setSession({ ...tokens, user_id: '00000000-0000-0000-0000-000000000001' });
       // P7-7+ actor 上下文一致性: 拿权威 user_id 必须调 /auth/me
       // (与 Depends(current_actor) 派生保持一致, 避免前后端分叉)
       const me = await authApi.me();

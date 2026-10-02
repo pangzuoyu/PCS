@@ -224,11 +224,10 @@ export function EnergySummaryAggregatePage({
           <Form.Item label="业务年度" name="business_year">
             <InputNumber min={2020} max={2100} style={{ width: 140 }} />
           </Form.Item>
-          <Form.Item label="电当量值" name="when_value_type">
+          <Form.Item label="电当量值" name="electricity_value_type">
             <Select
               options={VALUE_TYPE_OPTIONS}
               style={{ width: 360 }}
-              defaultValue="EQUIVALENT"
             />
           </Form.Item>
           <Form.Item>
