@@ -245,3 +245,117 @@ async def test_api_list_equipment_unauthenticated_401(client):
     """GET list unauthenticated → 401。"""
     r = await client.get("/api/v1/equipment-list")
     assert r.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# F-P2-009 audit log: DELETE equipment + write equipment_deletion_audit
+# ---------------------------------------------------------------------------
+
+
+async def test_api_delete_equipment_writes_audit_log_f_p2_009(
+    client, db_session
+):
+    """DELETE /equipment-list/{id} → 204 + 写 equipment_deletion_audit (F-P2-009).
+
+    1. 直接 DB 创建 EquipmentList + 1 个关联 utility_power_items
+    2. DELETE (admin token) → 204
+    3. equipment_deletion_audit 应含:
+       - equipment_id + equipment_tag 快照
+       - orphan_records.power_items 含关联 record_id
+    """
+    from sqlalchemy import select
+
+    from app.core.security import create_access_token
+    from app.models.equipment import EquipmentDeletionAudit, EquipmentList
+    from app.models.util import UtilityPowerItem
+
+    admin_token = create_access_token(subject="test-admin", role="SYSTEM_ADMIN")
+    import uuid as _uuid
+    project_id = _uuid.uuid4()
+    workspace_id = _uuid.uuid4()
+
+    # 1. 用 PG 风格直接 INSERT 绕开 FK (SQLite 测试无 PG enum, 单测只验证 audit 写)
+    #    EquipmentList 必须先存在, 即使 FK 不严格验证
+    from app.db.base import Base
+    el_table = EquipmentList.__table__
+    await db_session.execute(el_table.insert().values(
+        equipment_id=_uuid.uuid4(),
+        type_code="X-TEST",
+        equipment_name="test eq",
+        tag_number="P-F-P2-009",
+        project_id=project_id,
+        workspace_id=workspace_id,
+        sign_status="DRAFT",
+    ))
+    await db_session.commit()
+    eq_id = (
+        await db_session.execute(
+            select(EquipmentList.equipment_id).where(
+                EquipmentList.tag_number == "P-F-P2-009"
+            )
+        )
+    ).scalar_one()
+
+    # 2. 关联 1 个 UtilityPowerItem (equipment_id FK)
+    pw = UtilityPowerItem(
+        project_id=project_id,
+        workspace_id=workspace_id,
+        equipment_id=eq_id,
+        equipment_tag="P-F-P2-009",
+        motor_power_kw=10.0,
+        operating_hours_per_year=8000.0,
+        load_factor=1.0,
+        annual_consumption_kwh=80000.0,
+    )
+    db_session.add(pw)
+    await db_session.commit()
+    pw_id = pw.id
+
+    # 3. DELETE equipment (admin token)
+    r = await client.delete(
+        f"/api/v1/equipment-list/{eq_id}",
+        headers={"Authorization": f"Bearer {admin_token}"},
+    )
+    assert r.status_code == 204, r.text
+
+    # 4. 验证 audit log (核心: orphan_records 应含 utility_power_item id)
+    audit_row = (
+        await db_session.execute(
+            select(EquipmentDeletionAudit).where(
+                EquipmentDeletionAudit.equipment_id == eq_id
+            )
+        )
+    ).scalar_one_or_none()
+    assert audit_row is not None, "equipment_deletion_audit 应已写入"
+    assert audit_row.equipment_tag == "P-F-P2-009"
+    assert audit_row.deleted_by is not None
+    assert str(pw_id) in audit_row.orphan_records["power_items"], (
+        f"orphan 应含 utility_power_item id, 实际 {audit_row.orphan_records}"
+    )
+
+
+async def test_api_delete_equipment_requires_admin_f_p2_009(
+    client, sample_user_token, db_session
+):
+    """DELETE /equipment-list/{id} non-admin → 403 (F-P2-009: 不可逆操作)."""
+    from app.models.equipment import EquipmentList
+
+    # 直接 DB 创建 (不走 sync 复杂 setup)
+    import uuid as _uuid
+    eq = EquipmentList(
+        type_code="X-TEST",
+        equipment_name="test eq",
+        tag_number="EQ-DEL-403",
+        project_id=_uuid.uuid4(),
+        workspace_id=_uuid.uuid4(),
+    )
+    db_session.add(eq)
+    await db_session.commit()
+    eq_id = eq.equipment_id
+
+    r = await client.delete(
+        f"/api/v1/equipment-list/{eq_id}",
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+    )
+    # sample_user_token 是 DESIGNER, 应 403 (SYSTEM_ADMIN only)
+    assert r.status_code == 403, f"got {r.status_code}: {r.text}"

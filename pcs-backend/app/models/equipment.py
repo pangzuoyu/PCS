@@ -5,11 +5,12 @@ EquipmentVendor（厂商映射）。供 vessel / psv / pump / sep_equip / coolin
 """
 
 import uuid
-from datetime import date
+from datetime import date, datetime
 
 from sqlalchemy import (
     Boolean,
     Date,
+    DateTime,
     Enum,
     Float,
     ForeignKey,
@@ -23,6 +24,7 @@ from sqlalchemy import (
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.sql import func
 
 from app.db.base import Base
 from app.models.enums import ActualDataStatus, CalcStatus, EquipmentStatus
@@ -205,3 +207,56 @@ class Supplier(TimestampMixin, Base):
     rating: Mapped[str] = mapped_column(String(10), comment="A/B/C/UNRATED")
     approved_by: Mapped[uuid.UUID | None] = mapped_column(Uuid)
     approved_date: Mapped[date | None] = mapped_column(Date)
+
+
+class EquipmentDeletionAudit(Base):
+    """设备删除审计（F-P2-009 fix / P3 登记项）。
+
+    equipment_list 删除时, utility_power_items / utility_fuel_gas /
+    utility_heat_exchange 3 表的 equipment_id FK 因 ondelete=SET NULL 静默
+    解耦, 无 audit log 之前无法追溯. 本表存删除前快照 + orphan 列表:
+
+    - equipment_id + equipment_tag: 删除时快照 (FK 已无)
+    - orphan_records (JSONB): 被 SET NULL 的 utility_* record_id 列表
+      {power_items: [...], fuel_gas: [...], heat_exchange: [...]}
+    - deleted_by: 操作者 user_id
+    - reason: 可选备注
+
+    与 audit_logs (认证/安全) 分工: 本表关注数据完整性.
+    """
+
+    __tablename__ = "equipment_deletion_audit"
+    audit_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4,
+    )
+    equipment_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, nullable=False, index=True,
+        comment="被删除设备 ID (FK 已无, 存快照)",
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, nullable=False, index=True,
+        comment="项目 ID (删时快照)",
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, nullable=False,
+        comment="workspace ID",
+    )
+    equipment_tag: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment="设备位号快照 (删时)",
+    )
+    deleted_by: Mapped[uuid.UUID] = mapped_column(
+        Uuid, nullable=False,
+        comment="删除操作者 user_id",
+    )
+    orphan_records: Mapped[dict] = mapped_column(
+        JSONB, nullable=False,
+        comment="被 SET NULL 的 utility_* 记录",
+    )
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False,
+    )
+    reason: Mapped[str | None] = mapped_column(
+        String(500), nullable=True,
+        comment="删除原因 (可选, 用户备注)",
+    )

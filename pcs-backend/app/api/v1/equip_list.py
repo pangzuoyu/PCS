@@ -138,6 +138,99 @@ async def get_equipment(
     return _to_response(record)
 
 
+@router.delete("/{equipment_id}", status_code=204)
+async def delete_equipment(
+    equipment_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[_Actor, Depends(current_actor)],
+) -> None:
+    """删除 EquipmentList + 写 audit log (F-P2-009 fix).
+
+    utility_power_items / utility_fuel_gas / utility_heat_exchange 3 表的
+    equipment_id FK 因 ondelete=SET NULL 静默解耦. 本端点:
+
+    1. 查 record, BLOCKER-3 IDOR 守卫 (user 必须有 record.project_id 访问权)
+    2. 快照 orphan 列表 (待 SET NULL 的 utility_* record_id)
+    3. 写 equipment_deletion_audit (含 orphan_records JSONB)
+    4. 删 EquipmentList (触发 FK SET NULL)
+
+    ACL: SYSTEM_ADMIN (设备删除是不可逆数据丢失, 仅 admin 可操作).
+    """
+    from fastapi import HTTPException
+    from sqlalchemy import delete as sa_delete, select
+
+    from app.models.equipment import EquipmentDeletionAudit, EquipmentList
+    from app.models.util import (
+        UtilityFuelGas,
+        UtilityHeatExchange,
+        UtilityPowerItem,
+    )
+    from app.services.user_project_service import UserProjectService
+
+    require_roles(user, "SYSTEM_ADMIN")
+    record = (
+        await db.execute(
+            select(EquipmentList).where(EquipmentList.equipment_id == equipment_id)
+        )
+    ).scalar_one_or_none()
+    if record is None:
+        raise HTTPException(
+            status_code=404, detail=f"EquipmentList not found: {equipment_id}",
+        )
+    # BLOCKER-3 IDOR 守卫
+    has_access = await UserProjectService.check_user_project_access(
+        db, user_id=user.user_id, project_id=record.project_id,
+    )
+    if not has_access:
+        raise HTTPException(
+            status_code=404, detail=f"EquipmentList not found: {equipment_id}",
+        )
+
+    # 1. 快照 orphan 列表 (待 SET NULL 的 utility_* record_id)
+    pids = [
+        row[0] for row in (await db.execute(
+            select(UtilityPowerItem.id).where(
+                UtilityPowerItem.equipment_id == equipment_id
+            )
+        )).all()
+    ]
+    fids = [
+        row[0] for row in (await db.execute(
+            select(UtilityFuelGas.id).where(
+                UtilityFuelGas.equipment_id == equipment_id
+            )
+        )).all()
+    ]
+    hids = [
+        row[0] for row in (await db.execute(
+            select(UtilityHeatExchange.id).where(
+                UtilityHeatExchange.equipment_id == equipment_id
+            )
+        )).all()
+    ]
+
+    # 2. 写 audit log (orphan_records JSONB 含 3 张表 record_id 列表)
+    audit = EquipmentDeletionAudit(
+        equipment_id=equipment_id,
+        project_id=record.project_id,
+        workspace_id=record.workspace_id,
+        equipment_tag=record.tag_number,  # TaggedRecordMixin 提供 tag_number
+        deleted_by=user.user_id,
+        orphan_records={
+            "power_items": [str(x) for x in pids],
+            "fuel_gas": [str(x) for x in fids],
+            "heat_exchange": [str(x) for x in hids],
+        },
+    )
+    db.add(audit)
+
+    # 3. 删 EquipmentList (触发 utility_* FK SET NULL)
+    await db.execute(
+        sa_delete(EquipmentList).where(EquipmentList.equipment_id == equipment_id)
+    )
+    await db.commit()
+
+
 @router.post("/{equipment_id}/sync", response_model=EquipListSyncResponse)
 async def sync_equipment(
     equipment_id: uuid.UUID,
