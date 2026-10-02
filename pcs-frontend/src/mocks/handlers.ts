@@ -512,6 +512,109 @@ devOnlyMockHandlers.push(
       electricity_value_type: String(body.electricity_value_type ?? 'EQUIVALENT'),
     });
   }),
+
+  // === F-P2-009 Sprint 3 / Issue 7 Audit Query (3 endpoints) ===
+
+  // /config-audit: DESIGNER+ 可查 (公司级全局, 无 project 隔离).
+  http.get('/api/v1/config-audit', ({ request }) => {
+    if (!isAuthed(request)) {
+      return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
+    }
+    const url = new URL(request.url);
+    const assetId = url.searchParams.get('asset_id');
+    const seed = [
+      {
+        audit_id: '11111111-1111-1111-1111-111111111111',
+        user_id: '00000000-0000-0000-0000-000000000001',
+        action: 'CONFIG_R1_BACKFILL',
+        resource_type: 'config_energy_conversion_factors',
+        resource_id: '42',
+        detail_json: {
+          energy_type: 'ELECTRICITY',
+          value_type: 'EQUIVALENT',
+          toe_factor: 0.086,
+          standard_coal_factor: 0.1229,
+          reason: 'F-P0-001 R1 backfill (Sprint 3 Issue 6)',
+        },
+        occurred_at: '2026-10-03T08:00:00+00:00',
+      },
+      {
+        audit_id: '22222222-2222-2222-2222-222222222222',
+        user_id: '00000000-0000-0000-0000-000000000001',
+        action: 'CONFIG_R1_BACKFILL',
+        resource_type: 'config_energy_conversion_factors',
+        resource_id: '99',
+        detail_json: { energy_type: 'STEAM', pressure_level: 'GE_7_0_MPA' },
+        occurred_at: '2026-10-03T08:01:00+00:00',
+      },
+    ];
+    const filtered = assetId
+      ? seed.filter((s) => s.resource_id === String(assetId))
+      : seed;
+    return HttpResponse.json({
+      items: filtered,
+      total: filtered.length,
+      limit: 50,
+      offset: 0,
+    });
+  }),
+
+  // /equipment-deletion-audit: DESIGNER+ + project_id 必传.
+  http.get('/api/v1/equipment-deletion-audit', ({ request }) => {
+    if (!isAuthed(request)) {
+      return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
+    }
+    const url = new URL(request.url);
+    const projectId = url.searchParams.get('project_id');
+    if (!projectId) {
+      return HttpResponse.json(
+        { code: 'FORBIDDEN', message: 'project_id required for non-system-admin' },
+        { status: 403 },
+      );
+    }
+    return HttpResponse.json({
+      items: [
+        {
+          audit_id: '33333333-3333-3333-3333-333333333333',
+          equipment_id: '44444444-4444-4444-4444-444444444444',
+          project_id: projectId,
+          workspace_id: '55555555-5555-5555-5555-555555555555',
+          equipment_tag: 'E-001',
+          deleted_by: '00000000-0000-0000-0000-000000000001',
+          orphan_records: { power_items: [], fuel_gas: [], heat_exchange: [] },
+          occurred_at: '2026-10-03T07:00:00+00:00',
+          reason: 'mock deletion',
+        },
+      ],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    });
+  }),
+
+  // /audit-logs: SYSTEM_ADMIN only (403 if non-admin).
+  http.get('/api/v1/audit-logs', ({ request }) => {
+    if (!isAuthed(request)) {
+      return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
+    }
+    // dev mode: 永远返回 (简化 — 实际后端会做 SYSADMIN gate)
+    return HttpResponse.json({
+      items: [
+        {
+          audit_id: '66666666-6666-6666-6666-666666666666',
+          user_id: '00000000-0000-0000-0000-000000000001',
+          action: 'RECORD_CREATED',
+          resource_type: 'config_energy_conversion_factors',
+          resource_id: '42',
+          detail_json: {},
+          occurred_at: '2026-10-03T09:00:00+00:00',
+        },
+      ],
+      total: 1,
+      limit: 50,
+      offset: 0,
+    });
+  }),
 );
 
 /** 后端 OpenAPI 契约端点（meta 5 端点）。handlers 数组统一导出；test 端 OpenAPI drift

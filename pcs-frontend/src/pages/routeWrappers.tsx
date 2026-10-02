@@ -249,6 +249,12 @@ export function EnergySummaryAggregateRoute(): JSX.Element {
   return <EnergySummaryAggregatePage />;
 }
 
+// === F-P2-009 Sprint 3 Audit Query (3 endpoints + 混合 RBAC) ===
+import { AuditLogPage } from './audit/AuditLogPage';
+export function AuditLogRoute(): JSX.Element {
+  return <AuditLogPage />;
+}
+
 // === 项目文档 / 向导 ===
 export function PmsRoute(): JSX.Element {
   const items = useFetch<PmsItem[]>(`/api/v1/projects/${PROJECT_ID}/pms`, []);
