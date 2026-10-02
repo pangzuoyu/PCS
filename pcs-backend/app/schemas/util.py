@@ -261,7 +261,11 @@ class UtilHeatExchangeCreateRequest(BaseModel):
 
 
 class UtilHeatExchangeResponse(BaseModel):
-    """UtilityHeatExchange 单条响应 (T3)."""
+    """UtilityHeatExchange 单条响应 (T3).
+
+    R1 §7.1 + §7.2 (P7-6B 冷却水落地): 加 pressure_level (蒸汽 9 档)
+    + medium_type (10 类介质: STEAM + 9 类水) 同步前端 page.
+    """
 
     id: uuid.UUID
     project_id: uuid.UUID
@@ -272,6 +276,10 @@ class UtilHeatExchangeResponse(BaseModel):
     steam_quality_pct: float
     return_condensate_pct: float
     temperature_class: str
+    # R1 §7.1 蒸汽 9 档压力等级 (R0 temperature_class LP/MP/HP/ULTRA_HIGH deprecated)
+    pressure_level: str | None = None
+    # R1 §7.2 介质类型: STEAM + 9 类水 (P7-6B 冷却水落地)
+    medium_type: str | None = None
     steam_consumption_t_h: float
     operating_hours_per_year: float
     annual_consumption_t: float

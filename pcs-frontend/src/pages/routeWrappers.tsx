@@ -243,6 +243,12 @@ export function CoolingWaterRoute(): JSX.Element {
   return <CoolingWaterPage />;
 }
 
+// === P7-6B 综合能耗聚合 (R1 §7 分类聚合) ===
+import { EnergySummaryAggregatePage } from './util/EnergySummaryAggregatePage';
+export function EnergySummaryAggregateRoute(): JSX.Element {
+  return <EnergySummaryAggregatePage />;
+}
+
 // === 项目文档 / 向导 ===
 export function PmsRoute(): JSX.Element {
   const items = useFetch<PmsItem[]>(`/api/v1/projects/${PROJECT_ID}/pms`, []);

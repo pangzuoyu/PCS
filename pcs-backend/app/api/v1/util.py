@@ -323,6 +323,9 @@ def _heat_exchange_to_response(record) -> UtilHeatExchangeResponse:
         steam_quality_pct=record.steam_quality_pct,
         return_condensate_pct=record.return_condensate_pct,
         temperature_class=record.temperature_class,
+        # R1 §7.1 + §7.2 (P7-6B): 同步 medium_type + pressure_level 给前端
+        pressure_level=record.pressure_level,
+        medium_type=record.medium_type,
         steam_consumption_t_h=record.steam_consumption_t_h,
         operating_hours_per_year=record.operating_hours_per_year,
         annual_consumption_t=record.annual_consumption_t,

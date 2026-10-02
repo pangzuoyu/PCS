@@ -38,6 +38,7 @@ import {
   VesselRoute,
   WizardRoute,
   CoolingWaterRoute,
+  EnergySummaryAggregateRoute,
 } from './pages/routeWrappers';
 
 const router = createBrowserRouter([
@@ -95,6 +96,7 @@ const router = createBrowserRouter([
 
       // 公用工程（P7-6B 冷却水子表 / R1 §7.2 9 类水）
       { path: 'util/cooling-water', element: <CoolingWaterRoute /> },
+      { path: 'util/energy-summary', element: <EnergySummaryAggregateRoute /> },
 
       // 项目文档 / 向导
       { path: 'pms', element: <PmsRoute /> },
