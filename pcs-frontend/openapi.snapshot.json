@@ -359,7 +359,7 @@
           "checklist"
         ],
         "summary": "List For Project",
-        "description": "GET 列出项目输入清单（DICT V3.1 表 44）。\n\n步骤：\n1. 转发 ChecklistService.list_for_project → 按 project_id 取行\n   （按 item_key 升序，不分页）\n2. ORM 行 → ChecklistItemOut 序列化（FastAPI response_model 控制）\n\n无 ACL 校验：项目内部资源，依赖项目级鉴权上层路由。\n与 /projects/{project_id}/completeness（completeness）区别：\n本端点返回逐项明细；completeness 返回聚合统计。",
+        "description": "GET 列出项目输入清单（DICT V3.1 表 44）。\n\n步骤：\n1. BLOCKER-3 守卫: actor 必须有 project 访问权\n2. 转发 ChecklistService.list_for_project → 按 project_id 取行\n   （按 item_key 升序，不分页）\n3. ORM 行 → ChecklistItemOut 序列化（FastAPI response_model 控制）\n\nACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSADMIN\nBLOCKER-3 P7-7+ 集成：Depends(current_actor) + check_project_access_or_404\n（user_id 不可再由 query 注入，避免 IDOR 漏洞）",
         "operationId": "list_for_project_api_v1_checklist_projects__project_id__get",
         "parameters": [
           {
@@ -370,6 +370,22 @@
               "type": "string",
               "format": "uuid",
               "title": "Project Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -407,7 +423,7 @@
           "checklist"
         ],
         "summary": "Bulk Seed",
-        "description": "POST 批量种子（项目内 checklist 一次生成）。\n\n步骤：\n1. 调 ChecklistService.bulk_seed：按 items 列表逐条创建 ChecklistItem\n   （status 默认 NOT_STARTED；user_id 记录创建者）\n2. session.commit() 落库（service 已 flush）\n3. ORM 行经 ChecklistItemOut.model_validate 转响应 schema 列表\n\n与 update_item 区别：本端点批量初始化（一个项目通常一次提交）；\nupdate_item 单项状态流转（5 态 + Audit）。",
+        "description": "POST 批量种子（项目内 checklist 一次生成）。\n\n步骤：\n1. BLOCKER-3 守卫: actor 必须有 project 访问权\n2. 调 ChecklistService.bulk_seed：按 items 列表逐条创建 ChecklistItem\n   （status 默认 NOT_STARTED；actor.user_id 记录创建者）\n3. session.commit() 落库（service 已 flush）\n4. ORM 行经 ChecklistItemOut.model_validate 转响应 schema 列表\n\nBLOCKER-3 P7-7+ 集成：actor.user_id 取代 query param user_id\n（修复 IDOR：user_id 不再可由客户端伪造）。",
         "operationId": "bulk_seed_api_v1_checklist_projects__project_id__seed_post",
         "parameters": [
           {
@@ -421,13 +437,19 @@
             }
           },
           {
-            "name": "user_id",
-            "in": "query",
-            "required": true,
+            "name": "authorization",
+            "in": "header",
+            "required": false,
             "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "User Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -475,7 +497,7 @@
           "checklist"
         ],
         "summary": "Completeness",
-        "description": "GET 项目输入清单完成度统计。\n\n步骤：\n1. 转发 ChecklistService.completeness → 按 project_id 取行\n   → 派生 total / required_total / 3 桶分桶 / 百分比\n2. 返回 ChecklistCompleteness Pydantic 模型\n\n无 ACL 校验：项目内部资源，依赖项目级鉴权上层路由。\n与 list_for_project 区别：本端点返回聚合统计；list 返回逐项明细。",
+        "description": "GET 项目输入清单完成度统计。\n\n步骤：\n1. BLOCKER-3 守卫: actor 必须有 project 访问权\n2. 转发 ChecklistService.completeness → 按 project_id 取行\n   → 派生 total / required_total / 3 桶分桶 / 百分比\n3. 返回 ChecklistCompleteness Pydantic 模型\n\nBLOCKER-3 P7-7+ 集成：Depends(current_actor) + check_project_access_or_404",
         "operationId": "completeness_api_v1_checklist_projects__project_id__completeness_get",
         "parameters": [
           {
@@ -486,6 +508,22 @@
               "type": "string",
               "format": "uuid",
               "title": "Project Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -519,7 +557,7 @@
           "checklist"
         ],
         "summary": "Update Item",
-        "description": "PUT 校验一项状态（5 态流转 + Audit 落库）。\n\n步骤：\n1. 调 ChecklistService.update_status（状态校验 + Audit + flush）\n2. service 抛 ValueError → 404（找不到 checklist 项；保留原 ValueError 契约）\n3. session.commit() 落库\n4. ORM 行经 ChecklistItemOut.model_validate 转响应 schema\n\nACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSADMIN\n（由 ACL middleware 在 user_id 注入前验证）。",
+        "description": "PUT 校验一项状态（5 态流转 + Audit 落库）。\n\n步骤：\n1. BLOCKER-3 守卫: actor 必须有 record.project_id 访问权\n   (先 fetch ChecklistItem 拿 project_id, 再 check_record_access_or_404)\n2. 调 ChecklistService.update_status（状态校验 + Audit + flush）\n3. service 抛 ValueError → 404（找不到 checklist 项；保留原 ValueError 契约）\n4. session.commit() 落库\n5. ORM 行经 ChecklistItemOut.model_validate 转响应 schema\n\nACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSADMIN\nBLOCKER-3 P7-7+ 集成：Depends(current_actor) + check_record_access_or_404",
         "operationId": "update_item_api_v1_checklist_items__checklist_id__put",
         "parameters": [
           {
@@ -533,13 +571,19 @@
             }
           },
           {
-            "name": "user_id",
-            "in": "query",
-            "required": true,
+            "name": "authorization",
+            "in": "header",
+            "required": false,
             "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "User Id"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -653,19 +697,9 @@
           "records"
         ],
         "summary": "Create Piping",
-        "description": "Sprint 2 dev-only：测试驱动用。Sprint 3 替换为 RecordService.create_piping。",
+        "description": "Sprint 2 dev-only：测试驱动用。Sprint 3 替换为 RecordService.create_piping。\n\nBLOCKER-3 P7-7+ 集成：actor.user_id 取代 query param user_id\n（修复 IDOR：user_id 不再可由客户端伪造）。",
         "operationId": "create_piping_api_v1_records_piping_post",
         "parameters": [
-          {
-            "name": "user_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "User Id"
-            }
-          },
           {
             "name": "workspace_id",
             "in": "query",
@@ -674,6 +708,22 @@
               "type": "string",
               "format": "uuid",
               "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -775,7 +825,7 @@
           "records"
         ],
         "summary": "Obsolete Piping",
-        "description": "管路记录作废（DELETE，状态机迁移至 OBSOLETE）。\n\n- 仅允许 FORMAL workspace\n- workspace_id + pipe_id 双键查 PipingResult（不存在 → 404）\n- 调 StateMachineService.transition(OBSOLETE)，失败 → 409\n- reason 必传 Query（默认空串），记录到状态机迁移 reason 字段供审计追溯\n- 提交由本端点负责（session.commit()）\n\n与 `transition_piping` 区别：本端点固定 transition=OBSOLETE，semantically 是\n\"软删除\"，不真删 PipingResult 行（保留审计快照）。",
+        "description": "管路记录作废（DELETE，状态机迁移至 OBSOLETE）。\n\n- 仅允许 FORMAL workspace\n- workspace_id + pipe_id 双键查 PipingResult（不存在 → 404）\n- 调 StateMachineService.transition(OBSOLETE)，失败 → 409\n- reason 必传 Query（默认空串），记录到状态机迁移 reason 字段供审计追溯\n- 提交由本端点负责（session.commit()）\n\n与 `transition_piping` 区别：本端点固定 transition=OBSOLETE，semantically 是\n\"软删除\"，不真删 PipingResult 行（保留审计快照）。\n\nBLOCKER-3 P7-7+ 集成：actor.user_id / actor.role 取代 query param。",
         "operationId": "obsolete_piping_api_v1_records_piping__pipe_id__delete",
         "parameters": [
           {
@@ -799,26 +849,6 @@
             }
           },
           {
-            "name": "user_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "User Id"
-            }
-          },
-          {
-            "name": "actor_role",
-            "in": "query",
-            "required": false,
-            "schema": {
-              "type": "string",
-              "default": "DESIGNER",
-              "title": "Actor Role"
-            }
-          },
-          {
             "name": "reason",
             "in": "query",
             "required": false,
@@ -826,6 +856,22 @@
               "type": "string",
               "default": "",
               "title": "Reason"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -861,7 +907,7 @@
           "records"
         ],
         "summary": "Transition Piping",
-        "description": "管路记录状态机迁移（DRAFT → REVIEWED → APPROVED → ...）。\n\n约束：\n1. 仅允许 FORMAL workspace（require_formal_workspace 强校验）\n2. workspace_id + pipe_id 双键查 PipingResult（不存在 → 404）\n3. 调 StateMachineService.transition，非法迁移 → 409\n4. 提交由本端点负责（session.commit()）\n\nactor_role 默认 DESIGNER（审核/批准时由调用方传 APPROVER 等）。",
+        "description": "管路记录状态机迁移（DRAFT → REVIEWED → APPROVED → ...）。\n\n约束：\n1. 仅允许 FORMAL workspace（require_formal_workspace 强校验）\n2. workspace_id + pipe_id 双键查 PipingResult（不存在 → 404）\n3. 调 StateMachineService.transition，非法迁移 → 409\n4. 提交由本端点负责（session.commit()）\n\nBLOCKER-3 P7-7+ 集成：actor.user_id / actor.role 取代 query param\n（修复 IDOR + role 伪造）。",
         "operationId": "transition_piping_api_v1_records_piping__pipe_id__transition_post",
         "parameters": [
           {
@@ -885,23 +931,19 @@
             }
           },
           {
-            "name": "user_id",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "format": "uuid",
-              "title": "User Id"
-            }
-          },
-          {
-            "name": "actor_role",
-            "in": "query",
+            "name": "authorization",
+            "in": "header",
             "required": false,
             "schema": {
-              "type": "string",
-              "default": "DESIGNER",
-              "title": "Actor Role"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -6246,7 +6288,7 @@
           "equipment-list"
         ],
         "summary": "Get Equipment",
-        "description": "单条 EquipmentList 查询。",
+        "description": "单条 EquipmentList 查询。\n\nBLOCKER-3 修复: 查 UserProject 行 (user_id=user.user_id, project_id=record.project_id,\nrevoked_at IS NULL) → 404 防 IDOR。",
         "operationId": "get_equipment_api_v1_equipment_list__equipment_id__get",
         "parameters": [
           {
@@ -6436,7 +6478,7 @@
           "flash"
         ],
         "summary": "Calculate Flash",
-        "description": "POST /api/v1/flash/calculate：PT/PH/PS_FLASH + SATURATION 统一入口。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "POST /api/v1/flash/calculate：PT/PH/PS_FLASH + SATURATION 统一入口。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫：req.stream_id 对应 stream.project_id 必须属于 user。",
         "operationId": "calculate_flash_api_v1_flash_calculate_post",
         "parameters": [
           {
@@ -6496,7 +6538,7 @@
           "flash"
         ],
         "summary": "Calculate Bubble",
-        "description": "POST /api/v1/flash/bubble：mode=T 给 T 算 P_bubble；mode=P 给 P 算 T_bubble。",
+        "description": "POST /api/v1/flash/bubble：mode=T 给 T 算 P_bubble；mode=P 给 P 算 T_bubble。\n\nBLOCKER-3 守卫：req.stream_id 对应 stream.project_id 必须属于 user。",
         "operationId": "calculate_bubble_api_v1_flash_bubble_post",
         "parameters": [
           {
@@ -6556,7 +6598,7 @@
           "flash"
         ],
         "summary": "Calculate Dew",
-        "description": "POST /api/v1/flash/dew：mode=T 给 T 算 P_dew；mode=P 给 P 算 T_dew。",
+        "description": "POST /api/v1/flash/dew：mode=T 给 T 算 P_dew；mode=P 给 P 算 T_dew。\n\nBLOCKER-3 守卫：req.stream_id 对应 stream.project_id 必须属于 user。",
         "operationId": "calculate_dew_api_v1_flash_dew_post",
         "parameters": [
           {
@@ -7372,7 +7414,7 @@
           "cool-tower"
         ],
         "summary": "Create Cool Tower Result",
-        "description": "创建 CoolingTowerResult 行（POST → 201）。\n\n``save_cool_tower_result`` service 层自动 final record_hash\n（ADR-0028 §决策 4），返回创建后的完整 CoolingTowerResult 行。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "创建 CoolingTowerResult 行（POST → 201）。\n\n``save_cool_tower_result`` service 层自动 final record_hash\n（ADR-0028 §决策 4），返回创建后的完整 CoolingTowerResult 行。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。",
         "operationId": "create_cool_tower_result_api_v1_cool_tower_results_post",
         "parameters": [
           {
@@ -7430,7 +7472,7 @@
           "cool-tower"
         ],
         "summary": "List Cool Tower Results",
-        "description": "按 project_id 列出 CoolingTowerResult（GET list，分页）。\n\n默认 sign_status filter = (DRAFT, CHECKED) — 排除 OBSOLETE 等门禁态。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "按 project_id 列出 CoolingTowerResult（GET list，分页）。\n\n默认 sign_status filter = (DRAFT, CHECKED) — 排除 OBSOLETE 等门禁态。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫：user 必须是 project_id 的有效 UserProject 成员。",
         "operationId": "list_cool_tower_results_api_v1_cool_tower_results_get",
         "parameters": [
           {
@@ -7529,7 +7571,7 @@
           "cool-tower"
         ],
         "summary": "Get Cool Tower Result",
-        "description": "按 id 取 CoolingTowerResult（GET detail）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "按 id 取 CoolingTowerResult（GET detail）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫：record.project_id 必须属于 user。",
         "operationId": "get_cool_tower_result_api_v1_cool_tower_results__record_id__get",
         "parameters": [
           {
@@ -7587,7 +7629,7 @@
           "cool-tower"
         ],
         "summary": "Update Cool Tower Result",
-        "description": "更新 CoolingTowerResult 业务字段（PATCH；仅 DRAFT/CHANGE_PENDING 可改）。\n\nCHECKED / IN_APPROVAL / REVERSAL_PENDING 等锁定态拒绝更新（避免\n评审中数据漂移）。project_id 由 ACL 在 Phase 后续 PATCH 透传；本\n批次为 None（service 层不强制隔离）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "更新 CoolingTowerResult 业务字段（PATCH；仅 DRAFT/CHANGE_PENDING 可改）。\n\nCHECKED / IN_APPROVAL / REVERSAL_PENDING 等锁定态拒绝更新（避免\n评审中数据漂移）。project_id 由 ACL 在 Phase 后续 PATCH 透传；本\n批次为 None（service 层不强制隔离）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫：record.project_id 必须属于 user。",
         "operationId": "update_cool_tower_result_api_v1_cool_tower_results__record_id__patch",
         "parameters": [
           {
@@ -8704,7 +8746,7 @@
           "psv-config"
         ],
         "summary": "Get Psv Standard Profile",
-        "description": "查项目当前默认 PSV 标准配置；无 → 200 null（前端按\"未配置\"展示）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "查项目当前默认 PSV 标准配置；无 → 200 null（前端按\"未配置\"展示）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫: user 必须是 project_id 的有效 UserProject 成员。",
         "operationId": "get_psv_standard_profile_api_v1_projects__project_id__psv_standard_profile_get",
         "parameters": [
           {
@@ -8770,7 +8812,7 @@
           "psv-config"
         ],
         "summary": "Upsert Psv Standard Profile",
-        "description": "创建/激活项目 PSV 标准配置（设 is_default=TRUE）。\n\n流程：\n1. 校验：CUSTOM 必填 approval_json + approved_by\n2. 旧默认 is_default=FALSE（不显式迁移；新行 is_default=TRUE）\n3. 新行 effective_to NULL（V1 即时生效）\n4. DB EXCLUDE USING gist 兜底冲突 → IntegrityError → 转 PcsError\n\nACL：PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "创建/激活项目 PSV 标准配置（设 is_default=TRUE）。\n\n流程：\n1. 校验：CUSTOM 必填 approval_json + approved_by\n2. 旧默认 is_default=FALSE（不显式迁移；新行 is_default=TRUE）\n3. 新行 effective_to NULL（V1 即时生效）\n4. DB EXCLUDE USING gist 兜底冲突 → IntegrityError → 转 PcsError\n\nACL：PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫: user 必须是 project_id 的有效 UserProject 成员。",
         "operationId": "upsert_psv_standard_profile_api_v1_projects__project_id__psv_standard_profile_post",
         "parameters": [
           {
@@ -8840,7 +8882,7 @@
           "heat"
         ],
         "summary": "Import Htri",
-        "description": "POST /api/v1/heat/import-htri：HTRI 文件 → HeatResult 落库。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "POST /api/v1/heat/import-htri：HTRI 文件 → HeatResult 落库。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫：user 必须是 project_id 的有效 UserProject 成员。",
         "operationId": "import_htri_api_v1_heat_import_htri_post",
         "parameters": [
           {
@@ -8900,7 +8942,7 @@
           "heat"
         ],
         "summary": "Get Heat",
-        "description": "GET /api/v1/heat/{heat_id}：HeatResult 详情（input_json / output_json / record_hash）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "GET /api/v1/heat/{heat_id}：HeatResult 详情（input_json / output_json / record_hash）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫：record.project_id 必须属于 user。",
         "operationId": "get_heat_api_v1_heat__heat_id__get",
         "parameters": [
           {
@@ -8960,7 +9002,7 @@
           "heat"
         ],
         "summary": "Estimate Weight Endpoint",
-        "description": "POST /api/v1/heat/{heat_id}/weight-estimate：TEMA 9th 重量估算。\n\n写入 HeatResult.output_json.total_weight_kg / weight_segments /\nweight_formula_ref（P7 UTIL 综合消费）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "POST /api/v1/heat/{heat_id}/weight-estimate：TEMA 9th 重量估算。\n\n写入 HeatResult.output_json.total_weight_kg / weight_segments /\nweight_formula_ref（P7 UTIL 综合消费）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫：heat_id 对应 record.project_id 必须属于 user。",
         "operationId": "estimate_weight_endpoint_api_v1_heat__heat_id__weight_estimate_post",
         "parameters": [
           {
@@ -9403,7 +9445,7 @@
           "util"
         ],
         "summary": "Get Util Result",
-        "description": "单条 UtilResults 查询。",
+        "description": "单条 UtilResults 查询。\n\nBLOCKER-3 修复: 查 UserProject 行 (user_id=user.user_id, project_id=record.project_id,\nrevoked_at IS NULL) → 404 防 IDOR。",
         "operationId": "get_util_result_api_v1_util_results__util_result_id__get",
         "parameters": [
           {
@@ -10264,13 +10306,259 @@
         }
       }
     },
+    "/api/v1/user-projects/grant": {
+      "post": {
+        "tags": [
+          "user-projects"
+        ],
+        "summary": "Grant User Project Access",
+        "description": "授予用户项目访问权 (SYSADMIN only).",
+        "operationId": "grant_user_project_access_api_v1_user_projects_grant_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GrantRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserProjectResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user-projects/revoke": {
+      "post": {
+        "tags": [
+          "user-projects"
+        ],
+        "summary": "Revoke User Project Access",
+        "description": "撤销用户项目访问权 (SYSADMIN only).",
+        "operationId": "revoke_user_project_access_api_v1_user_projects_revoke_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RevokeRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/UserProjectResponse"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ],
+                  "title": "Response Revoke User Project Access Api V1 User Projects Revoke Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user-projects/me": {
+      "get": {
+        "tags": [
+          "user-projects"
+        ],
+        "summary": "List My Projects",
+        "description": "当前用户可见项目列表 (DESIGNER+ 即可).",
+        "operationId": "list_my_projects_api_v1_user_projects_me_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserProjectResponse"
+                  },
+                  "title": "Response List My Projects Api V1 User Projects Me Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/user-projects/{user_id}": {
+      "get": {
+        "tags": [
+          "user-projects"
+        ],
+        "summary": "List User Projects",
+        "description": "管理员查看某用户项目列表 (SYSADMIN only).",
+        "operationId": "list_user_projects_api_v1_user_projects__user_id__get",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UserProjectResponse"
+                  },
+                  "title": "Response List User Projects Api V1 User Projects  User Id  Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/open-channel/manning/calculate": {
       "post": {
         "tags": [
           "open-channel"
         ],
         "summary": "Calculate Manning",
-        "description": "Manning 流量计算（§3.2.6 第一项）。\n\n流程：endpoint 调 ``calc_manning_flow`` → save_manning_result service\n落 OpenChannelResult 行；禁止 endpoint 直构 ORM（红线 #1）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "Manning 流量计算（§3.2.6 第一项）。\n\n流程：endpoint 调 ``calc_manning_flow`` → save_manning_result service\n落 OpenChannelResult 行；禁止 endpoint 直构 ORM（红线 #1）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。",
         "operationId": "calculate_manning_api_v1_open_channel_manning_calculate_post",
         "parameters": [
           {
@@ -10330,7 +10618,7 @@
           "open-channel"
         ],
         "summary": "Calculate Section",
-        "description": "最优水力断面（§3.2.6 第二项）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "最优水力断面（§3.2.6 第二项）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。",
         "operationId": "calculate_section_api_v1_open_channel_section_calculate_post",
         "parameters": [
           {
@@ -10390,7 +10678,7 @@
           "open-channel"
         ],
         "summary": "Calculate Critical",
-        "description": "临界水深 + Froude 数（§3.2.6 第三项）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "临界水深 + Froude 数（§3.2.6 第三项）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。",
         "operationId": "calculate_critical_api_v1_open_channel_critical_calculate_post",
         "parameters": [
           {
@@ -10450,7 +10738,7 @@
           "open-channel"
         ],
         "summary": "Calculate Jump",
-        "description": "水跃 Bélanger + 能量损失 + 跃型判定（§3.2.6 第四项）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "水跃 Bélanger + 能量损失 + 跃型判定（§3.2.6 第四项）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。",
         "operationId": "calculate_jump_api_v1_open_channel_jump_calculate_post",
         "parameters": [
           {
@@ -10510,7 +10798,7 @@
           "open-channel"
         ],
         "summary": "Create Open Channel Result",
-        "description": "直接创建 OpenChannelResult 行（POST → 201，不走 calc）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "直接创建 OpenChannelResult 行（POST → 201，不走 calc）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。",
         "operationId": "create_open_channel_result_api_v1_open_channel_results_post",
         "parameters": [
           {
@@ -10568,7 +10856,7 @@
           "open-channel"
         ],
         "summary": "List Open Channel Results",
-        "description": "按 project_id 列出 OpenChannelResult（GET list，分页）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "按 project_id 列出 OpenChannelResult（GET list，分页）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫：user 必须是 project_id 的有效 UserProject 成员。",
         "operationId": "list_open_channel_results_api_v1_open_channel_results_get",
         "parameters": [
           {
@@ -10661,7 +10949,7 @@
           "open-channel"
         ],
         "summary": "Get Open Channel Result",
-        "description": "按 open_channel_id 取 OpenChannelResult（GET detail）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "按 open_channel_id 取 OpenChannelResult（GET detail）。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫: record.project_id 必须属于 user。",
         "operationId": "get_open_channel_result_api_v1_open_channel_results__result_id__get",
         "parameters": [
           {
@@ -10719,7 +11007,7 @@
           "open-channel"
         ],
         "summary": "Update Open Channel Result",
-        "description": "更新 OpenChannelResult 业务字段（PATCH）。\n\n仅 DRAFT / CHANGE_PENDING 可改；CHECKED 等锁定态拒绝。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "更新 OpenChannelResult 业务字段（PATCH）。\n\n仅 DRAFT / CHANGE_PENDING 可改；CHECKED 等锁定态拒绝。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫：record.project_id 必须属于 user。",
         "operationId": "update_open_channel_result_api_v1_open_channel_results__result_id__patch",
         "parameters": [
           {
@@ -10787,7 +11075,7 @@
           "open-channel"
         ],
         "summary": "Soft Delete Open Channel Result",
-        "description": "软删除 OpenChannelResult（DELETE → sign_status=OBSOLETE）。\n\n位号加 ``__OBSOLETE_<ts>`` 后缀，stale_resolution_path 标记。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN",
+        "description": "软删除 OpenChannelResult（DELETE → sign_status=OBSOLETE）。\n\n位号加 ``__OBSOLETE_<ts>`` 后缀，stale_resolution_path 标记。\n\nACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\nBLOCKER-3 守卫：record.project_id 必须属于 user。",
         "operationId": "soft_delete_open_channel_result_api_v1_open_channel_results__result_id__delete",
         "parameters": [
           {
@@ -18463,18 +18751,10 @@
         "properties": {
           "source_module": {
             "type": "string",
-            "enum": [
-              "PUMP",
-              "VESSEL",
-              "HEAT",
-              "PSV",
-              "CV",
-              "COOL_TOWER",
-              "PSYCHRO",
-              "OPEN_CHANNEL"
-            ],
+            "maxLength": 32,
+            "minLength": 1,
             "title": "Source Module",
-            "description": "源模块（PUMP/VESSEL/HEAT/PSV/CV/COOL_TOWER/PSYCHRO/OPEN_CHANNEL）"
+            "description": "源模块名（PUMP/VESSEL/HEAT/PSV/CV/COOL_TOWER/PSYCHRO/OPEN_CHANNEL 等）"
           },
           "source_service": {
             "type": "string",
@@ -18497,7 +18777,7 @@
           "source_record_id"
         ],
         "title": "EquipListSyncRequest",
-        "description": "手动触发 sync_from_source API body。\n\n业务：用户在前端 EquipmentListPage 点 \"重新同步\" 按钮 → POST 此 body\n→ 后端调 sync_from_source → EquipmentList 记录更新（equipment_status=\"E\"\n联动 + V1.4 source_service 字段写入）。"
+        "description": "手动触发 sync_from_source API body。\n\n业务：用户在前端 EquipmentListPage 点 \"重新同步\" 按钮 → POST 此 body\n→ 后端调 sync_from_source → EquipmentList 记录更新（equipment_status=\"E\"\n联动 + V1.4 source_service 字段写入）。\n\nF-P1-010 fix: source_module 由 Literal 8 值改为 str + 长度约束。Literal 太\n严格会在 Pydantic 422 reject 未在白名单的 module，但 bulk_sync_from_sources\n设计意图是 partial failure 容错（service 层 catch 未知 module）。改 str 后\n未知 module 进入 service，由 source_aggregator F-P1-003 WARNING + bulk\n容错逻辑处理。"
       },
       "EquipListSyncResponse": {
         "properties": {
@@ -20841,6 +21121,35 @@
         ],
         "title": "GlycolDehydrationResponse",
         "description": "FULL 甘醇脱水系统响应（POST /psychro/glycol-dehydration/calculate）。\n\n字段（v4 Ruling 5 closure）：\n- 既有 8 字段（dehydration_efficiency / n_tray_minimum / is_tray_count_ok /\n  teg_loss_gpd / contactor_diameter_in / imperial_conversion / formula_ref /\n  glycol_type）\n- 12 optional（v4 含 acid_gas_corrected）：water_dewpoint_f /\n  adjusted_dewpoint_f / lean_glycol_concentration /\n  stripping_gas_scf_per_gal_teg / column_diameter_full_in /\n  column_height_ft / number_of_transfer_units / mass_h2o_removed_lb_s /\n  reboiler_duty_btu_hr / column_csa_ft2 / dewpoint_unavailable_reason /\n  acid_gas_corrected"
+      },
+      "GrantRequest": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id",
+            "description": "目标用户 UUID"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "目标项目 UUID"
+          },
+          "role_in_project": {
+            "type": "string",
+            "title": "Role In Project",
+            "description": "项目内角色 (DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "project_id",
+          "role_in_project"
+        ],
+        "title": "GrantRequest",
+        "description": "grant 请求 body."
       },
       "HTTPValidationError": {
         "properties": {
@@ -25490,6 +25799,29 @@
         "title": "RestrictionCalculateResponse",
         "description": "限制装置计算响应（POST /api/v1/restriction/calculate 201）。\n\n回填 RestrictionResult 主键 orifice_id + 关键结果字段 + flash 元数据 +\noutlet stream 锚点。"
       },
+      "RevokeRequest": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id",
+            "description": "目标用户 UUID"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "目标项目 UUID"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "project_id"
+        ],
+        "title": "RevokeRequest",
+        "description": "revoke 请求 body."
+      },
       "RuthConstantPressureCalcRequest": {
         "properties": {
           "project_id": {
@@ -29767,6 +30099,84 @@
         "title": "UpsertStandardProfileRequest",
         "description": "POST /standard-profile 请求体。"
       },
+      "UserProjectResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "role_in_project": {
+            "type": "string",
+            "title": "Role In Project"
+          },
+          "granted_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Granted By"
+          },
+          "granted_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Granted At"
+          },
+          "revoked_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked At"
+          },
+          "revoked_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Revoked By"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "user_id",
+          "project_id",
+          "role_in_project"
+        ],
+        "title": "UserProjectResponse",
+        "description": "UserProject 单条响应."
+      },
       "UtilAggregationRequest": {
         "properties": {
           "project_id": {
@@ -29845,7 +30255,7 @@
             },
             "type": "object",
             "title": "By Category",
-            "description": "5 能源类消耗量：ELECTRICITY / STEAM_HP / STEAM_MP / STEAM_LP / FUEL_GAS"
+            "description": "6 能源类消耗量：ELECTRICITY / STEAM_HP / STEAM_MP / STEAM_LP / FUEL_GAS / CONDENSATE"
           },
           "toe_total": {
             "type": "number",
@@ -29868,7 +30278,7 @@
           "year"
         ],
         "title": "UtilEnergyConsumptionResponse",
-        "description": "能源专项（5 类进 TOE：ELECTRICITY + STEAM×4 + FUEL_GAS）。"
+        "description": "能源专项（6 类进 TOE：ELECTRICITY + STEAM×3 + FUEL_GAS + CONDENSATE）。\n\nF-P1-015 fix: 由 5 类扩展到 6 类 — 与 toe_total 计算口径一致 (CONDENSATE 按\nSTEAM 折标计算入 toe_total 但 by_category 之前漏掉, 致客户端无法解释)。"
       },
       "UtilEnergySummaryAggregateRequest": {
         "properties": {
@@ -29891,6 +30301,13 @@
             "title": "Business Year",
             "description": "业务年度",
             "default": 2026
+          },
+          "electricity_value_type": {
+            "type": "string",
+            "maxLength": 16,
+            "title": "Electricity Value Type",
+            "description": "电当量值/等价值 (R1 §5 GB 30251-2024 §6.1.1): EQUIVALENT (当量值 0.086 kg标油/kWh - 其他产品用; 默认) / EQUIVALENT_VALUE (等价值 0.21 kg标油/kWh - 炼油/乙烯用)",
+            "default": "EQUIVALENT"
           }
         },
         "type": "object",
@@ -29899,7 +30316,7 @@
           "workspace_id"
         ],
         "title": "UtilEnergySummaryAggregateRequest",
-        "description": "触发 T5 综合能耗汇总 (utility_energy_summary_service.summarize_energy_year)."
+        "description": "触发 T5 综合能耗汇总 (utility_energy_summary_service.summarize_energy_year).\n\nR1 §5: electricity_value_type 选择当量值/等价值."
       },
       "UtilEnergySummaryResponse": {
         "properties": {
@@ -30027,6 +30444,34 @@
             "type": "string",
             "title": "Tolerance Status"
           },
+          "electricity_value_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Electricity Value Type"
+          },
+          "r1_classification": {
+            "anyOf": [
+              {
+                "additionalProperties": {
+                  "additionalProperties": {
+                    "type": "number"
+                  },
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "R1 Classification"
+          },
           "computed_at": {
             "anyOf": [
               {
@@ -30103,8 +30548,21 @@
             "type": "string",
             "maxLength": 32,
             "title": "Fuel Type",
-            "description": "燃料类型",
+            "description": "燃料类型 (R0 字段, R1 deprecated)",
             "default": "NATURAL_GAS"
+          },
+          "gas_source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Gas Source",
+            "description": "气源分类 (R1 §7.3): OILFIELD_GAS (油田气 0.93) / GASFIELD_GAS (气田气 0.85) / REFINERY_FUEL_GAS (炼厂燃料气 950 kg/t)"
           },
           "calorific_value_kcal_nm3": {
             "type": "number",
@@ -30171,7 +30629,7 @@
           "operating_phase"
         ],
         "title": "UtilFuelGasCreateRequest",
-        "description": "手动创建 UtilityFuelGas (T2 燃料气)."
+        "description": "手动创建 UtilityFuelGas (T2 燃料气).\n\nR1 §7.3 新增 gas_source 3 类 (OILFIELD_GAS/GASFIELD_GAS/REFINERY_FUEL_GAS)\nGB 30251-2024 附录A 油气源分类."
       },
       "UtilFuelGasResponse": {
         "properties": {
@@ -30299,7 +30757,7 @@
             "type": "number",
             "exclusiveMinimum": 0.0,
             "title": "Steam Pressure Mpa Gauge",
-            "description": "蒸汽压力 (MPa gauge)"
+            "description": "蒸汽压力 (MPa gauge; R0 字段, R1 deprecated)"
           },
           "steam_quality_pct": {
             "type": "number",
@@ -30319,7 +30777,33 @@
             "type": "string",
             "maxLength": 16,
             "title": "Temperature Class",
-            "description": "LP/MP/HP/ULTRA_HIGH"
+            "description": "LP/MP/HP/ULTRA_HIGH (R0 字段, R1 deprecated)"
+          },
+          "pressure_level": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Level",
+            "description": "压力等级 (R1 §7.1 GB 30251-2024 9 档): GE_7_0_MPA / 4_5_TO_7_0_MPA / 3_0_TO_4_5_MPA / 2_0_TO_3_0_MPA / 1_2_TO_2_0_MPA / 0_8_TO_1_2_MPA / 0_6_TO_0_8_MPA / 0_3_TO_0_6_MPA / LT_0_3_MPA"
+          },
+          "medium_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medium Type",
+            "description": "介质类型 (R1 §7.2): STEAM / FRESH_WATER / CIRCULATING_WATER / SOFTENED_WATER / DEMINERALIZED_WATER / LP_DEAERATED_WATER / HP_DEAERATED_WATER / TURBINE_CONDENSATE / 120C_CONDENSATE_TREATED / 120C_CONDENSATE_REUSABLE"
           },
           "steam_consumption_t_h": {
             "type": "number",
@@ -30375,7 +30859,7 @@
           "steam_consumption_t_h"
         ],
         "title": "UtilHeatExchangeCreateRequest",
-        "description": "手动创建 UtilityHeatExchange (T3 蒸汽/冷凝水)."
+        "description": "手动创建 UtilityHeatExchange (T3 蒸汽/冷凝水).\n\nR1 §7.1 + §7.2 新增 pressure_level 9 档 + medium_type 10 类."
       },
       "UtilHeatExchangeResponse": {
         "properties": {
@@ -30425,6 +30909,28 @@
           "temperature_class": {
             "type": "string",
             "title": "Temperature Class"
+          },
+          "pressure_level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Pressure Level"
+          },
+          "medium_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Medium Type"
           },
           "steam_consumption_t_h": {
             "type": "number",
@@ -30481,7 +30987,7 @@
           "source"
         ],
         "title": "UtilHeatExchangeResponse",
-        "description": "UtilityHeatExchange 单条响应 (T3)."
+        "description": "UtilityHeatExchange 单条响应 (T3).\n\nR1 §7.1 + §7.2 (P7-6B 冷却水落地): 加 pressure_level (蒸汽 9 档)\n+ medium_type (10 类介质: STEAM + 9 类水) 同步前端 page."
       },
       "UtilPowerItemCreateRequest": {
         "properties": {
@@ -30711,7 +31217,7 @@
           "consumption_json"
         ],
         "title": "UtilResultsCreateRequest",
-        "description": "手动创建 UtilResults（带 consumption_json 13 类 flat map）。"
+        "description": "手动创建 UtilResults（带 consumption_json 13 类 flat map）。\n\nF-P1-013 fix: 拒绝 NaN/Inf — 防止下游 toe_total 计算被污染\n(math.nan × factor = nan, math.inf × factor = inf)."
       },
       "UtilResultsResponse": {
         "properties": {

@@ -214,13 +214,14 @@ export interface paths {
          * @description GET 列出项目输入清单（DICT V3.1 表 44）。
          *
          *     步骤：
-         *     1. 转发 ChecklistService.list_for_project → 按 project_id 取行
+         *     1. BLOCKER-3 守卫: actor 必须有 project 访问权
+         *     2. 转发 ChecklistService.list_for_project → 按 project_id 取行
          *        （按 item_key 升序，不分页）
-         *     2. ORM 行 → ChecklistItemOut 序列化（FastAPI response_model 控制）
+         *     3. ORM 行 → ChecklistItemOut 序列化（FastAPI response_model 控制）
          *
-         *     无 ACL 校验：项目内部资源，依赖项目级鉴权上层路由。
-         *     与 /projects/{project_id}/completeness（completeness）区别：
-         *     本端点返回逐项明细；completeness 返回聚合统计。
+         *     ACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSADMIN
+         *     BLOCKER-3 P7-7+ 集成：Depends(current_actor) + check_project_access_or_404
+         *     （user_id 不可再由 query 注入，避免 IDOR 漏洞）
          */
         get: operations["list_for_project_api_v1_checklist_projects__project_id__get"];
         put?: never;
@@ -245,13 +246,14 @@ export interface paths {
          * @description POST 批量种子（项目内 checklist 一次生成）。
          *
          *     步骤：
-         *     1. 调 ChecklistService.bulk_seed：按 items 列表逐条创建 ChecklistItem
-         *        （status 默认 NOT_STARTED；user_id 记录创建者）
-         *     2. session.commit() 落库（service 已 flush）
-         *     3. ORM 行经 ChecklistItemOut.model_validate 转响应 schema 列表
+         *     1. BLOCKER-3 守卫: actor 必须有 project 访问权
+         *     2. 调 ChecklistService.bulk_seed：按 items 列表逐条创建 ChecklistItem
+         *        （status 默认 NOT_STARTED；actor.user_id 记录创建者）
+         *     3. session.commit() 落库（service 已 flush）
+         *     4. ORM 行经 ChecklistItemOut.model_validate 转响应 schema 列表
          *
-         *     与 update_item 区别：本端点批量初始化（一个项目通常一次提交）；
-         *     update_item 单项状态流转（5 态 + Audit）。
+         *     BLOCKER-3 P7-7+ 集成：actor.user_id 取代 query param user_id
+         *     （修复 IDOR：user_id 不再可由客户端伪造）。
          */
         post: operations["bulk_seed_api_v1_checklist_projects__project_id__seed_post"];
         delete?: never;
@@ -272,12 +274,12 @@ export interface paths {
          * @description GET 项目输入清单完成度统计。
          *
          *     步骤：
-         *     1. 转发 ChecklistService.completeness → 按 project_id 取行
+         *     1. BLOCKER-3 守卫: actor 必须有 project 访问权
+         *     2. 转发 ChecklistService.completeness → 按 project_id 取行
          *        → 派生 total / required_total / 3 桶分桶 / 百分比
-         *     2. 返回 ChecklistCompleteness Pydantic 模型
+         *     3. 返回 ChecklistCompleteness Pydantic 模型
          *
-         *     无 ACL 校验：项目内部资源，依赖项目级鉴权上层路由。
-         *     与 list_for_project 区别：本端点返回聚合统计；list 返回逐项明细。
+         *     BLOCKER-3 P7-7+ 集成：Depends(current_actor) + check_project_access_or_404
          */
         get: operations["completeness_api_v1_checklist_projects__project_id__completeness_get"];
         put?: never;
@@ -301,13 +303,15 @@ export interface paths {
          * @description PUT 校验一项状态（5 态流转 + Audit 落库）。
          *
          *     步骤：
-         *     1. 调 ChecklistService.update_status（状态校验 + Audit + flush）
-         *     2. service 抛 ValueError → 404（找不到 checklist 项；保留原 ValueError 契约）
-         *     3. session.commit() 落库
-         *     4. ORM 行经 ChecklistItemOut.model_validate 转响应 schema
+         *     1. BLOCKER-3 守卫: actor 必须有 record.project_id 访问权
+         *        (先 fetch ChecklistItem 拿 project_id, 再 check_record_access_or_404)
+         *     2. 调 ChecklistService.update_status（状态校验 + Audit + flush）
+         *     3. service 抛 ValueError → 404（找不到 checklist 项；保留原 ValueError 契约）
+         *     4. session.commit() 落库
+         *     5. ORM 行经 ChecklistItemOut.model_validate 转响应 schema
          *
          *     ACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSADMIN
-         *     （由 ACL middleware 在 user_id 注入前验证）。
+         *     BLOCKER-3 P7-7+ 集成：Depends(current_actor) + check_record_access_or_404
          */
         put: operations["update_item_api_v1_checklist_items__checklist_id__put"];
         post?: never;
@@ -338,6 +342,9 @@ export interface paths {
         /**
          * Create Piping
          * @description Sprint 2 dev-only：测试驱动用。Sprint 3 替换为 RecordService.create_piping。
+         *
+         *     BLOCKER-3 P7-7+ 集成：actor.user_id 取代 query param user_id
+         *     （修复 IDOR：user_id 不再可由客户端伪造）。
          */
         post: operations["create_piping_api_v1_records_piping_post"];
         delete?: never;
@@ -378,6 +385,8 @@ export interface paths {
          *
          *     与 `transition_piping` 区别：本端点固定 transition=OBSOLETE，semantically 是
          *     "软删除"，不真删 PipingResult 行（保留审计快照）。
+         *
+         *     BLOCKER-3 P7-7+ 集成：actor.user_id / actor.role 取代 query param。
          */
         delete: operations["obsolete_piping_api_v1_records_piping__pipe_id__delete"];
         options?: never;
@@ -404,7 +413,8 @@ export interface paths {
          *     3. 调 StateMachineService.transition，非法迁移 → 409
          *     4. 提交由本端点负责（session.commit()）
          *
-         *     actor_role 默认 DESIGNER（审核/批准时由调用方传 APPROVER 等）。
+         *     BLOCKER-3 P7-7+ 集成：actor.user_id / actor.role 取代 query param
+         *     （修复 IDOR + role 伪造）。
          */
         post: operations["transition_piping_api_v1_records_piping__pipe_id__transition_post"];
         delete?: never;
@@ -2169,6 +2179,9 @@ export interface paths {
         /**
          * Get Equipment
          * @description 单条 EquipmentList 查询。
+         *
+         *     BLOCKER-3 修复: 查 UserProject 行 (user_id=user.user_id, project_id=record.project_id,
+         *     revoked_at IS NULL) → 404 防 IDOR。
          */
         get: operations["get_equipment_api_v1_equipment_list__equipment_id__get"];
         put?: never;
@@ -2237,6 +2250,7 @@ export interface paths {
          * @description POST /api/v1/flash/calculate：PT/PH/PS_FLASH + SATURATION 统一入口。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫：req.stream_id 对应 stream.project_id 必须属于 user。
          */
         post: operations["calculate_flash_api_v1_flash_calculate_post"];
         delete?: never;
@@ -2257,6 +2271,8 @@ export interface paths {
         /**
          * Calculate Bubble
          * @description POST /api/v1/flash/bubble：mode=T 给 T 算 P_bubble；mode=P 给 P 算 T_bubble。
+         *
+         *     BLOCKER-3 守卫：req.stream_id 对应 stream.project_id 必须属于 user。
          */
         post: operations["calculate_bubble_api_v1_flash_bubble_post"];
         delete?: never;
@@ -2277,6 +2293,8 @@ export interface paths {
         /**
          * Calculate Dew
          * @description POST /api/v1/flash/dew：mode=T 给 T 算 P_dew；mode=P 给 P 算 T_dew。
+         *
+         *     BLOCKER-3 守卫：req.stream_id 对应 stream.project_id 必须属于 user。
          */
         post: operations["calculate_dew_api_v1_flash_dew_post"];
         delete?: never;
@@ -2544,6 +2562,7 @@ export interface paths {
          *     默认 sign_status filter = (DRAFT, CHECKED) — 排除 OBSOLETE 等门禁态。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫：user 必须是 project_id 的有效 UserProject 成员。
          */
         get: operations["list_cool_tower_results_api_v1_cool_tower_results_get"];
         put?: never;
@@ -2555,6 +2574,7 @@ export interface paths {
          *     （ADR-0028 §决策 4），返回创建后的完整 CoolingTowerResult 行。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。
          */
         post: operations["create_cool_tower_result_api_v1_cool_tower_results_post"];
         delete?: never;
@@ -2575,6 +2595,7 @@ export interface paths {
          * @description 按 id 取 CoolingTowerResult（GET detail）。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫：record.project_id 必须属于 user。
          */
         get: operations["get_cool_tower_result_api_v1_cool_tower_results__record_id__get"];
         put?: never;
@@ -2600,6 +2621,7 @@ export interface paths {
          *     批次为 None（service 层不强制隔离）。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫：record.project_id 必须属于 user。
          */
         patch: operations["update_cool_tower_result_api_v1_cool_tower_results__record_id__patch"];
         trace?: never;
@@ -2967,6 +2989,7 @@ export interface paths {
          * @description 查项目当前默认 PSV 标准配置；无 → 200 null（前端按"未配置"展示）。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫: user 必须是 project_id 的有效 UserProject 成员。
          */
         get: operations["get_psv_standard_profile_api_v1_projects__project_id__psv_standard_profile_get"];
         put?: never;
@@ -2981,6 +3004,7 @@ export interface paths {
          *     4. DB EXCLUDE USING gist 兜底冲突 → IntegrityError → 转 PcsError
          *
          *     ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫: user 必须是 project_id 的有效 UserProject 成员。
          */
         post: operations["upsert_psv_standard_profile_api_v1_projects__project_id__psv_standard_profile_post"];
         delete?: never;
@@ -3003,6 +3027,7 @@ export interface paths {
          * @description POST /api/v1/heat/import-htri：HTRI 文件 → HeatResult 落库。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫：user 必须是 project_id 的有效 UserProject 成员。
          */
         post: operations["import_htri_api_v1_heat_import_htri_post"];
         delete?: never;
@@ -3023,6 +3048,7 @@ export interface paths {
          * @description GET /api/v1/heat/{heat_id}：HeatResult 详情（input_json / output_json / record_hash）。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫：record.project_id 必须属于 user。
          */
         get: operations["get_heat_api_v1_heat__heat_id__get"];
         put?: never;
@@ -3050,6 +3076,7 @@ export interface paths {
          *     weight_formula_ref（P7 UTIL 综合消费）。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫：heat_id 对应 record.project_id 必须属于 user。
          */
         post: operations["estimate_weight_endpoint_api_v1_heat__heat_id__weight_estimate_post"];
         delete?: never;
@@ -3202,6 +3229,9 @@ export interface paths {
         /**
          * Get Util Result
          * @description 单条 UtilResults 查询。
+         *
+         *     BLOCKER-3 修复: 查 UserProject 行 (user_id=user.user_id, project_id=record.project_id,
+         *     revoked_at IS NULL) → 404 防 IDOR。
          */
         get: operations["get_util_result_api_v1_util_results__util_result_id__get"];
         put?: never;
@@ -3404,6 +3434,86 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/user-projects/grant": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Grant User Project Access
+         * @description 授予用户项目访问权 (SYSADMIN only).
+         */
+        post: operations["grant_user_project_access_api_v1_user_projects_grant_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/user-projects/revoke": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revoke User Project Access
+         * @description 撤销用户项目访问权 (SYSADMIN only).
+         */
+        post: operations["revoke_user_project_access_api_v1_user_projects_revoke_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/user-projects/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List My Projects
+         * @description 当前用户可见项目列表 (DESIGNER+ 即可).
+         */
+        get: operations["list_my_projects_api_v1_user_projects_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/user-projects/{user_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List User Projects
+         * @description 管理员查看某用户项目列表 (SYSADMIN only).
+         */
+        get: operations["list_user_projects_api_v1_user_projects__user_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/open-channel/manning/calculate": {
         parameters: {
             query?: never;
@@ -3421,6 +3531,7 @@ export interface paths {
          *     落 OpenChannelResult 行；禁止 endpoint 直构 ORM（红线 #1）。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。
          */
         post: operations["calculate_manning_api_v1_open_channel_manning_calculate_post"];
         delete?: never;
@@ -3443,6 +3554,7 @@ export interface paths {
          * @description 最优水力断面（§3.2.6 第二项）。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。
          */
         post: operations["calculate_section_api_v1_open_channel_section_calculate_post"];
         delete?: never;
@@ -3465,6 +3577,7 @@ export interface paths {
          * @description 临界水深 + Froude 数（§3.2.6 第三项）。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。
          */
         post: operations["calculate_critical_api_v1_open_channel_critical_calculate_post"];
         delete?: never;
@@ -3487,6 +3600,7 @@ export interface paths {
          * @description 水跃 Bélanger + 能量损失 + 跃型判定（§3.2.6 第四项）。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。
          */
         post: operations["calculate_jump_api_v1_open_channel_jump_calculate_post"];
         delete?: never;
@@ -3507,6 +3621,7 @@ export interface paths {
          * @description 按 project_id 列出 OpenChannelResult（GET list，分页）。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫：user 必须是 project_id 的有效 UserProject 成员。
          */
         get: operations["list_open_channel_results_api_v1_open_channel_results_get"];
         put?: never;
@@ -3515,6 +3630,7 @@ export interface paths {
          * @description 直接创建 OpenChannelResult 行（POST → 201，不走 calc）。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫：user 必须是 req.project_id 的有效 UserProject 成员。
          */
         post: operations["create_open_channel_result_api_v1_open_channel_results_post"];
         delete?: never;
@@ -3535,6 +3651,7 @@ export interface paths {
          * @description 按 open_channel_id 取 OpenChannelResult（GET detail）。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫: record.project_id 必须属于 user。
          */
         get: operations["get_open_channel_result_api_v1_open_channel_results__result_id__get"];
         put?: never;
@@ -3546,6 +3663,7 @@ export interface paths {
          *     位号加 ``__OBSOLETE_<ts>`` 后缀，stale_resolution_path 标记。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫：record.project_id 必须属于 user。
          */
         delete: operations["soft_delete_open_channel_result_api_v1_open_channel_results__result_id__delete"];
         options?: never;
@@ -3557,6 +3675,7 @@ export interface paths {
          *     仅 DRAFT / CHANGE_PENDING 可改；CHECKED 等锁定态拒绝。
          *
          *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
+         *     BLOCKER-3 守卫：record.project_id 必须属于 user。
          */
         patch: operations["update_open_channel_result_api_v1_open_channel_results__result_id__patch"];
         trace?: never;
@@ -7067,14 +7186,19 @@ export interface components {
          *     业务：用户在前端 EquipmentListPage 点 "重新同步" 按钮 → POST 此 body
          *     → 后端调 sync_from_source → EquipmentList 记录更新（equipment_status="E"
          *     联动 + V1.4 source_service 字段写入）。
+         *
+         *     F-P1-010 fix: source_module 由 Literal 8 值改为 str + 长度约束。Literal 太
+         *     严格会在 Pydantic 422 reject 未在白名单的 module，但 bulk_sync_from_sources
+         *     设计意图是 partial failure 容错（service 层 catch 未知 module）。改 str 后
+         *     未知 module 进入 service，由 source_aggregator F-P1-003 WARNING + bulk
+         *     容错逻辑处理。
          */
         EquipListSyncRequest: {
             /**
              * Source Module
-             * @description 源模块（PUMP/VESSEL/HEAT/PSV/CV/COOL_TOWER/PSYCHRO/OPEN_CHANNEL）
-             * @enum {string}
+             * @description 源模块名（PUMP/VESSEL/HEAT/PSV/CV/COOL_TOWER/PSYCHRO/OPEN_CHANNEL 等）
              */
-            source_module: "PUMP" | "VESSEL" | "HEAT" | "PSV" | "CV" | "COOL_TOWER" | "PSYCHRO" | "OPEN_CHANNEL";
+            source_module: string;
             /**
              * Source Service
              * @description 源 service 名（如 pump_service / vessel_service）
@@ -8506,6 +8630,29 @@ export interface components {
              * @description 工艺未对账 warning 列表（如 TEG_CIRCULATION_RATE_UNVERIFIED 等）
              */
             warnings?: string[];
+        };
+        /**
+         * GrantRequest
+         * @description grant 请求 body.
+         */
+        GrantRequest: {
+            /**
+             * User Id
+             * Format: uuid
+             * @description 目标用户 UUID
+             */
+            user_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 目标项目 UUID
+             */
+            project_id: string;
+            /**
+             * Role In Project
+             * @description 项目内角色 (DESIGNER/CHECKER/APPROVER/REVIEWER/VIEWER)
+             */
+            role_in_project: string;
         };
         /** HTTPValidationError */
         HTTPValidationError: {
@@ -11471,6 +11618,24 @@ export interface components {
             outlet_stream_id: string;
         };
         /**
+         * RevokeRequest
+         * @description revoke 请求 body.
+         */
+        RevokeRequest: {
+            /**
+             * User Id
+             * Format: uuid
+             * @description 目标用户 UUID
+             */
+            user_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 目标项目 UUID
+             */
+            project_id: string;
+        };
+        /**
          * RuthConstantPressureCalcRequest
          * @description POST /filtration/ruth-constant-pressure/calculate 请求。
          *
@@ -13920,6 +14085,37 @@ export interface components {
             approved_by?: string | null;
         };
         /**
+         * UserProjectResponse
+         * @description UserProject 单条响应.
+         */
+        UserProjectResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Role In Project */
+            role_in_project: string;
+            /** Granted By */
+            granted_by?: string | null;
+            /** Granted At */
+            granted_at?: string | null;
+            /** Revoked At */
+            revoked_at?: string | null;
+            /** Revoked By */
+            revoked_by?: string | null;
+        };
+        /**
          * UtilAggregationRequest
          * @description 触发 source_aggregator + 写入 UtilResults。
          */
@@ -13954,12 +14150,15 @@ export interface components {
         };
         /**
          * UtilEnergyConsumptionResponse
-         * @description 能源专项（5 类进 TOE：ELECTRICITY + STEAM×4 + FUEL_GAS）。
+         * @description 能源专项（6 类进 TOE：ELECTRICITY + STEAM×3 + FUEL_GAS + CONDENSATE）。
+         *
+         *     F-P1-015 fix: 由 5 类扩展到 6 类 — 与 toe_total 计算口径一致 (CONDENSATE 按
+         *     STEAM 折标计算入 toe_total 但 by_category 之前漏掉, 致客户端无法解释)。
          */
         UtilEnergyConsumptionResponse: {
             /**
              * By Category
-             * @description 5 能源类消耗量：ELECTRICITY / STEAM_HP / STEAM_MP / STEAM_LP / FUEL_GAS
+             * @description 6 能源类消耗量：ELECTRICITY / STEAM_HP / STEAM_MP / STEAM_LP / FUEL_GAS / CONDENSATE
              */
             by_category: {
                 [key: string]: number;
@@ -13974,6 +14173,8 @@ export interface components {
         /**
          * UtilEnergySummaryAggregateRequest
          * @description 触发 T5 综合能耗汇总 (utility_energy_summary_service.summarize_energy_year).
+         *
+         *     R1 §5: electricity_value_type 选择当量值/等价值.
          */
         UtilEnergySummaryAggregateRequest: {
             /**
@@ -13994,6 +14195,12 @@ export interface components {
              * @default 2026
              */
             business_year: number;
+            /**
+             * Electricity Value Type
+             * @description 电当量值/等价值 (R1 §5 GB 30251-2024 §6.1.1): EQUIVALENT (当量值 0.086 kg标油/kWh - 其他产品用; 默认) / EQUIVALENT_VALUE (等价值 0.21 kg标油/kWh - 炼油/乙烯用)
+             * @default EQUIVALENT
+             */
+            electricity_value_type: string;
         };
         /**
          * UtilEnergySummaryResponse
@@ -14045,6 +14252,14 @@ export interface components {
             tolerance_pct?: number | null;
             /** Tolerance Status */
             tolerance_status: string;
+            /** Electricity Value Type */
+            electricity_value_type?: string | null;
+            /** R1 Classification */
+            r1_classification?: {
+                [key: string]: {
+                    [key: string]: number;
+                };
+            } | null;
             /** Computed At */
             computed_at?: string | null;
             /** Created At */
@@ -14055,6 +14270,9 @@ export interface components {
         /**
          * UtilFuelGasCreateRequest
          * @description 手动创建 UtilityFuelGas (T2 燃料气).
+         *
+         *     R1 §7.3 新增 gas_source 3 类 (OILFIELD_GAS/GASFIELD_GAS/REFINERY_FUEL_GAS)
+         *     GB 30251-2024 附录A 油气源分类.
          */
         UtilFuelGasCreateRequest: {
             /**
@@ -14076,10 +14294,15 @@ export interface components {
             equipment_tag: string;
             /**
              * Fuel Type
-             * @description 燃料类型
+             * @description 燃料类型 (R0 字段, R1 deprecated)
              * @default NATURAL_GAS
              */
             fuel_type: string;
+            /**
+             * Gas Source
+             * @description 气源分类 (R1 §7.3): OILFIELD_GAS (油田气 0.93) / GASFIELD_GAS (气田气 0.85) / REFINERY_FUEL_GAS (炼厂燃料气 950 kg/t)
+             */
+            gas_source?: string | null;
             /**
              * Calorific Value Kcal Nm3
              * @description 低位热值 (kcal/Nm³)
@@ -14159,6 +14382,8 @@ export interface components {
         /**
          * UtilHeatExchangeCreateRequest
          * @description 手动创建 UtilityHeatExchange (T3 蒸汽/冷凝水).
+         *
+         *     R1 §7.1 + §7.2 新增 pressure_level 9 档 + medium_type 10 类.
          */
         UtilHeatExchangeCreateRequest: {
             /**
@@ -14180,7 +14405,7 @@ export interface components {
             equipment_tag: string;
             /**
              * Steam Pressure Mpa Gauge
-             * @description 蒸汽压力 (MPa gauge)
+             * @description 蒸汽压力 (MPa gauge; R0 字段, R1 deprecated)
              */
             steam_pressure_mpa_gauge: number;
             /**
@@ -14195,9 +14420,19 @@ export interface components {
             return_condensate_pct: number;
             /**
              * Temperature Class
-             * @description LP/MP/HP/ULTRA_HIGH
+             * @description LP/MP/HP/ULTRA_HIGH (R0 字段, R1 deprecated)
              */
             temperature_class: string;
+            /**
+             * Pressure Level
+             * @description 压力等级 (R1 §7.1 GB 30251-2024 9 档): GE_7_0_MPA / 4_5_TO_7_0_MPA / 3_0_TO_4_5_MPA / 2_0_TO_3_0_MPA / 1_2_TO_2_0_MPA / 0_8_TO_1_2_MPA / 0_6_TO_0_8_MPA / 0_3_TO_0_6_MPA / LT_0_3_MPA
+             */
+            pressure_level?: string | null;
+            /**
+             * Medium Type
+             * @description 介质类型 (R1 §7.2): STEAM / FRESH_WATER / CIRCULATING_WATER / SOFTENED_WATER / DEMINERALIZED_WATER / LP_DEAERATED_WATER / HP_DEAERATED_WATER / TURBINE_CONDENSATE / 120C_CONDENSATE_TREATED / 120C_CONDENSATE_REUSABLE
+             */
+            medium_type?: string | null;
             /**
              * Steam Consumption T H
              * @description 小时消耗 (t/h)
@@ -14224,6 +14459,9 @@ export interface components {
         /**
          * UtilHeatExchangeResponse
          * @description UtilityHeatExchange 单条响应 (T3).
+         *
+         *     R1 §7.1 + §7.2 (P7-6B 冷却水落地): 加 pressure_level (蒸汽 9 档)
+         *     + medium_type (10 类介质: STEAM + 9 类水) 同步前端 page.
          */
         UtilHeatExchangeResponse: {
             /**
@@ -14253,6 +14491,10 @@ export interface components {
             return_condensate_pct: number;
             /** Temperature Class */
             temperature_class: string;
+            /** Pressure Level */
+            pressure_level?: string | null;
+            /** Medium Type */
+            medium_type?: string | null;
             /** Steam Consumption T H */
             steam_consumption_t_h: number;
             /** Operating Hours Per Year */
@@ -14357,6 +14599,9 @@ export interface components {
         /**
          * UtilResultsCreateRequest
          * @description 手动创建 UtilResults（带 consumption_json 13 类 flat map）。
+         *
+         *     F-P1-013 fix: 拒绝 NaN/Inf — 防止下游 toe_total 计算被污染
+         *     (math.nan × factor = nan, math.inf × factor = inf).
          */
         UtilResultsCreateRequest: {
             /**
@@ -15894,7 +16139,9 @@ export interface operations {
     list_for_project_api_v1_checklist_projects__project_id__get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path: {
                 project_id: string;
             };
@@ -15924,10 +16171,10 @@ export interface operations {
     };
     bulk_seed_api_v1_checklist_projects__project_id__seed_post: {
         parameters: {
-            query: {
-                user_id: string;
+            query?: never;
+            header?: {
+                authorization?: string | null;
             };
-            header?: never;
             path: {
                 project_id: string;
             };
@@ -15962,7 +16209,9 @@ export interface operations {
     completeness_api_v1_checklist_projects__project_id__completeness_get: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path: {
                 project_id: string;
             };
@@ -15992,10 +16241,10 @@ export interface operations {
     };
     update_item_api_v1_checklist_items__checklist_id__put: {
         parameters: {
-            query: {
-                user_id: string;
+            query?: never;
+            header?: {
+                authorization?: string | null;
             };
-            header?: never;
             path: {
                 checklist_id: string;
             };
@@ -16065,10 +16314,11 @@ export interface operations {
     create_piping_api_v1_records_piping_post: {
         parameters: {
             query: {
-                user_id: string;
                 workspace_id: string;
             };
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path?: never;
             cookie?: never;
         };
@@ -16141,11 +16391,11 @@ export interface operations {
         parameters: {
             query: {
                 workspace_id: string;
-                user_id: string;
-                actor_role?: string;
                 reason?: string;
             };
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path: {
                 pipe_id: string;
             };
@@ -16179,10 +16429,10 @@ export interface operations {
         parameters: {
             query: {
                 workspace_id: string;
-                user_id: string;
-                actor_role?: string;
             };
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path: {
                 pipe_id: string;
             };
@@ -21231,6 +21481,140 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UtilEnergySummaryResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    grant_user_project_access_api_v1_user_projects_grant_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GrantRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProjectResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revoke_user_project_access_api_v1_user_projects_revoke_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RevokeRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProjectResponse"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_my_projects_api_v1_user_projects_me_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProjectResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_user_projects_api_v1_user_projects__user_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserProjectResponse"][];
                 };
             };
             /** @description Validation Error */

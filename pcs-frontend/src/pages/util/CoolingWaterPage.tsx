@@ -38,10 +38,7 @@ import type { components } from '../../types/api';
 import { PROJECT_ID } from '../../constants/env';
 
 type UtilHeatExchangeCreateRequest = components['schemas']['UtilHeatExchangeCreateRequest'];
-type UtilHeatExchangeResponse = components['schemas']['UtilHeatExchangeResponse'] & {
-  medium_type?: string | null;
-  pressure_level?: string | null;
-};
+type UtilHeatExchangeResponse = components['schemas']['UtilHeatExchangeResponse'];
 
 interface PcsErrorEnvelope {
   code?: string;
