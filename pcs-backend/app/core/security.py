@@ -64,6 +64,12 @@ def create_access_token(*, subject: str, role: str, extra: dict[str, Any] | None
         "exp": expire,
         "iat": _now(),
     }
+    # F-P3-001 Sprint 3 (Issue 1): iss/aud config-driven 对称.
+    # 配置时才写, 未配置则不写 (dev/mock 友好).
+    if settings.jwt_issuer:
+        payload["iss"] = settings.jwt_issuer
+    if settings.jwt_audience:
+        payload["aud"] = settings.jwt_audience
     if extra:
         payload.update(extra)
     return jwt.encode(payload, settings.secret_key, algorithm="HS256")
@@ -96,6 +102,11 @@ def create_refresh_token(
         "exp": expire,
         "iat": _now(),
     }
+    # F-P3-001 Sprint 3 (Issue 1): refresh token 也对称写 iss/aud.
+    if settings.jwt_issuer:
+        payload["iss"] = settings.jwt_issuer
+    if settings.jwt_audience:
+        payload["aud"] = settings.jwt_audience
     if extra:
         payload.update(extra)
     return jwt.encode(payload, settings.secret_key, algorithm="HS256")
@@ -106,11 +117,26 @@ def decode_token(token: str) -> dict[str, Any]:
 
     H-P0-1 强制要求 exp/iat/sub 三字段必填，防止接受过期/未签发/无主体标识的伪造 token。
     缺失必填 claim 抛 MissingRequiredClaimError（PyJWTError 子类），调用方 catch 后转 401。
+
+    F-P3-001 Sprint 3 (Issue 1): iss/aud config-driven 校验.
+    仅在 settings.jwt_issuer/jwt_audience 配置时启用 PyJWT 校验 (issuer/audience 参数).
+    PyJWT 在 issuer=None / audience=None 时自动跳过, 4 象限对称:
+    - jwt_issuer=None + jwt_audience=None → 不校验
+    - jwt_issuer 配置 + jwt_audience=None → 校验 iss, 不校验 aud
+    - jwt_issuer=None + jwt_audience 配置 → 不校验 iss, 校验 aud
+    - 两者均配置 → 同时校验
     """
     settings = get_settings()
+    required = ["exp", "iat", "sub"]
+    if settings.jwt_issuer:
+        required.append("iss")
+    if settings.jwt_audience:
+        required.append("aud")
     return jwt.decode(
         token,
         settings.secret_key,
         algorithms=["HS256"],
-        options={"require": ["exp", "iat", "sub"]},
+        issuer=settings.jwt_issuer,
+        audience=settings.jwt_audience,
+        options={"require": required},
     )

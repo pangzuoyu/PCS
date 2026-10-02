@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     cors_allow_origins: str = "http://localhost:5173"
     access_token_expire_minutes: int = 30
     refresh_token_expire_days: int = 7
+    # F-P3-001 Sprint 3: JWT iss/aud config-driven 对称 (Issue 1).
+    # production 配置为 "pcs-auth" / "pcs-api" 启用校验.
+    # 配置时才写+校验, 未配置则既不写也不校验 (dev/mock 友好).
+    jwt_issuer: str | None = None
+    jwt_audience: str | None = None
     ldap_url: str = "ldap://localhost:389"
     ldap_base_dn: str = "DC=test,DC=local"
     ldap_user_dn_template: str = "cn={username},CN=Users,DC=test,DC=local"

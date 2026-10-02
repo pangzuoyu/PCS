@@ -445,6 +445,12 @@ def current_actor(
 
     优先读 JWT 的 `user_id` 声明；缺省时用 uuid5(NAMESPACE_DNS, sub) 派生
     （确定性，便于测试；生产建议改由 LDAP 同步时把 user_id 写入 token）。
+
+    F-P3-001 Sprint 3 (改动 1): role claim fail-closed.
+    - production: 缺 role 或 role 不在 ALLOWED_ROLES → 拒绝 (PcsError 401/403)
+    - dev/test: 缺 role → fallback DESIGNER (mock 友好); 非法 role → 拒
+    切分条件 = settings.is_production. 与 JWT iss/aud (config-driven) 职责分离:
+    decode_token 保证 token 层 (签名/时效/iss/aud); role 语义由本函数处理.
     """
     if not authorization:
         raise PcsError(
@@ -457,7 +463,30 @@ def current_actor(
     except _jwt.PyJWTError as e:  # pragma: no cover — _decode_bearer 已转 PcsError
         raise PcsError(code="INVALID_TOKEN", message=str(e), status=401) from e
     sub = payload.get("sub", "anonymous")
-    role = payload.get("role", "DESIGNER")
+    # F-P3-001: role claim 强校验
+    role = payload.get("role")
+    if not role:
+        # 获取 settings (延迟导入避免循环)
+        from app.core.config import get_settings
+        if get_settings().is_production:
+            raise PcsError(
+                code="MISSING_ROLE",
+                message="JWT missing 'role' claim",
+                status=401,
+            )
+        role = "DESIGNER"  # dev mode fallback (mock 友好)
+    # role 白名单校验 (无论环境, 非法 role 一律拒).
+    # 含项目内角色 VIEWER (per project.py:139) 和 CHECKER (per test_state_machine).
+    _ALLOWED_ROLES = {
+        "DESIGNER", "PROCESS_CONTROLLER", "REVIEWER", "APPROVER", "SYSTEM_ADMIN",
+        "VIEWER", "CHECKER",
+    }
+    if role not in _ALLOWED_ROLES:
+        raise PcsError(
+            code="INVALID_ROLE",
+            message=f"role {role!r} not allowed",
+            status=403,
+        )
     user_id_raw = payload.get("user_id")
     if user_id_raw:
         try:

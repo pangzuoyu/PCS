@@ -97,12 +97,21 @@ def authenticate(username: str, password: str) -> LdapUser:
 
 
 def resolve_role(groups: tuple[str, ...]) -> str:
-    """按 Settings.ldap_group_role_map 反查角色。空 → DESIGNER（最小权限默认）。"""
+    """按 Settings.ldap_group_role_map 反查角色。
+
+    F-P3-001 Sprint 3 (改动 2): production fail-closed.
+    - production: 找不到映射 → raise LdapAuthError (拒绝无角色登录)
+    - dev/test: 找不到映射 → DESIGNER fallback (mock 友好)
+    """
     mapping = get_settings().group_role_map()
     group_cns = {_extract_cn(g) for g in groups}
     for group_cn, role in mapping.items():
         if group_cn in group_cns:
             return role
+    if get_settings().is_production:
+        raise LdapAuthError(
+            "no role mapping for LDAP groups in production",
+        )
     return "DESIGNER"
 
 
