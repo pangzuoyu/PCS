@@ -6404,6 +6404,57 @@
             }
           }
         }
+      },
+      "delete": {
+        "tags": [
+          "equipment-list"
+        ],
+        "summary": "Delete Equipment",
+        "description": "删除 EquipmentList + 写 audit log (F-P2-009 fix).\n\nutility_power_items / utility_fuel_gas / utility_heat_exchange 3 表的\nequipment_id FK 因 ondelete=SET NULL 静默解耦. 本端点:\n\n1. 查 record, BLOCKER-3 IDOR 守卫 (user 必须有 record.project_id 访问权)\n2. 快照 orphan 列表 (待 SET NULL 的 utility_* record_id)\n3. 写 equipment_deletion_audit (含 orphan_records JSONB)\n4. 删 EquipmentList (触发 FK SET NULL)\n\nACL: SYSTEM_ADMIN (设备删除是不可逆数据丢失, 仅 admin 可操作).",
+        "operationId": "delete_equipment_api_v1_equipment_list__equipment_id__delete",
+        "parameters": [
+          {
+            "name": "equipment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Equipment Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Successful Response"
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/equipment-list/{equipment_id}/sync": {

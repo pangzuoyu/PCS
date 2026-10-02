@@ -2191,7 +2191,21 @@ export interface paths {
         get: operations["get_equipment_api_v1_equipment_list__equipment_id__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /**
+         * Delete Equipment
+         * @description 删除 EquipmentList + 写 audit log (F-P2-009 fix).
+         *
+         *     utility_power_items / utility_fuel_gas / utility_heat_exchange 3 表的
+         *     equipment_id FK 因 ondelete=SET NULL 静默解耦. 本端点:
+         *
+         *     1. 查 record, BLOCKER-3 IDOR 守卫 (user 必须有 record.project_id 访问权)
+         *     2. 快照 orphan 列表 (待 SET NULL 的 utility_* record_id)
+         *     3. 写 equipment_deletion_audit (含 orphan_records JSONB)
+         *     4. 删 EquipmentList (触发 FK SET NULL)
+         *
+         *     ACL: SYSTEM_ADMIN (设备删除是不可逆数据丢失, 仅 admin 可操作).
+         */
+        delete: operations["delete_equipment_api_v1_equipment_list__equipment_id__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -19372,6 +19386,37 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["EquipListResponse"];
                 };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_equipment_api_v1_equipment_list__equipment_id__delete: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                equipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Validation Error */
             422: {

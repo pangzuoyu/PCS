@@ -27,6 +27,7 @@ depends_on: str | tuple[str, ...] | None = None
 
 
 def upgrade() -> None:
+    # if_exists 容错: alembic upgrade → downgrade → upgrade 循环幂等
     op.create_table(
         "equipment_deletion_audit",
         sa.Column("audit_id", UUID(as_uuid=True), primary_key=True),
@@ -71,12 +72,14 @@ def upgrade() -> None:
         "ix_equipment_deletion_audit_project_equipment",
         "equipment_deletion_audit",
         ["project_id", "equipment_id"],
+        if_not_exists=True,
     )
     # 时间倒序索引: 审计报表 / 倒序翻页
     op.create_index(
         "ix_equipment_deletion_audit_occurred_at_desc",
         "equipment_deletion_audit",
         [sa.text("occurred_at DESC")],
+        if_not_exists=True,
     )
 
 
@@ -84,9 +87,11 @@ def downgrade() -> None:
     op.drop_index(
         "ix_equipment_deletion_audit_occurred_at_desc",
         table_name="equipment_deletion_audit",
+        if_exists=True,
     )
     op.drop_index(
         "ix_equipment_deletion_audit_project_equipment",
         table_name="equipment_deletion_audit",
+        if_exists=True,
     )
-    op.drop_table("equipment_deletion_audit")
+    op.drop_table("equipment_deletion_audit", if_exists=True)
