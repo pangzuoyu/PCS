@@ -202,6 +202,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/workspaces/{workspace_id}/archive": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Archive Workspace
+         * @description 归档 workspace (F-P3-003 Sprint 3 / Issue 2 校准).
+         *
+         *     PATCH /workspaces/{workspace_id}/archive — 改 status='ARCHIVED', 不删数据.
+         *
+         *     ACL: SYSTEM_ADMIN. archive 后 FK RESTRICT 允许显式删 (但当前无 DELETE 端点).
+         *
+         *     D2 2A 模式: 同 workspace_id 串行 archive (advisory lock), 防并发竞态.
+         *     与 PCS 已用 advisory_lock.py 模式一致 (sync_from_source.actor 等).
+         *
+         *     幂等: 重复归档返回 200 (不报 409), 避免误判.
+         */
+        patch: operations["archive_workspace_api_v1_workspaces__workspace_id__archive_patch"];
+        trace?: never;
+    };
     "/api/v1/checklist/projects/{project_id}": {
         parameters: {
             query?: never;
@@ -4861,6 +4890,80 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/audit-logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Audit Logs
+         * @description Audit logs 通用查询. SYSTEM_ADMIN only (Issue 7 / F-P0-004 收窄).
+         *
+         *     F-P0-001 R1 签署痕迹查询: 走 GET /config-audit (独立端点, DESIGNER+);
+         *     或 admin 代查.
+         */
+        get: operations["list_audit_logs_api_v1_audit_logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/equipment-deletion-audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Equipment Deletion Audit
+         * @description 设备删除 audit 查询 (F-P0-004 IDOR 防护).
+         *
+         *     非 SYSTEM_ADMIN 强制 project_id 必传, 否则 403.
+         */
+        get: operations["list_equipment_deletion_audit_api_v1_equipment_deletion_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/config-audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Config Audit
+         * @description F-P0-001 R1 签署痕迹独立端点 (DESIGNER+, 全公司可查).
+         *
+         *     source-verify 2026-10-03:
+         *     - resource_type 实际值 = "config_energy_conversion_factors"
+         *     - ConfigEnergyConversionFactor 公司级全局 (无 project_id) — F-P0-004 IDOR 不适用
+         *     - audit_logs.resource_id 是 String(100), ConfigEnergyConversionFactor.id 是 BIGINT,
+         *       需 str() 转换
+         *
+         *     业务: 工艺室 / 设计 / 审查 / 审批 可查全公司 ConfigEnergyConversionFactor audit.
+         *     F-P0-001 R1 修订 trace 是其中一类 action=CONFIG_R1_BACKFILL.
+         */
+        get: operations["list_config_audit_api_v1_config_audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/mock-login": {
         parameters: {
             query?: never;
@@ -4972,6 +5075,73 @@ export interface components {
              * @description 当前版本号
              */
             current_version?: string | null;
+        };
+        /**
+         * AuditLogListResponse
+         * @description audit_logs 列表响应 (含分页).
+         */
+        AuditLogListResponse: {
+            /** Items */
+            items?: components["schemas"]["AuditLogResponse"][];
+            /**
+             * Total
+             * @description 满足条件的总行数
+             */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /**
+         * AuditLogResponse
+         * @description audit_logs 表单行响应.
+         *
+         *     source-verify (2026-10-03): AuditLog 9 列
+         *     audit_id / user_id / action / resource_type / resource_id /
+         *     ip / user_agent / request_id / detail_json / occurred_at.
+         *     仅暴露 query 必要列 (ip/user_agent/request_id 内部用, 不入 list 响应).
+         */
+        AuditLogResponse: {
+            /**
+             * Audit Id
+             * Format: uuid
+             * @description audit 行 UUID
+             */
+            audit_id: string;
+            /**
+             * User Id
+             * @description 操作者 user_id
+             */
+            user_id?: string | null;
+            /**
+             * Action
+             * @description 动作类型 (CREATE/UPDATE/DELETE/...)
+             */
+            action: string;
+            /**
+             * Resource Type
+             * @description 资源类型 (config_energy_conversion_factors/...)
+             */
+            resource_type?: string | null;
+            /**
+             * Resource Id
+             * @description 资源 ID (String, 表内 BIGINT/UUID 通用)
+             */
+            resource_id?: string | null;
+            /**
+             * Detail Json
+             * @description 详情 JSON
+             */
+            detail_json?: {
+                [key: string]: unknown;
+            } | null;
+            /**
+             * Occurred At
+             * Format: date-time
+             * @description 发生时间 (UTC)
+             */
+            occurred_at: string;
         };
         /** Body_import_htri_api_v1_heat_import_htri_post */
         Body_import_htri_api_v1_heat_import_htri_post: {
@@ -7243,6 +7413,83 @@ export interface components {
             item: components["schemas"]["EquipListResponse"];
             /** Was Created */
             was_created: boolean;
+        };
+        /**
+         * EquipmentDeletionAuditListResponse
+         * @description equipment_deletion_audit 列表响应.
+         */
+        EquipmentDeletionAuditListResponse: {
+            /** Items */
+            items?: components["schemas"]["EquipmentDeletionAuditResponse"][];
+            /** Total */
+            total: number;
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /**
+         * EquipmentDeletionAuditResponse
+         * @description equipment_deletion_audit 表单行响应.
+         *
+         *     source-verify (2026-10-03): EquipmentDeletionAudit 9 列
+         *     audit_id / equipment_id / project_id / workspace_id /
+         *     equipment_tag / deleted_by / orphan_records / occurred_at / reason.
+         */
+        EquipmentDeletionAuditResponse: {
+            /**
+             * Audit Id
+             * Format: uuid
+             * @description audit 行 UUID
+             */
+            audit_id: string;
+            /**
+             * Equipment Id
+             * Format: uuid
+             * @description 被删除设备 ID
+             */
+            equipment_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 ID
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description workspace ID
+             */
+            workspace_id: string;
+            /**
+             * Equipment Tag
+             * @description 设备位号快照
+             */
+            equipment_tag: string;
+            /**
+             * Deleted By
+             * Format: uuid
+             * @description 删除操作者 user_id
+             */
+            deleted_by: string;
+            /**
+             * Orphan Records
+             * @description 被 SET NULL 的 utility_* 记录
+             */
+            orphan_records: {
+                [key: string]: unknown;
+            };
+            /**
+             * Occurred At
+             * Format: date-time
+             * @description 删除时间 (UTC)
+             */
+            occurred_at: string;
+            /**
+             * Reason
+             * @description 删除原因 (可选)
+             */
+            reason?: string | null;
         };
         /**
          * ErgunCalcRequest
@@ -15265,7 +15512,8 @@ export interface components {
          * @description 工作区出参（GET /workspaces 响应体）。
          *
          *     业务：含 workspace_id + workspace_type + name + owner_id + retention_days
-         *     + last_active_at；from_attributes=True 直接绑 ORM 行（Workspace）。
+         *     + last_active_at + status（F-P3-003 Sprint 3 新增）；
+         *     from_attributes=True 直接绑 ORM 行（Workspace）。
          */
         WorkspaceOut: {
             /**
@@ -15310,6 +15558,12 @@ export interface components {
              * @description 数据保留天数
              */
             retention_days?: number | null;
+            /**
+             * Status
+             * @description F-P3-003: ACTIVE / ARCHIVED 2-state
+             * @default ACTIVE
+             */
+            status: string;
         };
         /**
          * CalculateRequest
@@ -16159,6 +16413,39 @@ export interface operations {
         parameters: {
             query?: never;
             header?: never;
+            path: {
+                workspace_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["WorkspaceOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    archive_workspace_api_v1_workspaces__workspace_id__archive_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path: {
                 workspace_id: string;
             };
@@ -23826,6 +24113,125 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SimImportWarningListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_audit_logs_api_v1_audit_logs_get: {
+        parameters: {
+            query?: {
+                resource_type?: string | null;
+                resource_id?: string | null;
+                user_id?: string | null;
+                action?: string | null;
+                occurred_after?: string | null;
+                occurred_before?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_equipment_deletion_audit_api_v1_equipment_deletion_audit_get: {
+        parameters: {
+            query?: {
+                /** @description F-P0-004 IDOR: 非 admin 必传 */
+                project_id?: string | null;
+                workspace_id?: string | null;
+                equipment_id?: string | null;
+                deleted_by?: string | null;
+                occurred_after?: string | null;
+                occurred_before?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EquipmentDeletionAuditListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_config_audit_api_v1_config_audit_get: {
+        parameters: {
+            query?: {
+                /** @description ConfigEnergyConversionFactor.id (BIGINT) */
+                asset_id?: number | null;
+                occurred_after?: string | null;
+                occurred_before?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditLogListResponse"];
                 };
             };
             /** @description Validation Error */
