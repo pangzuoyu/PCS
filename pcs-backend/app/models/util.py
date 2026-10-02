@@ -108,6 +108,26 @@ class UtilResults(TimestampMixin, Base):
         comment="年冷却水消耗量 (t/yr; 待 P7-6B 冷却水子表落地后聚合)",
     )
 
+    # F-P1-007 fix: 4 新聚合列 (annual_total_energy + total_toe +
+    # total_standard_coal_kg + tolerance_status), 让 UtilResults
+    # 也包含 T5 综合能耗汇总结果 (与 utility_energy_summary 并行)
+    annual_total_energy: Mapped[float | None] = mapped_column(
+        Float, nullable=True,
+        comment="年总能耗 (MJ/yr; canonical unit, F-P1-007 同步 UtilityEnergySummary)",
+    )
+    total_toe: Mapped[float | None] = mapped_column(
+        Float, nullable=True,
+        comment="年折标油 (toe; F-P1-007 同步 UtilityEnergySummary)",
+    )
+    total_standard_coal_kg: Mapped[float | None] = mapped_column(
+        Float, nullable=True,
+        comment="年折标煤 (kg 标煤; F-P1-007 同步 UtilityEnergySummary)",
+    )
+    tolerance_status: Mapped[str | None] = mapped_column(
+        String(16), nullable=True,
+        comment="容差状态 NA/OK/EXCEEDED (F-P1-007 + F-P0-004 server_default='NA' 一致)",
+    )
+
     # 元信息
     source: Mapped[str | None] = mapped_column(
         String(200),

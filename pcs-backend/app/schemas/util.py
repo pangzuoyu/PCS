@@ -49,7 +49,12 @@ class UtilResultsCreateRequest(BaseModel):
 
 
 class UtilResultsResponse(BaseModel):
-    """UtilResults 单条记录响应。"""
+    """UtilResults 单条记录响应。
+
+    F-P1-007 fix: 加 4 聚合字段 (annual_total_energy / total_toe /
+    total_standard_coal_kg / tolerance_status), 让客户端不需要二次聚合,
+    直接读 service 算好的结果.
+    """
 
     util_result_id: uuid.UUID
     project_id: uuid.UUID
@@ -60,6 +65,11 @@ class UtilResultsResponse(BaseModel):
     source: str | None = None
     created_at: str | None = None
     updated_at: str | None = None
+    # F-P1-007: 4 新聚合列 (从 service summarize_energy_year 落库)
+    annual_total_energy: float | None = None
+    total_toe: float | None = None
+    total_standard_coal_kg: float | None = None
+    tolerance_status: str | None = None
 
 
 class UtilSummaryResponse(BaseModel):

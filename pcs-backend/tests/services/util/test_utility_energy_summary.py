@@ -28,6 +28,32 @@ from app.models.util import (
     UtilityHeatExchange,
     UtilityPowerItem,
 )
+from app.services._async_ttl_cache import clear_all_caches
+from app.services.util.utility_energy_summary_service import summarize_energy_year
+
+
+# F-P1-002 fix: autouse fixture 每次测试清空 TTL 缓存, 防 cache 跨测试污染
+@pytest.fixture(autouse=True)
+def _clear_async_ttl_cache():
+    clear_all_caches()
+    yield
+    clear_all_caches()
+
+import json
+import uuid
+from pathlib import Path
+
+import pytest
+import pytest_asyncio
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.models.config import ConfigEnergyConversionFactor
+from app.models.util import (
+    UtilityEnergySummary,
+    UtilityFuelGas,
+    UtilityHeatExchange,
+    UtilityPowerItem,
+)
 from app.services.util.utility_energy_summary_service import summarize_energy_year
 
 _FIXTURE_PATH = (

@@ -36,6 +36,8 @@ from app.models.util import (
     UtilityHeatExchange,
     UtilityPowerItem,
 )
+# F-P1-002 fix: 5-min TTL 缓存 (仿 _compound_config_cache 异步版)
+from app.services._async_ttl_cache import clear_all_caches, get_or_reload_async  # noqa: E402
 
 # 综合能耗容差上限 (per P7-OPEN-009 §6 验收标准: ≤ 2%)
 DEFAULT_TOLERANCE_PCT = 2.0
@@ -261,8 +263,8 @@ async def _get_factors_by_classification(
     - STEAM: pressure_level
     - WATER: water_type
     """
-    stmt = select(ConfigEnergyConversionFactor)
-    rows = (await db.execute(stmt)).scalars().all()
+    # F-P1-002 fix: 走 5-min TTL 缓存, 避免与 _get_factors_default 重复 DB 查询
+    rows = await _load_all_factor_rows(db)
 
     result: dict[str, dict[str, tuple[float, float]]] = {}
 
@@ -288,6 +290,21 @@ async def _get_factors_by_classification(
     return result
 
 
+async def _load_all_factor_rows(db: AsyncSession) -> list[ConfigEnergyConversionFactor]:
+    """F-P1-002 fix: 5-min TTL 缓存加载 ConfigEnergyConversionFactor 全表行.
+
+    缓存键 'config_energy_conversion_factors' — 同一进程 5 min 内多次 summarize
+    只触发 1 次 DB 查询 (R1 26 行; 后续 +50+ 行后显著减 DB 负载).
+
+    测试隔离: clear_all_caches() 让 vitest 重新加载 (避免 cache 跨测试污染).
+    """
+    async def _loader() -> list[ConfigEnergyConversionFactor]:
+        stmt = select(ConfigEnergyConversionFactor)
+        return list((await db.execute(stmt)).scalars().all())
+
+    return await get_or_reload_async("config_energy_conversion_factors", _loader)
+
+
 async def _get_factors_default(
     db: AsyncSession,
     *,
@@ -296,9 +313,9 @@ async def _get_factors_default(
     """读 R1 26 行 → 默认单值 (last-wins by energy_type).
 
     R1 §5: ELECTRICITY 按 value_type 精确查表; 其他能源 last-wins.
+    F-P1-002: 走 5-min TTL 缓存 (同进程内多次调用只触发 1 次 DB read).
     """
-    stmt = select(ConfigEnergyConversionFactor)
-    rows = (await db.execute(stmt)).scalars().all()
+    rows = await _load_all_factor_rows(db)
 
     result: dict[str, tuple[float, float]] = {}
     elec_equiv: tuple[float, float] | None = None
@@ -661,9 +678,6 @@ async def summarize_energy_year(
     )
     await db.execute(upsert_stmt)
     await db.commit()
-    # 重要: expire session identity map — 让 SELECT 拿到新值, 不用 ORM 缓存旧值
-    # (不然 .scalars().first() 返 identity map 里 ID 匹配的旧对象)
-    db.expire_all()
 
     # 7. 兜底 SELECT 回填 summary 对象 (含 id + ORM 默认值)
     stmt_existing = (
@@ -680,4 +694,6 @@ async def summarize_energy_year(
         raise RuntimeError(
             "summarize_energy_year upsert failed: summary not found after commit"
         )
+    # 显式 refresh 确保所有字段从 DB 加载 (避免 session identity map 缓存旧值)
+    await db.refresh(summary)
     return summary

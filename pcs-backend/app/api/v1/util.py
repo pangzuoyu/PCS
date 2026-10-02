@@ -59,6 +59,11 @@ def _to_response(record) -> UtilResultsResponse:
         consumption_json=record.consumption_json,
         jsonb_deprecated=record.jsonb_deprecated,
         source=record.source,
+        # F-P1-007: 4 新聚合列透传 (NULL 时不返回)
+        annual_total_energy=record.annual_total_energy,
+        total_toe=record.total_toe,
+        total_standard_coal_kg=record.total_standard_coal_kg,
+        tolerance_status=record.tolerance_status,
         created_at=record.created_at.isoformat() if record.created_at else None,
         updated_at=record.updated_at.isoformat() if record.updated_at else None,
     )
@@ -533,11 +538,25 @@ async def create_heat_exchange(
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     from app.models.util import UtilityHeatExchange
 
+    # F-P1-001 fix: reject client annual_consumption_t override unless plausible
+    # 派生值 (steam_consumption_t_h × operating_hours_per_year) 是唯一权威来源;
+    # client override 仅在 ≤ ±0.5% 误差内接受, 否则 PcsError 422 防 silent data drift
+    derived_t = _derive_annual_consumption_t(
+        body.steam_consumption_t_h, body.operating_hours_per_year
+    )
     annual_t = body.annual_consumption_t
-    if annual_t is None:
-        annual_t = _derive_annual_consumption_t(
-            body.steam_consumption_t_h, body.operating_hours_per_year
-        )
+    if annual_t is not None:
+        delta_pct = abs(annual_t - derived_t) / derived_t * 100.0 if derived_t > 0 else 0.0
+        if delta_pct > 0.5:
+            from app.services.exceptions import PcsError
+            raise PcsError(
+                code="ANNUAL_CONSUMPTION_OVERRIDE_REJECTED",
+                message=(
+                    f"annual_consumption_t override {annual_t} 与派生 {derived_t} "
+                    f"偏差 {delta_pct:.3f}% > 0.5% 阈值; 请保持一致或留空让 service 派生"
+                ),
+                status=422,
+            )
 
     record = UtilityHeatExchange(
         project_id=body.project_id,
@@ -549,7 +568,7 @@ async def create_heat_exchange(
         temperature_class=body.temperature_class,
         steam_consumption_t_h=body.steam_consumption_t_h,
         operating_hours_per_year=body.operating_hours_per_year,
-        annual_consumption_t=annual_t,
+        annual_consumption_t=annual_t if annual_t is not None else derived_t,
         source=body.source or "MANUAL",
     )
     db.add(record)
