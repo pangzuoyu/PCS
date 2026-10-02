@@ -78,7 +78,28 @@ def test_me_with_valid_bearer(client):
     token = create_access_token(subject="alice", role="CHECKER")
     r = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
     assert r.status_code == 200
-    assert r.json() == {"username": "alice", "role": "CHECKER"}
+    body = r.json()
+    # P7-7+ actor 上下文一致: /auth/me 返回 user_id (优先 user_id 声明,
+    # 缺省回退 uuid5(NAMESPACE_DNS, sub) 与 Depends(current_actor) 保持一致)
+    import uuid as _uuid
+    assert body["username"] == "alice"
+    assert body["role"] == "CHECKER"
+    expected_uid = str(_uuid.uuid5(_uuid.NAMESPACE_DNS, "alice"))
+    assert body["user_id"] == expected_uid
+
+
+def test_me_with_user_id_claim_in_jwt(client):
+    """JWT 显式 user_id 声明优先级高于 fallback uuid5 派生 (P7-7+ actor 上下文)."""
+    import uuid as _uuid
+    fixed_uid = str(_uuid.uuid4())
+    token = create_access_token(
+        subject="alice", role="CHECKER", extra={"user_id": fixed_uid}
+    )
+    r = client.get("/api/v1/auth/me", headers={"Authorization": f"Bearer {token}"})
+    assert r.status_code == 200
+    body = r.json()
+    assert body["user_id"] == fixed_uid  # JWT 声明优先
+    assert body["username"] == "alice"
 
 
 def test_me_missing_bearer_401(client):

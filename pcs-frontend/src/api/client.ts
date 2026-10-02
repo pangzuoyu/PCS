@@ -35,6 +35,14 @@ export interface TokenResponse {
   username: string;
 }
 
+/** P7-7+ actor 上下文: /auth/me 响应 (username + role + user_id).
+ * 后端优先级: JWT user_id 声明 > uuid5(NAMESPACE_DNS, sub). */
+export interface MeResponse {
+  username: string;
+  role: string;
+  user_id: string;
+}
+
 export const authApi = {
   login: (username: string, password: string) =>
     api.post<TokenResponse>('/auth/login', { username, password }).then((r) => r.data),
@@ -42,5 +50,5 @@ export const authApi = {
     api
       .post<TokenResponse>('/auth/mock-login', { username })
       .then((r) => r.data),
-  me: () => api.get<{ username: string; role: string }>('/auth/me').then((r) => r.data),
+  me: () => api.get<MeResponse>('/auth/me').then((r) => r.data),
 };

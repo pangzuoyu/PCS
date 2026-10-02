@@ -69,14 +69,17 @@ def create_access_token(*, subject: str, role: str, extra: dict[str, Any] | None
     return jwt.encode(payload, settings.secret_key, algorithm="HS256")
 
 
-def create_refresh_token(*, subject: str, role: str) -> str:
+def create_refresh_token(
+    *, subject: str, role: str, extra: dict[str, Any] | None = None,
+) -> str:
     """生成 HS256 JWT refresh token。
 
     步骤：
     1. settings（refresh_token_expire_days / secret_key 来自环境变量）
     2. payload：sub/role/type=refresh/jti/exp/iat
        - jti = uuid4().hex（H-P0-2 每次唯一，用于吊销追踪）
-    3. jwt.encode(payload, secret_key, algorithm='HS256')
+    3. extra 合并到 payload（用于附加场景字段，如 P7-7+ user_id 声明）
+    4. jwt.encode(payload, settings.secret_key, algorithm='HS256')
 
     安全注意：
     - refresh token 有效期长（天级），务必走 HTTPS 传输
@@ -85,7 +88,7 @@ def create_refresh_token(*, subject: str, role: str) -> str:
     """
     settings = get_settings()
     expire = _now() + timedelta(days=settings.refresh_token_expire_days)
-    payload = {
+    payload: dict[str, Any] = {
         "sub": subject,
         "role": role,
         "type": "refresh",
@@ -93,6 +96,8 @@ def create_refresh_token(*, subject: str, role: str) -> str:
         "exp": expire,
         "iat": _now(),
     }
+    if extra:
+        payload.update(extra)
     return jwt.encode(payload, settings.secret_key, algorithm="HS256")
 
 

@@ -21,9 +21,12 @@ export default function LoginPage() {
   async function onMockLogin() {
     setLoading(true);
     try {
-      const data = await authApi.mockLogin(mockUser);
-      setSession(data);
-      message.success(`已登录：${data.username} / ${data.role}`);
+      const tokens = await authApi.mockLogin(mockUser);
+      // P7-7+ actor 上下文一致性: 拿权威 user_id 必须调 /auth/me
+      // (与 Depends(current_actor) 派生保持一致, 避免前后端分叉)
+      const me = await authApi.me();
+      setSession({ ...tokens, user_id: me.user_id });
+      message.success(`已登录：${me.username} / ${me.role} (${me.user_id.slice(0, 8)}…)`);
       nav('/');
     } catch (e) {
       const msg =

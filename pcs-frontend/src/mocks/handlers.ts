@@ -40,19 +40,42 @@ const ROLE_BY_USER: Record<string, string> = {
 };
 
 /** V1 mock-only 端点：仅 dev 环境使用，不在 OpenAPI 中（QA fix / ISSUE-001 + 11 组件实例化） */
+// P7-7+ actor 上下文一致性: mock-login + /auth/me 返回 user_id (与 backend
+// 派生一致), 让 LoginPage setSession 拿到权威 actor id.
+const MOCK_USER_IDS: Record<string, string> = {
+  alice: '00000000-0000-0000-0000-0000000a11ce',
+  bob: '00000000-0000-0000-0000-0000000b0b01',
+  carol: '00000000-0000-0000-0000-0000000ca201',
+  dan: '00000000-0000-0000-0000-0000000da0001',
+};
+
 const devOnlyMockHandlers = [
   // === 认证 ===
+  // P7-7+ actor 上下文一致性: mock-login 返回 user_id (与 backend /auth/me
+  // 派生一致), 让 LoginPage setSession 拿到权威 actor id.
   http.post("/api/v1/auth/mock-login", async ({ request }) => {
     const body = (await request.json()) as { username?: string };
     const username = body.username ?? "alice";
     const role = ROLE_BY_USER[username] ?? "DESIGNER";
+    const user_id = MOCK_USER_IDS[username] ?? '00000000-0000-0000-0000-000000000001';
     return HttpResponse.json({
       access_token: MOCK_TOKEN,
       refresh_token: `${MOCK_TOKEN}.refresh`,
       token_type: "bearer",
       role,
       username,
+      user_id,
     });
+  }),
+  http.get("/api/v1/auth/me", ({ request }) => {
+    if (!isAuthed(request)) {
+      return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    }
+    // dev-mode: 从 mock token 解析 username (token 简化用 'mock-user' 标记)
+    const username = "alice"; // 简化: dev mode 默认 alice
+    const role = ROLE_BY_USER[username] ?? "DESIGNER";
+    const user_id = MOCK_USER_IDS[username] ?? '00000000-0000-0000-0000-000000000001';
+    return HttpResponse.json({ username, role, user_id });
   }),
 
   // === 物流 SIM ===

@@ -6,6 +6,7 @@ Task 10 会在 env != production 时启用 mock 旁路。
 
 from __future__ import annotations
 
+import uuid
 from typing import Annotated, Any
 
 import jwt
@@ -21,6 +22,18 @@ from app.core.security import (
     revoke_jti,
 )
 from app.services.ldap_client import LdapAuthError, authenticate, resolve_role
+
+# 与 Depends(current_actor) 推导保持一致: 优先从 JWT user_id 声明读取, 缺省回退
+# uuid5(NAMESPACE_DNS, sub). 前端 /auth/me 拿到权威 actor id, 避免自行派生分叉.
+_UUID5_NAMESPACE_DNS = uuid.NAMESPACE_DNS
+
+
+def _derive_user_id(actor: dict[str, Any]) -> uuid.UUID:
+    """权威 user_id 派生: JWT user_id 声明优先, 缺省回退 uuid5(NAMESPACE_DNS, sub)."""
+    raw = actor.get("user_id")
+    if raw:
+        return uuid.UUID(str(raw))
+    return uuid.uuid5(_UUID5_NAMESPACE_DNS, str(actor["sub"]))
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -85,11 +98,15 @@ class LogoutRequest(BaseModel):
 class MeResponse(BaseModel):
     """当前用户信息响应（GET /auth/me 端点）。
 
-    业务：仅返回当前 token 用户的 username + role；不含 token 等敏感字段。
+    业务：返回当前 token 用户的 username + role + user_id；
+    user_id 优先取 JWT user_id 声明，缺省回退 uuid5(NAMESPACE_DNS, username)
+    (与 Depends(current_actor) 推导保持一致, 让前端拿到权威 actor id, 避免
+    frontend 自行 deterministicUuid 与 backend uuid5 派生分叉).
     """
 
     username: str
     role: str
+    user_id: uuid.UUID
 
 
 def _decode_bearer(authorization: str) -> dict[str, Any]:
@@ -153,9 +170,16 @@ def login(body: LoginRequest) -> TokenResponse:
     except LdapAuthError as e:
         raise PcsError(code="INVALID_CREDENTIALS", message=str(e), status=401) from e
     role = resolve_role(user.groups)
+    # P7-7+ actor 上下文一致: 在 JWT payload 嵌入 user_id 声明, 让
+    # Depends(current_actor) 直接取到权威 id (避免每次回退 uuid5 派生).
+    user_id = uuid.uuid5(_UUID5_NAMESPACE_DNS, user.username)
     return TokenResponse(
-        access_token=create_access_token(subject=user.username, role=role),
-        refresh_token=create_refresh_token(subject=user.username, role=role),
+        access_token=create_access_token(
+            subject=user.username, role=role, extra={"user_id": str(user_id)},
+        ),
+        refresh_token=create_refresh_token(
+            subject=user.username, role=role, extra={"user_id": str(user_id)},
+        ),
         role=role,
         username=user.username,
     )
@@ -165,7 +189,11 @@ def login(body: LoginRequest) -> TokenResponse:
 def me(
     user: Annotated[dict[str, Any], Depends(current_user)],
 ) -> MeResponse:
-    return MeResponse(username=user["sub"], role=user["role"])
+    return MeResponse(
+        username=user["sub"],
+        role=user["role"],
+        user_id=_derive_user_id(user),
+    )
 
 
 @router.post("/refresh", response_model=RefreshResponse)

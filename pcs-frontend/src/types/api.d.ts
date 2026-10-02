@@ -9915,13 +9915,21 @@ export interface components {
          * MeResponse
          * @description 当前用户信息响应（GET /auth/me 端点）。
          *
-         *     业务：仅返回当前 token 用户的 username + role；不含 token 等敏感字段。
+         *     业务：返回当前 token 用户的 username + role + user_id；
+         *     user_id 优先取 JWT user_id 声明，缺省回退 uuid5(NAMESPACE_DNS, username)
+         *     (与 Depends(current_actor) 推导保持一致, 让前端拿到权威 actor id, 避免
+         *     frontend 自行 deterministicUuid 与 backend uuid5 派生分叉).
          */
         MeResponse: {
             /** Username */
             username: string;
             /** Role */
             role: string;
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
         };
         /**
          * MockLoginRequest

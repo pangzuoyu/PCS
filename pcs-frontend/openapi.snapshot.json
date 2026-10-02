@@ -22956,15 +22956,21 @@
           "role": {
             "type": "string",
             "title": "Role"
+          },
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
           }
         },
         "type": "object",
         "required": [
           "username",
-          "role"
+          "role",
+          "user_id"
         ],
         "title": "MeResponse",
-        "description": "当前用户信息响应（GET /auth/me 端点）。\n\n业务：仅返回当前 token 用户的 username + role；不含 token 等敏感字段。"
+        "description": "当前用户信息响应（GET /auth/me 端点）。\n\n业务：返回当前 token 用户的 username + role + user_id；\nuser_id 优先取 JWT user_id 声明，缺省回退 uuid5(NAMESPACE_DNS, username)\n(与 Depends(current_actor) 推导保持一致, 让前端拿到权威 actor id, 避免\nfrontend 自行 deterministicUuid 与 backend uuid5 派生分叉)."
       },
       "MockLoginRequest": {
         "properties": {
