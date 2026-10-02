@@ -63,7 +63,7 @@ class UtilResults(TimestampMixin, Base):
         ForeignKey("projects.project_id"), index=True
     )
     workspace_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("workspaces.workspace_id"), index=True
+        ForeignKey("workspaces.workspace_id", ondelete="RESTRICT"), index=True
     )
 
     # 业务日期（折标煤按年查询需要）
@@ -173,7 +173,7 @@ class UtilityPowerItem(Base):
         comment="项目 ID (FK projects.project_id)",
     )
     workspace_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("workspaces.workspace_id", ondelete="CASCADE"), nullable=False,
+        ForeignKey("workspaces.workspace_id", ondelete="RESTRICT"), nullable=False,
         comment="工作区 ID (FK workspaces.workspace_id)",
     )
     equipment_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -252,7 +252,7 @@ class UtilityFuelGas(Base):
         comment="项目 ID (FK projects.project_id)",
     )
     workspace_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("workspaces.workspace_id", ondelete="CASCADE"), nullable=False,
+        ForeignKey("workspaces.workspace_id", ondelete="RESTRICT"), nullable=False,
         comment="工作区 ID (FK workspaces.workspace_id)",
     )
     equipment_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -348,7 +348,7 @@ class UtilityHeatExchange(Base):
         comment="项目 ID (FK projects.project_id)",
     )
     workspace_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("workspaces.workspace_id", ondelete="CASCADE"), nullable=False,
+        ForeignKey("workspaces.workspace_id", ondelete="RESTRICT"), nullable=False,
         comment="工作区 ID (FK workspaces.workspace_id)",
     )
     equipment_id: Mapped[uuid.UUID | None] = mapped_column(
@@ -467,7 +467,7 @@ class UtilityEnergySummary(Base):
         comment="项目 ID (FK projects.project_id)",
     )
     workspace_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("workspaces.workspace_id", ondelete="CASCADE"), nullable=False,
+        ForeignKey("workspaces.workspace_id", ondelete="RESTRICT"), nullable=False,
         comment="工作区 ID (FK workspaces.workspace_id)",
     )
     business_year: Mapped[int] = mapped_column(

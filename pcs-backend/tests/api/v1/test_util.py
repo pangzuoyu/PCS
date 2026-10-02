@@ -344,3 +344,44 @@ async def test_api_aggregate_energy_summary_rate_limit_429(
     )
     assert r.status_code == 429
     assert "频繁" in r.text or "rate" in r.text.lower()
+
+
+# ---------------------------------------------------------------------------
+# F-P3-003 workspace FK ondelete CASCADE → RESTRICT
+# ---------------------------------------------------------------------------
+
+
+async def test_workspace_id_fk_uses_restrict_f_p3_003(db_session):
+    """F-P3-003 fix: util_* 4 表 workspace_id FK 应为 ondelete=RESTRICT.
+
+    验证 ORM metadata 中 4 表的 FK 约束配置正确 (SQLite 测试环境不验证 FK,
+    生产 PG 由 alembic p7_s2_002 应用).
+
+    锁死: 改回 CASCADE 会破坏 RESTRICT 行为 (不可逆数据丢失).
+    """
+    from app.models.util import (
+        UtilityFuelGas,
+        UtilityHeatExchange,
+        UtilityPowerItem,
+        UtilResults,
+    )
+
+    expected_tables = {
+        UtilResults.__tablename__,
+        UtilityPowerItem.__tablename__,
+        UtilityFuelGas.__tablename__,
+        UtilityHeatExchange.__tablename__,
+    }
+
+    for table_name, table in [
+        (t.__tablename__, t) for t in [
+            UtilResults, UtilityPowerItem, UtilityFuelGas, UtilityHeatExchange,
+        ]
+    ]:
+        assert table_name in expected_tables
+        for fk in table.__table__.foreign_key_constraints:
+            if "workspace" in fk.column_keys[0]:
+                assert fk.ondelete == "RESTRICT", (
+                    f"{table_name}.{fk.column_keys[0]} FK 应为 RESTRICT, "
+                    f"实际 {fk.ondelete}"
+                )
