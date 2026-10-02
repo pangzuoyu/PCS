@@ -308,3 +308,39 @@ async def test_api_create_util_fuel_gas_invalid_fuel_type_422(
     )
     assert r.status_code == 422
     assert "fuel_type" in r.text
+
+
+async def test_api_aggregate_energy_summary_rate_limit_429(
+    client, db_session, sample_user_token, pws_setup
+):
+    """POST /energy-summary/aggregate 第 6 次 → 429 (F-P2-006 rate limit 5/min/user).
+
+    验证滑动窗口: 5 次内返回 201, 第 6 次被 429 拒绝。
+    """
+    from app.services._sliding_window_rate_limit import clear_all_rate_limits
+
+    clear_all_rate_limits()  # 防其他测试污染
+
+    pws = pws_setup
+    payload = {
+        "project_id": str(pws["project_id"]),
+        "workspace_id": str(pws["workspace_id"]),
+        "business_year": 2026,
+    }
+    # 前 5 次 OK (R1 26 CONFIG 行无 → tolerance_status=NA, 容差不校验)
+    for i in range(5):
+        r = await client.post(
+            "/api/v1/util/energy-summary/aggregate",
+            headers={"Authorization": f"Bearer {sample_user_token}"},
+            json=payload,
+        )
+        assert r.status_code == 201, f"call #{i+1}: {r.status_code} {r.text}"
+
+    # 第 6 次 → 429
+    r = await client.post(
+        "/api/v1/util/energy-summary/aggregate",
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+        json=payload,
+    )
+    assert r.status_code == 429
+    assert "频繁" in r.text or "rate" in r.text.lower()

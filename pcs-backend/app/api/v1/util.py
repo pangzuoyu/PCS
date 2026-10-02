@@ -616,6 +616,19 @@ async def aggregate_energy_summary(
 ) -> UtilEnergySummaryResponse:
     """T5 触发综合能耗汇总 (聚合 T1+T2+T3 + 折标系数 CONFIG)."""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # F-P2-006: 滑动窗口 rate limit — 防 DOS via 重复点击
+    # 5/min/user — 单实例够用, 多实例部署需换 Redis (TODO)
+    from fastapi import HTTPException
+
+    from app.services._sliding_window_rate_limit import check_rate_limit
+
+    rate_key = f"energy_summary_aggregate:{user.user_id}"
+    if not await check_rate_limit(rate_key, limit=5, window_seconds=60.0):
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail="aggregate 请求过于频繁，请稍后再试 (limit 5/min/user)",
+        )
+
     from app.services.util.utility_energy_summary_service import (
         summarize_energy_year,
     )

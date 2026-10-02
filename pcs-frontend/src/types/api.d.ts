@@ -14210,6 +14210,13 @@ export interface components {
              */
             business_year: number;
             /**
+             * Source
+             * @description 数据来源 (R1 §5 GB 30251-2024): CALCULATION (系统聚合, 默认) / XLS_REFERENCE (XLS 录入对照行, 用于容差校验)
+             * @default CALCULATION
+             * @enum {string}
+             */
+            source: "CALCULATION" | "XLS_REFERENCE";
+            /**
              * Electricity Value Type
              * @description 电当量值/等价值 (R1 §5 GB 30251-2024 §6.1.1): EQUIVALENT (当量值 0.086 kg标油/kWh - 其他产品用; 默认) / EQUIVALENT_VALUE (等价值 0.21 kg标油/kWh - 炼油/乙烯用)
              * @default EQUIVALENT
@@ -14310,8 +14317,9 @@ export interface components {
              * Fuel Type
              * @description 燃料类型 (R0 字段, R1 deprecated)
              * @default NATURAL_GAS
+             * @enum {string}
              */
-            fuel_type: string;
+            fuel_type: "NATURAL_GAS" | "REFINERY_GAS" | "LPG" | "LNG" | "OTHERS";
             /**
              * Gas Source
              * @description 气源分类 (R1 §7.3): OILFIELD_GAS (油田气 0.93) / GASFIELD_GAS (气田气 0.85) / REFINERY_FUEL_GAS (炼厂燃料气 950 kg/t)
@@ -14329,9 +14337,10 @@ export interface components {
             consumption_nm3_h: number;
             /**
              * Operating Phase
-             * @description INITIAL/STEADY/MAX
+             * @description INITIAL (初期) / STEADY (末期/稳态) / MAX (最大工况)
+             * @enum {string}
              */
-            operating_phase: string;
+            operating_phase: "INITIAL" | "STEADY" | "MAX";
             /**
              * Operating Hours Per Year
              * @description 年运行小时
@@ -14434,9 +14443,10 @@ export interface components {
             return_condensate_pct: number;
             /**
              * Temperature Class
-             * @description LP/MP/HP/ULTRA_HIGH (R0 字段, R1 deprecated)
+             * @description R0 字段 (R1 deprecated - 用 pressure_level 9 档)
+             * @enum {string}
              */
-            temperature_class: string;
+            temperature_class: "LP" | "MP" | "HP" | "ULTRA_HIGH";
             /**
              * Pressure Level
              * @description 压力等级 (R1 §7.1 GB 30251-2024 9 档): GE_7_0_MPA / 4_5_TO_7_0_MPA / 3_0_TO_4_5_MPA / 2_0_TO_3_0_MPA / 1_2_TO_2_0_MPA / 0_8_TO_1_2_MPA / 0_6_TO_0_8_MPA / 0_3_TO_0_6_MPA / LT_0_3_MPA
@@ -14468,7 +14478,7 @@ export interface components {
              * @description 数据来源
              * @default MANUAL
              */
-            source: string | null;
+            source: ("MANUAL" | "CALCULATION" | "XLS_REFERENCE" | "source_aggregator") | null;
         };
         /**
          * UtilHeatExchangeResponse
