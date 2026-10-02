@@ -162,8 +162,11 @@ async def calculate_flash(
         _sa_select(Stream).where(Stream.stream_id == req.stream_id)
     )).scalar_one_or_none()
     if stream_row is None:
-        raise HTTPException(
-            status_code=404, detail="Stream not found"
+        # 用 PcsError envelope (SIM_STREAM_NOT_FOUND), 替换裸 HTTPException
+        raise PcsError(
+            "Stream not found",
+            code="SIM_STREAM_NOT_FOUND",
+            status=404,
         )
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=stream_row.project_id,
@@ -218,8 +221,11 @@ async def calculate_bubble(
         _sa_select(Stream).where(Stream.stream_id == req.stream_id)
     )).scalar_one_or_none()
     if stream_row is None:
-        raise HTTPException(
-            status_code=404, detail="Stream not found"
+        # 用 PcsError envelope (SIM_STREAM_NOT_FOUND), 替换裸 HTTPException
+        raise PcsError(
+            "Stream not found",
+            code="SIM_STREAM_NOT_FOUND",
+            status=404,
         )
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=stream_row.project_id,
@@ -271,8 +277,11 @@ async def calculate_dew(
         _sa_select(Stream).where(Stream.stream_id == req.stream_id)
     )).scalar_one_or_none()
     if stream_row is None:
-        raise HTTPException(
-            status_code=404, detail="Stream not found"
+        # 用 PcsError envelope (SIM_STREAM_NOT_FOUND), 替换裸 HTTPException
+        raise PcsError(
+            "Stream not found",
+            code="SIM_STREAM_NOT_FOUND",
+            status=404,
         )
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=stream_row.project_id,
