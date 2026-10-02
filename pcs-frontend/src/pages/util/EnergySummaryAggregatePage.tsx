@@ -128,10 +128,16 @@ export function EnergySummaryAggregatePage({
     const business_year = coerceNum(values.business_year, 2026);
     const electricity_value_type =
       String(values.electricity_value_type ?? 'EQUIVALENT');
+    // F-P2-007 fix: 透传 source (CALCULATION / XLS_REFERENCE)
+    // 默认 CALCULATION — 走 service 聚合; XLS_REFERENCE 走容差校验对照行
+    const source = String(values.source ?? 'CALCULATION') as
+      | 'CALCULATION'
+      | 'XLS_REFERENCE';
     const body: UtilEnergySummaryAggregateRequest = {
       project_id: projId,
       workspace_id: wsId,
       business_year,
+      source,
       electricity_value_type,
     };
     setLoading(true);
@@ -219,10 +225,20 @@ export function EnergySummaryAggregatePage({
           initialValues={{
             business_year: 2026,
             electricity_value_type: 'EQUIVALENT',
+            source: 'CALCULATION',
           }}
         >
           <Form.Item label="业务年度" name="business_year">
             <InputNumber min={2020} max={2100} style={{ width: 140 }} />
+          </Form.Item>
+          <Form.Item label="数据来源" name="source">
+            <Select
+              options={[
+                { value: 'CALCULATION', label: 'CALCULATION (系统聚合)' },
+                { value: 'XLS_REFERENCE', label: 'XLS_REFERENCE (XLS 对照)' },
+              ]}
+              style={{ width: 200 }}
+            />
           </Form.Item>
           <Form.Item label="电当量值" name="electricity_value_type">
             <Select
