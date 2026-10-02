@@ -37,6 +37,7 @@ import {
   ToxicityRoute,
   VesselRoute,
   WizardRoute,
+  CoolingWaterRoute,
 } from './pages/routeWrappers';
 
 const router = createBrowserRouter([
@@ -91,6 +92,9 @@ const router = createBrowserRouter([
       // 设备计算（P6-5 前端补课：CV + PSYCHRO 饱和水含量）
       { path: 'cv', element: <CvRoute /> },
       { path: 'psychro/saturation-water-content', element: <SaturationWaterContentRoute /> },
+
+      // 公用工程（P7-6B 冷却水子表 / R1 §7.2 9 类水）
+      { path: 'util/cooling-water', element: <CoolingWaterRoute /> },
 
       // 项目文档 / 向导
       { path: 'pms', element: <PmsRoute /> },

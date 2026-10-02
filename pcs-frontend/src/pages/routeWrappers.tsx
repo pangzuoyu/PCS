@@ -237,6 +237,12 @@ export function PsvStandardProfileRoute(): JSX.Element {
   return <PsvStandardProfilePage projectId={PROJECT_ID} />;
 }
 
+// === P7-6B 冷却水子表 (R1 §7.2 9 类水) ===
+import { CoolingWaterPage } from './util/CoolingWaterPage';
+export function CoolingWaterRoute(): JSX.Element {
+  return <CoolingWaterPage />;
+}
+
 // === 项目文档 / 向导 ===
 export function PmsRoute(): JSX.Element {
   const items = useFetch<PmsItem[]>(`/api/v1/projects/${PROJECT_ID}/pms`, []);

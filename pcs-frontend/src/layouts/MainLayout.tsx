@@ -52,6 +52,9 @@ const MENU_ITEMS: MenuItem[] = [
     { key: '/cv', label: '控制阀' },
     { key: '/psychro/saturation-water-content', label: '饱和水含量' },
   ]),
+  group('公用工程', 'util', [
+    { key: '/util/cooling-water', label: '冷却水子表' },
+  ]),
   group('项目文档', 'docs', [
     { key: '/pms', label: 'PMS 规格' },
     { key: '/bedd', label: 'BEDD 文档' },
