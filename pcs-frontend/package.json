@@ -13,7 +13,9 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "api:gen": "bash scripts/gen-api-types.sh",
-    "api:check": "bash scripts/check-api-drift.sh"
+    "api:check": "bash scripts/check-api-drift.sh",
+    "e2e": "playwright test",
+    "e2e:install": "playwright install chromium"
   },
   "dependencies": {
     "antd": "^5.20.0",
@@ -24,6 +26,7 @@
     "zustand": "^4.5.0"
   },
   "devDependencies": {
+    "@playwright/test": "^1.63.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "^14.6.7",
@@ -45,6 +48,8 @@
     "vitest": "^2.1.9"
   },
   "msw": {
-    "workerDirectory": ["public"]
+    "workerDirectory": [
+      "public"
+    ]
   }
 }
