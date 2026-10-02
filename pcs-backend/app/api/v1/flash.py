@@ -157,7 +157,7 @@ async def calculate_flash(
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     # BLOCKER-3 守卫: 先查 stream 拿 project_id
     from sqlalchemy import select as _sa_select
-    from app.models.stream import Stream
+    from app.models.project import Stream
     stream_row = (await db.execute(
         _sa_select(Stream).where(Stream.stream_id == req.stream_id)
     )).scalar_one_or_none()
@@ -213,7 +213,7 @@ async def calculate_bubble(
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     # BLOCKER-3 守卫: 先查 stream 拿 project_id
     from sqlalchemy import select as _sa_select
-    from app.models.stream import Stream
+    from app.models.project import Stream
     stream_row = (await db.execute(
         _sa_select(Stream).where(Stream.stream_id == req.stream_id)
     )).scalar_one_or_none()
@@ -266,7 +266,7 @@ async def calculate_dew(
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     # BLOCKER-3 守卫: 先查 stream 拿 project_id
     from sqlalchemy import select as _sa_select
-    from app.models.stream import Stream
+    from app.models.project import Stream
     stream_row = (await db.execute(
         _sa_select(Stream).where(Stream.stream_id == req.stream_id)
     )).scalar_one_or_none()

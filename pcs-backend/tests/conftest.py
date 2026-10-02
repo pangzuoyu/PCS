@@ -192,8 +192,25 @@ async def workspace(db_session, workspace_id):
 
 
 @pytest_asyncio.fixture
-async def client(db_engine) -> AsyncIterator[AsyncClient]:
-    """注入 in-memory session 的 httpx async client。"""
+async def client(db_engine, monkeypatch) -> AsyncIterator[AsyncClient]:
+    """注入 in-memory session 的 httpx async client.
+
+    BLOCKER-3 测试 override: 自动 bypass UserProject guard
+    (mock check_user_project_access → True). 测试不验证 ACL 行为
+    (那是 test_user_project_service.py 的职责). 仅 client fixture
+    影响 — service-only 测试不受影响.
+    """
+    from app.services import user_project_service
+
+    async def _mock_check(*_args, **_kwargs):
+        return True
+
+    monkeypatch.setattr(
+        user_project_service.UserProjectService,
+        "check_user_project_access",
+        _mock_check,
+    )
+
     factory = async_sessionmaker(db_engine, expire_on_commit=False)
 
     async def _override_get_db() -> AsyncIterator[AsyncSession]:

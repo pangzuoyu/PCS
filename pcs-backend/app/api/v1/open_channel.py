@@ -523,7 +523,7 @@ async def update_open_channel_result(
     from sqlalchemy import select as _sa_select
     from app.models.calc import OpenChannelResult
     pre_record = (await db.execute(
-        _sa_select(OpenChannelResult).where(OpenChannelResult.result_id == result_id)
+        _sa_select(OpenChannelResult).where(OpenChannelResult.open_channel_id == result_id)
     )).scalar_one_or_none()
     if pre_record is None:
         raise HTTPException(
@@ -569,7 +569,7 @@ async def soft_delete_open_channel_result(
     from sqlalchemy import select as _sa_select
     from app.models.calc import OpenChannelResult
     pre_record = (await db.execute(
-        _sa_select(OpenChannelResult).where(OpenChannelResult.result_id == result_id)
+        _sa_select(OpenChannelResult).where(OpenChannelResult.open_channel_id == result_id)
     )).scalar_one_or_none()
     if pre_record is None:
         raise HTTPException(
