@@ -258,7 +258,6 @@ async def test_service_aggregates_t1t2t3_within_tolerance(
             workspace_id=workspace_id,
             business_year=case["business_year"],
         )
-
         # 5. 验证聚合结果 (容差: Case 1-3 用 1e-3 浮点级; Case 4 (蜡油加氢 XLS) 大累积值用 1.0)
         #     Case 4 年累积 60M+ kWh, 24M+ Nm3, 多项 sum 累计误差 ~0.1
         is_case4 = "WAXY_OIL_HYDRO" in case["case_id"]
@@ -309,6 +308,82 @@ async def test_service_aggregates_t1t2t3_within_tolerance(
             )
         )
         await db_session.commit()
+
+
+@pytest.mark.asyncio
+async def test_no_hardcoded_unit_constants_f_p2_004(
+    db_session, seeded_config_factors
+):
+    """F-P2-004 P0 fix: NM3_FUEL_GAS_TO_MJ / T_STEAM_TO_MJ 硬编码已删除.
+
+    验证 _compute_totals 不再依赖硬编码 MJ 系数, 改从 CONFIG 推导:
+    MJ/unit = toe_factor × TOE_TO_MJ (1 toe = 41.868 MJ ISO).
+
+    锁定: 改 F-P2-004 后, 计算 annual_total_energy 必须用 toe_factor × 41.868,
+    不可回退到 38 MJ/Nm³ (NM3_FUEL_GAS_TO_MJ) 或 2778 MJ/t (T_STEAM_TO_MJ).
+    """
+    import inspect
+    from app.services.util import utility_energy_summary_service as svc
+
+    # 1. 检查源代码不存在 NM3_FUEL_GAS_TO_MJ / T_STEAM_TO_MJ 硬编码
+    src = inspect.getsource(svc)
+    assert "NM3_FUEL_GAS_TO_MJ = " not in src, (
+        "F-P2-004 硬编码 NM3_FUEL_GAS_TO_MJ 已删除, 不可回退"
+    )
+    assert "T_STEAM_TO_MJ = " not in src, (
+        "F-P2-004 硬编码 T_STEAM_TO_MJ 已删除, 不可回退"
+    )
+
+    # 2. SI 前缀必须保留 (KWH_TO_MJ, GJ_LOW_TEMP_TO_MJ)
+    assert "KWH_TO_MJ = 3.6" in src
+    assert "GJ_LOW_TEMP_TO_MJ = 1000.0" in src
+
+    # 3. toe → MJ 转换常数必须存在
+    assert "TOE_TO_MJ = 41.868" in src
+
+
+@pytest.mark.asyncio
+async def test_annual_total_energy_uses_config_toe_factor_f_p2_004(
+    db_session, seeded_config_factors
+):
+    """F-P2-004 P0 fix: 蒸汽 annual_total_energy 必须按 toe_factor × 41.868 计算.
+
+    创建 1 t MP 蒸汽 (toe_factor=76), 期望 MJ = 76 × 41.868 = 3181.968 MJ/yr.
+    若回退硬编码 2778, 则 MJ = 2778, 测试失败.
+    """
+    from app.services.util.utility_energy_summary_service import summarize_energy_year
+
+    project_id = uuid.uuid4()
+    workspace_id = uuid.uuid4()
+    db_session.add(
+        UtilityHeatExchange(
+            project_id=project_id,
+            workspace_id=workspace_id,
+            equipment_tag="ST-F-P2-004",
+            steam_pressure_mpa_gauge=1.0,
+            steam_quality_pct=99.0,
+            return_condensate_pct=80.0,
+            temperature_class="MP",
+            pressure_level="0_8_TO_1_2_MPA",  # R1 §7.1: 76 toe_factor
+            steam_consumption_t_h=1.0,
+            operating_hours_per_year=1.0,
+            annual_consumption_t=1.0,
+        )
+    )
+    await db_session.commit()
+
+    summary = await summarize_energy_year(
+        db=db_session,
+        project_id=project_id,
+        workspace_id=workspace_id,
+        business_year=2026,
+    )
+
+    # 1 t × 76 toe_factor × 41.868 MJ/toe = 3181.968 MJ
+    expected_mj = 76.0 * 41.868
+    assert summary.annual_total_energy == pytest.approx(expected_mj, abs=0.01)
+    # 旧硬编码 2778 不可出现
+    assert summary.annual_total_energy != pytest.approx(2778.0, abs=1.0)
 
 
 @pytest.mark.asyncio

@@ -395,15 +395,24 @@ def _compute_totals(
     - 1 Nm³ 工艺气体 ≈ 0 MJ (预留)
     - 1 GJ 低温余热 = 1000 MJ
 
+    F-P2-004 fix (P0 升级): 不再用硬编码 NM3_FUEL_GAS_TO_MJ / T_STEAM_TO_MJ.
+    MJ/unit 从 CONFIG 折标系数 toe_factor 推导 (1 kg 标油 = 41.868 MJ ISO 标准):
+    - 蒸汽: 按 pressure_level 9 档分类查 toe_factor → MJ/t = toe_factor × TOE_TO_MJ
+    - 燃料气: 按 gas_source 3 类分类查 toe_factor → MJ/Nm³ = toe_factor × TOE_TO_MJ
+    - 电/水/气体/低温余热: 走 SI 前缀 (物理常数, 非工艺精化值).
+
     Returns: (total_toe, total_standard_coal_kg, annual_total_energy_mj)
     """
     # 单位换算因子 → MJ (per unit)
-    KWH_TO_MJ = 3.6
-    NM3_FUEL_GAS_TO_MJ = 38.0  # 典型天然气低热值 ~38 MJ/Nm³
-    T_STEAM_TO_MJ = 2778.0  # 1 MPa 饱和蒸汽 (待 P7-6B 工艺室精化按等级区分)
-    T_WATER_TO_MJ = 0.0  # 新鲜水非能源
-    NM3_GAS_TO_MJ = 0.0  # 预留
-    GJ_LOW_TEMP_TO_MJ = 1000.0
+    # SI 前缀 (物理常数, 不走 CONFIG):
+    KWH_TO_MJ = 3.6  # 1 kWh = 3.6 MJ (物理定义)
+    GJ_LOW_TEMP_TO_MJ = 1000.0  # 1 GJ = 1000 MJ
+    T_WATER_TO_MJ = 0.0  # 水折标 0 (非能源载体)
+    NM3_GAS_TO_MJ = 0.0  # 工艺气体预留 (无热值)
+    # toe → MJ 转换常数 (ISO 国际标准 1 toe = 41.868 MJ):
+    TOE_TO_MJ = 41.868
+    # F-P2-004 P0 fix 删除: NM3_FUEL_GAS_TO_MJ / T_STEAM_TO_MJ (硬编码, R1 分类冲突)
+    # 现统一从 CONFIG 推导: MJ/unit = toe_factor × TOE_TO_MJ
 
     # R1 §5: 电折标系数按 electricity_value_type 选择
     # 当前 dict 单行 (last-wins) → 默认 EQUIVALENT; EQUIVALENT_VALUE 需精确查表
@@ -430,11 +439,48 @@ def _compute_totals(
 
     # 年度累积 MJ (F-P2-002 fix: nullable → None 时 0.0 跳过累加)
     electricity_mj = agg.electricity_kwh_yr * KWH_TO_MJ
-    fuel_gas_mj = agg.fuel_gas_nm3_yr * NM3_FUEL_GAS_TO_MJ
-    steam_mj = agg.steam_t_yr * T_STEAM_TO_MJ
     water_mj = (agg.water_t_yr or 0.0) * T_WATER_TO_MJ
     gas_mj = (agg.gas_nm3_yr or 0.0) * NM3_GAS_TO_MJ
     low_temp_mj = (agg.low_temp_heat_gj_yr or 0.0) * GJ_LOW_TEMP_TO_MJ
+
+    # F-P2-004 P0 fix: 蒸汽/燃料气 MJ 从 CONFIG 推导 (按分类 R1 系数)
+    # 优先用 factors_by_class 分类查表; 否则 fallback 到 factors 单值 × TOE_TO_MJ
+    fuel_gas_mj = 0.0
+    if (
+        factors_by_class
+        and agg.fuel_gas_by_source
+        and factors_by_class.get("FUEL_GAS")
+    ):
+        # R1 §7.3 分类: 油田气/气田气/炼厂燃料气 各 toe_factor 不同
+        for gas_source, nm3_amount in agg.fuel_gas_by_source.items():
+            f_pair = factors_by_class["FUEL_GAS"].get(gas_source)
+            if f_pair is None:
+                continue
+            f_toe_class, _ = f_pair
+            fuel_gas_mj += nm3_amount * f_toe_class * TOE_TO_MJ
+    else:
+        # R0 fallback: 单值 toe_factor → MJ/Nm³ = toe_factor × TOE_TO_MJ
+        f_toe_fallback = factors.get("FUEL_GAS", (0.85, 1.214))[0]
+        fuel_gas_mj = agg.fuel_gas_nm3_yr * f_toe_fallback * TOE_TO_MJ
+
+    steam_mj = 0.0
+    if (
+        factors_by_class
+        and agg.steam_t_by_pressure_level
+        and factors_by_class.get("STEAM")
+    ):
+        # R1 §7.1 分类: 9 档 pressure_level 各 toe_factor 不同
+        for pressure_level, t_amount in agg.steam_t_by_pressure_level.items():
+            s_pair = factors_by_class["STEAM"].get(pressure_level)
+            if s_pair is None:
+                continue
+            s_toe_class, _ = s_pair
+            steam_mj += t_amount * s_toe_class * TOE_TO_MJ
+    else:
+        # R0 fallback: 单值 toe_factor → MJ/t = toe_factor × TOE_TO_MJ
+        s_toe_fallback = factors.get("STEAM", (76.0, 108.6))[0]
+        steam_mj = agg.steam_t_yr * s_toe_fallback * TOE_TO_MJ
+
     annual_total_energy = (
         electricity_mj + fuel_gas_mj + steam_mj
         + water_mj + gas_mj + low_temp_mj
