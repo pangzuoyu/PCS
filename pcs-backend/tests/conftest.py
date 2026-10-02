@@ -86,9 +86,10 @@ except Exception:  # pragma: no cover
 @pytest_asyncio.fixture
 async def db_engine():
     """in-memory SQLite 异步引擎；测试隔离。"""
+    import os
     engine = create_async_engine(
         "sqlite+aiosqlite:///:memory:",
-        echo=False,
+        echo=bool(os.environ.get("SQL_ECHO")),
     )
 
     # SQLite 不支持 PostgreSQL gen_random_uuid() 函数；

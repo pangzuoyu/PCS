@@ -572,7 +572,12 @@ async def summarize_energy_year(
     # 5. 容差校验
     tolerance_pct: float | None = None
     tolerance_status = "NA"
-    if xls_reference is not None and xls_reference.total_toe > 0:
+    # F-P0-003 fix: total_toe nullable; must guard is not None BEFORE > 0 comparison
+    if (
+        xls_reference is not None
+        and xls_reference.total_toe is not None
+        and xls_reference.total_toe > 0
+    ):
         tolerance_pct = abs(
             (total_toe - xls_reference.total_toe) / xls_reference.total_toe * 100.0
         )
@@ -580,41 +585,15 @@ async def summarize_energy_year(
             "OK" if tolerance_pct <= tolerance_pct_max else "EXCEEDED"
         )
 
-    # 6. 检查 idempotent: 同 (project_id, business_year, source) 已存在?
-    stmt_existing = (
-        select(UtilityEnergySummary)
-        .where(
-            UtilityEnergySummary.project_id == project_id,
-            UtilityEnergySummary.business_year == business_year,
-            UtilityEnergySummary.source == source,
-        )
-    )
-    existing = (await db.execute(stmt_existing)).scalars().first()
-
-    if existing is not None:
-        # 覆盖更新
-        existing.electricity_kwh_yr = agg.electricity_kwh_yr
-        existing.fuel_gas_nm3_yr = agg.fuel_gas_nm3_yr
-        existing.steam_t_yr = agg.steam_t_yr
-        existing.water_t_yr = agg.water_t_yr
-        existing.gas_nm3_yr = agg.gas_nm3_yr
-        existing.low_temp_heat_gj_yr = agg.low_temp_heat_gj_yr
-        existing.annual_total_energy = annual_total_energy
-        existing.toe_conversion_factor = toe_conversion_factor
-        existing.standard_coal_factor = standard_coal_factor
-        existing.total_toe = total_toe
-        existing.total_standard_coal_kg = total_coal_kg
-        existing.tolerance_pct = tolerance_pct
-        existing.tolerance_status = tolerance_status
-        # R1 §5: 持久化 electricity_value_type 标记 (审计追溯用)
-        existing.electricity_value_type = electricity_value_type
-        # R1 §7: 持久化分类聚合结果 (3 类 dict)
-        existing.r1_classification_json = _build_r1_classification(agg)
-        existing.computed_at = func.now()
-        summary = existing
-    else:
-        # 新建
-        summary = UtilityEnergySummary(
+    # 6. F-P0-002 fix: 删 SELECT + INSERT-or-UPDATE 分支, 改用 upsert 防 TOCTOU race
+    # 旧逻辑: 非锁定 SELECT → 并发两 POST 都走 'new' 分支 → 第二个 commit 触 UNIQUE 约束 500
+    # 新逻辑: 直接 INSERT ... ON CONFLICT (project_id, business_year, source) DO UPDATE
+    # 避免 race; 用 SELECT 兜底刷新 summary 对象 (回填 id + ORM 默认值)
+    # dialect-agnostic: 用 db.bind.dialect 决定是 PG / SQLite, 兼容 test in-memory SQLite
+    from sqlalchemy.dialects import sqlite as sqlite_dialect  # noqa: PLC0415
+    insert_dialect = sqlite_dialect if db.bind is None or db.bind.dialect.name == "sqlite" else None
+    if insert_dialect is not None:
+        insert_stmt = sqlite_dialect.insert(UtilityEnergySummary).values(
             project_id=project_id,
             workspace_id=workspace_id,
             business_year=business_year,
@@ -632,13 +611,73 @@ async def summarize_energy_year(
             total_standard_coal_kg=total_coal_kg,
             tolerance_pct=tolerance_pct,
             tolerance_status=tolerance_status,
-            # R1 §5
             electricity_value_type=electricity_value_type,
-            # R1 §7: 分类聚合结果 (3 类 dict)
             r1_classification_json=_build_r1_classification(agg),
         )
-        db.add(summary)
-
+    else:
+        from sqlalchemy.dialects.postgresql import insert as pg_insert  # noqa: PLC0415
+        insert_stmt = pg_insert(UtilityEnergySummary).values(
+            project_id=project_id,
+            workspace_id=workspace_id,
+            business_year=business_year,
+            source=source,
+            electricity_kwh_yr=agg.electricity_kwh_yr,
+            fuel_gas_nm3_yr=agg.fuel_gas_nm3_yr,
+            steam_t_yr=agg.steam_t_yr,
+            water_t_yr=agg.water_t_yr,
+            gas_nm3_yr=agg.gas_nm3_yr,
+            low_temp_heat_gj_yr=agg.low_temp_heat_gj_yr,
+            annual_total_energy=annual_total_energy,
+            toe_conversion_factor=toe_conversion_factor,
+            standard_coal_factor=standard_coal_factor,
+            total_toe=total_toe,
+            total_standard_coal_kg=total_coal_kg,
+            tolerance_pct=tolerance_pct,
+            tolerance_status=tolerance_status,
+            electricity_value_type=electricity_value_type,
+            r1_classification_json=_build_r1_classification(agg),
+        )
+    # ON CONFLICT DO UPDATE: 同 (project_id, business_year, source) 行 → UPDATE SET
+    upsert_stmt = insert_stmt.on_conflict_do_update(
+        index_elements=["project_id", "business_year", "source"],
+        set_={
+            "electricity_kwh_yr": insert_stmt.excluded.electricity_kwh_yr,
+            "fuel_gas_nm3_yr": insert_stmt.excluded.fuel_gas_nm3_yr,
+            "steam_t_yr": insert_stmt.excluded.steam_t_yr,
+            "water_t_yr": insert_stmt.excluded.water_t_yr,
+            "gas_nm3_yr": insert_stmt.excluded.gas_nm3_yr,
+            "low_temp_heat_gj_yr": insert_stmt.excluded.low_temp_heat_gj_yr,
+            "annual_total_energy": insert_stmt.excluded.annual_total_energy,
+            "toe_conversion_factor": insert_stmt.excluded.toe_conversion_factor,
+            "standard_coal_factor": insert_stmt.excluded.standard_coal_factor,
+            "total_toe": insert_stmt.excluded.total_toe,
+            "total_standard_coal_kg": insert_stmt.excluded.total_standard_coal_kg,
+            "tolerance_pct": insert_stmt.excluded.tolerance_pct,
+            "tolerance_status": insert_stmt.excluded.tolerance_status,
+            "electricity_value_type": insert_stmt.excluded.electricity_value_type,
+            "r1_classification_json": insert_stmt.excluded.r1_classification_json,
+            "computed_at": func.now(),
+        },
+    )
+    await db.execute(upsert_stmt)
     await db.commit()
-    await db.refresh(summary)
+    # 重要: expire session identity map — 让 SELECT 拿到新值, 不用 ORM 缓存旧值
+    # (不然 .scalars().first() 返 identity map 里 ID 匹配的旧对象)
+    db.expire_all()
+
+    # 7. 兜底 SELECT 回填 summary 对象 (含 id + ORM 默认值)
+    stmt_existing = (
+        select(UtilityEnergySummary)
+        .where(
+            UtilityEnergySummary.project_id == project_id,
+            UtilityEnergySummary.business_year == business_year,
+            UtilityEnergySummary.source == source,
+        )
+    )
+    summary = (await db.execute(stmt_existing)).scalars().first()
+    if summary is None:
+        # 极端 case: upsert 没生效 (driver 问题); 抛错让 caller 重试
+        raise RuntimeError(
+            "summarize_energy_year upsert failed: summary not found after commit"
+        )
     return summary

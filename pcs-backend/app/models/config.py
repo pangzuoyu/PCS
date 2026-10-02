@@ -1032,8 +1032,11 @@ class ConfigEnergyConversionFactor(Base):
       - 仪表空气：2 行（按 sub_type 净化/非净化）
       - 氮气：1 行
     - 复合 UNIQUE (energy_type, value_type, sub_type, pressure_level, water_type)
-    - ``toe_factor`` 折标油系数（kg 标油 / 单位消耗量；电=kWh、燃料=kg/m³、
-      蒸汽=kg、水=kg、气体=m³、低温余热=GJ）；
+    - ``toe_factor`` 折标油系数（kg 标油 / 单位消耗量）。**单位口径明确**：
+      电 = kWh，燃料气 = Nm³，**蒸汽 = 吨**，**水 = 吨**，气体 = m³，
+      低温余热 = GJ。蒸汽/水 toe_factor 是 **per-tonne**（与 GB 30251-2024 附录 A
+      工艺室 2026-10-08 签齐一致），service 端 ``consumption × toe_factor``
+      直接乘以吨数得到 kg 标油。
     - ``standard_coal_factor`` 折标煤系数（kg 标煤 / 单位消耗量；同 toe_factor
       单位口径）；
     - ``source`` 数据来源；GB 30251-2024 附录A + GB/T 2589-2020 + GB/T 50441-2016

@@ -526,8 +526,10 @@ class UtilityEnergySummary(Base):
         comment="容差 (vs XLS_REFERENCE; ≤2% per P7-OPEN-009 §6)",
     )
     tolerance_status: Mapped[str] = mapped_column(
-        String(16), nullable=False, server_default="OK",
-        comment="容差校验状态: OK / EXCEEDED / NA",
+        # F-P0-004 fix: server_default='NA' (无 XLS 参考默认), 不用 'OK'
+        # 避免 compliance audit 误读 'OK' 为 'computed and within 2%' 假阴性
+        String(16), nullable=False, server_default="NA",
+        comment="容差校验状态: OK (≤2%) / EXCEEDED (>2%) / NA (无 XLS 参考)",
     )
     computed_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(),
