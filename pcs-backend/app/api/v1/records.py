@@ -2,6 +2,12 @@
 
 6 端点：列表/详情/创建/转移/废弃/快照查询。
 
+P7-7+ BLOCKER-3 集成:
+- create_piping / transition_piping / obsolete_piping: 改用 Depends(current_actor)
+  替代裸 user_id query param (修 IDOR — query user_id 客户端可任意伪造)
+- actor.role 取代 actor_role query param (同样伪造风险)
+- list/get/snapshots 仍走 workspace_id 守卫 (Sprint 2 已有, 暂不动)
+
 注意：
 - POST /piping 是 Sprint 2 dev-only，临时用于驱动状态机集成测试；
   Sprint 3 由 `app.services.record_service.RecordService.create_piping` 替换。
@@ -11,13 +17,14 @@
 from __future__ import annotations
 
 import uuid
-from typing import cast
+from typing import Annotated, cast
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_workspace, require_formal_workspace
+from app.api.v1.config import _Actor, current_actor
 from app.db.session import get_db
 from app.models.calc import PipingResult
 from app.models.deliverable import RecordChangeSnapshot
@@ -108,11 +115,15 @@ async def get_piping(
 @router.post("/piping", response_model=dict)
 async def create_piping(
     payload: dict,
+    user: Annotated[_Actor, Depends(current_actor)],
     workspace: Workspace = Depends(require_formal_workspace),
-    user_id: uuid.UUID = Query(...),
     session: AsyncSession = Depends(get_db),
 ):
-    """Sprint 2 dev-only：测试驱动用。Sprint 3 替换为 RecordService.create_piping。"""
+    """Sprint 2 dev-only：测试驱动用。Sprint 3 替换为 RecordService.create_piping。
+
+    BLOCKER-3 P7-7+ 集成：actor.user_id 取代 query param user_id
+    （修复 IDOR：user_id 不再可由客户端伪造）。
+    """
     rec = PipingResult(
         project_id=uuid.UUID(payload["project_id"]),
         workspace_id=workspace.workspace_id,
@@ -137,7 +148,7 @@ async def create_piping(
         pressure_test_medium=payload.get("pressure_test_medium", "WATER"),
         pressure_test_press=float(payload.get("pressure_test_press", 1.0)),
         check_class=payload.get("check_class", "II"),
-        created_by=user_id,
+        created_by=user.user_id,
     )
     session.add(rec)
     await session.flush()
@@ -149,9 +160,8 @@ async def create_piping(
 async def transition_piping(
     pipe_id: uuid.UUID,
     payload: RecordTransitionRequest,
+    user: Annotated[_Actor, Depends(current_actor)],
     workspace_id: uuid.UUID = Query(...),
-    user_id: uuid.UUID = Query(...),
-    actor_role: str = Query("DESIGNER"),
     session: AsyncSession = Depends(get_db),
 ):
     """管路记录状态机迁移（DRAFT → REVIEWED → APPROVED → ...）。
@@ -162,7 +172,8 @@ async def transition_piping(
     3. 调 StateMachineService.transition，非法迁移 → 409
     4. 提交由本端点负责（session.commit()）
 
-    actor_role 默认 DESIGNER（审核/批准时由调用方传 APPROVER 等）。
+    BLOCKER-3 P7-7+ 集成：actor.user_id / actor.role 取代 query param
+    （修复 IDOR + role 伪造）。
     """
     ws = await require_formal_workspace(await get_workspace(workspace_id, session))
     rec = (
@@ -180,8 +191,8 @@ async def transition_piping(
         await svc.transition(
             record=rec,
             transition=cast(StateTransition, payload.transition),
-            actor_user_id=user_id,
-            actor_role=actor_role,
+            actor_user_id=user.user_id,
+            actor_role=user.role,
             reason=payload.reason,
         )
     except Exception as e:
@@ -193,9 +204,8 @@ async def transition_piping(
 @router.delete("/piping/{pipe_id}", response_model=dict)
 async def obsolete_piping(
     pipe_id: uuid.UUID,
+    user: Annotated[_Actor, Depends(current_actor)],
     workspace_id: uuid.UUID = Query(...),
-    user_id: uuid.UUID = Query(...),
-    actor_role: str = Query("DESIGNER"),
     reason: str = Query(""),
     session: AsyncSession = Depends(get_db),
 ):
@@ -209,6 +219,8 @@ async def obsolete_piping(
 
     与 `transition_piping` 区别：本端点固定 transition=OBSOLETE，semantically 是
     "软删除"，不真删 PipingResult 行（保留审计快照）。
+
+    BLOCKER-3 P7-7+ 集成：actor.user_id / actor.role 取代 query param。
     """
     ws = await require_formal_workspace(await get_workspace(workspace_id, session))
     rec = (
@@ -225,8 +237,8 @@ async def obsolete_piping(
     await svc.transition(
         record=rec,
         transition=StateTransition.OBSOLETE,
-        actor_user_id=user_id,
-        actor_role=actor_role,
+        actor_user_id=user.user_id,
+        actor_role=user.role,
         reason=reason,
     )
     await session.commit()
@@ -260,7 +272,7 @@ async def list_snapshots(
     ).scalar_one_or_none()
     if rec is None:
         raise HTTPException(404, "piping record not found")
-    snaps = (
+    rows = (
         await session.execute(
             select(RecordChangeSnapshot)
             .where(
@@ -278,5 +290,5 @@ async def list_snapshots(
             "snapshot_source": s.snapshot_source,
             "created_at": s.created_at.isoformat() if s.created_at else None,
         }
-        for s in snaps
+        for s in rows
     ]
