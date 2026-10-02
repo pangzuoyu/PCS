@@ -217,3 +217,94 @@ async def test_api_list_util_results_unauthenticated_401(client):
     """GET /util/results unauthenticated → 401。"""
     r = await client.get("/api/v1/util/results")
     assert r.status_code == 401
+
+
+# ---------------------------------------------------------------------------
+# F-P2-001 + F-P2-007 Literal validation + source param on T5 aggregate
+# ---------------------------------------------------------------------------
+
+
+async def test_api_aggregate_energy_summary_source_xls_201(
+    client, db_session, sample_user_token, pws_setup
+):
+    """POST /energy-summary/aggregate source='XLS_REFERENCE' → 201 (F-P2-007).
+
+    之前 aggregate_energy_summary 硬编码 source='CALCULATION'，XLS_REFERENCE 行
+    无法通过 API 落库。R1 §5 GB 30251-2024 容差校验需要 XLS_REFERENCE 行。
+    """
+    pws = pws_setup
+    # Seed 最小电耗源数据 (T1) — 让 aggregate 不全 0 (用 API 端点创建 T1 record)
+    r_pwr = await client.post(
+        "/api/v1/util/power-items",
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+        json={
+            "project_id": str(pws["project_id"]),
+            "workspace_id": str(pws["workspace_id"]),
+            "equipment_tag": "P-XLS-001",
+            "motor_power_kw": 100.0,
+            "operating_hours_per_year": 8000.0,
+            "load_factor": 1.0,
+        },
+    )
+    assert r_pwr.status_code == 201, r_pwr.text
+    r = await client.post(
+        "/api/v1/util/energy-summary/aggregate",
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+        json={
+            "project_id": str(pws["project_id"]),
+            "workspace_id": str(pws["workspace_id"]),
+            "business_year": 2026,
+            "source": "XLS_REFERENCE",
+        },
+    )
+    assert r.status_code == 201, r.text
+    body = r.json()
+    assert body["source"] == "XLS_REFERENCE"
+
+
+async def test_api_aggregate_energy_summary_invalid_source_422(
+    client, sample_user_token, pws_setup
+):
+    """POST /energy-summary/aggregate source='INVALID' → 422 (F-P2-001 Literal).
+
+    验证 Literal 校验生效：CALCULATION / XLS_REFERENCE 之外的值被 Pydantic 拒绝。
+    """
+    pws = pws_setup
+    r = await client.post(
+        "/api/v1/util/energy-summary/aggregate",
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+        json={
+            "project_id": str(pws["project_id"]),
+            "workspace_id": str(pws["workspace_id"]),
+            "business_year": 2026,
+            "source": "INVALID_NOT_IN_LITERAL",
+        },
+    )
+    assert r.status_code == 422
+    assert "source" in r.text  # Pydantic 错误体含字段名
+
+
+async def test_api_create_util_fuel_gas_invalid_fuel_type_422(
+    client, sample_user_token, pws_setup
+):
+    """POST /fuel-gas fuel_type='NUCLEAR' → 422 (F-P2-001 Literal).
+
+    Literal['NATURAL_GAS', 'REFINERY_GAS', 'LPG', 'LNG', 'OTHERS'] 之外的值被拒。
+    """
+    pws = pws_setup
+    r = await client.post(
+        "/api/v1/util/fuel-gas-items",
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+        json={
+            "project_id": str(pws["project_id"]),
+            "workspace_id": str(pws["workspace_id"]),
+            "equipment_tag": "FG-LIT-001",
+            "fuel_type": "NUCLEAR",  # 不在 Literal 中
+            "calorific_value_kcal_nm3": 8500.0,
+            "consumption_nm3_h": 100.0,
+            "operating_phase": "STEADY",
+            "operating_hours_per_year": 8000.0,
+        },
+    )
+    assert r.status_code == 422
+    assert "fuel_type" in r.text

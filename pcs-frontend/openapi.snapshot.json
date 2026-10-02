@@ -1048,7 +1048,7 @@
           "lineage"
         ],
         "summary": "Upstream",
-        "description": "GET 上游血缘链（沿计算记录向上回溯）。\n\n步骤：\n1. LineageTracker.upstream 按 record_type + record_id 直接递归回溯\n   （不走 latest()，因为上游追溯用最近一次就行）\n2. max_depth 限 1..50（防止极深递归触发 N+1 风暴）\n3. 返回 [dict, ...]（按 _serialize 统一字段：record_type/record_id/\n   lineage_id/relation/depth）\n\n与 downstream 区别：upstream 直接按 (record_type, record_id) 递归；\ndownstream 需 latest() 解析（跨多次重算取最近一次）。",
+        "description": "GET 上游血缘链（沿计算记录向上回溯）。\n\n步骤：\n0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)\n1. LineageTracker.upstream 按 record_type + record_id 直接递归回溯\n   （不走 latest()，因为上游追溯用最近一次就行）\n2. max_depth 限 1..50（防止极深递归触发 N+1 风暴）\n3. 返回 [dict, ...]（按 _serialize 统一字段：record_type/record_id/\n   lineage_id/relation/depth）\n\n与 downstream 区别：upstream 直接按 (record_type, record_id) 递归；\ndownstream 需 latest() 解析（跨多次重算取最近一次）。",
         "operationId": "upstream_api_v1_lineage__record_type___record_id__upstream_get",
         "parameters": [
           {
@@ -1080,6 +1080,22 @@
               "minimum": 1,
               "default": 10,
               "title": "Max Depth"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1151,6 +1167,22 @@
               "default": 10,
               "title": "Max Depth"
             }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
           }
         ],
         "responses": {
@@ -1188,7 +1220,7 @@
           "lineage"
         ],
         "summary": "Graph",
-        "description": "取记录的全谱系图（root + upstream + downstream）。\n\n步骤：\n1. 查最新 LineageRecord（lineage_id；不存在 → 404 no lineage for record）\n2. 上溯祖先（upstream）：从最新版本反向追踪到源头参数表\n3. 下溯派生（downstream）：从当前 lineage_id 出发追到所有派生版本\n   （多版本分支以链式 children 形式返回）\n4. 返回 dict { root, upstream, downstream }，每项均经 _serialize 转 dict\n\n参数 max_depth 限制上下游遍历深度（1-50，默认 10，防爆栈）。",
+        "description": "取记录的全谱系图（root + upstream + downstream）。\n\n步骤：\n0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)\n1. 查最新 LineageRecord（lineage_id；不存在 → 404 no lineage for record）\n2. 上溯祖先（upstream）：从最新版本反向追踪到源头参数表\n3. 下溯派生（downstream）：从当前 lineage_id 出发追到所有派生版本\n   （多版本分支以链式 children 形式返回）\n4. 返回 dict { root, upstream, downstream }，每项均经 _serialize 转 dict\n\n参数 max_depth 限制上下游遍历深度（1-50，默认 10，防爆栈）。",
         "operationId": "graph_api_v1_lineage__record_type___record_id__graph_get",
         "parameters": [
           {
@@ -1220,6 +1252,22 @@
               "minimum": 1,
               "default": 10,
               "title": "Max Depth"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -1570,7 +1618,7 @@
           "change-impact"
         ],
         "summary": "Confirm Recalc",
-        "description": "强制触发 CIA 扫描 + 传播 + 设备联动。",
+        "description": "强制触发 CIA 扫描 + 传播 + 设备联动。\n\nBLOCKER-3 P7-7+ IDOR 防护: actor 必须有 record.project_id 访问权\n(先 fetch PipingResult 拿 project_id, 再 check_record_access_or_404).",
         "operationId": "confirm_recalc_api_v1_change_impact__record_type___record_id__confirm_recalc_post",
         "parameters": [
           {
@@ -1590,6 +1638,22 @@
               "type": "string",
               "format": "uuid",
               "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -9072,17 +9136,35 @@
           "cv"
         ],
         "summary": "Cv Calculate",
-        "description": "POST /api/v1/cv/calculate：调节阀 Cv 单工况计算落库。\n\n流程：\n1. CvService.persist_calculate（调 CvEngine + 落 cv_results + outlet stream）\n2. 查 outlet stream（upstream_stream_id == source_stream_id）\n3. 组装 CvCalculateResponse 返回\n\nReturns:\n    201 + cv_result_id + outlet_stream_id + 关键计算字段",
+        "description": "POST /api/v1/cv/calculate：调节阀 Cv 单工况计算落库。\n\n流程：\n0. BLOCKER-3 P7-7+ 守卫: actor 必须有 req.project_id 访问权 (防 IDOR)\n1. CvService.persist_calculate（调 CvEngine + 落 cv_results + outlet stream）\n2. 查 outlet stream（upstream_stream_id == source_stream_id）\n3. 组装 CvCalculateResponse 返回\n\nReturns:\n    201 + cv_result_id + outlet_stream_id + 关键计算字段",
         "operationId": "cv_calculate_api_v1_cv_calculate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
         "requestBody": {
+          "required": true,
           "content": {
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/CvCalculateRequest"
               }
             }
-          },
-          "required": true
+          }
         },
         "responses": {
           "201": {
@@ -30308,6 +30390,17 @@
             "description": "业务年度",
             "default": 2026
           },
+          "source": {
+            "type": "string",
+            "enum": [
+              "CALCULATION",
+              "XLS_REFERENCE"
+            ],
+            "maxLength": 32,
+            "title": "Source",
+            "description": "数据来源 (R1 §5 GB 30251-2024): CALCULATION (系统聚合, 默认) / XLS_REFERENCE (XLS 录入对照行, 用于容差校验)",
+            "default": "CALCULATION"
+          },
           "electricity_value_type": {
             "type": "string",
             "maxLength": 16,
@@ -30552,6 +30645,13 @@
           },
           "fuel_type": {
             "type": "string",
+            "enum": [
+              "NATURAL_GAS",
+              "REFINERY_GAS",
+              "LPG",
+              "LNG",
+              "OTHERS"
+            ],
             "maxLength": 32,
             "title": "Fuel Type",
             "description": "燃料类型 (R0 字段, R1 deprecated)",
@@ -30585,9 +30685,14 @@
           },
           "operating_phase": {
             "type": "string",
+            "enum": [
+              "INITIAL",
+              "STEADY",
+              "MAX"
+            ],
             "maxLength": 16,
             "title": "Operating Phase",
-            "description": "INITIAL/STEADY/MAX"
+            "description": "INITIAL (初期) / STEADY (末期/稳态) / MAX (最大工况)"
           },
           "operating_hours_per_year": {
             "type": "number",
@@ -30781,9 +30886,15 @@
           },
           "temperature_class": {
             "type": "string",
+            "enum": [
+              "LP",
+              "MP",
+              "HP",
+              "ULTRA_HIGH"
+            ],
             "maxLength": 16,
             "title": "Temperature Class",
-            "description": "LP/MP/HP/ULTRA_HIGH (R0 字段, R1 deprecated)"
+            "description": "R0 字段 (R1 deprecated - 用 pressure_level 9 档)"
           },
           "pressure_level": {
             "anyOf": [
@@ -30842,6 +30953,12 @@
             "anyOf": [
               {
                 "type": "string",
+                "enum": [
+                  "MANUAL",
+                  "CALCULATION",
+                  "XLS_REFERENCE",
+                  "source_aggregator"
+                ],
                 "maxLength": 32
               },
               {
@@ -31295,6 +31412,50 @@
               }
             ],
             "title": "Updated At"
+          },
+          "annual_total_energy": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annual Total Energy"
+          },
+          "total_toe": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Toe"
+          },
+          "total_standard_coal_kg": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Total Standard Coal Kg"
+          },
+          "tolerance_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tolerance Status"
           }
         },
         "type": "object",
@@ -31306,7 +31467,7 @@
           "jsonb_deprecated"
         ],
         "title": "UtilResultsResponse",
-        "description": "UtilResults 单条记录响应。"
+        "description": "UtilResults 单条记录响应。\n\nF-P1-007 fix: 加 4 聚合字段 (annual_total_energy / total_toe /\ntotal_standard_coal_kg / tolerance_status), 让客户端不需要二次聚合,\n直接读 service 算好的结果."
       },
       "UtilSummaryResponse": {
         "properties": {

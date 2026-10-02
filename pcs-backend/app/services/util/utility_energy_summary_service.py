@@ -190,16 +190,21 @@ async def _aggregate_util_subtables(
         row.medium_type: float(row[1]) for row in water_rows if row.medium_type
     }
 
-    # R0 兼容: water_t_yr = 水消耗 (medium_type != 'STEAM' 行的 annual_consumption_t)
-    water_t_yr = sum(water_by_type.values()) if water_by_type else 0.0
+    # F-P2-002 fix: water_t_yr nullable — 0.0 写库会被下游误读为真实数据
+    # 无 water 数据时返回 None (与 gas_nm3_yr / low_temp_heat_gj_yr 一致)
+    water_t_yr: float | None = (
+        sum(water_by_type.values()) if water_by_type else None
+    )
 
+    # F-P2-002 fix: gas_nm3_yr / low_temp_heat_gj_yr 也 nullable (与 water_t_yr 一致)
+    # 无对应子表数据时返 None, 下游能区分"未采集"与"采集=0"
     return EnergyAggregation(
         electricity_kwh_yr=electricity_kwh_yr,
         fuel_gas_nm3_yr=fuel_gas_nm3_yr,
         steam_t_yr=steam_t_yr,
-        water_t_yr=water_t_yr,  # R1 §7.2 (P7-6B) 水消耗年累积 (medium_type != STEAM)
-        gas_nm3_yr=0.0,
-        low_temp_heat_gj_yr=0.0,
+        water_t_yr=water_t_yr,  # F-P2-002 fix: nullable (None 当无水消耗)
+        gas_nm3_yr=None,  # F-P2-002 fix: nullable
+        low_temp_heat_gj_yr=None,  # F-P2-002 fix: nullable
         steam_t_by_pressure_level=steam_t_by_pressure_level,
         fuel_gas_by_source=fuel_gas_by_source,
         water_by_type=water_by_type or None,  # R1 §7.2 (P7-6B) 水按 medium_type 9 类聚合
@@ -423,13 +428,13 @@ def _compute_totals(
     g_toe, g_coal = factors.get("GAS", (0.85, 1.2143))
     h_toe, h_coal = factors.get("LOW_TEMP_HEAT", (0.0341, 0.0487))
 
-    # 年度累积 MJ
+    # 年度累积 MJ (F-P2-002 fix: nullable → None 时 0.0 跳过累加)
     electricity_mj = agg.electricity_kwh_yr * KWH_TO_MJ
     fuel_gas_mj = agg.fuel_gas_nm3_yr * NM3_FUEL_GAS_TO_MJ
     steam_mj = agg.steam_t_yr * T_STEAM_TO_MJ
-    water_mj = agg.water_t_yr * T_WATER_TO_MJ
-    gas_mj = agg.gas_nm3_yr * NM3_GAS_TO_MJ
-    low_temp_mj = agg.low_temp_heat_gj_yr * GJ_LOW_TEMP_TO_MJ
+    water_mj = (agg.water_t_yr or 0.0) * T_WATER_TO_MJ
+    gas_mj = (agg.gas_nm3_yr or 0.0) * NM3_GAS_TO_MJ
+    low_temp_mj = (agg.low_temp_heat_gj_yr or 0.0) * GJ_LOW_TEMP_TO_MJ
     annual_total_energy = (
         electricity_mj + fuel_gas_mj + steam_mj
         + water_mj + gas_mj + low_temp_mj
@@ -495,20 +500,20 @@ def _compute_totals(
             water_toe_kg += t_amount * w_toe_class
             water_coal_kg += t_amount * w_coal_class
     else:
-        # R0 兼容: 单值 fallback
-        water_toe_kg = agg.water_t_yr * w_toe
-        water_coal_kg = agg.water_t_yr * w_coal
+        # R0 兼容: 单值 fallback (F-P2-002 fix: nullable → or 0.0)
+        water_toe_kg = (agg.water_t_yr or 0.0) * w_toe
+        water_coal_kg = (agg.water_t_yr or 0.0) * w_coal
 
     # toe = consumption × toe_factor (toe_factor 单位 kg 标油 / 单位消耗)
     # total 单位转换: toe = consumption_kg_单位足 × kg 标油 / 单位 = kg 标油
-    # → divide by 1000 → tonne oil equivalent
+    # → divide by 1000 → tonne oil equivalent (F-P2-002 fix: nullable)
     total_toe_kg = (
         agg.electricity_kwh_yr * e_toe
         + fuel_toe_kg
         + steam_toe_kg
         + water_toe_kg
-        + agg.gas_nm3_yr * g_toe
-        + agg.low_temp_heat_gj_yr * h_toe
+        + (agg.gas_nm3_yr or 0.0) * g_toe
+        + (agg.low_temp_heat_gj_yr or 0.0) * h_toe
     )
     total_toe = total_toe_kg / 1000.0  # kg → tonne
 
@@ -517,8 +522,8 @@ def _compute_totals(
         + fuel_coal_kg
         + steam_coal_kg
         + water_coal_kg
-        + agg.gas_nm3_yr * g_coal
-        + agg.low_temp_heat_gj_yr * h_coal
+        + (agg.gas_nm3_yr or 0.0) * g_coal
+        + (agg.low_temp_heat_gj_yr or 0.0) * h_coal
     )
 
     return total_toe, total_coal_kg, annual_total_energy

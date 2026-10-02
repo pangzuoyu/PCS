@@ -463,6 +463,7 @@ export interface paths {
          * @description GET 上游血缘链（沿计算记录向上回溯）。
          *
          *     步骤：
+         *     0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)
          *     1. LineageTracker.upstream 按 record_type + record_id 直接递归回溯
          *        （不走 latest()，因为上游追溯用最近一次就行）
          *     2. max_depth 限 1..50（防止极深递归触发 N+1 风暴）
@@ -525,6 +526,7 @@ export interface paths {
          * @description 取记录的全谱系图（root + upstream + downstream）。
          *
          *     步骤：
+         *     0. BLOCKER-3 P7-7+: actor 必须有 record.project_id 访问权 (读血缘也算访问数据)
          *     1. 查最新 LineageRecord（lineage_id；不存在 → 404 no lineage for record）
          *     2. 上溯祖先（upstream）：从最新版本反向追踪到源头参数表
          *     3. 下溯派生（downstream）：从当前 lineage_id 出发追到所有派生版本
@@ -680,6 +682,9 @@ export interface paths {
         /**
          * Confirm Recalc
          * @description 强制触发 CIA 扫描 + 传播 + 设备联动。
+         *
+         *     BLOCKER-3 P7-7+ IDOR 防护: actor 必须有 record.project_id 访问权
+         *     (先 fetch PipingResult 拿 project_id, 再 check_record_access_or_404).
          */
         post: operations["confirm_recalc_api_v1_change_impact__record_type___record_id__confirm_recalc_post"];
         delete?: never;
@@ -3099,6 +3104,7 @@ export interface paths {
          * @description POST /api/v1/cv/calculate：调节阀 Cv 单工况计算落库。
          *
          *     流程：
+         *     0. BLOCKER-3 P7-7+ 守卫: actor 必须有 req.project_id 访问权 (防 IDOR)
          *     1. CvService.persist_calculate（调 CvEngine + 落 cv_results + outlet stream）
          *     2. 查 outlet stream（upstream_stream_id == source_stream_id）
          *     3. 组装 CvCalculateResponse 返回
@@ -14645,6 +14651,10 @@ export interface components {
         /**
          * UtilResultsResponse
          * @description UtilResults 单条记录响应。
+         *
+         *     F-P1-007 fix: 加 4 聚合字段 (annual_total_energy / total_toe /
+         *     total_standard_coal_kg / tolerance_status), 让客户端不需要二次聚合,
+         *     直接读 service 算好的结果.
          */
         UtilResultsResponse: {
             /**
@@ -14676,6 +14686,14 @@ export interface components {
             created_at?: string | null;
             /** Updated At */
             updated_at?: string | null;
+            /** Annual Total Energy */
+            annual_total_energy?: number | null;
+            /** Total Toe */
+            total_toe?: number | null;
+            /** Total Standard Coal Kg */
+            total_standard_coal_kg?: number | null;
+            /** Tolerance Status */
+            tolerance_status?: string | null;
         };
         /**
          * UtilSummaryResponse
@@ -16514,7 +16532,9 @@ export interface operations {
             query?: {
                 max_depth?: number;
             };
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path: {
                 record_type: string;
                 record_id: string;
@@ -16550,7 +16570,9 @@ export interface operations {
             query?: {
                 max_depth?: number;
             };
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path: {
                 record_type: string;
                 record_id: string;
@@ -16586,7 +16608,9 @@ export interface operations {
             query?: {
                 max_depth?: number;
             };
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path: {
                 record_type: string;
                 record_id: string;
@@ -16808,7 +16832,9 @@ export interface operations {
     confirm_recalc_api_v1_change_impact__record_type___record_id__confirm_recalc_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path: {
                 record_type: string;
                 record_id: string;
@@ -20849,7 +20875,9 @@ export interface operations {
     cv_calculate_api_v1_cv_calculate_post: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                authorization?: string | null;
+            };
             path?: never;
             cookie?: never;
         };

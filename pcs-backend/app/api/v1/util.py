@@ -625,6 +625,7 @@ async def aggregate_energy_summary(
         project_id=body.project_id,
         workspace_id=body.workspace_id,
         business_year=body.business_year,
+        source=body.source,  # F-P2-007: 透传 source (CALCULATION / XLS_REFERENCE)
     )
     return _energy_summary_to_response(summary)
 

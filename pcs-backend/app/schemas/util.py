@@ -177,7 +177,9 @@ class UtilFuelGasCreateRequest(BaseModel):
     project_id: uuid.UUID = Field(..., description="项目 UUID")
     workspace_id: uuid.UUID = Field(..., description="workspace UUID")
     equipment_tag: str = Field(..., min_length=1, max_length=64, description="设备位号")
-    fuel_type: str = Field("NATURAL_GAS", max_length=32, description="燃料类型 (R0 字段, R1 deprecated)")
+    fuel_type: Literal["NATURAL_GAS", "REFINERY_GAS", "LPG", "LNG", "OTHERS"] = Field(
+        "NATURAL_GAS", max_length=32, description="燃料类型 (R0 字段, R1 deprecated)"
+    )
     gas_source: str | None = Field(
         None, max_length=32,
         description=(
@@ -189,8 +191,8 @@ class UtilFuelGasCreateRequest(BaseModel):
         ..., gt=0, le=20000, description="低位热值 (kcal/Nm³)"
     )
     consumption_nm3_h: float = Field(..., gt=0, description="小时消耗量 (Nm³/h)")
-    operating_phase: str = Field(
-        ..., max_length=16, description="INITIAL/STEADY/MAX"
+    operating_phase: Literal["INITIAL", "STEADY", "MAX"] = Field(
+        ..., max_length=16, description="INITIAL (初期) / STEADY (末期/稳态) / MAX (最大工况)"
     )
     operating_hours_per_year: float = Field(
         8000.0, gt=0, le=8760, description="年运行小时"
@@ -240,8 +242,8 @@ class UtilHeatExchangeCreateRequest(BaseModel):
     return_condensate_pct: float = Field(
         ..., ge=0, le=100, description="冷凝水回收率"
     )
-    temperature_class: str = Field(
-        ..., max_length=16, description="LP/MP/HP/ULTRA_HIGH (R0 字段, R1 deprecated)"
+    temperature_class: Literal["LP", "MP", "HP", "ULTRA_HIGH"] = Field(
+        ..., max_length=16, description="R0 字段 (R1 deprecated - 用 pressure_level 9 档)"
     )
     pressure_level: str | None = Field(
         None, max_length=32,
@@ -267,7 +269,9 @@ class UtilHeatExchangeCreateRequest(BaseModel):
     annual_consumption_t: float | None = Field(
         None, ge=0, description="年消耗量 (t/yr; 缺省=service 计算)"
     )
-    source: str | None = Field("MANUAL", max_length=32, description="数据来源")
+    source: Literal["MANUAL", "CALCULATION", "XLS_REFERENCE", "source_aggregator"] | None = Field(
+        "MANUAL", max_length=32, description="数据来源"
+    )
 
 
 class UtilHeatExchangeResponse(BaseModel):
@@ -307,6 +311,11 @@ class UtilEnergySummaryAggregateRequest(BaseModel):
     project_id: uuid.UUID = Field(..., description="项目 UUID")
     workspace_id: uuid.UUID = Field(..., description="workspace UUID")
     business_year: int = Field(2026, ge=2020, le=2100, description="业务年度")
+    source: Literal["CALCULATION", "XLS_REFERENCE"] = Field(
+        "CALCULATION", max_length=32,
+        description="数据来源 (R1 §5 GB 30251-2024): CALCULATION (系统聚合, 默认) / "
+                    "XLS_REFERENCE (XLS 录入对照行, 用于容差校验)",
+    )
     electricity_value_type: str = Field(
         "EQUIVALENT",
         max_length=16,
