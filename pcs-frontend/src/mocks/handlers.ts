@@ -380,6 +380,117 @@ const seedRevisions: (RevVersion & { asset_id: string })[] = [
   { asset_id: 'a-std-005', version_id: 'v-a-std-005-C', rev_letter: 'C', issued_at: '2026-08-30T10:15:00Z', status: 'ISSUED_FOR_USE', affected: true, signatures: [], snapshot_hash: 'd4e5f678', snapshot_hash_full: 'd4e5f67890abcdef1234c' },
 ];
 
+// === P7-6B 冷却水 / 综合能耗 mock（V1 dev-only, 走 devOnlyMockHandlers）===
+const utilSeedHeatExchange = [
+  {
+    id: '00000000-0000-0000-0000-000000000001',
+    project_id: '00000000-0000-0000-0000-000000000001',
+    workspace_id: '00000000-0000-0000-0000-000000000002',
+    equipment_tag: 'CW-001',
+    steam_pressure_mpa_gauge: 0,
+    steam_quality_pct: 0,
+    return_condensate_pct: 0,
+    temperature_class: 'LP',
+    medium_type: 'CIRCULATING_WATER',
+    pressure_level: null,
+    steam_consumption_t_h: 10.0,
+    operating_hours_per_year: 8000,
+    annual_consumption_t: 80000.0,
+    source: 'MANUAL',
+  },
+  {
+    id: '00000000-0000-0000-0000-000000000002',
+    project_id: '00000000-0000-0000-0000-000000000001',
+    workspace_id: '00000000-0000-0000-0000-000000000002',
+    equipment_tag: 'ST-MP-001',
+    steam_pressure_mpa_gauge: 1.0,
+    steam_quality_pct: 99.0,
+    return_condensate_pct: 80.0,
+    temperature_class: 'MP',
+    medium_type: 'STEAM',
+    pressure_level: '0_8_TO_1_2_MPA',
+    steam_consumption_t_h: 5.0,
+    operating_hours_per_year: 8000,
+    annual_consumption_t: 40000.0,
+    source: 'MANUAL',
+  },
+];
+
+const utilSeedEnergySummary = {
+  id: '00000000-0000-0000-0000-000000000010',
+  project_id: '00000000-0000-0000-0000-000000000001',
+  workspace_id: '00000000-0000-0000-0000-000000000002',
+  business_year: 2026,
+  source: 'CALCULATION',
+  electricity_kwh_yr: 102000.0,
+  fuel_gas_nm3_yr: 0.0,
+  steam_t_yr: 20000.0,
+  water_t_yr: 0.0,
+  gas_nm3_yr: 0.0,
+  low_temp_heat_gj_yr: 0.0,
+  annual_total_energy: 55927200.0,
+  toe_conversion_factor: 0.0,
+  standard_coal_factor: 0.0,
+  total_toe: 1528.772,
+  total_standard_coal_kg: 2183960.0,
+  tolerance_pct: null,
+  tolerance_status: 'NA',
+  electricity_value_type: 'EQUIVALENT',
+  r1_classification: {
+    steam_by_pressure_level: { '0_8_TO_1_2_MPA': 20000.0 },
+    fuel_gas_by_source: {},
+    water_by_type: {},
+  },
+  computed_at: '2026-10-02T00:00:00Z',
+  created_at: '2026-10-02T00:00:00Z',
+  updated_at: null,
+};
+
+devOnlyMockHandlers.push(
+  // === P7-6B 冷却水子表 (R1 §7.2 9 类水) ===
+  http.get('/api/v1/util/heat-exchange-items', ({ request }) => {
+    if (!isAuthed(request)) {
+      return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
+    }
+    return HttpResponse.json(utilSeedHeatExchange);
+  }),
+  http.post('/api/v1/util/heat-exchange-items', async ({ request }) => {
+    if (!isAuthed(request)) {
+      return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
+    }
+    const body = (await request.json()) as Record<string, unknown>;
+    const created = {
+      id: '00000000-0000-0000-0000-000000000099',
+      project_id: String(body.project_id ?? ''),
+      workspace_id: String(body.workspace_id ?? ''),
+      equipment_tag: String(body.equipment_tag ?? 'CW-XXX'),
+      steam_pressure_mpa_gauge: 0,
+      steam_quality_pct: 0,
+      return_condensate_pct: 0,
+      temperature_class: 'LP',
+      medium_type: body.medium_type ?? 'CIRCULATING_WATER',
+      pressure_level: null,
+      steam_consumption_t_h: Number(body.steam_consumption_t_h ?? 0),
+      operating_hours_per_year: Number(body.operating_hours_per_year ?? 8000),
+      annual_consumption_t: Number(body.annual_consumption_t ?? 0),
+      source: 'MANUAL',
+    };
+    return HttpResponse.json(created, { status: 201 });
+  }),
+  // === P7 Sprint 2 T5 综合能耗聚合 ===
+  http.post('/api/v1/util/energy-summary/aggregate', async ({ request }) => {
+    if (!isAuthed(request)) {
+      return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
+    }
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({
+      ...utilSeedEnergySummary,
+      business_year: Number(body.business_year ?? 2026),
+      electricity_value_type: String(body.electricity_value_type ?? 'EQUIVALENT'),
+    });
+  }),
+);
+
 /** 后端 OpenAPI 契约端点（meta 5 端点）。handlers 数组统一导出；test 端 OpenAPI drift
  * 校验只针对这一组，devOnlyMockHandlers 通过拼接传入 setupWorker。 */
 export const handlers = [
