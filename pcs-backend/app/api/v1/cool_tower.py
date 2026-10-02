@@ -371,9 +371,9 @@ async def update_cool_tower_result(
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     # BLOCKER-3 守卫: 先查 record 后再 service 调用
     from sqlalchemy import select as _sa_select
-    from app.models.cool_tower import CoolTowerResult
+    from app.models.calc import CoolingTowerResult
     pre_record = (await db.execute(
-        _sa_select(CoolTowerResult).where(CoolTowerResult.cool_tower_id == record_id)
+        _sa_select(CoolingTowerResult).where(CoolingTowerResult.cooling_tower_id == record_id)
     )).scalar_one_or_none()
     if pre_record is None:
         raise HTTPException(

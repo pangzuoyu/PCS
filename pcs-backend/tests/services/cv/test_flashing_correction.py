@@ -413,7 +413,7 @@ async def test_cv_persist_persists_masonelian_model(
 
 @pytest.mark.asyncio
 async def test_cv_api_response_includes_3_optional_fields(
-    client, source_stream, project_id, workspace_id
+    client, sample_user_token, source_stream, project_id, workspace_id
 ):
     """POST /cv/calculate 响应含 3 Optional 字段（commit 4 验收）。
 
@@ -426,7 +426,11 @@ async def test_cv_api_response_includes_3_optional_fields(
         "source_stream_id": str(source_stream.stream_id),
     }
 
-    r = await client.post("/api/v1/cv/calculate", json=req_api)
+    r = await client.post(
+        "/api/v1/cv/calculate",
+        json=req_api,
+        headers={"Authorization": f"Bearer {sample_user_token}"},
+    )
     assert r.status_code == 201, r.text
     body = r.json()
 
