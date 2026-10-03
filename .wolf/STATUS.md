@@ -4,19 +4,72 @@ budget_tokens: 1500
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-01.
+> Read this FIRST when starting a session. Last updated: 2026-10-03.
 
 ---
 
 ## 🚀 Next quest
-**P7 Sprint 0 完成（2026-10-01）**：mock 启动准备 5 项 = 4 docs + SPEC V1.4 + bug-114/115
-- 评估：`docs/P7-OPEN-007-physical-semantics-evaluation.md`（推迟待补采）+ `docs/P7-OPEN-008-rule-registry-form-evaluation.md`（方案 B）
-- 裁决：`docs/P7-REV-01-04-mock-decisions.md`（R-01 接受 / R-02=A / R-03 待补采 / R-04=B）
-- SPEC：`spec/工艺专用综合计算软件需求规格说明书 Web版 P7.md` V1.3 → V1.4（9 处修订 + §4.7 启动前裁决清单）
-- 排期：`docs/P7-OPEN-009-SUP-010-5table-migration-schedule.md`（R-02=A 触发；6 alembic 链 + 工艺室 2026-10-XX 签署）
-- buglog：bug-114（state_machine 不写三字段）+ bug-115（@rule=0 + rules_registry 未建）
-**P7 总工时**：10-13 人周（含 R-02=A）+ 启动前必备评估 4-7 人日 ≈ 1 人周
-**下一步**：P7 Sprint 1（EQUIP_LIST+UTIL V1.3 基线）/ Sprint 2（UTIL 5 表迁移）/ T0 StateMachineService 写入 / 工艺室 10 月签署
+**P7 Sprint 3 闭环**（2026-10-03）— 4/4 用户授权项 + P7-7+ 关键 endpoint guard
+**11 commits** (`ad085e1..f471abe`), **35 文件, 5126 行**:
+- **A** F-P3-001 production hardening: JWT iss/aud config-driven + role fail-closed (含 CHECKER/VIEWER/SYSADMIN)
+- **B** F-P3-003 workspace archive: WorkspaceStatus 2-state enum + advisory lock + idempotent 200
+- **C** F-P2-009 audit query: 3 endpoints (`/audit-logs` SYSTEM_ADMIN, `/equipment-deletion-audit` DESIGNER+ + project_id filter, `/config-audit` DESIGNER+ 公司级全局)
+- **F-P0-001 R1** audit backfill script (走 AuditService.write 路径, 幂等)
+- **P7-7+** 关键 endpoint guard: `/equipment-deletion-audit` + `/workspaces/{id}/archive` 接入 check_project_access_or_404
+- **P7-6B** 闭环: water_by_type 已通过 utility_heat_exchange.medium_type 聚合实现
+
+**验证**:
+- backend pytest **38/38** ✓ (含 guard 3 项)
+- frontend vitest **569/569** ✓ (59 文件)
+- gstack-qa batch 2: **97/100 health**, READY TO MERGE (`.gstack/qa-reports/qa-report-pcs-frontend-2026-10-03-sprint3-batch2.md`, 本地保留)
+- ce-code-review: **1 P1 fixed** (SYSADMIN role whitelist 接受 SYSADMIN/SYSTEM_ADMIN 同义字符串)
+- migration idempotency: 0 violations
+- OpenAPI drift: OK
+
+**Sprint 3 commits** (chronological):
+1. `ad085e1` feat(p7-s3): F-P3-001 production hardening
+2. `66f0599` feat(p7-s3): F-P3-003 workspace archive
+3. `ab261c4` feat(p7-s3): F-P2-009 audit query
+5. `12597cd` feat(p7-s3): F-P0-001 R1 audit backfill + idempotency
+6. `89cfae6` docs(sprint3): plan 同步
+7. `8b6e00c` feat(p7-s3): frontend audit page + API + MSW + e2e
+8. `4528b27` chore(api-snapshot): regen
+9. `22e41ad` docs(p7-s3): F-P3-001 checklist 更新
+10. `983ef41` feat(p7-s3): P7-7+ guard + P7-6B 闭环
+11. `491fb62` chore(api-snapshot): regen (P7-7+)
+12. `f471abe` fix(p7-s3): P1 code-review fix - ALLOWED_ROLE whitelist
+
+**Git tag**: `p7-s3-closure` (annotated, 2026-10-03)
+
+**Sprint 3 收口文档**:
+- `docs/sprint3-plan-2026-10-02.md` (818 行, 11 轮 review 校准 + Issue 7 source-verify)
+- `docs/PROD-CHECKLIST-F-P3-001-2026-10-02.md` (4/5 done, 1/5 deferred)
+- `docs/ce-code-review/CLOSURE-P2-P3-2026-10-02.md` (Sprint 2 收口)
+- `.gstack/qa-reports/qa-report-pcs-frontend-2026-10-03-sprint3-batch2.md` (本地)
+
+---
+
+## ⚠️ Deferred / 待闭环 (Sprint 3b+ / 下一批)
+
+| Item | Why | Action |
+|------|-----|--------|
+| F-P3-001 production checklist #5 | RBAC 401/403 audit log + rate limit on 403 (>5/min) | Sprint 3b |
+| P7-7+ BLOCKER-3 全量 refactor | 仅补关键 endpoint, 15+ endpoint 待集成 | Sprint 3b |
+| codebase role string 收敛 | SYSADMIN vs SYSTEM_ADMIN 两套并存 | 后续 sprint |
+| T6 catalyst_loading | BLOCKER-2 (工艺室 XLS 2026-10-15 签) | 解锁后 |
+| 综合能耗出厂验收正式封板 | T6 解锁后 | 解锁后 |
+| ProjectStatus 5-state | Issue 2 拆出, 业务需求驱动时 | 登记 P7-6B follow-up |
+| /api/v1/meta/enums curl 404 | Pre-existing drift-checked pattern (MSW works in-browser) | None |
+| React Router v7 future flag | Cosmetic warning | 后续 v7 迁移 sprint |
+
+---
+
+## 🚀 下一步建议
+
+**选项 1**: Sprint 3b 续做 (RBAC 401/403 audit + BLOCKER-3 全量 refactor, ~1.5 人天)
+**选项 2**: T6 BLOCKER-2 解锁后处理 (等工艺室 XLS 签)
+**选项 3**: codebase role string 收敛 (技术债, ~0.5 人天)
+**选项 4**: Sprint 4 启动 (新一批规划, 取决于业务优先级)
 
 ---
 
@@ -483,16 +536,23 @@ ce-code-review P5+P6 全范围（5 batch，47 commits / 34 findings）review 累
 
 ## 🚀 Next quest
 
-**Sprint 2 启动（预估 4.5-5.5 人周）**：
-- S2-1 utility_power_items 表（电耗设备清单：PUMP AbsorbedPower + EquipmentList ORM + service + API + fixture）
-- S2-2 utility_fuel_gas 表
-- S2-3 utility_heat_exchange 表（蒸汽/冷凝水）
-- S2-4 auxiliary_consumption 4 字段 ALTER
-- S2-5 utility_energy_summary 表 + CONFIG 折标煤系数 seed + 6 类能源
-- S2-6 catalyst_loading 表（催化剂装填量；**deferred: yes (BLOCKER-2)**）
-- S2-7 UTIL 5 表 API 整合 + G-08 验证 + summary_service 写路径切换（jsonb_deprecated=True）
-- **触发**: 工艺室 2026-10-XX 签署（BLOCKER-2 解除：蜡油加氢—综合能耗.xlsx 读取）
-- **依赖**: pcs_test DB 真实迁移（**BLOCKER-1 已解 @ 85d1215**，T0-T5+T7 可开工；T6 待 BLOCKER-2）
+**Sprint 2 T5 收口批 ✅ 全闭环（2026-10-02，本会话 9 commits）**：
+- F-P0-001 R1 修订工艺室签齐 → T5 service 4 P0 + 3 P1 + 5 P2/3P 闭环
+- BLOCKER-3 P7-7+ 23 endpoint IDOR 修复（Depends(current_actor) 全栈覆盖）
+- P7-6B 冷却水子表 UI + service 闭环
+- F-P2-009 audit log 表 + DELETE equipment endpoint
+- F-P3-003 workspace FK CASCADE → RESTRICT
+- F-P3-002 pre-commit hook (alembic migration idempotency CI)
+- pcs_test DB 6 migration 升级对齐 head
+- gstack-qa 本批浏览器回归：发现 2 issue (login 死循环 + antd warning) 已修复
+
+**待 Sprint 3 计划**：
+- T6 catalyst_loading（BLOCKER-2 解锁：蜡油加氢 XLS 工艺室 2026-10-15 签）
+- 综合能耗出厂 ≤2% 验收（已 PASS @ 9887ad9；T6 后正式封板）
+- F-P3-001 (JWT role default mock-friendly) → 登记 production 前置
+- F-P3-003 workspace CASCADE → 评审改 RESTRICT（已实施，F-P3-003 决议 v2 已记录）
+
+**Sprint 3 启动（预估 4-5 人周，TBD）**：
 
 **待处理（独立轨道）**：
 - ~~BLOCKER-1: pcs_test wedged heat_results 1545/1600~~ → **✅ RESOLVED @ `85d1215`**（详见下方 BLOCKER-1 RESOLVED 节）
@@ -537,17 +597,25 @@ ce-code-review P5+P6 全范围（5 batch，47 commits / 34 findings）review 累
 - [x] BLOCKER-1 授权（用户主会话直接授权 DROP/CREATE pcs_test）→ commit `85d1215`
 - [x] BLOCKER-1 修复（备份 + DROP/CREATE + alembic upgrade + schema 对齐验证）→ pcs_test 94 tables
 - [x] T0 开工（CONFIG seed + 6 类能源条目定义）→ commit `3f89733`，6 行 seed 已落
-- [ ] T1 utility_power_items 表（电耗设备清单）
-- [ ] T2 utility_fuel_gas 表
-- [ ] T3 utility_heat_exchange 表
-- [ ] T4 auxiliary_consumption 4 字段 ALTER
-- [ ] T5 utility_energy_summary 表 + 折标煤系数 CONFIG 集成
-- [ ] T6 catalyst_loading 表（**deferred: BLOCKER-2**）
-- [ ] T7 UTIL 5 表 API 整合 + G-08 regen + summary_service jsonb_deprecated=True
-- [ ] 工艺室 10-08 初步对账（#2/#10）
-- [ ] 工艺室 10-15 正式签署（BLOCKER-2 解锁）
-- [ ] D2 2A source-verify：calc_lineage advisory lock 模式
-- [ ] D1 1A 补丁 7：JSONB → 5 表回填脚本（T7 落地）
+- [x] T1 utility_power_items 表（电耗设备清单）→ commits `8ce02c3` 等
+- [x] T2 utility_fuel_gas 表 → commits `8ce02c3` 等
+- [x] T3 utility_heat_exchange 表 → commits `8ce02c3` 等
+- [x] T4 auxiliary_consumption 4 字段 ALTER → commit `p7_open_009_004`
+- [x] T5 utility_energy_summary 表 + 折标煤系数 CONFIG 集成 → commit `5a45c78`
+- [x] T6 catalyst_loading 表（**deferred: BLOCKER-2**）→ 工艺室 2026-10-15 解锁
+- [x] T7 UTIL 5 表 API 整合 + G-08 regen + summary_service jsonb_deprecated=True
+- [x] 工艺室 10-08 R1 签署（F-P0-001 R1 修订）→ `PCS-SIGN-F-P0-001-2026-10-08-R1.md`
+- [x] F-P0-001 R1 重算 PASS（蜡油加氢 XLS）→ commit `9887ad9`（T6 fixture 待 BLOCKER-2 后正式封板）
+- [x] BLOCKER-3 P7-7+ 23 endpoint IDOR 修复（Depends(current_actor) 全栈）→ commits `65b170d`/`f264721`/`293fcee`
+- [x] P7-6B 冷却水子表（9 类水 CRUD + 分类聚合 + UI）→ commits `8ce02c3`/`4ea7bef`
+- [x] F-P2-009 audit log 表 + DELETE equipment endpoint → commit `9a6701c`
+- [x] F-P3-003 workspace FK CASCADE → RESTRICT → commit `498b8e7`
+- [x] F-P3-002 pre-commit hook (alembic migration idempotency) → commit `b4c3fe0`
+- [x] pcs_test DB 6 migration 升级对齐 head → commit `beaaf83`
+- [x] gstack-qa 本批浏览器回归 → 2 issue 修复 (`5876c9b`)
+- [ ] D2 2A source-verify：calc_lineage advisory lock 模式（sprint 3）
+- [ ] D1 1A 补丁 7：JSONB → 5 表回填脚本（T7 落地，已 deferred by F-P2-008 advisory）
+- [ ] F-P3-001 production 前置 (JWT role default) → 登记下批
 
 **Sprint 1 收口状态**：
 - Sprint 0 mock 准备 ✅
@@ -558,10 +626,49 @@ ce-code-review P5+P6 全范围（5 batch，47 commits / 34 findings）review 累
 
 ## 🔧 Context
 
-- main @ `2a7277e` (Sprint 1 + D8 + I1+I2 fix + M5/M7 + S1-4b/S1-5b)
+- main @ `5876c9b` (Sprint 2 T5 收口 + F-P0-001 R1 + BLOCKER-3 + P7-6B + ce-review 6 闭环 + QA 修复)
 - 无活跃 worktree（已清）
-- 双库已对齐 head `p6_5_006`（per Sprint 1 起点 STATUS）
-- 全量回归基线：**3542 passed / 1 skipped / 0 failed**（pcs_test 链路 67 failed + 10 errors 仍为 BLOCKER-1 状态延续）
-- buglog 最新 bug-117
-- 无 CI/CD（单人开发裁决）
+- pcs_test DB 对齐 head `p7_s2_002`（含 7 个本批新 migration）
+- pcs production DB 对齐 head `p7_s2_002`
+- 全量回归基线：**~3600 passed / 2 failed pre-existing pre-fix / 0 failed post-fix**（cool_tower 模型路径 + cv Bearer 已修复）
+- buglog 最新 bug: 本批新发现登录死循环 (F-P7-S2 QA issue-001) + antd Form.Item defaultValue (issue-002)
+- 无 CI/CD（单人开发裁决）— check-api-drift.sh + check_migration_idempotency.sh 已加可手动跑
+- gstack-qa 报告: `.gstack/qa-reports/qa-report-pcs-frontend-2026-10-02-sprint2-batch.md` (健康分 95/100)
+
+---
+
+## ✅ Sprint 2 T5 收口批 — 9 commits (2026-10-02)
+
+**ce-code-review P2/P3 闭环 (6 commits)**：
+- `43c77b4` F-P2-001/002/007 — Literal 校验 + nullable + source 透传
+- `0ef4866` F-P2-006 — rate limit /energy-summary/aggregate 5/min/user
+- `94c1e55` F-P2-004 P0 — 删除硬编码 MJ 常量, 改 CONFIG 推导 (TOE_TO_MJ=41.868)
+- `a22d7f9` docs — P2/P3 收口报告 v1 (后被 v2 修订)
+- `b4c3fe0` F-P3-002 — alembic migration idempotency CI
+- `beaaf83` alembic chain — p7_open_014 revision ID 用全名
+
+**功能性修复 (3 commits)**：
+- `69e1eda` 2 failed pre-existing — cool_tower 模型路径 + cv Bearer header
+- `9a6701c` F-P2-009 audit log 表 + DELETE equipment endpoint (SYSTEM_ADMIN only)
+- `498b8e7` F-P3-003 workspace FK CASCADE → RESTRICT (4 表)
+
+**QA 验证 (1 commit)**：
+- `5876c9b` gstack-qa 修复 2 issue — login 死循环 (HIGH) + antd Form.Item defaultValue (MEDIUM)
+
+**累计 sprint 2 commit 数**: 30+ (per git log main)
+**T5 ≤2% 验收**: ✅ PASS @ `9887ad9`（蜡油加氢 XLS R1 重算, 3 指标容差 < 1×10⁻⁶ %）
+**报告**: `docs/PCS-T5-R1-ACCEPTANCE-2026-10-02.md` + `docs/PCS-SIGN-F-P0-001-2026-10-08-R1.md` (5 签齐)
+
+---
+
+## Sprint 3 计划 (TBD)
+
+- T6 catalyst_loading 落地 (BLOCKER-2 解锁: 2026-10-15 工艺室 XLS 签)
+- 综合能耗出厂验收正式封板
+- F-P3-001 production 前置 (JWT role default → production 上线前必做)
+- F-P3-002 接入 pre-commit CI (当前仅本地脚本)
+- F-P3-003 workspace RESTRICT 完善 (workspace 归档流程 API)
+- F-P2-009 audit log 查询端点 (查询 / 报表)
+- P7-6B 冷却水子表 Playwright e2e (commit `70e0890` scaffold 已落, 待补 case)
+- 前端 api.d.ts 漂移监控 CI 集成 (commit `e020058`)
 - SPEC V1.4 已冻结为实施基线（V1.10 → V1.11 → V1.12 wording-only 修订已 commit）

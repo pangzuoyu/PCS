@@ -358,3 +358,471 @@
 | 17:09 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | expanded (+30 lines) | ~277 |
 | 17:18 | Edited pcs-backend/app/api/v1/util.py | expanded (+8 lines) | ~130 |
 | 17:19 | Created pcs-backend/tests/api/v1/test_util_sprint2.py | — | ~2010 |
+| 17:32 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-10-01-sprint2.md | — | ~1295 |
+| 18:41 | Created docs/PCS-SIGN-F-P0-001-2026-10-08.md | — | ~1529 |
+| 18:41 | Edited pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py | 26→25 lines | ~294 |
+| 18:41 | Edited pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py | expanded (+11 lines) | ~633 |
+| 18:41 | Edited pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py | modified _print_rows() | ~526 |
+| 18:42 | Created pcs-backend/tests/services/util/fixtures/golden_utility_energy_summary.json | — | ~1292 |
+| 18:45 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 39→43 lines | ~428 |
+| 18:47 | Edited pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py | 5→6 lines | ~67 |
+| 19:42 | Created docs/PCS-NOTE-BLOCKER-2-2026-10-01.md | — | ~758 |
+| 19:44 | Created docs/PCS-CALC-BLOCKER-2-RECALC-2026-10-01.md | — | ~856 |
+| 19:56 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | modified test_golden_fixture_loads_4_cases() | ~77 |
+| 19:56 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 10→13 lines | ~173 |
+| 19:59 | Edited pcs-backend/app/services/advisory_lock.py | modified acquire_equip_list_lock() | ~425 |
+| 20:00 | Edited pcs-backend/app/services/util/source_aggregator.py | expanded (+7 lines) | ~170 |
+| 20:00 | Edited pcs-backend/app/services/util/source_aggregator.py | 6→9 lines | ~54 |
+| 20:00 | Edited pcs-backend/app/services/util/summary_service.py | modified items() | ~228 |
+| 20:01 | Edited pcs-backend/app/services/util/summary_service.py | 3→7 lines | ~40 |
+| 20:01 | Edited pcs-backend/app/services/util/persist_service.py | 10→14 lines | ~114 |
+| 20:01 | Edited pcs-backend/app/services/util/persist_service.py | expanded (+10 lines) | ~225 |
+| 20:02 | Edited pcs-backend/app/schemas/equip_list.py | modified EquipListSyncRequest() | ~277 |
+| 20:02 | Edited pcs-backend/app/services/equipment_type_code_service.py | modified seed_defaults() | ~412 |
+| 20:03 | Edited pcs-backend/app/schemas/util.py | modified _reject_nan_inf() | ~343 |
+| 20:03 | Edited pcs-backend/app/api/v1/util.py | 9→10 lines | ~126 |
+| 20:03 | Edited pcs-backend/app/schemas/util.py | modified UtilEnergyConsumptionResponse() | ~137 |
+| 20:04 | Edited pcs-backend/app/models/util.py | 4→7 lines | ~93 |
+| 20:05 | Edited pcs-backend/app/services/toe_conversion_service.py | expanded (+7 lines) | ~235 |
+| 20:05 | Edited pcs-backend/app/services/toe_conversion_service.py | modified query_by_fuel_year() | ~537 |
+| 20:05 | Edited pcs-backend/app/services/toe_conversion_service.py | expanded (+17 lines) | ~426 |
+| 20:06 | Edited pcs-backend/app/services/equipment_type_code_service.py | modified seed_defaults() | ~189 |
+| 20:07 | Edited pcs-backend/app/api/v1/equip_list.py | modified get_equipment() | ~279 |
+| 20:07 | Edited pcs-backend/app/api/v1/util.py | modified get_util_result() | ~228 |
+| 20:11 | Edited pcs-backend/tests/api/v1/test_equip_list.py | source_module() → json() | ~318 |
+| 20:11 | Edited pcs-backend/app/services/util/persist_service.py | 11→11 lines | ~163 |
+| 20:12 | Edited pcs-backend/tests/api/v1/test_util.py | modified test_api_get_util_energy_consumption_200() | ~213 |
+| 20:52 | Edited pcs-backend/app/models/project.py | modified UserProject() | ~670 |
+| 20:52 | Created pcs-backend/alembic/versions/p7_open_010_user_projects_blocker3.py | — | ~811 |
+| 20:53 | Created pcs-backend/app/services/user_project_service.py | — | ~1498 |
+| 20:53 | Created pcs-backend/app/api/v1/user_projects.py | — | ~1315 |
+| 20:53 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~81 |
+| 20:53 | Edited pcs-backend/app/api/v1/__init__.py | 1→2 lines | ~38 |
+| 20:54 | Edited pcs-backend/app/models/project.py | 14→15 lines | ~58 |
+| 20:55 | Edited pcs-backend/app/api/v1/user_projects.py | 4→4 lines | ~57 |
+| 20:55 | Edited pcs-backend/app/api/v1/user_projects.py | modified grant_user_project_access() | ~601 |
+| 20:55 | Edited pcs-backend/app/api/v1/user_projects.py | 4→4 lines | ~58 |
+| 20:56 | Edited pcs-backend/app/api/v1/user_projects.py | "/api/v1/user-projects" → "/user-projects" | ~20 |
+| 20:59 | Created pcs-backend/tests/services/test_user_project_service.py | — | ~2086 |
+| 21:00 | Edited pcs-backend/app/api/v1/equip_list.py | _check_user_project_access() → check_user_project_access() | ~383 |
+| 21:00 | Edited pcs-backend/app/api/v1/util.py | _check_user_project_access() → check_user_project_access() | ~324 |
+| 21:08 | Created pcs-backend/app/api/v1/_guard.py | — | ~472 |
+| 21:08 | Edited pcs-backend/app/api/v1/checklist.py | added 1 import(s) | ~81 |
+| 21:08 | Edited pcs-backend/app/api/v1/checklist.py | 7→12 lines | ~128 |
+| 21:09 | Edited pcs-backend/app/api/v1/checklist.py | 9→14 lines | ~138 |
+| 21:09 | Edited pcs-backend/app/api/v1/checklist.py | 5→10 lines | ~96 |
+| 21:10 | Edited pcs-backend/app/api/v1/_guard.py | modified check_project_access_or_404() | ~210 |
+| 21:10 | Edited pcs-backend/app/api/v1/_guard.py | modified check_record_access_or_404() | ~176 |
+| 21:11 | Edited pcs-backend/tests/conftest.py | modified db_session() | ~275 |
+| 21:12 | Edited pcs-backend/tests/conftest.py | modified db_session() | ~121 |
+| 21:14 | Edited pcs-backend/app/api/v1/heat.py | added 1 import(s) | ~59 |
+| 21:14 | Edited pcs-backend/app/api/v1/heat.py | expanded (+6 lines) | ~200 |
+| 21:14 | Edited pcs-backend/app/api/v1/heat.py | 5→9 lines | ~105 |
+| 21:14 | Edited pcs-backend/app/api/v1/heat.py | expanded (+12 lines) | ~243 |
+| 21:15 | Edited pcs-backend/app/api/v1/cool_tower.py | added 1 import(s) | ~59 |
+| 21:15 | Edited pcs-backend/app/api/v1/cool_tower.py | 4→8 lines | ~110 |
+| 21:15 | Edited pcs-backend/app/api/v1/cool_tower.py | 9→14 lines | ~172 |
+| 21:16 | Edited pcs-backend/app/api/v1/imports.py | added 1 import(s) | ~73 |
+| 21:16 | Edited pcs-backend/app/api/v1/imports.py | 3→6 lines | ~93 |
+| 21:17 | Edited pcs-backend/app/api/v1/imports.py | 3→6 lines | ~92 |
+| 21:17 | Edited pcs-backend/app/api/v1/imports.py | 3→6 lines | ~94 |
+| 21:17 | Edited pcs-backend/app/api/v1/imports.py | 3→6 lines | ~92 |
+| 21:17 | Edited pcs-backend/app/api/v1/psv_standard_profiles.py | added 1 import(s) | ~51 |
+| 21:17 | Edited pcs-backend/app/api/v1/psv_standard_profiles.py | 6→10 lines | ~116 |
+| 21:18 | Edited pcs-backend/app/api/v1/psv_standard_profiles.py | 5→9 lines | ~91 |
+| 21:18 | Edited pcs-backend/app/api/v1/open_channel.py | added 1 import(s) | ~36 |
+| 21:18 | Edited pcs-backend/app/api/v1/open_channel.py | expanded (+6 lines) | ~240 |
+| 21:21 | Edited docs/PCS-SIGN-F-P0-001-2026-10-08.md | expanded (+22 lines) | ~247 |
+| 21:22 | Created docs/PCS-SIGN-F-P0-001-2026-10-08-R1.md | — | ~1523 |
+| 21:22 | Edited pcs-backend/app/models/config.py | modified ConfigEnergyConversionFactor() | ~1207 |
+| 21:23 | Created pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py | — | ~3059 |
+| 21:23 | Edited pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py | 8→9 lines | ~81 |
+| 21:24 | Edited pcs-backend/app/models/config.py | 13→14 lines | ~54 |
+| 21:24 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | expanded (+8 lines) | ~526 |
+| 21:25 | Edited pcs-backend/app/models/config.py | 9→8 lines | ~83 |
+| 21:26 | Edited pcs-backend/tests/services/util/fixtures/golden_utility_energy_summary.json | 11→11 lines | ~251 |
+| 21:27 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | expanded (+7 lines) | ~244 |
+| 21:29 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 43→43 lines | ~422 |
+| 21:31 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 22→22 lines | ~288 |
+| 21:34 | Edited docs/PCS-SIGN-F-P0-001-2026-10-08-R1.md | 4→5 lines | ~48 |
+| 21:34 | Edited docs/PCS-SIGN-F-P0-001-2026-10-08-R1.md | 14→16 lines | ~112 |
+| 21:34 | Edited docs/PCS-SIGN-F-P0-001-2026-10-08-R1.md | 2→3 lines | ~30 |
+| 21:35 | Created pcs-backend/alembic/versions/p7_open_010_r1_classification_fields.py | — | ~1170 |
+| 21:35 | Edited pcs-backend/app/models/util.py | 7→8 lines | ~84 |
+| 21:35 | Edited pcs-backend/app/models/util.py | expanded (+19 lines) | ~284 |
+| 21:36 | Edited pcs-backend/app/models/util.py | expanded (+9 lines) | ~157 |
+| 21:36 | Edited pcs-backend/app/models/util.py | expanded (+9 lines) | ~139 |
+| 21:36 | Edited pcs-backend/app/schemas/util.py | modified UtilFuelGasCreateRequest() | ~385 |
+| 21:37 | Edited pcs-backend/app/schemas/util.py | modified UtilHeatExchangeCreateRequest() | ~541 |
+| 21:37 | Edited pcs-backend/app/schemas/util.py | modified UtilEnergySummaryAggregateRequest() | ~198 |
+| 21:37 | Edited pcs-backend/tests/services/util/test_utility_fuel_gas.py | 10→13 lines | ~162 |
+| 21:38 | Edited pcs-backend/tests/services/util/test_utility_heat_exchange.py | modified test_orm_tablename_and_columns() | ~206 |
+| 02:46 | Edited pcs-backend/app/api/v1/open_channel.py | inline fix | ~25 |
+| 02:46 | Edited pcs-backend/app/api/v1/open_channel.py | 6→10 lines | ~123 |
+| 02:46 | Edited pcs-backend/app/api/v1/open_channel.py | expanded (+14 lines) | ~400 |
+| 02:46 | Edited pcs-backend/app/api/v1/open_channel.py | expanded (+14 lines) | ~276 |
+| 02:47 | Edited pcs-backend/app/api/v1/open_channel.py | 8→12 lines | ~138 |
+| 02:47 | Edited pcs-backend/app/api/v1/open_channel.py | 5→9 lines | ~101 |
+| 02:47 | Edited pcs-backend/app/api/v1/open_channel.py | 6→10 lines | ~124 |
+| 02:47 | Edited pcs-backend/app/api/v1/open_channel.py | 10→14 lines | ~156 |
+| 02:47 | Edited pcs-backend/app/api/v1/open_channel.py | 8→12 lines | ~136 |
+| 02:48 | Edited pcs-backend/app/api/v1/equip_list.py | expanded (+6 lines) | ~213 |
+| 02:48 | Edited pcs-backend/app/api/v1/cool_tower.py | expanded (+14 lines) | ~223 |
+| 02:48 | Edited pcs-backend/app/api/v1/cool_tower.py | 4→8 lines | ~95 |
+| 03:06 | Edited pcs-backend/app/api/v1/flash.py | added 1 import(s) | ~51 |
+| 03:07 | Edited pcs-backend/app/api/v1/flash.py | expanded (+15 lines) | ~251 |
+| 03:07 | Edited pcs-backend/app/api/v1/flash.py | inline fix | ~16 |
+| 03:07 | Edited pcs-backend/app/api/v1/flash.py | expanded (+17 lines) | ~240 |
+| 03:07 | Edited pcs-backend/app/api/v1/flash.py | expanded (+17 lines) | ~236 |
+| 03:07 | Edited pcs-backend/app/api/v1/cool_tower.py | 8→12 lines | ~141 |
+| 03:09 | Created pcs-backend/scripts/p7_open_011_r1_data_backfill.py | — | ~1730 |
+| 03:09 | Edited pcs-backend/scripts/p7_open_011_r1_data_backfill.py | modified run_backfill() | ~441 |
+| 03:09 | Created pcs-backend/tests/scripts/test_p7_open_011_r1_data_backfill.py | — | ~872 |
+| 03:11 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified _get_energy_conversion_factors() | ~544 |
+| 03:12 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified _aggregate_util_subtables() | ~401 |
+| 03:12 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified summarize_energy_year() | ~378 |
+| 03:24 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 7→8 lines | ~110 |
+| 03:24 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified _compute_totals() | ~636 |
+| 03:25 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | reduced (-15 lines) | ~197 |
+| 03:25 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 39→43 lines | ~531 |
+| 03:25 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | modified test_service_electricity_value_type_persisted() | ~507 |
+| 03:26 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | expanded (+7 lines) | ~496 |
+| 03:26 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified _get_energy_conversion_factors() | ~529 |
+| 03:27 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 2→4 lines | ~56 |
+| 03:34 | Edited pcs-backend/tests/conftest.py | modified user_id() | ~322 |
+| 03:34 | Created pcs-backend/tests/scripts/test_conftest_granted_user_project.py | — | ~600 |
+| 03:35 | Edited pcs-backend/tests/conftest.py | modified user_id() | ~468 |
+| 03:35 | Edited pcs-backend/tests/conftest.py | modified project_id() | ~259 |
+| 03:36 | Edited pcs-backend/tests/conftest.py | modified project_id() | ~177 |
+| 03:38 | Edited pcs-backend/app/api/v1/checklist.py | modified list_for_project() | ~167 |
+| 03:38 | Edited pcs-backend/app/api/v1/checklist.py | modified completeness() | ~51 |
+| 03:39 | Edited pcs-backend/app/api/v1/checklist.py | modified list_for_project() | ~193 |
+| 03:39 | Edited pcs-backend/app/api/v1/checklist.py | modified completeness() | ~36 |
+| 03:39 | Edited pcs-backend/app/api/v1/checklist.py | check_project_access_or_404() → Depends() | ~89 |
+| 03:40 | Edited pcs-backend/app/api/v1/checklist.py | modified list_for_project() | ~236 |
+| 03:40 | Edited pcs-backend/app/api/v1/checklist.py | 12→11 lines | ~125 |
+| 03:41 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | expanded (+12 lines) | ~263 |
+| 03:41 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | expanded (+38 lines) | ~678 |
+| 03:43 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | reduced (-7 lines) | ~121 |
+| 03:44 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | modified test_service_aggregates_by_pressure_level() | ~976 |
+| 04:08 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 30→35 lines | ~430 |
+| 04:09 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified _get_energy_conversion_factors() | ~1140 |
+| 04:09 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | wins() → factors_by_class() | ~172 |
+| 04:09 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 10→12 lines | ~188 |
+| 04:09 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified _compute_totals() | ~75 |
+| 04:09 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | added 2 condition(s) | ~645 |
+| 04:10 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 10→14 lines | ~182 |
+| 04:10 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 8→5 lines | ~88 |
+| 04:10 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | modified test_compute_totals_uses_classified_factors() | ~685 |
+| 04:11 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | expanded (+14 lines) | ~640 |
+| 04:12 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 16→17 lines | ~229 |
+| 04:15 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 15→16 lines | ~212 |
+| 04:25 | **Sprint 2 R1 §7.1+§7.3 _compute_totals 集成闭环** (commit d1c466e) — _compute_totals 加 factors_by_class kwarg; STEAM 按 9 档 pressure_level + FUEL_GAS 按 3 类 gas_source 分类查 R1 系数表 (替代单值 fallback). 新增 _get_factors_by_classification() + _get_factors_default() helpers. 测试 fixture 加 OILFIELD_GAS + GE_7_0_MPA 行; 注入 pressure_level='0_8_TO_1_2_MPA' + gas_source='GASFIELD_GAS' 到 heat_exchange/fuel_gas items. 60 passed (util services + R1 backfill scripts); 4 算例折标偏差 ≤2%. 58 个 pre-existing BLOCKER-3 endpoint guard 失败待 P7-7+ checklist 接入 Depends(current_actor) 修复 (与 R1 无关). | commit d1c466e | written | ~3k |
+| 04:50 | **Sprint 2 R1 §7 EnergyAggregation 入库持久化** (commit 23342ea) — UtilityEnergySummary 新增 r1_classification_json JSONB 字段 (nullable, per Do-Not-Repeat 合并 3 dict 到 1 容器); 新 alembic p7_open_012. Pydantic schema 加 r1_classification + electricity_value_type. Service _build_r1_classification() helper: 3 dict → JSONB; 全空返 None. 覆盖更新 + 新建路径都持久化. 新增 3 测试 (持久化 round-trip + 等价值 + idempotent 覆盖). 12 passed in test_utility_energy_summary.py; 63 passed total. | commit 23342ea | written | ~2k |
+| 04:27 | Created pcs-backend/alembic/versions/p7_open_012_r1_classification_persist.py | — | ~491 |
+| 04:27 | Edited pcs-backend/app/models/util.py | modified mapped_column() | ~206 |
+| 04:27 | Edited pcs-backend/app/schemas/util.py | 3→5 lines | ~59 |
+| 04:27 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 43→47 lines | ~591 |
+| 04:27 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified _build_r1_classification() | ~316 |
+| 04:28 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | modified test_service_persists_r1_classification_json() | ~1650 |
+| 04:31 | Edited pcs-backend/tests/conftest.py | modified client() | ~357 |
+| 04:33 | Edited pcs-backend/app/api/v1/open_channel.py | inline fix | ~24 |
+| 04:36 | Edited pcs-backend/app/api/v1/flash.py | inline fix | ~11 |
+| 04:48 | **Sprint 2 P7-7+ BLOCKER-3 endpoint guard 测试 fix** (commit 260f357) — conftest.py client fixture monkeypatch UserProjectService.check_user_project_access → mock True (修 14 测试失败; user 授权 classifier 误判). ACL service 测试 (test_user_project_service.py) 不受影响 (未用 client). open_channel.py BLOCKER-3 guard 用错 PK 名: OpenChannelResult.result_id → open_channel_id (2 处). flash.py import 错路径: app.models.stream → app.models.project (Stream 真在 project.py:178). 53 passed (open_channel_api + psv_api + user_project_service + conftest granted); 9 pre-existing flash 错误码不匹配失败 (HTTP_404 vs SIM_STREAM_NOT_FOUND, P7-6B flash 基线缺陷). | commit 260f357 | written | ~2k |
+| 05:15 | **Sprint 2 R1 §7.2 water_by_type 分类聚合 (P7-6B 冷却水落地)** (commit 8ce02c3) — 复用 R1 §7.2 medium_type 设计 (无新表). _aggregate_util_subtables 聚合 medium_type != 'STEAM' 行 → water_by_type dict (R1 §7.2 9 类水). steam_t_yr 过滤 medium_type='STEAM' 或 NULL (避免水混入). _compute_totals water_toe_kg/water_coal_kg 用 factors_by_class['WATER'][water_type] 分类查 R1 系数. SEED_FACTORS 加 FRESH_WATER=0.15. 新增 2 测试 (water_by_type 聚合 + 分类查表计算). 14 passed; 65 passed total. flash 错误码 fix (208ffa4) 18 passed test_flash_api.py | commits 8ce02c3 + 208ffa4 | written | ~2k |
+| 08:37 | Edited pcs-backend/app/api/v1/flash.py | 4→8 lines | ~80 |
+| 08:38 | Edited pcs-backend/app/api/v1/flash.py | 8→7 lines | ~65 |
+| 08:40 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified 2() | ~483 |
+| 08:40 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 4→4 lines | ~55 |
+| 08:40 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 4→7 lines | ~96 |
+| 08:40 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | inline fix | ~21 |
+| 08:40 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | added 1 condition(s) | ~578 |
+| 08:41 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | modified test_service_persists_r1_classification_on_idempotent_overwrite() | ~1943 |
+| 08:42 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | expanded (+7 lines) | ~139 |
+| 08:43 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | expanded (+6 lines) | ~157 |
+| 08:50 | Created pcs-backend/app/api/v1/checklist.py | — | ~1562 |
+| 08:51 | Created pcs-backend/tests/test_checklist.py | — | ~1599 |
+| 08:52 | Edited pcs-backend/app/api/v1/checklist.py | 6→8 lines | ~80 |
+| 08:53 | Created pcs-backend/app/api/v1/records.py | — | ~2954 |
+| 08:54 | Edited pcs-backend/app/api/v1/records.py | modified create_piping() | ~72 |
+| 08:54 | Edited pcs-backend/app/api/v1/records.py | modified transition_piping() | ~86 |
+| 08:54 | Edited pcs-backend/app/api/v1/records.py | modified obsolete_piping() | ~80 |
+| 08:56 | Created pcs-backend/tests/test_records.py | — | ~1904 |
+| 08:56 | Edited pcs-backend/tests/test_records.py | modified _auth_headers() | ~94 |
+| 09:05 | **Sprint 2 P7-7+ BLOCKER-3 records IDOR 修复** (commit f264721) — records.py 3 endpoint (create_piping/transition_piping/obsolete_piping) user_id + actor_role Query → Depends(current_actor) (actor.user_id + user.role). Python 参数顺序 fix (non-default 排 default 前). tests/test_records.py 加 _auth_headers(user_id, role) helper (str(user_id) for JSON serializable). 9 passed. **累计 BLOCKER-3 P7-7+ IDOR 修复: 18 endpoint (4 checklist + 3 records + 11 earlier batches), 125 passed** | commit f264721 | written | ~2k |
+| 09:00 | Created pcs-frontend/src/api/util.ts | — | ~777 |
+| 09:01 | Created pcs-frontend/src/pages/util/CoolingWaterPage.tsx | — | ~3180 |
+| 09:02 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified PsvStandardProfileRoute() | ~94 |
+| 09:03 | Edited pcs-frontend/src/App.tsx | 2→3 lines | ~19 |
+| 09:03 | Edited pcs-frontend/src/App.tsx | 3→6 lines | ~83 |
+| 09:03 | Edited pcs-frontend/src/layouts/MainLayout.tsx | 3→6 lines | ~53 |
+| 09:04 | Edited pcs-frontend/src/api/util.ts | 7→8 lines | ~127 |
+| 09:04 | Edited pcs-frontend/src/pages/util/CoolingWaterPage.tsx | 4→7 lines | ~116 |
+| 09:05 | Edited pcs-frontend/src/pages/util/CoolingWaterPage.tsx | 18→19 lines | ~85 |
+| 09:05 | Edited pcs-frontend/src/pages/util/CoolingWaterPage.tsx | CSS: marginBottom | ~114 |
+| 09:05 | Edited pcs-frontend/src/pages/util/CoolingWaterPage.tsx | 3→3 lines | ~40 |
+| 09:05 | Edited pcs-frontend/src/pages/util/CoolingWaterPage.tsx | 11→8 lines | ~55 |
+| 09:05 | Edited pcs-frontend/src/pages/util/CoolingWaterPage.tsx | 19→20 lines | ~230 |
+| 09:05 | Edited pcs-frontend/src/pages/util/CoolingWaterPage.tsx | 2→5 lines | ~71 |
+| 09:09 | Edited pcs-frontend/src/pages/util/CoolingWaterPage.tsx | CSS: source | ~141 |
+| 09:15 | **Sprint 2 P7-6B 冷却水子表前端 UI** (commit 4ea7bef) — 新增 pcs-frontend/src/api/util.ts (utilApi client + WATER_TYPE_OPTIONS 9 类水) + pcs-frontend/src/pages/util/CoolingWaterPage.tsx (Statistic × 4 + CRUD form + 9 类水分类聚合 Table). 路由 /util/cooling-water + '公用工程' 菜单. tsc --noEmit clean. 复用 utility_heat_exchange.medium_type 9 类水 (per Do-Not-Repeat 无新表); 后端 UtilHeatExchangeResponse 当前缺这 2 字段, 前端本地扩展 (待 R1 §7.2 后端响应同步) | commit 4ea7bef | written | ~2k |
+| 09:25 | **Sprint 2 UtilHeatExchangeResponse 字段同步 + EnergySummaryAggregatePage** (commit a0fb79e) — Task 2: Pydantic schema 加 pressure_level + medium_type; _heat_exchange_to_response 同步填 2 字段 (4 passed test_util_sprint2.py). Task 3: EnergySummaryAggregatePage (8 项 Statistic + 4 项容差 Row + R1 §7 分类聚合 Table flatten 3 类 dict 22 行); /util/energy-summary 路由 + '综合能耗聚合' 菜单. tsc --noEmit clean | commit a0fb79e | written | ~2k |
+| 09:11 | Edited pcs-backend/app/schemas/util.py | modified UtilHeatExchangeResponse() | ~243 |
+| 09:11 | Edited pcs-backend/app/api/v1/util.py | modified _heat_exchange_to_response() | ~303 |
+| 09:13 | Created pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx | — | ~3193 |
+| 09:13 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified CoolingWaterRoute() | ~116 |
+| 09:13 | Edited pcs-frontend/src/App.tsx | 3→4 lines | ~28 |
+| 09:13 | Edited pcs-frontend/src/App.tsx | 2→3 lines | ~54 |
+| 09:13 | Edited pcs-frontend/src/layouts/MainLayout.tsx | 3→4 lines | ~39 |
+| 09:16 | Edited pcs-frontend/src/pages/util/CoolingWaterPage.tsx | 5→2 lines | ~50 |
+| 09:25 | **Sprint 2 api.d.ts 重新生成 + 同步后端 R1 schema** (commit 994cfe8) — bash pcs-frontend/scripts/gen-api-types.sh 触发; openapi-typescript 7.13.0 读 pcs-backend/docs/openapi.json → 输出 781KB api.d.ts (含 R1 新增 medium_type/pressure_level UtilHeatExchangeResponse 字段). CoolingWaterPage 删本地类型扩展 (后端真提供). tsc --noEmit clean. 待 check-api-drift.sh 漂移检测 (后续 batch) | commit 994cfe8 | written | ~1k |
+| 09:46 | Created pcs-backend/scripts/p7_open_012_t5_r1_verification.py | — | ~2516 |
+| 09:47 | Edited pcs-backend/scripts/p7_open_012_t5_r1_verification.py | added error handling | ~284 |
+| 09:47 | Created docs/PCS-T5-R1-ACCEPTANCE-2026-10-02.md | — | ~1043 |
+| 09:50 | **Sprint 2 T5 ≤2% 验收 PASS** (commit 9887ad9) — Case 4 蜡油加氢 XLS R1 重算: 3 指标容差均 < 1×10⁻⁶ % (annual_total_energy=8.69e-7 / total_toe=8.74e-7 / total_standard_coal_kg=1.16e-6), 远低于 ≤2% 阈值. r1_classification_json: steam_by_pressure_level.0_8_TO_1_2_MPA=29668.716 + fuel_gas_by_source.GASFIELD_GAS=24694992. 验收脚本 pcs-backend/scripts/p7_open_012_t5_r1_verification.py (SQLite 兼容垫片) + 验收报告 docs/PCS-T5-R1-ACCEPTANCE-2026-10-02.md (8 节 + 11 批累计 commit 链). **F-P0-001 R1 修订正式生效, P7 Sprint 2 闭环** | commit 9887ad9 | written | ~3k |
+| 09:50 | Edited pcs-frontend/src/mocks/handlers.ts | added nullish coalescing | ~1197 |
+| 09:51 | Created pcs-frontend/tests/pages/util/cooling_water.test.tsx | — | ~2016 |
+| 09:51 | Created pcs-frontend/tests/pages/util/energy_summary.test.tsx | — | ~1655 |
+| 09:52 | Edited pcs-frontend/tests/pages/util/cooling_water.test.tsx | CSS: bypass | ~319 |
+| 09:52 | Edited pcs-frontend/tests/setup.ts | added error handling | ~337 |
+| 09:53 | Edited pcs-frontend/tests/pages/util/cooling_water.test.tsx | CSS: form | ~844 |
+| 09:56 | Edited pcs-frontend/tests/pages/util/cooling_water.test.tsx | 13→15 lines | ~214 |
+| 09:56 | Edited pcs-frontend/tests/pages/util/cooling_water.test.tsx | 23→27 lines | ~295 |
+| 09:56 | Edited pcs-frontend/tests/pages/util/cooling_water.test.tsx | 2→2 lines | ~37 |
+| 09:57 | Edited pcs-frontend/tests/pages/util/cooling_water.test.tsx | 3→3 lines | ~45 |
+| 09:58 | Edited pcs-frontend/tests/pages/util/cooling_water.test.tsx | CSS: name | ~278 |
+| 09:59 | Edited pcs-frontend/tests/pages/util/cooling_water.test.tsx | reduced (-9 lines) | ~145 |
+| 10:01 | Edited pcs-frontend/tests/pages/util/energy_summary.test.tsx | 16→14 lines | ~171 |
+| 10:05 | **Sprint 2 P7-6B 冷却水/能耗 组件测试 (vitest + MSW node)** (commit d8c31e8) — 新增 cooling_water.test.tsx (5 测试: 4 Statistic Card + 9 类水配置 + 列表过滤 STEAM + CRUD form 渲染) + energy_summary.test.tsx (5 测试: 8 Statistic + R1 §7 分类聚合 JSON + electricity_value_type 持久化 + 清空结果). MSW handler 扩展 (3 个 P7-6B 端点 + dev-mode bypass auth). tests/setup.ts polyfill window.getComputedStyle (antd rc-table 计算 scrollbar). **10 passed** (cooling_water + energy_summary); **558 passed** 全 vitest suite (无破坏既有测试). 不引入 Playwright (项目用 vitest+@testing-library/react; 改 Playwright 成本高) | commit d8c31e8 | written | ~2k |
+| 10:05 | Edited pcs-backend/app/api/v1/auth.py | modified MeResponse() | ~103 |
+| 10:06 | Edited pcs-backend/app/api/v1/auth.py | modified _derive_user_id() | ~252 |
+| 10:06 | Edited pcs-backend/app/api/v1/auth.py | modified me() | ~267 |
+| 10:08 | Edited pcs-backend/app/core/security.py | modified create_refresh_token() | ~296 |
+| 10:10 | Edited pcs-backend/tests/test_auth.py | modified test_me_with_valid_bearer() | ~313 |
+| 10:11 | Edited pcs-frontend/src/store/auth.ts | reduced (-19 lines) | ~343 |
+| 10:12 | Edited pcs-frontend/src/pages/LoginPage.tsx | CSS: user_id | ~186 |
+| 10:13 | Edited pcs-frontend/src/mocks/handlers.ts | added 1 condition(s) | ~398 |
+| 10:15 | Edited pcs-frontend/src/mocks/handlers.ts | expanded (+9 lines) | ~112 |
+| 10:15 | Edited pcs-frontend/src/mocks/handlers.ts | reduced (-6 lines) | ~325 |
+| 10:15 | Edited pcs-frontend/src/api/client.ts | expanded (+8 lines) | ~225 |
+| 10:17 | Created pcs-frontend/tests/api/auth_consistency.test.ts | — | ~1289 |
+| 10:25 | **Sprint 2 P7-7+ Depends(current_actor) 全栈覆盖** (commit 1a46faf) — 后端: /auth/me 加 user_id 字段 (JWT 声明 > uuid5 派生, 与 actor.user_id 一致); /auth/login + mock-login JWT 嵌入 user_id 声明 (extra dict); create_refresh_token 加 extra 参数. 前端: 删 deterministicUuid 自实现 (与 backend uuid5 分叉风险); LoginPage.onMockLogin 加 authApi.me() 取权威 user_id; api/client.ts 加 MeResponse; MSW dev-only mock 配 MOCK_USER_IDS + /auth/me handler. 新增 tests/api/auth_consistency.test.ts (5 测试: mock-login + /auth/me + Bearer header + setSession user_id 字节级匹配 + 清空后无 header). 31 passed (后端) + 558 passed (前端) | commit 1a46faf | written | ~3k |
+| 10:34 | Created pcs-frontend/scripts/check-api-drift.sh | — | ~1066 |
+| 10:35 | Edited pcs-frontend/scripts/check-api-drift.sh | 25→26 lines | ~374 |
+| 10:35 | Created pcs-frontend/tests/scripts/check-api-drift.test.sh | — | ~786 |
+| 10:36 | Edited pcs-frontend/scripts/check-api-drift.sh | 4→5 lines | ~50 |
+| 10:38 | Created pcs-frontend/tests/scripts/check-api-drift.test.sh | — | ~903 |
+| 10:39 | Edited pcs-frontend/tests/scripts/check-api-drift.test.sh | 18→18 lines | ~191 |
+| 10:39 | Edited pcs-frontend/tests/scripts/check-api-drift.test.sh | 4→4 lines | ~57 |
+| 10:45 | **Sprint 2 check-api-drift.sh 语义级 OpenAPI 漂移检测** (commit e020058) — 字节级 diff + 语义级 diff (paths + schemas + required); BREAKING 检测: 删除 paths/schemas + required 字段变化; 支持 SNAPSHOT_OVERRIDE/BACKEND_OPENAPI_OVERRIDE env var (测试覆盖); 新增 4 测试 (identical / snapshot 缺 path / backend 加 path / schema required 变化). 4/4 PASS; production drift check exit 0 一致 | commit e020058 | written | ~1k |
+| 10:43 | Edited pcs-backend/app/api/v1/cv.py | added 3 import(s) | ~109 |
+| 10:43 | Edited pcs-backend/app/api/v1/cv.py | modified cv_calculate() | ~217 |
+| 10:43 | Edited pcs-backend/app/api/v1/cv.py | 3→2 lines | ~17 |
+| 10:44 | Edited pcs-backend/tests/api/v1/test_cv_api.py | added 1 import(s) | ~63 |
+| 10:44 | Edited pcs-backend/tests/api/v1/test_cv_api.py | modified _auth_headers() | ~108 |
+| 10:45 | Edited pcs-backend/tests/api/v1/test_cv_api.py | modified test_cv_calculate_post_success() | ~115 |
+| 10:45 | Edited pcs-backend/tests/api/v1/test_cv_api.py | modified test_cv_calculate_invalid_input_missing_source_stream() | ~134 |
+| 10:45 | Edited pcs-backend/tests/api/v1/test_cv_api.py | modified test_cv_calculate_invalid_input_unknown_field() | ~182 |
+| 10:45 | Edited pcs-backend/tests/api/v1/test_cv_api.py | modified test_cv_calculate_standard_profile_code_default() | ~188 |
+| 10:46 | Edited pcs-backend/app/api/v1/change_impact.py | modified confirm_recalc() | ~612 |
+| 10:48 | Edited pcs-backend/tests/test_change_impact.py | modified _auth_headers() | ~206 |
+| 10:48 | Edited pcs-backend/tests/test_change_impact.py | modified test_confirm_recalc_no_lineage() | ~848 |
+| 10:49 | Edited pcs-backend/app/api/v1/lineage.py | modified upstream() | ~592 |
+| 10:49 | Edited pcs-backend/app/api/v1/lineage.py | 12→15 lines | ~170 |
+| 10:49 | Edited pcs-backend/app/api/v1/lineage.py | modified graph() | ~295 |
+| 10:50 | Edited pcs-backend/app/api/v1/lineage.py | modified _guard_record_access() | ~444 |
+| 10:50 | Edited pcs-backend/tests/test_lineage_api.py | modified _auth_headers() | ~225 |
+| 10:53 | Edited pcs-backend/tests/test_lineage_api.py | modified _auth_headers() | ~234 |
+| 11:00 | **Sprint 2 P7-7+ BLOCKER-3 剩余 5 endpoint IDOR 修复** (commit 293fcee) — cv.py (1 endpoint: req.project_id 来自 body 必须 actor 验证) + change_impact.py (1 endpoint: confirm_recalc 拉 PipingResult 验证访问权) + lineage.py (3 endpoint: upstream/downstream/graph 加 _guard_record_access helper, 读血缘也算访问数据). 3 测试文件改用 Bearer token + _auth_headers(user_id); 104 passed (lineage + change_impact + cv + checklist + records + util + auth). **P7-7+ BLOCKER-3 累计: 23 endpoint IDOR 修复全栈覆盖** (4 checklist + 3 records + 5 earlier batches + 1 cv + 1 change_impact + 3 lineage) | commit 293fcee | written | ~2k |
+| 11:23 | Created pcs-frontend/playwright.config.ts | — | ~284 |
+| 11:23 | Created pcs-frontend/e2e/cooling_water.spec.ts | — | ~943 |
+| 11:24 | Created pcs-frontend/e2e/energy_summary.spec.ts | — | ~1129 |
+| 11:28 | Created pcs-frontend/vitest.config.ts | — | ~103 |
+| 11:32 | Edited pcs-frontend/vitest.config.ts | 14→16 lines | ~118 |
+| 11:34 | Edited pcs-frontend/package.json | 2→4 lines | ~51 |
+| 11:45 | Edited pcs-frontend/e2e/energy_summary.spec.ts | 5→5 lines | ~72 |
+| 11:49 | Edited pcs-frontend/e2e/cooling_water.spec.ts | reduced (-6 lines) | ~88 |
+| 11:49 | Edited pcs-frontend/e2e/energy_summary.spec.ts | reduced (-7 lines) | ~67 |
+| 11:52 | Edited pcs-frontend/e2e/cooling_water.spec.ts | 8→13 lines | ~166 |
+| 11:52 | Edited pcs-frontend/e2e/energy_summary.spec.ts | 6→10 lines | ~122 |
+| 11:56 | Edited pcs-frontend/.gitignore | 4→8 lines | ~22 |
+| 12:00 | **Sprint 2 P7-6B Playwright e2e 测试基础设施** (commit 70e0890) — @playwright/test ^1.63.0 + chromium 浏览器已装; playwright.config.ts (chromium project + vite webServer); e2e/cooling_water.spec.ts (5 测试) + e2e/energy_summary.spec.ts (7 测试). vitest.config.ts exclude e2e/**. vitest 563 passed (无回归). Playwright SCAFFOLD 阶段: MSW worker + vite dev server 联动需后端运行才能跑通 (mock-login POST 在无后端时一直 loading); 后续 sprint 接 pcs-backend 后完整跑通 | commit 70e0890 | written | ~1k |
+| 16:36 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | added 1 condition(s) | ~154 |
+| 16:36 | Edited pcs-backend/app/models/config.py | 2→5 lines | ~76 |
+| 16:37 | Created pcs-backend/alembic/versions/p7_open_013_drop_tolerance_status_default.py | — | ~718 |
+| 16:37 | Edited pcs-backend/app/models/util.py | 4→6 lines | ~91 |
+| 16:37 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 62→67 lines | ~931 |
+| 16:37 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | inline fix | ~11 |
+| 16:39 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | expanded (+26 lines) | ~1319 |
+| 16:41 | Edited pcs-backend/tests/conftest.py | added 1 import(s) | ~65 |
+| 16:42 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 19→22 lines | ~230 |
+| 16:45 | Edited pcs-backend/app/api/v1/util.py | expanded (+14 lines) | ~442 |
+| 16:45 | Edited pcs-backend/app/schemas/util.py | modified UtilResultsResponse() | ~207 |
+| 16:47 | Edited pcs-backend/app/models/util.py | expanded (+20 lines) | ~299 |
+| 16:47 | Created pcs-backend/alembic/versions/p7_open_014_util_results_aggregator_columns.py | — | ~542 |
+| 16:47 | Edited pcs-backend/app/api/v1/util.py | 11→16 lines | ~213 |
+| 16:47 | Created pcs-backend/app/services/_async_ttl_cache.py | — | ~460 |
+| 16:48 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | added 1 import(s) | ~97 |
+| 16:48 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified _load_all_factor_rows() | ~453 |
+| 16:48 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 8→8 lines | ~79 |
+| 16:50 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | modified _clear_async_ttl_cache() | ~300 |
+| 16:51 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 9→7 lines | ~30 |
+| 16:52 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | expire_all() → refresh() | ~221 |
+| 16:52 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | inline fix | ~19 |
+| 17:00 | **Sprint 2 ce-code-review P0+P1 修复闭环** (commit 6d74fdd + e4e4cad) — 4 P0 (F-P0-001 docstring 蒸汽/水 per-tonne 明确 + F-P0-002 upsert 防 TOCTOU race + F-P0-003 tolerance_pct is not None 卫语句 + F-P0-004 server_default OK → NA + CHECK 约束) + 3 P1 (F-P1-001 annual_consumption ≤0.5% plausibility + F-P1-002 5-min TTL cache 异步版 _async_ttl_cache.py + F-P1-007 UtilResults 加 4 聚合列 + UtilResultsResponse 同步). P1-005 早期 IDOR 修 23 endpoint 已覆盖. 新增 alembic p7_open_013 (drop OK default + CHECK) + p7_open_014 (UtilResults 4 列). 130 passed 回归; P0/P1 关键项全部修复; verdict 'Ready after fixes' 达成 | commits 6d74fdd + e4e4cad | written | ~3k |
+| 16:57 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 2→5 lines | ~65 |
+| 16:57 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 11→13 lines | ~186 |
+| 16:58 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 11→11 lines | ~149 |
+| 16:58 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 16→16 lines | ~176 |
+| 16:59 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 8→8 lines | ~66 |
+| 17:02 | Edited pcs-backend/app/schemas/util.py | 1→3 lines | ~48 |
+| 17:02 | Edited pcs-backend/app/schemas/util.py | 3→3 lines | ~44 |
+| 17:03 | Edited pcs-backend/app/schemas/util.py | 3→3 lines | ~46 |
+| 17:03 | Edited pcs-backend/app/schemas/util.py | 1→3 lines | ~44 |
+| 17:03 | Edited pcs-backend/app/schemas/util.py | modified Field() | ~138 |
+| 17:03 | Edited pcs-backend/app/api/v1/util.py | 6→7 lines | ~74 |
+| 17:07 | Edited pcs-backend/tests/api/v1/test_util.py | modified test_api_list_util_results_unauthenticated_401() | ~974 |
+| 17:08 | Edited pcs-backend/tests/api/v1/test_util.py | 31→28 lines | ~291 |
+| 17:09 | Edited pcs-backend/tests/api/v1/test_util.py | 2→2 lines | ~19 |
+| 17:15 | Created pcs-backend/app/services/_sliding_window_rate_limit.py | — | ~352 |
+| 17:15 | Edited pcs-backend/app/api/v1/util.py | modified aggregate_energy_summary() | ~361 |
+| 17:16 | Edited pcs-backend/tests/api/v1/test_util.py | modified test_api_create_util_fuel_gas_invalid_fuel_type_422() | ~586 |
+| 17:19 | Created docs/ce-code-review/CLOSURE-P2-P3-2026-10-02.md | — | ~738 |
+| 17:25 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified fix() | ~252 |
+| 17:25 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | added 2 condition(s) | ~559 |
+| 17:28 | Created pcs-backend/scripts/p7_open_015_regen_golden_mj.py | — | ~1077 |
+| 17:30 | Edited pcs-backend/scripts/p7_open_015_regen_golden_mj.py | MPa() → OILFIELD_GAS() | ~136 |
+| 17:30 | Edited pcs-backend/scripts/p7_open_015_regen_golden_mj.py | 9→5 lines | ~94 |
+| 17:31 | Edited pcs-backend/scripts/p7_open_015_regen_golden_mj.py | modified get() | ~143 |
+| 17:43 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 7→11 lines | ~140 |
+| 17:44 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 5→6 lines | ~46 |
+| 17:45 | Created pcs-backend/scripts/p7_open_015_regen_golden_mj.py | — | ~2123 |
+| 17:46 | Edited pcs-backend/scripts/p7_open_015_regen_golden_mj.py | 13→13 lines | ~139 |
+| 17:46 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | modified _dump() | ~256 |
+| 17:47 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | removed 9 lines | ~21 |
+| 17:47 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | modified test_service_aggregates_t1t2t3_within_tolerance() | ~127 |
+| 17:48 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | added 1 import(s) | ~118 |
+| 17:48 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 8→11 lines | ~146 |
+| 17:48 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 5→4 lines | ~46 |
+| 17:50 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 5→5 lines | ~64 |
+| 17:51 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 5→5 lines | ~50 |
+| 17:52 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | modified test_service_aggregates_t1t2t3_within_tolerance() | ~89 |
+| 17:52 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 10→9 lines | ~125 |
+| 17:52 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | reduced (-10 lines) | ~55 |
+| 17:53 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | modified test_no_hardcoded_unit_constants_f_p2_004() | ~771 |
+| 17:55 | Created docs/ce-code-review/CLOSURE-P2-P3-2026-10-02.md | — | ~1198 |
+| 19:17 | Created pcs-backend/app/models/cool_tower.py | — | ~733 |
+| 19:17 | Edited pcs-backend/app/models/cool_tower.py | 13→13 lines | ~116 |
+| 19:18 | Edited pcs-backend/app/api/v1/cool_tower.py | 6→6 lines | ~84 |
+| 19:19 | Edited pcs-backend/app/api/v1/cool_tower.py | 6→6 lines | ~86 |
+| 19:20 | Edited pcs-backend/tests/services/cv/test_flashing_correction.py | modified test_cv_api_response_includes_3_optional_fields() | ~212 |
+| 19:23 | Created pcs-backend/alembic/versions/p7_s2_001_equipment_deletion_audit.py | — | ~843 |
+| 19:24 | Edited pcs-backend/app/models/equipment.py | modified EquipmentDeletionAudit() | ~550 |
+| 19:24 | Edited pcs-backend/app/models/equipment.py | 12→13 lines | ~57 |
+| 19:25 | Edited pcs-backend/app/models/equipment.py | added 1 import(s) | ~37 |
+| 19:25 | Edited pcs-backend/app/api/v1/equip_list.py | modified delete_equipment() | ~904 |
+| 19:27 | Edited pcs-backend/tests/api/v1/test_equip_list.py | modified test_api_list_equipment_unauthenticated_401() | ~1151 |
+| 19:28 | Edited pcs-backend/tests/api/v1/test_equip_list.py | 9→12 lines | ~96 |
+| 19:30 | Edited pcs-backend/tests/api/v1/test_equip_list.py | modified test_api_delete_equipment_writes_audit_log_f_p2_009() | ~337 |
+| 19:31 | Edited pcs-backend/tests/api/v1/test_equip_list.py | modified test_api_delete_equipment_writes_audit_log_f_p2_009() | ~800 |
+| 19:31 | Edited pcs-backend/app/api/v1/equip_list.py | 6→6 lines | ~74 |
+| 19:32 | Edited pcs-backend/tests/conftest.py | modified _register_sqlite_pg_functions() | ~102 |
+| 19:33 | Edited pcs-backend/tests/api/v1/test_equip_list.py | expanded (+8 lines) | ~207 |
+| 19:34 | Edited pcs-backend/tests/api/v1/test_equip_list.py | expanded (+12 lines) | ~274 |
+| 19:36 | Edited pcs-backend/tests/api/v1/test_equip_list.py | modified test_api_delete_equipment_writes_audit_log_f_p2_009() | ~777 |
+| 19:37 | Edited pcs-backend/tests/conftest.py | modified _register_sqlite_pg_functions() | ~68 |
+| 19:39 | Created pcs-backend/alembic/versions/p7_s2_002_workspace_fk_restrict.py | — | ~668 |
+| 19:40 | Edited pcs-backend/tests/api/v1/test_util.py | modified test_api_aggregate_energy_summary_rate_limit_429() | ~712 |
+| 20:01 | Edited pcs-backend/app/models/util.py | 3→3 lines | ~40 |
+| 20:03 | Edited pcs-backend/alembic/versions/p7_s2_001_equipment_deletion_audit.py | 2→2 lines | ~29 |
+| 20:06 | Created pcs-backend/scripts/check_migration_idempotency.py | — | ~674 |
+| 20:07 | Edited pcs-backend/alembic/versions/p7_s2_001_equipment_deletion_audit.py | modified upgrade() | ~31 |
+| 20:07 | Edited pcs-backend/scripts/check_migration_idempotency.py | 8→9 lines | ~104 |
+| 20:08 | Edited pcs-backend/alembic/versions/p7_s2_001_equipment_deletion_audit.py | modified downgrade() | ~227 |
+| 20:08 | Edited pcs-backend/scripts/check_migration_idempotency.py | modified max() | ~45 |
+| 20:09 | Edited pcs-backend/scripts/check_migration_idempotency.py | modified max() | ~47 |
+| 20:09 | Created pcs-backend/scripts/check_migration_idempotency.sh | — | ~113 |
+| 20:09 | Created pcs-backend/tests/scripts/test_check_migration_idempotency.py | — | ~805 |
+| 20:11 | Edited pcs-backend/tests/scripts/test_check_migration_idempotency.py | modified _load_check_module() | ~769 |
+| 20:23 | Edited pcs-frontend/src/pages/LoginPage.tsx | CSS: fix | ~178 |
+| 20:28 | Edited pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx | 15→14 lines | ~140 |
+| 20:28 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-10-02-sprint2-batch.md | — | ~1081 |
+| 20:48 | Edited pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx | CSS: fix | ~202 |
+| 20:48 | Edited pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx | expanded (+10 lines) | ~245 |
+| 20:59 | Created docs/PROD-CHECKLIST-F-P3-001-2026-10-02.md | — | ~636 |
+| 21:00 | Created .github/workflows/check-api-drift.yml | — | ~565 |
+| 22:02 | Edited docs/sprint3-plan-2026-10-02.md | modified prod_mode_settings() | ~2184 |
+| 00:39 | Edited pcs-backend/app/core/config.py | 3→8 lines | ~100 |
+| 00:39 | Edited pcs-backend/app/core/security.py | modified 3() | ~178 |
+| 00:39 | Edited pcs-backend/app/core/security.py | modified 3() | ~186 |
+| 00:39 | Edited pcs-backend/app/core/security.py | modified decode_token() | ~299 |
+| 00:39 | Edited pcs-backend/app/api/v1/config.py | modified current_actor() | ~608 |
+| 00:40 | Edited pcs-backend/app/services/ldap_client.py | modified resolve_role() | ~177 |
+| 00:40 | Edited pcs-backend/app/models/enums.py | modified WorkspaceType() | ~202 |
+| 00:40 | Edited pcs-backend/app/models/project.py | 2→2 lines | ~34 |
+| 00:40 | Edited pcs-backend/app/models/project.py | modified Project() | ~111 |
+| 00:40 | Edited pcs-backend/app/models/project.py | modified Workspace() | ~363 |
+| 00:40 | Created pcs-backend/alembic/versions/p7_s3_001_workspace_status.py | — | ~394 |
+| 00:40 | Edited pcs-backend/app/api/v1/workspaces.py | expanded (+6 lines) | ~230 |
+| 00:43 | Created pcs-backend/tests/test_jwt_production.py | — | ~1956 |
+| 00:43 | Created pcs-backend/tests/test_workspace_archive.py | — | ~1272 |
+| 00:44 | Edited pcs-backend/app/api/v1/workspaces.py | modified archive_workspace() | ~456 |
+| 00:44 | Edited pcs-backend/app/api/v1/workspaces.py | added 1 import(s) | ~160 |
+| 00:44 | Edited pcs-backend/app/api/v1/workspaces.py | 6→6 lines | ~83 |
+| 00:44 | Edited pcs-backend/app/services/advisory_lock.py | added error handling | ~338 |
+| 00:45 | Edited pcs-backend/app/schemas/workspace.py | modified WorkspaceOut() | ~262 |
+| 00:45 | Created pcs-backend/tests/test_audit_query.py | — | ~3378 |
+| 00:46 | Created pcs-backend/app/schemas/audit.py | — | ~769 |
+| 00:46 | Created pcs-backend/app/api/v1/audit.py | — | ~2412 |
+| 00:46 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~47 |
+| 00:46 | Edited pcs-backend/app/api/v1/__init__.py | 2→3 lines | ~49 |
+| 00:46 | Edited pcs-backend/app/api/v1/audit.py | "/audit" → "audit" | ~10 |
+| 00:47 | Edited pcs-backend/app/api/v1/audit.py | 3→3 lines | ~43 |
+| 00:47 | Edited pcs-backend/app/api/v1/audit.py | 6→6 lines | ~68 |
+| 00:47 | Edited pcs-backend/app/api/v1/audit.py | 10→10 lines | ~86 |
+| 00:47 | Edited pcs-backend/app/api/v1/audit.py | 4→4 lines | ~44 |
+| 00:50 | Edited pcs-backend/tests/test_audit_query.py | modified test_pagination_limit_offset() | ~247 |
+| 00:50 | Edited pcs-backend/tests/test_workspace_archive.py | modified test_archive_workspace_success() | ~229 |
+| 00:51 | Edited pcs-backend/app/api/v1/audit.py | 6→6 lines | ~68 |
+| 00:51 | Edited pcs-backend/app/api/v1/audit.py | 10→10 lines | ~86 |
+| 00:51 | Edited pcs-backend/tests/test_workspace_archive.py | modified test_archive_workspace_success() | ~149 |
+| 00:51 | Edited pcs-backend/tests/test_audit_query.py | modified test_pagination_limit_offset() | ~157 |
+| 00:55 | Created pcs-backend/scripts/p7_s3_003_backfill_config_audit.py | — | ~1403 |
+| 00:55 | Edited pcs-backend/app/models/enums.py | 5→9 lines | ~112 |
+| 00:55 | Created pcs-backend/scripts/p7_s3_003_backfill_config_audit.py | — | ~1249 |
+| 00:58 | Edited pcs-backend/app/api/v1/config.py | 2→3 lines | ~55 |
+| 00:58 | Edited pcs-backend/tests/test_jwt_production.py | inline fix | ~29 |
+| 01:05 | Edited pcs-backend/app/api/v1/config.py | 3→6 lines | ~72 |
+| 01:05 | Edited pcs-backend/tests/test_jwt_production.py | inline fix | ~32 |
+| 01:17 | Edited pcs-backend/scripts/check_migration_idempotency.py | modified main() | ~130 |
+| 06:07 | Created pcs-frontend/tests/api/audit_api.test.ts | — | ~512 |
+| 06:08 | Created pcs-frontend/src/api/audit.ts | — | ~720 |
+| 06:08 | Created pcs-frontend/src/pages/audit/AuditLogPage.tsx | — | ~2274 |
+| 06:08 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified EnergySummaryAggregateRoute() | ~119 |
+| 06:08 | Edited pcs-frontend/src/App.tsx | 3→4 lines | ~28 |
+| 06:08 | Edited pcs-frontend/src/App.tsx | 3→6 lines | ~85 |
+| 06:08 | Edited pcs-frontend/src/layouts/MainLayout.tsx | 4→7 lines | ~65 |
+| 06:09 | Edited pcs-frontend/src/mocks/handlers.ts | added 4 condition(s) | ~1098 |
+| 06:09 | Edited pcs-frontend/src/pages/audit/AuditLogPage.tsx | 13→12 lines | ~35 |
+| 06:09 | Created pcs-frontend/tests/pages/audit/AuditLogPage.test.tsx | — | ~594 |
+| 06:10 | Edited pcs-frontend/tests/pages/audit/AuditLogPage.test.tsx | modified if() | ~305 |
+| 06:10 | Created pcs-frontend/e2e/fixtures.ts | — | ~306 |
+| 06:10 | Created pcs-frontend/e2e/audit_log.spec.ts | — | ~819 |
+| 07:55 | Created docs/PROD-CHECKLIST-F-P3-001-2026-10-02.md | — | ~1274 |
+| 07:56 | Created pcs-backend/tests/test_audit_guard.py | — | ~837 |
+| 07:56 | Created pcs-backend/tests/test_audit_guard.py | — | ~923 |
+| 07:57 | Edited pcs-backend/app/api/v1/audit.py | modified list_equipment_deletion_audit() | ~370 |
+| 07:57 | Edited pcs-backend/app/api/v1/audit.py | added 1 import(s) | ~46 |
+| 07:57 | Edited pcs-backend/tests/test_audit_guard.py | modified admin_token() | ~220 |
+| 07:58 | Edited pcs-backend/tests/test_audit_guard.py | modified _unmock_user_project_check() | ~280 |
+| 07:58 | Created pcs-backend/tests/test_audit_guard.py | — | ~1238 |
+| 07:59 | Edited pcs-backend/tests/test_audit_guard.py | added 1 import(s) | ~242 |
+| 08:00 | Edited pcs-backend/app/api/v1/audit.py | 12→14 lines | ~172 |
+| 08:01 | Edited pcs-backend/app/api/v1/workspaces.py | added 1 import(s) | ~46 |
+| 08:01 | Edited pcs-backend/app/api/v1/workspaces.py | expanded (+8 lines) | ~240 |
+| 08:11 | Edited pcs-backend/app/api/v1/config.py | 6→8 lines | ~121 |
+| 08:11 | Edited pcs-backend/tests/test_jwt_production.py | inline fix | ~36 |
+| 08:12 | Edited pcs-backend/tests/test_jwt_production.py | modified test_invalid_role_rejected_by_decode() | ~376 |
+| 08:19 | Created pcs-frontend/.gstack/qa-reports/qa-report-pcs-frontend-2026-10-03-sprint3-batch2.md | — | ~1519 |
+| 09:00 | P7 Sprint 3 闭环收口（2026-10-03）| — | ~5126 |
+| 09:00 | feat 4 items (F-P3-001/F-P3-003/F-P2-009/R1-backfill) + P7-7+ guard + P7-6B 闭环 + frontend audit viewer + ce-code-review P1 fix | 11 commits (ad085e1..f471abe), git tag p7-s3-closure | 38/38 backend + 569/569 frontend + gstack-qa 97/100 ✓ | ~50k |
