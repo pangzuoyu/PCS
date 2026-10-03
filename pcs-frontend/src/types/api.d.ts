@@ -4924,7 +4924,10 @@ export interface paths {
          * List Equipment Deletion Audit
          * @description 设备删除 audit 查询 (F-P0-004 IDOR 防护).
          *
-         *     非 SYSTEM_ADMIN 强制 project_id 必传, 否则 403.
+         *     守卫链 (defense-in-depth, P7-7+ BLOCKER-3 集成):
+         *     1. RBAC: DESIGNER+ (require_roles)
+         *     2. IDOR: project_id filter (Issue 7)
+         *     3. UserProject guard: 用户对该 project 有 grant (SYSADMIN bypass)
          */
         get: operations["list_equipment_deletion_audit_api_v1_equipment_deletion_audit_get"];
         put?: never;
