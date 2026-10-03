@@ -18,6 +18,7 @@ from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
+from app.api.v1._guard import check_project_access_or_404
 from app.db.session import get_db
 from app.models.equipment import EquipmentDeletionAudit
 from app.models.system import AuditLog
@@ -109,11 +110,25 @@ async def list_equipment_deletion_audit(
 ) -> EquipmentDeletionAuditListResponse:
     """设备删除 audit 查询 (F-P0-004 IDOR 防护).
 
-    非 SYSTEM_ADMIN 强制 project_id 必传, 否则 403.
+    守卫链 (defense-in-depth, P7-7+ BLOCKER-3 集成):
+    1. RBAC: DESIGNER+ (require_roles)
+    2. IDOR: project_id filter (Issue 7)
+    3. UserProject guard: 用户对该 project 有 grant (SYSADMIN bypass)
     """
     require_roles(
         user, "DESIGNER", "PROCESS_CONTROLLER", "REVIEWER", "APPROVER", "SYSTEM_ADMIN",
     )
+    # P7-7+: 强制 project_id + UserProject guard (非 admin 必传; 否则 403/404)
+    if project_id is not None:
+        # SYSADMIN bypass 在 _guard.py:37 (检查 "SYSADMIN"); 但 JWT role 是
+        # "SYSTEM_ADMIN" — 同义两种写法都传以兼容.
+        actor_roles_list = [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+        await check_project_access_or_404(
+            db,
+            user_id=user.user_id,
+            project_id=project_id,
+            actor_roles=actor_roles_list,
+        )
     conditions = []
     if user.role != "SYSTEM_ADMIN":
         if project_id is None:

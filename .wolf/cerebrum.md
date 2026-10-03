@@ -469,7 +469,22 @@
    - **_DewpointResult 字段名统一**（v5.1 P-2 落实）：定义段 + R-13 用 `dewpoint_f`/`extrapolated`/`reason`，**不**用 `found`/`T_f` 旧名
    - **_calc_behr_water_content 调用 _correct_behr_for_acid_gas**（v5.1 P-4 落实）：去重 acid gas 修正公式；future-proof
 
-**scope 限定**：仅 TEG 全套公式（GPSA §20.4）；DEG partial coverage 暂维持 out_of_scope，helper 全部 TEG-only（`_validate_input` 抛 422）。当前 K=7.1187 越界 WARNING；多工况标定走 OPEN-P6-6A-9.2；真 Wichert-Aziz 非线性形式走 OPEN-P6-6A-9.3；brentq low-T Bukacek 走 OPEN-P6-6A-9.4。
+**scope 限定**：仅 TEG 全套公式（GPSA §20.4）；DEG partial coverage 暂维持 out_of_scope，helper 全部 TEG-only（`_validate_input` 抛 422）。当前 K=7.1187 越界 WARNING；多工况标定走 OPEN-P6-6A-9.2；真 Wichert-Azix 非线性形式走 OPEN-P6-6A-9.3；brentq low-T Bukacek 走 OPEN-P6-6A-9.4。
+
+## P7-7+ BLOCKER-3 endpoint guard 测试 pattern（2026-10-02 用户授权）
+
+- **client fixture monkeypatch `UserProjectService.check_user_project_access → True`**: 仿 P6 历史做法 (test_conftest_granted_user_project)。让 14+ endpoint 测试自动 bypass guard 拿真业务逻辑路径。ACL 测试 (test_user_project_service.py) 不受影响 — 它没 client。
+- **生产 guard (`Depends(current_actor)` + `check_project_access_or_404`) 100% 保留**: bypass 严格 scope 在测试 in-memory client (monkeypatch)。classifier 视为 "Security Test Removal" 误判时，需用户明确授权才 commit。
+- **OpenChannelResult PK = `open_channel_id`** (UUID, default uuid4 per `TaggedRecordMixin`)。早期 BLOCKER-3 guard 用错 `result_id` 是 typo。bypass 暴露。
+- **Stream 模型真在 `app.models.project`**, 无 `app.models.stream` 模块。
+- **关键 endpoint guard 集成（2026-10-03 Sprint 3）**: test_audit_guard.py 用 `real_user_project_client` fixture (独立 httpx.AsyncClient + ASGITransport, 不应用 conftest mock) 才能验证 guard 真生效。本测试文件必备。
+
+## P7-6B 冷却水子表闭环（2026-10-03 用户裁决）
+
+- **P7-6B "冷却水子表"原指独立表**；R1 §7.2 设计改为**复用 utility_heat_exchange.medium_type**（STEAM + 9 类水同表）。
+- **water_by_type 聚合已落地**（utility_energy_summary_service.py:178-191）: medium_type != 'STEAM' → 9 类水按 medium_type 分组聚合年消耗。
+- **P7-6B 实际待落地项**: utility_gas (工艺气体) + utility_low_temp_heat (低温余热) 子表（gas_nm3_yr / low_temp_heat_gj_yr 仍为 None）— **业务驱动时续做**。
+- **SYSADMIN role string 不一致**: JWT mock 用 `"SYSTEM_ADMIN"`，_guard.py:37 SYSADMIN bypass 检查 `"SYSADMIN"`。两条 role 字符串都存在 (stream_service.py:75 注释明确映射)。guard 调用方传 `actor_roles=[user.role, "SYSADMIN"]` 双写兼容。
 
 ## Decision Log
 

@@ -353,6 +353,66 @@
         }
       }
     },
+    "/api/v1/workspaces/{workspace_id}/archive": {
+      "patch": {
+        "tags": [
+          "workspaces"
+        ],
+        "summary": "Archive Workspace",
+        "description": "归档 workspace (F-P3-003 Sprint 3 / Issue 2 校准).\n\nPATCH /workspaces/{workspace_id}/archive — 改 status='ARCHIVED', 不删数据.\n\nACL: SYSTEM_ADMIN. archive 后 FK RESTRICT 允许显式删 (但当前无 DELETE 端点).\n\nD2 2A 模式: 同 workspace_id 串行 archive (advisory lock), 防并发竞态.\n与 PCS 已用 advisory_lock.py 模式一致 (sync_from_source.actor 等).\n\n幂等: 重复归档返回 200 (不报 409), 避免误判.",
+        "operationId": "archive_workspace_api_v1_workspaces__workspace_id__archive_patch",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WorkspaceOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/checklist/projects/{project_id}": {
       "get": {
         "tags": [
@@ -14740,6 +14800,484 @@
         }
       }
     },
+    "/api/v1/audit-logs": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "List Audit Logs",
+        "description": "Audit logs 通用查询. SYSTEM_ADMIN only (Issue 7 / F-P0-004 收窄).\n\nF-P0-001 R1 签署痕迹查询: 走 GET /config-audit (独立端点, DESIGNER+);\n或 admin 代查.",
+        "operationId": "list_audit_logs_api_v1_audit_logs_get",
+        "parameters": [
+          {
+            "name": "resource_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 50
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Resource Type"
+            }
+          },
+          {
+            "name": "resource_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Resource Id"
+            }
+          },
+          {
+            "name": "user_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "action",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "maxLength": 50
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Action"
+            }
+          },
+          {
+            "name": "occurred_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Occurred After"
+            }
+          },
+          {
+            "name": "occurred_before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Occurred Before"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLogListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/equipment-deletion-audit": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "List Equipment Deletion Audit",
+        "description": "设备删除 audit 查询 (F-P0-004 IDOR 防护).\n\n非 SYSTEM_ADMIN 强制 project_id 必传, 否则 403.",
+        "operationId": "list_equipment_deletion_audit_api_v1_equipment_deletion_audit_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "F-P0-004 IDOR: 非 admin 必传",
+              "title": "Project Id"
+            },
+            "description": "F-P0-004 IDOR: 非 admin 必传"
+          },
+          {
+            "name": "workspace_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "equipment_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Equipment Id"
+            }
+          },
+          {
+            "name": "deleted_by",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Deleted By"
+            }
+          },
+          {
+            "name": "occurred_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Occurred After"
+            }
+          },
+          {
+            "name": "occurred_before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Occurred Before"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EquipmentDeletionAuditListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/config-audit": {
+      "get": {
+        "tags": [
+          "audit"
+        ],
+        "summary": "List Config Audit",
+        "description": "F-P0-001 R1 签署痕迹独立端点 (DESIGNER+, 全公司可查).\n\nsource-verify 2026-10-03:\n- resource_type 实际值 = \"config_energy_conversion_factors\"\n- ConfigEnergyConversionFactor 公司级全局 (无 project_id) — F-P0-004 IDOR 不适用\n- audit_logs.resource_id 是 String(100), ConfigEnergyConversionFactor.id 是 BIGINT,\n  需 str() 转换\n\n业务: 工艺室 / 设计 / 审查 / 审批 可查全公司 ConfigEnergyConversionFactor audit.\nF-P0-001 R1 修订 trace 是其中一类 action=CONFIG_R1_BACKFILL.",
+        "operationId": "list_config_audit_api_v1_config_audit_get",
+        "parameters": [
+          {
+            "name": "asset_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "ConfigEnergyConversionFactor.id (BIGINT)",
+              "title": "Asset Id"
+            },
+            "description": "ConfigEnergyConversionFactor.id (BIGINT)"
+          },
+          {
+            "name": "occurred_after",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Occurred After"
+            }
+          },
+          {
+            "name": "occurred_before",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "date-time"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Occurred Before"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLogListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/auth/mock-login": {
       "post": {
         "tags": [
@@ -14913,6 +15451,121 @@
         ],
         "title": "AssetResponse",
         "description": "GET /assets/{id} 与 POST /assets 返回结构。"
+      },
+      "AuditLogListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/AuditLogResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total",
+            "description": "满足条件的总行数"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "AuditLogListResponse",
+        "description": "audit_logs 列表响应 (含分页)."
+      },
+      "AuditLogResponse": {
+        "properties": {
+          "audit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Audit Id",
+            "description": "audit 行 UUID"
+          },
+          "user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "User Id",
+            "description": "操作者 user_id"
+          },
+          "action": {
+            "type": "string",
+            "title": "Action",
+            "description": "动作类型 (CREATE/UPDATE/DELETE/...)"
+          },
+          "resource_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Type",
+            "description": "资源类型 (config_energy_conversion_factors/...)"
+          },
+          "resource_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Resource Id",
+            "description": "资源 ID (String, 表内 BIGINT/UUID 通用)"
+          },
+          "detail_json": {
+            "anyOf": [
+              {
+                "additionalProperties": true,
+                "type": "object"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail Json",
+            "description": "详情 JSON"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At",
+            "description": "发生时间 (UTC)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "audit_id",
+          "action",
+          "occurred_at"
+        ],
+        "title": "AuditLogResponse",
+        "description": "audit_logs 表单行响应.\n\nsource-verify (2026-10-03): AuditLog 9 列\naudit_id / user_id / action / resource_type / resource_id /\nip / user_agent / request_id / detail_json / occurred_at.\n仅暴露 query 必要列 (ip/user_agent/request_id 内部用, 不入 list 响应)."
       },
       "Body_import_htri_api_v1_heat_import_htri_post": {
         "properties": {
@@ -18929,6 +19582,117 @@
         ],
         "title": "EquipListSyncResponse",
         "description": "sync API 响应。\n\nReturns:\n    EquipListResponse: 同步后的 EquipmentList 记录\n    was_created: True=新建（equipment_status=\"N\"）/ False=更新（equipment_status=\"E\"）"
+      },
+      "EquipmentDeletionAuditListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/EquipmentDeletionAuditResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Total"
+          },
+          "limit": {
+            "type": "integer",
+            "maximum": 200.0,
+            "minimum": 1.0,
+            "title": "Limit"
+          },
+          "offset": {
+            "type": "integer",
+            "minimum": 0.0,
+            "title": "Offset"
+          }
+        },
+        "type": "object",
+        "required": [
+          "total",
+          "limit",
+          "offset"
+        ],
+        "title": "EquipmentDeletionAuditListResponse",
+        "description": "equipment_deletion_audit 列表响应."
+      },
+      "EquipmentDeletionAuditResponse": {
+        "properties": {
+          "audit_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Audit Id",
+            "description": "audit 行 UUID"
+          },
+          "equipment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Equipment Id",
+            "description": "被删除设备 ID"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 ID"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "workspace ID"
+          },
+          "equipment_tag": {
+            "type": "string",
+            "title": "Equipment Tag",
+            "description": "设备位号快照"
+          },
+          "deleted_by": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Deleted By",
+            "description": "删除操作者 user_id"
+          },
+          "orphan_records": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Orphan Records",
+            "description": "被 SET NULL 的 utility_* 记录"
+          },
+          "occurred_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Occurred At",
+            "description": "删除时间 (UTC)"
+          },
+          "reason": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Reason",
+            "description": "删除原因 (可选)"
+          }
+        },
+        "type": "object",
+        "required": [
+          "audit_id",
+          "equipment_id",
+          "project_id",
+          "workspace_id",
+          "equipment_tag",
+          "deleted_by",
+          "orphan_records",
+          "occurred_at"
+        ],
+        "title": "EquipmentDeletionAuditResponse",
+        "description": "equipment_deletion_audit 表单行响应.\n\nsource-verify (2026-10-03): EquipmentDeletionAudit 9 列\naudit_id / equipment_id / project_id / workspace_id /\nequipment_tag / deleted_by / orphan_records / occurred_at / reason."
       },
       "ErgunCalcRequest": {
         "properties": {
@@ -32301,6 +33065,12 @@
             ],
             "title": "Retention Days",
             "description": "数据保留天数"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "F-P3-003: ACTIVE / ARCHIVED 2-state",
+            "default": "ACTIVE"
           }
         },
         "type": "object",
@@ -32311,7 +33081,7 @@
           "created_at"
         ],
         "title": "WorkspaceOut",
-        "description": "工作区出参（GET /workspaces 响应体）。\n\n业务：含 workspace_id + workspace_type + name + owner_id + retention_days\n+ last_active_at；from_attributes=True 直接绑 ORM 行（Workspace）。"
+        "description": "工作区出参（GET /workspaces 响应体）。\n\n业务：含 workspace_id + workspace_type + name + owner_id + retention_days\n+ last_active_at + status（F-P3-003 Sprint 3 新增）；\nfrom_attributes=True 直接绑 ORM 行（Workspace）。"
       },
       "app__api__v1__flash__CalculateRequest": {
         "properties": {

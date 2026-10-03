@@ -16,6 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
+from app.api.v1._guard import check_project_access_or_404
 from app.db.session import get_db
 from app.models.enums import WorkspaceStatus, WorkspaceType
 from app.models.project import Workspace
@@ -133,6 +134,14 @@ async def archive_workspace(
             select(Workspace).where(Workspace.workspace_id == workspace_id)
         )
     ).scalar_one_or_none()
+    # P7-7+ BLOCKER-3 关键 endpoint 集成 check_project_access (SYSADMIN 自动通过, 留 audit)
+    if record is not None and record.project_id is not None:
+        await check_project_access_or_404(
+            session,
+            user_id=user.user_id,
+            project_id=record.project_id,
+            actor_roles=[user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role],
+        )
     if record is None:
         raise HTTPException(status_code=404, detail="workspace not found")
     if record.status == WorkspaceStatus.ARCHIVED.value:
