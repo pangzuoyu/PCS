@@ -928,3 +928,15 @@
 | 09:19 | Edited pcs-backend/app/api/v1/equip_lib.py | 3→2 lines | ~29 |
 | 09:24 | Session end: 593 writes across 139 files (p6_9_pickup_4_drift_fixes.py, p7_open_009_t0_config_energy_conversion_factors.py, p7_open_009_t0_seed_energy_conversion_factors.py, config.py, .gitignore) | 154 reads | ~358569 tok |
 | 10:30 | P7-7+ BLOCKER-3 全量 refactor 完成（agent 429 中断后续做）| 14 文件 659 行 (filtration/flare/pipe/pipe_classes/pipe_codes/pipe_net/psychro/pump/records/sep_equip/util + streams/stream_symbols/sim_imports_query) | 3706 passed / 4 pre-existing failed, 零新增 regression | ~35k |
+| 22:22 | Created pcs-backend/tests/test_rbac_audit.py | — | ~1861 |
+| 22:23 | Edited pcs-backend/app/models/enums.py | modified 5() | ~72 |
+| 22:23 | Edited pcs-backend/app/core/errors.py | added error handling | ~984 |
+| 22:23 | Edited pcs-backend/app/core/errors.py | modified _pcs() | ~289 |
+| 22:23 | Edited pcs-backend/app/core/errors.py | modified _http() | ~319 |
+| 22:24 | Edited pcs-backend/tests/conftest.py | modified _avoid_real_db_probe() | ~193 |
+| 22:28 | Edited pcs-backend/app/services/audit_service.py | modified write() | ~310 |
+| 22:28 | Edited pcs-backend/app/core/errors.py | modified get() | ~235 |
+| 22:33 | Edited docs/PROD-CHECKLIST-F-P3-001-2026-10-02.md | modified feat() | ~267 |
+| 22:33 | Edited docs/PROD-CHECKLIST-F-P3-001-2026-10-02.md | 4→4 lines | ~46 |
+| 22:33 | Edited docs/PROD-CHECKLIST-F-P3-001-2026-10-02.md | 5→5 lines | ~91 |
+| 11:15 | F-P3-001 #5 完成 (Sprint 3b) | errors.py choke point + AuditService.write 放宽 str + 8 测试 | 3716 passed / 2 pre-existing, checklist 5/5 | ~40k |

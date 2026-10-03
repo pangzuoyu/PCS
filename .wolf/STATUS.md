@@ -53,7 +53,7 @@ budget_tokens: 1500
 
 | Item | Why | Action |
 |------|-----|--------|
-| F-P3-001 production checklist #5 | RBAC 401/403 audit log + rate limit on 403 (>5/min) | Sprint 3b |
+| ~~F-P3-001 production checklist #5~~ | ✅ **DONE (Sprint 3b 2026-10-03)**: RBAC 401/403 audit + per-IP 限流 (>5/min→429), checklist 5/5 收口 | — |
 | ~~P7-7+ BLOCKER-3 全量 refactor~~ | ✅ **DONE (2026-10-03)**: 14 文件接入 guard (agent 11 + 主会话 3), 659 行, 零新增 regression (commit `feat(p7-s7)`) | — |
 | codebase role string 收敛 | SYSADMIN vs SYSTEM_ADMIN 两套并存 | 后续 sprint |
 | T6 catalyst_loading | BLOCKER-2 (工艺室 XLS 2026-10-15 签) | 解锁后 |
