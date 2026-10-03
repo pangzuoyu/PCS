@@ -245,6 +245,16 @@ def _avoid_real_db_probe(monkeypatch):
     yield
 
 
+@pytest.fixture(autouse=True)
+def _clear_rbac_rate_limits():
+    """F-P3-001 #5: 每测试清空 RBAC 拒绝限流窗口（模块级全局, 防跨测试 429 污染）。"""
+    from app.services._sliding_window_rate_limit import clear_all_rate_limits
+
+    clear_all_rate_limits()
+    yield
+    clear_all_rate_limits()
+
+
 # ---------------------------------------------------------------------------
 # Task 2.7.1 fixtures（P2 共享集）
 # ---------------------------------------------------------------------------

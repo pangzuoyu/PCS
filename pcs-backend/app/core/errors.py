@@ -2,8 +2,14 @@
 
 含 PcsError envelope 结构（code/status/message/detail）+ install_exception_handlers
 注册 5 类 handler（PcsError / HTTPException / RequestValidationError / 未捕获 / 404）。
+
+F-P3-001 checklist #5 (Sprint 3b): RBAC 401/403 拒绝事件 audit + per-IP 滑动窗口限流
+（复用 F-P2-006 _sliding_window_rate_limit; >5 次/min 同 IP → 429 RBAC_RATE_LIMITED）。
 """
 
+import logging
+import os
+import uuid
 from typing import Any
 
 from fastapi import FastAPI, Request
@@ -14,6 +20,86 @@ from pydantic import BaseModel
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.services.exceptions import PcsError as ServicePcsError
+
+logger = logging.getLogger(__name__)
+
+# F-P3-001 #5: RBAC 拒绝限流参数（checklist 锁定 >5/min; 生产按需改 cfg）
+_RBAC_DENIED_LIMIT = 5
+_RBAC_DENIED_WINDOW_S = 60.0
+
+
+async def _write_rbac_audit_row(
+    user_id: uuid.UUID | None, detail: dict[str, Any]
+) -> None:
+    """写一条 RBAC_DENIED audit_logs 行（独立 session, best-effort）.
+
+    - 懒导入避免 core → services/models 循环依赖
+    - pytest 环境默认跳过（防测试写真实 DB; 单测 monkeypatch 本函数或
+      清 PYTEST_CURRENT_TEST + 注入测试 factory 走真路径）
+    - 失败仅 log warning, 不影响错误响应本身
+    """
+    if os.environ.get("PYTEST_CURRENT_TEST"):
+        return
+    try:
+        from app.db.session import get_async_session_factory
+        from app.services.audit_service import AuditService
+
+        factory = get_async_session_factory()
+        async with factory() as session:
+            await AuditService(session).write(
+                # str 而非 AuditAction 枚举: core 层禁止 import models
+                # (architecture test); AuditService.write 接受 AuditAction | str
+                action="RBAC_DENIED",
+                resource_type="AUTHZ",
+                resource_id=None,
+                user_id=user_id,
+                detail=detail,
+            )
+            await session.commit()
+    except Exception:  # noqa: BLE001 — audit 失败不阻断错误响应
+        logger.warning("RBAC_DENIED audit write failed", exc_info=True)
+
+
+def _best_effort_user_id(request: Request) -> uuid.UUID | None:
+    """从 Authorization Bearer best-effort 解 user_id（无/坏 token → None）."""
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return None
+    try:
+        from app.core.security import decode_token
+
+        payload = decode_token(auth[len("Bearer "):])
+        sub = payload.get("sub", "")
+        raw = payload.get("user_id")
+        return uuid.UUID(str(raw)) if raw else uuid.uuid5(uuid.NAMESPACE_DNS, sub)
+    except Exception:  # noqa: BLE001 — 坏 token 视为匿名
+        return None
+
+
+async def _record_rbac_denial(request: Request, *, status: int, code: str) -> bool:
+    """F-P3-001 #5: 记 RBAC 拒绝事件 + per-IP 滑动窗口限流.
+
+    Returns:
+        True → 已超限, 调用方应回 429; False → 正常回原 401/403.
+    """
+    from app.services._sliding_window_rate_limit import check_rate_limit
+
+    # ASGITransport 下 request.client 可能为 None; 反代部署建议信任
+    # X-Forwarded-For (当前直连部署用 client.host)
+    ip = request.client.host if request.client else "unknown"
+    allowed = await check_rate_limit(
+        f"rbac_denied:{ip}", _RBAC_DENIED_LIMIT, _RBAC_DENIED_WINDOW_S
+    )
+    detail = {
+        "path": request.url.path,
+        "method": request.method,
+        "ip": ip,
+        "status": status,
+        "code": code,
+        "rate_limited": not allowed,
+    }
+    await _write_rbac_audit_row(_best_effort_user_id(request), detail)
+    return not allowed
 
 
 class PcsError(Exception):
@@ -59,6 +145,18 @@ def install_exception_handlers(app: FastAPI) -> None:
     """
     @app.exception_handler(PcsError)
     async def _pcs(request: Request, exc: PcsError) -> JSONResponse:
+        # F-P3-001 #5: 认证/授权类 401/403 → audit + per-IP 限流 (>5/min → 429)
+        if exc.status in (401, 403):
+            if await _record_rbac_denial(request, status=exc.status, code=exc.code):
+                return JSONResponse(
+                    status_code=429,
+                    content=ErrorResponse(
+                        code="RBAC_RATE_LIMITED",
+                        message="too many denied requests, retry later",
+                        detail=None,
+                        trace_id=getattr(request.state, "trace_id", ""),
+                    ).model_dump(),
+                )
         return JSONResponse(
             status_code=exc.status,
             content=ErrorResponse(
@@ -85,6 +183,20 @@ def install_exception_handlers(app: FastAPI) -> None:
 
     @app.exception_handler(StarletteHTTPException)
     async def _http(request: Request, exc: StarletteHTTPException) -> JSONResponse:
+        # F-P3-001 #5: require_roles 403 等 HTTP 拒绝 → audit + per-IP 限流
+        if exc.status_code in (401, 403):
+            if await _record_rbac_denial(
+                request, status=exc.status_code, code=f"HTTP_{exc.status_code}"
+            ):
+                return JSONResponse(
+                    status_code=429,
+                    content=ErrorResponse(
+                        code="RBAC_RATE_LIMITED",
+                        message="too many denied requests, retry later",
+                        detail=None,
+                        trace_id=getattr(request.state, "trace_id", ""),
+                    ).model_dump(),
+                )
         return JSONResponse(
             status_code=exc.status_code,
             content=ErrorResponse(

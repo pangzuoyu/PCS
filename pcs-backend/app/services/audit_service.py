@@ -38,7 +38,7 @@ class AuditService:
     async def write(
         self,
         *,
-        action: AuditAction,
+        action: AuditAction | str,
         resource_type: str,
         resource_id: str | uuid.UUID | None,
         user_id: uuid.UUID | None = None,
@@ -47,15 +47,17 @@ class AuditService:
         """写一条审计记录。
 
         Args:
-            action: AuditAction 枚举
+            action: AuditAction 枚举或其字符串值（str 供 core 层调用——
+                core 禁止 import models, 无法构造枚举实例; F-P3-001 #5）
             resource_type: 模块名（"piping_results" / "STATE_MACHINE" / "WORKSPACE"）
             resource_id: 实体主键字符串
             user_id: 触发者（系统任务传 None）
             detail: 元数据 dict（old/new value / reason / sign_role 等）
         """
+        action_value = action.value if isinstance(action, AuditAction) else str(action)
         entry = AuditLog(
             user_id=user_id,
-            action=action.value,
+            action=action_value,
             resource_type=resource_type[:50],
             resource_id=str(resource_id)[:100] if resource_id is not None else None,
             detail_json=detail,

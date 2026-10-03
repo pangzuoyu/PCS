@@ -183,6 +183,8 @@ class AuditAction(str, enum.Enum):
     LOGIN_FAILED = "LOGIN_FAILED"
     LOGOUT = "LOGOUT"
     TOKEN_REFRESHED = "TOKEN_REFRESHED"
+    # F-P3-001 #5 (Sprint 3b): RBAC 401/403 拒绝事件 (含 429 限流命中)
+    RBAC_DENIED = "RBAC_DENIED"
 
     # === 记录层 CRUD（P4-P6） ===
     RECORD_CREATED = "RECORD_CREATED"

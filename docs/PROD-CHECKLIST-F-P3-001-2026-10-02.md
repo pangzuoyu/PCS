@@ -5,7 +5,7 @@
 **优先级**: ⚠️ Medium (mock-friendly intentional, production 必须修)  
 **预计工作量**: 0.5 人天  
 **Sprint 3 实施日期**: 2026-10-03  
-**状态**: ✅ 4/5 完成 (仅 #5 audit log + rate limit 待 Sprint 3b 续做)
+**状态**: ✅ **5/5 全部完成** (#5 于 Sprint 3b 2026-10-03 收口)
 
 ---
 
@@ -86,18 +86,23 @@ def resolve_role(groups: tuple[str, ...]) -> str:
 - dev/test: fallback DESIGNER (mock 友好)
 - `ALLOWED_ROLES` 白名单 6 角色: DESIGNER / PROCESS_CONTROLLER / REVIEWER / APPROVER / SYSTEM_ADMIN / VIEWER + CHECKER (per test_state_machine.py)
 
-### 5. audit log 加强 — ⚠️ DEFERRED (Sprint 3b)
+### 5. audit log 加强 — ✅ DONE (Sprint 3b, 2026-10-03)
 
-role==DESIGNER 的 401/403 记录全部进 `audit_logs` (当前仅记认证/安全, 不记 RBAC)
-短期 (>5/min) 403 触发 IP 限流 (F-P2-006 sliding window 扩展)
+**实施**: `pcs-backend/app/core/errors.py` 全局异常 handler choke point:
+- 401/403 (PcsError MISSING_ROLE/INVALID_ROLE/MISSING_BEARER + HTTPException require_roles 拒绝)
+  → `_record_rbac_denial` → audit_logs 写 RBAC_DENIED (resource_type=AUTHZ, detail 含
+  path/method/ip/status/code/rate_limited; user_id best-effort 从 Bearer 解)
+- per-IP 滑动窗口限流 (复用 F-P2-006 `check_rate_limit`): >5 次/min 同 IP →
+  第 6 次起 429 RBAC_RATE_LIMITED (429 事件也写 audit, rate_limited=true)
+- `_write_rbac_audit_row` 独立 session (get_async_session_factory), best-effort
+  (失败仅 log warning 不阻断错误响应); pytest 环境跳过防测试写真库
+- `AuditService.write` 放宽 `AuditAction | str` (core 层禁止 import models,
+  architecture test 约束; str 经 services 层合法路径转枚举值)
+- conftest 加 autouse `_clear_rbac_rate_limits` (防跨测试 429 污染)
+- 8 单元测试 (`tests/test_rbac_audit.py`): 403/401 audit + 429 边界 + 窗口恢复 +
+  404/200/422 不计数 + 真实 DB 写入路径
 
-**当前状态**: Sprint 3 仅完成 F-P3-001 前 4 项 (JWT/LDAP hardening). audit log RBAC 401/403 记录 + 限流扩展
-**需续做**:
-- `app/services/audit_service.py:write` 加 `event_type='RBAC_DENIED'` 写入路径
-- `app/api/v1/config.py:current_actor` 401/403 分支集成 (catch 异常 + audit log)
-- `_sliding_window_rate_limit.py` 扩展 (per-IP 计数)
-
-**预计 +0.5 人天**
+**Commit**: `feat(p7-s3b): F-P3-001 #5 — RBAC 401/403 audit + per-IP rate limit`
 
 ---
 
@@ -125,7 +130,7 @@ role==DESIGNER 的 401/403 记录全部进 `audit_logs` (当前仅记认证/安�
 - [x] `/auth/mock-login` production disable → EXISTING (carry-forward)
 - [x] LDAP role mapping 强校验 → DONE (Sprint 3 2026-10-03)
 - [x] LDAP issuer config-driven 校验 → DONE (Sprint 3 2026-10-03, LDAP 接入时启用)
-- [ ] audit log RBAC 401/403 + 限流扩展 → DEFERRED (Sprint 3b, +0.5 人天)
+- [x] audit log RBAC 401/403 + 限流扩展 → DONE (Sprint 3b 2026-10-03)
 
 **关联文件 (Sprint 3 实施)**:
 - `pcs-backend/app/core/config.py` (Settings: jwt_issuer, jwt_audience)
