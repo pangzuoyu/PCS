@@ -477,9 +477,11 @@ def current_actor(
         role = "DESIGNER"  # dev mode fallback (mock 友好)
     # role 白名单校验 (无论环境, 非法 role 一律拒).
     # 含项目内角色 VIEWER (per project.py:139) 和 CHECKER (per test_state_machine).
+    # "SYSADMIN" 与 "SYSTEM_ADMIN" 同义 (stream_service.py:75 注释; mock_auth.py:18 dan 用户;
+    # _guard.py:37 SYSADMIN bypass) — 接受两种写法, 后续 sprint 收敛 codebase 单字符串.
     _ALLOWED_ROLES = {
         "DESIGNER", "PROCESS_CONTROLLER", "REVIEWER", "APPROVER", "SYSTEM_ADMIN",
-        "VIEWER", "CHECKER",
+        "VIEWER", "CHECKER", "SYSADMIN",
     }
     if role not in _ALLOWED_ROLES:
         raise PcsError(

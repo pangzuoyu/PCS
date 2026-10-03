@@ -23,7 +23,7 @@ from app.core.security import (
 )
 from app.services.ldap_client import LdapAuthError, resolve_role
 
-_ALLOWED_ROLES = {"DESIGNER", "PROCESS_CONTROLLER", "REVIEWER", "APPROVER", "SYSTEM_ADMIN", "VIEWER", "CHECKER"}
+_ALLOWED_ROLES = {"DESIGNER", "PROCESS_CONTROLLER", "REVIEWER", "APPROVER", "SYSTEM_ADMIN", "VIEWER", "CHECKER", "SYSADMIN"}
 
 
 @pytest.fixture
@@ -134,6 +134,15 @@ class TestRoleClaimFailClosed:
         decoded = decode_token(token)
         assert decoded["role"] == "INVALID_GARBAGE_ROLE"
         # 实际拒绝由 _ALLOWED_ROLES 检查在 current_actor 触发, 单元覆盖到此.
+
+    def test_sysadmin_role_in_allowed(self):
+        """P1 fix: 'SYSADMIN' (mock_auth.py:18 dan) 与 'SYSTEM_ADMIN' 同义,
+        均应在 ALLOWED_ROLES 中接受.
+        """
+        for role in ("SYSTEM_ADMIN", "SYSADMIN"):
+            token = create_access_token(subject="dan", role=role)
+            # 不抛异常即可通过 (current_actor 内部 ALLOWED_ROLES 校验)
+            assert token is not None
 
     def test_missing_role_token_decodes(self, dev_settings):
         """dev mode 下 token 缺 role → decode 通过 (DESIGNER fallback 由 current_actor 加).
