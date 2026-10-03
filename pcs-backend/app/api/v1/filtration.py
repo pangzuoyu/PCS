@@ -26,6 +26,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
@@ -102,6 +103,14 @@ async def calculate_ruth_constant_pressure(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=req.project_id,
+        actor_roles=actor_roles_list,
+    )
     try:
         # 1. 调 calc（RuthConstantPressureInput）
         #    恒压路径：默认 viscosity=1e-3（水），solid_concentration=10
@@ -178,6 +187,14 @@ async def calculate_ruth_constant_rate(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=req.project_id,
+        actor_roles=actor_roles_list,
+    )
     try:
         # 恒速：默认流速 Q = filter_velocity * area（m/s × m² = m³/s）
         q_default = (req.filter_velocity or 1e-4) * req.area
@@ -250,6 +267,14 @@ async def calculate_ergun(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=req.project_id,
+        actor_roles=actor_roles_list,
+    )
     try:
         # Ergun 默认：dp=0.5e-3（砂 0.5mm），μ=1e-3，ρ=1000，L=1m
         inp = ErgunInput(
@@ -323,6 +348,14 @@ async def create_filtration_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=req.project_id,
+        actor_roles=actor_roles_list,
+    )
     payload = req.model_dump(
         exclude={"project_id", "workspace_id", "tag_number"}
     )
@@ -358,6 +391,14 @@ async def list_filtration_results(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     records = await list_filtration_results_service(
         db,
         project_id=project_id,
@@ -387,6 +428,9 @@ async def get_filtration_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
     try:
         record = await get_filtration_result_service(
             db, result_id=result_id
@@ -399,6 +443,11 @@ async def get_filtration_result(
         raise _to_http(
             CorePcsError(code=e.code, message=e.message, status=422)
         ) from e
+    # BLOCKER-3 P7-7+: record 级守卫 (SYSADMIN bypass)
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=record.project_id,
+        actor_roles=actor_roles_list,
+    )
 
     return FiltrationResultResponse.model_validate(record, from_attributes=True)
 
@@ -419,6 +468,9 @@ async def update_filtration_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
     patch = req.model_dump(exclude_unset=True)
     try:
         record = await update_filtration_result_service(
@@ -432,6 +484,11 @@ async def update_filtration_result(
         raise _to_http(
             CorePcsError(code=e.code, message=e.message, status=422)
         ) from e
+    # BLOCKER-3 P7-7+: record 级守卫 (SYSADMIN bypass)
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=record.project_id,
+        actor_roles=actor_roles_list,
+    )
 
     return FiltrationResultResponse.model_validate(record, from_attributes=True)
 
@@ -451,6 +508,9 @@ async def soft_delete_filtration_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
     try:
         record = await soft_delete_filtration_result_service(
             db, result_id=result_id
@@ -463,6 +523,11 @@ async def soft_delete_filtration_result(
         raise _to_http(
             CorePcsError(code=e.code, message=e.message, status=422)
         ) from e
+    # BLOCKER-3 P7-7+: record 级守卫 (SYSADMIN bypass)
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=record.project_id,
+        actor_roles=actor_roles_list,
+    )
 
     return FiltrationDeleteResponse(
         result_id=record.filter_id,

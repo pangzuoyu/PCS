@@ -20,6 +20,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, Response, UploadFi
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
 from app.schemas.pipe_class import (
@@ -352,6 +353,14 @@ async def list_project_pipe_classes(
     （fork 自公司模板 + override 覆盖）；list_pipe_classes 列公司级。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeClassService.list_project(db, project_id)
 
 
@@ -375,6 +384,14 @@ async def fork_project_pipe_class(
 ):
     """项目级 fork：从公司级等级创建 ProjectPipeClass + snapshot_json 快照。"""
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeClassService.fork_to_project(
         db, project_id=project_id, class_id=payload.class_id, actor=user,
     )
@@ -391,6 +408,14 @@ async def create_project_pipe_class(
 ):
     """项目全新创建管道等级（source_class_id=NULL）。"""
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeClassService.create_project_class(
         db,
         project_id=project_id,
@@ -412,6 +437,14 @@ async def update_project_pipe_class_override(
 ):
     """修改项目级 override_json（仅 DRAFT/PENDING 可改）。"""
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeClassService.update_project_override(
         db,
         project_class_id=project_class_id,
@@ -431,6 +464,14 @@ async def submit_project_pipe_class(
 ):
     """DRAFT → PENDING。"""
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeClassService.submit_project_class(
         db, project_class_id=project_class_id, actor=user,
     )
@@ -447,6 +488,14 @@ async def approve_project_pipe_class(
 ):
     """PENDING → APPROVED（CATEGORY_5 单层签）。"""
     require_roles(user, "REVIEWER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeClassService.approve_project_class(
         db, project_class_id=project_class_id, actor=user,
     )
@@ -463,6 +512,14 @@ async def reject_project_pipe_class(
 ):
     """PENDING → DRAFT（拒绝，写 ConfigApproval decision=REJECTED）。"""
     require_roles(user, "REVIEWER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeClassService.reject_project_class(
         db, project_class_id=project_class_id, actor=user,
     )
@@ -479,6 +536,14 @@ async def publish_project_pipe_class(
 ):
     """APPROVED → PUBLISHED。"""
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeClassService.publish_project_class(
         db, project_class_id=project_class_id, actor=user,
     )
@@ -495,6 +560,14 @@ async def obsolete_project_pipe_class(
 ):
     """→ OBSOLETE（DRAFT/APPROVED/PUBLISHED 都可经 OBSOLETE 出局）。"""
     require_roles(user, "PROCESS_CONTROLLER", "REVIEWER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeClassService.obsolete_project_class(
         db, project_class_id=project_class_id, actor=user,
     )
@@ -511,6 +584,14 @@ async def get_project_pipe_class_effective(
 ):
     """返回项目级有效值（snapshot_json ⊕ override_json 递归深合并）。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     effective = await PipeClassService.get_effective(
         db, project_id=project_id, class_name=class_name,
     )

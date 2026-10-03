@@ -22,6 +22,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
 from app.schemas.util import (
@@ -80,6 +81,14 @@ async def list_util_results(
 ) -> list[UtilResultsResponse]:
     """按过滤条件分页查询 UtilResults。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    if project_id is not None:
+        await check_project_access_or_404(
+            db, user_id=user.user_id, project_id=project_id,
+            actor_roles=actor_roles_list,
+        )
     rows, _total = await persist_service.list_util_results(
         db,
         project_id=project_id,
@@ -102,22 +111,19 @@ async def get_util_result(
     revoked_at IS NULL) → 404 防 IDOR。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
     record = await persist_service.get_util_result(db, util_result_id)
     if record is None:
         raise HTTPException(
             status_code=404, detail=f"UtilResults not found: {util_result_id}"
         )
-    # BLOCKER-3 守卫
-    from app.services.user_project_service import UserProjectService
-
-    has_access = await UserProjectService.check_user_project_access(
+    # BLOCKER-3 P7-7+: record 级守卫 (SYSADMIN bypass)
+    await check_project_access_or_404(
         db, user_id=user.user_id, project_id=record.project_id,
+        actor_roles=actor_roles_list,
     )
-    if not has_access:
-        raise HTTPException(
-            status_code=404,
-            detail=f"UtilResults not found: {util_result_id}",  # 不泄漏存在性
-        )
     return _to_response(record)
 
 
@@ -133,6 +139,14 @@ async def create_util_results(
 ) -> UtilResultsResponse:
     """手动 create UtilResults（带 consumption_json）。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=body.project_id,
+        actor_roles=actor_roles_list,
+    )
     record = await persist_service.save_util_results(
         db,
         project_id=body.project_id,
@@ -156,6 +170,14 @@ async def aggregate_util_results(
 ) -> UtilResultsResponse:
     """触发 source_aggregator + INSERT UtilResults（一体化）。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=body.project_id,
+        actor_roles=actor_roles_list,
+    )
     record = await persist_service.aggregate_and_save(
         db,
         project_id=body.project_id,
@@ -178,6 +200,9 @@ async def get_util_summary(
 ) -> UtilSummaryResponse:
     """13 类聚合 + 折标煤（来自 summary_service.summarize）。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
     if util_result_id is not None:
         record = await persist_service.get_util_result(db, util_result_id)
         if record is None:
@@ -194,6 +219,11 @@ async def get_util_summary(
                 status_code=404, detail="No UtilResults available for summary"
             )
         record = rows[0]
+    # BLOCKER-3 P7-7+: record 级守卫 (SYSADMIN bypass)
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=record.project_id,
+        actor_roles=actor_roles_list,
+    )
     summary = await summary_service.summarize(record, db=db, year=year)
     return UtilSummaryResponse(
         by_category=summary["by_category"],
@@ -213,6 +243,9 @@ async def get_util_energy_consumption(
 ) -> UtilEnergyConsumptionResponse:
     """仅能源 5 类 + TOE（filter 6 能源 from summary）。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
     if util_result_id is not None:
         record = await persist_service.get_util_result(db, util_result_id)
         if record is None:
@@ -222,6 +255,11 @@ async def get_util_energy_consumption(
         if not rows:
             raise HTTPException(status_code=404, detail="No UtilResults")
         record = rows[0]
+    # BLOCKER-3 P7-7+: record 级守卫 (SYSADMIN bypass)
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=record.project_id,
+        actor_roles=actor_roles_list,
+    )
     summary = await summary_service.summarize(record, db=db, year=year)
 
     # 6 能源类（filter from 13）— 与 toe_total 计算口径一致 (F-P1-015 fix)
@@ -250,6 +288,9 @@ async def get_util_water_balance(
 ) -> UtilWaterBalanceResponse:
     """仅水 3 类（COOLING_WATER + CHILLED_WATER + MAKEUP_WATER）。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
     if util_result_id is not None:
         record = await persist_service.get_util_result(db, util_result_id)
         if record is None:
@@ -259,6 +300,11 @@ async def get_util_water_balance(
         if not rows:
             raise HTTPException(status_code=404, detail="No UtilResults")
         record = rows[0]
+    # BLOCKER-3 P7-7+: record 级守卫 (SYSADMIN bypass)
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=record.project_id,
+        actor_roles=actor_roles_list,
+    )
 
     water_keys = {
         UtilityCategory.COOLING_WATER.value,
@@ -408,6 +454,14 @@ async def create_power_item(
 ) -> UtilPowerItemResponse:
     """T1 手动创建电耗设备清单条目 (annual_consumption_kwh 缺省=派生)."""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=body.project_id,
+        actor_roles=actor_roles_list,
+    )
     from app.models.util import UtilityPowerItem
 
     annual_kwh = body.annual_consumption_kwh
@@ -440,6 +494,14 @@ async def list_power_items(
 ) -> list[UtilPowerItemResponse]:
     """T1 列出某项目下所有电耗设备清单 (按 equipment_tag 升序)."""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     from sqlalchemy import select
 
     from app.models.util import UtilityPowerItem
@@ -471,6 +533,14 @@ async def create_fuel_gas(
 ) -> UtilFuelGasResponse:
     """T2 手动创建燃料气消耗条目 (annual_consumption_nm3 缺省=派生)."""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=body.project_id,
+        actor_roles=actor_roles_list,
+    )
     from app.models.util import UtilityFuelGas
 
     annual_nm3 = body.annual_consumption_nm3
@@ -505,6 +575,14 @@ async def list_fuel_gas(
 ) -> list[UtilFuelGasResponse]:
     """T2 列出某项目下所有燃料气消耗条目 (按 equipment_tag + phase 升序)."""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     from sqlalchemy import select
 
     from app.models.util import UtilityFuelGas
@@ -536,6 +614,14 @@ async def create_heat_exchange(
 ) -> UtilHeatExchangeResponse:
     """T3 手动创建蒸汽/冷凝水条目 (annual_consumption_t 缺省=派生)."""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=body.project_id,
+        actor_roles=actor_roles_list,
+    )
     from app.models.util import UtilityHeatExchange
 
     # F-P1-001 fix: reject client annual_consumption_t override unless plausible
@@ -585,6 +671,14 @@ async def list_heat_exchange(
 ) -> list[UtilHeatExchangeResponse]:
     """T3 列出某项目下所有蒸汽/冷凝水条目 (按 equipment_tag 升序)."""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     from sqlalchemy import select
 
     from app.models.util import UtilityHeatExchange
@@ -616,6 +710,14 @@ async def aggregate_energy_summary(
 ) -> UtilEnergySummaryResponse:
     """T5 触发综合能耗汇总 (聚合 T1+T2+T3 + 折标系数 CONFIG)."""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=body.project_id,
+        actor_roles=actor_roles_list,
+    )
     # F-P2-006: 滑动窗口 rate limit — 防 DOS via 重复点击
     # 5/min/user — 单实例够用, 多实例部署需换 Redis (TODO)
     from fastapi import HTTPException
@@ -656,6 +758,14 @@ async def list_energy_summary(
 ) -> list[UtilEnergySummaryResponse]:
     """T5 列出某项目综合能耗汇总 (按 business_year 升序)."""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     from sqlalchemy import select
 
     from app.models.util import UtilityEnergySummary

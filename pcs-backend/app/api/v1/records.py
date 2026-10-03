@@ -24,6 +24,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.deps import get_workspace, require_formal_workspace
+from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor
 from app.db.session import get_db
 from app.models.calc import PipingResult
@@ -124,6 +125,15 @@ async def create_piping(
     BLOCKER-3 P7-7+ 集成：actor.user_id 取代 query param user_id
     （修复 IDOR：user_id 不再可由客户端伪造）。
     """
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        session, user_id=user.user_id,
+        project_id=uuid.UUID(payload["project_id"]),
+        actor_roles=actor_roles_list,
+    )
     rec = PipingResult(
         project_id=uuid.UUID(payload["project_id"]),
         workspace_id=workspace.workspace_id,
@@ -176,6 +186,15 @@ async def transition_piping(
     （修复 IDOR + role 伪造）。
     """
     ws = await require_formal_workspace(await get_workspace(workspace_id, session))
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    if ws.project_id is not None:
+        await check_project_access_or_404(
+            session, user_id=user.user_id, project_id=ws.project_id,
+            actor_roles=actor_roles_list,
+        )
     rec = (
         await session.execute(
             select(PipingResult).where(
@@ -223,6 +242,15 @@ async def obsolete_piping(
     BLOCKER-3 P7-7+ 集成：actor.user_id / actor.role 取代 query param。
     """
     ws = await require_formal_workspace(await get_workspace(workspace_id, session))
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    if ws.project_id is not None:
+        await check_project_access_or_404(
+            session, user_id=user.user_id, project_id=ws.project_id,
+            actor_roles=actor_roles_list,
+        )
     rec = (
         await session.execute(
             select(PipingResult).where(

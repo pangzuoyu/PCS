@@ -35,6 +35,7 @@ from pydantic import BaseModel
 from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
 from app.models.sim_import import (
@@ -197,6 +198,14 @@ async def list_imports(
 ) -> SimImportListResponse:
     """按 9 维度过滤的 sim_imports 列表（project_id 强制 scope）。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN", "VIEWER")
+    # BLOCKER-3 P7-7+: project_id 守卫（SYSADMIN bypass via actor_roles 双写兼容）
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     conditions = [SimImport.project_id == project_id]
     if status_filter is not None:
         conditions.append(SimImport.status == status_filter)
@@ -301,6 +310,14 @@ async def get_import_by_id(
                 "message": f"sim_import {import_id} 不存在",
             },
         )
+    # BLOCKER-3 P7-7+: record 派生 project 守卫（SYSADMIN bypass via actor_roles 双写兼容）
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=imp.project_id,
+        actor_roles=actor_roles_list,
+    )
     return _to_detail(imp)
 
 
@@ -328,6 +345,14 @@ async def get_preview_streams(
                 "message": f"sim_import {import_id} 不存在",
             },
         )
+    # BLOCKER-3 P7-7+: record 派生 project 守卫（SYSADMIN bypass via actor_roles 双写兼容）
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=imp.project_id,
+        actor_roles=actor_roles_list,
+    )
     if imp.status != SimImportStatus.PREVIEW:
         raise HTTPException(
             status_code=410,
@@ -355,11 +380,11 @@ async def list_warnings_for_import(
 ) -> SimImportWarningListResponse:
     """列出指定 import 的所有 warnings。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN", "VIEWER")
-    # 校验 import 存在
-    exists = (
-        await db.execute(select(SimImport.import_id).where(SimImport.import_id == import_id))
+    # 校验 import 存在（整行加载, 兼作 BLOCKER-3 守卫的 project_id 来源）
+    imp = (
+        await db.execute(select(SimImport).where(SimImport.import_id == import_id))
     ).scalar_one_or_none()
-    if exists is None:
+    if imp is None:
         raise HTTPException(
             status_code=404,
             detail={
@@ -367,6 +392,14 @@ async def list_warnings_for_import(
                 "message": f"sim_import {import_id} 不存在",
             },
         )
+    # BLOCKER-3 P7-7+: record 派生 project 守卫（SYSADMIN bypass via actor_roles 双写兼容）
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=imp.project_id,
+        actor_roles=actor_roles_list,
+    )
     rows = (
         (
             await db.execute(

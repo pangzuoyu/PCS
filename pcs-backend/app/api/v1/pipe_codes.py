@@ -14,6 +14,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
 from app.services.pipe_code_generator import PipeCodeGenerator
@@ -330,6 +331,14 @@ async def list_project_configs(
     list_templates 列公司级模板。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeCodeTemplateService.list_project(db, project_id=project_id)
 
 
@@ -356,6 +365,14 @@ async def fork_project_config(
     create_project_config 项目自创，无 source_template_id 与 snapshot。
     """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeCodeTemplateService.fork_to_project(
         db,
         project_id=project_id,
@@ -387,6 +404,14 @@ async def create_project_config(
     后续不会被 CIAEngine.propagate_from_source 同步；纯项目本地管号定义。
     """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeCodeTemplateService.create_project_config(
         db,
         project_id=project_id,
@@ -422,6 +447,14 @@ async def update_project_config(
     轻量状态机；公司级直接落库、无锁定（靠 ConfigStateMachine PUBLISH 防御）。
     """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeCodeTemplateService.update_project_config(
         db,
         config_id=config_id,
@@ -453,6 +486,14 @@ async def delete_project_config(
     推项目级管号配置场景首选 obsolete；delete 仅用于误建清理。
     """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     await PipeCodeTemplateService.delete_project_config(
         db, config_id=config_id, actor=user,
     )
@@ -477,6 +518,14 @@ async def submit_project_config(
     区别：公司模板走 ConfigStateMachine；项目级走 _project_transition 轻量状态机。
     """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeCodeTemplateService.submit_project(
         db, config_id=config_id, actor=user,
     )
@@ -502,6 +551,14 @@ async def approve_project_config(
     并保留 review context 用于后续重提。
     """
     require_roles(user, "REVIEWER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeCodeTemplateService.approve_project(
         db, config_id=config_id, actor=user,
     )
@@ -528,6 +585,14 @@ async def reject_project_config(
     reject 回 DRAFT（带 review context 备注），区别于 obsolete（强制作废）。
     """
     require_roles(user, "REVIEWER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeCodeTemplateService.reject_project(
         db, config_id=config_id, actor=user,
     )
@@ -556,6 +621,14 @@ async def publish_project_config(
     走轻量 _project_transition），PROCESS_CONTROLLER 即可触发。
     """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeCodeTemplateService.publish_project(
         db, config_id=config_id, actor=user,
     )
@@ -584,6 +657,14 @@ async def obsolete_project_config(
     obsolete 是任意→OBSOLETE（强制作废）。
     """
     require_roles(user, "PROCESS_CONTROLLER", "REVIEWER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await PipeCodeTemplateService.obsolete_project(
         db, config_id=config_id, actor=user,
     )
@@ -611,6 +692,14 @@ async def generate_pipe_code(
     validate 仅 dry-run，不入 DB。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=payload.project_id,
+        actor_roles=actor_roles_list,
+    )
     code = await PipeCodeGenerator.generate(
         db, payload.project_id, payload.input_segments,
     )
@@ -636,6 +725,14 @@ async def validate_pipe_code(
     generate-fn 走完整流程落库 + 取号）。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=payload.project_id,
+        actor_roles=actor_roles_list,
+    )
     try:
         outcome = await PipeCodeGenerator.validate(
             db, payload.project_id, payload.code,

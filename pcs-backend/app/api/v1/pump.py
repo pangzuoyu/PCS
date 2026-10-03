@@ -21,6 +21,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
@@ -211,6 +212,14 @@ async def calc_pump_chain(
 ) -> CalcChainResponse:
     """POST /api/v1/pump/calc-chain：PUMP 链计算 + 落库 + outlet 流。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫（SYSADMIN bypass via actor_roles 双写兼容）
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=req.project_id,
+        actor_roles=actor_roles_list,
+    )
 
     # 1. 三步守卫
     await check_calc_inputs(db, [req.source_stream_id])

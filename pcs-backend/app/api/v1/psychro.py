@@ -45,6 +45,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
@@ -527,6 +528,14 @@ async def create_psychro_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=req.project_id,
+        actor_roles=actor_roles_list,
+    )
     # 字符串 sign_status → enum（非法字面 → 422 PcsError envelope）
     try:
         sign_status_enum = RecordSignStatus9(req.sign_status)
@@ -587,6 +596,14 @@ async def list_psychro_results(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     records = await list_psychro_results_service(
         db,
         project_id=project_id,
@@ -614,11 +631,19 @@ async def get_psychro_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
     record = await get_psychro_result_service(db, record_id=record_id)
     if record is None:
         raise HTTPException(
             status_code=404, detail="PsychroResult not found"
         )
+    # BLOCKER-3 P7-7+: record 级守卫 (SYSADMIN bypass)
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=record.project_id,
+        actor_roles=actor_roles_list,
+    )
     return PsychroResultResponse.model_validate(record, from_attributes=True)
 
 
@@ -638,6 +663,9 @@ async def update_psychro_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
     payload = req.model_dump(exclude_unset=True)
     try:
         record = await update_psychro_result_service(
@@ -654,6 +682,11 @@ async def update_psychro_result(
         raise HTTPException(
             status_code=404, detail="PsychroResult not found"
         )
+    # BLOCKER-3 P7-7+: record 级守卫 (SYSADMIN bypass)
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=record.project_id,
+        actor_roles=actor_roles_list,
+    )
     return PsychroResultResponse.model_validate(record, from_attributes=True)
 
 
@@ -671,6 +704,19 @@ async def delete_psychro_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    # BLOCKER-3 P7-7+: 先 fetch 拿 project_id 再 guard
+    pre_record = await get_psychro_result_service(db, record_id=record_id)
+    if pre_record is None:
+        raise HTTPException(
+            status_code=404, detail="PsychroResult not found"
+        )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=pre_record.project_id,
+        actor_roles=actor_roles_list,
+    )
     ok = await soft_delete_psychro_result_service(
         db, record_id=record_id, project_id=None
     )

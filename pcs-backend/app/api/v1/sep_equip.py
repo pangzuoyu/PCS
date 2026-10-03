@@ -29,11 +29,14 @@ from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
+from app.models.project import Stream
 from app.services.calc_entry import check_calc_inputs
 from app.services.exceptions import PcsError
 from app.services.sep_equip import sep_equip_persist
@@ -140,6 +143,20 @@ async def calculate_sep_equip(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: 拉源流拿 project_id, 验证 actor 访问权
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    _src_stream = (
+        await db.execute(
+            select(Stream).where(Stream.stream_id == req.source_stream_id)
+        )
+    ).scalar_one_or_none()
+    if _src_stream is not None and _src_stream.project_id is not None:
+        await check_project_access_or_404(
+            db, user_id=user.user_id, project_id=_src_stream.project_id,
+            actor_roles=actor_roles_list,
+        )
 
     # 0. 三步守卫（物流存在 → CHECKED → 不可靠流）
     await check_calc_inputs(db, [req.source_stream_id])

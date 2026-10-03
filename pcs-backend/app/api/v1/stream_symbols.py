@@ -8,6 +8,7 @@ from fastapi import APIRouter, Depends
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
 from app.services.stream_symbol_service import StreamSymbolService
@@ -281,6 +282,14 @@ async def fork_project_symbols(
 ):
     """symbol_id 缺省 → 复制全部公司级符号；指定时只 fork 一个。"""
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫（SYSADMIN bypass via actor_roles 双写兼容）
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     symbol_id = payload.symbol_id if payload else None
     return await StreamSymbolService.fork_to_project(
         db,
@@ -309,6 +318,14 @@ async def list_project_symbols(
     隔离，含公司级需 include_company=True。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫（SYSADMIN bypass via actor_roles 双写兼容）
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await StreamSymbolService.list_project(
         db, project_id=project_id, include_company=include_company,
     )
@@ -333,6 +350,14 @@ async def add_project_symbol(
     自动经 response_model 序列化）。
     """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫（SYSADMIN bypass via actor_roles 双写兼容）
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await StreamSymbolService.add_project_symbol(
         db,
         project_id=project_id,
@@ -365,6 +390,14 @@ async def update_project_symbol(
     delete_project_symbol 或 add_project_symbol 重新创建。
     """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫（SYSADMIN bypass via actor_roles 双写兼容）
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     return await StreamSymbolService.update_project_symbol(
         db,
         project_symbol_id=project_symbol_id,
@@ -393,6 +426,14 @@ async def delete_project_symbol(
     反向引用（STREAM_SYMBOL_IN_USE 409）。
     """
     require_roles(user, "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    # BLOCKER-3 P7-7+: project_id 守卫（SYSADMIN bypass via actor_roles 双写兼容）
+    actor_roles_list = (
+        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
+    )
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=actor_roles_list,
+    )
     await StreamSymbolService.delete_project_symbol(
         db, project_symbol_id=project_symbol_id, actor=user,
     )
