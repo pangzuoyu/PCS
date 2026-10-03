@@ -826,3 +826,105 @@
 | 08:19 | Created pcs-frontend/.gstack/qa-reports/qa-report-pcs-frontend-2026-10-03-sprint3-batch2.md | — | ~1519 |
 | 09:00 | P7 Sprint 3 闭环收口（2026-10-03）| — | ~5126 |
 | 09:00 | feat 4 items (F-P3-001/F-P3-003/F-P2-009/R1-backfill) + P7-7+ guard + P7-6B 闭环 + frontend audit viewer + ce-code-review P1 fix | 11 commits (ad085e1..f471abe), git tag p7-s3-closure | 38/38 backend + 569/569 frontend + gstack-qa 97/100 ✓ | ~50k |
+| 08:28 | Edited pcs-backend/app/api/v1/pipe.py | added 1 import(s) | ~51 |
+| 08:28 | Edited pcs-backend/app/api/v1/pipe.py | expanded (+8 lines) | ~135 |
+| 08:28 | Edited pcs-backend/app/api/v1/pump.py | added 1 import(s) | ~51 |
+| 08:28 | Edited pcs-backend/app/api/v1/pump.py | expanded (+8 lines) | ~135 |
+| 08:28 | Edited pcs-backend/app/api/v1/sep_equip.py | added 1 import(s) | ~51 |
+| 08:28 | Edited pcs-backend/app/api/v1/sep_equip.py | expanded (+14 lines) | ~207 |
+| 08:28 | Edited pcs-backend/app/api/v1/sep_equip.py | added 2 import(s) | ~160 |
+| 08:28 | Edited pcs-backend/app/api/v1/util.py | added 1 import(s) | ~46 |
+| 08:28 | Edited pcs-backend/app/api/v1/util.py | expanded (+8 lines) | ~132 |
+| 08:28 | Edited pcs-backend/app/api/v1/util.py | check_user_project_access() → check_project_access_or_404() | ~178 |
+| 08:28 | Edited pcs-backend/app/api/v1/util.py | expanded (+8 lines) | ~140 |
+| 08:28 | Edited pcs-backend/app/api/v1/util.py | expanded (+8 lines) | ~141 |
+| 08:28 | Edited pcs-backend/app/api/v1/util.py | expanded (+8 lines) | ~153 |
+| 08:29 | Edited pcs-backend/app/api/v1/util.py | expanded (+8 lines) | ~192 |
+| 08:29 | Edited pcs-backend/app/api/v1/util.py | expanded (+8 lines) | ~139 |
+| 08:29 | Edited pcs-backend/app/api/v1/util.py | expanded (+8 lines) | ~201 |
+| 08:29 | Edited pcs-backend/app/api/v1/util.py | expanded (+8 lines) | ~140 |
+| 08:29 | Edited pcs-backend/app/api/v1/util.py | expanded (+8 lines) | ~196 |
+| 08:29 | Edited pcs-backend/app/api/v1/util.py | expanded (+8 lines) | ~138 |
+| 08:29 | Edited pcs-backend/app/api/v1/util.py | expanded (+8 lines) | ~146 |
+| 08:29 | Edited pcs-backend/app/api/v1/util.py | expanded (+8 lines) | ~314 |
+| 08:29 | Edited pcs-backend/app/api/v1/util.py | expanded (+8 lines) | ~266 |
+| 08:29 | Edited pcs-backend/app/api/v1/util.py | expanded (+8 lines) | ~255 |
+| 08:29 | Edited pcs-backend/app/api/v1/records.py | added 1 import(s) | ~50 |
+| 08:29 | Edited pcs-backend/app/api/v1/records.py | expanded (+9 lines) | ~132 |
+| 08:29 | Edited pcs-backend/app/api/v1/records.py | expanded (+9 lines) | ~259 |
+| 08:29 | Edited pcs-backend/app/api/v1/records.py | expanded (+9 lines) | ~278 |
+| 08:30 | Edited pcs-backend/app/api/v1/pipe_codes.py | added 1 import(s) | ~46 |
+| 08:30 | Edited pcs-backend/app/api/v1/pipe_codes.py | expanded (+8 lines) | ~173 |
+| 08:30 | Edited pcs-backend/app/api/v1/pipe_codes.py | expanded (+8 lines) | ~157 |
+| 08:30 | Edited pcs-backend/app/api/v1/pipe_codes.py | expanded (+8 lines) | ~160 |
+| 08:30 | Edited pcs-backend/app/api/v1/pipe_codes.py | expanded (+8 lines) | ~122 |
+| 08:30 | Edited pcs-backend/app/api/v1/pipe_codes.py | expanded (+8 lines) | ~120 |
+| 08:31 | Edited pcs-backend/app/api/v1/pipe_codes.py | expanded (+8 lines) | ~135 |
+| 08:31 | Edited pcs-backend/app/api/v1/pipe_codes.py | expanded (+8 lines) | ~132 |
+| 08:31 | Edited pcs-backend/app/api/v1/pipe_codes.py | expanded (+8 lines) | ~132 |
+| 08:31 | Edited pcs-backend/app/api/v1/pipe_codes.py | expanded (+8 lines) | ~135 |
+| 08:31 | Edited pcs-backend/app/api/v1/pipe_codes.py | expanded (+8 lines) | ~124 |
+| 08:31 | Edited pcs-backend/app/api/v1/pipe_codes.py | expanded (+8 lines) | ~148 |
+| 08:31 | Edited pcs-backend/app/api/v1/pipe_codes.py | expanded (+8 lines) | ~127 |
+| 08:31 | Edited pcs-backend/app/api/v1/pipe_classes.py | added 1 import(s) | ~46 |
+| 08:31 | Edited pcs-backend/app/api/v1/pipe_classes.py | expanded (+8 lines) | ~159 |
+| 08:31 | Edited pcs-backend/app/api/v1/pipe_classes.py | expanded (+8 lines) | ~137 |
+| 08:31 | Edited pcs-backend/app/api/v1/pipe_classes.py | expanded (+8 lines) | ~133 |
+| 08:31 | Edited pcs-backend/app/api/v1/pipe_classes.py | expanded (+8 lines) | ~136 |
+| 08:31 | Edited pcs-backend/app/api/v1/pipe_classes.py | expanded (+8 lines) | ~128 |
+| 08:31 | Edited pcs-backend/app/api/v1/pipe_classes.py | expanded (+8 lines) | ~131 |
+| 08:31 | Edited pcs-backend/app/api/v1/pipe_classes.py | expanded (+8 lines) | ~136 |
+| 08:31 | Edited pcs-backend/app/api/v1/pipe_classes.py | expanded (+8 lines) | ~130 |
+| 08:32 | Edited pcs-backend/app/api/v1/pipe_classes.py | expanded (+8 lines) | ~142 |
+| 08:32 | Edited pcs-backend/app/api/v1/pipe_classes.py | expanded (+8 lines) | ~139 |
+| 08:32 | Edited pcs-backend/app/api/v1/pipe_net.py | added 1 import(s) | ~51 |
+| 08:32 | Edited pcs-backend/app/api/v1/pipe_net.py | expanded (+8 lines) | ~129 |
+| 08:32 | Edited pcs-backend/app/api/v1/filtration.py | added 1 import(s) | ~51 |
+| 08:32 | Edited pcs-backend/app/api/v1/filtration.py | expanded (+8 lines) | ~186 |
+| 08:32 | Edited pcs-backend/app/api/v1/filtration.py | expanded (+8 lines) | ~146 |
+| 08:32 | Edited pcs-backend/app/api/v1/filtration.py | expanded (+8 lines) | ~145 |
+| 08:32 | Edited pcs-backend/app/api/v1/filtration.py | expanded (+8 lines) | ~135 |
+| 08:32 | Edited pcs-backend/app/api/v1/filtration.py | expanded (+8 lines) | ~140 |
+| 08:32 | Edited pcs-backend/app/api/v1/filtration.py | 5→8 lines | ~87 |
+| 08:33 | Edited pcs-backend/app/api/v1/filtration.py | 10→15 lines | ~172 |
+| 08:33 | Edited pcs-backend/app/api/v1/filtration.py | 4→7 lines | ~83 |
+| 08:33 | Edited pcs-backend/app/api/v1/filtration.py | expanded (+8 lines) | ~263 |
+| 08:33 | Edited pcs-backend/app/api/v1/flare.py | added 1 import(s) | ~51 |
+| 08:33 | Edited pcs-backend/app/api/v1/flare.py | expanded (+8 lines) | ~139 |
+| 08:34 | Edited pcs-backend/app/api/v1/flare.py | expanded (+8 lines) | ~138 |
+| 08:34 | Edited pcs-backend/app/api/v1/flare.py | expanded (+8 lines) | ~145 |
+| 08:34 | Edited pcs-backend/app/api/v1/flare.py | expanded (+8 lines) | ~138 |
+| 08:34 | Edited pcs-backend/app/api/v1/flare.py | expanded (+8 lines) | ~143 |
+| 08:34 | Edited pcs-backend/app/api/v1/flare.py | expanded (+8 lines) | ~139 |
+| 08:34 | Edited pcs-backend/app/api/v1/flare.py | expanded (+8 lines) | ~198 |
+| 08:34 | Edited pcs-backend/app/api/v1/flare.py | expanded (+8 lines) | ~286 |
+| 08:34 | Edited pcs-backend/app/api/v1/flare.py | expanded (+11 lines) | ~237 |
+| 08:35 | Edited pcs-backend/app/api/v1/psychro.py | added 1 import(s) | ~51 |
+| 08:35 | Edited pcs-backend/app/api/v1/psychro.py | expanded (+8 lines) | ~143 |
+| 08:35 | Edited pcs-backend/app/api/v1/psychro.py | expanded (+8 lines) | ~139 |
+| 08:35 | Edited pcs-backend/app/api/v1/psychro.py | expanded (+8 lines) | ~204 |
+| 08:35 | Edited pcs-backend/app/api/v1/psychro.py | expanded (+8 lines) | ~293 |
+| 08:35 | Edited pcs-backend/app/api/v1/psychro.py | expanded (+13 lines) | ~249 |
+| 09:05 | Session end: 573 writes across 135 files (p6_9_pickup_4_drift_fixes.py, p7_open_009_t0_config_energy_conversion_factors.py, p7_open_009_t0_seed_energy_conversion_factors.py, config.py, .gitignore) | 156 reads | ~356762 tok |
+| 09:15 | Edited pcs-backend/app/api/v1/streams.py | added 1 import(s) | ~51 |
+| 09:15 | Edited pcs-backend/app/api/v1/streams.py | expanded (+8 lines) | ~143 |
+| 09:15 | Edited pcs-backend/app/api/v1/streams.py | expanded (+8 lines) | ~142 |
+| 09:15 | Edited pcs-backend/app/api/v1/streams.py | expanded (+8 lines) | ~134 |
+| 09:16 | Edited pcs-backend/app/api/v1/stream_symbols.py | added 1 import(s) | ~65 |
+| 09:16 | Edited pcs-backend/app/api/v1/stream_symbols.py | expanded (+8 lines) | ~141 |
+| 09:16 | Edited pcs-backend/app/api/v1/stream_symbols.py | expanded (+8 lines) | ~150 |
+| 09:17 | Edited pcs-backend/app/api/v1/stream_symbols.py | expanded (+8 lines) | ~148 |
+| 09:17 | Edited pcs-backend/app/api/v1/stream_symbols.py | expanded (+8 lines) | ~144 |
+| 09:17 | Edited pcs-backend/app/api/v1/stream_symbols.py | expanded (+8 lines) | ~145 |
+| 09:17 | Edited pcs-backend/app/api/v1/sim_imports_query.py | added 1 import(s) | ~46 |
+| 09:17 | Edited pcs-backend/app/api/v1/sim_imports_query.py | expanded (+8 lines) | ~149 |
+| 09:18 | Edited pcs-backend/app/api/v1/sim_imports_query.py | expanded (+8 lines) | ~170 |
+| 09:18 | Edited pcs-backend/app/api/v1/sim_imports_query.py | expanded (+8 lines) | ~214 |
+| 09:18 | Edited pcs-backend/app/api/v1/sim_imports_query.py | expanded (+11 lines) | ~199 |
+| 09:18 | Edited pcs-backend/app/api/v1/sim_imports_query.py | 26→23 lines | ~252 |
+| 09:19 | Edited pcs-backend/app/api/v1/equip_lib.py | added 1 import(s) | ~46 |
+| 09:19 | Edited pcs-backend/app/api/v1/equip_lib.py | expanded (+9 lines) | ~133 |
+| 09:19 | Edited pcs-backend/app/api/v1/equip_lib.py | reduced (-9 lines) | ~30 |
+| 09:19 | Edited pcs-backend/app/api/v1/equip_lib.py | 3→2 lines | ~29 |
+| 09:24 | Session end: 593 writes across 139 files (p6_9_pickup_4_drift_fixes.py, p7_open_009_t0_config_energy_conversion_factors.py, p7_open_009_t0_seed_energy_conversion_factors.py, config.py, .gitignore) | 154 reads | ~358569 tok |
+| 10:30 | P7-7+ BLOCKER-3 全量 refactor 完成（agent 429 中断后续做）| 14 文件 659 行 (filtration/flare/pipe/pipe_classes/pipe_codes/pipe_net/psychro/pump/records/sep_equip/util + streams/stream_symbols/sim_imports_query) | 3706 passed / 4 pre-existing failed, 零新增 regression | ~35k |
