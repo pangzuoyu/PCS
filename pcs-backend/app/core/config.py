@@ -49,7 +49,7 @@ class Settings(BaseSettings):
     ldap_user_dn_template: str = "cn={username},CN=Users,DC=test,DC=local"
     ldap_group_role_map: str = (
         "DESIGNER_GROUP:DESIGNER,CHECKER_GROUP:CHECKER,REVIEWER_GROUP:REVIEWER,"
-        "APPROVER_GROUP:APPROVER,ADMIN_GROUP:SYSADMIN"
+        "APPROVER_GROUP:APPROVER,ADMIN_GROUP:SYSTEM_ADMIN"
     )
 
     @property

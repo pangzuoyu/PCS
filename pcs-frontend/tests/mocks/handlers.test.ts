@@ -109,12 +109,14 @@ describe("meta seed fixture 形状 ↔ OpenAPI", () => {
     const data = metaSeed.permissions;
     validateAgainst("permissions", data);
     const roles = new Set(data.map((p) => p.role));
+    // role-string 收敛 (2026-10-04): SYSADMIN 全量收敛为 SYSTEM_ADMIN
     for (const r of [
       "DESIGNER", "CHECKER", "REVIEWER", "APPROVER",
-      "SYSADMIN", "PROCESS_CONTROLLER", "SYSTEM_ADMIN",
+      "SYSTEM_ADMIN", "PROCESS_CONTROLLER", "VIEWER",
     ]) {
       expect(roles.has(r), `missing role ${r}`).toBe(true);
     }
+    expect(roles.has("SYSADMIN"), "SYSADMIN 应已收敛为 SYSTEM_ADMIN").toBe(false);
   });
 });
 

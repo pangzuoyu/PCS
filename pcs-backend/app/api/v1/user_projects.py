@@ -5,7 +5,7 @@ POST   /api/v1/user-projects/revoke    撤销用户项目访问权
 GET    /api/v1/user-projects/me        当前用户可见项目列表
 GET    /api/v1/user-projects/{user_id} 管理员查看某用户项目列表
 
-ACL: 全部 require_roles SYSADMIN（grant/revoke/{user_id}）;
+ACL: 全部 require_roles SYSTEM_ADMIN（grant/revoke/{user_id}）;
      me 接口需 DESIGNER+ 即可（任何人可看自己的可见项目列表）。
 
 P7-7+ 范围：admin 全权管理 + audit 落 audit_logs (后续 Sprint 7.1 接)。
@@ -82,8 +82,8 @@ async def grant_user_project_access(
     db: Annotated[AsyncSession, Depends(get_db)],
     actor=Depends(current_actor),
 ) -> UserProjectResponse:
-    """授予用户项目访问权 (SYSADMIN only)."""
-    require_roles(actor, "SYSADMIN")
+    """授予用户项目访问权 (SYSTEM_ADMIN only)."""
+    require_roles(actor, "SYSTEM_ADMIN")
     try:
         record = await UserProjectService.grant_project_access(
             db,
@@ -103,8 +103,8 @@ async def revoke_user_project_access(
     db: Annotated[AsyncSession, Depends(get_db)],
     actor=Depends(current_actor),
 ):
-    """撤销用户项目访问权 (SYSADMIN only)."""
-    require_roles(actor, "SYSADMIN")
+    """撤销用户项目访问权 (SYSTEM_ADMIN only)."""
+    require_roles(actor, "SYSTEM_ADMIN")
     record = await UserProjectService.revoke_project_access(
         db,
         user_id=body.user_id,
@@ -120,7 +120,7 @@ async def list_my_projects(
     actor=Depends(current_actor),
 ) -> list[UserProjectResponse]:
     """当前用户可见项目列表 (DESIGNER+ 即可)."""
-    require_roles(actor, "DESIGNER", "CHECKER", "APPROVER", "REVIEWER", "SYSADMIN")
+    require_roles(actor, "DESIGNER", "CHECKER", "APPROVER", "REVIEWER", "SYSTEM_ADMIN")
     records = await UserProjectService.list_user_projects(
         db, user_id=actor.user_id
     )
@@ -133,8 +133,8 @@ async def list_user_projects(
     db: Annotated[AsyncSession, Depends(get_db)],
     actor=Depends(current_actor),
 ) -> list[UserProjectResponse]:
-    """管理员查看某用户项目列表 (SYSADMIN only)."""
-    require_roles(actor, "SYSADMIN")
+    """管理员查看某用户项目列表 (SYSTEM_ADMIN only)."""
+    require_roles(actor, "SYSTEM_ADMIN")
     records = await UserProjectService.list_user_projects(
         db, user_id=user_id, include_revoked=False
     )

@@ -144,9 +144,7 @@ async def calculate_sep_equip(
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
     # BLOCKER-3 P7-7+: 拉源流拿 project_id, 验证 actor 访问权
-    actor_roles_list = (
-        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
-    )
+    actor_roles_list = list(user.roles)
     _src_stream = (
         await db.execute(
             select(Stream).where(Stream.stream_id == req.source_stream_id)

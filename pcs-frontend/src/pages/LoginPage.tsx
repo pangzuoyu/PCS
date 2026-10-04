@@ -8,7 +8,7 @@ const MOCK_ACCOUNTS = [
   { value: 'alice', label: 'alice (DESIGNER)' },
   { value: 'bob', label: 'bob (CHECKER)' },
   { value: 'carol', label: 'carol (APPROVER)' },
-  { value: 'dan', label: 'dan (SYSADMIN)' },
+  { value: 'dan', label: 'dan (SYSTEM_ADMIN)' },
 ];
 
 export default function LoginPage() {

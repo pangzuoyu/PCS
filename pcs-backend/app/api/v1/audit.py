@@ -113,21 +113,18 @@ async def list_equipment_deletion_audit(
     守卫链 (defense-in-depth, P7-7+ BLOCKER-3 集成):
     1. RBAC: DESIGNER+ (require_roles)
     2. IDOR: project_id filter (Issue 7)
-    3. UserProject guard: 用户对该 project 有 grant (SYSADMIN bypass)
+    3. UserProject guard: 用户对该 project 有 grant (SYSTEM_ADMIN bypass)
     """
     require_roles(
         user, "DESIGNER", "PROCESS_CONTROLLER", "REVIEWER", "APPROVER", "SYSTEM_ADMIN",
     )
     # P7-7+: 强制 project_id + UserProject guard (非 admin 必传; 否则 403/404)
     if project_id is not None:
-        # SYSADMIN bypass 在 _guard.py:37 (检查 "SYSADMIN"); 但 JWT role 是
-        # "SYSTEM_ADMIN" — 同义两种写法都传以兼容.
-        actor_roles_list = [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
         await check_project_access_or_404(
             db,
             user_id=user.user_id,
             project_id=project_id,
-            actor_roles=actor_roles_list,
+            actor_roles=list(user.roles),
         )
     conditions = []
     if user.role != "SYSTEM_ADMIN":

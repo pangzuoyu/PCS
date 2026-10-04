@@ -44,7 +44,7 @@ async def list_for_project(
        （按 item_key 升序，不分页）
     3. ORM 行 → ChecklistItemOut 序列化（FastAPI response_model 控制）
 
-    ACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSADMIN
+    ACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSTEM_ADMIN
     BLOCKER-3 P7-7+ 集成：Depends(current_actor) + check_project_access_or_404
     （user_id 不可再由 query 注入，避免 IDOR 漏洞）
     """
@@ -136,7 +136,7 @@ async def update_item(
     4. session.commit() 落库
     5. ORM 行经 ChecklistItemOut.model_validate 转响应 schema
 
-    ACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSADMIN
+    ACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSTEM_ADMIN
     BLOCKER-3 P7-7+ 集成：Depends(current_actor) + check_record_access_or_404
     """
     from sqlalchemy import select as _sa_select

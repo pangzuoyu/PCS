@@ -134,7 +134,7 @@ class CIAEngine:
                     record=r,
                     transition=StateTransition.MARK_STALE,
                     actor_user_id=SYSADMIN_ACTOR,
-                    actor_role="SYSADMIN",
+                    actor_role="SYSTEM_ADMIN",
                     reason=f"CIA: hash mismatch ({cls.__name__})",
                 )
             except Exception:
@@ -188,7 +188,7 @@ class CIAEngine:
                         record=rec,
                         transition=StateTransition.MARK_STALE,
                         actor_user_id=SYSADMIN_ACTOR,
-                        actor_role="SYSADMIN",
+                        actor_role="SYSTEM_ADMIN",
                         reason=f"propagation from {record_type}:{record_id}",
                     )
                 except Exception:
@@ -255,7 +255,7 @@ class CIAEngine:
                         record=eq,
                         transition=StateTransition.MARK_STALE,
                         actor_user_id=SYSADMIN_ACTOR,
-                        actor_role="SYSADMIN",
+                        actor_role="SYSTEM_ADMIN",
                         reason=f"ADR-0025: source pipe {rec.line_no} STALE",
                     )
                 marked += 1

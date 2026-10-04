@@ -36,7 +36,7 @@ const ROLE_BY_USER: Record<string, string> = {
   alice: "DESIGNER",
   bob: "CHECKER",
   carol: "APPROVER",
-  dan: "SYSADMIN",
+  dan: "SYSTEM_ADMIN",
 };
 
 /** V1 mock-only 端点：仅 dev 环境使用，不在 OpenAPI 中（QA fix / ISSUE-001 + 11 组件实例化） */
@@ -598,7 +598,7 @@ devOnlyMockHandlers.push(
     if (!isAuthed(request)) {
       return HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
     }
-    // dev mode: 永远返回 (简化 — 实际后端会做 SYSADMIN gate)
+    // dev mode: 永远返回 (简化 — 实际后端会做 SYSTEM_ADMIN gate)
     return HttpResponse.json({
       items: [
         {

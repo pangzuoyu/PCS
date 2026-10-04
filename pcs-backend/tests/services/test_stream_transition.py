@@ -3,7 +3,7 @@
 覆盖：
 1. Happy path：DRAFT → IN_APPROVAL → CHECKED → CHANGE_PENDING → CHANGED 完整链
 2. invalid transition：DRAFT 直接 PASS_CHECK → 422 SIM_STREAM_INVALID_TRANSITION
-3. role forbidden：DESIGNER 触发 PASS_CHECK（仅 CHECKER/SYSADMIN）→ 403
+3. role forbidden：DESIGNER 触发 PASS_CHECK（仅 CHECKER/SYSTEM_ADMIN）→ 403
 4. SELECT FOR UPDATE：并发两次 transfer，第二方拿到最新状态
 5. 角色别名：PROCESS_CONTROLLER → CHECKER 映射正确
 6. audit 写入：每次 transfer 触发 AuditService.write
@@ -157,7 +157,7 @@ async def test_invalid_transition_draft_to_checked(db, make_stream):
 async def test_role_forbidden_designer_cannot_pass_check(db, make_stream):
     """DESIGNER 触发 PASS_CHECK → 403 SIM_STREAM_ROLE_FORBIDDEN。
 
-    PASS_CHECK TRANSITION_ROLES = {"CHECKER", "APPROVER", "SYSADMIN"}
+    PASS_CHECK TRANSITION_ROLES = {"CHECKER", "APPROVER", "SYSTEM_ADMIN"}
     DESIGNER 不在权限列表。
     """
     stream = await make_stream("RF")
@@ -197,8 +197,9 @@ async def test_role_alias_process_controller_maps_to_checker(db, make_stream):
 
 
 @pytest.mark.asyncio
-async def test_role_alias_system_admin_maps_to_sysadmin(db, make_stream):
-    """SYSTEM_ADMIN → SYSADMIN 别名验证。"""
+async def test_role_system_admin_in_transition_roles(db, make_stream):
+    """SYSTEM_ADMIN 直接在 TRANSITION_ROLES（role-string 收敛 2026-10-04,
+    历史 SYSADMIN 别名已移除, 无 _ROLE_ALIAS 翻译）。"""
     stream = await make_stream("SA")
     stream = await StreamService.transition(
         db, stream.stream_id,

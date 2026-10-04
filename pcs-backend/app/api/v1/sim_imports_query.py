@@ -198,10 +198,8 @@ async def list_imports(
 ) -> SimImportListResponse:
     """按 9 维度过滤的 sim_imports 列表（project_id 强制 scope）。"""
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN", "VIEWER")
-    # BLOCKER-3 P7-7+: project_id 守卫（SYSADMIN bypass via actor_roles 双写兼容）
-    actor_roles_list = (
-        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
-    )
+    # BLOCKER-3 P7-7+: project_id 守卫（SYSTEM_ADMIN bypass via actor_roles 双写兼容）
+    actor_roles_list = list(user.roles)
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=project_id,
         actor_roles=actor_roles_list,
@@ -310,10 +308,8 @@ async def get_import_by_id(
                 "message": f"sim_import {import_id} 不存在",
             },
         )
-    # BLOCKER-3 P7-7+: record 派生 project 守卫（SYSADMIN bypass via actor_roles 双写兼容）
-    actor_roles_list = (
-        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
-    )
+    # BLOCKER-3 P7-7+: record 派生 project 守卫（SYSTEM_ADMIN bypass via actor_roles 双写兼容）
+    actor_roles_list = list(user.roles)
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=imp.project_id,
         actor_roles=actor_roles_list,
@@ -345,10 +341,8 @@ async def get_preview_streams(
                 "message": f"sim_import {import_id} 不存在",
             },
         )
-    # BLOCKER-3 P7-7+: record 派生 project 守卫（SYSADMIN bypass via actor_roles 双写兼容）
-    actor_roles_list = (
-        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
-    )
+    # BLOCKER-3 P7-7+: record 派生 project 守卫（SYSTEM_ADMIN bypass via actor_roles 双写兼容）
+    actor_roles_list = list(user.roles)
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=imp.project_id,
         actor_roles=actor_roles_list,
@@ -392,10 +386,8 @@ async def list_warnings_for_import(
                 "message": f"sim_import {import_id} 不存在",
             },
         )
-    # BLOCKER-3 P7-7+: record 派生 project 守卫（SYSADMIN bypass via actor_roles 双写兼容）
-    actor_roles_list = (
-        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
-    )
+    # BLOCKER-3 P7-7+: record 派生 project 守卫（SYSTEM_ADMIN bypass via actor_roles 双写兼容）
+    actor_roles_list = list(user.roles)
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=imp.project_id,
         actor_roles=actor_roles_list,

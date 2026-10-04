@@ -103,10 +103,8 @@ async def calculate_ruth_constant_pressure(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
-    actor_roles_list = (
-        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
-    )
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSTEM_ADMIN bypass)
+    actor_roles_list = list(user.roles)
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=req.project_id,
         actor_roles=actor_roles_list,
@@ -187,10 +185,8 @@ async def calculate_ruth_constant_rate(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
-    actor_roles_list = (
-        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
-    )
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSTEM_ADMIN bypass)
+    actor_roles_list = list(user.roles)
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=req.project_id,
         actor_roles=actor_roles_list,
@@ -267,10 +263,8 @@ async def calculate_ergun(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
-    actor_roles_list = (
-        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
-    )
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSTEM_ADMIN bypass)
+    actor_roles_list = list(user.roles)
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=req.project_id,
         actor_roles=actor_roles_list,
@@ -348,10 +342,8 @@ async def create_filtration_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
-    actor_roles_list = (
-        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
-    )
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSTEM_ADMIN bypass)
+    actor_roles_list = list(user.roles)
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=req.project_id,
         actor_roles=actor_roles_list,
@@ -391,10 +383,8 @@ async def list_filtration_results(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    # BLOCKER-3 P7-7+: project_id 守卫 (SYSADMIN bypass)
-    actor_roles_list = (
-        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
-    )
+    # BLOCKER-3 P7-7+: project_id 守卫 (SYSTEM_ADMIN bypass)
+    actor_roles_list = list(user.roles)
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=project_id,
         actor_roles=actor_roles_list,
@@ -428,9 +418,7 @@ async def get_filtration_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    actor_roles_list = (
-        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
-    )
+    actor_roles_list = list(user.roles)
     try:
         record = await get_filtration_result_service(
             db, result_id=result_id
@@ -443,7 +431,7 @@ async def get_filtration_result(
         raise _to_http(
             CorePcsError(code=e.code, message=e.message, status=422)
         ) from e
-    # BLOCKER-3 P7-7+: record 级守卫 (SYSADMIN bypass)
+    # BLOCKER-3 P7-7+: record 级守卫 (SYSTEM_ADMIN bypass)
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=record.project_id,
         actor_roles=actor_roles_list,
@@ -468,9 +456,7 @@ async def update_filtration_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    actor_roles_list = (
-        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
-    )
+    actor_roles_list = list(user.roles)
     patch = req.model_dump(exclude_unset=True)
     try:
         record = await update_filtration_result_service(
@@ -484,7 +470,7 @@ async def update_filtration_result(
         raise _to_http(
             CorePcsError(code=e.code, message=e.message, status=422)
         ) from e
-    # BLOCKER-3 P7-7+: record 级守卫 (SYSADMIN bypass)
+    # BLOCKER-3 P7-7+: record 级守卫 (SYSTEM_ADMIN bypass)
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=record.project_id,
         actor_roles=actor_roles_list,
@@ -508,9 +494,7 @@ async def soft_delete_filtration_result(
     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    actor_roles_list = (
-        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
-    )
+    actor_roles_list = list(user.roles)
     try:
         record = await soft_delete_filtration_result_service(
             db, result_id=result_id
@@ -523,7 +507,7 @@ async def soft_delete_filtration_result(
         raise _to_http(
             CorePcsError(code=e.code, message=e.message, status=422)
         ) from e
-    # BLOCKER-3 P7-7+: record 级守卫 (SYSADMIN bypass)
+    # BLOCKER-3 P7-7+: record 级守卫 (SYSTEM_ADMIN bypass)
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=record.project_id,
         actor_roles=actor_roles_list,

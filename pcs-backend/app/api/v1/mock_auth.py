@@ -15,7 +15,7 @@ MOCK_USERS: dict[str, str] = {
     "alice": "DESIGNER",
     "bob": "CHECKER",
     "carol": "APPROVER",
-    "dan": "SYSADMIN",
+    "dan": "SYSTEM_ADMIN",
 }
 
 

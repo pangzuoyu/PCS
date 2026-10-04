@@ -118,14 +118,14 @@ async def test_get_permissions_7_roles_full(client, sample_user_token):
     assert r.status_code == 200, r.text
     data = r.json()
     roles = {p["role"] for p in data}
-    # 实际使用：6 from require_roles + CHECKER/SYSADMIN from state_machine + VIEWER
+    # role-string 收敛 (2026-10-04): SYSADMIN 全量收敛为 SYSTEM_ADMIN
+    # (state_machine TRANSITION_ROLES → meta permissions 派生), 无别名共存
     for role in (
         "DESIGNER", "CHECKER", "REVIEWER", "APPROVER",
-        "SYSADMIN", "PROCESS_CONTROLLER", "VIEWER",
+        "SYSTEM_ADMIN", "PROCESS_CONTROLLER", "VIEWER",
     ):
         assert role in roles, f"缺角色 {role}"
-    # SYSTEM_ADMIN 与 SYSADMIN 别名同时出现
-    assert "SYSTEM_ADMIN" in roles
+    assert "SYSADMIN" not in roles, "SYSADMIN 应已收敛为 SYSTEM_ADMIN"
     # 全 require_roles 调用点 → 至少 15 条
     assert len(data) >= 15, f"permissions 太少：{len(data)}"
     for p in data:

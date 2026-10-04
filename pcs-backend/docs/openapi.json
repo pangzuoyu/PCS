@@ -419,7 +419,7 @@
           "checklist"
         ],
         "summary": "List For Project",
-        "description": "GET 列出项目输入清单（DICT V3.1 表 44）。\n\n步骤：\n1. BLOCKER-3 守卫: actor 必须有 project 访问权\n2. 转发 ChecklistService.list_for_project → 按 project_id 取行\n   （按 item_key 升序，不分页）\n3. ORM 行 → ChecklistItemOut 序列化（FastAPI response_model 控制）\n\nACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSADMIN\nBLOCKER-3 P7-7+ 集成：Depends(current_actor) + check_project_access_or_404\n（user_id 不可再由 query 注入，避免 IDOR 漏洞）",
+        "description": "GET 列出项目输入清单（DICT V3.1 表 44）。\n\n步骤：\n1. BLOCKER-3 守卫: actor 必须有 project 访问权\n2. 转发 ChecklistService.list_for_project → 按 project_id 取行\n   （按 item_key 升序，不分页）\n3. ORM 行 → ChecklistItemOut 序列化（FastAPI response_model 控制）\n\nACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSTEM_ADMIN\nBLOCKER-3 P7-7+ 集成：Depends(current_actor) + check_project_access_or_404\n（user_id 不可再由 query 注入，避免 IDOR 漏洞）",
         "operationId": "list_for_project_api_v1_checklist_projects__project_id__get",
         "parameters": [
           {
@@ -617,7 +617,7 @@
           "checklist"
         ],
         "summary": "Update Item",
-        "description": "PUT 校验一项状态（5 态流转 + Audit 落库）。\n\n步骤：\n1. BLOCKER-3 守卫: actor 必须有 record.project_id 访问权\n   (先 fetch ChecklistItem 拿 project_id, 再 check_record_access_or_404)\n2. 调 ChecklistService.update_status（状态校验 + Audit + flush）\n3. service 抛 ValueError → 404（找不到 checklist 项；保留原 ValueError 契约）\n4. session.commit() 落库\n5. ORM 行经 ChecklistItemOut.model_validate 转响应 schema\n\nACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSADMIN\nBLOCKER-3 P7-7+ 集成：Depends(current_actor) + check_record_access_or_404",
+        "description": "PUT 校验一项状态（5 态流转 + Audit 落库）。\n\n步骤：\n1. BLOCKER-3 守卫: actor 必须有 record.project_id 访问权\n   (先 fetch ChecklistItem 拿 project_id, 再 check_record_access_or_404)\n2. 调 ChecklistService.update_status（状态校验 + Audit + flush）\n3. service 抛 ValueError → 404（找不到 checklist 项；保留原 ValueError 契约）\n4. session.commit() 落库\n5. ORM 行经 ChecklistItemOut.model_validate 转响应 schema\n\nACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSTEM_ADMIN\nBLOCKER-3 P7-7+ 集成：Depends(current_actor) + check_record_access_or_404",
         "operationId": "update_item_api_v1_checklist_items__checklist_id__put",
         "parameters": [
           {
@@ -5612,7 +5612,7 @@
           "streams"
         ],
         "summary": "Approve Stream",
-        "description": "IN_APPROVAL → CHECKED（校对通过）。\n\nACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（StateMachineService 强制 CHECKER/SYSADMIN）",
+        "description": "IN_APPROVAL → CHECKED（校对通过）。\n\nACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（StateMachineService 强制 CHECKER/SYSTEM_ADMIN）",
         "operationId": "approve_stream_api_v1_streams__stream_id__approve_post",
         "parameters": [
           {
@@ -10505,7 +10505,7 @@
           "user-projects"
         ],
         "summary": "Grant User Project Access",
-        "description": "授予用户项目访问权 (SYSADMIN only).",
+        "description": "授予用户项目访问权 (SYSTEM_ADMIN only).",
         "operationId": "grant_user_project_access_api_v1_user_projects_grant_post",
         "parameters": [
           {
@@ -10565,7 +10565,7 @@
           "user-projects"
         ],
         "summary": "Revoke User Project Access",
-        "description": "撤销用户项目访问权 (SYSADMIN only).",
+        "description": "撤销用户项目访问权 (SYSTEM_ADMIN only).",
         "operationId": "revoke_user_project_access_api_v1_user_projects_revoke_post",
         "parameters": [
           {
@@ -10687,7 +10687,7 @@
           "user-projects"
         ],
         "summary": "List User Projects",
-        "description": "管理员查看某用户项目列表 (SYSADMIN only).",
+        "description": "管理员查看某用户项目列表 (SYSTEM_ADMIN only).",
         "operationId": "list_user_projects_api_v1_user_projects__user_id__get",
         "parameters": [
           {
@@ -14981,7 +14981,7 @@
           "audit"
         ],
         "summary": "List Equipment Deletion Audit",
-        "description": "设备删除 audit 查询 (F-P0-004 IDOR 防护).\n\n守卫链 (defense-in-depth, P7-7+ BLOCKER-3 集成):\n1. RBAC: DESIGNER+ (require_roles)\n2. IDOR: project_id filter (Issue 7)\n3. UserProject guard: 用户对该 project 有 grant (SYSADMIN bypass)",
+        "description": "设备删除 audit 查询 (F-P0-004 IDOR 防护).\n\n守卫链 (defense-in-depth, P7-7+ BLOCKER-3 集成):\n1. RBAC: DESIGNER+ (require_roles)\n2. IDOR: project_id filter (Issue 7)\n3. UserProject guard: 用户对该 project 有 grant (SYSTEM_ADMIN bypass)",
         "operationId": "list_equipment_deletion_audit_api_v1_equipment_deletion_audit_get",
         "parameters": [
           {

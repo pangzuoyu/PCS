@@ -31,11 +31,14 @@ async def check_project_access_or_404(
 
     用 404 而非 403：不向攻击者泄漏项目存在性。
 
-    SYSADMIN 全局 bypass: actor 含 SYSADMIN 角色时跳过 UserProject 校验
+    SYSTEM_ADMIN 全局 bypass: actor 含 SYSTEM_ADMIN 角色时跳过 UserProject 校验
     （运维/测试用 — production 应通过 admin API 显式 grant，不应依赖 bypass）
+
+    role-string 收敛 (2026-10-04): 历史双写 "SYSADMIN" 已全量收敛为
+    "SYSTEM_ADMIN" (state_machine/cia_engine/mock_auth/LDAP 同步)。
     """
-    if actor_roles and "SYSADMIN" in actor_roles:
-        return  # SYSADMIN 全局访问权
+    if actor_roles and "SYSTEM_ADMIN" in actor_roles:
+        return  # SYSTEM_ADMIN 全局访问权
     has_access = await UserProjectService.check_user_project_access(
         db, user_id=user_id, project_id=project_id,
     )

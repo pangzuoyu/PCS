@@ -23,7 +23,7 @@ from app.core.security import (
 )
 from app.services.ldap_client import LdapAuthError, resolve_role
 
-_ALLOWED_ROLES = {"DESIGNER", "PROCESS_CONTROLLER", "REVIEWER", "APPROVER", "SYSTEM_ADMIN", "VIEWER", "CHECKER", "SYSADMIN"}
+_ALLOWED_ROLES = {"DESIGNER", "PROCESS_CONTROLLER", "REVIEWER", "APPROVER", "SYSTEM_ADMIN", "VIEWER", "CHECKER"}
 
 
 @pytest.fixture
@@ -136,13 +136,11 @@ class TestRoleClaimFailClosed:
         # 实际拒绝由 _ALLOWED_ROLES 检查在 current_actor 触发, 单元覆盖到此.
 
     def test_sysadmin_role_in_allowed(self):
-        """P1 fix: 'SYSADMIN' (mock_auth.py:18 dan) 与 'SYSTEM_ADMIN' 同义,
-        均应在 ALLOWED_ROLES 中接受.
+        """role-string 收敛 (2026-10-04): 'SYSTEM_ADMIN' 唯一接受,
+        历史 'SYSADMIN' 写法 (收敛前 mock_auth dan) 现应被拒.
         """
-        for role in ("SYSTEM_ADMIN", "SYSADMIN"):
-            token = create_access_token(subject="dan", role=role)
-            # 不抛异常即可通过 (current_actor 内部 ALLOWED_ROLES 校验)
-            assert token is not None
+        token = create_access_token(subject="dan", role="SYSTEM_ADMIN")
+        assert token is not None
 
     def test_missing_role_token_decodes(self, dev_settings):
         """dev mode 下 token 缺 role → decode 通过 (DESIGNER fallback 由 current_actor 加).
@@ -185,7 +183,7 @@ class TestLdapRoleFailClosed:
     def test_resolve_role_matched_group_prod(self, prod_settings):
         """prod mode: 匹配群组 → 返回 mapping 中的 role (匹配路径不受 fail-closed 影响)."""
         role = resolve_role(("ADMIN_GROUP",))
-        assert role == "SYSADMIN"
+        assert role == "SYSTEM_ADMIN"
 
     def test_resolve_role_unmatched_group_prod_raises(self, prod_settings):
         """prod mode: 不匹配的群组 → raise LdapAuthError."""

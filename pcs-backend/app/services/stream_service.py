@@ -16,7 +16,7 @@ Stream 状态机（SIM-13，闭环审计 D-1）：
   InvalidTransition → 422 SIM_STREAM_INVALID_TRANSITION；
   RoleForbidden → 403 SIM_STREAM_ROLE_FORBIDDEN
 - 角色映射：streams API 层使用 PROCESS_CONTROLLER/SYSTEM_ADMIN，
-  state_machine TRANSITION_ROLES 用 CHECKER/SYSADMIN，本层做别名解析
+  state_machine TRANSITION_ROLES 用 CHECKER，本层做别名解析
 
 StatePoint CRUD（SIM-8）：
 - create_state_point / list_state_points / get_state_point / update_state_point / delete_state_point
@@ -72,7 +72,6 @@ _KPA_TO_PA = 1000.0
 # 中使用的代码级角色名。StateMachineService 直接做权限校验，本层做名称翻译。
 _ROLE_ALIAS: dict[str, str] = {
     "PROCESS_CONTROLLER": "CHECKER",  # 项目级 PC 与代码级 CHECKER 职能一致
-    "SYSTEM_ADMIN": "SYSADMIN",  # SA 简写映射
 }
 
 

@@ -134,13 +134,13 @@ async def archive_workspace(
             select(Workspace).where(Workspace.workspace_id == workspace_id)
         )
     ).scalar_one_or_none()
-    # P7-7+ BLOCKER-3 关键 endpoint 集成 check_project_access (SYSADMIN 自动通过, 留 audit)
+    # P7-7+ BLOCKER-3 关键 endpoint 集成 check_project_access (SYSTEM_ADMIN bypass)
     if record is not None and record.project_id is not None:
         await check_project_access_or_404(
             session,
             user_id=user.user_id,
             project_id=record.project_id,
-            actor_roles=[user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role],
+            actor_roles=list(user.roles),
         )
     if record is None:
         raise HTTPException(status_code=404, detail="workspace not found")

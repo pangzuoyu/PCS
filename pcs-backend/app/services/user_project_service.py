@@ -7,7 +7,7 @@
 - list_user_projects: 用户可见项目列表
 
 全局角色与项目内角色区分：
-- 全局 roles: 用户系统级能力 (DESIGNER/SYSADMIN/...) — 决定可调哪些 API 类别
+- 全局 roles: 用户系统级能力 (DESIGNER/SYSTEM_ADMIN/...) — 决定可调哪些 API 类别
 - 项目内 role_in_project: 用户在该项目内的角色 — 决定可调哪些项目数据
 例: 全局 DESIGNER 可调 equipment-list API; 但仅当其 user_projects 含
 project_id 行时才能访问该项目数据。
@@ -137,7 +137,7 @@ class UserProjectService:
         Returns:
             True = 有权访问；False = 无权
 
-        注: 全局 SYSADMIN 角色默认可访问所有项目（由 _check_user_project_access
+        注: 全局 SYSTEM_ADMIN 角色默认可访问所有项目（由 _check_user_project_access
         在 API 层做 bypass 配合）。本函数仅做 UserProject 行检查。
         """
         stmt = select(UserProject).where(

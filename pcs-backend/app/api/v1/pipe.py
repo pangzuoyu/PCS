@@ -164,10 +164,8 @@ async def calc_pipe_chain(
     5. commit + 返回响应
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    # BLOCKER-3 P7-7+: project_id 守卫（SYSADMIN bypass via actor_roles 双写兼容）
-    actor_roles_list = (
-        [user.role, "SYSADMIN"] if user.role == "SYSTEM_ADMIN" else [user.role]
-    )
+    # BLOCKER-3 P7-7+: project_id 守卫（SYSTEM_ADMIN bypass via actor_roles 双写兼容）
+    actor_roles_list = list(user.roles)
     await check_project_access_or_404(
         db, user_id=user.user_id, project_id=req.project_id,
         actor_roles=actor_roles_list,

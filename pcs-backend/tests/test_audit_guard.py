@@ -123,7 +123,7 @@ async def test_granted_designer_200(real_user_project_client, db, designer_token
 
 
 async def test_admin_bypass_guard(real_user_project_client, db, admin_token):
-    """P7-7+: SYSTEM_ADMIN 不需要 grant (guard 内 SYSADMIN bypass)."""
+    """P7-7+: SYSTEM_ADMIN 不需要 grant (guard 内 SYSTEM_ADMIN bypass)."""
     project_id = uuid.uuid4()
     await _insert_audit(db, project_id=project_id)
     await db.commit()

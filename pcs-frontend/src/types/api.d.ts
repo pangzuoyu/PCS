@@ -248,7 +248,7 @@ export interface paths {
          *        （按 item_key 升序，不分页）
          *     3. ORM 行 → ChecklistItemOut 序列化（FastAPI response_model 控制）
          *
-         *     ACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSADMIN
+         *     ACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSTEM_ADMIN
          *     BLOCKER-3 P7-7+ 集成：Depends(current_actor) + check_project_access_or_404
          *     （user_id 不可再由 query 注入，避免 IDOR 漏洞）
          */
@@ -339,7 +339,7 @@ export interface paths {
          *     4. session.commit() 落库
          *     5. ORM 行经 ChecklistItemOut.model_validate 转响应 schema
          *
-         *     ACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSADMIN
+         *     ACL：DESIGNER / CHECKER / REVIEWER / APPROVER / SYSTEM_ADMIN
          *     BLOCKER-3 P7-7+ 集成：Depends(current_actor) + check_record_access_or_404
          */
         put: operations["update_item_api_v1_checklist_items__checklist_id__put"];
@@ -1979,7 +1979,7 @@ export interface paths {
          * Approve Stream
          * @description IN_APPROVAL → CHECKED（校对通过）。
          *
-         *     ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（StateMachineService 强制 CHECKER/SYSADMIN）
+         *     ACL：PROCESS_CONTROLLER / SYSTEM_ADMIN（StateMachineService 强制 CHECKER/SYSTEM_ADMIN）
          */
         post: operations["approve_stream_api_v1_streams__stream_id__approve_post"];
         delete?: never;
@@ -3494,7 +3494,7 @@ export interface paths {
         put?: never;
         /**
          * Grant User Project Access
-         * @description 授予用户项目访问权 (SYSADMIN only).
+         * @description 授予用户项目访问权 (SYSTEM_ADMIN only).
          */
         post: operations["grant_user_project_access_api_v1_user_projects_grant_post"];
         delete?: never;
@@ -3514,7 +3514,7 @@ export interface paths {
         put?: never;
         /**
          * Revoke User Project Access
-         * @description 撤销用户项目访问权 (SYSADMIN only).
+         * @description 撤销用户项目访问权 (SYSTEM_ADMIN only).
          */
         post: operations["revoke_user_project_access_api_v1_user_projects_revoke_post"];
         delete?: never;
@@ -3552,7 +3552,7 @@ export interface paths {
         };
         /**
          * List User Projects
-         * @description 管理员查看某用户项目列表 (SYSADMIN only).
+         * @description 管理员查看某用户项目列表 (SYSTEM_ADMIN only).
          */
         get: operations["list_user_projects_api_v1_user_projects__user_id__get"];
         put?: never;
@@ -4927,7 +4927,7 @@ export interface paths {
          *     守卫链 (defense-in-depth, P7-7+ BLOCKER-3 集成):
          *     1. RBAC: DESIGNER+ (require_roles)
          *     2. IDOR: project_id filter (Issue 7)
-         *     3. UserProject guard: 用户对该 project 有 grant (SYSADMIN bypass)
+         *     3. UserProject guard: 用户对该 project 有 grant (SYSTEM_ADMIN bypass)
          */
         get: operations["list_equipment_deletion_audit_api_v1_equipment_deletion_audit_get"];
         put?: never;
