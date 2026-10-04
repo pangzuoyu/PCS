@@ -461,7 +461,8 @@ const utilSeedEnergySummary = {
   electricity_value_type: 'EQUIVALENT',
   r1_classification: {
     steam_by_pressure_level: { '0_8_TO_1_2_MPA': 20000.0 },
-    fuel_gas_by_source: {},
+    // e2e energy_summary.spec 断言 GASFIELD_GAS 行 (与 vitest 独立 seed 对齐)
+    fuel_gas_by_source: { GASFIELD_GAS: 24694992.0 },
     water_by_type: {},
   },
   computed_at: '2026-10-02T00:00:00Z',
