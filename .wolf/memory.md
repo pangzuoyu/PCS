@@ -940,3 +940,34 @@
 | 22:33 | Edited docs/PROD-CHECKLIST-F-P3-001-2026-10-02.md | 4→4 lines | ~46 |
 | 22:33 | Edited docs/PROD-CHECKLIST-F-P3-001-2026-10-02.md | 5→5 lines | ~91 |
 | 11:15 | F-P3-001 #5 完成 (Sprint 3b) | errors.py choke point + AuditService.write 放宽 str + 8 测试 | 3716 passed / 2 pre-existing, checklist 5/5 | ~40k |
+| 22:46 | Created pcs-frontend/e2e/audit_log.spec.ts | — | ~836 |
+| 04:11 | Edited pcs-frontend/e2e/audit_log.spec.ts | modified gotoAuditViaMenu() | ~68 |
+| 04:13 | Edited pcs-frontend/e2e/audit_log.spec.ts | 7→9 lines | ~128 |
+| 04:13 | Edited pcs-frontend/e2e/audit_log.spec.ts | 8→9 lines | ~102 |
+| 04:15 | Created pcs-frontend/e2e/cooling_water.spec.ts | — | ~876 |
+| 04:16 | Edited pcs-frontend/e2e/cooling_water.spec.ts | 6→7 lines | ~92 |
+| 04:18 | Edited pcs-frontend/e2e/cooling_water.spec.ts | 4→4 lines | ~65 |
+| 04:19 | Edited pcs-frontend/e2e/cooling_water.spec.ts | 7→8 lines | ~107 |
+| 04:20 | Edited pcs-frontend/e2e/cooling_water.spec.ts | 5→8 lines | ~117 |
+| 04:22 | Edited pcs-frontend/e2e/cooling_water.spec.ts | 8→7 lines | ~100 |
+| 04:22 | Edited pcs-frontend/e2e/cooling_water.spec.ts | 7→10 lines | ~138 |
+| 04:23 | Edited pcs-frontend/e2e/cooling_water.spec.ts | 10→9 lines | ~134 |
+| 04:26 | Created pcs-frontend/e2e/energy_summary.spec.ts | — | ~1139 |
+| 10:29 | Edited pcs-frontend/src/mocks/handlers.ts | 5→6 lines | ~68 |
+| 10:32 | Edited pcs-backend/app/services/stream_service.py | 6→5 lines | ~63 |
+| 10:32 | Edited pcs-backend/app/api/v1/_guard.py | 5→8 lines | ~101 |
+| 10:32 | Edited pcs-backend/app/api/v1/mock_auth.py | 6→6 lines | ~38 |
+| 10:32 | Edited pcs-backend/app/core/config.py | 4→4 lines | ~51 |
+| 10:32 | Edited pcs-backend/app/api/v1/config.py | 8→7 lines | ~93 |
+| 10:34 | Edited pcs-backend/app/api/v1/workspaces.py | 8→8 lines | ~95 |
+| 10:34 | Edited pcs-backend/app/api/v1/audit.py | 18→15 lines | ~158 |
+| 14:20 | Edited pcs-backend/tests/api/v1/test_meta.py | modified test_get_permissions_7_roles_full() | ~242 |
+| 14:20 | Edited pcs-backend/tests/services/test_stream_transition.py | 5→5 lines | ~48 |
+| 14:20 | Edited pcs-backend/tests/services/test_stream_transition.py | test_role_alias_system_admin_maps_to_sysadmin() → test_role_system_admin_in_transition_roles() | ~143 |
+| 14:20 | Edited pcs-backend/tests/services/test_stream_transition.py | inline fix | ~20 |
+| 14:21 | Edited pcs-backend/tests/test_jwt_production.py | inline fix | ~32 |
+| 14:21 | Edited pcs-backend/tests/test_jwt_production.py | modified test_sysadmin_role_in_allowed() | ~78 |
+| 14:21 | Edited pcs-backend/tests/test_jwt_production.py | modified test_resolve_role_matched_group_prod() | ~65 |
+| 14:21 | Edited pcs-backend/tests/test_audit_guard.py | "P7-7+: SYSTEM_ADMIN 不需要 g" → "P7-7+: SYSTEM_ADMIN 不需要 g" | ~20 |
+| 14:30 | Edited pcs-frontend/tests/mocks/handlers.test.ts | modified for() | ~152 |
+| 15:00 | e2e 补跑闭环 + role-string 全量收敛 | e2e 17/17 (3 spec 修 goto/键盘流/seed); SYSADMIN→SYSTEM_ADMIN 37 文件 (净 -157 行) | 全绿: 3716 backend + 569 vitest + 17 e2e + drift OK | ~120k |
