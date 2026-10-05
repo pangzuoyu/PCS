@@ -3483,6 +3483,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/util/gas-media-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Gas Media Items
+         * @description 列 project's 工艺气体条目 (可选按 workspace / 介质过滤).
+         */
+        get: operations["list_gas_media_items_api_v1_util_gas_media_items_get"];
+        put?: never;
+        /**
+         * Create Gas Media Item
+         * @description 创建工艺气体条目 (annual_consumption_nm3 缺省=派生).
+         */
+        post: operations["create_gas_media_item_api_v1_util_gas_media_items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/util/low-temp-heat-items": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Low Temp Heat Items
+         * @description 列 project's 低温余热回收条目.
+         */
+        get: operations["list_low_temp_heat_items_api_v1_util_low_temp_heat_items_get"];
+        put?: never;
+        /**
+         * Create Low Temp Heat Item
+         * @description 创建低温余热回收条目 (annual_recovered_heat_gj 缺省=派生).
+         */
+        post: operations["create_low_temp_heat_item_api_v1_util_low_temp_heat_items_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/projects/{project_id}": {
         parameters: {
             query?: never;
@@ -8657,6 +8705,31 @@ export interface components {
              */
             change_note?: string | null;
         };
+        /**
+         * GasMedium
+         * @description 工艺气体介质分类 (P7-6B 收尾 / GB 30251-2024 附录A 表A.1).
+         *
+         *     业务: `utility_gas_media` 子表的判别列 (单位 Nm³), 每个值映射到一条
+         *     ConfigEnergyConversionFactor 行:
+         *
+         *     | gas_medium       | CONFIG energy_type | sub_type        | 附录A 序号 | kg标油/Nm³ |
+         *     |------------------|--------------------|-----------------|-----------|-----------|
+         *     | PROCESS_GAS      | GAS                | NULL            | —         | 0.85      |
+         *     | NITROGEN         | NITROGEN           | NULL            | 33        | 0.15      |
+         *     | PURIFIED_AIR     | INSTRUMENT_AIR     | PURIFIED        | 31        | 0.038     |
+         *     | NON_PURIFIED_AIR | INSTRUMENT_AIR     | NON_PURIFIED    | 32        | 0.028     |
+         *     | PLANT_AIR        | INSTRUMENT_AIR     | NON_PURIFIED    | 32        | 0.028     |
+         *
+         *     背景 (2026-10-05): 这几类的 CONFIG 系数一直存在, 但 `_aggregate_util_subtables`
+         *     的 `gas_nm3_yr` 是**硬编码 None** —— 系数是死数据, 氮气/仪表空气从未进过
+         *     综合能耗。同时 SPEC V1.4 §4.4 的 13→6 映射写着「NITROGEN / INSTRUMENT_AIR /
+         *     PLANT_AIR → None（无 TOE 折标）」, 与炼化强制国标 GB 30251-2024 冲突,
+         *     以标准为准修订。
+         *
+         *     PLANT_AIR (厂区空气) 归非净化: 附录A 只有净化/非净化两档压缩空气。
+         * @enum {string}
+         */
+        GasMedium: "PROCESS_GAS" | "NITROGEN" | "PURIFIED_AIR" | "NON_PURIFIED_AIR" | "PLANT_AIR";
         /**
          * GenerateRequest
          * @description 管道代码生成请求体（POST /project-pipe-code-configs/{id}/generate）。
@@ -14756,6 +14829,102 @@ export interface components {
             updated_at?: string | null;
         };
         /**
+         * UtilGasMediaCreateRequest
+         * @description 手动创建 UtilityGasMedia (P7-6B 收尾).
+         *
+         *     介质 → CONFIG 行映射见 app/models/enums.py::GasMedium:
+         *         PROCESS_GAS 0.85 / NITROGEN 0.15 / PURIFIED_AIR 0.038 /
+         *         NON_PURIFIED_AIR 0.028 / PLANT_AIR 0.028 kg标油/Nm³
+         *     净化空气与氮气差近 4 倍, gas_medium 错填即高估/低估 —— 故用 enum 锁死。
+         */
+        UtilGasMediaCreateRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 UUID
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description workspace UUID
+             */
+            workspace_id: string;
+            /**
+             * Equipment Id
+             * @description 设备 UUID (可选)
+             */
+            equipment_id?: string | null;
+            /**
+             * Equipment Tag
+             * @description 设备位号
+             */
+            equipment_tag: string;
+            /** @description 气体介质 (GB 30251-2024 附录A 序号31/32/33 + GAS 行) */
+            gas_medium: components["schemas"]["GasMedium"];
+            /**
+             * Consumption Nm3 H
+             * @description 小时消耗量 (Nm³/h)
+             */
+            consumption_nm3_h: number;
+            /**
+             * Operating Hours Per Year
+             * @description 年运行小时
+             * @default 8000
+             */
+            operating_hours_per_year: number;
+            /**
+             * Annual Consumption Nm3
+             * @description 年消耗量 (Nm³/yr); 缺省 = consumption_nm3_h × operating_hours_per_year
+             */
+            annual_consumption_nm3?: number | null;
+            /**
+             * Source
+             * @description 来源: PMS/MANUAL/CALC
+             * @default MANUAL
+             */
+            source: string | null;
+        };
+        /**
+         * UtilGasMediaResponse
+         * @description UtilityGasMedia 单条响应.
+         */
+        UtilGasMediaResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+            /** Equipment Id */
+            equipment_id: string | null;
+            /** Equipment Tag */
+            equipment_tag: string;
+            /** Gas Medium */
+            gas_medium: string;
+            /** Consumption Nm3 H */
+            consumption_nm3_h: number;
+            /** Operating Hours Per Year */
+            operating_hours_per_year: number;
+            /** Annual Consumption Nm3 */
+            annual_consumption_nm3: number;
+            /** Source */
+            source: string;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
          * UtilHeatExchangeCreateRequest
          * @description 手动创建 UtilityHeatExchange (T3 蒸汽/冷凝水).
          *
@@ -14878,6 +15047,96 @@ export interface components {
             operating_hours_per_year: number;
             /** Annual Consumption T */
             annual_consumption_t: number;
+            /** Source */
+            source: string;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * UtilLowTempHeatCreateRequest
+         * @description 手动创建 UtilityLowTempHeat (P7-6B 收尾).
+         *
+         *     低温热单位是 **GJ** (不是 Nm³/t), 折标走附录A 序号34 = 0.012 kg标油/MJ,
+         *     service 内会先 GJ×1000 → MJ 再乘系数 (bug-138 量纲修正)。
+         */
+        UtilLowTempHeatCreateRequest: {
+            /**
+             * Project Id
+             * Format: uuid
+             * @description 项目 UUID
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             * @description workspace UUID
+             */
+            workspace_id: string;
+            /**
+             * Equipment Id
+             * @description 设备 UUID (可选)
+             */
+            equipment_id?: string | null;
+            /**
+             * Equipment Tag
+             * @description 设备位号
+             */
+            equipment_tag: string;
+            /**
+             * Heat Recovery Gj H
+             * @description 小时回收热量 (GJ/h)
+             */
+            heat_recovery_gj_h: number;
+            /**
+             * Operating Hours Per Year
+             * @description 年运行小时
+             * @default 8000
+             */
+            operating_hours_per_year: number;
+            /**
+             * Annual Recovered Heat Gj
+             * @description 年回收热量 (GJ/yr); 缺省 = heat_recovery_gj_h × operating_hours_per_year
+             */
+            annual_recovered_heat_gj?: number | null;
+            /**
+             * Source
+             * @description 来源: PMS/MANUAL/CALC
+             * @default MANUAL
+             */
+            source: string | null;
+        };
+        /**
+         * UtilLowTempHeatResponse
+         * @description UtilityLowTempHeat 单条响应.
+         */
+        UtilLowTempHeatResponse: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Workspace Id
+             * Format: uuid
+             */
+            workspace_id: string;
+            /** Equipment Id */
+            equipment_id: string | null;
+            /** Equipment Tag */
+            equipment_tag: string;
+            /** Heat Recovery Gj H */
+            heat_recovery_gj_h: number;
+            /** Operating Hours Per Year */
+            operating_hours_per_year: number;
+            /** Annual Recovered Heat Gj */
+            annual_recovered_heat_gj: number;
             /** Source */
             source: string;
             /** Created At */
@@ -21951,6 +22210,149 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UtilEnergySummaryResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_gas_media_items_api_v1_util_gas_media_items_get: {
+        parameters: {
+            query: {
+                project_id: string;
+                workspace_id?: string | null;
+                gas_medium?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilGasMediaResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_gas_media_item_api_v1_util_gas_media_items_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UtilGasMediaCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilGasMediaResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_low_temp_heat_items_api_v1_util_low_temp_heat_items_get: {
+        parameters: {
+            query: {
+                project_id: string;
+                workspace_id?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilLowTempHeatResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_low_temp_heat_item_api_v1_util_low_temp_heat_items_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UtilLowTempHeatCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UtilLowTempHeatResponse"];
                 };
             };
             /** @description Validation Error */

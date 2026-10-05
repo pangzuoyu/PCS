@@ -19,6 +19,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.models.enums import GasMedium
+
 
 class UtilResultsCreateRequest(BaseModel):
     """手动创建 UtilResults（带 consumption_json 13 类 flat map）。
@@ -354,5 +356,88 @@ class UtilEnergySummaryResponse(BaseModel):
     electricity_value_type: str | None = None
     r1_classification: dict[str, dict[str, float]] | None = None
     computed_at: str | None = None
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+# ---------------------------------------------------------------------------
+# P7-6B 收尾: 工艺气体 / 低温热 (GB 30251-2024 附录A 表A.1 序号31/32/33/34)
+# ---------------------------------------------------------------------------
+
+
+class UtilGasMediaCreateRequest(BaseModel):
+    """手动创建 UtilityGasMedia (P7-6B 收尾).
+
+    介质 → CONFIG 行映射见 app/models/enums.py::GasMedium:
+        PROCESS_GAS 0.85 / NITROGEN 0.15 / PURIFIED_AIR 0.038 /
+        NON_PURIFIED_AIR 0.028 / PLANT_AIR 0.028 kg标油/Nm³
+    净化空气与氮气差近 4 倍, gas_medium 错填即高估/低估 —— 故用 enum 锁死。
+    """
+
+    project_id: uuid.UUID = Field(..., description="项目 UUID")
+    workspace_id: uuid.UUID = Field(..., description="workspace UUID")
+    equipment_id: uuid.UUID | None = Field(None, description="设备 UUID (可选)")
+    equipment_tag: str = Field(..., min_length=1, max_length=64, description="设备位号")
+    gas_medium: GasMedium = Field(
+        ..., description="气体介质 (GB 30251-2024 附录A 序号31/32/33 + GAS 行)"
+    )
+    consumption_nm3_h: float = Field(..., gt=0, le=1e7, description="小时消耗量 (Nm³/h)")
+    operating_hours_per_year: float = Field(8000.0, gt=0, le=8760, description="年运行小时")
+    annual_consumption_nm3: float | None = Field(
+        None, gt=0,
+        description="年消耗量 (Nm³/yr); 缺省 = consumption_nm3_h × operating_hours_per_year",
+    )
+    source: str | None = Field("MANUAL", max_length=32, description="来源: PMS/MANUAL/CALC")
+
+
+class UtilGasMediaResponse(BaseModel):
+    """UtilityGasMedia 单条响应."""
+
+    id: uuid.UUID
+    project_id: uuid.UUID
+    workspace_id: uuid.UUID
+    equipment_id: uuid.UUID | None
+    equipment_tag: str
+    gas_medium: str
+    consumption_nm3_h: float
+    operating_hours_per_year: float
+    annual_consumption_nm3: float
+    source: str
+    created_at: str | None = None
+    updated_at: str | None = None
+
+
+class UtilLowTempHeatCreateRequest(BaseModel):
+    """手动创建 UtilityLowTempHeat (P7-6B 收尾).
+
+    低温热单位是 **GJ** (不是 Nm³/t), 折标走附录A 序号34 = 0.012 kg标油/MJ,
+    service 内会先 GJ×1000 → MJ 再乘系数 (bug-138 量纲修正)。
+    """
+
+    project_id: uuid.UUID = Field(..., description="项目 UUID")
+    workspace_id: uuid.UUID = Field(..., description="workspace UUID")
+    equipment_id: uuid.UUID | None = Field(None, description="设备 UUID (可选)")
+    equipment_tag: str = Field(..., min_length=1, max_length=64, description="设备位号")
+    heat_recovery_gj_h: float = Field(..., gt=0, le=1e5, description="小时回收热量 (GJ/h)")
+    operating_hours_per_year: float = Field(8000.0, gt=0, le=8760, description="年运行小时")
+    annual_recovered_heat_gj: float | None = Field(
+        None, gt=0,
+        description="年回收热量 (GJ/yr); 缺省 = heat_recovery_gj_h × operating_hours_per_year",
+    )
+    source: str | None = Field("MANUAL", max_length=32, description="来源: PMS/MANUAL/CALC")
+
+
+class UtilLowTempHeatResponse(BaseModel):
+    """UtilityLowTempHeat 单条响应."""
+
+    id: uuid.UUID
+    project_id: uuid.UUID
+    workspace_id: uuid.UUID
+    equipment_id: uuid.UUID | None
+    equipment_tag: str
+    heat_recovery_gj_h: float
+    operating_hours_per_year: float
+    annual_recovered_heat_gj: float
+    source: str
     created_at: str | None = None
     updated_at: str | None = None

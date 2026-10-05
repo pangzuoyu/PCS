@@ -10499,6 +10499,346 @@
         }
       }
     },
+    "/api/v1/util/gas-media-items": {
+      "get": {
+        "tags": [
+          "util"
+        ],
+        "summary": "List Gas Media Items",
+        "description": "列 project's 工艺气体条目 (可选按 workspace / 介质过滤).",
+        "operationId": "list_gas_media_items_api_v1_util_gas_media_items_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "workspace_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "gas_medium",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Gas Medium"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UtilGasMediaResponse"
+                  },
+                  "title": "Response List Gas Media Items Api V1 Util Gas Media Items Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "util"
+        ],
+        "summary": "Create Gas Media Item",
+        "description": "创建工艺气体条目 (annual_consumption_nm3 缺省=派生).",
+        "operationId": "create_gas_media_item_api_v1_util_gas_media_items_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UtilGasMediaCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UtilGasMediaResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/util/low-temp-heat-items": {
+      "get": {
+        "tags": [
+          "util"
+        ],
+        "summary": "List Low Temp Heat Items",
+        "description": "列 project's 低温余热回收条目.",
+        "operationId": "list_low_temp_heat_items_api_v1_util_low_temp_heat_items_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "workspace_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Workspace Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/UtilLowTempHeatResponse"
+                  },
+                  "title": "Response List Low Temp Heat Items Api V1 Util Low Temp Heat Items Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "util"
+        ],
+        "summary": "Create Low Temp Heat Item",
+        "description": "创建低温余热回收条目 (annual_recovered_heat_gj 缺省=派生).",
+        "operationId": "create_low_temp_heat_item_api_v1_util_low_temp_heat_items_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UtilLowTempHeatCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UtilLowTempHeatResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/projects/{project_id}": {
       "get": {
         "tags": [
@@ -21715,6 +22055,18 @@
         "title": "ForkVersionRequest",
         "description": "POST /assets/{id}/fork 请求体。"
       },
+      "GasMedium": {
+        "type": "string",
+        "enum": [
+          "PROCESS_GAS",
+          "NITROGEN",
+          "PURIFIED_AIR",
+          "NON_PURIFIED_AIR",
+          "PLANT_AIR"
+        ],
+        "title": "GasMedium",
+        "description": "工艺气体介质分类 (P7-6B 收尾 / GB 30251-2024 附录A 表A.1).\n\n业务: `utility_gas_media` 子表的判别列 (单位 Nm³), 每个值映射到一条\nConfigEnergyConversionFactor 行:\n\n| gas_medium       | CONFIG energy_type | sub_type        | 附录A 序号 | kg标油/Nm³ |\n|------------------|--------------------|-----------------|-----------|-----------|\n| PROCESS_GAS      | GAS                | NULL            | —         | 0.85      |\n| NITROGEN         | NITROGEN           | NULL            | 33        | 0.15      |\n| PURIFIED_AIR     | INSTRUMENT_AIR     | PURIFIED        | 31        | 0.038     |\n| NON_PURIFIED_AIR | INSTRUMENT_AIR     | NON_PURIFIED    | 32        | 0.028     |\n| PLANT_AIR        | INSTRUMENT_AIR     | NON_PURIFIED    | 32        | 0.028     |\n\n背景 (2026-10-05): 这几类的 CONFIG 系数一直存在, 但 `_aggregate_util_subtables`\n的 `gas_nm3_yr` 是**硬编码 None** —— 系数是死数据, 氮气/仪表空气从未进过\n综合能耗。同时 SPEC V1.4 §4.4 的 13→6 映射写着「NITROGEN / INSTRUMENT_AIR /\nPLANT_AIR → None（无 TOE 折标）」, 与炼化强制国标 GB 30251-2024 冲突,\n以标准为准修订。\n\nPLANT_AIR (厂区空气) 归非净化: 附录A 只有净化/非净化两档压缩空气。"
+      },
       "GenerateRequest": {
         "properties": {
           "project_id": {
@@ -31858,6 +32210,190 @@
         "title": "UtilFuelGasResponse",
         "description": "UtilityFuelGas 单条响应 (T2)."
       },
+      "UtilGasMediaCreateRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 UUID"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "workspace UUID"
+          },
+          "equipment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment Id",
+            "description": "设备 UUID (可选)"
+          },
+          "equipment_tag": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Equipment Tag",
+            "description": "设备位号"
+          },
+          "gas_medium": {
+            "$ref": "#/components/schemas/GasMedium",
+            "description": "气体介质 (GB 30251-2024 附录A 序号31/32/33 + GAS 行)"
+          },
+          "consumption_nm3_h": {
+            "type": "number",
+            "maximum": 10000000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Consumption Nm3 H",
+            "description": "小时消耗量 (Nm³/h)"
+          },
+          "operating_hours_per_year": {
+            "type": "number",
+            "maximum": 8760.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Operating Hours Per Year",
+            "description": "年运行小时",
+            "default": 8000.0
+          },
+          "annual_consumption_nm3": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annual Consumption Nm3",
+            "description": "年消耗量 (Nm³/yr); 缺省 = consumption_nm3_h × operating_hours_per_year"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "来源: PMS/MANUAL/CALC",
+            "default": "MANUAL"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "equipment_tag",
+          "gas_medium",
+          "consumption_nm3_h"
+        ],
+        "title": "UtilGasMediaCreateRequest",
+        "description": "手动创建 UtilityGasMedia (P7-6B 收尾).\n\n介质 → CONFIG 行映射见 app/models/enums.py::GasMedium:\n    PROCESS_GAS 0.85 / NITROGEN 0.15 / PURIFIED_AIR 0.038 /\n    NON_PURIFIED_AIR 0.028 / PLANT_AIR 0.028 kg标油/Nm³\n净化空气与氮气差近 4 倍, gas_medium 错填即高估/低估 —— 故用 enum 锁死。"
+      },
+      "UtilGasMediaResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id"
+          },
+          "equipment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment Id"
+          },
+          "equipment_tag": {
+            "type": "string",
+            "title": "Equipment Tag"
+          },
+          "gas_medium": {
+            "type": "string",
+            "title": "Gas Medium"
+          },
+          "consumption_nm3_h": {
+            "type": "number",
+            "title": "Consumption Nm3 H"
+          },
+          "operating_hours_per_year": {
+            "type": "number",
+            "title": "Operating Hours Per Year"
+          },
+          "annual_consumption_nm3": {
+            "type": "number",
+            "title": "Annual Consumption Nm3"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "workspace_id",
+          "equipment_id",
+          "equipment_tag",
+          "gas_medium",
+          "consumption_nm3_h",
+          "operating_hours_per_year",
+          "annual_consumption_nm3",
+          "source"
+        ],
+        "title": "UtilGasMediaResponse",
+        "description": "UtilityGasMedia 单条响应."
+      },
       "UtilHeatExchangeCreateRequest": {
         "properties": {
           "project_id": {
@@ -32126,6 +32662,180 @@
         ],
         "title": "UtilHeatExchangeResponse",
         "description": "UtilityHeatExchange 单条响应 (T3).\n\nR1 §7.1 + §7.2 (P7-6B 冷却水落地): 加 pressure_level (蒸汽 9 档)\n+ medium_type (10 类介质: STEAM + 9 类水) 同步前端 page."
+      },
+      "UtilLowTempHeatCreateRequest": {
+        "properties": {
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id",
+            "description": "项目 UUID"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id",
+            "description": "workspace UUID"
+          },
+          "equipment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment Id",
+            "description": "设备 UUID (可选)"
+          },
+          "equipment_tag": {
+            "type": "string",
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Equipment Tag",
+            "description": "设备位号"
+          },
+          "heat_recovery_gj_h": {
+            "type": "number",
+            "maximum": 100000.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Heat Recovery Gj H",
+            "description": "小时回收热量 (GJ/h)"
+          },
+          "operating_hours_per_year": {
+            "type": "number",
+            "maximum": 8760.0,
+            "exclusiveMinimum": 0.0,
+            "title": "Operating Hours Per Year",
+            "description": "年运行小时",
+            "default": 8000.0
+          },
+          "annual_recovered_heat_gj": {
+            "anyOf": [
+              {
+                "type": "number",
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Annual Recovered Heat Gj",
+            "description": "年回收热量 (GJ/yr); 缺省 = heat_recovery_gj_h × operating_hours_per_year"
+          },
+          "source": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 32
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Source",
+            "description": "来源: PMS/MANUAL/CALC",
+            "default": "MANUAL"
+          }
+        },
+        "type": "object",
+        "required": [
+          "project_id",
+          "workspace_id",
+          "equipment_tag",
+          "heat_recovery_gj_h"
+        ],
+        "title": "UtilLowTempHeatCreateRequest",
+        "description": "手动创建 UtilityLowTempHeat (P7-6B 收尾).\n\n低温热单位是 **GJ** (不是 Nm³/t), 折标走附录A 序号34 = 0.012 kg标油/MJ,\nservice 内会先 GJ×1000 → MJ 再乘系数 (bug-138 量纲修正)。"
+      },
+      "UtilLowTempHeatResponse": {
+        "properties": {
+          "id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "workspace_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Workspace Id"
+          },
+          "equipment_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Equipment Id"
+          },
+          "equipment_tag": {
+            "type": "string",
+            "title": "Equipment Tag"
+          },
+          "heat_recovery_gj_h": {
+            "type": "number",
+            "title": "Heat Recovery Gj H"
+          },
+          "operating_hours_per_year": {
+            "type": "number",
+            "title": "Operating Hours Per Year"
+          },
+          "annual_recovered_heat_gj": {
+            "type": "number",
+            "title": "Annual Recovered Heat Gj"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "project_id",
+          "workspace_id",
+          "equipment_id",
+          "equipment_tag",
+          "heat_recovery_gj_h",
+          "operating_hours_per_year",
+          "annual_recovered_heat_gj",
+          "source"
+        ],
+        "title": "UtilLowTempHeatResponse",
+        "description": "UtilityLowTempHeat 单条响应."
       },
       "UtilPowerItemCreateRequest": {
         "properties": {

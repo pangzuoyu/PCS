@@ -20,11 +20,13 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
+from app.models.util import UtilityGasMedia, UtilityLowTempHeat
 from app.schemas.util import (
     UtilAggregationRequest,
     UtilEnergyConsumptionResponse,
@@ -32,8 +34,12 @@ from app.schemas.util import (
     UtilEnergySummaryResponse,
     UtilFuelGasCreateRequest,
     UtilFuelGasResponse,
+    UtilGasMediaCreateRequest,
+    UtilGasMediaResponse,
     UtilHeatExchangeCreateRequest,
     UtilHeatExchangeResponse,
+    UtilLowTempHeatCreateRequest,
+    UtilLowTempHeatResponse,
     UtilPowerItemCreateRequest,
     UtilPowerItemResponse,
     UtilResultsCreateRequest,
@@ -754,3 +760,196 @@ async def list_energy_summary(
     result = await db.execute(stmt)
     rows = result.scalars().all()
     return [_energy_summary_to_response(r) for r in rows]
+
+
+# ===========================================================================
+# P7-6B 收尾: 工艺气体 / 低温热 CRUD
+#
+# 这两类此前无子表 (service 里 gas_nm3_yr / low_temp_heat_gj_yr 硬编码 None),
+# 而 CONFIG 系数 (GB 30251-2024 附录A 序号31/32/33/34) 一直存在却无代码读取。
+# 介质 → CONFIG 行映射见 app/models/enums.py::GasMedium。
+# 沿用既有子表端点约定: ACL DESIGNER/PROCESS_CONTROLLER/SYSTEM_ADMIN +
+# check_project_access_or_404 (BLOCKER-3 P7-7+) + annual 缺省服务端派生。
+# ===========================================================================
+
+
+async def _commit_or_conflict(db, record) -> None:
+    """提交记录; UNIQUE 冲突转 409 (不冒泡成 500).
+
+    既有 fuel-gas-items / heat-exchange-items 端点未做此处理 (重复 POST 会
+    抛 IntegrityError → 500), 此处仅覆盖 P7-6B 新增的 2 个端点。
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    db.add(record)
+    try:
+        await db.commit()
+    except IntegrityError as exc:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=(
+                f"记录冲突 (UNIQUE 约束): "
+                f"{getattr(record, 'equipment_tag', '?')}. 请检查 "
+                "project_id + equipment_tag + 判别列 是否重复"
+            ),
+        ) from exc
+    await db.refresh(record)
+
+
+def _gas_media_to_response(record) -> UtilGasMediaResponse:
+    return UtilGasMediaResponse(
+        id=record.id,
+        project_id=record.project_id,
+        workspace_id=record.workspace_id,
+        equipment_id=record.equipment_id,
+        equipment_tag=record.equipment_tag,
+        gas_medium=record.gas_medium,
+        consumption_nm3_h=record.consumption_nm3_h,
+        operating_hours_per_year=record.operating_hours_per_year,
+        annual_consumption_nm3=record.annual_consumption_nm3,
+        source=record.source,
+        created_at=record.created_at.isoformat() if record.created_at else None,
+        updated_at=record.updated_at.isoformat() if record.updated_at else None,
+    )
+
+
+def _low_temp_heat_to_response(record) -> UtilLowTempHeatResponse:
+    return UtilLowTempHeatResponse(
+        id=record.id,
+        project_id=record.project_id,
+        workspace_id=record.workspace_id,
+        equipment_id=record.equipment_id,
+        equipment_tag=record.equipment_tag,
+        heat_recovery_gj_h=record.heat_recovery_gj_h,
+        operating_hours_per_year=record.operating_hours_per_year,
+        annual_recovered_heat_gj=record.annual_recovered_heat_gj,
+        source=record.source,
+        created_at=record.created_at.isoformat() if record.created_at else None,
+        updated_at=record.updated_at.isoformat() if record.updated_at else None,
+    )
+
+
+@router.get("/gas-media-items", response_model=list[UtilGasMediaResponse])
+async def list_gas_media_items(
+    project_id: uuid.UUID,
+    workspace_id: uuid.UUID | None = None,
+    gas_medium: str | None = None,
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Annotated[AsyncSession, Depends(get_db)] = None,  # type: ignore[assignment]
+    user: Annotated[_Actor, Depends(current_actor)] = None,  # type: ignore[assignment]
+) -> list[UtilGasMediaResponse]:
+    """列 project's 工艺气体条目 (可选按 workspace / 介质过滤)."""
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=list(user.roles),
+    )
+    stmt = select(UtilityGasMedia).where(UtilityGasMedia.project_id == project_id)
+    if workspace_id is not None:
+        stmt = stmt.where(UtilityGasMedia.workspace_id == workspace_id)
+    if gas_medium is not None:
+        stmt = stmt.where(UtilityGasMedia.gas_medium == gas_medium)
+    rows = (
+        await db.execute(
+            stmt.order_by(UtilityGasMedia.equipment_tag).limit(limit).offset(offset)
+        )
+    ).scalars().all()
+    return [_gas_media_to_response(r) for r in rows]
+
+
+@router.post(
+    "/gas-media-items",
+    response_model=UtilGasMediaResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_gas_media_item(
+    body: UtilGasMediaCreateRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[_Actor, Depends(current_actor)],
+) -> UtilGasMediaResponse:
+    """创建工艺气体条目 (annual_consumption_nm3 缺省=派生)."""
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=body.project_id,
+        actor_roles=list(user.roles),
+    )
+    annual = body.annual_consumption_nm3
+    if annual is None:
+        annual = body.consumption_nm3_h * body.operating_hours_per_year
+    record = UtilityGasMedia(
+        project_id=body.project_id,
+        workspace_id=body.workspace_id,
+        equipment_id=body.equipment_id,
+        equipment_tag=body.equipment_tag,
+        gas_medium=body.gas_medium.value,
+        consumption_nm3_h=body.consumption_nm3_h,
+        operating_hours_per_year=body.operating_hours_per_year,
+        annual_consumption_nm3=annual,
+        source=body.source or "MANUAL",
+    )
+    await _commit_or_conflict(db, record)
+    return _gas_media_to_response(record)
+
+
+@router.get("/low-temp-heat-items", response_model=list[UtilLowTempHeatResponse])
+async def list_low_temp_heat_items(
+    project_id: uuid.UUID,
+    workspace_id: uuid.UUID | None = None,
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+    db: Annotated[AsyncSession, Depends(get_db)] = None,  # type: ignore[assignment]
+    user: Annotated[_Actor, Depends(current_actor)] = None,  # type: ignore[assignment]
+) -> list[UtilLowTempHeatResponse]:
+    """列 project's 低温余热回收条目."""
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=project_id,
+        actor_roles=list(user.roles),
+    )
+    stmt = select(UtilityLowTempHeat).where(
+        UtilityLowTempHeat.project_id == project_id
+    )
+    if workspace_id is not None:
+        stmt = stmt.where(UtilityLowTempHeat.workspace_id == workspace_id)
+    rows = (
+        await db.execute(
+            stmt.order_by(UtilityLowTempHeat.equipment_tag)
+            .limit(limit).offset(offset)
+        )
+    ).scalars().all()
+    return [_low_temp_heat_to_response(r) for r in rows]
+
+
+@router.post(
+    "/low-temp-heat-items",
+    response_model=UtilLowTempHeatResponse,
+    status_code=status.HTTP_201_CREATED,
+)
+async def create_low_temp_heat_item(
+    body: UtilLowTempHeatCreateRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    user: Annotated[_Actor, Depends(current_actor)],
+) -> UtilLowTempHeatResponse:
+    """创建低温余热回收条目 (annual_recovered_heat_gj 缺省=派生)."""
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    await check_project_access_or_404(
+        db, user_id=user.user_id, project_id=body.project_id,
+        actor_roles=list(user.roles),
+    )
+    annual = body.annual_recovered_heat_gj
+    if annual is None:
+        annual = body.heat_recovery_gj_h * body.operating_hours_per_year
+    record = UtilityLowTempHeat(
+        project_id=body.project_id,
+        workspace_id=body.workspace_id,
+        equipment_id=body.equipment_id,
+        equipment_tag=body.equipment_tag,
+        heat_recovery_gj_h=body.heat_recovery_gj_h,
+        operating_hours_per_year=body.operating_hours_per_year,
+        annual_recovered_heat_gj=annual,
+        source=body.source or "MANUAL",
+    )
+    await _commit_or_conflict(db, record)
+    return _low_temp_heat_to_response(record)
