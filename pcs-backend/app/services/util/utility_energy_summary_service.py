@@ -492,8 +492,6 @@ def _compute_totals(
     # SI 前缀 (物理常数, 不走 CONFIG):
     KWH_TO_MJ = 3.6  # 1 kWh = 3.6 MJ (物理定义)
     GJ_LOW_TEMP_TO_MJ = 1000.0  # 1 GJ = 1000 MJ
-    T_WATER_TO_MJ = 0.0  # 水折标 0 (非能源载体)
-    NM3_GAS_TO_MJ = 0.0  # 工艺气体预留 (无热值)
     # toe → MJ 转换常数 (ISO 国际标准 1 toe = 41.868 MJ):
     TOE_TO_MJ = 41.868
     from app.core.errors import PcsError  # noqa: PLC0415
@@ -554,8 +552,33 @@ def _compute_totals(
         electricity_mj = agg.electricity_kwh_yr * e_toe * TOE_TO_MJ
     else:
         electricity_mj = agg.electricity_kwh_yr * KWH_TO_MJ
-    water_mj = (agg.water_t_yr or 0.0) * T_WATER_TO_MJ
-    gas_mj = (agg.gas_nm3_yr or 0.0) * NM3_GAS_TO_MJ
+    # Q2 fix (2026-10-05, GB 30251-2024 附录A 表A.1):
+    # 水与工艺气体的 MJ 此前恒 0 (硬编码 T_WATER_TO_MJ / NM3_GAS_TO_MJ),
+    # 与附录A 不符 —— 附录A 对每种耗能工质都给了 MJ 值
+    # (循环水 2.51 MJ/t、氮气 6.28 MJ/m³、净化空气 1.59 MJ/m³…)。
+    #
+    # **不需要新增 unit_to_mj 列**: 附录A 的 MJ 列全部 = kg标油 × 41.868
+    # (循环水 0.06×41.868=2.51、低压除氧水 6.5×41.868=272.15、
+    #  净化空气 0.038×41.868=1.59), 与蒸汽/燃料气已有的推导同源, 存列纯冗余。
+    # 故与蒸汽/燃料气同模式: 按分类查 CONFIG → × TOE_TO_MJ。
+    water_mj = 0.0
+    if (
+        factors_by_class
+        and agg.water_by_type
+        and factors_by_class.get("WATER")
+    ):
+        for water_type, t_amount in agg.water_by_type.items():
+            w_pair = factors_by_class["WATER"].get(water_type)
+            if w_pair is None:
+                continue
+            w_toe_class, _ = w_pair
+            water_mj += t_amount * w_toe_class * TOE_TO_MJ
+    else:
+        water_mj = (agg.water_t_yr or 0.0) * w_toe * TOE_TO_MJ
+
+    # 工艺气体: GAS 行单值 (附录A 无「工艺气体」类, 沿用 R1 的 GAS 行)
+    gas_mj = (agg.gas_nm3_yr or 0.0) * g_toe * TOE_TO_MJ
+
     low_temp_mj = (agg.low_temp_heat_gj_yr or 0.0) * GJ_LOW_TEMP_TO_MJ
 
     # F-P2-004 P0 fix: 蒸汽/燃料气 MJ 从 CONFIG 推导 (按分类 R1 系数)

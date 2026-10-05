@@ -60,9 +60,21 @@ def test_table_count(inspector):
     #   alembic_version = 92 incl. alembic_version。
     #   测试断言 92（含 alembic_version）= 实际 PCS 后端 schema 终态
     #   （P6-9-PICKUP-3 2026-11-15 同步）。
+    # 2026-10-05: pcs 开发库从 p6_6b_013 迁到 p7_s3_004（此前落后 8 个
+    # migration, 导致 test_pipe_class_migration 失败 + config_energy_conversion
+    # _factors 缺 4 个 R1 分类列而 0 行）。补齐 8 张表 = 101:
+    #   p7_open_009_001 utility_power_items
+    #   p7_open_009_002 utility_fuel_gas
+    #   p7_open_009_003 utility_heat_exchange
+    #   p7_open_009_005 utility_energy_summary
+    #   p7_open_009_t0 config_energy_conversion_factors
+    #   p7_open_010    user_projects
+    #   p7_s1_005      util_results
+    #   p7_s2_001      equipment_deletion_audit
+    assert len(tables) == 101, f"expected 101 incl. alembic_version, got {len(tables)}"
     # P5-0-1b T1 新增 thermosiphon_circulation_results（SUP-010 §3.5 热虹吸循环
     #   安装高度）= 93 incl. alembic_version。
-    assert len(tables) == 93, f"expected 93 incl. alembic_version, got {len(tables)}"
+    #   （2026-10-05 起该值改为 101, 见下方 8 张表的说明。）
 
 
 def test_required_tables_present(inspector):
