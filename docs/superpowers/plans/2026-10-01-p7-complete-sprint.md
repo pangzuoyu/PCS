@@ -767,7 +767,56 @@ def test_obsolete_source_does_not_remove_lib_record(db_session):
 > 2. `catalyst_loading` 功能取消，不建表（`docs/PCS-NOTE-catalyst_loading-取消-2026-10-05.md`）
 >    → **BLOCKER-2 整体关闭**，工艺室 2026-10-15 签署不再是任何在办项的前置条件。
 
-**总工时**: ~2–2.5 人周（S4-4 改写后工作量基本持平：不再等工艺室签署，改为从 XLS 提取消耗量）
+**总工时**: ~3–3.5 人周（2026-10-05 修订：新增 S4-0 事件骨架 ~0.5–1 人周；S4-4 改写后与原估基本持平 —— 不再等工艺室签署，改为从 XLS 提取消耗量）
+
+### Task S4-0: 事件骨架 emit_event() + listener + 幂等表（D4 4A 落地前置）
+
+> 🆕 **2026-10-05 新增**（用户裁决「CIA 反向恢复推到 P8」时 source-verify 发现）。
+> **这是 D4 4A 全部落地的前置，不是 S4-3 的局部前置。**
+
+**为什么必须独立成 Task**（2026-10-05 source-verify）:
+
+| 项 | 实际状态 |
+|---|---|
+| `emit_event()` | ❌ 不存在（`grep -rn "def emit_event" app/` 零命中） |
+| listener / subscribe 机制 | ❌ 不存在（`app/core/` 无 event 基础设施） |
+| `CIAEngine` 直调状态机 | ⚠️ `cia_engine.py:133,187,254` 三处 `await self.fsm.transition(...)` —— **正是 D4 4A 要禁止的模式本身** |
+| 其他直调方 | `records.py` / `stream_service.py` / `meta_service.py` 直接 import `StateMachineService` |
+
+→ 事件源与状态机完全耦合，「单一权威 + 事件解耦」架构原则**整体未落地**。
+→ 不先建骨架，S4-3 只能继续直调 state_machine，D4 4A 形同虚设。
+
+**Files**:
+- Create: `pcs-backend/app/core/events.py`（emit_event + listener 注册/派发 + 幂等去重）
+- Create: `pcs-backend/alembic/versions/p7_s4_001_event_idempotency.py`
+- Modify: `pcs-backend/app/services/cia_engine.py`（3 处直调改事件触发）
+- Test: `pcs-backend/tests/core/test_events.py`
+
+**Interfaces**:
+- Consumes: `app/services/state_machine.py::StateMachineService`（作为 listener 之一）
+- Produces: `emit_event(type, event_id, before, after, **payload)` + `event_idempotency` 表
+
+**设计要点**（详见 `docs/PCS-NOTE-CIA-反向恢复-推到P8-2026-10-05.md`）:
+- 幂等表用**独立 `event_idempotency`**（不用 audit_logs —— 后者是只增不改的审计流
+  且有保留期清理策略，把幂等闸建在可能被清理的表上是隐患；且去重是业务正确性
+  要求，不能因重启失效）
+- `payload_hash` 必带: 同一 event_id 不同 payload 视为上游 bug，显式报冲突而非
+  静默按先到者处理
+- 事件 payload **必带 before 快照**（`copy.deepcopy`）: 设计值一旦被覆盖就永久
+  丢失，P8 无法回溯。`design_parameters_json` 已核实是 JSONB 整体
+  （`app/models/equipment.py:87`），快照成本近零
+
+- [ ] **Step 1**: 写 failing test — 派发顺序 / 幂等（同 event_id 重投影响 0 行）/
+      payload_hash 冲突报错 / before 快照保真
+- [ ] **Step 2**: 跑 test 验证失败
+- [ ] **Step 3**: 实现 `app/core/events.py`（emit + register_listener + 派发 + 幂等）
+- [ ] **Step 4**: migration `p7_s4_001_event_idempotency`
+- [ ] **Step 5**: `cia_engine.py` 3 处直调改走 `emit_event`（listener 内仍调
+      state_machine —— 单一权威不变，只是触发路径事件化）
+- [ ] **Step 6]: pytest 全量 0 regression
+- [ ] **Step 7]: 单 commit — `feat(p7-s4): 事件骨架 emit_event + 幂等表 (S4-0)`
+
+---
 
 ### Task S4-1: 供应商实际数据录入（手动 + Excel 批量）
 
