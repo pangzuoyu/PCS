@@ -48,7 +48,9 @@ from app.models.project import Project, Workspace  # noqa: E402
 from app.models.util import (  # noqa: E402
     UtilityEnergySummary,
     UtilityFuelGas,
+    UtilityGasMedia,
     UtilityHeatExchange,
+    UtilityLowTempHeat,
     UtilityPowerItem,
 )
 from app.services.util.utility_energy_summary_service import (  # noqa: E402
@@ -119,6 +121,44 @@ HEAT_ITEMS = [
     ("ST-TRACING", 16800.0),
 ]
 
+# ---------------------------------------------------------------------------
+# P7 Sprint 4 S4-4 扩类: 氮气 / 净化压缩空气 / 低温余热
+#
+# 此前所有 T5 验证都只覆盖电 / 燃料气 / 蒸汽三类 —— P7-6B 新建的
+# utility_gas_media / utility_low_temp_heat 两张表**没有任何真实算例走过**。
+#
+# 溯源 (sample/1216D132惠州蜡油加氢装置计算14.7.17计算 - 副本.xlsx → `能耗` sheet
+# → 「能耗计算」块的「消耗 数量」列)。**只取消耗量, 不取「能耗折算值」列** ——
+# 该列的折标系数已被裁决不可信 (用户 2026-10-05「XLS 不作为最终依据」)。
+#
+# ⚠️ XLS 自身两处问题 (取消耗量不代表认可它的其它列):
+#   1. 氮气: 汇总块写「3/50 Nm3/min 连续/间断」, 能耗计算块写「60 Nm3/h」。
+#      3×60=180≠60, 50×60=3000≠60 —— 簿内自相矛盾。取 60 (它是本簿实际喂进
+#      折算的数字), 矛盾留档。
+#   2. 氮气「MJ/Nm3」列写 0.15 —— 0.15 是 **kg标油/Nm3**, 不是 MJ/Nm3。
+#      GB 30251-2024 附录A 序号 33 氮气 = 0.15 kg标油/m³ = **6.28 MJ/m³**。
+#      XLS 把 kg标油 值填进了 MJ 列, **低估 41.87 倍**。
+#
+# 年小时 8400: 与本簿其余算例一致 (连续工况)。氮气汇总块标「连续/间断」有歧义,
+# 但同一本簿给不出更细的运行时数; 取 8400 且在此声明。该选择影响绝对值,
+# 不影响 PCS vs GB 独立重算的 ≤2% 对比 (两侧同源同值)。
+# ---------------------------------------------------------------------------
+
+# (equipment_tag, gas_medium, nm3_h, hours_per_year, annual_nm3)
+GAS_MEDIA_ITEMS = [
+    ("N2-PLANT", "NITROGEN", 60.0, 8400, 504000.0),
+    ("AIR-PURIFIED", "PURIFIED_AIR", 630.0, 8400, 5292000.0),
+]
+
+# 低温余热: **本 XLS 无此量**。
+# 全簿搜索「低温热」「余热」「回收」只命中 `项目信息` 的低温热水系统参数
+# (给水 0.8MPaG/105℃, 回水 0.5MPaG/65℃) —— 那是供热介质参数, 不是回收热量,
+# 单位也对不上 (需要 GJ)。故不构造条目。
+#
+# 后果: utility_low_temp_heat 表在 T5 算例中仍无真实数据覆盖。要补需工艺室
+# 提供蜡油加氢的低温余热回收量 (GJ/a) —— 登记 follow-up, **不编造数字**。
+LOW_TEMP_ITEMS: tuple = ()
+
 # ============================================================================
 # 验收基准 — GB 30251-2024 附录 A 表 A.1 (能源及耗能工质折算标准油的参考系数)
 #
@@ -146,6 +186,15 @@ GB_A1_STEAM_1_0MPA_MJ_PER_T = 3182.0
 # 并在 coefficient_conformance 中标注 not_std_comparable。
 R1_FUEL_GAS_GASFIELD_KGOE_PER_NM3 = 0.85
 
+# --- P7 Sprint 4 S4-4 扩类: 气体介质 (GB 30251-2024 附录A 表A.1 序号 31/33) ---
+# 附录A 以 kg标油/单位 给出, MJ 列 = kg标油 × 41.868。
+GB_A1_PURIFIED_AIR_KGOE_PER_NM3 = 0.038   # 序号 31 净化压缩空气
+GB_A1_PURIFIED_AIR_MJ_PER_NM3 = 1.59
+GB_A1_NITROGEN_KGOE_PER_NM3 = 0.15        # 序号 33 氮气
+GB_A1_NITROGEN_MJ_PER_NM3 = 6.28
+# XLS「能耗」sheet 的 MJ/Nm3 列错值 (把 kg标油 数填进了 MJ 列) —— 留档供对比。
+XLS_WRONG_NITROGEN_MJ_PER_NM3 = 0.15
+
 
 def _gb30251_reference() -> dict[str, float]:
     """按 GB 30251-2024 附录 A 表 A.1 独立重算 Case 4 基准.
@@ -164,10 +213,29 @@ def _gb30251_reference() -> dict[str, float]:
     steam_mj = steam_t * GB_A1_STEAM_1_0MPA_MJ_PER_T
     steam_kgoe = steam_t * GB_A1_STEAM_1_0MPA_KGOE_PER_T
 
-    total_mj = electricity_mj + fuel_gas_mj + steam_mj
-    total_kgoe = electricity_kgoe + fuel_gas_kgoe + steam_kgoe
+    # P7 Sprint 4 S4-4 扩类: 氮气 + 净化压缩空气
+    n2_nm3 = sum(r[4] for r in GAS_MEDIA_ITEMS if r[1] == "NITROGEN")
+    air_nm3 = sum(r[4] for r in GAS_MEDIA_ITEMS if r[1] == "PURIFIED_AIR")
+    nitrogen_mj = n2_nm3 * GB_A1_NITROGEN_MJ_PER_NM3
+    air_mj = air_nm3 * GB_A1_PURIFIED_AIR_MJ_PER_NM3
+    nitrogen_kgoe = n2_nm3 * GB_A1_NITROGEN_KGOE_PER_NM3
+    air_kgoe = air_nm3 * GB_A1_PURIFIED_AIR_KGOE_PER_NM3
+    gas_media_mj = nitrogen_mj + air_mj
+
+    # 低温余热: LOW_TEMP_ITEMS 为空 (XLS 无此量) → 该项恒 0, 见常量处说明
+    low_temp_mj = sum(r[2] for r in LOW_TEMP_ITEMS) * 0.5  # 附录A 序号34
+
+    total_mj = (
+        electricity_mj + fuel_gas_mj + steam_mj + gas_media_mj + low_temp_mj
+    )
+    total_kgoe = (
+        electricity_kgoe + fuel_gas_kgoe + steam_kgoe
+        + nitrogen_kgoe + air_kgoe
+    )
     return {
         "annual_total_energy_mj": total_mj,
+        "gas_media_mj": gas_media_mj,
+        "low_temp_heat_mj": low_temp_mj,
         # total_kgoe 单位是 kg标油; 标油吨位需 /1000
         "total_toe_tonne": total_kgoe / 1000.0,
         "total_standard_coal_kg": total_kgoe * KGOE_PER_TOE,
@@ -204,6 +272,43 @@ def _gb30251_reference() -> dict[str, float]:
                 "note": (
                     "附录A 序号8 以「吨」计 (950 kg标油/t), PCS 以「Nm³」计; "
                     "换算需气体密度假设, 标准不直接可比。沿用 R1 工艺室签署值。"
+                ),
+            },
+            "NITROGEN": {
+                "pcs_kgoe_per_nm3": GB_A1_NITROGEN_KGOE_PER_NM3,
+                "std_kgoe_per_nm3": GB_A1_NITROGEN_KGOE_PER_NM3,
+                "std_mj_per_nm3": GB_A1_NITROGEN_MJ_PER_NM3,
+                "deviation_pct": 0.0,
+                # XLS 错值留档: 「能耗」sheet 把 0.15 kg标油 填进了 MJ/Nm3 列
+                "xls_mj_per_nm3": XLS_WRONG_NITROGEN_MJ_PER_NM3,
+                "xls_deviation_pct": abs(
+                    XLS_WRONG_NITROGEN_MJ_PER_NM3 - GB_A1_NITROGEN_MJ_PER_NM3
+                ) / GB_A1_NITROGEN_MJ_PER_NM3 * 100.0,
+                "note": (
+                    "附录A 序号33 氮气 = 0.15 kg标油/m³ = 6.28 MJ/m³。"
+                    "XLS「能耗」sheet 的 MJ/Nm3 列写 0.15 —— 那是 kg标油 值填错了列, "
+                    "低估 41.87 倍。基准用附录A 原值, XLS 值仅留档对比。"
+                ),
+            },
+            "INSTRUMENT_AIR_PURIFIED": {
+                "pcs_kgoe_per_nm3": GB_A1_PURIFIED_AIR_KGOE_PER_NM3,
+                "std_kgoe_per_nm3": GB_A1_PURIFIED_AIR_KGOE_PER_NM3,
+                "std_mj_per_nm3": GB_A1_PURIFIED_AIR_MJ_PER_NM3,
+                "deviation_pct": 0.0,
+                "note": (
+                    "附录A 序号31 净化压缩空气 = 0.038 kg标油/m³ = 1.59 MJ/m³。"
+                    "XLS 该项 MJ 列 (1.59) 与标准一致 —— 净化空气是 XLS 少数没填错列的。"
+                ),
+            },
+            "LOW_TEMP_HEAT": {
+                "pcs_kgoe_per_mj": 0.012,
+                "std_mj_per_mj": 0.5,
+                "data_present": bool(LOW_TEMP_ITEMS),
+                "note": (
+                    "附录A 序号34 低温热 = 0.012 kg标油/MJ = 0.5 MJ/MJ。"
+                    "⚠️ 本 XLS 无低温余热量 (只有低温热水系统参数), 故 Case 4 "
+                    "该项为 0, utility_low_temp_heat 表在 T5 算例中仍无真实数据覆盖 —— "
+                    "需工艺室补回收量 (GJ/a)。不编造数字。"
                 ),
             },
         },
@@ -247,6 +352,29 @@ async def _inject_case_4(db_session, project_id, workspace_id) -> None:
                 steam_pressure_mpa_gauge=1.0, steam_quality_pct=99.0,
                 return_condensate_pct=80.0, steam_consumption_t_h=1.0,
                 operating_hours_per_year=8400, annual_consumption_t=annual_t,
+            )
+        )
+
+    # P7 Sprint 4 S4-4: 氮气 / 净化压缩空气 —— 首次让真实算例走 utility_gas_media
+    for tag, medium, nm3_h, hours, annual_nm3 in GAS_MEDIA_ITEMS:
+        db_session.add(
+            UtilityGasMedia(
+                project_id=project_id, workspace_id=workspace_id,
+                equipment_tag=tag, gas_medium=medium,
+                consumption_nm3_h=nm3_h, operating_hours_per_year=hours,
+                annual_consumption_nm3=annual_nm3,
+            )
+        )
+
+    # 低温余热: LOW_TEMP_ITEMS 为空 (XLS 无此量), 故本循环不执行。
+    # 保留循环形状以便工艺室补数后直接生效, 不必改本函数。
+    for tag, gj_h, hours, annual_gj in LOW_TEMP_ITEMS:
+        db_session.add(
+            UtilityLowTempHeat(
+                project_id=project_id, workspace_id=workspace_id,
+                equipment_tag=tag, heat_recovery_gj_h=gj_h,
+                operating_hours_per_year=hours,
+                annual_recovered_heat_gj=annual_gj,
             )
         )
 
