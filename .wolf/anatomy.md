@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-05T02:07:00.949Z
-> Files: 602 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-05T02:27:09.148Z
+> Files: 603 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -151,6 +151,7 @@
 - `PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md` — p2_sup_sprint_pc1_pipe_class_upgrade.py (~17953 tok)
 - `PCS-SIGN-F-P0-001-2026-10-08-R1.md` — PCS 折标系数正式签字确认书（修订版） (~1470 tok)
 - `PCS-SIGN-F-P0-001-2026-10-08.md` — PCS 折标系数正式签字确认书 (~1611 tok)
+- `PCS-SIGN-T5-2026-10-05.md` — T5 综合能耗验收 — 正式封版 (2026-10-05) (~1431 tok)
 - `PCS-T5-R1-ACCEPTANCE-2026-10-02.md` — PCS T5 ≤2% 验收报告 — F-P0-001 R1 综合能耗汇总 (~978 tok)
 - `PCS-UI-SPEC.md` (~9161 tok)
 - `PROD-CHECKLIST-F-P3-001-2026-10-02.md` — F-P3-001 Production 前置 Checklist (~1321 tok)

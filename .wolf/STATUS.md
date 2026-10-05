@@ -4,12 +4,44 @@ budget_tokens: 1500
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-03.
+> Read this FIRST when starting a session. Last updated: 2026-10-05.
+
+---
+
+## ✅ T5 综合能耗验收已封版（2026-10-05）
+
+**tag**: `t5-energy-summary-2026-10-05` → `25e1dbd`
+**签署**: `docs/PCS-SIGN-T5-2026-10-05.md`
+**口径裁决全过程**: `docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md`
+
+Case 4 (1216D132 惠州蜡油加氢) 三项全 PASS (阈值 2%):
+年总能耗 0.0011% / 折标油 0.0000% / 折标煤 0.0020% / 内部自洽 0.0000%
+电口径 `EQUIVALENT_VALUE` (GB 30251-2024 §6.1.5 炼油强制等价值 0.21)
+
+**验收基准 = GB 30251-2024 附录A 表A.1 独立重算** (不走 ORM / 不读 CONFIG 表 /
+不调 service, 只共享「设备清单输入量」+「标准常数」) —— 上一版基准是旧代码
+输出反抄的自证循环, 假 PASS。
+
+**本轮闭环 10 项缺陷**, 最严重 bug-137: 真实库缺 4 个从未迁移的 R1 分类列 +
+R0 `UNIQUE(energy_type)` 未 drop → 整条 R1 折标机制**只在 in-memory SQLite
+测试里成立**, 真实库上 T5 根本算不出系数。测试全绿完全掩盖。
+
+**新增 4 张 GB 30251 附录A 有而 PCS 未建模的行** (FUEL 6 类按吨计 + LOW_TEMP_HEAT),
+按吨计的归 `FUEL` 不归 `FUEL_GAS` (后者会被当 Nm³ 乘 → LPG 1200 算出 Nm³×1200)。
+
+**电折标口径政策**: `Project.product_category` (REFINING/ETHYLENE/OTHER + CHECK)
+按产品类型强制, 冲突 422 `ELECTRICITY_VALUE_TYPE_MISMATCH`;
+运维入口 `GET/PATCH /projects/{id}[/product-category]`。
+顺带修掉生产活 bug: `POST /util/energy-summary/aggregate` 原先根本不传该参数,
+炼油项目每次调用都静默用当量值 (低估 2.44 倍, 无告警)。
+
+**验证**: 后端 3705 passed / 0 failed (全量首次全绿) + T5 exit 0 + 审计 exit 0
+(33/33 系数零偏差) + migration 门禁 OK + alembic head `p7_s3_004` + G-08 契约无漂移
 
 ---
 
 ## 🚀 Next quest
-**P7 Sprint 3 闭环**（2026-10-03）— 4/4 用户授权项 + P7-7+ 关键 endpoint guard
+**P7 Sprint 3 闭环**（2026-10-03, 已完成 — 历史记录）— 4/4 用户授权项 + P7-7+ 关键 endpoint guard
 **11 commits** (`ad085e1..f471abe`), **35 文件, 5126 行**:
 - **A** F-P3-001 production hardening: JWT iss/aud config-driven + role fail-closed (含 CHECKER/VIEWER/SYSADMIN)
 - **B** F-P3-003 workspace archive: WorkspaceStatus 2-state enum + advisory lock + idempotent 200

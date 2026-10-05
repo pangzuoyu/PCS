@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-05T02:07:00.949Z",
-    "fileCount": 602,
+    "lastScanned": "2026-10-05T02:27:09.148Z",
+    "fileCount": 603,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "cd7679df5c76128eb35e64614c9fb39ab4ed2591a947c51104461b9fabfaffde",
-    "storeUpdatedAt": "2026-10-05T02:07:00.958Z",
-    "rootHash": "080c6e80724ba7bc"
+    "renderedHash": "0de3e825bdac447a78ecbbbe5d8662c1f0a42d8f9026be12c2b98ea06f99895e",
+    "storeUpdatedAt": "2026-10-05T02:27:09.157Z",
+    "rootHash": "361b89697d6e88dc"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -17505,6 +17505,15 @@
           "tokens": 457
         }
       ]
+    },
+    "docs/PCS-SIGN-T5-2026-10-05.md": {
+      "description": "T5 综合能耗验收 — 正式封版 (2026-10-05)",
+      "tokens": 1431,
+      "hash": "27621b09938de843",
+      "size": 8738,
+      "mtimeMs": 1791167229099.494,
+      "updatedAt": "2026-10-05T02:27:09.148Z",
+      "source": "hook"
     }
   }
 }

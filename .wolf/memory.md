@@ -1050,3 +1050,5 @@
 | 10:05 | Created pcs-backend/app/schemas/project.py | — | ~297 |
 | 10:06 | Created pcs-backend/app/api/v1/projects.py | — | ~1184 |
 | 10:07 | Edited pcs-backend/app/api/v1/__init__.py | 1→2 lines | ~44 |
+| 10:27 | Created docs/PCS-SIGN-T5-2026-10-05.md | — | ~1526 |
+| 10:30 | T5 综合能耗验收正式封版 + git tag | docs/PCS-SIGN-T5-2026-10-05.md, utility_energy_summary_service.py, config.py, projects.py, 4 migrations | ✅ tag t5-energy-summary-2026-10-05 → 25e1dbd, 3705 passed/0 failed, 三项 PASS |
