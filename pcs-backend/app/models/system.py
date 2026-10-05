@@ -250,3 +250,48 @@ class LicenseConfig(Base):
     )
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
+
+
+class EventIdempotency(Base):
+    """事件幂等凭据（P7 Sprint 4 S4-0 / D4 裁决 4A）。
+
+    业务：事件去重的**唯一权威凭据**。同一 `event_id` 重复投递时
+    listener 一次都不再被调用（幂等 = 影响 0 行）。
+
+    为什么不用 audit_logs（设计要点，见
+    `docs/PCS-NOTE-CIA-反向恢复-推到P8-2026-10-05.md`）：
+    - 去重是**业务正确性**要求，不能因进程重启而失效；内存态做不到。
+    - `audit_logs` 是只增不改的审计流，且有保留期清理策略
+      （D8 monthly partition 保留 6 月）—— 把幂等闸建在可能被清理的
+      表上，清理后重复事件会被重新执行，是隐患。
+
+    字段：
+    - `event_id` 主键（反向事件复用原 id → 天然幂等，无需另设反向去重）
+    - `payload_hash` **不可省**：同一 event_id 携带不同 payload 是上游 bug，
+      静默按先到者处理会掩盖问题 → 显式报 EVENT_ID_CONFLICT
+    - `before_json` P8 反向恢复的快照来源。**值一旦被覆盖就永久丢失**，
+      故必须随事件持久化；用 deepcopy（浅拷贝在嵌套结构下会串）。
+      `audit_logs.detail_json` 只记 event_id 引用与摘要，不重复存设计值全文
+      —— 后者有保留期，清理后无法再做反向恢复。
+    """
+
+    __tablename__ = "event_idempotency"
+
+    event_id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, comment="事件 ID (反向事件复用原 id → 天然幂等)"
+    )
+    event_type: Mapped[str] = mapped_column(
+        String(64), nullable=False, index=True, comment="事件类型"
+    )
+    payload_hash: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment="payload 指纹; 同 id 不同 hash → EVENT_ID_CONFLICT",
+    )
+    before_json: Mapped[dict | None] = mapped_column(
+        JSONB,
+        comment="覆盖前快照 (P8 反向恢复来源; deepcopy 后存储, 只读)",
+    )
+    processed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False,
+        comment="处理时间",
+    )

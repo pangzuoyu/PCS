@@ -35,6 +35,7 @@ from app.models.enums import (
 from app.models.equipment import EquipmentList
 from app.models.system import DataLineage
 from app.services.audit_service import AuditService
+from app.services.events import emit_event, register_listener
 from app.services.lineage import LineageTracker, _compute_hash
 from app.services.state_machine import StateMachineService
 
@@ -69,6 +70,30 @@ def _content_hash(content: dict | None) -> str:
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:_CONTENT_HASH_PREFIX]
 
 
+# D4 裁决 4A（P7 Sprint 4 S4-0）: CIA 不再直调状态机, 改发事件。
+# 状态机仍是**单一权威** —— 转移在 listener 内部执行, 只是触发路径事件化,
+# 便于未来业务模块复用同一事件而无需知道状态机的存在。
+CIA_MARK_STALE = "cia_mark_stale"
+
+
+async def _mark_stale_via_fsm(event: dict) -> None:
+    """cia_mark_stale 的唯一处理者 —— 状态机转移在此执行 (单一权威不变)."""
+    session = event.pop("_session", None)
+    if session is None:
+        raise RuntimeError("cia_mark_stale 事件缺少 _session")
+    fsm = StateMachineService(session)
+    await fsm.transition(
+        record=event["record"],
+        transition=StateTransition.MARK_STALE,
+        actor_user_id=SYSADMIN_ACTOR,
+        actor_role="SYSTEM_ADMIN",
+        reason=event["reason"],
+    )
+
+
+register_listener(CIA_MARK_STALE, _mark_stale_via_fsm)
+
+
 class CIAEngine:
     """变更影响分析引擎（Sprint 3，扫描 + 标记 STALE）。
 
@@ -80,10 +105,22 @@ class CIAEngine:
     MAX_DEPTH = 8
 
     def __init__(self, session: AsyncSession):
-        """构造 CIAEngine（注入 session + LineageTracker/StateMachineService 协作）。"""
+        """构造 CIAEngine（注入 session + LineageTracker；状态机经事件触发）。"""
         self.session = session
         self.tracker = LineageTracker(session)
-        self.fsm = StateMachineService(session)
+        # 注: 不再持有 StateMachineService —— STALE 转移经 emit_event 触发,
+        # 由模块级 `_mark_stale_via_fsm` listener 执行 (D4 4A)。
+
+    async def _mark_stale(self, record, reason: str) -> bool:
+        """经事件触发 STALE 转移（D4 4A）; 返回 True=已处理 False=幂等跳过."""
+        return await emit_event(
+            self.session,
+            CIA_MARK_STALE,
+            event_id=uuid.uuid4(),
+            record=record,
+            reason=reason,
+            _session=self.session,
+        )
 
     async def scan_stale(self, *, project_id: uuid.UUID | None = None) -> int:
         """扫描 + 标记 STALE；返回影响行数。"""
@@ -130,12 +167,8 @@ class CIAEngine:
                 continue
             # 哈希不匹配：尝试 MARK_STALE
             try:
-                await self.fsm.transition(
-                    record=r,
-                    transition=StateTransition.MARK_STALE,
-                    actor_user_id=SYSADMIN_ACTOR,
-                    actor_role="SYSTEM_ADMIN",
-                    reason=f"CIA: hash mismatch ({cls.__name__})",
+                await self._mark_stale(
+                    r, f"CIA: hash mismatch ({cls.__name__})"
                 )
             except Exception:
                 # 状态机拒绝（不在合法转移集合）— 跳过
@@ -184,12 +217,8 @@ class CIAEngine:
                 if rec is None:
                     continue
                 try:
-                    await self.fsm.transition(
-                        record=rec,
-                        transition=StateTransition.MARK_STALE,
-                        actor_user_id=SYSADMIN_ACTOR,
-                        actor_role="SYSTEM_ADMIN",
-                        reason=f"propagation from {record_type}:{record_id}",
+                    await self._mark_stale(
+                        rec, f"propagation from {record_type}:{record_id}"
                     )
                 except Exception:
                     continue
@@ -251,12 +280,8 @@ class CIAEngine:
                         },
                     )
                 else:
-                    await self.fsm.transition(
-                        record=eq,
-                        transition=StateTransition.MARK_STALE,
-                        actor_user_id=SYSADMIN_ACTOR,
-                        actor_role="SYSTEM_ADMIN",
-                        reason=f"ADR-0025: source pipe {rec.line_no} STALE",
+                    await self._mark_stale(
+                        eq, f"ADR-0025: source pipe {rec.line_no} STALE"
                     )
                 marked += 1
             except Exception:
