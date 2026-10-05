@@ -102,6 +102,36 @@ class ProductCategory(str, enum.Enum):
     OTHER = "OTHER"
 
 
+class GasMedium(str, enum.Enum):
+    """工艺气体介质分类 (P7-6B 收尾 / GB 30251-2024 附录A 表A.1).
+
+    业务: `utility_gas_media` 子表的判别列 (单位 Nm³), 每个值映射到一条
+    ConfigEnergyConversionFactor 行:
+
+    | gas_medium       | CONFIG energy_type | sub_type        | 附录A 序号 | kg标油/Nm³ |
+    |------------------|--------------------|-----------------|-----------|-----------|
+    | PROCESS_GAS      | GAS                | NULL            | —         | 0.85      |
+    | NITROGEN         | NITROGEN           | NULL            | 33        | 0.15      |
+    | PURIFIED_AIR     | INSTRUMENT_AIR     | PURIFIED        | 31        | 0.038     |
+    | NON_PURIFIED_AIR | INSTRUMENT_AIR     | NON_PURIFIED    | 32        | 0.028     |
+    | PLANT_AIR        | INSTRUMENT_AIR     | NON_PURIFIED    | 32        | 0.028     |
+
+    背景 (2026-10-05): 这几类的 CONFIG 系数一直存在, 但 `_aggregate_util_subtables`
+    的 `gas_nm3_yr` 是**硬编码 None** —— 系数是死数据, 氮气/仪表空气从未进过
+    综合能耗。同时 SPEC V1.4 §4.4 的 13→6 映射写着「NITROGEN / INSTRUMENT_AIR /
+    PLANT_AIR → None（无 TOE 折标）」, 与炼化强制国标 GB 30251-2024 冲突,
+    以标准为准修订。
+
+    PLANT_AIR (厂区空气) 归非净化: 附录A 只有净化/非净化两档压缩空气。
+    """
+
+    PROCESS_GAS = "PROCESS_GAS"
+    NITROGEN = "NITROGEN"
+    PURIFIED_AIR = "PURIFIED_AIR"
+    NON_PURIFIED_AIR = "NON_PURIFIED_AIR"
+    PLANT_AIR = "PLANT_AIR"
+
+
 class SnapshotStatus(str, enum.Enum):
     """V3.3 § 4.1 字典；record_change_snapshots.snapshot_status 列。"""
 

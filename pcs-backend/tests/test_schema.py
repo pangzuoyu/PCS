@@ -71,7 +71,9 @@ def test_table_count(inspector):
     #   p7_open_010    user_projects
     #   p7_s1_005      util_results
     #   p7_s2_001      equipment_deletion_audit
-    assert len(tables) == 101, f"expected 101 incl. alembic_version, got {len(tables)}"
+    # 2026-10-05 P7-6B 收尾: 新增 utility_gas_media (Nm³ 工艺气体/氮气/仪表空气)
+    #   + utility_low_temp_heat (GJ 低温余热) = 103
+    assert len(tables) == 103, f"expected 103 incl. alembic_version, got {len(tables)}"
     # P5-0-1b T1 新增 thermosiphon_circulation_results（SUP-010 §3.5 热虹吸循环
     #   安装高度）= 93 incl. alembic_version。
     #   （2026-10-05 起该值改为 101, 见下方 8 张表的说明。）

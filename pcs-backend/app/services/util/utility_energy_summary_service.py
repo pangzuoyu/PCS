@@ -34,9 +34,12 @@ from app.models.config import ConfigEnergyConversionFactor
 from app.models.util import (
     UtilityEnergySummary,
     UtilityFuelGas,
+    UtilityGasMedia,
     UtilityHeatExchange,
+    UtilityLowTempHeat,
     UtilityPowerItem,
 )
+
 # F-P1-002 fix: 5-min TTL 缓存 (仿 _compound_config_cache 异步版)
 from app.services._async_ttl_cache import clear_all_caches, get_or_reload_async  # noqa: E402
 
@@ -48,6 +51,17 @@ DEFAULT_TOLERANCE_PCT = 2.0
 # GB 30251-2024 §6.1.5 + 附录A 表A.2 注「炼油、乙烯能耗计算中电折标系数选择等价值,
 # 其余产品电力折标准煤系数选择当量值」—— 这两类产品强制等价值.
 _EQUIVALENT_VALUE_PRODUCT_CATEGORIES = frozenset({"REFINING", "ETHYLENE"})
+
+# gas_medium → (CONFIG energy_type, sub_type | None) — P7-6B 收尾。
+# 净化空气 0.038 与氮气 0.15 差近 4 倍, 必须按介质分桶查表。
+# 见 app/models/enums.py::GasMedium docstring (含完整映射表 + 附录A 序号)。
+_GAS_MEDIUM_TO_CONFIG: dict[str, tuple[str, str | None]] = {
+    "PROCESS_GAS": ("GAS", None),
+    "NITROGEN": ("NITROGEN", None),
+    "PURIFIED_AIR": ("INSTRUMENT_AIR", "PURIFIED"),
+    "NON_PURIFIED_AIR": ("INSTRUMENT_AIR", "NON_PURIFIED"),
+    "PLANT_AIR": ("INSTRUMENT_AIR", "NON_PURIFIED"),
+}
 
 
 def derive_electricity_value_type(product_category: str | None) -> str:
@@ -151,6 +165,8 @@ class EnergyAggregation:
     steam_t_by_pressure_level: dict[str, float] | None = None
     fuel_gas_by_source: dict[str, float] | None = None
     water_by_type: dict[str, float] | None = None
+    # P7-6B 收尾: 气体按介质分桶 (GasMedium → CONFIG 行)
+    gas_nm3_by_medium: dict[str, float] | None = None
 
 
 def _build_r1_classification(agg: EnergyAggregation) -> dict | None:
@@ -281,18 +297,52 @@ async def _aggregate_util_subtables(
         sum(water_by_type.values()) if water_by_type else None
     )
 
-    # F-P2-002 fix: gas_nm3_yr / low_temp_heat_gj_yr 也 nullable (与 water_t_yr 一致)
-    # 无对应子表数据时返 None, 下游能区分"未采集"与"采集=0"
+    # P7-6B 收尾 (2026-10-05): 工艺气体 / 低温热子表接线。
+    # 此前 gas_nm3_yr / low_temp_heat_gj_yr 是**硬编码 None** ——
+    # CONFIG 里 NITROGEN (0.15) / INSTRUMENT_AIR (0.038/0.028) / GAS (0.85) /
+    # LOW_TEMP_HEAT (0.012) 的系数一直存在却从无代码读取 (死数据)。
+    # 见 GasMedium docstring 的介质 → CONFIG 行映射。
+    stmt_gas_by_medium = (
+        select(
+            UtilityGasMedia.gas_medium,
+            func.coalesce(
+                func.sum(UtilityGasMedia.annual_consumption_nm3), 0.0
+            ),
+        )
+        .where(UtilityGasMedia.project_id == project_id)
+        .where(UtilityGasMedia.gas_medium.is_not(None))
+        .group_by(UtilityGasMedia.gas_medium)
+    )
+    gas_by_medium: dict[str, float] = {
+        row.gas_medium: float(row[1]) for row in (await db.execute(stmt_gas_by_medium)).all()
+        if row.gas_medium
+    }
+    gas_nm3_yr: float | None = (
+        sum(gas_by_medium.values()) if gas_by_medium else None
+    )
+
+    stmt_low_temp = (
+        select(
+            func.coalesce(func.sum(UtilityLowTempHeat.annual_recovered_heat_gj), 0.0)
+        )
+        .where(UtilityLowTempHeat.project_id == project_id)
+    )
+    low_temp_heat_gj_yr: float | None = (
+        float((await db.execute(stmt_low_temp)).scalar() or 0.0) or None
+    )
+
+    # F-P2-002 fix: 无对应子表数据时返 None, 下游能区分"未采集"与"采集=0"
     return EnergyAggregation(
         electricity_kwh_yr=electricity_kwh_yr,
         fuel_gas_nm3_yr=fuel_gas_nm3_yr,
         steam_t_yr=steam_t_yr,
         water_t_yr=water_t_yr,  # F-P2-002 fix: nullable (None 当无水消耗)
-        gas_nm3_yr=None,  # F-P2-002 fix: nullable
-        low_temp_heat_gj_yr=None,  # F-P2-002 fix: nullable
+        gas_nm3_yr=gas_nm3_yr,  # P7-6B 收尾: nullable (None 当无气体介质数据)
+        low_temp_heat_gj_yr=low_temp_heat_gj_yr,  # P7-6B 收尾: nullable
         steam_t_by_pressure_level=steam_t_by_pressure_level,
         fuel_gas_by_source=fuel_gas_by_source,
         water_by_type=water_by_type or None,  # R1 §7.2 (P7-6B) 水按 medium_type 9 类聚合
+        gas_nm3_by_medium=gas_by_medium or None,  # P7-6B 收尾: 气体按介质分桶
     )
 
 
@@ -539,6 +589,13 @@ def _compute_totals(
         h_toe, h_coal = factors["LOW_TEMP_HEAT"]
     else:
         h_toe, h_coal = 0.0, 0.0
+    # ⚠️ 量纲 (bug-138, 2026-10-05): h_toe/h_coal 单位是 **kg标油/MJ**
+    # (GB 30251-2024 附录A 序号34 = 0.012 kg标油/MJ), 而 low_temp_heat_gj_yr
+    # 单位是 **GJ** → 必须先 GJ→MJ, 否则少乘 1000 倍。
+    # 与 bug-135 同类 (把两个不同量纲直接相乘), 由
+    # tests/services/util/test_gas_media_and_low_temp_heat.py 抓出。
+    h_toe_per_gj = h_toe * GJ_LOW_TEMP_TO_MJ
+    h_coal_per_gj = h_coal * GJ_LOW_TEMP_TO_MJ
 
     # 年度累积 MJ (F-P2-002 fix: nullable → None 时 0.0 跳过累加)
     # F-P3-T5 fix (2026-10-05, GB 30251-2024 §6.1.5 + 附录A):
@@ -576,10 +633,49 @@ def _compute_totals(
     else:
         water_mj = (agg.water_t_yr or 0.0) * w_toe * TOE_TO_MJ
 
-    # 工艺气体: GAS 行单值 (附录A 无「工艺气体」类, 沿用 R1 的 GAS 行)
-    gas_mj = (agg.gas_nm3_yr or 0.0) * g_toe * TOE_TO_MJ
+    # 工艺气体 / 氮气 / 仪表空气 (P7-6B 收尾): 按 gas_medium 分桶查 CONFIG。
+    # 净化空气 0.038 与氮气 0.15 差近 4 倍, 串行即高估 → 必须分桶。
+    # 有数据但缺 CONFIG 行 ⇒ 报错, 不静默用单值兜底 (同 bug-135 教训)。
+    gas_toe_kg = 0.0
+    gas_coal_kg = 0.0
+    if agg.gas_nm3_by_medium:
+        for medium, nm3_amount in agg.gas_nm3_by_medium.items():
+            et, sub = _GAS_MEDIUM_TO_CONFIG.get(medium, (None, None))
+            if et is None:
+                raise PcsError(
+                    code="GAS_MEDIUM_UNKNOWN",
+                    message=f"未知的 gas_medium={medium!r}",
+                    status=422,
+                )
+            pair = (
+                factors_by_class.get(et, {}).get(sub)
+                if factors_by_class
+                else None
+            ) or factors.get(et)
+            if pair is None:
+                raise PcsError(
+                    code="CONFIG_FACTOR_MISSING",
+                    message=(
+                        f"gas_medium={medium!r} 有 {nm3_amount} Nm³ 数据, "
+                        f"但 CONFIG 缺 {et}"
+                        + (f"/{sub}" if sub else "")
+                        + " 系数行 (GB 30251-2024 附录A 表A.1)"
+                    ),
+                    status=500,
+                )
+            gas_toe_kg += nm3_amount * pair[0]
+            gas_coal_kg += nm3_amount * pair[1]
+    else:
+        # R0 单值 fallback (无分桶数据时)
+        gas_toe_kg = (agg.gas_nm3_yr or 0.0) * g_toe
+        gas_coal_kg = (agg.gas_nm3_yr or 0.0) * g_coal
+    gas_mj = gas_toe_kg * TOE_TO_MJ
 
-    low_temp_mj = (agg.low_temp_heat_gj_yr or 0.0) * GJ_LOW_TEMP_TO_MJ
+    # MJ 侧必须与 toe 同源 (bug-138, 2026-10-05):
+    # annual_total_energy 全类统一是「折标后的一次能源量」(电=等价值 8.792 MJ/kWh、
+    # 蒸汽=toe×41.868、水=toe×41.868)。若这里用 GJ×1000 (原始投入热量),
+    # 就成了未折标的物理热量, 与 toe 差 41.868 倍 → iso_self_consistency 崩。
+    low_temp_mj = (agg.low_temp_heat_gj_yr or 0.0) * h_toe_per_gj * TOE_TO_MJ
 
     # F-P2-004 P0 fix: 蒸汽/燃料气 MJ 从 CONFIG 推导 (按分类 R1 系数)
     # 优先用 factors_by_class 分类查表; 否则 fallback 到 factors 单值 × TOE_TO_MJ
@@ -696,8 +792,8 @@ def _compute_totals(
         + fuel_toe_kg
         + steam_toe_kg
         + water_toe_kg
-        + (agg.gas_nm3_yr or 0.0) * g_toe
-        + (agg.low_temp_heat_gj_yr or 0.0) * h_toe
+        + gas_toe_kg
+        + (agg.low_temp_heat_gj_yr or 0.0) * h_toe_per_gj
     )
     total_toe = total_toe_kg / 1000.0  # kg → tonne
 
@@ -706,8 +802,8 @@ def _compute_totals(
         + fuel_coal_kg
         + steam_coal_kg
         + water_coal_kg
-        + (agg.gas_nm3_yr or 0.0) * g_coal
-        + (agg.low_temp_heat_gj_yr or 0.0) * h_coal
+        + gas_coal_kg
+        + (agg.low_temp_heat_gj_yr or 0.0) * h_coal_per_gj
     )
 
     return total_toe, total_coal_kg, annual_total_energy

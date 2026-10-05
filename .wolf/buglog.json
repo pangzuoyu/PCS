@@ -2439,7 +2439,7 @@
       "file": "pcs-backend/app/services/util/utility_energy_summary_service.py",
       "root_cause": "两处量纲错, 均为接线 bug-138 时引入/暴露: (1) h_toe 单位是 **kg标油/MJ** (GB 30251-2024 附录A 序号34 = 0.012), 而 low_temp_heat_gj_yr 单位是 **GJ** → 直接相乘少乘 1000 倍 (100 GJ 只算 1.2 kg标油 而非 1200 kg标油); (2) low_temp_mj 用 GJ×1000 = 原始投入热量, 而 annual_total_energy 全类统一是「折标后一次能源量」(电=8.792 MJ/kWh, 蒸汽/水=toe×41.868), 两者差 41.868 倍 → MJ 与 toe 不自洽。与 bug-135 同类: 把不同量纲直接相乘。",
       "fix": "新增 h_toe_per_gj = h_toe × 1000 (GJ→MJ); toe/coal 与 MJ 两侧统一用 h_toe_per_gj, MJ = gj × h_toe_per_gj × TOE_TO_MJ (与 toe 同源)。由 tests/services/util/test_gas_media_and_low_temp_heat.py 抓出。",
-      "fix_commit": "PENDING",
+      "fix_commit": "770976e",
       "tags": [
         "p7-s2",
         "T5",

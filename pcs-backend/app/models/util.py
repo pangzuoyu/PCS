@@ -18,6 +18,7 @@ from datetime import date
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Float,
@@ -557,6 +558,175 @@ class UtilityEnergySummary(Base):
     )
     created_at: Mapped[datetime.datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now(),
+        comment="记录创建时间 (DB server_default)",
+    )
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(), nullable=True,
+        comment="记录更新时间 (ORM onupdate 触发)",
+    )
+
+
+class UtilityGasMedia(Base):
+    """工艺气体 / 氮气 / 仪表空气消耗 (P7-6B 收尾, 单位 Nm³).
+
+    业务 (GB 30251-2024 附录A 表A.1 序号 31/32/33 + R1 GAS 行):
+
+    - 承载 `_aggregate_util_subtables` 长期缺失的 `gas_nm3_yr` —— 该字段此前
+      是硬编码 `None`, 而 CONFIG 里 NITROGEN / INSTRUMENT_AIR / GAS 的系数
+      一直存在却从无代码读取 (死数据)。
+    - `gas_medium` (GasMedium) 判别介质 → 决定查 CONFIG 的哪一行 (见 GasMedium
+      docstring 的映射表)。**净化空气 0.038 与氮气 0.15 差近 4 倍, 串行即高估。**
+    - 不与 `utility_fuel_gas` 重叠: 后者是燃料气 (有热值、按 gas_source 3 类),
+      本表是非燃料气体介质 (制氮/仪表风/厂区风/工艺气体)。
+
+    不继承 TaggedRecordMixin (公用工程记录)。
+    """
+
+    __tablename__ = "utility_gas_media"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id", "equipment_tag", "gas_medium",
+            name="uq_utility_gas_media_project_equipment_medium",
+        ),
+        CheckConstraint(
+            "gas_medium IN ('PROCESS_GAS', 'NITROGEN', 'PURIFIED_AIR', "
+            "'NON_PURIFIED_AIR', 'PLANT_AIR')",
+            name="ck_utility_gas_media_medium",
+        ),
+        CheckConstraint(
+            "consumption_nm3_h >= 0 AND annual_consumption_nm3 >= 0",
+            name="ck_utility_gas_media_nonneg",
+        ),
+        Index("ix_utility_gas_media_project", "project_id"),
+        Index("ix_utility_gas_media_workspace", "workspace_id"),
+        Index("ix_utility_gas_media_gas_medium", "gas_medium"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4,
+        comment="UUID 主键 (uuid.uuid4 default)",
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=False,
+        comment="项目 ID (FK projects.project_id)",
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workspaces.workspace_id", ondelete="RESTRICT"), nullable=False,
+        comment="工作区 ID (FK workspaces.workspace_id)",
+    )
+    equipment_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("equipment_list.equipment_id", ondelete="SET NULL"), nullable=True,
+        comment="设备 ID (FK equipment_list.equipment_id)",
+    )
+    equipment_tag: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment="设备位号 (与 gas_medium 联合 UNIQUE)",
+    )
+    gas_medium: Mapped[str] = mapped_column(
+        String(32), nullable=False,
+        comment=(
+            "气体介质 (GasMedium): PROCESS_GAS (工艺气体 0.85) / "
+            "NITROGEN (氮气 0.15, 附录A 序号33) / "
+            "PURIFIED_AIR (净化压缩空气 0.038, 序号31) / "
+            "NON_PURIFIED_AIR (非净化 0.028, 序号32) / "
+            "PLANT_AIR (厂区空气, 按非净化 0.028)"
+        ),
+    )
+    consumption_nm3_h: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="小时消耗量 (Nm³/h)",
+    )
+    operating_hours_per_year: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="8000",
+        comment="年运行小时数 (h/yr; ≤ 8760)",
+    )
+    annual_consumption_nm3: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="年消耗量 (Nm³/yr; = consumption_nm3_h × operating_hours_per_year)",
+    )
+    source: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default="MANUAL",
+        comment="数据来源: PMS / MANUAL / CALC",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False,
+        comment="记录创建时间 (DB server_default)",
+    )
+    updated_at: Mapped[datetime.datetime | None] = mapped_column(
+        DateTime(timezone=True), onupdate=func.now(), nullable=True,
+        comment="记录更新时间 (ORM onupdate 触发)",
+    )
+
+
+class UtilityLowTempHeat(Base):
+    """低温余热回收 (P7-6B 收尾, 单位 GJ).
+
+    业务 (GB 30251-2024 附录A 表A.1 序号 34):
+
+    - 承载 `_aggregate_util_subtables` 长期缺失的 `low_temp_heat_gj_yr` ——
+      该字段此前是硬编码 `None`, 且 service 还有一个**硬编码错误系数**兜底
+      (0.0341 kg标油/MJ, 偏离标准 +184.2% 且量纲错, 已于 bug-135 删除)。
+    - 附录A 序号34 低温热 = **0.012 kg标油/MJ** (= 0.5 MJ/MJ 可回收率)。
+    - 单位是 GJ 而非 Nm³/t, 故独立成表, 不与 utility_gas_media 合并。
+
+    不继承 TaggedRecordMixin (公用工程记录)。
+    """
+
+    __tablename__ = "utility_low_temp_heat"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id", "equipment_tag",
+            name="uq_utility_low_temp_heat_project_equipment",
+        ),
+        CheckConstraint(
+            "heat_recovery_gj_h >= 0 AND annual_recovered_heat_gj >= 0",
+            name="ck_utility_low_temp_heat_nonneg",
+        ),
+        Index("ix_utility_low_temp_heat_project", "project_id"),
+        Index("ix_utility_low_temp_heat_workspace", "workspace_id"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        Uuid, primary_key=True, default=uuid.uuid4,
+        comment="UUID 主键 (uuid.uuid4 default)",
+    )
+    project_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=False,
+        comment="项目 ID (FK projects.project_id)",
+    )
+    workspace_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("workspaces.workspace_id", ondelete="RESTRICT"), nullable=False,
+        comment="工作区 ID (FK workspaces.workspace_id)",
+    )
+    equipment_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("equipment_list.equipment_id", ondelete="SET NULL"), nullable=True,
+        comment="设备 ID (FK equipment_list.equipment_id)",
+    )
+    equipment_tag: Mapped[str] = mapped_column(
+        String(64), nullable=False,
+        comment="设备位号 (项目内唯一)",
+    )
+    heat_recovery_gj_h: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment="小时回收热量 (GJ/h)",
+    )
+    operating_hours_per_year: Mapped[float] = mapped_column(
+        Float, nullable=False, server_default="8000",
+        comment="年运行小时数 (h/yr; ≤ 8760)",
+    )
+    annual_recovered_heat_gj: Mapped[float] = mapped_column(
+        Float, nullable=False,
+        comment=(
+            "年回收热量 (GJ/yr; = heat_recovery_gj_h × operating_hours_per_year)。"
+            "折标: × 1000 (GJ→MJ) × 0.012 kg标油/MJ (附录A 序号34)"
+        ),
+    )
+    source: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default="MANUAL",
+        comment="数据来源: PMS / MANUAL / CALC",
+    )
+    created_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False,
         comment="记录创建时间 (DB server_default)",
     )
     updated_at: Mapped[datetime.datetime | None] = mapped_column(
