@@ -32,10 +32,23 @@ from app.models.equipment import EquipmentList
 from app.schemas.supplier import (
     ActualDataEntryRequest,
     ActualDataResponse,
+    CheckRequest,
+    ConfirmRequest,
     DeviationReportOut,
     DeviationRowOut,
 )
 from app.services.supplier.actual_data_service import record_actual_data
+# 别名: 端点函数与 service 函数同名 (confirm_actual_data), 直接 import 会把
+# service 覆盖掉 —— 端点体内调到的就成了自己。
+from app.services.supplier.confirmation_service import (
+    confirm_actual_data as confirm_actual_data_svc,
+)
+from app.services.supplier.confirmation_service import (
+    pass_check as pass_check_svc,
+)
+from app.services.supplier.confirmation_service import (
+    reject_check as reject_check_svc,
+)
 from app.services.supplier.deviation_report import (
     build_report,
     export_excel,
@@ -152,6 +165,54 @@ _EXPORT_TYPES = {
     ),
     "pdf": ("application/pdf", "pdf"),
 }
+
+
+# ---------------------------------------------------------------------------
+# 核算与更新流程 (SPEC V1.4 §3.2.4(4))
+# ---------------------------------------------------------------------------
+
+# 设计人（录入/确认）与校核人是**两个角色** —— 同一人既提交又校核等于没有校核。
+_CONFIRM_ROLES = ("DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+_CHECK_ROLES = ("REVIEWER", "APPROVER", "SYSTEM_ADMIN")
+
+
+@router.post("/{equipment_id}/actual-data/confirm", response_model=ActualDataResponse)
+async def confirm_actual_data(
+    equipment_id: uuid.UUID,
+    body: ConfirmRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> ActualDataResponse:
+    """设计人勾选「确认实际数据满足工艺要求」并提交校核（SPEC §3.2.4(4)）.
+
+    存在不合格或不可判项 → 422 `DEVIATION_BLOCKS_CONFIRMATION`。
+    """
+    require_roles(actor, *_CONFIRM_ROLES)
+    record = await _load_equipment(db, equipment_id, actor)
+    await confirm_actual_data_svc(db, record, actor, reason=body.reason)
+    return _to_response(record)
+
+
+@router.post("/{equipment_id}/actual-data/check", response_model=ActualDataResponse)
+async def check_actual_data(
+    equipment_id: uuid.UUID,
+    body: CheckRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> ActualDataResponse:
+    """校核人校核（SPEC §3.2.4(4)）.
+
+    - `pass` → 标记 CONFIRMED，并发 `actual_data_replaces_design` 事件
+      （`before` 必带 —— P8 反向恢复的唯一来源）
+    - `reject` → 退回 PENDING_CONFIRM，重新录入通道解锁（§3.2.4(5)）
+    """
+    require_roles(actor, *_CHECK_ROLES)
+    record = await _load_equipment(db, equipment_id, actor)
+    if body.decision == "pass":
+        await pass_check_svc(db, record, actor, reason=body.reason)
+    else:
+        await reject_check_svc(db, record, actor, reason=body.reason)
+    return _to_response(record)
 
 
 @router.get("/{equipment_id}/deviation-report/export")

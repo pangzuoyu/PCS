@@ -202,22 +202,37 @@ D4 4A 形同虚设。
 
 **Files**:
 - Create: `pcs-backend/app/services/supplier/confirmation_service.py`
-- Create: `pcs-backend/app/api/v1/supplier.py`
-  （`POST /equipment-list/{id}/actual-data/confirm` + `/check`）
+- Modify: `pcs-backend/app/services/supplier/actual_data_service.py`（已确认锁定）
+- Modify: `pcs-backend/app/api/v1/supplier.py`
+  （`POST /equipment/{id}/actual-data/confirm` + `/check`）
+- Modify: `pcs-backend/app/schemas/supplier.py`（`ConfirmRequest` / `CheckRequest`）
+- Test: `pcs-backend/tests/services/supplier/test_confirmation_service.py`
+- Test: `pcs-backend/tests/api/v1/test_actual_data_confirmation_api.py`
+
+**SPEC 落地要点**（§3.2.4(4)(5)(6) 逐条）:
+- **不合格/不可判禁止确认**（(4) + 风险 #4）→ 422 `DEVIATION_BLOCKS_CONFIRMATION`
+- **实际数据不进门禁哈希**（(5)）→ `pass_check` 不碰 `sign_status` / `record_hash`，
+  用 `actual_data_status` 承载
+- **已确认修改需校核人退回**（(5)）→ 锁在 `record_actual_data`，422 `ACTUAL_DATA_LOCKED`
+- **D4 4A** → `pass_check` 发 `actual_data_replaces_design`，`before` 必带
+  （P8 反向恢复的唯一来源）；有 AST 静态守卫锁「不直调 state_machine」
+- **角色分离** → `/confirm` DESIGNER+ vs `/check` REVIEWER+（同一人既提交又校核
+  等于没有校核）
+
+**未做（裁决）**:
+- CI 反向恢复不在本 Task（已裁决推迟 P8）
+- UTIL 实际值优先 / CIA 传播：本 Task 只**发出**事件，listener 侧消费留给 S4-4
+  端到端验收时接；`confirmation_service` 保持零 state_machine 依赖
 
 **Steps**:
-- [ ] Step 1: 写 failing test — 不合格项禁止确认
-- [ ] Step 2: 跑 test 验证失败
-- [ ] Step 3: 实现 `confirmation_service`（设计人 + 校核人流程）
-- [ ] Step 4: UTIL 实际值优先触发（Sprint 1 Task S1-5 boundary）——
-      **改走 `emit_event`，不直接调 state_machine**（依赖 S4-0）
-- [ ] Step 5: CIA 触发（实际值替换设计值 → CHANGED 流程）——
-      `emit_event('actual_data_replaces_design', equipment_id, event_id=uuid4(),
-      before={...}, after={...})`
-      - ⚠️ payload **必带 `before`**（P8 反向恢复的前提）
-      - ℹ️ **CIA 反向恢复不在本 Task 范围** —— 已裁决推迟 P8
-- [ ] Step 6: pytest 全量 0 regression
-- [ ] Step 7: commit `feat(p7-s4): 供应商核算 + UTIL 实际值更新 (S4-3)`
+- [x] Step 1: 写 failing test — service 14 例 + API 12 例
+- [x] Step 2: 跑 test 验证失败（service 14 failed / API 10 failed，模块不存在）
+- [x] Step 3: 实现 `confirmation_service`（confirm / pass_check / reject_check）
+- [x] Step 4: 已确认锁定落 `record_actual_data`（service 层，任何写入方绕不过）
+- [x] Step 5: `emit_event` 双事件 + AST 静态守卫锁「不直调 state_machine」
+- [x] Step 6: pytest 全量 0 regression（3842 passed / 77 skipped / 1 xfailed，
+      Task 3 baseline 3816 → +26）
+- [ ] Step 7: commit `feat(p7-s4): 供应商核算与更新流程 (S4-3)`
 
 ---
 

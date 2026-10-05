@@ -82,9 +82,23 @@ async def record_actual_data(
     二次录入整体替换而非合并 —— 否则上轮残留值会混入偏差计算, 而录入者
     以为已经改过。
 
+    已确认（CONFIRMED）的数据**锁定**, 修改需校核人先退回
+    （SPEC §3.2.4(5)「已确认的实际数据修改需校核人退回」）——
+    静默改掉会让"已确认"这个词失去意义。
+
     Returns:
         更新后的 EquipmentList (已 refresh, 调用方无需再 commit).
     """
+    if equipment.actual_data_status == ActualDataStatus.CONFIRMED.value:
+        raise PcsError(
+            code="ACTUAL_DATA_LOCKED",
+            message=(
+                "实际数据已确认, 修改需校核人退回后重录 "
+                "(SPEC §3.2.4(5))"
+            ),
+            status=422,
+        )
+
     equipment.actual_data_json = normalize_entries(entries)
     equipment.actual_data_status = ActualDataStatus.PENDING_CONFIRM.value
     await session.commit()

@@ -44,10 +44,29 @@ class ActualDataResponse(BaseModel):
     actual_data_json: dict | None = None
 
 
+class ConfirmRequest(BaseModel):
+    """设计人提交校核（SPEC §3.2.4(4)）."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    reason: str = Field(default="", max_length=500)
+
+
+class CheckRequest(BaseModel):
+    """校核人校核（SPEC §3.2.4(4)）.
+
+    `decision` 只有 pass/reject 两值 —— 没有「跳过」：跳过会让「已确认」失去含义。
+    """
+
+    model_config = ConfigDict(extra="forbid")
+
+    decision: Literal["pass", "reject"]
+    reason: str = Field(default="", max_length=500)
+
+
 # ---------------------------------------------------------------------------
 # 偏差报告 (SPEC V1.4 §3.2.4)
 # ---------------------------------------------------------------------------
-
 # 4 档结论。SPEC §3.2.4(3) 定 3 档（合格/警告/不合格）；UNVERDICTABLE 是本系统
 # 补充的第 4 档 —— SPEC 的偏差表内含 2 条无数值阈值规则且「以泵为例」，非泵参数
 # 必然判不了。判不了 ≠ 合格，故独立成档且阻断确认。
@@ -88,6 +107,8 @@ __all__ = [
     "ActualDataEntry",
     "ActualDataEntryRequest",
     "ActualDataResponse",
+    "CheckRequest",
+    "ConfirmRequest",
     "DeviationRowOut",
     "DeviationReportOut",
 ]
