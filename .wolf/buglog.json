@@ -2343,7 +2343,7 @@
       "file": "pcs-backend/scripts/p7_open_012_t5_r1_verification.py",
       "root_cause": "自证循环: 三个「XLS 参考值」不是从 XLS 读的, 是 commit 6d74fdd 时代 PCS 代码输出的反抄 (与旧输出 1242159517.0 仅差 10.8 MJ, 相对 8.7e-7%)。XLS 自身 能耗!G33 又因 D32=燃料消耗校核!D15/1000 是 #VALUE! 而算不出年总能耗。于是 9887ad9 的 T5 PASS 没有任何外部效力 —— 改算法(94c1e55)立刻暴露。",
       "fix": "用户裁决 2026-10-05「XLS 不作为最终依据」→ 基准重建为 _gb30251_reference(): 消耗量(设备清单) × GB 30251-2024 附录A 表A.1 系数, 独立于 ORM/ CONFIG 表/ service 重算。T5 三项 PASS 0.0011%/0.0000%/0.0020%。",
-      "fix_commit": "e077b37",
+      "fix_commit": "9e27a5a",
       "tags": [
         "p7-s2",
         "T5",
