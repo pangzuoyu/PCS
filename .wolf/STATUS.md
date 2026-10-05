@@ -53,11 +53,10 @@ budget_tokens: 1500
 
 | Item | Why | Action |
 |------|-----|--------|
-| ~~F-P3-001 production checklist #5~~ | ✅ **DONE (Sprint 3b 2026-10-03)**: RBAC 401/403 audit + per-IP 限流 (>5/min→429), checklist 5/5 收口 | — |
+| 综合能耗出厂 ≤2% 验收正式封板 | ⚠️ **BLOCKER (2026-10-05)**: toe/coal 精确 PASS (1e-6%), MJ 偏差 3.83% — PCS 与 XLS 两套折标发热量口径分歧 (ISO 41.868 vs XLS 43.53 MJ/kg)。PCS 内部自洽 0.0033%, 非代码 bug。**待工艺室裁决** `docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md` | 工艺室裁决 XLS 基准 |
 | ~~P7-7+ BLOCKER-3 全量 refactor~~ | ✅ **DONE (2026-10-03)**: 14 文件接入 guard (agent 11 + 主会话 3), 659 行, 零新增 regression (commit `feat(p7-s7)`) | — |
-| codebase role string 收敛 | SYSADMIN vs SYSTEM_ADMIN 两套并存 | 后续 sprint |
+| ~~codebase role string 收敛~~ | ✅ **DONE (2026-10-04)**: SYSADMIN → SYSTEM_ADMIN 全量收敛, 37 文件, net -157 行 (state_machine 13 ACL / _guard / user_projects 3 漏网 / mock_auth / cia_engine×3 / LDAP map / 16 处双写简化 / frontend seed+label), api.d.ts 0 残留 | — |
 | T6 catalyst_loading | BLOCKER-2 (工艺室 XLS 2026-10-15 签) | 解锁后 |
-| 综合能耗出厂验收正式封板 | T6 解锁后 | 解锁后 |
 | ProjectStatus 5-state | Issue 2 拆出, 业务需求驱动时 | 登记 P7-6B follow-up |
 | /api/v1/meta/enums curl 404 | Pre-existing drift-checked pattern (MSW works in-browser) | None |
 | React Router v7 future flag | Cosmetic warning | 后续 v7 迁移 sprint |

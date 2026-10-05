@@ -217,12 +217,26 @@ async def main() -> int:
                 "total_toe": "PASS" if tol_toe <= 2.0 else "FAIL",
                 "total_standard_coal_kg": "PASS" if tol_coal <= 2.0 else "FAIL",
             },
+            # 口径自洽性诊断 (2026-10-05): PCS MJ 与 ISO 1 toe=41.868 MJ 的偏差。
+            # 偏差应 <0.01%; 若 MJ FAIL 但 iso_self_consistent_pct 极小, 说明
+            # PCS 三指标内部自洽, 分歧在 XLS 基准口径 (见裁决文档).
+            "iso_self_consistent_pct": pct_diff(
+                summary.annual_total_energy, summary.total_toe * 1000.0 * 41.868
+            ),
             "r1_classification": summary.r1_classification_json,
             "tolerance_status": summary.tolerance_status,
         }
         print(json.dumps(report, ensure_ascii=False, indent=2))
 
         ok = all(v == "PASS" for v in report["verdict"].values())
+        if not ok and report["iso_self_consistent_pct"] < 0.01:
+            print(
+                "\n[BLOCKER] MJ 验收 FAIL 但 PCS 内部自洽 (偏差 "
+                f"{report['iso_self_consistent_pct']:.4f}% < 0.01%)。\n"
+                "         → 分歧在 XLS 基准口径, 非代码 bug。\n"
+                "         → 待工艺室裁决: docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md",
+                file=sys.stderr,
+            )
         return 0 if ok else 1
 
 

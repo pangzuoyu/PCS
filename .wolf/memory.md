@@ -971,3 +971,7 @@
 | 14:21 | Edited pcs-backend/tests/test_audit_guard.py | "P7-7+: SYSTEM_ADMIN 不需要 g" → "P7-7+: SYSTEM_ADMIN 不需要 g" | ~20 |
 | 14:30 | Edited pcs-frontend/tests/mocks/handlers.test.ts | modified for() | ~152 |
 | 15:00 | e2e 补跑闭环 + role-string 全量收敛 | e2e 17/17 (3 spec 修 goto/键盘流/seed); SYSADMIN→SYSTEM_ADMIN 37 文件 (净 -157 行) | 全绿: 3716 backend + 569 vitest + 17 e2e + drift OK | ~120k |
+| 14:40 | Session end: 634 writes across 147 files (p6_9_pickup_4_drift_fixes.py, p7_open_009_t0_config_energy_conversion_factors.py, p7_open_009_t0_seed_energy_conversion_factors.py, config.py, .gitignore) | 150 reads | ~356693 tok |
+| 07:58 | Created docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md | — | ~1176 |
+| 07:59 | Edited pcs-backend/scripts/p7_open_012_t5_r1_verification.py | expanded (+14 lines) | ~382 |
+| 16:00 | T5 封版受阻 — 定位 MJ 基准口径 BLOCKER | 发现 T5 9887ad9 PASS 是 R0 硬编码凑的; F-P2-004 P0 (94c1e55) 修正后暴露真实分歧: PCS ISO 41.868 vs XLS 43.53 MJ/kg。toe/coal 精确 PASS 1e-6%, PCS 内部自洽 0.0033% | docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md (3 选项 A/B/C, 待工艺室) | ~30k |
