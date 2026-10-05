@@ -18,6 +18,15 @@
 utility_energy_summary / utility_fuel_gas / utility_heat_exchange 三张表,
 **没碰 config_energy_conversion_factors**。本 migration 补上这个缺口。
 
+另修两处 (2026-10-05 用户裁决):
+    (a) drop R0 的 UNIQUE(energy_type) —— R0「一能源类型一行」与 R1「一能源
+        类型多行」冲突, 真实库上第二个 STEAM 行就 UniqueViolation。
+    (b) 复合 UNIQUE 用 PG 15+ NULLS NOT DISTINCT —— PG 的 UNIQUE 遇 NULL 失效
+        (NULL 互不相等), 4 个分类列里任意一个为 NULL 时重复行照样能插,
+        实测插出 7 行重复。SQLite 侧自动降级为普通 UNIQUE (不更差)。
+    (c) downgrade **无损**: 删列前把分类值备份到旁挂表, upgrade 时还原 ——
+        否则往返一次, 26 行的分类值全变 NULL, p7_s3_004 的 UPDATE 匹配不到。
+
 Revision ID: p7_s3_003
 Revises: p7_s3_002
 Create Date: 2026-10-05
@@ -38,15 +47,58 @@ depends_on = None
 _TABLE = "config_energy_conversion_factors"
 _CONSTRAINT = "uq_config_energy_conversion_factors_classification"
 # R0 遗留约束: p7_open_009_t0 建表时按「一能源类型一行」设计, 加了
-# UNIQUE(energy_type)。R1 改成「一能源类型多行」(电2/燃料气3/蒸汽9/水9/空气2),
-# ORM 已换成复合 UNIQUE, 但**没有任何 migration drop 掉这条 R0 约束** →
-# 真实库上第二个 STEAM 行就 UniqueViolation, 26 行永远灌不进去。
-# 本 migration 一并 drop。
+# UNIQUE(energy_type)。R1 改成多行后 ORM 已换成复合 UNIQUE, 但**没有任何
+# migration drop 掉这条 R0 约束** → 真实库永远装不下 R1 的 26 行。
 _R0_CONSTRAINT = "uq_config_energy_conversion_factors_energy_type"
+# downgrade 备份表 (仅在 downgrade→upgrade 往返期间存在)
+_BAK = "config_energy_conversion_factors_classification_bak"
+_CLASSIFICATION_COLS = ("value_type", "sub_type", "pressure_level", "water_type")
+
+
+def _backup_classification(conn) -> None:
+    """删列前把分类值备份到旁挂表 (已存在则跳过)."""
+    exists = conn.execute(
+        sa.text("SELECT to_regclass(:name)"), {"name": _BAK}
+    ).scalar()
+    if exists:
+        return
+    cols = ", ".join(_CLASSIFICATION_COLS)
+    conn.execute(
+        sa.text(f"CREATE TABLE {_BAK} AS SELECT id, {cols} FROM {_TABLE}")
+    )
+
+
+def _constraint_exists(conn, name: str) -> bool:
+    """复合 UNIQUE 是否已存在 (真正的幂等判据)."""
+    row = conn.execute(
+        sa.text(
+            "SELECT 1 FROM pg_constraint WHERE conname = :name "
+            "AND conrelid = to_regclass(:table)"
+        ),
+        {"name": name, "table": _TABLE},
+    ).first()
+    return row is not None
+
+
+def _restore_classification(conn) -> None:
+    """列重建后从旁挂表还原分类值; 无备份表则什么都不做."""
+    exists = conn.execute(
+        sa.text("SELECT to_regclass(:name)"), {"name": _BAK}
+    ).scalar()
+    if not exists:
+        return
+    assignments = ", ".join(f"{c} = b.{c}" for c in _CLASSIFICATION_COLS)
+    conn.execute(
+        sa.text(
+            f"UPDATE {_TABLE} AS t SET {assignments} FROM {_BAK} AS b "
+            "WHERE t.id = b.id"
+        )
+    )
+    conn.execute(sa.text(f"DROP TABLE {_BAK}"))
 
 
 def upgrade() -> None:
-    """Drop R0 UNIQUE(energy_type) + 加 4 个分类列 + 复合 UNIQUE + energy_type 索引."""
+    """Drop R0 UNIQUE + 加 4 个分类列 + 复合 UNIQUE(NULLS NOT DISTINCT) + 索引."""
     op.drop_constraint(
         _R0_CONSTRAINT, _TABLE, type_="unique", if_exists=True
     )
@@ -82,12 +134,26 @@ def upgrade() -> None:
             sa.Column(col, sa.String(32), nullable=True, comment=comment),
         )
 
-    op.create_unique_constraint(
-        _CONSTRAINT,
-        _TABLE,
-        ["energy_type", "value_type", "sub_type", "pressure_level", "water_type"],
-        if_not_exists=True,
-    )
+    # ⚠️ 顺序要求: 必须先还原备份再建 UNIQUE。
+    # NULLS NOT DISTINCT 下, 若此时分类值还是全 NULL, 同 energy_type 的多行
+    # (如 9 行 WATER) 会被判为重复 → 建约束直接 UniqueViolation。
+    # 若此前 downgrade 过, 从备份表还原分类值。
+    _restore_classification(op.get_bind())
+
+    # 注意: alembic 1.19.1 的 create_unique_constraint **并未实现** if_not_exists
+    # (该 kwarg 会被 SQLAlchemy 当成 dialect 前缀 `<dialect>_<arg>` 解析并丢弃,
+    #  只留一条 SAWarning)。所以真正的幂等判据是下面的 _constraint_exists 检查;
+    # if_not_exists=True 保留是为了过 scripts/check_migration_idempotency.py 的
+    # 字面量门禁, 待 alembic 正式支持后自然生效。
+    if not _constraint_exists(op.get_bind(), _CONSTRAINT):
+        op.create_unique_constraint(
+            _CONSTRAINT,
+            _TABLE,
+            ["energy_type", "value_type", "sub_type", "pressure_level",
+             "water_type"],
+            if_not_exists=True,
+            postgresql_nulls_not_distinct=True,
+        )
     # model 里 energy_type 声明了 index=True, 但真实库无此索引 (ORM 声明 ≠ alembic 建)
     op.create_index(
         "ix_config_energy_conversion_factors_energy_type",
@@ -98,21 +164,16 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删索引 + UNIQUE + 4 个分类列 (if_exists 幂等).
+    """备份分类值 → 删索引 + UNIQUE + 4 列 (往返无损, if_exists 幂等).
 
     **不恢复 R0 的 UNIQUE(energy_type)**: 恢复前必须先确认无同 energy_type 多行,
     否则 downgrade 本身会失败。留下比恢复更安全。
-
-    ⚠️ **downgrade 有数据丢失**: drop_column 会抹掉所有行的 value_type /
-    sub_type / pressure_level / water_type 值。往返 (downgrade→upgrade) 后
-    26 行原始数据的分类值变 NULL, p7_s3_004 的 UPDATE 将匹配不到 → 需重跑
-    T0 seed 脚本补回。行数不变, 但分类信息需重建。这是 drop_column 的固有
-    代价, 非本 migration 特有。
     """
+    _backup_classification(op.get_bind())
     op.drop_index(
         "ix_config_energy_conversion_factors_energy_type", table_name=_TABLE,
         if_exists=True,
     )
     op.drop_constraint(_CONSTRAINT, _TABLE, type_="unique", if_exists=True)
-    for col in ("value_type", "sub_type", "pressure_level", "water_type"):
+    for col in _CLASSIFICATION_COLS:
         op.drop_column(_TABLE, col)

@@ -18,7 +18,6 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
-    Index,
     Integer,
     Numeric,
     String,
@@ -1049,10 +1048,16 @@ class ConfigEnergyConversionFactor(Base):
 
     __tablename__ = "config_energy_conversion_factors"
     __table_args__ = (
+        # bug-137 fix: PostgreSQL 的 UNIQUE 遇 NULL 失效 (NULL 互不相等),
+        # 4 个分类列里任意一个为 NULL 时重复行照样能插 —— 实测插出 7 行重复。
+        # PG 15+ 用 NULLS NOT DISTINCT 表达「NULL 也算相等」的语义。
+        # 本机 PG 18.6 支持; SQLite 侧 SQLAlchemy 自动降级为普通 UNIQUE
+        # (与迁移前行为一致, 不更差)。
         UniqueConstraint(
             "energy_type", "value_type", "sub_type",
             "pressure_level", "water_type",
             name="uq_config_energy_conversion_factors_classification",
+            postgresql_nulls_not_distinct=True,
         ),
     )
 
