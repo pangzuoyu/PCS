@@ -435,20 +435,21 @@ pdftotext -layout sample/综合能耗计算通则.pdf - | grep -n "0.1229" # GB/
 - [x] **待办 8（新，bug-137）** — ~~真实库装不下 R1 折标系数~~ ✅
       `p7_s3_003` 补 4 个从未迁移的分类列 + drop R0 `UNIQUE(energy_type)`；
       `p7_s3_004` 数据修正 + 7 行新增。pcs_test 已灌 33 行。
-- [ ] **待办 7** — `product_category` 目前只能在 DB/seed 层设置
-      （PCS **没有 Project create API**，`user_projects.py` 只做授权/查询）。
-      真实项目需靠外部导入/直改 DB 标记，运维成本高。建 Project CRUD 超出本次范围，
-      登记 follow-up。
-- [ ] **待办 9（新）** — 复合 UNIQUE 在 PG 中对 NULL **无效**
-      （`UNIQUE(energy_type, value_type, sub_type, pressure_level, water_type)`
-      里 NULL 互不相等，重复行照样能插）。本次实测插出 7 行重复。
-      `p7_s3_004` 用显式 exists 检查所以自身幂等，但约束本身不设防。
-      修法需在「PG-only `NULLS NOT DISTINCT`（PG 15+，本机 18.6 支持）」与
-      「跨库 COALESCE 表达式索引」之间选 —— 后者要动 ORM `__table_args__` 且
-      影响 SQLite 测试路径，属设计决策，未擅自做。
-- [ ] **待办 10（新）** — `pcs` 库（开发库，非 pcs_test）alembic 停在 `p6_6b_013`，
-      落后多个迁移，导致 `test_pipe_class_migration.py` 失败。本会话被权限拦过，
-      未迁移。
+- [x] **待办 7** — ~~`product_category` 无处可设~~ ✅ 新增
+      `GET /projects/{project_id}`（含派生态 `electricity_value_type`）+
+      `PATCH /projects/{project_id}/product-category`（SYSTEM_ADMIN）。
+      **有综合能耗汇总时 422** —— 每条 summary 固化了当时的 value_type，
+      改类别会让历史口径不可追溯 → fail-closed。
+      刻意**不做完整 Project CRUD**（超出范围），项目本体仍靠外部导入/直改 DB。
+- [x] **待办 9** — ~~复合 UNIQUE 对 NULL 无效~~ ✅ 改 PG 15+
+      `UNIQUE NULLS NOT DISTINCT`（本机 18.6），SQLite 侧自动降级为普通 UNIQUE。
+      实证：重复插一行 STEAM → IntegrityError 被拒。
+- [x] **待办 10** — ~~`pcs` 库 alembic 落后~~ ✅ 补迁到 `p7_s3_004` + 灌 33 行系数。
+      `test_table_count` 期望 93 → 101（新增 8 张表，已在注释中逐张列出）。
+- [x] **待办 2 / Q2** — ~~耗能工质 MJ~~ ✅ **不需要 `unit_to_mj` 列**：
+      附录A 的 MJ 列全部 = kg标油 × 41.868（我先前拿 XLS 的 4.19 比的，是错的）。
+      真问题是硬编码 `T_WATER_TO_MJ` / `NM3_GAS_TO_MJ` 恒 0，已改为按
+      `water_by_type` 分类查 CONFIG × 41.868，与蒸汽/燃料气同模式。
 
 
 **独立残余**

@@ -975,3 +975,78 @@
 | 07:58 | Created docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md | — | ~1176 |
 | 07:59 | Edited pcs-backend/scripts/p7_open_012_t5_r1_verification.py | expanded (+14 lines) | ~382 |
 | 16:00 | T5 封版受阻 — 定位 MJ 基准口径 BLOCKER | 发现 T5 9887ad9 PASS 是 R0 硬编码凑的; F-P2-004 P0 (94c1e55) 修正后暴露真实分歧: PCS ISO 41.868 vs XLS 43.53 MJ/kg。toe/coal 精确 PASS 1e-6%, PCS 内部自洽 0.0033% | docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md (3 选项 A/B/C, 待工艺室) | ~30k |
+| 08:34 | Edited docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md | modified range() | ~1834 |
+| 08:34 | Edited pcs-backend/scripts/p7_open_012_t5_r1_verification.py | 2→4 lines | ~69 |
+| 08:34 | Edited pcs-backend/scripts/p7_open_012_t5_r1_verification.py | 4→5 lines | ~61 |
+| 08:35 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified fix() | ~196 |
+| 08:39 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | modified fix() | ~232 |
+| 08:39 | Edited docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md | modified range() | ~585 |
+| 08:44 | Edited pcs-backend/scripts/p7_open_012_t5_r1_verification.py | modified _inject_case_4() | ~493 |
+| 08:44 | Edited pcs-backend/scripts/p7_open_012_t5_r1_verification.py | reduced (-8 lines) | ~26 |
+| 08:44 | Edited pcs-backend/scripts/p7_open_012_t5_r1_verification.py | reduced (-6 lines) | ~35 |
+| 08:44 | Edited pcs-backend/scripts/p7_open_012_t5_r1_verification.py | modified _gb30251_reference() | ~1116 |
+| 08:44 | Edited pcs-backend/scripts/p7_open_012_t5_r1_verification.py | 6→8 lines | ~117 |
+| 08:44 | Edited pcs-backend/scripts/p7_open_012_t5_r1_verification.py | 2→6 lines | ~88 |
+| 08:45 | Edited pcs-backend/scripts/p7_open_012_t5_r1_verification.py | 6→7 lines | ~94 |
+| 08:46 | Edited docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md | expanded (+42 lines) | ~521 |
+| 08:46 | Edited docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md | 8→10 lines | ~159 |
+| 08:47 | Edited docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md | expanded (+15 lines) | ~234 |
+| 08:54 | Created pcs-backend/tests/services/util/test_electricity_value_type_policy.py | — | ~2934 |
+| 08:55 | Edited pcs-backend/app/models/enums.py | modified ProductCategory() | ~175 |
+| 08:55 | Edited pcs-backend/app/models/project.py | 1→6 lines | ~32 |
+| 08:55 | Edited pcs-backend/app/models/project.py | expanded (+17 lines) | ~189 |
+| 08:55 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified derive_electricity_value_type() | ~256 |
+| 08:55 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified resolve_electricity_value_type() | ~503 |
+| 08:55 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 2→4 lines | ~38 |
+| 08:55 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | added 1 import(s) | ~14 |
+| 08:55 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 3→3 lines | ~37 |
+| 08:55 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | expanded (+7 lines) | ~156 |
+| 08:56 | Created pcs-backend/alembic/versions/p7_s3_002_project_product_category.py | — | ~479 |
+| 08:56 | Edited pcs-backend/alembic/versions/p7_s3_002_project_product_category.py | modified downgrade() | ~83 |
+| 08:57 | Edited pcs-backend/app/schemas/util.py | modified Field() | ~124 |
+| 08:57 | Edited pcs-backend/app/schemas/util.py | 4→5 lines | ~50 |
+| 08:57 | Edited pcs-backend/app/api/v1/util.py | 3→6 lines | ~91 |
+| 09:00 | Edited pcs-backend/scripts/p7_open_012_t5_r1_verification.py | expanded (+22 lines) | ~281 |
+| 09:00 | Edited pcs-backend/scripts/p7_open_012_t5_r1_verification.py | added 1 import(s) | ~52 |
+| 09:00 | Edited pcs-backend/scripts/p7_open_012_t5_r1_verification.py | EQUIVALENT_VALUE() → 422() | ~114 |
+| 09:04 | Created pcs-backend/scripts/p7_open_016_config_conformance_audit.py | — | ~2313 |
+| 09:04 | Edited pcs-backend/scripts/p7_open_016_config_conformance_audit.py | 3→7 lines | ~77 |
+| 09:04 | Edited pcs-backend/scripts/p7_open_016_config_conformance_audit.py | 2→2 lines | ~39 |
+| 09:04 | Edited pcs-backend/scripts/p7_open_016_config_conformance_audit.py | modified audit_low_temp_heat_fallback() | ~400 |
+| 09:04 | Edited pcs-backend/scripts/p7_open_016_config_conformance_audit.py | expanded (+18 lines) | ~272 |
+| 09:05 | Edited docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md | expanded (+56 lines) | ~455 |
+| 09:05 | Edited docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md | expanded (+12 lines) | ~332 |
+| 09:06 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | 3→3 lines | ~14 |
+| 09:06 | Edited pcs-backend/alembic/versions/p7_s3_002_project_product_category.py | 2→2 lines | ~21 |
+| 09:06 | Edited pcs-backend/alembic/versions/p7_s3_002_project_product_category.py | modified upgrade() | ~47 |
+| 09:06 | Edited pcs-backend/alembic/versions/p7_s3_002_project_product_category.py | modified downgrade() | ~26 |
+| 09:12 | Edited pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py | 5→5 lines | ~59 |
+| 09:13 | Edited pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py | 5→5 lines | ~59 |
+| 09:13 | Edited pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py | expanded (+56 lines) | ~750 |
+| 09:13 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified fix() | ~273 |
+| 09:13 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | added 1 import(s) | ~38 |
+| 09:13 | Edited pcs-backend/scripts/p7_open_016_config_conformance_audit.py | expanded (+17 lines) | ~243 |
+| 09:13 | Edited pcs-backend/scripts/p7_open_016_config_conformance_audit.py | 12→13 lines | ~144 |
+| 09:14 | Created pcs-backend/alembic/versions/p7_s3_003_energy_config_gb30251_a1.py | — | ~1360 |
+| 09:15 | Created pcs-backend/alembic/versions/p7_s3_003_energy_config_classification_cols.py | — | ~948 |
+| 09:17 | Edited pcs-backend/alembic/versions/p7_s3_003_energy_config_classification_cols.py | modified upgrade() | ~181 |
+| 09:17 | Edited pcs-backend/alembic/versions/p7_s3_003_energy_config_classification_cols.py | modified downgrade() | ~140 |
+| 09:22 | Edited pcs-backend/alembic/versions/p7_s3_003_energy_config_classification_cols.py | 5→6 lines | ~54 |
+| 09:23 | Created pcs-backend/tests/services/util/test_gb30251_config_conformance.py | — | ~1427 |
+| 09:29 | Edited pcs-backend/alembic/versions/p7_s3_003_energy_config_classification_cols.py | modified downgrade() | ~126 |
+| 09:29 | Edited docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md | expanded (+68 lines) | ~623 |
+| 09:30 | Edited docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md | expanded (+11 lines) | ~310 |
+| 09:40 | Edited pcs-backend/app/models/config.py | expanded (+6 lines) | ~155 |
+| 09:40 | Created pcs-backend/alembic/versions/p7_s3_003_energy_config_classification_cols.py | — | ~1583 |
+| 09:40 | Edited pcs-backend/alembic/versions/p7_s3_003_energy_config_classification_cols.py | modified _restore_classification() | ~141 |
+| 09:45 | Edited pcs-backend/alembic/versions/p7_s3_003_energy_config_classification_cols.py | 17→20 lines | ~195 |
+| 09:51 | Edited pcs-backend/alembic/versions/p7_s3_003_energy_config_classification_cols.py | modified _constraint_exists() | ~108 |
+| 09:51 | Edited pcs-backend/alembic/versions/p7_s3_003_energy_config_classification_cols.py | expanded (+7 lines) | ~248 |
+| 09:54 | Created pcs-backend/tests/services/util/test_energy_mj_from_config.py | — | ~1419 |
+| 09:54 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | added 1 condition(s) | ~310 |
+| 10:03 | Edited pcs-backend/tests/test_schema.py | expanded (+12 lines) | ~243 |
+| 10:03 | Edited pcs-backend/tests/test_schema.py | 3→3 lines | ~45 |
+| 10:05 | Created pcs-backend/tests/api/v1/test_project_product_category.py | — | ~2174 |
+| 10:05 | Created pcs-backend/app/schemas/project.py | — | ~297 |
+| 10:06 | Created pcs-backend/app/api/v1/projects.py | — | ~1184 |
+| 10:07 | Edited pcs-backend/app/api/v1/__init__.py | 1→2 lines | ~44 |

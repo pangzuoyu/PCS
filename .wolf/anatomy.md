@@ -1,156 +1,161 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-01T09:19:46.830Z
-> Files: 817 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-05T02:07:00.949Z
+> Files: 602 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
+- `.gitattributes` — Git attributes (~43 tok)
 - `.gitignore` — Git ignore rules (~46 tok)
+- `CHANGELOG.md` — Change log (~4191 tok)
 - `CLAUDE.md` — OpenWolf (~175 tok)
 - `CONTEXT.md` — PCS（工艺专用综合计算软件） (~1524 tok)
 - `docker-compose.yml` — Docker Compose services (~309 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
-- `README.md` — Project documentation (~1299 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~5976 tok)
+- `README.md` — Project documentation (~3547 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~6397 tok)
 
-## .claude/
+## .code-review-graph/
 
-- `settings.json` (~441 tok)
+- `.gitignore` — Git ignore rules (~38 tok)
 
-## .claude/rules/
+## .githooks/
 
-- `openwolf.md` (~313 tok)
+- `pre-commit` — A-08 G-08 OpenAPI 契约自动化门禁（pre-commit hook） (~306 tok)
+- `README.md` — Project documentation (~332 tok)
+
+## .github/workflows/
+
+- `check-api-drift.yml` — F-P3-002 集成: check-api-drift.sh + check_migration_idempotency.sh CI (~565 tok)
+
+## .gstack/
+
+- `browse-audit.jsonl` (~37227 tok)
+- `browse.json` (~66 tok)
+- `scan-p6-6a-6-spec-v12-candidates.md` — P6-6A-6 SPEC V1.12 修订前置扫描报告 (~1549 tok)
+- `spec-v12-implementer-report.md` — P6-6A-6 SPEC V1.12 修订实施报告 (~662 tok)
+- `spec-v12-review-report.md` — V1.12 wording-only micro-revision 评审报告 (~508 tok)
 
 ## .gstack/qa-reports/
 
+- `_dashboard-snapshot.txt` — - BEGIN UNTRUSTED EXTERNAL CONTENT (source: http://localhost:5173/) --- (~536 tok)
 - `qa-report-pcs-frontend-2026-09-16.md` — PCS Frontend QA Report (~1153 tok)
 - `qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md` — QA Report — pcs-frontend — P5-4 HEAT frontend UI 闭环 (~2385 tok)
+- `qa-report-pcs-frontend-2026-09-25-p6-2-batch.md` — QA Report — pcs-frontend — P6-2 batch 批末 (~2123 tok)
+- `qa-report-pcs-frontend-2026-10-01-sprint2.md` — Sprint 2 batch-end QA report (~1214 tok)
+- `qa-report-pcs-frontend-2026-10-02-sprint2-batch.md` — QA Report: pcs-frontend 2026-10-02 Sprint 2 批末 (~1014 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
-## .superpowers/sdd/2026-09-02-p2-implementation-plan/
+## .superpowers/sdd/
 
-- `final-review.md` — Final Whole-Branch Review — P2 Sprint 2 + 3 (~1439 tok)
-- `progress.md` — SDD ledger — plan: /home/pangzy/code_project/PCS/docs/superpowers/plans/2026-09-02-p2-implementation (~10097 tok)
-- `task-1.1-report.md` — Task 1.1 Report: AuditAction 8 项 CONFIG_* 枚举追加 (~1162 tok)
-- `task-1.2-report.md` — Task 1.2 Report — ConfigStateMachine 5 态骨架 (~1258 tok)
-- `task-1.2-review.md` — Task 1.2 Review: ConfigStateMachine 5 态骨架 (~1376 tok)
-- `task-1.3-report.md` — Task 1.3 Report — 双重审批通过双行 config_approvals 表达 (~1381 tok)
-- `task-1.3-review.md` — Task 1.3 Review: 双段签通过 config_approvals 双行表达 (~1344 tok)
-- `task-1.4-report.md` — Task 1.4 报告 — ACL 装饰器（LDAP 角色 + workspaces 项目组） (~1129 tok)
-- `task-1.4-review.md` — Task 1.4 Review: ACL 装饰器 (~682 tok)
-- `task-2.1-report.md` — Task 2.1 Report — parameters_json Pydantic schema (D16) (~1119 tok)
-- `task-2.1-review.md` — Task 2.1 Review: parameters_json Pydantic schema (D16) (~1284 tok)
-- `task-2.2-report.md` — Task 2.2 Report: unit_tests_json schema 锁定（D16） (~765 tok)
-- `task-2.2-review.md` — Task 2.2 Review: unit_tests_json Pydantic schema (D16) (~635 tok)
-- `task-2.3-report.md` — Task 2.3 Report: FormulaEngine.parse() Python AST 解析 + 白名单 (~1969 tok)
-- `task-2.3-review.md` — Task 2.3 Review: FormulaEngine Python AST + 白名单 (SECURITY-CRITICAL) (~2483 tok)
-- `task-2.4-report.md` — Task 2.4 Report: FormulaEngine.run_unit_tests + 100% pass 硬门槛 (~896 tok)
-- `task-2.4-review.md` — Task 2.4 Review: FormulaEngine.run_unit_tests + 100% pass 硬门槛 (~725 tok)
-- `task-2.5-report.md` — Task 2.5 Report: CoefficientService 系数库 CRUD + 批量修改 (~1416 tok)
-- `task-2.5-review.md` — Task 2.5 Review: CoefficientService CRUD + 批量修改 (~1108 tok)
-- `task-2.6-report.md` — Task 2.6 — TemplateService Report (~2077 tok)
-- `task-2.6-review.md` — Task 2.6 Review: TemplateService upload + sha256 + Jinja2 render (~644 tok)
-- `task-2.7-report.md` — Task 2.7 Report — NumberingService 事务原子自增 + 并发测试 (~2697 tok)
-- `task-2.7-review.md` — Task 2.7 Review: NumberingService 事务原子自增 + 并发测试 (~562 tok)
-- `task-2.7.1-report.md` — Task 2.7.1 Report — Shared conftest fixtures (~2405 tok)
-- `task-2.7.1-review.md` — Task 2.7.1 Review: 共享 conftest fixtures (~612 tok)
-- `task-2.8-report.md` — Task 2.8 Report: 配置层 7 端点 + 双引擎 + 4 个防御脚手架 (~1498 tok)
-- `task-2.8-review.md` — Task 2.8 Review: 配置层 7 端点 + 双引擎 async (~2772 tok)
-- `task-3.1-report.md` — Task 3.1 Report — p2_sprint2_equipment_naming_fix (~2458 tok)
-- `task-3.1-review.md` — Task 3.1 Review — p2_sprint2_equipment_naming_fix (~2047 tok)
-- `task-3.2-report.md` — Task 3.2 Report: p2_sprint2_equipment_procurement_delivery (~2805 tok)
-- `task-3.2-review.md` — Task 3.2 Review: p2_sprint2_equipment_procurement_delivery (~1809 tok)
-- `task-3.3-report.md` — Task 3.3 Report — p2_sprint2_equipment_engineering (~1997 tok)
-- `task-3.3-review.md` — Task 3.3 Review — p2_sprint2_equipment_engineering (~1361 tok)
-- `task-3.4-report.md` — Task 3.4 Report — DICT V3.5 发布 + 结构化 diff (~1613 tok)
-- `task-4.1-report.md` — Task 4.1 Report: CIAEngine.propagate_from_source (~1269 tok)
-- `task-4.1-review.md` — Task 4.1 Review: CIAEngine.propagate_from_source (~2492 tok)
-- `task-5.1-report.md` — Task 5.1 Report: report_service 配置资产状态分布 (~1114 tok)
-- `task-5.1-review.md` — Task 5.1 Review: report_service 配置资产状态分布 (~4158 tok)
-- `task-5.2-report.md` — Task 5.2 Report: report_service.doc_no_sequence_usage (~1364 tok)
-- `task-5.2-review.md` — Task 5.2 Review: report_service 编号模板用量 (~2222 tok)
-- `task-5.3-report.md` — Task 5.3 Report — export_service openpyxl Excel 导出 (~780 tok)
-- `task-5.3-review.md` — Task 5.3 Review — coordinator self-review (~725 tok)
-- `task-5.4-report.md` — Task 5.4 Report — DICT V3.5 报表增量 (~354 tok)
-- `task-5.4-review.md` — Task 5.4 Review — coordinator self-review (~378 tok)
+- `.gitignore` — Git ignore rules (~1 tok)
 
-## .superpowers/sdd/2026-09-03-p2-sprint-1.8-and-1.10/
+## .superpowers/sdd/2026-09-30-p5-0-1b-5-tables/
 
-- `progress.md` — SDD ledger — plan: /home/pangzy/code_project/PCS/docs/superpowers/plans/2026-09-03-p2-sprint-1.8-and (~4456 tok)
-- `task-1.10.1-report.md` — Task 1.10.1 Report — 折标煤系数组（V1.10 P2-OPEN-005）（Fix Loop R1） (~445 tok)
-- `task-1.10.3-report.md` — Task 1.10.3 Report — HTRI 解析模板 schema（controller 接管） (~640 tok)
-- `task-1.10.4-report.md` — Task 1.10.4 Report: ADR-0029 + DICT V3.6 升版同步 (~1149 tok)
-- `task-1.8.1-report.md` — Task 1.8.1 Report: preconditions 全链路接入 (~1169 tok)
-- `task-1.8.2-report.md` — Task 1.8.2 Report: FormulaSecurityError → PcsError 统一 (~751 tok)
-- `task-1.8.3-report.md` — Task 1.8.3 Report — CATEGORY_3 默认 6 张系数表 seed (Fix Loop R1) (~2078 tok)
-- `task-1.8.4-report.md` — Task 1.8.4 Report — ProjectTemplate.default_config_json schema 验证 (~279 tok)
-- `task-final-fix-report.md` — 终审修复波报告（F1–F6） (~1142 tok)
+- `progress.md` — SDD ledger — plan: docs/superpowers/plans/2026-09-30-p5-0-1b-5-tables.md (~398 tok)
+- `task-1-brief.md` — Task 1 Brief: thermosiphon_circulation_results 表实现 (T1) (~1340 tok)
+- `task-1-report.md` — Task 1 Report: thermosiphon_circulation_results (P5-0-1b T1) (~2441 tok)
 
-## .superpowers/sdd/2026-09-04-p2-sprint-1.9/
+## .superpowers/sdd/2026-10-01-p7-complete-sprint/
 
-- `fix-19-report.md` — Fix-19 Report — Sprint 1.9 终审三修复 (~653 tok)
-- `progress.md` — SDD ledger — plan: docs/superpowers/plans/2026-09-04-p2-sprint-1.9.md (~2157 tok)
-- `task-1.9.0-report.md` — Task 1.9.0 报告：vendor 库接线（chemicals + fluids + thermo） (~642 tok)
-- `task-1.9.1-report.md` — Task 1.9.1 Report: PipeClass schemas + service (~766 tok)
-- `task-1.9.2-report.md` — Task 1.9.2 报告：管道等级 API 端点 (~614 tok)
-- `task-1.9.3-report.md` — Task 1.9.3 Report — Riazi-Daubert 物性估算 + 虚拟组分切割 service (~953 tok)
-- `task-1.9.4-report.md` — Task 1.9.4 Report: CATEGORY_3 三张 seed 表 + 增量 seed 改造 (~1138 tok)
-- `task-1.9.5-report.md` — Task 1.9.5 Report — equip-lib 沉淀 service + search/settle 端点 (~1240 tok)
-- `task-1.9.6-report.md` — Task 1.9.6 Report — 管道等级 Excel 批量导入 + 模板下载 (~1257 tok)
+- `plan-path` (~15 tok)
+- `progress.md` — SDD ledger — plan: docs/superpowers/plans/2026-10-01-p7-complete-sprint.md (~6260 tok)
+- `review-496b84d..92b4478.diff` — Review package: 496b84d..HEAD (~3855 tok)
+- `task-1-brief.md` (~0 tok)
+- `task-4-brief.md` (~0 tok)
+- `task-s1-2-brief.md` — Task S1-2: EquipmentList ORM model（含 SourceService V1.4 新字段） (~1128 tok)
+- `task-s1-2-report.md` — Task S1-2 Report — EquipmentList ORM model（含 SourceService V1.4 字段） (~3504 tok)
+- `task-s1-3-brief.md` — ## Task S1-3: EquipmentTypeCodes CONFIG seed（CATEGORY_5，不建独立 ORM） (~232 tok)
+- `task-s1-4-brief.md` — pcs-backend/app/services/equip_list/sync_service.py (~939 tok)
+- `task-s1-5-brief.md` — tests/services/util/test_summary_service.py (~506 tok)
 
-## .superpowers/sdd/2026-09-26-p6-5-batch/
+## .superpowers/sdd/2026-11-15-p6-8-glycol-dehydration-extensions/
 
-- `progress.md` — SDD ledger — plan: docs/superpowers/plans/2026-09-26-p6-5-batch.md (~7464 tok)
-- `task-A1-brief.md` — Task A1: C-03 API 14E 两相流冲蚀速度 + C 因子 (~2068 tok)
-- `task-A1-report.md` — Task A1 Report: C-03 API 14E 两相流冲蚀速度 + C 因子 (~1855 tok)
-- `task-A2-brief.md` — Task A2: C-05 API 14E 两相流管道尺寸 (~2004 tok)
-- `task-A2-report.md` — Task A2 Report — C-05 API 14E 两相流管道尺寸 (~755 tok)
-- `task-A3-brief.md` — Task A3: C-13 PIPE_NET 浪涌压力（水锤 + 段塞） (~2284 tok)
-- `task-A3-report.md` — Task A3 Report — PIPE_NET 浪涌压力（水锤 + 段塞） (~1214 tok)
-- `task-A4-brief.md` — Task A4: C-15 Beggs-Brill 持液率 + Eaton-Flanning + Mandhane 1975 流型图 (~2974 tok)
-- `task-A4-report.md` — Task A4 Report — C-15 Beggs-Brill 持液率 + Eaton-Flanning + Mandhane 1975 流型图 (~1056 tok)
-- `task-A5-brief.md` — Task A5: 批 A 收口（lint + pytest + G-08 + commit） (~539 tok)
-- `task-A5-report.md` — Task A5 Report — 批 A 收口（lint + pytest + G-08 + commit） (~1074 tok)
-- `task-B1-brief.md` — Task B1: C-09 CV AS 2360.1.1（d<1in Limit + 声速理想气体） (~2183 tok)
-- `task-B1-report.md` — Task B1 Report — C-09 CV AS 2360.1.1 Limit 校核（d<1in + 声速 + 阻塞流） (~1261 tok)
-- `task-B2-brief.md` — Task B2: C-10 VESSEL 三相分离器（油水气 + 堰板 + 油水界面 + 停留时间） (~2470 tok)
-- `task-B2-report.md` — Task B2 Report — C-10 VESSEL 三相分离器（油水气 + 堰板 + 油水界面 + 停留时间） (~1406 tok)
-- `task-B3-brief.md` — Task B3: C-19 RESTRICTION 排污孔板 + Ftp + 临界流 (~1969 tok)
-- `task-B3-report.md` — Task B3 Report: C-19 RESTRICTION 排污孔板 + Ftp + 临界流 (~1441 tok)
-- `task-B4-brief.md` — Task B4: C-20 PSV API 2000 emergency/fire + 真空工况 (~2505 tok)
-- `task-B4-report.md` — Task B4 Report — C-20 PSV API 2000 emergency/fire + 真空工况 (~812 tok)
-- `task-B5-brief.md` — Task B5: C-21 PSV AS 1210/1797 + 管破裂 + 控制阀失效 (~2190 tok)
-- `task-B5-report.md` — Task B5 Report: C-21 PSV AS 1210/1797 + 管破裂 + 控制阀失效 (~1175 tok)
-- `task-B6-brief.md` — Task B6: 批 B 收口（lint + pytest + G-08 + commit） (~535 tok)
-- `task-B6-report.md` — Task B6 Report — 批 B 收口（lint + pytest + G-08 + commit） (~797 tok)
-- `task-C1-brief.md` — Task C1: C-16 PSYCHRO 甘醇脱水（TEG/DEG 含水 + 接触塔设计） (~2271 tok)
-- `task-C1-report.md` — Task C1 Report — C-16 PSYCHRO TEG/DEG 甘醇脱水 (~1405 tok)
-- `task-C2-brief.md` — Task C2: C-18 PSYCHRO 水合物抑制（Hammerschmidt + 抑制剂注入率） (~2206 tok)
-- `task-C2-report.md` — Task C2 Report — C-18 PSYCHRO 水合物抑制（Hammerschmidt + 注入率） (~1243 tok)
-- `task-C3-brief.md` — Task C3: C-22 FLARE 扩散（API 521 §5.15 + Pasquill-Gifford + 辐射热强度） (~2655 tok)
-- `task-C3-report.md` — Task C3 Report: C-22 FLARE 扩散（API 521 §5.15 + Pasquill-Gifford + 辐射热强度） (~1019 tok)
-- `task-C4-brief.md` — Task C4: C-23 FLARE 噪声（API 521 §6.4 + ISO 9613-2 + A 加权声压级） (~2138 tok)
-- `task-C4-report.md` — Task C4 Report: C-23 FLARE 噪声（API 521 §6.4 + ISO 9613-2 + A 加权声压级） (~846 tok)
-- `task-C5-brief.md` — Task C5: Batch C 收口（lint + pytest + G-08 + 4 CONFIG 表 + 4 alembic 迁移 + 4 seed + commit） (~2254 tok)
-- `task-C5-report.md` — Task C5 Report — Batch C 收口 (~2469 tok)
-- `task-C5q3-fix-report.md` — Task C5 Q3 Fix Report — Real 5-min TTL for compound_config_cache (~1314 tok)
+- `plan-path` (~20 tok)
+- `review-3b881d8..2b27e00.diff` — Review package: 3b881d8..2b27e00 (~10117 tok)
+
+## .superpowers/sdd/PCS-PLAN-P4-CORE-ENGINE/
+
+- `p2-bug-fix-report.md` — P2 Bug Fix Report — allowable_stress 邻接节点方向取反 (~788 tok)
+- `p4-2-3-r1-fix-report.md` — P4-2-3 R1 fix 报告 (~1250 tok)
+- `p4-2-5-r2-report.md` — P4-2-5 R2 修复报告 (~618 tok)
+- `p4-2-5-r3-report.md` — P4-2-5 R3 修复报告 — test_sup008 fixture 同源 bug (~520 tok)
+- `p4-3-3-r1-report.md` — P4-3-3 r1 修复报告 (~174 tok)
+- `p4-4-1-r1-report.md` — P4-4-1 R1 Fix Report (~165 tok)
+- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P4-CORE-ENGINE.md (~5930 tok)
+- `review-882f581..e72116f.diff` — Review package: 882f581..HEAD (~5491 tok)
+- `task-1-brief.md` — Task P4-0-1 Brief: 审计字段迁移 + lineage helper (~876 tok)
+- `task-1-fix-r1-report.md` — P4-0-1 R1 修复报告 (~376 tok)
+- `task-1-report.md` — Task P4-0-1 Report: 审计字段迁移 + lineage helper (~847 tok)
+- `task-10-report.md` — Task 10 Report — P4-2-3 single phase pressure drop (~1386 tok)
+- `task-11-report.md` — Task 11 Report: P4-2-4 两相压降（Lockhart-Martinelli-Baker + 流型判定 + 落库） (~1663 tok)
+- `task-11-review-report.md` — Task 11 审查报告：P4-2-4 两相压降 (~903 tok)
+- `task-12-report.md` — Task-12 Report: P4-2-5 链式管道 + 出口物流 (~3890 tok)
+- `task-13-report.md` — Task 13 — P4-3-1 管网拓扑模型 报告 (~858 tok)
+- `task-13-review-report.md` — Task 13 审查报告：P4-3-1 管网拓扑模型 (~1580 tok)
+- `task-14-report.md` — Task 14 — P4-3-2 管网 Hardy-Cross 求解器 报告 (~1868 tok)
+- `task-14-review-report.md` — Task 14 审查报告：P4-3-2 管网 Hardy-Cross 求解器 (~1888 tok)
+- `task-15-report.md` — Task 15 — P4-3-3 管网 API + 落库 + outlet_stream Literal 扩展 报告 (~934 tok)
+- `task-15-review-report.md` — Task 15 审查报告：P4-3-3 管网 API + 落库 + outlet_stream Literal 扩展 (~2184 tok)
+- `task-16-report.md` — P4-4-1 PUMP 泵选型 — 任务报告 (~290 tok)
+- `task-16-review-report.md` — Task-16 Review Report — P4-4-1 PUMP 泵选型 (~734 tok)
+- `task-17-report.md` — task-17 P4-4-2 NPSHa 计算 R1 报告 (~291 tok)
+- `task-17-review-report.md` — Task-17 Review Report — P4-4-2 NPSHa 计算 (~1000 tok)
+- `task-18-report.md` — P4-4-3 泵曲线插值 实施报告 (~158 tok)
+- `task-18-review-report.md` — P4-4-3 泵曲线插值 审查报告 (~751 tok)
+- `task-19-report.md` — Task P4-4-4 报告 (~70 tok)
+- `task-19-review-report.md` — Task-19 Review Report — P4-4-4 PUMP 链 + 出口物流 (~500 tok)
+- `task-2-report.md` — Task P4-0-2 Report: OPEN-008 表扩展（SUP-008 V1.1） (~1555 tok)
+- `task-20-report.md` — Task-20 P4-TASK0 本体论落地报告 (~611 tok)
+- `task-20-review-report.md` — P4-TASK0 Ontology Closure Review (~418 tok)
+- `task-3-report.md` — Task P4-0-3 Report: 计算入口守卫接线（CHECKED + unreliable） (~1031 tok)
+- `task-4-report.md` — Task P4-1-1 Report: Thermo 封装层（thermo_factory） (~814 tok)
+- `task-5-step1-report.md` — P4-1-2 Step 1 Report (~599 tok)
+- `task-5-step2-report.md` — P4-1-2 step 2 报告 (~866 tok)
+- `task-5-step3-report.md` — P4-1-2 step 3 报告 (~1015 tok)
+- `task-6-report.md` — Task 6 Report — P4-1-3 flash api + persistence + outlet stream (~309 tok)
+- `task-7-report.md` — Task 7 Report — P4-1-4 flash writeback to stream (~751 tok)
+- `task-8-report.md` — Task 8 Report — P4-2-1 pipe sizing (velocity + dp methods) (~1141 tok)
+- `task-9-report.md` — Task 9 Report — P4-2-2 wall thickness (ASME B31.3) (~1491 tok)
+
+## .vite/vitest/
+
+- `results.json` (~39 tok)
 
 ## docs/
 
+- `ce-code-review-p5-p6-summary.md` — ce-code-review P5+P6 全范围 Summary (~1831 tok)
 - `P45-BATCH3-TYPE-MIGRATION.md` — P45 BATCH3 前端类型手动迁移登记 (~248 tok)
+- `P6-9-PICKUP-4.md` — P6-9-PICKUP-4 — ce-code-review P5+P6 残留 debt 闭环 (~2054 tok)
+- `P6-9-PICKUP-6.md` — P6-9-PICKUP-5 工艺债务批 archive (~2281 tok)
+- `P7-OPEN-007-physical-semantics-evaluation.md` — P7-OPEN-007 — physical_semantics 三元决策评估报告 (~1381 tok)
+- `P7-OPEN-008-rule-registry-form-evaluation.md` — P7-OPEN-008 — 规则清单形态评估报告 (~1175 tok)
+- `P7-OPEN-009-SUP-010-5table-migration-schedule.md` — P7-OPEN-009 — SUP-010 5 表 + catalyst_loading + auxiliary_consumption 4 字段 迁移排期 (~2011 tok)
+- `P7-REV-01-04-mock-decisions.md` — P7-REV-01~04 — 启动前裁决清单 mock 决议 (~1290 tok)
+- `PCS-CALC-BLOCKER-2-RECALC-2026-10-01.md` — PCS BLOCKER-2 重算结果 — 蜡油加氢 XLS 独立计算 (~803 tok)
+- `PCS-NOTE-BLOCKER-2-2026-10-01.md` — PCS BLOCKER-2 状态登记 — 蜡油加氢 XLS 提取 (~710 tok)
+- `PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md` — T5 综合能耗验收 — 电折标口径按 GB 30251-2024 修正，基准重建 (2026-10-05) (~3938 tok)
 - `PCS-P2-CLOSE-REPORT.md` — PCS P2 Sprint Close Report（2026-09-08） (~2039 tok)
 - `PCS-P3.2-SIM-AUDIT-REPORT.md` — PCS P3.2 SIM 全量审计报告 V1.0 (~1983 tok)
 - `PCS-P3.2-SIM-AUDIT-V2.md` — PCS P3.2 SIM 全量审计报告 V2.0（Post-SIM-13 闭环） (~5875 tok)
 - `PCS-P3.2-SIM-CLOSE-REPORT.md` — PCS P3.2 SIM Sprint 收口报告 V1.1 (~2145 tok)
 - `PCS-P3.2-SIM-P3X-CLOSE-REPORT.md` — PCS P3.x SIM 收口报告 V1.0 (~1489 tok)
 - `PCS-P3.3-COMMON-CLOSE-REPORT.md` — PCS P3.3 COMMON 平 收口报告（2026-09-08） (~790 tok)
+- `PCS-P4-CLOSE-REPORT.md` — PCS-P4 验收报告（核心引擎） (~1106 tok)
 - `PCS-P5-PLAN.md` — PCS P5 批计划锚点（2026-09-16 / 末次修订 2026-09-17） (~2208 tok)
 - `PCS-P5-START-CHECKLIST.md` — PCS P5 启动前检查清单（12 项） (~2491 tok)
 - `PCS-PLAN-P3.2-SIM-P3X.md` — PCS P3.2 SIM P3.x 续推计划 V1.1 (~2629 tok)
 - `PCS-PLAN-P3.2-SIM.md` — PCS P3.2 SIM 实施 Writing-Plan（V1.0，2026-09-08） (~7883 tok)
-- `PCS-PLAN-P5-DEVICE-EQUIPMENT.md` — P5 设备计算模块（第二批）实施计划 V1.10 (~20379 tok)
+- `PCS-PLAN-P4-CORE-ENGINE.md` — P4 核心计算引擎（第一批）实施计划 V1.1 (~2992 tok)
+- `PCS-PLAN-P5-DEVICE-EQUIPMENT.md` — P5 设备计算模块（第二批）实施计划 V1.10 (~20491 tok)
 - `PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md` — p2_sup_sprint_pc1_pipe_class_upgrade.py (~17953 tok)
+- `PCS-SIGN-F-P0-001-2026-10-08-R1.md` — PCS 折标系数正式签字确认书（修订版） (~1470 tok)
+- `PCS-SIGN-F-P0-001-2026-10-08.md` — PCS 折标系数正式签字确认书 (~1611 tok)
+- `PCS-T5-R1-ACCEPTANCE-2026-10-02.md` — PCS T5 ≤2% 验收报告 — F-P0-001 R1 综合能耗汇总 (~978 tok)
 - `PCS-UI-SPEC.md` (~9161 tok)
+- `PROD-CHECKLIST-F-P3-001-2026-10-02.md` — F-P3-001 Production 前置 Checklist (~1321 tok)
+- `sprint3-plan-2026-10-02.md` — Sprint 3 计划: Production 前置 + Audit 可观测性 (~5668 tok)
+- `tasks.md` — tasks.md — PCS 工艺计算 + 代码债务分类跟踪 (~4357 tok)
 
 ## docs/adr/
 
@@ -174,11 +179,15 @@
 - `0022-independent-stream-chains.md` — 物流与设备的连接模型：独立物流链——一条物流=一个管段，设备是物流间的转换函数 (~244 tok)
 - `0024-snapshot-only-before-data-modification.md` — 快照仅在"数据即将被修改"瞬间创建，移除 STALE 自动存盘 (~394 tok)
 - `0025-equipment-eventual-consistency-window.md` — 设备联动最终一致性窗口 ≤ 5 分钟（CIA 异步传播） (~353 tok)
-- `0027-heat-results-dual-track.md` — HEAT 双轨设计：9 标量旧字段保留 + 40 新字段同表扩展 (~1572 tok)
+- `0027-heat-results-dual-track.md` — P5-4 实施状态：duty 双轨字段已就位（决策 5 跟踪项闭环） (~1794 tok)
 - `0028-psv-multi-standard-engine.md` — PSV 多标准引擎：项目级显式配置 + 双路径隔离 + 公式溯源 (~2827 tok)
 - `0029-toe-conversion-and-detail-htri-templates.md` — ADR-0029：折标煤系数组与 DETAIL/HTRI 模板入库 (~361 tok)
-- `0030-chedl-version-lock.md` — ChEDL 版本锁定：pyproject.toml 单一来源 + 包装层隔离 + dir() 前置核验 (~4209 tok)
+- `0030-chedl-version-lock.md` — ChEDL 版本锁定：pyproject.toml 单一来源 + 包装层隔离 + dir() 前置核验 (~4861 tok)
+- `0031-p4-task0-exemption.md` — P4 计算链条件启动：本体论 Task 0 全量后置 (~315 tok)
 - `0032-vessel-process-calculation.md` — VESSEL 工艺计算架构（P5-1 容器计算） (~2012 tok)
+- `0040-c-12-vessel-geometry-service-interface-freeze.md` — ADR-0040：C-12 vessel_service 公共接口 6 个月冻结 (~3027 tok)
+- `0041-c-12-vessel-6-path-coverage.md` — ADR-0041：C-12 vessel_service 12 路径覆盖补全（Q4 2026） (~6559 tok)
+- `ADR-0023：EquipmentTypeCode项目级可配置.md` (~927 tok)
 - `README.md` — Project documentation (~242 tok)
 
 ## docs/adr/signatures/
@@ -186,13 +195,57 @@
 - `0028-acceptance-resolution.md` — ADR-0028 V1.1 评审委员会决议（接受） (~1218 tok)
 - `0028-v1.1-标准对比分析.md` — 标准对比分析：API 521 vs GB/T 150.1 附录 B 火灾工况 (~1694 tok)
 - `0030-acceptance-resolution.md` — ADR-0030 V1.1 评审委员会决议（接受） (~1589 tok)
+- `0030-v1.2-coolprop-extension.md` — ADR-0030 V1.2 修订说明：CoolProp 纳入锁定（D3 反向决议） (~1346 tok)
 - `dba-btree-gist-install-confirmation.md` — DBA 执行确认：btree_gist 扩展预装（两库） (~563 tok)
 - `dba-btree-gist-install-request.md` — DBA 执行请求：预装 btree_gist 扩展（两库） (~794 tok)
 - `psv-gas-area-independent-verification.md` — PSV 气体泄放面积独立工程复算（C6 关闭报告） (~2360 tok)
 
+## docs/ce-code-review/
+
+- `CLOSURE-P2-P3-2026-10-02.md` — ce-code-review P2/P3 收口报告 v2 (2026-10-02 修订) (~1123 tok)
+
+## docs/ce-code-review/20261001-174422-16a356de/
+
+- `adversarial.json` — Declares is (~9747 tok)
+- `correctness.json` (~5662 tok)
+- `data-migration.json` — Declares column (~6834 tok)
+- `files.txt` (~394 tok)
+- `finish-input.json` (~1148 tok)
+- `metadata.json` (~112 tok)
+- `raw-returns.json` (~139 tok)
+- `report.md` — P7 Sprint 2 — ce-code-review Report (~1951 tok)
+- `security.json` — Declares PMS (~4035 tok)
+- `stages.jsonl` (~43 tok)
+- `synthesized-findings.json` (~5396 tok)
+
+## docs/ce-code-review/20261001-sprint1-d8f67f72/
+
+- `adversarial.json` — Declares output (~9060 tok)
+- `api-contract.json` — Declares safety (~2612 tok)
+- `correctness.json` — Declares match (~7458 tok)
+- `data-migration.json` — Declares mismatch (~5284 tok)
+- `files.txt` (~436 tok)
+- `full.diff` (~105444 tok)
+- `metadata.json` (~113 tok)
+- `raw-returns.json` (~194 tok)
+- `report.md` — P7 Sprint 1 — ce-code-review Report (~2211 tok)
+- `security.json` (~11141 tok)
+- `stages.jsonl` (~68 tok)
+- `synthesized-findings.json` (~4946 tok)
+
 ## docs/contracts/
 
 - `p45-contract-reconciliation-2026-09-16.md` — 后端 ↔ PCS-UI-SPEC 契约对账报告 (~1285 tok)
+
+## docs/p6-gate-reports/
+
+- `gate-01-open-channel-api.json` (~179 tok)
+- `gate-03-cepci-confirmation.md` — G-03 CEPCI 数据确认（占位；工艺室签字待补） (~588 tok)
+- `gate-04-cooling-tower-curves-confirmation.md` — G-04 冷却塔特性曲线数据确认（占位；工艺室签字待补） (~771 tok)
+- `gate-04-cv-deviation.md` — G-04: CV/RESTRICTION 偏差验收报告（2026-09-24） (~1049 tok)
+- `gate-05-filtration-media-library-confirmation.md` — G-05 过滤介质物性数据确认（占位；工艺室签字待补） (~877 tok)
+- `gate-06-flare-radiation-limits-confirmation.md` — G-06 火炬地面辐射热通量 BEDD 限值数据确认（占位；工艺室签字待补） (~771 tok)
+- `p6-open-001-decision.md` — P6-OPEN-001 裁决：OPEN_CHANNEL 模块自研兜底（fluids.open_channel API 缺失） (~620 tok)
 
 ## docs/superpowers/plans/
 
@@ -200,14 +253,28 @@
 - `2026-09-01-p1-cross-cutting-framework.md` — P1 横切关注点框架 实施计划 (~6155 tok)
 - `2026-09-02-p2-implementation-plan.md` — P2 Implementation Plan (~20209 tok)
 - `2026-09-03-p2-sprint-1.8-and-1.10.md` — P2 Sprint 1.8 闭环 + Sprint 1.10 V1.4 收敛实施计划 (~16448 tok)
-- `2026-09-04-p2-sprint-1.9.md` — P2 Sprint 1.9（配置层收尾）Implementation Plan (~13255 tok)
+- `2026-09-04-p2-sprint-1.9.md` — P2 Sprint 1.9（配置层收尾）Implementation Plan (~13285 tok)
 - `2026-09-16-p45-frontend-sprint-batch3.md` — P4.5 批 3：P3/P4 计算页面 实施计划 (~5231 tok)
 - `2026-09-16-p45-frontend-sprint.md` — P4.5 前端补课 Sprint 实施计划 (~6176 tok)
 - `2026-09-17-p5-4-frontend-heat-ui.md` — P5-4 HEAT 前端 UI 实施计划（V1.3 对齐） (~13441 tok)
+- `2026-09-19-p6-batch.md` — P6 高级计算模块（第三批）8 模块实施计划 (~6661 tok)
+- `2026-09-25-p6-4-batch.md` — P6-4 单批实施计划 — C-06 / C-08 / C-12 / C-17 / C-24 五项 🔴 必做（V1.2） (~8272 tok)
+- `2026-09-25-p6-4-batch.v0.md` — P6-4 单批实施计划 — C-06 / C-08 / C-12 / C-17 / C-24 五项 🔴 必做 (~7937 tok)
+- `2026-09-25-p6-4-batch.v1.1.md` — P6-4 单批实施计划 — C-06 / C-08 / C-12 / C-17 / C-24 五项 🔴 必做（V1.2） (~8027 tok)
 - `2026-09-26-p6-5-batch.md` — P6-5+ 13 项工艺计算增补 — 三批并行实施计划 (~32314 tok)
 - `2026-09-26-p6-5-frontend-3pages.md` — P6-5 前端补课：3 计算页（heating-value / saturation-water-content / cv） (~213 tok)
 - `2026-09-27-p6-6a-worley-reconciliation.md` — P6-6A 实施计划 — Worley XLS 算例对账批（24 个真实工程算例） (~1227 tok)
-- `2026-09-27-p6-6b-data-source-replacement.md` — P6-6B 数据源替换批 — 9 CONFIG 表 + 4 内联常量 (~2262 tok)
+- `2026-09-27-p6-6b-data-source-replacement.md` — P6-6B 数据源替换批 — 9 CONFIG 表 + 4 内联常量 (~2415 tok)
+- `2026-09-28-p6-6a-5-dhvap.md` — OPEN-P6-6A-5 Implementation Plan — ΔH_vap as input field (~1641 tok)
+- `2026-09-28-p6-6a-6-glycol-full.md` — P6-6A-6 实施计划 — C-16 甘醇脱水 FULL 系统（关 Ruling 5 mapping defect）v5.1 (~18644 tok)
+- `2026-09-28-p6-6a-6-glycol-full.v1.md` — P6-6A-6 实施计划 — C-16 甘醇脱水 FULL 系统（关 Ruling 5 mapping defect） (~7680 tok)
+- `2026-09-28-p6-6a-7-c19-sizing.md` — P6-6A-7 C-19 排污孔板 Sizing 完整实现 — 单批计划 (~5961 tok)
+- `2026-09-28-p6-6a-8-fire-coeff.md` — OPEN-P6-6A-8 Implementation Plan — fire_case_coefficient + fire_case_exponent (~1751 tok)
+- `2026-10-01-p7-complete-sprint.md` — P7 Complete Implementation Plan (~12688 tok)
+- `2026-10-15-p6-7-service-integration.md` — P6-7 服务集成批 — 工艺室 4 批交付物集成 (~3166 tok)
+- `2026-10-31-p6-9-pickup-2-critical-fixes.md` — P6-9-PICKUP-2 — 4 CRITICAL + 2 HIGH 修复批 (~1794 tok)
+- `2026-11-15-p6-8-glycol-dehydration-extensions.md` — P6-8 批 — Glycol Dehydration Service 扩展（OPEN-P6-6A-6 关闭） (~2024 tok)
+- `2026-11-15-p6-9-pickup-3-debt-cleanup.md` — P6-9-PICKUP-3 — Debt cleanup (DB orphan + schema drift + ruff 18 + 21 LOW/INFO) (~736 tok)
 
 ## docs/superpowers/specs/
 
@@ -217,983 +284,788 @@
 
 - `seed.ldif` (~328 tok)
 
-## pcs-backend/
+## neqsim/
 
-- `alembic.ini` — A generic, single database configuration. (~1343 tok)
-- `pyproject.toml` — PCS 工艺专用综合计算软件 后端 (~508 tok)
+- `.cursorrules` — Cursor Rules for NeqSim (~303 tok)
+- `.dockerignore` — Docker ignore rules (~183 tok)
+- `.gitattributes` — Git attributes (~180 tok)
+- `.gitignore` — Git ignore rules (~715 tok)
+- `.pre-commit-config.yaml` (~300 tok)
+- `.windsurfrules` — Windsurf Rules for NeqSim (~304 tok)
+- `AGENTS.md` — NeqSim — Agent Instructions (~33899 tok)
+- `azure-pipelines.yml` — Build your Java project and run tests with Apache Maven. (~235 tok)
+- `CHANGELOG_AGENT_NOTES.md` — NeqSim API Changelog — Agent Notes (~90450 tok)
+- `CITATION.cff` (~240 tok)
+- `CLAUDE.md` — Claude Code Instructions for NeqSim (~99 tok)
+- `CODE_OF_CONDUCT.md` — Contributor Covenant Code of Conduct (~1301 tok)
+- `CODEOWNERS` — Merging to this repo requires approval from (~18 tok)
+- `community-agents.yaml` — /*.agent.md", "agents/**/AGENT.md"] (~932 tok)
+- `community-skills.yaml` — /SKILL.md"  # fallback when no catalog is found (~544 tok)
+- `CONTEXT.md` — NeqSim — Industrial Agentic Engineering (~4481 tok)
+- `CONTRIBUTING.md` — Contributing (~2505 tok)
+- `Dockerfile` — Docker container definition (~651 tok)
+- `GOVERNANCE.md` — NeqSim Governance (~845 tok)
+- `install.cmd` (~1377 tok)
+- `install.ps1` — install.ps1 - Bootstrap the NeqSim devtools package on Windows. (~3655 tok)
+- `install.sh` — install.sh - Bootstrap the NeqSim devtools package on macOS/Linux. (~2810 tok)
+- `LICENSE` — Project license (~3023 tok)
+- `MAINTAINERS.md` — NeqSim Maintainers (~522 tok)
+- `mvnw` — or more contributor license agreements.  See the NOTICE file (~3144 tok)
+- `mvnw.cmd` — Declares Directory (~2262 tok)
+- `pom.xml` — Maven project configuration (~4209 tok)
+- `pomJava8.xml` — Declares execution (~3250 tok)
+- `README.md` — Project documentation (~8231 tok)
+- `SECURITY.md` (~232 tok)
+- `VISION_AGENTS.md` — NeqSim Agent & Skill Vision (~1485 tok)
 
-## pcs-backend/alembic/
+## neqsim/.config/
 
-- `env.py` — alembic 同步迁移。Base 来源于 app.db.base（全部 ORM 已注册）。 (~424 tok)
+- `checkstyle_neqsim.xml` — Declares name (~5285 tok)
+- `eclipse-java-google-style.xml` (~10287 tok)
+- `neqsim_formatter.xml` (~10976 tok)
+
+## neqsim/.devcontainer/
+
+- `devcontainer-lock.json` (~181 tok)
+- `devcontainer.json` — NeqSim Development Container Configuration (~1035 tok)
+- `Dockerfile` — Docker container definition (~265 tok)
+
+## neqsim/.github/
+
+- `CODEOWNERS` — NeqSim repository ownership (~485 tok)
+- `copilot-instructions.md` — Quick Orientation (~14581 tok)
+- `dependabot.yml` (~237 tok)
+- `external-skill-refs.txt` — Skills referenced from neqsim agent/instruction markdown that live in a (~157 tok)
+- `neqsim-septic.code-workspace` (~55 tok)
+- `pull_request_template.md` — Pull Request (~166 tok)
+
+## neqsim/.github/ISSUE_TEMPLATE/
+
+- `agent_bug.md` — Which agent or skill? (~267 tok)
+- `bug_report.md` — Python example (~232 tok)
+- `config.yml` (~100 tok)
+- `feature_request.md` (~149 tok)
+- `good_first_issue.md` — Summary (~271 tok)
+- `newrelease.md` (~38 tok)
+- `skill_contribution.md` — Skill / Agent name (~316 tok)
+
+## neqsim/.github/agents/
+
+- `capability.scout.agent.md` — When to Use This Agent (~4976 tok)
+- `ccs.hydrogen.agent.md` — Primary Objective (~2695 tok)
+- `consequence.analysis.agent.md` — Loaded skills (~1929 tok)
+- `control.system.agent.md` — Skills to Load (~1912 tok)
+- `documentation.agent.md` — Primary Objective (~2068 tok)
+- `dynamic.equipment.agent.md` — Mission (~1105 tok)
+- `emissions.environmental.agent.md` — Skills to Load (~3461 tok)
+- `engineering.deliverables.agent.md` — Core Functionality (~4566 tok)
+- `extract.process.agent.md` — Core Principle (~4043 tok)
+- `field.development.agent.md` — Core Expertise (~4703 tok)
+- `flow.assurance.agent.md` — Primary Objective (~3661 tok)
+- `gas.quality.agent.md` — Primary Objective (~1965 tok)
+- `literature.scout.agent.md` — When to Use (~2068 tok)
+- `mechanical.design.agent.md` — Primary Objective (~4247 tok)
+- `neqsim.test.agent.md` — Primary Objective (~2959 tok)
+- `notebook.example.agent.md` — Primary Objective (~2238 tok)
+- `optimize.agent.md` — Skills to Load (~1260 tok)
+- `optimize.processmodel.agent.md` — Loaded skills (~2100 tok)
+- `paperlab.agent.md` — Primary Objective (~1274 tok)
+- `plant.data.agent.md` — Primary Objective (~2973 tok)
+- `process.model.agent.md` — Primary Objective (~4060 tok)
+- `pvt.simulation.agent.md` — Primary Objective (~1363 tok)
+- `reaction.engineering.agent.md` — Skills to Load (~1356 tok)
+- `README.md` — Project documentation (~5839 tok)
+- `review.agent.md` — When to Use (~1651 tok)
+- `root.cause.agent.md` — Skills to Load (~2746 tok)
+- `router.agent.md` — Routing Decision Table (~3749 tok)
+- `safety.depressuring.agent.md` — Primary Objective (~3917 tok)
+- `solve.process.agent.md` — 1 ── WORKFLOW (follow this exactly) (~2091 tok)
+- `solve.task.agent.md` — ⚠️ MANDATORY FIRST ACTION — CREATE TASK FOLDER (DO NOT SKIP) (~33742 tok)
+- `standards.review.agent.md` — Primary Objective (~2580 tok)
+- `technical.reader.agent.md` — Core Principle (~4060 tok)
+- `thermo.fluid.agent.md` — Primary Objective (~1886 tok)
+- `unisim.reader.agent.md` — MANDATORY: Load Skill First (~5814 tok)
+- `utility.design.agent.md` — Skills to Load (~1282 tok)
+
+## neqsim/.github/instructions/
+
+- `thermodynamic-initialization.instructions.md` — Minimal thermodynamic initialization level (~520 tok)
+
+## neqsim/.github/metrics/
+
+- `dependabot-metrics.json` (~24 tok)
+- `security-metrics.json` (~29 tok)
+
+## neqsim/.github/skills/
+
+- `README.md` — Project documentation (~5776 tok)
+- `skill-index.json` (~10495 tok)
+
+## neqsim/.github/skills/analyze_convergence/
+
+- `SKILL.md` — Skill: Analyze Convergence (~1892 tok)
+
+## neqsim/.github/skills/analyze_gibbs_convergence/
+
+- `SKILL.md` — Skill: Analyze Gibbs Convergence (~2551 tok)
+
+## neqsim/.github/skills/book_creation/
+
+- `SKILL.md` — Skill: Book Creation in PaperLab (~6595 tok)
+
+## neqsim/.github/skills/design_flash_benchmark/
+
+- `SKILL.md` — Skill: Design Flash Benchmark (~1392 tok)
+
+## neqsim/.github/skills/design_reactor_benchmark/
+
+- `SKILL.md` — Skill: Design Reactor / Chemical Equilibrium Benchmark (~2298 tok)
+
+## neqsim/.github/skills/figure-discussion/
+
+- `SKILL.md` — Skill: Figure Discussion (observation → mechanism → implication → recommendation) (~2073 tok)
+
+## neqsim/.github/skills/generate_publication_figures/
+
+- `SKILL.md` — Skill: Generate Publication-Quality Figures (~4530 tok)
+
+## neqsim/.github/skills/journal_formatting/
+
+- `SKILL.md` — Skill: Journal Formatting (~4107 tok)
+
+## neqsim/.github/skills/neqsim-agent-handoff/
+
+- `SKILL.md` — NeqSim Agent Handoff Schema (~2219 tok)
+
+## neqsim/.github/skills/neqsim-agentic-process-optimization/
+
+- `SKILL.md` — Agentic Process-Model Optimization (~7678 tok)
+
+## neqsim/.github/skills/neqsim-api-patterns/
+
+- `SKILL.md` — NeqSim API Patterns (~13818 tok)
+
+## neqsim/.github/skills/neqsim-autonomous-investigation/
+
+- `SKILL.md` — NeqSim Autonomous Investigation Skill (~2715 tok)
+
+## neqsim/.github/skills/neqsim-capability-map/
+
+- `SKILL.md` — NeqSim Capability Map (~11291 tok)
+
+## neqsim/.github/skills/neqsim-ccs-hydrogen/
+
+- `SKILL.md` — CCS and Hydrogen Systems with NeqSim (~3845 tok)
+
+## neqsim/.github/skills/neqsim-compressor-antisurge-recycle/
+
+- `SKILL.md` — NeqSim Compressor Anti-Surge & Minimum-Speed Recycle Control Skill (~1810 tok)
+
+## neqsim/.github/skills/neqsim-consequence-analysis/
+
+- `SKILL.md` — NeqSim Consequence Analysis Skill (~2808 tok)
+
+## neqsim/.github/skills/neqsim-controllability-operability/
+
+- `SKILL.md` — NeqSim Controllability & Operability Skill (~2801 tok)
+
+## neqsim/.github/skills/neqsim-depressurization-mdmt/
+
+- `SKILL.md` — NeqSim Depressurization & MDMT Skill (~4209 tok)
+
+## neqsim/.github/skills/neqsim-distillation-design/
+
+- `SKILL.md` — Distillation Design Rules (~3257 tok)
+
+## neqsim/.github/skills/neqsim-document-intelligence-extraction/
+
+- `SKILL.md` — Document Intelligence Extraction (~2162 tok)
+
+## neqsim/.github/skills/neqsim-dynamic-equipment-implementation/
+
+- `SKILL.md` — Dynamic Equipment Implementation (~2219 tok)
+
+## neqsim/.github/skills/neqsim-dynamic-simulation/
+
+- `SKILL.md` — Dynamic Simulation Guidance (~9177 tok)
+
+## neqsim/.github/skills/neqsim-electrolyte-systems/
+
+- `SKILL.md` — Electrolyte Systems Guide (~3253 tok)
+
+## neqsim/.github/skills/neqsim-eos-regression/
+
+- `SKILL.md` — EOS Parameter Regression Workflow (~2444 tok)
+
+## neqsim/.github/skills/neqsim-equipment-cost-estimation/
+
+- `SKILL.md` — NeqSim Equipment Cost Estimation Skill (~3483 tok)
+
+## neqsim/.github/skills/neqsim-field-development/
+
+- `SKILL.md` — NeqSim Field Development Skill (~4551 tok)
+
+## neqsim/.github/skills/neqsim-field-economics/
+
+- `SKILL.md` — NeqSim Field Economics Skill (~2664 tok)
+
+## neqsim/.github/skills/neqsim-flow-accelerated-corrosion/
+
+- `SKILL.md` — NeqSim Flow-Accelerated Corrosion and High-Temperature pH Skill (~4007 tok)
+
+## neqsim/.github/skills/neqsim-flow-assurance/
+
+- `SKILL.md` — Flow Assurance Analysis with NeqSim (~17575 tok)
+
+## neqsim/.github/skills/neqsim-hazid-fmea-eta-fta/
+
+- `SKILL.md` — NeqSim HAZID / FMEA / ETA / FTA Skill (~3895 tok)
+
+## neqsim/.github/skills/neqsim-heat-integration/
+
+- `SKILL.md` — NeqSim Heat Integration Skill (~1541 tok)
+
+## neqsim/.github/skills/neqsim-hydrogen-production/
+
+- `SKILL.md` — Hydrogen Production with NeqSim (~4916 tok)
+
+## neqsim/.github/skills/neqsim-input-validation/
+
+- `SKILL.md` — NeqSim Input Validation Rules (~1732 tok)
+
+## neqsim/.github/skills/neqsim-java8-rules/
+
+- `SKILL.md` — Java 8 Compatibility Rules for NeqSim (~1285 tok)
+
+## neqsim/.github/skills/neqsim-literature-search/
+
+- `SKILL.md` — Literature & Web Search for Engineering Tasks (~1964 tok)
+
+## neqsim/.github/skills/neqsim-model-calibration-and-data-reconciliation/
+
+- `SKILL.md` — Model Calibration and Data Reconciliation (~2003 tok)
+
+## neqsim/.github/skills/neqsim-notebook-patterns/
+
+- `SKILL.md` — Jupyter Notebook Patterns for NeqSim (~5717 tok)
+
+## neqsim/.github/skills/neqsim-optimization-and-doe/
+
+- `SKILL.md` — NeqSim Process Optimization & DoE Skill (~4833 tok)
+
+## neqsim/.github/skills/neqsim-pdf-ocr/
+
+- `SKILL.md` — NeqSim PDF OCR Skill (~2673 tok)
+
+## neqsim/.github/skills/neqsim-phase-envelope/
+
+- `neqsim-phase-envelope-readme.md` — NeqSim PT Phase Envelopes (~497 tok)
+- `SKILL.md` — NeqSim PT Phase Envelopes (~2996 tok)
+
+## neqsim/.github/skills/neqsim-physics-explanations/
+
+- `SKILL.md` — NeqSim Physics Explanations (~2759 tok)
+
+## neqsim/.github/skills/neqsim-pid-process-operations/
+
+- `SKILL.md` — P&ID to Process Operations (~7438 tok)
+
+## neqsim/.github/skills/neqsim-pipeline-survey-processing/
+
+- `SKILL.md` — Pipeline Survey Processing (~3678 tok)
+
+## neqsim/.github/skills/neqsim-plant-data/
+
+- `SKILL.md` — Plant Data Integration with Tagreader (~8821 tok)
+
+## neqsim/.github/skills/neqsim-platform-modeling/
+
+- `SKILL.md` — NeqSim Production Platform Modeling (~11844 tok)
+
+## neqsim/.github/skills/neqsim-power-generation/
+
+- `SKILL.md` — Power Generation with NeqSim (~7168 tok)
+
+## neqsim/.github/skills/neqsim-process-extraction/
+
+- `SKILL.md` — NeqSim Process Extraction Skill (~22492 tok)
+
+## neqsim/.github/skills/neqsim-process-modeling/
+
+- `SKILL.md` — NeqSim Process Modeling Skill (~4562 tok)
+
+## neqsim/.github/skills/neqsim-process-safety/
+
+- `SKILL.md` — NeqSim Process Safety Skill (~7819 tok)
+
+## neqsim/.github/skills/neqsim-production-optimization/
+
+- `SKILL.md` — NeqSim Production Optimization Skill (~7444 tok)
+
+## neqsim/.github/skills/neqsim-professional-reporting/
+
+- `SKILL.md` — NeqSim Professional Reporting Skill (~6269 tok)
+
+## neqsim/.github/skills/neqsim-reaction-engineering/
+
+- `SKILL.md` — Reaction Engineering Patterns (~2992 tok)
+
+## neqsim/.github/skills/neqsim-regression-baselines/
+
+- `SKILL.md` — NeqSim Regression Baseline Management (~1695 tok)
+
+## neqsim/.github/skills/neqsim-relief-flare-network/
+
+- `SKILL.md` — NeqSim Relief & Flare Network Skill (~3533 tok)
+
+## neqsim/.github/skills/neqsim-root-cause-analysis/
+
+- `SKILL.md` — NeqSim Root Cause Analysis Skill (~6200 tok)
+
+## neqsim/.github/skills/neqsim-self-heating-ignition/
+
+- `SKILL.md` — NeqSim Self-Heating and Spontaneous Ignition Skill (~2517 tok)
+
+## neqsim/.github/skills/neqsim-standards-lookup/
+
+- `SKILL.md` — NeqSim Standards Lookup (~6826 tok)
+
+## neqsim/.github/skills/neqsim-stid-retriever/
+
+- `SKILL.md` — Document Retrieval Skill for Engineering Tasks (~5942 tok)
+
+## neqsim/.github/skills/neqsim-subsea-and-wells/
+
+- `SKILL.md` — NeqSim Subsea & Wells Skill (~5444 tok)
+
+## neqsim/.github/skills/neqsim-technical-document-reading/
+
+- `SKILL.md` — Technical Document Reading Skill (~14372 tok)
+
+## neqsim/.github/skills/neqsim-thermodynamic-initialization/
+
+- `SKILL.md` — NeqSim thermodynamic initialization (~932 tok)
+
+## neqsim/.github/skills/neqsim-trapped-liquid-fire-rupture/
+
+- `SKILL.md` — Fire Rupture Study (~5978 tok)
+
+## neqsim/.github/skills/neqsim-troubleshooting/
+
+- `SKILL.md` — NeqSim Troubleshooting Playbook (~6907 tok)
+
+## neqsim/.github/skills/neqsim-unisim-reader/
+
+- `SKILL.md` — UniSim Design / HYSYS → NeqSim Conversion Skill (~19140 tok)
+
+## neqsim/.github/skills/neqsim-utilities-specification/
+
+- `SKILL.md` — NeqSim Utilities Specification Skill (~2407 tok)
+
+## neqsim/.github/skills/neqsim-utility-design/
+
+- `SKILL.md` — NeqSim Utility Design Skill (~2078 tok)
+
+## neqsim/.github/skills/neqsim-water-hammer/
+
+- `SKILL.md` — Water Hammer and Liquid Hammer Screening (~1296 tok)
+
+## neqsim/.github/skills/neqsim-wax-calculations/
+
+- `SKILL.md` — NeqSim Wax Calculations (~2882 tok)
+
+## neqsim/.github/skills/neqsim_in_writing/
+
+- `SKILL.md` — NeqSim integration for scientific writing (~2445 tok)
+
+## neqsim/.github/skills/neqsim_standard_requirement_extraction/
+
+- `SKILL.md` — Skill: NeqSim Standard Requirement Extraction (~606 tok)
+
+## neqsim/.github/skills/paperlab_book_release_orchestration/
+
+- `SKILL.md` — PaperLab Book Release Orchestration (~468 tok)
+
+## neqsim/.github/skills/paperlab_book_to_paper_extraction/
+
+- `SKILL.md` — PaperLab Book to Paper Extraction (~350 tok)
+
+## neqsim/.github/skills/paperlab_journal_positioning/
+
+- `SKILL.md` — PaperLab Journal Positioning (~338 tok)
+
+## neqsim/.github/skills/paperlab_neqsim_api_claim_verification/
+
+- `SKILL.md` — PaperLab NeqSim API Claim Verification (~581 tok)
+
+## neqsim/.github/skills/paperlab_notebook_regression_baselines/
+
+- `SKILL.md` — PaperLab Notebook Regression Baselines (~525 tok)
+
+## neqsim/.github/skills/paperlab_paper_to_book_chapter/
+
+- `SKILL.md` — PaperLab Paper to Book Chapter (~386 tok)
+
+## neqsim/.github/skills/paperlab_publication_opportunity_mining/
+
+- `SKILL.md` — PaperLab Publication Opportunity Mining (~530 tok)
+
+## neqsim/.github/skills/paperlab_reproducibility_capsule/
+
+- `SKILL.md` — PaperLab Reproducibility Capsule (~331 tok)
+
+## neqsim/.github/skills/paperlab_scientific_traceability_audit/
+
+- `SKILL.md` — PaperLab Scientific Traceability Audit (~911 tok)
+
+## neqsim/.github/skills/paperlab_student_readability/
+
+- `SKILL.md` — PaperLab Student Readability (~948 tok)
+
+## neqsim/.github/skills/run_flash_experiments/
+
+- `SKILL.md` — Skill: Run Flash Experiments (~1858 tok)
+
+## neqsim/.github/skills/write_methods_section/
+
+- `SKILL.md` — Skill: Write Methods Section (~1760 tok)
+
+## neqsim/.github/workflows/
+
+- `codeql.yml` — /*.sarif (~534 tok)
+- `convert_notebooks.yml` — CI: Convert Notebooks to Markdown (~706 tok)
+- `devcontainer_prebuild.yml` — CI: Prebuild Dev Container (~497 tok)
+- `devtools_tests.yml` — CI: Devtools tests (~392 tok)
+- `documentation-search.yml` — CI: Documentation search coverage (~413 tok)
+- `energy-notebook-execution.yml` — CI: Execute Energy Network Notebooks (~1480 tok)
+- `engineering-diagram-performance.yml` — CI: Engineering diagram performance (~535 tok)
+- `execute-complete-pid-notebook.yml` — CI: Execute complete P&ID synthesis notebook (~1024 tok)
+- `execute-ncs-hazop-safety-notebook.yml` — CI: Execute NCS HAZOP and safety engineering notebook (~1891 tok)
+- `execute-offshore-engineering-notebook.yml` — CI: Execute complete offshore engineering notebook (~2004 tok)
+- `execute-process-to-engineering-simulator.yml` — CI: Execute process-to-engineering simulator notebook (~1134 tok)
+- `install_smoke_test.yml` — CI: Install smoke test (~1607 tok)
+- `mcp_protocol_qualification.yml` — CI: MCP protocol qualification (~1176 tok)
+- `mcp_server_release.yml` — CI: Build MCP Server Release (~1141 tok)
+- `paperlab_replication_gate.yml` — or books/<slug>/**. Performs: (~1853 tok)
+- `precommit.yml` — CI: Pre-commit checks (~515 tok)
+- `publish_javadoc.yml` — CI: Deploy Javadoc (~175 tok)
+- `publish_neqsim_image.yml` — CI: Publish NeqSim Image (~565 tok)
+- `publish_to_maven_central.yml` — CI: Publish package to the Maven Central Repository (~749 tok)
+- `release_with_jars.yml` — CI: Create release (draft) (~2725 tok)
+- `research-scan.yml` — CI: Daily Research Scan (~1069 tok)
+- `security-metrics.yml` — CI: Security Metrics Badge (~1028 tok)
+- `skills_agents_lint.yml` — CI: Skills and agents lint (~572 tok)
+- `spotless-format-patch.yml` — CI: Spotless format patch (~166 tok)
+- `task_nip_issues.yml` — /neqsim_improvements.md" (~1228 tok)
+- `task_quality_gate.yml` — CI: Task quality gate (~917 tok)
+- `verify_build.yml` — CI: Run build, test and javadoc (~2089 tok)
+
+## neqsim/.mvn/
+
+- `maven.config` (~63 tok)
+
+## neqsim/.mvn/wrapper/
+
+- `maven-wrapper.properties` (~45 tok)
+
+## neqsim/.openapi/
+
+- `codex.yaml` (~132 tok)
+
+## neqsim/devtools/
+
+- `agent_search.py` — URL configuration (~3690 tok)
+- `audit_report.py` — Audit Word and HTML report consistency after generation. (~1048 tok)
+- `check_agent_skill_catalogs.py` — Check NeqSim agent and skill catalogs across sibling repositories. (~1473 tok)
+- `check_documentation_search.py` — Validate NeqSim documentation sources and generated site-search coverage. (~4975 tok)
+- `consistency_checker.py` — class: run (~7436 tok)
+- `ensure_on_path.py` — Ensure the directory containing the installed ``neqsim`` console script is on (~3876 tok)
+- `explore_unisim_com.py` — safe_get, safe_getvalue, explore_components, explore_stream + 3 more (~3680 tok)
+- `generate_agent_skill_map.py` — Generate ``docs/development/AGENT_SKILL_MAP.md`` from agent files. (~1466 tok)
+- `generate_equipment_documentation_catalog.py` — Generate the source-backed process-equipment documentation catalog. (~3633 tok)
+- `generate_skill_index.py` — Generate the shared skill-id index consumed by the agent manifest validators. (~1337 tok)
+- `generate_sources_md.py` — Organize collected task documents into per-source folders and generate a (~5392 tok)
+- `industrial_sm_benchmark.py` — Run, aggregate, and validate the industrial S/M optimization benchmark. (~5976 tok)
+- `install_agent.py` — /*.agent.md", (~31465 tok)
+- `install_skill.py` — /SKILL.md" (~28925 tok)
+- `neqsim_cli.py` — URL configuration (~1159 tok)
+- `neqsim_contribute.py` — /*.md for dead links)") (~2438 tok)
+- `neqsim_dev_setup.py` — URL configuration (~4966 tok)
+- `neqsim_doctor.py` — URL configuration (~5741 tok)
+- `neqsim_try.py` — URL configuration (~2584 tok)
+- `new_skill.py` — URL configuration (~2067 tok)
+- `new_task.py` — URL configuration (~45637 tok)
+- `onboard.py` — URL configuration (~5179 tok)
+- `paperlab_install.py` — Install PaperLab agents and skills for VS Code Chat. (~3233 tok)
+- `pdf_ocr.py` — URL configuration (~3630 tok)
+- `pdf_to_figures.py` — pdf_to_pngs, pdf_folder_to_pngs, main (~1783 tok)
+- `pyproject.toml` — Python project configuration (~172 tok)
+- `README.md` — Project documentation (~3844 tok)
+- `run_spotless.py` — Cross-platform Spotless runner for pre-commit hooks. (~327 tok)
+- `run_spotless.sh` — Cross-platform Maven wrapper selector for spotless (~72 tok)
+- `skill_search.py` — search, main (~3067 tok)
+- `stid_download.py` — URL configuration (~3220 tok)
+- `task_audit.py` — find_task_folders, check_results_json, check_notes, check_notebooks + 7 more (~3176 tok)
+- `task_search.py` — Cross-task keyword search across all task_solve/ folders. (~2204 tok)
+- `test_agent_search.py` — Regression tests for devtools/agent_search.py semantic agent discovery. (~1441 tok)
+- `test_check_documentation_search.py` — Unit tests for the documentation notebook-link audit. (~932 tok)
+- `test_complete_offshore_engineering_study.py` — Contract and committed-execution checks for the offshore engineering study. (~1318 tok)
+- `test_engineering_documentation.py` — Contract checks for the process-to-engineering documentation bundle. (~629 tok)
+- `test_industrial_sm_benchmark.py` — Unit tests for industrial S/M benchmark aggregation and validation. (~1847 tok)
+- `test_install_agent.py` — /*.agent.md", "agents/**/AGENT.md"] (~19900 tok)
+- `test_install_skill.py` — /SKILL.md", (~11642 tok)
+- `test_neqsim_studio.py` — Pure-Python tests for the NeqSim Studio package. (~2886 tok)
+- `test_onboard.py` — Regression tests for the onboarding wizard. (~264 tok)
+- `test_paperlab_install.py` — Tests: iter_paperlab_assets_find_definitions, iter_paperlab_assets_include_internal_when_requested, cmd_install_exports_to_explicit_vscode_dirs, cm... (~1130 tok)
+- `test_render_engineering_pid.py` — Tests for the dependency-light DEXPI documentation renderer. (~905 tok)
+- `test_report_gen.py` — Quick integration test for the generate_report.py template in new_task.py. (~4656 tok)
+- `test_report_workflow.py` — Regression tests for the Solution Workflow report section. (~1059 tok)
+- `test_skill_search.py` — Regression tests for devtools/skill_search.py sibling-repo skill indexing. (~813 tok)
+- `test_unisim_outputs.py` — Test all UniSimToNeqSim output modes with a synthetic model. (~18720 tok)
+- `test_validate_dexpi_interoperability.py` — Tests: csv_findings_are_typed_and_deterministically_sorted, run_requires_exact_checkout_and_retains_findings, baseline_comparison_checks_provenance... (~1836 tok)
+- `test_validate_engineering_diagram_performance.py` — Contracts for engineering-diagram performance evidence validation. (~838 tok)
+- `test_verify_agent_skill_refs.py` — Regression tests for the combined cross-repo skill-ref check in (~1113 tok)
+- `test_verify_skills_agents.py` — Focused tests for the skill and agent verifier. (~474 tok)
+- `unisim_neqsim_bridge.py` — class: max_deviation_pct, has_significant_deviation, to_dict, to_json + 4 more (~4206 tok)
+- `unisim_reader.py` — class: component_names, has_critical_properties, write_e300 (~99636 tok)
+- `unisim_writer.py` — class: warnings, parse (~18327 tok)
+- `update_liquid_conductivity.py` — URL configuration (~1958 tok)
+- `validate_dexpi_interoperability.py` — Validate a generated NeqSim DEXPI package with optional external importers. (~3653 tok)
+- `validate_engineering_diagram_performance.py` — Validate deterministic engineering-diagram benchmark evidence and CI budgets. (~1864 tok)
+- `validate_task_results.py` — /results.json. (~4551 tok)
+- `verify_agent_schema_sync.py` — Guard the shared agent- and skill-manifest schemas against cross-repo drift. (~1058 tok)
+- `verify_agent_skill_refs.py` — URL configuration (~4978 tok)
+- `verify_mcp_tool_references.py` — Verify that MCP tool names referenced by skills and agents actually exist. (~1905 tok)
+- `verify_notebooks.py` — Verify Jupyter notebooks are executed and error-free. (~1986 tok)
+- `verify_skill_mirror.py` — Detect drift between the core ``.github/skills`` mirror and the source repos. (~1476 tok)
+- `verify_skills_agents.py` — Lint .github/skills/ and .github/agents/ for structural integrity. (~2916 tok)
+
+## neqsim/devtools/baselines/
+
+- `engineering_diagram_performance.json` (~133 tok)
+
+## neqsim/devtools/neqsim_dev_setup.egg-info/
+
+- `entry_points.txt` (~11 tok)
+- `PKG-INFO` (~123 tok)
+
+## neqsim/devtools/neqsim_runner/
+
+- `__init__.py` — submit_job, run_supervisor, job_status, list_jobs (~1078 tok)
+- `__main__.py` — Entry point for: python -m neqsim_runner (~26 tok)
+- `agent_bridge.py` — AgentBridge: submit_notebook, submit_script, submit_parametric_sweep, run_all + 6 more (~6145 tok)
+- `cli.py` — cmd_submit, cmd_run, cmd_go, cmd_status + 3 more (~2084 tok)
+- `job_helpers.py` — get_args, get_output_dir, save_checkpoint, load_checkpoint + 3 more (~1152 tok)
+- `models.py` — JobStatus: to_dict, from_dict, is_retryable, set_status + 4 more (~1981 tok)
+- `progress.py` — TaskProgress: is_resuming, current_phase, next_action, completed_milestones + 13 more (~3260 tok)
+- `README.md` — Project documentation (~2921 tok)
+- `store.py` — JobStore: save_job, get_job, list_jobs, get_pending_jobs + 5 more (~1985 tok)
+- `supervisor.py` — Supervisor: run, stop (~2708 tok)
+- `worker.py` — URL configuration (~2808 tok)
+
+## neqsim/devtools/neqsim_runner/bootstrap/
+
+- `__init__.py` (~0 tok)
+- `notebook_executor.py` — Notebook executor - runs a .ipynb in a Jupyter kernel subprocess. (~2241 tok)
+- `script_executor.py` — Worker bootstrap - runs inside the isolated subprocess. (~1442 tok)
+
+## neqsim/devtools/neqsim_runner/examples/
+
+- `_test_job.py` — Minimal test job that doesn't require NeqSim — tests the runner machinery. (~202 tok)
+- `example_monte_carlo.py` — run_single_simulation, main (~1740 tok)
+- `example_pipeline.py` — main (~563 tok)
+- `example_simple.py` — main (~588 tok)
+
+## neqsim/devtools/neqsim_runner/tests/
+
+- `__init__.py` (~0 tok)
+- `test_runner.py` — Tests for neqsim_runner package — covers critical fixes and core logic. (~5265 tok)
+
+## neqsim/devtools/neqsim_studio/
+
+- `__init__.py` — NeqSim Studio — a Python-first, newcomer-friendly way to build process models. (~926 tok)
+- `build.py` — JSON build bridge for NeqSim Studio. (~856 tok)
+- `core.py` — Core objects for NeqSim Studio. (~6295 tok)
+- `edit.py` — Edit-by-chat helpers for NeqSim Studio (Proposal #4). (~3282 tok)
+- `fluids.py` — Fluid helpers for NeqSim Studio. (~1540 tok)
+- `gallery.py` — Recipe gallery / cookbook for NeqSim Studio (Proposal #5). (~1690 tok)
+- `jsonspec.py` — Pure-Python flowsheet JSON spec builder for NeqSim Studio. (~3423 tok)
+- `README.md` — Project documentation (~2642 tok)
+- `templates.py` — Template recipes for NeqSim Studio (Proposal #2). (~3410 tok)
+- `text.py` — Natural-language flowsheet builder for NeqSim Studio (Proposal #1). (~2750 tok)
+- `wizard.py` — Guided wizard for NeqSim Studio (Proposal #3). (~1517 tok)
+
+## neqsim/devtools/presentations/
+
+- `generate_agent_skill_overview.py` — Generate a PowerPoint overview of the NeqSim agent and skill ecosystem. (~9142 tok)
+
+## neqsim/devtools/task_template/
+
+- `README.md` — Project documentation (~350 tok)
+- `study_config.yaml` — Study configuration for NeqSim task solver. (~795 tok)
+- `user_input.md` — User Input Log (~635 tok)
+
+## neqsim/devtools/task_template/step1_scope_and_research/
+
+- `analysis.md` — Deep Analysis & Solution Design (~721 tok)
+- `capability_assessment.md` — Capability Assessment & Implementation Plan (~1245 tok)
+- `neqsim_improvements.md` — NeqSim Improvement Proposals (NIPs) (~353 tok)
+
+## neqsim/devtools/task_template/step2_analysis/starters/
+
+- `README.md` — Project documentation (~381 tok)
+- `starter_field_economics.ipynb` (~3016 tok)
+- `starter_flow_assurance.ipynb` (~2198 tok)
+- `starter_process_sim.ipynb` (~2760 tok)
+- `starter_pvt_study.ipynb` (~2489 tok)
+
+## neqsim/devtools/task_template/step3_report/
+
+- `generate_report.py` — URL configuration (~40824 tok)
 
 ## pcs-backend/alembic/versions/
 
-- `15421f7d5afb_merge_p2s2_equipment_chain_with_p2s110_.py` — merge p2s2 equipment chain with p2s110 template chain (~195 tok)
-- `2026_09_03_0800_add_toe_conversion.py` — add pcs_toe_conversion_factors (~702 tok)
-- `2026_09_03_0900_add_template_version_seq.py` — add TemplateFile.template_version_seq (~203 tok)
-- `2026_09_03_1000_add_htri_template_schemas.py` — add htri_template_schemas (~440 tok)
-- `dd47298c9c38_v3_1_full_schema_53_tables_adr_0023.py` — v3.1 full schema (53 tables, ADR-0023) (~34222 tok)
-- `p1_sprint1_workspace_checklist.py` — Sprint 1：doc_no_sequences UNIQUE(template_id, scope_key) 约束。 (~230 tok)
-- `p1_sprint2_state_machine.py` — Sprint 2：状态机快照字段。 (~335 tok)
-- `p1_sprint3_bootstrap_alembic_version.py` — Sprint 3：bootstrap 修复 alembic_version.version_num 列宽。 (~345 tok)
-- `p1_sprint3_equipment_status_columns.py` — Sprint 3：equipment_list 补 actual_data_status / calc_status / equipment_status 列。 (~904 tok)
-- `p1_sprint3_nullable_equipment_type_codes.py` — Sprint 3：equipment_type_codes.project_id 改 nullable。 (~640 tok)
-- `p1sprint1_checklist_schema_upgrade.py` — Sprint 1：project_input_checklist schema 对齐 DICT-ALL-003 V3.1 表44。 (~642 tok)
-- `p2_s110_doc_no_project_id.py` — doc_no_sequences 补 project_id + 三列 UQ（DICT V3.4） (~477 tok)
-- `p2_s110_fix_toe_timestamptz.py` — pcs_toe_conversion_factors 时间戳列矫正（终审 F3） (~477 tok)
-- `p2_sprint1_config_layer_fix.py` — P2 Sprint 1 Step 0：配置层 ORM 修正对齐 DICT V3.3。 (~1389 tok)
-- `p2_sprint2_equipment_engineering.py` — P2 Sprint 2：equipment_list 扩容（来源 4 + 标识 5 + 类型 4 + 工程 8 = 21 项）。 (~1270 tok)
-- `p2_sprint2_equipment_naming_fix.py` — P2 Sprint 2：equipment_list 命名修正（7 项）。 (~1006 tok)
-- `p2_sprint2_equipment_procurement_delivery.py` — P2 Sprint 2：equipment_list 扩容（采购 10 + 图纸 3 + 交付 5 + 安装 5 + 重量 3 = 26 项）。 (~1526 tok)
-- `p2_sup_sprint_fmt1_pipe_code_templates.py` — SUP Sprint FMT-1: pipe_code_templates + project_pipe_code_configs 两表（V1.4 §11.1/§11.2）。 (~1067 tok)
-- `p2_sup_sprint_fmt1b_sequence_counter.py` — SUP Sprint FMT-3: project_pipe_code_sequences 计数器表（auto_increment 并发）。 (~340 tok)
-- `p2_sup_sprint_int1_project_template_integration.py` — SUP Sprint INT-1: project_templates 增 pipe_code_template_id 列 (~675 tok)
-- `p2_sup_sprint_pc1_pipe_class_upgrade.py` — SUP-002 PC-1: 管道等级差异迁移 + ORM（V1.4）。 (~2975 tok)
-- `p2_sup_sprint_pc3_asset_subtype.py` — SUP Sprint PC-3: config_assets 加 asset_subtype 列（PIPE_CLASS 等）。 (~362 tok)
-- `p2_sup_sprint_pc4_config_approval_nullable.py` — SUP Sprint PC-4: config_approvals.version_id 改 nullable（V1.4 §2.4/§五、#1）。 (~334 tok)
-- `p2_sup_sprint_pc5_import_previews.py` — SUP Sprint PC-5: pipe_class_import_previews 表（V1.4 §0.6/§三、#6）。 (~547 tok)
-- `p2_sup_sprint_sym1_stream_symbols.py` — SUP Sprint SYM-1: stream_symbols + project_stream_symbols 两表（V1.4 §7.1/§7.2）。 (~1099 tok)
-- `p3_sim_state_points_unique_label.py` — P3.2 SIM-10：stream_state_points (stream_id, case_type, state_label) 唯一约束。 (~321 tok)
-- `p3_sim_stream_is_mixed_phase.py` — P3.2 SIM-10.2：streams.is_mixed_phase 列（MIXED 相持久化标记）。 (~299 tok)
-- `p3_sim_stream_is_unreliable.py` — P3.2 SIM-10.1：streams.is_unreliable 列（用户 2026-09-09 裁决）。 (~271 tok)
-- `p3_sim_stream_schema_upgrade.py` — P3.2 SIM streams schema 升级（修正版 10 字段，2026-09-08）。 (~1049 tok)
-- `p3_sim_stream_sign_status_extend.py` — P3.2 SIM-13：streamsignstatus PG enum 扩展为 9 态（用户裁决 P0 闭环 D-1）。 (~546 tok)
-- `p3_sim_stream_state_machine_fields.py` — P3.2 SIM-13：streams 状态机字段补齐（用户裁决 P0 闭环 D-1）。 (~568 tok)
-- `p3sim_sim_imports.py` — P3.x SIM-14：sim_imports + sim_import_warnings 表（stateful preview，D-4 等价闭环）。 (~1514 tok)
-- `p3sim_sim_tower_results.py` — P3.x SIM-16: sim_tower_results 表（COLUMN SUMMARY 存档）。 (~806 tok)
-- `p3sim_sim_unit_op_results.py` — P3.x SIM-15: sim_unit_op_results + 6 专用结果表。 (~1682 tok)
-- `p3sim_streams_liquid_fields.py` — P3.x SIM-31: streams 表 2 个液相字段（ORM 列） + 3 个 JSONB 字段。 (~435 tok)
-- `p3sim_streams_petroleum_fields.py` — P3.x SIM-34: 炼油专用 5 字段 + 蒸馏曲线 8 种 schema。 (~712 tok)
-- `p3sim_streams_sim_fields.py` — P3.x SIM-17+18: streams 表 8 字段扩展。 (~973 tok)
-- `p3sim_streams_vapor_fields.py` — P3.x SIM-33: 气相物性 9 字段（ORM 列） + 液相物性命名对齐 + SIM-31 JSONB 3 字段迁 ORM。 (~1037 tok)
-- `p4_4_sim_import_preview_towers.py` — P4-4 sim_imports.preview_towers_json 列扩展（P4 #4 parser 入库链路）。 (~341 tok)
-- `p5_0_2_heat_results_extend.py` — P5-0-2 Task 2: heat_results 双轨字段扩展（ADR-0027 V1.0）。 (~1616 tok)
-- `p5_0_4a_pk_rename_and_tag_number.py` — P5-0-4a Task 4a: PK rename + tag_number 统一（DICT V3.3 字典约定对齐）。 (~1299 tok)
-- `p5_0_5_psv_multi_standard.py` — P5-0-5 Task 24a: PSV 多标准配置 + 9 类 registry。 (~3336 tok)
-- `p5_open_005_model_extension.py` — P5-0-1: 设备结果表扩展 + 双阶段设计下沉（SUP-008 §8.3.2/§8.3.3/§8.3.5 + §8.4 OPEN-009）。 (~3360 tok)
-- `p5_open_010_psv_valve_selection.py` — P5-OPEN-10 SUP-P5-PSV-002 V1.14 §3.1 PSV 选型 18 列 + 3 CHECK。 (~1963 tok)
-- `p6_5_006_orm_db_drift_final_fix.py` — P6-5 终扫：ORM↔DB 全库 drift 清零（p6_5_005 补扫，3 表）。 (~604 tok)
-- `p6_9_pickup_4_drift_fixes.py` — P6-9-PICKUP-4 T1: pcs_test DB schema drift 修复. (~1411 tok)
-- `p7_open_009_001_utility_power_items.py` — P7 Sprint 2 T1: utility_power_items 表（电耗设备清单). (~1312 tok)
-- `p7_open_009_002_utility_fuel_gas.py` — P7 Sprint 2 T2: utility_fuel_gas 表 (燃料气). (~1639 tok)
-- `p7_open_009_003_utility_heat_exchange.py` — P7 Sprint 2 T3: utility_heat_exchange 表 (蒸汽/冷凝水). (~1762 tok)
-- `p7_open_009_004_auxiliary_consumption_4fields.py` — P7 Sprint 2 T4: auxiliary_consumption 4 字段 ALTER (util_results). (~1030 tok)
-- `p7_open_009_005_utility_energy_summary.py` — P7 Sprint 2 T5: utility_energy_summary 表 (综合能耗汇总). (~2201 tok)
-- `p7_open_009_t0_config_energy_conversion_factors.py` — P7 Sprint 2 T0: config_energy_conversion_factors CONFIG 表 (折标煤系数). (~856 tok)
-- `p7_s1_002_audit_logs_jsonb_gin.py` — audit_logs.detail_json 加 JSONB GIN 索引（P7-Sprint 1 T0 / D8 裁决 9A）。 (~387 tok)
-
-## pcs-backend/app/
-
-- `__init__.py` — app package marker (~6 tok)
-- `main.py` — API router (~475 tok)
-
-## pcs-backend/app/api/
-
-- `__init__.py` (~18 tok)
-- `deps.py` — FastAPI 依赖（Sprint 2）。 (~305 tok)
+- `p7_s3_001_workspace_status.py` — F-P3-003 Sprint 3: workspaces.status 列 + 索引 (2-state ACTIVE/ARCHIVED). (~394 tok)
+- `p7_s3_002_project_product_category.py` — p7_s3_002: projects.product_category — GB 30251-2024 §6.1.5 电折标口径判据. (~526 tok)
+- `p7_s3_003_energy_config_classification_cols.py` — p7_s3_003: config_energy_conversion_factors 补 R1 分类列 (从未迁移的 schema drift). (~1788 tok)
+- `p7_s3_003_energy_config_gb30251_a1.py` — p7_s3_003: 折标系数对齐 GB 30251-2024 附录A 表A.1. (~1360 tok)
 
 ## pcs-backend/app/api/v1/
 
-- `__init__.py` (~1270 tok)
-- `auth.py` — POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。 (~1054 tok)
-- `change_impact.py` — Change Impact API（Sprint 3）。 (~579 tok)
-- `checklist.py` — Checklist API（Sprint 1）。 (~641 tok)
-- `common.py` — COMMON 物性 / 许用应力 / 介质安全 端点（P3.3 / spec §3.2.3 + §3.1.2）。 (~712 tok)
-- `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~4817 tok)
-- `equip_lib.py` — equip-lib 端点（Task 1.9.5 / P2-EQL-001）。 (~530 tok)
-- `equip_list.py` — S1-4b EQUIP_LIST API endpoints。 (~1956 tok)
-- `health.py` — Health endpoint（async via check_database_async，Sprint 1）。 (~164 tok)
-- `heat.py` — P5-4-5 HEAT API：HTRI 导入 + 详情读 + 重量估算 3 端点契约。 (~3771 tok)
-- `imports.py` — P3.2 SIM-10 + P3.x SIM-14：PRO/II + Excel 导入 stateful preview/commit API。 (~2758 tok)
-- `lineage.py` — Lineage API（Sprint 3）。 (~864 tok)
-- `meta.py` — Meta API 路由 — 4 端点 + 1 CSV 导出（enums / permissions / error-codes / (~1466 tok)
-- `mock_auth.py` — Mock 登录：仅 env != production 时挂载。固定 4 个角色账号，无 LDAP 依赖。 (~456 tok)
-- `pipe_classes.py` — 管道等级端点（Task 1.9.2 / P2-STD-001）。 (~3878 tok)
-- `pipe_codes.py` — 管道代码 API（FMT-4 / SUP-002 §11.5/§12）。 (~3027 tok)
-- `psv_standard_profiles.py` — P5-3-6 PSV 项目标准配置 API。 (~2496 tok)
-- `psv.py` — P5-3-6 PSV API：POST /calculate 端点契约。 (~3317 tok)
-- `records.py` — Records API（Sprint 2）。 (~2338 tok)
-- `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1512 tok)
-- `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~3677 tok)
-- `stream_symbols.py` — 物流符号表端点（SYM-3 / SUP-002 §8）。 (~1973 tok)
-- `streams.py` — P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。 (~6380 tok)
-- `util.py` — S1-5b UTIL API endpoints。 (~6521 tok)
-- `vessel.py` — P5-1-4 VESSEL API：POST /calculate 端点契约。 (~1967 tok)
-- `workspaces.py` — Workspace API（Sprint 1）。 (~551 tok)
+- `__init__.py` (~1404 tok)
+- `_guard.py` — API endpoint 守卫 helper（BLOCKER-3 修复共享函数）。 (~602 tok)
+- `audit.py` — Audit Query API (F-P2-009 Sprint 3 / Issue 7 混合 RBAC). (~2535 tok)
+- `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~5196 tok)
+- `equip_lib.py` — equip-lib 端点（Task 1.9.5 / P2-EQL-001）。 (~724 tok)
+- `filtration.py` — P6-3 FILTRATION API（SPEC §3.2.7 + Task 34）。 (~5529 tok)
+- `flare.py` — P6-2 FLARE_SYS API：Task 20 header_sizing + Task 21 kod_sizing + (~5836 tok)
+- `mock_auth.py` — Mock 登录：仅 env != production 时挂载。固定 4 个角色账号，无 LDAP 依赖。 (~560 tok)
+- `pipe_classes.py` — 管道等级端点（Task 1.9.2 / P2-STD-001）。 (~6127 tok)
+- `pipe_codes.py` — 管道代码 API（FMT-4 / SUP-002 §11.5/§12）。 (~7377 tok)
+- `pipe_net.py` — P4-3-3 管网 Hardy-Cross 计算 + 落库 + outlet_stream API。 (~3646 tok)
+- `pipe.py` — P4-2-5 PIPE 计算链 API。 (~2299 tok)
+- `projects.py` — 项目产品类别 API (product_category — GB 30251-2024 §6.1.5 电折标口径判据). (~1184 tok)
+- `psychro.py` — P6-2 PSYCHRO API：Task 26 6 calc endpoints + psychro_persist CRUD endpoints。 (~7320 tok)
+- `pump.py` — P4-4-4 PUMP 链 API。 (~2574 tok)
+- `records.py` — Records API（Sprint 2）。 (~3276 tok)
+- `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1773 tok)
+- `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~4193 tok)
+- `stream_symbols.py` — 物流符号表端点（SYM-3 / SUP-002 §8）。 (~4194 tok)
+- `streams.py` — P3.2 SIM-6 + SIM-8 + SIM-24：物流 / 状态点手工表单 API（spec V1.6 §3.2）。 (~6705 tok)
+- `util.py` — S1-5b UTIL API endpoints。 (~8191 tok)
+- `workspaces.py` — Workspace API（Sprint 1）。 (~1513 tok)
 
 ## pcs-backend/app/core/
 
-- `acl.py` — ACL 装饰器（基于 user 对象的 duck-typing）。 (~643 tok)
-- `commit_or_rollback.py` — commit_or_rollback — 事务边界包装（Task 2.8 / P2 Sprint 1）。 (~284 tok)
-- `config.py` — Settings: is_production, group_role_map, get_settings, assert_secret_key_configured (~443 tok)
-- `errors.py` — API router (~918 tok)
-- `logging.py` — JsonFormatter: format, setup_logging, new_trace_id (~239 tok)
-- `security.py` — JWT 编解码 + 密码哈希。HS256，密钥由 Settings.secret_key 提供。 (~470 tok)
-- `upload_size_limit.py` — P3.2 SIM-13：上传文件大小限制（闭环审计 D-2，Plan §D9 critical gap）。 (~340 tok)
-
-## pcs-backend/app/db/
-
-- `__init__.py` — db package marker (~6 tok)
-- `base.py` — Declares Base (~109 tok)
-- `session.py` — 双引擎：sync（P0 auth/health/migration）+ async（P1 端点/ARQ）。 (~929 tok)
+- `config.py` — 应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。 (~1084 tok)
+- `errors.py` — FastAPI 全局异常处理器 + 统一 PcsError 信封。 (~2419 tok)
+- `security.py` — JWT 编解码 + 密码哈希 + JTI 吊销。HS256，密钥由 Settings.secret_key 提供。 (~1249 tok)
 
 ## pcs-backend/app/models/
 
-- `__init__.py` — 全部 ORM 模型。alembic/env.py 依赖本包导入即注册全部表。 (~240 tok)
-- `calc.py` — Declares FlashResult (~9229 tok)
-- `config_domain.py` — Declares ConfigAsset (~3612 tok)
-- `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~10605 tok)
-- `deliverable.py` — Declares Deliverable (~2550 tok)
-- `enums.py` — Declares class (~2579 tok)
-- `equipment.py` — Declares EquipmentTypeCode (~2614 tok)
-- `htri_template.py` — Declares HtriTemplateSchema (~298 tok)
-- `mixins.py` — TimestampMixin: project_id, workspace_id (~1092 tok)
-- `pipe_code_template.py` — 管道代码模板 ORM（SUP-002 §11.1/§11.2）。 (~780 tok)
-- `project_template_pipe_class.py` — ProjectTemplate ↔ PipeClass 多对多关联表（SUP-002 §15 / PC-OPEN-04）。 (~183 tok)
-- `project.py` — Declares Project (~5976 tok)
-- `psv_standards.py` — PSV 多标准配置 ORM（P5-0-5 Task 24a，SUP-P5-PSV-001 §3.1 + ADR-0028 V1.1）。 (~1811 tok)
-- `sim_import.py` — P3.x SIM-14: sim_imports + sim_import_warnings 表（stateful preview，D-4 等价闭环）。 (~1320 tok)
-- `sim_tower.py` — P3.x SIM-16: sim_tower_results 表（COLUMN SUMMARY 存档）。 (~789 tok)
-- `sim_unit_op.py` — P3.x SIM-15: sim_unit_op_results + 6 专用结果表（单元 SUMMARY 存档）。 (~1967 tok)
-- `stream_symbol.py` — 物流符号表 ORM（SUP-002 §7.1/§7.2）。 (~563 tok)
-- `system.py` — Declares DataLineage (~2468 tok)
-- `util.py` — S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。 (~5233 tok)
+- `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~11272 tok)
+- `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~3434 tok)
+- `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~7227 tok)
 
 ## pcs-backend/app/schemas/
 
-- `__init__.py` (~0 tok)
-- `checklist.py` — ProjectInputChecklist Pydantic schemas（Sprint 1）。 (~512 tok)
-- `common.py` — COMMON API schemas（Pydantic v2；P3.3 / spec §3.2.3）。 (~646 tok)
-- `config.py` — Config API request/response schemas（Pydantic v2；Task 2.8）。 (~435 tok)
-- `equip_lib.py` — equip-lib 沉淀 schemas（Task 1.9.5 / P2-EQL-001 + P7 §3.2.3(4) 标准化要求）。 (~375 tok)
-- `equip_list.py` — S1-4b EQUIP_LIST API schemas。 (~1225 tok)
-- `formula.py` — 公式参数与单测 Pydantic schema（D16）。 (~235 tok)
-- `pipe_class.py` — PipeClass API schemas（Pydantic v2；Task 1.9.1 / P2-STD-001）。 (~580 tok)
-- `project_template.py` — Pydantic: ApprovalStep (~504 tok)
-- `records.py` — Record 通用 Pydantic schemas（Sprint 2）。 (~186 tok)
-- `stream.py` — P3.2 SIM Stream / StreamStatePoint Pydantic v2 Schema（spec V1.6 §3.2 + §5.3）。 (~4400 tok)
-- `util.py` — S1-5b UTIL API schemas。 (~899 tok)
-- `workspace.py` — Workspace Pydantic schemas（Sprint 1）。 (~281 tok)
-
-## pcs-backend/app/seeds/
-
-- `category3_defaults.json` (~1378 tok)
-
-## pcs-backend/app/seeds/templates/
-
-- `detail_121_a_101.json` (~889 tok)
-- `detail_131_e_102_eor.json` (~648 tok)
+- `audit.py` — Audit Query Pydantic schemas (F-P2-009 Sprint 3 / Issue 5). (~769 tok)
+- `project.py` — 项目产品类别 schema (GB 30251-2024 §6.1.5 电折标口径判据). (~297 tok)
+- `util.py` — S1-5b UTIL API schemas。 (~3550 tok)
+- `workspace.py` — Workspace Pydantic schemas（Sprint 1）。 (~711 tok)
 
 ## pcs-backend/app/services/
 
-- `__init__.py` — package marker (~5 tok)
-- `advisory_lock.py` — Postgres advisory lock（事务级）防止并发状态转移。 (~506 tok)
-- `alias_registry.py` — P3.x SIM-30：组分别名注册表（spec §8.3：≥50 项常见别名）。 (~2504 tok)
-- `audit_service.py` — AuditService：审计统一入口（Issue 6 锁定）。 (~478 tok)
-- `calc_lineage.py` — P4-0-1 统一计算记录收口（ADR-0031）。 (~1602 tok)
-- `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~3557 tok)
-- `checklist_service.py` — ChecklistService（Sprint 1）。 (~1364 tok)
-- `chedl_provenance.py` — ChEDL 包装层 provenance（Task 26 + V1.9 GSTACK P2 provenance 结构化）。 (~310 tok)
-- `chedl_wrapper.py` — ChEDL 包装层（F-13-2 落地 + V1.9 GSTACK P0 修正）。 (~2912 tok)
-- `cia_engine.py` — CIA 变更影响分析引擎（Sprint 3）。 (~4233 tok)
-- `coefficient_service.py` — CoefficientService — 系数库 CRUD + 批量修改（Task 2.5）。 (~1011 tok)
-- `common_service.py` — CommonService — 物性查询 + 许用应力插值 + 介质安全数据（P3.3 / spec §3.2.3）。 (~2719 tok)
-- `composition_normalizer.py` — P3.x SIM-31: composition_mass → composition_mole 归一化层。 (~690 tok)
-- `config_service.py` — ConfigService — 配置资产 CRUD + 版本 fork + diff（Task 2.8）。 (~2558 tok)
-- `config_state_machine.py` — ConfigStateMachine — 配置资产（P2 Sprint 1.2 / SUP-001 §2.1）。 (~2006 tok)
-- `conflict_resolver.py` — P3.2 SIM-7：三级冲突检测服务（spec V1.6 §3.4）。 (~7708 tok)
-- `data_lineage_query.py` — P3.x SIM-23: DataLineage 反向查询服务（spec §2 引用追踪 + E-3）。 (~601 tok)
-- `distillation_curve_validator.py` — P3.x SIM-34：蒸馏曲线 8 种 schema 验证器。 (~1427 tok)
-- `equip_lib_service.py` — EquipLibService — 设备沉淀（CATEGORY_6）+ 检索（Task 1.9.5）。 (~914 tok)
-- `excel_parser.py` — P3.2 SIM-5：Excel 批量导入解析器（spec 第二部分）。 (~2768 tok)
-- `exceptions.py` — PCS service 层统一异常。 (~1063 tok)
-- `export_service.py` — ExportService — openpyxl Excel 导出（P2 Sprint 3 Task 5.3）。 (~397 tok)
-- `formula_engine.py` — FormulaEngine — 公式解析与版本指纹。 (~2242 tok)
-- `formula_service.py` — FormulaService — 公式 PUBLISH 前置校验（Task 2.8 / D18）。 (~1234 tok)
-- `import_service.py` — P3.2 SIM-10：PRO/II + Excel 导入预览与落库服务（spec V1.6 §3.2 + §5.5）。 (~7180 tok)
-- `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~669 tok)
-- `lineage.py` — 血缘追踪（Sprint 3）。 (~2720 tok)
-- `meta_service.py` — Meta API 服务层 — 枚举字典 + 状态机 + 权限码 + 错误码（P4.5 V1.1）。 (~3784 tok)
-- `numbering_service.py` — NumberingService — 文档编号原子自增 + UNIQUE 约束防并发（Task 2.7）。 (~757 tok)
-- `outlet_stream.py` — P4-1-3 出口物流创建 helper（ADR-0022 集成点）。 (~1544 tok)
-- `petroleum_service.py` — PetroleumService — 炼油馏分物性估算 + 虚拟组分切割（Task 1.9.3 / ADR-0019）。 (~1199 tok)
-- `pipe_class_import_service.py` — SUP-002 PC-5：管道等级 Excel 双 Sheet + 验证引擎 + import_id 暂存。 (~3990 tok)
-- `pipe_class_service.py` — PipeClassService — 管道等级 CRUD + 项目分配（Task 1.9.1 / P2-STD-001）。 (~7077 tok)
-- `pipe_class_validator.py` — 管道等级验证引擎——PC-2：22 条规则（PC-V×11 + PC-E×7 + PC-C×4）。 (~4258 tok)
-- `pipe_code_generator.py` — PipeCodeGenerator — 管道代码生成/验证（SUP-002 §11.5 + FMT-OPEN-01 scope）。 (~2950 tok)
-- `pipe_code_template_service.py` — PipeCodeTemplateService — 公司级 CRUD + 项目级 fork（SUP-002 §11/§12）。 (~4613 tok)
-- `pipe_code_validator.py` — FMT 验证规则（SUP-002 §12，9 条）。 (~1560 tok)
-- `proii_assay_d86_parser.py` — P3.x SIM-37b/1: PRO/II 8.x 炼油版全量解析 — ASSAY + D86（6 parser 第 1 批）。 (~2248 tok)
-- `proii_parser.py` — P3.2 SIM-2：PRO/II .inp + .out 双文件解析器（spec V1.6 §3.2 + §3.3.2）。 (~29049 tok)
-- `proii_refinery_poc.py` — P3.x SIM-37a: PRO/II 8.x 炼油版 PoC — 关键字识别。 (~1624 tok)
-- `proii_refstream_tray_sizing_parser.py` — P3.x SIM-37b/3: PRO/II 8.x 炼油版全量解析 — REFSTREAM + TRAY SIZING（6 parser 第 3 批）。 (~2251 tok)
-- `proii_tbp_lightend_parser.py` — P3.x SIM-37b/2: PRO/II 8.x 炼油版全量解析 — TBP + LIGHTEND（6 parser 第 2 批）。 (~1262 tok)
-- `proii_tray_compositions_parser.py` — P3.x SIM-38b/3: 塔盘数据全量 — TRAY COMPOSITIONS 全量集成（SIM-38b 闭环）。 (~957 tok)
-- `proii_tray_compositions_poc.py` — P3.x SIM-38a: 塔盘数据 PoC — TRAY COMPOSITIONS 单 Section 解析。 (~1254 tok)
-- `proii_tray_loading_parser.py` — P3.x SIM-38b/1: 塔盘数据全量 — TRAY LOADING REPORT 解析（SIM-38b 第 1 批）。 (~1434 tok)
-- `proii_tray_rating_parser.py` — class: parse_tray_rating (~1201 tok)
-- `project_template_service.py` — import: validate_config, load, get_default_pipe_class_ids, get_pipe_code_template_id + 1 more (~945 tok)
-- `property_auto_complete.py` — P3.2 SIM-21：物性自动补全（spec V1.6 §5.6 + §5.3）。 (~3040 tok)
-- `property_completion.py` — P3.2 SIM-3：物性补全服务（spec V1.6 §3.3.1）。 (~1266 tok)
-- `property_conflict_resolver.py` — P3.2 SIM-22：物性冲突解决器（spec V1.6 §3.6 ADD-002）。 (~2291 tok)
-- `record_cancellation_service.py` — RecordCancellationService — 记录弃用 (RECORD_CANCELLATION) 闭环（ADR-0009 + ADR-0002）。 (~2108 tok)
-- `report_service.py` — ReportService — P2 Sprint 3 Task 5.1 + 5.2。 (~1071 tok)
-- `reversal_approval_service.py` — ReversalApprovalService — 反向签署 (REVERSAL_APPROVAL) 闭环（ADR-0010 + ADR-0002）。 (~2980 tok)
-- `state_machine.py` — 状态机（Sprint 2 核心）。 (~4804 tok)
-- `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~6334 tok)
-- `stream_symbol_service.py` — StreamSymbolService — 公司级 CRUD + 项目级 fork（SUP-002 §7/§8）。 (~4972 tok)
-- `stream_symbol_validator.py` — SYM 验证规则（SUP-002 §4.2/§7 派生 6 条）。 (~873 tok)
-- `template_service.py` — TemplateService — 模板文件上传 + sha256 + Jinja2 渲染（Task 2.6）。 (~1398 tok)
-- `toe_conversion_service.py` — ToeConversionService — 折标煤系数组 CRUD（Task 1.10.1 / V1.4 P2-OPEN-005）。 (~1745 tok)
-- `ui_schema_service.py` — uiSchema 服务 — 表单节点契约（P45-2-0 / Task 18.5）。 (~2729 tok)
-- `unreliable_stream_guard.py` — P3.x SIM-39 / TODO-037: 不可靠物流下游计算硬拒绝守卫。 (~557 tok)
-- `workspace_service.py` — WorkspaceService（Sprint 1）。 (~1329 tok)
-
-## pcs-backend/app/services/equip_list/
-
-- `persist_service.py` — S1-4b EQUIP_LIST persist service（bulk_sync + update + list helper）。 (~1344 tok)
-- `sync_service.py` — S1-4 EQUIP_LIST 同步服务（sync_from_source）。 (~1641 tok)
-
-## pcs-backend/app/services/heat/
-
-- `heat_data_service.py` — HeatResultsService 落库（P5-4-2 / Task 20）。 (~3685 tok)
-- `heat_persist.py` — HEAT 换热器计算持久化 service（P5-4-5 / Task 23）。 (~2027 tok)
-- `htri_parser.py` — HTRI 自研解析器（P5-4-1 / Task 19）。 (~2229 tok)
-- `weight_estimate_service.py` — 换热器重量估算 service（P5-4-4 / Task 22）。 (~2488 tok)
-
-## pcs-backend/app/services/psv/
-
-- `__init__.py` — P5-3 PSV 安全阀模块。 (~877 tok)
-- `bellows_compat.py` — SUP-P5-PSV-002 V1.14 §3.8 波纹管材料-介质兼容矩阵。 (~1730 tok)
-- `breathing_valve_service.py` — P5-3-5 PSV 呼吸阀（API 2000 Venting Atmospheric and Low-Pressure Storage Tanks）。 (~1418 tok)
-- `cdtp.py` — SUP-P5-PSV-002 V1.14 §4.4 CDTP 修正。 (~630 tok)
-- `fire_case_service.py` — P5-3-1 PSV 火灾工况计算（API 521 7th + GB/T 150.1 2011/2024 双路径）。 (~2691 tok)
-- `kb_service.py` — SUP-P5-PSV-002 V1.14 §4.3 Kb 4 阶段策略 + 合成 _KB_DATA seed。 (~1888 tok)
-- `orifice_flange.py` — SUP-P5-PSV-002 V1.14 §3.3 API 526 孔口-法兰映射 + 变体 + 反向查询。 (~2747 tok)
-- `orifice_service.py` — P5-3-5 PSV 选型（API 526 标准孔口表 D~T）。 (~1254 tok)
-- `other_cases_service.py` — P5-3-2 PSV 其他工况（阀门关闭 + 反应失控 + 热膨胀）。 (~1960 tok)
-- `psv_persist.py` — P5-3-6 PSV 计算落库 + outlet 流（service 层）。 (~5533 tok)
-- `relief_aggregator_service.py` — P5-3-3 PSV 多工况叠加聚合。 (~982 tok)
-- `relief_area_service.py` — P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 双路径 + ω 法两相流）。 (~4228 tok)
-- `valve_selection_types.py` — SUP-P5-PSV-002 V1.14 §3.2 类型定义 + ValidatedParams 容器。 (~2288 tok)
-- `valve_validation.py` — SUP-P5-PSV-002 V1.14 §4.2 validate_valve_params（G7-G25 全拦截/警告）。 (~3649 tok)
-
-## pcs-backend/app/services/psychro/
-
-- `hydrate_inhibition_service.py` — 水合物抑制（SPEC §3.9.4 V1.8）。 (~2347 tok)
-- `saturation_water_content_service.py` — 饱和水含量 service（P6-4 C-17 / SPEC §3.2.5 P6-PSY-001）。 (~3737 tok)
-
-## pcs-backend/app/services/restriction/
-
-- `drain_orifice_service.py` — 排污孔板（drain orifice）计算（SPEC §3.6.2 + §3.7.2 V1.1）。 (~1647 tok)
-
-## pcs-backend/app/services/sep_equip/
-
-- `__init__.py` — P5-2 SEP_EQUIP 气固/气液分离设备模块。 (~213 tok)
-- `cyclone_service.py` — P5-2-1 旋风分离器三方法（Lapple / Swift / Barth）。 (~1708 tok)
-- `gravity_separator_service.py` — P5-2-3 重力沉降器（Stokes + Intermediate + Newton 三区）。 (~1697 tok)
-- `mist_eliminator_service.py` — P5-2-2 丝网除沫器（York 法 + Souders-Brown K 因子）。 (~1493 tok)
-- `sep_equip_persist.py` — P5-2-4 sep_equip 计算落库 + outlet 流（service 层）。 (~1744 tok)
+- `advisory_lock.py` — Postgres advisory lock（事务级）防止并发状态转移。 (~862 tok)
+- `audit_service.py` — AuditService：审计统一入口（Issue 6 锁定）。 (~610 tok)
+- `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~1011 tok)
+- `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~6322 tok)
 
 ## pcs-backend/app/services/util/
 
-- `persist_service.py` — S1-5b UTIL persist service。 (~1030 tok)
-- `source_aggregator.py` — S1-5b SourceModule → 13 类公用工程 consumption_json 聚合。 (~1848 tok)
-- `summary_service.py` — S1-5 R3: util_results → 13 类聚合 + 折标煤计算。 (~970 tok)
-- `utility_energy_summary_service.py` — P7 Sprint 2 T5: 综合能耗汇总 service (utility_energy_summary). (~2948 tok)
-
-## pcs-backend/app/services/vessel/
-
-- `__init__.py` — P5-1 vessel_service 容器计算模块。 (~133 tok)
-- `vessel_persist.py` — P5-1-4 vessel 计算落库 + outlet 流（service 层）。 (~1819 tok)
-- `vessel_service.py` — P5-1 vessel_service（Souders-Brown + 流体力学）。 (~14312 tok)
-
-## pcs-backend/app/workers/
-
-- `__init__.py` (~0 tok)
-- `cia_tasks.py` — ARQ CIA 定时任务（Sprint 3）。 (~357 tok)
-- `worker.py` — ARQ WorkerSettings（Sprint 1 + Sprint 3）。 (~520 tok)
-- `workspace_tasks.py` — Workspace 异步任务（ARQ workers）。 (~302 tok)
+- `utility_energy_summary_service.py` — P7 Sprint 2 T5: 综合能耗汇总 service (utility_energy_summary). (~9808 tok)
 
 ## pcs-backend/scripts/
 
-- `export_openapi.py` — 导出 OpenAPI 3.1 spec 到 docs/openapi.json（不启 uvicorn，直接调 app.openapi）。 (~398 tok)
-- `extract_pipe_classes_kaimen.py` — kaimen SPC-0004 管道等级种子重生成工具（P2-OPEN-001 第二数据源）。 (~4091 tok)
-- `p7_open_009_t0_seed_energy_conversion_factors.py` — P7 Sprint 2 T0: config_energy_conversion_factors CONFIG 数据录入（折标煤系数）。 (~1641 tok)
-- `validate_brief.py` — Assert brief content matches plan table row for task N. (~926 tok)
+- `check_migration_idempotency.py` — 检查 alembic migrations 是否用 if_exists / if_not_exists (F-P3-002 fix). (~706 tok)
+- `p7_open_009_t0_seed_energy_conversion_factors.py` — t**) GB 30251-2024 附录A 序号4 — " (~3764 tok)
+- `p7_open_012_t5_r1_verification.py` — P7 Sprint 2 T5 ≤2% 验收脚本（蜡油加氢 XLS R1 重算对比）。 (~4491 tok)
+- `p7_open_016_config_conformance_audit.py` — PCS 折标系数 vs GB 30251-2024 附录A 表A.1 一致性审计. (~3146 tok)
+- `p7_s3_003_backfill_config_audit.py` — F-P0-001 R1 audit backfill (P7 Sprint 3 / Issue 6). (~1249 tok)
 
 ## pcs-backend/tests/
 
-- `__init__.py` — tests package marker (~7 tok)
-- `_debug_hash_diff_test.py` — Test wrapper to run the debug function. (~63 tok)
-- `_debug_hash_diff.py` — Debug: find fields that differ between in-memory and re-loaded pipe. (~720 tok)
-- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~3748 tok)
-- `test_arq_failure.py` — ARQ worker failure 路径测试：cleanup_expired_workspaces 应捕获并记录异常。 (~779 tok)
-- `test_audit.py` — Audit 测试：AuditAction 长度 + AuditService 写入。 (~540 tok)
-- `test_auth.py` — auth API 单元测试。Mock LDAP 通过 monkey-patching app.services.ldap_client.authenticate。 (~1348 tok)
-- `test_change_impact.py` — Change Impact API 端到端测试（Sprint 3）。 (~1168 tok)
-- `test_checklist.py` — Checklist API/服务测试（DICT-ALL-003 V3.1 表44 5态）。 (~1412 tok)
-- `test_cia_tasks.py` — CIA ARQ 定时任务测试（Sprint 3）。 (~1568 tok)
-- `test_cia.py` — CIA 引擎 + 链式传播 + 设备联动测试（Sprint 3）。 (~4422 tok)
-- `test_dual_engine.py` — 双引擎 / lifespan 测试。 (~301 tok)
-- `test_errors.py` — test_404_uses_envelope, test_405_uses_envelope (~134 tok)
-- `test_health.py` — test_health_returns_ok, test_health_db_down, test_unhandled_exception_500_envelope (~396 tok)
-- `test_lineage_api.py` — Lineage API 端到端测试（Sprint 3）。 (~1844 tok)
-- `test_lineage.py` — Lineage 单元/集成测试（Sprint 3）。 (~4225 tok)
-- `test_mock_auth.py` — Mock auth + 生产环境禁用契约。 (~692 tok)
-- `test_records.py` — Records API 端到端（Sprint 2）。 (~1716 tok)
-- `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~1805 tok)
-- `test_state_machine.py` — Sprint 2 状态机守卫测试（ALLOWED_TRANSITIONS 矩阵）。 (~3788 tok)
-- `test_vendor_smoke.py` — vendor 接线冒烟测试（Task 1.9.0）。 (~250 tok)
-- `test_workspace.py` — Workspace API/服务测试。 (~508 tok)
+- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~4455 tok)
+- `test_audit_guard.py` — P7-7+ BLOCKER-3 guard 集成测试 — /equipment-deletion-audit 端点. (~1256 tok)
+- `test_audit_query.py` — F-P2-009 Sprint 3: Audit Query 后端测试 (Issue 5 错误路径 + Issue 7 混合 RBAC). (~3389 tok)
+- `test_jwt_production.py` — F-P3-001 Sprint 3: JWT production hardening + LDAP fail-closed 测试. (~2042 tok)
+- `test_rbac_audit.py` — F-P3-001 checklist #5: RBAC 401/403 audit log + per-IP rate limit 测试. (~1861 tok)
+- `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~2434 tok)
+- `test_workspace_archive.py` — F-P3-003 Sprint 3: Workspace archive PATCH 端点测试. (~1272 tok)
 
 ## pcs-backend/tests/api/v1/
 
-- `test_common.py` — COMMON 物性/许用应力/介质安全 API 测试（P3.3 / spec §3.2.3）。 (~1820 tok)
-- `test_config.py` — Config API 端点测试（Task 2.8 — P2 Sprint 1.7）。 (~3414 tok)
-- `test_equip_lib.py` — equip-lib 沉淀 + 检索测试（Task 1.9.5 / P2-EQL-001，CATEGORY_6 复用审批链）。 (~1003 tok)
-- `test_equip_list.py` — S1-4b EQUIP_LIST API 测试（in-memory SQLite + httpx async client）。 (~2178 tok)
-- `test_heat_api.py` — P5-4-5 HEAT API + 落库 + outlet_stream + weight 集成测试。 (~3544 tok)
-- `test_imports_api.py` — P3.2 SIM-10 + P3.x SIM-14：PRO/II + Excel 导入 stateful preview/commit API 测试。 (~5274 tok)
-- `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3016 tok)
-- `test_pipe_class_config_flow.py` — SUP-002 PC-3: 管道等级 + ConfigAsset 5 态接入（V1.4 §0.5/§2.1/§3.1）。 (~2074 tok)
-- `test_pipe_classes.py` — 管道等级 API 测试（Task 1.9.2 / spec §3.2.5 5 端点 + 删除/分配）。 (~3579 tok)
-- `test_pipe_codes.py` — 管道代码 API 集成测试（FMT-4）。 (~2729 tok)
-- `test_psv_api.py` — P5-3-6 PSV API + 落库 + outlet_stream + 标准 profile 集成测试。 (~7973 tok)
-- `test_sep_equip.py` — P5-2-4 SEP_EQUIP API 集成测试。 (~2648 tok)
-- `test_sim_imports_query_endpoints.py` — P3.x SIM-27: 9 类 sim imports 查询端点 测试。 (~3304 tok)
-- `test_sim_imports_template_endpoint.py` — P3.x SIM-25：GET /imports/excel/template 模板下载端点测试。 (~1736 tok)
-- `test_state_points_api.py` — P3.2 SIM-8：状态点 API 集成测试。 (~2827 tok)
-- `test_stream_symbols.py` — StreamSymbol API 集成测试（SYM-3 / SUP-002 §8）。 (~1537 tok)
-- `test_streams_api.py` — P3.2 SIM-6：物流手工表单 API 集成测试。 (~3991 tok)
-- `test_streams_delete_reference_blocking.py` — P3.x SIM-35：DELETE /streams/{id} 被引用时不可删除。 (~2181 tok)
-- `test_streams_properties_endpoints.py` — P3.x SIM-26：物流物性端点测试。 (~2253 tok)
-- `test_streams_state_machine_api.py` — P3.2 SIM-13：物流状态机 6 端点 API 测试（闭环审计 D-1）。 (~2253 tok)
-- `test_streams_update_status_restriction.py` — P3.x SIM-32：PATCH /streams/{id} 端点状态限制。 (~2153 tok)
-- `test_toe_error_envelope.py` — services.PcsError 错误信封 API 测试（终审 F2 / V1.4 P2-OPEN-005）。 (~380 tok)
-- `test_util_sprint2.py` — P7 Sprint 2 T7: UTIL 5 表 API 端点测试. (~2010 tok)
-- `test_util.py` — S1-5b UTIL API 测试（in-memory SQLite + httpx async client）。 (~1959 tok)
-- `test_vessel_api.py` — P5-1-4 VESSEL API + 落库 + 出口物流 集成测试。 (~3072 tok)
-
-## pcs-backend/tests/architecture/
-
-- `test_chedl_version.py` — P5-0-6 Task 25: ChEDL 版本锁定架构测试（ADR-0030）。 (~2359 tok)
-- `test_p5_0_2_heat_extend.py` — P5-0-2 Task 2: heat_results 双轨字段扩展 + REGISTRY 10 类 contract 测试。 (~2582 tok)
-- `test_p5_0_4a_pk_rename.py` — P5-0-4a Task 4a: PK rename + tag_number 统一 contract 测试。 (~3697 tok)
-- `test_p5_0_5_psv_multi_standard.py` — P5-0-5 Task 24a: PSV 多标准配置 + 9 类 registry contract 测试。 (~3304 tok)
-- `test_p5_open_005_model_extension.py` — P5-0-1 Task 1: 模型扩展架构契约测试（SUP-008 §8.3.2/§8.3.3/§8.3.5 + §8.4 OPEN-009）。 (~2882 tok)
-
-## pcs-backend/tests/core/
-
-- `conftest.py` — tests/core fixtures — Task 1.4 ACL 装饰器。 (~324 tok)
-- `test_acl.py` — ACL 装饰器测试（Task 1.4）。 (~671 tok)
-- `test_upload_size_limit.py` — P3.2 SIM-13：上传文件大小限制测试（闭环审计 D-2）。 (~422 tok)
-
-## pcs-backend/tests/e2e/
-
-- `test_sim_three_entry_consistency.py` — P3.2 SIM-11：三入口（PRO/II + Excel + 手工 API）E2E 集成测试。 (~4940 tok)
-
-## pcs-backend/tests/fixtures/
-
-- `build_excel_fixture.py` — SIM-5 测试夹具 xlsx 构造脚本（spec 第二部分）。 (~418 tok)
-- `chedl_version_snapshot.txt` — ChEDL 版本快照（CI baseline，ADR-0030 决策 4 + B-03） (~109 tok)
-
-## pcs-backend/tests/fixtures/proii/
-
-- `README.md` — Project documentation (~601 tok)
-
-## pcs-backend/tests/fixtures/proii/sample1_34comp/
-
-- `sample1_34comp.inp` (~1289 tok)
-- `sample1_34comp.out` (~1335 tok)
-
-## pcs-backend/tests/fixtures/proii/sample2_unconverged/
-
-- `sample2_unconverged.inp` (~281 tok)
-- `sample2_unconverged.out` (~524 tok)
-
-## pcs-backend/tests/fixtures/proii/sample3_side_draw/
-
-- `sample3_side_draw.inp` (~740 tok)
-- `sample3_side_draw.out` (~982 tok)
-
-## pcs-backend/tests/fixtures/proii/sample4_flash_valve/
-
-- `sample4_flash_valve.inp` (~641 tok)
-- `sample4_flash_valve.out` (~1029 tok)
-
-## pcs-backend/tests/fixtures/proii/sample5_reactor_extraction/
-
-- `sample5_reactor_extraction.inp` (~878 tok)
-- `sample5_reactor_extraction.out` (~1335 tok)
-
-## pcs-backend/tests/fuzz/
-
-- `__init__.py` — tests.fuzz — property-based / fuzz 测试包。 (~52 tok)
-- `test_formula_engine.py` — FormulaEngine fuzz 测试（Task 2.3 Step 5）。 (~164 tok)
-
-## pcs-backend/tests/integration/
-
-- `test_e2e_template_to_pipe_code.py` — INT-3：端到端集成测试（V1.4 §15）。 (~2589 tok)
-
-## pcs-backend/tests/models/
-
-- `test_alembic_roundtrip.py` — P3.x SIM-39 / TODO-040: Alembic migration round-trip 单测（可逆段）。 (~1232 tok)
-- `test_enums.py` — AuditAction 枚举测试：CONFIG_* 8 项（P2 Sprint 1.1）。 (~264 tok)
-- `test_equip_list_source_service.py` — P7 Task S1-2：equipment_list 补 SourceService（SPEC V1.4 §3.2.1（2）来源组 V1.4 新增）。 (~2854 tok)
-- `test_htri_template_schema.py` — HTRI 解析模板 schema 测试（Task 1.10.3，V1.4 P2-OPEN-005）。 (~676 tok)
-- `test_orm_db_drift.py` — ORM↔DB 元数据 drift 守卫（bug-101/bug-102 防回归）。 (~723 tok)
-- `test_pipe_class_migration.py` — SUP-002 PC-1 迁移验证测试。 (~3255 tok)
-- `test_sign_status_9states_ratify.py` — P5-0-3 Task 3: StreamSignStatus 9 态扩展 ratify（plan §批 P5-0 §Task 3）。 (~1116 tok)
-- `test_sim_tower_model.py` — P3.x SIM-16: sim_tower_results 表 + COLUMN SUMMARY 解析 测试。 (~1465 tok)
-- `test_sim_unit_op_model.py` — P3.x SIM-15: sim_unit_op_results + 6 专用结果表 测试。 (~2879 tok)
-- `test_stream_orm.py` — P3.2 SIM-1：Stream / StreamStatePoint ORM 结构断言。 (~1362 tok)
-- `test_streams_sim_fields.py` — P3.x SIM-17 + SIM-18: streams 表 8 字段扩展 测试。 (~1417 tok)
-- `test_streams_sim33_vapor_fields.py` — P3.x SIM-33：气相 9 字段 + 液相命名对齐 + SIM-31 JSONB→ORM 迁移。 (~2188 tok)
-- `test_streams_sim34_petroleum_fields.py` — P3.x SIM-34：炼油专用 5 字段 + 蒸馏曲线 8 种 schema 验证。 (~2521 tok)
-- `test_sup008_result_fields.py` — P4-0-2 SUP-008 表扩展迁移验证测试。 (~6008 tok)
-
-## pcs-backend/tests/schemas/
-
-- `test_formula.py` — Pydantic schema 契约测试：formula.parameters_json（D16）。 (~449 tok)
-- `test_project_template_schema.py` — test_record_approval_config_valid, test_stream_approval_config_levels_1_to_2, test_numbering_config_ (~773 tok)
-- `test_stream_schema.py` — P3.2 SIM-1：Stream / StreamStatePoint Pydantic schema 契约测试。 (~1278 tok)
-
-## pcs-backend/tests/scripts/
-
-- `test_validate_brief.py` — OPEN-P6-6A-2: validate_brief.py 单元测试（CLI subprocess + 临时 brief 文件）。 (~1355 tok)
-
-## pcs-backend/tests/seeds/
-
-- `test_category3_seeds.py` — CATEGORY_3 默认系数表 seed 测试（Task 1.8.3 六表 + Task 1.9.4 炼油三表）。 (~936 tok)
-- `test_detail_templates.py` — DETAIL 模板资产入库测试（Task 1.10.2, V1.4 P2-OPEN-005）。 (~712 tok)
+- `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3030 tok)
+- `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
 
 ## pcs-backend/tests/services/
 
-- `conftest.py` — services 子目录 fixtures（最小集 — Task 2.7.1 将扩展到 9 fixture）。 (~1641 tok)
-- `test_alias_registry.py` — P3.x SIM-30：组分别名注册表（spec §8.3 验收：≥50 项常见别名）。 (~4895 tok)
-- `test_calc_lineage.py` — P4-0-1 calc_lineage 收口单测（fake session，无 DB）。 (~1765 tok)
-- `test_change_notice_service.py` — P3.x SIM-38: 一键变更单 (RECORD_CHANGE) 闭环。 (~4997 tok)
-- `test_chedl_wrapper.py` — P5-0-7 Task 26: ChEDL 包装层测试（ADR-0030 V1.1 决策 6/9 + V1.9 GSTACK P0/P2）。 (~3113 tok)
-- `test_cia_propagation.py` — CIAEngine 反向传播测试（P2 Sprint 3 Task 4.1）。 (~1976 tok)
-- `test_coefficient_service.py` — CoefficientService tests (Task 2.5). (~766 tok)
-- `test_composition_normalizer.py` — P3.x SIM-31：composition_mass → composition_mole 归一化 + 液相字段。 (~1684 tok)
-- `test_config_state_machine.py` — ConfigStateMachine 5 态骨架测试（Task 1.2）+ 双段签测试（Task 1.3）。 (~1996 tok)
-- `test_conflict_resolver.py` — P3.2 SIM-7：三级冲突检测服务契约测试（spec V1.6 §3.4）。 (~2338 tok)
-- `test_data_lineage_reverse_query.py` — P3.x SIM-23: DataLineage 反向查询（spec §2 引用追踪 + E-3）。 (~1524 tok)
-- `test_equipment_type_code_service.py` — S1-3 EquipmentTypeCodeService seed 测试（P7-Sprint 1 T1.5）。 (~698 tok)
-- `test_excel_parser.py` — P3.2 SIM-5：Excel 批量导入解析器契约测试（spec 第二部分）。 (~1592 tok)
-- `test_export_service.py` — ExportService 测试（P2 Sprint 3 Task 5.3）。 (~1015 tok)
-- `test_formula_engine_preconditions.py` — FormulaEngine.evaluate_preconditions 单元测试（Task 1.8.1）。 (~796 tok)
-- `test_formula_engine.py` — FormulaEngine.parse() 单元测试（Task 2.3）。 (~932 tok)
-- `test_formula_security_error.py` — Tests for FormulaSecurityError inheritance from PcsError (Task 1.8.2). (~129 tok)
-- `test_import_service.py` — P3.2 SIM-10：ImportService PRO/II + Excel 导入契约测试（spec V1.6 §5.5）。 (~4174 tok)
-- `test_lineage_extension.py` — P4-TASK0 lineage D4/D5 扩展单测（fake session）。 (~994 tok)
-- `test_numbering_service.py` — NumberingService tests (Task 2.7). (~1118 tok)
-- `test_petroleum_service.py` — Riazi-Daubert 估算 + 虚拟组分切割测试（Task 1.9.3 / ADR-0019 / P2 §3.2.4）。 (~586 tok)
-- `test_pipe_class_fork.py` — SUP-002 PC-4: 项目级 fork + snapshot 绑定 + 有效值解析 + 5 态轻量状态机（V1.4 §2.4）。 (~4489 tok)
-- `test_pipe_class_import_v2.py` — SUP-002 PC-5：管道等级 Excel 双 Sheet + import_id 暂存（V1.4 §0.6/EXCEL-01）。 (~3489 tok)
-- `test_pipe_class_import.py` — Excel 批量导入测试（Task 1.9.6 / P2-STD-001 验收「Excel导入正常」）。 (~1357 tok)
-- `test_pipe_class_service.py` — PipeClassService 单元测试（Task 1.9.1 / P2-STD-001）。 (~1424 tok)
-- `test_pipe_class_validator.py` — PC-2：管道等级验证引擎 22 条规则测试（V1.4 修正）。 (~3184 tok)
-- `test_pipe_code_generator.py` — PipeCodeGenerator 集成测试（FMT-3）。 (~1508 tok)
-- `test_pipe_code_template_service.py` — PipeCodeTemplateService 集成测试（FMT-2）。 (~3622 tok)
-- `test_pipe_code_validator.py` — PipeCodeValidator 单元测试（FMT-V01~V09 全部覆盖）。 (~1632 tok)
-- `test_pr_v_and_prx_v_rules.py` — P3.x SIM-29：PR-V01~V14 + PRX-V01~V08 共 22 条 PRO/II 双文件交叉校验。 (~2046 tok)
-- `test_proii_assay_d86_parser.py` — P3.x SIM-37b/1: PRO/II 8.x 炼油版全量解析 — ASSAY + D86。 (~2478 tok)
-- `test_proii_column_summary_parser.py` — P3.x SIM-16: COLUMN SUMMARY 解析测试。 (~930 tok)
-- `test_proii_composition_parser.py` — P3.x SIM-19: PRO/II composition 提取 + 17 项 LIBID→CAS 别名映射 测试。 (~986 tok)
-- `test_proii_out_section_dispatcher.py` — P3.2 SIM-20: PRO/II .out 20+ Section 数值提取（spec V1.6 §3.4.2）。 (~6197 tok)
-- `test_proii_parser.py` — P3.2 SIM-2：PRO/II .inp+.out 双文件解析器契约测试（spec V1.6 §607-633）。 (~2883 tok)
-- `test_proii_reaction_kinetics.py` — P3.2 SIM-36: PRO/II reaction kinetics 提取（spec V1.6 §3.3.3）。 (~3019 tok)
-- `test_proii_refinery_poc.py` — P3.x SIM-37a: PRO/II 8.x 炼油版 PoC（关键字识别 + 1 fixture 验证估时）。 (~2417 tok)
-- `test_proii_refstream_tray_sizing_parser.py` — P3.x SIM-37b/3: PRO/II 8.x 炼油版全量解析 — REFSTREAM + TRAY SIZING。 (~2912 tok)
-- `test_proii_tbp_lightend_parser.py` — P3.x SIM-37b/2: PRO/II 8.x 炼油版全量解析 — TBP + LIGHTEND。 (~2264 tok)
-- `test_proii_tray_compositions_parser.py` — P3.x SIM-38b/3: 塔盘数据全量 — TRAY COMPOSITIONS 全量集成。 (~1669 tok)
-- `test_proii_tray_compositions_poc.py` — P3.x SIM-38a: 塔盘数据 PoC — TRAY COMPOSITIONS 单 Section。 (~2024 tok)
-- `test_proii_tray_loading_parser.py` — P3.x SIM-38b/1: 塔盘数据全量 — TRAY LOADING REPORT。 (~2412 tok)
-- `test_proii_tray_rating_parser.py` — P3.x SIM-38b/2: 塔盘数据全量 — TRAY RATING RESULTS（双版本格式）。 (~1729 tok)
-- `test_proii_unit_op_summary_parser.py` — P3.x SIM-15: 单元操作 SUMMARY 解析测试。 (~803 tok)
-- `test_project_symbol_template_approval.py` — P3.2 SIM-37: 项目级符号/格式模板审批收口。 (~4079 tok)
-- `test_project_template_integration.py` — INT-1：ProjectTemplate 默认等级 + 默认管道代码模板（V1.4 §15 / PC-OPEN-04）。 (~1454 tok)
-- `test_property_auto_complete.py` — P3.2 SIM-21: 物性自动补全（spec V1.6 §5.6 + §5.3「已知物性查询 / 缺失物性估算」）。 (~2551 tok)
-- `test_property_completion.py` — P3.2 SIM-3：物性补全服务契约测试（spec V1.6 §3.3.1）。 (~1184 tok)
-- `test_property_conflict_resolver.py` — P3.2 SIM-22: PropertyConflictResolver 物性冲突解决（spec V1.6 §3.6 ADD-002）。 (~3577 tok)
-- `test_record_cancellation.py` — P3.x SIM-39: 记录弃用 (RECORD_CANCELLATION) 闭环。 (~3815 tok)
-- `test_report_service.py` — ReportService tests (Task 5.1 + 5.2 / P2 Sprint 3)。 (~968 tok)
-- `test_reversal_approval.py` — P3.x SIM-40: 反向签署 (REVERSAL_APPROVAL) 闭环。 (~4015 tok)
-- `test_selectinload_streams.py` — P3.2 SIM-13：selectinload 防 N+1 测试（闭环审计 D-3）。 (~1401 tok)
-- `test_sim_v03_to_v10_rules.py` — P3.x SIM-28：SIM-V03~V10 共 8 条 SIM 结构完整性校验规则单元测试。 (~2652 tok)
-- `test_state_machine_audit_structured.py` — P3.x SIM-39 / TODO-044: 状态机审计日志结构化（snapshot 链）。 (~1574 tok)
-- `test_state_point_conflict.py` — P3.2 SIM-9：状态点级冲突检测服务契约测试（spec V1.6 §3.4）。 (~3013 tok)
-- `test_state_point_crud.py` — P3.2 SIM-8：StreamStatePoint CRUD 契约测试（spec V1.6 §3.2.2 + §3.4）。 (~2808 tok)
-- `test_stream_service.py` — P3.2 SIM-4：StreamService 物流 CRUD 契约测试（spec V1.6 §3.2.3）。 (~2610 tok)
-- `test_stream_symbol_service.py` — StreamSymbolService 集成测试（SYM-2）。 (~2522 tok)
-- `test_stream_symbol_validator.py` — StreamSymbolValidator 单元测试（SYM-V01~V05）。 (~750 tok)
-- `test_stream_transition.py` — P3.2 SIM-13：StreamService.transition() 状态机集成测试（闭环审计 D-1）。 (~2974 tok)
-- `test_template_service.py` — TemplateService tests (Task 2.6). (~891 tok)
-- `test_toe_conversion_service.py` — ToeConversionService 折标煤系数组测试（Task 1.10.1 / V1.4 P2-OPEN-005）。 (~820 tok)
-- `test_ui_schema_drift.py` — uiSchema ↔ Pydantic Schema drift 检测（P45-1-15 / Task 20）。 (~1476 tok)
-- `test_unreliable_stream_guard.py` — P3.x SIM-39 / TODO-037: 不可靠物流下游计算硬拒绝守卫。 (~1029 tok)
-
-## pcs-backend/tests/services/equip_list/
-
-- `test_sync_service.py` — S1-4 EQUIP_LIST 同步服务测试（P7-Sprint 1 T2）。 (~3106 tok)
-
-## pcs-backend/tests/services/heat/
-
-- `test_ache.py` — ACHE 空冷器 + 焓值表 service 测试（P5-4-3 / Task 21）。 (~2411 tok)
-- `test_heat_data.py` — HeatResultsService 测试（P5-4-2 / Task 20）。 (~2773 tok)
-- `test_heat_persist.py` — HEAT 持久化 service 测试（P5-4-5 / Task 23）。 (~2802 tok)
-- `test_htri_parser.py` — HTRI parser + version detection 测试（P5-4-1 / Task 19）。 (~1338 tok)
-- `test_weight_estimate.py` — 换热器重量估算 service 测试（P5-4-4 / Task 22）。 (~1524 tok)
-
-## pcs-backend/tests/services/heat/fixtures/
-
-- `golden_weight_aem.json` (~315 tok)
-- `golden_weight_bem.json` (~322 tok)
-- `htri_corrupted.txt` (~17 tok)
-- `htri_empty.txt` (~0 tok)
-- `htri_unsupported_v99.txt` (~37 tok)
-- `htri_xchanger_v8_shell_tube.txt` (~120 tok)
-- `htri_xist_v6_air_cooled.txt` (~82 tok)
-- `htri_xist_v6_basic.txt` (~118 tok)
-- `README.md` — Project documentation (~309 tok)
-
-## pcs-backend/tests/services/pipe/
-
-- `test_two_phase.py` — P4-2-4 TwoPhaseService 单元测试。 (~4162 tok)
-
-## pcs-backend/tests/services/psv/
-
-- `__init__.py` (~0 tok)
-- `test_bellows_compat.py` — SUP-P5-PSV-002 V1.14 §3.8 波纹管材料-介质兼容矩阵测试。 (~2175 tok)
-- `test_cdtp.py` — SUP-P5-PSV-002 V1.14 §4.4 apply_cdtp_correction 边界 + 错误码测试。 (~1446 tok)
-- `test_fire_case.py` — P5-3-1 PSV 火灾工况（API 521 7th + GB/T 150.1 2011/2024 双路径）测试。 (~3611 tok)
-- `test_kb_lookup.py` — SUP-P5-PSV-002 V1.14 §4.3 Kb 4 阶段策略 + 合成 _KB_DATA 测试。 (~2792 tok)
-- `test_orifice_breathing.py` — P5-3-5 PSV 选型（API 526 孔口表 D~T）+ 呼吸阀（API 2000）测试。 (~2356 tok)
-- `test_orifice_flange.py` — API 526 孔口-法兰映射 + 变体 + H/G 双候选 + T 孔口 65 psig 测试（V1.14 §3.3）。 (~3194 tok)
-- `test_other_cases.py` — P5-3-2 PSV 其他工况（阀门关闭 + 反应失控 + 热膨胀）测试。 (~2758 tok)
-- `test_psv_persist.py` — P5-3-6 PSV 落库 service dispatcher + helpers 单元测试。 (~3320 tok)
-- `test_relief_aggregator.py` — P5-3-3 PSV 多工况叠加聚合测试。 (~1923 tok)
-- `test_relief_area.py` — P5-3-4 PSV 泄放面积（API 520 + GB/T 12241 + ω 法两相流）测试。 (~5114 tok)
-- `test_valve_validation.py` — SUP-P5-PSV-002 V1.14 §4.2 validate_valve_params 测试（G7-G25 全拦截/警告）。 (~7230 tok)
-
-## pcs-backend/tests/services/psychro/
-
-- `test_hydrate_inhibition.py` — P6-5 Task C2 (C-18 PSYCHRO 水合物抑制) hydrate_inhibition_service 单元测试。 (~3074 tok)
-- `test_saturation_scope_docstring.py` — OPEN-P6-6A-1: 饱和水含量 service docstring scope 段 防回归测试。 (~790 tok)
-- `test_worley_c18.py` — P6-6A Task 10: C-18 PSYCHRO 水合物抑制 vs Worley 真实算例 WS-CA-PR-020 对账测试。 (~7976 tok)
-
-## pcs-backend/tests/services/psychro/fixtures/
-
-- `golden_hydrate_meoh.json` (~763 tok)
-- `worley_c18_hydrate_inhibition.json` — pressure: d, d (~8024 tok)
-
-## pcs-backend/tests/services/restriction/
-
-- `test_worley_c19.py` — P6-6A Task 11: C-19 RESTRICTION 排污孔板 vs Worley 真实算例 WS-CA-PR-023 对账测试。 (~9083 tok)
-
-## pcs-backend/tests/services/restriction/fixtures/
-
-- `worley_c19_drain_orifice.json` (~8848 tok)
-
-## pcs-backend/tests/services/sep_equip/
-
-- `__init__.py` — P5-2 SEP_EQUIP 气固/气液分离设备测试包。 (~10 tok)
-- `test_cyclone.py` — P5-2-1 旋风分离器测试。 (~1715 tok)
-- `test_gravity_separator.py` — P5-2-3 重力沉降器测试。 (~2131 tok)
-- `test_mist_eliminator.py` — P5-2-2 丝网除沫器测试。 (~1522 tok)
-- `test_sep_equip_persist.py` — P5-2-4 sep_equip_persist service 层测试。 (~2807 tok)
-
-## pcs-backend/tests/services/sep_equip/fixtures/
-
-- `golden_cyclone_lapple.json` (~785 tok)
+- `test_stream_transition.py` — P3.2 SIM-13：StreamService.transition() 状态机集成测试（闭环审计 D-1）。 (~2982 tok)
 
 ## pcs-backend/tests/services/util/
 
-- `test_auxiliary_consumption.py` — P7 Sprint 2 T4: auxiliary_consumption 4 字段 ALTER 测试. (~765 tok)
-- `test_utility_energy_summary.py` — P7 Sprint 2 T5: utility_energy_summary service 测试. (~3013 tok)
-- `test_utility_fuel_gas.py` — P7 Sprint 2 T2: utility_fuel_gas 测试. (~1723 tok)
-- `test_utility_heat_exchange.py` — P7 Sprint 2 T3: utility_heat_exchange 测试. (~1447 tok)
-- `test_utility_power_items.py` — P7 Sprint 2 T1: utility_power_items 测试. (~1624 tok)
+- `test_electricity_value_type_policy.py` — 电折标口径按项目产品类别强制 (用户裁决 2026-10-05「按 project 产品类型强制」). (~2934 tok)
+- `test_energy_mj_from_config.py` — 耗能工质 MJ 从 CONFIG 推导 (Q2, 用户裁决 2026-10-05). (~1419 tok)
+- `test_gb30251_config_conformance.py` — GB 30251-2024 附录A 表A.1 折标系数一致性回归 (2026-10-05). (~1427 tok)
+- `test_utility_energy_summary.py` — P7 Sprint 2 T5: utility_energy_summary service 测试. (~9769 tok)
 
-## pcs-backend/tests/services/util/fixtures/
+## pcs-frontend/.gstack/qa-reports/
 
-- `golden_utility_energy_summary.json` (~1019 tok)
-- `golden_utility_fuel_gas.json` (~878 tok)
-- `golden_utility_heat_exchange.json` (~751 tok)
-- `golden_utility_power_items.json` (~933 tok)
+- `qa-report-pcs-frontend-2026-10-03-sprint3-batch2.md` — PCS Frontend QA Report — Sprint 3 Batch 2 (2026-10-03) (~1424 tok)
 
-## pcs-backend/tests/services/vessel/
+## pcs-frontend/e2e/
 
-- `__init__.py` (~0 tok)
-- `test_mass_iteration.py` — P6-4 T3 C-12 mass_iteration_loop 测试（V1.2 接口冻结）。 (~2604 tok)
-- `test_partial_volume.py` — P6-4 T3 C-12 calc_partial_volume 测试（V1.2 接口冻结）。 (~2361 tok)
-- `test_vessel_hydraulics.py` — P5-1-2 vessel 流体力学校核（fluids.tanks 排空/液位-容积/溢流/放空）测试。 (~3524 tok)
-- `test_vessel_interface_freeze.py` — P6-4 T3 D7 接口冻结签名快照测试（item 37 + ADR-0040）。 (~3304 tok)
-- `test_vessel_persist.py` — P5-1-4 vessel_persist service 层测试。 (~2905 tok)
-- `test_vessel_sizing.py` — P5-1-1 vessel_service 核心：calc_vessel_sizing 测试。 (~2285 tok)
-- `test_wetted_area.py` — P6-4 T3 C-12 calc_wetted_area 测试（V1.2 接口冻结）。 (~1628 tok)
-
-## pcs-backend/tests/services/vessel/fixtures/
-
-- `golden_vessel_hydraulics.json` (~618 tok)
-- `golden_vessel_souders_brown.json` (~880 tok)
-
-## pcs-frontend/
-
-- `.eslintrc.cjs` (~189 tok)
-- `.gitignore` — Git ignore rules (~10 tok)
-- `index.html` — PCS - 工艺计算套件 (~81 tok)
-- `package.json` — Node.js package manifest (~405 tok)
-- `tsconfig.json` — TypeScript configuration (~146 tok)
-- `vite.config.ts` (~81 tok)
-- `vitest.config.ts` — /*.{ts,tsx}'], (~103 tok)
-
-## pcs-frontend/scripts/
-
-- `check-api-drift.sh` — CI 用 — 检查 OpenAPI snapshot 是否与 pcs-backend/docs/openapi.json 一致 (~267 tok)
-- `gen-api-types.sh` — 从 pcs-backend/docs/openapi.json 生成 pcs-frontend/src/types/api.d.ts (~198 tok)
+- `audit_log.spec.ts` — AuditLogPage e2e (F-P2-009 Sprint 3 / Issue 7). (~864 tok)
+- `cooling_water.spec.ts` — P7-6B CoolingWaterPage 端到端测试 (Playwright / R1 §7.2 9 类水). (~966 tok)
+- `energy_summary.spec.ts` — P7 Sprint 2 T5 EnergySummaryAggregatePage 端到端测试 (Playwright / R1 §7). (~1139 tok)
+- `fixtures.ts` — Playwright e2e fixtures (F-P2-009 Sprint 3 / Issue 7). (~306 tok)
 
 ## pcs-frontend/src/
 
-- `App.tsx` — router — renders form (~964 tok)
-- `main.tsx` — Dev 环境挂载 MSW worker；prod 构建时本 if 块被 tree-shake 移除 (~235 tok)
-- `vite-env.d.ts` — / <reference types="vite/client" /> (~56 tok)
+- `App.tsx` — router — renders form (~1070 tok)
 
 ## pcs-frontend/src/api/
 
-- `client.ts` — Exports api, TokenResponse, authApi (~335 tok)
-- `common.ts` — COMMON 计算 API 客户端（P6-5 前端补课 / 3 计算页）。 (~242 tok)
-- `cv.ts` — CV 控制阀计算 API 客户端（P6-5 前端补课 / 3 计算页）。 (~200 tok)
-- `heat.ts` — P5-4 HEAT 计算 + 重量估算 API 客户端（V1.3 SPEC §7.11.6）。 (~764 tok)
-- `psv.ts` — P5-3 PSV 计算 + 项目标准配置 API 客户端（V1.2 SPEC §7.11.5）。 (~350 tok)
-- `psychro.ts` — PSYCHRO 计算 API 客户端（P6-5 前端补课 / 3 计算页）。 (~251 tok)
-- `sepEquip.ts` — SEP_EQUIP 分离设备计算 API 客户端（P5 frontend 全栈收口 / OPEN-4-2）。 (~436 tok)
-- `sprint1.ts` — Exports workspaceApi, checklistApi (~519 tok)
-- `stream.ts` — streams API 客户端（项目级 SIM 流列表 + 单流详情）。 (~240 tok)
-- `vessel.ts` — VESSEL 容器计算 API 客户端（P5 frontend 全栈收口 / OPEN-4-1）。 (~230 tok)
-
-## pcs-frontend/src/components/
-
-- `ChecklistDashboard.tsx` — STATUS_COLOR (~590 tok)
-- `PipingStatusPanel.tsx` — PipingStatusPanel (~300 tok)
-- `RequireAuth.tsx` — RequireAuth (~97 tok)
-- `StatusTag.tsx` — STATUS_COLOR (~217 tok)
-- `WorkspaceSwitcher.tsx` — TYPE_LABEL (~370 tok)
-
-## pcs-frontend/src/components/common/
-
-- `ApprovalStepBar.tsx` — ApprovalStepBar — 批准链进度条（P45-1-2 / Task 7）。 (~1328 tok)
-- `AssumedDataMarker.tsx` — AssumedDataMarker — 假设数据标识（P45-1-5 / Task 10）。 (~423 tok)
-- `ChangeImpactPanel.tsx` — ChangeImpactPanel — 变更影响分析面板（P45-1-8 / Task 13）。 (~1693 tok)
-- `ConflictResolver.tsx` — ConflictResolver — SIM 物性冲突展示（P45-1-9 / Task 14）。 (~1480 tok)
-- `HashBadge.tsx` — HashBadge — 记录哈希徽章（P45-1-3 / Task 8）。 (~931 tok)
-- `InputChecklistPanel.tsx` — InputChecklistPanel — 项目输入清单面板（P45-1-7 / Task 12，升级版）。 (~2693 tok)
-- `LineageGraph.tsx` — LineageGraph — 数据血缘可视化（P45-1-10 / Task 15）。 (~2594 tok)
-- `ModuleLayout.tsx` — ModuleLayout — 计算模块统一布局（P45-3-0 / Task 27）。 (~461 tok)
-- `NotificationCenter.tsx` — NotificationCenter — 通知中心（P45-1-13 / Task 18）。 (~1448 tok)
-- `NumericCell.tsx` — NumericCell — 数值单元格统一渲染（P45-1-4 / Task 9）。 (~870 tok)
-- `PageHeader.tsx` — PageHeader — 统一页面头部（P45-3-0 / Task 27）。 (~624 tok)
-- `RevTimeline.tsx` — RevTimeline — 交付物 Rev 历史（P45-1-11 / Task 16）。 (~1150 tok)
-- `SchemaForm.tsx` — SchemaForm — 通用动态表单（P45-1-14 / Task 19）。 (~1971 tok)
-- `SignatureMatrix.tsx` — SignatureMatrix — 签署矩阵渲染（P45-1-12 / Task 17）。 (~1199 tok)
-- `StateBadge.tsx` — StateBadge — 9 态工程状态徽章组件（P45-1-1 / Task 6）。 (~1394 tok)
-- `WorkspaceSwitcher.tsx` — WorkspaceSwitcher — 工作区切换器（P45-1-6 / Task 11，升级版）。 (~863 tok)
-
-## pcs-frontend/src/constants/
-
-- `env.ts` — 前端常量统一来源（P5 frontend 收口 checklist 收口项 #1）。 (~148 tok)
+- `audit.ts` — Audit Query API 客户端 (F-P2-009 Sprint 3 / Issue 7). (~720 tok)
 
 ## pcs-frontend/src/layouts/
 
-- `MainLayout.tsx` — 在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。 (~1473 tok)
+- `MainLayout.tsx` — 在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。 (~1538 tok)
 
 ## pcs-frontend/src/mocks/
 
-- `browser.ts` — MSW browser worker — dev 环境挂载（P45-0-5） (~78 tok)
-- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~5689 tok)
-
-## pcs-frontend/src/mocks/seed/
-
-- `common.ts` — 物性 / 许用应力 / 毒性爆炸 seed — 各 3 条（QA 11 组件实例化 P1） (~542 tok)
-- `config.ts` — CONFIG 资产 seed — 5 条（QA 11 组件实例化 P1） (~455 tok)
-- `meta.ts` — Meta seed fixture — 与 pcs-backend Task 4.5 V1.1 一致（P45-0-5） (~4026 tok)
-- `pipe-classes.ts` — PipeClass seed — 4 条（QA 11 组件实例化 P1） (~385 tok)
-- `pipe-line.ts` — PipeLineList seed — 5 行（QA 11 组件实例化 P1） (~919 tok)
-- `pms.ts` — PMS / BEDD seed — 4 + 3 条（QA 11 组件实例化 P1） (~369 tok)
-- `streams.ts` — Stream seed — 5 条 SIM 物流（QA 11 组件实例化 P1） (~2156 tok)
-- `workspaces.ts` — 工作区 + 清单 seed — 3 + 10 条（QA 11 组件实例化 P1） (~1451 tok)
+- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~8100 tok)
 
 ## pcs-frontend/src/pages/
 
-- `DashboardPage.tsx` — workspaceProjectId (~362 tok)
-- `LoginPage.tsx` — MOCK_ACCOUNTS — renders form (~618 tok)
-- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~2766 tok)
+- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~2937 tok)
 
-## pcs-frontend/src/pages/bedd/
+## pcs-frontend/src/pages/audit/
 
-- `BeddPage.tsx` — BeddPage — BEDD 文档（P45-3-8 / Task 35）。 (~978 tok)
+- `AuditLogPage.tsx` — AuditLogPage — Audit Query viewer (F-P2-009 Sprint 3 / Issue 7). (~2271 tok)
 
-## pcs-frontend/src/pages/common/
+## pcs-frontend/src/pages/util/
 
-- `AllowableStressPage.tsx` — AllowableStressPage — 许用应力（P45-3-3 / Task 30）。 (~773 tok)
-- `HeatingValuePage.tsx` — COMMON 气体热值计算页（P6-5 前端补课 / 3 计算页之一）。 (~3115 tok)
-- `PropertySearchPage.tsx` — PropertySearchPage — 组分物性查询（P45-3-3 / Task 30）。 (~972 tok)
-- `ToxicityExplosivityPage.tsx` — ToxicityExplosivityPage — 毒性爆炸（P45-3-3 / Task 30）。 (~1084 tok)
-
-## pcs-frontend/src/pages/config/
-
-- `ApprovalPanelPage.tsx` — ApprovalPanelPage — CONFIG 审批面板（P45-2-7 / Task 25）。 (~2647 tok)
-- `AssetListPage.tsx` — AssetListPage — CONFIG 资产列表 + 详情（P45-2-3 / Task 21）。 (~2626 tok)
-- `CoefficientTableEditorPage.tsx` — CoefficientTableEditorPage — 系数表编辑器（P45-2-5 / Task 23）。 (~2541 tok)
-- `DiffViewer.tsx` — DiffViewer — 通用版本对比组件（P45-2-8 / Task 26）。 (~2510 tok)
-- `FormulaEditorPage.tsx` — FormulaEditorPage — 公式编辑器（P45-2-4 / Task 22）。 (~3843 tok)
-- `TemplateFilePage.tsx` — TemplateFilePage — 模板文件管理（P45-2-6 / Task 24）。 (~1834 tok)
-
-## pcs-frontend/src/pages/cv/
-
-- `CvComputePage.tsx` — CV 控制阀 Cv 计算页（P6-5 前端补课 / 3 计算页之三）。 (~3534 tok)
-
-## pcs-frontend/src/pages/flash/
-
-- `FlashComputePage.tsx` — FlashComputePage — FLASH 计算界面（P45-3-4 / Task 31）。 (~2794 tok)
-
-## pcs-frontend/src/pages/heat/
-
-- `HeatComputePage.tsx` — HeatComputePage — 换热器计算界面（V1.3 SPEC §7.11.6）。 (~4498 tok)
-
-## pcs-frontend/src/pages/pipe/
-
-- `PipeComputePage.tsx` — PipeComputePage — PIPE 计算界面（P45-3-5 / Task 32）。 (~3918 tok)
-- `PipeLineListPage.tsx` — PipeLineListPage — 管道一览表（P45-3-5 / Task 32）。 (~1731 tok)
-
-## pcs-frontend/src/pages/pipe_class/
-
-- `CodeFormatDesignerPage.tsx` — CodeFormatDesignerPage — 代码格式设计器（P45-3-2 / Task 29）。 (~1579 tok)
-- `PipeClassListPage.tsx` — PipeClassListPage — PIPE_CLASS 等级列表（P45-3-2 / Task 29）。 (~994 tok)
-- `SymbolTablePage.tsx` — SymbolTablePage — PIPE_CLASS 符号表（P45-3-2 / Task 29）。 (~930 tok)
-
-## pcs-frontend/src/pages/pipe_net/
-
-- `PipeNetTopologyPage.tsx` — PipeNetTopologyPage — PIPE_NET 拓扑编辑器（P45-3-6 / Task 33，V1 极简版）。 (~1942 tok)
-
-## pcs-frontend/src/pages/pms/
-
-- `PmsPage.tsx` — PmsPage — 管道材料规格（P45-3-8 / Task 35）。 (~864 tok)
-
-## pcs-frontend/src/pages/psv/
-
-- `PsvComputePage.tsx` — PsvComputePage — PSV 安全阀计算界面（V1.2 SPEC §7.11.5）。 (~17828 tok)
-- `PsvStandardProfilePage.tsx` — PsvStandardProfilePage — 项目级 PSV 标准配置（V1.2 SPEC §7.11.5）。 (~3772 tok)
-
-## pcs-frontend/src/pages/psychro/
-
-- `SaturationWaterContentPage.tsx` — PSYCHRO 饱和水含量计算页（P6-5 前端补课 / 3 计算页之二）。 (~2556 tok)
-
-## pcs-frontend/src/pages/pump/
-
-- `PumpComputePage.tsx` — PumpComputePage — PUMP 计算界面（P45-3-7 / Task 34）。 (~4057 tok)
-
-## pcs-frontend/src/pages/sep_equip/
-
-- `SepEquipComputePage.tsx` — SepEquipComputePage — SEP_EQUIP 分离设备计算界面（P5-2-4 / Task 12）。 (~4200 tok)
-
-## pcs-frontend/src/pages/sim/
-
-- `ImportWizardPage.tsx` — ImportWizardPage — SIM 物流导入向导（P45-3-1 / Task 28 极简版）。 (~832 tok)
-- `StreamDetailPage.tsx` — StreamDetailPage — SIM 物流详情（P45-3-1 / Task 28）。 (~2586 tok)
-- `StreamListPage.tsx` — StreamListPage — SIM 物流列表（P45-3-1 / Task 28）。 (~1166 tok)
-
-## pcs-frontend/src/pages/vessel/
-
-- `VesselComputePage.tsx` — VesselComputePage — VESSEL 容器计算界面（P5-1-4 / Task 5）。 (~4828 tok)
-
-## pcs-frontend/src/pages/wizard/
-
-- `ProjectWizardPage.tsx` — ProjectWizardPage — 项目向导（P45-3-8 / Task 35）。 (~1035 tok)
-
-## pcs-frontend/src/store/
-
-- `auth.ts` — token 仅存内存（zustand store 不持久化）。 (~557 tok)
-
-## pcs-frontend/src/styles/
-
-- `theme.ts` — PCS AntD 5 主题映射 — 完整 15+ token + components 段 (~771 tok)
-- `tokens.css` — Styles: 129 vars (~1524 tok)
-
-## pcs-frontend/src/types/
-
-- `checklist.ts` — Exports ChecklistStatus, ChecklistCategory, ChecklistItem, ChecklistItemPut + 2 more (~353 tok)
-- `common.ts` — COMMON 模块类型（P45-3-3 / Task 30）。 (~338 tok)
-- `configAsset.ts` — CONFIG 资产类型定义（P45-2-3 / Task 21）。 (~376 tok)
-- `flash.ts` — FLASH 模块类型（P45-3-4 / Task 31）。 (~300 tok)
-- `heat.ts` — HEAT 模块类型（P5-4 frontend / Task 1）。 (~1781 tok)
-- `pipe.ts` — PIPE 模块类型（P45-3-5 / Task 32）。 (~558 tok)
-- `pipeClass.ts` — PIPE_CLASS 模块类型（P45-3-2 / Task 29）。 (~441 tok)
-- `pipeNet.ts` — PIPE_NET 模块类型（P45-3-6 / Task 33）。 (~246 tok)
-- `pms.ts` — PMS / BEDD 模块类型（P45-3-8 / Task 35）。 (~290 tok)
-- `psv.ts` — PSV 模块类型（P5-3 frontend / Task 1）。 (~2420 tok)
-- `pump.ts` — PUMP 模块类型（P45-3-7 / Task 34）。 (~355 tok)
-- `records.ts` — Exports RecordSignStatus, StateTransitionName, RecordTransitionRequest, RecordResponse (~226 tok)
-- `sepEquip.ts` — SEP_EQUIP 模块类型（P5-2-4 / Task 12）。 (~476 tok)
-- `stream.ts` — Stream 类型定义（P45-3-1 / Task 28）。 (~423 tok)
-- `vessel.ts` — VESSEL 模块类型（P5-1-4 / Task 5）。 (~529 tok)
-- `workspace.ts` — Exports WorkspaceType, Workspace, WorkspaceCreate, WorkspaceImportResponse (~166 tok)
-
-## pcs-frontend/tests/
-
-- `routing_heat.test.tsx` — HEAT 路由 + 菜单注册测试（P5-4 frontend / Task 5）。 (~423 tok)
-- `setup.ts` — antd Table / Row / Col use matchMedia for responsive breakpoints; (~176 tok)
-- `test_routing_heat.tsx` — HEAT 路由 + 菜单注册测试（P5-4 frontend / Task 5）。 (~222 tok)
+- `EnergySummaryAggregatePage.tsx` — EnergySummaryAggregatePage — 综合能耗聚合 UI（P7 Sprint 2 T5 / R1 §7）。 (~3359 tok)
 
 ## pcs-frontend/tests/api/
 
-- `sep_equip_api.test.ts` — sepEquipApi 真跑测试（P5 frontend 全栈收口 / OPEN-4-2）。 (~90 tok)
-- `stream_api.test.ts` — streamApi 真跑测试（P5 frontend 全栈收口 / OPEN-6）。 (~410 tok)
-- `test_heat_api.ts` — HEAT API 客户端测试（P5-4 frontend / Task 2）。 (~1049 tok)
-- `vessel_api.test.ts` — vesselApi 真跑测试（P5 frontend全栈收口 / OPEN-4-1）。 (~87 tok)
-
-## pcs-frontend/tests/components/common/
-
-- `ApprovalStepBar.test.tsx` — ApprovalStepBar 测试（P45-1-2 / Task 7）。 (~2108 tok)
-- `AssumedDataMarker.test.tsx` — AssumedDataMarker 测试（P45-1-5 / Task 10）。 (~672 tok)
-- `ChangeImpactPanel.test.tsx` — ChangeImpactPanel 测试（P45-1-8 / Task 13）。 (~1708 tok)
-- `ConflictResolver.test.tsx` — ConflictResolver 测试（P45-1-9 / Task 14）。 (~1660 tok)
-- `HashBadge.test.tsx` — HashBadge 测试（P45-1-3 / Task 8）。 (~1368 tok)
-- `InputChecklistPanel.test.tsx` — InputChecklistPanel 升级版测试（P45-1-7 / Task 12）。 (~2273 tok)
-- `LineageGraph.test.tsx` — LineageGraph 测试（P45-1-10 / Task 15）。 (~1700 tok)
-- `ModuleLayout.test.tsx` — ModuleLayout 测试（P45-3-0 / Task 27）。 (~443 tok)
-- `NotificationCenter.test.tsx` — NotificationCenter 测试（P45-1-13 / Task 18）。 (~1779 tok)
-- `NumericCell.test.tsx` — NumericCell 测试（P45-1-4 / Task 9）。 (~1624 tok)
-- `PageHeader.test.tsx` — PageHeader 测试（P45-3-0 / Task 27）。 (~660 tok)
-- `RevTimeline.test.tsx` — RevTimeline 测试（P45-1-11 / Task 16）。 (~1389 tok)
-- `SchemaForm.test.tsx` — SchemaForm 测试（P45-1-14 / Task 19）。 (~2174 tok)
-- `SignatureMatrix.test.tsx` — SignatureMatrix 测试（P45-1-12 / Task 17）。 (~1464 tok)
-- `StateBadge.test.tsx` — StateBadge 测试（P45-1-1 / Task 6）。 (~1672 tok)
-- `WorkspaceSwitcher.test.tsx` — WorkspaceSwitcher 升级版测试（P45-1-6 / Task 11）。 (~1514 tok)
+- `audit_api.test.ts` — Audit API 客户端测试 (F-P2-009 Sprint 3 / Issue 7). (~512 tok)
 
 ## pcs-frontend/tests/mocks/
 
-- `handlers.test.ts` — MSW seed + handler shape 验证 — 防 MSW ↔ OpenAPI drift (P45-0-5) (~1767 tok)
-- `heat_handlers.test.ts` — HEAT MSW handlers 真跑测试（P5-4 frontend / Task 6）。 (~2179 tok)
+- `handlers.test.ts` — MSW seed + handler shape 验证 — 防 MSW ↔ OpenAPI drift (P45-0-5) (~1807 tok)
 
-## pcs-frontend/tests/pages/bedd/
+## pcs-frontend/tests/pages/audit/
 
-- `BeddPage.test.tsx` — renderPage (~873 tok)
-
-## pcs-frontend/tests/pages/common/
-
-- `AllowableStressPage.test.tsx` — AllowableStressPage 测试（P45-3-3 / Task 30）。 (~456 tok)
-- `HeatingValuePage.test.tsx` — HeatingValuePage 测试（P6-5 前端补课 / 3 计算页之一）。 (~853 tok)
-- `PropertySearchPage.test.tsx` — PropertySearchPage 测试（P45-3-3 / Task 30）。 (~716 tok)
-- `ToxicityExplosivityPage.test.tsx` — ToxicityExplosivityPage 测试（P45-3-3 / Task 30）。 (~649 tok)
-
-## pcs-frontend/tests/pages/config/
-
-- `ApprovalPanelPage.test.tsx` — ApprovalPanelPage 测试（P45-2-7 / Task 25）。 (~1463 tok)
-- `AssetListPage.test.tsx` — AssetListPage 测试（P45-2-3 / Task 21）。 (~2721 tok)
-- `CoefficientTableEditorPage.test.tsx` — CoefficientTableEditorPage 测试（P45-2-5 / Task 23）。 (~2117 tok)
-- `DiffViewer.test.tsx` — DiffViewer 测试（P45-2-8 / Task 26）。 (~1350 tok)
-- `FormulaEditorPage.test.tsx` — FormulaEditorPage 测试（P45-2-4 / Task 22）。 (~1897 tok)
-- `TemplateFilePage.test.tsx` — TemplateFilePage 测试（P45-2-6 / Task 24）。 (~1481 tok)
-
-## pcs-frontend/tests/pages/cv/
-
-- `CvComputePage.test.tsx` — CvComputePage 测试（P6-5 前端补课 / 3 计算页之三）。 (~1363 tok)
-
-## pcs-frontend/tests/pages/flash/
-
-- `FlashComputePage.test.tsx` — FlashComputePage 测试（P45-3-4 / Task 31）。 (~1490 tok)
-
-## pcs-frontend/tests/pages/heat/
-
-- `HeatComputePage.test.tsx` — HeatComputePage 测试（P5-4 frontend / Task 4）。 (~812 tok)
-
-## pcs-frontend/tests/pages/pipe/
-
-- `PipeComputePage.test.tsx` — PipeComputePage 测试（P45-3-5 / Task 32）。 (~1554 tok)
-- `PipeLineListPage.test.tsx` — PipeLineListPage 测试（P45-3-5 / Task 32）。 (~1690 tok)
-
-## pcs-frontend/tests/pages/pipe_class/
-
-- `CodeFormatDesignerPage.test.tsx` — CodeFormatDesignerPage 测试（P45-3-2 / Task 29）。 (~1098 tok)
-- `PipeClassListPage.test.tsx` — PipeClassListPage 测试（P45-3-2 / Task 29）。 (~926 tok)
-- `SymbolTablePage.test.tsx` — SymbolTablePage 测试（P45-3-2 / Task 29）。 (~584 tok)
-
-## pcs-frontend/tests/pages/pipe_net/
-
-- `PipeNetTopologyPage.test.tsx` — PipeNetTopologyPage 测试（P45-3-6 / Task 33）。 (~1617 tok)
-
-## pcs-frontend/tests/pages/pms/
-
-- `PmsPage.test.tsx` — renderPage (~924 tok)
-
-## pcs-frontend/tests/pages/psv/
-
-- `PsvComputePage.test.tsx` — PsvComputePage 测试（P5-3-6 + 多工况 P5-3-7，对齐 V1.2 SPEC §7.11.5）。 (~3705 tok)
-
-## pcs-frontend/tests/pages/psychro/
-
-- `SaturationWaterContentPage.test.tsx` — SaturationWaterContentPage 测试（P6-5 前端补课 / 3 计算页之二）。 (~832 tok)
-
-## pcs-frontend/tests/pages/pump/
-
-- `PumpComputePage.test.tsx` — PumpComputePage 测试（P45-3-7 / Task 34）。 (~1475 tok)
-
-## pcs-frontend/tests/pages/sep_equip/
-
-- `SepEquipComputePage.test.tsx` — SepEquipComputePage 测试（P5-2-4 / Task 12）。 (~1236 tok)
-
-## pcs-frontend/tests/pages/sim/
-
-- `ImportWizardPage.test.tsx` — ImportWizardPage 测试（P45-3-1 / Task 28 下半）。 (~559 tok)
-- `StreamDetailPage.test.tsx` — StreamDetailPage 测试（P45-3-1 / Task 28 下半）。 (~849 tok)
-- `StreamListPage.test.tsx` — StreamListPage 测试（P45-3-1 / Task 28）。 (~1074 tok)
-
-## pcs-frontend/tests/pages/vessel/
-
-- `VesselComputePage.test.tsx` — VesselComputePage 测试（P5-1-4 / Task 5）。 (~1264 tok)
-
-## pcs-frontend/tests/pages/wizard/
-
-- `ProjectWizardPage.test.tsx` — renderPage (~1393 tok)
-
-## pcs-frontend/tests/styles/
-
-- `tokens.test.ts` — 校验 tokens.css 完整性： (~932 tok)
-
-## spec/
-
-- `版本与版次管理增补规格说明书.md` (~2158 tok)
-- `工艺专用综合计算软件——合并数据字典.md` — Declares SHELL_TUBE (~5934 tok)
-- `工艺专用综合计算软件需求规格说明书 Web版 P0.md` (~5120 tok)
-- `工艺专用综合计算软件需求规格说明书 Web版 P1.md` (~4020 tok)
-- `工艺专用综合计算软件需求规格说明书 Web版 P10.md` — app/api/v1/ai/__init__.py (~3524 tok)
-- `工艺专用综合计算软件需求规格说明书 Web版 P2.md` (~3125 tok)
-- `工艺专用综合计算软件需求规格说明书 Web版 P3.md` — Declares streams (~5558 tok)
-- `工艺专用综合计算软件需求规格说明书 Web版 P4.md` — P3 V1.6**、DF-001、**PCS 本体论与语义关系研究说明（V1.6）§5、PCS-SPEC-P3-SIM V1.3、P3 §3.2.2 双层 case_type 语义、TODOS.md* (~3771 tok)
-- `工艺专用综合计算软件需求规格说明书 Web版 P5.md` (~2544 tok)
-- `工艺专用综合计算软件需求规格说明书 Web版 P6.md` (~4132 tok)
-- `工艺专用综合计算软件需求规格说明书 Web版 P7.md` (~4278 tok)
-- `工艺专用综合计算软件需求规格说明书 Web版 P8.md` — Declares Excel (~3190 tok)
-- `工艺专用综合计算软件需求规格说明书 Web版 P9.md` (~3097 tok)
-- `工艺专用综合计算软件需求规格说明书 Web版开发计划.md` — 安装：antd, zustand, react-router-dom, @ant-design/icons (~4907 tok)
-- `两层签署与变更管理增补规格说明书.md` — 两层签署与变更管理增补规格说明书 (~2023 tok)
-- `文件标识批量更新——ProcessCalc Suite（PCS）.md` (~1479 tok)
-- `校审层级可配置化增补规格说明书.md` — Declares enum (~3049 tok)
-- `演示版许可模式增补文件.md` — .env (~4836 tok)
-- `PCS 本体论与语义关系研究说明（正式版 V1.5）.md` (~3500 tok)
-- `PCS-DICT-ALL-003 V3.4.md` (~1513 tok)
-- `PCS-DICT-ALL-003 V3.5.md` — Declares ReportService (~2545 tok)
-- `PCS-REQ-2026-002-SUP-008PCS 数据模型对齐与 Excel 导入增补规格说明书.md` — Declares enum (~6293 tok)
-- `PCS-REQ-2026-DF-001：P4模块数据流架构规范.md` — PIPE计算——单依赖（stream） (~2974 tok)
-- `PCS-SPEC-ADD-001 计算覆盖增补规格说明书.md` (~11164 tok)
-- `PCS-SPEC-ADD-001-ATT-02 Q2 工艺推导附件.md` — v2 修订附录（数值一致性修复，2026-09-26） (~2339 tok)
-- `PCS-SPEC-P2-SUP-002管道等级库 -管道代码自定义.md` — Declares FK (~5554 tok)
-- `PCS-SPEC-P3-SIM SIM 模块 输入.md` — Declares VAPOR (~14092 tok)
-- `schema_compact_dict.md` (~5674 tok)
-- `SPEC-ADD-001-Q2 SPEC V1.2 增补文档.md` — v2 修订附录（数值一致性修复，2026-09-26） (~2306 tok)
-- `SUP-P5-PSV-001 PSV 多标准.md` (~13713 tok)
-- `SUP-P5-PSV-002-V1.14-STATUS.md` — SUP-P5-PSV-002 V1.14 落地状态（后端契约扩展） (~1286 tok)
+- `AuditLogPage.test.tsx` — AuditLogPage 组件测试 (F-P2-009 Sprint 3). (~598 tok)
