@@ -37,6 +37,7 @@ from app.api.v1.stream_symbols import router as stream_symbols_router
 from app.api.v1.streams import router as streams_router
 from app.api.v1.thermosiphon import router as thermosiphon_router  # P5-0-1b T1
 from app.api.v1.util import router as util_router  # P7-Sprint 1 S1-5b
+from app.api.v1.projects import router as projects_router  # GB 30251 §6.1.5 口径判据
 from app.api.v1.user_projects import router as user_projects_router  # P7-7+ BLOCKER-3
 from app.api.v1.vessel import router as vessel_router  # P5-1-4
 from app.api.v1.workspaces import router as workspaces_router
@@ -72,6 +73,7 @@ api_router.include_router(cv_router)  # P6-1 Task 10
 api_router.include_router(restriction_router)  # P6-1 Task 14
 api_router.include_router(thermosiphon_router)  # P5-0-1b T1
 api_router.include_router(util_router)  # P7-Sprint 1 S1-5b
+api_router.include_router(projects_router)  # product_category (GB 30251 §6.1.5)
 api_router.include_router(user_projects_router)  # P7-7+ BLOCKER-3 admin
 api_router.include_router(open_channel_router)  # P6-3 Task 32
 api_router.include_router(filtration_router)  # P6-3 Task 34

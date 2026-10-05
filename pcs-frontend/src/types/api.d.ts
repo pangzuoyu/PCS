@@ -3483,6 +3483,50 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/projects/{project_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Project
+         * @description 读项目 + 当前生效的电折标口径 (product_category 的派生态, 便于核对).
+         */
+        get: operations["get_project_api_v1_projects__project_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/projects/{project_id}/product-category": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Set Product Category
+         * @description 设置项目产品类别 (SYSTEM_ADMIN) — 决定电折标用等价值还是当量值.
+         *
+         *     **已有综合能耗汇总时拒绝 (422)**: 每条 UtilityEnergySummary 都固化了当时的
+         *     `electricity_value_type`。改项目类别会让历史汇总与新口径不一致, 且无法追溯
+         *     当时按哪个口径算的 → fail-closed, 要求先清理或另建项目。
+         */
+        patch: operations["set_product_category_api_v1_projects__project_id__product_category_patch"];
+        trace?: never;
+    };
     "/api/v1/user-projects/grant": {
         parameters: {
             query?: never;
@@ -11027,6 +11071,51 @@ export interface components {
             check_result: "PASS" | "WARNING" | "FAIL";
             /** Check Result Reason */
             check_result_reason: string | null;
+        };
+        /**
+         * ProductCategory
+         * @description 项目产品类别 — GB 30251-2024 §6.1.5 电折标系数口径判据。
+         *
+         *     业务: REFINING (炼油) / ETHYLENE (乙烯) ⇒ 电折标系数必须用**等价值**
+         *     (0.21 kg标油/kWh, 附录A 表A.1 序号12); 其余产品用**当量值**
+         *     (0.086 kg标油/kWh)。两者差 2.44 倍, 选错直接导致综合能耗虚低/虚高。
+         *
+         *     裁决: 用户 2026-10-05「按 project 产品类型强制」— 不再由调用方自由传
+         *     electricity_value_type。落 Project.product_category 列 + CHECK 约束。
+         *
+         *     与 Project.project_type 区分: 那个是「项目类型」(CHEMICAL/NEW/... 无枚举
+         *     无约束, 历史值含 test/t 等垃圾), 本列是**折标口径判据**, 有 CHECK 约束。
+         * @enum {string}
+         */
+        ProductCategory: "REFINING" | "ETHYLENE" | "OTHER";
+        /**
+         * ProductCategoryUpdate
+         * @description 设置项目产品类别的请求体.
+         */
+        ProductCategoryUpdate: {
+            /** @description 产品类别 (GB 30251-2024 §6.1.5): REFINING (炼油) / ETHYLENE (乙烯) ⇒ 电折标系数用等价值 (0.21 kg标油/kWh); OTHER ⇒ 当量值 (0.086 kg标油/kWh) */
+            product_category: components["schemas"]["ProductCategory"];
+        };
+        /**
+         * ProjectOut
+         * @description 项目只读响应 (product_category 视角的最小字段集).
+         */
+        ProjectOut: {
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Project No */
+            project_no: string;
+            /** Project Name */
+            project_name: string;
+            /** Project Type */
+            project_type: string;
+            /** Product Category */
+            product_category: string;
+            /** Electricity Value Type */
+            electricity_value_type: string;
         };
         /**
          * ProjectPipeClassCreateRequest
@@ -21862,6 +21951,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UtilEnergySummaryResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_project_api_v1_projects__project_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    set_product_category_api_v1_projects__project_id__product_category_patch: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                project_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ProductCategoryUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOut"];
                 };
             };
             /** @description Validation Error */
