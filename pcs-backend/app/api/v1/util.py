@@ -470,9 +470,7 @@ async def create_power_item(
         annual_consumption_kwh=annual_kwh,
         source=body.source or "MANUAL",
     )
-    db.add(record)
-    await db.commit()
-    await db.refresh(record)
+    await _commit_or_conflict(db, record)
     return _power_item_to_response(record)
 
 
@@ -547,9 +545,7 @@ async def create_fuel_gas(
         annual_consumption_nm3=annual_nm3,
         source=body.source or "MANUAL",
     )
-    db.add(record)
-    await db.commit()
-    await db.refresh(record)
+    await _commit_or_conflict(db, record)
     return _fuel_gas_to_response(record)
 
 
@@ -639,9 +635,7 @@ async def create_heat_exchange(
         annual_consumption_t=annual_t if annual_t is not None else derived_t,
         source=body.source or "MANUAL",
     )
-    db.add(record)
-    await db.commit()
-    await db.refresh(record)
+    await _commit_or_conflict(db, record)
     return _heat_exchange_to_response(record)
 
 
@@ -776,8 +770,10 @@ async def list_energy_summary(
 async def _commit_or_conflict(db, record) -> None:
     """提交记录; UNIQUE 冲突转 409 (不冒泡成 500).
 
-    既有 fuel-gas-items / heat-exchange-items 端点未做此处理 (重复 POST 会
-    抛 IntegrityError → 500), 此处仅覆盖 P7-6B 新增的 2 个端点。
+    覆盖全部 5 个子表 POST 端点 (power-items / fuel-gas-items /
+    heat-exchange-items / gas-media-items / low-temp-heat-items)。
+    修正前 3 个既有端点直接 `db.add(); commit()`, 重复 POST 会让
+    IntegrityError 冒泡成 500 而非结构化 409。
     """
     from sqlalchemy.exc import IntegrityError
 
