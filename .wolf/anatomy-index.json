@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-05T02:27:09.148Z",
-    "fileCount": 603,
+    "lastScanned": "2026-10-05T02:43:39.917Z",
+    "fileCount": 606,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "0de3e825bdac447a78ecbbbe5d8662c1f0a42d8f9026be12c2b98ea06f99895e",
-    "storeUpdatedAt": "2026-10-05T02:27:09.157Z",
-    "rootHash": "361b89697d6e88dc"
+    "renderedHash": "c2303364d1a00f4ba184b8a7dafd0499df287e5593fe9293f62acc7c0cda5b03",
+    "storeUpdatedAt": "2026-10-05T02:43:39.927Z",
+    "rootHash": "d894285b745b2265"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12739,11 +12739,11 @@
     },
     "pcs-backend/app/models/enums.py": {
       "description": "业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。",
-      "tokens": 3434,
-      "hash": "bf4d3c444a2af6c8",
-      "size": 14481,
-      "mtimeMs": 1791161715068.1045,
-      "updatedAt": "2026-10-05T00:55:15.114Z",
+      "tokens": 3800,
+      "hash": "d4320de1fb98f820",
+      "size": 16036,
+      "mtimeMs": 1791167641868.3916,
+      "updatedAt": "2026-10-05T02:34:01.914Z",
       "source": "hook",
       "symbols": [
         {
@@ -12789,122 +12789,129 @@
           "tokens": 161
         },
         {
-          "name": "SnapshotStatus",
+          "name": "GasMedium",
           "kind": "class",
           "startLine": 105,
-          "endLine": 112,
+          "endLine": 134,
+          "tokens": 365
+        },
+        {
+          "name": "SnapshotStatus",
+          "kind": "class",
+          "startLine": 135,
+          "endLine": 142,
           "tokens": 53
         },
         {
           "name": "EquipmentStatus",
           "kind": "class",
-          "startLine": 113,
-          "endLine": 135,
+          "startLine": 143,
+          "endLine": 165,
           "tokens": 138
         },
         {
           "name": "CalcStatus",
           "kind": "class",
-          "startLine": 136,
-          "endLine": 147,
+          "startLine": 166,
+          "endLine": 177,
           "tokens": 76
         },
         {
           "name": "ActualDataStatus",
           "kind": "class",
-          "startLine": 148,
-          "endLine": 159,
+          "startLine": 178,
+          "endLine": 189,
           "tokens": 83
         },
         {
           "name": "StateTransition",
           "kind": "class",
-          "startLine": 160,
-          "endLine": 180,
+          "startLine": 190,
+          "endLine": 210,
           "tokens": 210
         },
         {
           "name": "UserStatus",
           "kind": "class",
-          "startLine": 181,
-          "endLine": 191,
+          "startLine": 211,
+          "endLine": 221,
           "tokens": 64
         },
         {
           "name": "AuditAction",
           "kind": "class",
-          "startLine": 192,
-          "endLine": 283,
+          "startLine": 222,
+          "endLine": 313,
           "tokens": 937
         },
         {
           "name": "ConfigStatus",
           "kind": "class",
-          "startLine": 284,
-          "endLine": 297,
+          "startLine": 314,
+          "endLine": 327,
           "tokens": 91
         },
         {
           "name": "ConfigTransition",
           "kind": "class",
-          "startLine": 298,
-          "endLine": 311,
+          "startLine": 328,
+          "endLine": 341,
           "tokens": 98
         },
         {
           "name": "PipeType",
           "kind": "class",
-          "startLine": 312,
-          "endLine": 325,
+          "startLine": 342,
+          "endLine": 355,
           "tokens": 104
         },
         {
           "name": "CheckResult",
           "kind": "class",
-          "startLine": 326,
-          "endLine": 336,
+          "startLine": 356,
+          "endLine": 366,
           "tokens": 60
         },
         {
           "name": "PumpOperation",
           "kind": "class",
-          "startLine": 337,
-          "endLine": 347,
+          "startLine": 367,
+          "endLine": 377,
           "tokens": 60
         },
         {
           "name": "DesignStage",
           "kind": "class",
-          "startLine": 348,
-          "endLine": 357,
+          "startLine": 378,
+          "endLine": 387,
           "tokens": 62
         },
         {
           "name": "FlowPattern",
           "kind": "class",
-          "startLine": 358,
-          "endLine": 372,
+          "startLine": 388,
+          "endLine": 402,
           "tokens": 95
         },
         {
           "name": "TwoPhaseCheck",
           "kind": "class",
-          "startLine": 373,
-          "endLine": 383,
+          "startLine": 403,
+          "endLine": 413,
           "tokens": 61
         },
         {
           "name": "ReliefScenario",
           "kind": "class",
-          "startLine": 384,
-          "endLine": 412,
+          "startLine": 414,
+          "endLine": 442,
           "tokens": 260
         },
         {
           "name": "to_value",
           "kind": "fn",
-          "startLine": 413,
-          "endLine": 433,
+          "startLine": 443,
+          "endLine": 463,
           "tokens": 184
         }
       ]
@@ -16403,95 +16410,95 @@
     },
     "pcs-backend/app/services/util/utility_energy_summary_service.py": {
       "description": "P7 Sprint 2 T5: 综合能耗汇总 service (utility_energy_summary).",
-      "tokens": 9808,
-      "hash": "9b5f8d6c69e0553f",
-      "size": 38681,
-      "mtimeMs": 1791165298921.6228,
-      "updatedAt": "2026-10-05T01:54:58.965Z",
+      "tokens": 10715,
+      "hash": "61c0040cc711f273",
+      "size": 42170,
+      "mtimeMs": 1791167710784.2063,
+      "updatedAt": "2026-10-05T02:35:10.828Z",
       "source": "hook",
       "symbols": [
         {
           "name": "derive_electricity_value_type",
           "kind": "fn",
-          "startLine": 53,
-          "endLine": 73,
+          "startLine": 66,
+          "endLine": 86,
           "tokens": 187
         },
         {
           "name": "resolve_electricity_value_type",
           "kind": "fn",
-          "startLine": 74,
-          "endLine": 132,
+          "startLine": 87,
+          "endLine": 145,
           "tokens": 465
         },
         {
           "name": "EnergyAggregation",
           "kind": "class",
-          "startLine": 133,
-          "endLine": 155,
-          "tokens": 245
+          "startLine": 146,
+          "endLine": 170,
+          "tokens": 274
         },
         {
           "name": "_build_r1_classification",
           "kind": "fn",
-          "startLine": 156,
-          "endLine": 179,
+          "startLine": 171,
+          "endLine": 194,
           "tokens": 253
         },
         {
           "name": "_aggregate_util_subtables",
           "kind": "fn",
-          "startLine": 180,
-          "endLine": 298,
-          "tokens": 1432
+          "startLine": 195,
+          "endLine": 347,
+          "tokens": 1795
         },
         {
           "name": "_get_energy_conversion_factors",
           "kind": "fn",
-          "startLine": 299,
-          "endLine": 325,
+          "startLine": 348,
+          "endLine": 374,
           "tokens": 294
         },
         {
           "name": "_get_factors_by_classification",
           "kind": "fn",
-          "startLine": 326,
-          "endLine": 382,
+          "startLine": 375,
+          "endLine": 431,
           "tokens": 509
         },
         {
           "name": "_load_all_factor_rows",
           "kind": "fn",
-          "startLine": 383,
-          "endLine": 397,
+          "startLine": 432,
+          "endLine": 446,
           "tokens": 175
         },
         {
           "name": "_get_factors_default",
           "kind": "fn",
-          "startLine": 398,
-          "endLine": 430,
+          "startLine": 447,
+          "endLine": 479,
           "tokens": 341
         },
         {
           "name": "_get_factor_with_classification",
           "kind": "fn",
-          "startLine": 431,
-          "endLine": 457,
+          "startLine": 480,
+          "endLine": 506,
           "tokens": 262
         },
         {
           "name": "_compute_totals",
           "kind": "fn",
-          "startLine": 458,
-          "endLine": 717,
-          "tokens": 2894
+          "startLine": 507,
+          "endLine": 799,
+          "tokens": 3262
         },
         {
           "name": "summarize_energy_year",
           "kind": "fn",
-          "startLine": 718,
-          "endLine": 897,
+          "startLine": 800,
+          "endLine": 979,
           "tokens": 2235
         }
       ]
@@ -17514,6 +17521,186 @@
       "mtimeMs": 1791167229099.494,
       "updatedAt": "2026-10-05T02:27:09.148Z",
       "source": "hook"
+    },
+    "pcs-backend/tests/services/util/test_gas_media_and_low_temp_heat.py": {
+      "description": "工艺气体 / 低温热子表聚合 (P7-6B 收尾).",
+      "tokens": 2512,
+      "hash": "48e1e6ca1e3d70e8",
+      "size": 9507,
+      "mtimeMs": 1791167622210.0151,
+      "updatedAt": "2026-10-05T02:33:42.252Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "seeded",
+          "kind": "fn",
+          "startLine": 61,
+          "endLine": 70,
+          "tokens": 70
+        },
+        {
+          "name": "project",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 89,
+          "tokens": 185
+        },
+        {
+          "name": "_gas",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 100,
+          "tokens": 100
+        },
+        {
+          "name": "_low_temp",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 116,
+          "tokens": 144
+        },
+        {
+          "name": "test_gas_media_aggregated_by_medium",
+          "kind": "fn",
+          "startLine": 117,
+          "endLine": 134,
+          "tokens": 180
+        },
+        {
+          "name": "test_low_temp_heat_aggregated",
+          "kind": "fn",
+          "startLine": 135,
+          "endLine": 146,
+          "tokens": 117
+        },
+        {
+          "name": "test_no_gas_rows_yields_none_not_zero",
+          "kind": "fn",
+          "startLine": 147,
+          "endLine": 160,
+          "tokens": 147
+        },
+        {
+          "name": "test_gas_medium_maps_to_correct_config_row",
+          "kind": "fn",
+          "startLine": 161,
+          "endLine": 180,
+          "tokens": 220
+        },
+        {
+          "name": "test_low_temp_heat_toe_and_mj",
+          "kind": "fn",
+          "startLine": 181,
+          "endLine": 195,
+          "tokens": 167
+        },
+        {
+          "name": "test_all_categories_stay_self_consistent",
+          "kind": "fn",
+          "startLine": 196,
+          "endLine": 216,
+          "tokens": 217
+        },
+        {
+          "name": "test_gas_medium_without_config_row_raises",
+          "kind": "fn",
+          "startLine": 217,
+          "endLine": 242,
+          "tokens": 223
+        },
+        {
+          "name": "test_category_map_no_longer_says_nitrogen_has_no_toe",
+          "kind": "fn",
+          "startLine": 243,
+          "endLine": 251,
+          "tokens": 128
+        }
+      ]
+    },
+    "pcs-backend/app/models/util.py": {
+      "description": "S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。",
+      "tokens": 8014,
+      "hash": "9bae093f6501170b",
+      "size": 31151,
+      "mtimeMs": 1791167674832.3462,
+      "updatedAt": "2026-10-05T02:34:34.877Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "UtilResults",
+          "kind": "class",
+          "startLine": 40,
+          "endLine": 139,
+          "tokens": 1090
+        },
+        {
+          "name": "UtilityPowerItem",
+          "kind": "class",
+          "startLine": 140,
+          "endLine": 217,
+          "tokens": 865
+        },
+        {
+          "name": "UtilityFuelGas",
+          "kind": "class",
+          "startLine": 218,
+          "endLine": 313,
+          "tokens": 1100
+        },
+        {
+          "name": "UtilityHeatExchange",
+          "kind": "class",
+          "startLine": 314,
+          "endLine": 430,
+          "tokens": 1314
+        },
+        {
+          "name": "UtilityEnergySummary",
+          "kind": "class",
+          "startLine": 431,
+          "endLine": 568,
+          "tokens": 1537
+        },
+        {
+          "name": "UtilityGasMedia",
+          "kind": "class",
+          "startLine": 569,
+          "endLine": 660,
+          "tokens": 1023
+        },
+        {
+          "name": "UtilityLowTempHeat",
+          "kind": "class",
+          "startLine": 661,
+          "endLine": 736,
+          "tokens": 829
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p7_s3_005_gas_media_and_low_temp_heat.py": {
+      "description": "p7_s3_005: utility_gas_media + utility_low_temp_heat (P7-6B 收尾).",
+      "tokens": 1833,
+      "hash": "c75359d6a35ef58b",
+      "size": 6772,
+      "mtimeMs": 1791168219862.068,
+      "updatedAt": "2026-10-05T02:43:39.916Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 150,
+          "tokens": 1554
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 151,
+          "endLine": 155,
+          "tokens": 40
+        }
+      ]
     }
   }
 }

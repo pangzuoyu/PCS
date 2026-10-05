@@ -1052,3 +1052,10 @@
 | 10:07 | Edited pcs-backend/app/api/v1/__init__.py | 1→2 lines | ~44 |
 | 10:27 | Created docs/PCS-SIGN-T5-2026-10-05.md | — | ~1526 |
 | 10:30 | T5 综合能耗验收正式封版 + git tag | docs/PCS-SIGN-T5-2026-10-05.md, utility_energy_summary_service.py, config.py, projects.py, 4 migrations | ✅ tag t5-energy-summary-2026-10-05 → 25e1dbd, 3705 passed/0 failed, 三项 PASS |
+| 10:33 | Created pcs-backend/tests/services/util/test_gas_media_and_low_temp_heat.py | — | ~2512 |
+| 10:34 | Edited pcs-backend/app/models/enums.py | modified GasMedium() | ~371 |
+| 10:34 | Edited pcs-backend/app/models/util.py | 14→15 lines | ~57 |
+| 10:34 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | expanded (+34 lines) | ~549 |
+| 10:35 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified items() | ~442 |
+| 10:35 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | expanded (+11 lines) | ~156 |
+| 10:43 | Created pcs-backend/alembic/versions/p7_s3_005_gas_media_and_low_temp_heat.py | — | ~1833 |

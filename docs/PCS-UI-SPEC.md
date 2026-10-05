@@ -1976,3 +1976,66 @@ V1.4	2026-09-17	P5-3 PSV 泄放工况多选 + SUP-P5-PSV-002 §5.1/5.2 安全阀
 文档结束。
 
 本文件为 PCS 前端编码的唯一 UI 依据。字段、类型、枚举、错误码以 OpenAPI + JSON Schema 为准。冲突时以 OpenAPI 为准，并登记修订。
+---
+
+## §4.4 修订登记 — 工艺气体/氮气/仪表空气/低温热的折标口径 (2026-10-05)
+
+**修订人**: PCS 实现自验　**依据**: GB 30251-2024 附录A 表A.1 序号 31/32/33/34
+
+### 背景
+
+§4.4 的 13 类公用工程映射写着「NITROGEN / INSTRUMENT_AIR / PLANT_AIR →
+None（无 TOE 折算，纯 utility 计数）」。这与炼化强制国标 **GB 30251-2024**
+冲突 —— 标准给了折标系数：
+
+| 附录A 序号 | 项 | kg标油/单位 |
+|---|---|---|
+| 31 | 净化压缩空气 | 0.038 kg标油/m³ |
+| 32 | 非净化压缩空气 | 0.028 kg标油/m³ |
+| 33 | 氮气 | 0.15 kg标油/m³ |
+| 34 | 低温热 | 0.012 kg标油/MJ |
+
+净化空气与氮气差近 4 倍，「一律不折标」是**系统性低估**。
+与「电用当量值 vs 等价值」属同一类口径错误。
+
+### 修订内容
+
+| 项 | 修订前 | 修订后 |
+|---|---|---|
+| 工艺气体 / 氮气 / 仪表空气 | 无 CONFIG 系数接线 | 新增 `utility_gas_media` 子表，按 `gas_medium` 分桶查 `ConfigEnergyConversionFactor` |
+| 低温热 | `_compute_totals` 硬编码错误系数 0.0341（偏离 +184.2% 且量纲错） | 新增 `utility_low_temp_heat` 子表（GJ），系数 0.012 kg标油/MJ 走 CONFIG 查表 + fail-closed |
+
+`gas_medium` → CONFIG 行映射（见 `app/models/enums.py::GasMedium`）：
+
+| gas_medium | CONFIG energy_type | sub_type | kg标油/Nm³ |
+|---|---|---|---|
+| PROCESS_GAS | GAS | — | 0.85 |
+| NITROGEN | NITROGEN | — | 0.15 |
+| PURIFIED_AIR | INSTRUMENT_AIR | PURIFIED | 0.038 |
+| NON_PURIFIED_AIR | INSTRUMENT_AIR | NON_PURIFIED | 0.028 |
+| PLANT_AIR | INSTRUMENT_AIR | NON_PURIFIED | 0.028 |
+
+### 刻意未改：`util_results` 13 类 legacy 路径
+
+`app/services/util/category_map.py` 的 `TOE_FUEL_TYPE_BY_CATEGORY`
+**保持 NITROGEN/INSTRUMENT_AIR/PLANT_AIR → None 不变**。
+
+原因：该表只有 6 个 `fuel_type`，`OTHER` 的种子系数是 **1.0000 toe/单位**。
+把氮气映射到 `OTHER` 会算成 1.0 toe/Nm³，而正确值是 0.00015 toe/Nm³ ——
+**高估约 6700 倍，比「不计」更糟**。本表结构上无法表达「按介质取不同系数」。
+
+现行口径走 5 表路径（`summarize_energy_year`），legacy `util_results` 路径
+待 JSONB 退役后一并下线。回归测试
+`test_category_map_keeps_legacy_none_mapping` 锁住这一点，防止后来者图省事改成 OTHER。
+
+### 连带修正的量纲缺陷（bug-138）
+
+低温热接线时发现两处量纲错（与 bug-135 同类）：
+
+1. `h_toe` 单位是 **kg标油/MJ** 而输入是 **GJ** → 直接相乘**少乘 1000 倍**
+2. `annual_total_energy` 全类统一是「折标后一次能源量」，而低温热 MJ 侧用
+   `GJ × 1000`（原始投入热量）→ 与 toe 差 41.868 倍，`iso_self_consistency` 崩
+
+两处均由 `tests/services/util/test_gas_media_and_low_temp_heat.py` 抓出并修正。
+
+

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-05T02:27:09.148Z
-> Files: 603 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-05T02:43:39.917Z
+> Files: 606 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -930,6 +930,7 @@
 - `p7_s3_002_project_product_category.py` — p7_s3_002: projects.product_category — GB 30251-2024 §6.1.5 电折标口径判据. (~526 tok)
 - `p7_s3_003_energy_config_classification_cols.py` — p7_s3_003: config_energy_conversion_factors 补 R1 分类列 (从未迁移的 schema drift). (~1788 tok)
 - `p7_s3_003_energy_config_gb30251_a1.py` — p7_s3_003: 折标系数对齐 GB 30251-2024 附录A 表A.1. (~1360 tok)
+- `p7_s3_005_gas_media_and_low_temp_heat.py` — p7_s3_005: utility_gas_media + utility_low_temp_heat (P7-6B 收尾). (~1833 tok)
 
 ## pcs-backend/app/api/v1/
 
@@ -965,8 +966,9 @@
 ## pcs-backend/app/models/
 
 - `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~11272 tok)
-- `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~3434 tok)
+- `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~3800 tok)
 - `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~7227 tok)
+- `util.py` — S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。 (~8014 tok)
 
 ## pcs-backend/app/schemas/
 
@@ -984,7 +986,7 @@
 
 ## pcs-backend/app/services/util/
 
-- `utility_energy_summary_service.py` — P7 Sprint 2 T5: 综合能耗汇总 service (utility_energy_summary). (~9808 tok)
+- `utility_energy_summary_service.py` — P7 Sprint 2 T5: 综合能耗汇总 service (utility_energy_summary). (~10715 tok)
 
 ## pcs-backend/scripts/
 
@@ -1017,6 +1019,7 @@
 
 - `test_electricity_value_type_policy.py` — 电折标口径按项目产品类别强制 (用户裁决 2026-10-05「按 project 产品类型强制」). (~2934 tok)
 - `test_energy_mj_from_config.py` — 耗能工质 MJ 从 CONFIG 推导 (Q2, 用户裁决 2026-10-05). (~1419 tok)
+- `test_gas_media_and_low_temp_heat.py` — 工艺气体 / 低温热子表聚合 (P7-6B 收尾). (~2512 tok)
 - `test_gb30251_config_conformance.py` — GB 30251-2024 附录A 表A.1 折标系数一致性回归 (2026-10-05). (~1427 tok)
 - `test_utility_energy_summary.py` — P7 Sprint 2 T5: utility_energy_summary service 测试. (~9769 tok)
 
