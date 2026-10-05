@@ -542,6 +542,18 @@ async def test_service_electricity_value_type_persisted(
     # 验证不变量: 总能源消耗字段相同 (单位换算不变)
     assert s_equiv.electricity_kwh_yr == s_value.electricity_kwh_yr
 
+    # F-P3-T5 fix (2026-10-05, GB 30251-2024 §6.1.5 + 附录A):
+    # 炼油/乙烯用电用等价值时, annual_total_energy 的电 MJ 必须跟随
+    # value_type (= kWh × toe_factor × 41.868), 不能恒用 SI 3.6。
+    # 断言: 两口径下 MJ 均与 total_toe × 41.868 自洽。
+    TOE_TO_MJ = 41.868
+    assert s_equiv.annual_total_energy == pytest.approx(
+        s_equiv.total_toe * 1000.0 * TOE_TO_MJ, rel=1e-3
+    ), "当量值下 annual_total_energy 应与 toe x 41.868 自洽"
+    assert s_value.annual_total_energy == pytest.approx(
+        s_value.total_toe * 1000.0 * TOE_TO_MJ, rel=1e-3
+    ), "等价值下 annual_total_energy 也应与 toe x 41.868 自洽 (MJ 跟随 value_type)"
+
 
 @pytest.mark.asyncio
 async def test_service_aggregates_by_pressure_level(

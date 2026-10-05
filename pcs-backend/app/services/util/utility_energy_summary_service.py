@@ -438,7 +438,17 @@ def _compute_totals(
     h_toe, h_coal = factors.get("LOW_TEMP_HEAT", (0.0341, 0.0487))
 
     # 年度累积 MJ (F-P2-002 fix: nullable → None 时 0.0 跳过累加)
-    electricity_mj = agg.electricity_kwh_yr * KWH_TO_MJ
+    # F-P3-T5 fix (2026-10-05, GB 30251-2024 §6.1.5 + 附录A):
+    # 电的 MJ 必须跟随 electricity_value_type, 不能恒用 SI 3.6。
+    #   - EQUIVALENT (当量值, GB/T 2589 §3.2): 1 kWh = 3.6 MJ 物理当量
+    #     = 0.086 kg标油 × 41.868 = 3.601 MJ  (两口径等价, 保持 3.6)
+    #   - EQUIVALENT_VALUE (等价值, 炼油/乙烯强制): MJ = kWh × toe_factor × 41.868
+    #     若仍用 3.6 会与 toe 差 2.44 倍, 导致 annual_total_energy 与 total_toe 不自洽
+    #     (GB 30251 要求炼油用电用等价值, 此时 MJ 必须是折算后的一次能源量)
+    if electricity_value_type == "EQUIVALENT_VALUE":
+        electricity_mj = agg.electricity_kwh_yr * e_toe * TOE_TO_MJ
+    else:
+        electricity_mj = agg.electricity_kwh_yr * KWH_TO_MJ
     water_mj = (agg.water_t_yr or 0.0) * T_WATER_TO_MJ
     gas_mj = (agg.gas_nm3_yr or 0.0) * NM3_GAS_TO_MJ
     low_temp_mj = (agg.low_temp_heat_gj_yr or 0.0) * GJ_LOW_TEMP_TO_MJ

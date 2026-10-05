@@ -171,9 +171,12 @@ async def main() -> int:
         await _inject_case_4(db, project_id, workspace_id)
         await db.commit()
 
+        # GB 30251-2024 §6.1.5 + 附录A 注: 炼油/乙烯能耗计算中电折标系数必须用等价值.
+        # 蜡油加氢 = 炼油 → 显式传 EQUIVALENT_VALUE (不走默认 EQUIVALENT).
         summary = await summarize_energy_year(
             db=db, project_id=project_id, workspace_id=workspace_id,
             business_year=2026,
+            electricity_value_type="EQUIVALENT_VALUE",
         )
         await db.commit()
 
