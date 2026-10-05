@@ -405,6 +405,26 @@
 - **不擅自改折标系数**：发现不一致先记账 + 审计常态化检出，工艺室裁决后再改
   （同「不得为了让验收变绿而修改 PCS 折标系数」）。
 
+### ORM 声明 ≠ 真实库 schema（bug-137, 2026-10-05）
+
+- **测试全绿不能证明 schema 对**。测试用 in-memory SQLite
+  `Base.metadata.create_all` —— **从 ORM 模型建表**，所以 ORM 声明了但
+  没有任何 migration 创建的列，测试照样全绿。真实库却查不到。
+  `config_energy_conversion_factors` 就是这么烂了：4 个 R1 分类列从未迁移 +
+  R0 的 `UNIQUE(energy_type)` 从没 drop → 真实库 0 行，26 行 R1 机制只在测试里成立。
+- **ORM `__table_args__` 改了 ≠ 老库会跟着变**。改 UniqueConstraint/Index/列
+  必须**同时写 alembic migration**。查历史：`p7_open_010_r1_classification_fields.py`
+  名字像是做分类字段迁移的，实际只碰了另外 3 张表 —— 名字骗人，要看内容。
+- **改 schema 后必查真实库**：查一个真实 DB 的 `information_schema.columns` +
+  `alembic_version`，别信测试。pcs_test 灌完记得
+  `alembic -c alembic.ini upgrade head` 再跑 schema 敏感测试。
+- **PG 的 UNIQUE 遇 NULL 失效**：`UNIQUE(a, b, c)` 里 b/c 为 NULL 时，
+  NULL 互不相等 → 重复行照插。`ON CONFLICT DO NOTHING`（不带 conflict target）
+  也因此不生效。实测插出 7 行重复。要真约束需 PG 15+ `NULLS NOT DISTINCT`
+  （本机 18.6 支持）或 COALESCE 表达式索引。
+- **同名 energy_type 撞车**：用 `toe_factor` 之类数值列当行匹配键不安全 ——
+  除盐水与凝汽机凝结水都是 1.0，我据此 UPDATE 时把一行改错了。按 id 修。
+
 ### OPEN-P6-6A-4 Ruling 12 — drain orifice Cd/Y_cr^0.5 fix（bug-104, 2026-09-28）
 
 - **缺陷**：PCS `calc_drain_orifice` mass_flow_capacity 公式仅 A×Ftp×ρ×v_max，假设 Cd=1.0 + Y_cr^0.5=1.0 implicit → 对 blowdown orifice 等真实工程场景 over-predict 1.74× vs XLS PR-023 在 d=15.204 mm 处（Cd=0.83932 × Y_cr^0.5=0.6871656312856262 = 0.5768）。

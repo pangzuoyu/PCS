@@ -141,8 +141,8 @@ R1_SIGNED_ENERGY_CONVERSION: list[dict] = [
     },
     {
         "energy_type": "WATER", "water_type": "DEMINERALIZED_WATER",
-        "toe_factor": 1.04, "standard_coal_factor": 1.486,
-        "comment": "除盐水 (1.04 kg标油/t)",
+        "toe_factor": 1.0, "standard_coal_factor": 1.428571,
+        "comment": "除盐水 (1.0 kg标油/t) GB 30251-2024 附录A 序号25",
     },
     {
         "energy_type": "WATER", "water_type": "LP_DEAERATED_WATER",
@@ -156,8 +156,8 @@ R1_SIGNED_ENERGY_CONVERSION: list[dict] = [
     },
     {
         "energy_type": "WATER", "water_type": "TURBINE_CONDENSATE",
-        "toe_factor": 1.04, "standard_coal_factor": 1.486,
-        "comment": "凝汽机凝结水 (1.04 kg标油/t)",
+        "toe_factor": 1.0, "standard_coal_factor": 1.428571,
+        "comment": "凝汽机凝结水 (1.0 kg标油/t) GB 30251-2024 附录A 序号28",
     },
     {
         "energy_type": "WATER", "water_type": "120C_CONDENSATE_TREATED",
@@ -185,6 +185,62 @@ R1_SIGNED_ENERGY_CONVERSION: list[dict] = [
         "energy_type": "INSTRUMENT_AIR", "sub_type": "NON_PURIFIED",
         "toe_factor": 0.028, "standard_coal_factor": 0.040,
         "comment": "非净化压缩空气 (0.028 kg标油/m³) GB 30251-2024 附录A",
+    },
+    # ========================================================================
+    # GB 30251-2024 附录A 表A.1 中 PCS 原未建模的行 (2026-10-05 补齐)
+    #
+    # energy_type="FUEL" 单列的原因 (安全, 非命名洁癖):
+    #   附录A 序号 3/4/5/9/10/11 是**按吨**计的燃料 (kg标油/t),
+    #   而 FUEL_GAS 下的 3 行 (序号6/7/8) 中序号6/7 是**按 Nm³** 计。
+    #   _compute_totals 对 FUEL_GAS 是 `fuel_gas_by_source(Nm³) × toe_factor`,
+    #   若把 LPG 的 1200 (kg标油/t) 放成 FUEL_GAS/LPG, 一旦有人设
+    #   gas_source='LPG' 就会算出 **Nm³ × 1200** 的荒谬值。
+    #   故按吨计的燃料一律归 FUEL, 当前聚合不经过 → 纯参考元数据, 零地雷。
+    #   待「按质量计的燃料消耗」数据模型落地 (P7-6B 后续) 再接线。
+    # ========================================================================
+    # === 燃料 6 行：按吨计 ===
+    {
+        "energy_type": "FUEL", "sub_type": "FUEL_OIL",
+        "toe_factor": 1000.0, "standard_coal_factor": 1428.571429,
+        "comment": "燃料油 (1000 kg标油/t) GB 30251-2024 附录A 序号3",
+    },
+    {
+        "energy_type": "FUEL", "sub_type": "LPG",
+        "toe_factor": 1200.0, "standard_coal_factor": 1714.285714,
+        "comment": (
+            "液化石油气 (1200 kg标油/**t**) GB 30251-2024 附录A 序号4 — "
+            "注意单位是吨不是 Nm³; UtilityFuelGas.fuel_type=LPG 是 R0 遗留字段, "
+            "R1 聚合按 gas_source 走, 不会命中本行"
+        ),
+    },
+    {
+        "energy_type": "FUEL", "sub_type": "METHANE_H2",
+        "toe_factor": 1200.0, "standard_coal_factor": 1714.285714,
+        "comment": "甲烷氢 (1200 kg标油/t) GB 30251-2024 附录A 序号5",
+    },
+    {
+        "energy_type": "FUEL", "sub_type": "PSA_OFF_GAS",
+        "toe_factor": 320.0, "standard_coal_factor": 457.142857,
+        "comment": "制氢 PSA 尾气 (320 kg标油/t) GB 30251-2024 附录A 序号9",
+    },
+    {
+        "energy_type": "FUEL", "sub_type": "CATALYTIC_COKE",
+        "toe_factor": 950.0, "standard_coal_factor": 1357.142857,
+        "comment": "催化烧焦 (950 kg标油/t) GB 30251-2024 附录A 序号10",
+    },
+    {
+        "energy_type": "FUEL", "sub_type": "PETROLEUM_COKE",
+        "toe_factor": 800.0, "standard_coal_factor": 1142.857143,
+        "comment": "石油焦 (800 kg标油/t) GB 30251-2024 附录A 序号11",
+    },
+    # === 低温热 1 行：按 MJ 计 ===
+    # 修正 bug-135: 原 utility_energy_summary_service.py:523 硬编码
+    # (0.0341, 0.0487), 偏离标准 +184.2%, 且 0.0341 实为 GB/T 2589 表A.2
+    # 「热力(当量值) 0.03412 **kgce/MJ**」—— 把 kg标煤/MJ 当 kg标油/MJ 用, 量纲错。
+    {
+        "energy_type": "LOW_TEMP_HEAT",
+        "toe_factor": 0.012, "standard_coal_factor": 0.017143,
+        "comment": "低温热 (0.012 kg标油/MJ) GB 30251-2024 附录A 序号34",
     },
 ]
 

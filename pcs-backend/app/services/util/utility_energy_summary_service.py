@@ -496,6 +496,7 @@ def _compute_totals(
     NM3_GAS_TO_MJ = 0.0  # 工艺气体预留 (无热值)
     # toe → MJ 转换常数 (ISO 国际标准 1 toe = 41.868 MJ):
     TOE_TO_MJ = 41.868
+    from app.core.errors import PcsError  # noqa: PLC0415
     # F-P2-004 P0 fix 删除: NM3_FUEL_GAS_TO_MJ / T_STEAM_TO_MJ (硬编码, R1 分类冲突)
     # 现统一从 CONFIG 推导: MJ/unit = toe_factor × TOE_TO_MJ
 
@@ -520,7 +521,26 @@ def _compute_totals(
     s_toe, s_coal = factors.get("STEAM", (76.0, 108.6))
     w_toe, w_coal = factors.get("WATER", (0.06, 0.086))
     g_toe, g_coal = factors.get("GAS", (0.85, 1.2143))
-    h_toe, h_coal = factors.get("LOW_TEMP_HEAT", (0.0341, 0.0487))
+    # bug-135 fix (2026-10-05, GB 30251-2024 附录A 序号34 低温热 0.012 kg标油/MJ):
+    # 原硬编码 (0.0341, 0.0487) 偏离标准 +184.2%, 且 0.0341 实为 GB/T 2589
+    # 表A.2「热力(当量值) 0.03412 kgce/MJ」—— 把 kg标煤/MJ 当 kg标油/MJ 用, 量纲错。
+    # 改 CONFIG 查表 + **不再静默兜底**: 有低温热数据却查不到系数 ⇒ 直接报错,
+    # 而非用一个来源不明的常数悄悄算错 (同 F-P3-001 production fail-closed 原则)。
+    # 无低温热数据 (low_temp_heat_gj_yr == 0, P7-6B 子表未落地时的常态) ⇒ 不需要系数。
+    if agg.low_temp_heat_gj_yr:
+        if "LOW_TEMP_HEAT" not in factors:
+            raise PcsError(
+                code="CONFIG_FACTOR_MISSING",
+                message=(
+                    f"low_temp_heat_gj_yr={agg.low_temp_heat_gj_yr} 但 CONFIG 缺 "
+                    "LOW_TEMP_HEAT 系数行 (GB 30251-2024 附录A 序号34 = "
+                    "0.012 kg标油/MJ)"
+                ),
+                status=500,
+            )
+        h_toe, h_coal = factors["LOW_TEMP_HEAT"]
+    else:
+        h_toe, h_coal = 0.0, 0.0
 
     # 年度累积 MJ (F-P2-002 fix: nullable → None 时 0.0 跳过累加)
     # F-P3-T5 fix (2026-10-05, GB 30251-2024 §6.1.5 + 附录A):

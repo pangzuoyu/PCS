@@ -61,6 +61,74 @@ PCS 硬编码 fallback:               0.0341  "kg标油/MJ" (0.0487 "kg标煤/MJ
 
 ---
 
+## 追加裁决与落地（2026-10-05 后续）
+
+**用户裁决**：
+> 先完成 1-3, 附录A 有而 PCS 未建模的按照标准增加
+
+### 已修 1：bug-136 两行水系数 → 标准值
+
+除盐水 / 凝汽机凝结水 `1.04 → 1.0`（附录A 序号 25/28），
+`standard_coal_factor` 同步 `1.486 → 1.428571`。
+
+### 已修 2：bug-135 LOW_TEMP_HEAT
+
+- CONFIG 补 `energy_type=LOW_TEMP_HEAT`，`0.012 kg标油/MJ`（附录A 序号 34）
+- **删掉** `utility_energy_summary_service.py` 的硬编码 `(0.0341, 0.0487)`
+- 改 **fail-closed**：有低温热数据却查不到系数 ⇒ 抛 `CONFIG_FACTOR_MISSING` 500，
+  而非用一个来源不明的常数悄悄算错；无低温热数据（`low_temp_heat_gj_yr == 0`，
+  P7-6B 子表未落地时的常态）⇒ 不需要系数
+
+### 已修 3：LPG 及附录A 未建模行按标准补齐（+7 行）
+
+新增 `energy_type="FUEL"` 共 6 行 + `LOW_TEMP_HEAT` 1 行。
+
+**为什么按吨计的燃料归 `FUEL` 而不是 `FUEL_GAS`**（安全考虑，非命名洁癖）：
+`_compute_totals` 对 FUEL_GAS 是 `fuel_gas_by_source(Nm³) × toe_factor`，
+而附录A 序号 6/7（油田气/气田气）是**按 Nm³**、序号 8/3/4/5/9/10/11 是**按吨**。
+若把 LPG 的 `1200 kg标油/t` 放成 `FUEL_GAS/LPG`，一旦有人设
+`gas_source='LPG'` 就会算出 **Nm³ × 1200** 的荒谬值。
+`FUEL` 不经过当前聚合 ⇒ 纯参考元数据，零地雷。
+
+| energy_type | sub_type | kg标油 | 附录A 序号 |
+|---|---|---|---|
+| FUEL | FUEL_OIL | 1000 | 3 |
+| FUEL | LPG | 1200 | 4 |
+| FUEL | METHANE_H2 | 1200 | 5 |
+| FUEL | PSA_OFF_GAS | 320 | 9 |
+| FUEL | CATALYTIC_COKE | 950 | 10 |
+| FUEL | PETROLEUM_COKE | 800 | 11 |
+| LOW_TEMP_HEAT | — | 0.012 (per MJ) | 34 |
+
+**审计结果：33/33 行全部零偏差，0 行未建模**（除序号 1/2 标准油/标准煤 ——
+换算基准本身即 toe 定义，不需要系数行）。
+
+### 🔴 顺带查出 bug-137：真实库根本装不下 R1 折标系数
+
+审计过程中查 pcs_test 发现 `config_energy_conversion_factors` **0 行**，
+追下去是三层 schema drift 叠加，全被 in-memory SQLite 的 `create_all` 掩盖：
+
+1. ORM 声明了 `value_type` / `sub_type` / `pressure_level` / `water_type`
+   4 列 + 复合 UNIQUE，**但没有任何 migration 创建过**。
+   `p7_open_010_r1_classification_fields.py` 名字像是做这件事的，
+   实际只改了 `utility_energy_summary` / `utility_fuel_gas` / `utility_heat_exchange`
+   三张表，**没碰 config_energy_conversion_factors**。
+2. `p7_open_009_t0` 建表时按 R0「一能源类型一行」加了
+   `UNIQUE(energy_type)`；R1 改成多行后 ORM 换成复合 UNIQUE，
+   但**从没 drop 旧约束** → 真实库上第二个 `STEAM` 行就 UniqueViolation。
+3. `energy_type` 的 `index=True` 也只在 ORM 层，真实库无此索引。
+
+**后果**：`_get_factors_by_classification` 在真实库上会 `UndefinedColumn`，
+**整条 R1 折标机制只在测试里成立**，T5 在真实库上算不出系数。
+测试全绿完全掩盖了它。
+
+**修复**：`p7_s3_003_energy_config_classification_cols.py` —
+drop R0 UNIQUE + 加 4 分类列 + 复合 UNIQUE + energy_type 索引；
+`p7_s3_004_energy_config_gb30251_a1.py` — 数据修正 + 7 行新增。
+已在 pcs_test 灌入 33 行并验证。
+
+---
+
 ## 裁决记录
 
 **用户裁决 2026-10-05**：
@@ -359,17 +427,28 @@ pdftotext -layout sample/综合能耗计算通则.pdf - | grep -n "0.1229" # GB/
       `T_WATER_TO_MJ` / `NM3_GAS_TO_MJ`。当前 Case 4 无水/气体，不影响 T5。
 - [x] **待办 3** — `XLS 不作为最终依据` 的书面留档 ✅（本文件「问题 2」+ cerebrum
       Do-Not-Repeat「XLS 可作输入不可作基准」双处留档）。
-- [ ] **待办 4（新，bug-135）** — LOW_TEMP_HEAT 系数。CONFIG 加 0.012 kg标油/MJ 行
-      + 删 `utility_energy_summary_service.py:523` 硬编码 fallback。当前 +184.2%。
-- [ ] **待办 5（新，bug-136）** — 除盐水 / 凝汽机凝结水 1.04 的出处。
-      两份标准全文均无 1.04。若无依据应改 1.0。
-- [ ] **待办 6（新）** — 液化石油气（LPG）CONFIG 系数缺失。
-      `UtilityFuelGas.fuel_type` 有 `LPG` 枚举，但 CONFIG 无行 → 静默落到气田气
-      0.85。需补附录A 序号4（1200 kg标油/t，注意单位是**吨**不是 Nm³）。
-- [ ] **待办 7（新）** — `product_category` 目前只能在 DB/seed 层设置
+- [x] **待办 4** — ~~LOW_TEMP_HEAT 系数~~ ✅ CONFIG 补 0.012 kg标油/MJ 行 +
+      删 `utility_energy_summary_service.py` 硬编码 fallback，改 fail-closed
+- [x] **待办 5** — ~~除盐水 / 凝汽机凝结水 1.04~~ ✅ 改 1.0（用户裁决「按标准增加」）
+- [x] **待办 6** — ~~LPG 系数缺失~~ ✅ 补 `FUEL/LPG = 1200`（归 FUEL 不归 FUEL_GAS，
+      防 Nm³ × 1200 地雷）
+- [x] **待办 8（新，bug-137）** — ~~真实库装不下 R1 折标系数~~ ✅
+      `p7_s3_003` 补 4 个从未迁移的分类列 + drop R0 `UNIQUE(energy_type)`；
+      `p7_s3_004` 数据修正 + 7 行新增。pcs_test 已灌 33 行。
+- [ ] **待办 7** — `product_category` 目前只能在 DB/seed 层设置
       （PCS **没有 Project create API**，`user_projects.py` 只做授权/查询）。
       真实项目需靠外部导入/直改 DB 标记，运维成本高。建 Project CRUD 超出本次范围，
       登记 follow-up。
+- [ ] **待办 9（新）** — 复合 UNIQUE 在 PG 中对 NULL **无效**
+      （`UNIQUE(energy_type, value_type, sub_type, pressure_level, water_type)`
+      里 NULL 互不相等，重复行照样能插）。本次实测插出 7 行重复。
+      `p7_s3_004` 用显式 exists 检查所以自身幂等，但约束本身不设防。
+      修法需在「PG-only `NULLS NOT DISTINCT`（PG 15+，本机 18.6 支持）」与
+      「跨库 COALESCE 表达式索引」之间选 —— 后者要动 ORM `__table_args__` 且
+      影响 SQLite 测试路径，属设计决策，未擅自做。
+- [ ] **待办 10（新）** — `pcs` 库（开发库，非 pcs_test）alembic 停在 `p6_6b_013`，
+      落后多个迁移，导致 `test_pipe_class_migration.py` 失败。本会话被权限拦过，
+      未迁移。
 
 
 **独立残余**

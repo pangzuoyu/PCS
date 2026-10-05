@@ -2367,7 +2367,7 @@
       "file": "pcs-backend/app/services/util/utility_energy_summary_service.py",
       "root_cause": "_compute_totals:523 用硬编码 factors.get(\"LOW_TEMP_HEAT\", (0.0341, 0.0487)) fallback, 而 config_energy_conversion_factors 表根本没有 LOW_TEMP_HEAT 行 (grep -c = 0) → 硬编码静默生效无告警。两重错: (1) 数值 0.0341 是 GB/T 2589 表A.2「热力(当量值) 0.03412 kgce/MJ」, 把 kg标煤/MJ 当 kg标油/MJ 用, 量纲错; (2) 即使按 kg标煤 解读, 0.03412 kgce/MJ × 1.4286 = 0.0487 kg标油/MJ 仍是标准 0.012 的 4.06 倍。",
       "fix": "待裁决 — 未擅自改值。审计脚本 scripts/p7_open_016_config_conformance_audit.py::audit_low_temp_heat_fallback() 已常态化检出。落地需: CONFIG 加 LOW_TEMP_HEAT 行 (0.012 kg标油/MJ) + 删硬编码 fallback。",
-      "fix_commit": "00c030b",
+      "fix_commit": "0be4f10",
       "tags": [
         "p7-s2",
         "T5",
@@ -2392,7 +2392,7 @@
       "file": "pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py",
       "root_cause": "工艺室 R1 签署值对这两行取 1.04, 而附录A 表A.1 序号25 除盐水 = 1.0、序号28 凝汽机凝结水 = 1.0。grep 两份标准全文 (GB 30251-2024 + GB/T 2589-2020) 均无 1.04 → 该值不来自任一标准, 来源不明。同批其余 5 行水系数偏差 0.31~0.40% (向上取整到 2 位小数), 在标准自身 2 位有效数字精度内。",
       "fix": "待裁决 — 未擅自改值。审计脚本 p7_open_016 已常态化检出 (超 0.5% 容差)。需工艺室确认 1.04 的出处: 若无依据应改 1.0, 与其同批 5 行统一到标准 2 位有效数字。",
-      "fix_commit": "00c030b",
+      "fix_commit": "0be4f10",
       "tags": [
         "p7-s2",
         "T5",
@@ -2405,6 +2405,29 @@
         "bug-133",
         "bug-134",
         "bug-135"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-05T00:00:00+08:00"
+    },
+    {
+      "id": "bug-137",
+      "timestamp": "2026-10-05T00:00:00+08:00",
+      "error_message": "config_energy_conversion_factors 真实库缺 4 个 R1 分类列 + R0 UNIQUE(energy_type) 未 drop — 整条 R1 折标机制只在 in-memory SQLite 测试里成立",
+      "file": "pcs-backend/app/models/config.py",
+      "root_cause": "三层 schema drift 叠加, 全被 create_all(SQLite 测试) 掩盖: (1) ORM 声明 value_type/sub_type/pressure_level/water_type + 复合 UNIQUE, 但**没有任何 migration 创建过** — p7_open_010_r1_classification_fields.py 名字像做这件事, 实际只改了 utility_energy_summary/utility_fuel_gas/utility_heat_exchange 三张表; (2) p7_open_009_t0 建表时按 R0「一能源类型一行」加了 UNIQUE(energy_type), R1 改成多行后 ORM 换成复合 UNIQUE 但**从没 drop 旧约束** → 真实库上第二个 STEAM 行就 UniqueViolation; (3) energy_type 的 index=True 也只在 ORM 层。结果 pcs_test 该表 0 行, T0 seed 从未在真实库跑成功, _get_factors_by_classification 在真实库上会 UndefinedColumn。",
+      "fix": "p7_s3_003_energy_config_classification_cols.py: drop R0 UNIQUE + 加 4 分类列 + 复合 UNIQUE(if_not_exists) + energy_type 索引(if_not_exists)。已灌 pcs_test 33 行并验证。",
+      "fix_commit": "0be4f10",
+      "tags": [
+        "p7-s2",
+        "schema-drift",
+        "alembic",
+        "折标系数",
+        "R1分类列",
+        "测试掩盖真实缺陷"
+      ],
+      "related_bugs": [
+        "bug-135",
+        "bug-136"
       ],
       "occurrences": 1,
       "last_seen": "2026-10-05T00:00:00+08:00"

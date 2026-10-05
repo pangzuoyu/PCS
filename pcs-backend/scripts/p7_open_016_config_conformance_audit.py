@@ -98,20 +98,38 @@ GB30251_A1: dict[tuple, tuple] = {
         (32, "非净化压缩空气", "m3", 0.028, 1.17),
     ("NITROGEN", None, None, None, None):
         (33, "氮气", "m3", 0.15, 6.28),
+    # === 2026-10-05 补齐: 附录A 有而 PCS 原未建模的行 ===
+    # 按吨计的燃料归 energy_type="FUEL" (不归 FUEL_GAS) ——
+    # FUEL_GAS 走 Nm³, 混入按吨的 1200 会算出 Nm³×1200 的荒谬值。
+    ("FUEL", "FUEL_OIL", None, None, None):
+        (3, "燃料油", "t", 1000.0, 41868.0),
+    ("FUEL", "LPG", None, None, None):
+        (4, "液化石油气", "t", 1200.0, 50242.0),
+    ("FUEL", "METHANE_H2", None, None, None):
+        (5, "甲烷氢", "t", 1200.0, 50242.0),
+    ("FUEL", "PSA_OFF_GAS", None, None, None):
+        (9, "制氢PSA尾气", "t", 320.0, 13398.0),
+    ("FUEL", "CATALYTIC_COKE", None, None, None):
+        (10, "催化烧焦", "t", 950.0, 39775.0),
+    ("FUEL", "PETROLEUM_COKE", None, None, None):
+        (11, "石油焦", "t", 800.0, 33494.0),
+    ("LOW_TEMP_HEAT", None, None, None, None):
+        (34, "低温热", "MJ", 0.012, 0.5),
 }
 
-# 附录A 表A.1 中 PCS ConfigEnergyConversionFactor 未建模的行 (缺口披露, 非偏差)
+# 附录A 表A.1 中 PCS 不建模的行 (换算基准, 非系数行)
 UNMAPPED_STANDARD_ROWS = [
-    (1, "标准油", "t oe", "换算基准, 不需系数行"),
-    (2, "标准煤", "t ce", "换算基准, 不需系数行"),
-    (3, "燃料油", "t", "PCS UtilityFuelGas 无燃料油分支"),
-    (4, "液化石油气", "t", "PCS UtilityFuelGas 有 LPG 枚举但 CONFIG 无系数行"),
-    (5, "甲烷氢", "t", "PCS 无对应"),
-    (9, "制氢PSA尾气", "t", "PCS 无对应"),
-    (10, "催化烧焦", "t", "PCS 无对应"),
-    (11, "石油焦", "t", "PCS 无对应"),
-    (34, "低温热", "MJ", "PCS CONFIG 无该行, _compute_totals 用硬编码 fallback"),
+    (1, "标准油", "t oe", "换算基准 (1 t标油 = 1000 kg标油), 本身即 toe 定义, 不需系数行"),
+    (2, "标准煤", "t ce", "换算基准 (1 t标煤 = 700 kg标油), 不需系数行"),
 ]
+
+# 附录A 序号34 低温热 — 已于 2026-10-05 补 CONFIG 行 (bug-135 fix),
+# service 的硬编码 fallback 已删。此处仅用于在专项审计里展示标准原值。
+GB_A1_LOW_TEMP_HEAT_KGOE_PER_MJ = 0.012
+# service 已改为 CONFIG 查表 + 无数据不兜底; 该正则用于检出「硬编码又回来了」
+LOW_TEMP_HEAT_FALLBACK_RE = (
+    r'factors\.get\(\s*"LOW_TEMP_HEAT"\s*,\s*\(\s*([0-9.]+)\s*,\s*([0-9.]+)\s*\)'
+)
 
 # 附录A 序号34 低温热 — PCS CONFIG 未建模, service 用硬编码 fallback。
 # fallback 值与标准的偏离必须单列: 无 CONFIG 行 + 硬编码 = 静默生效, 无告警。
