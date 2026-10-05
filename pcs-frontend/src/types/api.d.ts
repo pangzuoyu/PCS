@@ -3682,6 +3682,55 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/equipment/{equipment_id}/deviation-report": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Deviation Report
+         * @description 设计值 vs 实际值偏差报告（SPEC §3.2.4(3)）。
+         *
+         *     `can_confirm` 是 SPEC §3.2.4(4) 的确认门禁 —— 存在不合格或不可判项时
+         *     为 false，前端据此禁用「已确认」。
+         *
+         *     ⚠️ 已知缺口：`design_parameters_json` 目前无写入方，故生产路径上全部行
+         *     都会落「缺设计值（不可判）」。引擎已按 SPEC 逐条实现，设计值来源待定。
+         */
+        get: operations["get_deviation_report_api_v1_equipment__equipment_id__deviation_report_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/equipment/{equipment_id}/deviation-report/export": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Export Deviation Report
+         * @description 导出偏差报告（SPEC §3.2.4(3)「可导出PDF/Excel」）。
+         *
+         *     文件名走 RFC 5987 `filename*` 编码 —— 设备位号可能含中文，直接塞进
+         *     `filename` 会被部分浏览器丢弃。
+         */
+        get: operations["export_deviation_report_api_v1_equipment__equipment_id__deviation_report_export_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/open-channel/manning/calculate": {
         parameters: {
             query?: never;
@@ -6965,6 +7014,91 @@ export interface components {
              * @description 出口流 UUID（DEVICE_CALCULATED）
              */
             outlet_stream_id: string;
+        };
+        /**
+         * DeviationReportOut
+         * @description 偏差报告。`can_confirm` 是 SPEC §3.2.4(4) 的确认门禁，前端据此禁用按钮。
+         */
+        DeviationReportOut: {
+            /** Equipment Id */
+            equipment_id: string;
+            /** Tag Number */
+            tag_number: string;
+            /** Actual Data Status */
+            actual_data_status: string;
+            /** Rows */
+            rows: components["schemas"]["DeviationRowOut"][];
+            /** Can Confirm */
+            can_confirm: boolean;
+            /**
+             * Blocking Reason
+             * @default
+             */
+            blocking_reason: string;
+        };
+        /** DeviationRowOut */
+        DeviationRowOut: {
+            /**
+             * Parameter
+             * @description 对比项
+             */
+            parameter: string;
+            /**
+             * Design Value
+             * @description 设计值
+             */
+            design_value: number | string | null;
+            /**
+             * Actual Value
+             * @description 实际值
+             */
+            actual_value: number | string | null;
+            /**
+             * Unit
+             * @default
+             */
+            unit: string;
+            /**
+             * Deviation Pct
+             * @description 偏差 %; 不可判时 null
+             */
+            deviation_pct?: number | null;
+            /**
+             * Verdict
+             * @enum {string}
+             */
+            verdict: "QUALIFIED" | "WARNING" | "UNQUALIFIED" | "UNVERDICTABLE";
+            /**
+             * Label
+             * @description 结论中文: 合格/警告/不合格/不可判
+             */
+            label: string;
+            /**
+             * Color
+             * @description SPEC §3.2.4(3) 颜色: 绿色/黄色/红色/灰色
+             */
+            color: string;
+            /**
+             * Note
+             * @default
+             */
+            note: string;
+            /**
+             * Spec Ref
+             * @description 回溯到 SPEC §3.2.4(2) 哪一条
+             * @default
+             */
+            spec_ref: string;
+            /**
+             * Requires Recheck
+             * @default false
+             */
+            requires_recheck: boolean;
+            /**
+             * Requires Manual Check
+             * @default false
+             */
+            requires_manual_check: boolean;
         };
         /**
          * DewPointRequest
@@ -22700,6 +22834,74 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ActualDataResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_deviation_report_api_v1_equipment__equipment_id__deviation_report_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                equipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeviationReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    export_deviation_report_api_v1_equipment__equipment_id__deviation_report_export_get: {
+        parameters: {
+            query: {
+                format: string;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                equipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
                 };
             };
             /** @description Validation Error */

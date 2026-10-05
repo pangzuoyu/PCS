@@ -11343,6 +11343,134 @@
         }
       }
     },
+    "/api/v1/equipment/{equipment_id}/deviation-report": {
+      "get": {
+        "tags": [
+          "supplier"
+        ],
+        "summary": "Get Deviation Report",
+        "description": "设计值 vs 实际值偏差报告（SPEC §3.2.4(3)）。\n\n`can_confirm` 是 SPEC §3.2.4(4) 的确认门禁 —— 存在不合格或不可判项时\n为 false，前端据此禁用「已确认」。\n\n⚠️ 已知缺口：`design_parameters_json` 目前无写入方，故生产路径上全部行\n都会落「缺设计值（不可判）」。引擎已按 SPEC 逐条实现，设计值来源待定。",
+        "operationId": "get_deviation_report_api_v1_equipment__equipment_id__deviation_report_get",
+        "parameters": [
+          {
+            "name": "equipment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Equipment Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeviationReportOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/equipment/{equipment_id}/deviation-report/export": {
+      "get": {
+        "tags": [
+          "supplier"
+        ],
+        "summary": "Export Deviation Report",
+        "description": "导出偏差报告（SPEC §3.2.4(3)「可导出PDF/Excel」）。\n\n文件名走 RFC 5987 `filename*` 编码 —— 设备位号可能含中文，直接塞进\n`filename` 会被部分浏览器丢弃。",
+        "operationId": "export_deviation_report_api_v1_equipment__equipment_id__deviation_report_export_get",
+        "parameters": [
+          {
+            "name": "equipment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Equipment Id"
+            }
+          },
+          {
+            "name": "format",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "pattern": "^(excel|pdf)$",
+              "title": "Format"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/open-channel/manning/calculate": {
       "post": {
         "tags": [
@@ -19180,6 +19308,155 @@
         ],
         "title": "CvCalculateResponse",
         "description": "调节阀 Cv 计算响应（POST /api/v1/cv/calculate 201）。\n\n回填 CvResult 主键 + 关键结果字段 + outlet stream 锚点。\n\nP6-4 Task 5（C-24 Masonelian fl）：V1.2 D3 严格 — fl / flash_steam_rate_kg_s\n走 JSONB 容器（output_json），masonelian_model 走 ORM 列。响应层 3 字段全部\nOptional（默认 None），保持 V1.0 兼容：仅 LIQUID 路径填充；GAS/VAPOR 路径\n闪蒸修正无强物理意义，保持 None。"
+      },
+      "DeviationReportOut": {
+        "properties": {
+          "equipment_id": {
+            "type": "string",
+            "title": "Equipment Id"
+          },
+          "tag_number": {
+            "type": "string",
+            "title": "Tag Number"
+          },
+          "actual_data_status": {
+            "type": "string",
+            "title": "Actual Data Status"
+          },
+          "rows": {
+            "items": {
+              "$ref": "#/components/schemas/DeviationRowOut"
+            },
+            "type": "array",
+            "title": "Rows"
+          },
+          "can_confirm": {
+            "type": "boolean",
+            "title": "Can Confirm"
+          },
+          "blocking_reason": {
+            "type": "string",
+            "title": "Blocking Reason",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "equipment_id",
+          "tag_number",
+          "actual_data_status",
+          "rows",
+          "can_confirm"
+        ],
+        "title": "DeviationReportOut",
+        "description": "偏差报告。`can_confirm` 是 SPEC §3.2.4(4) 的确认门禁，前端据此禁用按钮。"
+      },
+      "DeviationRowOut": {
+        "properties": {
+          "parameter": {
+            "type": "string",
+            "title": "Parameter",
+            "description": "对比项"
+          },
+          "design_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Design Value",
+            "description": "设计值"
+          },
+          "actual_value": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actual Value",
+            "description": "实际值"
+          },
+          "unit": {
+            "type": "string",
+            "title": "Unit",
+            "default": ""
+          },
+          "deviation_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Deviation Pct",
+            "description": "偏差 %; 不可判时 null"
+          },
+          "verdict": {
+            "type": "string",
+            "enum": [
+              "QUALIFIED",
+              "WARNING",
+              "UNQUALIFIED",
+              "UNVERDICTABLE"
+            ],
+            "title": "Verdict"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label",
+            "description": "结论中文: 合格/警告/不合格/不可判"
+          },
+          "color": {
+            "type": "string",
+            "title": "Color",
+            "description": "SPEC §3.2.4(3) 颜色: 绿色/黄色/红色/灰色"
+          },
+          "note": {
+            "type": "string",
+            "title": "Note",
+            "default": ""
+          },
+          "spec_ref": {
+            "type": "string",
+            "title": "Spec Ref",
+            "description": "回溯到 SPEC §3.2.4(2) 哪一条",
+            "default": ""
+          },
+          "requires_recheck": {
+            "type": "boolean",
+            "title": "Requires Recheck",
+            "default": false
+          },
+          "requires_manual_check": {
+            "type": "boolean",
+            "title": "Requires Manual Check",
+            "default": false
+          }
+        },
+        "type": "object",
+        "required": [
+          "parameter",
+          "design_value",
+          "actual_value",
+          "verdict",
+          "label",
+          "color"
+        ],
+        "title": "DeviationRowOut"
       },
       "DewPointRequest": {
         "properties": {
