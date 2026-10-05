@@ -390,6 +390,21 @@
 - **残差非零是好信号**：基准用标准原值 3182 MJ/t、PCS 用推导 76×41.868=3181.968，
   残差 0.001% 恰好证明推导路径正确。若强行凑 0 就失去独立检验价值。
 
+### 折标系数改动前必跑一致性审计（bug-135/136, 2026-10-05）
+
+- **跑** `uv run python scripts/p7_open_016_config_conformance_audit.py` ——
+  逐行对 GB 30251-2024 附录A 表A.1（26 行 PCS 系数 vs 标准 34 行），别凭印象说"一致"。
+  该脚本直接 import T0 seed 的 `R1_SIGNED_ENERGY_CONVERSION`，不复制数值。
+- **已查出 2 处不一致**（当时 PCS 未自查）：
+  除盐水/凝汽机凝结水 1.04 vs 标准 1.0（+4%，两份标准全文均无 1.04，来源不明）；
+  LOW_TEMP_HEAT 硬编码 0.0341 vs 标准 0.012（+184%），且 0.0341 是 GB/T 2589
+  表A.2「热力(当量值) 0.03412 **kgce/MJ**」，把 kg标煤/MJ 当 kg标油/MJ 用，量纲错。
+- **CONFIG 查表静默 fallback 是惯犯**：`_compute_totals` 一律
+  `factors.get(X, 硬编码默认值)` —— CONFIG 缺行时不报错，直接用错值。
+  新增能源类别时**必须同时加 CONFIG 行**，否则永远吃 fallback。
+- **不擅自改折标系数**：发现不一致先记账 + 审计常态化检出，工艺室裁决后再改
+  （同「不得为了让验收变绿而修改 PCS 折标系数」）。
+
 ### OPEN-P6-6A-4 Ruling 12 — drain orifice Cd/Y_cr^0.5 fix（bug-104, 2026-09-28）
 
 - **缺陷**：PCS `calc_drain_orifice` mass_flow_capacity 公式仅 A×Ftp×ρ×v_max，假设 Cd=1.0 + Y_cr^0.5=1.0 implicit → 对 blowdown orifice 等真实工程场景 over-predict 1.74× vs XLS PR-023 在 d=15.204 mm 处（Cd=0.83932 × Y_cr^0.5=0.6871656312856262 = 0.5768）。

@@ -2359,6 +2359,55 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-10-05T00:00:00+08:00"
+    },
+    {
+      "id": "bug-135",
+      "timestamp": "2026-10-05T00:00:00+08:00",
+      "error_message": "LOW_TEMP_HEAT 系数偏离 GB 30251-2024 附录A 序号34 达 +184.2% (0.0341 vs 0.012 kg标油/MJ)",
+      "file": "pcs-backend/app/services/util/utility_energy_summary_service.py",
+      "root_cause": "_compute_totals:523 用硬编码 factors.get(\"LOW_TEMP_HEAT\", (0.0341, 0.0487)) fallback, 而 config_energy_conversion_factors 表根本没有 LOW_TEMP_HEAT 行 (grep -c = 0) → 硬编码静默生效无告警。两重错: (1) 数值 0.0341 是 GB/T 2589 表A.2「热力(当量值) 0.03412 kgce/MJ」, 把 kg标煤/MJ 当 kg标油/MJ 用, 量纲错; (2) 即使按 kg标煤 解读, 0.03412 kgce/MJ × 1.4286 = 0.0487 kg标油/MJ 仍是标准 0.012 的 4.06 倍。",
+      "fix": "待裁决 — 未擅自改值。审计脚本 scripts/p7_open_016_config_conformance_audit.py::audit_low_temp_heat_fallback() 已常态化检出。落地需: CONFIG 加 LOW_TEMP_HEAT 行 (0.012 kg标油/MJ) + 删硬编码 fallback。",
+      "fix_commit": "00c030b",
+      "tags": [
+        "p7-s2",
+        "T5",
+        "GB-30251",
+        "折标系数",
+        "硬编码fallback",
+        "量纲错误",
+        "附录A序号34"
+      ],
+      "related_bugs": [
+        "bug-133",
+        "bug-134",
+        "bug-136"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-05T00:00:00+08:00"
+    },
+    {
+      "id": "bug-136",
+      "timestamp": "2026-10-05T00:00:00+08:00",
+      "error_message": "除盐水 / 凝汽机凝结水 折标系数 1.04 vs GB 30251-2024 附录A 序号25/28 的 1.0, 偏差 +4.00%",
+      "file": "pcs-backend/scripts/p7_open_009_t0_seed_energy_conversion_factors.py",
+      "root_cause": "工艺室 R1 签署值对这两行取 1.04, 而附录A 表A.1 序号25 除盐水 = 1.0、序号28 凝汽机凝结水 = 1.0。grep 两份标准全文 (GB 30251-2024 + GB/T 2589-2020) 均无 1.04 → 该值不来自任一标准, 来源不明。同批其余 5 行水系数偏差 0.31~0.40% (向上取整到 2 位小数), 在标准自身 2 位有效数字精度内。",
+      "fix": "待裁决 — 未擅自改值。审计脚本 p7_open_016 已常态化检出 (超 0.5% 容差)。需工艺室确认 1.04 的出处: 若无依据应改 1.0, 与其同批 5 行统一到标准 2 位有效数字。",
+      "fix_commit": "00c030b",
+      "tags": [
+        "p7-s2",
+        "T5",
+        "GB-30251",
+        "折标系数",
+        "工艺室R1",
+        "附录A序号25/28"
+      ],
+      "related_bugs": [
+        "bug-133",
+        "bug-134",
+        "bug-135"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-05T00:00:00+08:00"
     }
   ]
 }

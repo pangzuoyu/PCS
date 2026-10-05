@@ -24,6 +24,7 @@
 """
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 
 from sqlalchemy import func, select
@@ -39,8 +40,92 @@ from app.models.util import (
 # F-P1-002 fix: 5-min TTL 缓存 (仿 _compound_config_cache 异步版)
 from app.services._async_ttl_cache import clear_all_caches, get_or_reload_async  # noqa: E402
 
+logger = logging.getLogger(__name__)
+
 # 综合能耗容差上限 (per P7-OPEN-009 §6 验收标准: ≤ 2%)
 DEFAULT_TOLERANCE_PCT = 2.0
+
+# GB 30251-2024 §6.1.5 + 附录A 表A.2 注「炼油、乙烯能耗计算中电折标系数选择等价值,
+# 其余产品电力折标准煤系数选择当量值」—— 这两类产品强制等价值.
+_EQUIVALENT_VALUE_PRODUCT_CATEGORIES = frozenset({"REFINING", "ETHYLENE"})
+
+
+def derive_electricity_value_type(product_category: str | None) -> str:
+    """按项目产品类别推导电折标口径 (GB 30251-2024 §6.1.5).
+
+    Args:
+        product_category: Project.product_category (REFINING/ETHYLENE/OTHER).
+
+    Returns:
+        "EQUIVALENT_VALUE" (等价值 0.21 kg标油/kWh) — 炼油/乙烯
+        "EQUIVALENT"      (当量值 0.086 kg标油/kWh) — 其余 / None / 未知值
+
+    Note:
+        未知值刻意落到 "EQUIVALENT" 而非报错: 口径判据缺失时应取**低值**一侧,
+        避免虚高能耗被误采纳 (fail-safe, 非 fail-open)。
+    """
+    if not product_category:
+        return "EQUIVALENT"
+    if str(product_category).upper() in _EQUIVALENT_VALUE_PRODUCT_CATEGORIES:
+        return "EQUIVALENT_VALUE"
+    return "EQUIVALENT"
+
+
+async def resolve_electricity_value_type(
+    db: AsyncSession,
+    project_id: str,
+    *,
+    requested: str | None = None,
+) -> str:
+    """按项目产品类别解析电折标口径; 显式传值与产品类别冲突时 fail-closed 抛 422.
+
+    裁决: 用户 2026-10-05「按 project 产品类型强制」。
+
+    Args:
+        project_id: 目标项目 UUID.
+        requested: 调用方显式指定值; None ⇒ 完全按产品类别推导.
+
+    Returns:
+        生效的 electricity_value_type.
+
+    Raises:
+        PcsError 422 ELECTRICITY_VALUE_TYPE_MISMATCH — 显式传值与产品类别冲突。
+
+    Note:
+        Project 行缺失时**不强制** (无产品类别可依, 尊重显式传值) 并打 warning。
+        生产上每个真实项目都有 Project 行; 该分支只覆盖测试与孤儿数据。
+    """
+    from app.core.errors import PcsError  # noqa: PLC0415
+    from app.models.project import Project  # noqa: PLC0415
+
+    row = (
+        await db.execute(
+            select(Project.product_category).where(
+                Project.project_id == project_id
+            )
+        )
+    ).first()
+    if row is None:
+        logger.warning(
+            "electricity_value_type: Project 行缺失, 无产品类别政策可依 — "
+            "project_id=%s requested=%s",
+            project_id,
+            requested,
+        )
+        return requested or "EQUIVALENT"
+
+    product_category = row[0]
+    required = derive_electricity_value_type(product_category)
+    if requested is None or requested == required:
+        return required
+    raise PcsError(
+        code="ELECTRICITY_VALUE_TYPE_MISMATCH",
+        message=(
+            f"project {project_id} product_category={product_category!r} "
+            f"(GB 30251-2024 §6.1.5 requires {required}), got {requested!r}"
+        ),
+        status=422,
+    )
 
 
 # 6 类能源年度消耗聚合结果 (service 内部分型, 不落 DB)
@@ -594,7 +679,7 @@ async def summarize_energy_year(
     source: str = "CALCULATION",
     tolerance_pct_max: float = DEFAULT_TOLERANCE_PCT,
     xls_reference: UtilityEnergySummary | None = None,
-    electricity_value_type: str = "EQUIVALENT",
+    electricity_value_type: str | None = None,
 ) -> UtilityEnergySummary:
     """聚合 project_id + business_year 综合能耗 + 折标 → UtilityEnergySummary.
 
@@ -612,11 +697,18 @@ async def summarize_energy_year(
         source: 'CALCULATION' (服务计算) / 'XLS_REFERENCE' (Excel 基准).
         tolerance_pct_max: 容差上限 (per P7-OPEN-009 §6 ≤ 2%).
         xls_reference: 同年 XLS_REFERENCE summary 用于容差对账; None 跳过.
-        electricity_value_type: R1 §5 电当量值/等价值 (EQUIVALENT/EQUIVALENT_VALUE).
+        electricity_value_type: 电当量值/等价值显式指定; **None ⇒ 按项目产品
+            类别强制推导** (GB 30251-2024 §6.1.5, 用户裁决 2026-10-05)。
+            显式值与产品类别冲突时抛 422 ELECTRICITY_VALUE_TYPE_MISMATCH。
 
     Returns:
         UtilityEnergySummary ORM 实例 (persisted).
     """
+    # 0. 电折标口径按项目产品类别强制 (GB 30251-2024 §6.1.5)
+    electricity_value_type = await resolve_electricity_value_type(
+        db, project_id, requested=electricity_value_type
+    )
+
     # 1. 聚合 T1+T2+T3 子表 (R1 §7 分类聚合待后续 sprint)
     agg = await _aggregate_util_subtables(
         db, project_id, business_year,

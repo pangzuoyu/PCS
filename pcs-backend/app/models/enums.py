@@ -83,6 +83,25 @@ class WorkspaceStatus(str, enum.Enum):
     ARCHIVED = "ARCHIVED"
 
 
+class ProductCategory(str, enum.Enum):
+    """项目产品类别 — GB 30251-2024 §6.1.5 电折标系数口径判据。
+
+    业务: REFINING (炼油) / ETHYLENE (乙烯) ⇒ 电折标系数必须用**等价值**
+    (0.21 kg标油/kWh, 附录A 表A.1 序号12); 其余产品用**当量值**
+    (0.086 kg标油/kWh)。两者差 2.44 倍, 选错直接导致综合能耗虚低/虚高。
+
+    裁决: 用户 2026-10-05「按 project 产品类型强制」— 不再由调用方自由传
+    electricity_value_type。落 Project.product_category 列 + CHECK 约束。
+
+    与 Project.project_type 区分: 那个是「项目类型」(CHEMICAL/NEW/... 无枚举
+    无约束, 历史值含 test/t 等垃圾), 本列是**折标口径判据**, 有 CHECK 约束。
+    """
+
+    REFINING = "REFINING"
+    ETHYLENE = "ETHYLENE"
+    OTHER = "OTHER"
+
+
 class SnapshotStatus(str, enum.Enum):
     """V3.3 § 4.1 字典；record_change_snapshots.snapshot_status 列。"""
 

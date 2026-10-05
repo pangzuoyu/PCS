@@ -713,6 +713,9 @@ async def aggregate_energy_summary(
         workspace_id=body.workspace_id,
         business_year=body.business_year,
         source=body.source,  # F-P2-007: 透传 source (CALCULATION / XLS_REFERENCE)
+        # 省略时由 service 按项目产品类别强制推导 (GB 30251-2024 §6.1.5);
+        # 显式传值与产品类别冲突 → service 抛 422 ELECTRICITY_VALUE_TYPE_MISMATCH
+        electricity_value_type=body.electricity_value_type,
     )
     return _energy_summary_to_response(summary)
 

@@ -305,7 +305,8 @@ class UtilHeatExchangeResponse(BaseModel):
 class UtilEnergySummaryAggregateRequest(BaseModel):
     """触发 T5 综合能耗汇总 (utility_energy_summary_service.summarize_energy_year).
 
-    R1 §5: electricity_value_type 选择当量值/等价值.
+    R1 §5: electricity_value_type 选择当量值/等价值; 省略时由后端按项目产品
+    类别强制 (GB 30251-2024 §6.1.5)。
     """
 
     project_id: uuid.UUID = Field(..., description="项目 UUID")
@@ -316,13 +317,15 @@ class UtilEnergySummaryAggregateRequest(BaseModel):
         description="数据来源 (R1 §5 GB 30251-2024): CALCULATION (系统聚合, 默认) / "
                     "XLS_REFERENCE (XLS 录入对照行, 用于容差校验)",
     )
-    electricity_value_type: str = Field(
-        "EQUIVALENT",
+    electricity_value_type: str | None = Field(
+        None,
         max_length=16,
         description=(
-            "电当量值/等价值 (R1 §5 GB 30251-2024 §6.1.1): "
-            "EQUIVALENT (当量值 0.086 kg标油/kWh - 其他产品用; 默认) / "
-            "EQUIVALENT_VALUE (等价值 0.21 kg标油/kWh - 炼油/乙烯用)"
+            "电当量值/等价值。**省略 ⇒ 按项目产品类别强制** "
+            "(GB 30251-2024 §6.1.5, 用户裁决 2026-10-05): "
+            "project.product_category ∈ {REFINING, ETHYLENE} ⇒ EQUIVALENT_VALUE "
+            "(0.21 kg标油/kWh); 其余 ⇒ EQUIVALENT (0.086 kg标油/kWh)。"
+            "显式传值与产品类别冲突 ⇒ 422 ELECTRICITY_VALUE_TYPE_MISMATCH"
         ),
     )
 

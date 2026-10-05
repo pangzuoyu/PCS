@@ -14452,7 +14452,8 @@ export interface components {
          * UtilEnergySummaryAggregateRequest
          * @description 触发 T5 综合能耗汇总 (utility_energy_summary_service.summarize_energy_year).
          *
-         *     R1 §5: electricity_value_type 选择当量值/等价值.
+         *     R1 §5: electricity_value_type 选择当量值/等价值; 省略时由后端按项目产品
+         *     类别强制 (GB 30251-2024 §6.1.5)。
          */
         UtilEnergySummaryAggregateRequest: {
             /**
@@ -14482,10 +14483,9 @@ export interface components {
             source: "CALCULATION" | "XLS_REFERENCE";
             /**
              * Electricity Value Type
-             * @description 电当量值/等价值 (R1 §5 GB 30251-2024 §6.1.1): EQUIVALENT (当量值 0.086 kg标油/kWh - 其他产品用; 默认) / EQUIVALENT_VALUE (等价值 0.21 kg标油/kWh - 炼油/乙烯用)
-             * @default EQUIVALENT
+             * @description 电当量值/等价值。**省略 ⇒ 按项目产品类别强制** (GB 30251-2024 §6.1.5, 用户裁决 2026-10-05): project.product_category ∈ {REFINING, ETHYLENE} ⇒ EQUIVALENT_VALUE (0.21 kg标油/kWh); 其余 ⇒ EQUIVALENT (0.086 kg标油/kWh)。显式传值与产品类别冲突 ⇒ 422 ELECTRICITY_VALUE_TYPE_MISMATCH
              */
-            electricity_value_type: string;
+            electricity_value_type?: string | null;
         };
         /**
          * UtilEnergySummaryResponse

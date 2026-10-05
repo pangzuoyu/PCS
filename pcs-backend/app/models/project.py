@@ -26,7 +26,12 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.db.base import Base
-from app.models.enums import StreamSignStatus, UserStatus, WorkspaceStatus
+from app.models.enums import (
+    ProductCategory,
+    StreamSignStatus,
+    UserStatus,
+    WorkspaceStatus,
+)
 from app.models.mixins import TimestampMixin
 
 
@@ -72,6 +77,23 @@ class Project(TimestampMixin, Base):
         comment="项目所属 FORMAL 工作区；use_alter 破解 projects↔workspaces 循环",
     )
     status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
+    # 产品类别 — GB 30251-2024 §6.1.5 电折标系数口径判据 (用户裁决 2026-10-05).
+    # REFINING/ETHYLENE ⇒ 电用等价值; 其余 ⇒ 当量值.
+    # 与 project_type 语义不同: 那个是「项目类型」(无枚举无约束), 本列有 CHECK.
+    product_category: Mapped[str] = mapped_column(
+        String(20),
+        nullable=False,
+        default=ProductCategory.OTHER.value,
+        index=True,
+        comment="产品类别 (GB 30251-2024 §6.1.5): REFINING/ETHYLENE 电用等价值; 其余当量值",
+    )
+
+    __table_args__ = (
+        CheckConstraint(
+            "product_category IN ('REFINING', 'ETHYLENE', 'OTHER')",
+            name="ck_projects_product_category",
+        ),
+    )
 
 
 class Workspace(Base):

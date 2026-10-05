@@ -44,6 +44,7 @@ except Exception:  # pragma: no cover
     pass
 
 from app.models.config import ConfigEnergyConversionFactor  # noqa: E402
+from app.models.project import Project, Workspace  # noqa: E402
 from app.models.util import (  # noqa: E402
     UtilityEnergySummary,
     UtilityFuelGas,
@@ -264,11 +265,34 @@ async def main() -> int:
 
         project_id = uuid.uuid4()
         workspace_id = uuid.uuid4()
+        # 建 Workspace + Project, product_category=REFINING —
+        # 让 GB 30251-2024 §6.1.5 的口径政策真正生效 (用户裁决 2026-10-05
+        # 「按 project 产品类型强制」), 而不是靠「Project 行缺失」兜底。
+        db.add(
+            Workspace(
+                workspace_id=workspace_id, workspace_type="FORMAL", name="T5-WS"
+            )
+        )
+        db.add(
+            Project(
+                project_id=project_id,
+                workspace_id=workspace_id,
+                project_no=f"T5-{project_id.hex[:8]}",
+                project_name="1216D132 惠州蜡油加氢 (Case 4)",
+                owner_company="PCS",
+                location="惠州",
+                project_type="PETROLEUM",
+                design_phase="EXECUTIVE_DESIGN",
+                unit_system="SI",
+                product_category="REFINING",  # 炼油 ⇒ 电折标强制等价值
+            )
+        )
         await _inject_case_4(db, project_id, workspace_id)
         await db.commit()
 
         # GB 30251-2024 §6.1.5 + 附录A 注: 炼油/乙烯能耗计算中电折标系数必须用等价值.
-        # 蜡油加氢 = 炼油 → 显式传 EQUIVALENT_VALUE (不走默认 EQUIVALENT).
+        # 蜡油加氢 = 炼油 → 显式传 EQUIVALENT_VALUE, 必须与上面建的
+        # product_category=REFINING 一致, 否则 service 抛 422 (fail-closed).
         summary = await summarize_energy_year(
             db=db, project_id=project_id, workspace_id=workspace_id,
             business_year=2026,

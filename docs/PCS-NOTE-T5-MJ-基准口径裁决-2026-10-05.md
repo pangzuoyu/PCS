@@ -5,6 +5,62 @@
 
 ---
 
+## PCS 折标系数全表一致性审计（用户 2026-10-05 追加要求）
+
+审计工具：`pcs-backend/scripts/p7_open_016_config_conformance_audit.py`
+（直接 import T0 seed 的 `R1_SIGNED_ENERGY_CONVERSION`，防漂移；标准原文转录自
+`sample/GB+30251-2024.pdf` 附录 A 表 A.1 全部 34 行）
+
+**26 行中 24 行与标准零偏差**，含电双口径、燃料气 3 类、蒸汽 9 档、氮气、仪表空气 2 类。
+
+### ❌ 发现 1（+4.00%）：2 行水系数与标准不符
+
+| 序号 | 标准项 | PCS | 标准 | 偏差 |
+|---|---|---|---|---|
+| 25 | 除盐水 | **1.04** | 1.0 | +4.00% |
+| 28 | 凝汽机凝结水 | **1.04** | 1.0 | +4.00% |
+
+`grep "1\.04"` 全文扫描 **GB 30251-2024 + GB/T 2589-2020 两份标准均无 1.04**
+→ 该值不来自任一标准，来源不明（bug-136）。
+同批其余 5 行水系数偏差 0.31%–0.40%（向上取整到 2 位小数），在标准自身 2 位
+有效数字精度内，可接受。
+
+### ❌ 发现 2（+184.2%）：LOW_TEMP_HEAT 硬编码 fallback 偏离标准
+
+```
+utility_energy_summary_service.py:523
+  h_toe, h_coal = factors.get("LOW_TEMP_HEAT", (0.0341, 0.0487))
+                          ↑ CONFIG 表根本没有 LOW_TEMP_HEAT 行 (grep -c = 0)
+
+GB 30251-2024 附录A 序号34 低温热:  0.012 kg标油/MJ  (0.0171 kg标煤/MJ)
+PCS 硬编码 fallback:               0.0341  "kg标油/MJ" (0.0487 "kg标煤/MJ")
+偏差:                              +184.2%
+```
+
+两重错误：
+1. **量纲错** —— 0.0341 是 GB/T 2589 表 A.2「热力(当量值) **0.03412 kgce/MJ**」，
+   把 **kg标煤/MJ** 当成 **kg标油/MJ** 用了。
+2. **即便按 kg标煤 解读也错** —— 0.03412 kgce/MJ 折算后仍比标准 0.012 高 4.06 倍。
+
+且 CONFIG 无该行 + 硬编码 fallback = **静默生效，无告警**（bug-135）。
+
+### ⚠️ 缺口（附录A 有、PCS 未建模，9 行）
+
+序号 1/2 标准油/标准煤（换算基准，无需系数行）、3 燃料油、4 液化石油气
+（`UtilityFuelGas` 有 LPG 枚举但 CONFIG 无系数行）、5 甲烷氢、9 制氢 PSA 尾气、
+10 催化烧焦、11 石油焦、34 低温热（见发现 2）。
+
+其中**序号 4 液化石油气是实际风险**：`UtilityFuelGas.fuel_type` 枚举含 `LPG`，
+但 CONFIG 无对应系数行 → 查 `factors.get("FUEL_GAS", ...)` 会**静默落到 0.85
+（气田气）**而非报错。
+
+### 未擅自改值
+
+按本文件既定原则（「不得为了让验收变绿而修改 PCS 折标系数」），发现 1/2 **未改代码**，
+仅由审计脚本常态化检出。落地需工艺室裁决。
+
+---
+
 ## 裁决记录
 
 **用户裁决 2026-10-05**：
@@ -292,17 +348,29 @@ pdftotext -layout sample/综合能耗计算通则.pdf - | grep -n "0.1229" # GB/
 - [x] T5 三项验收 PASS（0.0011% / 0.0000% / 0.0020%，阈值 2%）
 
 **未决（需你裁决，不阻塞 T5 封板）**
-- [ ] **待办 1** — `electricity_value_type` 默认值是否改？
-      现默认 `"EQUIVALENT"`（当量值）。GB 30251 §6.1.5 要求**炼油/乙烯**必须等价值，
-      但 PCS 也有非炼油产品线。三选一：(a) 全局默认改 `EQUIVALENT_VALUE`；
-      (b) 按 project 产品类型强制；(c) 维持现状 + 在 API 层对炼油项目强校验。
-      **默认错选的静默风险**：漏传参数就落到当量值，无任何告警。
+- [x] **待办 1** — ~~`electricity_value_type` 默认值~~ ✅ **已裁决：按 project 产品
+      类型强制**。已落 `Project.product_category` (REFINING/ETHYLENE/OTHER +
+      CHECK 约束) + `resolve_electricity_value_type()` + 冲突 422
+      `ELECTRICITY_VALUE_TYPE_MISMATCH` + migration `p7_s3_002`。
+      → 顺带修掉一个**生产活 bug**：`POST /util/energy-summary/aggregate` 原先
+      根本不传该参数，炼油项目每次调用都静默用当量值（差 2.44 倍）。
 - [ ] **待办 2** — Q2 耗能工质 MJ 落地（工程项）。
       标准已给值（附录A 表A.1），需 `unit_to_mj` 列 + migration + 查表化
       `T_WATER_TO_MJ` / `NM3_GAS_TO_MJ`。当前 Case 4 无水/气体，不影响 T5。
-- [ ] **待办 3** — `XLS 不作为最终依据` 的书面留档。
-      建议在本文件签一句「1216D132 XLS 仅作设备清单来源，不作折标计算基准」，
-      避免后续会话又把它当基准（本次即发生了）。
+- [x] **待办 3** — `XLS 不作为最终依据` 的书面留档 ✅（本文件「问题 2」+ cerebrum
+      Do-Not-Repeat「XLS 可作输入不可作基准」双处留档）。
+- [ ] **待办 4（新，bug-135）** — LOW_TEMP_HEAT 系数。CONFIG 加 0.012 kg标油/MJ 行
+      + 删 `utility_energy_summary_service.py:523` 硬编码 fallback。当前 +184.2%。
+- [ ] **待办 5（新，bug-136）** — 除盐水 / 凝汽机凝结水 1.04 的出处。
+      两份标准全文均无 1.04。若无依据应改 1.0。
+- [ ] **待办 6（新）** — 液化石油气（LPG）CONFIG 系数缺失。
+      `UtilityFuelGas.fuel_type` 有 `LPG` 枚举，但 CONFIG 无行 → 静默落到气田气
+      0.85。需补附录A 序号4（1200 kg标油/t，注意单位是**吨**不是 Nm³）。
+- [ ] **待办 7（新）** — `product_category` 目前只能在 DB/seed 层设置
+      （PCS **没有 Project create API**，`user_projects.py` 只做授权/查询）。
+      真实项目需靠外部导入/直改 DB 标记，运维成本高。建 Project CRUD 超出本次范围，
+      登记 follow-up。
+
 
 **独立残余**
 - [ ] T6 catalyst_loading fixture（BLOCKER-2 残余，工艺室 2026-10-15 XLS）
