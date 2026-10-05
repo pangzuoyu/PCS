@@ -15,13 +15,13 @@
 - **SPEC V1.4 权威版本**: 字段/枚举/权限/错误码以 OpenAPI + meta API 为准；SPEC 冲突时以 OpenAPI 为准
 - **P7 总工时**: SPEC V1.4 §4.6 口径 10–13 人周 + R-03 T0 0.5–1 人日 = **10.5–14 人周**（仅 Sprint 1-4 主体）；本计划口径（含 Sprint 0 mock 评估 1.5 人周 + Sprint 1-4 主体 + 收口 + wolf + workspace cleanup）**~14.0–18.2 人周**（D5 5A 工艺室 buffer 0.5 → 1.5 人周 + 对账应急 1.0 → 0.5 人周合并后调整）
 - **启动前必备评估**: SPEC V1.4 §4.6 口径 4–7 人日（P7-OPEN-007 3–5 人日 + P7-OPEN-008 1–2 人日）；mock 决议后实际 = **0.5–1 人日**（P7-OPEN-007/008 mock 已闭环于 `docs/P7-OPEN-007-physical-semantics-evaluation.md` + `docs/P7-OPEN-008-rule-registry-form-evaluation.md`；仅剩 R-03 T0 落地）
-- **R-02 = 方案 A**: UTIL 5 表迁移 + catalyst_loading + auxiliary_consumption 4 字段；工艺室 2026-10-XX 签署四节点
+- **R-02 = 方案 A**（⚠️ 2026-10-05 修订：catalyst_loading **取消不建**，见 `docs/PCS-NOTE-catalyst_loading-取消-2026-10-05.md`；`auxiliary_consumption` 4 字段归属待定，建议不做）: UTIL 权威表 6 张（power_items / fuel_gas / heat_exchange / gas_media / low_temp_heat / energy_summary）
 - **R-03 = 待补采**: T0（StateMachineService 强制写入三字段）+ T1（pcs_test fixture ≥30 行）+ 30 天窗口后重跑 P7-OPEN-007 评估
 - **R-04 = 方案 B**: 不建立 `app/core/rules_registry.py`；不引入 `@rule` 装饰器
 - **pytest baseline**: 3515 passed (P6-9-PICKUP-5 R=1 后)
 - **CI/CD 不做**（per memory 单人开发裁决）
 - **PcsError 子类 + frozen dataclass + formula_ref dict** 模式不可破（项目级 service 模式）
-- **UTIL 权威源（D1 裁决 1A）**: Sprint 2 起 5 表（`utility_power_items` / `utility_fuel_gas` / `utility_heat_exchange` / `utility_energy_summary` / `catalyst_loading`）为唯一权威写入路径；`util_results.consumption_json` JSONB 字段 **deprecated**（Sprint 1 遗留，仅 backward compat 读，Sprint 2 起不再更新）；Sprint 4 综合能耗验收读 5 表聚合
+- **UTIL 权威源（D1 裁决 1A, 2026-10-05 修订）**: Sprint 2 起 **6 表**（`utility_power_items` / `utility_fuel_gas` / `utility_heat_exchange` / `utility_gas_media` / `utility_low_temp_heat` / `utility_energy_summary`）为唯一权威写入路径；`catalyst_loading` 已取消不建（用户裁决 2026-10-05）；`util_results.consumption_json` JSONB 字段 **deprecated**（Sprint 1 遗留，仅 backward compat 读，Sprint 2 起不再更新）；综合能耗验收读 6 表聚合
 - **历史/audit 线索保留原则（D1/D2/D3 共同裁决）**: 数据演进（JSONB → 5 表 / 沉淀解耦 / 状态联动）保留历史指针与 audit 字段，用显式状态字段（deprecated / source_sign_status）表达语义，不用级联删除或静默覆盖
 - **audit_logs 性能（D8 裁决 9A）**: T0 + CHANGED 流程高频写入 → Sprint 1 JSONB GIN 索引 + Sprint 4 后 monthly partition（保留 6 月）；异步队列可选（仅高峰需求）
 - **audit_logs 性能（D8 裁决 9A）**: T0 + CHANGED 流程高频写入 → Sprint 1 JSONB GIN 索引 + Sprint 4 后 monthly partition（保留 6 月）；异步队列可选（仅高峰需求）
@@ -30,7 +30,7 @@
 - **ChEDL 包装层不可破**: 业务代码禁直接 `import fluids.*`（ADR-0030）
 - **追溯链完整**: 设备记录通过 SourceModule + SourceRecordID + SourceService（V1.4 新增）三重溯源
 - **门禁哈希仅设计参数**: 商务/采购字段不参与门禁哈希
-- **工艺室签署依赖**: SUP-010 fixture 数据（蜡油加氢—综合能耗.xlsx + 惠州汽包计算.xls）需工艺室 2026-10-XX 签署
+- **工艺室签署依赖**: SUP-010 fixture 数据（蜡油加氢—综合能耗.xlsx + 惠州汽包计算.xls）需工艺室签署。**2026-10-05 起综合能耗验收不再依赖该签署**（基准改为 GB 30251-2024 附录A 独立重算，见 `docs/PCS-SIGN-T5-2026-10-05.md`）
 - **R=1 教训（已写入 .wolf/cerebrum.md）**: implementer 必须先 source-verify brief 中描述的代码状态（`wc -l` / `grep -c` / `grep -n` / `dataclasses.fields()`），与 brief 不符时拒绝执行并立即上报
 - **bug-114**: pcs_test audit_logs 表 0 行 + state_machine.py 不写三字段 → T0 落地前 P7-OPEN-007 三元决策不可用
 - **bug-115**: @rule 装饰器 = 0 + app/core/rules_registry.py 不存在 → 不建立规则管理工具
@@ -100,6 +100,12 @@
 **Status**: ✅ 已完成（commits `a902d2f` + `4f0d671`）。
 
 ### Task S0-5: SUP-010 5 表 + catalyst_loading + auxiliary_consumption 4 字段迁移排期
+
+> ⚠️ **2026-10-05 修订**：排期文档已产出
+> (`docs/P7-OPEN-009-SUP-010-5table-migration-schedule.md`)，但其中的
+> `catalyst_loading` 项**已取消**，`auxiliary_consumption` 4 字段归属待定
+> （建议不做，现有 6 张表已能聚合算出）。
+> 见 `docs/PCS-NOTE-catalyst_loading-取消-2026-10-05.md`。
 
 **Files**:
 - Create: `docs/P7-OPEN-009-SUP-010-5table-migration-schedule.md`
@@ -581,6 +587,11 @@ SEED_DATA = [
 
 ### Task S2-6: catalyst_loading 表（催化剂装填量）
 
+> ❌ **取消 (用户裁决 2026-10-05)** —— 该表不建，功能先不做。
+> 依赖的 `蜡油加氢—综合能耗.xlsx` 催化剂装填量数据不再等待工艺室签署。
+> 见 `docs/PCS-NOTE-catalyst_loading-取消-2026-10-05.md`。
+> **下方 Step 1~7 全部作废**，仅为历史留档。
+
 **Files**:
 - Modify: `pcs-backend/app/models/util.py`（append `CatalystLoading` 类）
 - Create: `pcs-backend/alembic/versions/p7_open_009_006_catalyst_loading.py`
@@ -745,9 +756,18 @@ def test_obsolete_source_does_not_remove_lib_record(db_session):
 
 ---
 
-## Sprint 4（供应商数据录入 + 自动比对 + 偏差报告 + 综合能耗验收）
+## Sprint 4（供应商数据录入 + 自动比对 + 偏差报告 + 真实算例端到端验收）
 
-**总工时**: ~2–2.5 人周
+> ⚠️ **2026-10-05 修订**：
+> 1. **Task S4-4 改写定义**（用户指令）：原「综合能耗验收对账（XLS 偏差 ≤2%）」的
+>    前提已被用户裁决「XLS 不作为最终依据」推翻 → 改为
+>    **「蜡油加氢真实数据端到端验收（6 表全链路）」**，补上 T5 封版时缺的证据
+>    （XLS 的氮气/仪表空气/低温热从未走过 P7-6B 新建的 2 张表）。
+>    详见下方 Task S4-4。
+> 2. `catalyst_loading` 功能取消，不建表（`docs/PCS-NOTE-catalyst_loading-取消-2026-10-05.md`）
+>    → **BLOCKER-2 整体关闭**，工艺室 2026-10-15 签署不再是任何在办项的前置条件。
+
+**总工时**: ~2–2.5 人周（S4-4 改写后工作量基本持平：不再等工艺室签署，改为从 XLS 提取消耗量）
 
 ### Task S4-1: 供应商实际数据录入（手动 + Excel 批量）
 
@@ -875,28 +895,68 @@ def test_rollback_after_downstream_stale(db_session):
 
 - [ ] **Step 7]: 单 commit — `feat(p7-s4): 供应商核算 + UTIL 实际值更新 (T3)`
 
-### Task S4-4: 综合能耗验收对账（蜡油加氢—综合能耗.xlsx 偏差 ≤ 2%）
+### Task S4-4: 蜡油加氢真实数据端到端验收（6 表全链路）
+
+> 🔄 **2026-10-05 改写**（用户指令「S4-4 改写定义」）。
+>
+> **原定义的问题**：以「蜡油加氢—综合能耗.xlsx 偏差 ≤2%」为验收判据。
+> 该前提已被用户裁决「**XLS 不作为最终依据**」推翻 —— 且调查发现：
+> 1. 原三个「XLS 参考值」在 XLS 全表中**不存在**，是旧代码输出反抄的自证循环；
+> 2. XLS 自身 `能耗!G33` 因 `D32=#VALUE!` 算不出年总能耗；
+> 3. XLS 的电折算系数 10.89 MJ/kWh 偏离 GB 30251-2024 附录A 原值
+>    8.792 **+23.8%**；循环水 4.19 vs 2.51 **+67%**；除氧水 385.19 vs 272.15 **+41.5%**。
+>
+> 照原文执行 = 把已推翻的东西推回来。新定义如下。
+
+**新定义**：T5 的**验收判据**已由 `docs/PCS-SIGN-T5-2026-10-05.md` 完成封版
+（基准 = GB 30251-2024 附录A 表A.1 独立重算，三项 PASS）。本 Task 不再重复算
+同一个数，而是补上封版时**缺的那块证据**：
+
+> 至今所有 T5 验证都基于**合成 fixture**（`POWER_ITEMS` / `FUEL_ITEMS` /
+> `HEAT_ITEMS` 三类）。XLS 里**存在的氮气、净化压缩空气、低温余热从未灌进
+> `utility_gas_media` / `utility_low_temp_heat`**，而这 2 张表正是 P7-6B 收尾
+> 刚建的（commit `e6efb24`）。**没有任何真实算例走过这 2 张新表。**
 
 **Files**:
-- Modify: `pcs-backend/tests/services/util/test_utility_energy_summary_service.py`（验收 fixture 集成蜡油加氢实例）
-- Modify: `pcs-backend/app/services/util/utility_energy_summary_service.py`（偏差超限抛错）
-- Test: `pcs-backend/tests/services/util/fixtures/golden_utility_energy_summary_real.json`（蜡油加氢实际数据，工艺室 2026-10-15 签署后）
+- Modify: `pcs-backend/scripts/p7_open_012_t5_r1_verification.py`
+  （`_inject_case_4` 补 `UtilityGasMedia` / `UtilityLowTempHeat` seed）
+- Modify: `pcs-backend/scripts/p7_open_012_t5_r1_verification.py`
+  （`_gb30251_reference()` 同步补对应类别，与被测路径同源）
+- Test: `pcs-backend/tests/services/util/test_utility_energy_summary.py`
+  （Case 4 扩展到 5 类介质 + 低温热，断言 iso_self_consistency 仍为 0）
 
 **Interfaces**:
-- Consumes: Sprint 2 utility_energy_summary + 工艺室 2026-10-15 签署的蜡油加氢—综合能耗.xlsx
-- Produces: 偏差报告（≤2% PASS / >2% FAIL）
+- Consumes: `sample/1216D132*.xlsx` 的 `能耗` sheet 氮气 / 净化空气 / 低温余热行
+  （**只取消耗量作为输入，不取其折标结果** —— 这是与旧定义的关键区别）
+- Produces: Case 4 在 5 类气体介质 + 低温热全接上后的端到端验收数字，
+  以及「扩类后 T5 数字变化多少」的可追溯记录
 
-- [ ] **Step 1]: 写 failing test — 蜡油加氢实际数据（≥3 算例）
+**验收判据**（区别于旧定义的 ≤2%）:
+1. 三项指标 vs GB 30251 附录A 独立重算仍 ≤ 2%
+2. `iso_self_consistent_pct` 仍 = 0.0%（MJ ↔ toe × 41.868）
+3. 折标系数审计 `scripts/p7_open_016_config_conformance_audit.py` 仍 exit 0
+4. **新增**：记录扩类前后的 T5 数字差异，并在 `docs/PCS-SIGN-T5-2026-10-05.md`
+   补一节「封版后扩类影响」—— 让「T5 数字会因补全采集类别而上升」这件事有据可查，
+   而不是悄悄变
 
-- [ ] **Step 2]: 跑 test 验证失败
+- [ ] **Step 1**: 从 `sample/1216D132*.xlsx` 的 `能耗` sheet 提取氮气 / 净化空气 /
+      低温余热的**年消耗量**（原始量，非折标值），标注溯源（文件名 + sheet + 单元格）
+- [ ] **Step 2]: 写 failing test — Case 4 扩展到 5 类介质 + 低温热，
+      断言 `gas_nm3_by_medium` 分桶正确 + `iso_self_consistent_pct == 0`
+- [ ] **Step 3]: 跑 test 验证失败（当前脚本未 seed 这 2 张表）
+- [ ] **Step 4**: `_inject_case_4` 补 `UtilityGasMedia`（NITROGEN / PURIFIED_AIR 等）
+      + `UtilityLowTempHeat` seed；`_gb30251_reference()` 同步补对应类别
+- [ ] **Step 5**: 重跑 T5 验收脚本 + 审计脚本，确认 ≤2% 且自洽性为 0
+- [ ] **Step 6]: pytest 全量 0 regression
+- [ ] **Step 7**: 在 `docs/PCS-SIGN-T5-2026-10-05.md` 补「封版后扩类影响」一节，
+      记录数字变化 + 原因（此前氮气/仪表空气/低温热属漏算，非 PCS 算错）
+- [ ] **Step 8**: 单 commit — `feat(p7-s4): 蜡油加氢真实数据端到端验收 (T4)`
 
-- [ ] **Step 3]: 工艺室 2026-10-15 签署后填 fixture
-
-- [ ] **Step 4]: 验收偏差 ≤ 2%（否则报 `EnergyConsumptionToleranceError`）
-
-- [ ] **Step 5]: pytest 全量 0 regression
-
-- [ ] **Step 6]: 单 commit — `feat(p7-s4): 综合能耗验收对账（蜡油加氢实例）(T4)`
+**不做**（明确排除，避免 scope 蔓延）:
+- ❌ 不以 XLS 折标结果作基准（已裁决作废）
+- ❌ 不等工艺室 2026-10-15 签署（消耗量是工程数据，不需签署才能用）
+- ❌ 不改已封版的 T5 验收判据（≤2% + GB 30251 基准）
+- ❌ 不碰 `auxiliary_consumption` 4 字段（归属未定，见 catalyst_loading 取消文档）
 
 ---
 

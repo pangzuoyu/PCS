@@ -1059,3 +1059,6 @@
 | 10:35 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | modified items() | ~442 |
 | 10:35 | Edited pcs-backend/app/services/util/utility_energy_summary_service.py | expanded (+11 lines) | ~156 |
 | 10:43 | Created pcs-backend/alembic/versions/p7_s3_005_gas_media_and_low_temp_heat.py | — | ~1833 |
+| 10:50 | Created pcs-backend/tests/api/v1/test_gas_media_and_low_temp_heat_api.py | — | ~2562 |
+| 10:58 | Created pcs-backend/tests/api/v1/test_subtable_duplicate_conflict.py | — | ~1507 |
+| 11:08 | Created docs/PCS-NOTE-catalyst_loading-取消-2026-10-05.md | — | ~986 |

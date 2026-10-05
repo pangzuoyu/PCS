@@ -1,5 +1,13 @@
 # PCS BLOCKER-2 状态登记 — 蜡油加氢 XLS 提取
 
+> ✅ **2026-10-05 关闭**：BLOCKER-2 的两项依赖均已解除 ——
+> ① T6 catalyst_loading fixture → 该功能**取消不建**（用户裁决,
+>    `docs/PCS-NOTE-catalyst_loading-取消-2026-10-05.md`）
+> ② Sprint 4 综合能耗验收 ≤2% 无法判定 → 已由 T5 封版关闭，基准改为
+>    **GB 30251-2024 附录A 独立重算**（不再依赖工艺室 2026-10-15 签署的 XLS），
+>    见 `docs/PCS-SIGN-T5-2026-10-05.md`
+> 本文档保留为历史记录。
+
 - **编号**: PCS-NOTE-BLOCKER-2-2026-10-01
 - **登记**: 2026-10-01 (P7 Sprint 2 BLOCKER-2 解锁尝试)
 - **关联**: P7 Sprint 2 T5 (≤2% 综合能耗验收) + T6 (catalyst_loading fixture)

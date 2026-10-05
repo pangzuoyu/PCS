@@ -4,9 +4,21 @@ Per SPEC V1.4 §4.4 + plan brief Step 3：13 类公用工程枚举（consumption
 JSONB 存 per-category quantity）+ jsonb_deprecated bool（默认 False；Sprint 1
 JSONB 权威，Sprint 2 起置 True 当 5 表迁移完成后）。
 
-Sprint 2 Task S2-1~6 会在此文件 append 5 张独立表（utility_power_items /
-utility_fuel_gas / utility_heat_exchange / utility_energy_summary /
-catalyst_loading）；本任务仅落 V1.3 基线 + 折标煤计算路径。
+Sprint 2 Task S2-1~6 在此文件 append 独立表；本任务仅落 V1.3 基线 + 折标煤
+计算路径。
+
+⚠️ **表清单变更 (用户裁决 2026-10-05)**: 原计划的 5 表含 ``catalyst_loading``
+（催化剂装填量），**该功能已取消，不建表**。P7-6B 收尾又新增 2 张
+（``utility_gas_media`` / ``utility_low_temp_heat``），故权威表清单现为 **6 张**：
+
+    utility_power_items      T1 电耗 (kWh)
+    utility_fuel_gas         T2 燃料气 (Nm³)
+    utility_heat_exchange    T3 蒸汽 + 9 类水 (t)
+    utility_gas_media        工艺气体/氮气/仪表空气 (Nm³)      ← P7-6B 收尾新增
+    utility_low_temp_heat    低温余热回收 (GJ)                  ← P7-6B 收尾新增
+    utility_energy_summary   T5 综合能耗汇总
+
+详见 docs/PCS-NOTE-catalyst_loading-取消-2026-10-05.md。
 """
 
 from __future__ import annotations
@@ -43,8 +55,10 @@ class UtilResults(TimestampMixin, Base):
     业务：
     - ``consumption_json`` 存 13 类公用工程消耗量（flat {category: float_quantity}）
     - ``jsonb_deprecated`` 默认 False（Sprint 1 JSONB 权威）；Sprint 2 起置 True
-      当 5 表 (utility_power_items / utility_fuel_gas / utility_heat_exchange /
-      utility_energy_summary / catalyst_loading) 全部迁移完成且数据回填后
+      当权威表清单 6 张 (utility_power_items / utility_fuel_gas /
+      utility_heat_exchange / utility_gas_media / utility_low_temp_heat /
+      utility_energy_summary) 全部迁移完成且数据回填后
+      （catalyst_loading 已于 2026-10-05 用户裁决取消，不建表）
     - 13 类公用工程清单 + 单位见 ``app/services/util/category_map.py``
     - 折标煤通过 ``ToeConversionService`` 查询 + 13→6 fuel_type 映射计算
     """

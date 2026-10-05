@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-05T02:43:39.917Z",
-    "fileCount": 606,
+    "lastScanned": "2026-10-05T03:08:11.984Z",
+    "fileCount": 609,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "c2303364d1a00f4ba184b8a7dafd0499df287e5593fe9293f62acc7c0cda5b03",
-    "storeUpdatedAt": "2026-10-05T02:43:39.927Z",
-    "rootHash": "d894285b745b2265"
+    "renderedHash": "e27a5fe8cf783d822cb543d6b2a1030c57780dcd0d3e2f7bf268434bfd98d3e1",
+    "storeUpdatedAt": "2026-10-05T03:08:11.993Z",
+    "rootHash": "571d1e865c78e6b4"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -17701,6 +17701,177 @@
           "tokens": 40
         }
       ]
+    },
+    "pcs-backend/tests/api/v1/test_gas_media_and_low_temp_heat_api.py": {
+      "description": "工艺气体 / 低温热 CRUD API 测试 (P7-6B 收尾).",
+      "tokens": 2562,
+      "hash": "0f51af48a393ed23",
+      "size": 9086,
+      "mtimeMs": 1791168604170.4475,
+      "updatedAt": "2026-10-05T02:50:04.216Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 36,
+          "tokens": 47
+        },
+        {
+          "name": "viewer_headers",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 43,
+          "tokens": 44
+        },
+        {
+          "name": "project",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 68,
+          "tokens": 242
+        },
+        {
+          "name": "test_create_gas_media_derives_annual",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 89,
+          "tokens": 199
+        },
+        {
+          "name": "test_create_gas_media_accepts_explicit_annual",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 108,
+          "tokens": 190
+        },
+        {
+          "name": "test_create_gas_media_rejects_bad_medium",
+          "kind": "fn",
+          "startLine": 109,
+          "endLine": 125,
+          "tokens": 139
+        },
+        {
+          "name": "test_create_gas_media_rejects_negative",
+          "kind": "fn",
+          "startLine": 126,
+          "endLine": 142,
+          "tokens": 138
+        },
+        {
+          "name": "test_list_gas_media",
+          "kind": "fn",
+          "startLine": 143,
+          "endLine": 169,
+          "tokens": 251
+        },
+        {
+          "name": "test_gas_media_requires_designer_role",
+          "kind": "fn",
+          "startLine": 170,
+          "endLine": 186,
+          "tokens": 136
+        },
+        {
+          "name": "test_duplicate_gas_medium_same_tag_conflicts",
+          "kind": "fn",
+          "startLine": 187,
+          "endLine": 211,
+          "tokens": 236
+        },
+        {
+          "name": "test_create_low_temp_heat_derives_annual",
+          "kind": "fn",
+          "startLine": 212,
+          "endLine": 230,
+          "tokens": 173
+        },
+        {
+          "name": "test_create_low_temp_heat_rejects_negative",
+          "kind": "fn",
+          "startLine": 231,
+          "endLine": 246,
+          "tokens": 131
+        },
+        {
+          "name": "test_list_low_temp_heat",
+          "kind": "fn",
+          "startLine": 247,
+          "endLine": 269,
+          "tokens": 197
+        },
+        {
+          "name": "test_persisted_rows_reach_db",
+          "kind": "fn",
+          "startLine": 270,
+          "endLine": 293,
+          "tokens": 211
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_subtable_duplicate_conflict.py": {
+      "description": "既有子表 POST 端点的 UNIQUE 冲突处理 (2026-10-05).",
+      "tokens": 1507,
+      "hash": "f1a971e97b787afd",
+      "size": 5488,
+      "mtimeMs": 1791169090809.9412,
+      "updatedAt": "2026-10-05T02:58:10.864Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 35,
+          "tokens": 47
+        },
+        {
+          "name": "project",
+          "kind": "fn",
+          "startLine": 36,
+          "endLine": 60,
+          "tokens": 252
+        },
+        {
+          "name": "test_power_items_duplicate_returns_409",
+          "kind": "fn",
+          "startLine": 61,
+          "endLine": 85,
+          "tokens": 248
+        },
+        {
+          "name": "test_heat_exchange_duplicate_returns_409",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 114,
+          "tokens": 323
+        },
+        {
+          "name": "test_fuel_gas_duplicate_same_phase_returns_409",
+          "kind": "fn",
+          "startLine": 115,
+          "endLine": 135,
+          "tokens": 206
+        },
+        {
+          "name": "test_fuel_gas_different_phase_ok",
+          "kind": "fn",
+          "startLine": 136,
+          "endLine": 153,
+          "tokens": 190
+        }
+      ]
+    },
+    "docs/PCS-NOTE-catalyst_loading-取消-2026-10-05.md": {
+      "description": "catalyst_loading 功能取消 — 该表不建，此功能先不做 (2026-10-05)",
+      "tokens": 925,
+      "hash": "f79d310b84e7c182",
+      "size": 5230,
+      "mtimeMs": 1791169691937.817,
+      "updatedAt": "2026-10-05T03:08:11.984Z",
+      "source": "hook"
     }
   }
 }
