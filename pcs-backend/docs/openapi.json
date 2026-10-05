@@ -11403,6 +11403,146 @@
         }
       }
     },
+    "/api/v1/equipment/{equipment_id}/actual-data/confirm": {
+      "post": {
+        "tags": [
+          "supplier"
+        ],
+        "summary": "Confirm Actual Data",
+        "description": "设计人勾选「确认实际数据满足工艺要求」并提交校核（SPEC §3.2.4(4)）.\n\n存在不合格或不可判项 → 422 `DEVIATION_BLOCKS_CONFIRMATION`。",
+        "operationId": "confirm_actual_data_api_v1_equipment__equipment_id__actual_data_confirm_post",
+        "parameters": [
+          {
+            "name": "equipment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Equipment Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActualDataResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/equipment/{equipment_id}/actual-data/check": {
+      "post": {
+        "tags": [
+          "supplier"
+        ],
+        "summary": "Check Actual Data",
+        "description": "校核人校核（SPEC §3.2.4(4)）.\n\n- `pass` → 标记 CONFIRMED，并发 `actual_data_replaces_design` 事件\n  （`before` 必带 —— P8 反向恢复的唯一来源）\n- `reject` → 退回 PENDING_CONFIRM，重新录入通道解锁（§3.2.4(5)）",
+        "operationId": "check_actual_data_api_v1_equipment__equipment_id__actual_data_check_post",
+        "parameters": [
+          {
+            "name": "equipment_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Equipment Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CheckRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ActualDataResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/equipment/{equipment_id}/deviation-report/export": {
       "get": {
         "tags": [
@@ -16817,6 +16957,31 @@
         "title": "CepciAdjustmentCalcResponse",
         "description": "POST /cost-est/cepci-adjustment/calculate 响应（201）。\n\n与 ``CostEstCalcBase`` 镜像（无 scaling_exponent 必填）；额外填\nresult_id + equipment_id + created_at。"
       },
+      "CheckRequest": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "pass",
+              "reject"
+            ],
+            "title": "Decision"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "decision"
+        ],
+        "title": "CheckRequest",
+        "description": "校核人校核（SPEC §3.2.4(4)）.\n\n`decision` 只有 pass/reject 两值 —— 没有「跳过」：跳过会让「已确认」失去含义。"
+      },
       "ChecklistBulkSeed": {
         "properties": {
           "items": {
@@ -17210,6 +17375,20 @@
         ],
         "title": "ConfigAssetReport",
         "description": "按 category 聚合的 status 计数（按 version 算，不取 latest）。"
+      },
+      "ConfirmRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ConfirmRequest",
+        "description": "设计人提交校核（SPEC §3.2.4(4)）."
       },
       "CoolTowerResultCreateRequest": {
         "properties": {

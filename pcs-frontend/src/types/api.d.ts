@@ -3708,6 +3708,52 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/equipment/{equipment_id}/actual-data/confirm": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Confirm Actual Data
+         * @description 设计人勾选「确认实际数据满足工艺要求」并提交校核（SPEC §3.2.4(4)）.
+         *
+         *     存在不合格或不可判项 → 422 `DEVIATION_BLOCKS_CONFIRMATION`。
+         */
+        post: operations["confirm_actual_data_api_v1_equipment__equipment_id__actual_data_confirm_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/equipment/{equipment_id}/actual-data/check": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Check Actual Data
+         * @description 校核人校核（SPEC §3.2.4(4)）.
+         *
+         *     - `pass` → 标记 CONFIRMED，并发 `actual_data_replaces_design` 事件
+         *       （`before` 必带 —— P8 反向恢复的唯一来源）
+         *     - `reject` → 退回 PENDING_CONFIRM，重新录入通道解锁（§3.2.4(5)）
+         */
+        post: operations["check_actual_data_api_v1_equipment__equipment_id__actual_data_check_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/equipment/{equipment_id}/deviation-report/export": {
         parameters: {
             query?: never;
@@ -5577,6 +5623,24 @@ export interface components {
             created_at: string;
         };
         /**
+         * CheckRequest
+         * @description 校核人校核（SPEC §3.2.4(4)）.
+         *
+         *     `decision` 只有 pass/reject 两值 —— 没有「跳过」：跳过会让「已确认」失去含义。
+         */
+        CheckRequest: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "pass" | "reject";
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+        };
+        /**
          * ChecklistBulkSeed
          * @description 批量预置：种子脚本/一次性导入使用。
          */
@@ -5827,6 +5891,17 @@ export interface components {
              * @default 0
              */
             obsolete: number;
+        };
+        /**
+         * ConfirmRequest
+         * @description 设计人提交校核（SPEC §3.2.4(4)）.
+         */
+        ConfirmRequest: {
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
         };
         /**
          * CoolTowerResultCreateRequest
@@ -22867,6 +22942,80 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeviationReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    confirm_actual_data_api_v1_equipment__equipment_id__actual_data_confirm_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                equipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConfirmRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActualDataResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_actual_data_api_v1_equipment__equipment_id__actual_data_check_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                equipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CheckRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActualDataResponse"];
                 };
             };
             /** @description Validation Error */
