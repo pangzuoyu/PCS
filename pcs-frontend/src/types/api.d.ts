@@ -3655,6 +3655,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/equipment/{equipment_id}/actual-data": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Actual Data
+         * @description 读回设备实测值。未录入时 actual_data_json 为 null。
+         */
+        get: operations["get_actual_data_api_v1_equipment__equipment_id__actual_data_get"];
+        /**
+         * Put Actual Data
+         * @description 录入一整台设备的参数集（整体替换），状态转 PENDING_CONFIRM。
+         *
+         *     PcsError ACTUAL_DATA_VALIDATION 422 由全局 handler 转 422 —— UI 逐项
+         *     提示，不静默丢值。
+         */
+        put: operations["put_actual_data_api_v1_equipment__equipment_id__actual_data_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/open-channel/manning/calculate": {
         parameters: {
             query?: never;
@@ -5083,6 +5110,52 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /**
+         * ActualDataEntry
+         * @description 一项实测值。value 严格数值 —— 字符串数字在 UI 上是录入错误, 不是可容忍的输入。
+         */
+        ActualDataEntry: {
+            /**
+             * Name
+             * @description 参数名
+             */
+            name: string;
+            /**
+             * Value
+             * @description 实测值 (可为负, 如冬季设计温度)
+             */
+            value: number;
+            /**
+             * Unit
+             * @description 单位; 无量纲可留空
+             * @default
+             */
+            unit: string;
+        };
+        /** ActualDataEntryRequest */
+        ActualDataEntryRequest: {
+            /**
+             * Entries
+             * @description 整台设备的参数集; 整体替换而非合并
+             */
+            entries: components["schemas"]["ActualDataEntry"][];
+        };
+        /**
+         * ActualDataResponse
+         * @description 设备实测值。`actual_data_json` 为 None 表示尚未录入。
+         */
+        ActualDataResponse: {
+            /** Equipment Id */
+            equipment_id: string;
+            /** Tag Number */
+            tag_number: string;
+            /** Actual Data Status */
+            actual_data_status: string;
+            /** Actual Data Json */
+            actual_data_json?: {
+                [key: string]: unknown;
+            } | null;
+        };
         /**
          * AllowableStressResult
          * @description 材料许用应力（ASME B31.3 Table A-1 插值）。
@@ -22557,6 +22630,76 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserProjectResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_actual_data_api_v1_equipment__equipment_id__actual_data_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                equipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActualDataResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_actual_data_api_v1_equipment__equipment_id__actual_data_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                equipment_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ActualDataEntryRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ActualDataResponse"];
                 };
             };
             /** @description Validation Error */
