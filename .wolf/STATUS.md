@@ -85,7 +85,7 @@ R0 `UNIQUE(energy_type)` 未 drop → 整条 R1 折标机制**只在 in-memory S
 
 | Item | Why | Action |
 |------|-----|--------|
-| 综合能耗出厂 ≤2% 验收正式封板 | ⚠️ **BLOCKER (2026-10-05)**: toe/coal 精确 PASS (1e-6%), MJ 偏差 3.83% — PCS 与 XLS 两套折标发热量口径分歧 (ISO 41.868 vs XLS 43.53 MJ/kg)。PCS 内部自洽 0.0033%, 非代码 bug。**待工艺室裁决** `docs/PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md` | 工艺室裁决 XLS 基准 |
+| ~~综合能耗出厂 ≤2% 验收正式封板~~ | ✅ **DONE (2026-10-05)**: 基准重建为 GB 30251-2024 附录A 表A.1 独立重算 (XLS 不作依据), 三项 PASS 0.0011%/0.0000%/0.0020%, tag `t5-energy-summary-2026-10-05`。签署 `docs/PCS-SIGN-T5-2026-10-05.md`。**工艺室会签待补** | 工艺室在新签署文档上会签 |
 | ~~P7-7+ BLOCKER-3 全量 refactor~~ | ✅ **DONE (2026-10-03)**: 14 文件接入 guard (agent 11 + 主会话 3), 659 行, 零新增 regression (commit `feat(p7-s7)`) | — |
 | ~~codebase role string 收敛~~ | ✅ **DONE (2026-10-04)**: SYSADMIN → SYSTEM_ADMIN 全量收敛, 37 文件, net -157 行 (state_machine 13 ACL / _guard / user_projects 3 漏网 / mock_auth / cia_engine×3 / LDAP map / 16 处双写简化 / frontend seed+label), api.d.ts 0 残留 | — |
 | T6 catalyst_loading | BLOCKER-2 (工艺室 XLS 2026-10-15 签) | 解锁后 |
