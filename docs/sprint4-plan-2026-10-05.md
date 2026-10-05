@@ -34,7 +34,7 @@ P7 剩余的唯一一段是 Sprint 4：**供应商侧的数据闭环** —— �
 | Task | 内容 | 估时 | 依赖 |
 |---|---|---|---|
 | **S4-0** 🆕 | 事件骨架 `emit_event()` + listener + `event_idempotency` 表 + `cia_engine` 解耦 | ~0.5–1 人周 | — |
-| S4-1 | 供应商实际数据录入（手动 + Excel 批量） | ~0.7 人周 | — |
+| S4-1 | 供应商实际数据录入（手工 UI 路径；Excel 批量已撤销） | ~0.4 人周 | — |
 | S4-2 | 自动比对 + 偏差报告（3 档 + PDF/Excel 导出） | ~0.7 人周 | S4-1 |
 | S4-3 | 核算与更新流程（确认 + 校核 + UTIL 实际值 + CIA 触发） | ~0.6 人周 | S4-2, **S4-0** |
 | S4-4 | 蜡油加氢真实数据端到端验收（6 表全链路） | ~0.3 人周 | — |
@@ -44,7 +44,7 @@ S4-0 先行是架构地基；S4-4 无外部依赖，可并行插入。
 
 ---
 
-## Task S4-0: 事件骨架 emit_event() + listener + 幂等表
+## Task 1 (S4-0): 事件骨架 emit_event() + listener + 幂等表
 
 **为什么是独立 Task**: `emit_event()` 缺失是 **D4 4A 全部落地的前置**，
 不是 S4-3 的局部前置。不先建骨架，S4-3 只能继续直调 state_machine，
@@ -103,17 +103,22 @@ D4 4A 形同虚设。
 
 ---
 
-## Task S4-1: 供应商实际数据录入（手动 + Excel 批量）
+## Task 2 (S4-1): 供应商实际数据录入（手工 UI 路径）
+
+> **🔴 范围修订（2026-10-05 用户裁决）**: 原计划的 **Excel 批量导入取消**。
+> 理由：供应商数据录入的现实路径是**手工 UI 页面**，要求供应商填统一 Excel 文件不现实。
+> 故 `excel_import_service.py` 不实现，整改范围为手工录入的
+> service + schema + API。批量通道若日后确有需求，届时再做
+> （`actual_data_json` 形状与 `normalize_entries()` 校验可直接复用）。
 
 **Files**:
 - Modify: `pcs-backend/app/models/equipment.py`（`EquipmentList.actual_data_json` JSONB 字段）
 - Create: `pcs-backend/alembic/versions/p7_s4_002_actual_data_jsonb.py`
 - Create: `pcs-backend/app/services/supplier/actual_data_service.py`
-- Create: `pcs-backend/app/services/supplier/excel_import_service.py`
 - Create: `pcs-backend/app/schemas/supplier.py`
-- Create: `pcs-backend/app/api/v1/supplier.py`
+- Create: `pcs-backend/app/api/v1/supplier.py`（GET/PUT `/equipment/{id}/actual-data`）
 - Test: `pcs-backend/tests/services/supplier/test_actual_data_service.py`
-- Test: `pcs-backend/tests/services/supplier/fixtures/golden_actual_data.json`（≥10 算例）
+- Test: `pcs-backend/tests/api/v1/test_supplier_actual_data_api.py`
 
 **⚠️ 与原计划的偏差**（2026-10-05 source-verify）:
 
@@ -121,22 +126,32 @@ D4 4A 形同虚设。
 |---|---|
 | `Modify: p7_open_009_008_actual_data_jsonb.py` | 该文件**不存在** → 实际是 Create |
 | `Modify: equip_list.py（ActualData JSONB 字段）` | `EquipmentList` 只有 `actual_data_status` 状态字段，**没有 ActualData JSONB** → 实际是 Create |
+| `fixtures/golden_actual_data.json`（≥10 算例） | 撤销 — 算例改由 S4-2 的偏差报告 golden fixture 承载（偏差才是值得锁算例的东西） |
 
-故 S4-1 估时可能偏乐观。
+**接口**:
+- `GET /api/v1/equipment/{id}/actual-data` → 实测值 + 状态（未录入时 json 为 null）
+- `PUT /api/v1/equipment/{id}/actual-data` → 录入整台设备的参数集，**整体替换**
+- ACL: 读 VIEWER+ / 写 DESIGNER+ / SYSTEM_ADMIN bypass
+- 错误码分层：**类型错误 = schema**（`VALIDATION_ERROR`，`value: float` 保持严格以让
+  前端 TS 类型由 OpenAPI 生成）；**语义错误 = service**（`ACTUAL_DATA_VALIDATION`：
+  重复名 / 空名 / 空列表 / 字符串数字）
 
 **Steps**:
-- [ ] Step 1: 写 failing test — 手动录入 + Excel 批量导入各 1 例
-- [ ] Step 2: 跑 test 验证失败
-- [ ] Step 3: 实现 `actual_data_service`（手动 + JSONB 校验）
-- [ ] Step 4: 实现 `excel_import_service`（CONFIG 模板 + 字段映射）
-- [ ] Step 5: 边界测试 — Excel 字段缺失抛 `ExcelImportError`；
-      类型不匹配抛 `ActualDataValidationError`
-- [ ] Step 6: pytest 全量 0 regression
-- [ ] Step 7: commit `feat(p7-s4): 供应商实际数据录入 + Excel 批量导入 (S4-1)`
+- [x] Step 1: 写 failing test — service 10 例 + API 10 例
+- [x] Step 2: 跑 test 验证失败（service 12 failed → 修 fixture 列名后 10 passed；
+      API 9 failed 全 404）
+- [x] Step 3: 实现 `actual_data_service`（校验 + JSONB 落库 + 状态推进）
+- [x] Step 4: ~~`excel_import_service`~~ → **撤销**（用户裁决），
+      改为实现 `app/schemas/supplier.py` + `app/api/v1/supplier.py`
+- [x] Step 5: 边界测试 — 重复名 / 空名 / 空列表 / 字符串数字 / VIEWER 403 /
+      未知设备 404 / 校验失败不推进状态
+- [x] Step 6: pytest 全量 0 regression（3766 passed / 77 skipped / 1 xfailed，
+      Task 1 baseline 3746 → +20，0 regression）
+- [ ] Step 7: commit `feat(p7-s4): 供应商实际数据录入 — 手工 UI 路径 (S4-1)`
 
 ---
 
-## Task S4-2: 自动比对 + 偏差报告
+## Task 3 (S4-2): 自动比对 + 偏差报告
 
 **Files**:
 - Create: `pcs-backend/app/services/supplier/deviation_service.py`
@@ -156,7 +171,7 @@ D4 4A 形同虚设。
 
 ---
 
-## Task S4-3: 核算与更新流程
+## Task 4 (S4-3): 核算与更新流程
 
 **Files**:
 - Create: `pcs-backend/app/services/supplier/confirmation_service.py`
@@ -179,7 +194,7 @@ D4 4A 形同虚设。
 
 ---
 
-## Task S4-4: 蜡油加氢真实数据端到端验收（6 表全链路）
+## Task 5 (S4-4): 蜡油加氢真实数据端到端验收（6 表全链路）
 
 > 🔄 **2026-10-05 改写**。原定义「用蜡油加氢—综合能耗.xlsx 验收偏差 ≤2%」
 > 的前提已被推翻（用户裁决「XLS 不作为最终依据」），三重问题：

@@ -35,6 +35,7 @@ from app.api.v1.sim_imports_query import project_router as sim_imports_query_rou
 from app.api.v1.sim_imports_query import router as sim_imports_query_root_router
 from app.api.v1.stream_symbols import router as stream_symbols_router
 from app.api.v1.streams import router as streams_router
+from app.api.v1.supplier import router as supplier_router  # P7-Sprint 4 S4-1
 from app.api.v1.thermosiphon import router as thermosiphon_router  # P5-0-1b T1
 from app.api.v1.util import router as util_router  # P7-Sprint 1 S1-5b
 from app.api.v1.projects import router as projects_router  # GB 30251 §6.1.5 口径判据
@@ -75,6 +76,7 @@ api_router.include_router(thermosiphon_router)  # P5-0-1b T1
 api_router.include_router(util_router)  # P7-Sprint 1 S1-5b
 api_router.include_router(projects_router)  # product_category (GB 30251 §6.1.5)
 api_router.include_router(user_projects_router)  # P7-7+ BLOCKER-3 admin
+api_router.include_router(supplier_router)  # S4-1 供应商实测值录入
 api_router.include_router(open_channel_router)  # P6-3 Task 32
 api_router.include_router(filtration_router)  # P6-3 Task 34
 api_router.include_router(cost_est_router)  # P6-3 Task 36

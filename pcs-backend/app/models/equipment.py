@@ -168,6 +168,17 @@ class EquipmentList(TaggedRecordMixin, Base):
         server_default=ActualDataStatus.NOT_ENTERED.value,
         comment="供应商实际数据录入：NOT_ENTERED/PENDING_CONFIRM/CONFIRMED/NEED_RECALC（ADR-0025）",
     )
+    # 实际值本体（P7 Sprint 4 S4-1 补建 —— 此前只有状态列，无值可存）。
+    # 形状: {参数名: {"value": float, "unit": str}}
+    # 校验: name 去重 + value 必须数值（见 services/supplier/actual_data_service）。
+    # 不拿 design_parameters_json 做校验依据 —— 该字段目前无写入方（恒 NULL）。
+    actual_data_json: Mapped[dict | None] = mapped_column(
+        JSONB,
+        comment=(
+            "供应商实测值 {参数名: {value: float, unit: str}}; "
+            "ADR-0025 设计值→实际值流转的载体"
+        ),
+    )
 
 
 class EquipmentLib(TimestampMixin, Base):
