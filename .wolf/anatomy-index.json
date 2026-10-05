@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-05T03:08:11.984Z",
-    "fileCount": 609,
+    "lastScanned": "2026-10-05T03:12:54.712Z",
+    "fileCount": 610,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "e27a5fe8cf783d822cb543d6b2a1030c57780dcd0d3e2f7bf268434bfd98d3e1",
-    "storeUpdatedAt": "2026-10-05T03:08:11.993Z",
-    "rootHash": "571d1e865c78e6b4"
+    "renderedHash": "ea7e0f0638f48d77af6cefcf2fc996dd05e3062767b4ba692101ea6e7b2748a3",
+    "storeUpdatedAt": "2026-10-05T03:12:54.722Z",
+    "rootHash": "5dd8b7c1212785fd"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -17871,6 +17871,15 @@
       "size": 5230,
       "mtimeMs": 1791169691937.817,
       "updatedAt": "2026-10-05T03:08:11.984Z",
+      "source": "hook"
+    },
+    "docs/PCS-NOTE-CIA-反向恢复-推到P8-2026-10-05.md": {
+      "description": "CIA 反向恢复推迟到 P8 — 落地路径 (2026-10-05)",
+      "tokens": 933,
+      "hash": "f753cfe4e34c41cb",
+      "size": 5498,
+      "mtimeMs": 1791169974663.321,
+      "updatedAt": "2026-10-05T03:12:54.712Z",
       "source": "hook"
     }
   }

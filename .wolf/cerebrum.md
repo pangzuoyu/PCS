@@ -425,6 +425,27 @@
 - **同名 energy_type 撞车**：用 `toe_factor` 之类数值列当行匹配键不安全 ——
   除盐水与凝汽机凝结水都是 1.0，我据此 UPDATE 时把一行改错了。按 id 修。
 
+### 计划文档引用的机制可能根本不存在（2026-10-05）
+
+- **写代码前 source-verify 计划里提到的每个符号**。D4 裁决 4A 通篇引用
+  `emit_event()` 和 listener 机制，plan 读起来像既有设施 —— 实际
+  `grep -rn "def emit_event" app/` **零命中**，`app/core/` 下也没有任何
+  event 基础设施。CIA 引擎（`app/services/cia_engine.py`）本身存在，
+  但 `grep "snapshot|reverse|rollback|prev_|old_value"` 零命中 ——
+  **反向恢复连基础都没有**。
+  → 计划文档描述的是**目标态**不是现状，读的时候要当 aspirational 看。
+
+### 事件必须带前值快照（不可逆操作的第一原则）
+
+- 任何会**覆盖**既有值的操作，payload 必须同时带 `before` 与 `after`。
+  值一旦被覆盖，旧值就**永久丢失**，后续无法回溯补齐。
+- 写 `emit_event('x_replaces_y', diff=...)` 这类只传 diff 的接口 =
+  给未来埋一颗不可撤销的地雷。**多一个 dict key 的边际成本近零**。
+- 幂等键（`event_id`）在反向事件里应**复用原事件 id** → 天然幂等，
+  不需要另设计反向去重机制。
+- 缺 `before` 的历史事件应**明确报"不可逆"**，不静默跳过 ——
+  假装回滚成功比回滚失败更危险。
+
 ### OPEN-P6-6A-4 Ruling 12 — drain orifice Cd/Y_cr^0.5 fix（bug-104, 2026-09-28）
 
 - **缺陷**：PCS `calc_drain_orifice` mass_flow_capacity 公式仅 A×Ftp×ρ×v_max，假设 Cd=1.0 + Y_cr^0.5=1.0 implicit → 对 blowdown orifice 等真实工程场景 over-predict 1.74× vs XLS PR-023 在 d=15.204 mm 处（Cd=0.83932 × Y_cr^0.5=0.6871656312856262 = 0.5768）。

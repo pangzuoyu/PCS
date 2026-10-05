@@ -90,6 +90,7 @@ R0 `UNIQUE(energy_type)` 未 drop → 整条 R1 折标机制**只在 in-memory S
 | ~~codebase role string 收敛~~ | ✅ **DONE (2026-10-04)**: SYSADMIN → SYSTEM_ADMIN 全量收敛, 37 文件, net -157 行 (state_machine 13 ACL / _guard / user_projects 3 漏网 / mock_auth / cia_engine×3 / LDAP map / 16 处双写简化 / frontend seed+label), api.d.ts 0 残留 | — |
 | ~~T6 catalyst_loading~~ | ✅ **取消 (2026-10-05 用户裁决)**: 该表不建, 功能先不做 → **BLOCKER-2 整体关闭**, 工艺室 2026-10-15 签署不再是任何在办项前置条件。见 `docs/PCS-NOTE-catalyst_loading-取消-2026-10-05.md` | — |
 | ProjectStatus 5-state | Issue 2 拆出, 业务需求驱动时 | 登记 P7-6B follow-up |
+| CIA 反向恢复 | ✅ **裁决推迟到 P8 (2026-10-05)** — P7 Sprint 4 只做 rollback 三阶段的前两阶段 (事件撤回 / 门禁回滚)。P8 按 D4 4A 事件模式扩展: payload 带 before 快照 → 反向事件 → 补齐第三阶段。见 `docs/PCS-NOTE-CIA-反向恢复-推到P8-2026-10-05.md` | P8 |
 | /api/v1/meta/enums curl 404 | Pre-existing drift-checked pattern (MSW works in-browser) | None |
 | React Router v7 future flag | Cosmetic warning | 后续 v7 迁移 sprint |
 

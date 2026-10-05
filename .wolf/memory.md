@@ -1062,3 +1062,4 @@
 | 10:50 | Created pcs-backend/tests/api/v1/test_gas_media_and_low_temp_heat_api.py | — | ~2562 |
 | 10:58 | Created pcs-backend/tests/api/v1/test_subtable_duplicate_conflict.py | — | ~1507 |
 | 11:08 | Created docs/PCS-NOTE-catalyst_loading-取消-2026-10-05.md | — | ~986 |
+| 11:12 | Created docs/PCS-NOTE-CIA-反向恢复-推到P8-2026-10-05.md | — | ~996 |

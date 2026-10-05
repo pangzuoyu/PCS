@@ -26,7 +26,7 @@
 - **audit_logs 性能（D8 裁决 9A）**: T0 + CHANGED 流程高频写入 → Sprint 1 JSONB GIN 索引 + Sprint 4 后 monthly partition（保留 6 月）；异步队列可选（仅高峰需求）
 - **audit_logs 性能（D8 裁决 9A）**: T0 + CHANGED 流程高频写入 → Sprint 1 JSONB GIN 索引 + Sprint 4 后 monthly partition（保留 6 月）；异步队列可选（仅高峰需求）
 - **测试覆盖规范（D6 + D7 裁决 7A/8A）**: 每 Task Step 5 引用 §Test Coverage Standard（5 类最小覆盖：边界/异常/黄金/集成 + alembic 降级）；不在 Task 重复列具体条目
-- **跨模块变更所有权（D4 裁决 4A）**: 状态机统一所有门禁迁移；业务模块（Supplier/UtilResults/EquipmentList）通过 `emit_event()` 发事件，不直接触发门禁迁移；事件需幂等性（event_id 去重）；rollback 分阶段（事件撤回 / 门禁回滚 / CIA 反向恢复 — 是否实现 CIA 反向恢复待 P7 Sprint 4 user 裁决）
+- **跨模块变更所有权（D4 裁决 4A）**: 状态机统一所有门禁迁移；业务模块（Supplier/UtilResults/EquipmentList）通过 `emit_event()` 发事件，不直接触发门禁迁移；事件需幂等性（event_id 去重）；rollback 分阶段（事件撤回 / 门禁回滚 / CIA 反向恢复）。**2026-10-05 用户裁决：CIA 反向恢复推迟到 P8**，P8 启动时按 D4 4A 事件模式扩展 （payload 带 before 快照 → 反向事件 design_restores_actual → 三阶段补齐）。详见 `docs/PCS-NOTE-CIA-反向恢复-推到P8-2026-10-05.md`。⚠️ 该文档同时记录了 source-verify 结果：`emit_event()` 与 listener 机制**当前不存在**，CIA 引擎亦**无任何反向基础** —— S4-3 需先建事件骨架（且建议 payload 直接带 `before`，边际成本近零却能让 P8 省掉无法回溯的「补历史数据」步骤）
 - **ChEDL 包装层不可破**: 业务代码禁直接 `import fluids.*`（ADR-0030）
 - **追溯链完整**: 设备记录通过 SourceModule + SourceRecordID + SourceService（V1.4 新增）三重溯源
 - **门禁哈希仅设计参数**: 商务/采购字段不参与门禁哈希
@@ -843,7 +843,10 @@ def test_obsolete_source_does_not_remove_lib_record(db_session):
 
 - [ ] **Step 4**: UTIL 实际值优先触发（per Sprint 1 Task S1-5 boundary）— D4 裁决 4A: 改 emit_event 模式（不直接调 state_machine）
 
-- [ ] **Step 5**: CIA 触发（实际值导致设计值被替换 → CHANGED 流程）— D4 裁决 4A: Supplier 调 `emit_event('actual_data_replaces_design', equipment_id, diff, event_id=uuid4())`；**不直接调 state_machine**；state_machine listener 走 EquipmentList.CHANGED + UtilResults.recalculate（不进门禁）+ CIA.evaluate
+- [ ] **Step 5**: CIA 触发（实际值导致设计值被替换 → CHANGED 流程）— D4 裁决 4A: Supplier 调 `emit_event('actual_data_replaces_design', equipment_id, event_id=uuid4(), before={...}, after={...})`；**不直接调 state_machine**；state_machine listener 走 EquipmentList.CHANGED + UtilResults.recalculate（不进门禁）+ CIA.evaluate。
+  - ⚠️ **必须先建 `emit_event()` + listener 骨架**（2026-10-05 source-verify: 二者当前都不存在）
+  - 📌 **payload 务必带 `before` 快照**（P8 反向恢复的前提）: 设计值一旦被覆盖，旧值就永久丢失，P8 无法回溯。边际成本近零（dict 多一个 key），却是 P8 唯一可行路径。
+  - ℹ️ **CIA 反向恢复不在本 Task 范围** —— 已裁决推迟到 P8，见 `docs/PCS-NOTE-CIA-反向恢复-推到P8-2026-10-05.md`
 
 ```python
 # pcs-backend/app/services/supplier/confirmation_service.py

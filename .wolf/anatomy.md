@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-05T03:08:11.984Z
-> Files: 609 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-05T03:12:54.712Z
+> Files: 610 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -135,6 +135,7 @@
 - `PCS-CALC-BLOCKER-2-RECALC-2026-10-01.md` — PCS BLOCKER-2 重算结果 — 蜡油加氢 XLS 独立计算 (~803 tok)
 - `PCS-NOTE-BLOCKER-2-2026-10-01.md` — PCS BLOCKER-2 状态登记 — 蜡油加氢 XLS 提取 (~710 tok)
 - `PCS-NOTE-catalyst_loading-取消-2026-10-05.md` — catalyst_loading 功能取消 — 该表不建，此功能先不做 (2026-10-05) (~925 tok)
+- `PCS-NOTE-CIA-反向恢复-推到P8-2026-10-05.md` — CIA 反向恢复推迟到 P8 — 落地路径 (2026-10-05) (~933 tok)
 - `PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md` — T5 综合能耗验收 — 电折标口径按 GB 30251-2024 修正，基准重建 (2026-10-05) (~3938 tok)
 - `PCS-P2-CLOSE-REPORT.md` — PCS P2 Sprint Close Report（2026-09-08） (~2039 tok)
 - `PCS-P3.2-SIM-AUDIT-REPORT.md` — PCS P3.2 SIM 全量审计报告 V1.0 (~1983 tok)
