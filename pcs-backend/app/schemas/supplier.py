@@ -9,6 +9,8 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -42,8 +44,50 @@ class ActualDataResponse(BaseModel):
     actual_data_json: dict | None = None
 
 
+# ---------------------------------------------------------------------------
+# 偏差报告 (SPEC V1.4 §3.2.4)
+# ---------------------------------------------------------------------------
+
+# 4 档结论。SPEC §3.2.4(3) 定 3 档（合格/警告/不合格）；UNVERDICTABLE 是本系统
+# 补充的第 4 档 —— SPEC 的偏差表内含 2 条无数值阈值规则且「以泵为例」，非泵参数
+# 必然判不了。判不了 ≠ 合格，故独立成档且阻断确认。
+Verdict = Literal["QUALIFIED", "WARNING", "UNQUALIFIED", "UNVERDICTABLE"]
+
+
+class DeviationRowOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    parameter: str = Field(description="对比项")
+    design_value: float | str | None = Field(description="设计值")
+    actual_value: float | str | None = Field(description="实际值")
+    unit: str = ""
+    deviation_pct: float | None = Field(default=None, description="偏差 %; 不可判时 null")
+    verdict: Verdict
+    label: str = Field(description="结论中文: 合格/警告/不合格/不可判")
+    color: str = Field(description="SPEC §3.2.4(3) 颜色: 绿色/黄色/红色/灰色")
+    note: str = ""
+    spec_ref: str = Field(default="", description="回溯到 SPEC §3.2.4(2) 哪一条")
+    requires_recheck: bool = False
+    requires_manual_check: bool = False
+
+
+class DeviationReportOut(BaseModel):
+    """偏差报告。`can_confirm` 是 SPEC §3.2.4(4) 的确认门禁，前端据此禁用按钮。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    equipment_id: str
+    tag_number: str
+    actual_data_status: str
+    rows: list[DeviationRowOut]
+    can_confirm: bool
+    blocking_reason: str = ""
+
+
 __all__ = [
     "ActualDataEntry",
     "ActualDataEntryRequest",
     "ActualDataResponse",
+    "DeviationRowOut",
+    "DeviationReportOut",
 ]

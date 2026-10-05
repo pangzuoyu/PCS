@@ -26,6 +26,7 @@ dependencies = [
     "CoolProp==6.6.0",    # ADR-0030 V1.2 (P6-0)：P6 PSYCHRO 业务必需 (HAPropsSI)；D3 V1.1 反向决议
     "python-multipart>=0.0.32",
     "xlrd>=2.0",
+    "reportlab>=4.0",
 ]
 
 # P6-6A-6 v5.1 — wheel 构建：hatch backend（uv default），include JSON sidecar (B-2 落实)

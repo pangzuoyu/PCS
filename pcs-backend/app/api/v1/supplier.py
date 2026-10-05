@@ -1,8 +1,10 @@
 """供应商实际数据录入 API (P7 Sprint 4 S4-1 / ADR-0025).
 
-端点（2）：
+端点（4）：
 - GET /api/v1/equipment/{equipment_id}/actual-data → 读回录入值
 - PUT /api/v1/equipment/{equipment_id}/actual-data → 录入一整台设备的参数集
+- GET /api/v1/equipment/{equipment_id}/deviation-report → 偏差报告（SPEC §3.2.4）
+- GET /api/v1/equipment/{equipment_id}/deviation-report/export → 导出 excel/pdf
 
 录入入口是**手工 UI 页面**（S4-1 裁决）：要求供应商填统一 Excel 不现实，
 故无 Excel 批量导入端点 —— 设备方逐项在页面上录入。
@@ -17,8 +19,9 @@ from __future__ import annotations
 
 import uuid
 from typing import Annotated
+from urllib.parse import quote
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -29,8 +32,15 @@ from app.models.equipment import EquipmentList
 from app.schemas.supplier import (
     ActualDataEntryRequest,
     ActualDataResponse,
+    DeviationReportOut,
+    DeviationRowOut,
 )
 from app.services.supplier.actual_data_service import record_actual_data
+from app.services.supplier.deviation_report import (
+    build_report,
+    export_excel,
+    export_pdf,
+)
 
 router = APIRouter(prefix="/equipment", tags=["supplier"])
 
@@ -98,3 +108,84 @@ async def put_actual_data(
         db, record, [e.model_dump() for e in body.entries]
     )
     return _to_response(updated)
+
+
+# ---------------------------------------------------------------------------
+# 偏差报告 (SPEC V1.4 §3.2.4)
+# ---------------------------------------------------------------------------
+
+
+def _report_to_response(report) -> DeviationReportOut:
+    return DeviationReportOut(
+        equipment_id=report.equipment_id,
+        tag_number=report.tag_number,
+        actual_data_status=report.actual_data_status,
+        rows=[DeviationRowOut.model_validate(r) for r in report.rows],
+        can_confirm=report.can_confirm,
+        blocking_reason=report.blocking_reason,
+    )
+
+
+@router.get("/{equipment_id}/deviation-report", response_model=DeviationReportOut)
+async def get_deviation_report(
+    equipment_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> DeviationReportOut:
+    """设计值 vs 实际值偏差报告（SPEC §3.2.4(3)）。
+
+    `can_confirm` 是 SPEC §3.2.4(4) 的确认门禁 —— 存在不合格或不可判项时
+    为 false，前端据此禁用「已确认」。
+
+    ⚠️ 已知缺口：`design_parameters_json` 目前无写入方，故生产路径上全部行
+    都会落「缺设计值（不可判）」。引擎已按 SPEC 逐条实现，设计值来源待定。
+    """
+    require_roles(actor, *_READ_ROLES)
+    record = await _load_equipment(db, equipment_id, actor)
+    return _report_to_response(build_report(record))
+
+
+_EXPORT_TYPES = {
+    "excel": (
+        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        "xlsx",
+    ),
+    "pdf": ("application/pdf", "pdf"),
+}
+
+
+@router.get("/{equipment_id}/deviation-report/export")
+async def export_deviation_report(
+    equipment_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+    format: Annotated[str, Query(pattern="^(excel|pdf)$")],
+) -> Response:
+    """导出偏差报告（SPEC §3.2.4(3)「可导出PDF/Excel」）。
+
+    文件名走 RFC 5987 `filename*` 编码 —— 设备位号可能含中文，直接塞进
+    `filename` 会被部分浏览器丢弃。
+    """
+    require_roles(actor, *_READ_ROLES)
+    record = await _load_equipment(db, equipment_id, actor)
+    report = build_report(record)
+
+    if format == "excel":
+        content = export_excel(report)
+        media_type, ext = _EXPORT_TYPES["excel"]
+    else:
+        content = export_pdf(report)
+        media_type, ext = _EXPORT_TYPES["pdf"]
+
+    safe_tag = quote(record.tag_number, safe="")
+    filename = f"deviation-report-{safe_tag}.{ext}"
+    return Response(
+        content=content,
+        media_type=media_type,
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="deviation-report.{ext}"; '
+                f"filename*=UTF-8''{filename}"
+            )
+        },
+    )

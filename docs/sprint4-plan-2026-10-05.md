@@ -153,21 +153,48 @@ D4 4A 形同虚设。
 
 ## Task 3 (S4-2): 自动比对 + 偏差报告
 
+> **⚠️ 已知缺口（未解决）**: `design_parameters_json` **无任何写入方**（恒 NULL），
+> 偏差报告没有设计值可比。用户裁决「先只做偏差引擎，设计值留空」→ 生产路径上
+> 所有行都落「缺设计值（不可判）」，`can_confirm` 恒 false。引擎本身已按 SPEC
+> 逐条实现并被单测覆盖；**设计值来源是待定的另一个决定**（① 设计参数也手工录入
+> ② 从 SIM 导入补 ③ 等工艺室给泵选型表）。
+
 **Files**:
-- Create: `pcs-backend/app/services/supplier/deviation_service.py`
-- Create: `pcs-backend/app/api/v1/supplier.py`（`GET /equipment-list/{id}/deviation-report`）
-- Test: `pcs-backend/tests/services/supplier/test_deviation_service.py`
-- Test: `pcs-backend/tests/services/supplier/fixtures/golden_deviation_report.json`
-  （≥5 算例，含合格/警告/不合格 3 档）
+- Create: `pcs-backend/app/services/supplier/deviation_service.py`（判定引擎 + SPEC 规则表）
+- Create: `pcs-backend/app/services/supplier/deviation_report.py`（组装 + 门禁 + 导出）
+- Modify: `pcs-backend/app/api/v1/supplier.py`（`GET /equipment/{id}/deviation-report` + `/export`）
+- Modify: `pcs-backend/app/schemas/supplier.py`
+- Modify: `pcs-backend/pyproject.toml`（+ `reportlab>=4.0`）
+- Test: `pcs-backend/tests/services/supplier/test_deviation_service.py`（规则逐条）
+- Test: `pcs-backend/tests/services/supplier/test_deviation_report.py`（组装/门禁/导出）
+- Test: `pcs-backend/tests/api/v1/test_deviation_report_api.py`
+
+**判定类型是异构的**（SPEC §3.2.4(2) 逐条转录，勿套统一公式）:
+
+| 实际数据字段 | 允许偏差 | kind |
+|---|---|---|
+| 流量-扬程曲线 | 额定点扬程 +5%/-0% | `ASYMMETRIC_BAND` |
+| 实际效率曲线 | ≥95% 设计值 | `MIN_RATIO` |
+| 实际NPSHr | 不得超过设计值 | `MAX_ONLY` |
+| 实际电机额定功率 | 偏差 ±10% | `SYMMETRIC_BAND`（方向敏感） |
+| 实际转速、叶轮直径 | 允许差异，需重新校核性能 | `RECHECK_ALWAYS` |
+| 厂家型号、材质 | 不得低于设计要求 | `MANUAL_CHECK` |
+
+**第 4 档 `UNVERDICTABLE`（不可判）**: SPEC 只定 3 档，但其表内本就有 2 条无数值
+阈值规则且明写「以泵为例」——非泵参数必然判不了。把「判不了」并入「合格」会让
+§3.2.4(4) 的确认门禁形同虚设，故独立成档且**不可确认**（fail-closed）。
 
 **Steps**:
-- [ ] Step 1: 写 failing test — 3 档判定 + 颜色标识
-- [ ] Step 2: 跑 test 验证失败
-- [ ] Step 3: 实现 `deviation_service`（按 SPEC V1.4 §3.2.4（2）允许偏差表）
-- [ ] Step 4: PDF/Excel 导出（reportlab + openpyxl）
-- [ ] Step 5: 边界测试 — 不合格项必拒绝确认 + 通知供应商
-- [ ] Step 6: pytest 全量 0 regression
-- [ ] Step 7: commit `feat(p7-s4): 供应商偏差报告 3 档判定 (S4-2)`
+- [x] Step 1: 写 failing test — 规则逐条 30 例 + 报告/门禁/导出 20 例 + API 10 例
+- [x] Step 2: 跑 test 验证失败（collection error → 2 模块不存在）
+- [x] Step 3: 实现 `deviation_service`（6 种 kind + `_EPS` 浮点边界容差）
+- [x] Step 4: `deviation_report` 导出 — openpyxl（结论列按 SPEC 配色）+ reportlab
+      （内置 `STSong-Light` 中文字体，不引外部 ttf）
+- [x] Step 5: 边界测试 — 不合格/不可判均拒绝确认；缺设计值、设计值为 0、
+      非数值、无规则参数
+- [x] Step 6: pytest 全量 0 regression（3816 passed / 77 skipped / 1 xfailed，
+      Task 2 baseline 3766 → +50）
+- [ ] Step 7: commit `feat(p7-s4): 供应商偏差报告 3+1 档判定 + 导出 (S4-2)`
 
 ---
 
