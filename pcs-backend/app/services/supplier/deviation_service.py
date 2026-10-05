@@ -48,7 +48,11 @@ _COLORS = {
 
 @dataclass(frozen=True)
 class DeviationRule:
-    """一条允许偏差规则。`lower`/`upper` 单位为百分点（相对设计值）。"""
+    """一条允许偏差规则。`lower`/`upper` 单位为百分点（相对设计值）。
+
+    `design_parameter`: 判定所依据的**设计参数名**。默认与 `parameter` 同名；
+    电机裕量规则例外 —— 它的参照量是**轴功率**而非设计电机功率。
+    """
 
     parameter: str
     kind: str
@@ -57,6 +61,12 @@ class DeviationRule:
     ratio: float | None = None
     spec_ref: str = ""
     aliases: tuple[str, ...] = field(default_factory=tuple)
+    design_parameter: str | None = None
+
+    @property
+    def design_key(self) -> str:
+        """在 `design_parameters_json` 里查哪个键。"""
+        return self.design_parameter or self.parameter
 
     def matches(self, name: str) -> bool:
         key = _normalize(name)
@@ -120,11 +130,24 @@ SPEC_RULES: tuple[DeviationRule, ...] = (
     ),
     DeviationRule(
         parameter="电机额定功率",
-        kind="SYMMETRIC_BAND",
-        lower=-10.0,
-        upper=10.0,
-        spec_ref="SPEC §3.2.4(2) 实际电机额定功率：偏差 ±10%",
-        aliases=("电机功率", "设计电机功率", "额定功率", "功率"),
+        kind="MOTOR_TIER_FLOOR",
+        design_parameter="轴功率",   # ← 参照量是轴功率, 不是「设计电机功率」
+        spec_ref=(
+            "API 610 电机裕量分档下限: <22kW 1.25 / 22-55kW 1.15 / >55kW 1.10"
+            "（**取代** SPEC §3.2.4(2) 原「偏差 ±10%」—— 电机按系列选取, "
+            "±10% 量的是档位差不是设备偏差, 见 tests/.../test_motor_tier_rule.py）"
+        ),
+        aliases=("电机功率", "额定功率", "功率", "电机"),
+    ),
+    # 电机功率规则的**参照物**是轴功率, 不是「设计电机功率」。
+    # 故轴功率单独建一条规则, 让录入方把设计值也带进来。
+    DeviationRule(
+        parameter="轴功率",
+        kind="REFERENCE_ONLY",
+        spec_ref=(
+            "设计轴功率 —— 电机裕量分档的参照量, 本身不判合格与否"
+        ),
+        aliases=("设计轴功率", "泵轴功率", "shaft_power", "轴功"),
     ),
     DeviationRule(
         parameter="转速",
@@ -160,6 +183,25 @@ def _is_number(value) -> bool:
     return not isinstance(value, bool) and isinstance(value, (int, float))
 
 
+# API 610 电机裕量分档（泵轴功率 kW → 电机功率下限倍数）。
+# 1.25 只是**小泵档**, 不是通用值 —— 蜡油加氢 132-P-101A/B 轴功率 2214 kW、
+# 选配电机 2500 kW, 比值 1.129, 拍 1.25 会把它误判成不合格, 而大泵 1.10 即合规。
+# 边界按 API 610 原文: <22 → 1.25 / 22–55(**含**) → 1.15 / >55 → 1.10
+_MOTOR_TIER_SMALL_MAX = 22.0
+_MOTOR_TIER_MED_MAX = 55.0
+
+
+def motor_tier_factor(shaft_power_kw) -> float | None:
+    """按 API 610 返回电机功率下限倍数。轴功率非正/非数值 → None（无档可卡）."""
+    if not _is_number(shaft_power_kw) or shaft_power_kw <= 0:
+        return None
+    if shaft_power_kw < _MOTOR_TIER_SMALL_MAX:
+        return 1.25
+    if shaft_power_kw <= _MOTOR_TIER_MED_MAX:
+        return 1.15
+    return 1.10
+
+
 def evaluate(
     rule: DeviationRule, *, design, actual
 ) -> Evaluation:
@@ -179,6 +221,17 @@ def evaluate(
             note="允许差异，但需重新校核性能（校核未做前不算合格）",
             requires_recheck=True,
         )
+    if rule.kind == "REFERENCE_ONLY":
+        # 参照量（如轴功率服务于电机分档）—— 本身不判合格与否, 但也不是「不可判」:
+        # 它是有效数据, 只是不承担判定。标为合格 + 备注, 避免把有效设计值报成缺数据。
+        return Evaluation(
+            QUALIFIED,
+            None,
+            note="参照量，本身不判合格与否（供其他规则使用）",
+        )
+
+    if rule.kind == "MOTOR_TIER_FLOOR":
+        return _evaluate_motor_tier(design, actual)
 
     if design is None or actual is None:
         return Evaluation(UNVERDICTABLE, note="缺设计值或实际值")
@@ -188,7 +241,6 @@ def evaluate(
         return Evaluation(UNVERDICTABLE, note="设计值为 0，百分比偏差无定义")
 
     deviation = (actual - design) / design * 100.0
-
     if rule.kind == "ASYMMETRIC_BAND":
         if deviation < rule.lower - _EPS:
             return Evaluation(UNQUALIFIED, deviation, f"低于额定点下限 {rule.lower:g}%")
@@ -220,6 +272,37 @@ def evaluate(
     return Evaluation(UNVERDICTABLE, deviation, f"未知判定类型 {rule.kind!r}")
 
 
+def _evaluate_motor_tier(design, actual) -> Evaluation:
+    """电机额定功率是否达到 API 610 分档下限.
+
+    `design` = 设计**轴**功率 kW（不是设计电机功率）; `actual` = 实测电机额定功率 kW.
+    电机按系列选取, 故**不比较设计电机 vs 实际电机** —— 那量的是档位差。
+    """
+    if not _is_number(design) or not _is_number(actual):
+        return Evaluation(UNVERDICTABLE, note="轴功率/电机功率非数值")
+    factor = motor_tier_factor(design)
+    if factor is None:
+        return Evaluation(
+            UNVERDICTABLE, note=f"轴功率 {design} 无适用裕量档（须 > 0）"
+        )
+    floor = design * factor
+    if actual >= floor:
+        return Evaluation(
+            QUALIFIED,
+            note=(
+                f"电机 {actual:g} kW ≥ 下限 {floor:.1f} kW"
+                f"（轴功率 {design:g} kW × {factor}）"
+            ),
+        )
+    return Evaluation(
+        UNQUALIFIED,
+        note=(
+            f"电机 {actual:g} kW < 下限 {floor:.1f} kW"
+            f"（轴功率 {design:g} kW × {factor}）—— 电机不足以驱动"
+        ),
+    )
+
+
 def verdict_label(verdict: str) -> str:
     return _LABELS.get(verdict, "不可判")
 
@@ -238,6 +321,7 @@ __all__ = [
     "SPEC_RULES",
     "evaluate",
     "find_rule",
+    "motor_tier_factor",
     "verdict_color",
     "verdict_label",
 ]

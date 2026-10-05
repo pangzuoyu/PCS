@@ -83,8 +83,12 @@ def build_report(equipment) -> DeviationReport:
 
     for name in actual:
         actual_value, unit, _ = _extract(actual, name)
-        design_value, _, _ = _extract(design, name)
         rule = find_rule(name)
+        # 判定依据的设计参数未必与实际参数同名 —— 电机裕量规则看的是「轴功率」。
+        # 找不到规则时退回同名查找，好让报错行带上已有的设计值便于排查。
+        design_value, _, _ = _extract(
+            design, rule.design_key if rule else name
+        )
 
         if rule is None:
             rows.append(

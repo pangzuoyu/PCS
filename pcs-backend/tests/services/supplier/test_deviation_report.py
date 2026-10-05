@@ -19,8 +19,8 @@ from app.services.supplier.deviation_report import (
     export_pdf,
 )
 
-DESIGN = {"扬程": {"value": 32.0, "unit": "m"}, "电机额定功率": {"value": 55.0, "unit": "kW"}}
-ACTUAL_ALL_OK = {"扬程": {"value": 33.0, "unit": "m"}, "电机额定功率": {"value": 56.0, "unit": "kW"}}
+DESIGN = {"扬程": {"value": 32.0, "unit": "m"}, "轴功率": {"value": 55.0, "unit": "kW"}}
+ACTUAL_ALL_OK = {"扬程": {"value": 33.0, "unit": "m"}, "电机额定功率": {"value": 75.0, "unit": "kW"}}
 ACTUAL_HAS_BAD = {"扬程": {"value": 33.0, "unit": "m"}, "电机额定功率": {"value": 48.0, "unit": "kW"}}
 
 

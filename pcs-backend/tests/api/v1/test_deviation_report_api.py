@@ -21,8 +21,8 @@ from app.models.project import Project, Workspace
 
 pytestmark = pytest.mark.asyncio
 
-DESIGN = {"扬程": {"value": 32.0, "unit": "m"}, "电机额定功率": {"value": 55.0, "unit": "kW"}}
-ACTUAL_OK = {"扬程": {"value": 33.0, "unit": "m"}, "电机额定功率": {"value": 56.0, "unit": "kW"}}
+DESIGN = {"扬程": {"value": 32.0, "unit": "m"}, "轴功率": {"value": 55.0, "unit": "kW"}}
+ACTUAL_OK = {"扬程": {"value": 33.0, "unit": "m"}, "电机额定功率": {"value": 75.0, "unit": "kW"}}
 ACTUAL_BAD = {"扬程": {"value": 33.0, "unit": "m"}, "电机额定功率": {"value": 48.0, "unit": "kW"}}
 
 
