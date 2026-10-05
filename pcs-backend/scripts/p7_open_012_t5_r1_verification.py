@@ -79,30 +79,140 @@ SEED_FACTORS = [
 ]
 
 
+# Case 4 消耗量 (设备清单, 抄录自 sample/1216D132惠州蜡油加氢装置计算14.7.17).
+# 提到模块级: 既是 DB seed 输入, 也是 GB 30251 独立基准重算的输入。
+# 注: 这是「输入量」不是「计算结果」—— 用户裁决 2026-10-05 只作废 XLS 的计算结果作基准,
+# 设备清单本身是工程数据, 仍然有效。
+POWER_ITEMS = [
+    # (equipment_tag, motor_power_kw, hours, load, kwh)
+    ("132-P-101A/B", 2214.064, 8400, 1.0, 18598136.4),
+    ("132-P-102A/B", 233.748, 8400, 1.0, 1963481.2),
+    ("132-P-103A/B", 24.478, 8400, 1.0, 205617.6),
+    ("132-P-104A/B", 27.454, 8400, 1.0, 230616.8),
+    ("132-P-106A/B", 85.441, 8400, 1.0, 717701.7),
+    ("132-P-201A/B", 8.274, 8400, 1.0, 69503.3),
+    ("132-P-202A/B", 139.467, 8400, 1.0, 1171520.0),
+    ("132-P-203A/B", 65.459, 8400, 1.0, 549859.5),
+    ("132-P-204A/B", 8.033, 8400, 1.0, 67476.2),
+    ("132-P-205A/B", 37.675, 8400, 1.0, 316471.6),
+    ("132-P-206A/B", 48.891, 8400, 1.0, 410687.0),
+    ("132-P-207A/B", 264.025, 8400, 1.0, 2217812.8),
+    ("132-P-301A/B", 200.799, 8400, 1.0, 1686710.8),
+    ("132-P-401", 20.974, 200, 1.0, 4194.8),
+    ("132-P-404", 13.322, 8400, 1.0, 111906.7),
+    ("132-P-406A/B", 4.63, 8400, 1.0, 38894.7),
+    ("217-C-201", 4140.0, 8000, 1.0, 33120000.0),
+]
+FUEL_ITEMS = [
+    ("F-101", "STEADY", 2244564.0),
+    ("F-101", "MAX", 2469012.0),
+    ("F-201", "STEADY", 9017736.0),
+    ("F-201", "MAX", 9919476.0),
+    ("F-101-PILOT", "STEADY", 870156.0),
+    ("F-201-PILOT", "STEADY", 174048.0),
+]
+HEAT_ITEMS = [
+    ("ST-E-101", 1459.5),
+    ("ST-E-102", 1459.5),
+    ("ST-E-103", 9949.716),
+    ("ST-TRACING", 16800.0),
+]
+
+# ============================================================================
+# 验收基准 — GB 30251-2024 附录 A 表 A.1 (能源及耗能工质折算标准油的参考系数)
+#
+# 用户裁决 2026-10-05:
+#   「Q1 等价值系数按标准取值, XLS 不作为最终依据」
+#
+# 原 xls_reference (1,242,159,527.8 MJ / 28,532.8967 t标油 / 40,761,279.4 kg标煤)
+# 已作废: 三值在原始 XLS 全表中均不存在, 系 commit 6d74fdd 时代代码输出的反抄
+# (与旧输出仅差 10.8 MJ), 且 XLS 自身 G33 因 D32=#VALUE! 算不出年总能耗。→ bug-134
+#
+# 新基准 = 消耗量 (设备清单) × GB 30251-2024 附录 A 表 A.1 系数, 由 _gb30251_reference()
+# 独立重算: 不走 ORM / 不读 ConfigEnergyConversionFactor / 不调 summarize_energy_year。
+# 故可检出聚合、分类查表、舍入类缺陷 (原「输出 vs 自己旧输出」的比法检不出任何东西)。
+# ============================================================================
+KGOE_PER_TOE = 1.4286  # 1 kg标油 = 1.4286 kg标煤
+
+# 附录 A 表 A.1 序号 12「电」— 炼油/乙烯强制等价值 (§6.1.5 + 表A.2 注)
+GB_A1_ELECTRICITY_KGOE_PER_KWH = 0.21
+GB_A1_ELECTRICITY_MJ_PER_KWH = 8.792
+# 附录 A 表 A.1 序号 18「1.0 MPa 级蒸汽 f」
+GB_A1_STEAM_1_0MPA_KGOE_PER_T = 76.0
+GB_A1_STEAM_1_0MPA_MJ_PER_T = 3182.0
+# 附录 A 表 A.1 序号 8「炼厂燃料气」以「吨」计 (950 kg标油/t), PCS 以「Nm³」计,
+# 换算需气体密度假设 → 标准不直接可比。本项沿用 R1 工艺室 2026-10-08 签署的 Nm³ 值,
+# 并在 coefficient_conformance 中标注 not_std_comparable。
+R1_FUEL_GAS_GASFIELD_KGOE_PER_NM3 = 0.85
+
+
+def _gb30251_reference() -> dict[str, float]:
+    """按 GB 30251-2024 附录 A 表 A.1 独立重算 Case 4 基准.
+
+    Returns: annual_total_energy_mj / total_toe_tonne / total_standard_coal_kg
+             + coefficient_conformance (PCS CONFIG vs 附录 A 对照表)
+    """
+    kwh = sum(item[4] for item in POWER_ITEMS)
+    nm3 = sum(item[2] for item in FUEL_ITEMS)
+    steam_t = sum(item[1] for item in HEAT_ITEMS)
+
+    electricity_mj = kwh * GB_A1_ELECTRICITY_MJ_PER_KWH
+    electricity_kgoe = kwh * GB_A1_ELECTRICITY_KGOE_PER_KWH
+    fuel_gas_mj = nm3 * R1_FUEL_GAS_GASFIELD_KGOE_PER_NM3 * 41.868
+    fuel_gas_kgoe = nm3 * R1_FUEL_GAS_GASFIELD_KGOE_PER_NM3
+    steam_mj = steam_t * GB_A1_STEAM_1_0MPA_MJ_PER_T
+    steam_kgoe = steam_t * GB_A1_STEAM_1_0MPA_KGOE_PER_T
+
+    total_mj = electricity_mj + fuel_gas_mj + steam_mj
+    total_kgoe = electricity_kgoe + fuel_gas_kgoe + steam_kgoe
+    return {
+        "annual_total_energy_mj": total_mj,
+        # total_kgoe 单位是 kg标油; 标油吨位需 /1000
+        "total_toe_tonne": total_kgoe / 1000.0,
+        "total_standard_coal_kg": total_kgoe * KGOE_PER_TOE,
+        "coefficient_conformance": {
+            "basis": "GB 30251-2024 附录A 表A.1 (参考系数)",
+            "ELECTRICITY_等价值": {
+                "pcs_kgoe_per_kwh": GB_A1_ELECTRICITY_KGOE_PER_KWH,
+                "std_kgoe_per_kwh": GB_A1_ELECTRICITY_KGOE_PER_KWH,
+                "pcs_mj_per_kwh": GB_A1_ELECTRICITY_MJ_PER_KWH,
+                "std_mj_per_kwh": GB_A1_ELECTRICITY_MJ_PER_KWH,
+                "deviation_pct": 0.0,
+                "note": "§6.1.5 炼油/乙烯强制等价值; PCS 0.21/8.792 == 附录A 原值",
+            },
+            "STEAM_1.0MPa": {
+                "pcs_kgoe_per_t": GB_A1_STEAM_1_0MPA_KGOE_PER_T,
+                "std_kgoe_per_t": GB_A1_STEAM_1_0MPA_KGOE_PER_T,
+                "pcs_mj_per_t": round(
+                    GB_A1_STEAM_1_0MPA_KGOE_PER_T * 41.868, 3
+                ),
+                "std_mj_per_t": GB_A1_STEAM_1_0MPA_MJ_PER_T,
+                "deviation_pct": abs(
+                    GB_A1_STEAM_1_0MPA_KGOE_PER_T * 41.868
+                    - GB_A1_STEAM_1_0MPA_MJ_PER_T
+                )
+                / GB_A1_STEAM_1_0MPA_MJ_PER_T
+                * 100.0,
+                "note": "PCS 由 toe_factor×41.868 推导 MJ, 与附录A 3182 MJ/t 自洽",
+            },
+            "FUEL_GAS_气田气": {
+                "pcs_kgoe_per_nm3": R1_FUEL_GAS_GASFIELD_KGOE_PER_NM3,
+                "std_kgoe_per_nm3": None,
+                "deviation_pct": None,
+                "not_std_comparable": True,
+                "note": (
+                    "附录A 序号8 以「吨」计 (950 kg标油/t), PCS 以「Nm³」计; "
+                    "换算需气体密度假设, 标准不直接可比。沿用 R1 工艺室签署值。"
+                ),
+            },
+        },
+    }
+
+
 async def _inject_case_4(db_session, project_id, workspace_id) -> None:
     """注入 Case 4 (蜡油加氢 XLS 1216D132 真实算例) 子表数据."""
     # 17 个 T1 power_items (来自 sample/1216D132惠州蜡油加氢装置计算14.7.17)
-    power_items = [
-        # (equipment_tag, motor_power_kw, hours, load, kwh)
-        ("132-P-101A/B", 2214.064, 8400, 1.0, 18598136.4),
-        ("132-P-102A/B", 233.748, 8400, 1.0, 1963481.2),
-        ("132-P-103A/B", 24.478, 8400, 1.0, 205617.6),
-        ("132-P-104A/B", 27.454, 8400, 1.0, 230616.8),
-        ("132-P-106A/B", 85.441, 8400, 1.0, 717701.7),
-        ("132-P-201A/B", 8.274, 8400, 1.0, 69503.3),
-        ("132-P-202A/B", 139.467, 8400, 1.0, 1171520.0),
-        ("132-P-203A/B", 65.459, 8400, 1.0, 549859.5),
-        ("132-P-204A/B", 8.033, 8400, 1.0, 67476.2),
-        ("132-P-205A/B", 37.675, 8400, 1.0, 316471.6),
-        ("132-P-206A/B", 48.891, 8400, 1.0, 410687.0),
-        ("132-P-207A/B", 264.025, 8400, 1.0, 2217812.8),
-        ("132-P-301A/B", 200.799, 8400, 1.0, 1686710.8),
-        ("132-P-401", 20.974, 200, 1.0, 4194.8),
-        ("132-P-404", 13.322, 8400, 1.0, 111906.7),
-        ("132-P-406A/B", 4.63, 8400, 1.0, 38894.7),
-        ("217-C-201", 4140.0, 8000, 1.0, 33120000.0),
-    ]
-    for tag, motor_kw, hrs, load, kwh in power_items:
+    for tag, motor_kw, hrs, load, kwh in POWER_ITEMS:
         db_session.add(
             UtilityPowerItem(
                 project_id=project_id, workspace_id=workspace_id,
@@ -113,15 +223,7 @@ async def _inject_case_4(db_session, project_id, workspace_id) -> None:
         )
 
     # 6 个 T2 fuel_gas (F-101 + F-201 + 2 个 PILOT)
-    fuel_items = [
-        ("F-101", "STEADY", 2244564.0),
-        ("F-101", "MAX", 2469012.0),
-        ("F-201", "STEADY", 9017736.0),
-        ("F-201", "MAX", 9919476.0),
-        ("F-101-PILOT", "STEADY", 870156.0),
-        ("F-201-PILOT", "STEADY", 174048.0),
-    ]
-    for tag, phase, nm3 in fuel_items:
+    for tag, phase, nm3 in FUEL_ITEMS:
         db_session.add(
             UtilityFuelGas(
                 project_id=project_id, workspace_id=workspace_id,
@@ -134,13 +236,7 @@ async def _inject_case_4(db_session, project_id, workspace_id) -> None:
         )
 
     # 4 个 T3 heat_exchange (ST-E/MP 系列, P7-6B 前 R0 旧数据无 pressure_level/medium_type)
-    heat_items = [
-        ("ST-E-101", 1459.5),
-        ("ST-E-102", 1459.5),
-        ("ST-E-103", 9949.716),
-        ("ST-TRACING", 16800.0),
-    ]
-    for tag, annual_t in heat_items:
+    for tag, annual_t in HEAT_ITEMS:
         db_session.add(
             UtilityHeatExchange(
                 project_id=project_id, workspace_id=workspace_id,
@@ -180,11 +276,13 @@ async def main() -> int:
         )
         await db.commit()
 
-        # XLS 参考值 (R1 工艺室 2026-10-08 签齐; 蜡油加氢原始 XLS 1216D132)
+        # 验收基准 (GB 30251-2024 附录A 表A.1 独立重算) — 用户裁决 2026-10-05,
+        # XLS 不作为最终依据。见 _gb30251_reference() docstring。
+        reference = _gb30251_reference()
         xls_reference = {
-            "annual_total_energy_mj": 1242159527.8,
-            "total_toe_tonne": 28532.8967,
-            "total_standard_coal_kg": 40761279.4,
+            "annual_total_energy_mj": reference["annual_total_energy_mj"],
+            "total_toe_tonne": reference["total_toe_tonne"],
+            "total_standard_coal_kg": reference["total_standard_coal_kg"],
         }
 
         # 容差计算
@@ -200,7 +298,11 @@ async def main() -> int:
         report = {
             "case_id": "T5_CASE_04_WAXY_OIL_HYDRO_2026",
             "sign_off_doc": "docs/PCS-SIGN-F-P0-001-2026-10-08-R1.md",
-            "xls_reference": "sample/1216D132惠州蜡油加氢装置计算14.7.17计算 - 副本.xlsm",
+            "xls_reference": (
+                "GB 30251-2024 附录A 表A.1 独立重算 "
+                "(XLS 不作为最终依据 — 用户裁决 2026-10-05)"
+            ),
+            "coefficient_conformance": reference["coefficient_conformance"],
             "coefficients_source": "GB_30251_2024_APPENDIX_A (R1 工艺室 2026-10-08 签齐)",
             "electricity_value_type": summary.electricity_value_type,
             "computed": {

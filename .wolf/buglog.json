@@ -2312,6 +2312,53 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-10-08T00:00:00+08:00"
+    },
+    {
+      "id": "bug-133",
+      "timestamp": "2026-10-05T00:00:00+08:00",
+      "error_message": "T5 验收: 等价值下 annual_total_energy 与 total_toe 差 2.44 倍 (iso_self_consistent_pct=21.09%)",
+      "file": "pcs-backend/app/services/util/utility_energy_summary_service.py",
+      "root_cause": "electricity_mj 恒用 kWh*KWH_TO_MJ(3.6) (SI 物理当量), 与 electricity_value_type 解耦. EQUIVALENT_VALUE 下 toe 走 0.21 kg标油/kWh (隐含 8.79 MJ/kWh) 但 MJ 仍 3.6. 根因: 折标系数从 R0 硬编码改 CONFIG 后, MJ 表达式没跟着 value_type 走. 另: PCS 默认 electricity_value_type=EQUIVALENT (当量值), 违反 GB 30251-2024 §6.1.5「炼油、乙烯能耗计算中电折标系数采用等价值」.",
+      "fix": "electricity_mj 跟随 value_type: EQUIVALENT -> kWh*3.6; EQUIVALENT_VALUE -> kWh*toe_factor*TOE_TO_MJ(41.868). T5 脚本显式传 EQUIVALENT_VALUE. iso_self_consistent_pct 21.09% -> 0.0%.",
+      "fix_commit": "426e43a",
+      "tags": [
+        "p7-s2",
+        "T5",
+        "GB-30251",
+        "GB/T-2589",
+        "electricity_value_type",
+        "口径裁决"
+      ],
+      "related_bugs": [
+        "F-P0-001",
+        "bug-132"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-05T00:00:00+08:00"
+    },
+    {
+      "id": "bug-134",
+      "timestamp": "2026-10-05T00:00:00+08:00",
+      "error_message": "T5 xls_reference 三个值 (1242159527.8 / 28532.8967 / 40761279.4) 在原始 XLS 全表中不存在",
+      "file": "pcs-backend/scripts/p7_open_012_t5_r1_verification.py",
+      "root_cause": "自证循环: 三个「XLS 参考值」不是从 XLS 读的, 是 commit 6d74fdd 时代 PCS 代码输出的反抄 (与旧输出 1242159517.0 仅差 10.8 MJ, 相对 8.7e-7%)。XLS 自身 能耗!G33 又因 D32=燃料消耗校核!D15/1000 是 #VALUE! 而算不出年总能耗。于是 9887ad9 的 T5 PASS 没有任何外部效力 —— 改算法(94c1e55)立刻暴露。",
+      "fix": "用户裁决 2026-10-05「XLS 不作为最终依据」→ 基准重建为 _gb30251_reference(): 消耗量(设备清单) × GB 30251-2024 附录A 表A.1 系数, 独立于 ORM/ CONFIG 表/ service 重算。T5 三项 PASS 0.0011%/0.0000%/0.0020%。",
+      "fix_commit": "e077b37",
+      "tags": [
+        "p7-s2",
+        "T5",
+        "自证循环",
+        "验收基准",
+        "fake-reference",
+        "GB-30251"
+      ],
+      "related_bugs": [
+        "bug-133",
+        "F-P0-001",
+        "F-P2-004"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-05T00:00:00+08:00"
     }
   ]
 }
