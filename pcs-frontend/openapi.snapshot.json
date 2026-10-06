@@ -11349,7 +11349,7 @@
           "supplier"
         ],
         "summary": "Get Deviation Report",
-        "description": "设计值 vs 实际值偏差报告（SPEC §3.2.4(3)）。\n\n`can_confirm` 是 SPEC §3.2.4(4) 的确认门禁 —— 存在不合格或不可判项时\n为 false，前端据此禁用「已确认」。\n\n⚠️ 已知缺口：`design_parameters_json` 目前无写入方，故生产路径上全部行\n都会落「缺设计值（不可判）」。引擎已按 SPEC 逐条实现，设计值来源待定。",
+        "description": "设计值 vs 实际值偏差报告（SPEC §3.2.4(3)）。\n\n`can_confirm` 是 SPEC §3.2.4(4) 的确认门禁 —— 存在不合格或不可判项时\n为 false，前端据此禁用「已确认」。\n\n⚠️ 残余缺口：设计值来自 `pump_design_data.PUMP_DESIGN`（17 个蜡油加氢泵\n位号），tag 集之外的设备全部落「缺设计值（不可判）」、`can_confirm` 恒 False。",
         "operationId": "get_deviation_report_api_v1_equipment__equipment_id__deviation_report_get",
         "parameters": [
           {
