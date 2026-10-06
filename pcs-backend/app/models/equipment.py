@@ -15,12 +15,14 @@ from sqlalchemy import (
     Float,
     ForeignKey,
     ForeignKeyConstraint,
+    Index,
     Integer,
     Numeric,
     String,
     Text,
     UniqueConstraint,
     Uuid,
+    desc,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -67,6 +69,8 @@ class EquipmentList(TaggedRecordMixin, Base):
             ["equipment_type_codes.project_id", "equipment_type_codes.type_code"],
             name="fk_equipment_list_type_code_composite",
         ),
+        Index("ix_equipment_list_calc_status", "calc_status"),
+        Index("ix_equipment_list_actual_data_status", "actual_data_status"),
     )
     equipment_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     equipment_type_project_id: Mapped[uuid.UUID | None] = mapped_column(Uuid)
@@ -221,11 +225,11 @@ class EquipmentDeletionAudit(Base):
         Uuid, primary_key=True, default=uuid.uuid4,
     )
     equipment_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, nullable=False, index=True,
+        Uuid, nullable=False,
         comment="被删除设备 ID (FK 已无, 存快照)",
     )
     project_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, nullable=False, index=True,
+        Uuid, nullable=False,
         comment="项目 ID (删时快照)",
     )
     workspace_id: Mapped[uuid.UUID] = mapped_column(
@@ -250,4 +254,16 @@ class EquipmentDeletionAudit(Base):
     reason: Mapped[str | None] = mapped_column(
         String(500), nullable=True,
         comment="删除原因 (可选, 用户备注)",
+    )
+
+    __table_args__ = (
+        Index(
+            "ix_equipment_deletion_audit_project_equipment",
+            "project_id", "equipment_id",
+        ),
+        # DB 里是 DESC 索引（按时间倒序扫最近删除记录），非默认升序。
+        Index(
+            "ix_equipment_deletion_audit_occurred_at_desc",
+            desc("occurred_at"),
+        ),
     )

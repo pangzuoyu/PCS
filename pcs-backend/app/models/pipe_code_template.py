@@ -14,7 +14,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import JSON, ForeignKey, Integer, String, UniqueConstraint, Uuid
+from sqlalchemy import JSON, ForeignKey, Index, Integer, String, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -29,6 +29,8 @@ class PipeCodeTemplate(TimestampMixin, Base):
     """
 
     __tablename__ = "pipe_code_templates"
+    # 迁移建的索引，ORM 漏声明（alembic check 报 remove_index）
+    __table_args__ = (Index("ix_pipe_code_templates_status", "status"),)
     template_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4,
     )
@@ -53,6 +55,7 @@ class ProjectPipeCodeConfig(TimestampMixin, Base):
     __tablename__ = "project_pipe_code_configs"
     __table_args__ = (
         UniqueConstraint("project_id", "config_name", name="uq_project_pipe_code_config"),
+        Index("ix_project_pipe_code_configs_project_id", "project_id"),
     )
     config_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4,

@@ -18,6 +18,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     Numeric,
     String,
@@ -53,13 +54,18 @@ class CepciIndexSeries(Base):
     """
 
     __tablename__ = "cepci_index_series"
+    # DB 里 year 的唯一性由自定义命名的唯一索引 ix_cepci_year 承担（不是
+    # 命名约定里的 uq_cepci_index_series_year）。ORM 逐字对齐 DB：既不写
+    # unique=True（会生成约定名约束），也不写 index=True（会多出
+    # ix_cepci_index_series_year 造成 add_index 漂移）。
+    __table_args__ = (Index("ix_cepci_year", "year", unique=True),)
 
     id: Mapped[int] = mapped_column(
         Integer, primary_key=True, autoincrement=True, comment="BIGINT 自增主键",
     )
     year: Mapped[int] = mapped_column(
-        Integer, nullable=False, unique=True, index=True,
-        comment="年份（UNIQUE 索引）；如 2018~2024",
+        Integer, nullable=False,
+        comment="年份（UNIQUE，见 __table_args__ 的 ix_cepci_year）；如 2018~2024",
     )
     cepci_value: Mapped[float] = mapped_column(
         Float, nullable=False,
@@ -109,14 +115,17 @@ class CompoundHeatingValues(Base):
     """
 
     __tablename__ = "compound_heating_values"
+    # 迁移建的索引名是 ix_compound_heating_values_hhv（列名 hhv_mj_kg 的缩写
+    # hhv），非 SQLAlchemy 默认的 ix_compound_heating_values_hhv_mj_kg，故显式声明。
+    __table_args__ = (Index("ix_compound_heating_values_hhv", "hhv_mj_kg"),)
 
     id: Mapped[int] = mapped_column(
         Integer, primary_key=True, autoincrement=True,
         comment="BIGINT 自增主键",
     )
     cas: Mapped[str] = mapped_column(
-        String(16), nullable=False, unique=True, index=True,
-        comment="CAS 注册号（UNIQUE 索引）；如 '74-82-8' = methane",
+        String(16), nullable=False, unique=True,
+        comment="CAS 注册号（UNIQUE 索引 uq_compound_heating_values_cas）；如 '74-82-8' = methane",
     )
     name: Mapped[str] = mapped_column(
         String(64), nullable=False,
@@ -542,7 +551,7 @@ class CompoundPasquillSigma(Base):
         comment="BIGINT 自增主键",
     )
     stability_class: Mapped[str] = mapped_column(
-        String(1), nullable=False, unique=True, index=True,
+        String(1), nullable=False, unique=True,
         comment='Pasquill-Gifford 稳定度等级 UNIQUE：A/B/C/D/E/F',
     )
     a_y: Mapped[float] = mapped_column(
@@ -607,7 +616,7 @@ class CompoundApi521Thresholds(Base):
         comment="BIGINT 自增主键",
     )
     threshold_type: Mapped[str] = mapped_column(
-        String(32), nullable=False, unique=True, index=True,
+        String(32), nullable=False, unique=True,
         comment='阈值类型 UNIQUE：如 "INJURY"/"LETHALITY"',
     )
     flux_kw_m2: Mapped[float] = mapped_column(
@@ -785,7 +794,7 @@ class CompoundHammerschmidtK(Base):
         comment="BIGINT 自增主键",
     )
     inhibitor_type: Mapped[str] = mapped_column(
-        String(32), nullable=False, unique=True, index=True,
+        String(32), nullable=False, unique=True,
         comment='抑制剂类型 UNIQUE：MEOH/EG/DEG/TEG/NACL',
     )
     K: Mapped[float] = mapped_column(

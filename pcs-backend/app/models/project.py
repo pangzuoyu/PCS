@@ -106,6 +106,9 @@ class Workspace(Base):
     """
 
     __tablename__ = "workspaces"
+    __table_args__ = (
+        Index("ix_workspaces_status", "status"),
+    )
     workspace_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
     )
@@ -218,6 +221,9 @@ class Stream(TimestampMixin, Base):
             "case_type IN ('NORMAL','END_OF_RUN','START_OF_RUN','TURN_DOWN')",
             name="ck_streams_case_type",
         ),
+        Index("ix_streams_estimated", "estimated"),
+        Index("ix_streams_liquid_fraction", "liquid_fraction"),
+        Index("ix_streams_simulation_status", "simulation_status"),
     )
     stream_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4

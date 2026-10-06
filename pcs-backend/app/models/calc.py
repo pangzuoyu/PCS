@@ -400,6 +400,10 @@ class FlareSystemResult(TaggedRecordMixin, RecordMixin, Base):
     input_json: Mapped[dict | None] = mapped_column(JSONB, comment="入参（业务子结构）")
     output_json: Mapped[dict | None] = mapped_column(JSONB, comment="出参（业务子结构）")
 
+    __table_args__ = (
+        Index("ix_flare_system_results_created_at", "created_at"),
+    )
+
 
 class VesselResult(TaggedRecordMixin, Base):
     """容器（V-）设计/校核结果（vessel_results 表）。
@@ -870,6 +874,11 @@ class CvResult(TaggedRecordMixin, Base):
         ),
     )
 
+    __table_args__ = (
+        Index("ix_cv_results_record_hash", "record_hash"),
+        Index("ix_cv_results_standard_profile_code", "standard_profile_code"),
+    )
+
 
 class RestrictionResult(TaggedRecordMixin, Base):
     """限流孔板计算结果（restriction_results 表，SPEC §3.2.2.6 + DICT V3.3）。
@@ -941,6 +950,10 @@ class RestrictionResult(TaggedRecordMixin, Base):
         comment="设计阶段 BASIC/DETAIL（OPEN-009）",
     )
 
+    __table_args__ = (
+        Index("ix_restriction_results_record_hash", "record_hash"),
+    )
+
 
 class CoolingTowerResult(TaggedRecordMixin, RecordMixin, Base):
     """COOL_TOWER 冷却塔计算结果（cooling_tower_results 表，P6-2 Task 18 重构）。
@@ -982,6 +995,10 @@ class CoolingTowerResult(TaggedRecordMixin, RecordMixin, Base):
     )
     input_json: Mapped[dict | None] = mapped_column(JSONB, comment="入参（业务子结构）")
     output_json: Mapped[dict | None] = mapped_column(JSONB, comment="出参（业务子结构）")
+
+    __table_args__ = (
+        Index("ix_cooling_tower_results_created_at", "created_at"),
+    )
 
 
 class PsychroResult(TaggedRecordMixin, RecordMixin, Base):
@@ -1042,6 +1059,10 @@ class PsychroResult(TaggedRecordMixin, RecordMixin, Base):
     # JSONB
     input_json: Mapped[dict | None] = mapped_column(JSONB, comment="入参（业务子结构）")
     output_json: Mapped[dict | None] = mapped_column(JSONB, comment="出参（业务子结构）")
+
+    __table_args__ = (
+        Index("ix_psychro_results_created_at", "created_at"),
+    )
 
 
 class OpenChannelResult(TaggedRecordMixin, Base):

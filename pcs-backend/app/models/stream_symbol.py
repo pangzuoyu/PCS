@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import uuid
 
-from sqlalchemy import JSON, Boolean, ForeignKey, String, UniqueConstraint, Uuid
+from sqlalchemy import JSON, Boolean, ForeignKey, Index, String, UniqueConstraint, Uuid
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base
@@ -18,6 +18,8 @@ class StreamSymbol(TimestampMixin, Base):
     """
 
     __tablename__ = "stream_symbols"
+    # 迁移建的索引，ORM 漏声明（alembic check 报 remove_index）
+    __table_args__ = (Index("ix_stream_symbols_status", "status"),)
     symbol_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     asset_id: Mapped[uuid.UUID | None] = mapped_column(
         Uuid, ForeignKey("config_assets.asset_id"), nullable=True,

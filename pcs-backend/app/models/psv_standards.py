@@ -194,6 +194,7 @@ class ProjectCalculationStandardProfile(Base):
             postgresql_where=text("migrated_default = TRUE"),
         ),
         # EXCLUDE USING gist：同一 (project_id, discipline) 至多一个 is_default=TRUE
-        # 完整 SQL 字符串由 alembic migration 创建（Dialect 限制，ORM 不直接支持 EXCLUDE）
-        {"comment": "EXCLUDE USING gist constraint project_standard_default_unique alembic 创建"},
+        # 完整 SQL 字符串由 alembic migration 创建（Dialect 限制，ORM 不直接支持 EXCLUDE）。
+        # 此处不放 {"comment": ...} 表级注释 —— DB 里没有该注释（obj_description 为 NULL），
+        # 写了会让 alembic check 报 add_table_comment。说明保留在上面的 # 注释里即可。
     )

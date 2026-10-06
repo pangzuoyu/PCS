@@ -14,6 +14,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     LargeBinary,
     Numeric,
@@ -37,6 +38,9 @@ class ConfigAsset(TimestampMixin, Base):
     """
 
     __tablename__ = "config_assets"
+    __table_args__ = (
+        Index("ix_config_assets_asset_subtype", "asset_subtype"),
+    )
     asset_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
     )
@@ -267,7 +271,7 @@ class ProjectPipeClass(TimestampMixin, Base):
         Uuid, primary_key=True, default=uuid.uuid4,
     )
     project_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, ForeignKey("projects.project_id"), index=True,
+        Uuid, ForeignKey("projects.project_id"),
     )
     source_class_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
     class_name: Mapped[str] = mapped_column(String(100))
@@ -359,6 +363,9 @@ class PipeClassImportPreview(TimestampMixin, Base):
     """
 
     __tablename__ = "pipe_class_import_previews"
+    __table_args__ = (
+        Index("ix_pc_import_previews_expires_at", "expires_at"),
+    )
     import_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4,
     )

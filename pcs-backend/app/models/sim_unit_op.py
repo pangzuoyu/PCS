@@ -32,6 +32,7 @@ from sqlalchemy import (
     Index,
     Integer,
     String,
+    UniqueConstraint,
     Uuid,
     func,
 )
@@ -78,12 +79,13 @@ class SimUnitOpResult(Base):
     __table_args__ = (
         Index("ix_sim_unit_op_results_import_id", "import_id"),
         Index("ix_sim_unit_op_results_unit_type", "unit_type"),
-        # (import_id, unit_uid) 唯一 → 1 个单元只 1 行（PRO/II .out 内）
-        Index(
-            "uq_sim_unit_op_results_import_uid",
+        # (import_id, unit_uid) 唯一 → 1 个单元只 1 行（PRO/II .out 内）。
+        # DB 里它是 UNIQUE **约束**（pg_constraint 可见），不是裸唯一索引；
+        # 写 Index(unique=True) 会被 alembic 判成 add_index。类型必须对齐。
+        UniqueConstraint(
             "import_id",
             "unit_uid",
-            unique=True,
+            name="uq_sim_unit_op_results_import_uid",
         ),
     )
 

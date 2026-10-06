@@ -12,6 +12,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    Index,
     Integer,
     String,
     Text,
@@ -109,6 +110,17 @@ class AuditLog(Base):
     """认证/安全审计，与 data_lineage 分工（后者关注业务记录变更）。"""
 
     __tablename__ = "audit_logs"
+    # GIN + jsonb_path_ops: 迁移 p7_s1_002 建了它但 ORM 漏声明, 导致
+    # `alembic check` 报 remove_index。参数与迁移逐字对齐 —— 改任一侧都会
+    # 让另一侧漂移。jsonb_path_ops 只支持 @> containment, 体积 ~30% 更小。
+    __table_args__ = (
+        Index(
+            "ix_audit_logs_detail_json_gin",
+            "detail_json",
+            postgresql_using="gin",
+            postgresql_ops={"detail_json": "jsonb_path_ops"},
+        ),
+    )
     audit_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
     )

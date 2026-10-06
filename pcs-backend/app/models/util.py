@@ -69,16 +69,17 @@ class UtilResults(TimestampMixin, Base):
         # F-P1-001 fix: 加 (project_id, workspace_id) 复合索引 — 跨 workspace
         # 过滤查询 (project_id, workspace_id) 走复合索引避免回表
         Index("ix_util_results_project_workspace", "project_id", "workspace_id"),
+        Index("ix_util_results_workspace", "workspace_id"),
     )
 
     util_result_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4
     )
     project_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("projects.project_id"), index=True
+        ForeignKey("projects.project_id"),
     )
     workspace_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("workspaces.workspace_id", ondelete="RESTRICT"), index=True
+        ForeignKey("workspaces.workspace_id", ondelete="RESTRICT"),
     )
 
     # 业务日期（折标煤按年查询需要）
@@ -256,6 +257,7 @@ class UtilityFuelGas(Base):
         Index("ix_utility_fuel_gas_project", "project_id"),
         Index("ix_utility_fuel_gas_workspace", "workspace_id"),
         Index("ix_utility_fuel_gas_fuel_type", "fuel_type"),
+        Index("ix_utility_fuel_gas_gas_source", "gas_source"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -352,6 +354,8 @@ class UtilityHeatExchange(Base):
         Index("ix_utility_heat_exchange_project", "project_id"),
         Index("ix_utility_heat_exchange_workspace", "workspace_id"),
         Index("ix_utility_heat_exchange_temperature_class", "temperature_class"),
+        Index("ix_utility_heat_exchange_medium_type", "medium_type"),
+        Index("ix_utility_heat_exchange_pressure_level", "pressure_level"),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
