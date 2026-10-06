@@ -431,3 +431,25 @@ P4（FLASH / PIPE / PUMP / PIPE_NET 计算模块接入）
 - **关联测试**：P6-3 启动后改 G-07（`tests/services/flare/test_relief_aggregator.py::test_g07_end_to_end_real_pcs_test`）从 raw SQL 切回 ORM INSERT，验证修复有效
 - **Owner**：P6-3 启动后 subagent 接管
 
+## 迁移幂等：9 个既有 p7_open_*/p7_s1_* 迁移缺 guard（2026-10-06 登记）
+
+- **现状**：`scripts/check_migration_idempotency.py` 的 `checked_prefixes` 覆盖
+  `p7_s2_`/`p7_s3_`/`p7_s4_`/`p7_s5_`（0 violations）。全部 23 个 `p7_*.py` 迁移里
+  **9 个**落在白名单外且确有未加 guard 的 `drop_table`/`create_index`/`drop_index`：
+  - `p7_open_009_001_utility_power_items.py`（5 处）
+  - `p7_open_009_002_utility_fuel_gas.py`（7 处）
+  - `p7_open_009_003_utility_heat_exchange.py`（7 处）
+  - `p7_open_009_005_utility_energy_summary.py`（6 处）
+  - `p7_open_009_t0_config_energy_conversion_factors.py`（1 处 `drop_table`）
+  - `p7_open_010_r1_classification_fields.py`（6 处）
+  - `p7_open_010_user_projects_blocker3.py`（7 处）
+  - `p7_s1_002_audit_logs_jsonb_gin.py`（2 处）
+  - `p7_s1_005_util_results.py`（6 处）
+- **为什么不在本批修**：P7 Sprint 4 fix pass 的 #12 只覆盖本批 `p7_s4_*`（已修并纳入
+  检查）。这 9 个属既有债，且**不能在无审查的情况下批量加 guard** —— 加 `if_exists=True`
+  会改变 downgrade 在「表不存在」时的行为，需逐个确认语义。
+- **风险**：downgrade 往返在这些迁移上不幂等；CI 的幂等闸看不见它们（白名单外）。
+- **修法**：逐个补 `if_exists=True` / `if_not_exists=True`，补完一个从前缀白名单移一个，
+  最后把白名单改成「全部 `p7_*`」。**顺序反了会让钩子立刻在无关文件上失败**（这正是
+  #12 报告里担心的情形，实测确认成立）。
+- **Owner**：待认领（不在 P7 Sprint 4 范围）

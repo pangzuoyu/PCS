@@ -32,6 +32,29 @@
   设备级坏值（如 132-P-105A/B/C/D 电机与轴功相差 111.7 倍）进 `PUMP_DESIGN_EXCLUDED`
   显式排除并记原因，不删数据也不参与回填。
 
+### pytest / async ORM 三个坑（2026-10-06, P7 Sprint 4 fix pass）
+
+- **`monkeypatch.setattr` 挂到类上的函数会变成绑定方法**。给 `CIAEngine._mark_stale`
+  替换成 `(record, reason)` 两参函数 → 实际调用传入 `(self, record, reason)` 三参 →
+  `TypeError`。若被测代码正好有 `except Exception: continue`，异常被吞掉，症状是
+  **「替换的方法根本没被调用」**，极易误判为「fixture 造不出目标状态」。
+  写替换函数时签名必须带 `self`；断言里加一句「没被调用 → 测试没测到东西」当护栏。
+- **savepoint 回滚后 ORM 对象被 expire，async 引擎下属性访问触发 `MissingGreenlet`**。
+  `pipe.sign_status` 在回滚后会走同步懒加载，而 `await_only` 需要 greenlet 上下文。
+  主键必须在回滚**之前**取出，之后用 `await session.execute(select(...))` 重取。
+- **测试数据未 commit 时，额外的 `session.rollback()` 会把 fixture 一并回滚** →
+  随后 `refresh` / 重查得到 `NoResultFound`。这不是 API 用法问题，是测试隔离边界的
+  隐性假设：想在「落库后」断言，就别用 rollback 当探针，直接在同一 session 里 flush
+  后读，或先 commit 再验。
+
+### 不给「事件顺序」加 CI 守卫（2026-10-06, 用户裁决）
+
+- 事件总线的 **claim 与派发顺序**无自动化守卫，靠测试可失败性人工验证（把 savepoint
+  包裹撤掉跑一遍，确认用例会红）+ `events.py::emit_event` 的注释说明理由。**不加**
+  静态/CI 守卫 —— 那类守卫容易变成「看起来在保护顺序、实际靠字符串匹配」的形式，
+  反而**鼓励把顺序问题掩盖成测试问题**（见 `test_cia_event_decoupling.py` 的 AST 守卫
+  教训：grep `self.fsm.transition(` 那个守卫从写下起就恒为真）。
+
 ### Alias/Registry
 
 - spec §8.3 「≥50 别名」验收必须用 `group_type` 字段（ALIAS/ALIAS_WITH_FACTOR/ENUM/KEYWORD/FIELD_NAME）显式区分，≥50 只统计前两者。

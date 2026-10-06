@@ -2479,6 +2479,28 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-10-06T11:50:00+08:00"
+    },
+    {
+      "id": "bug-140",
+      "timestamp": "2026-10-06T14:20:00+08:00",
+      "error_message": "ImportError: cannot import name 'SessionLocal' from 'app.db.session' —— p7_s4_003_seed_pump_design.py 从未被真正执行过",
+      "file": "pcs-backend/scripts/p7_s4_003_seed_pump_design.py",
+      "root_cause": "脚本 import 了 app.db.session 里不存在的 SessionLocal（真名 get_async_session_factory）。模块级 import → 连 --help 都会 ImportError → 该脚本自 cae5bce 写下起从未运行过一次。\n\n**这是一个独立 bug 类别：从未被执行过的代码。** 本次暴露的路径值得单列 —— ce-code-review 全分支审查把该脚本列为 #32「回填无部署后验证 SQL」（P2/75），但真正的缺陷是脚本根本跑不起来，严重一个量级。更刺眼的是它恰好是 #32 修复的前置：要给它加部署后验证 SQL，而它自己 import 就炸。\n\n审查、审查报告、审查报告的读者，没有任何一方执行过这个脚本。静态审查抓不到它 —— AST 能看见 import，看不见名字解析失败。",
+      "fix": "SessionLocal -> get_async_session_factory()()，模块 docstring 里的示例查询同步改。验证：`uv run python scripts/p7_s4_003_seed_pump_design.py --help` 现在正常输出 usage（--apply / --overwrite 两个新开关可见）。",
+      "fix_commit": "3fe54b7",
+      "tags": [
+        "p7-s4",
+        "从未执行过的代码",
+        "脚本",
+        "ImportError",
+        "ce-code-review-#32",
+        "审查盲区"
+      ],
+      "related_bugs": [
+        "bug-139"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-06T14:20:00+08:00"
     }
   ]
 }
