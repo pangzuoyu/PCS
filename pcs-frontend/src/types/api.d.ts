@@ -46,14 +46,19 @@ export interface paths {
          * @description POST /login：LDAP 登录换取 access/refresh token。
          *
          *     步骤：
-         *     1. authenticate(username, password) 走 LDAP bind（service 层封装）
+         *     1. 按 IP 限流（10 次/分钟）—— 防暴力破解
+         *     2. authenticate(username, password) 走 LDAP bind（service 层封装）
          *        - LDAP 失败（LdapAuthError）→ INVALID_CREDENTIALS 401
-         *     2. resolve_role(user.groups) 由 LDAP 组映射到内部角色
+         *     3. resolve_role(user.groups) 由 LDAP 组映射到内部角色
          *        （DESIGNER / PROCESS_CONTROLLER / REVIEWER / APPROVER / SYSTEM_ADMIN）
-         *     3. create_access_token / create_refresh_token 签发 JWT 对（HS256）
-         *     4. 不写 Audit（login 是公开端点，无 user_id 上下文）
+         *     4. create_access_token / create_refresh_token 签发 JWT 对（HS256）
+         *     5. 成功/失败**都**写 audit_logs（LOGIN_SUCCESS / LOGIN_FAILED + ip）
          *
          *     返回 TokenResponse：{access_token, refresh_token, role, username}。
+         *
+         *     ⚠️ 与旧版差异：端点由同步改异步并依赖 DB —— 审计落库需要 session。
+         *     代价是 DB 不可用时登录一并失败（fail-closed on audit）。
+         *     对 PCS 这类几乎所有端点都依赖 DB 的系统是可接受的。
          */
         post: operations["login_api_v1_auth_login_post"];
         delete?: never;
@@ -93,7 +98,7 @@ export interface paths {
          * @description 刷新 token：旧 refresh 一次性使用，签发新 access + 新 refresh。
          *
          *     安全约束：
-         *     1. JWT 解码失败 → INVALID_REFRESH（401）
+         *     1. JWT 解码失败按成因分流 → 过期 EXPIRED_REFRESH / 无效 INVALID_REFRESH（均 401）
          *     2. type != 'refresh' → WRONG_TOKEN_TYPE（401）
          *     3. 缺 role claim（P0-2 防回归）→ INVALID_REFRESH（401）
          *     4. JTI 已被吊销（重放/截获）→ INVALID_REFRESH（401，H-P0-2 防重放）

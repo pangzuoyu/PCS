@@ -45,6 +45,15 @@ class EquipLibSettleRequest(BaseModel):
     commissioning_date: str = Field(..., description="投用日期 YYYY-MM-DD")
     source_equipment_id: str | None = Field(None, description="源设备 ID（项目内）")
     source_project_id: str | None = Field(None, description="源项目 ID")
+    type_code: str | None = Field(
+        None,
+        max_length=50,
+        description=(
+            "设备代号（如 PUMP-CENTRIFUGAL-01）。**相似度匹配的主键**。"
+            "给了 source_equipment_id 时以源设备 equipment_list.type_code 为准，"
+            "本字段仅在无源（脱离项目直接沉淀标准件）时使用"
+        ),
+    )
 
     @field_validator("key_dimensions")
     @classmethod

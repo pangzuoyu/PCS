@@ -33,7 +33,7 @@
           "auth"
         ],
         "summary": "Login",
-        "description": "POST /login：LDAP 登录换取 access/refresh token。\n\n步骤：\n1. authenticate(username, password) 走 LDAP bind（service 层封装）\n   - LDAP 失败（LdapAuthError）→ INVALID_CREDENTIALS 401\n2. resolve_role(user.groups) 由 LDAP 组映射到内部角色\n   （DESIGNER / PROCESS_CONTROLLER / REVIEWER / APPROVER / SYSTEM_ADMIN）\n3. create_access_token / create_refresh_token 签发 JWT 对（HS256）\n4. 不写 Audit（login 是公开端点，无 user_id 上下文）\n\n返回 TokenResponse：{access_token, refresh_token, role, username}。",
+        "description": "POST /login：LDAP 登录换取 access/refresh token。\n\n步骤：\n1. 按 IP 限流（10 次/分钟）—— 防暴力破解\n2. authenticate(username, password) 走 LDAP bind（service 层封装）\n   - LDAP 失败（LdapAuthError）→ INVALID_CREDENTIALS 401\n3. resolve_role(user.groups) 由 LDAP 组映射到内部角色\n   （DESIGNER / PROCESS_CONTROLLER / REVIEWER / APPROVER / SYSTEM_ADMIN）\n4. create_access_token / create_refresh_token 签发 JWT 对（HS256）\n5. 成功/失败**都**写 audit_logs（LOGIN_SUCCESS / LOGIN_FAILED + ip）\n\n返回 TokenResponse：{access_token, refresh_token, role, username}。\n\n⚠️ 与旧版差异：端点由同步改异步并依赖 DB —— 审计落库需要 session。\n代价是 DB 不可用时登录一并失败（fail-closed on audit）。\n对 PCS 这类几乎所有端点都依赖 DB 的系统是可接受的。",
         "operationId": "login_api_v1_auth_login_post",
         "requestBody": {
           "content": {
@@ -124,7 +124,7 @@
           "auth"
         ],
         "summary": "Refresh",
-        "description": "刷新 token：旧 refresh 一次性使用，签发新 access + 新 refresh。\n\n安全约束：\n1. JWT 解码失败 → INVALID_REFRESH（401）\n2. type != 'refresh' → WRONG_TOKEN_TYPE（401）\n3. 缺 role claim（P0-2 防回归）→ INVALID_REFRESH（401）\n4. JTI 已被吊销（重放/截获）→ INVALID_REFRESH（401，H-P0-2 防重放）\n5. 旧 JTI 一次性使用：成功签发后立即 revoke 旧 JTI，缩小泄露窗口",
+        "description": "刷新 token：旧 refresh 一次性使用，签发新 access + 新 refresh。\n\n安全约束：\n1. JWT 解码失败按成因分流 → 过期 EXPIRED_REFRESH / 无效 INVALID_REFRESH（均 401）\n2. type != 'refresh' → WRONG_TOKEN_TYPE（401）\n3. 缺 role claim（P0-2 防回归）→ INVALID_REFRESH（401）\n4. JTI 已被吊销（重放/截获）→ INVALID_REFRESH（401，H-P0-2 防重放）\n5. 旧 JTI 一次性使用：成功签发后立即 revoke 旧 JTI，缩小泄露窗口",
         "operationId": "refresh_api_v1_auth_refresh_post",
         "requestBody": {
           "content": {

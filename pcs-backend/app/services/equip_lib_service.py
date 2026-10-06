@@ -52,6 +52,13 @@ class EquipLibService:
         standard_info = payload.model_dump(exclude={"equipment_name", "equipment_type"})
         standard_info["source_equipment_id"] = src_equip
         standard_info["source_project_id"] = src_proj
+        # 设备代号：源设备优先（源是权威，避免调用方与源各报一个导致型号错配），
+        # 无源时才用入参。缺它相似度就无从匹配 —— 设备库会退化成无名台账。
+        resolved_type_code = await cls._resolve_type_code(
+            session, src_equip, payload.type_code
+        )
+        if resolved_type_code:
+            standard_info["type_code"] = resolved_type_code
         asset = ConfigAsset(
             category="CATEGORY_6",
             name=f"{payload.equipment_name} [{payload.original_tag}]"[:200],  # name 列 String(200)
@@ -85,6 +92,32 @@ class EquipLibService:
         )
         await session.commit()
         return asset
+
+    @classmethod
+    async def _resolve_type_code(
+        cls,
+        session: AsyncSession,
+        source_equipment_id: str | None,
+        fallback: str | None,
+    ) -> str | None:
+        """解析设备代号：源设备的 type_code 优先，无源时才用入参。
+
+        源是权威 —— 沉淀的是那台设备，型号应与 equipment_list 一致；
+        允许调用方与源各报一个会让库里的型号错配，相似度也就无从谈起。
+        源不存在（可能已被删）或查不到 type_code 时退回入参。
+        """
+        if source_equipment_id:
+            try:
+                eq_uuid = UUID(str(source_equipment_id))
+            except ValueError:
+                eq_uuid = None
+            if eq_uuid is not None:
+                from app.models.equipment import EquipmentList
+
+                found = await session.get(EquipmentList, eq_uuid)
+                if found is not None and found.type_code:
+                    return found.type_code
+        return fallback
 
     @classmethod
     async def search(

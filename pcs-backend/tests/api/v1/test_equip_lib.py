@@ -1,3 +1,5 @@
+import uuid
+
 """equip-lib 沉淀 + 检索测试（Task 1.9.5 / P2-EQL-001，CATEGORY_6 复用审批链）。"""
 
 _SETTLE = {
@@ -88,3 +90,103 @@ async def test_full_settle_lifecycle_publishes(client, sample_pc_token, db):
         "/api/v1/equip-lib/search", params={"keyword": "原料进料泵"}, headers=h,
     )
     assert [a["asset_id"] for a in r.json()] == [asset_id]  # 沉淀记录与源项目解耦（仅存快照）
+
+
+# ---------------------------------------------------------------------------
+# 设备代号采集（地基 A）
+#
+# 相似度匹配以 type_code 为主键，但 settle 此前**根本不采集**它 ——
+# 沉淀出的设备库条目没有可比对的设备代号，相似度无从谈起。
+# type_code 优先从源设备（equipment_list）取，源是权威；无源时才用入参。
+# ---------------------------------------------------------------------------
+
+
+async def _make_source_equipment(db, type_code: str) -> str:
+    """造一条 equipment_list，返回其 equipment_id 字符串。"""
+    import uuid
+
+    from app.models.equipment import EquipmentList
+
+    eq = EquipmentList(
+        project_id=uuid.uuid4(),
+        workspace_id=uuid.uuid4(),
+        tag_number=f"P-{uuid.uuid4().hex[:6]}",
+        equipment_name="源泵",
+        type_code=type_code,
+    )
+    db.add(eq)
+    await db.commit()
+    await db.refresh(eq)
+    return str(eq.equipment_id)
+
+
+async def test_settle_collects_type_code_from_source_equipment(
+    client, sample_pc_token, db
+):
+    """有源设备时，type_code 取自 equipment_list（源是权威）。"""
+    eq_id = await _make_source_equipment(db, "PUMP-CENTRIFUGAL-01")
+    body = {**_SETTLE, "source_equipment_id": eq_id}
+    r = await client.post(
+        "/api/v1/equip-lib/settle", json=body, headers=await _h(sample_pc_token)
+    )
+    assert r.status_code == 201, r.text
+    # content_json 经 ConfigVersion 快照落库；直接从响应取不到 content_json，
+    # 故回查 asset
+    from sqlalchemy import select
+
+    from app.models.config_domain import ConfigAsset
+
+    asset = (
+        await db.execute(
+            select(ConfigAsset).where(ConfigAsset.asset_id == uuid.UUID(r.json()["asset_id"]))
+        )
+    ).scalar_one()
+    info = asset.content_json["standard_info"]
+    assert info.get("type_code") == "PUMP-CENTRIFUGAL-01", asset.content_json
+
+
+async def test_settle_uses_payload_type_code_when_no_source(
+    client, sample_pc_token, db
+):
+    """无源设备时用入参 type_code（允许脱离项目直接沉淀标准件）。"""
+    body = {
+        k: v for k, v in _SETTLE.items()
+        if k not in ("source_equipment_id", "source_project_id")
+    }
+    body["type_code"] = "PUMP-INLINE-02"
+    r = await client.post(
+        "/api/v1/equip-lib/settle", json=body, headers=await _h(sample_pc_token)
+    )
+    assert r.status_code == 201, r.text
+    from sqlalchemy import select
+
+    from app.models.config_domain import ConfigAsset
+
+    asset = (
+        await db.execute(
+            select(ConfigAsset).where(ConfigAsset.asset_id == uuid.UUID(r.json()["asset_id"]))
+        )
+    ).scalar_one()
+    assert asset.content_json["standard_info"].get("type_code") == "PUMP-INLINE-02"
+
+
+async def test_settle_source_type_code_wins_over_payload(
+    client, sample_pc_token, db
+):
+    """源设备与入参都给了 type_code → 源的赢（避免两边打架后型号错配）。"""
+    eq_id = await _make_source_equipment(db, "PUMP-FROM-SOURCE")
+    body = {**_SETTLE, "source_equipment_id": eq_id, "type_code": "PUMP-FROM-CLIENT"}
+    r = await client.post(
+        "/api/v1/equip-lib/settle", json=body, headers=await _h(sample_pc_token)
+    )
+    assert r.status_code == 201, r.text
+    from sqlalchemy import select
+
+    from app.models.config_domain import ConfigAsset
+
+    asset = (
+        await db.execute(
+            select(ConfigAsset).where(ConfigAsset.asset_id == uuid.UUID(r.json()["asset_id"]))
+        )
+    ).scalar_one()
+    assert asset.content_json["standard_info"]["type_code"] == "PUMP-FROM-SOURCE"
