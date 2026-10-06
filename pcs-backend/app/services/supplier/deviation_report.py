@@ -200,6 +200,22 @@ def _cell(container, row) -> dict:
     return asdict(row)
 
 
+# 公式注入的中和字符集（OWASP CSV/XLS Injection）。openpyxl 不转义前导 `=`，
+# 设计人可控的字符串（参数名/单位/位号）会原样落成活公式单元格。
+_FORMULA_LEADERS = ("=", "+", "-", "@", "\t", "\r")
+
+
+def _safe_cell(value: Any) -> Any:
+    """写单元格前中和前导公式字符.
+
+    **加前缀而非拒绝** —— 参数名是中文工程术语（「电机额定功率」「轴功率」），
+    收紧校验会无收益地打断既有调用方。非字符串（float/None）原样返回。
+    """
+    if isinstance(value, str) and value.startswith(_FORMULA_LEADERS):
+        return "'" + value
+    return value
+
+
 def export_excel(report: DeviationReport) -> bytes:
     """导出 xlsx（openpyxl 已在依赖内）。结论列按 SPEC 颜色标识。"""
     from openpyxl import Workbook
@@ -213,16 +229,16 @@ def export_excel(report: DeviationReport) -> bytes:
     for row in report.rows:
         ws.append(
             [
-                report.tag_number,
-                row.parameter,
+                _safe_cell(report.tag_number),
+                _safe_cell(row.parameter),
                 row.design_value,
                 row.actual_value,
-                row.unit,
+                _safe_cell(row.unit),
                 None if row.deviation_pct is None else round(row.deviation_pct, 4),
-                row.label,
-                row.color,
-                row.note,
-                row.spec_ref,
+                _safe_cell(row.label),
+                _safe_cell(row.color),
+                _safe_cell(row.note),
+                _safe_cell(row.spec_ref),
             ]
         )
         r = ws.max_row
@@ -251,7 +267,12 @@ def export_pdf(report: DeviationReport) -> bytes:
     from reportlab.pdfbase import pdfmetrics
     from reportlab.pdfbase.cidfonts import UnicodeCIDFont
     from reportlab.platypus import Paragraph, SimpleDocTemplate, Table, TableStyle
+    from xml.sax.saxutils import escape
 
+    # `Paragraph` 默认把实参当 mini-HTML markup 解析，参数名/单位里的
+    # `<img src="...">` 会让服务端去打开攻击者命名的路径（CWE-73 本地文件读取 /
+    # SSRF 原语）。所有实参一律 escape，让 markup 按字面渲染。
+    # 表头是静态列名，无需处理。
     pdfmetrics.registerFont(UnicodeCIDFont("STSong-Light"))
     _FONT = "STSong-Light"
 
@@ -270,25 +291,27 @@ def export_pdf(report: DeviationReport) -> bytes:
         buf, pagesize=landscape(A4), title=f"偏差报告 {report.tag_number}"
     )
     story = [
-        Paragraph(f"偏差报告 — {report.tag_number}", title_style),
-        Paragraph(f"录入状态: {report.actual_data_status}", cell_style),
+        Paragraph(escape(f"偏差报告 — {report.tag_number}"), title_style),
+        Paragraph(escape(f"录入状态: {report.actual_data_status}"), cell_style),
     ]
     if report.blocking_reason:
-        story.append(Paragraph(f"确认门禁: {report.blocking_reason}", cell_style))
+        story.append(
+            Paragraph(escape(f"确认门禁: {report.blocking_reason}"), cell_style)
+        )
 
     data = [[Paragraph(h, head_style) for h in _HEADERS[:9]]]
     for row in report.rows:
         data.append(
             [
-                Paragraph(report.tag_number, cell_style),
-                Paragraph(row.parameter, cell_style),
-                Paragraph(str(row.design_value), cell_style),
-                Paragraph(str(row.actual_value), cell_style),
-                Paragraph(row.unit, cell_style),
+                Paragraph(escape(report.tag_number), cell_style),
+                Paragraph(escape(row.parameter), cell_style),
+                Paragraph(escape(str(row.design_value)), cell_style),
+                Paragraph(escape(str(row.actual_value)), cell_style),
+                Paragraph(escape(row.unit), cell_style),
                 Paragraph("—" if row.deviation_pct is None else f"{row.deviation_pct:.3f}%", cell_style),
-                Paragraph(row.label, cell_style),
-                Paragraph(row.color, cell_style),
-                Paragraph(row.note, cell_style),
+                Paragraph(escape(row.label), cell_style),
+                Paragraph(escape(row.color), cell_style),
+                Paragraph(escape(row.note), cell_style),
             ]
         )
 
