@@ -56,5 +56,5 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删 event_idempotency 表 (if_exists 幂等)."""
-    op.drop_table(_TABLE)
+    """删 event_idempotency 表（if_exists 幂等）."""
+    op.drop_table(_TABLE, if_exists=True)

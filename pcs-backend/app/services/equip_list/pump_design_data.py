@@ -107,6 +107,9 @@ def design_params_for_tag(tag_number: str) -> dict[str, dict[str, float | str]]:
 async def apply_design_parameters(
     session: AsyncSession,
     project_id: uuid.UUID,
+    *,
+    overwrite: bool = False,
+    dry_run: bool = False,
 ) -> int:
     """把设计值写进该 project 下位号匹配的 `EquipmentList`.
 
@@ -118,10 +121,44 @@ async def apply_design_parameters(
 
     位号不在设计表内的设备一律跳过, **不写空对象** —— 那会覆盖已有值。
 
+    覆盖策略（审查 #14，用户裁决）:
+      - `overwrite=False`（默认）: 已有非空 `design_parameters_json` 的设备
+        **跳过不写**。设计值是设计人签过的东西，静默覆盖等于绕过签署。
+      - `dry_run=False`（默认）: 正常写入并 commit。脚本层默认 dry-run
+        （`p7_s4_003_seed_pump_design.py` 不加 `--apply` 只报告不落库），
+        首次真跑须在脚本侧显式加 `--apply`。
+
     Returns:
-        实际写入的设备数。
+        实际写入的设备数（dry_run 时为「将会写入」的台数）。
     """
-    records = (
+    records = await matching_pump_records(session, project_id)
+
+    written = skipped = 0
+    for record in records:
+        params = design_params_for_tag(record.tag_number)
+        if not params:
+            continue
+        if record.design_parameters_json and not overwrite:
+            # 已有非空设计值 = 设计人签过的东西。静默覆盖等于绕过签署（审查 #14）。
+            skipped += 1
+            continue
+        record.design_parameters_json = params
+        written += 1
+
+    if written and not dry_run:
+        await session.commit()
+    return written
+
+
+async def matching_pump_records(session, project_id) -> list:
+    """本 project 下位号命中 `PUMP_DESIGN` 的设备（审查 #27）.
+
+    `apply_design_parameters` 与种子脚本的「before」快照此前各自写了一份逐字相同
+    的 WHERE 子句。脚本并排打印的「位号匹配 N 台 / 写入设计值 M 台」读起来像 M 由
+    N 派生 —— 只在两份 WHERE 一致时成立。任一方加了过滤条件就会静默漂移，而脚本
+    输出是这次回填唯一的可见性来源。故收敛到这一个函数，两处都调它。
+    """
+    return (
         await session.execute(
             select(EquipmentList).where(
                 EquipmentList.project_id == project_id,
@@ -129,18 +166,6 @@ async def apply_design_parameters(
             )
         )
     ).scalars().all()
-
-    written = 0
-    for record in records:
-        params = design_params_for_tag(record.tag_number)
-        if not params:
-            continue
-        record.design_parameters_json = params
-        written += 1
-
-    if written:
-        await session.commit()
-    return written
 
 
 __all__ = [

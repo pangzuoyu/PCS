@@ -131,12 +131,41 @@ async def test_apply_writes_design_parameters_json(db_session):
 
 
 async def test_apply_is_idempotent(db_session):
-    """重复跑不产生副作用 —— 脚本会被反复执行."""
+    """重复跑不产生副作用 —— 脚本会被反复执行.
+
+    审查 #14 之后「幂等」的含义细化为：**值不变，且第二次不再宣称要写**。
+    已有非空设计值默认跳过（`overwrite=False`），故第二次返回 0 而不是 1 ——
+    这正是「不绕过设计签署」的体现。数据仍是幂等的：值一字未改。
+    """
     from app.services.equip_list.pump_design_data import apply_design_parameters
 
-    await _make_equipment(db_session, "132-P-101A/B")
+    eq = await _make_equipment(db_session, "132-P-101A/B")
     assert await apply_design_parameters(db_session, PROJECT_ID) == 1
-    assert await apply_design_parameters(db_session, PROJECT_ID) == 1
+    first = dict(eq.design_parameters_json)
+
+    assert await apply_design_parameters(db_session, PROJECT_ID) == 0, (
+        "已有设计值的设备默认应被跳过, 而不是被无声覆盖"
+    )
+    assert eq.design_parameters_json == first, "重复执行不得改动已有设计值"
+
+    # 显式 overwrite 才允许覆盖, 覆盖后仍写入同一份数据
+    assert await apply_design_parameters(
+        db_session, PROJECT_ID, overwrite=True
+    ) == 1
+    assert eq.design_parameters_json == first
+
+
+async def test_apply_dry_run_does_not_commit(db_session):
+    """dry_run：内存态改了但**不落库** —— 脚本不加 `--apply` 时的默认行为。"""
+    from app.services.equip_list.pump_design_data import apply_design_parameters
+
+    eq = await _make_equipment(db_session, "132-P-101A/B")
+    assert await apply_design_parameters(db_session, PROJECT_ID, dry_run=True) == 1
+    assert eq.design_parameters_json is not None, "dry-run 仍应在内存态算出将写的值"
+
+    await db_session.rollback()
+    await db_session.refresh(eq)
+    assert eq.design_parameters_json is None, "dry-run 不得留下已落库的痕迹"
 
 
 async def test_apply_skips_unknown_tags(db_session):

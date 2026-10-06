@@ -56,15 +56,21 @@ def check_migration(path: Path) -> list[str]:
 
 def main() -> int:
     violations: list[str] = []
-    # P7 Sprint 2 + 3 (F-P3-002 fix 涵盖范围扩展 — 含 p7_s3_* 新批)
-    checked_prefixes = ("p7_s2_", "p7_s3_")
+    # P7 Sprint 2 + 3 + 4 (F-P3-002 fix 涵盖范围扩展 — 每批新迁移都要加进来)
+    #
+    # ⚠️ 白名单是「基线」概念, 不是「本批」概念: `p7_open_*` 与 `p7_s1_*` 共 9 个
+    # 文件仍有未加 guard 的 drop_table/create_index (既有债, 见 #12)。它们**不能**
+    # 纳入检查, 否则钩子会在与本次改动无关的文件上开始失败, 久而久之被整体关掉。
+    # 新增 sprint 批次时, 同步把前缀加进来; 加之前先跑一遍确认新批自身是干净的。
+    checked_prefixes = ("p7_s2_", "p7_s3_", "p7_s4_", "p7_s5_")
     for path in sorted(MIGRATIONS_DIR.glob("p7_*.py")):
         if not any(path.name.startswith(p) for p in checked_prefixes):
             continue
         violations.extend(check_migration(path))
 
     if not violations:
-        print(f"OK: 0 violations in p7_s2_/p7_s3_* migrations")
+        print(f"OK: 0 violations in {len(checked_prefixes)} checked prefixes: "
+              f"{'/'.join(checked_prefixes)}*")
         return 0
 
     print(f"FAIL: {len(violations)} violations:")
