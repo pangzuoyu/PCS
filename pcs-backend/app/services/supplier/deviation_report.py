@@ -229,6 +229,22 @@ def can_confirm(report: DeviationReport) -> bool:
 
     全部合格或仅警告 → 可确认。存在**不合格或不可判** → 拒绝。
     「不可判」也拦 —— 把判不了的当合格会让这道门禁形同虚设。
+
+    ⚠️ **F-P7-S4-01（登记，合并后立即修）**：`UNVERDICTABLE` 被一视同仁地阻断，
+    但它有两种来源，语义相反：
+
+    | 类型 | 例子 | 该阻断？ |
+    |------|------|---------|
+    | 缺值型 | #8 的「应检参数未录入实测值」占位行 | ✅ 该 —— 用户还没补 |
+    | 参照型 | `轴功率` 已录入，但它本就不判合格与否 | ❌ 不该 —— 用户已尽责 |
+
+    修法：`can_confirm` 排除 `rule.kind == "REFERENCE_ONLY"` 的 UNVERDICTABLE 行。
+    ⚠️ `MANUAL_CHECK`（`requires_manual_check=True`，如材质）的 UNVERDICTABLE
+    **是否也该排除，需一并裁决** —— 它同样不是「缺值」，但它代表「机器判不了、
+    需人工核对」，阻断与否是产品口径问题，不在本轮 fix pass 范围内。
+
+    实际触发率高：`PUMP_DESIGN` 含 `轴功率` 键，录入方很自然会填它，
+    一填就把整台泵的确认门禁堵死。
     """
     if not report.rows:
         return False

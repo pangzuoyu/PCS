@@ -32,6 +32,16 @@
   设备级坏值（如 132-P-105A/B/C/D 电机与轴功相差 111.7 倍）进 `PUMP_DESIGN_EXCLUDED`
   显式排除并记原因，不删数据也不参与回填。
 
+### 测试可能是缺陷的帮凶：命名与断言方向相反时（2026-10-06, #8 落地时发现）
+
+- **判据**：测试名暗示 fail-closed（`..._flags_undersized_motor`「检测电机欠配」），
+  断言实际却是 fail-open（`can_confirm(...) is True`）—— **命名与断言方向相反**。
+  这类测试在改行为前是**绿的**（它在保护错误行为），改行为后才红。看到大批测试在
+  「修 bug」后一起变红时，先怀疑它们编码的是缺陷，而不是代码坏了。
+- 本轮实例：`test_deviation_report_flags_undersized_motor` 等 6 处 fixture 只录一个
+  参数就期望可确认 —— 恰是 #8 关掉的覆盖面 fail-open。**它们不是被打破的旧测试，
+  是编码了缺陷的测试**；正确处置是改 fixture 让断言与正确行为一致，不是回退实现。
+
 ### pytest / async ORM 三个坑（2026-10-06, P7 Sprint 4 fix pass）
 
 - **`monkeypatch.setattr` 挂到类上的函数会变成绑定方法**。给 `CIAEngine._mark_stale`

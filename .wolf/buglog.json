@@ -2501,6 +2501,26 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-10-06T14:20:00+08:00"
+    },
+    {
+      "id": "bug-141",
+      "timestamp": "2026-10-06T15:10:00+08:00",
+      "error_message": "录入「轴功率」后整台泵无法确认 —— REFERENCE_ONLY 的 UNVERDICTABLE 阻断确认门禁",
+      "file": "pcs-backend/app/services/supplier/deviation_report.py",
+      "root_cause": "`can_confirm` 把所有 UNVERDICTABLE 一视同仁地阻断，但 UNVERDICTABLE 有两种语义相反的来源:\n  (1) 缺值型 —— #8 引入的「应检参数未录入实测值」占位行。该阻断: 用户还没补, 正是 fail-closed 的目的。\n  (2) 参照型 —— `轴功率` 录入后, 其 REFERENCE_ONLY 规则的 evaluate() 恒返回 UNVERDICTABLE(note「参照量, 本身不判合格与否」)。该阻断是错的: 用户已尽责录入了参照量, 却因为规则本身不产出判定而被拦。\n\n即: can_confirm 把「用户没做」和「做了但规则不判」压成同一状态。\n\n实际触发率高 —— PUMP_DESIGN 含「轴功率」键, 17 个蜡油加氢泵位号的设计值里都有, 录入方很自然会填它。",
+      "fix": "未修 —— 登记为 F-P7-S4-01, 合并后由 fix/p7-s4-refonly-canconfirm 首个修复。修法: can_confirm 排除 kind == REFERENCE_ONLY 的 UNVERDICTABLE 行。⚠️ MANUAL_CHECK(requires_manual_check=True, 如材质) 是否也该排除需一并裁决 —— 它同样不是「缺值」, 但代表「机器判不了、需人工核对」, 阻断与否是产品口径问题。已在 can_confirm docstring 落 tracked 注释。",
+      "fix_commit": "",
+      "tags": [
+        "p7-s4",
+        "F-P7-S4-01",
+        "确认门禁",
+        "fail-closed",
+        "语义混淆",
+        "ce-code-review-#8"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-06T15:10:00+08:00"
     }
   ]
 }
