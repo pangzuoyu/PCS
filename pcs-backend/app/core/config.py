@@ -112,3 +112,40 @@ def assert_secret_key_configured() -> None:
     """
     # get_settings() 已 fail-fast；此处仅做占位以保留调用契约
     return None
+
+
+def parse_cors_origins(raw: str) -> list[str]:
+    """把 `cors_allow_origins` 逗号分隔串解析成 origin 列表。
+
+    去空白、丢空项 —— env 里手写 `"a.com, b.com"` 或尾部带逗号都应容错。
+    """
+    return [origin.strip() for origin in raw.split(",") if origin.strip()]
+
+
+def validate_cors_for_production(settings: Settings) -> None:
+    """生产环境 CORS 配置自检（TODO-019）。
+
+    **必须在 lifespan startup 调用，不能等到 middleware 阶段** —— middleware
+    跑在每个请求上，那时才发现配错，故障现象是"所有接口 403"，极难自查。
+
+    两种生产环境下的致命配置：
+    - `*`（含 `*,https://x.com` 这种混合写法）—— 任意站点可读本系统响应。
+      且浏览器会直接拒绝 `allow_credentials=True` + `*` 的组合，
+      所以不存在「`*` + 不用凭证」这种安全折中。
+    - 空（未配 / env 漏注入）—— 分域部署下所有浏览器请求全被拒。
+
+    非生产环境放行：开发便利优先。
+    """
+    if not settings.is_production:
+        return
+    origins = parse_cors_origins(settings.cors_allow_origins)
+    if not origins:
+        raise RuntimeError(
+            "CORS_ALLOW_ORIGINS 必须在 production 设置为明确的域名列表"
+            "（逗号分隔）。空值会让分域部署下所有浏览器请求被拒。"
+        )
+    if "*" in origins:
+        raise RuntimeError(
+            "CORS_ALLOW_ORIGINS 在 production 不得为 `*` —— "
+            "任意站点都可读取本系统响应。请配明确域名（逗号分隔）。"
+        )

@@ -9,10 +9,16 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
 
 from app.api import api_router
 from app.api.v1.mock_auth import router as mock_auth_router
-from app.core.config import assert_secret_key_configured, get_settings
+from app.core.config import (
+    assert_secret_key_configured,
+    get_settings,
+    parse_cors_origins,
+    validate_cors_for_production,
+)
 from app.core.errors import install_exception_handlers
 from app.core.logging import _trace_id_var, setup_logging
 from app.db.session import (
@@ -38,6 +44,9 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     settings = get_settings()
     assert_secret_key_configured()
+    # TODO-019: CORS 配置自检必须在 startup 做（而非 middleware 阶段）——
+    # middleware 跑在每个请求上，配错时的症状是"所有接口 403"，极难自查。
+    validate_cors_for_production(settings)
     if settings.is_production:
         for route in app.routes:
             if getattr(route, "path", "").endswith("/mock-login"):
@@ -62,14 +71,30 @@ def create_app() -> FastAPI:
 
     装配顺序：
     1. `setup_logging()` 装载 TraceIdFilter + JsonFormatter
-    2. 注册 `add_trace_id` 中间件（每次请求生成 trace_id 写入 contextvar + state）
-    3. 注册全局异常处理器（`install_exception_handlers`）
-    4. 挂载 `api_router`（v1 路由）
-    5. 非生产环境追加 `mock_auth_router`（开发态 mock 登录）
+    2. 挂载 `CORSMiddleware`（读 `cors_allow_origins`）
+    3. 注册 `add_trace_id` 中间件（每次请求生成 trace_id 写入 contextvar + state）
+    4. 注册全局异常处理器（`install_exception_handlers`）
+    5. 挂载 `api_router`（v1 路由）
+    6. 非生产环境追加 `mock_auth_router`（开发态 mock 登录）
     """
     settings = get_settings()
     setup_logging()
     app = FastAPI(title="PCS Backend", version="0.5.1", lifespan=lifespan)
+
+    # TODO-004: CORSMiddleware 一直缺失 —— `cors_allow_origins` 配置项在，
+    # 但中间件从未挂载。dev 靠 Vite proxy 掩盖，前后端一但分域部署
+    # preflight 直接 403。
+    #
+    # allow_credentials=False：本系统是 Bearer token（Authorization 头）模式，
+    # 全栈无 cookie（已核 app/ 与 pcs-frontend/src 均无 set_cookie /
+    # withCredentials），故不需要也不应开 —— 且开了会与 `*` 组合冲突。
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=parse_cors_origins(settings.cors_allow_origins),
+        allow_credentials=False,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
 
     @app.middleware("http")
     async def add_trace_id(request: Request, call_next):

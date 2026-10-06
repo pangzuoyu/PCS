@@ -22,14 +22,18 @@
 
 ## 🔴 P0 — 真问题（部署阻塞 / 安全）
 
-### TODO-004 + TODO-019: CORS middleware 从未挂载
+### ✅ TODO-004 + TODO-019: CORS middleware 已挂载（2026-10-06）
 
-- **What**: `app/main.py` lifespan startup 挂 `CORSMiddleware`，读 `Settings.cors_allow_origins`；
-  prod 启动期校验 `*` 或未设置则 raise。
-- **Why**: **前后端一分域部署，preflight 直接 403。** dev 靠 Vite proxy 掩盖，至今没暴露。
-- **证据**: `grep -rn add_middleware app/` **全仓 0 命中**；`app/core/config.py:39` 有 `cors_allow_origins` 配置项但无人消费。
-  `tests/test_dual_engine.py:29 test_cors_allow_origins_parsed` 只测配置解析，不测 middleware —— 又一个「测了但没测到东西」。
-- **复杂度**: 低（~20 行）。**Owner**: 待认领
+- **原症状**: `grep -rn add_middleware app/` 全仓 0 命中 —— `cors_allow_origins` 配置项在，
+  中间件从未挂载。**前后端一分域部署 preflight 直接 403**，dev 靠 Vite proxy 掩盖。
+  旧的 `test_cors_allow_origins_parsed` 只测配置解析，不测中间件 —— 又一个「测了但没测到东西」。
+- **落地**: `create_app()` 挂 `CORSMiddleware`（`allow_credentials=False`，全栈 Bearer token
+  无 cookie，开凭证还会与 `*` 冲突）；lifespan startup 调 `validate_cors_for_production()`。
+- **新函数**（`app/core/config.py`）: `parse_cors_origins()` / `validate_cors_for_production()`。
+  prod 下 `*` 或空串均 fail-fast —— 症状会是「所有接口 403」，极难自查，必须启动期炸。
+- **验证**: 8 条新测试（含真实 preflight 往返）。全量 3932 passed / 0 failed（+8）。
+- ⚠️ **未覆盖**: lifespan startup 真正触发 fail-fast 的端到端路径（需跑 lifespan →
+  依赖真实 DB）。函数本身有测试，调用点是一行，读代码可确认。
 
 ### TODO-006: 认证端点无限流、无登录审计
 
