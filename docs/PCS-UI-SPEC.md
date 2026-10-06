@@ -1594,7 +1594,14 @@ PageHeader: [状态徽章] [提交批准] [弃用]
 设计值	
 实际值	
 偏差	
-结论	合格/警告/不合格
+结论	合格/警告/不合格/**不可判**
+
+> 第 4 档「不可判」（`UNVERDICTABLE`，灰）为 P7 Sprint 4 追加，见
+> `docs/PCS-NOTE-SPEC-3.2.4(3)-结论档数修订-2026-10-06.md`。
+> 触发场景：材质/厂家型号（序数比较，机器判不了）、转速/叶轮直径（无数值阈值带）、
+> 设计值缺失（`PUMP_DESIGN` 只覆盖 17 个蜡油加氢泵位号）、参数无判定规则。
+> **不可判不可确认**（fail-closed）—— 与「不合格」一并阻断「已确认」按钮，
+> 且需在表内显示为需人工核对，而非静默当合格。
 偏差报告：导出 PDF/Excel。
 
 不合格：红色，禁止标记“已确认”。
@@ -1973,6 +1980,7 @@ V1.1	2026-09-17	P5-1-4 VESSEL / P5-2-4 SEP_EQUIP / P5-3-6 PSV 设备计算 Page 
 V1.2	2026-09-17	P5-3 闭环后追加 §7.11.5 PSV 详细字段章节（解决 TODO-2026-09-17-01）：输入字段（source_stream_id + relief_scenario + scenario_params 4 种 Input 路由 + sizing_params + standard_code/version + blowdown_fraction 5% + inlet/outlet_size）；输出字段（calc_id + record_hash + lineage_ids + outlet_stream_id + result 含 aggregate / relief_area / orifice / standard_refs_json / formula_ref_json）；设计阶段 BASIC ≤25 列 / DETAIL 完整；出口流 source_type=PSV_CALCULATED；项目标准配置 GET/POST 端点（GET ACL：DESIGNER+，POST ACL：PROCESS_CONTROLLER+，CUSTOM 必填 approval_json + approved_by）；错误码 PSV_INPUT_ERROR / PSV_PROFILE_CONFLICT / PSV_STANDARD_NOT_CONFIGURED / STREAM_NOT_CHECKED / SIM_STREAM_NOT_FOUND。	Claude Code
 V1.3	2026-09-17	P5-4 闭环后追加 §7.11.6 HEAT 详细字段章节：①设计阶段单层（无 BASIC/DETAIL 分级；HeatResult 模型 pcs-backend/app/models/calc.py:456 不含 design_stage 字段，VESSEL/PSV/COLUMN 三表 design_stage 下沉不覆盖 HEAT）；②输入字段（POST /api/v1/heat/import-htri，multipart/form-data：file HTRI Xist v6.0 .txt + project_id + workspace_id + equipment_no + tag_number + exchanger_category ∈ SHELL_TUBE/AIR_COOL/PLATE + equipment_name? + source_stream_id? — 提供则创建 HEAT_CALCULATED outlet stream）；③输出 ImportHtriResponse 201（calc_id + record_hash 16 hex + project_id + equipment_no + tag_number + exchanger_category + duty_w HTRI 热负荷 W + outlet_stream_id + outlet_stream_name HEAT_EXCHANGE 后缀）；④详情 GET /api/v1/heat/{heat_id} 200 HeatResultResponse（calc_id + record_hash + tag_number + equipment_no/equipment_name + exchanger_category + duty P7 UTIL 消费 + input_json/output_json 双轨 + output_json.total_weight_kg 字段可读 P7 UTIL）；⑤重量估算 POST /api/v1/heat/{heat_id}/weight-estimate 200 WeightEstimateResponse（请求体 22 字段 TEMA 9th 几何参数，必填 4 项：tema_type/shell_id_m/shell_length_m/shell_thickness_m；默认 18 项：material/head_*/flange_*/nozzle_*/saddle_*/tube_*/baffle_*；响应 total_weight_kg + shell_total_kg + 9 段 segments 拆分：TEMA 9th 5 段壳体 cylinder/heads/flanges/nozzles/saddles + tube + baffle + channels + shell_total 累加 + formula_ref 顶层含 TEMA 版本 + 各段标准 + clause）；⑥出口流 source_type=HEAT_CALCULATED + change_type=HEAT_EXCHANGE + upstream_equipment_type=HEAT + sign_status=DRAFT + outlet_stream_name = {source}-{HEAT_EXCHANGE}-{uuid 短码}；⑦错误码 HEAT_INPUT_ERROR 422 / HEAT_NOT_FOUND 404 / HEAT_PROJECT_MISMATCH 422 / SIM_STREAM_NOT_FOUND 404；⑧ACL DESIGNER/PROCESS_CONTROLLER/SYSTEM_ADMIN（与 PSV/VESSEL/SEP_EQUIP 一致）。	Claude Code
 V1.4	2026-09-17	P5-3 PSV 泄放工况多选 + SUP-P5-PSV-002 §5.1/5.2 安全阀选型前端部分：①泄放工况由单选 Select 改 mode="multiple"（FIRE/CLOSED_VALVE/REACTION_RUNAWAY/THERMAL_EXPANSION 任意组合勾选），onCalculate 对每个 scenario 并行 POST /api/v1/psv/calculate（Promise.all），取 orifice.actual_area_m2 最大者为主导工况；结果区新增"多工况对比表"（每 scenario 一行：工况/孔口/actual_area_m2/泄放面积/record_hash，max 行高亮"最大（主导）"金标）；②SUP-P5-PSV-002 §5.1 新增"安全阀选型"Collapse（位于"泄放工况"之上），6 字段 UI：阀体型式 Radio.Group（SPRING_LOADED 默认 / BALANCED_BELLOWS / PILOT_OPERATED / RUPTURE_DISC）+ 阀体材料 Select（CARBON_STEEL/SS304/SS316 默认/SS316L/ALLOY）+ 入口尺寸 Select + 出口尺寸 Select + 超压百分比 InputNumber（2%~10%）+ 孔口手动 override Select（API 526 D~T 顺序，可空 → 自动选型）；③§5.2 联动规则前端实现：阀体型式 ∈ {PILOT_OPERATED, RUPTURE_DISC} → 黄色 Alert 警告 + 提交按钮 disabled；blowdown_fraction 越界 → 前端阻止；orifice_override < 计算孔口（ORIFICE_ORDER 索引）→ 计算后阻止提交；④§4.2 G7/G8/G9 错误码前端解析（后端 extra='ignore' 静默兼容，等后端契约扩展后自动激活）：PSV_PILOT_OPERATED_NOT_SUPPORTED / PSV_RUPTURE_DISC_NOT_SUPPORTED / PSV_ORIFICE_OVERRIDE_TOO_SMALL；⑤types/psv.ts 新增 PsvValveType / PsvBodyMaterial 枚举 + 3 新字段（valve_type/body_material/orifice_override）扩展 PsvCalculateRequest；⑥SPEC SUP-P5-PSV-002 V1.0 状态：待评审（本批次仅落地前端部分，后端契约扩展待 SPEC 评审通过后启动）。	Claude Code
+V1.5	2026-10-06	P7 Sprint 4 S4-2/S4-3 落地反馈（docs/PCS-NOTE-SPEC-3.2.4(3)-结论档数修订-2026-10-06.md）：①§7.14「结论」枚举由 3 档（合格/警告/不合格）扩为 4 档，追加「不可判」UNVERDICTABLE，语义为「判不了」而非「不合格」，且与不合格一并阻断确认门禁（fail-closed：把不可判并入合格会让 §3.2.4(4) 的确认门禁形同虚设，一个从未被测量的值能拿到「已确认」）；②同批登记 pcs-backend/app/api/v1/supplier.py 的 5 条端点实际发布在 `/api/v1/equipment/...` 而非本 SPEC 早期描述的 `/api/v1/equipment-list/...`（后者是另一个已挂载 router，按 SPEC 写的客户端会 404，且该 404 与「设备不存在」不可区分），登记见 `docs/PCS-NOTE-SPEC-3.2.4(3)-结论档数修订-2026-10-06.md` 关联的 SPEC-ADD-002；③Excel 批量导入端点（S4-1 裁决不实现）已在 SPEC 侧标注删除线。	Claude Code
 文档结束。
 
 本文件为 PCS 前端编码的唯一 UI 依据。字段、类型、枚举、错误码以 OpenAPI + JSON Schema 为准。冲突时以 OpenAPI 为准，并登记修订。

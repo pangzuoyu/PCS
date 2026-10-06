@@ -140,11 +140,12 @@ EQUIP_LIB	GET /api/v1/equip-lib/search?params=	检索复用设备
 GET /api/v1/equip-lib/{equip_id}	获取设备详情
 POST /api/v1/equip-lib/settle	提交沉淀申请
 GET /api/v1/equip-lib/settle/pending	待审批沉淀列表
-供应商数据	POST /api/v1/equipment-list/{equipment_id}/actual-data	录入实际数据
-POST /api/v1/equipment-list/{equipment_id}/actual-data/import	Excel批量导入
-GET /api/v1/equipment-list/{equipment_id}/deviation-report	获取偏差报告
-POST /api/v1/equipment-list/{equipment_id}/actual-data/confirm	确认实际数据
-POST /api/v1/equipment-list/{equipment_id}/actual-data/check	校核实际数据
+供应商数据	POST /api/v1/equipment/{equipment_id}/actual-data	录入实际数据（手工 UI 页面）
+GET /api/v1/equipment/{equipment_id}/deviation-report	获取偏差报告
+GET /api/v1/equipment/{equipment_id}/deviation-report/export?format=excel|pdf	导出偏差报告
+POST /api/v1/equipment/{equipment_id}/actual-data/confirm	确认实际数据
+POST /api/v1/equipment/{equipment_id}/actual-data/check	校核实际数据
+（~~POST /api/v1/equipment-list/{equipment_id}/actual-data/import~~ Excel批量导入	不实现，见 PCS-SPEC-ADD-002）
 3.2 功能需求
 3.2.1 EQUIP_LIST设备表
 需求编号：P7-EQL-001
@@ -581,4 +582,6 @@ EQUIP_LIB	检索服务、相似度计算、沉淀流程	1–1.5 人周
 | V1.3 | 2026-09-03 | incorporate SUP-008 V1.1 + SUP-010 V1.1：关联文档加 SUP-008 V1.1 + SUP-010 V1.1；新增 P7-OPEN-009（UTIL 能耗 5 表 + 催化剂装填量 + auxiliary_consumption 4 字段扩展） | 联合项目组 |
 | **V1.4** | **2026-10-01** | **incorporate PCS-SPEC-ADD-001 V1.13 + P7-REV-01~04 mock 决议（R-01 接受 / R-02 方案 A / R-03 待补采 / R-04 方案 B）：§3.2.1（1）表 1 补 C-08/C-16/C-24/COOL_TOWER/PSYCHRO 来源行 + TypeCode 映射（R-01）；§3.2.1（2）加 SourceService 字段；§3.2.1（3）加 CT/T/V/PVRV 对齐注记；§3.2.2（5）/§4.4 加数据模型版本注记（V1.3 单表 JSONB vs SUP-010 5 表，R-02 = 方案 A）；§4.3 同步触发规则补 C-08/C-16/C-24/COOL_TOWER 行；§4.5 P7-OPEN-007 状态改"待补采"、P7-OPEN-008 改"方案 B 已采纳"、P7-OPEN-009 改"方案 A 已裁决"（R-02~04）；§4.6 工作量 10.5–14 人周（含 SUP-010 + R-03 T0）；§4.7 新增裁决清单 R-01~04 + mock 决议 + R-02/R-03/R-04 落地要求；关联文档加 SPEC-ADD-001 V1.13 + ATT-02 + 4 份 mock 决议文件** | **联合项目组** |
 
-P7 SPEC V1.4 完。 本文档与 SPEC-P0 至 SPEC-P6 合并构成完整的《工艺专用综合计算软件》分阶段开发规格说明书体系。后续 P8（报表）、P9（工作流与权限）、P10（AI 预留与测试部署）的 SPEC 可继续按此格式编写。V1.4 mock 裁决报告详见 `docs/P7-REV-01-04-mock-decisions.md`；评估报告详见 `docs/P7-OPEN-007-physical-semantics-evaluation.md` + `docs/P7-OPEN-008-rule-registry-form-evaluation.md` + `docs/P7-OPEN-009-SUP-010-5table-migration-schedule.md`。R=1 教训（bug-114 + bug-115）已登记于 `.wolf/buglog.json`。
+| **V1.5** | **2026-10-06** | **incorporate PCS-SPEC-ADD-002（P7 Sprint 4 S4-1~S4-3 落地反馈）：§3.2 API 表供应商数据面 5 条端点前缀由 `/api/v1/equipment-list/` 改为 `/api/v1/equipment/`（实际发布路径，原前缀是另一个已挂载 router，新路径在其下不可达）；标注 `actual-data/import`（Excel 批量导入）**不实现**（S4-1 裁决：要求供应商填统一 Excel 不现实，录入改为手工 UI 页面）；补 `deviation-report/export` 行（SPEC V1.4 遗漏） | **联合项目组** |
+
+P7 SPEC V1.5 完。 本文档与 SPEC-P0 至 SPEC-P6 合并构成完整的《工艺专用综合计算软件》分阶段开发规格说明书体系。后续 P8（报表）、P9（工作流与权限）、P10（AI 预留与测试部署）的 SPEC 可继续按此格式编写。V1.4 mock 裁决报告详见 `docs/P7-REV-01-04-mock-decisions.md`；评估报告详见 `docs/P7-OPEN-007-physical-semantics-evaluation.md` + `docs/P7-OPEN-008-rule-registry-form-evaluation.md` + `docs/P7-OPEN-009-SUP-010-5table-migration-schedule.md`。R=1 教训（bug-114 + bug-115）已登记于 `.wolf/buglog.json`。
