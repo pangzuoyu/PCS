@@ -14,6 +14,7 @@ import datetime
 import uuid
 
 from sqlalchemy import (
+    BigInteger,
     CheckConstraint,
     DateTime,
     Float,
@@ -60,8 +61,10 @@ class CepciIndexSeries(Base):
     # ix_cepci_index_series_year 造成 add_index 漂移）。
     __table_args__ = (Index("ix_cepci_year", "year", unique=True),)
 
+    # DB 里是 bigint（v3.1 基线建的），ORM 此前误写 Integer（上限 2^31）。
+    # 该表自注释一直写「BIGINT 自增主键」，与实际类型不符 —— 一并改正。
     id: Mapped[int] = mapped_column(
-        Integer, primary_key=True, autoincrement=True, comment="BIGINT 自增主键",
+        BigInteger, primary_key=True, autoincrement=True, comment="BIGINT 自增主键",
     )
     year: Mapped[int] = mapped_column(
         Integer, nullable=False,
