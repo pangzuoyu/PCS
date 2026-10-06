@@ -16218,7 +16218,7 @@
           "value"
         ],
         "title": "ActualDataEntry",
-        "description": "一项实测值。value 严格数值 —— 字符串数字在 UI 上是录入错误, 不是可容忍的输入。"
+        "description": "一项实测值。value 严格数值 —— 字符串数字在 UI 上是录入错误, 不是可容忍的输入。\n\n`strict=True, allow_inf_nan=False` 不是洁癖, 是安全边界（审查 #24）:\nPydantic v2 默认走松散强制, 实测 `'100' -> 100.0`、`True -> 1.0`、\n`'NaN' -> nan`、`'Infinity' -> inf`。非有限浮点尤其危险 —— `NaN` 进入\n`evaluate` 后所有比较为 false, `ASYMMETRIC_BAND` 会落到\n`return Evaluation(QUALIFIED, ...)`, 即一个**从未被测量的值能过确认门**。\nstrict 之下服务层 `_coerce_value` 的布尔/字符串拒绝退为纵深防御。"
       },
       "ActualDataEntryRequest": {
         "properties": {
