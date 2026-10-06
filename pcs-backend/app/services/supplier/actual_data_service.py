@@ -24,18 +24,14 @@ from app.models.equipment import EquipmentList
 from app.models.enums import ActualDataStatus
 
 
-def _validation_error(message: str) -> PcsError:
-    return PcsError(
-        code="ACTUAL_DATA_VALIDATION", message=message, status=422
-    )
-
-
 def _coerce_value(raw: Any, name: str) -> float:
     """value → float；非数值抛错（不接受 '100' 这类字符串数字）."""
     if isinstance(raw, bool) or not isinstance(raw, (int, float)):
-        raise _validation_error(
-            f"参数 {name!r} 的实测值必须是数值, 收到 {type(raw).__name__}: {raw!r}"
-        )
+        raise PcsError(
+            code="ACTUAL_DATA_VALIDATION",
+            message=f"参数 {name!r} 的实测值必须是数值, 收到 {type(raw).__name__}: {raw!r}",
+            status=422,
+    )
     return float(raw)
 
 
@@ -46,28 +42,42 @@ def normalize_entries(entries: list[dict]) -> dict[str, dict]:
         PcsError ACTUAL_DATA_VALIDATION 422
     """
     if not entries:
-        raise _validation_error("录入项为空 —— 无数据可存, 状态不应推进")
+        raise PcsError(
+            code="ACTUAL_DATA_VALIDATION",
+            message="录入项为空 —— 无数据可存, 状态不应推进",
+            status=422,
+        )
 
     out: dict[str, dict] = {}
     for idx, item in enumerate(entries):
         if not isinstance(item, dict):
-            raise _validation_error(
-                f"第 {idx + 1} 项不是对象: {type(item).__name__}"
-            )
+            raise PcsError(
+                code="ACTUAL_DATA_VALIDATION",
+                message=f"第 {idx + 1} 项不是对象: {type(item).__name__}",
+                status=422,
+        )
         name = item.get("name")
         if not isinstance(name, str) or not name.strip():
-            raise _validation_error(f"第 {idx + 1} 项 name 为空")
+            raise PcsError(
+                code="ACTUAL_DATA_VALIDATION",
+                message=f"第 {idx + 1} 项 name 为空",
+                status=422,
+            )
         name = name.strip()
         if name in out:
-            raise _validation_error(
-                f"参数名重复: {name!r} —— JSONB 会静默覆盖, 录入者不会知道"
-            )
+            raise PcsError(
+                code="ACTUAL_DATA_VALIDATION",
+                message=f"参数名重复: {name!r} —— JSONB 会静默覆盖, 录入者不会知道",
+                status=422,
+        )
         value = _coerce_value(item.get("value"), name)
         unit = item.get("unit")
         if unit is not None and not isinstance(unit, str):
-            raise _validation_error(
-                f"参数 {name!r} 的单位必须是字符串, 收到 {type(unit).__name__}"
-            )
+            raise PcsError(
+                code="ACTUAL_DATA_VALIDATION",
+                message=f"参数 {name!r} 的单位必须是字符串, 收到 {type(unit).__name__}",
+                status=422,
+        )
         out[name] = {"value": value, "unit": (unit or "").strip()}
     return out
 

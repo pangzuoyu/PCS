@@ -37,10 +37,6 @@ CHECK_SUBMITTED = "actual_data_check_submitted"
 REPLACES_DESIGN = "actual_data_replaces_design"
 
 
-def _error(code: str, message: str, status: int = 422) -> PcsError:
-    return PcsError(code=code, message=message, status=status)
-
-
 async def confirm_actual_data(
     session: AsyncSession,
     equipment,
@@ -57,16 +53,18 @@ async def confirm_actual_data(
     枚举的容量限制（增第 5 值要动迁移与状态列默认值，超出本 Task 范围）。
     """
     if equipment.actual_data_status == ActualDataStatus.CONFIRMED.value:
-        raise _error(
-            "ACTUAL_DATA_ALREADY_CONFIRMED",
-            "实际数据已确认 —— 修改需校核人先退回（SPEC §3.2.4(5)）",
+        raise PcsError(
+            code="ACTUAL_DATA_ALREADY_CONFIRMED",
+            message="实际数据已确认 —— 修改需校核人先退回（SPEC §3.2.4(5)）",
+            status=422,
         )
 
     report = build_report(equipment)
     if not can_confirm(report):
-        raise _error(
-            "DEVIATION_BLOCKS_CONFIRMATION",
-            f"存在不合格或不可判项，禁止确认：{report.blocking_reason}",
+        raise PcsError(
+            code="DEVIATION_BLOCKS_CONFIRMATION",
+            message=f"存在不合格或不可判项，禁止确认：{report.blocking_reason}",
+            status=422,
         )
 
     # ⚠️ `CHECK_SUBMITTED` 的 event_id 派生口径**待定**（Sprint 5 候选，未登记 P8）——
@@ -103,7 +101,38 @@ async def pass_check(
 
     `before` 存设计值、`after` 存实际值 —— **P8 反向恢复的唯一来源**。
     事件带 `before` 是硬要求，漏了就永久丢数据。
+
+    前置（审查 #5）：状态必须是 PENDING_CONFIRM，且门禁在此**重跑一次**。
+    修复前本函数第一条语句就是置 CONFIRMED，端点侧唯一闸是
+    `require_roles(_CHECK_ROLES)` —— 持项目访问权的 REVIEWER 可把从未录入的
+    设备直推 CONFIRMED，而 CONFIRMED 正是 `record_actual_data` 认定的锁
+    （ACTUAL_DATA_LOCKED），本该填数据的设计人被永久冻结。`can_confirm`
+    此前只在 `confirm_actual_data` 里跑，「录入 → 校核」之间的任何改动
+    不再被复判，四眼控制落空。
     """
+    if equipment.actual_data_status != ActualDataStatus.PENDING_CONFIRM.value:
+        # inline raise（非 `_error` 工厂）—— 工厂返回式 PcsError 会被
+        # meta_service 的 AST 扫描器漏掉，新码进不了错误码注册表（审查 #4）。
+        raise PcsError(
+            code="ACTUAL_DATA_STATE_CONFLICT",
+            message=(
+                f"当前状态 {equipment.actual_data_status} 不可校核通过 —— "
+                "只有 PENDING_CONFIRM 可过（NOT_ENTERED 尚未录入、"
+                "CONFIRMED 已确认、NEEDS_RECALC 待重算）"
+            ),
+            status=409,
+            detail={
+                "retryable": False,
+                "current_state": equipment.actual_data_status,
+                "required_state": ActualDataStatus.PENDING_CONFIRM.value,
+            },
+        )
+    if not can_confirm(build_report(equipment)):
+        raise PcsError(
+            code="DEVIATION_BLOCKS_CONFIRMATION",
+            message="偏差报告存在不合格/不可判项, 不可校核通过（请退回重录）",
+            status=422,
+        )
     equipment.actual_data_status = ActualDataStatus.CONFIRMED.value
     await session.flush()
 
@@ -140,7 +169,27 @@ async def reject_check(
     *,
     reason: str = "",
 ) -> Any:
-    """校核人退回 → 回到 PENDING_CONFIRM，重新录入通道解锁（§3.2.4(5)）."""
+    """校核人退回 → 回到 PENDING_CONFIRM，重新录入通道解锁（§3.2.4(5)）.
+
+    前置（审查 #5）：状态必须是 CONFIRMED。修复前本函数无条件把状态置回
+    PENDING_CONFIRM —— 即「没确认过的设备也能被退回」，凭空打开一条
+    绕过录入的写入路径。
+    """
+    if equipment.actual_data_status != ActualDataStatus.CONFIRMED.value:
+        raise PcsError(
+            code="ACTUAL_DATA_STATE_CONFLICT",
+            message=(
+                f"当前状态 {equipment.actual_data_status} 不可退回 —— "
+                "只有 CONFIRMED 可退回重录（NOT_ENTERED / PENDING_CONFIRM / "
+                "NEEDS_RECALC 均无已确认数据可退）"
+            ),
+            status=409,
+            detail={
+                "retryable": False,
+                "current_state": equipment.actual_data_status,
+                "required_state": ActualDataStatus.CONFIRMED.value,
+            },
+        )
     equipment.actual_data_status = ActualDataStatus.PENDING_CONFIRM.value
     await session.commit()
     return equipment

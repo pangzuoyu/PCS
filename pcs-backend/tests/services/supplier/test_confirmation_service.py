@@ -265,12 +265,14 @@ async def _append(sink: list, event: dict) -> None:
 # ---------------------------------------------------------------------------
 
 
-async def test_pass_check_reissue_same_data_is_idempotent(db_session):
-    """#3：同一台设备 + 同一份数据重复校核通过 → 同一个 event_id，第二个不派发.
+async def test_pass_check_concurrent_collision_is_idempotent(db_session):
+    """#3：**并发**双击（两事务都在对方提交前读到 PENDING_CONFIRM）→ 同一 event_id.
+
+    这不是顺序重复 —— 顺序重复会被 #5 的状态守卫直接 409 拦掉。uuid5 防的
+    是并发：两个事务都过了守卫，第二个的 claim 撞主键，被幂等吞掉。
 
     改 uuid5 前这里是 RED：每次 `uuid.uuid4()` 都发一个新事件，第二个事件的
-    `before` 等于第一个的 `after` —— P8 按序反向恢复会把实际数据写回设计位，
-    原始设计值永久丢失。
+    `before` 等于第一个的 `after` —— P8 按序反向恢复会把实际数据写回设计位。
     """
     from app.services.supplier.confirmation_service import pass_check
 
@@ -280,12 +282,64 @@ async def test_pass_check_reissue_same_data_is_idempotent(db_session):
     await pass_check(db_session, eq, _CHECKER, reason="校核通过")
     first_id = seen[0]["event_id"]
 
-    await pass_check(db_session, eq, _CHECKER, reason="重复点击")
+    # 模拟并发：另一事务在本事务提交前就读到了 PENDING_CONFIRM，故也过了守卫。
+    # event_id 的派生输入只有 event_type + before + after（不含 status），
+    # 故回拨状态不会改变 id —— 这正是「同一业务事实」的定义。
+    eq.actual_data_status = "PENDING_CONFIRM"
+    await db_session.flush()
+    await pass_check(db_session, eq, _CHECKER, reason="并发双击")
 
     assert [e["event_id"] for e in seen] == [first_id], (
-        f"重复校核多派发了 {len(seen) - 1} 个事件 —— event_id 非确定性，"
+        f"并发重复校核多派发了 {len(seen) - 1} 个事件 —— event_id 非确定性，"
         "幂等去重结构性不可达"
     )
+
+
+@pytest.mark.parametrize("status", ["NOT_ENTERED", "CONFIRMED", "NEED_RECALC"])
+async def test_pass_check_requires_pending_confirm(db_session, status):
+    """#5：只有 PENDING_CONFIRM 能校核通过，其余三态一律 409.
+
+    修复前 `pass_check` 第一条语句就是置 CONFIRMED，端点侧唯一闸是
+    `require_roles(_CHECK_ROLES)` —— 持项目访问权的 REVIEWER 可把从未录入的
+    设备直推 CONFIRMED，而那正是 `record_actual_data` 认定的锁
+    （ACTUAL_DATA_LOCKED），本该填数据的设计人被永久冻结。reject_check 是
+    镜像缺口：能把 CONFIRMED 无条件退回，重新打开录入通道。
+    """
+    from app.services.supplier.confirmation_service import pass_check
+
+    eq = await _make_equipment(db_session, status=status)
+    with pytest.raises(PcsError) as exc:
+        await pass_check(db_session, eq, _CHECKER, reason="校核通过")
+    assert exc.value.status == 409
+    assert eq.actual_data_status == status, "被拒后状态不得被改写"
+
+
+@pytest.mark.parametrize("status", ["NOT_ENTERED", "PENDING_CONFIRM", "NEED_RECALC"])
+async def test_reject_check_requires_confirmed(db_session, status):
+    """#5：reject_check 只有在 CONFIRMED 上才成立。"""
+    from app.services.supplier.confirmation_service import reject_check
+
+    eq = await _make_equipment(db_session, status=status)
+    with pytest.raises(PcsError) as exc:
+        await reject_check(db_session, eq, _CHECKER, reason="退回")
+    assert exc.value.status == 409
+    assert eq.actual_data_status == status, "被拒后状态不得被改写"
+
+
+async def test_pass_check_rejects_when_deviation_not_confirmable(db_session):
+    """#5：状态对了也不够 —— 门禁须在 `pass_check` 侧重跑一次.
+
+    四眼控制的意义在于校核人看到的必须是引擎判过的那份数据。修复前
+    `can_confirm` 只在 `confirm_actual_data` 里跑，`pass_check` 直通 CONFIRMED，
+    于是「录入→校核」之间任何改动都不再被复判。
+    """
+    from app.services.supplier.confirmation_service import pass_check
+
+    eq = await _make_equipment(db_session, actual=ACTUAL_BAD)  # 电机额定功率 48 < 地板 63.25
+    with pytest.raises(PcsError) as exc:
+        await pass_check(db_session, eq, _CHECKER, reason="校核通过")
+    assert exc.value.code == "DEVIATION_BLOCKS_CONFIRMATION"
+    assert eq.actual_data_status == "PENDING_CONFIRM"
 
 
 def _force_claim_collision(db_session, monkeypatch, *, visible_row):
