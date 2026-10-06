@@ -59,6 +59,27 @@ def test_main_create_app_skips_mock_in_production(monkeypatch):
     fake_settings = cfg.Settings(env="production", secret_key="x" * 40)
     monkeypatch.setattr("app.main.get_settings", lambda: fake_settings)
     app = create_app()
+    # TODO-006 起 /login 会写 audit_logs（依赖 get_db）。不覆盖的话这条用例会
+    # 往**真实 pcs 开发库**写审计行 —— 测试污染开发数据。
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+    from sqlalchemy.pool import StaticPool
+
+    from app.db.base import Base
+    from app.db.session import get_db
+
+    engine = create_async_engine(
+        "sqlite+aiosqlite:///:memory:",
+        poolclass=StaticPool,
+        connect_args={"check_same_thread": False},
+    )
+
+    async def _override_get_db():
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+        async with async_sessionmaker(engine, expire_on_commit=False)() as s:
+            yield s
+
+    app.dependency_overrides[get_db] = _override_get_db
     c = TestClient(app)
     r = c.post(
         "/auth/mock-login",

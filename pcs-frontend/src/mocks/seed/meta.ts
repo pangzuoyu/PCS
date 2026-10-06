@@ -194,8 +194,14 @@ export const metaSeed = {
   errorCodes: [
     { code: "MISSING_BEARER", http: 401, message: "Authorization: Bearer <token>", ui_behavior: "redirect_to_login" },
     { code: "WRONG_TOKEN_TYPE", http: 401, message: "not an access token", ui_behavior: "redirect_to_login" },
-    { code: "INVALID_TOKEN", http: 401, message: "token 已失效", ui_behavior: "redirect_to_login" },
-    { code: "INVALID_REFRESH", http: 401, message: "refresh token 已失效", ui_behavior: "redirect_to_login" },
+    { code: "INVALID_TOKEN", http: 401, message: "token 签名不符或被伪造", ui_behavior: "redirect_to_login" },
+    // 过期与伪造已分码（后端 TODO-007）。但 ui_behavior 仍是 redirect_to_login
+    // —— api/client.ts 目前对任何 401 都直接清 session 跳登录，尚未实现静默刷新。
+    // 分码的价值当前体现在可观测性（登录审计 / 用户报错能区分两类原因）；
+    // 前端据此做「静默 refresh 一次再登」是独立后续项。
+    { code: "EXPIRED_TOKEN", http: 401, message: "access token 已过期（会话到期）", ui_behavior: "redirect_to_login" },
+    { code: "INVALID_REFRESH", http: 401, message: "refresh token 签名不符或被伪造", ui_behavior: "redirect_to_login" },
+    { code: "EXPIRED_REFRESH", http: 401, message: "refresh token 已过期（需重新登录）", ui_behavior: "redirect_to_login" },
     { code: "INVALID_CREDENTIALS", http: 401, message: "凭据无效", ui_behavior: "inline_form_error" },
     { code: "MOCK_DISABLED", http: 403, message: "mock auth is disabled in production", ui_behavior: "disable_with_tooltip" },
     { code: "SIM_STREAM_ROLE_FORBIDDEN", http: 403, message: "角色 ... 无权执行 ...", ui_behavior: "disable_with_tooltip" },

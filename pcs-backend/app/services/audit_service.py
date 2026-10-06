@@ -43,6 +43,7 @@ class AuditService:
         resource_id: str | uuid.UUID | None,
         user_id: uuid.UUID | None = None,
         detail: dict[str, Any] | None = None,
+        ip: str | None = None,
     ) -> AuditLog:
         """写一条审计记录。
 
@@ -53,6 +54,8 @@ class AuditService:
             resource_id: 实体主键字符串
             user_id: 触发者（系统任务传 None）
             detail: 元数据 dict（old/new value / reason / sign_role 等）
+            ip: 客户端 IP。审计主体是「谁、从哪」，缺 IP 的登录记录无法用于
+                暴力破解溯源（同一账号可从任意 IP 尝试）。认证类审计必填。
         """
         action_value = action.value if isinstance(action, AuditAction) else str(action)
         entry = AuditLog(
@@ -61,6 +64,7 @@ class AuditService:
             resource_type=resource_type[:50],
             resource_id=str(resource_id)[:100] if resource_id is not None else None,
             detail_json=detail,
+            ip=ip,
         )
         self.session.add(entry)
         await self.session.flush()
