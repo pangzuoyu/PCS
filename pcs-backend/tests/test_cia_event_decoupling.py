@@ -234,3 +234,56 @@ async def test_claim_only_events_do_not_require_listener(db_session):
     assert "actual_data_replaces_design" in CLAIM_ONLY_EVENTS
     assert "actual_data_check_submitted" in CLAIM_ONLY_EVENTS
     assert CIA_MARK_STALE not in CLAIM_ONLY_EVENTS
+
+
+async def test_failed_listener_leaves_no_claim_row(db_session):
+    """#10: listener 抛错时不得留下断言「已处理」的幂等凭据.
+
+    修复前 claim 在派发之前就 flush 落库，listener 随后抛错时**无任何补偿** ——
+    异常被 `CIAEngine._scan_one_class` 的 `except Exception: continue` 吞掉后，
+    事务照常提交，于是每个被跳过的记录都留下一行「cia_mark_stale 转移发生过」，
+    而它根本没发生。P8 反向恢复或后续审计一旦信任该表就会跳过这些记录。
+    """
+    from sqlalchemy import func, select
+
+    from app.models.system import EventIdempotency
+    from app.services.events import emit_event
+
+    async def _boom(event: dict) -> None:
+        raise RuntimeError("listener 失败（模拟 InvalidTransition）")
+
+    register_listener("p7_s4_test_failing", _boom)
+    with pytest.raises(RuntimeError):
+        await emit_event(db_session, "p7_s4_test_failing", event_id=uuid.uuid4())
+
+    n = (
+        await db_session.execute(
+            select(func.count()).select_from(EventIdempotency)
+        )
+    ).scalar_one()
+    assert n == 0, (
+        f"listener 失败却留下 {n} 行 claim —— 该表会被后续流程当成「已处理」"
+    )
+
+
+async def test_successful_listener_keeps_claim_row(db_session):
+    """反向确认: 派发成功时 claim 行必须落库（幂等凭据的基本保证）。"""
+    from sqlalchemy import func, select
+
+    from app.models.system import EventIdempotency
+    from app.services.events import emit_event
+
+    seen: list[dict] = []
+    register_listener("p7_s4_test_ok", lambda e: _append(seen, e))
+    eid = uuid.uuid4()
+    assert await emit_event(db_session, "p7_s4_test_ok", event_id=eid) is True
+
+    n = (
+        await db_session.execute(
+            select(func.count()).select_from(EventIdempotency)
+        )
+    ).scalar_one()
+    assert n == 1, "派发成功时 claim 行必须存在"
+    # 同 id 重投不再派发
+    assert await emit_event(db_session, "p7_s4_test_ok", event_id=eid) is False
+    assert len(seen) == 1

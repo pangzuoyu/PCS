@@ -307,31 +307,43 @@ async def emit_event(
     after_snapshot = copy.deepcopy(after) if after is not None else None
     payload_hash = _payload_hash(event_type, before_snapshot, after_snapshot)
 
-    claimed = await _claim(
-        session,
-        event_id=event_id,
-        event_type=event_type,
-        payload_hash=payload_hash,
-        before=before_snapshot,
-    )
-    if not claimed:
-        return False
+    # ⚠️ claim 与派发必须在**同一个** savepoint 里（审查 #10）——
+    # claim 行一旦先于派发 flush 落库，而 listener 随后抛错且无补偿，数据库里就会
+    # 留下一行断言「转移发生过」的幂等凭据，而转移根本没发生。可达路径:
+    # `CIAEngine._scan_one_class` → `_mark_stale_via_fsm` 对已过 CHECKED/CHANGED 的记录
+    # 抛 InvalidTransition，被外层 `except Exception: continue` 吞掉后事务照常提交。
+    # P8 反向恢复或后续审计一旦信任该表，就会跳过这些记录。
+    #
+    # 修法: 任一 listener 抛错 → 本 savepoint 回滚（含 `_claim` 内部嵌套 savepoint
+    # 插入的 claim 行）→ 异常继续上抛。调用方接住后 claim 不复存在，重投会重新派发，
+    # 不会被静默当成「已处理」。调用方的其余写入与事务完好无损。
+    async with session.begin_nested():
+        claimed = await _claim(
+            session,
+            event_id=event_id,
+            event_type=event_type,
+            payload_hash=payload_hash,
+            before=before_snapshot,
+        )
+        if not claimed:
+            return False
 
-    event: dict[str, Any] = {
-        "event_id": event_id,
-        "event_type": event_type,
-        "before": before_snapshot,
-        "after": after_snapshot,
-        **payload,
-    }
-    # 事件类型区分（P7-S4 审查 #28）：空 listener 列表**不是**一律的 bug。
-    # - `cia_mark_stale` 类：无 listener = 配置错误，调用方（如 CIAEngine.scan_stale）
-    #   不应据此递增「已标记 N 台」计数，否则报给操作者的数字是错的。
-    # - `actual_data_replaces_design`：P8 挂上反向恢复 listener 之前本就是 claim-only，
-    #   claim 成功即完成，监听与否无关。
-    # 用 `CLAIM_ONLY_EVENTS` 白名单表达此区分，勿一刀切地「无 listener 即失败」。
-    for listener in _LISTENERS.get(event_type, []):
-        await listener(event)
+        event: dict[str, Any] = {
+            "event_id": event_id,
+            "event_type": event_type,
+            "before": before_snapshot,
+            "after": after_snapshot,
+            **payload,
+        }
+        # 事件类型区分（P7-S4 审查 #28）：空 listener 列表**不是**一律的 bug。
+        # - `cia_mark_stale` 类：无 listener = 配置错误，调用方（如 CIAEngine.scan_stale）
+        #   不应据此递增「已标记 N 台」计数，否则报给操作者的数字是错的。
+        # - `actual_data_replaces_design`：P8 挂上反向恢复 listener 之前本就是
+        #   claim-only，claim 成功即完成，监听与否无关。
+        # 用 `CLAIM_ONLY_EVENTS` 白名单表达此区分，勿一刀切地「无 listener 即失败」。
+        for listener in _LISTENERS.get(event_type, []):
+            await listener(event)
+
     return True
 
 
