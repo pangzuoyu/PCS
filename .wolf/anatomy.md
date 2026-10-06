@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-06T15:36:05.534Z
-> Files: 665 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-06T15:48:56.635Z
+> Files: 666 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -13,7 +13,7 @@
 - `docker-compose.yml` — Docker Compose services (~309 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~3547 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~2890 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~3453 tok)
 
 ## .claude/worktrees/s4-0-events/
 
@@ -1078,6 +1078,7 @@
 
 ## pcs-backend/app/models/
 
+- `__init__.py` — 全部 ORM 模型。alembic/env.py 依赖本包导入即注册全部表。 (~269 tok)
 - `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~11272 tok)
 - `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~3800 tok)
 - `equipment.py` — 设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。 (~3186 tok)

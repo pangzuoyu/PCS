@@ -5,57 +5,83 @@ budget_tokens: 1500
 # STATUS — PCS
 
 > Read this FIRST when starting a session. Last updated: 2026-10-06.
-> 本文件已于 2026-10-06 精简重写（原 16k → <2k）。历史细节查 `git log` / `docs/` / `.wolf/memory.md`。
+> 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
-## ✅ Done
+## ✅ Done（本会话，4 commits，均已推 origin/main）
 
-**P7 Sprint 4 全分支已合入 main**（`3e5ae90..dc134b2`，77 文件）。四件事：供应商实际数据录入 → 偏差报告 3+1 档判定 + xlsx/PDF 导出 → 泵设计值接线 → 蜡油加氢真实数据端到端。fix pass 关掉 34 条 ce-code-review finding。
+**F-P7-S4-01 撤回**（`1180706`）—— 上一会话登记的待修缺陷是**误报**。最小复现证据
+`assert 'QUALIFIED' == 'UNVERDICTABLE'`：`evaluate` 对 REFERENCE_ONLY 返回 QUALIFIED
+（`deviation_service.py:240`），不触发 `can_confirm` 阻断。**无行为改动**，只改 docstring +
+3 条测试断言方向 + bug-141 改「已撤回」。
 
-**F-P7-S4-01 撤回**（`1180706`）—— 上一会话登记的待修缺陷是**误报**。
-最小复现证据：`assert 'QUALIFIED' == 'UNVERDICTABLE'`。
-`evaluate` 对 REFERENCE_ONLY 返回 QUALIFIED（`deviation_service.py:240`「参照量是有效数据、只是不承担判定」），不触发 `can_confirm` 阻断。原始代码本来就是对的，**无行为改动**；只改 docstring + 3 条测试断言方向 + buglog bug-141 改「已撤回」。
-先前观察到的「不可判 1 项: 轴功率」真问题是 #8 的应检集补行，#8 落地时已排除 REFERENCE_ONLY，已修。
+**`TODOS.md` 46 项全量核销**（`ba101f2`）—— 4 组并行只读实证，判定 + 证据 + owner。
+结论：16 DONE / 1 WONTFIX / 20 OPEN / 3 BLOCKED / 4 STALE。**17 条是陈旧假条目**，
+其中 1 条照原文改会破坏契约（TODO-027）。文件从 467 行压到 268 行。
 
-**T5 综合能耗验收封版**（2026-10-05，tag `t5-energy-summary-2026-10-05`）。基准重建为 GB 30251-2024 附录A 表A.1 独立重算（旧基准是旧代码输出反抄的自证循环，假 PASS）。Case 4 三项全 PASS（0.0011%/0.0000%/0.0020%）。**工艺室会签待补**。
+**删除 `equipment_lib` 死表**（`63c92bc`）—— 设备库改由 `ConfigAsset` + `CATEGORY_6` 唯一承载。
+该表 0 行 / 0 代码引用 / 0 专属测试；SPEC P2 §3.2.6 标题即「复用设备库管理（CATEGORY_6）」，
+**规格从未要求独立表**。落地：`p7_s5_001` 迁移（drop + 可回滚 downgrade）、
+删 ORM、`test_schema` 104→103、ADR-0032 §P5-1-3 改写、`docs/PCS-NOTE-equipment_lib-废弃-2026-10-06.md`。
+连带纠正一次基于错误前提的 DEFERRED（详见下方教训）。
 
-**更早的已完成批次**（细节查 git log）：P7 Sprint 0-3、P6-4/5/6A/6B/7/8/9、F-P0-001 折标系数签字（`docs/PCS-SIGN-F-P0-001-2026-10-08.md`）。
+**修 `app/models/__init__.py` 漏 import `util`**（`2c44e0c`）—— 该包 docstring 明写
+「alembic/env.py 依赖本包导入即注册全部表」，却列了 16 个模块独漏 `util`。
+后果：7 张 UTIL 表对 autogenerate 不可见 → `alembic check` 恒报 130 条**假**漂移
+→ CLAUDE.md 指定的守门动作形同虚设。修后 95→102 表，130→84 条，`remove_table` 归零。
+
+**更早的已完成批次**（细节查 git log）：P7 Sprint 0-4 全分支、T5 综合能耗封版
+（tag `t5-energy-summary-2026-10-05`，**工艺室会签待补**）、P6 全系列、F-P0-001 折标系数签字。
 
 ---
 
 ## 🚀 Next quest
 
-**P7 Sprint 5 启动**（尚未有计划文件）。方向待用户定，Sprint 5 候选：
+**无单一目标 —— 用户明确要求逐项拍板，勿替他选。** 队列（详见 `TODOS.md`）：
 
-- `CHECK_SUBMITTED` 的 `event_id` 派生口径 —— 判据已写进 `confirmation_service.py::confirm_actual_data` 的 `uuid4()` 处注释。（`cia_mark_stale` 已闭：改 uuid5 是 bug 不是 feature，别碰。）
-- 非泵设备的「应检参数表」机制 —— 待其数据模型落地时再建（#8 的范围限定已登记）。
-- `TODOS.md` 两条既有债（见下）。
+| 优先级 | 项 | 工作量 |
+|---|---|---|
+| 🔴 | **CORS middleware 未挂** —— `grep add_middleware app/` 全仓 0 命中，`cors_allow_origins` 配置项无人消费。**前后端一分域部署 preflight 直接 403**，dev 靠 Vite proxy 掩盖至今未暴露 | 低（~20 行），独立 |
+| 🔴 | **auth 安全三条** —— `/auth/login` 无限流、无 LOGIN_SUCCESS/FAILED 审计；JWT 过期/无效未细分（`security.py:116` 承诺过但 `AUTH_EXPIRED_TOKEN` 全仓 0 命中）；无 `token_version` | 中，一组 |
+| 🔴 | **CATEGORY_6 设备库地基 5 项** —— `type_code` 根本没采集（相似度无主匹配键）、settle 无去重、JSONB 无索引、category 无枚举、审批语义冲突。**阻塞 UI-SPEC §7.16 相似度**。真库 CATEGORY_6 **0 行**，功能从未被真实使用 | 大 |
+| 🟡 | **84 条真索引漂移** —— 假漂移修好后守门说真话了。以「索引名对不上」为主（`ix_cepci_year` vs `ix_cepci_index_series_year`）。逐个裁决 ORM 对 / 迁移对，建议按表分批 | 中 |
+| 🟡 | **27 个真库测试文件迁 SQLite** —— `TODOS.md` 原称 4 个，实测 27 个 | 中 |
 
-**写 Sprint 5 计划时**：`superpowers:writing-plans`，**不要**沿用 Sprint 4 的 plan 文件格式（它非统一计划格式、无 Requirements/R-ID，review 时被扣分）。ledger 落 `.superpowers/sdd/<plan-basename>/` —— **该目录被 gitignore，持久约束必须落 tracked**。
+**P7 Sprint 5 计划尚未写**。若要写：`superpowers:writing-plans`，**不要**沿用 Sprint 4
+的 plan 格式（无 Requirements/R-ID，review 扣分）。ledger 落 `.superpowers/sdd/` ——
+**该目录 gitignore，持久约束必须落 tracked**。
 
 ---
 
 ## Context
 
-- main @ `2a83af4`，已推 origin/main，工作区干净。**不要建 worktree** —— 上一会话因 worktree 被删导致 harness 隔离守卫援引不存在路径且 cd 逃逸失效，会话永久卡在「能 Read 不能 Edit/Bash」，无法修 main。直接在主检出区起会话。
-- 全量回归基线：**3924 passed / 77 skipped / 1 xfailed / 0 failed**（后端 `uv run --no-sync pytest tests/ -q`，3.5 分钟）。单测跑内存 SQLite，**不需要** `alembic upgrade head` 前置。
+- main @ `2c44e0c`，已推 origin/main，工作区干净（仅 `.wolf/*` 由钩子维护）。
+  **不要建 worktree** —— 上一会话因 worktree 被删，harness 隔离守卫援引不存在路径且 cd 逃逸失效，
+  会话永久卡在「能 Read 不能 Edit/Bash」。直接在主检出区起会话。
+- 全量基线：**3924 passed / 77 skipped / 1 xfailed / 0 failed**（`uv run --no-sync pytest tests/ -q`，3.5 分钟）。
+  单测跑内存 SQLite，**不需要** `alembic upgrade head` 前置。
+  **但** `tests/test_schema.py` 例外——它连**真实 Postgres**（`get_settings().database_url`），
+  改迁移后必须真跑。
 - 无 CI/CD（单人开发裁决，勿再建议）。
-- `.superpowers/` 已 gitignore；Sprint 4 执行 ledger 归档在 `.superpowers-sprint4-archive/sdd/sprint4-plan-2026-10-05/progress.md`（399 行，含全部 Ruling 行）。
-- ce-code-review 产物：`docs/ce-code-review/20261006-sprint4/`（26 条 actionable，报告在 `report.md`）。该 skill 的 `$RUN_DIR` 变量**未展开**会在仓库根建 `RUN_DIR=` 字面量目录 —— 2026-10-01 那次的残留已清，未来再见到直接 `rm -rf "RUN_DIR="`。
+- ce-code-review 产物：`docs/ce-code-review/20261006-sprint4/`。该 skill 的 `$RUN_DIR`
+  **未展开**会在仓库根建 `RUN_DIR=` 字面量目录，见到了直接 `rm -rf "RUN_DIR="`。
 
 ---
 
-## ⚠️ 已登记未清（均在 `TODOS.md` 尾部，勿重头推）
+## 教训（已写入 `TODOS.md` / `buglog`）
 
-| Item | 修法顺序 |
-|---|---|
-| **9 个既有 `p7_open_*`/`p7_s1_*` 迁移缺幂等 guard** | 逐个补 `if_exists=True` → 补完一个从前缀白名单移一个 → 最后白名单改「全部 `p7_*`」。**顺序反了钩子立刻在无关文件上失败**（已实测）。不能无审查批量加 —— 会改变 downgrade 在「表不存在」时的行为。 |
-| **`.wolf/buglog.json` 6 条 id 重号**（4× `bug-2026` + `bug-031`/`bug-002` 各重复） | 先去重再改编号算法（`max+1` 会算出 `bug-2027` 并继承重号）。**不改历史条目的 id** —— `fix_commit` 是 STATUS 反查的单点来源。 |
-
----
-
-## 教训（已写入 `.wolf/cerebrum.md` Do-Not-Repeat）
-
-- **登记缺陷前必须跑最小复现，不能从 code 注释推断返回值。** bug-141 就是这么来的：注释写「不判合格与否」被读成 verdict 是 UNVERDICTABLE，实际是 QUALIFIED。注释里「不产出判定」≠「verdict 是 UNVERDICTABLE」。
-- 单测照绿 ≠ 真库能跑。改 `alembic/versions/*` 必须手动核对 ORM 列同步，缺表会红（可见），漂移会绿（不可见）。人工守门：`uv run alembic check`。
+- **登记缺陷前必须跑最小复现，不能从 code 注释推断返回值。** bug-141 即如此：注释的
+  「不判合格与否」说的是*不产出判定*，不等于 verdict 是 UNVERDICTABLE。
+- **查错表会让需求被错误理由推迟两次。** UI-SPEC §7.16 的相似度：
+  ①ADR-0032（2026-09-17）以「`equipment_lib` 0 行」为由 DEFERRED `recommend_vessels`，
+  但沉淀功能早在 **11 天前**（2026-09-06）就接到 ConfigAsset 了；②P7 总计划的 S3-2
+  在 2026-10-02 重划 Sprint 3 范围时被**静默丢弃**，无人察觉。计划文件 144 个 checkbox
+  **0 个打勾** —— 执行从不回填，文件状态不可信，只能对代码验。
+- **守门工具恒报噪声 = 狼来了。** `alembic check` 假漂移 130 条期间，CLAUDE.md 指定的
+  漂移守门实际上一直没在工作。查 guard 本身是否可信，和用 guard 一样重要。
+- **别把推断当发现报出去。** 本会话因 `app/models/__init__.py` 漏 `util`，差点断言
+  「测试库缺 7 张表」——实际 conftest 的 `from app.api.v1 import api_router` 会链式注册，
+  102 表齐全。已实测证伪并记入 `TODOS.md` 以免重犯。
+- **docstring 首行用 ASCII `.`**，全角 `。` 触发 ruff D400/D415。
+- **核验别用组合正则** —— `grep "A\|B"` 会被 rtk 过滤层吞掉误报「0 匹配」，逐模式单发。

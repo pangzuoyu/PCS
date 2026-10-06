@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-06T15:36:05.534Z",
-    "fileCount": 665,
+    "lastScanned": "2026-10-06T15:48:56.635Z",
+    "fileCount": 666,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "bb3aa2ead01a5d0dacdc0b9fb1635574ece122cebafad1d1b07fb9fb8d91fb5b",
-    "storeUpdatedAt": "2026-10-06T15:36:05.544Z",
-    "rootHash": "f320cb8643eafc13"
+    "renderedHash": "6e825754dfd70a7d5b13744bfb23aa77547fe3a4f3ec1ce2f5388bc1cf099834",
+    "storeUpdatedAt": "2026-10-06T15:48:56.645Z",
+    "rootHash": "8bd4d92cdc6defeb"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12366,11 +12366,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 2890,
-      "hash": "b5a460fad305e7da",
-      "size": 16915,
-      "mtimeMs": 1791299921816.5876,
-      "updatedAt": "2026-10-06T15:18:41.891Z",
+      "tokens": 3453,
+      "hash": "80389d7256ec337a",
+      "size": 20564,
+      "mtimeMs": 1791301736587.2854,
+      "updatedAt": "2026-10-06T15:48:56.635Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -20332,6 +20332,15 @@
       "size": 4692,
       "mtimeMs": 1791300965480.3545,
       "updatedAt": "2026-10-06T15:36:05.534Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/models/__init__.py": {
+      "description": "全部 ORM 模型。alembic/env.py 依赖本包导入即注册全部表。",
+      "tokens": 269,
+      "hash": "1c119483187ead42",
+      "size": 975,
+      "mtimeMs": 1791301461113.5203,
+      "updatedAt": "2026-10-06T15:44:21.168Z",
       "source": "hook"
     }
   }

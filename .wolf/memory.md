@@ -1257,3 +1257,5 @@
 | 23:35 | Edited pcs-backend/alembic/versions/p7_s5_001_drop_equipment_lib.py | "删除 equipment_lib（幂等: 表不存在" → "删除 equipment_lib（幂等: 表不存在" | ~12 |
 | 23:35 | Edited pcs-backend/alembic/versions/p7_s5_001_drop_equipment_lib.py | 1→3 lines | ~31 |
 | 23:36 | Edited docs/PCS-NOTE-equipment_lib-废弃-2026-10-06.md | 9→13 lines | ~195 |
+| 23:44 | Edited pcs-backend/app/models/__init__.py | added 1 import(s) | ~29 |
+| 23:48 | Edited TODOS.md | expanded (+7 lines) | ~451 |
