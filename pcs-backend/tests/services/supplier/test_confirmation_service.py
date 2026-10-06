@@ -288,33 +288,61 @@ async def test_pass_check_reissue_same_data_is_idempotent(db_session):
     )
 
 
-async def test_claim_collision_keeps_caller_write(db_session, monkeypatch):
-    """#2：_claim 撞主键时，调用方已 flush 的 CONFIRMED 不得被 rollback 吞掉.
+def _force_claim_collision(db_session, monkeypatch, *, visible_row):
+    """让 _claim 内那次 flush 抛 IntegrityError, 并控制其后的重查结果.
 
-    故障注入 —— 单连接内存 SQLite 造不出真并发双 INSERT，故让 _claim 内那次
-    flush 抛 IntegrityError，直接检验该 except 分支的可观测后果。
+    单连接内存 SQLite 造不出真并发双 INSERT（StaticPool 共享一条连接）, 故故障注入。
 
-    修复前 `_claim` 调 `session.rollback()` 回滚整个事务：调用方
-    `actual_data_status=CONFIRMED` 一起丢，设备退回 PENDING_CONFIRM，且调用方
-    收到的是「并发 claim 冲突」这个**误导性**错误。
+    `visible_row`:
+      None                 → 撞主键但重查看不到该行（对方事务尚未提交/已回滚）
+      带 .payload_hash 对象  → 重查看到一行, hash 可控
     """
+    from types import SimpleNamespace
+
     from sqlalchemy.exc import IntegrityError
 
-    from app.services.supplier.confirmation_service import pass_check
-
-    eq = await _make_equipment(db_session)
     real_flush = db_session.flush
+    real_execute = db_session.execute
     calls = {"n": 0}
+    state = {"armed": False}
+    if visible_row is not None and not hasattr(visible_row, "payload_hash"):
+        raise AssertionError("visible_row 需带 payload_hash")
 
     async def flaky_flush(*a, **kw):
         calls["n"] += 1
         if calls["n"] == 2:
             # pass_check 的 flush 是 #1；_claim 里 INSERT claim 行那次是 #2
-            # （此前 session 已干净，_claim 的 SELECT 不会触发 autoflush）
+            state["armed"] = True
             raise IntegrityError("INSERT ...", {}, Exception("forced collision"))
         return await real_flush(*a, **kw)
 
+    class _FakeResult:
+        def __init__(self, row: object) -> None:
+            self._row = row
+
+        def first(self):
+            return self._row
+
+    async def fake_execute(stmt, *a, **kw):
+        # 只在 claim 已被冲刷之后才拦截, 否则连 _claim 顶部的 existing 查询也被替换
+        return _FakeResult(visible_row) if state["armed"] else await real_execute(stmt, *a, **kw)
+
     monkeypatch.setattr(db_session, "flush", flaky_flush)
+    monkeypatch.setattr(db_session, "execute", fake_execute)
+    return SimpleNamespace(armed=state)
+
+
+async def test_claim_collision_keeps_caller_write(db_session, monkeypatch):
+    """#2：_claim 撞主键时，调用方已 flush 的 CONFIRMED 不得被 rollback 吞掉.
+
+    故障注入下检验该 except 分支的可观测后果。修复前 `_claim` 调
+    `session.rollback()` 回滚整个事务：调用方 `actual_data_status=CONFIRMED`
+    一起丢，设备退回 PENDING_CONFIRM。
+    """
+    from app.services.supplier.confirmation_service import pass_check
+
+    eq = await _make_equipment(db_session)
+    _force_claim_collision(db_session, monkeypatch, visible_row=None)
     try:
         with pytest.raises(PcsError):
             await pass_check(db_session, eq, _CHECKER, reason="校核通过")
@@ -325,3 +353,48 @@ async def test_claim_collision_keeps_caller_write(db_session, monkeypatch):
     assert eq.actual_data_status == "CONFIRMED", (
         "claim 冲突把调用方已 flush 的 CONFIRMED 一起回滚了 —— 数据丢失"
     )
+
+
+async def test_claim_collision_invisible_row_is_retryable(db_session, monkeypatch):
+    """#2 后半段：撞主键但重查看不到行 → 可能对方事务尚未提交，**重试有意义**.
+
+    这才是唯一值得让上游重试的情形，文案与 retryable 标记必须如实表达，
+    否则运维会把可恢复的并发直接判成失败。
+    """
+    from app.services.supplier.confirmation_service import pass_check
+
+    eq = await _make_equipment(db_session)
+    _force_claim_collision(db_session, monkeypatch, visible_row=None)
+    try:
+        with pytest.raises(PcsError) as exc:
+            await pass_check(db_session, eq, _CHECKER, reason="校核通过")
+    finally:
+        monkeypatch.undo()
+
+    assert exc.value.detail["retryable"] is True, "行暂不可见的并发冲突应标为可重试"
+    assert "重试" in exc.value.message
+
+
+async def test_claim_collision_different_payload_is_not_retryable(db_session, monkeypatch):
+    """#2 后半段：撞主键且重查到 hash 不同 → 上游 bug，**重试无用**.
+
+    与 _claim 顶部早返回分支是同一条件。绝不能标 retryable —— 否则真正的
+    上游 bug 会被当成瞬时并发，无限重试把日志刷爆、该查的根因被埋掉。
+    """
+    from types import SimpleNamespace
+
+    from app.services.supplier.confirmation_service import pass_check
+
+    eq = await _make_equipment(db_session)
+    _force_claim_collision(
+        db_session, monkeypatch,
+        visible_row=SimpleNamespace(payload_hash="0" * 64),
+    )
+    try:
+        with pytest.raises(PcsError) as exc:
+            await pass_check(db_session, eq, _CHECKER, reason="校核通过")
+    finally:
+        monkeypatch.undo()
+
+    assert exc.value.detail["retryable"] is False
+    assert "上游 bug" in exc.value.message

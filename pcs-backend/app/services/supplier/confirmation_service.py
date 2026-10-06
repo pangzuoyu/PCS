@@ -69,6 +69,15 @@ async def confirm_actual_data(
             f"存在不合格或不可判项，禁止确认：{report.blocking_reason}",
         )
 
+    # ⚠️ `CHECK_SUBMITTED` 的 event_id 派生口径**待定**（Sprint 5 候选，未登记 P8）——
+    # 与 `replaces_design` 不同，它这里仍是现生成的 uuid4()：
+    #   - 若本端点日后有状态前置守卫（#5 修复后 `pass_check` 的 PENDING_CONFIRM 守卫
+    #     是同类形态）→ 重发被守卫挡住，uuid4 安全，不必改。
+    #   - 若无守卫且双击「提交校核」会重发 → 应同 #3 改 uuid5 确定性派生。
+    # 改前先确认「同一台设备重复提交校核」是否是真业务操作。参考 #3 裁决：
+    # `replaces_design` 已改 uuid5，正是因为它无前置守卫。
+    # ⚠️ 勿照搬 `cia_mark_stale`：那个事件的语义是「每次扫描都该重新评估」，
+    # 幂等去重会直接让它不再工作，改 uuid5 是 bug 不是 feature（已闭，不改）。
     await emit_event(
         session,
         CHECK_SUBMITTED,

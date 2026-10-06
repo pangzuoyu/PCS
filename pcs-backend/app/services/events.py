@@ -178,15 +178,18 @@ async def _claim(
     ).first()
     if existing is not None:
         if existing.payload_hash != payload_hash:
+            # 与 except 分支的 hash 不同出口同一语义，detail 形状保持一致，
+            # 客户端只需按 detail.retryable 分流，不必按出错位置区分。
             raise PcsError(
                 code="EVENT_ID_CONFLICT",
                 message=(
                     f"event_id {event_id} 已以不同 payload 处理过 "
                     f"(已存 hash={existing.payload_hash[:12]}…, "
                     f"本次={payload_hash[:12]}…)。"
-                    "同一 event_id 携带不同 payload 是上游 bug。"
+                    "同一 event_id 携带不同 payload 是上游 bug，重试无用。"
                 ),
                 status=409,
+                detail={"retryable": False, "event_id": str(event_id)},
             )
         return False
 
@@ -209,6 +212,10 @@ async def _claim(
     except IntegrityError as exc:
         # 并发下两个投递同时 claim → 后到者撞主键, 视为幂等重投。
         # 上面只回滚了 savepoint，调用方的事务与其已写入的数据完好无损。
+        #
+        # ⚠️ 三个出口语义不同，不可一概报「并发冲突」（审查 #2 后半段）——
+        # 统一说成冲突 + 标 retryable，会把真正的上游 bug 伪装成瞬时并发，
+        # 运维无限重试、日志刷爆、该查的根因被埋掉。
         row = (
             await session.execute(
                 EventIdempotency.__table__.select().where(
@@ -216,12 +223,32 @@ async def _claim(
                 )
             )
         ).first()
-        if row is not None and row.payload_hash == payload_hash:
-            return False
+        if row is not None:
+            if row.payload_hash == payload_hash:
+                # 同 payload 的真并发 —— 第二个事务本就该被幂等吞掉，不派发。
+                return False
+            # hash 不同 = 同一 event_id 携带不同 payload，与顶部早返回分支同一条件。
+            # 这是上游 bug，**重试无用**：重试多少次都会撞同一行。
+            raise PcsError(
+                code="EVENT_ID_CONFLICT",
+                message=(
+                    f"event_id {event_id} 已以不同 payload 处理过 "
+                    f"(已存 hash={row.payload_hash[:12]}…, 本次={payload_hash[:12]}…)。"
+                    "同一 event_id 携带不同 payload 是上游 bug，重试无用。"
+                ),
+                status=409,
+                detail={"retryable": False, "event_id": str(event_id)},
+            )
+        # 撞了主键却查不到行：对方事务此刻尚未对本读可见。这是**唯一**值得
+        # 上游重试的情形 —— 如实标出，否则可恢复的并发被直接判成失败。
         raise PcsError(
             code="EVENT_ID_CONFLICT",
-            message=f"event_id {event_id} 并发 claim 冲突: {exc}",
+            message=(
+                f"event_id {event_id} 已被并发事务 claim 但尚未可见，请重试 "
+                f"(底层错误: {exc})。"
+            ),
             status=409,
+            detail={"retryable": True, "event_id": str(event_id)},
         ) from exc
     return True
 
