@@ -269,29 +269,36 @@
 
 ---
 
-## 🔴 `alembic check` 报 130 条**假漂移**，CLAUDE.md 的漂移闸形同虚设（2026-10-06 登记）
+## ✅ `alembic check` 假漂移已修（2026-10-06，`app/models/__init__.py` 补 `util`）
 
-- **现状**：`uv run alembic check` 报 130 条 upgrade 操作（14 remove_table / 88 remove_index /
-  26 add_index / 2 add_column）。**但它们全是假的。**
+- **原症状**：`uv run alembic check` 恒报 130 条（14 remove_table / 88 remove_index /
+  26 add_index / 2 add_column），全假。CLAUDE.md 指定的人工守门动作因此形同虚设。
 - **根因**：`alembic/env.py:7` 只 `import app.models  # 注册全部 53 表`，
-  而 `app/models/__init__.py` 列了 16 个模块却**独漏 `util`** →
-  7 张 UTIL 表（`util_results` / `utility_power_items` / `utility_fuel_gas` /
-  `utility_heat_exchange` / `utility_energy_summary` / `utility_gas_media` /
-  `utility_low_temp_heat`）不进 `Base.metadata`。
-  实测：裸 `import app.models` → **95 表**；再 `import app.models.util` → **102 表**。
-- **为什么测试没炸**：`tests/conftest.py:34` 的 `from app.api.v1 import api_router`
-  链式带出了 util 模型，所以测试库 102 表齐全。
-  **已实测验证**（`import app.api.v1` 后 UTIL 表 0 缺失；隔离跑
-  `tests/services/util/test_gas_media_and_low_temp_heat.py` → 8 passed）。
-  这一点曾被误判为「测试库缺表」，特此记录以免重犯。
-- **危害**：CLAUDE.md 明写「`uv run alembic check` 无输出即一致」是 ORM↔迁移漂移的**人工守门动作**。
-  该命令恒报漂移 → 守门人学会忽略 → 真的漂移也看不见。
-  这正是 CLAUDE.md「漂移盲区」警告的反面：不是抓不到，是**狼来了**。
-- **修法**（一行）：`app/models/__init__.py` 补 `from app.models.util import *  # noqa: F401,F403`。
-  该包 `__init__` 本就声称注册全部模型，漏一个模块是它自己的 bug，
-  补上后 `import app.models` 与 conftest 链式导入口径一致，漂移自然归零。
-- **顺带**：补完后应重新跑 `alembic check` 确认剩余项 —— 若归零则本条关闭；
-  若仍有真漂移则另立条目。
+  而 `app/models/__init__.py` 列了 16 个模块却**独漏 `util`**。
+  实测：修复前裸 `import app.models` → **95 表**；修复后 → **102 表**。
+- **修法**：`app/models/__init__.py` 补 `from app.models.util import *`。
+  该包 docstring 明写「alembic/env.py 依赖本包导入即注册全部表」——漏 `util` 违反的是它自己的契约。
+- **效果**：130 → **84** 条，`remove_table` 归零（7 张 UTIL 表对 autogenerate 可见了）。
+- **为什么测试此前没炸**：`tests/conftest.py:34` 的 `from app.api.v1 import api_router`
+  链式带出了 util 模型。**曾误判为「测试库缺 7 张表」，实测证伪**（隔离跑
+  `tests/services/util/test_gas_media_and_low_temp_heat.py` → 8 passed）。特此记录以免重犯。
+- **验证**：全量 3924 passed / 0 failed（与修复前同基线）；test_schema 7 passed；
+  ruff clean；幂等闸 0 violations。
+
+## 🟡 `alembic check` 剩余 84 条**真**索引漂移（2026-10-06 假漂移修复后暴露）
+
+- **性质**：上面那条修好后，守门终于能说真话了 —— 剩下这 84 条是**真的** ORM↔迁移索引不一致。
+- **构成**：52 `remove_index`（DB 有、ORM 无）+ 30 `add_index`（ORM 有、DB 无）+ 2 `add_column`。
+- **典型形态是改名对不上**，而非「缺索引」：
+  - `ix_cepci_year`（DB） vs `ix_cepci_index_series_year`（ORM）
+  - `ix_equipment_deletion_audit_project_equipment`（DB，复合） vs
+    `ix_equipment_deletion_audit_project_id` + `..._equipment_id`（ORM，两个单列）
+  - `ix_audit_logs_detail_json_gin`（DB，GIN） 在 ORM 侧无对应声明
+- **危害**：低于表级漂移（不影响功能、不丢数据），但会让每次 `alembic check` 都被噪声淹没，
+  守门价值再次打折。**长期风险是「改名对不上」这类会被误当成噪声忽略，而它恰恰是最容易
+  让人以为索引还在的地方。**
+- **修法**：逐个裁决「ORM 对 / 迁移对」，对的一侧改另一侧。改 ORM 侧零迁移成本；
+  改迁移侧需新迁移（注意 `p7_s5_` 已在幂等白名单）。建议按表分批，不要一次性动 84 条。
 - **Owner**：待认领（**未做**，仅登记）
 
 ## 🔴 CATEGORY_6 设备库地基缺失，相似度无法在其上实现（2026-10-06 登记）

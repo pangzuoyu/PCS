@@ -14,3 +14,4 @@ from app.models.sim_tower import *  # noqa: F401,F403
 from app.models.sim_unit_op import *  # noqa: F401,F403
 from app.models.stream_symbol import *  # noqa: F401,F403
 from app.models.system import *  # noqa: F401,F403
+from app.models.util import *  # noqa: F401,F403
