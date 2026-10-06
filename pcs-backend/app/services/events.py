@@ -55,6 +55,38 @@ _LISTENERS: dict[str, list[Callable[[dict], Awaitable[None]]]] = {}
 # 参与 payload_hash 计算的键 — 顺序固定, 确保同 payload 恒同 hash
 _HASHED_KEYS = ("event_type", "before", "after")
 
+# event_id 派生的命名空间 — 固定不变, 是确定性 id 跨进程/跨重启稳定的前提。
+# 用 uuid5 从 URL 命名空间派生而非随手写死, 便于日后追溯其来源。
+NS_EVENT = uuid.uuid5(uuid.NAMESPACE_URL, "pcs.p7.events")
+
+
+def derive_event_id(
+    event_type: str,
+    before: dict | None,
+    after: dict | None,
+    *,
+    scope: str,
+) -> uuid.UUID:
+    """从业务操作确定性派生 event_id（审查 #3）.
+
+    语义：**一次业务事实 = 一个 id**。同一 `scope`（通常是设备 id）下重复发出
+    「before → after 这一次替换」是幂等的，不会二次派发；发出不同的 before/after
+    则是另一条事实，拿到新 id 正常入库。
+
+    这修掉的是 `uuid4()` 造成的去重结构性不可达：此前没有任何 producer 能产出
+    碰撞的 event_id，`_claim` 的幂等表、`payload_hash` 冲突检测、竞态处理全都
+    无法生效。副作用是重复校核不再发出「before 等于上一个 after」的第二条事件
+    —— 那会让 P8 的按序反向恢复把实际数据写回设计位。
+
+    ⚠️ 哈希输入**只含** event_type + before + after（即 `_HASHED_KEYS`），不含
+    timestamp / request_id / iat / actor。掺入这些字段会让每次重投都得到不同 id，
+    幂等彻底失效。改动 `_HASHED_KEYS` 前先想清楚这一点。
+    """
+    return uuid.uuid5(
+        NS_EVENT,
+        f"{event_type}:{scope}:{_payload_hash(event_type, before, after)}",
+    )
+
 
 def register_listener(
     event_type: str, listener: Callable[[dict], Awaitable[None]]
@@ -158,19 +190,25 @@ async def _claim(
             )
         return False
 
-    session.add(
-        EventIdempotency(
-            event_id=event_id,
-            event_type=event_type,
-            payload_hash=payload_hash,
-            before_json=before,
-        )
-    )
     try:
-        await session.flush()
+        # savepoint 而非 rollback —— 审查 #2 的数据丢失根因。
+        # `session.rollback()` 回滚的是**调用方整个事务**：`session.flush()` 冲刷的是
+        # 调用方全部待写状态，`pass_check` 恰好在 emit_event 前 flush 了
+        # `actual_data_status=CONFIRMED`，会被这一句连同 claim 行一起丢掉，
+        # 而调用方收到的是「并发 claim 冲突」这个误导性错误。
+        async with session.begin_nested():
+            session.add(
+                EventIdempotency(
+                    event_id=event_id,
+                    event_type=event_type,
+                    payload_hash=payload_hash,
+                    before_json=before,
+                )
+            )
+            await session.flush()
     except IntegrityError as exc:
-        # 并发下两个投递同时 claim → 后到者撞主键, 视为幂等重投
-        await session.rollback()
+        # 并发下两个投递同时 claim → 后到者撞主键, 视为幂等重投。
+        # 上面只回滚了 savepoint，调用方的事务与其已写入的数据完好无损。
         row = (
             await session.execute(
                 EventIdempotency.__table__.select().where(
@@ -248,7 +286,9 @@ async def emit_event(
 
 
 __all__ = [
+    "NS_EVENT",
     "clear_listeners",
+    "derive_event_id",
     "emit_event",
     "register_listener",
     "restore_listeners",

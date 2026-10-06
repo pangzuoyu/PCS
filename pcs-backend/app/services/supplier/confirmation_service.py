@@ -29,7 +29,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import PcsError
 from app.models.enums import ActualDataStatus
-from app.services.events import emit_event
+from app.services.events import derive_event_id, emit_event
 from app.services.supplier.deviation_report import build_report, can_confirm
 
 # 事件类型
@@ -107,7 +107,12 @@ async def pass_check(
     await emit_event(
         session,
         REPLACES_DESIGN,
-        event_id=uuid.uuid4(),
+        event_id=derive_event_id(
+            REPLACES_DESIGN,
+            equipment.design_parameters_json,
+            equipment.actual_data_json,
+            scope=str(equipment.equipment_id),
+        ),
         before=equipment.design_parameters_json,   # deepcopy 后落 event_idempotency
         after=equipment.actual_data_json,
         equipment_id=equipment.equipment_id,

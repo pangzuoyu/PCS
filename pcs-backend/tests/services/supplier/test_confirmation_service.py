@@ -258,3 +258,70 @@ async def test_check_submitted_event_emitted_on_confirm(db_session):
 
 async def _append(sink: list, event: dict) -> None:
     sink.append(event)
+
+
+# ---------------------------------------------------------------------------
+# 4. 事件幂等与事务边界（审查 #2 / #3）
+# ---------------------------------------------------------------------------
+
+
+async def test_pass_check_reissue_same_data_is_idempotent(db_session):
+    """#3：同一台设备 + 同一份数据重复校核通过 → 同一个 event_id，第二个不派发.
+
+    改 uuid5 前这里是 RED：每次 `uuid.uuid4()` 都发一个新事件，第二个事件的
+    `before` 等于第一个的 `after` —— P8 按序反向恢复会把实际数据写回设计位，
+    原始设计值永久丢失。
+    """
+    from app.services.supplier.confirmation_service import pass_check
+
+    seen: list[dict] = []
+    register_listener(REPLACES_DESIGN, lambda e: _append(seen, e))
+    eq = await _make_equipment(db_session)
+    await pass_check(db_session, eq, _CHECKER, reason="校核通过")
+    first_id = seen[0]["event_id"]
+
+    await pass_check(db_session, eq, _CHECKER, reason="重复点击")
+
+    assert [e["event_id"] for e in seen] == [first_id], (
+        f"重复校核多派发了 {len(seen) - 1} 个事件 —— event_id 非确定性，"
+        "幂等去重结构性不可达"
+    )
+
+
+async def test_claim_collision_keeps_caller_write(db_session, monkeypatch):
+    """#2：_claim 撞主键时，调用方已 flush 的 CONFIRMED 不得被 rollback 吞掉.
+
+    故障注入 —— 单连接内存 SQLite 造不出真并发双 INSERT，故让 _claim 内那次
+    flush 抛 IntegrityError，直接检验该 except 分支的可观测后果。
+
+    修复前 `_claim` 调 `session.rollback()` 回滚整个事务：调用方
+    `actual_data_status=CONFIRMED` 一起丢，设备退回 PENDING_CONFIRM，且调用方
+    收到的是「并发 claim 冲突」这个**误导性**错误。
+    """
+    from sqlalchemy.exc import IntegrityError
+
+    from app.services.supplier.confirmation_service import pass_check
+
+    eq = await _make_equipment(db_session)
+    real_flush = db_session.flush
+    calls = {"n": 0}
+
+    async def flaky_flush(*a, **kw):
+        calls["n"] += 1
+        if calls["n"] == 2:
+            # pass_check 的 flush 是 #1；_claim 里 INSERT claim 行那次是 #2
+            # （此前 session 已干净，_claim 的 SELECT 不会触发 autoflush）
+            raise IntegrityError("INSERT ...", {}, Exception("forced collision"))
+        return await real_flush(*a, **kw)
+
+    monkeypatch.setattr(db_session, "flush", flaky_flush)
+    try:
+        with pytest.raises(PcsError):
+            await pass_check(db_session, eq, _CHECKER, reason="校核通过")
+    finally:
+        monkeypatch.undo()
+
+    await db_session.refresh(eq)
+    assert eq.actual_data_status == "CONFIRMED", (
+        "claim 冲突把调用方已 flush 的 CONFIRMED 一起回滚了 —— 数据丢失"
+    )
