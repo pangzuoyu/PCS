@@ -182,9 +182,6 @@ SPEC_RULES: tuple[DeviationRule, ...] = (
     ),
 )
 
-_RULE_INDEX = {r.parameter: r for r in SPEC_RULES}
-
-
 def find_rule(name: str) -> DeviationRule | None:
     """按参数名查规则；查不到返回 None（调用方据此判「无判定规则」）."""
     for rule in SPEC_RULES:

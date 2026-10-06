@@ -4,9 +4,13 @@
 - `can_confirm`: 确认门禁 —— 存在**不合格或不可判**项一律拒绝 (SPEC §3.2.4(4))
 - `export_excel` / `export_pdf`: SPEC §3.2.4(3)「可导出PDF/Excel」
 
-⚠️ **已知缺口** (2026-10-05 用户裁决「设计值留空」): `design_parameters_json`
-无写入方，生产路径上所有行都会落到「缺设计值（不可判）」，因而 `can_confirm` 恒
-False。引擎本身已按 SPEC 逐条实现并由单测覆盖；设计值来源是另一个决定。
+设计值来源：`app/services/equip_list/pump_design_data.py` 的 `PUMP_DESIGN`
+（17 个蜡油加氢泵位号），经 `apply_design_parameters()` /
+`scripts/p7_s4_003_seed_pump_design.py` 写入 `design_parameters_json`。
+
+⚠️ **残余缺口**：PUMP_DESIGN 只覆盖那 17 个位号，tag 集之外的设备仍全部落
+「缺设计值（不可判）」、`can_confirm` 恒 False。非泵设备的应检参数表与设计值
+来源待其数据模型落地时再建（见 #8 的范围限定）。
 """
 
 from __future__ import annotations
@@ -204,12 +208,6 @@ _FONT_COLOR = {
 # SPEC §3.2.4(3) 原文列名：对比项、设计值、实际值、偏差、结论。不得改写成
 # 「偏差%」—— 工艺室按 SPEC 认列名。
 _HEADERS = ("设备位号", "对比项", "设计值", "实际值", "单位", "偏差", "结论", "颜色", "说明", "SPEC 依据")
-
-
-def _cell(container, row) -> dict:
-    from dataclasses import asdict
-
-    return asdict(row)
 
 
 # 公式注入的中和字符集（OWASP CSV/XLS Injection）。openpyxl 不转义前导 `=`，

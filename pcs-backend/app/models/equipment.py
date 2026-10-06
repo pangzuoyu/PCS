@@ -171,7 +171,8 @@ class EquipmentList(TaggedRecordMixin, Base):
     # 实际值本体（P7 Sprint 4 S4-1 补建 —— 此前只有状态列，无值可存）。
     # 形状: {参数名: {"value": float, "unit": str}}
     # 校验: name 去重 + value 必须数值（见 services/supplier/actual_data_service）。
-    # 不拿 design_parameters_json 做校验依据 —— 该字段目前无写入方（恒 NULL）。
+    # 不拿 design_parameters_json 做校验依据 —— 它是**设计**值不是**实测**值，
+    # 且由 PUMP_DESIGN 回填写入（见 services/equip_list/pump_design_data.py）。
     actual_data_json: Mapped[dict | None] = mapped_column(
         JSONB,
         comment=(

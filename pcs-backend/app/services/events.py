@@ -19,7 +19,7 @@ P7 Sprint 4 Task S4-0。落地 **D4 裁决 4A**：
 
 用法::
 
-    from app.core.events import emit_event, register_listener
+    from app.services.events import emit_event, register_listener
 
     register_listener("actual_data_replaces_design", my_handler)
 

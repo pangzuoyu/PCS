@@ -4,8 +4,8 @@
     GET /api/v1/equipment/{id}/deviation-report
     GET /api/v1/equipment/{id}/deviation-report/export?format=excel|pdf
 
-⚠️ 已知缺口：`design_parameters_json` 无写入方（用户裁决「设计值留空」），
-故本测试直接 UPDATE 该列来验证端点行为。
+本测试直接 UPDATE `design_parameters_json` 来验证端点行为 —— 生产路径由
+`pump_design_data.PUMP_DESIGN` 回填写入该列。
 """
 
 from __future__ import annotations

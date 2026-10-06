@@ -7,8 +7,8 @@ ADR-0025: 设备从「设计值」流转到「实际值」。`EquipmentList` 已
 录入入口是**手工 UI 页面** (S4-1 裁决): 要求供应商填统一 Excel 不现实,
 故无 Excel 批量导入路径, 设备方逐项在页面上录入。
 
-注意: `design_parameters_json` 目前**无写入方** (恒 NULL), 故不能拿它做录入
-校验的依据; 校验改为「每项 name+value+unit, name 去重, value 必须数值」。
+注意: `design_parameters_json` 是**设计**值不是实测值 (由 PUMP_DESIGN 回填写入),
+不能拿它做录入校验的依据; 校验是「每项 name+value+unit, name 去重, value 必须数值」。
 """
 
 from __future__ import annotations

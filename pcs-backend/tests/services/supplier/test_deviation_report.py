@@ -3,9 +3,9 @@
 SPEC §3.2.4(3) 报告含「对比项、设计值、实际值、偏差、结论」，可导出 PDF/Excel。
 SPEC §3.2.4(4) + 风险 #4：**存在不合格项 → 禁止标记「已确认」**。
 
-⚠️ 已知缺口 (2026-10-05 用户裁决「设计值留空」): `design_parameters_json`
-无写入方，故生产路径上报告恒为「缺设计值（不可判）」。本测试直接构造
-design_parameters_json 以验证引擎本身正确 —— 来源问题另记，不在本 Task。
+本测试直接构造 design_parameters_json 以验证引擎本身 —— 真实写入方是
+`pump_design_data.PUMP_DESIGN`（17 个位号），残余缺口是 tag 集外的设备
+仍全行不可判（见 deviation_report 模块 docstring）。
 """
 
 from __future__ import annotations

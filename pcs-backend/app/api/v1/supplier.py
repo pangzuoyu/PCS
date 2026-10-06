@@ -151,8 +151,8 @@ async def get_deviation_report(
     `can_confirm` 是 SPEC §3.2.4(4) 的确认门禁 —— 存在不合格或不可判项时
     为 false，前端据此禁用「已确认」。
 
-    ⚠️ 已知缺口：`design_parameters_json` 目前无写入方，故生产路径上全部行
-    都会落「缺设计值（不可判）」。引擎已按 SPEC 逐条实现，设计值来源待定。
+    ⚠️ 残余缺口：设计值来自 `pump_design_data.PUMP_DESIGN`（17 个蜡油加氢泵
+    位号），tag 集之外的设备全部落「缺设计值（不可判）」、`can_confirm` 恒 False。
     """
     require_roles(actor, *_READ_ROLES)
     record = await _load_equipment(db, equipment_id, actor)
