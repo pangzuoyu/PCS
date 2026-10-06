@@ -185,21 +185,32 @@ class VesselSizingResult:
 
 ---
 
-## P5-1-3 EQUIP_LIB DEFERRED（V1.1 OPEN-1 登记）
+## P5-1-3 EQUIP_LIB DEFERRED（V1.1 OPEN-1 登记）—— ⚠️ 阻塞理由已于 2026-10-06 作废
 
-**状态**：DEFERRED（阻塞 + 暂跳过）
+**状态**：DEFERRED。**原阻塞理由无效**，本条降级为「未排期」，非「被阻塞」。
 
-**核实结果**（2026-09-17）：
-- `equip_lib` 表名错误（实际名 `equipment_lib`，12 列含 equip_id/type_code/size/weight/material 等）
-- `equipment_lib` 表结构存在，但 **0 行数据**（pcs + pcs_test 两库均空）
-- 无 P2/P3 交付物可灌数据（equipment_lib 属业务数据，由用户/采购录入）
+**原核实结果**（2026-09-17，**其中第 2、3 条前提错误**）：
+- `equip_lib` 表名错误（实际名 `equipment_lib`，12 列含 equip_id/type_code/size/weight/material 等）✅
+- ~~`equipment_lib` 表结构存在，但 0 行数据~~ → **表本身是死表**，已于 2026-10-06 删除（`p7_s5_001`）
+- ~~无 P2/P3 交付物可灌数据~~ → **前提错误**：设备库根本不存这张表
 
-**DEFER 理由**：P5-1-3 `recommend_vessels` 是 EQUIP_LIB 匹配（按相似度返回相似设备列表）；空表下无可匹配数据 → 阻塞。
+**为何前提错误**：本核实做于 2026-09-17，但 P2 Sprint 1.9（`f0652ae`，**2026-09-06**）已把
+P2-EQL-001「复用设备库」实现为 **`ConfigAsset` + `category == "CATEGORY_6"`**，
+而非 `equipment_lib` 表。SPEC P2 §3.2.6 标题即写「复用设备库管理（**CATEGORY_6**）」——
+**规格从未要求独立表**。核实者查错了承载表，于是把「表空」当成了「功能无数据」。
 
-**后续路径**：
-- 等业务侧提供 equipment_lib 数据源后启动 P5-1-3
+**2026-10-06 实证复核**：
+- `equipment_lib`：0 行 / 0 代码引用 / 0 专属测试 → 已删除
+- `ConfigAsset` CATEGORY_6：同样 **0 行** → 阻塞理由换成「真库从未沉淀过设备」依然成立
+- 但 **`type_code` 根本没被采集**（`EquipLibSettleRequest` 无该字段），
+  而相似度匹配以 type_code 为主键 —— 这是真正的技术阻塞，与 `equipment_lib` 无关
+
+**修订后的后续路径**（2026-10-06 裁决）：
+- 先给 CATEGORY_6 补 `type_code` 采集 + 去重约束 + 索引，再做相似度算法
 - 或 P5-1-3 调整为"无 EQUIP_LIB 时返回空列表 + 推荐理由说明"
 - 不阻塞 P5-1-4（API + 落库 + outlet_stream）
+
+详见 `docs/PCS-NOTE-equipment_lib-废弃-2026-10-06.md`。
 
 ---
 

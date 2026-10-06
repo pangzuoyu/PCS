@@ -266,3 +266,43 @@
 - 4 组并行只读核验（子代理）+ 主会话实证，覆盖 44 条编号项 + 4 条无编号项，无一条凭印象下判。
 - ⚠️ **核验时慎用组合正则**：本次发现子代理首轮 `grep "A\|B"` 被 rtk 过滤层吞掉、误报「0 匹配」，
   拆成两个独立 `grep -c` 后才得真实计数。多模式核验应逐条单发。
+
+---
+
+## 🔴 `alembic check` 报 130 条**假漂移**，CLAUDE.md 的漂移闸形同虚设（2026-10-06 登记）
+
+- **现状**：`uv run alembic check` 报 130 条 upgrade 操作（14 remove_table / 88 remove_index /
+  26 add_index / 2 add_column）。**但它们全是假的。**
+- **根因**：`alembic/env.py:7` 只 `import app.models  # 注册全部 53 表`，
+  而 `app/models/__init__.py` 列了 16 个模块却**独漏 `util`** →
+  7 张 UTIL 表（`util_results` / `utility_power_items` / `utility_fuel_gas` /
+  `utility_heat_exchange` / `utility_energy_summary` / `utility_gas_media` /
+  `utility_low_temp_heat`）不进 `Base.metadata`。
+  实测：裸 `import app.models` → **95 表**；再 `import app.models.util` → **102 表**。
+- **为什么测试没炸**：`tests/conftest.py:34` 的 `from app.api.v1 import api_router`
+  链式带出了 util 模型，所以测试库 102 表齐全。
+  **已实测验证**（`import app.api.v1` 后 UTIL 表 0 缺失；隔离跑
+  `tests/services/util/test_gas_media_and_low_temp_heat.py` → 8 passed）。
+  这一点曾被误判为「测试库缺表」，特此记录以免重犯。
+- **危害**：CLAUDE.md 明写「`uv run alembic check` 无输出即一致」是 ORM↔迁移漂移的**人工守门动作**。
+  该命令恒报漂移 → 守门人学会忽略 → 真的漂移也看不见。
+  这正是 CLAUDE.md「漂移盲区」警告的反面：不是抓不到，是**狼来了**。
+- **修法**（一行）：`app/models/__init__.py` 补 `from app.models.util import *  # noqa: F401,F403`。
+  该包 `__init__` 本就声称注册全部模型，漏一个模块是它自己的 bug，
+  补上后 `import app.models` 与 conftest 链式导入口径一致，漂移自然归零。
+- **顺带**：补完后应重新跑 `alembic check` 确认剩余项 —— 若归零则本条关闭；
+  若仍有真漂移则另立条目。
+- **Owner**：待认领（**未做**，仅登记）
+
+## 🔴 CATEGORY_6 设备库地基缺失，相似度无法在其上实现（2026-10-06 登记）
+
+- **背景**：UI-SPEC §7.16（V1.0 冻结）要求相似度推荐，2026-10-06 裁决「先补地基再做相似度」。
+  本条只登记地基缺口，相似度本身另议。
+- **5 项硬伤**（详见 `docs/PCS-NOTE-equipment_lib-废弃-2026-10-06.md`）：
+  1. `type_code` 根本没采集 —— `EquipLibSettleRequest` 无该字段，**相似度没有主匹配键**
+  2. settle 无去重约束 —— 同设备重复沉淀产生 N 条独立 asset，库退化成设备台账副本
+  3. `weight_kg` / `key_dimensions` 埋在 JSONB 无索引，区间查询只能全表扫
+  4. `category` 无枚举 + `status`/`category` 零索引，且 628 条 CATEGORY_1 混在同一张表
+  5. 审批语义冲突 —— SPEC 要求 CATEGORY_6 单层，实际复用 5 态链，测试同 token 提交+approve
+- **附带事实**：`ConfigAsset` CATEGORY_6 在真库 **0 行** —— 设备库功能从未被真实使用过。
+- **Owner**：待认领

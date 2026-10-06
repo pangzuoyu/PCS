@@ -74,7 +74,10 @@ def test_table_count(inspector):
     # 2026-10-05 P7-6B 收尾: 新增 utility_gas_media (Nm³ 工艺气体/氮气/仪表空气)
     #   + utility_low_temp_heat (GJ 低温余热) = 103
     # 2026-10-05 Sprint 4 S4-0: 新增 event_idempotency (事件幂等凭据) = 104
-    assert len(tables) == 104, f"expected 104 incl. alembic_version, got {len(tables)}"
+    # 2026-10-06 p7_s5_001: 删除 equipment_lib 死表 (设备库实际由
+    #   ConfigAsset CATEGORY_6 承载; 该表 0 行 / 0 引用 / 0 专属测试,
+    #   SPEC P2 §3.2.6 从未要求独立表) = 103
+    assert len(tables) == 103, f"expected 103 incl. alembic_version, got {len(tables)}"
     # P5-0-1b T1 新增 thermosiphon_circulation_results（SUP-010 §3.5 热虹吸循环
     #   安装高度）= 93 incl. alembic_version。
     #   （2026-10-05 起该值改为 101, 见下方 8 张表的说明。）
@@ -116,7 +119,6 @@ def test_required_tables_present(inspector):
         "cost_est_results",
         "equipment_list",
         "equipment_type_codes",
-        "equipment_lib",
         "suppliers",
         "deliverables",
         "deliverable_versions",

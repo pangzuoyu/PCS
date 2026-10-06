@@ -182,27 +182,6 @@ class EquipmentList(TaggedRecordMixin, Base):
     )
 
 
-class EquipmentLib(TimestampMixin, Base):
-    """设备库（equipment_lib 表，标准设备沉淀实体，P2-EQL-001）。
-
-    业务：跨项目复用设备型号；type_code + size + weight + material 等基础属性；
-    data_status 控制数据生命周期（NOT_ENTERED/PENDING_CONFIRM/CONFIRMED/NEED_RECALC）。
-    """
-
-    __tablename__ = "equipment_lib"
-    equip_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
-    type_code: Mapped[str] = mapped_column(String(5))
-    size: Mapped[str | None] = mapped_column(String(100))
-    weight: Mapped[float | None] = mapped_column(Float)
-    material: Mapped[str | None] = mapped_column(String(100))
-    standard_drawing_no: Mapped[str | None] = mapped_column(String(100))
-    process_description: Mapped[str | None] = mapped_column(Text)
-    cost: Mapped[float | None] = mapped_column(Numeric(18, 2))
-    cost_currency: Mapped[str | None] = mapped_column(String(10))
-    cost_year: Mapped[int | None] = mapped_column(Integer)
-    status: Mapped[str] = mapped_column(String(20), default="ACTIVE")
-
-
 class Supplier(TimestampMixin, Base):
     """供应商库（suppliers 表，设备/材料供应商沉淀）。
 
