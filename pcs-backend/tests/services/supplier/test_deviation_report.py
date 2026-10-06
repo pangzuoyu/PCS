@@ -409,3 +409,85 @@ def test_full_entry_keeps_report_confirmable():
     }
     r = build_report(_Eq(design, actual))
     assert can_confirm(r) is True, f"应检参数齐备时不该被阻断: {r.blocking_reason}"
+
+
+# ---------------------------------------------------------------------------
+# 参照量行不阻断确认（F-P7-S4-01 撤回后的回归护栏）
+# ---------------------------------------------------------------------------
+
+
+def test_reference_only_row_does_not_block_confirmation():
+    """「轴功率」是 REFERENCE_ONLY: 有效数据、不承担判定, 不得堵死确认门禁.
+
+    `evaluate` 对它返回 **QUALIFIED**（不是 UNVERDICTABLE）—— 见
+    `deviation_service.py` 的 REFERENCE_ONLY 分支：「参照量是有效数据、只是不承担
+    判定，避免把有效设计值报成缺数据」。
+
+    这条是 **F-P7-S4-01 误报的回归护栏**：若有人把该分支改成返回 UNVERDICTABLE，
+    或把 REFERENCE_ONLY 重新放进 #8 的应检集，本用例会红。#8 落地时确实出现过后者 ——
+    应检集含「轴功率」时，无实测值会补一条「应检参数未录入实测值」占位行，
+    把整台泵堵死；已在 #8 中排除 REFERENCE_ONLY 修掉。
+    """
+    design = _pump_design()
+    actual = {
+        "扬程": {"value": 33.0, "unit": "m"},
+        "效率": {"value": 0.95, "unit": "-"},
+        "NPSHr": {"value": 2.0, "unit": "m"},
+        "电机额定功率": {"value": 2500.0, "unit": "kW"},
+        "转速": {"value": 2982.0, "unit": "r/min"},
+        "轴功率": {"value": 2214.06, "unit": "kW"},   # 参照量: 用户已录, 不得被拦
+    }
+    r = build_report(_Eq(design, actual))
+    ref = [x for x in r.rows if x.parameter == "轴功率"]
+    assert ref, "轴功率 行没出现在报告里 —— 测试没测到东西"
+    assert ref[0].verdict == "QUALIFIED", (
+        f"REFERENCE_ONLY 应返回 QUALIFIED 而非 {ref[0].verdict}"
+    )
+    assert can_confirm(r) is True, f"参照量行堵死了确认门禁: {r.blocking_reason}"
+
+
+def test_manual_check_row_still_blocks_confirmation():
+    """MANUAL_CHECK 仍阻断 —— 它的「不可判」代表判定**未完成**，不是「不判」。
+
+    与 REFERENCE_ONLY 的语义区别：
+      - REFERENCE_ONLY：「本身不判合格与否」—— 根本没有判定存在，无从阻断；
+      - MANUAL_CHECK：「序数比较，机器判不了 —— **需人工核对**」—— 判定存在且
+        未完成。SPEC 要求材质不得低于设计，人工核对没做就确认等于跳过合规要求。
+    """
+    design = _pump_design()
+    actual = {
+        "扬程": {"value": 33.0, "unit": "m"},
+        "效率": {"value": 0.95, "unit": "-"},
+        "NPSHr": {"value": 2.0, "unit": "m"},
+        "电机额定功率": {"value": 2500.0, "unit": "kW"},
+        "转速": {"value": 2982.0, "unit": "r/min"},
+        "材质": {"value": "304", "unit": ""},        # MANUAL_CHECK: 待人工核对
+    }
+    r = build_report(_Eq(design, actual))
+    mat = next(x for x in r.rows if x.parameter == "材质")
+    assert mat.verdict == "UNVERDICTABLE"
+    assert mat.requires_manual_check is True
+    assert can_confirm(r) is False, (
+        "人工核对未完成的行必须阻断 —— 它代表的判定存在但没做"
+    )
+
+
+def test_missing_required_param_still_blocks_confirmation():
+    """回归: 修/撤回 REFERENCE_ONLY 不得放宽「缺值型」不可判的阻断（#8 的 fail-closed）。"""
+    design = _pump_design()
+    actual = {
+        "扬程": {"value": 33.0, "unit": "m"},
+        "效率": {"value": 0.95, "unit": "-"},
+        "NPSHr": {"value": 2.0, "unit": "m"},
+        "电机额定功率": {"value": 2500.0, "unit": "kW"},
+        "转速": {"value": 2982.0, "unit": "r/min"},
+        "轴功率": {"value": 2214.06, "unit": "kW"},
+        "叶轮直径": {"value": 320.0, "unit": "mm"},   # 有实测无设计 -> RECHECK -> WARNING
+    }
+    assert can_confirm(build_report(_Eq(design, actual))) is True
+
+    partial = {k: v for k, v in actual.items() if k != "NPSHr"}
+    r2 = build_report(_Eq(design, partial))
+    nps = next(x for x in r2.rows if x.parameter == "NPSHr")
+    assert "未录入实测值" in nps.note
+    assert can_confirm(r2) is False, "缺值型不可判必须阻断"

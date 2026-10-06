@@ -230,21 +230,22 @@ def can_confirm(report: DeviationReport) -> bool:
     全部合格或仅警告 → 可确认。存在**不合格或不可判** → 拒绝。
     「不可判」也拦 —— 把判不了的当合格会让这道门禁形同虚设。
 
-    ⚠️ **F-P7-S4-01（登记，合并后立即修）**：`UNVERDICTABLE` 被一视同仁地阻断，
-    但它有两种来源，语义相反：
+    ⚠️ **F-P7-S4-01 已撤回（2026-10-06 自查）** —— 曾登记「REFERENCE_ONLY 的
+    UNVERDICTABLE 阻断确认」为待修缺陷，**该登记基于误读，作废**。
 
-    | 类型 | 例子 | 该阻断？ |
-    |------|------|---------|
-    | 缺值型 | #8 的「应检参数未录入实测值」占位行 | ✅ 该 —— 用户还没补 |
-    | 参照型 | `轴功率` 已录入，但它本就不判合格与否 | ❌ 不该 —— 用户已尽责 |
+    `evaluate` 对 REFERENCE_ONLY 返回的是 **QUALIFIED 而非 UNVERDICTABLE**
+    （`deviation_service.py`：参照量是有效数据、只是不承担判定，「避免把有效设计值
+    报成缺数据」）。QUALIFIED 不触发本函数的阻断分支，故录入「轴功率」**不会**堵死
+    确认门禁。先前观察到的「不可判 1 项: 轴功率」来自 #8 的**应检集补行**（当时轴功率
+    尚无实测值），而应检集已在 #8 落地时排除 REFERENCE_ONLY —— 那才是真问题，已修。
 
-    修法：`can_confirm` 排除 `rule.kind == "REFERENCE_ONLY"` 的 UNVERDICTABLE 行。
-    ⚠️ `MANUAL_CHECK`（`requires_manual_check=True`，如材质）的 UNVERDICTABLE
-    **是否也该排除，需一并裁决** —— 它同样不是「缺值」，但它代表「机器判不了、
-    需人工核对」，阻断与否是产品口径问题，不在本轮 fix pass 范围内。
+    保留此注记作为回归护栏：若将来有人把 REFERENCE_ONLY 改成返回 UNVERDICTABLE，
+    或把它重新放进应检集，确认门禁会静默堵死泵。配套测试
+    `test_reference_only_row_does_not_block_confirmation`。
 
-    实际触发率高：`PUMP_DESIGN` 含 `轴功率` 键，录入方很自然会填它，
-    一填就把整台泵的确认门禁堵死。
+    `MANUAL_CHECK`（如材质）**仍阻断**：它的 UNVERDICTABLE 代表的判定**存在且未完成**
+    （note「需人工核对」），与「不判」的参照量语义相反 —— SPEC 要求材质不得低于设计，
+    人工核对未做就确认等于跳过一条合规要求。
     """
     if not report.rows:
         return False

@@ -2505,18 +2505,17 @@
     {
       "id": "bug-141",
       "timestamp": "2026-10-06T15:10:00+08:00",
-      "error_message": "录入「轴功率」后整台泵无法确认 —— REFERENCE_ONLY 的 UNVERDICTABLE 阻断确认门禁",
+      "error_message": "[已撤回 — 基于误读的登记] 曾登记「录入轴功率后整台泵无法确认」，实测不成立：REFERENCE_ONLY 返回 QUALIFIED 不阻断",
       "file": "pcs-backend/app/services/supplier/deviation_report.py",
-      "root_cause": "`can_confirm` 把所有 UNVERDICTABLE 一视同仁地阻断，但 UNVERDICTABLE 有两种语义相反的来源:\n  (1) 缺值型 —— #8 引入的「应检参数未录入实测值」占位行。该阻断: 用户还没补, 正是 fail-closed 的目的。\n  (2) 参照型 —— `轴功率` 录入后, 其 REFERENCE_ONLY 规则的 evaluate() 恒返回 UNVERDICTABLE(note「参照量, 本身不判合格与否」)。该阻断是错的: 用户已尽责录入了参照量, 却因为规则本身不产出判定而被拦。\n\n即: can_confirm 把「用户没做」和「做了但规则不判」压成同一状态。\n\n实际触发率高 —— PUMP_DESIGN 含「轴功率」键, 17 个蜡油加氢泵位号的设计值里都有, 录入方很自然会填它。",
-      "fix": "未修 —— 登记为 F-P7-S4-01, 合并后由 fix/p7-s4-refonly-canconfirm 首个修复。修法: can_confirm 排除 kind == REFERENCE_ONLY 的 UNVERDICTABLE 行。⚠️ MANUAL_CHECK(requires_manual_check=True, 如材质) 是否也该排除需一并裁决 —— 它同样不是「缺值」, 但代表「机器判不了、需人工核对」, 阻断与否是产品口径问题。已在 can_confirm docstring 落 tracked 注释。",
+      "root_cause": "**登记方误读了 evaluate 的返回值。** `deviation_service.py` 的 REFERENCE_ONLY 分支返回 QUALIFIED（注释：「参照量是有效数据、只是不承担判定，避免把有效设计值报成缺数据」），不是 UNVERDICTABLE，故不触发 can_confirm 的阻断分支。\n\n当时观察到的「不可判 1 项: 轴功率」实际来自 #8 的应检集补行（轴功率尚无实测值），而应检集在 #8 落地时已排除 REFERENCE_ONLY —— 那才是真问题，已在同一批修掉。\n\n教训：登记缺陷前必须跑一条最小复现，不能从 code 注释推断返回值。注释里写的 「不判合格与否」说的是**不产出判定**，不等于 verdict 是 UNVERDICTABLE。",
+      "fix": "无需修复。登记已撤回；can_confirm docstring 改为撤回说明并保留为回归护栏提示。",
       "fix_commit": "",
       "tags": [
         "p7-s4",
         "F-P7-S4-01",
-        "确认门禁",
-        "fail-closed",
-        "语义混淆",
-        "ce-code-review-#8"
+        "误报",
+        "已撤回",
+        "回归护栏"
       ],
       "related_bugs": [],
       "occurrences": 1,
