@@ -1,0 +1,1485 @@
+[
+ {
+  "reviewer": "synthesis",
+  "findings": [
+   {
+    "title": "`pass_check`/`reject_check` enforce no state precondition — a REVIEWER can drive never-entered or all-UNQUALIFIED equipment straight to CONFIRMED",
+    "severity": "P1",
+    "file": "pcs-backend/app/services/supplier/confirmation_service.py",
+    "line": 98,
+    "confidence": 100,
+    "autofix_class": "manual",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Add a precondition and a re-gate at the top of `pass_check`, mirroring the shape already used by `confirm_actual_data` (same module, same `_error` helper):\n\n```python\nif equipment.actual_data_status != ActualDataStatus.PENDING_CONFIRM.value:\n    raise _error(\n        \"ACTUAL_DATA_NOT_SUBMITTED\",\n        f\"实际数据当前为 {equipment.actual_data_status} —— 校核通过前须由设计人先提交确认\",\n        status=409,\n    )\n\nreport = build_report(equipment)\nif not can_confirm(report):\n    raise _error(\n        \"DEVIATION_BLOCKS_CONFIRMATION\",\n        f\"存在不合格或不可判项，禁止校核通过：{report.blocking_reason}\",\n    )\n```\n\nThis closes both the direct bypass and the re-entry TOCTOU, because the gate is re-evaluated at check time against whatever `actual_data_json` is currently stored. ASSUMPTION: PENDING_CONFIRM is the intended single value for \"submitted and awaiting check\" — the module docstring (lines 55-57) states this explicitly (\"PENDING_CONFIRM 同时覆盖「待确认」与「校核中」两段\"), so no new enum value or migration is needed. Note that adding this guard will break `test_pass_check_marks_confirmed`, `test_pass_check_emits_event_with_before`, `test_pass_check_does_not_touch_sign_status_hash` and `test_reject_check_reopens_entry`, which all call `pass_check` on a NOT_ENTERED fixture; those fixtures need a prior `confirm_actual_data` call. A same-shaped guard on `reject_check` (only unlock from CONFIRMED/PENDING_CONFIRM) is worth adding in the same pass, though it is lower impact.",
+    "first_evidence": "pcs-backend/app/services/supplier/confirmation_service.py:98 — `    equipment.actual_data_status = ActualDataStatus.CONFIRMED.value` (first statement of `pass_check`; no guard on any prior status, and no re-run of `can_confirm` anywhere in the function)",
+    "evidence": [
+     "pcs-backend/app/services/supplier/confirmation_service.py:98 — `    equipment.actual_data_status = ActualDataStatus.CONFIRMED.value` is the first statement of `pass_check`; the function body between its `def` (line 86) and this line contains no `if` on `actual_data_status`.",
+     "pcs-backend/app/api/v1/supplier.py:210 — `    record = await _load_equipment(db, equipment_id, actor)` / `211` `if body.decision == \"pass\":` / `212` `await pass_check_svc(db, record, actor, reason=body.reason)` — no status argument is passed and no status assertion precedes the call; the endpoint's only gate is `require_roles(actor, *_CHECK_ROLES)` at line 209.",
+     "Executed against the real service with a stub session and an equipment row in `NOT_ENTERED`: `pass_check` returned with `status after pass_check on NOT_ENTERED: CONFIRMED committed: True`. The transition is reachable in isolation, with no designer step anywhere in the trace.",
+     "Executed `reject_check` against an equipment row in `CONFIRMED`: `CONFIRMED -> after reject: PENDING_CONFIRM`, i.e. a REVIEWER-only call re-opens the write channel on a locked record.",
+     "pcs-backend/app/services/supplier/confirmation_service.py:65-70 — the deviation gate `build_report` / `can_confirm` is called only inside `confirm_actual_data`; grepping the module for `PENDING_CONFIRM` returns only docstrings (lines 55, 56, 123, 124) and the two unconditional assignments, confirming no precondition exists on the check path.",
+     "pcs-backend/app/services/supplier/confirmation_service.py:98 — `    equipment.actual_data_status = ActualDataStatus.CONFIRMED.value` (first statement of `pass_check`; no guard on any prior status, and no re-run of `can_confirm` anywhere in the function)",
+     "pcs-backend/app/services/supplier/confirmation_service.py:66 — `    if not can_confirm(report):` — the §3.2.4(4) gate exists only in `confirm_actual_data`, not in `pass_check`",
+     "pcs-backend/app/api/v1/supplier.py — `    if body.decision == \"pass\":\n        await pass_check_svc(db, record, actor, reason=body.reason)` — the only precondition on this route is `require_roles(actor, *_CHECK_ROLES)`",
+     "pcs-backend/app/services/supplier/actual_data_service.py:92 — `    if equipment.actual_data_status == ActualDataStatus.CONFIRMED.value:` — entry lock engages only at CONFIRMED, so re-entry between submit and check is permitted",
+     "tests/services/supplier/test_confirmation_service.py:128 — `    out = await pass_check(db_session, eq, _CHECKER, reason=\"校核通过\")` called directly on a fresh equipment without any prior `confirm_actual_data` — the tests bake in the unguarded transition rather than exercising the guard"
+    ],
+    "_why": "The four-eyes control this router exists to enforce is bypassable by any user holding the REVIEWER role alone. `check_actual_data` loads the equipment and calls `pass_check_svc` unconditionally; `pass_check` writes `actual_data_status = CONFIRMED` and flushes with no check on the current status. A REVIEWER who has project access can therefore drive an equipment from `NOT_ENTERED` (no designer ever typed a single value, no deviation report ever generated, no designer ever submitted) straight to `CONFIRMED`, and the router returns 200 with `actual_data_status: \"CONFIRMED\"`. The downstream effect is not cosmetic: `pass_check` fires the `actual_data_replaces_design` event with `before=equipment.design_parameters_json` and `after=equipment.actual_data_json` — for a never-entered machine `after` is `None` — and the confirmation gate (`can_confirm`, the whole fail-closed deviation engine of S4-2) lives only in `confirm_actual_data`, which this path never reaches. The resulting `CONFIRMED` status is exactly what `record_actual_data` treats as the lock that forbids re-entry (`ACTUAL_DATA_LOCKED`), so the equipment is permanently frozen against the designer who was supposed to fill it in. `reject_check` has the mirror-image gap: it resets a `CONFIRMED` record to `PENDING_CONFIRM` with no precondition, which unlocks the re-entry channel on any record. The fix is the repo's own guard pattern applied at the service boundary — raise `PcsError(409/422, ...)` when `equipment.actual_data_status` is not `PENDING_CONFIRM` before either transition, mirroring how `record_actual_data` already gates on `CONFIRMED`.",
+    "_why_from": 1,
+    "reviewers": [
+     "correctness",
+     "security"
+    ],
+    "_source_map": [
+     {
+      "group": "A",
+      "member": 1,
+      "key": "security|pcs-backend/app/api/v1/supplier.py|210|[a01/cwe-841] `pass_check`/`reject_check` enforce no state precondition — a reviewer can mark never-entered equipment confirmed and bypass the entire designer-submit + deviation gate"
+     },
+     {
+      "group": "A",
+      "member": 6,
+      "key": "correctness|pcs-backend/app/services/supplier/confirmation_service.py|98|pass_check has no state precondition — a checker can mark equipment confirmed without ever passing the deviation gate"
+     }
+    ],
+    "_merge_note": "same defect and fix path (add the PENDING_CONFIRM precondition to the check path); two independent in-process reviewers",
+    "_members": [
+     1,
+     6
+    ]
+   },
+   {
+    "title": "`_claim` rolls back the caller's entire transaction on any IntegrityError, silently discarding flushed state changes and misreporting the cause as a concurrency conflict",
+    "severity": "P1",
+    "file": "pcs-backend/app/services/events.py",
+    "line": 165,
+    "confidence": 100,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "在 `tests/services/test_events.py` 新增 `test_concurrent_claim_collision_rolls_back_and_skips_dispatch`：monkeypatch `db_session.flush` 使其在第一次调用（`_claim` 内的 add 后 flush）抛 `IntegrityError`，同时预置一行同 event_id 同 payload_hash 的 `EventIdempotency`；断言 (1) `emit_event` 返回 False、(2) listener 一次都没被调用、(3) **且**断言调用方在 emit_event 之前挂到 session 上的一笔业务写入（如一个新建 EquipmentList 对象）已被 rollback 掉 —— 第 (3) 条是本 finding 的核心，现在完全没有测试观察得到。再加 `test_concurrent_claim_collision_different_payload_raises_409` 覆盖同一 except 块里 `raise PcsError(...EVENT_ID_CONFLICT, status=409)` 那一支（该分支同样零覆盖）。补完这两条后，另建议单独评估把 `session.rollback()` 换成 savepoint（`session.begin_nested()`），因为它对调用方事务的破坏性是设计层面的问题，不是补测试能消除的。",
+    "first_evidence": "pcs-backend/app/services/events.py:165 — `        await session.rollback()`",
+    "evidence": [
+     "pcs-backend/app/services/events.py:165 — `        await session.rollback()`",
+     "pcs-backend/app/services/events.py:161-179 — `try:\\n        await session.flush()\\n    except IntegrityError as exc:\\n        # 并发下两个投递同时 claim → 后到者撞主键, 视为幂等重投\\n        await session.rollback()` — 该 except 块无任何测试触达（`grep -rn \"IntegrityError\" tests/services/test_events.py tests/test_cia_event_decoupling.py tests/services/supplier/` 返回空）",
+     "pcs-backend/app/services/supplier/confirmation_service.py:98-99 — `    equipment.actual_data_status = ActualDataStatus.CONFIRMED.value\\n    await session.flush()` — 该 flush 先于 emit_event，会被 _claim 的 rollback 一并回滚",
+     "pcs-backend/tests/services/test_events.py:109-171 — 幂等相关的 4 个用例（duplicate / different ids / module reload / identical payload）全部走的是出口 (a)/(b)，无一条构造并发碰撞",
+     "pcs-backend/app/services/events.py:162-165 — `    try:\n        await session.flush()\n    except IntegrityError as exc:\n        # 并发下两个投递同时 claim → 后到者撞主键, 视为幂等重投\n        await session.rollback()`",
+     "pcs-backend/app/services/events.py:132-138 — the pre-check SELECT reads only `EventIdempotency`, so an IntegrityError raised by *any other* pending statement in the session is indistinguishable from a primary-key collision here",
+     "pcs-backend/app/services/events.py:175-179 — every surviving case is reported as `f\"event_id {event_id} 并发 claim 冲突: {exc}\"`, so the real constraint name never reaches the log",
+     "pcs-backend/app/services/cia_engine.py:173-175 — `            except Exception:\n                # 状态机拒绝（不在合法转移集合）— 跳过\n                continue` swallows the resulting PcsError and keeps the rolled-back session alive"
+    ],
+    "_why": "An operator running a CIA scan over a large PipingResult set sees the scan report a partial success while the records it claims to have marked STALE silently revert to their previous status. `session.flush()` inside `_claim` flushes the *entire* pending session state, not just the new claim row, so any constraint violation raised by the caller's own earlier unflushed work (audit rows, lineage inserts, equipment updates) is caught here, re-labelled as `EVENT_ID_CONFLICT / 并发 claim 冲突`, and answered with `await session.rollback()` — which discards every write the caller had staged since the transaction opened. In `CIAEngine.propagate` / `_scan_one_class` / `propagate_to_equipment` the whole loop runs in one transaction, so a single misattributed IntegrityError wipes out every record already transitioned earlier in the same pass, and the caller never learns because the raised `PcsError` is swallowed by the surrounding `except Exception: continue`. The operator gets `scan_stale()` returning a count with 200 OK and a database that reflects none of it.",
+    "_why_from": 11,
+    "reviewers": [
+     "reliability",
+     "testing"
+    ],
+    "_source_map": [
+     {
+      "group": "B",
+      "member": 3,
+      "key": "testing|pcs-backend/app/services/events.py|165|`_claim` 并发碰撞分支完全未测，且其 `session.rollback()` 会静默丢弃调用方已 flush 的状态变更"
+     },
+     {
+      "group": "B",
+      "member": 11,
+      "key": "reliability|pcs-backend/app/services/events.py|165|_claim() rolls back the entire caller transaction on any integrityerror and misattributes it to a concurrency conflict"
+     }
+    ],
+    "_merge_note": "same defect and fix path (contain the insert in a savepoint, narrow the except to the PK violation, test the collision branch); adversarial reported the same line at P2/50 and was dropped by the quote gate rather than kept separate",
+    "_members": [
+     3,
+     11
+    ]
+   },
+   {
+    "title": "Event idempotency is structurally unreachable: every producer mints a fresh uuid4(), so the dedup table, payload_hash conflict check and before-snapshot chain can never see a replay",
+    "severity": "P1",
+    "file": "pcs-backend/app/services/events.py",
+    "line": 96,
+    "confidence": 100,
+    "autofix_class": "manual",
+    "owner": "human",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Derive event_id deterministically from the business operation instead of calling uuid4, so a retry of the same operation necessarily re-presents the same id and the existing dedup path does its job. E.g. `uuid.uuid5(NS_EVENT, f\"replaces_design:{equipment.equipment_id}:{payload_hash}\")`. ASSUMPTION: two genuinely distinct confirm operations on the same equipment must not collide — including the payload in the key gives each distinct payload its own id, which is the behaviour the caller wants anyway. Independently, add the missing CONFIRMED-state precondition to pass_check so the double-submit is rejected at the service layer rather than relying on dedup.",
+    "first_evidence": "pcs-backend/app/services/events.py:96-100 — `_HASHED_KEYS = (\"event_type\", \"before\", \"after\")` / the payload_hash machinery is built entirely around re-presenting the same event_id",
+    "evidence": [
+     "pcs-backend/app/services/events.py:96-100 — `_HASHED_KEYS = (\"event_type\", \"before\", \"after\")` / the payload_hash machinery is built entirely around re-presenting the same event_id",
+     "pcs-backend/app/services/supplier/confirmation_service.py:80-81 — `    await emit_event(\\n        session,\\n        CHECK_SUBMITTED,\\n        event_id=uuid.uuid4(),` — fresh id per invocation",
+     "pcs-backend/app/services/supplier/confirmation_service.py:97-99 — `        REPLACES_DESIGN,\\n        event_id=uuid.uuid4(),` — same for the design-overwrite event",
+     "pcs-backend/app/services/cia_engine.py:110-112 — `            CIA_MARK_STALE,\\n            event_id=uuid.uuid4(),` — same for the CIA mark-stale event",
+     "pcs-backend/app/services/supplier/confirmation_service.py:88-95 — `def pass_check(...)` opens with `    equipment.actual_data_status = ActualDataStatus.CONFIRMED.value` and no `if CONFIRMED: raise`, unlike record_actual_data (ACTUAL_DATA_LOCKED) and confirm_actual_data (ACTUAL_DATA_ALREADY_CONFIRMED), so a repeat call is accepted rather than rejected",
+     "pcs-backend/app/services/cia_engine.py:116-119 — `return await emit_event(\n            self.session,\n            CIA_MARK_STALE,\n            event_id=uuid.uuid4(),`",
+     "pcs-backend/app/services/supplier/confirmation_service.py:75 and :104 — `event_id=uuid.uuid4(),` at both supplier emit sites",
+     "pcs-backend/app/services/events.py:11-12 — `1. **幂等凭据落 DB**（`EventIdempotency` 表），不落内存。去重是**业务正确性**要求，不能因进程重启失效。`"
+    ],
+    "_why": "The dedup table, its payload_hash conflict detection, and the SAVEPOINT-free race handling all exist to make a replayed event_id a no-op, but no production caller can ever replay an event_id: every call site generates a brand new uuid4. So the retry the design is built for happens anyway. A designer double-clicks 'pass', or the client retries after a lost response, and pass_check — which unlike record_actual_data and confirm_actual_data has no state precondition at all — runs a second time and emits a second actual_data_replaces_design under a new id. P8 later walks the event chain to reverse-restore: it now finds two events for one equipment, and the second one's `before` equals the first one's `after`, so restoring in order writes back actual data as if it were design data, and the original design value is unrecoverable. The table also grows by one never-reusable row per emit, forever.",
+    "_why_from": 4,
+    "reviewers": [
+     "adversarial",
+     "reliability"
+    ],
+    "_source_map": [
+     {
+      "group": "C",
+      "member": 4,
+      "key": "adversarial|pcs-backend/app/services/events.py|96|event idempotency is structurally unreachable: every producer mints a fresh uuid4 per invocation, so the db-backed dedup can never dedup"
+     },
+     {
+      "group": "C",
+      "member": 32,
+      "key": "reliability|pcs-backend/app/services/cia_engine.py|119|every producer passes a fresh uuid4() as event_id, so the deduplication table can never detect a duplicate delivery"
+     }
+    ],
+    "_merge_note": "same defect and fix path (derive event_id deterministically from the business operation); contradicts the plan Task 1 design intent 「反向事件复用原 id -> 天然幂等」",
+    "_members": [
+     4,
+     32
+    ]
+   },
+   {
+    "title": "PDF export interpolates the designer-controlled parameter name and unit into a reportlab Paragraph, so any markup or control character returns an unhandled 500 while JSON and xlsx render the same data",
+    "severity": "P1",
+    "file": "pcs-backend/app/services/supplier/deviation_report.py",
+    "line": 277,
+    "confidence": 100,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Escape the text before it becomes a `Paragraph`, so markup is rendered literally rather than interpreted. `reportlab.platypus.Paragraph` accepts an XML-escaped string, and `xml.sax.saxutils.escape` is already a stdlib dependency of reportlab:\n\n```python\nfrom xml.sax.saxutils import escape\n\ndata.append([\n    Paragraph(escape(str(report.tag_number)), cell_style),\n    Paragraph(escape(str(row.parameter)), cell_style),\n    ...\n])\n```\n\nApply `escape()` to every `Paragraph(...)` argument in `export_pdf` — the tag number, parameter, design value, actual value, unit, deviation, label, colour, and note cells at lines 274-284, plus the `blocking_reason` at line 269 — not just the user-controlled ones, since the same helper is the right default for any cell that will ever carry free text. Assumption: no caller depends on markup being live in these cells; the header row at line 271 is static SPEC column names and can stay unescaped, though escaping it too is harmless.",
+    "first_evidence": "pcs-backend/app/services/supplier/deviation_report.py:277 — `                Paragraph(row.parameter, cell_style),`",
+    "evidence": [
+     "pcs-backend/app/services/supplier/deviation_report.py:288-289 — `                Paragraph(row.parameter, cell_style),` — the user-supplied parameter name is handed to the markup parser unescaped; `row.unit` and `report.tag_number` are unescaped in the same block",
+     "pcs-backend/app/schemas/supplier.py:23-24 — `    name: str = Field(min_length=1, max_length=100, description=\"参数名\")` — no pattern constraint, so `<`, `&` and `/` all pass validation",
+     "pcs-backend/app/services/supplier/actual_data_service.py:63-67 — `        name = item.get(\"name\")\\n        if not isinstance(name, str) or not name.strip():\\n            raise _validation_error(...)\\n        name = name.strip()` — normalization is whitespace-only; markup characters survive into actual_data_json",
+     "pcs-backend/app/services/supplier/deviation_report.py:299 — `    doc.build(story)` — the first point the parse error can surface, with no try/except anywhere in export_pdf",
+     "pcs-backend/app/services/supplier/deviation_report.py:274-285 — `data.append([Paragraph(report.tag_number, cell_style), Paragraph(row.parameter, cell_style), Paragraph(str(row.design_value), cell_style), ...])` — raw `Paragraph(...)` with no escaping; reportlab's default paraparser handles inline markup in the argument.",
+     "pcs-backend/app/services/supplier/deviation_report.py:276 — `                Paragraph(row.parameter, cell_style),` is the sink, fed by the same attacker-controlled `name` identified in SEC-2.",
+     "Executed `export_pdf` with `actual_data_json = {\"<img src=\\\"/etc/hostname\\\" width=\\\"10\\\"/>\": {\"value\": 1.0, \"unit\": \"\"}}`; output was `PDF ERR: UnidentifiedImageError ... caused exception fileName='/etc/hostname' identity=[ImageReader@0x7acf639ad`. The `ImageReader@` identity confirms the path was opened by the export code, not merely echoed into an error string.",
+     "Confidence is 75 rather than 100 because I confirmed the local-file open but did not stand up an HTTP listener to confirm the `http://` SSRF variant; `reportlab.lib.utils.ImageReader` handles URLs through the same `open_for_read` path, but that specific leg rests on reportlab's documented behaviour rather than on an execution I ran.",
+     "pcs-backend/app/services/supplier/deviation_report.py:275 — `                Paragraph(row.parameter, cell_style),` — reportlab parses Paragraph content as mini-XML; a bare `<` opens a tag and the parse fails",
+     "pcs-backend/app/services/supplier/deviation_report.py:265 — `        Paragraph(f\"偏差报告 — {report.tag_number}\", title_style),` — same exposure via the user-editable tag number",
+     "pcs-backend/app/services/supplier/actual_data_service.py:58-61 — `name = item.get(\"name\")` … `if not isinstance(name, str) or not name.strip():` — validation accepts `<` and control characters, so the untrusted string reaches the exporters",
+     "pcs-backend/app/api/v1/supplier.py:234-239 — `content = export_excel(report)` / `content = export_pdf(report)` with no error handling, so either exception becomes an unhandled 500"
+    ],
+    "_why": "`export_pdf` wraps every cell value in `reportlab.platypus.Paragraph`, whose default parser interprets a mini-HTML markup: `<b>`, `<font>`, `<link>`, and notably `<img src=...>`, whose `src` is resolved by `reportlab.lib.utils.ImageReader`. Both `report.tag_number` (line 274) and `row.parameter` (line 277) come from designer-supplied strings. I confirmed the file-open primitive: exporting a report whose parameter name is `<img src=\"/etc/hostname\" width=\"10\"/>` produced `PDF ERR: UnidentifiedImageError ... fileName='/etc/hostname' identity=[ImageReader@0x7acf639ad` — the export path genuinely opened an attacker-named path on the server's filesystem. That is a local-file-read primitive (CWE-73) escalating to disclosure: any readable file that happens to parse as an image is embedded into the returned PDF and handed to the caller. `ImageReader` also accepts `http://` and `https://` URLs, which makes the same primitive an SSRF against internal-network services reachable from the backend. The realistic ceiling is bounded — the file must be a parseable image or the request 500s — but a request-issuing SSRF that 500s differently on reachable vs unreachable hosts is still an internal-network probe, and image-format assets on a file server are a normal thing to have. `row.note`, `row.spec_ref`, and `report.blocking_reason` reach `Paragraph` on the same terms, though those are currently engine-authored rather than user-authored.",
+    "_why_from": 13,
+    "reviewers": [
+     "adversarial",
+     "reliability",
+     "security"
+    ],
+    "_source_map": [
+     {
+      "group": "D",
+      "member": 8,
+      "key": "adversarial|pcs-backend/app/services/supplier/deviation_report.py|288|unescaped user-supplied parameter name and unit crash pdf export with a 500, while the json report and xlsx render the same data fine"
+     },
+     {
+      "group": "D",
+      "member": 13,
+      "key": "security|pcs-backend/app/services/supplier/deviation_report.py|277|[a03/cwe-918] pdf export interpolates the designer-controlled parameter name into a reportlab paragraph, which parses inline markup — local file open confirmed"
+     },
+     {
+      "group": "D",
+      "member": 22,
+      "key": "reliability|pcs-backend/app/services/supplier/deviation_report.py|275|deviation-report export returns an unhandled 500 when a parameter name contains xml markup or control characters"
+     }
+    ],
+    "_merge_note": "same defect and fix path (escape the text before it reaches reportlab); xlsx formula injection at :208 is a different failure mode and stays separate",
+    "_members": [
+     8,
+     13,
+     22
+    ]
+   },
+   {
+    "title": "The idempotency claim is flushed before dispatch, so a listener that raises leaves a durable record claiming the event was processed — and that path has no test",
+    "severity": "P1",
+    "file": "pcs-backend/app/services/events.py",
+    "line": 232,
+    "confidence": 75,
+    "autofix_class": "manual",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Assumption: the claim should only become durable once the listeners have actually completed. Move the commit point after dispatch — insert the claim, flush, dispatch listeners, and have the caller commit; on listener failure make `_claim` roll back its own row (via the `begin_nested` savepoint from the sibling finding) so the event remains undelivered and a retry can re-run it. At minimum, split the claim into `claimed_at` / `dispatched_at` so the table records the dispatch outcome rather than the insert, and make the `except Exception` handlers in cia_engine narrow to `(InvalidTransition, RoleForbidden)` so an unexpected error surfaces instead of being silently absorbed.",
+    "first_evidence": "pcs-backend/app/services/events.py:231-232 — `    for listener in _LISTENERS.get(event_type, []):\n        await listener(event)` runs after the claim was already flushed at line 162, with no compensation if the listener raises",
+    "evidence": [
+     "pcs-backend/app/services/events.py:231-232 — `    for listener in _LISTENERS.get(event_type, []):\n        await listener(event)` runs after the claim was already flushed at line 162, with no compensation if the listener raises",
+     "pcs-backend/app/models/system.py:258-260 — the model docstring claims `同一 event_id 重复投递时 listener 一次都不再被调用（幂等 = 影响 0 行）`, an invariant this ordering does not uphold when the listener itself throws",
+     "pcs-backend/app/services/cia_engine.py:170-175 — `await self._mark_stale(r, f\"CIA: hash mismatch ({cls.__name__})\")` inside `try: ... except Exception: continue`, so the failed dispatch is converted to a silent skip and the claim row is committed anyway",
+     "pcs-backend/app/services/events.py:231-232 — `    for listener in _LISTENERS.get(event_type, []):\\n        await listener(event)` — 无 try/except，异常穿透；但此前的 `session.add(EventIdempotency(...))` + `await session.flush()` 已在调用方事务里",
+     "pcs-backend/app/services/cia_engine.py:166-173 — `            try:\\n                await self._mark_stale(\\n                    r, f\"CIA: hash mismatch ({cls.__name__})\"\\n                )\\n            except Exception:\\n                # 状态机拒绝（不在合法转移集合）— 跳过\\n                continue` — 该 except 现在会连带吞掉已 flush 的幂等行",
+     "pcs-backend/tests/services/test_events.py:48-95 — 全部 listener 均为 `got.append(event)` 或 `pass`，无一个 raise"
+    ],
+    "_why": "`EventIdempotency` is documented in the module as the authoritative record of what the event bus has handled — P8's reverse-recovery is designed to read it. But the claim is inserted and flushed at line 162 *before* any listener runs, so the row's existence says 'dispatched' regardless of whether the listener finished. Today `CIAEngine._scan_one_class` proves this is reachable: `_mark_stale_via_fsm` calls `fsm.transition`, which raises `InvalidTransition` for records already past CHECKED/CHANGED — and the surrounding `except Exception: continue` swallows it and lets the transaction commit. The database is then left holding one `event_idempotency` row per skipped record, each asserting that a `cia_mark_stale` transition happened when none did. A later recovery or audit pass that trusts this table will conclude those records were already re-marked and skip them. Secondary cost: the table grows without bound on every CIA scan pass, including all the no-op skips.",
+    "_why_from": 12,
+    "reviewers": [
+     "reliability",
+     "testing"
+    ],
+    "_source_map": [
+     {
+      "group": "E",
+      "member": 12,
+      "key": "reliability|pcs-backend/app/services/events.py|232|claim row is flushed before dispatch, so a listener that throws leaves a durable record saying the event was processed"
+     },
+     {
+      "group": "E",
+      "member": 34,
+      "key": "testing|pcs-backend/app/services/events.py|232|listener 抛异常的路径无测试；叠加 cia_engine 的 `except exception: continue` 会留下已提交的幽灵幂等行"
+     }
+    ],
+    "_merge_note": "same defect and fix path (settle the claim only after dispatch, or compensate on listener failure, and cover the path)",
+    "_members": [
+     12,
+     34
+    ]
+   },
+   {
+    "title": "The 电机额定功率 rule description is stale in two places after commit 742215d: the module docstring still lists it as SYMMETRIC_BAND (a type with no SPEC rule) and the test docstrings still describe the abolished 「±10%」 rule",
+    "severity": "P2",
+    "file": "pcs-backend/app/services/supplier/deviation_service.py",
+    "line": 11,
+    "confidence": 100,
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver",
+    "requires_verification": true,
+    "pre_existing": false,
+    "suggested_fix": "Update docstring row 4 to `| 实际电机额定功率 | API 610 分档下限 (轴功率×1.25/1.15/1.10) | MOTOR_TIER_FLOOR | 低于下限→不满足 |` and add the 轴功率 REFERENCE_ONLY row, so the table has 7 rows and matches SPEC_RULES one-for-one. Then decide the SYMMETRIC_BAND branch explicitly: if no SPEC rule can ever be a symmetric band, delete lines 251-256 and the test at test_deviation_service.py:118; if one is coming in a later SPEC revision, leave the branch and add a one-line comment saying it is reserved for a future symmetric-band rule. Assumption: SPEC V1.4 §3.2.4(2) will not add a symmetric-band rule in this sprint — if it will, the second option is correct and the finding downgrades to a docstring-only fix.",
+    "first_evidence": "app/services/supplier/deviation_service.py:11 — `| 实际电机额定功率   | 偏差 ±10%               | SYMMETRIC_BAND   | 偏小→不满足，偏大→可接受 |`",
+    "evidence": [
+     "app/services/supplier/deviation_service.py:11 — `| 实际电机额定功率   | 偏差 ±10%               | SYMMETRIC_BAND   | 偏小→不满足，偏大→可接受 |`",
+     "app/services/supplier/deviation_service.py:132-133 — `        parameter=\"电机额定功率\",` / `        kind=\"MOTOR_TIER_FLOOR\",`",
+     "app/services/supplier/deviation_service.py:137-138 — `\"（**取代** SPEC §3.2.4(2) 原「偏差 ±10%」—— 电机按系列选取, \"` — the registry records the supersession, the docstring does not",
+     "app/services/supplier/deviation_service.py:251 — `    if rule.kind == \"SYMMETRIC_BAND\":` — no entry in SPEC_RULES (lines 109-164) carries this kind",
+     "pcs-backend/tests/services/supplier/test_deviation_service.py:11 — `| 实际电机额定功率     | 偏差 ±10%               | 对称带（方向敏感）|`",
+     "pcs-backend/tests/services/supplier/test_deviation_service.py:117-120 — `RULE_MOTOR = DeviationRule(\\n    parameter=\"电机额定功率\", kind=\"SYMMETRIC_BAND\", lower=-10.0, upper=10.0,\\n    spec_ref=\"SPEC §3.2.4(2) 实际电机额定功率\",\\n)`",
+     "pcs-backend/app/services/supplier/deviation_service.py:131-141 — `DeviationRule(\\n        parameter=\"电机额定功率\",\\n        kind=\"MOTOR_TIER_FLOOR\",` — 生产规则已是 MOTOR_TIER_FLOOR，spec_ref 明写「**取代** SPEC §3.2.4(2) 原「偏差 ±10%」」"
+    ],
+    "_why": "The module docstring is the table a maintainer reads before touching anything — it is explicitly framed as the transcription of SPEC §3.2.4(2) and the file header warns 勿凭印象改数值. But row 4 still describes 电机额定功率 as SYMMETRIC_BAND ±10% while the registry entry (line 133) is MOTOR_TIER_FLOOR, and the SYMMETRIC_BAND branch in `evaluate` (line 251) is reachable only from a hand-built `DeviationRule` in `tests/services/supplier/test_deviation_service.py:118`. So a reader trusting the docstring will look for a ±10% band that no longer exists, while a reader of the code sees an unexercised branch in a file whose whole job is to transcribe the SPEC. The correct answer is recorded in the rule's own `spec_ref` (lines 135-139) and in the `_MOTOR_TIER_SMALL_MAX` comment (lines 186-189) — the summary table is the one place that was not updated.",
+    "_why_from": 24,
+    "reviewers": [
+     "maintainability",
+     "testing"
+    ],
+    "_source_map": [
+     {
+      "group": "F",
+      "member": 24,
+      "key": "maintainability|pcs-backend/app/services/supplier/deviation_service.py|11|stale docstring table contradicts the registry: 电机额定功率 is not symmetric_band, and the symmetric_band branch has no spec rule"
+     },
+     {
+      "group": "F",
+      "member": 44,
+      "key": "testing|pcs-backend/tests/services/supplier/test_deviation_service.py|11|`test_deviation_service.py` 的 symmetric_band 用例与模块 docstring 仍描述已被 s4-2 修订废止的「电机额定功率 ±10%」规则"
+     }
+    ],
+    "_merge_note": "same defect and same fix path (restate both as the API 610 shaft-power tier floors); the two sites drift together",
+    "_members": [
+     24,
+     44
+    ]
+   },
+   {
+    "#": 2,
+    "autofix_class": "manual",
+    "confidence": 100,
+    "evidence": [
+     "pcs-backend/app/schemas/supplier.py:30-33 —\n    entries: list[ActualDataEntry] = Field(\n        min_length=1,\n        description=\"整台设备的参数集; 整体替换而非合并\",\n    )",
+     "pcs-backend/app/services/supplier/deviation_report.py:271-285 — builds one reportlab `Paragraph` per row per column with no bound:\n    data = [[Paragraph(h, head_style) for h in _HEADERS[:9]]]\n    for row in report.rows:\n        data.append(\n            [\n                Paragraph(report.tag_number, cell_style),",
+     "pcs-backend/app/services/supplier/deviation_report.py:205-219 — `export_excel` appends every row to the worksheet with no limit:\n    for row in report.rows:\n        ws.append(\n            [\n                report.tag_number,",
+     "Measured on this branch (uv run, real dev tree): build_report n=1000 8.4 ms, n=20000 170.7 ms; export_excel n=1000 197.7 ms, n=5000 2663.6 ms; export_pdf n=1000 753.4 ms, n=5000 5064.1 ms.",
+     "pcs-backend/app/services/supplier/confirmation_service.py:101-106 — the same unbounded blob is deepcopied into a permanent table on every pass:\n    await emit_event(\n        session,\n        REPLACES_DESIGN,\n        event_id=uuid.uuid4(),\n        before=equipment.design_parameters_json,   # deepcopy 后落 event_idempotency\n        after=equipment.actual_data_json,",
+     "pcs-backend/app/main.py — `grep -n 'add_middleware|Middleware' app/main.py` returns 0 matches, so no request-body size ceiling applies to this JSON endpoint; `app/core/upload_size_limit.py:16` (`MAX_UPLOAD_BYTES = 10 * 1024 * 1024`) is imported only by `app/api/v1/imports.py:39`."
+    ],
+    "file": "pcs-backend/app/schemas/supplier.py",
+    "first_evidence": "pcs-backend/app/schemas/supplier.py:30-33 —\n    entries: list[ActualDataEntry] = Field(\n        min_length=1,\n        description=\"整台设备的参数集; 整体替换而非合并\",\n    )",
+    "independent_reviewers": [
+     "performance"
+    ],
+    "line": 30,
+    "owner": "human",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "performance"
+    ],
+    "severity": "P1",
+    "suggested_fix": "Add an explicit domain cap to the schema and enforce it in the report/export path. Assumption: the real domain is bounded by the number of parameters on one piece of equipment — a pump row in `PUMP_DESIGN` (app/services/equip_list/pump_design_data.py:37-73) carries 7 parameters, and the largest plausible device is well under 100; a cap of 200 is generous and cannot reject a legitimate entry. (1) `entries: list[ActualDataEntry] = Field(min_length=1, max_length=200, ...)` in app/schemas/supplier.py:30. (2) Add the same guard in `normalize_entries` so non-HTTP callers cannot bypass it. (3) In `export_deviation_report`, truncate defensively and signal it — e.g. export the first N rows with a trailing 「已截断，共 N 行」 marker row — so a report can never be a silent partial. Consider also a `ConcurrencyLimiter` or `run_in_threadpool` on the export route (see the companion event-loop finding). Note that a `max_length` alone does not bound the *body*; if the deployment front-door has no body cap, adding a `Content-Length` guard or applying `enforce_upload_size` to this router is the durable fix.",
+    "title": "`entries` list has no `max_length`, so one PUT can create an arbitrarily large report that both exporters fully materialize in memory",
+    "_why": "`ActualDataEntryRequest.entries` declares `min_length=1` but no `max_length`, and `app/main.py` installs no body-size middleware (`grep add_middleware app/main.py` → 0 matches; the only size guard, `app/core/upload_size_limit.py` `MAX_UPLOAD_BYTES = 10MB`, is wired solely into `app/api/v1/imports.py` for multipart uploads). An authenticated DESIGNER can therefore PUT a body containing hundreds of thousands of entries; `normalize_entries` (app/services/supplier/actual_data_service.py:74) validates and stores every one into `actual_data_json`, which becomes the report row count. `build_report` then produces one `DeviationRow` per key and `export_excel` / `export_pdf` walk that whole list building a full in-memory `Workbook` / reportlab `Table` of `Paragraph` objects, with no cap anywhere in the diff. Measured on this branch: 1,000 rows → 198 ms xlsx / 753 ms pdf; 5,000 rows → 2,664 ms xlsx / 5,064 ms pdf. Cost is linear in rows, so a 50,000-row body lands in the tens-of-seconds CPU range and multi-GB heap, which is OOM territory for a single request. The blast radius is larger than the report itself: `pass_check` deepcopies the same unbounded `actual_data_json` into `event_idempotency.before_json` (app/services/supplier/confirmation_service.py:101-106), a table with no retention policy.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 2,
+      "key": "performance|pcs-backend/app/schemas/supplier.py|30|`entries` list has no `max_length`, so one put can create an arbitrarily large report that both exporters fully materialize in memory"
+     }
+    ],
+    "_members": [
+     2
+    ]
+   },
+   {
+    "#": 5,
+    "autofix_class": "manual",
+    "confidence": 100,
+    "evidence": [
+     "pcs-backend/app/services/supplier/actual_data_service.py:27-30 -- `def _validation_error(message: str) -> PcsError:` / `return PcsError(` / `code=\"ACTUAL_DATA_VALIDATION\", message=message, status=422` / `)` -- the code is produced by a *returned* PcsError, never by a `raise PcsError(...)` statement.",
+     "pcs-backend/app/services/meta_service.py:311 -- `if not (isinstance(cf, ast.Name) and cf.id == \"PcsError\"):` -- the scanner only matches a Raise node whose call target is literally the name `PcsError`; `raise _validation_error(...)` and `raise _error(...)` do not match, so the code constant is never visited.",
+     "pcs-backend/app/services/supplier/confirmation_service.py:40-41 -- `def _error(code: str, message: str, status: int = 422) -> PcsError:` / `return PcsError(code=code, message=message, status=status)` -- same indirection, used at confirmation_service.py:60 and :67 for `DEVIATION_BLOCKS_CONFIRMATION`.",
+     "Executed the project's scanner logic verbatim over `app/`: `ACTUAL_DATA_VALIDATION -> *** NOT REGISTERED IN META ***`, `DEVIATION_BLOCKS_CONFIRMATION -> *** NOT REGISTERED IN META ***`, `ACTUAL_DATA_LOCKED -> ['app/services/supplier/actual_data_service.py:93']`, total registered codes: 115.",
+     "Convention check: `grep -c 'raise PcsError'` finds 160 direct `raise PcsError(` sites across 28 files under app/services/. The two new supplier services are the only ones in the codebase that route codes through a factory function.",
+     "pcs-backend/tests/api/v1/test_supplier_actual_data_api.py:156 -- `assert resp.json()[\"code\"] == \"ACTUAL_DATA_VALIDATION\"` -- confirms the unregistered code is part of the emitted public contract, not dead code."
+    ],
+    "file": "pcs-backend/app/services/supplier/actual_data_service.py",
+    "first_evidence": "pcs-backend/app/services/supplier/actual_data_service.py:27-30 -- `def _validation_error(message: str) -> PcsError:` / `return PcsError(` / `code=\"ACTUAL_DATA_VALIDATION\", message=message, status=422` / `)` -- the code is produced by a *returned* PcsError, never by a `raise PcsError(...)` statement.",
+    "independent_reviewers": [
+     "api-contract"
+    ],
+    "line": 27,
+    "owner": "human",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "api-contract"
+    ],
+    "severity": "P1",
+    "suggested_fix": "Assumption: the meta registry's AST scan is the intended single source of error-code truth and the factory indirection is incidental, not a deliberate decision to exclude these codes. Two defensible fixes; I recommend the first because it is local to this branch and does not change a shared scanner. (1) Local: inline the raise at each of the 8 `_validation_error` / `_error` call sites so each carries a literal `raise PcsError(code=\"ACTUAL_DATA_VALIDATION\", ...)` that the existing scanner picks up -- matches the 160-site convention, costs a little repetition. (2) Alternative: teach `_scan_error_codes` to also walk `return PcsError(code=<Constant>)` nodes, which fixes the class of bug but touches a shared, pre-existing component and would need its own regression test. Either way, verify by re-running the scanner and confirming both codes appear, then add a test asserting the new codes are present in the /api/v1/meta/error-codes response.",
+    "title": "Two error codes emitted by the new supplier endpoints are absent from the /api/v1/meta/error-codes registry (indirection factory defeats the AST scan)",
+    "_why": "The new PUT /api/v1/equipment/{id}/actual-data and POST .../actual-data/confirm return 422 envelopes whose `code` is `ACTUAL_DATA_VALIDATION` or `DEVIATION_BLOCKS_CONFIRMATION` (the test suite at tests/api/v1/test_supplier_actual_data_api.py:156 asserts the former is emitted). But the registry endpoint the project treats as the authority for error codes -- CLAUDE.md: '字段/枚举/权限/错误码以 OpenAPI + meta API 为准' -- does not list either of them. A client that fetches /api/v1/meta/error-codes to build its code -> UI-behaviour map (each entry carries `ui_behavior`) finds no entry, so the two codes the new endpoints actually emit are untranslatable and fall through to whatever the client's default branch does. I ran the project's own scanner (`app/services/meta_service.py::_scan_error_codes`) over `app/` and it registers 115 codes; neither new code is among them.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 5,
+      "key": "api-contract|pcs-backend/app/services/supplier/actual_data_service.py|27|two error codes emitted by the new supplier endpoints are absent from the /api/v1/meta/error-codes registry (indirection factory defeats the ast scan)"
+     }
+    ],
+    "_members": [
+     5
+    ]
+   },
+   {
+    "#": 7,
+    "autofix_class": "gated_auto",
+    "confidence": 100,
+    "evidence": [
+     "pcs-backend/app/services/supplier/deviation_report.py:206-219 — `wb.append([report.tag_number, row.parameter, row.design_value, row.actual_value, row.unit, ...])`; `row.parameter` is passed to openpyxl with no escaping or prefix.",
+     "pcs-backend/app/schemas/supplier.py:22 — `    name: str = Field(min_length=1, max_length=100, description=\"参数名\")` — no pattern, no character class; `=` is accepted.",
+     "pcs-backend/app/services/supplier/deviation_report.py:84 — `for name in actual:` — the loop is over the JSONB keys, which are exactly the attacker-supplied `name` values after `normalize_entries` (`actual_data_service.py:71`, `out[name] = {...}`).",
+     "Executed export with `actual_data_json = {\"=cmd|'/c calc'!A0\": {\"value\": 1.0, \"unit\": \"\"}, ...}`; reloading the produced workbook with openpyxl printed `B2 \"=cmd|'/c calc'!A0\" f`. The `f` data type is openpyxl's marker for a formula cell — the payload is stored as executable formula, not as text."
+    ],
+    "file": "pcs-backend/app/services/supplier/deviation_report.py",
+    "first_evidence": "pcs-backend/app/services/supplier/deviation_report.py:208 — `                row.parameter,` (inside the `wb.append([` list at line 207, written with no escaping)",
+    "independent_reviewers": [
+     "security"
+    ],
+    "line": 208,
+    "owner": "downstream-resolver",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "security"
+    ],
+    "severity": "P1",
+    "suggested_fix": "Neutralize formula-injection on every string cell before it reaches openpyxl. The standard OWASP mitigation is a leading-apostrophe prefix, which Excel renders as text and which round-trips safely:\n\n```python\ndef _safe_cell(value):\n    \"\"\"防 CSV/Excel 公式注入 (CWE-1236): 前导 = + - @ 会被 Excel 当公式执行.\"\"\"\n    if isinstance(value, str) and value[:1] in (\"=\", \"+\", \"-\", \"@\", \"\\t\", \"\\r\"):\n        return \"'\" + value\n    return value\n```\n\nApply `_safe_cell(...)` to `report.tag_number`, `row.parameter`, and `row.unit` in the `wb.append([...])` list at line 207. Prefixing is preferable to rejecting, because legitimate parameter names are Chinese engineering terms and the current `ActualDataEntry` validation deliberately does not constrain characters — validation would silently break existing callers for no security gain once the cell is inert. Assumption: the export is the sole sink for this value today; if a future consumer re-parses the xlsx, prefix-stripping will be needed there.",
+    "title": "[A03/CWE-1236] Excel export writes the designer-controlled parameter name into a live formula cell — verified data_type 'f'",
+    "_why": "`ActualDataEntry.name` is an arbitrary string from the designer's PUT body (`Field(min_length=1, max_length=100)`, no character restriction). `build_report` iterates `for name in actual:` and every row's `parameter` field carries that string verbatim into the workbook. openpyxl does not escape a leading `=`, so the cell is persisted as a live formula. I confirmed this end to end: with `name = \"=cmd|'/c calc'!A0\"` the exported workbook round-trips as `B2 \"=cmd|'/c calc'!A0\" f` — `f` is openpyxl's formula data type. The attacker is any DESIGNER or PROCESS_CONTROLLER on the project (the export is VIEWER-gated, so the file reaches every viewer and any downstream recipient of the export); the victim is whoever opens the file in Excel, where the formula evaluates. On older Excel that is DDE / command execution; on current Excel the reliable payload is `=HYPERLINK(...)` or an external-cell-reference exfiltration of the workbook's own contents. Because the write role and the read role are different people here, this is a stored, cross-role delivery mechanism: a designer plants it, a viewer or process engineer trips it. The same unescaped value also reaches `unit` (column E) and, via `tag_number`, column A.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 7,
+      "key": "security|pcs-backend/app/services/supplier/deviation_report.py|208|[a03/cwe-1236] excel export writes the designer-controlled parameter name into a live formula cell — verified data_type 'f'"
+     }
+    ],
+    "_members": [
+     7
+    ]
+   },
+   {
+    "#": 9,
+    "autofix_class": "manual",
+    "confidence": 100,
+    "evidence": [
+     "pcs-backend/app/services/supplier/deviation_report.py:92 — `    for name in actual:` — the report's row set is exactly the set of keys the designer chose to type; nothing else is added",
+     "pcs-backend/app/services/supplier/deviation_report.py:88-91 — docstring states the rule explicitly: \"行集合 = 实际值里已录入的参数 —— 没录入的项无法比对，不占行\"",
+     "pcs-backend/app/services/supplier/deviation_report.py:164-167 — `    if not report.rows:\\n        return False\\n    return not any(\\n        r.verdict in (UNQUALIFIED, UNVERDICTABLE) for r in report.rows\\n    )` — the sole emptiness guard is rows being empty; a one-row report passes",
+     "pcs-backend/app/services/supplier/confirmation_service.py:97-108 — `await emit_event(... REPLACES_DESIGN ... before=equipment.design_parameters_json ...)` fires on that single-parameter verdict"
+    ],
+    "file": "pcs-backend/app/services/supplier/deviation_report.py",
+    "first_evidence": "pcs-backend/app/services/supplier/deviation_report.py:92 — `    for name in actual:` — the report's row set is exactly the set of keys the designer chose to type; nothing else is added",
+    "independent_reviewers": [
+     "adversarial"
+    ],
+    "line": 92,
+    "owner": "human",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "adversarial"
+    ],
+    "severity": "P1",
+    "suggested_fix": "Make the gate compare against the rule set the equipment is expected to satisfy, not against what was typed. Cheapest defensible option: have build_report seed rows for every rule in SPEC_RULES whose `matches()` the equipment's `design_parameters_json` keys, so a design value with no matching actual entry becomes an explicit UNVERDICTABLE row ('未录入实际值') rather than an absent row. That reuses the existing fail-closed verdict and needs no new gate logic. ASSUMPTION: an equipment's expected parameter set is derivable from its design values — this holds for the pump seeder (PUMP_DESIGN keys) but not for non-pump equipment, which would then need an explicit 'expected parameters' declaration. Failing that, add a minimum-entry-count or explicit-per-rule-submission gate on record_actual_data.",
+    "title": "Confirmation gate is fail-closed per row but fail-open on coverage: entering one parameter lets the designer confirm the equipment",
+    "_why": "The designer records actual data for a single parameter, e.g. `效率` with a value inside the 95% band. build_report emits exactly one row, the row is QUALIFIED, can_confirm returns True, and POST /actual-data/check {decision:\"pass\"} marks the equipment CONFIRMED and emits actual_data_replaces_design with the full design_parameters_json as `before`. Every other SPEC §3.2.4(2) tolerance rule — head, NPSHr, motor sizing, speed recheck, material — was never entered and was never judged, yet the record now reads 'confirmed' to every downstream consumer and to P8's reverse-restore chain. The whole point of adding the fourth UNVERDICTABLE verdict was to stop an unjudged item being treated as passing; it defends against an unjudged item that made it into the report but does nothing about one that never entered it.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 9,
+      "key": "adversarial|pcs-backend/app/services/supplier/deviation_report.py|92|confirmation gate is fail-closed per row but fail-open on coverage: entering one parameter lets the designer confirm the equipment"
+     }
+    ],
+    "_members": [
+     9
+    ]
+   },
+   {
+    "#": 10,
+    "autofix_class": "manual",
+    "confidence": 75,
+    "evidence": [
+     "pcs-backend/app/services/cia_engine.py:173-175 — `            except Exception:\n                # 状态机拒绝（不在合法转移集合）— 跳过\n                continue`",
+     "pcs-backend/app/services/state_machine.py:323 / :348 — `record.sign_status = to_status` … `await self.session.flush()`, both *before* the snapshot/audit writes at :349+",
+     "pcs-backend/app/services/cia_engine.py:130 — `await self.session.flush()` commits whatever mutations survived the swallowed exceptions across the whole scan"
+    ],
+    "file": "pcs-backend/app/services/cia_engine.py",
+    "first_evidence": "pcs-backend/app/services/cia_engine.py:173-175 — `            except Exception:\n                # 状态机拒绝（不在合法转移集合）— 跳过\n                continue`",
+    "independent_reviewers": [
+     "reliability"
+    ],
+    "line": 173,
+    "owner": "human",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "reliability"
+    ],
+    "severity": "P1",
+    "suggested_fix": "Assumption: only a genuine state-machine rejection should be silent; any other failure is an incident. Narrow the handler to `except (InvalidTransition, RoleForbidden): continue` so unexpected errors propagate, and wrap each record's transition in `async with session.begin_nested():` so a failure rolls that record back to its pre-transition state instead of leaving a half-applied mutation in the session.",
+    "title": "Swallowed exception lets a partially applied FSM transition get committed with no audit row and no snapshot",
+    "_why": "When an operator later investigates a PipingResult sitting in STALE, there is no audit entry and no snapshot explaining how it got there, and `scan_stale()` reported the record as successfully marked. `StateMachineService.transition` mutates `record.sign_status = to_status` and `record.change_pending_since` at state_machine.py:323-329 and flushes at :348, then performs the snapshot and audit work at :349 onward. Any exception raised after that flush — a snapshot write failing, an audit insert hitting a constraint, a lost connection — leaves the ORM object already mutated in the session. The bare `except Exception: continue` at cia_engine.py:173 then drops to the next record, and the final `await self.session.flush()` in `scan_stale` (cia_engine.py:130) commits the STALE mark without the audit trail or snapshot that a legitimate transition always produces. Before this diff the swallowed call wrote nothing before raising, so the swallow was benign; routing it through `emit_event` — which inserts the claim and lets the FSM flush at :348 — is what makes the partial write reachable.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 10,
+      "key": "reliability|pcs-backend/app/services/cia_engine.py|173|swallowed exception lets a partially applied fsm transition get committed with no audit row and no snapshot"
+     }
+    ],
+    "_members": [
+     10
+    ]
+   },
+   {
+    "#": 14,
+    "autofix_class": "manual",
+    "confidence": 75,
+    "evidence": [
+     "spec/工艺专用综合计算软件需求规格说明书 Web版 P7.md:145 -- `GET /api/v1/equipment-list/{equipment_id}/deviation-report\t获取偏差报告`",
+     "spec/工艺专用综合计算软件需求规格说明书 Web版 P7.md:142-146 -- the same table's other four entries: `POST /api/v1/equipment-list/{equipment_id}/actual-data\t录入实际数据`, `POST /api/v1/equipment-list/{equipment_id}/actual-data/import\tExcel批量导入`, `POST /api/v1/equipment-list/{equipment_id}/actual-data/confirm\t确认实际数据`, `POST /api/v1/equipment-list/{equipment_id}/actual-data/check\t校核实际数据`",
+     "pcs-backend/app/api/v1/supplier.py:58 -- `router = APIRouter(prefix=\"/equipment\", tags=[\"supplier\"])` -- the only line in the file that moves the surface off the documented prefix.",
+     "pcs-backend/app/api/v1/equip_list.py:39 -- `router = APIRouter(prefix=\"/equipment-list\", tags=[\"equipment-list\"])` -- the SPEC's prefix is a real, separately-mounted router; the new paths are not reachable under it.",
+     "`git diff 3e5ae902945e19274f5be410f0eed31eb48a7627 -- spec/` returns empty: the SPEC was not revised in this branch, so no ruling is registered in the authoritative document.",
+     "Routing safety verified: of 37 `APIRouter(prefix=...)` declarations under app/api/v1/, `/equipment` is declared exactly once, so the two prefixes do not collide or shadow for the same equipment_id -- the divergence is a documentation/contract mismatch, not a live routing ambiguity.",
+     "No shipped consumer yet: `grep -rn 'deviation-report\\|actual-data' pcs-frontend/src --include=*.ts --include=*.tsx` (excluding generated types/api.d.ts) returns nothing, so no client is currently broken -- the exposure is to the next consumer and to the next implementer."
+    ],
+    "file": "spec/工艺专用综合计算软件需求规格说明书 Web版 P7.md",
+    "first_evidence": "spec/工艺专用综合计算软件需求规格说明书 Web版 P7.md:145 -- `GET /api/v1/equipment-list/{equipment_id}/deviation-report\t获取偏差报告`",
+    "independent_reviewers": [
+     "api-contract"
+    ],
+    "line": 145,
+    "owner": "human",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "api-contract"
+    ],
+    "severity": "P1",
+    "suggested_fix": "Assumption: `/api/v1/equipment/` is the intended final path (the S4-1/S4-2 shared-router-prefix ruling is recorded in docs/sprint4-plan-2026-10-05.md and .superpowers/sdd/sprint4-plan-2026-10-05/progress.md:93, and it is a reasonable one), and the SPEC is the artifact that must catch up. Do not move the code back. Register the revision in the SPEC API table: change the 供应商数据 block's five paths to the `/api/v1/equipment/` prefix, mark the `actual-data/import` row as deliberately not implemented under the S4-1 manual-UI ruling (or delete the row), and add the SPEC-ADD entry the project's other divergences use (e.g. the existing `SPEC-ADD-001 V1.13 §3.4.2` markers in the same file) so the ruling is traceable from the code. If instead the SPEC prefix is considered non-negotiable, the change is a one-line prefix swap in supplier.py plus regenerating the OpenAPI artifacts -- but that contradicts the recorded ruling, so it needs an explicit decision first.",
+    "title": "Hyrum's Law: all five supplier endpoints ship at /api/v1/equipment/... but the frozen SPEC API table documents all five under /api/v1/equipment-list/..., with no SPEC revision registered",
+    "_why": "The SPEC's public API table lists the whole 供应商数据 surface under the `/api/v1/equipment-list/` prefix, and the implementation publishes every one of those paths under `/api/v1/equipment/`. A client (or the next implementer, or a contract test) written against the SPEC table sends a request that 404s -- and a 404 here is indistinguishable from \"equipment does not exist\", because `_load_equipment` deliberately collapses not-found and no-access into the same response. The project's own rule resolves the conflict in favour of OpenAPI but requires the SPEC revision to be registered; `git diff <base> -- spec/` is empty, so the authoritative document and the shipped contract now disagree with no record of the ruling. The SPEC additionally lists `POST /api/v1/equipment-list/{equipment_id}/actual-data/import` (Excel batch import) which is deliberately not implemented at all, and is likewise unregistered.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 14,
+      "key": "api-contract|spec/工艺专用综合计算软件需求规格说明书 web版 p7.md|145|hyrum's law: all five supplier endpoints ship at /api/v1/equipment/... but the frozen spec api table documents all five under /api/v1/equipment-list/..., with no spec revision registered"
+     }
+    ],
+    "_members": [
+     14
+    ]
+   },
+   {
+    "#": 15,
+    "autofix_class": "manual",
+    "confidence": 100,
+    "evidence": [
+     "pcs-backend/alembic/versions/p7_s4_001_event_idempotency.py:60 — `    op.drop_table(_TABLE)`",
+     "pcs-backend/alembic/versions/p7_s4_001_event_idempotency.py:59 — `    \"\"\"删 event_idempotency 表 (if_exists 幂等).\"\"\"`",
+     "pcs-backend/scripts/check_migration_idempotency.py:60 — `    checked_prefixes = (\"p7_s2_\", \"p7_s3_\")`",
+     "pcs-backend/scripts/check_migration_idempotency.py:62-63 — `        if not any(path.name.startswith(p) for p in checked_prefixes):` / `            continue`",
+     "pcs-backend/scripts/check_migration_idempotency.py SAFE_OPS — `\"op.drop_table\": [\"if_exists\"],`"
+    ],
+    "file": "pcs-backend/alembic/versions/p7_s4_001_event_idempotency.py",
+    "first_evidence": "pcs-backend/alembic/versions/p7_s4_001_event_idempotency.py:60 — `    op.drop_table(_TABLE)`",
+    "independent_reviewers": [
+     "data-migration"
+    ],
+    "line": 60,
+    "owner": "human",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "data-migration"
+    ],
+    "severity": "P2",
+    "suggested_fix": "Two independent edits, both required. (1) Make the downgrade match its docstring:\n\n```python\ndef downgrade() -> None:\n    \"\"\"删 event_idempotency 表 (if_exists 幂等).\"\"\"\n    op.drop_table(_TABLE, if_exists=True)\n```\n\n`op.drop_table(if_exists=True)` is available in the pinned alembic 1.19.1 (uv.lock line 27) and maps to `DROP TABLE IF EXISTS` on PostgreSQL. Consider the same for p7_s4_002's `op.drop_column(_TABLE, \"actual_data_json\")` — `if_exists` on drop_column is supported from alembic 1.16.x; if the floor in pyproject.toml (`alembic>=1.13`) is meant to be real, either raise the floor to `>=1.19` or keep drop_column unguarded and drop the docstring's idempotency claim rather than asserting something the code does not do.\n\n(2) Close the gate's coverage hole so the next p7_s4/p7_s5 migration is actually checked:\n\n```python\nchecked_prefixes = (\"p7_s2_\", \"p7_s3_\", \"p7_s4_\", \"p7_s5_\")\n```\n\nor better, replace the prefix allowlist with a `base = MIGRATIONS_DIR / \"p7_\" / \"baseline.py\"` boundary check so new batches are covered by default instead of by remembering to edit a tuple. Note this change will immediately surface violations in any p7_s3_* file that the current gate already scans and passes, so land the p7_s4_001 fix in the same commit or the hook will start failing on unrelated files.\n\nVerification (read-only, run after the fix, against a scratch DB — do NOT run on `pcs`):\n\n```sql\n-- proof the gate actually reads p7_s4_*\nSELECT * FROM alembic_version;\n\n-- proof the downgrade is idempotent: run `alembic downgrade -1` twice, both must succeed\n```\n\nASSUMPTION: `pcs_test` / a scratch database is the intended target for the downgrade round-trip; the review environment is read-only and I did not execute any migration.",
+    "title": "p7_s4_001 downgrade is not idempotent, contradicts its own docstring, and the repo's idempotency gate never scans p7_s4_* so nothing catches it",
+    "_why": "The gate this change relies on never opens the file. `check_migration_idempotency.py` hardcodes `checked_prefixes = (\"p7_s2_\", \"p7_s3_\")` (line 60) and `continue`s on every other file (line 62-63), so it prints `OK: 0 violations` without reading p7_s4_001 or p7_s4_002 — the intent's claim that 'both migrations satisfy the gate' is vacuously true. Had it read p7_s4_001 it would fail: `SAFE_OPS[\"op.drop_table\"] = [\"if_exists\"]` but line 60 is a bare `op.drop_table(_TABLE)`, while the docstring on line 59 asserts `(if_exists 幂等)`. The operational consequence is the exact R0 regression the script was written to prevent (F-P3-002): a partially-applied local restore running `alembic downgrade` twice — or downgrading a database where the table was never created — aborts with UndefinedTable and leaves the operator with no idempotent recovery path.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 15,
+      "key": "data-migration|pcs-backend/alembic/versions/p7_s4_001_event_idempotency.py|60|p7_s4_001 downgrade is not idempotent, contradicts its own docstring, and the repo's idempotency gate never scans p7_s4_* so nothing catches it"
+     }
+    ],
+    "_members": [
+     15
+    ]
+   },
+   {
+    "#": 16,
+    "autofix_class": "manual",
+    "confidence": 100,
+    "evidence": [
+     "pcs-backend/app/api/v1/supplier.py:234-239 — synchronous exporters called from an `async def` handler with no offload:\n    if format == \"excel\":\n        content = export_excel(report)\n        media_type, ext = _EXPORT_TYPES[\"excel\"]\n    else:\n        content = export_pdf(report)\n        media_type, ext = _EXPORT_TYPES[\"pdf\"]",
+     "Measured on this branch: export_excel n=100 143.0 ms, n=1000 197.7 ms, n=5000 2663.6 ms; export_pdf n=100 112.2 ms, n=1000 753.4 ms, n=5000 5064.1 ms — all synchronous, none of it awaiting.",
+     "pcs-backend/app/services/supplier/deviation_report.py:233-235 and 300-302 — the blocking work is `wb.save(buf)` and `doc.build(story)`, both CPU-bound with no await points:\n    buf = BytesIO()\n    wb.save(buf)\n    return buf.getvalue()"
+    ],
+    "file": "pcs-backend/app/api/v1/supplier.py",
+    "first_evidence": "pcs-backend/app/api/v1/supplier.py:234-239 — synchronous exporters called from an `async def` handler with no offload:\n    if format == \"excel\":\n        content = export_excel(report)\n        media_type, ext = _EXPORT_TYPES[\"excel\"]\n    else:\n        content = export_pdf(report)\n        media_type, ext = _EXPORT_TYPES[\"pdf\"]",
+    "independent_reviewers": [
+     "performance"
+    ],
+    "line": 235,
+    "owner": "human",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "performance"
+    ],
+    "severity": "P2",
+    "suggested_fix": "Offload the build to the threadpool. `from starlette.concurrency import run_in_threadpool` and change both branches to `content = await run_in_threadpool(export_excel, report)` / `await run_in_threadpool(export_pdf, report)`. openpyxl and reportlab release the GIL for the bulk of their work, so this is a real win, and it is a two-line change with no behavioural impact. Assumption: `report` is a frozen dataclass tuple, so sharing it across the thread boundary is safe with no extra copying. Pair this with the row cap from the companion finding — offloading stops the loop stall but does not bound the memory, and the cap does.",
+    "title": "`export_excel` / `export_pdf` are CPU-bound and synchronous but are called directly from an `async def` endpoint, stalling the event loop for the whole worker",
+    "_why": "`export_deviation_report` is `async def`, and both `export_excel(report)` and `export_pdf(report)` are plain synchronous Python that never yields. On a single-worker ASGI deployment the loop is blocked for the entire build, so every other in-flight request on that process — logins, equipment reads, the whole API — waits. This is not hypothetical even on the happy path: a 100-row report already takes 143 ms (excel) / 112 ms (pdf) of pure blocking, and the cost is linear in row count, so a routine larger report pushes the stall into seconds. `app/main.py` registers no worker-pool or offload middleware, so nothing compensates. Note also that `build_report` is cheap (170 ms at 20,000 keys), so the exporters — not the report assembly — are what need offloading.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 16,
+      "key": "performance|pcs-backend/app/api/v1/supplier.py|235|`export_excel` / `export_pdf` are cpu-bound and synchronous but are called directly from an `async def` endpoint, stalling the event loop for the whole worker"
+     }
+    ],
+    "_members": [
+     16
+    ]
+   },
+   {
+    "#": 17,
+    "autofix_class": "manual",
+    "confidence": 100,
+    "evidence": [
+     "pcs-backend/app/services/equip_list/pump_design_data.py:138 — `        record.design_parameters_json = params`",
+     "pcs-backend/scripts/p7_s4_003_seed_pump_design.py:59 — `        already = sum(1 for e in before if e.design_parameters_json)`",
+     "pcs-backend/app/services/equip_list/pump_design_data.py:142 — `        await session.commit()`"
+    ],
+    "file": "pcs-backend/app/services/equip_list/pump_design_data.py",
+    "first_evidence": "pcs-backend/app/services/equip_list/pump_design_data.py:138 — `        record.design_parameters_json = params`",
+    "independent_reviewers": [
+     "data-migration"
+    ],
+    "line": 138,
+    "owner": "human",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "data-migration"
+    ],
+    "severity": "P2",
+    "suggested_fix": "Make the destructive case explicit and gated, and make the seed script's dry-run the default. In `apply_design_parameters`:\n\n```python\nasync def apply_design_parameters(\n    session: AsyncSession,\n    project_id: uuid.UUID,\n    *,\n    overwrite: bool = False,\n    dry_run: bool = False,\n) -> int:\n    ...\n    for record in records:\n        params = design_params_for_tag(record.tag_number)\n        if not params:\n            continue\n        if record.design_parameters_json and not overwrite:\n            skipped.append(record.tag_number)\n            continue\n        record.design_parameters_json = params\n        written += 1\n\n    if written and not dry_run:\n        await session.commit()\n    else:\n        await session.rollback()\n    return written\n```\n\nIn the script, add `--dry-run` / `--overwrite` flags (defaulting to dry-run) and make `already > 0` without `--overwrite` a hard error rather than a printed line. Before the first real run, snapshot the current values so the change is reversible:\n\n```sql\nCREATE TABLE IF NOT EXISTS backup_equipment_design_20261006 AS\nSELECT id, tag_number, design_parameters_json\nFROM equipment_list\nWHERE design_parameters_json IS NOT NULL;\n\n-- post-backfill verification (read-only)\nSELECT tag_number,\n       design_parameters_json->'轴功率'->>'value'   AS shaft_kw,\n       design_parameters_json->'电机额定功率'->>'value' AS motor_kw\nFROM equipment_list\nWHERE project_id = '<PROJECT_ID>'\n  AND design_parameters_json IS NOT NULL\nORDER BY tag_number;\n\n-- expected: 17 rows, one per key in PUMP_DESIGN, zero rows with an empty object\nSELECT count(*) AS written, count(*) FILTER (WHERE design_parameters_json = '{}'::jsonb) AS empty\nFROM equipment_list\nWHERE project_id = '<PROJECT_ID>' AND design_parameters_json IS NOT NULL;\n```\n\nASSUMPTION: the only rows that can legitimately pre-date this backfill are ones an operator edited deliberately; everything else is NULL because the column had no writer (which is what the module docstring states). If that is wrong, `--overwrite` becomes the default and the snapshot table above is the rollback path.",
+    "title": "Backfill overwrites any existing non-null design_parameters_json unconditionally, with no dry-run and no confirmation gate",
+    "_why": "The function's own docstring is careful about one class of overwrite — '位号不在设计表内的设备一律跳过, **不写空对象** —— 那会覆盖已有值' — but the mirror-image case is unguarded: a row whose `tag_number` IS in `PUMP_DESIGN` and which already carries a non-null `design_parameters_json` is overwritten with no check. The script even computes the count of such rows (`already = sum(1 for e in before if e.design_parameters_json)`, seed script line 59), prints it, and then proceeds anyway. So an operator who hand-corrected a design value in the UI loses it, and the pre-run count that would have warned them is printed but never acted on. `apply_design_parameters` also commits internally (line 142), so there is no transaction boundary the caller can roll back and no partial-failure state to inspect — all 17 rows land or none do, irreversibly, with no snapshot of the prior values.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 17,
+      "key": "data-migration|pcs-backend/app/services/equip_list/pump_design_data.py|138|backfill overwrites any existing non-null design_parameters_json unconditionally, with no dry-run and no confirmation gate"
+     }
+    ],
+    "_members": [
+     17
+    ]
+   },
+   {
+    "#": 18,
+    "autofix_class": "gated_auto",
+    "confidence": 100,
+    "evidence": [
+     "app/services/events.py:22 — `    from app.core.events import emit_event, register_listener`",
+     "repo-wide grep for `app.core.events` returns exactly one hit: this docstring line. `app.services.events` is imported by app/services/cia_engine.py:38, app/services/supplier/confirmation_service.py:32, and 4 test modules"
+    ],
+    "file": "pcs-backend/app/services/events.py",
+    "first_evidence": "app/services/events.py:22 — `    from app.core.events import emit_event, register_listener`",
+    "independent_reviewers": [
+     "maintainability"
+    ],
+    "line": 22,
+    "owner": "downstream-resolver",
+    "pre_existing": false,
+    "requires_verification": false,
+    "reviewers": [
+     "maintainability"
+    ],
+    "severity": "P2",
+    "suggested_fix": "Change line 22 to `from app.services.events import emit_event, register_listener`.",
+    "title": "Stale usage example: events.py docstring still tells readers to import from `app.core.events`, the module this diff moved out of `app/core/`",
+    "_why": "The move from `app/core/` to `app/services/` is the whole point of this file's diff, and every real caller (cia_engine, confirmation_service, all five test modules) uses the new path. The docstring is the sole remaining `app.core.events` reference in the repo, and it sits inside a `用法::` block written specifically to be copy-pasted — a reader following it gets `ModuleNotFoundError`. The rest of the docstring was carefully updated to describe the new design (deepcopy, DB-backed idempotency); this one line was missed, which is exactly the drift the review persona asks to catch.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 18,
+      "key": "maintainability|pcs-backend/app/services/events.py|22|stale usage example: events.py docstring still tells readers to import from `app.core.events`, the module this diff moved out of `app/core/`"
+     }
+    ],
+    "_members": [
+     18
+    ]
+   },
+   {
+    "#": 20,
+    "autofix_class": "gated_auto",
+    "confidence": 100,
+    "evidence": [
+     "app/services/supplier/deviation_report.py:125-130 — `    report = DeviationReport(` / `        equipment_id=str(equipment.equipment_id),` / `        tag_number=equipment.tag_number,` / `        actual_data_status=equipment.actual_data_status,` / `        rows=tuple(rows),` / `    )`",
+     "app/services/supplier/deviation_report.py:131-137 — `    return DeviationReport(` repeats equipment_id/tag_number/actual_data_status/rows field-for-field and adds `blocking_reason=_blocking_reason(report.rows),`"
+    ],
+    "file": "pcs-backend/app/services/supplier/deviation_report.py",
+    "first_evidence": "app/services/supplier/deviation_report.py:125-130 — `    report = DeviationReport(` / `        equipment_id=str(equipment.equipment_id),` / `        tag_number=equipment.tag_number,` / `        actual_data_status=equipment.actual_data_status,` / `        rows=tuple(rows),` / `    )`",
+    "independent_reviewers": [
+     "maintainability"
+    ],
+    "line": 125,
+    "owner": "downstream-resolver",
+    "pre_existing": false,
+    "requires_verification": false,
+    "reviewers": [
+     "maintainability"
+    ],
+    "severity": "P2",
+    "suggested_fix": "Collapse to a single construction: `return DeviationReport(equipment_id=str(equipment.equipment_id), tag_number=equipment.tag_number, actual_data_status=equipment.actual_data_status, rows=tuple(rows), blocking_reason=_blocking_reason(rows))`. `_blocking_reason` already takes the rows tuple, so the intermediate object is not needed as an argument.",
+    "title": "build_report constructs the same frozen dataclass twice — the first `report` exists only to be unpacked",
+    "_why": "`DeviationReport` is `frozen=True`, so the second construction copies every field verbatim off the first purely to add `blocking_reason`. A maintainer adding a field to `DeviationReport` must add it twice and will eventually add it to only one — the omission is invisible because the second construction is the one that is returned, and the resulting bug is a silently-defaulted field rather than an error.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 20,
+      "key": "maintainability|pcs-backend/app/services/supplier/deviation_report.py|125|build_report constructs the same frozen dataclass twice — the first `report` exists only to be unpacked"
+     }
+    ],
+    "_members": [
+     20
+    ]
+   },
+   {
+    "#": 21,
+    "autofix_class": "gated_auto",
+    "confidence": 100,
+    "evidence": [
+     "app/services/supplier/deviation_report.py:189-192 — `def _cell(container, row) -> dict:` / `    from dataclasses import asdict` / `    return asdict(row)`",
+     "repo-wide grep for `_cell(` returns no caller (the only other hits are unrelated `test_number_cell` / `test_text_cell` in tests/services/test_worley_extract.py)"
+    ],
+    "file": "pcs-backend/app/services/supplier/deviation_report.py",
+    "first_evidence": "app/services/supplier/deviation_report.py:189-192 — `def _cell(container, row) -> dict:` / `    from dataclasses import asdict` / `    return asdict(row)`",
+    "independent_reviewers": [
+     "maintainability"
+    ],
+    "line": 189,
+    "owner": "downstream-resolver",
+    "pre_existing": false,
+    "requires_verification": false,
+    "reviewers": [
+     "maintainability"
+    ],
+    "severity": "P2",
+    "suggested_fix": "Delete lines 189-192 entirely. If row serialization is genuinely needed, `dataclasses.asdict` is the correct expression at the call site — `export_excel` already writes fields positionally and needs no dict.",
+    "title": "Dead helper `_cell()` — a Pass-Through Method with zero callers",
+    "_why": "`_cell(container, row)` ignores both of its parameters' semantics and returns `asdict(row)` — the `container` argument is never read, and the local `from dataclasses import asdict` inside the function body is the only reason it isn't an unused top-level import. Nothing calls it. It reads like the cell-rendering helper the xlsx exporter once had, which invites a future maintainer to call it expecting row-to-cell formatting and instead get a raw dict, or to 'fix' the unused parameter.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 21,
+      "key": "maintainability|pcs-backend/app/services/supplier/deviation_report.py|189|dead helper `_cell()` — a pass-through method with zero callers"
+     }
+    ],
+    "_members": [
+     21
+    ]
+   },
+   {
+    "#": 23,
+    "autofix_class": "manual",
+    "confidence": 100,
+    "evidence": [
+     "app/services/supplier/deviation_report.py:7-9 — `⚠️ **已知缺口** (2026-10-05 用户裁决「设计值留空」): `design_parameters_json`` / `无写入方，生产路径上所有行都会落到「缺设计值（不可判）」，因而 `can_confirm` 恒` / `False。引擎本身已按 SPEC 逐条实现并由单测覆盖；设计值来源是另一个决定。`",
+     "app/api/v1/supplier.py:153-154 — `    ⚠️ 已知缺口：`design_parameters_json` 目前无写入方，故生产路径上全部行` / `    都会落「缺设计值（不可判）」。引擎已按 SPEC 逐条实现，设计值来源待定。`",
+     "app/services/equip_list/pump_design_data.py:107-143 — `async def apply_design_parameters(...)` sets `record.design_parameters_json = params` (line 138); this function is new in this diff"
+    ],
+    "file": "pcs-backend/app/services/supplier/deviation_report.py",
+    "first_evidence": "app/services/supplier/deviation_report.py:7-9 — `⚠️ **已知缺口** (2026-10-05 用户裁决「设计值留空」): `design_parameters_json`` / `无写入方，生产路径上所有行都会落到「缺设计值（不可判）」，因而 `can_confirm` 恒` / `False。引擎本身已按 SPEC 逐条实现并由单测覆盖；设计值来源是另一个决定。`",
+    "independent_reviewers": [
+     "maintainability"
+    ],
+    "line": 7,
+    "owner": "downstream-resolver",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "maintainability"
+    ],
+    "severity": "P2",
+    "suggested_fix": "Delete both ⚠️ blocks and replace with the actual current state: design values come from `app/services/equip_list/pump_design_data.py::PUMP_DESIGN` via `apply_design_parameters`, and the residual gap is that PUMP_DESIGN covers only the 18 蜡油加氢 pump tags, so equipment outside that tag set still yields 不可判 rows. If a partial-PUMP_DESIGN warning is wanted, state that one — it is the gap a reader actually needs, and it is a different claim from the one currently written.",
+    "title": "\"已知缺口：design_parameters_json 无写入方\" is contradicted by the writer this same diff adds",
+    "_why": "Two production modules open with a ⚠️ warning that every report row will fall to 「缺设计值（不可判）」 and `can_confirm` will therefore be permanently False. Commit cae5bce in this same diff range adds exactly the missing writer — `app/services/equip_list/pump_design_data.py::apply_design_parameters` — plus a seed script to invoke it. Leaving the warnings in place means the first thing a maintainer or a code-reading agent does with these files is discount the deviation engine as untestable, and a reviewer of a future change may accept a regression to 「all rows unjudgeable」 as the already-known baseline rather than as new breakage.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 23,
+      "key": "maintainability|pcs-backend/app/services/supplier/deviation_report.py|7|\"已知缺口：design_parameters_json 无写入方\" is contradicted by the writer this same diff adds"
+     }
+    ],
+    "_members": [
+     23
+    ]
+   },
+   {
+    "#": 25,
+    "autofix_class": "gated_auto",
+    "confidence": 100,
+    "evidence": [
+     "app/services/supplier/deviation_service.py:166 — `_RULE_INDEX = {r.parameter: r for r in SPEC_RULES}`",
+     "app/services/supplier/deviation_service.py:169-174 — `find_rule` iterates `SPEC_RULES` and calls `rule.matches(name)`; it never references `_RULE_INDEX`",
+     "repo-wide grep for `_RULE_INDEX` returns exactly one hit: its own definition"
+    ],
+    "file": "pcs-backend/app/services/supplier/deviation_service.py",
+    "first_evidence": "app/services/supplier/deviation_service.py:166 — `_RULE_INDEX = {r.parameter: r for r in SPEC_RULES}`",
+    "independent_reviewers": [
+     "maintainability"
+    ],
+    "line": 166,
+    "owner": "downstream-resolver",
+    "pre_existing": false,
+    "requires_verification": false,
+    "reviewers": [
+     "maintainability"
+    ],
+    "severity": "P2",
+    "suggested_fix": "Delete line 166. If a name->rule lookup is ever genuinely needed, key it on the normalized name AND all normalized aliases (`_normalize` already exists), not on `r.parameter` alone — otherwise it will not be a drop-in for `find_rule`.",
+    "title": "Dead module-level index: `_RULE_INDEX` is built once and never read",
+    "_why": "`_RULE_INDEX` is constructed at import time and no code in the repo reads it — `find_rule` deliberately walks `SPEC_RULES` linearly and matches on normalized names plus aliases, so a dict keyed by raw `parameter` could not serve it anyway. A future maintainer who sees the index will assume lookup is by exact parameter name and may build on it, or 'optimize' `find_rule` to use it and silently break alias matching for every parameter whose display name differs from its canonical one (扬程/效率/NPSHr all have aliases). It also builds a 7-entry dict on every import for no benefit.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 25,
+      "key": "maintainability|pcs-backend/app/services/supplier/deviation_service.py|166|dead module-level index: `_rule_index` is built once and never read"
+     }
+    ],
+    "_members": [
+     25
+    ]
+   },
+   {
+    "#": 26,
+    "autofix_class": "gated_auto",
+    "confidence": 100,
+    "evidence": [
+     "pcs-backend/tests/services/supplier/test_deviation_report.py:90-92 — `def test_can_confirm_when_all_qualified_or_warning():\\n    r = build_report(_Eq(DESIGN, ACTUAL_ALL_OK))\\n    assert can_confirm(r) is True`",
+     "实测：DESIGN={\"扬程\":32.0,\"轴功率\":55.0}, ACTUAL_ALL_OK={\"扬程\":33.0,\"电机额定功率\":75.0} → build_report 产出 `扬程 QUALIFIED` / `电机额定功率 QUALIFIED`，零 WARNING 行",
+     "pcs-backend/app/services/supplier/deviation_report.py:156-157 — `    全部合格或仅警告 → 可确认。存在**不合格或不可判** → 拒绝。` — 「仅警告」这半句无任何断言支撑"
+    ],
+    "file": "pcs-backend/tests/services/supplier/test_deviation_report.py",
+    "first_evidence": "pcs-backend/tests/services/supplier/test_deviation_report.py:90-92 — `def test_can_confirm_when_all_qualified_or_warning():\\n    r = build_report(_Eq(DESIGN, ACTUAL_ALL_OK))\\n    assert can_confirm(r) is True`",
+    "independent_reviewers": [
+     "testing"
+    ],
+    "line": 90,
+    "owner": "downstream-resolver",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "testing"
+    ],
+    "severity": "P2",
+    "suggested_fix": "在 test_deviation_report.py 新增一个真正含 WARNING 行的 fixture 并复用现有 `can_confirm` 断言，例如 `ACTUAL_HAS_WARNING = {\"转速\": {\"value\": 3000.0, \"unit\": \"r/min\"}}` 配 `DESIGN_WITH_SPEED = {**DESIGN, \"转速\": {\"value\": 2950.0, \"unit\": \"r/min\"}}`（转速走 RECHECK_ALWAYS → WARNING + requires_recheck=True）。加 `test_warning_only_report_is_confirmable`，先 assert 报告里确实存在 `verdict == \"WARNING\"` 的行（防止再次退化成全 QUALIFIED 而测试仍然绿），再 assert `can_confirm(r) is True`。同时把现有的 `test_can_confirm_when_all_qualified_or_warning` 改名为 `test_can_confirm_when_all_qualified` 以消除误导。",
+    "title": "`test_can_confirm_when_all_qualified_or_warning` 名不副实：数据实际只产出 QUALIFIED，WARNING 不阻断确认这条契约零覆盖",
+    "_why": "`can_confirm` 的语义是「全部合格或**仅警告** → 可确认」（deviation_report.py:156-157），即 WARNING 是允许通过的。测试名 `test_can_confirm_when_all_qualified_or_warning` 明确承诺覆盖这一点，但用的 `ACTUAL_ALL_OK` 实际判定结果是扬程 QUALIFIED + 电机额定功率 QUALIFIED（实测运行 build_report 确认：两行都是 QUALIFIED），**没有一行是 WARNING**。后果是把 `can_confirm` 改成连 WARNING 一起拦（这在 `RECHECK_ALWAYS` 规则下是极可能发生的改动 —— 转速/叶轮直径只要录入就恒为 WARNING，一旦有人觉得「恒警告也该拦」而收紧门禁），全套 3884 个用例里没有任何一条会红。SPEC §3.2.4(4) 的「合格**或警告**」这半句从未被真正锁住。",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 26,
+      "key": "testing|pcs-backend/tests/services/supplier/test_deviation_report.py|90|`test_can_confirm_when_all_qualified_or_warning` 名不副实：数据实际只产出 qualified，warning 不阻断确认这条契约零覆盖"
+     }
+    ],
+    "_members": [
+     26
+    ]
+   },
+   {
+    "#": 27,
+    "autofix_class": "gated_auto",
+    "confidence": 100,
+    "evidence": [
+     "pcs-backend/tests/test_cia_event_decoupling.py:151-155 — `    code = \"\\n\".join(\\n        line for line in src.splitlines()\\n        if not line.lstrip().startswith(\"#\")\\n    )\\n    assert \"self.fsm.transition(\" not in code, (`",
+     "pcs-backend/app/services/cia_engine.py:84-85 — `    fsm = StateMachineService(session)\\n    await fsm.transition(` — 唯一的 transition 调用是局部变量形式，全文件 grep 不到 `self.fsm`",
+     "pcs-backend/tests/services/supplier/test_confirmation_service.py:222-224 — `    走 AST 而非字符串匹配: 字符串匹配会被 docstring 里的「不直调 state_machine」\\n    这类说明文字误报（既有的 cia 守卫就有这个隐患 —— 它的注释声称剥掉 docstring，\\n    实际只剥了 `#` 行）。` — 同一提交里已写好正确实现却未回用"
+    ],
+    "file": "pcs-backend/tests/test_cia_event_decoupling.py",
+    "first_evidence": "pcs-backend/tests/test_cia_event_decoupling.py:151-155 — `    code = \"\\n\".join(\\n        line for line in src.splitlines()\\n        if not line.lstrip().startswith(\"#\")\\n    )\\n    assert \"self.fsm.transition(\" not in code, (`",
+    "independent_reviewers": [
+     "testing"
+    ],
+    "line": 155,
+    "owner": "downstream-resolver",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "testing"
+    ],
+    "severity": "P2",
+    "suggested_fix": "把 test_cia_event_decoupling.py:140-157 的实现整体替换为 test_confirmation_service.py:231-245 已有的 AST 写法：`ast.parse` 后遍历 `ast.Call`，凡 `isinstance(node.func, ast.Attribute) and node.func.attr == \"transition\"` 即计入 offenders，同时检查 `ast.ImportFrom`/`ast.Import` 中是否 import 了 state_machine。这样无论写成 `fsm.transition(`、`self.fsm.transition(` 还是 `StateMachineService(x).transition(` 都会被拦下，且天然不受 docstring/注释干扰（顺带修掉注释与实现不符的问题）。改完可在 cia_engine.py 的 listener 里临时插一行 `self.fsm.transition(` 验证守卫确实会红，再回滚。",
+    "title": "CIA 静态守卫的匹配串 `self.fsm.transition(` 在 cia_engine.py 中已不存在，断言不可失败",
+    "_why": "这个静态守卫的整个目的是「防止将来有人图省事把直调加回来」，但它 grep 的模式 `self.fsm.transition(` 在重构后的 cia_engine.py 里**一次都不出现** —— 该文件里 `StateMachineService` 是在模块级 listener 内以局部变量持有的（cia_engine.py:84-85 `fsm = StateMachineService(session)` / `await fsm.transition(`），`CIAEngine` 类本身已不再持有 fsm 属性（构造函数注释明写「不再持有 StateMachineService」）。因此这条断言无论 cia_engine.py 怎么改都恒真，是一个不可失败的守卫：有人真把直调加回来时，最自然的写法是 `fsm = StateMachineService(self.session); await fsm.transition(...)` 或 `StateMachineService(self.session).transition(...)`，两者都不含 `self.fsm.transition(` 字面量，守卫全部漏过。同一批的 `test_supplier_source_has_no_direct_fsm_transition_calls`（test_confirmation_service.py:217-245）已经用 AST 正确实现了这个守卫，并且其 docstring 明确点名「既有的 cia 守卫就有这个隐患」—— 修复方案已在同一次提交里写好了，只是没有应用到 cia 那一侧。另外该守卫的注释「去掉 docstring/注释后再查」与实现也不符：实现只过滤 `#` 开头的行（作者已自述此点）。",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 27,
+      "key": "testing|pcs-backend/tests/test_cia_event_decoupling.py|155|cia 静态守卫的匹配串 `self.fsm.transition(` 在 cia_engine.py 中已不存在，断言不可失败"
+     }
+    ],
+    "_members": [
+     27
+    ]
+   },
+   {
+    "#": 28,
+    "autofix_class": "manual",
+    "confidence": 75,
+    "evidence": [
+     "pcs-backend/app/schemas/supplier.py:22 -- `name: str = Field(min_length=1, max_length=100, description=\"参数名\")` -- any string is a legal key; there is no allow-list, no enum, and no cross-reference to the engine's rule set.",
+     "pcs-backend/app/schemas/supplier.py:44 -- `actual_data_json: dict | None = None` -- the public response type is an untyped map; the generated `pcs-frontend/src/types/api.d.ts:5250-5252` renders it as `actual_data_json?: { [key: string]: unknown; } | null;`.",
+     "pcs-backend/app/services/supplier/deviation_report.py:93-100 -- `if rule is None:` / `rows.append(DeviationRow(parameter=name, design_value=design_value, actual_value=actual_value, unit=unit, deviation_pct=None, verdict=UNVERDICTABLE, note=\"无判定规则（SPEC §3.2.4(2) 以泵为例）\", spec_ref=\"\",))` -- an unrecognised key is accepted into the report rather than rejected at write time.",
+     "pcs-backend/app/api/v1/supplier.py:153-155 -- `⚠️ 已知缺口：`design_parameters_json` 目前无写入方，故生产路径上全部行 都会落「缺设计值（不可判）」` -- the endpoint documents that no production row can currently be judged, so the accepted-but-unusable write surface is the whole surface today.",
+     "pcs-backend/app/services/supplier/actual_data_service.py:52-72 -- `normalize_entries` validates only name-non-empty, name-unique, value-numeric, unit-string; there is no check that the name is one the deviation engine can rule on."
+    ],
+    "file": "pcs-backend/app/schemas/supplier.py",
+    "first_evidence": "pcs-backend/app/schemas/supplier.py:22 -- `name: str = Field(min_length=1, max_length=100, description=\"参数名\")` -- any string is a legal key; there is no allow-list, no enum, and no cross-reference to the engine's rule set.",
+    "independent_reviewers": [
+     "api-contract"
+    ],
+    "line": 22,
+    "owner": "human",
+    "pre_existing": false,
+    "requires_verification": false,
+    "reviewers": [
+     "api-contract"
+    ],
+    "severity": "P2",
+    "suggested_fix": "Assumption: free-form keys are intentional (the SPEC's design-value source is still an open decision, so a hard allow-list would block legitimate interim data), and the missing piece is discoverability rather than validation. Cheapest defensible improvement, no server behaviour change: expose the rule set as a read endpoint or fold it into an existing meta endpoint -- e.g. `GET /api/v1/equipment/deviation-rules` returning each rule's `parameter` name, `design_key`, `spec_ref`, and unit -- so a client can populate the entry form from the contract instead of typing free-text Chinese parameter names. Pair that with a `description` on `ActualDataEntry.name` naming the rule endpoint. Stronger alternative if the rules are considered stable: reject unknown names at write time with a new `PcsError` (code, e.g. `ACTUAL_DATA_UNKNOWN_PARAMETER`, status 422) -- note this needs the raise inlined so `_scan_error_codes` registers the code, per the sibling finding. Do not tighten the key type without a decision on where design values come from.",
+    "title": "Unbounded free-form parameter names on a public write surface whose read surface is a closed rule set -- nothing in the contract tells a client which keys are judgeable",
+    "_why": "The write side accepts any 1-100 character string as a parameter name and stores it verbatim as a key of the public `actual_data_json` object; the read side interprets those keys against a closed, fixed rule set and returns `UNVERDICTABLE` for every key it does not recognise. Nothing in the request schema, the response schema, or the endpoint docs states the set of meaningful keys, so a client can successfully write data that is permanently unjudgeable -- the write returns 200 with the offending value echoed back, and the failure only surfaces later as a `UNVERDICTABLE` row and `can_confirm: false`. Because the endpoint docstring at supplier.py:153-154 already records that `design_parameters_json` has no writer (so production reports are entirely `UNVERDICTABLE` and `can_confirm` is effectively always false), the write surface currently has no path to a judged report at all. Compounding this, the response type is a bare `dict`, which the generator emits as `{[key: string]: unknown} | null` -- the client gets no per-value typing and must re-narrow `unknown` itself.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 28,
+      "key": "api-contract|pcs-backend/app/schemas/supplier.py|22|unbounded free-form parameter names on a public write surface whose read surface is a closed rule set -- nothing in the contract tells a client which keys are judgeable"
+     }
+    ],
+    "_members": [
+     28
+    ]
+   },
+   {
+    "#": 29,
+    "autofix_class": "gated_auto",
+    "confidence": 75,
+    "evidence": [
+     "pcs-backend/app/schemas/supplier.py:23 — `    value: float = Field(description=\"实测值 (可为负, 如冬季设计温度)\")` — a bare `float` with no `Field(strict=True)` and no `allow_inf_nan=False`.",
+     "Executed against the real `ActualDataEntry` model: `'100' -> 100.0`, `True -> 1.0`, `'NaN' -> nan`, `'Infinity' -> inf`, `None REJECT ValidationError`. Pydantic lax mode coerces the exact inputs that `actual_data_service.py:33-39` `_coerce_value` exists to reject.",
+     "pcs-backend/app/services/supplier/actual_data_service.py:35 — `    if isinstance(raw, bool) or not isinstance(raw, (int, float)):` — unreachable from the router, because `model_dump()` at `supplier.py:121` yields `value` as an already-coerced `float`.",
+     "pcs-backend/app/services/supplier/deviation_service.py:249 — `        return Evaluation(QUALIFIED, deviation)` is the fall-through of `ASYMMETRIC_BAND`; with `deviation = nan` both guards at lines 245 and 247 compare false, so execution lands here. Executed: `扬程 QUALIFIED nan` and `can_confirm = True` for `actual_data_json={'扬程':{'value':float('nan'),...}}` against a design value of 2100.0.",
+     "The persistence leg was checked against the live database and does not hold: `PostgreSQL 18.6`, `jsonb NaN ERR: asyncpg.exceptions.InvalidTextRepresentationError`. This is why severity is P2 rather than P0 — the gate bypass is demonstrable in-process but not yet reachable through stored data."
+    ],
+    "file": "pcs-backend/app/schemas/supplier.py",
+    "first_evidence": "pcs-backend/app/schemas/supplier.py:23 — `    value: float = Field(description=\"实测值 (可为负, 如冬季设计温度)\")`",
+    "independent_reviewers": [
+     "security"
+    ],
+    "line": 23,
+    "owner": "downstream-resolver",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "security"
+    ],
+    "severity": "P2",
+    "suggested_fix": "Make the schema enforce the contract it documents, so the service-level checks become defence in depth rather than the only (unreachable) defence:\n\n```python\nvalue: float = Field(\n    description=\"实测值 (可为负, 如冬季设计温度)\",\n    strict=True,\n    allow_inf_nan=False,\n)\n```\n\n`strict=True` rejects `'100'` and `True` at the boundary, matching both docstrings; `allow_inf_nan=False` closes the NaN/Infinity path into `evaluate` regardless of storage format. This is a breaking change for any client currently sending string numerics, which is precisely the behaviour the two docstrings say should not be tolerated — worth confirming against the frontend types (`pcs-frontend/src/types/api.d.ts` is in this diff) before applying. Assumption: no legitimate caller depends on lax numeric coercion; if one does, the fix is to fix that caller, not to widen the field.",
+    "title": "[A03/CWE-20] The strict-float contract on `ActualDataEntry.value` is enforced only by Pydantic's lax coercion, so the service's own string/bool rejection is unreachable dead code on the API path",
+    "_why": "Both the schema docstring (\"value 严格数值 —— 字符串数字在 UI 上是录入错误, 不是可容忍的输入\") and `actual_data_service._coerce_value` (docstring: \"不接受 '100' 这类字符串数字\", with an explicit `isinstance(raw, bool)` rejection) state that string numerics and booleans must be refused. Neither guard actually fires on the router path, because Pydantic v2 runs first in lax mode and hands the service an already-coerced `float`. Verified against the real schema: `'100' -> 100.0`, `True -> 1.0`, `'NaN' -> nan`, `'Infinity' -> inf`. So the service's boolean branch is unreachable from `PUT /actual-data` and the string-digit rule is not enforced at all. The security-relevant edge is that non-finite floats survive validation: `float('nan')` reaches `deviation_service.evaluate`, where every comparison against NaN is false, so the `ASYMMETRIC_BAND` rule falls through to `return Evaluation(QUALIFIED, deviation)` — I verified `can_confirm` returns `True` for a pump whose entire actual-data set is `{\"扬程\": {\"value\": NaN}}`, i.e. a value that was never measured would clear the SPEC §3.2.4(4) confirmation gate. That specific bypass does not reach production today: PostgreSQL 18.6 rejects `NaN` as a JSONB literal (`InvalidTextRepresentationError` on `select 'NaN'::jsonb`), so the write fails with a 500 rather than persisting — the practical impact today is an unhandled 500 on a request a client can trigger, not a confirmed forged value. I file it at P2 and 75 for that reason: the validation contract the code documents is not the contract the code enforces, and the moment a non-finite value becomes storable — or a numeric-typed column replaces the JSONB — the NaN-to-QUALIFIED path becomes live.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 29,
+      "key": "security|pcs-backend/app/schemas/supplier.py|23|[a03/cwe-20] the strict-float contract on `actualdataentry.value` is enforced only by pydantic's lax coercion, so the service's own string/bool rejection is unreachable dead code on the api path"
+     }
+    ],
+    "_members": [
+     29
+    ]
+   },
+   {
+    "#": 30,
+    "autofix_class": "manual",
+    "confidence": 75,
+    "file": "pcs-backend/app/schemas/supplier.py",
+    "first_evidence": "pcs-backend/app/schemas/supplier.py:73 — `Verdict = Literal[\"QUALIFIED\", \"WARNING\", \"UNQUALIFIED\", \"UNVERDICTABLE\"]`",
+    "independent_reviewers": [
+     "project-standards"
+    ],
+    "line": 73,
+    "owner": "human",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "project-standards"
+    ],
+    "severity": "P2",
+    "suggested_fix": "新增一份按项目既有命名/体例的 SPEC 修订登记（如 `docs/PCS-NOTE-SPEC-3.2.4(3)-结论档数修订-2026-10-06.md`），写明：SPEC §3.2.4(3) 3 档 → OpenAPI 4 档（新增 UNVERDICTABLE/不可判/灰色）、fail-closed 不可确认的裁决依据、以及 V1.0 冻结 SPEC 不改原文件；并在 `docs/PCS-UI-SPEC.md` §12.4 修订记录追加一行、§7.14 表格补第 4 档（不改冻结正文亦可，与 §4.4 修订登记先例一致）。假设：本项目把「登记 SPEC 修订」视为独立于实现文档的必备动作（§4.4 工艺气体折标口径是同型先例），因此计划文档 + SDD ledger 不构成登记；若维护者认为计划文档即可，则本条应降级为 informational。",
+    "title": "第 4 档结论 UNVERDICTABLE 与 SPEC/UI-SPEC 的 3 档冲突未按项目规则登记 SPEC 修订",
+    "evidence": [
+     "pcs-backend/app/schemas/supplier.py:73 — `Verdict = Literal[\"QUALIFIED\", \"WARNING\", \"UNQUALIFIED\", \"UNVERDICTABLE\"]`（代码上方注释 pcs-backend/app/schemas/supplier.py:70-72 自述「SPEC §3.2.4(3) 定 3 档（合格/警告/不合格）；UNVERDICTABLE 是本系统补充的第 4 档」）",
+     "Criteria — CLAUDE.md:19 — 「字段/枚举/权限/错误码以 OpenAPI + meta API 为准；与 SPEC 冲突时以 OpenAPI 为准并**登记 SPEC 修订**」",
+     "docs/PCS-UI-SPEC.md:1597 — `结论\t合格/警告/不合格`（3 档，本次 diff 未修改该文件；§12.4 修订记录表止于 V1.4，无本条目）",
+     "pcs-frontend/src/types/api.d.ts:7145 — `verdict: \"QUALIFIED\" | \"WARNING\" | \"UNQUALIFIED\" | \"UNVERDICTABLE\";`（4 值已随契约下发到前端）",
+     "已登记的 `docs/PCS-NOTE-SPEC-3.2.4-电机功率规则修订-2026-10-06.md:5` 自限范围为「影响范围: S4-2 偏差报告的「电机额定功率」判定」，第 2 节 / 第 6 节提到「不可判」仅作为该规则 fail-closed 的结果，未登记「结论档数由 3 扩为 4」这一枚举变更",
+     "`grep -rl UNVERDICTABLE docs/` 仅命中 `docs/sprint4-plan-2026-10-05.md`（计划文档），无 SPEC 修订登记件"
+    ],
+    "_why": "项目 CLAUDE.md 规定枚举与 SPEC 冲突时「以 OpenAPI 为准**并登记 SPEC 修订**」——登记不是可选项。本次在 OpenAPI 里加了第 4 档结论，代码注释自己承认「SPEC §3.2.4(3) 定 3 档（合格/警告/不合格）」，pcs-frontend/src/types/api.d.ts:7145 也已同步出 4 值 union，但 pcs-frontend 的开发者按冻结的 docs/PCS-UI-SPEC.md §7.14（`结论 合格/警告/不合格`，未在本次 diff 中修改、§12.4 修订记录表也没有新条目）实现比对结果表，只会渲染 3 色，遇到 UNVERDICTABLE 落到灰色分支之外。同批的「电机额定功率 ±10% → API 610 分档」修订已经按规矩写了 `docs/PCS-NOTE-SPEC-3.2.4-...md`；本条枚举扩展却只登记在 sprint4 计划与 SDD ledger 里（计划文档不是 SPEC 修订登记），两类改动留下不一致的处理口径。后续任何按 SPEC 数结论档数的校验/评审都会把这里读成 3 档。",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 30,
+      "key": "project-standards|pcs-backend/app/schemas/supplier.py|73|第 4 档结论 unverdictable 与 spec/ui-spec 的 3 档冲突未按项目规则登记 spec 修订"
+     }
+    ],
+    "_members": [
+     30
+    ]
+   },
+   {
+    "#": 31,
+    "autofix_class": "manual",
+    "confidence": 75,
+    "evidence": [
+     "pcs-backend/app/schemas/supplier.py:80 -- `design_value: float | str | None = Field(description=\"设计值\")`",
+     "pcs-frontend/src/types/api.d.ts:7125 -- `design_value: number | string | null;` -- the generated client type, confirmed byte-identical to the backend OpenAPI (both files sha256 `30910d7b53586004`, `ja == jb` is True), so the union really does reach the frontend.",
+     "pcs-backend/app/schemas/supplier.py:81 -- `actual_value: float | str | None = Field(description=\"实际值\")` -- the same union on the sibling field; in practice `actual_value` is always a float because `ActualDataEntry.value` is strictly `float` (schemas/supplier.py:23) and `normalize_entries` rejects non-numerics, so the string case is unreachable for actual and only theoretical for design.",
+     "pcs-backend/app/services/supplier/deviation_report.py:62 -- `def _extract(container: dict | None, name: str) -> tuple[object, str, bool]:` -- the `object` return type is what forces the union into the public schema; `_extract` returns `entry.get(\"value\")` from an untyped JSONB column (line 70).",
+     "pcs-backend/app/schemas/supplier.py:83 -- `deviation_pct: float | None = Field(default=None, description=\"偏差 %; 不可判时 null\")` -- by contrast this field documents what its null means; `design_value`'s null carries no such note, and the description is the bare string `\"设计值\"`."
+    ],
+    "file": "pcs-backend/app/schemas/supplier.py",
+    "first_evidence": "pcs-backend/app/schemas/supplier.py:80 -- `design_value: float | str | None = Field(description=\"设计值\")`",
+    "independent_reviewers": [
+     "api-contract"
+    ],
+    "line": 80,
+    "owner": "human",
+    "pre_existing": false,
+    "requires_verification": false,
+    "reviewers": [
+     "api-contract"
+    ],
+    "severity": "P2",
+    "suggested_fix": "Assumption: the design-value column is expected to hold numbers whenever a comparison is attempted -- the engine's own rules are numeric (deviation_service computes `{g}%` ratios and `deviation_pct`), and the only reason a string can appear today is the untyped JSONB extractor. Tighten the public type to `float | None` and coerce/reject at the service boundary in `_extract`: if a design value is present but non-numeric, keep the row but set `design_value=None` and `verdict=UNVERDICTABLE` with a note -- the engine already has exactly that fail-closed path at deviation_report.py:104-112 ('缺设计值，无法判定'). That makes the string case unreachable rather than merely undocumented, and lets the client treat the field as numeric-or-absent. If non-numeric design specs are a genuine requirement, keep the union but add a `design_value_kind: Literal[\"numeric\", \"text\", \"missing\"]` discriminator to `DeviationRowOut` and extend the `design_value` description to state which case each value implies.",
+    "title": "DeviationRowOut.design_value is a three-way union (number | string | null) with no discriminator for which case applies",
+    "_why": "The generator emits `design_value: number | string | null` into the frontend's TypeScript types, so a client that formats or does arithmetic on the design value (the obvious use in a deviation report -- percent difference against `actual_value`) compiles cleanly and then throws at runtime on the string case. The three cases mean different things -- null is 'no design value recorded' (which the engine maps to `UNVERDICTABLE`), a number is a comparable design value, and a string is a non-numeric design specification -- but the response carries no field saying which one applies, so the client must infer it from the sibling `verdict`, and only for the null case. The union is not modelling a real requirement: it exists because the service extractor is typed `-> tuple[object, str, bool]`, so anything read out of the JSONB column passes through.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 31,
+      "key": "api-contract|pcs-backend/app/schemas/supplier.py|80|deviationrowout.design_value is a three-way union (number | string | null) with no discriminator for which case applies"
+     }
+    ],
+    "_members": [
+     31
+    ]
+   },
+   {
+    "#": 33,
+    "autofix_class": "manual",
+    "confidence": 75,
+    "evidence": [
+     "app/services/equip_list/pump_design_data.py:124-131 — `    records = (` / `        await session.execute(` / `            select(EquipmentList).where(` / `                EquipmentList.project_id == project_id,` / `                EquipmentList.tag_number.in_(list(PUMP_DESIGN)),` / `            )` / `        )` / `    ).scalars().all()`",
+     "scripts/p7_s4_003_seed_pump_design.py:51-58 — `        before = (` / `            await session.execute(` / `                select(EquipmentList).where(` / `                    EquipmentList.project_id == project_id,` / `                    EquipmentList.tag_number.in_(list(PUMP_DESIGN)),` / `                )` / `            )` / `        ).scalars().all()` — byte-for-byte the same predicate",
+     "scripts/p7_s4_003_seed_pump_design.py:60 and :63 — the two prints a reader will compare: `位号匹配 {len(before)} 台` / `写入设计值: {n} 台`"
+    ],
+    "file": "pcs-backend/app/services/equip_list/pump_design_data.py",
+    "first_evidence": "app/services/equip_list/pump_design_data.py:124-131 — `    records = (` / `        await session.execute(` / `            select(EquipmentList).where(` / `                EquipmentList.project_id == project_id,` / `                EquipmentList.tag_number.in_(list(PUMP_DESIGN)),` / `            )` / `        )` / `    ).scalars().all()`",
+    "independent_reviewers": [
+     "maintainability"
+    ],
+    "line": 124,
+    "owner": "human",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "maintainability"
+    ],
+    "severity": "P2",
+    "suggested_fix": "Expose the query once: add `async def matching_pump_records(session, project_id) -> Sequence[EquipmentList]` to pump_design_data.py holding the select, have `apply_design_parameters` call it, and have the script's `_main` call it for its snapshot too. Then the printed count and the written count are provably over the same row set. Assumption: the script's snapshot is genuinely meant to be the same population as the write, not a broader 'what exists in this project' view — if it is meant to be broader, keep both selects but say so in the script's docstring, because the current side-by-side print implies they are the same.",
+    "title": "The pump-record WHERE clause is duplicated between `apply_design_parameters` and its own seed script",
+    "_why": "The script issues its own copy of the exact same query to print a 'before' snapshot, and the two numbers it prints side by side — 「位号匹配 N 台」 and 「写入设计值: M 台」 — read as if M were derived from N, which is only true while the two WHERE clauses match. Any future edit to the filter (adding a project type check, a status check, or a `design_parameters_json IS NULL` guard) updates one copy and leaves the other reporting a stale match count with no error, so the script's output — the only visibility anyone has into this backfill — becomes quietly wrong. The script's purpose is reporting, which makes it the most expensive place for the two to drift.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 33,
+      "key": "maintainability|pcs-backend/app/services/equip_list/pump_design_data.py|124|the pump-record where clause is duplicated between `apply_design_parameters` and its own seed script"
+     }
+    ],
+    "_members": [
+     33
+    ]
+   },
+   {
+    "#": 35,
+    "autofix_class": "manual",
+    "confidence": 75,
+    "evidence": [
+     "pcs-backend/app/services/events.py:236-239 — `    for listener in _LISTENERS.get(event_type, []):\\n        await listener(event)\\n    return True` — zero listeners is an indistinguishable no-op, yet True is returned",
+     "pcs-backend/app/services/cia_engine.py:280-284 — `                    await self._mark_stale(\\n                        eq, f\"ADR-0025: source pipe {rec.line_no} STALE\"\\n                    )\\n                marked += 1` — the counter advances regardless of what the event did",
+     "pcs-backend/app/services/events.py:71-78 — the `clear_listeners` docstring sanctions clearing the registry including production listeners, and warns the result presents as '事件发了但状态没变'"
+    ],
+    "file": "pcs-backend/app/services/events.py",
+    "first_evidence": "pcs-backend/app/services/events.py:236-239 — `    for listener in _LISTENERS.get(event_type, []):\\n        await listener(event)\\n    return True` — zero listeners is an indistinguishable no-op, yet True is returned",
+    "independent_reviewers": [
+     "adversarial"
+    ],
+    "line": 238,
+    "owner": "human",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "adversarial"
+    ],
+    "severity": "P2",
+    "suggested_fix": "Two small changes. (a) In emit_event, when `_LISTENERS.get(event_type, [])` is empty, either raise or return a distinct sentinel rather than True, so 'claimed but undelivered' is representable. (b) In scan_stale, increment `marked` only when _mark_stale's return value indicates the transition actually ran. ASSUMPTION: an event type with no registered listener is always a bug in production — true for cia_mark_stale, but not for actual_data_replaces_design, which is intentionally claim-only until P8 attaches its reverse-restore listener, so the check needs to be per-event-type rather than global.",
+    "title": "emit_event reports dispatch success even when no listener is registered, and the CIA scan counts records it never marked",
+    "_why": "The dispatch loop iterates `_LISTENERS.get(event_type, [])` — an empty list is not an error — and then returns True, which the docstring defines as '已派发'. CIAEngine.scan_stale relies on that: in the ADR-0025 branch it calls _mark_stale and then increments `marked` unconditionally, with no check of the return value, and returns that count to the caller. If the registry holds no listener for cia_mark_stale the FSM transition never runs, no exception is raised, the event is nonetheless claimed in event_idempotency as processed, and scan_stale still reports the equipment as marked. The number the operator reads to know how much stale data was quarantined is then wrong, with no error anywhere to indicate it. clear_listeners() — which the docstring explicitly sanctions for '模拟进程重启' — is one way to reach this state, and any future refactor that makes the module-level register_listener conditional on import order is another.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 35,
+      "key": "adversarial|pcs-backend/app/services/events.py|238|emit_event reports dispatch success even when no listener is registered, and the cia scan counts records it never marked"
+     }
+    ],
+    "_members": [
+     35
+    ]
+   },
+   {
+    "#": 36,
+    "autofix_class": "manual",
+    "confidence": 75,
+    "evidence": [
+     "pcs-backend/app/services/supplier/deviation_report.py:104 — `        if design_value is None:` followed by `            rows.append(DeviationRow(... verdict=UNVERDICTABLE, note=\"缺设计值，无法判定\", spec_ref=rule.spec_ref,))` and `            continue` — the kind-specific branch in `evaluate` is never reached",
+     "pcs-backend/app/services/supplier/deviation_service.py:212-217 — `    if rule.kind == \"MANUAL_CHECK\":\n        return Evaluation(\n            UNVERDICTABLE,\n            note=\"序数比较（不得低于），机器判不了 —— 需人工核对\",\n            requires_manual_check=True,\n        )` — the branch the short-circuit preempts",
+     "pcs-backend/app/services/supplier/deviation_service.py:224-231 — `    if rule.kind == \"REFERENCE_ONLY\":` … `            note=\"参照量，本身不判合格与否（供其他规则使用）\",` — documented as valid data, not missing data",
+     "pcs-backend/app/services/equip_list/pump_design_data.py:83-91 — `_UNITS` contains only 扬程/效率/NPSHr/轴功率/电机额定功率/电机配用功率/转速; 材质 and 厂家型号 have no design-side representation at all, so the short-circuit is the normal path, not an edge case"
+    ],
+    "file": "pcs-backend/app/services/supplier/deviation_report.py",
+    "first_evidence": "pcs-backend/app/services/supplier/deviation_report.py:104 — `        if design_value is None:` followed by `            rows.append(DeviationRow(... verdict=UNVERDICTABLE, note=\"缺设计值，无法判定\", spec_ref=rule.spec_ref,))` and `            continue` — the kind-specific branch in `evaluate` is never reached",
+    "independent_reviewers": [
+     "correctness"
+    ],
+    "line": 104,
+    "owner": "downstream-resolver",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "correctness"
+    ],
+    "severity": "P2",
+    "suggested_fix": "Let the kind decide whether a design value is required. Add a class-level set of kinds that never consult the design value, and move the `design_value is None` check below it:\n\n```python\n# deviation_service.py\nDESIGN_VALUE_OPTIONAL_KINDS = frozenset(\n    {\"MANUAL_CHECK\", \"REFERENCE_ONLY\", \"RECHECK_ALWAYS\"}\n)\n\n# deviation_report.py, inside build_report, replacing the current\n# `if design_value is None:` block at line 104\nif design_value is None and rule.kind not in DESIGN_VALUE_OPTIONAL_KINDS:\n    rows.append(DeviationRow(... verdict=UNVERDICTABLE, note=\"缺设计值，无法判定\", ...))\n    continue\n```\n\nWith that, 材质 rows reach `evaluate`, carry the correct 「需人工核对」 note and `requires_manual_check=True`, and 轴功率 rows report as valid reference data instead of missing data. ASSUMPTION: these three kinds are genuinely design-value-independent by the engine's own documented semantics — MANUAL_CHECK is an ordinal comparison, REFERENCE_ONLY is explicitly 「本身不判合格与否」, and RECHECK_ALWAYS already returns a fixed WARNING with `deviation_pct=None` so the design value only ever feeds the (currently unused) displayed number. If the team instead wants RECHECK_ALWAYS to stay blocking when no design speed exists, drop it from the frozenset and the behaviour for 转速 is unchanged from today.",
+    "title": "build_report's `design_value is None` short-circuit preempts kind dispatch, so MANUAL_CHECK rows lose requires_manual_check and report a misleading note",
+    "_why": "`evaluate()` in `deviation_service.py` dispatches on `rule.kind` FIRST (lines 212-231): MANUAL_CHECK returns UNVERDICTABLE with `requires_manual_check=True` and the note 「序数比较（不得低于），机器判不了 —— 需人工核对」; REFERENCE_ONLY and RECHECK_ALWAYS return without needing a design value at all. But `build_report` checks `if design_value is None` and `continue`s before ever calling `evaluate`, so for any rule whose kind is not numeric the missing-design short-circuit wins. For 材质 — one of the six rows SPEC §3.2.4(2) explicitly enumerates, and which by definition has no numeric design value in `design_parameters_json` — an engineer entering 材质 gets a row that says 「缺设计值，无法判定」 (a claim that is false; nothing is missing) with `requires_manual_check=False` and `spec_ref` populated. The dropped `requires_manual_check` flag is the part that actually hurts: it is the signal a downstream consumer (and the exported report) would use to route the row to a human instead of treating it as a data-entry defect, and `DeviationRowOut` carries it to the API. The same ordering also silently downgrades REFERENCE_ONLY (轴功率, documented at deviation_service.py:224-231 as 「本身不判合格与否」 and deliberately marked QUALIFIED) to UNVERDICTABLE for any equipment whose `design_parameters_json` has not been populated by `apply_design_parameters` yet.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 36,
+      "key": "correctness|pcs-backend/app/services/supplier/deviation_report.py|104|build_report's `design_value is none` short-circuit preempts kind dispatch, so manual_check rows lose requires_manual_check and report a misleading note"
+     }
+    ],
+    "_members": [
+     36
+    ]
+   },
+   {
+    "#": 38,
+    "autofix_class": "manual",
+    "confidence": 75,
+    "file": "pcs-backend/app/services/supplier/deviation_service.py",
+    "first_evidence": "pcs-backend/app/services/supplier/deviation_service.py:137 — `\"（**取代** SPEC §3.2.4(2) 原「偏差 ±10%」—— 电机按系列选取, \"`",
+    "independent_reviewers": [
+     "project-standards"
+    ],
+    "line": 135,
+    "owner": "human",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "project-standards"
+    ],
+    "severity": "P2",
+    "suggested_fix": "向 `.wolf/buglog.json` 追加一条条目：error_message=「电机额定功率按 ±10% 对比设计电机 vs 实际电机，把电机系列档位差误判为设备偏差（蜡油加氢实测 16 台里 2–3 台假性不合格，另需把 PCS motor_power_kw 的轴功率口径与设计电机功率区分）」；root_cause=「偏差规则参照物选错 + 设计侧字段口径实为轴功率」；fix=「改为对轴功率卡 API 610 分档下限 1.25/1.15/1.10，新增 DeviationRule.design_parameter 显式声明参照量」；fix_commit=「742215d」；tags 建议 `[\"p7-s4\",\"deviation\",\"spec-3.2.4\",\"supplier\"]`，severity 按现有字段惯例填。假设：项目把「规则量错对象导致误判」计入 buglog 范畴（对照既有 bug-077/bug-080 等同类的口径/量纲错误条目）；若维护者认为这属于设计期规则裁决而非 bug，则可仅在 `.wolf/STATUS.md` 留痕。",
+    "title": "规则修订修复（commit 742215d）未按 OpenWolf 协议登记 .wolf/buglog.json",
+    "evidence": [
+     "pcs-backend/app/services/supplier/deviation_service.py:135-138 — `\"API 610 电机裕量分档下限: <22kW 1.25 / 22-55kW 1.15 / >55kW 1.10\"` / `\"（**取代** SPEC §3.2.4(2) 原「偏差 ±10%」—— 电机按系列选取, \"` / `\"±10% 量的是档位差不是设备偏差, 见 tests/.../test_motor_tier_rule.py）\"`（本次 diff 引入的取代性修复）",
+     "Criteria — .claude/rules/openwolf.md:9 — 「BEFORE fixing any bug: run `openwolf bug search \"<error>\"` or grep .wolf/buglog.json. AFTER fixing one: log it there (error_message, root_cause, fix, fix_commit, tags). `fix_commit` 必填：修复该 bug 的 git commit 短 SHA 7 位，便于 STATUS 反查单点来源。」",
+     "`git log --name-only 3e5ae90..cae5bce -- .wolf/` 无输出 —— 整个 11 个提交的区间内 buglog.json / STATUS.md 等跟踪文件零改动",
+     "`grep -c 742215d .wolf/buglog.json` → 0（该文件由 `git ls-files` 确认被跟踪，非忽略文件）",
+     "提交区间内唯一 fix 提交：`742215d fix(p7-s4): 电机额定功率规则改为对轴功率卡 API 610 分档下限 (S4-2 规则修订)`"
+    ],
+    "_why": "`.claude/rules/openwolf.md`（CLAUDE.md 第 3 行指明其为常驻规则）要求「BEFORE fixing any bug: run openwolf bug search ... AFTER fixing one: log it there (error_message, root_cause, fix, fix_commit, tags). `fix_commit` 必填」。本次范围里唯一的修复提交 `742215d fix(p7-s4): 电机额定功率规则改为对轴功率卡 API 610 分档下限` 把一条已实现的判定规则判错了对象（±10% 量的是电机档位差而非设备偏差），性质上就是 bug 修复，但 `.wolf/buglog.json`（该文件被 git 跟踪）整段提交区间零改动，且不含 `742215d`。协议里 `fix_commit` 必填的理由是「便于 STATUS 反查单点来源」——现在从 buglog/STATUS 反查这条规则修订只能靠翻代码注释和 `docs/PCS-NOTE-SPEC-3.2.4-...md`，曾经写错的口径与被顶回的误判数量（16 台里 2–3 台假性不合格）不在 buglog 里，下一个接手 S4-x 的人会重踩。",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 38,
+      "key": "project-standards|pcs-backend/app/services/supplier/deviation_service.py|135|规则修订修复（commit 742215d）未按 openwolf 协议登记 .wolf/buglog.json"
+     }
+    ],
+    "_members": [
+     38
+    ]
+   },
+   {
+    "#": 39,
+    "autofix_class": "manual",
+    "confidence": 75,
+    "evidence": [
+     "pcs-backend/app/services/supplier/deviation_service.py:152-157 — `    DeviationRule(\n        parameter=\"转速\",\n        kind=\"RECHECK_ALWAYS\",\n        spec_ref=\"SPEC §3.2.4(2) 实际转速、叶轮直径：允许差异，需重新校核性能\",\n        aliases=(\"实际转速\", \"设计转速\", \"叶轮直径\", \"实际叶轮直径\", \"设计叶轮直径\"),\n    ),` — 叶轮直径 is an alias of a rule whose `design_parameter` is unset",
+     "pcs-backend/app/services/supplier/deviation_service.py:66-69 — `    @property\n    def design_key(self) -> str:\n        \"\"\"在 `design_parameters_json` 里查哪个键。\"\"\"\n        return self.design_parameter or self.parameter` — resolves to \"转速\" for the 叶轮直径 alias",
+     "pcs-backend/app/services/supplier/deviation_report.py:89-91 — `        design_value, _, _ = _extract(\n            design, rule.design_key if rule else name\n        )` — the design-side unit is discarded (`_`), so the export carries the number with no unit",
+     "pcs-backend/app/services/equip_list/pump_design_data.py:83-91 — `_UNITS` / `PUMP_DESIGN` contain 转速 but no 叶轮直径 key, confirming there is no correct design value to substitute"
+    ],
+    "file": "pcs-backend/app/services/supplier/deviation_service.py",
+    "first_evidence": "pcs-backend/app/services/supplier/deviation_service.py:152-157 — `    DeviationRule(\n        parameter=\"转速\",\n        kind=\"RECHECK_ALWAYS\",\n        spec_ref=\"SPEC §3.2.4(2) 实际转速、叶轮直径：允许差异，需重新校核性能\",\n        aliases=(\"实际转速\", \"设计转速\", \"叶轮直径\", \"实际叶轮直径\", \"设计叶轮直径\"),\n    ),` — 叶轮直径 is an alias of a rule whose `design_parameter` is unset",
+    "independent_reviewers": [
+     "correctness"
+    ],
+    "line": 156,
+    "owner": "downstream-resolver",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "correctness"
+    ],
+    "severity": "P2",
+    "suggested_fix": "Give 叶轮直径 its own rule rather than aliasing it onto 转速, so `design_key` and the actual parameter stay the same name. Since SPEC treats 转速 and 叶轮直径 identically (\"允许差异，需重新校核性能\"), the cheapest fix that keeps the verdict is to add the two diameter keys to the alias set of a rule whose `design_parameter` matches, or — simplest and most honest — split it:\n\n```python\nDeviationRule(\n    parameter=\"叶轮直径\",\n    kind=\"RECHECK_ALWAYS\",\n    spec_ref=\"SPEC §3.2.4(2) 实际转速、叶轮直径：允许差异，需重新校核性能\",\n    aliases=(\"实际叶轮直径\", \"设计叶轮直径\"),\n),\n```\n\nWith no matching `叶轮直径` key in `design_parameters_json`, the row then falls into the existing 「缺设计值，无法判定」 branch and `can_confirm` blocks it — which is the correct fail-closed outcome until a real design impeller diameter is transcribed, and is strictly better than showing a shaft speed next to a diameter. If the team prefers not to block on it, instead populate 叶轮直径 in `PUMP_DESIGN`/`_UNITS` so the lookup resolves correctly. ASSUMPTION: the design table genuinely lacks impeller diameter (verified — it is not in the transcribed 17 records), so no aliasing trick can produce a correct design value today.",
+    "title": "叶轮直径 resolves to the 转速 rule's design_key, so the report pairs impeller diameter against design shaft speed",
+    "_why": "The 转速 rule lists 叶轮直径 / 实际叶轮直径 / 设计叶轮直径 as aliases, so `find_rule(\"叶轮直径\")` returns that rule. `build_report` then resolves the design value through `rule.design_key` (= `design_parameter or parameter` = \"转速\"), pulling e.g. 2982 r/min out of `design_parameters_json` and printing it as the 设计值 on a row whose 对比项 is 叶轮直径 and whose 实际值 is e.g. 320 mm. No 叶轮直径 key exists anywhere in `PUMP_DESIGN` or `_UNITS`, so there is no correct design value to pair. This is not only a display artifact: `export_excel` and `export_pdf` write the mismatched 设计值 into the compliance document the process engineering room receives under SPEC §3.2.4(3), and `_extract` also ignores the row's `unit` for the design column, so the export shows 「2982 r/min」 as the design value of a millimetre measurement with no unit annotation on that column. The gate itself is not corrupted — `evaluate` returns a fixed WARNING for RECHECK_ALWAYS with `deviation_pct=None`, so no bogus percentage is computed.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 39,
+      "key": "correctness|pcs-backend/app/services/supplier/deviation_service.py|156|叶轮直径 resolves to the 转速 rule's design_key, so the report pairs impeller diameter against design shaft speed"
+     }
+    ],
+    "_members": [
+     39
+    ]
+   },
+   {
+    "#": 41,
+    "autofix_class": "manual",
+    "confidence": 75,
+    "evidence": [
+     "pcs-backend/scripts/p7_s4_003_seed_pump_design.py:62 — `        n = await apply_design_parameters(session, project_id)`",
+     "pcs-backend/scripts/p7_s4_003_seed_pump_design.py:63 — `        print(f\"写入设计值: {n} 台\")`"
+    ],
+    "file": "pcs-backend/scripts/p7_s4_003_seed_pump_design.py",
+    "first_evidence": "pcs-backend/scripts/p7_s4_003_seed_pump_design.py:62 — `        n = await apply_design_parameters(session, project_id)`",
+    "independent_reviewers": [
+     "data-migration"
+    ],
+    "line": 62,
+    "owner": "human",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "data-migration"
+    ],
+    "severity": "P2",
+    "suggested_fix": "Add an assertion in the script plus a runbook of read-only SQL. In `_main`, after the write:\n\n```python\nif n != len(before):\n    print(\n        f\"FAIL: 匹配 {len(before)} 台但只写入 {n} 台 —— 设计值未完全落库, 不要继续下游流程\",\n        file=sys.stderr,\n    )\n    return 1\n```\n\nAnd record the expected count next to the runbook entry (all read-only, safe against `pcs`):\n\n```sql\n-- 1. how many design values landed (expect 17 for the wax-oil project)\nSELECT count(*) FROM equipment_list\nWHERE project_id = '<PROJECT_ID>' AND design_parameters_json IS NOT NULL;\n\n-- 2. no empty objects were written (expect 0)\nSELECT count(*) FROM equipment_list\nWHERE project_id = '<PROJECT_ID>' AND design_parameters_json = '{}'::jsonb;\n\n-- 3. every written row actually carries a shaft power (the field the motor-tier rule reads)\nSELECT count(*) FROM equipment_list\nWHERE project_id = '<PROJECT_ID>'\n  AND design_parameters_json IS NOT NULL\n  AND design_parameters_json->'轴功率' IS NULL;\n\n-- 4. actual-data columns untouched by the backfill\nSELECT actual_data_status, count(*) FROM equipment_list\nWHERE project_id = '<PROJECT_ID>' GROUP BY 1;\n```\n\nASSUMPTION: 17 is the expected count for the wax-oil hydrotreating project (17 keys in `PUMP_DESIGN`). Query 4 exists specifically to evidence the SPEC §3.2.4(5) separation-of-streams claim in `apply_design_parameters`'s docstring, which is otherwise untested against real data.",
+    "title": "No post-deploy verification SQL ships with the backfill — nothing proves the 17 writes landed or that no row was missed",
+    "_why": "The script's own return value is the only signal that the backfill did anything, and it is printed to stdout on the operator's terminal, never persisted. Because the write path is keyed on an exact `tag_number` string match against a hardcoded 17-entry dict, the realistic failure mode is a silent partial match — a tag rendered slightly differently in the sync from Excel, or a project whose equipment rows carry a different tag convention — which yields `写入设计值: 0 台` and an operator who may not notice. The downstream consequence is the one the change exists to fix: deviation reporting and confirmation keep reading '缺设计值（不可判）' against production data with no signal that the backfill silently no-opped.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 41,
+      "key": "data-migration|pcs-backend/scripts/p7_s4_003_seed_pump_design.py|62|no post-deploy verification sql ships with the backfill — nothing proves the 17 writes landed or that no row was missed"
+     }
+    ],
+    "_members": [
+     41
+    ]
+   },
+   {
+    "#": 42,
+    "autofix_class": "gated_auto",
+    "confidence": 100,
+    "evidence": [
+     "app/services/supplier/__init__.py:3-4 — `- `actual_data_service`: 手动录入供应商实测值` / `- `excel_import_service`: Excel 批量导入`",
+     "`ls app/services/supplier/` returns `__init__.py  actual_data_service.py  confirmation_service.py  deviation_report.py  deviation_service.py` — no `excel_import_service.py`",
+     "app/api/v1/supplier.py:9-10 — `录入入口是**手工 UI 页面**（S4-1 裁决）：要求供应商填统一 Excel 不现实，` / `故无 Excel 批量导入端点 —— 设备方逐项在页面上录入。`"
+    ],
+    "file": "pcs-backend/app/services/supplier/__init__.py",
+    "first_evidence": "app/services/supplier/__init__.py:3-4 — `- `actual_data_service`: 手动录入供应商实测值` / `- `excel_import_service`: Excel 批量导入`",
+    "independent_reviewers": [
+     "maintainability"
+    ],
+    "line": 4,
+    "owner": "downstream-resolver",
+    "pre_existing": false,
+    "requires_verification": false,
+    "reviewers": [
+     "maintainability"
+    ],
+    "severity": "P3",
+    "suggested_fix": "Replace line 4 with the three modules that exist and carry the report flow, e.g. `- `confirmation_service`: 确认/校核流程（SPEC §3.2.4(4)）` and `- `deviation_service` / `deviation_report`: 偏差判定与报告（SPEC §3.2.4(2)(3)）`. `actual_data_service` on line 3 is already correct.",
+    "title": "Package docstring advertises `excel_import_service`, a module that does not exist and that S4-1 ruled out",
+    "_why": "The package docstring indexes its own submodules, so a reader uses it to decide what exists. It names a module that has never existed, and the same design decision is recorded in the opposite direction elsewhere in this diff: `app/api/v1/supplier.py:9-10` states 录入入口是**手工 UI 页面**（S4-1 裁决）：要求供应商填统一 Excel 不现实，故无 Excel 批量导入端点. A maintainer trusting the package docstring will plan the Excel import that the S4-1 ruling explicitly deferred.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 42,
+      "key": "maintainability|pcs-backend/app/services/supplier/__init__.py|4|package docstring advertises `excel_import_service`, a module that does not exist and that s4-1 ruled out"
+     }
+    ],
+    "_members": [
+     42
+    ]
+   },
+   {
+    "#": 49,
+    "autofix_class": "gated_auto",
+    "confidence": 75,
+    "evidence": [
+     "pcs-backend/app/schemas/supplier.py:43 -- `actual_data_status: str` -- no `Field(...)`, no description, no Literal; also repeated at schemas/supplier.py:100 in `DeviationReportOut`.",
+     "pcs-backend/app/models/enums.py:178-187 -- `class ActualDataStatus(str, enum.Enum):` with `NOT_ENTERED = \"NOT_ENTERED\"` / `PENDING_CONFIRM = \"PENDING_CONFIRM\"` / `CONFIRMED = \"CONFIRMED\"` / `NEED_RECALC = \"NEED_RECALC\"` -- four states that the contract never surfaces to the client.",
+     "Convention comparison: `grep -rn 'status: str' app/schemas/*.py` shows every sibling documents its states in the description -- `app/schemas/config.py:36: status: str = Field(..., description=\"资产状态（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）\")`, `app/schemas/checklist.py:76: status: str = Field(..., description=\"校验状态 5 态\")`, `app/schemas/cool_tower.py:284: sign_status: str = Field(..., description=\"签审状态 9 态\")`, `app/schemas/equip_list.py:112: equipment_status: str`.",
+     "pcs-backend/app/services/supplier/actual_data_service.py:92-100 -- the CONFIRMED lock raises `code=\"ACTUAL_DATA_LOCKED\"` 422, so a client misreading the state string is not merely cosmetic."
+    ],
+    "file": "pcs-backend/app/schemas/supplier.py",
+    "first_evidence": "pcs-backend/app/schemas/supplier.py:43 -- `actual_data_status: str` -- no `Field(...)`, no description, no Literal; also repeated at schemas/supplier.py:100 in `DeviationReportOut`.",
+    "independent_reviewers": [
+     "api-contract"
+    ],
+    "line": 43,
+    "owner": "downstream-resolver",
+    "pre_existing": false,
+    "requires_verification": true,
+    "reviewers": [
+     "api-contract"
+    ],
+    "severity": "P3",
+    "suggested_fix": "Assumption: the project convention is a documented `str` rather than a `Literal`/`Enum` in the response schema (all six sibling status fields use `str`), so match the convention rather than introducing a new pattern. Add `Field(..., description=\"录入状态（NOT_ENTERED/PENDING_CONFIRM/CONFIRMED/NEED_RECALC）\")` to `ActualDataResponse.actual_data_status` and the same description to `DeviationReportOut.actual_data_status`. Re-run the G-08 OpenAPI contract gate afterwards to regenerate `openapi.json`, `openapi.snapshot.json`, and `api.d.ts` -- the pre-commit hook fails on drift, so the regen is mandatory, not optional. If the four states are considered stable, promoting both fields to a shared `ActualDataStatusLiteral = Literal[\"NOT_ENTERED\", \"PENDING_CONFIRM\", \"CONFIRMED\", \"NEED_RECALC\"]` would give the client compile-time exhaustiveness; that is a larger change and would also require a decision on whether the enum should become a proper response model, so it is the follow-up, not the fix.",
+    "title": "actual_data_status is a bare untyped string with no description naming its four states, unlike every sibling status field in the codebase",
+    "_why": "The generated TypeScript is `actual_data_status: string` with no enumeration hint, so a client hardcodes the four state strings with nothing in the contract to point at. Every comparable status field in the existing schema set carries a `Field(..., description=...)` that names its states, so the new response drops the only in-band signal a client has. This matters more than usual here because the state machine is a live gate on three of the six new endpoints -- confirm is refused unless the row is past the lock, PUT is refused once CONFIRMED -- so a client that guesses a state name wrong gets a 422 whose meaning it cannot interpret.",
+    "_source_map": [
+     {
+      "group": null,
+      "member": 49,
+      "key": "api-contract|pcs-backend/app/schemas/supplier.py|43|actual_data_status is a bare untyped string with no description naming its four states, unlike every sibling status field in the codebase"
+     }
+    ],
+    "_members": [
+     49
+    ]
+   },
+   {
+    "title": "计划外行为规则：电机额定功率偏差口径由「设计电机 vs 实际电机 ±10%」改为对轴功率卡 API 610 分档下限（1.25 / 1.15 / 1.10）",
+    "severity": "P3",
+    "file": "pcs-backend/app/services/supplier/deviation_service.py",
+    "line": 136,
+    "confidence": 100,
+    "autofix_class": "advisory",
+    "owner": "human",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "计划文档 docs/sprint4-plan-2026-10-05.md 的 Task 3 未包含该规则修订；ledger 已把它登记为「S4-2 规则修订（计划外，用户裁决 2026-10-06）」，并有独立 SPEC 修订书 docs/PCS-NOTE-SPEC-3.2.4-电机功率规则修订-2026-10-06.md。是否要在计划文档的 Task 3 下补一行追溯，属维护者决定；本条不要求改代码。",
+    "first_evidence": "pcs-backend/app/services/supplier/deviation_service.py:136 — `            \"API 610 电机裕量分档下限: <22kW 1.25 / 22-55kW 1.15 / >55kW 1.10\"`",
+    "evidence": [
+     "pcs-backend/app/services/supplier/deviation_service.py:136 — `            \"API 610 电机裕量分档下限: <22kW 1.25 / 22-55kW 1.15 / >55kW 1.10\"`",
+     "docs/sprint4-plan-2026-10-05.md:78 — Task 3 (S4-2) 的规则清单只列 SPEC §3.2.4(2) 六条允许偏差，无「按轴功率卡分档」一条",
+     ".superpowers/sdd/sprint4-plan-2026-10-05/progress.md:189 — 标题即「S4-2 规则修订（计划外，用户裁决 2026-10-06）」"
+    ],
+    "_why": "这条规则改变的是偏差判定对用户可见的结果：同一台泵在 742215d 前后会得出不同的合格/不合格结论（ledger 记载蜡油加氢 16 台里有 2–3 台因旧口径被判假性不合格）。它有 SPEC 修订书与用户裁决背书，因此不是缺陷；此处登记是因为计划文档的 Task 3 里没有它，Requirements Completeness 的反向核对必须把它显式列出，而不是让读者以为 5 个 Task 覆盖了分支的全部行为。是否接受为「计划外但已登记」是维护者的判断，本条不改变结论。",
+    "_why_from": "plan reverse check",
+    "reviewers": [
+     "synthesis"
+    ],
+    "_source_map": [],
+    "_members": [],
+    "_reverse_check": true
+   },
+   {
+    "title": "计划外行为规则：新增 PUMP_DESIGN 设计值落库路径，apply_design_parameters() 把机泵选型设计值写回 EquipmentList.design_parameters_json",
+    "severity": "P3",
+    "file": "pcs-backend/app/services/equip_list/pump_design_data.py",
+    "line": 138,
+    "confidence": 100,
+    "autofix_class": "advisory",
+    "owner": "human",
+    "requires_verification": false,
+    "pre_existing": false,
+    "suggested_fix": "计划 Task 3 的 Ruling 明确「设计值来源暂缺，S4-2 只做偏差引擎」，设计值写入不在 5 个 Task 内。ledger 把它登记为计划外裁决并说明「PUMP_DESIGN 移出 T5 验收脚本，落到生产模块」「不做成 sync_service 的 hook，改成独立落库函数」。是否补写进计划文档 Task 2/3 的追溯，由维护者决定；本条不改代码。",
+    "first_evidence": "pcs-backend/app/services/equip_list/pump_design_data.py:138 — `        record.design_parameters_json = params`",
+    "evidence": [
+     "pcs-backend/app/services/equip_list/pump_design_data.py:138 — `        record.design_parameters_json = params`",
+     "docs/sprint4-plan-2026-10-05.md:71 — ledger/计划 Ruling：「设计值来源暂缺，S4-2 只做偏差引擎」",
+     ".superpowers/sdd/sprint4-plan-2026-10-05/progress.md:233 — 「Ruling: PUMP_DESIGN 移出 T5 验收脚本，落到生产模块」"
+    ],
+    "_why": "这条落库路径决定偏差比对时 design 侧读到的是空还是真实设计值：写之前 EquipmentList.design_parameters_json 在多数设备上是空列，比对只能产出 UNVERDICTABLE；写入之后才可能产出 QUALIFIED/WARNING/UNQUALIFIED。它由用户裁决驱动且实现本身已审（另见本次审查关于回填覆盖范围与验证 SQL 的两条 finding），此处登记仅因其不在 5 个 Task 的范围内。",
+    "_why_from": "plan reverse check",
+    "reviewers": [
+     "synthesis"
+    ],
+    "_source_map": [],
+    "_members": [],
+    "_reverse_check": true
+   }
+  ],
+  "residual_risks": [
+   "callsite completeness: grep-only. I enumerated callers of `emit_event` / `register_listener` by text search within the changed modules and did not audit consumers outside this diff (P8 reverse-restore work is not yet written, so no reverse-event path exists to break today).",
+   "events.py:165 `await session.rollback()` inside `_claim` rolls back the CALLER's whole transaction, not just the idempotency insert. In `pass_check` the CONFIRMED status is already flushed at line 99, so a rollback there would silently discard it; `emit_event` would then return False (same-hash duplicate) and `pass_check` ignores that return value and commits — a silent no-op pass. I did NOT raise this as a finding because it is only reachable via an event_id collision (all current callers use `uuid.uuid4()`) or a non-`EventIdempotency` IntegrityError surfacing at that flush, so the probability is effectively zero today. It becomes a live bug the moment any caller passes a deterministic event_id.",
+   "`emit_event` (events.py:224-232) builds ONE dict and hands the same object to every listener in `_LISTENERS[event_type]`. `_mark_stale_via_fsm` does `event.pop(\"_session\", None)`, so a second listener registered for `cia_mark_stale` would receive a dict with `_session` already removed and raise RuntimeError. Safe only while there is exactly one listener per event type; nothing in the diff enforces that. Related: the dict literal puts `**payload` last, so a future caller passing a payload key named `before` or `after` would silently shadow the snapshot that P8 reverse-restore depends on. Neither is reachable today; flagged so the next listener registration does not inherit it silently.",
+   "`reject_check` (confirmation_service.py:116-126) sets PENDING_CONFIRM with no precondition, so a checker can move a NOT_ENTERED or NEED_RECALC equipment into PENDING_CONFIRM, which opens the `record_actual_data` entry channel on equipment that was never submitted. Low impact, and I folded it into the pass_check finding's fix rather than raising it separately.",
+   "`confirm_actual_data` does not change `actual_data_status` (intentional, per its docstring), so it has no guard against repeat submission — each call mints a fresh `uuid.uuid4()` and emits another `actual_data_check_submitted` event. Downstream consumers keyed on that event type will see duplicates. Not raised: the event is informational and no consumer exists in this diff.",
+   "I did not execute the test suite, the T5 verification script (`scripts/p7_open_012_t5_r1_verification.py`), or the alembic migrations. All findings above are static traces through the source.",
+   "`SYMMETRIC_BAND` in `evaluate` (deviation_service.py:251-256) is now unreachable — commit 742215d moved 电机额定功率 from SYMMETRIC_BAND to MOTOR_TIER_FLOOR, and no rule in SPEC_RULES declares that kind. Dead branch, harmless; not raised as a finding.",
+   "`EventIdempotency.before_json` (pcs-backend/app/models/system.py:290) holds `design_parameters_json` snapshots with no `project_id` column, and `emit_event` writes it via a raw table-level select/insert (app/services/events.py:132-180) that bypasses the ORM relationship layer entirely. No read path for that table exists in this diff, so there is no exposure today — but if P8's reverse-recovery lands a query that selects `before_json` filtered on something other than the originating equipment, the table's lack of project scoping becomes a cross-project read. Worth a `project_id` column or an explicit note in the P8 plan.",
+   "The SYSTEM_ADMIN bypass in `check_project_access_or_404` (app/api/v1/_guard.py:39-40) is deliberate and pre-existing, documented at lines 33-36. I did not re-flag it. It does mean a SYSTEM_ADMIN can both `PUT /actual-data` and `POST /check` on the same record (SYSTEM_ADMIN appears in both `_WRITE_ROLES`/`_CONFIRM_ROLES` and `_CHECK_ROLES` at supplier.py:60-61, 175-176), collapsing four-eyes for that role — consistent with the existing bypass convention, so I left it alone, but it should be a conscious decision rather than a side effect of reusing the role tuples.",
+   "Role separation itself is correctly implemented: `_CHECK_ROLES = (\"REVIEWER\", \"APPROVER\", \"SYSTEM_ADMIN\")` contains no DESIGNER or PROCESS_CONTROLLER, so `/check` is unreachable by a submitter as the intent claims. Verified by reading supplier.py:175-176. The state-precondition gap in SEC-1 is the part that fails, not the role split.",
+   "`_load_equipment` (supplier.py:64-82) loads by `equipment_id` alone and then runs `check_project_access_or_404` before returning — I checked all six call sites (lines 102, 119, 157, 191, 210, 231) and every one reaches the guard before the record is touched. No path returns the row early. The 404-for-unauthorized semantics are correct and do not leak existence.",
+   "The `Content-Disposition` filename (supplier.py:241-251) is not injectable: `quote(record.tag_number, safe=\"\")` percent-encodes CR, LF, and every other reserved character, and the ASCII fallback filename is the static `deviation-report.{ext}` rather than the tag. Header injection and path traversal via `tag_number` are both closed here.",
+   "`apply_design_parameters` (app/services/equip_list/pump_design_data.py:124-131) filters on both `EquipmentList.project_id == project_id` and `tag_number.in_(list(PUMP_DESIGN))`, so its writes are correctly project-scoped. Its only caller is the CLI script `scripts/p7_s4_003_seed_pump_design.py`, which requires an explicit `--project-id` argument. No authz surface, no finding.",
+   "Not reached within budget: I did not review `pcs-frontend/` beyond noting that `src/types/api.d.ts` is in the diff, and did not audit the two Alembic migrations (`p7_s4_001`, `p7_s4_002`) beyond confirming `EventIdempotency` has no project scoping column. The `EventIdempotency` model also has no relationship to `Project` or `EquipmentList`, so ORM-level query helpers cannot scope it today.",
+   "Division B numeric-edge sweep was not completed. I read deviation_service.py in full and traced ASYMMETRIC_BAND / MIN_RATIO / MAX_ONLY / MOTOR_TIER_FLOOR against design==0, negative design, non-finite values and the _EPS boundary, and found them fail-closed as documented. I did not exhaustively test the interaction between _normalize and the alias tables in DeviationRule.matches — in particular whether an alias on one rule can shadow the canonical key of an earlier rule via find_rule's first-match-wins scan. That requires case-by-case alias collision analysis I did not run.",
+   "I did not verify StateMachineService.transition's actual exception contract, so the claim in finding 5 that a post-rollback lazy refresh raises MissingGreenlet rather than a recoverable error is reasoned from SQLAlchemy's expire_on_commit semantics, not observed. I also did not confirm session.py's expire_on_commit setting, which the same reasoning depends on.",
+   "The seed script p7_s4_003_seed_pump_design.py re-reads ORM objects fetched before apply_design_parameters commits; if expire_on_commit is on, its post-write verification loop hits the same async lazy-load hazard as finding 5. I noted this while reading but did not confirm it and have deliberately excluded it as a finding rather than guess.",
+   "I did not examine the OpenAPI regeneration diff, the frontend type snapshot, pyproject.toml, or uv.lock. The reportlab and openpyxl dependency availability for finding 3 is inferred from the module docstrings and the existing imports, not from a runtime check.",
+   "I did not review the test files. Whether tests/test_events.py exercises the concurrent-claim path, and whether test_deviation_report.py covers the alias-coverage gap behind finding 1, is unexamined — so I cannot say whether these gaps would be caught by the suite.",
+   "「测试前检查」规则是运行期前置动作，diff 内无可锚定违规行；我尝试查询 pcs_test 的 alembic 版本以验证 p7_s4_001/p7_s4_002 是否已应用，该命令被权限策略拦截（涉及凭据），本轮未验证 pcs_test 是否已对齐新 schema。",
+   "`.wolf/cerebrum.md` Do-Not-Repeat「JSONB 入已有 stream_properties_json 容器，避免单列迁移开销」与本次新增 `EquipmentList.actual_data_json` ORM 列 + 独立迁移存在张力；该条按字面绑定 stream_properties_json 且自带例外条款，解释空间存在，按「歧义即抑制」未报。",
+   "未审查生成产物 openapi.json / openapi.snapshot.json / api.d.ts 与后端 schema 的一致性（超出标准文件范畴，属正确性审查员职责）；仅抽查 verdict 枚举一处。",
+   "未逐行核对 docs/sprint4-plan 与 PCS-SIGN-T5 两份文档与实现的一致性——CLAUDE.md 未对文档内容规定标准。",
+   "未展开审查 tests/** 12 个测试文件与 events.py / cia_engine.py 的实现细节（标准文件对此无条款）。",
+   "我未运行测试套件（本次 review 为只读，且工作树有其他 reviewer 在读；`uv run` 需 `--no-sync`）。所有「实测」结论来自直接调用生产函数的单次 python -c 验证，不是通过跑测试文件得到的。",
+   "P1 finding 中「rollback 会丢弃 pass_check 已 flush 的 CONFIRMED 状态」这一因果链，我通过阅读 confirmation_service.py:98-99 与 events.py:161-179 推出，未构造真实的并发双 session 场景实跑复现。补测试时请优先验证这一条——若实测发现 AsyncSession 在此处有自动重放或 savepoint 语义使数据不丢，该 finding 的严重级别应下调。",
+   "P2 的「listener 抛异常留下幽灵幂等行」锚在 75 而非 100：我确认了 cia_engine.py:167-173 的 `except Exception: continue` 与 events.py:231-232 的裸 await 构成这一状态，但没有实跑一条 cia_engine 真实异常路径确认该行确实会被 commit。",
+   "未审查的测试面：tests/api/v1/ 下三个 API 测试文件（test_supplier_actual_data_api.py / test_deviation_report_api.py / test_actual_data_confirmation_api.py，共 618 行）我只抽样看了 test_deviation_report_api.py 的前半部分，ACL 矩阵、错误码映射、分页等分支未逐条枚举。tests/scripts/test_t5_case4_gas_media.py（113 行，扩类 6 表）完全未读。",
+   "未做变异测试。若要做，须先 `git -C <worktree> rev-parse HEAD` 确认等于 cae5bce，再复制到隔离目录执行 —— 不得在共享检出上运行。",
+   "两个 PUMP_DESIGN import 路径的漂移风险我已核实为不存在（脚本是纯 re-export，实测键集与值完全一致），review-context 中的第 5 项怀疑不成立。但未来若有人在脚本侧重新定义本地 PUMP_DESIGN，test_motor_tier_rule.py 的 16 台泵回归就会脱离生产数据源 —— 当前无测试守这条线。",
+   "The rule registry (M-context) itself checks out: SPEC_RULES has 7 entries across 7 kinds, all 7 kinds are dispatched in evaluate(), and it has two real production consumers (find_rule from build_report, and the rule constants surfaced into DeviationRow.spec_ref). It is not Speculative Generality and I did not flag it. The flat 8-field DeviationRule is also the smaller concept count than a sum type would be here — 6 of 8 fields are optional, but only design_parameter overrides behaviour (via the design_key property) and the others are plain None-as-absent; a per-kind subclass would add 7 classes to remove 2 `if rule.x is None` reads.",
+   "The kind-dispatch in evaluate() (lines 212-272) is a linear if-chain over a string-typed `kind` with a fail-closed default, not a Repeated Switches instance in the Fowler sense — there is exactly one dispatch site for `kind`. The genuine Repeated Switches in this diff is over the *verdict* set, which I filed as M5.",
+   "I did not reach a full read of app/models/system.py, app/models/equipment.py, app/api/v1/__init__.py, the two alembic migrations, or the app/services/cia_engine.py diff hunks (line counts were taken via wc, and the git diff --stat call was refused by the worktree guard). The cia_engine import block I did read is correctly layered (services + models only, no app/api import), which supports the intent's claim that the events.py move did not invert the graph — but I verified that for cia_engine only, not for every consumer.",
+   "M4's suggested fix rests on the assumption that `apply_design_parameters` is actually wired into a production path (the seed script) and not merely available. If the intended rollout is for the script to be a one-off manual backfill with no automated caller, the ⚠️ warnings are less wrong than I judged them — they would then need rewording to say the values exist only for backfilled projects, not that no writer exists. I graded this P2 rather than P1 for that reason.",
+   "Not assessed for maintainability: whether PUMP_DESIGN's 18 transcribed tags and 132-P-105A/B/C/D exclusion are correct transcriptions of the source spreadsheet (that is a correctness/data-provenance question outside this reviewer's remit), and whether the frontend `api.d.ts` snapshot is regenerated in step with the schema change.",
+   "Verdict-tier drift is a latent 500, not a current bug. `Verdict` is declared as `Literal[\"QUALIFIED\",\"WARNING\",\"UNQUALIFIED\",\"UNVERDICTABLE\"]` in app/schemas/supplier.py:73, duplicating four bare string constants in app/services/supplier/deviation_service.py:28-31. The label/colour maps are safe from drift because `DeviationRow.label` / `.color` are `@property` delegating to `verdict_label` / `verdict_color` (deviation_report.py:40-46), so `verdict` is the single source and the client never has to string-compare. The exposure is one-directional: if a fifth tier is added to the engine, `verdict_label`'s `.get(verdict, \"不可判\")` fallback silently returns the UNVERDICTABLE label, but `DeviationRowOut.model_validate` at supplier.py:136 rejects the unknown tier first, so the read endpoint returns 500 INTERNAL_ERROR rather than degrading. I did not raise this as a finding because no fifth tier exists today; the schema Literal is the tripwire and it is in the right place, it just fails closed rather than open. Worth a regression test if a tier is ever added.",
+   "I did not reach the frontend UI-SPEC conformance check. CLAUDE.md names `docs/PCS-UI-SPEC.md` (V1.0 frozen) as the sole encoding basis for frontend UI, and I confirmed no frontend component consumes the six new endpoints yet, so there is nothing yet to check for conformance -- but that check becomes live as soon as the S4 UI lands.",
+   "The export endpoint is clean on the points asked about. `format` is constrained by `Query(pattern=\"^(excel|pdf)\")` (supplier.py:223), so an invalid value produces a FastAPI `RequestValidationError` -> 422 `VALIDATION_ERROR` in the standard envelope, not a 500. `Content-Type` is drawn from `_EXPORT_TYPES` and `Content-Disposition` correctly uses RFC 5987 `filename*=UTF-8''` with the tag number percent-encoded via `quote(..., safe=\"\")` (supplier.py:241-251), so Chinese tag numbers survive. No finding.",
+   "Error-shape consistency is clean and I checked it rather than assuming. Both failure modes carry the same `ErrorResponse` envelope with a `code` field: `PcsError` routes through the `_service_pcs` handler, FastAPI validation failures through the `_validation` handler (`code=\"VALIDATION_ERROR\"`, app/core/errors.py), and bare `HTTPException` through the Starlette handler (`code=f\"HTTP_{exc.status_code}\"`). The new endpoints' `HTTPException(404, ...)` in `_load_equipment` is the established project pattern -- `_guard.check_project_access_or_404` and `config.py::_load_asset` do the same. A client parses one shape, not two. One consequence the author chose deliberately: not-found and no-access both collapse to `HTTP_404`, which is correct for not leaking existence but does mean a 404 from these endpoints is ambiguous by design.",
+   "OpenAPI regeneration is verifiably correct. `pcs-backend/docs/openapi.json` and `pcs-frontend/openapi.snapshot.json` are byte-identical (both sha256 `30910d7b53586004`, `json.loads(a) == json.loads(b)` is True), and the document contains exactly 196 paths including all five new ones with the expected methods. The G-08 gate's three `chore(p7-s4): regen OpenAPI 契约` commits are not drift. No finding.",
+   "The frontend mock error-code seed (pcs-frontend/src/mocks/seed/meta.ts) has zero `ACTUAL_DATA_*` entries, so even after the backend registry is fixed the mock layer would not serve the new codes. I did not make this a finding because that seed carries only 36 of the backend's 115 codes and is a hand-maintained subset, so the gap is pre-existing and broader than this branch -- but it means a fix to finding #1 will not be observable in mock-mode development until the seed is separately extended.",
+   "Deploy-window ordering was not flagged as a finding but is unverified: both migrations are properly expand-only (nullable column with no server_default and no index on `equipment_list` — metadata-only on PG 11+, no rewrite; new table with no backfill), so old code against the new schema is safe. The new code against an un-migrated database is NOT safe — SQLAlchemy will emit `SELECT ... actual_data_json` and fail with UndefinedColumn the moment `alembic upgrade` has not run. This requires `alembic upgrade head` strictly before the app rollout; I found no deploy script, migration-entrypoint, or runbook in the diff that enforces that ordering. Worth confirming it exists elsewhere before release.",
+   "I did not execute any migration or database command — the environment is read-only for this review, and the project CLAUDE.md explicitly requires `uv run alembic upgrade head` against `pcs_test` before schema-sensitive tests. Every claim above is from reading code, not from running it.",
+   "Item 5 of the review context (the `if_not_exists=True` kwarg on `op.create_index`) checked out clean: alembic is pinned at 1.19.1 in uv.lock, well past the 1.12 release that added the kwarg, so it is a real flag and not swallowed as a dialect prefix. No finding raised.",
+   "Item 3 (index on `actual_data_json` / `actual_data_status`) checked out clean: no query in this diff filters or joins on either column, so no index is warranted, and adding one to a hot table would be the rewrite risk. No finding raised.",
+   "The backfill's tag matching assumes `EquipmentList.tag_number` stores the combined form `132-P-101A/B` rather than per-pump `132-P-101A` / `132-P-101B`. The test fixtures and `tests/services/util/fixtures/golden_utility_energy_summary.json` both use the combined form, and the registry keys match, so this is consistent — but I verified it only from fixtures, not from a real production row. If any project stores split tags, the `IN` filter silently matches fewer rows; that is exactly the failure the verification SQL in finding 3 is designed to catch.",
+   "I did not review `app/services/events.py` (the `emit_event` consumer) or the supplier service layer for how `actual_data_json` is read back; those are correctness/api-contract territory and other reviewers on this run own them. In particular I did not check whether any code path can set `actual_data_status = CONFIRMED` while `actual_data_json` stays NULL, which would be a state the new column makes representable but the migration cannot constrain.",
+   "`reportlab>=4.0` was added to pyproject.toml in this branch for the deviation report export. Out of scope for migration review; noting only that it is a new runtime dependency landing in the same release as two schema changes.",
+   "Listener isolation: `for listener in _LISTENERS.get(event_type, []): await listener(event)` has no per-listener error boundary, so a partial failure across multiple listeners is architecturally possible — but I found only ONE registered listener in the whole tree (`cia_engine.py:94`, `cia_mark_stale`), so the multi-listener scenario is unreachable today and I did not raise it as a finding.",
+   "The `IntegrityError` path in `_claim` is not covered by any test: `tests/services/test_events.py` exercises duplicate-id, conflict, and ordering cases but never drives a real primary-key collision. The transaction-destruction behaviour is therefore both untested and unexercised in production, which is why I anchored it at 75 rather than 100 — the missing protection is mechanical, but the triggering condition is contingent.",
+   "I did not trace `commit_or_rollback` (`app/core/commit_or_rollback.py`) usage in depth: only `app/api/v1/config.py` references it, and the four new supplier services call `session.commit()` directly. That is a transaction-boundary convention question I left to the project-standards reviewer.",
+   "`record_actual_data` commits then refreshes (`actual_data_service.py:104-105`); a refresh failure after a successful commit would return 500 for data that did persist. Impact is low (PUT is idempotent) and I did not raise it.",
+   "I did not evaluate whether `export_pdf`'s `pdfmetrics.registerFont` call per request has any measurable cost under load — it is idempotent in reportlab and I found no evidence it matters.",
+   "I did not measure the `equipment_list` table size in the deployed database, so the 'hundreds of equipment records' figure comes from the sprint intent, not from a `SELECT count(*)`. This does not weaken either finding: both are anchored on the request-side row count, which the diff itself leaves unbounded, and on measured exporter cost per row.",
+   "I did not verify whether the production front door (nginx / ingress / ALB) imposes a request-body size limit. If one exists at a few MB, the reachable row count for the unbounded-entries finding drops to tens of thousands — which at the measured ~1 ms/row for PDF still means a multi-second event-loop stall, so the finding stands, but the OOM tail is less likely than I have described.",
+   "`actual_data_json` and `design_parameters_json` are JSONB columns with no per-row size ceiling at the database level. If a very large blob is stored, every subsequent read of that `EquipmentList` row — including the plain `GET /actual-data` path — pays the deserialization cost. I did not measure JSONB round-trip cost at extreme sizes and did not raise it as a finding.",
+   "I did not examine `check_project_access_or_404` (app/api/v1/_guard.py) beyond noting it is called once per request from `_load_equipment`; it is pre-existing and outside this diff's scope, but it adds at least one more query to every supplier request and is worth a look by someone reviewing the guard itself.",
+   "pcs_test 库是否已应用 p7_s4_001 / p7_s4_002 未被验证：project-standards 试图查询 pcs_test 的 alembic 版本被凭据权限拦截。在跑 schema 敏感测试前必须先 `cd pcs-backend && uv run alembic upgrade head` 对齐 pcs_test，否则 tests/test_schema.py 与 api 用例会因缺表/缺列失败。",
+   "event_idempotency 的去重语义目前无任何真实重投路径（每个 producer 都现生成 uuid4，见主 finding），因此 payload_hash 冲突检测与 before 快照链在 P8 反向恢复落地前都不会被真实数据检验；P8 接入时应重新验证 #4 的修法。",
+   "本 diff 无跨模型 peer 通道，对抗视角全部由同族 in-process 审查员承担：security / adversarial / reliability 的交叉印证不等于独立性证明。"
+  ],
+  "testing_gaps": [
+   "No test asserts that `pass_check` (or the `POST /equipment/{id}/actual-data/check` route) rejects equipment that is not in PENDING_CONFIRM. The three existing pass_check tests all drive a fresh NOT_ENTERED fixture straight to CONFIRMED, so the missing guard is encoded in the tests rather than caught by them. This is the test that would have caught finding 1.",
+   "No test covers the submit → re-enter → check sequence: a device whose data is replaced (via PUT actual-data) after `confirm_actual_data` but before `pass_check`. Adding one is what would demonstrate the TOCTOU half of finding 1.",
+   "No test enters a 材质 or 厂家型号 value into `actual_data_json`, so the MANUAL_CHECK branch's `requires_manual_check=True` and the build_report short-circuit interaction (finding 2) are unexercised in either direction.",
+   "No test enters 叶轮直径 as an actual value, so the alias→design_key mis-pairing (finding 3) is invisible to the suite.",
+   "No test asserts that `emit_event`'s payload dict is not shared destructively across multiple listeners for the same event type.",
+   "No test asserts that `POST /actual-data/check` is rejected when `actual_data_status` is `NOT_ENTERED` or `CONFIRMED`. `tests/api/v1/test_actual_data_confirmation_api.py` sets up its fixture at line 54 with `actual_data_status=\"PENDING_CONFIRM\"` and every check-path assertion runs from that state, so SEC-1 is invisible to the suite. Add two cases: check-pass on a `NOT_ENTERED` record → 409, and check-reject on a `CONFIRMED` record → 409.",
+   "No test exercises a hostile `ActualDataEntry.name`. The supplier service tests use engineering parameter names (扬程, 效率) only, which is why neither the formula-injection nor the markup-injection path is caught. Add an export test asserting that a name of `=1+1` round-trips from the workbook as a text cell (data_type `s`, not `f`), and one asserting `export_pdf` succeeds for a name containing `<img src=...>`.",
+   "No test asserts that `ActualDataEntry` rejects `'100'`, `True`, or `'NaN'`. The string-digit and boolean rules are documented in two docstrings and implemented in `actual_data_service`, but nothing pins the schema behaviour, so a future refactor to plain `float` would not fail a test.",
+   "No test appears to construct a multi-entry actual_data_json where one parameter is QUALIFIED and the design table holds rules with no corresponding actual entry, which is the exact shape that makes can_confirm return True on an unconfirmed equipment (finding 1).",
+   "No test appears to drive export_pdf with a parameter name containing a markup character, so the Paragraph crash path (finding 3) is unguarded by the suite.",
+   "The idempotency tests can only assert replay-suppression by calling emit_event twice with an explicitly reused event_id. Because all three production call sites generate uuid4, such a test proves the bus works while proving nothing about the callers — a green suite here is a green-while-red signal for finding 2.",
+   "无针对「结论档数 3→4」SPEC 枚举变更的登记件校验，靠人读 SPEC 与 OpenAPI 一致性发现，CI 无从覆盖。",
+   "pcs_test 是否已应用 p7_s4_001 / p7_s4_002 未验证；tests/test_schema.py 的 104 断言是唯一硬校验点。",
+   "events.py `_claim` 的并发碰撞出口（IntegrityError → rollback → 重查 → False/409）零覆盖，且其对调用方事务的破坏性无任何断言观察得到 —— 这是本次最重要的缺口。",
+   "`emit_event` 的 listener 抛异常路径零覆盖；由此产生的「幂等行已落库但事件未处理」状态在 CIAEngine 的 `except Exception: continue` 下会静默持久化。",
+   "`can_confirm` 的「仅 WARNING 可确认」契约零覆盖 —— 名为 `test_can_confirm_when_all_qualified_or_warning` 的用例实际数据里没有一行 WARNING。",
+   "`evaluate()` 的 REFERENCE_ONLY（轴功率）与未知-kind 兜底两条分支零覆盖。",
+   "`deviation_pct` 在 evaluate 层零独立校验：全部 verdict 用例只断言档位字符串，不断言偏差数值；唯一声称「独立复算」的 `_dev` 助手是死代码。",
+   "test_cia_event_decoupling.py 的静态守卫模式串 `self.fsm.transition(` 在被守卫文件中已不存在，断言不可失败。",
+   "`clear_listeners` 无生产调用方，属只被测试触达的生产接缝。",
+   "No test asserts that the Verdict Literal in app/schemas/supplier.py:73 matches the constants and maps in app/services/supplier/deviation_service.py — the drift M5 describes would be caught by `assert set(VERDICT_STYLES) == set(get_args(Verdict))`, which does not exist.",
+   "No test asserts that _UNITS covers exactly the PUMP_DESIGN key set (M10), so a parameter added to the design table without a unit silently produces an empty 单位 column in the xlsx export.",
+   "SYMMETRIC_BAND is exercised only by a hand-constructed DeviationRule in tests/services/supplier/test_deviation_service.py:118; no SPEC_RULES entry carries that kind (M3). If the branch is meant to be reserved for a future rule, there is no test or comment marking it as such, so its status is ambiguous to the next reader.",
+   "The seed script's 'before' snapshot query has no test asserting it selects the same rows as apply_design_parameters' internal query (M8) — the two are kept in sync only by being textually identical today.",
+   "No test asserts that the error codes emitted by the new endpoints are present in the /api/v1/meta/error-codes response. This is precisely the gap that let `ACTUAL_DATA_VALIDATION` and `DEVIATION_BLOCKS_CONFIRMATION` ship unregistered: tests/api/v1/test_supplier_actual_data_api.py:156 asserts the code is *emitted* but nothing cross-checks it is *catalogued*. A single test that calls the meta endpoint and asserts every code raised by the supplier service modules appears in it would close the class, not just this instance.",
+   "No test pins the route prefix against the SPEC. Nothing in the suite would have failed on the /equipment vs /equipment-list divergence. A lightweight guard that reads the SPEC API table and asserts each documented path resolves in the app's route table would make the SPEC/OpenAPI drift from finding #2 mechanically detectable instead of relying on a human noticing.",
+   "No test exercises an unknown parameter name end-to-end. The `rule is None` -> UNVERDICTABLE branch at deviation_report.py:93-100 has no service-level test that writes a free-form key through PUT and reads back a UNVERDICTABLE row, so the write-surface/read-surface asymmetry in finding #3 is currently asserted only at the unit level (if at all).",
+   "No test covers the `design_value` string case. The `float | str | None` union is never exercised with a non-numeric design value, so the runtime type hazard in finding #4 is untested in either direction -- neither proven reachable nor proven unreachable.",
+   "No test exercises `alembic downgrade` for either new migration. The repo's test suite builds schema via `Base.metadata.create_all` on in-memory sqlite, so alembic upgrade/downgrade is never run in CI — which is why the non-idempotent `op.drop_table` on p7_s4_001 line 60 survived. A round-trip test against a scratch Postgres would close this class of gap for all future migrations, not just this one.",
+   "No test asserts that `check_migration_idempotency.py` covers the migrations it claims to. `tests/scripts/test_check_migration_idempotency.py` exists; a single test asserting the gate's file list includes every `p7_*.py` under `alembic/versions/` would have caught the `checked_prefixes` allowlist hole (finding 1) immediately.",
+   "No test asserts ORM/migration column-type agreement. Because tests use `create_all` from the ORM, a migration that declared `actual_data_json` as TEXT or JSON instead of JSONB would pass every test and only fail in production. A cheap static check comparing each migrated column's type against the mapped attribute would make the finding-5 class of divergence loud.",
+   "The backfill's overwrite behaviour is untested against a row that already has a non-null `design_parameters_json`. `tests/services/equip_list/test_pump_design_data.py` covers the shape conversion and the project-scoping, but not the pre-existing-value case that finding 2 is about.",
+   "No test drives `_claim`'s `IntegrityError` branch, so nothing pins what happens to the caller's pending writes when the rollback fires.",
+   "No test asserts that a listener exception leaves the event re-dispatchable (i.e. that the claim is not persisted after a failed dispatch).",
+   "No test exercises `CIAEngine._scan_stale` / `propagate` with a listener that raises after mutating the record, which is the partial-commit path.",
+   "No test feeds a parameter name containing `<`, `>`, `&`, or a control character into `export_pdf` / `export_excel`; both failure modes reproduce immediately with such a name.",
+   "No test asserts a bound on the number of rows `build_report` / `export_excel` / `export_pdf` will handle. A regression test that PUTs more entries than the cap and asserts 422 would pin the fix for the unbounded-entries finding.",
+   "No performance or load test exists for the export endpoints. My numbers came from a synthetic bench in this session, not from anything the repo runs, so they will not regress-detect a future slowdown in the exporters.",
+   "There is no test that measures or asserts the export endpoints do not block the event loop, so a future refactor that moves CPU work back onto the loop would not be caught.",
+   "clear_listeners 是只被测试调用的生产接缝，docstring 自陈会清掉生产 listener 却无生产调用方；要么收进测试工具，要么加断言防止生产路径误调。（降级依据：testing-origin P2/c100; no current user-facing defect proven — a test-only seam with no production caller; folded under the event-bus coverage umbrella (group B)）",
+   "evaluate() 的 REFERENCE_ONLY 分支无任何测试 —— 供应商录入「轴功率」实际值时走的就是这条路径（本次 742215d 改的正是轴功率口径），是偏差引擎里最该有覆盖的一条分支。（降级依据：testing-only absence of coverage for evaluate() REFERENCE_ONLY; absorbed by the deviation-verdict coverage umbrella (#26 subsystem) per Stage 5 step 4）",
+   "evaluate() 规则表外 kind 的 fail-closed 兜底分支无测试；补一条未知 kind 应产出 UNVERDICTABLE 的用例即可。（降级依据：testing-only absence of coverage on the rule-table fallback branch; narrower than the umbrella and not itself consequential）",
+   "test_deviation_service.py 的 _dev 独立复算助手是死代码，其 docstring 承诺的交叉校验从未发生；要么接上交叉校验，要么删掉。（降级依据：single-reviewer testing P3 tidiness: a dead helper inside a test file）",
+   "test_bad_values_excluded_from_pump_design 与 test_pump_design_data.py 的同名校验重复覆盖同一契约，可合并。（降级依据：single-reviewer testing P3 tidiness: duplicated assertion across two test files）"
+  ]
+ }
+]

@@ -1,0 +1,184 @@
+{
+  "verdicts": [
+    {
+      "#": 1,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "app/schemas/supplier.py:30-33 declares `entries` with only `min_length=1`, `grep add_middleware app/main.py` returns zero matches so no body-size ceiling applies, and deviation_report.py:205-219/272-285 materialize every row into an in-memory Workbook/Paragraph table — an authenticated DESIGNER PUT is therefore the precondition for unbounded CPU/memory; incidence of large real payloads not measured."
+    },
+    {
+      "#": 2,
+      "status": "confirmed",
+      "protected_subject": "data-loss",
+      "reason": "events.py:161-165 catches IntegrityError from `session.flush()` — which flushes the caller's whole pending state, not just the claim — and answers with `await session.rollback()`, discarding every write the caller staged (confirmation_service.py:98-99 flushes `actual_data_status=CONFIRMED` immediately before emit_event), and events.py:132-138 shows the pre-check SELECT reads only EventIdempotency so a foreign constraint violation is indistinguishable from a PK collision; the caller-side writes are silently dropped, and grep for `IntegrityError` in tests/services/test_events.py and tests/services/supplier returns no test exercising the branch."
+    },
+    {
+      "#": 3,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "Every producer mints a fresh id — confirmation_service.py:75, :104 and cia_engine.py:119 all pass `event_id=uuid.uuid4()` — and confirmation_service.py:86-99 `pass_check` has no state precondition (its first statement is the unconditional `actual_data_status = CONFIRMED`), so no caller can re-present an event_id and the `_payload_hash`/`EVENT_ID_CONFLICT` machinery at events.py:94-112,139-151 has no reachable trigger from production code."
+    },
+    {
+      "#": 4,
+      "status": "confirmed",
+      "protected_subject": "public-contract",
+      "reason": "meta_service.py:307-311 only records `raise PcsError(...)` whose call target is literally the name `PcsError`, while actual_data_service.py:27-30 and confirmation_service.py:40-41 both build their codes through returned-factory helpers, so `ACTUAL_DATA_VALIDATION` and `DEVIATION_BLOCKS_CONFIRMATION` never reach the /api/v1/meta/error-codes registry even though tests/api/v1/test_supplier_actual_data_api.py:156 asserts the former is actually returned in a 422 body."
+    },
+    {
+      "#": 5,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "confirmation_service.py:86-99 `pass_check` writes `actual_data_status = CONFIRMED` as its first statement with no `if` on any prior status and no re-run of `build_report`/`can_confirm` (those live only in `confirm_actual_data` at :65-70), and app/api/v1/supplier.py:209-212 gates the route solely on `require_roles(actor, *_CHECK_ROLES)` — so a REVIEWER holding project access can drive a NOT_ENTERED record straight to CONFIRMED, which then trips the ACTUAL_DATA_LOCKED guard at actual_data_service.py:92; reachability confirmed by inspection, not by execution."
+    },
+    {
+      "#": 6,
+      "status": "confirmed",
+      "protected_subject": "injection",
+      "reason": "deviation_report.py:206-219 writes `row.parameter` verbatim into `ws.append([...])`, and that string is the designer-supplied `name` (schemas/supplier.py:22 has no pattern/character class); executing export_excel with `actual_data_json={\"=cmd|'/c calc'!A0\": ...}` and reloading the workbook yields `B2 \"=cmd|'/c calc'!A0\" f`, openpyxl's formula data type, confirming the stored-input formula-injection primitive end to end."
+    },
+    {
+      "#": 7,
+      "status": "confirmed",
+      "protected_subject": "injection",
+      "reason": "deviation_report.py:273-285 passes unescaped `report.tag_number`, `row.parameter`, `row.unit` and `row.note` into reportlab `Paragraph`, and the API at app/api/v1/supplier.py:234-239 has no error handling; executing export_pdf with `actual_data_json={\"<img src=\"/etc/hostname\" width=\"10\"/>\": ...}` produced `UnidentifiedImageError ... fileName='/etc/hostname' identity=[ImageReader@0x796e9d553`, showing the export code itself opened the attacker-named server path (the http:// SSRF leg was not exercised and rests on reportlab's documented ImageReader behaviour, not on execution)."
+    },
+    {
+      "#": 8,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "deviation_report.py:84 iterates `for name in actual:` so the report's row set is exactly the keys the designer typed, and can_confirm at :159-163 only rejects when a row is UNQUALIFIED/UNVERDICTABLE — an all-QUALIFIED single-row report therefore passes, meaning parameters never entered are never judged yet the equipment reads CONFIRMED; this is a documented design decision in the :88-91 docstring, but the claim about the gate being fail-open on coverage is what the code shows."
+    },
+    {
+      "#": 9,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "state_machine.py:324-329 mutates `record.sign_status`/`change_pending_since` and flushes at :348 *before* the snapshot and audit writes at :349+, so an exception after that flush leaves the ORM object already mutated; cia_engine.py:169-175 then swallows it with a bare `except Exception: continue` and cia_engine.py:130 `await self.session.flush()` commits the STALE mark with no audit row — precondition is an exception in the post-flush snapshot/audit path; such exceptions were not observed in this batch."
+    },
+    {
+      "#": 10,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "events.py:161-162 flushes the EventIdempotency claim and only afterwards does :231-232 `for listener in _LISTENERS.get(event_type, []): await listener(event)` run with no try/except or compensation, so the durable row asserts a dispatch that may never have completed; cia_engine.py:169-175 supplies a live path (a listener raising InvalidTransition leaves the claim committed) and every listener in tests/services/test_events.py is a bare `got.append`/`pass`, so nothing covers it."
+    },
+    {
+      "#": 11,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "spec/工艺专用综合计算软件需求规格说明书 Web版 P7.md:143-147 documents all five 供应商数据 paths under `/api/v1/equipment-list/`, while app/api/v1/supplier.py:58 declares `APIRouter(prefix=\"/equipment\", ...)` and app/api/v1/equip_list.py:39 shows the documented prefix is a separate real router, and no SPEC revision exists in the diff — the project rule (CLAUDE.md: '与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订') was not honoured; the finding's own routing-safety check shows this is contract drift, not a shadowed route."
+    },
+    {
+      "#": 12,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "alembic/versions/p7_s4_001_event_idempotency.py:59-60 has the docstring '删 event_idempotency 表 (if_exists 幂等)' directly above a bare `op.drop_table(_TABLE)` with no `if_exists=True`, while scripts/check_migration_idempotency.py:60-63 hardcodes `checked_prefixes = (\"p7_s2_\", \"p7_s3_\")` and `continue`s past every p7_s4_* file, so the gate reports OK without ever reading this migration; the downgrade round-trip was not executed (read-only environment)."
+    },
+    {
+      "#": 13,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "app/api/v1/supplier.py:234-239 calls the plain synchronous `export_excel(report)` / `export_pdf(report)` from inside an `async def` handler with no `run_in_threadpool` and no worker/offload middleware in app/main.py; the blocking work at deviation_report.py:233-235 (`wb.save(buf)`) and :301 (`doc.build(story)`) contains no await points, so the event loop is stalled for the whole build — cost figures cited by the reviewer were not re-measured here."
+    },
+    {
+      "#": 15,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "app/services/events.py:22 still reads `from app.core.events import emit_event, register_listener` inside a `用法::` copy-paste block, and a repo-wide grep for `app.core.events` returns exactly this one hit — the module itself lives at app/services/events.py and every real caller (cia_engine.py:38, confirmation_service.py:32) imports the new path."
+    },
+    {
+      "#": 17,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "deviation_report.py:189-192 defines `_cell(container, row)` returning `asdict(row)` with the `container` argument never read, and a repo-wide grep for `_cell(` finds no caller (the only other hit is the unrelated `test_export_excel_colors_the_verdict_cell` test name)."
+    },
+    {
+      "#": 18,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "deviation_report.py:7-9 and app/api/v1/supplier.py:153-154 both open with ⚠️ 'design_parameters_json 无写入方 … can_confirm 恒 False', but app/services/equip_list/pump_design_data.py:106-141 `apply_design_parameters` in this same diff range assigns `record.design_parameters_json = params`, so the warning is factually contradicted by the writer it ships with; PUMP_DESIGN covers only 18 hardcoded tags, which is the narrower gap the finding proposes to state instead."
+    },
+    {
+      "#": 19,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "deviation_service.py:11 still lists 电机额定功率 as `偏差 ±10% | SYMMETRIC_BAND` while the registry entry at :131-141 is `kind=\"MOTOR_TIER_FLOOR\", design_parameter=\"轴功率\"` with a spec_ref that explicitly says '**取代** SPEC §3.2.4(2) 原「偏差 ±10%」', and `SPEC_RULES` (:109-164) contains no SYMMETRIC_BAND member, so the docstring row and the code disagree."
+    },
+    {
+      "#": 20,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "deviation_service.py:166 builds `_RULE_INDEX = {r.parameter: r for r in SPEC_RULES}` and a repo-wide grep for `_RULE_INDEX` returns exactly that one definition; `find_rule` at :169-174 walks SPEC_RULES linearly calling `rule.matches(name)` and never references it."
+    },
+    {
+      "#": 21,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "Running build_report on the test's own fixture (DESIGN={'扬程':32.0,'轴功率':55.0}, ACTUAL={'扬程':33.0,'电机额定功率':75.0}) yields rows `扬程 QUALIFIED 3.125` and `电机额定功率 QUALIFIED None` — zero WARNING rows — so the test named test_can_confirm_when_all_qualified_or_warning asserts nothing about the WARNING-passes half of can_confirm's contract at deviation_report.py:156."
+    },
+    {
+      "#": 22,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "tests/test_cia_event_decoupling.py:151-155 asserts `\"self.fsm.transition(\" not in code`, but the only transition call in app/services/cia_engine.py is :84-85 `fsm = StateMachineService(session)` / `await fsm.transition(` on a local variable (the class no longer holds an fsm attribute, per its own :111-112 comment), so the literal is absent from the source and the guard cannot fail; the same test's comment claims it strips docstrings when the filter only drops `#` lines."
+    },
+    {
+      "#": 24,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "schemas/supplier.py:23 declares `value: float = Field(description=...)` with no strict/allow_inf_nan, and executing the real model shows Pydantic v2 lax coercion: `'100' -> 100.0`, `True -> 1.0`, `'NaN' -> nan`, `'Infinity' -> inf`; app/api/v1/supplier.py:121 hands `e.model_dump()` to the service, so actual_data_service.py:35 `isinstance(raw, bool)` is unreachable on the HTTP path and the string-numeric rule both docstrings assert is not enforced."
+    },
+    {
+      "#": 25,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "schemas/supplier.py:70-73 adds a fourth verdict and its own comment concedes 'SPEC §3.2.4(3) 定 3 档', while docs/PCS-UI-SPEC.md:1597 still reads `结论 合格/警告/不合格` and a repo-wide `grep -rl UNVERDICTABLE docs/` hits only docs/sprint4-plan-2026-10-05.md — a plan document, not a SPEC revision note — so the CLAUDE.md requirement to register a SPEC revision for an enum that diverges from SPEC was not met."
+    },
+    {
+      "#": 26,
+      "status": "rejected",
+      "protected_subject": null,
+      "reason": "The field is newly introduced in this diff with no pre-existing consumer, the project rule (CLAUDE.md) fixes enums only against SPEC and OpenAPI — not against a discriminator requirement — and the engine already disambiguates the string case for the client: deviation_service.py:239-240 routes a non-numeric design value to UNVERDICTABLE, so a client reading the sibling `verdict` never faces an ambiguous case; what remains is a preference about how to type a new response field, not a defect."
+    },
+    {
+      "#": 27,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "pump_design_data.py:123-131 and scripts/p7_s4_003_seed_pump_design.py:50-58 issue byte-identical `select(EquipmentList).where(project_id == ..., tag_number.in_(list(PUMP_DESIGN)))` predicates, and the script prints 「位号匹配 N 台」 next to 「写入设计值: M 台」 (lines 61,63), so any future edit to one copy silently desynchronises the reported snapshot from the written row set."
+    },
+    {
+      "#": 29,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "deviation_report.py:104-112 short-circuits on `design_value is None` and appends an UNVERDICTABLE row with the default `requires_manual_check=False` before calling evaluate, while deviation_service.py:212-217's MANUAL_CHECK branch — which returns exactly `requires_manual_check=True` with the 「需人工核对」 note — is never reached; since PUMP_DESIGN (_UNITS at pump_design_data.py:83-91) contains no 材质 or 厂家型号 key, that short-circuit is the normal path for those rows."
+    },
+    {
+      "#": 30,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "`git log --name-only 3e5ae90..cae5bce -- .wolf/` produces no output — zero changes to any tracked .wolf file across the 11-commit range — and `grep -c 742215d .wolf/buglog.json` returns 0 while other entries do carry `fix_commit` values (9e27a5a, 0be4f10, 770976e), so the fix commit 742215d (电机额定功率规则改为对轴功率卡 API 610 分档下限) is absent from the buglog that .claude/rules/openwolf.md:9 makes mandatory with a required `fix_commit`."
+    },
+    {
+      "#": 31,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "deviation_service.py:152-157 registers 转速 with aliases including 叶轮直径/实际叶轮直径/设计叶轮直径 and no `design_parameter`, so `design_key` (:66-69, `design_parameter or parameter`) resolves to \"转速\"; deviation_report.py:89-91 then pulls the design 转速 (e.g. 2982 r/min) for a 叶轮直径 row and discards the design unit (`_`), and PUMP_DESIGN/_UNITS (pump_design_data.py:37-91) contain no 叶轮直径 key, so the mismatched design value is exported verbatim into the compliance document."
+    },
+    {
+      "#": 32,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "scripts/p7_s4_003_seed_pump_design.py:62-63 calls `apply_design_parameters` and merely prints its return as 「写入设计值: N 台」 with no assertion that N equals the matched-row count and no verification SQL shipped, so a partial `tag_number` match surfaces only as a stdout line an operator may miss; no post-backfill query exists in the diff or scripts."
+    },
+    {
+      "#": 34,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "app/services/supplier/__init__.py:4 lists `excel_import_service`: Excel 批量导入 while `ls app/services/supplier/` shows only __init__, actual_data_service, confirmation_service, deviation_report and deviation_service — and app/api/v1/supplier.py:9-10 states in the opposite direction that the S4-1 ruling deliberately excluded an Excel batch-import endpoint."
+    },
+    {
+      "#": 36,
+      "status": "rejected",
+      "protected_subject": null,
+      "reason": "schemas/supplier.py:43 and :100 do declare `actual_data_status: str` with no description, but no project rule or SPEC clause requires the four states to be enumerated on the response field, the sibling files the finding cites (config.py:36, checklist.py:76, cool_tower.py:284) are a convention rather than a binding standard, and no consumer is broken — the actual_data_service.py:92-100 ACTUAL_DATA_LOCKED 422 carries its own machine-readable code and message — so this is an unsupported documentation preference, not a defect."
+    }
+  ]
+}

@@ -1,0 +1,213 @@
+{
+  "run_id": "20261006-sprint4",
+  "reviewer": "maintainability",
+  "scope": "pcs-backend P7 Sprint 4 (base 3e5ae90, head cae5bce), non-test production files",
+  "findings": [
+    {
+      "id": "M1",
+      "title": "Dead module-level index: `_RULE_INDEX` is built once and never read",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/supplier/deviation_service.py",
+      "line": 166,
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "why_it_matters": "`_RULE_INDEX` is constructed at import time and no code in the repo reads it — `find_rule` deliberately walks `SPEC_RULES` linearly and matches on normalized names plus aliases, so a dict keyed by raw `parameter` could not serve it anyway. A future maintainer who sees the index will assume lookup is by exact parameter name and may build on it, or 'optimize' `find_rule` to use it and silently break alias matching for every parameter whose display name differs from its canonical one (扬程/效率/NPSHr all have aliases). It also builds a 7-entry dict on every import for no benefit.",
+      "evidence": [
+        "app/services/supplier/deviation_service.py:166 — `_RULE_INDEX = {r.parameter: r for r in SPEC_RULES}`",
+        "app/services/supplier/deviation_service.py:169-174 — `find_rule` iterates `SPEC_RULES` and calls `rule.matches(name)`; it never references `_RULE_INDEX`",
+        "repo-wide grep for `_RULE_INDEX` returns exactly one hit: its own definition"
+      ],
+      "suggested_fix": "Delete line 166. If a name->rule lookup is ever genuinely needed, key it on the normalized name AND all normalized aliases (`_normalize` already exists), not on `r.parameter` alone — otherwise it will not be a drop-in for `find_rule`."
+    },
+    {
+      "id": "M2",
+      "title": "Dead helper `_cell()` — a Pass-Through Method with zero callers",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/supplier/deviation_report.py",
+      "line": 189,
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "why_it_matters": "`_cell(container, row)` ignores both of its parameters' semantics and returns `asdict(row)` — the `container` argument is never read, and the local `from dataclasses import asdict` inside the function body is the only reason it isn't an unused top-level import. Nothing calls it. It reads like the cell-rendering helper the xlsx exporter once had, which invites a future maintainer to call it expecting row-to-cell formatting and instead get a raw dict, or to 'fix' the unused parameter.",
+      "evidence": [
+        "app/services/supplier/deviation_report.py:189-192 — `def _cell(container, row) -> dict:` / `    from dataclasses import asdict` / `    return asdict(row)`",
+        "repo-wide grep for `_cell(` returns no caller (the only other hits are unrelated `test_number_cell` / `test_text_cell` in tests/services/test_worley_extract.py)"
+      ],
+      "suggested_fix": "Delete lines 189-192 entirely. If row serialization is genuinely needed, `dataclasses.asdict` is the correct expression at the call site — `export_excel` already writes fields positionally and needs no dict."
+    },
+    {
+      "id": "M3",
+      "title": "Stale docstring table contradicts the registry: 电机额定功率 is not SYMMETRIC_BAND, and the SYMMETRIC_BAND branch has no SPEC rule",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/supplier/deviation_service.py",
+      "line": 11,
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "The module docstring is the table a maintainer reads before touching anything — it is explicitly framed as the transcription of SPEC §3.2.4(2) and the file header warns 勿凭印象改数值. But row 4 still describes 电机额定功率 as SYMMETRIC_BAND ±10% while the registry entry (line 133) is MOTOR_TIER_FLOOR, and the SYMMETRIC_BAND branch in `evaluate` (line 251) is reachable only from a hand-built `DeviationRule` in `tests/services/supplier/test_deviation_service.py:118`. So a reader trusting the docstring will look for a ±10% band that no longer exists, while a reader of the code sees an unexercised branch in a file whose whole job is to transcribe the SPEC. The correct answer is recorded in the rule's own `spec_ref` (lines 135-139) and in the `_MOTOR_TIER_SMALL_MAX` comment (lines 186-189) — the summary table is the one place that was not updated.",
+      "evidence": [
+        "app/services/supplier/deviation_service.py:11 — `| 实际电机额定功率   | 偏差 ±10%               | SYMMETRIC_BAND   | 偏小→不满足，偏大→可接受 |`",
+        "app/services/supplier/deviation_service.py:132-133 — `        parameter=\"电机额定功率\",` / `        kind=\"MOTOR_TIER_FLOOR\",`",
+        "app/services/supplier/deviation_service.py:137-138 — `\"（**取代** SPEC §3.2.4(2) 原「偏差 ±10%」—— 电机按系列选取, \"` — the registry records the supersession, the docstring does not",
+        "app/services/supplier/deviation_service.py:251 — `    if rule.kind == \"SYMMETRIC_BAND\":` — no entry in SPEC_RULES (lines 109-164) carries this kind"
+      ],
+      "suggested_fix": "Update docstring row 4 to `| 实际电机额定功率 | API 610 分档下限 (轴功率×1.25/1.15/1.10) | MOTOR_TIER_FLOOR | 低于下限→不满足 |` and add the 轴功率 REFERENCE_ONLY row, so the table has 7 rows and matches SPEC_RULES one-for-one. Then decide the SYMMETRIC_BAND branch explicitly: if no SPEC rule can ever be a symmetric band, delete lines 251-256 and the test at test_deviation_service.py:118; if one is coming in a later SPEC revision, leave the branch and add a one-line comment saying it is reserved for a future symmetric-band rule. Assumption: SPEC V1.4 §3.2.4(2) will not add a symmetric-band rule in this sprint — if it will, the second option is correct and the finding downgrades to a docstring-only fix."
+    },
+    {
+      "id": "M4",
+      "title": "\"已知缺口：design_parameters_json 无写入方\" is contradicted by the writer this same diff adds",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/supplier/deviation_report.py",
+      "line": 7,
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "Two production modules open with a ⚠️ warning that every report row will fall to 「缺设计值（不可判）」 and `can_confirm` will therefore be permanently False. Commit cae5bce in this same diff range adds exactly the missing writer — `app/services/equip_list/pump_design_data.py::apply_design_parameters` — plus a seed script to invoke it. Leaving the warnings in place means the first thing a maintainer or a code-reading agent does with these files is discount the deviation engine as untestable, and a reviewer of a future change may accept a regression to 「all rows unjudgeable」 as the already-known baseline rather than as new breakage.",
+      "evidence": [
+        "app/services/supplier/deviation_report.py:7-9 — `⚠️ **已知缺口** (2026-10-05 用户裁决「设计值留空」): `design_parameters_json`` / `无写入方，生产路径上所有行都会落到「缺设计值（不可判）」，因而 `can_confirm` 恒` / `False。引擎本身已按 SPEC 逐条实现并由单测覆盖；设计值来源是另一个决定。`",
+        "app/api/v1/supplier.py:153-154 — `    ⚠️ 已知缺口：`design_parameters_json` 目前无写入方，故生产路径上全部行` / `    都会落「缺设计值（不可判）」。引擎已按 SPEC 逐条实现，设计值来源待定。`",
+        "app/services/equip_list/pump_design_data.py:107-143 — `async def apply_design_parameters(...)` sets `record.design_parameters_json = params` (line 138); this function is new in this diff"
+      ],
+      "suggested_fix": "Delete both ⚠️ blocks and replace with the actual current state: design values come from `app/services/equip_list/pump_design_data.py::PUMP_DESIGN` via `apply_design_parameters`, and the residual gap is that PUMP_DESIGN covers only the 18 蜡油加氢 pump tags, so equipment outside that tag set still yields 不可判 rows. If a partial-PUMP_DESIGN warning is wanted, state that one — it is the gap a reader actually needs, and it is a different claim from the one currently written."
+    },
+    {
+      "id": "M5",
+      "title": "Repeated Switches: the 4-verdict vocabulary is restated at 6 sites in 3 modules, and 2 of them key on the rendered label string",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/supplier/deviation_report.py",
+      "line": 171,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "Adding a fifth verdict — the obvious next step, and the one this design deliberately invites by making the set open — requires editing the four module constants, `_LABELS`, `_COLORS`, the `Verdict` Literal, `_FILL` and `_FONT_COLOR`, and a missed entry has no error: `_FILL.get(row.label, \"FFD9D9D9\")` and `verdict_label`'s `.get(verdict, \"不可判\")` both swallow the miss and render the new verdict as 不可判/gray. Worse, `_FILL` and `_FONT_COLOR` are keyed on the *label* (`\"合格\"`), not on the verdict constant, so they are coupled to a display string that `_LABELS` owns: editing a label in `_LABELS` silently drops every xlsx/PDF fill to gray while the color column still says 绿色. The PDF path then re-derives hex by string-slicing the openpyxl ARGB (`\"#\" + argb[2:]`), so the two exporters are coupled through a string format rather than through a shared value.",
+      "evidence": [
+        "app/services/supplier/deviation_service.py:28-31 — `QUALIFIED = \"QUALIFIED\"` / `WARNING = \"WARNING\"` / `UNQUALIFIED = \"UNQUALIFIED\"` / `UNVERDICTABLE = \"UNVERDICTABLE\"` (copy 1)",
+        "app/services/supplier/deviation_service.py:33-38 — `_LABELS = { QUALIFIED: \"合格\", WARNING: \"警告\", UNQUALIFIED: \"不合格\", UNVERDICTABLE: \"不可判\" }` (copy 2, keyed by verdict)",
+        "app/services/supplier/deviation_service.py:41-46 — `_COLORS = { QUALIFIED: \"绿色\", ... UNVERDICTABLE: \"灰色\" }` (copy 3, keyed by verdict)",
+        "app/services/supplier/deviation_service.py:306-311 — `verdict_label` / `verdict_color` both use `.get(verdict, ...)` with a default, so an unknown verdict is silently rendered 不可判/灰色",
+        "app/services/supplier/deviation_report.py:171-182 — `_FILL = {\"合格\": ..., \"警告\": ..., \"不合格\": ..., \"不可判\": ...}` and `_FONT_COLOR = {...}` (copies 4 and 5, keyed by LABEL not verdict)",
+        "app/schemas/supplier.py:73 — `Verdict = Literal[\"QUALIFIED\", \"WARNING\", \"UNQUALIFIED\", \"UNVERDICTABLE\"]` (copy 6, in a different module, with no link to copies 1-5)"
+      ],
+      "suggested_fix": "Collapse copies 1-5 into one table in deviation_service.py, keyed by the verdict constant: `@dataclass(frozen=True) class VerdictStyle: verdict: str; label: str; color: str; fill: str; font: str` + `VERDICT_STYLES: dict[str, VerdictStyle] = {QUALIFIED: VerdictStyle(QUALIFIED, \"合格\", \"绿色\", \"FFC6EFCE\", \"FF006100\"), ...}`. `Evaluation.label`/`.color`, `verdict_label`/`verdict_color` and both exporters then read from it; delete `_FILL` and `_FONT_COLOR` from deviation_report.py. Keep the two `.get(..., default)` lookups but change them to raise (or assert) on an unknown verdict so the next addition fails loudly instead of rendering gray. For copy 6, add a one-line test `assert set(VERDICT_STYLES) == set(get_args(Verdict))` in tests/services/supplier/test_deviation_service.py — the Literal cannot be derived at runtime, so a guard test is the cheapest way to keep the two in sync. Keep the ARGB as the single stored format; the existing PDF comment at line 294-295 explaining the slice is worth preserving as the reason."
+    },
+    {
+      "id": "M6",
+      "title": "Stale usage example: events.py docstring still tells readers to import from `app.core.events`, the module this diff moved out of `app/core/`",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/events.py",
+      "line": 22,
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "why_it_matters": "The move from `app/core/` to `app/services/` is the whole point of this file's diff, and every real caller (cia_engine, confirmation_service, all five test modules) uses the new path. The docstring is the sole remaining `app.core.events` reference in the repo, and it sits inside a `用法::` block written specifically to be copy-pasted — a reader following it gets `ModuleNotFoundError`. The rest of the docstring was carefully updated to describe the new design (deepcopy, DB-backed idempotency); this one line was missed, which is exactly the drift the review persona asks to catch.",
+      "evidence": [
+        "app/services/events.py:22 — `    from app.core.events import emit_event, register_listener`",
+        "repo-wide grep for `app.core.events` returns exactly one hit: this docstring line. `app.services.events` is imported by app/services/cia_engine.py:38, app/services/supplier/confirmation_service.py:32, and 4 test modules"
+      ],
+      "suggested_fix": "Change line 22 to `from app.services.events import emit_event, register_listener`."
+    },
+    {
+      "id": "M7",
+      "title": "build_report constructs the same frozen dataclass twice — the first `report` exists only to be unpacked",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/supplier/deviation_report.py",
+      "line": 125,
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "why_it_matters": "`DeviationReport` is `frozen=True`, so the second construction copies every field verbatim off the first purely to add `blocking_reason`. A maintainer adding a field to `DeviationReport` must add it twice and will eventually add it to only one — the omission is invisible because the second construction is the one that is returned, and the resulting bug is a silently-defaulted field rather than an error.",
+      "evidence": [
+        "app/services/supplier/deviation_report.py:125-130 — `    report = DeviationReport(` / `        equipment_id=str(equipment.equipment_id),` / `        tag_number=equipment.tag_number,` / `        actual_data_status=equipment.actual_data_status,` / `        rows=tuple(rows),` / `    )`",
+        "app/services/supplier/deviation_report.py:131-137 — `    return DeviationReport(` repeats equipment_id/tag_number/actual_data_status/rows field-for-field and adds `blocking_reason=_blocking_reason(report.rows),`"
+      ],
+      "suggested_fix": "Collapse to a single construction: `return DeviationReport(equipment_id=str(equipment.equipment_id), tag_number=equipment.tag_number, actual_data_status=equipment.actual_data_status, rows=tuple(rows), blocking_reason=_blocking_reason(rows))`. `_blocking_reason` already takes the rows tuple, so the intermediate object is not needed as an argument."
+    },
+    {
+      "id": "M8",
+      "title": "The pump-record WHERE clause is duplicated between `apply_design_parameters` and its own seed script",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/equip_list/pump_design_data.py",
+      "line": 124,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "The script issues its own copy of the exact same query to print a 'before' snapshot, and the two numbers it prints side by side — 「位号匹配 N 台」 and 「写入设计值: M 台」 — read as if M were derived from N, which is only true while the two WHERE clauses match. Any future edit to the filter (adding a project type check, a status check, or a `design_parameters_json IS NULL` guard) updates one copy and leaves the other reporting a stale match count with no error, so the script's output — the only visibility anyone has into this backfill — becomes quietly wrong. The script's purpose is reporting, which makes it the most expensive place for the two to drift.",
+      "evidence": [
+        "app/services/equip_list/pump_design_data.py:124-131 — `    records = (` / `        await session.execute(` / `            select(EquipmentList).where(` / `                EquipmentList.project_id == project_id,` / `                EquipmentList.tag_number.in_(list(PUMP_DESIGN)),` / `            )` / `        )` / `    ).scalars().all()`",
+        "scripts/p7_s4_003_seed_pump_design.py:51-58 — `        before = (` / `            await session.execute(` / `                select(EquipmentList).where(` / `                    EquipmentList.project_id == project_id,` / `                    EquipmentList.tag_number.in_(list(PUMP_DESIGN)),` / `                )` / `            )` / `        ).scalars().all()` — byte-for-byte the same predicate",
+        "scripts/p7_s4_003_seed_pump_design.py:60 and :63 — the two prints a reader will compare: `位号匹配 {len(before)} 台` / `写入设计值: {n} 台`"
+      ],
+      "suggested_fix": "Expose the query once: add `async def matching_pump_records(session, project_id) -> Sequence[EquipmentList]` to pump_design_data.py holding the select, have `apply_design_parameters` call it, and have the script's `_main` call it for its snapshot too. Then the printed count and the written count are provably over the same row set. Assumption: the script's snapshot is genuinely meant to be the same population as the write, not a broader 'what exists in this project' view — if it is meant to be broader, keep both selects but say so in the script's docstring, because the current side-by-side print implies they are the same."
+    },
+    {
+      "id": "M9",
+      "title": "Package docstring advertises `excel_import_service`, a module that does not exist and that S4-1 ruled out",
+      "severity": "P3",
+      "file": "pcs-backend/app/services/supplier/__init__.py",
+      "line": 4,
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "why_it_matters": "The package docstring indexes its own submodules, so a reader uses it to decide what exists. It names a module that has never existed, and the same design decision is recorded in the opposite direction elsewhere in this diff: `app/api/v1/supplier.py:9-10` states 录入入口是**手工 UI 页面**（S4-1 裁决）：要求供应商填统一 Excel 不现实，故无 Excel 批量导入端点. A maintainer trusting the package docstring will plan the Excel import that the S4-1 ruling explicitly deferred.",
+      "evidence": [
+        "app/services/supplier/__init__.py:3-4 — `- `actual_data_service`: 手动录入供应商实测值` / `- `excel_import_service`: Excel 批量导入`",
+        "`ls app/services/supplier/` returns `__init__.py  actual_data_service.py  confirmation_service.py  deviation_report.py  deviation_service.py` — no `excel_import_service.py`",
+        "app/api/v1/supplier.py:9-10 — `录入入口是**手工 UI 页面**（S4-1 裁决）：要求供应商填统一 Excel 不现实，` / `故无 Excel 批量导入端点 —— 设备方逐项在页面上录入。`"
+      ],
+      "suggested_fix": "Replace line 4 with the three modules that exist and carry the report flow, e.g. `- `confirmation_service`: 确认/校核流程（SPEC §3.2.4(4)）` and `- `deviation_service` / `deviation_report`: 偏差判定与报告（SPEC §3.2.4(2)(3)）`. `actual_data_service` on line 3 is already correct."
+    },
+    {
+      "id": "M10",
+      "title": "The parameter-name vocabulary is maintained three times over (rules, design data, units) with no guard against drift",
+      "severity": "P3",
+      "file": "pcs-backend/app/services/equip_list/pump_design_data.py",
+      "line": 83,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "PUMP_DESIGN's keys, _UNITS' keys, and `DeviationRule.parameter`/`.aliases` are three hand-maintained copies of the same Chinese parameter names, and they only line up by convention. Today they happen to agree, but a rename in one place fails silently: `_UNITS.get(name, \"\")` yields an empty unit string (which the API schema accepts and the xlsx writes as a blank 单位 column), and `find_rule` returns None so the row is reported 「无判定规则」 rather than erroring. The registry already earns its keep as the canonical list; nothing wires the other two copies to it.",
+      "evidence": [
+        "app/services/equip_list/pump_design_data.py:83-91 — `_UNITS: dict[str, str] = { \"扬程\": \"m\", \"效率\": \"-\", \"NPSHr\": \"m\", \"轴功率\": \"kW\", \"电机额定功率\": \"kW\", \"电机配用功率\": \"kW\", \"转速\": \"r/min\" }` — a third hand-maintained name list",
+        "app/services/equip_list/pump_design_data.py:38 — `\"132-P-101A/B\": {\"扬程\": 2100.0, \"效率\": 0.8, \"NPSHr\": 2.0, \"轴功率\": 2214.06,` ... `\"电机额定功率\": 2500.0, \"电机配用功率\": 3300.0, \"转速\": 2982.0},` — the name list PUMP_DESIGN keys off",
+        "app/services/equip_list/pump_design_data.py:101 — `        name: {\"value\": float(value), \"unit\": _UNITS.get(name, \"\")}` — a miss is an empty string, not an error",
+        "app/services/supplier/deviation_service.py:110-164 — SPEC_RULES is the fourth copy, holding the same names plus aliases",
+        "app/services/equip_list/pump_design_data.py:39 — `\"电机配用功率\": 3300.0` has no `DeviationRule`; a supplier entering that parameter as actual data gets 「无判定规则（SPEC §3.2.4(2) 以泵为例）」"
+      ],
+      "suggested_fix": "Cheapest guard that converts silent drift into a test failure, without restructuring the data: in tests/services/equip_list/test_pump_design_data.py add `assert set(_UNITS) == {n for row in PUMP_DESIGN.values() for n in row}` and `assert set(_UNITS) <= {r.parameter for r in SPEC_RULES} | {\"电机配用功率\"}` — the second assertion makes an intentional non-judged design parameter an explicit, reviewable entry rather than an accident. Assumption: `_UNITS` is intended to stay private; if it is going to be consulted elsewhere, promote it to a module-level public name and let the rule registry import it instead, so the unit table has exactly one owner."
+    }
+  ],
+  "residual_risks": [
+    "The rule registry (M-context) itself checks out: SPEC_RULES has 7 entries across 7 kinds, all 7 kinds are dispatched in evaluate(), and it has two real production consumers (find_rule from build_report, and the rule constants surfaced into DeviationRow.spec_ref). It is not Speculative Generality and I did not flag it. The flat 8-field DeviationRule is also the smaller concept count than a sum type would be here — 6 of 8 fields are optional, but only design_parameter overrides behaviour (via the design_key property) and the others are plain None-as-absent; a per-kind subclass would add 7 classes to remove 2 `if rule.x is None` reads.",
+    "The kind-dispatch in evaluate() (lines 212-272) is a linear if-chain over a string-typed `kind` with a fail-closed default, not a Repeated Switches instance in the Fowler sense — there is exactly one dispatch site for `kind`. The genuine Repeated Switches in this diff is over the *verdict* set, which I filed as M5.",
+    "I did not reach a full read of app/models/system.py, app/models/equipment.py, app/api/v1/__init__.py, the two alembic migrations, or the app/services/cia_engine.py diff hunks (line counts were taken via wc, and the git diff --stat call was refused by the worktree guard). The cia_engine import block I did read is correctly layered (services + models only, no app/api import), which supports the intent's claim that the events.py move did not invert the graph — but I verified that for cia_engine only, not for every consumer.",
+    "M4's suggested fix rests on the assumption that `apply_design_parameters` is actually wired into a production path (the seed script) and not merely available. If the intended rollout is for the script to be a one-off manual backfill with no automated caller, the ⚠️ warnings are less wrong than I judged them — they would then need rewording to say the values exist only for backfilled projects, not that no writer exists. I graded this P2 rather than P1 for that reason.",
+    "Not assessed for maintainability: whether PUMP_DESIGN's 18 transcribed tags and 132-P-105A/B/C/D exclusion are correct transcriptions of the source spreadsheet (that is a correctness/data-provenance question outside this reviewer's remit), and whether the frontend `api.d.ts` snapshot is regenerated in step with the schema change."
+  ],
+  "testing_gaps": [
+    "No test asserts that the Verdict Literal in app/schemas/supplier.py:73 matches the constants and maps in app/services/supplier/deviation_service.py — the drift M5 describes would be caught by `assert set(VERDICT_STYLES) == set(get_args(Verdict))`, which does not exist.",
+    "No test asserts that _UNITS covers exactly the PUMP_DESIGN key set (M10), so a parameter added to the design table without a unit silently produces an empty 单位 column in the xlsx export.",
+    "SYMMETRIC_BAND is exercised only by a hand-constructed DeviationRule in tests/services/supplier/test_deviation_service.py:118; no SPEC_RULES entry carries that kind (M3). If the branch is meant to be reserved for a future rule, there is no test or comment marking it as such, so its status is ambiguous to the next reader.",
+    "The seed script's 'before' snapshot query has no test asserting it selects the same rows as apply_design_parameters' internal query (M8) — the two are kept in sync only by being textually identical today."
+  ]
+}

@@ -1,0 +1,105 @@
+{
+  "apply_local": false,
+  "branch": "worktree-s4-0-events",
+  "completed_at": "2026-10-06T02:07:36Z",
+  "cost": {
+    "host": "claude",
+    "scope": {
+      "changed_lines": 6970,
+      "depth": "full",
+      "exec_nontest_lines": 2601,
+      "size_band": "large",
+      "unclassified_lines": "json:1340,lock:217,md:381,toml:1"
+    },
+    "stages": [
+      {
+        "elapsed_seconds": 7.879,
+        "ended_at": "2026-10-06T01:19:42.540268+00:00",
+        "facts": {
+          "changed_lines": 6970,
+          "depth": "full",
+          "exec_nontest_lines": 2601,
+          "size_band": "large",
+          "unclassified_lines": "json:1340,lock:217,md:381,toml:1"
+        },
+        "stage": "scope",
+        "started_at": "2026-10-06T01:19:34.661130+00:00"
+      },
+      {
+        "elapsed_seconds": 146.751,
+        "ended_at": "2026-10-06T01:22:09.291274+00:00",
+        "reviewers": 10,
+        "stage": "select",
+        "started_at": "2026-10-06T01:19:42.540268+00:00"
+      },
+      {
+        "candidates": 51,
+        "elapsed_seconds": 773.961,
+        "ended_at": "2026-10-06T01:35:03.251916+00:00",
+        "stage": "dispatch",
+        "started_at": "2026-10-06T01:22:09.291274+00:00"
+      },
+      {
+        "candidates": 35,
+        "elapsed_seconds": 1162.728,
+        "ended_at": "2026-10-06T01:55:23.278804+00:00",
+        "facts": {
+          "demoted": 10,
+          "first_evidence_backfilled": 44,
+          "merged_groups": 6,
+          "validator_batch": 30,
+          "validator_skip": 0
+        },
+        "stage": "merge",
+        "started_at": "2026-10-06T01:36:00.550659+00:00"
+      },
+      {
+        "elapsed_seconds": 242.599,
+        "ended_at": "2026-10-06T02:00:20.045650+00:00",
+        "stage": "validate",
+        "started_at": "2026-10-06T01:56:17.446766+00:00"
+      },
+      {
+        "elapsed_seconds": 390.051,
+        "ended_at": "2026-10-06T02:07:36.371694+00:00",
+        "stage": "report",
+        "started_at": "2026-10-06T02:01:06.321022+00:00"
+      }
+    ],
+    "status": "complete",
+    "totals": {
+      "artifact_bytes": 1852005,
+      "candidates": 51,
+      "elapsed_seconds": 2723.969,
+      "reviewers": 10
+    },
+    "truncated_events": 0
+  },
+  "findings": {
+    "actionable": 26,
+    "confirmed": 28,
+    "failed": 0,
+    "human_or_report_only": 7,
+    "malformed": 0,
+    "raw_merged": 35,
+    "rejected": 2,
+    "reported_total": 33,
+    "shortcut_skipped": 0,
+    "unresolved": 0,
+    "validated": 30
+  },
+  "fixes_applied": 0,
+  "head_sha": "cae5bce9e3411ff1199713aca88c83f427a1d089",
+  "mode": "markdown report-only",
+  "report_artifact_note": "The report leaf's harness blocked it from writing report/summary .md files, so it delivered the rendered report as its response in five parts instead. Those five parts were re-delivered verbatim and assembled into report.md by the orchestrator, after the run directory was copied from /tmp into docs/ce-code-review/20261006-sprint4/. One factual edit was made in the closing 'Run artifact' line to reflect the new location; the remainder of the report is verbatim.",
+  "report_artifact_path": "docs/ce-code-review/20261006-sprint4/report.md",
+  "report_artifact_written": true,
+  "run_id": "20261006-sprint4",
+  "severity_counts_reported": {
+    "P0": 0,
+    "P1": 11,
+    "P2": 19,
+    "P3": 3
+  },
+  "verdict": "Ready with fixes"
+}

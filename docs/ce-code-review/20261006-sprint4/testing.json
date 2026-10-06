@@ -1,0 +1,204 @@
+{
+  "reviewer": "testing",
+  "run_id": "20261006-sprint4",
+  "findings": [
+    {
+      "title": "`_claim` 并发碰撞分支完全未测，且其 `session.rollback()` 会静默丢弃调用方已 flush 的状态变更",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/events.py",
+      "line": 165,
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "`_claim` 的三个出口里，出口 (c)（`flush` 抛 IntegrityError → rollback → 重查 → 返回 False 或抛 409）是唯一会造成**调用方数据丢失**的路径，而整个测试套件里没有任何一个用例能让 `session.flush()` 抛 IntegrityError（`grep -rn IntegrityError tests/` 只命中 schema/model 迁移测试，与事件无关）。生产上 `pass_check` 的顺序是：先 `equipment.actual_data_status = CONFIRMED` + `await session.flush()`（confirmation_service.py:98-99），再 `emit_event`。一旦 `_claim` 走到 `await session.rollback()`，这个 rollback 回滚的是**整个 session 的事务**，CONFIRMED 的 flush 被一并丢弃；随后重查到同 hash 行 → `return False` → `emit_event` 返回 False → `pass_check` 照常 `await session.commit()` 并把 equipment 返回给调用方。调用方拿到一个状态已被 DB 回滚成 PENDING_CONFIRM 的对象，而函数一路正常返回、无任何异常。校核通过的「已确认」凭空消失，且没有一行日志。幂等凭据表的并发去重逻辑是这个模块存在的核心理由，这条分支却是零覆盖。",
+      "evidence": [
+        "pcs-backend/app/services/events.py:165 — `        await session.rollback()`",
+        "pcs-backend/app/services/events.py:161-179 — `try:\\n        await session.flush()\\n    except IntegrityError as exc:\\n        # 并发下两个投递同时 claim → 后到者撞主键, 视为幂等重投\\n        await session.rollback()` — 该 except 块无任何测试触达（`grep -rn \"IntegrityError\" tests/services/test_events.py tests/test_cia_event_decoupling.py tests/services/supplier/` 返回空）",
+        "pcs-backend/app/services/supplier/confirmation_service.py:98-99 — `    equipment.actual_data_status = ActualDataStatus.CONFIRMED.value\\n    await session.flush()` — 该 flush 先于 emit_event，会被 _claim 的 rollback 一并回滚",
+        "pcs-backend/tests/services/test_events.py:109-171 — 幂等相关的 4 个用例（duplicate / different ids / module reload / identical payload）全部走的是出口 (a)/(b)，无一条构造并发碰撞"
+      ],
+      "suggested_fix": "在 `tests/services/test_events.py` 新增 `test_concurrent_claim_collision_rolls_back_and_skips_dispatch`：monkeypatch `db_session.flush` 使其在第一次调用（`_claim` 内的 add 后 flush）抛 `IntegrityError`，同时预置一行同 event_id 同 payload_hash 的 `EventIdempotency`；断言 (1) `emit_event` 返回 False、(2) listener 一次都没被调用、(3) **且**断言调用方在 emit_event 之前挂到 session 上的一笔业务写入（如一个新建 EquipmentList 对象）已被 rollback 掉 —— 第 (3) 条是本 finding 的核心，现在完全没有测试观察得到。再加 `test_concurrent_claim_collision_different_payload_raises_409` 覆盖同一 except 块里 `raise PcsError(...EVENT_ID_CONFLICT, status=409)` 那一支（该分支同样零覆盖）。补完这两条后，另建议单独评估把 `session.rollback()` 换成 savepoint（`session.begin_nested()`），因为它对调用方事务的破坏性是设计层面的问题，不是补测试能消除的。"
+    },
+    {
+      "title": "`test_can_confirm_when_all_qualified_or_warning` 名不副实：数据实际只产出 QUALIFIED，WARNING 不阻断确认这条契约零覆盖",
+      "severity": "P2",
+      "file": "pcs-backend/tests/services/supplier/test_deviation_report.py",
+      "line": 90,
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "`can_confirm` 的语义是「全部合格或**仅警告** → 可确认」（deviation_report.py:156-157），即 WARNING 是允许通过的。测试名 `test_can_confirm_when_all_qualified_or_warning` 明确承诺覆盖这一点，但用的 `ACTUAL_ALL_OK` 实际判定结果是扬程 QUALIFIED + 电机额定功率 QUALIFIED（实测运行 build_report 确认：两行都是 QUALIFIED），**没有一行是 WARNING**。后果是把 `can_confirm` 改成连 WARNING 一起拦（这在 `RECHECK_ALWAYS` 规则下是极可能发生的改动 —— 转速/叶轮直径只要录入就恒为 WARNING，一旦有人觉得「恒警告也该拦」而收紧门禁），全套 3884 个用例里没有任何一条会红。SPEC §3.2.4(4) 的「合格**或警告**」这半句从未被真正锁住。",
+      "evidence": [
+        "pcs-backend/tests/services/supplier/test_deviation_report.py:90-92 — `def test_can_confirm_when_all_qualified_or_warning():\\n    r = build_report(_Eq(DESIGN, ACTUAL_ALL_OK))\\n    assert can_confirm(r) is True`",
+        "实测：DESIGN={\"扬程\":32.0,\"轴功率\":55.0}, ACTUAL_ALL_OK={\"扬程\":33.0,\"电机额定功率\":75.0} → build_report 产出 `扬程 QUALIFIED` / `电机额定功率 QUALIFIED`，零 WARNING 行",
+        "pcs-backend/app/services/supplier/deviation_report.py:156-157 — `    全部合格或仅警告 → 可确认。存在**不合格或不可判** → 拒绝。` — 「仅警告」这半句无任何断言支撑"
+      ],
+      "suggested_fix": "在 test_deviation_report.py 新增一个真正含 WARNING 行的 fixture 并复用现有 `can_confirm` 断言，例如 `ACTUAL_HAS_WARNING = {\"转速\": {\"value\": 3000.0, \"unit\": \"r/min\"}}` 配 `DESIGN_WITH_SPEED = {**DESIGN, \"转速\": {\"value\": 2950.0, \"unit\": \"r/min\"}}`（转速走 RECHECK_ALWAYS → WARNING + requires_recheck=True）。加 `test_warning_only_report_is_confirmable`，先 assert 报告里确实存在 `verdict == \"WARNING\"` 的行（防止再次退化成全 QUALIFIED 而测试仍然绿），再 assert `can_confirm(r) is True`。同时把现有的 `test_can_confirm_when_all_qualified_or_warning` 改名为 `test_can_confirm_when_all_qualified` 以消除误导。"
+    },
+    {
+      "title": "CIA 静态守卫的匹配串 `self.fsm.transition(` 在 cia_engine.py 中已不存在，断言不可失败",
+      "severity": "P2",
+      "file": "pcs-backend/tests/test_cia_event_decoupling.py",
+      "line": 155,
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "这个静态守卫的整个目的是「防止将来有人图省事把直调加回来」，但它 grep 的模式 `self.fsm.transition(` 在重构后的 cia_engine.py 里**一次都不出现** —— 该文件里 `StateMachineService` 是在模块级 listener 内以局部变量持有的（cia_engine.py:84-85 `fsm = StateMachineService(session)` / `await fsm.transition(`），`CIAEngine` 类本身已不再持有 fsm 属性（构造函数注释明写「不再持有 StateMachineService」）。因此这条断言无论 cia_engine.py 怎么改都恒真，是一个不可失败的守卫：有人真把直调加回来时，最自然的写法是 `fsm = StateMachineService(self.session); await fsm.transition(...)` 或 `StateMachineService(self.session).transition(...)`，两者都不含 `self.fsm.transition(` 字面量，守卫全部漏过。同一批的 `test_supplier_source_has_no_direct_fsm_transition_calls`（test_confirmation_service.py:217-245）已经用 AST 正确实现了这个守卫，并且其 docstring 明确点名「既有的 cia 守卫就有这个隐患」—— 修复方案已在同一次提交里写好了，只是没有应用到 cia 那一侧。另外该守卫的注释「去掉 docstring/注释后再查」与实现也不符：实现只过滤 `#` 开头的行（作者已自述此点）。",
+      "evidence": [
+        "pcs-backend/tests/test_cia_event_decoupling.py:151-155 — `    code = \"\\n\".join(\\n        line for line in src.splitlines()\\n        if not line.lstrip().startswith(\"#\")\\n    )\\n    assert \"self.fsm.transition(\" not in code, (`",
+        "pcs-backend/app/services/cia_engine.py:84-85 — `    fsm = StateMachineService(session)\\n    await fsm.transition(` — 唯一的 transition 调用是局部变量形式，全文件 grep 不到 `self.fsm`",
+        "pcs-backend/tests/services/supplier/test_confirmation_service.py:222-224 — `    走 AST 而非字符串匹配: 字符串匹配会被 docstring 里的「不直调 state_machine」\\n    这类说明文字误报（既有的 cia 守卫就有这个隐患 —— 它的注释声称剥掉 docstring，\\n    实际只剥了 `#` 行）。` — 同一提交里已写好正确实现却未回用"
+      ],
+      "suggested_fix": "把 test_cia_event_decoupling.py:140-157 的实现整体替换为 test_confirmation_service.py:231-245 已有的 AST 写法：`ast.parse` 后遍历 `ast.Call`，凡 `isinstance(node.func, ast.Attribute) and node.func.attr == \"transition\"` 即计入 offenders，同时检查 `ast.ImportFrom`/`ast.Import` 中是否 import 了 state_machine。这样无论写成 `fsm.transition(`、`self.fsm.transition(` 还是 `StateMachineService(x).transition(` 都会被拦下，且天然不受 docstring/注释干扰（顺带修掉注释与实现不符的问题）。改完可在 cia_engine.py 的 listener 里临时插一行 `self.fsm.transition(` 验证守卫确实会红，再回滚。"
+    },
+    {
+      "title": "`clear_listeners` 是只被测试调用的生产接缝，其 docstring 自陈会清掉生产 listener 却无生产调用方",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/events.py",
+      "line": 66,
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "`clear_listeners` 被 `__all__` 导出、是模块公开 API，但全仓 grep 显示除自身定义外**唯一调用方是 `tests/services/test_events.py:162`**（`app/` 与 `scripts/` 下零命中）。它的 docstring 自己写着「⚠️ **会一并清掉生产代码在模块导入时注册的 listener**（如 `cia_engine` 的 `cia_mark_stale` 处理者）—— 测试里用它做隔离会让事件静默无人处理」—— 一个零生产调用方的函数，却在文档里描述自己会破坏生产行为。这正是「只为测试存在的生产接缝」：它让 `test_idempotency_survives_module_reload_semantics`（该用例正是用它来模拟进程重启）能触达真实入口触达不到的状态，而生产代码永远走不到这里。若将来有人在真实代码里为了「重载配置」调用它，cia 的 STALE 转移会静默失效，且 docstring 已经把后果写清楚了 —— 风险是被文档记录、而非被消除。",
+      "evidence": [
+        "pcs-backend/app/services/events.py:66-76 — `def clear_listeners() -> None:` ... `    ⚠️ **会一并清掉生产代码在模块导入时注册的 listener**\\n    （如 `cia_engine` 的 `cia_mark_stale` 处理者）—— 测试里用它做隔离会\\n    让事件静默无人处理，表现为「事件发了但状态没变」，极难排查。`",
+        "`grep -rn \"clear_listeners\" app/ scripts/ tests/` → 仅 app/services/events.py:66(定义)/:237(__all__)、tests/services/test_events.py:23(import)/:162(调用)。app/ 与 scripts/ 下无任何生产调用方",
+        "pcs-backend/tests/services/test_events.py:162 — `    clear_listeners()` — 唯一调用点，且所在用例正是靠它进入「进程重启」这一生产不可达状态"
+      ],
+      "suggested_fix": "二选一：(A) 把它降级为测试私有 —— 从 `__all__`（events.py:236-242）移除，改由测试 `monkeypatch.setattr(events, \"_LISTENERS\", {})` 之类的注入完成「模拟重启」，生产模块不再暴露该接缝；或 (B) 保留但明确其测试定位，函数名改为 `_clear_listeners_for_tests` 并在 `__all__` 旁注明仅供测试。倾向 (A)：现有测试已经在用 `snapshot_listeners()`/`restore_listeners()` 做隔离，唯一的例外就是这一个用例，直接 monkeypatch 私有 `_LISTENERS` 即可，不需要公开 API。无论选哪个，请同步删掉或改写那段 ⚠️ 警告——它描述的是一条生产上不存在的危险路径。"
+    },
+    {
+      "title": "listener 抛异常的路径无测试；叠加 cia_engine 的 `except Exception: continue` 会留下已提交的幽灵幂等行",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/events.py",
+      "line": 232,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "`emit_event` 在普通 `for` 循环里 `await listener(event)`，listener 抛异常时异常直接向上传播 —— 但此时 `_claim` 已经把 `EventIdempotency` 行 flush 进调用方事务了。`CIAEngine._scan_one_class`（cia_engine.py:167-173）在 `await self._mark_stale(...)` 外面包了 `try: ... except Exception: continue`，注释写「状态机拒绝（不在合法转移集合）— 跳过」。事件化之后这个 except 会连同「幂等行已插入」一起吞掉，后续 `scan_stale` 的 `await self.session.flush()` 与调用方 commit 会把这条**代表一次从未成功执行的 STALE 转移**的幂等行持久化。模块 docstring 强调「幂等凭据落 DB…去重是业务正确性要求」，一条声称「该事件已处理」而实际没处理的行落库，正是幂等语义被污染。测试套件里没有任何一个用例让 listener 抛异常（`test_events.py` 13 个用例的 listener 全部是 `pass` 或 append），因此这个状态完全不可观测。",
+      "evidence": [
+        "pcs-backend/app/services/events.py:231-232 — `    for listener in _LISTENERS.get(event_type, []):\\n        await listener(event)` — 无 try/except，异常穿透；但此前的 `session.add(EventIdempotency(...))` + `await session.flush()` 已在调用方事务里",
+        "pcs-backend/app/services/cia_engine.py:166-173 — `            try:\\n                await self._mark_stale(\\n                    r, f\"CIA: hash mismatch ({cls.__name__})\"\\n                )\\n            except Exception:\\n                # 状态机拒绝（不在合法转移集合）— 跳过\\n                continue` — 该 except 现在会连带吞掉已 flush 的幂等行",
+        "pcs-backend/tests/services/test_events.py:48-95 — 全部 listener 均为 `got.append(event)` 或 `pass`，无一个 raise"
+      ],
+      "suggested_fix": "在 tests/services/test_events.py 新增 `test_raising_listener_propagates_and_leaves_claim_row`：注册一个 `async def bad(event): raise RuntimeError(\"listener 炸了\")` 的 listener，`with pytest.raises(RuntimeError): await emit_event(...)`，随后 `assert len(got) == 1`（证明循环确实进入了 dispatch）并查询 `EventIdempotency` 表断言该行**已存在** —— 把「异常传播但幂等凭据已落库」这个当前无人观察的状态显式锁下来。补完这条后建议单独处理生产缺陷：让 cia_engine 的 except 区分「状态机业务拒绝」与「其他异常」，或在 `_scan_one_class` 的 except 分支上 rollback 到 savepoint 以免幂等行泄漏。这一条我只锚 75，因为我没有实跑一条 cia_engine 真实异常路径来确认行确实会 commit —— 建议修测试时顺手验证该假设。"
+    },
+    {
+      "title": "`evaluate()` 的 `REFERENCE_ONLY` 分支无任何测试，供应商录入「轴功率」实际值时走的就是这条路径",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/supplier/deviation_service.py",
+      "line": 224,
+      "confidence": 75,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "`SPEC_RULES` 里 `轴功率` 的 kind 是 `REFERENCE_ONLY`，而 `build_report` 是遍历 `actual_data_json` 的键逐项 `find_rule` 判定的 —— 只要供应商在实际数据里录了「轴功率」，`evaluate` 就会走到这个分支。分支返回 `QUALIFIED`（而不是 `UNVERDICTABLE`），这是一处刻意的设计决定（deviation_service.py:225-231 注释：「它是有效数据, 只是不承担判定。标为合格 + 备注, 避免把有效设计值报成缺数据」）。实测该分支确实可达且返回 QUALIFIED，但 `grep -rn REFERENCE_ONLY tests/` 零命中 —— 没有任何测试构造过这条规则。若有人把它改成 UNVERDICTABLE（看起来更像「不参与判定」的自然写法），后果是：供应商正常录入轴功率的设备，`can_confirm` 从 True 翻成 False，整条确认流程被静默锁死，而测试全绿。这条分支同时也是 `MOTOR_TIER_FLOOR` 规则的参照量来源，与 S4-2 规则修订直接相关。",
+      "evidence": [
+        "pcs-backend/app/services/supplier/deviation_service.py:224-231 — `    if rule.kind == \"REFERENCE_ONLY\":` ... `        return Evaluation(\\n            QUALIFIED,\\n            None,\\n            note=\"参照量，本身不判合格与否（供其他规则使用）\",\\n        )`",
+        "`grep -rn \"REFERENCE_ONLY\" tests/` → 零命中；tests/services/supplier/test_deviation_service.py 的 kind 覆盖只有 ASYMMETRIC_BAND / MIN_RATIO / MAX_ONLY / SYMMETRIC_BAND / RECHECK_ALWAYS / MANUAL_CHECK / MOTOR_TIER_FLOOR",
+        "实测 `evaluate(DeviationRule(parameter='轴功率', kind='REFERENCE_ONLY'), design=55.0, actual=55.0).verdict` → `QUALIFIED`，分支确实可达"
+      ],
+      "suggested_fix": "在 tests/services/supplier/test_deviation_service.py 的第 6 节（材质/序数比较）旁新增一节：`def test_reference_only_is_qualified_not_unverdictable(): assert evaluate(REFERENCE_ONLY_RULE, design=55.0, actual=55.0).verdict == QUALIFIED`，其中 `REFERENCE_ONLY_RULE = DeviationRule(parameter=\"轴功率\", kind=\"REFERENCE_ONLY\", spec_ref=\"设计轴功率\")`。关键是这个断言必须钉死 `QUALIFIED` 而不是断言 `not in (UNQUALIFIED, UNVERDICTABLE)` —— test_motor_tier_rule.py:112/118 那种 `assert got.verdict not in (...)` 的写法正是让这类分支退化成 UNVERDICTABLE 时仍然通过的写法，这里不要照抄。"
+    },
+    {
+      "title": "`evaluate()` 规则表外 kind 的 fail-closed 兜底分支无测试",
+      "severity": "P3",
+      "file": "pcs-backend/app/services/supplier/deviation_service.py",
+      "line": 272,
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "why_it_matters": "`evaluate` 末尾的兜底 `return Evaluation(UNVERDICTABLE, deviation, f\"未知判定类型 {rule.kind!r}\")` 是整个引擎 fail-closed 设计的最后一道防线（注释：「规则表外的 kind —— fail-closed，不当成合格」）。实测传一个未知 kind 会返回 UNVERDICTABLE，但没有任何测试走到这里。它平时只在有人往 `SPEC_RULES` 里加了新 kind 却忘了在 `evaluate` 里实现分支时才会触发 —— 而那恰恰是最需要测试提醒的时刻：漏实现时应当让「这条 kind 没人测过」这件事在 CI 里响起来。目前它不响，漏实现会直接静默降级为 UNVERDICTABLE，导致使用新规则的设备全部卡在确认门禁上。",
+      "evidence": [
+        "pcs-backend/app/services/supplier/deviation_service.py:271-272 — `    # 规则表外的 kind —— fail-closed，不当成合格\\n    return Evaluation(UNVERDICTABLE, deviation, f\"未知判定类型 {rule.kind!r}\")`",
+        "实测 `evaluate(DeviationRule(parameter='x', kind='TOTALLY_UNKNOWN'), design=10.0, actual=12.0).verdict` → `UNVERDICTABLE`；`grep -rn \"未知判定类型\\|TOTALLY_UNKNOWN\" tests/` → 零命中"
+      ],
+      "suggested_fix": "在 tests/services/supplier/test_deviation_service.py 末尾加 `def test_unknown_kind_is_fail_closed(): got = evaluate(DeviationRule(parameter=\"x\", kind=\"BRAND_NEW_KIND\"), design=10.0, actual=12.0); assert got.verdict == UNVERDICTABLE`，并顺手加一条元测试遍历 `SPEC_RULES` 断言每条规则的 kind 都被 `evaluate` 显式处理（可用一个 `(DeviationRule(kind=k), design=1.0, actual=1.0)` 的探针，或更直接地断言 `set(r.kind for r in SPEC_RULES) <= {已实现的 kind 集合}`）—— 后者能在新增 kind 忘实现的那次提交上直接把 CI 弄红，比逐个分支补测试更有价值。"
+    },
+    {
+      "title": "`test_deviation_service.py` 的 `_dev` 独立复算助手是死代码，其 docstring 承诺的交叉校验从未发生",
+      "severity": "P3",
+      "file": "pcs-backend/tests/services/supplier/test_deviation_service.py",
+      "line": 34,
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "why_it_matters": "`_dev` 的 docstring 写「偏差% —— 与 service 同口径，测试里独立重算一次」，但 `grep -n \"_dev\"` 显示它在全文件里只出现于定义处（第 34 行），一次都没被调用。它想提供的价值是「用一份独立实现重算期望值，避免 expected 与 actual 共享同一个错误公式」—— 恰恰是防止偏差计算测试变成同义反复的那道保险。实际写出来的参数化用例全部把期望值手写成硬编码 verdict 字符串（「QUALIFIED」/「WARNING」），并没有用到 `deviation_pct`，所以 `evaluate` 里 `deviation = (actual - design) / design * 100.0` 这一行算错、算反、或精度不对，现有断言一个都发现不了。这个未接线的助手让人误以为偏差数值有独立校验。",
+      "evidence": [
+        "pcs-backend/tests/services/supplier/test_deviation_service.py:34-36 — `def _dev(actual: float, design: float) -> float | None:\\n    \"\"\"偏差% —— 与 service 同口径，测试里独立重算一次。\"\"\"\\n    return None if design == 0 else (actual - design) / design * 100.0`",
+        "`grep -n \"_dev\" tests/services/supplier/test_deviation_service.py` → 仅第 34 行（定义），无任何调用点",
+        "同文件所有参数化用例（50-63、77-87、100-109、123-134）只断言 `.verdict`，从不断言 `.deviation_pct` —— 唯一的 deviation_pct 断言在 test_deviation_report.py:53（`pytest.approx(3.125, abs=1e-3)`），走的是 build_report 而非 evaluate"
+      ],
+      "suggestified_fix": "",
+      "suggested_fix": "二选一：(A) 接线 —— 在 `test_head_asymmetric_band` 里补一条 `assert evaluate(RULE_HEAD, design=32.0, actual=actual).deviation_pct == pytest.approx(_dev(actual, 32.0))`（注意 actual=31.9 与 32.0-0.01 两组），让独立复算真正生效；(B) 删除 `_dev` 及那句 docstring。倾向 (A)：`deviation_pct` 是偏差报告 Excel/PDF 导出的第 4 列（deviation_report.py:186 `_HEADERS`），目前只有 report 层一处断言，公式层无覆盖 —— 接上它成本极低。"
+    },
+    {
+      "title": "`test_deviation_service.py` 的 SYMMETRIC_BAND 用例与模块 docstring 仍描述已被 S4-2 修订废止的「电机额定功率 ±10%」规则",
+      "severity": "P3",
+      "file": "pcs-backend/tests/services/supplier/test_deviation_service.py",
+      "line": 11,
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "why_it_matters": "commit 742215d 把 `电机额定功率` 的 kind 从 `SYMMETRIC_BAND` 改成了 `MOTOR_TIER_FLOOR`（API 610 分档），但本文件的模块 docstring 表格（第 11 行「实际电机额定功率 | 偏差 ±10% | 对称带（方向敏感）」）和 `RULE_MOTOR`（第 117-120 行手工构造的 `kind=\"SYMMETRIC_BAND\"` 规则）都还是旧规则。现在的 `SPEC_RULES` 里已**没有任何** kind 为 `SYMMETRIC_BAND` 的规则（已核对：ASYMMETRIC_BAND / MIN_RATIO / MAX_ONLY / MOTOR_TIER_FLOOR / REFERENCE_ONLY / RECHECK_ALWAYS / MANUAL_CHECK），所以 `evaluate` 的 SYMMETRIC_BAND 分支只被一条人造规则覆盖，生产上不可达；同一文件里 test_motor_tier_rule.py 已经把新规则写得清清楚楚，两份文档互相矛盾。危害不在覆盖率（分支确实被覆盖了），在于任何人照这份 docstring 或这份测试去理解「电机功率怎么判」都会得到已被推翻的结论 —— 而这正是 test_motor_tier_rule.py 开头花了 19 行说明「原规则是错的」的原因。",
+      "evidence": [
+        "pcs-backend/tests/services/supplier/test_deviation_service.py:11 — `| 实际电机额定功率     | 偏差 ±10%               | 对称带（方向敏感）|`",
+        "pcs-backend/tests/services/supplier/test_deviation_service.py:117-120 — `RULE_MOTOR = DeviationRule(\\n    parameter=\"电机额定功率\", kind=\"SYMMETRIC_BAND\", lower=-10.0, upper=10.0,\\n    spec_ref=\"SPEC §3.2.4(2) 实际电机额定功率\",\\n)`",
+        "pcs-backend/app/services/supplier/deviation_service.py:131-141 — `DeviationRule(\\n        parameter=\"电机额定功率\",\\n        kind=\"MOTOR_TIER_FLOOR\",` — 生产规则已是 MOTOR_TIER_FLOOR，spec_ref 明写「**取代** SPEC §3.2.4(2) 原「偏差 ±10%」」"
+      ],
+      "suggested_fix": "把 test_deviation_service.py 模块 docstring 表格里「实际电机额定功率」那一行改为 `| 实际电机额定功率 | API 610 分档下限 | 电机分档下限 |` 并加一句指向 test_motor_tier_rule.py；`RULE_MOTOR` 及其 `test_motor_power_symmetric_band` 改用一个中性的参数名（如 `parameter=\"占位对称带\"`）保留分支覆盖，或直接删除并接受 SYMMETRIC_BAND 分支无覆盖（该 kind 在 `SPEC_RULES` 中已无使用者）。保留分支覆盖更稳妥，因为将来若重新引入对称带规则（例如某些非泵设备的百分比判定）会需要它。"
+    },
+    {
+      "title": "`test_bad_values_excluded_from_pump_design` 与 `test_pump_design_data.py` 的同名校验重复覆盖同一契约",
+      "severity": "P3",
+      "file": "pcs-backend/tests/services/supplier/test_motor_tier_rule.py",
+      "line": 148,
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "why_it_matters": "两条用例断言完全相同的内容：`test_motor_tier_rule.py:148-153` 与 `test_pump_design_data.py:51-56` 都断言 `\"132-P-105A/B/C/D\" in PUMP_DESIGN_EXCLUDED` 且 `not in PUMP_DESIGN`，且都从同一份数据取（已核实：`scripts/p7_open_012_t5_r1_verification.py` 现在是 `from app.services.equip_list.pump_design_data import PUMP_DESIGN, PUMP_DESIGN_EXCLUDED` 的纯转出，两条 import 路径拿到的是**同一个对象**，不存在漂移风险）。既然是同一对象同一断言，第二条不带来任何额外风险覆盖，只增加维护面 —— 坏值排除的理由文案将来若调整，需要在两处同步。真正的漂移风险（两条 import 路径指向不同数据）已被 diff 排除：脚本侧是纯 re-export。",
+      "evidence": [
+        "pcs-backend/tests/services/supplier/test_motor_tier_rule.py:148-153 — `def test_bad_values_excluded_from_pump_design():\\n    \"\"\"坏值按用户裁决 3 放弃不用 —— 不得混进设计数据.\"\"\"\\n    from scripts.p7_open_012_t5_r1_verification import PUMP_DESIGN, PUMP_DESIGN_EXCLUDED\\n\\n    assert \"132-P-105A/B/C/D\" in PUMP_DESIGN_EXCLUDED\\n    assert \"132-P-105A/B/C/D\" not in PUMP_DESIGN`",
+        "pcs-backend/tests/services/equip_list/test_pump_design_data.py:51-56 — `def test_bad_values_excluded_with_reasons():` ... 同样两条 assert，且额外校验了排除理由非空",
+        "full.diff 中 scripts/p7_open_012_t5_r1_verification.py 的新增段 — `from app.services.equip_list.pump_design_data import (  # noqa: E402,F401\\n    PUMP_DESIGN,\\n    PUMP_DESIGN_EXCLUDED,\\n)` — 纯 re-export，实测两个模块的 PUMP_DESIGN 键集与值逐项相同，无漂移"
+      ],
+      "suggested_fix": "删除 tests/services/supplier/test_motor_tier_rule.py 的 `test_bad_values_excluded_from_pump_design`（148-153 行），保留 test_pump_design_data.py 里那条 —— 后者更强（额外断言 `PUMP_DESIGN_EXCLUDED[tag]` 非空，即「排除必须带理由」），且是数据源所在模块的测试，归属更自然。删除后 test_motor_tier_rule.py 顶部的 `PUMP_DESIGN_EXCLUDED` import 也可一并去掉。"
+    }
+  ],
+  "residual_risks": [
+    "我未运行测试套件（本次 review 为只读，且工作树有其他 reviewer 在读；`uv run` 需 `--no-sync`）。所有「实测」结论来自直接调用生产函数的单次 python -c 验证，不是通过跑测试文件得到的。",
+    "P1 finding 中「rollback 会丢弃 pass_check 已 flush 的 CONFIRMED 状态」这一因果链，我通过阅读 confirmation_service.py:98-99 与 events.py:161-179 推出，未构造真实的并发双 session 场景实跑复现。补测试时请优先验证这一条——若实测发现 AsyncSession 在此处有自动重放或 savepoint 语义使数据不丢，该 finding 的严重级别应下调。",
+    "P2 的「listener 抛异常留下幽灵幂等行」锚在 75 而非 100：我确认了 cia_engine.py:167-173 的 `except Exception: continue` 与 events.py:231-232 的裸 await 构成这一状态，但没有实跑一条 cia_engine 真实异常路径确认该行确实会被 commit。",
+    "未审查的测试面：tests/api/v1/ 下三个 API 测试文件（test_supplier_actual_data_api.py / test_deviation_report_api.py / test_actual_data_confirmation_api.py，共 618 行）我只抽样看了 test_deviation_report_api.py 的前半部分，ACL 矩阵、错误码映射、分页等分支未逐条枚举。tests/scripts/test_t5_case4_gas_media.py（113 行，扩类 6 表）完全未读。",
+    "未做变异测试。若要做，须先 `git -C <worktree> rev-parse HEAD` 确认等于 cae5bce，再复制到隔离目录执行 —— 不得在共享检出上运行。",
+    "两个 PUMP_DESIGN import 路径的漂移风险我已核实为不存在（脚本是纯 re-export，实测键集与值完全一致），review-context 中的第 5 项怀疑不成立。但未来若有人在脚本侧重新定义本地 PUMP_DESIGN，test_motor_tier_rule.py 的 16 台泵回归就会脱离生产数据源 —— 当前无测试守这条线。"
+  ],
+  "testing_gaps": [
+    "events.py `_claim` 的并发碰撞出口（IntegrityError → rollback → 重查 → False/409）零覆盖，且其对调用方事务的破坏性无任何断言观察得到 —— 这是本次最重要的缺口。",
+    "`emit_event` 的 listener 抛异常路径零覆盖；由此产生的「幂等行已落库但事件未处理」状态在 CIAEngine 的 `except Exception: continue` 下会静默持久化。",
+    "`can_confirm` 的「仅 WARNING 可确认」契约零覆盖 —— 名为 `test_can_confirm_when_all_qualified_or_warning` 的用例实际数据里没有一行 WARNING。",
+    "`evaluate()` 的 REFERENCE_ONLY（轴功率）与未知-kind 兜底两条分支零覆盖。",
+    "`deviation_pct` 在 evaluate 层零独立校验：全部 verdict 用例只断言档位字符串，不断言偏差数值；唯一声称「独立复算」的 `_dev` 助手是死代码。",
+    "test_cia_event_decoupling.py 的静态守卫模式串 `self.fsm.transition(` 在被守卫文件中已不存在，断言不可失败。",
+    "`clear_listeners` 无生产调用方，属只被测试触达的生产接缝。"
+  ]
+}

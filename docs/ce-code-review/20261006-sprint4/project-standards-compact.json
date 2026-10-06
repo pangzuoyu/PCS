@@ -1,0 +1,43 @@
+{
+  "reviewer": "project-standards",
+  "artifact_status": "artifact write failed schema validation (unescaped quotes inside why_it_matters at project-standards.json:53); this is the valid in-band compact return the reviewer returned to the orchestrator, which per the subagent template carries everything the merge needs",
+  "findings": [
+    {
+      "title": "第 4 档结论 UNVERDICTABLE 与 SPEC/UI-SPEC 的 3 档冲突未按项目规则登记 SPEC 修订",
+      "severity": "P2",
+      "file": "pcs-backend/app/schemas/supplier.py",
+      "line": 73,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "新增 `docs/PCS-NOTE-SPEC-3.2.4(3)-结论档数修订-2026-10-06.md` 登记 3 档→4 档（新增 UNVERDICTABLE/不可判/灰色）及 fail-closed 依据；并在 `docs/PCS-UI-SPEC.md` §12.4 修订记录追加一行、§7.14 表格补第 4 档。假设：登记须为独立于计划文档的动作（§4.4 折标口径为同型先例），故 sprint4-plan 不构成登记；若维护者认为计划文档即可，本条降为 informational。",
+      "first_evidence": "pcs-backend/app/schemas/supplier.py:73 — `Verdict = Literal[\"QUALIFIED\", \"WARNING\", \"UNQUALIFIED\", \"UNVERDICTABLE\"]`"
+    },
+    {
+      "title": "规则修订修复（commit 742215d）未按 OpenWolf 协议登记 .wolf/buglog.json",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/supplier/deviation_service.py",
+      "line": 135,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "向 `.wolf/buglog.json` 追加条目：error_message=电机额定功率按 ±10% 比设计电机 vs 实际电机，把系列档位差误判为设备偏差（16 台里 2–3 台假性不合格，且 motor_power_kw 实为轴功率口径）；root_cause=参照物选错；fix=改对轴功率卡 API 610 分档 1.25/1.15/1.10 + 新增 DeviationRule.design_parameter；fix_commit=742215d。假设：项目把「规则量错对象导致误判」计入 buglog（对照 bug-077/bug-080 同类口径错误）；若认为是设计期裁决，则改为在 STATUS.md 留痕。",
+      "first_evidence": "pcs-backend/app/services/supplier/deviation_service.py:137 — `\"（**取代** SPEC §3.2.4(2) 原「偏差 ±10%」—— 电机按系列选取, \"`"
+    }
+  ],
+  "residual_risks": [
+    "「测试前检查」规则是运行期前置动作，diff 内无可锚定违规行；我尝试查询 pcs_test 的 alembic 版本以验证 p7_s4_001/p7_s4_002 是否已应用，该命令被权限策略拦截（涉及凭据），本轮未验证 pcs_test 是否已对齐新 schema。",
+    "`.wolf/cerebrum.md` Do-Not-Repeat「JSONB 入已有 stream_properties_json 容器，避免单列迁移开销」与本次新增 `EquipmentList.actual_data_json` ORM 列 + 独立迁移存在张力；该条按字面绑定 stream_properties_json 且自带例外条款，解释空间存在，按「歧义即抑制」未报。",
+    "未审查生成产物 openapi.json / openapi.snapshot.json / api.d.ts 与后端 schema 的一致性（超出标准文件范畴，属正确性审查员职责）；仅抽查 verdict 枚举一处。",
+    "未逐行核对 docs/sprint4-plan 与 PCS-SIGN-T5 两份文档与实现的一致性——CLAUDE.md 未对文档内容规定标准。",
+    "未展开审查 tests/** 12 个测试文件与 events.py / cia_engine.py 的实现细节（标准文件对此无条款）。"
+  ],
+  "testing_gaps": [
+    "无针对「结论档数 3→4」SPEC 枚举变更的登记件校验，靠人读 SPEC 与 OpenAPI 一致性发现，CI 无从覆盖。",
+    "pcs_test 是否已应用 p7_s4_001 / p7_s4_002 未验证；tests/test_schema.py 的 104 断言是唯一硬校验点。"
+  ]
+}

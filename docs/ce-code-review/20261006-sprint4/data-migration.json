@@ -1,0 +1,112 @@
+{
+  "reviewer": "data-migration",
+  "run_id": "20261006-sprint4",
+  "review_base": "3e5ae902945e19274f5be410f0eed31eb48a7627",
+  "schema_drift_step": "skipped — no schema.rb / structure.sql in this repo (SQLAlchemy + Alembic)",
+  "findings": [
+    {
+      "title": "p7_s4_001 downgrade is not idempotent, contradicts its own docstring, and the repo's idempotency gate never scans p7_s4_* so nothing catches it",
+      "severity": "P2",
+      "file": "pcs-backend/alembic/versions/p7_s4_001_event_idempotency.py",
+      "line": 60,
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "The gate this change relies on never opens the file. `check_migration_idempotency.py` hardcodes `checked_prefixes = (\"p7_s2_\", \"p7_s3_\")` (line 60) and `continue`s on every other file (line 62-63), so it prints `OK: 0 violations` without reading p7_s4_001 or p7_s4_002 — the intent's claim that 'both migrations satisfy the gate' is vacuously true. Had it read p7_s4_001 it would fail: `SAFE_OPS[\"op.drop_table\"] = [\"if_exists\"]` but line 60 is a bare `op.drop_table(_TABLE)`, while the docstring on line 59 asserts `(if_exists 幂等)`. The operational consequence is the exact R0 regression the script was written to prevent (F-P3-002): a partially-applied local restore running `alembic downgrade` twice — or downgrading a database where the table was never created — aborts with UndefinedTable and leaves the operator with no idempotent recovery path.",
+      "evidence": [
+        "pcs-backend/alembic/versions/p7_s4_001_event_idempotency.py:60 — `    op.drop_table(_TABLE)`",
+        "pcs-backend/alembic/versions/p7_s4_001_event_idempotency.py:59 — `    \"\"\"删 event_idempotency 表 (if_exists 幂等).\"\"\"`",
+        "pcs-backend/scripts/check_migration_idempotency.py:60 — `    checked_prefixes = (\"p7_s2_\", \"p7_s3_\")`",
+        "pcs-backend/scripts/check_migration_idempotency.py:62-63 — `        if not any(path.name.startswith(p) for p in checked_prefixes):` / `            continue`",
+        "pcs-backend/scripts/check_migration_idempotency.py SAFE_OPS — `\"op.drop_table\": [\"if_exists\"],`"
+      ],
+      "suggested_fix": "Two independent edits, both required. (1) Make the downgrade match its docstring:\n\n```python\ndef downgrade() -> None:\n    \"\"\"删 event_idempotency 表 (if_exists 幂等).\"\"\"\n    op.drop_table(_TABLE, if_exists=True)\n```\n\n`op.drop_table(if_exists=True)` is available in the pinned alembic 1.19.1 (uv.lock line 27) and maps to `DROP TABLE IF EXISTS` on PostgreSQL. Consider the same for p7_s4_002's `op.drop_column(_TABLE, \"actual_data_json\")` — `if_exists` on drop_column is supported from alembic 1.16.x; if the floor in pyproject.toml (`alembic>=1.13`) is meant to be real, either raise the floor to `>=1.19` or keep drop_column unguarded and drop the docstring's idempotency claim rather than asserting something the code does not do.\n\n(2) Close the gate's coverage hole so the next p7_s4/p7_s5 migration is actually checked:\n\n```python\nchecked_prefixes = (\"p7_s2_\", \"p7_s3_\", \"p7_s4_\", \"p7_s5_\")\n```\n\nor better, replace the prefix allowlist with a `base = MIGRATIONS_DIR / \"p7_\" / \"baseline.py\"` boundary check so new batches are covered by default instead of by remembering to edit a tuple. Note this change will immediately surface violations in any p7_s3_* file that the current gate already scans and passes, so land the p7_s4_001 fix in the same commit or the hook will start failing on unrelated files.\n\nVerification (read-only, run after the fix, against a scratch DB — do NOT run on `pcs`):\n\n```sql\n-- proof the gate actually reads p7_s4_*\nSELECT * FROM alembic_version;\n\n-- proof the downgrade is idempotent: run `alembic downgrade -1` twice, both must succeed\n```\n\nASSUMPTION: `pcs_test` / a scratch database is the intended target for the downgrade round-trip; the review environment is read-only and I did not execute any migration."
+    },
+    {
+      "title": "Backfill overwrites any existing non-null design_parameters_json unconditionally, with no dry-run and no confirmation gate",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/equip_list/pump_design_data.py",
+      "line": 138,
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "The function's own docstring is careful about one class of overwrite — '位号不在设计表内的设备一律跳过, **不写空对象** —— 那会覆盖已有值' — but the mirror-image case is unguarded: a row whose `tag_number` IS in `PUMP_DESIGN` and which already carries a non-null `design_parameters_json` is overwritten with no check. The script even computes the count of such rows (`already = sum(1 for e in before if e.design_parameters_json)`, seed script line 59), prints it, and then proceeds anyway. So an operator who hand-corrected a design value in the UI loses it, and the pre-run count that would have warned them is printed but never acted on. `apply_design_parameters` also commits internally (line 142), so there is no transaction boundary the caller can roll back and no partial-failure state to inspect — all 17 rows land or none do, irreversibly, with no snapshot of the prior values.",
+      "evidence": [
+        "pcs-backend/app/services/equip_list/pump_design_data.py:138 — `        record.design_parameters_json = params`",
+        "pcs-backend/scripts/p7_s4_003_seed_pump_design.py:59 — `        already = sum(1 for e in before if e.design_parameters_json)`",
+        "pcs-backend/app/services/equip_list/pump_design_data.py:142 — `        await session.commit()`"
+      ],
+      "suggested_fix": "Make the destructive case explicit and gated, and make the seed script's dry-run the default. In `apply_design_parameters`:\n\n```python\nasync def apply_design_parameters(\n    session: AsyncSession,\n    project_id: uuid.UUID,\n    *,\n    overwrite: bool = False,\n    dry_run: bool = False,\n) -> int:\n    ...\n    for record in records:\n        params = design_params_for_tag(record.tag_number)\n        if not params:\n            continue\n        if record.design_parameters_json and not overwrite:\n            skipped.append(record.tag_number)\n            continue\n        record.design_parameters_json = params\n        written += 1\n\n    if written and not dry_run:\n        await session.commit()\n    else:\n        await session.rollback()\n    return written\n```\n\nIn the script, add `--dry-run` / `--overwrite` flags (defaulting to dry-run) and make `already > 0` without `--overwrite` a hard error rather than a printed line. Before the first real run, snapshot the current values so the change is reversible:\n\n```sql\nCREATE TABLE IF NOT EXISTS backup_equipment_design_20261006 AS\nSELECT id, tag_number, design_parameters_json\nFROM equipment_list\nWHERE design_parameters_json IS NOT NULL;\n\n-- post-backfill verification (read-only)\nSELECT tag_number,\n       design_parameters_json->'轴功率'->>'value'   AS shaft_kw,\n       design_parameters_json->'电机额定功率'->>'value' AS motor_kw\nFROM equipment_list\nWHERE project_id = '<PROJECT_ID>'\n  AND design_parameters_json IS NOT NULL\nORDER BY tag_number;\n\n-- expected: 17 rows, one per key in PUMP_DESIGN, zero rows with an empty object\nSELECT count(*) AS written, count(*) FILTER (WHERE design_parameters_json = '{}'::jsonb) AS empty\nFROM equipment_list\nWHERE project_id = '<PROJECT_ID>' AND design_parameters_json IS NOT NULL;\n```\n\nASSUMPTION: the only rows that can legitimately pre-date this backfill are ones an operator edited deliberately; everything else is NULL because the column had no writer (which is what the module docstring states). If that is wrong, `--overwrite` becomes the default and the snapshot table above is the rollback path."
+    },
+    {
+      "title": "No post-deploy verification SQL ships with the backfill — nothing proves the 17 writes landed or that no row was missed",
+      "severity": "P2",
+      "file": "pcs-backend/scripts/p7_s4_003_seed_pump_design.py",
+      "line": 62,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "The script's own return value is the only signal that the backfill did anything, and it is printed to stdout on the operator's terminal, never persisted. Because the write path is keyed on an exact `tag_number` string match against a hardcoded 17-entry dict, the realistic failure mode is a silent partial match — a tag rendered slightly differently in the sync from Excel, or a project whose equipment rows carry a different tag convention — which yields `写入设计值: 0 台` and an operator who may not notice. The downstream consequence is the one the change exists to fix: deviation reporting and confirmation keep reading '缺设计值（不可判）' against production data with no signal that the backfill silently no-opped.",
+      "evidence": [
+        "pcs-backend/scripts/p7_s4_003_seed_pump_design.py:62 — `        n = await apply_design_parameters(session, project_id)`",
+        "pcs-backend/scripts/p7_s4_003_seed_pump_design.py:63 — `        print(f\"写入设计值: {n} 台\")`"
+      ],
+      "suggested_fix": "Add an assertion in the script plus a runbook of read-only SQL. In `_main`, after the write:\n\n```python\nif n != len(before):\n    print(\n        f\"FAIL: 匹配 {len(before)} 台但只写入 {n} 台 —— 设计值未完全落库, 不要继续下游流程\",\n        file=sys.stderr,\n    )\n    return 1\n```\n\nAnd record the expected count next to the runbook entry (all read-only, safe against `pcs`):\n\n```sql\n-- 1. how many design values landed (expect 17 for the wax-oil project)\nSELECT count(*) FROM equipment_list\nWHERE project_id = '<PROJECT_ID>' AND design_parameters_json IS NOT NULL;\n\n-- 2. no empty objects were written (expect 0)\nSELECT count(*) FROM equipment_list\nWHERE project_id = '<PROJECT_ID>' AND design_parameters_json = '{}'::jsonb;\n\n-- 3. every written row actually carries a shaft power (the field the motor-tier rule reads)\nSELECT count(*) FROM equipment_list\nWHERE project_id = '<PROJECT_ID>'\n  AND design_parameters_json IS NOT NULL\n  AND design_parameters_json->'轴功率' IS NULL;\n\n-- 4. actual-data columns untouched by the backfill\nSELECT actual_data_status, count(*) FROM equipment_list\nWHERE project_id = '<PROJECT_ID>' GROUP BY 1;\n```\n\nASSUMPTION: 17 is the expected count for the wax-oil hydrotreating project (17 keys in `PUMP_DESIGN`). Query 4 exists specifically to evidence the SPEC §3.2.4(5) separation-of-streams claim in `apply_design_parameters`'s docstring, which is otherwise untested against real data."
+    },
+    {
+      "title": "event_idempotency grows without bound and no retention path exists — the exact failure mode the table was created to avoid",
+      "severity": "P3",
+      "file": "pcs-backend/alembic/versions/p7_s4_001_event_idempotency.py",
+      "line": 37,
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "release",
+      "requires_verification": false,
+      "pre_existing": false,
+      "why_it_matters": "The table's design rationale is explicitly that dedup must not be built on `audit_logs` because audit_logs gets pruned (6-month retention) and a pruned dedup credential lets a replayed event execute a second time. The replacement table has no equivalent: one row per distinct `event_id`, never deleted by anything in this diff, and `before_json` stores a full pre-overwrite snapshot (the docstring calls out deepcopy, so nested payloads) rather than a reference. At the P7 event volume this is small, but the snapshot column means the table's size scales with business payload volume, not event count, and the design has no documented pruning horizon. Worth a decision now rather than after the first growth incident, because the pruning question is much harder once rows exist that P8 reverse-recovery depends on.",
+      "evidence": [
+        "pcs-backend/alembic/versions/p7_s4_001_event_idempotency.py:37 — `    op.create_table(` (no retention metadata, no partitioning, no expires_at)",
+        "pcs-backend/alembic/versions/p7_s4_001_event_idempotency.py — `        sa.Column(\"before_json\", postgresql.JSONB(),` with comment `\"覆盖前快照 (P8 反向恢复来源; deepcopy 后存储, 只读)\"`"
+      ],
+      "suggested_fix": "No code change required for this release — this is a design decision to record. Two options; recommend the first because it preserves P8 reverse recovery while bounding growth:\n\n(a) Partition `event_idempotency` by month on `processed_at`, matching the D8 `audit_logs` strategy, and retain longer than audit_logs (P8 recovery wants the pre-overwrite value indefinitely, so retention must be driven by when the business object was last changed, not by the event date). The migration would become `create_table(..., postgresql_partition_by='RANGE (processed_at)')` plus a first-period default partition.\n\n(b) Add a nullable `expires_at` column now (metadata-only on a new table, no cost) and let the P8 consumer decide, per row, whether the snapshot is still needed. Cheaper to add before the table has data than after.\n\nASSUMPTION: P7 event volume is low enough that neither option is urgent; I did not measure production event throughput, so I am not asserting a growth rate, only that no horizon was chosen."
+    },
+    {
+      "title": "p7_s4_002 introduces a with_variant(sqlite) JSONB declaration that no other migration in the repo uses, and that diverges from the ORM's plain JSONB for the same column",
+      "severity": "P3",
+      "file": "pcs-backend/alembic/versions/p7_s4_002_actual_data_jsonb.py",
+      "line": 40,
+      "confidence": 75,
+      "autofix_class": "advisory",
+      "owner": "human",
+      "requires_verification": false,
+      "pre_existing": false,
+      "why_it_matters": "This is the only one of 20+ JSONB migrations in `alembic/versions/` to wrap the type in `with_variant`. Alembic renders column types against the target dialect, so on the only database this repo actually migrates (PostgreSQL) the variant resolves to plain `JSONB` and the migration is functionally correct — no behavioural difference today. Two things make it worth correcting rather than keeping: the sqlite variant is dead code that implies migrations run on sqlite, which they do not (tests use `Base.metadata.create_all` against sqlite, never alembic); and the ORM declares the same column as bare `JSONB` (`app/models/equipment.py`, `actual_data_json: Mapped[dict | None] = mapped_column(JSONB, ...)`), so the two definitions of the same column now read differently. The `with_variant` form does have one legitimate home in this repo — `app/models/util.py:89` uses it in a model — which is exactly the inverse of where it was placed here.",
+      "evidence": [
+        "pcs-backend/alembic/versions/p7_s4_002_actual_data_jsonb.py:40 — `            postgresql.JSONB().with_variant(sa.JSON(), \"sqlite\"),`",
+        "pcs-backend/app/models/equipment.py — `    actual_data_json: Mapped[dict | None] = mapped_column(` followed by `        JSONB,` (bare, no with_variant), matching the pre-existing `design_parameters_json: Mapped[dict | None] = mapped_column(JSONB)` on the same model"
+      ],
+      "suggested_fix": "Match the repo convention — bare `postgresql.JSONB()` — and let the sqlite concern stay where the repo already put it (the ORM layer, via `app/models/util.py:89`'s pattern if a model ever needs it):\n\n```python\nop.add_column(\n    _TABLE,\n    sa.Column(\n        \"actual_data_json\",\n        postgresql.JSONB(),\n        comment=\"供应商实测值 {参数名: {value: float, unit: str}}\",\n    ),\n)\n```\n\nIf the sqlite variant is kept deliberately, add one line to the module docstring saying which execution path would run this migration against sqlite, so the next reader can tell whether it is live or defensive. Note this is cosmetic — after the migration has been applied anywhere, changing the declaration has no effect on existing databases, so it is cheapest to fix before the first production `alembic upgrade`."
+    }
+  ],
+  "residual_risks": [
+    "Deploy-window ordering was not flagged as a finding but is unverified: both migrations are properly expand-only (nullable column with no server_default and no index on `equipment_list` — metadata-only on PG 11+, no rewrite; new table with no backfill), so old code against the new schema is safe. The new code against an un-migrated database is NOT safe — SQLAlchemy will emit `SELECT ... actual_data_json` and fail with UndefinedColumn the moment `alembic upgrade` has not run. This requires `alembic upgrade head` strictly before the app rollout; I found no deploy script, migration-entrypoint, or runbook in the diff that enforces that ordering. Worth confirming it exists elsewhere before release.",
+    "I did not execute any migration or database command — the environment is read-only for this review, and the project CLAUDE.md explicitly requires `uv run alembic upgrade head` against `pcs_test` before schema-sensitive tests. Every claim above is from reading code, not from running it.",
+    "Item 5 of the review context (the `if_not_exists=True` kwarg on `op.create_index`) checked out clean: alembic is pinned at 1.19.1 in uv.lock, well past the 1.12 release that added the kwarg, so it is a real flag and not swallowed as a dialect prefix. No finding raised.",
+    "Item 3 (index on `actual_data_json` / `actual_data_status`) checked out clean: no query in this diff filters or joins on either column, so no index is warranted, and adding one to a hot table would be the rewrite risk. No finding raised.",
+    "The backfill's tag matching assumes `EquipmentList.tag_number` stores the combined form `132-P-101A/B` rather than per-pump `132-P-101A` / `132-P-101B`. The test fixtures and `tests/services/util/fixtures/golden_utility_energy_summary.json` both use the combined form, and the registry keys match, so this is consistent — but I verified it only from fixtures, not from a real production row. If any project stores split tags, the `IN` filter silently matches fewer rows; that is exactly the failure the verification SQL in finding 3 is designed to catch.",
+    "I did not review `app/services/events.py` (the `emit_event` consumer) or the supplier service layer for how `actual_data_json` is read back; those are correctness/api-contract territory and other reviewers on this run own them. In particular I did not check whether any code path can set `actual_data_status = CONFIRMED` while `actual_data_json` stays NULL, which would be a state the new column makes representable but the migration cannot constrain.",
+    "`reportlab>=4.0` was added to pyproject.toml in this branch for the deviation report export. Out of scope for migration review; noting only that it is a new runtime dependency landing in the same release as two schema changes."
+  ],
+  "testing_gaps": [
+    "No test exercises `alembic downgrade` for either new migration. The repo's test suite builds schema via `Base.metadata.create_all` on in-memory sqlite, so alembic upgrade/downgrade is never run in CI — which is why the non-idempotent `op.drop_table` on p7_s4_001 line 60 survived. A round-trip test against a scratch Postgres would close this class of gap for all future migrations, not just this one.",
+    "No test asserts that `check_migration_idempotency.py` covers the migrations it claims to. `tests/scripts/test_check_migration_idempotency.py` exists; a single test asserting the gate's file list includes every `p7_*.py` under `alembic/versions/` would have caught the `checked_prefixes` allowlist hole (finding 1) immediately.",
+    "No test asserts ORM/migration column-type agreement. Because tests use `create_all` from the ORM, a migration that declared `actual_data_json` as TEXT or JSON instead of JSONB would pass every test and only fail in production. A cheap static check comparing each migrated column's type against the mapped attribute would make the finding-5 class of divergence loud.",
+    "The backfill's overwrite behaviour is untested against a row that already has a non-null `design_parameters_json`. `tests/services/equip_list/test_pump_design_data.py` covers the shape conversion and the project-scoping, but not the pre-existing-value case that finding 2 is about."
+  ]
+}

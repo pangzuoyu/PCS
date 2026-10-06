@@ -1,0 +1,111 @@
+{
+  "reviewer": "reliability",
+  "run_id": "20261006-sprint4",
+  "findings": [
+    {
+      "title": "_claim() rolls back the entire caller transaction on any IntegrityError and misattributes it to a concurrency conflict",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/events.py",
+      "line": 165,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "An operator running a CIA scan over a large PipingResult set sees the scan report a partial success while the records it claims to have marked STALE silently revert to their previous status. `session.flush()` inside `_claim` flushes the *entire* pending session state, not just the new claim row, so any constraint violation raised by the caller's own earlier unflushed work (audit rows, lineage inserts, equipment updates) is caught here, re-labelled as `EVENT_ID_CONFLICT / 并发 claim 冲突`, and answered with `await session.rollback()` — which discards every write the caller had staged since the transaction opened. In `CIAEngine.propagate` / `_scan_one_class` / `propagate_to_equipment` the whole loop runs in one transaction, so a single misattributed IntegrityError wipes out every record already transitioned earlier in the same pass, and the caller never learns because the raised `PcsError` is swallowed by the surrounding `except Exception: continue`. The operator gets `scan_stale()` returning a count with 200 OK and a database that reflects none of it.",
+      "evidence": [
+        "pcs-backend/app/services/events.py:162-165 — `    try:\n        await session.flush()\n    except IntegrityError as exc:\n        # 并发下两个投递同时 claim → 后到者撞主键, 视为幂等重投\n        await session.rollback()`",
+        "pcs-backend/app/services/events.py:132-138 — the pre-check SELECT reads only `EventIdempotency`, so an IntegrityError raised by *any other* pending statement in the session is indistinguishable from a primary-key collision here",
+        "pcs-backend/app/services/events.py:175-179 — every surviving case is reported as `f\"event_id {event_id} 并发 claim 冲突: {exc}\"`, so the real constraint name never reaches the log",
+        "pcs-backend/app/services/cia_engine.py:173-175 — `            except Exception:\n                # 状态机拒绝（不在合法转移集合）— 跳过\n                continue` swallows the resulting PcsError and keeps the rolled-back session alive"
+      ],
+      "suggested_fix": "Assumption: `_claim` should only ever undo its own work, never the caller's transaction. Replace the rollback-and-reselect with a savepoint so the failure is contained: `nested = await session.begin_nested()` before `session.add(...)`, catch `IntegrityError` inside `nested`, call `await nested.rollback()`, then re-select. That leaves the caller's transaction intact and keeps the concurrency-conflict semantics. Independently, narrow the `except` so only a PK/uniqueness violation on `event_idempotency_pkey` is treated as a concurrent claim — anything else must be re-raised with the original constraint name intact, not folded into EVENT_ID_CONFLICT."
+    },
+    {
+      "title": "Claim row is flushed before dispatch, so a listener that throws leaves a durable record saying the event was processed",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/events.py",
+      "line": 232,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "`EventIdempotency` is documented in the module as the authoritative record of what the event bus has handled — P8's reverse-recovery is designed to read it. But the claim is inserted and flushed at line 162 *before* any listener runs, so the row's existence says 'dispatched' regardless of whether the listener finished. Today `CIAEngine._scan_one_class` proves this is reachable: `_mark_stale_via_fsm` calls `fsm.transition`, which raises `InvalidTransition` for records already past CHECKED/CHANGED — and the surrounding `except Exception: continue` swallows it and lets the transaction commit. The database is then left holding one `event_idempotency` row per skipped record, each asserting that a `cia_mark_stale` transition happened when none did. A later recovery or audit pass that trusts this table will conclude those records were already re-marked and skip them. Secondary cost: the table grows without bound on every CIA scan pass, including all the no-op skips.",
+      "evidence": [
+        "pcs-backend/app/services/events.py:231-232 — `    for listener in _LISTENERS.get(event_type, []):\n        await listener(event)` runs after the claim was already flushed at line 162, with no compensation if the listener raises",
+        "pcs-backend/app/models/system.py:258-260 — the model docstring claims `同一 event_id 重复投递时 listener 一次都不再被调用（幂等 = 影响 0 行）`, an invariant this ordering does not uphold when the listener itself throws",
+        "pcs-backend/app/services/cia_engine.py:170-175 — `await self._mark_stale(r, f\"CIA: hash mismatch ({cls.__name__})\")` inside `try: ... except Exception: continue`, so the failed dispatch is converted to a silent skip and the claim row is committed anyway"
+      ],
+      "suggested_fix": "Assumption: the claim should only become durable once the listeners have actually completed. Move the commit point after dispatch — insert the claim, flush, dispatch listeners, and have the caller commit; on listener failure make `_claim` roll back its own row (via the `begin_nested` savepoint from the sibling finding) so the event remains undelivered and a retry can re-run it. At minimum, split the claim into `claimed_at` / `dispatched_at` so the table records the dispatch outcome rather than the insert, and make the `except Exception` handlers in cia_engine narrow to `(InvalidTransition, RoleForbidden)` so an unexpected error surfaces instead of being silently absorbed."
+    },
+    {
+      "title": "Swallowed exception lets a partially applied FSM transition get committed with no audit row and no snapshot",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/cia_engine.py",
+      "line": 173,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "When an operator later investigates a PipingResult sitting in STALE, there is no audit entry and no snapshot explaining how it got there, and `scan_stale()` reported the record as successfully marked. `StateMachineService.transition` mutates `record.sign_status = to_status` and `record.change_pending_since` at state_machine.py:323-329 and flushes at :348, then performs the snapshot and audit work at :349 onward. Any exception raised after that flush — a snapshot write failing, an audit insert hitting a constraint, a lost connection — leaves the ORM object already mutated in the session. The bare `except Exception: continue` at cia_engine.py:173 then drops to the next record, and the final `await self.session.flush()` in `scan_stale` (cia_engine.py:130) commits the STALE mark without the audit trail or snapshot that a legitimate transition always produces. Before this diff the swallowed call wrote nothing before raising, so the swallow was benign; routing it through `emit_event` — which inserts the claim and lets the FSM flush at :348 — is what makes the partial write reachable.",
+      "evidence": [
+        "pcs-backend/app/services/cia_engine.py:173-175 — `            except Exception:\n                # 状态机拒绝（不在合法转移集合）— 跳过\n                continue`",
+        "pcs-backend/app/services/state_machine.py:323 / :348 — `record.sign_status = to_status` … `await self.session.flush()`, both *before* the snapshot/audit writes at :349+",
+        "pcs-backend/app/services/cia_engine.py:130 — `await self.session.flush()` commits whatever mutations survived the swallowed exceptions across the whole scan"
+      ],
+      "suggested_fix": "Assumption: only a genuine state-machine rejection should be silent; any other failure is an incident. Narrow the handler to `except (InvalidTransition, RoleForbidden): continue` so unexpected errors propagate, and wrap each record's transition in `async with session.begin_nested():` so a failure rolls that record back to its pre-transition state instead of leaving a half-applied mutation in the session."
+    },
+    {
+      "title": "Every producer passes a fresh uuid4() as event_id, so the deduplication table can never detect a duplicate delivery",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/cia_engine.py",
+      "line": 119,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": false,
+      "pre_existing": false,
+      "why_it_matters": "The module docstring states deduplication is a business-correctness requirement that must survive a process restart, and the design writes every event into a permanent `event_idempotency` table on the strength of that claim. But all three call sites generate `uuid.uuid4()` inline at invocation time, so a genuine duplicate — a client retrying `POST /actual-data/check`, a re-run of `scan_stale`, a job replayed after a crash — carries a fresh id, claims successfully, and re-dispatches. The table grows forever and never rejects anything. The guarantee is nominal today: the only registered listener's downstream guard (`InvalidTransition`) happens to absorb the re-dispatch, which is an accident of this one listener, not a property of the bus.",
+      "evidence": [
+        "pcs-backend/app/services/cia_engine.py:116-119 — `return await emit_event(\n            self.session,\n            CIA_MARK_STALE,\n            event_id=uuid.uuid4(),`",
+        "pcs-backend/app/services/supplier/confirmation_service.py:75 and :104 — `event_id=uuid.uuid4(),` at both supplier emit sites",
+        "pcs-backend/app/services/events.py:11-12 — `1. **幂等凭据落 DB**（`EventIdempotency` 表），不落内存。去重是**业务正确性**要求，不能因进程重启失效。`"
+      ],
+      "suggested_fix": "Assumption: an event's identity should be derived from the business fact it reports, not from the moment it is reported. Derive a deterministic id (uuid5 over a stable key such as `(event_type, equipment_id, source_record_id, source_change_hash)`, or the source lineage `change_diff_json.hash` for CIA) so a re-run of the same scan or a client retry of the same check resolves to the same event_id and is genuinely absorbed. If per-invocation freshness is deliberate, record that in the docstring — otherwise the next maintainer will rely on a dedup guarantee that is not there."
+    },
+    {
+      "title": "Deviation-report export returns an unhandled 500 when a parameter name contains XML markup or control characters",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/supplier/deviation_report.py",
+      "line": 275,
+      "confidence": 100,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "A designer records an actual parameter named `流量<额定` during entry — `normalize_entries` only requires a non-empty string, so `<` is accepted — and every subsequent PDF export for that equipment dies with a 500 and a traceback, for any viewer with read access. There is no try/except around either exporter and no mapping to a `PcsError`, so the failure surfaces as an unhandled server error rather than a message telling the user which row is bad. I reproduced both branches directly against this repo's code: `export_pdf` on a row with parameter `a<b` raises `ValueError: paraparser: syntax error: parse ended with 1 unclosed tags`, and `export_excel` on a name containing a control character raises `IllegalCharacterError`. Because the export is one byte buffer built entirely in memory, no partial file is written — the failure is total, not partial — but it is permanent until someone edits the data.",
+      "evidence": [
+        "pcs-backend/app/services/supplier/deviation_report.py:275 — `                Paragraph(row.parameter, cell_style),` — reportlab parses Paragraph content as mini-XML; a bare `<` opens a tag and the parse fails",
+        "pcs-backend/app/services/supplier/deviation_report.py:265 — `        Paragraph(f\"偏差报告 — {report.tag_number}\", title_style),` — same exposure via the user-editable tag number",
+        "pcs-backend/app/services/supplier/actual_data_service.py:58-61 — `name = item.get(\"name\")` … `if not isinstance(name, str) or not name.strip():` — validation accepts `<` and control characters, so the untrusted string reaches the exporters",
+        "pcs-backend/app/api/v1/supplier.py:234-239 — `content = export_excel(report)` / `content = export_pdf(report)` with no error handling, so either exception becomes an unhandled 500"
+      ],
+      "suggested_fix": "Assumption: the exporters should never 500 on data the entry path already accepted. Escape every string bound for a reportlab `Paragraph` with `from xml.sax.saxutils import escape` (apply to `row.parameter`, `row.note`, `row.label`, `row.color`, `row.unit`, `report.tag_number`, and `report.blocking_reason`), and strip or reject control characters before `ws.append` in `export_excel` — openpyxl raises `IllegalCharacterError` on them. Alternatively reject such names at entry in `normalize_entries` with `ACTUAL_DATA_VALIDATION`, which fixes existing rows too but changes accepted input. Wrap both exporter calls in `supplier.py` so a residual failure returns a typed `PcsError` instead of a traceback."
+    }
+  ],
+  "residual_risks": [
+    "Listener isolation: `for listener in _LISTENERS.get(event_type, []): await listener(event)` has no per-listener error boundary, so a partial failure across multiple listeners is architecturally possible — but I found only ONE registered listener in the whole tree (`cia_engine.py:94`, `cia_mark_stale`), so the multi-listener scenario is unreachable today and I did not raise it as a finding.",
+    "The `IntegrityError` path in `_claim` is not covered by any test: `tests/services/test_events.py` exercises duplicate-id, conflict, and ordering cases but never drives a real primary-key collision. The transaction-destruction behaviour is therefore both untested and unexercised in production, which is why I anchored it at 75 rather than 100 — the missing protection is mechanical, but the triggering condition is contingent.",
+    "I did not trace `commit_or_rollback` (`app/core/commit_or_rollback.py`) usage in depth: only `app/api/v1/config.py` references it, and the four new supplier services call `session.commit()` directly. That is a transaction-boundary convention question I left to the project-standards reviewer.",
+    "`record_actual_data` commits then refreshes (`actual_data_service.py:104-105`); a refresh failure after a successful commit would return 500 for data that did persist. Impact is low (PUT is idempotent) and I did not raise it.",
+    "I did not evaluate whether `export_pdf`'s `pdfmetrics.registerFont` call per request has any measurable cost under load — it is idempotent in reportlab and I found no evidence it matters."
+  ],
+  "testing_gaps": [
+    "No test drives `_claim`'s `IntegrityError` branch, so nothing pins what happens to the caller's pending writes when the rollback fires.",
+    "No test asserts that a listener exception leaves the event re-dispatchable (i.e. that the claim is not persisted after a failed dispatch).",
+    "No test exercises `CIAEngine._scan_stale` / `propagate` with a listener that raises after mutating the record, which is the partial-commit path.",
+    "No test feeds a parameter name containing `<`, `>`, `&`, or a control character into `export_pdf` / `export_excel`; both failure modes reproduce immediately with such a name."
+  ]
+}

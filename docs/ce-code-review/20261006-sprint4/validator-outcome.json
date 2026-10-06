@@ -1,0 +1,5 @@
+{
+  "outcome": "verdicts",
+  "reason": "Validator returned a well-formed verdicts object covering all 30 selected findings exactly once, and wrote the same object to validator-verdicts.json inside the bound. 28 confirmed, 2 rejected, 0 unresolved.",
+  "verdicts": "/tmp/compound-engineering-1000/ce-code-review/20261006-sprint4/validator-verdicts.json"
+}

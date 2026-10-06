@@ -1,0 +1,128 @@
+{
+  "reviewer": "api-contract",
+  "run_id": "20261006-sprint4",
+  "scope": {
+    "mode": "local-aligned",
+    "base": "3e5ae902945e19274f5be410f0eed31eb48a7627",
+    "head": "cae5bce9e3411ff1199713aca88c83f427a1d089",
+    "branch": "worktree-s4-0-events"
+  },
+  "findings": [
+    {
+      "title": "Two error codes emitted by the new supplier endpoints are absent from the /api/v1/meta/error-codes registry (indirection factory defeats the AST scan)",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/supplier/actual_data_service.py",
+      "line": 27,
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "The new PUT /api/v1/equipment/{id}/actual-data and POST .../actual-data/confirm return 422 envelopes whose `code` is `ACTUAL_DATA_VALIDATION` or `DEVIATION_BLOCKS_CONFIRMATION` (the test suite at tests/api/v1/test_supplier_actual_data_api.py:156 asserts the former is emitted). But the registry endpoint the project treats as the authority for error codes -- CLAUDE.md: '字段/枚举/权限/错误码以 OpenAPI + meta API 为准' -- does not list either of them. A client that fetches /api/v1/meta/error-codes to build its code -> UI-behaviour map (each entry carries `ui_behavior`) finds no entry, so the two codes the new endpoints actually emit are untranslatable and fall through to whatever the client's default branch does. I ran the project's own scanner (`app/services/meta_service.py::_scan_error_codes`) over `app/` and it registers 115 codes; neither new code is among them.",
+      "evidence": [
+        "pcs-backend/app/services/supplier/actual_data_service.py:27-30 -- `def _validation_error(message: str) -> PcsError:` / `return PcsError(` / `code=\"ACTUAL_DATA_VALIDATION\", message=message, status=422` / `)` -- the code is produced by a *returned* PcsError, never by a `raise PcsError(...)` statement.",
+        "pcs-backend/app/services/meta_service.py:311 -- `if not (isinstance(cf, ast.Name) and cf.id == \"PcsError\"):` -- the scanner only matches a Raise node whose call target is literally the name `PcsError`; `raise _validation_error(...)` and `raise _error(...)` do not match, so the code constant is never visited.",
+        "pcs-backend/app/services/supplier/confirmation_service.py:40-41 -- `def _error(code: str, message: str, status: int = 422) -> PcsError:` / `return PcsError(code=code, message=message, status=status)` -- same indirection, used at confirmation_service.py:60 and :67 for `DEVIATION_BLOCKS_CONFIRMATION`.",
+        "Executed the project's scanner logic verbatim over `app/`: `ACTUAL_DATA_VALIDATION -> *** NOT REGISTERED IN META ***`, `DEVIATION_BLOCKS_CONFIRMATION -> *** NOT REGISTERED IN META ***`, `ACTUAL_DATA_LOCKED -> ['app/services/supplier/actual_data_service.py:93']`, total registered codes: 115.",
+        "Convention check: `grep -c 'raise PcsError'` finds 160 direct `raise PcsError(` sites across 28 files under app/services/. The two new supplier services are the only ones in the codebase that route codes through a factory function.",
+        "pcs-backend/tests/api/v1/test_supplier_actual_data_api.py:156 -- `assert resp.json()[\"code\"] == \"ACTUAL_DATA_VALIDATION\"` -- confirms the unregistered code is part of the emitted public contract, not dead code."
+      ],
+      "suggested_fix": "Assumption: the meta registry's AST scan is the intended single source of error-code truth and the factory indirection is incidental, not a deliberate decision to exclude these codes. Two defensible fixes; I recommend the first because it is local to this branch and does not change a shared scanner. (1) Local: inline the raise at each of the 8 `_validation_error` / `_error` call sites so each carries a literal `raise PcsError(code=\"ACTUAL_DATA_VALIDATION\", ...)` that the existing scanner picks up -- matches the 160-site convention, costs a little repetition. (2) Alternative: teach `_scan_error_codes` to also walk `return PcsError(code=<Constant>)` nodes, which fixes the class of bug but touches a shared, pre-existing component and would need its own regression test. Either way, verify by re-running the scanner and confirming both codes appear, then add a test asserting the new codes are present in the /api/v1/meta/error-codes response."
+    },
+    {
+      "title": "Hyrum's Law: all five supplier endpoints ship at /api/v1/equipment/... but the frozen SPEC API table documents all five under /api/v1/equipment-list/..., with no SPEC revision registered",
+      "severity": "P1",
+      "file": "spec/工艺专用综合计算软件需求规格说明书 Web版 P7.md",
+      "line": 145,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "The SPEC's public API table lists the whole 供应商数据 surface under the `/api/v1/equipment-list/` prefix, and the implementation publishes every one of those paths under `/api/v1/equipment/`. A client (or the next implementer, or a contract test) written against the SPEC table sends a request that 404s -- and a 404 here is indistinguishable from \"equipment does not exist\", because `_load_equipment` deliberately collapses not-found and no-access into the same response. The project's own rule resolves the conflict in favour of OpenAPI but requires the SPEC revision to be registered; `git diff <base> -- spec/` is empty, so the authoritative document and the shipped contract now disagree with no record of the ruling. The SPEC additionally lists `POST /api/v1/equipment-list/{equipment_id}/actual-data/import` (Excel batch import) which is deliberately not implemented at all, and is likewise unregistered.",
+      "evidence": [
+        "spec/工艺专用综合计算软件需求规格说明书 Web版 P7.md:145 -- `GET /api/v1/equipment-list/{equipment_id}/deviation-report\t获取偏差报告`",
+        "spec/工艺专用综合计算软件需求规格说明书 Web版 P7.md:142-146 -- the same table's other four entries: `POST /api/v1/equipment-list/{equipment_id}/actual-data\t录入实际数据`, `POST /api/v1/equipment-list/{equipment_id}/actual-data/import\tExcel批量导入`, `POST /api/v1/equipment-list/{equipment_id}/actual-data/confirm\t确认实际数据`, `POST /api/v1/equipment-list/{equipment_id}/actual-data/check\t校核实际数据`",
+        "pcs-backend/app/api/v1/supplier.py:58 -- `router = APIRouter(prefix=\"/equipment\", tags=[\"supplier\"])` -- the only line in the file that moves the surface off the documented prefix.",
+        "pcs-backend/app/api/v1/equip_list.py:39 -- `router = APIRouter(prefix=\"/equipment-list\", tags=[\"equipment-list\"])` -- the SPEC's prefix is a real, separately-mounted router; the new paths are not reachable under it.",
+        "`git diff 3e5ae902945e19274f5be410f0eed31eb48a7627 -- spec/` returns empty: the SPEC was not revised in this branch, so no ruling is registered in the authoritative document.",
+        "Routing safety verified: of 37 `APIRouter(prefix=...)` declarations under app/api/v1/, `/equipment` is declared exactly once, so the two prefixes do not collide or shadow for the same equipment_id -- the divergence is a documentation/contract mismatch, not a live routing ambiguity.",
+        "No shipped consumer yet: `grep -rn 'deviation-report\\|actual-data' pcs-frontend/src --include=*.ts --include=*.tsx` (excluding generated types/api.d.ts) returns nothing, so no client is currently broken -- the exposure is to the next consumer and to the next implementer."
+      ],
+      "suggested_fix": "Assumption: `/api/v1/equipment/` is the intended final path (the S4-1/S4-2 shared-router-prefix ruling is recorded in docs/sprint4-plan-2026-10-05.md and .superpowers/sdd/sprint4-plan-2026-10-05/progress.md:93, and it is a reasonable one), and the SPEC is the artifact that must catch up. Do not move the code back. Register the revision in the SPEC API table: change the 供应商数据 block's five paths to the `/api/v1/equipment/` prefix, mark the `actual-data/import` row as deliberately not implemented under the S4-1 manual-UI ruling (or delete the row), and add the SPEC-ADD entry the project's other divergences use (e.g. the existing `SPEC-ADD-001 V1.13 §3.4.2` markers in the same file) so the ruling is traceable from the code. If instead the SPEC prefix is considered non-negotiable, the change is a one-line prefix swap in supplier.py plus regenerating the OpenAPI artifacts -- but that contradicts the recorded ruling, so it needs an explicit decision first."
+    },
+    {
+      "title": "Unbounded free-form parameter names on a public write surface whose read surface is a closed rule set -- nothing in the contract tells a client which keys are judgeable",
+      "severity": "P2",
+      "file": "pcs-backend/app/schemas/supplier.py",
+      "line": 22,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": false,
+      "pre_existing": false,
+      "why_it_matters": "The write side accepts any 1-100 character string as a parameter name and stores it verbatim as a key of the public `actual_data_json` object; the read side interprets those keys against a closed, fixed rule set and returns `UNVERDICTABLE` for every key it does not recognise. Nothing in the request schema, the response schema, or the endpoint docs states the set of meaningful keys, so a client can successfully write data that is permanently unjudgeable -- the write returns 200 with the offending value echoed back, and the failure only surfaces later as a `UNVERDICTABLE` row and `can_confirm: false`. Because the endpoint docstring at supplier.py:153-154 already records that `design_parameters_json` has no writer (so production reports are entirely `UNVERDICTABLE` and `can_confirm` is effectively always false), the write surface currently has no path to a judged report at all. Compounding this, the response type is a bare `dict`, which the generator emits as `{[key: string]: unknown} | null` -- the client gets no per-value typing and must re-narrow `unknown` itself.",
+      "evidence": [
+        "pcs-backend/app/schemas/supplier.py:22 -- `name: str = Field(min_length=1, max_length=100, description=\"参数名\")` -- any string is a legal key; there is no allow-list, no enum, and no cross-reference to the engine's rule set.",
+        "pcs-backend/app/schemas/supplier.py:44 -- `actual_data_json: dict | None = None` -- the public response type is an untyped map; the generated `pcs-frontend/src/types/api.d.ts:5250-5252` renders it as `actual_data_json?: { [key: string]: unknown; } | null;`.",
+        "pcs-backend/app/services/supplier/deviation_report.py:93-100 -- `if rule is None:` / `rows.append(DeviationRow(parameter=name, design_value=design_value, actual_value=actual_value, unit=unit, deviation_pct=None, verdict=UNVERDICTABLE, note=\"无判定规则（SPEC §3.2.4(2) 以泵为例）\", spec_ref=\"\",))` -- an unrecognised key is accepted into the report rather than rejected at write time.",
+        "pcs-backend/app/api/v1/supplier.py:153-155 -- `⚠️ 已知缺口：`design_parameters_json` 目前无写入方，故生产路径上全部行 都会落「缺设计值（不可判）」` -- the endpoint documents that no production row can currently be judged, so the accepted-but-unusable write surface is the whole surface today.",
+        "pcs-backend/app/services/supplier/actual_data_service.py:52-72 -- `normalize_entries` validates only name-non-empty, name-unique, value-numeric, unit-string; there is no check that the name is one the deviation engine can rule on."
+      ],
+      "suggested_fix": "Assumption: free-form keys are intentional (the SPEC's design-value source is still an open decision, so a hard allow-list would block legitimate interim data), and the missing piece is discoverability rather than validation. Cheapest defensible improvement, no server behaviour change: expose the rule set as a read endpoint or fold it into an existing meta endpoint -- e.g. `GET /api/v1/equipment/deviation-rules` returning each rule's `parameter` name, `design_key`, `spec_ref`, and unit -- so a client can populate the entry form from the contract instead of typing free-text Chinese parameter names. Pair that with a `description` on `ActualDataEntry.name` naming the rule endpoint. Stronger alternative if the rules are considered stable: reject unknown names at write time with a new `PcsError` (code, e.g. `ACTUAL_DATA_UNKNOWN_PARAMETER`, status 422) -- note this needs the raise inlined so `_scan_error_codes` registers the code, per the sibling finding. Do not tighten the key type without a decision on where design values come from."
+    },
+    {
+      "title": "DeviationRowOut.design_value is a three-way union (number | string | null) with no discriminator for which case applies",
+      "severity": "P2",
+      "file": "pcs-backend/app/schemas/supplier.py",
+      "line": 80,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": false,
+      "pre_existing": false,
+      "why_it_matters": "The generator emits `design_value: number | string | null` into the frontend's TypeScript types, so a client that formats or does arithmetic on the design value (the obvious use in a deviation report -- percent difference against `actual_value`) compiles cleanly and then throws at runtime on the string case. The three cases mean different things -- null is 'no design value recorded' (which the engine maps to `UNVERDICTABLE`), a number is a comparable design value, and a string is a non-numeric design specification -- but the response carries no field saying which one applies, so the client must infer it from the sibling `verdict`, and only for the null case. The union is not modelling a real requirement: it exists because the service extractor is typed `-> tuple[object, str, bool]`, so anything read out of the JSONB column passes through.",
+      "evidence": [
+        "pcs-backend/app/schemas/supplier.py:80 -- `design_value: float | str | None = Field(description=\"设计值\")`",
+        "pcs-frontend/src/types/api.d.ts:7125 -- `design_value: number | string | null;` -- the generated client type, confirmed byte-identical to the backend OpenAPI (both files sha256 `30910d7b53586004`, `ja == jb` is True), so the union really does reach the frontend.",
+        "pcs-backend/app/schemas/supplier.py:81 -- `actual_value: float | str | None = Field(description=\"实际值\")` -- the same union on the sibling field; in practice `actual_value` is always a float because `ActualDataEntry.value` is strictly `float` (schemas/supplier.py:23) and `normalize_entries` rejects non-numerics, so the string case is unreachable for actual and only theoretical for design.",
+        "pcs-backend/app/services/supplier/deviation_report.py:62 -- `def _extract(container: dict | None, name: str) -> tuple[object, str, bool]:` -- the `object` return type is what forces the union into the public schema; `_extract` returns `entry.get(\"value\")` from an untyped JSONB column (line 70).",
+        "pcs-backend/app/schemas/supplier.py:83 -- `deviation_pct: float | None = Field(default=None, description=\"偏差 %; 不可判时 null\")` -- by contrast this field documents what its null means; `design_value`'s null carries no such note, and the description is the bare string `\"设计值\"`."
+      ],
+      "suggested_fix": "Assumption: the design-value column is expected to hold numbers whenever a comparison is attempted -- the engine's own rules are numeric (deviation_service computes `{g}%` ratios and `deviation_pct`), and the only reason a string can appear today is the untyped JSONB extractor. Tighten the public type to `float | None` and coerce/reject at the service boundary in `_extract`: if a design value is present but non-numeric, keep the row but set `design_value=None` and `verdict=UNVERDICTABLE` with a note -- the engine already has exactly that fail-closed path at deviation_report.py:104-112 ('缺设计值，无法判定'). That makes the string case unreachable rather than merely undocumented, and lets the client treat the field as numeric-or-absent. If non-numeric design specs are a genuine requirement, keep the union but add a `design_value_kind: Literal[\"numeric\", \"text\", \"missing\"]` discriminator to `DeviationRowOut` and extend the `design_value` description to state which case each value implies."
+    },
+    {
+      "title": "actual_data_status is a bare untyped string with no description naming its four states, unlike every sibling status field in the codebase",
+      "severity": "P3",
+      "file": "pcs-backend/app/schemas/supplier.py",
+      "line": 43,
+      "confidence": 75,
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "The generated TypeScript is `actual_data_status: string` with no enumeration hint, so a client hardcodes the four state strings with nothing in the contract to point at. Every comparable status field in the existing schema set carries a `Field(..., description=...)` that names its states, so the new response drops the only in-band signal a client has. This matters more than usual here because the state machine is a live gate on three of the six new endpoints -- confirm is refused unless the row is past the lock, PUT is refused once CONFIRMED -- so a client that guesses a state name wrong gets a 422 whose meaning it cannot interpret.",
+      "evidence": [
+        "pcs-backend/app/schemas/supplier.py:43 -- `actual_data_status: str` -- no `Field(...)`, no description, no Literal; also repeated at schemas/supplier.py:100 in `DeviationReportOut`.",
+        "pcs-backend/app/models/enums.py:178-187 -- `class ActualDataStatus(str, enum.Enum):` with `NOT_ENTERED = \"NOT_ENTERED\"` / `PENDING_CONFIRM = \"PENDING_CONFIRM\"` / `CONFIRMED = \"CONFIRMED\"` / `NEED_RECALC = \"NEED_RECALC\"` -- four states that the contract never surfaces to the client.",
+        "Convention comparison: `grep -rn 'status: str' app/schemas/*.py` shows every sibling documents its states in the description -- `app/schemas/config.py:36: status: str = Field(..., description=\"资产状态（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）\")`, `app/schemas/checklist.py:76: status: str = Field(..., description=\"校验状态 5 态\")`, `app/schemas/cool_tower.py:284: sign_status: str = Field(..., description=\"签审状态 9 态\")`, `app/schemas/equip_list.py:112: equipment_status: str`.",
+        "pcs-backend/app/services/supplier/actual_data_service.py:92-100 -- the CONFIRMED lock raises `code=\"ACTUAL_DATA_LOCKED\"` 422, so a client misreading the state string is not merely cosmetic."
+      ],
+      "suggested_fix": "Assumption: the project convention is a documented `str` rather than a `Literal`/`Enum` in the response schema (all six sibling status fields use `str`), so match the convention rather than introducing a new pattern. Add `Field(..., description=\"录入状态（NOT_ENTERED/PENDING_CONFIRM/CONFIRMED/NEED_RECALC）\")` to `ActualDataResponse.actual_data_status` and the same description to `DeviationReportOut.actual_data_status`. Re-run the G-08 OpenAPI contract gate afterwards to regenerate `openapi.json`, `openapi.snapshot.json`, and `api.d.ts` -- the pre-commit hook fails on drift, so the regen is mandatory, not optional. If the four states are considered stable, promoting both fields to a shared `ActualDataStatusLiteral = Literal[\"NOT_ENTERED\", \"PENDING_CONFIRM\", \"CONFIRMED\", \"NEED_RECALC\"]` would give the client compile-time exhaustiveness; that is a larger change and would also require a decision on whether the enum should become a proper response model, so it is the follow-up, not the fix."
+    }
+  ],
+  "residual_risks": [
+    "Verdict-tier drift is a latent 500, not a current bug. `Verdict` is declared as `Literal[\"QUALIFIED\",\"WARNING\",\"UNQUALIFIED\",\"UNVERDICTABLE\"]` in app/schemas/supplier.py:73, duplicating four bare string constants in app/services/supplier/deviation_service.py:28-31. The label/colour maps are safe from drift because `DeviationRow.label` / `.color` are `@property` delegating to `verdict_label` / `verdict_color` (deviation_report.py:40-46), so `verdict` is the single source and the client never has to string-compare. The exposure is one-directional: if a fifth tier is added to the engine, `verdict_label`'s `.get(verdict, \"不可判\")` fallback silently returns the UNVERDICTABLE label, but `DeviationRowOut.model_validate` at supplier.py:136 rejects the unknown tier first, so the read endpoint returns 500 INTERNAL_ERROR rather than degrading. I did not raise this as a finding because no fifth tier exists today; the schema Literal is the tripwire and it is in the right place, it just fails closed rather than open. Worth a regression test if a tier is ever added.",
+    "I did not reach the frontend UI-SPEC conformance check. CLAUDE.md names `docs/PCS-UI-SPEC.md` (V1.0 frozen) as the sole encoding basis for frontend UI, and I confirmed no frontend component consumes the six new endpoints yet, so there is nothing yet to check for conformance -- but that check becomes live as soon as the S4 UI lands.",
+    "The export endpoint is clean on the points asked about. `format` is constrained by `Query(pattern=\"^(excel|pdf)\")` (supplier.py:223), so an invalid value produces a FastAPI `RequestValidationError` -> 422 `VALIDATION_ERROR` in the standard envelope, not a 500. `Content-Type` is drawn from `_EXPORT_TYPES` and `Content-Disposition` correctly uses RFC 5987 `filename*=UTF-8''` with the tag number percent-encoded via `quote(..., safe=\"\")` (supplier.py:241-251), so Chinese tag numbers survive. No finding.",
+    "Error-shape consistency is clean and I checked it rather than assuming. Both failure modes carry the same `ErrorResponse` envelope with a `code` field: `PcsError` routes through the `_service_pcs` handler, FastAPI validation failures through the `_validation` handler (`code=\"VALIDATION_ERROR\"`, app/core/errors.py), and bare `HTTPException` through the Starlette handler (`code=f\"HTTP_{exc.status_code}\"`). The new endpoints' `HTTPException(404, ...)` in `_load_equipment` is the established project pattern -- `_guard.check_project_access_or_404` and `config.py::_load_asset` do the same. A client parses one shape, not two. One consequence the author chose deliberately: not-found and no-access both collapse to `HTTP_404`, which is correct for not leaking existence but does mean a 404 from these endpoints is ambiguous by design.",
+    "OpenAPI regeneration is verifiably correct. `pcs-backend/docs/openapi.json` and `pcs-frontend/openapi.snapshot.json` are byte-identical (both sha256 `30910d7b53586004`, `json.loads(a) == json.loads(b)` is True), and the document contains exactly 196 paths including all five new ones with the expected methods. The G-08 gate's three `chore(p7-s4): regen OpenAPI 契约` commits are not drift. No finding.",
+    "The frontend mock error-code seed (pcs-frontend/src/mocks/seed/meta.ts) has zero `ACTUAL_DATA_*` entries, so even after the backend registry is fixed the mock layer would not serve the new codes. I did not make this a finding because that seed carries only 36 of the backend's 115 codes and is a hand-maintained subset, so the gap is pre-existing and broader than this branch -- but it means a fix to finding #1 will not be observable in mock-mode development until the seed is separately extended."
+  ],
+  "testing_gaps": [
+    "No test asserts that the error codes emitted by the new endpoints are present in the /api/v1/meta/error-codes response. This is precisely the gap that let `ACTUAL_DATA_VALIDATION` and `DEVIATION_BLOCKS_CONFIRMATION` ship unregistered: tests/api/v1/test_supplier_actual_data_api.py:156 asserts the code is *emitted* but nothing cross-checks it is *catalogued*. A single test that calls the meta endpoint and asserts every code raised by the supplier service modules appears in it would close the class, not just this instance.",
+    "No test pins the route prefix against the SPEC. Nothing in the suite would have failed on the /equipment vs /equipment-list divergence. A lightweight guard that reads the SPEC API table and asserts each documented path resolves in the app's route table would make the SPEC/OpenAPI drift from finding #2 mechanically detectable instead of relying on a human noticing.",
+    "No test exercises an unknown parameter name end-to-end. The `rule is None` -> UNVERDICTABLE branch at deviation_report.py:93-100 has no service-level test that writes a free-form key through PUT and reads back a UNVERDICTABLE row, so the write-surface/read-surface asymmetry in finding #3 is currently asserted only at the unit level (if at all).",
+    "No test covers the `design_value` string case. The `float | str | None` union is never exercised with a non-numeric design value, so the runtime type hazard in finding #4 is untested in either direction -- neither proven reachable nor proven unreachable."
+  ]
+}

@@ -1,0 +1,113 @@
+{
+  "reviewer": "adversarial",
+  "run_id": "20261006-sprint4",
+  "findings": [
+    {
+      "title": "Confirmation gate is fail-closed per row but fail-open on coverage: entering one parameter lets the designer confirm the equipment",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/supplier/deviation_report.py",
+      "line": 92,
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "The designer records actual data for a single parameter, e.g. `效率` with a value inside the 95% band. build_report emits exactly one row, the row is QUALIFIED, can_confirm returns True, and POST /actual-data/check {decision:\"pass\"} marks the equipment CONFIRMED and emits actual_data_replaces_design with the full design_parameters_json as `before`. Every other SPEC §3.2.4(2) tolerance rule — head, NPSHr, motor sizing, speed recheck, material — was never entered and was never judged, yet the record now reads 'confirmed' to every downstream consumer and to P8's reverse-restore chain. The whole point of adding the fourth UNVERDICTABLE verdict was to stop an unjudged item being treated as passing; it defends against an unjudged item that made it into the report but does nothing about one that never entered it.",
+      "evidence": [
+        "pcs-backend/app/services/supplier/deviation_report.py:92 — `    for name in actual:` — the report's row set is exactly the set of keys the designer chose to type; nothing else is added",
+        "pcs-backend/app/services/supplier/deviation_report.py:88-91 — docstring states the rule explicitly: \"行集合 = 实际值里已录入的参数 —— 没录入的项无法比对，不占行\"",
+        "pcs-backend/app/services/supplier/deviation_report.py:164-167 — `    if not report.rows:\\n        return False\\n    return not any(\\n        r.verdict in (UNQUALIFIED, UNVERDICTABLE) for r in report.rows\\n    )` — the sole emptiness guard is rows being empty; a one-row report passes",
+        "pcs-backend/app/services/supplier/confirmation_service.py:97-108 — `await emit_event(... REPLACES_DESIGN ... before=equipment.design_parameters_json ...)` fires on that single-parameter verdict"
+      ],
+      "suggested_fix": "Make the gate compare against the rule set the equipment is expected to satisfy, not against what was typed. Cheapest defensible option: have build_report seed rows for every rule in SPEC_RULES whose `matches()` the equipment's `design_parameters_json` keys, so a design value with no matching actual entry becomes an explicit UNVERDICTABLE row ('未录入实际值') rather than an absent row. That reuses the existing fail-closed verdict and needs no new gate logic. ASSUMPTION: an equipment's expected parameter set is derivable from its design values — this holds for the pump seeder (PUMP_DESIGN keys) but not for non-pump equipment, which would then need an explicit 'expected parameters' declaration. Failing that, add a minimum-entry-count or explicit-per-rule-submission gate on record_actual_data."
+    },
+    {
+      "title": "Event idempotency is structurally unreachable: every producer mints a fresh uuid4 per invocation, so the DB-backed dedup can never dedup",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/events.py",
+      "line": 96,
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "The dedup table, its payload_hash conflict detection, and the SAVEPOINT-free race handling all exist to make a replayed event_id a no-op, but no production caller can ever replay an event_id: every call site generates a brand new uuid4. So the retry the design is built for happens anyway. A designer double-clicks 'pass', or the client retries after a lost response, and pass_check — which unlike record_actual_data and confirm_actual_data has no state precondition at all — runs a second time and emits a second actual_data_replaces_design under a new id. P8 later walks the event chain to reverse-restore: it now finds two events for one equipment, and the second one's `before` equals the first one's `after`, so restoring in order writes back actual data as if it were design data, and the original design value is unrecoverable. The table also grows by one never-reusable row per emit, forever.",
+      "evidence": [
+        "pcs-backend/app/services/events.py:96-100 — `_HASHED_KEYS = (\"event_type\", \"before\", \"after\")` / the payload_hash machinery is built entirely around re-presenting the same event_id",
+        "pcs-backend/app/services/supplier/confirmation_service.py:80-81 — `    await emit_event(\\n        session,\\n        CHECK_SUBMITTED,\\n        event_id=uuid.uuid4(),` — fresh id per invocation",
+        "pcs-backend/app/services/supplier/confirmation_service.py:97-99 — `        REPLACES_DESIGN,\\n        event_id=uuid.uuid4(),` — same for the design-overwrite event",
+        "pcs-backend/app/services/cia_engine.py:110-112 — `            CIA_MARK_STALE,\\n            event_id=uuid.uuid4(),` — same for the CIA mark-stale event",
+        "pcs-backend/app/services/supplier/confirmation_service.py:88-95 — `def pass_check(...)` opens with `    equipment.actual_data_status = ActualDataStatus.CONFIRMED.value` and no `if CONFIRMED: raise`, unlike record_actual_data (ACTUAL_DATA_LOCKED) and confirm_actual_data (ACTUAL_DATA_ALREADY_CONFIRMED), so a repeat call is accepted rather than rejected"
+      ],
+      "suggested_fix": "Derive event_id deterministically from the business operation instead of calling uuid4, so a retry of the same operation necessarily re-presents the same id and the existing dedup path does its job. E.g. `uuid.uuid5(NS_EVENT, f\"replaces_design:{equipment.equipment_id}:{payload_hash}\")`. ASSUMPTION: two genuinely distinct confirm operations on the same equipment must not collide — including the payload in the key gives each distinct payload its own id, which is the behaviour the caller wants anyway. Independently, add the missing CONFIRMED-state precondition to pass_check so the double-submit is rejected at the service layer rather than relying on dedup."
+    },
+    {
+      "title": "Unescaped user-supplied parameter name and unit crash PDF export with a 500, while the JSON report and xlsx render the same data fine",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/supplier/deviation_report.py",
+      "line": 288,
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "export_pdf wraps every cell in a reportlab Paragraph, which parses its argument as a mini-XML fragment. row.parameter is a key the designer typed into the actual-data form, and ActualDataEntry constrains it only with min_length=1, max_length=100 — no pattern, no character class. A perfectly ordinary name such as `介质 & 温度` or `扬程(m)<实测>` raises ParagraphParseError inside doc.build, which nothing catches, so GET /deviation-report/export?format=pdf returns 500. The identical data flows through build_report, GET /deviation-report and export_excel without incident, and can_confirm is unaffected — so a value the entire rest of the system treats as legitimate permanently breaks only the PDF path, for that one equipment, with an opaque server-side traceback instead of a validation message.",
+      "evidence": [
+        "pcs-backend/app/services/supplier/deviation_report.py:288-289 — `                Paragraph(row.parameter, cell_style),` — the user-supplied parameter name is handed to the markup parser unescaped; `row.unit` and `report.tag_number` are unescaped in the same block",
+        "pcs-backend/app/schemas/supplier.py:23-24 — `    name: str = Field(min_length=1, max_length=100, description=\"参数名\")` — no pattern constraint, so `<`, `&` and `/` all pass validation",
+        "pcs-backend/app/services/supplier/actual_data_service.py:63-67 — `        name = item.get(\"name\")\\n        if not isinstance(name, str) or not name.strip():\\n            raise _validation_error(...)\\n        name = name.strip()` — normalization is whitespace-only; markup characters survive into actual_data_json",
+        "pcs-backend/app/services/supplier/deviation_report.py:299 — `    doc.build(story)` — the first point the parse error can surface, with no try/except anywhere in export_pdf"
+      ],
+      "suggested_fix": "Escape every interpolated string at the Paragraph boundary: wrap the eight untrusted cell values (row.parameter, row.unit, row.note, report.tag_number, and the str() forms of design/actual value) in `xml.sax.saxutils.escape()` inside export_pdf, matching what reportlab's documentation prescribes. Nothing else in the codebase needs to change; export_excel is unaffected because openpyxl treats cell values as literal text."
+    },
+    {
+      "title": "emit_event reports dispatch success even when no listener is registered, and the CIA scan counts records it never marked",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/events.py",
+      "line": 238,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "The dispatch loop iterates `_LISTENERS.get(event_type, [])` — an empty list is not an error — and then returns True, which the docstring defines as '已派发'. CIAEngine.scan_stale relies on that: in the ADR-0025 branch it calls _mark_stale and then increments `marked` unconditionally, with no check of the return value, and returns that count to the caller. If the registry holds no listener for cia_mark_stale the FSM transition never runs, no exception is raised, the event is nonetheless claimed in event_idempotency as processed, and scan_stale still reports the equipment as marked. The number the operator reads to know how much stale data was quarantined is then wrong, with no error anywhere to indicate it. clear_listeners() — which the docstring explicitly sanctions for '模拟进程重启' — is one way to reach this state, and any future refactor that makes the module-level register_listener conditional on import order is another.",
+      "evidence": [
+        "pcs-backend/app/services/events.py:236-239 — `    for listener in _LISTENERS.get(event_type, []):\\n        await listener(event)\\n    return True` — zero listeners is an indistinguishable no-op, yet True is returned",
+        "pcs-backend/app/services/cia_engine.py:280-284 — `                    await self._mark_stale(\\n                        eq, f\"ADR-0025: source pipe {rec.line_no} STALE\"\\n                    )\\n                marked += 1` — the counter advances regardless of what the event did",
+        "pcs-backend/app/services/events.py:71-78 — the `clear_listeners` docstring sanctions clearing the registry including production listeners, and warns the result presents as '事件发了但状态没变'"
+      ],
+      "suggested_fix": "Two small changes. (a) In emit_event, when `_LISTENERS.get(event_type, [])` is empty, either raise or return a distinct sentinel rather than True, so 'claimed but undelivered' is representable. (b) In scan_stale, increment `marked` only when _mark_stale's return value indicates the transition actually ran. ASSUMPTION: an event type with no registered listener is always a bug in production — true for cia_mark_stale, but not for actual_data_replaces_design, which is intentionally claim-only until P8 attaches its reverse-restore listener, so the check needs to be per-event-type rather than global."
+    },
+    {
+      "title": "_claim's IntegrityError handler rolls back the caller's whole transaction and misreports the cause as a concurrency conflict",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/events.py",
+      "line": 178,
+      "confidence": 50,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "pass_check sets actual_data_status = CONFIRMED and flushes before it emits. If the claim INSERT then fails, `await session.rollback()` discards that CONFIRMED write along with every other pending change in the session, and expires every ORM object the caller holds. _claim re-queries, finds no row, and raises EVENT_ID_CONFLICT 409 — telling the operator their event ids collided when the actual fault is the INSERT. pass_check never reaches its commit; the endpoint instead serialises the now-expired record, which refreshes back to PENDING_CONFIRM, so the caller sees a 200 carrying the pre-check status after what they read as an approved check. In CIAEngine.scan_stale the same rollback expires every record the scan has already loaded, and the surrounding `except Exception: continue` swallows the resulting async lazy-load failure per record, so the scan returns a partial count that looks complete. Note the trigger requires a genuine IntegrityError, which with uuid4 event ids only materialises on the PK collision the code claims to handle.",
+      "evidence": [
+        "pcs-backend/app/services/events.py:176-179 — `    except IntegrityError as exc:\\n        # 并发下两个投递同时 claim → 后到者撞主键, 视为幂等重投\\n        await session.rollback()` — a whole-session rollback taken inside a helper that was handed a caller-owned session, not a SAVEPOINT rollback",
+        "pcs-backend/app/services/supplier/confirmation_service.py:91-92 — `    equipment.actual_data_status = ActualDataStatus.CONFIRMED.value\\n    await session.flush()` — the CONFIRMED write is already in the transaction the rollback discards",
+        "pcs-backend/app/services/events.py:181-189 — `        if row is not None and row.payload_hash == payload_hash:\\n            return False\\n        raise PcsError(\\n            code=\"EVENT_ID_CONFLICT\",` — every non-matching IntegrityError is reported as an event-id conflict",
+        "pcs-backend/app/services/cia_engine.py:170-174 and 217-222 — `            except Exception:\\n                # 状态机拒绝（不在合法转移集合）— 跳过\\n                continue` / `                except Exception:\\n                    continue` — the post-rollback cascade is absorbed here with no counter adjustment"
+      ],
+      "suggested_fix": "Scope the claim INSERT to a SAVEPOINT — `async with session.begin_nested():` around the add/flush — so only the claim row is rolled back and the caller's earlier writes survive. Separately, branch on the SQLSTATE: re-raise non-unique-violation IntegrityErrors unchanged instead of relabelling them EVENT_ID_CONFLICT. ASSUMPTION: the session is not already inside a nested transaction supplied by the caller; if it is, begin_nested still composes correctly, so this holds either way."
+    }
+  ],
+  "residual_risks": [
+    "Division B numeric-edge sweep was not completed. I read deviation_service.py in full and traced ASYMMETRIC_BAND / MIN_RATIO / MAX_ONLY / MOTOR_TIER_FLOOR against design==0, negative design, non-finite values and the _EPS boundary, and found them fail-closed as documented. I did not exhaustively test the interaction between _normalize and the alias tables in DeviationRule.matches — in particular whether an alias on one rule can shadow the canonical key of an earlier rule via find_rule's first-match-wins scan. That requires case-by-case alias collision analysis I did not run.",
+    "I did not verify StateMachineService.transition's actual exception contract, so the claim in finding 5 that a post-rollback lazy refresh raises MissingGreenlet rather than a recoverable error is reasoned from SQLAlchemy's expire_on_commit semantics, not observed. I also did not confirm session.py's expire_on_commit setting, which the same reasoning depends on.",
+    "The seed script p7_s4_003_seed_pump_design.py re-reads ORM objects fetched before apply_design_parameters commits; if expire_on_commit is on, its post-write verification loop hits the same async lazy-load hazard as finding 5. I noted this while reading but did not confirm it and have deliberately excluded it as a finding rather than guess.",
+    "I did not examine the OpenAPI regeneration diff, the frontend type snapshot, pyproject.toml, or uv.lock. The reportlab and openpyxl dependency availability for finding 3 is inferred from the module docstrings and the existing imports, not from a runtime check.",
+    "I did not review the test files. Whether tests/test_events.py exercises the concurrent-claim path, and whether test_deviation_report.py covers the alias-coverage gap behind finding 1, is unexamined — so I cannot say whether these gaps would be caught by the suite."
+  ],
+  "testing_gaps": [
+    "No test appears to construct a multi-entry actual_data_json where one parameter is QUALIFIED and the design table holds rules with no corresponding actual entry, which is the exact shape that makes can_confirm return True on an unconfirmed equipment (finding 1).",
+    "No test appears to drive export_pdf with a parameter name containing a markup character, so the Paragraph crash path (finding 3) is unguarded by the suite.",
+    "The idempotency tests can only assert replay-suppression by calling emit_event twice with an explicitly reused event_id. Because all three production call sites generate uuid4, such a test proves the bus works while proving nothing about the callers — a green suite here is a green-while-red signal for finding 2."
+  ]
+}

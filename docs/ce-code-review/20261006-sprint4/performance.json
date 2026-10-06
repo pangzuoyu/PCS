@@ -1,0 +1,86 @@
+{
+  "reviewer": "performance",
+  "run_id": "20261006-sprint4",
+  "base": "3e5ae902945e19274f5be410f0eed31eb48a7627",
+  "head": "cae5bce9e3411ff1199713aca88c83f427a1d089",
+  "findings": [
+    {
+      "id": "perf-unbounded-entries-export",
+      "title": "`entries` list has no `max_length`, so one PUT can create an arbitrarily large report that both exporters fully materialize in memory",
+      "severity": "P1",
+      "file": "pcs-backend/app/schemas/supplier.py",
+      "line": 30,
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "`ActualDataEntryRequest.entries` declares `min_length=1` but no `max_length`, and `app/main.py` installs no body-size middleware (`grep add_middleware app/main.py` → 0 matches; the only size guard, `app/core/upload_size_limit.py` `MAX_UPLOAD_BYTES = 10MB`, is wired solely into `app/api/v1/imports.py` for multipart uploads). An authenticated DESIGNER can therefore PUT a body containing hundreds of thousands of entries; `normalize_entries` (app/services/supplier/actual_data_service.py:74) validates and stores every one into `actual_data_json`, which becomes the report row count. `build_report` then produces one `DeviationRow` per key and `export_excel` / `export_pdf` walk that whole list building a full in-memory `Workbook` / reportlab `Table` of `Paragraph` objects, with no cap anywhere in the diff. Measured on this branch: 1,000 rows → 198 ms xlsx / 753 ms pdf; 5,000 rows → 2,664 ms xlsx / 5,064 ms pdf. Cost is linear in rows, so a 50,000-row body lands in the tens-of-seconds CPU range and multi-GB heap, which is OOM territory for a single request. The blast radius is larger than the report itself: `pass_check` deepcopies the same unbounded `actual_data_json` into `event_idempotency.before_json` (app/services/supplier/confirmation_service.py:101-106), a table with no retention policy.",
+      "evidence": [
+        "pcs-backend/app/schemas/supplier.py:30-33 —\n    entries: list[ActualDataEntry] = Field(\n        min_length=1,\n        description=\"整台设备的参数集; 整体替换而非合并\",\n    )",
+        "pcs-backend/app/services/supplier/deviation_report.py:271-285 — builds one reportlab `Paragraph` per row per column with no bound:\n    data = [[Paragraph(h, head_style) for h in _HEADERS[:9]]]\n    for row in report.rows:\n        data.append(\n            [\n                Paragraph(report.tag_number, cell_style),",
+        "pcs-backend/app/services/supplier/deviation_report.py:205-219 — `export_excel` appends every row to the worksheet with no limit:\n    for row in report.rows:\n        ws.append(\n            [\n                report.tag_number,",
+        "Measured on this branch (uv run, real dev tree): build_report n=1000 8.4 ms, n=20000 170.7 ms; export_excel n=1000 197.7 ms, n=5000 2663.6 ms; export_pdf n=1000 753.4 ms, n=5000 5064.1 ms.",
+        "pcs-backend/app/services/supplier/confirmation_service.py:101-106 — the same unbounded blob is deepcopied into a permanent table on every pass:\n    await emit_event(\n        session,\n        REPLACES_DESIGN,\n        event_id=uuid.uuid4(),\n        before=equipment.design_parameters_json,   # deepcopy 后落 event_idempotency\n        after=equipment.actual_data_json,",
+        "pcs-backend/app/main.py — `grep -n 'add_middleware|Middleware' app/main.py` returns 0 matches, so no request-body size ceiling applies to this JSON endpoint; `app/core/upload_size_limit.py:16` (`MAX_UPLOAD_BYTES = 10 * 1024 * 1024`) is imported only by `app/api/v1/imports.py:39`."
+      ],
+      "suggested_fix": "Add an explicit domain cap to the schema and enforce it in the report/export path. Assumption: the real domain is bounded by the number of parameters on one piece of equipment — a pump row in `PUMP_DESIGN` (app/services/equip_list/pump_design_data.py:37-73) carries 7 parameters, and the largest plausible device is well under 100; a cap of 200 is generous and cannot reject a legitimate entry. (1) `entries: list[ActualDataEntry] = Field(min_length=1, max_length=200, ...)` in app/schemas/supplier.py:30. (2) Add the same guard in `normalize_entries` so non-HTTP callers cannot bypass it. (3) In `export_deviation_report`, truncate defensively and signal it — e.g. export the first N rows with a trailing 「已截断，共 N 行」 marker row — so a report can never be a silent partial. Consider also a `ConcurrencyLimiter` or `run_in_threadpool` on the export route (see the companion event-loop finding). Note that a `max_length` alone does not bound the *body*; if the deployment front-door has no body cap, adding a `Content-Length` guard or applying `enforce_upload_size` to this router is the durable fix."
+    },
+    {
+      "id": "perf-export-blocks-event-loop",
+      "title": "`export_excel` / `export_pdf` are CPU-bound and synchronous but are called directly from an `async def` endpoint, stalling the event loop for the whole worker",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/supplier.py",
+      "line": 235,
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "`export_deviation_report` is `async def`, and both `export_excel(report)` and `export_pdf(report)` are plain synchronous Python that never yields. On a single-worker ASGI deployment the loop is blocked for the entire build, so every other in-flight request on that process — logins, equipment reads, the whole API — waits. This is not hypothetical even on the happy path: a 100-row report already takes 143 ms (excel) / 112 ms (pdf) of pure blocking, and the cost is linear in row count, so a routine larger report pushes the stall into seconds. `app/main.py` registers no worker-pool or offload middleware, so nothing compensates. Note also that `build_report` is cheap (170 ms at 20,000 keys), so the exporters — not the report assembly — are what need offloading.",
+      "evidence": [
+        "pcs-backend/app/api/v1/supplier.py:234-239 — synchronous exporters called from an `async def` handler with no offload:\n    if format == \"excel\":\n        content = export_excel(report)\n        media_type, ext = _EXPORT_TYPES[\"excel\"]\n    else:\n        content = export_pdf(report)\n        media_type, ext = _EXPORT_TYPES[\"pdf\"]",
+        "Measured on this branch: export_excel n=100 143.0 ms, n=1000 197.7 ms, n=5000 2663.6 ms; export_pdf n=100 112.2 ms, n=1000 753.4 ms, n=5000 5064.1 ms — all synchronous, none of it awaiting.",
+        "pcs-backend/app/services/supplier/deviation_report.py:233-235 and 300-302 — the blocking work is `wb.save(buf)` and `doc.build(story)`, both CPU-bound with no await points:\n    buf = BytesIO()\n    wb.save(buf)\n    return buf.getvalue()"
+      ],
+      "suggested_fix": "Offload the build to the threadpool. `from starlette.concurrency import run_in_threadpool` and change both branches to `content = await run_in_threadpool(export_excel, report)` / `await run_in_threadpool(export_pdf, report)`. openpyxl and reportlab release the GIL for the bulk of their work, so this is a real win, and it is a two-line change with no behavioural impact. Assumption: `report` is a frozen dataclass tuple, so sharing it across the thread boundary is safe with no extra copying. Pair this with the row cap from the companion finding — offloading stops the loop stall but does not bound the memory, and the cap does."
+    }
+  ],
+  "suppressed": [
+    {
+      "topic": "`find_rule` linear scan with `_normalize` recomputed per comparison (item 3 of the review checklist)",
+      "reason": "Not a real cost. `SPEC_RULES` has 7 rules (app/services/supplier/deviation_service.py:109-164) and each `matches` call re-normalizes at most ~5 aliases, so a key costs roughly 40 string ops. `build_report` over 20,000 keys measures 170.7 ms total, of which `find_rule` is a small fraction. Even memoizing `_normalize` (e.g. `functools.lru_cache` on `find_rule`, or a prebuilt normalized-alias index built once at module import) would not move a number anyone can observe. A pump carries ~7 parameters. Suppressed as a micro-optimization in a path that is not hot."
+    },
+    {
+      "topic": "`pdfmetrics.registerFont(UnicodeCIDFont(\"STSong-Light\"))` on every `export_pdf` call (item 6 of the review checklist)",
+      "reason": "Measured, not guessed, and it is not a finding. `registerFont` itself is a single dict assignment (reportlab/pdfbase/pdfmetrics.py:612-628, and the CID branch is explicitly noted as needing no typeface registration), so the only real cost is constructing `UnicodeCIDFont`. `CIDTypeFace._extractDictInfo` expands the width table, but STSong-Light has only 95 explicit widths. Timed on this branch's own venv: 0.007 ms per `UnicodeCIDFont(...)` construction, 0.013 ms per construct+register. The CMAP parse inside `CIDEncoding` is additionally disk-cached via the `.fastmap` file in reportlab's temp dir. Suppressed with evidence."
+    },
+    {
+      "topic": "`apply_design_parameters` — `IN (18 literals)` plus row-by-row ORM writes (item 1 of the review checklist)",
+      "reason": "Not a problem at this size, and the code is a seed/migration path, not a request path. `PUMP_DESIGN` has 18 entries (app/services/equip_list/pump_design_data.py:37-73), the `IN` list is a fixed 18-element literal set, `.scalars().all()` loads at most 18 rows, the loop sets one column on each, and there is a single `commit()` at the end. A bulk `UPDATE ... FROM (VALUES ...)` would be measurably faster and materially less clear. Suppressed."
+    },
+    {
+      "topic": "`_load_equipment` called more than once per request (item 2 of the review checklist)",
+      "reason": "Checked both endpoint bodies. `get_actual_data`, `put_actual_data`, `get_deviation_report`, `confirm_actual_data`, `check_actual_data` and `export_deviation_report` each call it exactly once (app/api/v1/supplier.py:102, 119, 157, 191, 210, 231). No N+1, no double fetch. Suppressed."
+    },
+    {
+      "topic": "Event bus: one SELECT + one INSERT per `emit_event`, into a table that only grows (item 4 of the review checklist)",
+      "reason": "Not a hot path. A single confirm/check request emits exactly one event (`CHECK_SUBMITTED` in `confirm_actual_data`, `REPLACES_DESIGN` in `pass_check`; `reject_check` emits none), and no listener is registered for either supplier event type — the only production listener is `cia_mark_stale` (app/services/cia_engine.py:94), which these two paths never trigger. Two round trips per human-initiated workflow step is noise. The unbounded-growth concern for `event_idempotency` is real but is a retention question, not a hot-path one, and I folded the data-volume angle into the unbounded-entries finding rather than raising it separately. Suppressed as a standalone."
+    },
+    {
+      "topic": "Migrations `p7_s4_001` (CREATE TABLE + CREATE INDEX) and `p7_s4_002` (ADD COLUMN on `equipment_list`) (item 7 of the review checklist)",
+      "reason": "Cold path, and both are correct for Postgres. `p7_s4_001` creates a brand-new table, so it takes no lock on `equipment_list` and its PK on `event_id` is the de-dup gate the design intends. `p7_s4_002` is a bare `op.add_column` — let me confirm it is nullable with no server_default, which in PG 11+ is a metadata-only operation with no table rewrite. Nothing to flag."
+    }
+  ],
+  "residual_risks": [
+    "I did not measure the `equipment_list` table size in the deployed database, so the 'hundreds of equipment records' figure comes from the sprint intent, not from a `SELECT count(*)`. This does not weaken either finding: both are anchored on the request-side row count, which the diff itself leaves unbounded, and on measured exporter cost per row.",
+    "I did not verify whether the production front door (nginx / ingress / ALB) imposes a request-body size limit. If one exists at a few MB, the reachable row count for the unbounded-entries finding drops to tens of thousands — which at the measured ~1 ms/row for PDF still means a multi-second event-loop stall, so the finding stands, but the OOM tail is less likely than I have described.",
+    "`actual_data_json` and `design_parameters_json` are JSONB columns with no per-row size ceiling at the database level. If a very large blob is stored, every subsequent read of that `EquipmentList` row — including the plain `GET /actual-data` path — pays the deserialization cost. I did not measure JSONB round-trip cost at extreme sizes and did not raise it as a finding.",
+    "I did not examine `check_project_access_or_404` (app/api/v1/_guard.py) beyond noting it is called once per request from `_load_equipment`; it is pre-existing and outside this diff's scope, but it adds at least one more query to every supplier request and is worth a look by someone reviewing the guard itself."
+  ],
+  "testing_gaps": [
+    "No test asserts a bound on the number of rows `build_report` / `export_excel` / `export_pdf` will handle. A regression test that PUTs more entries than the cap and asserts 422 would pin the fix for the unbounded-entries finding.",
+    "No performance or load test exists for the export endpoints. My numbers came from a synthetic bench in this session, not from anything the repo runs, so they will not regress-detect a future slowdown in the exporters.",
+    "There is no test that measures or asserts the export endpoints do not block the event loop, so a future refactor that moves CPU work back onto the loop would not be caught."
+  ]
+}

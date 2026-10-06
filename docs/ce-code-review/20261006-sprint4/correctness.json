@@ -1,0 +1,85 @@
+{
+  "reviewer": "correctness",
+  "run_id": "20261006-sprint4",
+  "scope": {
+    "base": "3e5ae902945e19274f5be410f0eed31eb48a7627",
+    "head": "cae5bce9e3411ff1199713aca88c83f427a1d089",
+    "mode": "local-aligned"
+  },
+  "findings": [
+    {
+      "title": "pass_check has no state precondition — a checker can mark equipment CONFIRMED without ever passing the deviation gate",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/supplier/confirmation_service.py",
+      "line": 98,
+      "confidence": 100,
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "The SPEC §3.2.4(4) confirmation gate is enforced in exactly one place — `confirm_actual_data` (line 66, `if not can_confirm(report)`). `pass_check` sets CONFIRMED unconditionally, and the API route `check_actual_data` calls it with only a role guard (`require_roles(actor, *_CHECK_ROLES)`), so a REVIEWER/APPROVER can POST `/equipment/{id}/actual-data/check` with `decision=\"pass\"` on an equipment that has no actual data at all, or whose deviation report is full of UNQUALIFIED/UNVERDICTABLE rows, and drive it straight to CONFIRMED. The module docstring explicitly claims \"不合格 / 不可判项禁止确认 (§3.2.4(4) + 风险 #4)\" — that promise is not kept on this path. Two concrete consequences: (a) the equipment is then locked against `record_actual_data` (CONFIRMED raises `ACTUAL_DATA_LOCKED`), so the bad data cannot be corrected by re-entry; (b) `REPLACES_DESIGN` is emitted with `after=equipment.actual_data_json` == None, so P8's reverse-restore source is recorded as \"actual data replaced design\" with a null actual side. The same hole is a TOCTOU: `confirm_actual_data` deliberately leaves the status at PENDING_CONFIRM (docstring line 55-57), which means `record_actual_data`'s CONFIRMED lock does not engage, so a designer can PUT a new, now-non-compliant `actual_data_json` between submit and check — and the checker still passes it with no re-evaluation.",
+      "evidence": [
+        "pcs-backend/app/services/supplier/confirmation_service.py:98 — `    equipment.actual_data_status = ActualDataStatus.CONFIRMED.value` (first statement of `pass_check`; no guard on any prior status, and no re-run of `can_confirm` anywhere in the function)",
+        "pcs-backend/app/services/supplier/confirmation_service.py:66 — `    if not can_confirm(report):` — the §3.2.4(4) gate exists only in `confirm_actual_data`, not in `pass_check`",
+        "pcs-backend/app/api/v1/supplier.py — `    if body.decision == \"pass\":\n        await pass_check_svc(db, record, actor, reason=body.reason)` — the only precondition on this route is `require_roles(actor, *_CHECK_ROLES)`",
+        "pcs-backend/app/services/supplier/actual_data_service.py:92 — `    if equipment.actual_data_status == ActualDataStatus.CONFIRMED.value:` — entry lock engages only at CONFIRMED, so re-entry between submit and check is permitted",
+        "tests/services/supplier/test_confirmation_service.py:128 — `    out = await pass_check(db_session, eq, _CHECKER, reason=\"校核通过\")` called directly on a fresh equipment without any prior `confirm_actual_data` — the tests bake in the unguarded transition rather than exercising the guard"
+      ],
+      "suggested_fix": "Add a precondition and a re-gate at the top of `pass_check`, mirroring the shape already used by `confirm_actual_data` (same module, same `_error` helper):\n\n```python\nif equipment.actual_data_status != ActualDataStatus.PENDING_CONFIRM.value:\n    raise _error(\n        \"ACTUAL_DATA_NOT_SUBMITTED\",\n        f\"实际数据当前为 {equipment.actual_data_status} —— 校核通过前须由设计人先提交确认\",\n        status=409,\n    )\n\nreport = build_report(equipment)\nif not can_confirm(report):\n    raise _error(\n        \"DEVIATION_BLOCKS_CONFIRMATION\",\n        f\"存在不合格或不可判项，禁止校核通过：{report.blocking_reason}\",\n    )\n```\n\nThis closes both the direct bypass and the re-entry TOCTOU, because the gate is re-evaluated at check time against whatever `actual_data_json` is currently stored. ASSUMPTION: PENDING_CONFIRM is the intended single value for \"submitted and awaiting check\" — the module docstring (lines 55-57) states this explicitly (\"PENDING_CONFIRM 同时覆盖「待确认」与「校核中」两段\"), so no new enum value or migration is needed. Note that adding this guard will break `test_pass_check_marks_confirmed`, `test_pass_check_emits_event_with_before`, `test_pass_check_does_not_touch_sign_status_hash` and `test_reject_check_reopens_entry`, which all call `pass_check` on a NOT_ENTERED fixture; those fixtures need a prior `confirm_actual_data` call. A same-shaped guard on `reject_check` (only unlock from CONFIRMED/PENDING_CONFIRM) is worth adding in the same pass, though it is lower impact."
+    },
+    {
+      "title": "build_report's `design_value is None` short-circuit preempts kind dispatch, so MANUAL_CHECK rows lose requires_manual_check and report a misleading note",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/supplier/deviation_report.py",
+      "line": 104,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "`evaluate()` in `deviation_service.py` dispatches on `rule.kind` FIRST (lines 212-231): MANUAL_CHECK returns UNVERDICTABLE with `requires_manual_check=True` and the note 「序数比较（不得低于），机器判不了 —— 需人工核对」; REFERENCE_ONLY and RECHECK_ALWAYS return without needing a design value at all. But `build_report` checks `if design_value is None` and `continue`s before ever calling `evaluate`, so for any rule whose kind is not numeric the missing-design short-circuit wins. For 材质 — one of the six rows SPEC §3.2.4(2) explicitly enumerates, and which by definition has no numeric design value in `design_parameters_json` — an engineer entering 材质 gets a row that says 「缺设计值，无法判定」 (a claim that is false; nothing is missing) with `requires_manual_check=False` and `spec_ref` populated. The dropped `requires_manual_check` flag is the part that actually hurts: it is the signal a downstream consumer (and the exported report) would use to route the row to a human instead of treating it as a data-entry defect, and `DeviationRowOut` carries it to the API. The same ordering also silently downgrades REFERENCE_ONLY (轴功率, documented at deviation_service.py:224-231 as 「本身不判合格与否」 and deliberately marked QUALIFIED) to UNVERDICTABLE for any equipment whose `design_parameters_json` has not been populated by `apply_design_parameters` yet.",
+      "evidence": [
+        "pcs-backend/app/services/supplier/deviation_report.py:104 — `        if design_value is None:` followed by `            rows.append(DeviationRow(... verdict=UNVERDICTABLE, note=\"缺设计值，无法判定\", spec_ref=rule.spec_ref,))` and `            continue` — the kind-specific branch in `evaluate` is never reached",
+        "pcs-backend/app/services/supplier/deviation_service.py:212-217 — `    if rule.kind == \"MANUAL_CHECK\":\n        return Evaluation(\n            UNVERDICTABLE,\n            note=\"序数比较（不得低于），机器判不了 —— 需人工核对\",\n            requires_manual_check=True,\n        )` — the branch the short-circuit preempts",
+        "pcs-backend/app/services/supplier/deviation_service.py:224-231 — `    if rule.kind == \"REFERENCE_ONLY\":` … `            note=\"参照量，本身不判合格与否（供其他规则使用）\",` — documented as valid data, not missing data",
+        "pcs-backend/app/services/equip_list/pump_design_data.py:83-91 — `_UNITS` contains only 扬程/效率/NPSHr/轴功率/电机额定功率/电机配用功率/转速; 材质 and 厂家型号 have no design-side representation at all, so the short-circuit is the normal path, not an edge case"
+      ],
+      "suggested_fix": "Let the kind decide whether a design value is required. Add a class-level set of kinds that never consult the design value, and move the `design_value is None` check below it:\n\n```python\n# deviation_service.py\nDESIGN_VALUE_OPTIONAL_KINDS = frozenset(\n    {\"MANUAL_CHECK\", \"REFERENCE_ONLY\", \"RECHECK_ALWAYS\"}\n)\n\n# deviation_report.py, inside build_report, replacing the current\n# `if design_value is None:` block at line 104\nif design_value is None and rule.kind not in DESIGN_VALUE_OPTIONAL_KINDS:\n    rows.append(DeviationRow(... verdict=UNVERDICTABLE, note=\"缺设计值，无法判定\", ...))\n    continue\n```\n\nWith that, 材质 rows reach `evaluate`, carry the correct 「需人工核对」 note and `requires_manual_check=True`, and 轴功率 rows report as valid reference data instead of missing data. ASSUMPTION: these three kinds are genuinely design-value-independent by the engine's own documented semantics — MANUAL_CHECK is an ordinal comparison, REFERENCE_ONLY is explicitly 「本身不判合格与否」, and RECHECK_ALWAYS already returns a fixed WARNING with `deviation_pct=None` so the design value only ever feeds the (currently unused) displayed number. If the team instead wants RECHECK_ALWAYS to stay blocking when no design speed exists, drop it from the frozenset and the behaviour for 转速 is unchanged from today."
+    },
+    {
+      "title": "叶轮直径 resolves to the 转速 rule's design_key, so the report pairs impeller diameter against design shaft speed",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/supplier/deviation_service.py",
+      "line": 156,
+      "confidence": 75,
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "why_it_matters": "The 转速 rule lists 叶轮直径 / 实际叶轮直径 / 设计叶轮直径 as aliases, so `find_rule(\"叶轮直径\")` returns that rule. `build_report` then resolves the design value through `rule.design_key` (= `design_parameter or parameter` = \"转速\"), pulling e.g. 2982 r/min out of `design_parameters_json` and printing it as the 设计值 on a row whose 对比项 is 叶轮直径 and whose 实际值 is e.g. 320 mm. No 叶轮直径 key exists anywhere in `PUMP_DESIGN` or `_UNITS`, so there is no correct design value to pair. This is not only a display artifact: `export_excel` and `export_pdf` write the mismatched 设计值 into the compliance document the process engineering room receives under SPEC §3.2.4(3), and `_extract` also ignores the row's `unit` for the design column, so the export shows 「2982 r/min」 as the design value of a millimetre measurement with no unit annotation on that column. The gate itself is not corrupted — `evaluate` returns a fixed WARNING for RECHECK_ALWAYS with `deviation_pct=None`, so no bogus percentage is computed.",
+      "evidence": [
+        "pcs-backend/app/services/supplier/deviation_service.py:152-157 — `    DeviationRule(\n        parameter=\"转速\",\n        kind=\"RECHECK_ALWAYS\",\n        spec_ref=\"SPEC §3.2.4(2) 实际转速、叶轮直径：允许差异，需重新校核性能\",\n        aliases=(\"实际转速\", \"设计转速\", \"叶轮直径\", \"实际叶轮直径\", \"设计叶轮直径\"),\n    ),` — 叶轮直径 is an alias of a rule whose `design_parameter` is unset",
+        "pcs-backend/app/services/supplier/deviation_service.py:66-69 — `    @property\n    def design_key(self) -> str:\n        \"\"\"在 `design_parameters_json` 里查哪个键。\"\"\"\n        return self.design_parameter or self.parameter` — resolves to \"转速\" for the 叶轮直径 alias",
+        "pcs-backend/app/services/supplier/deviation_report.py:89-91 — `        design_value, _, _ = _extract(\n            design, rule.design_key if rule else name\n        )` — the design-side unit is discarded (`_`), so the export carries the number with no unit",
+        "pcs-backend/app/services/equip_list/pump_design_data.py:83-91 — `_UNITS` / `PUMP_DESIGN` contain 转速 but no 叶轮直径 key, confirming there is no correct design value to substitute"
+      ],
+      "suggested_fix": "Give 叶轮直径 its own rule rather than aliasing it onto 转速, so `design_key` and the actual parameter stay the same name. Since SPEC treats 转速 and 叶轮直径 identically (\"允许差异，需重新校核性能\"), the cheapest fix that keeps the verdict is to add the two diameter keys to the alias set of a rule whose `design_parameter` matches, or — simplest and most honest — split it:\n\n```python\nDeviationRule(\n    parameter=\"叶轮直径\",\n    kind=\"RECHECK_ALWAYS\",\n    spec_ref=\"SPEC §3.2.4(2) 实际转速、叶轮直径：允许差异，需重新校核性能\",\n    aliases=(\"实际叶轮直径\", \"设计叶轮直径\"),\n),\n```\n\nWith no matching `叶轮直径` key in `design_parameters_json`, the row then falls into the existing 「缺设计值，无法判定」 branch and `can_confirm` blocks it — which is the correct fail-closed outcome until a real design impeller diameter is transcribed, and is strictly better than showing a shaft speed next to a diameter. If the team prefers not to block on it, instead populate 叶轮直径 in `PUMP_DESIGN`/`_UNITS` so the lookup resolves correctly. ASSUMPTION: the design table genuinely lacks impeller diameter (verified — it is not in the transcribed 17 records), so no aliasing trick can produce a correct design value today."
+    }
+  ],
+  "residual_risks": [
+    "callsite completeness: grep-only. I enumerated callers of `emit_event` / `register_listener` by text search within the changed modules and did not audit consumers outside this diff (P8 reverse-restore work is not yet written, so no reverse-event path exists to break today).",
+    "events.py:165 `await session.rollback()` inside `_claim` rolls back the CALLER's whole transaction, not just the idempotency insert. In `pass_check` the CONFIRMED status is already flushed at line 99, so a rollback there would silently discard it; `emit_event` would then return False (same-hash duplicate) and `pass_check` ignores that return value and commits — a silent no-op pass. I did NOT raise this as a finding because it is only reachable via an event_id collision (all current callers use `uuid.uuid4()`) or a non-`EventIdempotency` IntegrityError surfacing at that flush, so the probability is effectively zero today. It becomes a live bug the moment any caller passes a deterministic event_id.",
+    "`emit_event` (events.py:224-232) builds ONE dict and hands the same object to every listener in `_LISTENERS[event_type]`. `_mark_stale_via_fsm` does `event.pop(\"_session\", None)`, so a second listener registered for `cia_mark_stale` would receive a dict with `_session` already removed and raise RuntimeError. Safe only while there is exactly one listener per event type; nothing in the diff enforces that. Related: the dict literal puts `**payload` last, so a future caller passing a payload key named `before` or `after` would silently shadow the snapshot that P8 reverse-restore depends on. Neither is reachable today; flagged so the next listener registration does not inherit it silently.",
+    "`reject_check` (confirmation_service.py:116-126) sets PENDING_CONFIRM with no precondition, so a checker can move a NOT_ENTERED or NEED_RECALC equipment into PENDING_CONFIRM, which opens the `record_actual_data` entry channel on equipment that was never submitted. Low impact, and I folded it into the pass_check finding's fix rather than raising it separately.",
+    "`confirm_actual_data` does not change `actual_data_status` (intentional, per its docstring), so it has no guard against repeat submission — each call mints a fresh `uuid.uuid4()` and emits another `actual_data_check_submitted` event. Downstream consumers keyed on that event type will see duplicates. Not raised: the event is informational and no consumer exists in this diff.",
+    "I did not execute the test suite, the T5 verification script (`scripts/p7_open_012_t5_r1_verification.py`), or the alembic migrations. All findings above are static traces through the source.",
+    "`SYMMETRIC_BAND` in `evaluate` (deviation_service.py:251-256) is now unreachable — commit 742215d moved 电机额定功率 from SYMMETRIC_BAND to MOTOR_TIER_FLOOR, and no rule in SPEC_RULES declares that kind. Dead branch, harmless; not raised as a finding."
+  ],
+  "testing_gaps": [
+    "No test asserts that `pass_check` (or the `POST /equipment/{id}/actual-data/check` route) rejects equipment that is not in PENDING_CONFIRM. The three existing pass_check tests all drive a fresh NOT_ENTERED fixture straight to CONFIRMED, so the missing guard is encoded in the tests rather than caught by them. This is the test that would have caught finding 1.",
+    "No test covers the submit → re-enter → check sequence: a device whose data is replaced (via PUT actual-data) after `confirm_actual_data` but before `pass_check`. Adding one is what would demonstrate the TOCTOU half of finding 1.",
+    "No test enters a 材质 or 厂家型号 value into `actual_data_json`, so the MANUAL_CHECK branch's `requires_manual_check=True` and the build_report short-circuit interaction (finding 2) are unexercised in either direction.",
+    "No test enters 叶轮直径 as an actual value, so the alias→design_key mis-pairing (finding 3) is invisible to the suite.",
+    "No test asserts that `emit_event`'s payload dict is not shared destructively across multiple listeners for the same event type."
+  ]
+}
