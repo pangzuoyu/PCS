@@ -186,3 +186,40 @@ def test_equipment_list_has_actual_data_json_column():
     cols = {c.name for c in EquipmentList.__table__.columns}
     assert "actual_data_json" in cols
     assert "actual_data_status" in cols  # 既有状态列保留
+
+
+# ---------------------------------------------------------------------------
+# entries 长度上限（审查 #1）
+# ---------------------------------------------------------------------------
+
+
+def test_normalize_entries_rejects_over_limit() -> None:
+    """`entries` 无上限时单次 PUT 可造出任意大的报告，两个导出器都整体物化。
+
+    服务层同步加闸 —— schema 的 `max_length` 只封 API 路径，`normalize_entries`
+    是所有调用方的共同入口，闸必须在这里也有一道。
+    """
+    from app.core.errors import PcsError
+    from app.services.supplier.actual_data_service import normalize_entries
+
+    ok = [{"name": f"参数{i}", "value": float(i), "unit": ""} for i in range(50)]
+    assert len(normalize_entries(ok)) == 50  # 边界内放行
+
+    too_many = ok + [{"name": "溢出", "value": 1.0, "unit": ""}]
+    with pytest.raises(PcsError) as exc:
+        normalize_entries(too_many)
+    assert exc.value.code == "ACTUAL_DATA_VALIDATION"
+    assert "50" in exc.value.message, "报错须说明上限值，否则录入者不知该删到几条"
+
+
+def test_actual_data_request_schema_caps_entries() -> None:
+    """schema 侧同样封顶 —— 越界应在 422 就被挡下，不进 service。"""
+    from pydantic import ValidationError
+
+    from app.schemas.supplier import ActualDataEntryRequest
+
+    entries = [{"name": f"参数{i}", "value": float(i)} for i in range(50)]
+    assert len(ActualDataEntryRequest(entries=entries).entries) == 50
+
+    with pytest.raises(ValidationError):
+        ActualDataEntryRequest(entries=entries + [{"name": "x", "value": 1.0}])

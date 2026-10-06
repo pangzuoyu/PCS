@@ -29,7 +29,14 @@ class ActualDataEntryRequest(BaseModel):
 
     entries: list[ActualDataEntry] = Field(
         min_length=1,
-        description="整台设备的参数集; 整体替换而非合并",
+        max_length=50,
+        description=(
+            "整台设备的参数集; 整体替换而非合并。"
+            "上限 50 = 泵应检集（6-7 项）的约 7 倍余量（审查 #1: "
+            "无上限时单次 PUT 可造出任意大的报告，两个导出器都整体物化，"
+            "实测 5000 行 xlsx 2.7s / pdf 5.1s 且成本线性）。"
+            "⚠️ 暂定值 —— 非泵设备应检参数表落地后复核"
+        ),
     )
 
 

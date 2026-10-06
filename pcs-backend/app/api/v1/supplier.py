@@ -24,6 +24,7 @@ from urllib.parse import quote
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from starlette.concurrency import run_in_threadpool
 
 from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
@@ -232,10 +233,14 @@ async def export_deviation_report(
     report = build_report(record)
 
     if format == "excel":
-        content = export_excel(report)
+        # openpyxl/reportlab 是 CPU-bound 同步函数，直接在 `async def` 里调会
+        # 堵死整个 worker 的事件循环（审查 #13）。offload 到线程池，重活期间
+        # 释放 GIL。注意：offload 只止住循环停顿，**不限内存** —— 内存由
+        # `entries` 上限（_MAX_ENTRIES）管，两者配套不可互相替代。
+        content = await run_in_threadpool(export_excel, report)
         media_type, ext = _EXPORT_TYPES["excel"]
     else:
-        content = export_pdf(report)
+        content = await run_in_threadpool(export_pdf, report)
         media_type, ext = _EXPORT_TYPES["pdf"]
 
     safe_tag = quote(record.tag_number, safe="")

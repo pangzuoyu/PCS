@@ -126,6 +126,20 @@ async def test_check_pass_marks_confirmed(client, db_session, equipment, reviewe
 async def test_check_reject_reopens_entry(
     client, db_session, equipment, reviewer_headers
 ):
+    """退回重开录入通道（§3.2.4(5)）—— 但须先真的确认过。
+
+    审查 #5 修复前本测试直接从 PENDING_CONFIRM 调 reject 并期望 200，
+    也就是说「没确认过的设备也能被退回」，凭空开了一条绕过录入的写入路径。
+    守卫加装后该路径返回 409，故改为走合法路径：先 pass 再 reject。
+    """
+    passed = await client.post(
+        f"/api/v1/equipment/{equipment.equipment_id}/actual-data/check",
+        json={"decision": "pass", "reason": "校核通过"},
+        headers=reviewer_headers,
+    )
+    assert passed.status_code == 200, passed.text
+    assert passed.json()["actual_data_status"] == "CONFIRMED"
+
     resp = await client.post(
         f"/api/v1/equipment/{equipment.equipment_id}/actual-data/check",
         json={"decision": "reject", "reason": "数据存疑"},
@@ -133,6 +147,20 @@ async def test_check_reject_reopens_entry(
     )
     assert resp.status_code == 200, resp.text
     assert resp.json()["actual_data_status"] == "PENDING_CONFIRM"
+
+
+async def test_check_reject_on_never_confirmed_is_409(
+    client, db_session, equipment, reviewer_headers
+):
+    """从未确认过的设备不可退回（审查 #5 的镜像缺口）."""
+    resp = await client.post(
+        f"/api/v1/equipment/{equipment.equipment_id}/actual-data/check",
+        json={"decision": "reject", "reason": "数据存疑"},
+        headers=reviewer_headers,
+    )
+    assert resp.status_code == 409, resp.text
+    await db_session.refresh(equipment)
+    assert equipment.actual_data_status == "PENDING_CONFIRM"
 
 
 async def test_check_rejects_designer(client, equipment, designer_headers):

@@ -24,6 +24,11 @@ from app.models.equipment import EquipmentList
 from app.models.enums import ActualDataStatus
 
 
+# 单台设备参数集上限 —— 与 `ActualDataEntryRequest.entries` 的 max_length 同源。
+# 泵应检集 6-7 项，取约 7 倍余量；非泵设备应检参数表落地后复核（审查 #1）。
+_MAX_ENTRIES = 50
+
+
 def _coerce_value(raw: Any, name: str) -> float:
     """value → float；非数值抛错（不接受 '100' 这类字符串数字）."""
     if isinstance(raw, bool) or not isinstance(raw, (int, float)):
@@ -45,6 +50,17 @@ def normalize_entries(entries: list[dict]) -> dict[str, dict]:
         raise PcsError(
             code="ACTUAL_DATA_VALIDATION",
             message="录入项为空 —— 无数据可存, 状态不应推进",
+            status=422,
+        )
+    if len(entries) > _MAX_ENTRIES:
+        # schema 的 max_length 只封 API 路径；这里是所有调用方的共同入口，
+        # 闸必须在这里也有一道（审查 #1）。
+        raise PcsError(
+            code="ACTUAL_DATA_VALIDATION",
+            message=(
+                f"录入项 {len(entries)} 条，超过上限 {_MAX_ENTRIES} 条 —— "
+                "单台设备的参数集不应有这么多项"
+            ),
             status=422,
         )
 
