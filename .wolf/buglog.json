@@ -2455,6 +2455,30 @@
       ],
       "occurrences": 1,
       "last_seen": "2026-10-05T00:00:00+08:00"
+    },
+    {
+      "id": "bug-139",
+      "timestamp": "2026-10-06T11:50:00+08:00",
+      "error_message": "事件幂等结构性不可达 + claim 冲突回滚调用方事务 (设备 CONFIRMED 状态被静默丢弃, 对外谎报为并发冲突)",
+      "file": "pcs-backend/app/services/events.py",
+      "root_cause": "两个缺陷互相掩盖: (1) 全部 producer 现生成 uuid4(), 无任何调用方能产出碰撞 event_id → _claim 的幂等表/payload_hash 冲突检测/竞态处理全部无法生效, 这条 IntegrityError 分支今天是死代码; (2) 正因为它是死代码, 其中的 session.rollback() 一直没人注意 —— 它回滚的是**调用方整个事务**(session.flush() 冲刷的是调用方全部待写状态), 而 pass_check 恰好在 emit_event 前 flush 了 actual_data_status=CONFIRMED, 会被一并丢弃, 调用方收到的却是「并发 claim 冲突」这个误导性错误。(1) 修好之后 (2) 立刻变可达, 所以两者必须同提交。",
+      "fix": "(1) 新增 events.derive_event_id() + 固定命名空间 NS_EVENT, pass_check 改用 uuid5 确定性派生, 语义为「一次业务事实 = 一个 id」; (2) _claim 的 session.rollback() 换成 async with session.begin_nested() savepoint, 只回滚 claim 行的 INSERT。两条新测试先 RED 后 GREEN: 修复前故障注入下设备退回 PENDING_CONFIRM, 修复后保持 CONFIRMED。",
+      "fix_commit": "af0ca4d",
+      "tags": [
+        "p7-s4",
+        "事件总线",
+        "数据丢失",
+        "事务边界",
+        "幂等",
+        "ADR-0025",
+        "ce-code-review-#2",
+        "ce-code-review-#3"
+      ],
+      "related_bugs": [
+        "bug-137"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-06T11:50:00+08:00"
     }
   ]
 }
