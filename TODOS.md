@@ -1,467 +1,268 @@
 # TODOS.md — PCS 延后工作清单
 
-> 由 /plan-eng-review 2026-08-29 建立。每项含来源裁决编号，完成后移除并在 STATUS.md 记录。
+> **2026-10-06 全量核销重写。** 原文件 46 条积压自 2026-08，状态字段写的是「P1 Sprint 2」这类时间锚，
+> P1–P7 全部收口后已完全失去意义，且无一条被勾销 —— 越堆越长、越不敢看。
+> 本次对每条做只读实证核验，判定依据为 `文件:行号`，见每条「证据」。
 
-## TODO-001: 前端测试基建（vitest + RTL）
+## 判定图例
 
-- **状态**: P1 第一周 | **来源**: eng-review 2026-08-29（7A）
-- **What**: 引入 vitest + @testing-library/react；写首批 3 个测试文件
-- **Why**: `apiFetch` 的 401 静默刷新重试（时序图 ⑫–⑱）、`RequireAuth` 守卫、登录表单校验是前端最易错逻辑，P0 期间全靠 Task 13 手工联调，无自动护栏
-- **首批清单**:
-  - `src/services/api.test.ts`：401 → refresh 成功 → 原请求重试成功；refresh 也 401 → logout + 跳 /login
-  - `src/App.test.tsx`：无 token 访问 `/` → Navigate `/login`；有 token → 渲染布局
-  - `src/pages/LoginPage.test.tsx`：空表单校验提示；`VITE_ENABLE_MOCK_AUTH=true` 时 Mock 角色下拉渲染、false 时不渲染
-- **Context**: P0 骨架期 UI 高速变动，测试价值密度低故未建（SPEC-P0-FE-001 验收仅 lint+build）。P1 引入时同步把 `vitest run` 接入 npm scripts
-- **Depends on**: 无（P1 启动即可做）
+| 标记 | 含义 |
+|---|---|
+| 🔴 **OPEN** | 确实还没做 |
+| 🟡 **PARTIAL** | 做了一半 |
+| ⚪ **BLOCKED** | 宿主模块未开工 / 等外部方，暂不可动 |
+| ✅ **DONE** | 已落地（**不要按原文重做**——多条实际路径与条目描述不同） |
+| 🚫 **WONTFIX** | 已被产品/架构裁决关闭，**改回去会破坏既有契约** |
+| ♻️ **STALE** | 描述已过时，任务本身失去意义，需重新裁决而非照做 |
 
-## TODO-002: refresh token 吊销机制（token_version）
-
-- **状态**: P1 | **来源**: eng-review 2026-08-29（2A）
-- **What**: users 表加 `token_version` 列；`create_token` 写入 claim；`decode_token` 校验
-- **Why**: 无状态 JWT 的 logout 只清前端内存，refresh token 被盗后 7 天有效期内无法作废
-- **Context**: P0 内部部署（HTTPS + 令牌仅内存）风险可接受；P1 加列 + Alembic 增量迁移成本低，decode 集中在 `app/core/security.py` 一处
-- **Depends on**: P0 完成（users 表已建）
-
-## TODO-003: JSONB GIN 索引
-
-- **状态**: P1 报表/列表查询端点落地时 | **来源**: eng-review 2026-08-29（8A）
-- **What**: 按实际查询模式为高频 JSONB 列建 GIN 索引（候选：`streams.composition_json`、`equipment_list.design_parameters_json`、`deliverable_versions.record_snapshot_json`）
-- **Why**: P0 查询模式未定，盲建拖慢全部写入且大概率选错列；SPEC 3.4 "JSONB 支持索引查询"由此兑现
-- **Depends on**: 首个按 JSONB 内容过滤的端点（P7 设备查询或 P8 报表）
+**维护规则**：新增条目必须带 `证据` 字段；关闭条目移到文末归档表，不要删（编号是追溯索引）。
+最后全量核销：2026-10-06。
 
 ---
 
-## TODO-004: CORS 中间件
+## 🔴 P0 — 真问题（部署阻塞 / 安全）
 
-- **状态**: P1 部署架构确定后 | **来源**: P0 review 2026-09-01（P0-1）
-- **What**: `app/main.py` 加 `CORSMiddleware`，`Settings.allowed_origins: str = "http://localhost:5173"`，env 注入生产域名
-- **Why**: P0 无生产部署，dev 态靠 Vite proxy 掩盖；前后端分开部署时 preflight 会 403
-- **Depends on**: 部署架构（是否同域 / Nginx 反代 / 独立域名）
+### TODO-004 + TODO-019: CORS middleware 从未挂载
 
-## TODO-005: LDAP TLS
+- **What**: `app/main.py` lifespan startup 挂 `CORSMiddleware`，读 `Settings.cors_allow_origins`；
+  prod 启动期校验 `*` 或未设置则 raise。
+- **Why**: **前后端一分域部署，preflight 直接 403。** dev 靠 Vite proxy 掩盖，至今没暴露。
+- **证据**: `grep -rn add_middleware app/` **全仓 0 命中**；`app/core/config.py:39` 有 `cors_allow_origins` 配置项但无人消费。
+  `tests/test_dual_engine.py:29 test_cors_allow_origins_parsed` 只测配置解析，不测 middleware —— 又一个「测了但没测到东西」。
+- **复杂度**: 低（~20 行）。**Owner**: 待认领
 
-- **状态**: P1 真实 AD 连接时 | **来源**: P0 review 2026-09-01（P0-3）
-- **What**: `Settings.ldap_use_start_tls: bool = False`；`ldap3.Server(..., use_ssl=startswith("ldaps://"))` 或 `conn.start_tls()`
-- **Why**: P0 仅用 Samba 测试域，生产明文 bind 不可接受
-- **Depends on**: IT 提供 LDAPS 端口 + CA 证书
+### TODO-006: 认证端点无限流、无登录审计
 
-## TODO-006: 认证安全加固（限流 + 审计）
+- **What**: `/auth/login` `/auth/refresh` 加限流；login 成功/失败均写 `audit_logs`。
+- **Why**: 暴力破解无阻碍 + 无审计留痕。
+- **证据**: `app/api/v1/auth.py` grep `rate_limit|limiter|LOGIN_SUCCESS|LOGIN_FAILED` **0 命中**。
+  限流能力已存在（`app/services/_sliding_window_rate_limit.py`）但只用在 `app/api/v1/util.py` 一个端点。
+- **复杂度**: 中。**Owner**: 待认领
 
-- **状态**: P1 生产部署前 | **来源**: P0 review 2026-09-01（P0-4）
-- **What**:
-  - 加 `slowapi` 依赖，`/auth/login`、`/auth/refresh` 装饰 `@limiter.limit("10/minute")`
-  - login 成功/失败均写 `audit_logs`（user_id nullable、action 枚举 LOGIN_SUCCESS / LOGIN_FAILED、ip 字段）
-- **Why**: P0 骨架期无速率限制可被暴力破解；审计留痕
-- **Depends on**: TODO-007（JWT 过期细分）一并落地以减少日志噪声
+### TODO-002: refresh token 吊销机制（token_version）
 
-## TODO-007: JWT 过期/无效细分
+- **What**: users 表加 `token_version`；`create_token` 写入 claim；`decode_token` 校验。
+- **Why**: 无状态 JWT 的 logout 只清前端内存，被盗 refresh token 7 天内无法作废。
+- **证据**: `grep -rln token_version pcs-backend/ --include=*.py` 全仓 0 命中。
+- **Owner**: 待认领
 
-- **状态**: P1 前端测试基建同窗口 | **来源**: P0 review 2026-09-01（P2-1）
-- **What**: `app/core/security.py` 拆 `jwt.ExpiredSignatureError → PcsError(code="AUTH_EXPIRED_TOKEN")` vs `jwt.InvalidTokenError → PcsError(code="AUTH_INVALID_TOKEN")`；前端 axios 拦截器据此决定 refresh 还是清 session 跳 /login
-- **Why**: 当前均映射为 INVALID_TOKEN，前端无法区分"刷新一次"和"重新登录"
-- **Depends on**: TODO-001（前端测试基建）
+### TODO-007: JWT 过期 / 无效未细分
 
-## TODO-008: equipment_list FK 约束名 rename 迁移
-
-- **状态**: P1 第一周 | **来源**: P0 review 2026-09-01（P2-7）
-- **What**: alembic 增量迁移 `op.execute("ALTER TABLE equipment_list RENAME CONSTRAINT fk_equipment_list_type_code TO fk_equipment_list_type_code_composite")`
-- **Why**: 模型已 rename；DB 端约束仍为旧名。下次 `alembic check` 会产生 diff
-- **Depends on**: 无
-
-## TODO-009: 血缘递归深度限制
-
-- **状态**: P1 血缘引擎开发时 | **来源**: P0 review 2026-09-01（收尾-2）
-- **What**: `data_lineage.parent_lineage_id` self-FK 递归查询设上限 ≤ 8
-- **Depends on**: P1 血缘 API 端点
-
-## TODO-010: 多态 FK 应用层校验
-
-- **状态**: P1 deliverable binding service 层 | **来源**: P0 review 2026-09-01（收尾-3）
-- **What**: `deliverable_record_bindings`（record_type + record_id）多态 FK 无 DB 约束，service 层校验 record_id 在对应 record_type 表中存在
-- **Depends on**: P1 deliverable 模块
+- **What**: `ExpiredSignatureError → AUTH_EXPIRED_TOKEN`，`InvalidTokenError → AUTH_INVALID_TOKEN`；
+  前端拦截器据此决定 refresh 还是跳 /login。
+- **Why**: 当前均映射 INVALID_TOKEN，前端无法区分「刷新一次」和「重新登录」。
+- **证据**: `app/core/security.py:116` docstring 写「由调用方转 PcsError」，
+  但全仓 grep `AUTH_EXPIRED_TOKEN|AUTH_INVALID_TOKEN` **0 命中** —— 承诺的细分没落地。
+- **Owner**: 待认领
 
 ---
 
-## TODO-011: record_change_snapshots snapshot_status + ADR-0024
+## 🟡 开放技术债
 
-- **状态**: P1 Sprint 2 | **来源**: gstack eng-review Issue 9（2026-09-01）
-- **What**: `record_change_snapshots` 表追加 `snapshot_status String(20)` 字段（ACTIVE/CONSUMED/ABANDONED，默认 ACTIVE）；写 ADR-0024 修订 ADR-0012 "CHECKED→STALE 自动存快照"为"CHECKED→CHANGE_PENDING / STALE→CHANGE_PENDING / CHECKED→DRAFT 时创建快照"；同步 DICT-ALL-003 → V3.2
-- **Why**: 决议 9 锁定：STALE 期间数据未修改，提前存快照是浪费存储；新设计存储减半且与 ADR-0012 等价
-- **Depends on**: 无（Sprint 2 migration 一并执行）
+### TODO-032: 真库测试文件迁 conftest SQLite fixture
 
-## TODO-012: make_draft_record fixture 覆盖 17 种 record type
+- **What**: `get_async_session_factory()`（真 PG）→ `db_session` fixture。
+- **⚠️ 范围被严重低估**: 条目只列 4 个文件，**实测 27 个**。不是 4 文件修补，是全测试目录级别的工程。
+  27 个清单见归档区备注。附带修 `test_detail_templates` 每跑推高 `template_version_seq` 无清理的问题。
+- **Owner**: 待认领
 
-- **状态**: P1 Sprint 1 测试基建 | **来源**: gstack eng-review Issue 9 + 外部视角 4
-- **What**: `tests/conftest.py` 提供 `make_draft_record(record_type, **kwargs)` fixture，覆盖 RECORD_TYPE_REGISTRY 全部 17 类（16 calc + equipment_list）；P1 测试基础设施
-- **Why**: Sprint 2+ 测试需要直接造 DRAFT 记录；外部视角指出 doc_no_sequences UNIQUE 在 Sprint 1 即生效，fixture 需默认填值防冲突
-- **Depends on**: RECORD_TYPE_REGISTRY 落地（Sprint 1）
+### TODO-035: 物流校验规则 22 条补全 —— ♻️ 描述与实现脱节，先定扩展点
 
-## TODO-013: STALE→CHANGE_PENDING 时记录 change_pending_since + old_record_hash_before_change
+- **What**: P3.2 SIM-7 只实现 3 条典型；P4 需补齐剩余（饱和蒸汽压、临界压缩因子、Cv 边界、热力学一致性…）。
+- **⚠️ 条目描述与代码不符**: 条目说「新增 `ConflictResolver.check_<rule>()` 方法」——
+  实测 `app/services/conflict_resolver.py` **0 个 `def check_`**，实际是 4 个私有 `_check_prx_v01/v03/v05/v06`
+  + `resolve_proii_import`。**扩展点不存在，19 条规则无处挂载。动手前必须先裁决扩展点形态。**
+- **Owner**: 待认领
 
-- **状态**: P1 Sprint 2 | **来源**: gstack eng-review Issue 9 验证细节
-- **What**: StateMachineService 在 STALE→CHANGE_PENDING 时记录 `record.change_pending_since = now` + `record.old_record_hash_before_change = record.record_hash`（保存 CHANGE 前的 STALE 基线哈希，用于后续哈希重算校验）
-- **Why**: 撤销批准需校验当前哈希是否仍匹配快照哈希；不存 STALE 期哈希则撤销语义模糊
-- **Depends on**: TODO-011（snapshot_status 字段）
+### TODO-026: P5 模块平铺字段 / data_sheet_json 展开（9/10 未做）
 
-## TODO-014: 设备联动最终一致性窗口声明（ADR-0025）
+- **What**: 10 张结果表里 9 张仍是 `input_json`/`output_json` 简化容器。
+- **证据**: `app/models/calc.py` — VesselResult:416 / SepEquip:655 / Heat:681 / Cv:785 / Restriction:892 / Flare:400 / PipeNetwork:139。
+  **现成模板**: `CoolingTowerResult` 已按 DICT-007 §SUP-012 加了 14 子结构（`calc.py:949-980`），照它做剩下 9 张。
+- **Owner**: 待认领
 
-- **状态**: P1 Sprint 3 | **来源**: gstack eng-review 外部视角 3（2026-09-01）
-- **What**: ADR-0025 明确：CHECKED 状态变化 → 设备同步延迟 ≤ 5 分钟（CIA cron 兜底）；声明中间窗口容忍度（"状态 CHECKED 但设备记录 STALE"最长 5 分钟）；CI/前端需要展示"设备同步中"标记
-- **Why**: 状态机 Sprint 2 同步 + 设备联动 Sprint 3 异步 → 中间窗口未被声明则上线后易引发 P4 用户困惑
-- **Depends on**: cia_engine 实现
+### TODO-029: CIA 传播性能预算测试
 
-## TODO-015: lineage_ctx 事务回滚清理语义文档化
+- **What**: `test_cia_propagation_perf_budget` —— 100 下游 record / depth 8 / ≤500ms。
+- **证据**: 全仓 `perf_budget` 只命中 `tests/services/test_export_service.py:53`（导出预算），CIA 那个从无。
+  **对照**: 同批的 TODO-030 导出预算已落地并触发了 write_only 改造 —— 同一个 D26/D28 决议，一落地一没落地。
+- **Owner**: 待认领
 
-- **状态**: P1 Sprint 3 | **来源**: gstack eng-review 外部视角 P4 接入验证
-- **What**: lineage_tracker.py docstring + SPEC-P1 V1.3 文档：ctxmgr 内 add_source 的 entry 在 session.rollback() 时由 SQLAlchemy 自动清理（依赖 session.add + transaction rollback 语义）；装饰器 wrapper 内 track 同理；P4 开发者无需手写清理代码
-- **Why**: 外部视角指出"零侵入"承诺需明确：lineage_ctx 是否事务回滚自动清理
-- **Depends on**: lineage_tracker 实现
+### TODO-034: Excel 导入模板版本管理
 
-## TODO-016: ARQ 失败注入测试 + DLQ 触发逻辑测试
+- **What**: 导入模板加 `template_version`；导入时校验，不兼容返 `STREAM_TEMPLATE_VERSION_MISMATCH`。
+- **证据**: `STREAM_TEMPLATE_VERSION_MISMATCH` 全仓 0 命中；现有 `template_version_seq` 是 DB 侧序列，与模板文件无关。
+- **Why**: P4 起字段增减后，旧模板导入会**静默**缺列/多列丢数据。
+- **Owner**: 待认领
 
-- **状态**: P1 Sprint 3 | **来源**: gstack eng-review 外部视角测试盲点 1
-- **What**: tests/test_arq_failure.py：mock cia_tasks 抛异常 → ARQ 默认 3 次重试 → 失败入 DLQ；mock Redis 断开 → worker lifespan 重启；mock concurrent enqueue 同 project_id → 任务去重
-- **Why**: dev/prod 双形态测试-生产漂移 + 失败路径是 ops 关键路径
-- **Depends on**: ARQ 配置（Issue 1）
+### TODO-016: ARQ 失败注入 + DLQ 测试
 
-## TODO-017: P4 接入验收 e2e 测试从 1 扩展到 4
+- **⚠️ 命名陷阱**: `tests/test_arq_failure.py` **存在**，但内容是 workspace 清理测试，
+  与失败路径/DLQ 无关。`worker.py` 无 `max_tries` 配置。**失败路径覆盖为零。**
+- **Owner**: 待认领
 
-- **状态**: P1 Sprint 3 验收 | **来源**: gstack eng-review 外部视角 5
-- **What**: tests/test_p4_integration.py：FLASH / PUMP / PIPE / PIPE_NET 四个模块各写一个 e2e：模拟"计算 → DRAFT → SUBMIT → IN_APPROVAL → CHECKED"全路径；验证 @lineage 装饰器自动写 data_lineage（source + target 哈希）；验证 StateMachineService.transition 落 audit_logs
-- **Why**: 单一 FLASH e2e 不能证明 @lineage + StateMachineService 对 PUMP/PIPE/PIPE_NET 同样"零侵入"
-- **Depends on**: P4 模块骨架（mock 即可，不需 P4 全部实现）
+### TODO-017: P4 接入验收 e2e 从 1 扩到 4
 
-## TODO-018: ARQ 自动清理任务独立文件结构
+- **现状**: 只有 `tests/test_lineage.py:423 test_p4_flash_full_path`。PUMP/PIPE/PIPE_NET 只有单元/persist 测试，
+  无「计算 → DRAFT → CHECKED + @lineage 写血缘 + 状态机落审计」全路径。
+- **性质**: P4 已收口，这条是**当时遗漏的验收缺口**，不是未来项。
+- **Owner**: 待认领
 
-- **状态**: P1 Sprint 1 | **来源**: gstack eng-review 外部视角技术债
-- **What**: workspace 自动清理任务放独立 `app/workers/workspace_tasks.py`（独立于 cia_tasks.py）；WorkerSettings 注册两个 task 入口
-- **Why**: 任务职责分离；后续 PROD 监控/重试策略可分别配置
-- **Depends on**: Sprint 1 ARQ 配置（Issue 1）
+### TODO-039 + TODO-041: 前端类型来源唯一性 + MSW 契约冻结（🔴 逾期 ~20 天）
 
-## TODO-019: CORS prod 启动校验函数位置
+- **What**: 7 个 mock type 文件（pipeClass/flash/pipe/pump/pipeNet/pms/common）改 import 自 `./api`；
+  MSW handlers 按 OpenAPI 重写。
+- **证据**: 7 文件全在，`grep -c "TODO(api-migration)"` 逐文件均为 1，`from './api'` 计数为 0；27 处页面仍从 `../types/*` 导入。
+  `src/mocks/handlers.ts`（28.8K）文件头注释仍写「当前按前端 mock types 写」。
+- **⚠️ STATUS.md 的说法只对了一半**: P5-1 确已闭环，但「解除了 039/041 的依赖」≠「039/041 已完成」——
+  触发条件早已过去，代码原封不动。属**逾期**。
+- **Owner**: 待认领
 
-- **状态**: P1 Sprint 1 | **来源**: gstack eng-review 外部视角技术债
-- **What**: 在 `app/main.py` lifespan startup 阶段调用 `_validate_cors_for_production()`：若 `is_production` 且 `allowed_origins` 包含 `*` 或未设置 → raise RuntimeError；明确断言函数位于 lifespan 而非 middleware（middleware 阶段太晚）
-- **Why**: prod 启动期早失败；避免 middleware 404 后才发现 CORS 错配
-- **Depends on**: Sprint 1 CORS 配置（Issue 5）
+### TODO-040: PIPE_NET 完整版（reactflow / 布局 / 环路检测 / 序列化）
 
-## TODO-020: ADR-0012 + ADR-0024 交叉引用 + SPEC/DICT 同步
+- **证据**: `package.json` 无 reactflow/dagre/elkjs 依赖；`PipeNetTopologyPage.tsx` 仍手写 SVG。
+- **Owner**: 待认领
 
-- **状态**: P1 Sprint 2 | **来源**: gstack eng-review 外部视角技术债
-- **What**: ADR-0024 写完后：(a) ADR-0012 加注"已由 ADR-0024 修订快照时机"；(b) SPEC-P1 V1.2 §3.2.2 → V1.3 更新快照语义章节；(c) DICT-ALL-003 V3.1 → V3.2 表38加 snapshot_status 字段；(d) SUP-007 §3.1 文字同步
-- **Why**: 多文档一致性；防止 P4 开发期读旧文档误用快照 API
-- **Depends on**: TODO-011（snapshot_status 字段落地）
+### TODO-044: Per-Batch QA Gate —— ⚠️ 闸门写在了错误的层级
 
-## TODO-021: 同步 engine 与 asyncpg engine 连接池配置与 lifespan 顺序
+- **现状**: `gstack-qa` 在 `~/.claude/settings.json` 已 `"on"` ✓；`.gstack/qa-reports/` 6 份报告 ✓。
+- **⚠️ 问题**: 流程写在**全局** `~/.claude/CLAUDE.md`，项目根 `CLAUDE.md` grep 0 命中。
+  换机器/换人/重新 clone 即失效，实际靠人肉记忆维持，且无自动化钩子。
+- **修法**: 把闸门流程写进**项目根** `CLAUDE.md`（可入库、可 review），全局只留指针。
+- **Owner**: 待认领
 
-- **状态**: P1 Sprint 1 | **来源**: gstack eng-review 外部视角技术债
-- **What**: `app/db/session.py` 双引擎连接池：sync engine 保留 `pool_size=5, max_overflow=45, pool_pre_ping=True, pool_timeout=30, pool_recycle=1800`（P0）；async engine `pool_size=10, max_overflow=20`（P1 工作负载更大）；lifespan startup 先建 async engine + probe 连接，再 init sync engine，shutdown 反向
-- **Why**: 双引擎同进程共存，避免启动顺序错乱导致 ARQ 任务拿不到 session
-- **Depends on**: Sprint 1 双引擎落地（Issue 1）
+### TODO-028: 10 张计算表主键 rename（命名债，DICT 为准）
 
-## TODO-022: data_lineage timestamp 索引（P4 中后期）
+- **What**: `vessel_id→vessel_calc_id` / `heat_exchanger_id→heat_calc_id` / `cv_id→cv_calc_id` / `net_id→network_id` /
+  `restriction_id→orifice_calc_id` / `ct_id→ct_calc_id` / `psychro_id→psychro_calc_id` / `sep_equip_id→sep_calc_id` /
+  `filter_id→filter_calc_id` / `channel_id→channel_calc_id`。
+- **证据**: `grep -rn "vessel_calc_id|heat_calc_id|orifice_calc_id|psychro_calc_id" app/models/` **仅 2 处命中** —— 基本未做。
+- **Why**: ORM↔DICT 命名统一，后续审计/比对免歧义。**纯命名债，不影响功能**，但每张表都要配迁移，越晚做越贵。
+- **Owner**: 待认领
 
-- **状态**: P4 开发中后期（data_lineage > ~10⁴ 条时）| **来源**: gstack eng-review 第三轮补充 4（2026-09-01）
-- **What**: `CREATE INDEX ix_data_lineage_timestamp ON data_lineage(timestamp)`；P1-MVP 阶段不加（全表扫 <100ms）
-- **Why**: CIA cron 每 1 分钟扫最近 7 天血缘条目；P4 计算模块大量创建记录后血缘量增长，按需评估
-- **Depends on**: 性能测试触发
+### TODO-014: 设备联动「设备同步中」前端标记（🟡 PARTIAL）
 
-## TODO-023: P4 计算函数装饰器签名约定写入 CLAUDE.md 和 P4 模板
+- **What**: ADR-0025 已声明 CHECKED 状态变化的 ≤5 分钟一致性窗口 + 「状态 CHECKED 但设备记录 STALE」中间态，
+  并要求 CI/前端展示「设备同步中」标记。**ADR 写完了，前端没跟。**
+- **证据**: `docs/adr/0025-equipment-eventual-consistency-window.md:6,13,24` 已写；
+  `grep -rn "设备同步|同步中|syncing" pcs-frontend/src/` **0 命中**。
+- **注意**: 这个窗口现在对用户**不可见** —— 用户看到「已 CHECKED 但设备显示 STALE」时无从判断是同步中还是出问题。
+- **Owner**: 待认领
 
-- **状态**: P1 Sprint 3 启动前 | **来源**: gstack eng-review 第三轮补充 2（2026-09-01）
-- **What**: CLAUDE.md 新增"P4 计算函数签名约定"章节：`async def calculate_xxx(db: AsyncSession, *, param1, param2) -> RecordType`，db 必须为关键字参数；新建 `docs/p4-template.md` 装饰器使用模板
-- **Why**: 装饰器从 `kwargs["db"]` 获取，函数签名约束是契约
-- **Depends on**: 无（实施前即可）
+### TODO-015: lineage_ctx 事务回滚清理语义文档化
 
----
+- **What**: docstring + SPEC 说明 ctxmgr 内 entry 在 `session.rollback()` 时自动清理，P4 开发者无需手写清理。
+- **证据**: `app/services/lineage.py` / `lineage_extension.py` grep `rollback|回滚|事务` 0 命中。
+- **Owner**: 待认领
 
-## 已裁决不做（非 TODO）
+### TODO-023: 计算函数签名约定写入 CLAUDE.md
 
-- **CI/CD 流水线（原 SPEC-P0 §3.2.5 / P0-CICD-001）**：单人开发不需要。多人协作时再作为新需求重新提出。（用户裁决 2026-08-29，eng-review Issue 9）
-
----
-
-## ✅ P1-MVP 已完成（2026-09-01）
-
-- **核心交付**：状态机（Sprint 2）+ 血缘追踪 LineageTracker/@lineage/lineage_ctx（Sprint 3）+ CIA 引擎 scan/propagate/propagate_to_equipment（Sprint 3）+ 工作区 CRUD + 输入清单 ChecklistDashboard
-- **质量门**：`ruff check` ✅ / `mypy`（Sprint 3 5 文件）✅ / `pytest` 138 passed（计划 ≥120）
-- **迁移**：Alembic 升级 pcs + pcs_test 双侧实跑通过（Sprint 3.1/3.2）
-- **前端**：`tsc --noEmit` ✅ / `vite build` ✅（dist 297.53 kB gzipped）
-- **e2e 验收**：test_p4_flash_full_path（FLASH-like 计算 + 装饰器 + 状态机 DRAFT→IN_APPROVAL→CHECKED 全路径）
-- **关键 bug 修复**：`updated_at` `onupdate=func.now()` 导致 in-memory `state.dict` 与 DB 漂移，CIA scan 永远 mismatch（测试侧 refresh 同步，生产侧 SELECT 自然拿到正确值）
-
-## ⏭️ P2 Sprint 1 Step 0 后续修正项（V3.4 §第六部分路线图）
-
-DICT V3.4 已发布（`spec/PCS-DICT-ALL-003 V3.4.md`），配置层 8 表 ORM 修正 + data_lineage/audit_logs 反向更新 + 命名偏差 21 处裁决已落地。剩余修正项按阶段推进：
-
-### TODO-024: equipment_list 完整对齐 DICT V3.3（~3h）
-- **状态**: P2 Sprint 2 | **来源**: D13 Schema 审计
-- **What**: equipment_list 当前 ORM 18 列 vs DICT 74 列，缺 ~56 字段（D3 审计清单）。需补 package_no / sub_project / unit_no / tag_in_3d / tag_in_esr / actual_key_parameter_json / 多个 vendor/order/cost/installation/weight/paint/drawing/registration 字段；rename 6 处命名（equipment_description / installation_location / net_weight / paint / process_engineering_remarks / flowsheet_drawing_number）
-- **Why**: P3 集成层启动必备；equipment_list 是设备联动/CIA/代录/报表的中央表
-- **Depends on**: DICT V3.4（已发）
-
-### TODO-025: pump_results 补 6 列（~3h）
-- **状态**: P4 Task 0 | **来源**: D13 Schema 审计
-- **What**: pump_results 缺 `dependencies_json`（D2 裁决）+ `performance_curve_json` / `seal_bearing_json` / `instrumentation_json` / `test_inspection_json` / `remark`（D10 裁决）
-- **Why**: P4 PUMP 模块启动阻塞；D2/D10 spec 已落但 ORM 未跟上
-- **Depends on**: P4 Task 0
-
-### TODO-026: P5 模块平铺字段/data_sheet_json 展开（~9 表，各模块开发时顺带）
-- **状态**: P5 各模块开发期 | **来源**: D13 Schema 审计
-- **What**: vessel_results / heat_results / cv_results / pipe_network_results / restriction_results / flare_system_results / cooling_tower_results / sep_equip_results / filtration_results / open_channel_results 当前 ORM 用 input_json/output_json 简化容器，DICT 要求各模块平铺字段或专属 *_json 子结构。按 SUP-001~014 整合（V3.3 第三部分）补齐
-- **Why**: 数据结构与 SUP 文档对齐，便于查询/报表
-- **Depends on**: P5 各模块启动
-
-### TODO-027: cost_est_results 补 RecordMixin（~P7 启动时）
-- **状态**: P7 开发时 | **来源**: D13 Schema 审计
-- **What**: cost_est_results 当前 ORM 5 列（cost_est_id/equipment_id/estimated_cost/currency/cost_index_year/created_at），缺 RecordMixin（project_id/workspace_id/sign_status/record_hash）+ tag_number + cost_estimate_json；equipment_id UNIQUE 与 DICT 不一致
-- **Why**: P7 成本估算模块需走状态机 + 审批
-- **Depends on**: P7 启动
-
-### TODO-028: 10 张计算表主键 rename 落地（每模块各 ~1h）
-- **状态**: P5 各模块开发时 | **来源**: D13 Schema 审计 §4.1
-- **What**: vessel_id→vessel_calc_id / heat_exchanger_id→heat_calc_id / cv_id→cv_calc_id / net_id→network_id / restriction_id→orifice_calc_id / ct_id→ct_calc_id / psychro_id→psychro_calc_id / sep_equip_id→sep_calc_id / filter_id→filter_calc_id / channel_id→channel_calc_id。DICT 为准，ORM 逐步 rename
-- **Why**: ORM↔DICT 命名统一；后续审计/比较免歧义
-- **Depends on**: P5 各模块启动
-
-### TODO-029: P2 Sprint 4 报表 perf 预算测试落地（D26）
-- **状态**: P2 Sprint 4 启动时 | **来源**: D26 gstack-plan-eng-review
-- **What**: 加 `test_cia_propagation_perf_budget` — 100 下游 record / depth 8 / ≤500ms 预算。超出则触发 SELECT IN 批量优化。
-- **Why**: CIA 传播当前 N+1，负载小可不优化；但 P4 计算模块接入后下游 record 可能破千，预算测试提前锁定 perf 基线
-- **Pros**: 提前发现性能回归；提供优化触发条件
-- **Cons**: 多一个测试用例
-- **Depends on**: P2 Sprint 4 启动
-
-### TODO-030: openpyxl 导出流式写入（D28 触发条件）
-- **状态**: 条件触发（test_export_perf_budget 失败） | **来源**: D28 gstack-plan-eng-review
-- **What**: 切换 `openpyxl.Workbook(write_only=True)`，逐行 `ws.append()` 写入；放弃 in-memory 模式
-- **Why**: 当前实现 10k 行 × 20 列 ≤2s + ≤50MB 内存预算；超出则启用流式（~30min 工作量）
-- **Pros**: 内存占用降到几 MB（流式）
-- **Cons**: write_only 不支持读取现有 workbook、样式受限；调试更复杂
-- **Depends on**: P2 Sprint 4 — test_export_perf_budget 必须先落地
-
-
-
-## ⏭️ 延后至 P1.2
-
-- TODO-014：设备联动最终一致性窗口声明（ADR-0025）
-- TODO-015：lineage_ctx 事务回滚清理语义文档化
-- TODO-016：ARQ 失败注入 + DLQ 测试
-- TODO-017：P4 接入验收 e2e 从 FLASH 扩展到 PUMP/PIPE/PIPE_NET
-- 交付物生成 / 变更单 / 客户代录 / LineagePanel / ChangeNotification / RevTimeline
-- `mypy --strict`：P1.2 收尾时启用
-- 快照归档清理：P1.2
-
-## 🔓 P1-MVP 关闭后可启动
-
-P4（FLASH / PIPE / PUMP / PIPE_NET 计算模块接入）
-
-- **P4 Task 0（FLASH 开发前，~6h）**：合并 D4 + D5 + D8 三项，1 个工作日内完成。
-  - **D4** 装饰器语法扩展：`@lineage` 接受 `sources: list[tuple[str, str]]` + `target_type` / `dependency_type` 参数，向后兼容裸 `tuple[str, ...]`。
-  - **D5** source_record_hash 抓取：按参数名提取 UUID → 查 RECORD_TYPE_REGISTRY 映射 ORM 类 → 抓 source record_hash 写入 `data_lineage.source_record_hash`。
-  - **D8** importlinter 架构契约：`contracts.py` 定义分层依赖规则（FLASH/PIPE/PUMP/PIPE_NET 禁止 import `common_fluid_props`；PUMP/PIPE_NET 禁止 import `pipe_calc`），`test_architecture_contracts.py` 在 pytest 执行。
-  - **测试更新**：兼容性测试 + 新语法覆盖。
-  - 文档基线：DF-001 §4.2 + §4.3 + §9 v1.1 已加注此扩展计划与 importlinter 护栏。
-- **P4 Sprint 2（CIA 跨表传播）**：实现 §4.4 双模式传播。包含 D6（新增 `CIAEngine.propagate_from_source(source_type, source_id)` 方法 + `_mark_stale` 幂等性增强 + 递归传播带访问集防环 + 深度限制 ≤8）。触发顺序：scan → 自身 STALE → 反查 `data_lineage.source_ref_type/source_ref_id` → 标下游 STALE → 设备联动。DF-001 §7.2 加注 + §4.4 已锁定。
-- **PUMP 模块起步先决项**：`pump_results` 表新增 `dependencies_json` 列（JSON 内含 stream_id / suction_pipe_id / discharge_pipe_id 全部 nullable + 派生 all_checked），由 DICT-011 V1.1 §2.5 + §2.5.1 裁决（D9）。Alembic 增量迁移 + 模型字段 + 三层 FK 校验：① Service 写入时 SELECT 验证引用存在；② 状态机守卫在 SUBMIT_FOR_CHECK 前计算 all_checked；③ CIA scan 周期比对 source_record_hash + 孤儿检测。
-- **CIA scope 收紧**：DICT/DF-001 再次复核——`CIA_TRACKED_TYPES` 当前为 `("PipingResult",)`；FlashResult 不在扫描范围（CIA 不直接扫 FLASH，由血统矩阵判定）。PUMP/PIPE_NET 通过 equipment linkage 传播 STALE，不直接扫。
-
-
-## TODO-031: preconditions 接入 run_unit_tests 发布门禁
-- **状态**: ✅ 已完成（2026-09-04，用户裁决提前至本窗口，不等 Sprint 1.12）| **来源**: 终审 Important#4（R22 裁决 2026-09-04）
-- **What**: FormulaService.run_unit_tests 读 content_json["preconditions"]，调用已实现的 run_unit_tests_with_preconditions（~10 行 + 2 测试）；当前该方法零调用方，V1.4 §3.2.2a 仅引擎层闭环
-- **Depends on**: ~~Sprint 1.12（formula test/preview 端点同窗）~~ 已接线：PUBLISH 端点经 run_unit_tests 自动触发 pre/post 校验，PreconditionViolation → 全局 handler 422 信封；2 测试入 tests/api/v1/test_config.py
-
-## TODO-032: 四个真库测试文件迁 conftest SQLite fixtures
-- **状态**: 随 P1.2 doc_no 原子分配波 | **来源**: 终审 Important#5（2026-09-04）
-- **What**: test_category3_seeds / test_toe_conversion_service / test_detail_templates / test_htri_template_schema 从 get_async_session_factory()（真 PG）迁到 db_session fixtures；test_detail_templates 每跑提交 2+2 行无清理、永久推高 template_version_seq 的问题一并解决
-- **Depends on**: P1.2
-
-## TODO-033: Sprint 1.9 终审 DEFER 清单（终审 minor，全部非阻塞）
-- **状态**: 待窗口 | **来源**: Sprint 1.9 whole-branch 终审（2026-09-06，ad25700..b458b97 干净闭环，295 passed）
-- **What**（按建议归置窗口）:
-  - Sprint 2 前端对接须知：`ProjectPipeClassResponse.pipe_class` 恒 null（ORM 无 relationship，每等级需二次 GET）；equip-lib search `limit>200` 现返回 422（原为 clamp）
-  - P3 物流向导：CATEGORY_3 新三表 rows 为 dict（既有六表为 list，读取方需知）；OBSOLETE 等级字段仍可 PUT 覆写（spec 只裁状态单向、未禁字段编辑，P3 前裁决是否冻结）；`commissioning_date` 无 YYYY-MM-DD 格式校验（前端可补）
-  - 卫生批（一 cleanup commit 可收）：main.py:28「6 张」注释过时；petroleum_service.py:34 `_CONVERT` 悬置注释 + 测试「≈0.494」→0.5061 文案 + 两文件首行路径注释 wart；pipe_class_service `_STATUS_OK` 死常量；creates_six 用例改名；IMPORT_BAD_HEADER 422 补一条 6 行用例；import 空单元格 `str(None)→"None"` 入库缺口；equip_lib description 未截断（name 已截）
-  - 计划文档：Spec 引用 §3.2.4 应为 §3.2.3（P2-COEF-001 三行系数表）；§3.2.5 CoolProp 行与 iapws 替代实现的对应关系 P3 复核时回写
-- **Depends on**: 各自窗口（Sprint 2 / P3 / 卫生批随时）
-
-### TODO-034: Excel 导入模板版本管理（P4 启动时）
-- **状态**: P4 | **来源**: plan-eng-review 2026-09-08（用户裁决 P4 再议）
-- **What**: `stream_import_template.xlsx` 加 `template_version: str` 元数据（写入 sheet0 隐藏行或文件属性）；导入时校验版本兼容，不兼容返 STREAM_TEMPLATE_VERSION_MISMATCH 错误码 + 升级指引 URL
-- **Why**: P3 阶段模板固定为 V1；P4 起字段可能增减，旧模板导入会缺列/多列；无版本管理会导致静默数据丢失
-- **Context**: 用户 2026-09-08 显式裁决 P4 再议；本 Sprint 仅生成 V1 模板，无版本字段
-- **Depends on**: P4 SIM 扩展启动
-
-### TODO-035: 物流校验规则 22 条 P4 补全
-- **状态**: P4 | **来源**: plan-eng-review 2026-09-08（user 决议 P3 仅骨架）
-- **What**: spec §第四部分 22 条校验规则，P3.2 SIM-7 仅实现 3 条典型（相态矛盾 / 偏差 >5% / MW 优先级）。P4 补齐剩余 19 条：饱和蒸汽压、临界压缩因子、Cv 计算边界、雷诺数判定、热力学一致性等
-- **Why**: 完整校验是工艺计算可信度基础；P3 阶段骨架够用，P4 工艺计算模块接入需全部 22 条
-- **Context**: P3.2 SIM-7 已落 BLOCK/WARN/INFO 三级骨架；新规则仅需添加 `ConflictResolver.check_<rule>()` 方法
-- **Depends on**: P4 SIM 扩展 + 工艺计算模块接入
-
-### TODO-036: StreamSignStatus P4 ALTER TYPE 9 态扩展
-- **状态**: P4 启动时 | **来源**: spec V1.6 §P4-OPEN-010（已记录 P4）
-- **What**: PG enum 'streamsignstatus' 当前 4 态（DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED），P4 扩展为 P1 记录层 9 态全集（DRAFT/IN_APPROVAL/CHECKED/CHECK_REJECTED/STALE/CHANGE_PENDING/CHANGED/REVERSAL_PENDING/OBSOLETE）。`ALTER TYPE streamsignstatus ADD VALUE 'STALE' ...`（PG enum value add 不可逆，需独立 migration + 备份）
-- **Why**: SIM-4 已落 4 态；P4 接入工艺计算模块后状态机需 STALE/CHANGE_PENDING/CHANGED 触发 CIA 引擎传播
-- **Context**: spec §P4-OPEN-010 已锁定；`ALTER TYPE ... ADD VALUE` 不可逆 → P3 必须先备份 enum definition
-- **Depends on**: P4 工艺计算模块启动
-
-### TODO-037: unreliable=True 物流下游计算拒绝（P4）
-- **状态**: P4 | **来源**: plan-eng-review 2026-09-08（用户裁决 P4 再议）
-- **What**: P3 SIM-10 仅标记 `unreliable=True` 在 PRO/II NOT_CONVERGED/ABORTED 单元产品上；P4 工艺计算器调用接口需硬拒绝：`POST /api/v1/calculate/...` 校验所有 input stream 的 unreliable 字段，任意 True → 422 STREAM_UNRELIABLE_BLOCKED + 列出不可靠流名
-- **Why**: 不可靠数据进入计算会污染下游；仅标记不阻止等于没做
-- **Context**: user 2026-09-08 显式裁决 P3 仅标记；P4 工艺计算模块启动时再实现硬拒绝
-- **Depends on**: P4 工艺计算模块接入 + CIA 引擎
-
-### TODO-038: PRO/II 5 样例 .inp 文件 fixtures 正式入库
-- **状态**: SIM-2 启动时 | **来源**: plan-eng-review 2026-09-08
-- **What**: 当前 SIM-2 计划从历史对话文本重建 5 个 .inp 文件（石油分馏 / NH3-H2O 未收敛 / MIXER+COLUMN 含侧线 / 酸性水汽提 / FCC 催化裂化）到 `pcs-backend/app/seeds/proii_samples/`。后续若有真实用户 .inp 文件，需整理脱敏后入库作为回归测试基线（覆盖更复杂工艺配置）
-- **Why**: 单元测试基线完备性取决于样例多样性；用户真实工艺配置是质量保证金标准
-- **Context**: SIM-2 Step 3 由我从对话历史文本重建；P3 Sprint 末若有真实项目 .inp 可用，整理脱敏后入 git
-- **Depends on**: SIM-2 启动 + 后续真实项目数据脱敏流程
+- **证据**: `docs/p4-template.md` 不存在；项目根 `CLAUDE.md` 无该章节。装饰器从 `kwargs["db"]` 取值，签名是硬契约。
+- **Owner**: 待认领
 
 ---
 
-## ⏭️ P4.5 批 3 延后项（2026-09-16 落地时识别）
+## ⚪ BLOCKED — 宿主未开工 / 等外部方
 
-批 3（Tasks 27-35）前端计算模块 + PMS/BEDD/向导 完成；以下为实现中显式标记"留 P5 / 完整版"的延后项。
+### TODO-005: LDAP TLS
+- 等 IT 提供 LDAPS 端口 + CA 证书。`app/` 全仓无 `use_start_tls`/`use_ssl`。
 
-### TODO-039: 前端 7 个 type 占位文件 P5-1 由 api.d.ts 替换
-- **状态**: P5-1（api:gen 输出后） | **来源**: 批 3 实施（2026-09-16，7 个 type 文件加 `TODO(api-migration)` 标注）
-- **What**: 当前 `pcs-frontend/src/types/{pipeClass,flash,pipe,pump,pipeNet,pms,common}.ts` 是 V1 mock props shape（与 P5-1 真实 OpenAPI 不一定同字段顺序/枚举值/可空性）。P5-1 calculate 入口契约冻结后，由 `src/types/api.d.ts` 替换这 7 个文件；前端 import 全部从 `./api` 引
-- **Why**: 当前类型来源不唯一（mock types 与 OpenAPI types 并存）；P5-1 后必须以 OpenAPI 为准
-- **Context**: 批 3 计划修订 item 6 已记录"前端类型来源唯一性"
-- **Depends on**: P5-1 OpenAPI 契约冻结
+### TODO-010: 多态 FK 应用层校验
+- **前提不成立**: 挂「P1 deliverable 模块」，但 deliverable 至今**只有 5 张表 ORM 骨架，无 service、无 API、无路由**
+  （`DeliverableRecordBinding` 在 `app/api/`、`app/services/` 零命中）。没有写入方就没有校验点。
+  deliverable 开工时再捡起。
 
-### TODO-040: PIPE_NET 完整版（reactflow / 自动布局 / 环路检测 / 序列化）
-- **状态**: PIPE_NET 完整功能 sprint | **来源**: Task 33 PipeNetTopologyPage 实施（2026-09-16，提交 e5ea389）
-- **What**: V1 极简版手写 SVG 渲染 + 基础校验；完整版需：reactflow 拖拽节点 / 自动布局算法（dagre 或 ELK）/ 环路检测算法（DFS）/ 拓扑序列化导入导出
-- **Why**: 拓扑是 PIPE_NET 模块核心；V1 占位不足以支持工程实用
-- **Context**: Task 33 提交明确写"V1 极简版：手写 SVG 渲染 + 基础校验；完整功能（reactflow 拖拽 / 自动布局 / 环路检测 / 序列化）留 PIPE_NET 完整版"
-- **Depends on**: PIPE_NET 完整功能 sprint 启动
+### TODO-012: make_draft_record fixture 覆盖全部 record type
+- **描述已过时**: 条目写「17 类」，实测 `RECORD_TYPE_REGISTRY` 现有 **21 类**（P5-0-1b 又 +1 thermosiphon）。
+  且 `make_draft_record` 在 `tests/` 全仓 0 命中，conftest 只有 `make_asset`/`make_user`。
+  **照原文实现会写错** —— 要做先按 21 类重写条目。
 
-### TODO-041: 前端 MSW handlers 契约冻结（P5-1 后重写）
-- **状态**: P5-1（OpenAPI 契约冻结后） | **来源**: 批 3 实施（MSW handlers 当前与 mock props shape 对齐）
-- **What**: `pcs-frontend/src/mocks/handlers.ts` 当前按前端 mock types 写；P5-1 backend OpenAPI 冻结后必须按真实端点重写（路径 / 请求 / 响应 / 错误码 / 状态码），并删除不再使用的 mock handlers
-- **Why**: P5-1 之后前端不能继续按 mock 协议工作；必须与真实后端契约对齐
-- **Context**: 当前 MSW 让前端可独立运行；P5-1 后 MSW 仍有用（dev / e2e 离线），但契约必须与生产对齐
-- **Depends on**: P5-1 OpenAPI 契约冻结 + 9 态 enum 扩展
+---
 
-### TODO-042: PIPE_LINE_LIST 25 列 DETAIL 视图补全
-- **状态**: P5 SIM 扩展时 | **来源**: Task 32 PipeLineListPage 实施（2026-09-16）
-- **What**: 当前 PipeLineListPage DETAIL 视图 25 列含 `compressor_kw` / `compressor_count` / `heat_duty_kw` 等计算结果字段，但 P5 之前 calculation 表未必齐全，部分列会显示空。P5 SIM/FLASH/PIPE/PUMP 计算结果入库后，需要回填这 25 列对应的 backend 字段映射
-- **Why**: 用户在 P5 之前切到 DETAIL 视图会看到大量空列；需评估是否在 P5 之前默认 BASIC only
-- **Context**: 批 3 提交 e427efb；BASIC 11 列 + DETAIL 25 列的双视图设计为后续计算结果预留
-- **Depends on**: P5 各计算模块入库 + 列填充策略裁决
+## ♻️ STALE — 需重新裁决，不是照做
 
-### TODO-043: Dashboard 数据 fetch MSW 缺口（QA ISSUE-004）
-- **状态**: P5-1（数据契约冻结时） | **来源**: 2026-09-16 QA 浏览器回归（提交 a827d03 之后）
-- **What**: 登录后 DashboardPage 触发 6 个 404（StrictMode 双 mount × 3 端点）：`GET /api/v1/workspaces?owner_id=...`、`GET /api/v1/checklist/projects/{uuid}`、`GET /api/v1/checklist/projects/{uuid}/completeness`。当前 MSW handlers 数组未注册这三个端点，bypass 走 vite → 404
-- **Why**: Dashboard 渲染空状态（无功能阻塞但控制台报错污染日志 + 数据缺失让 P5-1 前的 Dashboard 不可信）
-- **Context**: QA 报告 `qa-report-pcs-frontend-2026-09-16.md`；DashboardPage 需 loading / empty / error 三态展示
-- **Depends on**: P5-1 workspaces + checklist 端点 OpenAPI 冻结 + MSW handler 重写（TODO-041）
+### TODO-042: PIPE_LINE_LIST DETAIL 视图补全
+- 条目说「DETAIL 25 列含 `compressor_kw`/`heat_duty_kw` 等计算结果字段，部分列显示空」。
+- **实测**: `PipeLineListPage.tsx` 全文件仅 21 个 `dataIndex`；`compressor_kw` 全仓 **0 命中**。
+  **25 列契约已不存在**（列被删，不是待回填）。需先裁决 DETAIL 到底要哪些列，否则「回填」无处可指。
 
-### TODO-044: Per-Batch QA Gate（每批落地强制浏览器 QA）
-- **状态**: P5-1 启动时生效 | **来源**: 2026-09-16 补跑批 1 / 批 2 末 QA（报告 `qa-report-pcs-frontend-per-batch-2026-09-16.md`）
-- **What**: P4.5 批 1 / 批 2 / 批 3 累计 3 个 CRITICAL（mock-login 404、21 路由未挂、static antd message），其中 2 个在批 1 就可拦截，1 个在批 2 落地即应拦截；现在补齐 per-batch QA 闸门
-- **流程**:
-  1. 每批最后一个 commit 落地后，`git checkout <commit> --detach`
-  2. 跑浏览器回归：login + dashboard + 各 Page 路由 + 控制台无 antd/React/TS error
-  3. 写 QA 报告到 `.gstack/qa-reports/qa-report-pcs-frontend-YYYY-MM-DD-<batch>.md`
-  4. CRITICAL/HIGH 修完再开下一批
-  5. 验收物清单：`tsc --noEmit` clean、`eslint` clean、`vitest run` ≥ 上批 baseline、QA 报告存在
-- **Why**: 集成层 bug（路由 / MSW / antd App 包裹）单元测试覆盖不到；3 个 CRITICAL 跨批累积到收口才被发现 = 4 天延迟
-- **Context**: gstack-qa skill 之前被 settings.json 写死 `"off"`，本次 session 才解锁
-- **Depends on**: 无；P5-1 启动即生效
+### TODO-033: Sprint 1.9 终审 DEFER 卫生批
+- 自然消解若干；仍有残留：`pipe_class_service.py:49 _STATUS_OK` 死常量、`test_category3_seeds.py:58 creates_six` 命名、
+  `app/main.py:33`「6 张」注释过时。均为 LOW，纯清理。
 
-## ✅ P5-1 闭环（2026-09-16）
+### TODO-003: JSONB GIN 索引（🟡 PARTIAL）
+- 已建 1 个（`p7_s1_002_audit_logs_jsonb_gin.py:37`）；条目列的 3 个候选列未建。
+- 触发条件「首个按 JSONB 内容过滤的端点」是否已出现需确认；未出现则不急。
 
-**Goal**: P5 设备计算模块首批 — calculate 入口接 Guard + 9 态 enum 全量 + 文件契约冻结。
+### TODO-020: ADR-0012 ↔ ADR-0024 交叉引用（🟡 PARTIAL，单向）
+- ADR-0024 已引用 ADR-0012（`:6,:11,:31`）；**ADR-0012 未反向标注被 0024 修订**。
+- SPEC/DICT 同步部分：DICT-ALL-003 已滚到 **V3.6**，条目里说的「V3.2」已过时。
 
-### 子任务落地状态
+### `mypy --strict`（P1.2 收尾项）
+- `pyproject.toml` 无 `strict` 配置，未启用。
 
-- ✅ **calculate 入口 + UnreliableStreamGuard** — `check_calc_inputs` 已在 `pipe.py` / `pump.py` / `pipe_net.py` / `flash_persist.py` 5 处接好；422 STREAM_UNRELIABLE_BLOCKED + 403 STREAM_NOT_CHECKED + 404 SIM_STREAM_NOT_FOUND 契约就位；14/14 Guard 测试通过，ruff 干净。
-- ✅ **9 态 enum 全量扩展** — `streamsignstatus` PG enum 已扩 9 态（`p3_sim_stream_sign_status_extend.py` 迁移）；15 张计算表通过 `TaggedRecordMixin` / `RecordMixin` 全部继承 9 态 `sign_status`；`TwoPhaseResult` / `CostEstResult` 按 P4-0-2 / P4-TASK0 既有契约保留无 sign_status（cerebrum Do-Not-Repeat）。
-- ✅ **文件契约冻结** — `pcs-backend/app/main.py` OpenAPI version `0.1.0` → `0.5.1`（P5-1 基线标记）；`docs/openapi.json` regen 115 paths / 100 schemas；frontend `openapi.snapshot.json` 同步；`api:gen` 生成 `src/types/api.d.ts`（9664 行）；`api:check` PASS（CI drift 闸门）；tsc + eslint + ruff 干净。
+### TODO-008 的隐性债（✅ DONE 但有雷）
+- FK 改名**不是**用 `RENAME CONSTRAINT` 达成的，而是靠 `p1_sprint3_nullable_equipment_type_codes.py:36`
+  `DROP CONSTRAINT pk_equipment_type_codes CASCADE` 的副作用连带删掉旧 FK，再用新名重建。
+- **⚠️ 该迁移 downgrade 时会重建旧名 `fk_equipment_list_type_code`**（`:98-104`）——
+  若将来跑 downgrade→upgrade，ORM 与 DB 会漂移。值得加一条注释或补一个正式 rename 迁移。
 
-### P5 启动基线（baseline_at_start = 2026-09-16）
+---
 
-- **pcs_test 总数 = 1662**（`uv run pytest --collect-only` 实测）
-- **P5 验收要求**：pcs_test_total − 1662 ≥ 67（即 ≥1729；含 ≥47 P5 核心 + 15 SUP 门禁 + 5 ChEDL 版本锁定）
-- 详见 `docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md` "P5-1 闭环（前置 ratify）" 段 + "验收" 第2条
+## 🕐 时间债（非代码）
 
-### 解除的依赖
+### PRO/II 真实工程数据脱敏入库
+- `tests/fixtures/proii/` 现有 5 个 .inp + 5 个 .inp.out **已入 git，但全是从对话历史重建的合成文件**。
+- 仓库根 `sample/` 有真实工程数据（`dmc.inp` / `huafeng140_FCC2015.out` / `200FlexiCoking1.out` + 多个华南海东 xlsx），**尚未脱敏入库**。
+- 单元测试基线的多样性取决于样例多样性 —— 真实工艺配置才是质量保证。
 
-- TODO-039 (前端 7 个 mock type 文件迁移) — 解锁 → 启动 P5-2
-- TODO-041 (MSW handlers 契约冻结) — 解锁 → 启动 P5-2
-- TODO-043 (Dashboard 3 端点 404) — 仍在 P5-2 范围（MSW handlers 重写时一并）
+---
 
-### P5-2 启动项（PSV 多标准前置）
+## ✅ 已关闭归档（核销于 2026-10-06，**勿按原文重做**）
 
-1. **TODO-039 推进**：7 个 mock type 文件 (`pipeClass,flash,pipe,pump,pipeNet,pms,common`) 改 import 自 `./api`；组件 props 引用迁移
-2. **TODO-041 推进**：MSW handlers 按 OpenAPI 重写 — 路径/请求/响应/错误码/状态码全部对齐
-3. **TODO-043 收口**：DashboardPage 触发 3 端点（workspaces/checklist list/checklist completeness）404 修复
-4. **SUP-P5-PSV-001 启动准备**：项目级 PSV 标准配置模型（`project_calculation_standard_profiles` 表）+ `StandardResolver` 注入计算引擎（Task 13/14/16/17/18 接口扩展）
+| 条目 | 实际落地路径（与条目描述不同处已标） |
+|---|---|
+| TODO-001 前端测试基建 | `pcs-frontend/vitest.config.ts`；现 569 tests |
+| TODO-008 FK 改名 | ✅ 但绕过式，见 STALE 区雷点 |
+| TODO-009 血缘递归深度 | `lineage.py:149,176 max_depth=10`（**条目写 ≤8，实际落 10**）+ 环检测 |
+| TODO-011 snapshot_status + ADR-0024 | `p1_sprint2_state_machine.py:39` 加列 / `deliverable.py:259` ORM / ADR status: accepted |
+| TODO-013 | `change_pending_since` DONE（`state_machine.py:327,329`）；`old_record_hash_before_change` → 🚫 WONTFIX（ADR-0024 明写不新增列，改从快照读） |
+| TODO-014 ADR-0025 | 见上方开放技术债区（ADR 已写，前端标记未实现） |
+| TODO-018 ARQ 独立文件 | `app/workers/workspace_tasks.py` + `worker.py:61-63` 注册 |
+| TODO-021 双引擎连接池 | `app/db/session.py:33-37`（5/45/30/1800）+ `:67-71`（10/20） |
+| TODO-022 data_lineage 索引 | ✅ **列已改名 `occurred_at`**，索引随之建（`models/system.py:68`） |
+| TODO-024 equipment_list 对齐 DICT | 条目称「18 列缺 56」→ **实测 69 列**，早做完了 |
+| TODO-025 pump_results 补 6 列 | 实测 26 列 |
+| TODO-030 openpyxl write_only | `export_service.py:45` write_only=True；条件链已走完（in-memory 10k×20 实测 6.8s > 2s 预算） |
+| TODO-031 preconditions 门禁 | 复核通过：`config.py:297` PUBLISH → `formula_service.py:72,76` |
+| TODO-036 StreamSignStatus 9 态 | `p3_sim_stream_sign_status_extend.py` |
+| TODO-037 unreliable 硬拒绝 | `calc_entry.py:53 STREAM_UNRELIABLE_BLOCKED` / `UnreliableStreamGuard` |
+| TODO-038 PRO/II fixtures | **路径不是 `app/seeds/proii_samples/`**，实际在 `tests/fixtures/proii/`，5 组已 tracked |
+| TODO-043 Dashboard 3 端点 | `mocks/handlers.ts:138,142,146` 三条已注册 |
+| P6-OPEN-009 psv_results 缺列 | `p6_5_006_orm_db_drift_final_fix.py` 已补 |
+| P5-2 PSV 多标准前置 | `p5_0_5_psv_multi_standard.py` + `models/psv_standards.py` + `services/psv/psv_persist.py` |
+| P1.2 组件清单 | `LineageGraph.tsx` / `RevTimeline.tsx` / `ChangeImpactPanel.tsx` 都在（**已改名**，非原名） |
 
-## P6-3 必须修复（2026-09-24 Task 19 review 登记）
+**TODO-032 的 27 个真库测试文件**（超出条目声称的 4 个）：
+`tests/models/{test_pipe_class_migration, test_sup008_result_fields, test_htri_template_schema, test_calc_audit_fields, test_sup008_column_sizing_design_stage}`、
+`tests/services/{test_toe_conversion_service, test_cepci_seed, pipe/test_pipe_chain, pipe/test_two_phase, cool_tower/test_heat_aggregator, cool_tower/test_cool_tower_persist_service, psychro/test_saturation_persist_integration, psychro/test_psychro_persist_service, flare/test_flare_persist_service, flare/test_relief_aggregator, open_channel/test_open_channel_persist_service, filtration/test_filtration_persist_service}`、
+`tests/{test_audit_guard, test_rbac_audit, test_cia_tasks}`、
+`tests/seeds/{test_detail_templates, test_category3_seeds}`、
+`tests/scripts/{test_p6_3_gate_04_seed, test_p6_3_gate_05_seed, test_p6_3_gate_06_seed}`
 
-### P6-OPEN-009 alembic drift: psv_results 表缺 stale_resolution_path 列
+---
 
-- **发现**：Task 19 G-07 集成测试用 raw SQL INSERT 绕开 ORM；发现 PsvResult ORM model 声明 `stale_resolution_path: Mapped[str | None]`（`app/models/mixins.py:105` declared_attr），但 `psv_results` DB 表无该列
-- **影响**：任何 ORM INSERT PsvResult 会失败（PG 端 `UndefinedColumnError` 或 `INSERT has more expressions than target columns`）；生产 persist service 阻塞
-- **历史追溯**：
-  - `psv_results` 表创建：`alembic/versions/dd47298c9c38_v3_1_full_schema_53_tables_adr_0023.py:961-1004`（v3_1 根迁移，**未声明** `stale_resolution_path`）
-  - audit 字段扩展：`alembic/versions/p4_calc_audit_fields.py:27-31`（5 表：streams / piping_results / pump_results / flash_results / pipe_network_results，**不含 psv_results**）
-  - P5-0-5 / P5-OPEN-005 / P5-OPEN-10 多次迁移均不动 psv_results
-- **修复方案（P6-3 启动后执行）**：
-  ```python
-  # alembic/versions/p6_3_xxx_psv_audit_drift_fix.py
-  revision = "p6_3_xxx_psv_audit_drift_fix"
-  down_revision = "p6_2_xxx"  # 当前 P6-2 末 head
-  upgrade:
-      op.add_column("psv_results", sa.Column("stale_resolution_path", sa.String(30), nullable=True))
-      op.add_column("psv_results", sa.Column("hash_changed", sa.Boolean, nullable=True, server_default=sa.text("FALSE")))
-      op.add_column("psv_results", sa.Column("changed_fields", JSONB, nullable=True))
-  downgrade:
-      op.drop_column("psv_results", "changed_fields")
-      op.drop_column("psv_results", "hash_changed")
-      op.drop_column("psv_results", "stale_resolution_path")
-  ```
-- **关联测试**：P6-3 启动后改 G-07（`tests/services/flare/test_relief_aggregator.py::test_g07_end_to_end_real_pcs_test`）从 raw SQL 切回 ORM INSERT，验证修复有效
-- **Owner**：P6-3 启动后 subagent 接管
+## 🚫 已裁决不做
 
-## 迁移幂等：9 个既有 p7_open_*/p7_s1_* 迁移缺 guard（2026-10-06 登记）
+- **CI/CD 流水线**（原 SPEC-P0 §3.2.5）：单人开发裁决 2026-08-29。多人协作时重新提出。
+- **TODO-027 cost_est_results 补 RecordMixin**：`CostEstResult` docstring 明写「与设备一对一，不带 sign_status（跟随所属设备）」，
+  cerebrum Do-Not-Repeat 亦记录此契约（与 `TwoPhaseResult` 同）。**补 RecordMixin 会破坏它。**
+- **TODO-013 的 `old_record_hash_before_change` 列**：ADR-0024 Consequences 明确「P1-MVP 不新增列，从快照表读取旧哈希」。
 
-- **现状**：`scripts/check_migration_idempotency.py` 的 `checked_prefixes` 覆盖
-  `p7_s2_`/`p7_s3_`/`p7_s4_`/`p7_s5_`（0 violations）。全部 23 个 `p7_*.py` 迁移里
-  **9 个**落在白名单外且确有未加 guard 的 `drop_table`/`create_index`/`drop_index`：
-  - `p7_open_009_001_utility_power_items.py`（5 处）
-  - `p7_open_009_002_utility_fuel_gas.py`（7 处）
-  - `p7_open_009_003_utility_heat_exchange.py`（7 处）
-  - `p7_open_009_005_utility_energy_summary.py`（6 处）
-  - `p7_open_009_t0_config_energy_conversion_factors.py`（1 处 `drop_table`）
-  - `p7_open_010_r1_classification_fields.py`（6 处）
-  - `p7_open_010_user_projects_blocker3.py`（7 处）
-  - `p7_s1_002_audit_logs_jsonb_gin.py`（2 处）
-  - `p7_s1_005_util_results.py`（6 处）
-- **为什么不在本批修**：P7 Sprint 4 fix pass 的 #12 只覆盖本批 `p7_s4_*`（已修并纳入
-  检查）。这 9 个属既有债，且**不能在无审查的情况下批量加 guard** —— 加 `if_exists=True`
-  会改变 downgrade 在「表不存在」时的行为，需逐个确认语义。
-- **风险**：downgrade 往返在这些迁移上不幂等；CI 的幂等闸看不见它们（白名单外）。
-- **修法**：逐个补 `if_exists=True` / `if_not_exists=True`，补完一个从前缀白名单移一个，
-  最后把白名单改成「全部 `p7_*`」。**顺序反了会让钩子立刻在无关文件上失败**（这正是
-  #12 报告里担心的情形，实测确认成立）。
-- **Owner**：待认领（不在 P7 Sprint 4 范围）
+---
 
-## `.wolf/buglog.json` 存在 id 重号，导致 `max+1` 算错新条目号（2026-10-06 登记）
+## 核销方法学备注
 
-- **现状**：四条条目同为 `bug-2026`；`bug-031` 与 `bug-002` 各重复一次。共 6 条重号。
-- **实际危害**：新增条目若按 `max(id)+1` 生成，会算出 `bug-2027` —— 而 bug-2026 已存在，
-  于是新条目**继承了一个重号**，把问题从「6 条」变成「7 条」。本轮两次新增
-  （`bug-139` / `bug-140`）都因此被手工改成顺序号。
-- **修法**：先对 `id` 去重（保留信息最全的、给其余的补号并在 `related_bugs` 留链），
-  再把「新增条目号」的算法固定为「顺序号 = 现有条目数 + 1」而非 `max+1`。
-- **不做**：不重排历史条目的 id —— `.wolf/buglog.json` 的 `fix_commit` 是 STATUS 反查的
-  单点来源，改 id 会打断既有的反查链。
-- **Owner**：待认领
+- 4 组并行只读核验（子代理）+ 主会话实证，覆盖 44 条编号项 + 4 条无编号项，无一条凭印象下判。
+- ⚠️ **核验时慎用组合正则**：本次发现子代理首轮 `grep "A\|B"` 被 rtk 过滤层吞掉、误报「0 匹配」，
+  拆成两个独立 `grep -c` 后才得真实计数。多模式核验应逐条单发。
