@@ -1243,3 +1243,17 @@
 
 | Time | Action | File(s) | Outcome | ~Tokens |
 |------|--------|---------|---------|--------|
+| 23:18 | Created TODOS.md | — | ~2844 |
+| 23:18 | Edited TODOS.md | expanded (+9 lines) | ~116 |
+| 23:18 | Edited TODOS.md | inline fix | ~18 |
+| 23:18 | Edited TODOS.md | inline fix | ~14 |
+| 23:18 | Edited TODOS.md | expanded (+9 lines) | ~157 |
+| 23:26 | Created pcs-backend/alembic/versions/p7_s5_001_drop_equipment_lib.py | — | ~760 |
+| 23:26 | Edited pcs-backend/app/models/equipment.py | removed 22 lines | ~11 |
+| 23:30 | Edited pcs-backend/tests/test_schema.py | 4→3 lines | ~23 |
+| 23:30 | Edited pcs-backend/tests/test_schema.py | 2→5 lines | ~88 |
+| 23:30 | Edited docs/adr/0032-vessel-process-calculation.md | expanded (+11 lines) | ~291 |
+| 23:30 | Created docs/PCS-NOTE-equipment_lib-废弃-2026-10-06.md | — | ~758 |
+| 23:35 | Edited pcs-backend/alembic/versions/p7_s5_001_drop_equipment_lib.py | "删除 equipment_lib（幂等: 表不存在" → "删除 equipment_lib（幂等: 表不存在" | ~12 |
+| 23:35 | Edited pcs-backend/alembic/versions/p7_s5_001_drop_equipment_lib.py | 1→3 lines | ~31 |
+| 23:36 | Edited docs/PCS-NOTE-equipment_lib-废弃-2026-10-06.md | 9→13 lines | ~195 |

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-06T14:37:51.793Z",
-    "fileCount": 662,
+    "lastScanned": "2026-10-06T15:36:05.534Z",
+    "fileCount": 665,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "97194f201fa2d09ca6c5317f471e40c7c3b4968a9a184c1dc72d8a4f3694cb94",
-    "storeUpdatedAt": "2026-10-06T14:37:51.802Z",
-    "rootHash": "fb18d695bb8ba36b"
+    "renderedHash": "bb3aa2ead01a5d0dacdc0b9fb1635574ece122cebafad1d1b07fb9fb8d91fb5b",
+    "storeUpdatedAt": "2026-10-06T15:36:05.544Z",
+    "rootHash": "f320cb8643eafc13"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -1052,13 +1052,12 @@
     },
     "docs/adr/0032-vessel-process-calculation.md": {
       "description": "VESSEL 工艺计算架构（P5-1 容器计算）",
-      "tokens": 2012,
-      "hash": "d26687f5fa0fbf1e",
-      "size": 11586,
-      "mtimeMs": 1789601792830.9224,
-      "updatedAt": "2026-10-02T12:43:34.549Z",
-      "source": "scan",
-      "importance": 0.1842
+      "tokens": 2158,
+      "hash": "a50cda9c5d79bfa6",
+      "size": 12596,
+      "mtimeMs": 1791300632774.0203,
+      "updatedAt": "2026-10-06T15:30:32.819Z",
+      "source": "hook"
     },
     "docs/adr/0040-c-12-vessel-geometry-service-interface-freeze.md": {
       "description": "ADR-0040：C-12 vessel_service 公共接口 6 个月冻结",
@@ -12367,13 +12366,12 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 6397,
-      "hash": "a18bd6c4bddbbe9f",
-      "size": 36006,
-      "mtimeMs": 1790305512818.4268,
-      "updatedAt": "2026-10-02T12:43:34.617Z",
-      "source": "scan",
-      "importance": 0.1842
+      "tokens": 2890,
+      "hash": "b5a460fad305e7da",
+      "size": 16915,
+      "mtimeMs": 1791299921816.5876,
+      "updatedAt": "2026-10-06T15:18:41.891Z",
+      "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
       "description": "EnergySummaryAggregatePage — 综合能耗聚合 UI（P7 Sprint 2 T5 / R1 §7）。",
@@ -17319,11 +17317,11 @@
     },
     "pcs-backend/tests/test_schema.py": {
       "description": "V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。",
-      "tokens": 2434,
-      "hash": "152d0552b9c83366",
-      "size": 9135,
-      "mtimeMs": 1791165835863.3704,
-      "updatedAt": "2026-10-05T02:03:55.911Z",
+      "tokens": 2523,
+      "hash": "e2ed769891fc6f27",
+      "size": 9556,
+      "mtimeMs": 1791300614493.122,
+      "updatedAt": "2026-10-06T15:30:14.541Z",
       "source": "hook",
       "symbols": [
         {
@@ -17344,49 +17342,49 @@
           "name": "test_table_count",
           "kind": "fn",
           "startLine": 24,
-          "endLine": 79,
-          "tokens": 894
+          "endLine": 85,
+          "tokens": 990
         },
         {
           "name": "test_required_tables_present",
           "kind": "fn",
-          "startLine": 80,
-          "endLine": 155,
-          "tokens": 619
+          "startLine": 86,
+          "endLine": 160,
+          "tokens": 612
         },
         {
           "name": "test_equipment_type_codes_composite_unique",
           "kind": "fn",
-          "startLine": 156,
-          "endLine": 162,
+          "startLine": 161,
+          "endLine": 167,
           "tokens": 112
         },
         {
           "name": "test_equipment_list_composite_fk_to_equipment_type_codes",
           "kind": "fn",
-          "startLine": 163,
-          "endLine": 172,
+          "startLine": 168,
+          "endLine": 177,
           "tokens": 149
         },
         {
           "name": "test_record_mixin_columns_present",
           "kind": "fn",
-          "startLine": 173,
-          "endLine": 190,
+          "startLine": 178,
+          "endLine": 195,
           "tokens": 159
         },
         {
           "name": "test_recordsignstatus_enum_has_9_values",
           "kind": "fn",
-          "startLine": 191,
-          "endLine": 214,
+          "startLine": 196,
+          "endLine": 219,
           "tokens": 192
         },
         {
           "name": "test_fk_violation_raises",
           "kind": "fn",
-          "startLine": 215,
-          "endLine": 232,
+          "startLine": 220,
+          "endLine": 237,
           "tokens": 182
         }
       ]
@@ -20261,6 +20259,79 @@
       "size": 2568,
       "mtimeMs": 1791297471741.3652,
       "updatedAt": "2026-10-06T14:37:51.792Z",
+      "source": "hook"
+    },
+    "pcs-backend/alembic/versions/p7_s5_001_drop_equipment_lib.py": {
+      "description": "p7_s5_001: 删除 `equipment_lib` 死表（设备库实际由 ConfigAsset CATEGORY_6 承载）.",
+      "tokens": 775,
+      "hash": "36be6446dcc598e7",
+      "size": 3324,
+      "mtimeMs": 1791300912124.602,
+      "updatedAt": "2026-10-06T15:35:12.177Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 48,
+          "tokens": 31
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 77,
+          "tokens": 392
+        }
+      ]
+    },
+    "pcs-backend/app/models/equipment.py": {
+      "description": "设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。",
+      "tokens": 3186,
+      "hash": "4c9f7ce0cb3b62a5",
+      "size": 12148,
+      "mtimeMs": 1791300419683.2993,
+      "updatedAt": "2026-10-06T15:26:59.739Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "EquipmentTypeCode",
+          "kind": "class",
+          "startLine": 34,
+          "endLine": 59,
+          "tokens": 324
+        },
+        {
+          "name": "EquipmentList",
+          "kind": "class",
+          "startLine": 60,
+          "endLine": 184,
+          "tokens": 1933
+        },
+        {
+          "name": "Supplier",
+          "kind": "class",
+          "startLine": 185,
+          "endLine": 202,
+          "tokens": 229
+        },
+        {
+          "name": "EquipmentDeletionAudit",
+          "kind": "class",
+          "startLine": 203,
+          "endLine": 254,
+          "tokens": 492
+        }
+      ]
+    },
+    "docs/PCS-NOTE-equipment_lib-废弃-2026-10-06.md": {
+      "description": "PCS-NOTE: `equipment_lib` 表废弃裁决（2026-10-06）",
+      "tokens": 782,
+      "hash": "35d897193327f88a",
+      "size": 4692,
+      "mtimeMs": 1791300965480.3545,
+      "updatedAt": "2026-10-06T15:36:05.534Z",
       "source": "hook"
     }
   }

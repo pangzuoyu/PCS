@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-06T14:37:51.793Z
-> Files: 662 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-06T15:36:05.534Z
+> Files: 665 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -13,7 +13,7 @@
 - `docker-compose.yml` — Docker Compose services (~309 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~3547 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~6397 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~2890 tok)
 
 ## .claude/worktrees/s4-0-events/
 
@@ -244,6 +244,7 @@
 - `PCS-NOTE-BLOCKER-2-2026-10-01.md` — PCS BLOCKER-2 状态登记 — 蜡油加氢 XLS 提取 (~710 tok)
 - `PCS-NOTE-catalyst_loading-取消-2026-10-05.md` — catalyst_loading 功能取消 — 该表不建，此功能先不做 (2026-10-05) (~925 tok)
 - `PCS-NOTE-CIA-反向恢复-推到P8-2026-10-05.md` — CIA 反向恢复推迟到 P8 — 落地路径 (2026-10-05) (~933 tok)
+- `PCS-NOTE-equipment_lib-废弃-2026-10-06.md` — PCS-NOTE: `equipment_lib` 表废弃裁决（2026-10-06） (~782 tok)
 - `PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md` — T5 综合能耗验收 — 电折标口径按 GB 30251-2024 修正，基准重建 (2026-10-05) (~3938 tok)
 - `PCS-P2-CLOSE-REPORT.md` — PCS P2 Sprint Close Report（2026-09-08） (~2039 tok)
 - `PCS-P3.2-SIM-AUDIT-REPORT.md` — PCS P3.2 SIM 全量审计报告 V1.0 (~1983 tok)
@@ -296,7 +297,7 @@
 - `0029-toe-conversion-and-detail-htri-templates.md` — ADR-0029：折标煤系数组与 DETAIL/HTRI 模板入库 (~361 tok)
 - `0030-chedl-version-lock.md` — ChEDL 版本锁定：pyproject.toml 单一来源 + 包装层隔离 + dir() 前置核验 (~4861 tok)
 - `0031-p4-task0-exemption.md` — P4 计算链条件启动：本体论 Task 0 全量后置 (~315 tok)
-- `0032-vessel-process-calculation.md` — VESSEL 工艺计算架构（P5-1 容器计算） (~2012 tok)
+- `0032-vessel-process-calculation.md` — VESSEL 工艺计算架构（P5-1 容器计算） (~2158 tok)
 - `0040-c-12-vessel-geometry-service-interface-freeze.md` — ADR-0040：C-12 vessel_service 公共接口 6 个月冻结 (~3027 tok)
 - `0041-c-12-vessel-6-path-coverage.md` — ADR-0041：C-12 vessel_service 12 路径覆盖补全（Q4 2026） (~6559 tok)
 - `ADR-0023：EquipmentTypeCode项目级可配置.md` (~927 tok)
@@ -1042,6 +1043,7 @@
 - `p7_s3_003_energy_config_classification_cols.py` — p7_s3_003: config_energy_conversion_factors 补 R1 分类列 (从未迁移的 schema drift). (~1788 tok)
 - `p7_s3_003_energy_config_gb30251_a1.py` — p7_s3_003: 折标系数对齐 GB 30251-2024 附录A 表A.1. (~1360 tok)
 - `p7_s3_005_gas_media_and_low_temp_heat.py` — p7_s3_005: utility_gas_media + utility_low_temp_heat (P7-6B 收尾). (~1833 tok)
+- `p7_s5_001_drop_equipment_lib.py` — p7_s5_001: 删除 `equipment_lib` 死表（设备库实际由 ConfigAsset CATEGORY_6 承载）. (~775 tok)
 
 ## pcs-backend/app/api/v1/
 
@@ -1078,6 +1080,7 @@
 
 - `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~11272 tok)
 - `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~3800 tok)
+- `equipment.py` — 设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。 (~3186 tok)
 - `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~7227 tok)
 - `util.py` — S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。 (~8014 tok)
 
@@ -1114,7 +1117,7 @@
 - `test_audit_query.py` — F-P2-009 Sprint 3: Audit Query 后端测试 (Issue 5 错误路径 + Issue 7 混合 RBAC). (~3389 tok)
 - `test_jwt_production.py` — F-P3-001 Sprint 3: JWT production hardening + LDAP fail-closed 测试. (~2042 tok)
 - `test_rbac_audit.py` — F-P3-001 checklist #5: RBAC 401/403 audit log + per-IP rate limit 测试. (~1861 tok)
-- `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~2434 tok)
+- `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~2523 tok)
 - `test_workspace_archive.py` — F-P3-003 Sprint 3: Workspace archive PATCH 端点测试. (~1272 tok)
 
 ## pcs-backend/tests/api/v1/
