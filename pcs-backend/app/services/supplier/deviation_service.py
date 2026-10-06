@@ -8,11 +8,18 @@ SPEC §3.2.4(2) 的允许偏差表**以泵为例**，6 条规则的判定类型�
 | 实际流量-扬程曲线  | 额定点扬程 +5%/-0%      | ASYMMETRIC_BAND  | 低于额定点→不满足工况    |
 | 实际效率曲线       | ≥95% 设计值             | MIN_RATIO        | 低于→能效不达标          |
 | 实际NPSHr         | 不得超过设计值          | MAX_ONLY         | 超过→汽蚀风险            |
-| 实际电机额定功率   | 偏差 ±10%               | SYMMETRIC_BAND   | 偏小→不满足，偏大→可接受 |
-| 实际转速、叶轮直径 | 允许差异，需重新校核性能 | RECHECK_ALWAYS   | 恒需复核                 |
+| 实际电机额定功率   | API 610 分档下限 1.25/1.15/1.10 | MOTOR_TIER_FLOOR | 按**轴功率**分档取下限 |
+| 设计轴功率         | ——（不判合格与否）     | REFERENCE_ONLY   | 电机裕量的参照量        |
+| 实际转速           | 允许差异，需重新校核性能 | RECHECK_ALWAYS   | 恒需复核                 |
+| 实际叶轮直径       | 同上（与转速分开成条） | RECHECK_ALWAYS   | 恒需复核                 |
 | 厂家型号、材质     | 不得低于设计要求         | MANUAL_CHECK     | 序数比较，机器判不了      |
 
 套一条统一公式会把 6 条判错至少 4 条，故按 kind 分派。
+
+⚠️ 电机额定功率的参照量是**轴功率**不是「设计电机功率」，且按 API 610 裕量分档
+取下限（`motor_tier_factor`），不是对称带 —— 电机按系列选取，±10% 量的是档位差
+不是设备偏差。这条取代了 SPEC §3.2.4(2) 原「偏差 ±10%」，登记见
+`docs/PCS-NOTE-SPEC-3.2.4-电机功率规则修订-2026-10-06.md`。
 
 第 4 档 `UNVERDICTABLE`（不可判）是本引擎在 SPEC 三档之外的补充：表内本就有
 2 条无数值阈值规则，且表头明写「以泵为例」—— 非泵设备参数必然落不到规则。
@@ -153,7 +160,19 @@ SPEC_RULES: tuple[DeviationRule, ...] = (
         parameter="转速",
         kind="RECHECK_ALWAYS",
         spec_ref="SPEC §3.2.4(2) 实际转速、叶轮直径：允许差异，需重新校核性能",
-        aliases=("实际转速", "设计转速", "叶轮直径", "实际叶轮直径", "设计叶轮直径"),
+        aliases=("实际转速", "设计转速"),
+    ),
+    # 叶轮直径独立成条（审查 #31）。此前它是转速规则的别名且未设
+    # design_parameter，`design_key`（`design_parameter or parameter`）于是解析为
+    # 「转速」，报告把 2982 r/min 当作 320 mm 直径的设计值，且 `_extract` 对设计列
+    # 丢弃了单位 —— 导出里显示「2982 r/min」作为毫米级实测项的设计值。
+    # 独立后它自然落入「缺设计值」分支被 fail-closed 拦下，直到真实设计直径补录 ——
+    # 这严格优于在直径旁边放一个转速。
+    DeviationRule(
+        parameter="叶轮直径",
+        kind="RECHECK_ALWAYS",
+        spec_ref="SPEC §3.2.4(2) 实际转速、叶轮直径：允许差异，需重新校核性能",
+        aliases=("实际叶轮直径", "设计叶轮直径"),
     ),
     DeviationRule(
         parameter="材质",
@@ -247,13 +266,6 @@ def evaluate(
         if deviation > rule.upper + _EPS:
             return Evaluation(WARNING, deviation, f"超出上限 {rule.upper:g}%（偏大可接受）")
         return Evaluation(QUALIFIED, deviation)
-
-    if rule.kind == "SYMMETRIC_BAND":
-        if rule.lower - _EPS <= deviation <= rule.upper + _EPS:
-            return Evaluation(QUALIFIED, deviation)
-        if deviation > rule.upper:
-            return Evaluation(WARNING, deviation, f"超出上限 {rule.upper:g}%（偏大可接受）")
-        return Evaluation(UNQUALIFIED, deviation, f"低于下限 {rule.lower:g}%（不满足工艺要求）")
 
     if rule.kind == "MIN_RATIO":
         ratio = actual / design

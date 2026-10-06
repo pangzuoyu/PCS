@@ -15,9 +15,17 @@ from pydantic import BaseModel, ConfigDict, Field
 
 
 class ActualDataEntry(BaseModel):
-    """一项实测值。value 严格数值 —— 字符串数字在 UI 上是录入错误, 不是可容忍的输入。"""
+    """一项实测值。value 严格数值 —— 字符串数字在 UI 上是录入错误, 不是可容忍的输入。
 
-    model_config = ConfigDict(extra="forbid")
+    `strict=True, allow_inf_nan=False` 不是洁癖, 是安全边界（审查 #24）:
+    Pydantic v2 默认走松散强制, 实测 `'100' -> 100.0`、`True -> 1.0`、
+    `'NaN' -> nan`、`'Infinity' -> inf`。非有限浮点尤其危险 —— `NaN` 进入
+    `evaluate` 后所有比较为 false, `ASYMMETRIC_BAND` 会落到
+    `return Evaluation(QUALIFIED, ...)`, 即一个**从未被测量的值能过确认门**。
+    strict 之下服务层 `_coerce_value` 的布尔/字符串拒绝退为纵深防御。
+    """
+
+    model_config = ConfigDict(extra="forbid", strict=True, allow_inf_nan=False)
 
     name: str = Field(min_length=1, max_length=100, description="参数名")
     value: float = Field(description="实测值 (可为负, 如冬季设计温度)")

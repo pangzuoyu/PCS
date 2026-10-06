@@ -109,29 +109,7 @@ def test_npshr_max_only(actual, expected):
     assert evaluate(RULE_NPSH, design=3.0, actual=actual).verdict == expected
 
 
-# ---------------------------------------------------------------------------
-# 4. 电机额定功率 —— 对称带 ±10%，方向敏感
-# ---------------------------------------------------------------------------
-
-
-RULE_MOTOR = DeviationRule(
-    parameter="电机额定功率", kind="SYMMETRIC_BAND", lower=-10.0, upper=10.0,
-    spec_ref="SPEC §3.2.4(2) 实际电机额定功率",
-)
-
-
-@pytest.mark.parametrize(
-    "actual,expected",
-    [
-        (55.0, "QUALIFIED"),    # 0%
-        (60.5, "QUALIFIED"),   # +10% 上边界（闭）
-        (49.5, "QUALIFIED"),   # -10% 下边界（闭）
-        (62.0, "WARNING"),     # +12.7%  电机偏大，耗资但可用
-        (48.0, "UNQUALIFIED"), # -12.7%  电机偏小 → 工艺要求不满足
-    ],
-)
-def test_motor_power_symmetric_band(actual, expected):
-    assert evaluate(RULE_MOTOR, design=55.0, actual=actual).verdict == expected
+# （原「电机额定功率 —— 对称带 ±10%」用例已随 SYMMETRIC_BAND 分支删除，见提交说明）
 
 
 # ---------------------------------------------------------------------------

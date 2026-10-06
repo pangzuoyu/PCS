@@ -87,9 +87,31 @@ def test_not_entered_actual_data_yields_empty_report():
 # ---------------------------------------------------------------------------
 
 
-def test_can_confirm_when_all_qualified_or_warning():
+def test_can_confirm_when_all_qualified():
     r = build_report(_Eq(DESIGN, ACTUAL_ALL_OK))
     assert can_confirm(r) is True
+
+
+def test_can_confirm_when_report_really_has_a_warning_row():
+    """#21: WARNING **不阻断**确认 —— 但这条断言此前从未真正被执行过。
+
+    原用例名 `test_can_confirm_when_all_qualified_or_warning` 名不副实：它的
+    fixture 实测只产出两条 QUALIFIED、**零 WARNING 行**。于是一条把
+    `can_confirm` 收紧成连 WARNING 一起拦的改动可以让全套用例全绿。
+    `RECHECK_ALWAYS` 规则下转速/叶轮直径只要录入就恒 WARNING，所以「WARNING
+    存在时 can_confirm 仍为 True」是必须被锁住的行为。
+
+    先 assert 报告里确有 WARNING 行，防止该用例再次退化成全 QUALIFIED 而测试
+    仍绿 —— 这正是原用例的失效方式。
+    """
+    design = {**DESIGN, "转速": {"value": 2950.0, "unit": "r/min"}}
+    actual = {**ACTUAL_ALL_OK, "转速": {"value": 3000.0, "unit": "r/min"}}
+    r = build_report(_Eq(design, actual))
+
+    warnings = [row for row in r.rows if row.verdict == "WARNING"]
+    assert warnings, "fixture 没产出 WARNING 行 —— 本用例退化成全 QUALIFIED 了"
+    assert not r.blocking_reason, "WARNING 不应产生阻断原因"
+    assert can_confirm(r) is True, "WARNING 不阻断确认（SPEC §3.2.4(4)）"
 
 
 def test_cannot_confirm_when_any_unqualified():
@@ -235,3 +257,69 @@ def test_export_pdf_escapes_blocking_reason():
         blocking_reason=_MARKUP_PAYLOAD,
     )
     assert export_pdf(report)[:5] == b"%PDF-"
+
+
+# ---------------------------------------------------------------------------
+# 取值与规则取值（审查 #24 / #29 / #31）
+# ---------------------------------------------------------------------------
+
+
+def test_value_rejects_non_numeric_coercions():
+    """#24 A03/CWE-20: Pydantic v2 松散强制下 `'NaN'` → nan、`True` → 1.0。
+
+    服务层 `_coerce_value` 的布尔/字符串拒绝在 API 路径上因此**不可达**；
+    更严重的是 NaN 进入 `evaluate` 后所有比较为 false，`ASYMMETRIC_BAND`
+    直接落到 `return Evaluation(QUALIFIED, ...)` —— 一个从未被测量的值能过
+    SPEC §3.2.4(4) 确认门。schema 须显式 strict。
+    """
+    from pydantic import ValidationError
+
+    from app.schemas.supplier import ActualDataEntry
+
+    for bad in ("NaN", "Infinity", "-Infinity", True, False, "100"):
+        with pytest.raises(ValidationError):
+            ActualDataEntry(name="扬程", value=bad)
+
+    assert ActualDataEntry(name="扬程", value=100.0).value == 100.0
+    # 负数是合法实测值（冬季设计温度等），strict 不得误伤
+    assert ActualDataEntry(name="扬程", value=-12.5).value == -12.5
+
+
+def test_manual_check_row_keeps_flag_without_design_value():
+    """#29: `design_value is None` 短路抢在 kind 派发之前。
+
+    材质按定义没有数值设计值（SPEC §3.2.4(2) 序数比较），短路的结果是一行
+    写着「缺设计值，无法判定」——**这句是假的，什么都没缺** —— 且
+    `requires_manual_check=False`。丢掉的 flag 才是真伤害：它是下游把该行
+    路由给人而非当成录入缺陷的信号。
+    """
+    r = build_report(_Eq(DESIGN, {"材质": {"value": "304", "unit": ""}}))
+    row = next(x for x in r.rows if x.parameter == "材质")
+    assert row.requires_manual_check is True
+    assert "缺设计值" not in row.note
+    assert row.spec_ref, "人工核对行须带 SPEC 回溯"
+
+
+def test_impeller_diameter_not_paired_with_design_speed():
+    """#31: 叶轮直径此前是转速规则的别名且无 design_parameter。
+
+    `design_key`（`design_parameter or parameter`）于是解析为「转速」，
+    报告把 2982 r/min 当作 320 mm 直径的设计值 —— 且 `_extract` 对设计列丢弃
+    了单位，导出里显示「2982 r/min」作为毫米级实测项的设计值。
+    门禁未被污染（RECHECK_ALWAYS 恒 WARNING），但错配值会写进工艺室收到的
+    合规文件。拆成独立规则后自然落入「缺设计值」分支被 fail-closed 拦下。
+    """
+    r = build_report(
+        _Eq(
+            {"扬程": {"value": 32.0}, "轴功率": {"value": 55.0}, "转速": {"value": 2982.0, "unit": "r/min"}},
+            {"叶轮直径": {"value": 320.0, "unit": "mm"}},
+        )
+    )
+    row = next(x for x in r.rows if x.parameter == "叶轮直径")
+    assert row.design_value is None, "叶轮直径被配到了转速的设计值上"
+    # ⚠️ 报告预言此处会落「缺设计值，无法判定」并被 can_confirm 阻断 —— 那只在
+    # 不做 #29 时成立。#29 把 RECHECK_ALWAYS 列入 DESIGN_VALUE_OPTIONAL_KINDS 后，
+    # 它走 evaluate() 拿到固定的 WARNING + requires_recheck。
+    # 这更贴 SPEC：「允许差异，需重新校核性能」本就是需复核而非不合格，不应阻断。
+    assert row.verdict == "WARNING"
+    assert row.requires_recheck is True

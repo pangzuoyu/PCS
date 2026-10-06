@@ -23,6 +23,18 @@ from app.services.supplier.deviation_service import (
     verdict_label,
 )
 
+# 这些 kind 的判定**不依赖设计值**，故「缺设计值」不该抢在 kind 派发之前
+# 短路掉它们（审查 #29）。此前一律短路的后果：
+#   - 材质（MANUAL_CHECK）产出一行写着「缺设计值，无法判定」—— 这句是假的，
+#     什么都没缺 —— 且 `requires_manual_check=False`，丢掉了下游把该行路由给人
+#     而非当成录入缺陷的信号；
+#   - 轴功率（REFERENCE_ONLY，本就「不判合格与否」）在设计值未回填的设备上
+#     静默降级为 UNVERDICTABLE。
+# 若日后希望「转速无设计值时仍阻断」，把 RECHECK_ALWAYS 从此集合去掉即可。
+DESIGN_VALUE_OPTIONAL_KINDS = frozenset(
+    {"MANUAL_CHECK", "REFERENCE_ONLY", "RECHECK_ALWAYS"}
+)
+
 
 @dataclass(frozen=True)
 class DeviationRow:
@@ -109,7 +121,7 @@ def build_report(equipment) -> DeviationReport:
             )
             continue
 
-        if design_value is None:
+        if design_value is None and rule.kind not in DESIGN_VALUE_OPTIONAL_KINDS:
             rows.append(
                 DeviationRow(
                     parameter=name, design_value=None, actual_value=actual_value,
