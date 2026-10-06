@@ -22,6 +22,16 @@
 - **单测不读迁移，别把 `alembic upgrade head` 当测试前置**（2026-10-06 实测证伪）：`conftest.db_engine` 建 `sqlite+aiosqlite:///:memory:` 并用 `SA_Base.metadata.create_all` 从 ORM 建表，`.env` 指向 `pcs`、无 `pcs_test`、无 `.env.test`。CLAUDE.md「测试前检查」原「先对 pcs_test 跑 upgrade head」一条已于同日改写为三段式。
 - **⚠️ 漂移盲区：缺表会红（可见），漂移会绿（不可见）**。迁移改 schema 而 ORM 未跟随时单测全绿、真库炸，无自动化能抓（见 Key Learnings `bug-137`）。改 `alembic/versions/*` 后必跑 `uv run alembic check`（alembic 1.9+ 检测 ORM vs 迁移漂移，无输出即一致），并手动核对 ORM 列。
 
+### 数据完整性：缺数据就留空，不编造
+
+- **来源表里没有的实测/设计值一律留空，不推算、不套标准值、不取邻近行**（2026-10-06，蜡油加氢
+  真实数据验收）。`LOW_TEMP_ITEMS` 判空是因为 `机泵选型` 与工艺 XLS 里都无低温余热项，
+  不是因为「不重要」。缺值走既有 UNVERDICTABLE / 需重算 档，不走「填个合理默认」。
+- **XLS 里的自相矛盾/坏值当发现报，不静默修正**：氮气 MJ 列与 kg标油/m³ 口径打架、
+  数量列前后不一致、`#DIV/0!` 单元格 —— 一律登记为待工艺室确认，由人裁决，不代填。
+  设备级坏值（如 132-P-105A/B/C/D 电机与轴功相差 111.7 倍）进 `PUMP_DESIGN_EXCLUDED`
+  显式排除并记原因，不删数据也不参与回填。
+
 ### Alias/Registry
 
 - spec §8.3 「≥50 别名」验收必须用 `group_type` 字段（ALIAS/ALIAS_WITH_FACTOR/ENUM/KEYWORD/FIELD_NAME）显式区分，≥50 只统计前两者。
