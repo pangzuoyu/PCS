@@ -98,6 +98,12 @@ async def pass_check(
     equipment.actual_data_status = ActualDataStatus.CONFIRMED.value
     await session.flush()
 
+    # ⚠️ 改为确定性 event_id（uuid5）**必须**与 `events.py::_claim` 的 savepoint
+    # 改造同提交 —— 见该函数 docstring 的「原子性约束」段。单修此处会打开数据丢失路径：
+    # 碰撞从「不可能」变为「可能」，而 `_claim` 的 rollback 分支尚未修时会连同上面
+    # flush 的 CONFIRMED 一起丢弃。推导 uuid5 时 payload_hash 的计算范围**只含业务字段**
+    # （equipment_id + before + after），不得含 timestamp / request_id / iat，
+    # 否则每次重投 hash 不同，幂等彻底失效。
     await emit_event(
         session,
         REPLACES_DESIGN,

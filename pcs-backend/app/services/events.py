@@ -129,6 +129,14 @@ async def _claim(
     Raises:
         PcsError 409 EVENT_ID_CONFLICT — 同 event_id 不同 payload
     """
+    # ⚠️ 原子性约束（P7-S4 审查 #2+#3）：本函数的 IntegrityError 分支若用
+    # `session.rollback()`，回滚的是**调用方整个待写状态**而不只是 claim 行 ——
+    # `pass_check` 在 emit_event 前已 flush `actual_data_status=CONFIRMED`，一并丢弃，
+    # 且对外谎报「并发 claim 冲突」。因此 rollback 必须换成 savepoint
+    # （`session.begin_nested()`），且**必须与 `event_id` 改为确定性派生（uuid5）
+    # 同提交**。理由：今天该路径不可达，仅因无任何 producer 能产出碰撞的 event_id；
+    # 一旦改 uuid5，并发双击在 READ COMMITTED 下双方 INSERT、后到者撞主键，路径立刻可达。
+    # #3 是 #2 的**解除掩盖条件**，顺序不能颠倒，严禁拆分 cherry-pick。
     existing = (
         await session.execute(
             EventIdempotency.__table__.select().where(
@@ -228,6 +236,12 @@ async def emit_event(
         "after": after_snapshot,
         **payload,
     }
+    # 事件类型区分（P7-S4 审查 #28）：空 listener 列表**不是**一律的 bug。
+    # - `cia_mark_stale` 类：无 listener = 配置错误，调用方（如 CIAEngine.scan_stale）
+    #   不应据此递增「已标记 N 台」计数，否则报给操作者的数字是错的。
+    # - `actual_data_replaces_design`：P8 挂上反向恢复 listener 之前本就是 claim-only，
+    #   claim 成功即完成，监听与否无关。
+    # 用 `CLAIM_ONLY_EVENTS` 白名单表达此区分，勿一刀切地「无 listener 即失败」。
     for listener in _LISTENERS.get(event_type, []):
         await listener(event)
     return True

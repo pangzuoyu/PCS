@@ -76,6 +76,14 @@ def build_report(equipment) -> DeviationReport:
 
     行集合 = 实际值里已录入的参数 —— 没录入的项无法比对，不占行（但
     `can_confirm` 因空报告恒 False，见下）。
+
+    # 设计决策（P7-S4 审查 #8）：应检参数集的 fail-closed **本轮仅对泵生效**。
+    # 理由：泵的应检集可从 `PUMP_DESIGN` 的设计键推导（SPEC §3.2.4(2) 六条允许偏差）；
+    # 非泵设备无设计值 → 行集为空 → `can_confirm` 恒 False，已是事实上的 fail-closed，
+    # 不会误确认。非泵设备的应检参数表机制留到其数据模型落地时再建 —— 那时才谈得上
+    # 「哪些参数应检」，在此之前凭空造表反而会拒掉合法录入。
+    # 待办（步 3）：#8 落地时泵侧改为「SPEC_RULES 中每条匹配到本设备设计键的规则都补一行，
+    # 缺实测值即显式 UNVERDICTABLE」，复用现有 fail-closed 档，不新增门禁逻辑。
     """
     actual = equipment.actual_data_json or {}
     design = equipment.design_parameters_json
