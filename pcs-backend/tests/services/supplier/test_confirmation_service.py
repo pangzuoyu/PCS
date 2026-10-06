@@ -31,8 +31,12 @@ CHECK_SUBMITTED = "actual_data_check_submitted"
 REPLACES_DESIGN = "actual_data_replaces_design"
 
 DESIGN = {"扬程": {"value": 32.0, "unit": "m"}, "轴功率": {"value": 55.0, "unit": "kW"}}
-ACTUAL_OK = {"扬程": {"value": 33.0, "unit": "m"}, "电机额定功率": {"value": 75.0, "unit": "kW"}}
-ACTUAL_BAD = {"扬程": {"value": 33.0, "unit": "m"}, "电机额定功率": {"value": 48.0, "unit": "kW"}}
+# #8 落地后应检集含「轴功率」(电机裕量规则的设计侧参照量, 也是 REFERENCE_ONLY
+# 应检项), 故 fixture 必须补齐它 —— 否则 can_confirm 恒 False。
+ACTUAL_OK = {"扬程": {"value": 33.0, "unit": "m"}, "电机额定功率": {"value": 75.0, "unit": "kW"},
+             "轴功率": {"value": 55.0, "unit": "kW"}}
+ACTUAL_BAD = {"扬程": {"value": 33.0, "unit": "m"}, "电机额定功率": {"value": 48.0, "unit": "kW"},
+               "轴功率": {"value": 55.0, "unit": "kW"}}
 
 
 @pytest.fixture(autouse=True)

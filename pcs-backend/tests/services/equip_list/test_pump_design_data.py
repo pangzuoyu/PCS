@@ -228,17 +228,22 @@ async def test_deviation_report_now_produces_real_verdicts(db_session):
     await db_session.refresh(eq)
 
     # 设计侧（XLS）: 轴功率 2214.06 kW / 扬程 2100 m / 电机 2500 kW
-    # 实测侧: 扬程 2130 m (偏 +1.43%, 合格) + 电机 2600 kW
+    # 实测侧: 应检集须**录齐**（#8）—— SPEC §3.2.4(2) 六条是并集, 只录一条不得确认。
+    # 扬程 2130 m (偏 +1.43%, 合格) + 电机 2600 kW (地板 2214.06*1.10 = 2435.5, 合格)
+    # + NPSHr / 效率 / 转速 三项补齐
     await record_actual_data(db_session, eq, [
         {"name": "扬程", "value": 2130.0, "unit": "m"},
+        {"name": "效率", "value": 95.0, "unit": "%"},
+        {"name": "NPSHr", "value": 2.0, "unit": "m"},
         {"name": "电机额定功率", "value": 2600.0, "unit": "kW"},
+        {"name": "转速", "value": 2982.0, "unit": "r/min"},
     ])
 
     report = build_report(eq)
     assert report.rows, "报告不应为空"
-    assert all(r.verdict != "UNVERDICTABLE" for r in report.rows), (
-        f"仍有不可判行: {[(r.parameter, r.note) for r in report.rows]}"
-    )
+    unverdictable = [(r.parameter, r.note) for r in report.rows
+                     if r.verdict == "UNVERDICTABLE"]
+    assert not unverdictable, f"应检参数录齐后仍有不可判行: {unverdictable}"
     # 扬程 +5%/-0% 非对称带 → 2130 偏 +1.43% → 合格
     head = next(r for r in report.rows if r.parameter == "扬程")
     assert head.verdict == "QUALIFIED"
@@ -259,16 +264,23 @@ async def test_deviation_report_flags_undersized_motor(db_session):
     await apply_design_parameters(db_session, PROJECT_ID)
     await db_session.refresh(eq)
 
+    def _entries(motor_kw: float) -> list[dict]:
+        """应检集录齐 + 指定电机功率（#8: 只录一项不得确认）。"""
+        return [
+            {"name": "扬程", "value": 2130.0, "unit": "m"},
+            {"name": "效率", "value": 95.0, "unit": "%"},
+            {"name": "NPSHr", "value": 2.0, "unit": "m"},
+            {"name": "电机额定功率", "value": motor_kw, "unit": "kW"},
+            {"name": "转速", "value": 2982.0, "unit": "r/min"},
+        ]
+
     # 2500 kW 电机: 恰好卡 1.10 档 (下限 2435.5), 达标
-    await record_actual_data(db_session, eq, [
-        {"name": "电机额定功率", "value": 2500.0, "unit": "kW"},
-    ])
+    await record_actual_data(db_session, eq, _entries(2500.0))
     assert can_confirm(build_report(eq)) is True
 
     # 改成 2300 kW: 低于 2214.06 × 1.10 = 2435.5 → 不合格
-    await record_actual_data(db_session, eq, [
-        {"name": "电机额定功率", "value": 2300.0, "unit": "kW"},
-    ])
+    await record_actual_data(db_session, eq, _entries(2300.0))
     report = build_report(eq)
-    assert report.rows[0].verdict == "UNQUALIFIED"
+    motor_row = next(r for r in report.rows if r.parameter == "电机额定功率")
+    assert motor_row.verdict == "UNQUALIFIED"
     assert can_confirm(report) is False

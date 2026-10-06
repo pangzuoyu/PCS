@@ -78,7 +78,12 @@ def test_missing_design_value_row_is_unverdictable():
 
 def test_not_entered_actual_data_yields_empty_report():
     r = build_report(_Eq(DESIGN, None))
-    assert r.rows == ()
+    # #8 落地后：有设计值但一个实测都没录时，报告**不再为空** ——
+    # 空报告虽同样阻断确认（can_confirm 的空集守卫），但它让「没录」与
+    # 「录了且判过」长得一模一样；缺值必须显式占位成不可判行。
+    assert r.rows, "有设计值时应列出应检参数行（全部不可判），不能是空报告"
+    assert all(row.verdict == "UNVERDICTABLE" for row in r.rows)
+    assert can_confirm(r) is False
     assert can_confirm(r) is False  # 没录数据不能确认
 
 
@@ -323,3 +328,84 @@ def test_impeller_diameter_not_paired_with_design_speed():
     # 这更贴 SPEC：「允许差异，需重新校核性能」本就是需复核而非不合格，不应阻断。
     assert row.verdict == "WARNING"
     assert row.requires_recheck is True
+
+
+# ---------------------------------------------------------------------------
+# 应检参数集覆盖面（审查 #8 / 用户裁决「现在就做」）
+# ---------------------------------------------------------------------------
+
+_PUMP_DESIGN_KEYS = ("NPSHr", "扬程", "效率", "电机配用功率", "电机额定功率", "转速", "轴功率")
+
+
+def _pump_design() -> dict:
+    """形状与 `PUMP_DESIGN` 一致、数值自洽的设计值（便于单测推导应检集）。
+
+    值取自 `pump_design_data` 的真实转录量级，避免各规则因设计值荒谬而误判。
+    """
+    return {
+        "扬程": {"value": 32.0, "unit": "m"},
+        "效率": {"value": 0.95, "unit": "-"},
+        "NPSHr": {"value": 3.0, "unit": "m"},
+        "轴功率": {"value": 2214.06, "unit": "kW"},
+        "电机额定功率": {"value": 2500.0, "unit": "kW"},
+        "转速": {"value": 2982.0, "unit": "r/min"},
+        "电机配用功率": {"value": 2500.0, "unit": "kW"},
+    }
+
+
+def test_single_entry_cannot_confirm_a_pump():
+    """#8: 只录一个参数不得确认整台泵 —— SPEC §3.2.4(2) 六条是**并集**不是「至少一条」。
+
+    修复前 `build_report` 的行集恰好等于设计人敲进去的键集，`can_confirm` 唯一的
+    空集守卫是「行数为 0」。于是只录一个 `效率`（95% 带内）→ 报告一行、QUALIFIED、
+    `can_confirm` True → CONFIRMED 并发出带全量设计值的 `actual_data_replaces_design`，
+    而其余五条从未录入、从未判定，记录却对所有下游与 P8 反向恢复链显示「已确认」。
+
+    第 4 档 UNVERDICTABLE 防的是「进了报告但没判」，对「根本没进报告」无能为力 ——
+    这正是覆盖面 fail-open。
+    """
+    r = build_report(_Eq(_pump_design(), {"效率": {"value": 95.0, "unit": "%"}}))
+
+    assert can_confirm(r) is False, "只录一项就能确认 —— 四眼控制与门禁都落空"
+    unverdictable = {row.parameter for row in r.rows if row.verdict == "UNVERDICTABLE"}
+    assert unverdictable, "缺失的应检参数没有出现在报告里"
+
+
+def test_required_keys_come_from_design_not_from_entered():
+    """应检集 = SPEC_RULES 的 design_key ∩ 设备自身设计值（泵由 PUMP_DESIGN 回填）.
+
+    非泵设备无设计值 → 应检集为空 → 行集仍等于已录入键集 → 事实上的 fail-closed，
+    不受本轮改动影响（见 #8 的范围限定）。
+    """
+    design = _pump_design()
+    entered = {"效率": {"value": 95.0, "unit": "%"}}
+    r = build_report(_Eq(design, entered))
+
+    # 应检项是 **parameter**（实测侧），不是 design_key（设计侧参照量）——
+    # 电机额定功率规则的 design_key 是「轴功率」，用它会放过「电机额定功率」实测值
+    required = {"扬程", "效率", "NPSHr", "电机额定功率", "转速"}  # 不含轴功率: REFERENCE_ONLY
+    params = {row.parameter for row in r.rows}
+    assert required <= params, f"应检参数缺失: {required - params}"
+    # 已录入的参数照常出���行
+    assert "效率" in params and next(x for x in r.rows if x.parameter == "效率").verdict == "QUALIFIED"
+
+
+def test_non_pump_without_design_keeps_current_row_set():
+    """非泵（无设计值）不应被本改动波及：行集仍等于已录入键集。"""
+    actual = {"扬程": {"value": 33.0, "unit": "m"}}
+    r = build_report(_Eq(None, actual))
+    assert {row.parameter for row in r.rows} == {"扬程"}
+
+
+def test_full_entry_keeps_report_confirmable():
+    """全部应检参数都录了 → 门禁仍应放行（不得把 #8 做成「永远不可确认」）。"""
+    design = _pump_design()
+    actual = {
+        "扬程": {"value": 33.0, "unit": "m"},          # +3.1%，带内
+        "效率": {"value": 0.95, "unit": "-"},          # = 设计值
+        "NPSHr": {"value": 2.0, "unit": "m"},          # 低于设计 3.0 → MAX_ONLY 通过
+        "电机额定功率": {"value": 2500.0, "unit": "kW"},  # 地板 2214.06*1.10 = 2435.5
+        "转速": {"value": 2982.0, "unit": "r/min"},    # RECHECK → WARNING（不阻断）
+    }
+    r = build_report(_Eq(design, actual))
+    assert can_confirm(r) is True, f"应检参数齐备时不该被阻断: {r.blocking_reason}"

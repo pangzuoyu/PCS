@@ -19,6 +19,7 @@ from dataclasses import dataclass
 from io import BytesIO
 
 from app.services.supplier.deviation_service import (
+    SPEC_RULES,
     UNQUALIFIED,
     UNVERDICTABLE,
     find_rule,
@@ -38,6 +39,36 @@ from app.services.supplier.deviation_service import (
 DESIGN_VALUE_OPTIONAL_KINDS = frozenset(
     {"MANUAL_CHECK", "REFERENCE_ONLY", "RECHECK_ALWAYS"}
 )
+
+
+def _required_parameter_names(design: dict | None) -> set[str]:
+    """该设备「应检」的参数名集合（审查 #8）.
+
+    推导：SPEC_RULES 中**该设备有对应设计值**的规则，取其 `parameter`（实测侧）。
+
+    两个易错点:
+      - 取 `parameter` 而非 `design_key`。`电机额定功率` 规则的 design_key 是「轴功率」
+        （设计侧参照量），用 design_key 会放过「电机额定功率」实测值 —— 恰好放过最该
+        卡的那一项。
+      - 用「设备自身的设计值」求交，而非 import `PUMP_DESIGN`。对泵等价（PUMP_DESIGN
+        就是这些设计值的来源），且非泵无设计值 → 空集 → 行集仍等于已录入键集，
+        天然不受本轮改动影响，也不在报告层引入对泵选型模块的耦合。
+      - **排除 REFERENCE_ONLY**。`轴功率` 是电机裕量规则的设计侧参照量，判定读的是
+        `design_parameters_json['轴功率']` 而非实测值 —— 强制录入它既无必要，又因它
+        恒产出 UNVERDICTABLE 而让泵永远不可确认。
+
+    为什么需要它：SPEC §3.2.4(2) 的六条允许偏差是**并集**而非「至少一条」。
+    修复前行集恰好等于设计人敲进去的键集，`can_confirm` 唯一的空集守卫是「行数为 0」，
+    于是只录一个效率（95% 带内）就能确认整台泵 —— 第 4 档 UNVERDICTABLE 防的是
+    「进了报告但没判」，对「根本没进报告」无能为力。
+    """
+    if not design:
+        return set()
+    return {
+        r.parameter
+        for r in SPEC_RULES
+        if r.design_key in design and r.kind != "REFERENCE_ONLY"
+    }
 
 
 @dataclass(frozen=True)
@@ -143,6 +174,25 @@ def build_report(equipment) -> DeviationReport:
                 note=result.note, spec_ref=rule.spec_ref,
                 requires_recheck=result.requires_recheck,
                 requires_manual_check=result.requires_manual_check,
+            )
+        )
+
+    # 补齐未录入的应检参数（审查 #8）。它们必须有行 —— 否则「没录」与「录了且判过」
+    # 在报告里长得一模一样，缺值就绕过了确认门禁。
+    _existing = {row.parameter for row in rows}
+    for key in sorted(_required_parameter_names(design) - _existing):
+        rule = find_rule(key)
+        d_value, d_unit, _ = _extract(design, key)
+        rows.append(
+            DeviationRow(
+                parameter=key,
+                design_value=d_value,
+                actual_value=None,
+                unit=d_unit,
+                deviation_pct=None,
+                verdict=UNVERDICTABLE,
+                note="应检参数未录入实测值（SPEC §3.2.4(2) 六条允许偏差为并集）",
+                spec_ref=rule.spec_ref if rule else "",
             )
         )
 
