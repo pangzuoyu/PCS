@@ -138,24 +138,99 @@ async def test_state_transition_still_happens_via_listener(db_session):
 
 
 async def test_cia_source_has_no_direct_fsm_transition_calls():
-    """静态守卫: cia_engine.py 不得再出现 self.fsm.transition(...).
+    """静态守卫: cia_engine.py 不得 import state_machine 或直调 `.transition(`.
 
     防止将来有人图省事把直调加回来 —— 那正是 D4 4A 要禁止的模式。
+
+    ⚠️ 走 AST 而非字符串匹配（审查 #22）。原实现 grep 字面量 `self.fsm.transition(`，
+    而该字面量在重构后的 cia_engine.py 中**一次都不出现**（类已不持有 fsm 属性，
+    唯一调用是局部变量形式 `fsm = StateMachineService(session)` /
+    `await fsm.transition(...)`）—— 守卫从写下那天起就不可失败，断言恒为真，
+    给人虚假的安全感。有人真把直调加回来时最自然的两种写法都不含那个字面量。
+    同时修掉注释声称剥 docstring、实现只剥 `#` 行的不符。
     """
+    import ast
     from pathlib import Path
 
     import app.services.cia_engine as mod
 
-    src = Path(mod.__file__).read_text(encoding="utf-8")
-    # 去掉 docstring/注释后再查, 否则示例代码会误报
-    code = "\n".join(
-        line for line in src.splitlines()
-        if not line.lstrip().startswith("#")
+    tree = ast.parse(Path(mod.__file__).read_text(encoding="utf-8"))
+
+    # 本守卫的规则与 supplier 侧那份**不同**，别照抄：
+    # - supplier 域永不接触 FSM，故禁 import 也禁调用；
+    # - CIA 域**拥有** `cia_mark_stale` 的唯一 listener，模块级 import state_machine
+    #   是合法的（listener 需要 StateMachineService / StateTransition）。
+    #   真正的红线只有一条：FSM 转移**只能**发生在 `_mark_stale_via_fsm` 里。
+    exempt_lines: set[int] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)) and (
+            node.name == "_mark_stale_via_fsm"
+        ):
+            exempt_lines = {n.lineno for n in ast.walk(node) if hasattr(n, "lineno")}
+    assert exempt_lines, (
+        "未找到 _mark_stale_via_fsm —— listener 改名/删除会让本守卫静默失效, "
+        "请同步更新豁免名单"
     )
-    assert "self.fsm.transition(" not in code, (
-        "cia_engine.py 仍直调 self.fsm.transition — D4 4A 回归"
+
+    offenders: list[str] = []
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
+            if node.func.attr in ("transition", "register_listener"):
+                if node.lineno not in exempt_lines:
+                    offenders.append(f".{node.func.attr}() @line {node.lineno}")
+
+    assert not offenders, (
+        f"D4 4A 回归（FSM 转移只能经 emit_event -> listener）: {offenders}"
     )
 
 
 async def _append(sink: list, event: dict) -> None:
     sink.append(event)
+
+
+async def test_scan_stale_does_not_count_when_no_listener(db_session):
+    """#28: 无 listener 时 `scan_stale` 不得报「已标记 N 台」.
+
+    修复前 `_mark_stale` 返回 `emit_event` 的结果，而 `emit_event` 在 claim 成功后
+    无论有没有 listener 都返回 True —— `scan_stale` 再无条件 `marked += 1`。
+    于是注册表里没有 `cia_mark_stale` 的 listener 时：FSM 转移没发生、无异常抛出、
+    事件照样被 claim 为已处理，而操作者拿到的「已标记 N 台」是错的，且无任何提示。
+
+    这正是 `clear_listeners()` 文档里说的「模拟进程重启」能到达的状态。
+    """
+    from app.models.enums import RecordSignStatus9
+    from app.services.cia_engine import CIAEngine
+    from app.services.events import clear_listeners
+    from app.services.lineage import LineageTracker
+
+    pipe, _child = await _seed_parent_child(db_session)
+    pipe.sign_status = RecordSignStatus9.CHECKED
+    pipe.record_hash = "h2"
+    await db_session.flush()
+    await LineageTracker(db_session).track(
+        record=pipe, source="SEED", change_summary="baseline",
+        change_diff={"hash": "stale_hash_xxx"},
+    )
+    await db_session.flush()
+
+    clear_listeners()  # 事件发出但无人处理 —— 转移不会发生
+    n = await CIAEngine(db_session).scan_stale()
+
+    assert n == 0, (
+        f"无 listener 却报已标记 {n} 台 —— 操作者据此判断隔离了多少陈旧数据，"
+        "该数字是错的"
+    )
+    assert pipe.sign_status == RecordSignStatus9.CHECKED, "转移确实没发生"
+
+
+async def test_claim_only_events_do_not_require_listener(db_session):
+    """#28 反向: `actual_data_replaces_design` 在 P8 挂反向恢复 listener 前本就是
+    claim-only —— 无 listener 不构成错误。勿一刀切地把「无 listener」判为 bug。"""
+    from app.services.events import CLAIM_ONLY_EVENTS, has_listener
+
+    # 快照态下 cia_mark_stale 的 listener 是注册着的
+    assert has_listener(CIA_MARK_STALE) is True
+    # 而 replaces_design / check_submitted 在 P8 之前不需要 listener
+    assert "actual_data_replaces_design" in CLAIM_ONLY_EVENTS
+    assert "actual_data_check_submitted" in CLAIM_ONLY_EVENTS
+    assert CIA_MARK_STALE not in CLAIM_ONLY_EVENTS

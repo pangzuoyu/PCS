@@ -35,7 +35,7 @@ from app.models.enums import (
 from app.models.equipment import EquipmentList
 from app.models.system import DataLineage
 from app.services.audit_service import AuditService
-from app.services.events import emit_event, register_listener
+from app.services.events import emit_event, has_listener, register_listener
 from app.services.lineage import LineageTracker, _compute_hash
 from app.services.state_machine import StateMachineService
 
@@ -173,6 +173,12 @@ class CIAEngine:
             except Exception:
                 # 状态机拒绝（不在合法转移集合）— 跳过
                 continue
+            if not has_listener(CIA_MARK_STALE):
+                # 无 listener = FSM 转移没发生（审查 #28）。不落血缘也不计数 ——
+                # 落一条声称「hash mismatch → STALE」的血缘会与实际状态矛盾。
+                # 注意不能一刀切：replaces_design 等 claim-only 事件无 listener
+                # 属正常，见 events.CLAIM_ONLY_EVENTS。
+                continue
             # 落一条 CIA 血缘
             await self.tracker.track(
                 record=r,
@@ -283,6 +289,12 @@ class CIAEngine:
                     await self._mark_stale(
                         eq, f"ADR-0025: source pipe {rec.line_no} STALE"
                     )
+                    if not has_listener(CIA_MARK_STALE):
+                        # 无 listener = FSM 转移没发生（审查 #28）。此时不能计入
+                        # 「已标记 N 台」—— 那是操作者判断隔离了多少陈旧数据的唯一
+                        # 依据，错了没有任何其他提示。注意这不能一刀切：replaces_design
+                        # 等 claim-only 事件无 listener 属正常，见 CLAIM_ONLY_EVENTS。
+                        continue
                 marked += 1
             except Exception:
                 continue

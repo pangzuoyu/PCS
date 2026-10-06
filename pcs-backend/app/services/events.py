@@ -60,6 +60,29 @@ _HASHED_KEYS = ("event_type", "before", "after")
 NS_EVENT = uuid.uuid5(uuid.NAMESPACE_URL, "pcs.p7.events")
 
 
+# 事件类型 → 「本就没有 listener 也属正常」的清单（审查 #28）。
+#
+# `actual_data_replaces_design` / `actual_data_check_submitted` 的消费者是 P8 的
+# 反向恢复，那之前它们就是 **claim-only**：claim 成功即完成，监听与否无关。
+# 相反 `cia_mark_stale` 无 listener **一定是 bug** —— 它的处理者就是 FSM 转移本身，
+# 没人听就等于转移没发生，而调用方却会以为标记成功了。
+#
+# ⚠️ 勿把「无 listener = 错误」一刀切套到所有事件上。
+CLAIM_ONLY_EVENTS = frozenset(
+    {"actual_data_replaces_design", "actual_data_check_submitted"}
+)
+
+
+def has_listener(event_type: str) -> bool:
+    """该事件类型当前是否有人监听.
+
+    调用方用它区分「无 listener 属正常（claim-only）」与「无 listener 是配置错误」。
+    `CIAEngine.scan_stale` 据此决定要不要把一次 STALE 标记计入返回值 —— 修复前
+    它无条件 `marked += 1`，于是 listener 缺失时操作者拿到一个虚假的「已标记 N 台」。
+    """
+    return bool(_LISTENERS.get(event_type))
+
+
 def derive_event_id(
     event_type: str,
     before: dict | None,
@@ -313,10 +336,12 @@ async def emit_event(
 
 
 __all__ = [
+    "CLAIM_ONLY_EVENTS",
     "NS_EVENT",
     "clear_listeners",
     "derive_event_id",
     "emit_event",
+    "has_listener",
     "register_listener",
     "restore_listeners",
     "snapshot_listeners",
