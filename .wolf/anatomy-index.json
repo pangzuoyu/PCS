@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-05T03:12:54.712Z",
-    "fileCount": 610,
+    "lastScanned": "2026-10-06T14:37:51.793Z",
+    "fileCount": 662,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "ea7e0f0638f48d77af6cefcf2fc996dd05e3062767b4ba692101ea6e7b2748a3",
-    "storeUpdatedAt": "2026-10-05T03:12:54.722Z",
-    "rootHash": "5dd8b7c1212785fd"
+    "renderedHash": "97194f201fa2d09ca6c5317f471e40c7c3b4968a9a184c1dc72d8a4f3694cb94",
+    "storeUpdatedAt": "2026-10-06T14:37:51.802Z",
+    "rootHash": "fb18d695bb8ba36b"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -17880,6 +17880,2387 @@
       "size": 5498,
       "mtimeMs": 1791169974663.321,
       "updatedAt": "2026-10-05T03:12:54.712Z",
+      "source": "hook"
+    },
+    "docs/sprint4-plan-2026-10-05.md": {
+      "description": "Sprint 4 计划：供应商数据闭环 + 事件骨架 + 真实算例验收 (2026-10-05)",
+      "tokens": 2408,
+      "hash": "9fc2e04b9dfabc10",
+      "size": 13641,
+      "mtimeMs": 1791170487092.6616,
+      "updatedAt": "2026-10-05T03:21:27.141Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/.superpowers/sdd/sprint4-plan-2026-10-05/progress.md": {
+      "description": "SDD ledger — plan: docs/sprint4-plan-2026-10-05.md",
+      "tokens": 3137,
+      "hash": "f6d09573f15d792c",
+      "size": 20635,
+      "mtimeMs": 1791219690059.126,
+      "updatedAt": "2026-10-05T17:01:30.105Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/tests/core/test_events.py": {
+      "description": "事件骨架 emit_event / listener / 幂等去重 (P7 Sprint 4 Task S4-0).",
+      "tokens": 2425,
+      "hash": "480756d264568b91",
+      "size": 9270,
+      "mtimeMs": 1791171355152.6472,
+      "updatedAt": "2026-10-05T03:35:55.198Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_clean_registry",
+          "kind": "fn",
+          "startLine": 33,
+          "endLine": 45,
+          "tokens": 89
+        },
+        {
+          "name": "test_emit_calls_registered_listener",
+          "kind": "fn",
+          "startLine": 46,
+          "endLine": 64,
+          "tokens": 154
+        },
+        {
+          "name": "test_emit_calls_listeners_in_registration_order",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 83,
+          "tokens": 126
+        },
+        {
+          "name": "test_emit_passes_extra_payload",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 99,
+          "tokens": 120
+        },
+        {
+          "name": "test_emit_with_no_listener_is_noop",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 110,
+          "tokens": 109
+        },
+        {
+          "name": "test_duplicate_event_id_does_not_redispatch",
+          "kind": "fn",
+          "startLine": 111,
+          "endLine": 130,
+          "tokens": 144
+        },
+        {
+          "name": "test_different_event_ids_both_dispatch",
+          "kind": "fn",
+          "startLine": 131,
+          "endLine": 146,
+          "tokens": 109
+        },
+        {
+          "name": "test_idempotency_survives_module_reload_semantics",
+          "kind": "fn",
+          "startLine": 147,
+          "endLine": 180,
+          "tokens": 238
+        },
+        {
+          "name": "test_same_event_id_different_payload_raises",
+          "kind": "fn",
+          "startLine": 181,
+          "endLine": 197,
+          "tokens": 144
+        },
+        {
+          "name": "test_conflict_does_not_redispatch",
+          "kind": "fn",
+          "startLine": 198,
+          "endLine": 215,
+          "tokens": 140
+        },
+        {
+          "name": "test_identical_payload_is_not_a_conflict",
+          "kind": "fn",
+          "startLine": 216,
+          "endLine": 239,
+          "tokens": 198
+        },
+        {
+          "name": "test_before_snapshot_is_deep_copied",
+          "kind": "fn",
+          "startLine": 240,
+          "endLine": 269,
+          "tokens": 237
+        },
+        {
+          "name": "test_before_defaults_to_none",
+          "kind": "fn",
+          "startLine": 270,
+          "endLine": 285,
+          "tokens": 156
+        },
+        {
+          "name": "test_event_idempotency_table_columns",
+          "kind": "fn",
+          "startLine": 286,
+          "endLine": 296,
+          "tokens": 115
+        },
+        {
+          "name": "test_idempotency_row_written",
+          "kind": "fn",
+          "startLine": 297,
+          "endLine": 311,
+          "tokens": 139
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/app/core/events.py": {
+      "description": "事件骨架 — emit_event / register_listener / 幂等去重。",
+      "tokens": 1711,
+      "hash": "9793e55d0ccbefb1",
+      "size": 7241,
+      "mtimeMs": 1791171416072.7258,
+      "updatedAt": "2026-10-05T03:36:56.119Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "register_listener",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 65,
+          "tokens": 54
+        },
+        {
+          "name": "clear_listeners",
+          "kind": "fn",
+          "startLine": 66,
+          "endLine": 75,
+          "tokens": 48
+        },
+        {
+          "name": "_payload_hash",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 96,
+          "tokens": 152
+        },
+        {
+          "name": "_claim",
+          "kind": "fn",
+          "startLine": 97,
+          "endLine": 164,
+          "tokens": 541
+        },
+        {
+          "name": "emit_event",
+          "kind": "fn",
+          "startLine": 165,
+          "endLine": 223,
+          "tokens": 427
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/alembic/versions/p7_s4_001_event_idempotency.py": {
+      "description": "p7_s4_001: event_idempotency 表（事件幂等凭据 / D4 裁决 4A 落地前置）.",
+      "tokens": 521,
+      "hash": "bd715dfd5829af50",
+      "size": 2293,
+      "mtimeMs": 1791261156301.8086,
+      "updatedAt": "2026-10-06T04:32:36.347Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 57,
+          "tokens": 264
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 61,
+          "tokens": 33
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/tests/test_cia_event_decoupling.py": {
+      "description": "CIAEngine 3 处直调 state_machine 改走事件触发 (P7 Sprint 4 S4-0 Step 5).",
+      "tokens": 2281,
+      "hash": "d5788da70bfd2fbc",
+      "size": 9384,
+      "mtimeMs": 1791261656965.509,
+      "updatedAt": "2026-10-06T04:40:57.010Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_clean_registry",
+          "kind": "fn",
+          "startLine": 28,
+          "endLine": 33,
+          "tokens": 27
+        },
+        {
+          "name": "_make_pipe",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 52,
+          "tokens": 202
+        },
+        {
+          "name": "_set_signed",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 58,
+          "tokens": 37
+        },
+        {
+          "name": "_seed_parent_child",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 84,
+          "tokens": 260
+        },
+        {
+          "name": "test_cia_emits_event_instead_of_calling_fsm_directly",
+          "kind": "fn",
+          "startLine": 85,
+          "endLine": 103,
+          "tokens": 162
+        },
+        {
+          "name": "test_event_carries_record_and_reason",
+          "kind": "fn",
+          "startLine": 104,
+          "endLine": 125,
+          "tokens": 210
+        },
+        {
+          "name": "test_state_transition_still_happens_via_listener",
+          "kind": "fn",
+          "startLine": 126,
+          "endLine": 139,
+          "tokens": 142
+        },
+        {
+          "name": "test_cia_source_has_no_direct_fsm_transition_calls",
+          "kind": "fn",
+          "startLine": 140,
+          "endLine": 186,
+          "tokens": 511
+        },
+        {
+          "name": "_append",
+          "kind": "fn",
+          "startLine": 187,
+          "endLine": 190,
+          "tokens": 22
+        },
+        {
+          "name": "test_scan_stale_does_not_count_when_no_listener",
+          "kind": "fn",
+          "startLine": 191,
+          "endLine": 225,
+          "tokens": 356
+        },
+        {
+          "name": "test_claim_only_events_do_not_require_listener",
+          "kind": "fn",
+          "startLine": 226,
+          "endLine": 237,
+          "tokens": 172
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/tests/services/supplier/test_actual_data_service.py": {
+      "description": "供应商实际数据录入 — 手工 UI 路径 (P7 Sprint 4 Task S4-1).",
+      "tokens": 1788,
+      "hash": "38a6fa47fe3c0dca",
+      "size": 7023,
+      "mtimeMs": 1791204319384.2612,
+      "updatedAt": "2026-10-05T12:45:19.438Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_make_equipment",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 53,
+          "tokens": 208
+        },
+        {
+          "name": "test_manual_entry_records_actual_data",
+          "kind": "fn",
+          "startLine": 54,
+          "endLine": 72,
+          "tokens": 184
+        },
+        {
+          "name": "test_manual_entry_replaces_previous",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 86,
+          "tokens": 141
+        },
+        {
+          "name": "test_manual_entry_accepts_negative_value",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 102,
+          "tokens": 171
+        },
+        {
+          "name": "test_non_numeric_value_raises",
+          "kind": "fn",
+          "startLine": 103,
+          "endLine": 116,
+          "tokens": 140
+        },
+        {
+          "name": "test_numeric_string_value_rejected",
+          "kind": "fn",
+          "startLine": 117,
+          "endLine": 128,
+          "tokens": 129
+        },
+        {
+          "name": "test_duplicate_name_raises",
+          "kind": "fn",
+          "startLine": 129,
+          "endLine": 144,
+          "tokens": 155
+        },
+        {
+          "name": "test_blank_name_raises",
+          "kind": "fn",
+          "startLine": 145,
+          "endLine": 154,
+          "tokens": 91
+        },
+        {
+          "name": "test_empty_list_raises",
+          "kind": "fn",
+          "startLine": 155,
+          "endLine": 163,
+          "tokens": 84
+        },
+        {
+          "name": "test_failed_validation_does_not_advance_status",
+          "kind": "fn",
+          "startLine": 164,
+          "endLine": 182,
+          "tokens": 200
+        },
+        {
+          "name": "test_equipment_list_has_actual_data_json_column",
+          "kind": "fn",
+          "startLine": 183,
+          "endLine": 189,
+          "tokens": 74
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/app/services/supplier/__init__.py": {
+      "description": "供应商侧服务（P7 Sprint 4）。",
+      "tokens": 97,
+      "hash": "a016793e4b297fa4",
+      "size": 534,
+      "mtimeMs": 1791261007332.9412,
+      "updatedAt": "2026-10-06T04:30:07.379Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/app/services/supplier/actual_data_service.py": {
+      "description": "供应商实际数据录入（手动）— P7 Sprint 4 S4-1 / ADR-0025.",
+      "tokens": 1101,
+      "hash": "65a4c0839a3fda95",
+      "size": 4763,
+      "mtimeMs": 1791260330609.6162,
+      "updatedAt": "2026-10-06T04:18:50.655Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_coerce_value",
+          "kind": "fn",
+          "startLine": 27,
+          "endLine": 37,
+          "tokens": 105
+        },
+        {
+          "name": "normalize_entries",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 95,
+          "tokens": 542
+        },
+        {
+          "name": "record_actual_data",
+          "kind": "fn",
+          "startLine": 96,
+          "endLine": 131,
+          "tokens": 274
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/alembic/versions/p7_s4_002_actual_data_jsonb.py": {
+      "description": "p7_s4_002: equipment_list.actual_data_json (供应商实测值本体).",
+      "tokens": 333,
+      "hash": "da517b8a24aefb7b",
+      "size": 1421,
+      "mtimeMs": 1791204134412.4397,
+      "updatedAt": "2026-10-05T12:42:14.456Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/app/services/supplier/excel_import_service.py": {
+      "description": "供应商实际数据 Excel 批量导入 — P7 Sprint 4 S4-1.",
+      "tokens": 1384,
+      "hash": "19a7daac2fb5df63",
+      "size": 5902,
+      "mtimeMs": 1791204149596.1306,
+      "updatedAt": "2026-10-05T12:42:29.640Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_import_error",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 42,
+          "tokens": 42
+        },
+        {
+          "name": "ImportResult",
+          "kind": "class",
+          "startLine": 43,
+          "endLine": 49,
+          "tokens": 38
+        },
+        {
+          "name": "build_import_template",
+          "kind": "fn",
+          "startLine": 50,
+          "endLine": 60,
+          "tokens": 72
+        },
+        {
+          "name": "_cell_text",
+          "kind": "fn",
+          "startLine": 61,
+          "endLine": 64,
+          "tokens": 25
+        },
+        {
+          "name": "_parse_value",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 80,
+          "tokens": 149
+        },
+        {
+          "name": "_read_rows",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 99,
+          "tokens": 216
+        },
+        {
+          "name": "import_actual_data",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 162,
+          "tokens": 562
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/tests/api/v1/test_supplier_actual_data_api.py": {
+      "description": "供应商实际数据录入 API — 手工 UI 路径 (P7 Sprint 4 Task S4-1).",
+      "tokens": 2024,
+      "hash": "b29c9c645ccc0765",
+      "size": 7637,
+      "mtimeMs": 1791204410516.0918,
+      "updatedAt": "2026-10-05T12:46:50.562Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 28,
+          "endLine": 34,
+          "tokens": 47
+        },
+        {
+          "name": "viewer_headers",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 41,
+          "tokens": 44
+        },
+        {
+          "name": "project",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 61,
+          "tokens": 190
+        },
+        {
+          "name": "equipment",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 85,
+          "tokens": 190
+        },
+        {
+          "name": "test_put_records_actual_data",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 103,
+          "tokens": 160
+        },
+        {
+          "name": "test_put_replaces_previous",
+          "kind": "fn",
+          "startLine": 104,
+          "endLine": 121,
+          "tokens": 180
+        },
+        {
+          "name": "test_put_rejects_non_numeric_value",
+          "kind": "fn",
+          "startLine": 122,
+          "endLine": 143,
+          "tokens": 223
+        },
+        {
+          "name": "test_put_rejects_duplicate_name",
+          "kind": "fn",
+          "startLine": 144,
+          "endLine": 159,
+          "tokens": 153
+        },
+        {
+          "name": "test_put_rejects_empty_entries",
+          "kind": "fn",
+          "startLine": 160,
+          "endLine": 168,
+          "tokens": 88
+        },
+        {
+          "name": "test_put_rejects_viewer",
+          "kind": "fn",
+          "startLine": 169,
+          "endLine": 178,
+          "tokens": 95
+        },
+        {
+          "name": "test_put_unknown_equipment_404",
+          "kind": "fn",
+          "startLine": 179,
+          "endLine": 192,
+          "tokens": 132
+        },
+        {
+          "name": "test_get_returns_empty_before_entry",
+          "kind": "fn",
+          "startLine": 193,
+          "endLine": 204,
+          "tokens": 118
+        },
+        {
+          "name": "test_get_roundtrips_after_put",
+          "kind": "fn",
+          "startLine": 205,
+          "endLine": 218,
+          "tokens": 145
+        },
+        {
+          "name": "test_get_requires_auth",
+          "kind": "fn",
+          "startLine": 219,
+          "endLine": 224,
+          "tokens": 58
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/app/schemas/supplier.py": {
+      "description": "供应商实际数据录入 API schemas (P7 Sprint 4 S4-1 / ADR-0025).",
+      "tokens": 1080,
+      "hash": "177a104a81296e37",
+      "size": 4846,
+      "mtimeMs": 1791260726979.7705,
+      "updatedAt": "2026-10-06T04:25:27.027Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ActualDataEntry",
+          "kind": "class",
+          "startLine": 17,
+          "endLine": 34,
+          "tokens": 209
+        },
+        {
+          "name": "ActualDataEntryRequest",
+          "kind": "class",
+          "startLine": 35,
+          "endLine": 50,
+          "tokens": 126
+        },
+        {
+          "name": "ActualDataResponse",
+          "kind": "class",
+          "startLine": 51,
+          "endLine": 61,
+          "tokens": 73
+        },
+        {
+          "name": "ConfirmRequest",
+          "kind": "class",
+          "startLine": 62,
+          "endLine": 69,
+          "tokens": 49
+        },
+        {
+          "name": "CheckRequest",
+          "kind": "class",
+          "startLine": 70,
+          "endLine": 90,
+          "tokens": 190
+        },
+        {
+          "name": "DeviationRowOut",
+          "kind": "class",
+          "startLine": 91,
+          "endLine": 107,
+          "tokens": 196
+        },
+        {
+          "name": "DeviationReportOut",
+          "kind": "class",
+          "startLine": 108,
+          "endLine": 130,
+          "tokens": 141
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/app/api/v1/supplier.py": {
+      "description": "供应商实际数据录入 API (P7 Sprint 4 S4-1 / ADR-0025).",
+      "tokens": 2480,
+      "hash": "4c58977de0f42bdd",
+      "size": 9951,
+      "mtimeMs": 1791260364702.6028,
+      "updatedAt": "2026-10-06T04:19:24.745Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_load_equipment",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 85,
+          "tokens": 181
+        },
+        {
+          "name": "_to_response",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 95,
+          "tokens": 106
+        },
+        {
+          "name": "get_actual_data",
+          "kind": "fn",
+          "startLine": 96,
+          "endLine": 107,
+          "tokens": 127
+        },
+        {
+          "name": "put_actual_data",
+          "kind": "fn",
+          "startLine": 108,
+          "endLine": 131,
+          "tokens": 223
+        },
+        {
+          "name": "_report_to_response",
+          "kind": "fn",
+          "startLine": 132,
+          "endLine": 143,
+          "tokens": 134
+        },
+        {
+          "name": "get_deviation_report",
+          "kind": "fn",
+          "startLine": 144,
+          "endLine": 180,
+          "tokens": 342
+        },
+        {
+          "name": "confirm_actual_data",
+          "kind": "fn",
+          "startLine": 181,
+          "endLine": 197,
+          "tokens": 178
+        },
+        {
+          "name": "check_actual_data",
+          "kind": "fn",
+          "startLine": 198,
+          "endLine": 219,
+          "tokens": 222
+        },
+        {
+          "name": "export_deviation_report",
+          "kind": "fn",
+          "startLine": 220,
+          "endLine": 258,
+          "tokens": 391
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/app/api/v1/__init__.py": {
+      "description": "",
+      "tokens": 1443,
+      "hash": "4525e1cae3a347a3",
+      "size": 5075,
+      "mtimeMs": 1791204386144.383,
+      "updatedAt": "2026-10-05T12:46:26.188Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/docs/sprint4-plan-2026-10-05.md": {
+      "description": "Sprint 4 计划：供应商数据闭环 + 事件骨架 + 真实算例验收 (2026-10-05)",
+      "tokens": 3331,
+      "hash": "07be4535abb86c82",
+      "size": 19340,
+      "mtimeMs": 1791216646437.572,
+      "updatedAt": "2026-10-05T16:10:46.482Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/tests/services/supplier/test_deviation_service.py": {
+      "description": "供应商偏差报告引擎 (P7 Sprint 4 Task S4-2 / SPEC V1.4 §3.2.4).",
+      "tokens": 1946,
+      "hash": "132aeab7394ce18b",
+      "size": 8215,
+      "mtimeMs": 1791205149347.879,
+      "updatedAt": "2026-10-05T12:59:09.414Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_dev",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 60,
+          "tokens": 251
+        },
+        {
+          "name": "test_head_asymmetric_band",
+          "kind": "fn",
+          "startLine": 61,
+          "endLine": 85,
+          "tokens": 205
+        },
+        {
+          "name": "test_efficiency_min_ratio",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 107,
+          "tokens": 177
+        },
+        {
+          "name": "test_npshr_max_only",
+          "kind": "fn",
+          "startLine": 108,
+          "endLine": 132,
+          "tokens": 215
+        },
+        {
+          "name": "test_motor_power_symmetric_band",
+          "kind": "fn",
+          "startLine": 133,
+          "endLine": 146,
+          "tokens": 129
+        },
+        {
+          "name": "test_recheck_always_warns_and_flags",
+          "kind": "fn",
+          "startLine": 147,
+          "endLine": 153,
+          "tokens": 66
+        },
+        {
+          "name": "test_recheck_flags_on_difference_too",
+          "kind": "fn",
+          "startLine": 154,
+          "endLine": 169,
+          "tokens": 136
+        },
+        {
+          "name": "test_material_is_unverdictable_not_qualified",
+          "kind": "fn",
+          "startLine": 170,
+          "endLine": 181,
+          "tokens": 124
+        },
+        {
+          "name": "test_missing_design_value_is_unverdictsable",
+          "kind": "fn",
+          "startLine": 182,
+          "endLine": 187,
+          "tokens": 53
+        },
+        {
+          "name": "test_missing_actual_value_is_unverdictsable",
+          "kind": "fn",
+          "startLine": 188,
+          "endLine": 192,
+          "tokens": 43
+        },
+        {
+          "name": "test_zero_design_value_does_not_divide_by_zero",
+          "kind": "fn",
+          "startLine": 193,
+          "endLine": 203,
+          "tokens": 112
+        },
+        {
+          "name": "test_verdict_colors_match_spec",
+          "kind": "fn",
+          "startLine": 204,
+          "endLine": 211,
+          "tokens": 76
+        },
+        {
+          "name": "test_verdict_label_matches_spec",
+          "kind": "fn",
+          "startLine": 212,
+          "endLine": 220,
+          "tokens": 99
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/tests/services/supplier/test_deviation_report.py": {
+      "description": "偏差报告组装 + 确认门禁 + 导出 (P7 Sprint 4 Task S4-2).",
+      "tokens": 3230,
+      "hash": "7cd774a253e70509",
+      "size": 14024,
+      "mtimeMs": 1791260901055.4973,
+      "updatedAt": "2026-10-06T04:28:21.103Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_Eq",
+          "kind": "class",
+          "startLine": 27,
+          "endLine": 42,
+          "tokens": 135
+        },
+        {
+          "name": "test_report_rows_cover_every_actual_parameter",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 47,
+          "tokens": 48
+        },
+        {
+          "name": "test_report_row_carries_design_actual_deviation_verdict",
+          "kind": "fn",
+          "startLine": 48,
+          "endLine": 58,
+          "tokens": 119
+        },
+        {
+          "name": "test_report_equipment_identity",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 64,
+          "tokens": 51
+        },
+        {
+          "name": "test_unruled_parameter_is_unverdictable",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 72,
+          "tokens": 76
+        },
+        {
+          "name": "test_missing_design_value_row_is_unverdictable",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 78,
+          "tokens": 58
+        },
+        {
+          "name": "test_not_entered_actual_data_yields_empty_report",
+          "kind": "fn",
+          "startLine": 79,
+          "endLine": 89,
+          "tokens": 102
+        },
+        {
+          "name": "test_can_confirm_when_all_qualified",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 94,
+          "tokens": 37
+        },
+        {
+          "name": "test_can_confirm_when_report_really_has_a_warning_row",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 116,
+          "tokens": 257
+        },
+        {
+          "name": "test_cannot_confirm_when_any_unqualified",
+          "kind": "fn",
+          "startLine": 117,
+          "endLine": 123,
+          "tokens": 66
+        },
+        {
+          "name": "test_cannot_confirm_when_any_unverdictable",
+          "kind": "fn",
+          "startLine": 124,
+          "endLine": 130,
+          "tokens": 77
+        },
+        {
+          "name": "test_cannot_confirm_when_design_missing",
+          "kind": "fn",
+          "startLine": 131,
+          "endLine": 140,
+          "tokens": 93
+        },
+        {
+          "name": "test_export_excel_returns_xlsx_bytes_with_header",
+          "kind": "fn",
+          "startLine": 141,
+          "endLine": 156,
+          "tokens": 135
+        },
+        {
+          "name": "test_export_excel_colors_the_verdict_cell",
+          "kind": "fn",
+          "startLine": 157,
+          "endLine": 174,
+          "tokens": 168
+        },
+        {
+          "name": "test_export_pdf_returns_pdf_bytes",
+          "kind": "fn",
+          "startLine": 175,
+          "endLine": 179,
+          "tokens": 42
+        },
+        {
+          "name": "test_export_pdf_renders_chinese_without_crashing",
+          "kind": "fn",
+          "startLine": 180,
+          "endLine": 193,
+          "tokens": 146
+        },
+        {
+          "name": "_eq_with",
+          "kind": "fn",
+          "startLine": 194,
+          "endLine": 208,
+          "tokens": 161
+        },
+        {
+          "name": "test_export_excel_neutralizes_formula_injection",
+          "kind": "fn",
+          "startLine": 209,
+          "endLine": 232,
+          "tokens": 241
+        },
+        {
+          "name": "test_export_pdf_survives_markup_in_parameter",
+          "kind": "fn",
+          "startLine": 233,
+          "endLine": 245,
+          "tokens": 131
+        },
+        {
+          "name": "test_export_pdf_escapes_blocking_reason",
+          "kind": "fn",
+          "startLine": 246,
+          "endLine": 266,
+          "tokens": 216
+        },
+        {
+          "name": "test_value_rejects_non_numeric_coercions",
+          "kind": "fn",
+          "startLine": 267,
+          "endLine": 287,
+          "tokens": 220
+        },
+        {
+          "name": "test_manual_check_row_keeps_flag_without_design_value",
+          "kind": "fn",
+          "startLine": 288,
+          "endLine": 302,
+          "tokens": 154
+        },
+        {
+          "name": "test_impeller_diameter_not_paired_with_design_speed",
+          "kind": "fn",
+          "startLine": 303,
+          "endLine": 326,
+          "tokens": 284
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/app/services/supplier/deviation_service.py": {
+      "description": "供应商偏差判定引擎 (P7 Sprint 4 S4-2 / SPEC V1.4 §3.2.4(2)).",
+      "tokens": 2901,
+      "hash": "a1bf191cf77736a5",
+      "size": 13251,
+      "mtimeMs": 1791260730872.5845,
+      "updatedAt": "2026-10-06T04:25:30.920Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "DeviationRule",
+          "kind": "class",
+          "startLine": 50,
+          "endLine": 78,
+          "tokens": 228
+        },
+        {
+          "name": "Evaluation",
+          "kind": "class",
+          "startLine": 79,
+          "endLine": 99,
+          "tokens": 128
+        },
+        {
+          "name": "_normalize",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 180,
+          "tokens": 746
+        },
+        {
+          "name": "find_rule",
+          "kind": "fn",
+          "startLine": 181,
+          "endLine": 193,
+          "tokens": 103
+        },
+        {
+          "name": "_is_number",
+          "kind": "fn",
+          "startLine": 194,
+          "endLine": 205,
+          "tokens": 110
+        },
+        {
+          "name": "motor_tier_factor",
+          "kind": "fn",
+          "startLine": 206,
+          "endLine": 216,
+          "tokens": 98
+        },
+        {
+          "name": "evaluate",
+          "kind": "fn",
+          "startLine": 217,
+          "endLine": 286,
+          "tokens": 706
+        },
+        {
+          "name": "_evaluate_motor_tier",
+          "kind": "fn",
+          "startLine": 287,
+          "endLine": 317,
+          "tokens": 264
+        },
+        {
+          "name": "verdict_label",
+          "kind": "fn",
+          "startLine": 318,
+          "endLine": 321,
+          "tokens": 23
+        },
+        {
+          "name": "verdict_color",
+          "kind": "fn",
+          "startLine": 322,
+          "endLine": 340,
+          "tokens": 93
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/app/services/supplier/deviation_report.py": {
+      "description": "偏差报告组装 + 确认门禁 + 导出 (P7 Sprint 4 S4-2 / SPEC V1.4 §3.2.4).",
+      "tokens": 3899,
+      "hash": "9be9042047df71b8",
+      "size": 17178,
+      "mtimeMs": 1791297442166.2297,
+      "updatedAt": "2026-10-06T14:37:22.215Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_required_parameter_names",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 74,
+          "tokens": 286
+        },
+        {
+          "name": "DeviationRow",
+          "kind": "class",
+          "startLine": 75,
+          "endLine": 96,
+          "tokens": 131
+        },
+        {
+          "name": "DeviationReport",
+          "kind": "class",
+          "startLine": 97,
+          "endLine": 108,
+          "tokens": 70
+        },
+        {
+          "name": "_extract",
+          "kind": "fn",
+          "startLine": 109,
+          "endLine": 120,
+          "tokens": 117
+        },
+        {
+          "name": "build_report",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 213,
+          "tokens": 970
+        },
+        {
+          "name": "_blocking_reason",
+          "kind": "fn",
+          "startLine": 214,
+          "endLine": 226,
+          "tokens": 132
+        },
+        {
+          "name": "can_confirm",
+          "kind": "fn",
+          "startLine": 227,
+          "endLine": 283,
+          "tokens": 449
+        },
+        {
+          "name": "_safe_cell",
+          "kind": "fn",
+          "startLine": 284,
+          "endLine": 294,
+          "tokens": 78
+        },
+        {
+          "name": "export_excel",
+          "kind": "fn",
+          "startLine": 295,
+          "endLine": 337,
+          "tokens": 408
+        },
+        {
+          "name": "export_pdf",
+          "kind": "fn",
+          "startLine": 338,
+          "endLine": 420,
+          "tokens": 898
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/tests/api/v1/test_deviation_report_api.py": {
+      "description": "偏差报告 API (P7 Sprint 4 Task S4-2).",
+      "tokens": 1592,
+      "hash": "379df6ac3999fc2f",
+      "size": 5860,
+      "mtimeMs": 1791205835844.4192,
+      "updatedAt": "2026-10-05T13:10:35.962Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 36,
+          "tokens": 45
+        },
+        {
+          "name": "viewer_headers",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 41,
+          "tokens": 40
+        },
+        {
+          "name": "equipment",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 56,
+          "tokens": 172
+        },
+        {
+          "name": "test_report_returns_rows",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 72,
+          "tokens": 170
+        },
+        {
+          "name": "test_report_exposes_confirmation_gate",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 83,
+          "tokens": 107
+        },
+        {
+          "name": "test_report_blocks_confirmation_on_unqualified",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 99,
+          "tokens": 143
+        },
+        {
+          "name": "test_report_when_design_missing_is_unverdICtable",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 116,
+          "tokens": 164
+        },
+        {
+          "name": "test_export_excel_returns_xlsx",
+          "kind": "fn",
+          "startLine": 117,
+          "endLine": 126,
+          "tokens": 114
+        },
+        {
+          "name": "test_export_excel_filename_is_ascii_safe",
+          "kind": "fn",
+          "startLine": 127,
+          "endLine": 138,
+          "tokens": 118
+        },
+        {
+          "name": "test_export_rejects_unknown_format",
+          "kind": "fn",
+          "startLine": 139,
+          "endLine": 146,
+          "tokens": 87
+        },
+        {
+          "name": "test_report_allows_viewer",
+          "kind": "fn",
+          "startLine": 147,
+          "endLine": 154,
+          "tokens": 74
+        },
+        {
+          "name": "test_report_requires_auth",
+          "kind": "fn",
+          "startLine": 155,
+          "endLine": 159,
+          "tokens": 56
+        },
+        {
+          "name": "test_report_unknown_equipment_404",
+          "kind": "fn",
+          "startLine": 160,
+          "endLine": 165,
+          "tokens": 69
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/tests/services/supplier/test_confirmation_service.py": {
+      "description": "供应商核算与更新流程 (P7 Sprint 4 Task S4-3 / SPEC V1.4 §3.2.4(4)(5)(6)).",
+      "tokens": 4738,
+      "hash": "e2426e2550822908",
+      "size": 19479,
+      "mtimeMs": 1791260021532.9805,
+      "updatedAt": "2026-10-06T04:13:41.585Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_clean_registry",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 45,
+          "tokens": 42
+        },
+        {
+          "name": "_make_equipment",
+          "kind": "fn",
+          "startLine": 46,
+          "endLine": 70,
+          "tokens": 277
+        },
+        {
+          "name": "test_confirm_rejected_when_unqualified",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 81,
+          "tokens": 126
+        },
+        {
+          "name": "test_confirm_rejected_when_unverdictable",
+          "kind": "fn",
+          "startLine": 82,
+          "endLine": 91,
+          "tokens": 121
+        },
+        {
+          "name": "test_confirm_succeeds_when_all_qualified",
+          "kind": "fn",
+          "startLine": 92,
+          "endLine": 99,
+          "tokens": 95
+        },
+        {
+          "name": "test_confirm_requires_actual_data",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 108,
+          "tokens": 98
+        },
+        {
+          "name": "test_confirm_rejected_when_already_confirmed",
+          "kind": "fn",
+          "startLine": 109,
+          "endLine": 123,
+          "tokens": 168
+        },
+        {
+          "name": "test_pass_check_marks_confirmed",
+          "kind": "fn",
+          "startLine": 124,
+          "endLine": 131,
+          "tokens": 82
+        },
+        {
+          "name": "test_pass_check_emits_event_with_before",
+          "kind": "fn",
+          "startLine": 132,
+          "endLine": 149,
+          "tokens": 174
+        },
+        {
+          "name": "test_pass_check_does_not_touch_sign_status_hash",
+          "kind": "fn",
+          "startLine": 150,
+          "endLine": 161,
+          "tokens": 135
+        },
+        {
+          "name": "test_reject_check_reopens_entry",
+          "kind": "fn",
+          "startLine": 162,
+          "endLine": 176,
+          "tokens": 173
+        },
+        {
+          "name": "test_reentry_blocked_while_confirmed",
+          "kind": "fn",
+          "startLine": 177,
+          "endLine": 188,
+          "tokens": 128
+        },
+        {
+          "name": "test_reentry_allowed_after_reject",
+          "kind": "fn",
+          "startLine": 189,
+          "endLine": 205,
+          "tokens": 200
+        },
+        {
+          "name": "test_supplier_emits_event_not_state_machine",
+          "kind": "fn",
+          "startLine": 206,
+          "endLine": 216,
+          "tokens": 127
+        },
+        {
+          "name": "test_supplier_source_has_no_direct_fsm_transition_calls",
+          "kind": "fn",
+          "startLine": 217,
+          "endLine": 247,
+          "tokens": 339
+        },
+        {
+          "name": "test_check_submitted_event_emitted_on_confirm",
+          "kind": "fn",
+          "startLine": 248,
+          "endLine": 258,
+          "tokens": 130
+        },
+        {
+          "name": "_append",
+          "kind": "fn",
+          "startLine": 259,
+          "endLine": 267,
+          "tokens": 75
+        },
+        {
+          "name": "test_pass_check_concurrent_collision_is_idempotent",
+          "kind": "fn",
+          "startLine": 268,
+          "endLine": 298,
+          "tokens": 333
+        },
+        {
+          "name": "test_pass_check_requires_pending_confirm",
+          "kind": "fn",
+          "startLine": 299,
+          "endLine": 317,
+          "tokens": 228
+        },
+        {
+          "name": "test_reject_check_requires_confirmed",
+          "kind": "fn",
+          "startLine": 318,
+          "endLine": 328,
+          "tokens": 128
+        },
+        {
+          "name": "test_pass_check_rejects_when_deviation_not_confirmable",
+          "kind": "fn",
+          "startLine": 329,
+          "endLine": 344,
+          "tokens": 186
+        },
+        {
+          "name": "_force_claim_collision",
+          "kind": "fn",
+          "startLine": 345,
+          "endLine": 388,
+          "tokens": 427
+        },
+        {
+          "name": "test_claim_collision_keeps_caller_write",
+          "kind": "fn",
+          "startLine": 389,
+          "endLine": 411,
+          "tokens": 222
+        },
+        {
+          "name": "test_claim_collision_invisible_row_is_retryable",
+          "kind": "fn",
+          "startLine": 412,
+          "endLine": 431,
+          "tokens": 191
+        },
+        {
+          "name": "test_claim_collision_different_payload_is_not_retryable",
+          "kind": "fn",
+          "startLine": 432,
+          "endLine": 455,
+          "tokens": 222
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/app/services/supplier/confirmation_service.py": {
+      "description": "供应商核算与更新流程 (P7 Sprint 4 Task S4-3 / SPEC V1.4 §3.2.4(4)(5)(6)).",
+      "tokens": 1882,
+      "hash": "642dd0f45f1d97bd",
+      "size": 8903,
+      "mtimeMs": 1791260201776.7087,
+      "updatedAt": "2026-10-06T04:16:41.821Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "confirm_actual_data",
+          "kind": "fn",
+          "startLine": 40,
+          "endLine": 92,
+          "tokens": 474
+        },
+        {
+          "name": "pass_check",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 164,
+          "tokens": 733
+        },
+        {
+          "name": "reject_check",
+          "kind": "fn",
+          "startLine": 165,
+          "endLine": 205,
+          "tokens": 324
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/tests/api/v1/test_actual_data_confirmation_api.py": {
+      "description": "核算与更新流程 API (P7 Sprint 4 Task S4-3).",
+      "tokens": 2526,
+      "hash": "80f555327eace457",
+      "size": 9490,
+      "mtimeMs": 1791260605039.2588,
+      "updatedAt": "2026-10-06T04:23:25.096Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_hdr",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 33,
+          "tokens": 38
+        },
+        {
+          "name": "designer_headers",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 38,
+          "tokens": 22
+        },
+        {
+          "name": "reviewer_headers",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 43,
+          "tokens": 22
+        },
+        {
+          "name": "viewer_headers",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 48,
+          "tokens": 21
+        },
+        {
+          "name": "equipment",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 67,
+          "tokens": 198
+        },
+        {
+          "name": "test_confirm_ok",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 76,
+          "tokens": 102
+        },
+        {
+          "name": "test_confirm_blocked_by_deviation",
+          "kind": "fn",
+          "startLine": 77,
+          "endLine": 93,
+          "tokens": 163
+        },
+        {
+          "name": "test_confirm_rejects_viewer",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 101,
+          "tokens": 82
+        },
+        {
+          "name": "test_confirm_requires_auth",
+          "kind": "fn",
+          "startLine": 102,
+          "endLine": 113,
+          "tokens": 113
+        },
+        {
+          "name": "test_check_pass_marks_confirmed",
+          "kind": "fn",
+          "startLine": 114,
+          "endLine": 125,
+          "tokens": 140
+        },
+        {
+          "name": "test_check_reject_reopens_entry",
+          "kind": "fn",
+          "startLine": 126,
+          "endLine": 151,
+          "tokens": 260
+        },
+        {
+          "name": "test_check_reject_on_never_confirmed_is_409",
+          "kind": "fn",
+          "startLine": 152,
+          "endLine": 165,
+          "tokens": 141
+        },
+        {
+          "name": "test_check_rejects_designer",
+          "kind": "fn",
+          "startLine": 166,
+          "endLine": 174,
+          "tokens": 100
+        },
+        {
+          "name": "test_check_rejects_unknown_decision",
+          "kind": "fn",
+          "startLine": 175,
+          "endLine": 187,
+          "tokens": 139
+        },
+        {
+          "name": "test_put_blocked_after_confirm",
+          "kind": "fn",
+          "startLine": 188,
+          "endLine": 201,
+          "tokens": 166
+        },
+        {
+          "name": "test_put_allowed_after_reject",
+          "kind": "fn",
+          "startLine": 202,
+          "endLine": 223,
+          "tokens": 257
+        },
+        {
+          "name": "test_pass_check_goes_through_emit_event",
+          "kind": "fn",
+          "startLine": 224,
+          "endLine": 253,
+          "tokens": 247
+        },
+        {
+          "name": "test_check_unknown_equipment_404",
+          "kind": "fn",
+          "startLine": 254,
+          "endLine": 260,
+          "tokens": 84
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/tests/scripts/test_t5_case4_gas_media.py": {
+      "description": "T5 Case 4 扩类 — 氮气 / 净化压缩空气 / 低温余热走真实子表 (P7 Sprint 4 Task S4-4).",
+      "tokens": 1197,
+      "hash": "2a2c8e682c2ff3d3",
+      "size": 5148,
+      "mtimeMs": 1791216315837.4644,
+      "updatedAt": "2026-10-05T16:05:15.893Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_gas_media_items_are_sourced_from_xls",
+          "kind": "fn",
+          "startLine": 40,
+          "endLine": 47,
+          "tokens": 77
+        },
+        {
+          "name": "test_gas_media_nitrogen_matches_xls_quantity",
+          "kind": "fn",
+          "startLine": 48,
+          "endLine": 56,
+          "tokens": 107
+        },
+        {
+          "name": "test_gas_media_purified_air_matches_xls_quantity",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 64,
+          "tokens": 96
+        },
+        {
+          "name": "test_low_temp_items_empty_because_xls_has_none",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 71,
+          "tokens": 60
+        },
+        {
+          "name": "test_gb_reference_includes_nitrogen_and_air",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 80,
+          "tokens": 97
+        },
+        {
+          "name": "test_gb_reference_nitrogen_uses_kg_standard_not_xls_mj",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 91,
+          "tokens": 162
+        },
+        {
+          "name": "test_gb_reference_purified_air_mj_matches_standard",
+          "kind": "fn",
+          "startLine": 92,
+          "endLine": 100,
+          "tokens": 118
+        },
+        {
+          "name": "test_gb_reference_total_includes_gas_media",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 114,
+          "tokens": 164
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/scripts/p7_open_012_t5_r1_verification.py": {
+      "description": "P7 Sprint 2 T5 ≤2% 验收脚本（蜡油加氢 XLS R1 重算对比）。",
+      "tokens": 7056,
+      "hash": "7737173bb304538c",
+      "size": 29316,
+      "mtimeMs": 1791218793682.898,
+      "updatedAt": "2026-10-05T16:46:33.743Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_gb30251_reference",
+          "kind": "fn",
+          "startLine": 266,
+          "endLine": 384,
+          "tokens": 1480
+        },
+        {
+          "name": "_inject_case_4",
+          "kind": "fn",
+          "startLine": 385,
+          "endLine": 448,
+          "tokens": 746
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 449,
+          "endLine": 570,
+          "tokens": 1488
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/docs/PCS-SIGN-T5-2026-10-05.md": {
+      "description": "T5 综合能耗验收 — 正式封版 (2026-10-05)",
+      "tokens": 2017,
+      "hash": "d66eb8a8a6432a8a",
+      "size": 12846,
+      "mtimeMs": 1791216408163.4385,
+      "updatedAt": "2026-10-05T16:06:48.210Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/scripts/_tmp_pump_ratio_probe.py": {
+      "description": "临时探查: 机泵选型两张表的轴功率/电机功率关系 (不入 git, 用完即删).",
+      "tokens": 424,
+      "hash": "f8076aba19f115a8",
+      "size": 1705,
+      "mtimeMs": 1791218547933.6748,
+      "updatedAt": "2026-10-05T16:42:27.987Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/scripts/_tmp_detailed_probe.py": {
+      "description": "临时探查: 详细设计表列结构 (不入 git, 用完即删).",
+      "tokens": 220,
+      "hash": "1b1de6b1a72a8234",
+      "size": 909,
+      "mtimeMs": 1791218693915.2046,
+      "updatedAt": "2026-10-05T16:44:53.964Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/scripts/_tmp_base_probe.py": {
+      "description": "临时探查: 基础设计表数据质量 (不入 git, 用完即删).",
+      "tokens": 455,
+      "hash": "ea90f297b78767fe",
+      "size": 1888,
+      "mtimeMs": 1791218724740.4753,
+      "updatedAt": "2026-10-05T16:45:24.787Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/tests/services/supplier/test_motor_tier_rule.py": {
+      "description": "电机功率判定改为「对轴功率卡分档下限」 (P7 Sprint 4 S4-2 规则修订).",
+      "tokens": 1331,
+      "hash": "2600f45b1aeada86",
+      "size": 5627,
+      "mtimeMs": 1791218747756.238,
+      "updatedAt": "2026-10-05T16:45:47.802Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_motor_tier_factor",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 61,
+          "tokens": 29
+        },
+        {
+          "name": "test_motor_tier_factor_rejects_non_positive",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 73,
+          "tokens": 118
+        },
+        {
+          "name": "test_meets_floor_is_qualified",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 79,
+          "tokens": 53
+        },
+        {
+          "name": "test_below_floor_is_unqualified",
+          "kind": "fn",
+          "startLine": 80,
+          "endLine": 85,
+          "tokens": 50
+        },
+        {
+          "name": "test_large_pump_not_failed_by_flat_1_25",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 92,
+          "tokens": 72
+        },
+        {
+          "name": "test_small_pump_still_gets_full_1_25",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 98,
+          "tokens": 60
+        },
+        {
+          "name": "test_series_step_up_is_not_a_deviation",
+          "kind": "fn",
+          "startLine": 99,
+          "endLine": 109,
+          "tokens": 110
+        },
+        {
+          "name": "test_missing_design_shaft_power_unverdICtable",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 115,
+          "tokens": 57
+        },
+        {
+          "name": "test_missing_actual_motor_power_unverdICtable",
+          "kind": "fn",
+          "startLine": 116,
+          "endLine": 120,
+          "tokens": 46
+        },
+        {
+          "name": "test_zero_shaft_power_unverdICtable",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 131,
+          "tokens": 105
+        },
+        {
+          "name": "test_all_wax_pumps_with_motor_pass_the_tier",
+          "kind": "fn",
+          "startLine": 132,
+          "endLine": 147,
+          "tokens": 147
+        },
+        {
+          "name": "test_bad_values_excluded_from_pump_design",
+          "kind": "fn",
+          "startLine": 148,
+          "endLine": 154,
+          "tokens": 80
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/docs/PCS-NOTE-SPEC-3.2.4-电机功率规则修订-2026-10-06.md": {
+      "description": "PCS-NOTE — SPEC §3.2.4(2) 电机额定功率判定规则修订",
+      "tokens": 1040,
+      "hash": "e3b1af533dc17a6d",
+      "size": 6825,
+      "mtimeMs": 1791219311945.8547,
+      "updatedAt": "2026-10-05T16:55:11.992Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/tests/services/equip_list/test_pump_design_data.py": {
+      "description": "泵设计参数接线 (P7 Sprint 4 · S4-2 设计值缺口收口).",
+      "tokens": 2724,
+      "hash": "498eca170ca15c2e",
+      "size": 11165,
+      "mtimeMs": 1791261418171.2798,
+      "updatedAt": "2026-10-06T04:36:58.216Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_design_data_lives_in_service_not_acceptance_script",
+          "kind": "fn",
+          "startLine": 33,
+          "endLine": 43,
+          "tokens": 101
+        },
+        {
+          "name": "test_design_covers_the_16_electric_pumps",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 50,
+          "tokens": 71
+        },
+        {
+          "name": "test_bad_values_excluded_with_reasons",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 58,
+          "tokens": 84
+        },
+        {
+          "name": "test_axis_power_present_for_every_motor_pump",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 70,
+          "tokens": 114
+        },
+        {
+          "name": "test_design_params_for_tag_uses_jsonb_envelope",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 76,
+          "tokens": 62
+        },
+        {
+          "name": "test_design_params_carry_units",
+          "kind": "fn",
+          "startLine": 77,
+          "endLine": 83,
+          "tokens": 58
+        },
+        {
+          "name": "test_design_params_skip_none_values",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 90,
+          "tokens": 54
+        },
+        {
+          "name": "test_design_params_unknown_tag_returns_empty",
+          "kind": "fn",
+          "startLine": 91,
+          "endLine": 99,
+          "tokens": 78
+        },
+        {
+          "name": "_make_equipment",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 114,
+          "tokens": 108
+        },
+        {
+          "name": "test_apply_writes_design_parameters_json",
+          "kind": "fn",
+          "startLine": 115,
+          "endLine": 132,
+          "tokens": 168
+        },
+        {
+          "name": "test_apply_is_idempotent",
+          "kind": "fn",
+          "startLine": 133,
+          "endLine": 157,
+          "tokens": 240
+        },
+        {
+          "name": "test_apply_dry_run_does_not_commit",
+          "kind": "fn",
+          "startLine": 158,
+          "endLine": 170,
+          "tokens": 157
+        },
+        {
+          "name": "test_apply_skips_unknown_tags",
+          "kind": "fn",
+          "startLine": 171,
+          "endLine": 183,
+          "tokens": 146
+        },
+        {
+          "name": "test_apply_does_not_touch_actual_data",
+          "kind": "fn",
+          "startLine": 184,
+          "endLine": 198,
+          "tokens": 174
+        },
+        {
+          "name": "test_apply_crosses_projects_safely",
+          "kind": "fn",
+          "startLine": 199,
+          "endLine": 216,
+          "tokens": 191
+        },
+        {
+          "name": "test_deviation_report_now_produces_real_verdicts",
+          "kind": "fn",
+          "startLine": 217,
+          "endLine": 251,
+          "tokens": 410
+        },
+        {
+          "name": "test_deviation_report_flags_undersized_motor",
+          "kind": "fn",
+          "startLine": 252,
+          "endLine": 275,
+          "tokens": 286
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/app/services/equip_list/pump_design_data.py": {
+      "description": "泵设计参数（P7 Sprint 4 · S4-2 设计值缺口收口）.",
+      "tokens": 1878,
+      "hash": "d3e0da67c9ca85d8",
+      "size": 9162,
+      "mtimeMs": 1791261414691.342,
+      "updatedAt": "2026-10-06T04:36:54.741Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "design_params_for_tag",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 106,
+          "tokens": 118
+        },
+        {
+          "name": "apply_design_parameters",
+          "kind": "fn",
+          "startLine": 107,
+          "endLine": 152,
+          "tokens": 368
+        },
+        {
+          "name": "matching_pump_records",
+          "kind": "fn",
+          "startLine": 153,
+          "endLine": 177,
+          "tokens": 199
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/scripts/p7_s4_003_seed_pump_design.py": {
+      "description": "把泵设计参数写入 `EquipmentList.design_parameters_json`（P7 Sprint 4 S4-2 配套）.",
+      "tokens": 1573,
+      "hash": "ca556f5a1d9074d6",
+      "size": 6753,
+      "mtimeMs": 1791261321098.1206,
+      "updatedAt": "2026-10-06T04:35:21.144Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_main",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 131,
+          "tokens": 830
+        },
+        {
+          "name": "_pump_design_json",
+          "kind": "fn",
+          "startLine": 132,
+          "endLine": 137,
+          "tokens": 52
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 138,
+          "endLine": 157,
+          "tokens": 166
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/.bench_report.py": {
+      "description": "",
+      "tokens": 131,
+      "hash": "08aaafc501163a54",
+      "size": 462,
+      "mtimeMs": 1791250096139.871,
+      "updatedAt": "2026-10-06T01:28:16.189Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/docs/ce-code-review/20261006-sprint4/metadata.json": {
+      "description": "",
+      "tokens": 957,
+      "hash": "4be81ec28e93e1da",
+      "size": 3349,
+      "mtimeMs": 1791256665382.603,
+      "updatedAt": "2026-10-06T03:17:45.428Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/CLAUDE.md": {
+      "description": "OpenWolf",
+      "tokens": 286,
+      "hash": "5ffb18080afcb898",
+      "size": 1599,
+      "mtimeMs": 1791257498904.9055,
+      "updatedAt": "2026-10-06T03:31:38.950Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/app/services/events.py": {
+      "description": "事件骨架 — emit_event / register_listener / 幂等去重。",
+      "tokens": 3040,
+      "hash": "08ece7fc337c0858",
+      "size": 14396,
+      "mtimeMs": 1791261529970.398,
+      "updatedAt": "2026-10-06T04:38:50.021Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "has_listener",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 85,
+          "tokens": 85
+        },
+        {
+          "name": "derive_event_id",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 113,
+          "tokens": 227
+        },
+        {
+          "name": "register_listener",
+          "kind": "fn",
+          "startLine": 114,
+          "endLine": 120,
+          "tokens": 54
+        },
+        {
+          "name": "clear_listeners",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 133,
+          "tokens": 84
+        },
+        {
+          "name": "snapshot_listeners",
+          "kind": "fn",
+          "startLine": 134,
+          "endLine": 142,
+          "tokens": 60
+        },
+        {
+          "name": "restore_listeners",
+          "kind": "fn",
+          "startLine": 143,
+          "endLine": 148,
+          "tokens": 54
+        },
+        {
+          "name": "_payload_hash",
+          "kind": "fn",
+          "startLine": 149,
+          "endLine": 169,
+          "tokens": 152
+        },
+        {
+          "name": "_claim",
+          "kind": "fn",
+          "startLine": 170,
+          "endLine": 278,
+          "tokens": 1128
+        },
+        {
+          "name": "emit_event",
+          "kind": "fn",
+          "startLine": 279,
+          "endLine": 347,
+          "tokens": 548
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/tests/test_errors.py": {
+      "description": "全局异常信封测试：404 / 405 / 422 均走 ErrorResponse 信封（code/trace_id 字段断言）。",
+      "tokens": 512,
+      "hash": "258f9cbf42de9871",
+      "size": 2173,
+      "mtimeMs": 1791259849689.4512,
+      "updatedAt": "2026-10-06T04:10:49.744Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_404_uses_envelope",
+          "kind": "fn",
+          "startLine": 10,
+          "endLine": 16,
+          "tokens": 61
+        },
+        {
+          "name": "test_405_uses_envelope",
+          "kind": "fn",
+          "startLine": 17,
+          "endLine": 22,
+          "tokens": 51
+        },
+        {
+          "name": "test_pcserror_detail_reaches_envelope",
+          "kind": "fn",
+          "startLine": 23,
+          "endLine": 55,
+          "tokens": 332
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/tests/services/supplier/test_error_code_registry.py": {
+      "description": "供应商域错误码必须出现在 meta 错误码注册表里（审查 #4）.",
+      "tokens": 410,
+      "hash": "d3e6f6191b09c2fc",
+      "size": 1983,
+      "mtimeMs": 1791260220192.691,
+      "updatedAt": "2026-10-06T04:17:00.237Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/scripts/_tmp_fix_stale_gap.py": {
+      "description": "One-shot: 修正被本分支自己推翻的「设计值无写入方」过期注释（审查 #18）.",
+      "tokens": 773,
+      "hash": "6537ef8e2530c682",
+      "size": 3955,
+      "mtimeMs": 1791261061396.3381,
+      "updatedAt": "2026-10-06T04:31:01.466Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/scripts/check_migration_idempotency.py": {
+      "description": "检查 alembic migrations 是否用 if_exists / if_not_exists (F-P3-002 fix).",
+      "tokens": 778,
+      "hash": "a3d165d040255f90",
+      "size": 3153,
+      "mtimeMs": 1791261185217.102,
+      "updatedAt": "2026-10-06T04:33:05.262Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "check_migration",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 56,
+          "tokens": 224
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 83,
+          "tokens": 249
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/app/services/cia_engine.py": {
+      "description": "CIA 变更影响分析引擎（Sprint 3）。",
+      "tokens": 4767,
+      "hash": "c029899095fab6f7",
+      "size": 18828,
+      "mtimeMs": 1791261583150.5781,
+      "updatedAt": "2026-10-06T04:39:43.196Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_content_hash",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 78,
+          "tokens": 162
+        },
+        {
+          "name": "_mark_stale_via_fsm",
+          "kind": "fn",
+          "startLine": 79,
+          "endLine": 96,
+          "tokens": 156
+        },
+        {
+          "name": "CIAEngine",
+          "kind": "class",
+          "startLine": 97,
+          "endLine": 449,
+          "tokens": 3583
+        },
+        {
+          "name": "_pk",
+          "kind": "fn",
+          "startLine": 450,
+          "endLine": 467,
+          "tokens": 164
+        },
+        {
+          "name": "mark_stale_then_propagate",
+          "kind": "fn",
+          "startLine": 468,
+          "endLine": 496,
+          "tokens": 187
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/scripts/_tmp_falsifiability_check.py": {
+      "description": "临时：验证 #22 的 AST 守卫确实可失败（注入 → 跑 → 还原）.",
+      "tokens": 384,
+      "hash": "bc16ece95c29a632",
+      "size": 1427,
+      "mtimeMs": 1791261671988.3005,
+      "updatedAt": "2026-10-06T04:41:12.036Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/scripts/_tmp_check10.py": {
+      "description": "临时：验证 #10 的测试可失败（撤掉 savepoint 包裹 -> 跑 -> 还原）.",
+      "tokens": 289,
+      "hash": "e8d8cccb54ac46ee",
+      "size": 1069,
+      "mtimeMs": 1791289939318.9775,
+      "updatedAt": "2026-10-06T12:32:19.364Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/scripts/_tmp_check9.py": {
+      "description": "临时：#9 的 RED 测试 —— 转移中途失败不得把半应用状态提交。",
+      "tokens": 595,
+      "hash": "6408d31ccbdb45e2",
+      "size": 2522,
+      "mtimeMs": 1791290022890.5864,
+      "updatedAt": "2026-10-06T12:33:42.942Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_scan_does_not_commit_partial_transition_on_failure",
+          "kind": "fn",
+          "startLine": 11,
+          "endLine": 57,
+          "tokens": 526
+        }
+      ]
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/scripts/_tmp_fix_spec11.py": {
+      "description": "#11: SPEC 公开 API 表的供应商数据面端点路径与实际发布不一致 —— 登记修订。",
+      "tokens": 591,
+      "hash": "d89ea6d71faf8c76",
+      "size": 2749,
+      "mtimeMs": 1791290405462.957,
+      "updatedAt": "2026-10-06T12:40:05.508Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/docs/PCS-NOTE-SPEC-3.2.4(3)-结论档数修订-2026-10-06.md": {
+      "description": "PCS-NOTE — SPEC §3.2.4(3) 结论档数修订（3 档 → 4 档，新增「不可判」）",
+      "tokens": 691,
+      "hash": "60c5470687fdc6bd",
+      "size": 4692,
+      "mtimeMs": 1791290427166.0767,
+      "updatedAt": "2026-10-06T12:40:27.211Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/scripts/_tmp_fix_uispec.py": {
+      "description": "不可判**\\n\"",
+      "tokens": 432,
+      "hash": "b15b9101c42a17c1",
+      "size": 2345,
+      "mtimeMs": 1791290432903.1082,
+      "updatedAt": "2026-10-06T12:40:32.947Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/scripts/_tmp_cerebrum.py": {
+      "description": "把本次 fix pass 学到的 pytest 坑与裁决写进 cerebrum Do-Not-Repeat。",
+      "tokens": 447,
+      "hash": "20f331bb5a4adf66",
+      "size": 2404,
+      "mtimeMs": 1791292084847.5715,
+      "updatedAt": "2026-10-06T13:08:04.900Z",
+      "source": "hook"
+    },
+    ".claude/worktrees/s4-0-events/pcs-backend/scripts/_tmp_reg2.py": {
+      "description": "登记: 测试编码缺陷的判据 + buglog 重号导致 max+1 算错号。",
+      "tokens": 467,
+      "hash": "0fa36eff9bb29d4d",
+      "size": 2568,
+      "mtimeMs": 1791297471741.3652,
+      "updatedAt": "2026-10-06T14:37:51.792Z",
       "source": "hook"
     }
   }

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-05T03:12:54.712Z
-> Files: 610 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-06T14:37:51.793Z
+> Files: 662 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -14,6 +14,114 @@
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~3547 tok)
 - `TODOS.md` — TODOS.md — PCS 延后工作清单 (~6397 tok)
+
+## .claude/worktrees/s4-0-events/
+
+- `CLAUDE.md` — OpenWolf (~286 tok)
+
+## .claude/worktrees/s4-0-events/.superpowers/sdd/sprint4-plan-2026-10-05/
+
+- `progress.md` — SDD ledger — plan: docs/sprint4-plan-2026-10-05.md (~3137 tok)
+
+## .claude/worktrees/s4-0-events/docs/
+
+- `PCS-NOTE-SPEC-3.2.4-电机功率规则修订-2026-10-06.md` — PCS-NOTE — SPEC §3.2.4(2) 电机额定功率判定规则修订 (~1040 tok)
+- `PCS-NOTE-SPEC-3.2.4(3)-结论档数修订-2026-10-06.md` — PCS-NOTE — SPEC §3.2.4(3) 结论档数修订（3 档 → 4 档，新增「不可判」） (~691 tok)
+- `PCS-SIGN-T5-2026-10-05.md` — T5 综合能耗验收 — 正式封版 (2026-10-05) (~2017 tok)
+- `sprint4-plan-2026-10-05.md` — Sprint 4 计划：供应商数据闭环 + 事件骨架 + 真实算例验收 (2026-10-05) (~3331 tok)
+
+## .claude/worktrees/s4-0-events/docs/ce-code-review/20261006-sprint4/
+
+- `metadata.json` (~957 tok)
+
+## .claude/worktrees/s4-0-events/pcs-backend/
+
+- `.bench_report.py` (~131 tok)
+
+## .claude/worktrees/s4-0-events/pcs-backend/alembic/versions/
+
+- `p7_s4_001_event_idempotency.py` — p7_s4_001: event_idempotency 表（事件幂等凭据 / D4 裁决 4A 落地前置）. (~521 tok)
+- `p7_s4_002_actual_data_jsonb.py` — p7_s4_002: equipment_list.actual_data_json (供应商实测值本体). (~333 tok)
+
+## .claude/worktrees/s4-0-events/pcs-backend/app/api/v1/
+
+- `__init__.py` (~1443 tok)
+- `supplier.py` — 供应商实际数据录入 API (P7 Sprint 4 S4-1 / ADR-0025). (~2480 tok)
+
+## .claude/worktrees/s4-0-events/pcs-backend/app/core/
+
+- `events.py` — 事件骨架 — emit_event / register_listener / 幂等去重。 (~1711 tok)
+
+## .claude/worktrees/s4-0-events/pcs-backend/app/schemas/
+
+- `supplier.py` — 供应商实际数据录入 API schemas (P7 Sprint 4 S4-1 / ADR-0025). (~1080 tok)
+
+## .claude/worktrees/s4-0-events/pcs-backend/app/services/
+
+- `cia_engine.py` — CIA 变更影响分析引擎（Sprint 3）。 (~4767 tok)
+- `events.py` — 事件骨架 — emit_event / register_listener / 幂等去重。 (~3040 tok)
+
+## .claude/worktrees/s4-0-events/pcs-backend/app/services/equip_list/
+
+- `pump_design_data.py` — 泵设计参数（P7 Sprint 4 · S4-2 设计值缺口收口）. (~1878 tok)
+
+## .claude/worktrees/s4-0-events/pcs-backend/app/services/supplier/
+
+- `__init__.py` — 供应商侧服务（P7 Sprint 4）。 (~97 tok)
+- `actual_data_service.py` — 供应商实际数据录入（手动）— P7 Sprint 4 S4-1 / ADR-0025. (~1101 tok)
+- `confirmation_service.py` — 供应商核算与更新流程 (P7 Sprint 4 Task S4-3 / SPEC V1.4 §3.2.4(4)(5)(6)). (~1882 tok)
+- `deviation_report.py` — 偏差报告组装 + 确认门禁 + 导出 (P7 Sprint 4 S4-2 / SPEC V1.4 §3.2.4). (~3899 tok)
+- `deviation_service.py` — 供应商偏差判定引擎 (P7 Sprint 4 S4-2 / SPEC V1.4 §3.2.4(2)). (~2901 tok)
+- `excel_import_service.py` — 供应商实际数据 Excel 批量导入 — P7 Sprint 4 S4-1. (~1384 tok)
+
+## .claude/worktrees/s4-0-events/pcs-backend/scripts/
+
+- `_tmp_base_probe.py` — 临时探查: 基础设计表数据质量 (不入 git, 用完即删). (~455 tok)
+- `_tmp_cerebrum.py` — 把本次 fix pass 学到的 pytest 坑与裁决写进 cerebrum Do-Not-Repeat。 (~447 tok)
+- `_tmp_check10.py` — 临时：验证 #10 的测试可失败（撤掉 savepoint 包裹 -> 跑 -> 还原）. (~289 tok)
+- `_tmp_check9.py` — 临时：#9 的 RED 测试 —— 转移中途失败不得把半应用状态提交。 (~595 tok)
+- `_tmp_detailed_probe.py` — 临时探查: 详细设计表列结构 (不入 git, 用完即删). (~220 tok)
+- `_tmp_falsifiability_check.py` — 临时：验证 #22 的 AST 守卫确实可失败（注入 → 跑 → 还原）. (~384 tok)
+- `_tmp_fix_spec11.py` — #11: SPEC 公开 API 表的供应商数据面端点路径与实际发布不一致 —— 登记修订。 (~591 tok)
+- `_tmp_fix_stale_gap.py` — One-shot: 修正被本分支自己推翻的「设计值无写入方」过期注释（审查 #18）. (~773 tok)
+- `_tmp_fix_uispec.py` — 不可判**\n" (~432 tok)
+- `_tmp_pump_ratio_probe.py` — 临时探查: 机泵选型两张表的轴功率/电机功率关系 (不入 git, 用完即删). (~424 tok)
+- `_tmp_reg2.py` — 登记: 测试编码缺陷的判据 + buglog 重号导致 max+1 算错号。 (~467 tok)
+- `check_migration_idempotency.py` — 检查 alembic migrations 是否用 if_exists / if_not_exists (F-P3-002 fix). (~778 tok)
+- `p7_open_012_t5_r1_verification.py` — P7 Sprint 2 T5 ≤2% 验收脚本（蜡油加氢 XLS R1 重算对比）。 (~7056 tok)
+- `p7_s4_003_seed_pump_design.py` — 把泵设计参数写入 `EquipmentList.design_parameters_json`（P7 Sprint 4 S4-2 配套）. (~1573 tok)
+
+## .claude/worktrees/s4-0-events/pcs-backend/tests/
+
+- `test_cia_event_decoupling.py` — CIAEngine 3 处直调 state_machine 改走事件触发 (P7 Sprint 4 S4-0 Step 5). (~2281 tok)
+- `test_errors.py` — 全局异常信封测试：404 / 405 / 422 均走 ErrorResponse 信封（code/trace_id 字段断言）。 (~512 tok)
+
+## .claude/worktrees/s4-0-events/pcs-backend/tests/api/v1/
+
+- `test_actual_data_confirmation_api.py` — 核算与更新流程 API (P7 Sprint 4 Task S4-3). (~2526 tok)
+- `test_deviation_report_api.py` — 偏差报告 API (P7 Sprint 4 Task S4-2). (~1592 tok)
+- `test_supplier_actual_data_api.py` — 供应商实际数据录入 API — 手工 UI 路径 (P7 Sprint 4 Task S4-1). (~2024 tok)
+
+## .claude/worktrees/s4-0-events/pcs-backend/tests/core/
+
+- `test_events.py` — 事件骨架 emit_event / listener / 幂等去重 (P7 Sprint 4 Task S4-0). (~2425 tok)
+
+## .claude/worktrees/s4-0-events/pcs-backend/tests/scripts/
+
+- `test_t5_case4_gas_media.py` — T5 Case 4 扩类 — 氮气 / 净化压缩空气 / 低温余热走真实子表 (P7 Sprint 4 Task S4-4). (~1197 tok)
+
+## .claude/worktrees/s4-0-events/pcs-backend/tests/services/equip_list/
+
+- `test_pump_design_data.py` — 泵设计参数接线 (P7 Sprint 4 · S4-2 设计值缺口收口). (~2724 tok)
+
+## .claude/worktrees/s4-0-events/pcs-backend/tests/services/supplier/
+
+- `test_actual_data_service.py` — 供应商实际数据录入 — 手工 UI 路径 (P7 Sprint 4 Task S4-1). (~1788 tok)
+- `test_confirmation_service.py` — 供应商核算与更新流程 (P7 Sprint 4 Task S4-3 / SPEC V1.4 §3.2.4(4)(5)(6)). (~4738 tok)
+- `test_deviation_report.py` — 偏差报告组装 + 确认门禁 + 导出 (P7 Sprint 4 Task S4-2). (~3230 tok)
+- `test_deviation_service.py` — 供应商偏差报告引擎 (P7 Sprint 4 Task S4-2 / SPEC V1.4 §3.2.4). (~1946 tok)
+- `test_error_code_registry.py` — 供应商域错误码必须出现在 meta 错误码注册表里（审查 #4）. (~410 tok)
+- `test_motor_tier_rule.py` — 电机功率判定改为「对轴功率卡分档下限」 (P7 Sprint 4 S4-2 规则修订). (~1331 tok)
 
 ## .code-review-graph/
 
@@ -158,6 +266,7 @@
 - `PCS-UI-SPEC.md` (~9161 tok)
 - `PROD-CHECKLIST-F-P3-001-2026-10-02.md` — F-P3-001 Production 前置 Checklist (~1321 tok)
 - `sprint3-plan-2026-10-02.md` — Sprint 3 计划: Production 前置 + Audit 可观测性 (~5668 tok)
+- `sprint4-plan-2026-10-05.md` — Sprint 4 计划：供应商数据闭环 + 事件骨架 + 真实算例验收 (2026-10-05) (~2408 tok)
 - `tasks.md` — tasks.md — PCS 工艺计算 + 代码债务分类跟踪 (~4357 tok)
 
 ## docs/adr/
