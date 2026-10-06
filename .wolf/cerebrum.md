@@ -19,6 +19,8 @@
 - **写 migration 前必跑 SQLAlchemy reflection** 校核实际 schema（`Model.__table__.columns/constraints` 是 ground truth）。
 - ORM `__table_args__` 必须含 `CheckConstraint` 同步 DB 约束（跨 dialect 不丢）。
 - Pydantic schema 字段重复（Create+Update）→ Edit fail "Found 2 matches"，先 `grep -n` 再附上下文 unique。
+- **单测不读迁移，别把 `alembic upgrade head` 当测试前置**（2026-10-06 实测证伪）：`conftest.db_engine` 建 `sqlite+aiosqlite:///:memory:` 并用 `SA_Base.metadata.create_all` 从 ORM 建表，`.env` 指向 `pcs`、无 `pcs_test`、无 `.env.test`。CLAUDE.md「测试前检查」原「先对 pcs_test 跑 upgrade head」一条已于同日改写为三段式。
+- **⚠️ 漂移盲区：缺表会红（可见），漂移会绿（不可见）**。迁移改 schema 而 ORM 未跟随时单测全绿、真库炸，无自动化能抓（见 Key Learnings `bug-137`）。改 `alembic/versions/*` 后必跑 `uv run alembic check`（alembic 1.9+ 检测 ORM vs 迁移漂移，无输出即一致），并手动核对 ORM 列。
 
 ### Alias/Registry
 
@@ -416,8 +418,9 @@
   必须**同时写 alembic migration**。查历史：`p7_open_010_r1_classification_fields.py`
   名字像是做分类字段迁移的，实际只碰了另外 3 张表 —— 名字骗人，要看内容。
 - **改 schema 后必查真实库**：查一个真实 DB 的 `information_schema.columns` +
-  `alembic_version`，别信测试。pcs_test 灌完记得
-  `alembic -c alembic.ini upgrade head` 再跑 schema 敏感测试。
+  `alembic_version`，别信测试。**注**（2026-10-06 更正）：原文此处要求「pcs_test 灌完
+  先 upgrade head 再跑 schema 敏感测试」——已证伪，本仓库无 `pcs_test`，单测走内存
+  SQLite 不读迁移，详见 `## Do-Not-Repeat` 的「数据库/迁移」节与 CLAUDE.md「测试前检查」。
 - **PG 的 UNIQUE 遇 NULL 失效**：`UNIQUE(a, b, c)` 里 b/c 为 NULL 时，
   NULL 互不相等 → 重复行照插。`ON CONFLICT DO NOTHING`（不带 conflict target）
   也因此不生效。实测插出 7 行重复。要真约束需 PG 15+ `NULLS NOT DISTINCT`
