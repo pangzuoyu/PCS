@@ -36,6 +36,7 @@ from app.models.equipment import EquipmentList
 from app.models.system import DataLineage
 from app.services.audit_service import AuditService
 from app.services.events import emit_event, has_listener, register_listener
+from app.services.state_machine import InvalidTransition, RoleForbidden
 from app.services.lineage import LineageTracker, _compute_hash
 from app.services.state_machine import StateMachineService
 
@@ -167,11 +168,16 @@ class CIAEngine:
                 continue
             # 哈希不匹配：尝试 MARK_STALE
             try:
-                await self._mark_stale(
-                    r, f"CIA: hash mismatch ({cls.__name__})"
-                )
-            except Exception:
-                # 状态机拒绝（不在合法转移集合）— 跳过
+                # 每条记录的转移独立 savepoint（审查 #9）：`transition` 先改
+                # sign_status 并 flush，之后才做快照与审计；此后任何异常都会让对象
+                # 在 session 里被改坏，而末尾的 flush 会把残缺状态一并提交。
+                # 包 savepoint 后失败只回滚**该条**，前面的记录不受影响。
+                async with self.session.begin_nested():
+                    await self._mark_stale(
+                        r, f"CIA: hash mismatch ({cls.__name__})"
+                    )
+            except (InvalidTransition, RoleForbidden):
+                # 状态机拒绝（不在合法转移集合）— 跳过，属预期业务分支
                 continue
             if not has_listener(CIA_MARK_STALE):
                 # 无 listener = FSM 转移没发生（审查 #28）。不落血缘也不计数 ——
@@ -223,10 +229,11 @@ class CIAEngine:
                 if rec is None:
                     continue
                 try:
-                    await self._mark_stale(
-                        rec, f"propagation from {record_type}:{record_id}"
-                    )
-                except Exception:
+                    async with self.session.begin_nested():
+                        await self._mark_stale(
+                            rec, f"propagation from {record_type}:{record_id}"
+                        )
+                except (InvalidTransition, RoleForbidden):
                     continue
                 affected += 1
         await self.session.flush()
@@ -286,9 +293,10 @@ class CIAEngine:
                         },
                     )
                 else:
-                    await self._mark_stale(
-                        eq, f"ADR-0025: source pipe {rec.line_no} STALE"
-                    )
+                    async with self.session.begin_nested():
+                        await self._mark_stale(
+                            eq, f"ADR-0025: source pipe {rec.line_no} STALE"
+                        )
                     if not has_listener(CIA_MARK_STALE):
                         # 无 listener = FSM 转移没发生（审查 #28）。此时不能计入
                         # 「已标记 N 台」—— 那是操作者判断隔离了多少陈旧数据的唯一

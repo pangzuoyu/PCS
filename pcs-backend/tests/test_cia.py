@@ -125,6 +125,69 @@ async def test_scan_marks_stale_on_hash_mismatch(db_session):
     assert pipe.sign_status == RecordSignStatus9.STALE
 
 
+async def test_scan_does_not_commit_partial_transition_on_failure(db_session, monkeypatch):
+    """#9: 转移中途失败不得把半应用的 `sign_status` 提交。
+
+    `StateMachineService.transition` 先改 `sign_status` 并在 `state_machine.py:348`
+    flush，**之后**才做快照与审计（`:349+`）。此后任何异常（快照写失败、审计插入撞
+    约束、连接丢失）都让 ORM 对象已在 session 中被改坏；`cia_engine.py` 的裸
+    `except Exception: continue` 跳到下一条，末尾 `await self.session.flush()`
+    把 STALE 标记连同残缺状态一起提交 —— 无审计行、无快照。
+
+    本次 diff 之前，被吞掉的调用在抛错前不写任何东西，吞掉是无害的；把它改走
+    `emit_event`（会插入 claim 并让 FSM 在 `:348` flush）才让半写变得可达。
+    """
+    from app.models.calc import PipingResult
+    from app.models.enums import RecordSignStatus9
+    from app.services.cia_engine import CIAEngine
+    from app.services.lineage import LineageTracker
+
+    pipe = _make_pipe()
+    await _flush_full(db_session, pipe)
+    _set_signed(pipe, RecordSignStatus9.CHECKED)
+    await db_session.flush()
+    await LineageTracker(db_session).track(
+        record=pipe, source="SEED", change_summary="baseline",
+        change_diff={"hash": "stale_hash_xxx"},
+    )
+    pipe.record_hash = "different"
+    await db_session.flush()
+
+    # 先存主键: savepoint 回滚会把 pipe 置为 expired, 之后任何属性访问都会触发
+    # async 引擎下的同步懒加载 (MissingGreenlet)
+    pid = pipe.pipe_id
+    calls: list = []
+
+    async def _half_applied_then_fail(self, record, reason: str) -> bool:
+        """模拟 FSM 已把 sign_status 改坏并 flush，随后审计阶段失败。"""
+        calls.append(record)
+        record.sign_status = RecordSignStatus9.STALE
+        await db_session.flush()
+        raise RuntimeError("审计阶段失败（模拟）")
+
+    monkeypatch.setattr(CIAEngine, "_mark_stale", _half_applied_then_fail)
+
+    # except 已收窄为 (InvalidTransition, RoleForbidden)：非预期错误不再被静默吞掉，
+    # 直接上抛 —— 否则上游 bug 会被「继续处理下一条」掩盖成正常结果。
+    with pytest.raises(RuntimeError):
+        await CIAEngine(db_session).scan_stale()
+    await db_session.flush()          # 复刻 cia_engine 末尾那次 flush
+
+    assert calls, "替换的 _mark_stale 根本没被调用 —— 测试没测到东西"
+    # savepoint 回滚后该对象被 expire；async 引擎下属性访问会触发同步懒加载
+    # (MissingGreenlet)，故显式 await 查询库里真实值
+    from sqlalchemy import select
+
+    fresh = (
+        await db_session.execute(
+            select(PipingResult).where(PipingResult.pipe_id == pid)
+        )
+    ).scalar_one()
+    assert fresh.sign_status == RecordSignStatus9.CHECKED, (
+        f"失败后 sign_status 变成 {fresh.sign_status} —— 半应用转移落库了"
+    )
+
+
 async def test_scan_no_mismatch_no_mark(db_session):
     """hash 一致时不标记。"""
     from app.models.enums import RecordSignStatus9
