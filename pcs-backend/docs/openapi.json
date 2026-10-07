@@ -6096,7 +6096,7 @@
           "equip-lib"
         ],
         "summary": "Search",
-        "description": "GET 检索设备库（仅 PUBLISHED）。\n\n- ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\n- keyword 可选模糊匹配 name（ILIKE）\n- equipment_type 可选 JSONB ->> 精确过滤\n- limit 上限 200（防前端误传大数）\n- 返回 AssetResponse 列表（CATEGORY_6 + status=PUBLISHED，由 service 固定）",
+        "description": "GET 检索设备库（仅 PUBLISHED）。\n\n- ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN\n- keyword 可选模糊匹配 name（ILIKE）\n- equipment_type 可选 JSONB ->> 精确过滤\n- limit 上限 200（防前端误传大数）\n- ref_* 任一非空即启用相似度：结果按相似度降序，逐条带\n  similarity(0~1) 与 similarity_tier(RECOMMEND/VERIFY/DISPLAY_ONLY)\n\n档位口径见 UI-SPEC §7.16：≥90% 推荐，80~90% 需校核，<80% 仅展示。",
         "operationId": "search_api_v1_equip_lib_search_get",
         "parameters": [
           {
@@ -6144,6 +6144,79 @@
             }
           },
           {
+            "name": "ref_type_code",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "参照：设备代号",
+              "title": "Ref Type Code"
+            },
+            "description": "参照：设备代号"
+          },
+          {
+            "name": "ref_material",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "参照：材质",
+              "title": "Ref Material"
+            },
+            "description": "参照：材质"
+          },
+          {
+            "name": "ref_weight_kg",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "number",
+                  "exclusiveMinimum": 0
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "参照：重量 kg",
+              "title": "Ref Weight Kg"
+            },
+            "description": "参照：重量 kg"
+          },
+          {
+            "name": "ref_standard_drawing_no",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "参照：标准图号",
+              "title": "Ref Standard Drawing No"
+            },
+            "description": "参照：标准图号"
+          },
+          {
             "name": "authorization",
             "in": "header",
             "required": false,
@@ -6168,7 +6241,7 @@
                 "schema": {
                   "type": "array",
                   "items": {
-                    "$ref": "#/components/schemas/AssetResponse"
+                    "$ref": "#/components/schemas/SimilarAssetResponse"
                   },
                   "title": "Response Search Api V1 Equip Lib Search Get"
                 }
@@ -29674,6 +29747,78 @@
         ],
         "title": "SimImportWarningListResponse",
         "description": "SIM 导入警告列表响应。\n\n业务：items 警告列表 + total 总数（用于前端分页 + 头部红点提示）。"
+      },
+      "SimilarAssetResponse": {
+        "properties": {
+          "asset_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Asset Id",
+            "description": "资产唯一 ID"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category",
+            "description": "资产类别"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name",
+            "description": "资产名称"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "description": "资产状态（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）"
+          },
+          "current_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Current Version",
+            "description": "当前版本号"
+          },
+          "similarity": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 1.0,
+                "minimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity",
+            "description": "0~1 相似度；无参照参数时为 null"
+          },
+          "similarity_tier": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Similarity Tier",
+            "description": "RECOMMEND / VERIFY / DISPLAY_ONLY"
+          }
+        },
+        "type": "object",
+        "required": [
+          "asset_id",
+          "category",
+          "name",
+          "status"
+        ],
+        "title": "SimilarAssetResponse",
+        "description": "检索结果（带相似度）。\n\nsimilarity 为 None 表示「没有参照物可比」—— 不是 0 分。\n档位依 UI-SPEC §7.16：≥90% RECOMMEND / 80~90% VERIFY / <80% DISPLAY_ONLY。"
       },
       "SixTenthsRuleCalcRequest": {
         "properties": {

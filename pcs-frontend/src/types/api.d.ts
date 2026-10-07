@@ -2147,7 +2147,10 @@ export interface paths {
          *     - keyword 可选模糊匹配 name（ILIKE）
          *     - equipment_type 可选 JSONB ->> 精确过滤
          *     - limit 上限 200（防前端误传大数）
-         *     - 返回 AssetResponse 列表（CATEGORY_6 + status=PUBLISHED，由 service 固定）
+         *     - ref_* 任一非空即启用相似度：结果按相似度降序，逐条带
+         *       similarity(0~1) 与 similarity_tier(RECOMMEND/VERIFY/DISPLAY_ONLY)
+         *
+         *     档位口径见 UI-SPEC §7.16：≥90% 推荐，80~90% 需校核，<80% 仅展示。
          */
         get: operations["search_api_v1_equip_lib_search_get"];
         put?: never;
@@ -13343,6 +13346,51 @@ export interface components {
             total: number;
         };
         /**
+         * SimilarAssetResponse
+         * @description 检索结果（带相似度）。
+         *
+         *     similarity 为 None 表示「没有参照物可比」—— 不是 0 分。
+         *     档位依 UI-SPEC §7.16：≥90% RECOMMEND / 80~90% VERIFY / <80% DISPLAY_ONLY。
+         */
+        SimilarAssetResponse: {
+            /**
+             * Asset Id
+             * Format: uuid
+             * @description 资产唯一 ID
+             */
+            asset_id: string;
+            /**
+             * Category
+             * @description 资产类别
+             */
+            category: string;
+            /**
+             * Name
+             * @description 资产名称
+             */
+            name: string;
+            /**
+             * Status
+             * @description 资产状态（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）
+             */
+            status: string;
+            /**
+             * Current Version
+             * @description 当前版本号
+             */
+            current_version?: string | null;
+            /**
+             * Similarity
+             * @description 0~1 相似度；无参照参数时为 null
+             */
+            similarity?: number | null;
+            /**
+             * Similarity Tier
+             * @description RECOMMEND / VERIFY / DISPLAY_ONLY
+             */
+            similarity_tier?: string | null;
+        };
+        /**
          * SixTenthsRuleCalcRequest
          * @description POST /cost-est/six-tenths-rule/calculate 请求。
          *
@@ -20199,6 +20247,14 @@ export interface operations {
                 keyword?: string | null;
                 equipment_type?: string | null;
                 limit?: number;
+                /** @description 参照：设备代号 */
+                ref_type_code?: string | null;
+                /** @description 参照：材质 */
+                ref_material?: string | null;
+                /** @description 参照：重量 kg */
+                ref_weight_kg?: number | null;
+                /** @description 参照：标准图号 */
+                ref_standard_drawing_no?: string | null;
             };
             header?: {
                 authorization?: string | null;
@@ -20214,7 +20270,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["AssetResponse"][];
+                    "application/json": components["schemas"]["SimilarAssetResponse"][];
                 };
             };
             /** @description Validation Error */
