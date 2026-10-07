@@ -51,12 +51,32 @@
      实测 `audit_logs` 全程 0 行
 - 验证：全量 3938 passed（+6）
 
-### TODO-002: refresh token 吊销机制（token_version）
+### 🔁 TODO-002 重新排序：**不属于本轮，属 P9**（2026-10-07 复核 spec 后改判）
 
-- **What**: users 表加 `token_version`；`create_token` 写入 claim；`decode_token` 校验。
+- **What**: users 表加 `token_version`；`create_token` 写入 claim；refresh 时校验。
 - **Why**: 无状态 JWT 的 logout 只清前端内存，被盗 refresh token 7 天内无法作废。
 - **证据**: `grep -rln token_version pcs-backend/ --include=*.py` 全仓 0 命中。
-- **Owner**: 待认领
+
+**⚠️ 原处方两处错，按原文做会白做：**
+1. **「decode_token 校验」做不到** —— `decode_token` 是无状态纯函数，没有 DB 通道。
+   正确位置是 **refresh 端点**（那里本来就查 DB）。access token 保持无状态，
+   吊销粒度 = access TTL（30 分钟）——这是行业标准取舍，不要为「每个请求查一次库」
+   把 JWT 的意义抵掉。
+2. **顺序错了** —— `users` 表真库 **0 行且全仓无任何代码写入**，login 走 LDAP、
+   `user_id = uuid5(username)` 派生，根本不碰 users。现在给这张表加吊销机制没有意义。
+
+**正确归属：`spec/…Web版 P9.md` §3.2.3 `P9-ADM-001`（ADMIN 用户管理）**
+- 「新增用户：**同步后自动创建系统用户记录**」+ 接口 `POST /api/v1/admin/users/sync`（P9:156）
+- 用户列表字段（用户名/姓名/邮箱/部门/角色/状态/最后登录时间）**与 `User` ORM 的 7 个列
+  逐字段对应** —— ORM 是照 P9 建的，P9 尚未开工
+- 「离职处理：用户从AD中删除后，**系统标记为停用**，保留历史数据」—— 停用要让在手会话失效，
+  这正是 token_version 的用途
+
+**🔴 P9 的一处规格缺口（需在 P9 补条目）**：P9-ADM-001 对「停用」只写到「标记为停用」
+四个字，**未规定已签发令牌如何处理**。P9 开工前应补一条「停用即刻作废该用户全部
+access/refresh token」，并把 token_version 列为该条的实现手段。
+
+- **Owner**：随 P9-ADM-001 交付（**本轮不做**）
 
 ### ✅ TODO-007: JWT 过期 / 无效已细分（2026-10-07，`d196daa`）
 
@@ -498,3 +518,18 @@
 传给 `op.create_table`，被 alembic **静默丢弃**（该 API 只收 Column / Constraint）。
 
 **Owner**：待认领。需新迁移补 FK；补之前先清孤儿行（ADD CONSTRAINT 遇孤儿会失败回滚）。
+
+## ✅ 归属澄清：bug-143 / bug-144 **不属于 P9，是 P7 欠账，应立刻修**（2026-10-07）
+
+对照 `spec/工艺专用综合计算软件需求规格说明书 Web版 P9.md`：
+
+| 发现 | P9 是否安排 | 处置 |
+|---|---|---|
+| `users` 表 0 行、无代码写入 | ✅ 已安排 —— `P9-ADM-001`「同步后自动创建系统用户记录」+ `POST /api/v1/admin/users/sync`（P9:156） | **P9 开工时做**，本轮不动 |
+| token_version | ⚠️ **P9 无此条目**，但 `P9-ADM-001`「离职处理…系统标记为停用」蕴含之 | **P9 开工前补规格条目**，本轮不做 |
+| `user_projects` 4 个外键缺失（bug-144） | ❌ P9 完全没提 | **P7 欠账，本轮修** —— 表是 P7-7+ BLOCKER-3 建的；不能拖到 P9，否则 AD 同步建出 users 行后授权表引用完整性仍是空的 |
+| 397 条漂移 | ❌ 不在 P9 范围 | 工程债，见上条裁决方向 |
+
+- **已核对无缺口**：P9-ADM-003「会话超时时间 30 分钟」与现有 `access_token_expire_minutes`
+  = 30 **正好对上**。
+- **Owner**：bug-144 迁移待授权应用
