@@ -464,3 +464,37 @@
   `uv run alembic check`」从 CLAUDE.md 的一段文字，变成 git hook / 脚本，
   在提交迁移文件时自动跑一次并阻断。**待认领。**
 - **Owner**：待认领（**明确暂不做静态分析器**）
+
+## 🔴 修正：`alembic check` 漂移真实条数是 **397**，不是先前报的 84 / 350 / 377（2026-10-07）
+
+**这是同一类错误第三次犯**（84 → 377 → 350 → 397），必须记：
+**用关键词白名单过滤 `compare_metadata` 的输出时，匹配不上的类别会被静默丢弃，
+而总数看起来仍然「合理」，不会触发怀疑。**
+
+- 本轮我写的过滤白名单写了 `add_foreign_key` / `remove_foreign_key`，但 alembic 实际
+  发出的 op 名是 **`add_fk` / `remove_fk`** → 7 条 FK 漂移被静默丢掉；
+  `remove_constraint` / `add_constraint` 压根没进白名单 → 又丢 40 条。
+- 正确做法：**先 `Counter(type(x).__name__)` + 打印实际 op 名分布，再决定口径**，
+  不要凭直觉写白名单。
+
+### 397 条的真实构成（DB 停在 p7_s5_005，p7_s5_006 未应用）
+
+| op | 条数 | 方向 |
+|---|---|---|
+| `modify_comment` | 349 | DB 注释 ≠ ORM 注释（47 张表） |
+| `remove_constraint` | 39 | DB 有约束、ORM 无声明 |
+| `add_fk` | 6 | **ORM 有外键、DB 没有** |
+| `add_constraint` | 1 | `compound_api521_thresholds.threshold_type` 唯一约束 DB 缺 |
+| `add_column` | 1 | `user_projects.created_by`（= bug-143，`p7_s5_006` 已写待应用） |
+| `remove_fk` | 1 | `fk_utility_energy_summary_workspace_id_workspaces` 的 `ondelete`：DB=CASCADE，ORM=RESTRICT —— **两侧都声明了且不一致** |
+
+- **索引类漂移确认为 0**（`add_index` / `remove_index` 均无），上一条的 DONE 结论成立。
+- **`modify_nullable` / `modify_type` 为 0**，`p7_s5_005` 与 `p7_s5_003` 已彻底清干净。
+
+### 🔴 其中 4 条 `add_fk` 是真缺陷（bug-144），且指向 IDOR 守卫
+
+`user_projects` 的 `user_id` / `project_id` / `granted_by` / `revoked_by` **四个外键全缺**。
+成因：`p7_open_010_user_projects_blocker3.py:40-43` 把裸 `sa.ForeignKey(...)` 当位置参数
+传给 `op.create_table`，被 alembic **静默丢弃**（该 API 只收 Column / Constraint）。
+
+**Owner**：待认领。需新迁移补 FK；补之前先清孤儿行（ADD CONSTRAINT 遇孤儿会失败回滚）。

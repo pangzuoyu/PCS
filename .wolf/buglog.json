@@ -2575,6 +2575,29 @@
       "occurrences": 1,
       "last_seen": "2026-10-07T00:00:00+08:00",
       "related_bugs": []
+    },
+    {
+      "id": "bug-144",
+      "timestamp": "2026-10-07T00:00:00+08:00",
+      "error_message": "user_projects 的 4 个外键从未建出（DB 上 pg_constraint 查询为 0 条 FK），ORM 声明的引用完整性完全落空",
+      "file": "pcs-backend/alembic/versions/p7_open_010_user_projects_blocker3.py",
+      "root_cause": "**把裸 `sa.ForeignKey(...)` 当作位置参数传给 `op.create_table`，被 alembic 静默丢弃。**\n\n该文件 upgrade() 第 40-43 行：\n\n    op.create_table(\n        \"user_projects\",\n        sa.Column(\"user_id\", UUID(as_uuid=True), nullable=False),\n        ...\n        sa.ForeignKey(\"users.user_id\", ondelete=\"CASCADE\", name=\"fk_user_projects_user_id\"),\n        sa.ForeignKey(\"projects.project_id\", ondelete=\"CASCADE\", name=\"fk_user_projects_project_id\"),\n        sa.ForeignKey(\"users.user_id\", name=\"fk_user_projects_granted_by\"),\n        sa.ForeignKey(\"users.user_id\", name=\"fk_user_projects_revoked_by\"),\n    )\n\n`op.create_table(*args)` 只接受 Column / Constraint 类型的参数。裸 ForeignKey 两者都不是，于是被无声吞掉 —— 不报错、不告警。正确写法是嵌进列定义：\nsa.Column(\"user_id\", UUID(as_uuid=True), sa.ForeignKey(...), nullable=False)。\n\n为什么 ORM 侧看起来是对的：`app/models/project.py:184` 用的是\n`mapped_column(ForeignKey(\"users.user_id\", ondelete=\"CASCADE\"), nullable=False)`，\nORM 元数据里确实有 4 条 ForeignKeyConstraint。错的只有迁移。\n\n真库证据：pg_constraint 查询 user_projects 共 8 条约束，全部是 PK / UNIQUE / NOT NULL，\n**FK 一条都没有**。SQLAlchemy inspector 反射同样返回 []。\n\n影响：user_projects 是 **BLOCKER-3 IDOR 守卫**（`_check_user_project_access`）\n读的那张表。没有 FK 意味着：授权可以指向不存在的 user_id / project_id，留下孤儿行；\n删除用户/项目不会 CASCADE，残留授权继续生效。而 login 用的\n`user_id = uuid5(NAMESPACE_DNS, username)` 是**确定性派生**的，同名用户名重建后\n拿到同一个 id，旧授权会被无声继承。",
+      "fix": "待授权：需新迁移补 4 条外键（`p7_s5_007`），并与 bug-143 的 created_by 一并应用。\n注意 FK 建立前必须先清孤儿行，否则 ADD CONSTRAINT 会失败（PG 事务性 DDL 会整体回滚）。\n\n**本条尚未修复，仅登记。** 应用迁移需要用户显式授权。",
+      "fix_commit": "",
+      "tags": [
+        "p7-sprint5",
+        "alembic",
+        "foreign-key",
+        "orm-drift",
+        "blocker-3",
+        "idor-guard",
+        "silent-drop"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-07T00:00:00+08:00",
+      "related_bugs": [
+        "bug-143"
+      ]
     }
   ]
 }
