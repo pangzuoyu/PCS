@@ -1475,3 +1475,92 @@ git commit -m "perf(report): 性能基准纳入 CI 阈值（简单≤5s 复杂�
 6. **PDF 页数（`{{pages}}`）拿不到** —— ReportLab 需要两遍渲染才能知道总页数。本计划未处理，Task 3 需确认；若不做，`{{pages}}` 占位符应从 SPEC §4.1 移除。
 7. **P8b/P8c 是任务级而非步骤级** —— 按 CLAUDE.md「计划必须极具简洁」压缩。执行前需按 Phase 1 的格式展开，否则不满足 writing-plans 的「无占位符」要求。
 8. **`suppliers.vendor_id` 列是否存在未核实** —— SPEC §1.3 已给降级方案（不存在则用 `vendor = supplier_name` + WARN），Task 5 Step 4 照做即可，但降级路径应补测试。
+
+## GSTACK REVIEW REPORT
+
+| Review | Trigger | Why | Runs | Status | Findings |
+|--------|---------|-----|------|--------|----------|
+| CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
+| Codex Review | `codex review` | Independent 2nd opinion | 0 | — | codex CLI 不可用 |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 1 | CLEAR | 12 issues, 0 critical gaps |
+| Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | Phase 2/3 有前端，建议届时跑 |
+| DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | — |
+
+- **UNRESOLVED:** 0
+- **VERDICT:** ENG CLEARED — ready to implement（Phase 1）
+
+### 审查决策落点
+
+| # | 决策 | 落在哪 |
+|---|---|---|
+| 1 | Block 联合抽到 `blocks.py` | File Structure / Task 3 Interfaces |
+| 2 | b7 执行改 ARQ 异步 | Global Constraints / Phase 2 b7 行 |
+| 3 | 假设标记 = 三角 + 橙色 | Global Constraints / Task 3+4 渲染代码 |
+| 4 | `absolute_path` 下沉 service | Global Constraints |
+| 5 | collector 批量 SELECT | Global Constraints / Task 5 |
+| 6-7 | 删假代码 + 三角逻辑去重 | Task 2 / Task 4 |
+| 8 | 绝对预算不用 benchmark | Task 10 |
+| 9 | `max_jobs` 预留容量 | Task 7 Step 5 |
+| 10 | 补 8 个测试 GAP | Task 3 / 6 / 7 / 8 |
+| 11 | 范围不缩，按 SPEC 全量 | Step 0 |
+| 12 | 包名 `report/`，旧 service 不动 | File Structure |
+
+### NOT in scope
+
+- **P9 交付物写面**（生成即建 deliverables / 签署矩阵 / 签署页 / 固化交付物）—— SPEC §1.1 已裁决延后。
+- **签署页动态列**（`{{#dynamic_columns}}`）—— 依赖矩阵消费方，归 P9A-DLV-007。
+- **HEAT DETAIL 39 字段** —— Phase 3，本计划只列任务。
+- **REPORT_BUILDER 前端三件套**（b10–b12）—— Phase 2 任务级，执行前需展开。
+- **P8-Prep 剩余 4 项**（ADR-A/B/C/D、P1 交付面清单、MFA 决议、alembic 闸门自动化）—— 用户裁决推到 P8 之后。
+- **TODO-039/041 的前端类型迁移** —— 已重定范围，前提不成立（见 TODOS.md），P8b 前端开工前须重新评估。
+
+### What already exists（复用 vs 重建）
+
+| 现有 | 处置 |
+|---|---|
+| `app/api/v1/_guard.py` `check_project_access_or_404` | **复用** —— 下载端点沿用，与 `pipe_codes.py` 同模式 |
+| `app/services/audit_service.py` `AuditService.write` | **复用** —— 4 个 REPORT_* 动作走同一入口 |
+| `app/workers/worker.py` WorkerSettings + ARQ | **复用** —— 追加 functions，不新建 worker 基建 |
+| `app/models/config_domain.py` `TemplateFile` | **不复用** —— ADR-P8-001 废止 .dotx 模板机制 |
+| `app/services/report_service.py`（P2 CONFIG 报表） | **不复用、不改名** —— 不同职责；改名会产出一个与 P8 无关的 diff |
+| `scripts/check_openapi_payload_coverage.py` | **复用** —— Task 8 的响应契约测试直接 import 它的 `_is_bare`，不另写一套口径 |
+
+### 失败模式
+
+| 新代码路径 | 生产失败方式 | 测试 | 错误处理 | 用户可见 |
+|---|---|---|---|---|
+| `render_pdf` 字体注册 | 字体文件缺失/路径错 → 中文方块 | ✅ Task 3 | ✅ 抛 `REPORT_FONT_MISSING` | 清晰错误 |
+| `render_pdf` 跨页表格 | 行数超页 → 表格截断或溢出 | ✅ Task 3 | — | 表格缺行 |
+| `generate()` 磁盘写 | 磁盘满 → 裸 OSError | ✅ Task 6 | ✅ `REPORT_STORAGE_FAILED` | 清晰错误 |
+| `generate()` 渲染异常 | 模板数据脏 → RuntimeError | ✅ Task 6 | ✅ 写 `REPORT_FAILED` 审计 | 任务 FAILED |
+| ARQ 任务 | 进程被 kill → 卡 PENDING 无限轮询 | ✅ Task 7 | ✅ stale 回收 | 从「一直转圈」变「明确失败」 |
+| `verify` 端点 | 被刷 → 无限流 | ✅ Task 8 | ✅ 限流 + 429 | 明确提示 |
+| `collector` N+1 | 大项目 → 几百次 SELECT | 部分（批量策略约束） | — | 报表超时 |
+| `_cell_text` NULL | 字段 NULL → 写 `None` 字面量 | ✅ Task 3 | — | 表格脏数据 |
+
+**critical gaps：0**（每条要么有测试，要么有错误处理）。
+
+### 并行化
+
+| 步骤 | 模块 | 依赖 |
+|---|---|---|
+| T1 样式层 | `services/report/`、`tests/services/report/` | — |
+| T2 表 + 迁移 | `models/`、`alembic/`、`tests/models/` | — |
+| T5 数据源 + collector | `services/report/` | T2（要用 ORM） |
+| T3/T4 三个渲染器 | `services/report/` | T1 |
+| T6 二维码 + 编排 | `services/report/` | T1,3,4,5 |
+| T7 ARQ | `workers/`、`models/enums.py` | T6 |
+| T8 API | `api/v1/`、`schemas/` | T6,7 |
+| T9 seed + Golden | `tests/fixtures/`、`tests/golden/` | T6 |
+| T10 性能 | `tests/benchmarks/` | T3,4,6 |
+
+**Lane A**（T1 → T3+T4 可并行）→ **Lane B**（T2 → T5）→ **Lane C**（T6 → T7 → T8）→ **Lane D**（T9, T10 依赖 C）
+⚠️ Lane A 与 Lane B **都碰 `app/services/report/` 与 `app/models/`** —— 潜在合并冲突。
+实际并发度有限：T3/T4 依赖 T1 的 `ReportStyle`，T5 依赖 T2 的 ORM。**建议 T1→T2 串行打底，
+之后 T3/T4 与 T5 可并行。**
+
+### 回顾
+
+`git log` 显示本分支近期有多个「revert 后重做」的模式（`fd0e8b9` 的 PG 版本、
+本会话的 ORM 漂移清理）。本计划审查时**特别核查了「绿灯测的不是出问题那层」这一族**：
+bug-143 / 145 / 149 / 150 四个同族缺陷催生了 Review Focus 5 条与「中文可抽出性」验收卡点。
