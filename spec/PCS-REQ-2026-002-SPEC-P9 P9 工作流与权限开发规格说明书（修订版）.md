@@ -146,9 +146,27 @@ P9A-DLV-006	变更前快照服务：进入 STALE/CHANGE_PENDING 时保存、放�
 P9A-DLV-007	SignatureMatrixService：steps_json 消费方，矩阵步骤推进、角色判定、动态列数	SUP-005（当前未落地）
 P9A-DLV-008	代录客户批准后端：凭证附件存储（PDF/JPG/PNG/EML ≤20MB）+ 二次认证 + 审计 CUSTOMER_APPROVAL_PROXIED	ADR-0007
 P9A-DLV-009	bug-145：ChangeNoticeService.create_change_notice 写死 matrix_id=None，但 Deliverable.matrix_id NOT NULL 带 FK → 真库必 500。**2026-10-08 已部分处置**：函数改为显式 `raise NotImplementedError`（不再留「接个 API 路由就 500」的哑雷），5 个 happy-path 测试改为断言拒绝 + 无副作用 + 不写审计。**功能本身仍待 P9A-DLV-007 的矩阵消费方**。
+P9A-DLV-010	**新端点响应 schema 零裸字段**（硬约束，阻塞 P9B）。每个新端点的响应模型必须显式
+	声明结构；不得用 `response: object` 或裸 `dict` 敷衍。交付证据 = 覆盖率闸裸字段数不上涨
+	（基线 71 保持不变）	P9B 4.2 前端纪律
+	⚠️ 与 P9A-DLV-0XX 的区别：0XX 是**修既有 71 个**，本项是**新增的不许欠**。两者都做，P9A
+	才不会一边修旧账一边欠新账
 P9A-DLV-0XX	API 载荷结构债：全 OpenAPI 259 个 schema 中 141 个 object/array 字段有 71 个是裸类型（无 properties/items）。前端对这些只能继续手写类型 —— 即 TODO-039/041 想消灭的东西。已加覆盖率闸 `scripts/check_openapi_payload_coverage.py`（只拦倒退，当前 70/141 = 49.6%）。与 P9-Prep 引用的 §3.4 约束① 是同一笔债的两个观测面	TODOS.md TODO-039/041
 　　⚠️ 复核推翻了原记录两点：①「无任何测试」是错的（`tests/services/` 下有 5 个，但用假 DB，结构上观察不到 DB 层约束）；②`ChangeNoticeService` **无任何 API 路由调用**、真库 0 行，是未接线的死路径而非线上 500	TODOS.md
 验收：P9B 所需全部端点可用；alembic check 无新增漂移；bug-145 有回归测试。
+
+**⚠️ 硬约束（2026-10-08 用户裁决，阻塞 P9B）**：P9A 交付的**每一个**新端点，
+其响应 schema **不得含裸 `object` / `array`**（即声明了 object/array 却没有
+`properties` / `items`）。
+
+理由：P9B 的纪律是「前端 type 从 `./api` 生成，禁止手写」。而 `pcs-frontend` 的
+类型由 openapi-typescript 从 OpenAPI 生成，对裸字段只能生成 `object` / `any[]`。
+**P9A 若沿用现有习惯，这批端点会直接产出 unknown，纪律在 P9 内部第一天就废掉** —
+不是偿还 TODO-039/041 的债，是把债复制进 P9。
+
+执行方式：`pcs-backend/scripts/check_openapi_payload_coverage.py`。该闸在裸字段数
+上涨时 exit 1，天然满足「新端点贡献 0 个裸字段」。P9A 收口时基线应仍为 **71**
+（不是下调到 0 —— 71 是既有欠账，属 P9-Prep/§3.4 范围，见 P9A-DLV-0XX）。
 
 3.2.2 用户身份改造（高风险）
 编号	内容	依据
@@ -230,6 +248,14 @@ V1.3 表述	V2.0 修订
 MSW handlers 按 OpenAPI 重写，禁止按前端 mock types 写（TODO-041）。
 
 P9B 开工前提 = P9A OpenAPI 契约冻结。契约未冻结不允许前端动工，避免对着 mock 绿、上线 404。
+
+**契约冻结的验收包含一条硬指标：P9A 新增端点的响应 schema 零裸字段**（P9A-DLV-010）。
+只「冻结」不够 —— 冻结一份满是 `object` 的契约等于把 unknown 合法化。开工前用
+`scripts/check_openapi_payload_coverage.py` 确认裸字段数仍为 71（未因 P9A 上涨）。
+
+⚠️ 本节「7 个 mock type 文件改 import 自 ./api」的前提，本会话已查明**不成立**：
+28/31 个导出 interface 在 OpenAPI 里无对应 schema，且前后端字段名不同、单位不同
+（`p_mpa` ↔ `P_Pa`）。P9B 开工前须按 TODOS.md 的重定范围重新评估，不要照原文执行。
 
 4.3 任务分解
 沿用 V1.3 §3.2.1–§3.2.5，工作量不变：

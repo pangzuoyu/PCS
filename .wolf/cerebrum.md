@@ -736,6 +736,26 @@
 - 重量估算若将来要做：走独立 ADR（如 ADR-0044）+ 独立服务 + compound_material_density CONFIG 表族。
 - 当前 P6-4 batch 不引入重量功能，避免范围蔓延。
 
+## Do-Not-Repeat: 裸 object/array 会让下游 type 生成失效（2026-10-08 用户裁决）
+
+OpenAPI 里声明了 `object`/`array` 却**没有 `properties`/`items`** 的字段，
+`openapi-typescript` 只能生成 `object` / `any[]` —— 前端于是**只能继续手写类型**。
+当前全 OpenAPI 141 个载荷字段里 **71 个**是这种。
+
+**危害不是「不优雅」，是会向下游传染**：P9B 的纪律是「前端 type 从 `./api`
+生成、禁止手写」，而 P9A 若照现有习惯写 `response: object`，P9B 拿到的就是一堆
+`unknown` —— **纪律在项目内部第一天就废掉，债被复制而非偿还。**
+
+所以「响应里写 `object` 最省事」是**有下游代价的省事**，不是无害的捷径。
+新增端点必须显式声明结构。
+
+闸：`pcs-backend/scripts/check_openapi_payload_coverage.py`（裸字段数上涨即 exit 1）。
+硬约束已写进 P9 SPEC 的 P9A 验收 / `P9A-DLV-010` / P9B 开工前提三处。
+
+⚠️ 与 §3.4 约束① 是同一笔债的两个观测面（ORM 侧 JSONB 无嵌套模型 / API 侧裸
+object），但**不是同一件事**：约束① 是「修既有的」，P9A-DLV-010 是「新增的不许欠」。
+两者都做，才不会一边修旧账一边欠新账。
+
 ## Do-Not-Repeat: C-08 ≠ weight estimation
 
 C-08 = WS-CA-PR-010 = two_phase_separator sizing（5 段：Souders-Brown / CSA / 喷嘴 / 仪表 / 停留时间）。

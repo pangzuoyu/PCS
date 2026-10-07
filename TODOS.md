@@ -244,6 +244,34 @@ API 载荷结构覆盖: 70/141 (49.6%)，基线要求裸字段 <= 71
 - ⚠️ 已知局限：闸只比总数，**说不出是哪几个新增的**。输出里已如实标注，定位靠
   `git stash` 对比或看 diff。
 
+#### ⚠️ 2026-10-08 用户裁决：这条债已升级为 **P9B 阻塞项**
+
+71 个裸字段不只是 §3.4 的下游 —— 它会**污染 P9 自身**：
+
+P9B 需要的端点 | 响应 schema 现状
+---|---
+`POST /deliverables/{id}/issue` | P9A 待建
+`POST /deliverables/{id}/sign-step` | P9A 待建
+`POST /deliverables/{id}/customer-approval/proxy` | P9A 待建
+`GET /deliverables/{id}/actions` | P9A 待建
+`workflow_progress` 读 API | P9A 待建
+`notifications` / `todos` | P9A 待建
+
+**如果 P9A 沿用现有习惯（响应 `object` 裸类型），P9B 的 type 生成会得到一堆
+`any` / `unknown`，P9B「前端 type 从 `./api` 生成」这条纪律在 P9 内部第一天
+就废掉 —— 不是偿还本 TODO 的债，是把债复制进 P9。**
+
+**已落地的硬约束**（写进 P9 SPEC 三处）：
+
+1. **P9A 验收标准**：交付的每个新端点，响应 schema 不得含裸 object/array。
+2. **新增任务 P9A-DLV-010**（与 P9A-DLV-0XX 区分：0XX 是修既有 71 个，
+   DLV-010 是**新增的不许欠**）。两者都做，P9A 才不会一边修旧账一边欠新账。
+3. **P9B 开工前提**：契约冻结的验收含「裸字段数仍为 71」。**只「冻结」不够
+   —— 冻结一份满是 `object` 的契约等于把 unknown 合法化。**
+
+执行闸：`pcs-backend/scripts/check_openapi_payload_coverage.py`（裸字段上涨即
+exit 1）。P9A 收口时基线应**仍为 71**，不是下调到 0 —— 71 是既有欠账。
+
 #### 仍然未解决
 
 - **71 个裸载荷字段**（证据二）—— 主体工作，现已可测量、可回归。
