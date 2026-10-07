@@ -14829,7 +14829,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/GenerateResponse"
+                }
               }
             }
           },
@@ -14887,7 +14889,9 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {}
+                "schema": {
+                  "$ref": "#/components/schemas/ValidateResponse"
+                }
               }
             }
           },
@@ -23442,6 +23446,20 @@
         ],
         "title": "GenerateRequest",
         "description": "管道代码生成请求体（POST /project-pipe-code-configs/{id}/generate）。\n\n业务：project_id 限定项目；input_segments 用户输入字段值（与模板\nformat_definition_json 字段对应）；返回生成的完整管道代码字符串。"
+      },
+      "GenerateResponse": {
+        "properties": {
+          "code": {
+            "type": "string",
+            "title": "Code"
+          }
+        },
+        "type": "object",
+        "required": [
+          "code"
+        ],
+        "title": "GenerateResponse",
+        "description": "管道代码生成响应（POST /pipe-codes/generate）。\n\n只回生成的完整管道代码字符串；取号已落库（ProjectPipeCodeSequence 自增）。"
       },
       "GlycolDehydrationRequest": {
         "properties": {
@@ -34747,6 +34765,34 @@
         ],
         "title": "ValidateRequest",
         "description": "管道代码验证请求体（POST /project-pipe-code-configs/{id}/validate）。\n\n业务：project_id + code（待校验的完整管道代码）；返回 SYM-V01~V05\n等 5 类规则校验结果（含 severity + message + position）。"
+      },
+      "ValidateResponse": {
+        "properties": {
+          "valid": {
+            "type": "boolean",
+            "title": "Valid"
+          },
+          "errors": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Errors",
+            "default": []
+          },
+          "segments": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Segments",
+            "default": {}
+          }
+        },
+        "type": "object",
+        "required": [
+          "valid"
+        ],
+        "title": "ValidateResponse",
+        "description": "管道代码校验响应（POST /pipe-codes/validate）。\n\n对应 `PipeCodeGenerator.ValidationOutcome`：valid + errors[] + 已解析的\nsegments 映射（段名→值）。前端用于实时校验，不入库。"
       },
       "ValidateStreamResponse": {
         "properties": {

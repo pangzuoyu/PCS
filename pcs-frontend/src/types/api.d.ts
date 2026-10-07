@@ -9272,6 +9272,16 @@ export interface components {
             };
         };
         /**
+         * GenerateResponse
+         * @description 管道代码生成响应（POST /pipe-codes/generate）。
+         *
+         *     只回生成的完整管道代码字符串；取号已落库（ProjectPipeCodeSequence 自增）。
+         */
+        GenerateResponse: {
+            /** Code */
+            code: string;
+        };
+        /**
          * GlycolDehydrationRequest
          * @description FULL 甘醇脱水系统请求（POST /psychro/glycol-dehydration/calculate）。
          *
@@ -15970,6 +15980,29 @@ export interface components {
             project_id: string;
             /** Code */
             code: string;
+        };
+        /**
+         * ValidateResponse
+         * @description 管道代码校验响应（POST /pipe-codes/validate）。
+         *
+         *     对应 `PipeCodeGenerator.ValidationOutcome`：valid + errors[] + 已解析的
+         *     segments 映射（段名→值）。前端用于实时校验，不入库。
+         */
+        ValidateResponse: {
+            /** Valid */
+            valid: boolean;
+            /**
+             * Errors
+             * @default []
+             */
+            errors: string[];
+            /**
+             * Segments
+             * @default {}
+             */
+            segments: {
+                [key: string]: unknown;
+            };
         };
         /**
          * ValidateStreamResponse
@@ -25053,7 +25086,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["GenerateResponse"];
                 };
             };
             /** @description Validation Error */
@@ -25088,7 +25121,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": unknown;
+                    "application/json": components["schemas"]["ValidateResponse"];
                 };
             };
             /** @description Validation Error */
