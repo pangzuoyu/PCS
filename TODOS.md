@@ -631,3 +631,17 @@ P8 前置项 ② 拆分执行：**读面 4 端点已交付**（`GET /deliverable
 **顺带查出 bug-145**：`ChangeNoticeService.create_change_notice:191` 写死
 `matrix_id=None`，但 `Deliverable.matrix_id` 是 **NOT NULL 带 FK** —— 该路径
 **调用即 500**。无测试、真库表 0 行所以从未爆。倾向前者修法（先建矩阵消费方）。
+
+## ✅ 更正：前端 `ChangeNotification` 本就存在（2026-10-07）
+
+P8 前置项 ②c「前端补第 3 个组件」被误判为未做。判定依据是按文件名搜
+`ChangeNotification` → 0 命中 —— **错的**。
+
+P1 计划的三个组件实际交付为 `LineageGraph`（计划名 LineagePanel）、
+`RevTimeline`（同名）、**`NotificationCenter` 的「变更」分类**（计划名
+ChangeNotification）。后者 176 行实现 + 14 条测试，覆盖 UI-SPEC §6.20 全部要素
+（4 tab / 变更 tag / 标题摘要时间 / 查看 / 未读蓝点），fixture 的标题用的正是
+SPEC 示例原文「物流 S-101 流量已变更」。三个组件测试合计 36 passed。
+
+**教训已写入 cerebrum**：判「组件是否已交付」不能只搜计划里的文件名 ——
+计划名与最终组件名不一致是常态，要**按 SPEC 章节号找、再落到实现**。
