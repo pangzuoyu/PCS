@@ -10,6 +10,7 @@ import uuid
 from sqlalchemy import (
     JSON,
     Boolean,
+    CheckConstraint,
     Date,
     DateTime,
     Float,
@@ -40,6 +41,17 @@ class ConfigAsset(TimestampMixin, Base):
     __tablename__ = "config_assets"
     __table_args__ = (
         Index("ix_config_assets_asset_subtype", "asset_subtype"),
+        # 设备库检索的固定过滤就是 (category='CATEGORY_6', status='PUBLISHED')，
+        # 此前两列都无索引 → 每次检索全表扫（该表已有 600+ 行 CATEGORY_1）。
+        Index("ix_config_assets_category_status", "category", "status"),
+        # category 取值域见 `spec/工艺专用综合计算软件——合并数据字典.md:191`
+        # （CATEGORY_1~6）。此前无约束，拼错成 "CATEGORY_06" / "EQUIP_LIB" 会
+        # 静默写成一条检索不到的孤儿记录。
+        CheckConstraint(
+            "category IN ('CATEGORY_1', 'CATEGORY_2', 'CATEGORY_3', "
+            "'CATEGORY_4', 'CATEGORY_5', 'CATEGORY_6')",
+            name="config_assets_category_chk",
+        ),
     )
     asset_id: Mapped[uuid.UUID] = mapped_column(
         Uuid, primary_key=True, default=uuid.uuid4

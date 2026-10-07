@@ -190,3 +190,20 @@ async def test_settle_source_type_code_wins_over_payload(
         )
     ).scalar_one()
     assert asset.content_json["standard_info"]["type_code"] == "PUMP-FROM-SOURCE"
+
+
+async def test_config_asset_rejects_unknown_category(db):
+    """category 越界必须被拒 —— 否则拼错成 CATEGORY_07 会静默写入一条
+    永远检索不到的孤儿记录（设备库上尤其致命：沉淀了却查不出来）。"""
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+
+    from app.models.config_domain import ConfigAsset
+
+    db.add(ConfigAsset(
+        category="CATEGORY_07", name="拼错的设备库条目",
+        current_version="v1", status="DRAFT",
+    ))
+    with pytest.raises(IntegrityError):
+        await db.commit()
+    await db.rollback()

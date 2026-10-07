@@ -7653,6 +7653,11 @@ export interface components {
              * @description 源项目 ID
              */
             source_project_id?: string | null;
+            /**
+             * Type Code
+             * @description 设备代号（如 PUMP-CENTRIFUGAL-01）。**相似度匹配的主键**。给了 source_equipment_id 时以源设备 equipment_list.type_code 为准，本字段仅在无源（脱离项目直接沉淀标准件）时使用
+             */
+            type_code?: string | null;
         };
         /**
          * EquipListBulkSyncRequest
