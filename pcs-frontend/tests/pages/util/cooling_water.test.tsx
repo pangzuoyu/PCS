@@ -10,15 +10,12 @@
  * 用 MSW node server (仿 tests/api/stream_api.test.ts pattern) — fetch 真请求 + 断言契约。
  */
 import { describe, it, expect, beforeAll, afterEach, afterAll } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+import { render, screen, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 
 import { CoolingWaterPage } from '../../../src/pages/util/CoolingWaterPage';
 import { WATER_TYPE_OPTIONS } from '../../../src/api/util';
-
-const mockAuthedHeader = { authorization: 'Bearer test-token' };
 
 const heatExchangeFixtures = [
   // 2 类水记录 + 1 条 STEAM (P7-6B 9 类水过滤)
@@ -72,7 +69,6 @@ const heatExchangeFixtures = [
   },
 ];
 
-let postCalledTimes = 0;
 let lastPostedBody: Record<string, unknown> | null = null;
 
 const handlers = [
@@ -81,7 +77,6 @@ const handlers = [
     return HttpResponse.json(heatExchangeFixtures);
   }),
   http.post('/api/v1/util/heat-exchange-items', async ({ request }) => {
-    postCalledTimes += 1;
     lastPostedBody = (await request.json()) as Record<string, unknown>;
     return HttpResponse.json(
       {
@@ -112,7 +107,6 @@ beforeAll(() => {
 });
 afterEach(() => {
   server.resetHandlers();
-  postCalledTimes = 0;
   lastPostedBody = null;
 });
 afterAll(() => {

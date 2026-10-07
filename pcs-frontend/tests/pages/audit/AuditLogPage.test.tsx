@@ -8,7 +8,7 @@
  * - equipment-deletion tab 不传 project_id → 403 error alert
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 
 vi.mock('../../../src/api/client', async () => {
   const actual = await vi.importActual<typeof import('../../../src/api/client')>(

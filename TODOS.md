@@ -426,3 +426,15 @@
   **绝不使用年份式编号**（`bug-2026` 正是当初 4 条撞号的根因 —— 新条目按
   `max+1` 算出 `bug-2027` 时，`bug-2026` 这个非序号已经存在，于是继承了重号）。
 - **Owner**: 已关闭
+
+## 🟡 `auth_consistency.test.ts` 的「所有 auth 调用携带 Bearer token」只覆盖了 1/2（2026-10-07 登记）
+
+- 该用例断言 `lastMeAuth`（`/auth/me` 调用的 Authorization 头），**未断言 mock-login
+  那一路**。用例名说「所有 auth 调用」，实际只覆盖 `/auth/me` 一条路径。
+- 该文件原本有个 `lastMockLoginAuth` 变量专门捕获 mock-login 的头，但**只写不读** ——
+  捕获了却没有任何断言用它。2026-10-07 清 lint 死变量时已删除（若不删，
+  `npm run lint` 因 `--max-warnings 0` 直接红，该测试文件则一直绿）。
+- **本条不是「补一条断言」那么简单**：mock-login 在真实流程里发生在建会话之前，
+  语义上**不应**携带 Bearer token，故正确的断言是 `toBeNull()` 而非
+  `toBe('Bearer ...')`。补之前需确认 mock 流程的实际调用顺序。
+- **Owner**：待认领（补断言时顺带把用例名改成与实际覆盖一致）

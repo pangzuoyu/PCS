@@ -25,11 +25,9 @@ const mockTokens = {
 };
 
 let lastMeAuth: string | null = null;
-let lastMockLoginAuth: string | null = null;
 
 const handlers = [
   http.post('/api/v1/auth/mock-login', async ({ request }) => {
-    lastMockLoginAuth = request.headers.get('Authorization');
     const body = (await request.json()) as { username?: string };
     const username = body.username ?? 'alice';
     return HttpResponse.json({
@@ -60,7 +58,6 @@ afterEach(() => {
   server.resetHandlers();
   useAuth.getState().clearSession();
   lastMeAuth = null;
-  lastMockLoginAuth = null;
 });
 afterAll(() => {
   server.close();
