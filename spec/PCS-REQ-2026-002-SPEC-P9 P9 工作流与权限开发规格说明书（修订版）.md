@@ -146,6 +146,7 @@ P9A-DLV-006	变更前快照服务：进入 STALE/CHANGE_PENDING 时保存、放�
 P9A-DLV-007	SignatureMatrixService：steps_json 消费方，矩阵步骤推进、角色判定、动态列数	SUP-005（当前未落地）
 P9A-DLV-008	代录客户批准后端：凭证附件存储（PDF/JPG/PNG/EML ≤20MB）+ 二次认证 + 审计 CUSTOMER_APPROVAL_PROXIED	ADR-0007
 P9A-DLV-009	bug-145：ChangeNoticeService.create_change_notice 写死 matrix_id=None，但 Deliverable.matrix_id NOT NULL 带 FK → 真库必 500。**2026-10-08 已部分处置**：函数改为显式 `raise NotImplementedError`（不再留「接个 API 路由就 500」的哑雷），5 个 happy-path 测试改为断言拒绝 + 无副作用 + 不写审计。**功能本身仍待 P9A-DLV-007 的矩阵消费方**。
+P9A-DLV-0XX	API 载荷结构债：全 OpenAPI 259 个 schema 中 141 个 object/array 字段有 71 个是裸类型（无 properties/items）。前端对这些只能继续手写类型 —— 即 TODO-039/041 想消灭的东西。已加覆盖率闸 `scripts/check_openapi_payload_coverage.py`（只拦倒退，当前 70/141 = 49.6%）。与 P9-Prep 引用的 §3.4 约束① 是同一笔债的两个观测面	TODOS.md TODO-039/041
 　　⚠️ 复核推翻了原记录两点：①「无任何测试」是错的（`tests/services/` 下有 5 个，但用假 DB，结构上观察不到 DB 层约束）；②`ChangeNoticeService` **无任何 API 路由调用**、真库 0 行，是未接线的死路径而非线上 500	TODOS.md
 验收：P9B 所需全部端点可用；alembic check 无新增漂移；bug-145 有回归测试。
 

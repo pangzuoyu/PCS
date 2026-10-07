@@ -220,9 +220,33 @@ print(n, '个裸载荷字段')"
   FastAPI 从 `response_model=` 装饰器**或**返回类型注解都能推出，只撤装饰器它仍绿（正确的，契约没破），
   两个都撤才转红。已实测验证两种撤法。
 
+#### 2026-10-08 已加覆盖率闸
+
+`pcs-backend/scripts/check_openapi_payload_coverage.py` —— 把「71」从一次性数字
+变成**可回归**的数字：
+
+```
+API 载荷结构覆盖: 70/141 (49.6%)，基线要求裸字段 <= 71
+当前: 71 个裸 object/array（259 个 schema 全体扫描）
+欠账明细（71 个，不阻断；修 §3.4 约束① 时自然下降）:
+  DiffResponse: 3  [added, removed, changed]
+  PipeClassCreate/Response/Update: 各 3  [allowable_stress_json, dn_series_json, sch_series_json]
+  WeightEstimateResponse: 3  [segments, formula_ref, output_json]
+  ...
+```
+
+- **退出码**：裸字段 ≤ 71 → 0；> 71 → 1。修好了就把 `BASELINE_BARE_FIELDS` 下调。
+- **已端到端验证不是假绿**：往 `GenerateResponse` 塞一个裸 `dict` 字段 → 72 → exit 1；
+  撤掉 → exit 0。另有单元测试把基线压到实际值以下验证闸会红。
+- **这个闸不需要登记表**（与 §3.4 那个不同）：「载荷有没有定义」是 OpenAPI 自身的
+  属性，不是人工映射判断，全部推导、零维护。§3.4 那个需要登记表是因为它比对的两端
+  都要人工声明对应关系。
+- ⚠️ 已知局限：闸只比总数，**说不出是哪几个新增的**。输出里已如实标注，定位靠
+  `git stash` 对比或看 diff。
+
 #### 仍然未解决
 
-- **71 个裸载荷字段**（证据二）—— 主体工作，量级见下。
+- **71 个裸载荷字段**（证据二）—— 主体工作，现已可测量、可回归。
 - **逐模块字段映射 + 单位归一**（证据一、三）—— 依赖上一条先做，否则前端没得可映射。
 - **MSW handlers 按最终契约重写** —— 最后一步，前两条不做就是白做。
 
