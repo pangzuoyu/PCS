@@ -13,18 +13,18 @@ created in the database. It is directional: either the migration is missing some
 ORM declares, or the database carries something the ORM does not.
 
 Drift does not announce itself. A missing table breaks loudly because the query names a
-table nobody created; a missing column or constraint stays invisible because nothing
-between the ORM and the database checks that the two agree. Two properties make it
-persistent:
+table nobody created; a missing column or constraint can persist unnoticed for a long
+time. Two properties make that happen:
 
 - **The test suite cannot see it.** When tests materialize their schema from ORM metadata
   rather than by running migrations, the test database is a rendering of the ORM and
   therefore agrees with the ORM by definition. A green suite is not evidence about the
   real database.
-- **The drift guard has a precondition.** The guard refuses to run while the database is
-  behind the code's head revision. A migration committed but not yet applied does not make
-  the guard pass — it stops the guard from running at all, which reads identically to
-  "nothing to report" unless you check that it executed.
+- **The comparison guard is manual, and has preconditions of its own.** Something does
+  compare the two — but it is not automatic, and it can decline to run. It refuses while
+  the database is behind the code's head revision, so a migration committed but not yet
+  applied does not make the guard pass — it stops the guard from running at all, which
+  reads identically to "nothing to report" unless you check that it executed.
 
 ### Idempotent migration guard
 An existence flag on a migration operation (`create_index` / `drop_index` / `drop_table`)
@@ -56,8 +56,12 @@ anyone inspecting the model source. It is documentation attached to code, not sc
 ### Pydantic field description
 The description carried by a schema field, which is what serializes into API
 documentation and is the only carrier for the shape of a structured payload stored in a
-single database column. This is the project's single source of truth for **description
-text**.
+single database column. The project's domain model designates it the authoritative text
+for **description**, with the model-layer comment expected to agree but not to be the
+source.
+
+That designation is stated intent, not an enforced invariant: no check currently compares
+the two texts, so they drift silently.
 
 ### Column comment (database)
 A description string stored on the column inside the database, carrying no runtime
@@ -86,8 +90,11 @@ columns* generally, which also cover update timestamps.
 
 ## Relationships
 
-- Every model that records who created it does so through **mixin audit columns**;
-  standalone models without the base class carry the columns in their own body instead.
+- Most models that record a creator do so through **mixin audit columns**; the
+  exceptions are standalone models without that base class, which carry a creator column
+  in their own body — a snapshot type, an import-batch type, and a correlation-library
+  type are the three that do this today.
 - **ORM column comment**, **Pydantic field description**, and **column comment (database)**
-  are three independent texts. Only the first two are held to a consistency rule; the
-  third is owned by the migration toolchain and is not part of the description contract.
+  are three independent texts. The first two are meant to describe the same thing and
+  should agree; the third is owned by the migration toolchain and is not part of the
+  description contract at all.
