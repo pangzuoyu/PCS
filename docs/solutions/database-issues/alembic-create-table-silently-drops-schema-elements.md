@@ -11,7 +11,7 @@ symptoms:
   - "alembic check aborts with \"Target database is not up to date\", so the drift guard never reports anything at all"
 root_cause: data_integrity
 resolution_type: migration
-framework_version: SQLAlchemy 2.0.52 / Alembic 1.19.1 / PostgreSQL 18.6 (observed on the dev DB; note the project's declared container is postgres:16-alpine, so the running dev DB does not match it)
+framework_version: SQLAlchemy 2.0.52 / Alembic 1.19.1 / PostgreSQL 18.6
 related_components:
   - data_model
   - testing_framework
