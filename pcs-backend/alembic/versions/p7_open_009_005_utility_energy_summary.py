@@ -219,26 +219,34 @@ def upgrade() -> None:
         "ix_utility_energy_summary_project",
         "utility_energy_summary",
         ["project_id"],
+        if_not_exists=True,
     )
     op.create_index(
         "ix_utility_energy_summary_workspace",
         "utility_energy_summary",
         ["workspace_id"],
+        if_not_exists=True,
     )
     op.create_index(
         "ix_utility_energy_summary_year",
         "utility_energy_summary",
         ["business_year"],
+        if_not_exists=True,
     )
 
 
 def downgrade() -> None:
     """删除 utility_energy_summary 表 (T5 测试 / 回滚用)."""
-    op.drop_index("ix_utility_energy_summary_year", table_name="utility_energy_summary")
     op.drop_index(
-        "ix_utility_energy_summary_workspace", table_name="utility_energy_summary"
+        "ix_utility_energy_summary_year", table_name="utility_energy_summary",
+        if_exists=True,
     )
     op.drop_index(
-        "ix_utility_energy_summary_project", table_name="utility_energy_summary"
+        "ix_utility_energy_summary_workspace", table_name="utility_energy_summary",
+        if_exists=True,
     )
-    op.drop_table("utility_energy_summary")
+    op.drop_index(
+        "ix_utility_energy_summary_project", table_name="utility_energy_summary",
+        if_exists=True,
+    )
+    op.drop_table("utility_energy_summary", if_exists=True)

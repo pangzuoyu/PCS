@@ -57,11 +57,13 @@ def upgrade() -> None:
         "ix_utility_heat_exchange_medium_type",
         "utility_heat_exchange",
         ["medium_type"],
+        if_not_exists=True,
     )
     op.create_index(
         "ix_utility_heat_exchange_pressure_level",
         "utility_heat_exchange",
         ["pressure_level"],
+        if_not_exists=True,
     )
 
     # 2. utility_fuel_gas: 新增 gas_source 字段 (R1 §7.3)
@@ -82,6 +84,7 @@ def upgrade() -> None:
         "ix_utility_fuel_gas_gas_source",
         "utility_fuel_gas",
         ["gas_source"],
+        if_not_exists=True,
     )
 
     # 3. utility_energy_summary: 新增 electricity_value_type 字段 (R1 §5)
@@ -103,13 +106,15 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_column("utility_energy_summary", "electricity_value_type")
-    op.drop_index("ix_utility_fuel_gas_gas_source", "utility_fuel_gas")
+    op.drop_index("ix_utility_fuel_gas_gas_source", "utility_fuel_gas", if_exists=True)
     op.drop_column("utility_fuel_gas", "gas_source")
     op.drop_index(
-        "ix_utility_heat_exchange_pressure_level", "utility_heat_exchange"
+        "ix_utility_heat_exchange_pressure_level", "utility_heat_exchange",
+        if_exists=True,
     )
     op.drop_index(
-        "ix_utility_heat_exchange_medium_type", "utility_heat_exchange"
+        "ix_utility_heat_exchange_medium_type", "utility_heat_exchange",
+        if_exists=True,
     )
     op.drop_column("utility_heat_exchange", "pressure_level")
     op.drop_column("utility_heat_exchange", "medium_type")

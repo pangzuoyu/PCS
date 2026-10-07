@@ -376,32 +376,29 @@
 
 ---
 
-## 🔴 9 个既有 `p7_open_*`/`p7_s1_*` 迁移缺幂等 guard（2026-10-07 恢复登记）
+## ✅ DONE —— 9 个既有 `p7_open_*`/`p7_s1_*` 迁移补幂等 guard（2026-10-07）
 
 > ⚠️ **本条曾在 2026-10-06 的 `TODOS.md` 全量重写中丢失**（只剩 `STATUS.md` 提过），
-> 2026-10-07 补回。重写整份文件时用 `Write` 覆盖，漏抄了尾部两个无编号条目。
+> 2026-10-07 补回并已闭环。
 
-- **现状**：`scripts/check_migration_idempotency.py` 的 `checked_prefixes` 覆盖
-  `p7_s2_`/`p7_s3_`/`p7_s4_`/`p7_s5_`（0 violations ✅）。
-  但全部 23 个 `p7_*.py` 里有 **9 个落在白名单外**，其 `drop_table`/`create_index`/
-  `drop_index` 没有幂等 guard，闸看不见：
-  - `p7_open_009_001_utility_power_items`（5 处）
-  - `p7_open_009_002_utility_fuel_gas`（7 处）
-  - `p7_open_009_003_utility_heat_exchange`（7 处）
-  - `p7_open_009_005_utility_energy_summary`（6 处）
-  - `p7_open_009_t0_config_energy_conversion_factors`（1 处 `drop_table`）
-  - `p7_open_010_r1_classification_fields`（6 处）
-  - `p7_open_010_user_projects_blocker3`（7 处）
-  - `p7_s1_002_audit_logs_jsonb_gin`（2 处）
-  - `p7_s1_005_util_results`（6 处）
-- **风险**：downgrade 往返在这些迁移上不幂等。
-- **不能无审查批量加 guard** —— 加 `if_exists=True` 会改变 downgrade 在
-  「表不存在」时的行为，需逐个确认语义。
-- **修法顺序（不能反）**：逐个补 `if_exists=True` / `if_not_exists=True` →
-  补完一个从前缀白名单移一个 → 最后白名单改「全部 `p7_*`」。
-  **顺序反了会让钩子立刻在无关文件上失败**（P7 Sprint 4 #12 报告里担心的情形，
-  实测确认成立）。
-- **Owner**：待认领
+- **结果**：共补 **49 处** guard，`alembic/versions/` 下 **28 个 `p7_*` 迁移全部纳入检查**，
+  闸门 `OK: 0 violations`。原记的逐文件条数有两处偏低（`p7_open_009_005` 实为 7 非 6、
+  `p7_s1_005` 实为 7 非 6），与此前「84 条」低估同源的字符串扫描问题，已按 AST 重数。
+- **顺带修掉闸门自身的两个缺陷**（这才是本条的真正价值 —— guard 缺失只是症状）：
+  1. **闸门用「行内子串 + 上下 8 行窗口」判定，长期假绿**。`p7_s3_005` 的
+     `downgrade()` docstring 写着「删两张子表 (if_exists 幂等)」，窗口里的
+     `if_exists` 掩盖了下面两行**实际没带** guard 的 `op.drop_table` ——
+     白名单内的文件都被判为已加。已改为 AST 判定（`check_migration()`）。
+  2. **`SAFE_OPS` 里 `op.create_unique_constraint: ["if_not_exists"]` 是错的**。
+     实测 alembic 1.19.1 的 `create_unique_constraint` 签名无该形参（只有 `**kw`），
+     PG 也不支持 `ADD CONSTRAINT IF NOT EXISTS`；传进去不报错但被静默吞掉，
+     是「看着加了 guard 其实没加」，比不加更危险。已移出检查范围并在 docstring 写明原因。
+- **验证**：注入式回归 —— 删掉 `p7_s5_004` 的一个 `if_not_exists`，闸门如期 FAIL(1)，
+  还原后 OK(0)。全量 `pytest tests/ -q` = **3954 passed / 77 skipped / 1 xfailed / 0 failed**。
+- **加 guard 的语义已逐个确认**：全部 `drop_table` 都在 `downgrade()`，无 upgrade 侧
+  先删后建的隐患；`if_exists` 只放宽「对象不存在时不报错」，不改变已存在时的行为。
+- **残留**：`p7_open_010_*` 两个文件有 19 条 ruff 报错（D103/E501/I001/F401），
+  HEAD 上同样存在，非本次引入，按「不重构无关代码」未动。
 
 ## ✅ `.wolf/buglog.json` id 重号已去重（2026-10-07）
 

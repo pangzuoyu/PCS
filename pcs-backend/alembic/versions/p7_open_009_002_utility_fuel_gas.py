@@ -161,22 +161,25 @@ def upgrade() -> None:
         "ix_utility_fuel_gas_project",
         "utility_fuel_gas",
         ["project_id"],
+        if_not_exists=True,
     )
     op.create_index(
         "ix_utility_fuel_gas_workspace",
         "utility_fuel_gas",
         ["workspace_id"],
+        if_not_exists=True,
     )
     op.create_index(
         "ix_utility_fuel_gas_fuel_type",
         "utility_fuel_gas",
         ["fuel_type"],
+        if_not_exists=True,
     )
 
 
 def downgrade() -> None:
     """删除 utility_fuel_gas 表 (T2 测试 / 回滚用)."""
-    op.drop_index("ix_utility_fuel_gas_fuel_type", table_name="utility_fuel_gas")
-    op.drop_index("ix_utility_fuel_gas_workspace", table_name="utility_fuel_gas")
-    op.drop_index("ix_utility_fuel_gas_project", table_name="utility_fuel_gas")
-    op.drop_table("utility_fuel_gas")
+    op.drop_index("ix_utility_fuel_gas_fuel_type", table_name="utility_fuel_gas", if_exists=True)
+    op.drop_index("ix_utility_fuel_gas_workspace", table_name="utility_fuel_gas", if_exists=True)
+    op.drop_index("ix_utility_fuel_gas_project", table_name="utility_fuel_gas", if_exists=True)
+    op.drop_table("utility_fuel_gas", if_exists=True)

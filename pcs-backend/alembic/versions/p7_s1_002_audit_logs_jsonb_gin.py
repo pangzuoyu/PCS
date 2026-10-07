@@ -36,8 +36,9 @@ def upgrade() -> None:
         ["detail_json"],
         postgresql_using="gin",
         postgresql_ops={"detail_json": "jsonb_path_ops"},
+        if_not_exists=True,
     )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_audit_logs_detail_json_gin", table_name="audit_logs")
+    op.drop_index("ix_audit_logs_detail_json_gin", table_name="audit_logs", if_exists=True)

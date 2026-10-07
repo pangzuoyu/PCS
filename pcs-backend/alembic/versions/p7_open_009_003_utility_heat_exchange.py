@@ -168,16 +168,19 @@ def upgrade() -> None:
         "ix_utility_heat_exchange_project",
         "utility_heat_exchange",
         ["project_id"],
+        if_not_exists=True,
     )
     op.create_index(
         "ix_utility_heat_exchange_workspace",
         "utility_heat_exchange",
         ["workspace_id"],
+        if_not_exists=True,
     )
     op.create_index(
         "ix_utility_heat_exchange_temperature_class",
         "utility_heat_exchange",
         ["temperature_class"],
+        if_not_exists=True,
     )
 
 
@@ -186,13 +189,16 @@ def downgrade() -> None:
     op.drop_index(
         "ix_utility_heat_exchange_temperature_class",
         table_name="utility_heat_exchange",
+        if_exists=True,
     )
     op.drop_index(
         "ix_utility_heat_exchange_workspace",
         table_name="utility_heat_exchange",
+        if_exists=True,
     )
     op.drop_index(
         "ix_utility_heat_exchange_project",
         table_name="utility_heat_exchange",
+        if_exists=True,
     )
-    op.drop_table("utility_heat_exchange")
+    op.drop_table("utility_heat_exchange", if_exists=True)

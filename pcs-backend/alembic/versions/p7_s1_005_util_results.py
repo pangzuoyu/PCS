@@ -46,13 +46,19 @@ def upgrade() -> None:
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
         sa.Column("updated_at", sa.DateTime(timezone=True), nullable=True),
     )
-    op.create_index("ix_util_results_project", "util_results", ["project_id"])
-    op.create_index("ix_util_results_workspace", "util_results", ["workspace_id"])
-    op.create_index("ix_util_results_project_workspace", "util_results", ["project_id", "workspace_id"])
+    op.create_index("ix_util_results_project", "util_results", ["project_id"], if_not_exists=True)
+    op.create_index(
+        "ix_util_results_workspace", "util_results", ["workspace_id"],
+        if_not_exists=True,
+    )
+    op.create_index(
+        "ix_util_results_project_workspace", "util_results", ["project_id", "workspace_id"],
+        if_not_exists=True,
+    )
 
 
 def downgrade() -> None:
-    op.drop_index("ix_util_results_project_workspace", table_name="util_results")
-    op.drop_index("ix_util_results_workspace", table_name="util_results")
-    op.drop_index("ix_util_results_project", table_name="util_results")
-    op.drop_table("util_results")
+    op.drop_index("ix_util_results_project_workspace", table_name="util_results", if_exists=True)
+    op.drop_index("ix_util_results_workspace", table_name="util_results", if_exists=True)
+    op.drop_index("ix_util_results_project", table_name="util_results", if_exists=True)
+    op.drop_table("util_results", if_exists=True)

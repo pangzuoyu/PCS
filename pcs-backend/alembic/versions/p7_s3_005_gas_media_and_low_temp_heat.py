@@ -145,5 +145,5 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """删两张子表 (if_exists 幂等)."""
-    op.drop_table("utility_low_temp_heat")
-    op.drop_table("utility_gas_media")
+    op.drop_table("utility_low_temp_heat", if_exists=True)
+    op.drop_table("utility_gas_media", if_exists=True)

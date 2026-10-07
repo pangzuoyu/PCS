@@ -42,12 +42,13 @@ def upgrade() -> None:
         sa.ForeignKey("users.user_id", name="fk_user_projects_granted_by"),
         sa.ForeignKey("users.user_id", name="fk_user_projects_revoked_by"),
     )
-    op.create_index("ix_user_projects_user", "user_projects", ["user_id"])
-    op.create_index("ix_user_projects_project", "user_projects", ["project_id"])
+    op.create_index("ix_user_projects_user", "user_projects", ["user_id"], if_not_exists=True)
+    op.create_index("ix_user_projects_project", "user_projects", ["project_id"], if_not_exists=True)
     op.create_index(
         "ix_user_projects_active",
         "user_projects",
         ["user_id", "project_id", "revoked_at"],
+        if_not_exists=True,
     )
     op.create_unique_constraint(
         "uq_user_projects_user_project",
@@ -58,7 +59,7 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_constraint("uq_user_projects_user_project", "user_projects")
-    op.drop_index("ix_user_projects_active", "user_projects")
-    op.drop_index("ix_user_projects_project", "user_projects")
-    op.drop_index("ix_user_projects_user", "user_projects")
-    op.drop_table("user_projects")
+    op.drop_index("ix_user_projects_active", "user_projects", if_exists=True)
+    op.drop_index("ix_user_projects_project", "user_projects", if_exists=True)
+    op.drop_index("ix_user_projects_user", "user_projects", if_exists=True)
+    op.drop_table("user_projects", if_exists=True)

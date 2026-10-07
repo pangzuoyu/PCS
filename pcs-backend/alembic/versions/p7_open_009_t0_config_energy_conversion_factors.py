@@ -90,4 +90,4 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     """删除 ``config_energy_conversion_factors`` 表（T0 测试 / 回滚用）."""
-    op.drop_table("config_energy_conversion_factors")
+    op.drop_table("config_energy_conversion_factors", if_exists=True)
