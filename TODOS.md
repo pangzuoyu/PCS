@@ -616,3 +616,18 @@ access/refresh token」，并把 token_version 列为该条的实现手段。
 若 18.6 是有意选择，则把 `docker-compose.yml` 的版本对齐，并更新本文档。
 
 - **Owner**：待认领
+
+## ✅ D 模块读面已补 —— 写面改判到 P9（2026-10-07，`23c8c25`）
+
+P8 前置项 ② 拆分执行：**读面 4 端点已交付**（`GET /deliverables`、`/{id}`、
+`/{id}/versions`、`/{id}/versions/{rev}/snapshot`，+17 测试，全量 3979 passed）。
+**P8 REPORT 的实际数据依赖已打通** —— 该项设立时的三条理由里有两条本质是「读」。
+
+**写面（create / issue / customer-approval-proxy）改判到 P9**：P1 spec 给它们的
+语境是签署流程（issue 走签署矩阵；proxy 是 ADR-0007 代录客户批准 + 二次认证），
+且都依赖 `SignatureMatrix.steps_json` 的消费方 —— **目前无 service**（SUP-005
+未落地）。现在做等于在没有矩阵语义的情况下把签署流程写死一遍。
+
+**顺带查出 bug-145**：`ChangeNoticeService.create_change_notice:191` 写死
+`matrix_id=None`，但 `Deliverable.matrix_id` 是 **NOT NULL 带 FK** —— 该路径
+**调用即 500**。无测试、真库表 0 行所以从未爆。倾向前者修法（先建矩阵消费方）。
