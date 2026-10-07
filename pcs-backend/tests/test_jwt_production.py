@@ -189,3 +189,61 @@ class TestLdapRoleFailClosed:
         """prod mode: 不匹配的群组 → raise LdapAuthError."""
         with pytest.raises(LdapAuthError):
             resolve_role(("UNKNOWN_GROUP",))
+
+
+# ---------------------------------------------------------------------------
+# F-P3-001 收口: production 缺 JWT iss/aud → fail-fast
+# ---------------------------------------------------------------------------
+
+
+class TestJwtIssuerProductionFailFast:
+    """production 必须显式配置 iss/aud —— 未配置 = PyJWT 静默跳过校验.
+
+    为什么是 fail-fast 而不是补默认值: iss/aud 是 config-driven 对称设计,
+    给它们硬编码默认值会破坏该语义. 正确做法是「生产必须配」—— 配了就校验、
+    没配就启动失败, 而不是悄悄以不安全状态跑起来.
+
+    不拦住的症状: 所有 token 都无 issuer 校验, 而 401/403 行为完全正常 ——
+    没有任何外部迹象表明防护没生效.
+    """
+
+    @pytest.fixture
+    def prod_without_jwt_iss_aud(self, monkeypatch):
+        """production 但未配 JWT_ISSUER / JWT_AUDIENCE."""
+        get_settings.cache_clear()
+        monkeypatch.setenv("ENV", "production")
+        monkeypatch.setenv("SECRET_KEY", "test-secret-key-must-be-at-least-32-bytes-long")
+        monkeypatch.delenv("JWT_ISSUER", raising=False)
+        monkeypatch.delenv("JWT_AUDIENCE", raising=False)
+        yield
+        get_settings.cache_clear()
+
+    def test_production_without_jwt_iss_aud_raises(self, prod_without_jwt_iss_aud):
+        """production + 缺 iss/aud → RuntimeError (fail-fast)."""
+        with pytest.raises(RuntimeError, match="JWT_ISSUER"):
+            get_settings()
+
+    def test_production_with_both_configured_ok(self, prod_settings):
+        """production + 两者都配 → 正常返回, 校验已启用."""
+        settings = get_settings()
+        assert settings.jwt_issuer == "pcs-auth"
+        assert settings.jwt_audience == "pcs-api"
+
+    def test_production_missing_only_audience_raises(self, monkeypatch):
+        """只配 issuer 不够 —— audience 缺也要拦住."""
+        get_settings.cache_clear()
+        monkeypatch.setenv("ENV", "production")
+        monkeypatch.setenv("SECRET_KEY", "test-secret-key-must-be-at-least-32-bytes-long")
+        monkeypatch.setenv("JWT_ISSUER", "pcs-auth")
+        monkeypatch.delenv("JWT_AUDIENCE", raising=False)
+        try:
+            with pytest.raises(RuntimeError, match="JWT_AUDIENCE"):
+                get_settings()
+        finally:
+            get_settings.cache_clear()
+
+    def test_development_without_jwt_iss_aud_ok(self, dev_settings):
+        """dev/mock 友好: 非 production 不强制配置."""
+        settings = get_settings()
+        assert settings.jwt_issuer is None
+        assert settings.jwt_audience is None

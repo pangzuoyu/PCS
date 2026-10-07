@@ -101,6 +101,26 @@ def get_settings() -> Settings:
             RuntimeWarning,
             stacklevel=2,
         )
+    # F-P3-001 收口（2026-10-07 裁决）：production 必须显式配 iss/aud。
+    #
+    # 为什么不补默认值：iss/aud 是 config-driven 对称设计（配了才校验），
+    # 硬编码默认值会破坏该语义。正确做法是「生产必须配」—— 没配就启动失败，
+    # 而不是悄悄以「无 issuer 防护」的状态跑起来。
+    #
+    # 不拦住的症状极隐蔽：所有 token 都不过 issuer 校验，而 401/403 行为
+    # 完全正常，没有任何外部迹象表明防护没生效。
+    if s.is_production:
+        missing = [
+            name
+            for name, value in (("JWT_ISSUER", s.jwt_issuer), ("JWT_AUDIENCE", s.jwt_audience))
+            if not value
+        ]
+        if missing:
+            raise RuntimeError(
+                f"{' / '.join(missing)} 必须在 production 显式配置。"
+                "未配置时 PyJWT 会静默跳过 iss/aud 校验，"
+                "等于生产环境没有 issuer/audience 防护。"
+            )
     return s
 
 
