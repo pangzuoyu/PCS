@@ -3663,6 +3663,94 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deliverables": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 列项目下交付物
+         * @description 列项目下的交付物。
+         *
+         *     报表生成中心要按类型分组（计算书/数据表/委托条件表），
+         *     故提供 `deliverable_type` 过滤。
+         */
+        get: operations["list_deliverables_api_v1_deliverables_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deliverables/{deliverable_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 交付物详情
+         * @description 取单个交付物。
+         */
+        get: operations["get_deliverable_api_v1_deliverables__deliverable_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deliverables/{deliverable_id}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Rev 历史
+         * @description 交付物的 Rev 列表，当前 Rev 在最前。
+         *
+         *     Rev 元信息不含记录绑定明细 —— 那是 snapshot 端点的职责，避免列表响应过大。
+         */
+        get: operations["list_deliverable_versions_api_v1_deliverables__deliverable_id__versions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/deliverables/{deliverable_id}/versions/{rev}/snapshot": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 某 Rev 的快照（含记录绑定明细）
+         * @description 取某 Rev 的完整快照。
+         *
+         *     报表的二维码溯源与「哪些记录在这版被锁定」都从这里取 ——
+         *     `record_snapshot_json` 是记录ID+哈希汇总，`bindings` 是逐条明细。
+         */
+        get: operations["get_deliverable_snapshot_api_v1_deliverables__deliverable_id__versions__rev__snapshot_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/equipment/{equipment_id}/actual-data": {
         parameters: {
             query?: never;
@@ -7104,6 +7192,136 @@ export interface components {
              * @description 出口流 UUID（DEVICE_CALCULATED）
              */
             outlet_stream_id: string;
+        };
+        /**
+         * DeliverableListResponse
+         * @description 项目下的交付物列表。
+         *
+         *     `total` 供前端分页；P8 REPORT 生成页要按 deliverable_type 分组展示。
+         */
+        DeliverableListResponse: {
+            /** Items */
+            items: components["schemas"]["DeliverableResponse"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * DeliverableResponse
+         * @description 交付物列表项 / 详情。
+         *
+         *     只暴露报表与签署流程要用的字段；`record_snapshot_json` 等大 JSONB 不进列表响应，
+         *     走 snapshot 端点按需取（spec §3.2 的 snapshot 端点正是为此存在）。
+         */
+        DeliverableResponse: {
+            /**
+             * Deliverable Id
+             * Format: uuid
+             */
+            deliverable_id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Deliverable Type
+             * @description CALCULATION_BOOK/DRAWING/CHANGE_NOTICE 等
+             */
+            deliverable_type: string;
+            /** Scope Type */
+            scope_type: string;
+            /** Scope Value */
+            scope_value?: string | null;
+            /** Doc No */
+            doc_no: string;
+            /** Doc No Mode */
+            doc_no_mode: string;
+            /** Title */
+            title: string;
+            /**
+             * Current Rev
+             * @description 当前 Rev：A/B/0/1/AS-BUILT/X
+             */
+            current_rev: string;
+            /** Version Purpose */
+            version_purpose: string;
+            /** Sign Status */
+            sign_status: string;
+            /** Matrix Id */
+            matrix_id?: string | null;
+            /** Parent Deliverable Id */
+            parent_deliverable_id?: string | null;
+            /** Customer Approval Date */
+            customer_approval_date?: string | null;
+            /** Customer Approver Name */
+            customer_approver_name?: string | null;
+            /** Created At */
+            created_at?: string | null;
+        };
+        /**
+         * DeliverableSnapshotResponse
+         * @description 某 Rev 的完整快照：Rev 元信息 + 记录绑定明细 + 签署汇总。
+         *
+         *     P8 REPORT 的二维码溯源依赖 `record_hash` 链；`signature_summary_json` 原样
+         *     透传（其结构由签署矩阵定义，本层不解释，避免两层耦合）。
+         */
+        DeliverableSnapshotResponse: {
+            /**
+             * Deliverable Id
+             * Format: uuid
+             */
+            deliverable_id: string;
+            /** Rev */
+            rev: string;
+            /** Version Purpose */
+            version_purpose: string;
+            /** Description */
+            description: string;
+            /** Doc No */
+            doc_no: string;
+            /** Sign Status */
+            sign_status: string;
+            /** Record Snapshot Json */
+            record_snapshot_json?: {
+                [key: string]: unknown;
+            };
+            /** Signature Summary Json */
+            signature_summary_json?: {
+                [key: string]: unknown;
+            };
+            /** Bindings */
+            bindings: components["schemas"]["RecordBindingResponse"][];
+        };
+        /**
+         * DeliverableVersionResponse
+         * @description 单个 Rev 的历史条目（spec §3.2 的 versions 端点）。
+         *
+         *     `record_snapshot_json` 是「记录ID+哈希汇总」，可能很大 —— 故默认不进响应，
+         *     由 snapshot 端点按 rev 取。`pdf_file_path` 同理不进响应（是文件路径不是内容）。
+         */
+        DeliverableVersionResponse: {
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+            /**
+             * Deliverable Id
+             * Format: uuid
+             */
+            deliverable_id: string;
+            /** Rev */
+            rev: string;
+            /** Version Purpose */
+            version_purpose: string;
+            /** Description */
+            description: string;
+            /** Affected Status */
+            affected_status?: string | null;
+            /** Customer Approval Date */
+            customer_approval_date?: string | null;
+            /** Created At */
+            created_at?: string | null;
         };
         /**
          * DeviationReportOut
@@ -12096,6 +12314,26 @@ export interface components {
              * @description 公式溯源标记（API_521_§7.4.2.3+BEDD）
              */
             formula_ref: string;
+        };
+        /**
+         * RecordBindingResponse
+         * @description snapshot 端点里的单条记录绑定明细。
+         *
+         *     报表要回答「这份 Rev 锁定了哪些记录、各自哈希是多少」——
+         *     `old_record_hash_before_change` 用于识别「相对上一版哪些记录实质变了」。
+         */
+        RecordBindingResponse: {
+            /** Record Type */
+            record_type: string;
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /** Record Hash */
+            record_hash: string;
+            /** Old Record Hash Before Change */
+            old_record_hash_before_change?: string | null;
         };
         /**
          * RecordTransitionRequest
@@ -22912,6 +23150,146 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserProjectResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_deliverables_api_v1_deliverables_get: {
+        parameters: {
+            query: {
+                /** @description 项目 UUID */
+                project_id: string;
+                /** @description 按类型过滤，如 CHANGE_NOTICE；不传则含全部 */
+                deliverable_type?: string | null;
+                /** @description 按签署状态过滤 */
+                sign_status?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_deliverable_api_v1_deliverables__deliverable_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                deliverable_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_deliverable_versions_api_v1_deliverables__deliverable_id__versions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                deliverable_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableVersionResponse"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_deliverable_snapshot_api_v1_deliverables__deliverable_id__versions__rev__snapshot_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                deliverable_id: string;
+                rev: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableSnapshotResponse"];
                 };
             };
             /** @description Validation Error */
