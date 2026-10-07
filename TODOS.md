@@ -553,17 +553,24 @@ access/refresh token」，并把 token_version 列为该条的实现手段。
 
 | op | 条数 | 分布 |
 |---|---|---|
-| `remove_constraint` | 39 | DB 有唯一约束、ORM 未声明。集中在 `utility_energy_summary`(8) / `utility_heat_exchange`(6) / `utility_fuel_gas`(5) / `util_results`(4) / `utility_power_items`(4) + 12 张表各 1 |
+| `remove_constraint` | 39 | **28 条 CheckConstraint + 11 条 UniqueConstraint**，均为 DB 有、ORM 未声明。Check 集中在 `utility_energy_summary`(8) / `utility_heat_exchange`(6) / `utility_fuel_gas`(5) / `util_results`(4) / `utility_power_items`(4)；Unique 分布在 `column_sizing` / `compound_*` / `cooling_tower_results` / `drain_orifice_Cd_Y_cr` / `flare_system_results` / `glycol_dehydration_full_system` / `mixer_results` / `pipe_e_modulus` / `psychro_results` / `user_projects` / `project_calculation_standard_profiles` |
 | `add_constraint` | 1 | `uq_compound_api521_thresholds_threshold_type` —— ORM 声明了唯一约束，DB 没有 |
 | `add_fk` + `remove_fk` | 2 | 同名 `fk_utility_energy_summary_workspace_id_workspaces`：**DB=CASCADE，ORM=RESTRICT**，两侧都声明且不一致 |
 | `add_fk` | 1 | `fk_projects_workspace_id`（`use_alter=True` 延迟外键，通常是后续迁移才建的） |
 
-- **`utility_*` 那 27 条值得优先看**：这些表是 P7 Sprint 5 期间新建的，
-  唯一约束在建表迁移里写了、ORM 侧没同步声明 —— 与 bug-144 同类（**迁移对、ORM 漏**），
-  但方向相反：这次是 DB 多了约束，功能上更安全，纯粹是 ORM 声明缺失。
+- **`utility_*` 那 23 条 CHECK 值得优先看**：这些表是 P7 Sprint 5 期间新建的，
+  CHECK 约束在建表迁移里写了、ORM 侧没同步声明 —— 与 bug-144 同类（**迁移对、ORM 漏**），
+  但方向相反：DB 多了约束，**功能上更安全**，纯粹是 ORM 声明缺失。
+  ⚠️ 补 ORM 声明前要逐条核对 CHECK 表达式与 DB 是否一致（autogenerate 只比名字，
+  `ck_util_results_*` 这类同名不同义的情况它抓不到）。
+- **`user_projects` 的 `uq_user_projects_user_project (user_id, project_id)`** 值得单独说：
+  DB 有、ORM 无。`UserProjectService.grant_project_access` 用
+  `scalar_one_or_none()` 依赖唯一性，DB 保证了它，但 ORM 侧无声明 → 换库/建表
+  （单测的 SQLite `create_all`）就**没有**这唯一约束，单测里若有重复行测试会漏过。
 - **Owner**：待认领。`utility_*` 那批可一次性补 ORM `__table_args__`（零迁移成本）；
   `ondelete` 那条必须先裁决 CASCADE / RESTRICT 哪个对（涉及删除项目时是否连带删
   能耗汇总记录，是业务语义问题）。
+- **`alembic check` 检出漂移时退出码是 255**，不是 1。做闸门判断别按 `== 1` 写。
 
 ## ⚪ 本轮新发现的既有阻塞（非本轮引入，也非 P9 之外）
 
