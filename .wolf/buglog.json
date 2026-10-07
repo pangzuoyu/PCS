@@ -29,12 +29,14 @@
         "wrong-value",
         "py"
       ],
-      "related_bugs": [],
+      "related_bugs": [
+        "bug-039"
+      ],
       "occurrences": 1,
       "last_seen": "2026-08-31T12:52:34.861Z"
     },
     {
-      "id": "bug-002",
+      "id": "bug-039",
       "timestamp": "2026-09-16T16:45:00Z",
       "error_message": "alembic.ProgrammingError: column tag_number of relation column_sizing already exists",
       "file": "pcs-backend/alembic/versions/p5_0_4a_pk_rename_and_tag_number.py",
@@ -47,7 +49,12 @@
         "column_sizing"
       ],
       "occurrences": 1,
-      "last_seen": "2026-09-16T16:45:00Z"
+      "last_seen": "2026-09-16T16:45:00Z",
+      "related_bugs": [
+        "bug-002"
+      ],
+      "id_reassigned_from": "bug-002",
+      "id_reassigned_reason": "2026-10-07 去重：历史登记时两个无关 bug 共用同一 id。原条目 fix_commit 为空（无反查链可断），按「早的保留原号」原则补空洞号。"
     },
     {
       "id": "bug-003",
@@ -512,12 +519,14 @@
         "operator-fix",
         "py"
       ],
-      "related_bugs": [],
+      "related_bugs": [
+        "bug-072"
+      ],
       "occurrences": 1,
       "last_seen": "2026-09-01T08:18:10.245Z"
     },
     {
-      "id": "bug-031",
+      "id": "bug-072",
       "timestamp": "2026-09-01T13:01:09Z",
       "error_message": "alembic upgrade head failed with NameError: name Enum is not defined",
       "root_cause": "added native enum columns in equipment.py without importing Enum from sqlalchemy",
@@ -527,7 +536,12 @@
         "enum",
         "sprint3",
         "import"
-      ]
+      ],
+      "related_bugs": [
+        "bug-031"
+      ],
+      "id_reassigned_from": "bug-031",
+      "id_reassigned_reason": "2026-10-07 去重：历史登记时两个无关 bug 共用同一 id。原条目 fix_commit 为空（无反查链可断），按「早的保留原号」原则补空洞号。"
     },
     {
       "id": "bug-032",
@@ -2520,6 +2534,26 @@
       "related_bugs": [],
       "occurrences": 1,
       "last_seen": "2026-10-06T15:10:00+08:00"
+    },
+    {
+      "id": "bug-142",
+      "timestamp": "2026-10-07T00:00:00+08:00",
+      "error_message": "幂等闸门 scripts/check_migration_idempotency.py 长期报 OK，白名单内 p7_s3_005 的 2 处 op.drop_table 实为无 guard",
+      "file": "pcs-backend/scripts/check_migration_idempotency.py",
+      "root_cause": "**闸门用「行内子串 + 上下 8 行上下文窗口」判定 guard 是否存在，而非解析调用结构。**\n\np7_s3_005_gas_media_and_low_temp_heat.py 的 downgrade() docstring 写着\n「删两张子表 (if_exists 幂等)」，这行落在上下两行 op.drop_table 的检查窗口内，\n窗口里搜到 `if_exists` 子串即判为「已加 guard」—— 而那两行 op.drop_table 实际\n一个 guard 都没有。该文件在 checked_prefixes 里（p7_s3_），闸门本该看到却报 OK。\n\n同源的第二个错误：SAFE_OPS 把 op.create_unique_constraint 映射为需要\nif_not_exists。实测 alembic 1.19.1 的 Operations.create_unique_constraint\n签名无该形参（只有 **kw），PG 也不支持 ADD CONSTRAINT IF NOT EXISTS；\n传进去不抛 TypeError 但被静默吞掉，不产生任何 if-not-exists 语义 ——\n「看着加了 guard 其实没加」比不加更危险。",
+      "fix": "check_migration() 改用 ast.walk：只认 op.<attr> 的 Call 节点，检查其 keywords 里\n是否真在该 guard，而不是在源码文本里搜子串。同时把\nop.create_unique_constraint / op.create_check_constraint 移出 SAFE_OPS\n（约束类在 alembic 与 PG 上都无法幂等化），并在模块 docstring 写明原因，\n避免下一个人再把 if_not_exists 加上去。\n\n顺带补上闸门因此发现的 p7_s3_005 那 2 处 drop_table，并把检查范围从\n4 个前缀白名单收敛为全部 28 个 p7_* 迁移。\n\n回归验证用注入式：删掉 p7_s5_004 的一个 if_not_exists，闸门如期 FAIL(1)，\n还原后 OK(0) —— 证明闸门确实在判结构而非恒绿。",
+      "fix_commit": "eb528ba",
+      "tags": [
+        "p7-sprint5",
+        "alembic",
+        "idempotency",
+        "guard",
+        "false-green",
+        "tooling"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-07T00:00:00+08:00",
+      "related_bugs": []
     }
   ]
 }
