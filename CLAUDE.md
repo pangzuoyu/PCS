@@ -4,6 +4,14 @@ This project uses OpenWolf for context management. The always-on rules live in `
 
 For the full operating protocol (session handoff, memory discipline, bug logging), load the `openwolf` skill, or read `.wolf/OPENWOLF.md`. Regenerate the session handoff with `/handoff`.
 
+# 知识库
+
+- `docs/solutions/` — 已记录的问题解法（缺陷、最佳实践、工作流模式），按 `problem_type`
+  分目录，带 YAML frontmatter（`module` / `tags` / `problem_type` / `severity`）。
+  在已记录领域做实现或排障时相关；新增解法后回写一份，别只留在提交信息里。
+- `CONCEPTS.md` — 共享领域词汇（实体、具名流程、状态概念）。熟悉代码库或讨论领域概念时的
+  起点。它是词汇表，不是规格书。
+
 # 测试前检查
 
 - **单元测试（pytest）**：免前置。`tests/conftest.py` 用 `sqlite+aiosqlite:///:memory:`
