@@ -20,7 +20,12 @@ on:
 
 jobs:
   api-drift:
-    runs-on: ubuntu-latest
+    # 2026-10-08：显式钉住 24.04，不再用 ubuntu-latest。
+    # GitHub 公告 ubuntu-latest 将于 2026-10-19 切到 Ubuntu 26 —— 本 workflow
+    # 要对真 Postgres 跑 alembic upgrade head 并比对 OpenAPI 快照，runner
+    # 无预告换大版本等于让迁移在未验证的 OS 上跑。钉住则变化由我们主动发起。
+    # 维护：24.04 退役前改这里，届时跑一次全绿即可。
+    runs-on: ubuntu-24.04
     services:
       postgres:
         image: postgres:18

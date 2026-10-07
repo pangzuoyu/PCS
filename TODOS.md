@@ -294,14 +294,29 @@ exit 1）。P9A 收口时基线应**仍为 71**，不是下调到 0 —— 71 �
 - **修法**: 把闸门流程写进**项目根** `CLAUDE.md`（可入库、可 review），全局只留指针。
 - **Owner**: 待认领
 
-### TODO-028: 10 张计算表主键 rename（命名债，DICT 为准）
+### ✅ DONE —— 10 张计算表主键 rename（2026-10-08 核实关闭）
 
-- **What**: `vessel_id→vessel_calc_id` / `heat_exchanger_id→heat_calc_id` / `cv_id→cv_calc_id` / `net_id→network_id` /
-  `restriction_id→orifice_calc_id` / `ct_id→ct_calc_id` / `psychro_id→psychro_calc_id` / `sep_equip_id→sep_calc_id` /
-  `filter_id→filter_calc_id` / `channel_id→channel_calc_id`。
-- **证据**: `grep -rn "vessel_calc_id|heat_calc_id|orifice_calc_id|psychro_calc_id" app/models/` **仅 2 处命中** —— 基本未做。
-- **Why**: ORM↔DICT 命名统一，后续审计/比对免歧义。**纯命名债，不影响功能**，但每张表都要配迁移，越晚做越贵。
-- **Owner**: 待认领
+**原记录把方向记反了，而且这项工作早已完成。**
+
+- **原 What**：`vessel_id→vessel_calc_id` / `cv_id→cv_calc_id` 等 10 条 rename。
+- **权威方向是反的**：`docs/PCS-PLAN-P5-DEVICE-EQUIPMENT.md:106` 明写
+  ——「10 表主键 rename（**`vessel_calc_id→vessel_id` / `heat_calc_id→heat_exchanger_id`
+  等 DICT V3.3 §4.1**：移除 `_calc` 后缀……**V1.3 plan 文本写反了方向**，2026-09-16 修订）」。
+  `docs/adr/0027-heat-results-dual-track.md:82` 记同一句。**是去掉 `_calc` 后缀，不是加上。**
+- **实际主键（2026-10-08 从 ORM 读出）**：`vessel_id` / `heat_exchanger_id` / `cv_id` /
+  `network_id` / `orifice_id` / `cooling_tower_id` / `psychro_id` / `sep_equip_id` /
+  `filter_id` / `open_channel_id` —— 全是短名，**已符合 DICT V3.3 §4.1**。
+- **完成度核实**：全库 102 张表 / 105 个主键列，**`*_calc_id` 残留 0 个**；
+  `uv run alembic check` exit 0，证明 DB 侧同样是短名（ORM 与 DB 一致）。
+
+**原记录的证据为什么误导**：「`grep -rn "vessel_calc_id|..." app/models/` 仅 2 处命中
+—— 基本未做」。那 2 处命中的是**规划文档里的旧方向描述**，不是 ORM 声明。
+因为方向记反，grep 找的是「应该被移除的名字」，找到 0 个 ORM 声明就被读成
+「没做」，实际含义是「已经做完了」。
+
+⚠️ 原记录里 4 个「旧名」与实际不符：`net_id`（实际已叫 `network_id`，即目标名）、
+`restriction_id`（实际 `orifice_id`）、`ct_id`（实际 `cooling_tower_id`）、
+`channel_id`（实际 `open_channel_id`）。若照原文执行会改错列。
 
 ### TODO-014: 设备联动「设备同步中」前端标记（🟡 PARTIAL）
 
