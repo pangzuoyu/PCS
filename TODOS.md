@@ -582,3 +582,28 @@ access/refresh token」，并把 token_version 列为该条的实现手段。
 
 即 **BLOCKER-3 的 IDOR 守卫在有真实数据之前无法端到端验证**。
 这不是本轮能解决的，但**排 P7 收尾 / P9 联调时必须知道**。
+
+## 🟡 开发库 Postgres 版本与项目声明的容器不一致（2026-10-07 grounding 校验时查出）
+
+- `docker-compose.yml:3` 声明 `image: postgres:16-alpine`
+- 实测开发库 `show server_version` = **18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)**
+
+即**开发库不是由本仓库的 compose 起的**，而是系统/发行版安装的 PostgreSQL 18.6。
+（`Ubuntu ...0ubuntu0.26.04.1` 的版本串也印证了它是发行版包。）
+
+**影响**：
+1. 一切「在开发库验过」的结论都建立在 **PG 18.6** 上，而项目声明的目标环境是 16。
+   两者行为差异（约束、索引、`REFERENCES` 解析、DDL 细节）目前**未被任何检查覆盖**。
+2. `bug-143`/`bug-144` 的修复已在 18.6 上验过，但 16 上未验。
+   ⚠️ 特别地，本会话踩到的 `REFERENCES users.user_id` → `InvalidSchemaName` 这个坑，
+   **尚未在 16 上复现验证** —— 若 16 上不存在该限制，`op.create_foreign_key` 依然安全
+   （它生成的是函数式引用），故修复本身不因此失效，但「该写法在 16 上会失败」这个说法
+   不能跨版本套用。
+3. CI（`check-api-drift.yml`）跑的是哪一个版本也需确认 —— 若 CI 用 16、
+   本地用 18.6，则 CI 绿 ≠ 本地行为一致。
+
+**建议**：确认开发库的来源与期望。若期望就是 compose 的 16，需要一次
+「compose 起库 → `alembic upgrade head` → 跑 test_schema.py」的回归；
+若 18.6 是有意选择，则把 `docker-compose.yml` 的版本对齐，并更新本文档。
+
+- **Owner**：待认领
