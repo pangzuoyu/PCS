@@ -20,7 +20,13 @@
 - ORM `__table_args__` 必须含 `CheckConstraint` 同步 DB 约束（跨 dialect 不丢）。
 - Pydantic schema 字段重复（Create+Update）→ Edit fail "Found 2 matches"，先 `grep -n` 再附上下文 unique。
 - **单测不读迁移，别把 `alembic upgrade head` 当测试前置**（2026-10-06 实测证伪）：`conftest.db_engine` 建 `sqlite+aiosqlite:///:memory:` 并用 `SA_Base.metadata.create_all` 从 ORM 建表，`.env` 指向 `pcs`、无 `pcs_test`、无 `.env.test`。CLAUDE.md「测试前检查」原「先对 pcs_test 跑 upgrade head」一条已于同日改写为三段式。
-- **⚠️ 漂移盲区：缺表会红（可见），漂移会绿（不可见）**。迁移改 schema 而 ORM 未跟随时单测全绿、真库炸，无自动化能抓（见 Key Learnings `bug-137`）。改 `alembic/versions/*` 后必跑 `uv run alembic check` 并手动核对 ORM 列。**该守门有三个会让人误判的读法，见 CLAUDE.md「测试前检查」**：① DB revision 落后 code head 时它直接拒跑，那是检查失败不是通过；② 退出码 **255** 不是 1（`check_migration_idempotency.py` 才用 1）；③ 当前有 43 条已裁决残留，"无输出"不等于一致。
+- **⚠️ 漂移盲区：缺表会红（可见），漂移会绿（不可见）**。迁移改 schema 而 ORM 未跟随时单测全绿、真库炸，无自动化能抓（见 Key Learnings `bug-137`）。改 `alembic/versions/*` 后必跑 `uv run alembic check` 并手动核对 ORM 列。**该守门有三个会让人误判的读法，见 CLAUDE.md「测试前检查」**：① DB revision 落后 code head 时它直接拒跑，那是检查失败不是通过；② 退出码 **255** 不是 1（`check_migration_idempotency.py` 才用 1）；③ **2026-10-07 起 exit 0 是真实状态**（43 条已全清），所以 exit 255 一律是真缺陷，不必再对「已裁决残留」做豁免。
+- **`alembic check` 的 `remove_constraint` 字面意思与正确处置恰好相反**（bug-147，43 条里 39 条）。它读作「DB 多余、ORM 要删」，实测那 39 条全是「**DB 有安全网、ORM 漏声明**」—— 照字面删会把 DB 保护删掉。补 ORM `__table_args__` 即可，零迁移成本。
+- **alembic 按**名字**匹配 CHECK 约束，不比对表达式**（bug-147 实测）。ORM 侧可以写可读表达式，不必抄 PG 的 cast 语法 —— 这解锁了全部 28 条 CHECK 的补齐。
+- **ORM 里写 `ForeignKey(..., use_alter=True)` 不会自己生成迁移**（bug-146）。`use_alter` 的语义是「由一条 `ALTER TABLE ADD CONSTRAINT` 迁移单独创建」。写了这行就必须有人补那条迁移，否则 DB 上压根没这个约束 —— `projects` 曾整表零外键。
+- **⚠️ 断言内存对象的假 DB 测试，结构上观察不到 DB 层约束**（bug-145，2026-10-07 用户纠正）。`_FakeSession` / `_FakeDeliverable` + `assert db.added` 只证明对象被构造出来，**NOT NULL / FK / CHECK 一个都测不到**。写「这个 service 能落库」的测试必须打真 session（内存 SQLite 也行）—— 那 5 个测试把 `create_change_notice` 写死 `matrix_id=None` 的 NOT NULL 违例全放过了。
+- **判某个服务/组件「有没有测试」不要用顶层 `ls tests/`** —— 子目录（`tests/services/`、`tests/models/`）里可能有。bug-145 原记录就因为这个把「有 5 个测试」误记成「无任何测试」。
+
 - **手写 `op.create_table` 必查两件事**（bug-143/144，均为**静默**失败）：
   ① **mixin 继承的列有没有漏** —— `UserProject(TimestampMixin, Base)` 的 `created_by` 等三列
   在类体里一个都看不到，按类体抄写必然漏（那次漏 `created_by`，真库 INSERT 报 `UndefinedColumn`）；

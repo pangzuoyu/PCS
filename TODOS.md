@@ -709,3 +709,58 @@ ix_drain_orifice_Cd_Y_cr_fluid  UNIQUE INDEX (fluid)   ← 重复，白占写入
 但只有这一处在漂移（其余 5 处 DB 也是 RESTRICT）—— 改的时候不能 `replace_all`。
 
 **效果**：`alembic check` 从 43 降到 **41**（`add_fk` + `remove_fk` 两项同时消失）。
+
+---
+
+## 🔴 P9A 前置：`create_change_notice` 不可用（2026-10-07 复核 bug-145）
+
+**归属已由 SPEC 确认，不是我推断** —— `P9 SPEC V1.3` 任务表：
+
+| 任务 | 内容 | 现状 |
+|---|---|---|
+| `P9A-DLV-007` | **SignatureMatrixService**：`steps_json` 消费方，矩阵步骤推进、角色判定、动态列数 | SUP-005，**未落地** |
+
+P9 SPEC 的 R1 备注也印证了现状：「V1.3 假设『后端已由 P1 交付』，
+**实测 Deliverable/SignatureMatrix 无 service、无 API、无路由**」。
+（该备注现已部分过期 —— `deliverable_service.py` 补了 Deliverable 读面，
+SignatureMatrix 仍空。）
+
+### 事实
+
+- `Deliverable.matrix_id` 是 **NOT NULL + FK**（真库 `is_nullable=NO` 确认），
+  而 `create_change_notice` 写死 `matrix_id=None` → 真库上必 500。
+- `signature_matrices` 真库 **0 行**；全仓无任何 service / API / seed 创建矩阵。
+- `ChangeNoticeService` **无任何 API 路由调用** —— 是**未接线的死路径**，
+  不是线上 500。严重性比 bug-145 原记录低。
+
+### 本次已做（2026-10-07）
+
+不是修功能（功能归 P9A-DLV-007），是**把哑雷变成显式路障**：
+
+- `create_change_notice` 开头 `raise NotImplementedError`，消息指明堵点
+  （矩阵 NOT NULL + `P9A-DLV-007`）。下方实现原样保留标注为 P9A 参照。
+- 5 个 happy-path 测试改为断言「拒绝」，并加两条关键断言：
+  **拒绝前 `db.added` 为空、`db.commits == 0`**；**不产生 CHANGE_NOTICE_CREATED 审计**。
+- 原 422 / 404 校验经 stub 已不可达 → 改为直接测 `_check_record_charged`，
+  让 P9A 继承这份覆盖。
+- 清掉两处**悬空的 `SIM-39` 引用**（矩阵、doc_no）。该编号在仓库里被复用了
+  **至少 4 次**（不可靠流守卫 / 记录弃用 / 状态机审计 / 这两处），
+  指着一个已关闭且不同范围的任务。
+
+### P9A 落地时要一起做的三件小事
+
+1. 解析 `CHANGE_NOTICE_3_LEVEL` 矩阵写入 `matrix_id`（SPEC 增补 §P2
+   要求模板库含此矩阵；`PCS-DICT-005` 已给出 `steps_json` 的 seed 形态）。
+2. `doc_no` 接编号模板（现为 `CN-{record_id 前 8 位}` 的简化写法）。
+3. 把 `test_create_change_notice_writes_no_audit` 改回「写了」，
+   断言 `CHANGE_NOTICE_CREATED` / `resource_type=DELIVERABLE`。
+
+### 选型记录
+
+**为什么显式拒绝，而不是把 `matrix_id` 放宽为可空**：SPEC 的设计意图是
+「没有矩阵就无法签署」，放宽等于把设计约束降级成软约束；且 P9A 反正要落这个
+消费方，放宽的收益是零。
+
+**为什么原记录说「无任何测试」是错的**：判「有没有测试」不能只 `ls tests/` 顶层，
+`tests/services/` 子目录里有 5 个。真正的坑更深 —— 那些测试用假 DB，
+结构上观察不到 DB 层约束。已写进 `.wolf/cerebrum.md` Do-Not-Repeat。
