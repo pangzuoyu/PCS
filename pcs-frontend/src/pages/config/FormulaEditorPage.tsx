@@ -100,7 +100,11 @@ function getSourceKind(src: string): PreconditionSource {
 }
 
 /** 把 expression 转 LaTeX 风格展示（V1 极简：变量→斜体，常量→正体）。 */
-function toLatex(expression: string): string {
+function toLatex(expression: string | undefined): string {
+  // `expression` 来自外部数据，缺失时不该让整页落进 ErrorBoundary ——
+  // 空表达式渲染成空串即可。历史 bug：`routeWrappers.tsx` 传 `{} as FormulaEditor`，
+  // `as` 骗过 TS 但运行时是 undefined，`.replace` 直接抛，页面整块打不开。
+  if (!expression) return '';
   return expression
     .replace(/\*/g, ' \\cdot ')
     .replace(/sqrt\(([^)]+)\)/g, '\\sqrt{$1}')

@@ -905,3 +905,11 @@ SignatureMatrix 仍空。）
 **为什么原记录说「无任何测试」是错的**：判「有没有测试」不能只 `ls tests/` 顶层，
 `tests/services/` 子目录里有 5 个。真正的坑更深 —— 那些测试用假 DB，
 结构上观察不到 DB 层约束。已写进 `.wolf/cerebrum.md` Do-Not-Repeat。
+
+## 🟡 antd Table `rowKey` 回调的 `index` 参数已弃用（2026-10-08 QA 巡检发现）
+
+控制台：`[antd: Table] 'index' parameter of 'rowKey' function is deprecated.`
+
+antd v6 会移除 `rowKey(value, index)` 的第二个参数。当前写法依赖 index 做行 key
+的，升级后会静默错乱 —— 属「现在不影响功能、升级才炸」的一类。
+**Owner：待认领。** 修法：改成只取 `value` 上的稳定唯一字段。

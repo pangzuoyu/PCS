@@ -2711,6 +2711,31 @@
         "bug-145",
         "bug-147"
       ]
+    },
+    {
+      "id": "bug-150",
+      "timestamp": "2026-10-08T00:00:00+08:00",
+      "error_message": "TypeError: Cannot read properties of undefined (reading 'replace') —— React Router default ErrorBoundary，<FormulaEditorPage> 整块崩",
+      "file": "pcs-frontend/src/pages/routeWrappers.tsx",
+      "root_cause": "`routeWrappers.tsx:103` 写的是 `const stub = {} as Parameters<typeof FormulaEditorPage>[0]['formula']`。\n\n**`as` 强转骗过了 TypeScript 编译** —— `expression` 在类型层被当作 `string`，运行时却是 `undefined`，`FormulaEditorPage.toLatex()` 的 `.replace` 直接抛。每次访问 `/config/formula-editor` 都崩。\n\n**为什么全绿**：tsc 通过（类型是真的，as 说的）、eslint 通过、569 个 vitest 通过 ——\n**三者都不渲染这个路由组件**。没有任何测试覆盖 `FormulaEditorRoute` 的渲染路径。\n\n**发现路径**：2026-10-08 Per-Batch QA Gate 浏览器巡检。本批改动**完全没碰前端源码**，\n这个崩溃与本批无关，是巡检顺手抓到的既有缺陷 —— 闸的价值恰在这里。\n\n**同族失效模式**（第四次了）：bug-143（测试库由 ORM metadata 建，看不见迁移漂移）、\nbug-145（假 DB 测试，结构上观察不到 DB 层约束）、bug-149（行为测试看不见契约层）、\nbug-150（三个静态检查都不渲染该组件）。**测的东西与坏的东西不在同一层。**",
+      "fix": "两处都改，缺一不可：\n\n1. `FormulaEditorPage.toLatex` 签名改 `string | undefined`，空值返回 `''` —— 防御来自外部的数据。\n2. `routeWrappers` 的 stub 改为**形状完整的空对象**（8 个字段显式赋值），不再用 `as` 强转。**`as` 断言在这里是类型谎言，是这个 bug 的直接成因** —— 只做第 1 条是把症状按住，谎言还在。\n\n验证：该路由正常渲染、控制台无 error、错误边界文案 0 命中；\n全路由带错误边界判据重巡 32/33 通过；typecheck / lint / 569 tests 仍全绿。",
+      "fix_commit": "",
+      "tags": [
+        "frontend",
+        "react",
+        "typescript",
+        "as-cast",
+        "qa-gate",
+        "error-boundary",
+        "test-coverage-gap"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-08T00:00:00+08:00",
+      "related_bugs": [
+        "bug-143",
+        "bug-145",
+        "bug-149"
+      ]
     }
   ]
 }

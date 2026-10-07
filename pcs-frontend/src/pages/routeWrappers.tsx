@@ -53,7 +53,7 @@ import { SaturationWaterContentPage } from './psychro/SaturationWaterContentPage
 import { ApprovalPanelPage } from './config/ApprovalPanelPage';
 import { AssetListPage } from './config/AssetListPage';
 import { CoefficientTableEditorPage } from './config/CoefficientTableEditorPage';
-import { FormulaEditorPage } from './config/FormulaEditorPage';
+import { FormulaEditor, FormulaEditorPage } from './config/FormulaEditorPage';
 import { TemplateFilePage } from './config/TemplateFilePage';
 import { FlashComputePage } from './flash/FlashComputePage';
 import { PipeComputePage } from './pipe/PipeComputePage';
@@ -100,8 +100,20 @@ export function CoefficientEditorRoute(): JSX.Element {
   return <CoefficientTableEditorPage rows={[]} />;
 }
 export function FormulaEditorRoute(): JSX.Element {
-  const stub = {} as Parameters<typeof FormulaEditorPage>[0]['formula'];
-  return <FormulaEditorPage formula={stub} />;
+  // 曾经写 `const stub = {} as FormulaEditor` —— `as` 骗过 TS 编译，但运行时
+  // expression 是 undefined，页面渲染时 `.replace` 抛错，整块落进 ErrorBoundary。
+  // 这里给一个**形状完整**的空公式：类型诚实，页面也能正常渲染出待填状态。
+  const empty: FormulaEditor = {
+    formula_id: '',
+    name: '',
+    module: '',
+    expression: '',
+    params: [],
+    preconditions: [],
+    standard_source: '',
+    test_cases: [],
+  };
+  return <FormulaEditorPage formula={empty} />;
 }
 export function TemplateFileRoute(): JSX.Element {
   return <TemplateFilePage templates={[]} />;
