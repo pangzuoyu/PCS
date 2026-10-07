@@ -297,6 +297,16 @@ it rather than adding new findings.
 - `CLAUDE.md` (repo root) — the standing 「漂移盲区」 rule this doc supplies the concrete
   failure modes for; also `.wolf/cerebrum.md` under Do-Not-Repeat
 
-Two related mechanisms that also failed to catch this, worth knowing: static review with a
-dedicated data-migration stage (`docs/ce-code-review/`, three runs) returned zero hits on
-these two defects.
+Two related mechanisms that also failed to catch this. Static review with a dedicated
+data-migration stage ran three times over this work (`docs/ce-code-review/`) and did not
+flag either defect. Notably, those same diffs show **other** migrations using the correct
+nested form —
+
+```python
+sa.Column("project_id", UUID(as_uuid=True), sa.ForeignKey("projects.project_id"), nullable=False),
+sa.Column("created_by", UUID(as_uuid=True), nullable=True),
+```
+
+— so the omission on `user_projects` is an outlier rather than the house style. That is
+the reassuring half of the finding; the unsettling half is that a review pass can read
+straight past a construct it has seen correctly written dozens of times.
