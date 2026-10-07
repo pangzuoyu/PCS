@@ -38,9 +38,14 @@ For the full operating protocol (session handoff, memory discipline, bug logging
      **守门没报，是因为它根本没跑。**
   2. **退出码是 255，不是 1**。按 `== 1` 写的封装会把真实检出当通过。
      （`scripts/check_migration_idempotency.py` 才用 1 —— 两个工具别混。）
-  3. **"无输出"不等于"一致"**。当前有 **43 条已裁决的残留**（39 `remove_constraint`
-     + 1 `add_constraint` + 3 FK，明细见 `TODOS.md`），exit 255 是预期状态。
-     真正算缺陷的是**新出现、尚未裁决**的项。
+  3. **"无输出"不等于"一致"**。反过来也一样：`remove_constraint` 的字面意思
+     （「DB 多余、ORM 要删」）与正确处置**恰好相反** —— 实测那 39 条全是
+     「DB 有安全网、ORM 漏声明」，照字面删会把 DB 保护删掉。
+     **`exit 0` 现在是真实状态**（2026-10-07 起 43 条全清），所以 exit 255
+     一律是真缺陷，不需要再对「已裁决残留」做豁免。
+     ⚠️ ORM 里写 `ForeignKey(..., use_alter=True)` **不会自己生成迁移** ——
+     那条延迟迁移得有人手写，否则 DB 上压根没这个约束（`projects` 曾整表零外键，
+     bug-146）。
 
 # 前端 UI 规范
 

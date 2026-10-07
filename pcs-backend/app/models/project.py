@@ -176,6 +176,10 @@ class UserProject(TimestampMixin, Base):
         Index("ix_user_projects_user", "user_id"),
         Index("ix_user_projects_project", "project_id"),
         Index("ix_user_projects_active", "user_id", "project_id", "revoked_at"),
+        UniqueConstraint(
+            "user_id", "project_id",
+            name="uq_user_projects_user_project",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(

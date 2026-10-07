@@ -61,6 +61,31 @@ def _visit_create_column(self, *args, **kwargs):  # noqa: ANN001, ANN202
 SQLiteDDLCompiler.visit_create_column = _visit_create_column  # type: ignore[attr-defined]
 
 
+# CHECK 里的 PostgreSQL 专有 `interval 'N second'` 是**类型字面量**而非函数调用，
+# SQLite 的分词器在 CREATE TABLE 阶段就报 syntax error —— 注册 UDF 也救不了
+# （函数解析发生在建表之前）。按**约束名**逐条给出 SQLite 等价式。
+#
+# 两侧都套 julianday 是必需的：SQLite 里 DATETIME 存成 TEXT，
+# 而 julianday() 返回 REAL，而 SQLite 排序规则把**所有数值排在所有文本之前**，
+# 于是 `TEXT <= REAL` 恒为假 —— 只包右侧会让约束把每一行都拒掉。
+_SQLITE_CHECK_OVERRIDES = {
+    "future_dated_forbidden_chk": (
+        "julianday(effective_from) <= julianday(created_at) + 1.0/86400"
+    ),
+}
+_orig_visit_check_constraint = SQLiteDDLCompiler.visit_check_constraint
+
+
+def _visit_check_constraint(self, constraint, **kw):  # noqa: ANN001, ANN201
+    override = _SQLITE_CHECK_OVERRIDES.get(constraint.name)
+    if override is None:
+        return _orig_visit_check_constraint(self, constraint, **kw)
+    return f"CONSTRAINT {constraint.name} CHECK ({override})"
+
+
+SQLiteDDLCompiler.visit_check_constraint = _visit_check_constraint  # type: ignore[attr-defined]
+
+
 def _visit_text_nolen(self, type_, **kw):  # noqa: ANN001, ANN201
     return "TEXT"
 

@@ -1295,3 +1295,74 @@
 | 00:36 | Edited pcs-backend/app/core/config.py | modified assert_secret_key_configured() | ~381 |
 | 08:04 | Created pcs-backend/alembic/versions/p7_s5_004_config_assets_category_guard.py | — | ~449 |
 | 08:28 | Created pcs-backend/app/services/equip_lib_similarity.py | — | ~1485 |
+| 08:50 | Created docs/PCS-NOTE-UI-SPEC-7.16-设备库检索延后-2026-10-07.md | — | ~630 |
+| 09:04 | Created pcs-backend/alembic/versions/p7_s5_005_nullable_align.py | — | ~1094 |
+| 09:14 | Edited pcs-backend/scripts/check_migration_idempotency.py | inline fix | ~22 |
+| 09:15 | Edited pcs-backend/scripts/check_migration_idempotency.py | expanded (+7 lines) | ~42 |
+| 09:15 | Edited pcs-backend/scripts/check_migration_idempotency.py | 2→3 lines | ~11 |
+| 09:18 | Edited pcs-backend/alembic/versions/p7_s3_005_gas_media_and_low_temp_heat.py | 2→2 lines | ~32 |
+| 09:18 | Edited pcs-backend/scripts/check_migration_idempotency.py | added error handling | ~360 |
+| 09:20 | Edited pcs-backend/scripts/check_migration_idempotency.py | expanded (+8 lines) | ~340 |
+| 09:20 | Edited pcs-backend/scripts/check_migration_idempotency.py | 7→4 lines | ~60 |
+| 09:20 | Edited TODOS.md | 26→23 lines | ~335 |
+| 09:25 | Created pcs-backend/alembic/versions/p7_s5_006_user_projects_created_by.py | — | ~602 |
+| 09:28 | Edited TODOS.md | expanded (+11 lines) | ~338 |
+| 10:56 | Created pcs-backend/alembic/versions/p7_s5_007_user_projects_fks.py | — | ~964 |
+| 10:56 | Edited pcs-backend/alembic/versions/p7_s5_007_user_projects_fks.py | 4→6 lines | ~110 |
+| 11:01 | Edited pcs-backend/alembic/versions/p7_s5_007_user_projects_fks.py | modified upgrade() | ~390 |
+| 11:01 | Edited pcs-backend/alembic/versions/p7_s5_007_user_projects_fks.py | modified downgrade() | ~49 |
+| 11:02 | Edited pcs-backend/alembic/env.py | modified _include_object() | ~480 |
+| 11:04 | Edited pcs-backend/alembic/env.py | added error handling | ~310 |
+| 11:05 | Edited pcs-backend/alembic/env.py | modified except() | ~58 |
+| 11:18 | Created docs/solutions/database-issues/alembic-create-table-silently-drops-schema-elements.md | — | ~3778 |
+| 11:19 | Edited docs/solutions/database-issues/alembic-create-table-silently-drops-schema-elements.md | 2→2 lines | ~40 |
+| 11:19 | Edited docs/solutions/database-issues/alembic-create-table-silently-drops-schema-elements.md | "alembic/versions/" → "pcs-backend/alembic/versi" | ~23 |
+| 11:20 | Created CONCEPTS.md | — | ~1298 |
+| 11:21 | Created docs/PCS-NOTE-P8前置清单与3项修订-2026-10-07.md | — | ~1118 |
+| 11:21 | Edited pcs-backend/tests/test_jwt_production.py | modified test_resolve_role_unmatched_group_prod_raises() | ~716 |
+| 11:22 | Edited pcs-backend/app/core/config.py | expanded (+20 lines) | ~252 |
+| 11:23 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版 P8.md | 1→6 lines | ~78 |
+| 11:30 | Edited docs/PCS-NOTE-P8前置清单与3项修订-2026-10-07.md | expanded (+22 lines) | ~268 |
+| 11:30 | Edited docs/PCS-NOTE-P8前置清单与3项修订-2026-10-07.md | 7→12 lines | ~151 |
+| 11:34 | Edited CLAUDE.md | expanded (+8 lines) | ~119 |
+| 11:40 | Edited docs/solutions/database-issues/alembic-create-table-silently-drops-schema-elements.md | expanded (+10 lines) | ~187 |
+| 11:45 | Edited docs/solutions/database-issues/alembic-create-table-silently-drops-schema-elements.md | inline fix | ~53 |
+| 11:45 | Edited CONCEPTS.md | 13→13 lines | ~246 |
+| 11:45 | Edited CONCEPTS.md | 2→4 lines | ~79 |
+| 11:45 | Edited CONCEPTS.md | 5→9 lines | ~136 |
+| 11:45 | Edited CONCEPTS.md | 3→4 lines | ~79 |
+| 11:49 | Edited CLAUDE.md | expanded (+9 lines) | ~214 |
+| 11:49 | Edited TODOS.md | expanded (+9 lines) | ~197 |
+| 11:50 | Edited pcs-backend/scripts/check_migration_idempotency.py | modified _check_create_table_args() | ~766 |
+| 11:50 | Edited pcs-backend/scripts/check_migration_idempotency.py | 20→16 lines | ~143 |
+| 11:51 | Edited pcs-backend/scripts/check_migration_idempotency.py | modified _check_create_table_args() | ~205 |
+| 11:51 | Edited pcs-backend/tests/scripts/test_check_migration_idempotency.py | modified test_check_accepts_constraint_objects_at_top_level() | ~327 |
+| 11:51 | Edited pcs-backend/scripts/check_migration_idempotency.py | expanded (+10 lines) | ~117 |
+| 11:51 | Edited pcs-backend/scripts/check_migration_idempotency.py | modified walk() | ~77 |
+| 11:51 | Edited pcs-backend/scripts/check_migration_idempotency.py | 2→2 lines | ~35 |
+| 11:54 | Created pcs-backend/app/schemas/deliverable.py | — | ~848 |
+| 11:54 | Created pcs-backend/app/services/deliverable_service.py | — | ~1404 |
+| 11:54 | Created pcs-backend/app/api/v1/deliverables.py | — | ~1574 |
+| 11:56 | Created pcs-backend/tests/test_deliverables_api.py | — | ~3116 |
+| 16:03 | Session end: 101 writes across 38 files (TODOS.md, p7_s5_001_drop_equipment_lib.py, equipment.py, test_schema.py, 0032-vessel-process-calculation.md) | 40 reads | ~81218 tok |
+| 19:21 | Created docs/PCS-NOTE-3.4-描述文本契约-2026-10-07.md | — | ~927 |
+| 19:21 | Created pcs-backend/tests/scripts/test_check_payload_model_coverage.py | — | ~975 |
+| 19:21 | Created pcs-backend/scripts/check_payload_model_coverage.py | — | ~1620 |
+| 19:55 | Edited pcs-backend/app/models/util.py | 7→8 lines | ~98 |
+| 19:58 | Edited CLAUDE.md | expanded (+8 lines) | ~225 |
+| 21:03 | Edited pcs-backend/app/models/util.py | expanded (+8 lines) | ~134 |
+| 21:06 | Edited pcs-backend/app/models/config.py | 4→4 lines | ~42 |
+| 21:06 | Edited pcs-backend/app/models/config.py | expanded (+8 lines) | ~112 |
+| 21:09 | Edited pcs-backend/app/models/config.py | expanded (+8 lines) | ~111 |
+| 21:09 | Edited pcs-backend/app/models/config.py | 4→4 lines | ~42 |
+| 21:10 | Edited pcs-backend/app/models/config.py | expanded (+9 lines) | ~104 |
+| 21:11 | Created pcs-backend/alembic/versions/p7_s5_008_projects_workspace_fk.py | — | ~326 |
+| 21:11 | Edited pcs-backend/alembic/versions/p7_s5_008_projects_workspace_fk.py | 2→1 lines | ~7 |
+| 21:14 | Edited TODOS.md | expanded (+63 lines) | ~796 |
+| 21:14 | Edited CLAUDE.md | 3→8 lines | ~97 |
+| 21:23 | Edited pcs-backend/tests/conftest.py | modified _visit_check_constraint() | ~292 |
+| 21:24 | Created pcs-backend/tests/test_sqlite_check_constraint_overrides.py | — | ~1576 |
+| 21:24 | Edited pcs-backend/tests/test_sqlite_check_constraint_overrides.py | 8→8 lines | ~76 |
+| 21:26 | Edited CONCEPTS.md | modified returns() | ~418 |
+| 21:32 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 1→4 lines | ~64 |
+| 21:39 | Edited pcs-backend/tests/test_sqlite_check_constraint_overrides.py | modified _probe_engine() | ~281 |

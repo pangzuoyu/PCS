@@ -47,6 +47,28 @@ drift even when the constraint is present and correct.
 When adding constraints in a migration, derive the name the convention produces. Use the
 template expansion, not a plausible guess.
 
+### Deferred foreign key (`use_alter=True`)
+A foreign key declared with `use_alter=True` is **not** created by table creation. The
+declaration states that a separate `ALTER TABLE ADD CONSTRAINT` migration will create
+it, and nothing creates it automatically. Declaring one in the data model without
+writing that migration leaves the table with no such constraint in the real database,
+while every test built from the model metadata has it. The drift check reports this as
+`add_fk`, indefinitely, if nobody acts on it.
+
+### Constraint substitute (test harness)
+Some check constraints are written in syntax only one database accepts. The test
+harness may carry a per-constraint replacement expression so the in-memory test schema
+can be created at all. This introduces a hazard the original design does not have: the
+two expressions can drift apart silently, because tests exercise the substitute and
+production exercises the original, and neither tests the other. Any such substitute
+needs a test that renders both forms and asserts they produce identical verdicts on a
+shared set of cases.
+
+Note the specific trap in this project's harness: the test database stores timestamps
+as text, and a date function returns a number. SQLite orders every number before every
+text, so comparing a bare column against a date-function result is false in both
+directions. Both operands must be converted, not just one.
+
 ## Descriptions and comments
 
 ### ORM column comment

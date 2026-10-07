@@ -70,6 +70,22 @@ class UtilResults(TimestampMixin, Base):
         # 过滤查询 (project_id, workspace_id) 走复合索引避免回表
         Index("ix_util_results_project_workspace", "project_id", "workspace_id"),
         Index("ix_util_results_workspace", "workspace_id"),
+        CheckConstraint(
+            "cooling_water_consumption_t_yr IS NULL OR cooling_water_consumption_t_yr >= 0",
+            name="ck_util_results_cooling_water_non_negative",
+        ),
+        CheckConstraint(
+            "electrical_power_kwh_yr IS NULL OR electrical_power_kwh_yr >= 0",
+            name="ck_util_results_electrical_power_non_negative",
+        ),
+        CheckConstraint(
+            "fuel_gas_consumption_nm3_yr IS NULL OR fuel_gas_consumption_nm3_yr >= 0",
+            name="ck_util_results_fuel_gas_non_negative",
+        ),
+        CheckConstraint(
+            "steam_consumption_t_yr IS NULL OR steam_consumption_t_yr >= 0",
+            name="ck_util_results_steam_non_negative",
+        ),
     )
 
     util_result_id: Mapped[uuid.UUID] = mapped_column(
@@ -178,6 +194,22 @@ class UtilityPowerItem(Base):
         ),
         Index("ix_utility_power_items_project", "project_id"),
         Index("ix_utility_power_items_workspace", "workspace_id"),
+        CheckConstraint(
+            "annual_consumption_kwh >= 0",
+            name="ck_utility_power_items_consumption_non_negative",
+        ),
+        CheckConstraint(
+            "operating_hours_per_year > 0 AND operating_hours_per_year <= 8760",
+            name="ck_utility_power_items_hours_in_year",
+        ),
+        CheckConstraint(
+            "load_factor > 0 AND load_factor <= 1",
+            name="ck_utility_power_items_load_factor_range",
+        ),
+        CheckConstraint(
+            "motor_power_kw > 0",
+            name="ck_utility_power_items_motor_power_positive",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -258,6 +290,26 @@ class UtilityFuelGas(Base):
         Index("ix_utility_fuel_gas_workspace", "workspace_id"),
         Index("ix_utility_fuel_gas_fuel_type", "fuel_type"),
         Index("ix_utility_fuel_gas_gas_source", "gas_source"),
+        CheckConstraint(
+            "annual_consumption_nm3 >= 0",
+            name="ck_utility_fuel_gas_annual_consumption_non_negative",
+        ),
+        CheckConstraint(
+            "calorific_value_kcal_nm3 > 0 AND calorific_value_kcal_nm3 <= 20000",
+            name="ck_utility_fuel_gas_calorific_value_range",
+        ),
+        CheckConstraint(
+            "consumption_nm3_h > 0",
+            name="ck_utility_fuel_gas_consumption_positive",
+        ),
+        CheckConstraint(
+            "operating_hours_per_year > 0 AND operating_hours_per_year <= 8760",
+            name="ck_utility_fuel_gas_hours_in_year",
+        ),
+        CheckConstraint(
+            "operating_phase IN ('INITIAL', 'STEADY', 'MAX')",
+            name="ck_utility_fuel_gas_operating_phase_enum",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -356,6 +408,30 @@ class UtilityHeatExchange(Base):
         Index("ix_utility_heat_exchange_temperature_class", "temperature_class"),
         Index("ix_utility_heat_exchange_medium_type", "medium_type"),
         Index("ix_utility_heat_exchange_pressure_level", "pressure_level"),
+        CheckConstraint(
+            "annual_consumption_t >= 0",
+            name="ck_utility_heat_exchange_annual_consumption_non_negative",
+        ),
+        CheckConstraint(
+            "operating_hours_per_year > 0 AND operating_hours_per_year <= 8760",
+            name="ck_utility_heat_exchange_hours_in_year",
+        ),
+        CheckConstraint(
+            "steam_pressure_mpa_gauge > 0",
+            name="ck_utility_heat_exchange_pressure_positive",
+        ),
+        CheckConstraint(
+            "steam_quality_pct >= 0 AND steam_quality_pct <= 100",
+            name="ck_utility_heat_exchange_quality_pct_range",
+        ),
+        CheckConstraint(
+            "return_condensate_pct >= 0 AND return_condensate_pct <= 100",
+            name="ck_utility_heat_exchange_return_condensate_pct_range",
+        ),
+        CheckConstraint(
+            "temperature_class IN ('LP', 'MP', 'HP', 'ULTRA_HIGH')",
+            name="ck_utility_heat_exchange_temperature_class_enum",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(
@@ -475,6 +551,38 @@ class UtilityEnergySummary(Base):
         Index("ix_utility_energy_summary_project", "project_id"),
         Index("ix_utility_energy_summary_workspace", "workspace_id"),
         Index("ix_utility_energy_summary_year", "business_year"),
+        CheckConstraint(
+            "standard_coal_factor > 0",
+            name="ck_utility_energy_summary_coal_factor_positive",
+        ),
+        CheckConstraint(
+            "toe_conversion_factor > 0",
+            name="ck_utility_energy_summary_toe_factor_positive",
+        ),
+        CheckConstraint(
+            "tolerance_status IN ('OK', 'EXCEEDED', 'NA')",
+            name="ck_utility_energy_summary_tolerance_status_enum",
+        ),
+        CheckConstraint(
+            "tolerance_status <> 'EXCEEDED' OR (tolerance_pct IS NOT NULL AND tolerance_pct > 2.0)",
+            name="ck_utility_energy_summary_tolerance_status_exceeded_has_pct",
+        ),
+        CheckConstraint(
+            "tolerance_status <> 'OK' OR (tolerance_pct IS NOT NULL AND tolerance_pct <= 2.0)",
+            name="ck_utility_energy_summary_tolerance_status_ok_has_pct",
+        ),
+        CheckConstraint(
+            "total_standard_coal_kg >= 0",
+            name="ck_utility_energy_summary_total_coal_non_negative",
+        ),
+        CheckConstraint(
+            "annual_total_energy >= 0",
+            name="ck_utility_energy_summary_total_non_negative",
+        ),
+        CheckConstraint(
+            "total_toe >= 0",
+            name="ck_utility_energy_summary_total_toe_non_negative",
+        ),
     )
 
     id: Mapped[uuid.UUID] = mapped_column(

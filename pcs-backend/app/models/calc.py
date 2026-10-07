@@ -402,6 +402,10 @@ class FlareSystemResult(TaggedRecordMixin, RecordMixin, Base):
 
     __table_args__ = (
         Index("ix_flare_system_results_created_at", "created_at"),
+        UniqueConstraint(
+            "project_id", "tag_number",
+            name="uq_flare_system_results_tag_per_project",
+        ),
     )
 
 
@@ -563,6 +567,13 @@ class ColumnSizingResult(RecordMixin, Base):
     """
 
     __tablename__ = "column_sizing"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id", "tag_number",
+            name="uq_column_sizing_tag",
+        ),
+    )
+
     column_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     tag_number: Mapped[str] = mapped_column(String(50), nullable=False)
     column_name: Mapped[str | None] = mapped_column(String(200))
@@ -597,6 +608,13 @@ class MixerResult(RecordMixin, Base):
     """
 
     __tablename__ = "mixer_results"
+    __table_args__ = (
+        UniqueConstraint(
+            "project_id", "mixer_tag",
+            name="uq_mixer_results_tag",
+        ),
+    )
+
     mixer_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     mixer_tag: Mapped[str] = mapped_column(String(50), nullable=False)
     mixer_name: Mapped[str | None] = mapped_column(String(200))
@@ -998,6 +1016,10 @@ class CoolingTowerResult(TaggedRecordMixin, RecordMixin, Base):
 
     __table_args__ = (
         Index("ix_cooling_tower_results_created_at", "created_at"),
+        UniqueConstraint(
+            "project_id", "tag_number",
+            name="uq_cooling_tower_results_tag_per_project",
+        ),
     )
 
 
@@ -1062,6 +1084,10 @@ class PsychroResult(TaggedRecordMixin, RecordMixin, Base):
 
     __table_args__ = (
         Index("ix_psychro_results_created_at", "created_at"),
+        UniqueConstraint(
+            "project_id", "tag_number",
+            name="uq_psychro_results_tag_per_project",
+        ),
     )
 
 

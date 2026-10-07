@@ -508,7 +508,10 @@ async def test_service_electricity_value_type_persisted(
             workspace_id=workspace_id,
             equipment_tag="P-R1-TEST",
             motor_power_kw=10.0,
-            operating_hours_per_year=10000.0,
+            # 一年最多 8760 小时（平年；闰年 8784）。原先这里写 10000，
+            # 一直没人拦 —— utility_power_items 的 CHECK 在建表迁移里就有，
+            # ORM 侧漏了声明，alembic check 报成 remove_constraint 就没管。
+            operating_hours_per_year=8000.0,
             load_factor=1.0,
             annual_consumption_kwh=100.0,
         )

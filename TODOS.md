@@ -558,7 +558,70 @@ access/refresh token」，并把 token_version 列为该条的实现手段。
   静默退回实施前状态，不会让 `alembic check` 崩掉。
 - 效果：`alembic check` 输出从 ~200KB 降到 ~20KB。
 
-## 🟡 `alembic check` 剩余 43 条（2026-10-07，COMMENT 关闭后的真实余量）
+## ✅ `alembic check` 43 条 → **0**（2026-10-07，`alembic check` exit 0）
+
+> 本节保留为过程记录。当前 `uv run alembic check` 报
+> **「No new upgrade operations detected」**（exit 0）。
+
+原 43 条的构成与处置：
+
+| op | 条数 | 处置 |
+|---|---|---|
+| `remove_constraint` | 39 | ORM `__table_args__` 补声明 —— **零迁移成本**，DB 侧本就正确（bug-147） |
+| `add_constraint` | 1 | `compound_api521_thresholds` 改显式命名 UniqueConstraint |
+| `add_fk` + `remove_fk` | 2 | `utility_energy_summary.workspace_id` ORM 改 `CASCADE` 对齐 DB（`fd0e8b9`） |
+| `add_fk` | 1 | `fk_projects_workspace_id` 新迁移 `p7_s5_008` 补建（bug-146） |
+
+补声明时确认的三件事（都记进 bug-147）：
+
+1. **`alembic check` 的 `remove_constraint` 字面意思与正确处置恰好相反。**
+   读作「DB 多余、ORM 要删」，实际是「DB 有安全网、ORM 漏声明」。
+   照字面去删会把 DB 保护删掉。
+2. **alembic 按名字匹配 CHECK，不比对表达式。** 实测：ORM 写可读表达式
+   `cooling_water_consumption_t_yr IS NULL OR ... >= 0`，DB 是带 cast 的版本，
+   名字对上就不报漂移。所以**可以写人话，不必抄 PG 的 cast 语法**。
+3. **`unique=True, index=True` 并存时 SQLAlchemy 生成的是「唯一索引」而非
+   UniqueConstraint**（`drain_orifice_Cd_Y_cr.fluid` 就是这样）——
+   建表迁移这么写时 DB 上会出现「约束 + 唯一索引」两套，ORM 侧只留了后者。
+4. **`compound_api521_thresholds` 的名字是被 `NAMING_CONVENTION` 展开错的**：
+   `unique=True` → `uq_compound_api521_thresholds_threshold_type`，
+   DB 里叫 `uq_compound_api521_thresholds_type`。名字对不上会**同时**产生
+   一条 remove 和一条 add。改显式 `UniqueConstraint(..., name=...)`。
+
+### 🟡 遗留：`drain_orifice_Cd_Y_cr` 上有**两个**功能重复的唯一索引
+
+```
+uq_drain_orifice_Cd_Y_cr_fluid  UNIQUE INDEX (fluid)   ← 约束自带的
+ix_drain_orifice_Cd_Y_cr_fluid  UNIQUE INDEX (fluid)   ← 重复，白占写入开销
+```
+
+同列两个唯一索引，写入要维护两份。本轮只补了 ORM 声明让 `alembic check` 对齐，
+**没动索引本身** —— 删索引是一条迁移。**Owner：待认领，优先级低。**
+
+### ⚪ 另两个 alembic 事实（不是漂移，但会误导下一个人）
+
+- **`alembic check` 检出漂移时退出码是 255**，不是 1。做闸门判断别按 `== 1` 写。
+- **`use_alter=True` 不会自己生成迁移。** 它的语义是「由一条
+  `ALTER TABLE ADD CONSTRAINT` 迁移单独创建」。ORM 里写了就必须有人补那条迁移，
+  否则 DB 上根本没有这个约束 —— `projects` 表整整一张零外键就是这么来的
+  （bug-146）。
+
+<details><summary>原 43 条明细（已处理，留档）</summary>
+
+| op | 条数 | 分布 |
+|---|---|---|
+| `remove_constraint` | 39 | **28 条 CheckConstraint + 11 条 UniqueConstraint**，均为 DB 有、ORM 未声明。Check 集中在 `utility_energy_summary`(8) / `utility_heat_exchange`(6) / `utility_fuel_gas`(5) / `util_results`(4) / `utility_power_items`(4)；Unique 分布在 `column_sizing` / `compound_*` / `cooling_tower_results` / `drain_orifice_Cd_Y_cr` / `flare_system_results` / `glycol_dehydration_full_system` / `mixer_results` / `pipe_e_modulus` / `psychro_results` / `user_projects` / `project_calculation_standard_profiles` |
+| `add_constraint` | 1 | `uq_compound_api521_thresholds_threshold_type` —— ORM 声明了唯一约束，DB 没有 |
+| `add_fk` + `remove_fk` | 2 | 同名 `fk_utility_energy_summary_workspace_id_workspaces`：**DB=CASCADE，ORM=RESTRICT**，两侧都声明且不一致 |
+| `add_fk` | 1 | `fk_projects_workspace_id`（`use_alter=True` 延迟外键，通常是后续迁移才建的） |
+
+- **`user_projects` 的 `uq_user_projects_user_project (user_id, project_id)`** 值得单独说：
+  DB 有、ORM 无。`UserProjectService.grant_project_access` 用
+  `scalar_one_or_none()` 依赖唯一性，DB 保证了它，但 ORM 侧无声明 → 换库/建表
+  （单测的 SQLite `create_all`）就**没有**这唯一约束，单测里若有重复行测试会漏过。
+
+</details>
+
 
 | op | 条数 | 分布 |
 |---|---|---|

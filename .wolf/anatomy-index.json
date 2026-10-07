@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-07T00:28:14.596Z",
-    "fileCount": 676,
+    "lastScanned": "2026-10-07T13:39:17.751Z",
+    "fileCount": 695,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "7a9817103228f839cbfbf3c02981f641732d4df336ab1392237023f2aaf31847",
-    "storeUpdatedAt": "2026-10-07T00:28:14.606Z",
-    "rootHash": "e7357dae3adbb810"
+    "renderedHash": "c217a7475d178ff78f39328bfdee990d182c1702deb454b3766e29931deb20e6",
+    "storeUpdatedAt": "2026-10-07T13:39:17.761Z",
+    "rootHash": "b1d89cde668bef70"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -772,13 +772,12 @@
     },
     "CLAUDE.md": {
       "description": "OpenWolf",
-      "tokens": 175,
-      "hash": "fce54ce13da415ee",
-      "size": 888,
-      "mtimeMs": 1789488634929.77,
-      "updatedAt": "2026-10-02T12:43:34.547Z",
-      "source": "scan",
-      "importance": 0.1842
+      "tokens": 1029,
+      "hash": "4b8511ef424779e9",
+      "size": 6432,
+      "mtimeMs": 1791378850376.2686,
+      "updatedAt": "2026-10-07T13:14:10.423Z",
+      "source": "hook"
     },
     "CONTEXT.md": {
       "description": "PCS（工艺专用综合计算软件）",
@@ -12366,11 +12365,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 3453,
-      "hash": "80389d7256ec337a",
-      "size": 20564,
-      "mtimeMs": 1791301736587.2854,
-      "updatedAt": "2026-10-06T15:48:56.635Z",
+      "tokens": 7841,
+      "hash": "3af202a37aec14a5",
+      "size": 49140,
+      "mtimeMs": 1791378842590.4204,
+      "updatedAt": "2026-10-07T13:14:02.645Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -12462,11 +12461,11 @@
     },
     "pcs-backend/app/core/config.py": {
       "description": "应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。",
-      "tokens": 1398,
-      "hash": "6df330be592c98f4",
-      "size": 6340,
-      "mtimeMs": 1791304582203.8894,
-      "updatedAt": "2026-10-06T16:36:22.251Z",
+      "tokens": 1596,
+      "hash": "f44d979ab02b3b6a",
+      "size": 7355,
+      "mtimeMs": 1791343327310.3433,
+      "updatedAt": "2026-10-07T03:22:07.360Z",
       "source": "hook",
       "symbols": [
         {
@@ -12480,28 +12479,28 @@
           "name": "get_settings",
           "kind": "fn",
           "startLine": 66,
-          "endLine": 106,
-          "tokens": 352
+          "endLine": 126,
+          "tokens": 550
         },
         {
           "name": "assert_secret_key_configured",
           "kind": "fn",
-          "startLine": 107,
-          "endLine": 116,
+          "startLine": 127,
+          "endLine": 136,
           "tokens": 69
         },
         {
           "name": "parse_cors_origins",
           "kind": "fn",
-          "startLine": 117,
-          "endLine": 124,
+          "startLine": 137,
+          "endLine": 144,
           "tokens": 67
         },
         {
           "name": "validate_cors_for_production",
           "kind": "fn",
-          "startLine": 125,
-          "endLine": 152,
+          "startLine": 145,
+          "endLine": 172,
           "tokens": 246
         }
       ]
@@ -13031,11 +13030,11 @@
     },
     "pcs-backend/tests/test_jwt_production.py": {
       "description": "F-P3-001 Sprint 3: JWT production hardening + LDAP fail-closed 测试.",
-      "tokens": 2042,
-      "hash": "3fb9307c25132ecf",
-      "size": 7753,
-      "mtimeMs": 1791094874986.3115,
-      "updatedAt": "2026-10-04T06:21:15.030Z",
+      "tokens": 2697,
+      "hash": "10e60ff5e214d2da",
+      "size": 10379,
+      "mtimeMs": 1791343311960.432,
+      "updatedAt": "2026-10-07T03:21:52.015Z",
       "source": "hook",
       "symbols": [
         {
@@ -13070,8 +13069,15 @@
           "name": "TestLdapRoleFailClosed",
           "kind": "class",
           "startLine": 164,
-          "endLine": 191,
-          "tokens": 339
+          "endLine": 198,
+          "tokens": 399
+        },
+        {
+          "name": "TestJwtIssuerProductionFailFast",
+          "kind": "class",
+          "startLine": 199,
+          "endLine": 249,
+          "tokens": 594
         }
       ]
     },
@@ -13401,26 +13407,33 @@
     },
     "pcs-backend/scripts/check_migration_idempotency.py": {
       "description": "检查 alembic migrations 是否用 if_exists / if_not_exists (F-P3-002 fix).",
-      "tokens": 706,
-      "hash": "2e4f8654c7265ee9",
-      "size": 2677,
-      "mtimeMs": 1790961428015.7134,
-      "updatedAt": "2026-10-02T17:17:08.065Z",
+      "tokens": 1485,
+      "hash": "939801e6533de152",
+      "size": 6645,
+      "mtimeMs": 1791345105763.151,
+      "updatedAt": "2026-10-07T03:51:45.809Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "_check_create_table_args",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 88,
+          "tokens": 205
+        },
+        {
           "name": "check_migration",
           "kind": "fn",
-          "startLine": 35,
-          "endLine": 56,
-          "tokens": 224
+          "startLine": 89,
+          "endLine": 131,
+          "tokens": 453
         },
         {
           "name": "main",
           "kind": "fn",
-          "startLine": 57,
-          "endLine": 78,
-          "tokens": 177
+          "startLine": 132,
+          "endLine": 153,
+          "tokens": 174
         }
       ]
     },
@@ -15732,222 +15745,222 @@
     },
     "pcs-backend/tests/conftest.py": {
       "description": "Sprint 1 + P2 共享测试 fixtures。",
-      "tokens": 4455,
-      "hash": "4104ff431c5bfd6f",
-      "size": 16820,
-      "mtimeMs": 1791037466087.7983,
-      "updatedAt": "2026-10-03T14:24:26.132Z",
+      "tokens": 4721,
+      "hash": "10ad6507217c0dfe",
+      "size": 17989,
+      "mtimeMs": 1791379433044.953,
+      "updatedAt": "2026-10-07T13:23:53.091Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_visit_create_column",
           "kind": "fn",
           "startLine": 56,
-          "endLine": 63,
-          "tokens": 81
+          "endLine": 78,
+          "tokens": 235
+        },
+        {
+          "name": "_visit_check_constraint",
+          "kind": "fn",
+          "startLine": 79,
+          "endLine": 88,
+          "tokens": 112
         },
         {
           "name": "_visit_text_nolen",
           "kind": "fn",
-          "startLine": 64,
-          "endLine": 86,
+          "startLine": 89,
+          "endLine": 111,
           "tokens": 234
         },
         {
           "name": "db_engine",
           "kind": "fn",
-          "startLine": 87,
-          "endLine": 118,
+          "startLine": 112,
+          "endLine": 143,
           "tokens": 328
         },
         {
           "name": "db_session",
           "kind": "fn",
-          "startLine": 119,
-          "endLine": 127,
+          "startLine": 144,
+          "endLine": 152,
           "tokens": 100
         },
         {
           "name": "user_id",
           "kind": "fn",
-          "startLine": 128,
-          "endLine": 136,
+          "startLine": 153,
+          "endLine": 161,
           "tokens": 52
         },
         {
           "name": "owner_id",
           "kind": "fn",
-          "startLine": 137,
-          "endLine": 141,
+          "startLine": 162,
+          "endLine": 166,
           "tokens": 23
         },
         {
           "name": "project_id",
           "kind": "fn",
-          "startLine": 142,
-          "endLine": 162,
+          "startLine": 167,
+          "endLine": 187,
           "tokens": 176
         },
         {
           "name": "workspace_id",
           "kind": "fn",
-          "startLine": 163,
-          "endLine": 173,
+          "startLine": 188,
+          "endLine": 198,
           "tokens": 93
         },
         {
           "name": "workspace",
           "kind": "fn",
-          "startLine": 174,
-          "endLine": 195,
+          "startLine": 199,
+          "endLine": 220,
           "tokens": 202
         },
         {
           "name": "client",
           "kind": "fn",
-          "startLine": 196,
-          "endLine": 235,
+          "startLine": 221,
+          "endLine": 260,
           "tokens": 360
         },
         {
           "name": "_avoid_real_db_probe",
           "kind": "fn",
-          "startLine": 236,
-          "endLine": 248,
+          "startLine": 261,
+          "endLine": 273,
           "tokens": 116
         },
         {
           "name": "_clear_rbac_rate_limits",
           "kind": "fn",
-          "startLine": 249,
-          "endLine": 263,
+          "startLine": 274,
+          "endLine": 288,
           "tokens": 129
         },
         {
           "name": "db",
           "kind": "fn",
-          "startLine": 264,
-          "endLine": 269,
+          "startLine": 289,
+          "endLine": 294,
           "tokens": 42
         },
         {
           "name": "actor",
           "kind": "fn",
-          "startLine": 270,
-          "endLine": 275,
+          "startLine": 295,
+          "endLine": 300,
           "tokens": 27
         },
         {
           "name": "pc_actor",
           "kind": "fn",
-          "startLine": 276,
-          "endLine": 281,
+          "startLine": 301,
+          "endLine": 306,
           "tokens": 31
         },
         {
           "name": "designer_actor",
           "kind": "fn",
-          "startLine": 282,
-          "endLine": 287,
+          "startLine": 307,
+          "endLine": 312,
           "tokens": 32
         },
         {
           "name": "make_asset",
           "kind": "fn",
-          "startLine": 288,
-          "endLine": 334,
+          "startLine": 313,
+          "endLine": 359,
           "tokens": 373
         },
         {
           "name": "_latest_version",
           "kind": "fn",
-          "startLine": 335,
-          "endLine": 345,
+          "startLine": 360,
+          "endLine": 370,
           "tokens": 107
         },
         {
           "name": "sample_draft_asset",
           "kind": "fn",
-          "startLine": 346,
-          "endLine": 350,
+          "startLine": 371,
+          "endLine": 375,
           "tokens": 42
         },
         {
           "name": "sample_pending_asset",
           "kind": "fn",
-          "startLine": 351,
-          "endLine": 355,
+          "startLine": 376,
+          "endLine": 380,
           "tokens": 44
         },
         {
           "name": "sample_pending_asset_c3",
           "kind": "fn",
-          "startLine": 356,
-          "endLine": 360,
+          "startLine": 381,
+          "endLine": 385,
           "tokens": 51
         },
         {
           "name": "sample_approved_formula_asset",
           "kind": "fn",
-          "startLine": 361,
-          "endLine": 378,
+          "startLine": 386,
+          "endLine": 403,
           "tokens": 178
         },
         {
           "name": "sample_approved_formula_with_preconditions",
           "kind": "fn",
-          "startLine": 379,
-          "endLine": 401,
+          "startLine": 404,
+          "endLine": 426,
           "tokens": 239
         },
         {
           "name": "sample_approved_formula_failing_precondition",
           "kind": "fn",
-          "startLine": 402,
-          "endLine": 424,
+          "startLine": 427,
+          "endLine": 449,
           "tokens": 239
         },
         {
           "name": "sample_approved_formula_with_failing_test",
           "kind": "fn",
-          "startLine": 425,
-          "endLine": 443,
+          "startLine": 450,
+          "endLine": 468,
           "tokens": 211
         },
         {
           "name": "sample_published_asset",
           "kind": "fn",
-          "startLine": 444,
-          "endLine": 448,
+          "startLine": 469,
+          "endLine": 473,
           "tokens": 45
         },
         {
           "name": "sample_two_version_asset",
           "kind": "fn",
-          "startLine": 449,
-          "endLine": 463,
+          "startLine": 474,
+          "endLine": 488,
           "tokens": 120
         },
         {
           "name": "sample_sequence",
           "kind": "fn",
-          "startLine": 464,
-          "endLine": 477,
+          "startLine": 489,
+          "endLine": 502,
           "tokens": 92
         },
         {
           "name": "sample_user_token",
           "kind": "fn",
-          "startLine": 478,
-          "endLine": 483,
-          "tokens": 50
-        },
-        {
-          "name": "sample_pc_token",
-          "kind": "fn",
-          "startLine": 484,
-          "endLine": 492,
-          "tokens": 86
+          "startLine": 503,
+          "endLine": 517,
+          "tokens": 136
         }
       ]
     },
@@ -16517,11 +16530,11 @@
     },
     "pcs-backend/tests/services/util/test_utility_energy_summary.py": {
       "description": "P7 Sprint 2 T5: utility_energy_summary service 测试.",
-      "tokens": 9769,
-      "hash": "de34835c0a1a26ae",
-      "size": 36284,
-      "mtimeMs": 1791160760836.7444,
-      "updatedAt": "2026-10-05T00:39:20.890Z",
+      "tokens": 9819,
+      "hash": "912d841e62700103",
+      "size": 36558,
+      "mtimeMs": 1791379973302.8225,
+      "updatedAt": "2026-10-07T13:32:53.351Z",
       "source": "hook",
       "symbols": [
         {
@@ -16598,63 +16611,63 @@
           "name": "test_service_electricity_value_type_persisted",
           "kind": "fn",
           "startLine": 494,
-          "endLine": 558,
-          "tokens": 634
+          "endLine": 561,
+          "tokens": 684
         },
         {
           "name": "test_service_aggregates_by_pressure_level",
           "kind": "fn",
-          "startLine": 559,
-          "endLine": 605,
+          "startLine": 562,
+          "endLine": 608,
           "tokens": 501
         },
         {
           "name": "test_service_aggregates_by_gas_source",
           "kind": "fn",
-          "startLine": 606,
-          "endLine": 647,
+          "startLine": 609,
+          "endLine": 650,
           "tokens": 446
         },
         {
           "name": "test_compute_totals_uses_classified_factors",
           "kind": "fn",
-          "startLine": 648,
-          "endLine": 707,
+          "startLine": 651,
+          "endLine": 710,
           "tokens": 658
         },
         {
           "name": "test_service_persists_r1_classification_json",
           "kind": "fn",
-          "startLine": 708,
-          "endLine": 768,
+          "startLine": 711,
+          "endLine": 771,
           "tokens": 701
         },
         {
           "name": "test_service_persists_equivalent_value_type",
           "kind": "fn",
-          "startLine": 769,
-          "endLine": 802,
+          "startLine": 772,
+          "endLine": 805,
           "tokens": 288
         },
         {
           "name": "test_service_persists_r1_classification_on_idempotent_overwrite",
           "kind": "fn",
-          "startLine": 803,
-          "endLine": 862,
+          "startLine": 806,
+          "endLine": 865,
           "tokens": 594
         },
         {
           "name": "test_service_aggregates_water_by_type",
           "kind": "fn",
-          "startLine": 863,
-          "endLine": 921,
+          "startLine": 866,
+          "endLine": 924,
           "tokens": 697
         },
         {
           "name": "test_compute_totals_uses_water_classified_factors",
           "kind": "fn",
-          "startLine": 922,
-          "endLine": 976,
+          "startLine": 925,
+          "endLine": 979,
           "tokens": 647
         }
       ]
@@ -17127,116 +17140,116 @@
     },
     "pcs-backend/app/models/config.py": {
       "description": "成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。",
-      "tokens": 11418,
-      "hash": "a920aad12cef55b5",
-      "size": 48549,
-      "mtimeMs": 1791302500708.3376,
-      "updatedAt": "2026-10-06T16:01:40.762Z",
+      "tokens": 11754,
+      "hash": "f1dbc4df0906ef33",
+      "size": 50072,
+      "mtimeMs": 1791378632249.4092,
+      "updatedAt": "2026-10-07T13:10:32.304Z",
       "source": "hook",
       "symbols": [
         {
           "name": "CepciIndexSeries",
           "kind": "class",
-          "startLine": 35,
-          "endLine": 96,
-          "tokens": 676
+          "startLine": 36,
+          "endLine": 99,
+          "tokens": 706
         },
         {
           "name": "CompoundHeatingValues",
           "kind": "class",
-          "startLine": 97,
-          "endLine": 168,
+          "startLine": 100,
+          "endLine": 171,
           "tokens": 760
         },
         {
           "name": "CoolingTowerCurves",
           "kind": "class",
-          "startLine": 169,
-          "endLine": 254,
+          "startLine": 172,
+          "endLine": 257,
           "tokens": 848
         },
         {
           "name": "FiltrationMediaLibrary",
           "kind": "class",
-          "startLine": 255,
-          "endLine": 345,
+          "startLine": 258,
+          "endLine": 348,
           "tokens": 872
         },
         {
           "name": "FlareRadiationLimits",
           "kind": "class",
-          "startLine": 346,
-          "endLine": 420,
+          "startLine": 349,
+          "endLine": 423,
           "tokens": 714
         },
         {
           "name": "CostCorrelationLibrary",
           "kind": "class",
-          "startLine": 421,
-          "endLine": 530,
+          "startLine": 424,
+          "endLine": 533,
           "tokens": 1071
         },
         {
           "name": "CompoundPasquillSigma",
           "kind": "class",
-          "startLine": 531,
-          "endLine": 595,
-          "tokens": 647
+          "startLine": 534,
+          "endLine": 598,
+          "tokens": 644
         },
         {
           "name": "CompoundApi521Thresholds",
           "kind": "class",
-          "startLine": 596,
-          "endLine": 648,
-          "tokens": 521
+          "startLine": 599,
+          "endLine": 659,
+          "tokens": 610
         },
         {
           "name": "CompoundIso9613AtmosphericAbsorption",
           "kind": "class",
-          "startLine": 649,
-          "endLine": 712,
+          "startLine": 660,
+          "endLine": 723,
           "tokens": 602
         },
         {
           "name": "PipeEModulus",
           "kind": "class",
-          "startLine": 713,
-          "endLine": 774,
-          "tokens": 622
+          "startLine": 724,
+          "endLine": 792,
+          "tokens": 659
         },
         {
           "name": "CompoundHammerschmidtK",
           "kind": "class",
-          "startLine": 775,
-          "endLine": 826,
-          "tokens": 526
+          "startLine": 793,
+          "endLine": 844,
+          "tokens": 523
         },
         {
           "name": "CompoundDeltaHVapNaturalGas",
           "kind": "class",
-          "startLine": 827,
-          "endLine": 888,
-          "tokens": 658
+          "startLine": 845,
+          "endLine": 913,
+          "tokens": 704
         },
         {
           "name": "DrainOrificeCdYCr",
           "kind": "class",
-          "startLine": 889,
-          "endLine": 959,
-          "tokens": 716
+          "startLine": 914,
+          "endLine": 993,
+          "tokens": 808
         },
         {
           "name": "GlycolDehydrationFullSystem",
           "kind": "class",
-          "startLine": 960,
-          "endLine": 1028,
-          "tokens": 689
+          "startLine": 994,
+          "endLine": 1069,
+          "tokens": 734
         },
         {
           "name": "ConfigEnergyConversionFactor",
           "kind": "class",
-          "startLine": 1029,
-          "endLine": 1151,
+          "startLine": 1070,
+          "endLine": 1192,
           "tokens": 1323
         }
       ]
@@ -17631,86 +17644,86 @@
     },
     "pcs-backend/app/models/util.py": {
       "description": "S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。",
-      "tokens": 8236,
-      "hash": "3c4ccfb1b127b155",
-      "size": 32164,
-      "mtimeMs": 1791302426664.5037,
-      "updatedAt": "2026-10-06T16:00:26.710Z",
+      "tokens": 8361,
+      "hash": "6f6753e068bb79ed",
+      "size": 32757,
+      "mtimeMs": 1791378236190.9375,
+      "updatedAt": "2026-10-07T13:03:56.241Z",
       "source": "hook",
       "symbols": [
         {
           "name": "UtilResults",
           "kind": "class",
           "startLine": 52,
-          "endLine": 154,
-          "tokens": 1132
+          "endLine": 162,
+          "tokens": 1243
         },
         {
           "name": "UtilityPowerItem",
           "kind": "class",
-          "startLine": 155,
-          "endLine": 232,
+          "startLine": 163,
+          "endLine": 240,
           "tokens": 865
         },
         {
           "name": "UtilityFuelGas",
           "kind": "class",
-          "startLine": 233,
-          "endLine": 329,
+          "startLine": 241,
+          "endLine": 337,
           "tokens": 1118
         },
         {
           "name": "UtilityHeatExchange",
           "kind": "class",
-          "startLine": 330,
-          "endLine": 448,
+          "startLine": 338,
+          "endLine": 456,
           "tokens": 1355
         },
         {
           "name": "UtilityEnergySummary",
           "kind": "class",
-          "startLine": 449,
-          "endLine": 586,
-          "tokens": 1537
+          "startLine": 457,
+          "endLine": 595,
+          "tokens": 1551
         },
         {
           "name": "UtilityGasMedia",
           "kind": "class",
-          "startLine": 587,
-          "endLine": 678,
+          "startLine": 596,
+          "endLine": 687,
           "tokens": 1023
         },
         {
           "name": "UtilityLowTempHeat",
           "kind": "class",
-          "startLine": 679,
-          "endLine": 754,
+          "startLine": 688,
+          "endLine": 763,
           "tokens": 829
         }
       ]
     },
     "pcs-backend/alembic/versions/p7_s3_005_gas_media_and_low_temp_heat.py": {
       "description": "p7_s3_005: utility_gas_media + utility_low_temp_heat (P7-6B 收尾).",
-      "tokens": 1833,
-      "hash": "c75359d6a35ef58b",
-      "size": 6772,
-      "mtimeMs": 1791168219862.068,
-      "updatedAt": "2026-10-05T02:43:39.916Z",
+      "tokens": 1802,
+      "hash": "e957a3bdd6d89546",
+      "size": 6663,
+      "mtimeMs": 1791335928990.558,
+      "updatedAt": "2026-10-07T01:18:49.045Z",
       "source": "hook",
       "symbols": [
         {
           "name": "upgrade",
           "kind": "fn",
-          "startLine": 35,
-          "endLine": 150,
+          "startLine": 30,
+          "endLine": 145,
           "tokens": 1554
         },
         {
           "name": "downgrade",
           "kind": "fn",
-          "startLine": 151,
-          "endLine": 155,
-          "tokens": 40
+          "startLine": 146,
+          "endLine": 150,
+          "tokens": 49
         }
       ]
     },
@@ -20915,6 +20928,635 @@
           "startLine": 131,
           "endLine": 182,
           "tokens": 494
+        }
+      ]
+    },
+    "docs/PCS-NOTE-UI-SPEC-7.16-设备库检索延后-2026-10-07.md": {
+      "description": "UI-SPEC §7.16 设备库检索 —— 本版本不实现，推迟到下一版本（2026-10-07）",
+      "tokens": 591,
+      "hash": "d10a9545fdc9c263",
+      "size": 4332,
+      "mtimeMs": 1791334208894.5703,
+      "updatedAt": "2026-10-07T00:50:08.949Z",
+      "source": "hook"
+    },
+    "pcs-backend/alembic/versions/p7_s5_005_nullable_align.py": {
+      "description": "p7_s5_005: 对齐 23 列的可空性 —— 消除 `alembic check` 的 modify_nullable 漂移.",
+      "tokens": 1094,
+      "hash": "cb0a15be306a78bb",
+      "size": 4677,
+      "mtimeMs": 1791335039964.7456,
+      "updatedAt": "2026-10-07T01:04:00.015Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 101,
+          "tokens": 116
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 102,
+          "endLine": 108,
+          "tokens": 96
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p7_s5_006_user_projects_created_by.py": {
+      "description": "p7_s5_006: 补 user_projects.created_by —— ORM 继承来的列，真库缺失，导致授权必失败.",
+      "tokens": 602,
+      "hash": "e1aadd9cf3090200",
+      "size": 2915,
+      "mtimeMs": 1791336359676.9065,
+      "updatedAt": "2026-10-07T01:25:59.724Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 69,
+          "tokens": 45
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 72,
+          "tokens": 36
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p7_s5_007_user_projects_fks.py": {
+      "description": "p7_s5_007: 补 user_projects 的 4 个外键 —— 建表迁移把它们静默丢弃了（bug-144）.",
+      "tokens": 1069,
+      "hash": "78df98b4e389a0dd",
+      "size": 4761,
+      "mtimeMs": 1791342082417.2395,
+      "updatedAt": "2026-10-07T03:01:22.469Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 103,
+          "tokens": 205
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 104,
+          "endLine": 107,
+          "tokens": 49
+        }
+      ]
+    },
+    "pcs-backend/alembic/env.py": {
+      "description": "alembic 同步迁移。Base 来源于 app.db.base（全部 ORM 已注册）.",
+      "tokens": 730,
+      "hash": "1c70e18211cd1c93",
+      "size": 3300,
+      "mtimeMs": 1791342315772.6167,
+      "updatedAt": "2026-10-07T03:05:15.826Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_disable_comment_comparison",
+          "kind": "fn",
+          "startLine": 23,
+          "endLine": 54,
+          "tokens": 288
+        },
+        {
+          "name": "run_migrations_offline",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 68,
+          "tokens": 111
+        },
+        {
+          "name": "run_migrations_online",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 90,
+          "tokens": 172
+        }
+      ]
+    },
+    "docs/solutions/database-issues/alembic-create-table-silently-drops-schema-elements.md": {
+      "description": "Hand-written `op.create_table` silently drops inherited columns and foreign keys",
+      "tokens": 3714,
+      "hash": "9e176f7a1931f914",
+      "size": 14911,
+      "mtimeMs": 1791344718278.082,
+      "updatedAt": "2026-10-07T03:45:18.325Z",
+      "source": "hook"
+    },
+    "CONCEPTS.md": {
+      "description": "Concepts",
+      "tokens": 1673,
+      "hash": "51c2094f48336c47",
+      "size": 6705,
+      "mtimeMs": 1791379598407.7825,
+      "updatedAt": "2026-10-07T13:26:38.462Z",
+      "source": "hook"
+    },
+    "docs/PCS-NOTE-P8前置清单与3项修订-2026-10-07.md": {
+      "description": "P8 前置清单与 3 项修订 —— 2026-10-07 裁决",
+      "tokens": 1315,
+      "hash": "f7d78012d6a3ab7e",
+      "size": 8931,
+      "mtimeMs": 1791343832349.1228,
+      "updatedAt": "2026-10-07T03:30:32.393Z",
+      "source": "hook"
+    },
+    "spec/工艺专用综合计算软件需求规格说明书 Web版 P8.md": {
+      "description": "",
+      "tokens": 3256,
+      "hash": "4f2ed9a05dca8ee6",
+      "size": 23166,
+      "mtimeMs": 1791343391309.4524,
+      "updatedAt": "2026-10-07T03:23:11.365Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/scripts/test_check_migration_idempotency.py": {
+      "description": "F-P3-002 fix: 测试 check_migration_idempotency 脚本行为.",
+      "tokens": 1748,
+      "hash": "563a48b00c68167b",
+      "size": 6596,
+      "mtimeMs": 1791345094203.5808,
+      "updatedAt": "2026-10-07T03:51:34.253Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_load_check_module",
+          "kind": "fn",
+          "startLine": 17,
+          "endLine": 25,
+          "tokens": 90
+        },
+        {
+          "name": "test_check_passes_current_p7_s2_migrations",
+          "kind": "fn",
+          "startLine": 26,
+          "endLine": 33,
+          "tokens": 80
+        },
+        {
+          "name": "test_check_detects_missing_if_not_exists",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 56,
+          "tokens": 227
+        },
+        {
+          "name": "test_check_detects_missing_if_exists_on_drop_table",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 74,
+          "tokens": 181
+        },
+        {
+          "name": "test_check_advisory_only_for_old_p7_s1_migrations",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 86,
+          "tokens": 142
+        },
+        {
+          "name": "test_check_detects_bare_foreign_key_positional_arg",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 107,
+          "tokens": 230
+        },
+        {
+          "name": "test_check_accepts_nested_foreign_key_inside_column",
+          "kind": "fn",
+          "startLine": 108,
+          "endLine": 132,
+          "tokens": 267
+        },
+        {
+          "name": "test_check_accepts_constraint_objects_at_top_level",
+          "kind": "fn",
+          "startLine": 133,
+          "endLine": 161,
+          "tokens": 328
+        },
+        {
+          "name": "test_real_migrations_have_no_bare_positional_constraints",
+          "kind": "fn",
+          "startLine": 162,
+          "endLine": 168,
+          "tokens": 91
+        }
+      ]
+    },
+    "pcs-backend/app/schemas/deliverable.py": {
+      "description": "交付物 API schema（P1-7+ D 模块 / P8 前置）。",
+      "tokens": 848,
+      "hash": "bcf706801a5ad9ef",
+      "size": 3689,
+      "mtimeMs": 1791345262706.8809,
+      "updatedAt": "2026-10-07T03:54:22.764Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "DeliverableResponse",
+          "kind": "class",
+          "startLine": 20,
+          "endLine": 46,
+          "tokens": 236
+        },
+        {
+          "name": "DeliverableListResponse",
+          "kind": "class",
+          "startLine": 47,
+          "endLine": 56,
+          "tokens": 52
+        },
+        {
+          "name": "DeliverableVersionResponse",
+          "kind": "class",
+          "startLine": 57,
+          "endLine": 75,
+          "tokens": 147
+        },
+        {
+          "name": "RecordBindingResponse",
+          "kind": "class",
+          "startLine": 76,
+          "endLine": 90,
+          "tokens": 100
+        },
+        {
+          "name": "DeliverableSnapshotResponse",
+          "kind": "class",
+          "startLine": 91,
+          "endLine": 106,
+          "tokens": 146
+        }
+      ]
+    },
+    "pcs-backend/app/services/deliverable_service.py": {
+      "description": "交付物读服务（P1-7+ D 模块 / P8 前置）。",
+      "tokens": 1404,
+      "hash": "ef8dfacf770f214d",
+      "size": 5805,
+      "mtimeMs": 1791345278624.3987,
+      "updatedAt": "2026-10-07T03:54:38.676Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "DeliverableService",
+          "kind": "class",
+          "startLine": 33,
+          "endLine": 158,
+          "tokens": 1168
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/deliverables.py": {
+      "description": "交付物读端点（P1-7+ D 模块 / P8 前置）。",
+      "tokens": 1574,
+      "hash": "6af377906fab6669",
+      "size": 6268,
+      "mtimeMs": 1791345292540.9841,
+      "updatedAt": "2026-10-07T03:54:52.595Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_authorize",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 66,
+          "tokens": 144
+        },
+        {
+          "name": "list_deliverables",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 105,
+          "tokens": 346
+        },
+        {
+          "name": "get_deliverable",
+          "kind": "fn",
+          "startLine": 106,
+          "endLine": 124,
+          "tokens": 170
+        },
+        {
+          "name": "list_deliverable_versions",
+          "kind": "fn",
+          "startLine": 125,
+          "endLine": 146,
+          "tokens": 208
+        },
+        {
+          "name": "get_deliverable_snapshot",
+          "kind": "fn",
+          "startLine": 147,
+          "endLine": 177,
+          "tokens": 326
+        }
+      ]
+    },
+    "pcs-backend/tests/test_deliverables_api.py": {
+      "description": "交付物读端点测试（P1-7+ D 模块 / P8 前置）。",
+      "tokens": 3116,
+      "hash": "9f11736153b77bbc",
+      "size": 11550,
+      "mtimeMs": 1791345382848.441,
+      "updatedAt": "2026-10-07T03:56:22.891Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_make_deliverable",
+          "kind": "fn",
+          "startLine": 28,
+          "endLine": 51,
+          "tokens": 190
+        },
+        {
+          "name": "TestListDeliverables",
+          "kind": "class",
+          "startLine": 52,
+          "endLine": 130,
+          "tokens": 886
+        },
+        {
+          "name": "TestGetDeliverable",
+          "kind": "class",
+          "startLine": 131,
+          "endLine": 142,
+          "tokens": 146
+        },
+        {
+          "name": "TestListVersions",
+          "kind": "class",
+          "startLine": 143,
+          "endLine": 193,
+          "tokens": 562
+        },
+        {
+          "name": "TestSnapshot",
+          "kind": "class",
+          "startLine": 194,
+          "endLine": 286,
+          "tokens": 949
+        },
+        {
+          "name": "TestContract",
+          "kind": "class",
+          "startLine": 287,
+          "endLine": 303,
+          "tokens": 200
+        }
+      ]
+    },
+    "docs/PCS-NOTE-3.4-描述文本契约-2026-10-07.md": {
+      "description": "§3.4 约束①② 的对比契约定义（2026-10-07）",
+      "tokens": 869,
+      "hash": "1d379186e369b6f7",
+      "size": 5580,
+      "mtimeMs": 1791372063722.8608,
+      "updatedAt": "2026-10-07T11:21:03.774Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/scripts/test_check_payload_model_coverage.py": {
+      "description": "覆盖率闸 check_payload_model_coverage 的测试.",
+      "tokens": 975,
+      "hash": "1d7fb3b4ce76d274",
+      "size": 4121,
+      "mtimeMs": 1791372074470.9512,
+      "updatedAt": "2026-10-07T11:21:14.513Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_load_module",
+          "kind": "fn",
+          "startLine": 24,
+          "endLine": 32,
+          "tokens": 65
+        },
+        {
+          "name": "test_unregistered_tables_are_debt_not_violations",
+          "kind": "fn",
+          "startLine": 33,
+          "endLine": 41,
+          "tokens": 84
+        },
+        {
+          "name": "test_debt_is_counted_per_table_with_json_payload",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 50,
+          "tokens": 74
+        },
+        {
+          "name": "test_missing_model_is_a_violation",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 59,
+          "tokens": 79
+        },
+        {
+          "name": "test_description_mismatch_is_a_violation",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 72,
+          "tokens": 122
+        },
+        {
+          "name": "test_matching_description_passes",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 84,
+          "tokens": 103
+        },
+        {
+          "name": "test_registered_but_comment_drift_is_caught",
+          "kind": "fn",
+          "startLine": 85,
+          "endLine": 96,
+          "tokens": 111
+        },
+        {
+          "name": "test_baseline_is_not_exceeded",
+          "kind": "fn",
+          "startLine": 97,
+          "endLine": 102,
+          "tokens": 36
+        },
+        {
+          "name": "test_exits_1_when_coverage_drops",
+          "kind": "fn",
+          "startLine": 103,
+          "endLine": 121,
+          "tokens": 168
+        }
+      ]
+    },
+    "pcs-backend/scripts/check_payload_model_coverage.py": {
+      "description": "描述文本覆盖率闸 —— 本体论 §3.4 约束② 的可落地形态.",
+      "tokens": 1620,
+      "hash": "b92102783fd64f73",
+      "size": 7166,
+      "mtimeMs": 1791372111847.7515,
+      "updatedAt": "2026-10-07T11:21:51.903Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Result",
+          "kind": "class",
+          "startLine": 60,
+          "endLine": 73,
+          "tokens": 87
+        },
+        {
+          "name": "_result_tables",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 89,
+          "tokens": 136
+        },
+        {
+          "name": "_resolve",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 99,
+          "tokens": 80
+        },
+        {
+          "name": "describe",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 112,
+          "tokens": 143
+        },
+        {
+          "name": "orm_comment",
+          "kind": "fn",
+          "startLine": 113,
+          "endLine": 123,
+          "tokens": 91
+        },
+        {
+          "name": "check_entry",
+          "kind": "fn",
+          "startLine": 124,
+          "endLine": 150,
+          "tokens": 242
+        },
+        {
+          "name": "check",
+          "kind": "fn",
+          "startLine": 151,
+          "endLine": 180,
+          "tokens": 204
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 181,
+          "endLine": 209,
+          "tokens": 210
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p7_s5_008_projects_workspace_fk.py": {
+      "description": "p7_s5_008: 补 projects.workspace_id 外键 —— ORM 用 use_alter 声明，DB 侧从未建成.",
+      "tokens": 320,
+      "hash": "c68989bf3f00e5ba",
+      "size": 1475,
+      "mtimeMs": 1791378665434.4944,
+      "updatedAt": "2026-10-07T13:11:05.478Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/test_sqlite_check_constraint_overrides.py": {
+      "description": "conftest 里 SQLite CHECK 替身与 PostgreSQL 原式的**语义等价性**。",
+      "tokens": 1675,
+      "hash": "2c71cce146c86ff7",
+      "size": 7218,
+      "mtimeMs": 1791380357704.313,
+      "updatedAt": "2026-10-07T13:39:17.750Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_table",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 61,
+          "tokens": 20
+        },
+        {
+          "name": "_render_postgres",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 67,
+          "tokens": 45
+        },
+        {
+          "name": "_render_sqlite",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 73,
+          "tokens": 43
+        },
+        {
+          "name": "test_postgres_renders_the_interval_literal",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 80,
+          "tokens": 69
+        },
+        {
+          "name": "test_sqlite_renders_the_julianday_substitute",
+          "kind": "fn",
+          "startLine": 81,
+          "endLine": 90,
+          "tokens": 119
+        },
+        {
+          "name": "test_sqlite_substitute_matches_expected",
+          "kind": "fn",
+          "startLine": 91,
+          "endLine": 108,
+          "tokens": 200
+        },
+        {
+          "name": "test_postgres_original_matches_same_verdicts",
+          "kind": "fn",
+          "startLine": 109,
+          "endLine": 117,
+          "tokens": 73
+        },
+        {
+          "name": "_probe_engine",
+          "kind": "fn",
+          "startLine": 118,
+          "endLine": 129,
+          "tokens": 102
+        },
+        {
+          "name": "_verdict_on_postgres",
+          "kind": "fn",
+          "startLine": 130,
+          "endLine": 160,
+          "tokens": 345
+        },
+        {
+          "name": "test_no_unmapped_check_constraints",
+          "kind": "fn",
+          "startLine": 161,
+          "endLine": 180,
+          "tokens": 164
         }
       ]
     }

@@ -197,4 +197,8 @@ class ProjectCalculationStandardProfile(Base):
         # 完整 SQL 字符串由 alembic migration 创建（Dialect 限制，ORM 不直接支持 EXCLUDE）。
         # 此处不放 {"comment": ...} 表级注释 —— DB 里没有该注释（obj_description 为 NULL），
         # 写了会让 alembic check 报 add_table_comment。说明保留在上面的 # 注释里即可。
+        CheckConstraint(
+            "effective_from <= created_at + interval '1 second'",
+            name="future_dated_forbidden_chk",
+        ),
     )

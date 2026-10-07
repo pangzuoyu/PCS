@@ -1,19 +1,20 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-07T00:28:14.596Z
-> Files: 676 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-07T13:39:17.751Z
+> Files: 695 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
 - `.gitattributes` — Git attributes (~43 tok)
 - `.gitignore` — Git ignore rules (~46 tok)
 - `CHANGELOG.md` — Change log (~4191 tok)
-- `CLAUDE.md` — OpenWolf (~175 tok)
+- `CLAUDE.md` — OpenWolf (~1029 tok)
+- `CONCEPTS.md` — Concepts (~1673 tok)
 - `CONTEXT.md` — PCS（工艺专用综合计算软件） (~1524 tok)
 - `docker-compose.yml` — Docker Compose services (~309 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~3547 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~3453 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~7841 tok)
 
 ## .claude/worktrees/s4-0-events/
 
@@ -241,11 +242,14 @@
 - `P7-OPEN-009-SUP-010-5table-migration-schedule.md` — P7-OPEN-009 — SUP-010 5 表 + catalyst_loading + auxiliary_consumption 4 字段 迁移排期 (~2011 tok)
 - `P7-REV-01-04-mock-decisions.md` — P7-REV-01~04 — 启动前裁决清单 mock 决议 (~1290 tok)
 - `PCS-CALC-BLOCKER-2-RECALC-2026-10-01.md` — PCS BLOCKER-2 重算结果 — 蜡油加氢 XLS 独立计算 (~803 tok)
+- `PCS-NOTE-3.4-描述文本契约-2026-10-07.md` — §3.4 约束①② 的对比契约定义（2026-10-07） (~869 tok)
 - `PCS-NOTE-BLOCKER-2-2026-10-01.md` — PCS BLOCKER-2 状态登记 — 蜡油加氢 XLS 提取 (~710 tok)
 - `PCS-NOTE-catalyst_loading-取消-2026-10-05.md` — catalyst_loading 功能取消 — 该表不建，此功能先不做 (2026-10-05) (~925 tok)
 - `PCS-NOTE-CIA-反向恢复-推到P8-2026-10-05.md` — CIA 反向恢复推迟到 P8 — 落地路径 (2026-10-05) (~933 tok)
 - `PCS-NOTE-equipment_lib-废弃-2026-10-06.md` — PCS-NOTE: `equipment_lib` 表废弃裁决（2026-10-06） (~782 tok)
+- `PCS-NOTE-P8前置清单与3项修订-2026-10-07.md` — P8 前置清单与 3 项修订 —— 2026-10-07 裁决 (~1315 tok)
 - `PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md` — T5 综合能耗验收 — 电折标口径按 GB 30251-2024 修正，基准重建 (2026-10-05) (~3938 tok)
+- `PCS-NOTE-UI-SPEC-7.16-设备库检索延后-2026-10-07.md` — UI-SPEC §7.16 设备库检索 —— 本版本不实现，推迟到下一版本（2026-10-07） (~591 tok)
 - `PCS-P2-CLOSE-REPORT.md` — PCS P2 Sprint Close Report（2026-09-08） (~2039 tok)
 - `PCS-P3.2-SIM-AUDIT-REPORT.md` — PCS P3.2 SIM 全量审计报告 V1.0 (~1983 tok)
 - `PCS-P3.2-SIM-AUDIT-V2.md` — PCS P3.2 SIM 全量审计报告 V2.0（Post-SIM-13 闭环） (~5875 tok)
@@ -359,6 +363,10 @@
 - `gate-05-filtration-media-library-confirmation.md` — G-05 过滤介质物性数据确认（占位；工艺室签字待补） (~877 tok)
 - `gate-06-flare-radiation-limits-confirmation.md` — G-06 火炬地面辐射热通量 BEDD 限值数据确认（占位；工艺室签字待补） (~771 tok)
 - `p6-open-001-decision.md` — P6-OPEN-001 裁决：OPEN_CHANNEL 模块自研兜底（fluids.open_channel API 缺失） (~620 tok)
+
+## docs/solutions/database-issues/
+
+- `alembic-create-table-silently-drops-schema-elements.md` — Hand-written `op.create_table` silently drops inherited columns and foreign keys (~3714 tok)
 
 ## docs/superpowers/plans/
 
@@ -1036,6 +1044,10 @@
 
 - `generate_report.py` — URL configuration (~40824 tok)
 
+## pcs-backend/alembic/
+
+- `env.py` — alembic 同步迁移。Base 来源于 app.db.base（全部 ORM 已注册）. (~730 tok)
+
 ## pcs-backend/alembic/versions/
 
 - `dd47298c9c38_v3_1_full_schema_53_tables_adr_0023.py` — v3.1 full schema (53 tables, ADR-0023). (~34452 tok)
@@ -1043,11 +1055,15 @@
 - `p7_s3_002_project_product_category.py` — p7_s3_002: projects.product_category — GB 30251-2024 §6.1.5 电折标口径判据. (~526 tok)
 - `p7_s3_003_energy_config_classification_cols.py` — p7_s3_003: config_energy_conversion_factors 补 R1 分类列 (从未迁移的 schema drift). (~1788 tok)
 - `p7_s3_003_energy_config_gb30251_a1.py` — p7_s3_003: 折标系数对齐 GB 30251-2024 附录A 表A.1. (~1360 tok)
-- `p7_s3_005_gas_media_and_low_temp_heat.py` — p7_s3_005: utility_gas_media + utility_low_temp_heat (P7-6B 收尾). (~1833 tok)
+- `p7_s3_005_gas_media_and_low_temp_heat.py` — p7_s3_005: utility_gas_media + utility_low_temp_heat (P7-6B 收尾). (~1802 tok)
 - `p7_s5_001_drop_equipment_lib.py` — p7_s5_001: 删除 `equipment_lib` 死表（设备库实际由 ConfigAsset CATEGORY_6 承载）. (~775 tok)
 - `p7_s5_002_sign_status_indexes.py` — p7_s5_002: 补 4 张表的 sign_status 索引（历史迁移遗漏，非有意设计）. (~484 tok)
 - `p7_s5_003_created_by_uuid_and_jsonb.py` — p7_s5_003: 修正 2 张表的 created_by 列类型 + 1 张表的 JSON 列类型. (~783 tok)
 - `p7_s5_004_config_assets_category_guard.py` — p7_s5_004: config_assets 加 category CHECK 约束 + (category,status) 复合索引. (~449 tok)
+- `p7_s5_005_nullable_align.py` — p7_s5_005: 对齐 23 列的可空性 —— 消除 `alembic check` 的 modify_nullable 漂移. (~1094 tok)
+- `p7_s5_006_user_projects_created_by.py` — p7_s5_006: 补 user_projects.created_by —— ORM 继承来的列，真库缺失，导致授权必失败. (~602 tok)
+- `p7_s5_007_user_projects_fks.py` — p7_s5_007: 补 user_projects 的 4 个外键 —— 建表迁移把它们静默丢弃了（bug-144）. (~1069 tok)
+- `p7_s5_008_projects_workspace_fk.py` — p7_s5_008: 补 projects.workspace_id 外键 —— ORM 用 use_alter 声明，DB 侧从未建成. (~320 tok)
 
 ## pcs-backend/app/api/v1/
 
@@ -1055,6 +1071,7 @@
 - `_guard.py` — API endpoint 守卫 helper（BLOCKER-3 修复共享函数）。 (~602 tok)
 - `audit.py` — Audit Query API (F-P2-009 Sprint 3 / Issue 7 混合 RBAC). (~2535 tok)
 - `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~5196 tok)
+- `deliverables.py` — 交付物读端点（P1-7+ D 模块 / P8 前置）。 (~1574 tok)
 - `equip_lib.py` — equip-lib 端点（Task 1.9.5 / P2-EQL-001）。 (~724 tok)
 - `filtration.py` — P6-3 FILTRATION API（SPEC §3.2.7 + Task 34）。 (~5529 tok)
 - `flare.py` — P6-2 FLARE_SYS API：Task 20 header_sizing + Task 21 kod_sizing + (~5836 tok)
@@ -1076,7 +1093,7 @@
 
 ## pcs-backend/app/core/
 
-- `config.py` — 应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。 (~1398 tok)
+- `config.py` — 应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。 (~1596 tok)
 - `errors.py` — FastAPI 全局异常处理器 + 统一 PcsError 信封。 (~2419 tok)
 - `security.py` — JWT 编解码 + 密码哈希 + JTI 吊销。HS256，密钥由 Settings.secret_key 提供。 (~1249 tok)
 
@@ -1085,18 +1102,19 @@
 - `__init__.py` — 全部 ORM 模型。alembic/env.py 依赖本包导入即注册全部表。 (~269 tok)
 - `calc.py` — 计算结果 ORM 模型（P5-3 计算引擎持久化）。 (~16256 tok)
 - `config_domain.py` — 配置域 ORM 模型（公司/工程级共享配置）。 (~4191 tok)
-- `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~11418 tok)
+- `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~11754 tok)
 - `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~3800 tok)
 - `equipment.py` — 设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。 (~3317 tok)
 - `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~7302 tok)
 - `psv_standards.py` — PSV 多标准配置 ORM（P5-0-5 Task 24a，SUP-P5-PSV-001 §3.1 + ADR-0028 V1.1）。 (~1824 tok)
 - `sim_unit_op.py` — P3.x SIM-15: sim_unit_op_results + 6 专用结果表（单元 SUMMARY 存档）。 (~2006 tok)
 - `system.py` — 系统支撑 ORM 模型（审计/血缘/导入历史）。 (~3301 tok)
-- `util.py` — S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。 (~8236 tok)
+- `util.py` — S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。 (~8361 tok)
 
 ## pcs-backend/app/schemas/
 
 - `audit.py` — Audit Query Pydantic schemas (F-P2-009 Sprint 3 / Issue 5). (~769 tok)
+- `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~848 tok)
 - `project.py` — 项目产品类别 schema (GB 30251-2024 §6.1.5 电折标口径判据). (~297 tok)
 - `util.py` — S1-5b UTIL API schemas。 (~3550 tok)
 - `workspace.py` — Workspace Pydantic schemas（Sprint 1）。 (~711 tok)
@@ -1105,6 +1123,7 @@
 
 - `advisory_lock.py` — Postgres advisory lock（事务级）防止并发状态转移。 (~862 tok)
 - `audit_service.py` — AuditService：审计统一入口（Issue 6 锁定）。 (~610 tok)
+- `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~1404 tok)
 - `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
 - `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~1011 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~6322 tok)
@@ -1115,7 +1134,8 @@
 
 ## pcs-backend/scripts/
 
-- `check_migration_idempotency.py` — 检查 alembic migrations 是否用 if_exists / if_not_exists (F-P3-002 fix). (~706 tok)
+- `check_migration_idempotency.py` — 检查 alembic migrations 是否用 if_exists / if_not_exists (F-P3-002 fix). (~1485 tok)
+- `check_payload_model_coverage.py` — 描述文本覆盖率闸 —— 本体论 §3.4 约束② 的可落地形态. (~1620 tok)
 - `p7_open_009_t0_seed_energy_conversion_factors.py` — t**) GB 30251-2024 附录A 序号4 — " (~3764 tok)
 - `p7_open_012_t5_r1_verification.py` — P7 Sprint 2 T5 ≤2% 验收脚本（蜡油加氢 XLS R1 重算对比）。 (~4491 tok)
 - `p7_open_016_config_conformance_audit.py` — PCS 折标系数 vs GB 30251-2024 附录A 表A.1 一致性审计. (~3146 tok)
@@ -1123,12 +1143,14 @@
 
 ## pcs-backend/tests/
 
-- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~4455 tok)
+- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~4721 tok)
 - `test_audit_guard.py` — P7-7+ BLOCKER-3 guard 集成测试 — /equipment-deletion-audit 端点. (~1256 tok)
 - `test_audit_query.py` — F-P2-009 Sprint 3: Audit Query 后端测试 (Issue 5 错误路径 + Issue 7 混合 RBAC). (~3389 tok)
-- `test_jwt_production.py` — F-P3-001 Sprint 3: JWT production hardening + LDAP fail-closed 测试. (~2042 tok)
+- `test_deliverables_api.py` — 交付物读端点测试（P1-7+ D 模块 / P8 前置）。 (~3116 tok)
+- `test_jwt_production.py` — F-P3-001 Sprint 3: JWT production hardening + LDAP fail-closed 测试. (~2697 tok)
 - `test_rbac_audit.py` — F-P3-001 checklist #5: RBAC 401/403 audit log + per-IP rate limit 测试. (~1861 tok)
 - `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~2523 tok)
+- `test_sqlite_check_constraint_overrides.py` — conftest 里 SQLite CHECK 替身与 PostgreSQL 原式的**语义等价性**。 (~1675 tok)
 - `test_workspace_archive.py` — F-P3-003 Sprint 3: Workspace archive PATCH 端点测试. (~1272 tok)
 
 ## pcs-backend/tests/api/v1/
@@ -1137,6 +1159,11 @@
 - `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3030 tok)
 - `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
 - `test_subtable_duplicate_conflict.py` — 既有子表 POST 端点的 UNIQUE 冲突处理 (2026-10-05). (~1507 tok)
+
+## pcs-backend/tests/scripts/
+
+- `test_check_migration_idempotency.py` — F-P3-002 fix: 测试 check_migration_idempotency 脚本行为. (~1748 tok)
+- `test_check_payload_model_coverage.py` — 覆盖率闸 check_payload_model_coverage 的测试. (~975 tok)
 
 ## pcs-backend/tests/services/
 
@@ -1148,7 +1175,7 @@
 - `test_energy_mj_from_config.py` — 耗能工质 MJ 从 CONFIG 推导 (Q2, 用户裁决 2026-10-05). (~1419 tok)
 - `test_gas_media_and_low_temp_heat.py` — 工艺气体 / 低温热子表聚合 (P7-6B 收尾). (~2512 tok)
 - `test_gb30251_config_conformance.py` — GB 30251-2024 附录A 表A.1 折标系数一致性回归 (2026-10-05). (~1427 tok)
-- `test_utility_energy_summary.py` — P7 Sprint 2 T5: utility_energy_summary service 测试. (~9769 tok)
+- `test_utility_energy_summary.py` — P7 Sprint 2 T5: utility_energy_summary service 测试. (~9819 tok)
 
 ## pcs-frontend/.gstack/qa-reports/
 
@@ -1200,3 +1227,7 @@
 ## pcs-frontend/tests/pages/audit/
 
 - `AuditLogPage.test.tsx` — AuditLogPage 组件测试 (F-P2-009 Sprint 3). (~598 tok)
+
+## spec/
+
+- `工艺专用综合计算软件需求规格说明书 Web版 P8.md` (~3256 tok)

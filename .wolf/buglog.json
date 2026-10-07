@@ -2620,6 +2620,74 @@
       "related_bugs": [
         "bug-143"
       ]
+    },
+    {
+      "id": "bug-146",
+      "timestamp": "2026-10-07T00:00:00+08:00",
+      "error_message": "alembic check 报 ('add_fk', ForeignKeyConstraint(name='fk_projects_workspace_id', use_alter=True)) —— DB 侧 projects 表零外键约束",
+      "file": "pcs-backend/app/models/project.py",
+      "root_cause": "ORM 把 `projects.workspace_id` 声明成 `ForeignKey(..., use_alter=True, name=\"fk_projects_workspace_id\")` 用来破解 projects↔workspaces 循环依赖。\n\n`use_alter=True` 的语义是「**由一条 ALTER TABLE ADD CONSTRAINT 迁移单独创建**」，而不是让 SQLAlchemy 把它塞进 CREATE TABLE。写这份延迟迁移的那一步从未落地 —— 于是 `pg_constraint` 查 `projects` 返回空，**这张表上一个外键约束都没有**。\n\n后果：删工作区不会级联，项目静默变孤儿行。单元测试照绿：conftest 用 in-memory SQLite + `SA_Base.metadata.create_all`，create_all 从 ORM metadata 建表，外键照 ORM 声明全建了出来 —— 测试库的 projects 一直有 FK，真库没有。典型「漂移盲区」。\n\n`alembic check` 一直把它报成 add_fk，但没人处理。",
+      "fix": "新增 `alembic/versions/p7_s5_008_projects_workspace_fk.py`：\n\n    op.drop_constraint(\"fk_projects_workspace_id\", \"projects\", type_=\"foreignkey\", if_exists=True)\n    op.create_foreign_key(\"fk_projects_workspace_id\", \"projects\", \"workspaces\",\n                          [\"workspace_id\"], [\"workspace_id\"])\n\n迁移里不需要 use_alter —— `op.create_foreign_key` 发出的正是 ALTER TABLE。drop-then-create 天然幂等。\n\n补约束前查过孤儿：`SELECT count(*) FROM projects p WHERE NOT EXISTS (SELECT 1 FROM workspaces w WHERE w.workspace_id = p.workspace_id)` → 0（该表本就 0 行），可安全 ADD CONSTRAINT。\n\n顺带把本轮 39 条约束漂移清零（见 bug-147）。",
+      "fix_commit": "",
+      "tags": [
+        "p7-sprint5",
+        "schema-drift",
+        "foreign-key",
+        "use_alter",
+        "alembic",
+        "data-integrity"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-07T00:00:00+08:00",
+      "related_bugs": [
+        "bug-143",
+        "bug-144",
+        "bug-147"
+      ]
+    },
+    {
+      "id": "bug-147",
+      "timestamp": "2026-10-07T00:00:00+08:00",
+      "error_message": "alembic check 报 39 条 remove_constraint —— DB 有 28 个 CheckConstraint + 11 个 UniqueConstraint，ORM 的 __table_args__ 一个都没声明",
+      "file": "pcs-backend/app/models/util.py",
+      "root_cause": "**纯声明缺失，DB 侧本来就对。** 11 张表的 `__table_args__` 里只有 Index，没有 DB 建表时就写下的 CHECK / UNIQUE。\n\n`alembic check` 把它报成 `remove_constraint`（读作「DB 多余、ORM 要删」），但这些约束是 DB 独有的安全网，**绝不能照字面删**。\n\n清零过程中踩到的三件事，都记在这：\n\n1. **alembic 按名字匹配 CHECK 约束，不比对表达式。** 实测决定性证据：给 `UtilResults` 写一个可读表达式 `cooling_water_consumption_t_yr IS NULL OR ... >= 0`，而 DB 里是带 cast 的版本，CheckConstraint 漂移数立刻 28→27 且该名字消失。所以 ORM 侧可以写人话，不必抄 PG 的 cast 语法。\n2. **`unique=True, index=True` 并存时 SQLAlchemy 生成的是「唯一索引」而非 UniqueConstraint。** `drain_orifice_Cd_Y_cr.fluid` 就是这样：ORM 只有一个 unique Index，DB 上同时有 UniqueConstraint 和 unique Index（建表迁移写的 `unique=True, index=True`）。补声明 UniqueConstraint 才对齐。\n3. **`compound_api521_thresholds` 靠 `unique=True` 声明唯一性，名字被 NAMING_CONVENTION 展开成 `uq_compound_api521_thresholds_threshold_type`，而 DB 里叫 `uq_compound_api521_thresholds_type`** —— 名字对不上会**同时**产生一条 remove_constraint 和一条 add_constraint。改显式 `UniqueConstraint(..., name=...)`。\n\n外加一条易踩：`remove_constraint` 的字面意思与正确处置**恰好相反**。",
+      "fix": "ORM `__table_args__` 补 36 条声明：28 个 CheckConstraint（util.py 27 + psv_standards.py 1）、9 个 UniqueConstraint，另把 `compound_api521_thresholds` 的 `unique=True` 换成显式命名的 UniqueConstraint。\n\n**零迁移成本** —— DB 侧本就有约束，只改 Python 声明。\n\n连同 bug-146，`alembic check` 从 43 条降到 **0**（exit 0，「No new upgrade operations detected」）。\n\n**补声明后冒出两个真问题**（都是被这批 CHECK 揭出来的，不是新引入）：\n\n1. `future_dated_forbidden_chk` 的表达式是 PG 专有的 `interval '1 second'` **类型字面量**（不是函数调用），SQLite 的分词器在 CREATE TABLE 阶段就报 syntax error —— 注册 UDF 也救不了，函数解析发生在建表之前。全库 1039 个 error 就是这么来的。\n   解法：在 `tests/conftest.py` 的 SQLite 兼容垫片里按**约束名**整条替换成 `julianday(effective_from) <= julianday(created_at) + 1.0/86400`。**两侧都要套 julianday** —— SQLite 把 DATETIME 存成 TEXT、julianday() 返回 REAL，而 SQLite 排序规则把所有数值排在所有文本之前，只包右侧会让 `TEXT <= REAL` 恒为假、约束把每一行都拒掉。\n   替身带来原方案没有的风险（两边可能悄悄不等价，而测试只跑替身），故新增 `tests/test_sqlite_check_constraint_overrides.py`：把 PG 原式和 SQLite 替身**渲染出来各建一张真表、各插一遍数据**，用同一张 6 条判定表比对裁决。\n2. `tests/services/util/test_utility_energy_summary.py` 的 fixture 写 `operating_hours_per_year=10000.0` —— **一年只有 8760（平年）/8784（闰年）小时**。DB 的 `ck_utility_power_items_hours_in_year` 一直拦着，只是 ORM 没声明、测试库跟着没有，才一直绿。改 8000（行业常用的 8000 h/a）。\n",
+      "fix_commit": "",
+      "tags": [
+        "p7-sprint5",
+        "schema-drift",
+        "check-constraint",
+        "unique-constraint",
+        "alembic",
+        "naming-convention"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-07T00:00:00+08:00",
+      "related_bugs": [
+        "bug-143",
+        "bug-146"
+      ]
+    },
+    {
+      "id": "bug-148",
+      "timestamp": "2026-10-07T00:00:00+08:00",
+      "error_message": "sqlite3.IntegrityError: CHECK constraint failed: ck_utility_power_items_hours_in_year —— fixture 写 operating_hours_per_year=10000.0",
+      "file": "pcs-backend/tests/services/util/test_utility_energy_summary.py",
+      "root_cause": "**fixture 写了物理上不可能的值，而 DB 约束一直是对的。**\n\n一年最多 8760 小时（365×24），闰年 8784。`ck_utility_power_items_hours_in_year` 在建表迁移 `p7_open_009_001_utility_power_items` 里就写好了 `operating_hours_per_year > 0 AND <= 8760`，真库一直在拦。\n\n测试库没有这个约束 —— `tests/conftest.py` 用 in-memory SQLite + `SA_Base.metadata.create_all` 从 **ORM metadata** 建表，而 ORM 的 `__table_args__` 当时只声明了 Index，漏了 CHECK。所以测试库天生没有这条护栏，fixture 写多少都能过。\n\n这正是 bug-147 那 39 条 `remove_constraint` 的实际危害：**它们不是无害的噪声，是测试库与真库之间 39 处护栏缺失**。补齐 ORM 声明后，护栏回来了，立刻有一条 fixture 撞上。",
+      "fix": "fixture 改 8000.0（行业常用的 8000 h/a），并留注释说明原先 10000 为什么没人拦。\n\n顺带一个**留给产品裁决**的问题：DB 上限写死 8760（平年值），闰年实际可用 8784 小时。要不要放宽是业务判断，本次未动 —— DB 约束是既有资产，改它需要一条迁移 + 业务确认。",
+      "fix_commit": "",
+      "tags": [
+        "p7-sprint5",
+        "test-fixture-blind-spot",
+        "check-constraint",
+        "schema-drift",
+        "utility"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-07T00:00:00+08:00",
+      "related_bugs": [
+        "bug-147"
+      ]
     }
   ]
 }

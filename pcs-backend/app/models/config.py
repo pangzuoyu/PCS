@@ -614,12 +614,20 @@ class CompoundApi521Thresholds(Base):
 
     __tablename__ = "compound_api521_thresholds"
 
+    # 显式命名而非 `unique=True`：后者按 NAMING_CONVENTION 展开成
+    # `uq_compound_api521_thresholds_threshold_type`，而 DB 里既有约束叫
+    # `uq_compound_api521_thresholds_type`。名字对不上会同时产生一条
+    # remove_constraint 和一条 add_constraint 漂移。
+    __table_args__ = (
+        UniqueConstraint("threshold_type", name="uq_compound_api521_thresholds_type"),
+    )
+
     id: Mapped[int] = mapped_column(
         Integer, primary_key=True, autoincrement=True,
         comment="BIGINT 自增主键",
     )
     threshold_type: Mapped[str] = mapped_column(
-        String(32), nullable=False, unique=True,
+        String(32), nullable=False,
         comment='阈值类型 UNIQUE：如 "INJURY"/"LETHALITY"',
     )
     flux_kw_m2: Mapped[float] = mapped_column(
@@ -733,6 +741,13 @@ class PipeEModulus(Base):
     """
 
     __tablename__ = "pipe_e_modulus"
+    __table_args__ = (
+        UniqueConstraint(
+            "grade",
+            name="uq_pipe_e_modulus_grade",
+        ),
+    )
+
 
     id: Mapped[int] = mapped_column(
         Integer, primary_key=True, autoincrement=True,
@@ -850,6 +865,13 @@ class CompoundDeltaHVapNaturalGas(Base):
     """
 
     __tablename__ = "compound_delta_h_vap_natural_gas"
+    __table_args__ = (
+        UniqueConstraint(
+            "convention",
+            name="uq_compound_delta_h_vap_natural_gas_convention",
+        ),
+    )
+
 
     id: Mapped[int] = mapped_column(
         Integer, primary_key=True, autoincrement=True,
@@ -909,6 +931,15 @@ class DrainOrificeCdYCr(Base):
     """
 
     __tablename__ = "drain_orifice_Cd_Y_cr"
+
+    # DB 上 `fluid` 同时有 UNIQUE 约束和 UNIQUE 索引（建表迁移写了
+    # `unique=True, index=True`，SQLAlchemy 在两者并存时生成的是
+    # 「唯一索引」而非 UniqueConstraint，于是约束那一半在 ORM 侧缺席）。
+    # 显式补声明以对齐 DB。DB 上的重复唯一索引本次不动 —— 删索引是迁移，
+    # 属于另一件事。
+    __table_args__ = (
+        UniqueConstraint("fluid", name="uq_drain_orifice_Cd_Y_cr_fluid"),
+    )
 
     id: Mapped[int] = mapped_column(
         Integer, primary_key=True, autoincrement=True,
@@ -981,6 +1012,13 @@ class GlycolDehydrationFullSystem(Base):
     """
 
     __tablename__ = "glycol_dehydration_full_system"
+    __table_args__ = (
+        UniqueConstraint(
+            "parameter",
+            name="uq_glycol_dehydration_full_system_parameter",
+        ),
+    )
+
 
     id: Mapped[int] = mapped_column(
         Integer, primary_key=True, autoincrement=True,
