@@ -11288,6 +11288,320 @@
         }
       }
     },
+    "/api/v1/deliverables": {
+      "get": {
+        "tags": [
+          "deliverables"
+        ],
+        "summary": "列项目下交付物",
+        "description": "列项目下的交付物。\n\n报表生成中心要按类型分组（计算书/数据表/委托条件表），\n故提供 `deliverable_type` 过滤。",
+        "operationId": "list_deliverables_api_v1_deliverables_get",
+        "parameters": [
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "description": "项目 UUID",
+              "title": "Project Id"
+            },
+            "description": "项目 UUID"
+          },
+          {
+            "name": "deliverable_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "按类型过滤，如 CHANGE_NOTICE；不传则含全部",
+              "title": "Deliverable Type"
+            },
+            "description": "按类型过滤，如 CHANGE_NOTICE；不传则含全部"
+          },
+          {
+            "name": "sign_status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "description": "按签署状态过滤",
+              "title": "Sign Status"
+            },
+            "description": "按签署状态过滤"
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 100,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deliverables/{deliverable_id}": {
+      "get": {
+        "tags": [
+          "deliverables"
+        ],
+        "summary": "交付物详情",
+        "description": "取单个交付物。",
+        "operationId": "get_deliverable_api_v1_deliverables__deliverable_id__get",
+        "parameters": [
+          {
+            "name": "deliverable_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Deliverable Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deliverables/{deliverable_id}/versions": {
+      "get": {
+        "tags": [
+          "deliverables"
+        ],
+        "summary": "Rev 历史",
+        "description": "交付物的 Rev 列表，当前 Rev 在最前。\n\nRev 元信息不含记录绑定明细 —— 那是 snapshot 端点的职责，避免列表响应过大。",
+        "operationId": "list_deliverable_versions_api_v1_deliverables__deliverable_id__versions_get",
+        "parameters": [
+          {
+            "name": "deliverable_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Deliverable Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/DeliverableVersionResponse"
+                  },
+                  "title": "Response List Deliverable Versions Api V1 Deliverables  Deliverable Id  Versions Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/deliverables/{deliverable_id}/versions/{rev}/snapshot": {
+      "get": {
+        "tags": [
+          "deliverables"
+        ],
+        "summary": "某 Rev 的快照（含记录绑定明细）",
+        "description": "取某 Rev 的完整快照。\n\n报表的二维码溯源与「哪些记录在这版被锁定」都从这里取 ——\n`record_snapshot_json` 是记录ID+哈希汇总，`bindings` 是逐条明细。",
+        "operationId": "get_deliverable_snapshot_api_v1_deliverables__deliverable_id__versions__rev__snapshot_get",
+        "parameters": [
+          {
+            "name": "deliverable_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Deliverable Id"
+            }
+          },
+          {
+            "name": "rev",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Rev"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableSnapshotResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/equipment/{equipment_id}/actual-data": {
       "get": {
         "tags": [
@@ -19562,6 +19876,290 @@
         "title": "CvCalculateResponse",
         "description": "调节阀 Cv 计算响应（POST /api/v1/cv/calculate 201）。\n\n回填 CvResult 主键 + 关键结果字段 + outlet stream 锚点。\n\nP6-4 Task 5（C-24 Masonelian fl）：V1.2 D3 严格 — fl / flash_steam_rate_kg_s\n走 JSONB 容器（output_json），masonelian_model 走 ORM 列。响应层 3 字段全部\nOptional（默认 None），保持 V1.0 兼容：仅 LIQUID 路径填充；GAS/VAPOR 路径\n闪蒸修正无强物理意义，保持 None。"
       },
+      "DeliverableListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "DeliverableListResponse",
+        "description": "项目下的交付物列表。\n\n`total` 供前端分页；P8 REPORT 生成页要按 deliverable_type 分组展示。"
+      },
+      "DeliverableResponse": {
+        "properties": {
+          "deliverable_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Deliverable Id"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "deliverable_type": {
+            "type": "string",
+            "title": "Deliverable Type",
+            "description": "CALCULATION_BOOK/DRAWING/CHANGE_NOTICE 等"
+          },
+          "scope_type": {
+            "type": "string",
+            "title": "Scope Type"
+          },
+          "scope_value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Scope Value"
+          },
+          "doc_no": {
+            "type": "string",
+            "title": "Doc No"
+          },
+          "doc_no_mode": {
+            "type": "string",
+            "title": "Doc No Mode"
+          },
+          "title": {
+            "type": "string",
+            "title": "Title"
+          },
+          "current_rev": {
+            "type": "string",
+            "title": "Current Rev",
+            "description": "当前 Rev：A/B/0/1/AS-BUILT/X"
+          },
+          "version_purpose": {
+            "type": "string",
+            "title": "Version Purpose"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status"
+          },
+          "matrix_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Matrix Id"
+          },
+          "parent_deliverable_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Parent Deliverable Id"
+          },
+          "customer_approval_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Approval Date"
+          },
+          "customer_approver_name": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Approver Name"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deliverable_id",
+          "project_id",
+          "deliverable_type",
+          "scope_type",
+          "doc_no",
+          "doc_no_mode",
+          "title",
+          "current_rev",
+          "version_purpose",
+          "sign_status"
+        ],
+        "title": "DeliverableResponse",
+        "description": "交付物列表项 / 详情。\n\n只暴露报表与签署流程要用的字段；`record_snapshot_json` 等大 JSONB 不进列表响应，\n走 snapshot 端点按需取（spec §3.2 的 snapshot 端点正是为此存在）。"
+      },
+      "DeliverableSnapshotResponse": {
+        "properties": {
+          "deliverable_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Deliverable Id"
+          },
+          "rev": {
+            "type": "string",
+            "title": "Rev"
+          },
+          "version_purpose": {
+            "type": "string",
+            "title": "Version Purpose"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "doc_no": {
+            "type": "string",
+            "title": "Doc No"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status"
+          },
+          "record_snapshot_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Record Snapshot Json"
+          },
+          "signature_summary_json": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Signature Summary Json"
+          },
+          "bindings": {
+            "items": {
+              "$ref": "#/components/schemas/RecordBindingResponse"
+            },
+            "type": "array",
+            "title": "Bindings"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deliverable_id",
+          "rev",
+          "version_purpose",
+          "description",
+          "doc_no",
+          "sign_status",
+          "bindings"
+        ],
+        "title": "DeliverableSnapshotResponse",
+        "description": "某 Rev 的完整快照：Rev 元信息 + 记录绑定明细 + 签署汇总。\n\nP8 REPORT 的二维码溯源依赖 `record_hash` 链；`signature_summary_json` 原样\n透传（其结构由签署矩阵定义，本层不解释，避免两层耦合）。"
+      },
+      "DeliverableVersionResponse": {
+        "properties": {
+          "version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Version Id"
+          },
+          "deliverable_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Deliverable Id"
+          },
+          "rev": {
+            "type": "string",
+            "title": "Rev"
+          },
+          "version_purpose": {
+            "type": "string",
+            "title": "Version Purpose"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "affected_status": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Affected Status"
+          },
+          "customer_approval_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Customer Approval Date"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version_id",
+          "deliverable_id",
+          "rev",
+          "version_purpose",
+          "description"
+        ],
+        "title": "DeliverableVersionResponse",
+        "description": "单个 Rev 的历史条目（spec §3.2 的 versions 端点）。\n\n`record_snapshot_json` 是「记录ID+哈希汇总」，可能很大 —— 故默认不进响应，\n由 snapshot 端点按 rev 取。`pdf_file_path` 同理不进响应（是文件路径不是内容）。"
+      },
       "DeviationReportOut": {
         "properties": {
           "equipment_id": {
@@ -27640,6 +28238,42 @@
         ],
         "title": "RadiationCheckInfo",
         "description": "Radiation Check 子结果（API 521 §7.4.2.3 + BEDD）。"
+      },
+      "RecordBindingResponse": {
+        "properties": {
+          "record_type": {
+            "type": "string",
+            "title": "Record Type"
+          },
+          "record_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Record Id"
+          },
+          "record_hash": {
+            "type": "string",
+            "title": "Record Hash"
+          },
+          "old_record_hash_before_change": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Old Record Hash Before Change"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_type",
+          "record_id",
+          "record_hash"
+        ],
+        "title": "RecordBindingResponse",
+        "description": "snapshot 端点里的单条记录绑定明细。\n\n报表要回答「这份 Rev 锁定了哪些记录、各自哈希是多少」——\n`old_record_hash_before_change` 用于识别「相对上一版哪些记录实质变了」。"
       },
       "RecordTransitionRequest": {
         "properties": {

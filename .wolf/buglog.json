@@ -2598,6 +2598,28 @@
       "related_bugs": [
         "bug-143"
       ]
+    },
+    {
+      "id": "bug-145",
+      "timestamp": "2026-10-07T00:00:00+08:00",
+      "error_message": "sqlite3.IntegrityError: NOT NULL constraint failed: deliverables.matrix_id —— ChangeNoticeService.create_change_notice 写死 matrix_id=None",
+      "file": "pcs-backend/app/services/change_notice_service.py",
+      "root_cause": "**`Deliverable.matrix_id` 是 NOT NULL 且带 FK，不是可空字段**，而 `create_change_notice`（:191）写死：\n\n        matrix_id=None,  # SIM-39 接 CHANGE_NOTICE_3_LEVEL 矩阵\n\n该注释坦承这是「等 SIM-39」的占位，但占位值与列约束直接冲突 —— INSERT 必然触发 NOT NULL 违例。ORM 侧 `deliverable.py:83-85` 声明的是\n`Mapped[uuid.UUID]`（非 Optional）+ `ForeignKey(\"signature_matrices.matrix_id\")`。\n\n**为何至今未爆**：`create_change_notice` 无任何测试（`ls tests/ | grep change_notice` 为空），且真库 `change_notice_details` 等表 0 行，从未在真库上跑过。\n\n**发现路径**：2026-10-07 补 D 模块读面测试时写 fixture，sqlite 直接报出 NOT NULL 违例才暴露 —— 与 bug-143 同类（ORM/migration 说的与代码做的不一致），但方向相反：这次是**代码**违反**模型**。",
+      "fix": "**本条尚未修复，仅登记。** 修法有两条，方向不同：\n\n1. **先建矩阵再创建变更单** —— 需要 `SignatureMatrix.steps_json` 有消费方（当前无 service，SUP-005 签署矩阵未落地），且要按 deliverable_type 选矩阵。\n   即注释里说的 SIM-39。\n2. **把 `matrix_id` 放宽为可空** —— 需要一条迁移 + 改 ORM 声明。   代价是丢引用完整性，且与「签署矩阵决定签署流程」的设计意图相悖。\n\n倾向 1：模型的 NOT NULL 是有意的（没有矩阵就无法签署），放宽等于把设计\n约束降级成软约束。但 1 的前置（矩阵消费方）属 P9 范围。\n\n**当前影响**：`create_change_notice` 是死路径 —— 调用即 500。",
+      "fix_commit": "",
+      "tags": [
+        "p7-sprint5",
+        "p1-d-module",
+        "deliverable",
+        "not-null",
+        "signing-matrix",
+        "latent"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-07T00:00:00+08:00",
+      "related_bugs": [
+        "bug-143"
+      ]
     }
   ]
 }
