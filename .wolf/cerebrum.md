@@ -20,7 +20,24 @@
 - ORM `__table_args__` 必须含 `CheckConstraint` 同步 DB 约束（跨 dialect 不丢）。
 - Pydantic schema 字段重复（Create+Update）→ Edit fail "Found 2 matches"，先 `grep -n` 再附上下文 unique。
 - **单测不读迁移，别把 `alembic upgrade head` 当测试前置**（2026-10-06 实测证伪）：`conftest.db_engine` 建 `sqlite+aiosqlite:///:memory:` 并用 `SA_Base.metadata.create_all` 从 ORM 建表，`.env` 指向 `pcs`、无 `pcs_test`、无 `.env.test`。CLAUDE.md「测试前检查」原「先对 pcs_test 跑 upgrade head」一条已于同日改写为三段式。
-- **⚠️ 漂移盲区：缺表会红（可见），漂移会绿（不可见）**。迁移改 schema 而 ORM 未跟随时单测全绿、真库炸，无自动化能抓（见 Key Learnings `bug-137`）。改 `alembic/versions/*` 后必跑 `uv run alembic check`（alembic 1.9+ 检测 ORM vs 迁移漂移，无输出即一致），并手动核对 ORM 列。
+- **⚠️ 漂移盲区：缺表会红（可见），漂移会绿（不可见）**。迁移改 schema 而 ORM 未跟随时单测全绿、真库炸，无自动化能抓（见 Key Learnings `bug-137`）。改 `alembic/versions/*` 后必跑 `uv run alembic check` 并手动核对 ORM 列。**该守门有三个会让人误判的读法，见 CLAUDE.md「测试前检查」**：① DB revision 落后 code head 时它直接拒跑，那是检查失败不是通过；② 退出码 **255** 不是 1（`check_migration_idempotency.py` 才用 1）；③ 当前有 43 条已裁决残留，"无输出"不等于一致。
+- **手写 `op.create_table` 必查两件事**（bug-143/144，均为**静默**失败）：
+  ① **mixin 继承的列有没有漏** —— `UserProject(TimestampMixin, Base)` 的 `created_by` 等三列
+  在类体里一个都看不到，按类体抄写必然漏（那次漏 `created_by`，真库 INSERT 报 `UndefinedColumn`）；
+  注释里写「Timestamps from TimestampMixin」不算核对，它只列出作者注意到的列。
+  ② **外键是不是写成了裸 `sa.ForeignKey(...)` 位置参数** —— `op.create_table(*args)` 只收
+  `Column`/`Constraint`，裸 `ForeignKey` 被**静默丢弃、不报错**。正确写法是嵌进列：
+  `sa.Column("user_id", UUID(...), sa.ForeignKey("users.user_id", ondelete="CASCADE"), nullable=False)`。
+  那次 4 条 FK 一条没建出来，而 `user_projects` 是 BLOCKER-3 IDOR 守卫读的表。
+  约束名另须从 `NAMING_CONVENTION` 推导，名字对不上 `alembic check` 照样报漂移。
+- **PG 写 FK 用 `op.create_foreign_key`，别手写 `REFERENCES users.user_id`**（2026-10-07 实测）：
+  未加引号的两段式报 `InvalidSchemaName: schema "users" does not exist` —— 表明明存在，错误
+  信息却指向 schema；函数式 `REFERENCES users(user_id)` 与加引号式均正常。
+  （该结论在开发库 PG 18.6 复现，compose 声明的是 16-alpine，跨版本未验。）
+- **别拿「迁移里加了 guard」当保护已生效**：约束类 op 的存在性标志传进去不报错却被 `**kw`
+  吞掉（`create_unique_constraint`/`create_check_constraint` 在 alembic 1.19.1 无该形参），比不加
+  更危险。迁移期结构检查统一放 `scripts/check_migration_idempotency.py` —— 它已用 AST 遍历
+  `ast.Call` 且对 `op.create_table` 特判，加新检查边际成本最低。
 
 ### 数据完整性：缺数据就留空，不编造
 

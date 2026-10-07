@@ -480,10 +480,19 @@ access/refresh token」，并把 token_version 列为该条的实现手段。
   静态解析必须建模这些循环才能不误报，成本与脆弱性都高。
 - **结论：暂不做**。与其建一个假阳性一堆的静态分析器，不如把 `alembic check`
   变成**可自动跑的 CI/本地检查**（当前是纯人工记得才跑）。
+- ⚠️ **否决范围限于「列覆盖比对」，不含「参数类型检查」**（2026-10-07 收窄）。
+  上面那 257 个假阳性只证伪了**拿 `sa.Column` 集合比对 `Base.metadata`** 这一条路 ——
+  它被循环式迁移打垮。但 bug-144 那类缺陷（`op.create_table` 收到裸 `sa.ForeignKey`
+  位置参数）是**参数类型**问题：纯 AST 可判、与循环迁移无关、**零假阳性**。
+  把它和「静态检查不可行」混为一谈，会关掉一个本该很便宜的定向闸门。
+- **该加的检查放哪**：`scripts/check_migration_idempotency.py` 已遍历 `ast.Call`、
+  且已对 `op.create_table` 特判（`SAFE_OPS` 里映射为 `[]`，因其无幂等 kwarg）。
+  加一个「`op.create_table` 的每个位置参数必须是 `sa.Column`/`Constraint`」
+  的独立检查函数，边际成本是几行，不是新工具。
 - **真正该做的低成本版本**：把「改完 `alembic/versions/*` 必须跑
   `uv run alembic check`」从 CLAUDE.md 的一段文字，变成 git hook / 脚本，
   在提交迁移文件时自动跑一次并阻断。**待认领。**
-- **Owner**：待认领（**明确暂不做静态分析器**）
+- **Owner**：待认领（**明确暂不做的是列覆盖比对分析器**）
 
 ## 🔴 修正：`alembic check` 漂移真实条数是 **397**，不是先前报的 84 / 350 / 377（2026-10-07）
 

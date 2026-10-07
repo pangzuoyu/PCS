@@ -22,8 +22,17 @@ For the full operating protocol (session handoff, memory discipline, bug logging
 - **⚠️ 漂移盲区**：迁移改了 schema 而 ORM 未跟随时，**单测照绿、真库会炸**。缺表会红（可见），
   漂移会绿（不可见）—— 后者没有自动化能抓。改任何 `alembic/versions/*` 时必须**手动核对
   ORM 列同步**（历史上 `config_energy_conversion_factors` 4 个 R1 分类列从未迁移，
-  bug-137；见 `.wolf/cerebrum.md`）。人工守门动作：`uv run alembic check`
-  （alembic 1.9+ 检测 ORM vs 迁移漂移），无输出即一致。
+  bug-137；见 `.wolf/cerebrum.md`）。
+- **人工守门动作**：`uv run alembic check`（检测 ORM vs 迁移漂移）。三条读法，缺一条就会误判：
+  1. **先确认它跑了**。DB revision 落后 code head 时它直接拒绝（"Target database is not up to
+     date"）——那是**检查失败**，不是通过。先 `uv run alembic current` 对比 `uv run alembic heads`。
+     2026-10-07 的 bug-143/144 藏了很久，直接原因就是有个已提交未应用的迁移把守门整个堵住了：
+     **守门没报，是因为它根本没跑。**
+  2. **退出码是 255，不是 1**。按 `== 1` 写的封装会把真实检出当通过。
+     （`scripts/check_migration_idempotency.py` 才用 1 —— 两个工具别混。）
+  3. **"无输出"不等于"一致"**。当前有 **43 条已裁决的残留**（39 `remove_constraint`
+     + 1 `add_constraint` + 3 FK，明细见 `TODOS.md`），exit 255 是预期状态。
+     真正算缺陷的是**新出现、尚未裁决**的项。
 
 # 前端 UI 规范
 
