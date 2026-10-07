@@ -67,8 +67,30 @@ jobs:
         working-directory: pcs-backend
         run: uv run python scripts/check_migration_idempotency.py
 
+      # 2026-10-07 新增：此前 workflow 完全没有 setup-node —— Node 版本靠
+      # runner 自带（"Node.js 20 deprecated" 警告即源于此），且无 npm 缓存，
+      # 每次 push 都全量拉包。Vite 5 要求 Node ^18 || >=20，故锁 22。
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: pcs-frontend/package-lock.json
+
       - name: Typecheck frontend
         working-directory: pcs-frontend
         run: |
-          npm ci
+          # npm ci 每次会先删 node_modules，故重试是幂等安全的。
+          # 起因：GitHub runner 偶发 ECONNRESET（registry 网络抖动），
+          # 一次抖动就让整个 job 判死 —— 实测 2026-10-07 因此红。
+          for attempt in 1 2 3; do
+            if npm ci; then
+              break
+            fi
+            if [ "$attempt" -eq 3 ]; then
+              echo "npm ci 连续 3 次失败，判负"
+              exit 1
+            fi
+            echo "::warning::npm ci 第 $attempt 次失败，10s 后重试"
+            sleep 10
+          done
           npm run typecheck
