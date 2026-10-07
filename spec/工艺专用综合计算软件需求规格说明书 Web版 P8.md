@@ -494,3 +494,248 @@ REPORT_BUILDER	定义管理、字段选择器、过滤构建器、执行引擎	2
 | V1.1 | 2026-08-28 | incorporate SUP-004/007：正式报表生成即创建交付物（编号模板预览、快照绑定、绑定准入仅 CHECKED）；签署页按矩阵动态列+客户代录标注；二维码内容改 doc_no+Rev+哈希摘要；REPORT_BUILDER 新增即席导出非交付物/固化交付物/演示水印；文件标识改 PCS 前缀 | 联合项目组 |
 | V1.2 | 2026-09-03 | incorporate SUP-009 V1.0：关联文档加 SUP-009；新增 P8-OPEN-006（HEAT 报表字段对齐 heat_results 39 字段 + ache_params JSONB + detail_level=BASIC/DETAIL 双模板 + ADR-0028）；主体报表引擎不变，仅扩 HEAT 数据源字段映射 | 联合项目组 |
 
+
+P8 报表与输出开发计划（修订版 V2.0）
+修订日期：2026-10-07
+修订人：首席架构师 / 工艺专家
+基于：SPEC-P8 V1.2、开发计划 V1.3、TODOS.md 2026-10-07 全量核销
+核心变更：重写任务分解、确定 PDF 转换技术路线、设计模板自定义机制、裁决交付物写面归属
+
+一、P0 裁决与冻结（开工前置，第 1 周）
+1.1 交付物写面裁决
+裁决：P8-MVP 不含正式交付物写面（create / issue / customer-approval-proxy / 签署矩阵 / 最终版）。
+
+依据：TODOS.md 已明确 D 模块写面改判到 P9，SignatureMatrix.steps_json 的消费方（SUP-005）未落地。ChangeNoticeService.create_change_notice 写死 matrix_id=None 而 Deliverable.matrix_id 是 NOT NULL 带 FK，真库上必 500 —— **该函数已于 2026-10-08 改为显式 `raise NotImplementedError`（P9A-DLV-009），不再留哑雷；功能本身待 P9A-DLV-007 的矩阵消费方。**
+
+P8 只交付：
+
+文件生成（Word / Excel / PDF）
+
+二维码嵌入（指向验证 URL，哈希比对）
+
+假设数据声明页
+
+即席导出 + 非发布件水印 + DEMO 水印
+
+REPORT_BUILDER 定义管理、执行、导出
+
+下载权限与审计
+
+以下内容延后 P9：生成即创建 deliverables 记录、签署矩阵集成、签署页 PDF、固化交付物（CUSTOM_REPORT）、绑定 record_hash 快照、最终版发布。P8 生成的即席导出件不是交付物，无 Rev、无签署。
+
+1.2 模板与字体
+P8-OPEN-001 关闭：初始报表样式由用户单独提供 .dotx / .xltx 模板文件。P8 开发期间使用用户提供的模板作为唯一初始模板源，不再等待工艺负责人。
+
+P8-OPEN-002 关闭：中文字体统一使用 Noto Sans CJK（思源黑体）/ Noto Serif CJK（思源宋体），嵌入 PDF。字体文件随项目仓库管理或通过 font_dir 参数指定。
+
+P8-OPEN-004 关闭：委托条件表格式随用户提供的模板确定。
+
+1.3 数据源与 JOIN
+P8-OPEN-005 关闭：多数据源 JOIN 仅支持显式声明的关联键。关联键必须在数据源注册表中预定义，格式为 {source}.{field} = {target}.{field}，禁止按名称文本模糊 JOIN。P8 首批只开放以下 JOIN 对：
+
+EQUIP_LIST.tag_number = PUMP_RESULTS.tag_number
+
+EQUIP_LIST.tag_number = VESSEL_RESULTS.tag_number
+
+EQUIP_LIST.tag_number = HEAT_RESULTS.tag_number
+
+EQUIP_LIST.tag_number = PSV_RESULTS.tag_number
+
+EQUIP_LIST.vendor_id = SUPPLIERS.supplier_id（需 SUPPLIERS 表有 vendor_id 列；若不存在则降级为 EQUIP_LIST.vendor = SUPPLIERS.supplier_name，WARN 级提示）
+
+不支持的 JOIN 对返回 REPORT_BUILDER_JOIN_NOT_SUPPORTED。
+
+1.4 P8-OPEN-006 HEAT 独立工作流
+P8-OPEN-006（HEAT 报表字段对齐 39 字段 + ache_params JSONB + BASIC/DETAIL 双模板 + ADR-0028 + HTRI 兼容测试 + DETAIL 覆盖率 ≥95%）单独立项为 P8c，不并入 8.1。
+
+1.5 测试数据 seed
+P8 测试不依赖真库数据。P8a 交付前需完成：
+
+tests/fixtures/report/ 下 10 类报表各 2–3 组 seed（管道计算书 / 泵数据表 / PSV 数据表 / 容器数据表 / 换热器规格书 / 设备一览表 / 公用工程平衡表 / 综合能耗计算书 / 委托条件表 / 管道一览表）
+
+seed 通过 make_report_seed() fixture 注入 SQLite 测试库
+
+Golden 文件（模板渲染后的期望输出）纳入 tests/golden/report/
+
+二、PDF 转换技术路线
+2.1 候选方案评估
+方案	原理	中文支持	保真度	运行时依赖	容器友好	许可
+LibreOffice headless	调用 soffice --convert-to pdf	需安装中文字体包	极高（接近 Word 导出）	系统安装 LibreOffice（~500MB）	需 unoserver 保持常驻	MPL-2.0
+pydocx-pdf	解压 DOCX XML，用 fpdf2 直接渲染	需 font_dir 提供 TTF	中低（复杂排版丢失）	纯 Python，零系统依赖	极好	MIT
+Aspose.Words FOSS	纯 Python DOCX→PDF	需验证	中高（宣称接近原生）	纯 Python	好	MIT
+mtdxpdf / dxpdf	Rust + Skia 渲染	需验证	高（宣称保留格式）	Rust 二进制	好	开源
+WeasyPrint	HTML/CSS → PDF	需 @font-face 指定 CJK	高（CSS Paged Media）	Python + Pango/Cairo	需系统库	BSD-3
+ReportLab	编程式 PDF 生成	需注册 TTF	高（数据表/图表强）	Python	好	BSD-3
+2.2 推荐路线：LibreOffice headless（主路径）+ pydocx-pdf（降级路径）
+理由：
+
+保真度优先。P8 正式报表（计算书、数据表、规格书）必须与用户提供的 .dotx 模板视觉一致——页眉页脚、表格边框、合并单元格、字体、页码、章节编号。LibreOffice headless 是目前唯一能可靠实现这一点的开源方案，pydocx-pdf 对复杂表格和分页的支持有限。
+
+用户模板直接复用。用户提供的 .dotx 模板用 Word 设计，LibreOffice 对 OOXML 的兼容性是开源方案中最成熟的。填好数据的 .docx 直接交给 LibreOffice 转换即可，无需重排。
+
+二维码叠加独立于转换引擎。PDF 生成后，用 pypdf 或 reportlab 在每页页脚叠加二维码图片和文本，与转换引擎解耦。
+
+容器化方案成熟。通过 unoserver 保持 LibreOffice 常驻进程，避免每次冷启动 2–3 秒的开销，CPU 负载降低 50–75%，可同时转换的文档量提升 2–4 倍。
+
+降级路径：若部署环境无法安装 LibreOffice（如极小容器、只读文件系统），降级到 pydocx-pdf + fpdf2，功能受限但可用。降级模式在配置项 REPORT_PDF_ENGINE=libreoffice|pydocx 中切换。
+
+实施细节：
+
+python
+# app/services/report/pdf_engine.py
+
+class PdfEngine(Protocol):
+    def convert(self, docx_bytes: bytes) -> bytes: ...
+
+class LibreOfficeEngine:
+    """通过 unoserver 常驻进程转换，超时 60s"""
+    def __init__(self, host: str = "localhost", port: int = 2002):
+        ...
+    def convert(self, docx_bytes: bytes) -> bytes:
+        # HTTP POST 到 unoserver 的 /convert 端点
+        ...
+
+class PydocxEngine:
+    """零依赖降级引擎"""
+    def convert(self, docx_bytes: bytes) -> bytes:
+        from pydocx_pdf import convert
+        return convert(docx_bytes, font_dir="/app/fonts")
+性能预算：简单计算书（单设备，2–5 页）目标 ≤5s（含填模板、转 PDF、二维码、审计）；复杂报表（设备一览表，50–200 行）目标 ≤15s。LibreOffice 常驻进程下，单文档转换约 1–3s；pydocx-pdf 约 0.5–2s。
+
+三、模板自定义机制
+用户提供的 .dotx / .xltx 是初始模板。系统必须支持在不改代码的前提下，让非开发人员（工艺负责人、系统管理员）自定义报表样式。
+
+3.1 三层模板模型
+层级	载体	谁维护	变更方式
+L1 模板文件	.dotx / .xltx 上传到 CONFIG CATEGORY_4	系统管理员	上传新版本，版本号递增
+L2 占位符映射	模板中的 {{...}} 占位符 ↔ 数据源字段的绑定关系	工艺负责人（通过 UI）	在模板管理界面拖拽/选择字段绑定
+L3 填充规则	循环、条件、格式化规则	工艺负责人	在占位符编辑器中配置
+3.2 占位符 DSL
+基于 docxtpl（Jinja2 in DOCX），占位符语法与 SPEC 附录 4.1 兼容并扩展：
+
+text
+{{Scalar.Field}}                          # 标量替换
+{{#table_rows}} ... {{/table_rows}}       # 表格行循环（docxtpl 用 {%tr for ... %}）
+{{#if condition}} ... {{/if}}              # 条件块
+{{@image:field_name}}                     # 图片插入
+{{@qr:record_hash}}                       # 二维码占位
+{{#dynamic_columns}} ... {{/dynamic_columns}}  # 动态列（签署页矩阵）
+docxtpl 支持 {%tr for item in items %} 循环表格行、{%tc for header in headers %} 动态列、{% cellbg var %} 动态背景色、{% colspan var %} 跨列合并。
+
+3.3 占位符解析与绑定
+P8 需实现：
+
+占位符扫描：上传 .dotx 后，解析 document.xml，提取所有 {{...}} 和 {%...%}，生成占位符清单。
+
+自动绑定：按占位符命名规则（{{PipingResults.LineNo}}）自动匹配数据源字段。
+
+手动绑定 UI：占位符清单与数据源字段树并排展示，拖拽绑定。
+
+校验：保存前校验所有占位符已绑定、类型匹配（数字字段不能绑到文本占位符）。
+
+3.4 Excel 模板自定义
+Excel 模板用 openpyxl 加载 .xltx，遍历单元格查找 {{...}} 占位符并替换。复杂表格（动态行）通过 openpyxl-templates 扩展或自定义行插入逻辑实现。openpyxl 加载模板后另存为 .xlsx，再用 LibreOffice headless 转 PDF（如果用户需要 PDF 输出）。
+
+3.5 模板版本管理
+每次上传新模板创建 TemplateFile 新记录，template_version 递增。
+
+生成报表时记录使用的 template_version。
+
+旧模板不删除，保留历史生成能力。
+
+模板与数据源字段的绑定关系存为 JSON，随模板版本冻结。
+
+四、修订后的 P8 任务分解
+P8a REPORT 核心（3–4 周）
+目标：完成正式报表的生成、转换、二维码、假设页、异步任务、文件存储、下载权限、审计。不涉及交付物写面。
+
+#	任务	产出	验收
+a1	模板管理集成	从 CONFIG 获取 .dotx/.xltx；占位符扫描 API；占位符绑定 CRUD	上传模板 → 扫描占位符 → 绑定字段 → 保存绑定
+a2	Word 填充引擎	docxtpl 封装；标量/循环/条件/图片/动态列渲染	10 类报表各 1 组 Golden 样例通过
+a3	Excel 填充引擎	openpyxl 封装；占位符替换；动态行插入	设备一览表/公用工程平衡表 Golden 通过
+a4	PDF 转换引擎	LibreOffice headless（unoserver）+ pydocx-pdf 降级；中文字体嵌入	转换保真度 ≥95%（与 Word 导出目视比对）；降级模式可用
+a5	二维码嵌入	pypdf 叠加二维码 + 文本到每页页脚；二维码指向 /api/v1/report/verify/{report_id}	扫描二维码 → 打开验证 URL → 显示哈希比对结果
+a6	假设数据声明页	触发条件：存在 ASSUMED 或 NOT_STARTED 输入项 → 插入声明页；受影响字段橙色三角标记	有假设 → 自动插入；无假设 → 不插入；标记正确
+a7	异步生成任务	ARQ 任务；状态查询端点；失败重试（max_tries=3）；错误日志	任务提交 → 轮询状态 → 完成/失败；失败可重试
+a8	文件存储	内容哈希命名（{sha256[:16]}.pdf）；DB 元数据（report_files 表）；只读	重复生成相同内容 → 同一文件；下载权限校验
+a9	下载与权限	下载端点带项目角色校验；短期签名 URL 或 Bearer 校验	无权限用户 403；有权限用户 200
+a10	审计	生成/下载/失败均写 audit_logs（REPORT_GENERATED / REPORT_DOWNLOADED / REPORT_FAILED + ip + report_id）	审计行完整；失败也记录
+a11	测试 seed	10 类报表各 2–3 组 seed fixture	make_report_seed() 可复用
+a12	性能基准	简单报表 ≤5s；复杂报表 ≤15s	pytest-benchmark 记录；CI 阈值告警
+P8b REPORT_BUILDER 核心（3–4 周）
+#	任务	产出	验收
+b1	数据源注册表	13 个数据源的字段清单、类型、权限、项目范围过滤	GET /datasources 返回完整字段树
+b2	报表定义 CRUD	ReportDefinitions 模型；创建/读取/更新/删除；DRAFT 状态	CRUD 正常；仅创建人可见 DRAFT
+b3	版本与审批	发布审批流；发布后按 SharedWith 可见；修改自动创建新版本	发布 → 他人可见；修改 → 新版本
+b4	字段选择器后端	字段树 API；别名设置；排序；显示/隐藏	前端可获取字段树并保存选择
+b5	过滤条件引擎	支持 SPEC 全部 16 个操作符；AND/OR 嵌套；参数化查询	每个操作符 1 条测试；注入尝试返回空结果而非报错
+b6	JOIN 引擎	显式关联键；支持 1.3 节定义的 JOIN 对	5 对 JOIN 各 1 条测试；不支持的对返回明确错误
+b7	执行引擎	构建 SQL（参数化）；执行；返回前 N 行；临时调整过滤条件（不修改定义）	10000 行 ≤10s；条件快照写入审计
+b8	导出	Excel / CSV / PDF 导出；即席导出叠加“非发布件”时间戳水印；DEMO 水印；定义数量限 3（DEMO）	水印可见；DEMO 限制生效
+b9	审计	每次执行写 report_execution_logs（执行人、时间、定义版本、条件快照、行数）	审计行完整
+b10	前端：定义编辑器	左侧数据源字段树 / 中间已选字段 / 右侧过滤条件构建器 / 底部预览	拖拽排序；别名编辑；条件嵌套
+b11	前端：执行面板	选择已发布定义；条件摘要；执行；导出	执行结果表格展示；导出文件可下载
+b12	前端：管理列表	定义名称、版本、状态、创建人、共享范围	列表可筛选、可排序
+P8c HEAT DETAIL + 多源 JOIN 深化 + 模板自定义 UI（2–3 周）
+#	任务	产出
+c1	HEAT 字段映射	heat_results 39 字段 + ache_params JSONB → HEAT_EXCEL 数据源
+c2	BASIC/DETAIL 双模板	detail_level=BASIC 用 9 字段简化报表；DETAIL 用 39 字段 + HTRI 模板源
+c3	ADR-0028	HEAT 报表双 detail_level 模板裁决记录
+c4	HTRI 兼容测试	121-A-101.xls + 131-E-102-EOR.xls 字段覆盖比对
+c5	覆盖率报告	DETAIL 字段覆盖率自动计算，目标 ≥95%
+c6	模板自定义 UI 深化	占位符可视化绑定编辑器；拖拽式占位符插入；实时预览
+c7	多源 JOIN 扩展	按需开放更多 JOIN 对（需先定义关联键）
+五、依赖与风险
+依赖	状态	风险	缓解
+用户提供初始模板	待用户提供	P8a 阻塞	用户提供前先用 SPEC 附录 4.1 的占位符示例造 dummy 模板推进开发
+LibreOffice 容器安装	待验证	镜像体积 + 中文字体包	用 python:3.12-slim + apt install libreoffice-writer libreoffice-calc fonts-noto-cjk；或用 unoserver 官方镜像
+Noto CJK 字体	待确认	字体缺失 → PDF 中文乱码	字体文件随项目仓库管理，通过 font_dir 指定
+TODO-016 ARQ 失败路径	未做	异步生成失败无重试	P8a 内补 max_tries=3 + DLQ 测试
+TODO-032 真库测试文件	27 个未迁	P8 测试打真库	P8a 内同步迁移 report 相关测试到 SQLite fixture
+TODO-026 9 张计算表 JSONB	未展开	字段树无平铺字段	P8b 字段树先暴露 input_json 下的已知键；TODO-026 完成后自动获得平铺字段
+TODO-039/041 前端契约	逾期	前端类型与 API 不一致	P8b 前端开工前强制完成 types/* → ./api 迁移
+P9 写面	未做	固化交付物/签署页阻塞	已裁决延后 P9，P8 不做
+六、验收标准（P8 完成定义）
+报表生成正确性：10 类报表各至少 2 组 Golden 样例通过；占位符全部正确替换；表格循环行数正确；条件块按数据正确显示/隐藏。
+
+PDF 转换保真度：与 LibreOffice 直接导出的 PDF 目视比对无差异；中文字体正确嵌入（pdffonts 确认 Noto CJK embedded）。
+
+二维码：扫描可打开验证 URL；哈希与 DB 中 record_hash 一致；篡改后验证失败。
+
+假设数据声明页：触发条件正确；橙色三角标记正确；签署约束（延后 P9 的勾选逻辑不计入 P8 验收）。
+
+异步生成：任务提交 → 状态查询 → 完成/失败；失败重试 3 次；审计完整。
+
+REPORT_BUILDER：定义 CRUD / 发布审批 / 字段选择 / 16 操作符 / 5 对 JOIN / 执行导出 / 审计完整。
+
+性能：简单 ≤5s；复杂 ≤15s；10000 行 ≤10s。
+
+安全：下载权限负例通过；二维码验证端点限流；参数化查询无注入。
+
+模板版本：模板不匹配返回 STREAM_TEMPLATE_VERSION_MISMATCH（复用 TODO-034 错误码）。
+
+前端：定义编辑器可用；执行面板可用；管理列表可用。
+
+七、工作量估算
+阶段	内容	估算
+P0 裁决与冻结	模板/字体/JOIN/写面裁决；seed 准备	0.5 周
+P8a REPORT 核心	a1–a12	3–4 周
+P8b BUILDER 核心	b1–b12	3–4 周
+P8c HEAT + 深化	c1–c7	2–3 周
+合计		8.5–11.5 周
+单人开发约 2–2.5 个月。若拆为两人并行（P8a + P8b 各一人），约 4–5 周，P8c 在后端合流后启动。
+
+八、与 TODO 清单的联动
+TODO	P8 动作
+TODO-016 ARQ 失败注入	P8a 内补
+TODO-026 9 张计算表平铺字段	P8b 字段树先暴露 JSONB 已知键；TODO-026 完成后自动升级
+TODO-032 真库测试迁移	P8a 内同步迁移 report 相关测试
+TODO-034 Excel 模板版本	P8 复用 STREAM_TEMPLATE_VERSION_MISMATCH 错误码
+TODO-039/041 前端契约	P8b 前端开工前强制完成
+TODO-044 QA Gate 项目化	P8 每批交付前跑 .gstack/qa-reports/ 闸门
+九、关键设计决策记录（待补 ADR）
+ADR	决策	状态
+ADR-P8-001	PDF 转换引擎选 LibreOffice headless（unoserver）+ pydocx-pdf 降级	待正式化
+ADR-P8-002	占位符 DSL 基于 docxtpl/Jinja2，扩展 @qr: 和 @image:	待正式化
+ADR-P8-003	交付物写面延后 P9，P8 只交付即席报表	待正式化
+ADR-0028	HEAT 双 detail_level 模板裁决	SPEC 已预留编号，待起草
