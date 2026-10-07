@@ -22,6 +22,12 @@
 - 性能：简单报表 ≤5s；复杂报表（50–200 行）≤15s；PDF 简单 <1s、复杂 1–3s；XLSX 100 万行内存 <100MB。
 - 审计动作新增 `REPORT_GENERATED` / `REPORT_DOWNLOADED` / `REPORT_FAILED` / `REPORT_EXECUTED`（`app/models/enums.py:222` `AuditAction`，值 ≤50 字符）。
 - 每批交付前跑 Per-Batch QA Gate：typecheck / lint / test / 浏览器巡检（**必须用 `history.pushState` 客户端导航，token 仅存内存，`goto` 会弹回登录页导致假绿**）。
+- **`Block` 联合与 `_cell_text` / `truncate` 一律从 `blocks.py` import**，三个渲染器互不 import。PDF 与 XLSX/DOCX 在架构上对等，不存在谁在谁之上。
+- **BUILDER 执行（b7）走 ARQ 任务，不走同步端点** —— 10000 行 ≤10s 的同步查询会阻塞整个 event loop。
+- **假设字段标记 = 表头拼 `▲` + 单元格文字橙色**，两个都做（SPEC §3.2.1(4)）。三个渲染器各自的表头语法不同，但「加三角」这个逻辑在 `blocks.py` 的 `assumed_header()` 里只写一次。
+- **ORM 不 import `get_settings()`** —— 绝对路径拼接在 `report_service.resolve_path()` 里，与其他 100+ 个模型一致。
+- **collector 每个 report_type 一次批量 SELECT**，在 Python 里组装。禁止在循环里查库。
+- **性能断言用绝对预算，不引入 pytest-benchmark** —— CI 共享 runner 负载波动会让相对阈值频繁误报，最后被 disable。`max_jobs` 需为报表任务预留容量。
 
 ## Review Focus
 
@@ -43,6 +49,7 @@ pcs-backend/
   app/schemas/report.py             Pydantic 请求/响应（零裸 object）
   app/services/report/
     style.py                        ReportStyle 模型 + resolve() 四级合并
+    blocks.py                       Block 联合 + _cell_text + truncate（**三者共用，勿下沉到任一渲染器**）
     datasource_registry.py          13 数据源字段注册表 + JOIN 白名单
     renderer_docx.py                python-docx
     renderer_xlsx.py                XlsxWriter
@@ -380,8 +387,6 @@ class ReportExecutionLog(TimestampMixin, Base):
     is_temporary_adjust: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 ```
 
-**注意**：上面 `class ReportExecutionLog(BaseModel): pass` 是故意留下的**反例注释**——实现时必须删掉它。保留会与真正的 `ReportExecutionLog` 同名覆盖，`__all__` 导出错对象。
-
 - [ ] **Step 4: 迁移（幂等）**
 
 ```python
@@ -447,7 +452,10 @@ git commit -m "feat(db): P8 报表 4 张表（幂等迁移）"
 - Produces: `render_pdf(*, title: str, blocks: list[Block], style: ReportStyle, qr_payload: str | None, assumed_fields: list[str]) -> bytes`
 
 ```python
-# Block 判别联合（定义在 renderer_pdf.py，DOCX/XLSX 渲染器也复用）
+# app/services/report/blocks.py —— 三个渲染器共用的中间表示
+#
+# ⚠️ **刻意不放 renderer_pdf.py**（2026-10-08 审查决策）：PDF / XLSX / DOCX 三者
+# 在架构上对等，不该有谁 import 谁。改 PDF 渲染器不应波及 XLSX。
 @dataclass(frozen=True)
 class HeadingBlock:  text: str; level: int = 1
 @dataclass(frozen=True)
@@ -457,6 +465,23 @@ class TableBlock:    headers: list[str]; rows: list[list[object]]; assumed_cols:
 @dataclass(frozen=True)
 class PageBreakBlock: pass
 Block = HeadingBlock | KeyValueBlock | TableBlock | PageBreakBlock
+
+_NULL = "—"
+
+def _cell_text(value: object, max_chars: int = 200) -> str:
+    """NULL → —，超长截断加省略号。三个渲染器共用（DRY）。"""
+    if value is None:
+        return _NULL
+    s = str(value)
+    return s if len(s) <= max_chars else s[: max_chars - 1] + "…"
+
+def assumed_header(header: str, assumed: bool, mark: str = "▲") -> str:
+    """SPEC §3.2.1(4)：受影响字段在表头带橙色三角。
+
+    三个渲染器的表头语法不同（ReportLab Paragraph / XlsxWriter write /
+    python-docx run），但「加三角」这个逻辑只在这里写一次。
+    """
+    return f"{header}{mark}" if assumed else header
 ```
 
 - [ ] **Step 1: 写失败测试**
@@ -498,10 +523,59 @@ def test_null_cell_renders_dash_not_none_literal():
 
 def test_long_cell_truncated_with_ellipsis():
     """Review Focus #4：超长文本截断，不撑破版式。"""
-    from app.services.report.renderer_pdf import _cell_text
+    from app.services.report.blocks import _cell_text
     assert _cell_text("x" * 500).endswith("…")
     assert len(_cell_text("x" * 500)) == ReportStyle().table.max_cell_chars + 1
+
+
+def test_assumed_header_gets_triangle_and_others_dont():
+    """SPEC §3.2.1(4)：受影响字段表头带 ▲，其余不带。"""
+    from app.services.report.blocks import assumed_header
+    assert assumed_header("管径", True) == "管径▲"
+    assert assumed_header("管径", False) == "管径"
+
+
+def test_zero_blocks_still_renders_valid_pdf():
+    from app.services.report.renderer_pdf import render_pdf
+    out = render_pdf(title="空报表", blocks=[], style=ReportStyle(),
+                     qr_payload=None, assumed_fields=[], font_dir=FONT_DIR)
+    assert out[:5] == b"%PDF-"
+
+
+def test_table_spanning_pages_still_renders():
+    """跨页表格：200 行必须能出，且页数 > 1（LongTable 路径）。"""
+    from app.services.report.renderer_pdf import render_pdf, TableBlock
+    rows = [[f"P-{i}", "DN50", "工艺水"] for i in range(200)]
+    out = render_pdf(title="跨页", blocks=[TableBlock(headers=["位号", "口径", "介质"], rows=rows)],
+                     style=ReportStyle(), qr_payload=None, assumed_fields=[], font_dir=FONT_DIR)
+    assert out[:5] == b"%PDF-"
+    assert len(PdfReader(io.BytesIO(out)).pages) > 1
 ```
+
+**⚠️ Task 3 验收卡点（缺了就是假绿）**：
+
+```python
+def test_chinese_text_is_extractable_and_font_embedded(tmp_path, monkeypatch):
+    """**PDF 的全部价值就是「中文字形真的嵌进去了」。**
+
+    只测 `%PDF-` 头是不够的：字体没嵌上时 PDF 结构仍然合法、字节数仍 >1000，
+    测试照样绿，用户拿到的是一堆方块。这与 bug-143/145/149/150 同族 ——
+    绿灯测的不是出问题的那层。
+    """
+    from pypdf import PdfReader
+    out = render_pdf(title="泵数据表", blocks=[TableBlock(
+        headers=["位号", "介质"], rows=[["P-101", "天然气"]])],
+        style=ReportStyle(), qr_payload=None, assumed_fields=[], font_dir=FONT_DIR)
+    text = PdfReader(io.BytesIO(out)).pages[0].extract_text()
+    assert "天然气" in text, "中文抽不出来 = 字形没嵌对"
+
+    f = tmp_path / "o.pdf"; f.write_bytes(out)
+    fonts = subprocess.run(["pdffonts", str(f)], capture_output=True, text=True).stdout
+    assert "Noto" in fonts and "yes" in fonts, f"字体未嵌入：\n{fonts}"
+```
+
+`FONT_DIR` 由 `tests/conftest.py` 提供（`pytest.fixture`，指向仓库内 `pcs-backend/fonts/`）。
+**若仓库无 Noto CJK 字体，Task 3 Step 1 第一件事是把字体加进仓库** —— 否则整个 PDF 路线无法验证。
 
 - [ ] **Step 2: 跑测试确认失败** → `ModuleNotFoundError`
 
@@ -532,47 +606,14 @@ from reportlab.platypus import (PageBreak, Paragraph, SimpleDocTemplate,
 from app.services.exceptions import PcsError
 from app.services.report.style import ReportStyle
 
-_NULL = "—"
-
-
-@dataclass(frozen=True)
-class HeadingBlock:
-    text: str
-    level: int = 1
-
-
-@dataclass(frozen=True)
-class KeyValueBlock:
-    rows: list[tuple[str, object]]
-
-
-@dataclass(frozen=True)
-class TableBlock:
-    headers: list[str]
-    rows: list[list[object]]
-    assumed_cols: tuple[int, ...] = ()
-
-
-@dataclass(frozen=True)
-class PageBreakBlock:
-    pass
-
-
-Block = HeadingBlock | KeyValueBlock | TableBlock | PageBreakBlock
+from app.services.report.blocks import (Block, PageBreakBlock, TableBlock,
+                                        _cell_text, assumed_header)
 
 _PAGESIZES = {"A4": A4, "A3": A3, "Letter": LETTER}
 _FONT_FILES = {
     "Noto Sans CJK SC": "NotoSansCJKsc-Regular.otf",
     "Noto Serif CJK SC": "NotoSerifCJKsc-Regular.otf",
 }
-
-
-def _cell_text(value: object, max_chars: int = 200) -> str:
-    """单元格文本归一：None → —，超长截断加省略号。"""
-    if value is None:
-        return _NULL
-    s = str(value)
-    return s if len(s) <= max_chars else s[: max_chars - 1] + "…"
 
 
 def _register_font(style: ReportStyle, font_dir: str | Path) -> str:
@@ -632,7 +673,9 @@ def render_pdf(*, title: str, blocks: list[Block], style: ReportStyle,
             ))
         elif isinstance(b, TableBlock):
             mc = style.table.max_cell_chars
-            data = [[Paragraph(h, body) for h in b.headers]] + [
+            data = [[Paragraph(assumed_header(h, ci in b.assumed_cols,
+                                              style.assumption_mark), body)
+                     for ci, h in enumerate(b.headers)]] + [
                 [Paragraph(_cell_text(c, mc), body) for c in row] for row in b.rows]
             t = Table(data, repeatRows=1, hAlign="LEFT")
             cmds = [
@@ -646,6 +689,8 @@ def render_pdf(*, title: str, blocks: list[Block], style: ReportStyle,
                     cmds.append(("BACKGROUND", (0, i), (-1, i), colors.HexColor("#F5F7FB")))
             for ci in b.assumed_cols:
                 cmds.append(("TEXTCOLOR", (ci, 1), (ci, -1), colors.HexColor(style.assumption_color)))
+            # 表头三角：headers 已在上面渲染，这里用 colspan=0 的空 cell 无法改字，
+            # 故三角直接写进 header 文本（见 blocks.assumed_header）
             t.setStyle(TableStyle(cmds))
             story.append(t)
 
@@ -761,8 +806,9 @@ import io
 
 import xlsxwriter
 
-from app.services.report.renderer_pdf import (Block, HeadingBlock, KeyValueBlock,
-                                              PageBreakBlock, TableBlock, _cell_text)
+from app.services.report.blocks import (Block, HeadingBlock, KeyValueBlock,
+                                        PageBreakBlock, TableBlock, _cell_text,
+                                        assumed_header)
 from app.services.report.style import ReportStyle
 
 
@@ -793,7 +839,8 @@ def render_xlsx(*, title: str, blocks: list[Block], style: ReportStyle,
                 ws.write(r, 1, _cell_text(v, mc), cell); r += 1
         elif isinstance(b, TableBlock):
             for ci, h in enumerate(b.headers):
-                ws.write(r, ci, h, hdr)
+                ws.write(r, ci, assumed_header(h, ci in b.assumed_cols,
+                                               style.assumption_mark), hdr)
             r += 1
             for row in b.rows:
                 for ci, v in enumerate(row):
@@ -821,8 +868,9 @@ from docx import Document
 from docx.enum.section import WD_ORIENT
 from docx.shared import Mm, Pt
 
-from app.services.report.renderer_pdf import (Block, HeadingBlock, KeyValueBlock,
-                                              PageBreakBlock, TableBlock, _cell_text)
+from app.services.report.blocks import (Block, HeadingBlock, KeyValueBlock,
+                                        PageBreakBlock, TableBlock, _cell_text,
+                                        assumed_header)
 from app.services.report.style import ReportStyle
 
 _PAGESIZES = {"A4": (210, 297), "A3": (297, 420), "Letter": (215.9, 279.4)}
@@ -850,9 +898,6 @@ def render_docx(*, title: str, blocks: list[Block], style: ReportStyle,
 
     doc.add_heading(title, level=1)
     mc = style.table.max_cell_chars
-    # 假设声明页由 report_service 统一追加为 HeadingBlock + TableBlock，
-    # 渲染器不重复处理（避免两处都加导致出现两次）。
-
     for b in blocks:
         if isinstance(b, HeadingBlock):
             doc.add_heading(b.text, level=min(b.level, 4))
@@ -866,7 +911,8 @@ def render_docx(*, title: str, blocks: list[Block], style: ReportStyle,
         elif isinstance(b, TableBlock):
             t = doc.add_table(rows=1, cols=len(b.headers)); t.style = "Table Grid"
             for i, h in enumerate(b.headers):
-                t.rows[0].cells[i].text = h
+                t.rows[0].cells[i].text = assumed_header(
+                    h, i in b.assumed_cols, style.assumption_mark)
             for row in b.rows:
                 cells = t.add_row().cells
                 for i, v in enumerate(row):
@@ -874,8 +920,6 @@ def render_docx(*, title: str, blocks: list[Block], style: ReportStyle,
     buf = io.BytesIO(); doc.save(buf)
     return buf.getvalue()
 ```
-
-**⚠️ 实现者注意**：上面 `style.assumed_fields_marker_on` 那段是**骨架残留，实现时删掉** —— 假设声明页由 `report_service` 统一追加，渲染器不重复处理。若保留会因字段不存在直接 `AttributeError`。
 
 - [ ] **Step 5: 跑测试确认通过** → 3 passed
 
@@ -985,6 +1029,34 @@ async def test_same_content_twice_reuses_one_file(db, project_id):
 
 
 @pytest.mark.asyncio
+async def test_failure_still_writes_report_failed_audit(db, project_id, monkeypatch):
+    """SPEC §六验收明写「失败也记录」。漏了这条测试就发现不了。"""
+    async def boom(*a, **k):
+        raise RuntimeError("渲染炸了")
+    monkeypatch.setattr("app.services.report.report_service._render", boom)
+    with pytest.raises(RuntimeError):
+        await generate(report_type="EQUIPMENT_LIST", project_id=project_id,
+                       record_ids=[], output_format="pdf",
+                       style=ReportStyle(), ctx={})
+    acts = [a for a in db.actions if getattr(a, "action", None) == "REPORT_FAILED"]
+    assert acts, "失败路径必须写 REPORT_FAILED 审计"
+
+
+@pytest.mark.asyncio
+async def test_disk_write_failure_raises_pcserror_not_raw_oserror(db, project_id, monkeypatch):
+    """磁盘满 / 权限不足 → 必须是 PcsError(REPORT_STORAGE_FAILED)，
+    不能把裸 OSError 抛到 API 层变成 500 之外的奇怪响应。"""
+    def boom(*a, **k):
+        raise OSError(28, "No space left on device")
+    monkeypatch.setattr("app.services.report.report_service._write_file", boom)
+    with pytest.raises(PcsError) as e:
+        await generate(report_type="EQUIPMENT_LIST", project_id=project_id,
+                       record_ids=[], output_format="pdf",
+                       style=ReportStyle(), ctx={})
+    assert e.value.code == "REPORT_STORAGE_FAILED"
+
+
+@pytest.mark.asyncio
 async def test_assumed_input_adds_declaration_page(db, project_id, assumed_record):
     """SPEC §3.2.1(4)：存在 ASSUMED/NOT_STARTED 输入项 → 自动加声明页。"""
     out = await generate(report_type="EQUIPMENT_LIST", project_id=project_id,
@@ -1082,6 +1154,31 @@ async def test_task_failure_sets_failed_status_and_writes_audit(db, project_id, 
     # 断言：状态置 FAILED + AuditAction.REPORT_FAILED 被写入
 ```
 
+@pytest.mark.asyncio
+async def test_stale_pending_task_is_reclaimed(db, project_id):
+    """**ARQ 进程被 OOM kill，状态会永远卡在 PENDING，前端无限轮询。**
+
+    TODO-016 记「ARQ 失败路径覆盖为零」，这条正好落在那个已知空洞上。
+    实现要求：任务带 `heartbeat_at`；启动时 + 定时扫描 `status=PENDING 且
+    heartbeat_at 超过 N 分钟` → 置 FAILED 并写审计。
+    """
+    stale = await _make_task_row(db, project_id, status="PENDING",
+                                 heartbeat_at=dt.datetime.now(dt.UTC) - dt.timedelta(minutes=30))
+    await reclaim_stale_tasks(db, older_than_minutes=15)
+    await db.refresh(stale)
+    assert stale.status == "FAILED"
+    assert stale.error_message
+
+
+@pytest.mark.asyncio
+async def test_fresh_pending_task_is_not_reclaimed(db, project_id):
+    ok = await _make_task_row(db, project_id, status="PENDING",
+                              heartbeat_at=dt.datetime.now(dt.UTC))
+    await reclaim_stale_tasks(db, older_than_minutes=15)
+    await db.refresh(ok)
+    assert ok.status == "PENDING", "新鲜的 PENDING 不能被误杀"
+```
+
 - [ ] **Step 2: 跑测试确认失败** → `ModuleNotFoundError`
 
 - [ ] **Step 3: 追加 `AuditAction` 枚举值**（在 `app/models/enums.py` 的 `AuditAction` 末尾，值必须 ≤50 字符，有 `test_audit_action_max_length_50` 断言）
@@ -1096,7 +1193,13 @@ async def test_task_failure_sets_failed_status_and_writes_audit(db, project_id, 
 
 - [ ] **Step 4: 实现 `report_tasks.py`** —— 参照 `app/workers/workspace_tasks.py` 的签名兼容处理（该文件第 35 行注释说明「兼容旧 ARQ 任务签名」），`max_tries=3`。
 
-- [ ] **Step 5: 注册进 `worker.py:61` 的 `functions` 列表**
+- [ ] **Step 5: 注册进 `worker.py:61` 的 `functions` 列表，并把 `max_jobs` 提上去**
+
+PDF 渲染（ReportLab）与 XLSX `constant_memory` 都是 CPU 密集。现 `max_jobs = 4`
+且与 workspace 清理任务共用 —— 并发报表生成时排队，叠加上面「PENDING 无人回收」
+的问题会极难排查。**建议单独给报表任务预留容量**（调 `max_jobs` 或分独立 worker）。
+
+- [ ] **Step 5b: 加 stale 任务回收**（`reclaim_stale_tasks`）—— 见 Step 1 的两个测试
 
 - [ ] **Step 6: 跑测试确认通过** → 2 passed
 
@@ -1144,6 +1247,22 @@ async def test_download_without_project_access_is_403(client, other_token, repor
 async def test_verify_endpoint_returns_hash_match(client, report_file):
     r = await client.get(f"/api/v1/report/verify/{report_file.report_file_id}")
     assert r.status_code == 200 and r.json()["match"] is True
+
+
+async def test_verify_endpoint_is_rate_limited(client, report_file):
+    """SPEC §六验收明写「二维码验证端点限流」。"""
+    codes = [(await client.get(
+        f"/api/v1/report/verify/{report_file.report_file_id}")).status_code
+        for _ in range(REPORT_VERIFY_RATE_LIMIT + 5)]
+    assert 429 in codes, f"验证端点无限流：{codes.count(200)} 次 200 全部通过"
+    # 限流后仍应能恢复
+    assert codes[-1] in (200, 429)
+
+
+async def test_verify_endpoint_is_unauthenticated(client, report_file):
+    """扫码验证必须免登录（现场人员用手机扫），否则二维码功能等于不存在。"""
+    r = await client.get(f"/api/v1/report/verify/{report_file.report_file_id}")
+    assert r.status_code == 200
 
 
 async def test_response_schemas_have_no_bare_object():
@@ -1255,21 +1374,46 @@ uv run pytest tests/services/report/test_golden.py -v
 - Create: `pcs-backend/tests/benchmarks/test_report_perf.py`
 - Modify: `pcs-backend/pyproject.toml`（加 `pytest-benchmark`）
 
-- [ ] **Step 1: 写基准测试**
+- [ ] **Step 1: 写性能测试（绝对预算，不引入 pytest-benchmark）**
 
 ```python
 # tests/benchmarks/test_report_perf.py
-"""SPEC §3.3.1 性能指标。阈值超标即失败（不是只记录）。"""
+"""SPEC §3.3.1 性能指标 —— **绝对阈值断言**。
+
+刻意不用 pytest-benchmark：它的相对阈值（±X%）在 CI 共享 runner 上会因负载
+波动频繁误报，几次之后就会被 disable —— 这是 cerebrum 里「守门恒报噪声 =
+狼来了」的另一个版本。要曲线就本地手动跑，这个文件只管守 SPEC 的三个数字。
+"""
+import time
+
 import pytest
 
 SIMPLE_LIMIT_S, COMPLEX_LIMIT_S, BUILDER_10K_LIMIT_S = 5, 15, 10
 
 
 @pytest.mark.asyncio
-async def test_simple_report_under_5s(benchmark, db, project_id, simple_ids):
-    r = await benchmark.pedantic(
-        _gen_simple, args=(db, project_id, simple_ids), rounds=5, iterations=1)
-    assert r < SIMPLE_LIMIT_S, f"简单报表 {r:.2f}s > {SIMPLE_LIMIT_S}s"
+async def test_simple_report_under_5s(db, project_id, simple_ids):
+    t0 = time.perf_counter()
+    await _gen_simple(db, project_id, simple_ids)
+    el = time.perf_counter() - t0
+    assert el < SIMPLE_LIMIT_S, f"简单报表 {el:.2f}s > {SIMPLE_LIMIT_S}s"
+
+
+@pytest.mark.asyncio
+async def test_complex_report_under_15s(db, project_id, complex_ids):
+    t0 = time.perf_counter()
+    await _gen_complex(db, project_id, complex_ids)
+    el = time.perf_counter() - t0
+    assert el < COMPLEX_LIMIT_S, f"复杂报表 {el:.2f}s > {COMPLEX_LIMIT_S}s"
+
+
+@pytest.mark.asyncio
+async def test_builder_10k_rows_under_10s(db, project_id, big_def):
+    """b7 已改为 ARQ 异步；此测的是**任务体本身**的耗时，不含队列等待。"""
+    t0 = time.perf_counter()
+    await _execute_rows(db, project_id, big_def, max_rows=10000)
+    el = time.perf_counter() - t0
+    assert el < BUILDER_10K_LIMIT_S, f"1 万行执行 {el:.2f}s > {BUILDER_10K_LIMIT_S}s"
 ```
 
 - [ ] **Step 2: 跑测试确认当前不满足**（首次大概率红 —— 这正是要先测的意义）
@@ -1295,9 +1439,9 @@ git commit -m "perf(report): 性能基准纳入 CI 阈值（简单≤5s 复杂�
 | b2 | 定义 CRUD | `ReportDefinition` 模型 + 4 端点 | DRAFT 仅创建人可见 |
 | b3 | 版本与审批 | publish 流程；改已发布定义自动 `version` +1 | 5 态流转测试通过 |
 | b4 | 字段选择器后端 | 别名/排序/显隐持久化到 `definition_json` | 往返一致 |
-| b5 | 过滤条件引擎 | **16 个操作符**全实现；AND/OR 嵌套 | 每操作符 1 测试；**空 value 返回空集而非全表**（Review Focus #3）；注入尝试返回空结果 |
+| b5 | 过滤条件引擎 | **16 个操作符**全实现；AND/OR 嵌套 | 每操作符 1 测试；**空 value 返回空集而非全表**（Review Focus #3）；注入尝试返回空结果；collector/b5 一律批量 SELECT（Task 5 决策） |
 | b6 | JOIN 引擎 | 5 对白名单 JOIN | 不支持的对报 `REPORT_BUILDER_JOIN_NOT_SUPPORTED` |
-| b7 | 执行引擎 | 参数化 SQL；10000 行 ≤10s；临时调整不改定义 | 条件快照写 `report_execution_logs` |
+| b7 | 执行引擎（**ARQ 异步，2026-10-08 审查决策**） | `POST /execute` 返回 202 + task_id；参数化 SQL；10000 行 ≤10s（测**任务体**耗时）；临时调整不改定义 | 条件快照写 `report_execution_logs`；**并发执行时 API 仍可响应**（同步 10s 查询会阻塞整个 event loop） |
 | b8 | 导出 | Excel/CSV/PDF；非发布件时间戳水印；DEMO 水印 + 定义数限 3 | 水印可见；限制生效 |
 | b9 | 审计 | 每次执行写 `REPORT_EXECUTED` | 审计行含条件快照 + 行数 |
 | b10–b12 | 前端三件套 | 定义编辑器 / 执行面板 / 管理列表 | 按 `docs/PCS-UI-SPEC.md` V1.0 |
@@ -1328,7 +1472,6 @@ git commit -m "perf(report): 性能基准纳入 CI 阈值（简单≤5s 复杂�
 2. **Task 3/4 的 `_decorate` / 占位符替换留了骨架并标了「必须补完」** —— 因为二维码位置、页眉页脚格式属于 SPEC 已定但实现自由度高的部分，展开成完整代码会锁死样式而样式恰恰是 P8c 要开放给用户改的。
 3. **PDF Golden 的稳定性未验证** —— `_normalize_pdf` 抽文本比对是本计划的设计，但如果渲染里有时间戳/ID 进入文本层，Golden 会飘。Task 9 Step 5 的「复跑确认稳定」就是为这个设的卡点，**第一次跑可能会红，不要跳过**。
 4. **`REPORT_VERIFY` 端点的限流未设计** —— SPEC §六 验收要求「二维码验证端点限流」，但没给阈值与算法。需在 Task 8 补，或单列 TODO。
-5. **`report_files` 无 TTL / 清理策略** —— 即席导出会持续产生文件，无清理机制。SPEC 未涉及，需产品判断。
 6. **PDF 页数（`{{pages}}`）拿不到** —— ReportLab 需要两遍渲染才能知道总页数。本计划未处理，Task 3 需确认；若不做，`{{pages}}` 占位符应从 SPEC §4.1 移除。
 7. **P8b/P8c 是任务级而非步骤级** —— 按 CLAUDE.md「计划必须极具简洁」压缩。执行前需按 Phase 1 的格式展开，否则不满足 writing-plans 的「无占位符」要求。
 8. **`suppliers.vendor_id` 列是否存在未核实** —— SPEC §1.3 已给降级方案（不存在则用 `vendor = supplier_name` + WARN），Task 5 Step 4 照做即可，但降级路径应补测试。
