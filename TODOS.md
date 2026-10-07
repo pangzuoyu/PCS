@@ -302,20 +302,31 @@
 - **验证**：全量 3924 passed / 0 failed（与修复前同基线）；test_schema 7 passed；
   ruff clean；幂等闸 0 violations。
 
-## 🟡 `alembic check` 剩余 84 条**真**索引漂移（2026-10-06 假漂移修复后暴露）
+## ✅ DONE —— `alembic check` 的 84 条**真**索引漂移（2026-10-07 复核为 0）
 
-- **性质**：上面那条修好后，守门终于能说真话了 —— 剩下这 84 条是**真的** ORM↔迁移索引不一致。
-- **构成**：52 `remove_index`（DB 有、ORM 无）+ 30 `add_index`（ORM 有、DB 无）+ 2 `add_column`。
-- **典型形态是改名对不上**，而非「缺索引」：
-  - `ix_cepci_year`（DB） vs `ix_cepci_index_series_year`（ORM）
-  - `ix_equipment_deletion_audit_project_equipment`（DB，复合） vs
-    `ix_equipment_deletion_audit_project_id` + `..._equipment_id`（ORM，两个单列）
-  - `ix_audit_logs_detail_json_gin`（DB，GIN） 在 ORM 侧无对应声明
-- **危害**：低于表级漂移（不影响功能、不丢数据），但会让每次 `alembic check` 都被噪声淹没，
-  守门价值再次打折。**长期风险是「改名对不上」这类会被误当成噪声忽略，而它恰恰是最容易
-  让人以为索引还在的地方。**
-- **修法**：逐个裁决「ORM 对 / 迁移对」，对的一侧改另一侧。改 ORM 侧零迁移成本；
-  改迁移侧需新迁移（注意 `p7_s5_` 已在幂等白名单）。建议按表分批，不要一次性动 84 条。
+- 原记 84 条构成：52 `remove_index`（DB 有、ORM 无）+ 30 `add_index`（ORM 有、DB 无）
+  + 2 `add_column`，典型形态是改名对不上（`ix_cepci_year` vs `ix_cepci_index_series_year`）。
+- **2026-10-07 复核：`add_index` / `remove_index` 漂移已归零**（与本批 84 条索引漂移
+  核销、`p7_s5_002_sign_status_indexes` 等一并完成）。
+
+## 🔴 `alembic check` 剩余 349 条 `modify_comment`（2026-10-07 首次能跑时暴露）—— **需产品裁决**
+
+- **现状**：应用 `p7_s5_005` + `p7_s5_006` 后，`alembic check` 结构化口径共 350 条：
+  **349 条 `modify_comment`（47 张表）** + 1 条 `add_column`（= bug-143，`p7_s5_006` 已修）。
+  `modify_nullable` / `modify_type` / 索引类均为 **0**。
+- **性质**：COMMENT 是**纯元数据**，不影响功能、不丢数据、不会让查询变慢。
+  代价纯粹是「每次 `alembic check` 都刷 349 行噪声」，守门价值被打折。
+- **🔴 这不是纯技术债，必须先裁决方向**，因为两条路的代价是不对称的：
+  - **对齐 DB → ORM**：写一条迁移把 349 条 COMMENT 改成 ORM 的写法。一次性成本低，
+    但**从此以后每次改 ORM 的 comment 都得再写一条迁移** —— 把「写注释」变成
+    「改 schema」，长期摩擦很大。
+  - **对齐 ORM → DB**：改 349 处 ORM docstring/comment，零迁移。但会丢掉 DB 侧已有的
+    更详细注释（如 `cepci_index_series.year` 的 DB 注释其实更准）。
+  - **第三条路**：给 `alembic check` / autogenerate 关掉 comment 比对
+    （`include_object` 或 `compare_comment=False` 之类），承认 COMMENT 不进契约。
+    代价是注释漂移永久不可见 —— 但注释本来就不该是契约。
+- **建议**：倾向第三条路 + 顺手把 ORM 侧明显更短的注释补齐。理由：注释不是行为契约，
+  为它建迁移是把工具的噪声当成了模型的约束。
 - **Owner**：待认领（**未做**，仅登记）
 
 ## 🟡 CATEGORY_6 地基 5 项：4 项已做，1 项按裁决不做（2026-10-07 更新）
@@ -435,3 +446,21 @@
   语义上**不应**携带 Bearer token，故正确的断言是 `toBeNull()` 而非
   `toBe('Bearer ...')`。补之前需确认 mock 流程的实际调用顺序。
 - **Owner**：待认领（补断言时顺带把用例名改成与实际覆盖一致）
+
+## 🔴 缺一个「ORM↔迁移」的静态列覆盖检查（2026-10-07 登记，**已评估后决定暂不做**）
+
+- **动机**：bug-143（`user_projects.created_by`）是 ORM↔迁移漂移的又一个样本，而
+  CLAUDE.md 明写「漂移会绿（不可见）—— 后者没有自动化能抓」。人工守门是
+  `alembic check`，但它要求 DB 处于 head；一旦有已提交未应用的迁移就整个拒跑
+  （本次即如此 —— 守门没报，是因为它根本没跑）。
+- **已实测的方案与结论**：写脚本用 AST 解析全部迁移，抽出
+  `op.create_table` / `op.add_column` 的 `sa.Column`，与 `Base.metadata` 对比。
+  结果 **257 个「未覆盖」列散布 24 张表，全是假阳性** —— 项目大量使用数据驱动的
+  循环式迁移（如 `p4_calc_audit_fields` 给 16 张计算表批量加审计列），
+  静态解析必须建模这些循环才能不误报，成本与脆弱性都高。
+- **结论：暂不做**。与其建一个假阳性一堆的静态分析器，不如把 `alembic check`
+  变成**可自动跑的 CI/本地检查**（当前是纯人工记得才跑）。
+- **真正该做的低成本版本**：把「改完 `alembic/versions/*` 必须跑
+  `uv run alembic check`」从 CLAUDE.md 的一段文字，变成 git hook / 脚本，
+  在提交迁移文件时自动跑一次并阻断。**待认领。**
+- **Owner**：待认领（**明确暂不做静态分析器**）

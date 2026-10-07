@@ -2554,6 +2554,27 @@
       "occurrences": 1,
       "last_seen": "2026-10-07T00:00:00+08:00",
       "related_bugs": []
+    },
+    {
+      "id": "bug-143",
+      "timestamp": "2026-10-07T00:00:00+08:00",
+      "error_message": "user_projects 表缺 created_by 列，真库上项目授权必失败（psycopg.errors.UndefinedColumn）",
+      "file": "pcs-backend/alembic/versions/p7_open_010_user_projects_blocker3.py",
+      "root_cause": "**手写 op.create_table 逐列抄写时漏了从 mixin 继承来的列。**\n\nUserProject 继承 TimestampMixin（app/models/mixins.py:35），mixin 声明\ncreated_by: Mapped[UUID | None] = mapped_column(Uuid)，ORM 因此期望该列存在。\n但建表迁移 p7_open_010_user_projects_blocker3 是手写的 op.create_table，\n逐列抄写时只抄了 created_at / updated_at，**漏了 created_by** —— 类体里\n看不到这列，因为它是继承来的。\n\np6_5_006_orm_db_drift_final_fix 曾用 ADD COLUMN IF NOT EXISTS 批量补过全库\n缺失的 mixin 列，但 user_projects 比它晚建（属 P7-7+ BLOCKER-3），不在补列\n范围内，于是漏网。\n\n**为何是必失败而不是「可空所以没事」**：SQLAlchemy 的 ORM INSERT 会把无默认值\n的可空列也写进列清单（已用 compile(dialect=postgresql) 打印确认 created_by 在\nINSERT 列里），故 PG 直接报 UndefinedColumn。UPDATE 路径不受影响（ORM 只\nSET 脏字段），所以只炸新增授权。\n\n**为何 3954 条单测全绿**：单测跑内存 SQLite，schema 由 SA_Base.metadata.create_all\n从 ORM 生成，列自然存在。只有真 Postgres 暴露 —— CLAUDE.md 写的「缺表会红，\n漂移会绿」，本条是漂移那一侧的具体样本。\n\n**为何这条此前完全不可见**：alembic check 在 DB 停在 p7_s5_004 而代码 head 已到\np7_s5_005 时直接拒绝运行（'Target database is not up to date'）。**闸门没报，\n是它根本没跑** —— 一个已提交但未应用的迁移把整个守门堵住了，直到该迁移被应用\n才露出 350 条漂移，其中本条是唯一的非注释项。",
+      "fix": "新增 p7_s5_006：`ALTER TABLE user_projects ADD COLUMN IF NOT EXISTS created_by UUID`，\ndowngrade 反向 DROP COLUMN IF EXISTS。列定义对齐 TimestampMixin 与全库其余 50 张表\n（裸 uuid、可空、无 FK、无 server_default、无 comment）。\n\n存量数据无需回填：列可空且无默认值，取值仍为 NULL，与 mixin docstring 的\n「匿名操作」语义一致。\n\n修复以最小复现验证：在真库上执行 ORM 编译出的 INSERT，应用前报\nUndefinedColumn，应用后成功（事务已回滚，无数据变更）。",
+      "fix_commit": "89ae1b3",
+      "tags": [
+        "p7-sprint5",
+        "alembic",
+        "orm-drift",
+        "mixin",
+        "blocker-3",
+        "idor-guard",
+        "sqlite-blindspot"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-07T00:00:00+08:00",
+      "related_bugs": []
     }
   ]
 }
