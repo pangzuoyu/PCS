@@ -16,3 +16,14 @@ neqsim/
 .gstack/
 .vite/
 sample/
+
+# ---- 2026-10-07：清理 2026-09-16 PyPI 迁移的残留 gitlink ----
+# ADR-0030 决策：三库（chemicals/fluids/thermo）+ CoolProp 统一走 PyPI 固定版本，
+# `[tool.uv.sources]` 指向 vendor/ 的 editable 路径早已移除（见 pyproject.toml:96-97）。
+# 但 vendor/ 的 5 个 gitlink 与 rdkit 仍留在 index 里，且 `.gitmodules` 从未入库 ——
+# 导致 `actions/checkout` 跑 `git submodule foreach` 时报
+# "No url found for submodule path ... in .gitmodules"（exit 128），
+# **CI 每次 push 都在 checkout 阶段就挂，根本跑不到 alembic**。
+# 本机这 6 个是独立 clone（~816MB），不随仓库分发，也不进依赖。
+pcs-backend/vendor/
+rdkit/
