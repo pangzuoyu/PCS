@@ -34,6 +34,7 @@
   未加引号的两段式报 `InvalidSchemaName: schema "users" does not exist` —— 表明明存在，错误
   信息却指向 schema；函数式 `REFERENCES users(user_id)` 与加引号式均正常。
   （该结论在开发库 PG 18.6 复现，compose 声明的是 16-alpine，跨版本未验。）
+- **判「某组件/能力是否已交付」不能只搜计划里的那个文件名**：计划名与最终组件名不一致是常态（`LineagePanel`→`LineageGraph`、`ChangeNotification`→`NotificationCenter` 的「变更」分类）。**按 SPEC 章节号找，再落到实现**（2026-10-07 只搜文件名，把已交付的 NotificationCenter 误判成未做，差点重写一个重复组件）。
 - **别拿「迁移里加了 guard」当保护已生效**：约束类 op 的存在性标志传进去不报错却被 `**kw`
   吞掉（`create_unique_constraint`/`create_check_constraint` 在 alembic 1.19.1 无该形参），比不加
   更危险。迁移期结构检查统一放 `scripts/check_migration_idempotency.py` —— 它已用 AST 遍历
