@@ -22,6 +22,8 @@
 
 ## 🔴 P0 — 真问题（部署阻塞 / 安全）
 
+> 现状（2026-10-07）：4 项中 3 项已做。仅 **TODO-002 token_version** 仍开放。
+
 ### ✅ TODO-004 + TODO-019: CORS middleware 已挂载（2026-10-06）
 
 - **原症状**: `grep -rn add_middleware app/` 全仓 0 命中 —— `cors_allow_origins` 配置项在，
@@ -35,13 +37,19 @@
 - ⚠️ **未覆盖**: lifespan startup 真正触发 fail-fast 的端到端路径（需跑 lifespan →
   依赖真实 DB）。函数本身有测试，调用点是一行，读代码可确认。
 
-### TODO-006: 认证端点无限流、无登录审计
+### ✅ TODO-006: 认证端点限流 + 登录审计（2026-10-07，`d196daa`）
 
-- **What**: `/auth/login` `/auth/refresh` 加限流；login 成功/失败均写 `audit_logs`。
-- **Why**: 暴力破解无阻碍 + 无审计留痕。
-- **证据**: `app/api/v1/auth.py` grep `rate_limit|limiter|LOGIN_SUCCESS|LOGIN_FAILED` **0 命中**。
-  限流能力已存在（`app/services/_sliding_window_rate_limit.py`）但只用在 `app/api/v1/util.py` 一个端点。
-- **复杂度**: 中。**Owner**: 待认领
+- `/auth/login` 与 `/auth/refresh` 各 10 次/分钟/IP；login 成功与失败**都**写
+  `audit_logs`（`LOGIN_SUCCESS` / `LOGIN_FAILED` + ip）——失败不记等于暴力破解无痕。
+- `AuditService.write` 增加可选 `ip` 参数（`audit_logs.ip` 是 INET 列，此前无法填）。
+- 实施中修掉两个真 bug（均由测试暴露）：
+  1. **审计写入能把登录打挂** —— INET 列只接受合法 IP，而 `request.client.host`
+     在 TestClient 下是 `"testclient"`，PG 抛 DataError → 登录 500。加 `_normalize_ip()`。
+     unix socket 场景同样会给出非 IP 值，非纯理论问题
+  2. **两处测试污染真实开发库** —— `/login` 新增 DB 依赖后 `test_auth.py` /
+     `test_mock_auth.py` 的 TestClient 打到真实 pcs 库。已补 in-memory override，
+     实测 `audit_logs` 全程 0 行
+- 验证：全量 3938 passed（+6）
 
 ### TODO-002: refresh token 吊销机制（token_version）
 
@@ -50,14 +58,19 @@
 - **证据**: `grep -rln token_version pcs-backend/ --include=*.py` 全仓 0 命中。
 - **Owner**: 待认领
 
-### TODO-007: JWT 过期 / 无效未细分
+### ✅ TODO-007: JWT 过期 / 无效已细分（2026-10-07，`d196daa`）
 
-- **What**: `ExpiredSignatureError → AUTH_EXPIRED_TOKEN`，`InvalidTokenError → AUTH_INVALID_TOKEN`；
-  前端拦截器据此决定 refresh 还是跳 /login。
-- **Why**: 当前均映射 INVALID_TOKEN，前端无法区分「刷新一次」和「重新登录」。
-- **证据**: `app/core/security.py:116` docstring 写「由调用方转 PcsError」，
-  但全仓 grep `AUTH_EXPIRED_TOKEN|AUTH_INVALID_TOKEN` **0 命中** —— 承诺的细分没落地。
-- **Owner**: 待认领
+- `security.py:116` docstring 早就承诺「由调用方转 PcsError」，但全仓
+  `EXPIRED_TOKEN` 零命中 —— **承诺从未落地**。现拆为：
+  `_decode_bearer` → `EXPIRED_TOKEN` / `INVALID_TOKEN`；
+  `/auth/refresh` → `EXPIRED_REFRESH` / `INVALID_REFRESH`（对称）。
+- 错误码注册表是 AST 派生的，4 个码自动收录（已实测）。
+- **不重命名 `INVALID_TOKEN`**：被 `tests/test_auth.py` 与前端 meta seed 引用，
+  改名收益不抵破坏面。
+- ⚠️ **前端静默刷新仍未做**（TODO-001 遗留项）。`api/client.ts` 对任何 401 都直接
+  跳登录。前端 meta seed 的 `ui_behavior` 因此保持 `redirect_to_login` 而非
+  写成未实现的「静默刷新」——种子数据不应承诺没实现的行为。
+  分码当前价值在可观测性。
 
 ---
 
@@ -326,4 +339,33 @@
 
 - **附带事实**：`ConfigAsset` CATEGORY_6 在真库仍 **0 行** —— 设备库功能从未被真实使用过。
   上述能力均只在 SQLite 测试库中验证过。
-- **Owner**: 待认领（仅剩 3 / 5 两项）
+- **Owner**: 待认领
+
+## 🔴 UI-SPEC §7.16 与实现的完整差额（2026-10-07 逐条核对）
+
+**更正**：上文「地基 5 项全部完成」是错的。那 5 项是首轮审计识别出的**后端缺口**，
+不是与 SPEC 的完整差额。逐条核对 SPEC §7.16 后，13 项要求只满足 2 项：
+
+| SPEC §7.16 要求 | 状态 |
+|---|---|
+| **检索 · 工艺条件模糊搜索** | ❌ 只有 `keyword` → 设备名 ILIKE，**不是工艺条件**（压力/温度/介质） |
+| **检索 · 参数区间** | ❌ 完全没有 min/max 过滤 |
+| **检索 · 相似度计算** | ✅ 已做 |
+| **结果列 · 设备类型 / 规格 / 材质 / 重量 / 标准图号** | ❌ `AssetResponse` 只有 asset_id/category/name/status/current_version，**SPEC 要的 8 列里 5 列没暴露** |
+| **结果列 · 相似度** | ✅ 已做 |
+| **结果列 · 原项目 / 投用日期** | ❌ 没有 |
+| **limit ≤ 200** | ✅ |
+| **分页** | ❌ 只有 limit，无 offset / total |
+| **前端页面** | ❌ **完全没有**（`pcs-frontend/src` 下除生成的 `api.d.ts` 外零引用） |
+
+### 两个额外发现
+
+1. **「参数区间」当前无法实现，不只是没写**。`ApplicableConditions` 把工艺条件存成
+   **自由文本区间串**（`pressure_mpa="0.1~2.5 MPa"`、`temperature_c="-20~200 °C"`），
+   要做区间查询必须先解析文本。这是数据模型问题，不是加个索引的事。
+2. **CATEGORY_6 第 3 项（JSONB 索引）当初的延后理由是错的**。我当时的理由是
+   「没有支撑表达式索引的查询模式」—— 但 SPEC §7.16 **明确要求参数区间**，
+   那就是查询模式。SPEC 是需求，不是等数据来了才成立。延后理由应改为
+   「需先解决 applicable_conditions 自由文本的数据模型问题」。
+
+- **Owner**：待认领（规模明显大于上面那 5 项，建议单独立项而非并入 CATEGORY_6）
