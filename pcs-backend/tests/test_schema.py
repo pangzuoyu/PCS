@@ -234,3 +234,76 @@ def test_fk_violation_raises(engine):
                     "gen_random_uuid(), 'FK_TEST', 'CHEMICAL')"
                 )
             )
+
+
+# ---------------------------------------------------------------------------
+# OpenAPI 响应契约（2026-10-08，TODO-041 重定范围时补）
+#
+# 背景：pcs-frontend 的类型靠 `openapi-typescript` 从 app.openapi() 生成
+# （src/types/api.d.ts）。**端点不声明 response_model，OpenAPI 里就没有该
+# 路径的响应 schema，前端也就生成不出对应类型。**
+#
+# 行为测试抓不到这件事 —— generate 照样返回 {"code": ...}，端到端照样绿，
+# 只有前端接真实 client 时才发现没有类型可用。故单列契约测试。
+# ---------------------------------------------------------------------------
+
+
+def _response_schema_name(paths, path, method):
+    """取某个操作声明的响应 schema 名；没声明返回 None。
+
+    ⚠️ 只看 2xx 全部码，不只看 200 —— 本项目多数写端点返回 201，
+    只查 responses["200"] 会把它们全判成「无 schema」（这个错我犯过一次）。
+    """
+    for code, resp in paths[path][method].get("responses", {}).items():
+        if not str(code).startswith("2"):
+            continue
+        schema = (
+            resp.get("content", {}).get("application/json", {}).get("schema", {})
+        )
+        ref = schema.get("$ref")
+        if ref:
+            return ref.rsplit("/", 1)[-1]
+    return None
+
+
+@pytest.mark.parametrize(
+    ("path", "method", "expected"),
+    [
+        ("/api/v1/pipe-codes/generate", "post", "GenerateResponse"),
+        ("/api/v1/pipe-codes/validate", "post", "ValidateResponse"),
+    ],
+)
+def test_pipe_code_endpoints_declare_response_schema(path, method, expected):
+    """pipe-codes 的生成/验证必须在 OpenAPI 里有响应 schema。
+
+    这两个曾是 7 个前端待接模块里**唯一**没有任何响应 schema 的端点，
+    导致 `pcs-frontend` 无法为其生成类型。
+
+    断言的是「OpenAPI 里有没有这个 schema」这个**有效契约**，不是某一种写法。
+    FastAPI 有两条路都能推出它：`response_model=` 装饰器参数，或返回类型注解
+    `-> GenerateResponse`。本项目写端点通常**两个都有**（house style）。
+    实测：只撤掉装饰器、留着注解 → 本测试仍绿（那是正确的，契约没破）；
+    两个都撤 → 转红。所以别把这测试当成「装饰器在不在」的检查。
+    """
+    from app.main import app
+
+    paths = app.openapi()["paths"]
+    assert path in paths, f"{path} 不在 OpenAPI 里"
+    got = _response_schema_name(paths, path, method)
+    assert got == expected, f"{method.upper()} {path} 的响应 schema 是 {got}，应为 {expected}"
+
+
+def test_response_schema_is_registered_in_components():
+    """声明的 schema 必须真的进 components.schemas，否则前端拿不到定义。"""
+    from app.main import app
+
+    spec = app.openapi()
+    schemas = spec.get("components", {}).get("schemas", {})
+    for name, required in (
+        ("GenerateResponse", {"code"}),
+        ("ValidateResponse", {"valid", "errors", "segments"}),
+    ):
+        assert name in schemas, f"{name} 不在 components.schemas"
+        assert required <= set(schemas[name].get("properties", {})), (
+            f"{name} 缺字段 {required - set(schemas[name].get('properties', {}))}"
+        )

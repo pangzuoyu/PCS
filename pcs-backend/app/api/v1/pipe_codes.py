@@ -104,6 +104,27 @@ class ValidateRequest(BaseModel):
     code: str
 
 
+class GenerateResponse(BaseModel):
+    """管道代码生成响应（POST /pipe-codes/generate）。
+
+    只回生成的完整管道代码字符串；取号已落库（ProjectPipeCodeSequence 自增）。
+    """
+
+    code: str
+
+
+class ValidateResponse(BaseModel):
+    """管道代码校验响应（POST /pipe-codes/validate）。
+
+    对应 `PipeCodeGenerator.ValidationOutcome`：valid + errors[] + 已解析的
+    segments 映射（段名→值）。前端用于实时校验，不入库。
+    """
+
+    valid: bool
+    errors: list[str] = []
+    segments: dict = {}
+
+
 # ---------- 公司级模板 ----------
 
 
@@ -653,12 +674,12 @@ async def obsolete_project_config(
 # ---------- 生成/验证 ----------
 
 
-@router.post("/pipe-codes/generate")
+@router.post("/pipe-codes/generate", response_model=GenerateResponse)
 async def generate_pipe_code(
     payload: GenerateRequest,
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
-):
+) -> GenerateResponse:
     """POST /pipe-codes/generate：按项目模板生成下一个管号。
 
     步骤：
@@ -684,12 +705,12 @@ async def generate_pipe_code(
     return {"code": code}
 
 
-@router.post("/pipe-codes/validate")
+@router.post("/pipe-codes/validate", response_model=ValidateResponse)
 async def validate_pipe_code(
     payload: ValidateRequest,
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
-):
+) -> ValidateResponse:
     """POST /pipe-codes/validate：管号格式校验（不落库，仅 dry-run）。
 
     步骤：

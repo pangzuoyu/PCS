@@ -2688,6 +2688,29 @@
       "related_bugs": [
         "bug-147"
       ]
+    },
+    {
+      "id": "bug-149",
+      "timestamp": "2026-10-08T00:00:00+08:00",
+      "error_message": "OpenAPI 里 /api/v1/pipe-codes/generate 与 /validate 的 200 响应无任何 schema —— 前端无法为其生成类型",
+      "file": "pcs-backend/app/api/v1/pipe_codes.py",
+      "root_cause": "**`pipe_codes.py` 整个文件一个 `response_model` 都没有。** 生成/验证两个端点直接\n`return {\"code\": code}` / `return {valid, errors, segments}`，没有声明响应模型，\n于是 `app.openapi()` 的 `components.schemas` 里根本没有这两个响应的定义 ——\n`pcs-frontend` 靠 `openapi-typescript` 从它生成 `src/types/api.d.ts`，生成不出来。\n\n**为什么一直没人发现**：端点行为完全正确，端到端测试也覆盖了（generate 返回\nFOO-001、validate 返回 valid+segments，见 `tests/api/v1/test_pipe_codes.py`）。\n缺的是**契约层**的东西，而行为测试看不见契约层 —— 这与 bug-143/145/147 是同一族失效：\n测的东西与坏的东西不在同一层。\n\n**查证时我自己犯过一次同类错**：探针只读 `responses[\"200\"]`，而本项目多数写端点返回\n201，于是得出「8 个端点全部无响应 schema」的错误结论。加上 2xx 全码重查后，\n实际只有这 2 个缺。",
+      "fix": "补 `GenerateResponse{code: str}` 与 `ValidateResponse{valid, errors, segments}`\n两个 Pydantic 模型，并同时挂 `response_model=` 与返回类型注解（house style）。\n\n**加 OpenAPI 响应契约测试**（`tests/test_schema.py`）锁住「这些端点必须有响应 schema」，\n因为行为测试抓不到它。\n\n⚠️ 该测试断言的是**有效契约**（OpenAPI 里有没有 schema），不是某一种写法：FastAPI 从\n`response_model=` 装饰器**或**返回类型注解都能推出。实测：只撤装饰器留着注解 → 仍绿\n（正确，契约没破）；两个都撤 → 转红。已实测验证两种撤法，不是假绿。",
+      "fix_commit": "",
+      "tags": [
+        "openapi",
+        "contract",
+        "frontend-types",
+        "todo-041",
+        "silent-gap"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-08T00:00:00+08:00",
+      "related_bugs": [
+        "bug-143",
+        "bug-145",
+        "bug-147"
+      ]
     }
   ]
 }

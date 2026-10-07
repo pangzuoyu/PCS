@@ -145,15 +145,89 @@ access/refresh token」，并把 token_version 列为该条的实现手段。
 - **性质**: P4 已收口，这条是**当时遗漏的验收缺口**，不是未来项。
 - **Owner**: 待认领
 
-### TODO-039 + TODO-041: 前端类型来源唯一性 + MSW 契约冻结（🔴 逾期 ~20 天）
+### TODO-039 + TODO-041: 前端类型来源唯一性 + MSW 契约冻结（🔴 逾期 ~20 天，**2026-10-08 已重定范围**）
 
-- **What**: 7 个 mock type 文件（pipeClass/flash/pipe/pump/pipeNet/pms/common）改 import 自 `./api`；
+- **原 What（错的）**: 7 个 mock type 文件（pipeClass/flash/pipe/pump/pipeNet/pms/common）改 import 自 `./api`；
   MSW handlers 按 OpenAPI 重写。
-- **证据**: 7 文件全在，`grep -c "TODO(api-migration)"` 逐文件均为 1，`from './api'` 计数为 0；27 处页面仍从 `../types/*` 导入。
-  `src/mocks/handlers.ts`（28.8K）文件头注释仍写「当前按前端 mock types 写」。
-- **⚠️ STATUS.md 的说法只对了一半**: P5-1 确已闭环，但「解除了 039/041 的依赖」≠「039/041 已完成」——
-  触发条件早已过去，代码原封不动。属**逾期**。
-- **Owner**: 待认领
+- **⚠️ 重定范围结论（2026-10-08 实证）**：**这不是前端任务**，是**后端载荷债的下游**。
+  原表述把「改 import」说成机械替换，会让下一个人白跑。
+
+#### 证据一：前后端是同一份数据、两套命名，且**单位不一致**
+
+flash 的 `FlashInput` vs 后端 `CalculateRequest`：
+
+| 前端 | 后端 | 备注 |
+|---|---|---|
+| `h_kj_kg` | `H_target` | 焓 |
+| `p_mpa` | `P_Pa` | **单位都不同**（MPa vs Pa） |
+| `s_kj_kg_k` | `S_target` | |
+| `t_k` | `T_K` | |
+| `calc_type` / `stream_id` | 同名 | 仅这 2 个对得上 |
+
+换 import 会全线崩，且 **`p_mpa` 传成 Pa 值的数字，TS 一样绿** —— 单位错不会被类型系统发现。
+
+#### 证据二：**载荷在后端根本没定义**，这才是真堵点
+
+8 个相关端点现在**全部**有 `response_model`（本次补齐了 pipe-codes 那 2 个），
+但载荷字段是**裸类型**：
+
+| 端点 | 响应 schema | 问题字段 |
+|---|---|---|
+| `POST /pump/calc-chain` | `pump.CalcChainResponse` | `result: object`（无 properties） |
+| `POST /flash/calculate` | `flash.CalculateResponse` | `result: object`（无 properties） |
+| `POST /pipe-net/solve` | `PipeNetSolveResponse` | `edge_flows: array`（**无 items**）、`check_result: string` |
+
+**全 OpenAPI 量化：259 个 schema 中，141 个 object/array 字段里有 71 个是裸类型
+（无 `properties` / 无 `items`）—— 半数结构化载荷在 API 契约里没有被定义。**
+前端对这些载荷**只能继续手写类型**，而那正是本 TODO 想消灭的东西。
+
+> 这与 §3.4 约束①（载荷模型 0/25 表）是**同一笔债的两个观测面**：
+> 一个在 ORM 侧（JSONB 列无嵌套模型），一个在 API 侧（响应字段是裸 object）。
+> **做完 §3.4 约束①，这边自然解锁；反过来不成立。**
+
+复现命令：
+```bash
+cd pcs-backend && uv run python -c "
+from app.main import app
+S = app.openapi()['components']['schemas']
+n = sum(1 for s in S.values() for f, p in (s.get('properties') or {}).items()
+        if '\$ref' not in p and p.get('type') in ('object','array')
+        and not p.get('properties') and not p.get('items'))
+print(n, '个裸载荷字段')"
+```
+
+#### 证据三：原 TODO 里「字段名已对齐」的说法是假的
+
+`pipeClass.ts` 注释称「`PipeClassResponse` 字段名 `code`/`material`/`schedule` 已对齐」。
+实测 `PipeClassResponse` 是 `class_id` / `class_name` / `material_standard` / `base_material` …，
+**`code`、`material`、`schedule` 三个字段一个都不存在**。
+且不是简单改名：前端 `size_range_json`（1 个字段）对应后端
+`dn_series_json` + `sch_series_json`（2 个字段）—— **结构不同**。
+
+#### 证据四：目前没有任何东西真的坏
+
+7 个模块前端**全部走 MSW**（`pcs-frontend/src/api/` 里 0 引用 pipe/flash/pump/pipeNet/pms/pipeClass），
+36 个 handler 兜着。漂移是**潜在的** —— 等有人接真实 client 那一刻才爆。
+
+#### 本次已做（2026-10-08）
+
+- **补齐 pipe-codes 两个响应 schema**：`GenerateResponse{code}`、
+  `ValidateResponse{valid, errors, segments}`。这两个是 8 个端点里**唯一**
+  完全没有响应 schema 的，补完前端可生成对应类型。
+- **加 OpenAPI 响应契约测试**（`tests/test_schema.py`）：锁住「这些端点必须有响应 schema」。
+  行为测试抓不到这件事 —— 端点照样返回正确数据、端到端照样绿，只有前端接 client 时才发现没有类型可用。
+  ⚠️ 该测试断言的是**有效契约**（OpenAPI 里有没有 schema），不是某一种写法：
+  FastAPI 从 `response_model=` 装饰器**或**返回类型注解都能推出，只撤装饰器它仍绿（正确的，契约没破），
+  两个都撤才转红。已实测验证两种撤法。
+
+#### 仍然未解决
+
+- **71 个裸载荷字段**（证据二）—— 主体工作，量级见下。
+- **逐模块字段映射 + 单位归一**（证据一、三）—— 依赖上一条先做，否则前端没得可映射。
+- **MSW handlers 按最终契约重写** —— 最后一步，前两条不做就是白做。
+
+**Owner**: 待认领。**建议顺序：§3.4 约束①（后端载荷模型）→ 本 TODO**，
+反过来做会返工。
 
 ### TODO-040: PIPE_NET 完整版（reactflow / 布局 / 环路检测 / 序列化）
 
