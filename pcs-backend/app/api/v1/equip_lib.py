@@ -9,7 +9,7 @@ ACL：写（settle）= PROCESS_CONTROLLER + SYSTEM_ADMIN；
 """
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -17,19 +17,28 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
 from app.schemas.config import AssetResponse
-from app.schemas.equip_lib import EquipLibSettleRequest
+from app.schemas.equip_lib import EquipLibSettleRequest, SimilarAssetResponse
 from app.services.equip_lib_service import EquipLibService
 
 router = APIRouter(prefix="/equip-lib", tags=["equip-lib"])
 
 
-@router.get("/search", response_model=list[AssetResponse])
+@router.get("/search", response_model=list[SimilarAssetResponse])
 async def search(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
     keyword: str | None = Query(None),
     equipment_type: str | None = Query(None),
     limit: int = Query(50, ge=1, le=200),
+    # ---- 相似度参照物（UI-SPEC §7.16）----
+    # 传了就按相似度降序排，并逐条回 similarity + 档位；一个都不传则
+    # similarity 全为 null（无参照可比，不是 0 分）。
+    ref_type_code: str | None = Query(None, description="参照：设备代号"),
+    ref_material: str | None = Query(None, description="参照：材质"),
+    ref_weight_kg: float | None = Query(None, gt=0, description="参照：重量 kg"),
+    ref_standard_drawing_no: str | None = Query(
+        None, description="参照：标准图号"
+    ),
 ):
     """GET 检索设备库（仅 PUBLISHED）。
 
@@ -37,12 +46,36 @@ async def search(
     - keyword 可选模糊匹配 name（ILIKE）
     - equipment_type 可选 JSONB ->> 精确过滤
     - limit 上限 200（防前端误传大数）
-    - 返回 AssetResponse 列表（CATEGORY_6 + status=PUBLISHED，由 service 固定）
+    - ref_* 任一非空即启用相似度：结果按相似度降序，逐条带
+      similarity(0~1) 与 similarity_tier(RECOMMEND/VERIFY/DISPLAY_ONLY)
+
+    档位口径见 UI-SPEC §7.16：≥90% 推荐，80~90% 需校核，<80% 仅展示。
     """
     require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
-    return await EquipLibService.search(
-        db, keyword=keyword, equipment_type=equipment_type, limit=limit
+    reference: dict[str, Any] | None = None
+    # equipment_type 是过滤条件，不进参照 —— 它作为相似度维度恒真（见
+    # equip_lib_similarity 模块 docstring）
+    supplied = {
+        "type_code": ref_type_code,
+        "material": ref_material,
+        "standard_drawing_no": ref_standard_drawing_no,
+        "weight_kg": ref_weight_kg,
+    }
+    if any(v is not None for v in supplied.values()):
+        reference = {k: v for k, v in supplied.items() if v is not None}
+
+    results = await EquipLibService.search(
+        db, keyword=keyword, equipment_type=equipment_type, limit=limit,
+        reference=reference,
     )
+    return [
+        SimilarAssetResponse(
+            **AssetResponse.model_validate(asset).model_dump(),
+            similarity=None if sim is None else sim.score,
+            similarity_tier=None if sim is None else sim.tier,
+        )
+        for asset, sim in results
+    ]
 
 
 @router.post("/settle", response_model=AssetResponse, status_code=201)

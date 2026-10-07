@@ -5,6 +5,7 @@
 """
 from __future__ import annotations
 
+from typing import Any
 from uuid import UUID
 
 from sqlalchemy import select
@@ -123,7 +124,8 @@ class EquipLibService:
     async def search(
         cls, session: AsyncSession, *, keyword: str | None = None,
         equipment_type: str | None = None, limit: int = 50,
-    ) -> list[ConfigAsset]:
+        reference: dict[str, Any] | None = None,
+    ) -> list[tuple[ConfigAsset, Any | None]]:
         """检索设备库（仅 PUBLISHED）。
 
         步骤：
@@ -133,7 +135,11 @@ class EquipLibService:
         3. 可选 equipment_type：content_json['equipment_type'] 精确匹配
            （PG JSONB ->> 字符串提取）
         4. limit 上限 200（min(limit, 200) 防止前端误传）
-        5. 不分页：返回 ConfigAsset 列表（FastAPI 自动经 AssetResponse 序列化）
+        5. 可选 reference（UI-SPEC §7.16 相似度参照物）：逐条算相似度，
+           **按相似度降序排** —— 归并后操作员要先看到最像的那条。
+           无 reference 时全部返回 None（无参照可比，不是 0 分）。
+
+        返回 (asset, SimilarityResult | None) 列表。
         """
         stmt = select(ConfigAsset).where(
             ConfigAsset.category == "CATEGORY_6", ConfigAsset.status == "PUBLISHED"
@@ -144,4 +150,17 @@ class EquipLibService:
             stmt = stmt.where(
                 ConfigAsset.content_json["equipment_type"].as_string() == equipment_type
             )
-        return list((await session.execute(stmt.limit(min(limit, 200)))).scalars())
+        rows = list((await session.execute(stmt.limit(min(limit, 200)))).scalars())
+        if reference is None:
+            return [(a, None) for a in rows]
+        from app.services.equip_lib_similarity import (
+            compute_similarity,
+            flatten_standard_info,
+        )
+
+        scored = [
+            (a, compute_similarity(reference, flatten_standard_info(a.content_json)))
+            for a in rows
+        ]
+        scored.sort(key=lambda pair: pair[1].score, reverse=True)
+        return scored

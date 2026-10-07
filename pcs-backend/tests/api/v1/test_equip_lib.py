@@ -207,3 +207,97 @@ async def test_config_asset_rejects_unknown_category(db):
     with pytest.raises(IntegrityError):
         await db.commit()
     await db.rollback()
+
+
+# ---------------------------------------------------------------------------
+# 相似度归并检索（UI-SPEC §7.16）
+#
+# settle 不做硬去重（2026-10-07 裁决），所以库内允许同一型号多条记录。
+# 相似度是唯一让操作员看出「这些其实是同一台设备」的机制。
+# 查询参数即参照物。
+# ---------------------------------------------------------------------------
+
+
+async def _mk_lib_entry(
+    db, *, name, equipment_type, type_code, material, weight_kg,
+    key_dimensions, status="PUBLISHED",
+):
+    import uuid
+
+    from app.models.config_domain import ConfigAsset
+
+    a = ConfigAsset(
+        category="CATEGORY_6",
+        name=name,
+        current_version="settle-v1",
+        status=status,
+        content_json={
+            "equipment_type": equipment_type,
+            "standard_info": {
+                "type_code": type_code, "material": material,
+                "weight_kg": weight_kg, "key_dimensions": key_dimensions,
+            },
+        },
+    )
+    db.add(a)
+    await db.commit()
+    return a
+
+
+async def test_search_returns_similarity_and_tier(
+    client, sample_pc_token, db
+):
+    """传参照参数 → 每条结果带 similarity + 档位。"""
+    await _mk_lib_entry(
+        db, name="离心泵 A", equipment_type="PUMP", type_code="PUMP-C-01",
+        material="SS316", weight_kg=850.0, key_dimensions={"head_m": 120},
+    )
+    r = await client.get(
+        "/api/v1/equip-lib/search",
+        params={"equipment_type": "PUMP", "ref_type_code": "PUMP-C-01",
+                "ref_material": "SS316", "ref_weight_kg": 850},
+        headers=await _h(sample_pc_token),
+    )
+    assert r.status_code == 200, r.text
+    item = r.json()[0]
+    assert item["similarity"] == 1.0, item
+    assert item["similarity_tier"] == "RECOMMEND", item
+
+
+async def test_search_similarity_null_without_reference(
+    client, sample_pc_token, db
+):
+    """没传参照参数 → similarity 为 null（无参照可比，不是 0 分）。"""
+    await _mk_lib_entry(
+        db, name="离心泵 A", equipment_type="PUMP", type_code="PUMP-C-01",
+        material="SS316", weight_kg=850.0, key_dimensions={"head_m": 120},
+    )
+    r = await client.get(
+        "/api/v1/equip-lib/search", params={"equipment_type": "PUMP"},
+        headers=await _h(sample_pc_token),
+    )
+    assert r.status_code == 200, r.text
+    assert r.json()[0]["similarity"] is None, r.json()[0]
+
+
+async def test_search_sorts_most_similar_first(
+    client, sample_pc_token, db
+):
+    """相似度高的排前面 —— 归并后操作员先看到最像的那条。"""
+    await _mk_lib_entry(
+        db, name="型号一致", equipment_type="PUMP", type_code="PUMP-C-01",
+        material="SS316", weight_kg=850.0, key_dimensions={"head_m": 120},
+    )
+    await _mk_lib_entry(
+        db, name="型号不同", equipment_type="PUMP", type_code="PUMP-S-99",
+        material="SS304", weight_kg=9000.0, key_dimensions={"diameter_mm": 50},
+    )
+    r = await client.get(
+        "/api/v1/equip-lib/search",
+        params={"equipment_type": "PUMP", "ref_type_code": "PUMP-C-01",
+                "ref_material": "SS316", "ref_weight_kg": 850},
+        headers=await _h(sample_pc_token),
+    )
+    assert r.status_code == 200, r.text
+    names = [i["name"] for i in r.json()]
+    assert names[0] == "型号一致", names

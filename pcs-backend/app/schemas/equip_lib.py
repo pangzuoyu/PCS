@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field, field_validator
 
+from app.schemas.config import AssetResponse
+
 
 class ApplicableConditions(BaseModel):
     """设备适用工况区间（equip_lib.applicable_conditions_json 内嵌段）。
@@ -66,3 +68,18 @@ class EquipLibSettleRequest(BaseModel):
         if not v:
             raise ValueError("key_dimensions 不能为空")
         return v
+
+
+class SimilarAssetResponse(AssetResponse):
+    """检索结果（带相似度）。
+
+    similarity 为 None 表示「没有参照物可比」—— 不是 0 分。
+    档位依 UI-SPEC §7.16：≥90% RECOMMEND / 80~90% VERIFY / <80% DISPLAY_ONLY。
+    """
+
+    similarity: float | None = Field(
+        None, ge=0.0, le=1.0, description="0~1 相似度；无参照参数时为 null"
+    )
+    similarity_tier: str | None = Field(
+        None, description="RECOMMEND / VERIFY / DISPLAY_ONLY"
+    )
