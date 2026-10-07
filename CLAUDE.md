@@ -16,9 +16,17 @@ For the full operating protocol (session handoff, memory discipline, bug logging
 
 - **单元测试（pytest）**：免前置。`tests/conftest.py` 用 `sqlite+aiosqlite:///:memory:`
   + `SA_Base.metadata.create_all` 建表 —— 从 ORM metadata 建，**不读 Postgres，不读
-  迁移产物**。`.env` 的 `DATABASE_URL` 指向 `pcs`；当前无 `pcs_test`、无 `.env.test`。
-- **Postgres 集成测试（若将来新增）**：须先 `cd pcs-backend && uv run alembic upgrade head`
-  对齐。当前套件无此类测试。
+  迁移产物**。`.env` 的 `DATABASE_URL` 指向 `pcs`；无 `.env.test`。
+- ⚠️ **`pcs_test` 库存在**（与 `pcs` 同机同实例，`pcs` 用户可连）。它**不是**单测用的 ——
+  单测跑内存 SQLite。2026-10-07 实测它曾长期停在 `p7_s4_001`（落后 3 个 revision、
+  多一张已被 p7_s5_001 删除的 `equipment_lib`），已补 `alembic upgrade head` 对齐到
+  `p7_s5_007`。**改迁移后若要验证「迁移在另一个库上也成立」，显式指定它**：
+  `DATABASE_URL=postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs_test uv run alembic upgrade head`。
+  第二个库停在旧 revision 是产生困惑漂移结果的常见来源。
+- **Postgres 版本**：开发库是 **PostgreSQL 18.6**（apt 集群 `18-main`，5432）。
+  `docker-compose.yml` 与 CI 已于 2026-10-07 对齐到 18。⚠️ 本机**另有**一个 PG 16
+  集群（`16-main`，5433，`down`）—— 那是 2026-09-16 为 `btree_gist` 装的旧集群，
+  与当前开发库无关，**别把结论建在它上面**。PG 16 → 18 的那次迁移在仓库里无记录。
 - **⚠️ 漂移盲区**：迁移改了 schema 而 ORM 未跟随时，**单测照绿、真库会炸**。缺表会红（可见），
   漂移会绿（不可见）—— 后者没有自动化能抓。改任何 `alembic/versions/*` 时必须**手动核对
   ORM 列同步**（历史上 `config_energy_conversion_factors` 4 个 R1 分类列从未迁移，

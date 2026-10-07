@@ -486,8 +486,9 @@ class UtilityEnergySummary(Base):
         comment="项目 ID (FK projects.project_id)",
     )
     workspace_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("workspaces.workspace_id", ondelete="RESTRICT"), nullable=False,
-        comment="工作区 ID (FK workspaces.workspace_id)",
+        ForeignKey("workspaces.workspace_id", ondelete="CASCADE"), nullable=False,
+        comment="工作区 ID (FK workspaces.workspace_id; 工作区删除时汇总跟随删除 —— "
+                "如需保留数据请走归档而非删除)",
     )
     business_year: Mapped[int] = mapped_column(
         Integer, nullable=False,

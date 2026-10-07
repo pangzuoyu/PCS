@@ -592,84 +592,57 @@ access/refresh token」，并把 token_version 列为该条的实现手段。
 即 **BLOCKER-3 的 IDOR 守卫在有真实数据之前无法端到端验证**。
 这不是本轮能解决的，但**排 P7 收尾 / P9 联调时必须知道**。
 
-## 🟡 开发库 Postgres 版本与项目声明的容器不一致（2026-10-07 grounding 校验时查出）
+## ✅ Postgres 版本已对齐 18（2026-10-07，用户裁决）
 
-- `docker-compose.yml:3` 声明 `image: postgres:16-alpine`
-- 实测开发库 `show server_version` = **18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)**
+**起因**：`docker-compose.yml` 声明 `postgres:16-alpine`、CI 用 `postgres:16`，
+而开发库实跑 **18.6** —— 本地 18.6 / CI 16 的隐性漂移。
 
-即**开发库不是由本仓库的 compose 起的**，而是系统/发行版安装的 PostgreSQL 18.6。
-（`Ubuntu ...0ubuntu0.26.04.1` 的版本串也印证了它是发行版包。）
+**查清了「为什么两个都装」**（原先只登记为"不一致"，未查因）：
+- **PG 16 是有意装的** —— `docs/adr/signatures/dba-btree-gist-install-request.md`
+  （2026-09-16）明确「`btree_gist` 在 **PG 16 已 stable**」，确认件记录在 **5432**
+  上给 `pcs` / `pcs_test` 装成 `btree_gist 1.7`
+- **PG 18 无任何项目记录** —— `git log --all -i --grep` 搜不到；它的集群后来抢占
+  5432（即 16 当时的端口），把 16 挤到 5433 且 `down`
+- 证据表明项目数据已从 16 迁到 18 且**这次迁移无记录**：当前 `pcs` 103 张表、
+  `btree_gist` **1.8**（DBA 在 16 上装的是 **1.7**）、`pcs`/`pcs_test` 两库都在
 
-**影响**：
-1. 一切「在开发库验过」的结论都建立在 **PG 18.6** 上，而项目声明的目标环境是 16。
-   两者行为差异（约束、索引、`REFERENCES` 解析、DDL 细节）目前**未被任何检查覆盖**。
-2. `bug-143`/`bug-144` 的修复已在 18.6 上验过，但 16 上未验。
-   ⚠️ 特别地，本会话踩到的 `REFERENCES users.user_id` → `InvalidSchemaName` 这个坑，
-   **尚未在 16 上复现验证** —— 若 16 上不存在该限制，`op.create_foreign_key` 依然安全
-   （它生成的是函数式引用），故修复本身不因此失效，但「该写法在 16 上会失败」这个说法
-   不能跨版本套用。
-3. CI（`check-api-drift.yml`）跑的是哪一个版本也需确认 —— 若 CI 用 16、
-   本地用 18.6，则 CI 绿 ≠ 本地行为一致。
+**裁决与落地**：
+1. `docker-compose.yml` → `postgres:18-alpine`
+2. CI `check-api-drift.yml` → `postgres:18`
+3. `pcs_test` 补 `alembic upgrade head` —— 原停在 `p7_s4_001`（落后 3 个 revision、
+   104 张表，多一张已被 `p7_s5_001` 删除的 `equipment_lib`），现已到 `p7_s5_007` / 103 张表
+4. 根 `CLAUDE.md` 更正 —— 原文「当前无 `pcs_test`」是**错的**，且已补上版本与第二库的操作说明
 
-**建议**：确认开发库的来源与期望。若期望就是 compose 的 16，需要一次
-「compose 起库 → `alembic upgrade head` → 跑 test_schema.py」的回归；
-若 18.6 是有意选择，则把 `docker-compose.yml` 的版本对齐，并更新本文档。
+**仍待办 / 已知残留**：
+- ⚠️ **本机 PG 16 集群仍在**（`16-main`，5433，`down`）。它是旧集群，与开发库无关，
+  但机器上两个版本并存这件事本身有再次踩坑的风险。是否清理由用户定。
+- ⚠️ `REFERENCES users.user_id` → `InvalidSchemaName` 那个坑**仍未在 16 上验证**
+  （起 16 需 root、docker 拉镜像网络超时）。**修复本身不依赖它** —— 走
+  `op.create_foreign_key`，生成标准函数式 `REFERENCES users (user_id)`。
+  版本敏感的只有文档里那句断言，已标注「跨版本未验」。
+- 早先 bug-143 / bug-144 的修复是在 18.6 上验的；CI 此前用 16 跑绿过整条迁移链，
+  本次改动后 CI 首次以 18 跑 —— 结果待观察。
 
-- **Owner**：待认领
 
-## ✅ D 模块读面已补 —— 写面改判到 P9（2026-10-07，`23c8c25`）
+## ✅ `ondelete` CASCADE/RESTRICT 争议已裁决（2026-10-07，用户裁决）
 
-P8 前置项 ② 拆分执行：**读面 4 端点已交付**（`GET /deliverables`、`/{id}`、
-`/{id}/versions`、`/{id}/versions/{rev}/snapshot`，+17 测试，全量 3979 passed）。
-**P8 REPORT 的实际数据依赖已打通** —— 该项设立时的三条理由里有两条本质是「读」。
+争议：`fk_utility_energy_summary_workspace_id_workspaces` —— DB=CASCADE，ORM=RESTRICT。
 
-**写面（create / issue / customer-approval-proxy）改判到 P9**：P1 spec 给它们的
-语境是签署流程（issue 走签署矩阵；proxy 是 ADR-0007 代录客户批准 + 二次认证），
-且都依赖 `SignatureMatrix.steps_json` 的消费方 —— **目前无 service**（SUP-005
-未落地）。现在做等于在没有矩阵语义的情况下把签署流程写死一遍。
+**裁决：ORM 改 CASCADE 对齐 DB**（ORM-only 改动，零迁移成本，DB 本来就是这个行为）。
 
-**顺带查出 bug-145**：`ChangeNoticeService.create_change_notice:191` 写死
-`matrix_id=None`，但 `Deliverable.matrix_id` 是 **NOT NULL 带 FK** —— 该路径
-**调用即 500**。无测试、真库表 0 行所以从未爆。倾向前者修法（先建矩阵消费方）。
+**理由**（用户给出，核实后成立）：
+- workspace 是数据容器，汇总记录的存在依赖它 → 级联删除是合理的容器语义
+- workspace 删除走的是 **硬删除**（`workspace_service.py:162` 的 `delete(Workspace)`），
+  不是软删 → FK 约束**确实会触发**，RESTRICT 不是等价选项
+- RESTRICT 会让 workspace 自动清理任务在遇到能耗数据时失败 —— 那不是预期行为
+- 若业务上需要「删正式 workspace 前先确认数据已导出」，应在 **service 层**做显式检查，
+  **FK 是数据完整性约束，不是业务规则**
 
-## ✅ 更正：前端 `ChangeNotification` 本就存在（2026-10-07）
+已改：`app/models/util.py` 的 `UtilityEnergySummary.workspace_id`
+`ondelete="RESTRICT"` → `"CASCADE"`，并在 comment 里写明「工作区删除时汇总跟随删除 ——
+如需保留数据请走归档而非删除」。
 
-P8 前置项 ②c「前端补第 3 个组件」被误判为未做。判定依据是按文件名搜
-`ChangeNotification` → 0 命中 —— **错的**。
+⚠️ 注意 `util.py` 里有 **6 处**长得完全一样的 workspace_id RESTRICT 声明，
+但只有这一处在漂移（其余 5 处 DB 也是 RESTRICT）—— 改的时候不能 `replace_all`。
 
-P1 计划的三个组件实际交付为 `LineageGraph`（计划名 LineagePanel）、
-`RevTimeline`（同名）、**`NotificationCenter` 的「变更」分类**（计划名
-ChangeNotification）。后者 176 行实现 + 14 条测试，覆盖 UI-SPEC §6.20 全部要素
-（4 tab / 变更 tag / 标题摘要时间 / 查看 / 未读蓝点），fixture 的标题用的正是
-SPEC 示例原文「物流 S-101 流量已变更」。三个组件测试合计 36 passed。
-
-**教训已写入 cerebrum**：判「组件是否已交付」不能只搜计划里的文件名 ——
-计划名与最终组件名不一致是常态，要**按 SPEC 章节号找、再落到实现**。
-
-## ✅ 1b：§3.4 约束② 的对比契约已定义 + 覆盖率闸已落地（2026-10-07）
-
-产出 `docs/PCS-NOTE-3.4-描述文本契约-2026-10-07.md` +
-`pcs-backend/scripts/check_payload_model_coverage.py`（+10 测试）。
-
-**落地前的实测把这件事的性质改了**。契约要比对 ORM comment ↔ Pydantic
-`Field(description=...)`，但**两端都没有实质性落地**：
-
-| 端 | 实测 |
-|---|---|
-| 载荷 Pydantic 模型（约束①） | **0 / 25 张表**（29 张里 4 张无 JSON 列，不计） |
-| ORM Column comment（约束②另一端） | **45 / 88 个 JSONB 列（51.1%）**，43 个是 `None` |
-
-且 **§3.4 自己举例的 `HeatDesignParametersSchema` 全仓 0 命中**，`app.schemas.heat`
-模块不存在 —— SPEC 描述的是一个从未存在过的模型。落地时不能照它抄。
-
-**因此闸做成「只拦倒退」而非「漂移即 fail」**：SPEC 那句的前提（约束①已落地）
-不成立，照字面写会从第一天起报几十条没人能修的红，然后被整体关掉 —— 那正是
-cerebrum 里记的「恒报噪声 = 狼来了」；反方向的恒报绿同样危险。取第三条路：
-把欠账量化成可下降的数字，只保证它不涨。约束①补齐后自然升级为强阻断。
-
-模型↔列的对应走**显式登记表**而非命名推断 —— 本项目 JSONB 列命名高度不规则
-（`pump_results` 有 15 个，`heat_results` 有 `shell_params`/`tube_params` 这类
-**不带 `_json` 后缀**的），任何驼峰推断都会炸出大量假阳性。
-
-**下一步（不在本项）**：补约束① 本身 —— 21~25 张表的嵌套载荷模型。需逐模块确认
-JSONB 实际结构（不能从 ORM 列名反推）。本闸的作用是让这项工作变成可回归的数字。
+**效果**：`alembic check` 从 43 降到 **41**（`add_fk` + `remove_fk` 两项同时消失）。
