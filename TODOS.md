@@ -373,3 +373,56 @@
    「需先解决 applicable_conditions 自由文本的数据模型问题」。
 
 - **Owner**：待认领（规模明显大于上面那 5 项，建议单独立项而非并入 CATEGORY_6）
+
+---
+
+## 🔴 9 个既有 `p7_open_*`/`p7_s1_*` 迁移缺幂等 guard（2026-10-07 恢复登记）
+
+> ⚠️ **本条曾在 2026-10-06 的 `TODOS.md` 全量重写中丢失**（只剩 `STATUS.md` 提过），
+> 2026-10-07 补回。重写整份文件时用 `Write` 覆盖，漏抄了尾部两个无编号条目。
+
+- **现状**：`scripts/check_migration_idempotency.py` 的 `checked_prefixes` 覆盖
+  `p7_s2_`/`p7_s3_`/`p7_s4_`/`p7_s5_`（0 violations ✅）。
+  但全部 23 个 `p7_*.py` 里有 **9 个落在白名单外**，其 `drop_table`/`create_index`/
+  `drop_index` 没有幂等 guard，闸看不见：
+  - `p7_open_009_001_utility_power_items`（5 处）
+  - `p7_open_009_002_utility_fuel_gas`（7 处）
+  - `p7_open_009_003_utility_heat_exchange`（7 处）
+  - `p7_open_009_005_utility_energy_summary`（6 处）
+  - `p7_open_009_t0_config_energy_conversion_factors`（1 处 `drop_table`）
+  - `p7_open_010_r1_classification_fields`（6 处）
+  - `p7_open_010_user_projects_blocker3`（7 处）
+  - `p7_s1_002_audit_logs_jsonb_gin`（2 处）
+  - `p7_s1_005_util_results`（6 处）
+- **风险**：downgrade 往返在这些迁移上不幂等。
+- **不能无审查批量加 guard** —— 加 `if_exists=True` 会改变 downgrade 在
+  「表不存在」时的行为，需逐个确认语义。
+- **修法顺序（不能反）**：逐个补 `if_exists=True` / `if_not_exists=True` →
+  补完一个从前缀白名单移一个 → 最后白名单改「全部 `p7_*`」。
+  **顺序反了会让钩子立刻在无关文件上失败**（P7 Sprint 4 #12 报告里担心的情形，
+  实测确认成立）。
+- **Owner**：待认领
+
+## ✅ `.wolf/buglog.json` id 重号已去重（2026-10-07）
+
+> 同上，本条也在 2026-10-06 重写中丢失，2026-10-07 补回并当场修复。
+
+- **登记时的描述已过时**：当时记的是「四条 `bug-2026` + `bug-031`/`bug-002` 各重复，
+  共 6 条重号」。实际 `bug-2026` 那四条早已被改成 `QA-2026-09-16-001..004`，
+  **只剩 2 对重复**：`bug-002`（2 条）、`bug-031`（2 条）。
+- **为何可以改号**：原方案说「不改历史条目的 id，因为 `fix_commit` 是 STATUS 反查的
+  单点来源」。实测这 4 条的 `fix_commit` **全是空**，没有反查链可断 ——
+  前提不成立，所以可以安全改号。
+- **处置**：按「早的保留原号（稳定）」，晚的补空洞号，并双向 `related_bugs` 互链 +
+  `id_reassigned_from` / `id_reassigned_reason` 留痕：
+
+  | 保留 | 改号 | 改号原因 |
+  |---|---|---|
+  | `bug-002`（Incorrect value in code, 08-31） | `bug-039` | alembic `tag_number ... already exists`（09-16） |
+  | `bug-031`（Wrong operator, 09-01 08:18） | `bug-072` | alembic `NameError: name Enum is not defined`（09-01 13:01） |
+
+  复核：140 条，重复 0 个。
+- **编号规则（防止复发）**：新条目用**顺序号 `bug-NNN`，下一个 = 当前 max+1**。
+  **绝不使用年份式编号**（`bug-2026` 正是当初 4 条撞号的根因 —— 新条目按
+  `max+1` 算出 `bug-2027` 时，`bug-2026` 这个非序号已经存在，于是继承了重号）。
+- **Owner**: 已关闭
