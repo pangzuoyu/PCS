@@ -533,3 +533,45 @@ access/refresh token」，并把 token_version 列为该条的实现手段。
 - **已核对无缺口**：P9-ADM-003「会话超时时间 30 分钟」与现有 `access_token_expire_minutes`
   = 30 **正好对上**。
 - **Owner**：bug-144 迁移待授权应用
+
+## ✅ COMMENT 比对已关（2026-10-07，`alembic check` 397 → 43）
+
+用户裁决：注释不进契约。落地在 `alembic/env.py` 的 `_disable_comment_comparison()`。
+
+- **实现绕了弯，值得记**：注释比对**不走 `include_object`** —— 那是对象级过滤器，
+  对注释完全无效（先按 `include_object` 实现并**实测确认无效**后才改掉）。
+  真正机制是 alembic 1.18+ 的 plugin（`autogenerate/compare/comments.py` 注册的
+  comparator），最终做法是从 `alembic.runtime.plugins._all_plugins` 摘掉
+  `alembic.autogenerate.comments`。
+- **代价两条，已写进 env.py docstring**：① 注释漂移从此不可见；②
+  `alembic revision --autogenerate` 生成的迁移不再带 COMMENT。
+- `_all_plugins` 是私有 API → 已做存在性检查 + try/except，将来 alembic 改名则
+  静默退回实施前状态，不会让 `alembic check` 崩掉。
+- 效果：`alembic check` 输出从 ~200KB 降到 ~20KB。
+
+## 🟡 `alembic check` 剩余 43 条（2026-10-07，COMMENT 关闭后的真实余量）
+
+| op | 条数 | 分布 |
+|---|---|---|
+| `remove_constraint` | 39 | DB 有唯一约束、ORM 未声明。集中在 `utility_energy_summary`(8) / `utility_heat_exchange`(6) / `utility_fuel_gas`(5) / `util_results`(4) / `utility_power_items`(4) + 12 张表各 1 |
+| `add_constraint` | 1 | `uq_compound_api521_thresholds_threshold_type` —— ORM 声明了唯一约束，DB 没有 |
+| `add_fk` + `remove_fk` | 2 | 同名 `fk_utility_energy_summary_workspace_id_workspaces`：**DB=CASCADE，ORM=RESTRICT**，两侧都声明且不一致 |
+| `add_fk` | 1 | `fk_projects_workspace_id`（`use_alter=True` 延迟外键，通常是后续迁移才建的） |
+
+- **`utility_*` 那 27 条值得优先看**：这些表是 P7 Sprint 5 期间新建的，
+  唯一约束在建表迁移里写了、ORM 侧没同步声明 —— 与 bug-144 同类（**迁移对、ORM 漏**），
+  但方向相反：这次是 DB 多了约束，功能上更安全，纯粹是 ORM 声明缺失。
+- **Owner**：待认领。`utility_*` 那批可一次性补 ORM `__table_args__`（零迁移成本）；
+  `ondelete` 那条必须先裁决 CASCADE / RESTRICT 哪个对（涉及删除项目时是否连带删
+  能耗汇总记录，是业务语义问题）。
+
+## ⚪ 本轮新发现的既有阻塞（非本轮引入，也非 P9 之外）
+
+`grant_project_access` 目前在真库上**仍会失败** —— 现在报的是
+`ForeignKeyViolation`（bug-144 修好后的正确行为），因为 `users` 与 `projects`
+两张表都是 **0 行**：
+- `users` 要等 P9 的 AD 同步（`P9-ADM-001`）才会有行；
+- `projects` 需要正常业务使用才会产生。
+
+即 **BLOCKER-3 的 IDOR 守卫在有真实数据之前无法端到端验证**。
+这不是本轮能解决的，但**排 P7 收尾 / P9 联调时必须知道**。
