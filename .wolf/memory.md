@@ -1259,3 +1259,39 @@
 | 23:36 | Edited docs/PCS-NOTE-equipment_lib-废弃-2026-10-06.md | 9→13 lines | ~195 |
 | 23:44 | Edited pcs-backend/app/models/__init__.py | added 1 import(s) | ~29 |
 | 23:48 | Edited TODOS.md | expanded (+7 lines) | ~451 |
+| 00:00 | Edited pcs-backend/app/models/system.py | 12→13 lines | ~48 |
+| 00:00 | Edited pcs-backend/app/models/project.py | 5→8 lines | ~97 |
+| 00:00 | Edited pcs-backend/app/models/project.py | 2→5 lines | ~46 |
+| 00:00 | Edited pcs-backend/app/models/system.py | expanded (+11 lines) | ~138 |
+| 00:00 | Edited pcs-backend/app/models/util.py | 2→3 lines | ~40 |
+| 00:00 | Edited pcs-backend/app/models/util.py | 2→3 lines | ~35 |
+| 00:00 | Edited pcs-backend/app/models/util.py | 2→4 lines | ~65 |
+| 00:00 | Edited pcs-backend/app/models/config_domain.py | 2→3 lines | ~10 |
+| 00:00 | Edited pcs-backend/app/models/config_domain.py | 2→5 lines | ~50 |
+| 00:00 | Edited pcs-backend/app/models/config_domain.py | 2→5 lines | ~54 |
+| 00:00 | Edited pcs-backend/app/models/calc.py | modified VesselResult() | ~86 |
+| 00:00 | Edited pcs-backend/app/models/calc.py | 3→8 lines | ~67 |
+| 00:00 | Edited pcs-backend/app/models/calc.py | modified CoolingTowerResult() | ~60 |
+| 00:00 | Edited pcs-backend/app/models/calc.py | modified PsychroResult() | ~90 |
+| 00:00 | Edited pcs-backend/app/models/calc.py | modified OpenChannelResult() | ~86 |
+| 00:00 | Edited pcs-backend/app/models/equipment.py | 2→3 lines | ~13 |
+| 00:00 | Edited pcs-backend/app/models/equipment.py | 3→8 lines | ~69 |
+| 00:01 | Edited pcs-backend/app/models/equipment.py | removed 8 lines | ~12 |
+| 00:01 | Edited pcs-backend/app/models/equipment.py | 3→5 lines | ~58 |
+| 00:01 | Edited pcs-backend/app/models/equipment.py | expanded (+7 lines) | ~80 |
+| 00:01 | Edited pcs-backend/app/models/config.py | 9→14 lines | ~169 |
+| 00:01 | Edited pcs-backend/app/models/config.py | 1→4 lines | ~74 |
+| 00:01 | Edited pcs-backend/app/models/config.py | 4→4 lines | ~53 |
+| 00:01 | Edited pcs-backend/app/models/config.py | 13→14 lines | ~54 |
+| 00:02 | Edited pcs-backend/app/models/equipment.py | 8→8 lines | ~71 |
+| 00:02 | Edited pcs-backend/app/models/equipment.py | 5→10 lines | ~90 |
+| 00:02 | Edited pcs-backend/app/models/equipment.py | 1→2 lines | ~6 |
+| 00:06 | Edited pcs-backend/app/models/psv_standards.py | 4→5 lines | ~86 |
+| 00:07 | Edited pcs-backend/app/models/sim_unit_op.py | 2→3 lines | ~13 |
+| 00:07 | Created pcs-backend/alembic/versions/p7_s5_002_sign_status_indexes.py | — | ~484 |
+| 00:20 | Created pcs-backend/alembic/versions/p7_s5_003_created_by_uuid_and_jsonb.py | — | ~783 |
+| 00:31 | Edited pcs-backend/alembic/versions/dd47298c9c38_v3_1_full_schema_53_tables_adr_0023.py | modified upgrade() | ~219 |
+| 00:33 | Edited pcs-backend/alembic/versions/dd47298c9c38_v3_1_full_schema_53_tables_adr_0023.py | 11→15 lines | ~230 |
+| 00:36 | Edited pcs-backend/app/core/config.py | modified assert_secret_key_configured() | ~381 |
+| 08:04 | Created pcs-backend/alembic/versions/p7_s5_004_config_assets_category_guard.py | — | ~449 |
+| 08:28 | Created pcs-backend/app/services/equip_lib_similarity.py | — | ~1485 |

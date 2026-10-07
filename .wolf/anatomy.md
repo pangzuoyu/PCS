@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-06T15:48:56.635Z
-> Files: 666 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-07T00:28:14.596Z
+> Files: 676 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1038,12 +1038,16 @@
 
 ## pcs-backend/alembic/versions/
 
+- `dd47298c9c38_v3_1_full_schema_53_tables_adr_0023.py` — v3.1 full schema (53 tables, ADR-0023). (~34452 tok)
 - `p7_s3_001_workspace_status.py` — F-P3-003 Sprint 3: workspaces.status 列 + 索引 (2-state ACTIVE/ARCHIVED). (~394 tok)
 - `p7_s3_002_project_product_category.py` — p7_s3_002: projects.product_category — GB 30251-2024 §6.1.5 电折标口径判据. (~526 tok)
 - `p7_s3_003_energy_config_classification_cols.py` — p7_s3_003: config_energy_conversion_factors 补 R1 分类列 (从未迁移的 schema drift). (~1788 tok)
 - `p7_s3_003_energy_config_gb30251_a1.py` — p7_s3_003: 折标系数对齐 GB 30251-2024 附录A 表A.1. (~1360 tok)
 - `p7_s3_005_gas_media_and_low_temp_heat.py` — p7_s3_005: utility_gas_media + utility_low_temp_heat (P7-6B 收尾). (~1833 tok)
 - `p7_s5_001_drop_equipment_lib.py` — p7_s5_001: 删除 `equipment_lib` 死表（设备库实际由 ConfigAsset CATEGORY_6 承载）. (~775 tok)
+- `p7_s5_002_sign_status_indexes.py` — p7_s5_002: 补 4 张表的 sign_status 索引（历史迁移遗漏，非有意设计）. (~484 tok)
+- `p7_s5_003_created_by_uuid_and_jsonb.py` — p7_s5_003: 修正 2 张表的 created_by 列类型 + 1 张表的 JSON 列类型. (~783 tok)
+- `p7_s5_004_config_assets_category_guard.py` — p7_s5_004: config_assets 加 category CHECK 约束 + (category,status) 复合索引. (~449 tok)
 
 ## pcs-backend/app/api/v1/
 
@@ -1072,18 +1076,23 @@
 
 ## pcs-backend/app/core/
 
-- `config.py` — 应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。 (~1084 tok)
+- `config.py` — 应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。 (~1398 tok)
 - `errors.py` — FastAPI 全局异常处理器 + 统一 PcsError 信封。 (~2419 tok)
 - `security.py` — JWT 编解码 + 密码哈希 + JTI 吊销。HS256，密钥由 Settings.secret_key 提供。 (~1249 tok)
 
 ## pcs-backend/app/models/
 
 - `__init__.py` — 全部 ORM 模型。alembic/env.py 依赖本包导入即注册全部表。 (~269 tok)
-- `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~11272 tok)
+- `calc.py` — 计算结果 ORM 模型（P5-3 计算引擎持久化）。 (~16256 tok)
+- `config_domain.py` — 配置域 ORM 模型（公司/工程级共享配置）。 (~4191 tok)
+- `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~11418 tok)
 - `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~3800 tok)
-- `equipment.py` — 设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。 (~3186 tok)
-- `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~7227 tok)
-- `util.py` — S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。 (~8014 tok)
+- `equipment.py` — 设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。 (~3317 tok)
+- `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~7302 tok)
+- `psv_standards.py` — PSV 多标准配置 ORM（P5-0-5 Task 24a，SUP-P5-PSV-001 §3.1 + ADR-0028 V1.1）。 (~1824 tok)
+- `sim_unit_op.py` — P3.x SIM-15: sim_unit_op_results + 6 专用结果表（单元 SUMMARY 存档）。 (~2006 tok)
+- `system.py` — 系统支撑 ORM 模型（审计/血缘/导入历史）。 (~3301 tok)
+- `util.py` — S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。 (~8236 tok)
 
 ## pcs-backend/app/schemas/
 
@@ -1096,6 +1105,7 @@
 
 - `advisory_lock.py` — Postgres advisory lock（事务级）防止并发状态转移。 (~862 tok)
 - `audit_service.py` — AuditService：审计统一入口（Issue 6 锁定）。 (~610 tok)
+- `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
 - `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~1011 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~6322 tok)
 

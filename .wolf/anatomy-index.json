@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-06T15:48:56.635Z",
-    "fileCount": 666,
+    "lastScanned": "2026-10-07T00:28:14.596Z",
+    "fileCount": 676,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "6e825754dfd70a7d5b13744bfb23aa77547fe3a4f3ec1ce2f5388bc1cf099834",
-    "storeUpdatedAt": "2026-10-06T15:48:56.645Z",
-    "rootHash": "8bd4d92cdc6defeb"
+    "renderedHash": "7a9817103228f839cbfbf3c02981f641732d4df336ab1392237023f2aaf31847",
+    "storeUpdatedAt": "2026-10-07T00:28:14.606Z",
+    "rootHash": "e7357dae3adbb810"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12462,11 +12462,11 @@
     },
     "pcs-backend/app/core/config.py": {
       "description": "应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。",
-      "tokens": 1084,
-      "hash": "3d39ca43551bf70a",
-      "size": 4702,
-      "mtimeMs": 1791081166333.6084,
-      "updatedAt": "2026-10-04T02:32:46.386Z",
+      "tokens": 1398,
+      "hash": "6df330be592c98f4",
+      "size": 6340,
+      "mtimeMs": 1791304582203.8894,
+      "updatedAt": "2026-10-06T16:36:22.251Z",
       "source": "hook",
       "symbols": [
         {
@@ -12487,8 +12487,22 @@
           "name": "assert_secret_key_configured",
           "kind": "fn",
           "startLine": 107,
-          "endLine": 115,
-          "tokens": 68
+          "endLine": 116,
+          "tokens": 69
+        },
+        {
+          "name": "parse_cors_origins",
+          "kind": "fn",
+          "startLine": 117,
+          "endLine": 124,
+          "tokens": 67
+        },
+        {
+          "name": "validate_cors_for_production",
+          "kind": "fn",
+          "startLine": 125,
+          "endLine": 152,
+          "tokens": 246
         }
       ]
     },
@@ -12916,11 +12930,11 @@
     },
     "pcs-backend/app/models/project.py": {
       "description": "项目/工作区/成员 ORM 模型（核心租户隔离维度）。",
-      "tokens": 7227,
-      "hash": "7bc12428eda76a25",
-      "size": 28020,
-      "mtimeMs": 1791161720951.1665,
-      "updatedAt": "2026-10-05T00:55:20.996Z",
+      "tokens": 7302,
+      "hash": "c5a2f67e17ba7f27",
+      "size": 28282,
+      "mtimeMs": 1791302415284.3694,
+      "updatedAt": "2026-10-06T16:00:15.333Z",
       "source": "hook",
       "symbols": [
         {
@@ -12934,35 +12948,35 @@
           "name": "Workspace",
           "kind": "class",
           "startLine": 99,
-          "endLine": 131,
-          "tokens": 364
+          "endLine": 134,
+          "tokens": 386
         },
         {
           "name": "User",
           "kind": "class",
-          "startLine": 132,
-          "endLine": 156,
+          "startLine": 135,
+          "endLine": 159,
           "tokens": 286
         },
         {
           "name": "UserProject",
           "kind": "class",
-          "startLine": 157,
-          "endLine": 210,
+          "startLine": 160,
+          "endLine": 213,
           "tokens": 591
         },
         {
           "name": "Stream",
           "kind": "class",
-          "startLine": 211,
-          "endLine": 551,
-          "tokens": 4290
+          "startLine": 214,
+          "endLine": 557,
+          "tokens": 4342
         },
         {
           "name": "StreamStatePoint",
           "kind": "class",
-          "startLine": 552,
-          "endLine": 612,
+          "startLine": 558,
+          "endLine": 618,
           "tokens": 712
         }
       ]
@@ -17113,116 +17127,116 @@
     },
     "pcs-backend/app/models/config.py": {
       "description": "成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。",
-      "tokens": 11272,
-      "hash": "cf29c0593bedcae6",
-      "size": 47860,
-      "mtimeMs": 1791164414625.1396,
-      "updatedAt": "2026-10-05T01:40:14.673Z",
+      "tokens": 11418,
+      "hash": "a920aad12cef55b5",
+      "size": 48549,
+      "mtimeMs": 1791302500708.3376,
+      "updatedAt": "2026-10-06T16:01:40.762Z",
       "source": "hook",
       "symbols": [
         {
           "name": "CepciIndexSeries",
           "kind": "class",
           "startLine": 35,
-          "endLine": 91,
-          "tokens": 596
+          "endLine": 96,
+          "tokens": 676
         },
         {
           "name": "CompoundHeatingValues",
           "kind": "class",
-          "startLine": 92,
-          "endLine": 160,
-          "tokens": 694
+          "startLine": 97,
+          "endLine": 168,
+          "tokens": 760
         },
         {
           "name": "CoolingTowerCurves",
           "kind": "class",
-          "startLine": 161,
-          "endLine": 246,
+          "startLine": 169,
+          "endLine": 254,
           "tokens": 848
         },
         {
           "name": "FiltrationMediaLibrary",
           "kind": "class",
-          "startLine": 247,
-          "endLine": 337,
+          "startLine": 255,
+          "endLine": 345,
           "tokens": 872
         },
         {
           "name": "FlareRadiationLimits",
           "kind": "class",
-          "startLine": 338,
-          "endLine": 412,
+          "startLine": 346,
+          "endLine": 420,
           "tokens": 714
         },
         {
           "name": "CostCorrelationLibrary",
           "kind": "class",
-          "startLine": 413,
-          "endLine": 522,
+          "startLine": 421,
+          "endLine": 530,
           "tokens": 1071
         },
         {
           "name": "CompoundPasquillSigma",
           "kind": "class",
-          "startLine": 523,
-          "endLine": 587,
+          "startLine": 531,
+          "endLine": 595,
           "tokens": 647
         },
         {
           "name": "CompoundApi521Thresholds",
           "kind": "class",
-          "startLine": 588,
-          "endLine": 640,
+          "startLine": 596,
+          "endLine": 648,
           "tokens": 521
         },
         {
           "name": "CompoundIso9613AtmosphericAbsorption",
           "kind": "class",
-          "startLine": 641,
-          "endLine": 704,
+          "startLine": 649,
+          "endLine": 712,
           "tokens": 602
         },
         {
           "name": "PipeEModulus",
           "kind": "class",
-          "startLine": 705,
-          "endLine": 766,
+          "startLine": 713,
+          "endLine": 774,
           "tokens": 622
         },
         {
           "name": "CompoundHammerschmidtK",
           "kind": "class",
-          "startLine": 767,
-          "endLine": 818,
+          "startLine": 775,
+          "endLine": 826,
           "tokens": 526
         },
         {
           "name": "CompoundDeltaHVapNaturalGas",
           "kind": "class",
-          "startLine": 819,
-          "endLine": 880,
+          "startLine": 827,
+          "endLine": 888,
           "tokens": 658
         },
         {
           "name": "DrainOrificeCdYCr",
           "kind": "class",
-          "startLine": 881,
-          "endLine": 951,
+          "startLine": 889,
+          "endLine": 959,
           "tokens": 716
         },
         {
           "name": "GlycolDehydrationFullSystem",
           "kind": "class",
-          "startLine": 952,
-          "endLine": 1020,
+          "startLine": 960,
+          "endLine": 1028,
           "tokens": 689
         },
         {
           "name": "ConfigEnergyConversionFactor",
           "kind": "class",
-          "startLine": 1021,
-          "endLine": 1143,
+          "startLine": 1029,
+          "endLine": 1151,
           "tokens": 1323
         }
       ]
@@ -17617,60 +17631,60 @@
     },
     "pcs-backend/app/models/util.py": {
       "description": "S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。",
-      "tokens": 8014,
-      "hash": "9bae093f6501170b",
-      "size": 31151,
-      "mtimeMs": 1791167674832.3462,
-      "updatedAt": "2026-10-05T02:34:34.877Z",
+      "tokens": 8236,
+      "hash": "3c4ccfb1b127b155",
+      "size": 32164,
+      "mtimeMs": 1791302426664.5037,
+      "updatedAt": "2026-10-06T16:00:26.710Z",
       "source": "hook",
       "symbols": [
         {
           "name": "UtilResults",
           "kind": "class",
-          "startLine": 40,
-          "endLine": 139,
-          "tokens": 1090
+          "startLine": 52,
+          "endLine": 154,
+          "tokens": 1132
         },
         {
           "name": "UtilityPowerItem",
           "kind": "class",
-          "startLine": 140,
-          "endLine": 217,
+          "startLine": 155,
+          "endLine": 232,
           "tokens": 865
         },
         {
           "name": "UtilityFuelGas",
           "kind": "class",
-          "startLine": 218,
-          "endLine": 313,
-          "tokens": 1100
+          "startLine": 233,
+          "endLine": 329,
+          "tokens": 1118
         },
         {
           "name": "UtilityHeatExchange",
           "kind": "class",
-          "startLine": 314,
-          "endLine": 430,
-          "tokens": 1314
+          "startLine": 330,
+          "endLine": 448,
+          "tokens": 1355
         },
         {
           "name": "UtilityEnergySummary",
           "kind": "class",
-          "startLine": 431,
-          "endLine": 568,
+          "startLine": 449,
+          "endLine": 586,
           "tokens": 1537
         },
         {
           "name": "UtilityGasMedia",
           "kind": "class",
-          "startLine": 569,
-          "endLine": 660,
+          "startLine": 587,
+          "endLine": 678,
           "tokens": 1023
         },
         {
           "name": "UtilityLowTempHeat",
           "kind": "class",
-          "startLine": 661,
-          "endLine": 736,
+          "startLine": 679,
+          "endLine": 754,
           "tokens": 829
         }
       ]
@@ -20288,40 +20302,40 @@
     },
     "pcs-backend/app/models/equipment.py": {
       "description": "设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。",
-      "tokens": 3186,
-      "hash": "4c9f7ce0cb3b62a5",
-      "size": 12148,
-      "mtimeMs": 1791300419683.2993,
-      "updatedAt": "2026-10-06T15:26:59.739Z",
+      "tokens": 3317,
+      "hash": "e04937a35f1e1dab",
+      "size": 12658,
+      "mtimeMs": 1791302571223.0742,
+      "updatedAt": "2026-10-06T16:02:51.269Z",
       "source": "hook",
       "symbols": [
         {
           "name": "EquipmentTypeCode",
           "kind": "class",
-          "startLine": 34,
-          "endLine": 59,
+          "startLine": 36,
+          "endLine": 61,
           "tokens": 324
         },
         {
           "name": "EquipmentList",
           "kind": "class",
-          "startLine": 60,
-          "endLine": 184,
-          "tokens": 1933
+          "startLine": 62,
+          "endLine": 188,
+          "tokens": 1973
         },
         {
           "name": "Supplier",
           "kind": "class",
-          "startLine": 185,
-          "endLine": 202,
+          "startLine": 189,
+          "endLine": 206,
           "tokens": 229
         },
         {
           "name": "EquipmentDeletionAudit",
           "kind": "class",
-          "startLine": 203,
-          "endLine": 254,
-          "tokens": 492
+          "startLine": 207,
+          "endLine": 270,
+          "tokens": 578
         }
       ]
     },
@@ -20342,6 +20356,567 @@
       "mtimeMs": 1791301461113.5203,
       "updatedAt": "2026-10-06T15:44:21.168Z",
       "source": "hook"
+    },
+    "pcs-backend/app/models/system.py": {
+      "description": "系统支撑 ORM 模型（审计/血缘/导入历史）。",
+      "tokens": 3301,
+      "hash": "d7aebfc5a711b536",
+      "size": 12957,
+      "mtimeMs": 1791302415496.3718,
+      "updatedAt": "2026-10-06T16:00:15.546Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "DataLineage",
+          "kind": "class",
+          "startLine": 30,
+          "endLine": 73,
+          "tokens": 527
+        },
+        {
+          "name": "ProjectInputChecklist",
+          "kind": "class",
+          "startLine": 74,
+          "endLine": 108,
+          "tokens": 424
+        },
+        {
+          "name": "AuditLog",
+          "kind": "class",
+          "startLine": 109,
+          "endLine": 139,
+          "tokens": 352
+        },
+        {
+          "name": "SystemSetting",
+          "kind": "class",
+          "startLine": 140,
+          "endLine": 151,
+          "tokens": 124
+        },
+        {
+          "name": "ReportDefinition",
+          "kind": "class",
+          "startLine": 152,
+          "endLine": 170,
+          "tokens": 196
+        },
+        {
+          "name": "ReportExecutionLog",
+          "kind": "class",
+          "startLine": 171,
+          "endLine": 194,
+          "tokens": 264
+        },
+        {
+          "name": "DocumentChunk",
+          "kind": "class",
+          "startLine": 195,
+          "endLine": 216,
+          "tokens": 230
+        },
+        {
+          "name": "AiAuditLog",
+          "kind": "class",
+          "startLine": 217,
+          "endLine": 242,
+          "tokens": 350
+        },
+        {
+          "name": "LicenseConfig",
+          "kind": "class",
+          "startLine": 243,
+          "endLine": 266,
+          "tokens": 269
+        },
+        {
+          "name": "EventIdempotency",
+          "kind": "class",
+          "startLine": 267,
+          "endLine": 310,
+          "tokens": 418
+        }
+      ]
+    },
+    "pcs-backend/app/models/config_domain.py": {
+      "description": "配置域 ORM 模型（公司/工程级共享配置）。",
+      "tokens": 4191,
+      "hash": "aea87eddf7662957",
+      "size": 16093,
+      "mtimeMs": 1791302435462.6062,
+      "updatedAt": "2026-10-06T16:00:35.512Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ConfigAsset",
+          "kind": "class",
+          "startLine": 33,
+          "endLine": 60,
+          "tokens": 318
+        },
+        {
+          "name": "ConfigVersion",
+          "kind": "class",
+          "startLine": 61,
+          "endLine": 83,
+          "tokens": 238
+        },
+        {
+          "name": "ConfigApproval",
+          "kind": "class",
+          "startLine": 84,
+          "endLine": 108,
+          "tokens": 289
+        },
+        {
+          "name": "FormulaDefinition",
+          "kind": "class",
+          "startLine": 109,
+          "endLine": 133,
+          "tokens": 294
+        },
+        {
+          "name": "CoefficientTable",
+          "kind": "class",
+          "startLine": 134,
+          "endLine": 155,
+          "tokens": 240
+        },
+        {
+          "name": "TemplateFile",
+          "kind": "class",
+          "startLine": 156,
+          "endLine": 181,
+          "tokens": 283
+        },
+        {
+          "name": "ProjectTemplate",
+          "kind": "class",
+          "startLine": 182,
+          "endLine": 214,
+          "tokens": 385
+        },
+        {
+          "name": "PipeClass",
+          "kind": "class",
+          "startLine": 215,
+          "endLine": 255,
+          "tokens": 530
+        },
+        {
+          "name": "ProjectPipeClass",
+          "kind": "class",
+          "startLine": 256,
+          "endLine": 285,
+          "tokens": 308
+        },
+        {
+          "name": "NumberingTemplate",
+          "kind": "class",
+          "startLine": 286,
+          "endLine": 305,
+          "tokens": 246
+        },
+        {
+          "name": "DocNoSequence",
+          "kind": "class",
+          "startLine": 306,
+          "endLine": 332,
+          "tokens": 258
+        },
+        {
+          "name": "ToeConversionFactor",
+          "kind": "class",
+          "startLine": 333,
+          "endLine": 356,
+          "tokens": 337
+        },
+        {
+          "name": "PipeClassImportPreview",
+          "kind": "class",
+          "startLine": 357,
+          "endLine": 381,
+          "tokens": 308
+        }
+      ]
+    },
+    "pcs-backend/app/models/calc.py": {
+      "description": "计算结果 ORM 模型（P5-3 计算引擎持久化）。",
+      "tokens": 16256,
+      "hash": "4a5677eee1a5d8f1",
+      "size": 64373,
+      "mtimeMs": 1791302451657.7927,
+      "updatedAt": "2026-10-06T16:00:51.709Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "FlashResult",
+          "kind": "class",
+          "startLine": 42,
+          "endLine": 57,
+          "tokens": 189
+        },
+        {
+          "name": "PipingResult",
+          "kind": "class",
+          "startLine": 58,
+          "endLine": 129,
+          "tokens": 1228
+        },
+        {
+          "name": "PipeNetworkResult",
+          "kind": "class",
+          "startLine": 130,
+          "endLine": 142,
+          "tokens": 134
+        },
+        {
+          "name": "PumpResult",
+          "kind": "class",
+          "startLine": 143,
+          "endLine": 187,
+          "tokens": 700
+        },
+        {
+          "name": "PsvResult",
+          "kind": "class",
+          "startLine": 188,
+          "endLine": 354,
+          "tokens": 1925
+        },
+        {
+          "name": "FlareSystemResult",
+          "kind": "class",
+          "startLine": 355,
+          "endLine": 407,
+          "tokens": 762
+        },
+        {
+          "name": "VesselResult",
+          "kind": "class",
+          "startLine": 408,
+          "endLine": 449,
+          "tokens": 489
+        },
+        {
+          "name": "ReliefResult",
+          "kind": "class",
+          "startLine": 450,
+          "endLine": 546,
+          "tokens": 1099
+        },
+        {
+          "name": "ColumnSizingResult",
+          "kind": "class",
+          "startLine": 547,
+          "endLine": 590,
+          "tokens": 630
+        },
+        {
+          "name": "MixerResult",
+          "kind": "class",
+          "startLine": 591,
+          "endLine": 612,
+          "tokens": 317
+        },
+        {
+          "name": "TwoPhaseResult",
+          "kind": "class",
+          "startLine": 613,
+          "endLine": 649,
+          "tokens": 485
+        },
+        {
+          "name": "SepEquipResult",
+          "kind": "class",
+          "startLine": 650,
+          "endLine": 662,
+          "tokens": 134
+        },
+        {
+          "name": "HeatResult",
+          "kind": "class",
+          "startLine": 663,
+          "endLine": 767,
+          "tokens": 1711
+        },
+        {
+          "name": "CvResult",
+          "kind": "class",
+          "startLine": 768,
+          "endLine": 882,
+          "tokens": 1292
+        },
+        {
+          "name": "RestrictionResult",
+          "kind": "class",
+          "startLine": 883,
+          "endLine": 957,
+          "tokens": 780
+        },
+        {
+          "name": "CoolingTowerResult",
+          "kind": "class",
+          "startLine": 958,
+          "endLine": 1003,
+          "tokens": 571
+        },
+        {
+          "name": "PsychroResult",
+          "kind": "class",
+          "startLine": 1004,
+          "endLine": 1067,
+          "tokens": 834
+        },
+        {
+          "name": "OpenChannelResult",
+          "kind": "class",
+          "startLine": 1068,
+          "endLine": 1103,
+          "tokens": 520
+        },
+        {
+          "name": "FiltrationResult",
+          "kind": "class",
+          "startLine": 1104,
+          "endLine": 1142,
+          "tokens": 444
+        },
+        {
+          "name": "CostEstResult",
+          "kind": "class",
+          "startLine": 1143,
+          "endLine": 1176,
+          "tokens": 433
+        },
+        {
+          "name": "ThermosiphonCirculationResult",
+          "kind": "class",
+          "startLine": 1177,
+          "endLine": 1303,
+          "tokens": 1353
+        }
+      ]
+    },
+    "pcs-backend/app/models/psv_standards.py": {
+      "description": "PSV 多标准配置 ORM（P5-0-5 Task 24a，SUP-P5-PSV-001 §3.1 + ADR-0028 V1.1）。",
+      "tokens": 1824,
+      "hash": "ac4b14e108a29964",
+      "size": 7282,
+      "mtimeMs": 1791302807820.2231,
+      "updatedAt": "2026-10-06T16:06:47.877Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "DisciplineEnum",
+          "kind": "class",
+          "startLine": 50,
+          "endLine": 63,
+          "tokens": 85
+        },
+        {
+          "name": "StandardProfileCodeEnum",
+          "kind": "class",
+          "startLine": 64,
+          "endLine": 74,
+          "tokens": 58
+        },
+        {
+          "name": "ProjectCalculationStandardProfile",
+          "kind": "class",
+          "startLine": 75,
+          "endLine": 201,
+          "tokens": 1199
+        }
+      ]
+    },
+    "pcs-backend/app/models/sim_unit_op.py": {
+      "description": "P3.x SIM-15: sim_unit_op_results + 6 专用结果表（单元 SUMMARY 存档）。",
+      "tokens": 2006,
+      "hash": "14c94c4a06c9beee",
+      "size": 7826,
+      "mtimeMs": 1791302825022.3635,
+      "updatedAt": "2026-10-06T16:07:05.067Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "SimUnitOpResult",
+          "kind": "class",
+          "startLine": 49,
+          "endLine": 97,
+          "tokens": 544
+        },
+        {
+          "name": "SimReactorResult",
+          "kind": "class",
+          "startLine": 98,
+          "endLine": 116,
+          "tokens": 199
+        },
+        {
+          "name": "SimCstrResult",
+          "kind": "class",
+          "startLine": 117,
+          "endLine": 133,
+          "tokens": 149
+        },
+        {
+          "name": "SimCompressorResult",
+          "kind": "class",
+          "startLine": 134,
+          "endLine": 151,
+          "tokens": 170
+        },
+        {
+          "name": "SimSplitterResult",
+          "kind": "class",
+          "startLine": 152,
+          "endLine": 167,
+          "tokens": 138
+        },
+        {
+          "name": "SimStcaResult",
+          "kind": "class",
+          "startLine": 168,
+          "endLine": 186,
+          "tokens": 188
+        },
+        {
+          "name": "SimCalculatorResult",
+          "kind": "class",
+          "startLine": 187,
+          "endLine": 211,
+          "tokens": 172
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p7_s5_002_sign_status_indexes.py": {
+      "description": "p7_s5_002: 补 4 张表的 sign_status 索引（历史迁移遗漏，非有意设计）.",
+      "tokens": 484,
+      "hash": "65b59c521d17aa35",
+      "size": 2152,
+      "mtimeMs": 1791302845187.5261,
+      "updatedAt": "2026-10-06T16:07:25.245Z",
+      "source": "hook"
+    },
+    "pcs-backend/alembic/versions/p7_s5_003_created_by_uuid_and_jsonb.py": {
+      "description": "p7_s5_003: 修正 2 张表的 created_by 列类型 + 1 张表的 JSON 列类型.",
+      "tokens": 783,
+      "hash": "5f65bf681ab3577d",
+      "size": 3254,
+      "mtimeMs": 1791303655896.1604,
+      "updatedAt": "2026-10-06T16:20:55.940Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 72,
+          "tokens": 163
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 92,
+          "tokens": 170
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/dd47298c9c38_v3_1_full_schema_53_tables_adr_0023.py": {
+      "description": "v3.1 full schema (53 tables, ADR-0023).",
+      "tokens": 34452,
+      "hash": "278e163be690e6c6",
+      "size": 124011,
+      "mtimeMs": 1791304382331.934,
+      "updatedAt": "2026-10-06T16:33:02.383Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 23,
+          "endLine": 1439,
+          "tokens": 31189
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 1440,
+          "endLine": 1647,
+          "tokens": 3112
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p7_s5_004_config_assets_category_guard.py": {
+      "description": "p7_s5_004: config_assets 加 category CHECK 约束 + (category,status) 复合索引.",
+      "tokens": 449,
+      "hash": "b005cdda598565c7",
+      "size": 2047,
+      "mtimeMs": 1791331452809.891,
+      "updatedAt": "2026-10-07T00:04:12.853Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/services/equip_lib_similarity.py": {
+      "description": "设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。",
+      "tokens": 1485,
+      "hash": "d566168f4fbfeff0",
+      "size": 6762,
+      "mtimeMs": 1791332894544.8904,
+      "updatedAt": "2026-10-07T00:28:14.595Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "SimilarityResult",
+          "kind": "class",
+          "startLine": 52,
+          "endLine": 65,
+          "tokens": 83
+        },
+        {
+          "name": "classify",
+          "kind": "fn",
+          "startLine": 66,
+          "endLine": 74,
+          "tokens": 62
+        },
+        {
+          "name": "flatten_standard_info",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 92,
+          "tokens": 152
+        },
+        {
+          "name": "_categorical_score",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 99,
+          "tokens": 63
+        },
+        {
+          "name": "_numeric_score",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 113,
+          "tokens": 114
+        },
+        {
+          "name": "_key_dimensions_score",
+          "kind": "fn",
+          "startLine": 114,
+          "endLine": 130,
+          "tokens": 139
+        },
+        {
+          "name": "compute_similarity",
+          "kind": "fn",
+          "startLine": 131,
+          "endLine": 182,
+          "tokens": 494
+        }
+      ]
     }
   }
 }

@@ -9,7 +9,26 @@ budget_tokens: 1500
 
 ---
 
-## ✅ Done（本会话，4 commits，均已推 origin/main）
+## ✅ CI 首次全绿（2026-10-07，`c09d551`）
+
+`check-api-drift.yml` 跑通全链 9 步，2m19s，0 error。此前**从未绿过**：
+
+1. **checkout 就死** —— index 里有 6 个 gitlink（`vendor/` 5 个 + `rdkit`）却没有
+   `.gitmodules`（该文件从未提交）。`actions/checkout` 清理 SSH key 时跑
+   `git submodule foreach` → `fatal: No url found for submodule path` → exit 128。
+   修复 `87224a2`：移除 gitlink + gitignore（项目早已决定改走 PyPI，见
+   `pyproject.toml:96-97`；rdkit 全仓零引用）
+2. **第 3 步迁移链炸** —— `alembic_version.version_num` 是 VARCHAR(32)，而本项目
+   **24 个 revision 名超 32 字符**（最长 47）。树里早有修复
+   `p1_sprint3_bootstrap_alembic_version`，但它的 `down_revision` 排在**失败点下游**，
+   全新库永远跑不到。修复 `682e64a`：把加宽语句放进根迁移 `dd47298c9c38`
+3. **npm ci 网络抖动** —— `ECONNRESET` 一次抖动判死整个 job，且 workflow 没有
+   `setup-node`（Node 版本靠 runner 自带、无 npm 缓存）。修复 `c09d551`：
+   锁 Node 22 + `cache: npm` + 3 次重试
+
+⚠️ **本地无法端到端验证迁移链**（建临时库两次被权限拦），第 2 项是 CI 替我们验的。
+
+## ✅ Done（本会话）
 
 **F-P7-S4-01 撤回**（`1180706`）—— 上一会话登记的待修缺陷是**误报**。最小复现证据
 `assert 'QUALIFIED' == 'UNVERDICTABLE'`：`evaluate` 对 REFERENCE_ONLY 返回 QUALIFIED
