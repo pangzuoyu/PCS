@@ -51,6 +51,8 @@ dev = [
     "mypy>=1.10",
     "aiosqlite>=0.20",
     "hypothesis>=6.167.1",
+    "pypdf>=5.0",
+    "fonttools>=4.50",
 ]
 
 [tool.ruff]

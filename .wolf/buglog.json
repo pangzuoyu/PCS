@@ -2744,7 +2744,7 @@
       "file": "pcs-backend/alembic/versions/p8_001_report_tables.py",
       "root_cause": "迁移用 `_TABLES` 的 **create 顺序**（父先子）做 drop。但 report_execution_logs 有 FK 指向 report_definitions，Postgres 不允许在还有依赖子表时 drop 父表 —— **`IF EXISTS` 也不例外**（它只兜「表不存在」，不兜「表被依赖」）。\n\n**为什么第一次没炸**：表还不存在时，4 个 drop 全是 no-op，顺序无所谓。只有撞上 bootstrap 迁移 dd47298c9c38 建出来的 legacy 空壳（report_definitions / report_execution_logs，真库确认 0 行）才暴露。**这是个「首次跑必然绿、重跑必红」的迁移**。\n\n**顺带一个假信号**：探查表是否存在时，我在同一事务里 try/except 捕获 UndefinedTable，后续查询全部返回 'MISSING' —— psycopg 事务一旦 abort 就废了。差点据此得出「4 张表全不存在 → 不用授权 drop」的结论。实际 2 张存在。**捕获异常后必须开新连接/新事务再查。**",
       "fix": "新增 `_DROP_ORDER = tuple(reversed(_TABLES))`，upgrade 与 downgrade 都改用它，并在注释里写明「别改回 _TABLES 顺序」及为什么 `IF EXISTS` 不救场。\n\n验证：ruff clean、4 个 ORM 契约测试通过、幂等检查脚本 0 violations。真库 upgrade 需用户授权后补跑。",
-      "fix_commit": "PENDING",
+      "fix_commit": "d0a6a31",
       "tags": [
         "alembic",
         "postgres",
@@ -2758,6 +2758,34 @@
       "last_seen": "2026-10-08T00:00:00+08:00",
       "related_bugs": [
         "bug-144"
+      ]
+    },
+    {
+      "id": "bug-152",
+      "timestamp": "2026-10-09T00:00:00+08:00",
+      "error_message": "P8 PDF 渲染器三个缺陷：Droid Sans Fallback 零 ASCII 字形（数字全空白）／页脚页码永远空白／候选链只判存在不试注册",
+      "file": "pcs-backend/app/services/report/renderer_pdf.py",
+      "root_cause": "三个缺陷，一个共同点：**结构全都合法，没有一个自动化会报警**。\n\n**① Droid Sans Fallback 零 ASCII 字形。** 该字体（Apache-2.0，3.8MB，20902 汉字）能注册、能嵌入、能抽出全部汉字 —— 但**一个 ASCII 字形都没有**，`P-101` / `DN50` / 所有数字全部渲染为空白。\n**为什么漏掉**：我最初的字体探针用的是**纯中文**文本，所以\"抽出来了\"。纯中文探针恰好绕开了这个字体唯一的缺陷。\n\n**② 页脚页码永远空白。** `_KNOWN_PLACEHOLDERS` 里有 `page`，`_fill_placeholders` 用 `ctx.get(\"page\", \"\")` 把它替换成空串；紧接着 `_decorate` 再 `.replace(\"{{page}}\", ...)` 时已经找不到了。页脚永远显示「第 页」。发现方式：**把 PDF 转成 PNG 用眼睛看** —— 文本抽取断言全绿（`%PDF-` 合法、字节数正常、有字体嵌入）。\n\n**③ 候选链只判 `path.exists()`。** 本机的 `NotoSansCJK-Regular.ttc` 存在，但 reportlab 抛 `TTFError: postscript outlines are not supported`（CFF 轮廓）。天真的实现在这里炸掉，永远走不到兜底字体。\n\n**同族失效模式第 6/7/8 次**：bug-143（测试库由 ORM metadata 建）、bug-145（假 DB 测试）、bug-149（行为测试看不见契约层）、bug-150（静态检查不渲染组件）、bug-152-①（**探针文本的选择决定了测哪一层**）、bug-152-②（**结构断言测不出\"内容对不对\"**）。\n\n**还有一个测试隔离缺陷**：`_REGISTERED` 是模块级全局，同进程第一个测试注册完，后面全部命中缓存 —— 字体解析这条路径**一次都没被执行过**，测试全绿。已加 autouse fixture 清理。",
+      "fix": "1. `_PROBE` + `_missing_glyphs()`：注册后校验 `_PROBE = \"PDN-0123456789ABCabc%.-()/: \"` 的字形覆盖，缺字形就 `_unregister_font` 并试下一个候选。**Droid 因此永远选不到** —— 真干活的是 HP Simplified Hans（3.3MB，ASCII 全 + 20902 汉字）。reportlab 无公开注销 API，只能动私有 `pdfmetrics._fonts.pop()`。\n2. `_KNOWN_PLACEHOLDERS` 删掉 `page`；`_decorate` 改为**先** replace 页码**再**填 context，顺序反了就会被吃掉。\n3. 候选链逐个 `try: registerFont` 试，失败即下一个。\n\n验证：17 passed；两处变异测试（去覆盖校验 / 不逐个试）各自被测出；生成的 PDF 已转 PNG 人工确认页码、二维码、▲ 表头、NULL→— 均正常。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "report",
+        "pdf",
+        "reportlab",
+        "font",
+        "glyph-coverage",
+        "placeholder",
+        "test-isolation",
+        "mutation-testing",
+        "visual-check"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-09T00:00:00+08:00",
+      "related_bugs": [
+        "bug-143",
+        "bug-145",
+        "bug-149",
+        "bug-150"
       ]
     }
   ]
