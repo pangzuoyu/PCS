@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use `superpowers:subagent-driven-development`（推荐）或 `superpowers:executing-plans` 逐任务执行。步骤用 checkbox（`- [ ]`）跟踪。
 
-**Goal:** 交付 REPORT 引擎（正式报表生成 → ReportLab/python-docx/XlsxWriter 直接构建 → 二维码 → 假设声明页 → 异步任务 → 下载审计）与 REPORT_BUILDER（自定义报表定义、字段选择、16 操作符过滤、显式 JOIN、执行导出）。
+**Goal:** 交付 REPORT 引擎（正式报表生成 → ReportLab/python-docx/XlsxWriter 直接构建 → 二维码 → 假设声明页 → 异步任务 → 下载审计）与 REPORT_BUILDER（自定义报表定义、字段选择、15 操作符过滤、显式 JOIN、执行导出）。
 
 **Architecture:** 单一渲染路径，代码 → 文档，**无中间格式转换、无用户提供模板**（ADR-P8-001）。样式由 `ReportStyle` JSON 配置驱动，四级优先级合并。渲染器按输出格式分工，各自独立可测。
 
@@ -55,6 +55,7 @@ pcs-backend/
     renderer_xlsx.py                XlsxWriter
     renderer_pdf.py                 ReportLab（含二维码直绘）
     qr.py                           二维码内容组装（doc_no+Rev+hash 摘要）
+    paths.py                        resolve_path() —— 相对路径 → 绝对路径（ORM 不碰 settings）
     collector.py                    报表类型 → 数据收集（10 类）
     report_service.py               生成编排 + 文件存储 + 审计
     builder_service.py              过滤/排序/执行/导出
@@ -139,6 +140,8 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
+from app.core.config import get_settings
+
 
 class Margins(BaseModel):
     top: float = 20.0
@@ -184,7 +187,9 @@ class ReportStyle(BaseModel):
     qr_position: Literal["footer", "header"] = "footer"
     qr_size_mm: int = 20
     # 字体目录：PDF 渲染器据此定位 TTF。缺字体抛 REPORT_FONT_MISSING（Review Focus #1）
-    font_dir: str = "fonts"
+    # 绝对路径。**不要用相对路径** —— 工作目录随启动方式变化，"fonts" 会解析到
+    # 不同位置。默认由 settings.report_font_dir 提供（绝对路径）。
+    font_dir: str = Field(default_factory=lambda: get_settings().report_font_dir)
 
 
 def resolve(*, defaults: ReportStyle, project: ReportStyle | None,
@@ -326,11 +331,8 @@ class ReportFile(TimestampMixin, Base):
     # 是否含假设数据声明页（Task 6 验收用）
     has_assumption_page: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
-    @property
-    def absolute_path(self) -> str:
-        """磁盘绝对路径。file_path 存相对路径，落盘根目录由 REPORT_STORAGE_DIR 决定。"""
-        from app.core.config import get_settings
-        return str(Path(get_settings().report_storage_dir) / self.file_path)
+    # 绝对路径拼接**不在 ORM 里做**（见 app/services/report/paths.py）。
+    # 其他 100+ 个模型都不 import get_settings，这里也不破例。
 
 
 class ReportDefinition(TimestampMixin, Base):
@@ -360,10 +362,6 @@ class ReportDefinition(TimestampMixin, Base):
     version: Mapped[str] = mapped_column(String(32), default="0.1.0", nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="DRAFT", nullable=False)
     shared_with: Mapped[str] = mapped_column(String(20), default="CREATOR_ONLY", nullable=False)
-
-
-class ReportExecutionLog(BaseModel):
-    pass  # 占位，实际定义见下一步
 
 
 class ReportExecutionLog(TimestampMixin, Base):
@@ -426,7 +424,9 @@ def upgrade() -> None:
 ```bash
 uv run alembic upgrade head
 uv run alembic check          # 必须 exit 0；exit 255 = 有漂移
-DATABASE_URL="postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs_test" uv run alembic upgrade head
+# 对 pcs_test 也跑一遍（命令见仓库根 CLAUDE.md「测试前检查」，那里已记录
+# 换库名的 DATABASE_URL 写法；此处不重复内嵌口令）
+# 命令直接照仓库根 CLAUDE.md「测试前检查」一节（那里有换库名的完整写法）
 ```
 
 - [ ] **Step 6: 跑测试确认通过** → 2 passed
@@ -488,7 +488,15 @@ def assumed_header(header: str, assumed: bool, mark: str = "▲") -> str:
 
 ```python
 # tests/services/report/test_renderer_pdf.py
+#
+# ⚠️ Block 类一律从 `blocks` import（计划自己的 Global Constraints），不从
+# `renderer_pdf` import —— 后者不 re-export 任何东西，import 会直接失败。
+import io
+import subprocess
+
 import pytest
+from pypdf import PdfReader
+
 from app.services.exceptions import PcsError
 from app.services.report.renderer_pdf import render_pdf
 from app.services.report.style import ReportStyle
@@ -498,10 +506,12 @@ HDR = ["位号", "口径", "描述"]
 
 def test_renders_table_and_returns_pdf_bytes():
     out = render_pdf(title="设备一览表",
-                      blocks=[__import__("app.services.report.renderer_pdf", fromlist=["TableBlock"]).TableBlock(
-                          headers=HDR, rows=[["P-101", "DN50", "工艺水"]],
-                          assumed_cols=(2,))],
-                      style=ReportStyle(), qr_payload=None, assumed_fields=[])
+                      blocks=[TableBlock(headers=HDR,
+                                         rows=[["P-101", "DN50", "工艺水"]],
+                                         assumed_cols=(2,))],
+                      style=ReportStyle(), qr_payload=None, assumed_fields=[],
+                      font_dir=FONT_DIR
+                      context={}, font_dir=FONT_DIR)
     assert out[:5] == b"%PDF-", "必须返回真 PDF 字节"
     assert len(out) > 1000
 
@@ -516,7 +526,7 @@ def test_missing_font_raises_instead_of_emitting_blank_pdf():
 
 def test_null_cell_renders_dash_not_none_literal():
     """Review Focus #2：NULL 单元格渲染为 —，不写 Python None 字面量。"""
-    from app.services.report.renderer_pdf import TableBlock, _cell_text
+    from app.services.report.blocks import _cell_text
     assert _cell_text(None) == "—"
     assert _cell_text("x") == "x"
 
@@ -525,7 +535,7 @@ def test_long_cell_truncated_with_ellipsis():
     """Review Focus #4：超长文本截断，不撑破版式。"""
     from app.services.report.blocks import _cell_text
     assert _cell_text("x" * 500).endswith("…")
-    assert len(_cell_text("x" * 500)) == ReportStyle().table.max_cell_chars + 1
+    assert len(_cell_text("x" * 500)) == ReportStyle().table.max_cell_chars  # 截断后 == max_chars
 
 
 def test_assumed_header_gets_triangle_and_others_dont():
@@ -544,7 +554,8 @@ def test_zero_blocks_still_renders_valid_pdf():
 
 def test_table_spanning_pages_still_renders():
     """跨页表格：200 行必须能出，且页数 > 1（LongTable 路径）。"""
-    from app.services.report.renderer_pdf import render_pdf, TableBlock
+    from app.services.report.blocks import TableBlock
+    from app.services.report.renderer_pdf import render_pdf
     rows = [[f"P-{i}", "DN50", "工艺水"] for i in range(200)]
     out = render_pdf(title="跨页", blocks=[TableBlock(headers=["位号", "口径", "介质"], rows=rows)],
                      style=ReportStyle(), qr_payload=None, assumed_fields=[], font_dir=FONT_DIR)
@@ -610,34 +621,46 @@ from app.services.report.blocks import (Block, PageBreakBlock, TableBlock,
                                         _cell_text, assumed_header)
 
 _PAGESIZES = {"A4": A4, "A3": A3, "Letter": LETTER}
+# getSampleStyleSheet() 每次调用新建一批样式对象；报表循环里调就是纯浪费
+_BASE_STYLES = getSampleStyleSheet()
 _FONT_FILES = {
     "Noto Sans CJK SC": "NotoSansCJKsc-Regular.otf",
     "Noto Serif CJK SC": "NotoSerifCJKsc-Regular.otf",
 }
 
 
+# 字体注册进程内只做一次。⚠️ 顺序不能反：先 registerFont 再 registerFontFamily，
+# 否则 Paragraph 找不到 family 映射会静默回退 Helvetica —— PDF 结构仍合法、
+# 测试仍绿，用户拿到的是方块（与 bug-150 同族的假绿）。
+_REGISTERED: set[str] = set()
+
+
 def _register_font(style: ReportStyle, font_dir: str | Path) -> str:
     """注册中文字体。缺字体**显式失败**——产出中文方块的 PDF 比报错更难排查。"""
-    pdfmetrics.registerFontFamily(style.font_family_cn, normal=style.font_family_cn)
     name = style.font_family_cn
-    if name in pdfmetrics.getRegisteredFontNames():
+    if name in _REGISTERED:
         return name
-    path = Path(font_dir) / _FONT_FILES.get(name, f"{name}.ttf")
-    if not path.exists():
-        raise PcsError(
-            f"中文字体缺失：{path}。PDF 中文会渲染为方块，故直接失败。"
-            f"请提供 Noto CJK 字体文件或设置 REPORT_FONT_DIR。",
-            code="REPORT_FONT_MISSING",
-            status=500,
-        )
-    pdfmetrics.registerFont(TTFont(name, str(path)))
+    if name not in pdfmetrics.getRegisteredFontNames():
+        path = Path(font_dir) / _FONT_FILES.get(name, f"{name}.ttf")
+        if not path.exists():
+            raise PcsError(
+                f"中文字体缺失：{path}。PDF 中文会渲染为方块，故直接失败。"
+                f"请提供 Noto CJK 字体文件或设置 REPORT_FONT_DIR。",
+                code="REPORT_FONT_MISSING",
+                status=500,
+            )
+        pdfmetrics.registerFont(TTFont(name, str(path)))
+    pdfmetrics.registerFontFamily(name, normal=name)
+    _REGISTERED.add(name)
     return name
 
 
 def render_pdf(*, title: str, blocks: list[Block], style: ReportStyle,
                qr_payload: str | None, assumed_fields: list[str],
+               context: dict | None = None,
                font_dir: str | Path | None = None) -> bytes:
-    """渲染 PDF 并返回字节。"""
+    """渲染 PDF 并返回字节。context 提供页眉页脚占位符的值。"""
+    context = context or {}
     font_dir = font_dir or style.font_dir
     font = _register_font(style, font_dir)
     buf = io.BytesIO()
@@ -647,10 +670,9 @@ def render_pdf(*, title: str, blocks: list[Block], style: ReportStyle,
         topMargin=style.margins.top, bottomMargin=style.margins.bottom,
         title=title,
     )
-    base = getSampleStyleSheet()
-    h1 = ParagraphStyle("h1", parent=base["Heading1"], fontName=font,
+    h1 = ParagraphStyle("h1", parent=_BASE_STYLES["Heading1"], fontName=font,
                         fontSize=style.font_size_heading, leading=style.font_size_heading * 1.4)
-    body = ParagraphStyle("body", parent=base["BodyText"], fontName=font,
+    body = ParagraphStyle("body", parent=_BASE_STYLES["BodyText"], fontName=font,
                           fontSize=style.font_size_body, leading=style.font_size_body * style.line_spacing)
 
     story: list = [Paragraph(title, h1)]
@@ -696,12 +718,65 @@ def render_pdf(*, title: str, blocks: list[Block], style: ReportStyle,
 
     doc.build(story, onFirstPage=_decorate, onLaterPages=_decorate)
     return buf.getvalue()
-
-
-def _decorate(canvas, doc) -> None:
-    """页脚：二维码 + 文档信息。qr_payload 由 report_service 注入闭包。"""
-    pass
 ```
+
+**`_decorate` 必须是 `render_pdf` 内部的闭包** —— 它要用到 `style` / `qr_payload` /
+`context` / `font`，模块级函数拿不到。下面是完整实现（**必须内联到 `render_pdf`
+函数体内**，不是 `pass` 骨架）：
+
+```python
+    def _fill_placeholders(text: str, ctx: dict) -> str:
+        """只替换 SPEC §4.1 的 7 个占位符；**未知占位符原样保留**（便于发现拼写错误）。"""
+        def repl(m):
+            key = m.group(1)
+            return str(ctx.get(key, "")) if key in _KNOWN_PLACEHOLDERS else m.group(0)
+        return re.sub(r"\{\{(\w+)\}\}", repl, text)
+
+    def _decorate(canvas, doc) -> None:
+        canvas.saveState()
+        canvas.setFont(font, style.font_size_body - 2)
+        canvas.drawString(doc.leftMargin, doc.bottomMargin / 2,
+                          _fill_placeholders(style.footer.left, context))
+        canvas.drawCentredString(
+            doc.width / 2, doc.bottomMargin / 2,
+            _fill_placeholders(style.footer.right, context)
+              .replace("{{page}}", str(doc.page)))
+        if qr_payload:
+            _draw_qr(canvas, qr_payload,
+                     x=doc.width - doc.rightMargin - style.qr_size_mm,
+                     y=doc.bottomMargin / 2, size_mm=style.qr_size_mm)
+        canvas.restoreState()
+```
+
+**二维码绘制** —— `QrCodeWidget` 是 `Widget` 不是 `Flowable`，**没有 `.drawOn` 方法**
+（照抄会 AttributeError）。必须包进 `Drawing` 再 `renderPDF.draw`：
+
+```python
+from reportlab.graphics import renderPDF
+from reportlab.graphics.shapes import Drawing
+from reportlab.lib.units import mm
+
+_KNOWN_PLACEHOLDERS = {"project_no", "project_name", "doc_no", "rev",
+                       "report_name", "page"}      # 故意不含 "pages"，见未解决问题 6
+
+
+def _draw_qr(canvas, payload: str, *, x: float, y: float, size_mm: float) -> None:
+    q = qr.QrCodeWidget(payload)
+    x0, y0, x1, y1 = q.getBounds()
+    w, h = (x1 - x0) or 1, (y1 - y0) or 1
+    size = size_mm * mm
+    d = Drawing(size, size, transform=[size / w, 0, 0, size / h, 0, 0])
+    d.add(q)
+    renderPDF.draw(d, canvas, x, y)
+```
+
+⚠️ `render_pdf` 的签名需相应加 `context: dict` 参数（`_fill_placeholders` 要用）。
+
+**`{{pages}}`（总页数）本版不支持** —— ReportLab 需两遍渲染才能知道总页数，
+代价是 PDF 生成时间 ×2。已决定**从 SPEC §4.1 移除该占位符**，页脚只留 `{{page}}`。
+若产品坚持要总页数，改成两遍渲染并重估 §3.3.1 的性能预算。
+
+
 
 **⚠️ 实现者必须补完的两处**（上面是骨架，二维码与页眉页脚是 SPEC 硬要求，不是可选项）：
 
@@ -761,9 +836,9 @@ git commit -m "feat(report): PDF 渲染器（ReportLab Platypus + 二维码直�
 ```python
 # tests/services/report/test_renderers.py
 import io, zipfile
+from app.services.report.blocks import TableBlock
 from app.services.report.renderer_docx import render_docx
 from app.services.report.renderer_xlsx import render_xlsx
-from app.services.report.renderer_pdf import TableBlock
 from app.services.report.style import ReportStyle
 
 B = [TableBlock(headers=["位号", "口径"], rows=[["P-101", "DN50"], ["P-102", "DN80"]])]
@@ -778,7 +853,7 @@ def test_docx_is_valid_zip_with_document_xml():
 def test_xlsx_is_valid_zip_with_sheet_xml():
     b = render_xlsx(title="设备一览表", blocks=B, style=ReportStyle(), context={})
     z = zipfile.ZipFile(io.BytesIO(b))
-    assert "xl/worksheet.xml" in z.namelist()
+    assert "xl/worksheets/sheet1.xml" in z.namelist()   # OOXML 是 worksheets/ 子目录
 
 
 def test_xlsx_uses_constant_memory_and_streams(tmp_path):
@@ -1031,9 +1106,9 @@ async def test_same_content_twice_reuses_one_file(db, project_id):
 @pytest.mark.asyncio
 async def test_failure_still_writes_report_failed_audit(db, project_id, monkeypatch):
     """SPEC §六验收明写「失败也记录」。漏了这条测试就发现不了。"""
-    async def boom(*a, **k):
+    def boom(*a, **k):          # 同步函数：渲染本来就是 CPU 密集的同步操作
         raise RuntimeError("渲染炸了")
-    monkeypatch.setattr("app.services.report.report_service._render", boom)
+    monkeypatch.setattr("app.services.report.report_service._render_sync", boom)
     with pytest.raises(RuntimeError):
         await generate(report_type="EQUIPMENT_LIST", project_id=project_id,
                        record_ids=[], output_format="pdf",
@@ -1372,7 +1447,7 @@ uv run pytest tests/services/report/test_golden.py -v
 
 **Files:**
 - Create: `pcs-backend/tests/benchmarks/test_report_perf.py`
-- Modify: `pcs-backend/pyproject.toml`（加 `pytest-benchmark`）
+- Modify: `pcs-backend/pyproject.toml`（**不加** pytest-benchmark；改用绝对预算断言）
 
 - [ ] **Step 1: 写性能测试（绝对预算，不引入 pytest-benchmark）**
 
@@ -1439,14 +1514,14 @@ git commit -m "perf(report): 性能基准纳入 CI 阈值（简单≤5s 复杂�
 | b2 | 定义 CRUD | `ReportDefinition` 模型 + 4 端点 | DRAFT 仅创建人可见 |
 | b3 | 版本与审批 | publish 流程；改已发布定义自动 `version` +1 | 5 态流转测试通过 |
 | b4 | 字段选择器后端 | 别名/排序/显隐持久化到 `definition_json` | 往返一致 |
-| b5 | 过滤条件引擎 | **16 个操作符**全实现；AND/OR 嵌套 | 每操作符 1 测试；**空 value 返回空集而非全表**（Review Focus #3）；注入尝试返回空结果；collector/b5 一律批量 SELECT（Task 5 决策） |
+| b5 | 过滤条件引擎 | **15 个操作符**全实现（SPEC 实际 15 个）；AND/OR 嵌套 | 每操作符 1 测试；**空 value 返回空集而非全表**（Review Focus #3）；注入尝试返回空结果；collector/b5 一律批量 SELECT（Task 5 决策） |
 | b6 | JOIN 引擎 | 5 对白名单 JOIN | 不支持的对报 `REPORT_BUILDER_JOIN_NOT_SUPPORTED` |
 | b7 | 执行引擎（**ARQ 异步，2026-10-08 审查决策**） | `POST /execute` 返回 202 + task_id；参数化 SQL；10000 行 ≤10s（测**任务体**耗时）；临时调整不改定义 | 条件快照写 `report_execution_logs`；**并发执行时 API 仍可响应**（同步 10s 查询会阻塞整个 event loop） |
 | b8 | 导出 | Excel/CSV/PDF；非发布件时间戳水印；DEMO 水印 + 定义数限 3 | 水印可见；限制生效 |
 | b9 | 审计 | 每次执行写 `REPORT_EXECUTED` | 审计行含条件快照 + 行数 |
 | b10–b12 | 前端三件套 | 定义编辑器 / 执行面板 / 管理列表 | 按 `docs/PCS-UI-SPEC.md` V1.0 |
 
-**b5 的 16 个操作符**（SPEC §3.2.2(4)）：`EQ NEQ GT GTE LT LTE IN NOT_IN CONTAINS STARTS_WITH ENDS_WITH IS_NULL IS_NOT_NULL BETWEEN LIKE`
+**b5 的 15 个操作符**（SPEC §3.2.2(4)）：`EQ NEQ GT GTE LT LTE IN NOT_IN CONTAINS STARTS_WITH ENDS_WITH IS_NULL IS_NOT_NULL BETWEEN LIKE`
 
 ⚠️ **b10–b12 前置**：TODO-039/041 已重定范围（见 `TODOS.md`），**「7 个 mock type 文件改 import 自 ./api」的前提不成立** —— 28/31 个 interface 在 OpenAPI 里无对应 schema，前后端字段名与**单位**都不同（`p_mpa` ↔ `P_Pa`）。前端开工前须按 TODOS.md 重新评估。
 
