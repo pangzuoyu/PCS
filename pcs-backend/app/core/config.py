@@ -52,6 +52,18 @@ class Settings(BaseSettings):
         "APPROVER_GROUP:APPROVER,ADMIN_GROUP:SYSTEM_ADMIN"
     )
 
+    # === P8 报表（ADR-P8-001 全直接生成路线）===
+    # Noto CJK 字体目录。**绝对路径** —— ReportStyle.font_dir 的默认值取自这里，
+    # 而字体路径解析相对工作目录，工作目录随启动方式变化。
+    report_font_dir: str = "./fonts"
+    # 生成文件的存储根目录。ORM 不碰 settings（与其他 100+ 个模型一致），
+    # 由 app/services/report/paths.py 统一拼接。
+    report_storage_dir: str = "./var/reports"
+    # verify 端点（免登录 + 短时效签名）的 HMAC 密钥。production 必须配置。
+    report_verify_secret: str | None = None
+    # verify 端点限流：次/分钟/IP。免登录端点无限流等于开放暴力枚举。
+    report_verify_rate_limit: int = 30
+
     @property
     def is_production(self) -> bool:
         return self.env == "production"
