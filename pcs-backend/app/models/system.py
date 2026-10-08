@@ -149,47 +149,12 @@ class SystemSetting(Base):
     )
 
 
-class ReportDefinition(TimestampMixin, Base):
-    """报表定义（模板+查询）。"""
-
-    __tablename__ = "report_definitions"
-    report_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, primary_key=True, default=uuid.uuid4
-    )
-    project_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("projects.project_id"), index=True
-    )
-    report_name: Mapped[str] = mapped_column(String(200))
-    report_type: Mapped[str] = mapped_column(String(30))
-    query_json: Mapped[dict] = mapped_column(JSONB)
-    template_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("template_files.template_id")
-    )
-    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
-
-
-class ReportExecutionLog(Base):
-    """报表执行日志（report_execution_logs 表）。
-
-    业务：记录每次报表生成（template_id + user_id + duration + status +
-    output_path）；用于报表运行审计 + 慢查询/失败排查；report_service 异步写入。
-    """
-
-    __tablename__ = "report_execution_logs"
-    exec_id: Mapped[uuid.UUID] = mapped_column(
-        Uuid, primary_key=True, default=uuid.uuid4
-    )
-    report_id: Mapped[uuid.UUID] = mapped_column(
-        ForeignKey("report_definitions.report_id"), index=True
-    )
-    executed_by: Mapped[uuid.UUID] = mapped_column(Uuid)
-    started_at: Mapped[datetime] = mapped_column(
-        DateTime(timezone=True), server_default=func.now()
-    )
-    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
-    row_count: Mapped[int | None] = mapped_column(Integer)
-    status: Mapped[str] = mapped_column(String(20), comment="OK/FAILED/RUNNING")
-    error_message: Mapped[str | None] = mapped_column(Text)
+# ── 原 ReportDefinition / ReportExecutionLog 已移除（2026-10-08）──
+# 两张表从 bootstrap 迁移 dd47298c9c38 起就存在，但**全仓无人使用**
+# （无 service / API / 前端引用，真库 0 行），且字段与 SPEC-P8 §3.2.2(2)
+# 定义的报表定义结构完全不同（旧的只有 report_id/report_name/query_json/
+# template_id/enabled）。用户裁决：就地改造为 SPEC 的 schema，避免仓库里
+# 同时存在两个「报表定义」概念。新定义见 app/models/report.py。
 
 
 class DocumentChunk(Base):

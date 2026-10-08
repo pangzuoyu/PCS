@@ -2736,6 +2736,29 @@
         "bug-145",
         "bug-149"
       ]
+    },
+    {
+      "id": "bug-151",
+      "timestamp": "2026-10-08T00:00:00+08:00",
+      "error_message": "alembic upgrade head 失败：ProgrammingError [SQL: DROP TABLE IF EXISTS report_definitions]",
+      "file": "pcs-backend/alembic/versions/p8_001_report_tables.py",
+      "root_cause": "迁移用 `_TABLES` 的 **create 顺序**（父先子）做 drop。但 report_execution_logs 有 FK 指向 report_definitions，Postgres 不允许在还有依赖子表时 drop 父表 —— **`IF EXISTS` 也不例外**（它只兜「表不存在」，不兜「表被依赖」）。\n\n**为什么第一次没炸**：表还不存在时，4 个 drop 全是 no-op，顺序无所谓。只有撞上 bootstrap 迁移 dd47298c9c38 建出来的 legacy 空壳（report_definitions / report_execution_logs，真库确认 0 行）才暴露。**这是个「首次跑必然绿、重跑必红」的迁移**。\n\n**顺带一个假信号**：探查表是否存在时，我在同一事务里 try/except 捕获 UndefinedTable，后续查询全部返回 'MISSING' —— psycopg 事务一旦 abort 就废了。差点据此得出「4 张表全不存在 → 不用授权 drop」的结论。实际 2 张存在。**捕获异常后必须开新连接/新事务再查。**",
+      "fix": "新增 `_DROP_ORDER = tuple(reversed(_TABLES))`，upgrade 与 downgrade 都改用它，并在注释里写明「别改回 _TABLES 顺序」及为什么 `IF EXISTS` 不救场。\n\n验证：ruff clean、4 个 ORM 契约测试通过、幂等检查脚本 0 violations。真库 upgrade 需用户授权后补跑。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "alembic",
+        "postgres",
+        "migration",
+        "fk-dependency",
+        "drop-order",
+        "poisoned-transaction",
+        "rbac"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-08T00:00:00+08:00",
+      "related_bugs": [
+        "bug-144"
+      ]
     }
   ]
 }

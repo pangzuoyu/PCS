@@ -77,7 +77,10 @@ def test_table_count(inspector):
     # 2026-10-06 p7_s5_001: 删除 equipment_lib 死表 (设备库实际由
     #   ConfigAsset CATEGORY_6 承载; 该表 0 行 / 0 引用 / 0 专属测试,
     #   SPEC P2 §3.2.6 从未要求独立表) = 103
-    assert len(tables) == 103, f"expected 103 incl. alembic_version, got {len(tables)}"
+    # 2026-10-09 P8 Task 2: p8_001 新增 report_styles + report_files = 105
+    #   （report_definitions / report_execution_logs 表名与列全换，但**不增表数**
+    #   —— bootstrap 迁移 dd47298c9c38 起就在，只是 0 行空壳，本次就地改造）
+    assert len(tables) == 105, f"expected 105 incl. alembic_version, got {len(tables)}"
     # P5-0-1b T1 新增 thermosiphon_circulation_results（SUP-010 §3.5 热虹吸循环
     #   安装高度）= 93 incl. alembic_version。
     #   （2026-10-05 起该值改为 101, 见下方 8 张表的说明。）
