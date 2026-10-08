@@ -26,7 +26,12 @@
 - **BUILDER 执行（b7）走 ARQ 任务，不走同步端点** —— 10000 行 ≤10s 的同步查询会阻塞整个 event loop。
 - **假设字段标记 = 表头拼 `▲` + 单元格文字橙色**，两个都做（SPEC §3.2.1(4)）。三个渲染器各自的表头语法不同，但「加三角」这个逻辑在 `blocks.py` 的 `assumed_header()` 里只写一次。
 - **ORM 不 import `get_settings()`** —— 绝对路径拼接在 `report_service.resolve_path()` 里，与其他 100+ 个模型一致。
+- **取数只有一条路径**：`datasource_registry`（元数据）→ `query_engine`（过滤/排序/分页/字段选择/NULL 处理，**唯一实现**）→ `collector`（P8a 固定查询）与 `builder_service`（P8b 动态查询）**并行消费**。15 个操作符、JOIN 白名单校验、NULL 处理**各只写一遍** —— 否则两处语义会漂移。
 - **collector 每个 report_type 一次批量 SELECT**，在 Python 里组装。禁止在循环里查库。
+- **样式优先级 = 默认 → 报表类型 → 项目 → 运行时**（用户 2026-10-08 裁决，ADR-P8-001 原文顺序作废）。`ReportStyle.locked_fields` 是公司强制标准，任何层都改不了。
+- **verify 端点免登录但只返校验结论**：`{match, doc_no, rev, generated_at}`，**不返原始哈希值**（用户 2026-10-08 裁决）。SPEC §3.2.1(3) 的「比对」主语是系统 —— 现场扫码的人手里没有原始文件，无法自己算哈希。审计角色要完整哈希走**另一个认证端点** `GET /report/{id}/hash`（Bearer + 项目访问权）。**两个消费者，两个端点。**
+- **verify 端点必须带短时效签名 URL**（`?sig=…&exp=…`）。`report_file_id` 是 UUID 但二维码印在 PDF 上，任何人拿到 PDF 就能提取 —— UUID 不是防线，签名才是。
+- **临时状态（待 ADR-P8-004 运维确认）**：报表任务与既有 workspace 任务**同队列**，`max_jobs` 保持 4；报表文件**只增不减，不实现清理**。**不得在确认前自行实现清理任务** —— 删错文件不可逆。ADR：`docs/adr/ADR-P8-004：报表任务队列与文件生命周期.md`
 - **性能断言用绝对预算，不引入 pytest-benchmark** —— CI 共享 runner 负载波动会让相对阈值频繁误报，最后被 disable。`max_jobs` 需为报表任务预留容量。
 
 ## Review Focus
@@ -50,7 +55,9 @@ pcs-backend/
   app/services/report/
     style.py                        ReportStyle 模型 + resolve() 四级合并
     blocks.py                       Block 联合 + _cell_text + truncate（**三者共用，勿下沉到任一渲染器**）
-    datasource_registry.py          13 数据源字段注册表 + JOIN 白名单
+    datasource_registry.py          13 数据源字段注册表 + JOIN 白名单（纯元数据，无逻辑）
+    query_engine.py                 过滤/排序/分页/字段选择/NULL 处理（**唯一实现**）
+    collector.py                    10 类固定报表：只写「查什么」，不写「怎么查」
     renderer_docx.py                python-docx
     renderer_xlsx.py                XlsxWriter
     renderer_pdf.py                 ReportLab（含二维码直绘）
@@ -95,20 +102,42 @@ pcs-backend/
 # tests/services/report/test_style.py
 from app.services.report.style import ReportStyle, resolve
 
-def test_runtime_overrides_type_overrides_project_overrides_defaults():
+def test_precedence_is_defaults_type_project_runtime():
+    """**顺序是用户 2026-10-08 裁决的，ADR-P8-001 原文的顺序作废。**
+
+    项目级比报表类型级更具体：报表类型是公司标准（默认值），项目有特殊要求时
+    应当覆盖它。若反过来，项目级样式永远无法覆盖公司标准 —— 与「项目级样式」
+    这一层的存在意义矛盾。
+    """
     d = ReportStyle(font_size_body=10)
-    p = ReportStyle(font_size_body=11)
     t = ReportStyle(font_size_body=12)
+    pj = ReportStyle(font_size_body=11)
     r = ReportStyle(font_size_body=13)
-    assert resolve(defaults=d, project=p, by_type=t, runtime=r).font_size_body == 13
-    assert resolve(defaults=d, project=p, by_type=t, runtime=None).font_size_body == 12
-    assert resolve(defaults=d, project=p, by_type=None, runtime=None).font_size_body == 11
-    assert resolve(defaults=d, project=None, by_type=None, runtime=None).font_size_body == 10
+    assert resolve(defaults=d, by_type=t, project=pj, runtime=r).font_size_body == 13
+    assert resolve(defaults=d, by_type=t, project=pj, runtime=None).font_size_body == 11
+    assert resolve(defaults=d, by_type=t, project=None, runtime=None).font_size_body == 12
+    assert resolve(defaults=d, by_type=None, project=None, runtime=None).font_size_body == 10
+
+
+def test_locked_fields_ignore_project_and_type_layers():
+    """公司强制标准字段（如页脚必含 doc_no）不允许项目层覆盖。
+
+    架构上预留位（用户 2026-10-08 裁决）：`ReportStyle.locked_fields` 里的字段名
+    在合并时被跳过。**P8 先只放 page_size / orientation 两个**，其余待业务确认。
+    """
+    d = ReportStyle(page_size="A4")
+    assert resolve(defaults=d, by_type=ReportStyle(page_size="A3"),
+                   project=ReportStyle(page_size="Letter"),
+                   runtime=ReportStyle(page_size="A3")).page_size == "A4"
+    # 未锁定的字段仍然正常覆盖
+    assert resolve(defaults=d, by_type=ReportStyle(font_size_body=12),
+                   project=ReportStyle(font_size_body=11),
+                   runtime=None).font_size_body == 11
 
 
 def test_none_layers_do_not_erase_lower_precedence_values():
     d = ReportStyle(font_size_body=10, font_family_cn="Noto Sans CJK SC")
-    out = resolve(defaults=d, project=None, by_type=ReportStyle(), runtime=None)
+    out = resolve(defaults=d, by_type=ReportStyle(), runtime=None)
     assert out.font_family_cn == "Noto Sans CJK SC", "空层不得把下层值清掉"
 
 
@@ -119,7 +148,7 @@ def test_unset_field_falls_through_to_lower_layer():
     layer = ReportStyle.model_validate({"font_size_body": 12})
     out = resolve(defaults=ReportStyle.model_validate(
                       {"font_size_body": 10, "font_family_cn": "A"}),
-                  project=layer, runtime=None)
+                  project=layer, runtime=None)   # by_type 省略 = 无该层
     assert out.font_size_body == 12
     assert out.font_family_cn == "A"
 ```
@@ -191,21 +220,34 @@ class ReportStyle(BaseModel):
     # 不同位置。默认由 settings.report_font_dir 提供（绝对路径）。
     font_dir: str = Field(default_factory=lambda: get_settings().report_font_dir)
 
+    # 公司强制标准字段：合并时任何层都改不了（用户 2026-10-08 裁决的架构预留位）。
+    # P8 先只锁这两项（改了版式 A4/A3 就不再是标准计算书了）；
+    # 页脚必含 doc_no 之类的业务强制项待工艺确认后再加。
+    locked_fields: frozenset[str] = frozenset({"page_size", "orientation"})
 
-def resolve(*, defaults: ReportStyle, project: ReportStyle | None,
-            by_type: ReportStyle | None, runtime: ReportStyle | None) -> ReportStyle:
-    """四级优先级合并：默认 → 项目 → 报表类型 → 运行时。
+
+def resolve(*, defaults: ReportStyle, by_type: ReportStyle | None,
+            project: ReportStyle | None, runtime: ReportStyle | None) -> ReportStyle:
+    """四级优先级合并：**默认 → 报表类型 → 项目 → 运行时**。
+
+    ⚠️ 顺序由用户 2026-10-08 裁决，**ADR-P8-001 原文的「默认 → 项目 → 报表类型
+    → 运行时」作废**。理由：报表类型级是公司标准（默认值），项目级是更具体的
+    上下文，应当覆盖它。反过来会让「项目级样式」这一层失去存在意义。
+
+    `locked_fields` 里的字段（公司强制标准）**任何层都改不了** —— 架构预留位，
+    P8 先只放 page_size / orientation。
 
     只用**显式设置过**的字段覆盖（exclude_unset）——
     否则上层一个空 ReportStyle() 会把下层全部字段清成默认值（Review Focus #2）。
     """
     merged = defaults.model_dump()
-    for layer in (project, by_type, runtime):
+    for layer in (by_type, project, runtime):
         if layer is None:
             continue
         for k, v in layer.model_dump(exclude_unset=True).items():
-            if v is not None:
+            if v is not None and k not in defaults.locked_fields:
                 merged[k] = v
+    merged["locked_fields"] = defaults.locked_fields
     return ReportStyle.model_validate(merged)
 ```
 
@@ -757,7 +799,7 @@ from reportlab.graphics.shapes import Drawing
 from reportlab.lib.units import mm
 
 _KNOWN_PLACEHOLDERS = {"project_no", "project_name", "doc_no", "rev",
-                       "report_name", "page"}      # 故意不含 "pages"，见未解决问题 6
+                       "report_name", "page"}      # 2026-10-08 裁决已从 SPEC §4.1 移除 "pages"
 
 
 def _draw_qr(canvas, payload: str, *, x: float, y: float, size_mm: float) -> None:
@@ -1007,7 +1049,172 @@ git commit -m "feat(report): DOCX / XLSX 渲染器（python-docx / XlsxWriter �
 
 ---
 
-## Task 5: 数据源注册表 + 10 类报表 collector
+## Task 5a: 数据源注册表（纯元数据）
+
+**Files:**
+- Create: `pcs-backend/app/services/report/datasource_registry.py`
+- Test: `pcs-backend/tests/services/report/test_datasource_registry.py`
+
+**Interfaces:**
+- Consumes: ORM 各 `*_results` 表
+- Produces:
+  - `DATASOURCES: dict[str, DataSource]`，`DataSource(key, label, model, fields: dict[str, FieldSpec])`
+  - `FieldSpec(name, type, label)`，`type ∈ {"string","number","date","enum"}`
+  - `JOINS: tuple[JoinRule, ...]`（SPEC §1.3 的 5 对）
+  - `join_key_for(a, b) -> tuple[str, str]`
+
+> **本文件只放元数据，不放任何查询逻辑。** 查询逻辑统一在 `query_engine`（Task 5b）。
+
+- [ ] **Step 1: 写失败测试**
+
+```python
+# tests/services/report/test_datasource_registry.py
+import pytest
+from app.services.exceptions import PcsError
+from app.services.report.datasource_registry import DATASOURCES, JOINS, join_key_for
+from app.db.base import Base
+
+def test_thirteen_datasources_registered():
+    assert len(DATASOURCES) == 13
+
+
+def test_join_rules_match_spec_whitelist():
+    """SPEC §1.3 只批了 5 对 JOIN，多一条都不行。"""
+    assert len(JOINS) == 5
+    assert join_key_for("EQUIP_LIST", "PUMP_RESULTS") == ("tag_number", "tag_number")
+
+
+def test_unsupported_join_raises_explicit_error():
+    with pytest.raises(PcsError) as e:
+        join_key_for("EQUIP_LIST", "STREAMS")
+    assert e.value.code == "REPORT_BUILDER_JOIN_NOT_SUPPORTED"
+
+
+def test_registry_fields_exist_in_orm():
+    """**registry 与 ORM 会漂移的闸**（架构审查发现）。
+
+    ORM 改字段名而 registry 不改 → REPORT_BUILDER 的字段树指向不存在的列，
+    用户点进去才报 500。与 ADR-P8-001 的「契约一端不存在」同类。
+    参照本仓已有的 check_payload_model_coverage.py 模式。
+    """
+    for key, ds in DATASOURCES.items():
+        cols = set(Base.metadata.tables[ds.model].columns.keys())
+        for fname, spec in ds.fields.items():
+            if fname in cols:
+                continue
+            # JSONB 容器里的已知键允许不在列上（如 heat_results.input_json 的子键）
+            assert spec.is_jsonb_key, f"{key}.{fname} 在 ORM 表 {ds.model} 里不存在"
+```
+
+- [ ] **Step 2: 跑测试确认失败** → `ModuleNotFoundError`
+
+- [ ] **Step 3: 实现** —— 13 个数据源按 SPEC §3.2.2(1) 的字段清单逐条登记；JSONB 子键用 `FieldSpec(..., is_jsonb_key=True)` 标注。`join_key_for(a, b)` 只查 `JOINS` 白名单，未命中抛 `REPORT_BUILDER_JOIN_NOT_SUPPORTED`（status 400）。
+
+- [ ] **Step 4: 跑测试确认通过** → 4 passed
+
+- [ ] **Step 5: 提交**
+
+```bash
+git add app/services/report/datasource_registry.py tests/services/report/test_datasource_registry.py
+git commit -m "feat(report): 数据源注册表（纯元数据 + registry↔ORM 一致性闸）"
+```
+
+---
+
+## Task 5b: query_engine + 10 类报表 collector
+
+**为什么先做 engine 再做 collector**（用户 2026-10-08 裁决）：15 个操作符、JOIN
+白名单校验、NULL 处理、排序语义若在 collector 与 builder_service 各写一遍，
+两处语义会漂移。`query_engine` 是**唯一实现**，两者并行消费。
+
+- [ ] **Step 1: 写失败测试（15 个操作符各 1 条）**
+
+```python
+# tests/services/report/test_query_engine.py
+import pytest
+from app.services.report.query_engine import apply_filters, build_select
+
+OPS = ["EQ", "NEQ", "GT", "GTE", "LT", "LTE", "IN", "NOT_IN", "CONTAINS",
+       "STARTS_WITH", "ENDS_WITH", "IS_NULL", "IS_NOT_NULL", "BETWEEN", "LIKE"]
+
+
+def test_all_fifteen_operators_implemented():
+    from app.services.report.query_engine import SUPPORTED_OPS
+    assert sorted(SUPPORTED_OPS) == sorted(OPS), (
+        f"SPEC §3.2.2(4) 是 15 个操作符，当前实现 {len(SUPPORTED_OPS)} 个")
+
+
+@pytest.mark.parametrize("op", OPS)
+def test_operator_translates_to_parameterized_sql(op):
+    """**全部走参数化** —— 任何一处 f-string 拼值就是注入面。"""
+    from sqlalchemy.dialects import postgresql
+    cond = apply_filters({"operator": "AND", "conditions": [
+        {"source": "EQUIP_LIST", "field": "vendor", "operator": op, "value": "X"}]})
+    sql = str(cond.compile(dialect=postgresql.dialect(),
+                           compile_kwargs={"literal_binds": False}))
+    assert "X" not in sql, "值必须进 bind params，不能进 SQL 文本"
+
+
+def test_empty_value_returns_empty_set_not_everything():
+    """Review Focus #3：`{"operator":"IS_NULL"}` 没有 value。
+
+    拼成 `WHERE x = ` 是语法错；**更危险的是被忽略掉 → 返回全表**。
+    """
+    ...
+
+
+def test_injection_attempt_returns_empty_not_raises():
+    cond = apply_filters({"operator": "AND", "conditions": [
+        {"source": "EQUIP_LIST", "field": "vendor", "operator": "EQ",
+         "value": "'; DROP TABLE equipment_list; --"}]})
+    assert cond is not None   # 不抛异常，进 bind params
+```
+
+- [ ] **Step 2: 跑测试确认失败** → `ModuleNotFoundError`
+
+- [ ] **Step 3: 实现 `query_engine.py`**
+
+```python
+"""取数引擎 —— 过滤/排序/分页/字段选择/NULL 处理的**唯一实现**。
+
+consumer: collector（P8a 固定查询）/ builder_service（P8b 动态查询）。
+两者都只写「查什么」，「怎么查」全在这里 —— 15 个操作符与 JOIN 白名单
+各只有一份实现（用户 2026-10-08 裁决）。
+"""
+SUPPORTED_OPS = frozenset({
+    "EQ", "NEQ", "GT", "GTE", "LT", "LTE", "IN", "NOT_IN", "CONTAINS",
+    "STARTS_WITH", "ENDS_WITH", "IS_NULL", "IS_NOT_NULL", "BETWEEN", "LIKE",
+})
+
+
+def apply_filters(spec: dict) -> sa.ColumnElement:
+    """把 {operator, conditions[]} 编译成参数化的 SQLAlchemy 表达式。
+
+    - 未知操作符 → PcsError(REPORT_FILTER_OP_UNSUPPORTED)，不静默忽略
+    - IS_NULL / IS_NOT_NULL 不带 value，其余必须有 value；
+      value 缺失 → PcsError(REPORT_FILTER_VALUE_MISSING)，
+      **绝不返回「无条件」表达式**（那等于返回全表）
+    - 字段名必须存在于 datasource_registry（防注入 + 防幻觉列）
+    """
+```
+（其余 `_build_condition` / `build_select` / `apply_sort` / `paginate` 按上面契约实现。）
+
+- [ ] **Step 4: 实现 `collector.py`** —— 10 个 `report_type` 常量，每个函数**只声明**
+  「查哪些源、选哪些字段、用什么过滤」，全部交给 `query_engine`。多源报表按
+  「每源一次 SELECT + Python 组装」执行（见 Global Constraints 的多源策略）。
+
+- [ ] **Step 5: 跑测试确认通过**
+
+- [ ] **Step 6: 提交**
+
+```bash
+git add app/services/report/query_engine.py app/services/report/collector.py tests/services/report/
+git commit -m "feat(report): query_engine（15 操作符唯一实现）+ 10 类 collector"
+```
+
+---
+
+## Task 5（旧）：数据源注册表 + 10 类报表 collector（原样保留作对照，实际执行用 5a/5b）
 
 **Files:**
 - Create: `pcs-backend/app/services/report/datasource_registry.py`
@@ -1319,9 +1526,40 @@ async def test_download_without_project_access_is_403(client, other_token, repor
     assert r.status_code == 403
 
 
-async def test_verify_endpoint_returns_hash_match(client, report_file):
+async def test_verify_endpoint_returns_verdict_only(client, report_file, valid_sig):
+    """**只返校验结论与有限元信息，不返原始哈希值**（用户 2026-10-08 裁决）。
+
+    SPEC §3.2.1(3) 写的是「查看数据库中的原始数据哈希值比对」—— 但**比对的主语
+    是系统**：现场扫码的人手里没有原始文件，算不出哈希。给他一个哈希值也用不上。
+    """
+    r = await client.get(f"/api/v1/report/verify/{report_file.report_file_id}{valid_sig}")
+    assert r.status_code == 200
+    body = r.json()
+    assert set(body) == {"match", "doc_no", "rev", "generated_at"}
+    assert "record_hash" not in body and "digest" not in body
+
+
+async def test_verify_endpoint_rejects_unsigned_or_expired_sig(client, report_file):
+    """**UUID 不是防线，签名才是** —— 二维码印在 PDF 上，任何人拿到 PDF 都能提取 ID。"""
     r = await client.get(f"/api/v1/report/verify/{report_file.report_file_id}")
-    assert r.status_code == 200 and r.json()["match"] is True
+    assert r.status_code == 403, "无签名必须拒绝"
+    r2 = await client.get(
+        f"/api/v1/report/verify/{report_file.report_file_id}?sig=deadbeef&exp=1")
+    assert r2.status_code == 403, "过期签名必须拒绝"
+
+
+async def test_authenticated_hash_endpoint_returns_full_hash(client, report_file, pc_token):
+    """审计角色要完整哈希走**另一个认证端点** —— 两个消费者，两个端点。"""
+    r = await client.get(f"/api/v1/report/{report_file.report_file_id}/hash",
+                         headers=_auth(pc_token))
+    assert r.status_code == 200
+    assert r.json()["record_hash_digest"] == report_file.data_version
+
+
+async def test_hash_endpoint_requires_project_access(client, other_token, report_file):
+    r = await client.get(f"/api/v1/report/{report_file.report_file_id}/hash",
+                         headers=_auth(other_token))
+    assert r.status_code == 403
 
 
 async def test_verify_endpoint_is_rate_limited(client, report_file):
@@ -1543,13 +1781,30 @@ git commit -m "perf(report): 性能基准纳入 CI 阈值（简单≤5s 复杂�
 
 ## 尚未解决的问题
 
-1. **Task 2 迁移的 4 张表 DDL 未逐字展开** —— 计划里给了「怎么拿到约束名」的命令和不可省略的三条规则（约束名走 convention、FK 必须嵌 Column 内、CHECK 避开 PG 专有语法），但 `op.create_table` 的具体 `sa.Column` 列表要实现者照 ORM 抄。这是刻意的：抄一遍必然与 ORM 不同步，不如给规则让他从 ORM 生成。
-2. **Task 3/4 的 `_decorate` / 占位符替换留了骨架并标了「必须补完」** —— 因为二维码位置、页眉页脚格式属于 SPEC 已定但实现自由度高的部分，展开成完整代码会锁死样式而样式恰恰是 P8c 要开放给用户改的。
-3. **PDF Golden 的稳定性未验证** —— `_normalize_pdf` 抽文本比对是本计划的设计，但如果渲染里有时间戳/ID 进入文本层，Golden 会飘。Task 9 Step 5 的「复跑确认稳定」就是为这个设的卡点，**第一次跑可能会红，不要跳过**。
-4. **`REPORT_VERIFY` 端点的限流未设计** —— SPEC §六 验收要求「二维码验证端点限流」，但没给阈值与算法。需在 Task 8 补，或单列 TODO。
-6. **PDF 页数（`{{pages}}`）拿不到** —— ReportLab 需要两遍渲染才能知道总页数。本计划未处理，Task 3 需确认；若不做，`{{pages}}` 占位符应从 SPEC §4.1 移除。
-7. **P8b/P8c 是任务级而非步骤级** —— 按 CLAUDE.md「计划必须极具简洁」压缩。执行前需按 Phase 1 的格式展开，否则不满足 writing-plans 的「无占位符」要求。
-8. **`suppliers.vendor_id` 列是否存在未核实** —— SPEC §1.3 已给降级方案（不存在则用 `vendor = supplier_name` + WARN），Task 5 Step 4 照做即可，但降级路径应补测试。
+**已被 2026-10-08 裁决关闭的**（详见 ADR / SPEC 修订）：
+`{{pages}}`（从 SPEC §4.1 移除）· 样式优先级顺序 · verify 响应契约 · query_engine 抽层 ·
+命名冲突（包名 `report/`）· `font_dir` 绝对路径 · `absolute_path` 下沉 · 15 个操作符（非 16）。
+
+**仍待拍板的**：
+
+1. **ARQ 重试的审计模型**（用户 2026-10-08 表示由其直接拍板，尚未给出结论）——
+   一次生成若前两次失败后成功，审计里是 2 条 `REPORT_FAILED` + 1 条 `REPORT_GENERATED`，
+   事后追溯时「失败过几次」不可读。需定：只写最终一次，还是每次都写 + `attempt_no` 字段。
+   **影响 Task 7 的 `REPORT_FAILED` 审计写法。**
+2. **多源报表的 SELECT 策略**（同上）—— 「每源一次 SELECT + Python 组装」还是
+   「白名单内允许 SQL JOIN」。当前 Global Constraints 按前者写，b6 若改口径需同步改
+   `query_engine` 的 `build_select`。
+3. **worker 队列容量 + 文件生命周期** —— 见 `docs/adr/ADR-P8-004`，待运维确认。
+4. **Task 2 迁移的 4 张表 DDL 未逐字展开** —— 刻意的：抄一遍必然与 ORM 不同步，
+   计划给的是「怎么拿到约束名」的命令与三条不可省略的规则。
+5. **仓库内无 Noto CJK 字体** —— Task 3 的「中文可抽出性」验收卡点依赖它。
+   **Task 3 第一件事是确认字体已在 `pcs-backend/fonts/`**，没有则先加进来，
+   否则整条 PDF 路线无法验证。
+6. **Golden 文件仓库膨胀** —— 10 类 × 2–3 组二进制，半年后体积可观。
+   需定：Git LFS，还是只存 `_normalize_pdf` 抽出的文本归一化结果。
+7. **`datasource_registry` 的 JSONB 子键登记方式** —— Task 5a 的
+   `FieldSpec(is_jsonb_key=True)` 允许登记 ORM 列上不存在的键（JSONB 容器内的）。
+   需补：子键与 JSONB 实际结构的一致性检查（TODO-026 展开后自动获得平铺字段）。
 
 ## GSTACK REVIEW REPORT
 
