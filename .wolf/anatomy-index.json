@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-07T13:39:17.751Z",
-    "fileCount": 695,
+    "lastScanned": "2026-10-08T00:57:24.216Z",
+    "fileCount": 701,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "c217a7475d178ff78f39328bfdee990d182c1702deb454b3766e29931deb20e6",
-    "storeUpdatedAt": "2026-10-07T13:39:17.761Z",
-    "rootHash": "b1d89cde668bef70"
+    "renderedHash": "737b38985284a1671d1836ab1952d330071312de6de27b2eae8a295dccc4244a",
+    "storeUpdatedAt": "2026-10-08T00:57:24.226Z",
+    "rootHash": "5358a6fa087cf242"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12365,11 +12365,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 7841,
-      "hash": "3af202a37aec14a5",
-      "size": 49140,
-      "mtimeMs": 1791378842590.4204,
-      "updatedAt": "2026-10-07T13:14:02.645Z",
+      "tokens": 8891,
+      "hash": "0e6f3cc45299cfab",
+      "size": 55917,
+      "mtimeMs": 1791389892694.4062,
+      "updatedAt": "2026-10-07T16:18:12.744Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -12443,11 +12443,11 @@
     },
     ".github/workflows/check-api-drift.yml": {
       "description": "F-P3-002 集成: check-api-drift.sh + check_migration_idempotency.sh CI",
-      "tokens": 565,
-      "hash": "47e8177cc58036bc",
-      "size": 2035,
-      "mtimeMs": 1790946032346.6997,
-      "updatedAt": "2026-10-02T13:00:32.391Z",
+      "tokens": 866,
+      "hash": "94345ef7bee5e285",
+      "size": 3466,
+      "mtimeMs": 1791391699671.6233,
+      "updatedAt": "2026-10-07T16:48:19.717Z",
       "source": "hook"
     },
     "docs/sprint3-plan-2026-10-02.md": {
@@ -13540,11 +13540,11 @@
     },
     "pcs-frontend/src/pages/routeWrappers.tsx": {
       "description": "路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化）",
-      "tokens": 2937,
-      "hash": "76b3ddd1bc79c4d4",
-      "size": 10838,
-      "mtimeMs": 1790978919041.6074,
-      "updatedAt": "2026-10-02T22:08:39.091Z",
+      "tokens": 3026,
+      "hash": "711388314db7369f",
+      "size": 11274,
+      "mtimeMs": 1791392121601.253,
+      "updatedAt": "2026-10-07T16:55:21.659Z",
       "source": "hook",
       "symbols": [
         {
@@ -13579,182 +13579,182 @@
           "name": "FormulaEditorRoute",
           "kind": "fn",
           "startLine": 102,
-          "endLine": 105,
-          "tokens": 50
+          "endLine": 117,
+          "tokens": 135
         },
         {
           "name": "TemplateFileRoute",
           "kind": "fn",
-          "startLine": 106,
-          "endLine": 110,
+          "startLine": 118,
+          "endLine": 122,
           "tokens": 33
         },
         {
           "name": "StreamListRoute",
           "kind": "fn",
-          "startLine": 111,
-          "endLine": 114,
+          "startLine": 123,
+          "endLine": 126,
           "tokens": 52
         },
         {
           "name": "StreamDetailRoute",
           "kind": "fn",
-          "startLine": 115,
-          "endLine": 134,
+          "startLine": 127,
+          "endLine": 146,
           "tokens": 221
         },
         {
           "name": "ImportWizardRoute",
           "kind": "fn",
-          "startLine": 135,
-          "endLine": 139,
+          "startLine": 147,
+          "endLine": 151,
           "tokens": 29
         },
         {
           "name": "PipeClassListRoute",
           "kind": "fn",
-          "startLine": 140,
-          "endLine": 143,
+          "startLine": 152,
+          "endLine": 155,
           "tokens": 50
         },
         {
           "name": "SymbolTableRoute",
           "kind": "fn",
-          "startLine": 144,
-          "endLine": 146,
+          "startLine": 156,
+          "endLine": 158,
           "tokens": 28
         },
         {
           "name": "CodeFormatRoute",
           "kind": "fn",
-          "startLine": 147,
-          "endLine": 151,
+          "startLine": 159,
+          "endLine": 163,
           "tokens": 38
         },
         {
           "name": "PropertySearchRoute",
           "kind": "fn",
-          "startLine": 152,
-          "endLine": 155,
+          "startLine": 164,
+          "endLine": 167,
           "tokens": 58
         },
         {
           "name": "AllowableStressRoute",
           "kind": "fn",
-          "startLine": 156,
-          "endLine": 159,
+          "startLine": 168,
+          "endLine": 171,
           "tokens": 56
         },
         {
           "name": "ToxicityRoute",
           "kind": "fn",
-          "startLine": 160,
-          "endLine": 165,
+          "startLine": 172,
+          "endLine": 177,
           "tokens": 56
         },
         {
           "name": "FlashRoute",
           "kind": "fn",
-          "startLine": 166,
-          "endLine": 173,
+          "startLine": 178,
+          "endLine": 185,
           "tokens": 54
         },
         {
           "name": "PipeRoute",
           "kind": "fn",
-          "startLine": 174,
-          "endLine": 182,
+          "startLine": 186,
+          "endLine": 194,
           "tokens": 60
         },
         {
           "name": "PipeLineListRoute",
           "kind": "fn",
-          "startLine": 183,
-          "endLine": 186,
+          "startLine": 195,
+          "endLine": 198,
           "tokens": 55
         },
         {
           "name": "PipeNetRoute",
           "kind": "fn",
-          "startLine": 187,
-          "endLine": 190,
+          "startLine": 199,
+          "endLine": 202,
           "tokens": 44
         },
         {
           "name": "PumpRoute",
           "kind": "fn",
-          "startLine": 191,
-          "endLine": 200,
+          "startLine": 203,
+          "endLine": 212,
           "tokens": 60
         },
         {
           "name": "VesselRoute",
           "kind": "fn",
-          "startLine": 201,
-          "endLine": 206,
+          "startLine": 213,
+          "endLine": 218,
           "tokens": 63
         },
         {
           "name": "HeatingValueRoute",
           "kind": "fn",
-          "startLine": 207,
-          "endLine": 209,
+          "startLine": 219,
+          "endLine": 221,
           "tokens": 24
         },
         {
           "name": "SaturationWaterContentRoute",
           "kind": "fn",
-          "startLine": 210,
-          "endLine": 212,
+          "startLine": 222,
+          "endLine": 224,
           "tokens": 30
         },
         {
           "name": "CvRoute",
           "kind": "fn",
-          "startLine": 213,
-          "endLine": 218,
+          "startLine": 225,
+          "endLine": 230,
           "tokens": 38
         },
         {
           "name": "SepEquipRoute",
           "kind": "fn",
-          "startLine": 219,
-          "endLine": 224,
+          "startLine": 231,
+          "endLine": 236,
           "tokens": 46
         },
         {
           "name": "PsvRoute",
           "kind": "fn",
-          "startLine": 225,
-          "endLine": 230,
+          "startLine": 237,
+          "endLine": 242,
           "tokens": 54
         },
         {
           "name": "HeatRoute",
           "kind": "fn",
-          "startLine": 231,
-          "endLine": 235,
+          "startLine": 243,
+          "endLine": 247,
           "tokens": 30
         },
         {
           "name": "PsvStandardProfileRoute",
           "kind": "fn",
-          "startLine": 236,
-          "endLine": 241,
+          "startLine": 248,
+          "endLine": 253,
           "tokens": 62
         },
         {
           "name": "CoolingWaterRoute",
           "kind": "fn",
-          "startLine": 242,
-          "endLine": 247,
+          "startLine": 254,
+          "endLine": 259,
           "tokens": 58
         },
         {
           "name": "EnergySummaryAggregateRoute",
           "kind": "fn",
-          "startLine": 248,
-          "endLine": 296,
+          "startLine": 260,
+          "endLine": 308,
           "tokens": 371
         }
       ]
@@ -14339,11 +14339,11 @@
     },
     "pcs-backend/app/api/v1/pipe_codes.py": {
       "description": "管道代码 API（FMT-4 / SUP-002 §11.5/§12）。",
-      "tokens": 7377,
-      "hash": "afa3df3ca69fcec9",
-      "size": 29989,
-      "mtimeMs": 1790987488119.3384,
-      "updatedAt": "2026-10-03T00:31:28.169Z",
+      "tokens": 7298,
+      "hash": "41dd06abf7685885",
+      "size": 29865,
+      "mtimeMs": 1791389651194.2764,
+      "updatedAt": "2026-10-07T16:14:11.242Z",
       "source": "hook",
       "symbols": [
         {
@@ -14392,155 +14392,169 @@
           "name": "ValidateRequest",
           "kind": "class",
           "startLine": 96,
-          "endLine": 110,
-          "tokens": 90
+          "endLine": 106,
+          "tokens": 71
+        },
+        {
+          "name": "GenerateResponse",
+          "kind": "class",
+          "startLine": 107,
+          "endLine": 115,
+          "tokens": 46
+        },
+        {
+          "name": "ValidateResponse",
+          "kind": "class",
+          "startLine": 116,
+          "endLine": 131,
+          "tokens": 95
         },
         {
           "name": "list_templates",
           "kind": "fn",
-          "startLine": 111,
-          "endLine": 130,
+          "startLine": 132,
+          "endLine": 151,
           "tokens": 194
         },
         {
           "name": "create_template",
           "kind": "fn",
-          "startLine": 131,
-          "endLine": 156,
+          "startLine": 152,
+          "endLine": 177,
           "tokens": 267
         },
         {
           "name": "get_template",
           "kind": "fn",
-          "startLine": 157,
-          "endLine": 176,
+          "startLine": 178,
+          "endLine": 197,
           "tokens": 190
         },
         {
           "name": "update_template",
           "kind": "fn",
-          "startLine": 177,
-          "endLine": 201,
+          "startLine": 198,
+          "endLine": 222,
           "tokens": 259
         },
         {
           "name": "delete_template",
           "kind": "fn",
-          "startLine": 202,
-          "endLine": 224,
+          "startLine": 223,
+          "endLine": 245,
           "tokens": 235
         },
         {
           "name": "submit_template",
           "kind": "fn",
-          "startLine": 225,
-          "endLine": 245,
+          "startLine": 246,
+          "endLine": 266,
           "tokens": 237
         },
         {
           "name": "approve_template",
           "kind": "fn",
-          "startLine": 246,
-          "endLine": 265,
+          "startLine": 267,
+          "endLine": 286,
           "tokens": 223
         },
         {
           "name": "publish_template",
           "kind": "fn",
-          "startLine": 266,
-          "endLine": 289,
+          "startLine": 287,
+          "endLine": 310,
           "tokens": 266
         },
         {
           "name": "obsolete_template",
           "kind": "fn",
-          "startLine": 290,
-          "endLine": 315,
+          "startLine": 311,
+          "endLine": 336,
           "tokens": 279
         },
         {
           "name": "list_project_configs",
           "kind": "fn",
-          "startLine": 316,
-          "endLine": 347,
-          "tokens": 313
+          "startLine": 337,
+          "endLine": 366,
+          "tokens": 294
         },
         {
           "name": "fork_project_config",
           "kind": "fn",
-          "startLine": 348,
-          "endLine": 385,
-          "tokens": 393
+          "startLine": 367,
+          "endLine": 402,
+          "tokens": 374
         },
         {
           "name": "create_project_config",
           "kind": "fn",
-          "startLine": 386,
-          "endLine": 424,
-          "tokens": 406
+          "startLine": 403,
+          "endLine": 439,
+          "tokens": 386
         },
         {
           "name": "update_project_config",
           "kind": "fn",
-          "startLine": 425,
-          "endLine": 468,
-          "tokens": 441
+          "startLine": 440,
+          "endLine": 481,
+          "tokens": 422
         },
         {
           "name": "delete_project_config",
           "kind": "fn",
-          "startLine": 469,
-          "endLine": 502,
-          "tokens": 352
+          "startLine": 482,
+          "endLine": 513,
+          "tokens": 333
         },
         {
           "name": "submit_project_config",
           "kind": "fn",
-          "startLine": 503,
-          "endLine": 534,
-          "tokens": 344
+          "startLine": 514,
+          "endLine": 543,
+          "tokens": 324
         },
         {
           "name": "approve_project_config",
           "kind": "fn",
-          "startLine": 535,
-          "endLine": 567,
-          "tokens": 342
+          "startLine": 544,
+          "endLine": 574,
+          "tokens": 322
         },
         {
           "name": "reject_project_config",
           "kind": "fn",
-          "startLine": 568,
-          "endLine": 601,
-          "tokens": 359
+          "startLine": 575,
+          "endLine": 606,
+          "tokens": 340
         },
         {
           "name": "publish_project_config",
           "kind": "fn",
-          "startLine": 602,
-          "endLine": 637,
-          "tokens": 383
+          "startLine": 607,
+          "endLine": 640,
+          "tokens": 364
         },
         {
           "name": "obsolete_project_config",
           "kind": "fn",
-          "startLine": 638,
-          "endLine": 676,
-          "tokens": 390
+          "startLine": 641,
+          "endLine": 677,
+          "tokens": 380
         },
         {
           "name": "generate_pipe_code",
           "kind": "fn",
-          "startLine": 677,
-          "endLine": 709,
-          "tokens": 327
+          "startLine": 678,
+          "endLine": 708,
+          "tokens": 323
         },
         {
           "name": "validate_pipe_code",
           "kind": "fn",
-          "startLine": 710,
-          "endLine": 747,
-          "tokens": 381
+          "startLine": 709,
+          "endLine": 744,
+          "tokens": 368
         }
       ]
     },
@@ -17344,11 +17358,11 @@
     },
     "pcs-backend/tests/test_schema.py": {
       "description": "V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。",
-      "tokens": 2523,
-      "hash": "e2ed769891fc6f27",
-      "size": 9556,
-      "mtimeMs": 1791300614493.122,
-      "updatedAt": "2026-10-06T15:30:14.541Z",
+      "tokens": 3242,
+      "hash": "08d6d2c9eb91e14a",
+      "size": 12834,
+      "mtimeMs": 1791389809524.3086,
+      "updatedAt": "2026-10-07T16:16:49.578Z",
       "source": "hook",
       "symbols": [
         {
@@ -17411,8 +17425,29 @@
           "name": "test_fk_violation_raises",
           "kind": "fn",
           "startLine": 220,
-          "endLine": 237,
-          "tokens": 182
+          "endLine": 250,
+          "tokens": 310
+        },
+        {
+          "name": "_response_schema_name",
+          "kind": "fn",
+          "startLine": 251,
+          "endLine": 275,
+          "tokens": 218
+        },
+        {
+          "name": "test_pipe_code_endpoints_declare_response_schema",
+          "kind": "fn",
+          "startLine": 276,
+          "endLine": 295,
+          "tokens": 203
+        },
+        {
+          "name": "test_response_schema_is_registered_in_components",
+          "kind": "fn",
+          "startLine": 296,
+          "endLine": 310,
+          "tokens": 169
         }
       ]
     },
@@ -21076,11 +21111,11 @@
     },
     "spec/工艺专用综合计算软件需求规格说明书 Web版 P8.md": {
       "description": "",
-      "tokens": 3256,
-      "hash": "4f2ed9a05dca8ee6",
-      "size": 23166,
-      "mtimeMs": 1791343391309.4524,
-      "updatedAt": "2026-10-07T03:23:11.365Z",
+      "tokens": 5580,
+      "hash": "25905cd2e130b7ba",
+      "size": 39834,
+      "mtimeMs": 1791390701359.1677,
+      "updatedAt": "2026-10-07T16:31:41.409Z",
       "source": "hook"
     },
     "pcs-backend/tests/scripts/test_check_migration_idempotency.py": {
@@ -21559,6 +21594,243 @@
           "tokens": 164
         }
       ]
+    },
+    "pcs-backend/app/services/change_notice_service.py": {
+      "description": "ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。",
+      "tokens": 3841,
+      "hash": "f0d203fda1aebc0f",
+      "size": 15227,
+      "mtimeMs": 1791388239146.2537,
+      "updatedAt": "2026-10-07T15:50:39.195Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ChangeType",
+          "kind": "class",
+          "startLine": 40,
+          "endLine": 51,
+          "tokens": 96
+        },
+        {
+          "name": "TriggeredBy",
+          "kind": "class",
+          "startLine": 52,
+          "endLine": 62,
+          "tokens": 76
+        },
+        {
+          "name": "ChangeNoticeService",
+          "kind": "class",
+          "startLine": 63,
+          "endLine": 404,
+          "tokens": 3360
+        }
+      ]
+    },
+    "pcs-backend/scripts/check_openapi_payload_coverage.py": {
+      "description": "API 载荷结构覆盖率闸 —— 前端类型能不能自动生成，就看这里。",
+      "tokens": 1186,
+      "hash": "64d238072d80059e",
+      "size": 5482,
+      "mtimeMs": 1791390825162.5938,
+      "updatedAt": "2026-10-07T16:33:45.218Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Result",
+          "kind": "class",
+          "startLine": 47,
+          "endLine": 59,
+          "tokens": 85
+        },
+        {
+          "name": "_is_bare",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 73,
+          "tokens": 121
+        },
+        {
+          "name": "check",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 92,
+          "tokens": 194
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 128,
+          "tokens": 334
+        },
+        {
+          "name": "_print_top",
+          "kind": "fn",
+          "startLine": 129,
+          "endLine": 141,
+          "tokens": 138
+        }
+      ]
+    },
+    "pcs-backend/tests/scripts/test_check_openapi_payload_coverage.py": {
+      "description": "API 载荷结构覆盖率闸的测试.",
+      "tokens": 957,
+      "hash": "f4a9aeffad035bd8",
+      "size": 4245,
+      "mtimeMs": 1791390792936.3618,
+      "updatedAt": "2026-10-07T16:33:12.990Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_load_module",
+          "kind": "fn",
+          "startLine": 22,
+          "endLine": 33,
+          "tokens": 115
+        },
+        {
+          "name": "test_current_repo_is_green",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 39,
+          "tokens": 35
+        },
+        {
+          "name": "test_bare_count_matches_the_recorded_baseline",
+          "kind": "fn",
+          "startLine": 40,
+          "endLine": 52,
+          "tokens": 99
+        },
+        {
+          "name": "test_debt_is_reported_not_hidden",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 60,
+          "tokens": 64
+        },
+        {
+          "name": "test_gate_goes_red_when_baseline_is_lowered",
+          "kind": "fn",
+          "startLine": 61,
+          "endLine": 75,
+          "tokens": 113
+        },
+        {
+          "name": "test_bare_field_would_be_detected",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 99,
+          "tokens": 230
+        },
+        {
+          "name": "test_allof_and_ref_count_as_typed",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 110,
+          "tokens": 111
+        },
+        {
+          "name": "test_scalar_fields_are_not_counted",
+          "kind": "fn",
+          "startLine": 111,
+          "endLine": 117,
+          "tokens": 70
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/config/FormulaEditorPage.tsx": {
+      "description": "FormulaEditorPage — 公式编辑器（P45-2-4 / Task 22）。",
+      "tokens": 3906,
+      "hash": "42edaf82ba55839c",
+      "size": 14403,
+      "mtimeMs": 1791392111875.2214,
+      "updatedAt": "2026-10-07T16:55:11.929Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "FormulaParam",
+          "kind": "section",
+          "startLine": 34,
+          "endLine": 43,
+          "tokens": 73
+        },
+        {
+          "name": "FormulaPrecondition",
+          "kind": "section",
+          "startLine": 44,
+          "endLine": 51,
+          "tokens": 57
+        },
+        {
+          "name": "FormulaTestCase",
+          "kind": "section",
+          "startLine": 52,
+          "endLine": 59,
+          "tokens": 46
+        },
+        {
+          "name": "FormulaEditor",
+          "kind": "section",
+          "startLine": 60,
+          "endLine": 70,
+          "tokens": 69
+        },
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 71,
+          "endLine": 94,
+          "tokens": 142
+        },
+        {
+          "name": "getSourceKind",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 102,
+          "tokens": 80
+        },
+        {
+          "name": "toLatex",
+          "kind": "fn",
+          "startLine": 103,
+          "endLine": 115,
+          "tokens": 138
+        },
+        {
+          "name": "appendParam",
+          "kind": "fn",
+          "startLine": 116,
+          "endLine": 119,
+          "tokens": 44
+        },
+        {
+          "name": "FormulaEditorPage",
+          "kind": "fn",
+          "startLine": 120,
+          "endLine": 410,
+          "tokens": 3070
+        }
+      ]
+    },
+    "docs/superpowers/plans/2026-10-08-p8-report-and-report-builder.md": {
+      "description": "P8 报表与输出 Implementation Plan",
+      "tokens": 12333,
+      "hash": "91b6a8380b361561",
+      "size": 57708,
+      "mtimeMs": 1791392951581.3555,
+      "updatedAt": "2026-10-07T17:09:11.632Z",
+      "source": "hook"
+    },
+    "docs/adr/ADR-P8-004：报表任务队列与文件生命周期.md": {
+      "description": "ADR-P8-004：报表任务队列隔离与文件生命周期",
+      "tokens": 505,
+      "hash": "9bf51eab942b6eac",
+      "size": 3804,
+      "mtimeMs": 1791421044163.4346,
+      "updatedAt": "2026-10-08T00:57:24.216Z",
+      "source": "hook"
     }
   }
 }

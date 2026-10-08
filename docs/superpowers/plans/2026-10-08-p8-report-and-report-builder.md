@@ -30,6 +30,7 @@
 - **collector 每个 report_type 一次批量 SELECT**，在 Python 里组装。禁止在循环里查库。
 - **样式优先级 = 默认 → 报表类型 → 项目 → 运行时**（用户 2026-10-08 裁决，ADR-P8-001 原文顺序作废）。`ReportStyle.locked_fields` 是公司强制标准，任何层都改不了。
 - **verify 端点免登录但只返校验结论**：`{match, doc_no, rev, generated_at}`，**不返原始哈希值**（用户 2026-10-08 裁决）。SPEC §3.2.1(3) 的「比对」主语是系统 —— 现场扫码的人手里没有原始文件，无法自己算哈希。审计角色要完整哈希走**另一个认证端点** `GET /report/{id}/hash`（Bearer + 项目访问权）。**两个消费者，两个端点。**
+- **`REPORT_VERIFY_RATE_LIMIT` 必须在 Task 8 开工前定值**（建议 **30 次/分钟/IP**）—— 免登录端点无限流就是开放暴力枚举。未定则 Task 8 阻塞。写入 `settings.report_verify_rate_limit`。
 - **verify 端点必须带短时效签名 URL**（`?sig=…&exp=…`）。`report_file_id` 是 UUID 但二维码印在 PDF 上，任何人拿到 PDF 就能提取 —— UUID 不是防线，签名才是。
 - **临时状态（待 ADR-P8-004 运维确认）**：报表任务与既有 workspace 任务**同队列**，`max_jobs` 保持 4；报表文件**只增不减，不实现清理**。**不得在确认前自行实现清理任务** —— 删错文件不可逆。ADR：`docs/adr/ADR-P8-004：报表任务队列与文件生命周期.md`
 - **性能断言用绝对预算，不引入 pytest-benchmark** —— CI 共享 runner 负载波动会让相对阈值频繁误报，最后被 disable。`max_jobs` 需为报表任务预留容量。
@@ -62,8 +63,7 @@ pcs-backend/
     renderer_xlsx.py                XlsxWriter
     renderer_pdf.py                 ReportLab（含二维码直绘）
     qr.py                           二维码内容组装（doc_no+Rev+hash 摘要）
-    paths.py                        resolve_path() —— 相对路径 → 绝对路径（ORM 不碰 settings）
-    collector.py                    报表类型 → 数据收集（10 类）
+    paths.py                        resolve_path() —— 相对路径 → 绝对路径（ORM 不碰 settings，Task 6 Step 5 创建）
     report_service.py               生成编排 + 文件存储 + 审计
     builder_service.py              过滤/排序/执行/导出
   app/api/v1/report.py              全部路由
@@ -247,6 +247,10 @@ def resolve(*, defaults: ReportStyle, by_type: ReportStyle | None,
         for k, v in layer.model_dump(exclude_unset=True).items():
             if v is not None and k not in defaults.locked_fields:
                 merged[k] = v
+    # ⚠️ 上一行是**必需**的，不是重复：locked_fields 本身也是一个可被
+    # exclude_unset 命中的键名。上层若传 locked_fields={"page_size"}，
+    # 循环里的 `k not in defaults.locked_fields` 检查的是**值**不是**键名**，
+    # 拦不住对 locked_fields 自身的覆盖。所以合并后必须显式还原。
     merged["locked_fields"] = defaults.locked_fields
     return ReportStyle.model_validate(merged)
 ```
@@ -351,6 +355,11 @@ class ReportFile(TimestampMixin, Base):
 
     文件按**内容哈希**命名（{sha256[:16]}.{ext}），同内容重复生成复用同一行 ——
     对应 SPEC §2.5「文件不可变性」与 Review Focus #5。
+
+    ⚠️ **`project_id` 刻意不加 FK**（与 ReportStyleRow / ReportDefinition 不同）。
+    加了 `ondelete=CASCADE` 的话，项目一删，DB 行没了但磁盘文件还在 → 变成无记录
+    的孤儿文件，反而更难排查。不加 FK 则项目删除后这些行仍在，可被清理任务
+    （ADR-P8-004 待确认）按条件捞出。**执行时不要"顺手补上 FK"。**
     """
 
     __tablename__ = "report_files"
@@ -370,6 +379,10 @@ class ReportFile(TimestampMixin, Base):
     # 异步任务状态：PENDING / SUCCEEDED / FAILED（Task 7 用）
     status: Mapped[str] = mapped_column(String(20), default="SUCCEEDED", nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # 异步任务心跳。ARQ 进程被 kill 时状态会永远卡在 PENDING（Task 7 的回收任务
+    # 靠这个字段识别僵死任务）—— 没有它，前端会无限轮询且无人知道。
+    heartbeat_at: Mapped[datetime.datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False)
     # 是否含假设数据声明页（Task 6 验收用）
     has_assumption_page: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
@@ -456,10 +469,25 @@ def upgrade() -> None:
     #    python -c "from app.db.base import Base; print(sorted(c.name for c in Base.metadata.tables['report_files'].constraints))"
 ```
 
-**实现要点**（不留 TODO）：
-1. 先跑上面那条 `python -c` 拿到 4 张表的真实约束名，逐字抄进 `op.create_table` 的 `sa.UniqueConstraint(..., name=...)`。
-2. 所有外键**必须嵌在 Column 里**：`sa.Column("project_id", sa.Uuid(), sa.ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=True)`。裸位置参数会被 alembic 静默丢弃（bug-144）。
-3. CHECK 表达式只用 SQLite 也能解析的语法（本计划无 CHECK，若后来加 `max_rows > 0` 这类通用语法则安全）。
+**⚠️ 落 DDL 时的四条硬规则**（抄错就是静默漂移）：
+
+1. **先拿真实约束名**：
+   ```bash
+   uv run python -c "from app.db.base import Base; import app.models; \
+     [print(t, sorted(c.name for c in Base.metadata.tables[t].constraints if getattr(c,'name',None))) \
+      for t in ('report_styles','report_files','report_definitions','report_execution_logs')]"
+   ```
+   把输出逐字抄进 `op.create_table` 的 `sa.UniqueConstraint(..., name=...)`。
+   名字对不上 `NAMING_CONVENTION` 展开结果 → `alembic check` 报漂移。
+2. **外键必须嵌在 Column 里**：
+   `sa.Column("project_id", sa.Uuid(), sa.ForeignKey("projects.project_id", ondelete="CASCADE"), nullable=True)`。
+   裸位置参数会被 alembic **静默丢弃**（bug-144，丢了整整一轮才被发现）。
+3. **CHECK 表达式只用 SQLite 也能解析的语法**。本计划 4 张表无 CHECK；若后来加，
+   注意 `interval '1s'` 这类 PG 类型字面量会让 SQLite 建表直接炸（Task 3 的
+   `future_dated_forbidden_chk` 就踩过，见 conftest 的替身表）。
+4. **`drop_table(if_exists=True)` 只适用于这 4 张新表**。⚠️ 禁止把这个模式复制到
+   有数据的表上 —— 那是一次 drop 全表。后续修改一律用 `op.add_column` /
+   `op.alter_column`。
 
 - [ ] **Step 5: 验证真库**
 
@@ -499,13 +527,26 @@ git commit -m "feat(db): P8 报表 4 张表（幂等迁移）"
 # ⚠️ **刻意不放 renderer_pdf.py**（2026-10-08 审查决策）：PDF / XLSX / DOCX 三者
 # 在架构上对等，不该有谁 import 谁。改 PDF 渲染器不应波及 XLSX。
 @dataclass(frozen=True)
-class HeadingBlock:  text: str; level: int = 1
+class HeadingBlock:
+    text: str
+    level: int = 1
+
+
 @dataclass(frozen=True)
-class KeyValueBlock: rows: list[tuple[str, object]]
+class KeyValueBlock:
+    rows: list[tuple[str, object]]
+
+
 @dataclass(frozen=True)
-class TableBlock:    headers: list[str]; rows: list[list[object]]; assumed_cols: tuple[int, ...] = ()
+class TableBlock:
+    headers: list[str]
+    rows: list[list[object]]
+    assumed_cols: tuple[int, ...] = ()
+
+
 @dataclass(frozen=True)
-class PageBreakBlock: pass
+class PageBreakBlock:
+    pass
 Block = HeadingBlock | KeyValueBlock | TableBlock | PageBreakBlock
 
 _NULL = "—"
@@ -552,7 +593,6 @@ def test_renders_table_and_returns_pdf_bytes():
                                          rows=[["P-101", "DN50", "工艺水"]],
                                          assumed_cols=(2,))],
                       style=ReportStyle(), qr_payload=None, assumed_fields=[],
-                      font_dir=FONT_DIR
                       context={}, font_dir=FONT_DIR)
     assert out[:5] == b"%PDF-", "必须返回真 PDF 字节"
     assert len(out) > 1000
@@ -659,8 +699,11 @@ from reportlab.platypus import (PageBreak, Paragraph, SimpleDocTemplate,
 from app.services.exceptions import PcsError
 from app.services.report.style import ReportStyle
 
-from app.services.report.blocks import (Block, PageBreakBlock, TableBlock,
-                                        _cell_text, assumed_header)
+import re
+
+from app.services.report.blocks import (Block, HeadingBlock, KeyValueBlock,
+                                        PageBreakBlock, TableBlock, _cell_text,
+                                        assumed_header)
 
 _PAGESIZES = {"A4": A4, "A3": A3, "Letter": LETTER}
 # getSampleStyleSheet() 每次调用新建一批样式对象；报表循环里调就是纯浪费
@@ -758,7 +801,11 @@ def render_pdf(*, title: str, blocks: list[Block], style: ReportStyle,
             t.setStyle(TableStyle(cmds))
             story.append(t)
 
-    doc.build(story, onFirstPage=_decorate, onLaterPages=_decorate)
+    doc.build(story,
+              onFirstPage=lambda c, d: _decorate(c, d, style=style, font=font,
+                                                qr_payload=qr_payload, context=context),
+              onLaterPages=lambda c, d: _decorate(c, d, style=style, font=font,
+                                                 qr_payload=qr_payload, context=context))
     return buf.getvalue()
 ```
 
@@ -767,27 +814,23 @@ def render_pdf(*, title: str, blocks: list[Block], style: ReportStyle,
 函数体内**，不是 `pass` 骨架）：
 
 ```python
-    def _fill_placeholders(text: str, ctx: dict) -> str:
-        """只替换 SPEC §4.1 的 7 个占位符；**未知占位符原样保留**（便于发现拼写错误）。"""
-        def repl(m):
-            key = m.group(1)
-            return str(ctx.get(key, "")) if key in _KNOWN_PLACEHOLDERS else m.group(0)
-        return re.sub(r"\{\{(\w+)\}\}", repl, text)
+def _decorate(canvas, doc, *, style: ReportStyle, font: str,
+              qr_payload: str | None, context: dict) -> None:
+    """页脚绘制回调。**模块级而非闭包** —— 签名显式传参，可直接单测。"""
+    canvas.saveState()
+    canvas.setFont(font, style.font_size_body - 2)
+    canvas.drawString(doc.leftMargin, doc.bottomMargin / 2,
+                      _fill_placeholders(style.footer.left, context))
+    canvas.drawCentredString(
+        doc.width / 2, doc.bottomMargin / 2,
+        _fill_placeholders(style.footer.right, context)
+          .replace("{{page}}", str(doc.page)))
+    if qr_payload:
+        _draw_qr(canvas, qr_payload,
+                 x=doc.width - doc.rightMargin - style.qr_size_mm,
+                 y=doc.bottomMargin / 2, size_mm=style.qr_size_mm)
+    canvas.restoreState()
 
-    def _decorate(canvas, doc) -> None:
-        canvas.saveState()
-        canvas.setFont(font, style.font_size_body - 2)
-        canvas.drawString(doc.leftMargin, doc.bottomMargin / 2,
-                          _fill_placeholders(style.footer.left, context))
-        canvas.drawCentredString(
-            doc.width / 2, doc.bottomMargin / 2,
-            _fill_placeholders(style.footer.right, context)
-              .replace("{{page}}", str(doc.page)))
-        if qr_payload:
-            _draw_qr(canvas, qr_payload,
-                     x=doc.width - doc.rightMargin - style.qr_size_mm,
-                     y=doc.bottomMargin / 2, size_mm=style.qr_size_mm)
-        canvas.restoreState()
 ```
 
 **二维码绘制** —— `QrCodeWidget` 是 `Widget` 不是 `Flowable`，**没有 `.drawOn` 方法**
@@ -799,7 +842,22 @@ from reportlab.graphics.shapes import Drawing
 from reportlab.lib.units import mm
 
 _KNOWN_PLACEHOLDERS = {"project_no", "project_name", "doc_no", "rev",
-                       "report_name", "page"}      # 2026-10-08 裁决已从 SPEC §4.1 移除 "pages"
+                       "report_name", "page"}
+# 2026-10-08 裁决已从 SPEC §4.1 移除 "pages"（ReportLab 两遍渲染代价 ×2）
+
+
+def _fill_placeholders(text: str, ctx: dict) -> str:
+    """替换页眉页脚占位符。**未知占位符原样保留** —— 拼错时看得见，
+    静默替换成空串反而更糟（页脚会少一段文字却没人发现）。
+
+    模块级而非闭包：它不捕获任何 render_pdf 的局部状态，放模块级才能直接单测。
+    """
+    def repl(m):
+        key = m.group(1)
+        return str(ctx.get(key, "")) if key in _KNOWN_PLACEHOLDERS else m.group(0)
+    return re.sub(r"\{\{(\w+)\}\}", repl, text)
+# 与 _fill_placeholders 同处 render_pdf 内（下方闭包），此处模块级也可读 ——
+# 关键是**两处必须挨着看**，改一个必须同时看另一个。
 
 
 def _draw_qr(canvas, payload: str, *, x: float, y: float, size_mm: float) -> None:
@@ -820,43 +878,6 @@ def _draw_qr(canvas, payload: str, *, x: float, y: float, size_mm: float) -> Non
 
 
 
-**⚠️ 实现者必须补完的两处**（上面是骨架，二维码与页眉页脚是 SPEC 硬要求，不是可选项）：
-
-1. `_decorate` 需要闭包拿到 `style` / `qr_payload`，改成在 `render_pdf` 内定义局部函数：
-   ```python
-   def _page(canvas, doc):
-       canvas.saveState()
-       canvas.setFont(font, style.font_size_body - 2)
-       canvas.drawString(doc.leftMargin, doc.bottomMargin / 2,
-                         _fill_placeholders(style.footer.left, ctx))
-       canvas.drawCentredString(doc.width / 2, doc.bottomMargin / 2,
-                                _fill_placeholders(style.footer.right, ctx).replace("{{page}}", str(doc.page)))
-       if qr_payload:
-           canvas.drawRightString(doc.width - doc.rightMargin, doc.bottomMargin / 2,
-                                  qr_payload[:40])
-           q = qr.QrCodeWidget(qr_payload)
-           q.drawOn(canvas, doc.width - doc.rightMargin - style.qr_size_mm,
-                   doc.bottomMargin / 2)
-       canvas.restoreState()
-   ```
-2. `_fill_placeholders(text, ctx)` —— 只支持 SPEC §4.1 的 7 个：`project_no` / `project_name` / `doc_no` / `rev` / `report_name` / `page` / `pages`。**遇到未知占位符原样保留**（便于发现拼写错误），不抛异常。
-
-- [ ] **Step 4: 跑测试确认通过** → 4 passed
-
-- [ ] **Step 5: 验证中文字体真的嵌入**
-
-```bash
-uv run pytest tests/services/report/test_renderer_pdf.py -v
-# 手工验：把返回字节写到临时文件后
-#   pdffonts /tmp/out.pdf | grep -i noto
-```
-
-- [ ] **Step 6: 提交**
-
-```bash
-git add app/services/report/renderer_pdf.py tests/services/report/test_renderer_pdf.py pyproject.toml
-git commit -m "feat(report): PDF 渲染器（ReportLab Platypus + 二维码直绘）"
-```
 
 ---
 
@@ -1214,68 +1235,6 @@ git commit -m "feat(report): query_engine（15 操作符唯一实现）+ 10 类 
 
 ---
 
-## Task 5（旧）：数据源注册表 + 10 类报表 collector（原样保留作对照，实际执行用 5a/5b）
-
-**Files:**
-- Create: `pcs-backend/app/services/report/datasource_registry.py`
-- Create: `pcs-backend/app/services/report/collector.py`
-- Test: `pcs-backend/tests/services/report/test_collector.py`
-
-**Interfaces:**
-- Consumes: ORM 各 `*_results` 表
-- Produces:
-  - `DATASOURCES: dict[str, DataSource]`，`DataSource(key, label, model, fields: dict[str, FieldSpec])`
-  - `JOINS: tuple[JoinRule, ...]`（SPEC §1.3 的 5 对）
-  - `collect(report_type: str, *, project_id, record_ids) -> list[Block]`
-
-- [ ] **Step 1: 写失败测试**
-
-```python
-# tests/services/report/test_collector.py
-import pytest
-from app.services.exceptions import PcsError
-from app.services.report.datasource_registry import JOINS, join_key_for
-from app.services.report.collector import collect, REPORT_TYPES
-
-def test_ten_report_types_registered():
-    assert len(REPORT_TYPES) == 10
-
-
-def test_join_rules_match_spec_whitelist():
-    """SPEC §1.3 只批了 5 对 JOIN，多一条都不行。"""
-    assert len(JOINS) == 5
-    assert join_key_for("EQUIP_LIST", "PUMP_RESULTS") == ("tag_number", "tag_number")
-
-
-def test_unsupported_join_raises_explicit_error():
-    with pytest.raises(PcsError) as e:
-        join_key_for("EQUIP_LIST", "STREAMS")
-    assert e.value.code == "REPORT_BUILDER_JOIN_NOT_SUPPORTED"
-
-
-def test_collect_unknown_report_type_raises():
-    with pytest.raises(PcsError) as e:
-        collect("NOPE", project_id=None, record_ids=[])
-    assert e.value.code == "REPORT_TYPE_UNKNOWN"
-```
-
-- [ ] **Step 2: 跑测试确认失败** → `ModuleNotFoundError`
-
-- [ ] **Step 3: 实现** —— 写出 `datasource_registry.py` 完整内容，13 个数据源按 SPEC §3.2.2(1) 的字段清单逐条登记为 `FieldSpec(name, type, label)`，`type ∈ {"string","number","date","enum"}`；`join_key_for(a, b)` 只查 `JOINS` 白名单，命中返回 `(left_col, right_col)`，未命中抛 `REPORT_BUILDER_JOIN_NOT_SUPPORTED`（status 400）。
-
-- [ ] **Step 4: 实现 `collector.py`** —— 10 个 `report_type` 常量与各自的数据收集函数，**每个返回 `list[Block]`**。`EQUIP_LIST.vendor_id → SUPPLIERS.supplier_id` 那条按 SPEC §1.3：列不存在时降级为 `vendor = supplier_name` 并发 WARN 级日志（用 `logging.warning`，不用 `print`）。
-
-- [ ] **Step 5: 跑测试确认通过** → 4 passed
-
-- [ ] **Step 6: 提交**
-
-```bash
-git add app/services/report/datasource_registry.py app/services/report/collector.py tests/services/report/test_collector.py
-git commit -m "feat(report): 数据源注册表 + JOIN 白名单 + 10 类报表 collector"
-```
-
----
-
 ## Task 6: 二维码 + 生成编排 + 文件存储
 
 **Files:**
@@ -1306,7 +1265,8 @@ async def test_same_content_twice_reuses_one_file(db, project_id):
                        style=ReportStyle(), ctx={})
     assert a.report_file_id == b.report_file_id
     from sqlalchemy import func, select
-    n = await db.scalar(select(func.count()).select_from(a.__table__))
+    from app.models.report import ReportFile
+    n = await db.scalar(select(func.count()).select_from(ReportFile.__table__))
     assert n == 1
 
 
@@ -1320,7 +1280,10 @@ async def test_failure_still_writes_report_failed_audit(db, project_id, monkeypa
         await generate(report_type="EQUIPMENT_LIST", project_id=project_id,
                        record_ids=[], output_format="pdf",
                        style=ReportStyle(), ctx={})
-    acts = [a for a in db.actions if getattr(a, "action", None) == "REPORT_FAILED"]
+    from sqlalchemy import select
+    from app.models.audit import AuditLog
+    acts = (await db.execute(
+        select(AuditLog).where(AuditLog.action == "REPORT_FAILED"))).scalars().all()
     assert acts, "失败路径必须写 REPORT_FAILED 审计"
 
 
@@ -1384,6 +1347,32 @@ def build_qr_payload(*, report_id: str, doc_no: str, rev: str,
 
 - [ ] **Step 4: 实现 `report_service.py`** —— 编排：查样式 → `collect()` → 按 `output_format` 调对应 renderer → 算内容哈希 → upsert `ReportFile` → 写 `AuditService.write(action=REPORT_GENERATED, ...)`。**失败路径也必须写 `REPORT_FAILED` 审计**（SPEC 验收：「失败也记录」）。
 
+**⚠️ 渲染必须走线程池**（2026-10-08 外部审查发现）：
+
+```python
+import asyncio
+from app.services import report_service
+
+# ⚠️ 必须写成 `report_service._render_sync(...)` 的**属性查找**形式。若在模块
+# 顶层 `from .report_service import _render_sync` 绑定引用，monkeypatch 改不到，
+# 测试就成了假绿（与 bug-150 同族）。
+payload = await asyncio.to_thread(
+    report_service._render_sync,
+    blocks=blocks, style=style, output_format=output_format, ctx=ctx,
+)
+```
+
+ReportLab / XlsxWriter 是 CPU 密集的**同步**操作。在 async 函数里直接调会阻塞整个
+event loop —— 这正是 b7 改异步要避免的同一个错误，换个地方犯而已。
+
+**事务边界**：文件落盘 + `ReportFile` upsert + 审计写入三步。**审计写入失败不回滚
+文件记录** —— 文件已经落盘了，回滚 DB 只会留下无记录的孤儿文件，比有记录更难排查。
+捕获审计异常记 WARN 日志。
+
+**路径拼接**：`paths.resolve_path(relpath) -> str`（本 Task 内创建 `paths.py`），
+统一从 `settings.report_storage_dir` 取根。**ORM 里不碰 settings** —— 与其他
+100+ 个模型一致。
+
 - [ ] **Step 5: 跑测试确认通过** → 2 passed
 
 - [ ] **Step 6: 提交**
@@ -1413,6 +1402,12 @@ git commit -m "feat(report): 二维码载荷 + 生成编排 + 内容哈希文件
 # tests/workers/test_report_tasks.py
 import pytest
 from app.workers.report_tasks import generate_report_task
+
+# 辅助函数（Step 3 要实现；此处先定签名，让 Step 1 的「先红」有意义）
+async def _make_task_row(db, project_id, *, status: str,
+                         heartbeat_at: dt.datetime) -> ReportFile: ...
+async def reclaim_stale_tasks(db, *, older_than_minutes: int) -> int: ...
+
 
 @pytest.mark.asyncio
 async def test_task_persists_status_and_returns_file_id(db, project_id, monkeypatch):
@@ -1466,11 +1461,14 @@ async def test_fresh_pending_task_is_not_reclaimed(db, project_id):
 - [ ] **Step 3: 追加 `AuditAction` 枚举值**（在 `app/models/enums.py` 的 `AuditAction` 末尾，值必须 ≤50 字符，有 `test_audit_action_max_length_50` 断言）
 
 ```python
-    # === P8 报表（ADR-P8-001 路线）===
-    REPORT_GENERATED = "REPORT_GENERATED"
-    REPORT_DOWNLOADED = "REPORT_DOWNLOADED"
-    REPORT_FAILED = "REPORT_FAILED"
-    REPORT_EXECUTED = "REPORT_EXECUTED"
+# 追加到 `app/models/enums.py` 已有的 `class AuditAction(str, enum.Enum)` 内部：
+#     # === P8 报表（ADR-P8-001 路线）===
+#     REPORT_GENERATED = "REPORT_GENERATED"
+#     REPORT_DOWNLOADED = "REPORT_DOWNLOADED"
+#     REPORT_FAILED = "REPORT_FAILED"
+#     REPORT_EXECUTED = "REPORT_EXECUTED"
+#
+# 值均 ≤50 字符（`test_audit_action_max_length_50` 会断言）
 ```
 
 - [ ] **Step 4: 实现 `report_tasks.py`** —— 参照 `app/workers/workspace_tasks.py` 的签名兼容处理（该文件第 35 行注释说明「兼容旧 ARQ 任务签名」），`max_tries=3`。
@@ -1510,6 +1508,30 @@ git commit -m "feat(report): ARQ 异步生成任务 + REPORT_* 审计动作"
 
 ```python
 # tests/api/v1/test_report.py
+import datetime as dt
+import hashlib
+import hmac
+
+import pytest
+
+from app.core.config import get_settings
+
+
+@pytest.fixture
+def valid_sig(report_file) -> str:
+    """生成 verify 端点的短时效签名查询串（`?sig=…&exp=…`）。
+
+    签名算法与服务端一致：HMAC-SHA256(report_file_id, expires_at)，
+    密钥取 settings.report_verify_secret。**默认有效期 15 分钟**。
+    """
+    exp = int((dt.datetime.now(dt.UTC) + dt.timedelta(minutes=15)).timestamp())
+    sig = hmac.new(
+        get_settings().report_verify_secret.encode(),
+        f"{report_file.report_file_id}:{exp}".encode(), hashlib.sha256,
+    ).hexdigest()
+    return f"?sig={sig}&exp={exp}"
+
+
 async def test_generate_returns_202_and_task_id(client, pc_token, project_id):
     r = await client.post("/api/v1/report/generate",
                           json={"report_type": "EQUIPMENT_LIST",
@@ -1572,19 +1594,27 @@ async def test_verify_endpoint_is_rate_limited(client, report_file):
     assert codes[-1] in (200, 429)
 
 
-async def test_verify_endpoint_is_unauthenticated(client, report_file):
-    """扫码验证必须免登录（现场人员用手机扫），否则二维码功能等于不存在。"""
-    r = await client.get(f"/api/v1/report/verify/{report_file.report_file_id}")
-    assert r.status_code == 200
+async def test_verify_endpoint_is_unauthenticated(client, report_file, valid_sig):
+    """扫码验证必须**免登录**（现场人员用手机扫），否则二维码功能等于不存在。
+
+    ⚠️ **免登录 ≠ 免签名**。免的是 Bearer token，签名参数仍必须带 ——
+    无签名请求由 test_verify_endpoint_rejects_unsigned_or_expired_sig 断言 403。
+    这两个测试不矛盾，是两件事。
+    """
+    r = await client.get(f"/api/v1/report/verify/{report_file.report_file_id}{valid_sig}")
+    assert r.status_code == 200, "带有效签名 + 不传 Bearer，必须 200"
 
 
 async def test_response_schemas_have_no_bare_object():
     """P9A-DLV-010 硬约束：报表端点响应不得含裸 object/array。"""
     import importlib.util
+    from pathlib import Path
+
     from app.main import app
     # 复用已有闸的判定函数，不另写一套口径（scripts/check_openapi_payload_coverage.py）
-    _spec = importlib.util.spec_from_file_location(
-        "_cov", "scripts/check_openapi_payload_coverage.py")
+    # 相对路径在 pytest 的 cwd 下会失败 —— 用 __file__ 推导绝对路径
+    _cov_path = Path(__file__).resolve().parents[4] / "scripts" / "check_openapi_payload_coverage.py"
+    _spec = importlib.util.spec_from_file_location("_cov", _cov_path)
     _cov = importlib.util.module_from_spec(_spec); _spec.loader.exec_module(_cov)
     bare_fields_in = _cov._is_bare
     for path, spec in app.openapi()["paths"].items():
@@ -1604,7 +1634,33 @@ async def test_response_schemas_have_no_bare_object():
 
 - [ ] **Step 3: 实现 `app/schemas/report.py`** —— 全部响应模型**显式声明字段**，禁止 `dict` / `Any` 直出。
 
-- [ ] **Step 4: 实现 `app/api/v1/report.py`** —— 端点：`POST /generate`(202) / `GET /{id}/status` / `GET /{id}/download` / `GET /styles?report_type=` / `GET /styles/{id}` / `GET /verify/{id}`。下载走 `_guard.check_project_access_or_404`（与 `pipe_codes.py` 同模式）。
+- [ ] **Step 4: 实现 `app/api/v1/report.py`** —— 端点：
+
+| 端点 | 认证 | 说明 |
+|---|---|---|
+| `POST /generate` | Bearer | 202 + task_id，异步任务 |
+| `GET /{id}/status` | Bearer | 任务状态 |
+| `GET /{id}/download` | Bearer + 项目角色 | 下载，`_guard.check_project_access_or_404`（与 `pipe_codes.py` 同模式） |
+| `GET /styles?report_type=` | Bearer | ReportStyle 列表 |
+| `GET /styles/{id}` | Bearer | 样式详情 |
+| `GET /verify/{id}` | **免登录 + 短时效签名** | 只返校验结论，不返哈希 |
+| `GET /{id}/hash` | Bearer + 项目访问权 | 审计角色取完整哈希 |
+
+**两个消费者，两个端点**：`verify` 给现场扫码（免登录、只给结论），`/{id}/hash`
+给审计（要凭据、给全量）。不要合并成一个「加个参数」。
+
+**`verify` 的签名校验**（`?sig=…&exp=…`，HMAC-SHA256(secret, f"{id}:{exp}")）：
+签名不符 / `exp` 过期 → **403**（不是 404 —— 403 才能让调用方知道是签名问题而非文件不存在）。
+端点需在 `app/core/security.py` 的鉴权白名单里加路径前缀，否则中间件会先拦掉。
+
+- [ ] **Step 5: `settings` 补两个字段**
+
+```python
+report_verify_secret: str          # verify 签名密钥（fail-fast：production 必配，同 JWT_ISSUER）
+report_font_dir: str               # Noto CJK 字体目录，**绝对路径**
+```
+
+`report_font_dir` 缺失会让 Task 1 的 `ReportStyle.font_dir` 默认值直接崩。
 
 - [ ] **Step 5: 注册路由** —— `app/api/v1/__init__.py` 加 `from app.api.v1.report import router as report_router` + `api_router.include_router(report_router)`
 
@@ -1752,7 +1808,7 @@ git commit -m "perf(report): 性能基准纳入 CI 阈值（简单≤5s 复杂�
 | b2 | 定义 CRUD | `ReportDefinition` 模型 + 4 端点 | DRAFT 仅创建人可见 |
 | b3 | 版本与审批 | publish 流程；改已发布定义自动 `version` +1 | 5 态流转测试通过 |
 | b4 | 字段选择器后端 | 别名/排序/显隐持久化到 `definition_json` | 往返一致 |
-| b5 | 过滤条件引擎 | **15 个操作符**全实现（SPEC 实际 15 个）；AND/OR 嵌套 | 每操作符 1 测试；**空 value 返回空集而非全表**（Review Focus #3）；注入尝试返回空结果；collector/b5 一律批量 SELECT（Task 5 决策） |
+| b5 | 过滤条件引擎 | **15 个操作符**全实现；AND/OR 嵌套 | 每操作符 1 测试；**空 value 返回空集而非全表**（Review Focus #3）；注入尝试返回空结果；collector/b5 一律批量 SELECT（Task 5 决策） |
 | b6 | JOIN 引擎 | 5 对白名单 JOIN | 不支持的对报 `REPORT_BUILDER_JOIN_NOT_SUPPORTED` |
 | b7 | 执行引擎（**ARQ 异步，2026-10-08 审查决策**） | `POST /execute` 返回 202 + task_id；参数化 SQL；10000 行 ≤10s（测**任务体**耗时）；临时调整不改定义 | 条件快照写 `report_execution_logs`；**并发执行时 API 仍可响应**（同步 10s 查询会阻塞整个 event loop） |
 | b8 | 导出 | Excel/CSV/PDF；非发布件时间戳水印；DEMO 水印 + 定义数限 3 | 水印可见；限制生效 |

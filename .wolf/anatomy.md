@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-07T13:39:17.751Z
-> Files: 695 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-08T00:57:24.216Z
+> Files: 701 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -14,7 +14,7 @@
 - `docker-compose.yml` — Docker Compose services (~309 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~3547 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~7841 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~8891 tok)
 
 ## .claude/worktrees/s4-0-events/
 
@@ -135,7 +135,7 @@
 
 ## .github/workflows/
 
-- `check-api-drift.yml` — F-P3-002 集成: check-api-drift.sh + check_migration_idempotency.sh CI (~565 tok)
+- `check-api-drift.yml` — F-P3-002 集成: check-api-drift.sh + check_migration_idempotency.sh CI (~866 tok)
 
 ## .gstack/
 
@@ -305,6 +305,7 @@
 - `0040-c-12-vessel-geometry-service-interface-freeze.md` — ADR-0040：C-12 vessel_service 公共接口 6 个月冻结 (~3027 tok)
 - `0041-c-12-vessel-6-path-coverage.md` — ADR-0041：C-12 vessel_service 12 路径覆盖补全（Q4 2026） (~6559 tok)
 - `ADR-0023：EquipmentTypeCode项目级可配置.md` (~927 tok)
+- `ADR-P8-004：报表任务队列与文件生命周期.md` — ADR-P8-004：报表任务队列隔离与文件生命周期 (~505 tok)
 - `README.md` — Project documentation (~242 tok)
 
 ## docs/adr/signatures/
@@ -392,6 +393,7 @@
 - `2026-09-28-p6-6a-7-c19-sizing.md` — P6-6A-7 C-19 排污孔板 Sizing 完整实现 — 单批计划 (~5961 tok)
 - `2026-09-28-p6-6a-8-fire-coeff.md` — OPEN-P6-6A-8 Implementation Plan — fire_case_coefficient + fire_case_exponent (~1751 tok)
 - `2026-10-01-p7-complete-sprint.md` — P7 Complete Implementation Plan (~12688 tok)
+- `2026-10-08-p8-report-and-report-builder.md` — P8 报表与输出 Implementation Plan (~12333 tok)
 - `2026-10-15-p6-7-service-integration.md` — P6-7 服务集成批 — 工艺室 4 批交付物集成 (~3166 tok)
 - `2026-10-31-p6-9-pickup-2-critical-fixes.md` — P6-9-PICKUP-2 — 4 CRITICAL + 2 HIGH 修复批 (~1794 tok)
 - `2026-11-15-p6-8-glycol-dehydration-extensions.md` — P6-8 批 — Glycol Dehydration Service 扩展（OPEN-P6-6A-6 关闭） (~2024 tok)
@@ -1077,7 +1079,7 @@
 - `flare.py` — P6-2 FLARE_SYS API：Task 20 header_sizing + Task 21 kod_sizing + (~5836 tok)
 - `mock_auth.py` — Mock 登录：仅 env != production 时挂载。固定 4 个角色账号，无 LDAP 依赖。 (~560 tok)
 - `pipe_classes.py` — 管道等级端点（Task 1.9.2 / P2-STD-001）。 (~6127 tok)
-- `pipe_codes.py` — 管道代码 API（FMT-4 / SUP-002 §11.5/§12）。 (~7377 tok)
+- `pipe_codes.py` — 管道代码 API（FMT-4 / SUP-002 §11.5/§12）。 (~7298 tok)
 - `pipe_net.py` — P4-3-3 管网 Hardy-Cross 计算 + 落库 + outlet_stream API。 (~3646 tok)
 - `pipe.py` — P4-2-5 PIPE 计算链 API。 (~2299 tok)
 - `projects.py` — 项目产品类别 API (product_category — GB 30251-2024 §6.1.5 电折标口径判据). (~1184 tok)
@@ -1123,6 +1125,7 @@
 
 - `advisory_lock.py` — Postgres advisory lock（事务级）防止并发状态转移。 (~862 tok)
 - `audit_service.py` — AuditService：审计统一入口（Issue 6 锁定）。 (~610 tok)
+- `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~3841 tok)
 - `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~1404 tok)
 - `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
 - `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~1011 tok)
@@ -1135,6 +1138,7 @@
 ## pcs-backend/scripts/
 
 - `check_migration_idempotency.py` — 检查 alembic migrations 是否用 if_exists / if_not_exists (F-P3-002 fix). (~1485 tok)
+- `check_openapi_payload_coverage.py` — API 载荷结构覆盖率闸 —— 前端类型能不能自动生成，就看这里。 (~1186 tok)
 - `check_payload_model_coverage.py` — 描述文本覆盖率闸 —— 本体论 §3.4 约束② 的可落地形态. (~1620 tok)
 - `p7_open_009_t0_seed_energy_conversion_factors.py` — t**) GB 30251-2024 附录A 序号4 — " (~3764 tok)
 - `p7_open_012_t5_r1_verification.py` — P7 Sprint 2 T5 ≤2% 验收脚本（蜡油加氢 XLS R1 重算对比）。 (~4491 tok)
@@ -1149,7 +1153,7 @@
 - `test_deliverables_api.py` — 交付物读端点测试（P1-7+ D 模块 / P8 前置）。 (~3116 tok)
 - `test_jwt_production.py` — F-P3-001 Sprint 3: JWT production hardening + LDAP fail-closed 测试. (~2697 tok)
 - `test_rbac_audit.py` — F-P3-001 checklist #5: RBAC 401/403 audit log + per-IP rate limit 测试. (~1861 tok)
-- `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~2523 tok)
+- `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~3242 tok)
 - `test_sqlite_check_constraint_overrides.py` — conftest 里 SQLite CHECK 替身与 PostgreSQL 原式的**语义等价性**。 (~1675 tok)
 - `test_workspace_archive.py` — F-P3-003 Sprint 3: Workspace archive PATCH 端点测试. (~1272 tok)
 
@@ -1163,6 +1167,7 @@
 ## pcs-backend/tests/scripts/
 
 - `test_check_migration_idempotency.py` — F-P3-002 fix: 测试 check_migration_idempotency 脚本行为. (~1748 tok)
+- `test_check_openapi_payload_coverage.py` — API 载荷结构覆盖率闸的测试. (~957 tok)
 - `test_check_payload_model_coverage.py` — 覆盖率闸 check_payload_model_coverage 的测试. (~975 tok)
 
 ## pcs-backend/tests/services/
@@ -1206,11 +1211,15 @@
 
 ## pcs-frontend/src/pages/
 
-- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~2937 tok)
+- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~3026 tok)
 
 ## pcs-frontend/src/pages/audit/
 
 - `AuditLogPage.tsx` — AuditLogPage — Audit Query viewer (F-P2-009 Sprint 3 / Issue 7). (~2271 tok)
+
+## pcs-frontend/src/pages/config/
+
+- `FormulaEditorPage.tsx` — FormulaEditorPage — 公式编辑器（P45-2-4 / Task 22）。 (~3906 tok)
 
 ## pcs-frontend/src/pages/util/
 
@@ -1230,4 +1239,4 @@
 
 ## spec/
 
-- `工艺专用综合计算软件需求规格说明书 Web版 P8.md` (~3256 tok)
+- `工艺专用综合计算软件需求规格说明书 Web版 P8.md` (~5580 tok)

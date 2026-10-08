@@ -1366,3 +1366,23 @@
 | 21:26 | Edited CONCEPTS.md | modified returns() | ~418 |
 | 21:32 | Edited pcs-backend/tests/services/util/test_utility_energy_summary.py | 1→4 lines | ~64 |
 | 21:39 | Edited pcs-backend/tests/test_sqlite_check_constraint_overrides.py | modified _probe_engine() | ~281 |
+| 23:50 | Edited pcs-backend/app/services/change_notice_service.py | expanded (+21 lines) | ~427 |
+| 23:50 | Edited pcs-backend/app/services/change_notice_service.py | reduced (-21 lines) | ~167 |
+| 23:50 | Edited pcs-backend/app/services/change_notice_service.py | expanded (+16 lines) | ~192 |
+| 23:50 | Edited pcs-backend/app/services/change_notice_service.py | expanded (+9 lines) | ~167 |
+| 00:14 | Edited pcs-backend/app/api/v1/pipe_codes.py | modified GenerateResponse() | ~131 |
+| 00:14 | Edited pcs-backend/app/api/v1/pipe_codes.py | modified generate_pipe_code() | ~73 |
+| 00:14 | Edited pcs-backend/app/api/v1/pipe_codes.py | modified validate_pipe_code() | ~73 |
+| 00:16 | Edited pcs-backend/tests/test_schema.py | modified test_pipe_code_endpoints_declare_response_schema() | ~202 |
+| 00:18 | Edited TODOS.md | expanded (+74 lines) | ~770 |
+| 00:31 | Edited spec/工艺专用综合计算软件需求规格说明书 Web版 P8.md | inline fix | ~76 |
+| 00:32 | Created pcs-backend/scripts/check_openapi_payload_coverage.py | — | ~1129 |
+| 00:32 | Created pcs-backend/tests/scripts/test_check_openapi_payload_coverage.py | — | ~942 |
+| 00:33 | Edited pcs-backend/tests/scripts/test_check_openapi_payload_coverage.py | 3→5 lines | ~59 |
+| 00:33 | Edited pcs-backend/scripts/check_openapi_payload_coverage.py | 5→9 lines | ~117 |
+| 00:48 | Edited .github/workflows/check-api-drift.yml | 2→7 lines | ~85 |
+| 00:55 | Edited pcs-frontend/src/pages/config/FormulaEditorPage.tsx | added 1 condition(s) | ~142 |
+| 00:55 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified FormulaEditorRoute() | ~135 |
+| 00:55 | Edited pcs-frontend/src/pages/routeWrappers.tsx | inline fix | ~23 |
+| 01:09 | Created docs/superpowers/plans/2026-10-08-p8-report-and-report-builder.md | — | ~13155 |
+| 08:57 | Created docs/adr/ADR-P8-004：报表任务队列与文件生命周期.md | — | ~539 |
