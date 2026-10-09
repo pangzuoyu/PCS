@@ -53,6 +53,7 @@ dev = [
     "hypothesis>=6.167.1",
     "pypdf>=5.0",
     "fonttools>=4.50",
+    "pillow>=10.0",
 ]
 
 [tool.ruff]
@@ -84,6 +85,14 @@ check_untyped_defs = true
 testpaths = ["tests"]
 asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "function"
+# visual 标记默认**跳过**（本地跑全量不做位图转换），CI 用 `pytest -m visual` 跑。
+# 后出现的 -m 覆盖前面的，所以 CI 那条命令能直接打开这批测试。
+# ⚠️ 这批测试验的是「像素上到底画没画」，文本层断言看不见布局空白
+# （页脚页码那个 bug 就是 extract_text() 全绿、转 PNG 一眼发现的）。
+addopts = "-m 'not visual'"
+markers = [
+    "visual: 像素级渲染验证，需 poppler-utils(pdftoppm)。CI 用 `pytest -m visual` 单独跑。",
+]
 
 # P4-TASK0 架构层依赖约束（ADR-0031 残余）。
 # 实际校验由 tests/architecture/test_imports.py 用 importlib 自实现（不引入新依赖）。

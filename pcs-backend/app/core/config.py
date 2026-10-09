@@ -56,6 +56,22 @@ class Settings(BaseSettings):
     # Noto CJK 字体目录。**绝对路径** —— ReportStyle.font_dir 的默认值取自这里，
     # 而字体路径解析相对工作目录，工作目录随启动方式变化。
     report_font_dir: str = "./fonts"
+    # 中文字体候选链（按序尝试，第一个通过守卫的胜出）。**配置驱动** ——
+    # 换字体是运维动作，不该改代码。默认值的取舍见
+    # app/services/report/renderer_pdf.py 的模块 docstring：
+    #   1. Debian/Ubuntu 的 fonts-noto-cjk 是 CFF 轮廓 .ttc，reportlab 读不了
+    #   2. Droid Sans Fallback 零 ASCII 字形，数字会全空白
+    #   3. HP Simplified Hans 是**专有许可**（Dalton Maag），不能默认嵌进对外 PDF
+    # 故默认走 OFL 的 Noto Sans SC（= Source Han Sans，SIL OFL 1.1）静态实例。
+    report_font_candidates: list[str] = [
+        # 由 scripts/build_report_font.py 从 OFL 可变字体派生的静态 Regular
+        "./fonts/NotoSansSC-Regular.ttf",
+        "/usr/share/fonts/opentype/noto/NotoSansSC-Regular.ttf",
+        # 真机上装了 msttcorefonts 时的次选（**专有许可，仅本地开发兜底**）
+        "/usr/share/fonts/windows/hpsimplifiedhans-regular.ttf",
+        # 永远选不到：零 ASCII 字形，守卫会挡下。留着是为了让坑在链里可见。
+        "/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf",
+    ]
     # 生成文件的存储根目录。ORM 不碰 settings（与其他 100+ 个模型一致），
     # 由 app/services/report/paths.py 统一拼接。
     report_storage_dir: str = "./var/reports"

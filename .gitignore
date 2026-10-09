@@ -27,3 +27,7 @@ sample/
 # 本机这 6 个是独立 clone（~816MB），不随仓库分发，也不进依赖。
 pcs-backend/vendor/
 rdkit/
+
+# P8 报表字体：OFL 可变字体的静态派生件，由 scripts/build_report_font.py 生成。
+# 不入库 —— 部署/CI 跑一次该脚本即可（见 renderer_pdf 模块 docstring）。
+pcs-backend/fonts/

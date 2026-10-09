@@ -20,8 +20,10 @@
 
 from __future__ import annotations
 
+import sys
 import uuid
 from collections.abc import AsyncIterator
+from pathlib import Path
 
 import pytest
 import pytest_asyncio
@@ -515,3 +517,31 @@ def sample_pc_token() -> str:
 def sample_designer_token() -> str:
     """DESIGNER 角色 token。"""
     return create_access_token(subject="test-designer", role="DESIGNER")
+
+# === P8 报表字体 ============================================================
+#
+# 字体**不入库**（用户 2026-10-09 裁决）：仓库里没有 CJK 字体文件，产物由
+# `scripts/build_report_font.py` 从 OFL 可变字体现场派生。
+#
+# 这里**自动派生而不是 skip** —— 「本机没装字体所以跳过 PDF 测试」正是这个
+# 项目最熟悉的假绿（bug-143/145/149/150/152）：绿灯测的不是出问题那层。
+# 派生不出来就该红，因为真跑起来一样会红。
+@pytest.fixture(scope="session")
+def report_font_path() -> Path:
+    """确保 REPORT_FONT_DIR 里有可用的中文字体，返回其路径。"""
+    from app.core.config import get_settings
+
+    out = Path(get_settings().report_font_dir) / "NotoSansSC-Regular.ttf"
+    if not out.exists():
+        import subprocess
+
+        r = subprocess.run(
+            [sys.executable, "scripts/build_report_font.py", "--out", str(out)],
+            capture_output=True, text=True,
+        )
+        if r.returncode != 0 or not out.exists():
+            pytest.fail(
+                "中文字体派生失败，PDF 渲染测试无法进行（不 skip —— skip 就是假绿）：\n"
+                f"{r.stdout}\n{r.stderr}"
+            )
+    return out

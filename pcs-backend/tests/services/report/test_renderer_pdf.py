@@ -33,17 +33,109 @@ HDR = ["位号", "口径", "描述"]
 
 @pytest.fixture(autouse=True)
 def _reset_font_registry():
-    """清掉进程内的字体注册缓存。
+    """**快照-还原**，不是按名字逐个清。
 
-    `_REGISTERED` 是模块级全局，同进程内第一个测试注册完，后面所有测试都直接
-    命中缓存 —— 于是「字体解析」这条路径**一次都没被真正执行过**，而测试照样
-    全绿。这正是 bug-143/145/149/150 同族的第 7 次：绿灯测的不是出问题那层。
+    两个状态都要清，缺一不可（用户 2026-10-09 审查指出）：
+      1. `renderer_pdf._REGISTERED` —— 本模块「已注册」缓存
+      2. `pdfmetrics._fonts`        —— reportlab 全局的字体注册表
+
+    只清 ① 的话，第二次 `registerFont` 时 ② 里还留着上一次的字体，
+    `getFont(name)` 命中缓存**根本不会重新校验字形** —— 测试绿，生产路径没走。
+
+    也不按名字列表清：任何**新加**的字体族名都会漏出去。快照整个注册表，
+    天然覆盖将来新增的名字。
     """
+    before = set(renderer_pdf.pdfmetrics._fonts)
     renderer_pdf._REGISTERED.clear()
-    for name in ("Noto Sans CJK SC", "Noto Serif CJK SC", "Droid Sans Fallback"):
-        renderer_pdf._unregister_font(name)
     yield
+    for name in set(renderer_pdf.pdfmetrics._fonts) - before:
+        renderer_pdf._unregister_font(name)
     renderer_pdf._REGISTERED.clear()
+
+
+def test_probe_covers_every_text_class(report_font_path):
+    """`_PROBE` 是**契约的一部分** —— 每个字符都代表一类必然出现的文本。
+
+    改动探针等于改动验收标准：一个缺下划线的字形本该被守卫拦下，探针里
+    没有 `_` 就会混过去，报表里的编号分隔符静默变空白。
+    """
+    from reportlab.pdfbase import pdfmetrics
+    from reportlab.pdfbase.ttfonts import TTFont
+
+    pdfmetrics.registerFont(TTFont("probecheck", str(report_font_path)))
+    try:
+        missing = renderer_pdf._missing_glyphs("probecheck")
+    finally:
+        renderer_pdf._unregister_font("probecheck")
+    assert missing == [], f"派生的字体竟然过不了自己的探针：缺 {missing}"
+
+    # 探针必须真的涵盖这几类 —— 少一类就少一道守卫
+    for klass, chars in [("位号", "PDN"), ("数字", "0123456789"),
+                         ("单位", "ABCabc"), ("比值/温度", "%°"),
+                         ("标点", "-_.()/:")]:
+        absent = [c for c in chars if c not in renderer_pdf._PROBE]
+        assert not absent, f"探针缺「{klass}」类的字符 {absent}"
+
+
+def test_font_candidates_are_config_driven():
+    """候选链必须**配置驱动** —— 换字体是运维动作，不该改代码。
+
+    硬编码在模块里的话，每次换字体都要发版；而发版漏了某个部署环境，
+    报表就静默换了字体甚至失败。
+    """
+    from app.core.config import get_settings
+
+    chain = get_settings().report_font_candidates
+    assert chain, "候选链不能为空"
+    assert all(isinstance(p, str) and p for p in chain)
+    assert renderer_pdf.DEFAULT_FONT_CANDIDATES == tuple(chain), \
+        "模块常量与 settings 默认值不一致 —— 改了一处忘了另一处"
+
+
+def test_unusable_candidate_logs_warning(tmp_path, monkeypatch, caplog):
+    """候选被否要记 WARN —— 否则「为什么这台机器用了次优字体」永远查不出来。
+
+    注意用**存在但不可用**的字体（CFF 轮廓），不是不存在的路径：
+    不存在的候选是直接跳过的，不构成「否决」，自然也不该有 WARN。
+    """
+    import logging
+
+    unusable = _any_cff_font()
+    if unusable is None:
+        pytest.skip("本机没有 CFF/OTF 字体，无法构造「存在但不可用」的候选")
+    bad = tmp_path / "NotoSansCJKsc-Regular.otf"
+    bad.write_bytes(unusable.read_bytes())
+    _use_chain(monkeypatch, [str(bad), *_good_fallbacks()])
+
+    with caplog.at_level(logging.WARNING, logger=renderer_pdf.__name__):
+        out = render_pdf(title="x", blocks=[], style=ReportStyle(),
+                         qr_payload=None, assumed_fields=[], font_dir=str(tmp_path))
+    assert out[:5] == b"%PDF-"
+    msgs = [r.getMessage() for r in caplog.records]
+    assert any("被否" in m and str(bad) in m for m in msgs), \
+        f"应记录被否掉的候选及原因，实得：{msgs}"
+
+
+def test_missing_font_error_lists_every_reason(tmp_path, monkeypatch):
+    """全链落空时，错误信息要说清**每个候选为什么被否**。
+
+    只报「字体缺失」的话，运维得自己逐个试 —— 而这三个坑（TTC 读不了 /
+    可变字体是 Thin / 缺 ASCII）都不显眼，正是查不出来的原因。
+    """
+    droid = Path("/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf")
+    if not droid.exists():
+        pytest.skip("本机没有 Droid Sans Fallback")
+    only_droid = tmp_path / "NotoSansCJKsc-Regular.otf"
+    only_droid.write_bytes(droid.read_bytes())
+    _use_chain(monkeypatch, [])
+
+    with pytest.raises(PcsError) as e:
+        render_pdf(title="x", blocks=[], style=ReportStyle(),
+                   qr_payload=None, assumed_fields=[], font_dir=str(tmp_path))
+    msg = str(e.value)
+    assert "缺字形" in msg and only_droid.name in msg
+    for trap in ("ttc", "Thin", "ASCII"):
+        assert trap in msg, f"错误信息应提到「{trap}」这个坑，实得：{msg}"
 
 
 def test_renders_table_and_returns_pdf_bytes():
@@ -63,7 +155,7 @@ def test_missing_font_raises_instead_of_emitting_blank_pdf(monkeypatch):
     系统字体兜底。真正的失败条件是**整条候选链全落空**，所以这里连系统候选
     一起清空，测的才是失败分支本身。
     """
-    monkeypatch.setattr(renderer_pdf, "_SYSTEM_FALLBACKS", {})
+    _use_chain(monkeypatch, [])
     s = ReportStyle(font_dir="/nonexistent/fonts")
     with pytest.raises(PcsError) as e:
         render_pdf(title="x", blocks=[], style=s, qr_payload=None, assumed_fields=[])
@@ -154,8 +246,7 @@ def test_font_falls_back_when_first_candidate_is_unusable(tmp_path, monkeypatch)
     bad = tmp_path / "NotoSansCJKsc-Regular.otf"
     bad.write_bytes(unusable.read_bytes())
 
-    monkeypatch.setattr(renderer_pdf, "_SYSTEM_FALLBACKS",
-                        {"Noto Sans CJK SC": (str(bad), *_good_fallbacks())})
+    _use_chain(monkeypatch, [str(bad), *_good_fallbacks()])
     out = render_pdf(title="兜底", blocks=[TableBlock(headers=["位号"], rows=[["P-1"]])],
                      style=ReportStyle(), qr_payload=None, assumed_fields=[])
     assert out[:5] == b"%PDF-"
@@ -176,7 +267,7 @@ def test_font_missing_latin_glyphs_is_rejected(tmp_path, monkeypatch):
     only_droid.write_bytes(droid.read_bytes())
     # 只留这个候选：系统兜底会把它救回来（那正是用户要的行为），
     # 这里要测的是「**整条链**都不可用」时会不会显式失败。
-    monkeypatch.setattr(renderer_pdf, "_SYSTEM_FALLBACKS", {})
+    _use_chain(monkeypatch, [])
 
     with pytest.raises(PcsError) as e:
         render_pdf(title="x", blocks=[], style=ReportStyle(),
@@ -196,8 +287,7 @@ def test_droid_fallback_is_never_actually_selected(monkeypatch):
     droid = Path("/usr/share/fonts/truetype/droid/DroidSansFallbackFull.ttf")
     if not droid.exists():
         pytest.skip("本机没有 Droid Sans Fallback")
-    monkeypatch.setattr(renderer_pdf, "_SYSTEM_FALLBACKS",
-                        {"Noto Sans CJK SC": (str(droid), *_good_fallbacks())})
+    _use_chain(monkeypatch, [str(droid), *_good_fallbacks()])
     out = render_pdf(title="P-101", blocks=[TableBlock(headers=["位号"], rows=[["P-101"]])],
                      style=ReportStyle(), qr_payload=None, assumed_fields=[])
     text = PdfReader(io.BytesIO(out)).pages[0].extract_text()
@@ -225,8 +315,8 @@ def test_explicit_font_dir_wins_over_system_fallback():
     style = ReportStyle()
     resolved = renderer_pdf.resolve_font_path(style)
     assert resolved.exists(), "默认配置下必须解析到一个真实存在的字体"
-    if Path(style.font_dir).exists():
-        assert str(resolved).startswith(style.font_dir), \
+    if Path(style.font_dir).is_dir():
+        assert Path(resolved).parent == Path(style.font_dir), \
             f"{style.font_dir} 下有字体时必须优先用它，实际选了 {resolved}"
 
 
@@ -281,10 +371,16 @@ def _embedded_font_names(page) -> list[str]:
     return names
 
 
+def _use_chain(monkeypatch, paths: list[str]) -> None:
+    """把字体候选链换成给定列表（走 settings，与生产同一条路）。"""
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "report_font_candidates", paths)
+
+
 def _good_fallbacks() -> tuple[str, ...]:
-    """候选链里真正能用的兜底（ASCII + 汉字俱全的那个）。"""
-    return (p for p in renderer_pdf.SYSTEM_FALLBACK_FILES["Noto Sans CJK SC"]
-            if "droid" not in p)
+    """候选链里真正能用的兜底（OFL 静态派生件）。"""
+    return tuple(p for p in renderer_pdf.DEFAULT_FONT_CANDIDATES if "droid" not in p)
 
 
 def _any_cff_font() -> Path | None:
