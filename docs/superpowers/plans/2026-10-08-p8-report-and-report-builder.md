@@ -1862,6 +1862,51 @@ git commit -m "perf(report): 性能基准纳入 CI 阈值（简单≤5s 复杂�
    `FieldSpec(is_jsonb_key=True)` 允许登记 ORM 列上不存在的键（JSONB 容器内的）。
    需补：子键与 JSONB 实际结构的一致性检查（TODO-026 展开后自动获得平铺字段）。
 
+## 用户裁决（2026-10-09，阻塞项解除）
+
+> 这两条原本只记在 SDD ledger 里，而 `.superpowers/` 是 gitignore 的临时工作区
+> —— 不落进仓库就等于没记。故誊清在此，随仓库分发。
+
+### ARQ 重试审计模型 → 每次写 + attempt_no
+
+`ReportFile` 保持「内容哈希唯一」，代表**生成结果**而非生成尝试；重试过程全落
+`audit_logs`：
+
+- 每次失败写一条 `REPORT_FAILED`，`detail` JSONB 带 `{"task_id", "attempt_no"}`
+- `REPORT_GENERATED` 只在最终成功时写一次
+- 查询按 `detail->>'task_id' = ?` 聚合；前端可只显示最终状态，数据层保留全量
+
+理由：审计的目的是事后追溯，「失败过几次」本身是信号 —— 某类报表平均重试
+2 次才成功，说明有系统性质量问题。只写最终一次会把这个信号抹掉。
+
+### 多源 SELECT 策略 → 统一走 Python 组装，不生成 SQL JOIN
+
+每源一次 SELECT + Python 组装。**实现约束（T5b 写进 `query_engine` docstring）**：
+
+1. 从源用 `WHERE key IN (...)` **一次批量查**，不是 N 次
+2. 用 Core `select(Model.col1, ...)` 返回 tuple，**不用 ORM 实例** —— 避免
+   10000 次 ORM 构造
+3. Python 里 dict lookup 关联，**不写嵌套循环**
+4. 某源行数超阈值（如 10000）则分批查
+5. `JOINS` 白名单**只用于校验**（拒绝不在白名单的关联键），**不生成 JOIN SQL**
+
+理由：白名单 5 对 JOIN 都是「主表 + 从表」，从表行数远小于主表，SQL JOIN
+收益有限；SPEC 性能预算 10s，Python 组装 10000 行 × 2 源约 1–2s，不是瓶颈；
+且 SQL JOIN 会引入第二套执行路径，与「query_engine 是唯一实现」矛盾。
+
+**后果**：T6 的 JOIN 引擎简化为「白名单校验 + 关联键提取」，不生成 JOIN SQL。
+
+### 报表字体（连带裁决）
+
+字体**不入库原始文件**，运行时按 `settings.report_font_candidates` 逐个试。
+⚠️ **HP Simplified Hans 是专有许可**（Dalton Maag Ltd），不得默认嵌进对外 PDF；
+Debian `fonts-noto-cjk` 是 CFF 轮廓 `.ttc`，reportlab 读不了；可变字体默认实例是
+`wght=100`（Thin）。故由 `scripts/build_report_font.py` 从 OFL 的
+`NotoSansSC-VF.ttf` 派生 `wght=400` 静态件（10.6 MB），落 gitignore 的 `./fonts/`。
+守卫对**每个**候选都验字形覆盖（`_PROBE` 本身是契约）。
+
+---
+
 ## GSTACK REVIEW REPORT
 
 | Review | Trigger | Why | Runs | Status | Findings |
