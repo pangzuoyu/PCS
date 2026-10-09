@@ -2767,7 +2767,7 @@
       "file": "pcs-backend/app/services/report/renderer_pdf.py",
       "root_cause": "三个缺陷，一个共同点：**结构全都合法，没有一个自动化会报警**。\n\n**① Droid Sans Fallback 零 ASCII 字形。** 该字体（Apache-2.0，3.8MB，20902 汉字）能注册、能嵌入、能抽出全部汉字 —— 但**一个 ASCII 字形都没有**，`P-101` / `DN50` / 所有数字全部渲染为空白。\n**为什么漏掉**：我最初的字体探针用的是**纯中文**文本，所以\"抽出来了\"。纯中文探针恰好绕开了这个字体唯一的缺陷。\n\n**② 页脚页码永远空白。** `_KNOWN_PLACEHOLDERS` 里有 `page`，`_fill_placeholders` 用 `ctx.get(\"page\", \"\")` 把它替换成空串；紧接着 `_decorate` 再 `.replace(\"{{page}}\", ...)` 时已经找不到了。页脚永远显示「第 页」。发现方式：**把 PDF 转成 PNG 用眼睛看** —— 文本抽取断言全绿（`%PDF-` 合法、字节数正常、有字体嵌入）。\n\n**③ 候选链只判 `path.exists()`。** 本机的 `NotoSansCJK-Regular.ttc` 存在，但 reportlab 抛 `TTFError: postscript outlines are not supported`（CFF 轮廓）。天真的实现在这里炸掉，永远走不到兜底字体。\n\n**同族失效模式第 6/7/8 次**：bug-143（测试库由 ORM metadata 建）、bug-145（假 DB 测试）、bug-149（行为测试看不见契约层）、bug-150（静态检查不渲染组件）、bug-152-①（**探针文本的选择决定了测哪一层**）、bug-152-②（**结构断言测不出\"内容对不对\"**）。\n\n**还有一个测试隔离缺陷**：`_REGISTERED` 是模块级全局，同进程第一个测试注册完，后面全部命中缓存 —— 字体解析这条路径**一次都没被执行过**，测试全绿。已加 autouse fixture 清理。",
       "fix": "1. `_PROBE` + `_missing_glyphs()`：注册后校验 `_PROBE = \"PDN-0123456789ABCabc%.-()/: \"` 的字形覆盖，缺字形就 `_unregister_font` 并试下一个候选。**Droid 因此永远选不到** —— 真干活的是 HP Simplified Hans（3.3MB，ASCII 全 + 20902 汉字）。reportlab 无公开注销 API，只能动私有 `pdfmetrics._fonts.pop()`。\n2. `_KNOWN_PLACEHOLDERS` 删掉 `page`；`_decorate` 改为**先** replace 页码**再**填 context，顺序反了就会被吃掉。\n3. 候选链逐个 `try: registerFont` 试，失败即下一个。\n\n验证：17 passed；两处变异测试（去覆盖校验 / 不逐个试）各自被测出；生成的 PDF 已转 PNG 人工确认页码、二维码、▲ 表头、NULL→— 均正常。",
-      "fix_commit": "PENDING",
+      "fix_commit": "1326869",
       "tags": [
         "report",
         "pdf",
@@ -2786,6 +2786,29 @@
         "bug-145",
         "bug-149",
         "bug-150"
+      ]
+    },
+    {
+      "id": "bug-153",
+      "timestamp": "2026-10-09T00:00:00+08:00",
+      "error_message": "PDF 页边距被当成点：25 传成 25pt = 8.8mm，A4 报表边距窄到不成样子",
+      "file": "pcs-backend/app/services/report/style.py",
+      "root_cause": "`ReportStyle.margins` 默认值 top/bottom/left/right = 20/25/20/20 是**毫米**（教科书级 A4 页边距值）。Task 3 的 renderer_pdf 直接把它当**点**传给 ReportLab 的 leftMargin/rightMargin/… —— 25pt = 8.8mm。\n\n**为什么没人发现**：PDF 结构完全合法、字节数正常、字体正常嵌入、中文正常抽出，所有测试全绿。而错误方向是**边距更窄**，表格撑得更满，看着「挺好」—— 连肉眼复核都不会报警。\n\n**为什么这次抓到了**：写 T4 时要同时写 DOCX，brief 里用 `Mm(style.margins.left)`（当毫米）。**两个渲染器对同一份配置的单位解释不一致**，才暴露出来。这正是当初把 `blocks.py` 抽出来做共用 IR 的理由 —— 共用的不只是 Block，还有它们对同一份配置的读法。\n\n**同族失效模式第 9 次**：测的东西与坏的东西不在同一层。前面 8 次是「测试跑了但测的不是出问题那层」，这次是**根本没有测试** —— 页边距从未被任何断言看过一眼。",
+      "fix": "换算收敛到 `ReportStyle.margins_pt` 属性（源单位毫米 → 点），三个渲染器共用，renderer_pdf 改用 `**style.margins_pt`。\n\n新增 `tests/services/report/test_margins.py` 三条断言：单位是毫米、随样式缩放、A4 正文宽 = 210−25−20 = 165mm。\n\n验证：3 passed；PDF 全套 30 passed + 4 visual passed；重渲染转 PNG 目视确认左右边距恢复正常。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "report",
+        "pdf",
+        "units",
+        "margins",
+        "cross-renderer",
+        "untested"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-09T00:00:00+08:00",
+      "related_bugs": [
+        "bug-150",
+        "bug-152"
       ]
     }
   ]

@@ -15,6 +15,15 @@ from app.core.config import get_settings
 
 
 class Margins(BaseModel):
+    """页边距，**单位毫米**。
+
+    ⚠️ 单位是契约，不是实现细节。PDF 渲染器曾把这些值**当点**传给 ReportLab：
+    25 当点 = 8.8mm，边距窄到不成样子，而 PDF 结构合法、字节数正常，
+    没有一个结构断言会红。DOCX/XLSX 读同一份配置，一个当点一个当毫米的话，
+    同一份样式在不同格式下版式完全不同。故换算收敛到
+    `ReportStyle.margins_pt`，三个渲染器都用它。
+    """
+
     top: float = 20.0
     bottom: float = 20.0
     left: float = 25.0
@@ -71,6 +80,20 @@ class ReportStyle(BaseModel):
     # 预留位）。P8 先只锁这两项 —— 改了版式 A4/A3 就不再是标准计算书了；
     # 「页脚必含 doc_no」之类的业务强制项待工艺确认后再加。
     locked_fields: frozenset[str] = frozenset({"page_size", "orientation"})
+
+    @property
+    def margins_pt(self) -> dict[str, float]:
+        """页边距换算成**点**（1pt = 1/72 inch，1mm = 72/25.4 pt）。
+
+        PDF/ReportLab 与 DOCX 都用点或 EMU，但**只有这里知道源单位是毫米** ——
+        换算散到各渲染器里各写一遍，就是「一个当点一个当毫米」的来源。
+        """
+        from reportlab.lib.units import mm
+
+        return {"top": self.margins.top * mm,
+                "bottom": self.margins.bottom * mm,
+                "left": self.margins.left * mm,
+                "right": self.margins.right * mm}
 
 
 def resolve(*, defaults: ReportStyle, by_type: ReportStyle | None = None,

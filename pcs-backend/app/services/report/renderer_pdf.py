@@ -270,9 +270,8 @@ def render_pdf(*, title: str, blocks: list[Block], style: ReportStyle,
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
         buf, pagesize=_PAGESIZES[style.page_size],
-        leftMargin=style.margins.left, rightMargin=style.margins.right,
-        topMargin=style.margins.top, bottomMargin=style.margins.bottom,
         title=title,
+        **style.margins_pt,   # 单位换算只在 style.py 一处（源单位是毫米）
     )
     h1 = ParagraphStyle("h1", parent=_BASE_STYLES["Heading1"], fontName=font,
                         fontSize=style.font_size_heading,
