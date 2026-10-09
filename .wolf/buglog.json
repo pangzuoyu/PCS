@@ -2795,7 +2795,7 @@
       "file": "pcs-backend/app/services/report/style.py",
       "root_cause": "`ReportStyle.margins` 默认值 top/bottom/left/right = 20/25/20/20 是**毫米**（教科书级 A4 页边距值）。Task 3 的 renderer_pdf 直接把它当**点**传给 ReportLab 的 leftMargin/rightMargin/… —— 25pt = 8.8mm。\n\n**为什么没人发现**：PDF 结构完全合法、字节数正常、字体正常嵌入、中文正常抽出，所有测试全绿。而错误方向是**边距更窄**，表格撑得更满，看着「挺好」—— 连肉眼复核都不会报警。\n\n**为什么这次抓到了**：写 T4 时要同时写 DOCX，brief 里用 `Mm(style.margins.left)`（当毫米）。**两个渲染器对同一份配置的单位解释不一致**，才暴露出来。这正是当初把 `blocks.py` 抽出来做共用 IR 的理由 —— 共用的不只是 Block，还有它们对同一份配置的读法。\n\n**同族失效模式第 9 次**：测的东西与坏的东西不在同一层。前面 8 次是「测试跑了但测的不是出问题那层」，这次是**根本没有测试** —— 页边距从未被任何断言看过一眼。",
       "fix": "换算收敛到 `ReportStyle.margins_pt` 属性（源单位毫米 → 点），三个渲染器共用，renderer_pdf 改用 `**style.margins_pt`。\n\n新增 `tests/services/report/test_margins.py` 三条断言：单位是毫米、随样式缩放、A4 正文宽 = 210−25−20 = 165mm。\n\n验证：3 passed；PDF 全套 30 passed + 4 visual passed；重渲染转 PNG 目视确认左右边距恢复正常。",
-      "fix_commit": "PENDING",
+      "fix_commit": "4e8d0d5",
       "tags": [
         "report",
         "pdf",
