@@ -191,6 +191,21 @@ def test_map_targets_must_exist_in_registry():
     assert not unknown, f"COLUMN_MAP 指向未登记的字段：{unknown}"
 
 
+def test_coverage_can_never_exceed_one():
+    """⚠️ 反回归：一条标签映射到**多个**字段时，用字段数当分子会算出
+    **112% 的覆盖率** —— 一个不可能的值，而它一路显示得很正常。
+
+    `Temperature (In/Out)` 一条标签就对应 shell/tube × in/out 共 4 个
+    注册字段。分子分母必须都是**标签**。
+    """
+    r = compute_coverage(["Temperature (In/Out)", "Temperature, In/Out"])
+    assert 0 <= r["template_coverage"] <= 1.0, \
+        f"覆盖率 {r['template_coverage']:.1%} 越界 —— 分子分母量纲不一致"
+    assert r["served_labels"] == 2
+    assert len(r["covered_fields"]) > 2, \
+        "这两条标签应当映射到 4 个以上字段（正是量纲错配的来源）"
+
+
 def test_two_denominators_disagree():
     """两个口径的数值必须不同 —— 相同说明其中一个算错了。"""
     r = compute_coverage(["Total flow rate", "Area", "某个没见过的列"])

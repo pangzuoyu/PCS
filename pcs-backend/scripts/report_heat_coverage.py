@@ -319,6 +319,7 @@ def compute_coverage(labels: list[str], *,
     covered: set[str] = set()
     unmapped: list[str] = []
     noise: list[str] = []
+    served_labels = 0          # ⚠️ 数**标签**，不是字段 —— 见下面的量纲说明
     for label in labels:
         if label in EXTRACTION_NOISE:
             noise.append(label)
@@ -328,6 +329,8 @@ def compute_coverage(labels: list[str], *,
             unmapped.append(label)
             continue
         covered.update(targets)
+        if any(t in fields for t in targets):
+            served_labels += 1
 
     unknown_targets = sorted(t for t in covered if t not in fields)
     served = covered & scoped
@@ -339,7 +342,13 @@ def compute_coverage(labels: list[str], *,
     # 目标 —— 噪声是提取规则的已知偏差，该显示出来而不是藏起来。
     return {
         "level": level,
-        "template_coverage": pct(len(served), len(labels)),
+        # ⚠️ 分子分母**量纲必须一致**：分子数「服务得起的**标签**数」，
+        # 不是「服务得起的**字段**数」。一条标签会映射到多个字段
+        # （`Temperature, In/Out` → shell/tube × in/out 共 4 个），
+        # 用字段数当分子会算出 **112% 的覆盖率** —— 一个不可能的值，
+        # 而它一路显示得很正常。
+        "template_coverage": pct(served_labels, len(labels)),
+        "served_labels": served_labels,
         "registry_coverage": pct(len(served), len(scoped)),
         "target": TARGET_COVERAGE,
         "passed": (pct(len(served), len(labels)) >= TARGET_COVERAGE
