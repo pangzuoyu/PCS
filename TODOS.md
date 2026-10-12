@@ -913,3 +913,58 @@ SignatureMatrix 仍空。）
 antd v6 会移除 `rowKey(value, index)` 的第二个参数。当前写法依赖 index 做行 key
 的，升级后会静默错乱 —— 属「现在不影响功能、升级才炸」的一类。
 **Owner：待认领。** 修法：改成只取 `value` 上的稳定唯一字段。
+
+---
+
+## 🔴 P8 落地遗留（2026-10-12 登记，T1–T5b 收口时）
+
+> 这四条是 P8 Task 1–5b 执行过程中**新发现**的，不是历史积压。
+> 全部有代码依据，见每条「证据」。
+
+### TODO-045: 部署镜像需显式跑一次 `build_report_font.py`，否则 PDF 全 500
+
+- **症状**: `REPORT_FONT_CANDIDATES` 全链落空时 `render_pdf` 抛 `REPORT_FONT_MISSING`(500)。
+- **证据**: `app/services/report/renderer_pdf.py` 的 `_register_font()`；
+  候选链默认值在 `app/core/config.py` 的 `report_font_candidates`。
+- **为什么本机看不出来**: `tests/conftest.py` 的 `report_font_path` session fixture
+  **自动派生**字体，所以本地永远有字体可用 → 本地测不出部署缺字体。
+  （这是刻意的：skip 就是假绿。但它意味着**部署侧没有任何自动兜底**。）
+- **修法**: 部署镜像 / CI 构建步骤加一行
+  `uv run python scripts/build_report_font.py`；或在 Dockerfile 里
+  `apt install fonts-noto-cjk` 并把派生产物落到 `REPORT_FONT_DIR`。
+- **风险**: 不做的话，P8 上线当天**所有 PDF 报表 500**，且只在生产才暴露。
+- **Owner**: 待认领（与部署配置同批）
+
+### TODO-046: CI 未装 poppler-utils，`@pytest.mark.visual` 测试会 fail
+
+- **症状**: `tests/services/report/test_renderer_visual.py` 的 `pdftoppm` fixture
+  在缺 poppler 时**故意 `pytest.fail` 而不是 skip**（用户 2026-10-09 裁决：
+  「缺 pdftoppm 时 fail 不 skip」）。
+- **证据**: 该文件的 `pdftoppm` fixture；`pyproject.toml` 已注册 `visual` marker
+  与 `addopts = "-m 'not visual'"`（默认跳过，CI 用 `pytest -m visual` 打开）。
+- **修法**: CI workflow 装 `poppler-utils` 并新增一步 `uv run pytest -m visual`。
+- **风险**: 不做则 CI 一开 visual 就红。是**设计内的红**（缺依赖报出来好过静默跳过），
+  但要先装依赖，否则闸门开不起来。
+- **Owner**: 待认领（与 TODO-045 同批）
+
+### ⚪ TODO-047: ADR-P8-004 报表任务队列与文件生命周期 —— 等运维
+
+- **症状**: T7（ARQ 任务）依赖队列隔离策略与文件保留期。
+- **证据**: `docs/adr/ADR-P8-004：报表任务队列与文件生命周期.md`（含 3 个队列选项、
+  4 个保留期选项、运维需提供的输入）。
+- **当前临时状态**: 同队列、`max_jobs` 保持 4、文件**永不删除**。
+  按此实现 T7 不会返工，但保留期一旦定下来要补清理任务。
+- **Owner**: 运维（**用户已确认这是外部依赖，不阻塞 T4/T5/T6**）
+
+### TODO-048: 变异测试工具链无法区分「变异没应用」与「测试没抓到」
+
+- **症状**: `tests/mutation.py` 的 `mutate()` 断言 `old in source`，
+  关掉了「变异是空操作」这一类（本会话已踩过一次：手写 `old` 与文件实际内容
+  差一个字符，`str.replace` 静默返回原串，测试全绿像「抓住了」）。
+- **仍然缺**: 「变异确实应用了，但测试没抓到」这一类**只能靠人判断**。
+  本会话靠人工比对发现 bug-154（复杂度断言恒真）就是这一类。
+- **修法（候选）**: 约定变异必须配一条「预期被测出的测试名」，
+  跑完断言该测试**确实红了**；未红即变异无效。要么写个
+  `expect_killed(mutate, tests, expected_test_id)` 辅助函数。
+- **优先级**: TODO 级。不做的话「变异测试已覆盖」的声明没有强制力。
+- **Owner**: 待认领
