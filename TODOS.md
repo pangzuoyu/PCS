@@ -1046,3 +1046,23 @@ antd v6 会移除 `rowKey(value, index)` 的第二个参数。当前写法依赖
   但那样脚本读的时候会把水印当数据列。
 - **优先级**: TODO 级。产品确认项。
 - **Owner**: 产品 / 待认领
+
+### TODO-055: c4/c5 缺 HTRI/TEMA 参考文件
+
+- **症状**: P8c 的 c4（HTRI 兼容测试，`121-A-101.xls` 33 列 +
+  `131-E-102-EOR.xls` 23 列 覆盖比对）与 c5（DETAIL 覆盖率 ≥95%）
+  都需要这两份 HTRI/TEMA 输出作为基准。**仓库里没有**（`sample/` 下只有
+  `1216D132…xlsx` / `dmc.out` / `huafeng140_FCC2015.out` 等，
+  不是这两个 Xace/Xist 表）。
+- **本轮已交付的部分**: c5 的**工具**已建好并用合成基准验过 ——
+  `scripts/report_heat_coverage.py`（退出码：0 达标 / 1 未达标 /
+  **2 缺输入**；缺输入绝不算「0% 通过」）。
+- **还缺什么**: 把两份 .xls 放进 `sample/`（不入 git，与既有 sample 一致），
+  然后 `uv run python scripts/report_heat_coverage.py sample/121-A-101.xls \
+  sample/131-E-102-EOR.xls`。
+- **合成基准的试跑结果**（27 列的假 HTRI 表）: 覆盖率 88.9%，3 个服务不了的
+  列恰好是已知的数据模型缺口 —— `Service` / `Air Flow Rate` / `Fin Height`，
+  与 c1 登记的 `ADR_FIELDS_WITHOUT_COLUMN` 一致。**这不能替代真实比对**：
+  真实模板的列名与列数未知，`COLUMN_MAP` 必然要按真实文件补。
+- **优先级**: 阻塞 c4/c5。c1/c2/c3 不依赖它，已完成。
+- **Owner**: 工艺/数据（需提供 HTRI Xace/Xist 输出样本）
