@@ -2845,7 +2845,7 @@
       "file": "pcs-backend/app/services/report/report_service.py",
       "root_cause": "P8 计划规定「按内容哈希命名（`{sha256[:16]}.{ext}`），同内容重复生成复用同一行」（Review Focus #5 / SPEC §2.5 文件不可变性），并给出 `sha256(rendered_bytes)` 的实现。\n\n**实测这条路走不通**：\n  - **PDF 永远不是字节相同的** —— reportlab 每次生成随机的 `/ID`；实测同一秒内两次渲染同一份内容，字节已经不同（`CreationDate` 恰好相同，但 `/ID` 必然不同）。\n  - **XLSX 也不是** —— `docProps/core.xml` 里带 `dcterms:created`；同一秒内两次碰巧相同，跨秒即变。\n  - 即便二者都确定，`CreationDate` 一到下一秒就变。\n\n**为什么难发现**：哈希机制**照常工作**，代码不报错，只是**永远命中不了**。用户每生成一次报表就多一份完全相同的文件和一行 DB 记录，`report_files` 无声膨胀 —— 而所有测试都绿。\n\n**同族失效模式第 11 次**：这次是「**功能声明存在、实现前提不成立**」。与 bug-154 的区别：bug-154 是断言恒真（测不到），这次是断言压根没写（测不到 + 实现也不对）。",
       "fix": "改为对**规范化内容**取哈希：`(format, style.model_dump() 去 font_dir, ctx, blocks 的 dataclasses.asdict)` → json(sort_keys) → sha256。\n\n理由：语义相同就该复用同一文件 —— 这正是 SPEC §2.5「文件不可变性」的本意；且比事后解析 PDF 剥时间戳稳得多，也省一遍渲染。排除 `font_dir` 是因为它是部署路径不是样式内容，混进去会让同一份报表在两台机器上算成两个哈希。\n\n验证：\n  - `test_same_content_twice_reuses_one_file` 通过（原本失败）\n  - 新增 `test_rendered_pdf_is_never_byte_identical` 钉住前提事实 —— 将来谁改回 `sha256(payload)`，复用测试立刻红并指回这里\n  - 变异验证：退回字节哈希 → `test_same_content_twice_reuses_one_file` 红",
-      "fix_commit": "PENDING",
+      "fix_commit": "911534e",
       "tags": [
         "report",
         "content-hash",
