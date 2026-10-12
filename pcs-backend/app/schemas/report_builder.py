@@ -90,7 +90,11 @@ class ReportDefFilterGroup(BaseModel):
     """
 
     operator: str = "AND"          # AND / OR
-    conditions: list["ReportDefNode"] = Field(default_factory=list)
+    # 联合类型里两个类互相递归引用，此刻后者还没定义。文件顶部有
+    # `from __future__ import annotations`，注解惰性求值，所以不报错；
+    # `model_rebuild()` 在下面负责把它们解析进 Pydantic 的 schema。
+    conditions: list[ReportDefCondition | ReportDefFilterGroup] = Field(
+        default_factory=list)
 
 
 ReportDefNode = ReportDefCondition | ReportDefFilterGroup

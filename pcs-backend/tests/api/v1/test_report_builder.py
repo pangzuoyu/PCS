@@ -390,3 +390,67 @@ async def test_reviewer_cannot_edit_someone_elses_draft(client):
     r = await client.put(f"/api/v1/report-builder/definitions/{d['def_id']}",
                          headers=_auth("rev", "REVIEWER"), json=_definition_body())
     assert r.status_code == 404, f"实得 {r.status_code}"
+
+
+# --- b4 字段选择器：别名/排序/显隐往返一致 ------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_selected_fields_alias_order_visible_round_trip(client):
+    """SPEC §3.2.2(3)：别名、拖拽排序、显示/隐藏都持久化到定义里。
+
+    「往返一致」的重点在 `visible=False` 与**非零 order**：这两项最容易被
+    「只存选中的字段」的实现悄悄吃掉 —— 隐藏字段不落库、排序塌成选中顺序，
+    用户下次打开编辑器发现自己的设置全没了，而 API 一直返回 200。
+    """
+    fields = [
+        {"source": "EQUIP_LIST", "field": "tag_number",
+         "alias": "位　号（自定义）", "order": 3, "visible": True},
+        {"source": "EQUIP_LIST", "field": "vendor",
+         "alias": "制造商", "order": 1, "visible": False},   # 隐藏
+        {"source": "EQUIP_LIST", "field": "vendor_model",
+         "alias": "", "order": 2, "visible": True},
+    ]
+    d = await _make(client, "author-1", definition_json={
+        "DataSources": [{"source": "EQUIP_LIST"}],
+        "SelectedFields": fields,
+    })
+    got = (await client.get(f"/api/v1/report-builder/definitions/{d['def_id']}",
+                            headers=_auth("author-1"))).json()
+    assert got["definition_json"]["SelectedFields"] == fields, \
+        "字段选择器设置没能原样往返"
+
+    # 改一次别的再读，设置仍要还在（不能只活到第一次读取）
+    await client.put(f"/api/v1/report-builder/definitions/{d['def_id']}",
+                     headers=_auth("author-1"),
+                     json=_definition_body(name="改名了", definition_json={
+                         "DataSources": [{"source": "EQUIP_LIST"}],
+                         "SelectedFields": fields,
+                     }))
+    again = (await client.get(f"/api/v1/report-builder/definitions/{d['def_id']}",
+                              headers=_auth("author-1"))).json()
+    assert again["definition_json"]["SelectedFields"] == fields
+
+
+@pytest.mark.asyncio
+async def test_max_rows_survives_round_trip(client):
+    """MaxRows 是执行引擎唯一的规模闸 —— 丢了就等于没有上限。"""
+    d = await _make(client, "author-1", max_rows=250)
+    got = (await client.get(f"/api/v1/report-builder/definitions/{d['def_id']}",
+                            headers=_auth("author-1"))).json()
+    assert got["max_rows"] == 250
+    assert got["definition_json"]["MaxRows"] == 250, "定义体内的 MaxRows 也要落库"
+
+
+@pytest.mark.asyncio
+async def test_jsonb_field_can_be_selected_in_definition(client):
+    """JSONB 子键（如 `flow_rates_json.flow_m3_s`）必须能被选中 ——
+    注册表里它带 `is_jsonb_key=True`，正是为了在定义里可引用。"""
+    d = await _make(client, "author-1", definition_json={
+        "DataSources": [{"source": "PUMP_RESULTS"}],
+        "SelectedFields": [
+            {"source": "PUMP_RESULTS", "field": "flow_rates_json.flow_m3_s",
+             "alias": "流量", "order": 0, "visible": True},
+        ],
+    })
+    assert d["def_id"]

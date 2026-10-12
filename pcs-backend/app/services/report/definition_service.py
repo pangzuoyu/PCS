@@ -106,6 +106,23 @@ def validate_definition_json(payload: dict[str, Any]) -> None:
             )
 
 
+def align_with_columns(definition_json: dict[str, Any], *, max_rows: int,
+                       output_format: str) -> dict[str, Any]:
+    """把定义体里与 ORM 列重复的两个键，对齐到列的值。
+
+    `MaxRows` / `OutputFormat` 在 SPEC §3.2.2(2) 里属于定义体，但**权威副本
+    是 ORM 列**（可索引、执行时直接读、不用解 JSON）。两个副本各自可写时
+    必然漂移 —— 第一版就这样：列存了 250、定义体还是默认 10000，
+    **两个值都合法、两个都不报错**，等到执行时按哪个取全看实现心情。
+
+    所以写入时以列为准覆盖定义体，返回新对象（不改入参）。
+    """
+    out = dict(definition_json)
+    out["MaxRows"] = max_rows
+    out["OutputFormat"] = output_format
+    return out
+
+
 def _to_dict(row: ReportDefinition) -> dict[str, Any]:
     return {
         "def_id": row.def_id,
@@ -158,6 +175,8 @@ class DefinitionService:
             )
         validate_definition_json(definition_json)
         await self._reject_duplicate(project_id, name, exclude=None)
+        definition_json = align_with_columns(
+            definition_json, max_rows=max_rows, output_format=output_format)
 
         row = ReportDefinition(
             project_id=project_id, name=name, category=category,
@@ -204,6 +223,8 @@ class DefinitionService:
             )
         validate_definition_json(definition_json)
         await self._reject_duplicate(project_id, name, exclude=def_id)
+        definition_json = align_with_columns(
+            definition_json, max_rows=max_rows, output_format=output_format)
 
         was_published = row.status == "PUBLISHED"
         row.project_id = project_id
@@ -287,4 +308,5 @@ class DefinitionService:
 
 
 __all__ = ["DefinitionService", "DEFINITION_STATUSES", "SUPPORTED_SHARED_WITH",
-           "bump_patch", "validate_definition_json", "visible_clause"]
+           "bump_patch", "validate_definition_json", "align_with_columns",
+           "visible_clause"]
