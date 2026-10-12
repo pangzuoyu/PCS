@@ -743,6 +743,20 @@ class HeatResult(TaggedRecordMixin, Base):
     tube_layout: Mapped[str | None] = mapped_column(String(10), comment="30/45/60/90")
     tube_material: Mapped[str | None] = mapped_column(String(100))
     tube_passes: Mapped[int | None] = mapped_column(Integer)
+    # §3.1.4b 管排数（用户 2026-12-12 裁决：**空冷器专属**）
+    # ⚠️ 与 `tube_passes`（管程数）是两件事：HTRI 的
+    # `Tubepasses/Tuberows | -- | 2 / | 4` 把两者并排写，解析时容易只取
+    # 第一个，于是「管程数」悄悄变成「管排数」。
+    # ⚠️ **HTRI 导入路径不填**（`htri_parser` 只提 16 个字段），
+    # 手工录入（HeatCalcInput）能填。导入的行此列为 NULL。
+    tube_rows: Mapped[int | None] = mapped_column(
+        Integer, comment="管排数 ACHE 专用")
+    # §3.1.4c 壁温（用户 2026-12-12 裁决：**进规格书**）
+    # HTRI 的 `Skin temperature, Min/Max` 是一标签两值（空气侧/管程侧
+    # 各一对）；本批只取**管程侧**，故两列。
+    # ⚠️ 同上，HTRI 导入路径不填。
+    skin_temp_min: Mapped[float | None] = mapped_column(Float, comment="°C 管程侧")
+    skin_temp_max: Mapped[float | None] = mapped_column(Float, comment="°C 管程侧")
     # §3.1.5 壳程几何 10
     shell_id: Mapped[float | None] = mapped_column(Float, comment="mm")
     shell_design_pressure: Mapped[float | None] = mapped_column(Float, comment="kPaG")
@@ -768,6 +782,8 @@ class HeatResult(TaggedRecordMixin, Base):
         comment=(
             "§3.1.3 壳程工艺物性"
             "（fluid_name/mass_flow/temp_in/out/density/viscosity/cp/k/"
+            "vapor_wt_frac_in/out/liquid_wt_frac_in/out〔两相含量，"
+            "用户 2026-12-12 裁决要显示；**HTRI 导入显式置 None**〕/"
             "pressure/pd/velocity/film_coef/fouling_res/...）"
         ),
     )

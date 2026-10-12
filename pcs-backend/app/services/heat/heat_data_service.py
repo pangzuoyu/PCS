@@ -73,6 +73,10 @@ class HeatCalcInput:
     tube_layout: str | None = None  # 30/45/60/90
     tube_material: str | None = None
     tube_passes: int | None = None
+    # === §3.1.4b/c 用户 2026-12-12 裁决要进规格书的 3 组 ===
+    tube_rows: int | None = None        # 管排数（空冷器专属）
+    skin_temp_min: float | None = None  # 管壁温度 min（°C，管程侧）
+    skin_temp_max: float | None = None  # 管壁温度 max（°C，管程侧）
     # === §3.1.5 壳程几何 10 ===
     shell_id: float | None = None  # mm
     shell_design_pressure: float | None = None  # kPaG
@@ -172,6 +176,10 @@ async def save_heat_calc_result(
         tube_layout=inp.tube_layout,
         tube_material=inp.tube_material,
         tube_passes=inp.tube_passes,
+        # 用户 2026-12-12 裁决要进规格书的 3 组
+        tube_rows=inp.tube_rows,
+        skin_temp_min=inp.skin_temp_min,
+        skin_temp_max=inp.skin_temp_max,
         # §3.1.5
         shell_id=inp.shell_id,
         shell_design_pressure=inp.shell_design_pressure,
@@ -252,26 +260,57 @@ def map_htri_to_heat_input(
     )
 
 
+#: `shell_params` / `tube_params` 的**完整键集**（§3.1.3 物性 + 两相含量）。
+#:
+#: 两个写入方（HTRI 导入 / 手工录入）都必须产出这一套键 —— bug-160 就是
+#: 两侧各写各的、键名还不一样，报表按其中一种拼法登记时另一半恒为 NULL。
+#: 词汇表收敛到这一个常量，加键时两边自动跟上。
+#:
+#: `None` 是**合法值**（HTRI 解析器提不到两相含量），所以键必须存在：
+#: 下游按 `if "vapor_wt_frac_in" in params` 判断时，缺键与 None 会走不同分支。
+SIDE_PARAM_KEYS: tuple[str, ...] = (
+    "fluid_name", "temp_in", "temp_out", "mass_flow", "cp",
+    "density", "viscosity", "k", "pressure", "pd", "velocity",
+    "film_coef", "fouling_res",
+    # 两相含量 wt%（用户 2026-12-12 裁决「两相含量要显示」）
+    "vapor_wt_frac_in", "vapor_wt_frac_out",
+    "liquid_wt_frac_in", "liquid_wt_frac_out",
+)
+
+
+def _side_dict(values: dict[str, Any]) -> dict[str, Any]:
+    """按 `SIDE_PARAM_KEYS` 组装 —— 缺的键显式置 None，不省略。"""
+    out = {k: None for k in SIDE_PARAM_KEYS}
+    out.update({k: v for k, v in values.items() if k in SIDE_PARAM_KEYS})
+    unknown = set(values) - set(SIDE_PARAM_KEYS)
+    assert not unknown, f"侧物性出现未登记的键：{sorted(unknown)}（请加进 SIDE_PARAM_KEYS）"
+    return out
+
+
 def _htri_hot_side_dict(htri: HtriParsedData) -> dict[str, Any]:
-    """HTRI 解析 → 热侧流体摘要 dict（fluid_name=hot + 进出口温/流量/比热容）。"""
-    return {
+    """HTRI 解析 → 热侧流体摘要 dict。
+
+    ⚠️ 两相含量**显式置 None**：`htri_parser` 提不到它们。省略键会让
+    「这个源有没有两相数据」变成「键在不在」，而手工录入的行会有值。
+    """
+    return _side_dict({
         "fluid_name": "hot",
         "temp_in": htri.hot_inlet_t_k,
         "temp_out": htri.hot_outlet_t_k,
         "mass_flow": htri.hot_mass_flow_kgs,
         "cp": htri.hot_cp_j_kgk,
-    }
+    })
 
 
 def _htri_cold_side_dict(htri: HtriParsedData) -> dict[str, Any]:
-    """HTRI 解析 → 冷侧流体摘要 dict（fluid_name=cold + 进出口温/流量/比热容）。"""
-    return {
+    """HTRI 解析 → 冷侧流体摘要 dict（fluid_name=cold）。键集见 `SIDE_PARAM_KEYS`。"""
+    return _side_dict({
         "fluid_name": "cold",
         "temp_in": htri.cold_inlet_t_k,
         "temp_out": htri.cold_outlet_t_k,
         "mass_flow": htri.cold_mass_flow_kgs,
         "cp": htri.cold_cp_j_kgk,
-    }
+    })
 
 
 def _htri_ache_dict(htri: HtriParsedData) -> dict[str, Any] | None:
@@ -292,15 +331,12 @@ def _htri_ache_dict(htri: HtriParsedData) -> dict[str, Any] | None:
         return None
     # 键名取自 AcheParams，不是就地手写 —— 两边要改一起改。
     fields = {f.name for f in dataclasses.fields(AcheParams)}
-    out: dict[str, Any] = {
+    out: dict[str, Any] = {k: None for k in fields}
+    out.update({
         "fan_count": htri.fan_count,
         "air_inlet_temp_k": htri.air_inlet_t_k,
         "bundle_area_m2": htri.bundle_area_m2,
-        # HTRI 解析里没有的项，显式置 None 而不是省略：
-        # 省略会让 `in` 判断（哪些键存在）在两个来源间不一致。
-        "fan_power_kw": None, "altitude_m": None, "fin_type": None,
-        "tube_nozzle_count": None, "air_side_resistance_dist": None,
-    }
+    })
     assert set(out) == fields, (
         f"AcheParams 字段集与本函数产出的键不一致："
         f"缺 {sorted(fields - set(out))}，多 {sorted(set(out) - fields)}")
@@ -326,6 +362,18 @@ class AcheParams:
     fin_type: str  # L-footed / G-embedded / Extruded / Smooth
     tube_nozzle_count: int
     air_side_resistance_dist: dict[str, float]
+    # === 翅片/风机几何（TODO-056 第一批）===
+    # 来源：`sample/A-101.xls`（HTRI Xace）`2 - Final Results` 里
+    # `Fin height` / `Fin thickness at base` / `Fin root` / `Over fin` /
+    # `Tip clearance` 五个标签。原模型里一个都没有，导致这几个字段
+    # 「选得到、查出空列」。
+    # ⚠️ `htri_parser` **提不到**它们（只解析 16 个字段），
+    # 所以导入的行这几个是 None。补解析器时见 TODO-056。
+    fin_height_mm: float | None = None
+    fin_thickness_mm: float | None = None
+    fin_root_diameter_mm: float | None = None
+    over_fin_diameter_mm: float | None = None
+    tip_clearance_mm: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

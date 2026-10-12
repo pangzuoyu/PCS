@@ -1118,7 +1118,35 @@ antd v6 会移除 `rowKey(value, index)` 的第二个参数。当前写法依赖
 - **优先级**: —（已关闭）
 - **Owner**: —
 
-### TODO-058: HEAT 主表 11 条缺口的分类（目标已放弃，分类仍有效）
+### TODO-058: HEAT 主表 11 条缺口的分类 —— **3 条已裁决落地，其余待定**
+
+#### ✅ 已落地（用户 2026-12-12 裁决「壁温进规格书、两相含量要显示、管排数空冷器专属」）
+
+| 裁决 | 落地 | 迁移 |
+|---|---|---|
+| 壁温进规格书 | `skin_temp_min` / `skin_temp_max`（管程侧，°C） | p8_003 |
+| 两相含量要显示 | `shell_params`/`tube_params` 各 4 个 wt% 键（气/液 × 进出口） | 无（JSONB 词汇表）|
+| 管排数空冷器专属 | `tube_rows`（INTEGER，`exchanger_type=AIR_COOLER`） | p8_003 |
+| 附带（TODO-056 第一批）| `ache_params` 加 5 个翅片/风机几何键 | 无（dataclass）|
+
+覆盖率 64.9% → **74.3%**，缺口 11 → 5。
+
+⚠️ **三列目前只有手工录入（`HeatCalcInput`）能填**：`htri_parser` 只提
+16 个字段，导入的行这几列是 NULL。这是**已文档化的诚实缺口**，不是缺陷
+藏起来 —— 测试钉住了，解析器补上时会被迫同步更新。补解析见 TODO-056。
+
+⚠️ **两个写入方的键集必须逐字相同**（bug-160 的教训）：侧物性的键集
+收敛到 `SIDE_PARAM_KEYS` 常量、`AcheParams` 用 `dataclasses.fields()`
+自检，两侧键集不等时**当场断言失败**。
+
+#### 仍未裁决的 5 条
+
+`Area ratio (fin/bare)`、`Area ratio(out/in)`、`Heat transfer safety factor`、
+`Ratio, Fan/bundle face area`，以及 `tube_rows` 之外的 `Number of rows` 同族。
+前两条是**派生量**（可由已有面积算出，也可只做计算列不存库）；
+后两条原判为 B 类「HTRI 专有诊断输出，客户不需要」—— 需确认。
+
+#### 已关闭部分
 
 用户 2026-12-12 裁决：分母取**模板主表口径**（`--scope main`，默认）。
 实测 `sample/A-101.xls`（取 `2 - Output Summary`，50 标签）+

@@ -136,6 +136,13 @@ def _heat_side_fields(container: str, prefix: str,
         "velocity": ("number", "流速"),
         "film_coef": ("number", "膜传热系数"),
         "fouling_res": ("number", "污垢热阻"),
+        # 两相含量 wt%（用户 2026-12-12 裁决「两相含量要显示」）。
+        # ⚠️ **HTRI 导入显式置 None** —— `htri_parser` 提不到，
+        # 手工录入可填。报表里这几列会是空的，不是不存在。
+        "vapor_wt_frac_in": ("number", "气相含量 进口 wt%"),
+        "vapor_wt_frac_out": ("number", "气相含量 出口 wt%"),
+        "liquid_wt_frac_in": ("number", "液相含量 进口 wt%"),
+        "liquid_wt_frac_out": ("number", "液相含量 出口 wt%"),
     }
     # ⚠️ `basic_keys` 里的键**由调用方以 BASIC 登记**，这里跳过。
     # 不跳的话 dict 字面量里后面的展开会覆盖前面的分级 —— 同一个键
@@ -293,6 +300,36 @@ DATASOURCES: dict[str, DataSource] = {
             "tube_layout": _fl("tube_layout", "string", "管排列"),
             "tube_material": _fl("tube_material", "string", "管材质"),
             "tube_passes": _fl("tube_passes", "number", "管程数"),
+
+            # --- DETAIL 壁温（用户 2026-12-12 裁决：壁温进规格书）---
+            # HTRI 的 `Skin temperature, Min/Max` 一标签两值
+            # （空气侧/管程侧 × min/max）。本批只取**管程侧**。
+            # ⚠️ HTRI 导入路径**不填**这两列（`htri_parser` 只提 16 个字段），
+            # 手工录入能填。导入的行会是 NULL —— 已知的诚实缺口，
+            # 由 test_heat_spec_confirmed_fields 钉住。
+            "skin_temp_min": _fl("skin_temp_min", "number", "管壁温度最小值"),
+            "skin_temp_max": _fl("skin_temp_max", "number", "管壁温度最大值"),
+
+            # --- DETAIL 管排数（用户 2026-12-12 裁决：**空冷器专属**）---
+            # ⚠️ 与 `tube_passes`（管程数）是两件事 —— HTRI 的
+            # `Tubepasses/Tuberows | -- | 2 / | 4` 把两者并排写。
+            "tube_rows": _fx("tube_rows", "number", "管排数", "AIR_COOLER"),
+
+            # --- DETAIL ACHE 翅片/风机几何（TODO-056 第一批）---
+            "ache_params.fin_height_mm": _jfx(
+                "ache_params", "fin_height_mm", "number", "翅片高度", "AIR_COOLER"),
+            "ache_params.fin_thickness_mm": _jfx(
+                "ache_params", "fin_thickness_mm", "number", "翅片厚度（基部）",
+                "AIR_COOLER"),
+            "ache_params.fin_root_diameter_mm": _jfx(
+                "ache_params", "fin_root_diameter_mm", "number", "翅片根径",
+                "AIR_COOLER"),
+            "ache_params.over_fin_diameter_mm": _jfx(
+                "ache_params", "over_fin_diameter_mm", "number", "翅片外径",
+                "AIR_COOLER"),
+            "ache_params.tip_clearance_mm": _jfx(
+                "ache_params", "tip_clearance_mm", "number", "风机叶尖间隙",
+                "AIR_COOLER"),
 
             # --- DETAIL 热阻分布 5（ADR「热阻分布字段」表）---
             "thermal_resistance_shell": _fl("thermal_resistance_shell", "number",

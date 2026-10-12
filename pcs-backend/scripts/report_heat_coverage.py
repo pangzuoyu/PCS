@@ -128,6 +128,22 @@ COLUMN_MAP: dict[str, list[str]] = {
 #: 每条都能在 `heat_results` 上找到落点（列或 JSONB 键），不是凑数。
 #: 补这些是修正遗漏，不是往目标数字上靠 —— 补完后的数字仍然远低于 95%。
 COLUMN_MAP.update({
+    # 用户 2026-12-12 裁决落地的新增字段
+    "Skin temperature, Min/Max": ["skin_temp_min", "skin_temp_max"],
+    "Number of rows": ["tube_rows"],
+    "Vapor (In/Out)": ["shell_params.vapor_wt_frac_in",
+                       "shell_params.vapor_wt_frac_out",
+                       "tube_params.vapor_wt_frac_in",
+                       "tube_params.vapor_wt_frac_out"],
+    "Liquid": ["shell_params.liquid_wt_frac_in",
+               "shell_params.liquid_wt_frac_out",
+               "tube_params.liquid_wt_frac_in",
+               "tube_params.liquid_wt_frac_out"],
+    "Tip clearance": ["ache_params.tip_clearance_mm"],
+    "Fin height": ["ache_params.fin_height_mm"],
+    "Fin thickness at base": ["ache_params.fin_thickness_mm"],
+    "Fin root": ["ache_params.fin_root_diameter_mm"],
+    "Over fin": ["ache_params.over_fin_diameter_mm"],
     # 管束几何（TEMA 的 "Tube No. | 2716 | OD 19.000 mm | ..." 一行多标签）
     "Tubecount Odd/Even": ["tube_count"],
     "Tubecount, Odd rows/Even rows": ["tube_count"],
@@ -170,9 +186,9 @@ COLUMN_MAP.update({
 #: 永远查不出值的字段记功，而用户拿到的是一整片空白。
 #: 处置：补 `AcheParams` 字段 + 写入方，再回来加映射。见 TODO-056。
 KNOWN_ACHE_GEOMETRY_GAPS = (
-    "Air humidity", "Fin height", "Fin thickness at base",
-    "Fin root diameter", "Fins per unit length", "Fin efficiency",
-    "Over fin diameter", "Unfinned length", "Unheated length",
+    # 尚未落地：htri_parser 提不到，且这些键需要新的数据来源
+    "Air humidity", "Fins per unit length", "Fin efficiency",
+    "Unfinned length", "Unheated length",
 )
 
 #: **提取噪声**：被误当成字段标签的列头/小标题 —— 本身不是字段，
