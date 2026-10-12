@@ -18,6 +18,7 @@ import uuid
 from typing import Annotated
 
 from fastapi import APIRouter, Depends
+from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
@@ -27,10 +28,13 @@ from app.schemas.report_builder import (
     ReportBuilderDatasourceList,
     ReportBuilderField,
     ReportBuilderJoin,
+    ReportDefCondition,
+    ReportDefFilterGroup,
     ReportDefinitionList,
     ReportDefinitionOut,
     ReportDefinitionUpsert,
 )
+from app.services.exceptions import PcsError
 from app.services.report.datasource_registry import DATASOURCES, JOINS
 from app.services.report.definition_service import DefinitionService
 
@@ -88,8 +92,6 @@ def _reject_bad_format(fmt: str) -> None:
     执行时才失败 —— 那时他已经填完了所有条件。写进来时就拒。
     """
     if fmt not in _RENDERABLE_FORMATS:
-        from app.services.exceptions import PcsError
-
         raise PcsError(
             f"暂不支持输出格式 {fmt!r}，可用：{sorted(_RENDERABLE_FORMATS)}"
             "（CSV 属 b8，本批未落地）",
@@ -212,3 +214,62 @@ async def obsolete_definition(
     payload = _as_dict(row)
     await db.commit()
     return ReportDefinitionOut(**payload)
+
+
+# --- b7 执行 -----------------------------------------------------------------
+
+
+class ReportExecuteRequest(BaseModel):
+    """执行请求体。
+
+    全部可选：不传就是「按定义原样执行」。`filters` / `max_rows` 是**临时**
+    调整（SPEC §3.2.2(5)），不回写定义，只进执行日志的快照。
+    """
+
+    # 联合类型：临时条件既可以是一整个 AND/OR 组，也可以是单个叶子条件
+    filters: ReportDefFilterGroup | ReportDefCondition | None = None
+    max_rows: int | None = Field(default=None, ge=1, le=100_000)
+    output_format: str | None = None
+
+
+class ReportExecuteAccepted(BaseModel):
+    task_id: str
+    def_id: uuid.UUID
+    def_version: str
+    status: str = "QUEUED"
+
+
+@router.post("/definitions/{def_id}/execute",
+             response_model=ReportExecuteAccepted, status_code=202)
+async def execute_definition_endpoint(
+    def_id: uuid.UUID, actor: ActorDep, db: DbDep,
+    body: ReportExecuteRequest | None = None,
+) -> ReportExecuteAccepted:
+    """执行已发布的定义 —— **返回 202 + task_id，不同步出文件**。
+
+    10k 行 PDF ≈ 10 CPU-秒，同步跑会阻塞整个 event loop（b7 决策）。
+    实际取数与渲染在 ARQ 任务体里做。
+    """
+    body = body or ReportExecuteRequest()
+    if body.output_format:
+        _reject_bad_format(body.output_format)
+
+    svc = DefinitionService(db)
+    row = await svc.get(def_id=def_id, user_id=actor.user_id)
+    if row.status != "PUBLISHED":
+        # 409 而不是 404：调用方已经通过 `get` 确认自己看得见这个定义，
+        # 再用 404 说不存在是撒谎。状态码要说真话。
+        raise PcsError(
+            f"只有已发布的定义可执行，该定义当前是 {row.status}。",
+            code="REPORT_DEFINITION_STATE", status=409,
+        )
+
+    from app.services.report import arq_queue
+    task_id = await arq_queue.enqueue_definition_execution(
+        def_id=str(row.def_id), project_id=str(row.project_id or ""),
+        user_id=str(actor.user_id),
+        filters=body.filters.model_dump() if body.filters else None,
+        max_rows=body.max_rows, output_format=body.output_format,
+    )
+    return ReportExecuteAccepted(task_id=task_id, def_id=row.def_id,
+                                 def_version=row.version)

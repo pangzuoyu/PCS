@@ -329,3 +329,30 @@ def _add_primary_keys() -> None:
 
 
 _add_primary_keys()
+
+def _add_project_columns() -> None:
+    """把每个**有** `project_id` 列的数据源的该列登记为可查询字段。
+
+    为什么必须登记：执行引擎的**项目隔离条件**就靠它（`builder_service
+    ._project_field`）。不登记的话 `apply_filters` 会以「字段不在注册表」
+    把每一次执行都拒掉 —— 项目隔离是安全边界，不能是「表上有就顺带加上」。
+
+    用循环而非逐个手写：13 个源手写必然漏，而漏掉的那个源会**执行不了**
+    （不是执行得不对，是根本跑不起来，用户只看到一个莫名其妙的 400）。
+    """
+    from app.db.base import Base
+
+    for key, ds in DATASOURCES.items():
+        if "project_id" in ds.fields:
+            continue
+        for mapper in Base.registry.mappers:
+            lt = mapper.local_table
+            if lt is not None and lt.name == ds.model and "project_id" in lt.columns:
+                DATASOURCES[key] = replace(
+                    ds, fields={"project_id": FieldSpec(
+                        name="project_id", type="string", label="项目 ID"),
+                        **ds.fields})
+                break
+
+
+_add_project_columns()

@@ -273,17 +273,38 @@ async def generate(*, report_type: str, project_id: uuid.UUID,
                    style: ReportStyle, ctx: dict,
                    db: AsyncSession) -> ReportFile:
     """生成一份报表并登记 `ReportFile`。返回已 upsert 的那一行。"""
+    blocks, record_hashes, assumed_fields = await collect(
+        report_type=report_type, project_id=project_id,
+        record_ids=record_ids, db=db)
+    return await store_rendered(
+        db, blocks=blocks, project_id=project_id,
+        output_format=output_format, style=style, ctx=ctx,
+        title=report_type, assumed_fields=assumed_fields,
+        audit_detail={"report_type": report_type,
+                      "record_hashes": record_hashes},
+    )
+
+
+async def store_rendered(db: AsyncSession, *, blocks: list, project_id,
+                         output_format: str, style: ReportStyle, ctx: dict,
+                         title: str, assumed_fields: list[str] | None = None,
+                         audit_detail: dict | None = None) -> ReportFile:
+    """把**已经取好数**的 Block 渲染成文件并登记 `ReportFile`。
+
+    与 `generate` 分开是因为两者只有「怎么取数」不同 —— 渲染、内容哈希
+    命名、写盘守卫、跨边界去重、审计这几段**必须只有一份**。复制一份到
+    自定义报表的执行路径上，意味着将来改内容哈希算法时改漏一处，
+    而那处不会报错，只会让两份报表的去重行为不一致。
+    """
     if output_format not in SUPPORTED_FORMATS:
         # 在**渲染前**拒：渲染完才发现格式不认识，白烧一次 CPU + 一份临时文件
         raise PcsError(
             f"不支持的输出格式：{output_format!r}。支持 {sorted(SUPPORTED_FORMATS)}。",
             code="REPORT_FORMAT_UNSUPPORTED", status=400,
         )
-
     audit = AuditService(db)
-    blocks, record_hashes, assumed_fields = await collect(
-        report_type=report_type, project_id=project_id,
-        record_ids=record_ids, db=db)
+    assumed_fields = assumed_fields or []
+    report_type = title
 
     try:
         payload = await asyncio.to_thread(
@@ -293,7 +314,7 @@ async def generate(*, report_type: str, project_id: uuid.UUID,
             # 属性查找在调用时才发生。
             sys.modules[__name__]._render_sync,
             blocks=blocks, style=style, output_format=output_format, ctx=ctx,
-            title=report_type,
+            title=title,
         )
     except Exception as e:
         await audit.write(action="REPORT_FAILED", resource_type="report",
@@ -329,7 +350,8 @@ async def generate(*, report_type: str, project_id: uuid.UUID,
     try:
         await audit.write(action="REPORT_GENERATED", resource_type="report",
                           resource_id=row.report_file_id,
-                          detail={"report_type": report_type,
+                          detail={**(audit_detail or {}),
+                                  "report_type": report_type,
                                   "output_format": output_format,
                                   "content_hash": digest,
                                   "assumed_fields": assumed_fields})
