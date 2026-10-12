@@ -103,6 +103,37 @@ class HtriParsedData:
     bundle_area_m2: float | None = None
     fan_count: int | None = None
 
+    # === 用户 2026-12-12 裁决要进规格书的字段 ===
+    # ⚠️ 下列字段在 HTRI 报表里是「一个标签两个值」（min/max、进出口、
+    # 汽/液），所以**成对**。解析时按 `/` 或 `,` 拆 —— HTRI 的多值字段
+    # 两种分隔符都用（`Skin temperature: 39.24/91.03` 与
+    # `Tubepasses/Tuberows: 2/4`）。
+    skin_temp_min_c: float | None = None   # 管壁温度 min（°C）
+    skin_temp_max_c: float | None = None   # 管壁温度 max（°C）
+    tube_rows: int | None = None           # 管排数（ACHE 专属）
+    # ⚠️ HTRI 的 `Vapor (In/Out)` 是**四个**值：
+    #   壳程进口 / 壳程出口 / 管程进口 / 管程出口
+    # 冷侧同样有（冷凝侧液相含量 100%）。故每侧各一对。
+    vapor_wt_frac_in: float | None = None      # 热侧气相含量 进口 wt%
+    vapor_wt_frac_out: float | None = None     # 热侧气相含量 出口 wt%
+    liquid_wt_frac_in: float | None = None     # 热侧液相含量 进口 wt%
+    liquid_wt_frac_out: float | None = None    # 热侧液相含量 出口 wt%
+    cold_vapor_wt_frac_in: float | None = None   # 冷侧气相含量 进口 wt%
+    cold_vapor_wt_frac_out: float | None = None  # 冷侧气相含量 出口 wt%
+    cold_liquid_wt_frac_in: float | None = None  # 冷侧液相含量 进口 wt%
+    cold_liquid_wt_frac_out: float | None = None # 冷侧液相含量 出口 wt%
+    # ACHE 翅片/风机几何（TODO-056 第一批）
+    fin_height_mm: float | None = None
+    fin_thickness_mm: float | None = None
+    fin_root_diameter_mm: float | None = None
+    over_fin_diameter_mm: float | None = None
+    tip_clearance_mm: float | None = None
+    # 主表剩余 4 条缺口（用户 2026-12-12）
+    extended_area_m2: float | None = None
+    bare_area_m2: float | None = None
+    fan_face_area_ratio: float | None = None
+    heat_transfer_safety_factor: float | None = None
+
     # 解析元数据
     raw_text: str = field(default="", repr=False)
 
@@ -164,6 +195,13 @@ def parse_htri(path: Path) -> HtriParsedData:
     except _FieldMissing as e:
         raise HtriParseError(f"HTRI 缺关键字段：{e}") from e
 
+    # 多值字段（用户 2026-12-12 裁决）。**缺失即 None，绝不抛** ——
+    # 一次升级不该让全部历史导入失败（见 test_missing_new_fields_are_none_not_errors）。
+    skin = _multi_numeric(fields.get("Skin Temperature"))
+    # Vapor/Liquid 是**四值**字段（壳进/壳出/管进/管出），故用列表不是定长 2
+    vapor = _multi_value(fields.get("Vapor"))
+    liquid = _multi_value(fields.get("Liquid"))
+
     return HtriParsedData(
         version=version,
         case_name=str(fields.get("Case Name") or "").strip(),
@@ -185,7 +223,31 @@ def parse_htri(path: Path) -> HtriParsedData:
         air_inlet_t_k=_coerce_optional_numeric(fields.get("Air Inlet T")),
         bundle_area_m2=_coerce_optional_numeric(fields.get("Bundle Area")),
         fan_count=_coerce_optional_int(fields.get("Fan Count")),
-        raw_text=text,
+        skin_temp_min_c=skin[0],
+        skin_temp_max_c=skin[1],
+        # vapor/liquid 取前两个（其余用 _nth 越界给 None）
+        tube_rows=_nth(_multi_value(fields.get("Tubepasses/Tuberows")), 1),
+        vapor_wt_frac_in=_nth(vapor, 0),
+        vapor_wt_frac_out=_nth(vapor, 1),
+        liquid_wt_frac_in=_nth(liquid, 0),
+        liquid_wt_frac_out=_nth(liquid, 1),
+        cold_vapor_wt_frac_in=_nth(vapor, 2),
+        cold_vapor_wt_frac_out=_nth(vapor, 3),
+        cold_liquid_wt_frac_in=_nth(liquid, 2),
+        cold_liquid_wt_frac_out=_nth(liquid, 3),
+        fin_height_mm=_coerce_optional_numeric(fields.get("Fin Height")),
+        fin_thickness_mm=_coerce_optional_numeric(fields.get("Fin Thickness")),
+        fin_root_diameter_mm=_coerce_optional_numeric(
+            fields.get("Fin Root Diameter")),
+        over_fin_diameter_mm=_coerce_optional_numeric(
+            fields.get("Over Fin Diameter")),
+        tip_clearance_mm=_coerce_optional_numeric(fields.get("Tip Clearance")),
+        extended_area_m2=_coerce_optional_numeric(fields.get("Extended Area")),
+        bare_area_m2=_coerce_optional_numeric(fields.get("Bare Area")),
+        fan_face_area_ratio=_coerce_optional_numeric(
+            fields.get("Fan/Bundle Face Area Ratio")),
+        heat_transfer_safety_factor=_coerce_optional_numeric(
+            fields.get("Heat Transfer Safety Factor")),
     )
 
 
@@ -238,6 +300,45 @@ def _coerce_numeric(value: str | None) -> float:
         raise _FieldMissing("numeric value")
     raw, _ = _split_unit(value)
     return float(raw)
+
+
+def _multi_value(value: str | None) -> list[float | None]:
+    """拆「一个标签多个值」→ 每个值的数值列表。
+
+    HTRI 同一份报表里两种分隔符都用：`Skin Temperature: 39.24/91.03`
+    与 `Tubepasses/Tuberows: 2/4` 都用斜杠；而 `dmc.out` 的输入卡里是
+    `DUTY 1,1/2,12`（逗号 + 斜杠混排）。所以两者都认。
+
+    解析不出数值的位置一律给 None，**不抛** —— 缺后半段是常态
+    （老版本报表只有单值字段）。
+    """
+    if not value:
+        return []
+    parts = [p for p in re.split(r"[/,]", value) if p.strip()]
+    out: list[float | None] = []
+    for p in parts:
+        raw, _unit = _split_unit(p.strip())
+        try:
+            out.append(float(raw))
+        except ValueError:
+            out.append(None)
+    return out
+
+
+def _nth(values: list[float | None], index: int) -> float | None:
+    """取第 `index` 个值，越界给 None。
+
+    ⚠️ 别直接 `values[index]`：字段缺失时 `_multi_value` 返回空列表，
+    那会让「这一份报表没有这个字段」变成 `IndexError` ——
+    于是一次 parser 升级让**所有**不含该字段的历史导入全部失败。
+    """
+    return values[index] if index < len(values) else None
+
+
+def _multi_numeric(value: str | None) -> tuple[float | None, float | None]:
+    """`_multi_value` 的定长 2 版（min/max、进出口）。不足则补 None。"""
+    vals = _multi_value(value)
+    return (vals[0] if vals else None, vals[1] if len(vals) > 1 else None)
 
 
 def _coerce_optional_numeric(value: str | None) -> float | None:

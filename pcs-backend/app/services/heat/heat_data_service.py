@@ -77,6 +77,11 @@ class HeatCalcInput:
     tube_rows: int | None = None        # 管排数（空冷器专属）
     skin_temp_min: float | None = None  # 管壁温度 min（°C，管程侧）
     skin_temp_max: float | None = None  # 管壁温度 max（°C，管程侧）
+    # 主表剩余 4 条缺口（用户 2026-12-12）
+    extended_area_m2: float | None = None      # 扩展面积（m2，ACHE）
+    bare_area_m2: float | None = None          # 裸管面积（m2，ACHE）
+    fan_face_area_ratio: float | None = None   # 风机/束区迎风面积比（ACHE）
+    heat_transfer_safety_factor: float | None = None  # 传热安全系数
     # === §3.1.5 壳程几何 10 ===
     shell_id: float | None = None  # mm
     shell_design_pressure: float | None = None  # kPaG
@@ -180,6 +185,11 @@ async def save_heat_calc_result(
         tube_rows=inp.tube_rows,
         skin_temp_min=inp.skin_temp_min,
         skin_temp_max=inp.skin_temp_max,
+        # 主表剩余 4 条缺口
+        extended_area_m2=inp.extended_area_m2,
+        bare_area_m2=inp.bare_area_m2,
+        fan_face_area_ratio=inp.fan_face_area_ratio,
+        heat_transfer_safety_factor=inp.heat_transfer_safety_factor,
         # §3.1.5
         shell_id=inp.shell_id,
         shell_design_pressure=inp.shell_design_pressure,
@@ -239,6 +249,15 @@ def map_htri_to_heat_input(
         shell_id=(htri.shell_dia_m * 1000.0) if htri.shell_dia_m is not None else None,
         tube_length=htri.tube_length_m,
         tube_count=htri.tube_count,
+        # 用户 2026-12-12 裁决要进规格书的字段（htri_parser 已能解析）
+        tube_rows=htri.tube_rows,
+        skin_temp_min=htri.skin_temp_min_c,
+        skin_temp_max=htri.skin_temp_max_c,
+        # 主表剩余 4 条缺口
+        extended_area_m2=htri.extended_area_m2,
+        bare_area_m2=htri.bare_area_m2,
+        fan_face_area_ratio=htri.fan_face_area_ratio,
+        heat_transfer_safety_factor=htri.heat_transfer_safety_factor,
         # baffle_spacing 拆行避免 E501
         baffle_spacing=(
             htri.baffle_spacing_m * 1000.0 if htri.baffle_spacing_m is not None else None
@@ -247,9 +266,9 @@ def map_htri_to_heat_input(
         u_clean=htri.overall_u_w_m2k,
         heat_exchange_area=htri.area_required_m2,
         # 物性 JSONB（§3.1.3）
-        shell_params=_htri_hot_side_dict(htri),
+        shell_params=_htri_hot_side_dict(htri),   # 含热侧两相含量（htri_parser 已能解析）
         tube_params=_htri_cold_side_dict(htri),
-        ache_params=_htri_ache_dict(htri),
+        ache_params=_ache_with_geometry(htri),
         # 5 旧 JSONB（最小填充；P5+ 完整版由 service 层补算）
         design_conditions_json={
             "src_version": htri.version,
@@ -299,6 +318,11 @@ def _htri_hot_side_dict(htri: HtriParsedData) -> dict[str, Any]:
         "temp_out": htri.hot_outlet_t_k,
         "mass_flow": htri.hot_mass_flow_kgs,
         "cp": htri.hot_cp_j_kgk,
+        # 两相含量（用户 2026-12-12 裁决「两相含量要显示」）
+        "vapor_wt_frac_in": htri.vapor_wt_frac_in,
+        "vapor_wt_frac_out": htri.vapor_wt_frac_out,
+        "liquid_wt_frac_in": htri.liquid_wt_frac_in,
+        "liquid_wt_frac_out": htri.liquid_wt_frac_out,
     })
 
 
@@ -310,7 +334,34 @@ def _htri_cold_side_dict(htri: HtriParsedData) -> dict[str, Any]:
         "temp_out": htri.cold_outlet_t_k,
         "mass_flow": htri.cold_mass_flow_kgs,
         "cp": htri.cold_cp_j_kgk,
+        # 冷侧两相含量：冷凝侧液相含量通常是 100%，但字段同样要有 ——
+        # 下游按 `in` 判断时缺键与 None 会走不同分支。
+        "vapor_wt_frac_in": htri.cold_vapor_wt_frac_in,
+        "vapor_wt_frac_out": htri.cold_vapor_wt_frac_out,
+        "liquid_wt_frac_in": htri.cold_liquid_wt_frac_in,
+        "liquid_wt_frac_out": htri.cold_liquid_wt_frac_out,
     })
+
+
+def _ache_with_geometry(htri: HtriParsedData) -> dict[str, Any] | None:
+    """`_htri_ache_dict` + `htri_parser` 新解析到的翅片/风机几何。
+
+    ⚠️ 合并而不是就地改 `_htri_ache_dict` 的返回值：那个函数被测试
+    直接断言键集（bug-160 的回归闸），动它会让那条测试的意义漂移。
+    """
+    base = _htri_ache_dict(htri)
+    geom = {
+        "fin_height_mm": htri.fin_height_mm,
+        "fin_thickness_mm": htri.fin_thickness_mm,
+        "fin_root_diameter_mm": htri.fin_root_diameter_mm,
+        "over_fin_diameter_mm": htri.over_fin_diameter_mm,
+        "tip_clearance_mm": htri.tip_clearance_mm,
+    }
+    if base is None:
+        # 非 ACHE 数据：几何键全 None 也照样落 —— 让下游能区分
+        # 「不是空冷器」与「是空冷器但几何没解析到」
+        return {k: None for k in geom} if any(v is not None for v in geom.values()) else None
+    return {**base, **geom}
 
 
 def _htri_ache_dict(htri: HtriParsedData) -> dict[str, Any] | None:

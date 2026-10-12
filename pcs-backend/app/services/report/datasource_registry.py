@@ -331,6 +331,19 @@ DATASOURCES: dict[str, DataSource] = {
                 "ache_params", "tip_clearance_mm", "number", "风机叶尖间隙",
                 "AIR_COOLER"),
 
+            # --- DETAIL 主表剩余 4 条缺口（用户 2026-12-12「补齐」）---
+            # 面积比**存 HTRI 原值**而不是自己重算：公式有细微差异时，
+            # 规格书数字会与设计软件对不上，而交付物必须与设计软件一致。
+            "extended_area_m2": _fx("extended_area_m2", "number",
+                                    "扩展面积", "AIR_COOLER"),
+            "bare_area_m2": _fx("bare_area_m2", "number",
+                                "裸管面积", "AIR_COOLER"),
+            "fan_face_area_ratio": _fx("fan_face_area_ratio", "number",
+                                       "风机/束区迎风面积比", "AIR_COOLER"),
+            # 传热安全系数是通换热器概念 → 不限类别
+            "heat_transfer_safety_factor": _fl(
+                "heat_transfer_safety_factor", "number", "传热安全系数"),
+
             # --- DETAIL 热阻分布 5（ADR「热阻分布字段」表）---
             "thermal_resistance_shell": _fl("thermal_resistance_shell", "number",
                                              "壳程热阻%"),

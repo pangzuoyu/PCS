@@ -757,6 +757,14 @@ class HeatResult(TaggedRecordMixin, Base):
     # ⚠️ 同上，HTRI 导入路径不填。
     skin_temp_min: Mapped[float | None] = mapped_column(Float, comment="°C 管程侧")
     skin_temp_max: Mapped[float | None] = mapped_column(Float, comment="°C 管程侧")
+    # === §3.1.4d 主表剩余 4 条缺口（用户 2026-12-12「剩余 5 条补齐」）===
+    # 空冷器专属几何：面积比**存 HTRI 原值**而不是自己重算 ——
+    # 公式有细微差异时规格书数字会与设计软件对不上，而交付物必须一致。
+    extended_area_m2: Mapped[float | None] = mapped_column(Float, comment="m2 ACHE")
+    bare_area_m2: Mapped[float | None] = mapped_column(Float, comment="m2 ACHE")
+    fan_face_area_ratio: Mapped[float | None] = mapped_column(Float, comment="ACHE")
+    # 安全系数是通换热器概念（壳程/管程都有裕度）→ 不限类别
+    heat_transfer_safety_factor: Mapped[float | None] = mapped_column(Float)
     # §3.1.5 壳程几何 10
     shell_id: Mapped[float | None] = mapped_column(Float, comment="mm")
     shell_design_pressure: Mapped[float | None] = mapped_column(Float, comment="kPaG")

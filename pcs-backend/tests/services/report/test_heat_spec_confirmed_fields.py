@@ -103,8 +103,13 @@ def test_two_phase_keys_are_registered_for_both_sides():
             assert fields[name].level == "DETAIL"
 
 
-@pytest.mark.parametrize("side_dict", [_htri_hot_side_dict, _htri_cold_side_dict])
-def test_htri_side_writers_emit_the_two_phase_keys_explicitly(side_dict):
+@pytest.mark.parametrize(
+    ("side_dict", "expect_in", "expect_out"),
+    [(_htri_hot_side_dict, 85.42, 2.70),      # 热侧读 vapor_*
+     (_htri_cold_side_dict, 1.0, 0.0)],      # 冷侧读 cold_vapor_*
+)
+def test_htri_side_writers_emit_the_two_phase_keys_explicitly(
+        side_dict, expect_in, expect_out):
     """⚠️ 两个写入方必须产出**同一套键**（bug-160 的教训）。
 
     HTRI 解析器提不到两相含量，所以这里填 `None` —— 但**必须显式填**，
@@ -121,24 +126,40 @@ def test_htri_side_writers_emit_the_two_phase_keys_explicitly(side_dict):
         cold_mass_flow_kgs = 17.0
         cold_cp_j_kgk = 2000.0
 
-    got = side_dict(_FakeHtri())
+    class _FakeHtri2:
+        hot_inlet_t_k = hot_outlet_t_k = 320.0
+        hot_mass_flow_kgs, hot_cp_j_kgk = 17.8, 2100.0
+        cold_inlet_t_k = cold_outlet_t_k = 300.0
+        cold_mass_flow_kgs, cold_cp_j_kgk = 17.0, 2000.0
+        # 两相含量：parser 已能解析（用户 2026-12-12 裁决要求显示）
+        vapor_wt_frac_in, vapor_wt_frac_out = 85.42, 2.70
+        liquid_wt_frac_in, liquid_wt_frac_out = 14.58, 97.30
+        # HTRI 的 Vapor/Liquid 是**四值**：壳进/壳出/管进/管出
+        cold_vapor_wt_frac_in, cold_vapor_wt_frac_out = 1.0, 0.0
+        cold_liquid_wt_frac_in, cold_liquid_wt_frac_out = 99.0, 100.0
+
+    got = side_dict(_FakeHtri2())
     missing = TWO_PHASE_KEYS - set(got)
     assert not missing, f"缺少两相键（须显式置 None）：{sorted(missing)}"
+    # 两个写入方读**不同的 parser 属性**（hot_* vs cold_*）但产出**同一套键** ——
+    # 这正是 bug-160 要防的：键名一致，值来自各自那一侧。
+    assert got["vapor_wt_frac_in"] == pytest.approx(expect_in), "parser 的值没透传"
+    assert got["vapor_wt_frac_out"] == pytest.approx(expect_out)
 
 
-def test_two_phase_keys_are_documented_as_not_populated_by_htri_import():
-    """诚实文档化：HTRI 导入**不填**这些键。
+def test_two_phase_keys_are_now_parsed_by_the_htri_import():
+    """两相含量已由 parser 解析（用户 2026-12-12 裁决「要显示」）。
 
-    不是缺陷藏起来 —— 报表里这几列会是空的，而**没有任何一层会报错**。
-    测试把这件事钉在源码里，将来补上解析时会被迫更新。
+    这条测试原来是断言**相反**的事（parser 提不到）。用户裁决落地后
+    它被自己的前提作废 —— 「前提失效」正是这类文档化测试该有的归宿：
+    它在前提变掉的那一刻变红，逼着人来确认，而不是悄悄失效。
     """
     import inspect
 
     from app.services.heat import htri_parser
 
-    src = inspect.getsource(htri_parser)
-    assert "vapor_wt_frac" not in src, \
-        "解析器已支持两相含量 —— 请同步更新本测试与 registry 的注释"
+    assert "vapor_wt_frac_in" in inspect.getsource(htri_parser), \
+        "parser 又不解析两相含量了 —— registry 的注释与本测试都要跟着改"
 
 
 # --- 写入方一致性：ache_params 的翅片几何 ---------------------------------------
@@ -178,3 +199,72 @@ def test_htri_ache_writer_key_set_matches_ache_params():
         bundle_area_m2 = 120.0
 
     assert set(_htri_ache_dict(_FakeHtri())) == set(_minimal_ache_params().to_dict())
+
+
+# --- 剩余 4 条主表缺口（用户 2026-12-12「剩余 5 条缺口补齐」）------------------
+#
+# | HTRI 标签 | 落地列 | 类别 |
+# |---|---|---|
+# | `Area ratio (fin/bare)` / `Area ratio(out/in)` | `extended_area_m2` / `bare_area_m2` | ACHE |
+# | `Heat transfer safety factor` | `heat_transfer_safety_factor` | 通用 |
+# | `Ratio, Fan/bundle face area` | `fan_face_area_ratio` | ACHE |
+#
+# ⚠️ **面积比存成真实列而不是自己算**：这两个比值的**来源是 HTRI**。
+# 我们若自己用「扩展面积/裸面积」重算，公式与 HTRI 有细微差异时报表会
+# 与 HTRI 对不上 —— 而规格书上的数字必须与设计软件一致。
+# 导入保真优先于「少存一个派生列」。
+
+
+def _ache_geom_cols() -> set[str]:
+    return {c for c in _cols()
+            if c in {"extended_area_m2", "bare_area_m2", "fan_face_area_ratio",
+                     "heat_transfer_safety_factor"}}
+
+
+def test_remaining_gap_columns_exist():
+    assert {"extended_area_m2", "bare_area_m2", "fan_face_area_ratio"} <= _cols(), \
+        f"ACHE 几何列缺失；现有：{sorted(_ache_geom_cols())}"
+    assert "heat_transfer_safety_factor" in _cols()
+
+
+def test_remaining_gap_fields_registered_with_right_scope():
+    from app.services.report.datasource_registry import DATASOURCES
+
+    fields = DATASOURCES["HEAT_RESULTS"].fields
+    # 空冷器专属（风机/翅片几何）
+    for name in ("extended_area_m2", "bare_area_m2", "fan_face_area_ratio"):
+        assert fields[name].exchanger_type == "AIR_COOLER", \
+            f"{name} 应当是空冷器专属（管壳式没有风机与翅片）"
+    # 安全系数是通换热器概念（壳程/管程都有裕度）→ 不挂类别
+    assert fields["heat_transfer_safety_factor"].exchanger_type is None
+    assert fields["heat_transfer_safety_factor"].level == "DETAIL"
+
+
+def test_manual_entry_can_fill_them():
+    from app.services.heat.heat_data_service import HeatCalcInput
+
+    inp = HeatCalcInput(
+        extended_area_m2=580.567, bare_area_m2=24.908,
+        fan_face_area_ratio=0.24, heat_transfer_safety_factor=1.0,
+    )
+    assert inp.extended_area_m2 == 580.567
+    assert inp.fan_face_area_ratio == 0.24
+
+
+@pytest.mark.asyncio
+async def test_parser_reads_them(tmp_path):
+    from app.services.heat.htri_parser import parse_htri
+
+    p = tmp_path / "h.txt"
+    p.write_text("HTRI Xist v6.0 Output Report\n"
+                 "Case Name: T\nHeat Duty: 450.0 kW\nOverall U: 45.0 W/m2K\n"
+                 "Area Required: 12.0 m2\n"
+                 "Extended Area: 580.567 m2\n"
+                 "Bare Area: 24.908 m2\n"
+                 "Heat Transfer Safety Factor: 1.0\n"
+                 "Fan/Bundle Face Area Ratio: 0.24\n", encoding="utf-8")
+    d = parse_htri(p)
+    assert d.extended_area_m2 == pytest.approx(580.567)
+    assert d.bare_area_m2 == pytest.approx(24.908)
+    assert d.heat_transfer_safety_factor == pytest.approx(1.0)
+    assert d.fan_face_area_ratio == pytest.approx(0.24)

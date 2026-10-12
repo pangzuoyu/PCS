@@ -140,6 +140,11 @@ COLUMN_MAP.update({
                "tube_params.liquid_wt_frac_in",
                "tube_params.liquid_wt_frac_out"],
     "Tip clearance": ["ache_params.tip_clearance_mm"],
+    # 主表剩余 4 条缺口（用户 2026-12-12「补齐」）
+    "Area ratio (fin/bare)": ["extended_area_m2", "bare_area_m2"],
+    "Area ratio(out/in)": ["extended_area_m2", "bare_area_m2"],
+    "Ratio, Fan/bundle face area": ["fan_face_area_ratio"],
+    "Heat transfer safety factor": ["heat_transfer_safety_factor"],
     "Fin height": ["ache_params.fin_height_mm"],
     "Fin thickness at base": ["ache_params.fin_thickness_mm"],
     "Fin root": ["ache_params.fin_root_diameter_mm"],
@@ -216,12 +221,14 @@ EXTRACTION_NOISE = frozenset({
 #:   - 跌超过 `REGRESSION_TOLERANCE` 才报 —— 抓的是「有人改坏了」
 #:
 #: 基线 = `sample/A-101.xls` + `sample/131-E-102-EOR.xls` 在
-#: `--scope main` 下的实测值。**每个口径一个基线** —— 模板口径 64.9%、
+#: `--scope main` 下的实测值（2026-12-13：用户要求补齐剩余缺口之后）。
+#: **先测后填** —— 把基线写成「当前值」再回头测，等于用结果定义起点，
+#: 那一刻工具就成了「记录我刚做的事」的镜子。**每个口径一个基线** —— 模板口径 64.9%、
 #: 注册口径 53.0%，两者量纲不同，把一个的基线套到另一个上会**误报回归**
 #: （第一版就是这么写的：注册口径 53% < 模板下限 62.9% → 报「已回归」，
 #: 而实际一个数都没变）。换参考文件后基线要重测。
-BASELINE_TEMPLATE_COVERAGE = 0.649   # 48/74 条标签
-BASELINE_REGISTRY_COVERAGE = 0.530   # 44/83 个字段
+BASELINE_TEMPLATE_COVERAGE = 0.797   # 59/74 条标签（2026-12-13 实测）
+BASELINE_REGISTRY_COVERAGE = 0.602   # 62/103 个字段（2026-12-13 实测）
 REGRESSION_TOLERANCE = 0.02          # 2 个百分点
 
 #: 判定下限 = 基线 − 容差。**不是**「目标」：只防跌，不追涨。

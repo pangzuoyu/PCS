@@ -227,8 +227,11 @@ def test_no_95_percent_target_remains():
 
     assert not hasattr(tool, "TARGET_COVERAGE"), \
         "95% 目标仍在工具里 —— 裁决已放弃它"
-    assert BASELINE_TEMPLATE_COVERAGE == pytest.approx(0.649, abs=0.005)
-    assert BASELINE_REGISTRY_COVERAGE == pytest.approx(0.530, abs=0.005)
+    # 基线是**实测值**（2026-12-13：用户要求补齐剩余缺口之后重测）。
+    # ⚠️ 不要在补字段之后忘了改这里 —— 那会让基线仍停在旧值，
+    # 补字段反被报成「无变化」，或者反过来把基线写成当前值而失去意义。
+    assert BASELINE_TEMPLATE_COVERAGE == pytest.approx(0.797, abs=0.005)
+    assert BASELINE_REGISTRY_COVERAGE == pytest.approx(0.602, abs=0.005)
     assert 0 < REGRESSION_TOLERANCE < 0.1
 
 
@@ -318,7 +321,13 @@ def test_real_coverage_is_measured_and_honest():
     r = compute_coverage(list(dict.fromkeys(labels)), level="DETAIL")
     assert 0 < r["template_coverage"] < 1.0, \
         "覆盖率是 0 或 1 —— 前者是提取全败，后者是映射全中，都得查"
-    assert r["unmapped_labels"], "真实模板必然有我们服务不了的标签，清单不该是空的"
+    # 2026-12-13：用户要求补齐剩余缺口后，真实模板已**零缺口**。
+    # 这条断言原来是「清单不该是空的」—— 那是在缺口存在时的期望。
+    # 现在反过来了：清单为空是**期望状态**，而「工具会不会报缺口」
+    # 由合成 fixture 的 `test_unmapped_columns_lower_coverage_and_are_listed`
+    # 保证 —— 真实模板全被覆盖时，拿它来证明「工具能报缺口」是做不到的。
+    assert r["unmapped_labels"] == [], \
+        f"真实模板应零缺口，实得 {r['unmapped_labels']}"
     assert r["regressed"] is False, \
         f"真实文件回归了：{r['template_coverage']:.1%} / {r['registry_coverage']:.1%}"
 
