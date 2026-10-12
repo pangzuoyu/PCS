@@ -72,3 +72,14 @@ def test_status_column_is_free_string_not_db_enum():
     col = Base.metadata.tables["report_files"].columns["status"]
     assert not isinstance(col.type, SAEnum), \
         "改成 native enum 会让加状态值必须写迁移，且 alembic check 看不见"
+
+
+def test_report_file_carries_doc_no_and_rev():
+    """verify 端点要回 `{match, doc_no, rev, generated_at}`（用户 2026-10-08 裁决）。
+
+    现场扫码的人就是靠 doc_no / rev 确认**自己扫的是哪一份**。没有这两列，
+    响应就只剩一个 match 和一个时间戳 —— 对拿纸的人来说没有意义。
+    """
+    cols = Base.metadata.tables["report_files"].columns
+    assert "doc_no" in cols, "verify 响应要回 doc_no，ReportFile 必须存它"
+    assert "rev" in cols, "verify 响应要回 rev，ReportFile 必须存它"

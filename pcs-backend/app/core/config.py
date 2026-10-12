@@ -149,6 +149,30 @@ def get_settings() -> Settings:
                 "未配置时 PyJWT 会静默跳过 iss/aud 校验，"
                 "等于生产环境没有 issuer/audience 防护。"
             )
+
+    # REPORT_VERIFY_SECRET：二维码 verify 端点的 HMAC 签名密钥（Task 8）。
+    #
+    # 同样「生产必须配」—— 没配时 verify 端点会**全部拒绝**（fail-closed，
+    # 见 api/v1/report.py::_check_sig）。但那意味着 P8 上线当天二维码全部
+    # 扫不开，而症状是「403」，运维很难联想到是缺配置。故在启动期就炸。
+    #
+    # ⚠️ **刻意放在 JWT iss/aud 检查之后**：JWT 校验是更根本的生产防护，
+    # 且 tests/test_jwt_production.py 按错误消息断言 —— 顺序反了会让那些
+    # 测试拿到本条的消息，掩盖它们本来要验的 JWT 缺失场景。
+    if not s.report_verify_secret:
+        if s.is_production:
+            raise RuntimeError(
+                "REPORT_VERIFY_SECRET 必须在 production 设置"
+                "（二维码 verify 端点的 HMAC 签名密钥）。"
+                "未配置时该端点 fail-closed 全部 403。"
+            )
+        s.report_verify_secret = _DEFAULT_DEV_SECRET_PREFIX + secrets.token_urlsafe(48)
+        warnings.warn(
+            "REPORT_VERIFY_SECRET 未配置；自动生成开发用随机密钥（每次启动变化）。"
+            "production 前必须显式设置，否则二维码 verify 端点全部 403。",
+            RuntimeWarning,
+            stacklevel=2,
+        )
     return s
 
 

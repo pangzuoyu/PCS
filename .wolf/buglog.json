@@ -2883,6 +2883,50 @@
       "related_bugs": [
         "bug-154"
       ]
+    },
+    {
+      "id": "bug-157",
+      "timestamp": "2026-10-12T00:00:00+08:00",
+      "error_message": "download 端点写了审计但没 commit —— get_db 只在异常时 rollback，不负责提交",
+      "file": "pcs-backend/app/api/v1/report.py",
+      "root_cause": "`app/db/session.py:98` 的 `get_db` 只做 `except: rollback; raise`，**从不 commit** —— 每个端点必须自己 `await db.commit()`。\n\ndownload 端点调了 `AuditService.write(...)` 然后直接返回 FileResponse，没 commit。后果：响应 **200**，文件正常下载，而审计行随 session close 一起消失 —— 生产上表现为「谁在什么时候导出过这份计算书」**永远查不到**，且没有任何报错。\n\n**为什么危险**：这正是审计最不能失效的地方（合规要求导出可追溯），而症状是「功能正常」。\n\n同类风险存在于**所有**新写的端点 —— 这个约定是隐式的（靠读别处的端点才能发现），没有统一的 fail-safe。",
+      "fix": "download 端点补 `await db.commit()`，并在代码里写明「get_db 只在异常时 rollback，漏 commit 则审计随未提交事务消失而响应仍是 200」。\n\n验证：变异「去掉 db.commit()」→ `test_download_writes_audit` 立刻红。\n\n⚠️ 遗留：其他 P8 端点（generate / verify / hash / styles）目前只读，不需要 commit；但**将来任何写操作都要记得 commit**，这是隐式约定。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "api",
+        "audit",
+        "transaction",
+        "commit",
+        "silent-data-loss"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-12T00:00:00+08:00",
+      "related_bugs": [
+        "bug-155"
+      ]
+    },
+    {
+      "id": "bug-158",
+      "timestamp": "2026-10-12T00:00:00+08:00",
+      "error_message": "报表 schema 与既有同名 → FastAPI 静默改写**别人的** schema 名，11 条测试红",
+      "file": "pcs-backend/app/schemas/report.py",
+      "root_cause": "新建 `app/schemas/report.py` 时用了 `GenerateResponse` / `VerifyResponse` /\n`HashResponse` / `StyleSummary` / `StyleListResponse` / `ReportStatusResponse` 等\n**泛化名字**，与既有 schema 同名（共 6 处）。\n\nFastAPI 撞名时的行为是**把「后来者」改名**（用模块路径前缀\n`app__schemas__report__VerifyResponse`），**保留先注册的那个**。\n于是**被改写的是别人**：pipe_codes 的 `GenerateResponse` 变成\n`app__api__v1__pipe_codes__GenerateResponse`，\n`tests/test_schema.py` 按名字断言 → 直接红 2 条；全量 11 条红。\n\n**为什么只有 2 条报出来**：只有 pipe_codes 的 schema **被测试按名字断言**。\n另外 5 处同名的被静默改名成 `app__schemas__report__*`，**功能完全正常**，\n没有任何测试会发现 —— 直到将来某个前端/测试引用了它们。\n\n**与 bug-156 同源**：都是命名空间的碰撞。区别是这次撞在\n**OpenAPI components 这个全局字典**上，而 FastAPI 的解决方式\n（静默改名）会**惩罚先到的人**，后来者毫发无伤。\n\n**同族失效模式第 13 次**：新增命名的东西**撞上既有的**，\n而框架的冲突解决策略让「我」看起来是无辜的一方。",
+      "fix": "报表 7 个 schema 全部加 `Report` 前缀：`ReportGenerateRequest` /\n`ReportGenerateResponse` / `ReportVerifyResponse` / `ReportHashResponse` /\n`ReportFileStatusResponse` / `ReportStyleSummary` / `ReportStyleListResponse`。\n\n验证：碰撞数 6 → 0；pipe_codes 的 `GenerateResponse` **复原为原名**；\n全量测试恢复绿。\n\n**元规则**：新增响应/请求模型时用**领域前缀**，不要用泛化名 —— \n`GenerateResponse` 这种名字在多模块仓库里必然重复，\n而 FastAPI 的冲突解决会**改写先注册者**，让后来者看起来清白。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "openapi",
+        "schema",
+        "name-collision",
+        "fastapi",
+        "regression",
+        "silent-rename"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-12T00:00:00+08:00",
+      "related_bugs": [
+        "bug-156",
+        "bug-157"
+      ]
     }
   ]
 }

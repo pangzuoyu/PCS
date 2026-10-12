@@ -105,6 +105,11 @@ class ReportFile(TimestampMixin, Base):
     file_path: Mapped[str] = mapped_column(String(500), nullable=False)
     file_format: Mapped[str] = mapped_column(String(10), nullable=False)
     size_bytes: Mapped[int] = mapped_column(Integer, nullable=False)
+    # 文件编号与版次。**给 verify 端点用**（Task 8）—— 现场扫码的人靠这两个
+    # 确认「自己扫的是哪一份」。没有它们，verify 响应只剩 match + 时间戳，
+    # 对拿着纸质件的人毫无意义。
+    doc_no: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    rev: Mapped[str | None] = mapped_column(String(20), nullable=True)
     # 生成时冻结的样式版本，保证可复现
     style_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
     data_version: Mapped[str | None] = mapped_column(String(64), nullable=True)

@@ -39,6 +39,9 @@ def prod_settings(monkeypatch):
     monkeypatch.setenv("JWT_AUDIENCE", "pcs-api")
     # production SECRET_KEY 必须 ≥32 字节 (防启动失败)
     monkeypatch.setenv("SECRET_KEY", "test-secret-key-must-be-at-least-32-bytes-long")
+    # production 还必须配 REPORT_VERIFY_SECRET（Task 8 新增的生产要求：
+    # 二维码 verify 端点的 HMAC 密钥，缺了会 fail-closed 全部 403）
+    monkeypatch.setenv("REPORT_VERIFY_SECRET", "test-report-verify-secret-at-least-32-bytes")
     yield
     get_settings.cache_clear()
 
