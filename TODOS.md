@@ -968,3 +968,81 @@ antd v6 会移除 `rowKey(value, index)` 的第二个参数。当前写法依赖
   `expect_killed(mutate, tests, expected_test_id)` 辅助函数。
 - **优先级**: TODO 级。不做的话「变异测试已覆盖」的声明没有强制力。
 - **Owner**: 待认领
+
+### TODO-049: 生产 session 未设 `expire_on_flush=False`，测试 fixture 却设了
+
+- **症状**: 报表定义改一次返回 500（`MissingGreenlet`）。UPDATE flush 后
+  `updated_at`（`onupdate=func.now()`，服务端生成）被 SQLAlchemy 标记 expired，
+  commit 后再读它就是一次隐式 SELECT 落在同步上下文里。
+- **为什么没被测试挡住**: `tests/conftest.py:150` 的 `db_session` fixture 设了
+  `session.sync_session.expire_on_flush = False`，而 `client` fixture
+  （conftest.py:242）与**生产** `get_async_session_factory()`
+  （app/db/session.py:78-83）都**只设** `expire_on_commit=False`。
+  即：走 `db_session` 的单测绿，走 HTTP 的集成测试红，生产也红。
+- **本仓已修的地方**: `DefinitionService.update/publish/obsolete` 里的
+  `await db.refresh(row)`。**同类写法在别处仍会踩**（任何 flush 后读
+  服务端生成列的 service）。
+- **修法（候选，二选一）**:
+  1. 在 `app/db/session.py:78` 的 factory 加 `expire_on_flush=False`
+     —— 一处根治，但会改变全局行为，需跑全量回归；
+  2. 立规矩：service 返回 ORM 行前必须 `await db.refresh(row)`，
+     用架构测试或 lint 规则强制。
+- **优先级**: TODO 级。第 1 项做完前，每新增一个「UPDATE 后返回行」的
+  service 都要自己记得 refresh。
+- **Owner**: 待认领
+
+### TODO-050: 管道后报告命令退出码 = 报的是最后一个命令的
+
+- **症状**: 跑 `uv run python scripts/check_openapi_payload_coverage.py 2>&1 | tail -10`
+  后跟 `echo "EXIT=$?"`，读到 `EXIT=0` 就向用户报告「闸门通过」。
+  实际该脚本 exit 1（裸字段 71 → 73），是我新增的 `definition_json: dict` 造成的。
+  是 `tail` 的退出码，不是脚本的。
+- **影响**: 一个正在变红的守门被报告成绿的。同 Do-Not-Repeat「绿灯测的不是
+  出问题那层」的新变种 —— 这次错在**观测退出码的那一层**。
+- **修法（候选）**: 约定「要报退出码」的命令不接管道；要接管道就把退出码
+  取管道前一环（`set -o pipefail` 或 `PIPESTATUS[0]`）。
+- **优先级**: TODO 级。纯纪律，无代码改动。
+- **Owner**: 待认领
+
+### TODO-051: P8b 前端 b10–b12 需重新评估迁移口径
+
+- **症状**: 计划写 b10–b12（定义编辑器 / 执行面板 / 管理列表），
+  并注明前置「TODO-039/041 的 7 个 mock type 文件改 import 自 ./api」，
+  但同一段又自陈该前提**不成立**（28/31 interface 在 OpenAPI 无对应 schema）。
+- **本轮开工前的核对结果**: 本次新增的 12 个 schema **全部有类型**
+  （`definition_json` 从裸 `dict` 改为逐字段声明，含自引用联合的
+  `FilterConditions`），OpenAPI 载荷覆盖率 77/150 → 87/158，裸字段数
+  仍 71 = 基线未涨。**新写的这部分不构成阻塞**。
+- **仍然要决的**: 旧 7 个 mock type 文件怎么处理 —— 是按现有 OpenAPI
+  重写（字段名与**单位**都不同，`p_mpa` ↔ `P_Pa`），还是保留手写
+  interface 并加契约测试钉住。
+- **优先级**: TODO 级。b10–b12 开工前必须先定这个。
+- **Owner**: 待认领
+
+### TODO-052: 「非发布件」水印是文字横幅，不是视觉水印
+
+- **症状**: b8 验收写「水印可见」。当前实现是在内容最前面插一个
+  `HeadingBlock("非发布件 · 时间戳")`，PDF/XLSX/DOCX 上都是**正文首行**，
+  不是斜排半透明的大字。演示版时同理（`DEMO · 非发布件 · 时间戳`）。
+- **本轮的验收口径**: 「可见」= **可被抽出/读到的文字**（PDF 用 pypdf
+  抽文本断言，CSV 断言首行），不是「看起来像水印」。
+- **为什么这样定**: 斜排半透明水印在 reportlab / xlsxwriter / python-docx
+  三侧要各写一遍，且在 xlsx 里**根本画不出**（单元格没有图层概念）。
+  统一成文字横幅是三种格式唯一一致可验的形式。
+- **若产品要求视觉水印**: 需要裁决「xlsx 怎么办」—— 目前没有能画半透明
+  斜排水印的 xlsxwriter API。
+- **优先级**: TODO 级。产品确认项。
+- **Owner**: 产品 / 待认领
+
+### TODO-053: CSV 首行 `#` 注释会让 Excel 双击报「格式不符」
+
+- **症状**: 即席导出 CSV 的首行是 `# 非发布件 · 时间戳`。
+  `csv` / pandas（`comment='#'`）能读，**Excel 双击打开会报格式不符**并
+  弹窗询问。
+- **取舍理由（已裁决）**: CSV 的定位是「给脚本再处理」，不是「给人双击看」；
+  要双击看请导 xlsx。水印是**语义声明**（这份没签署），不能为了 Excel
+  的便利把它去掉。
+- **若推翻这个取舍**: 替代方案是给水印单独加一列而不是单独一行 ——
+  但那样脚本读的时候会把水印当数据列。
+- **优先级**: TODO 级。产品确认项。
+- **Owner**: 产品 / 待认领
