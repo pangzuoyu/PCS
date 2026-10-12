@@ -545,3 +545,50 @@ def report_font_path() -> Path:
                 f"{r.stdout}\n{r.stderr}"
             )
     return out
+
+
+# === P8 报表字体注册表（**全局**状态，必须全仓唯一的清理点）===============
+#
+# `pdfmetrics` 是 reportlab 的**全局**注册表，任何渲染过 PDF 的测试都会往里
+# 写字体。清理逻辑若放在单个测试模块里，就只能看见「自己注册过的」——
+# 别的模块（Golden 测试）先注册了同名字体，本模块的快照里它已经存在，
+# 于是不会被清掉。后果：`_missing_glyphs` 读到的是上一个测试留下的字体，
+# 字形覆盖判定跟着错（实测会红两条字体守卫测试）。
+#
+# 故放 conftest 且 autouse：每个测试都从干净的注册表开始。
+@pytest.fixture(autouse=True)
+def _reset_report_font_registry(request):
+    """快照-还原 reportlab 的字体注册表 + 本仓的已注册缓存。
+
+    两个状态都要清：只清 `_REGISTERED` 会让 `pdfmetrics` 里的旧字体
+    命中缓存、`getFont` **根本不重新校验字形**；只清 `pdfmetrics` 则
+    本仓缓存会让 `_register_font` 直接短路返回。
+    """
+    if "report" not in str(request.node.fspath).replace("\\", "/"):
+        yield                      # 只对报表相关测试生效，避免拖慢全仓
+        return
+    from app.services.report import renderer_pdf
+
+    before = set(renderer_pdf.pdfmetrics._fonts)
+    renderer_pdf._REGISTERED.clear()
+    yield
+    for name in set(renderer_pdf.pdfmetrics._fonts) - before:
+        renderer_pdf._unregister_font(name)
+    renderer_pdf._REGISTERED.clear()
+
+
+def pytest_addoption(parser):
+    """Golden 基线重生成开关。
+
+    ⚠️ **必须定义在 rootdir 的 conftest**，不能放在 `test_golden.py` 里 ——
+    pytest 在收集开始前解析命令行选项，那时测试模块尚未 import，
+    模块内的 `pytest_addoption` 不会被注册（报
+    `ValueError: no option named '--update-golden'`）。
+
+    用法：改了报表字段后
+        pytest tests/services/report/test_golden.py --update-golden
+    并**逐条看 diff** —— 不看就重新生成等于把回归固化成基线。
+    """
+    parser.addoption(
+        "--update-golden", action="store_true", default=False,
+        help="重新生成 Golden 基线。改过报表字段后用；务必逐条看 diff")

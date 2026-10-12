@@ -304,7 +304,15 @@ def render_pdf(*, title: str, blocks: list[Block], style: ReportStyle,
                                               style.assumption_mark), body)
                      for ci, h in enumerate(b.headers)]] + [
                 [Paragraph(_cell_text(c, mc), body) for c in row] for row in b.rows]
-            t = Table(data, repeatRows=1, hAlign="LEFT")
+            # ⚠️ **必须给列宽**。不给的话 ReportLab 自动布局会把 6 列的中文
+            # 表头按**字符**折行，实测出现 `type_cod\ne\ntag_numb\ner` 这种
+            # 把一个单词劈成两半的输出 —— 结构合法、文本可抽出、测试全绿，
+            # 但没人能在纸上读（bug-155 同族的又一种「测的不是出问题那层」）。
+            # 等宽是刻意的：ReportStyle 没有列宽配置，而不等宽会让最宽的列
+            # 吃掉全部宽度、更窄的列折得更碎。
+            col_width = doc.width / len(b.headers)
+            t = Table(data, colWidths=[col_width] * len(b.headers),
+                      repeatRows=1, hAlign="LEFT")
             cmds = [
                 ("GRID", (0, 0), (-1, -1), style.table.border_width,
                  colors.HexColor(style.table.border_color)),

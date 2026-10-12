@@ -31,28 +31,6 @@ from app.services.report.style import ReportStyle
 HDR = ["位号", "口径", "描述"]
 
 
-@pytest.fixture(autouse=True)
-def _reset_font_registry():
-    """**快照-还原**，不是按名字逐个清。
-
-    两个状态都要清，缺一不可（用户 2026-10-09 审查指出）：
-      1. `renderer_pdf._REGISTERED` —— 本模块「已注册」缓存
-      2. `pdfmetrics._fonts`        —— reportlab 全局的字体注册表
-
-    只清 ① 的话，第二次 `registerFont` 时 ② 里还留着上一次的字体，
-    `getFont(name)` 命中缓存**根本不会重新校验字形** —— 测试绿，生产路径没走。
-
-    也不按名字列表清：任何**新加**的字体族名都会漏出去。快照整个注册表，
-    天然覆盖将来新增的名字。
-    """
-    before = set(renderer_pdf.pdfmetrics._fonts)
-    renderer_pdf._REGISTERED.clear()
-    yield
-    for name in set(renderer_pdf.pdfmetrics._fonts) - before:
-        renderer_pdf._unregister_font(name)
-    renderer_pdf._REGISTERED.clear()
-
-
 def test_probe_covers_every_text_class(report_font_path):
     """`_PROBE` 是**契约的一部分** —— 每个字符都代表一类必然出现的文本。
 

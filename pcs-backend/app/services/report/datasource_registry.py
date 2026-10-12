@@ -28,7 +28,7 @@ JSONB 子键用 `is_jsonb_key=True` 标注，键名写成 `容器列.子键`。
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 
 from app.services.exceptions import PcsError
 
@@ -177,7 +177,17 @@ DATASOURCES: dict[str, DataSource] = {
                                               "number", "年燃料气量"),
             "steam_consumption_t_yr": _f("steam_consumption_t_yr", "number",
                                          "年蒸汽量"),
+            "cooling_water_consumption_t_yr": _f("cooling_water_consumption_t_yr",
+                                                 "number", "年冷却水量"),
             "annual_total_energy": _f("annual_total_energy", "number", "年综合能耗"),
+            # 综合能耗计算书（ENERGY_CALC_BOOK）要的标准煤折算量。
+            # ⚠️ 这两列此前**漏登记**了 —— 是 collector 的字段闸发现的：
+            # 它们在 ORM 上真实存在，只是注册表没声明，于是「综合能耗计算书」
+            # 要的核心指标在字段树上根本选不到。
+            "total_toe": _f("total_toe", "number", "年折标煤（tce）"),
+            "total_standard_coal_kg": _f("total_standard_coal_kg", "number",
+                                         "年标准煤（kg）"),
+            "tolerance_status": _f("tolerance_status", "enum", "偏差状态"),
             "business_date": _f("business_date", "date", "统计日期"),
         }),
 
@@ -266,3 +276,56 @@ def join_key_for(a: str, b: str) -> tuple[str, str]:
     if a == rule.a:
         return rule.a_field, rule.b_field
     return rule.b_field, rule.a_field
+
+def primary_key_field(source: str) -> str:
+    """数据源对应 ORM 表的**主键列名**。
+
+    ⚠️ 不是「第一个声明的字段」—— `record_ids` 装的是主键，
+    拿业务列去比会恒为空集（第一版 `collect()` 就这么错的：
+    表头渲染出来了但一行数据都没有）。
+    """
+    from app.db.base import Base
+
+    ds = DATASOURCES.get(source)
+    if ds is None:
+        raise PcsError(f"未知数据源：{source}",
+                       code="REPORT_DATASOURCE_UNKNOWN", status=400)
+    for mapper in Base.registry.mappers:
+        if mapper.local_table is not None and mapper.local_table.name == ds.model:
+            return list(mapper.primary_key)[0].name
+    raise PcsError(f"数据源 {source} 的表 {ds.model} 未注册到 ORM",
+                   code="REPORT_DATASOURCE_UNKNOWN", status=400)
+
+
+def _add_primary_keys() -> None:
+    """把每个数据源的**主键列**登记为可引用字段。
+
+    为什么必须登记：`query_engine._column` 只接受注册表里的字段（那道闸是
+    bug-155 之后防止「registry 与 ORM 漂移」的），而 `collect()` 的
+    `IN` 过滤器正是按主键过滤 `record_ids`。
+
+    ⚠️ 早先没登记时报的是
+    `字段 EQUIP_LIST.'equipment_id' 不在数据源注册表中` —— 主键是 ORM 上
+    真实存在的列，却因为没登记而不可引用。
+
+    用循环而不是逐个手写：13 个数据源手写必然漏，且加新源时又是一次人为
+    陷阱。循环保证「主键一定在字段表里」这条不变式。
+    """
+    from app.db.base import Base
+
+    for key, ds in DATASOURCES.items():
+        pk_name = None
+        for mapper in Base.registry.mappers:
+            lt = mapper.local_table
+            if lt is not None and lt.name == ds.model:
+                pk_name = list(mapper.primary_key)[0].name
+                break
+        if pk_name is None or pk_name in ds.fields:
+            continue
+        DATASOURCES[key] = replace(
+            ds, fields={pk_name: FieldSpec(name=pk_name, type="string",
+                                            label=f"{ds.label}记录号"),
+                        **ds.fields})
+
+
+_add_primary_keys()

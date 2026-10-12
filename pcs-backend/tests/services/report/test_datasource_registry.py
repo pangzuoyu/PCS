@@ -109,3 +109,41 @@ def test_registry_has_no_query_logic():
     src = inspect.getsource(m)
     for banned in ("select(", "session.execute", "text(", "sqlalchemy"):
         assert banned not in src, f"注册表里出现了查询逻辑：{banned}"
+
+def test_primary_key_field_is_a_real_column():
+    """`primary_key_field` 必须返回真主键 —— 它被 collect 的 IN 过滤器直接用。
+
+    ⚠️ 若误改成「第一个声明的字段」，`record_ids`（UUID）会与业务列
+    （如 `type_code` = "PUMP-101"）比较 —— 不是一个域，结果恒为空集，
+    症状是「表头出来了但一行数据都没有」。
+    """
+    from app.db.base import Base
+    from app.services.report.datasource_registry import primary_key_field
+
+    for source, ds in DATASOURCES.items():
+        pk = primary_key_field(source)
+        assert pk in Base.metadata.tables[ds.model].columns, \
+            f"{source}.{pk} 不在表 {ds.model} 上"
+    assert primary_key_field("EQUIP_LIST") == "equipment_id"
+
+
+def test_primary_key_is_registered_as_a_referenceable_field():
+    """主键必须是**可引用字段** —— `collect()` 的 IN 过滤器直接用它。
+
+    早先没登记时报的是
+    `字段 EQUIP_LIST.'equipment_id' 不在数据源注册表中`：主键是 ORM 上真实
+    存在的列，却因为没登记而不可引用。
+
+    这条也守住了「注册表与 ORM 的一致性闸」—— 主键漏登记会让闸本身失效，
+    而闸失效是静默的。
+    """
+    from app.services.report.datasource_registry import (
+        DATASOURCES,
+        primary_key_field,
+    )
+
+    for source, ds in DATASOURCES.items():
+        pk = primary_key_field(source)
+        assert pk in ds.fields, (
+            f"{source}: 主键 {pk} 未登记为可引用字段 —— "
+            f"IN 过滤器会报 REPORT_FIELD_UNKNOWN")

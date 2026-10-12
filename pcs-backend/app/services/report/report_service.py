@@ -38,6 +38,20 @@ from app.services.audit_service import AuditService
 from app.services.exceptions import PcsError
 from app.services.report import paths
 from app.services.report.blocks import Block, HeadingBlock, TableBlock
+from app.services.report.collector import collector_for
+from app.services.report.datasource_registry import (
+    DATASOURCES,
+    join_key_for,
+    primary_key_field,
+)
+from app.services.report.query_engine import (
+    _column,
+    apply_filters,
+    apply_sort,
+    assemble,
+    build_select,
+    paginate,
+)
 from app.services.report.renderer_docx import render_docx
 from app.services.report.renderer_pdf import render_pdf
 from app.services.report.renderer_xlsx import render_xlsx
@@ -47,6 +61,8 @@ logger = logging.getLogger(__name__)
 
 SUPPORTED_FORMATS = frozenset({"pdf", "xlsx", "docx"})
 _EXT = {"pdf": "pdf", "xlsx": "xlsx", "docx": "docx"}
+_MAX_ROWS = 10000      # SPEC §3.2.2(2) MaxRows 默认值
+_BATCH_SIZE = 10000   # IN 列表分批，避免语句膨胀
 
 
 # --- 取数 -------------------------------------------------------------------
@@ -55,21 +71,131 @@ _EXT = {"pdf": "pdf", "xlsx": "xlsx", "docx": "docx"}
 async def collect(*, report_type: str, project_id: uuid.UUID,
                   record_ids: list[uuid.UUID], db: AsyncSession) -> tuple[
                       list[Block], list[str], list[str]]:
-    """按 report_type 产出 Block 列表、被引用记录的行哈希、假设字段名。
+    """按 report_type 取数，产出 Block 列表、被引用记录的行哈希、假设字段名。
 
-    TODO(T7 前置)：10 类报表的固定查询尚未实现（Task 5b Step 4 的 collector）。
-    当前先产出一个最小可用的骨架，让编排链先跑通；collector 落地后本函数
-    换成按 report_type 分派。**不是**在这里临时返回空表 —— 那样编排链的
-    「空内容」分支永远走不到，等于没有测过。
+    声明来自 `collector`（SPEC §3.2.1(2) 的 10 类），取数执行走 `query_engine`
+    —— 15 个操作符与 JOIN 白名单各只有一份实现（用户 2026-10-09 裁决）。
+
+    多源按裁决走「每源一次 SELECT + Python 组装」，**不生成 SQL JOIN**：
+    先查主源，用主源的关联键做 `WHERE key IN (...)` 批量查从源，
+    再在 Python 里 dict lookup 关联。
     """
-    blocks: list[Block] = [
-        HeadingBlock(text="报表正文", level=1),
-        TableBlock(headers=["报表类型", "记录数"],
-                   rows=[[report_type, len(record_ids)]], assumed_cols=()),
+    spec = collector_for(report_type)
+
+    main_fields = spec.fields[spec.primary]
+    # ⚠️ 顺序：先 build_select 再 where —— `apply_filters` 返回的是
+    # ColumnElement（布尔表达式），不是 Select，先过滤会得到
+    # `'Comparator' object has no attribute 'order_by'`。
+    stmt = build_select(spec.primary, main_fields)
+    stmt = stmt.where(apply_filters(_filter_spec(spec, record_ids)))
+    stmt = apply_sort(stmt, main_fields[:1])   # 稳定排序，否则分页会抖动
+    stmt = paginate(stmt, limit=_MAX_ROWS)
+
+    result = await db.execute(stmt)
+    columns = list(result.keys())
+    main_rows = [dict(zip(columns, row, strict=True)) for row in result.all()]
+
+    rows_by_source: dict[str, list[dict]] = {spec.primary: main_rows}
+    join_keys: list[tuple[str, str, str, str]] = []
+    for extra in spec.extra_sources:
+        a_key, b_key = join_key_for(spec.primary, extra)   # 不在白名单会抛 400
+        join_keys.append((spec.primary, a_key, extra, b_key))
+        rows_by_source[extra] = await _fetch_join_rows(
+            db, source=extra, join_field=b_key,
+            keys=[r.get(a_key) for r in main_rows if r.get(a_key) is not None])
+
+    rows = assemble(rows_by_source, join_keys, spec.primary, spec.fields)
+    return _to_blocks(spec, rows), _record_hashes(main_rows), _assumed_fields(rows)
+
+
+def _to_blocks(spec, rows: list[dict]) -> list[Block]:
+    """取数结果 → Block 列表。**NULL → —、超长截断**都走 `blocks._cell_text`。
+
+    表头用**注册表里的中文 label**，不是 ORM 列名 —— 两点原因：
+      1. 可读性：`equipment_description` / `vendor_model` 这类列名在 A4 上
+         会把单词劈成两半（`vendor_mod\nel`），而「制造商型号」不会。
+      2. 一致性：用户在字段树里看到的就是这些 label，报表表头应当一致；
+         用列名会让用户以为选错了字段。
+    """
+    headers: list[str] = []
+    keys: list[str] = []
+    for src in spec.sources:
+        for f in spec.fields.get(src, []):
+            label = DATASOURCES[src].fields[f].label
+            headers.append(label if src == spec.primary else f"{src}.{label}")
+            keys.append(f"{src}.{f}" if src != spec.primary else f)
+    return [
+        HeadingBlock(text=spec.label, level=1),
+        TableBlock(headers=headers,
+                   rows=[[r.get(k) for k in keys] for r in rows],
+                   assumed_cols=()),
     ]
-    record_hashes: list[str] = []
-    assumed_fields: list[str] = []
-    return blocks, record_hashes, assumed_fields
+
+
+def _filter_spec(spec, record_ids: list[uuid.UUID]) -> dict | None:
+    """record_ids 非空时按主源**主键**过滤。
+
+    ⚠️ 用 `IN` 而不是逐个 `EQ`：N 条记录就是 N 个 OR 条件，
+    10000 条记录会让 SQL 膨胀到不可用（ADR-P8-004 多源裁决的同源理由）。
+
+    ⚠️ **必须按主键过滤，不能拿第一个业务字段比**。`record_ids` 是主源行的
+    主键（UUID），而 `spec.fields[primary][0]` 是业务列（如 `type_code` = "PUMP-101"）——
+    两者**根本不是一个域**，拿 UUID 去比字符串，结果恒为空集。
+    第一版就这么写的，症状是「表头渲染出来了但一行数据都没有」。
+    """
+    if not record_ids:
+        return None
+    return {"operator": "AND", "conditions": [{
+        "source": spec.primary, "field": primary_key_field(spec.primary),
+        # ⚠️ 传 **UUID 对象**而不是字符串：主键列是 `Uuid` 类型，
+        # 传字符串会在驱动层炸 `'str' object has no attribute 'hex'`。
+        # 字符串入参（ARQ 队列传过来的是字符串）在这里归一。
+        "operator": "IN",
+        "value": [r if isinstance(r, uuid.UUID) else uuid.UUID(str(r))
+                  for r in record_ids],
+    }]}
+
+
+async def _fetch_join_rows(db: AsyncSession, *, source: str, join_field: str,
+                           keys: list) -> list[dict]:
+    """从源**一次批量查**（`WHERE key IN (...)`），不是 N 次 —— 用户 2026-10-09 裁决第 1 条。"""
+    if not keys:
+        return []
+    stmt = build_select(source, list(DATASOURCES[source].fields))
+    rows = []
+    # 分批：IN 列表过长会让语句膨胀（参数上限），裁决第 4 条
+    for i in range(0, len(keys), _BATCH_SIZE):
+        chunk = keys[i:i + _BATCH_SIZE]
+        stmt = stmt.where(_join_column(source, join_field).in_(chunk))
+        result = await db.execute(stmt)
+        columns = list(result.keys())
+        rows += [dict(zip(columns, row, strict=True)) for row in result.all()]
+    return rows
+
+
+def _join_column(source: str, join_field: str):
+    ds = DATASOURCES[source]
+    spec = ds.fields.get(join_field)
+    if spec is None:
+        raise PcsError(f"JOIN 字段 {source}.{join_field} 不在注册表中",
+                       code="REPORT_FIELD_UNKNOWN", status=400)
+    return _column(source, join_field)
+
+
+def _record_hashes(rows: list[dict]) -> list[str]:
+    """被引用记录的行哈希 —— 二维码载荷的 `record_hash_digest` 由它算出。"""
+    return [str(r.get("record_hash")) for r in rows if r.get("record_hash")]
+
+
+def _assumed_fields(rows: list[dict]) -> list[str]:
+    """含假设数据的字段名（SPEC §3.2.1(4) 的声明页）。
+
+    本仓的行级数据没有「该值是假设的」标记位，故当前恒为空 ——
+    **宁可不加声明页，也不要加一张永远说「无假设数据」的声明页**。
+    真正的假设来源是 `project_input_checklist.status ∈ {ASSUMED, NOT_STARTED}`，
+    Task 6 的验收要的是那一路；接上时改这里即可。
+    """
+    return []
 
 
 # --- 渲染（同步，跑在线程池里）-----------------------------------------------
