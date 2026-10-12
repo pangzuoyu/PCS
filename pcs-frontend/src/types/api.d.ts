@@ -5018,6 +5018,132 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/report-builder/datasources": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Datasources
+         * @description 13 个可选数据源的字段树 + 5 对 JOIN 白名单。
+         *
+         *     **需要认证**：响应等价于一份内部表结构与列名的清单。
+         */
+        get: operations["list_datasources_api_v1_report_builder_datasources_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report-builder/definitions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Definitions */
+        get: operations["list_definitions_api_v1_report_builder_definitions_get"];
+        put?: never;
+        /**
+         * Create Definition
+         * @description 新建定义。落 DRAFT，仅创建人可见（SPEC §3.2.2(6)）。
+         */
+        post: operations["create_definition_api_v1_report_builder_definitions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report-builder/definitions/{def_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Definition */
+        get: operations["get_definition_api_v1_report_builder_definitions__def_id__get"];
+        /** Update Definition */
+        put: operations["update_definition_api_v1_report_builder_definitions__def_id__put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report-builder/definitions/{def_id}/publish": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Publish Definition
+         * @description 发布定义（DRAFT → PUBLISHED）。
+         *
+         *     角色检查在**查行之前**：审核角色不该靠「哪些定义存在」来试探。
+         */
+        post: operations["publish_definition_api_v1_report_builder_definitions__def_id__publish_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report-builder/definitions/{def_id}/obsolete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Obsolete Definition
+         * @description 作废定义（→ OBSOLETE）。仍可按 ID 追溯，但不再可执行、不进默认列表。
+         */
+        post: operations["obsolete_definition_api_v1_report_builder_definitions__def_id__obsolete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report-builder/definitions/{def_id}/execute": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Execute Definition Endpoint
+         * @description 执行已发布的定义 —— **返回 202 + task_id，不同步出文件**。
+         *
+         *     10k 行 PDF ≈ 10 CPU-秒，同步跑会阻塞整个 event loop（b7 决策）。
+         *     实际取数与渲染在 ARQ 任务体里做。
+         */
+        post: operations["execute_definition_endpoint_api_v1_report_builder_definitions__def_id__execute_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/common/materials/search": {
         parameters: {
             query?: never;
@@ -12565,6 +12691,341 @@ export interface components {
              */
             token_type: string;
         };
+        /** ReportBuilderDatasource */
+        ReportBuilderDatasource: {
+            /** Key */
+            key: string;
+            /** Label */
+            label: string;
+            /** Model */
+            model: string;
+            /** Fields */
+            fields: components["schemas"]["ReportBuilderField"][];
+        };
+        /** ReportBuilderDatasourceList */
+        ReportBuilderDatasourceList: {
+            /** Datasources */
+            datasources: components["schemas"]["ReportBuilderDatasource"][];
+            /** Joins */
+            joins?: components["schemas"]["ReportBuilderJoin"][];
+        };
+        /** ReportBuilderField */
+        ReportBuilderField: {
+            /** Name */
+            name: string;
+            /** Type */
+            type: string;
+            /** Label */
+            label: string;
+            /**
+             * Is Jsonb Key
+             * @default false
+             */
+            is_jsonb_key: boolean;
+            /** Level */
+            level?: string | null;
+            /** Exchanger Type */
+            exchanger_type?: string | null;
+        };
+        /** ReportBuilderJoin */
+        ReportBuilderJoin: {
+            /** A */
+            a: string;
+            /** A Field */
+            a_field: string;
+            /** B */
+            b: string;
+            /** B Field */
+            b_field: string;
+            /** Degrade Warn */
+            degrade_warn?: string | null;
+        };
+        /**
+         * ReportDefCondition
+         * @description `FilterConditions` 的叶子项（形状对齐 `query_engine._build_condition`）。
+         *
+         *     `value` 是联合类型而不是 `Any`：IN / NOT_IN / BETWEEN 收列表，其余收标量。
+         *     写成 `list` 或 `Any` 都是裸载荷（闸门会记一笔）。
+         */
+        ReportDefCondition: {
+            /** Operator */
+            operator: string;
+            /** Source */
+            source: string;
+            /** Field */
+            field: string;
+            /** Value */
+            value?: string | number | boolean | (string | number | boolean | null)[] | null;
+        };
+        /**
+         * ReportDefFilterGroup
+         * @description 条件组（AND/OR），可嵌套 —— SPEC §3.2.2(4)「支持 AND/OR 分组，条件可嵌套」。
+         *
+         *     `conditions` 是**自引用联合**：`apply_filters` 靠「有没有 conditions 键」
+         *     区分组与叶子，所以两种形状都得能出现在同一个列表里。写成 `list[dict]`
+         *     既丢类型又仍被闸门记为裸载荷。
+         */
+        "ReportDefFilterGroup-Input": {
+            /**
+             * Operator
+             * @default AND
+             */
+            operator: string;
+            /** Conditions */
+            conditions?: (components["schemas"]["ReportDefCondition"] | components["schemas"]["ReportDefFilterGroup-Input"])[];
+        };
+        /**
+         * ReportDefFilterGroup
+         * @description 条件组（AND/OR），可嵌套 —— SPEC §3.2.2(4)「支持 AND/OR 分组，条件可嵌套」。
+         *
+         *     `conditions` 是**自引用联合**：`apply_filters` 靠「有没有 conditions 键」
+         *     区分组与叶子，所以两种形状都得能出现在同一个列表里。写成 `list[dict]`
+         *     既丢类型又仍被闸门记为裸载荷。
+         */
+        "ReportDefFilterGroup-Output": {
+            /**
+             * Operator
+             * @default AND
+             */
+            operator: string;
+            /** Conditions */
+            conditions?: (components["schemas"]["ReportDefCondition"] | components["schemas"]["ReportDefFilterGroup-Output"])[];
+        };
+        /**
+         * ReportDefSelectedField
+         * @description `SelectedFields` 的一项（SPEC §3.2.2(2)）。
+         */
+        ReportDefSelectedField: {
+            /** Source */
+            source: string;
+            /** Field */
+            field: string;
+            /**
+             * Alias
+             * @default
+             */
+            alias: string;
+            /**
+             * Order
+             * @default 0
+             */
+            order: number;
+            /**
+             * Visible
+             * @default true
+             */
+            visible: boolean;
+        };
+        /** ReportDefSort */
+        ReportDefSort: {
+            /** Source */
+            source: string;
+            /** Field */
+            field: string;
+            /**
+             * Direction
+             * @default ASC
+             */
+            direction: string;
+        };
+        /**
+         * ReportDefSource
+         * @description `DataSources` 的一项。`join_to` 为空表示不关联。
+         */
+        ReportDefSource: {
+            /** Source */
+            source: string;
+            /** Join To */
+            join_to?: string | null;
+        };
+        /**
+         * ReportDefinitionBody
+         * @description `definition_json` 的结构（SPEC §3.2.2(2)）。
+         *
+         *     ⚠️ **必须逐字段声明**，不能写 `definition_json: dict`：那是裸 object，
+         *     `openapi-typescript` 给前端生成的就是 `any`，P9B「类型来自 ./api」
+         *     的纪律当场断掉（`scripts/check_openapi_payload_coverage.py` 就是守
+         *     这一条；第一次写成 dict 就被它挡下，71 → 73）。
+         *
+         *     结构合法性之外，**字段是否属于它声明的数据源**由
+         *     `definition_service.validate_definition_json` 对注册表核对 —— Pydantic
+         *     表达不了「tag_number 属于 EQUIP_LIST 但不属于 PIPING_RESULTS」这种
+         *     跨源规则。
+         */
+        "ReportDefinitionBody-Input": {
+            /** Datasources */
+            DataSources?: components["schemas"]["ReportDefSource"][];
+            /** Selectedfields */
+            SelectedFields?: components["schemas"]["ReportDefSelectedField"][];
+            /** Filterconditions */
+            FilterConditions?: (components["schemas"]["ReportDefCondition"] | components["schemas"]["ReportDefFilterGroup-Input"])[];
+            /** Sortby */
+            SortBy?: components["schemas"]["ReportDefSort"][];
+            /**
+             * Maxrows
+             * @default 10000
+             */
+            MaxRows: number;
+            /**
+             * Outputformat
+             * @default pdf
+             */
+            OutputFormat: string;
+            /**
+             * Detaillevel
+             * @default BASIC
+             * @enum {string}
+             */
+            detailLevel: "BASIC" | "DETAIL";
+        };
+        /**
+         * ReportDefinitionBody
+         * @description `definition_json` 的结构（SPEC §3.2.2(2)）。
+         *
+         *     ⚠️ **必须逐字段声明**，不能写 `definition_json: dict`：那是裸 object，
+         *     `openapi-typescript` 给前端生成的就是 `any`，P9B「类型来自 ./api」
+         *     的纪律当场断掉（`scripts/check_openapi_payload_coverage.py` 就是守
+         *     这一条；第一次写成 dict 就被它挡下，71 → 73）。
+         *
+         *     结构合法性之外，**字段是否属于它声明的数据源**由
+         *     `definition_service.validate_definition_json` 对注册表核对 —— Pydantic
+         *     表达不了「tag_number 属于 EQUIP_LIST 但不属于 PIPING_RESULTS」这种
+         *     跨源规则。
+         */
+        "ReportDefinitionBody-Output": {
+            /** Datasources */
+            DataSources?: components["schemas"]["ReportDefSource"][];
+            /** Selectedfields */
+            SelectedFields?: components["schemas"]["ReportDefSelectedField"][];
+            /** Filterconditions */
+            FilterConditions?: (components["schemas"]["ReportDefCondition"] | components["schemas"]["ReportDefFilterGroup-Output"])[];
+            /** Sortby */
+            SortBy?: components["schemas"]["ReportDefSort"][];
+            /**
+             * Maxrows
+             * @default 10000
+             */
+            MaxRows: number;
+            /**
+             * Outputformat
+             * @default pdf
+             */
+            OutputFormat: string;
+            /**
+             * Detaillevel
+             * @default BASIC
+             * @enum {string}
+             */
+            detailLevel: "BASIC" | "DETAIL";
+        };
+        /** ReportDefinitionList */
+        ReportDefinitionList: {
+            /** Items */
+            items: components["schemas"]["ReportDefinitionOut"][];
+            /** Total */
+            total: number;
+        };
+        /** ReportDefinitionOut */
+        ReportDefinitionOut: {
+            /**
+             * Def Id
+             * Format: uuid
+             */
+            def_id: string;
+            /** Project Id */
+            project_id: string | null;
+            /** Name */
+            name: string;
+            /** Category */
+            category: string;
+            /** Description */
+            description: string;
+            definition_json: components["schemas"]["ReportDefinitionBody-Output"];
+            /** Output Format */
+            output_format: string;
+            /** Max Rows */
+            max_rows: number;
+            /** Version */
+            version: string;
+            /** Status */
+            status: string;
+            /** Shared With */
+            shared_with: string;
+            /** Created By */
+            created_by: string | null;
+            /** Created At */
+            created_at?: string | null;
+            /** Updated At */
+            updated_at?: string | null;
+        };
+        /**
+         * ReportDefinitionUpsert
+         * @description 创建/更新定义的请求体。
+         *
+         *     `extra="forbid"` 同上：定义体字段写错位置（顶层 vs definition_json）
+         *     应当是 422，不是静默取默认值。
+         */
+        ReportDefinitionUpsert: {
+            /** Project Id */
+            project_id?: string | null;
+            /** Name */
+            name: string;
+            /** Category */
+            category: string;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
+            /**
+             * Output Format
+             * @default pdf
+             */
+            output_format: string;
+            definition_json: components["schemas"]["ReportDefinitionBody-Input"];
+            /**
+             * Shared With
+             * @default CREATOR_ONLY
+             */
+            shared_with: string;
+            /**
+             * Max Rows
+             * @default 10000
+             */
+            max_rows: number;
+        };
+        /** ReportExecuteAccepted */
+        ReportExecuteAccepted: {
+            /** Task Id */
+            task_id: string;
+            /**
+             * Def Id
+             * Format: uuid
+             */
+            def_id: string;
+            /** Def Version */
+            def_version: string;
+            /**
+             * Status
+             * @default QUEUED
+             */
+            status: string;
+        };
+        /**
+         * ReportExecuteRequest
+         * @description 执行请求体。
+         *
+         *     全部可选：不传就是「按定义原样执行」。`filters` / `max_rows` 是**临时**
+         *     调整（SPEC §3.2.2(5)），不回写定义，只进执行日志的快照。
+         */
+        ReportExecuteRequest: {
+            /** Filters */
+            filters?: components["schemas"]["ReportDefFilterGroup-Input"] | components["schemas"]["ReportDefCondition"] | null;
+            /** Max Rows */
+            max_rows?: number | null;
+            /** Output Format */
+            output_format?: string | null;
+        };
         /** ReportFileStatusResponse */
         ReportFileStatusResponse: {
             /**
@@ -12727,6 +13188,8 @@ export interface components {
              * @default 20
              */
             qr_size_mm: number;
+            /** Heat Exchanger Type */
+            heat_exchanger_type?: ("AIR_COOLER" | "SHELL_TUBE") | null;
             /** Font Dir */
             font_dir?: string;
             /**
@@ -25790,6 +26253,276 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReportStyleSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_datasources_api_v1_report_builder_datasources_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportBuilderDatasourceList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_definitions_api_v1_report_builder_definitions_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportDefinitionList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_definition_api_v1_report_builder_definitions_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportDefinitionUpsert"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportDefinitionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_definition_api_v1_report_builder_definitions__def_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                def_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportDefinitionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_definition_api_v1_report_builder_definitions__def_id__put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                def_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportDefinitionUpsert"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportDefinitionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_definition_api_v1_report_builder_definitions__def_id__publish_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                def_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportDefinitionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    obsolete_definition_api_v1_report_builder_definitions__def_id__obsolete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                def_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportDefinitionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    execute_definition_endpoint_api_v1_report_builder_definitions__def_id__execute_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                def_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["ReportExecuteRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportExecuteAccepted"];
                 };
             };
             /** @description Validation Error */

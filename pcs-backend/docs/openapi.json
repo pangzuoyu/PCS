@@ -29390,6 +29390,28 @@
             "type": "boolean",
             "title": "Is Jsonb Key",
             "default": false
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "exchanger_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchanger Type"
           }
         },
         "type": "object",
@@ -29687,8 +29709,18 @@
             "type": "string",
             "title": "Outputformat",
             "default": "pdf"
+          },
+          "detailLevel": {
+            "type": "string",
+            "enum": [
+              "BASIC",
+              "DETAIL"
+            ],
+            "title": "Detaillevel",
+            "default": "BASIC"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "ReportDefinitionBody",
         "description": "`definition_json` 的结构（SPEC §3.2.2(2)）。\n\n⚠️ **必须逐字段声明**，不能写 `definition_json: dict`：那是裸 object，\n`openapi-typescript` 给前端生成的就是 `any`，P9B「类型来自 ./api」\n的纪律当场断掉（`scripts/check_openapi_payload_coverage.py` 就是守\n这一条；第一次写成 dict 就被它挡下，71 → 73）。\n\n结构合法性之外，**字段是否属于它声明的数据源**由\n`definition_service.validate_definition_json` 对注册表核对 —— Pydantic\n表达不了「tag_number 属于 EQUIP_LIST 但不属于 PIPING_RESULTS」这种\n跨源规则。"
@@ -29741,8 +29773,18 @@
             "type": "string",
             "title": "Outputformat",
             "default": "pdf"
+          },
+          "detailLevel": {
+            "type": "string",
+            "enum": [
+              "BASIC",
+              "DETAIL"
+            ],
+            "title": "Detaillevel",
+            "default": "BASIC"
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "title": "ReportDefinitionBody",
         "description": "`definition_json` 的结构（SPEC §3.2.2(2)）。\n\n⚠️ **必须逐字段声明**，不能写 `definition_json: dict`：那是裸 object，\n`openapi-typescript` 给前端生成的就是 `any`，P9B「类型来自 ./api」\n的纪律当场断掉（`scripts/check_openapi_payload_coverage.py` 就是守\n这一条；第一次写成 dict 就被它挡下，71 → 73）。\n\n结构合法性之外，**字段是否属于它声明的数据源**由\n`definition_service.validate_definition_json` 对注册表核对 —— Pydantic\n表达不了「tag_number 属于 EQUIP_LIST 但不属于 PIPING_RESULTS」这种\n跨源规则。"
@@ -29926,6 +29968,7 @@
             "default": 10000
           }
         },
+        "additionalProperties": false,
         "type": "object",
         "required": [
           "name",
@@ -29933,7 +29976,7 @@
           "definition_json"
         ],
         "title": "ReportDefinitionUpsert",
-        "description": "创建/更新定义的请求体。"
+        "description": "创建/更新定义的请求体。\n\n`extra=\"forbid\"` 同上：定义体字段写错位置（顶层 vs definition_json）\n应当是 422，不是静默取默认值。"
       },
       "ReportExecuteAccepted": {
         "properties": {
@@ -30264,6 +30307,21 @@
             "type": "integer",
             "title": "Qr Size Mm",
             "default": 20
+          },
+          "heat_exchanger_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "AIR_COOLER",
+                  "SHELL_TUBE"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heat Exchanger Type"
           },
           "font_dir": {
             "type": "string",

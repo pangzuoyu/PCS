@@ -1386,3 +1386,127 @@
 | 00:55 | Edited pcs-frontend/src/pages/routeWrappers.tsx | inline fix | ~23 |
 | 01:09 | Created docs/superpowers/plans/2026-10-08-p8-report-and-report-builder.md | — | ~13155 |
 | 08:57 | Created docs/adr/ADR-P8-004：报表任务队列与文件生命周期.md | — | ~539 |
+| 09:17 | Created .superpowers/sdd/2026-10-08-p8-report-and-report-builder/progress.md | — | ~438 |
+| 09:18 | Created pcs-backend/tests/services/report/test_style.py | — | ~884 |
+| 09:19 | Edited pcs-backend/app/core/config.py | expanded (+12 lines) | ~192 |
+| 09:19 | Created pcs-backend/app/services/report/style.py | — | ~920 |
+| 09:20 | Edited pcs-backend/app/services/report/style.py | modified resolve() | ~151 |
+| 09:27 | Created pcs-backend/tests/models/test_report_models.py | — | ~439 |
+| 21:50 | Created pcs-backend/app/models/report.py | — | ~1801 |
+| 21:52 | Created pcs-backend/alembic/versions/p8_001_report_tables.py | — | ~1810 |
+| 21:56 | Edited pcs-backend/alembic/versions/p8_001_report_tables.py | modified upgrade() | ~146 |
+| 21:56 | Edited pcs-backend/alembic/versions/p8_001_report_tables.py | modified downgrade() | ~26 |
+| 21:57 | Edited pcs-backend/alembic/versions/p8_001_report_tables.py | inline fix | ~4 |
+| 04:38 | Edited pcs-backend/tests/test_schema.py | 2→5 lines | ~92 |
+| 07:38 | Created pcs-backend/tests/services/report/test_renderer_pdf.py | — | ~1953 |
+| 07:38 | Created pcs-backend/tests/services/report/test_renderer_pdf.py | — | ~2112 |
+| 07:38 | Created pcs-backend/app/services/report/blocks.py | — | ~389 |
+| 07:38 | Created pcs-backend/app/services/report/renderer_pdf.py | — | ~2980 |
+| 07:39 | Edited pcs-backend/app/services/report/renderer_pdf.py | inline fix | ~15 |
+| 07:39 | Edited pcs-backend/app/services/report/renderer_pdf.py | 6→10 lines | ~90 |
+| 07:39 | Edited pcs-backend/app/services/report/renderer_pdf.py | expanded (+6 lines) | ~218 |
+| 07:39 | Edited pcs-backend/app/services/report/renderer_pdf.py | modified _missing_glyphs() | ~181 |
+| 07:39 | Edited pcs-backend/app/services/report/renderer_pdf.py | modified _register_font() | ~428 |
+| 07:39 | Edited pcs-backend/tests/services/report/test_renderer_pdf.py | modified _reset_font_registry() | ~160 |
+| 07:39 | Edited pcs-backend/tests/services/report/test_renderer_pdf.py | modified test_font_falls_back_when_first_candidate_is_unusable() | ~678 |
+| 07:39 | Edited pcs-backend/tests/services/report/test_renderer_pdf.py | _droid_fallbacks() → _good_fallbacks() | ~55 |
+| 07:40 | Edited pcs-backend/app/services/report/renderer_pdf.py | modified _missing_glyphs() | ~201 |
+| 07:40 | Edited pcs-backend/app/services/report/renderer_pdf.py | 2→1 lines | ~18 |
+| 07:40 | Edited pcs-backend/app/services/report/renderer_pdf.py | unregisterFont() → _unregister_font() | ~55 |
+| 07:40 | Edited pcs-backend/tests/services/report/test_renderer_pdf.py | modified in() | ~59 |
+| 07:40 | Edited pcs-backend/tests/services/report/test_renderer_pdf.py | modified test_droid_fallback_is_never_actually_selected() | ~391 |
+| 07:42 | Edited pcs-backend/tests/services/report/test_renderer_pdf.py | modified test_unknown_placeholder_kept_visible() | ~273 |
+| 07:42 | Edited pcs-backend/app/services/report/renderer_pdf.py | 2→5 lines | ~83 |
+| 07:42 | Edited pcs-backend/app/services/report/renderer_pdf.py | 4→3 lines | ~47 |
+| 07:50 | Edited pcs-backend/app/core/config.py | expanded (+16 lines) | ~248 |
+| 07:51 | Edited pcs-backend/app/services/report/renderer_pdf.py | added 1 import(s) | ~17 |
+| 07:51 | Edited pcs-backend/app/services/report/renderer_pdf.py | added 1 import(s) | ~25 |
+| 07:51 | Created pcs-backend/scripts/build_report_font.py | — | ~995 |
+| 07:55 | Created pcs-backend/tests/mutation.py | — | ~392 |
+| 07:55 | Created pcs-backend/tests/services/report/test_renderer_visual.py | — | ~1174 |
+| 09:45 | Edited pcs-backend/tests/services/report/test_renderer_visual.py | modified test_qr_code_present_on_page() | ~251 |
+| 10:28 | Created pcs-backend/tests/services/report/test_margins.py | — | ~347 |
+| 10:29 | Edited pcs-backend/app/services/report/style.py | modified Margins() | ~103 |
+| 10:29 | Edited pcs-backend/app/services/report/style.py | modified margins_pt() | ~155 |
+| 10:30 | Created pcs-backend/tests/services/report/test_margins.py | — | ~369 |
+| 10:30 | Edited pcs-backend/app/services/report/renderer_pdf.py | 6→5 lines | ~46 |
+| 10:52 | Created pcs-backend/tests/services/report/test_renderers.py | — | ~2382 |
+| 10:57 | Edited pcs-backend/app/services/report/blocks.py | expanded (+8 lines) | ~151 |
+| 10:58 | Edited pcs-backend/app/services/report/blocks.py | modified fill_placeholders() | ~29 |
+| 10:58 | Created pcs-backend/app/services/report/renderer_xlsx.py | — | ~1142 |
+| 10:58 | Created pcs-backend/app/services/report/renderer_docx.py | — | ~1210 |
+| 10:59 | Edited pcs-backend/app/services/report/renderer_xlsx.py | 2→2 lines | ~39 |
+| 11:02 | Session end: 192 writes across 70 files (TODOS.md, p7_s5_001_drop_equipment_lib.py, equipment.py, test_schema.py, 0032-vessel-process-calculation.md) | 54 reads | ~141981 tok |
+| 11:05 | Session end: 192 writes across 70 files (TODOS.md, p7_s5_001_drop_equipment_lib.py, equipment.py, test_schema.py, 0032-vessel-process-calculation.md) | 54 reads | ~141981 tok |
+| 08:46 | Edited pcs-backend/app/services/report/renderer_docx.py | 10→11 lines | ~159 |
+| 08:47 | Edited pcs-backend/app/services/report/renderer_docx.py | modified _write_hf_parts() | ~188 |
+| 08:48 | Edited pcs-backend/app/services/report/renderer_docx.py | modified _write_hf_parts() | ~281 |
+| 08:48 | Edited pcs-backend/app/services/report/renderer_docx.py | 11→9 lines | ~137 |
+| 09:00 | Created pcs-backend/tests/services/report/test_datasource_registry.py | — | ~1167 |
+| 09:09 | Session end: 197 writes across 71 files (TODOS.md, p7_s5_001_drop_equipment_lib.py, equipment.py, test_schema.py, 0032-vessel-process-calculation.md) | 55 reads | ~144513 tok |
+| 09:11 | Created pcs-backend/app/services/report/datasource_registry.py | — | ~2989 |
+| 09:17 | Created pcs-backend/tests/services/report/test_query_engine.py | — | ~1333 |
+| 09:17 | Created pcs-backend/app/services/report/query_engine.py | — | ~2546 |
+| 09:44 | Created pcs-backend/tests/services/report/test_report_service.py | — | ~1906 |
+| 09:44 | Created pcs-backend/app/services/report/qr.py | — | ~393 |
+| 09:45 | Created pcs-backend/app/services/report/paths.py | — | ~414 |
+| 09:45 | Created pcs-backend/app/services/report/report_service.py | — | ~2058 |
+| 10:01 | Created docs/adr/ADR-P8-004：报表任务队列与文件生命周期.md | — | ~1314 |
+| 10:10 | Edited pcs-backend/app/models/report.py | 2→4 lines | ~68 |
+| 10:11 | Edited pcs-backend/app/models/report.py | modified ReportStyleRow() | ~181 |
+| 10:20 | Created pcs-backend/tests/workers/test_report_tasks.py | — | ~3343 |
+| 10:21 | Created pcs-backend/app/workers/report_tasks.py | — | ~2045 |
+| 10:36 | Created pcs-backend/tests/api/v1/test_report.py | — | ~2381 |
+| 10:38 | Created pcs-backend/app/schemas/report.py | — | ~629 |
+| 10:38 | Created pcs-backend/app/api/v1/report.py | — | ~2913 |
+| 10:41 | Edited pcs-backend/app/core/config.py | expanded (+20 lines) | ~236 |
+| 10:45 | Edited pcs-backend/app/models/report.py | 2→7 lines | ~105 |
+| 10:45 | Created pcs-backend/alembic/versions/p8_002_report_file_doc_no_rev.py | — | ~220 |
+| 10:55 | Edited pcs-backend/app/api/v1/report.py | 5→9 lines | ~132 |
+| 11:10 | Edited pcs-backend/app/core/config.py | 41→45 lines | ~464 |
+| 11:20 | Created pcs-backend/tests/services/report/test_collector.py | — | ~1095 |
+| 11:20 | Created pcs-backend/app/services/report/collector.py | — | ~1502 |
+| 11:23 | Edited pcs-backend/app/services/report/datasource_registry.py | expanded (+10 lines) | ~364 |
+| 11:24 | Edited pcs-backend/app/services/report/report_service.py | 3→8 lines | ~142 |
+| 11:25 | Created pcs-backend/tests/services/report/test_golden.py | — | ~1287 |
+| 11:26 | Created pcs-backend/tests/services/report/test_golden.py | — | ~948 |
+| 11:27 | Created pcs-backend/tests/fixtures/report/__init__.py | — | ~7 |
+| 11:27 | Created pcs-backend/tests/fixtures/report/seed.py | — | ~2426 |
+| 17:57 | Created pcs-backend/tests/benchmarks/test_report_perf.py | — | ~842 |
+| 18:04 | Edited pcs-backend/tests/benchmarks/test_report_perf.py | expanded (+13 lines) | ~246 |
+| 18:12 | Created .superpowers/sdd/2026-10-08-p8-report-and-report-builder/_phase1_close.md | — | ~573 |
+| 18:51 | Created pcs-backend/tests/api/v1/test_report_builder.py | — | ~1141 |
+| 18:52 | Created pcs-backend/app/schemas/report_builder.py | — | ~343 |
+| 18:52 | Created pcs-backend/app/api/v1/report_builder.py | — | ~595 |
+| 18:52 | Edited pcs-backend/app/api/v1/__init__.py | added 1 import(s) | ~36 |
+| 18:52 | Edited pcs-backend/app/api/v1/__init__.py | 1→2 lines | ~26 |
+| 18:55 | Edited pcs-backend/tests/api/v1/test_report_builder.py | 2→2 lines | ~34 |
+| 18:55 | Created pcs-backend/app/services/report/definition_service.py | — | ~2538 |
+| 18:55 | Edited pcs-backend/app/schemas/report_builder.py | added 2 import(s) | ~31 |
+| 18:55 | Edited pcs-backend/app/schemas/report_builder.py | modified ReportDefinitionUpsert() | ~34 |
+| 18:55 | Edited pcs-backend/app/api/v1/report_builder.py | expanded (+7 lines) | ~215 |
+| 18:55 | Edited pcs-backend/app/api/v1/report_builder.py | added 1 import(s) | ~25 |
+| 18:57 | Edited pcs-backend/app/api/v1/report_builder.py | modified create_definition() | ~318 |
+| 18:58 | Edited pcs-backend/app/api/v1/report_builder.py | modified _as_dict() | ~56 |
+| 18:58 | Edited pcs-backend/app/services/report/definition_service.py | expanded (+8 lines) | ~174 |
+| 18:59 | Edited pcs-backend/app/services/report/definition_service.py | modified publish() | ~463 |
+| 19:06 | Edited pcs-backend/app/schemas/report_builder.py | modified ReportDefSource() | ~739 |
+| 19:06 | Edited pcs-backend/app/schemas/report_builder.py | modified ReportDefCondition() | ~263 |
+| 19:06 | Edited pcs-backend/app/schemas/report_builder.py | 4→4 lines | ~80 |
+| 19:13 | Edited pcs-backend/app/services/report/definition_service.py | expanded (+7 lines) | ~107 |
+| 19:13 | Edited pcs-backend/app/services/report/definition_service.py | modified align_with_columns() | ~177 |
+| 19:14 | Edited pcs-backend/app/services/report/definition_service.py | modified align_with_columns() | ~185 |
+| 19:15 | Edited pcs-backend/app/schemas/report_builder.py | 2→5 lines | ~70 |
+| 19:15 | Edited pcs-backend/app/schemas/report_builder.py | 5→6 lines | ~84 |
+| 19:18 | Created pcs-backend/app/services/report/builder_service.py | — | ~2072 |
+| 19:18 | Edited pcs-backend/app/services/report/builder_service.py | modified _visible_fields() | ~242 |
+| 19:18 | Edited pcs-backend/app/services/report/builder_service.py | 7→6 lines | ~84 |
+| 19:19 | Created pcs-backend/app/services/report/arq_queue.py | — | ~667 |
+| 19:21 | Edited pcs-backend/app/services/report/builder_service.py | expanded (+8 lines) | ~527 |
+| 19:21 | Edited pcs-backend/app/services/report/builder_service.py | modified execute_definition() | ~362 |
+| 19:21 | Edited pcs-backend/app/services/report/builder_service.py | modified _project_field() | ~147 |
+| 19:22 | Edited pcs-backend/app/services/report/builder_service.py | 5→9 lines | ~120 |
+| 19:24 | Created pcs-backend/app/workers/report_builder_tasks.py | — | ~1349 |
+| 19:37 | Created pcs-backend/app/services/report/watermark.py | — | ~1301 |
+| 19:50 | Edited pcs-backend/app/services/heat/heat_data_service.py | modified _htri_ache_dict() | ~369 |
+| 20:18 | Created pcs-backend/app/services/report/detail_level.py | — | ~785 |

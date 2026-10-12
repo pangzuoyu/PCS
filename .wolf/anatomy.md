@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-08T00:57:24.216Z
-> Files: 701 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-12T12:18:43.707Z
+> Files: 748 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -178,6 +178,11 @@
 - `task-s1-4-brief.md` — pcs-backend/app/services/equip_list/sync_service.py (~939 tok)
 - `task-s1-5-brief.md` — tests/services/util/test_summary_service.py (~506 tok)
 
+## .superpowers/sdd/2026-10-08-p8-report-and-report-builder/
+
+- `_phase1_close.md` — Phase 1 收口 (~537 tok)
+- `progress.md` — SDD ledger — plan: docs/superpowers/plans/2026-10-08-p8-report-and-report-builder.md (~410 tok)
+
 ## .superpowers/sdd/2026-11-15-p6-8-glycol-dehydration-extensions/
 
 - `plan-path` (~20 tok)
@@ -305,7 +310,7 @@
 - `0040-c-12-vessel-geometry-service-interface-freeze.md` — ADR-0040：C-12 vessel_service 公共接口 6 个月冻结 (~3027 tok)
 - `0041-c-12-vessel-6-path-coverage.md` — ADR-0041：C-12 vessel_service 12 路径覆盖补全（Q4 2026） (~6559 tok)
 - `ADR-0023：EquipmentTypeCode项目级可配置.md` (~927 tok)
-- `ADR-P8-004：报表任务队列与文件生命周期.md` — ADR-P8-004：报表任务队列隔离与文件生命周期 (~505 tok)
+- `ADR-P8-004：报表任务队列与文件生命周期.md` — ADR-P8-004：报表任务队列隔离与文件生命周期 (~1231 tok)
 - `README.md` — Project documentation (~242 tok)
 
 ## docs/adr/signatures/
@@ -1066,10 +1071,12 @@
 - `p7_s5_006_user_projects_created_by.py` — p7_s5_006: 补 user_projects.created_by —— ORM 继承来的列，真库缺失，导致授权必失败. (~602 tok)
 - `p7_s5_007_user_projects_fks.py` — p7_s5_007: 补 user_projects 的 4 个外键 —— 建表迁移把它们静默丢弃了（bug-144）. (~1069 tok)
 - `p7_s5_008_projects_workspace_fk.py` — p7_s5_008: 补 projects.workspace_id 外键 —— ORM 用 use_alter 声明，DB 侧从未建成. (~320 tok)
+- `p8_001_report_tables.py` — P8 报表 4 张表. (~1907 tok)
+- `p8_002_report_file_doc_no_rev.py` — P8：report_files 加 doc_no / rev。 (~220 tok)
 
 ## pcs-backend/app/api/v1/
 
-- `__init__.py` (~1404 tok)
+- `__init__.py` (~1549 tok)
 - `_guard.py` — API endpoint 守卫 helper（BLOCKER-3 修复共享函数）。 (~602 tok)
 - `audit.py` — Audit Query API (F-P2-009 Sprint 3 / Issue 7 混合 RBAC). (~2535 tok)
 - `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~5196 tok)
@@ -1086,6 +1093,8 @@
 - `psychro.py` — P6-2 PSYCHRO API：Task 26 6 calc endpoints + psychro_persist CRUD endpoints。 (~7320 tok)
 - `pump.py` — P4-4-4 PUMP 链 API。 (~2574 tok)
 - `records.py` — Records API（Sprint 2）。 (~3276 tok)
+- `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~1791 tok)
+- `report.py` — `/api/v1/report` 路由。 (~3226 tok)
 - `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1773 tok)
 - `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~4193 tok)
 - `stream_symbols.py` — 物流符号表端点（SYM-3 / SUP-002 §8）。 (~4194 tok)
@@ -1095,7 +1104,7 @@
 
 ## pcs-backend/app/core/
 
-- `config.py` — 应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。 (~1596 tok)
+- `config.py` — 应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。 (~2238 tok)
 - `errors.py` — FastAPI 全局异常处理器 + 统一 PcsError 信封。 (~2419 tok)
 - `security.py` — JWT 编解码 + 密码哈希 + JTI 吊销。HS256，密钥由 Settings.secret_key 提供。 (~1249 tok)
 
@@ -1109,6 +1118,7 @@
 - `equipment.py` — 设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。 (~3317 tok)
 - `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~7302 tok)
 - `psv_standards.py` — PSV 多标准配置 ORM（P5-0-5 Task 24a，SUP-P5-PSV-001 §3.1 + ADR-0028 V1.1）。 (~1824 tok)
+- `report.py` — P8 报表与输出 ORM（ADR-P8-001 全直接生成路线）。 (~2084 tok)
 - `sim_unit_op.py` — P3.x SIM-15: sim_unit_op_results + 6 专用结果表（单元 SUMMARY 存档）。 (~2006 tok)
 - `system.py` — 系统支撑 ORM 模型（审计/血缘/导入历史）。 (~3301 tok)
 - `util.py` — S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。 (~8361 tok)
@@ -1118,6 +1128,8 @@
 - `audit.py` — Audit Query Pydantic schemas (F-P2-009 Sprint 3 / Issue 5). (~769 tok)
 - `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~848 tok)
 - `project.py` — 项目产品类别 schema (GB 30251-2024 §6.1.5 电折标口径判据). (~297 tok)
+- `report_builder.py` — `/api/v1/report-builder` 的请求/响应模型（Phase 2）。 (~1351 tok)
+- `report.py` — `/api/v1/report` 的请求/响应模型。 (~629 tok)
 - `util.py` — S1-5b UTIL API schemas。 (~3550 tok)
 - `workspace.py` — Workspace Pydantic schemas（Sprint 1）。 (~711 tok)
 
@@ -1131,12 +1143,41 @@
 - `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~1011 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~6322 tok)
 
+## pcs-backend/app/services/heat/
+
+- `heat_data_service.py` — HeatResultsService 落库（P5-4-2 / Task 20）。 (~4333 tok)
+
+## pcs-backend/app/services/report/
+
+- `arq_queue.py` — ARQ 入队 helper —— 把「怎么建 pool、传什么参数」收在一处。 (~667 tok)
+- `blocks.py` — 三个渲染器共用的中间表示（Block）。 (~600 tok)
+- `builder_service.py` — REPORT_BUILDER 执行引擎（P8b b7）。 (~2490 tok)
+- `collector.py` — 10 类报表的**声明**（SPEC §3.2.1(2)）。 (~1502 tok)
+- `datasource_registry.py` — 数据源注册表 —— REPORT_BUILDER 可选数据源的**纯元数据**。 (~3162 tok)
+- `definition_service.py` — 报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。 (~3474 tok)
+- `detail_level.py` — detail_level 分级（ADR-0028「detail_level 选择」）。 (~785 tok)
+- `paths.py` — 报表文件路径解析 —— **唯一**拼路径的地方。 (~414 tok)
+- `qr.py` — 二维码内容组装 —— SPEC §3.2.1(3)。 (~393 tok)
+- `query_engine.py` — 取数引擎 —— 过滤/排序/字段选择/NULL 处理的**唯一实现**。 (~2546 tok)
+- `renderer_docx.py` — DOCX 渲染器 —— python-docx 直接构建。 (~1533 tok)
+- `renderer_pdf.py` — PDF 渲染器 —— ReportLab Platypus 直接生成。 (~3712 tok)
+- `renderer_xlsx.py` — XLSX 渲染器 —— XlsxWriter 流式写入。 (~1142 tok)
+- `report_service.py` — 报表生成编排 —— 取数 → 渲染 → 落盘 → 记 `ReportFile` → 审计。 (~3608 tok)
+- `style.py` — 报表样式配置 —— ADR-P8-001：样式驱动生成，替代 .dotx/.xltx 模板。 (~1176 tok)
+- `watermark.py` — 导出水印与格式分发（P8b b8）。 (~1301 tok)
+
 ## pcs-backend/app/services/util/
 
 - `utility_energy_summary_service.py` — P7 Sprint 2 T5: 综合能耗汇总 service (utility_energy_summary). (~10715 tok)
 
+## pcs-backend/app/workers/
+
+- `report_builder_tasks.py` — ARQ：自定义报表定义执行任务（b7）。 (~1349 tok)
+- `report_tasks.py` — ARQ 报表异步生成任务。 (~2045 tok)
+
 ## pcs-backend/scripts/
 
+- `build_report_font.py` — 从 OFL 可变字体派生 reportlab 能用的静态 CJK 字体。 (~995 tok)
 - `check_migration_idempotency.py` — 检查 alembic migrations 是否用 if_exists / if_not_exists (F-P3-002 fix). (~1485 tok)
 - `check_openapi_payload_coverage.py` — API 载荷结构覆盖率闸 —— 前端类型能不能自动生成，就看这里。 (~1186 tok)
 - `check_payload_model_coverage.py` — 描述文本覆盖率闸 —— 本体论 §3.4 约束② 的可落地形态. (~1620 tok)
@@ -1148,12 +1189,13 @@
 ## pcs-backend/tests/
 
 - `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~4721 tok)
+- `mutation.py` — 变异测试的元断言工具（用户 2026-10-09 审查引入）。 (~392 tok)
 - `test_audit_guard.py` — P7-7+ BLOCKER-3 guard 集成测试 — /equipment-deletion-audit 端点. (~1256 tok)
 - `test_audit_query.py` — F-P2-009 Sprint 3: Audit Query 后端测试 (Issue 5 错误路径 + Issue 7 混合 RBAC). (~3389 tok)
 - `test_deliverables_api.py` — 交付物读端点测试（P1-7+ D 模块 / P8 前置）。 (~3116 tok)
 - `test_jwt_production.py` — F-P3-001 Sprint 3: JWT production hardening + LDAP fail-closed 测试. (~2697 tok)
 - `test_rbac_audit.py` — F-P3-001 checklist #5: RBAC 401/403 audit log + per-IP rate limit 测试. (~1861 tok)
-- `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~3242 tok)
+- `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~3299 tok)
 - `test_sqlite_check_constraint_overrides.py` — conftest 里 SQLite CHECK 替身与 PostgreSQL 原式的**语义等价性**。 (~1675 tok)
 - `test_workspace_archive.py` — F-P3-003 Sprint 3: Workspace archive PATCH 端点测试. (~1272 tok)
 
@@ -1162,7 +1204,22 @@
 - `test_gas_media_and_low_temp_heat_api.py` — 工艺气体 / 低温热 CRUD API 测试 (P7-6B 收尾). (~2562 tok)
 - `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3030 tok)
 - `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
+- `test_report_builder.py` — `/api/v1/report-builder` 路由契约（Phase 2）。 (~2883 tok)
+- `test_report.py` — `/api/v1/report` 路由契约。 (~2381 tok)
 - `test_subtable_duplicate_conflict.py` — 既有子表 POST 端点的 UNIQUE 冲突处理 (2026-10-05). (~1507 tok)
+
+## pcs-backend/tests/benchmarks/
+
+- `test_report_perf.py` — SPEC §3.3.1 性能指标 —— **绝对阈值断言**。 (~915 tok)
+
+## pcs-backend/tests/fixtures/report/
+
+- `__init__.py` — P8 报表 Golden 基线包。 (~7 tok)
+- `seed.py` — Golden 测试的种子数据 —— 每种报表 2–3 组。 (~2426 tok)
+
+## pcs-backend/tests/models/
+
+- `test_report_models.py` — P8 报表 4 张表的 ORM 契约。 (~439 tok)
 
 ## pcs-backend/tests/scripts/
 
@@ -1174,6 +1231,19 @@
 
 - `test_stream_transition.py` — P3.2 SIM-13：StreamService.transition() 状态机集成测试（闭环审计 D-1）。 (~2982 tok)
 
+## pcs-backend/tests/services/report/
+
+- `test_collector.py` — 10 类报表 collector —— SPEC §3.2.1(2) 的类型表。 (~1095 tok)
+- `test_datasource_registry.py` — 数据源注册表契约（纯元数据）。 (~1167 tok)
+- `test_golden.py` — 10 类报表的 Golden 基线 —— 输出**稳定性**的回归闸。 (~948 tok)
+- `test_margins.py` — **页边距单位契约** —— 三个渲染器共用。 (~369 tok)
+- `test_query_engine.py` — 取数引擎契约 —— 过滤/排序/字段选择/NULL 处理的**唯一实现**。 (~1333 tok)
+- `test_renderer_pdf.py` — PDF 渲染器契约。 (~3143 tok)
+- `test_renderer_visual.py` — **像素级**验证：关键模板元素必须真的画在纸上。 (~1288 tok)
+- `test_renderers.py` — DOCX / XLSX 渲染器契约。 (~2382 tok)
+- `test_report_service.py` — 生成编排契约 —— 二维码载荷 + 取数 + 渲染 + 内容哈希存储 + 审计。 (~1906 tok)
+- `test_style.py` — ReportStyle 四级优先级合并的契约测试。 (~884 tok)
+
 ## pcs-backend/tests/services/util/
 
 - `test_electricity_value_type_policy.py` — 电折标口径按项目产品类别强制 (用户裁决 2026-10-05「按 project 产品类型强制」). (~2934 tok)
@@ -1181,6 +1251,10 @@
 - `test_gas_media_and_low_temp_heat.py` — 工艺气体 / 低温热子表聚合 (P7-6B 收尾). (~2512 tok)
 - `test_gb30251_config_conformance.py` — GB 30251-2024 附录A 表A.1 折标系数一致性回归 (2026-10-05). (~1427 tok)
 - `test_utility_energy_summary.py` — P7 Sprint 2 T5: utility_energy_summary service 测试. (~9819 tok)
+
+## pcs-backend/tests/workers/
+
+- `test_report_tasks.py` — ARQ 报表异步任务 —— 状态持久化 + 重试审计 + 僵死回收。 (~3343 tok)
 
 ## pcs-frontend/.gstack/qa-reports/
 

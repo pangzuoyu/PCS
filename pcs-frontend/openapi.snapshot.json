@@ -15343,6 +15343,486 @@
         }
       }
     },
+    "/api/v1/report-builder/datasources": {
+      "get": {
+        "tags": [
+          "report-builder"
+        ],
+        "summary": "List Datasources",
+        "description": "13 个可选数据源的字段树 + 5 对 JOIN 白名单。\n\n**需要认证**：响应等价于一份内部表结构与列名的清单。",
+        "operationId": "list_datasources_api_v1_report_builder_datasources_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportBuilderDatasourceList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/report-builder/definitions": {
+      "post": {
+        "tags": [
+          "report-builder"
+        ],
+        "summary": "Create Definition",
+        "description": "新建定义。落 DRAFT，仅创建人可见（SPEC §3.2.2(6)）。",
+        "operationId": "create_definition_api_v1_report_builder_definitions_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportDefinitionUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportDefinitionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "report-builder"
+        ],
+        "summary": "List Definitions",
+        "operationId": "list_definitions_api_v1_report_builder_definitions_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportDefinitionList"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/report-builder/definitions/{def_id}": {
+      "get": {
+        "tags": [
+          "report-builder"
+        ],
+        "summary": "Get Definition",
+        "operationId": "get_definition_api_v1_report_builder_definitions__def_id__get",
+        "parameters": [
+          {
+            "name": "def_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Def Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportDefinitionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "report-builder"
+        ],
+        "summary": "Update Definition",
+        "operationId": "update_definition_api_v1_report_builder_definitions__def_id__put",
+        "parameters": [
+          {
+            "name": "def_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Def Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportDefinitionUpsert"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportDefinitionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/report-builder/definitions/{def_id}/publish": {
+      "post": {
+        "tags": [
+          "report-builder"
+        ],
+        "summary": "Publish Definition",
+        "description": "发布定义（DRAFT → PUBLISHED）。\n\n角色检查在**查行之前**：审核角色不该靠「哪些定义存在」来试探。",
+        "operationId": "publish_definition_api_v1_report_builder_definitions__def_id__publish_post",
+        "parameters": [
+          {
+            "name": "def_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Def Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportDefinitionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/report-builder/definitions/{def_id}/obsolete": {
+      "post": {
+        "tags": [
+          "report-builder"
+        ],
+        "summary": "Obsolete Definition",
+        "description": "作废定义（→ OBSOLETE）。仍可按 ID 追溯，但不再可执行、不进默认列表。",
+        "operationId": "obsolete_definition_api_v1_report_builder_definitions__def_id__obsolete_post",
+        "parameters": [
+          {
+            "name": "def_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Def Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportDefinitionOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/report-builder/definitions/{def_id}/execute": {
+      "post": {
+        "tags": [
+          "report-builder"
+        ],
+        "summary": "Execute Definition Endpoint",
+        "description": "执行已发布的定义 —— **返回 202 + task_id，不同步出文件**。\n\n10k 行 PDF ≈ 10 CPU-秒，同步跑会阻塞整个 event loop（b7 决策）。\n实际取数与渲染在 ARQ 任务体里做。",
+        "operationId": "execute_definition_endpoint_api_v1_report_builder_definitions__def_id__execute_post",
+        "parameters": [
+          {
+            "name": "def_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Def Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ReportExecuteRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportExecuteAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/common/materials/search": {
       "get": {
         "tags": [
@@ -28838,6 +29318,740 @@
         "title": "RefreshResponse",
         "description": "刷新 token 响应（POST /auth/refresh 响应体）。\n\n业务：返回新 access_token + 新 refresh_token（jti 轮换防重放）。"
       },
+      "ReportBuilderDatasource": {
+        "properties": {
+          "key": {
+            "type": "string",
+            "title": "Key"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "model": {
+            "type": "string",
+            "title": "Model"
+          },
+          "fields": {
+            "items": {
+              "$ref": "#/components/schemas/ReportBuilderField"
+            },
+            "type": "array",
+            "title": "Fields"
+          }
+        },
+        "type": "object",
+        "required": [
+          "key",
+          "label",
+          "model",
+          "fields"
+        ],
+        "title": "ReportBuilderDatasource"
+      },
+      "ReportBuilderDatasourceList": {
+        "properties": {
+          "datasources": {
+            "items": {
+              "$ref": "#/components/schemas/ReportBuilderDatasource"
+            },
+            "type": "array",
+            "title": "Datasources"
+          },
+          "joins": {
+            "items": {
+              "$ref": "#/components/schemas/ReportBuilderJoin"
+            },
+            "type": "array",
+            "title": "Joins"
+          }
+        },
+        "type": "object",
+        "required": [
+          "datasources"
+        ],
+        "title": "ReportBuilderDatasourceList"
+      },
+      "ReportBuilderField": {
+        "properties": {
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "type": {
+            "type": "string",
+            "title": "Type"
+          },
+          "label": {
+            "type": "string",
+            "title": "Label"
+          },
+          "is_jsonb_key": {
+            "type": "boolean",
+            "title": "Is Jsonb Key",
+            "default": false
+          },
+          "level": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Level"
+          },
+          "exchanger_type": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Exchanger Type"
+          }
+        },
+        "type": "object",
+        "required": [
+          "name",
+          "type",
+          "label"
+        ],
+        "title": "ReportBuilderField"
+      },
+      "ReportBuilderJoin": {
+        "properties": {
+          "a": {
+            "type": "string",
+            "title": "A"
+          },
+          "a_field": {
+            "type": "string",
+            "title": "A Field"
+          },
+          "b": {
+            "type": "string",
+            "title": "B"
+          },
+          "b_field": {
+            "type": "string",
+            "title": "B Field"
+          },
+          "degrade_warn": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Degrade Warn"
+          }
+        },
+        "type": "object",
+        "required": [
+          "a",
+          "a_field",
+          "b",
+          "b_field"
+        ],
+        "title": "ReportBuilderJoin"
+      },
+      "ReportDefCondition": {
+        "properties": {
+          "operator": {
+            "type": "string",
+            "title": "Operator"
+          },
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "number"
+              },
+              {
+                "type": "integer"
+              },
+              {
+                "type": "boolean"
+              },
+              {
+                "items": {
+                  "anyOf": [
+                    {
+                      "type": "string"
+                    },
+                    {
+                      "type": "number"
+                    },
+                    {
+                      "type": "integer"
+                    },
+                    {
+                      "type": "boolean"
+                    },
+                    {
+                      "type": "null"
+                    }
+                  ]
+                },
+                "type": "array"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "type": "object",
+        "required": [
+          "operator",
+          "source",
+          "field"
+        ],
+        "title": "ReportDefCondition",
+        "description": "`FilterConditions` 的叶子项（形状对齐 `query_engine._build_condition`）。\n\n`value` 是联合类型而不是 `Any`：IN / NOT_IN / BETWEEN 收列表，其余收标量。\n写成 `list` 或 `Any` 都是裸载荷（闸门会记一笔）。"
+      },
+      "ReportDefFilterGroup-Input": {
+        "properties": {
+          "operator": {
+            "type": "string",
+            "title": "Operator",
+            "default": "AND"
+          },
+          "conditions": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ReportDefCondition"
+                },
+                {
+                  "$ref": "#/components/schemas/ReportDefFilterGroup-Input"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Conditions"
+          }
+        },
+        "type": "object",
+        "title": "ReportDefFilterGroup",
+        "description": "条件组（AND/OR），可嵌套 —— SPEC §3.2.2(4)「支持 AND/OR 分组，条件可嵌套」。\n\n`conditions` 是**自引用联合**：`apply_filters` 靠「有没有 conditions 键」\n区分组与叶子，所以两种形状都得能出现在同一个列表里。写成 `list[dict]`\n既丢类型又仍被闸门记为裸载荷。"
+      },
+      "ReportDefFilterGroup-Output": {
+        "properties": {
+          "operator": {
+            "type": "string",
+            "title": "Operator",
+            "default": "AND"
+          },
+          "conditions": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ReportDefCondition"
+                },
+                {
+                  "$ref": "#/components/schemas/ReportDefFilterGroup-Output"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Conditions"
+          }
+        },
+        "type": "object",
+        "title": "ReportDefFilterGroup",
+        "description": "条件组（AND/OR），可嵌套 —— SPEC §3.2.2(4)「支持 AND/OR 分组，条件可嵌套」。\n\n`conditions` 是**自引用联合**：`apply_filters` 靠「有没有 conditions 键」\n区分组与叶子，所以两种形状都得能出现在同一个列表里。写成 `list[dict]`\n既丢类型又仍被闸门记为裸载荷。"
+      },
+      "ReportDefSelectedField": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "alias": {
+            "type": "string",
+            "title": "Alias",
+            "default": ""
+          },
+          "order": {
+            "type": "integer",
+            "title": "Order",
+            "default": 0
+          },
+          "visible": {
+            "type": "boolean",
+            "title": "Visible",
+            "default": true
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "field"
+        ],
+        "title": "ReportDefSelectedField",
+        "description": "`SelectedFields` 的一项（SPEC §3.2.2(2)）。"
+      },
+      "ReportDefSort": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "field": {
+            "type": "string",
+            "title": "Field"
+          },
+          "direction": {
+            "type": "string",
+            "title": "Direction",
+            "default": "ASC"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source",
+          "field"
+        ],
+        "title": "ReportDefSort"
+      },
+      "ReportDefSource": {
+        "properties": {
+          "source": {
+            "type": "string",
+            "title": "Source"
+          },
+          "join_to": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Join To"
+          }
+        },
+        "type": "object",
+        "required": [
+          "source"
+        ],
+        "title": "ReportDefSource",
+        "description": "`DataSources` 的一项。`join_to` 为空表示不关联。"
+      },
+      "ReportDefinitionBody-Input": {
+        "properties": {
+          "DataSources": {
+            "items": {
+              "$ref": "#/components/schemas/ReportDefSource"
+            },
+            "type": "array",
+            "title": "Datasources"
+          },
+          "SelectedFields": {
+            "items": {
+              "$ref": "#/components/schemas/ReportDefSelectedField"
+            },
+            "type": "array",
+            "title": "Selectedfields"
+          },
+          "FilterConditions": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ReportDefCondition"
+                },
+                {
+                  "$ref": "#/components/schemas/ReportDefFilterGroup-Input"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Filterconditions"
+          },
+          "SortBy": {
+            "items": {
+              "$ref": "#/components/schemas/ReportDefSort"
+            },
+            "type": "array",
+            "title": "Sortby"
+          },
+          "MaxRows": {
+            "type": "integer",
+            "maximum": 100000.0,
+            "minimum": 1.0,
+            "title": "Maxrows",
+            "default": 10000
+          },
+          "OutputFormat": {
+            "type": "string",
+            "title": "Outputformat",
+            "default": "pdf"
+          },
+          "detailLevel": {
+            "type": "string",
+            "enum": [
+              "BASIC",
+              "DETAIL"
+            ],
+            "title": "Detaillevel",
+            "default": "BASIC"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ReportDefinitionBody",
+        "description": "`definition_json` 的结构（SPEC §3.2.2(2)）。\n\n⚠️ **必须逐字段声明**，不能写 `definition_json: dict`：那是裸 object，\n`openapi-typescript` 给前端生成的就是 `any`，P9B「类型来自 ./api」\n的纪律当场断掉（`scripts/check_openapi_payload_coverage.py` 就是守\n这一条；第一次写成 dict 就被它挡下，71 → 73）。\n\n结构合法性之外，**字段是否属于它声明的数据源**由\n`definition_service.validate_definition_json` 对注册表核对 —— Pydantic\n表达不了「tag_number 属于 EQUIP_LIST 但不属于 PIPING_RESULTS」这种\n跨源规则。"
+      },
+      "ReportDefinitionBody-Output": {
+        "properties": {
+          "DataSources": {
+            "items": {
+              "$ref": "#/components/schemas/ReportDefSource"
+            },
+            "type": "array",
+            "title": "Datasources"
+          },
+          "SelectedFields": {
+            "items": {
+              "$ref": "#/components/schemas/ReportDefSelectedField"
+            },
+            "type": "array",
+            "title": "Selectedfields"
+          },
+          "FilterConditions": {
+            "items": {
+              "anyOf": [
+                {
+                  "$ref": "#/components/schemas/ReportDefCondition"
+                },
+                {
+                  "$ref": "#/components/schemas/ReportDefFilterGroup-Output"
+                }
+              ]
+            },
+            "type": "array",
+            "title": "Filterconditions"
+          },
+          "SortBy": {
+            "items": {
+              "$ref": "#/components/schemas/ReportDefSort"
+            },
+            "type": "array",
+            "title": "Sortby"
+          },
+          "MaxRows": {
+            "type": "integer",
+            "maximum": 100000.0,
+            "minimum": 1.0,
+            "title": "Maxrows",
+            "default": 10000
+          },
+          "OutputFormat": {
+            "type": "string",
+            "title": "Outputformat",
+            "default": "pdf"
+          },
+          "detailLevel": {
+            "type": "string",
+            "enum": [
+              "BASIC",
+              "DETAIL"
+            ],
+            "title": "Detaillevel",
+            "default": "BASIC"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ReportDefinitionBody",
+        "description": "`definition_json` 的结构（SPEC §3.2.2(2)）。\n\n⚠️ **必须逐字段声明**，不能写 `definition_json: dict`：那是裸 object，\n`openapi-typescript` 给前端生成的就是 `any`，P9B「类型来自 ./api」\n的纪律当场断掉（`scripts/check_openapi_payload_coverage.py` 就是守\n这一条；第一次写成 dict 就被它挡下，71 → 73）。\n\n结构合法性之外，**字段是否属于它声明的数据源**由\n`definition_service.validate_definition_json` 对注册表核对 —— Pydantic\n表达不了「tag_number 属于 EQUIP_LIST 但不属于 PIPING_RESULTS」这种\n跨源规则。"
+      },
+      "ReportDefinitionList": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReportDefinitionOut"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ReportDefinitionList"
+      },
+      "ReportDefinitionOut": {
+        "properties": {
+          "def_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Def Id"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "name": {
+            "type": "string",
+            "title": "Name"
+          },
+          "category": {
+            "type": "string",
+            "title": "Category"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description"
+          },
+          "definition_json": {
+            "$ref": "#/components/schemas/ReportDefinitionBody-Output"
+          },
+          "output_format": {
+            "type": "string",
+            "title": "Output Format"
+          },
+          "max_rows": {
+            "type": "integer",
+            "title": "Max Rows"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "shared_with": {
+            "type": "string",
+            "title": "Shared With"
+          },
+          "created_by": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created By"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          },
+          "updated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "def_id",
+          "project_id",
+          "name",
+          "category",
+          "description",
+          "definition_json",
+          "output_format",
+          "max_rows",
+          "version",
+          "status",
+          "shared_with",
+          "created_by"
+        ],
+        "title": "ReportDefinitionOut"
+      },
+      "ReportDefinitionUpsert": {
+        "properties": {
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Name"
+          },
+          "category": {
+            "type": "string",
+            "maxLength": 32,
+            "title": "Category"
+          },
+          "description": {
+            "type": "string",
+            "title": "Description",
+            "default": ""
+          },
+          "output_format": {
+            "type": "string",
+            "title": "Output Format",
+            "default": "pdf"
+          },
+          "definition_json": {
+            "$ref": "#/components/schemas/ReportDefinitionBody-Input"
+          },
+          "shared_with": {
+            "type": "string",
+            "title": "Shared With",
+            "default": "CREATOR_ONLY"
+          },
+          "max_rows": {
+            "type": "integer",
+            "maximum": 100000.0,
+            "minimum": 1.0,
+            "title": "Max Rows",
+            "default": 10000
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "name",
+          "category",
+          "definition_json"
+        ],
+        "title": "ReportDefinitionUpsert",
+        "description": "创建/更新定义的请求体。\n\n`extra=\"forbid\"` 同上：定义体字段写错位置（顶层 vs definition_json）\n应当是 422，不是静默取默认值。"
+      },
+      "ReportExecuteAccepted": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "def_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Def Id"
+          },
+          "def_version": {
+            "type": "string",
+            "title": "Def Version"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "QUEUED"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "def_id",
+          "def_version"
+        ],
+        "title": "ReportExecuteAccepted"
+      },
+      "ReportExecuteRequest": {
+        "properties": {
+          "filters": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportDefFilterGroup-Input"
+              },
+              {
+                "$ref": "#/components/schemas/ReportDefCondition"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filters"
+          },
+          "max_rows": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Rows"
+          },
+          "output_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Format"
+          }
+        },
+        "type": "object",
+        "title": "ReportExecuteRequest",
+        "description": "执行请求体。\n\n全部可选：不传就是「按定义原样执行」。`filters` / `max_rows` 是**临时**\n调整（SPEC §3.2.2(5)），不回写定义，只进执行日志的快照。"
+      },
       "ReportFileStatusResponse": {
         "properties": {
           "report_file_id": {
@@ -29093,6 +30307,21 @@
             "type": "integer",
             "title": "Qr Size Mm",
             "default": 20
+          },
+          "heat_exchanger_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "AIR_COOLER",
+                  "SHELL_TUBE"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heat Exchanger Type"
           },
           "font_dir": {
             "type": "string",

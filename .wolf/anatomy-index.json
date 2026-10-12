@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-08T00:57:24.216Z",
-    "fileCount": 701,
+    "lastScanned": "2026-10-12T12:18:43.707Z",
+    "fileCount": 748,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "737b38985284a1671d1836ab1952d330071312de6de27b2eae8a295dccc4244a",
-    "storeUpdatedAt": "2026-10-08T00:57:24.226Z",
-    "rootHash": "5358a6fa087cf242"
+    "renderedHash": "3e3d8f0dc8747c96734cb28fc17cd8f09ed1bddf1ce2d4cfc1b21f4eaee5b043",
+    "storeUpdatedAt": "2026-10-12T12:18:43.717Z",
+    "rootHash": "22cc09f2d0db0120"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12461,46 +12461,46 @@
     },
     "pcs-backend/app/core/config.py": {
       "description": "应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。",
-      "tokens": 1596,
-      "hash": "f44d979ab02b3b6a",
-      "size": 7355,
-      "mtimeMs": 1791343327310.3433,
-      "updatedAt": "2026-10-07T03:22:07.360Z",
+      "tokens": 2238,
+      "hash": "8d17f7175aa9d7e5",
+      "size": 10646,
+      "mtimeMs": 1791774646494.9436,
+      "updatedAt": "2026-10-12T03:10:46.540Z",
       "source": "hook",
       "symbols": [
         {
           "name": "Settings",
           "kind": "class",
           "startLine": 25,
-          "endLine": 65,
-          "tokens": 434
+          "endLine": 93,
+          "tokens": 814
         },
         {
           "name": "get_settings",
           "kind": "fn",
-          "startLine": 66,
-          "endLine": 126,
-          "tokens": 550
+          "startLine": 94,
+          "endLine": 178,
+          "tokens": 813
         },
         {
           "name": "assert_secret_key_configured",
           "kind": "fn",
-          "startLine": 127,
-          "endLine": 136,
+          "startLine": 179,
+          "endLine": 188,
           "tokens": 69
         },
         {
           "name": "parse_cors_origins",
           "kind": "fn",
-          "startLine": 137,
-          "endLine": 144,
+          "startLine": 189,
+          "endLine": 196,
           "tokens": 67
         },
         {
           "name": "validate_cors_for_production",
           "kind": "fn",
-          "startLine": 145,
-          "endLine": 172,
+          "startLine": 197,
+          "endLine": 224,
           "tokens": 246
         }
       ]
@@ -13366,11 +13366,11 @@
     },
     "pcs-backend/app/api/v1/__init__.py": {
       "description": "",
-      "tokens": 1404,
-      "hash": "f5f73a7162e9dd6d",
-      "size": 4921,
-      "mtimeMs": 1791166020905.546,
-      "updatedAt": "2026-10-05T02:07:00.949Z",
+      "tokens": 1549,
+      "hash": "b69fae1e0db68b11",
+      "size": 5466,
+      "mtimeMs": 1791802335210.026,
+      "updatedAt": "2026-10-12T10:52:15.262Z",
       "source": "hook"
     },
     "pcs-backend/scripts/p7_s3_003_backfill_config_audit.py": {
@@ -17358,11 +17358,11 @@
     },
     "pcs-backend/tests/test_schema.py": {
       "description": "V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。",
-      "tokens": 3242,
-      "hash": "08d6d2c9eb91e14a",
-      "size": 12834,
-      "mtimeMs": 1791389809524.3086,
-      "updatedAt": "2026-10-07T16:16:49.578Z",
+      "tokens": 3299,
+      "hash": "7e7605946481711c",
+      "size": 13106,
+      "mtimeMs": 1791491925571.6926,
+      "updatedAt": "2026-10-08T20:38:45.620Z",
       "source": "hook",
       "symbols": [
         {
@@ -17383,70 +17383,70 @@
           "name": "test_table_count",
           "kind": "fn",
           "startLine": 24,
-          "endLine": 85,
-          "tokens": 990
+          "endLine": 88,
+          "tokens": 1047
         },
         {
           "name": "test_required_tables_present",
           "kind": "fn",
-          "startLine": 86,
-          "endLine": 160,
+          "startLine": 89,
+          "endLine": 163,
           "tokens": 612
         },
         {
           "name": "test_equipment_type_codes_composite_unique",
           "kind": "fn",
-          "startLine": 161,
-          "endLine": 167,
+          "startLine": 164,
+          "endLine": 170,
           "tokens": 112
         },
         {
           "name": "test_equipment_list_composite_fk_to_equipment_type_codes",
           "kind": "fn",
-          "startLine": 168,
-          "endLine": 177,
+          "startLine": 171,
+          "endLine": 180,
           "tokens": 149
         },
         {
           "name": "test_record_mixin_columns_present",
           "kind": "fn",
-          "startLine": 178,
-          "endLine": 195,
+          "startLine": 181,
+          "endLine": 198,
           "tokens": 159
         },
         {
           "name": "test_recordsignstatus_enum_has_9_values",
           "kind": "fn",
-          "startLine": 196,
-          "endLine": 219,
+          "startLine": 199,
+          "endLine": 222,
           "tokens": 192
         },
         {
           "name": "test_fk_violation_raises",
           "kind": "fn",
-          "startLine": 220,
-          "endLine": 250,
+          "startLine": 223,
+          "endLine": 253,
           "tokens": 310
         },
         {
           "name": "_response_schema_name",
           "kind": "fn",
-          "startLine": 251,
-          "endLine": 275,
+          "startLine": 254,
+          "endLine": 278,
           "tokens": 218
         },
         {
           "name": "test_pipe_code_endpoints_declare_response_schema",
           "kind": "fn",
-          "startLine": 276,
-          "endLine": 295,
+          "startLine": 279,
+          "endLine": 298,
           "tokens": 203
         },
         {
           "name": "test_response_schema_is_registered_in_components",
           "kind": "fn",
-          "startLine": 296,
-          "endLine": 310,
+          "startLine": 299,
+          "endLine": 313,
           "tokens": 169
         }
       ]
@@ -21825,12 +21825,2765 @@
     },
     "docs/adr/ADR-P8-004：报表任务队列与文件生命周期.md": {
       "description": "ADR-P8-004：报表任务队列隔离与文件生命周期",
-      "tokens": 505,
-      "hash": "9bf51eab942b6eac",
-      "size": 3804,
-      "mtimeMs": 1791421044163.4346,
-      "updatedAt": "2026-10-08T00:57:24.216Z",
+      "tokens": 1231,
+      "hash": "18b5f04c0cf41edd",
+      "size": 9201,
+      "mtimeMs": 1791770494554.7012,
+      "updatedAt": "2026-10-12T02:01:34.613Z",
       "source": "hook"
+    },
+    ".superpowers/sdd/2026-10-08-p8-report-and-report-builder/progress.md": {
+      "description": "SDD ledger — plan: docs/superpowers/plans/2026-10-08-p8-report-and-report-builder.md",
+      "tokens": 410,
+      "hash": "5fb6c21512ab35f7",
+      "size": 2450,
+      "mtimeMs": 1791422257865.589,
+      "updatedAt": "2026-10-08T01:17:37.913Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/report/test_style.py": {
+      "description": "ReportStyle 四级优先级合并的契约测试。",
+      "tokens": 884,
+      "hash": "5ee374dcdbfed902",
+      "size": 3856,
+      "mtimeMs": 1791422315431.7178,
+      "updatedAt": "2026-10-08T01:18:35.479Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_precedence_is_defaults_type_project_runtime",
+          "kind": "fn",
+          "startLine": 11,
+          "endLine": 21,
+          "tokens": 164
+        },
+        {
+          "name": "test_locked_fields_ignore_every_layer",
+          "kind": "fn",
+          "startLine": 22,
+          "endLine": 37,
+          "tokens": 176
+        },
+        {
+          "name": "test_none_layers_do_not_erase_lower_precedence_values",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 43,
+          "tokens": 77
+        },
+        {
+          "name": "test_unset_field_falls_through_to_lower_layer",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 57,
+          "tokens": 147
+        },
+        {
+          "name": "test_locked_fields_themselves_cannot_be_overridden",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 71,
+          "tokens": 156
+        },
+        {
+          "name": "test_footer_has_no_pages_placeholder",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 81,
+          "tokens": 96
+        }
+      ]
+    },
+    "pcs-backend/app/services/report/style.py": {
+      "description": "报表样式配置 —— ADR-P8-001：样式驱动生成，替代 .dotx/.xltx 模板。",
+      "tokens": 1176,
+      "hash": "054529a85eee8ab4",
+      "size": 5637,
+      "mtimeMs": 1791512952184.3503,
+      "updatedAt": "2026-10-09T02:29:12.232Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Margins",
+          "kind": "class",
+          "startLine": 17,
+          "endLine": 32,
+          "tokens": 104
+        },
+        {
+          "name": "HeaderFooterConfig",
+          "kind": "class",
+          "startLine": 33,
+          "endLine": 38,
+          "tokens": 28
+        },
+        {
+          "name": "TableStyle",
+          "kind": "class",
+          "startLine": 39,
+          "endLine": 49,
+          "tokens": 79
+        },
+        {
+          "name": "ReportStyle",
+          "kind": "class",
+          "startLine": 50,
+          "endLine": 98,
+          "tokens": 537
+        },
+        {
+          "name": "resolve",
+          "kind": "fn",
+          "startLine": 99,
+          "endLine": 127,
+          "tokens": 327
+        }
+      ]
+    },
+    "pcs-backend/tests/models/test_report_models.py": {
+      "description": "P8 报表 4 张表的 ORM 契约。",
+      "tokens": 439,
+      "hash": "fcc6acbc6858bb7b",
+      "size": 2066,
+      "mtimeMs": 1791422822189.56,
+      "updatedAt": "2026-10-08T01:27:02.242Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/models/report.py": {
+      "description": "P8 报表与输出 ORM（ADR-P8-001 全直接生成路线）。",
+      "tokens": 2084,
+      "hash": "a4892ea21e94e523",
+      "size": 9102,
+      "mtimeMs": 1791773133362.4053,
+      "updatedAt": "2026-10-12T02:45:33.407Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ReportStyleRow",
+          "kind": "class",
+          "startLine": 57,
+          "endLine": 81,
+          "tokens": 289
+        },
+        {
+          "name": "ReportFile",
+          "kind": "class",
+          "startLine": 82,
+          "endLine": 130,
+          "tokens": 645
+        },
+        {
+          "name": "ReportDefinition",
+          "kind": "class",
+          "startLine": 131,
+          "endLine": 161,
+          "tokens": 427
+        },
+        {
+          "name": "ReportExecutionLog",
+          "kind": "class",
+          "startLine": 162,
+          "endLine": 183,
+          "tokens": 295
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p8_001_report_tables.py": {
+      "description": "P8 报表 4 张表.",
+      "tokens": 1907,
+      "hash": "2bef09a4869a850a",
+      "size": 7257,
+      "mtimeMs": 1791467859035.0762,
+      "updatedAt": "2026-10-08T13:57:39.088Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 129,
+          "tokens": 1552
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 130,
+          "endLine": 133,
+          "tokens": 27
+        }
+      ]
+    },
+    "pcs-backend/tests/services/report/test_renderer_pdf.py": {
+      "description": "PDF 渲染器契约。",
+      "tokens": 3143,
+      "hash": "272587ad387da71f",
+      "size": 13883,
+      "mtimeMs": 1791502937323.7612,
+      "updatedAt": "2026-10-08T23:42:17.370Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_reset_font_registry",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 48,
+          "tokens": 119
+        },
+        {
+          "name": "test_renders_table_and_returns_pdf_bytes",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 58,
+          "tokens": 122
+        },
+        {
+          "name": "test_missing_font_raises_instead_of_emitting_blank_pdf",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 72,
+          "tokens": 150
+        },
+        {
+          "name": "test_null_cell_renders_dash_not_none_literal",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 78,
+          "tokens": 52
+        },
+        {
+          "name": "test_long_cell_truncated_with_ellipsis",
+          "kind": "fn",
+          "startLine": 79,
+          "endLine": 84,
+          "tokens": 60
+        },
+        {
+          "name": "test_assumed_header_gets_triangle_and_others_dont",
+          "kind": "fn",
+          "startLine": 85,
+          "endLine": 90,
+          "tokens": 56
+        },
+        {
+          "name": "test_zero_blocks_still_renders_valid_pdf",
+          "kind": "fn",
+          "startLine": 91,
+          "endLine": 96,
+          "tokens": 58
+        },
+        {
+          "name": "test_all_four_block_types_render",
+          "kind": "fn",
+          "startLine": 97,
+          "endLine": 113,
+          "tokens": 186
+        },
+        {
+          "name": "test_table_spanning_pages_still_renders",
+          "kind": "fn",
+          "startLine": 114,
+          "endLine": 122,
+          "tokens": 118
+        },
+        {
+          "name": "test_chinese_text_is_extractable_and_font_embedded",
+          "kind": "fn",
+          "startLine": 123,
+          "endLine": 143,
+          "tokens": 229
+        },
+        {
+          "name": "test_font_falls_back_when_first_candidate_is_unusable",
+          "kind": "fn",
+          "startLine": 144,
+          "endLine": 164,
+          "tokens": 256
+        },
+        {
+          "name": "test_font_missing_latin_glyphs_is_rejected",
+          "kind": "fn",
+          "startLine": 165,
+          "endLine": 189,
+          "tokens": 295
+        },
+        {
+          "name": "test_droid_fallback_is_never_actually_selected",
+          "kind": "fn",
+          "startLine": 190,
+          "endLine": 206,
+          "tokens": 223
+        },
+        {
+          "name": "test_latin_and_digits_survive_rendering",
+          "kind": "fn",
+          "startLine": 207,
+          "endLine": 222,
+          "tokens": 165
+        },
+        {
+          "name": "test_explicit_font_dir_wins_over_system_fallback",
+          "kind": "fn",
+          "startLine": 223,
+          "endLine": 232,
+          "tokens": 115
+        },
+        {
+          "name": "test_unknown_placeholder_kept_visible",
+          "kind": "fn",
+          "startLine": 233,
+          "endLine": 238,
+          "tokens": 72
+        },
+        {
+          "name": "test_footer_page_number_is_rendered",
+          "kind": "fn",
+          "startLine": 239,
+          "endLine": 257,
+          "tokens": 201
+        },
+        {
+          "name": "test_qr_payload_actually_drawn",
+          "kind": "fn",
+          "startLine": 258,
+          "endLine": 269,
+          "tokens": 136
+        },
+        {
+          "name": "_embedded_font_names",
+          "kind": "fn",
+          "startLine": 270,
+          "endLine": 283,
+          "tokens": 152
+        },
+        {
+          "name": "_good_fallbacks",
+          "kind": "fn",
+          "startLine": 284,
+          "endLine": 289,
+          "tokens": 56
+        },
+        {
+          "name": "_any_cff_font",
+          "kind": "fn",
+          "startLine": 290,
+          "endLine": 296,
+          "tokens": 89
+        }
+      ]
+    },
+    "pcs-backend/app/services/report/blocks.py": {
+      "description": "三个渲染器共用的中间表示（Block）。",
+      "tokens": 600,
+      "hash": "97160f041c0fce8a",
+      "size": 3006,
+      "mtimeMs": 1791514690647.8713,
+      "updatedAt": "2026-10-09T02:58:10.692Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "HeadingBlock",
+          "kind": "class",
+          "startLine": 27,
+          "endLine": 32,
+          "tokens": 23
+        },
+        {
+          "name": "KeyValueBlock",
+          "kind": "class",
+          "startLine": 33,
+          "endLine": 37,
+          "tokens": 24
+        },
+        {
+          "name": "TableBlock",
+          "kind": "class",
+          "startLine": 38,
+          "endLine": 45,
+          "tokens": 53
+        },
+        {
+          "name": "PageBreakBlock",
+          "kind": "class",
+          "startLine": 46,
+          "endLine": 52,
+          "tokens": 29
+        },
+        {
+          "name": "_cell_text",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 60,
+          "tokens": 66
+        },
+        {
+          "name": "assumed_header",
+          "kind": "fn",
+          "startLine": 61,
+          "endLine": 69,
+          "tokens": 77
+        },
+        {
+          "name": "fill_placeholders",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 81,
+          "tokens": 108
+        }
+      ]
+    },
+    "pcs-backend/app/services/report/renderer_pdf.py": {
+      "description": "PDF 渲染器 —— ReportLab Platypus 直接生成。",
+      "tokens": 3712,
+      "hash": "e7df3fde5f053af1",
+      "size": 16571,
+      "mtimeMs": 1791513031649.6016,
+      "updatedAt": "2026-10-09T02:30:31.698Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_missing_glyphs",
+          "kind": "fn",
+          "startLine": 120,
+          "endLine": 129,
+          "tokens": 87
+        },
+        {
+          "name": "_unregister_font",
+          "kind": "fn",
+          "startLine": 130,
+          "endLine": 140,
+          "tokens": 96
+        },
+        {
+          "name": "_candidate_paths",
+          "kind": "fn",
+          "startLine": 141,
+          "endLine": 155,
+          "tokens": 173
+        },
+        {
+          "name": "resolve_font_path",
+          "kind": "fn",
+          "startLine": 156,
+          "endLine": 174,
+          "tokens": 184
+        },
+        {
+          "name": "_register_font",
+          "kind": "fn",
+          "startLine": 175,
+          "endLine": 224,
+          "tokens": 529
+        },
+        {
+          "name": "_fill_placeholders",
+          "kind": "fn",
+          "startLine": 225,
+          "endLine": 233,
+          "tokens": 87
+        },
+        {
+          "name": "_draw_qr",
+          "kind": "fn",
+          "startLine": 234,
+          "endLine": 245,
+          "tokens": 134
+        },
+        {
+          "name": "_decorate",
+          "kind": "fn",
+          "startLine": 246,
+          "endLine": 262,
+          "tokens": 217
+        },
+        {
+          "name": "render_pdf",
+          "kind": "fn",
+          "startLine": 263,
+          "endLine": 330,
+          "tokens": 993
+        }
+      ]
+    },
+    "pcs-backend/scripts/build_report_font.py": {
+      "description": "从 OFL 可变字体派生 reportlab 能用的静态 CJK 字体。",
+      "tokens": 995,
+      "hash": "634859d7d16ffc05",
+      "size": 4477,
+      "mtimeMs": 1791503509207.7822,
+      "updatedAt": "2026-10-08T23:51:49.254Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_is_glyph_complete",
+          "kind": "fn",
+          "startLine": 64,
+          "endLine": 71,
+          "tokens": 94
+        },
+        {
+          "name": "derive",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 88,
+          "tokens": 194
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 108,
+          "tokens": 182
+        }
+      ]
+    },
+    "pcs-backend/tests/mutation.py": {
+      "description": "变异测试的元断言工具（用户 2026-10-09 审查引入）。",
+      "tokens": 392,
+      "hash": "c76e4e4a34f00194",
+      "size": 2271,
+      "mtimeMs": 1791503725648.2224,
+      "updatedAt": "2026-10-08T23:55:25.701Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/report/test_renderer_visual.py": {
+      "description": "**像素级**验证：关键模板元素必须真的画在纸上。",
+      "tokens": 1288,
+      "hash": "8990bf4c7f553b96",
+      "size": 6133,
+      "mtimeMs": 1791510331343.012,
+      "updatedAt": "2026-10-09T01:45:31.387Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "pdftoppm",
+          "kind": "fn",
+          "startLine": 33,
+          "endLine": 44,
+          "tokens": 91
+        },
+        {
+          "name": "page_pngs",
+          "kind": "fn",
+          "startLine": 45,
+          "endLine": 73,
+          "tokens": 276
+        },
+        {
+          "name": "_ink_ratio",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 84,
+          "tokens": 83
+        },
+        {
+          "name": "_crop_bottom_strip",
+          "kind": "fn",
+          "startLine": 85,
+          "endLine": 94,
+          "tokens": 84
+        },
+        {
+          "name": "test_both_pages_render",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 100,
+          "tokens": 61
+        },
+        {
+          "name": "test_footer_strip_has_ink",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 112,
+          "tokens": 118
+        },
+        {
+          "name": "test_page_numbers_differ_between_pages",
+          "kind": "fn",
+          "startLine": 113,
+          "endLine": 125,
+          "tokens": 107
+        },
+        {
+          "name": "test_qr_code_present_on_page",
+          "kind": "fn",
+          "startLine": 126,
+          "endLine": 149,
+          "tokens": 251
+        }
+      ]
+    },
+    "pcs-backend/tests/services/report/test_margins.py": {
+      "description": "**页边距单位契约** —— 三个渲染器共用。",
+      "tokens": 369,
+      "hash": "29d8b96624e2fbeb",
+      "size": 1743,
+      "mtimeMs": 1791513004411.8542,
+      "updatedAt": "2026-10-09T02:30:04.459Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/report/test_renderers.py": {
+      "description": "DOCX / XLSX 渲染器契约。",
+      "tokens": 2382,
+      "hash": "7aaa8ff8b3b75f9e",
+      "size": 9795,
+      "mtimeMs": 1791514323871.6387,
+      "updatedAt": "2026-10-09T02:52:03.918Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_docx_is_valid_zip_with_document_xml",
+          "kind": "fn",
+          "startLine": 36,
+          "endLine": 40,
+          "tokens": 62
+        },
+        {
+          "name": "test_xlsx_is_valid_zip_with_sheet_xml",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 46,
+          "tokens": 72
+        },
+        {
+          "name": "test_xlsx_10000_rows_does_not_explode",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 61,
+          "tokens": 178
+        },
+        {
+          "name": "test_freeze_panes_survives_constant_memory",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 89,
+          "tokens": 244
+        },
+        {
+          "name": "test_placeholder_substitution",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 102,
+          "tokens": 149
+        },
+        {
+          "name": "test_unknown_placeholder_stays_visible",
+          "kind": "fn",
+          "startLine": 103,
+          "endLine": 113,
+          "tokens": 129
+        },
+        {
+          "name": "test_long_cell_truncated",
+          "kind": "fn",
+          "startLine": 114,
+          "endLine": 128,
+          "tokens": 153
+        },
+        {
+          "name": "test_null_cell_becomes_dash",
+          "kind": "fn",
+          "startLine": 129,
+          "endLine": 140,
+          "tokens": 137
+        },
+        {
+          "name": "test_assumed_column_marked",
+          "kind": "fn",
+          "startLine": 141,
+          "endLine": 164,
+          "tokens": 298
+        },
+        {
+          "name": "test_no_font_embedded",
+          "kind": "fn",
+          "startLine": 165,
+          "endLine": 177,
+          "tokens": 142
+        },
+        {
+          "name": "test_all_four_block_types_render",
+          "kind": "fn",
+          "startLine": 178,
+          "endLine": 189,
+          "tokens": 129
+        },
+        {
+          "name": "test_docx_landscape_swaps_page_dimensions",
+          "kind": "fn",
+          "startLine": 190,
+          "endLine": 203,
+          "tokens": 174
+        },
+        {
+          "name": "_all_text",
+          "kind": "fn",
+          "startLine": 204,
+          "endLine": 225,
+          "tokens": 242
+        }
+      ]
+    },
+    "pcs-backend/app/services/report/renderer_xlsx.py": {
+      "description": "XLSX 渲染器 —— XlsxWriter 流式写入。",
+      "tokens": 1142,
+      "hash": "2afdde4fcb36e6e6",
+      "size": 4938,
+      "mtimeMs": 1791514777681.7751,
+      "updatedAt": "2026-10-09T02:59:37.727Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_hf_to_xlsx",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 46,
+          "tokens": 85
+        },
+        {
+          "name": "render_xlsx",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 110,
+          "tokens": 786
+        }
+      ]
+    },
+    "pcs-backend/app/services/report/renderer_docx.py": {
+      "description": "DOCX 渲染器 —— python-docx 直接构建。",
+      "tokens": 1533,
+      "hash": "b0cab50fc2e4ef82",
+      "size": 6280,
+      "mtimeMs": 1791766100742.1008,
+      "updatedAt": "2026-10-12T00:48:20.802Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_add_page_field",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 53,
+          "tokens": 119
+        },
+        {
+          "name": "_write_hf",
+          "kind": "fn",
+          "startLine": 54,
+          "endLine": 69,
+          "tokens": 133
+        },
+        {
+          "name": "_write_hf_parts",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 101,
+          "tokens": 282
+        },
+        {
+          "name": "render_docx",
+          "kind": "fn",
+          "startLine": 102,
+          "endLine": 157,
+          "tokens": 647
+        },
+        {
+          "name": "_color_run",
+          "kind": "fn",
+          "startLine": 158,
+          "endLine": 168,
+          "tokens": 95
+        }
+      ]
+    },
+    "pcs-backend/tests/services/report/test_datasource_registry.py": {
+      "description": "数据源注册表契约（纯元数据）。",
+      "tokens": 1167,
+      "hash": "6fa4b9b93c182110",
+      "size": 4964,
+      "mtimeMs": 1791766805554.706,
+      "updatedAt": "2026-10-12T01:00:05.607Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_thirteen_datasources_registered",
+          "kind": "fn",
+          "startLine": 20,
+          "endLine": 28,
+          "tokens": 98
+        },
+        {
+          "name": "test_each_datasource_has_tag_and_core_fields",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 38,
+          "tokens": 122
+        },
+        {
+          "name": "test_join_rules_match_spec_whitelist",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 50,
+          "tokens": 188
+        },
+        {
+          "name": "test_join_is_symmetric",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 57,
+          "tokens": 66
+        },
+        {
+          "name": "test_unsupported_join_raises_explicit_error",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 64,
+          "tokens": 67
+        },
+        {
+          "name": "test_join_fields_exist_in_orm",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 73,
+          "tokens": 101
+        },
+        {
+          "name": "test_registry_fields_exist_in_orm",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 91,
+          "tokens": 188
+        },
+        {
+          "name": "test_piping_maps_to_line_list_table",
+          "kind": "fn",
+          "startLine": 92,
+          "endLine": 100,
+          "tokens": 91
+        },
+        {
+          "name": "test_registry_has_no_query_logic",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 109,
+          "tokens": 99
+        }
+      ]
+    },
+    "pcs-backend/app/services/report/datasource_registry.py": {
+      "description": "数据源注册表 —— REPORT_BUILDER 可选数据源的**纯元数据**。",
+      "tokens": 3162,
+      "hash": "efdcfba41f201801",
+      "size": 13085,
+      "mtimeMs": 1791775398022.4255,
+      "updatedAt": "2026-10-12T03:23:18.070Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "FieldSpec",
+          "kind": "class",
+          "startLine": 37,
+          "endLine": 50,
+          "tokens": 75
+        },
+        {
+          "name": "DataSource",
+          "kind": "class",
+          "startLine": 51,
+          "endLine": 58,
+          "tokens": 46
+        },
+        {
+          "name": "JoinRule",
+          "kind": "class",
+          "startLine": 59,
+          "endLine": 71,
+          "tokens": 64
+        },
+        {
+          "name": "_f",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 75,
+          "tokens": 33
+        },
+        {
+          "name": "_jf",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 262,
+          "tokens": 2477
+        },
+        {
+          "name": "join_key_for",
+          "kind": "fn",
+          "startLine": 263,
+          "endLine": 278,
+          "tokens": 161
+        }
+      ]
+    },
+    "pcs-backend/tests/services/report/test_query_engine.py": {
+      "description": "取数引擎契约 —— 过滤/排序/字段选择/NULL 处理的**唯一实现**。",
+      "tokens": 1333,
+      "hash": "ed0dd415b495fcaa",
+      "size": 5417,
+      "mtimeMs": 1791767844189.707,
+      "updatedAt": "2026-10-12T01:17:24.237Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_spec",
+          "kind": "fn",
+          "startLine": 25,
+          "endLine": 32,
+          "tokens": 69
+        },
+        {
+          "name": "_sql",
+          "kind": "fn",
+          "startLine": 33,
+          "endLine": 37,
+          "tokens": 44
+        },
+        {
+          "name": "test_all_fifteen_operators_implemented",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 43,
+          "tokens": 51
+        },
+        {
+          "name": "test_operator_translates_to_parameterized_sql",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 53,
+          "tokens": 107
+        },
+        {
+          "name": "test_is_null_has_no_value",
+          "kind": "fn",
+          "startLine": 54,
+          "endLine": 59,
+          "tokens": 74
+        },
+        {
+          "name": "test_missing_value_raises_instead_of_returning_everything",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 69,
+          "tokens": 92
+        },
+        {
+          "name": "test_between_requires_two_element_list",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 75,
+          "tokens": 54
+        },
+        {
+          "name": "test_in_requires_list",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 81,
+          "tokens": 50
+        },
+        {
+          "name": "test_unknown_operator_raises_not_ignored",
+          "kind": "fn",
+          "startLine": 82,
+          "endLine": 89,
+          "tokens": 78
+        },
+        {
+          "name": "test_unknown_field_raises_not_sql_error",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 96,
+          "tokens": 78
+        },
+        {
+          "name": "test_injection_attempt_returns_params_not_raises",
+          "kind": "fn",
+          "startLine": 97,
+          "endLine": 103,
+          "tokens": 71
+        },
+        {
+          "name": "test_and_or_grouping_nests",
+          "kind": "fn",
+          "startLine": 104,
+          "endLine": 115,
+          "tokens": 105
+        },
+        {
+          "name": "test_empty_conditions_returns_true_not_nothing",
+          "kind": "fn",
+          "startLine": 116,
+          "endLine": 120,
+          "tokens": 52
+        },
+        {
+          "name": "test_sort_uses_column_not_string_concat",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 128,
+          "tokens": 90
+        },
+        {
+          "name": "test_build_select_rejects_field_outside_registry",
+          "kind": "fn",
+          "startLine": 129,
+          "endLine": 134,
+          "tokens": 61
+        },
+        {
+          "name": "test_build_select_rejects_unknown_datasource",
+          "kind": "fn",
+          "startLine": 135,
+          "endLine": 138,
+          "tokens": 56
+        }
+      ]
+    },
+    "pcs-backend/app/services/report/query_engine.py": {
+      "description": "取数引擎 —— 过滤/排序/字段选择/NULL 处理的**唯一实现**。",
+      "tokens": 2546,
+      "hash": "a71ba81349f63577",
+      "size": 11138,
+      "mtimeMs": 1791767877885.943,
+      "updatedAt": "2026-10-12T01:17:57.934Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_datasource",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 56,
+          "tokens": 57
+        },
+        {
+          "name": "_column",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 82,
+          "tokens": 281
+        },
+        {
+          "name": "_jsonb_col",
+          "kind": "fn",
+          "startLine": 83,
+          "endLine": 91,
+          "tokens": 81
+        },
+        {
+          "name": "_need_value",
+          "kind": "fn",
+          "startLine": 92,
+          "endLine": 109,
+          "tokens": 200
+        },
+        {
+          "name": "_build_condition",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 166,
+          "tokens": 484
+        },
+        {
+          "name": "apply_filters",
+          "kind": "fn",
+          "startLine": 167,
+          "endLine": 186,
+          "tokens": 212
+        },
+        {
+          "name": "build_select",
+          "kind": "fn",
+          "startLine": 187,
+          "endLine": 212,
+          "tokens": 248
+        },
+        {
+          "name": "apply_sort",
+          "kind": "fn",
+          "startLine": 213,
+          "endLine": 219,
+          "tokens": 53
+        },
+        {
+          "name": "_column_from_label",
+          "kind": "fn",
+          "startLine": 220,
+          "endLine": 233,
+          "tokens": 110
+        },
+        {
+          "name": "paginate",
+          "kind": "fn",
+          "startLine": 234,
+          "endLine": 240,
+          "tokens": 48
+        },
+        {
+          "name": "check_joins",
+          "kind": "fn",
+          "startLine": 241,
+          "endLine": 254,
+          "tokens": 117
+        },
+        {
+          "name": "assemble",
+          "kind": "fn",
+          "startLine": 255,
+          "endLine": 276,
+          "tokens": 218
+        }
+      ]
+    },
+    "pcs-backend/tests/services/report/test_report_service.py": {
+      "description": "生成编排契约 —— 二维码载荷 + 取数 + 渲染 + 内容哈希存储 + 审计。",
+      "tokens": 1906,
+      "hash": "164d895641234b18",
+      "size": 7863,
+      "mtimeMs": 1791769464573.7085,
+      "updatedAt": "2026-10-12T01:44:24.625Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_qr_payload_is_deterministic",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 41,
+          "tokens": 121
+        },
+        {
+          "name": "test_qr_payload_order_independent_on_record_hashes",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 50,
+          "tokens": 128
+        },
+        {
+          "name": "test_qr_payload_digest_changes_with_records",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 59,
+          "tokens": 123
+        },
+        {
+          "name": "test_qr_payload_points_at_verify_endpoint",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 66,
+          "tokens": 90
+        },
+        {
+          "name": "test_same_content_twice_reuses_one_file",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 79,
+          "tokens": 153
+        },
+        {
+          "name": "test_different_format_creates_separate_file",
+          "kind": "fn",
+          "startLine": 80,
+          "endLine": 92,
+          "tokens": 175
+        },
+        {
+          "name": "test_failure_writes_report_failed_audit",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 111,
+          "tokens": 211
+        },
+        {
+          "name": "test_disk_failure_raises_pcserror_not_raw_oserror",
+          "kind": "fn",
+          "startLine": 112,
+          "endLine": 128,
+          "tokens": 195
+        },
+        {
+          "name": "test_audit_failure_does_not_rollback_the_file",
+          "kind": "fn",
+          "startLine": 129,
+          "endLine": 149,
+          "tokens": 215
+        },
+        {
+          "name": "test_unsupported_output_format_rejected",
+          "kind": "fn",
+          "startLine": 150,
+          "endLine": 159,
+          "tokens": 128
+        },
+        {
+          "name": "test_xlsx_and_pdf_both_supported",
+          "kind": "fn",
+          "startLine": 160,
+          "endLine": 165,
+          "tokens": 98
+        }
+      ]
+    },
+    "pcs-backend/app/services/report/qr.py": {
+      "description": "二维码内容组装 —— SPEC §3.2.1(3)。",
+      "tokens": 393,
+      "hash": "4944c27181054257",
+      "size": 2065,
+      "mtimeMs": 1791769488264.3855,
+      "updatedAt": "2026-10-12T01:44:48.322Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/services/report/paths.py": {
+      "description": "报表文件路径解析 —— **唯一**拼路径的地方。",
+      "tokens": 414,
+      "hash": "3bf4c34e1dd07c1e",
+      "size": 2108,
+      "mtimeMs": 1791769501281.7415,
+      "updatedAt": "2026-10-12T01:45:01.329Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/services/report/report_service.py": {
+      "description": "报表生成编排 —— 取数 → 渲染 → 落盘 → 记 `ReportFile` → 审计。",
+      "tokens": 3608,
+      "hash": "de4e5c735baa8787",
+      "size": 15455,
+      "mtimeMs": 1791775460196.1038,
+      "updatedAt": "2026-10-12T03:24:20.250Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "collect",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 97,
+          "tokens": 442
+        },
+        {
+          "name": "_to_blocks",
+          "kind": "fn",
+          "startLine": 98,
+          "endLine": 111,
+          "tokens": 149
+        },
+        {
+          "name": "_filter_spec",
+          "kind": "fn",
+          "startLine": 112,
+          "endLine": 125,
+          "tokens": 126
+        },
+        {
+          "name": "_fetch_join_rows",
+          "kind": "fn",
+          "startLine": 126,
+          "endLine": 144,
+          "tokens": 216
+        },
+        {
+          "name": "_join_column",
+          "kind": "fn",
+          "startLine": 145,
+          "endLine": 153,
+          "tokens": 87
+        },
+        {
+          "name": "_record_hashes",
+          "kind": "fn",
+          "startLine": 154,
+          "endLine": 158,
+          "tokens": 54
+        },
+        {
+          "name": "_assumed_fields",
+          "kind": "fn",
+          "startLine": 159,
+          "endLine": 172,
+          "tokens": 103
+        },
+        {
+          "name": "_render_sync",
+          "kind": "fn",
+          "startLine": 173,
+          "endLine": 190,
+          "tokens": 237
+        },
+        {
+          "name": "_content_hash",
+          "kind": "fn",
+          "startLine": 191,
+          "endLine": 218,
+          "tokens": 296
+        },
+        {
+          "name": "_block_canon",
+          "kind": "fn",
+          "startLine": 219,
+          "endLine": 223,
+          "tokens": 37
+        },
+        {
+          "name": "_write_file",
+          "kind": "fn",
+          "startLine": 224,
+          "endLine": 239,
+          "tokens": 142
+        },
+        {
+          "name": "generate",
+          "kind": "fn",
+          "startLine": 240,
+          "endLine": 310,
+          "tokens": 887
+        },
+        {
+          "name": "_upsert_report_file",
+          "kind": "fn",
+          "startLine": 311,
+          "endLine": 337,
+          "tokens": 272
+        }
+      ]
+    },
+    "pcs-backend/tests/workers/test_report_tasks.py": {
+      "description": "ARQ 报表异步任务 —— 状态持久化 + 重试审计 + 僵死回收。",
+      "tokens": 3343,
+      "hash": "04020ea2bc4627cf",
+      "size": 13475,
+      "mtimeMs": 1791771608787.1196,
+      "updatedAt": "2026-10-12T02:20:08.834Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_job_ctx",
+          "kind": "fn",
+          "startLine": 33,
+          "endLine": 37,
+          "tokens": 52
+        },
+        {
+          "name": "_make_row",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 54,
+          "tokens": 136
+        },
+        {
+          "name": "test_task_persists_status_and_returns_file_id",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 64,
+          "tokens": 117
+        },
+        {
+          "name": "test_task_creates_pending_row_before_rendering",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 94,
+          "tokens": 282
+        },
+        {
+          "name": "test_task_marks_row_succeeded_with_real_path",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 114,
+          "tokens": 230
+        },
+        {
+          "name": "test_same_content_reuses_existing_file_across_async_boundary",
+          "kind": "fn",
+          "startLine": 115,
+          "endLine": 136,
+          "tokens": 244
+        },
+        {
+          "name": "test_failure_sets_failed_status_and_writes_audit",
+          "kind": "fn",
+          "startLine": 137,
+          "endLine": 151,
+          "tokens": 158
+        },
+        {
+          "name": "test_each_failed_attempt_writes_one_audit_row",
+          "kind": "fn",
+          "startLine": 152,
+          "endLine": 182,
+          "tokens": 347
+        },
+        {
+          "name": "test_failure_marks_row_failed_with_error_message",
+          "kind": "fn",
+          "startLine": 183,
+          "endLine": 204,
+          "tokens": 232
+        },
+        {
+          "name": "test_retry_after_failure_reuses_same_row",
+          "kind": "fn",
+          "startLine": 205,
+          "endLine": 240,
+          "tokens": 362
+        },
+        {
+          "name": "test_stale_pending_task_is_reclaimed",
+          "kind": "fn",
+          "startLine": 241,
+          "endLine": 255,
+          "tokens": 149
+        },
+        {
+          "name": "test_fresh_pending_task_is_not_reclaimed",
+          "kind": "fn",
+          "startLine": 256,
+          "endLine": 265,
+          "tokens": 117
+        },
+        {
+          "name": "test_reclaim_does_not_touch_succeeded_or_deleting",
+          "kind": "fn",
+          "startLine": 266,
+          "endLine": 280,
+          "tokens": 202
+        },
+        {
+          "name": "test_reclaim_writes_audit_for_each_reclaimed_task",
+          "kind": "fn",
+          "startLine": 281,
+          "endLine": 295,
+          "tokens": 185
+        },
+        {
+          "name": "test_audit_actions_exist_and_are_short",
+          "kind": "fn",
+          "startLine": 296,
+          "endLine": 303,
+          "tokens": 84
+        },
+        {
+          "name": "test_pending_hash_prefix_cannot_collide_with_real_digest",
+          "kind": "fn",
+          "startLine": 304,
+          "endLine": 312,
+          "tokens": 90
+        },
+        {
+          "name": "test_status_state_set_includes_pending_and_deleting",
+          "kind": "fn",
+          "startLine": 313,
+          "endLine": 316,
+          "tokens": 41
+        },
+        {
+          "name": "test_style_json_roundtrips_through_report_style",
+          "kind": "fn",
+          "startLine": 317,
+          "endLine": 320,
+          "tokens": 71
+        }
+      ]
+    },
+    "pcs-backend/app/workers/report_tasks.py": {
+      "description": "ARQ 报表异步生成任务。",
+      "tokens": 2045,
+      "hash": "3464e9ef5896661a",
+      "size": 9016,
+      "mtimeMs": 1791771707406.9973,
+      "updatedAt": "2026-10-12T02:21:47.451Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_now",
+          "kind": "fn",
+          "startLine": 61,
+          "endLine": 64,
+          "tokens": 18
+        },
+        {
+          "name": "_mark_pending",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 99,
+          "tokens": 326
+        },
+        {
+          "name": "_finalize",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 128,
+          "tokens": 243
+        },
+        {
+          "name": "generate_report_task",
+          "kind": "fn",
+          "startLine": 129,
+          "endLine": 175,
+          "tokens": 562
+        },
+        {
+          "name": "reclaim_stale_tasks",
+          "kind": "fn",
+          "startLine": 176,
+          "endLine": 210,
+          "tokens": 336
+        },
+        {
+          "name": "reclaim_stale_tasks_batch",
+          "kind": "fn",
+          "startLine": 211,
+          "endLine": 217,
+          "tokens": 90
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_report.py": {
+      "description": "`/api/v1/report` 路由契约。",
+      "tokens": 2381,
+      "hash": "eba52515d74aa8e6",
+      "size": 9666,
+      "mtimeMs": 1791772570867.2744,
+      "updatedAt": "2026-10-12T02:36:10.912Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_sig",
+          "kind": "fn",
+          "startLine": 28,
+          "endLine": 36,
+          "tokens": 98
+        },
+        {
+          "name": "valid_sig",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 44,
+          "tokens": 58
+        },
+        {
+          "name": "test_generate_returns_202_and_task_id",
+          "kind": "fn",
+          "startLine": 45,
+          "endLine": 55,
+          "tokens": 126
+        },
+        {
+          "name": "test_generate_rejects_unknown_format",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 66,
+          "tokens": 128
+        },
+        {
+          "name": "test_generate_requires_project_access",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 79,
+          "tokens": 131
+        },
+        {
+          "name": "test_status_endpoint_reports_state",
+          "kind": "fn",
+          "startLine": 80,
+          "endLine": 86,
+          "tokens": 81
+        },
+        {
+          "name": "test_download_without_project_access_is_403",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 92,
+          "tokens": 73
+        },
+        {
+          "name": "test_download_streams_the_file",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 99,
+          "tokens": 83
+        },
+        {
+          "name": "test_download_writes_audit",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 117,
+          "tokens": 184
+        },
+        {
+          "name": "test_verify_endpoint_returns_verdict_only",
+          "kind": "fn",
+          "startLine": 118,
+          "endLine": 126,
+          "tokens": 120
+        },
+        {
+          "name": "test_verify_endpoint_is_unauthenticated",
+          "kind": "fn",
+          "startLine": 127,
+          "endLine": 136,
+          "tokens": 100
+        },
+        {
+          "name": "test_verify_endpoint_rejects_unsigned_or_expired_sig",
+          "kind": "fn",
+          "startLine": 137,
+          "endLine": 146,
+          "tokens": 122
+        },
+        {
+          "name": "test_verify_signature_is_bound_to_report_id",
+          "kind": "fn",
+          "startLine": 147,
+          "endLine": 153,
+          "tokens": 90
+        },
+        {
+          "name": "test_verify_reports_mismatch_as_match_false",
+          "kind": "fn",
+          "startLine": 154,
+          "endLine": 167,
+          "tokens": 140
+        },
+        {
+          "name": "test_authenticated_hash_endpoint_returns_full_hash",
+          "kind": "fn",
+          "startLine": 168,
+          "endLine": 175,
+          "tokens": 104
+        },
+        {
+          "name": "test_hash_endpoint_requires_project_access",
+          "kind": "fn",
+          "startLine": 176,
+          "endLine": 184,
+          "tokens": 94
+        },
+        {
+          "name": "test_response_schemas_have_no_bare_object",
+          "kind": "fn",
+          "startLine": 185,
+          "endLine": 216,
+          "tokens": 348
+        },
+        {
+          "name": "test_all_planned_endpoints_exist",
+          "kind": "fn",
+          "startLine": 217,
+          "endLine": 227,
+          "tokens": 132
+        }
+      ]
+    },
+    "pcs-backend/app/schemas/report.py": {
+      "description": "`/api/v1/report` 的请求/响应模型。",
+      "tokens": 629,
+      "hash": "1fd02421454f2035",
+      "size": 2722,
+      "mtimeMs": 1791772697446.428,
+      "updatedAt": "2026-10-12T02:38:17.493Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "GenerateRequest",
+          "kind": "class",
+          "startLine": 24,
+          "endLine": 30,
+          "tokens": 71
+        },
+        {
+          "name": "GenerateResponse",
+          "kind": "class",
+          "startLine": 31,
+          "endLine": 37,
+          "tokens": 45
+        },
+        {
+          "name": "ReportStatusResponse",
+          "kind": "class",
+          "startLine": 38,
+          "endLine": 46,
+          "tokens": 59
+        },
+        {
+          "name": "VerifyResponse",
+          "kind": "class",
+          "startLine": 47,
+          "endLine": 59,
+          "tokens": 90
+        },
+        {
+          "name": "HashResponse",
+          "kind": "class",
+          "startLine": 60,
+          "endLine": 68,
+          "tokens": 64
+        },
+        {
+          "name": "StyleSummary",
+          "kind": "class",
+          "startLine": 69,
+          "endLine": 77,
+          "tokens": 50
+        },
+        {
+          "name": "StyleListResponse",
+          "kind": "class",
+          "startLine": 78,
+          "endLine": 85,
+          "tokens": 80
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/report.py": {
+      "description": "`/api/v1/report` 路由。",
+      "tokens": 3226,
+      "hash": "0c250d2c9c4fb76c",
+      "size": 13302,
+      "mtimeMs": 1791773727327.5608,
+      "updatedAt": "2026-10-12T02:55:27.377Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_client_ip",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 83,
+          "tokens": 114
+        },
+        {
+          "name": "_check_sig",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 99,
+          "tokens": 211
+        },
+        {
+          "name": "_load_or_404",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 108,
+          "tokens": 95
+        },
+        {
+          "name": "_guard_project",
+          "kind": "fn",
+          "startLine": 109,
+          "endLine": 121,
+          "tokens": 153
+        },
+        {
+          "name": "generate_report",
+          "kind": "fn",
+          "startLine": 122,
+          "endLine": 159,
+          "tokens": 452
+        },
+        {
+          "name": "report_status",
+          "kind": "fn",
+          "startLine": 160,
+          "endLine": 169,
+          "tokens": 127
+        },
+        {
+          "name": "download",
+          "kind": "fn",
+          "startLine": 170,
+          "endLine": 190,
+          "tokens": 261
+        },
+        {
+          "name": "verify",
+          "kind": "fn",
+          "startLine": 191,
+          "endLine": 228,
+          "tokens": 432
+        },
+        {
+          "name": "report_hash",
+          "kind": "fn",
+          "startLine": 229,
+          "endLine": 242,
+          "tokens": 166
+        },
+        {
+          "name": "list_styles",
+          "kind": "fn",
+          "startLine": 243,
+          "endLine": 257,
+          "tokens": 225
+        },
+        {
+          "name": "get_style",
+          "kind": "fn",
+          "startLine": 258,
+          "endLine": 273,
+          "tokens": 212
+        },
+        {
+          "name": "_file_intact",
+          "kind": "fn",
+          "startLine": 274,
+          "endLine": 288,
+          "tokens": 115
+        },
+        {
+          "name": "_expected_digest",
+          "kind": "fn",
+          "startLine": 289,
+          "endLine": 294,
+          "tokens": 46
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p8_002_report_file_doc_no_rev.py": {
+      "description": "P8：report_files 加 doc_no / rev。",
+      "tokens": 220,
+      "hash": "8956f5e8b2335d03",
+      "size": 928,
+      "mtimeMs": 1791773139497.401,
+      "updatedAt": "2026-10-12T02:45:39.553Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/report/test_collector.py": {
+      "description": "10 类报表 collector —— SPEC §3.2.1(2) 的类型表。",
+      "tokens": 1095,
+      "hash": "c7bdd6493db089bc",
+      "size": 4695,
+      "mtimeMs": 1791775226594.9702,
+      "updatedAt": "2026-10-12T03:20:26.638Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_ten_report_types_exactly",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 42,
+          "tokens": 88
+        },
+        {
+          "name": "test_sources_match_spec",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 49,
+          "tokens": 75
+        },
+        {
+          "name": "test_each_type_declares_a_real_datasource",
+          "kind": "fn",
+          "startLine": 50,
+          "endLine": 58,
+          "tokens": 88
+        },
+        {
+          "name": "test_declared_fields_exist_in_registry",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 71,
+          "tokens": 145
+        },
+        {
+          "name": "test_primary_source_is_among_sources",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 78,
+          "tokens": 59
+        },
+        {
+          "name": "test_field_count_is_not_empty",
+          "kind": "fn",
+          "startLine": 79,
+          "endLine": 86,
+          "tokens": 71
+        },
+        {
+          "name": "test_unknown_report_type_raises",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 95,
+          "tokens": 72
+        },
+        {
+          "name": "test_energy_calc_book_source_matches_spec",
+          "kind": "fn",
+          "startLine": 96,
+          "endLine": 101,
+          "tokens": 64
+        },
+        {
+          "name": "test_collector_has_no_query_logic",
+          "kind": "fn",
+          "startLine": 102,
+          "endLine": 111,
+          "tokens": 106
+        }
+      ]
+    },
+    "pcs-backend/app/services/report/collector.py": {
+      "description": "10 类报表的**声明**（SPEC §3.2.1(2)）。",
+      "tokens": 1502,
+      "hash": "20ef29ef1661a665",
+      "size": 6332,
+      "mtimeMs": 1791775254854.2166,
+      "updatedAt": "2026-10-12T03:20:54.907Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ReportSpec",
+          "kind": "class",
+          "startLine": 28,
+          "endLine": 123,
+          "tokens": 1180
+        },
+        {
+          "name": "collector_for",
+          "kind": "fn",
+          "startLine": 124,
+          "endLine": 135,
+          "tokens": 126
+        }
+      ]
+    },
+    "pcs-backend/tests/services/report/test_golden.py": {
+      "description": "10 类报表的 Golden 基线 —— 输出**稳定性**的回归闸。",
+      "tokens": 948,
+      "hash": "8bc4db81bd70f430",
+      "size": 4495,
+      "mtimeMs": 1791775561945.5776,
+      "updatedAt": "2026-10-12T03:26:01.996Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "pytest_addoption",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 46,
+          "tokens": 49
+        },
+        {
+          "name": "normalize_pdf",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 55,
+          "tokens": 62
+        },
+        {
+          "name": "_render",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 67,
+          "tokens": 147
+        },
+        {
+          "name": "test_golden_text_stable",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 88,
+          "tokens": 216
+        },
+        {
+          "name": "test_golden_contains_real_seed_values",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 102,
+          "tokens": 123
+        },
+        {
+          "name": "test_seed_covers_all_report_types",
+          "kind": "fn",
+          "startLine": 103,
+          "endLine": 107,
+          "tokens": 74
+        }
+      ]
+    },
+    "pcs-backend/tests/fixtures/report/__init__.py": {
+      "description": "P8 报表 Golden 基线包。",
+      "tokens": 7,
+      "hash": "2b3ad269ec0820a7",
+      "size": 35,
+      "mtimeMs": 1791775637805.1216,
+      "updatedAt": "2026-10-12T03:27:17.854Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/fixtures/report/seed.py": {
+      "description": "Golden 测试的种子数据 —— 每种报表 2–3 组。",
+      "tokens": 2426,
+      "hash": "dd117f168cf1be54",
+      "size": 9008,
+      "mtimeMs": 1791775666478.2341,
+      "updatedAt": "2026-10-12T03:27:46.526Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_json",
+          "kind": "fn",
+          "startLine": 24,
+          "endLine": 28,
+          "tokens": 21
+        },
+        {
+          "name": "make_report_seed",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 48,
+          "tokens": 235
+        },
+        {
+          "name": "_seed_equipment",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 67,
+          "tokens": 235
+        },
+        {
+          "name": "_seed_piping",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 91,
+          "tokens": 355
+        },
+        {
+          "name": "_seed_pump",
+          "kind": "fn",
+          "startLine": 92,
+          "endLine": 112,
+          "tokens": 297
+        },
+        {
+          "name": "_seed_psv",
+          "kind": "fn",
+          "startLine": 113,
+          "endLine": 129,
+          "tokens": 222
+        },
+        {
+          "name": "_seed_vessel",
+          "kind": "fn",
+          "startLine": 130,
+          "endLine": 144,
+          "tokens": 201
+        },
+        {
+          "name": "_seed_heat",
+          "kind": "fn",
+          "startLine": 145,
+          "endLine": 158,
+          "tokens": 156
+        },
+        {
+          "name": "_seed_util",
+          "kind": "fn",
+          "startLine": 159,
+          "endLine": 181,
+          "tokens": 319
+        },
+        {
+          "name": "_seed_stream",
+          "kind": "fn",
+          "startLine": 182,
+          "endLine": 200,
+          "tokens": 190
+        }
+      ]
+    },
+    "pcs-backend/tests/benchmarks/test_report_perf.py": {
+      "description": "SPEC §3.3.1 性能指标 —— **绝对阈值断言**。",
+      "tokens": 915,
+      "hash": "15c4ff33e030c8c1",
+      "size": 4479,
+      "mtimeMs": 1791799486401.8984,
+      "updatedAt": "2026-10-12T10:04:46.452Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_gen",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 41,
+          "tokens": 115
+        },
+        {
+          "name": "test_simple_report_under_5s",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 48,
+          "tokens": 65
+        },
+        {
+          "name": "test_complex_report_under_15s",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 55,
+          "tokens": 65
+        },
+        {
+          "name": "test_xlsx_10k_rows_under_10s",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 88,
+          "tokens": 338
+        },
+        {
+          "name": "test_font_registration_is_cached_across_renders",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 100,
+          "tokens": 123
+        }
+      ]
+    },
+    ".superpowers/sdd/2026-10-08-p8-report-and-report-builder/_phase1_close.md": {
+      "description": "Phase 1 收口",
+      "tokens": 537,
+      "hash": "5db801227b719a6f",
+      "size": 3242,
+      "mtimeMs": 1791799964108.0642,
+      "updatedAt": "2026-10-12T10:12:44.154Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/api/v1/test_report_builder.py": {
+      "description": "`/api/v1/report-builder` 路由契约（Phase 2）。",
+      "tokens": 2883,
+      "hash": "9c6a012166e5075e",
+      "size": 11914,
+      "mtimeMs": 1791802519343.0222,
+      "updatedAt": "2026-10-12T10:55:19.400Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "auth_pc",
+          "kind": "fn",
+          "startLine": 26,
+          "endLine": 33,
+          "tokens": 65
+        },
+        {
+          "name": "test_datasources_returns_every_registered_source",
+          "kind": "fn",
+          "startLine": 34,
+          "endLine": 41,
+          "tokens": 92
+        },
+        {
+          "name": "test_datasource_field_tree_matches_registry_exactly",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 64,
+          "tokens": 275
+        },
+        {
+          "name": "test_datasources_require_auth",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 74,
+          "tokens": 72
+        },
+        {
+          "name": "test_join_whitelist_is_published_with_exactly_the_registry_pairs",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 88,
+          "tokens": 160
+        },
+        {
+          "name": "test_jsonb_fields_are_marked_so_the_ui_can_warn",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 101,
+          "tokens": 155
+        },
+        {
+          "name": "test_response_has_no_bare_object_fields",
+          "kind": "fn",
+          "startLine": 102,
+          "endLine": 116,
+          "tokens": 183
+        },
+        {
+          "name": "_auth",
+          "kind": "fn",
+          "startLine": 117,
+          "endLine": 120,
+          "tokens": 40
+        },
+        {
+          "name": "_definition_body",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 143,
+          "tokens": 195
+        },
+        {
+          "name": "test_create_definition_starts_as_draft_owned_by_creator",
+          "kind": "fn",
+          "startLine": 144,
+          "endLine": 154,
+          "tokens": 129
+        },
+        {
+          "name": "test_draft_is_invisible_to_others_but_visible_to_creator",
+          "kind": "fn",
+          "startLine": 155,
+          "endLine": 180,
+          "tokens": 316
+        },
+        {
+          "name": "test_definition_endpoints_require_auth",
+          "kind": "fn",
+          "startLine": 181,
+          "endLine": 187,
+          "tokens": 89
+        },
+        {
+          "name": "test_definition_rejects_datasource_not_in_registry",
+          "kind": "fn",
+          "startLine": 188,
+          "endLine": 201,
+          "tokens": 150
+        },
+        {
+          "name": "test_definition_rejects_field_not_in_that_datasource",
+          "kind": "fn",
+          "startLine": 202,
+          "endLine": 216,
+          "tokens": 178
+        },
+        {
+          "name": "test_definition_rejects_unsupported_output_format",
+          "kind": "fn",
+          "startLine": 217,
+          "endLine": 225,
+          "tokens": 114
+        },
+        {
+          "name": "test_update_draft_keeps_draft_and_version",
+          "kind": "fn",
+          "startLine": 226,
+          "endLine": 240,
+          "tokens": 200
+        },
+        {
+          "name": "test_update_by_non_creator_gets_404",
+          "kind": "fn",
+          "startLine": 241,
+          "endLine": 250,
+          "tokens": 143
+        },
+        {
+          "name": "test_duplicate_name_in_same_project_rejected",
+          "kind": "fn",
+          "startLine": 251,
+          "endLine": 260,
+          "tokens": 166
+        }
+      ]
+    },
+    "pcs-backend/app/schemas/report_builder.py": {
+      "description": "`/api/v1/report-builder` 的请求/响应模型（Phase 2）。",
+      "tokens": 1351,
+      "hash": "c57a793782f043bb",
+      "size": 5742,
+      "mtimeMs": 1791803751144.5332,
+      "updatedAt": "2026-10-12T11:15:51.189Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ReportBuilderField",
+          "kind": "class",
+          "startLine": 19,
+          "endLine": 27,
+          "tokens": 70
+        },
+        {
+          "name": "ReportBuilderDatasource",
+          "kind": "class",
+          "startLine": 28,
+          "endLine": 34,
+          "tokens": 36
+        },
+        {
+          "name": "ReportBuilderJoin",
+          "kind": "class",
+          "startLine": 35,
+          "endLine": 42,
+          "tokens": 37
+        },
+        {
+          "name": "ReportBuilderDatasourceList",
+          "kind": "class",
+          "startLine": 43,
+          "endLine": 53,
+          "tokens": 104
+        },
+        {
+          "name": "ReportDefSource",
+          "kind": "class",
+          "startLine": 54,
+          "endLine": 60,
+          "tokens": 38
+        },
+        {
+          "name": "ReportDefSelectedField",
+          "kind": "class",
+          "startLine": 61,
+          "endLine": 70,
+          "tokens": 54
+        },
+        {
+          "name": "ReportDefCondition",
+          "kind": "class",
+          "startLine": 71,
+          "endLine": 83,
+          "tokens": 102
+        },
+        {
+          "name": "ReportDefFilterGroup",
+          "kind": "class",
+          "startLine": 84,
+          "endLine": 103,
+          "tokens": 182
+        },
+        {
+          "name": "ReportDefSort",
+          "kind": "class",
+          "startLine": 104,
+          "endLine": 109,
+          "tokens": 33
+        },
+        {
+          "name": "ReportDefinitionBody",
+          "kind": "class",
+          "startLine": 110,
+          "endLine": 131,
+          "tokens": 242
+        },
+        {
+          "name": "ReportDefinitionUpsert",
+          "kind": "class",
+          "startLine": 132,
+          "endLine": 144,
+          "tokens": 109
+        },
+        {
+          "name": "ReportDefinitionOut",
+          "kind": "class",
+          "startLine": 145,
+          "endLine": 161,
+          "tokens": 115
+        },
+        {
+          "name": "ReportDefinitionList",
+          "kind": "class",
+          "startLine": 162,
+          "endLine": 171,
+          "tokens": 103
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/report_builder.py": {
+      "description": "`/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。",
+      "tokens": 1791,
+      "hash": "5d1f2d5d96f0ec7d",
+      "size": 7423,
+      "mtimeMs": 1791802681047.2432,
+      "updatedAt": "2026-10-12T10:58:01.098Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "list_datasources",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 83,
+          "tokens": 387
+        },
+        {
+          "name": "_reject_bad_format",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 100,
+          "tokens": 148
+        },
+        {
+          "name": "create_definition",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 126,
+          "tokens": 314
+        },
+        {
+          "name": "list_definitions",
+          "kind": "fn",
+          "startLine": 127,
+          "endLine": 133,
+          "tokens": 100
+        },
+        {
+          "name": "get_definition",
+          "kind": "fn",
+          "startLine": 134,
+          "endLine": 141,
+          "tokens": 88
+        },
+        {
+          "name": "update_definition",
+          "kind": "fn",
+          "startLine": 142,
+          "endLine": 157,
+          "tokens": 191
+        },
+        {
+          "name": "_as_dict",
+          "kind": "fn",
+          "startLine": 158,
+          "endLine": 180,
+          "tokens": 195
+        }
+      ]
+    },
+    "pcs-backend/app/services/report/definition_service.py": {
+      "description": "报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。",
+      "tokens": 3474,
+      "hash": "632de2e644b40279",
+      "size": 15117,
+      "mtimeMs": 1791803668708.8682,
+      "updatedAt": "2026-10-12T11:14:28.776Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "bump_patch",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 73,
+          "tokens": 128
+        },
+        {
+          "name": "validate_definition_json",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 108,
+          "tokens": 378
+        },
+        {
+          "name": "align_with_columns",
+          "kind": "fn",
+          "startLine": 109,
+          "endLine": 137,
+          "tokens": 284
+        },
+        {
+          "name": "_to_dict",
+          "kind": "fn",
+          "startLine": 138,
+          "endLine": 156,
+          "tokens": 168
+        },
+        {
+          "name": "visible_clause",
+          "kind": "fn",
+          "startLine": 157,
+          "endLine": 171,
+          "tokens": 108
+        },
+        {
+          "name": "DefinitionService",
+          "kind": "class",
+          "startLine": 172,
+          "endLine": 324,
+          "tokens": 1972
+        }
+      ]
+    },
+    "pcs-backend/app/services/report/builder_service.py": {
+      "description": "REPORT_BUILDER 执行引擎（P8b b7）。",
+      "tokens": 2490,
+      "hash": "88a7ede25fda90c0",
+      "size": 11028,
+      "mtimeMs": 1791804173127.1848,
+      "updatedAt": "2026-10-12T11:22:53.181Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ExecutionResult",
+          "kind": "class",
+          "startLine": 41,
+          "endLine": 55,
+          "tokens": 88
+        },
+        {
+          "name": "_visible_fields",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 77,
+          "tokens": 243
+        },
+        {
+          "name": "_fetch_source",
+          "kind": "fn",
+          "startLine": 78,
+          "endLine": 96,
+          "tokens": 214
+        },
+        {
+          "name": "_fetch_join_rows",
+          "kind": "fn",
+          "startLine": 97,
+          "endLine": 112,
+          "tokens": 178
+        },
+        {
+          "name": "_attr",
+          "kind": "fn",
+          "startLine": 113,
+          "endLine": 119,
+          "tokens": 63
+        },
+        {
+          "name": "execute_definition",
+          "kind": "fn",
+          "startLine": 120,
+          "endLine": 230,
+          "tokens": 1233
+        },
+        {
+          "name": "_project_field",
+          "kind": "fn",
+          "startLine": 231,
+          "endLine": 248,
+          "tokens": 147
+        }
+      ]
+    },
+    "pcs-backend/app/services/report/arq_queue.py": {
+      "description": "ARQ 入队 helper —— 把「怎么建 pool、传什么参数」收在一处。",
+      "tokens": 667,
+      "hash": "90b2fb297a9dafd5",
+      "size": 3040,
+      "mtimeMs": 1791803995642.2336,
+      "updatedAt": "2026-10-12T11:19:55.692Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_enqueue",
+          "kind": "fn",
+          "startLine": 26,
+          "endLine": 52,
+          "tokens": 241
+        },
+        {
+          "name": "enqueue_definition_execution",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 67,
+          "tokens": 188
+        },
+        {
+          "name": "new_task_id",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 73,
+          "tokens": 50
+        }
+      ]
+    },
+    "pcs-backend/app/workers/report_builder_tasks.py": {
+      "description": "ARQ：自定义报表定义执行任务（b7）。",
+      "tokens": 1349,
+      "hash": "1cc5ddd5ac11d8fe",
+      "size": 5233,
+      "mtimeMs": 1791804250243.708,
+      "updatedAt": "2026-10-12T11:24:10.293Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "execute_definition_task",
+          "kind": "fn",
+          "startLine": 36,
+          "endLine": 87,
+          "tokens": 556
+        },
+        {
+          "name": "_render_and_store",
+          "kind": "fn",
+          "startLine": 88,
+          "endLine": 132,
+          "tokens": 553
+        }
+      ]
+    },
+    "pcs-backend/app/services/report/watermark.py": {
+      "description": "导出水印与格式分发（P8b b8）。",
+      "tokens": 1301,
+      "hash": "41b41ea9cdf594b7",
+      "size": 5920,
+      "mtimeMs": 1791805052355.769,
+      "updatedAt": "2026-10-12T11:37:32.411Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "watermark_text",
+          "kind": "fn",
+          "startLine": 48,
+          "endLine": 54,
+          "tokens": 82
+        },
+        {
+          "name": "apply",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 67,
+          "tokens": 131
+        },
+        {
+          "name": "check_demo_definition_limit",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 81,
+          "tokens": 124
+        },
+        {
+          "name": "render_to_bytes",
+          "kind": "fn",
+          "startLine": 82,
+          "endLine": 111,
+          "tokens": 354
+        },
+        {
+          "name": "render_csv",
+          "kind": "fn",
+          "startLine": 112,
+          "endLine": 130,
+          "tokens": 188
+        },
+        {
+          "name": "file_extension",
+          "kind": "fn",
+          "startLine": 131,
+          "endLine": 137,
+          "tokens": 88
+        }
+      ]
+    },
+    "pcs-backend/app/services/heat/heat_data_service.py": {
+      "description": "HeatResultsService 落库（P5-4-2 / Task 20）。",
+      "tokens": 4333,
+      "hash": "df7fff4b79deec8e",
+      "size": 16936,
+      "mtimeMs": 1791805859639.0613,
+      "updatedAt": "2026-10-12T11:50:59.688Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "HeatCalcInput",
+          "kind": "class",
+          "startLine": 32,
+          "endLine": 106,
+          "tokens": 826
+        },
+        {
+          "name": "save_heat_calc_result",
+          "kind": "fn",
+          "startLine": 107,
+          "endLine": 211,
+          "tokens": 1043
+        },
+        {
+          "name": "map_htri_to_heat_input",
+          "kind": "fn",
+          "startLine": 212,
+          "endLine": 253,
+          "tokens": 415
+        },
+        {
+          "name": "_htri_hot_side_dict",
+          "kind": "fn",
+          "startLine": 254,
+          "endLine": 264,
+          "tokens": 96
+        },
+        {
+          "name": "_htri_cold_side_dict",
+          "kind": "fn",
+          "startLine": 265,
+          "endLine": 275,
+          "tokens": 98
+        },
+        {
+          "name": "_htri_ache_dict",
+          "kind": "fn",
+          "startLine": 276,
+          "endLine": 312,
+          "tokens": 387
+        },
+        {
+          "name": "AcheParams",
+          "kind": "class",
+          "startLine": 313,
+          "endLine": 333,
+          "tokens": 161
+        },
+        {
+          "name": "EnthalpyTableEntry",
+          "kind": "class",
+          "startLine": 334,
+          "endLine": 343,
+          "tokens": 58
+        },
+        {
+          "name": "EnthalpyTable",
+          "kind": "class",
+          "startLine": 344,
+          "endLine": 406,
+          "tokens": 634
+        },
+        {
+          "name": "save_ache_params",
+          "kind": "fn",
+          "startLine": 407,
+          "endLine": 433,
+          "tokens": 182
+        },
+        {
+          "name": "save_enthalpy_table",
+          "kind": "fn",
+          "startLine": 434,
+          "endLine": 458,
+          "tokens": 196
+        }
+      ]
+    },
+    "pcs-backend/app/services/report/detail_level.py": {
+      "description": "detail_level 分级（ADR-0028「detail_level 选择」）。",
+      "tokens": 785,
+      "hash": "9086b218d8daee41",
+      "size": 3667,
+      "mtimeMs": 1791807523653.9688,
+      "updatedAt": "2026-10-12T12:18:43.706Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "check_level",
+          "kind": "fn",
+          "startLine": 27,
+          "endLine": 41,
+          "tokens": 121
+        },
+        {
+          "name": "fields_visible_at",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 73,
+          "tokens": 326
+        },
+        {
+          "name": "validate_definition",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 89,
+          "tokens": 156
+        }
+      ]
     }
   }
 }
