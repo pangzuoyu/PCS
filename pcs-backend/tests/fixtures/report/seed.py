@@ -198,3 +198,43 @@ _BUILDERS = {
 }
 
 __all__ = ["make_report_seed"]
+
+async def make_bulk_seed(db: AsyncSession, project_id: uuid.UUID, report_type: str,
+                         count: int, workspace_id: uuid.UUID | None = None) -> list[uuid.UUID]:
+    """造 `count` 条种子记录（性能基准用）。
+
+    为什么单独一个入口：性能测试真正要的是**行数量**，而 `make_report_seed`
+    每类只造 2–3 条。第一版基准直接调 `make_report_seed` 然后在测试里
+    造了一个**从未被使用**的 rows 列表 —— 实际跑的是 2 行，阈值 10s
+    轻松满足，**看着绿，其实没测过 1 万行**。
+
+    构造逻辑复用 `_seed_*` 的同一套必填列知识：把第一个种子行复制 N 份
+    并改掉唯一键，避免「为了造数据另写一份 ORM 构造」而漏必填列。
+    """
+    ws = workspace_id or uuid.uuid4()
+    base = await _BUILDERS[report_type](db, project_id, ws)
+    await db.flush()
+    pk_attr = _PK[report_type]
+    originals = list(base)
+    first = originals[0]
+
+    # ⚠️ 不能用 `copy.deepcopy(first)` —— 它连 `_sa_instance_state` 一起复制，
+    # 新对象仍带着同一个 identity key，SQLAlchemy 直接报
+    # "another instance with key ... is already present in this session"。
+    # 正确做法：从 mapper 的列值**重建**一个新实例 —— 必填列的知识仍然来自
+    # 那一个已验证可用的种子行，不会因为另写一份 ORM 构造而漏列。
+    column_names = [c.name for c in first.__table__.columns]
+    extra = []
+    for i in range(1, count):
+        values = {n: getattr(first, n) for n in column_names if n != pk_attr}
+        row = type(first)(**values)
+        setattr(row, pk_attr, uuid.uuid4())
+        if hasattr(row, "tag_number"):          # TaggedRecordMixin 要求唯一
+            setattr(row, "tag_number", f"BULK-{i:06d}")
+        extra.append(row)
+    db.add_all(extra)
+    await db.flush()
+    return [getattr(r, pk_attr) for r in originals + extra][:count]
+
+
+__all__ = ["make_report_seed", "make_bulk_seed"]

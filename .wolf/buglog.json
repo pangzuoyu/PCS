@@ -2927,6 +2927,29 @@
         "bug-156",
         "bug-157"
       ]
+    },
+    {
+      "id": "bug-159",
+      "timestamp": "2026-10-12T00:00:00+08:00",
+      "error_message": "1 万行性能测试实际只跑了 2 行 —— 造了 10000 行的列表却从未被使用",
+      "file": "pcs-backend/tests/benchmarks/test_report_perf.py",
+      "root_cause": "T10 的 1 万行基准里造了一个 `rows = [[...10000...]]` 列表，**然后传给 generate 的是 `record_ids=[]`** —— 那个列表从未被使用。\ngenerate 收到空 record_ids 就按库里现有的 **2 条种子**渲染。\n\n**为什么全绿**：2 行渲染约 0.02s，远在 10s 阈值之内 —— **时间阈值分辨不出 2 行与 1 万行**。测试通过，却完全没测它声称要测的东西。\n\n第一版的输入侧断言 `assert len(ids) == 10000` 也不够：\n变异「只造 2 行」时测试**照样全绿**（那次一改断言就绕过去了）。\n**输入侧的前提挡不住「输入对了但输出没跟上」**，也不挡「有人顺手改小造数」。\n\n**同族失效模式第 14 次**，变体是「**断言了错误的量**：要验的是「测了 1 万行」，写的却是「耗时 < 10s」—— 后者对行数不敏感。",
+      "fix": "1. 新增 `make_bulk_seed(db, project_id, report_type, count)`：从 mapper 列值**重建**实例（不能用 deepcopy —— 它连 `_sa_instance_state` 一起复制，新对象带同一个 identity key，SQLAlchemy 报 \"another instance with key ... is already present\"）。\n2. 测试改为断言**输出**的行数：`load_workbook(...).max_row >= 10000`。\n   「测的确实是 1 万行」这个前提由输出钉住，而不是靠输入侧的断言。\n\n验证：变异「只造 2 行」→ 现在**被输出断言抓住**（第一版是全绿）；变异「阈值压到 0」→ 也红。两次变异确认这条测试不再是空转。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "benchmark",
+        "fake-green",
+        "performance-test",
+        "seed-data",
+        "wrong-quantity-asserted",
+        "sqlalchemy"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-12T00:00:00+08:00",
+      "related_bugs": [
+        "bug-154",
+        "bug-155"
+      ]
     }
   ]
 }
