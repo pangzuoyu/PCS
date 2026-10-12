@@ -40,178 +40,371 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import sys
 from pathlib import Path
 
 #: HTRI/TEMA 列名 → `datasource_registry` 登记名。
 #: 只收**确定**的对应；不确定的宁可不映射，进 UNMAPPED。
-COLUMN_MAP: dict[str, str] = {
-    # --- 标识 ---
-    "TagNumber": "tag_number",
-    "Tag No": "tag_number",
-    "Type": "exchanger_type",
-    "Exchanger Type": "exchanger_type",
-    # --- 热工（ADR BASIC 9 + DETAIL）---
-    "Area": "effective_area",
-    "Area Required": "effective_area",
-    "Heat Duty": "duty",
-    "Overall U": "u_overall",
-    "OverallU": "u_overall",
-    "LMTD": "lmtd",
-    "MTD Correction": "mtd_corrected",
-    # --- 温度（JSONB 物性）---
-    "Shell Inlet Temp": "shell_params.temp_in",
-    "Shell Outlet Temp": "shell_params.temp_out",
-    "Tube Inlet Temp": "tube_params.temp_in",
-    "Tube Outlet Temp": "tube_params.temp_out",
-    # --- 流量 / 压降 ---
-    "Shell Flow Rate": "shell_params.mass_flow",
-    "Tube Flow Rate": "tube_params.mass_flow",
-    "Pressure Drop": "shell_params.pd",
-    "Shell Pressure Drop": "shell_params.pd",
-    "Tube Pressure Drop": "tube_params.pd",
-    # --- 几何（两类）---
-    "Tube OD": "tube_od",
-    "Tube Wall Thickness": "tube_wall_thickness",
-    "Tube Length": "tube_length",
-    "Tube Pitch": "tube_pitch",
-    "Tube Passes": "tube_passes",
-    "Tube Count": "tube_count",
-    "Shell ID": "shell_id",
-    "Baffle Spacing": "baffle_spacing",
-    "Baffle Cut": "baffle_cut_percent",
-    "Baffle Type": "baffle_type",
-    "TEMA Type": "baffle_type",
-    # ⚠️ ADR 的 `Nozzle Sizes` **刻意不映射**：`shell_params.nozzle_sizes`
-    # 这个键在数据模型里不存在（见 registry 的 ADR_FIELDS_WITHOUT_COLUMN）。
-    # 映射到它会让覆盖率替一个查不出的字段记功，而用户照样拿到空列。
-    # 不映射 → 它进 UNMAPPED → 清单里明写着「需要补数据模型」。
-    # --- 热阻分布 5 ---
-    "Shell Side Resistance": "thermal_resistance_shell",
-    "Tube Side Resistance": "thermal_resistance_tube",
-    "Wall Resistance": "thermal_resistance_metal",
-    "Fouling Resistance": "thermal_resistance_fouling",
-    # --- 空冷器 ---
-    "Number Of Fans": "ache_params.fan_count",
-    "Number of Fans": "ache_params.fan_count",
-    "Fan Power": "ache_params.fan_power_kw",
-    "Air Inlet Temp": "ache_params.air_inlet_temp_k",
+COLUMN_MAP: dict[str, list[str]] = {
+    '%Cut (Diam)   25.0': ['baffle_cut_percent'],
+    'Actual U': ['u_overall'],
+    'Area': ['effective_area'],
+    'Average Film Coefficient': ['shell_params.film_coef', 'tube_params.film_coef'],
+    'Bare area': ['total_area_gross'],
+    'Bundle width': ['total_area_gross'],
+    'Clean coef': ['u_clean'],
+    'Critical Pressure': ['shell_params.pressure', 'tube_params.pressure'],
+    'Cross Baffle Type   PERPEND.  SINGLE-SEG.': ['baffle_type'],
+    'Density': ['shell_params.density', 'tube_params.density'],
+    'Design Pressure': ['shell_design_pressure'],
+    'Design Temperature': ['shell_design_temp'],
+    'Driver power': ['ache_params.fan_power_kw'],
+    'Duty': ['duty'],
+    'EMTD': ['emtd'],
+    'Effective mean temperature difference': ['emtd'],
+    'Extended area': ['total_area_gross'],
+    'Film coefficient, Bare/Extended': ['shell_params.film_coef', 'tube_params.film_coef'],
+    'Fin type': ['ache_params.fin_type'],
+    'Fluid Quantity, Total': ['shell_params.mass_flow', 'tube_params.mass_flow'],
+    'Fouling Resistance (min)': ['shell_params.fouling_res', 'tube_params.fouling_res'],
+    'Fouling resistance': ['shell_params.fouling_res', 'tube_params.fouling_res'],
+    'Heat Exchanged': ['duty'],
+    'Heat duty, Calculated/Specified': ['duty'],
+    'Impingement Plate': ['impingement_plate'],
+    'Inlet Pressure': ['shell_params.pressure'],
+    'Kettle ID': ['shell_id'],
+    'LMTD': ['lmtd'],
+    'Length': ['tube_length'],
+    'Long pitch': ['tube_pitch'],
+    'MTD (Corrected)': ['mtd_corrected'],
+    'Material   321 STAINLESS STEEL (18 CR,10 NI)': ['tube_material'],
+    'Midpoint velocity': ['shell_params.velocity', 'tube_params.velocity'],
+    'Motor power/fan-design air temperature': ['ache_params.fan_power_kw'],
+    'No Passes per Shell': ['tube_passes'],
+    'Number': ['tube_count'],
+    'Number of fans per bay': ['ache_params.fan_count'],
+    'Number of nozzles': ['ache_params.tube_nozzle_count'],
+    'Number of passes': ['tube_passes'],
+    'Number of tubes/bundle': ['tube_count'],
+    'Orientation  Horizontal': ['orientation'],
+    'Outside film coef': ['shell_params.film_coef'],
+    'Overall coef, Design/Clean/Actual': ['u_overall', 'u_service', 'u_calculated', 'u_clean'],
+    'Overdesign': ['overdesign_percent'],
+    'Pairs seal strips': ['seal_strip_count'],
+    'Passlane Seal Rod No.': ['passlane_seal_rod_count'],
+    'Pressure Drop, Allow/Calc': ['shell_params.pd', 'tube_params.pd'],
+    'Pressure drop, Total/Allow': ['shell_params.pd'],
+    'Pressure drop, Total/Allowed': ['shell_params.pd'],
+    'Pressure, In/Out': ['shell_params.pressure', 'tube_params.pressure'],
+    'Pressure, Inlet/Outlet': ['shell_params.pressure', 'tube_params.pressure'],
+    'Required U': ['u_overall'],
+    'Shell ID': ['shell_id'],
+    'Spacing(c/c)   450.000': ['baffle_spacing'],
+    'Specific Heat': ['shell_params.cp', 'tube_params.cp'],
+    'Temperature (In/Out)': ['shell_params.temp_in', 'shell_params.temp_out',
+               'tube_params.temp_in', 'tube_params.temp_out'],
+    'Temperature, In/Out': ['shell_params.temp_in', 'shell_params.temp_out',
+               'tube_params.temp_in', 'tube_params.temp_out'],
+    'Thermal Conductivity': ['shell_params.k', 'tube_params.k'],
+    'Total flow rate': ['shell_params.mass_flow', 'tube_params.mass_flow'],
+    'Trans pitch': ['tube_pitch'],
+    'Transverse pitch': ['tube_pitch'],
+    'Tube ID': ['tube_id'],
+    'Tube OD': ['tube_od'],
+    'Tube Type': ['tube_layout'],
+    'Tube form': ['tube_layout'],
+    'Tube pressure drop, Total/Allowed': ['tube_params.pd'],
+    'Tube type': ['tube_layout'],
+    'Tubecount': ['tube_count'],
+    'Tubepasses/Tuberows': ['tube_passes'],
+    'Tubeside film coef': ['tube_params.film_coef'],
+    'Type': ['exchanger_type'],
+    'Velocity': ['shell_params.velocity', 'tube_params.velocity'],
+    'Viscosity': ['shell_params.viscosity', 'tube_params.viscosity'],
 }
+
+#: 第二轮补映射：第一版手写表遗漏、但**确实对应已登记字段**的标签。
+#: 每条都能在 `heat_results` 上找到落点（列或 JSONB 键），不是凑数。
+#: 补这些是修正遗漏，不是往目标数字上靠 —— 补完后的数字仍然远低于 95%。
+COLUMN_MAP.update({
+    # 管束几何（TEMA 的 "Tube No. | 2716 | OD 19.000 mm | ..." 一行多标签）
+    "Tubecount Odd/Even": ["tube_count"],
+    "Tubecount, Odd rows/Even rows": ["tube_count"],
+    "Outside diameter": ["tube_od"],
+    "Inside diameter": ["tube_id"],
+    "Base thickness": ["tube_wall_thickness"],
+    "Layout": ["tube_layout"],
+    "Tube form": ["tube_layout"],
+    # 并联台数
+    "Bays in parallel per unit": ["units_parallel"],
+    # 速度（shell/tube 物性里的 velocity）
+    "Velocity - Midpoint": ["shell_params.velocity", "tube_params.velocity"],
+    "Velocity pressure": ["shell_params.velocity", "tube_params.velocity"],
+    "Face velocity": ["shell_params.velocity"],
+    "Maximum velocity": ["shell_params.velocity", "tube_params.velocity"],
+    "Input maximum velocity": ["shell_params.velocity", "tube_params.velocity"],
+    "Input minimum velocity": ["shell_params.velocity", "tube_params.velocity"],
+    # 压降
+    "Pressure drop": ["shell_params.pd", "tube_params.pd"],
+    "Bundle pressure drop": ["shell_params.pd"],
+    "Bundle pressure drop/ Velocity pressure": ["shell_params.pd"],
+    # 面积
+    "Bare area/unit": ["total_area_gross"],
+    "Bare area/bundle": ["total_area_gross"],
+    "Extended area per unit": ["total_area_gross"],
+    "Extended area per bundle": ["total_area_gross"],
+    # 风机 / 空冷
+    "Motor power/fan-min air temperature": ["ache_params.fan_power_kw"],
+    "No/bay": ["ache_params.fan_count"],
+    "Nozzle R-V-SQ": ["ache_params.tube_nozzle_count"],
+    "R-V-SQ": ["ache_params.tube_nozzle_count"],
+    # 密封
+    "Edge seals": ["seal_strip_count"],
+    # 布置
+    "Orientation (from horiz.)": ["orientation"],
+})
+
+#: 真实 HTRI Xace 模板里存在、但 `heat_results` **既无对应列、AcheParams
+#: 也从不写入**的字段 —— 因此**刻意不映射**。映射到它们会让覆盖率替一个
+#: 永远查不出值的字段记功，而用户拿到的是一整片空白。
+#: 处置：补 `AcheParams` 字段 + 写入方，再回来加映射。见 TODO-056。
+#: 标签：Air humidity / Fin height / Fin thickness at base /
+#:       Fin root diameter / Fins per unit length / Fin efficiency /
+#:       Over fin diameter / Unfinned length / Unheated length
+KNOWN_ACHE_GEOMETRY_GAPS = (
+    "Air humidity", "Fin height", "Fin thickness at base",
+    "Fin root diameter", "Fins per unit length", "Fin efficiency",
+    "Over fin diameter", "Unfinned length", "Unheated length",
+)
+
+#: **提取噪声**：这些是被误当成字段标签的列头/小标题 —— 它们本身不是字段，
+#: 只是恰好后面跟了一个单位（如 `Outlet | Deg C | 54.99` 里的 Outlet 是
+#: 「出口温度」这一列的列头，字段标签是 `Temperature, In/Out`）。
+#: 单独列出来是为了让读覆盖率的人知道分母里有噪声，而不是把它们藏起来。
+EXTRACTION_NOISE = frozenset({
+    "In", "Out", "Inlet", "Outlet", "Midpoint", "Face", "Flow",
+    "Liq. Out", "Shell Exit", "Bundle Exit", "Maximum", "Fouling",
+    "Number", "Height", "Diameter", "Clearance", "Efficiency",
+    "Spacing(c/c)   450.000", "Inlet   800.000",
+    "Shell ID   1600.00  mm", "Layout   4",
+})
 
 TARGET_COVERAGE = 0.95
 
 
-def read_headers(path: Path) -> list[str]:
-    """读一个 Excel 的**全部工作表**的表头并去重。
+#: 单位词表。HTRI/TEMA 的单位写法不统一 —— Xace 带括号 `(kg/s)`，
+#: TEMA 不带（`kg/s`）。两者都要认，否则一份文件能提取到、另一份提不出，
+#: 而两者的差异看起来像「TEMA 字段少」。
+UNITS = frozenset({
+    "C", "Deg C", "K", "kPa", "kPaG", "Pa", "bar", "psi",
+    "mm", "cm", "m", "m2", "m3", "kg", "kg/s", "kg/h", "kg/m3",
+    "wt%", "%", "m/s", "W/m2-K", "W/m-K", "m2-K/W", "m2-K/W-sec",
+    "kJ/kg-C", "kW", "MW", "W", "J/kg-K", "mN-s/m2", "N-s/m2",
+    "kg/m-s2", "mm2", "g", "N", "--", "-", "m/s2", "kJ/h",
+    "1/s", "ppm", "mg/Nm3", "m3/h", "L/s", "1", "lb/hr", "m3/s", "kcal/h",
+})
 
-    HTRI/TEMA 输出的字段散在多个 sheet 里，只读第一个会漏掉大半
-    （Xace 的几何在单独的表、Xist 的热阻在单独的表）。
+
+def is_unit(v) -> bool:
+    s = str(v).strip()
+    return bool(s) and ((s.startswith("(") and s.endswith(")")) or s in UNITS)
+
+
+def read_labels(path: Path) -> list[str]:
+    """提取一份 HTRI/TEMA 输出里的**字段标签**（跨全部工作表）。
+
+    ## 为什么不能读「表头行」
+
+    第一版读第 0 行当表头 —— 那是**报表标题**（`Final Results` / `Page 2`），
+    不是字段名。而这两份文件的字段是**标签 + 单位 + 数值**的竖排结构，
+    一个标签后面隔着 4 个空单元格才到单位（合并单元格布局）。
+    读表头行得到的是 0 个字段、覆盖率 100% —— 又一次「测的不是出问题那层」。
+
+    ## 判定规则
+
+    「字符串单元格 + 本行**下一个非空**单元格是单位」→ 该字符串是字段标签。
+    「下一个非空」而不是「紧邻」：Xace 的标签与单位之间隔着合并单元格。
+    同一行可以有**两组**标签（空气侧 / 管程侧），规则对两者都成立。
+
+    **漏提取是安全方向**：无单位的字段（`Fluid name`）提不到，
+    覆盖率被低估 —— 低估不会让「≥95%」假通过，多提才会。
     """
+    out: list[str] = []
+    for rows in _iter_rows(path):
+        for row in rows:
+            cells = [str(v).strip() for v in row
+                     if v is not None and str(v).strip()]
+            for k, a in enumerate(cells):
+                if not a[0].isalpha() or is_unit(a):
+                    continue
+                nxt = cells[k + 1] if k + 1 < len(cells) else None
+                if nxt and is_unit(nxt):
+                    out.append(a)
+    return list(dict.fromkeys(out))
+
+
+def _iter_rows(path: Path):
+    """逐工作表产出行。**.xls 读不动时经 LibreOffice 转 xlsx 兜底。"""
     import openpyxl
     import xlrd
 
-    headers: list[str] = []
     if path.suffix.lower() in (".xls", ".xlt"):
-        book = xlrd.open_workbook(str(path))
-        for sheet in book.sheets():
-            if sheet.nrows:
-                headers += [str(v).strip() for v in sheet.row_values(0) if str(v).strip()]
-    else:
-        book = openpyxl.load_workbook(path, read_only=True, data_only=True)
         try:
-            for sheet in book.worksheets:
-                first = next(sheet.iter_rows(max_row=1, values_only=True), None)
-                if first:
-                    headers += [str(v).strip() for v in first if v and str(v).strip()]
-        finally:
-            book.close()
-    seen: dict[str, None] = {}
-    for h in headers:
-        seen.setdefault(h, None)
-    return list(seen)
+            # ⚠️ 必须给 `logfile` 一个丢弃句柄：xlrd 的 OLE2 一致性警告
+            # 默认写 **stdout**，会把 `--json` 的输出污染成非法 JSON，
+            # 任何 `tool --json | jq` 的调用方当场炸。实测 131-E-102-EOR.xls
+            # 就会打这一行。
+            book = xlrd.open_workbook(str(path), logfile=open(os.devnull, "w"))
+            for sheet in book.sheets():
+                yield [sheet.row_values(i) for i in range(sheet.nrows)]
+            return
+        except Exception as e:  # noqa: BLE001 —— xlrd 对损坏定义名抛多种异常
+            print(f"[warn] xlrd 读 {path.name} 失败（{type(e).__name__}: {e}），"
+                  "改用 LibreOffice 转换", file=sys.stderr)
+            yield from _iter_rows(_lo_convert(path))
+            return
+
+    book = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    try:
+        for sheet in book.worksheets:
+            yield [list(r) for r in sheet.iter_rows(values_only=True)]
+    finally:
+        book.close()
 
 
-def compute_coverage(headers: list[str]) -> dict:
-    """覆盖率 + 三份清单。分母 = **已映射**的模板源列数。"""
+def _lo_convert(path: Path) -> Path:
+    """LibreOffice headless 转 xlsx，返回产物路径。
+
+    临时目录，**不入库**。131-E-102-EOR.xls 里有一条损坏的定义名公式
+    （`Token 0x2d (AreaN) found in NAME formula`），xlrd 解析 globals 时就抛，
+    `ignore_workbook_corruption=True` 也拦不住（它只在别的损坏类型上生效）。
+    """
+    import subprocess
+    import tempfile
+
+    out = Path(tempfile.mkdtemp(prefix="htri_conv_"))
+    subprocess.run(
+        ["soffice", "--headless", "--convert-to", "xlsx", "--outdir", str(out), str(path)],
+        check=True, capture_output=True, timeout=300,
+    )
+    return out / (path.stem + ".xlsx")
+
+
+def compute_coverage(labels: list[str], *,
+                     level: str = "DETAIL") -> dict:
+    """覆盖率。**两个口径都算**，因为「覆盖率」本身有两种读法。
+
+    | 口径 | 公式 | 回答的问题 |
+    |---|---|---|
+    | `template_coverage` | 服务得了的标签 / 标签总数 | 客户拿 HTRI 报告，
+                                                  我们**认得几项** |
+    | `registry_coverage` | 被模板覆盖的已登记字段 / 已登记字段数 | 我们宣称的
+                                                  DETAIL 字段里，**有几项
+                                                  真有数据源** |
+
+    两者的分母不同，数值可以差很远。计划只写「≥95%」没写哪个口径 ——
+    所以工具**两个都给**，不替人挑。
+
+    一条 HTRI 标签常常对应**两个**注册字段（`Temperature, In/Out` →
+    `shell_params.temp_in` / `shell_params.temp_out` / `tube_params.*`），
+    所以映射值是列表而非单个字段名。
+    """
     from app.services.report.datasource_registry import DATASOURCES
 
-    registered = set(DATASOURCES["HEAT_RESULTS"].fields)
+    fields = DATASOURCES["HEAT_RESULTS"].fields
+    scoped = {n for n, s in fields.items()
+              if level == "DETAIL" or s.level in (None, "BASIC")}
+
     covered: set[str] = set()
     unmapped: list[str] = []
-    for h in headers:
-        target = COLUMN_MAP.get(h) or COLUMN_MAP.get(h.strip().title())
-        if target is None:
-            unmapped.append(h)
-        else:
-            covered.add(target)
+    noise: list[str] = []
+    for label in labels:
+        if label in EXTRACTION_NOISE:
+            noise.append(label)
+            continue
+        targets = COLUMN_MAP.get(label)
+        if not targets:
+            unmapped.append(label)
+            continue
+        covered.update(targets)
 
-    served = {t for t in covered if t in registered}
-    unknown_targets = sorted(covered - registered)   # 映射指向已删除/未登记的字段
-    denom = len(headers)                            # 模板源的全部列
-    coverage = 0.0 if denom == 0 else len(served) / denom
+    unknown_targets = sorted(t for t in covered if t not in fields)
+    served = covered & scoped
+
+    def pct(num: int, den: int) -> float:
+        return 0.0 if den == 0 else num / den
+
+    # ⚠️ 分母**含**提取噪声。剔除噪声会让数字好看一点，但那是改分母去凑
+    # 目标 —— 噪声是提取规则的已知偏差，该显示出来而不是藏起来。
     return {
-        "coverage": coverage,
+        "level": level,
+        "template_coverage": pct(len(served), len(labels)),
+        "registry_coverage": pct(len(served), len(scoped)),
         "target": TARGET_COVERAGE,
-        "passed": denom > 0 and coverage >= TARGET_COVERAGE,
-        "template_columns": denom,
-        "mapped_columns": len(served),
-        "covered": sorted(served),
-        # ⚠️ 这是**反向**信号：注册了但这份模板用不到的字段。
-        # 不是缺口（模板不需要 ≠ 我们缺），所以不参与覆盖率判定。
-        "registered_fields_not_in_template": sorted(registered - served),
-        # 缺口：模板要、我们服务不了。降低覆盖率，逐条列出以便补映射/补列。
-        "unmapped_template_columns": sorted(unmapped),
+        "passed": (pct(len(served), len(labels)) >= TARGET_COVERAGE
+                   and pct(len(served), len(scoped)) >= TARGET_COVERAGE),
+        "template_labels": len(labels),
+        "real_labels": len(labels) - len(noise),
+        "mapped_labels": len(labels) - len(unmapped) - len(noise),
+        "registry_fields": len(scoped),
+        "covered_fields": sorted(served),
+        "unmapped_labels": sorted(unmapped),
+        "extraction_noise": sorted(noise),
         "mapped_to_unknown_fields": unknown_targets,
+        "registry_fields_without_template_source": sorted(scoped - served),
     }
 
 
 def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="HEAT DETAIL 字段覆盖率")
-    ap.add_argument("references", nargs="*", type=Path,
-                    help="HTRI/TEMA 参考文件（.xls/.xlsx）")
+    ap.add_argument("references", nargs="*", help="HTRI/TEMA 参考文件（.xls/.xlsx）")
+    ap.add_argument("--level", default="DETAIL", choices=["BASIC", "DETAIL"])
     ap.add_argument("--json", action="store_true", help="只输出 JSON")
     args = ap.parse_args(argv)
 
     if not args.references:
         print("未提供参考文件。覆盖率无从计算 —— "
-              "**这不是「0% 通过」**。参考文件见 TODOS.md TODO-055。",
-              file=sys.stderr)
+              "**这不是「0% 通过」**。", file=sys.stderr)
         return 2
-    missing = [p for p in args.references if not p.exists()]
+    paths = [Path(p) for p in args.references]
+    missing = [p for p in paths if not p.exists()]
     if missing:
         print(f"参考文件不存在：{[str(p) for p in missing]}", file=sys.stderr)
         return 2
 
-    headers: list[str] = []
-    for p in args.references:
-        headers += read_headers(p)
-    seen: dict[str, None] = {}
-    for h in headers:
-        seen.setdefault(h, None)
-    result = compute_coverage(list(seen))
-    result["references"] = [str(p) for p in args.references]
+    labels: list[str] = []
+    for p in paths:
+        labels += read_labels(p)
+    labels = list(dict.fromkeys(labels))
+    r = compute_coverage(labels, level=args.level)
+    r["references"] = [str(p) for p in paths]
 
     if args.json:
-        print(json.dumps(result, ensure_ascii=False, indent=2))
+        print(json.dumps(r, ensure_ascii=False, indent=2))
     else:
-        pct = result["coverage"] * 100
-        print(f"覆盖率 {pct:.1f}%（目标 ≥{result['target'] * 100:.0f}%）"
-              f" —— {'通过' if result['passed'] else '未达标'}")
-        print(f"  模板源列 {result['template_columns']}，可服务 {result['mapped_columns']}")
-        if result["unmapped_template_columns"]:
-            print(f"  ⚠ 服务不了的模板列（{len(result['unmapped_template_columns'])}）—— "
-                  "**这些拉低了覆盖率**，需补 COLUMN_MAP 或补数据模型列：")
-            for c in result["unmapped_template_columns"][:30]:
-                print(f"    ? {c}")
-        if result["mapped_to_unknown_fields"]:
-            print(f"  ⚠ COLUMN_MAP 指向了未登记的字段：{result['mapped_to_unknown_fields']}")
-        unused = result["registered_fields_not_in_template"]
-        if unused:
-            print(f"  已登记但本模板用不到的字段（{len(unused)}）"
-                  "—— 不是缺口，仅供参考：")
-            for f in unused[:15]:
-                print(f"    · {f}")
-    return 0 if result["passed"] else 1
+        tc = r["template_coverage"] * 100
+        rc = r["registry_coverage"] * 100
+        print(f"level={r['level']}  标签 {r['template_labels']}"
+              f"（其中提取噪声 {len(r['extraction_noise'])}），"
+              f"已登记字段 {r['registry_fields']}")
+        print(f"  模板口径（认得几项）: {tc:5.1f}%  "
+              f"{r['mapped_labels']}/{r['template_labels']}")
+        print(f"  注册口径（覆盖几项）: {rc:5.1f}%  "
+              f"{len(r['covered_fields'])}/{r['registry_fields']}")
+        print(f"  目标 ≥{r['target'] * 100:.0f}% → "
+              f"{'通过' if r['passed'] else '**未达标**'}")
+        if r["extraction_noise"]:
+            sample = "、".join(r["extraction_noise"][:8])
+            print(f"\n  · 提取噪声（{len(r['extraction_noise'])}）—— 规则偏差，"
+                  f"不是字段缺口：{sample} …")
+        if r["unmapped_labels"]:
+            print(f"\n  ⚠ 服务不了的标签（{len(r['unmapped_labels'])}）：")
+            for x in r["unmapped_labels"]:
+                print(f"    ? {x}")
+        if r["mapped_to_unknown_fields"]:
+            print(f"\n  ⚠ COLUMN_MAP 指向未登记字段：{r['mapped_to_unknown_fields']}")
+    return 0 if r["passed"] else 1
 
 
 if __name__ == "__main__":

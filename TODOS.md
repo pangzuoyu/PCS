@@ -1064,5 +1064,49 @@ antd v6 会移除 `rowKey(value, index)` 的第二个参数。当前写法依赖
   列恰好是已知的数据模型缺口 —— `Service` / `Air Flow Rate` / `Fin Height`，
   与 c1 登记的 `ADR_FIELDS_WITHOUT_COLUMN` 一致。**这不能替代真实比对**：
   真实模板的列名与列数未知，`COLUMN_MAP` 必然要按真实文件补。
-- **优先级**: 阻塞 c4/c5。c1/c2/c3 不依赖它，已完成。
-- **Owner**: 工艺/数据（需提供 HTRI Xace/Xist 输出样本）
+- **已解除（2026-10-12）**: 文件已到位（`sample/A-101.xls` + `sample/131-E-102-EOR.xls`，
+  注意第二个计划里写的是 `121-A-101.xls`，实际叫 `A-101.xls`）。c4/c5 的工具
+  已能在真实文件上跑通并出数。
+
+- **优先级**: —
+- **Owner**: —（见下 TODO-056 / TODO-057）
+
+
+### TODO-056: ACHE 翅片几何字段在数据模型里缺失（真实 HTRI 文件证实）
+
+- **症状**: `sample/A-101.xls`（HTRI Xace 空冷器）里有 9 个翅片/空气侧
+  字段，`heat_results.ache_params` 一个都没有：
+  `Air humidity` / `Fin height` / `Fin thickness at base` /
+  `Fin root diameter` / `Fins per unit length` / `Fin efficiency` /
+  `Over fin diameter` / `Unfinned length` / `Unheated length`。
+- **为什么没登记**: `AcheParams` dataclass 里**没有这些字段**，写入方
+  （`save_ache_params`）也从不写它们。登记进注册表 = 字段树里选得到、
+  执行时查出全 NULL —— 与 c1 里刻意不登记的其他缺口同一性质。
+- **处置顺序（缺一不可）**:
+  1. `AcheParams` 加字段 + 找到/写入方（`heat_data_service` 的哪个入口能拿到）
+  2. 注册表登记（`_jfx(..., "AIR_COOLER")`）
+  3. `scripts/report_heat_coverage.py` 的 `COLUMN_MAP` 加映射
+  跳过 2 直接做 3 = 覆盖率替不存在的字段记功（已有测试
+  `test_map_targets_must_exist_in_registry` 挡着）。
+- **优先级**: TODO 级。这是 DETAIL 覆盖率未达标的主因之一。
+- **Owner**: 工艺 + 数据
+
+
+### TODO-057: 「DETAIL 覆盖率 ≥95%」的分母口径需拍板
+
+- **症状**: 计划只写「≥95%」，没写分母是**模板字段数**还是**我们已登记
+  字段数**。两个口径在同一份真实文件上差了 **32.1% vs 61.4%**。
+- **本轮实测**（`sample/A-101.xls` + `sample/131-E-102-EOR.xls`，
+  159 个提取标签 / 83 个已登记 DETAIL 字段）:
+  | 口径 | 数值 |
+  |---|---|
+  | 模板口径（认得几项）| **32.1%**（84/159）|
+  | 注册口径（覆盖几项）| **61.4%**（51/83）|
+- **⚠️ 与计划数字对不上**: 计划写「33 列 / 23 列」，而提取到 159 个标签。
+  差 ~5 倍。最可能是计划数的是**主表字段数**（如 Xace 的 `Output Summary`
+  单表），而我按「全部工作表的所有带单位标签」提取。若按主表口径，
+  数值会高很多 —— **但我没有按那个口径出数**，因为无从确认计划的取数范围。
+- **需要拍板的**: 分母取哪个。工具两个都出（`--json` 里有
+  `template_coverage` / `registry_coverage`），不替人挑。
+- **优先级**: TODO 级。定下来之前 c4/c5 无法判「达标与否」。
+- **Owner**: 待认领（工艺/架构）
