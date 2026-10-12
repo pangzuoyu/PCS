@@ -4887,6 +4887,137 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/report/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate Report
+         * @description 入队异步生成。**入队前**就拒未知格式 —— 让 worker 渲染完再失败
+         *     是白占一个槽位 + 白刷一条 REPORT_FAILED。
+         */
+        post: operations["generate_report_api_v1_report_generate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report/{report_file_id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Report Status */
+        get: operations["report_status_api_v1_report__report_file_id__status_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report/{report_file_id}/download": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Download */
+        get: operations["download_api_v1_report__report_file_id__download_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report/verify/{report_file_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Verify
+         * @description 扫码校验。**免登录但不免签名** —— 免的是 Bearer token。
+         *
+         *     响应**不含哈希**（用户 2026-10-08 裁决）：比对的主语是系统。
+         */
+        get: operations["verify_api_v1_report_verify__report_file_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report/{report_file_id}/hash": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Report Hash
+         * @description 审计角色取完整哈希 —— 与 verify 分端点，敏感度不同。
+         */
+        get: operations["report_hash_api_v1_report__report_file_id__hash_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report/styles": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Styles */
+        get: operations["list_styles_api_v1_report_styles_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report/styles/{style_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get Style */
+        get: operations["get_style_api_v1_report_styles__style_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/common/materials/search": {
         parameters: {
             query?: never;
@@ -9576,6 +9707,24 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HeaderFooterConfig */
+        HeaderFooterConfig: {
+            /**
+             * Left
+             * @default
+             */
+            left: string;
+            /**
+             * Center
+             * @default
+             */
+            center: string;
+            /**
+             * Right
+             * @default
+             */
+            right: string;
+        };
         /**
          * HeaderSizingRequest
          * @description FLARE_SYS header_sizing 请求。
@@ -10738,6 +10887,38 @@ export interface components {
              * @description 创建时间
              */
             created_at: string;
+        };
+        /**
+         * Margins
+         * @description 页边距，**单位毫米**。
+         *
+         *     ⚠️ 单位是契约，不是实现细节。PDF 渲染器曾把这些值**当点**传给 ReportLab：
+         *     25 当点 = 8.8mm，边距窄到不成样子，而 PDF 结构合法、字节数正常，
+         *     没有一个结构断言会红。DOCX/XLSX 读同一份配置，一个当点一个当毫米的话，
+         *     同一份样式在不同格式下版式完全不同。故换算收敛到
+         *     `ReportStyle.margins_pt`，三个渲染器都用它。
+         */
+        Margins: {
+            /**
+             * Top
+             * @default 20
+             */
+            top: number;
+            /**
+             * Bottom
+             * @default 20
+             */
+            bottom: number;
+            /**
+             * Left
+             * @default 25
+             */
+            left: number;
+            /**
+             * Right
+             * @default 20
+             */
+            right: number;
         };
         /**
          * MaterialDetail
@@ -12383,6 +12564,220 @@ export interface components {
              * @default bearer
              */
             token_type: string;
+        };
+        /** ReportFileStatusResponse */
+        ReportFileStatusResponse: {
+            /**
+             * Report File Id
+             * Format: uuid
+             */
+            report_file_id: string;
+            /** Status */
+            status: string;
+            /** File Format */
+            file_format: string;
+            /** Size Bytes */
+            size_bytes: number;
+            /** Error Message */
+            error_message?: string | null;
+            /** Heartbeat At */
+            heartbeat_at?: string | null;
+        };
+        /** ReportGenerateRequest */
+        ReportGenerateRequest: {
+            /** Report Type */
+            report_type: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Record Ids */
+            record_ids?: string[];
+            /**
+             * Output Format
+             * @default pdf
+             */
+            output_format: string;
+        };
+        /**
+         * ReportGenerateResponse
+         * @description 202 Accepted —— 生成是异步的（10k 行 PDF ≈ 10 CPU-秒，同步会阻塞 event loop）。
+         */
+        ReportGenerateResponse: {
+            /** Task Id */
+            task_id: string;
+            /**
+             * Status
+             * @default PENDING
+             */
+            status: string;
+        };
+        /**
+         * ReportHashResponse
+         * @description 审计角色的完整哈希。与 ReportVerifyResponse 分端点，因为消费者与敏感度都不同。
+         */
+        ReportHashResponse: {
+            /**
+             * Report File Id
+             * Format: uuid
+             */
+            report_file_id: string;
+            /** Record Hash Digest */
+            record_hash_digest: string;
+            /** Data Version */
+            data_version?: string | null;
+            /** Generated At */
+            generated_at?: string | null;
+        };
+        /** ReportStyle */
+        ReportStyle: {
+            /**
+             * Page Size
+             * @default A4
+             * @enum {string}
+             */
+            page_size: "A4" | "A3" | "Letter";
+            /**
+             * Orientation
+             * @default portrait
+             * @enum {string}
+             */
+            orientation: "portrait" | "landscape";
+            /**
+             * @default {
+             *       "top": 20,
+             *       "bottom": 20,
+             *       "left": 25,
+             *       "right": 20
+             *     }
+             */
+            margins: components["schemas"]["Margins"];
+            /**
+             * Font Family Cn
+             * @default Noto Sans CJK SC
+             */
+            font_family_cn: string;
+            /**
+             * Font Family En
+             * @default Arial
+             */
+            font_family_en: string;
+            /**
+             * Font Size Body
+             * @default 10
+             */
+            font_size_body: number;
+            /**
+             * Font Size Heading
+             * @default 14
+             */
+            font_size_heading: number;
+            /**
+             * Line Spacing
+             * @default 1.5
+             */
+            line_spacing: number;
+            /**
+             * @default {
+             *       "left": "{{project_no}}",
+             *       "center": "{{report_name}}",
+             *       "right": "Rev {{rev}}"
+             *     }
+             */
+            header: components["schemas"]["HeaderFooterConfig"];
+            /**
+             * @default {
+             *       "left": "{{doc_no}}",
+             *       "center": "",
+             *       "right": "第 {{page}} 页"
+             *     }
+             */
+            footer: components["schemas"]["HeaderFooterConfig"];
+            /**
+             * @default {
+             *       "header_bg": "#D9E1F2",
+             *       "header_bold": true,
+             *       "border_width": 0.5,
+             *       "border_color": "#000000",
+             *       "cell_padding": 4,
+             *       "zebra_stripe": true,
+             *       "max_cell_chars": 200
+             *     }
+             */
+            table: components["schemas"]["TableStyle"];
+            /**
+             * Assumption Mark
+             * @default ▲
+             */
+            assumption_mark: string;
+            /**
+             * Assumption Color
+             * @default #FF8C00
+             */
+            assumption_color: string;
+            /**
+             * Qr Position
+             * @default footer
+             * @enum {string}
+             */
+            qr_position: "footer" | "header";
+            /**
+             * Qr Size Mm
+             * @default 20
+             */
+            qr_size_mm: number;
+            /** Font Dir */
+            font_dir?: string;
+            /**
+             * Locked Fields
+             * @default [
+             *       "orientation",
+             *       "page_size"
+             *     ]
+             */
+            locked_fields: string[];
+        };
+        /** ReportStyleListResponse */
+        ReportStyleListResponse: {
+            /** Items */
+            items: components["schemas"]["ReportStyleSummary"][];
+            /** Total */
+            total: number;
+        };
+        /** ReportStyleSummary */
+        ReportStyleSummary: {
+            /**
+             * Style Id
+             * Format: uuid
+             */
+            style_id: string;
+            /** Report Type */
+            report_type: string;
+            /** Project Id */
+            project_id?: string | null;
+            /** Version */
+            version: string;
+            /** Status */
+            status: string;
+            style: components["schemas"]["ReportStyle"];
+        };
+        /**
+         * ReportVerifyResponse
+         * @description 校验结论。**不含任何哈希**（用户 2026-10-08 裁决）。
+         *
+         *     字段集合被 `test_verify_endpoint_returns_verdict_only` 用 `set(body) ==` 钉死，
+         *     加字段就要同步想清楚「现场人员看到这个字段有什么用」——没有就别加。
+         */
+        ReportVerifyResponse: {
+            /** Match */
+            match: boolean;
+            /** Doc No */
+            doc_no?: string | null;
+            /** Rev */
+            rev?: string | null;
+            /** Generated At */
+            generated_at?: string | null;
         };
         /**
          * RestrictionCalculateRequest
@@ -14796,6 +15191,44 @@ export interface components {
              * @description 更新时间
              */
             updated_at?: string | null;
+        };
+        /** TableStyle */
+        TableStyle: {
+            /**
+             * Header Bg
+             * @default #D9E1F2
+             */
+            header_bg: string;
+            /**
+             * Header Bold
+             * @default true
+             */
+            header_bold: boolean;
+            /**
+             * Border Width
+             * @default 0.5
+             */
+            border_width: number;
+            /**
+             * Border Color
+             * @default #000000
+             */
+            border_color: string;
+            /**
+             * Cell Padding
+             * @default 4
+             */
+            cell_padding: number;
+            /**
+             * Zebra Stripe
+             * @default true
+             */
+            zebra_stripe: boolean;
+            /**
+             * Max Cell Chars
+             * @default 200
+             */
+            max_cell_chars: number;
         };
         /**
          * ThermosiphonCalculateRequest
@@ -25122,6 +25555,241 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ValidateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    generate_report_api_v1_report_generate_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportGenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportGenerateResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_status_api_v1_report__report_file_id__status_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                report_file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportFileStatusResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    download_api_v1_report__report_file_id__download_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                report_file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": unknown;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    verify_api_v1_report_verify__report_file_id__get: {
+        parameters: {
+            query?: {
+                sig?: string;
+                exp?: number;
+            };
+            header?: never;
+            path: {
+                report_file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportVerifyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_hash_api_v1_report__report_file_id__hash_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                report_file_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportHashResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_styles_api_v1_report_styles_get: {
+        parameters: {
+            query?: {
+                report_type?: string;
+                project_id?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportStyleListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_style_api_v1_report_styles__style_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                style_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportStyleSummary"];
                 };
             };
             /** @description Validation Error */

@@ -14908,6 +14908,441 @@
         }
       }
     },
+    "/api/v1/report/generate": {
+      "post": {
+        "tags": [
+          "report"
+        ],
+        "summary": "Generate Report",
+        "description": "入队异步生成。**入队前**就拒未知格式 —— 让 worker 渲染完再失败\n是白占一个槽位 + 白刷一条 REPORT_FAILED。",
+        "operationId": "generate_report_api_v1_report_generate_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportGenerateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportGenerateResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/report/{report_file_id}/status": {
+      "get": {
+        "tags": [
+          "report"
+        ],
+        "summary": "Report Status",
+        "operationId": "report_status_api_v1_report__report_file_id__status_get",
+        "parameters": [
+          {
+            "name": "report_file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report File Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportFileStatusResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/report/{report_file_id}/download": {
+      "get": {
+        "tags": [
+          "report"
+        ],
+        "summary": "Download",
+        "operationId": "download_api_v1_report__report_file_id__download_get",
+        "parameters": [
+          {
+            "name": "report_file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report File Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/report/verify/{report_file_id}": {
+      "get": {
+        "tags": [
+          "report"
+        ],
+        "summary": "Verify",
+        "description": "扫码校验。**免登录但不免签名** —— 免的是 Bearer token。\n\n响应**不含哈希**（用户 2026-10-08 裁决）：比对的主语是系统。",
+        "operationId": "verify_api_v1_report_verify__report_file_id__get",
+        "parameters": [
+          {
+            "name": "report_file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report File Id"
+            }
+          },
+          {
+            "name": "sig",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Sig"
+            }
+          },
+          {
+            "name": "exp",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "default": 0,
+              "title": "Exp"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportVerifyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/report/{report_file_id}/hash": {
+      "get": {
+        "tags": [
+          "report"
+        ],
+        "summary": "Report Hash",
+        "description": "审计角色取完整哈希 —— 与 verify 分端点，敏感度不同。",
+        "operationId": "report_hash_api_v1_report__report_file_id__hash_get",
+        "parameters": [
+          {
+            "name": "report_file_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Report File Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportHashResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/report/styles": {
+      "get": {
+        "tags": [
+          "report"
+        ],
+        "summary": "List Styles",
+        "operationId": "list_styles_api_v1_report_styles_get",
+        "parameters": [
+          {
+            "name": "report_type",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "default": "",
+              "title": "Report Type"
+            }
+          },
+          {
+            "name": "project_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Project Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportStyleListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/report/styles/{style_id}": {
+      "get": {
+        "tags": [
+          "report"
+        ],
+        "summary": "Get Style",
+        "operationId": "get_style_api_v1_report_styles__style_id__get",
+        "parameters": [
+          {
+            "name": "style_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportStyleSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/common/materials/search": {
       "get": {
         "tags": [
@@ -23916,6 +24351,27 @@
         "type": "object",
         "title": "HTTPValidationError"
       },
+      "HeaderFooterConfig": {
+        "properties": {
+          "left": {
+            "type": "string",
+            "title": "Left",
+            "default": ""
+          },
+          "center": {
+            "type": "string",
+            "title": "Center",
+            "default": ""
+          },
+          "right": {
+            "type": "string",
+            "title": "Right",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "title": "HeaderFooterConfig"
+      },
       "HeaderSizingRequest": {
         "properties": {
           "project_id": {
@@ -25540,6 +25996,33 @@
         ],
         "title": "ManningCalcResponse",
         "description": "POST /open-channel/manning/calculate 响应（201）。\n\n额外含：result_id / record_hash / sign_status / created_at。"
+      },
+      "Margins": {
+        "properties": {
+          "top": {
+            "type": "number",
+            "title": "Top",
+            "default": 20.0
+          },
+          "bottom": {
+            "type": "number",
+            "title": "Bottom",
+            "default": 20.0
+          },
+          "left": {
+            "type": "number",
+            "title": "Left",
+            "default": 25.0
+          },
+          "right": {
+            "type": "number",
+            "title": "Right",
+            "default": 20.0
+          }
+        },
+        "type": "object",
+        "title": "Margins",
+        "description": "页边距，**单位毫米**。\n\n⚠️ 单位是契约，不是实现细节。PDF 渲染器曾把这些值**当点**传给 ReportLab：\n25 当点 = 8.8mm，边距窄到不成样子，而 PDF 结构合法、字节数正常，\n没有一个结构断言会红。DOCX/XLSX 读同一份配置，一个当点一个当毫米的话，\n同一份样式在不同格式下版式完全不同。故换算收敛到\n`ReportStyle.margins_pt`，三个渲染器都用它。"
       },
       "MaterialDetail": {
         "properties": {
@@ -28354,6 +28837,396 @@
         ],
         "title": "RefreshResponse",
         "description": "刷新 token 响应（POST /auth/refresh 响应体）。\n\n业务：返回新 access_token + 新 refresh_token（jti 轮换防重放）。"
+      },
+      "ReportFileStatusResponse": {
+        "properties": {
+          "report_file_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Report File Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "file_format": {
+            "type": "string",
+            "title": "File Format"
+          },
+          "size_bytes": {
+            "type": "integer",
+            "title": "Size Bytes"
+          },
+          "error_message": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error Message"
+          },
+          "heartbeat_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heartbeat At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "report_file_id",
+          "status",
+          "file_format",
+          "size_bytes"
+        ],
+        "title": "ReportFileStatusResponse"
+      },
+      "ReportGenerateRequest": {
+        "properties": {
+          "report_type": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Report Type"
+          },
+          "project_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Project Id"
+          },
+          "record_ids": {
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "type": "array",
+            "maxItems": 10000,
+            "title": "Record Ids"
+          },
+          "output_format": {
+            "type": "string",
+            "maxLength": 16,
+            "title": "Output Format",
+            "default": "pdf"
+          }
+        },
+        "type": "object",
+        "required": [
+          "report_type",
+          "project_id"
+        ],
+        "title": "ReportGenerateRequest"
+      },
+      "ReportGenerateResponse": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "PENDING"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id"
+        ],
+        "title": "ReportGenerateResponse",
+        "description": "202 Accepted —— 生成是异步的（10k 行 PDF ≈ 10 CPU-秒，同步会阻塞 event loop）。"
+      },
+      "ReportHashResponse": {
+        "properties": {
+          "report_file_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Report File Id"
+          },
+          "record_hash_digest": {
+            "type": "string",
+            "title": "Record Hash Digest"
+          },
+          "data_version": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Data Version"
+          },
+          "generated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "report_file_id",
+          "record_hash_digest"
+        ],
+        "title": "ReportHashResponse",
+        "description": "审计角色的完整哈希。与 ReportVerifyResponse 分端点，因为消费者与敏感度都不同。"
+      },
+      "ReportStyle": {
+        "properties": {
+          "page_size": {
+            "type": "string",
+            "enum": [
+              "A4",
+              "A3",
+              "Letter"
+            ],
+            "title": "Page Size",
+            "default": "A4"
+          },
+          "orientation": {
+            "type": "string",
+            "enum": [
+              "portrait",
+              "landscape"
+            ],
+            "title": "Orientation",
+            "default": "portrait"
+          },
+          "margins": {
+            "$ref": "#/components/schemas/Margins",
+            "default": {
+              "top": 20.0,
+              "bottom": 20.0,
+              "left": 25.0,
+              "right": 20.0
+            }
+          },
+          "font_family_cn": {
+            "type": "string",
+            "title": "Font Family Cn",
+            "default": "Noto Sans CJK SC"
+          },
+          "font_family_en": {
+            "type": "string",
+            "title": "Font Family En",
+            "default": "Arial"
+          },
+          "font_size_body": {
+            "type": "integer",
+            "title": "Font Size Body",
+            "default": 10
+          },
+          "font_size_heading": {
+            "type": "integer",
+            "title": "Font Size Heading",
+            "default": 14
+          },
+          "line_spacing": {
+            "type": "number",
+            "title": "Line Spacing",
+            "default": 1.5
+          },
+          "header": {
+            "$ref": "#/components/schemas/HeaderFooterConfig",
+            "default": {
+              "left": "{{project_no}}",
+              "center": "{{report_name}}",
+              "right": "Rev {{rev}}"
+            }
+          },
+          "footer": {
+            "$ref": "#/components/schemas/HeaderFooterConfig",
+            "default": {
+              "left": "{{doc_no}}",
+              "center": "",
+              "right": "第 {{page}} 页"
+            }
+          },
+          "table": {
+            "$ref": "#/components/schemas/TableStyle",
+            "default": {
+              "header_bg": "#D9E1F2",
+              "header_bold": true,
+              "border_width": 0.5,
+              "border_color": "#000000",
+              "cell_padding": 4,
+              "zebra_stripe": true,
+              "max_cell_chars": 200
+            }
+          },
+          "assumption_mark": {
+            "type": "string",
+            "title": "Assumption Mark",
+            "default": "▲"
+          },
+          "assumption_color": {
+            "type": "string",
+            "title": "Assumption Color",
+            "default": "#FF8C00"
+          },
+          "qr_position": {
+            "type": "string",
+            "enum": [
+              "footer",
+              "header"
+            ],
+            "title": "Qr Position",
+            "default": "footer"
+          },
+          "qr_size_mm": {
+            "type": "integer",
+            "title": "Qr Size Mm",
+            "default": 20
+          },
+          "font_dir": {
+            "type": "string",
+            "title": "Font Dir"
+          },
+          "locked_fields": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "uniqueItems": true,
+            "title": "Locked Fields",
+            "default": [
+              "orientation",
+              "page_size"
+            ]
+          }
+        },
+        "type": "object",
+        "title": "ReportStyle"
+      },
+      "ReportStyleListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/ReportStyleSummary"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "ReportStyleListResponse"
+      },
+      "ReportStyleSummary": {
+        "properties": {
+          "style_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Style Id"
+          },
+          "report_type": {
+            "type": "string",
+            "title": "Report Type"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "version": {
+            "type": "string",
+            "title": "Version"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "style": {
+            "$ref": "#/components/schemas/ReportStyle"
+          }
+        },
+        "type": "object",
+        "required": [
+          "style_id",
+          "report_type",
+          "version",
+          "status",
+          "style"
+        ],
+        "title": "ReportStyleSummary"
+      },
+      "ReportVerifyResponse": {
+        "properties": {
+          "match": {
+            "type": "boolean",
+            "title": "Match"
+          },
+          "doc_no": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Doc No"
+          },
+          "rev": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Rev"
+          },
+          "generated_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Generated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "match"
+        ],
+        "title": "ReportVerifyResponse",
+        "description": "校验结论。**不含任何哈希**（用户 2026-10-08 裁决）。\n\n字段集合被 `test_verify_endpoint_returns_verdict_only` 用 `set(body) ==` 钉死，\n加字段就要同步想清楚「现场人员看到这个字段有什么用」——没有就别加。"
       },
       "RestrictionCalculateRequest": {
         "properties": {
@@ -32464,6 +33337,47 @@
         ],
         "title": "StreamResponse",
         "description": "完整响应：含 sign_status + 审计字段。"
+      },
+      "TableStyle": {
+        "properties": {
+          "header_bg": {
+            "type": "string",
+            "title": "Header Bg",
+            "default": "#D9E1F2"
+          },
+          "header_bold": {
+            "type": "boolean",
+            "title": "Header Bold",
+            "default": true
+          },
+          "border_width": {
+            "type": "number",
+            "title": "Border Width",
+            "default": 0.5
+          },
+          "border_color": {
+            "type": "string",
+            "title": "Border Color",
+            "default": "#000000"
+          },
+          "cell_padding": {
+            "type": "integer",
+            "title": "Cell Padding",
+            "default": 4
+          },
+          "zebra_stripe": {
+            "type": "boolean",
+            "title": "Zebra Stripe",
+            "default": true
+          },
+          "max_cell_chars": {
+            "type": "integer",
+            "title": "Max Cell Chars",
+            "default": 200
+          }
+        },
+        "type": "object",
+        "title": "TableStyle"
       },
       "ThermosiphonCalculateRequest": {
         "properties": {

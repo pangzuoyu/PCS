@@ -15,7 +15,12 @@ from sqlalchemy.dialects import postgresql
 
 from app.services.exceptions import PcsError
 from app.services.report.query_engine import (
-    SUPPORTED_OPS, apply_filters, apply_sort, assemble, build_select, check_joins,
+    SUPPORTED_OPS,
+    apply_filters,
+    apply_sort,
+    assemble,
+    build_select,
+    check_joins,
 )
 
 OPS = ["EQ", "NEQ", "GT", "GTE", "LT", "LTE", "IN", "NOT_IN", "CONTAINS",
