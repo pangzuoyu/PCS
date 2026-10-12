@@ -79,6 +79,22 @@ class HtriParsedData:
     heat_duty_w: float
     overall_u_w_m2k: float
     area_required_m2: float
+    # 换热器类型：Air Cooler（Xace，扇风式） vs 壳管式（TEMA Xist）。
+    # 字段树按它分组（ADR-0028），也决定哪些几何字段可选。
+    exchanger_kind: str = ""
+    # ⚠️ 以下是**管程侧**的热工量 —— 空冷器里管程侧是工艺侧、空气侧是
+    # 另一侧；管壳式里管程侧就是 tube side。命名用 `cold_*` 是从 TEMA 的
+    # shell/tube 视角来的，Xace 的「空气侧」在 OUTSIDE 列。
+    # ⚠️ 单位：**已换算成 °C / mm / kg/s**。Excel 报表里就是这些单位，
+    # 而纯文本 parser 用的是 K（`*_t_k` 系列）。两个 parser 的单位口径
+    # 必须一致，否则同一份数据经两条链路进来温度差 273。
+    cold_inlet_t_c: float | None = None
+    cold_outlet_t_c: float | None = None
+    cold_mass_flow_kgs: float | None = None
+    hot_inlet_t_c: float | None = None
+    hot_outlet_t_c: float | None = None
+    hot_mass_flow_kgs: float | None = None
+    air_inlet_t_c: float | None = None
 
     # 管壳字段（None 表示非管壳 / ACHE）
     shell_dia_m: float | None = None
@@ -129,6 +145,13 @@ class HtriParsedData:
     over_fin_diameter_mm: float | None = None
     tip_clearance_mm: float | None = None
     # 主表剩余 4 条缺口（用户 2026-12-12）
+    # mm 单位版（Excel 报表口径；纯文本 parser 用 *_m）
+    shell_id_mm: float | None = None
+    baffle_spacing_mm: float | None = None
+    tube_passes: int | None = None
+    heat_transfer_safety_factor: float | None = None
+    fan_face_area_ratio: float | None = None
+    fan_power_kw: float | None = None
     extended_area_m2: float | None = None
     bare_area_m2: float | None = None
     fan_face_area_ratio: float | None = None
