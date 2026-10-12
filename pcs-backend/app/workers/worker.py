@@ -15,6 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db.session import dispose_engines_async, get_async_session_factory
 from app.workers.cia_tasks import scan_stale_full, scan_stale_incremental
+from app.workers.report_tasks import generate_report_task, reclaim_stale_tasks_batch
 from app.workers.workspace_tasks import (
     cleanup_expired_workspaces,
     touch_workspace,
@@ -63,6 +64,10 @@ class WorkerSettings:
         touch_workspace,
         scan_stale_incremental,
         scan_stale_full,
+        # P8：报表生成。ADR-P8-004 裁决 **max_tries=3** —— 报表失败通常是
+        # 确定性错误（数据脏 / 字体缺 / 格式不认识），不是瞬时抖动，
+        # 重试 5 次与 3 次没区别，只多刷 2 条 REPORT_FAILED 审计。
+        generate_report_task,
     ]
     cron_jobs = [
         # ARQ cron 语法：(minute, hour, day, month, dow, function)
@@ -76,6 +81,19 @@ class WorkerSettings:
             "minute": {1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56},
             "function": scan_stale_incremental,
         },
+        # P8：僵死报表任务回收。ARQ 进程被 OOM kill 时状态会永远卡在
+        # PENDING，前端无限轮询且无人知道。10 分钟一次足够（阈值 15 分钟）。
+        {
+            "minute": {3, 33},
+            "function": reclaim_stale_tasks_batch,
+        },
     ]
+    # 队列容量。ADR-P8-004 建议把**报表任务**单独拆一个 worker 并设
+    # `max(2, cores // 2)`，但那是**部署侧**的决定 —— 仓库当前没有
+    # backend / worker 的部署配置（见 ADR-P8-004 前置条件 0），拆了也没人起。
+    # 这里只标注现状，待部署形态确定后再改；**不要在没有部署配置的情况下
+    # 自行把报表拆到独立进程**（起不来，且 max_jobs 无从验证）。
     max_jobs = 4
+    # 10k 行 PDF 约 10 秒（ADR-P8-004 实测），300 秒有 30 倍余量。
+    # ⚠️ 过大反而有害：真卡死的任务会占着槽位 5 分钟。
     job_timeout = 300

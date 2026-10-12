@@ -310,6 +310,22 @@ class AuditAction(str, enum.Enum):
     CONFIG_ASSET_REJECTED = "CONFIG_ASSET_REJECTED"
     CONFIG_VERSION_DIFF_VIEWED = "CONFIG_VERSION_DIFF_VIEWED"
 
+    # === P8 报表（ADR-P8-001 全直接生成路线）===
+    REPORT_GENERATED = "REPORT_GENERATED"
+    REPORT_DOWNLOADED = "REPORT_DOWNLOADED"
+    # ⚠️ REPORT_FAILED **每次失败尝试都写一条**（用户 2026-10-09 裁决），
+    # detail_json 带 {task_id, attempt_no}。不是只写最后一次：
+    # ARQ 的 keep_result 默认 3600 秒，Redis 里的异常 1 小时后就清空，
+    # audit_logs 是失败的**唯一**持久记录；而「失败过几次」本身是信号
+    # （某类报表平均重试 2 次才成功 = 有系统性质量问题）。
+    REPORT_FAILED = "REPORT_FAILED"
+    # REPORT_BUILDER（Phase 2 b9）：每次执行写一条，含条件快照 + 行数
+    REPORT_EXECUTED = "REPORT_EXECUTED"
+    # 僵死任务回收（Task 7）：ARQ 进程被 kill 后状态卡在 PENDING，
+    # 由 reclaim_stale_tasks 改成 FAILED 并写这条 —— 否则「为什么这一行
+    # 变成 FAILED」查不到。
+    REPORT_TASK_RECLAIMED = "REPORT_TASK_RECLAIMED"
+
 
 class ConfigStatus(str, enum.Enum):
     """配置资产状态（P2 Sprint 1.2 / SUP-001 §2.1 锁定）。
