@@ -1829,7 +1829,7 @@ git commit -m "perf(report): 性能基准纳入 CI 阈值（简单≤5s 复杂�
 | c2 | BASIC/DETAIL 双样式 | BASIC 9 字段（ReportStyle-A）；DETAIL 39 字段（ReportStyle-B） | 两套样式均可渲染 |
 | c3 | ADR-0028 | **已完成**，见 `docs/adr/HEAT 报表双 detail_level 模板裁决.md` | — |
 | c4 | HTRI 兼容测试 | `121-A-101.xls`(33 列) + `131-E-102-EOR.xls`(23 列) 覆盖比对 | 差异清单 |
-| c5 | 覆盖率报告 | DETAIL 字段覆盖率自动计算 | **≥95%** |
+| c5 | 覆盖率报告 | DETAIL 字段覆盖率自动计算 + 回归闸 | **≥95% 已于 2026-12-12 放弃**（ADR-0028 修订记录）：实测主表口径 64.9%，补完全部缺口也只到 73%。改为记录基线 + 2pp 容差，**防回归不追覆盖率** |
 | c6 | 样式管理 UI | ReportStyle 可视化编辑 + 实时预览 | 不涉及占位符绑定（已废止） |
 | c7 | JOIN 扩展 | 按需开放更多 JOIN 对 | 每对 1 测试 |
 

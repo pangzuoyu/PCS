@@ -486,7 +486,7 @@ P8-OPEN-002	PDF生成的字体要求（中文字体嵌入）？	生成效果	需
 P8-OPEN-003	REPORT_BUILDER是否需要支持图表？	功能范围	SPEC明确不支持，仅数据提取	已确认
 P8-OPEN-004	委托条件表的格式是否已有标准？	模板设计	需各专业提供标准格式	待确认
 P8-OPEN-005	多数据源JOIN时的关联键如何定义？	实现复杂度	通过外键自动关联，需定义JOIN规则	待确认
-P8-OPEN-006	[HEAT 报表字段对齐 heat_results] 详见 SUP-009 V1.0 §3.1 + §4：REPORT_BUILDER 数据源 HEAT_EXCEL 需要适配 heat_results 新表 39 字段（基础/热工/壳程管程 JSONB/几何/热阻分布）+ ache_params JSONB（风机/空气侧/翅片/管嘴/空气侧阻力分布）。原9 字段保留向后兼容（detail_level=BASIC 仍可生成简化报表）；扩展字段（detail_level=DETAIL）需要 121-A-101.xls（HTRI 空冷器 33 列）+ 131-E-102-EOR.xls（TEMA 管壳式 23 列）两个模板源均覆盖。建议新建 ADR-0028 记录 HEAT 报表双 detail_level 模板裁决。验收：detail_level=DETAIL 报表字段覆盖率 ≥ 95%。	P8 REPORT_BUILDER 数据源适配	HEAT 数据源字段映射配置 + ADR-0028 起草 + HTRI 输出文件兼容性测试	待启动
+P8-OPEN-006	[HEAT 报表字段对齐 heat_results] 详见 SUP-009 V1.0 §3.1 + §4：REPORT_BUILDER 数据源 HEAT_EXCEL 需要适配 heat_results 新表 39 字段（基础/热工/壳程管程 JSONB/几何/热阻分布）+ ache_params JSONB（风机/空气侧/翅片/管嘴/空气侧阻力分布）。原9 字段保留向后兼容（detail_level=BASIC 仍可生成简化报表）；扩展字段（detail_level=DETAIL）需要 A-101.xls（HTRI 空冷器）+ 131-E-102-EOR.xls（TEMA 管壳式）两个模板源均覆盖。建议新建 ADR-0028 记录 HEAT 报表双 detail_level 模板裁决。~~验收：detail_level=DETAIL 报表字段覆盖率 ≥ 95%。~~ **（V1.4 作废该目标 —— 改为覆盖率防回归闸，见 ADR-0028 修订记录）**	P8 REPORT_BUILDER 数据源适配	HEAT 数据源字段映射配置 + ADR-0028 起草 + HTRI 输出文件兼容性测试	待启动
 4.4 工作量估算
 模块	自研内容	估算工作量
 REPORT引擎	模板填充、PDF生成、二维码、假设声明页	2-2.5人周
@@ -502,6 +502,7 @@ REPORT_BUILDER	定义管理、字段选择器、过滤构建器、执行引擎	2
 | V1.1 | 2026-08-28 | incorporate SUP-004/007：正式报表生成即创建交付物（编号模板预览、快照绑定、绑定准入仅 CHECKED）；签署页按矩阵动态列+客户代录标注；二维码内容改 doc_no+Rev+哈希摘要；REPORT_BUILDER 新增即席导出非交付物/固化交付物/演示水印；文件标识改 PCS 前缀 | 联合项目组 |
 | V1.2 | 2026-09-03 | incorporate SUP-009 V1.0：关联文档加 SUP-009；新增 P8-OPEN-006（HEAT 报表字段对齐 heat_results 39 字段 + ache_params JSONB + detail_level=BASIC/DETAIL 双模板 + ADR-0028）；主体报表引擎不变，仅扩 HEAT 数据源字段映射 | 联合项目组 |
 | V1.3 | 2026-10-08 | **incorporate ADR-P8-001（全直接生成模式）**：PDF 引擎 LibreOffice→**ReportLab**；DOCX docxtpl→**python-docx**；XLSX openpyxl→**XlsxWriter**；废止用户提供 .dotx/.xltx 模板机制，改为 **ReportStyle** JSON 样式配置（四级优先级）；占位符收窄为页眉页脚文本替换；模板调用 6 步→生成 5 步；接口 `/report/templates*`→`/report/styles*`；P8-OPEN-001 改口径关闭。同步修订：§1.3 术语、§2.2 报表类型表、§2.6 假设、§3.1.2 接口、§3.2.1(1) 生成机制、§4.1 附录、§4.3/4.4、§一.2、§二、§三、任务 a1–a4/c2/c3/c6、§五 依赖、§六 验收、§九 ADR 表 | 联合项目组 |
+| V1.4 | 2026-12-12 | **放弃 P8-OPEN-006 的「DETAIL 字段覆盖率 ≥ 95%」验收目标**（实测主表口径 64.9%，补完全部已知缺口也只到 73%；95% 是在一个未被记录的更窄定义下达成的，无法复现）。改为记录实测基线 + 2pp 回归容差：**防回归，不追覆盖率**。同时修正 P8-OPEN-006 的模板源文件名（121-A-101.xls → A-101.xls）。见 ADR-0028 修订记录 | 联合项目组 |
 
 
 P8 报表与输出开发计划（修订版 V2.0）
@@ -562,7 +563,7 @@ EQUIP_LIST.vendor_id = SUPPLIERS.supplier_id（需 SUPPLIERS 表有 vendor_id �
 不支持的 JOIN 对返回 REPORT_BUILDER_JOIN_NOT_SUPPORTED。
 
 1.4 P8-OPEN-006 HEAT 独立工作流
-P8-OPEN-006（HEAT 报表字段对齐 39 字段 + ache_params JSONB + BASIC/DETAIL 双模板 + ADR-0028 + HTRI 兼容测试 + DETAIL 覆盖率 ≥95%）单独立项为 P8c，不并入 8.1。
+P8-OPEN-006（HEAT 报表字段对齐 39 字段 + ache_params JSONB + BASIC/DETAIL 双模板 + ADR-0028 + HTRI 兼容测试 + DETAIL 覆盖率报告）单独立项为 P8c，不并入 8.1。**V1.4**：覆盖率 ≥95% 的目标已放弃，c5 交付物改为「覆盖率自动计算 + 防回归闸」。
 
 1.5 测试数据 seed
 P8 测试不依赖真库数据。P8a 交付前需完成：
@@ -679,7 +680,7 @@ c1	HEAT 字段映射	heat_results 39 字段 + ache_params JSONB → HEAT_EXCEL �
 c2	BASIC/DETAIL 双样式	detail_level=BASIC 用 9 字段简化报表（ReportStyle-A）；DETAIL 用 39 字段 + HTRI 字段映射（ReportStyle-B）
 c3	ADR-0028	HEAT 报表双 detail_level 裁决记录（**已完成**，见 `docs/adr/HEAT 报表双 detail_level 模板裁决.md`；「双模板」= 双套 ReportStyle + 字段映射配置，非 .dotx/.xltx）
 c4	HTRI 兼容测试	121-A-101.xls + 131-E-102-EOR.xls 字段覆盖比对
-c5	覆盖率报告	DETAIL 字段覆盖率自动计算，目标 ≥95%
+c5	覆盖率报告	DETAIL 字段覆盖率自动计算 + **回归闸**（V1.4：目标 ≥95% 已放弃，改为记录基线防回归）
 c6	样式管理 UI	ReportStyle 可视化编辑（页面/字体/表格/页眉页脚/标记）；实时预览；不涉及占位符绑定（该机制已废止）
 c7	多源 JOIN 扩展	按需开放更多 JOIN 对（需先定义关联键）
 五、依赖与风险

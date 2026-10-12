@@ -169,16 +169,13 @@ COLUMN_MAP.update({
 #: 也从不写入**的字段 —— 因此**刻意不映射**。映射到它们会让覆盖率替一个
 #: 永远查不出值的字段记功，而用户拿到的是一整片空白。
 #: 处置：补 `AcheParams` 字段 + 写入方，再回来加映射。见 TODO-056。
-#: 标签：Air humidity / Fin height / Fin thickness at base /
-#:       Fin root diameter / Fins per unit length / Fin efficiency /
-#:       Over fin diameter / Unfinned length / Unheated length
 KNOWN_ACHE_GEOMETRY_GAPS = (
     "Air humidity", "Fin height", "Fin thickness at base",
     "Fin root diameter", "Fins per unit length", "Fin efficiency",
     "Over fin diameter", "Unfinned length", "Unheated length",
 )
 
-#: **提取噪声**：这些是被误当成字段标签的列头/小标题 —— 它们本身不是字段，
+#: **提取噪声**：被误当成字段标签的列头/小标题 —— 本身不是字段，
 #: 只是恰好后面跟了一个单位（如 `Outlet | Deg C | 54.99` 里的 Outlet 是
 #: 「出口温度」这一列的列头，字段标签是 `Temperature, In/Out`）。
 #: 单独列出来是为了让读覆盖率的人知道分母里有噪声，而不是把它们藏起来。
@@ -190,7 +187,30 @@ EXTRACTION_NOISE = frozenset({
     "Shell ID   1600.00  mm", "Layout   4",
 })
 
-TARGET_COVERAGE = 0.95
+#: **基线**，不是目标。
+#:
+#: 计划/ADR-0028 写的「DETAIL 字段覆盖率 ≥ 95%」已由用户 2026-12-12 裁决放弃：
+#: 实测主表口径 64.9%，补完全部已知缺口也只到 73% —— 95% 是在一个更窄的
+#: 定义下达成的，那个定义没有被记录下来，无法复现。
+#:
+#: ⚠️ **所以这里不能用「目标 0」代替**：那会让工具**恒绿**，
+#: 而覆盖率工具恒绿比没有工具更坏（它让人以为还在守着）。
+#: 改为**基线 + 回归容差**：
+#:   - 涨（补字段、修映射）随便涨，永远不报失败
+#:   - 跌超过 `REGRESSION_TOLERANCE` 才报 —— 抓的是「有人改坏了」
+#:
+#: 基线 = `sample/A-101.xls` + `sample/131-E-102-EOR.xls` 在
+#: `--scope main` 下的实测值。**每个口径一个基线** —— 模板口径 64.9%、
+#: 注册口径 53.0%，两者量纲不同，把一个的基线套到另一个上会**误报回归**
+#: （第一版就是这么写的：注册口径 53% < 模板下限 62.9% → 报「已回归」，
+#: 而实际一个数都没变）。换参考文件后基线要重测。
+BASELINE_TEMPLATE_COVERAGE = 0.649   # 48/74 条标签
+BASELINE_REGISTRY_COVERAGE = 0.530   # 44/83 个字段
+REGRESSION_TOLERANCE = 0.02          # 2 个百分点
+
+#: 判定下限 = 基线 − 容差。**不是**「目标」：只防跌，不追涨。
+TEMPLATE_FLOOR = BASELINE_TEMPLATE_COVERAGE - REGRESSION_TOLERANCE
+REGISTRY_FLOOR = BASELINE_REGISTRY_COVERAGE - REGRESSION_TOLERANCE
 
 
 #: 单位词表。HTRI/TEMA 的单位写法不统一 —— Xace 带括号 `(kg/s)`，
@@ -391,9 +411,16 @@ def compute_coverage(labels: list[str], *,
         "template_coverage": pct(served_labels, len(labels)),
         "served_labels": served_labels,
         "registry_coverage": pct(len(served), len(scoped)),
-        "target": TARGET_COVERAGE,
-        "passed": (pct(len(served), len(labels)) >= TARGET_COVERAGE
-                   and pct(len(served), len(scoped)) >= TARGET_COVERAGE),
+        # ⚠️ 判定的是**回归**，不是「达标」：两个口径都没跌过容差即未回归。
+        "baselines": {"template": BASELINE_TEMPLATE_COVERAGE,
+                      "registry": BASELINE_REGISTRY_COVERAGE},
+        "floors": {"template": TEMPLATE_FLOOR, "registry": REGISTRY_FLOOR},
+        # ⚠️ 每个口径对**自己**的基线。两个口径量纲不同，混用会误报。
+        "regressed": (pct(served_labels, len(labels)) < TEMPLATE_FLOOR
+                      or pct(len(served), len(scoped)) < REGISTRY_FLOOR),
+        # 保留 `target` 键名（前端/脚本可能已依赖）但语义改为「判定下限」，
+        # 且明确不再有 95% 的目标 —— 避免下游读到一个看似仍存在的验收线。
+        "target": None,
         "template_labels": len(labels),
         "real_labels": len(labels) - len(noise),
         "mapped_labels": len(labels) - len(unmapped) - len(noise),
@@ -446,10 +473,15 @@ def main(argv: list[str] | None = None) -> int:
             sheets[str(p)] = want
             labels += by_name[want]
         else:
-            sheet, ls = main_labels(p)
+            # ⚠️ **只读一次**。先前的写法先 `main_labels(p)` 再
+            # `read_labels_by_sheet(p)` —— 同一个文件被解两次，.xls 的
+            # LibreOffice 转换也因此跑两遍（warning 打两行、慢一倍）。
+            detail = read_labels_by_sheet(p)
+            per_sheet_detail[p.name] = detail
+            productive = [(n, x) for n, x in detail if x]
+            sheet, ls = productive[0] if productive else ("", [])
             sheets[str(p)] = sheet
             labels += ls
-            per_sheet_detail[p.name] = read_labels_by_sheet(p)
     labels = list(dict.fromkeys(labels))
     r = compute_coverage(labels, level=args.level)
     r["references"] = [str(p) for p in paths]
@@ -479,8 +511,11 @@ def main(argv: list[str] | None = None) -> int:
               f"{r['served_labels']}/{r['template_labels']}")
         print(f"  注册口径（覆盖几项）: {rc:5.1f}%  "
               f"{len(r['covered_fields'])}/{r['registry_fields']}")
-        print(f"  目标 ≥{r['target'] * 100:.0f}% → "
-              f"{'通过' if r['passed'] else '**未达标**'}")
+        print(f"  基线 模板 {r['baselines']['template'] * 100:.1f}% / "
+              f"注册 {r['baselines']['registry'] * 100:.1f}%"
+              f"（各扣 {REGRESSION_TOLERANCE * 100:.0f}pp 容差）"
+              f" → {'未回归' if not r['regressed'] else '**已回归**'}")
+        print("  注：95% 目标已由用户 2026-12-12 裁决放弃；此处只防回归，不追覆盖率")
         if r["extraction_noise"]:
             sample = "、".join(r["extraction_noise"][:8])
             print(f"\n  · 提取噪声（{len(r['extraction_noise'])}）—— 规则偏差，"
@@ -491,7 +526,7 @@ def main(argv: list[str] | None = None) -> int:
                 print(f"    ? {x}")
         if r["mapped_to_unknown_fields"]:
             print(f"\n  ⚠ COLUMN_MAP 指向未登记字段：{r['mapped_to_unknown_fields']}")
-    return 0 if r["passed"] else 1
+    return 1 if r["regressed"] else 0
 
 
 if __name__ == "__main__":

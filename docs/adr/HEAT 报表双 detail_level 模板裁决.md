@@ -1,11 +1,11 @@
 HEAT 报表双 detail_level 模板裁决
-状态：已接受（Accepted）
-日期：2026-10-07
+状态：已接受（Accepted）· **2026-12-12 修订：放弃「DETAIL 字段覆盖率 ≥ 95%」验收目标**（见文末「修订记录」）
+日期：2026-10-07（修订 2026-12-12）
 决策者：首席架构师 / 工艺专家
 关联：ADR-P8-001（全直接生成模式）、SUP-009 V1.0、SPEC-P8 V1.2 §4.3 P8-OPEN-006
 
 背景
-SPEC-P8 V1.2 在 P8-OPEN-006 中提出：REPORT_BUILDER 数据源 HEAT_EXCEL 需适配 heat_results 新表的 39 个字段 + ache_params JSONB。原 9 字段保留向后兼容（detail_level=BASIC 仍可生成简化报表）；扩展字段（detail_level=DETAIL）需要覆盖 HTRI 空冷器模板源 121-A-101.xls 和 TEMA 管壳式模板源 131-E-102-EOR.xls 两个来源。验收标准为 detail_level=DETAIL 报表字段覆盖率 ≥ 95%。
+SPEC-P8 V1.2 在 P8-OPEN-006 中提出：REPORT_BUILDER 数据源 HEAT_EXCEL 需适配 heat_results 新表的 39 个字段 + ache_params JSONB。原 9 字段保留向后兼容（detail_level=BASIC 仍可生成简化报表）；扩展字段（detail_level=DETAIL）需要覆盖 HTRI 空冷器模板源 `A-101.xls`（原写 121-A-101.xls，实际文件名无 `121-` 前缀）和 TEMA 管壳式模板源 131-E-102-EOR.xls 两个来源。原验收标准为 detail_level=DETAIL 报表字段覆盖率 ≥ 95%，**该目标已于 2026-12-12 放弃**（修订记录见文末）。
 
 该问题在 SPEC 中仅以“待确定问题”形式登记，未给出具体裁决。P8 开发前必须明确：detail_level 的分级标准、两类换热器（空冷器/管壳式）的字段映射规则、以及双模板在 REPORT_BUILDER 中的呈现方式。
 
@@ -103,7 +103,7 @@ REPORT_BUILDER 的 HEAT 数据源可用。P8 可正式启动 HEAT 报表开发�
 
 双级切换灵活。用户可根据报表用途选择 BASIC 或 DETAIL，无需修改数据模型。
 
-测试目标明确。覆盖率 ≥ 95% 是量化验收标准。
+~~测试目标明确。覆盖率 ≥ 95% 是量化验收标准。~~ **（2026-12-12 作废 —— 该数字从未被复现，见修订记录）**
 
 负面
 字段映射需一次性核对。39 个字段 + ache_params JSONB 与两个 HTRI 模板源的映射需人工核对，工作量大。
@@ -174,21 +174,20 @@ python
   }
 }
 覆盖率验证
-python
-# tests/report/test_heat_coverage.py
+text
+# pcs-backend/scripts/report_heat_coverage.py
+# 用法：uv run python scripts/report_heat_coverage.py sample/A-101.xls sample/131-E-102-EOR.xls
+# 退出码：0 未回归 / 1 已回归 / 2 缺输入
 
-def test_heat_detail_field_coverage():
-    """DETAIL 级字段覆盖率 ≥ 95%"""
-    orm_fields = set(HeatResult.__table__.columns.keys())  # 39 字段
-    orm_fields |= _expand_jsonb_keys(HeatResult.ache_params)  # JSONB 展开键
+⚠️ **这里没有 95% 的断言**，也**不能**改成断言 0。
+覆盖率工具恒绿比没有工具更坏 —— 它让人以为还在守着。
+现为**基线 + 回归容差**：涨随便涨（补字段/修映射），跌超 2pp 才报。
 
-    datasource_fields = set(f.name for f in HEAT_DATASOURCE.fields if f.level == "DETAIL")
+  实测基线（--scope main，即每个文件的主输出表）：
+    模板口径 64.9%（48/74 条标签）
+    注册口径 53.0%（44/83 个已登记字段）
 
-    covered = orm_fields & datasource_fields
-    coverage = len(covered) / len(orm_fields)
-
-    assert coverage >= 0.95, f"覆盖率 {coverage:.1%} < 95%，缺失: {orm_fields - datasource_fields}"
-风险与缓解
+风险与缓解风险与缓解
 风险	概率	影响	缓解
 39 字段与 HTRI 模板源映射不完整	中	覆盖率不达标	开发期做逐字段核对，生成映射对照表；缺失字段补入注册表
 ache_params JSONB 键未定义完整	中	空冷器 DETAIL 报表缺字段	以 HTRI Xace 输出为基准定义 ache_params 键清单
@@ -207,3 +206,48 @@ ADR	关系
 ADR-P8-001	双模板通过 ReportStyle 配置实现，符合全直接生成模式裁决
 SUP-009 V1.0	本 ADR 是 SUP-009 在 REPORT_BUILDER 数据源层面的落地裁决
 SPEC-P8 V1.2 P8-OPEN-006	本 ADR 关闭该待确定问题
+
+## 修订记录
+
+### 2026-12-12 — 放弃「DETAIL 字段覆盖率 ≥ 95%」验收目标
+
+**决策者**：用户（明确指令「放弃95%这个目标」）
+
+**为什么放弃**。P8c c5 用真实参考文件实测（`sample/A-101.xls` +
+`sample/131-E-102-EOR.xls`，均可由 `scripts/report_heat_coverage.py`
+复现）：
+
+| 口径 | 数值 |
+|---|---|
+| 模板口径（认得几项，主表） | **64.9%**（48/74 条标签）|
+| 注册口径（覆盖几项） | **53.0%**（44/83 个已登记字段）|
+
+即便把 11 条已知缺口**全部**补进数据模型，模板口径也只到 **73%**。
+
+原目标的 95% 有三处对不上，**没有一处能被复现**：
+
+1. **数量级对不上**：计划写「33 列 / 23 列」，而提取到的主表标签是
+   50 / 25、合并 74。差的不是几个字段，是**分母定义本身**。
+2. **分母口径从未写明**：是「模板字段数」还是「我们已登记字段数」？
+   两者在同一份文件上差 11.9 个百分点。
+3. **HTRI/TEMA 模板里相当一部分内容不属于规格书字段**：壁温分布、
+   两相含量、翅片面积比、风机几何校核比 —— 客户不需要，
+   把它们算进分母就注定了达不到 95%。
+
+换句话说：95% 大概是在一个**更窄的定义**下达成的，而那个定义没有被记录。
+追一个无法复现的数字，等于让人去改数据模型去凑分母。
+
+**改成什么**。不再是「追覆盖率」，而是**防回归**：
+
+- 记录两条实测基线（模板 64.9% / 注册 53.0%），各留 2pp 容差
+- 覆盖率**上涨永远不报失败**（补字段、修映射都是好事）
+- 下跌超容差才报 —— 抓的是「有人改坏了」
+- ⚠️ **不是**把目标改成 0：那会让工具恒绿
+
+**本 ADR 的其余决策全部不变**：detail_level 双分级（BASIC 9 /
+DETAIL 全量）、双套 ReportStyle、字段用真实 ORM 列名、
+`heat_exchanger_type` 分组。这些都已实现且有测试。
+
+**仍然待办**（不因放弃目标而消失）：11 条缺口的分类见 `TODOS.md`
+TODO-058（其中 A 类 6 条是真实的数据模型缺口）、
+ACHE 翅片几何缺失见 TODO-056。

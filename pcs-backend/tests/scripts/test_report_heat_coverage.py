@@ -32,8 +32,10 @@ from pathlib import Path
 import pytest
 
 from scripts.report_heat_coverage import (
+    BASELINE_REGISTRY_COVERAGE,
+    BASELINE_TEMPLATE_COVERAGE,
     COLUMN_MAP,
-    TARGET_COVERAGE,
+    REGRESSION_TOLERANCE,
     compute_coverage,
     is_unit,
     main,
@@ -88,6 +90,7 @@ def test_missing_reference_exits_2_not_0(tmp_path):
 
 
 def test_partial_coverage_exits_1(partial_xlsx):
+    """合成 fixture 覆盖率远低于基线 → 判回归 → 退出码 1。"""
     assert main([str(partial_xlsx)]) == 1
 
 
@@ -178,7 +181,7 @@ def test_nothing_extracted_is_zero_not_full():
     """一条都提不出来 → 0%，不是 100%。"""
     r = compute_coverage(["完全没见过的列 A", "完全没见过的列 B"])
     assert r["template_coverage"] == 0.0
-    assert r["passed"] is False
+    assert r["regressed"] is True, "一条都提不出来必须是回归，不是「未回归」"
 
 
 def test_map_targets_must_exist_in_registry():
@@ -213,9 +216,45 @@ def test_two_denominators_disagree():
     assert r["template_coverage"] != r["registry_coverage"]
 
 
-def test_target_is_95_percent():
-    """SPEC/计划的验收目标是 ≥95%，写死在工具里而不是散在文档。"""
-    assert TARGET_COVERAGE == 0.95
+def test_no_95_percent_target_remains():
+    """95% 目标已由用户 2026-12-12 裁决放弃，工具里不得残留。
+
+    ⚠️ 关键不是「删掉 0.95」，而是**不能把它换成 0** —— 那会让工具恒绿，
+    而覆盖率工具恒绿比没有工具更坏。现在是**基线 + 回归容差**：
+    涨随便涨，跌超容差才报。
+    """
+    from scripts import report_heat_coverage as tool
+
+    assert not hasattr(tool, "TARGET_COVERAGE"), \
+        "95% 目标仍在工具里 —— 裁决已放弃它"
+    assert BASELINE_TEMPLATE_COVERAGE == pytest.approx(0.649, abs=0.005)
+    assert BASELINE_REGISTRY_COVERAGE == pytest.approx(0.530, abs=0.005)
+    assert 0 < REGRESSION_TOLERANCE < 0.1
+
+
+def test_each_metric_is_judged_against_its_own_baseline():
+    """⚠️ 量纲：模板口径与注册口径的基线不同（64.9% / 53.0%）。
+
+    把模板基线套到注册口径上 → 注册口径 53% < 模板下限 62.9% → 误报
+    「已回归」，而实际一个数都没变。第一版就是这么写的。
+    """
+    from scripts import report_heat_coverage as tool
+
+    assert tool.TEMPLATE_FLOOR != tool.REGISTRY_FLOOR, \
+        "两个口径的下限相同 —— 基线被跨口径套用了"
+    assert (tool.TEMPLATE_FLOOR - tool.REGISTRY_FLOOR) == pytest.approx(
+        BASELINE_TEMPLATE_COVERAGE - BASELINE_REGISTRY_COVERAGE)
+
+
+def test_real_files_are_not_regressed():
+    """真实文件跑出来必须是「未回归」。"""
+    if not (HTRI_XACE.exists() and TEMA_SHELL.exists()):
+        pytest.skip("sample/ 下缺参考文件")
+    out = _run_json([str(HTRI_XACE), str(TEMA_SHELL)])
+    assert out["regressed"] is False, \
+        f"覆盖率回归了：模板 {out['template_coverage']:.1%} "\
+        f"注册 {out['registry_coverage']:.1%}"
+    assert out["target"] is None, "输出里不应再有 95% 目标"
 
 
 def test_json_mode_emits_parseable_json(partial_xlsx, capsys):
@@ -270,15 +309,18 @@ def test_real_coverage_is_measured_and_honest():
     「工具跑得动、数不是恒 100%、未达标的清单非空」。
     """
     _need_samples()
+    # ⚠️ 必须走**主表**提取，与量基线时用的是同一条路径。
+    # 用 `read_labels`（全部工作表）会得到 52.8%，而基线 64.9% 是主表口径量的
+    # —— 拿全表去比主表基线，会报一个「回归」而实际什么都没变。
     labels: list[str] = []
     for p in (HTRI_XACE, TEMA_SHELL):
-        labels += read_labels(p)
+        labels += main_labels(p)[1]
     r = compute_coverage(list(dict.fromkeys(labels)), level="DETAIL")
     assert 0 < r["template_coverage"] < 1.0, \
         "覆盖率是 0 或 1 —— 前者是提取全败，后者是映射全中，都得查"
     assert r["unmapped_labels"], "真实模板必然有我们服务不了的标签，清单不该是空的"
-    assert r["passed"] == (r["template_coverage"] >= TARGET_COVERAGE
-                          and r["registry_coverage"] >= TARGET_COVERAGE)
+    assert r["regressed"] is False, \
+        f"真实文件回归了：{r['template_coverage']:.1%} / {r['registry_coverage']:.1%}"
 
 # --- 主表口径（用户 2026-12-12 裁决）-------------------------------------------
 
