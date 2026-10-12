@@ -8,11 +8,19 @@
 """
 from __future__ import annotations
 
+import re
 from dataclasses import dataclass
 
 # NULL 的显示占位。SPEC 不要求与 NULL 字面量区分，但**必须**与空字符串区分：
 # 空字符串是「填了但是空的」，NULL 是「没填」，报告里两者含义不同。
 _NULL = "—"
+
+# 页眉页脚可用的占位符。**刻意不含 `page`** —— 它是渲染期才知道的值
+# （PDF 的 `doc.page`、DOCX 的 PAGE 域、XLSX 的 `&P`），不是 context 里的值。
+# 放进来会被 `fill_placeholders` 用 `ctx.get("page", "")` 吃掉成空串，
+# 页脚就永远显示「第 页」—— 那个 bug 找出来过一次，别再犯。
+KNOWN_PLACEHOLDERS = {"project_no", "project_name", "doc_no", "rev", "report_name"}
+# 2026-10-08 裁决已从 SPEC §4.1 移除 `pages`（ReportLab 两遍渲染代价 ×2）。
 
 
 @dataclass(frozen=True)
@@ -57,3 +65,16 @@ def assumed_header(header: str, assumed: bool, mark: str = "▲") -> str:
     python-docx run），但「加三角」这个逻辑只在这里写一次。
     """
     return f"{header}{mark}" if assumed else header
+
+
+def fill_placeholders(text: str, ctx: dict) -> str:
+    """替换页眉页脚占位符。**未知占位符原样保留** —— 拼错时看得见，
+    静默替换成空串反而更糟（页脚会少一段文字却没人发现）。
+
+    三个渲染器共用（各写一份就是 bug-153 的温床：同一语义三处实现，
+    迟早有一处漏）。
+    """
+    def repl(m: re.Match) -> str:
+        key = m.group(1)
+        return str(ctx.get(key, "")) if key in KNOWN_PLACEHOLDERS else m.group(0)
+    return re.sub(r"\{\{(\w+)\}\}", repl, text)

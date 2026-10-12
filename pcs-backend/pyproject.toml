@@ -27,6 +27,8 @@ dependencies = [
     "python-multipart>=0.0.32",
     "xlrd>=2.0",
     "reportlab>=4.0",
+    "xlsxwriter>=3.2",
+    "python-docx>=1.1",
 ]
 
 # P6-6A-6 v5.1 — wheel 构建：hatch backend（uv default），include JSON sidecar (B-2 落实)
