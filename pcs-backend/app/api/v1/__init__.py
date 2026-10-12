@@ -24,6 +24,7 @@ from app.api.v1.pipe import router as pipe_router
 from app.api.v1.pipe_classes import router as pipe_classes_router
 from app.api.v1.pipe_codes import router as pipe_codes_router
 from app.api.v1.report import router as report_router
+from app.api.v1.report_builder import router as report_builder_router
 from app.api.v1.pipe_net import router as pipe_net_router
 from app.api.v1.psv import router as psv_router  # P5-3-6
 from app.api.v1.psv_standard_profiles import router as psv_standard_profiles_router  # P5-3-6
@@ -85,6 +86,7 @@ api_router.include_router(filtration_router)  # P6-3 Task 34
 api_router.include_router(cost_est_router)  # P6-3 Task 36
 api_router.include_router(pipe_codes_router)
 api_router.include_router(report_router)
+api_router.include_router(report_builder_router)
 api_router.include_router(common_router)
 api_router.include_router(imports_router)
 api_router.include_router(sim_imports_query_router)
