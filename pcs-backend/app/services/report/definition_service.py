@@ -94,6 +94,11 @@ def validate_definition_json(payload: dict[str, Any]) -> None:
     if not sources:
         raise PcsError("至少要选一个数据源", code="REPORT_DEFINITION_INVALID", status=400)
 
+    # 分级核对（ADR-0028）。只有 HEAT_RESULTS 参与，其他源不受影响。
+    from app.services.report.detail_level import validate_definition
+
+    validate_definition(payload)
+
     for sel in payload.get("SelectedFields") or []:
         src = sel.get("source")
         field = sel.get("field")

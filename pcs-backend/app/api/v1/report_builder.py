@@ -65,6 +65,10 @@ async def list_datasources(actor: ActorDep) -> ReportBuilderDatasourceList:
                         type=spec.type,
                         label=spec.label,
                         is_jsonb_key=spec.is_jsonb_key,
+                        # ADR-0028：字段树按 detail_level 与换热器类型分组。
+                        # 两个字段都是 None = 通用字段，任何分级都能选。
+                        level=spec.level,
+                        exchanger_type=spec.exchanger_type,
                     )
                     for name, spec in sorted(ds.fields.items())
                 ],

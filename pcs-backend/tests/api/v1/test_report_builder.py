@@ -1077,3 +1077,130 @@ async def test_csv_is_offered_by_the_execute_endpoint(client, fake_queue):
 def _api_renderable_formats() -> frozenset:
     from app.api.v1.report_builder import _RENDERABLE_FORMATS
     return _RENDERABLE_FORMATS
+
+
+# --- c2 detail_level 分级（端到端） -------------------------------------------
+
+
+HEAT_BASIC_9 = {
+    "DataSources": [{"source": "HEAT_RESULTS"}],
+    "SelectedFields": [
+        {"source": "HEAT_RESULTS", "field": f, "alias": "", "order": i,
+         "visible": True}
+        for i, f in enumerate([
+            "tag_number", "effective_area", "duty", "u_overall",
+            "shell_params.temp_in", "shell_params.temp_out",
+            "tube_params.temp_in", "tube_params.temp_out", "shell_params.pd",
+        ])
+    ],
+    "detailLevel": "BASIC",
+}
+
+
+@pytest.mark.asyncio
+async def test_basic_definition_with_detail_field_is_rejected(client):
+    """BASIC 报表里放 DETAIL 字段 → 400。
+
+    ADR 的分级标准是「BASIC 不含几何/热阻明细」，多一列就等于分级失效，
+    而报表照跑只是多出一列 —— 用户看不出自己选的字段越了级。
+    """
+    body = dict(HEAT_BASIC_9)
+    body["SelectedFields"] = HEAT_BASIC_9["SelectedFields"] + [
+        {"source": "HEAT_RESULTS", "field": "lmtd",
+         "alias": "对数平均温差", "order": 99, "visible": True},
+    ]
+    r = await client.post("/api/v1/report-builder/definitions",
+                          headers=_auth("heat-author"),
+                          json=_definition_body(name="越级的 BASIC 报表",
+                                               definition_json=body))
+    assert r.status_code == 400, f"实得 {r.status_code}：{r.text}"
+    assert r.json()["code"] == "REPORT_DETAIL_LEVEL_VIOLATION"
+
+
+@pytest.mark.asyncio
+async def test_the_same_fields_are_fine_at_detail_level(client):
+    """同样的字段在 DETAIL 下合法 —— 分级闸不能是「DETAIL 字段一律拒」。"""
+    body = {**HEAT_BASIC_9, "detailLevel": "DETAIL"}
+    body["SelectedFields"] = HEAT_BASIC_9["SelectedFields"] + [
+        {"source": "HEAT_RESULTS", "field": "lmtd",
+         "alias": "对数平均温差", "order": 99, "visible": True},
+    ]
+    r = await client.post("/api/v1/report-builder/definitions",
+                          headers=_auth("heat-author"),
+                          json=_definition_body(name="完整换热器报表",
+                                               definition_json=body))
+    assert r.status_code == 201, r.text
+    assert r.json()["definition_json"]["detailLevel"] == "DETAIL"
+
+
+@pytest.mark.asyncio
+async def test_hidden_detail_field_is_still_rejected_at_basic(client):
+    """`visible=False` 的 DETAIL 字段**也要拒**。
+
+    放过去等于把问题推到更远的地方：定义存得进去，将来有人把 visible
+    改成 true 就会撞上一个 BASIC 定义里本不该有的字段，而那时没人会
+    记得当初为什么没拦。
+    """
+    body = dict(HEAT_BASIC_9)
+    body["SelectedFields"] = HEAT_BASIC_9["SelectedFields"] + [
+        {"source": "HEAT_RESULTS", "field": "baffle_spacing",
+         "alias": "", "order": 99, "visible": False},
+    ]
+    r = await client.post("/api/v1/report-builder/definitions",
+                          headers=_auth("heat-author"),
+                          json=_definition_body(name="藏了个越级字段",
+                                               definition_json=body))
+    assert r.status_code == 400, f"隐藏字段绕过了分级闸：{r.status_code}"
+
+
+@pytest.mark.asyncio
+async def test_detail_level_does_not_affect_other_sources(client):
+    """非 HEAT 源在 BASIC 下照常可选 —— 给所有源套分级会让 BASIC 报表
+    连设备字段都选不了。"""
+    r = await client.post("/api/v1/report-builder/definitions",
+                          headers=_auth("heat-author"),
+                          json=_definition_body(name="普通设备报表"))
+    assert r.status_code == 201, r.text
+
+
+@pytest.mark.asyncio
+async def test_datasource_tree_exposes_level_and_exchanger_type(client, auth_pc):
+    """字段树必须带上分级与换热器类型，否则前端没法按 ADR 分组。"""
+    r = await client.get("/api/v1/report-builder/datasources", headers=auth_pc)
+    assert r.status_code == 200, r.text
+    heat = next(d for d in r.json()["datasources"] if d["key"] == "HEAT_RESULTS")
+    by_name = {f["name"]: f for f in heat["fields"]}
+    assert by_name["lmtd"]["level"] == "DETAIL"
+    assert by_name["tag_number"]["level"] == "BASIC"
+    assert by_name["baffle_spacing"]["exchanger_type"] == "SHELL_TUBE"
+    assert by_name["ache_params.fan_power_kw"]["exchanger_type"] == "AIR_COOLER"
+    assert by_name["duty"]["exchanger_type"] is None, "通用字段不该带类型标记"
+
+    # 非 HEAT 源不带分级 —— 前端据此决定是否显示分级控件
+    equip = next(d for d in r.json()["datasources"] if d["key"] == "EQUIP_LIST")
+    assert all(f["level"] is None for f in equip["fields"])
+
+
+@pytest.mark.asyncio
+async def test_detail_style_is_used_when_rendering_a_detail_definition(db_session):
+    """DETAIL 定义的渲染必须用 DETAIL 样式（横向），不是 BASIC 的。"""
+    from app.services.report.style import heat_detail_styles
+
+    assert heat_detail_styles("DETAIL").orientation == "landscape"
+    assert heat_detail_styles("BASIC").orientation == "portrait"
+
+
+@pytest.mark.asyncio
+async def test_definition_field_in_the_wrong_place_is_rejected_not_defaulted(client):
+    """`detailLevel` 写在**顶层**（而非 definition_json 里）必须 422。
+
+    Pydantic 默认 `extra="ignore"`：字段写错位置会被静默丢弃，定义拿到
+    默认 BASIC —— 而 BASIC 比 DETAIL 少 40 列，报表照跑、只是内容少一大截，
+    没有任何一层会说话。**默认值会吞掉字段放错这个错误。**
+    """
+    r = await client.post("/api/v1/report-builder/definitions",
+                          headers=_auth("heat-author"),
+                          json=_definition_body(name="位置写错了",
+                                               detailLevel="DETAIL"))
+    assert r.status_code == 422, f"实得 {r.status_code}：字段放错位置被静默忽略了"
+    assert "detailLevel" in r.text

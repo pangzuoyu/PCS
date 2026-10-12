@@ -12,8 +12,9 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
+from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ReportBuilderField(BaseModel):
@@ -23,6 +24,10 @@ class ReportBuilderField(BaseModel):
     # JSONB 子键（`容器列.子键`）为 True —— 前端据此提示「取的是 JSON 里的键，
     # 不能直接索引」。缺了这个标记，用户无从区分它与一个真实列。
     is_jsonb_key: bool = False
+    # ADR-0028 分级。只有 HEAT_RESULTS 用；其余源为 None = 不参与分级。
+    level: str | None = None
+    # ADR-0028 换热器类型分组（AIR_COOLER / SHELL_TUBE）。None = 通用字段。
+    exchanger_type: str | None = None
 
 
 class ReportBuilderDatasource(BaseModel):
@@ -125,12 +130,30 @@ class ReportDefinitionBody(BaseModel):
     SelectedFields: list[ReportDefSelectedField] = Field(default_factory=list)
     FilterConditions: list[ReportDefNode] = Field(default_factory=list)
     SortBy: list[ReportDefSort] = Field(default_factory=list)
+    # ⚠️ `extra="forbid"`：多余字段**报错**而不是静默丢弃。
+    # 默认行为下，把 `detailLevel` 误写在请求体顶层（而不是 definition_json
+    # 里）会被忽略，定义静默拿到默认 BASIC —— 而 BASIC 比 DETAIL 少 40 列，
+    # 报表照跑、只是内容少一大截，没有任何一层会说话。
+    model_config = ConfigDict(extra="forbid")
+
     MaxRows: int = Field(default=10000, ge=1, le=100_000)
     OutputFormat: str = "pdf"
+    # ADR-0028 的 detail_level 双分级（BASIC 9 字段 / DETAIL 39+）。
+    # **放在定义体里而不是加一列**：SPEC §3.2.2(2) 的定义体字段清单里它与
+    # MaxRows/OutputFormat 同级，且定义体天然受「改定义 → 版本 +1」覆盖；
+    # 加列会绕过版本机制（改一个列值不产生新版本）。代价：不能对该值直接
+    # 建索引查询（当前无此需求）。
+    detailLevel: Literal["BASIC", "DETAIL"] = "BASIC"
 
 
 class ReportDefinitionUpsert(BaseModel):
-    """创建/更新定义的请求体。"""
+    """创建/更新定义的请求体。
+
+    `extra="forbid"` 同上：定义体字段写错位置（顶层 vs definition_json）
+    应当是 422，不是静默取默认值。
+    """
+
+    model_config = ConfigDict(extra="forbid")
 
     project_id: uuid.UUID | None = None
     name: str = Field(max_length=200)

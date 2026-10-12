@@ -71,6 +71,10 @@ class ReportStyle(BaseModel):
     assumption_color: str = "#FF8C00"
     qr_position: Literal["footer", "header"] = "footer"
     qr_size_mm: int = 20
+    # 换热器类型（ADR-0028）：AIR_COOLER / SHELL_TUBE。
+    # 渲染器据此选表格结构与列宽。**不参与 locked_fields** —— 它是数据
+    # 属性不是版式标准，且 ADR 明确要求据此分支。
+    heat_exchanger_type: Literal["AIR_COOLER", "SHELL_TUBE"] | None = None
     # 字体目录（PDF 渲染器据此定位 TTF）。缺字体抛 REPORT_FONT_MISSING
     # （Review Focus #1）。**不要改成相对路径** —— 字体路径解析相对工作目录，
     # 而工作目录随启动方式变化。
@@ -94,6 +98,56 @@ class ReportStyle(BaseModel):
                 "bottom": self.margins.bottom * mm,
                 "left": self.margins.left * mm,
                 "right": self.margins.right * mm}
+
+
+def heat_detail_styles(level: str = "BASIC",
+                       exchanger_type: str | None = None) -> ReportStyle:
+    """BASIC / DETAIL 两套预设（ADR-0028「模板源与输出样式」）。
+
+    ADR 的「双模板」= 双套 ReportStyle + 字段映射配置，**不是** .dotx/.xltx
+    文件（ADR-P8-001 已裁决全直接生成）。
+
+    | 预设 | 版式 | 场景 |
+    |---|---|---|
+    | BASIC（A） | 纵向 A4、10pt 正文、斑马纹 | 快速预览、设备一览汇总、即席查询 |
+    | DETAIL（B） | **横向 A4**、9pt 正文、无斑马纹 | 正式计算书、规格书、交付物 |
+
+    DETAIL 横向：39+ 字段在纵向 A4 上会被挤成每字一行（PDF 侧已实测过
+    `tag_numb\ner` 那种把单词劈两半的输出）。缩字号不如转横向 —— 横向能多
+    放约 1.4 倍列宽，且 9pt 在纸面上仍可读。
+
+    ⚠️ `locked_fields` 只作用于 `resolve()` 的**层级合并**，不约束本函数：
+    公司强制标准（纸张规格、强制页眉页脚）由默认值锁，`orientation` 由
+    **报表类型/明细级**决定 —— 否则「DETAIL 必须横向」这条 ADR 要求
+    永远落不了地。两套预设的 `page_size` 一致（A4）。
+    """
+    from app.services.report.detail_level import check_level
+
+    level = check_level(level)
+    if exchanger_type is not None and exchanger_type not in ("AIR_COOLER", "SHELL_TUBE"):
+        raise ValueError(
+            f"heat_exchanger_type 只支持 AIR_COOLER / SHELL_TUBE，实得 {exchanger_type!r}")
+    if level == "BASIC":
+        return ReportStyle(
+            orientation="portrait", font_size_body=10, font_size_heading=14,
+            table=TableStyle(zebra_stripe=True),
+            **_exchanger(exchanger_type),
+        )
+    # DETAIL：横向 + 更紧的字号 + 不斑马纹（列多时斑马纹会串行）
+    landscape = not (exchanger_type == "SHELL_TUBE")
+    return ReportStyle(
+        orientation="landscape" if landscape else "portrait",
+        font_size_body=9, font_size_heading=13,
+        table=TableStyle(zebra_stripe=False, max_cell_chars=120),
+        **_exchanger(exchanger_type),
+    )
+
+
+def _exchanger(exchanger_type: str | None) -> dict:
+    """把 exchanger_type 挂到 ReportStyle 上（ADR 要求渲染器据此分支）。"""
+    if exchanger_type is None:
+        return {}
+    return {"heat_exchanger_type": exchanger_type}
 
 
 def resolve(*, defaults: ReportStyle, by_type: ReportStyle | None = None,
