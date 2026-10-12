@@ -35,6 +35,7 @@ from app.schemas.report_builder import (
     ReportDefinitionUpsert,
 )
 from app.services.exceptions import PcsError
+from app.services.report import watermark
 from app.services.report.datasource_registry import DATASOURCES, JOINS
 from app.services.report.definition_service import DefinitionService
 
@@ -79,10 +80,11 @@ async def list_datasources(actor: ActorDep) -> ReportBuilderDatasourceList:
 
 # --- b2 定义 CRUD -----------------------------------------------------------
 
-#: 输出格式白名单。与 `schemas/report.SUPPORTED_OUTPUT_FORMATS` 同源，
-#: 但**故意独立取** —— 那边还带着 CSV 的历史包袱（Excel/CSV 走 xlsx 渲染器），
-#: 这里只认真能渲染出来的。CSV 落地（b8）后合并。
-_RENDERABLE_FORMATS = {"pdf", "xlsx", "docx"}
+#: 输出格式白名单。直接取 `watermark.EXPORT_FORMATS` —— b8 落地 CSV 后
+#: 两边不再各持一份。第一版这里写死 `{pdf, xlsx, docx}`（注释说「CSV 属
+#: b8」），结果就是 CSV 落地后这个白名单没跟着改，用户在输出格式下拉框里
+#: 仍然选不到 CSV —— 缺陷在别处、根因在两份清单。
+_RENDERABLE_FORMATS = frozenset(watermark.EXPORT_FORMATS)
 
 
 def _reject_bad_format(fmt: str) -> None:
@@ -93,8 +95,7 @@ def _reject_bad_format(fmt: str) -> None:
     """
     if fmt not in _RENDERABLE_FORMATS:
         raise PcsError(
-            f"暂不支持输出格式 {fmt!r}，可用：{sorted(_RENDERABLE_FORMATS)}"
-            "（CSV 属 b8，本批未落地）",
+            f"暂不支持输出格式 {fmt!r}，可用：{sorted(_RENDERABLE_FORMATS)}",
             code="REPORT_OUTPUT_FORMAT_UNSUPPORTED", status=400,
         )
 

@@ -59,8 +59,11 @@ from app.services.report.style import ReportStyle
 
 logger = logging.getLogger(__name__)
 
-SUPPORTED_FORMATS = frozenset({"pdf", "xlsx", "docx"})
-_EXT = {"pdf": "pdf", "xlsx": "xlsx", "docx": "docx"}
+#: 支持的输出格式。**取自 `watermark.EXPORT_FORMATS`** —— b8 落地 CSV 后
+#: 曾经有三份清单（这里 / `schemas.report.SUPPORTED_OUTPUT_FORMATS` /
+#: API 的 `_RENDERABLE_FORMATS`），改漏一处就是「某个格式选得到但跑不了」。
+SUPPORTED_FORMATS = frozenset({"pdf", "xlsx", "docx", "csv"})
+_EXT = {"pdf": "pdf", "xlsx": "xlsx", "docx": "docx", "csv": "csv"}
 _MAX_ROWS = 10000      # SPEC §3.2.2(2) MaxRows 默认值
 _BATCH_SIZE = 10000   # IN 列表分批，避免语句膨胀
 
@@ -216,6 +219,10 @@ def _render_sync(*, blocks: list[Block], style: ReportStyle,
                           qr_payload=None, assumed_fields=[], context=ctx)
     if output_format == "docx":
         return render_docx(title=title, blocks=blocks, style=style, context=ctx)
+    if output_format == "csv":
+        from app.services.report.watermark import render_csv
+
+        return render_csv(title=title, blocks=blocks)
     return render_xlsx(title=title, blocks=blocks, style=style, context=ctx)
 
 

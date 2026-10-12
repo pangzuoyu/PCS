@@ -90,15 +90,20 @@ async def _render_and_store(db: AsyncSession, *, out, project_id, job_id: str,
     写盘的临时文件 + 改名、跨异步边界的去重、生成审计都在那一份里。
     复制一份到自定义报表路径上，等于给「同一份内容算两次哈希」开了口子。
     """
-    from app.services.report import report_service
+    from app.services.report import report_service, watermark
     from app.services.report.blocks import HeadingBlock, TableBlock
     from app.services.report.style import ReportStyle
-    
+
     blocks: list = [HeadingBlock(text="自定义报表", level=1)]
     if out.truncated:
         blocks.append(HeadingBlock(
             text=f"⚠ 结果已截断：最多 {out.snapshot.get('max_rows')} 行", level=1))
     blocks.append(TableBlock(headers=out.headers, rows=out.rows, assumed_cols=()))
+
+    # ⚠️ 水印加在**这里**（即席导出路径），不加在 `report_service.generate`
+    # 里 —— 后者是固定 10 类的**交付物**流程（SUP-007：带 Rev 与签署），
+    # 标「非发布件」是相反的语义。
+    blocks = watermark.apply(blocks)
 
     row = await report_service.store_rendered(
         db, blocks=blocks, project_id=project_id,
@@ -107,7 +112,8 @@ async def _render_and_store(db: AsyncSession, *, out, project_id, job_id: str,
         assumed_fields=[],
         audit_detail={"def_id": str(out.snapshot.get("def_id", "")),
                       "row_count": out.row_count,
-                      "truncated": out.truncated},
+                      "truncated": out.truncated,
+                      "watermark": watermark.watermark_text()},
     )
     return str(row.report_file_id)
 

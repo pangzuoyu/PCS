@@ -80,6 +80,13 @@ class Settings(BaseSettings):
     # verify 端点限流：次/分钟/IP。免登录端点无限流等于开放暴力枚举。
     report_verify_rate_limit: int = 30
 
+    # === 演示版（SUP-006）===
+    # 演示版**配置驱动**：它是部署形态，不是运行期开关。开启后：
+    #   1. 所有导出叠加 DEMO 水印（在「非发布件」水印之上）
+    #   2. 报表定义数量限 3 个
+    # 默认关闭 —— 正式部署开着会挡住正常建报表。
+    report_demo_mode: bool = False
+
     @property
     def is_production(self) -> bool:
         return self.env == "production"

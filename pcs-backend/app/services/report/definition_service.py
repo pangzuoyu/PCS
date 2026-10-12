@@ -35,6 +35,7 @@ from typing import Any
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.models.report import ReportDefinition
 from app.services.exceptions import PcsError
 from app.services.report.datasource_registry import DATASOURCES
@@ -174,6 +175,7 @@ class DefinitionService:
                 code="REPORT_DEFINITION_INVALID", status=400,
             )
         validate_definition_json(definition_json)
+        await self._check_demo_limit()
         await self._reject_duplicate(project_id, name, exclude=None)
         definition_json = align_with_columns(
             definition_json, max_rows=max_rows, output_format=output_format)
@@ -287,6 +289,21 @@ class DefinitionService:
         await self.db.flush()
         await self.db.refresh(row)
         return row
+
+    async def _check_demo_limit(self) -> None:
+        """演示版定义数上限（SPEC §3.2.2(8)，SUP-006）。
+
+        计数是**全库**而不是「按用户」：演示版是给外部看的一个受限部署，
+        按用户限 3 个等于每人 3 个 —— 限制形同虚设。所以列表端点返回的
+        个数与这里的判定口径必须一致，故直接数库里的行。
+        """
+        from app.services.report import watermark
+
+        if not get_settings().report_demo_mode:
+            return
+        n = len((await self.db.execute(
+            select(ReportDefinition.def_id))).all())
+        watermark.check_demo_definition_limit(n)
 
     async def _reject_duplicate(self, project_id: uuid.UUID | None, name: str,
                                 *, exclude: uuid.UUID | None) -> None:

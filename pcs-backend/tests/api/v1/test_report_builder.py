@@ -218,11 +218,17 @@ async def test_definition_rejects_field_not_in_that_datasource(client):
 
 @pytest.mark.asyncio
 async def test_definition_rejects_unsupported_output_format(client):
-    """未知格式必须 400 —— 静默接受会在执行时才炸，而那时用户已填完整个表单。"""
+    """未知格式必须 400 —— 静默接受会在执行时才炸，而那时用户已填完整个表单。
+
+    ⚠️ 这里的样本格式随 b8 变过一次：原本用 `csv`（当时确实不支持），
+    CSV 落地后改成 `rtf`。留着旧样本的话，格式**从不支持变成支持**时
+    这条测试会红，而红的原因（CSV 现在合法了）跟它想验的东西毫无关系。
+    """
     r = await client.post("/api/v1/report-builder/definitions",
                           headers=_auth("author-1"),
-                          json=_definition_body(output_format="csv"))
-    assert r.status_code == 400, f"实得 {r.status_code}（CSV 属 b8，本批不支持）"
+                          json=_definition_body(output_format="rtf"))
+    assert r.status_code == 400, f"实得 {r.status_code}"
+    assert r.json()["code"] == "REPORT_OUTPUT_FORMAT_UNSUPPORTED"
 
 
 @pytest.mark.asyncio
@@ -838,3 +844,236 @@ async def test_truncation_is_visible_on_the_rendered_output(db_session):
                       qr_payload=None, assumed_fields=[], context={})
     text = "\n".join(p.extract_text() for p in PdfReader(io.BytesIO(data)).pages)
     assert "截断" in text, "PDF 上看不到截断提示 —— 用户以为这就是全部"
+
+
+# --- b8 导出：水印 / DEMO 限制 -------------------------------------------------
+
+#: SPEC §3.2.2(8)「即席导出件 …… 文件带『非发布件』时间戳水印」
+WATERMARK_TEXT = "非发布件"
+
+
+@pytest.fixture
+def demo_mode(monkeypatch):
+    """打开演示版。**配置驱动** —— 演示版是部署形态，不是运行期开关。"""
+    from app.core.config import get_settings
+
+    monkeypatch.setattr(get_settings(), "report_demo_mode", True, raising=False)
+    return True
+
+
+def _pdf_text(path) -> str:
+    from pypdf import PdfReader
+    return "\n".join(p.extract_text() for p in PdfReader(str(path)).pages)
+
+
+@pytest.mark.asyncio
+async def test_adhoc_export_carries_non_issued_watermark(db_session):
+    """即席导出件必须带「非发布件」时间戳水印（SPEC §3.2.2(8)）。
+
+    水印是**语义声明**：这份文件不是签署过的交付物。没水印的文件被
+    当成正式版打印出去，是整个签署体系失效的入口。
+    """
+    from app.services.report import watermark
+    from app.services.report.blocks import TableBlock
+
+    blocks = [TableBlock(headers=["位号"], rows=[["P-101"]], assumed_cols=())]
+    marked = watermark.apply(blocks, timestamp="2026-10-12 19:00:00",
+                             demo=False)
+    pdf = watermark.render_to_bytes(
+        marked, output_format="pdf", title="测试",
+        style=__import__("app.services.report.style", fromlist=["ReportStyle"]).ReportStyle(),
+        context={})
+    import io
+    text = "\n".join(p.extract_text() for p in
+                     __import__("pypdf", fromlist=["PdfReader"]).PdfReader(io.BytesIO(pdf)).pages)
+    assert WATERMARK_TEXT in text, "PDF 上看不到『非发布件』水印"
+    assert "2026-10-12" in text, "水印缺时间戳 —— 那只是装饰，不是声明"
+
+
+@pytest.mark.asyncio
+async def test_demo_mode_adds_demo_watermark_on_top_of_non_issued():
+    from app.services.report.blocks import HeadingBlock
+    """演示版叠加 DEMO 水印（SUP-006），且**不替换**非发布件水印。"""
+    from app.services.report import watermark
+    from app.services.report.blocks import TableBlock
+
+    blocks = [TableBlock(headers=["位号"], rows=[["P-101"]], assumed_cols=())]
+    marked = watermark.apply(blocks, timestamp="2026-10-12 19:00:00", demo=True)
+    text = "\n".join(b.text for b in marked if isinstance(b, HeadingBlock))
+    assert WATERMARK_TEXT in text
+    assert "DEMO" in text, "演示版没有 DEMO 水印"
+
+
+@pytest.mark.asyncio
+async def test_demo_mode_caps_definition_count(client, demo_mode):
+    """SPEC §3.2.2(8)：演示版报表定义数量限 3 个。
+
+    第 4 个必须被拒，且**已建的 3 个还在** —— 拒绝发生在写入之前。
+    """
+    made = []
+    for i in range(3):
+        r = await client.post("/api/v1/report-builder/definitions",
+                              headers=_auth(f"demo-{i}"),
+                              json=_definition_body(name=f"演示定义{i}"))
+        assert r.status_code == 201, f"第 {i + 1} 个定义被拒：{r.text}"
+        made.append(r.json())
+
+    over = await client.post("/api/v1/report-builder/definitions",
+                             headers=_auth("demo-4"),
+                             json=_definition_body(name="第 4 个"))
+    assert over.status_code == 403, f"实得 {over.status_code}：演示版不限数量"
+    assert over.json()["code"] == "REPORT_DEMO_LIMIT"
+
+    lst = await client.get("/api/v1/report-builder/definitions",
+                           headers=_auth("demo-0"))
+    assert len(lst.json()["items"]) == 1, "计数是按用户算的？"
+
+
+@pytest.mark.asyncio
+async def test_demo_limit_does_not_apply_outside_demo_mode(client):
+    """非演示版不该受 3 个的限制 —— 否则正式部署根本没法用。"""
+    for i in range(4):
+        r = await client.post("/api/v1/report-builder/definitions",
+                              headers=_auth("normal-user"),
+                              json=_definition_body(name=f"正式定义{i}"))
+        assert r.status_code == 201, f"第 {i + 1} 个被拒：{r.text}"
+
+
+@pytest.mark.asyncio
+async def test_csv_export_is_available(db_session):
+    """SPEC b8 要求 Excel / CSV / PDF 三种导出。
+
+    CSV 此前不在 `SUPPORTED_FORMATS` 里（Excel/CSV 都走 xlsx 渲染器），
+    结果是用户在输出格式下拉框里选不到 CSV。
+    """
+    from app.services.report import watermark
+    from app.services.report.blocks import TableBlock
+    from app.services.report.style import ReportStyle
+
+    blocks = [TableBlock(headers=["位号", "制造商"],
+                         rows=[["P-101", "ACME"], ["P-102", "ACME"]],
+                         assumed_cols=())]
+    marked = watermark.apply(blocks, timestamp="2026-10-12 19:00:00", demo=False)
+    data = watermark.render_to_bytes(
+        marked, output_format="csv", title="设备一览", style=ReportStyle(),
+        context={})
+    assert data.startswith(b"\xef\xbb\xbf"), "缺 UTF-8 BOM：Excel 双击打开会乱码"
+    text = data.decode("utf-8-sig")
+    assert "P-101" in text
+    lines = text.splitlines()
+    assert lines[0].startswith("#"), f"首行不是注释：{lines[0]!r}"
+    assert WATERMARK_TEXT in lines[0], "CSV 上没有『非发布件』水印"
+    assert lines[1] == "位号,制造商", f"表头行不对：{lines[1]!r}"
+
+
+@pytest.mark.asyncio
+async def test_csv_quotes_fields_containing_commas():
+    """字段值里含逗号/引号/换行时必须转义 —— 手工 `",".join` 会列错位，
+    而列错位的数据表比报错更难发现。"""
+    from app.services.report import watermark
+    from app.services.report.blocks import TableBlock
+    from app.services.report.style import ReportStyle
+
+    blocks = [TableBlock(headers=["位号", "备注"],
+                         rows=[["P-101", "A,B 含逗号"], ["P-102", '他说"你好"']],
+                         assumed_cols=())]
+    data = watermark.render_to_bytes(
+        blocks, output_format="csv", title="t", style=ReportStyle(), context={})
+    import csv as _csv
+    import io
+    rows = list(_csv.reader(io.StringIO(data.decode("utf-8-sig"))))
+    assert rows[0] == ["位号", "备注"]
+    assert rows[1] == ["P-101", "A,B 含逗号"], f"含逗号的字段没被引号包住：{rows[1]}"
+    assert rows[2] == ["P-102", '他说"你好"']
+
+
+@pytest.mark.asyncio
+async def test_builder_export_actually_carries_the_watermark(db_session):
+    """端到端：ARQ 任务体产出的 PDF 上**真的有**水印。
+
+    上一条测的是 `watermark.render_to_bytes` 自己 —— 但如果任务体没调
+    `watermark.apply`，那条测试照样绿，而用户拿到的文件光秃秃。
+    这条钉的是**调用链**。
+    """
+    import uuid as _uuid
+
+    from sqlalchemy import select
+
+    from app.models.report import ReportFile
+    from app.services.report import paths
+    from app.services.report.watermark import NON_ISSUED_PREFIX
+    from app.workers import report_builder_tasks as tasks
+    from tests.fixtures.report.seed import make_report_seed
+
+    proj = await _make_project(db_session)
+    from app.models.report import ReportDefinition
+    d = ReportDefinition(
+        project_id=proj.project_id, name="水印端到端", category="设备类",
+        description="",
+        definition_json={
+            "DataSources": [{"source": "EQUIP_LIST"}],
+            "SelectedFields": [{"source": "EQUIP_LIST", "field": "tag_number",
+                                "alias": "位号", "order": 0, "visible": True}],
+            "FilterConditions": [], "MaxRows": 10000, "OutputFormat": "pdf"},
+        output_format="pdf", max_rows=10000, version="0.1.0",
+        status="PUBLISHED", shared_with="ALL_USERS", created_by=_uuid.uuid4())
+    db_session.add(d)
+    await db_session.flush()
+    await make_report_seed(db_session, proj.project_id, "EQUIPMENT_LIST")
+
+    file_id = await tasks.execute_definition_task(
+        {"db": db_session, "job_id": "job-wm", "job_try": 1},
+        def_id=str(d.def_id), project_id=str(proj.project_id),
+        user_id=str(_uuid.uuid4()), output_format="pdf")
+    row = (await db_session.execute(select(ReportFile).where(
+        ReportFile.report_file_id == _uuid.UUID(file_id)))).scalar_one()
+    assert NON_ISSUED_PREFIX in _pdf_text(paths.resolve_path(row.file_path)), \
+        "即席导出件上没有『非发布件』水印 —— 它会被当成签署过的交付物"
+
+
+@pytest.mark.asyncio
+async def test_signed_deliverable_path_has_no_non_issued_watermark(db, project_id):
+    """反向约束：固定 10 类报表走的是**交付物**流程（SUP-007：带 Rev 与签署），
+    不能标「非发布件」—— 那是两种相反的语义。
+
+    这条测试是防止「为了统一，把水印加在 `report_service.generate` 上」
+    而写的：那样即席导出对了，交付物却自称非发布件。
+    """
+    from app.services.report import paths
+    from app.services.report.report_service import generate
+    from app.services.report.style import ReportStyle
+    from app.services.report.watermark import NON_ISSUED_PREFIX
+    from tests.fixtures.report.seed import make_report_seed
+
+    ids = await make_report_seed(db, project_id, "EQUIPMENT_LIST")
+    out = await generate(report_type="EQUIPMENT_LIST", project_id=project_id,
+                         record_ids=ids, output_format="pdf",
+                         style=ReportStyle(), ctx={}, db=db)
+    assert NON_ISSUED_PREFIX not in _pdf_text(paths.resolve_path(out.file_path)), \
+        "正式交付物流程的文件被标成了『非发布件』"
+
+
+@pytest.mark.asyncio
+async def test_csv_is_offered_by_the_execute_endpoint(client, fake_queue):
+    """CSV 落地后，API 的输出格式白名单必须**跟着变**。
+
+    第一版白名单写死 `{pdf,xlsx,docx}`，CSV 落地后没人改它 ——
+    用户在输出格式下拉框里选不到 CSV，而 SPEC 明确要求三种都可导出。
+    白名单与实现各持一份 = 迟早分叉，故这里直接断言两者一致。
+    """
+    from app.services.report.watermark import EXPORT_FORMATS
+
+    assert set(_api_renderable_formats()) == set(EXPORT_FORMATS), \
+        "API 白名单与 watermark.EXPORT_FORMATS 不一致 —— 某个格式选得到却跑不了"
+    assert "csv" in EXPORT_FORMATS, "SPEC b8 要求 Excel/CSV/PDF 三种都可导出"
+
+    d = await _make(client, "author-1")
+    await client.post(PUBLISH.format(d=d["def_id"]), headers=_auth("rev", "REVIEWER"))
+    r = await client.post(EXEC.format(d=d["def_id"]), headers=_auth("user-1"),
+                          json={"output_format": "csv"})
+    assert r.status_code == 202, f"CSV 仍被拒：{r.text} {r.json()}"
+
+
+def _api_renderable_formats() -> frozenset:
+    from app.api.v1.report_builder import _RENDERABLE_FORMATS
+    return _RENDERABLE_FORMATS

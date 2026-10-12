@@ -15746,6 +15746,83 @@
         }
       }
     },
+    "/api/v1/report-builder/definitions/{def_id}/execute": {
+      "post": {
+        "tags": [
+          "report-builder"
+        ],
+        "summary": "Execute Definition Endpoint",
+        "description": "执行已发布的定义 —— **返回 202 + task_id，不同步出文件**。\n\n10k 行 PDF ≈ 10 CPU-秒，同步跑会阻塞整个 event loop（b7 决策）。\n实际取数与渲染在 ARQ 任务体里做。",
+        "operationId": "execute_definition_endpoint_api_v1_report_builder_definitions__def_id__execute_post",
+        "parameters": [
+          {
+            "name": "def_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Def Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "anyOf": [
+                  {
+                    "$ref": "#/components/schemas/ReportExecuteRequest"
+                  },
+                  {
+                    "type": "null"
+                  }
+                ],
+                "title": "Body"
+              }
+            }
+          }
+        },
+        "responses": {
+          "202": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportExecuteAccepted"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/common/materials/search": {
       "get": {
         "tags": [
@@ -29857,6 +29934,80 @@
         ],
         "title": "ReportDefinitionUpsert",
         "description": "创建/更新定义的请求体。"
+      },
+      "ReportExecuteAccepted": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "def_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Def Id"
+          },
+          "def_version": {
+            "type": "string",
+            "title": "Def Version"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status",
+            "default": "QUEUED"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "def_id",
+          "def_version"
+        ],
+        "title": "ReportExecuteAccepted"
+      },
+      "ReportExecuteRequest": {
+        "properties": {
+          "filters": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ReportDefFilterGroup-Input"
+              },
+              {
+                "$ref": "#/components/schemas/ReportDefCondition"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Filters"
+          },
+          "max_rows": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100000.0,
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Max Rows"
+          },
+          "output_format": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Output Format"
+          }
+        },
+        "type": "object",
+        "title": "ReportExecuteRequest",
+        "description": "执行请求体。\n\n全部可选：不传就是「按定义原样执行」。`filters` / `max_rows` 是**临时**\n调整（SPEC §3.2.2(5)），不回写定义，只进执行日志的快照。"
       },
       "ReportFileStatusResponse": {
         "properties": {
