@@ -2869,7 +2869,7 @@
       "file": "pcs-backend/app/models/enums.py",
       "root_cause": "追加 `REPORT_*` 5 个 AuditAction 值时，用「找到最后一个 `OBSOLETE = \"OBSOLETE\"`」当锚点并断言 `lines[338].strip() == 'OBSOLETE = \"OBSOLETE\"'` —— 断言**通过了**，但那是 `ConfigTransition`（第 328 行起）的 OBSOLETE，不是 `AuditAction`（222–313）的。\n\n**为什么没当场看出来**：插入后我用 `hasattr(AuditAction, 'REPORT_GENERATED')` 检查，返回空 —— **我把这个当成「自己的检查脚本写错了」而忽略了**，理由是「sed 显示值确实在文件里」。这是本会话第二次「看到红灯却说服自己是误报」，而这次差点就过去了。\n\n**为什么断言没拦住**：`AuditAction` 与 `ConfigTransition` 里都有 `OBSOLETE`，值完全相同。断言只校验了**值**，没校验**所属类**。锚点选取本身也不唯一。\n\n**同族失效模式第 12 次**，但这次换了个角度：不是测试恒真、不是探针选错层，而是**验证脚本断言了错误的性质** —— 值相同 ≠ 位置正确。与 bug-154 的教训同源：「断言恒真/断言错对象」比没有断言更危险。",
       "fix": "1. 从 `ConfigTransition` 移除误插的块，改为锚定 `CONFIG_VERSION_DIFF_VIEWED`（AuditAction 唯一的收尾成员，不会重名）插到类末尾。\n2. 验证改为**双向**：`hasattr(AuditAction, 'REPORT_GENERATED')` 为 True **且** `hasattr(ConfigTransition, 'REPORT_GENERATED')` 为 False —— 只查前者会漏掉「插进了别的类」，只查后者会漏掉「没插进去」。\n\n元规则：**枚举/常量追加的验证必须查两个方向 —— 目标类里有、且相邻类里没有。**\n同名的成员值在相邻枚举里太常见（OBSOLETE / PUBLISH / REJECT 都重复）。",
-      "fix_commit": "PLACEHOLDER",
+      "fix_commit": "bab2a13",
       "tags": [
         "python",
         "enum",
