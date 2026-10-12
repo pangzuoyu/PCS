@@ -211,6 +211,55 @@ def is_unit(v) -> bool:
     return bool(s) and ((s.startswith("(") and s.endswith(")")) or s in UNITS)
 
 
+def read_labels_by_sheet(path: Path) -> list[tuple[str, list[str]]]:
+    """逐 sheet 返回 `(sheet 名, 该 sheet 的标签)`。"""
+    out: list[tuple[str, list[str]]] = []
+    for name, rows in _iter_rows(path):
+        found: list[str] = []
+        for row in rows:
+            cells = [str(v).strip() for v in row
+                     if v is not None and str(v).strip()]
+            for k, a in enumerate(cells):
+                if not a[0].isalpha() or is_unit(a):
+                    continue
+                nxt = cells[k + 1] if k + 1 < len(cells) else None
+                if nxt and is_unit(nxt):
+                    found.append(a)
+        out.append((name, list(dict.fromkeys(found))))
+    return out
+
+
+def main_labels(path: Path) -> tuple[str, list[str]]:
+    """**主输出表**的标签 + 表名。
+
+    ## 选哪个 sheet —— 这不是能靠猜决定的
+
+    `A-101.xls` 有 4 个 sheet：`Output Summary`(50 标签)、
+    `Final Results`(95)，另两个提不到标签。而计划里的「33 列」落在
+    50 与 95 之间 —— 说明**原始取数范围比这两个 sheet 都窄**，计划没写清。
+
+    裁决（用户 2026-10-12）：分母取主表口径。但「主表」仍有歧义：
+
+    | 规则 | 选中的 sheet | A-101 标签数 |
+    |---|---|---|
+    | 第一个提取到标签的 sheet | `2 - Output Summary` | 50 |
+    | 标签最多的 sheet | `2 - Final Results` | 95 |
+
+    本实现取**第一个提取到标签的 sheet**：HTRI/TEMA 输出的惯例是摘要表
+    排在最前，而「标签最多」会把明细诊断表选成主表 —— 那不是「主」。
+
+    ⚠️ 这仍是**代理规则**，不是业务事实。故：
+    1. 返回表名，调用方必须显示（`main()` 会打印）；
+    2. `main()` 同时打印**每个 sheet 的标签数**，让口径的敏感度可见；
+    3. `--sheet` 可显式指定，绕开代理规则。
+    """
+    sheets = read_labels_by_sheet(path)
+    productive = [(n, ls) for n, ls in sheets if ls]
+    if not productive:
+        return "", []
+    return productive[0]
+
+
 def read_labels(path: Path) -> list[str]:
     """提取一份 HTRI/TEMA 输出里的**字段标签**（跨全部工作表）。
 
@@ -231,21 +280,13 @@ def read_labels(path: Path) -> list[str]:
     覆盖率被低估 —— 低估不会让「≥95%」假通过，多提才会。
     """
     out: list[str] = []
-    for rows in _iter_rows(path):
-        for row in rows:
-            cells = [str(v).strip() for v in row
-                     if v is not None and str(v).strip()]
-            for k, a in enumerate(cells):
-                if not a[0].isalpha() or is_unit(a):
-                    continue
-                nxt = cells[k + 1] if k + 1 < len(cells) else None
-                if nxt and is_unit(nxt):
-                    out.append(a)
+    for _name, labels in read_labels_by_sheet(path):
+        out += labels
     return list(dict.fromkeys(out))
 
 
 def _iter_rows(path: Path):
-    """逐工作表产出行。**.xls 读不动时经 LibreOffice 转 xlsx 兜底。"""
+    """逐工作表产出 `(sheet 名, 行列表)`。**.xls 读不动时经 LibreOffice 兜底。"""
     import openpyxl
     import xlrd
 
@@ -257,7 +298,7 @@ def _iter_rows(path: Path):
             # 就会打这一行。
             book = xlrd.open_workbook(str(path), logfile=open(os.devnull, "w"))
             for sheet in book.sheets():
-                yield [sheet.row_values(i) for i in range(sheet.nrows)]
+                yield sheet.name, [sheet.row_values(i) for i in range(sheet.nrows)]
             return
         except Exception as e:  # noqa: BLE001 —— xlrd 对损坏定义名抛多种异常
             print(f"[warn] xlrd 读 {path.name} 失败（{type(e).__name__}: {e}），"
@@ -268,7 +309,7 @@ def _iter_rows(path: Path):
     book = openpyxl.load_workbook(path, read_only=True, data_only=True)
     try:
         for sheet in book.worksheets:
-            yield [list(r) for r in sheet.iter_rows(values_only=True)]
+            yield sheet.title, [list(r) for r in sheet.iter_rows(values_only=True)]
     finally:
         book.close()
 
@@ -369,6 +410,12 @@ def main(argv: list[str] | None = None) -> int:
     ap = argparse.ArgumentParser(description="HEAT DETAIL 字段覆盖率")
     ap.add_argument("references", nargs="*", help="HTRI/TEMA 参考文件（.xls/.xlsx）")
     ap.add_argument("--level", default="DETAIL", choices=["BASIC", "DETAIL"])
+    ap.add_argument("--scope", default="main", choices=["main", "all"],
+                    help="main=每个文件的主输出表（**默认**，用户 2026-10-12 "
+                         "裁决的分母）；all=全部工作表的所有标签")
+    ap.add_argument("--sheet", action="append", default=None,
+                    help="显式指定参考文件的 sheet 名（可多次，对应多个文件）；"
+                         "不给则用主表代理规则")
     ap.add_argument("--json", action="store_true", help="只输出 JSON")
     args = ap.parse_args(argv)
 
@@ -383,22 +430,53 @@ def main(argv: list[str] | None = None) -> int:
         return 2
 
     labels: list[str] = []
+    sheets: dict[str, str] = {}
+    per_sheet_detail: dict[str, list] = {}
     for p in paths:
-        labels += read_labels(p)
+        if args.scope == "all":
+            labels += read_labels(p)
+            sheets[str(p)] = "(全部工作表)"
+        elif args.sheet:
+            by_name = dict(read_labels_by_sheet(p))
+            want = args.sheet[paths.index(p)] if paths.index(p) < len(args.sheet) else None
+            if want not in by_name:
+                print(f"{p.name} 没有 sheet [{want}]；实有：{list(by_name)}",
+                      file=sys.stderr)
+                return 2
+            sheets[str(p)] = want
+            labels += by_name[want]
+        else:
+            sheet, ls = main_labels(p)
+            sheets[str(p)] = sheet
+            labels += ls
+            per_sheet_detail[p.name] = read_labels_by_sheet(p)
     labels = list(dict.fromkeys(labels))
     r = compute_coverage(labels, level=args.level)
     r["references"] = [str(p) for p in paths]
+    r["scope"] = args.scope
+    r["sheets_used"] = sheets
+    r["sheet_label_counts"] = {
+        fname: {n: len(ls) for n, ls in det}
+        for fname, det in per_sheet_detail.items()}
 
     if args.json:
         print(json.dumps(r, ensure_ascii=False, indent=2))
     else:
+        print(f"level={r['level']}  scope={args.scope}")
+        for f, sh in sheets.items():
+            print(f"  {Path(f).name} → 取自 [{sh}]")
+        if per_sheet_detail:
+            print("  各 sheet 标签数（口径敏感度 —— 换个 sheet 分母就变）：")
+            for fname, sheets_ in per_sheet_detail.items():
+                detail = "、".join(f"{n}:{len(ls)}" for n, ls in sheets_)
+                print(f"    {fname}  {detail}")
+        print(f"  标签 {r['template_labels']}"
+              f"（提取噪声 {len(r['extraction_noise'])}），"
+              f"已登记字段 {r['registry_fields']}")
         tc = r["template_coverage"] * 100
         rc = r["registry_coverage"] * 100
-        print(f"level={r['level']}  标签 {r['template_labels']}"
-              f"（其中提取噪声 {len(r['extraction_noise'])}），"
-              f"已登记字段 {r['registry_fields']}")
         print(f"  模板口径（认得几项）: {tc:5.1f}%  "
-              f"{r['mapped_labels']}/{r['template_labels']}")
+              f"{r['served_labels']}/{r['template_labels']}")
         print(f"  注册口径（覆盖几项）: {rc:5.1f}%  "
               f"{len(r['covered_fields'])}/{r['registry_fields']}")
         print(f"  目标 ≥{r['target'] * 100:.0f}% → "
