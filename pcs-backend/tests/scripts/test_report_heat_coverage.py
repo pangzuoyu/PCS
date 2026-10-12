@@ -37,6 +37,7 @@ from scripts.report_heat_coverage import (
     compute_coverage,
     is_unit,
     main,
+    main_labels,
     read_labels,
 )
 
@@ -278,3 +279,62 @@ def test_real_coverage_is_measured_and_honest():
     assert r["unmapped_labels"], "真实模板必然有我们服务不了的标签，清单不该是空的"
     assert r["passed"] == (r["template_coverage"] >= TARGET_COVERAGE
                           and r["registry_coverage"] >= TARGET_COVERAGE)
+
+# --- 主表口径（用户 2026-12-12 裁决）-------------------------------------------
+
+
+def test_main_scope_picks_first_productive_sheet_not_the_biggest(tmp_path):
+    """主表 = **第一个**提取到标签的 sheet，不是标签最多的。
+
+    `A-101.xls` 有 `2 - Output Summary`(50) 与 `2 - Final Results`(95)。
+    选「标签最多」会把明细诊断表选成主表 —— 那不是「主」，而 HTRI/TEMA
+    输出的惯例是摘要表排在最前。
+    """
+    import openpyxl
+
+    wb = openpyxl.Workbook()
+    wb.active.title = "Summary"
+    wb.active.append(["Area", "(m2)", "120"])
+    detail = wb.create_sheet("Details")
+    for row in (["Tube OD", "(mm)", "19"], ["Tube Pitch", "(mm)", "25"],
+                ["Diameter", "(mm)", "894"]):
+        detail.append(row)
+    p = tmp_path / "x.xlsx"
+    wb.save(p)
+
+    name, labels = main_labels(p)
+    assert name == "Summary", f"选中了 {name}，应选第一个有标签的 sheet"
+    assert labels == ["Area"], "主表标签不该包含 Details 的字段"
+
+
+def test_main_scope_reports_which_sheet_it_used():
+    """⚠️ 静默换分母是这类指标最容易被忽略的作弊 —— 表名必须进输出。"""
+    if not HTRI_XACE.exists():
+        pytest.skip("A-101.xls 不在 sample/")
+    out = _run_json([str(HTRI_XACE)])
+    assert out["scope"] == "main"
+    assert "Output Summary" in out["sheets_used"][str(HTRI_XACE)]
+    # 每个 sheet 的标签数也必须给出来，让口径的敏感度可见
+    assert out["sheet_label_counts"][HTRI_XACE.name]
+
+
+def test_sheet_option_overrides_the_proxy_rule():
+    """显式 `--sheet` 能绕开代理规则。"""
+    if not HTRI_XACE.exists():
+        pytest.skip("A-101.xls 不在 sample/")
+    default = _run_json([str(HTRI_XACE)])
+    explicit = _run_json([str(HTRI_XACE), "--sheet", "2 - Final Results"])
+    assert explicit["sheets_used"][str(HTRI_XACE)] == "2 - Final Results"
+    assert explicit["template_labels"] > default["template_labels"], \
+        "Final Results 标签更多 —— 换个 sheet 分母确实会变（所以要显式）"
+
+
+def _run_json(argv) -> dict:
+    """跑 CLI 的 --json 模式并解析结果。"""
+    import contextlib
+    import io
+
+    buf = io.StringIO()
+    with contextlib.redirect_stdout(buf):
+        main([*argv, "--json"])
+    return json.loads(buf.getvalue())
