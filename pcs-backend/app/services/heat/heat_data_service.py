@@ -11,6 +11,7 @@
 """
 from __future__ import annotations
 
+import dataclasses
 import uuid
 from dataclasses import asdict, dataclass, field
 from datetime import date
@@ -279,14 +280,31 @@ def _htri_ache_dict(htri: HtriParsedData) -> dict[str, Any] | None:
     业务：fan_count/air_inlet_temp/bundle_area 三元组；
     三者全 None 返回 None（标记非 ACHE 数据）；
     否则返回部分填充 dict（供热数据模型降级使用）。
+
+    ⚠️ **键名必须与 `AcheParams.to_dict()` 逐字一致**（`fan_power_kw` /
+    `bundle_area_m2` / `air_inlet_temp_k` …）。本函数原先写的是
+    `air_inlet_temp` / `bundle_area` 两套拼法，与手工录入路径并存 ——
+    报表字段按其中一种拼法登记时，**另一半来源的每一行都查出 NULL**，
+    而报表不报错：它只是一列空白（bug-160）。
+    `tests/services/heat/test_ache_params_keys.py` 钉住这一点。
     """
     if htri.fan_count is None and htri.air_inlet_t_k is None and htri.bundle_area_m2 is None:
         return None
-    return {
+    # 键名取自 AcheParams，不是就地手写 —— 两边要改一起改。
+    fields = {f.name for f in dataclasses.fields(AcheParams)}
+    out: dict[str, Any] = {
         "fan_count": htri.fan_count,
-        "air_inlet_temp": htri.air_inlet_t_k,
-        "bundle_area": htri.bundle_area_m2,
+        "air_inlet_temp_k": htri.air_inlet_t_k,
+        "bundle_area_m2": htri.bundle_area_m2,
+        # HTRI 解析里没有的项，显式置 None 而不是省略：
+        # 省略会让 `in` 判断（哪些键存在）在两个来源间不一致。
+        "fan_power_kw": None, "altitude_m": None, "fin_type": None,
+        "tube_nozzle_count": None, "air_side_resistance_dist": None,
     }
+    assert set(out) == fields, (
+        f"AcheParams 字段集与本函数产出的键不一致："
+        f"缺 {sorted(fields - set(out))}，多 {sorted(set(out) - fields)}")
+    return out
 
 
 # ===== ACHE 空冷器 + 焓值表（P5-4-3 / Task 21）=====

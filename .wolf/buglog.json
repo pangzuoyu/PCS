@@ -2950,6 +2950,23 @@
         "bug-154",
         "bug-155"
       ]
+    },
+    {
+      "id": "bug-160",
+      "timestamp": "2026-10-12T00:00:00+08:00",
+      "error_message": "ache_params JSONB 有两套互不兼容的键名在写 —— HTRI 导入写 bundle_area，手工录入写 bundle_area_m2",
+      "file": "pcs-backend/app/services/heat/heat_data_service.py",
+      "root_cause": "`heat_results.ache_params` 有**两个活跃写入方**，键名词汇表不同：\n\n1. `_htri_ache_dict()`（HTRI 导入路径）写 `fan_count` / `air_inlet_temp` / `bundle_area`\n2. `AcheParams.to_dict()`（手工录入 `save_ache_params` 路径）写 `fan_count` / `fan_power_kw` / `bundle_area_m2` / `air_inlet_temp_k` / `altitude_m` / `fin_type` / `tube_nozzle_count` / `air_side_resistance_dist`\n\n第三套：ORM 列注释（calc.py:777）写的是 `fans/airside/fin/nozzle/airside_resistance_distribution` —— 与前两套**都对不上**。\n\n**为什么没有任何地方报错**：两种拼法都是合法 JSONB 键，写入成功、读取成功。报表字段按其中一种拼法注册时，**另一半来源的每一行都查出 NULL** —— 而报表不报错，它只是一整列空白。\n\n**同族失效模式第 15 次**，变体是「**同一个概念有两个真相来源**」：机制在跑、数据合法、结构正确，但**读的那一半永远是空的**，且没有任何一层会说话。\n\n与 P8c c1（HEAT 字段映射）撞上的：c1 要把 39 字段登记进注册表，若不先统一键名，登记的字段里会有一半恒为 NULL —— 而 c1 的验收（字段清单与 ORM 逐条对齐）**只验列/容器存在，验不到子键拼写**，正是「绿灯测的不是出问题那层」。",
+      "fix": "1. `_htri_ache_dict()` 改为产出与 `AcheParams.to_dict()` **逐字相同**的 8 个键（`air_inlet_temp` → `air_inlet_temp_k`，`bundle_area` → `bundle_area_m2`），HTRI 没有的项显式置 None（省略会让「键是否存在」在两个来源间不一致）。\n2. 函数内加一条 `assert set(out) == {f.name for f in dataclasses.fields(AcheParams)}` —— AcheParams 加字段时这里立刻红，而不是等到某份报表多出一列空白。\n3. 新增 `tests/services/heat/test_ache_params_keys.py`：钉「所有写入方产出同一套键」，外加「无 ACHE 特征时必须落 None 而不是空 dict」。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "jsonb",
+        "heat",
+        "ache",
+        "silent-null",
+        "do-not-repeat-15",
+        "p8c"
+      ]
     }
   ]
 }
