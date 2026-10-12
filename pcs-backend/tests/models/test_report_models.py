@@ -41,3 +41,34 @@ def test_report_file_has_heartbeat_and_status_for_task_recovery():
     cols = Base.metadata.tables["report_files"].columns
     for c in ("status", "heartbeat_at", "error_message"):
         assert c in cols, f"report_files 缺 {c}"
+
+
+def test_report_file_status_state_set_is_pinned():
+    """`report_files.status` 的状态集合是**契约**，不是随手写的字符串。
+
+    ADR-P8-004 决策 2 的三步删除需要 `DELETING` 中间态：先在事务内标记、
+    再在事务外删文件、最后删行。任何一步失败都留下可恢复的中间态，
+    下次扫描据此重试。二步方案（删文件 → 删行）在「删文件成功、删行失败」
+    时**丢掉了执行记录** —— 下次扫描看不到这行，文件已删，无从重试。
+
+    这条测试钉住状态集合：日后加状态必须同步改这里并想清楚恢复路径。
+    """
+    from app.models.report import REPORT_FILE_STATUSES
+
+    assert REPORT_FILE_STATUSES == frozenset(
+        {"PENDING", "SUCCEEDED", "FAILED", "DELETING"})
+    col = Base.metadata.tables["report_files"].columns["status"]
+    assert col.type.length >= len("DELETING"), "列太短，新状态存不下"
+
+
+def test_status_column_is_free_string_not_db_enum():
+    """刻意用自由 String 而非 DB enum —— 加 `DELETING` **零迁移成本**。
+
+    若日后有人「规范」成 native_enum，加一个状态值就要一条 alembic 迁移，
+    而 `alembic check` 对 enum 值变化是看不出来的（它比的是类型不是取值）。
+    """
+    from sqlalchemy import Enum as SAEnum
+
+    col = Base.metadata.tables["report_files"].columns["status"]
+    assert not isinstance(col.type, SAEnum), \
+        "改成 native enum 会让加状态值必须写迁移，且 alembic check 看不见"

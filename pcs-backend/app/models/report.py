@@ -37,6 +37,22 @@ from sqlalchemy.orm import Mapped, mapped_column
 from app.db.base import Base
 from app.models.mixins import TimestampMixin
 
+# `report_files.status` 的完整状态集合 —— **契约**，不是随手写的字符串。
+#
+# `DELETING` 是 ADR-P8-004 决策 2 的**三步删除**中间态：
+#   1. 事务内：status = 'DELETING'
+#   2. 事务外：删磁盘文件（幂等，文件不存在不报错）
+#   3. 事务内：删行
+# 任何一步失败都留下可恢复的中间态，下次扫描据此重试：
+#   | 失败点        | 留下的状态              | 恢复动作         |
+#   | 标记失败      | 行正常                  | 下次扫描重试     |
+#   | 删文件失败    | DELETING + 文件在       | 下次扫描删文件   |
+#   | 删行失败      | DELETING + 文件已没了   | 下次扫描删行     |
+#
+# ⚠️ 二步方案（删文件 → 删行）在「删文件成功、删行失败」时会**丢掉执行记录**：
+# 下次扫描看不到这行，文件已删，无从重试。这正是 ADR 要防的「删错不可逆」。
+REPORT_FILE_STATUSES = frozenset({"PENDING", "SUCCEEDED", "FAILED", "DELETING"})
+
 
 class ReportStyleRow(TimestampMixin, Base):
     """报表样式配置（report_styles 表）。
@@ -92,7 +108,9 @@ class ReportFile(TimestampMixin, Base):
     # 生成时冻结的样式版本，保证可复现
     style_version: Mapped[str | None] = mapped_column(String(32), nullable=True)
     data_version: Mapped[str | None] = mapped_column(String(64), nullable=True)
-    # 异步任务状态：PENDING / SUCCEEDED / FAILED
+    # 异步任务状态，见 REPORT_FILE_STATUSES。**刻意用自由 String 而非 DB enum** ——
+    # 加一个状态值零迁移成本；改成 native_enum 后不仅要写迁移，`alembic check`
+    # 还看不见（它比类型不比取值）。有测试钉住这条。
     status: Mapped[str] = mapped_column(String(20), default="SUCCEEDED", nullable=False)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
     # 任务心跳。ARQ 进程被 kill 时状态会永远卡在 PENDING，Task 7 的回收任务
