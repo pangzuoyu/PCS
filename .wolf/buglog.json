@@ -2810,6 +2810,33 @@
         "bug-150",
         "bug-152"
       ]
+    },
+    {
+      "id": "bug-154",
+      "timestamp": "2026-10-12T00:00:00+08:00",
+      "error_message": "复杂度断言假绿：CountingRow.__getitem__ 计数恒为 0，嵌套循环与 dict lookup 都测不出区别",
+      "file": "pcs-backend/tests/services/report/test_query_engine.py",
+      "root_cause": "为钉住用户裁决的「dict lookup 不写嵌套循环」写的复杂度测试，用 `class CountingRow(dict)` 重写 `__getitem__` 计数。\n\n**但嵌套循环实现用的是 `r.get(b_key)`，不是 `r[...]`** —— `dict.get` 不走 `__getitem__`，计数恒为 0，断言 `len(seen) <= 2` 永远成立。把 `indexes[b].get(...)` 换成 `next((r for r in rows_by_source[b] if ...), None)` 之后，**47 条测试照样全绿**。\n\n是**变异测试**抓出来的，不是这个测试抓出来的 —— 这正是「先写变异、再信测试」的价值。\n\n**同族失效模式第 10 次**：bug-143（测试库由 ORM metadata 建）、bug-145（假 DB 测试）、bug-149（行为测试看不见契约层）、bug-150（静态检查不渲染组件）、bug-152①（探针文本选了错的那一层）、bug-152②（文本层断言看不见布局空白）、bug-153（页边距从无任何断言）、bug-154（**观测点选错，指标恒为 0**）。\n\n**这次的教训与前几次不同**：前几次是「测的东西与坏的东西不在同一层」，这次是「**测的东西根本没被触发**」——指标存在但永远是 0/False，断言恒真。恒真断言比没有断言更危险：它给人「已覆盖」的错觉。",
+      "fix": "观测点从 `__getitem__` 改为**迭代次数**：用 `class CountingList(list)` 重写 `__iter__`，断言主源 100 行时从源总迭代 ≤2 次。\n嵌套循环会对每个主源行把从源整个走一遍（100 次），dict lookup 只在建索引时走 1 遍。\n\n验证：变异（dict lookup → 嵌套扫描）现在**被测出**；还原后 47 passed。\n\n**元规则**：写「复杂度/性能/调用次数」类断言前，先问「被观测的代码路径真的会被走到吗」，再用变异确认观测点选对了 —— 指标恒定不变 = 断言恒真。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "test-quality",
+        "fake-green",
+        "complexity-assertion",
+        "mutation-testing",
+        "query-engine",
+        "always-true-assertion"
+      ],
+      "occurrences": 1,
+      "last_seen": "2026-10-12T00:00:00+08:00",
+      "related_bugs": [
+        "bug-143",
+        "bug-145",
+        "bug-149",
+        "bug-150",
+        "bug-152",
+        "bug-153"
+      ]
     }
   ]
 }
