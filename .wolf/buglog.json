@@ -2967,6 +2967,23 @@
         "do-not-repeat-15",
         "p8c"
       ]
+    },
+    {
+      "id": "bug-161",
+      "timestamp": "2026-10-13T00:00:00+08:00",
+      "error_message": "htri_excel_parser 解析 `Unfinned length` 返回 None，而报表里明明有值 0.000",
+      "file": "pcs-backend/app/services/heat/htri_excel_parser.py",
+      "root_cause": "`_any_side()` 以及 parser 内 8 处取值链都用 `or` 做回退：\n\n    return _first(d, \"OUTSIDE\") or _first(d, \"TUBE\") or _first(d, \"OUTSIDE\", 1) or _first(d, \"TUBE\", 1)\n\n**`0.0` 是假值**。`Unfinned length` 的真实值就是 `0.000`（整段都有翅片，无翅片段长度为零 —— 一个完全正常的几何），`0.0 or <下一个>` 直接跳过它走空，最终返回 None。\n\n**为什么没有任何地方报错**：None 与「这一栏真的空着」在落库后**完全同形**—— 都是 ache_params 里没有值，报表不报错、只是那一列空白。与 bug-160（两套键名）是同一个可观测后果的不同成因。\n\n**只有真实文件触发得了**：合成 fixture 里取不到值也是 None，看起来「对」。这个 bug 是拿 `sample/A-101.xls` 逐字段核对实测值时才发现 —— 表里写着 0.000，代码给 None。",
+      "fix": "1. 新增 `_coalesce(*values)`：取第一个**非 None** 的值，而不是第一个真值。\n2. 新增 `_int_or_none(v)`：替换 `int(x or 0) or None`（`0 or None` → None，而「风机数 0」在某些报表里合法）。\n3. parser 内 8 处 `or` 链（shell_id / tip_clearance / area_required / bundle_area / fan_count / fan_face_area_ratio / tube_count / tube_passes / tube_rows）全部改走这两个助手。\n4. 测试：`test_remaining_ache_fields_are_parsed_from_the_real_report` 断言 `unfinned_length_mm == approx(0.0)`；`test_zero_geometry_survives_the_merge` 钉住合并层不丢 0。\n5. **变异测试证明它不是装饰**：把 `_any_side` 改回 `or` 链 → 测试转红；改回 `_coalesce` → 转绿。",
+      "fix_commit": "7981c32",
+      "tags": [
+        "heat",
+        "parser",
+        "falsy-zero",
+        "ache",
+        "bug-160-family",
+        "todo-056"
+      ]
     }
   ]
 }
