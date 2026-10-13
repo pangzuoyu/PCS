@@ -3069,6 +3069,24 @@
         "silent-defect",
         "todo-045"
       ]
+    },
+    {
+      "id": "bug-167",
+      "timestamp": "2026-10-13T21:35:00+08:00",
+      "error_message": "自定义报表执行：202 之后立刻轮询 /executions/{task_id} 返回 404，前端把它当终态失败 —— 每次执行都会先报一次「失败」，而任务其实正在跑并会成功",
+      "file": "pcs-backend/app/api/v1/report_builder.py",
+      "root_cause": "执行日志行由**任务体**（`builder_service.execute_definition`）建，而任务体要等 worker消费才跑。于是「202 已返回、日志行还不存在」这段窗口里，轮询端点查不到行只能 404。\n\n前端 `ReportExecutePage` 的轮询把**任何**错误都当终态：\n    } catch (err) { stopPolling(); setError(errorMessage(err)); setPhase('failed'); }\n实测这个定义要 0.4 秒、真实 10k 行 PDF 约 10 秒（ADR-P8-004）——\n**每一次**执行都会在第一两次轮询撞上 404，于是 UI 报失败，而任务成功。\n\n**为什么单测全绿**：没有测试在「入队之后、worker 消费之前」轮询过。`test_execute_writes_execution_log_with_snapshot` 直接调 `execute_definition`，\n那一步已经把行建好了 —— 它验的是**日志内容**，不是**行的存在时机**。\n\n**设计意图本身是对的**：端点 docstring 写着「查不到就是 404，不返回占位 PENDING，\n好让前端分不清任务不存在与还在跑」。那个理由成立的前提正是**行从入队就存在**，\n而写入时机破坏了这个前提。所以修法是让前提成真，不是让前端容忍 404。",
+      "fix": "执行日志行改在 `/execute` 入队时就建（row_count=0、report_file_id=NULL、\n快照记「申报了什么」）；任务体改成**就地更新**那一行（按 task_id 命中即 update）。\n状态仍是端点刻意合成的单值（QUEUED 与 RUNNING 不分，docstring 有理由：对用户是同一件事）。\n两个新增测试都落在 API 与任务体的**交界**上 —— 那里才是缺陷的位置。\n另注意：两处各写一条会让轮询端点的 `scalar_one_or_none()` 抛 MultipleResultsFound，\n即**执行刚成功、轮询就 500**；已用变异测试钉住（改成总是 INSERT → 实得 2 行 → 红）。",
+      "fix_commit": "27cb4b0",
+      "tags": [
+        "report",
+        "builder",
+        "arq",
+        "frontend",
+        "contract",
+        "e2e",
+        "silent-defect"
+      ]
     }
   ]
 }
