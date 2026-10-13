@@ -139,6 +139,7 @@ export function ReportDefinitionEditorPage(): JSX.Element {
       return;
     }
     setRows((prev) => [...prev, {
+      key: `row-${Date.now()}-${prev.length}`,   // 见 FieldRow.key 的注释
       source: 'EQUIP_LIST', field: first.name, label: first.name,
       alias: '', order: prev.length, visible: true, level: first.level ?? null,
     }]);
@@ -263,7 +264,7 @@ export function ReportDefinitionEditorPage(): JSX.Element {
           extra={<Button size="small" onClick={addRow}>加一行</Button>}
         >
           <Table<FieldRow>
-            rowKey={(_, i) => String(i)}
+            rowKey="key"
             size="small"
             pagination={false}
             dataSource={rows}

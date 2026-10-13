@@ -20,8 +20,17 @@ import type {
   ReportDefinitionBody,
 } from '../../api/reportBuilder';
 
-/** 一条已选字段的编辑态（定义体里 `SelectedFields` 的一项 + 显示标签）。 */
+/** 一条已选字段的编辑态（定义体里 `SelectedFields` 的一项 + 显示标签）。
+ *
+ * ⚠️ `key` 是**客户端行标识**，不进请求体。
+ * 用它而不是数组下标当 `rowKey`：antd 已废弃「rowKey 函数取 index」，
+ * 而下标在**上下移动行**时会跟着变 —— React 会认为那一行被替换，
+ * 正在输入的「显示名」会串到别的字段上。症状是「我改的是管程数，
+ * 结果改成了热负荷」，且只在调整顺序后才出现。
+ */
 export interface FieldRow {
+  /** 客户端唯一键，仅用于 React 列表渲染 */
+  key: string;
   source: string;
   field: string;
   label: string;
@@ -45,9 +54,10 @@ export function toRows(
   sources: ReportBuilderDatasource[],
 ): FieldRow[] {
   const byKey = new Map(sources.map((s) => [s.key, s.fields]));
-  return (body.SelectedFields ?? []).map((sel) => {
+  return (body.SelectedFields ?? []).map((sel, i) => {
     const spec = byKey.get(sel.source)?.find((f) => f.name === sel.field);
     return {
+      key: `row-${i}-${sel.source}.${sel.field}`,
       source: sel.source,
       field: sel.field,
       label: spec?.label ?? sel.field,

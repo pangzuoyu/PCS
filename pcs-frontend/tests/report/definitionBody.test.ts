@@ -51,7 +51,7 @@ describe('fieldsAtLevel', () => {
 
 describe('buildBody', () => {
   const rows = [
-    { source: 'HEAT_RESULTS', field: 'tag_number', label: '位号',
+    { key: 'r0', source: 'HEAT_RESULTS', field: 'tag_number', label: '位号',
       alias: '设备位号', order: 0, visible: true, level: null },
   ];
 
@@ -69,7 +69,7 @@ describe('buildBody', () => {
   });
 
   it('dedupes DataSources', () => {
-    const two = [rows[0], { ...rows[0], field: 'shell_tube_count',
+    const two = [rows[0], { ...rows[0], key: 'r1', field: 'shell_tube_count',
       order: 1, level: 'DETAIL' }];
     const body = buildBody({
       rows: two, level: 'DETAIL', maxRows: 10, outputFormat: 'pdf', filter: null,
@@ -84,6 +84,15 @@ describe('buildBody', () => {
       rows, level: 'BASIC', maxRows: 10, outputFormat: 'pdf', filter: null,
     }) as unknown as { FilterConditions: unknown[] };
     expect(body.FilterConditions).toEqual([]);
+  });
+
+  it('assigns a stable row key that is NOT sent to the backend', () => {
+    // ⚠️ key 只用于 React 列表渲染。多发给后端会被 extra="forbid" 拒成 422。
+    const body = buildBody({
+      rows, level: 'BASIC', maxRows: 10, outputFormat: 'pdf', filter: null,
+    }) as unknown as Record<string, unknown[]>;
+    expect(body.SelectedFields[0]).not.toHaveProperty('key');
+    expect(toRows(body, SOURCES)[0].key).toBeTruthy();
   });
 
   it('round-trips through toRows without losing the alias', () => {
