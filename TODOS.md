@@ -921,31 +921,43 @@ antd v6 会移除 `rowKey(value, index)` 的第二个参数。当前写法依赖
 > 这四条是 P8 Task 1–5b 执行过程中**新发现**的，不是历史积压。
 > 全部有代码依据，见每条「证据」。
 
-### TODO-045: 部署镜像需显式跑一次 `build_report_font.py`，否则 PDF 全 500
+### ~~TODO-045: 部署镜像需显式跑一次 `build_report_font.py`~~ ✅ 2026-10-13 修完（用户裁决：加部署自检脚本）
 
-- **症状**: `REPORT_FONT_CANDIDATES` 全链落空时 `render_pdf` 抛 `REPORT_FONT_MISSING`(500)。
-- **证据**: `app/services/report/renderer_pdf.py` 的 `_register_font()`；
-  候选链默认值在 `app/core/config.py` 的 `report_font_candidates`。
-- **为什么本机看不出来**: `tests/conftest.py` 的 `report_font_path` session fixture
-  **自动派生**字体，所以本地永远有字体可用 → 本地测不出部署缺字体。
-  （这是刻意的：skip 就是假绿。但它意味着**部署侧没有任何自动兜底**。）
-- **修法**: 部署镜像 / CI 构建步骤加一行
-  `uv run python scripts/build_report_font.py`；或在 Dockerfile 里
-  `apt install fonts-noto-cjk` 并把派生产物落到 `REPORT_FONT_DIR`。
-- **风险**: 不做的话，P8 上线当天**所有 PDF 报表 500**，且只在生产才暴露。
-- **Owner**: 待认领（与部署配置同批）
+新增 `scripts/check_report_font.py`（4 条测试）：复用
+`renderer_pdf._register_font` —— **生产真正走的那条路**，不是抄一份检查逻辑
+等它漂移。全链落空/全链被否 → 退出 1 + 每个候选被否的原因 + 修法；
+就绪 → 退出 0 + 报出实际选中的路径。
 
-### TODO-046: CI 未装 poppler-utils，`@pytest.mark.visual` 测试会 fail
+⚠️ **原文里「Dockerfile 里 `apt install fonts-noto-cjk`」这条建议是错的**，
+已用测试钉住（`test_a_present_but_unreadable_font_is_rejected_not_swallowed`）：
+fonts-noto-cjk 装出 `.ttc` + CFF 轮廓，reportlab 直接抛
+`TTFError: postscript outlines are not supported`。装了它自检照样红 ——
+这正是自检存在的意义。
 
-- **症状**: `tests/services/report/test_renderer_visual.py` 的 `pdftoppm` fixture
-  在缺 poppler 时**故意 `pytest.fail` 而不是 skip**（用户 2026-10-09 裁决：
-  「缺 pdftoppm 时 fail 不 skip」）。
-- **证据**: 该文件的 `pdftoppm` fixture；`pyproject.toml` 已注册 `visual` marker
-  与 `addopts = "-m 'not visual'"`（默认跳过，CI 用 `pytest -m visual` 打开）。
-- **修法**: CI workflow 装 `poppler-utils` 并新增一步 `uv run pytest -m visual`。
-- **风险**: 不做则 CI 一开 visual 就红。是**设计内的红**（缺依赖报出来好过静默跳过），
-  但要先装依赖，否则闸门开不起来。
-- **Owner**: 待认领（与 TODO-045 同批）
+**部署清单**（后端尚无 Dockerfile，此清单挂到建镜像那天）：
+1. 镜像里投放 OFL 的 NotoSansSC-VF.ttf（源），构建时跑
+   `uv run python scripts/build_report_font.py`；或直接投放派生产物
+2. 上线前跑 `uv run python scripts/check_report_font.py`（退出码即结论）
+
+- **Owner**: 已完成
+
+### ~~TODO-046: CI 未装 poppler-utils，`@pytest.mark.visual` 测试会 fail~~ ✅ 2026-10-13 修完（用户裁决：加进现有 workflow）
+
+`check-api-drift.yml` 新增步骤 `Visual renderer tests`：
+
+1. `apt-get install poppler-utils`（缺它这些测试 fail-not-skip，2026-10-09 裁决）
+2. 从 noto-cjk 上游拉 **可变** TTF 到派生脚本的默认搜索路径 ——
+   Ubuntu 仓库没有任何包提供它（fonts-noto-cjk 是 .ttc+CFF，reportlab 读不了）。
+   上游路径已用 blob:none clone + `git ls-tree` 逐一核实存在
+3. 下载后用 fontTools 自检 `fvar` 存在 —— 上游若改成 LFS 指针/404 HTML，
+   以清晰信息立刻失败，不等 conftest 长堆栈
+4. `uv run pytest -m visual tests/services/report/test_renderer_visual.py`
+   —— CLI `-m visual` 覆盖 pyproject addopts 的 `-m 'not visual'`（实测 4 passed）
+
+本地已验证：YAML 可解析、同款 pytest 命令 0.37s 全绿、自检片段可跑。
+GitHub Actions 侧无法本地预跑，首次 push 后看一次实际运行。
+
+- **Owner**: 已完成
 
 ### ⚪ TODO-047: ADR-P8-004 报表任务队列与文件生命周期 —— 等运维
 
@@ -1066,33 +1078,25 @@ uv run python scripts/run_gate.py --tail 10 -- <要跑的命令>
 3. **LOW** `asSingleFilter` 遇 AND/OR 分组返回 `null` → 编辑器显示
    「无过滤」而保存会抹掉它。**已知数据丢失**，见 TODO-060。
 
-### TODO-052: 「非发布件」水印是文字横幅，不是视觉水印
+### ~~TODO-052: 「非发布件」水印是文字横幅，不是视觉水印~~ ✅ 2026-10-13 用户确认关闭
 
-- **症状**: b8 验收写「水印可见」。当前实现是在内容最前面插一个
-  `HeadingBlock("非发布件 · 时间戳")`，PDF/XLSX/DOCX 上都是**正文首行**，
-  不是斜排半透明的大字。演示版时同理（`DEMO · 非发布件 · 时间戳`）。
-- **本轮的验收口径**: 「可见」= **可被抽出/读到的文字**（PDF 用 pypdf
-  抽文本断言，CSV 断言首行），不是「看起来像水印」。
-- **为什么这样定**: 斜排半透明水印在 reportlab / xlsxwriter / python-docx
-  三侧要各写一遍，且在 xlsx 里**根本画不出**（单元格没有图层概念）。
-  统一成文字横幅是三种格式唯一一致可验的形式。
-- **若产品要求视觉水印**: 需要裁决「xlsx 怎么办」—— 目前没有能画半透明
-  斜排水印的 xlsxwriter API。
-- **优先级**: TODO 级。产品确认项。
-- **Owner**: 产品 / 待认领
+用户裁决：**文字横幅够用，维持现状**。理由在案 —— xlsx 没有图层概念
+画不了半透明斜排，文字横幅是三种格式（PDF/XLSX/DOCX/CSV）唯一一致
+可验的形式；验收口径「可见 = 可被抽出/读到的文字」（pypdf 抽文本 /
+CSV 断言首行）不变。
 
-### TODO-053: CSV 首行 `#` 注释会让 Excel 双击报「格式不符」
+若未来产品改主意：PDF 可用 reportlab canvas、DOCX 可用页眉水印，
+xlsx 仍是死路 —— 届时需要先裁决「xlsx 怎么办」，本条重开。
 
-- **症状**: 即席导出 CSV 的首行是 `# 非发布件 · 时间戳`。
-  `csv` / pandas（`comment='#'`）能读，**Excel 双击打开会报格式不符**并
-  弹窗询问。
-- **取舍理由（已裁决）**: CSV 的定位是「给脚本再处理」，不是「给人双击看」；
-  要双击看请导 xlsx。水印是**语义声明**（这份没签署），不能为了 Excel
-  的便利把它去掉。
-- **若推翻这个取舍**: 替代方案是给水印单独加一列而不是单独一行 ——
-  但那样脚本读的时候会把水印当数据列。
-- **优先级**: TODO 级。产品确认项。
-- **Owner**: 产品 / 待认领
+- **Owner**: 已关闭（用户确认）
+
+### ~~TODO-053: CSV 首行 `#` 注释会让 Excel 双击报「格式不符」~~ ✅ 2026-10-13 用户确认关闭
+
+用户裁决：**维持现状**。CSV 定位是「给脚本再处理」，水印是语义声明
+（这份没签署）不能去；要双击看请导 xlsx。原取舍（2026-10-09）成立，
+不改成水印列 —— 那会让脚本把水印当数据列，与 CSV 的定位相抵触。
+
+- **Owner**: 已关闭（用户确认）
 
 ### TODO-055: c4/c5 缺 HTRI/TEMA 参考文件
 

@@ -72,6 +72,36 @@ jobs:
         working-directory: pcs-backend
         run: uv run python scripts/check_migration_idempotency.py
 
+      # 2026-10-13 新增（TODO-046）：visual 渲染测试 —— 0.37s、零 Postgres
+      # 依赖（内存 SQLite + pdftoppm）。此前 `-m visual` 默认被 pyproject 的
+      # addopts 排除（`-m 'not visual'`），CI 从未跑过；CLI 显式 `-m visual`
+      # 覆盖 addopts（实测 4 passed）。
+      # ⚠️ 缺 poppler 时这些测试**fail 而非 skip**（用户 2026-10-09 裁决）——
+      # 所以必须先装，否则本步骤恒红。
+      - name: Visual renderer tests (pdftoppm + CJK source font)
+        working-directory: pcs-backend
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq poppler-utils
+          # 报表字体的**源**：Ubuntu 仓库没有任何包提供 NotoSansSC 的可变
+          # TTF（fonts-noto-cjk 是 .ttc + CFF 轮廓，reportlab 读不了，见
+          # scripts/build_report_font.py 的 docstring）。从 noto-cjk 上游
+          # （OFL）拉到派生脚本的默认搜索路径之一。
+          sudo mkdir -p /usr/share/fonts/opentype/noto
+          sudo curl -fsSL --retry 3 -o /usr/share/fonts/opentype/noto/NotoSansSC-VF.ttf \
+            https://github.com/googlefonts/noto-cjk/raw/main/Sans/Variable/TTF/Subset/NotoSansSC-VF.ttf
+          # 下载自检：上游若把该路径改成 LFS 指针或 404 HTML，这里立刻
+          # 以清晰信息失败，而不是等到 conftest 派生时的长堆栈。
+          uv run python - <<'PY'
+          from fontTools.ttLib import TTFont
+          p = "/usr/share/fonts/opentype/noto/NotoSansSC-VF.ttf"
+          f = TTFont(p)
+          assert "fvar" in f, f"{p} 不是可变字体（上游布局变了？）"
+          print(f"源字体 OK：{p}")
+          PY
+          # conftest 缺产物时会自动调 build_report_font.py 派生；
+          # 派生失败会 pytest.fail（不 skip）。
+          uv run pytest -m visual tests/services/report/test_renderer_visual.py
+
       # 2026-10-07 新增：此前 workflow 完全没有 setup-node —— Node 版本靠
       # runner 自带（"Node.js 20 deprecated" 警告即源于此），且无 npm 缓存，
       # 每次 push 都全量拉包。Vite 5 要求 Node ^18 || >=20，故锁 22。

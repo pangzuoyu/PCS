@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T03:19:11.935Z
-> Files: 778 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T03:45:13.144Z
+> Files: 780 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -135,7 +135,7 @@
 
 ## .github/workflows/
 
-- `check-api-drift.yml` — F-P3-002 集成: check-api-drift.sh + check_migration_idempotency.sh CI (~866 tok)
+- `check-api-drift.yml` — F-P3-002 集成: check-api-drift.sh + check_migration_idempotency.sh CI (~1298 tok)
 
 ## .gstack/
 
@@ -1189,6 +1189,7 @@
 - `check_migration_idempotency.py` — 检查 alembic migrations 是否用 if_exists / if_not_exists (F-P3-002 fix). (~1485 tok)
 - `check_openapi_payload_coverage.py` — API 载荷结构覆盖率闸 —— 前端类型能不能自动生成，就看这里。 (~1186 tok)
 - `check_payload_model_coverage.py` — 描述文本覆盖率闸 —— 本体论 §3.4 约束② 的可落地形态. (~1620 tok)
+- `check_report_font.py` — 部署侧报表字体自检（TODO-045）。 (~715 tok)
 - `p7_open_009_t0_seed_energy_conversion_factors.py` — t**) GB 30251-2024 附录A 序号4 — " (~3764 tok)
 - `p7_open_012_t5_r1_verification.py` — P7 Sprint 2 T5 ≤2% 验收脚本（蜡油加氢 XLS R1 重算对比）。 (~4491 tok)
 - `p7_open_016_config_conformance_audit.py` — PCS 折标系数 vs GB 30251-2024 附录A 表A.1 一致性审计. (~3146 tok)
@@ -1243,6 +1244,7 @@
 - `test_check_migration_idempotency.py` — F-P3-002 fix: 测试 check_migration_idempotency 脚本行为. (~1748 tok)
 - `test_check_openapi_payload_coverage.py` — API 载荷结构覆盖率闸的测试. (~957 tok)
 - `test_check_payload_model_coverage.py` — 覆盖率闸 check_payload_model_coverage 的测试. (~975 tok)
+- `test_check_report_font.py` — `scripts/check_report_font.py` —— 部署侧字体自检（TODO-045）。 (~870 tok)
 - `test_report_heat_coverage.py` — c4/c5：HEAT DETAIL 覆盖率工具的测试。 (~2226 tok)
 - `test_run_gate.py` — `scripts/run_gate.py` 的测试 —— 它唯一的产出是「一个退出码」。 (~560 tok)
 

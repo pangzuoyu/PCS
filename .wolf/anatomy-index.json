@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-13T03:19:11.935Z",
-    "fileCount": 778,
+    "lastScanned": "2026-10-13T03:45:13.144Z",
+    "fileCount": 780,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "71ec3b8e1668711e7f42eae863235973da2fbcdea80816152efe96aeda56b29a",
-    "storeUpdatedAt": "2026-10-13T03:19:11.946Z",
-    "rootHash": "726c96d9bd9105c3"
+    "renderedHash": "6461c1c69a4f2790026606da196a3dd13d7d28ffa3129dd1ca3be3c2b0ebbcc2",
+    "storeUpdatedAt": "2026-10-13T03:45:13.154Z",
+    "rootHash": "54674d4ccf49b820"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12443,11 +12443,11 @@
     },
     ".github/workflows/check-api-drift.yml": {
       "description": "F-P3-002 集成: check-api-drift.sh + check_migration_idempotency.sh CI",
-      "tokens": 866,
-      "hash": "94345ef7bee5e285",
-      "size": 3466,
-      "mtimeMs": 1791391699671.6233,
-      "updatedAt": "2026-10-07T16:48:19.717Z",
+      "tokens": 1298,
+      "hash": "4b31c001778ac1db",
+      "size": 5404,
+      "mtimeMs": 1791863113091.6729,
+      "updatedAt": "2026-10-13T03:45:13.144Z",
       "source": "hook"
     },
     "docs/sprint3-plan-2026-10-02.md": {
@@ -26208,6 +26208,70 @@
           "startLine": 69,
           "endLine": 72,
           "tokens": 34
+        }
+      ]
+    },
+    "pcs-backend/tests/scripts/test_check_report_font.py": {
+      "description": "`scripts/check_report_font.py` —— 部署侧字体自检（TODO-045）。",
+      "tokens": 870,
+      "hash": "efa36a37c3f35c20",
+      "size": 4226,
+      "mtimeMs": 1791862535643.266,
+      "updatedAt": "2026-10-13T03:35:35.692Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_run",
+          "kind": "fn",
+          "startLine": 36,
+          "endLine": 46,
+          "tokens": 119
+        },
+        {
+          "name": "test_missing_script_is_not_silent",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 52,
+          "tokens": 49
+        },
+        {
+          "name": "test_exits_zero_when_a_font_resolves",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 66,
+          "tokens": 133
+        },
+        {
+          "name": "test_exits_nonzero_with_remediation_when_chain_is_empty",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 82,
+          "tokens": 154
+        },
+        {
+          "name": "test_a_present_but_unreadable_font_is_rejected_not_swallowed",
+          "kind": "fn",
+          "startLine": 83,
+          "endLine": 99,
+          "tokens": 156
+        }
+      ]
+    },
+    "pcs-backend/scripts/check_report_font.py": {
+      "description": "部署侧报表字体自检（TODO-045）。",
+      "tokens": 715,
+      "hash": "e3730338e7a2a729",
+      "size": 3622,
+      "mtimeMs": 1791862592789.7937,
+      "updatedAt": "2026-10-13T03:36:32.845Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 48,
+          "endLine": 82,
+          "tokens": 352
         }
       ]
     }
