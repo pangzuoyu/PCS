@@ -12,6 +12,19 @@ b7 决策：报表生成走 ARQ 异步（用户 2026-10-08 审查）—— 10k �
 **为什么先建 PENDING 行**：渲染期间状态端点要有东西可读，且进程被杀时
 状态得有地方可丢 —— 否则这一次生成在系统里不存在，用户只看到「转圈到超时」。
 
+## 本模块的每个状态变更都必须 commit
+
+session 是任务体自己开的（`worker.session_scope`），**关掉就等于没写**。
+而这一层从 service 到 `_mark_pending` / `_finalize` **全都只 `flush`** ——
+它符合本仓「service 只 flush、端点/任务负责 commit」的约定，但约定得由
+**调用方**兑现。调用方此前一次都没兑现，于是：PENDING 行从不落库
+（回收器永远扫不到它）、成功件从不落库（前端拿着 report_file_id 轮询，
+每个状态查询都 404）、FAILED 也从不落库（行停在 PENDING）。
+
+⚠️ 这三条在单测里**全是绿的**：测试复用任务自己的 session，读的是它未提交
+的数据 —— 替身比被测物更宽容。真正的观测点是「任务返回之后，用另一个
+session 读」，见 `test_report_tasks.py` 里两个 `_is_committed` 测试。
+
 ## 内容指纹去重跨异步边界
 
 `report_files.content_hash` 是 UNIQUE。异步路径先建了一个占位 PENDING 行，
@@ -78,6 +91,7 @@ async def _mark_pending(db: AsyncSession, *, project_id: uuid.UUID,
         existing.heartbeat_at = _now()
         existing.error_message = None
         await db.flush()
+        await db.commit()      # ⚠️ 必须提交，见模块 docstring
         return existing
 
     row = ReportFile(
@@ -88,6 +102,7 @@ async def _mark_pending(db: AsyncSession, *, project_id: uuid.UUID,
     db.add(row)
     try:
         await db.flush()
+        await db.commit()      # ⚠️ 必须提交，见模块 docstring
     except IntegrityError:
         # 并发下同 job_id 的 PENDING 行已存在 —— 复用它
         await db.rollback()
@@ -132,45 +147,71 @@ async def generate_report_task(
 ) -> str:
     """ARQ 任务体。返回 `report_file_id` 字符串。
 
-    `ctx` 由 ARQ 注入，含 `job_id` / `job_try`（实测 arq.worker 的
-    `ctx = {job_id, job_try, enqueue_time, score}`）+ 本仓自带的 `db`。
+    `ctx` 里 `job_id` / `job_try` 由 **ARQ** 注入；session 走 worker
+    注入的 `session_factory`（经 `_make_session` 取）。
+
+    ⚠️ 原先写 `ctx["db"]` —— **worker 从不注入这个键**（它注入的是
+    `session_factory`）。实测：job 被消费、结果是 `KeyError: 'db'`、
+    worker 一行日志不打 → API 早就返回 202 了，于是「固定 10 类报表
+    生成」这条路径**从来没成功跑过**。
     """
-    db: AsyncSession = ctx["db"]
-    job_id = ctx.get("job_id") or str(uuid.uuid4())
-    attempt_no = int(ctx.get("job_try") or 1)
-    audit = AuditService(db)
+    from app.workers.worker import session_scope
 
-    pid = uuid.UUID(project_id) if isinstance(project_id, str) else project_id
-    style = ReportStyle.model_validate(style_json or {})
+    # ⚠️ 用 `session_scope` 而不是裸 `_make_session(ctx)`：session 是本函数
+    # 开的，关闭的责任也在本函数，而两处任务**都曾忘了关**（2026-10-13 修）。
+    async with session_scope(ctx) as db:
+        job_id = ctx.get("job_id") or str(uuid.uuid4())
+        attempt_no = int(ctx.get("job_try") or 1)
+        audit = AuditService(db)
 
-    row = await _mark_pending(db, project_id=pid, job_id=job_id,
-                              output_format=output_format)
+        pid = uuid.UUID(project_id) if isinstance(project_id, str) else project_id
+        style = ReportStyle.model_validate(style_json or {})
 
-    try:
-        # ⚠️ 属性查找：`report_service.generate` 写成裸名会把当前函数对象绑死，
-        # 之后 monkeypatch 本模块属性/同名 import 改不到它，测试成假绿
-        # （bug-150 同族）。
-        from app.services.report import report_service
-        out = await report_service.generate(
-            report_type=report_type, project_id=pid,
-            record_ids=[uuid.UUID(r) for r in record_ids],
-            output_format=output_format, style=style, ctx=ctx_vars, db=db)
-        file_id = await _finalize(
-            db, row, digest=out.content_hash, relpath=out.file_path,
-            size=out.size_bytes, fmt=output_format)
-        return file_id
-    except Exception as e:  # noqa: BLE001
-        row.status = "FAILED"
-        row.error_message = f"{type(e).__name__}: {e}"[:500]
-        row.heartbeat_at = _now()
-        await audit.write(
-            action=AuditAction.REPORT_FAILED, resource_type="report",
-            resource_id=row.report_file_id,
-            detail={"task_id": job_id, "attempt_no": attempt_no,
-                    "report_type": report_type, "output_format": output_format,
-                    "error": f"{type(e).__name__}: {e}"[:500]},
-        )
-        raise          # 交给 ARQ 重试 —— 用户裁决「每次失败都写」由这里落实
+        row = await _mark_pending(db, project_id=pid, job_id=job_id,
+                                  output_format=output_format)
+        row_id = row.report_file_id
+
+        try:
+            # ⚠️ 属性查找：`report_service.generate` 写成裸名会把当前函数对象绑死，
+            # 之后 monkeypatch 本模块属性/同名 import 改不到它，测试成假绿
+            # （bug-150 同族）。
+            from app.services.report import report_service
+            out = await report_service.generate(
+                report_type=report_type, project_id=pid,
+                record_ids=[uuid.UUID(r) for r in record_ids],
+                output_format=output_format, style=style, ctx=ctx_vars, db=db)
+            file_id = await _finalize(
+                db, row, digest=out.content_hash, relpath=out.file_path,
+                size=out.size_bytes, fmt=output_format)
+            # ⚠️ 必须提交：`_finalize` 只 flush。不提交的话任务 session 一关，
+            # 成品行连同文件登记一起消失，而前端已经拿到 202 与 report_file_id，
+            # 之后每个状态查询都是 404。
+            await db.commit()
+            return file_id
+        except Exception as e:  # noqa: BLE001
+            # ⚠️ 先 rollback：渲染中途失败时事务可能已经 aborted，
+            # 此时任何写都会报 `current transaction is aborted`。
+            # rollback 之后 `row` 已过期，按主键重取，不读它的属性。
+            await db.rollback()
+            failed = (await db.execute(
+                select(ReportFile).where(
+                    ReportFile.report_file_id == row_id))).scalar_one_or_none()
+            if failed is not None:
+                failed.status = "FAILED"
+                failed.error_message = f"{type(e).__name__}: {e}"[:500]
+                failed.heartbeat_at = _now()
+            await audit.write(
+                action=AuditAction.REPORT_FAILED, resource_type="report",
+                resource_id=row_id,
+                detail={"task_id": job_id, "attempt_no": attempt_no,
+                        "report_type": report_type, "output_format": output_format,
+                        "error": f"{type(e).__name__}: {e}"[:500]},
+            )
+            # ⚠️ **必须提交**，否则行停在 PENDING，前端无限轮询 ——
+            # 而 `reclaim_stale_report_tasks` 那个 cron 存在的原因正是
+            # 这个状态压根写不进去（它是在补一个从没写成功过的状态）。
+            await db.commit()
+            raise      # 交给 ARQ 重试 —— 用户裁决「每次失败都写」由这里落实
 
 
 async def reclaim_stale_tasks(db: AsyncSession, *, older_than_minutes: int = STALE_MINUTES) -> int:
@@ -211,8 +252,38 @@ async def reclaim_stale_tasks(db: AsyncSession, *, older_than_minutes: int = STA
 
 
 async def reclaim_stale_tasks_batch(db: AsyncSession) -> int:
-    """cron 入口（ARQ cron 要的是无参函数）。"""
+    """**不**是 cron 入口 —— 它要一个 db，ARQ cron 只传 ctx。
+
+    保留它是为了单测能直接注入 session 调用。cron 走下面的
+    `reclaim_stale_report_tasks`（ctx 单参）。
+    """
     return await reclaim_stale_tasks(db, older_than_minutes=STALE_MINUTES)
+
+
+async def reclaim_stale_report_tasks(ctx) -> None:
+    """**cron 入口**（ARQ cron 只传一个 `ctx`）。
+
+    ⚠️ 原先 cron_jobs 里挂的是 `reclaim_stale_tasks_batch(db: AsyncSession)`，
+    而它的 docstring 写着「ARQ cron 要的是无参函数」—— 签名与自述矛盾。
+    ARQ 按位置传 ctx，于是它把 **ctx 当 db** 用：
+    `select(...)` 那里一碰 `.execute()` 就炸。
+
+    这个错只在 cron **真的触发**时才现形（每小时 :03 / :33），
+    所以它可以静静烂在仓库里 —— 与「worker 根本没起来」是两回事，
+    后者把它彻底遮住了。
+    """
+    db: AsyncSession = _ctx_session(ctx)
+    await reclaim_stale_tasks(db, older_than_minutes=STALE_MINUTES)
+
+
+def _ctx_session(ctx) -> AsyncSession:
+    """从 ARQ ctx 取 session（worker 的 `on_startup` 注入 session_factory）。"""
+    factory = ctx.get("session_factory")
+    if factory is None:
+        raise RuntimeError(
+            "ctx 里没有 session_factory —— worker 的 on_startup 没跑。"
+            "（直接调用本函数做单测时请注入 session_factory=...）")
+    return factory()
 
 
 __all__ = ["generate_report_task", "reclaim_stale_tasks",

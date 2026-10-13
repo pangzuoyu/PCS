@@ -33,8 +33,23 @@ CTX_VARS = {"project_no": "PCS-2026-001", "doc_no": "D-001", "rev": "A"}
 
 
 def _job_ctx(db, *, job_id="job-1", job_try=1):
-    """ARQ 传给任务的 ctx（实测 arq.worker 里 ctx = {job_id, job_try, ...}）。"""
-    return {"db": db, "job_id": job_id, "job_try": job_try}
+    """ARQ 传给任务的 ctx。
+
+    ⚠️ 这里原先造的是 `{"db": db, ...}` —— **照抄了一个不存在的契约**。
+    worker 的 `_on_startup` 注入的是 `session_factory`，从没注入过 `db`；
+    而本函数的 docstring 又写着「实测 ctx = {job_id, job_try, ...}」，
+    两句话互相矛盾，正文那个 `db` 才是被当真的那个。
+
+    后果：任务体读 `ctx["db"]` 时测试绿、生产 `KeyError: 'db'` →
+    job failed、worker 一行日志不打。2026-10-13 真跑 Redis + worker 时
+    才暴露。现在按 worker 的真实注入造：
+    `session_factory` 是一个「调用即返回该 session」的工厂。
+    """
+    return {
+        "session_factory": lambda: db,
+        "job_id": job_id,
+        "job_try": job_try,
+    }
 
 
 async def _make_row(db, project_id, *, status, heartbeat_at, seed="seed"):
@@ -186,6 +201,7 @@ async def test_each_failed_attempt_writes_one_audit_row(db, project_id, monkeypa
 async def test_failure_marks_row_failed_with_error_message(db, project_id, monkeypatch):
     """失败后必须有**终结状态** —— 否则前端只能看到「转圈到超时」。"""
     from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from app.models.report import ReportFile
     from app.services.report import report_service
@@ -323,3 +339,71 @@ def test_style_json_roundtrips_through_report_style():
     """style_json 从 DB/队列传进任务，必须能还原成 ReportStyle。"""
     s = ReportStyle(page_size="A3", font_size_body=12)
     assert ReportStyle.model_validate_json(s.model_dump_json()).font_size_body == 12
+
+@pytest.mark.asyncio
+async def test_failure_state_is_committed_not_just_left_in_the_session(
+        db, db_engine, project_id, monkeypatch):
+    """失败状态必须**提交**，不能只挂在任务自己的事务里。
+
+    ⚠️ 观测点：必须用**另一个 session** 读。上面那些测试用任务自己的
+    session 读未提交的数据 —— 替身比被测物更宽容，于是「任务从没 commit」
+    这件事在单测里完全看不见。
+
+    生产上任务体开自己的 session（`session_factory`），ARQ 复用 worker 的
+    进程 —— 那个 session 一关（或被 GC），未提交的 FAILED 就没了，
+    行留在 PENDING。前端于是无限轮询，而这正是
+    `reclaim_stale_report_tasks` 那个 cron 存在的原因：
+    **它是在补一个从没写成功过的状态，不是回收「僵死」**。
+    """
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.models.report import ReportFile
+    from app.services.report import report_service
+
+    async def boom(*a, **k):
+        raise RuntimeError("渲染炸了")
+
+    monkeypatch.setattr(report_service, "generate", boom)
+    with pytest.raises(RuntimeError):
+        await generate_report_task(
+            _job_ctx(db), report_type="EQUIPMENT_LIST", project_id=str(project_id),
+            record_ids=[], output_format="pdf", style_json={}, ctx_vars=CTX_VARS)
+
+    # 任务已经返回（session 已关）。**新开一个 session** 读，不复用任务那个：
+    # 复用的话读的是它自己未提交的数据，commit 与否根本看不出来。
+    async with async_sessionmaker(db_engine, expire_on_commit=False)() as other:
+        rows = (await other.execute(select(ReportFile))).scalars().all()
+    assert [r.status for r in rows] == ["FAILED"], (
+        f"独立 session 读到 {[r.status for r in rows]} —— "
+        "FAILED 只存在于任务自己的事务里，session 一关就没了")
+
+
+@pytest.mark.asyncio
+async def test_success_state_is_committed(db, db_engine, project_id):
+    """成功路径同样必须 **commit** —— 失败路径提交了不代表成功路径提交了。
+
+    同一个原因：`report_service.generate` / `_mark_pending` / `_finalize`
+    全都只 `flush`。任务自己的 session 一关，没提交的东西就没了 ——
+    成品 `report_files` 行连同文件登记一起消失，而前端已经拿到 202 与
+    `report_file_id`，之后每个状态查询都是 404。
+    """
+    import uuid
+
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.models.report import ReportFile
+
+    out = await generate_report_task(
+        _job_ctx(db), report_type="EQUIPMENT_LIST", project_id=str(project_id),
+        record_ids=[], output_format="pdf", style_json={}, ctx_vars=CTX_VARS)
+
+    async with async_sessionmaker(db_engine, expire_on_commit=False)() as other:
+        row = (await other.execute(
+            select(ReportFile).where(
+                ReportFile.report_file_id == uuid.UUID(out)))).scalar_one_or_none()
+    assert row is not None, (
+        f"独立 session 读不到 report_file_id={out} —— 成功路径从没 commit，"
+        "session 一关成品行就消失了")
+    assert row.status == "SUCCEEDED"

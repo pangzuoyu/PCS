@@ -38,49 +38,62 @@ async def execute_definition_task(
     output_format: str | None = None,
 ) -> str:
     """ARQ 任务体。返回 `report_file_id` 字符串。"""
-    db: AsyncSession = ctx["db"]
-    job_id = ctx.get("job_id") or str(uuid.uuid4())
-    attempt_no = int(ctx.get("job_try") or 1)
-    audit = AuditService(db)
-
-    pid = uuid.UUID(project_id) if project_id else None
-    did = uuid.UUID(def_id)
-    uid = uuid.UUID(user_id) if user_id else None
-
+    # ⚠️ 原本写的是 `ctx["db"]` —— 而 worker 的 `on_startup` 注入的是
+    # `ctx["session_factory"]`（键名对不上）。实测：job 被消费、
+    # 结果是 `KeyError: 'db'`，而 worker **一行日志不打**（它只在
+    # function not found 时 warn）→ 轮询 404 → 看起来像「job 没被消费」。
+    # 统一走 worker 的包装，它是对 session_factory 的唯一解释处。
+    # ⚠️ 局部 import：模块顶层 import 会与 worker.py 形成**循环导入**
+    # （worker 要 import 本模块注册函数，本模块又要 import worker 取包装）。
+    # 报错是 `cannot import name ... from partially initialized module`，
+    # 看起来像「函数没定义」，实际是 import 顺序问题。
     from app.services.report import builder_service
+    from app.workers.worker import session_scope
 
-    try:
-        out = await builder_service.execute_definition(
-            db, def_id=did, user_id=uid, project_id=pid,
-            temporary_filters=filters, temporary_max_rows=max_rows,
-            output_format=output_format,
-            task_id=job_id,
-        )
-        file_id = await _render_and_store(
-            db, out=out, project_id=pid, job_id=job_id, task_id=job_id,
-            output_format=out.snapshot.get("output_format") or "pdf")
-        await db.commit()
-    except Exception as e:  # noqa: BLE001
-        await db.rollback()
+    # ⚠️ 用 `session_scope` 而不是 `db = _make_session(ctx)`：session 是
+    # 本函数开的，关闭的责任也在本函数，而两处任务**都曾忘了关** ——
+    # 每个 job 泄漏一条连接，报错出现在完全无关的命令上（连接槽耗尽）。
+    async with session_scope(ctx) as db:
+        job_id = ctx.get("job_id") or str(uuid.uuid4())
+        attempt_no = int(ctx.get("job_try") or 1)
+        audit = AuditService(db)
+
+        pid = uuid.UUID(project_id) if project_id else None
+        did = uuid.UUID(def_id)
+        uid = uuid.UUID(user_id) if user_id else None
+
+        try:
+            out = await builder_service.execute_definition(
+                db, def_id=did, user_id=uid, project_id=pid,
+                temporary_filters=filters, temporary_max_rows=max_rows,
+                output_format=output_format,
+                task_id=job_id,
+            )
+            file_id = await _render_and_store(
+                db, out=out, project_id=pid, job_id=job_id, task_id=job_id,
+                output_format=out.snapshot.get("output_format") or "pdf")
+            await db.commit()
+        except Exception as e:  # noqa: BLE001
+            await db.rollback()
+            await audit.write(
+                action=AuditAction.REPORT_FAILED, resource_type="report_definition",
+                resource_id=did,
+                detail={"task_id": job_id, "attempt_no": attempt_no,
+                        "def_id": str(did), "error": f"{type(e).__name__}: {e}"[:500]},
+            )
+            await db.commit()
+            raise      # 交给 ARQ 重试；「每次失败都写」由这里落实
+
         await audit.write(
-            action=AuditAction.REPORT_FAILED, resource_type="report_definition",
+            action=AuditAction.REPORT_EXECUTED, resource_type="report_definition",
             resource_id=did,
-            detail={"task_id": job_id, "attempt_no": attempt_no,
-                    "def_id": str(did), "error": f"{type(e).__name__}: {e}"[:500]},
+            detail={"task_id": job_id, "def_id": str(did),
+                    "def_version": out.def_version, "row_count": out.row_count,
+                    "truncated": out.truncated,
+                    "condition_snapshot": out.snapshot},
         )
         await db.commit()
-        raise          # 交给 ARQ 重试；「每次失败都写」由这里落实
-
-    await audit.write(
-        action=AuditAction.REPORT_EXECUTED, resource_type="report_definition",
-        resource_id=did,
-        detail={"task_id": job_id, "def_id": str(did),
-                "def_version": out.def_version, "row_count": out.row_count,
-                "truncated": out.truncated,
-                "condition_snapshot": out.snapshot},
-    )
-    await db.commit()
-    return file_id
+        return file_id
 
 
 async def _build_style(db: AsyncSession, *, out, project_id):
@@ -119,7 +132,7 @@ def _exchanger_type(snapshot: dict) -> str | None:
         return None
     chosen = {(s.get("source"), s.get("field"))
               for s in (snapshot.get("SelectedFields") or [])}
-    for source, field in chosen:
+    for _source, field in chosen:
         spec = ds.fields.get(field)
         if spec is not None and spec.exchanger_type == "AIR_COOLER":
             return "AIR_COOLER"
@@ -137,7 +150,6 @@ async def _render_and_store(db: AsyncSession, *, out, project_id, job_id: str,
     """
     from app.services.report import report_service, watermark
     from app.services.report.blocks import HeadingBlock, TableBlock
-    from app.services.report.style_service import build_style
 
     blocks: list = [HeadingBlock(text="自定义报表", level=1)]
     if out.truncated:
