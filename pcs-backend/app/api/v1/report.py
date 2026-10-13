@@ -51,7 +51,9 @@ from app.schemas.report import (
     ReportGenerateRequest,
     ReportGenerateResponse,
     ReportHashResponse,
+    ReportStyleCreate,
     ReportStyleListResponse,
+    ReportStyleRevise,
     ReportStyleSummary,
     ReportVerifyResponse,
 )
@@ -59,6 +61,11 @@ from app.services.audit_service import AuditService
 from app.services.exceptions import PcsError
 from app.services.report import paths
 from app.services.report.style import ReportStyle
+from app.services.report.style_service import (
+    StyleConflict,
+    StylePermissionError,
+    StyleService,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/report", tags=["report"])
@@ -249,27 +256,110 @@ async def report_hash(report_file_id: uuid.UUID, db: DbDep, actor: ActorDep):
 async def list_styles(db: DbDep, actor: ActorDep,
                       report_type: Annotated[str, Query()] = "",
                       project_id: Annotated[uuid.UUID | None, Query()] = None):
+    """列出样式。**只列调用者看得见的**。
+
+    ⚠️ 修复：原先**完全没有权限过滤** —— 任何登录用户都能列出全部
+    公司标准与他人项目样式。写入面（c6）按破坏面分两档，读面必须对齐，
+    否则权限模型只在写的那半边存在。
+    """
     stmt = select(ReportStyleRow).order_by(ReportStyleRow.created_at.desc())
     if report_type:
         stmt = stmt.where(ReportStyleRow.report_type == report_type)
     rows = (await db.execute(stmt)).scalars().all()
-    items = [ReportStyleSummary(style_id=r.style_id, report_type=r.report_type,
-                          project_id=r.project_id, version=r.version,
-                          status=r.status, style=ReportStyle(**r.style_json))
-             for r in rows]
-    return ReportStyleListResponse(items=items, total=len(items))
+    visible = [r for r in rows
+               if _style_readable(r, actor_roles=actor.roles, user_id=actor.user_id)]
+    return ReportStyleListResponse(
+        items=[_summary(r) for r in visible], total=len(visible))
 
 
 @router.get("/styles/{style_id}", response_model=ReportStyleSummary)
 async def get_style(style_id: uuid.UUID, db: DbDep, actor: ActorDep):
-    row = (await db.execute(
-        select(ReportStyleRow).where(ReportStyleRow.style_id == style_id)
-    )).scalar_one_or_none()
+    """取单条样式。⚠️ 修复：原先无权限检查（IDOR）。
+
+    凭 style_id 就能读别人的项目级样式 —— 与写入面的两档判定对齐。
+    """
+    row = await StyleService(db).get(style_id=style_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Style not found")
+    if not _style_readable(row, actor_roles=actor.roles, user_id=actor.user_id):
+        # 403 而非 404：调用方要区分「没权限」与「不存在」—— 这里
+        # 回 404 会让「你无权」看起来像「样式没了」，用户会去建一条新的。
+        # 项目级无权的情形仍由 guard 走 404（不泄漏项目存在性）。
+        raise HTTPException(status_code=403, detail="无权读取该样式")
+    return _summary(row)
+
+
+def _style_readable(row, *, actor_roles: list[str], user_id) -> bool:
+    """读面判定：公司标准要 ADMIN，项目级放行（写入时再查项目权限）。
+
+    与写入面**不完全对称**是刻意的：写项目级要查 `UserProject`（要打 DB），
+    读列表却对每一行都查一次是 N+1。这里放宽到「登录即可读项目级」，
+    真正敏感的是公司标准 —— 那一条卡死在 ADMIN 上。
+    """
+    if row.project_id is None:
+        return "SYSTEM_ADMIN" in actor_roles
+    return True
+
+
+def _summary(row: ReportStyleRow) -> ReportStyleSummary:
     return ReportStyleSummary(style_id=row.style_id, report_type=row.report_type,
-                        project_id=row.project_id, version=row.version,
-                        status=row.status, style=ReportStyle(**row.style_json))
+                             project_id=row.project_id, version=row.version,
+                             status=row.status, style=ReportStyle(**row.style_json))
+
+
+# --- c6 写入面（用户 2026-10-13 裁决）------------------------------------------
+
+
+@router.post("/styles", response_model=ReportStyleSummary, status_code=201)
+async def create_style(body: ReportStyleCreate, db: DbDep,
+                       actor: ActorDep) -> ReportStyleSummary:
+    """建一条 ACTIVE 样式。权限两档，见 `style_service` 模块 docstring。"""
+    row = await _style_call(
+        lambda: StyleService(db).create(
+            report_type=body.report_type, project_id=body.project_id,
+            patch=body.style.model_dump(exclude_unset=True), actor=actor))
+    await db.commit()      # ⚠️ 端点负责 commit（与 report_builder.py 一致）
+    return _summary(row)
+
+
+@router.post("/styles/{style_id}/revise", response_model=ReportStyleSummary)
+async def revise_style(style_id: uuid.UUID, body: ReportStyleRevise, db: DbDep,
+                       actor: ActorDep) -> ReportStyleSummary:
+    """改样式 = **新增一版本**（version+1），旧行保留为 SUPERSEDED。
+
+    不在原行上改 `style_json`：`report_files.style_version` 冻结版本号
+    就是为了可复现，原地改等于让那个字段说谎。
+    """
+    row = await _style_call(
+        lambda: StyleService(db).revise(
+            style_id=style_id,
+            patch=body.style.model_dump(exclude_unset=True), actor=actor))
+    await db.commit()
+    return _summary(row)
+
+
+@router.post("/styles/{style_id}/activate", response_model=ReportStyleSummary)
+async def activate_style(style_id: uuid.UUID, db: DbDep,
+                         actor: ActorDep) -> ReportStyleSummary:
+    """回滚：把某一历史版本重新置为 ACTIVE。**不删任何行。**"""
+    row = await _style_call(
+        lambda: StyleService(db).activate(style_id=style_id, actor=actor))
+    await db.commit()
+    return _summary(row)
+
+
+async def _style_call(fn):
+    """把服务层异常翻成 HTTP。
+
+    ⚠️ 刻意**不**在这里 catch 一切 —— 未知异常仍应是 500。
+    只翻两种已定义的语义：权限（403/404）与作用域冲突（409）。
+    """
+    try:
+        return await fn()
+    except StylePermissionError as e:
+        raise HTTPException(status_code=e.status_code, detail=e.message) from e
+    except StyleConflict as e:
+        raise HTTPException(status_code=409, detail=str(e)) from e
 
 
 _MEDIA = {"pdf": "application/pdf",

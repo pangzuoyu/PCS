@@ -326,6 +326,11 @@ class AuditAction(str, enum.Enum):
     # 变成 FAILED」查不到。
     REPORT_TASK_RECLAIMED = "REPORT_TASK_RECLAIMED"
 
+    # REPORT_STYLE_CHANGED（c6）：样式改动。**公司标准必写、项目级不写**
+    # —— 项目级改字号是日常操作，全写会把审计表淹掉，真正的公司标准
+    # 改动反而淹没在里面。详见 style_service._audit。
+    REPORT_STYLE_CHANGED = "REPORT_STYLE_CHANGED"
+
 
 class ConfigStatus(str, enum.Enum):
     """配置资产状态（P2 Sprint 1.2 / SUP-001 §2.1 锁定）。

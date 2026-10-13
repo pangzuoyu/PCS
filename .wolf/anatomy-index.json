@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-13T00:53:35.737Z",
-    "fileCount": 754,
+    "lastScanned": "2026-10-13T01:48:04.011Z",
+    "fileCount": 757,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "979dab60ae3573e8d695a66ad68c6b547f734bcdfe3422d5624563021a90312e",
-    "storeUpdatedAt": "2026-10-13T00:53:35.748Z",
-    "rootHash": "2988ae02531881be"
+    "renderedHash": "9d5a1850c966ba3c2cfae25c9447d6fb41642cf7593f684af7e129a6d1a62190",
+    "storeUpdatedAt": "2026-10-13T01:48:04.022Z",
+    "rootHash": "b7fdafc1139416c8"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -23533,162 +23533,225 @@
     },
     "pcs-backend/app/schemas/report.py": {
       "description": "`/api/v1/report` 的请求/响应模型。",
-      "tokens": 629,
-      "hash": "1fd02421454f2035",
-      "size": 2722,
-      "mtimeMs": 1791772697446.428,
-      "updatedAt": "2026-10-12T02:38:17.493Z",
+      "tokens": 1410,
+      "hash": "0ce5e4d3a618cc4e",
+      "size": 6294,
+      "mtimeMs": 1791856062648.348,
+      "updatedAt": "2026-10-13T01:47:42.710Z",
       "source": "hook",
       "symbols": [
         {
-          "name": "GenerateRequest",
+          "name": "ReportGenerateRequest",
           "kind": "class",
           "startLine": 24,
           "endLine": 30,
-          "tokens": 71
+          "tokens": 72
         },
         {
-          "name": "GenerateResponse",
+          "name": "ReportGenerateResponse",
           "kind": "class",
           "startLine": 31,
           "endLine": 37,
-          "tokens": 45
+          "tokens": 46
         },
         {
-          "name": "ReportStatusResponse",
+          "name": "ReportFileStatusResponse",
           "kind": "class",
           "startLine": 38,
           "endLine": 46,
-          "tokens": 59
+          "tokens": 60
         },
         {
-          "name": "VerifyResponse",
+          "name": "ReportVerifyResponse",
           "kind": "class",
           "startLine": 47,
           "endLine": 59,
-          "tokens": 90
+          "tokens": 92
         },
         {
-          "name": "HashResponse",
+          "name": "ReportHashResponse",
           "kind": "class",
           "startLine": 60,
           "endLine": 68,
-          "tokens": 64
+          "tokens": 68
         },
         {
-          "name": "StyleSummary",
+          "name": "ReportStyleSummary",
           "kind": "class",
           "startLine": 69,
           "endLine": 77,
-          "tokens": 50
+          "tokens": 52
         },
         {
-          "name": "StyleListResponse",
+          "name": "ReportStyleListResponse",
           "kind": "class",
           "startLine": 78,
-          "endLine": 85,
-          "tokens": 80
+          "endLine": 95,
+          "tokens": 170
+        },
+        {
+          "name": "ReportStyleCreate",
+          "kind": "class",
+          "startLine": 96,
+          "endLine": 111,
+          "tokens": 121
+        },
+        {
+          "name": "StylePatch",
+          "kind": "class",
+          "startLine": 112,
+          "endLine": 150,
+          "tokens": 434
+        },
+        {
+          "name": "ReportStyleRevise",
+          "kind": "class",
+          "startLine": 151,
+          "endLine": 164,
+          "tokens": 126
         }
       ]
     },
     "pcs-backend/app/api/v1/report.py": {
       "description": "`/api/v1/report` 路由。",
-      "tokens": 3226,
-      "hash": "0c250d2c9c4fb76c",
-      "size": 13302,
-      "mtimeMs": 1791773727327.5608,
-      "updatedAt": "2026-10-12T02:55:27.377Z",
+      "tokens": 3993,
+      "hash": "ed658a6a4b8a86d1",
+      "size": 16931,
+      "mtimeMs": 1791856083965.706,
+      "updatedAt": "2026-10-13T01:48:04.011Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_client_ip",
           "kind": "fn",
-          "startLine": 68,
-          "endLine": 83,
+          "startLine": 74,
+          "endLine": 89,
           "tokens": 114
         },
         {
           "name": "_check_sig",
           "kind": "fn",
-          "startLine": 84,
-          "endLine": 99,
+          "startLine": 90,
+          "endLine": 105,
           "tokens": 211
         },
         {
           "name": "_load_or_404",
           "kind": "fn",
-          "startLine": 100,
-          "endLine": 108,
+          "startLine": 106,
+          "endLine": 114,
           "tokens": 95
         },
         {
           "name": "_guard_project",
           "kind": "fn",
-          "startLine": 109,
-          "endLine": 121,
-          "tokens": 153
+          "startLine": 115,
+          "endLine": 127,
+          "tokens": 154
         },
         {
           "name": "generate_report",
           "kind": "fn",
-          "startLine": 122,
-          "endLine": 159,
-          "tokens": 452
+          "startLine": 128,
+          "endLine": 165,
+          "tokens": 457
         },
         {
           "name": "report_status",
           "kind": "fn",
-          "startLine": 160,
-          "endLine": 169,
-          "tokens": 127
+          "startLine": 166,
+          "endLine": 175,
+          "tokens": 128
         },
         {
           "name": "download",
           "kind": "fn",
-          "startLine": 170,
-          "endLine": 190,
-          "tokens": 261
+          "startLine": 176,
+          "endLine": 196,
+          "tokens": 262
         },
         {
           "name": "verify",
           "kind": "fn",
-          "startLine": 191,
-          "endLine": 228,
-          "tokens": 432
+          "startLine": 197,
+          "endLine": 234,
+          "tokens": 436
         },
         {
           "name": "report_hash",
           "kind": "fn",
-          "startLine": 229,
-          "endLine": 242,
-          "tokens": 166
+          "startLine": 235,
+          "endLine": 248,
+          "tokens": 170
         },
         {
           "name": "list_styles",
           "kind": "fn",
-          "startLine": 243,
-          "endLine": 257,
-          "tokens": 225
+          "startLine": 249,
+          "endLine": 268,
+          "tokens": 240
         },
         {
           "name": "get_style",
           "kind": "fn",
-          "startLine": 258,
-          "endLine": 273,
-          "tokens": 212
+          "startLine": 269,
+          "endLine": 284,
+          "tokens": 174
+        },
+        {
+          "name": "_style_readable",
+          "kind": "fn",
+          "startLine": 285,
+          "endLine": 296,
+          "tokens": 97
+        },
+        {
+          "name": "_summary",
+          "kind": "fn",
+          "startLine": 297,
+          "endLine": 306,
+          "tokens": 130
+        },
+        {
+          "name": "create_style",
+          "kind": "fn",
+          "startLine": 307,
+          "endLine": 316,
+          "tokens": 140
+        },
+        {
+          "name": "revise_style",
+          "kind": "fn",
+          "startLine": 317,
+          "endLine": 330,
+          "tokens": 159
+        },
+        {
+          "name": "activate_style",
+          "kind": "fn",
+          "startLine": 331,
+          "endLine": 337,
+          "tokens": 81
+        },
+        {
+          "name": "_style_call",
+          "kind": "fn",
+          "startLine": 338,
+          "endLine": 356,
+          "tokens": 175
         },
         {
           "name": "_file_intact",
           "kind": "fn",
-          "startLine": 274,
-          "endLine": 288,
+          "startLine": 357,
+          "endLine": 371,
           "tokens": 115
         },
         {
           "name": "_expected_digest",
           "kind": "fn",
-          "startLine": 289,
-          "endLine": 294,
+          "startLine": 372,
+          "endLine": 377,
           "tokens": 46
         }
       ]
@@ -25108,6 +25171,291 @@
           "startLine": 476,
           "endLine": 574,
           "tokens": 1238
+        }
+      ]
+    },
+    "pcs-backend/tests/services/report/test_style_service.py": {
+      "description": "c6：样式写入服务（版本 + 回滚 + 两档权限 + 审计）。",
+      "tokens": 2796,
+      "hash": "785f43f60d7c0e45",
+      "size": 12033,
+      "mtimeMs": 1791855903722.8923,
+      "updatedAt": "2026-10-13T01:45:03.770Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_Actor",
+          "kind": "class",
+          "startLine": 48,
+          "endLine": 61,
+          "tokens": 102
+        },
+        {
+          "name": "session",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 71,
+          "tokens": 60
+        },
+        {
+          "name": "test_revise_adds_a_row_instead_of_overwriting",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 94,
+          "tokens": 273
+        },
+        {
+          "name": "test_version_increments_on_each_revise",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 104,
+          "tokens": 134
+        },
+        {
+          "name": "test_only_one_active_row_per_scope",
+          "kind": "fn",
+          "startLine": 105,
+          "endLine": 127,
+          "tokens": 220
+        },
+        {
+          "name": "test_rollback_reactivates_the_old_row_without_deleting",
+          "kind": "fn",
+          "startLine": 128,
+          "endLine": 150,
+          "tokens": 271
+        },
+        {
+          "name": "test_activate_of_an_already_active_row_is_a_no_op_not_an_error",
+          "kind": "fn",
+          "startLine": 151,
+          "endLine": 166,
+          "tokens": 152
+        },
+        {
+          "name": "test_company_standard_requires_system_admin",
+          "kind": "fn",
+          "startLine": 167,
+          "endLine": 175,
+          "tokens": 109
+        },
+        {
+          "name": "test_project_level_uses_project_access_not_admin",
+          "kind": "fn",
+          "startLine": 176,
+          "endLine": 202,
+          "tokens": 257
+        },
+        {
+          "name": "test_project_level_denied_when_no_project_access",
+          "kind": "fn",
+          "startLine": 203,
+          "endLine": 222,
+          "tokens": 219
+        },
+        {
+          "name": "test_system_admin_bypasses_project_check",
+          "kind": "fn",
+          "startLine": 223,
+          "endLine": 230,
+          "tokens": 97
+        },
+        {
+          "name": "test_revising_a_company_standard_still_requires_admin",
+          "kind": "fn",
+          "startLine": 231,
+          "endLine": 248,
+          "tokens": 181
+        },
+        {
+          "name": "test_company_standard_change_writes_audit",
+          "kind": "fn",
+          "startLine": 249,
+          "endLine": 269,
+          "tokens": 214
+        },
+        {
+          "name": "test_project_level_change_writes_no_audit",
+          "kind": "fn",
+          "startLine": 270,
+          "endLine": 283,
+          "tokens": 152
+        },
+        {
+          "name": "test_statuses_are_exactly_active_and_superseded",
+          "kind": "fn",
+          "startLine": 284,
+          "endLine": 292,
+          "tokens": 72
+        }
+      ]
+    },
+    "pcs-backend/app/services/report/style_service.py": {
+      "description": "c6：样式写入 —— 版本化 + 回滚 + 两档权限（用户 2026-10-13 裁决）。",
+      "tokens": 2574,
+      "hash": "26950970562dd045",
+      "size": 11256,
+      "mtimeMs": 1791855941187.453,
+      "updatedAt": "2026-10-13T01:45:41.235Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_ActorLike",
+          "kind": "class",
+          "startLine": 50,
+          "endLine": 58,
+          "tokens": 40
+        },
+        {
+          "name": "StylePermissionError",
+          "kind": "class",
+          "startLine": 59,
+          "endLine": 74,
+          "tokens": 121
+        },
+        {
+          "name": "StyleService",
+          "kind": "class",
+          "startLine": 75,
+          "endLine": 253,
+          "tokens": 1998
+        },
+        {
+          "name": "StyleConflict",
+          "kind": "class",
+          "startLine": 254,
+          "endLine": 257,
+          "tokens": 23
+        },
+        {
+          "name": "_scope",
+          "kind": "fn",
+          "startLine": 258,
+          "endLine": 260,
+          "tokens": 34
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_report_styles_write.py": {
+      "description": "c6：样式写入端点契约。",
+      "tokens": 2215,
+      "hash": "5dbffd59974dbec8",
+      "size": 9099,
+      "mtimeMs": 1791856035724.1902,
+      "updatedAt": "2026-10-13T01:47:15.770Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_auth",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 34,
+          "tokens": 38
+        },
+        {
+          "name": "auth_admin",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 39,
+          "tokens": 20
+        },
+        {
+          "name": "auth_designer",
+          "kind": "fn",
+          "startLine": 40,
+          "endLine": 50,
+          "tokens": 54
+        },
+        {
+          "name": "test_create_returns_201_with_the_summary_shape",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 63,
+          "tokens": 135
+        },
+        {
+          "name": "test_company_standard_requires_admin",
+          "kind": "fn",
+          "startLine": 64,
+          "endLine": 71,
+          "tokens": 92
+        },
+        {
+          "name": "test_second_active_style_in_same_scope_is_409",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 84,
+          "tokens": 142
+        },
+        {
+          "name": "test_company_and_project_scopes_do_not_collide",
+          "kind": "fn",
+          "startLine": 85,
+          "endLine": 102,
+          "tokens": 192
+        },
+        {
+          "name": "test_revise_returns_new_version_and_keeps_the_old_row",
+          "kind": "fn",
+          "startLine": 103,
+          "endLine": 119,
+          "tokens": 215
+        },
+        {
+          "name": "test_activate_rolls_back_without_deleting",
+          "kind": "fn",
+          "startLine": 120,
+          "endLine": 138,
+          "tokens": 245
+        },
+        {
+          "name": "test_roll_back_of_a_company_style_still_requires_admin",
+          "kind": "fn",
+          "startLine": 139,
+          "endLine": 151,
+          "tokens": 154
+        },
+        {
+          "name": "test_unknown_style_id_is_404_not_500",
+          "kind": "fn",
+          "startLine": 152,
+          "endLine": 160,
+          "tokens": 83
+        },
+        {
+          "name": "test_font_dir_cannot_be_set_through_the_api",
+          "kind": "fn",
+          "startLine": 161,
+          "endLine": 174,
+          "tokens": 136
+        },
+        {
+          "name": "test_locked_fields_cannot_be_relaxed_through_the_api",
+          "kind": "fn",
+          "startLine": 175,
+          "endLine": 187,
+          "tokens": 143
+        },
+        {
+          "name": "test_unknown_style_field_is_rejected",
+          "kind": "fn",
+          "startLine": 188,
+          "endLine": 200,
+          "tokens": 124
+        },
+        {
+          "name": "test_invalid_page_size_is_rejected",
+          "kind": "fn",
+          "startLine": 201,
+          "endLine": 215,
+          "tokens": 133
+        },
+        {
+          "name": "test_getting_a_company_style_requires_admin",
+          "kind": "fn",
+          "startLine": 216,
+          "endLine": 226,
+          "tokens": 136
         }
       ]
     }

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T00:53:35.737Z
-> Files: 754 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T01:48:04.011Z
+> Files: 757 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1095,7 +1095,7 @@
 - `pump.py` — P4-4-4 PUMP 链 API。 (~2574 tok)
 - `records.py` — Records API（Sprint 2）。 (~3276 tok)
 - `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~1791 tok)
-- `report.py` — `/api/v1/report` 路由。 (~3226 tok)
+- `report.py` — `/api/v1/report` 路由。 (~3993 tok)
 - `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1773 tok)
 - `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~4193 tok)
 - `stream_symbols.py` — 物流符号表端点（SYM-3 / SUP-002 §8）。 (~4194 tok)
@@ -1130,7 +1130,7 @@
 - `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~848 tok)
 - `project.py` — 项目产品类别 schema (GB 30251-2024 §6.1.5 电折标口径判据). (~297 tok)
 - `report_builder.py` — `/api/v1/report-builder` 的请求/响应模型（Phase 2）。 (~1351 tok)
-- `report.py` — `/api/v1/report` 的请求/响应模型。 (~629 tok)
+- `report.py` — `/api/v1/report` 的请求/响应模型。 (~1410 tok)
 - `util.py` — S1-5b UTIL API schemas。 (~3550 tok)
 - `workspace.py` — Workspace Pydantic schemas（Sprint 1）。 (~711 tok)
 
@@ -1165,6 +1165,7 @@
 - `renderer_pdf.py` — PDF 渲染器 —— ReportLab Platypus 直接生成。 (~3712 tok)
 - `renderer_xlsx.py` — XLSX 渲染器 —— XlsxWriter 流式写入。 (~1142 tok)
 - `report_service.py` — 报表生成编排 —— 取数 → 渲染 → 落盘 → 记 `ReportFile` → 审计。 (~3608 tok)
+- `style_service.py` — c6：样式写入 —— 版本化 + 回滚 + 两档权限（用户 2026-10-13 裁决）。 (~2574 tok)
 - `style.py` — 报表样式配置 —— ADR-P8-001：样式驱动生成，替代 .dotx/.xltx 模板。 (~1176 tok)
 - `watermark.py` — 导出水印与格式分发（P8b b8）。 (~1301 tok)
 
@@ -1208,6 +1209,7 @@
 - `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3030 tok)
 - `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
 - `test_report_builder.py` — `/api/v1/report-builder` 路由契约（Phase 2）。 (~2883 tok)
+- `test_report_styles_write.py` — c6：样式写入端点契约。 (~2215 tok)
 - `test_report.py` — `/api/v1/report` 路由契约。 (~2381 tok)
 - `test_subtable_duplicate_conflict.py` — 既有子表 POST 端点的 UNIQUE 冲突处理 (2026-10-05). (~1507 tok)
 
@@ -1251,6 +1253,7 @@
 - `test_renderer_visual.py` — **像素级**验证：关键模板元素必须真的画在纸上。 (~1288 tok)
 - `test_renderers.py` — DOCX / XLSX 渲染器契约。 (~2382 tok)
 - `test_report_service.py` — 生成编排契约 —— 二维码载荷 + 取数 + 渲染 + 内容哈希存储 + 审计。 (~1906 tok)
+- `test_style_service.py` — c6：样式写入服务（版本 + 回滚 + 两档权限 + 审计）。 (~2796 tok)
 - `test_style.py` — ReportStyle 四级优先级合并的契约测试。 (~884 tok)
 
 ## pcs-backend/tests/services/util/

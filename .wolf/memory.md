@@ -1523,3 +1523,8 @@
 | 08:47 | Edited pcs-backend/scripts/report_heat_coverage.py | 10→12 lines | ~122 |
 | 08:47 | Edited pcs-backend/scripts/report_heat_coverage.py | expanded (+6 lines) | ~120 |
 | 08:53 | Edited TODOS.md | expanded (+34 lines) | ~363 |
+| 09:45 | Created pcs-backend/tests/services/report/test_style_service.py | — | ~2796 |
+| 09:45 | Created pcs-backend/app/services/report/style_service.py | — | ~2574 |
+| 09:47 | Created pcs-backend/tests/api/v1/test_report_styles_write.py | — | ~2215 |
+| 09:47 | Edited pcs-backend/app/schemas/report.py | modified _no_non_writable() | ~782 |
+| 09:48 | Edited pcs-backend/app/api/v1/report.py | added error handling | ~1149 |
