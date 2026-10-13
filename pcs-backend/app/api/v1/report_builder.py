@@ -25,6 +25,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
+from app.models.report import ReportExecutionLog
 from app.schemas.report_builder import (
     ReportBuilderDatasource,
     ReportBuilderDatasourceList,
@@ -39,7 +40,6 @@ from app.schemas.report_builder import (
 from app.services.exceptions import PcsError
 from app.services.report import watermark
 from app.services.report.datasource_registry import DATASOURCES, JOINS
-from app.models.report import ReportExecutionLog
 from app.services.report.definition_service import DefinitionService
 
 router = APIRouter(prefix="/report-builder", tags=["report-builder"])
