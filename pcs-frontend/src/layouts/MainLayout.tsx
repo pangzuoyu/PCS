@@ -56,6 +56,10 @@ const MENU_ITEMS: MenuItem[] = [
     { key: '/util/cooling-water', label: '冷却水子表' },
     { key: '/util/energy-summary', label: '综合能耗聚合' },
   ]),
+  group('报表', 'report', [
+    { key: '/report/definitions', label: '报表定义' },
+    { key: '/report/styles', label: '报表样式' },
+  ]),
   group('审计', 'audit', [
     { key: '/audit/logs', label: 'Audit Query (F-P2-009)' },
   ]),

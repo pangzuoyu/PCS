@@ -17,6 +17,10 @@ import {
   FlashRoute,
   FormulaEditorRoute,
   HeatRoute,
+  ReportDefinitionListRoute,
+  ReportDefinitionEditorRoute,
+  ReportExecuteRoute,
+  ReportStyleRoute,
   HeatingValueRoute,
   ImportWizardRoute,
   PipeClassListRoute,
@@ -90,6 +94,12 @@ const router = createBrowserRouter([
       { path: 'psv', element: <PsvRoute /> },
       { path: 'psv/standard-profile', element: <PsvStandardProfileRoute /> },
       { path: 'heat', element: <HeatRoute /> },
+
+      // P8 REPORT_BUILDER
+      { path: 'report/definitions', element: <ReportDefinitionListRoute /> },
+      { path: 'report/definitions/:defId', element: <ReportDefinitionEditorRoute /> },
+      { path: 'report/execute/:defId', element: <ReportExecuteRoute /> },
+      { path: 'report/styles', element: <ReportStyleRoute /> },
 
       // 设备计算（P6-5 前端补课：CV + PSYCHRO 饱和水含量）
       { path: 'cv', element: <CvRoute /> },

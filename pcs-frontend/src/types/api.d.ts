@@ -5180,6 +5180,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/report-builder/executions/{task_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Execution Status
+         * @description 轮询执行进度。**查不到就是 404**，不返回占位的 PENDING。
+         *
+         *     返回占位值会让前端分不清「任务不存在」（应当立刻停止轮询）与
+         *     「任务还在跑」（应当继续），于是对着一个不存在的任务转到超时。
+         */
+        get: operations["execution_status_api_v1_report_builder_executions__task_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/report-builder/definitions/{def_id}/execute": {
         parameters: {
             query?: never;
@@ -13084,6 +13107,30 @@ export interface components {
             max_rows?: number | null;
             /** Output Format */
             output_format?: string | null;
+        };
+        /**
+         * ReportExecutionStatus
+         * @description **按 `task_id` 查执行进度**（b11 时序契约的一环）。
+         *
+         *     `report_file_id` 在生成完成前为 `None` —— 那正是「还在跑」的信号。
+         *     前端拿到它就去 `/report/{file_id}/status` 拿文件状态、再下载。
+         *
+         *     ⚠️ `RUNNING` / `FINISHED` 是**这里**的合成状态，不是任何一张表的
+         *     列：文件行还没建出来时无处可查，而「任务已入队未开始」和「正在渲染」
+         *     对用户是同一件事，分开只会让前端多写两个分支。
+         */
+        ReportExecutionStatus: {
+            /** Task Id */
+            task_id: string;
+            /**
+             * Def Id
+             * Format: uuid
+             */
+            def_id: string;
+            /** Status */
+            status: string;
+            /** Report File Id */
+            report_file_id?: string | null;
         };
         /** ReportFileStatusResponse */
         ReportFileStatusResponse: {
@@ -26714,6 +26761,39 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ReportDefinitionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    execution_status_api_v1_report_builder_executions__task_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                task_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportExecutionStatus"];
                 };
             };
             /** @description Validation Error */

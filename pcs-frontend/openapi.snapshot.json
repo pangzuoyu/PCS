@@ -15936,6 +15936,65 @@
         }
       }
     },
+    "/api/v1/report-builder/executions/{task_id}": {
+      "get": {
+        "tags": [
+          "report-builder"
+        ],
+        "summary": "Execution Status",
+        "description": "轮询执行进度。**查不到就是 404**，不返回占位的 PENDING。\n\n返回占位值会让前端分不清「任务不存在」（应当立刻停止轮询）与\n「任务还在跑」（应当继续），于是对着一个不存在的任务转到超时。",
+        "operationId": "execution_status_api_v1_report_builder_executions__task_id__get",
+        "parameters": [
+          {
+            "name": "task_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Task Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportExecutionStatus"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/report-builder/definitions/{def_id}/execute": {
       "post": {
         "tags": [
@@ -30241,6 +30300,43 @@
         "type": "object",
         "title": "ReportExecuteRequest",
         "description": "执行请求体。\n\n全部可选：不传就是「按定义原样执行」。`filters` / `max_rows` 是**临时**\n调整（SPEC §3.2.2(5)），不回写定义，只进执行日志的快照。"
+      },
+      "ReportExecutionStatus": {
+        "properties": {
+          "task_id": {
+            "type": "string",
+            "title": "Task Id"
+          },
+          "def_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Def Id"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "report_file_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Report File Id"
+          }
+        },
+        "type": "object",
+        "required": [
+          "task_id",
+          "def_id",
+          "status"
+        ],
+        "title": "ReportExecutionStatus",
+        "description": "**按 `task_id` 查执行进度**（b11 时序契约的一环）。\n\n`report_file_id` 在生成完成前为 `None` —— 那正是「还在跑」的信号。\n前端拿到它就去 `/report/{file_id}/status` 拿文件状态、再下载。\n\n⚠️ `RUNNING` / `FINISHED` 是**这里**的合成状态，不是任何一张表的\n列：文件行还没建出来时无处可查，而「任务已入队未开始」和「正在渲染」\n对用户是同一件事，分开只会让前端多写两个分支。"
       },
       "ReportFileStatusResponse": {
         "properties": {

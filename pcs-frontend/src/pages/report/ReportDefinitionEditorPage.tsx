@@ -52,22 +52,14 @@ import {
   errorMessage,
   reportBuilderApi,
 } from '../../api/reportBuilder';
-import type {
-  ReportBuilderDatasource,
-  ReportBuilderField,
-  ReportDefinitionBody,
-} from '../../api/reportBuilder';
-
-/** 一条已选字段的编辑态（定义体里 SelectedFields 的一项）。 */
-interface FieldRow {
-  source: string;
-  field: string;
-  label: string;
-  alias: string;
-  order: number;
-  visible: boolean;
-  level: string | null;
-}
+import type { ReportBuilderDatasource } from '../../api/reportBuilder';
+import {
+  asSingleFilter,
+  buildBody,
+  fieldsAtLevel,
+  toRows,
+} from './definitionBody';
+import type { FieldRow, SingleFilter } from './definitionBody';
 
 const DETAIL_LEVELS = [
   { value: 'BASIC', label: 'BASIC（基本项）' },
@@ -95,9 +87,7 @@ export function ReportDefinitionEditorPage(): JSX.Element {
   const [maxRows, setMaxRows] = useState(10000);
   const [outputFormat, setOutputFormat] = useState('pdf');
   // ⚠️ 第一批固定存**至多一条** EQ 条件。null = 无过滤。
-  const [filter, setFilter] = useState<{
-    source: string; field: string; operator: string; value: string;
-  } | null>(null);
+  const [filter, setFilter] = useState<SingleFilter | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -121,7 +111,7 @@ export function ReportDefinitionEditorPage(): JSX.Element {
         setOutputFormat(d.output_format);
         setRows(toRows(body, ds.datasources));
         const first = body.FilterConditions?.[0];
-        const c = asCondition(first);
+        const c = asSingleFilter(first);
         if (c) setFilter(c);
       }
     } catch (err) {
@@ -134,16 +124,8 @@ export function ReportDefinitionEditorPage(): JSX.Element {
   useEffect(() => { void load(); }, [load]);
 
   /** 当前级别可见的字段（BASIC 看不到 DETAIL 字段）。 */
-  const visibleFields = useMemo(() => {
-    const out: ReportBuilderField[] = [];
-    for (const ds of sources) {
-      for (const f of ds.fields) {
-        if (level === 'BASIC' && f.level === 'DETAIL') continue;
-        out.push({ ...f, label: f.name });
-      }
-    }
-    return out;
-  }, [sources, level]);
+  const visibleFields = useMemo(
+    () => fieldsAtLevel(sources, level), [sources, level]);
 
   const fieldOptions = useMemo(() => visibleFields.map((f) => ({
     value: f.name,
@@ -215,6 +197,7 @@ export function ReportDefinitionEditorPage(): JSX.Element {
   };
 
   return (
+    <div className="page">
     <PageHeader
       title={isNew ? '新建报表定义' : `编辑：${meta?.name ?? ''}`}
       actions={
@@ -227,7 +210,7 @@ export function ReportDefinitionEditorPage(): JSX.Element {
             onClick={() => void save(true)}>保存并发布</Button>
         </Space>
       }
-    >
+    />
       <Spin spinning={loading}>
         {error && <Alert type="error" showIcon message={error}
           style={{ marginBottom: 16 }} />}
@@ -296,7 +279,7 @@ export function ReportDefinitionEditorPage(): JSX.Element {
               },
               {
                 title: '字段', dataIndex: 'field',
-                render: (v: string, r, i) => (
+                render: (v: string, _row, i) => (
                   <Select showSearch style={{ width: 240 }} value={v}
                     onChange={(nv) => {
                       const f = visibleFields.find((x) => x.name === nv);
@@ -308,8 +291,8 @@ export function ReportDefinitionEditorPage(): JSX.Element {
               },
               {
                 title: '显示名', dataIndex: 'alias', width: 180,
-                render: (v: string, r, i) => (
-                  <Input placeholder={r.label} value={v}
+                render: (v: string, row, i) => (
+                  <Input placeholder={row.label} value={v}
                     onChange={(e) => patch(i, { alias: e.target.value })} />
                 ),
               },
@@ -369,73 +352,16 @@ export function ReportDefinitionEditorPage(): JSX.Element {
           </Typography.Paragraph>
         </Card>
       </Spin>
-    </PageHeader>
+  </div>
   );
 }
 
-// --- 纯函数（可单测）-----------------------------------------------------------
-
+/** 新建时的空 meta。
+ *
+ * ⚠️ 必须是**工厂**而不是共享常量：`setMeta(m => ({ ...m ?? blankMeta(), name }))`
+ * 若返回同一个对象，多次编辑会串改同一个引用。
+ */
 function blankMeta() {
   return { name: '', category: '', description: '', sharedWith: 'CREATOR_ONLY',
     projectId: null, status: 'DRAFT' };
-}
-
-/** 定义体 → 编辑态行。字段显示名从数据源字段树回填（定义体里只有 key）。 */
-export function toRows(
-  body: ReportDefinitionBody,
-  sources: ReportBuilderDatasource[],
-): FieldRow[] {
-  const byKey = new Map(sources.map((s) => [s.key, s.fields]));
-  return (body.SelectedFields ?? []).map((sel) => {
-    const spec = byKey.get(sel.source)?.find((f) => f.name === sel.field);
-    return {
-      source: sel.source, field: sel.field, label: spec?.label ?? sel.field,
-      alias: sel.alias ?? '', order: sel.order ?? 0,
-      visible: sel.visible ?? true, level: spec?.level ?? null,
-    };
-  });
-}
-
-/** 编辑态 → 定义体。**只发 EQ 单条**（见文件头分批说明）。 */
-export function buildBody(input: {
-  rows: FieldRow[]; level: string; maxRows: number; outputFormat: string;
-  filter: { source: string; field: string; operator: string; value: string } | null;
-}): ReportDefinitionBody {
-  const sources = [...new Set(input.rows.map((r) => r.source))].map((s) => ({ source: s }));
-  const conditions = input.filter
-    ? [{ source: input.filter.source, field: input.filter.field,
-        operator: input.filter.operator, value: input.filter.value }]
-    : [];
-  return {
-    DataSources: sources,
-    SelectedFields: input.rows.map((r, i) => ({
-      source: r.source, field: r.field, alias: r.alias,
-      order: r.order ?? i, visible: r.visible,
-    })),
-    FilterConditions: conditions,
-    SortBy: [],
-    MaxRows: input.maxRows,
-    OutputFormat: input.outputFormat,
-    detailLevel: input.level === 'DETAIL' ? 'DETAIL' : 'BASIC',
-  } as ReportDefinitionBody;
-}
-
-/** 定义体里那一项是不是**叶子条件**（而不是 AND/OR 分组）。
- *
- * 第一批不渲染分组，所以遇到分组一律当作「无过滤」——
- * **静默丢弃已经存在的条件**是不可接受的，所以这里返回 null，
- * 由调用方保持 filter 为 null，并在页面上不谎称「已加载全部条件」。
- */
-function asCondition(node: unknown): {
-  source: string; field: string; operator: string; value: string;
-} | null {
-  if (!node || typeof node !== 'object') return null;
-  const n = node as Record<string, unknown>;
-  if (Array.isArray(n.children)) return null;      // 分组：第二批才处理
-  if (typeof n.field !== 'string' || typeof n.operator !== 'string') return null;
-  return {
-    source: typeof n.source === 'string' ? n.source : 'EQUIP_LIST',
-    field: n.field, operator: n.operator,
-    value: typeof n.value === 'string' ? n.value : '',
-  };
 }

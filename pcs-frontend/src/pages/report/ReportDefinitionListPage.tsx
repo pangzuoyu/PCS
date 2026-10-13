@@ -25,7 +25,6 @@ import {
   Tag,
   Tooltip,
   Typography,
-  message,
 } from 'antd';
 import { PlusOutlined, ReloadOutlined } from '@ant-design/icons';
 import { Link, useNavigate } from 'react-router-dom';
@@ -155,6 +154,7 @@ export function ReportDefinitionListPage(): JSX.Element {
   ], [navigate]);
 
   return (
+    <div className="page">
     <PageHeader
       title="报表定义"
       actions={
@@ -168,7 +168,7 @@ export function ReportDefinitionListPage(): JSX.Element {
           </Button>
         </Space>
       }
-    >
+    />
       <Space style={{ marginBottom: 16 }} wrap>
         <Input.Search placeholder="按名称 / 分类筛选（仅筛后端已可见的行）"
           allowClear onChange={(e) => setKeyword(e.target.value)}
@@ -191,6 +191,6 @@ export function ReportDefinitionListPage(): JSX.Element {
           locale={{ emptyText: '还没有报表定义。点「新建定义」开始。' }}
         />
       </Spin>
-    </PageHeader>
+  </div>
   );
 }

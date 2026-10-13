@@ -244,6 +244,31 @@ export function HeatRoute(): JSX.Element {
   return <HeatComputePage />;
 }
 
+// === P8 REPORT_BUILDER（b10–b12 / c6）===
+//
+// 直接挂页面，不套 fixture 包装：这四页自己用 `src/api/reportBuilder.ts`
+// 取数（真 client），不像 P3/P4 那批组件要靠路由层喂 mock props。
+import { ReportDefinitionListPage } from './report/ReportDefinitionListPage';
+import { ReportDefinitionEditorPage } from './report/ReportDefinitionEditorPage';
+import { ReportExecutePage } from './report/ReportExecutePage';
+import { ReportStylePage } from './report/ReportStylePage';
+
+export function ReportDefinitionListRoute(): JSX.Element {
+  return <ReportDefinitionListPage />;
+}
+
+export function ReportDefinitionEditorRoute(): JSX.Element {
+  return <ReportDefinitionEditorPage />;
+}
+
+export function ReportExecuteRoute(): JSX.Element {
+  return <ReportExecutePage />;
+}
+
+export function ReportStyleRoute(): JSX.Element {
+  return <ReportStylePage />;
+}
+
 // === P5-3 PSV 项目标准配置 ===
 export function PsvStandardProfileRoute(): JSX.Element {
   return <PsvStandardProfilePage projectId={PROJECT_ID} />;

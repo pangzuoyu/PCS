@@ -1535,3 +1535,6 @@
 | 10:09 | Created pcs-frontend/src/pages/report/ReportExecutePage.tsx | — | ~2349 |
 | 10:09 | Created pcs-backend/alembic/versions/p8_005_execution_task_link.py | — | ~536 |
 | 10:10 | Created pcs-backend/tests/api/v1/test_execution_poll_contract.py | — | ~663 |
+| 10:23 | Created pcs-frontend/src/pages/report/definitionBody.ts | — | ~1072 |
+| 10:24 | Created pcs-frontend/tests/report/definitionBody.test.ts | — | ~1173 |
+| 10:25 | Created pcs-frontend/src/pages/report/ReportStylePage.tsx | — | ~3019 |

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T02:10:05.252Z
-> Files: 764 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T02:25:08.121Z
+> Files: 767 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1313,9 +1313,11 @@
 
 ## pcs-frontend/src/pages/report/
 
+- `definitionBody.ts` — 定义体 ⇄ 编辑态的纯函数转换。 (~1072 tok)
 - `ReportDefinitionEditorPage.tsx` — ReportDefinitionEditorPage — 定义编辑器（b10）。 (~4376 tok)
 - `ReportDefinitionListPage.tsx` — ReportDefinitionListPage — REPORT_BUILDER 定义管理列表（b12）。 (~1595 tok)
 - `ReportExecutePage.tsx` — ReportExecutePage — 执行面板（b11）。 (~2349 tok)
+- `ReportStylePage.tsx` — ReportStylePage — 样式管理（c6）。 (~3019 tok)
 
 ## pcs-frontend/src/pages/util/
 
@@ -1332,6 +1334,10 @@
 ## pcs-frontend/tests/pages/audit/
 
 - `AuditLogPage.test.tsx` — AuditLogPage 组件测试 (F-P2-009 Sprint 3). (~598 tok)
+
+## pcs-frontend/tests/report/
+
+- `definitionBody.test.ts` — 定义体 ⇄ 编辑态转换的单测。 (~1173 tok)
 
 ## spec/
 

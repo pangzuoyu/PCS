@@ -36,6 +36,7 @@ export type ReportFileStatusResponse = components['schemas']['ReportFileStatusRe
 export type ReportStyleSummary = components['schemas']['ReportStyleSummary'];
 export type ReportStyleListResponse = components['schemas']['ReportStyleListResponse'];
 export type ReportStyleCreate = components['schemas']['ReportStyleCreate'];
+export type ReportExecutionStatus = components['schemas']['ReportExecutionStatus'];
 export type ReportStyleRevise = components['schemas']['ReportStyleRevise'];
 export type StylePatch = components['schemas']['StylePatch'];
 
@@ -100,6 +101,18 @@ export const reportBuilderApi = {
   execute: (defId: string, body?: ReportExecuteRequest) =>
     api.post<ReportExecuteAccepted>(
       `/report-builder/definitions/${defId}/execute`, body ?? {})
+      .then((r) => r.data),
+
+  /**
+   * **按 `task_id` 查执行进度** —— 202 与文件之间唯一的桥。
+   *
+   * ⚠️ `/execute` 给的是 `task_id`，`/report/{id}/status` 只认
+   * `report_file_id`，两者之间的映射由本端点提供（2026-10-13 补的
+   * `report_execution_logs.task_id` / `report_file_id` 两列）。
+   * 查不到就是 404 —— 前端据此**立刻停止轮询**，而不是转圈到超时。
+   */
+  executionStatus: (taskId: string) =>
+    api.get<ReportExecutionStatus>(`/report-builder/executions/${taskId}`)
       .then((r) => r.data),
 
   fileStatus: (reportFileId: string) =>

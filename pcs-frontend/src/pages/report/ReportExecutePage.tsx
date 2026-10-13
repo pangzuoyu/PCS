@@ -19,7 +19,7 @@
  *    Redis 里的结果就没了；无上限轮询会永远转圈，用户看不出是死了
  *    还是只是慢。这里显式设超时并把「超时」与「失败」分开报。
  */
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { JSX } from 'react';
 import {
   Alert,
@@ -93,15 +93,6 @@ export function ReportExecutePage(): JSX.Element {
     })();
   }, [selected]);
 
-  /**
-   * ⚠️ 拿到 `report_file_id` 之后才能查 status —— 这里就是 `task_id`
-   * 与 `report_file_id` 的分界点。第一批后端 `/execute` 直接返回
-   * `def_id`/`task_id`，文件 id 要等任务体落库。
-   *
-   * 所以第一批的轮询以 **`task_id` 为凭据**：后端每次执行都会写
-   * `report_execution_logs`，而 `status` 端点只认 `report_file_id`。
-   * 这就是本轮要暴露的契约点之一（见页脚 TODO）。
-   */
   const run = async () => {
     if (!selected) { message.warning('先选一个已发布的定义'); return; }
     setPhase('submitting');
@@ -121,6 +112,15 @@ export function ReportExecutePage(): JSX.Element {
     }
   };
 
+  /**
+   * 按 `task_id` 轮询，直到拿到 `report_file_id`。
+   *
+   * ⚠️ **404 必须立刻停**。它意味着这个任务不存在（ARQ 队列未接、
+   * 或 worker 没跑）—— 继续轮询只会转到超时，而超时那句
+   * 「文件可能仍在生成」是**假的**，会把人引到错误的方向去查。
+   * 「任务不存在」与「任务还在跑」必须分开报，这正是
+   * `ReportExecutionStatus` 不返回占位 PENDING 的原因。
+   */
   const poll = (id: string) => {
     if (Date.now() - startedAt.current > POLL_TIMEOUT_MS) {
       setPhase('timeout');
@@ -129,11 +129,22 @@ export function ReportExecutePage(): JSX.Element {
     }
     timer.current = setTimeout(() => {
       void (async () => {
-        // TODO(CONTRACT): 后端把 `report_file_id` 随执行结果一并回传
-        // （或给一个按 task_id 查的端点）—— 现状是 status 端点只认
-        // report_file_id，前端拿不到它就无法轮询。这是本批刻意暴露的
-        // 前后端时序契约缺口，不是可以绕过的实现细节。
-        setStatusText('已提交，正在后台生成…');
+        try {
+          const st = await reportBuilderApi.executionStatus(id);
+          if (st.report_file_id) {
+            setFileId(st.report_file_id);
+            setStatusText('生成完成');
+            setPhase('done');
+            stopPolling();
+            return;
+          }
+          setStatusText('已提交，正在后台生成…');
+        } catch (err) {
+          stopPolling();
+          setError(errorMessage(err));
+          setPhase('failed');
+          return;
+        }
         poll(id);
       })();
     }, POLL_INTERVAL_MS);
@@ -150,10 +161,11 @@ export function ReportExecutePage(): JSX.Element {
     failed: 2, timeout: 2 }[phase];
 
   return (
+    <div className="page">
     <PageHeader
       title="执行报表"
       actions={<Button onClick={() => navigate('/report/definitions')}>返回列表</Button>}
-    >
+    />
       {error && <Alert type="error" showIcon message={error}
         style={{ marginBottom: 16 }} />}
 
@@ -228,11 +240,11 @@ export function ReportExecutePage(): JSX.Element {
 
         {phase === 'timeout' && (
           <Result status="warning" title="等待超时"
-            subTitle={`超过 ${POLL_TIMEOUT_MS / 1000} 秒仍未拿到结果。文件可能仍在后台生成 —— 可在列表页重新发起。`}
+            subTitle={`超过 ${POLL_TIMEOUT_MS / 1000} 秒仍未拿到结果。文件可能仍在后台生成（ARQ 队列）—— 可在列表页重新发起。`}
             extra={<Button onClick={() => void run()}>重新执行</Button>} />
         )}
       </Card>
-    </PageHeader>
+  </div>
   );
 }
 

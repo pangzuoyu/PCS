@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-13T02:10:05.252Z",
-    "fileCount": 764,
+    "lastScanned": "2026-10-13T02:25:08.121Z",
+    "fileCount": 767,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "238347bd59ab64ec76068cf376c969fa52a92cc47b15e2f18473d4b23b7b52c8",
-    "storeUpdatedAt": "2026-10-13T02:10:05.263Z",
-    "rootHash": "53c2e99ce4d3ff8b"
+    "renderedHash": "27c178805446840929d638e73cf3c6e982c29635e34d4ddc2f7ced33a5b2c6a0",
+    "storeUpdatedAt": "2026-10-13T02:25:08.132Z",
+    "rootHash": "274409568930cd12"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -25729,6 +25729,86 @@
           "startLine": 75,
           "endLine": 83,
           "tokens": 90
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/report/definitionBody.ts": {
+      "description": "定义体 ⇄ 编辑态的纯函数转换。",
+      "tokens": 1072,
+      "hash": "5b56950c187284a2",
+      "size": 4770,
+      "mtimeMs": 1791858220463.4292,
+      "updatedAt": "2026-10-13T02:23:40.511Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "FieldRow",
+          "kind": "section",
+          "startLine": 24,
+          "endLine": 34,
+          "tokens": 53
+        },
+        {
+          "name": "SingleFilter",
+          "kind": "section",
+          "startLine": 35,
+          "endLine": 42,
+          "tokens": 41
+        },
+        {
+          "name": "toRows",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 70,
+          "tokens": 215
+        },
+        {
+          "name": "buildBody",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 114,
+          "tokens": 331
+        },
+        {
+          "name": "asSingleFilter",
+          "kind": "fn",
+          "startLine": 115,
+          "endLine": 128,
+          "tokens": 155
+        },
+        {
+          "name": "fieldsAtLevel",
+          "kind": "fn",
+          "startLine": 129,
+          "endLine": 142,
+          "tokens": 99
+        }
+      ]
+    },
+    "pcs-frontend/tests/report/definitionBody.test.ts": {
+      "description": "定义体 ⇄ 编辑态转换的单测。",
+      "tokens": 1173,
+      "hash": "7ca7137c508ec6e7",
+      "size": 4778,
+      "mtimeMs": 1791858264478.8806,
+      "updatedAt": "2026-10-13T02:24:24.528Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/pages/report/ReportStylePage.tsx": {
+      "description": "ReportStylePage — 样式管理（c6）。",
+      "tokens": 3019,
+      "hash": "ee619c7eaef9e76c",
+      "size": 12171,
+      "mtimeMs": 1791858308073.2996,
+      "updatedAt": "2026-10-13T02:25:08.121Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ReportStylePage",
+          "kind": "fn",
+          "startLine": 78,
+          "endLine": 311,
+          "tokens": 2479
         }
       ]
     }
