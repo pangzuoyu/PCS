@@ -16,16 +16,20 @@
 from __future__ import annotations
 
 import datetime as dt
+import uuid
 
 import pytest
 
 from app.models.enums import AuditAction
-from app.models.report import REPORT_FILE_STATUSES
+from app.models.report import (REPORT_FILE_STATUSES,
+                               ReportDefinition, ReportExecutionLog)
 from app.models.system import AuditLog
 from app.services.report.style import ReportStyle
-from app.workers.report_tasks import (
+from app.workers.report_tasks import (  # noqa: E501
     PENDING_HASH_PREFIX,
+    STALE_MINUTES,
     generate_report_task,
+    reclaim_stale_execution_logs,
     reclaim_stale_tasks,
 )
 
@@ -407,3 +411,111 @@ async def test_success_state_is_committed(db, db_engine, project_id):
         f"独立 session 读不到 report_file_id={out} —— 成功路径从没 commit，"
         "session 一关成品行就消失了")
     assert row.status == "SUCCEEDED"
+
+
+# --- TODO-064：自定义定义执行日志的回收器 -------------------------------------
+
+
+def _exec_log(db, def_id, *, status, minutes_ago=0):
+    """造一行指定状态的执行日志。
+
+    ⚠️ `created_at` / `updated_at` 要**显式**给：回收器按时间筛，而
+    `TimestampMixin` 的默认是 `server_default=now()` —— 不覆盖的话
+    每一行都是「刚刚」，回收器一条都扫不到，测试会假绿。
+    """
+    ts = dt.datetime.now(dt.UTC) - dt.timedelta(minutes=minutes_ago)
+    row = ReportExecutionLog(
+        def_id=def_id, def_version="0.1.0", condition_snapshot={},
+        row_count=0, output_format="pdf", status=status,
+        task_id=f"t-{uuid.uuid4().hex[:8]}",
+        created_at=ts, updated_at=ts)
+    db.add(row)
+    return row
+
+
+async def _published_def(db, project_id) -> uuid.UUID:
+    """建一份已发布定义并返回 def_id。
+
+    执行日志的 `def_id` 是指向 `report_definitions` 的 NOT NULL 外键 ——
+    填随机 UUID 会撞外键，而错误信息指向外键，不像「你少造了个定义」。
+    """
+    d = ReportDefinition(
+        project_id=project_id, name="回收器测试", category="设备类",
+        description="", definition_json={}, output_format="pdf",
+        max_rows=100, version="0.1.0", status="PUBLISHED",
+        shared_with="ALL_USERS", created_by=uuid.uuid4())
+    db.add(d)
+    await db.flush()
+    return d.def_id
+
+
+@pytest.mark.asyncio
+async def test_stale_queued_execution_log_is_reclaimed(db, project_id):
+    """僵死的 QUEUED/RUNNING 执行日志必须被标 FAILED，且**不删行**。
+
+    ⚠️ 这是**审计**表：删行等于「谁在什么时候请求过这次执行」从此查不到。
+    所以回收器只标状态。
+
+    2026-10-13 之前这里没有回收器：日志行由任务体建，而同日 bug-167 的修复
+    把建行提到了**入队时** —— 于是「worker 全挂 ⇒ 行永远停在排队态」
+    第一次成为可观测的挂起状态，也第一次需要回收器。
+    """
+    from sqlalchemy import func, select
+
+    def_id = await _published_def(db, project_id)
+    stale_q = _exec_log(db, def_id, status="QUEUED", minutes_ago=STALE_MINUTES + 5)
+    stale_r = _exec_log(db, def_id, status="RUNNING", minutes_ago=STALE_MINUTES + 5)
+    fresh = _exec_log(db, def_id, status="QUEUED", minutes_ago=0)
+    done = _exec_log(db, def_id, status="FINISHED", minutes_ago=STALE_MINUTES + 5)
+    await db.flush()
+
+    n = await reclaim_stale_execution_logs(db, older_than_minutes=STALE_MINUTES)
+    await db.commit()
+    assert n == 2, f"应回收 2 行（僵死的 QUEUED 与 RUNNING 各一），实得 {n}"
+
+    for row, want in ((stale_q, "FAILED"), (stale_r, "FAILED"),
+                      (fresh, "QUEUED"), (done, "FINISHED")):
+        await db.refresh(row)
+        assert row.status == want, f"{row.status=}，期望 {want}"
+
+    assert await db.scalar(
+        select(func.count()).select_from(ReportExecutionLog)) == 4, \
+        "回收器删了行 —— 这是审计表，删了「谁请求过这次执行」就查不到了"
+
+
+@pytest.mark.asyncio
+async def test_reclaiming_writes_an_audit_row(db, project_id):
+    """回收要写审计 —— 否则「为什么这行变成 FAILED」查不到。
+
+    与 `reclaim_stale_tasks`（report_files 那侧）同一个理由：状态是给人看的，
+    没有来源就只能猜。
+    """
+    def_id = await _published_def(db, project_id)
+    _exec_log(db, def_id, status="QUEUED", minutes_ago=STALE_MINUTES + 5)
+    await db.flush()
+
+    await reclaim_stale_execution_logs(db, older_than_minutes=STALE_MINUTES)
+    await db.commit()
+
+    from sqlalchemy import func, select
+
+    n = await db.scalar(select(func.count()).select_from(AuditLog).where(
+        AuditLog.action == AuditAction.REPORT_FAILED.value))
+    assert n >= 1, "回收没写 REPORT_FAILED 审计"
+
+
+@pytest.mark.asyncio
+async def test_fresh_execution_log_is_never_reclaimed(db, project_id):
+    """反向断言：只回收「够老且未终结」的行。
+
+    单独列一条是因为「该杀的没杀」和「不该杀的杀了」是两种缺陷，
+    而前者（上面那条）已经盖住了阈值逻辑，后者才是这个判据的职责。
+    """
+    def_id = await _published_def(db, project_id)
+    row = _exec_log(db, def_id, status="QUEUED", minutes_ago=STALE_MINUTES - 5)
+    await db.flush()
+
+    assert await reclaim_stale_execution_logs(
+        db, older_than_minutes=STALE_MINUTES) == 0
+    await db.refresh(row)
+    assert row.status == "QUEUED"

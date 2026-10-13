@@ -240,6 +240,54 @@ async def reclaim_stale_tasks_batch(db: AsyncSession) -> int:
     return await reclaim_stale_tasks(db, older_than_minutes=STALE_MINUTES)
 
 
+async def reclaim_stale_execution_logs(
+        db: AsyncSession, *, older_than_minutes: int = STALE_MINUTES) -> int:
+    """回收**自定义定义**执行日志里僵死的行，返回回收条数。
+
+    只碰 `status IN ('QUEUED', 'RUNNING')` 且 `updated_at` 早于阈值的行 ——
+    FINISHED / FAILED 已是终态，再动它们就是篡改审计记录。
+
+    ⚠️ **不删行**。这张表是审计：删了，「谁在什么时候请求过这次执行、
+    当时用的什么条件」就再也复现不出来。回收只是补上一个结局。
+
+    阈值复用 `STALE_MINUTES`（15 分钟）—— 与 `reclaim_stale_tasks`
+    （report_files 那侧）同一个数字是刻意的：两边的「多久算僵死」应该
+    跟着同一件事（渲染耗时）走，没有理由一个 15 分钟一个 5 分钟。
+    """
+    from sqlalchemy import or_
+
+    from app.models.report import ReportExecutionLog
+
+    cutoff = _now() - dt.timedelta(minutes=older_than_minutes)
+    rows = (await db.execute(
+        select(ReportExecutionLog).where(
+            ReportExecutionLog.status.in_(("QUEUED", "RUNNING")),
+            or_(ReportExecutionLog.updated_at < cutoff,
+                ReportExecutionLog.created_at < cutoff),
+        )
+    )).scalars().all()
+    if not rows:
+        return 0
+
+    audit = AuditService(db)
+    for row in rows:
+        row.status = "FAILED"
+        row.condition_snapshot = {
+            **dict(row.condition_snapshot or {}),
+            "reclaimed_at": _now().isoformat(),
+            "reclaim_reason": f"超过 {older_than_minutes} 分钟未出文件（worker 未完成）",
+        }
+        await audit.write(
+            action=AuditAction.REPORT_FAILED,
+            resource_type="report_definition", resource_id=row.def_id,
+            detail={"task_id": row.task_id, "reclaimed": True,
+                    "stale_minutes": older_than_minutes,
+                    "def_id": str(row.def_id)},
+        )
+    await db.flush()
+    return len(rows)
+
+
 async def reclaim_stale_report_tasks(ctx) -> None:
     """**cron 入口**（ARQ cron 只传一个 `ctx`）。
 
@@ -254,6 +302,10 @@ async def reclaim_stale_report_tasks(ctx) -> None:
     """
     db: AsyncSession = _ctx_session(ctx)
     await reclaim_stale_tasks(db, older_than_minutes=STALE_MINUTES)
+    # 自定义定义那条路的执行日志也要回收（TODO-064）。此前只有 report_files
+    # 侧有回收器，而日志行在 bug-167 修复后从「worker 跑才有」变成
+    # 「入队就有」—— 于是「worker 全挂」第一次变成了可观测的永久挂起。
+    await reclaim_stale_execution_logs(db, older_than_minutes=STALE_MINUTES)
 
 
 def _ctx_session(ctx) -> AsyncSession:

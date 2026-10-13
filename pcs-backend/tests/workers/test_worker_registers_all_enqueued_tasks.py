@@ -476,3 +476,27 @@ def test_no_cron_job_fires_more_than_once_per_scheduled_minute():
             assert fires <= 40, (
                 f"{job.name} 在 2 小时内会触发 >40 次 —— 秒位多半是 None，"
                 f"它会被 arq 整条跳过（'不限'其实等于'每秒'）")
+
+
+def test_worker_actually_limits_retries_not_just_documents_it(monkeypatch):
+    """⚠️ 「max_tries=3」曾经**只存在于注释里**。
+
+    `WorkerSettings` 原先没设 `max_tries`，而 ARQ 的重试上限**只**从那里来
+    （`arq/worker.py:549`：`self.max_tries if function.max_tries is None`）。
+    不设就用 ARQ 默认 **25 次** —— 一个确定性失败（数据脏 / 字体缺 / 格式不认识）
+    会重试 25 次，每次都写一条 REPORT_FAILED 审计，把审计表刷满。
+    ADR-P8-004 的裁决写了，代码没写，而没有任何测试看这个值。
+
+    同时钉住**同一个常量**：任务体要靠它判断「这是不是最后一次尝试」
+    （ARQ 的 ctx 里没有 max_tries，拿不到）。两处各写一个数字 ⇒ 重试早就用完
+    而任务体还在等，行永远停在 RUNNING，15 分钟后被回收器当成僵死的收掉。
+    """
+    from app.workers.report_builder_tasks import MAX_TRIES
+    from app.workers.worker import WorkerSettings
+
+    assert WorkerSettings.max_tries == 3, (
+        f"实得 {WorkerSettings.max_tries} —— ARQ 默认 25 次，"
+        "确定性失败会被重试 25 次并刷 25 条审计")
+    assert MAX_TRIES == WorkerSettings.max_tries, (
+        f"任务体用的 {MAX_TRIES} 与 worker 配的 {WorkerSettings.max_tries} "
+        "不一致 —— 重试用完了任务体还以为没完")

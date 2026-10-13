@@ -253,9 +253,14 @@ class ReportExecutionStatus(BaseModel):
     `report_file_id` 在生成完成前为 `None` —— 那正是「还在跑」的信号。
     前端拿到它就去 `/report/{file_id}/status` 拿文件状态、再下载。
 
-    ⚠️ `RUNNING` / `FINISHED` 是**这里**的合成状态，不是任何一张表的
-    列：文件行还没建出来时无处可查，而「任务已入队未开始」和「正在渲染」
-    对用户是同一件事，分开只会让前端多写两个分支。
+    ## 状态来源（2026-10-13 改，TODO-064）
+
+    此前这里是**合成**的：`report_file_id` 有值 → FINISHED，否则 → RUNNING。
+    现在直接读 `report_execution_logs.status`（p8_007 加的列），
+    回收器才有地方写下「已僵死 → FAILED」。
+
+    ⚠️ 仍保留 `report_file_id` 那次校正：它是**唯一**证明文件已存在的字段，
+    两者理论上一致，不一致时以它为准更安全。
     """
 
     task_id: str
@@ -282,9 +287,15 @@ async def execution_status(task_id: str, actor: ActorDep,
     # `DefinitionService.get`（它已内建「DRAFT 仅创建人可见」判定）。
     # 在这里另写一遍可见性规则就等于有两份规则，而两份会漂移。
     await DefinitionService(db).get(def_id=row.def_id, user_id=actor.user_id)
+    # ⚠️ 直接读 `row.status`，**不用 `report_file_id IS NULL` 合成**
+    # （TODO-064）。合成版分不出「已入队」「正在跑」「已经僵死」三种 ——
+    # 而回收器需要给第三种留下位置，否则被它标 FAILED 的行在轮询端点
+    # 看起来仍像「还在跑」，前端无限转圈。
+    # `report_file_id` 仍以它为准做一次校正：它是**唯一**证明文件已存在的
+    # 字段，理论上 status 与它必须一致，不一致时以它为准更安全。
+    status = "FINISHED" if row.report_file_id else (row.status or "QUEUED")
     return ReportExecutionStatus(
-        task_id=task_id, def_id=row.def_id,
-        status="FINISHED" if row.report_file_id else "RUNNING",
+        task_id=task_id, def_id=row.def_id, status=status,
         report_file_id=row.report_file_id)
 
 

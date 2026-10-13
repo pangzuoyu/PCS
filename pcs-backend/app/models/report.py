@@ -176,6 +176,8 @@ class ReportExecutionLog(TimestampMixin, Base):
         Index("ix_report_execution_logs_def_id", "def_id"),
         # 轮询按 task_id 查（b11）。没索引就是每 2 秒一次全表扫。
         Index("ix_report_execution_logs_task_id", "task_id"),
+        # 回收器按 status 扫（TODO-064）。没索引就是每次 cron 一次全表扫。
+        Index("ix_report_execution_logs_status", "status"),
     )
 
     log_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
@@ -198,3 +200,12 @@ class ReportExecutionLog(TimestampMixin, Base):
     # 生成前为 NULL —— 这正是「还在跑」的信号，不需要额外 status 列。
     # **刻意无 FK**：与 ReportFile.project_id 同理，项目删除后不留孤儿引用。
     report_file_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
+
+    # --- 执行状态（2026-10-13，alembic p8_007，TODO-064）---
+    # ⚠️ **不要**再用 `report_file_id IS NULL` 合成状态：那样「已入队」
+    # 「正在跑」「已经僵死」三种情况长得一样，回收器没有地方写下第三种，
+    # 而它是审计表、又不能删行，于是「谁请求过这次执行、结果如何」
+    # 永远差一个结局。端点现在直接读这一列。
+    status: Mapped[str] = mapped_column(
+        String(16), nullable=False, default="QUEUED", server_default="QUEUED",
+        comment="QUEUED 已入队 / RUNNING 执行中 / FINISHED 已出文件 / FAILED 已终结（含被回收）")

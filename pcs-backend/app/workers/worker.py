@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db.session import dispose_engines_async, get_async_session_factory
 from app.workers.cia_tasks import scan_stale_full, scan_stale_incremental
-from app.workers.report_builder_tasks import execute_definition_task
+from app.workers.report_builder_tasks import MAX_TRIES, execute_definition_task
 from app.workers.report_tasks import (
     generate_report_task,
     reclaim_stale_report_tasks,
@@ -109,9 +109,7 @@ class WorkerSettings:
         touch_workspace,
         scan_stale_incremental,
         scan_stale_full,
-        # P8：报表生成。ADR-P8-004 裁决 **max_tries=3** —— 报表失败通常是
-        # 确定性错误（数据脏 / 字体缺 / 格式不认识），不是瞬时抖动，
-        # 重试 5 次与 3 次没区别，只多刷 2 条 REPORT_FAILED 审计。
+        # P8：报表生成。重试上限见下方 `max_tries`（ADR-P8-004 裁决 3 次）。
         generate_report_task,
         # P8b：自定义报表定义执行（REPORT_BUILDER）。
         # ⚠️ **2026-10-13 补上** —— 这一条原先漏了，而漏它的症状是
@@ -159,6 +157,18 @@ class WorkerSettings:
                 keep_result_forever=False, max_tries=1,
                 minute={3, 33}),
     ]
+    # ⚠️ **ADR-P8-004 裁决的 `max_tries=3` 原先只写在注释里**，
+    # 实际从没设过 —— 而 ARQ 的重试上限**只**从这里来
+    # （`worker.py:549`：`max_tries = self.max_tries if function.max_tries
+    # is None else function.max_tries`）。不设就用 ARQ 默认 25 次：
+    # 一个确定性失败（数据脏 / 字体缺）会重试 25 次，每次都写一条
+    # REPORT_FAILED 审计，把审计表刷满。TODO-016。
+    #
+    # 取值来自 `report_builder_tasks.MAX_TRIES`：**同一个常量**，
+    # 因为任务体要靠它判断「这是不是最后一次尝试」（ARQ 的 ctx 里**没有**
+    # max_tries，拿不到）。两处各写一个数字 ⇒ 重试早就用完了而任务体还在等，
+    # 行永远停在 RUNNING，15 分钟后被回收器当成僵死的收掉。
+    max_tries = MAX_TRIES
     # 队列容量。ADR-P8-004 建议把**报表任务**单独拆一个 worker 并设
     # `max(2, cores // 2)`，但那是**部署侧**的决定 —— 仓库当前没有
     # backend / worker 的部署配置（见 ADR-P8-004 前置条件 0），拆了也没人起。

@@ -1533,14 +1533,41 @@ A 类全补 → 48+6 = 54/74 = **73.0%**；B 类确认不做 → 仍 73.0%。
   用户看到的是「转圈 15 分钟然后莫名失败」（回收器才纠正）。
   同族坑见 `arq_queue` docstring：「入队失败必须让端点知道」。
 
-## 🟡 TODO-064 builder 执行日志没有回收器（2026-10-13 E2E 真跑发现）
+## ✅ TODO-064 builder 执行日志没有回收器（2026-10-13 修完）
 
 - `reclaim-stale-report-tasks` cron 只回收 `report_files` 的 PENDING 行，
   **不管 `report_execution_logs`**。
 - 2026-10-13 的修复让日志行在**入队时**就存在（bug-167），于是
   「worker 全挂 ⇒ 行永远停在排队态」第一次成为可观测的挂起状态。
 - 此前不可观测：行由任务体建，worker 不跑就没有行。
-- 阈值可复用 `report_files` 那套（15 分钟）。
+### ✅ 2026-10-13 修完
+
+- `report_execution_logs` 加 `status` 列（p8_007）：
+  QUEUED / RUNNING / FINISHED / FAILED。
+  ⚠️ **不再用 `report_file_id IS NULL` 合成状态** —— 那样「已入队」
+  「正在跑」「已经僵死」三种情况长得一样，回收器没地方写下第三种；
+  而它是审计表又不能删行，于是「谁请求过这次执行、结果如何」永远差一个结局。
+- 回收器 `reclaim_stale_execution_logs`：只碰 QUEUED/RUNNING 且够老的行，
+  标 FAILED + 写 REPORT_FAILED 审计，**不删行**。阈值复用 `STALE_MINUTES`
+  （15 分钟）—— 两边「多久算僵死」跟的是同一件事（渲染耗时），没理由不同。
+- 挂进既有的 `reclaim-stale-report-tasks` cron，不新增 cron。
+- 轮询端点改成直接读 `status`（仍保留 `report_file_id` 那次校正：
+  它是**唯一**证明文件存在的字段）。
+  ⚠️ 连带效果：此前被回收器标 FAILED 的行，端点会显示「还在跑」——
+  前端无限转圈，而回收器再扫也改不了它（已非 QUEUED/RUNNING）。
+
+顺带补上 **TODO-016 的一半**：`WorkerSettings.max_tries` 原先**只存在于注释**
+（ADR-P8-004 裁决 3 次），实际从没设过，而 ARQ 的重试上限**只**从那里来
+（`worker.py:549`）⇒ 走默认 **25 次**，一个确定性失败会重试 25 次、
+刷 25 条 REPORT_FAILED 审计。
+
+- 试过两个**错的**入口，都记在 `arq_queue` 注释里：
+  `max_tries=3`（`enqueue_job` 没这个形参，未识别 kwargs 被当成**任务函数参数**
+  传进去，`**kwargs` 照收不误、不报错不生效）；
+  `retry=Retry(max=3)`（ARQ 0.28 的 `Retry` 是**异常类**不是配置对象）。
+- 任务体靠 `report_builder_tasks.MAX_TRIES` 判断「是不是最后一次尝试」，
+  与 `WorkerSettings.max_tries` **同一个常量** —— ARQ 的 ctx 里没有
+  max_tries，两处各写一个数字就会漂移。
 
 ## 📋 P8 异步链路首轮真跑结论（2026-10-13）
 

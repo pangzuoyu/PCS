@@ -174,5 +174,45 @@ async def test_still_running_before_the_file_exists(client, db_session):
     r = await client.get(f"{POLL}/{task_id}", headers=_auth())
     assert r.status_code == 200, r.text
     body = r.json()
-    assert body["status"] == "RUNNING"
+    # ⚠️ **不断言某一个具体值**。此前端点是**合成**状态的
+    # （`report_file_id` 有值 → FINISHED，否则 → RUNNING），所以这里曾断言
+    # RUNNING。2026-10-13 加了 `report_execution_logs.status` 列（TODO-064），
+    # 端点改成直接读真实状态 —— 这行还没被 worker 碰过，真实状态就是
+    # **QUEUED**，而 QUEUED 比 RUNNING 更准确（它确实还没开始跑）。
+    #
+    # 钉的是「**非终态且没有文件 id**」这两件事，不是某个字面量。
+    assert body["status"] in ("QUEUED", "RUNNING"), f"实得 {body['status']}"
     assert body["report_file_id"] is None
+
+
+@pytest.mark.asyncio
+async def test_reclaimed_execution_is_reported_as_failed_not_still_running(
+        client, db_session):
+    """⚠️ **被回收器标 FAILED 的行，轮询端点必须报 FAILED**（TODO-064）。
+
+    回收器存在的前提是「worker 全挂时行不会永远挂在排队态」。而若端点
+    仍按 `report_file_id IS NULL` 合成状态，它会把**刚被标 FAILED 的行**
+    显示成「还在跑」—— 前端无限转圈，而回收器每 10 分钟又扫一次、
+    什么也改不了（它已经不是 QUEUED/RUNNING 了）。于是前端看到的是一个
+    **永远在跑、永远不出文件**的任务。
+
+    这条测试钉的是「回收器的动作对调用方可见」，不是「回收器会跑」
+    （那是 test_report_tasks.py 的职责）。
+    """
+    import uuid as _uuid
+
+    from app.models.report import ReportExecutionLog
+
+    def_id = await _published_def(client)
+    task_id = "task-reclaimed"
+    db_session.add(ReportExecutionLog(
+        def_id=_uuid.UUID(def_id), def_version="0.1.0",
+        condition_snapshot={}, row_count=0, output_format="pdf",
+        is_temporary_adjust=False, task_id=task_id, status="FAILED"))
+    await db_session.commit()
+
+    r = await client.get(f"{POLL}/{task_id}", headers=_auth())
+    assert r.status_code == 200, r.text
+    assert r.json()["status"] == "FAILED", (
+        f"实得 {r.json()['status']} —— 回收器的动作对调用方不可见，"
+        "前端会一直显示「生成中」到超时")

@@ -71,6 +71,13 @@ async def enqueue_definition_execution(*, def_id: str, project_id: str,
     # 仍 import 一下：让「函数不存在」在**入队前**就炸，而不是静默。
     from app.workers.report_builder_tasks import execute_definition_task  # noqa: F401
 
+    # ⚠️ **不要**在这里设重试次数 —— 两处都试过且都不对：
+    #   1. `max_tries=3`：`enqueue_job` 没有这个形参，未识别的 kwargs 会被
+    #      当成**任务函数的参数**传进去（`**kwargs` 照收不误，不报错、不生效）。
+    #   2. `retry=Retry(max=3)`：ARQ 0.28 的 `Retry` 是**异常类**不是配置对象
+    #      （`class Retry(RuntimeError)`），直接 TypeError。
+    # 重试上限唯一的入口是 `WorkerSettings.max_tries`
+    # （`worker.py:549`：`self.max_tries if function.max_tries is None`）。
     return await _enqueue(
         "execute_definition_task",
         def_id=def_id, project_id=project_id, user_id=user_id,

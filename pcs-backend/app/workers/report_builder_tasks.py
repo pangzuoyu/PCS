@@ -28,6 +28,15 @@ from app.services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
 
+#: 失败重试上限。⚠️ **必须与 `arq_queue.enqueue_definition_execution` 里传的
+#: `Retry(max=...)` 同值**：ARQ 的 ctx 里**没有** `max_tries`，所以任务体
+#: 判断「这是不是最后一次尝试」时拿不到它，只能用这个常量。
+#: 两处写不同数字 ⇒ 重试早就用完了，任务体却还在等 ⇒ 行永远停在 RUNNING，
+#: 15 分钟后被回收器当成僵死的收掉，而文件其实早就该出了。
+#: （原写 `ctx.get("max_tries") or 3` —— 那个键 ARQ 不提供，永远走 `or 3`。）
+#: TODO-016：这是 SPEC P8 §a7「失败重试」的一半，另一半是 DLQ 测试。
+MAX_TRIES = 3
+
 PENDING_HASH_PREFIX = "pending:"
 
 
@@ -58,9 +67,25 @@ async def execute_definition_task(
         attempt_no = int(ctx.get("job_try") or 1)
         audit = AuditService(db)
 
+        # 入队时端点建的那一行（bug-167）。取它是为了把状态写回去 ——
+        # 没有这一步，回收器看到的永远是 QUEUED，会把**正在跑**的任务
+        # 也当成僵死的收掉。
+        # 每次尝试都取，不只第一次：重试成功后同样要把行标成 FINISHED，
+        # 否则它停在 RUNNING 上，15 分钟后被回收器当成僵死的收掉 ——
+        # 而文件明明已经出来了。
+        from sqlalchemy import select as _sel
+
+        from app.models.report import ReportExecutionLog as _Log
+        task_row = (await db.execute(_sel(_Log).where(
+            _Log.task_id == job_id))).scalar_one_or_none()
+
         pid = uuid.UUID(project_id) if project_id else None
         did = uuid.UUID(def_id)
         uid = uuid.UUID(user_id) if user_id else None
+
+        if task_row is not None:
+            task_row.status = "RUNNING"      # 开始跑了
+            await db.flush()
 
         try:
             out = await builder_service.execute_definition(
@@ -82,6 +107,13 @@ async def execute_definition_task(
                         "def_id": str(did), "error": f"{type(e).__name__}: {e}"[:500]},
             )
             await db.commit()
+            if task_row is not None:
+                # ⚠️ 只在**最后一次**尝试后才落 FAILED。ARQ 还要重试，
+                # 中途就标 FAILED 会让轮询端点提前显示「失败」，
+                # 而任务随后重试成功 —— 用户看到一个假的失败结局。
+                if attempt_no >= MAX_TRIES:
+                    task_row.status = "FAILED"
+                    await db.flush()
             raise      # 交给 ARQ 重试；「每次失败都写」由这里落实
 
         await audit.write(
