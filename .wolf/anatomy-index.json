@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-13T01:57:44.495Z",
-    "fileCount": 758,
+    "lastScanned": "2026-10-13T02:10:05.252Z",
+    "fileCount": 764,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "44fbd82c745ad06b6c6102fe5f60f6aac35f028f5e5f4e2ed84b3a434af52613",
-    "storeUpdatedAt": "2026-10-13T01:57:44.505Z",
-    "rootHash": "558345f36f456a6a"
+    "renderedHash": "238347bd59ab64ec76068cf376c969fa52a92cc47b15e2f18473d4b23b7b52c8",
+    "storeUpdatedAt": "2026-10-13T02:10:05.263Z",
+    "rootHash": "53c2e99ce4d3ff8b"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -25537,6 +25537,198 @@
           "startLine": 170,
           "endLine": 184,
           "tokens": 168
+        }
+      ]
+    },
+    "pcs-frontend/src/api/reportBuilder.ts": {
+      "description": "REPORT_BUILDER 前端客户端（b10–b12 + c6）。",
+      "tokens": 1890,
+      "hash": "7187d8b467b13e89",
+      "size": 7776,
+      "mtimeMs": 1791857275661.7278,
+      "updatedAt": "2026-10-13T02:07:55.713Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "errorMessage",
+          "kind": "fn",
+          "startLine": 163,
+          "endLine": 170,
+          "tokens": 90
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/report/ReportDefinitionListPage.tsx": {
+      "description": "ReportDefinitionListPage — REPORT_BUILDER 定义管理列表（b12）。",
+      "tokens": 1595,
+      "hash": "13cf831f0765ed0f",
+      "size": 6590,
+      "mtimeMs": 1791857308747.4587,
+      "updatedAt": "2026-10-13T02:08:28.795Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ReportDefinitionListPage",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 197,
+          "tokens": 1209
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/report/ReportDefinitionEditorPage.tsx": {
+      "description": "ReportDefinitionEditorPage — 定义编辑器（b10）。",
+      "tokens": 4376,
+      "hash": "84a900d89e1053a6",
+      "size": 17008,
+      "mtimeMs": 1791857339978.209,
+      "updatedAt": "2026-10-13T02:09:00.029Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "FieldRow",
+          "kind": "section",
+          "startLine": 62,
+          "endLine": 83,
+          "tokens": 132
+        },
+        {
+          "name": "ReportDefinitionEditorPage",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 377,
+          "tokens": 3142
+        },
+        {
+          "name": "blankMeta",
+          "kind": "fn",
+          "startLine": 378,
+          "endLine": 383,
+          "tokens": 55
+        },
+        {
+          "name": "toRows",
+          "kind": "fn",
+          "startLine": 384,
+          "endLine": 399,
+          "tokens": 161
+        },
+        {
+          "name": "buildBody",
+          "kind": "fn",
+          "startLine": 400,
+          "endLine": 428,
+          "tokens": 303
+        },
+        {
+          "name": "asCondition",
+          "kind": "fn",
+          "startLine": 429,
+          "endLine": 442,
+          "tokens": 156
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/report/ReportExecutePage.tsx": {
+      "description": "ReportExecutePage — 执行面板（b11）。",
+      "tokens": 2349,
+      "hash": "243f3301b05bd960",
+      "size": 9620,
+      "mtimeMs": 1791857355717.0845,
+      "updatedAt": "2026-10-13T02:09:15.767Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "ReportExecutePage",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 239,
+          "tokens": 1831
+        },
+        {
+          "name": "describe",
+          "kind": "fn",
+          "startLine": 240,
+          "endLine": 247,
+          "tokens": 98
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p8_005_execution_task_link.py": {
+      "description": "P8c：执行日志补 `task_id` / `report_file_id`（b11 前后端时序契约）。",
+      "tokens": 536,
+      "hash": "bfcab3cc1fb65190",
+      "size": 2724,
+      "mtimeMs": 1791857397421.6355,
+      "updatedAt": "2026-10-13T02:09:57.472Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 62,
+          "tokens": 108
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 68,
+          "tokens": 69
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_execution_poll_contract.py": {
+      "description": "b11：执行时序契约 —— `task_id` 必须能查到 `report_file_id`。",
+      "tokens": 663,
+      "hash": "529f4be2deb3770f",
+      "size": 3107,
+      "mtimeMs": 1791857405198.9717,
+      "updatedAt": "2026-10-13T02:10:05.252Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_auth",
+          "kind": "fn",
+          "startLine": 27,
+          "endLine": 35,
+          "tokens": 65
+        },
+        {
+          "name": "test_unknown_task_id_is_404_not_500",
+          "kind": "fn",
+          "startLine": 36,
+          "endLine": 41,
+          "tokens": 53
+        },
+        {
+          "name": "test_unknown_task_id_does_not_leak_other_executions",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 54,
+          "tokens": 119
+        },
+        {
+          "name": "test_polling_requires_auth",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 59,
+          "tokens": 38
+        },
+        {
+          "name": "test_execution_log_row_carries_the_two_link_columns",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 74,
+          "tokens": 142
+        },
+        {
+          "name": "test_task_id_is_indexed",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 83,
+          "tokens": 90
         }
       ]
     }

@@ -19,6 +19,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
@@ -37,6 +38,7 @@ from app.schemas.report_builder import (
 from app.services.exceptions import PcsError
 from app.services.report import watermark
 from app.services.report.datasource_registry import DATASOURCES, JOINS
+from app.models.report import ReportExecutionLog
 from app.services.report.definition_service import DefinitionService
 
 router = APIRouter(prefix="/report-builder", tags=["report-builder"])
@@ -242,6 +244,47 @@ class ReportExecuteAccepted(BaseModel):
     def_id: uuid.UUID
     def_version: str
     status: str = "QUEUED"
+
+
+class ReportExecutionStatus(BaseModel):
+    """**按 `task_id` 查执行进度**（b11 时序契约的一环）。
+
+    `report_file_id` 在生成完成前为 `None` —— 那正是「还在跑」的信号。
+    前端拿到它就去 `/report/{file_id}/status` 拿文件状态、再下载。
+
+    ⚠️ `RUNNING` / `FINISHED` 是**这里**的合成状态，不是任何一张表的
+    列：文件行还没建出来时无处可查，而「任务已入队未开始」和「正在渲染」
+    对用户是同一件事，分开只会让前端多写两个分支。
+    """
+
+    task_id: str
+    def_id: uuid.UUID
+    status: str            # QUEUED / RUNNING / FINISHED
+    report_file_id: uuid.UUID | None = None
+
+
+@router.get("/executions/{task_id}", response_model=ReportExecutionStatus)
+async def execution_status(task_id: str, actor: ActorDep,
+                           db: DbDep) -> ReportExecutionStatus:
+    """轮询执行进度。**查不到就是 404**，不返回占位的 PENDING。
+
+    返回占位值会让前端分不清「任务不存在」（应当立刻停止轮询）与
+    「任务还在跑」（应当继续），于是对着一个不存在的任务转到超时。
+    """
+    row = (await db.execute(
+        select(ReportExecutionLog).where(ReportExecutionLog.task_id == task_id)
+    )).scalar_one_or_none()
+    if row is None:
+        raise PcsError(f"执行任务不存在：{task_id}",
+                       code="REPORT_EXECUTION_NOT_FOUND", status=404)
+    # 可见性：执行日志没有直接的权限列，按**定义**走 —— 复用
+    # `DefinitionService.get`（它已内建「DRAFT 仅创建人可见」判定）。
+    # 在这里另写一遍可见性规则就等于有两份规则，而两份会漂移。
+    await DefinitionService(db).get(def_id=row.def_id, user_id=actor.user_id)
+    return ReportExecutionStatus(
+        task_id=task_id, def_id=row.def_id,
+        status="FINISHED" if row.report_file_id else "RUNNING",
+        report_file_id=row.report_file_id)
 
 
 @router.post("/definitions/{def_id}/execute",

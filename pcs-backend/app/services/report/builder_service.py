@@ -123,6 +123,7 @@ async def execute_definition(
     temporary_filters: dict[str, Any] | None = None,
     temporary_max_rows: int | None = None,
     output_format: str | None = None,
+    task_id: str | None = None,
 ) -> ExecutionResult:
     """执行一份定义并写执行日志。**纯查询 + 审计，不写 report_files**。
 
@@ -220,6 +221,9 @@ async def execute_definition(
         output_format=output_format or row.output_format,
         executed_by=user_id,
         is_temporary_adjust=temporary_filters is not None,
+        # b11：把 task_id 记在执行日志上，任务体稍后回填 report_file_id。
+        # 两者构成 `/execute`(202) 与 `/report/{file_id}/status` 之间唯一的桥。
+        task_id=task_id,
     ))
     await db.flush()
 

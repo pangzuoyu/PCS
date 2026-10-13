@@ -1529,3 +1529,9 @@
 | 09:47 | Edited pcs-backend/app/schemas/report.py | modified _no_non_writable() | ~782 |
 | 09:48 | Edited pcs-backend/app/api/v1/report.py | added error handling | ~1149 |
 | 09:57 | Created pcs-backend/tests/services/report/test_style_wiring.py | — | ~1684 |
+| 10:07 | Created pcs-frontend/src/api/reportBuilder.ts | — | ~1890 |
+| 10:08 | Created pcs-frontend/src/pages/report/ReportDefinitionListPage.tsx | — | ~1595 |
+| 10:09 | Created pcs-frontend/src/pages/report/ReportDefinitionEditorPage.tsx | — | ~4376 |
+| 10:09 | Created pcs-frontend/src/pages/report/ReportExecutePage.tsx | — | ~2349 |
+| 10:09 | Created pcs-backend/alembic/versions/p8_005_execution_task_link.py | — | ~536 |
+| 10:10 | Created pcs-backend/tests/api/v1/test_execution_poll_contract.py | — | ~663 |

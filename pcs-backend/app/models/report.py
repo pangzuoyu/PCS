@@ -167,7 +167,11 @@ class ReportExecutionLog(TimestampMixin, Base):
     """
 
     __tablename__ = "report_execution_logs"
-    __table_args__ = (Index("ix_report_execution_logs_def_id", "def_id"),)
+    __table_args__ = (
+        Index("ix_report_execution_logs_def_id", "def_id"),
+        # 轮询按 task_id 查（b11）。没索引就是每 2 秒一次全表扫。
+        Index("ix_report_execution_logs_task_id", "task_id"),
+    )
 
     log_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
     def_id: Mapped[uuid.UUID] = mapped_column(
@@ -180,3 +184,12 @@ class ReportExecutionLog(TimestampMixin, Base):
     executed_by: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     # 本次执行是否临时改过过滤条件（不修改定义本身）
     is_temporary_adjust: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
+    # --- b11 时序契约（2026-10-13 补，见 alembic p8_005）---
+    # `/execute` 返回 202 + task_id，status 端点只认 report_file_id。
+    # 这两列是两者之间**唯一**的桥：2026-10-13 实测此前不存在，
+    # 前端拿到 202 之后永远拿不到文件。
+    task_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    # 生成前为 NULL —— 这正是「还在跑」的信号，不需要额外 status 列。
+    # **刻意无 FK**：与 ReportFile.project_id 同理，项目删除后不留孤儿引用。
+    report_file_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)

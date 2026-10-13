@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T01:57:44.495Z
-> Files: 758 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T02:10:05.252Z
+> Files: 764 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1074,6 +1074,7 @@
 - `p8_001_report_tables.py` — P8 报表 4 张表. (~1907 tok)
 - `p8_002_report_file_doc_no_rev.py` — P8：report_files 加 doc_no / rev。 (~220 tok)
 - `p8_003_heat_spec_confirmed_fields.py` — P8c：heat_results 加用户 2026-12-12 裁决要进规格书的 3 组字段。 (~385 tok)
+- `p8_005_execution_task_link.py` — P8c：执行日志补 `task_id` / `report_file_id`（b11 前后端时序契约）。 (~536 tok)
 
 ## pcs-backend/app/api/v1/
 
@@ -1205,6 +1206,7 @@
 
 ## pcs-backend/tests/api/v1/
 
+- `test_execution_poll_contract.py` — b11：执行时序契约 —— `task_id` 必须能查到 `report_file_id`。 (~663 tok)
 - `test_gas_media_and_low_temp_heat_api.py` — 工艺气体 / 低温热 CRUD API 测试 (P7-6B 收尾). (~2562 tok)
 - `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3030 tok)
 - `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
@@ -1287,6 +1289,7 @@
 ## pcs-frontend/src/api/
 
 - `audit.ts` — Audit Query API 客户端 (F-P2-009 Sprint 3 / Issue 7). (~720 tok)
+- `reportBuilder.ts` — REPORT_BUILDER 前端客户端（b10–b12 + c6）。 (~1890 tok)
 
 ## pcs-frontend/src/layouts/
 
@@ -1307,6 +1310,12 @@
 ## pcs-frontend/src/pages/config/
 
 - `FormulaEditorPage.tsx` — FormulaEditorPage — 公式编辑器（P45-2-4 / Task 22）。 (~3906 tok)
+
+## pcs-frontend/src/pages/report/
+
+- `ReportDefinitionEditorPage.tsx` — ReportDefinitionEditorPage — 定义编辑器（b10）。 (~4376 tok)
+- `ReportDefinitionListPage.tsx` — ReportDefinitionListPage — REPORT_BUILDER 定义管理列表（b12）。 (~1595 tok)
+- `ReportExecutePage.tsx` — ReportExecutePage — 执行面板（b11）。 (~2349 tok)
 
 ## pcs-frontend/src/pages/util/
 

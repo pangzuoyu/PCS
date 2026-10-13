@@ -54,9 +54,10 @@ async def execute_definition_task(
             db, def_id=did, user_id=uid, project_id=pid,
             temporary_filters=filters, temporary_max_rows=max_rows,
             output_format=output_format,
+            task_id=job_id,
         )
         file_id = await _render_and_store(
-            db, out=out, project_id=pid, job_id=job_id,
+            db, out=out, project_id=pid, job_id=job_id, task_id=job_id,
             output_format=out.snapshot.get("output_format") or "pdf")
         await db.commit()
     except Exception as e:  # noqa: BLE001
@@ -126,6 +127,7 @@ def _exchanger_type(snapshot: dict) -> str | None:
 
 
 async def _render_and_store(db: AsyncSession, *, out, project_id, job_id: str,
+                            task_id: str | None = None,
                             output_format: str) -> str:
     """把执行结果渲染成文件并登记 `ReportFile`，返回 report_file_id。
 
@@ -163,7 +165,32 @@ async def _render_and_store(db: AsyncSession, *, out, project_id, job_id: str,
                       "truncated": out.truncated,
                       "watermark": watermark.watermark_text()},
     )
+    # b11：把 report_file_id 回填到执行日志，闭合
+    # `/execute`(202, task_id) → `/report/{file_id}/status` 之间的桥。
+    # 此前这两者之间没有任何映射，前端拿到 202 之后永远拿不到文件。
+    await _link_report_file(db, task_id=task_id, report_file_id=row.report_file_id)
     return str(row.report_file_id)
+
+
+async def _link_report_file(db, *, task_id: str | None, report_file_id) -> None:
+    """把生成的文件 id 写回执行日志行。
+
+    按 `task_id` 找行而不是拿句柄：任务体里没有 ORM 行的引用；
+    而同一 def 并发两次时 `def_id` 不唯一。
+    `task_id` 显式传参而**不**塞进 `condition_snapshot` ——
+    那个快照是可复现记录，多一个每次都变的 id 会让两份快照不再可比。
+    """
+    from sqlalchemy import update
+
+    from app.models.report import ReportExecutionLog
+
+    if not task_id:
+        return
+    await db.execute(
+        update(ReportExecutionLog)
+        .where(ReportExecutionLog.task_id == task_id)
+        .values(report_file_id=report_file_id))
+    await db.flush()
 
 
 __all__ = ["execute_definition_task"]
