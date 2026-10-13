@@ -401,6 +401,11 @@ def _ache_with_geometry(htri: HtriParsedData) -> dict[str, Any] | None:
         "fin_root_diameter_mm": htri.fin_root_diameter_mm,
         "over_fin_diameter_mm": htri.over_fin_diameter_mm,
         "tip_clearance_mm": htri.tip_clearance_mm,
+        "air_humidity_percent": htri.air_humidity_percent,
+        "fin_density_per_m": htri.fin_density_per_m,
+        "fin_efficiency_percent": htri.fin_efficiency_percent,
+        "unfinned_length_mm": htri.unfinned_length_mm,
+        "unheated_length_mm": htri.unheated_length_mm,
     }
     if base is None:
         # 非 ACHE 数据：几何键全 None 也照样落 —— 让下游能区分
@@ -470,6 +475,17 @@ class AcheParams:
     fin_root_diameter_mm: float | None = None
     over_fin_diameter_mm: float | None = None
     tip_clearance_mm: float | None = None
+    # === 翅片/风机几何（TODO-056 第二批）===
+    # 同来源 `A-101.xls` `2 - Final Results`：`Air humidity` /
+    # `Fins per unit length` / `Fin efficiency` / `Unfinned length` /
+    # `Unheated length`。
+    # ⚠️ `unfinned_length_mm` 的真实值经常是 **0.000**，0 是合法值；
+    # 序列化与反序列化两侧都不得用 `or` 兜底（`0.0 or x` → x）。
+    air_humidity_percent: float | None = None
+    fin_density_per_m: float | None = None
+    fin_efficiency_percent: float | None = None
+    unfinned_length_mm: float | None = None
+    unheated_length_mm: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)

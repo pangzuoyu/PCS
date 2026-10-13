@@ -1510,3 +1510,16 @@
 | 19:37 | Created pcs-backend/app/services/report/watermark.py | — | ~1301 |
 | 19:50 | Edited pcs-backend/app/services/heat/heat_data_service.py | modified _htri_ache_dict() | ~369 |
 | 20:18 | Created pcs-backend/app/services/report/detail_level.py | — | ~785 |
+| 20:57 | Created pcs-backend/tests/scripts/test_report_heat_coverage.py | — | ~2226 |
+| 21:38 | Created pcs-backend/alembic/versions/p8_003_heat_spec_confirmed_fields.py | — | ~385 |
+| 07:43 | Created pcs-backend/app/services/heat/htri_excel_parser.py | — | ~3488 |
+| 08:42 | Edited pcs-backend/tests/services/heat/test_htri_excel_parser.py | expanded (+6 lines) | ~145 |
+| 08:42 | Edited pcs-backend/app/services/report/datasource_registry.py | expanded (+22 lines) | ~388 |
+| 08:45 | Edited pcs-backend/app/services/heat/heat_data_service.py | expanded (+11 lines) | ~160 |
+| 08:45 | Edited pcs-backend/app/services/heat/heat_data_service.py | 3→8 lines | ~98 |
+| 08:45 | Edited pcs-backend/tests/services/heat/test_ache_params_keys.py | modified test_no_ache_data_stays_none() | ~474 |
+| 08:45 | Edited pcs-backend/tests/services/heat/test_ache_params_keys.py | expanded (+17 lines) | ~193 |
+| 08:47 | Edited pcs-backend/scripts/report_heat_coverage.py | expanded (+9 lines) | ~155 |
+| 08:47 | Edited pcs-backend/scripts/report_heat_coverage.py | 10→12 lines | ~122 |
+| 08:47 | Edited pcs-backend/scripts/report_heat_coverage.py | expanded (+6 lines) | ~120 |
+| 08:53 | Edited TODOS.md | expanded (+34 lines) | ~363 |

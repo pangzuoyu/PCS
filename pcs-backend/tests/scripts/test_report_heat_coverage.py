@@ -231,7 +231,7 @@ def test_no_95_percent_target_remains():
     # ⚠️ 不要在补字段之后忘了改这里 —— 那会让基线仍停在旧值，
     # 补字段反被报成「无变化」，或者反过来把基线写成当前值而失去意义。
     assert BASELINE_TEMPLATE_COVERAGE == pytest.approx(0.797, abs=0.005)
-    assert BASELINE_REGISTRY_COVERAGE == pytest.approx(0.602, abs=0.005)
+    assert BASELINE_REGISTRY_COVERAGE == pytest.approx(0.574, abs=0.005)
     assert 0 < REGRESSION_TOLERANCE < 0.1
 
 

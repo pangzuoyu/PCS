@@ -5770,7 +5770,7 @@ export interface components {
         Body_import_htri_api_v1_heat_import_htri_post: {
             /**
              * File
-             * @description HTRI Xist v6.0 .txt 输出
+             * @description HTRI 报表：.txt（Xist/Xchanger Suite 文本输出）或 .xls/.xlsx（HTRI Excel 版报表）
              */
             file: string;
             /**

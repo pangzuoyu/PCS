@@ -31,13 +31,30 @@ def _minimal_ache_params() -> dict:
 
 
 class _FakeHtri:
-    """带满 ACHE 特征的最小 HTRI 解析结果。"""
+    """带满 ACHE 特征的最小 HTRI 解析结果。
+
+    ⚠️ 几何字段也要列全：`HtriParsedData` 是 dataclass，属性齐全，
+    所以 `_ache_with_geometry` 直接属性访问是对的（缺了就 AttributeError，
+    而不是静默 None）。测试替身若漏属性，报错就落在这个替身上 ——
+    补全即可，不要为了「让它跑过」把生产代码改成 `getattr(..., None)`。
+    """
 
     version = "V8.0"
     case_name = "ACHE"
     fan_count = 4
     air_inlet_t_k = 308.15
     bundle_area_m2 = 120.0
+
+    fin_height_mm = None
+    fin_thickness_mm = None
+    fin_root_diameter_mm = None
+    over_fin_diameter_mm = None
+    tip_clearance_mm = None
+    air_humidity_percent = None
+    fin_density_per_m = None
+    fin_efficiency_percent = None
+    unfinned_length_mm = None
+    unheated_length_mm = None
 
 
 def test_htri_import_writes_the_same_keys_as_manual_entry():
@@ -60,3 +77,43 @@ def test_no_ache_data_stays_none():
         bundle_area_m2 = None
 
     assert _htri_ache_dict(_NoAche()) is None
+
+
+# --- 第三个写入方：_ache_with_geometry ----------------------------------------
+#
+# ⚠️ `map_htri_to_heat_input` 落库走的是 `_ache_with_geometry`，
+# 而上面两条契约只钉了 `_htri_ache_dict`。合并层漏一个键 =
+# 「解析出来了、注册表登记了、导入时那一列永远 NULL 且不报错」——
+# 正是本文件开头的那个故障，只是换了一层。
+
+
+def test_merge_layer_writes_the_same_keys_as_manual_entry():
+    canonical = set(_minimal_ache_params())
+    from app.services.heat.heat_data_service import _ache_with_geometry
+
+    assert set(_ache_with_geometry(_FakeHtri())) == canonical, (
+        f"合并层键集与手工录入不一致。\n"
+        f"  仅合并层有：{sorted(set(_ache_with_geometry(_FakeHtri())) - canonical)}\n"
+        f"  仅手工录入有：{sorted(canonical - set(_ache_with_geometry(_FakeHtri())))}")
+
+
+def test_zero_geometry_survives_the_merge():
+    """⚠️ `Unfinned length` 的真实值是 **0.000**。
+
+    0.0 是假值，任何 `k or v` / `dict.get(k) or v` 形式的兜底都会把它
+    换成 None —— 落库时是一列空白，而报表不报错。这类 bug 在合成
+    fixture 上永远看不见（None 也会「看起来对」），只有真实文件的
+    0.000 才触发得出来。
+    """
+    from app.services.heat.heat_data_service import _ache_with_geometry
+
+    class _WithZero(_FakeHtri):
+        unfinned_length_mm = 0.0
+        unheated_length_mm = 127.0
+        fin_density_per_m = 433.1
+
+    got = _ache_with_geometry(_WithZero())
+    assert got["unfinned_length_mm"] == 0.0, \
+        f"0 被当成「没值」丢了（实得 {got['unfinned_length_mm']!r}）"
+    assert got["unheated_length_mm"] == 127.0
+    assert got["fin_density_per_m"] == 433.1

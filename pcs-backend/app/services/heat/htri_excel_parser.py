@@ -373,20 +373,20 @@ def parse_htri_excel(path: Path) -> HtriParsedData:  # noqa: C901 — 纯字段�
                          or _first(merged.get("Overall coef, Design/Clean/Actual"), "TUBE")
                          or 0.0),
         # `Surf/Unit (Gross/Eff) 1945.40 / 1862.49 m2` 的**毛**面积是第一个值
-        area_required_m2=(_first(merged.get("Area"), "TUBE")
-                          or _first(merged.get("Surf/Unit (Gross/Eff)"), "OUTSIDE", 0)
-                          or 0.0),
+        area_required_m2=_coalesce(_first(merged.get("Area"), "TUBE"),
+                                  _first(merged.get("Surf/Unit (Gross/Eff)"), "OUTSIDE", 0),
+                                  0.0),
         # --- 管壳 ---
         # ⚠️ TEMA 表头是 `Shell Side@5 | Tube Side@13` → 壳程落在 OUTSIDE 带
-        shell_id_mm=(_first(merged.get("Shell ID"), "OUTSIDE")
-                     or _first(merged.get("Shell ID"), "TUBE")),
+        shell_id_mm=_coalesce(_first(merged.get("Shell ID"), "OUTSIDE"),
+                              _first(merged.get("Shell ID"), "TUBE")),
         tube_length_m=_first(merged.get("Length"), "TUBE"),
-        tube_count=int(_first(merged.get("Tubecount"), "TUBE")
-                       or _first(merged.get("Tube No."), "TUBE") or 0) or None,
+        tube_count=_int_or_none(_coalesce(_first(merged.get("Tubecount"), "TUBE"),
+                                         _first(merged.get("Tube No."), "TUBE"))),
         baffle_spacing_mm=_first(merged.get("Spacing(c/c)   450.000"), "TUBE"),
-        tube_passes=int(_first(merged.get("Number of passes"), "TUBE")
-                        or _first(merged.get("No Passes per Shell"), "TUBE") or 0) or None,
-        tube_rows=int(_first(merged.get("Number of rows"), "TUBE") or 0) or None,
+        tube_passes=_int_or_none(_coalesce(_first(merged.get("Number of passes"), "TUBE"),
+                                          _first(merged.get("No Passes per Shell"), "TUBE"))),
+        tube_rows=_int_or_none(_first(merged.get("Number of rows"), "TUBE")),
         # 冷热侧的进出口：热侧 = 管程侧（TUBE），冷侧 = 另一侧（OUTSIDE）。
         # 理由见函数上方 _t_in/_c_in 的推导。
         hot_inlet_t_c=_t_in,
@@ -416,22 +416,66 @@ def parse_htri_excel(path: Path) -> HtriParsedData:  # noqa: C901 — 纯字段�
         heat_transfer_safety_factor=_first(merged.get("Heat transfer safety factor"), "OUTSIDE"),
         # --- 空冷器 ---
         air_inlet_t_c=_first(merged.get("Air Inlet Temp"), "OUTSIDE"),
-        bundle_area_m2=(_first(merged.get("Bundle Area"), "OUTSIDE")
-                        or _first(merged.get("Extended area"), "OUTSIDE")),
-        fan_count=int(_first(merged.get("Number of fans per bay"), "OUTSIDE")
-                      or _first(merged.get("No/bay"), "OUTSIDE") or 0) or None,
-        fan_face_area_ratio=(_first(merged.get("Ratio, fan area to bay face area"), "OUTSIDE")
-                            or _first(merged.get("Ratio, Fan/bundle face area"), "OUTSIDE")),
+        bundle_area_m2=_coalesce(_first(merged.get("Bundle Area"), "OUTSIDE"),
+                                _first(merged.get("Extended area"), "OUTSIDE")),
+        fan_count=_int_or_none(_coalesce(_first(merged.get("Number of fans per bay"), "OUTSIDE"),
+                                          _first(merged.get("No/bay"), "OUTSIDE"))),
+        fan_face_area_ratio=_coalesce(
+            _first(merged.get("Ratio, fan area to bay face area"), "OUTSIDE"),
+            _first(merged.get("Ratio, Fan/bundle face area"), "OUTSIDE")),
         fan_power_kw=_first(merged.get("Driver power"), "OUTSIDE"),
         fin_height_mm=_first(merged.get("Fin height"), "TUBE"),
         fin_thickness_mm=_first(merged.get("Fin thickness at base"), "TUBE"),
         fin_root_diameter_mm=_first(merged.get("Fin root"), "TUBE"),
         over_fin_diameter_mm=_first(merged.get("Over fin"), "TUBE"),
-        tip_clearance_mm=_first(merged.get("Tip clearance"), "TUBE"),
+        # ⚠️ 两侧都读。`Tip clearance` 在 `Output Summary` 的值落在
+        # OUTSIDE 侧、在 `Final Results` 落在 TUBE 侧，而 `merged` 用
+        # `setdefault` 只保留**先读到的那张表** —— 只读一侧就是 None，
+        # 而字段已登记，报表里就是一列空白（登记了不等于有数据）。
+        tip_clearance_mm=_coalesce(_first(merged.get("Tip clearance"), "TUBE"),
+                                   _first(merged.get("Tip clearance"), "OUTSIDE")),
+        # TODO-056 剩余 5 个
+        air_humidity_percent=_any_side(merged.get("Air humidity")),
+        fin_density_per_m=_any_side(merged.get("Fins per unit length")),
+        fin_efficiency_percent=_any_side(merged.get("Fin efficiency")),
+        unfinned_length_mm=_any_side(merged.get("Unfinned length")),
+        unheated_length_mm=_any_side(merged.get("Unheated length")),
         extended_area_m2=_first(merged.get("Extended area"), "OUTSIDE"),
         bare_area_m2=_first(merged.get("Bare area"), "OUTSIDE"),
         raw_text="",
     )
+
+
+def _any_side(d: dict | None) -> float | None:
+    """两侧里取第一个有值的 —— 不关心它在报告的哪一侧。
+
+    这些是**单值字段**（翅片密度、空气湿度…），HTRI 把它们放在哪一列
+    取决于该行怎么排，没有「热侧/冷侧」的语义。两侧都取一遍比猜一侧稳。
+    """
+    return _coalesce(_first(d, "OUTSIDE"), _first(d, "TUBE"),
+                     _first(d, "OUTSIDE", 1), _first(d, "TUBE", 1))
+
+
+def _int_or_none(v) -> int | None:
+    """浮点 → int；None 保持 None。
+
+    ⚠️ 不用 `int(x or 0) or None`：`0 or None` → None，而「风机数 0」
+    在某些报表里是合法的（不吹风的设计）。
+    """
+    return None if v is None else int(v)
+
+
+def _coalesce(*values):
+    """取第一个**非 None** 的值。
+
+    ⚠️ **不能用 `or`**：0.0 是假值，而 `Unfinned length` 的真实值就是
+    `0.000`（没有无翅片段）。`a or b` 会把 0 当成「没有值」丢掉，
+    而报表里那一列变成空白 —— 与「这个字段取不到」表现完全一样。
+    """
+    for v in values:
+        if v is not None:
+            return v
+    return None
 
 
 def _first_pair(merged: dict, side: str, keys: tuple[str, ...]

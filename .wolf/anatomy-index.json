@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-12T12:18:43.707Z",
-    "fileCount": 748,
+    "lastScanned": "2026-10-13T00:53:35.737Z",
+    "fileCount": 754,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "3e3d8f0dc8747c96734cb28fc17cd8f09ed1bddf1ce2d4cfc1b21f4eaee5b043",
-    "storeUpdatedAt": "2026-10-12T12:18:43.717Z",
-    "rootHash": "22cc09f2d0db0120"
+    "renderedHash": "979dab60ae3573e8d695a66ad68c6b547f734bcdfe3422d5624563021a90312e",
+    "storeUpdatedAt": "2026-10-13T00:53:35.748Z",
+    "rootHash": "2988ae02531881be"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12365,11 +12365,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 8891,
-      "hash": "0e6f3cc45299cfab",
-      "size": 55917,
-      "mtimeMs": 1791389892694.4062,
-      "updatedAt": "2026-10-07T16:18:12.744Z",
+      "tokens": 13092,
+      "hash": "f7f7f1ca41747bba",
+      "size": 84387,
+      "mtimeMs": 1791852815683.879,
+      "updatedAt": "2026-10-13T00:53:35.737Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -22671,54 +22671,110 @@
     },
     "pcs-backend/app/services/report/datasource_registry.py": {
       "description": "数据源注册表 —— REPORT_BUILDER 可选数据源的**纯元数据**。",
-      "tokens": 3162,
-      "hash": "efdcfba41f201801",
-      "size": 13085,
-      "mtimeMs": 1791775398022.4255,
-      "updatedAt": "2026-10-12T03:23:18.070Z",
+      "tokens": 8146,
+      "hash": "1109daf5667061a2",
+      "size": 34704,
+      "mtimeMs": 1791852154998.826,
+      "updatedAt": "2026-10-13T00:42:35.057Z",
       "source": "hook",
       "symbols": [
         {
           "name": "FieldSpec",
           "kind": "class",
           "startLine": 37,
-          "endLine": 50,
-          "tokens": 75
+          "endLine": 57,
+          "tokens": 173
         },
         {
           "name": "DataSource",
           "kind": "class",
-          "startLine": 51,
-          "endLine": 58,
+          "startLine": 58,
+          "endLine": 65,
           "tokens": 46
         },
         {
           "name": "JoinRule",
           "kind": "class",
-          "startLine": 59,
-          "endLine": 71,
+          "startLine": 66,
+          "endLine": 78,
           "tokens": 64
         },
         {
           "name": "_f",
           "kind": "fn",
-          "startLine": 72,
-          "endLine": 75,
+          "startLine": 79,
+          "endLine": 82,
           "tokens": 33
         },
         {
           "name": "_jf",
           "kind": "fn",
-          "startLine": 76,
-          "endLine": 262,
-          "tokens": 2477
+          "startLine": 83,
+          "endLine": 93,
+          "tokens": 104
+        },
+        {
+          "name": "_fl",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 98,
+          "tokens": 64
+        },
+        {
+          "name": "_fx",
+          "kind": "fn",
+          "startLine": 99,
+          "endLine": 103,
+          "tokens": 59
+        },
+        {
+          "name": "_jfl",
+          "kind": "fn",
+          "startLine": 104,
+          "endLine": 109,
+          "tokens": 64
+        },
+        {
+          "name": "_jfx",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 116,
+          "tokens": 82
+        },
+        {
+          "name": "_heat_side_fields",
+          "kind": "fn",
+          "startLine": 117,
+          "endLine": 522,
+          "tokens": 6041
         },
         {
           "name": "join_key_for",
           "kind": "fn",
-          "startLine": 263,
-          "endLine": 278,
+          "startLine": 523,
+          "endLine": 539,
           "tokens": 161
+        },
+        {
+          "name": "primary_key_field",
+          "kind": "fn",
+          "startLine": 540,
+          "endLine": 559,
+          "tokens": 195
+        },
+        {
+          "name": "_add_primary_keys",
+          "kind": "fn",
+          "startLine": 560,
+          "endLine": 608,
+          "tokens": 501
+        },
+        {
+          "name": "_add_project_columns",
+          "kind": "fn",
+          "startLine": 609,
+          "endLine": 635,
+          "tokens": 252
         }
       ]
     },
@@ -24467,88 +24523,109 @@
     },
     "pcs-backend/app/services/heat/heat_data_service.py": {
       "description": "HeatResultsService 落库（P5-4-2 / Task 20）。",
-      "tokens": 4333,
-      "hash": "df7fff4b79deec8e",
-      "size": 16936,
-      "mtimeMs": 1791805859639.0613,
-      "updatedAt": "2026-10-12T11:50:59.688Z",
+      "tokens": 6229,
+      "hash": "c1f423479bed560c",
+      "size": 25323,
+      "mtimeMs": 1791852315262.5542,
+      "updatedAt": "2026-10-13T00:45:15.314Z",
       "source": "hook",
       "symbols": [
         {
           "name": "HeatCalcInput",
           "kind": "class",
-          "startLine": 32,
-          "endLine": 106,
-          "tokens": 826
+          "startLine": 33,
+          "endLine": 116,
+          "tokens": 972
         },
         {
           "name": "save_heat_calc_result",
           "kind": "fn",
-          "startLine": 107,
-          "endLine": 211,
-          "tokens": 1043
+          "startLine": 117,
+          "endLine": 230,
+          "tokens": 1152
         },
         {
           "name": "map_htri_to_heat_input",
           "kind": "fn",
-          "startLine": 212,
-          "endLine": 253,
-          "tokens": 415
+          "startLine": 231,
+          "endLine": 319,
+          "tokens": 928
+        },
+        {
+          "name": "_pick_flow",
+          "kind": "fn",
+          "startLine": 320,
+          "endLine": 329,
+          "tokens": 75
+        },
+        {
+          "name": "_side_dict",
+          "kind": "fn",
+          "startLine": 330,
+          "endLine": 338,
+          "tokens": 107
         },
         {
           "name": "_htri_hot_side_dict",
           "kind": "fn",
-          "startLine": 254,
-          "endLine": 264,
-          "tokens": 96
+          "startLine": 339,
+          "endLine": 367,
+          "tokens": 309
         },
         {
           "name": "_htri_cold_side_dict",
           "kind": "fn",
-          "startLine": 265,
-          "endLine": 275,
-          "tokens": 98
+          "startLine": 368,
+          "endLine": 390,
+          "tokens": 280
+        },
+        {
+          "name": "_ache_with_geometry",
+          "kind": "fn",
+          "startLine": 391,
+          "endLine": 416,
+          "tokens": 299
         },
         {
           "name": "_htri_ache_dict",
           "kind": "fn",
-          "startLine": 276,
-          "endLine": 312,
-          "tokens": 387
+          "startLine": 417,
+          "endLine": 450,
+          "tokens": 337
         },
         {
           "name": "AcheParams",
           "kind": "class",
-          "startLine": 313,
-          "endLine": 333,
-          "tokens": 161
+          "startLine": 451,
+          "endLine": 494,
+          "tokens": 460
         },
         {
           "name": "EnthalpyTableEntry",
           "kind": "class",
-          "startLine": 334,
-          "endLine": 343,
+          "startLine": 495,
+          "endLine": 504,
           "tokens": 58
         },
         {
           "name": "EnthalpyTable",
           "kind": "class",
-          "startLine": 344,
-          "endLine": 406,
+          "startLine": 505,
+          "endLine": 567,
           "tokens": 634
         },
         {
           "name": "save_ache_params",
           "kind": "fn",
-          "startLine": 407,
-          "endLine": 433,
+          "startLine": 568,
+          "endLine": 594,
           "tokens": 182
         },
         {
           "name": "save_enthalpy_table",
           "kind": "fn",
-          "startLine": 434,
-          "endLine": 458,
+          "startLine": 595,
+          "endLine": 619,
           "tokens": 196
         }
       ]
@@ -24582,6 +24659,455 @@
           "startLine": 74,
           "endLine": 89,
           "tokens": 156
+        }
+      ]
+    },
+    "pcs-backend/tests/scripts/test_report_heat_coverage.py": {
+      "description": "c4/c5：HEAT DETAIL 覆盖率工具的测试。",
+      "tokens": 2226,
+      "hash": "7b909fd09dd324b0",
+      "size": 10411,
+      "mtimeMs": 1791809846372.2725,
+      "updatedAt": "2026-10-12T12:57:26.439Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_need_samples",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 54,
+          "tokens": 40
+        },
+        {
+          "name": "partial_xlsx",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 75,
+          "tokens": 162
+        },
+        {
+          "name": "test_missing_reference_exits_2_not_0",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 85,
+          "tokens": 71
+        },
+        {
+          "name": "test_partial_coverage_exits_1",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 92,
+          "tokens": 49
+        },
+        {
+          "name": "test_unit_recognises_both_xace_and_tema_notations",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 105,
+          "tokens": 98
+        },
+        {
+          "name": "test_labels_are_found_despite_gaps_between_label_and_unit",
+          "kind": "fn",
+          "startLine": 106,
+          "endLine": 123,
+          "tokens": 138
+        },
+        {
+          "name": "test_extraction_reads_every_sheet_not_just_the_first",
+          "kind": "fn",
+          "startLine": 124,
+          "endLine": 145,
+          "tokens": 173
+        },
+        {
+          "name": "test_extraction_noise_is_separated_from_real_gaps",
+          "kind": "fn",
+          "startLine": 146,
+          "endLine": 160,
+          "tokens": 130
+        },
+        {
+          "name": "test_coverage_is_not_structurally_always_full",
+          "kind": "fn",
+          "startLine": 161,
+          "endLine": 172,
+          "tokens": 106
+        },
+        {
+          "name": "test_nothing_extracted_is_zero_not_full",
+          "kind": "fn",
+          "startLine": 173,
+          "endLine": 179,
+          "tokens": 59
+        },
+        {
+          "name": "test_map_targets_must_exist_in_registry",
+          "kind": "fn",
+          "startLine": 180,
+          "endLine": 190,
+          "tokens": 120
+        },
+        {
+          "name": "test_two_denominators_disagree",
+          "kind": "fn",
+          "startLine": 191,
+          "endLine": 196,
+          "tokens": 58
+        },
+        {
+          "name": "test_target_is_95_percent",
+          "kind": "fn",
+          "startLine": 197,
+          "endLine": 201,
+          "tokens": 33
+        },
+        {
+          "name": "test_json_mode_emits_parseable_json",
+          "kind": "fn",
+          "startLine": 202,
+          "endLine": 212,
+          "tokens": 116
+        },
+        {
+          "name": "test_real_reference_files_yield_labels",
+          "kind": "fn",
+          "startLine": 213,
+          "endLine": 220,
+          "tokens": 72
+        },
+        {
+          "name": "test_real_xace_reads_both_content_sheets",
+          "kind": "fn",
+          "startLine": 221,
+          "endLine": 249,
+          "tokens": 311
+        },
+        {
+          "name": "test_real_coverage_is_measured_and_honest",
+          "kind": "fn",
+          "startLine": 250,
+          "endLine": 265,
+          "tokens": 186
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p8_003_heat_spec_confirmed_fields.py": {
+      "description": "P8c：heat_results 加用户 2026-12-12 裁决要进规格书的 3 组字段。",
+      "tokens": 385,
+      "hash": "2c6a8bde73c0fe0d",
+      "size": 1850,
+      "mtimeMs": 1791812284879.6404,
+      "updatedAt": "2026-10-12T13:38:04.925Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/services/heat/htri_excel_parser.py": {
+      "description": "HTRI 报表的 **Excel 版**解析。",
+      "tokens": 3488,
+      "hash": "e923ea6773068c9a",
+      "size": 13821,
+      "mtimeMs": 1791848598306.086,
+      "updatedAt": "2026-10-12T23:43:18.359Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "HtriExcelParseError",
+          "kind": "class",
+          "startLine": 65,
+          "endLine": 68,
+          "tokens": 20
+        },
+        {
+          "name": "_is_unit",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 73,
+          "tokens": 38
+        },
+        {
+          "name": "_num",
+          "kind": "fn",
+          "startLine": 74,
+          "endLine": 86,
+          "tokens": 106
+        },
+        {
+          "name": "_read_rows",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 110,
+          "tokens": 248
+        },
+        {
+          "name": "_lo_convert",
+          "kind": "fn",
+          "startLine": 111,
+          "endLine": 121,
+          "tokens": 104
+        },
+        {
+          "name": "_find_side_boundary",
+          "kind": "fn",
+          "startLine": 122,
+          "endLine": 146,
+          "tokens": 233
+        },
+        {
+          "name": "_collect",
+          "kind": "fn",
+          "startLine": 147,
+          "endLine": 182,
+          "tokens": 390
+        },
+        {
+          "name": "_first",
+          "kind": "fn",
+          "startLine": 183,
+          "endLine": 189,
+          "tokens": 53
+        },
+        {
+          "name": "_pair",
+          "kind": "fn",
+          "startLine": 190,
+          "endLine": 193,
+          "tokens": 36
+        },
+        {
+          "name": "parse_htri_excel",
+          "kind": "fn",
+          "startLine": 194,
+          "endLine": 296,
+          "tokens": 1615
+        },
+        {
+          "name": "_case_name",
+          "kind": "fn",
+          "startLine": 297,
+          "endLine": 302,
+          "tokens": 47
+        }
+      ]
+    },
+    "pcs-backend/tests/services/heat/test_htri_excel_parser.py": {
+      "description": "htri 报表的 **Excel 版**解析。",
+      "tokens": 2213,
+      "hash": "e83d44f5a2ac9bbf",
+      "size": 9873,
+      "mtimeMs": 1791852142204.9304,
+      "updatedAt": "2026-10-13T00:42:22.255Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_need",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 44,
+          "tokens": 36
+        },
+        {
+          "name": "test_xace_core_fields",
+          "kind": "fn",
+          "startLine": 45,
+          "endLine": 55,
+          "tokens": 110
+        },
+        {
+          "name": "test_xace_two_phase_and_skin_temperature",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 72,
+          "tokens": 212
+        },
+        {
+          "name": "test_xace_tube_rows_is_not_tube_passes",
+          "kind": "fn",
+          "startLine": 73,
+          "endLine": 81,
+          "tokens": 71
+        },
+        {
+          "name": "test_tema_shell_tube_core_fields",
+          "kind": "fn",
+          "startLine": 82,
+          "endLine": 93,
+          "tokens": 136
+        },
+        {
+          "name": "test_side_boundary_comes_from_the_header_not_a_hardcoded_column",
+          "kind": "fn",
+          "startLine": 94,
+          "endLine": 112,
+          "tokens": 187
+        },
+        {
+          "name": "test_unknown_file_raises_a_specific_error",
+          "kind": "fn",
+          "startLine": 113,
+          "endLine": 126,
+          "tokens": 105
+        },
+        {
+          "name": "test_parsed_excel_feeds_the_same_persistence_path",
+          "kind": "fn",
+          "startLine": 127,
+          "endLine": 142,
+          "tokens": 192
+        },
+        {
+          "name": "test_reads_every_worksheet_not_just_the_first",
+          "kind": "fn",
+          "startLine": 143,
+          "endLine": 161,
+          "tokens": 179
+        },
+        {
+          "name": "test_power_conversion_uses_the_unit_not_the_magnitude",
+          "kind": "fn",
+          "startLine": 162,
+          "endLine": 178,
+          "tokens": 170
+        },
+        {
+          "name": "test_remaining_ache_fields_are_parsed_from_the_real_report",
+          "kind": "fn",
+          "startLine": 179,
+          "endLine": 197,
+          "tokens": 242
+        },
+        {
+          "name": "test_tip_clearance_is_not_silently_none",
+          "kind": "fn",
+          "startLine": 198,
+          "endLine": 210,
+          "tokens": 104
+        },
+        {
+          "name": "test_the_five_new_fields_reach_the_registry",
+          "kind": "fn",
+          "startLine": 211,
+          "endLine": 224,
+          "tokens": 188
+        }
+      ]
+    },
+    "pcs-backend/tests/services/heat/test_ache_params_keys.py": {
+      "description": "`ache_params` JSONB 的**唯一键名契约**。",
+      "tokens": 1042,
+      "hash": "c4b524a44e5e2c9f",
+      "size": 4787,
+      "mtimeMs": 1791852342646.343,
+      "updatedAt": "2026-10-13T00:45:42.699Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_minimal_ache_params",
+          "kind": "fn",
+          "startLine": 25,
+          "endLine": 32,
+          "tokens": 79
+        },
+        {
+          "name": "_FakeHtri",
+          "kind": "class",
+          "startLine": 33,
+          "endLine": 59,
+          "tokens": 193
+        },
+        {
+          "name": "test_htri_import_writes_the_same_keys_as_manual_entry",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 69,
+          "tokens": 111
+        },
+        {
+          "name": "test_no_ache_data_stays_none",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 89,
+          "tokens": 149
+        },
+        {
+          "name": "test_merge_layer_writes_the_same_keys_as_manual_entry",
+          "kind": "fn",
+          "startLine": 90,
+          "endLine": 99,
+          "tokens": 124
+        },
+        {
+          "name": "test_zero_geometry_survives_the_merge",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 120,
+          "tokens": 201
+        }
+      ]
+    },
+    "pcs-backend/scripts/report_heat_coverage.py": {
+      "description": "c5：HEAT DETAIL 字段覆盖率（目标 ≥95%）。",
+      "tokens": 6477,
+      "hash": "67c34f449f68d553",
+      "size": 28950,
+      "mtimeMs": 1791852471514.3682,
+      "updatedAt": "2026-10-13T00:47:51.560Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "is_unit",
+          "kind": "fn",
+          "startLine": 269,
+          "endLine": 273,
+          "tokens": 37
+        },
+        {
+          "name": "read_labels_by_sheet",
+          "kind": "fn",
+          "startLine": 274,
+          "endLine": 291,
+          "tokens": 200
+        },
+        {
+          "name": "main_labels",
+          "kind": "fn",
+          "startLine": 292,
+          "endLine": 322,
+          "tokens": 247
+        },
+        {
+          "name": "read_labels",
+          "kind": "fn",
+          "startLine": 323,
+          "endLine": 347,
+          "tokens": 187
+        },
+        {
+          "name": "_iter_rows",
+          "kind": "fn",
+          "startLine": 348,
+          "endLine": 376,
+          "tokens": 321
+        },
+        {
+          "name": "_lo_convert",
+          "kind": "fn",
+          "startLine": 377,
+          "endLine": 394,
+          "tokens": 164
+        },
+        {
+          "name": "compute_coverage",
+          "kind": "fn",
+          "startLine": 395,
+          "endLine": 475,
+          "tokens": 894
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 476,
+          "endLine": 574,
+          "tokens": 1238
         }
       ]
     }

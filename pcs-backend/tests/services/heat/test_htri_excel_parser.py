@@ -165,3 +165,59 @@ async def test_power_conversion_uses_the_unit_not_the_magnitude():
     _need(TEMA)
     d = parse_htri_excel(TEMA)
     assert d.heat_duty_w == pytest.approx(44711e3, rel=1e-3)
+
+
+# --- TODO-056 剩余 5 个 ACHE 字段 ----------------------------------------------
+#
+# 真实 `A-101.xls` 的 `2 - Final Results` 里确实有这 5 个标签（实测行）：
+#   `Air humidity` / `Fins per unit length` / `Fin efficiency` /
+#   `Unfinned length` / `Unheated length`
+# 它们此前既不在 `AcheParams`、也不在注册表 —— 真实报表里有、我们取不到。
+
+
+@pytest.mark.asyncio
+async def test_remaining_ache_fields_are_parsed_from_the_real_report():
+    _need(XACE)
+    d = parse_htri_excel(XACE)
+    # ⚠️ `Air humidity` 在这份报表里**只有标签和单位、没有值**：
+    #   `[2 - Final Results] r13` = (16,'Air humidity') (20,'(%)')，中间为空。
+    #   所以 None 是**正确**的解析结果 —— 写成 50.0 会是我编的数字，
+    # 而它让这条测试一直红着，看起来像 parser 有 bug。
+    # 断言「是 None」是为了在 HTRI 哪天开始给值时**红一次**提醒复核。
+    assert d.air_humidity_percent is None, \
+        (f"报表里 Air humidity 仍无值；解析器却给出了 {d.air_humidity_percent} "
+         "—— 要么 HTRI 开始输出了（好事，该钉具体数），要么 parser 在编数")
+    assert d.fin_density_per_m == pytest.approx(433.1), \
+        f"Fins per unit length 取不到（实得 {d.fin_density_per_m}）"
+    assert d.fin_efficiency_percent == pytest.approx(80.0)
+    assert d.unfinned_length_mm == pytest.approx(0.0)
+    assert d.unheated_length_mm == pytest.approx(127.0)
+
+
+@pytest.mark.asyncio
+async def test_tip_clearance_is_not_silently_none():
+    """`Tip clearance` 上一轮登记了却取不到值 —— 登记了不等于有数据。
+
+    这条把「登记了但恒为 None」钉成可失败的断言：那正是 c1 拒绝登记
+    「ORM 上没有的字段」的同一个理由，只是这次是**解析器**没覆盖到。
+    """
+    _need(XACE)
+    d = parse_htri_excel(XACE)
+    assert d.tip_clearance_mm is not None, \
+        "Tip clearance 已登记却恒为 None —— 字段树里选得到、查出来是空列"
+
+
+@pytest.mark.asyncio
+async def test_the_five_new_fields_reach_the_registry():
+    """解析出来的字段必须**注册** —— 只有 parser 没有注册表 = 报表选不到。"""
+    from app.services.report.datasource_registry import DATASOURCES
+
+    fields = DATASOURCES["HEAT_RESULTS"].fields
+    for name in ("ache_params.air_humidity_percent",
+                 "ache_params.fin_density_per_m",
+                 "ache_params.fin_efficiency_percent",
+                 "ache_params.unfinned_length_mm",
+                 "ache_params.unheated_length_mm"):
+        assert name in fields, f"{name} 未注册 —— 解析出来了但报表里选不到"
+        assert fields[name].exchanger_type == "AIR_COOLER"
+        assert fields[name].level == "DETAIL"

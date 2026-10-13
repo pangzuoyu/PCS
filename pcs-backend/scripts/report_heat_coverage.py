@@ -149,6 +149,15 @@ COLUMN_MAP.update({
     "Fin thickness at base": ["ache_params.fin_thickness_mm"],
     "Fin root": ["ache_params.fin_root_diameter_mm"],
     "Over fin": ["ache_params.over_fin_diameter_mm"],
+    # TODO-056 第二批：解析器 + AcheParams + 注册表 + 写入方都已补齐，
+    # 因此从 KNOWN_ACHE_GEOMETRY_GAPS 转正。⚠️ `Air humidity` 在
+    # `A-101.xls` 里只有标签与单位、没有值 —— 映射仍然正确
+    # （HTRI 在别的工况下会给值），但真实跑它时会是空列。
+    "Air humidity": ["ache_params.air_humidity_percent"],
+    "Fins per unit length": ["ache_params.fin_density_per_m"],
+    "Fin efficiency": ["ache_params.fin_efficiency_percent"],
+    "Unfinned length": ["ache_params.unfinned_length_mm"],
+    "Unheated length": ["ache_params.unheated_length_mm"],
     # 管束几何（TEMA 的 "Tube No. | 2716 | OD 19.000 mm | ..." 一行多标签）
     "Tubecount Odd/Even": ["tube_count"],
     "Tubecount, Odd rows/Even rows": ["tube_count"],
@@ -186,15 +195,17 @@ COLUMN_MAP.update({
     "Orientation (from horiz.)": ["orientation"],
 })
 
-#: 真实 HTRI Xace 模板里存在、但 `heat_results` **既无对应列、AcheParams
-#: 也从不写入**的字段 —— 因此**刻意不映射**。映射到它们会让覆盖率替一个
-#: 永远查不出值的字段记功，而用户拿到的是一整片空白。
-#: 处置：补 `AcheParams` 字段 + 写入方，再回来加映射。见 TODO-056。
-KNOWN_ACHE_GEOMETRY_GAPS = (
-    # 尚未落地：htri_parser 提不到，且这些键需要新的数据来源
-    "Air humidity", "Fins per unit length", "Fin efficiency",
-    "Unfinned length", "Unheated length",
-)
+#: ⚠️ 原 `KNOWN_ACHE_GEOMETRY_GAPS` 已于 TODO-056 第二批删除：它列的 5 个
+#: 标签（Air humidity / Fins per unit length / Fin efficiency /
+#: Unfinned length / Unheated length）现已解析、登记并写入，转正进
+#: `COLUMN_MAP`。
+#:
+#: 顺带记一笔它原本的毛病：那个常量**定义了却零引用** —— 看上去在守护
+#: 「刻意不映射」，实际没有任何代码读它，这些标签会照常落进
+#: `unmapped_labels`。「一个零引用的白名单不是白名单」：它让读代码的人
+#: 以为这些标签被特殊处理了，而真去查一遍会发现并没有。
+#: 将来若再有刻意不映射的字段，要么**接到 `unmapped_labels` 的分类里**
+#: （像 `EXTRACTION_NOISE` 那样），要么别写。
 
 #: **提取噪声**：被误当成字段标签的列头/小标题 —— 本身不是字段，
 #: 只是恰好后面跟了一个单位（如 `Outlet | Deg C | 54.99` 里的 Outlet 是
@@ -228,7 +239,13 @@ EXTRACTION_NOISE = frozenset({
 #: （第一版就是这么写的：注册口径 53% < 模板下限 62.9% → 报「已回归」，
 #: 而实际一个数都没变）。换参考文件后基线要重测。
 BASELINE_TEMPLATE_COVERAGE = 0.797   # 59/74 条标签（2026-12-13 实测）
-BASELINE_REGISTRY_COVERAGE = 0.602   # 62/103 个字段（2026-12-13 实测）
+# ⚠️ 2026-12-13 第二次重测：62/**108** 个字段。**分子没动、分母 +5**，
+# 所以这个数**因为补了字段而下降** —— 看着像倒退，其实是量纲问题：
+# 分母是**全部已登记字段**，分子是**主表口径标签够得着的字段**。
+# TODO-056 第二批那 5 个 ACHE 字段的标签都在 `2 - Final Results`，
+# 而主表口径只读 `2 - Output Summary`，于是它们进了分母、进不了分子。
+# 想看这 5 个字段的覆盖情况：`--sheet "2 - Final Results"`（那里是 49/108）。
+BASELINE_REGISTRY_COVERAGE = 0.574   # 62/108 个字段（2026-12-13 实测）
 REGRESSION_TOLERANCE = 0.02          # 2 个百分点
 
 #: 判定下限 = 基线 − 容差。**不是**「目标」：只防跌，不追涨。

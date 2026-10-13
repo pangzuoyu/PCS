@@ -330,6 +330,28 @@ DATASOURCES: dict[str, DataSource] = {
             "ache_params.tip_clearance_mm": _jfx(
                 "ache_params", "tip_clearance_mm", "number", "风机叶尖间隙",
                 "AIR_COOLER"),
+            # --- DETAIL ACHE 第二批（TODO-056 收尾）---
+            # ⚠️ `air_humidity_percent` 在真实 `A-101.xls` 里**取不到值**
+            # （r13 只有标签 col16 与单位 col20，中间空）。仍登记：
+            # HTRI 在别的工况下会输出它，且它确实是设计输入；登记了才谈得上
+            # 「某次导入没取到」。见 test_remaining_ache_fields_are_parsed_from_the_real_report。
+            "ache_params.air_humidity_percent": _jfx(
+                "ache_params", "air_humidity_percent", "number", "空气湿度",
+                "AIR_COOLER"),
+            "ache_params.fin_density_per_m": _jfx(
+                "ache_params", "fin_density_per_m", "number", "单位长度翅片数",
+                "AIR_COOLER"),
+            "ache_params.fin_efficiency_percent": _jfx(
+                "ache_params", "fin_efficiency_percent", "number", "翅片效率",
+                "AIR_COOLER"),
+            # ⚠️ `unfinned_length_mm` 的真实值常常是 **0.000**（整段都有翅片）。
+            # 0 是**合法值**，不是「没取到」—— 任何 `or` 回退链都会把它吞掉。
+            "ache_params.unfinned_length_mm": _jfx(
+                "ache_params", "unfinned_length_mm", "number", "无翅片段长度",
+                "AIR_COOLER"),
+            "ache_params.unheated_length_mm": _jfx(
+                "ache_params", "unheated_length_mm", "number", "无加热段长度",
+                "AIR_COOLER"),
 
             # --- DETAIL 主表剩余 4 条缺口（用户 2026-12-12「补齐」）---
             # 面积比**存 HTRI 原值**而不是自己重算：公式有细微差异时，

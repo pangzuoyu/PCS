@@ -144,6 +144,13 @@ class HtriParsedData:
     fin_root_diameter_mm: float | None = None
     over_fin_diameter_mm: float | None = None
     tip_clearance_mm: float | None = None
+    # TODO-056 剩余 5 个：真实 `A-101.xls` 的 `2 - Final Results` 里确有
+    # 这 5 个标签，此前 `AcheParams` 与注册表都没有 —— 报表里有、我们取不到。
+    air_humidity_percent: float | None = None      # Air humidity (%)
+    fin_density_per_m: float | None = None         # Fins per unit length (fin/m)
+    fin_efficiency_percent: float | None = None    # Fin efficiency (%)
+    unfinned_length_mm: float | None = None        # Unfinned length (mm)
+    unheated_length_mm: float | None = None        # Unheated length (mm)
     # 主表剩余 4 条缺口（用户 2026-12-12）
     # mm 单位版（Excel 报表口径；纯文本 parser 用 *_m）
     shell_id_mm: float | None = None

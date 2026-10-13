@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-12T12:18:43.707Z
-> Files: 748 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T00:53:35.737Z
+> Files: 754 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -14,7 +14,7 @@
 - `docker-compose.yml` — Docker Compose services (~309 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
 - `README.md` — Project documentation (~3547 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~8891 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~13092 tok)
 
 ## .claude/worktrees/s4-0-events/
 
@@ -1073,6 +1073,7 @@
 - `p7_s5_008_projects_workspace_fk.py` — p7_s5_008: 补 projects.workspace_id 外键 —— ORM 用 use_alter 声明，DB 侧从未建成. (~320 tok)
 - `p8_001_report_tables.py` — P8 报表 4 张表. (~1907 tok)
 - `p8_002_report_file_doc_no_rev.py` — P8：report_files 加 doc_no / rev。 (~220 tok)
+- `p8_003_heat_spec_confirmed_fields.py` — P8c：heat_results 加用户 2026-12-12 裁决要进规格书的 3 组字段。 (~385 tok)
 
 ## pcs-backend/app/api/v1/
 
@@ -1145,7 +1146,8 @@
 
 ## pcs-backend/app/services/heat/
 
-- `heat_data_service.py` — HeatResultsService 落库（P5-4-2 / Task 20）。 (~4333 tok)
+- `heat_data_service.py` — HeatResultsService 落库（P5-4-2 / Task 20）。 (~6229 tok)
+- `htri_excel_parser.py` — HTRI 报表的 **Excel 版**解析。 (~3488 tok)
 
 ## pcs-backend/app/services/report/
 
@@ -1153,7 +1155,7 @@
 - `blocks.py` — 三个渲染器共用的中间表示（Block）。 (~600 tok)
 - `builder_service.py` — REPORT_BUILDER 执行引擎（P8b b7）。 (~2490 tok)
 - `collector.py` — 10 类报表的**声明**（SPEC §3.2.1(2)）。 (~1502 tok)
-- `datasource_registry.py` — 数据源注册表 —— REPORT_BUILDER 可选数据源的**纯元数据**。 (~3162 tok)
+- `datasource_registry.py` — 数据源注册表 —— REPORT_BUILDER 可选数据源的**纯元数据**。 (~8146 tok)
 - `definition_service.py` — 报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。 (~3474 tok)
 - `detail_level.py` — detail_level 分级（ADR-0028「detail_level 选择」）。 (~785 tok)
 - `paths.py` — 报表文件路径解析 —— **唯一**拼路径的地方。 (~414 tok)
@@ -1185,6 +1187,7 @@
 - `p7_open_012_t5_r1_verification.py` — P7 Sprint 2 T5 ≤2% 验收脚本（蜡油加氢 XLS R1 重算对比）。 (~4491 tok)
 - `p7_open_016_config_conformance_audit.py` — PCS 折标系数 vs GB 30251-2024 附录A 表A.1 一致性审计. (~3146 tok)
 - `p7_s3_003_backfill_config_audit.py` — F-P0-001 R1 audit backfill (P7 Sprint 3 / Issue 6). (~1249 tok)
+- `report_heat_coverage.py` — c5：HEAT DETAIL 字段覆盖率（目标 ≥95%）。 (~6477 tok)
 
 ## pcs-backend/tests/
 
@@ -1226,10 +1229,16 @@
 - `test_check_migration_idempotency.py` — F-P3-002 fix: 测试 check_migration_idempotency 脚本行为. (~1748 tok)
 - `test_check_openapi_payload_coverage.py` — API 载荷结构覆盖率闸的测试. (~957 tok)
 - `test_check_payload_model_coverage.py` — 覆盖率闸 check_payload_model_coverage 的测试. (~975 tok)
+- `test_report_heat_coverage.py` — c4/c5：HEAT DETAIL 覆盖率工具的测试。 (~2226 tok)
 
 ## pcs-backend/tests/services/
 
 - `test_stream_transition.py` — P3.2 SIM-13：StreamService.transition() 状态机集成测试（闭环审计 D-1）。 (~2982 tok)
+
+## pcs-backend/tests/services/heat/
+
+- `test_ache_params_keys.py` — `ache_params` JSONB 的**唯一键名契约**。 (~1042 tok)
+- `test_htri_excel_parser.py` — htri 报表的 **Excel 版**解析。 (~2213 tok)
 
 ## pcs-backend/tests/services/report/
 

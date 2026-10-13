@@ -1091,6 +1091,40 @@ antd v6 会移除 `rowKey(value, index)` 的第二个参数。当前写法依赖
 - **优先级**: TODO 级。这是 DETAIL 覆盖率未达标的主因之一。
 - **Owner**: 工艺 + 数据
 
+#### 2026-10-13 收口：9 条全部落地
+
+两批共 **9 个** ACHE 字段（不是 9 个标签对 9 个列，见下表）已贯通
+**解析 → `AcheParams` → `_ache_with_geometry` 写入 → 注册表 → `COLUMN_MAP`**：
+
+| 批次 | 字段 |
+|---|---|
+| 第一批 | `fin_height_mm` / `fin_thickness_mm` / `fin_root_diameter_mm` / `over_fin_diameter_mm` / `tip_clearance_mm` |
+| 第二批 | `air_humidity_percent` / `fin_density_per_m` / `fin_efficiency_percent` / `unfinned_length_mm` / `unheated_length_mm` |
+
+**真实值**（`A-101.xls` `2 - Final Results` 实测）：
+
+| 字段 | 实测 | 备注 |
+|---|---|---|
+| `fin_density_per_m` | 433.1 | |
+| `fin_efficiency_percent` | 80.0 | |
+| `unheated_length_mm` | 127.000 | |
+| `unfinned_length_mm` | **0.000** | 整段都有翅片 —— **0 是合法值**，见 bug-161 |
+| `air_humidity_percent` | **无值** | r13 只有标签 col16 与单位 col20，中间空。`None` 是正确结果 |
+| `tip_clearance_mm` | 9.525 | 第一批登记了却恒为 `None`（只读了一侧）—— c1「登记了不等于有数据」的又一个实例 |
+
+⚠️ **`Air humidity` 仍登记**：HTRI 在别的工况下会输出它，且它确实是设计
+输入。登记了才谈得上「某次导入没取到」；不登记则是字段树上选都选不到。
+
+⚠️ **注册口径覆盖率从 60.2% 掉到 57.4%**（62/103 → 62/108）：**分子没动、
+分母 +5**。这 5 个标签都在 `2 - Final Results`，而主表口径只读
+`2 - Output Summary`，于是进分母、进不了分子。已按工具既定流程**重测基线**
+（不是猜的），并在常量处写明原因与查看口径（`--sheet "2 - Final Results"`
+下是 49/108）。模板口径不变（79.7%）。
+
+**顺带清掉一处死常量**：`KNOWN_ACHE_GEOMETRY_GAPS` 列的正是这 5 个标签，
+但它**定义了却全项目零引用** —— 看上去在守护「刻意不映射」，实际没人读它，
+这些标签照常落进 `unmapped_labels`。已删除并把 5 条转正进 `COLUMN_MAP`。
+
 
 ### TODO-057: 「DETAIL 覆盖率 ≥95%」的分母口径需拍板
 
