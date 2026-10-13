@@ -248,11 +248,17 @@ class DefinitionService:
         await self.db.flush()
         # ⚠️ 必须显式 refresh。UPDATE flush 之后，服务端生成的列
         # （`updated_at` = onupdate=func.now()）被 SQLAlchemy 标记为 expired，
-        # 而生产 session（app/db/session.py:82）**只设了 expire_on_commit=False，
-        # 没设 expire_on_flush=False**。不 refresh 的话，调用方读 row.updated_at
-        # 就是一次隐式 SELECT 落在同步上下文里 → MissingGreenlet → 500。
-        # ⚠️ 修 conftest 的 fixture 不算修：db_session 恰好设了
-        # expire_on_flush=False，会得到「测试绿、生产红」。
+        # 不 refresh 的话，调用方读 row.updated_at 就是一次隐式 SELECT
+        # 落在同步上下文里 → MissingGreenlet → 500。
+        #
+        # ⚠️ **不是 `expire_on_flush` 能解决的**（2026-10-13 实测，见
+        # tests/db/test_server_generated_columns.py）：`onupdate=func.now()`
+        # 的值由数据库算出，SQLAlchemy 无从知道，flush 后**必定**标记
+        # expired，设 `expire_on_flush=False` 也一样炸。refresh 是唯一解。
+        #
+        # ⚠️ 改 conftest 的 fixture 不算修：db_session 恰好设了
+        # expire_on_flush=False，会得到「测试绿、生产红」——
+        # **替身比被测物更宽容**，缺陷就是这么活下来的。
         await self.db.refresh(row)
         return row
 

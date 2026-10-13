@@ -969,27 +969,43 @@ antd v6 会移除 `rowKey(value, index)` 的第二个参数。当前写法依赖
 - **优先级**: TODO 级。不做的话「变异测试已覆盖」的声明没有强制力。
 - **Owner**: 待认领
 
-### TODO-049: 生产 session 未设 `expire_on_flush=False`，测试 fixture 却设了
+### ~~TODO-049: 生产 session 未设 `expire_on_flush=False`~~ ✅ 2026-10-13 结案
 
-- **症状**: 报表定义改一次返回 500（`MissingGreenlet`）。UPDATE flush 后
-  `updated_at`（`onupdate=func.now()`，服务端生成）被 SQLAlchemy 标记 expired，
-  commit 后再读它就是一次隐式 SELECT 落在同步上下文里。
-- **为什么没被测试挡住**: `tests/conftest.py:150` 的 `db_session` fixture 设了
-  `session.sync_session.expire_on_flush = False`，而 `client` fixture
-  （conftest.py:242）与**生产** `get_async_session_factory()`
-  （app/db/session.py:78-83）都**只设** `expire_on_commit=False`。
-  即：走 `db_session` 的单测绿，走 HTTP 的集成测试红，生产也红。
-- **本仓已修的地方**: `DefinitionService.update/publish/obsolete` 里的
-  `await db.refresh(row)`。**同类写法在别处仍会踩**（任何 flush 后读
-  服务端生成列的 service）。
-- **修法（候选，二选一）**:
-  1. 在 `app/db/session.py:78` 的 factory 加 `expire_on_flush=False`
-     —— 一处根治，但会改变全局行为，需跑全量回归；
-  2. 立规矩：service 返回 ORM 行前必须 `await db.refresh(row)`，
-     用架构测试或 lint 规则强制。
-- **优先级**: TODO 级。第 1 项做完前，每新增一个「UPDATE 后返回行」的
-  service 都要自己记得 refresh。
-- **Owner**: 待认领
+**⚠️ 结论与原提案相反：修法 1 不成立，已撤回。**
+
+原提的两个候选里，「在生产 factory 加 `expire_on_flush=False`」是**无效**的。
+2026-10-13 实测：
+
+```
+expire_on_flush = False
+expired after flush: ['updated_at']          ← 照样 expired
+read updated_at FAIL -> MissingGreenlet
+```
+
+`onupdate=func.now()` 这类列的值是**SQL 表达式在数据库里算出来的**，
+SQLAlchemy 无从知道结果，所以 flush 后**必定**标记 expired。
+`expire_on_flush` 只管「本来已加载的属性」，管不了服务端表达式列。
+
+（实现上也踩了一层：`expire_on_flush` **不是** `async_sessionmaker` 的
+参数，`Session.__init__` 不收它。最初的断言查 `factory.kw["expire_on_flush"]`
+得到 KeyError，看着像「配置不对」，其实是「断言查了不存在的键」。）
+
+**真正的修法是候选 2**：service 返回 ORM 行前显式 `await db.refresh(row)`。
+`definition_service` 的 update/publish/obsolete 早已这么做 —— 本轮做的是
+**把它钉住**，并把「别去加 expire_on_flush」的实测结论写成测试：
+
+`tests/db/test_server_generated_columns.py`
+- `test_expire_on_flush_false_does_not_help_server_generated_columns`
+  —— 钉住「加了也没用」，防止下一个人再走一遍这条弯路
+- `test_refresh_makes_the_column_readable` —— refresh 确实让它可读
+- `test_definition_service_update_does_not_trip_missinggreenlet`
+  —— 端到端后果（变异验证：注释掉 `refresh` → 转红）
+
+**仍未强制的部分**：规则本身（返回含服务端生成列的 ORM 行前必须 refresh）
+**靠人工遵守**，没有架构级检查。新增 service 时仍可能忘 —— 这条残余风险
+已如实记录，不假装解决了。
+
+- **Owner**: 已结案（含残余风险记录）
 
 ### TODO-050: 管道后报告命令退出码 = 报的是最后一个命令的
 
@@ -1333,7 +1349,24 @@ A 类全补 → 48+6 = 54/74 = **73.0%**；B 类确认不做 → 仍 73.0%。
 照样返回 201。
 
 
-### TODO-060: 编辑器遇到 AND/OR 分组会**抹掉**已有过滤条件（数据丢失）
+### ~~TODO-060: 编辑器遇到 AND/OR 分组会**抹掉**已有过滤条件~~ ✅ 2026-10-13 修完
+
+**修法**：编辑态从「至多一条 EQ」改为**递归的 `FilterTreeEditor`**，
+`toFilterTree` / `fromFilterTree` 严格互逆，往返无损。
+
+⚠️ 顺带发现并修掉一批里我自己埋的**死代码**：`asSingleFilter` 的组检测
+查 `children`，而那个键后端**从不产生**（组判据是「有没有 `conditions` 键」，
+见 `query_engine._build_condition` 注释）。所以返回 null 靠的是后面
+「没有 field 字段」的检查 —— 结果照样丢数据，**但理由是错的**：换个键名
+就会静默变成「当成叶子条件」。
+
+**验证**：变异测试（`fromFilterTree` 退回只发单条 → 3 条往返断言转红）
++ **真后端端到端 10/10**（两层嵌套 + BETWEEN list + IS_NULL null 逐字往返，
+且「只改别的字段的别名」保存后组仍在）。
+
+<details><summary>原始描述（已解决，保留）</summary>
+
+### 原始：编辑器遇到 AND/OR 分组会**抹掉**已有过滤条件（数据丢失）
 
 - **症状**：`definitionBody.ts` 的 `asSingleFilter()` 只认**叶子条件**，
   遇到 `{logic:'AND', children:[...]}` 一律返回 `null`。后果：
@@ -1353,9 +1386,23 @@ A 类全补 → 48+6 = 54/74 = **73.0%**；B 类确认不做 → 仍 73.0%。
      （原样回写），而不是丢弃。
 - **优先级**：**MEDIUM（不是 LOW）** —— 它会丢数据。QA 报告里我按
   「展示层不完整」归成 LOW-1，那个分级不对，这里更正。
-- **Owner**: 待认领（第二批）
+- **Owner**: 已完成（2026-10-13）
 
-### TODO-061: REPORT_BUILDER 前端第二批（用户 2026-10-13 裁决的分批）
+</details>
+
+### ~~TODO-061: REPORT_BUILDER 前端第二批~~ ✅ 2026-10-13 完成
+
+第二批 5 项已全部落地（commit `f014e9f`）：
+
+| 项 | 状态 |
+|---|---|
+| 15 个操作符全集 | ✅ 值渲染按后端 `_VALUELESS` / `_LIST_OPS` / `BETWEEN` 三类分支 |
+| AND/OR 嵌套 | ✅ 递归 `FilterTreeEditor`，同时修掉 TODO-060 |
+| 多条条件 | ✅ 无上限（深度上限 4，防手滑） |
+| 5 对 JOIN 白名单选择 | ✅ `availableJoins` 实时收窄 + 降级关联显式警告 |
+| 临时调整过滤条件（不落库） | ✅ 执行面板，界面上明写「不回写定义」 |
+
+<details><summary>原始分批记录</summary>
 
 第一批（已完成，见 QA 报告
 `.gstack/qa-reports/qa-report-pcs-frontend-2026-10-13-report-builder.md`）

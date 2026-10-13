@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T03:00:49.890Z
-> Files: 774 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T03:19:11.935Z
+> Files: 778 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1194,11 +1194,12 @@
 - `p7_open_016_config_conformance_audit.py` — PCS 折标系数 vs GB 30251-2024 附录A 表A.1 一致性审计. (~3146 tok)
 - `p7_s3_003_backfill_config_audit.py` — F-P0-001 R1 audit backfill (P7 Sprint 3 / Issue 6). (~1249 tok)
 - `report_heat_coverage.py` — c5：HEAT DETAIL 字段覆盖率（目标 ≥95%）。 (~6477 tok)
+- `run_gate.py` — 跑一条闸门命令并报告**它自己**的退出码（TODO-050）。 (~592 tok)
 
 ## pcs-backend/tests/
 
 - `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~4721 tok)
-- `mutation.py` — 变异测试的元断言工具（用户 2026-10-09 审查引入）。 (~392 tok)
+- `mutation.py` — 变异测试的元断言工具（用户 2026-10-09 审查引入；2026-10-13 扩充）。 (~1499 tok)
 - `test_audit_guard.py` — P7-7+ BLOCKER-3 guard 集成测试 — /equipment-deletion-audit 端点. (~1256 tok)
 - `test_audit_query.py` — F-P2-009 Sprint 3: Audit Query 后端测试 (Issue 5 错误路径 + Issue 7 混合 RBAC). (~3389 tok)
 - `test_deliverables_api.py` — 交付物读端点测试（P1-7+ D 模块 / P8 前置）。 (~3116 tok)
@@ -1223,6 +1224,11 @@
 
 - `test_report_perf.py` — SPEC §3.3.1 性能指标 —— **绝对阈值断言**。 (~915 tok)
 
+## pcs-backend/tests/db/
+
+- `test_server_generated_columns.py` — 服务端生成列：为什么必须 `await db.refresh(row)`（TODO-049）。 (~1364 tok)
+- `test_session_expire_on_flush.py` — 生产 session 的 `expire_on_flush` —— TODO-049。 (~943 tok)
+
 ## pcs-backend/tests/fixtures/report/
 
 - `__init__.py` — P8 报表 Golden 基线包。 (~7 tok)
@@ -1238,6 +1244,7 @@
 - `test_check_openapi_payload_coverage.py` — API 载荷结构覆盖率闸的测试. (~957 tok)
 - `test_check_payload_model_coverage.py` — 覆盖率闸 check_payload_model_coverage 的测试. (~975 tok)
 - `test_report_heat_coverage.py` — c4/c5：HEAT DETAIL 覆盖率工具的测试。 (~2226 tok)
+- `test_run_gate.py` — `scripts/run_gate.py` 的测试 —— 它唯一的产出是「一个退出码」。 (~560 tok)
 
 ## pcs-backend/tests/services/
 

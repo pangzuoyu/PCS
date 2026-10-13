@@ -74,7 +74,27 @@ def get_async_engine() -> AsyncEngine:
 
 
 def get_async_session_factory() -> async_sessionmaker[AsyncSession]:
-    """ARQ 任务用：独立创建 session，不依赖 FastAPI 依赖注入。"""
+    """ARQ 任务用：独立创建 session，不依赖 FastAPI 依赖注入。
+
+    ## ⚠️ 这里**刻意不**设 `expire_on_flush=False`（TODO-049 试过，不成立）
+
+    直觉上「生产 session 该跟测试 fixture 一样设它」—— 实测**无效**：
+
+    ```
+    expire_on_flush = False
+    expired after flush: ['updated_at']      ← 照样 expired
+    read updated_at FAIL -> MissingGreenlet
+    ```
+
+    `onupdate=func.now()` 这类列的值是**SQL 表达式在数据库里算出来的**，
+    SQLAlchemy 无法知道算完是多少，所以 flush 后**必定**标记 expired，
+    `expire_on_flush` 管不了它（它只管「本来已加载的属性」）。
+
+    **真正的修法**是 service 返回 ORM 行前显式 `await db.refresh(row)`
+    —— 一次真实 SELECT，把服务端算出的值取回来。`definition_service`
+    的 update/publish/obsolete 已这么做。详见
+    `tests/db/test_server_generated_columns.py`。
+    """
     global _async_session_factory
     if _async_session_factory is None:
         _async_session_factory = async_sessionmaker(

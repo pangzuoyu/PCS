@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-13T03:00:49.890Z",
-    "fileCount": 774,
+    "lastScanned": "2026-10-13T03:19:11.935Z",
+    "fileCount": 778,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "68c724556633a9620e0108ee754ed3c4a50876024f377b205380298afd6e7ce2",
-    "storeUpdatedAt": "2026-10-13T03:00:49.900Z",
-    "rootHash": "032baa50888ae674"
+    "renderedHash": "71ec3b8e1668711e7f42eae863235973da2fbcdea80816152efe96aeda56b29a",
+    "storeUpdatedAt": "2026-10-13T03:19:11.946Z",
+    "rootHash": "726c96d9bd9105c3"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -22338,13 +22338,57 @@
       ]
     },
     "pcs-backend/tests/mutation.py": {
-      "description": "变异测试的元断言工具（用户 2026-10-09 审查引入）。",
-      "tokens": 392,
-      "hash": "c76e4e4a34f00194",
-      "size": 2271,
-      "mtimeMs": 1791503725648.2224,
-      "updatedAt": "2026-10-08T23:55:25.701Z",
-      "source": "hook"
+      "description": "变异测试的元断言工具（用户 2026-10-09 审查引入；2026-10-13 扩充）。",
+      "tokens": 1499,
+      "hash": "7fef154f72902b26",
+      "size": 7501,
+      "mtimeMs": 1791861253301.214,
+      "updatedAt": "2026-10-13T03:14:13.352Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "mutate",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 75,
+          "tokens": 99
+        },
+        {
+          "name": "mutate_count",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 83,
+          "tokens": 88
+        },
+        {
+          "name": "_run_pytest",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 91,
+          "tokens": 91
+        },
+        {
+          "name": "expect_killed",
+          "kind": "fn",
+          "startLine": 92,
+          "endLine": 151,
+          "tokens": 565
+        },
+        {
+          "name": "assert_restored",
+          "kind": "fn",
+          "startLine": 152,
+          "endLine": 163,
+          "tokens": 118
+        },
+        {
+          "name": "copy_and_restore",
+          "kind": "fn",
+          "startLine": 164,
+          "endLine": 179,
+          "tokens": 130
+        }
+      ]
     },
     "pcs-backend/tests/services/report/test_renderer_visual.py": {
       "description": "**像素级**验证：关键模板元素必须真的画在纸上。",
@@ -26001,6 +26045,169 @@
           "startLine": 47,
           "endLine": 112,
           "tokens": 665
+        }
+      ]
+    },
+    "pcs-backend/tests/db/test_session_expire_on_flush.py": {
+      "description": "生产 session 的 `expire_on_flush` —— TODO-049。",
+      "tokens": 943,
+      "hash": "3f201778f55b5f10",
+      "size": 4109,
+      "mtimeMs": 1791860735038.2769,
+      "updatedAt": "2026-10-13T03:05:35.092Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "prod_like_session",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 67,
+          "tokens": 282
+        },
+        {
+          "name": "test_production_session_factory_sets_expire_on_flush_false",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 83,
+          "tokens": 179
+        },
+        {
+          "name": "test_reading_server_generated_column_after_flush_does_not_raise",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 104,
+          "tokens": 226
+        }
+      ]
+    },
+    "pcs-backend/tests/db/test_server_generated_columns.py": {
+      "description": "服务端生成列：为什么必须 `await db.refresh(row)`（TODO-049）。",
+      "tokens": 1364,
+      "hash": "14071c1bd04fc851",
+      "size": 6035,
+      "mtimeMs": 1791861124266.7485,
+      "updatedAt": "2026-10-13T03:12:04.319Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_row",
+          "kind": "fn",
+          "startLine": 48,
+          "endLine": 57,
+          "tokens": 105
+        },
+        {
+          "name": "one_table_engine",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 71,
+          "tokens": 120
+        },
+        {
+          "name": "test_expire_on_flush_false_does_not_help_server_generated_columns",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 107,
+          "tokens": 355
+        },
+        {
+          "name": "test_refresh_makes_the_column_readable",
+          "kind": "fn",
+          "startLine": 108,
+          "endLine": 128,
+          "tokens": 193
+        },
+        {
+          "name": "test_definition_service_update_does_not_trip_missinggreenlet",
+          "kind": "fn",
+          "startLine": 129,
+          "endLine": 154,
+          "tokens": 253
+        }
+      ]
+    },
+    "pcs-backend/scripts/run_gate.py": {
+      "description": "跑一条闸门命令并报告**它自己**的退出码（TODO-050）。",
+      "tokens": 592,
+      "hash": "8c5d68c88974df10",
+      "size": 2721,
+      "mtimeMs": 1791861542173.9507,
+      "updatedAt": "2026-10-13T03:19:02.227Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "run",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 53,
+          "tokens": 216
+        },
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 54,
+          "endLine": 74,
+          "tokens": 177
+        }
+      ]
+    },
+    "pcs-backend/tests/scripts/test_run_gate.py": {
+      "description": "`scripts/run_gate.py` 的测试 —— 它唯一的产出是「一个退出码」。",
+      "tokens": 560,
+      "hash": "72b353b7b5089259",
+      "size": 2409,
+      "mtimeMs": 1791861551886.529,
+      "updatedAt": "2026-10-13T03:19:11.935Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "test_reports_the_commands_own_nonzero_exit_code",
+          "kind": "fn",
+          "startLine": 20,
+          "endLine": 32,
+          "tokens": 106
+        },
+        {
+          "name": "test_reports_zero_for_a_passing_command",
+          "kind": "fn",
+          "startLine": 33,
+          "endLine": 38,
+          "tokens": 53
+        },
+        {
+          "name": "test_streams_stderr_too",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 47,
+          "tokens": 83
+        },
+        {
+          "name": "test_tail_keeps_the_last_lines_and_says_it_truncated",
+          "kind": "fn",
+          "startLine": 48,
+          "endLine": 57,
+          "tokens": 95
+        },
+        {
+          "name": "test_missing_command_is_127_not_a_traceback",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 62,
+          "tokens": 44
+        },
+        {
+          "name": "test_cli_strips_the_separator",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 68,
+          "tokens": 55
+        },
+        {
+          "name": "test_cli_without_command_is_an_error",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 72,
+          "tokens": 34
         }
       ]
     }
