@@ -13115,9 +13115,14 @@ export interface components {
          *     `report_file_id` 在生成完成前为 `None` —— 那正是「还在跑」的信号。
          *     前端拿到它就去 `/report/{file_id}/status` 拿文件状态、再下载。
          *
-         *     ⚠️ `RUNNING` / `FINISHED` 是**这里**的合成状态，不是任何一张表的
-         *     列：文件行还没建出来时无处可查，而「任务已入队未开始」和「正在渲染」
-         *     对用户是同一件事，分开只会让前端多写两个分支。
+         *     ## 状态来源（2026-10-13 改，TODO-064）
+         *
+         *     此前这里是**合成**的：`report_file_id` 有值 → FINISHED，否则 → RUNNING。
+         *     现在直接读 `report_execution_logs.status`（p8_007 加的列），
+         *     回收器才有地方写下「已僵死 → FAILED」。
+         *
+         *     ⚠️ 仍保留 `report_file_id` 那次校正：它是**唯一**证明文件已存在的字段，
+         *     两者理论上一致，不一致时以它为准更安全。
          */
         ReportExecutionStatus: {
             /** Task Id */
@@ -13170,10 +13175,21 @@ export interface components {
         /**
          * ReportGenerateResponse
          * @description 202 Accepted —— 生成是异步的（10k 行 PDF ≈ 10 CPU-秒，同步会阻塞 event loop）。
+         *
+         *     ⚠️ `report_file_id` **不是可选的补充**，而是轮询的必需品
+         *     （SPEC P8 §a7「任务提交 → 轮询状态 → 完成/失败」，TODO-063）：
+         *     `/report/{id}/status` 只认 `report_file_id`，只给 `task_id` 的话
+         *     调用方无从轮询。为它付出的代价是 PENDING 行必须在入队时就落库，
+         *     否则 202 与「行存在」之间有 404 窗口（见 bug-167）。
          */
         ReportGenerateResponse: {
             /** Task Id */
             task_id: string;
+            /**
+             * Report File Id
+             * Format: uuid
+             */
+            report_file_id: string;
             /**
              * Status
              * @default PENDING
