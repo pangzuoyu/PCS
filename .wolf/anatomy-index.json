@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-13T01:48:04.011Z",
-    "fileCount": 757,
+    "lastScanned": "2026-10-13T01:57:44.495Z",
+    "fileCount": 758,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "9d5a1850c966ba3c2cfae25c9447d6fb41642cf7593f684af7e129a6d1a62190",
-    "storeUpdatedAt": "2026-10-13T01:48:04.022Z",
-    "rootHash": "b7fdafc1139416c8"
+    "renderedHash": "44fbd82c745ad06b6c6102fe5f60f6aac35f028f5e5f4e2ed84b3a434af52613",
+    "storeUpdatedAt": "2026-10-13T01:57:44.505Z",
+    "rootHash": "558345f36f456a6a"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -25456,6 +25456,87 @@
           "startLine": 216,
           "endLine": 226,
           "tokens": 136
+        }
+      ]
+    },
+    "pcs-backend/tests/services/report/test_style_wiring.py": {
+      "description": "`resolve()` 接进生成路径。",
+      "tokens": 1684,
+      "hash": "e5b7e249f8fe0d7a",
+      "size": 7564,
+      "mtimeMs": 1791856664443.053,
+      "updatedAt": "2026-10-13T01:57:44.495Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_Actor",
+          "kind": "class",
+          "startLine": 38,
+          "endLine": 49,
+          "tokens": 66
+        },
+        {
+          "name": "session",
+          "kind": "fn",
+          "startLine": 50,
+          "endLine": 56,
+          "tokens": 36
+        },
+        {
+          "name": "test_detail_preset_actually_reaches_a_style",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 62,
+          "tokens": 59
+        },
+        {
+          "name": "test_resolve_is_no_longer_dead_code",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 74,
+          "tokens": 106
+        },
+        {
+          "name": "test_by_type_overrides_company_defaults",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 86,
+          "tokens": 149
+        },
+        {
+          "name": "test_project_layer_overrides_by_type",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 103,
+          "tokens": 197
+        },
+        {
+          "name": "test_locked_fields_survive_a_project_layer",
+          "kind": "fn",
+          "startLine": 104,
+          "endLine": 117,
+          "tokens": 162
+        },
+        {
+          "name": "test_generation_task_builds_style_from_layers",
+          "kind": "fn",
+          "startLine": 118,
+          "endLine": 156,
+          "tokens": 389
+        },
+        {
+          "name": "_FakeOutput",
+          "kind": "class",
+          "startLine": 157,
+          "endLine": 169,
+          "tokens": 79
+        },
+        {
+          "name": "test_presets_are_not_wrecked_by_exclude_unset",
+          "kind": "fn",
+          "startLine": 170,
+          "endLine": 184,
+          "tokens": 168
         }
       ]
     }

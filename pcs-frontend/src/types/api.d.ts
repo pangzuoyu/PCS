@@ -4991,10 +4991,21 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Styles */
+        /**
+         * List Styles
+         * @description 列出样式。**只列调用者看得见的**。
+         *
+         *     ⚠️ 修复：原先**完全没有权限过滤** —— 任何登录用户都能列出全部
+         *     公司标准与他人项目样式。写入面（c6）按破坏面分两档，读面必须对齐，
+         *     否则权限模型只在写的那半边存在。
+         */
         get: operations["list_styles_api_v1_report_styles_get"];
         put?: never;
-        post?: never;
+        /**
+         * Create Style
+         * @description 建一条 ACTIVE 样式。权限两档，见 `style_service` 模块 docstring。
+         */
+        post: operations["create_style_api_v1_report_styles_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5008,10 +5019,58 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get Style */
+        /**
+         * Get Style
+         * @description 取单条样式。⚠️ 修复：原先无权限检查（IDOR）。
+         *
+         *     凭 style_id 就能读别人的项目级样式 —— 与写入面的两档判定对齐。
+         */
         get: operations["get_style_api_v1_report_styles__style_id__get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report/styles/{style_id}/revise": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revise Style
+         * @description 改样式 = **新增一版本**（version+1），旧行保留为 SUPERSEDED。
+         *
+         *     不在原行上改 `style_json`：`report_files.style_version` 冻结版本号
+         *     就是为了可复现，原地改等于让那个字段说谎。
+         */
+        post: operations["revise_style_api_v1_report_styles__style_id__revise_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/report/styles/{style_id}/activate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Activate Style
+         * @description 回滚：把某一历史版本重新置为 ACTIVE。**不删任何行。**
+         */
+        post: operations["activate_style_api_v1_report_styles__style_id__activate_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -13201,12 +13260,35 @@ export interface components {
              */
             locked_fields: string[];
         };
+        /**
+         * ReportStyleCreate
+         * @description 建样式。`style` 是**局部补丁**，不是完整样式。
+         *
+         *     ⚠️ 用 `exclude_unset` 语义：只存用户**显式设置过**的字段，
+         *     未设置的沿用代码默认值 —— 这正是 `resolve()` 的合并前提
+         *     （裁决：初始样式不落库，第一次改才落，且只落改动部分）。
+         *     落库「完整样式」会引入「代码默认值升级了、库里那份还是旧的」的问题。
+         */
+        ReportStyleCreate: {
+            /** Report Type */
+            report_type: string;
+            /** Project Id */
+            project_id?: string | null;
+            style?: components["schemas"]["StylePatch"];
+        };
         /** ReportStyleListResponse */
         ReportStyleListResponse: {
             /** Items */
             items: components["schemas"]["ReportStyleSummary"][];
             /** Total */
             total: number;
+        };
+        /**
+         * ReportStyleRevise
+         * @description 改样式 = 新增一版本。只带 `style` 补丁。
+         */
+        ReportStyleRevise: {
+            style?: components["schemas"]["StylePatch"];
         };
         /** ReportStyleSummary */
         ReportStyleSummary: {
@@ -15654,6 +15736,47 @@ export interface components {
              * @description 更新时间
              */
             updated_at?: string | null;
+        };
+        /**
+         * StylePatch
+         * @description 样式局部补丁。
+         *
+         *     `extra="forbid"`：拼错字段名必须报错。Pydantic 默认 `ignore` 会让
+         *     `font_size_bodyy` 静默通过、返回 201、而样式毫无变化 ——
+         *     「保存成功但什么都没变」是比报错更难查的故障。
+         *
+         *     禁写字段用 `model_validator` 在**模型层**拦，而不是端点里逐个判断：
+         *     少一个端点就少一处漏判。
+         */
+        StylePatch: {
+            /** Page Size */
+            page_size?: ("A4" | "A3" | "Letter") | null;
+            /** Orientation */
+            orientation?: ("portrait" | "landscape") | null;
+            margins?: components["schemas"]["Margins"] | null;
+            /** Font Family Cn */
+            font_family_cn?: string | null;
+            /** Font Family En */
+            font_family_en?: string | null;
+            /** Font Size Body */
+            font_size_body?: number | null;
+            /** Font Size Heading */
+            font_size_heading?: number | null;
+            /** Line Spacing */
+            line_spacing?: number | null;
+            header?: components["schemas"]["HeaderFooterConfig"] | null;
+            footer?: components["schemas"]["HeaderFooterConfig"] | null;
+            table?: components["schemas"]["TableStyle"] | null;
+            /** Assumption Mark */
+            assumption_mark?: string | null;
+            /** Assumption Color */
+            assumption_color?: string | null;
+            /** Qr Position */
+            qr_position?: ("footer" | "header") | null;
+            /** Qr Size Mm */
+            qr_size_mm?: number | null;
+            /** Heat Exchanger Type */
+            heat_exchanger_type?: ("AIR_COOLER" | "SHELL_TUBE") | null;
         };
         /** TableStyle */
         TableStyle: {
@@ -26233,7 +26356,112 @@ export interface operations {
             };
         };
     };
+    create_style_api_v1_report_styles_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportStyleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportStyleSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     get_style_api_v1_report_styles__style_id__get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                style_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportStyleSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    revise_style_api_v1_report_styles__style_id__revise_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                style_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReportStyleRevise"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ReportStyleSummary"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    activate_style_api_v1_report_styles__style_id__activate_post: {
         parameters: {
             query?: never;
             header?: {

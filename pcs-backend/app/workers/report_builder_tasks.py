@@ -82,6 +82,49 @@ async def execute_definition_task(
     return file_id
 
 
+async def _build_style(db: AsyncSession, *, out, project_id):
+    """按定义的 `detailLevel` + 主数据源取样式。
+
+    ⚠️ **主数据源当 report_type**：公司标准与项目样式都按 `report_type`
+    分作用域（`uq_report_styles_scope_version` 如此），而自定义报表的
+    report_type 就是它的主数据源。用一个自造的 `"CUSTOM"` 分类会让
+    所有自定义报表共用同一条样式 —— 一条改字号全改。
+    """
+    from app.services.report.datasource_registry import DATASOURCES
+    from app.services.report.style_service import build_style
+
+    snapshot = out.snapshot or {}
+    sources = [d.get("source") for d in (snapshot.get("DataSources") or [])]
+    primary = next((s for s in sources if s in DATASOURCES), None)
+    level = snapshot.get("detailLevel") or "BASIC"
+    exchanger = _exchanger_type(snapshot)
+    return await build_style(db, report_type=primary or "CUSTOM",
+                             project_id=project_id, level=level,
+                             exchanger_type=exchanger)
+
+
+def _exchanger_type(snapshot: dict) -> str | None:
+    """换热器类型 —— 渲染器据此选表格结构（ADR-0028）。
+
+    只能从**已登记的 AIR_COOLER 字段**反推：注册表里带
+    `exchanger_type="AIR_COOLER"` 的字段（如 `fan_count`）只有空冷器会选。
+    没选任何这类字段 → 不是空冷器 → 不设该值（SHELL_TUBE 与 None
+    在渲染器里走同一分支，显式写死反而会掩盖数据）。
+    """
+    from app.services.report.datasource_registry import DATASOURCES
+
+    ds = DATASOURCES.get("HEAT_RESULTS")
+    if ds is None:
+        return None
+    chosen = {(s.get("source"), s.get("field"))
+              for s in (snapshot.get("SelectedFields") or [])}
+    for source, field in chosen:
+        spec = ds.fields.get(field)
+        if spec is not None and spec.exchanger_type == "AIR_COOLER":
+            return "AIR_COOLER"
+    return None
+
+
 async def _render_and_store(db: AsyncSession, *, out, project_id, job_id: str,
                             output_format: str) -> str:
     """把执行结果渲染成文件并登记 `ReportFile`，返回 report_file_id。
@@ -92,7 +135,7 @@ async def _render_and_store(db: AsyncSession, *, out, project_id, job_id: str,
     """
     from app.services.report import report_service, watermark
     from app.services.report.blocks import HeadingBlock, TableBlock
-    from app.services.report.style import ReportStyle
+    from app.services.report.style_service import build_style
 
     blocks: list = [HeadingBlock(text="自定义报表", level=1)]
     if out.truncated:
@@ -105,9 +148,14 @@ async def _render_and_store(db: AsyncSession, *, out, project_id, job_id: str,
     # 标「非发布件」是相反的语义。
     blocks = watermark.apply(blocks)
 
+    # ⚠️ 这里原先传的是裸 `ReportStyle()` —— 样式系统整段与生成脱钩：
+    # 用户在 UI 里改样式对输出毫无影响，ADR-0028 的「DETAIL 必须横向」
+    # 也从来没落到任何一份文件上。改走四层合并。
+    style = await _build_style(db, out=out, project_id=project_id)
+
     row = await report_service.store_rendered(
         db, blocks=blocks, project_id=project_id,
-        output_format=output_format, style=ReportStyle(), ctx={},
+        output_format=output_format, style=style, ctx={},
         title=f"CUSTOM_{out.def_version}",
         assumed_fields=[],
         audit_detail={"def_id": str(out.snapshot.get("def_id", "")),

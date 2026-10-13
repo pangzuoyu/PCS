@@ -250,5 +250,40 @@ class StyleService:
         )
 
 
+async def build_style(db: AsyncSession, *, report_type: str,
+                      project_id: uuid.UUID | None,
+                      level: str | None = None,
+                      exchanger_type: str | None = None) -> Any:
+    """**四层合并的生产入口** —— 生成路径只该调这一个函数。
+
+    层序（ADR-P8-001 用户 2026-10-08 裁决）：
+    `defaults → 报表类型 → 项目 → 运行时`
+
+    ⚠️ **明细级预设是 defaults 层，不是某一上层**。这看起来反直觉，
+    实则是「DETAIL 必须横向」唯一能落地的接法：`orientation` 在
+    `locked_fields` 里，`resolve()` 拒绝**任何层**改它。
+    预设放上层 → 横向要求被锁字段挡掉（实测拿到 portrait）；
+    预设放 defaults → 横向落地，且仍锁得住（谁也改不了）。
+    见 `tests/services/report/test_style_wiring.py` 里那条测试的注释。
+
+    返回类型用 `Any` 是为了不在此文件 import `ReportStyle` —— 那会让
+    `style_service` → `style` 的依赖看起来是循环（实际上 style.py
+    不 import 本模块）。真要收紧就改成 TYPE_CHECKING 导入。
+    """
+    from app.services.report.style import ReportStyle, heat_detail_styles, resolve
+
+    defaults = (heat_detail_styles(level, exchanger_type)
+                if level else ReportStyle())
+    layers = await StyleService(db).active_for(report_type=report_type,
+                                                project_id=project_id)
+    by_type = next((r for r in layers if r.project_id is None), None)
+    project = next((r for r in layers if r.project_id is not None), None)
+    return resolve(
+        defaults=defaults,
+        by_type=ReportStyle.model_validate(by_type.style_json) if by_type else None,
+        project=ReportStyle.model_validate(project.style_json) if project else None,
+    )
+
+
 class StyleConflict(Exception):
     """该作用域已有 ACTIVE 样式 —— 要改请走 `revise()`。"""

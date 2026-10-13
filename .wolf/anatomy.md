@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T01:48:04.011Z
-> Files: 757 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T01:57:44.495Z
+> Files: 758 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1254,6 +1254,7 @@
 - `test_renderers.py` — DOCX / XLSX 渲染器契约。 (~2382 tok)
 - `test_report_service.py` — 生成编排契约 —— 二维码载荷 + 取数 + 渲染 + 内容哈希存储 + 审计。 (~1906 tok)
 - `test_style_service.py` — c6：样式写入服务（版本 + 回滚 + 两档权限 + 审计）。 (~2796 tok)
+- `test_style_wiring.py` — `resolve()` 接进生成路径。 (~1684 tok)
 - `test_style.py` — ReportStyle 四级优先级合并的契约测试。 (~884 tok)
 
 ## pcs-backend/tests/services/util/

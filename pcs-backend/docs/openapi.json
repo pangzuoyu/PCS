@@ -15214,6 +15214,7 @@
           "report"
         ],
         "summary": "List Styles",
+        "description": "列出样式。**只列调用者看得见的**。\n\n⚠️ 修复：原先**完全没有权限过滤** —— 任何登录用户都能列出全部\n公司标准与他人项目样式。写入面（c6）按破坏面分两档，读面必须对齐，\n否则权限模型只在写的那半边存在。",
         "operationId": "list_styles_api_v1_report_styles_get",
         "parameters": [
           {
@@ -15282,6 +15283,64 @@
             }
           }
         }
+      },
+      "post": {
+        "tags": [
+          "report"
+        ],
+        "summary": "Create Style",
+        "description": "建一条 ACTIVE 样式。权限两档，见 `style_service` 模块 docstring。",
+        "operationId": "create_style_api_v1_report_styles_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportStyleCreate"
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportStyleSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
       }
     },
     "/api/v1/report/styles/{style_id}": {
@@ -15290,7 +15349,138 @@
           "report"
         ],
         "summary": "Get Style",
+        "description": "取单条样式。⚠️ 修复：原先无权限检查（IDOR）。\n\n凭 style_id 就能读别人的项目级样式 —— 与写入面的两档判定对齐。",
         "operationId": "get_style_api_v1_report_styles__style_id__get",
+        "parameters": [
+          {
+            "name": "style_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportStyleSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/report/styles/{style_id}/revise": {
+      "post": {
+        "tags": [
+          "report"
+        ],
+        "summary": "Revise Style",
+        "description": "改样式 = **新增一版本**（version+1），旧行保留为 SUPERSEDED。\n\n不在原行上改 `style_json`：`report_files.style_version` 冻结版本号\n就是为了可复现，原地改等于让那个字段说谎。",
+        "operationId": "revise_style_api_v1_report_styles__style_id__revise_post",
+        "parameters": [
+          {
+            "name": "style_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Style Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReportStyleRevise"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ReportStyleSummary"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/report/styles/{style_id}/activate": {
+      "post": {
+        "tags": [
+          "report"
+        ],
+        "summary": "Activate Style",
+        "description": "回滚：把某一历史版本重新置为 ACTIVE。**不删任何行。**",
+        "operationId": "activate_style_api_v1_report_styles__style_id__activate_post",
         "parameters": [
           {
             "name": "style_id",
@@ -30343,6 +30533,37 @@
         "type": "object",
         "title": "ReportStyle"
       },
+      "ReportStyleCreate": {
+        "properties": {
+          "report_type": {
+            "type": "string",
+            "maxLength": 64,
+            "title": "Report Type"
+          },
+          "project_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Project Id"
+          },
+          "style": {
+            "$ref": "#/components/schemas/StylePatch"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "report_type"
+        ],
+        "title": "ReportStyleCreate",
+        "description": "建样式。`style` 是**局部补丁**，不是完整样式。\n\n⚠️ 用 `exclude_unset` 语义：只存用户**显式设置过**的字段，\n未设置的沿用代码默认值 —— 这正是 `resolve()` 的合并前提\n（裁决：初始样式不落库，第一次改才落，且只落改动部分）。\n落库「完整样式」会引入「代码默认值升级了、库里那份还是旧的」的问题。"
+      },
       "ReportStyleListResponse": {
         "properties": {
           "items": {
@@ -30363,6 +30584,17 @@
           "total"
         ],
         "title": "ReportStyleListResponse"
+      },
+      "ReportStyleRevise": {
+        "properties": {
+          "style": {
+            "$ref": "#/components/schemas/StylePatch"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "ReportStyleRevise",
+        "description": "改样式 = 新增一版本。只带 `style` 补丁。"
       },
       "ReportStyleSummary": {
         "properties": {
@@ -34566,6 +34798,215 @@
         ],
         "title": "StreamResponse",
         "description": "完整响应：含 sign_status + 审计字段。"
+      },
+      "StylePatch": {
+        "properties": {
+          "page_size": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "A4",
+                  "A3",
+                  "Letter"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Page Size"
+          },
+          "orientation": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "portrait",
+                  "landscape"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Orientation"
+          },
+          "margins": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/Margins"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "font_family_cn": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Font Family Cn"
+          },
+          "font_family_en": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 64
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Font Family En"
+          },
+          "font_size_body": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 40.0,
+                "minimum": 4.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Font Size Body"
+          },
+          "font_size_heading": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 60.0,
+                "minimum": 4.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Font Size Heading"
+          },
+          "line_spacing": {
+            "anyOf": [
+              {
+                "type": "number",
+                "maximum": 5.0,
+                "exclusiveMinimum": 0.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Line Spacing"
+          },
+          "header": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HeaderFooterConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "footer": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/HeaderFooterConfig"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "table": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/TableStyle"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "assumption_mark": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 8
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assumption Mark"
+          },
+          "assumption_color": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 16
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Assumption Color"
+          },
+          "qr_position": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "footer",
+                  "header"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qr Position"
+          },
+          "qr_size_mm": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "maximum": 100.0,
+                "minimum": 5.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Qr Size Mm"
+          },
+          "heat_exchanger_type": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "AIR_COOLER",
+                  "SHELL_TUBE"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Heat Exchanger Type"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "StylePatch",
+        "description": "样式局部补丁。\n\n`extra=\"forbid\"`：拼错字段名必须报错。Pydantic 默认 `ignore` 会让\n`font_size_bodyy` 静默通过、返回 201、而样式毫无变化 ——\n「保存成功但什么都没变」是比报错更难查的故障。\n\n禁写字段用 `model_validator` 在**模型层**拦，而不是端点里逐个判断：\n少一个端点就少一处漏判。"
       },
       "TableStyle": {
         "properties": {
