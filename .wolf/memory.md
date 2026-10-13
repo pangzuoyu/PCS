@@ -1542,3 +1542,6 @@
 | 10:41 | Created .gstack/qa_role_compare.py | — | ~304 |
 | 10:42 | Created pcs-frontend/src/mocks/reportBuilder.ts | — | ~2435 |
 | 10:48 | Created .gstack/qa-reports/qa-report-pcs-frontend-2026-10-13-report-builder.md | — | ~988 |
+| 10:51 | Created pcs-frontend/src/pages/report/FilterTreeEditor.tsx | — | ~2529 |
+| 10:54 | Created pcs-frontend/src/pages/report/JoinPicker.tsx | — | ~724 |
+| 11:00 | Created .gstack/qa_filter_group_roundtrip.py | — | ~1066 |

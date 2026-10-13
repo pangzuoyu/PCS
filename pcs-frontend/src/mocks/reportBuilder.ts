@@ -83,12 +83,28 @@ const DEFINITION_BODY = {
     { source: 'HEAT_RESULTS', field: 'duty', alias: '热负荷',
       order: 1, visible: true },
   ],
-  FilterConditions: [],
+  // ⚠️ 故意给**已发布**那条挂一个 AND 分组：第一批的单条模型打开它
+  // 会显示「无过滤」而保存抹掉（TODO-060）。留着这个 fixture 才能在
+  // 浏览器里一眼看出「嵌套还在」。
+  FilterConditions: [
+    {
+      operator: 'AND',
+      conditions: [
+        { operator: 'EQ', source: 'HEAT_RESULTS', field: 'tag_number',
+          value: 'E-101' },
+        { operator: 'GT', source: 'HEAT_RESULTS', field: 'duty', value: 100 },
+      ],
+    },
+  ],
   SortBy: [],
   MaxRows: 10000,
   OutputFormat: 'pdf',
   detailLevel: 'BASIC',
 };
+
+/** DRAFT 那条**故意不带过滤** —— 覆盖「无过滤」这条路径，
+ *  而 PUBLISHED 那条带 AND 分组，覆盖嵌套。两个状态都验到。 */
+const DRAFT_BODY = { ...DEFINITION_BODY, FilterConditions: [] };
 
 const DRAFT = {
   def_id: DEF_ID,
@@ -96,7 +112,7 @@ const DRAFT = {
   name: '换热器明细表',
   category: '设备类',
   description: '按位号 + 热负荷',
-  definition_json: DEFINITION_BODY,
+  definition_json: DRAFT_BODY,
   output_format: 'pdf',
   max_rows: 10000,
   version: '0.1.0',
@@ -109,6 +125,7 @@ const DRAFT = {
 
 const PUBLISHED = {
   ...DRAFT,
+  definition_json: DEFINITION_BODY,
   def_id: '00000000-0000-0000-0000-0000000000b2',
   name: '设备一览',
   category: '设备类',

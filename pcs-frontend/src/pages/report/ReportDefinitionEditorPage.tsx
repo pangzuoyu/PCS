@@ -1,21 +1,19 @@
 /**
  * ReportDefinitionEditorPage — 定义编辑器（b10）。
  *
- * 覆盖：数据源选择、字段树勾选/别名/排序/显隐、**一条 EQ 过滤条件**、保存草稿。
+ * 覆盖：数据源选择、字段树勾选/别名/排序/显隐、过滤条件树、JOIN 选择、存草稿。
  *
- * ## ⚠️ 过滤只做一条 EQ —— 这是有意的分批，不是没做完
+ * ## 过滤条件是**树**，不是列表
  *
- * 用户 2026-10-13 裁决：第一批只做 **EQ 单条**（不嵌套），
- * 第二批才做 15 操作符全集、AND/OR 嵌套、5 对 JOIN 白名单、临时调整。
+ * 第一批用「至多一条 EQ」的模型，代价是**打开一份含 AND/OR 分组的定义
+ * 一存就把整棵子树抹掉**（TODO-060）。第二批改为递归的 `FilterTreeEditor`，
+ * 往返无损 —— 这一点由 `tests/report/definitionBody.test.ts` 的
+ * 「round-trips a nested group without losing any node」钉住，
+ * 并做过变异验证（退回单条模型 → 该测试转红）。
  *
- * 理由是把「202 + task_id + 轮询」这条**前后端唯一需要对齐的时序契约**
+ * 分批的由来（保留记录）：第一批刻意只做 EQ 单条，为的是把
+ * 「202 + task_id + 轮询」这条前后端唯一需要对齐的**时序契约**
  * 提前暴露 —— 它跨 5 个组件，任一环不通，其余 UI 都是空转。
- * 过滤不能完全不做是因为：全表执行验证不了「条件 → 后端解析 → 结果集变化」
- * 这条核心契约，EQ 已足够走通 条件序列化 → 传输 → b5 解析 → query_engine
- * 编译 → 结果集变化。
- *
- * **看到只有一个操作符、不能嵌套、不能加第二条 —— 是分批标记。
- *  第二批要做的事都列在 `api/reportBuilder.ts` 的 `OPERATORS_BATCH_1` 旁。**
  *
  * ## 字段树的 level 分组不是过滤，是提示
  *
@@ -47,19 +45,19 @@ import { ArrowLeftOutlined, SaveOutlined, SendOutlined } from '@ant-design/icons
 import { useNavigate, useParams } from 'react-router-dom';
 
 import { PageHeader } from '../../components/common/PageHeader';
-import {
-  OPERATORS_BATCH_1,
-  errorMessage,
-  reportBuilderApi,
-} from '../../api/reportBuilder';
+import { errorMessage, reportBuilderApi } from '../../api/reportBuilder';
 import type { ReportBuilderDatasource } from '../../api/reportBuilder';
 import {
-  asSingleFilter,
   buildBody,
   fieldsAtLevel,
+  toFilterTree,
   toRows,
 } from './definitionBody';
-import type { FieldRow, SingleFilter } from './definitionBody';
+import type { JoinWhitelistEntry } from './definitionBody';
+import { pairKey } from './definitionBody';
+import { JoinPicker } from './JoinPicker';
+import type { FieldNodeOption, FieldRow, FilterNode } from './definitionBody';
+import { FilterTreeEditor } from './FilterTreeEditor';
 
 const DETAIL_LEVELS = [
   { value: 'BASIC', label: 'BASIC（基本项）' },
@@ -84,10 +82,16 @@ export function ReportDefinitionEditorPage(): JSX.Element {
     projectId: string | null; status: string } | null>(null);
   const [rows, setRows] = useState<FieldRow[]>([]);
   const [level, setLevel] = useState<string>('BASIC');
+  // 白名单（后端下发）与用户已启用的关联（白名单子集）**分开存**。
+  // 合成一个数组的话，取消勾选数据源后残留的那条会留在里面，
+  // 而执行引擎会去关联一个根本没被选中的源 → 400。
+  const [joinWhitelist, setJoinWhitelist] = useState<JoinWhitelistEntry[]>([]);
+  const [activeJoins, setActiveJoins] = useState<string[]>([]);
   const [maxRows, setMaxRows] = useState(10000);
   const [outputFormat, setOutputFormat] = useState('pdf');
-  // ⚠️ 第一批固定存**至多一条** EQ 条件。null = 无过滤。
-  const [filter, setFilter] = useState<SingleFilter | null>(null);
+  // ⚠️ 用**树**而不是单条。第一批的单条模型读不了 AND/OR 分组，
+  // 保存时会把整棵子树抹掉（TODO-060）。
+  const [filterTree, setFilterTree] = useState<FilterNode[]>([]);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -110,9 +114,12 @@ export function ReportDefinitionEditorPage(): JSX.Element {
         setMaxRows(d.max_rows);
         setOutputFormat(d.output_format);
         setRows(toRows(body, ds.datasources));
-        const first = body.FilterConditions?.[0];
-        const c = asSingleFilter(first);
-        if (c) setFilter(c);
+        // ⚠️ 用 `toFilterTree` 而不是「取第一条」—— 后者的模型读不了
+        // AND/OR 分组，保存时会把整棵子树抹掉（TODO-060 的成因）。
+        setFilterTree(toFilterTree(body.FilterConditions));
+        // 白名单随字段树一起下发（b1），**逐字来自注册表** ——
+        // 前端不按名称猜关联，猜错的表现是「选得了、跑不了」。
+        setJoinWhitelist(ds.joins ?? []);
       }
     } catch (err) {
       setError(errorMessage(err));
@@ -131,6 +138,21 @@ export function ReportDefinitionEditorPage(): JSX.Element {
     value: f.name,
     label: `${f.name}${f.label && f.label !== f.name ? `（${f.label}）` : ''}`,
   })), [visibleFields]);
+
+  /** 条件树用的选项 —— 多带 `source`，选字段时能一并定下来源。 */
+  const filterFields: FieldNodeOption[] = useMemo(() => {
+    const out: FieldNodeOption[] = [];
+    for (const ds of sources) {
+      for (const f of ds.fields) {
+        if (level === 'BASIC' && f.level === 'DETAIL') continue;
+        out.push({
+          value: f.name, source: ds.key,
+          label: `${ds.label} · ${f.label ?? f.name}`,
+        });
+      }
+    }
+    return out;
+  }, [sources, level]);
 
   const addRow = () => {
     const first = visibleFields[0];
@@ -169,7 +191,12 @@ export function ReportDefinitionEditorPage(): JSX.Element {
     setSaving(true);
     setError(null);
     try {
-      const body = buildBody({ rows, level, maxRows, outputFormat, filter });
+      const body = buildBody({
+        rows, level, maxRows, outputFormat, filterTree,
+        joins: activeJoins
+          .map((k) => joinWhitelist.find((j) => pairKey(j.a, j.b) === k))
+          .filter((j): j is JoinWhitelistEntry => !!j),
+      });
       const payload = {
         project_id: meta.projectId,
         name: meta.name,
@@ -322,35 +349,37 @@ export function ReportDefinitionEditorPage(): JSX.Element {
           title="过滤条件"
           size="small"
           extra={
-            <Tooltip title="第二批补：15 个操作符、AND/OR 嵌套、多条条件、临时调整（不落库）">
-              <Tag color="gold">第一批：仅 EQ 单条</Tag>
+            <Tooltip title="15 个操作符 + AND/OR 任意嵌套。空值会原样发出去让后端报
+              REPORT_FILTER_VALUE_MISSING —— 不会悄悄放行全表。">
+              <Tag color="blue">后端 query_engine 契约</Tag>
             </Tooltip>
           }
         >
-          {!filter ? (
-            <Button size="small" onClick={() => setFilter({
-              source: rows[0]?.source ?? 'EQUIP_LIST',
-              field: rows[0]?.field ?? 'tag_number',
-              operator: 'EQ', value: '',
-            })}>加一条过滤条件</Button>
-          ) : (
-            <Space wrap>
-              <Select style={{ width: 200 }} value={filter.field}
-                onChange={(v) => setFilter((f) => (f ? { ...f, field: v } : f))}
-                options={fieldOptions} />
-              <Select style={{ width: 100 }} value={filter.operator}
-                onChange={(v) => setFilter((f) => (f ? { ...f, operator: v } : f))}
-                options={OPERATORS_BATCH_1.map((o) => ({ value: o, label: o }))} />
-              <Input style={{ width: 200 }} placeholder="值（留空将得到空结果集）"
-                value={filter.value}
-                onChange={(e) => setFilter((f) => (f ? { ...f, value: e.target.value } : f))} />
-              <Button size="small" danger onClick={() => setFilter(null)}>删</Button>
-            </Space>
-          )}
-          <Typography.Paragraph type="secondary" style={{ marginTop: 12, marginBottom: 0 }}>
-            ⚠️ 值留空不是「不过滤」—— 后端对空 value 返回**空结果集**
-            （SPEC §3.2.2(4)，避免「忘了填条件」变成全表导出）。
+          <FilterTreeEditor nodes={filterTree} onChange={setFilterTree}
+            fields={filterFields} />
+          <Typography.Paragraph type="secondary"
+            style={{ marginTop: 12, marginBottom: 0 }}>
+            ⚠️ 值留空不是「不过滤」—— 后端对空 value 返回
+            <strong>报错</strong>（而非全表），避免「忘了填条件」变成全量导出。
+            条件组会原样保存，编辑别的字段不会动它。
           </Typography.Paragraph>
+        </Card>
+
+        <Card
+          title="数据源关联（JOIN）"
+          size="small"
+          style={{ marginTop: 16 }}
+          extra={<Typography.Text type="secondary">
+            仅开放后端白名单里的 {joinWhitelist.length} 对（SPEC §1.3 禁止名称模糊 JOIN）
+          </Typography.Text>}
+        >
+          <JoinPicker
+            selectedSources={[...new Set(rows.map((r) => r.source))]}
+            whitelist={joinWhitelist}
+            active={activeJoins}
+            onChange={setActiveJoins}
+            labelOf={(key) => sources.find((s) => s.key === key)?.label ?? key}
+          />
         </Card>
       </Spin>
   </div>

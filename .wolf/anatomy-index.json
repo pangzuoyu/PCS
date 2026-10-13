@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-13T02:48:34.644Z",
-    "fileCount": 771,
+    "lastScanned": "2026-10-13T03:00:49.890Z",
+    "fileCount": 774,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "11eb5957567a9daa95a9d4691c273e85be22b522ec533f7b9ac20fcec859e248",
-    "storeUpdatedAt": "2026-10-13T02:48:34.655Z",
-    "rootHash": "9e2fbd3f1c9e8f95"
+    "renderedHash": "68c724556633a9620e0108ee754ed3c4a50876024f377b205380298afd6e7ce2",
+    "storeUpdatedAt": "2026-10-13T03:00:49.900Z",
+    "rootHash": "032baa50888ae674"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -25886,6 +25886,123 @@
       "mtimeMs": 1791859714593.9006,
       "updatedAt": "2026-10-13T02:48:34.644Z",
       "source": "hook"
+    },
+    "pcs-frontend/src/pages/report/FilterTreeEditor.tsx": {
+      "description": "过滤条件树编辑器（第二批）。",
+      "tokens": 2529,
+      "hash": "b9d73f188c783637",
+      "size": 10007,
+      "mtimeMs": 1791859912792.2905,
+      "updatedAt": "2026-10-13T02:51:52.842Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "FilterFieldOption",
+          "kind": "section",
+          "startLine": 46,
+          "endLine": 51,
+          "tokens": 26
+        },
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 52,
+          "endLine": 59,
+          "tokens": 48
+        },
+        {
+          "name": "FilterTreeEditor",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 125,
+          "tokens": 616
+        },
+        {
+          "name": "NodeProps",
+          "kind": "section",
+          "startLine": 126,
+          "endLine": 133,
+          "tokens": 44
+        },
+        {
+          "name": "NodeEditor",
+          "kind": "fn",
+          "startLine": 134,
+          "endLine": 173,
+          "tokens": 468
+        },
+        {
+          "name": "LeafProps",
+          "kind": "section",
+          "startLine": 174,
+          "endLine": 179,
+          "tokens": 33
+        },
+        {
+          "name": "LeafEditor",
+          "kind": "fn",
+          "startLine": 180,
+          "endLine": 237,
+          "tokens": 663
+        },
+        {
+          "name": "ListValueEditor",
+          "kind": "fn",
+          "startLine": 238,
+          "endLine": 269,
+          "tokens": 259
+        }
+      ]
+    },
+    "pcs-frontend/src/pages/report/JoinPicker.tsx": {
+      "description": "JOIN 白名单选择器（b6 第二批）。",
+      "tokens": 724,
+      "hash": "434047005d14f44c",
+      "size": 3213,
+      "mtimeMs": 1791860084867.3057,
+      "updatedAt": "2026-10-13T02:54:44.921Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 19,
+          "endLine": 34,
+          "tokens": 130
+        },
+        {
+          "name": "JoinPicker",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 86,
+          "tokens": 451
+        }
+      ]
+    },
+    ".gstack/qa_filter_group_roundtrip.py": {
+      "description": "QA 临时：过滤条件组在真后端的往返保真（TODO-060 的端到端证明）。",
+      "tokens": 1066,
+      "hash": "8ba4d706ec1a05d3",
+      "size": 4175,
+      "mtimeMs": 1791860449843.0896,
+      "updatedAt": "2026-10-13T03:00:49.890Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "call",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 46,
+          "tokens": 157
+        },
+        {
+          "name": "check",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 112,
+          "tokens": 665
+        }
+      ]
     }
   }
 }

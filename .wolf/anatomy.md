@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T02:48:34.644Z
-> Files: 771 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T03:00:49.890Z
+> Files: 774 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -141,6 +141,7 @@
 
 - `browse-audit.jsonl` (~37227 tok)
 - `browse.json` (~66 tok)
+- `qa_filter_group_roundtrip.py` — QA 临时：过滤条件组在真后端的往返保真（TODO-060 的端到端证明）。 (~1066 tok)
 - `qa_report_builder_chain.py` — QA：P8 b10–b12 / c6 主链端到端验证（临时脚本，跑完即弃）。 (~1180 tok)
 - `qa_role_compare.py` — QA 临时：对比不同角色对 report-builder 端点的可见性。 (~304 tok)
 - `scan-p6-6a-6-spec-v12-candidates.md` — P6-6A-6 SPEC V1.12 修订前置扫描报告 (~1549 tok)
@@ -1318,6 +1319,8 @@
 ## pcs-frontend/src/pages/report/
 
 - `definitionBody.ts` — 定义体 ⇄ 编辑态的纯函数转换。 (~1072 tok)
+- `FilterTreeEditor.tsx` — 过滤条件树编辑器（第二批）。 (~2529 tok)
+- `JoinPicker.tsx` — JOIN 白名单选择器（b6 第二批）。 (~724 tok)
 - `ReportDefinitionEditorPage.tsx` — ReportDefinitionEditorPage — 定义编辑器（b10）。 (~4376 tok)
 - `ReportDefinitionListPage.tsx` — ReportDefinitionListPage — REPORT_BUILDER 定义管理列表（b12）。 (~1595 tok)
 - `ReportExecutePage.tsx` — ReportExecutePage — 执行面板（b11）。 (~2349 tok)

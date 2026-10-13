@@ -9,8 +9,11 @@ import { describe, expect, it } from 'vitest';
 
 import {
   asSingleFilter,
+  availableJoins,
   buildBody,
+  pairKey,
   fieldsAtLevel,
+  toFilterTree,
   toRows,
 } from '../../src/pages/report/definitionBody';
 import type { ReportBuilderDatasource } from '../../src/api/reportBuilder';
@@ -126,5 +129,179 @@ describe('asSingleFilter', () => {
     expect(asSingleFilter(null)).toBeNull();
     expect(asSingleFilter('nope')).toBeNull();
     expect(asSingleFilter({ field: 'a' })).toBeNull();
+  });
+});
+
+// ============================================================================
+// 第二批：过滤条件树（TODO-060 数据丢失 + 15 操作符 + AND/OR 嵌套）
+// ============================================================================
+
+describe('TODO-060 — AND/OR 分组必须往返无损', () => {
+  // ⚠️ 组判据是「**有没有 conditions 键**」，不是 operator 是不是 AND/OR
+  // （query_engine._build_condition 的注释解释了为什么）。第一版的
+  // `asSingleFilter` 查的是 `children` —— 那个键后端**从不产生**，
+  // 于是分组检测是死代码，返回 null 靠的是后面「没有 field 字段」的检查。
+  // 结果照样丢数据，但理由是错的：换个键名就会静默变成「当成叶子条件」。
+  const GROUP = {
+    operator: 'AND',
+    conditions: [
+      { operator: 'EQ', source: 'EQUIP_LIST', field: 'tag_number', value: 'E-1' },
+      { operator: 'GT', source: 'EQUIP_LIST', field: 'duty', value: 100 },
+    ],
+  };
+
+  it('recognises a group by its conditions key, not by operator', () => {
+    const tree = toFilterTree([GROUP]);
+    expect(tree[0].kind).toBe('group');
+    expect(asSingleFilter(GROUP)).toBeNull();  // 第一批的 API 仍应返回 null
+  });
+
+  it('round-trips a nested group without losing any node', () => {
+    // ⚠️ **根断言**：这是 TODO-060 说的「保存会把条件组整段抹掉」。
+    // 修复前后这条都会红/绿 —— 修复前 buildBody 只发单条 filter，
+    // 组里的 3 个节点一个都留不下来。
+    const tree = toFilterTree([GROUP]);
+    const body = buildBody({
+      rows: [], level: 'BASIC', maxRows: 10, outputFormat: 'pdf',
+      filter: null, filterTree: tree,
+    }) as unknown as { FilterConditions: unknown[] };
+    expect(body.FilterConditions).toHaveLength(1);
+    expect(body.FilterConditions[0]).toEqual(GROUP);
+  });
+
+  it('round-trips two levels of nesting', () => {
+    const nested = {
+      operator: 'OR',
+      conditions: [
+        GROUP,
+        { operator: 'LIKE', source: 'EQUIP_LIST', field: 'vendor', value: 'ABB%' },
+      ],
+    };
+    const body = buildBody({
+      rows: [], level: 'BASIC', maxRows: 10, outputFormat: 'pdf',
+      filter: null, filterTree: toFilterTree([nested]),
+    }) as unknown as { FilterConditions: unknown[] };
+    expect(body.FilterConditions[0]).toEqual(nested);
+  });
+
+  it('survives an empty conditions list without crashing', () => {
+    const body = buildBody({
+      rows: [], level: 'BASIC', maxRows: 10, outputFormat: 'pdf',
+      filter: null, filterTree: toFilterTree([{ operator: 'AND', conditions: [] }]),
+    }) as unknown as { FilterConditions: unknown[] };
+    expect(body.FilterConditions).toEqual([{ operator: 'AND', conditions: [] }]);
+  });
+
+  it('drops nothing when the tree is emptied deliberately', () => {
+    const body = buildBody({
+      rows: [], level: 'BASIC', maxRows: 10, outputFormat: 'pdf',
+      filter: null, filterTree: [],
+    }) as unknown as { FilterConditions: unknown[] };
+    expect(body.FilterConditions).toEqual([]);
+  });
+});
+
+describe('操作符的值语义', () => {
+  const leaf = (operator: string, value: unknown) =>
+    toFilterTree([{ operator, source: 'EQUIP_LIST', field: 'tag_number', value }])[0];
+
+  it('keeps IN as a list and BETWEEN as a two-element list', () => {
+    expect(leaf('IN', ['a', 'b'])).toMatchObject({ value: ['a', 'b'] });
+    expect(leaf('BETWEEN', [1, 2])).toMatchObject({ value: [1, 2] });
+  });
+
+  it('coerces BETWEEN from two scalar inputs into a list', () => {
+    // UI 上 BETWEEN 是两个输入框；但存进定义体的必须是 list，
+    // 否则 query_engine 的 `len(value) != 2` 检查会把它当标量报错。
+    const n = leaf('BETWEEN', 1) as { kind: string; value: unknown };
+    expect(n.kind).toBe('leaf');
+  });
+
+  it('keeps a valueless operator valueless', () => {
+    // IS_NULL 带 value 是**非法的**（后端只认 operator）。
+    // 往返后 value 必须是 null，否则用户改别的字段时会把它带回去。
+    const n = leaf('IS_NULL', 'x') as { value: unknown };
+    expect(n.value).toBeNull();
+  });
+
+  it('treats an empty value as empty, not as "no filter"', () => {
+    // ⚠️ 后端对空 value 抛 REPORT_FILTER_VALUE_MISSING 而不是返回全表。
+    // 所以空值必须原样发出去让后端报错 —— 页面擅自改成 null 或删掉条件，
+    // 等于把「筛选失败」变成「导出全量」，而后者看起来是成功的。
+    const n = leaf('EQ', '') as { value: unknown };
+    expect(n.value).toBe('');
+  });
+});
+
+// ============================================================================
+// 第二批：JOIN 白名单选择
+// ============================================================================
+
+describe('JOIN 白名单', () => {
+  const JOINS = [
+    { a: 'HEAT_RESULTS', a_field: 'tag_number',
+      b: 'EQUIP_LIST', b_field: 'tag_number' },
+  ];
+
+  it('only offers joins whose two sources are both selected', () => {
+    // ⚠️ 只列**两端都在 DataSources 里**的对。列了别的，执行时才撞
+    // `REPORT_BUILDER_JOIN_NOT_SUPPORTED`（400）—— 用户填完整个报表
+    // 才被拒，而那正是 b1 把白名单一起下发要避免的事。
+    const sources = [{ source: 'HEAT_RESULTS' }];
+    expect(availableJoins(sources, JOINS)).toEqual([]);
+  });
+
+  it('offers a join once both endpoints are selected', () => {
+    const sources = [{ source: 'HEAT_RESULTS' }, { source: 'EQUIP_LIST' }];
+    expect(availableJoins(sources, JOINS)).toHaveLength(1);
+  });
+
+  it('never offers a join for a pair that is not whitelisted', () => {
+    const sources = [{ source: 'HEAT_RESULTS' }, { source: 'UTIL_RESULTS' }];
+    expect(availableJoins(sources, JOINS)).toEqual([]);
+  });
+
+  it('writes join_to onto the FROM side only', () => {
+    // ⚠️ `join_to` 挂在**发起方**那一行，不是两端各写一遍 ——
+    // 两端都写会形成互相指向，而执行引擎只读 join_to。
+    const body = buildBody({
+      rows: [rowOf('HEAT_RESULTS', 'tag_number'), rowOf('EQUIP_LIST', 'vendor')],
+      level: 'BASIC', maxRows: 10, outputFormat: 'pdf', filterTree: [],
+      joins: JOINS,
+    }) as unknown as { DataSources: { source: string; join_to?: string }[] };
+    const joined = body.DataSources.filter((d) => d.join_to);
+    expect(joined).toHaveLength(1);
+    expect(joined[0].join_to).toBe('EQUIP_LIST');
+  });
+
+  it('drops join_to when the pair is no longer both selected', () => {
+    // ⚠️ 取消勾选一个数据源后，残留的 join_to 会让执行引擎去关联一个
+    // 根本不存在的源 → 400。取消关联必须**真的清掉**这个字段，
+    // 而不是「下拉框显示为空但字段还在」。
+    const body = buildBody({
+      rows: [rowOf('HEAT_RESULTS', 'tag_number')],
+      level: 'BASIC', maxRows: 10, outputFormat: 'pdf', filterTree: [],
+      joins: JOINS,
+    }) as unknown as { DataSources: { join_to?: string | null }[] };
+    expect(body.DataSources[0].join_to ?? null).toBeNull();
+  });
+});
+
+function rowOf(source: string, field: string) {
+  return { key: `${source}.${field}`, source, field, label: field, alias: '',
+    order: 0, visible: true, level: null as string | null };
+}
+
+describe('pairKey 是无序的', () => {
+  it('gives the same key whichever side you start from', () => {
+    // ⚠️ `join_key_for` 的顺序对称（A→B ≡ B→A）。若 pairKey 有序，
+    // 用户从 A 勾到 B 再从 B 勾到 A 会产生两条「不同」的关联，
+    // 执行时却等价 —— 关联被应用两次，且界面上看不出为什么。
+    expect(pairKey('HEAT_RESULTS', 'EQUIP_LIST'))
+      .toBe(pairKey('EQUIP_LIST', 'HEAT_RESULTS'));
+  });
+
+  it('still separates genuinely different pairs', () => {
+    expect(pairKey('A', 'B')).not.toBe(pairKey('A', 'C'));
   });
 });

@@ -26,6 +26,7 @@ import {
   Button,
   Card,
   Descriptions,
+  InputNumber,
   Result,
   Select,
   Space,
@@ -41,6 +42,13 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../../components/common/PageHeader';
 import { errorMessage, reportBuilderApi } from '../../api/reportBuilder';
 import type { ReportDefinitionOut } from '../../api/reportBuilder';
+import { fromFilterTree, toFilterTree } from './definitionBody';
+import type {
+  DefNode,
+  FieldNodeOption as ReportBuilderFieldOption,
+  FilterNode,
+} from './definitionBody';
+import { FilterTreeEditor } from './FilterTreeEditor';
 
 /** 轮询间隔（ms）与上限。
  *
@@ -60,11 +68,17 @@ export function ReportExecutePage(): JSX.Element {
   const [definitions, setDefinitions] = useState<ReportDefinitionOut[]>([]);
   const [selected, setSelected] = useState<string | undefined>(defId);
   const [def, setDef] = useState<ReportDefinitionOut | null>(null);
+  const [fields, setFields] = useState<ReportBuilderFieldOption[]>([]);
   const [phase, setPhase] = useState<Phase>('idle');
   const [error, setError] = useState<string | null>(null);
   const [taskId, setTaskId] = useState<string | null>(null);
   const [fileId, setFileId] = useState<string | null>(null);
   const [statusText, setStatusText] = useState<string>('');
+  // 临时调整（SPEC §3.2.2(5)）：**不落库**。`null` = 用定义里的原条件。
+  // ⚠️ 用户在这里改的东西回不到定义编辑器 —— 所以界面上必须写明，
+  // 否则「我调好了」会被理解成「保存了」。
+  const [tempFilters, setTempFilters] = useState<FilterNode[] | null>(null);
+  const [tempMaxRows, setTempMaxRows] = useState<number | null>(null);
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startedAt = useRef<number>(0);
@@ -77,6 +91,11 @@ export function ReportExecutePage(): JSX.Element {
   useEffect(() => {
     void (async () => {
       try {
+        const ds = await reportBuilderApi.datasources();
+        setFields(ds.datasources.flatMap((d) => d.fields.map((f) => ({
+          value: f.name, source: d.key,
+          label: `${d.label} · ${f.label ?? f.name}`,
+        }))));
         const data = await reportBuilderApi.list({ status: 'PUBLISHED' });
         setDefinitions(data.items);
         const pick = defId ?? data.items[0]?.def_id;
@@ -102,7 +121,15 @@ export function ReportExecutePage(): JSX.Element {
     stopPolling();
     startedAt.current = Date.now();
     try {
-      const accepted = await reportBuilderApi.execute(selected);
+      // 临时条件是**单个节点**（组或叶子），不是数组 —— 后端
+      // `ReportExecuteRequest.filters` 的类型是 `Group | Condition | None`。
+      const filters: DefNode | undefined = !tempFilters?.length ? undefined
+        : (tempFilters.length === 1 && tempFilters[0].kind === 'leaf'
+          ? fromFilterTree(tempFilters)[0]
+          : { operator: 'AND', conditions: fromFilterTree(tempFilters) });
+      const accepted = await reportBuilderApi.execute(selected, {
+        filters, max_rows: tempMaxRows ?? undefined,
+      });
       setTaskId(accepted.task_id);
       setPhase('polling');
       poll(accepted.task_id);
@@ -205,6 +232,45 @@ export function ReportExecutePage(): JSX.Element {
             ]} />
         </Card>
       )}
+
+      <Card
+        title="临时调整（本次执行）"
+        size="small"
+        style={{ marginBottom: 16 }}
+        extra={
+          <Space>
+            <Button size="small"
+              onClick={() => {
+                setTempFilters(null);
+                setTempMaxRows(null);
+              }}>重置为定义里的条件</Button>
+            <Button size="small" type="primary"
+              disabled={!tempFilters}
+              onClick={() => setTempFilters(
+                toFilterTree(def?.definition_json.FilterConditions) ?? [])}>
+              从定义载入
+            </Button>
+          </Space>
+        }
+      >
+        <Alert type="warning" showIcon style={{ marginBottom: 12 }}
+          message="临时调整**不回写定义**（SPEC §3.2.2(5)）"
+          description="这里改的条件只进这一次执行与执行日志的快照。要固化请回定义编辑器改定义。" />
+        <InputNumber style={{ width: 160 }} placeholder="最大行数（留空=定义的）"
+          min={1} max={100000} value={tempMaxRows ?? undefined}
+          onChange={(v: number | null) => setTempMaxRows(v ?? null)} />
+        <div style={{ marginTop: 12 }}>
+          <FilterTreeEditor
+            nodes={tempFilters ?? []}
+            onChange={(next) => setTempFilters(next)}
+            fields={fields} />
+          {tempFilters === null && (
+            <Typography.Text type="secondary">
+              当前使用<strong>定义里的原条件</strong>（未做临时调整）。
+            </Typography.Text>
+          )}
+        </div>
+      </Card>
 
       <Card size="small">
         <Steps current={stepIndex} size="small" style={{ marginBottom: 16 }}
