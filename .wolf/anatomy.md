@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T02:25:08.121Z
-> Files: 767 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T02:48:34.644Z
+> Files: 771 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -141,6 +141,8 @@
 
 - `browse-audit.jsonl` (~37227 tok)
 - `browse.json` (~66 tok)
+- `qa_report_builder_chain.py` — QA：P8 b10–b12 / c6 主链端到端验证（临时脚本，跑完即弃）。 (~1180 tok)
+- `qa_role_compare.py` — QA 临时：对比不同角色对 report-builder 端点的可见性。 (~304 tok)
 - `scan-p6-6a-6-spec-v12-candidates.md` — P6-6A-6 SPEC V1.12 修订前置扫描报告 (~1549 tok)
 - `spec-v12-implementer-report.md` — P6-6A-6 SPEC V1.12 修订实施报告 (~662 tok)
 - `spec-v12-review-report.md` — V1.12 wording-only micro-revision 评审报告 (~508 tok)
@@ -153,6 +155,7 @@
 - `qa-report-pcs-frontend-2026-09-25-p6-2-batch.md` — QA Report — pcs-frontend — P6-2 batch 批末 (~2123 tok)
 - `qa-report-pcs-frontend-2026-10-01-sprint2.md` — Sprint 2 batch-end QA report (~1214 tok)
 - `qa-report-pcs-frontend-2026-10-02-sprint2-batch.md` — QA Report: pcs-frontend 2026-10-02 Sprint 2 批末 (~1014 tok)
+- `qa-report-pcs-frontend-2026-10-13-report-builder.md` — QA 报告 — P8 REPORT_BUILDER 前端（b10–b12 / c6 第一批） (~926 tok)
 - `qa-report-pcs-frontend-per-batch-2026-09-16.md` — PCS Frontend Per-Batch QA Report (~1293 tok)
 
 ## .superpowers/sdd/
@@ -1298,6 +1301,7 @@
 ## pcs-frontend/src/mocks/
 
 - `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~8100 tok)
+- `reportBuilder.ts` — REPORT_BUILDER 的 MSW handlers + fixtures（b10–b12 / c6）。 (~2435 tok)
 
 ## pcs-frontend/src/pages/
 

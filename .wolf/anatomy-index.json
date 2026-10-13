@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-13T02:25:08.121Z",
-    "fileCount": 767,
+    "lastScanned": "2026-10-13T02:48:34.644Z",
+    "fileCount": 771,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "27c178805446840929d638e73cf3c6e982c29635e34d4ddc2f7ced33a5b2c6a0",
-    "storeUpdatedAt": "2026-10-13T02:25:08.132Z",
-    "rootHash": "274409568930cd12"
+    "renderedHash": "11eb5957567a9daa95a9d4691c273e85be22b522ec533f7b9ac20fcec859e248",
+    "storeUpdatedAt": "2026-10-13T02:48:34.655Z",
+    "rootHash": "9e2fbd3f1c9e8f95"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -25811,6 +25811,81 @@
           "tokens": 2479
         }
       ]
+    },
+    ".gstack/qa_report_builder_chain.py": {
+      "description": "QA：P8 b10–b12 / c6 主链端到端验证（临时脚本，跑完即弃）。",
+      "tokens": 1180,
+      "hash": "a6d3ff65039a54c4",
+      "size": 4444,
+      "mtimeMs": 1791858701836.1367,
+      "updatedAt": "2026-10-13T02:31:41.885Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "call",
+          "kind": "fn",
+          "startLine": 14,
+          "endLine": 29,
+          "tokens": 157
+        },
+        {
+          "name": "check",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 110,
+          "tokens": 961
+        }
+      ]
+    },
+    ".gstack/qa_role_compare.py": {
+      "description": "QA 临时：对比不同角色对 report-builder 端点的可见性。",
+      "tokens": 304,
+      "hash": "f54a49d5165e195a",
+      "size": 1095,
+      "mtimeMs": 1791859275892.6025,
+      "updatedAt": "2026-10-13T02:41:15.939Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/mocks/reportBuilder.ts": {
+      "description": "REPORT_BUILDER 的 MSW handlers + fixtures（b10–b12 / c6）。",
+      "tokens": 2435,
+      "hash": "8900660b93638cf2",
+      "size": 9867,
+      "mtimeMs": 1791859349851.8494,
+      "updatedAt": "2026-10-13T02:42:29.900Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "requireAuth",
+          "kind": "fn",
+          "startLine": 144,
+          "endLine": 146,
+          "tokens": 33
+        },
+        {
+          "name": "unauthorized",
+          "kind": "fn",
+          "startLine": 147,
+          "endLine": 252,
+          "tokens": 1208
+        },
+        {
+          "name": "resetReportBuilderPollCount",
+          "kind": "fn",
+          "startLine": 253,
+          "endLine": 254,
+          "tokens": 21
+        }
+      ]
+    },
+    ".gstack/qa-reports/qa-report-pcs-frontend-2026-10-13-report-builder.md": {
+      "description": "QA 报告 — P8 REPORT_BUILDER 前端（b10–b12 / c6 第一批）",
+      "tokens": 926,
+      "hash": "088bea9d1412b59d",
+      "size": 5826,
+      "mtimeMs": 1791859714593.9006,
+      "updatedAt": "2026-10-13T02:48:34.644Z",
+      "source": "hook"
     }
   }
 }
