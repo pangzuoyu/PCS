@@ -314,7 +314,13 @@ def test_enqueue_carries_task_and_arguments(fake_arq, client, auth_pc, project_i
     from app.workers.report_tasks import generate_report_task
 
     asyncio.get_event_loop().run_until_complete(_post(client, auth_pc, project_id))
-    assert fake_arq["fn"] is generate_report_task
+    # ⚠️ 断言**名字字符串**，不是函数对象（2026-10-13 修）。
+    # `arq.connections.serialize_job` 把入队函数的「名字」存进 Redis，
+    # worker 侧是 `self.functions[function_name]` —— 键全是 `str`。
+    # 传函数对象时 job **静默失败**：API 照样回 202，worker 那边
+    # `KeyError` 被 ARQ 吞掉，Redis 里躺着一个永不完成的任务。
+    assert fake_arq["fn"] == generate_report_task.__name__, (
+        f"入队必须传名字字符串，实际传了 {type(fake_arq['fn']).__name__}")
     assert fake_arq["kwargs"]["output_format"] == "pdf"
     assert fake_arq["kwargs"]["project_id"] == str(project_id)
     assert fake_arq["closed"] is True, "pool 必须关闭，否则连接泄漏"

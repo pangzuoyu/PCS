@@ -62,10 +62,17 @@ async def enqueue_definition_execution(*, def_id: str, project_id: str,
                                        max_rows: int | None = None,
                                        output_format: str | None = None) -> str:
     """入队一次自定义报表定义执行（b7）。"""
-    from app.workers.report_builder_tasks import execute_definition_task
+    # ⚠️ 传**名字字符串**，不是函数对象（2026-10-13 实测）。
+    # arq 0.28 的 `serialize_job(function, ...)` 把首参当 function_name 存进
+    # 队列，worker 端用 `self.functions[function_name]` 查 —— 字典键全是 str。
+    # 传函数对象：入队成功、API 返 202，然后
+    # `worker: job <id>, function <function ... at 0x…> not found` → job failed，
+    # 全链路无一处报错，轮询只会一直 RUNNING 到超时。
+    # 仍 import 一下：让「函数不存在」在**入队前**就炸，而不是静默。
+    from app.workers.report_builder_tasks import execute_definition_task  # noqa: F401
 
     return await _enqueue(
-        execute_definition_task,
+        "execute_definition_task",
         def_id=def_id, project_id=project_id, user_id=user_id,
         filters=filters, max_rows=max_rows, output_format=output_format,
     )

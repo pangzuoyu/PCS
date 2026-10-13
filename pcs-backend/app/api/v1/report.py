@@ -147,14 +147,17 @@ async def generate_report(body: ReportGenerateRequest, db: DbDep, actor: ActorDe
     from arq import create_pool
     from arq.connections import RedisSettings
 
-    from app.workers.report_tasks import generate_report_task
+    # ⚠️ 传**名字字符串**（同 arq_queue 的理由：worker 用
+    # `self.functions[function_name]` 查，键全是 str；传函数对象 →
+    # job silently failed，API 却返 202）。仍 import 以便提前发现函数不存在。
+    from app.workers.report_tasks import generate_report_task  # noqa: F401
 
     # ⚠️ `create_pool` 收的是 **RedisSettings**，不是 DSN 字符串 ——
     # 传字符串会在连接时炸 `'str' object has no attribute 'host'`。
     pool = await create_pool(RedisSettings.from_dsn(get_settings().redis_url))
     try:
         job = await pool.enqueue_job(
-            generate_report_task,
+            "generate_report_task",
             report_type=body.report_type,
             project_id=str(body.project_id),
             record_ids=[str(r) for r in body.record_ids],

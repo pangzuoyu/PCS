@@ -466,6 +466,20 @@ async def test_jsonb_field_can_be_selected_in_definition(client):
 
 EXEC = "/api/v1/report-builder/definitions/{d}/execute"
 
+
+def _ctx_with(db, *, job_id: str, job_try: int = 1) -> dict:
+    """构造 ARQ ctx。
+
+    ⚠️ 键是 **`session_factory`** 不是 `db`（2026-10-13 修）。ARQ 的
+    `on_startup` 把 `ctx["session_factory"]` 注入，任务体据此自己开
+    session；`ctx["db"]` 从来不存在，所以旧写法让任务体在第一行就
+    `KeyError` —— 而它同时**带着正确的 def_id** 传进去，症状像「参数错」。
+
+    这里返回的 factory 把同一个 `db_session` 交出去，**不是**生产
+    factory（那指向真库；单测库是内存 SQLite，见下方注释）。
+    """
+    return {"session_factory": lambda: db, "job_id": job_id, "job_try": job_try}
+
 # ⚠️ 这几组测试用 `db_session` 而不是 `get_async_session_factory()` ——
 # 后者是**生产** factory，指向真库；单测库是内存 SQLite（conftest 建表）。
 # 上一版用错了 factory，`db.get()` 直接 NoResultFound —— 而那个失败信息
@@ -794,7 +808,7 @@ async def test_builder_task_renders_a_file_and_audits(db_session, monkeypatch):
     await make_report_seed(db_session, proj.project_id, "EQUIPMENT_LIST")
 
     file_id = await tasks.execute_definition_task(
-        {"db": db_session, "job_id": "job-x", "job_try": 1},
+        _ctx_with(db_session, job_id="job-x"),
         def_id=str(d.def_id), project_id=str(proj.project_id),
         user_id=str(uuid.uuid4()), output_format="pdf",
     )
@@ -1022,7 +1036,7 @@ async def test_builder_export_actually_carries_the_watermark(db_session):
     await make_report_seed(db_session, proj.project_id, "EQUIPMENT_LIST")
 
     file_id = await tasks.execute_definition_task(
-        {"db": db_session, "job_id": "job-wm", "job_try": 1},
+        _ctx_with(db_session, job_id="job-wm"),
         def_id=str(d.def_id), project_id=str(proj.project_id),
         user_id=str(_uuid.uuid4()), output_format="pdf")
     row = (await db_session.execute(select(ReportFile).where(
@@ -1204,3 +1218,53 @@ async def test_definition_field_in_the_wrong_place_is_rejected_not_defaulted(cli
                                                detailLevel="DETAIL"))
     assert r.status_code == 422, f"实得 {r.status_code}：字段放错位置被静默忽略了"
     assert "detailLevel" in r.text
+
+
+async def test_task_closes_the_session_it_opened(db_session, monkeypatch):
+    """⚠️ 任务必须 `close()` 自己开的 session。
+
+    ARQ 的 ctx 给的是 **factory**，任务体自己开 session —— 于是**关闭的责任
+    也在任务体**。不关的话，每次 job 都把一条连接挂在 session 上，直到 GC 才
+    归还连接池。症状不是报错，是连接数缓慢爬升，最后撞上
+    `remaining connection slots are reserved for roles with the SUPERUSER`
+    —— 而报错发生在**完全无关的**命令（比如跑迁移）上。
+
+    之前的测试都用 `_ctx_with(db_session)` 复用同一个 session，替身比被测物
+    更宽容：它既不新建也不归还连接，于是这条泄漏在单测里根本不可见。
+    """
+    from app.models.report import ReportDefinition
+    from tests.fixtures.report.seed import make_report_seed
+
+    proj = await _make_project(db_session, "会话关闭测试项目")
+    d = ReportDefinition(
+        project_id=proj.project_id, name="会话关闭测试", category="设备类",
+        description="", definition_json=DEF_JSON_EQUIP, output_format="pdf",
+        max_rows=10000, version="0.1.0", status="PUBLISHED",
+        shared_with="ALL_USERS", created_by=uuid.uuid4())
+    db_session.add(d)
+    await db_session.flush()
+    await make_report_seed(db_session, proj.project_id, "EQUIPMENT_LIST")
+
+    closed = []
+
+    class _RecordingSession:
+        """代理真实 session，只记录 close / aclose 有没有被调用。"""
+
+        def __getattr__(self, name):
+            return getattr(db_session, name)
+
+        async def close(self):
+            closed.append("close")
+
+        async def aclose(self):
+            closed.append("aclose")
+
+    from app.workers import report_builder_tasks as tasks
+    await tasks.execute_definition_task(
+        {"session_factory": _RecordingSession, "job_id": "job-close", "job_try": 1},
+        def_id=str(d.def_id), project_id=str(proj.project_id),
+        user_id=str(uuid.uuid4()), output_format="pdf",
+    )
+    assert closed, (
+        "任务体开了 session 却从不 close —— 每个 job 泄漏一条连接，"
+        "直到 GC 才归还；报错会出现在无关命令上（连接槽耗尽）")
