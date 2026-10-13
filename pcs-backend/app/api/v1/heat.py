@@ -32,8 +32,8 @@ from fastapi import APIRouter, Depends, File, Form, UploadFile
 from pydantic import BaseModel, Field
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.config import _Actor, current_actor, require_roles
 from app.api.v1._guard import check_project_access_or_404, check_record_access_or_404
+from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError as CorePcsError
 from app.db.session import get_db
 from app.services.exceptions import PcsError
@@ -229,7 +229,11 @@ def _build_segments(wres: WeightEstimateResult) -> dict[str, WeightSegmentRespon
 async def import_htri(
     user: Annotated[_Actor, Depends(current_actor)],
     db: Annotated[AsyncSession, Depends(get_db)],
-    file: Annotated[UploadFile, File(..., description="HTRI Xist v6.0 .txt 输出")],
+    file: Annotated[UploadFile, File(
+        ...,
+        description="HTRI 报表：.txt（Xist/Xchanger Suite 文本输出）"
+                  "或 .xls/.xlsx（HTRI Excel 版报表）",
+    )],
     project_id: Annotated[uuid.UUID, Form(...)],
     workspace_id: Annotated[uuid.UUID, Form(...)],
     equipment_no: Annotated[str, Form(..., description="设备位号（如 E-201）")],
@@ -250,24 +254,50 @@ async def import_htri(
         db, user_id=user.user_id, project_id=project_id, actor_roles=user.roles,
     )
 
-    # 1. 读上传文件 → 写 tmp → 解析（parse_htri 接收 Path）
+    # 1. 读上传文件 → 写 tmp → 解析（parser 接收 Path）
+    #
+    # ⚠️ **按上传文件名后缀分派**，且临时文件必须**沿用后缀** ——
+    # 原来固定 `.txt`：Excel 报表被存成 `.tmp.txt` 后走文本 parser，
+    # 报「首行无法判别版本」，把用户指向**版本**问题，而真实原因是
+    # 「这是 Excel，请用 Excel 入口」。错误信息指错方向比不报更难查。
     content = await file.read()
+    suffix = Path(file.filename or "").suffix.lower()
+    is_excel = suffix in {".xls", ".xlt", ".xlsx", ".xlsm"}
+    # ⚠️ **必须在分支之外导入**。放 `if is_excel:` 里面的话，走 .txt 路径时
+    # 这个名字是**未绑定的局部变量**，而 `except (A, B)` 里的 B 在**异常发生
+    # 那一刻**求值 → UnboundLocalError 把原始的 HtriParseError 顶掉，
+    # 用户看到的是一个完全无关的错误。
+    from app.services.heat.htri_excel_parser import HtriExcelParseError, parse_htri_excel
     try:
         with tempfile.NamedTemporaryFile(
-            suffix=".txt", delete=False
+            suffix=suffix or (".xlsx" if is_excel else ".txt"), delete=False
         ) as tmp:
             tmp.write(content)
             tmp_path = Path(tmp.name)
         try:
-            htri = parse_htri(tmp_path)
+            if is_excel:
+                from app.services.heat.htri_excel_parser import (
+                    HtriExcelParseError,
+                    parse_htri_excel,
+                )
+
+                htri = parse_htri_excel(tmp_path)
+            else:
+                htri = parse_htri(tmp_path)
         finally:
             tmp_path.unlink(missing_ok=True)
-    except HtriParseError as e:
-        # HTRI 解析失败 → 422 HEAT_INPUT_ERROR
+    except (HtriParseError, HtriExcelParseError) as e:
+        # 解析失败 → 422 HEAT_INPUT_ERROR
         raise CorePcsError(
             code="HEAT_INPUT_ERROR",
             message=f"HTRI 文件解析失败：{e}",
             status=422,
+        ) from e
+    except ImportError as e:      # openpyxl/xlrd 缺失
+        raise CorePcsError(
+            code="HEAT_IMPORT_UNAVAILABLE",
+            message=f"解析 Excel 版 HTRI 报表所需的库不可用：{e}",
+            status=500,
         ) from e
 
     # 2. service 层 import

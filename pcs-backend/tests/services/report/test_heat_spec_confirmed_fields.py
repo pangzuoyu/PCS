@@ -21,10 +21,12 @@ from __future__ import annotations
 import pytest
 
 from app.models.calc import HeatResult
-from app.services.heat.heat_data_service import (AcheParams,
-                                                 _htri_ache_dict,
-                                                 _htri_cold_side_dict,
-                                                 _htri_hot_side_dict)
+from app.services.heat.heat_data_service import (
+    AcheParams,
+    _htri_ache_dict,
+    _htri_cold_side_dict,
+    _htri_hot_side_dict,
+)
 
 
 def _cols() -> set[str]:
@@ -126,19 +128,22 @@ def test_htri_side_writers_emit_the_two_phase_keys_explicitly(
         cold_mass_flow_kgs = 17.0
         cold_cp_j_kgk = 2000.0
 
-    class _FakeHtri2:
-        hot_inlet_t_k = hot_outlet_t_k = 320.0
-        hot_mass_flow_kgs, hot_cp_j_kgk = 17.8, 2100.0
-        cold_inlet_t_k = cold_outlet_t_k = 300.0
-        cold_mass_flow_kgs, cold_cp_j_kgk = 17.0, 2000.0
-        # 两相含量：parser 已能解析（用户 2026-12-12 裁决要求显示）
-        vapor_wt_frac_in, vapor_wt_frac_out = 85.42, 2.70
-        liquid_wt_frac_in, liquid_wt_frac_out = 14.58, 97.30
-        # HTRI 的 Vapor/Liquid 是**四值**：壳进/壳出/管进/管出
-        cold_vapor_wt_frac_in, cold_vapor_wt_frac_out = 1.0, 0.0
-        cold_liquid_wt_frac_in, cold_liquid_wt_frac_out = 99.0, 100.0
+    # ⚠️ 用**真的 `HtriParsedData`**，不用 fake 类。
+    # fake 必须手工镜像 dataclass 的每个字段，漏一个就是
+    # `AttributeError: no attribute 'hot_inlet_t_c'` —— 而那报错指向
+    # 测试夹具，与「这段代码对不对」毫无关系。
+    from app.services.heat.htri_parser import HtriParsedData
 
-    got = side_dict(_FakeHtri2())
+    htri = HtriParsedData(
+        version="test", case_name="T",
+        heat_duty_w=1e6, overall_u_w_m2k=45.0, area_required_m2=12.0,
+        vapor_wt_frac_in=85.42, vapor_wt_frac_out=2.70,
+        liquid_wt_frac_in=14.58, liquid_wt_frac_out=97.30,
+        cold_vapor_wt_frac_in=1.0, cold_vapor_wt_frac_out=0.0,
+        cold_liquid_wt_frac_in=99.0, cold_liquid_wt_frac_out=100.0,
+    )
+
+    got = side_dict(htri)
     missing = TWO_PHASE_KEYS - set(got)
     assert not missing, f"缺少两相键（须显式置 None）：{sorted(missing)}"
     # 两个写入方读**不同的 parser 属性**（hot_* vs cold_*）但产出**同一套键** ——

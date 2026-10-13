@@ -238,17 +238,37 @@ def map_htri_to_heat_input(
 
     单位换算：HTRI shell_dia_m → HeatResult.shell_id（mm，×1000）；
     HTRI baffle_spacing_m → baffle_spacing（mm，×1000）；tube_length 保持 m。
+
+    ## 两条 parser 的单位口径不同，这里收敛
+
+    | 量 | 纯文本 parser | Excel parser | 本函数取 |
+    |---|---|---|---|
+    | 壳体直径 | `shell_dia_m`（m）| `shell_id_mm`（mm）| Excel 优先，回退 m×1000 |
+    | 挡板间距 | `baffle_spacing_m`（m）| `baffle_spacing_mm`（mm）| 同上 |
+    | 温度 | `hot_inlet_t_k`（**K**）| `hot_inlet_t_c`（**°C**）| Excel 优先，回退 K−273.15 |
+
+    ⚠️ 只读其中一套的话，另一套 parser 导入的数据会**整列为空** ——
+    而导入照样返回 201。
     """
+    def _pick(excel_val, text_val):
+        """Excel 口径优先；两者皆 None 时给 None（不猜 0）。"""
+        return excel_val if excel_val is not None else text_val
+
+    def _kelvin_to_c(k):
+        return None if k is None else k - 273.15
+
     return HeatCalcInput(
         equipment_no=equipment_no,
         equipment_name=equipment_name or htri.case_name,
         duty=htri.heat_duty_w,
         effective_area=htri.area_required_m2,
         u_overall=htri.overall_u_w_m2k,
-        # 管壳字段（mm 转换）
-        shell_id=(htri.shell_dia_m * 1000.0) if htri.shell_dia_m is not None else None,
+        # 管壳字段（两条 parser 单位口径不同 → 见 docstring）
+        shell_id=_pick(htri.shell_id_mm,
+                       htri.shell_dia_m * 1000.0 if htri.shell_dia_m is not None else None),
         tube_length=htri.tube_length_m,
         tube_count=htri.tube_count,
+        tube_passes=htri.tube_passes,
         # 用户 2026-12-12 裁决要进规格书的字段（htri_parser 已能解析）
         tube_rows=htri.tube_rows,
         skin_temp_min=htri.skin_temp_min_c,
@@ -259,14 +279,14 @@ def map_htri_to_heat_input(
         fan_face_area_ratio=htri.fan_face_area_ratio,
         heat_transfer_safety_factor=htri.heat_transfer_safety_factor,
         # baffle_spacing 拆行避免 E501
-        baffle_spacing=(
-            htri.baffle_spacing_m * 1000.0 if htri.baffle_spacing_m is not None else None
-        ),
+        baffle_spacing=_pick(
+            htri.baffle_spacing_mm,
+            htri.baffle_spacing_m * 1000.0 if htri.baffle_spacing_m is not None else None),
         # §3.1.2 热工
         u_clean=htri.overall_u_w_m2k,
         heat_exchange_area=htri.area_required_m2,
         # 物性 JSONB（§3.1.3）
-        shell_params=_htri_hot_side_dict(htri),   # 含热侧两相含量（htri_parser 已能解析）
+        shell_params=_htri_hot_side_dict(htri),   # 含热侧两相含量
         tube_params=_htri_cold_side_dict(htri),
         ache_params=_ache_with_geometry(htri),
         # 5 旧 JSONB（最小填充；P5+ 完整版由 service 层补算）
@@ -297,6 +317,16 @@ SIDE_PARAM_KEYS: tuple[str, ...] = (
 )
 
 
+def _pick_flow(side_flow, other_flow):
+    """流量取本侧；本侧没有就取另一侧。
+
+    ⚠️ Excel parser 把**热侧 = 管程侧**固定住了（实测两份文件都是），
+    而纯文本 parser 的 hot/cold 是按用户填的。若某一份报表只给了
+    一个总流量，两侧都要有值 —— 否则其中一侧的流量列全空。
+    """
+    return side_flow if side_flow is not None else other_flow
+
+
 def _side_dict(values: dict[str, Any]) -> dict[str, Any]:
     """按 `SIDE_PARAM_KEYS` 组装 —— 缺的键显式置 None，不省略。"""
     out = {k: None for k in SIDE_PARAM_KEYS}
@@ -312,11 +342,20 @@ def _htri_hot_side_dict(htri: HtriParsedData) -> dict[str, Any]:
     ⚠️ 两相含量**显式置 None**：`htri_parser` 提不到它们。省略键会让
     「这个源有没有两相数据」变成「键在不在」，而手工录入的行会有值。
     """
+    # ⚠️ 两条 parser 的温度单位不同（纯文本 K / Excel °C）—— 取值时
+    # 优先 Excel 的 `*_c`，回退 K−273.15。只读一套会让另一套导入的
+    # 温度**整列为空**，而导入照样 201。
+    hot_in = htri.hot_inlet_t_c
+    if hot_in is None and htri.hot_inlet_t_k is not None:
+        hot_in = htri.hot_inlet_t_k - 273.15
+    hot_out = htri.hot_outlet_t_c
+    if hot_out is None and htri.hot_outlet_t_k is not None:
+        hot_out = htri.hot_outlet_t_k - 273.15
     return _side_dict({
         "fluid_name": "hot",
-        "temp_in": htri.hot_inlet_t_k,
-        "temp_out": htri.hot_outlet_t_k,
-        "mass_flow": htri.hot_mass_flow_kgs,
+        "temp_in": hot_in,
+        "temp_out": hot_out,
+        "mass_flow": _pick_flow(htri.hot_mass_flow_kgs, htri.cold_mass_flow_kgs),
         "cp": htri.hot_cp_j_kgk,
         # 两相含量（用户 2026-12-12 裁决「两相含量要显示」）
         "vapor_wt_frac_in": htri.vapor_wt_frac_in,
@@ -328,11 +367,17 @@ def _htri_hot_side_dict(htri: HtriParsedData) -> dict[str, Any]:
 
 def _htri_cold_side_dict(htri: HtriParsedData) -> dict[str, Any]:
     """HTRI 解析 → 冷侧流体摘要 dict（fluid_name=cold）。键集见 `SIDE_PARAM_KEYS`。"""
+    cold_in = htri.cold_inlet_t_c
+    if cold_in is None and htri.cold_inlet_t_k is not None:
+        cold_in = htri.cold_inlet_t_k - 273.15
+    cold_out = htri.cold_outlet_t_c
+    if cold_out is None and htri.cold_outlet_t_k is not None:
+        cold_out = htri.cold_outlet_t_k - 273.15
     return _side_dict({
         "fluid_name": "cold",
-        "temp_in": htri.cold_inlet_t_k,
-        "temp_out": htri.cold_outlet_t_k,
-        "mass_flow": htri.cold_mass_flow_kgs,
+        "temp_in": cold_in,
+        "temp_out": cold_out,
+        "mass_flow": _pick_flow(htri.cold_mass_flow_kgs, htri.hot_mass_flow_kgs),
         "cp": htri.cold_cp_j_kgk,
         # 冷侧两相含量：冷凝侧液相含量通常是 100%，但字段同样要有 ——
         # 下游按 `in` 判断时缺键与 None 会走不同分支。

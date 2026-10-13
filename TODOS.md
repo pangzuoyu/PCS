@@ -1263,3 +1263,24 @@ A 类全补 → 48+6 = 54/74 = **73.0%**；B 类确认不做 → 仍 73.0%。
 新增字段全部经 `htri_parser` → `map_htri_to_heat_input` → DB 端到端验证
 （`test_htri_parser_new_fields.py`，含一条「解析了不等于落库了」的
 反向测试）。
+
+### TODO-059 补记：Excel 解析器已接入导入端点
+
+`POST /api/v1/heat/import-htri` 现按**上传文件名后缀**分派
+（`.xls/.xlt/.xlsx/.xlsm` → `parse_htri_excel`，其余 → `parse_htri`）。
+
+⚠️ 临时文件**必须沿用后缀** —— 原实现固定 `.txt`，Excel 报表被存成
+`.tmp.txt` 后走文本 parser，报「首行无法判别版本」，把用户指向
+**版本**问题，而真实原因是「这是 Excel」。错误信息指错方向比不报更难查。
+
+**两条 parser 的单位口径不同**，在 `map_htri_to_heat_input` 收敛
+（Excel 优先，回退纯文本）：
+
+| 量 | 纯文本 | Excel | 取法 |
+|---|---|---|---|
+| 壳体直径 | `shell_dia_m`（m）| `shell_id_mm`（mm）| Excel 优先，回退 m×1000 |
+| 挡板间距 | `baffle_spacing_m`（m）| `baffle_spacing_mm`（mm）| 同上 |
+| 温度 | `*_t_k`（**K**）| `*_t_c`（**°C**）| Excel 优先，回退 K−273.15 |
+
+⚠️ 只读其中一套的话，另一套 parser 导入的数据会**整列为空**，而导入
+照样返回 201。
