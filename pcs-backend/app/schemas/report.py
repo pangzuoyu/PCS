@@ -36,9 +36,17 @@ class ReportGenerateRequest(BaseModel):
 
 
 class ReportGenerateResponse(BaseModel):
-    """202 Accepted —— 生成是异步的（10k 行 PDF ≈ 10 CPU-秒，同步会阻塞 event loop）。"""
+    """202 Accepted —— 生成是异步的（10k 行 PDF ≈ 10 CPU-秒，同步会阻塞 event loop）。
+
+    ⚠️ `report_file_id` **不是可选的补充**，而是轮询的必需品
+    （SPEC P8 §a7「任务提交 → 轮询状态 → 完成/失败」，TODO-063）：
+    `/report/{id}/status` 只认 `report_file_id`，只给 `task_id` 的话
+    调用方无从轮询。为它付出的代价是 PENDING 行必须在入队时就落库，
+    否则 202 与「行存在」之间有 404 窗口（见 bug-167）。
+    """
 
     task_id: str
+    report_file_id: uuid.UUID
     status: str = "PENDING"
 
 

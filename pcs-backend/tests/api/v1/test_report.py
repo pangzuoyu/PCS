@@ -288,13 +288,18 @@ def fake_arq(monkeypatch):
     captured = {}
 
     class _Job:
-        job_id = "job-abc"
+        # ⚠️ 必须回显**端点指定的** `_job_id`，不能回固定值：ARQ 真实行为是
+        # `job_id = _job_id or uuid4().hex`（arq/connections.py:148）。
+        # 回固定串的话，「端点自选的 task_id 与入队的一致」这条断言测不到。
+        def __init__(self, job_id):
+            self.job_id = job_id
 
     class _Pool:
         async def enqueue_job(self, fn, **kwargs):
             captured["fn"] = fn
             captured["kwargs"] = kwargs
-            return _Job()
+            captured["job_id"] = kwargs.get("_job_id")
+            return _Job(kwargs.get("_job_id") or "job-abc")
 
         async def aclose(self):
             captured["closed"] = True
@@ -374,3 +379,113 @@ def report_file_bytes(report_file):
     p.write_bytes(b"%PDF-test")
     yield p.read_bytes()
     p.unlink(missing_ok=True)
+
+
+@pytest.mark.asyncio
+async def test_generate_returns_report_file_id_so_status_can_be_polled(
+        client, auth_pc, project_id, fake_arq, db_session):
+    """202 必须同时给出 `report_file_id`，否则固定 10 类报表**无法轮询**。
+
+    ⚠️ SPEC P8 §a7 要求「任务提交 → 轮询状态 → 完成/失败」，验收也是这一句。
+    而此前 `/generate` 只回 `task_id`，`/report/{id}/status` 只认
+    `report_file_id` —— **两者之间没有桥**，调用方拿不到文件 id
+    （只能在 1 小时内从 ARQ 的 job 结果里捞，过期就永远拿不到）。
+
+    这条路的前端**一个调用点都没有**（前端只用 report-builder），
+    所以这个缺口不会被任何界面暴露 —— 它只会在按 SPEC 验收时炸。
+
+    修法不需要新端点：`/report/{id}/status` 已经在了，只要 202 把
+    `report_file_id` 一并给出来。为此 PENDING 行必须在**入队时**就建 ——
+    由 worker 建的话，202 与「行存在」之间有窗口，轮询会撞上 404
+    （report-builder 那条路已经踩过，见 bug-167）。
+    """
+    import uuid
+
+    from sqlalchemy import select
+
+    from app.models.report import ReportFile
+
+    r = await client.post(
+        "/api/v1/report/generate",
+        json={"report_type": "EQUIPMENT_LIST", "project_id": str(project_id),
+              "record_ids": [], "output_format": "pdf"},
+        headers=auth_pc)
+    assert r.status_code == 202, r.text
+    body = r.json()
+    assert body.get("report_file_id"), (
+        f"202 响应里没有 report_file_id：{body} —— 调用方无从轮询状态")
+
+    # 行必须在**入队那一刻**就落库（worker 还没跑）
+    # ⚠️ 必须 `uuid.UUID(...)` 包一层：JSON 回来的是 str，而本仓 `Uuid` 列的
+    # bind processor 直接调 `.hex`，传 str 会炸
+    # `'str' object has no attribute 'hex'`（同一个坑见 builder_service）。
+    row = (await db_session.execute(select(ReportFile).where(
+        ReportFile.report_file_id == uuid.UUID(body["report_file_id"]))
+    )).scalar_one_or_none()
+    assert row is not None, "PENDING 行不在库里 —— 轮询窗口内只能 404"
+    assert row.status == "PENDING"
+    assert row.task_id == body["task_id"], (
+        "行上的 task_id 与响应不一致 —— worker 靠它找回自己那一行")
+
+
+@pytest.mark.asyncio
+async def test_generate_enqueues_with_the_same_id_as_the_row(
+        client, auth_pc, project_id, fake_arq):
+    """入队的 `_job_id` 必须**就是**那一行的 task_id。
+
+    否则行与 job 对不上，重试时 worker 会另建一行 —— 一次失败的重试链在
+    库里留一串孤儿 PENDING 行，而每一行都会被回收器当僵死任务处理一遍。
+    """
+    r = await client.post(
+        "/api/v1/report/generate",
+        json={"report_type": "EQUIPMENT_LIST", "project_id": str(project_id),
+              "record_ids": [], "output_format": "pdf"},
+        headers=auth_pc)
+    assert r.status_code == 202, r.text
+    assert fake_arq["job_id"] == r.json()["task_id"], (
+        f"入队 job_id={fake_arq.get('job_id')!r} 与返回的 task_id="
+        f"{r.json()['task_id']!r} 不一致")
+
+
+@pytest.mark.asyncio
+async def test_enqueue_failure_marks_the_pending_row_failed(
+        client, auth_pc, project_id, monkeypatch, db_session):
+    """入队失败时那一行**必须**立刻标 FAILED，不能留在 PENDING。
+
+    ⚠️ 端点现在在入队**之前**就建了 PENDING 行（TODO-063）。于是入队失败
+    就留下一行注定没人来跑的 PENDING：状态端点会一直显示「生成中」，
+    而真相是「压根没入队」。要等回收器 15 分钟后才纠正 —— 用户看到的是
+    一次「转圈 15 分钟然后莫名失败」。
+
+    同一族的坑就在旁边：`arq_queue` 的 docstring 写着「入队失败必须让端点
+    知道，不能返回 202 + 空 task_id」。这一条是它的延续：**要让端点知道**，
+    先得让**库**知道。
+    """
+    import uuid
+
+    from sqlalchemy import select
+
+    import arq
+
+    from app.models.report import ReportFile
+
+    async def _boom(*a, **k):
+        raise ConnectionError("redis 不可达")
+
+    monkeypatch.setattr(arq, "create_pool", _boom)
+
+    r = await client.post(
+        "/api/v1/report/generate",
+        json={"report_type": "EQUIPMENT_LIST", "project_id": str(project_id),
+              "record_ids": [], "output_format": "pdf"},
+        headers=auth_pc)
+    assert r.status_code == 503, f"实得 {r.status_code}：{r.text}"
+
+    rows = (await db_session.execute(
+        select(ReportFile).where(ReportFile.project_id == project_id)
+    )).scalars().all()
+    assert rows, "没有留下任何行 —— 那说明 PENDING 行压根没建，测试没打到点上"
+    assert all(x.status == "FAILED" for x in rows), (
+        f"留下 {[x.status for x in rows]} 的行 —— 入队失败却停在 PENDING，"
+        "状态端点会一直显示「生成中」直到回收器 15 分钟后纠正")
+    assert all(x.error_message for x in rows), "FAILED 必须带原因，否则查不到为什么"

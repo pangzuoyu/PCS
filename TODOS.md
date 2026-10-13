@@ -1494,7 +1494,7 @@ A 类全补 → 48+6 = 54/74 = **73.0%**；B 类确认不做 → 仍 73.0%。
 
 ---
 
-## 🔴 TODO-063 固定 10 类报表没有 `task_id` → `report_file_id` 的轮询端点（2026-10-13 E2E 真跑发现）
+## ✅ TODO-063 固定 10 类报表没有 `task_id` → `report_file_id` 的轮询端点（2026-10-13 修完，27cb4b0 → 见下）
 
 `POST /report/generate` 只回 `task_id`，而 `/report/{id}/status` 只认
 `report_file_id`，**两者之间没有桥**。b11 的桥（`report_execution_logs.task_id`
@@ -1506,8 +1506,32 @@ A 类全补 → 48+6 = 54/74 = **73.0%**；B 类确认不做 → 仍 73.0%。
   绕过去的，不是没看见。
 - 与 bug-167 **不是同一件事**：bug-167 是「有端点但时机错了」（已修），
   这里是「这条路上根本没有端点」。
-- **需裁决**：要么给固定 10 类也建执行日志行（复用同一套桥），
-  要么明确这条路的消费方只走同步 `report_service.generate`。
+### ✅ 2026-10-13 修完
+
+用户裁决「解决」后按 **SPEC P8 §a7** 定的：SPEC 明写「ARQ 任务；状态查询端点；
+失败重试，验收『任务提交 → 轮询状态 → 成功/失败』」，所以这是 SPEC 缺口不是
+可选项。同时查清：**这条路的消费方一个都没有** —— 前端只调 report-builder，
+后端也只有端点自己调 `generate_report_task`。所以这个缺口不会被任何界面暴露，
+只会在按 SPEC 验收时炸。
+
+修法（**没有新增端点**）：
+
+- `report_files` 加 `task_id`（p8_006）。**不**复用 `report_execution_logs`：
+  那张表 `def_id` 是 NOT NULL 外键指向 `report_definitions`，而固定 10 类
+  报表没有 report_definition —— 复用它就得让 `def_id` 可空再加一列
+  `report_type`，等于给一张审计表加一个恒为空的语义分支。
+- `task_id` 由**端点自选**（`uuid4().hex`），入队时作 `_job_id` 传给 ARQ
+  （`job_id = _job_id or uuid4().hex`）。顺序是**先建行、后入队**：反过来
+  worker 可能抢在前面建行，于是出现第二行，轮询端点的
+  `scalar_one_or_none()` 当场 MultipleResultsFound。
+- `POST /report/generate` 的 202 现在**同时返回 `report_file_id`**，
+  调用方直接用它轮询既有的 `/report/{id}/status` —— 不需要新端点。
+- 建行逻辑抽到 `report_service.ensure_pending_row`，端点与 worker 共用一份。
+  两处各写一遍不是「重复」而是**时序**：只有 worker 建行的话 202 与
+  「行存在」之间有 404 窗口（就是 bug-167 那个坑）。
+- 入队失败时那一行就地标 FAILED —— 否则留下一行注定没人跑的 PENDING，
+  用户看到的是「转圈 15 分钟然后莫名失败」（回收器才纠正）。
+  同族坑见 `arq_queue` docstring：「入队失败必须让端点知道」。
 
 ## 🟡 TODO-064 builder 执行日志没有回收器（2026-10-13 E2E 真跑发现）
 

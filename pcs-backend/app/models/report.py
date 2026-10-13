@@ -96,9 +96,14 @@ class ReportFile(TimestampMixin, Base):
         UniqueConstraint("content_hash", name="uq_report_files_content_hash"),
         Index("ix_report_files_project_id", "project_id"),
         Index("ix_report_files_status", "status"),
+        Index("ix_report_files_task_id", "task_id"),
     )
 
     report_file_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
+    # 固定 10 类报表的 202 → 文件桥（TODO-063，alembic p8_006）。
+    # 行由 `/report/generate` 在**入队时**建，worker 靠占位 content_hash
+    # 找回**同一行**；ARQ 重试时 `_job_id` 不变，所以重试不留孤儿 PENDING。
+    task_id: Mapped[str | None] = mapped_column(String(64), nullable=True)
     # 刻意无 FK，见上方 docstring
     project_id: Mapped[uuid.UUID | None] = mapped_column(Uuid, nullable=True)
     content_hash: Mapped[str] = mapped_column(String(64), nullable=False)

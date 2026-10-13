@@ -22,6 +22,7 @@ from __future__ import annotations
 
 import asyncio
 import dataclasses
+import datetime as dt
 import hashlib
 import json
 import logging
@@ -273,6 +274,59 @@ def _write_file(abs_path: Path, payload: bytes) -> None:
 
 
 # --- 编排 -------------------------------------------------------------------
+
+
+#: 占位 content_hash 的前缀。**刻意不是十六进制** —— 真内容指纹是 64 位 hex，
+#: 若占位符也长得像 hash，两者在日志与排查时会被误认。
+PENDING_HASH_PREFIX = "pending:"
+
+
+async def ensure_pending_row(db: AsyncSession, *, project_id: uuid.UUID | None,
+                             task_id: str, output_format: str):
+    """建（或取回）本次任务那一行 PENDING。
+
+    ⚠️ **端点与 worker 共用这一份实现**（2026-10-13，TODO-063）。
+    两处各写一遍的后果不是「重复」，而是**时序**：只有 worker 建行的话，
+    202 返回与「行存在」之间有窗口，轮询端点在那段时间只能 404 ——
+    report-builder 那条路已经踩过（bug-167）。端点在入队时就建，
+    worker 靠 `content_hash` 占位符找回**同一行**，于是 ARQ 重试
+    （`_job_id` 不变）复用一行，不留孤儿 PENDING。
+
+    重试时**复用同一行**：否则一次失败的重试链会在库里留下一串孤儿 PENDING，
+    而它们每一行都会被回收器当成僵死任务处理一遍。
+    """
+    from sqlalchemy import select
+    from sqlalchemy.exc import IntegrityError
+
+    from app.models.report import ReportFile
+
+    placeholder = f"{PENDING_HASH_PREFIX}{task_id}"
+    existing = (await db.execute(
+        select(ReportFile).where(ReportFile.content_hash == placeholder)
+    )).scalar_one_or_none()
+    if existing is not None:
+        existing.status = "PENDING"
+        existing.heartbeat_at = dt.datetime.now(dt.UTC)
+        existing.error_message = None
+        await db.flush()
+        return existing
+
+    row = ReportFile(
+        project_id=project_id, content_hash=placeholder,
+        file_path=placeholder, file_format=output_format, size_bytes=0,
+        status="PENDING", heartbeat_at=dt.datetime.now(dt.UTC),
+        task_id=task_id,
+    )
+    db.add(row)
+    try:
+        await db.flush()
+    except IntegrityError:
+        # 并发下同 task_id 的 PENDING 行已存在 —— 复用它
+        await db.rollback()
+        return (await db.execute(
+            select(ReportFile).where(ReportFile.content_hash == placeholder)
+        )).scalar_one()
+    return row
 
 
 async def generate(*, report_type: str, project_id: uuid.UUID,

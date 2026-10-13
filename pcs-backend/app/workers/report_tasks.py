@@ -52,7 +52,6 @@ import logging
 import uuid
 
 from sqlalchemy import select
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.enums import AuditAction
@@ -79,36 +78,17 @@ async def _mark_pending(db: AsyncSession, *, project_id: uuid.UUID,
                         job_id: str, output_format: str) -> ReportFile:
     """建（或取回）本次任务的 PENDING 行。
 
-    重试时**复用同一行** —— 否则一次失败的重试链会在库里留下一串孤儿 PENDING 行，
-    而它们每一行都会被回收器当成僵死任务处理一遍。
+    实现**委托给 `report_service.ensure_pending_row`** —— 端点在入队时就用
+    同一个函数建行（TODO-063），两处各写一份不是「重复」而是**时序**问题：
+    只有 worker 建行的话，202 与「行存在」之间有 404 窗口（bug-167）。
+    ARQ 重试时 job_id 不变，故这里取回的正是端点建的那一行。
     """
-    placeholder = f"{PENDING_HASH_PREFIX}{job_id}"
-    existing = (await db.execute(
-        select(ReportFile).where(ReportFile.content_hash == placeholder)
-    )).scalar_one_or_none()
-    if existing is not None:
-        existing.status = "PENDING"
-        existing.heartbeat_at = _now()
-        existing.error_message = None
-        await db.flush()
-        await db.commit()      # ⚠️ 必须提交，见模块 docstring
-        return existing
+    from app.services.report import report_service
 
-    row = ReportFile(
-        project_id=project_id, content_hash=placeholder,
-        file_path=placeholder, file_format=output_format, size_bytes=0,
-        status="PENDING", heartbeat_at=_now(),
-    )
-    db.add(row)
-    try:
-        await db.flush()
-        await db.commit()      # ⚠️ 必须提交，见模块 docstring
-    except IntegrityError:
-        # 并发下同 job_id 的 PENDING 行已存在 —— 复用它
-        await db.rollback()
-        return (await db.execute(
-            select(ReportFile).where(ReportFile.content_hash == placeholder)
-        )).scalar_one()
+    row = await report_service.ensure_pending_row(
+        db, project_id=project_id, task_id=job_id,
+        output_format=output_format)
+    await db.commit()      # ⚠️ 必须提交，见模块 docstring
     return row
 
 

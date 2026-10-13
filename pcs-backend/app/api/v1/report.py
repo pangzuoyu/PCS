@@ -152,9 +152,32 @@ async def generate_report(body: ReportGenerateRequest, db: DbDep, actor: ActorDe
     # job silently failed，API 却返 202）。仍 import 以便提前发现函数不存在。
     from app.workers.report_tasks import generate_report_task  # noqa: F401
 
+    # ⚠️ **task_id 自选，并在入队之前**用它建好 PENDING 行（TODO-063）。
+    # 顺序不能反：若先入队再建行，worker 可能抢在前面把行建掉，
+    # 于是端点建出第二行 —— 一次执行两行，轮询端点的
+    # `scalar_one_or_none()` 当场抛 MultipleResultsFound。
+    # ARQ 的 `_job_id` 允许指定 id（`job_id = _job_id or uuid4().hex`），
+    # 所以「自选 id」与「用同一个 id 入队」两件事能对上。
+    task_id = uuid.uuid4().hex
+
+    from app.services.report import report_service
+    row = await report_service.ensure_pending_row(
+        db, project_id=body.project_id, task_id=task_id,
+        output_format=body.output_format)
+    await db.commit()
+
     # ⚠️ `create_pool` 收的是 **RedisSettings**，不是 DSN 字符串 ——
     # 传字符串会在连接时炸 `'str' object has no attribute 'host'`。
-    pool = await create_pool(RedisSettings.from_dsn(get_settings().redis_url))
+    try:
+        # ⚠️ `create_pool` 也在 try 里：它自己就会因 Redis 不可达而抛，
+        # 只包 `enqueue_job` 的话连接异常会绕过 503 直奔 500。
+        pool = await create_pool(RedisSettings.from_dsn(get_settings().redis_url))
+    except Exception as e:  # noqa: BLE001 — Redis 各种连接异常
+        await _fail_pending(db, row, f"Redis 连接失败：{type(e).__name__}: {e}")
+        raise PcsError(
+            message=f"任务队列不可用，本次报表未入队（{type(e).__name__}: {e}）。"
+                    "**这不是执行失败** —— 任务从未开始，请稍后重试。",
+            code="REPORT_QUEUE_UNAVAILABLE", status=503) from e
     try:
         job = await pool.enqueue_job(
             "generate_report_task",
@@ -163,10 +186,39 @@ async def generate_report(body: ReportGenerateRequest, db: DbDep, actor: ActorDe
             record_ids=[str(r) for r in body.record_ids],
             output_format=body.output_format,
             style_json={}, ctx_vars={"project_no": "", "doc_no": "", "rev": ""},
+            _job_id=task_id,
         )
+    except Exception as e:  # noqa: BLE001 — Redis 各种连接异常
+        # 入队失败：刚建的 PENDING 行永远不会有人来跑它，就地标 FAILED ——
+        # 否则它会一直挂在 PENDING 上，直到回收器 15 分钟后才动它。
+        await _fail_pending(db, row, f"入队失败：{type(e).__name__}: {e}")
+        raise PcsError(
+            message=f"任务队列不可用，本次报表未入队（{type(e).__name__}: {e}）。"
+                    "**这不是执行失败** —— 任务从未开始，请稍后重试。",
+            code="REPORT_QUEUE_UNAVAILABLE", status=503) from e
     finally:
         await pool.aclose()
-    return ReportGenerateResponse(task_id=job.job_id if job else "", status="PENDING")
+
+    if job is None:
+        await _fail_pending(db, row, "入队未返回任务句柄")
+        raise PcsError(message="入队未返回任务句柄",
+                       code="REPORT_QUEUE_UNAVAILABLE", status=503)
+
+    return ReportGenerateResponse(task_id=task_id,
+                                 report_file_id=row.report_file_id,
+                                 status="PENDING")
+
+
+async def _fail_pending(db: AsyncSession, row: ReportFile, reason: str) -> None:
+    """把刚建好、但注定没人来跑的 PENDING 行就地标 FAILED 并提交。
+
+    不标的话它会一直挂在 PENDING 上：状态端点显示「生成中」，
+    回收器要等 15 分钟才动它，而真相是「压根没入队」。
+    """
+    row.status = "FAILED"
+    row.error_message = reason[:500]
+    row.heartbeat_at = dt.datetime.now(dt.UTC)
+    await db.commit()
 
 
 # --- 状态 / 下载 ------------------------------------------------------------
