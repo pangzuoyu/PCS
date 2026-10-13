@@ -28,14 +28,8 @@ from app.services.audit_service import AuditService
 
 logger = logging.getLogger(__name__)
 
-#: 失败重试上限。⚠️ **必须与 `arq_queue.enqueue_definition_execution` 里传的
-#: `Retry(max=...)` 同值**：ARQ 的 ctx 里**没有** `max_tries`，所以任务体
-#: 判断「这是不是最后一次尝试」时拿不到它，只能用这个常量。
-#: 两处写不同数字 ⇒ 重试早就用完了，任务体却还在等 ⇒ 行永远停在 RUNNING，
-#: 15 分钟后被回收器当成僵死的收掉，而文件其实早就该出了。
-#: （原写 `ctx.get("max_tries") or 3` —— 那个键 ARQ 不提供，永远走 `or 3`。）
-#: TODO-016：这是 SPEC P8 §a7「失败重试」的一半，另一半是 DLQ 测试。
-MAX_TRIES = 3
+# 重试上限 `MAX_TRIES` 定义在 `app/workers/worker.py` —— 与
+# `WorkerSettings.max_tries` 同一个常量（理由见那里）。
 
 PENDING_HASH_PREFIX = "pending:"
 
@@ -56,8 +50,10 @@ async def execute_definition_task(
     # （worker 要 import 本模块注册函数，本模块又要 import worker 取包装）。
     # 报错是 `cannot import name ... from partially initialized module`，
     # 看起来像「函数没定义」，实际是 import 顺序问题。
+    from arq import Retry
+
     from app.services.report import builder_service
-    from app.workers.worker import session_scope
+    from app.workers.worker import MAX_TRIES, RETRY_DEFER_S, session_scope
 
     # ⚠️ 用 `session_scope` 而不是 `db = _make_session(ctx)`：session 是
     # 本函数开的，关闭的责任也在本函数，而两处任务**都曾忘了关** ——
@@ -100,21 +96,39 @@ async def execute_definition_task(
             await db.commit()
         except Exception as e:  # noqa: BLE001
             await db.rollback()
+            # ⚠️ **标 FAILED 必须在这一段之内、在 commit 之前**。
+            # 写在 `db.commit()` 之后的话，那次 flush 开的是**新事务**，
+            # 而 `session_scope` 退出时会把它回滚掉 —— **静默无效**，
+            # 不报错，只是永远落不了库。这个错我犯过一次，是被
+            # `test_builder_intermediate_failure_does_not_end_the_execution`
+            # 里「最后一次必须落 FAILED」那条断言逮住的。
+            #
+            # （曾在这里写着「rollback 之后 task_row 已 detached，必须重取」
+            #  —— **那是错的**：`rollback()` 只是**过期**实例，session 还开着。
+            # 真正 detached 的是**调用方**手里的句柄，因为 session 已被
+            # `session_scope` 关掉了 —— 症状是测试里
+            # `refresh()` 抛 `Instance ... is not persistent`。
+            # 变异验证：去掉重取，测试照样绿。）
+            if attempt_no >= MAX_TRIES and task_row is not None:
+                task_row.status = "FAILED"
             await audit.write(
                 action=AuditAction.REPORT_FAILED, resource_type="report_definition",
                 resource_id=did,
                 detail={"task_id": job_id, "attempt_no": attempt_no,
                         "def_id": str(did), "error": f"{type(e).__name__}: {e}"[:500]},
             )
-            await db.commit()
-            if task_row is not None:
-                # ⚠️ 只在**最后一次**尝试后才落 FAILED。ARQ 还要重试，
-                # 中途就标 FAILED 会让轮询端点提前显示「失败」，
-                # 而任务随后重试成功 —— 用户看到一个假的失败结局。
-                if attempt_no >= MAX_TRIES:
-                    task_row.status = "FAILED"
-                    await db.flush()
-            raise      # 交给 ARQ 重试；「每次失败都写」由这里落实
+            await db.commit()      # ⚠️ 终态与审计**同一次**提交
+            # ⚠️ **ARQ 0.28 不会因为普通异常重试**（`arq/worker.py:612-637`
+            # 的分支只认 `Retry` / `CancelledError` / `RetryJob`，其余一律
+            # `failed, finish = True` 当场判死）。所以「还有次数就抛 `Retry`」
+            # 是重试能发生的**唯一**前提 —— 只配 `WorkerSettings.max_tries`
+            # 的话，一个普通 `PcsError` 永远只跑一次。
+            #
+            # 2026-10-13 真跑 Redis 实测到的症状正是如此：审计只写 1 条、
+            # retry 计数器停在 0、行永远 PENDING、前端无限轮询。
+            if attempt_no < MAX_TRIES:
+                raise Retry(defer=RETRY_DEFER_S) from e
+            raise      # 次数用尽：抛原始异常，ARQ 据此判死并记下原因
 
         await audit.write(
             action=AuditAction.REPORT_EXECUTED, resource_type="report_definition",

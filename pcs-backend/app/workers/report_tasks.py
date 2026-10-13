@@ -135,7 +135,10 @@ async def generate_report_task(
     worker 一行日志不打 → API 早就返回 202 了，于是「固定 10 类报表
     生成」这条路径**从来没成功跑过**。
     """
-    from app.workers.worker import session_scope
+
+    from arq import Retry
+
+    from app.workers.worker import MAX_TRIES, RETRY_DEFER_S, session_scope
 
     # ⚠️ 用 `session_scope` 而不是裸 `_make_session(ctx)`：session 是本函数
     # 开的，关闭的责任也在本函数，而两处任务**都曾忘了关**（2026-10-13 修）。
@@ -176,7 +179,14 @@ async def generate_report_task(
             failed = (await db.execute(
                 select(ReportFile).where(
                     ReportFile.report_file_id == row_id))).scalar_one_or_none()
-            if failed is not None:
+            # ⚠️ **只有最后一次尝试才标 FAILED**。ARQ 会重试
+            # （`WorkerSettings.max_tries`），中途就标 FAILED 会让状态端点
+            # 提前显示「失败」，而任务随后重试成功 —— 用户拿到一个**假的**
+            # 终态，而文件其实生成了、就在库里。
+            #
+            # 审计**每次失败都写**（用户裁决）：那是「第 2 次为什么又失败」
+            # 的唯一线索，与「现在是不是终态」是两件不同的事。
+            if failed is not None and attempt_no >= MAX_TRIES:
                 failed.status = "FAILED"
                 failed.error_message = f"{type(e).__name__}: {e}"[:500]
                 failed.heartbeat_at = _now()
@@ -191,7 +201,17 @@ async def generate_report_task(
             # 而 `reclaim_stale_report_tasks` 那个 cron 存在的原因正是
             # 这个状态压根写不进去（它是在补一个从没写成功过的状态）。
             await db.commit()
-            raise      # 交给 ARQ 重试 —— 用户裁决「每次失败都写」由这里落实
+            # ⚠️ **ARQ 0.28 不会因为普通异常重试**（`arq/worker.py:612-637`
+            # 的分支只认 `Retry` / `CancelledError` / `RetryJob`，其余一律
+            # `failed, finish = True` 当场判死）。所以「还有次数就抛 `Retry`」
+            # 是重试能发生的**唯一**前提 —— 只配 `WorkerSettings.max_tries`
+            # 的话，一个普通 `PcsError` 永远只跑一次。
+            #
+            # 2026-10-13 真跑 Redis 实测到的症状正是如此：审计只写 1 条、
+            # retry 计数器停在 0、行永远 PENDING、前端无限轮询。
+            if attempt_no < MAX_TRIES:
+                raise Retry(defer=RETRY_DEFER_S) from e
+            raise      # 次数用尽：抛原始异常，ARQ 据此判死并记下原因
 
 
 async def reclaim_stale_tasks(db: AsyncSession, *, older_than_minutes: int = STALE_MINUTES) -> int:

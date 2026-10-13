@@ -1353,3 +1353,170 @@ async def test_worker_updates_the_queued_log_row_instead_of_adding_a_second(
     )).scalar_one()
     assert row.row_count > 0, "行数还是 0 —— 任务体没把入队那一行更新成真实结果"
     assert row.report_file_id is not None
+
+
+# --- TODO-016：builder 任务体的失败路径 -----------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_builder_failure_writes_one_audit_row_per_attempt(
+        client, fake_queue, db_session, monkeypatch):
+    """**每次**失败都写一条 REPORT_FAILED 审计，带 attempt_no（用户 2026-10-09 裁决）。
+
+    为什么是必然而不是偏好：ARQ 的 `keep_result` 默认 3600 秒，Redis 里的
+    异常 1 小时后就清空。audit_logs 是失败的**唯一持久记录** ——
+    「第 2 次为什么又失败」只有这里能回答。
+
+    ⚠️ 一条断言都不加就会绿：原先这条路径上没有任何「失败会怎样」的测试，
+    而任务体里那两行（写审计、标状态）任何一行被删掉都无人察觉。
+    """
+    from sqlalchemy import func, select
+
+    from app.models.system import AuditLog
+    from app.models.enums import AuditAction
+    from app.services.report import builder_service
+    from app.workers import report_builder_tasks as tasks
+
+    proj = await _make_project(db_session, "失败审计用项目")
+    d = await _make(client, "author-1", project_id=str(proj.project_id),
+                    definition_json=DEF_JSON_EQUIP)
+    await client.post(PUBLISH.format(d=d["def_id"]),
+                      headers=_auth("rev", "REVIEWER"))
+
+    async def boom(*a, **k):
+        raise RuntimeError("取数炸了")
+
+    monkeypatch.setattr(builder_service, "execute_definition", boom)
+
+    for attempt in (1, 2):
+        with pytest.raises(RuntimeError):
+            await tasks.execute_definition_task(
+                {"session_factory": lambda: db_session,
+                 "job_id": f"job-audit-{attempt}", "job_try": attempt},
+                def_id=d["def_id"], project_id=str(proj.project_id),
+                user_id=None, output_format="pdf")
+    await db_session.commit()
+
+    rows = (await db_session.execute(select(AuditLog).where(
+        AuditLog.action == AuditAction.REPORT_FAILED.value))).scalars().all()
+    assert len(rows) == 2, f"两次失败应写 2 条审计，实得 {len(rows)}"
+    attempts = {r.detail_json.get("attempt_no") for r in rows}
+    assert attempts == {1, 2}, f"审计里应带 attempt_no 1 与 2，实得 {attempts}"
+    assert all(r.detail_json.get("task_id") for r in rows), "审计里必须带 task_id"
+
+
+@pytest.mark.asyncio
+async def test_builder_intermediate_failure_does_not_end_the_execution(
+        client, fake_queue, db_session, monkeypatch):
+    """中间那次失败**不能**把执行标成 FAILED —— ARQ 还会重试。
+
+    标了就是**假的终态**：前端显示「失败」，而任务随后重试成功、
+    文件照样出来。用户看到「生成失败」却下载得到文件。
+
+    与 `test_status_is_not_failed_until_the_last_attempt`（固定 10 类那条）
+    成对：两条路的失败语义必须一致，否则同一个用户在两条路上看到
+    互相矛盾的行为。
+    """
+    from sqlalchemy import select
+
+    from app.models.report import ReportExecutionLog
+    from app.services.report import builder_service
+    from app.workers import report_builder_tasks as tasks
+    from app.workers.worker import MAX_TRIES
+
+    proj = await _make_project(db_session, "中间失败用项目")
+    d = await _make(client, "author-1", project_id=str(proj.project_id),
+                    definition_json=DEF_JSON_EQUIP)
+    await client.post(PUBLISH.format(d=d["def_id"]),
+                      headers=_auth("rev", "REVIEWER"))
+    r = await client.post(EXEC.format(d=d["def_id"]), headers=_auth("author-1"))
+    task_id = r.json()["task_id"]
+
+    async def boom(*a, **k):
+        raise RuntimeError("取数炸了")
+
+    monkeypatch.setattr(builder_service, "execute_definition", boom)
+
+    with pytest.raises(RuntimeError):
+        await tasks.execute_definition_task(
+            {"session_factory": lambda: db_session,
+             "job_id": task_id, "job_try": 1},
+            def_id=d["def_id"], project_id=str(proj.project_id),
+            user_id=None, output_format="pdf")
+    await db_session.commit()
+
+    row = (await db_session.execute(select(ReportExecutionLog).where(
+        ReportExecutionLog.task_id == task_id))).scalar_one()
+    assert row.status != "FAILED", (
+        f"第 1 次尝试就标了 FAILED：{row.status} —— 而 max_tries="
+        f"{MAX_TRIES}，ARQ 还会重试，用户拿到的是假的终态")
+    # ⚠️ **不断言 RUNNING**。失败路径第一步是 `rollback()`，而 RUNNING 是
+    # 在它之前 flush 的 —— 于是那次 flush 被回滚掉，读回来是 QUEUED。
+    # 而 QUEUED 恰恰是**准确**的：此刻任务正等着被重试，并没有在跑。
+    # （曾一度在这里断言 RUNNING，症状是「明明跑了怎么还是排队」，
+    #  实际是断言写错了，不是代码错了。）
+    assert row.status in ("QUEUED", "RUNNING"), f"实得 {row.status}"
+
+    # 最后一次：必须落终态，否则前端转圈到超时
+    with pytest.raises(RuntimeError):
+        await tasks.execute_definition_task(
+            {"session_factory": lambda: db_session,
+             "job_id": task_id, "job_try": MAX_TRIES},
+            def_id=d["def_id"], project_id=str(proj.project_id),
+            user_id=None, output_format="pdf")
+    await db_session.commit()
+    # ⚠️ **重新查**而不是 `refresh(row)`：失败路径的 `rollback()` 已把那个
+    # ORM 实例踢出本 session，`refresh` 会抛
+    # `Instance ... is not persistent within this Session` —— 症状看着像
+    # 「数据库连接坏了」，实际只是行被回滚掉了。
+    row = (await db_session.execute(select(ReportExecutionLog).where(
+        ReportExecutionLog.task_id == task_id))).scalar_one()
+    assert row.status == "FAILED", (
+        f"最后一次尝试后状态是 {row.status} —— 没有终态，前端会转圈到超时")
+
+
+@pytest.mark.asyncio
+async def test_builder_failure_asks_arq_to_retry(client, fake_queue, db_session,
+                                                 monkeypatch):
+    """与固定 10 类那条同义：失败且**还有次数**时必须抛 `Retry`。
+
+    ⚠️ **ARQ 0.28 不会因为普通异常重试** —— `arq/worker.py:612-637` 的分支只认
+    `Retry` / `CancelledError` / `RetryJob`，其余一律 `failed, finish = True`
+    当场判死。所以只配 `WorkerSettings.max_tries` 的话，一个普通 `PcsError`
+    永远只跑一次，SPEC §a7 的「失败重试 max_tries=3」根本不成立。
+
+    两条路（固定 10 类 / 自定义定义）必须一致：同一个用户在两条路上不该看到
+    互相矛盾的失败语义。
+    """
+    from arq import Retry
+
+    from app.services.report import builder_service
+    from app.workers import report_builder_tasks as tasks
+    from app.workers.worker import MAX_TRIES
+
+    proj = await _make_project(db_session, "重试信号用项目")
+    d = await _make(client, "author-1", project_id=str(proj.project_id),
+                    definition_json=DEF_JSON_EQUIP)
+    await client.post(PUBLISH.format(d=d["def_id"]),
+                      headers=_auth("rev", "REVIEWER"))
+
+    async def boom(*a, **k):
+        raise RuntimeError("取数炸了")
+
+    monkeypatch.setattr(builder_service, "execute_definition", boom)
+
+    r = await client.post(EXEC.format(d=d["def_id"]), headers=_auth("author-1"))
+    task_id = r.json()["task_id"]
+    ctx = {"session_factory": lambda: db_session, "job_id": task_id}
+
+    with pytest.raises(Retry):
+        await tasks.execute_definition_task(
+            {**ctx, "job_try": 1}, def_id=d["def_id"],
+            project_id=str(proj.project_id), user_id=None, output_format="pdf")
+
+    # 最后一次必须抛原始异常：否则 ARQ 会再排一次，
+    # 于是「重试已经用完」这件事永远传不出去。
+    with pytest.raises(RuntimeError):
+        await tasks.execute_definition_task(
+            {**ctx, "job_try": MAX_TRIES}, def_id=d["def_id"],
+            project_id=str(proj.project_id), user_id=None, output_format="pdf")

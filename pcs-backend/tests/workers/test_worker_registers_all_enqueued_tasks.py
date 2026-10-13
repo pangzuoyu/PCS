@@ -491,8 +491,7 @@ def test_worker_actually_limits_retries_not_just_documents_it(monkeypatch):
     （ARQ 的 ctx 里没有 max_tries，拿不到）。两处各写一个数字 ⇒ 重试早就用完
     而任务体还在等，行永远停在 RUNNING，15 分钟后被回收器当成僵死的收掉。
     """
-    from app.workers.report_builder_tasks import MAX_TRIES
-    from app.workers.worker import WorkerSettings
+    from app.workers.worker import MAX_TRIES, WorkerSettings
 
     assert WorkerSettings.max_tries == 3, (
         f"实得 {WorkerSettings.max_tries} —— ARQ 默认 25 次，"

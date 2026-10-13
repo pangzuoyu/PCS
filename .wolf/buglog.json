@@ -3087,6 +3087,23 @@
         "e2e",
         "silent-defect"
       ]
+    },
+    {
+      "id": "bug-168",
+      "timestamp": "2026-10-14T00:20:00+08:00",
+      "error_message": "异步报表失败**从不重试**：一个必失败的 job 只跑 1 次，report_files 永远停在 PENDING，前端无限轮询",
+      "file": "pcs-backend/app/workers/report_tasks.py",
+      "root_cause": "**ARQ 0.28 不会因为普通异常重试。**\n\n`arq/worker.py:612-637` 的分支只认三种异常：\n  - `Retry`（带 defer 退避）→ 重试\n  - `asyncio.CancelledError` → 重试\n  - `RetryJob` → 重试\n其余一律走 `else: failed, finish = True` —— **当场判死**。\n\n所以 `WorkerSettings.max_tries = 3` 本身**什么也没保证**：它只界定\n`Retry` 能用几次，并不触发重试。而任务体抛的是普通的\n`PcsError` / `RuntimeError`。\n\n**实测症状**（真 Redis + worker，2026-10-14）：\n  - audit_logs 只写 1 条 REPORT_FAILED（attempt_no=1）\n  - `arq:retry:{job_id}` 计数器停在 0\n  - `report_files.status` 永远 PENDING\n  - 前端无限轮询到超时\n而 SPEC P8 §a7 要求「失败重试（max_tries=3）」，验收句是「失败可重试」。\n\n**为什么单测全绿**：所有失败路径测试都是**直接调任务体**、手工传\n`job_try=1/2/3`。那只证明「拿到 job_try=3 时代码会标 FAILED」，\n**从没验证 ARQ 真的会重试** —— 而那是整套代码的前提。\n\n**附带发现**：失败路径原先在**每次**尝试都标 FAILED，于是「失败一次、\n重试成功」的用户会永远看到一个假的失败结局。那是「用户裁决『每次失败\n都写』」被**过度套用**的结果：那条裁决针对**审计**（第 2 次为什么又失败\n要查得到），不是**终态**（还会不会再来一次）。终态只应在最后一次落。",
+      "fix": "两个任务体的失败路径改成：审计**每次都写**（裁决不变），\n但终态 FAILED 只在 `attempt_no >= MAX_TRIES` 时落；\n且**还有次数时抛 `Retry(defer=RETRY_DEFER_S)`** 而不是原始异常。\n最后一次抛原始异常，否则 ARQ 会再排一次，「重试已用完」永远传不出去。\n`MAX_TRIES` / `RETRY_DEFER_S` 定义在 `app/workers/worker.py`（唯一来源）。\n\n验证：单测 2 条（两条路各一，均变异验证）+ **真 Redis 失败注入**\n（`.gstack/qa_e2e_failure_injection.py`，7 项）。注入实测 ARQ 重试 2 次、\n共 3 次尝试、attempt_no=[1,2,3]、终态 FAILED 带原因。\n把 `if attempt_no < MAX_TRIES` 改成 `if False` 后，真实链路 4 项转红 ——\n行停在 PENDING、审计 0 条。\n\n⚠️ 注入脚本第一版用 Redis 的 `arq:retry:{job_id}` 计数器当观测点，读出一串 0，\n看着像「ARQ 根本没重试」。真相是 `finish_failed_job` 把那个键**删掉了**\n（`arq/worker.py:715-716`）—— 它只在重试窗口内存在。这是本项目第 N 次\n**「绿灯测的不是出问题那层」**：观测点选在一个设计上就短暂存在的键上。\n持久证据在库里：审计的 attempt_no。",
+      "fix_commit": "PENDING",
+      "tags": [
+        "report",
+        "arq",
+        "retry",
+        "silent-defect",
+        "todo-016",
+        "failure-injection"
+      ]
     }
   ]
 }

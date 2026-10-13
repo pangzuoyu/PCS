@@ -18,7 +18,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import get_settings
 from app.db.session import dispose_engines_async, get_async_session_factory
 from app.workers.cia_tasks import scan_stale_full, scan_stale_incremental
-from app.workers.report_builder_tasks import MAX_TRIES, execute_definition_task
+from app.workers.report_builder_tasks import execute_definition_task
 from app.workers.report_tasks import (
     generate_report_task,
     reclaim_stale_report_tasks,
@@ -27,6 +27,28 @@ from app.workers.workspace_tasks import (
     cleanup_expired_workspaces,
     touch_workspace,
 )
+
+#: 失败重试上限（ADR-P8-004 裁决 3 次）。
+#:
+#: ⚠️ ARQ 的重试上限**只**从这里来（`arq/worker.py:549`：
+#: `max_tries = self.max_tries if function.max_tries is None else function.max_tries`）。
+#: 原先这个数字**只写在 `functions` 列表上方的注释里**，实际从没设过 ⇒ 走 ARQ
+#: 默认 25 次：一个确定性失败（数据脏 / 字体缺 / 格式不认识）会重试 25 次，
+#: 每次都写一条 REPORT_FAILED 审计，把审计表刷满。TODO-016。
+#:
+#: 为什么定义在**这里**而不是某个任务模块：两个任务体都要用它判断
+#: 「这是不是最后一次尝试」，而 ARQ 的 ctx 里**没有** max_tries，拿不到。
+#: 常量分散在任务模块里就会出现两份数字，而漂移的后果是：
+#: 重试早就用完了，任务体还在等 ⇒ 行永远停在 RUNNING/QUEUED，
+#: 15 分钟后被回收器当成僵死的收掉，而文件其实早就该出了。
+MAX_TRIES = 3
+
+#: 重试前的退避秒数。⚠️ 给一点退避而不是立刻重排：确定性失败（字体缺失、
+#: 数据脏）重排多少次都一样，而瞬时故障（DB 抖动、Redis 抖一下）退避几秒
+#: 通常自己就好了。5 秒对 10 秒级的渲染任务不算久。
+#:
+#: 同样定义在**这里**的理由与 `MAX_TRIES` 一致：两个任务体都要用它。
+RETRY_DEFER_S = 5
 
 
 async def _on_startup(ctx: dict) -> None:
@@ -164,11 +186,11 @@ class WorkerSettings:
     # 一个确定性失败（数据脏 / 字体缺）会重试 25 次，每次都写一条
     # REPORT_FAILED 审计，把审计表刷满。TODO-016。
     #
-    # 取值来自 `report_builder_tasks.MAX_TRIES`：**同一个常量**，
+    # 取值来自模块顶部的 `MAX_TRIES`：**同一个常量**，
     # 因为任务体要靠它判断「这是不是最后一次尝试」（ARQ 的 ctx 里**没有**
     # max_tries，拿不到）。两处各写一个数字 ⇒ 重试早就用完了而任务体还在等，
     # 行永远停在 RUNNING，15 分钟后被回收器当成僵死的收掉。
-    max_tries = MAX_TRIES
+    max_tries = MAX_TRIES      # 见模块顶部 MAX_TRIES
     # 队列容量。ADR-P8-004 建议把**报表任务**单独拆一个 worker 并设
     # `max(2, cores // 2)`，但那是**部署侧**的决定 —— 仓库当前没有
     # backend / worker 的部署配置（见 ADR-P8-004 前置条件 0），拆了也没人起。

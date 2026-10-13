@@ -157,17 +157,40 @@ async def test_same_content_reuses_existing_file_across_async_boundary(db, proje
 
 @pytest.mark.asyncio
 async def test_failure_sets_failed_status_and_writes_audit(db, project_id, monkeypatch):
-    """SPEC §六验收：失败也记录。"""
+    """SPEC §六验收：失败也记录。
+
+    ⚠️ 这条测试原先**一条断言都没有** —— 名字说「sets failed status and
+    writes audit」，正文只跑了任务、确认异常冒出来就结束了。删掉
+    「标 FAILED」或「写审计」两处代码，它照样绿。
+    这就是 TODO-016 说的「失败路径覆盖为零」的一个具体样本。
+    """
+    from sqlalchemy import func, select
+
+    from app.models.report import ReportFile
     from app.services.report import report_service
+    from app.workers.worker import MAX_TRIES
 
     async def boom(*a, **k):
         raise RuntimeError("渲染炸了")
 
     monkeypatch.setattr(report_service, "generate", boom)
+    # ⚠️ 用**最后一次**尝试（job_try=MAX_TRIES）：中间的尝试**不写** FAILED
+    # （ARQ 还会重试，写了就是假的终态）。这条要验的正是「终态落库」，
+    # 而终态只在最后一次存在。
     with pytest.raises(RuntimeError):
         await generate_report_task(
-            _job_ctx(db), report_type="EQUIPMENT_LIST", project_id=str(project_id),
-            record_ids=[], output_format="pdf", style_json={}, ctx_vars=CTX_VARS)
+            _job_ctx(db, job_try=MAX_TRIES), report_type="EQUIPMENT_LIST",
+            project_id=str(project_id), record_ids=[],
+            output_format="pdf", style_json={}, ctx_vars=CTX_VARS)
+    await db.commit()
+
+    row = (await db.execute(select(ReportFile))).scalar_one()
+    assert row.status == "FAILED", f"实得 {row.status}"
+    assert row.error_message and "渲染炸了" in row.error_message
+
+    n = await db.scalar(select(func.count()).select_from(AuditLog).where(
+        AuditLog.action == AuditAction.REPORT_FAILED.value))
+    assert n == 1, f"应写 1 条 REPORT_FAILED，实得 {n}"
 
 
 @pytest.mark.asyncio
@@ -204,6 +227,8 @@ async def test_each_failed_attempt_writes_one_audit_row(db, project_id, monkeypa
 @pytest.mark.asyncio
 async def test_failure_marks_row_failed_with_error_message(db, project_id, monkeypatch):
     """失败后必须有**终结状态** —— 否则前端只能看到「转圈到超时」。"""
+    from app.workers.worker import MAX_TRIES
+
     from sqlalchemy import select
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
@@ -214,10 +239,14 @@ async def test_failure_marks_row_failed_with_error_message(db, project_id, monke
         raise RuntimeError("渲染炸了")
 
     monkeypatch.setattr(report_service, "generate", boom)
+    # ⚠️ 用**最后一次**尝试（job_try=MAX_TRIES）：中间的尝试**不写** FAILED
+    # （ARQ 还会重试，写了就是假的终态）。这条要验的正是「终态落库」，
+    # 而终态只在最后一次存在。
     with pytest.raises(RuntimeError):
         await generate_report_task(
-            _job_ctx(db), report_type="EQUIPMENT_LIST", project_id=str(project_id),
-            record_ids=[], output_format="pdf", style_json={}, ctx_vars=CTX_VARS)
+            _job_ctx(db, job_try=MAX_TRIES), report_type="EQUIPMENT_LIST",
+            project_id=str(project_id), record_ids=[],
+            output_format="pdf", style_json={}, ctx_vars=CTX_VARS)
 
     row = (await db.execute(select(ReportFile))).scalar_one()
     assert row.status == "FAILED"
@@ -249,7 +278,11 @@ async def test_retry_after_failure_reuses_same_row(db, project_id, monkeypatch):
             style_json={}, ctx_vars=CTX_VARS)
     # flaky 第二次返回 None → _finalize 会因 out=None 抛 AttributeError，
     # 这里断言的是「第二次**没**成功」，不关心具体异常类型。
-    with pytest.raises((AttributeError, TypeError)):
+    # ⚠️ `Retry` 也要算进去：2026-10-13 起，失败且**还有次数**时任务体改抛
+    # `Retry`（ARQ 0.28 不因普通异常重试），于是异常类型被换掉了，
+    # 而「第二次仍然失败」这件事没变。
+    from arq import Retry
+    with pytest.raises((AttributeError, TypeError, Retry)):
         await generate_report_task(
             _job_ctx(db, job_try=2), report_type="EQUIPMENT_LIST",
             project_id=str(project_id), record_ids=[], output_format="pdf",
@@ -347,6 +380,8 @@ def test_style_json_roundtrips_through_report_style():
 @pytest.mark.asyncio
 async def test_failure_state_is_committed_not_just_left_in_the_session(
         db, db_engine, project_id, monkeypatch):
+    from app.workers.worker import MAX_TRIES
+
     """失败状态必须**提交**，不能只挂在任务自己的事务里。
 
     ⚠️ 观测点：必须用**另一个 session** 读。上面那些测试用任务自己的
@@ -369,10 +404,14 @@ async def test_failure_state_is_committed_not_just_left_in_the_session(
         raise RuntimeError("渲染炸了")
 
     monkeypatch.setattr(report_service, "generate", boom)
+    # ⚠️ 用**最后一次**尝试（job_try=MAX_TRIES）：中间的尝试**不写** FAILED
+    # （ARQ 还会重试，写了就是假的终态）。这条要验的正是「终态落库」，
+    # 而终态只在最后一次存在。
     with pytest.raises(RuntimeError):
         await generate_report_task(
-            _job_ctx(db), report_type="EQUIPMENT_LIST", project_id=str(project_id),
-            record_ids=[], output_format="pdf", style_json={}, ctx_vars=CTX_VARS)
+            _job_ctx(db, job_try=MAX_TRIES), report_type="EQUIPMENT_LIST",
+            project_id=str(project_id), record_ids=[],
+            output_format="pdf", style_json={}, ctx_vars=CTX_VARS)
 
     # 任务已经返回（session 已关）。**新开一个 session** 读，不复用任务那个：
     # 复用的话读的是它自己未提交的数据，commit 与否根本看不出来。
@@ -519,3 +558,138 @@ async def test_fresh_execution_log_is_never_reclaimed(db, project_id):
         db, older_than_minutes=STALE_MINUTES) == 0
     await db.refresh(row)
     assert row.status == "QUEUED"
+
+
+@pytest.mark.asyncio
+async def test_status_is_not_failed_until_the_last_attempt(db, project_id, monkeypatch):
+    from app.workers.worker import MAX_TRIES
+
+    """失败一次、重试成功 ⇒ 最终状态必须是 **SUCCEEDED**，不是 FAILED。
+
+    ⚠️ 任务原先在**每次**失败时就把行标成 FAILED。而 ARQ 会重试
+    （`WorkerSettings.max_tries=3`），所以「第一次失败、第二次成功」这一条
+    路 —— 用户看到的结局是「失败」，而文件其实生成了、就在库里躺着。
+
+    这个错是「用户裁决『每次失败都写』」被**过度套用**的结果：
+    那条裁决针对的是**审计**（每次失败都要留痕，可查「第 2 次为什么失败」），
+    不是**终态**。终态描述的是「还会不会再来一次」，两者是不同的语义。
+
+    ⚠️ `test_retry_after_failure_reuses_same_row` 盖不住这条：它的第二次调用
+    也失败了（`flaky` 返回 None → `_finalize` 抛 AttributeError），
+    所以「失败之后又成功」这条路从来没被跑过。
+    """
+    from sqlalchemy import select
+
+    from app.models.report import ReportFile
+    from app.services.report import report_service
+    from tests.fixtures.report.seed import make_report_seed
+
+    await make_report_seed(db, project_id, "EQUIPMENT_LIST")
+
+    real_generate = report_service.generate
+    calls = {"n": 0}
+
+    async def flaky(*a, **k):
+        calls["n"] += 1
+        if calls["n"] == 1:
+            raise RuntimeError("第一次失败（会被 ARQ 重试）")
+        return await real_generate(*a, **k)
+
+    monkeypatch.setattr(report_service, "generate", flaky)
+
+    with pytest.raises(RuntimeError):
+        await generate_report_task(
+            _job_ctx(db, job_try=1), report_type="EQUIPMENT_LIST",
+            project_id=str(project_id), record_ids=[], output_format="pdf",
+            style_json={}, ctx_vars=CTX_VARS)
+    await db.commit()
+    row = (await db.execute(select(ReportFile))).scalar_one()
+    assert row.status != "FAILED", (
+        f"第 1 次尝试就标了 FAILED：{row.status} —— 而 ARQ 还会重试 "
+        f"（max_tries={MAX_TRIES}），用户此刻看到的是假的终态")
+
+    file_id = await generate_report_task(
+        _job_ctx(db, job_try=2), report_type="EQUIPMENT_LIST",
+        project_id=str(project_id), record_ids=[], output_format="pdf",
+        style_json={}, ctx_vars=CTX_VARS)
+    await db.commit()
+    row = (await db.execute(select(ReportFile))).scalar_one()
+    assert str(row.report_file_id) == file_id
+    assert row.status == "SUCCEEDED", (
+        f"重试成功后状态是 {row.status} —— 重试链会永远带着一个假的失败结局，"
+        "而文件其实已经生成")
+
+
+@pytest.mark.asyncio
+async def test_last_attempt_marks_the_row_failed(db, project_id, monkeypatch):
+    from app.workers.worker import MAX_TRIES
+
+    """重试耗尽 ⇒ 这次是真的 FAILED。
+
+    与上一条成对：中间的尝试**不能**标 FAILED（ARQ 还会来），
+    最后一次**必须**标 —— 否则行永远停在 PENDING，前端无限轮询，
+    而真相是「已经重试 3 次都失败了」。
+    """
+    from sqlalchemy import select
+
+    from app.models.report import ReportFile
+    from app.services.report import report_service
+
+    async def always_fail(*a, **k):
+        raise RuntimeError("一直失败")
+
+    monkeypatch.setattr(report_service, "generate", always_fail)
+
+    with pytest.raises(RuntimeError):
+        await generate_report_task(
+            _job_ctx(db, job_try=MAX_TRIES), report_type="EQUIPMENT_LIST",
+            project_id=str(project_id), record_ids=[], output_format="pdf",
+            style_json={}, ctx_vars=CTX_VARS)
+    await db.commit()
+
+    row = (await db.execute(select(ReportFile))).scalar_one()
+    assert row.status == "FAILED", (
+        f"最后一次尝试后状态是 {row.status} —— 没有终态，前端会转圈到超时")
+    assert row.error_message and "一直失败" in row.error_message
+
+
+@pytest.mark.asyncio
+async def test_failure_asks_arq_to_retry_instead_of_just_dying(db, project_id, monkeypatch):
+    """⚠️ **ARQ 0.28 不会因为普通异常重试** —— 这是本条存在的全部理由。
+
+    `arq/worker.py:612-637` 的分支只认三种异常：
+    `Retry`（带 defer 退避）、`asyncio.CancelledError`、`RetryJob`。
+    其余一律走 `else: failed, finish = True` —— **当场判死，不重试**。
+
+    所以 `WorkerSettings.max_tries = 3` 本身**什么也没保证**：一个普通的
+    `PcsError` 只会跑一次。SPEC P8 §a7 要求「失败重试（max_tries=3）」，
+    要成立就必须由**任务体**在还有次数时抛 `Retry`。
+
+    2026-10-13 真跑 Redis 时实测到的症状：任务失败 1 次、审计写了 1 条、
+    retry 计数器停在 0、`report_files` 永远停在 PENDING ——
+    前端无限轮询，而真相是「根本没有第 2 次」。
+
+    对称的要求：最后一次必须抛**原始异常**，否则 ARQ 会再排一次，
+    于是「重试用完了」这件事永远传不出去。
+    """
+    from arq import Retry
+
+    from app.services.report import report_service
+    from app.workers.worker import MAX_TRIES
+
+    async def boom(*a, **k):
+        raise RuntimeError("一直失败")
+
+    monkeypatch.setattr(report_service, "generate", boom)
+
+    with pytest.raises(Retry):
+        await generate_report_task(
+            _job_ctx(db, job_try=1), report_type="EQUIPMENT_LIST",
+            project_id=str(project_id), record_ids=[], output_format="pdf",
+            style_json={}, ctx_vars=CTX_VARS)
+
+    with pytest.raises(RuntimeError):
+        await generate_report_task(
+            _job_ctx(db, job_try=MAX_TRIES), report_type="EQUIPMENT_LIST",
+            project_id=str(project_id), record_ids=[], output_format="pdf",
+            style_json={}, ctx_vars=CTX_VARS)
