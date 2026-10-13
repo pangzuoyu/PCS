@@ -2,9 +2,12 @@ services:
   postgres:
     image: postgres:18-alpine
     environment:
-      POSTGRES_USER: pcs
-      POSTGRES_PASSWORD: pcs_dev
-      POSTGRES_DB: pcs
+      # 这三个改成插值，worker 的 DATABASE_URL 才能复用同一组变量 ——
+      # 否则密码会在文件里出现两处，改一处漏一处，表现为「连不上库」。
+      # 默认值仍是开发用的弱口令；要换成真凭据就 export 这三个变量。
+      POSTGRES_USER: ${POSTGRES_USER:-pcs}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-pcs_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-pcs}
     ports: ["5432:5432"]
     volumes: [pgdata:/var/lib/postgresql/data]
     healthcheck:
@@ -15,6 +18,58 @@ services:
   redis:
     image: redis:7-alpine
     ports: ["6379:6379"]
+    # 队列是**持久**状态：没挂卷的话 `docker compose down` 就把待执行的
+    # job 一起清掉，而 API 已经回过 202 —— 那些任务就此凭空消失且无人知晓。
+    volumes: [redisdata:/data]
+    # worker 用 `condition: service_healthy` 等它。早启动不会失败
+    # （ARQ 会重连），但会刷一串连接错误日志，且首个 job 可能因此丢失。
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+  worker:
+    # ARQ worker：跑报表异步生成（`generate_report_task` /
+    # `execute_definition_task`）与三个 cron。
+    #
+    # ⚠️ **没有 Dockerfile**，直接用 uv 官方镜像挂源码跑 —— 与 README 里
+    # 「后端本地 `uv run uvicorn`」的开发方式一致，不额外引入构建产物。
+    image: ghcr.io/astral-sh/uv:python3.12-bookworm-slim
+    working_dir: /app
+    command: ["uv", "run", "--frozen", "arq", "app.workers.worker.WorkerSettings"]
+    # ⚠️ venv 必须放到挂载点**之外**（/opt/venv）。默认会写进 /app/.venv，
+    # 而 /app 是宿主机的 pcs-backend —— 容器里的 uv sync 会用 root 属主、
+    # 不同平台重建它，开发者本地的 `uv run` 随即坏掉。
+    environment:
+      UV_PROJECT_ENVIRONMENT: /opt/venv
+      UV_CACHE_DIR: /opt/uvcache
+      # 源码是只读挂载，仍显式禁字节码：省一次无谓的写失败
+      PYTHONDONTWRITEBYTECODE: "1"
+      # 容器网络里服务名就是主机名 —— 这三个**必须**覆盖成服务名，
+      # 否则会用 app/core/config.py 的 localhost 默认值去连自己容器。
+      # 环境变量优先于 .env 文件（pydantic-settings：init > env > dotenv）。
+      # 密码**只**在 postgres 服务那一处出现（POSTGRES_PASSWORD）。这里复用
+      # 同一组变量而不是再写一遍字面量 —— 两处各写一份，改密码只改一处，
+      # 漏改的那处会以「连不上库」的形式在运行时报错。
+      REDIS_URL: redis://redis:6379/0
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-pcs}:${POSTGRES_PASSWORD:-pcs_dev}@postgres:5432/${POSTGRES_DB:-pcs}
+      LDAP_URL: ldap://openldap:389
+    # :ro —— worker 不该改源码。代价是**首次启动要在容器内建 venv**
+    # （需要联网装依赖），之后就落在 /opt/venv，不再重装。
+    volumes:
+      - ./pcs-backend:/app:ro
+    depends_on:
+      redis: {condition: service_healthy}
+      postgres: {condition: service_healthy}
+      openldap: {condition: service_started}
+    # ⚠️ worker 是**唯一**会渲染 PDF 的进程，而 reportlab 要求 TrueType
+    # 轮廓：镜像里 `apt install fonts-noto-cjk` **装出 .ttc + CFF 轮廓**，
+    # 会报 `TTFError: postscript outlines are not supported`。
+    # 真正管用的是宿主机的 pcs-backend/fonts/NotoSansSC-Regular.ttf
+    # （由 `uv run python scripts/build_report_font.py` 生成，已 gitignore）——
+    # 它是渲染器的**首选候选** `./fonts/...`，靠上面的挂载带进来。
+    # ⚠️ 没跑过那个脚本的机器上，本服务照样能启动，**只在渲染 PDF 时才失败**。
+    # 起之前先跑：`cd pcs-backend && uv run python scripts/check_report_font.py`
   openldap:
     # 测试用 AD/LDAP 容器。生产环境替换为客户域 LDAP_URL（env 注入）。
     image: osixia/openldap:1.5.0
@@ -39,3 +94,4 @@ services:
 volumes:
   pgdata:
   ldap-seed:
+  redisdata:

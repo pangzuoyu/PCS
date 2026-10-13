@@ -52,6 +52,7 @@ PCS/
 
 ```bash
 docker compose up -d              # postgres + redis + openldap
+docker compose up -d worker       # ARQ worker（报表异步生成 + 3 个 cron）
 ```
 
 ### 2. 后端
@@ -62,6 +63,30 @@ uv sync
 uv run alembic upgrade head       # 应用数据库迁移
 uv run uvicorn app.main:app --reload --port 8000
 ```
+
+#### ARQ worker（可选，容器）
+
+`docker-compose.yml` 里的 `worker` 服务跑报表异步生成（`generate_report_task`、
+`execute_definition_task`）与三个 cron（`scan-stale-full` / `-incremental` /
+`reclaim-stale-report-tasks`）。**API 不依赖它** —— 只有异步报表这条路要它。
+
+不想用容器时，本地跑同一条命令即可（2026-10-13 的 P8 端到端验证就是这么跑的）：
+
+```bash
+cd pcs-backend
+uv run arq app.workers.worker.WorkerSettings
+```
+
+两个注意点：
+
+- **首次启动容器会在容器内建 venv**（源码是只读挂载，venv 放在 `/opt/venv`，
+  以免容器里的 `uv sync` 重建宿主机 `pcs-backend/.venv`）。这一步要联网。
+- **worker 是唯一渲染 PDF 的进程**，需要 `pcs-backend/fonts/NotoSansSC-Regular.ttf`
+  （由 `uv run python scripts/build_report_font.py` 生成，已 gitignore）。
+  镜像里 `apt install fonts-noto-cjk` **不管用** —— 装出来的是 `.ttc` + CFF 轮廓，
+  reportlab 报 `TTFError: postscript outlines are not supported`。
+  缺字体时 worker 照样能启动，**只在渲染 PDF 时失败**，所以启动前先自检：
+  `uv run python scripts/check_report_font.py`
 
 ### 3. 前端
 
