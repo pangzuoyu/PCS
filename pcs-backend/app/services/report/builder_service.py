@@ -26,7 +26,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
-from sqlalchemy import and_
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.report import ReportDefinition, ReportExecutionLog
@@ -243,16 +243,37 @@ async def execute_definition(
         "max_rows": limit,
         "output_format": output_format or row.output_format,
     }
-    db.add(ReportExecutionLog(
-        def_id=row.def_id, def_version=row.version,
-        condition_snapshot=snapshot, row_count=len(table),
-        output_format=output_format or row.output_format,
-        executed_by=user_id,
-        is_temporary_adjust=temporary_filters is not None,
-        # b11：把 task_id 记在执行日志上，任务体稍后回填 report_file_id。
-        # 两者构成 `/execute`(202) 与 `/report/{file_id}/status` 之间唯一的桥。
-        task_id=task_id,
-    ))
+    # b11：把 task_id 记在执行日志上，任务体稍后回填 report_file_id。
+    # 两者构成 `/execute`(202) 与 `/report/{file_id}/status` 之间唯一的桥。
+    #
+    # ⚠️ **入队时已经建过一行**（2026-10-13 修，见 report_builder.py 的
+    # `execute_definition_endpoint`）：不建的话「202 已返回、worker 还没
+    # 消费」这段窗口里轮询端点只能 404，而前端把任何错误都当终态失败。
+    # 所以这里**就地更新**那一行，而不是再插一条 —— 否则每次执行留两条日志，
+    # 而 `test_execute_writes_execution_log_with_snapshot` 断言的是 1 条。
+    log_row = None
+    if task_id:
+        log_row = (await db.execute(
+            select(ReportExecutionLog).where(ReportExecutionLog.task_id == task_id)
+        )).scalar_one_or_none()
+    if log_row is None:
+        db.add(ReportExecutionLog(
+            def_id=row.def_id, def_version=row.version,
+            condition_snapshot=snapshot, row_count=len(table),
+            output_format=output_format or row.output_format,
+            executed_by=user_id,
+            is_temporary_adjust=temporary_filters is not None,
+            task_id=task_id,
+        ))
+    else:
+        # 覆盖快照：入队时那一版只有「申报了什么」，执行后这一版才是
+        # 「实际查了什么」—— 后者才是可复现的那一份（模块 docstring 第 3 条）。
+        log_row.condition_snapshot = snapshot
+        log_row.def_version = row.version
+        log_row.row_count = len(table)
+        log_row.output_format = output_format or row.output_format
+        log_row.executed_by = user_id
+        log_row.is_temporary_adjust = temporary_filters is not None
     await db.flush()
 
     return ExecutionResult(

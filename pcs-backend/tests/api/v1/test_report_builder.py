@@ -599,6 +599,46 @@ async def test_execute_of_draft_is_rejected(client):
 
 
 @pytest.mark.asyncio
+async def test_polling_right_after_202_returns_queued_not_404(
+        client, fake_queue, db_session):
+    """202 之后**立刻**轮询必须是 200 QUEUED，不是 404。
+
+    ⚠️ 这是实测出来的：执行日志行原先由**任务体**写，而任务体要等 worker
+    消费才跑。于是「202 已返回、日志行还不存在」这段窗口里轮询端点只能
+    404 —— 而前端 `ReportExecutePage` 的轮询把**任何**错误都当成终态失败
+    （`stopPolling(); setPhase('failed')`）。实测 worker 跑这个定义要 0.4 秒，
+    真实场景 10k 行 PDF 约 10 秒（ADR-P8-004）—— 也就是**每一次**执行都会
+    在前端显示失败，而任务其实正在跑并会成功。
+
+    端点自己的 docstring 写着「查不到就是 404，不返回占位 PENDING」，理由是
+    「让前端分不清任务不存在与还在跑」。那个理由成立的前提是**行从入队就存在**，
+    而写入时机破坏了这个前提。修法是让前提成真，不是改前端去容忍 404 ——
+    容忍之后，404 就同时意味着「不存在」与「刚开始」，又分不清了。
+    """
+    proj = await _make_project(db_session)
+    d = await _make(client, "author-1", project_id=str(proj.project_id),
+                    definition_json=DEF_JSON_EQUIP)
+    await client.post(PUBLISH.format(d=d["def_id"]), headers=_auth("rev", "REVIEWER"))
+
+    r = await client.post(EXEC.format(d=d["def_id"]), headers=_auth("author-1"))
+    assert r.status_code == 202, r.text
+    task_id = r.json()["task_id"]
+
+    poll = await client.get(f"/api/v1/report-builder/executions/{task_id}",
+                            headers=_auth("author-1"))
+    assert poll.status_code == 200, (
+        f"202 之后立刻轮询得到 {poll.status_code} —— "
+        f"前端会把它当终态失败报给用户：{poll.text}")
+    body = poll.json()
+    # ⚠️ **不断言 QUEUED**：端点刻意把「已入队未开始」与「正在渲染」合成
+    # 一个状态（它的 docstring：分开只会让前端多写两个分支，而对用户是
+    # 同一件事）。这里钉的是**这件事**：行存在、还没有文件 id。
+    assert body["status"] in ("QUEUED", "RUNNING"), f"实得 {body['status']}"
+    assert body["report_file_id"] is None, "还没渲染完就不该有文件 id"
+    assert body["def_id"] == d["def_id"]
+
+
+@pytest.mark.asyncio
 async def test_execute_writes_execution_log_with_snapshot(client, db_session):
     """b9：每次执行写 `report_execution_logs`，含**条件快照 + 行数**。
 
@@ -1268,3 +1308,48 @@ async def test_task_closes_the_session_it_opened(db_session, monkeypatch):
     assert closed, (
         "任务体开了 session 却从不 close —— 每个 job 泄漏一条连接，"
         "直到 GC 才归还；报错会出现在无关命令上（连接槽耗尽）")
+
+
+@pytest.mark.asyncio
+async def test_worker_updates_the_queued_log_row_instead_of_adding_a_second(
+        client, fake_queue, db_session):
+    """入队建的行与任务体跑出来的行**必须是同一行**。
+
+    两处各写一条的话，每次执行留两条日志：一条 row_count=0 的空壳，
+    一条真正的执行记录。而按 `task_id` 查的轮询端点用
+    `scalar_one_or_none()` —— 命中两行会直接抛
+    `MultipleResultsFound`，于是**执行刚成功、轮询就 500**。
+
+    ⚠️ `test_execute_writes_execution_log_with_snapshot` 验不到这条：它直接
+    调 `execute_definition`，绕过了「入队先建一行」那半边。
+    """
+    from sqlalchemy import func, select
+
+    from app.models.report import ReportExecutionLog
+    from app.workers import report_builder_tasks as tasks
+    from tests.fixtures.report.seed import make_report_seed
+
+    proj = await _make_project(db_session)
+    d = await _make(client, "author-1", project_id=str(proj.project_id),
+                    definition_json=DEF_JSON_EQUIP)
+    await client.post(PUBLISH.format(d=d["def_id"]), headers=_auth("rev", "REVIEWER"))
+    await make_report_seed(db_session, proj.project_id, "EQUIPMENT_LIST")
+
+    r = await client.post(EXEC.format(d=d["def_id"]), headers=_auth("author-1"))
+    task_id = r.json()["task_id"]
+
+    await tasks.execute_definition_task(
+        {"session_factory": lambda: db_session, "job_id": task_id, "job_try": 1},
+        def_id=d["def_id"], project_id=str(proj.project_id),
+        user_id=None, output_format="csv")
+    await db_session.commit()
+
+    n = await db_session.scalar(
+        select(func.count()).select_from(ReportExecutionLog))
+    assert n == 1, f"task_id={task_id} 名下应有且只有 1 行，实得 {n} —— " \
+                   "任务体若又 INSERT 一条，轮询端的 scalar_one_or_none() 会抛 MultipleResultsFound"
+    row = (await db_session.execute(
+        select(ReportExecutionLog).where(ReportExecutionLog.task_id == task_id)
+    )).scalar_one()
+    assert row.row_count > 0, "行数还是 0 —— 任务体没把入队那一行更新成真实结果"
+    assert row.report_file_id is not None

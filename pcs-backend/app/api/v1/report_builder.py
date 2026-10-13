@@ -14,6 +14,7 @@
 """
 from __future__ import annotations
 
+import datetime as dt
 import uuid
 from typing import Annotated
 
@@ -319,5 +320,40 @@ async def execute_definition_endpoint(
         filters=body.filters.model_dump() if body.filters else None,
         max_rows=body.max_rows, output_format=body.output_format,
     )
+
+    # ⚠️ **执行日志行在这里建，不在任务体里**（2026-10-13 修，E2E 实测）。
+    # 原先由 `execute_definition` 建，于是「202 已返回、worker 还没消费」这段
+    # 窗口里轮询端点只能 404 —— 而前端把**任何**错误都当终态失败
+    # （`ReportExecutePage`：`catch → stopPolling → setPhase('failed')`）。
+    # 实测这个定义要 0.4 秒、真实 10k 行 PDF 约 10 秒（ADR-P8-004），
+    # 也就是**每一次**执行都会先报一次失败，而任务其实正在跑并会成功。
+    #
+    # 端点 docstring 说「查不到就是 404，好让前端分不清不存在与还在跑」——
+    # 那个理由成立的前提正是**行从入队就存在**。修法是让前提成真，
+    # 而不是让前端去容忍 404：容忍之后 404 又同时意味着两件事。
+    #
+    # 任务体那边改成**就地更新**这一行（`task_id` 命中即 update），
+    # 所以这不会产生第二条日志。
+    db.add(ReportExecutionLog(
+        def_id=row.def_id, def_version=row.version,
+        condition_snapshot={
+            "queued_at": dt.datetime.now(dt.UTC).isoformat(),
+            "def_id": str(row.def_id),
+            "project_id": str(row.project_id or ""),
+            "filters": body.filters.model_dump() if body.filters else None,
+            "max_rows": body.max_rows,
+            "output_format": body.output_format or row.output_format,
+            # 快照由任务体在真正执行时补全（含 SelectedFields/SortBy 等），
+            # 这一份是「入队时申报了什么」，两者不冲突：快照列只有一个，
+            # 任务体覆盖它。⚠️ 覆盖会丢掉申报值 —— 所以申报值也留在
+            # `queued_at` 同一层结构里，便于事后区分「申报」与「实际」。
+        },
+        row_count=0,                       # QUEUED 阶段还没有行数
+        output_format=body.output_format or row.output_format,
+        executed_by=actor.user_id,
+        is_temporary_adjust=body.filters is not None,
+        task_id=task_id,                   # 生成前 report_file_id 为 NULL
+    ))
+    await db.commit()      # 端点负责 commit（与本仓其它写端点一致）
     return ReportExecuteAccepted(task_id=task_id, def_id=row.def_id,
                                  def_version=row.version)
