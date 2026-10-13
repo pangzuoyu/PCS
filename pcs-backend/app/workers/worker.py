@@ -9,13 +9,20 @@
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
+
 from arq.connections import RedisSettings
+from arq.cron import CronJob
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.db.session import dispose_engines_async, get_async_session_factory
 from app.workers.cia_tasks import scan_stale_full, scan_stale_incremental
-from app.workers.report_tasks import generate_report_task, reclaim_stale_tasks_batch
+from app.workers.report_builder_tasks import execute_definition_task
+from app.workers.report_tasks import (
+    generate_report_task,
+    reclaim_stale_report_tasks,
+)
 from app.workers.workspace_tasks import (
     cleanup_expired_workspaces,
     touch_workspace,
@@ -38,11 +45,40 @@ async def _on_shutdown(ctx: dict) -> None:
     await dispose_engines_async()
 
 
-async def _make_session(ctx: dict) -> AsyncSession:
-    """ARQ ctx → AsyncSession 工厂（每个任务调用一次）。
+@asynccontextmanager
+async def session_scope(ctx: dict):
+    """ARQ ctx → AsyncSession，**并保证关掉**。
+
+    业务：从 on_startup 注入的 session_factory 取异步 session。
+
+    ⚠️ 为什么不给两个任务各写一遍 `try/finally: await db.close()`
+    （2026-10-13 修）：**两个任务都忘了关**。session 是任务体自己开的，
+    关闭的责任也在任务体 —— 而「记得关」是记性，不是结构。漏掉的后果不是
+    报错，是每个 job 把一条连接挂在 session 上直到 GC 才归还，最后撞上
+    `remaining connection slots are reserved for roles with the SUPERUSER`，
+    **报错发生在完全无关的命令上**（比如跑迁移时），根因却在 worker 里。
+
+    收成一个入口，漏掉就变成结构上不可能。
+    """
+    db = _make_session(ctx)
+    try:
+        yield db
+    finally:
+        await db.close()
+
+
+def _make_session(ctx: dict) -> AsyncSession:
+    """ARQ ctx → AsyncSession（每个任务调用一次）。
 
     业务：从 on_startup 注入的 session_factory 取异步 session；
-    调用方负责 commit/close（ARQ 任务生命周期内单 session）。
+    优先用 `session_scope`（它负责关），直接调本函数要自己 `close()`。
+
+    ⚠️ **不是 `async def`**（2026-10-13 修）。它内部没有任何 await，
+    标成 async 会让调用方拿到一个 **coroutine 而不是 session** ——
+    `db.execute(...)` 立刻炸
+    `'coroutine' object has no attribute 'execute'`。
+    之前从没被真正调用过（任务体读的是不存在的 `ctx["db"]`），
+    所以这个多余的 async 一直没暴露。
     """
     factory = ctx["session_factory"]
     return factory()
@@ -56,7 +92,16 @@ class WorkerSettings:
     on_shutdown 释放连接。
     """
 
-    redis_settings: RedisSettings = RedisSettings()  # overridden in startup
+    # ⚠️ **从 settings 取，不要用 `RedisSettings()` 默认值**（2026-10-13 修）。
+    # 原先写 `RedisSettings()` —— 它在**类属性初始化时**求值，也就是
+    # import 那一刻，拿到的是 ARQ 的默认 localhost:6379，与本仓的
+    # `REDIS_URL` 配置**无关**。`_on_startup` 里那句
+    # `ctx["redis_settings"] = ...` 是**连接之后**才跑的，救不了。
+    # 后果：worker 永远连默认 Redis。部署时若 REDIS_URL 指别处，
+    # worker 会静静连错实例 —— 入队与消费分属两个 Redis，
+    # 症状与「job 没被消费」完全一样（实测踩过）。
+    redis_settings: RedisSettings = RedisSettings.from_dsn(
+        get_settings().redis_url)
     on_startup = _on_startup
     on_shutdown = _on_shutdown
     functions = [
@@ -68,25 +113,51 @@ class WorkerSettings:
         # 确定性错误（数据脏 / 字体缺 / 格式不认识），不是瞬时抖动，
         # 重试 5 次与 3 次没区别，只多刷 2 条 REPORT_FAILED 审计。
         generate_report_task,
+        # P8b：自定义报表定义执行（REPORT_BUILDER）。
+        # ⚠️ **2026-10-13 补上** —— 这一条原先漏了，而漏它的症状是
+        # **静默**的：入队成功、API 返 202 + task_id、轮询永远 RUNNING，
+        # 三分钟后超时说「文件可能仍在后台生成」—— 而那句话是**假的**，
+        # Redis/队列都是好的，只是没人注册消费者。
+        # ARQ 对未注册的函数名不报错，job 静静躺在队列里。
+        # 防复发：`tests/workers/test_worker_registers_all_enqueued_tasks.py`
+        # 断言「入队的 ⊆ 已注册的」。
+        execute_definition_task,
     ]
+    # ⚠️ **必须是 `CronJob` 实例，不是 dict**（2026-10-13 修）。
+    # arq 0.28 的 `Worker.__init__` 直接校验类型，dict 会让 worker
+    # **构造就抛** `RuntimeError: cron_jobs, must be instances of CronJob`。
+    # 它此前从没被真跑起来过 —— 单测只 import 这个类看注册表，不构造 worker。
+    # `CronJob` 的形态是 `(name, coroutine, month, day, weekday, hour, minute,
+    # second, microsecond, ...)` —— 后 13 个是**必填位置参数**，没有默认值。
+    # 旧版 dict 写法里的 `function` 关键字**不存在**。
+    #
+    # ⚠️ **`None` 不等于「不限」，等于「这一位不参与匹配」**
+    # （`arq.cron._get_next_dt` 第一句就是 `if v is None: continue`）。
+    # 秒位传 `None` ⇒ 匹配的那一分钟里**每秒**都命中：`minute={0,5,...}`
+    # 的 5 分钟一次扫描变成每分钟 59 次。三个 cron 的秒位一律写 `0`。
     cron_jobs = [
-        # ARQ cron 语法：(minute, hour, day, month, dow, function)
         # Sprint 3.9：每 5 分钟全量；每 1 分钟增量
-        {
-            "minute": {0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55},
-            "function": scan_stale_full,
-        },
-        {
-            "second": 0,
-            "minute": {1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56},
-            "function": scan_stale_incremental,
-        },
+        CronJob(name="scan-stale-full", coroutine=scan_stale_full,
+                month=None, day=None, weekday=None, hour=None, second=0,
+                microsecond=0, run_at_startup=False, unique=False,
+                job_id=None, timeout_s=None, keep_result_s=3600,
+                keep_result_forever=False, max_tries=1,
+                minute={0, 5, 10, 15, 20, 25, 30, 35, 40, 45, 50, 55}),
+        CronJob(name="scan-stale-incremental", coroutine=scan_stale_incremental,
+                month=None, day=None, weekday=None, hour=None,
+                microsecond=0, run_at_startup=False, unique=False,
+                job_id=None, timeout_s=None, keep_result_s=3600,
+                keep_result_forever=False, max_tries=1,
+                second=0, minute={1, 6, 11, 16, 21, 26, 31, 36, 41, 46, 51, 56}),
         # P8：僵死报表任务回收。ARQ 进程被 OOM kill 时状态会永远卡在
         # PENDING，前端无限轮询且无人知道。10 分钟一次足够（阈值 15 分钟）。
-        {
-            "minute": {3, 33},
-            "function": reclaim_stale_tasks_batch,
-        },
+        CronJob(name="reclaim-stale-report-tasks",
+                coroutine=reclaim_stale_report_tasks,
+                month=None, day=None, weekday=None, hour=None, second=0,
+                microsecond=0, run_at_startup=False, unique=False,
+                job_id=None, timeout_s=None, keep_result_s=3600,
+                keep_result_forever=False, max_tries=1,
+                minute={3, 33}),
     ]
     # 队列容量。ADR-P8-004 建议把**报表任务**单独拆一个 worker 并设
     # `max(2, cores // 2)`，但那是**部署侧**的决定 —— 仓库当前没有
