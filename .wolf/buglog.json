@@ -3002,6 +3002,73 @@
         "builder",
         "todo-062"
       ]
+    },
+    {
+      "id": "bug-163",
+      "timestamp": "2026-10-13T20:30:00+08:00",
+      "error_message": "ARQ worker 起不来 / 起来也不干活：固定 10 类报表生成链路从未真正跑过（job 被消费、Redis 里存着结果、前端永远拿不到 report_file_id）",
+      "file": "pcs-backend/app/workers/worker.py",
+      "root_cause": "七个互相独立的静默缺陷，全部只在这条链路**真跑**时才暴露，单测一律绿：\n\n1. `cron_jobs` 写的是 **dict**，而 arq 0.28 的 Worker.__init__ 校验类型 —— worker **构造就抛** `RuntimeError: cron_jobs, must be instances of CronJob`，进程根本起不来。旧 dict 里的 `function` 关键字在 arq 0.28 也不存在。\n2. `redis_settings = RedisSettings()` —— 它在**类属性初始化时**求值（import 那一刻），拿到 ARQ 默认 localhost:6379，与本仓 REDIS_URL 无关。`_on_startup` 里那句 `ctx['redis_settings']=...` 是连接**之后**才跑的，救不了。\n3. `CronJob` 后 13 个参数是**必填位置参数**没有默认值，旧 dict 写法漏了 `microsecond/run_at_startup/unique/job_id/timeout_s/keep_result_s/keep_result_forever/max_tries`。\n4. 入队传的是**函数对象**。`serialize_job` 存的是函数的「名字」，worker 侧 `self.functions[function_name]` 键全是 str → KeyError 被 ARQ 吞掉，job silently failed，**API 却返 202**。\n5. 两个任务体都读 `ctx['db']`，而 worker 注入的是 `ctx['session_factory']` → 第一行 KeyError，worker **一行日志不打**（它只在 function not found 时 warn）→ 看起来像「job 没被消费」。\n6. `_make_session` 标成了 `async def` 但内部没有 await → 调用方拿到 **coroutine 而不是 session**。\n7. `reclaim_stale_report_tasks` 签名收 `db: AsyncSession`，而 ARQ 按位置传 **ctx** —— 它把 ctx 当 db 用，\n`select(...).where(... db ...)` 全在这一刻炸。docstring 写着「cron 要的是无参函数」，签名却要一个 db 参数。\n\n**共同形状：每一层的单测都只 import 这个类看注册表，不构造 worker、不跑任务。**",
+      "fix": "七处逐一修掉（`second=0`、CronJob 实例、按函数名反查、名字字符串入队、`session_scope`、去 async、ctx 签名），并新增 tests/workers/test_worker_registers_all_enqueued_tasks.py（12 项）把这些约束钉成回归测试 —— 其中真的 `create_worker()` 一次，只验「参数被 ARQ 接受」验不出「跑得起来」。",
+      "fix_commit": "26933d4",
+      "tags": [
+        "report",
+        "worker",
+        "arq",
+        "redis",
+        "silent-defect",
+        "todo-045"
+      ]
+    },
+    {
+      "id": "bug-164",
+      "timestamp": "2026-10-13T20:15:00+08:00",
+      "error_message": "ARQ cron 每秒触发：scan-stale-full 本该 5 分钟一次，实际每分钟 59 次（708 次/小时全表扫描打 Postgres）",
+      "file": "pcs-backend/app/workers/worker.py",
+      "root_cause": "`CronJob(second=None)`。**`None` 在 ARQ 里不是「不限」，是「这一位不参与匹配」** —— `arq.cron._get_next_dt` 开头就是 `if v is None: continue`。秒位不参与匹配 ⇒ `minute={0,5,...}` 匹配的那一分钟里**每一秒都命中**。\n\n我原先的注释写「`None` 表示『不限』」，这个误解直接写进了代码。\n\n实测 `next_cron(base, minute={0,5,...}, second=None)` 返回 base+1s、base+2s、base+3s… 逐秒推进。\n**症状只有日志刷屏**，不看日志完全不知道；而单测只验「CronJob 参数被 ARQ 接受」，验不出触发密度。",
+      "fix": "三个 cron 的秒位统一改 `second=0`；新增测试数**未来 2 小时实际触发次数**（≤40）而不是检查参数长得像不像 cron。",
+      "fix_commit": "26933d4",
+      "tags": [
+        "report",
+        "worker",
+        "arq",
+        "cron",
+        "perf",
+        "todo-045"
+      ]
+    },
+    {
+      "id": "bug-165",
+      "timestamp": "2026-10-13T20:45:00+08:00",
+      "error_message": "ARQ 任务不关 session（每 job 泄漏一条连接，报错报在无关命令上）+ PENDING/SUCCEEDED/FAILED 三个状态全都不落库",
+      "file": "pcs-backend/app/workers/report_tasks.py",
+      "root_cause": "**第一层**：session 由任务体自己从 `session_factory` 开，关闭的责任也在任务体，而两个任务**都忘了** `close()`。每个 job 把一条连接挂在 session 上直到 GC 才归还；实测后果是 Postgres `remaining connection slots are reserved for roles with the SUPERUSER attribute`，而报错出现在**完全无关的命令**上（比如跑 alembic 迁移时），根因却在 worker 里。\n\n**第二层**（加上 close 之后才暴露）：`report_service.generate`、`_mark_pending`、`_finalize` 一律只 `flush`，从不 `commit`。这符合本仓「service 只 flush、调用方 commit」的约定，但约定得由**调用方**兑现，而这里一次都没兑现：\n- PENDING 行从不落库 → `reclaim_stale_report_tasks` 永远扫不到它\n- 成功件从不落库 → 前端已拿到 202 与 report_file_id，之后每个状态查询都 404\n- FAILED 也从不落库 → 行停在 PENDING，前端无限轮询\n那个回收 cron 存在的原因，就是这个状态压根没写成功过。\n\n**为什么单测全绿**：测试用 `_job_ctx(db)` 让任务复用**测试自己的 session**，于是断言读的是它未提交的数据 —— 替身比被测物更宽容。commit 与否在那个观察点上根本测不出来。",
+      "fix": "worker 新增 `session_scope(ctx)` 上下文管理器统一负责 close（不给两处各写一遍 try/finally —— 「记得关」是记性不是结构）；`_mark_pending` 与成功路径补 `commit()`；失败路径改为 `rollback()` → 按主键重取行（rollback 后 row 已过期）→ 标 FAILED → 写审计 → `commit()` 再 raise。新增两个测试的观测点是「任务返回后用**另一个** session 读」—— commit 与否才看得出来。",
+      "fix_commit": "371bd30",
+      "tags": [
+        "report",
+        "worker",
+        "arq",
+        "session-leak",
+        "transaction",
+        "silent-defect",
+        "todo-045"
+      ]
+    },
+    {
+      "id": "bug-166",
+      "timestamp": "2026-10-13T20:50:00+08:00",
+      "error_message": "入队传函数对象而不是名字字符串：API 返 202，job silently failed，Redis 里躺着永不完成的任务",
+      "file": "pcs-backend/app/api/v1/report.py",
+      "root_cause": "`pool.enqueue_job(generate_report_task, ...)`。`arq.connections.serialize_job` 把入队函数的**名字**存进 Redis，worker 侧是 `self.functions[function_name]` —— 键全是 `str`。传函数对象时查表 KeyError 被 ARQ 吞掉，于是：API 早就 202 了，job 永远不被执行，而前端拿到 task_id 后无限轮询。\n\n症状与「worker 没起来」完全一样，无法区分。",
+      "fix": "改传 `\"generate_report_task\"` 字符串（`arq_queue.py` 早已是这个做法，两条路径原本不一致）；测试断言也从 `is generate_report_task` 改为断言名字字符串。",
+      "fix_commit": "dcd2041",
+      "tags": [
+        "report",
+        "arq",
+        "silent-defect",
+        "todo-045"
+      ]
     }
   ]
 }
