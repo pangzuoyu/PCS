@@ -1491,3 +1491,41 @@ A 类全补 → 48+6 = 54/74 = **73.0%**；B 类确认不做 → 仍 73.0%。
   变异验证（撤掉过滤 → 精确只有跨项目那条转红）。
 
 ⚠️ **这条不属于 c7**：c7 是「加更多 JOIN 对」，这是「已有 5 对不完整」。
+
+---
+
+## 🔴 TODO-063 固定 10 类报表没有 `task_id` → `report_file_id` 的轮询端点（2026-10-13 E2E 真跑发现）
+
+`POST /report/generate` 只回 `task_id`，而 `/report/{id}/status` 只认
+`report_file_id`，**两者之间没有桥**。b11 的桥（`report_execution_logs.task_id`
+/ `report_file_id`）只加在 report-builder 那条路上。
+
+- 后果：调用方拿到 202 + task_id 之后**没有任何办法知道文件 id**。
+  只能在 1 小时内从 ARQ 的 job 结果里捞（`keep_result=3600`），而过期就永远拿不到。
+- 本次 QA 脚本是**直接查库**绕过这个缺口的 —— 也就是说这个缺口是已知的、
+  绕过去的，不是没看见。
+- 与 bug-167 **不是同一件事**：bug-167 是「有端点但时机错了」（已修），
+  这里是「这条路上根本没有端点」。
+- **需裁决**：要么给固定 10 类也建执行日志行（复用同一套桥），
+  要么明确这条路的消费方只走同步 `report_service.generate`。
+
+## 🟡 TODO-064 builder 执行日志没有回收器（2026-10-13 E2E 真跑发现）
+
+- `reclaim-stale-report-tasks` cron 只回收 `report_files` 的 PENDING 行，
+  **不管 `report_execution_logs`**。
+- 2026-10-13 的修复让日志行在**入队时**就存在（bug-167），于是
+  「worker 全挂 ⇒ 行永远停在排队态」第一次成为可观测的挂起状态。
+- 此前不可观测：行由任务体建，worker 不跑就没有行。
+- 阈值可复用 `report_files` 那套（15 分钟）。
+
+## 📋 P8 异步链路首轮真跑结论（2026-10-13）
+
+报告：`.gstack/qa-reports/qa-report-pcs-backend-2026-10-13-arq-chain.md`
+（`.gstack/` 已 gitignore，只落本地）
+
+- 自定义定义链路 11/11、固定 10 类链路 6/6、后端全量 4445 passed / 0 failed
+- 暴露 11 个缺陷（bug-163~167），全部已修并有回归测试
+- 方法论要点见报告「三条方法论教训」——
+  **「替身比被测物更宽容」是本轮最贵的失效模式**：
+  测试复用任务自己的 session，于是「从不 commit」在任何断言下都看不出来，
+  修法是**换观测点**（任务返回后用另一个 session 读），不是加断言。
