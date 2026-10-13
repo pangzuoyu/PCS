@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T03:45:13.144Z
-> Files: 780 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T10:12:08.665Z
+> Files: 781 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1158,7 +1158,7 @@
 
 - `arq_queue.py` — ARQ 入队 helper —— 把「怎么建 pool、传什么参数」收在一处。 (~667 tok)
 - `blocks.py` — 三个渲染器共用的中间表示（Block）。 (~600 tok)
-- `builder_service.py` — REPORT_BUILDER 执行引擎（P8b b7）。 (~2490 tok)
+- `builder_service.py` — REPORT_BUILDER 执行引擎（P8b b7）。 (~2803 tok)
 - `collector.py` — 10 类报表的**声明**（SPEC §3.2.1(2)）。 (~1502 tok)
 - `datasource_registry.py` — 数据源注册表 —— REPORT_BUILDER 可选数据源的**纯元数据**。 (~8146 tok)
 - `definition_service.py` — 报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。 (~3474 tok)
@@ -1262,6 +1262,7 @@
 - `test_collector.py` — 10 类报表 collector —— SPEC §3.2.1(2) 的类型表。 (~1095 tok)
 - `test_datasource_registry.py` — 数据源注册表契约（纯元数据）。 (~1167 tok)
 - `test_golden.py` — 10 类报表的 Golden 基线 —— 输出**稳定性**的回归闸。 (~948 tok)
+- `test_join_project_scope.py` — JOIN 的项目隔离 —— b6 遗漏（用户 2026-10-13 分析发现）。 (~2128 tok)
 - `test_margins.py` — **页边距单位契约** —— 三个渲染器共用。 (~369 tok)
 - `test_query_engine.py` — 取数引擎契约 —— 过滤/排序/字段选择/NULL 处理的**唯一实现**。 (~1333 tok)
 - `test_renderer_pdf.py` — PDF 渲染器契约。 (~3143 tok)

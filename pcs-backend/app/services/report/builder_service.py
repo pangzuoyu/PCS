@@ -26,6 +26,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Any
 
+from sqlalchemy import and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.report import ReportDefinition, ReportExecutionLog
@@ -95,16 +96,43 @@ async def _fetch_source(db: AsyncSession, source: str, fields: list[str],
 
 
 async def _fetch_join_rows(db: AsyncSession, *, source: str, join_field: str,
-                           keys: list) -> list[dict]:
-    """从源批量查（`WHERE key IN (...)`），不是 N 次查询。"""
+                           keys: list, scope: uuid.UUID | None) -> list[dict]:
+    """从源批量查（`WHERE key IN (...)`），不是 N 次查询。
+
+    ## 项目隔离是**从表侧**也必须带的（2026-10-13 修）
+
+    位号的唯一性是**项目内**唯一（`TaggedRecordMixin`：tag_number NOT NULL
+    且 unique per project）。原先这里只按关联键 `IN (...)` 取数，于是
+    **两个项目用同一个位号**时会把别人项目的行也捞进来。
+
+    而 `query_engine.assemble` 对重复键是 `{k: row}` —— **取最后一条**，
+    不报错也不告警。所以症状不是「行数爆炸」，而是**悄悄挂上别人项目的
+    那一行**：报表 200、行数正常、列也齐，只是某个字段的值来自另一个项目。
+    这比报错严重得多 —— 报错会让人停下，串数据不会。
+
+    ## 公司级目录是例外，且有意
+
+    `SUPPLIERS` 供应商名录没有 `project_id` 列（它本来就是公司级共享目录），
+    对它加项目过滤会**永远查不出任何行**。故按「该源有没有 project_id」
+    分支，而不是硬编码源名 —— 将来某个源从公司级变成项目级，行为自动跟着变。
+
+    ⚠️ 这里**不**走 `apply_filters`：那是用户条件的通道，而项目过滤是
+    **越权边界**。两者混在一起，将来有人改条件构造时有机会把它挤掉，
+    而挤掉之后报表仍然跑得通、仍然返回 200 —— 只是多了别人的数据
+    （与主源那条条件同一个理由）。
+    """
     if not keys:
         return []
     cols = list(DATASOURCES[source].fields)
     stmt = qe.build_select(source, cols)
+    project_col = ("project_id" in DATASOURCES[source].fields)
     out: list[dict] = []
     for i in range(0, len(keys), _BATCH_SIZE):
         chunk = keys[i:i + _BATCH_SIZE]
-        result = await db.execute(stmt.where(_attr(source, join_field).in_(chunk)))
+        where = _attr(source, join_field).in_(chunk)
+        if project_col:
+            where = and_(where, _attr(source, "project_id") == scope)
+        result = await db.execute(stmt.where(where))
         names = list(result.keys())
         out.extend(dict(zip(names, r, strict=True)) for r in result.all())
     return out
@@ -199,7 +227,7 @@ async def execute_definition(
         a_key, b_key = join_key_for(primary, extra)     # 白名单外 → 400
         join_keys.append((primary, a_key, extra, b_key))
         rows_by_source[extra] = await _fetch_join_rows(
-            db, source=extra, join_field=b_key,
+            db, source=extra, join_field=b_key, scope=scope,
             keys=[r.get(a_key) for r in main_rows if r.get(a_key) is not None])
 
     merged = qe.assemble(rows_by_source, join_keys, primary, fields_by_source)

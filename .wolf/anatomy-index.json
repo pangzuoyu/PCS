@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-13T03:45:13.144Z",
-    "fileCount": 780,
+    "lastScanned": "2026-10-13T10:12:08.665Z",
+    "fileCount": 781,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "6461c1c69a4f2790026606da196a3dd13d7d28ffa3129dd1ca3be3c2b0ebbcc2",
-    "storeUpdatedAt": "2026-10-13T03:45:13.154Z",
-    "rootHash": "54674d4ccf49b820"
+    "renderedHash": "3df2aac14da482f48d4211f5f177db4119be135e6557d2dda886a48a7d199ed0",
+    "storeUpdatedAt": "2026-10-13T10:12:08.675Z",
+    "rootHash": "7a02270cec07ba61"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -24460,11 +24460,11 @@
     },
     "pcs-backend/app/services/report/builder_service.py": {
       "description": "REPORT_BUILDER 执行引擎（P8b b7）。",
-      "tokens": 2490,
-      "hash": "88a7ede25fda90c0",
-      "size": 11028,
-      "mtimeMs": 1791804173127.1848,
-      "updatedAt": "2026-10-12T11:22:53.181Z",
+      "tokens": 2803,
+      "hash": "87039bcdb1849f55",
+      "size": 12917,
+      "mtimeMs": 1791886328615.493,
+      "updatedAt": "2026-10-13T10:12:08.665Z",
       "source": "hook",
       "symbols": [
         {
@@ -24492,28 +24492,28 @@
           "name": "_fetch_join_rows",
           "kind": "fn",
           "startLine": 97,
-          "endLine": 112,
-          "tokens": 178
+          "endLine": 139,
+          "tokens": 431
         },
         {
           "name": "_attr",
           "kind": "fn",
-          "startLine": 113,
-          "endLine": 119,
+          "startLine": 140,
+          "endLine": 146,
           "tokens": 63
         },
         {
           "name": "execute_definition",
           "kind": "fn",
-          "startLine": 120,
-          "endLine": 230,
-          "tokens": 1233
+          "startLine": 147,
+          "endLine": 262,
+          "tokens": 1293
         },
         {
           "name": "_project_field",
           "kind": "fn",
-          "startLine": 231,
-          "endLine": 248,
+          "startLine": 263,
+          "endLine": 280,
           "tokens": 147
         }
       ]
@@ -26272,6 +26272,80 @@
           "startLine": 48,
           "endLine": 82,
           "tokens": 352
+        }
+      ]
+    },
+    "pcs-backend/tests/services/report/test_join_project_scope.py": {
+      "description": "JOIN 的项目隔离 —— b6 遗漏（用户 2026-10-13 分析发现）。",
+      "tokens": 2128,
+      "hash": "0a96b7799de27908",
+      "size": 9383,
+      "mtimeMs": 1791886272256.9846,
+      "updatedAt": "2026-10-13T10:11:12.305Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_project",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 81,
+          "tokens": 222
+        },
+        {
+          "name": "_equipment",
+          "kind": "fn",
+          "startLine": 82,
+          "endLine": 92,
+          "tokens": 86
+        },
+        {
+          "name": "_pump",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 105,
+          "tokens": 126
+        },
+        {
+          "name": "_execute",
+          "kind": "fn",
+          "startLine": 106,
+          "endLine": 121,
+          "tokens": 167
+        },
+        {
+          "name": "_definition",
+          "kind": "fn",
+          "startLine": 122,
+          "endLine": 143,
+          "tokens": 273
+        },
+        {
+          "name": "test_two_projects_sharing_a_tag_do_not_bleed_into_each_other",
+          "kind": "fn",
+          "startLine": 144,
+          "endLine": 170,
+          "tokens": 317
+        },
+        {
+          "name": "test_the_missing_link_is_absent_not_null",
+          "kind": "fn",
+          "startLine": 171,
+          "endLine": 191,
+          "tokens": 200
+        },
+        {
+          "name": "test_same_project_join_still_works",
+          "kind": "fn",
+          "startLine": 192,
+          "endLine": 212,
+          "tokens": 206
+        },
+        {
+          "name": "test_company_level_sources_are_not_project_filtered",
+          "kind": "fn",
+          "startLine": 213,
+          "endLine": 227,
+          "tokens": 157
         }
       ]
     }

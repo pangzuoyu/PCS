@@ -2984,6 +2984,24 @@
         "bug-160-family",
         "todo-056"
       ]
+    },
+    {
+      "id": "bug-162",
+      "timestamp": "2026-10-13T00:00:00+08:00",
+      "error_message": "REPORT_BUILDER 跨源查询：项目 A 的报表会带上项目 B 的数据，且不报错",
+      "file": "pcs-backend/app/services/report/builder_service.py",
+      "root_cause": "`_fetch_join_rows` 只按关联键 `IN (...)` 从表取数，**不带项目过滤**：\\n\\n    rows_by_source[extra] = await _fetch_join_rows(\\n        db, source=extra, join_field=b_key,\\n        keys=[r.get(a_key) for r in main_rows if ...])\\n\\n而位号的唯一性是**项目内**唯一（`TaggedRecordMixin`：tag_number NOT NULL 且 unique per project）。两个项目用同一个位号（如都叫 P-1001）时，从表那次 `IN (...)` 把**别人项目的行也捞进来**。\\n\\n**为什么连症状都没有**：`query_engine.assemble` 对重复键是\\n`{row.get(b_key): row for row in rows_by_source[b]}` —— **取最后一条**，\\n不报错、不告警（注释写「与 SQL JOIN 的行为一致」）。\\n\\n所以不是「行数爆炸」（笛卡尔积），而是**悄悄挂上了别人项目的那一行**：\\n报表 200、行数正常、列也齐，只是某个字段的值来自另一个项目。\\n**报错会让人停下，串数据不会** —— 用户要过很久才发现。\\n\\n实测复现（4 条测试里 3 条本来是绿的，只有跨项目那条红）：\\n  项目 A 的 pump_id = ccbbc714…\\n  项目 B 的 pump_id = a4b6af61…\\n  A 的报表拿到的 = a4b6af61…  ← B 的",
+      "fix": "1. `_fetch_join_rows` 加 `scope` 参数，从表侧带上与主源相同的项目过滤，\\n   用 `and_(关联键 IN (...), project_id == scope)` 合并；\\n2. **按「该源有没有 project_id」分支**，不硬编码源名 —— `SUPPLIERS` 供应商名录没有该列（公司级共享目录），对它加过滤会永远查不出任何行，\\n   表现为「供应商列整列空白」而那看起来像数据缺失不像配置错误；\\n3. ⚠️ **不**走 `apply_filters`（那是用户条件的通道）：项目过滤是**越权边界**，与主源那条条件同一个理由 —— 混进用户条件里，将来改条件构造时有机会把它挤掉，\\n   而挤掉之后报表仍然跑得通、仍然 200。\\n\\n测试：`tests/services/report/test_join_project_scope.py`（4 条）。\\n其中「同项目照样关联得上」那条是**反向守卫** —— 只写「跨项目不泄漏」的话，一个「一律返回空」的修复同样能过。\\n变异验证：撤掉项目过滤 → 精确只有跨项目那条转红。",
+      "fix_commit": "",
+      "tags": [
+        "report",
+        "security",
+        "id",
+        "data-leak",
+        "join",
+        "builder",
+        "todo-062"
+      ]
     }
   ]
 }

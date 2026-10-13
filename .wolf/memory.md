@@ -1554,3 +1554,8 @@
 | 11:35 | Created pcs-backend/tests/scripts/test_check_report_font.py | — | ~870 |
 | 11:36 | Created pcs-backend/scripts/check_report_font.py | — | ~715 |
 | 11:45 | Edited .github/workflows/check-api-drift.yml | expanded (+30 lines) | ~478 |
+| 12:04 | Session end: 306 writes across 128 files (TODOS.md, p7_s5_001_drop_equipment_lib.py, equipment.py, test_schema.py, 0032-vessel-process-calculation.md) | 104 reads | ~255968 tok |
+| 18:07 | Session end: 306 writes across 128 files (TODOS.md, p7_s5_001_drop_equipment_lib.py, equipment.py, test_schema.py, 0032-vessel-process-calculation.md) | 104 reads | ~255968 tok |
+| 18:08 | Created pcs-backend/tests/services/report/test_join_project_scope.py | — | ~1859 |
+| 18:11 | Edited pcs-backend/tests/services/report/test_join_project_scope.py | modified _execute() | ~186 |
+| 18:12 | Edited pcs-backend/app/services/report/builder_service.py | modified _fetch_join_rows() | ~431 |
