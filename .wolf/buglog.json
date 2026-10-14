@@ -3156,6 +3156,40 @@
         "false-green",
         "sqlite"
       ]
+    },
+    {
+      "id": "bug-172",
+      "timestamp": "2026-10-14T00:00:00+08:00",
+      "error_message": "固定 10 类报表导出**不按项目隔离**：`/report/generate` 传 `project_id=B` + `record_ids=[项目A的行UUID]`，导出出来的是项目 A 的数据 —— 报表 200、行数正常、列也齐",
+      "file": "pcs-backend/app/services/report/report_service.py",
+      "root_cause": "`collect(*, report_type, project_id, record_ids, db)` 收下 `project_id`\n**一次也没引用**（report_service.py:75-96）。整条 WHERE 只有\n`_filter_spec` 给的 `record_ids IN (...)`。\n\n于是端点那一侧就成了唯一的闸门，而它校验的是\n`body.project_id` 的访问权（api/v1/report.py:142-144），\n`record_ids` 的归属从头到尾没人查，直接原样入队（:186）。\n\n**被校验的项目 ID 从未进入查询。**\n\n## 与评审结论的差异（重要）\n\n评审 #1 说「JOIN 行不加项目过滤」。实测 `REPORT_SPECS` 里 **10 类的\n`extra_sources` 全为空** —— 固定 10 类都是单源，`_fetch_join_rows`\n**根本不会被调用**。那条 JOIN 腿是**潜伏**的，不是活着的洞。\n活着的洞在更前面一步，且更容易触发（不需要任何 JOIN）。\n\n## 两条路各有一个同名函数\n\n`builder_service._fetch_join_rows` 与 `report_service._fetch_join_rows`\n同名同形。bug-162 只修了前者，于是「JOIN 项目隔离已修」这句话\n只对一个调用方成立 —— 而没有任何测试、lint 规则或类型约束\n能让它们保持同步。**这才是本 bug 的结构性成因。**\n\n## 为什么单测全绿\n\n`tests/services/report/test_join_project_scope.py` 的 4 个用例\n**全部只调 `builder_service.execute_definition`**；固定 10 类那条路\n一个用例都没有（`test_collector.py` 全是静态注册表检查，不碰 DB）。\n\n评审定位：ce-code-review 20261014-005528-981d772a 的 P0 #1。",
+      "fix": "1. 新增 `_scope_and_records`：项目作用域 ∩ `record_ids`，两者都是必需项。\n   项目过滤**不并进用户可编辑的条件列表** —— 那是越权边界，不是用户条件\n   （与 builder_service 的同一处决策同理由）。\n   公司级源（无 `project_id` 列，如 SUPPLIERS）不加过滤，否则永远查不出行。\n2. `_fetch_join_rows` 补 `scope` 参数，与 builder_service 的同名副本对齐。\n3. 两条跨路径守卫：任何 `_fetch_join_rows` 都必须收 scope；\n   `collect()` 收了 `project_id` 就必须真的引用它。\n\n**测试的观测点踩了两次，都记在测试 docstring 里**：\n  - 第一次用返回值里的 `hashes`：那是 `_record_hashes` 从 `record_hash`\n    列取的，EQUIP_LIST 没这一列，恒为 `[]` —— 于是「越权取不到」和\n    「自己人也取不到」两个用例互相掩护，全绿。改用表格数据行。\n  - 第二次越权用例**自己写错了**（作用域 B 却请求 B 自己的行），\n    靠成对的「自己的记录必须照常导出」那条才发现。",
+      "fix_commit": "6b5c756",
+      "tags": [
+        "authorization",
+        "tenant-isolation",
+        "project-scope",
+        "collect",
+        "P0",
+        "copy-paste-divergence"
+      ]
+    },
+    {
+      "id": "bug-173",
+      "timestamp": "2026-10-14T00:00:00+08:00",
+      "error_message": "`_fetch_join_rows` 的分块 IN 循环把 statement 当累加器改写：第 2 块把 `key IN (chunk2)` AND 到已有的 `key IN (chunk1)` 上，跨过批大小的 JOIN 返回**各块的交集（空集）**",
+      "file": "pcs-backend/app/services/report/report_service.py",
+      "root_cause": "循环体里写的是 `stmt = stmt.where(...)` —— 每次迭代在**同一个对象**上\n叠加谓词。第 1 块后 statement 已含 `key IN (chunk1)`，第 2 块把\n`key IN (chunk2)` AND 上去，于是查询变成\n`key IN (chunk1) AND key IN (chunk2)` = 空集。\n\n**为什么单测全绿**：当前 `_BATCH_SIZE` 是 10000，而主源最多返回\n`_MAX_ROWS` 行 —— 恰好只跑一轮循环，累加器从未生效。\n是**潜伏**缺陷：任何让 key 数超过批大小的改动都会让它炸，\n而症状是「跨过批大小的 JOIN 静默返回零行」，不报错。\n\n同一段循环在 `builder_service._fetch_join_rows` 里写法是对的\n（每块把谓词交给 execute 而不改写 stmt）—— 又是同名副本不同步。\n\n评审定位：ce-code-review 20261014-005528-981d772a 的 P2 #20。",
+      "fix": "循环外建一次 `base = build_select(...)`，循环内 `base.where(where)`，不改写 base。\n\n顺带在同一处补上 `scope`（见 bug-172），两处改动落在同一个函数。",
+      "fix_commit": "6b5c756",
+      "tags": [
+        "query-engine",
+        "join",
+        "accumulator",
+        "latent",
+        "P2",
+        "copy-paste-divergence"
+      ]
     }
   ]
 }
