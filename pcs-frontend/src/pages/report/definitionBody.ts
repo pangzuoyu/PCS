@@ -291,6 +291,36 @@ export function buildTempFilterPayload(
   return { operator: 'AND', conditions: fromFilterTree(tempFilters) };
 }
 
+/**
+ * 数出 `toFilterTree` 会**丢弃**的节点数（评审 #25，用户裁决：警告）。
+ *
+ * ## 为什么必须存在
+ *
+ * `toFilterTree` 对它不认识的节点静默返回 `[]`，而 `buildBody` 随后把
+ * 幸存者持久化 —— 打开一个含无法识别条件的定义、改一个无关字段、保存，
+ * 那条条件就没了且无任何提示。这正是本模块 :256 声明为硬要求要防的
+ * TODO-060 失败形态（「往返无损是硬要求」）。
+ *
+ * 与 `FilterTreeEditor` 放行空值的取向一致：**丢弃必须可见** ——
+ * 那边让后端报 `REPORT_FILTER_VALUE_MISSING`，这里让用户在保存前看到
+ * 「本定义含 N 条本页无法识别的条件，保存时会丢弃」。
+ *
+ * ## 与 toFilterTree 的判据必须逐字一致
+ *
+ * 判据分叉的话（这里数 1、那里没丢，或反之），警告就会说谎。
+ * 所以两边用同一套分支：isGroup → 递归；非对象 / 缺 field / 缺 operator → 丢。
+ */
+export function countUnparsedFilterNodes(raw: unknown): number {
+  if (!Array.isArray(raw)) return 0;   // 顶层非法：没有「节点」可数
+  return raw.reduce((acc, node): number => {
+    if (!node || typeof node !== 'object') return acc + 1;
+    const n = node as Record<string, unknown>;
+    if (isGroup(n)) return acc + countUnparsedFilterNodes(n.conditions);
+    if (typeof n.field !== 'string' || typeof n.operator !== 'string') return acc + 1;
+    return acc;
+  }, 0);
+}
+
 export function toFilterTree(raw: unknown): FilterNode[] {
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((node): FilterNode[] => {

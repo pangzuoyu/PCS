@@ -30,6 +30,7 @@ import {
   Card,
   Form,
   Input,
+  Modal,
   InputNumber,
   Select,
   Space,
@@ -50,6 +51,7 @@ import type { ReportBuilderDatasource } from '../../api/reportBuilder';
 import {
   buildBody,
   fieldsAtLevel,
+  countUnparsedFilterNodes,
   toFilterTree,
   toRows,
 } from './definitionBody';
@@ -92,6 +94,14 @@ export function ReportDefinitionEditorPage(): JSX.Element {
   // ⚠️ 用**树**而不是单条。第一批的单条模型读不了 AND/OR 分组，
   // 保存时会把整棵子树抹掉（TODO-060）。
   const [filterTree, setFilterTree] = useState<FilterNode[]>([]);
+  /**
+   * 加载时被 `toFilterTree` 丢弃的条件数（评审 #25，用户裁决：警告）。
+   *
+   * `null` = 新建 / 未加载（不显示）；`> 0` = 本定义含本页无法识别的条件，
+   * **保存会把它们丢掉** —— 必须让用户看见并确认，而不是静默丢。
+   * 正是 TODO-060「往返无损是硬要求」要防的失败形态。
+   */
+  const [unparsedFilters, setUnparsedFilters] = useState<number | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -117,6 +127,7 @@ export function ReportDefinitionEditorPage(): JSX.Element {
         // ⚠️ 用 `toFilterTree` 而不是「取第一条」—— 后者的模型读不了
         // AND/OR 分组，保存时会把整棵子树抹掉（TODO-060 的成因）。
         setFilterTree(toFilterTree(body.FilterConditions));
+        setUnparsedFilters(countUnparsedFilterNodes(body.FilterConditions));
         // 白名单随字段树一起下发（b1），**逐字来自注册表** ——
         // 前端不按名称猜关联，猜错的表现是「选得了、跑不了」。
         setJoinWhitelist(ds.joins ?? []);
@@ -184,6 +195,24 @@ export function ReportDefinitionEditorPage(): JSX.Element {
     });
 
   const save = async (thenPublish: boolean) => {
+    // ⚠️ 有本页无法识别的条件时，保存会把它们**丢掉**（评审 #25）。
+    // Modal.confirm 的 onOk 里才真正保存 —— 用户点取消就什么都不发生。
+    if (unparsedFilters && unparsedFilters > 0) {
+      Modal.confirm({
+        title: `保存将丢弃 ${unparsedFilters} 条本页无法识别的过滤条件`,
+        content: '这些条件来自旧版本或手工编辑的定义，本页的编辑器读不了它们。'
+          + '保存后它们会从定义中消失，且无法从本页恢复。',
+        okText: '仍要保存（丢弃）',
+        okButtonProps: { danger: true },
+        cancelText: '先不保存',
+        onOk: () => doSave(thenPublish),
+      });
+      return;
+    }
+    await doSave(thenPublish);
+  };
+
+  const doSave = async (thenPublish: boolean) => {
     if (!meta?.name?.trim()) {
       message.error('名称必填');
       return;
@@ -242,6 +271,12 @@ export function ReportDefinitionEditorPage(): JSX.Element {
       <Spin spinning={loading}>
         {error && <Alert type="error" showIcon message={error}
           style={{ marginBottom: 16 }} />}
+        {unparsedFilters !== null && unparsedFilters > 0 && (
+          <Alert type="warning" showIcon style={{ marginBottom: 16 }}
+            message={`本定义含 ${unparsedFilters} 条本页无法识别的过滤条件`}
+            description={"它们来自旧版本或手工编辑的定义，本页的编辑器读不了。"
+              + "**保存会把它们丢弃**（保存前会再次确认）。要保留请先在后端修正这些条件。"} />
+        )}
 
         <Card title="基本信息" size="small" style={{ marginBottom: 16 }}>
           <Form layout="inline" style={{ rowGap: 12 }}>
