@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-14T02:32:03.461Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-14T02:41:34.985Z
 > Files: 795 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -1350,7 +1350,7 @@
 - `JoinPicker.tsx` — JOIN 白名单选择器（b6 第二批）。 (~724 tok)
 - `ReportDefinitionEditorPage.tsx` — ReportDefinitionEditorPage — 定义编辑器（b10）。 (~4376 tok)
 - `ReportDefinitionListPage.tsx` — ReportDefinitionListPage — REPORT_BUILDER 定义管理列表（b12）。 (~1595 tok)
-- `ReportExecutePage.tsx` — ReportExecutePage — 执行面板（b11）。 (~2349 tok)
+- `ReportExecutePage.tsx` — ReportExecutePage — 执行面板（b11）。 (~3627 tok)
 - `ReportStylePage.tsx` — ReportStylePage — 样式管理（c6）。 (~3019 tok)
 
 ## pcs-frontend/src/pages/util/

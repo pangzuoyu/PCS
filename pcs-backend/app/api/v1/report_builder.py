@@ -16,7 +16,7 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
-from typing import Annotated
+from typing import Annotated, Literal
 
 from fastapi import APIRouter, Depends
 from pydantic import BaseModel, Field
@@ -265,7 +265,14 @@ class ReportExecutionStatus(BaseModel):
 
     task_id: str
     def_id: uuid.UUID
-    status: str            # QUEUED / RUNNING / FINISHED
+    # ⚠️ **枚举**而不是裸 `str`（2026-10-14 修，评审 P3 #28）。
+    # FAILED 一直可达，而且它**正是这一列存在的理由**（TODO-064）——
+    # 回收器把僵死的行改判成 FAILED。裸 `str` 让 OpenAPI 里没有 enum，
+    # 生成的客户端既无法枚举状态、也无法把 FAILED 与未知值区分开；
+    # 照旧词表写的客户端会把 FAILED 当成「还在跑」。
+    #
+    # 此前 docstring 与字段注释都只写了三种状态，FAILED 是可达却没写的那一种。
+    status: Literal["QUEUED", "RUNNING", "FINISHED", "FAILED"]
     report_file_id: uuid.UUID | None = None
 
 

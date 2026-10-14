@@ -82,8 +82,27 @@ export function ReportExecutePage(): JSX.Element {
 
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const startedAt = useRef<number>(0);
+  /**
+   * 轮询世代号。每次「开始一次新的执行」或「停轮询」都 +1。
+   *
+   * ⚠️ **只清 timer 不够**（2026-10-14 修，评审 P1 #7）。`poll` 在自己的
+   * async 回调里递归重武装自己，而**清定时器只能拦住「还没触发」的那一个**：
+   * 已经 `await executionStatus(id)` 在飞的那一轮，回调恢复后照样会
+   * `setStatusText`、再 `poll(oldId)`、并接管 `timer.current`。
+   *
+   * 后果是页面上同时有两个活循环：最后 resolve 的赢 `fileId`，
+   * 下载按钮可能指向**上一轮**的文件。卸载时同理 —— 那个回调会为一个
+   * 已经不存在的组件重新武装定时器。
+   *
+   * 所以回调里每次醒来都先核对世代号，对不上就整个放弃。
+   * 一个守卫同时解掉「重跑」与「卸载」两种情况。
+   */
+  const generation = useRef(0);
 
   const stopPolling = () => {
+    // ⚠️ 先作废在飞的回调，再清定时器 —— 顺序反过来会有一个窗口：
+    // 回调醒来核对世代号时还没作废，随后又把 timer 装回来。
+    generation.current += 1;
     if (timer.current) { clearTimeout(timer.current); timer.current = null; }
   };
   useEffect(() => stopPolling, []);
@@ -132,7 +151,9 @@ export function ReportExecutePage(): JSX.Element {
       });
       setTaskId(accepted.task_id);
       setPhase('polling');
-      poll(accepted.task_id);
+      // ⚠️ 世代号在 `stopPolling()` **之后**取：stopPolling 会 +1 作废
+      // 上一轮所有在飞的回调，所以这里拿到的就是本轮自己的号。
+      poll(accepted.task_id, generation.current);
     } catch (err) {
       setError(errorMessage(err));
       setPhase('failed');
@@ -148,7 +169,9 @@ export function ReportExecutePage(): JSX.Element {
    * 「任务不存在」与「任务还在跑」必须分开报，这正是
    * `ReportExecutionStatus` 不返回占位 PENDING 的原因。
    */
-  const poll = (id: string) => {
+  const poll = (id: string, gen: number) => {
+    // ⚠️ 对不上世代 = 这一轮已被新一轮执行（或卸载）取代，整体放弃。
+    if (gen !== generation.current) return;
     if (Date.now() - startedAt.current > POLL_TIMEOUT_MS) {
       setPhase('timeout');
       stopPolling();
@@ -158,6 +181,20 @@ export function ReportExecutePage(): JSX.Element {
       void (async () => {
         try {
           const st = await reportBuilderApi.executionStatus(id);
+          // ⚠️ **await 之后必须再核对一次**：正是这段 await 让上一轮
+          // 与这一轮重叠（重跑发生在请求在飞的时候）。
+          if (gen !== generation.current) return;
+          // ⚠️ 终态失败要先判（评审 P1 #8）。此前这里只看 `report_file_id`，
+          // 于是**已经失败**的任务被一路轮询到 `POLL_TIMEOUT_MS`，然后弹
+          // 「等待超时 / 文件可能仍在生成中」—— 恰好是 p8_007 加 status 列
+          // 要防的那个错误结论。用户等满全程，得到的却是假消息。
+          if (st.status === 'FAILED') {
+            stopPolling();
+            setError('执行失败：后端已把这次执行标记为 FAILED'
+              + '（可能是执行器中断后被回收器判定为僵死）。');
+            setPhase('failed');
+            return;
+          }
           if (st.report_file_id) {
             setFileId(st.report_file_id);
             setStatusText('生成完成');
@@ -167,12 +204,13 @@ export function ReportExecutePage(): JSX.Element {
           }
           setStatusText('已提交，正在后台生成…');
         } catch (err) {
+          if (gen !== generation.current) return;
           stopPolling();
           setError(errorMessage(err));
           setPhase('failed');
           return;
         }
-        poll(id);
+        poll(id, gen);
       })();
     }, POLL_INTERVAL_MS);
   };
@@ -203,7 +241,12 @@ export function ReportExecutePage(): JSX.Element {
             options={definitions.map((d) => ({
               value: d.def_id, label: `${d.name}（${d.version}）` }))} />
           <Button type="primary" icon={<PlayCircleOutlined />}
-            loading={phase === 'submitting'} onClick={() => void run()}>
+            loading={phase === 'submitting'}
+            // ⚠️ 轮询期间也禁用（评审 P1 #7）。世代号守卫已经让重跑**安全**了
+            // （旧循环会被作废），但「能安全重跑」不等于「该允许重跑」——
+            // 用户在轮询途中点执行，丢掉的正是他刚提交的那一次。
+            disabled={phase === 'polling'}
+            onClick={() => void run()}>
             执行
           </Button>
         </Space>
