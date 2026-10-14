@@ -3190,6 +3190,55 @@
         "P2",
         "copy-paste-divergence"
       ]
+    },
+    {
+      "id": "bug-174",
+      "timestamp": "2026-10-14T00:00:00+08:00",
+      "error_message": "二维码**每次扫码必然 403**：`report_service._render_sync` 把 `qr_payload=None` 写死，`build_qr_payload` 在生产路径零调用者，而 `_check_sig` 要求 sig+exp 齐备",
+      "file": "pcs-backend/app/services/report/report_service.py",
+      "root_cause": "两层原因叠加，**单看任一层都只会修一半**：\n\n### 第一层：签名从未生成\n`_render_sync` 硬编码 `qr_payload=None` ⇒ `renderer_pdf` 里\n`if qr_payload:` 在生产路径恒假。\n\n### 第二层（更隐蔽，也更致命）：即使签了，也**一次都不会印**\n`build_qr_payload` 原 docstring 写「record_hashes 为空就不加二维码，\n因为没有可比对的凭据」。而：\n  - `record_hash` **没有登记进 datasource_registry**（grep 命中 0）\n  - `_record_hashes` 从 `row[\"record_hash\"]` 取值 ⇒ 10 类报表恒为 `[]`\n\n所以照那条规则执行 = **功能存在、路径存在、测试全绿、而它从未执行**。\n用户看到的 PDF 本来就没有二维码，所以不会有人报 bug。\n\n这与 bug-171 同族但更坏：不需要「测试写错」这个前提。\n\n### 规则本身也已与实现脱节\n`/report/verify` 验签后做的是**文件完整性校验**（重算磁盘 sha256 比\n`content_hash`，用户 2026-10-08 裁决「比对的主语是系统」），\n**从��没读过 `record_hash_digest`**。让核验成立的是\n**签名 + report_file_id**，两者恒在。\n\n### 评审建议的前提不成立\n评审说「签名含时间戳会污染 `_content_hash`，故须把 `store_rendered`\n重排成『先 upsert PENDING → 用它的 id 签名 → 渲染 → 落盘』」。\n**前提是错的**：`_content_hash` 哈希 Blocks + style + format + ctx，\n`qr_payload` 根本不在里面（它刻意不对渲染后的字节取哈希）。\n\n评审定位：ce-code-review 20261014-005528-981d772a 的 P1 #4。",
+      "fix": "1. 渲染**前**自选 `report_file_id`，用它签名，upsert 时把**同一个 id**\n   写进那一行。不重排 `store_rendered`（无必要）。\n   去重命中时签的是新自选 id、落库走既有行 —— 刚渲染的字节被丢弃，\n   磁盘上留下的旧文件里的二维码签的是它自己的 id，自洽。\n2. 「record_hashes 为空不印」这条规则**删除** —— 它已与 verify 端点\n   的实际实现脱节，保留就等于把功能正确地关掉。改为\n   「有密钥 + 有对外基址 + 是 PDF 就印」。\n3. 新增配置 `report_verify_base_url`（默认空 = 不印）：印一个扫不通的\n   二维码比不印更糟 —— 用户看到有二维码就会去扫，扫不开只会以为\n   文件有问题。\n4. HMAC 公式收成**一份**（`qr.sign`），`_check_sig` 改为调用它。\n   分两处写的话改坏其中一处时两边都看起来正常，症状是「一律 403」，\n   排查的人会去看密钥配置。有测试钉住 `hmac.new` 全仓只出现一次。",
+      "fix_commit": "e88fd81",
+      "tags": [
+        "qr",
+        "signature",
+        "dead-code-path",
+        "never-executed",
+        "P1",
+        "false-green"
+      ]
+    },
+    {
+      "id": "bug-175",
+      "timestamp": "2026-10-14T00:00:00+08:00",
+      "error_message": "自定义报表的 SortBy `direction` **存了从不读**：用户存 DESC、导出升序，且没有任何一层会说话（保存成功、执行成功、报表 200、行数正常，**只是顺序反了**）",
+      "file": "pcs-backend/app/services/report/builder_service.py",
+      "root_cause": "`ReportDefSort` 在 schema 层声明了 `direction: str = \"ASC\"`，\n而执行路径只取字段名：\n\n    sort_fields = [f[\"field\"] for f in (defn.get(\"SortBy\") or [])]\n\n`apply_sort` 也只 `stmt.order_by(col)` —— 没有任何方向的概念。\n\n**为什么单测全绿**：没有任何测试断言过行序；\n而「顺序反了」这个症状在报表上极难肉眼发现（列都在、数都对）。\n\n同类：`definition_json` 里的值被顶层列无条件覆盖那一族\n（OutputFormat / MaxRows），也是「保存成功、执行时被忽略」。\n\n评审定位：ce-code-review 20261014-005528-981d772a 的 P2 #9。",
+      "fix": "`apply_sort` 接受两种条目：裸字符串（升序，固定 10 类那条路仍这么调）\n与 `{field, direction}` dict；`builder_service` 传整个 dict 而不是\n`f[\"field\"]`，过滤仍按 field 走。\n\n未知 direction **抛 400** 而不静默当升序 —— 静默当升序等于把\n「保存成功、执行时被忽略」换个地方重演一遍。\n\n只测 `apply_sort` 不够（缺陷在调用方那一行），另补一条走完整链路的\n端到端测试；变异验证：退回那一行 ⇒ 测试红。",
+      "fix_commit": "e88fd81",
+      "tags": [
+        "sort",
+        "definition-json",
+        "ignored-field",
+        "P2"
+      ]
+    },
+    {
+      "id": "bug-176",
+      "timestamp": "2026-10-14T00:00:00+08:00",
+      "error_message": "公司级（project_id IS NULL）的行完全绕开唯一约束：两个同名公司级报表定义可以共存；两个同版本 ACTIVE 公司样式也可以",
+      "file": "pcs-backend/alembic/versions/p8_001_report_tables.py",
+      "root_cause": "`project_id` 可空表示**公司级作用域**，而 Postgres 认为\n**NULL 互不相等** ⇒ `UNIQUE (project_id, name)` 对公司级行**不起作用**：\n\n    INSERT (NULL, '泵数据表')  -- 通过\n    INSERT (NULL, '泵数据表')  -- 也通过，约束形同虚设\n\n应用层唯一防线是「先查有没有」，而那个查询**无锁** —— 两个并发请求\n都查到「没有」，各自插入。\n\n`report_styles` 那条更关键：它是「至多一个 ACTIVE 公司样式」这个\n不变量的**唯一数据库依据**，而那个不变量原先只在应用层保证。\n\n**为什么单测抓不到**：`postgresql_nulls_not_distinct` 是 **dialect 专属**\n选项，SQLite 上被忽略，而单测跑的正是 `sqlite+aiosqlite:///:memory:`。\n这是「green 但什么也没验」的又一例，与 bug-171 同族。\n\n评审定位：ce-code-review 20261014-005528-981d772a 的 P2 #14。",
+      "fix": "ORM 加 `postgresql_nulls_not_distinct=True`（两条约束），\n迁移 `p8_009_nulls_distinct_unique.py` 幂等补建。\n\nPG 没有「修改约束」的操作，只能 `DROP` + `ADD ... NULLS NOT DISTINCT`\n—— 这是**破坏性**的：加约束前若有重复行会直接失败。故迁移 docstring 里\n写了可执行的升级前核对查询，而不是假装会处理。\n\ndowngrade 也不能无条件 ADD：约束可能已经是 NULLS NOT DISTINCT\n（被手工修过、或升级跑过两遍），无条件 ADD 会因重名报错，\n把 downgrade 变成「制造故障」。\n\n真库行为验证（单测做不到）：第二条同名公司级定义被\n`duplicate key value violates unique constraint` 拒绝，\n换个名字仍通过。downgrade → upgrade 往返验过。",
+      "fix_commit": "e88fd81",
+      "tags": [
+        "postgres",
+        "nulls-not-distinct",
+        "unique-constraint",
+        "multi-tenant",
+        "P2",
+        "sqlite-blindspot"
+      ]
     }
   ]
 }
