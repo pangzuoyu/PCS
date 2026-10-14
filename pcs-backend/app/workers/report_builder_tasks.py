@@ -138,6 +138,17 @@ async def execute_definition_task(
                     "truncated": out.truncated,
                     "condition_snapshot": out.snapshot},
         )
+        # ⚠️ 成功路径必须写 FINISHED（2026-10-14 修，评审 P1）。
+        # 上方 :69-71 的注释已经写明「重试成功后同样要把行标成 FINISHED，
+        # 否则它停在 RUNNING 上，15 分钟后被回收器当成僵死的收掉」——
+        # **但代码从来没写**。停在 RUNNING 上，一次已经出了文件的成功执行
+        # 会被 `reclaim_stale_execution_logs` 改判 FAILED，并在
+        # `condition_snapshot` 里写入 `reclaimed_at`。
+        #
+        # 放在 `db.commit()` **之前**：终态与审计同一次提交，
+        # 与 except 分支的处置保持一致。
+        if task_row is not None:
+            task_row.status = "FINISHED"
         await db.commit()
         return file_id
 

@@ -21,8 +21,7 @@ import uuid
 import pytest
 
 from app.models.enums import AuditAction
-from app.models.report import (REPORT_FILE_STATUSES,
-                               ReportDefinition, ReportExecutionLog)
+from app.models.report import REPORT_FILE_STATUSES, ReportDefinition, ReportExecutionLog
 from app.models.system import AuditLog
 from app.services.report.style import ReportStyle
 from app.workers.report_tasks import (  # noqa: E501
@@ -227,13 +226,11 @@ async def test_each_failed_attempt_writes_one_audit_row(db, project_id, monkeypa
 @pytest.mark.asyncio
 async def test_failure_marks_row_failed_with_error_message(db, project_id, monkeypatch):
     """失败后必须有**终结状态** —— 否则前端只能看到「转圈到超时」。"""
-    from app.workers.worker import MAX_TRIES
-
     from sqlalchemy import select
-    from sqlalchemy.ext.asyncio import async_sessionmaker
 
     from app.models.report import ReportFile
     from app.services.report import report_service
+    from app.workers.worker import MAX_TRIES
 
     async def boom(*a, **k):
         raise RuntimeError("渲染炸了")
@@ -251,6 +248,52 @@ async def test_failure_marks_row_failed_with_error_message(db, project_id, monke
     row = (await db.execute(select(ReportFile))).scalar_one()
     assert row.status == "FAILED"
     assert row.error_message and "渲染炸了" in row.error_message
+
+
+@pytest.mark.asyncio
+async def test_retry_and_final_failure_are_distinguishable_exceptions(
+        db, project_id, monkeypatch):
+    """两种结局必须是**两种异常类型**：还有次数抛 `Retry`，用尽抛原始异常。
+
+    ⚠️ `arq.Retry` 继承自 `RuntimeError`（`class Retry(RuntimeError)`），
+    所以本文件里那 8 处 `pytest.raises(RuntimeError)` 对两者都成立。
+    把 `if attempt_no < MAX_TRIES: raise Retry(...)` 整个删掉、
+    改成无条件抛 `Retry`，**这些断言一条都不会红** —— 而后果正是
+    bug-168 修复时要防的那个：ARQ 无限重入，任务永远拿不到终态，
+    行停在中间态，前端无限轮询。
+
+    换成「原始异常」那侧同样需要钉住：若最后一次也抛 `Retry`，
+    ARQ 会认为任务还该重试，`max_tries` 到顶后行为就不是我们设计的了。
+
+    所以这条断言的是**类型本身**，并且显式排除另一种。
+    """
+    from arq import Retry
+
+    from app.services.report import report_service
+    from app.workers.worker import MAX_TRIES
+
+    async def boom(*a, **k):
+        raise RuntimeError("渲染炸了")
+
+    monkeypatch.setattr(report_service, "generate", boom)
+
+    def _call(try_no):
+        return generate_report_task(
+            _job_ctx(db, job_try=try_no), report_type="EQUIPMENT_LIST",
+            project_id=str(project_id), record_ids=[],
+            output_format="pdf", style_json={}, ctx_vars=CTX_VARS)
+
+    # 还有次数 -> 必须是 Retry，否则 ARQ 不会重试（bug-168）
+    with pytest.raises(Retry):
+        await _call(1)
+
+    # 次数用尽 -> 必须是原始 RuntimeError，且**不能**是 Retry
+    with pytest.raises(RuntimeError) as ei:
+        await _call(MAX_TRIES)
+    assert not isinstance(ei.value, Retry), (
+        "最后一次尝试抛了 Retry —— ARQ 会当成还能重试，"
+        "任务拿不到终态")
+    assert "渲染炸了" in str(ei.value), "终态异常应当是原始的那个，不是包装过的"
 
 
 @pytest.mark.asyncio
@@ -308,6 +351,72 @@ async def test_stale_pending_task_is_reclaimed(db, project_id):
     assert n == 1
     assert stale.status == "FAILED"
     assert stale.error_message
+
+
+@pytest.mark.asyncio
+async def test_cron_reclaim_commits_so_the_state_survives_its_own_session(tmp_path):
+    """回收必须**提交** —— cron 入口开的是**自己的** session。
+
+    ⚠️ 这条测试用**文件库**而不是默认的 `sqlite+aiosqlite:///:memory:`。
+    原因实测过（`StaticPool`）：
+
+        会话 A execute(insert) 不提交
+        会话 B select  ->  **读到那 1 行**
+
+    `:memory:` + aiosqlite 的默认池是 `StaticPool`，**所有 session 共享同一条
+    连接**，于是「另一个 session 读」根本不是另一个连接 —— 它读的就是 A
+    自己没提交的数据。**替身比被测物更宽容**：把 `await db.flush()` 换成
+    一行注释，这条测试照样绿。
+
+    这不是本条测试的私事：本文件里那条
+    `test_failure_state_is_committed_not_just_left_in_the_session`
+    （2026-10-13 加，docstring 明写「必须用另一个 session 读」）用的是同一个
+    fixture，所以**它也没有真正证明 commit**。文件库是当前唯一能让
+    「未提交」真正被观测到的办法。
+
+    生产形态照搬：ctx 只给 factory，session 由被测代码自己开、自己关。
+    """
+    import uuid as _uuid
+
+    from sqlalchemy import select
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.db.base import Base as _SA_Base
+    from app.models.report import ReportFile
+    from app.workers.report_tasks import reclaim_stale_report_tasks
+
+    # 事件监听（gen_random_uuid 等）与 conftest 相同，否则建表/插入会炸
+    engine = create_async_engine(f"sqlite+aiosqlite:///{tmp_path}/reclaim.db")
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(_SA_Base.metadata.create_all)
+
+        maker = async_sessionmaker(engine, expire_on_commit=False)
+        # 种子：一条僵死 PENDING，**先提交**
+        async with maker() as seed:
+            seed.add(ReportFile(
+                project_id=_uuid.uuid4(),
+                content_hash=f"{PENDING_HASH_PREFIX}commit-probe",
+                file_path="pending", file_format="pdf", size_bytes=0,
+                status="PENDING",
+                heartbeat_at=dt.datetime.now(dt.UTC) - dt.timedelta(minutes=30),
+            ))
+            await seed.commit()
+
+        # 被测代码自己开 session、自己关
+        await reclaim_stale_report_tasks({"session_factory": maker})
+
+        # 观测：另一个连接
+        async with maker() as other:
+            rows = (await other.execute(select(ReportFile))).scalars().all()
+        assert [r.status for r in rows] == ["FAILED"], (
+            f"回收后另一个**连接**读到 {[r.status for r in rows]} —— "
+            "cron 的回收没有提交，session 一关就全部回滚。"
+            "结果是整个僵死回收机制静默失效：ARQ 进程被 kill 之后任务永远"
+            "停在 PENDING，前端无限轮询且无人知道。")
+        assert rows[0].error_message
+    finally:
+        await engine.dispose()
 
 
 @pytest.mark.asyncio

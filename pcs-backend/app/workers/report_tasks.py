@@ -247,6 +247,17 @@ async def reclaim_stale_tasks(db: AsyncSession, *, older_than_minutes: int = STA
                     "task_id": str(r.content_hash).removeprefix(PENDING_HASH_PREFIX)},
         )
     await db.flush()
+    # ⚠️ **必须 commit**，不是 flush（2026-10-14 修，评审 P0）。
+    # cron 入口 `reclaim_stale_report_tasks` 开的是**自己的** session，
+    # 用完就 close —— 未提交的改判在 close 时全部回滚，于是每一次回收都
+    # 静默失效：ARQ 进程被 kill 之后任务永远停在 PENDING。
+    #
+    # 为什么单测一路绿灯：回收测试把测试自己的 session 直接传进来，
+    # flush 之后同一个 session 当然读得到自己没提交的数据；
+    # 而 `sqlite+aiosqlite:///:memory:` 的池是 `StaticPool` ——
+    # **所有 session 共享同一条连接**，所以连「开第二个 session 读」
+    # 也观测不到。见 test_cron_reclaim_commits_so_the_state_survives_its_own_session。
+    await db.commit()
     logger.warning("回收僵死报表任务 %d 个", len(rows))
     return len(rows)
 
@@ -305,6 +316,8 @@ async def reclaim_stale_execution_logs(
                     "def_id": str(row.def_id)},
         )
     await db.flush()
+    # ⚠️ 同上：必须 commit。见 `reclaim_stale_tasks` 里那段注释。
+    await db.commit()
     return len(rows)
 
 
@@ -321,11 +334,20 @@ async def reclaim_stale_report_tasks(ctx) -> None:
     后者把它彻底遮住了。
     """
     db: AsyncSession = _ctx_session(ctx)
-    await reclaim_stale_tasks(db, older_than_minutes=STALE_MINUTES)
-    # 自定义定义那条路的执行日志也要回收（TODO-064）。此前只有 report_files
-    # 侧有回收器，而日志行在 bug-167 修复后从「worker 跑才有」变成
-    # 「入队就有」—— 于是「worker 全挂」第一次变成了可观测的永久挂起。
-    await reclaim_stale_execution_logs(db, older_than_minutes=STALE_MINUTES)
+    try:
+        await reclaim_stale_tasks(db, older_than_minutes=STALE_MINUTES)
+        # 自定义定义那条路的执行日志也要回收（TODO-064）。此前只有 report_files
+        # 侧有回收器，而日志行在 bug-167 修复后从「worker 跑才有」变成
+        # 「入队就有」—— 于是「worker 全挂」第一次变成了可观测的永久挂起。
+        await reclaim_stale_execution_logs(db, older_than_minutes=STALE_MINUTES)
+    finally:
+        # ⚠️ 关掉（2026-10-14 修，评审 P0）。这里开的是**独立** session，
+        # 没人负责关 —— 每跑一次 cron 泄漏一条连接，直到进程退出才归还。
+        # cron 每小时跑两次（:03/:33），所以「偶尔」是对的，实际是每天 48 次。
+        #
+        # 用 `try/finally` 而不是靠两个回收器都成功：第二个抛异常时
+        # 第一个已经 commit，落库的是已完成的那一半。
+        await db.close()
 
 
 def _ctx_session(ctx) -> AsyncSession:

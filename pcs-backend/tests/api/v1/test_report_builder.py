@@ -1355,6 +1355,56 @@ async def test_worker_updates_the_queued_log_row_instead_of_adding_a_second(
     assert row.report_file_id is not None
 
 
+@pytest.mark.asyncio
+async def test_successful_builder_execution_marks_the_log_row_FINISHED(
+        client, fake_queue, db_session):
+    """成功执行必须把行标成 **FINISHED**，不能停在 RUNNING。
+
+    ⚠️ 这不是「状态显示得好看」的问题，是**回收器会吃掉它**：
+    `reclaim_stale_execution_logs` 扫的是 `status IN ('QUEUED','RUNNING')`
+    且超时 15 分钟的行。停在 RUNNING 上 ⇒ 一次**已经出了文件**的成功执行，
+    15 分钟后被改判 FAILED，并在 `condition_snapshot` 里写下 `reclaimed_at`
+    —— 而那是模块自己声明为审计表、不容篡改的表。
+    轮询端点于是对一个真有文件的任务报失败。
+
+    （此前这个改判被回收器不 commit 掩盖着，所以损坏没落库。
+    回收器的 commit 修好之后，这条就从「潜伏」变成「活跃」。两处必须同批落地。）
+
+    观测点用同一个 session 就够：要验的是「有没有赋这个值」，
+    不是「有没有提交」—— 后者由 test_report_tasks.py 里那条
+    文件库测试负责（`:memory:` 的 StaticPool 让第二个 session
+    根本不是第二个连接）。
+    """
+    from sqlalchemy import select
+
+    from app.models.report import ReportExecutionLog
+    from app.workers import report_builder_tasks as tasks
+    from tests.fixtures.report.seed import make_report_seed
+
+    proj = await _make_project(db_session)
+    d = await _make(client, "author-1", project_id=str(proj.project_id),
+                    definition_json=DEF_JSON_EQUIP)
+    await client.post(PUBLISH.format(d=d["def_id"]), headers=_auth("rev", "REVIEWER"))
+    await make_report_seed(db_session, proj.project_id, "EQUIPMENT_LIST")
+
+    r = await client.post(EXEC.format(d=d["def_id"]), headers=_auth("author-1"))
+    task_id = r.json()["task_id"]
+
+    await tasks.execute_definition_task(
+        {"session_factory": lambda: db_session, "job_id": task_id, "job_try": 1},
+        def_id=d["def_id"], project_id=str(proj.project_id),
+        user_id=None, output_format="csv")
+    await db_session.commit()
+
+    row = (await db_session.execute(
+        select(ReportExecutionLog).where(ReportExecutionLog.task_id == task_id)
+    )).scalar_one()
+    assert row.status == "FINISHED", (
+        f"成功执行后 status={row.status!r} —— 停在 RUNNING 上，"
+        "15 分钟后会被回收器当成僵死的改判成 FAILED。"
+        "全 app/ 只有这里该写 FINISHED 却没写。")
+
+
 # --- TODO-016：builder 任务体的失败路径 -----------------------------------------
 
 
@@ -1370,10 +1420,10 @@ async def test_builder_failure_writes_one_audit_row_per_attempt(
     ⚠️ 一条断言都不加就会绿：原先这条路径上没有任何「失败会怎样」的测试，
     而任务体里那两行（写审计、标状态）任何一行被删掉都无人察觉。
     """
-    from sqlalchemy import func, select
+    from sqlalchemy import select
 
-    from app.models.system import AuditLog
     from app.models.enums import AuditAction
+    from app.models.system import AuditLog
     from app.services.report import builder_service
     from app.workers import report_builder_tasks as tasks
 
