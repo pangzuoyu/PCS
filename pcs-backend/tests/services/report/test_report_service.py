@@ -15,6 +15,9 @@
 """
 from __future__ import annotations
 
+import datetime as dt
+import uuid
+
 import pytest
 from sqlalchemy import func, select
 
@@ -28,6 +31,13 @@ from app.services.report.style import ReportStyle
 
 CTX = {"project_no": "PCS-2026-001", "doc_no": "D-001", "rev": "A"}
 
+#: 签名的 `exp` 是**有意**随时间变的（防二维码被截图转发），所以「载荷确定性」
+#: 这几条测试必须钉住 `now` 才能断言相等。确定性真正要求的是 **fragment** ——
+#: 那部分是要画进 PDF 的凭据。另有专门一条断言两者之别。
+FIXED_NOW = dt.datetime(2026, 1, 1, tzinfo=dt.UTC)
+QRID = uuid.UUID("11111111-2222-3333-4444-555555555555")
+SIGKW = dict(report_file_id=QRID, secret="s", now=FIXED_NOW)
+
 
 def test_qr_payload_is_deterministic():
     """**根断言**：同一组输入两次必须得到**完全相同**的载荷字符串。
@@ -36,31 +46,31 @@ def test_qr_payload_is_deterministic():
     直接失效，而且失效得很隐蔽（哈希机制照常工作，只是永远命中不了）。
     """
     kw = dict(report_id="r-1", doc_no="D-001", rev="A", version_purpose="FOR_REVIEW",
-              record_hashes=["h1", "h2"], verify_base_url="https://pcs.example")
+              record_hashes=["h1", "h2"], verify_base_url="https://pcs.example", **SIGKW)
     assert build_qr_payload(**kw) == build_qr_payload(**kw)
 
 
 def test_qr_payload_order_independent_on_record_hashes():
     """记录顺序不同不应改变摘要 —— 同批记录换个顺序还是同一份报表。"""
     a = build_qr_payload(report_id="r", doc_no="D", rev="A", version_purpose="P",
-                         record_hashes=["h2", "h1"], verify_base_url="https://x")
+                         record_hashes=["h2", "h1"], verify_base_url="https://x", **SIGKW)
     b = build_qr_payload(report_id="r", doc_no="D", rev="A", version_purpose="P",
-                         record_hashes=["h1", "h2"], verify_base_url="https://x")
+                         record_hashes=["h1", "h2"], verify_base_url="https://x", **SIGKW)
     assert a == b
 
 
 def test_qr_payload_digest_changes_with_records():
     """记录变了摘要必须变 —— 这是「比对」能发现文件被动过的依据。"""
     a = build_qr_payload(report_id="r", doc_no="D", rev="A", version_purpose="P",
-                         record_hashes=["h1"], verify_base_url="https://x")
+                         record_hashes=["h1"], verify_base_url="https://x", **SIGKW)
     b = build_qr_payload(report_id="r", doc_no="D", rev="A", version_purpose="P",
-                         record_hashes=["h2"], verify_base_url="https://x")
+                         record_hashes=["h2"], verify_base_url="https://x", **SIGKW)
     assert a != b
 
 
 def test_qr_payload_points_at_verify_endpoint():
     p = build_qr_payload(report_id="r-42", doc_no="D", rev="A", version_purpose="P",
-                         record_hashes=[], verify_base_url="https://pcs.example/")
+                         record_hashes=[], verify_base_url="https://pcs.example/", **SIGKW)
     assert p.startswith("https://pcs.example/api/v1/report/verify/r-42")
 
 
@@ -213,3 +223,50 @@ def test_content_hash_ignores_font_dir():
                          output_format="pdf") == \
         _content_hash(blocks=blocks, style=ReportStyle(font_dir="/some/other/dir"),
                       ctx=CTX, output_format="pdf")
+
+
+@pytest.mark.asyncio
+async def test_the_qr_drawn_into_the_pdf_verifies_against_the_stored_row(
+        db, project_id, tmp_path, monkeypatch):
+    """**端到端**：画进 PDF 的那个二维码，必须能用**落库那一行**的 id 验签通过。
+
+    这是 #4 的全部要害。`qr_payload` 与 `report_file_id` 在两条独立的路径上
+    产生 —— 一个在渲染前，一个在 upsert 时。若两边不同源，画进 PDF 的签名
+    绑的是 A、登记的是 B，**每一张**报表的二维码扫码都 403，而生成过程
+    全程无报错（PDF 里画一个字符串总是成功的）。
+
+    评审建议的修法（把 `store_rendered` 重排成「先 upsert 再签名」）不采纳：
+    它担心签名的时间戳污染 `_content_hash`，而 `_content_hash` 哈希的是
+    Blocks + style + format + ctx，**qr_payload 根本不在里面**。
+    这里用「渲染前自选 id」达到同样结果，且不动既有顺序。
+    """
+    from urllib.parse import parse_qs, urlsplit
+
+    from app.api.v1.report import _check_sig
+    from app.core.config import get_settings
+    from app.services.report import report_service
+
+    monkeypatch.setattr(get_settings(), "report_verify_secret", "e2e-secret",
+                        raising=False)
+    monkeypatch.setattr(get_settings(), "report_verify_base_url",
+                        "https://pcs.example", raising=False)
+
+    seen: dict = {}
+    real = report_service._render_sync
+
+    def spy(**kw):
+        seen["qr"] = kw.get("qr_payload")
+        return real(**kw)
+
+    monkeypatch.setattr(report_service, "_render_sync", spy)
+
+    row = await generate(
+        report_type="EQUIPMENT_LIST", project_id=project_id, record_ids=[],
+        output_format="pdf", style=ReportStyle(), ctx=CTX, db=db)
+
+    assert seen.get("qr"), (
+        "渲染时 qr_payload 是 None —— 二维码根本没画进 PDF，"
+        "而流程全程无报错（这正是评审 P1 #4 描述的症状）")
+    parts = urlsplit(seen["qr"])
+    qs = {k: v[0] for k, v in parse_qs(parts.query).items()}
+    _check_sig(row.report_file_id, qs["sig"], int(qs["exp"]))

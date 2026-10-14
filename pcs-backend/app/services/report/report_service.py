@@ -34,6 +34,7 @@ from sqlalchemy import and_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import get_settings
 from app.models.report import ReportFile
 from app.services.audit_service import AuditService
 from app.services.exceptions import PcsError
@@ -285,17 +286,23 @@ def _assumed_fields(rows: list[dict]) -> list[str]:
 
 def _render_sync(*, blocks: list[Block], style: ReportStyle,
                  output_format: str, ctx: dict,
-                 title: str = "报表") -> bytes:
+                 title: str = "报表",
+                 qr_payload: str | None = None) -> bytes:
     """**同步**渲染。ReportLab/XlsxWriter/python-docx 都是同步 CPU 密集操作。
 
     调用方**必须**走 `await asyncio.to_thread(report_service._render_sync, ...)`。
     ⚠️ 必须写成 `report_service._render_sync` 的**属性查找**形式 —— 若在模块
     顶层 `from .report_service import _render_sync` 绑定引用，monkeypatch
     改不到，测试就成了假绿（与 bug-150 同族）。
+
+    ⚠️ `qr_payload` **不是** `None` 写死了（2026-10-14 修，评审 P1 #4）。
+    原先这里恒传 `None`，于是 `renderer_pdf` 里 `if qr_payload:` 在生产路径
+    永远为假、`build_qr_payload` 零调用者，而 `_check_sig` 要求 sig+exp 齐备
+    —— 印在报表上的二维码**每一次扫码都 403**。功能看起来齐全，没有任何一层报错。
     """
     if output_format == "pdf":
         return render_pdf(title=title, blocks=blocks, style=style,
-                          qr_payload=None, assumed_fields=[], context=ctx)
+                          qr_payload=qr_payload, assumed_fields=[], context=ctx)
     if output_format == "docx":
         return render_docx(title=title, blocks=blocks, style=style, context=ctx)
     if output_format == "csv":
@@ -445,6 +452,25 @@ async def store_rendered(db: AsyncSession, *, blocks: list, project_id,
     assumed_fields = assumed_fields or []
     report_type = title
 
+    # ⚠️ **先自选 report_file_id，再渲染**（2026-10-14 修，评审 P1 #4）。
+    # 二维码签名要绑定 id，而 id 是主键、要等 upsert 才知道 —— 但渲染发生在
+    # upsert 之前。所以这里自选一个，并保证**同一个 id** 一路传下去：
+    # 签名用它、落库用它。
+    #
+    # 评审建议的替代方案（把顺序改成「先 upsert PENDING 行 → 用它的 id 签名
+    # → 渲染 → 落盘」）**不需要**：它担心签名的时间戳会污染 `_content_hash`，
+    # 而 `_content_hash` 哈希的是 Blocks + style + format + ctx，
+    # **qr_payload 根本不在里面**（见该函数 docstring：刻意不对渲染字节取哈希）。
+    #
+    # 去重命中时：签名用的是新自选的 id，而落盘/返回的是既有那一行 ——
+    # 刚渲染出来的字节被丢弃，磁盘上留下的旧文件里的二维码签的是它自己的 id。
+    # 自洽。代价是「修复前生成的旧文件里没有二维码」，它们不会被重新渲染。
+    new_file_id = uuid.uuid4()
+    qr_payload = _build_qr_payload_for(
+        report_file_id=new_file_id, title=report_type, ctx=ctx,
+        record_hashes=(audit_detail or {}).get("record_hashes") or [],
+        output_format=output_format)
+
     try:
         payload = await asyncio.to_thread(
             # ⚠️ 必须是**属性查找**：写成 `_render_sync` 裸名会把当前时刻的
@@ -453,7 +479,7 @@ async def store_rendered(db: AsyncSession, *, blocks: list, project_id,
             # 属性查找在调用时才发生。
             sys.modules[__name__]._render_sync,
             blocks=blocks, style=style, output_format=output_format, ctx=ctx,
-            title=title,
+            title=title, qr_payload=qr_payload,
         )
     except Exception as e:
         await audit.write(action="REPORT_FAILED", resource_type="report",
@@ -484,7 +510,8 @@ async def store_rendered(db: AsyncSession, *, blocks: list, project_id,
     row = await _upsert_report_file(
         db, project_id=project_id, content_hash=digest, relpath=relpath,
         size=len(payload), fmt=output_format,
-        has_assumption=bool(assumed_fields))
+        has_assumption=bool(assumed_fields),
+        report_file_id=new_file_id)
 
     try:
         await audit.write(action="REPORT_GENERATED", resource_type="report",
@@ -500,8 +527,63 @@ async def store_rendered(db: AsyncSession, *, blocks: list, project_id,
     return row
 
 
+def _build_qr_payload_for(*, report_file_id: uuid.UUID, title: str, ctx: dict,
+                          record_hashes: list[str],
+                          output_format: str) -> str | None:
+    """给 PDF 用的二维码载荷；**不该出现时返回 None**（不印空壳）。
+
+    返回 None 的三种情况：
+
+    - **没有配签名密钥** —— 与 `/report/verify` 的 fail-closed 对齐：
+      签不出来就不印，而不是印一个注定 403 的。
+    - **没配对外基址** —— 印一个扫不通的二维码比不印更糟：用户看到
+      「有二维码」就会去扫，扫不开只会以为文件有问题。
+    - **不是 PDF** —— docx/xlsx 的渲染器不接受 `qr_payload`。
+
+    ## ⚠️ `record_hashes` 为空**照样**印（2026-10-14，评审 P1 #4 的连带发现）
+
+    `build_qr_payload` 的旧 docstring 说「记录哈希为空就不加二维码，
+    因为没有可比对的凭据」。**那条规则已经与实际实现脱节**：
+
+    - `/report/verify`（用户 2026-10-08 裁决：「比对」的主语是**系统**）
+      验签之后做的是**文件完整性校验** —— 重算磁盘文件的 sha256，与
+      登记时的 `content_hash` 比。**它从头到尾没读过 `record_hash_digest`。**
+    - 而 `_record_hashes` 从 `row["record_hash"]` 取值，可 `record_hash`
+      **没有登记进 datasource_registry**（grep 命中 0）⇒ 10 类报表的
+      `record_hashes` 恒为空。
+
+    照旧规则执行的结果是：**二维码一次都不会出现** —— 那等于把 #4
+    修成了一个「正确地什么都不做」。
+
+    所以真正让核验成立的是**签名 + report_file_id**，两者恒在；
+    fragment 里的 `record_hash_digest` 是给人看的凭据，为空时它就是
+    `sha256('')`，如实反映「本报表没有逐记录凭据」。
+    """
+    secret = get_settings().report_verify_secret
+    base_url = get_settings().report_verify_base_url
+    if not secret or not base_url or output_format != "pdf":
+        return None
+    from app.services.report import qr
+
+    return qr.build_qr_payload(
+        report_id=str(report_file_id),
+        doc_no=str(ctx.get("doc_no") or ""),
+        rev=str(ctx.get("rev") or ""),
+        version_purpose=title,
+        record_hashes=record_hashes,
+        verify_base_url=base_url,
+        report_file_id=report_file_id, secret=secret)
+
+
 async def _upsert_report_file(db: AsyncSession, **kw) -> ReportFile:
-    """按 content_hash upsert —— 同内容复用同一行（SPEC §2.5）。"""
+    """按 content_hash upsert —— 同内容复用同一行（SPEC §2.5）。
+
+    ⚠️ `report_file_id` 由调用方**预先自选**并传进来（2026-10-14），
+    因为二维码签名要绑定它，而签名必须在渲染前就定下来。
+    这里新建行时用它，而不是让 ORM 现生成一个 ——
+    否则画进 PDF 的二维码签的是 A、登记的是 B，扫出来必然 403。
+    命中既有行时忽略它（走的是那一行自己的 id，其自洽）。
+    """
     existing = (await db.execute(
         select(ReportFile).where(ReportFile.content_hash == kw["content_hash"])
     )).scalar_one_or_none()
@@ -509,6 +591,7 @@ async def _upsert_report_file(db: AsyncSession, **kw) -> ReportFile:
         return existing
 
     row = ReportFile(
+        report_file_id=kw["report_file_id"],
         project_id=kw["project_id"], content_hash=kw["content_hash"],
         file_path=kw["relpath"], file_format=kw["fmt"],
         size_bytes=kw["size"], status="SUCCEEDED",

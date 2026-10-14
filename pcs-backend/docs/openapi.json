@@ -29949,7 +29949,7 @@
           },
           "MaxRows": {
             "type": "integer",
-            "maximum": 100000.0,
+            "maximum": 10000.0,
             "minimum": 1.0,
             "title": "Maxrows",
             "default": 10000
@@ -30013,7 +30013,7 @@
           },
           "MaxRows": {
             "type": "integer",
-            "maximum": 100000.0,
+            "maximum": 10000.0,
             "minimum": 1.0,
             "title": "Maxrows",
             "default": 10000
@@ -30211,7 +30211,7 @@
           },
           "max_rows": {
             "type": "integer",
-            "maximum": 100000.0,
+            "maximum": 10000.0,
             "minimum": 1.0,
             "title": "Max Rows",
             "default": 10000
@@ -30276,7 +30276,7 @@
             "anyOf": [
               {
                 "type": "integer",
-                "maximum": 100000.0,
+                "maximum": 10000.0,
                 "minimum": 1.0
               },
               {

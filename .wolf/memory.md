@@ -1611,3 +1611,12 @@
 | 10:17 | Edited TODOS.md | inline fix | ~18 |
 | 10:17 | Edited TODOS.md | expanded (+10 lines) | ~432 |
 | 10:17 | Edited TODOS.md | expanded (+32 lines) | ~293 |
+| 10:26 | Edited pcs-backend/app/services/report/qr.py | modified sign() | ~679 |
+| 10:26 | Edited pcs-backend/app/api/v1/report.py | modified compare_digest() | ~54 |
+| 10:27 | Edited pcs-backend/app/services/report/report_service.py | modified _render_sync() | ~297 |
+| 10:27 | Edited pcs-backend/app/services/report/report_service.py | expanded (+18 lines) | ~363 |
+| 10:27 | Edited pcs-backend/app/services/report/report_service.py | 4→5 lines | ~68 |
+| 10:27 | Edited pcs-backend/app/services/report/report_service.py | modified _upsert_report_file() | ~234 |
+| 10:27 | Edited pcs-backend/app/services/report/report_service.py | modified _build_qr_payload_for() | ~320 |
+| 10:27 | Edited pcs-backend/app/core/config.py | expanded (+6 lines) | ~96 |
+| 10:32 | Edited pcs-backend/app/services/report/report_service.py | expanded (+13 lines) | ~324 |

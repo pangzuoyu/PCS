@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-14T02:17:51.953Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-14T02:32:03.461Z
 > Files: 795 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -1115,7 +1115,7 @@
 - `pump.py` — P4-4-4 PUMP 链 API。 (~2574 tok)
 - `records.py` — Records API（Sprint 2）。 (~3276 tok)
 - `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~3818 tok)
-- `report.py` — `/api/v1/report` 路由。 (~3993 tok)
+- `report.py` — `/api/v1/report` 路由。 (~4709 tok)
 - `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1773 tok)
 - `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~4193 tok)
 - `stream_symbols.py` — 物流符号表端点（SYM-3 / SUP-002 §8）。 (~4194 tok)
@@ -1125,7 +1125,7 @@
 
 ## pcs-backend/app/core/
 
-- `config.py` — 应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。 (~2238 tok)
+- `config.py` — 应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。 (~2366 tok)
 - `errors.py` — FastAPI 全局异常处理器 + 统一 PcsError 信封。 (~2419 tok)
 - `security.py` — JWT 编解码 + 密码哈希 + JTI 吊销。HS256，密钥由 Settings.secret_key 提供。 (~1249 tok)
 
@@ -1179,12 +1179,12 @@
 - `definition_service.py` — 报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。 (~3781 tok)
 - `detail_level.py` — detail_level 分级（ADR-0028「detail_level 选择」）。 (~785 tok)
 - `paths.py` — 报表文件路径解析 —— **唯一**拼路径的地方。 (~414 tok)
-- `qr.py` — 二维码内容组装 —— SPEC §3.2.1(3)。 (~393 tok)
+- `qr.py` — 二维码内容组装 —— SPEC §3.2.1(3)。 (~822 tok)
 - `query_engine.py` — 取数引擎 —— 过滤/排序/字段选择/NULL 处理的**唯一实现**。 (~3347 tok)
 - `renderer_docx.py` — DOCX 渲染器 —— python-docx 直接构建。 (~1533 tok)
 - `renderer_pdf.py` — PDF 渲染器 —— ReportLab Platypus 直接生成。 (~3712 tok)
 - `renderer_xlsx.py` — XLSX 渲染器 —— XlsxWriter 流式写入。 (~1142 tok)
-- `report_service.py` — 报表生成编排 —— 取数 → 渲染 → 落盘 → 记 `ReportFile` → 审计。 (~5558 tok)
+- `report_service.py` — 报表生成编排 —— 取数 → 渲染 → 落盘 → 记 `ReportFile` → 审计。 (~6440 tok)
 - `style_service.py` — c6：样式写入 —— 版本化 + 回滚 + 两档权限（用户 2026-10-13 裁决）。 (~2574 tok)
 - `style.py` — 报表样式配置 —— ADR-P8-001：样式驱动生成，替代 .dotx/.xltx 模板。 (~1176 tok)
 - `watermark.py` — 导出水印与格式分发（P8b b8）。 (~1301 tok)

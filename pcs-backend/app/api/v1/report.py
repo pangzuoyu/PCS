@@ -59,7 +59,7 @@ from app.schemas.report import (
 )
 from app.services.audit_service import AuditService
 from app.services.exceptions import PcsError
-from app.services.report import paths
+from app.services.report import paths, qr
 from app.services.report.style import ReportStyle
 from app.services.report.style_service import (
     StyleConflict,
@@ -104,8 +104,7 @@ def _check_sig(report_file_id: uuid.UUID, sig: str, exp: int) -> None:
         raise HTTPException(status_code=403, detail="verify 未配置签名密钥")
     if exp < int(dt.datetime.now(dt.UTC).timestamp()):
         raise HTTPException(status_code=403, detail="签名已过期")
-    expect = hmac.new(secret.encode(), f"{report_file_id}:{exp}".encode(),
-                      hashlib.sha256).hexdigest()
+    expect = qr.sign(report_file_id=report_file_id, exp=exp, secret=secret)
     if not hmac.compare_digest(expect, sig or ""):
         raise HTTPException(status_code=403, detail="签名无效")
 

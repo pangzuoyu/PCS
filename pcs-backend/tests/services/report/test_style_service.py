@@ -58,8 +58,8 @@ from sqlalchemy import select
 from app.models.report import ReportStyleRow
 from app.services.report.style_service import (
     STYLE_STATUSES,
-    StyleService,
     StylePermissionError,
+    StyleService,
 )
 
 pytestmark = pytest.mark.asyncio

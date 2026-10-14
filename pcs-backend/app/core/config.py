@@ -79,6 +79,12 @@ class Settings(BaseSettings):
     report_verify_secret: str | None = None
     # verify 端点限流：次/分钟/IP。免登录端点无限流等于开放暴力枚举。
     report_verify_rate_limit: int = 30
+    # 二维码里印的对外基址（扫码那一侧要能真的访问到）。
+    # ⚠️ 必须与用户实际访问的入口一致 —— 写错的话二维码印得出来、扫不通，
+    # 而生产上不会有任何报错（PDF 里画一个字符串总是成功的）。
+    # 留空时 `_build_qr_payload_for` 返回 None：**宁可不印二维码**，
+    # 也不要印一个注定扫不通的（这与本仓对签名密钥的 fail-closed 同一取向）。
+    report_verify_base_url: str = ""
 
     # === 演示版（SUP-006）===
     # 演示版**配置驱动**：它是部署形态，不是运行期开关。开启后：

@@ -124,7 +124,6 @@ async def test_generation_task_builds_style_from_layers(session, monkeypatch):
     `report_builder_tasks.py` 传的是 `ReportStyle()`，
     于是 ADR-0028 的 DETAIL 横向从来没出现在任何一份 PDF 上。
     """
-    import app.services.report.style_service as ssvc
 
     svc = StyleService(session)
     # 作用域用**主数据源名**（不是自造的 "CUSTOM"）—— 与 `_build_style`

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-14T02:17:51.953Z",
+    "lastScanned": "2026-10-14T02:32:03.461Z",
     "fileCount": 795,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "b3a040c53f09deb946fd9a431b2cc38ea98ba4d92bda60d7128d152e7486206e",
-    "storeUpdatedAt": "2026-10-14T02:17:51.963Z",
-    "rootHash": "e547838084ae25a7"
+    "renderedHash": "4d60c1467b19a60133aefe5f1fce060acf2dbaf94f6ef04f284f58f9983ceb69",
+    "storeUpdatedAt": "2026-10-14T02:32:03.471Z",
+    "rootHash": "d938c1ef1f0e741a"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12459,46 +12459,46 @@
     },
     "pcs-backend/app/core/config.py": {
       "description": "应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。",
-      "tokens": 2238,
-      "hash": "8d17f7175aa9d7e5",
-      "size": 10646,
-      "mtimeMs": 1791774646494.9436,
-      "updatedAt": "2026-10-12T03:10:46.540Z",
+      "tokens": 2366,
+      "hash": "0e68cde75261c1d2",
+      "size": 11512,
+      "mtimeMs": 1791944871581.3652,
+      "updatedAt": "2026-10-14T02:27:51.636Z",
       "source": "hook",
       "symbols": [
         {
           "name": "Settings",
           "kind": "class",
           "startLine": 25,
-          "endLine": 93,
-          "tokens": 814
+          "endLine": 106,
+          "tokens": 941
         },
         {
           "name": "get_settings",
           "kind": "fn",
-          "startLine": 94,
-          "endLine": 178,
+          "startLine": 107,
+          "endLine": 191,
           "tokens": 813
         },
         {
           "name": "assert_secret_key_configured",
           "kind": "fn",
-          "startLine": 179,
-          "endLine": 188,
+          "startLine": 192,
+          "endLine": 201,
           "tokens": 69
         },
         {
           "name": "parse_cors_origins",
           "kind": "fn",
-          "startLine": 189,
-          "endLine": 196,
+          "startLine": 202,
+          "endLine": 209,
           "tokens": 67
         },
         {
           "name": "validate_cors_for_production",
           "kind": "fn",
-          "startLine": 197,
-          "endLine": 224,
+          "startLine": 210,
+          "endLine": 237,
           "tokens": 246
         }
       ]
@@ -23135,12 +23135,28 @@
     },
     "pcs-backend/app/services/report/qr.py": {
       "description": "二维码内容组装 —— SPEC §3.2.1(3)。",
-      "tokens": 393,
-      "hash": "4944c27181054257",
-      "size": 2065,
-      "mtimeMs": 1791769488264.3855,
-      "updatedAt": "2026-10-12T01:44:48.322Z",
-      "source": "hook"
+      "tokens": 822,
+      "hash": "9cb7b61642656c5b",
+      "size": 4419,
+      "mtimeMs": 1791944801864.1096,
+      "updatedAt": "2026-10-14T02:26:41.914Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "sign",
+          "kind": "fn",
+          "startLine": 32,
+          "endLine": 49,
+          "tokens": 172
+        },
+        {
+          "name": "build_qr_payload",
+          "kind": "fn",
+          "startLine": 50,
+          "endLine": 92,
+          "tokens": 450
+        }
+      ]
     },
     "pcs-backend/app/services/report/paths.py": {
       "description": "报表文件路径解析 —— **唯一**拼路径的地方。",
@@ -23153,124 +23169,131 @@
     },
     "pcs-backend/app/services/report/report_service.py": {
       "description": "报表生成编排 —— 取数 → 渲染 → 落盘 → 记 `ReportFile` → 审计。",
-      "tokens": 5558,
-      "hash": "5b6a8a606377f802",
-      "size": 25373,
-      "mtimeMs": 1791937009732.7183,
-      "updatedAt": "2026-10-14T00:16:49.784Z",
+      "tokens": 6440,
+      "hash": "82bbda4bc5824479",
+      "size": 30080,
+      "mtimeMs": 1791945123395.474,
+      "updatedAt": "2026-10-14T02:32:03.461Z",
       "source": "hook",
       "symbols": [
         {
           "name": "collect",
           "kind": "fn",
-          "startLine": 75,
-          "endLine": 114,
+          "startLine": 76,
+          "endLine": 115,
           "tokens": 514
         },
         {
           "name": "_to_blocks",
           "kind": "fn",
-          "startLine": 115,
-          "endLine": 138,
+          "startLine": 116,
+          "endLine": 139,
           "tokens": 254
         },
         {
           "name": "_scope_and_records",
           "kind": "fn",
-          "startLine": 139,
-          "endLine": 189,
+          "startLine": 140,
+          "endLine": 190,
           "tokens": 509
         },
         {
           "name": "_filter_spec",
           "kind": "fn",
-          "startLine": 190,
-          "endLine": 213,
+          "startLine": 191,
+          "endLine": 214,
           "tokens": 247
         },
         {
           "name": "_fetch_join_rows",
           "kind": "fn",
-          "startLine": 214,
-          "endLine": 257,
+          "startLine": 215,
+          "endLine": 258,
           "tokens": 498
         },
         {
           "name": "_join_column",
           "kind": "fn",
-          "startLine": 258,
-          "endLine": 266,
+          "startLine": 259,
+          "endLine": 267,
           "tokens": 87
         },
         {
           "name": "_record_hashes",
           "kind": "fn",
-          "startLine": 267,
-          "endLine": 271,
+          "startLine": 268,
+          "endLine": 272,
           "tokens": 54
         },
         {
           "name": "_assumed_fields",
           "kind": "fn",
-          "startLine": 272,
-          "endLine": 285,
+          "startLine": 273,
+          "endLine": 286,
           "tokens": 103
         },
         {
           "name": "_render_sync",
           "kind": "fn",
-          "startLine": 286,
-          "endLine": 307,
-          "tokens": 279
+          "startLine": 287,
+          "endLine": 314,
+          "tokens": 362
         },
         {
           "name": "_content_hash",
           "kind": "fn",
-          "startLine": 308,
-          "endLine": 335,
+          "startLine": 315,
+          "endLine": 342,
           "tokens": 296
         },
         {
           "name": "_block_canon",
           "kind": "fn",
-          "startLine": 336,
-          "endLine": 340,
+          "startLine": 343,
+          "endLine": 347,
           "tokens": 37
         },
         {
           "name": "_write_file",
           "kind": "fn",
-          "startLine": 341,
-          "endLine": 361,
+          "startLine": 348,
+          "endLine": 368,
           "tokens": 178
         },
         {
           "name": "ensure_pending_row",
           "kind": "fn",
-          "startLine": 362,
-          "endLine": 409,
+          "startLine": 369,
+          "endLine": 416,
           "tokens": 458
         },
         {
           "name": "generate",
           "kind": "fn",
-          "startLine": 410,
-          "endLine": 426,
+          "startLine": 417,
+          "endLine": 433,
           "tokens": 214
         },
         {
           "name": "store_rendered",
           "kind": "fn",
-          "startLine": 427,
-          "endLine": 502,
-          "tokens": 941
+          "startLine": 434,
+          "endLine": 529,
+          "tokens": 1181
+        },
+        {
+          "name": "_build_qr_payload_for",
+          "kind": "fn",
+          "startLine": 530,
+          "endLine": 577,
+          "tokens": 479
         },
         {
           "name": "_upsert_report_file",
           "kind": "fn",
-          "startLine": 503,
-          "endLine": 529,
-          "tokens": 272
+          "startLine": 578,
+          "endLine": 612,
+          "tokens": 341
         }
       ]
     },
@@ -23859,144 +23882,151 @@
     },
     "pcs-backend/app/api/v1/report.py": {
       "description": "`/api/v1/report` 路由。",
-      "tokens": 3993,
-      "hash": "ed658a6a4b8a86d1",
-      "size": 16931,
-      "mtimeMs": 1791856083965.706,
-      "updatedAt": "2026-10-13T01:48:04.011Z",
+      "tokens": 4709,
+      "hash": "8f3ce97002576788",
+      "size": 20286,
+      "mtimeMs": 1791944805423.179,
+      "updatedAt": "2026-10-14T02:26:45.469Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_client_ip",
           "kind": "fn",
-          "startLine": 74,
-          "endLine": 89,
+          "startLine": 81,
+          "endLine": 96,
           "tokens": 114
         },
         {
           "name": "_check_sig",
           "kind": "fn",
-          "startLine": 90,
-          "endLine": 105,
-          "tokens": 211
+          "startLine": 97,
+          "endLine": 111,
+          "tokens": 197
         },
         {
           "name": "_load_or_404",
           "kind": "fn",
-          "startLine": 106,
-          "endLine": 114,
+          "startLine": 112,
+          "endLine": 120,
           "tokens": 95
         },
         {
           "name": "_guard_project",
           "kind": "fn",
-          "startLine": 115,
-          "endLine": 127,
+          "startLine": 121,
+          "endLine": 133,
           "tokens": 154
         },
         {
           "name": "generate_report",
           "kind": "fn",
-          "startLine": 128,
-          "endLine": 165,
-          "tokens": 457
+          "startLine": 134,
+          "endLine": 210,
+          "tokens": 955
+        },
+        {
+          "name": "_fail_pending",
+          "kind": "fn",
+          "startLine": 211,
+          "endLine": 226,
+          "tokens": 142
         },
         {
           "name": "report_status",
           "kind": "fn",
-          "startLine": 166,
-          "endLine": 175,
+          "startLine": 227,
+          "endLine": 236,
           "tokens": 128
         },
         {
           "name": "download",
           "kind": "fn",
-          "startLine": 176,
-          "endLine": 196,
+          "startLine": 237,
+          "endLine": 257,
           "tokens": 262
         },
         {
           "name": "verify",
           "kind": "fn",
-          "startLine": 197,
-          "endLine": 234,
+          "startLine": 258,
+          "endLine": 295,
           "tokens": 436
         },
         {
           "name": "report_hash",
           "kind": "fn",
-          "startLine": 235,
-          "endLine": 248,
+          "startLine": 296,
+          "endLine": 309,
           "tokens": 170
         },
         {
           "name": "list_styles",
           "kind": "fn",
-          "startLine": 249,
-          "endLine": 268,
+          "startLine": 310,
+          "endLine": 329,
           "tokens": 240
         },
         {
           "name": "get_style",
           "kind": "fn",
-          "startLine": 269,
-          "endLine": 284,
+          "startLine": 330,
+          "endLine": 345,
           "tokens": 174
         },
         {
           "name": "_style_readable",
           "kind": "fn",
-          "startLine": 285,
-          "endLine": 296,
+          "startLine": 346,
+          "endLine": 357,
           "tokens": 97
         },
         {
           "name": "_summary",
           "kind": "fn",
-          "startLine": 297,
-          "endLine": 306,
+          "startLine": 358,
+          "endLine": 367,
           "tokens": 130
         },
         {
           "name": "create_style",
           "kind": "fn",
-          "startLine": 307,
-          "endLine": 316,
-          "tokens": 140
+          "startLine": 368,
+          "endLine": 379,
+          "tokens": 163
         },
         {
           "name": "revise_style",
           "kind": "fn",
-          "startLine": 317,
-          "endLine": 330,
-          "tokens": 159
+          "startLine": 380,
+          "endLine": 395,
+          "tokens": 170
         },
         {
           "name": "activate_style",
           "kind": "fn",
-          "startLine": 331,
-          "endLine": 337,
-          "tokens": 81
+          "startLine": 396,
+          "endLine": 404,
+          "tokens": 91
         },
         {
           "name": "_style_call",
           "kind": "fn",
-          "startLine": 338,
-          "endLine": 356,
+          "startLine": 405,
+          "endLine": 423,
           "tokens": 175
         },
         {
           "name": "_file_intact",
           "kind": "fn",
-          "startLine": 357,
-          "endLine": 371,
+          "startLine": 424,
+          "endLine": 438,
           "tokens": 115
         },
         {
           "name": "_expected_digest",
           "kind": "fn",
-          "startLine": 372,
-          "endLine": 377,
+          "startLine": 439,
+          "endLine": 444,
           "tokens": 46
         }
       ]
