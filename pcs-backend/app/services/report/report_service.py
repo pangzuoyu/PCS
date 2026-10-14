@@ -30,7 +30,7 @@ import sys
 import uuid
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import and_, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -91,7 +91,7 @@ async def collect(*, report_type: str, project_id: uuid.UUID,
     # ColumnElement（布尔表达式），不是 Select，先过滤会得到
     # `'Comparator' object has no attribute 'order_by'`。
     stmt = build_select(spec.primary, main_fields)
-    stmt = stmt.where(apply_filters(_filter_spec(spec, record_ids)))
+    stmt = stmt.where(apply_filters(_scope_and_records(spec, project_id, record_ids)))
     stmt = apply_sort(stmt, main_fields[:1])   # 稳定排序，否则分页会抖动
     stmt = paginate(stmt, limit=_MAX_ROWS)
 
@@ -105,7 +105,7 @@ async def collect(*, report_type: str, project_id: uuid.UUID,
         a_key, b_key = join_key_for(spec.primary, extra)   # 不在白名单会抛 400
         join_keys.append((spec.primary, a_key, extra, b_key))
         rows_by_source[extra] = await _fetch_join_rows(
-            db, source=extra, join_field=b_key,
+            db, source=extra, join_field=b_key, scope=project_id,
             keys=[r.get(a_key) for r in main_rows if r.get(a_key) is not None])
 
     rows = assemble(rows_by_source, join_keys, spec.primary, spec.fields)
@@ -136,6 +136,57 @@ def _to_blocks(spec, rows: list[dict]) -> list[Block]:
     ]
 
 
+def _scope_and_records(spec, project_id: uuid.UUID | None,
+                       record_ids: list[uuid.UUID]) -> dict | None:
+    """项目作用域 ∩ `record_ids`，**两个都是必需项，谁也替代不了谁**。
+
+    ## 为什么这两件事不能合成一件（2026-10-14 修，评审 P0 #1）
+
+    `collect()` 一直收着 `project_id` 形参却**一次也没用过**：整条 WHERE
+    只有 `record_ids IN (...)`。于是 `POST /report/generate` 的形状是
+
+        project_id = 我有权的项目 B     <- 端点只校验这个的访问权
+        record_ids = 项目 A 的行 UUID    <- 归属从不校验，原样入队
+
+    → 报表 200、行数正常、列也齐，只是数据是别人的。**报错反而是好事**
+    ——报错会让人停下，串数据不会。
+
+    ⚠️ 项目过滤**不并进用户可编辑的条件列表**（那是 `_filter_spec` 的领域）：
+    把它塞进去意味着将来有人改条件构造时有机会把它挤掉，而挤掉之后报表
+    仍然跑得通、仍然返回 200。与 `builder_service` 的同一处决策同理由。
+
+    ## 公司级目录是例外，且有意
+
+    没有 `project_id` 列的源（如 `SUPPLIERS` 供应商名录）**不加**这个过滤：
+    它本来就是公司级共享目录，加了就永远查不出任何行。按「该源有没有
+    `project_id`」分支，不硬编码源名 —— 将来某个源从公司级变成项目级，
+    行为自动跟着变。
+
+    ## 与 bug-162 的关系
+
+    bug-162 修的是同名函数在 `builder_service` 那条路（自定义报表构建器）。
+    **固定 10 类这条路的 `_fetch_join_rows` 至今没有 `scope` 参数** ——
+    两条路各有一个同名函数，只修了一条。当前 10 类的 `extra_sources`
+    全为空（都是单源），所以那条 JOIN 腿目前**触发不到**；一旦某类报表
+    加上从源，它就会立刻变成活着的洞。已在 `_fetch_join_rows` 同步补上。
+    """
+    conds: list[dict] = []
+    if project_id is not None and "project_id" in DATASOURCES[spec.primary].fields:
+        # ⚠️ value 必须是**原生 UUID**：`Uuid` 列的 bind processor 直接调
+        # `.hex`，传 str 会炸在 SQL 层（与 builder_service 同理）。
+        conds.append({"operator": "EQ", "source": spec.primary,
+                      "field": "project_id", "value": project_id})
+    rec = _filter_spec(spec, record_ids)
+    if rec is not None:
+        conds.append(rec)
+    if not conds:
+        return None
+    # ⚠️ 总是包成组，不返回裸叶子：`apply_filters` 把**顶层** `operator`
+    # 当连接符读，裸 `{"operator": "EQ", ...}` 会撞
+    # 「条件组操作符只能是 AND/OR」（400）。
+    return {"operator": "AND", "conditions": conds}
+
+
 def _filter_spec(spec, record_ids: list[uuid.UUID]) -> dict | None:
     """record_ids 非空时按主源**主键**过滤。
 
@@ -161,17 +212,44 @@ def _filter_spec(spec, record_ids: list[uuid.UUID]) -> dict | None:
 
 
 async def _fetch_join_rows(db: AsyncSession, *, source: str, join_field: str,
-                           keys: list) -> list[dict]:
-    """从源**一次批量查**（`WHERE key IN (...)`），不是 N 次 —— 用户 2026-10-09 裁决第 1 条。"""
+                           keys: list, scope: uuid.UUID | None = None) -> list[dict]:
+    """从源**一次批量查**（`WHERE key IN (...)`），不是 N 次 —— 用户 2026-10-09 裁决第 1 条。
+
+    ## `scope` 为什么必须有（2026-10-14 补，评审 P0 #1）
+
+    位号的唯一性是**项目内**唯一（`TaggedRecordMixin`：`tag_number` NOT NULL
+    且 unique per project）。只按关联键 `IN (...)` 取数时，两个项目用同一个
+    位号会把**别人项目的行**也捞进来。而 `assemble` 对重复键是 `{k: row}`
+    —— **取最后一条**，不报错也不告警。所以症状不是「行数爆炸」，而是
+    悄悄挂上别人项目的那一行：报表 200、行数正常、列也齐。
+
+    ⚠️ 本函数是 `builder_service._fetch_join_rows` 的同名副本，bug-162
+    **只修了那一个**。当前固定 10 类的 `extra_sources` 全为空（都是单源），
+    所以这里**暂时触发不到**；某类报表一旦加上从源，它立刻就是活着的洞。
+    与其等那天，不如现在补上 —— 正确写法在同仓库 40 行外就有。
+
+    没有 `project_id` 列的源（如 `SUPPLIERS`）**不加**这个谓词：
+    公司级共享目录，加了就永远查不出行。按「该源有没有该列」分支，
+    不硬编码源名。
+
+    ⚠️ 不走 `apply_filters`：那是用户条件的通道，项目过滤是**越权边界**。
+    """
     if not keys:
         return []
-    stmt = build_select(source, list(DATASOURCES[source].fields))
+    cols = list(DATASOURCES[source].fields)
+    base = build_select(source, cols)
+    has_project = "project_id" in DATASOURCES[source].fields
     rows = []
     # 分批：IN 列表过长会让语句膨胀（参数上限），裁决第 4 条
     for i in range(0, len(keys), _BATCH_SIZE):
         chunk = keys[i:i + _BATCH_SIZE]
-        stmt = stmt.where(_join_column(source, join_field).in_(chunk))
-        result = await db.execute(stmt)
+        where = _join_column(source, join_field).in_(chunk)
+        if has_project and scope is not None:
+            where = and_(where, _column(source, "project_id") == scope)
+        # ⚠️ **不改写 base**：分块循环里 `stmt = stmt.where(...)` 是改写累加器，
+        # 第 2 块会把 `key IN (chunk2)` AND 到已有的 `key IN (chunk1)` 上，
+        # 于是返回各块的交集（空集）。每块把谓词交给 execute 而已。
+        result = await db.execute(base.where(where))
         columns = list(result.keys())
         rows += [dict(zip(columns, row, strict=True)) for row in result.all()]
     return rows
