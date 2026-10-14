@@ -1627,3 +1627,6 @@
 | 10:55 | Edited pcs-backend/app/services/report/arq_queue.py | modified enqueue_definition_execution() | ~544 |
 | 10:55 | Edited pcs-backend/app/api/v1/report_builder.py | expanded (+6 lines) | ~154 |
 | 10:55 | Edited pcs-backend/app/api/v1/report_builder.py | added error handling | ~379 |
+| 11:10 | Edited pcs-backend/app/services/report/query_engine.py | modified apply_sort() | ~356 |
+| 11:11 | Edited pcs-backend/app/services/report/builder_service.py | expanded (+6 lines) | ~109 |
+| 11:14 | Created pcs-backend/alembic/versions/p8_009_nulls_distinct_unique.py | — | ~821 |

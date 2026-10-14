@@ -213,8 +213,14 @@ async def execute_definition(
     conditions += ([temporary_filters] if temporary_filters else base_conds)
     group = {"operator": "AND", "conditions": conditions}
 
-    sort_fields = [f["field"] for f in (defn.get("SortBy") or [])]
-    sort_fields = [f for f in sort_fields if f in fields_by_source.get(primary, [])]
+    # ⚠️ **带上 direction**（2026-10-14 修，评审 P2 #9）。原先只取 `field`，
+    # 于是 `ReportDefSort.direction` 在 schema 里声明、在 UI 里可选、在执行时
+    # **从不读** —— 用户存 DESC、导出升序，全程无任何一层说话。
+    #
+    # 过滤仍按 field 走（排序目标必须是**主源已选出的**列），
+    # 但保留下来的条目保留整个 dict，方向才不会在这里被吃掉。
+    sort_fields = [f for f in (defn.get("SortBy") or [])
+                   if f.get("field") in fields_by_source.get(primary, [])]
 
     main_rows = await _fetch_source(
         db, primary, fields_by_source[primary], group, sort_fields, limit + 1)

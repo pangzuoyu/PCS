@@ -63,8 +63,18 @@ class ReportStyleRow(TimestampMixin, Base):
 
     __tablename__ = "report_styles"
     __table_args__ = (
+        # ⚠️ `postgresql_nulls_not_distinct` 不是可选项（2026-10-14 修，
+        # 评审 P2 #14）。`project_id` 可空表示「公司级样式」，而 PG 认为
+        # **NULL 互不相等** ⇒ 不加这个开关，公司级行完全绕开唯一约束：
+        # 两个同版本的 ACTIVE 公司样式可以并存。而应用层的「先查有没有」
+        # 无锁，并发两次都查得到「没有」。
+        #
+        # ⚠️ 这是 **PG 专属**选项，SQLite 上被忽略 —— 所以单测跑不出这个
+        # 行为，`tests/services/report/test_nulls_distinct_unique.py` 只能验
+        # 「ORM 声明了它」。真库验证在 p8_009 与 TODOS 复核清单里。
         UniqueConstraint("report_type", "project_id", "version",
-                         name="uq_report_styles_scope_version"),
+                         name="uq_report_styles_scope_version",
+                         postgresql_nulls_not_distinct=True),
         Index("ix_report_styles_report_type", "report_type"),
     )
 
@@ -143,7 +153,11 @@ class ReportDefinition(TimestampMixin, Base):
 
     __tablename__ = "report_definitions"
     __table_args__ = (
-        UniqueConstraint("project_id", "name", name="uq_report_definitions_project_name"),
+        # ⚠️ 同上：`project_id IS NULL` = 公司级模板作用域，
+        # 不加 NULLS NOT DISTINCT 就能有两个同名公司级定义。
+        UniqueConstraint("project_id", "name",
+                         name="uq_report_definitions_project_name",
+                         postgresql_nulls_not_distinct=True),
         Index("ix_report_definitions_status", "status"),
     )
 

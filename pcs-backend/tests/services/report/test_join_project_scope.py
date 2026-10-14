@@ -381,3 +381,57 @@ def test_collect_enforces_the_project_scope_it_accepts():
     assert "project_id" in used, (
         "collect() 的签名里有 project_id，函数体里一次也没引用 —— "
         "整条 WHERE 只剩 record_ids 的 IN，于是 record_ids 指向谁就导出谁")
+
+
+# --- #9：SortBy 的 direction 必须一路到 SQL（端到端）--------------------------
+
+
+@pytest.mark.asyncio
+async def test_definition_sort_direction_reaches_the_query(db_session):
+    """从 `definition_json.SortBy` 到最终行序，`direction` 全程不被丢弃。
+
+    只测 `apply_sort` 是不够的 —— 缺陷在 `builder_service` 那一行
+    `sort_fields = [f["field"] for f in ...]`：即便 `apply_sort` 支持方向，
+    传给它的也已经只剩字段名了。这条走完整条链路。
+    """
+    from app.services.report.builder_service import execute_definition
+    from app.services.report.definition_service import DefinitionService
+
+    pid = await _project(db_session)
+    for tag in ("C-3", "C-1", "C-2"):
+        await _equipment(db_session, project_id=pid, tag=tag)
+    await db_session.flush()
+
+    defn = DefinitionService(db_session)
+
+    async def _run(direction):
+        d = await defn.create(
+            name=f"排序方向 {direction} {uuid.uuid4().hex[:6]}", category="测试",
+            description="", output_format="csv", shared_with="ALL_USERS",
+            project_id=pid, user_id=uuid.uuid4(),
+            definition_json={
+                "DataSources": [{"source": "EQUIP_LIST"}],
+                "SelectedFields": [
+                    {"source": "EQUIP_LIST", "field": "tag_number",
+                     "alias": "位号", "order": 0, "visible": True}],
+                "FilterConditions": [],
+                "SortBy": [{"source": "EQUIP_LIST", "field": "tag_number",
+                            "direction": direction}],
+                "MaxRows": 100, "OutputFormat": "csv", "detailLevel": "BASIC",
+            })
+        await defn.publish(def_id=d.def_id)
+        await db_session.commit()
+        out = await execute_definition(db_session, def_id=d.def_id,
+                                       user_id=uuid.uuid4(), project_id=pid)
+        # rows 是 list[list]，第 0 列就是位号（SelectedFields 唯一一项）
+        # headers 用的是**别名**（SelectedFields 里的 "位号"），不是字段名
+        col = out.headers.index("位号")
+        return [r[col] for r in out.rows]
+
+    asc = await _run("ASC")
+    desc = await _run("DESC")
+
+    assert asc == sorted(asc), f"ASC 不对：{asc}"
+    assert desc == sorted(desc, reverse=True), (
+        f"DESC 不对：{desc} —— direction 在 builder_service 被丢掉了，"
+        "于是定义存 DESC、执行仍按升序，且没有任何一层会说话")

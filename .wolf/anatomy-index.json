@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-14T02:55:22.150Z",
-    "fileCount": 795,
+    "lastScanned": "2026-10-14T03:14:07.851Z",
+    "fileCount": 796,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "c3f6393d4fefd21a7e54965f3661106dde8ed81e07e1280b9ea71a6c3327ffa7",
-    "storeUpdatedAt": "2026-10-14T02:55:22.160Z",
-    "rootHash": "d06a8b3ea91cecaf"
+    "renderedHash": "87ce959748b3d08a2110f7d5bf1dacbc808a9674a1267460eca200dc34d8eefd",
+    "storeUpdatedAt": "2026-10-14T03:14:07.861Z",
+    "rootHash": "00b64eacc826f50b"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -22945,11 +22945,11 @@
     },
     "pcs-backend/app/services/report/query_engine.py": {
       "description": "取数引擎 —— 过滤/排序/字段选择/NULL 处理的**唯一实现**。",
-      "tokens": 3347,
-      "hash": "e41d7b2fc5e9b68a",
-      "size": 15107,
-      "mtimeMs": 1791943680966.8958,
-      "updatedAt": "2026-10-14T02:08:01.015Z",
+      "tokens": 3650,
+      "hash": "832aa40d81c1323c",
+      "size": 16625,
+      "mtimeMs": 1791947453074.3894,
+      "updatedAt": "2026-10-14T03:10:53.125Z",
       "source": "hook",
       "symbols": [
         {
@@ -23012,35 +23012,35 @@
           "name": "apply_sort",
           "kind": "fn",
           "startLine": 251,
-          "endLine": 257,
-          "tokens": 53
+          "endLine": 288,
+          "tokens": 356
         },
         {
           "name": "_column_from_label",
           "kind": "fn",
-          "startLine": 258,
-          "endLine": 271,
+          "startLine": 289,
+          "endLine": 302,
           "tokens": 110
         },
         {
           "name": "paginate",
           "kind": "fn",
-          "startLine": 272,
-          "endLine": 278,
+          "startLine": 303,
+          "endLine": 309,
           "tokens": 48
         },
         {
           "name": "check_joins",
           "kind": "fn",
-          "startLine": 279,
-          "endLine": 292,
+          "startLine": 310,
+          "endLine": 323,
           "tokens": 117
         },
         {
           "name": "assemble",
           "kind": "fn",
-          "startLine": 293,
-          "endLine": 357,
+          "startLine": 324,
+          "endLine": 388,
           "tokens": 676
         }
       ]
@@ -24824,11 +24824,11 @@
     },
     "pcs-backend/app/services/report/builder_service.py": {
       "description": "REPORT_BUILDER 执行引擎（P8b b7）。",
-      "tokens": 3078,
-      "hash": "a58850f928466097",
-      "size": 14189,
-      "mtimeMs": 1791897359305.9907,
-      "updatedAt": "2026-10-13T13:15:59.357Z",
+      "tokens": 3146,
+      "hash": "ddb5137be7ec445e",
+      "size": 14633,
+      "mtimeMs": 1791947461861.5098,
+      "updatedAt": "2026-10-14T03:11:01.918Z",
       "source": "hook",
       "symbols": [
         {
@@ -24870,14 +24870,14 @@
           "name": "execute_definition",
           "kind": "fn",
           "startLine": 148,
-          "endLine": 284,
-          "tokens": 1560
+          "endLine": 290,
+          "tokens": 1625
         },
         {
           "name": "_project_field",
           "kind": "fn",
-          "startLine": 285,
-          "endLine": 302,
+          "startLine": 291,
+          "endLine": 308,
           "tokens": 147
         }
       ]
@@ -27002,6 +27002,31 @@
           "startLine": 70,
           "endLine": 76,
           "tokens": 85
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p8_009_nulls_distinct_unique.py": {
+      "description": "把两条含可空 `project_id` 的唯一约束改成 `NULLS NOT DISTINCT`（p8_009）。",
+      "tokens": 821,
+      "hash": "0602fc9f2fef20b3",
+      "size": 3875,
+      "mtimeMs": 1791947647801.7058,
+      "updatedAt": "2026-10-14T03:14:07.851Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 82,
+          "tokens": 135
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 83,
+          "endLine": 99,
+          "tokens": 162
         }
       ]
     }

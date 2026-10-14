@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-14T02:55:22.150Z
-> Files: 795 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-14T03:14:07.851Z
+> Files: 796 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1094,6 +1094,7 @@
 - `p8_006_report_files_task_id.py` — P8：report_files 补 `task_id`（固定 10 类报表的 202 → 文件桥）。 (~356 tok)
 - `p8_007_execution_log_status.py` — P8：report_execution_logs 补 `status` 列（TODO-064 的回收器需要它）。 (~390 tok)
 - `p8_008_future_dated_chk.py` — 补 `project_calculation_standard_profiles.future_dated_forbidden_chk`。 (~604 tok)
+- `p8_009_nulls_distinct_unique.py` — 把两条含可空 `project_id` 的唯一约束改成 `NULLS NOT DISTINCT`（p8_009）。 (~821 tok)
 
 ## pcs-backend/app/api/v1/
 
@@ -1173,14 +1174,14 @@
 
 - `arq_queue.py` — ARQ 入队 helper —— 把「怎么建 pool、传什么参数」收在一处。 (~1060 tok)
 - `blocks.py` — 三个渲染器共用的中间表示（Block）。 (~600 tok)
-- `builder_service.py` — REPORT_BUILDER 执行引擎（P8b b7）。 (~3078 tok)
+- `builder_service.py` — REPORT_BUILDER 执行引擎（P8b b7）。 (~3146 tok)
 - `collector.py` — 10 类报表的**声明**（SPEC §3.2.1(2)）。 (~1502 tok)
 - `datasource_registry.py` — 数据源注册表 —— REPORT_BUILDER 可选数据源的**纯元数据**。 (~8146 tok)
 - `definition_service.py` — 报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。 (~3781 tok)
 - `detail_level.py` — detail_level 分级（ADR-0028「detail_level 选择」）。 (~785 tok)
 - `paths.py` — 报表文件路径解析 —— **唯一**拼路径的地方。 (~414 tok)
 - `qr.py` — 二维码内容组装 —— SPEC §3.2.1(3)。 (~822 tok)
-- `query_engine.py` — 取数引擎 —— 过滤/排序/字段选择/NULL 处理的**唯一实现**。 (~3347 tok)
+- `query_engine.py` — 取数引擎 —— 过滤/排序/字段选择/NULL 处理的**唯一实现**。 (~3650 tok)
 - `renderer_docx.py` — DOCX 渲染器 —— python-docx 直接构建。 (~1533 tok)
 - `renderer_pdf.py` — PDF 渲染器 —— ReportLab Platypus 直接生成。 (~3712 tok)
 - `renderer_xlsx.py` — XLSX 渲染器 —— XlsxWriter 流式写入。 (~1142 tok)

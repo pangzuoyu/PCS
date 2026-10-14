@@ -248,10 +248,41 @@ def build_select(source: str, fields: list[str]):
     return sa.select(*cols).select_from(model)
 
 
-def apply_sort(stmt, sort_by: list[str]):
-    """排序字段同样走注册表校验。顺序敏感：`sort_by` 即优先级。"""
-    for f in sort_by:
-        stmt = stmt.order_by(_column_from_label(stmt, f))
+def apply_sort(stmt, sort_by):
+    """排序字段同样走注册表校验。顺序敏感：`sort_by` 即优先级。
+
+    ## 条目的两种形状（2026-10-14 补，评审 P2 #9）
+
+    - **裸字符串** → 升序。固定 10 类那条路就是这么调的（`report_service.collect`
+      传 `main_fields[:1]`，只是为了稳定分页），保持原样。
+    - **`{"field": ..., "direction": "ASC"|"DESC"}`** → 显式方向。
+      `ReportDefSort` 在 schema 层一直声明着 `direction`，而**执行路径
+      从来没读过它** —— 用户存 DESC、导出仍是升序，且没有任何一层会说话：
+      定义保存成功、执行成功、报表 200、行数正常、只是顺序反了。
+
+    ## 未知 direction 必须 400，不能当 ASC
+
+    静默当升序 = 把「保存成功、执行时被忽略」换个地方重演一遍。
+    与本文件其余部分「不静默忽略」的取向一致。
+    """
+    for item in sort_by:
+        if isinstance(item, str):
+            field, direction = item, "ASC"
+        else:
+            field = item["field"]
+            direction = str(item.get("direction") or "ASC").strip().upper()
+        col = _column_from_label(stmt, field)
+        if direction == "ASC":
+            stmt = stmt.order_by(col.asc())
+        elif direction == "DESC":
+            stmt = stmt.order_by(col.desc())
+        else:
+            raise PcsError(
+                f"排序字段 {field!r} 的 direction 只能是 ASC 或 DESC，"
+                f"实得 {direction!r}。**不静默当升序处理** —— "
+                "那会让用户存了 DESC 却拿到升序，且没有任何提示。",
+                code="REPORT_FIELD_UNKNOWN", status=400,
+            )
     return stmt
 
 

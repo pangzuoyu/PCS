@@ -225,3 +225,80 @@ def test_assemble_is_linear_not_nested_loop():
     # 建索引 1 次。嵌套循环会对 100 个主源行各走 1 次从源 → 100 次。
     assert pumps.iterations <= 2, \
         f"从源被遍历 {pumps.iterations} 次 —— 是嵌套循环而不是 dict lookup"
+
+
+async def _seed_tags(db, tags):
+    """建项目 + 若干设备行（tag_number 是被排序的那一列）。"""
+    import uuid
+
+    from app.models.equipment import EquipmentList
+    from app.models.project import Project
+
+    pid = uuid.uuid4()
+    db.add(Project(
+        project_id=pid, project_no=f"S{pid.hex[:6]}", project_name="t",
+        owner_company="t", location="t", project_type="test",
+        design_phase="BASIC", unit_system="SI", status="ACTIVE",
+        workspace_id=uuid.uuid4()))
+    for tag in tags:
+        db.add(EquipmentList(
+            equipment_id=uuid.uuid4(), project_id=pid,
+            workspace_id=uuid.uuid4(), type_code="PUMP",
+            equipment_name="e", tag_number=tag))
+    await db.flush()
+    return pid
+
+
+# --- 评审 P2 #9：SortBy 的 direction 被静默丢弃 -------------------------------
+#
+# `ReportDefSort` 有 `direction: str = "ASC"`（schema 层声明过），
+# 而 `builder_service` 只取 `f["field"]`、`apply_sort` 也只 `order_by(col)` ——
+# **direction 从来没被用过**。用户存 DESC，导出仍是升序，
+# 且没有任何一层会说话：定义保存成功、执行成功、报表 200。
+
+@pytest.mark.asyncio
+async def test_sort_direction_desc_is_honoured(db):
+    """`direction="DESC"` 必须真的倒序。"""
+    from sqlalchemy import select
+
+    from app.models.equipment import EquipmentList
+    from app.services.report.query_engine import build_select
+
+    await _seed_tags(db, ("A-3", "A-1", "A-2"))
+    stmt = build_select("EQUIP_LIST", ["tag_number"])
+    desc = apply_sort(stmt, [{"field": "tag_number", "direction": "DESC"}])
+    rows = [r[0] for r in (await db.execute(desc)).all()]
+    assert rows == sorted(rows, reverse=True), f"实得 {rows}"
+
+
+@pytest.mark.asyncio
+async def test_sort_direction_asc_is_the_default(db):
+    """`direction="ASC"` 与不传等价（不传仍按老样子支持裸字符串）。"""
+    from app.services.report.query_engine import build_select
+
+    await _seed_tags(db, ("A-3", "A-1", "A-2"))
+    asc = apply_sort(build_select("EQUIP_LIST", ["tag_number"]),
+                     [{"field": "tag_number", "direction": "ASC"}])
+    bare = apply_sort(build_select("EQUIP_LIST", ["tag_number"]), ["tag_number"])
+    rows_asc = [r[0] for r in (await db.execute(asc)).all()]
+    rows_bare = [r[0] for r in (await db.execute(bare)).all()]
+    assert rows_asc == rows_bare == sorted(rows_asc), f"{rows_asc} vs {rows_bare}"
+
+
+def test_an_unknown_direction_is_rejected_not_silently_ascending():
+    """未知 direction 必须 400，**不能**当 ASC 处理。
+
+    静默当升序 = 把「保存成功、执行时被忽略」换个地方重演一遍 ——
+    用户存了 DESC 拿不到 DESC，且没有任何提示。
+    """
+    from app.services.exceptions import PcsError
+    from app.services.report.query_engine import build_select
+
+    with pytest.raises(PcsError) as ei:
+        apply_sort(build_select("EQUIP_LIST", ["tag_number"]),
+                   [{"field": "tag_number", "direction": "SIDEWAYS"}])
+    assert ei.value.code == "REPORT_FIELD_UNKNOWN"
+    # ⚠️ 必须断言**报错原因**：不写这条，这条测试在修复前也是绿的 ——
+    # 因为 dict 条目会撞上「不在已选字段中」而抛同一个 code。
+    # 那就是「因错误的原因通过」，与 bug-174 同族（断言没钉住要验的东西）。
+    assert "direction" in str(ei.value), f"报错说的是别的事：{ei.value}"
