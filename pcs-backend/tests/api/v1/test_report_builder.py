@@ -553,8 +553,21 @@ async def test_execute_returns_202_not_a_synchronous_report(client, fake_queue):
     await client.post(PUBLISH.format(d=d["def_id"]), headers=_auth("rev", "REVIEWER"))
     r = await client.post(EXEC.format(d=d["def_id"]), headers=_auth("user-1"))
     assert r.status_code == 202, f"实得 {r.status_code}：{r.text}"
-    assert r.json()["task_id"] == "job-123", "必须给出可追踪的 task_id"
     assert fake_queue, "端点压根没入队却回了 202"
+
+    # ⚠️ 不再断言 `task_id == "job-123"`：端点现在**自选** task_id
+    # （评审 P1 #3 —— 只有自选才能「先落库再入队」，因为那要求 commit
+    # 时行里的 task_id 已经是最终值）。桩子返回的 "job-123" 只是桩子的产物。
+    #
+    # 真正的契约有两条，都比原来强：
+    #   1. 202 返回的 task_id 非空
+    #   2. **同一个 id** 被当作 `_job_id` 交给 ARQ —— 两边对不上，
+    #      任务体就找不到那一行、状态永远停在 QUEUED
+    task_id = r.json()["task_id"]
+    assert task_id, "必须给出可追踪的 task_id"
+    assert fake_queue[0].get("_job_id") == task_id, (
+        f"入队用的是 {fake_queue[0].get('_job_id')!r} 而 202 返回 {task_id!r} —— "
+        "两者必须同一个，否则任务体按 job_id 查日志行查不到")
 
 
 @pytest.mark.asyncio
@@ -1616,3 +1629,95 @@ def test_definition_body_rejects_max_rows_above_the_engine_limit(body_key):
     assert ok.MaxRows == 10000
     with pytest.raises(ValidationError):
         ReportDefinitionBody(**{**base, body_key: 10001})
+
+
+# --- 评审 P1 #3：入队与建行的先后 --------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_the_log_row_is_committed_before_the_job_is_enqueued(
+        client, fake_queue, db_session):
+    """日志行必须**先落库**，再入队。
+
+    原顺序是「入队 → 建行 → commit」。三个窗口全是真故障：
+
+    1. worker 抢在 commit 之前跑完并调 `_link_report_file`，而那行还不存在
+       ⇒ `report_file_id` 回填丢失、轮询对一个**已经产出文件**的任务回答 404
+    2. 端点在 commit 之前失败 ⇒ 文件存在、审计行完全没有
+    3. `_link_report_file` 的 UPDATE 没有 rowcount 检查，丢得悄无声息
+
+    ## 观测点：入队**那一刻**行在不在库里
+
+    不去读代码的语句顺序（那会绑死在实现细节上），而是把入队函数换成
+    一个探针：它被调用的瞬间用**另一个连接**数一次 `report_execution_logs`。
+    行数是 1 就说明先落库了。
+
+    ⚠️ 另一个连接是必须的：用端点自己的 session 数，它**还没提交**也数得到
+    —— 那正是 bug-171 的 StaticPool 陷阱（`:memory:` 共享同一条连接）。
+    """
+    from unittest import mock
+
+    from sqlalchemy import func, select
+    from sqlalchemy.ext.asyncio import async_sessionmaker
+
+    from app.models.report import ReportExecutionLog
+    from app.services.report import arq_queue
+    from tests.fixtures.report.seed import make_report_seed
+
+    proj = await _make_project(db_session)
+    d = await _make(client, "author-1", project_id=str(proj.project_id),
+                    definition_json=DEF_JSON_EQUIP)
+    await client.post(PUBLISH.format(d=d["def_id"]), headers=_auth("rev", "REVIEWER"))
+    await make_report_seed(db_session, proj.project_id, "EQUIPMENT_LIST")
+
+    real_enqueue = arq_queue.enqueue_definition_execution
+    seen: dict = {}
+
+    async def probe(**kw):
+        maker = async_sessionmaker(db_session.bind, expire_on_commit=False)
+        async with maker() as probe_db:
+            seen["count"] = await probe_db.scalar(
+                select(func.count()).select_from(ReportExecutionLog))
+        return await real_enqueue(**kw)
+
+    with mock.patch.object(arq_queue, "enqueue_definition_execution",
+                           side_effect=probe):
+        r = await client.post(EXEC.format(d=d["def_id"]), headers=_auth("author-1"))
+
+    assert r.status_code == 202, r.text
+    assert seen.get("count") == 1, (
+        f"入队那一刻库里只有 {seen.get('count')} 行日志（应为 1）—— "
+        "worker 可能先跑完并回填一个尚不存在的行，report_file_id 静默丢失，"
+        "而轮询对一个已经出了文件的任务回答 404。"
+        "顺序：先 add + commit，再 enqueue。")
+
+
+@pytest.mark.asyncio
+async def test_the_task_id_in_the_row_is_the_one_the_worker_gets(
+        client, fake_queue, db_session):
+    """库里那一行的 `task_id` 必须**就是** ARQ job 的 id。
+
+    端点若让 `enqueue_job` 自己生成 id，而库里写的是另一个，两者就对不上 ——
+    任务体按 `task_id` 查那行会 `scalar_one_or_none()` 得到 `None`，
+    于是**永远不更新状态**：行停在 QUEUED，15 分钟后被回收器改判 FAILED。
+    """
+
+    from sqlalchemy import select
+
+    from app.models.report import ReportExecutionLog
+
+    proj = await _make_project(db_session)
+    d = await _make(client, "author-1", project_id=str(proj.project_id),
+                    definition_json=DEF_JSON_EQUIP)
+    await client.post(PUBLISH.format(d=d["def_id"]), headers=_auth("rev", "REVIEWER"))
+
+    r = await client.post(EXEC.format(d=d["def_id"]), headers=_auth("author-1"))
+    accepted = r.json()["task_id"]
+
+    row = (await db_session.execute(
+        select(ReportExecutionLog).where(
+            ReportExecutionLog.def_id == uuid.UUID(d["def_id"]))
+    )).scalar_one()
+    assert row.task_id == accepted, (
+        f"库里的 task_id={row.task_id!r} 而 202 返回的是 {accepted!r} —— "
+        "任务体按 job_id 查这行会查不到，状态永远停在 QUEUED")

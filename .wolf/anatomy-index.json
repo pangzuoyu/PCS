@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-14T02:41:34.985Z",
+    "lastScanned": "2026-10-14T02:55:22.150Z",
     "fileCount": 795,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "af0ecfc51ba546c21ad35b3e9e10d9f7ecac1f0894e3870a513094bc75903eaf",
-    "storeUpdatedAt": "2026-10-14T02:41:34.995Z",
-    "rootHash": "7771902fb1e579fd"
+    "renderedHash": "c3f6393d4fefd21a7e54965f3661106dde8ed81e07e1280b9ea71a6c3327ffa7",
+    "storeUpdatedAt": "2026-10-14T02:55:22.160Z",
+    "rootHash": "d06a8b3ea91cecaf"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -24662,110 +24662,110 @@
     },
     "pcs-backend/app/api/v1/report_builder.py": {
       "description": "`/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。",
-      "tokens": 3818,
-      "hash": "82b3b59dd53a89ed",
-      "size": 16903,
-      "mtimeMs": 1791943667850.1013,
-      "updatedAt": "2026-10-14T02:07:47.904Z",
+      "tokens": 4269,
+      "hash": "e1b34061ff8a41bf",
+      "size": 19306,
+      "mtimeMs": 1791946522104.4119,
+      "updatedAt": "2026-10-14T02:55:22.150Z",
       "source": "hook",
       "symbols": [
         {
           "name": "list_datasources",
           "kind": "fn",
-          "startLine": 53,
-          "endLine": 97,
+          "startLine": 52,
+          "endLine": 96,
           "tokens": 463
         },
         {
           "name": "_reject_bad_format",
           "kind": "fn",
-          "startLine": 98,
-          "endLine": 111,
+          "startLine": 97,
+          "endLine": 110,
           "tokens": 124
         },
         {
           "name": "create_definition",
           "kind": "fn",
-          "startLine": 112,
-          "endLine": 137,
+          "startLine": 111,
+          "endLine": 136,
           "tokens": 318
         },
         {
           "name": "list_definitions",
           "kind": "fn",
-          "startLine": 138,
-          "endLine": 144,
+          "startLine": 137,
+          "endLine": 143,
           "tokens": 100
         },
         {
           "name": "get_definition",
           "kind": "fn",
-          "startLine": 145,
-          "endLine": 152,
+          "startLine": 144,
+          "endLine": 151,
           "tokens": 88
         },
         {
           "name": "update_definition",
           "kind": "fn",
-          "startLine": 153,
-          "endLine": 168,
+          "startLine": 152,
+          "endLine": 167,
           "tokens": 195
         },
         {
           "name": "_as_dict",
           "kind": "fn",
-          "startLine": 169,
-          "endLine": 201,
+          "startLine": 168,
+          "endLine": 200,
           "tokens": 295
         },
         {
           "name": "publish_definition",
           "kind": "fn",
-          "startLine": 202,
-          "endLine": 216,
+          "startLine": 201,
+          "endLine": 215,
           "tokens": 133
         },
         {
           "name": "obsolete_definition",
           "kind": "fn",
-          "startLine": 217,
-          "endLine": 230,
+          "startLine": 216,
+          "endLine": 229,
           "tokens": 125
         },
         {
           "name": "ReportExecuteRequest",
           "kind": "class",
-          "startLine": 231,
-          "endLine": 243,
+          "startLine": 230,
+          "endLine": 242,
           "tokens": 109
         },
         {
           "name": "ReportExecuteAccepted",
           "kind": "class",
-          "startLine": 244,
-          "endLine": 250,
+          "startLine": 243,
+          "endLine": 249,
           "tokens": 37
         },
         {
           "name": "ReportExecutionStatus",
           "kind": "class",
-          "startLine": 251,
-          "endLine": 273,
-          "tokens": 192
+          "startLine": 250,
+          "endLine": 279,
+          "tokens": 276
         },
         {
           "name": "execution_status",
           "kind": "fn",
-          "startLine": 274,
-          "endLine": 304,
+          "startLine": 280,
+          "endLine": 310,
           "tokens": 376
         },
         {
           "name": "execute_definition_endpoint",
           "kind": "fn",
-          "startLine": 305,
-          "endLine": 372,
-          "tokens": 793
+          "startLine": 311,
+          "endLine": 411,
+          "tokens": 1174
         }
       ]
     },
@@ -24884,33 +24884,26 @@
     },
     "pcs-backend/app/services/report/arq_queue.py": {
       "description": "ARQ 入队 helper —— 把「怎么建 pool、传什么参数」收在一处。",
-      "tokens": 667,
-      "hash": "90b2fb297a9dafd5",
-      "size": 3040,
-      "mtimeMs": 1791803995642.2336,
-      "updatedAt": "2026-10-12T11:19:55.692Z",
+      "tokens": 1060,
+      "hash": "83bfbbec1132f8bb",
+      "size": 5049,
+      "mtimeMs": 1791946511133.4417,
+      "updatedAt": "2026-10-14T02:55:11.183Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_enqueue",
           "kind": "fn",
-          "startLine": 26,
-          "endLine": 52,
-          "tokens": 241
+          "startLine": 24,
+          "endLine": 58,
+          "tokens": 325
         },
         {
           "name": "enqueue_definition_execution",
           "kind": "fn",
-          "startLine": 53,
-          "endLine": 67,
-          "tokens": 188
-        },
-        {
-          "name": "new_task_id",
-          "kind": "fn",
-          "startLine": 68,
-          "endLine": 73,
-          "tokens": 50
+          "startLine": 59,
+          "endLine": 101,
+          "tokens": 557
         }
       ]
     },

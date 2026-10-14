@@ -332,12 +332,18 @@ async def execute_definition_endpoint(
         )
 
     from app.services.report import arq_queue
-    task_id = await arq_queue.enqueue_definition_execution(
-        def_id=str(row.def_id), project_id=str(row.project_id or ""),
-        user_id=str(actor.user_id),
-        filters=body.filters.model_dump() if body.filters else None,
-        max_rows=body.max_rows, output_format=body.output_format,
-    )
+
+    # ⚠️ **顺序：先落库，再入队**（2026-10-14 修，评审 P1 #3）。
+    # 原先反过来（入队 → 建行 → commit），三个窗口全是真故障：
+    #   1. worker 抢在 commit 之前跑完并调 `_link_report_file`，而那行还不存在
+    #      ⇒ report_file_id 回填丢失、轮询对一个**已经出了文件**的任务回答 404；
+    #   2. 端点在 commit 之前失败 ⇒ 文件存在而审计行完全没有；
+    #   3. `_link_report_file` 的 UPDATE 没有 rowcount 检查，丢得悄无声息。
+    #
+    # 顺序反过来就必须**自选** task_id：ARQ 允许 `_job_id`
+    # （`arq/connections.py:148`）。否则 task_id 只能由入队返回，
+    # 「先落库」就无从谈起 —— 这不是偏好问题，是那个顺序的硬约束。
+    task_id = uuid.uuid4().hex
 
     # ⚠️ **执行日志行在这里建，不在任务体里**（2026-10-13 修，E2E 实测）。
     # 原先由 `execute_definition` 建，于是「202 已返回、worker 还没消费」这段
@@ -373,5 +379,32 @@ async def execute_definition_endpoint(
         task_id=task_id,                   # 生成前 report_file_id 为 NULL
     ))
     await db.commit()      # 端点负责 commit（与本仓其它写端点一致）
+    # ⚠️ 入队在 commit **之后**：这时 worker 无论多快，那一行都在库里了。
+    try:
+        await arq_queue.enqueue_definition_execution(
+            def_id=str(row.def_id), project_id=str(row.project_id or ""),
+            user_id=str(actor.user_id),
+            filters=body.filters.model_dump() if body.filters else None,
+            max_rows=body.max_rows, output_format=body.output_format,
+            job_id=task_id,
+        )
+    except PcsError:
+        # 入队失败：把已经落库的那一行改判 FAILED，否则它会一直挂在
+        # QUEUED 上等 15 分钟后被回收器收掉 —— 用户看到的是「等了 15 分钟
+        # 才失败」，而真实原因（队列不可用）是当场就该知道的。
+        # 同 `/report/generate` 的 `_fail_pending`。
+        from sqlalchemy import select as _sel
+
+        stale = (await db.execute(_sel(ReportExecutionLog).where(
+            ReportExecutionLog.task_id == task_id))).scalar_one_or_none()
+        if stale is not None:
+            stale.status = "FAILED"
+            stale.condition_snapshot = {
+                **(dict(stale.condition_snapshot or {})),
+                "enqueue_failed_at": dt.datetime.now(dt.UTC).isoformat(),
+                "enqueue_error": "任务未入队（队列不可用）",
+            }
+            await db.commit()
+        raise
     return ReportExecuteAccepted(task_id=task_id, def_id=row.def_id,
                                  def_version=row.version)

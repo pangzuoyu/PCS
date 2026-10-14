@@ -13132,8 +13132,11 @@ export interface components {
              * Format: uuid
              */
             def_id: string;
-            /** Status */
-            status: string;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "QUEUED" | "RUNNING" | "FINISHED" | "FAILED";
             /** Report File Id */
             report_file_id?: string | null;
         };

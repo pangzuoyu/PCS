@@ -60,8 +60,19 @@ async def enqueue_definition_execution(*, def_id: str, project_id: str,
                                        user_id: str,
                                        filters: dict | None = None,
                                        max_rows: int | None = None,
-                                       output_format: str | None = None) -> str:
-    """入队一次自定义报表定义执行（b7）。"""
+                                       output_format: str | None = None,
+                                       job_id: str | None = None) -> str:
+    """入队一次自定义报表定义执行（b7）。
+
+    ⚠️ `job_id` 让**调用方自选** ARQ job id（2026-10-14，评审 P1 #3）。
+    ARQ 的 `enqueue_job` 支持 `_job_id`（`arq/connections.py:148`
+    的 `job_id = _job_id or uuid4().hex`）。
+
+    为什么需要：端点要**先**把 `report_execution_logs` 那一行落库
+    （否则 worker 可能抢在 commit 前面跑完并去回填一个尚不存在的行），
+    而那一行必须写 `task_id`。若 task_id 只能由入队返回，端点就非得
+    「先入队再写行」—— 顺序也就反了。自选 id 让两边对上。
+    """
     # ⚠️ 传**名字字符串**，不是函数对象（2026-10-13 实测）。
     # arq 0.28 的 `serialize_job(function, ...)` 把首参当 function_name 存进
     # 队列，worker 端用 `self.functions[function_name]` 查 —— 字典键全是 str。
@@ -78,10 +89,12 @@ async def enqueue_definition_execution(*, def_id: str, project_id: str,
     #      （`class Retry(RuntimeError)`），直接 TypeError。
     # 重试上限唯一的入口是 `WorkerSettings.max_tries`
     # （`worker.py:549`：`self.max_tries if function.max_tries is None`）。
+    extra = {"_job_id": job_id} if job_id else {}
     return await _enqueue(
         "execute_definition_task",
         def_id=def_id, project_id=project_id, user_id=user_id,
         filters=filters, max_rows=max_rows, output_format=output_format,
+        **extra,
     )
 
 

@@ -30314,6 +30314,12 @@
           },
           "status": {
             "type": "string",
+            "enum": [
+              "QUEUED",
+              "RUNNING",
+              "FINISHED",
+              "FAILED"
+            ],
             "title": "Status"
           },
           "report_file_id": {

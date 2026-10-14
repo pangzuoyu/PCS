@@ -1624,3 +1624,6 @@
 | 10:41 | Edited pcs-frontend/src/pages/report/ReportExecutePage.tsx | CSS: gen | ~421 |
 | 10:41 | Edited pcs-frontend/src/pages/report/ReportExecutePage.tsx | 3→5 lines | ~60 |
 | 10:41 | Edited pcs-frontend/src/pages/report/ReportExecutePage.tsx | 4→9 lines | ~105 |
+| 10:55 | Edited pcs-backend/app/services/report/arq_queue.py | modified enqueue_definition_execution() | ~544 |
+| 10:55 | Edited pcs-backend/app/api/v1/report_builder.py | expanded (+6 lines) | ~154 |
+| 10:55 | Edited pcs-backend/app/api/v1/report_builder.py | added error handling | ~379 |

@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-14T02:41:34.985Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-14T02:55:22.150Z
 > Files: 795 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -1114,7 +1114,7 @@
 - `psychro.py` — P6-2 PSYCHRO API：Task 26 6 calc endpoints + psychro_persist CRUD endpoints。 (~7320 tok)
 - `pump.py` — P4-4-4 PUMP 链 API。 (~2574 tok)
 - `records.py` — Records API（Sprint 2）。 (~3276 tok)
-- `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~3818 tok)
+- `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~4269 tok)
 - `report.py` — `/api/v1/report` 路由。 (~4709 tok)
 - `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1773 tok)
 - `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~4193 tok)
@@ -1171,7 +1171,7 @@
 
 ## pcs-backend/app/services/report/
 
-- `arq_queue.py` — ARQ 入队 helper —— 把「怎么建 pool、传什么参数」收在一处。 (~667 tok)
+- `arq_queue.py` — ARQ 入队 helper —— 把「怎么建 pool、传什么参数」收在一处。 (~1060 tok)
 - `blocks.py` — 三个渲染器共用的中间表示（Block）。 (~600 tok)
 - `builder_service.py` — REPORT_BUILDER 执行引擎（P8b b7）。 (~3078 tok)
 - `collector.py` — 10 类报表的**声明**（SPEC §3.2.1(2)）。 (~1502 tok)
