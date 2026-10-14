@@ -1,0 +1,144 @@
+{
+  "reviewer": "correctness",
+  "findings": [
+    {
+      "title": "Fixed-10 reports ignore project_id in SQL filter",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/report/report_service.py",
+      "line": 4819,
+      "why_it_matters": "The `POST /api/v1/report/generate` endpoint validates the caller has access to `body.project_id`, but `report_service.collect()` only filters by `record_ids` — it never adds `WHERE project_id = ...` to the main query (unlike `builder_service.execute_definition` which does enforce a project-scope condition). A caller who passes their own project_id (passing the access check) plus record_ids harvested from any other project still gets those rows back: 200 + rows. For project-scoped records (e.g. equipment, piping) this is a cross-project data leak that the audit team would flag.",
+      "autofix_class": "gated_auto",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/report/report_service.py:4819-4844 — `collect()` builds `stmt = build_select(...) .where(apply_filters(_filter_spec(spec, record_ids)))` with no project_id clause; `_filter_spec()` returns only the IN(record_ids) condition.",
+        "pcs-backend/app/services/report/builder_service.py:2310-2319 — by contrast, `execute_definition` adds an explicit `{\"operator\":\"EQ\",\"source\":primary,\"field\":_project_field(primary),\"value\":scope}` condition, with a docstring calling this a hard boundary: \"**不能默认全库查询** —— 那会把别的项目的数据一起导出去\".",
+        "pcs-backend/app/api/v1/report.py:628-631 — endpoint calls `check_project_access_or_404(body.project_id)` but never re-uses that project_id in the SQL path."
+      ],
+      "suggested_fix": "In `collect()`, fold the validated `project_id` into the filter: after `apply_filters(_filter_spec(spec, record_ids))`, also AND-in `{\"operator\":\"EQ\",\"source\":spec.primary,\"field\":\"project_id\",\"value\":project_id}` whenever the primary source has a `project_id` column (mirroring `builder_service._project_field`). Reject with 400 if the primary source lacks project_id and report_type isn't a company-wide one. If SPEC §3.2.1 explicitly wants the fixed-10 reports to ignore project scope, document that in the docstring and confirm with the user — but the asymmetry with `builder_service` is the bug to discuss."
+    },
+    {
+      "title": "StyleService revise/activate have TOCTOU allowing two ACTIVE rows",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/report/style_service.py",
+      "line": 5523,
+      "why_it_matters": "`StyleService.revise` reads `_current(...)`, decides whether to supersede the current ACTIVE row, then `db.add(nxt)` with `status=\"ACTIVE\"` and `flush()`. Two concurrent revisions of the same scope both pass the `_current` check (both find the same ACTIVE or both find none), then both insert a new ACTIVE row. The result violates the \"exactly one ACTIVE per scope\" invariant that `create` enforces (the `if await self._current(...) is not None` guard) and that `active_for()` assumes when returning `(by_type + by_project)[:2]`. Two ACTIVE rows means the same scope now has two competing styles — `render` will pick whichever the DB returns, and content-hash dedup that includes style will diverge between runs. The bug is invisible in single-user testing and shows up only under concurrent style edits.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/report/style_service.py:5512-5535 — `revise()` reads `current = await self._current(...)`, then `self.db.add(nxt)` (status=ACTIVE) and `if current is not None: current.status = 'SUPERSEDED'` without locking.",
+        "pcs-backend/app/services/report/style_service.py:5488-5510 — `create()` does enforce \"one ACTIVE per scope\" via `_current()` but `revise` and `activate` use the same TOCTOU pattern and can be raced.",
+        "pcs-backend/app/services/report/style_service.py:5568-5577 — `_current()` reads ACTIVE rows via plain SELECT; no SELECT ... FOR UPDATE, no unique partial index on (report_type, project_id) WHERE status='ACTIVE'.",
+        "pcs-backend/app/services/report/style_service.py:5537-5557 — `activate()` reuses the same pattern: read _current, mark superseded, set row.status = ACTIVE, no concurrency guard."
+      ],
+      "suggested_fix": "Either add a partial unique index `CREATE UNIQUE INDEX uq_report_styles_scope_active ON report_styles (report_type, COALESCE(project_id, '00000000-0000-0000-0000-000000000000')) WHERE status = 'ACTIVE'` and handle IntegrityError on insert/update, or wrap revise/activate in `SELECT ... FOR UPDATE` (use `with_for_update=True` on the `_current()` query). The partial unique index is the cleanest because it covers both `revise` and `activate` and doesn't require holding a row lock across the audit write."
+    },
+    {
+      "title": "Builder silently drops SortBy direction (always ASC)",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/report/builder_service.py",
+      "line": 2321,
+      "why_it_matters": "`ReportDefinitionBody.SortBy[i].direction` is part of the schema (`Literal[\"ASC\",\"DESC\"]`) and the user picks it in the editor (per ADR-0028 the field is in the body). But `execute_definition` extracts only `field`, never `direction`: `sort_fields = [f[\"field\"] for f in (defn.get(\"SortBy\") or [])]`. The resulting list is fed to `query_engine.apply_sort`, which calls `order_by` with no `asc()/desc()` — SQLAlchemy defaults to ASC. So a user who saves `SortBy: [{field: \"duty\", direction: \"DESC\"}]` and expects the largest heat duties first gets the smallest first, silently. This is the kind of \"looks right, runs wrong\" that no test catches because no test sets direction=DESC and asserts ordering.",
+      "autofix_class": "gated_auto",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/services/report/builder_service.py:2321 — `sort_fields = [f[\"field\"] for f in (defn.get(\"SortBy\") or [])]` only reads `field`.",
+        "pcs-backend/app/services/report/query_engine.py:4007-4011 — `def apply_sort(stmt, sort_by: list[str]): ... stmt = stmt.order_by(_column_from_label(stmt, f))` — no ascending/descending.",
+        "pcs-backend/app/schemas/report_builder.py:1827-1830 — schema declares `direction: str = \"ASC\"  # ASC / DESC` so the contract promises it."
+      ],
+      "suggested_fix": "Thread direction through: change `sort_fields = [f[\"field\"] for f in (defn.get(\"SortBy\") or [])]` to `sort_specs = [(f[\"field\"], (f.get(\"direction\") or \"ASC\").upper() == \"DESC\") for f in (defn.get(\"SortBy\") or [])]`, change `apply_sort` signature to take `list[tuple[str, bool]]` (or two parallel lists), and inside the loop call `stmt.order_by(_column_from_label(stmt, field).desc() if is_desc else _column_from_label(stmt, field).asc())`. Reject any direction other than ASC/DESC at validate_definition time so users get a 400 at save, not silently-wrong ordering at execute."
+    },
+    {
+      "title": "Finalize concurrent delete race can lose the placeholder row",
+      "severity": "P2",
+      "file": "pcs-backend/app/workers/report_tasks.py",
+      "line": 6171,
+      "why_it_matters": "`_finalize` looks for a duplicate `ReportFile` with the same content_hash (excluding its own row), deletes its own placeholder row, and returns the existing row's id. If two ARQ jobs produce the same content_hash concurrently, Job A commits its delete+return-row_B, then Job B's `select(...).where(content_hash == X, id != row_B_id)` either finds no dup (because A's delete of A's row left only B's row, but `id != row_B_id` filters that out) or finds row_A which A just deleted. Either way the code falls through to the in-place update branch on the placeholder that someone else might have just deleted — `db.flush()` after a `delete` of someone else's row raises. The race is rare (same content + same time) but it leaves the system with neither a clean SUCCEEDED row nor an audit trail of what happened.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/app/workers/report_tasks.py:6171-6197 — _finalize races against itself on dup content_hash: delete placeholder, return dup id.",
+        "pcs-backend/app/services/report/report_service.py:5157-5180 — sync `_upsert_report_file` uses INSERT with IntegrityError fallback to lookup, which is the right pattern but the async worker path doesn't follow it.",
+        "pcs-backend/alembic/versions/p8_001_report_tables.py — UNIQUE on content_hash means concurrent inserts collide; the sync path handles this via IntegrityError, the async path doesn't."
+      ],
+      "suggested_fix": "Two options. (1) Match the sync path: try `update_report_file` (UPDATE the placeholder row in place) and on concurrent delete fall through to `INSERT a fresh ReportFile(content_hash=digest)` wrapped in `try/except IntegrityError` — the second writer wins and gets a clean row. (2) Use the row lock: `select(content_hash=digest).with_for_update(skip_locked=True)` in `_finalize`; if it returns nothing, just keep the placeholder and update it; if it returns a row, the loser deletes their placeholder and returns the winner's id. Option (1) is closer to the existing sync semantics and avoids DB-specific lock semantics."
+    },
+    {
+      "title": "validate_definition doesn't validate FilterConditions/SortBy fields",
+      "severity": "P3",
+      "file": "pcs-backend/app/services/report/definition_service.py",
+      "line": 3271,
+      "why_it_matters": "`validate_definition_json` validates `SelectedFields` against the registry but walks past `FilterConditions` and `SortBy`. A user who pastes a typo into the filter UI (`source: \"HEAT_RESULTS\", field: \"tube_count\"` vs `tube_countt`) saves the definition successfully, and only sees the 400 from `query_engine._build_condition` at execute time — after they hit Execute, the worker has already created a PENDING row, enqueued, and the user is back to the \"Execute\" button. This is a UX issue (delayed failure) rather than a correctness bug, but the docstring of `validate_definition_json` is explicit that SelectedFields is in scope, so the omission is intentional — flag it for confirmation that the user accepts the late validation.",
+      "autofix_class": "advisory",
+      "owner": "human",
+      "requires_verification": false,
+      "pre_existing": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/report/definition_service.py:3271-3308 — validate_definition_json walks SelectedFields and DataSources only; no pass over FilterConditions.",
+        "pcs-backend/app/services/report/query_engine.py:3889-3958 — `_build_condition` is the only line of defense for filter field existence; runs at execute, not save.",
+        "pcs-backend/app/services/report/detail_level.py:3617-3629 — validate_definition also only walks SelectedFields."
+      ],
+      "suggested_fix": "Either accept the late validation and document why (filter UI can submit incomplete states that the registry won't accept until you wire all field selection through the tree), or add a FilterConditions pass: walk the tree, for each leaf call `qe._column(source, field)` (or a lighter `if field not in DATASOURCES[source].fields: raise`). The lighter check matches what the SelectedFields loop already does and would catch typos at save."
+    },
+    {
+      "title": "update_definition allows silently changing project_id",
+      "severity": "P3",
+      "file": "pcs-backend/app/services/report/definition_service.py",
+      "line": 3412,
+      "why_it_matters": "`update()` accepts `project_id` as a parameter and writes `row.project_id = project_id`. There's no check that the actor has access to the new project (only `_reject_duplicate` which is name-uniqueness within a project). A creator with access to project A and project B could move a definition from A to B by editing it. The endpoint `update_definition` in `report_builder.py` passes `body.project_id` straight through. Combined with the status rollback to DRAFT on edit, this can quietly relocate definitions across projects — and once re-published, anyone with access to B sees it.",
+      "autofix_class": "gated_auto",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/app/services/report/definition_service.py:3433 — `row.project_id = project_id` in `update()` with no `check_project_access_or_404(actor, new_project_id)` call.",
+        "pcs-backend/app/api/v1/report_builder.py:1090-1103 — endpoint forwards `body.project_id` without re-checking access against the new value.",
+        "pcs-backend/app/services/report/definition_service.py:3366-3393 — `create()` has the same gap (passes project_id without checking), but new definitions obviously need project access — the asymmetric case is update, where the move is silent."
+      ],
+      "suggested_fix": "In the endpoint or `update()`, call `check_project_access_or_404(actor.user_id, project_id, actor.roles)` whenever `body.project_id != row.project_id` (compare against the existing value, not against the requester's actor.roles alone). If the project_id is meant to be immutable post-creation, reject the change outright and return 400."
+    },
+    {
+      "title": "Demo limit counts OBSOLETE definitions",
+      "severity": "P3",
+      "file": "pcs-backend/app/services/report/definition_service.py",
+      "line": 3500,
+      "why_it_matters": "`_check_demo_limit` runs `select(ReportDefinition.def_id)` with no `WHERE` clause, so it counts DRAFT + PUBLISHED + OBSOLETE rows. After the user obsoletes some, the counter doesn't drop and they hit the 403 even though fewer visible defs exist. The docstring acknowledges this is intentional (\"全库\" not \"按用户\") but doesn't justify counting OBSOLETE, which by design is excluded from the default list. For demo deployments this caps the user at 3 lifetime definitions unless they get someone to manually delete rows.",
+      "autofix_class": "gated_auto",
+      "owner": "human",
+      "requires_verification": false,
+      "pre_existing": false,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/app/services/report/definition_service.py:3500-3513 — `n = len((await self.db.execute(select(ReportDefinition.def_id))).all())` with no where clause.",
+        "pcs-backend/app/services/report/definition_service.py:3401-3410 — `list()` filters out OBSOLETE: `stmt = stmt.where(ReportDefinition.status != \"OBSOLETE\")`.",
+        "pcs-backend/app/services/report/watermark.py:5709 — `DEMO_MAX_DEFINITIONS = 3` is the cap."
+      ],
+      "suggested_fix": "Mirror the list-side filter: `n = len((await self.db.execute(select(ReportDefinition.def_id).where(ReportDefinition.status != \"OBSOLETE\"))).all())`. The docstring's \"全库 not 按用户\" justification is preserved while making OBSOLETE — which the user already pulled from their workflow — stop counting against the cap."
+    }
+  ],
+  "residual_risks": [
+    "Did not deeply trace the ARQ CronJob keyword arguments (month/day/weekday/hour/second/microsecond positional contract). The diff says ARQ 0.28 rejects dict form, but I did not verify the CronJob(...) call's positional-arg shape against the installed arq version.",
+    "Did not exercise `_finalize` and `_link_report_file` together with concurrent ARQ retries on the same task_id; the race analysis rests on code inspection, not on a reproducer.",
+    "Did not read tests under `tests/` to confirm whether any existing test catches the missing project_id filter in `collect()`. If a test does pass records without project_id and asserts the rowset, that test is asserting the bug.",
+    "Did not inspect the OpenAPI artifact (`pcs-frontend/src/types/api.ts`) to confirm the regenerated schema reflects the new response fields; the frontend `api/reportBuilder.ts` imports from it and the type names must match."
+  ],
+  "testing_gaps": [
+    "No test exercises `POST /report/generate` with `record_ids` from a different project than `body.project_id` and asserts a 403/400 or empty rows. Adding this would lock in the missing-filter fix.",
+    "No test for concurrent `StyleService.revise` calls on the same scope. A test that monkeypatches the gap between `_current()` and `db.flush()` to insert another ACTIVE row would surface the missing unique-index guard.",
+    "No test for `SortBy: [{direction: \"DESC\"}]` actually ordering DESC. Any test that asserts the resulting row order would catch the silently-dropped direction.",
+    "No test for `_finalize` concurrent content_hash collision. Hard to write deterministically; consider property-style tests that race two workers with the same input."
+  ]
+}

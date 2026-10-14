@@ -1,0 +1,52 @@
+{
+  "verdicts": [
+    {
+      "#": 1,
+      "status": "confirmed",
+      "protected_subject": "authorization-authentication",
+      "reason": "Inspection reproduces every cited line: report_service.py:107 calls `_fetch_join_rows(db, source=extra, join_field=b_key, keys=...)` with no scope, :163 defines the signature with only source/join_field/keys and adds only a join-key IN predicate, :139-160 `_filter_spec` returns a predicate containing only the primary-key IN over request-supplied record_ids, and api/v1/report.py:135-145 runs `check_project_access_or_404` on body.project_id only before queueing body.record_ids unchanged — so the authenticated project check never constrains the rows the job reads, and the correctly scoped pattern exists only at builder_service.py:2229 (with `scope=scope` and an explicit project EQ condition); incidence across deployments was not measured."
+    },
+    {
+      "#": 2,
+      "status": "confirmed",
+      "protected_subject": "data-loss",
+      "reason": "report_tasks.py:249 and :307 end `reclaim_stale_tasks` / `reclaim_stale_execution_logs` with `await db.flush()` and no commit, the last commit in the module is inside `generate_report_task`, and the cron entry at :311-328 (`reclaim_stale_report_tasks`) obtains its session via `_ctx_session` (:331-338) which only calls `ctx[\"session_factory\"]()` with no commit or close, so the FAILED rewrites and REPORT_FAILED audit rows are rolled back on session release; the precondition is the cron actually firing on a session the worker does not later commit, and tests/workers/test_report_tasks.py:306 passes a fixture session directly so CI never exercises the wrapper."
+    },
+    {
+      "#": 3,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "api/v1/report_builder.py:328 calls `arq_queue.enqueue_definition_execution(...)`, the ReportExecutionLog row is added at :348, and the commit is at :368, so the job is queued before its log row is durable; report_builder_tasks.py:75-76 then misses the row on `scalar_one_or_none()` and the backfill UPDATE at :245-250 has no rowcount check, while the sibling fixed-10 endpoint (report.py:161-189) deliberately commits the PENDING row before enqueueing with `_job_id=task_id`, confirming the ordering is a defect rather than a constraint."
+    },
+    {
+      "#": 4,
+      "status": "confirmed",
+      "protected_subject": "public-contract",
+      "reason": "report_service.py:220 hardcodes `qr_payload=None` on the render call so renderer_pdf.py:256 `if qr_payload:` is unreachable from production, a repo-wide grep for `build_qr_payload` returns only its definition at qr.py:25 and tests/services/report/test_report_service.py, and qr.py:43 emits a URL with no `sig`/`exp`, while api/v1/report.py:97-110 fail-closed requires an HMAC over f\"{report_file_id}:{exp}\" plus a future exp — so every /report/verify scan the QR could carry is rejected with 403."
+    },
+    {
+      "#": 5,
+      "status": "confirmed",
+      "protected_subject": "public-contract",
+      "reason": "query_engine.py:297 declares `batch_size: int = 10000` and :313 raises PcsError REPORT_JOIN_TOO_LARGE when primary rows exceed it, both call sites (builder_service.py:233, report_service.py:111) omit batch_size, and builder_service.py:193/222 already truncate main_rows to `limit = temporary_max_rows or row.max_rows or 10000`, which the schema admits up to 100,000 at schemas/report_builder.py:165 and api/v1/report_builder.py:239 — so any definition with max_rows above 10000 deterministically fails at execution; a grep confirms no caller anywhere passes batch_size."
+    },
+    {
+      "#": 6,
+      "status": "confirmed",
+      "protected_subject": "data-loss",
+      "reason": "In report_builder_tasks.py the only status writes are `task_row.status = \"RUNNING\"` at :83 and `task_row.status = \"FAILED\"` at :113 — a grep for FINISHED across app/ finds no write, only the model comment at models/report.py:211 and the heuristic at api/v1/report_builder.py:296 — so a successful execution leaves the row RUNNING, which is exactly the predicate report_tasks.py:284-285 selects, and the reclaimer then overwrites the completed audit row with FAILED and a reclaimed_at note; note the overwrite is currently masked by finding #2's missing commit, so the corruption only becomes durable once #2 is fixed."
+    },
+    {
+      "#": 7,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "In ReportExecutePage.tsx `poll` (:151-179) re-arms itself at :175 and assigns the single shared `timer.current` at :157, `stopPolling` (:86-88) only clears that one handle, the cleanup at :89 is a bare `useEffect(() => stopPolling, [])`, and the execute button (:205-208) is enabled while phase==='polling', so a run started while a previous poll's `await executionStatus` is in flight leaves two live loops that both write fileId and both re-arm timers, including after unmount."
+    },
+    {
+      "#": 8,
+      "status": "confirmed",
+      "protected_subject": null,
+      "reason": "ReportExecutePage.tsx:161 branches only on `st.report_file_id`; the non-file path at :166-175 sets the waiting text and recurses without ever reading `st.status`, and no reference to `st.status` exists in the file, while the backend does return a terminal FAILED from api/v1/report_builder.py:296 (row.status) and writes it at report_builder_tasks.py:113 — so a failed execution is polled until POLL_TIMEOUT_MS (:60) and then reported with the timeout message asserting the file may still be generating."
+    }
+  ]
+}

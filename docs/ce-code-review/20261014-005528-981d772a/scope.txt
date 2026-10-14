@@ -1,0 +1,4 @@
+Review scope: P8（报表与输出）阶段的全部代码。
+BASE=cfc0f2e（P8 第一个提交 ea53224 的父提交）
+分支 main，HEAD=a9ccb84，50 个 P8 提交。
+审查集已收窄到 P8 面（48 个文件），因为 base..HEAD 窗口内还含 P7 heat/calc 的工作。

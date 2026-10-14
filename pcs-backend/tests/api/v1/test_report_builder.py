@@ -1570,3 +1570,49 @@ async def test_builder_failure_asks_arq_to_retry(client, fake_queue, db_session,
         await tasks.execute_definition_task(
             {**ctx, "job_try": MAX_TRIES}, def_id=d["def_id"],
             project_id=str(proj.project_id), user_id=None, output_format="pdf")
+
+
+# --- #5：对外承诺的 max_rows 上限必须等于引擎真能跑的上限 ----------------------
+#
+# 评审 P1 #5：`query_engine.assemble` 的 `batch_size` 默认 10000 且超限硬抛
+# `REPORT_JOIN_TOO_LARGE`，而 `max_rows` 在四处对外承诺 100_000。用户存成
+# 10001..100000 校验通过、执行时确定性 400 —— 「保存成功、执行时才炸」。
+#
+# 用户 2026-10-14 裁决：**降到 10000**，不做 clamp 迁移（实测 pcs 的 8 条
+# 定义全是 10000，pcs_test 为空），也不做「执行时 min(max_rows, 10000)」
+# —— 后者是静默降级，正是 TODO-060 的失败形态。
+
+def test_every_advertised_max_rows_ceiling_equals_the_engine_limit():
+    """所有对外的 max_rows 上限必须**等于** `assemble` 的硬边界。
+
+    这个相等关系不是巧合，是契约：schema 允许的范围必须是引擎跑得出来的范围。
+    两者一旦分家，用户就能存下一个执行期必然失败的值，而失败点在另一个模块，
+    报错文案与保存时的界面毫无关系。
+    """
+    from app.services.report.definition_service import MAX_ROWS_CEILING
+    from app.services.report.query_engine import assemble
+
+    engine_limit = assemble.__defaults__[-1]     # batch_size 的默认值
+    assert MAX_ROWS_CEILING == engine_limit, (
+        f"MAX_ROWS_CEILING={MAX_ROWS_CEILING} 而 assemble 的硬边界是 "
+        f"{engine_limit} —— 对外允许的范围大于引擎能跑的范围，"
+        "两者之间的差集全是「保存成功、执行时 400」的定义")
+
+
+@pytest.mark.parametrize("body_key", ["MaxRows"])
+def test_definition_body_rejects_max_rows_above_the_engine_limit(body_key):
+    """定义体里的 `MaxRows` 也一样 —— 它是另一个入口，容易漏。"""
+    from pydantic import ValidationError
+
+    from app.schemas.report_builder import ReportDefinitionBody
+
+    base = {"DataSources": [{"source": "EQUIP_LIST"}],
+            "SelectedFields": [{"source": "EQUIP_LIST", "field": "tag_number",
+                                "alias": "位号", "order": 0, "visible": True}],
+            "FilterConditions": [], "SortBy": [], "OutputFormat": "pdf",
+            "detailLevel": "BASIC"}
+
+    ok = ReportDefinitionBody(**{**base, body_key: 10000})
+    assert ok.MaxRows == 10000
+    with pytest.raises(ValidationError):
+        ReportDefinitionBody(**{**base, body_key: 10001})

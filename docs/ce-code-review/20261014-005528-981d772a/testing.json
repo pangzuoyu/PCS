@@ -1,0 +1,102 @@
+{
+  "reviewer": "testing",
+  "findings": [
+    {
+      "title": "All 15 filter operators are compile-checked but never executed",
+      "severity": "P1",
+      "file": "pcs-backend/tests/services/report/test_query_engine.py",
+      "line": 49,
+      "why_it_matters": "The entire query-engine test suite compiles expressions with `postgresql.dialect()` and never runs them against any database (`grep -rn 'apply_filters|build_select' tests/` outside this file returns nothing). That makes the suite structurally incapable of catching the one class of defect it exists to prevent: SQL that compiles but is wrong or errors on the real engine. Concretely, `query_engine.py:165` builds JSONB sub-key targets as `container.op('->>')(key)`, which PostgreSQL types as `text`. On PG 18 (verified against the dev cluster: `select ('{\"a\":1}'::jsonb)->>'a' > 5` -> `ERROR: operator does not exist: text > integer`), so any GT/GTE/LT/LTE/EQ-with-number/BETWEEN filter on `PUMP_RESULTS.flow_rates_json.flow_m3_s` — a field the registry declares as `number` and the API hands to the UI as filterable — raises a 500 at runtime. The in-memory SQLite conftest silently returns a correctly typed value for the identical expression (SQLite 3.50.4 supports `->>` natively), so a test written the obvious way would still go green. This is exactly the drift blind spot the repo's own CLAUDE.md documents: 'drift goes green, drift is invisible'. Add an integration test that builds a definition carrying each operator over a real session (at minimum over a JSONB sub-key and over plain columns), so the test DB cannot launder a PG-only failure.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/tests/services/report/test_query_engine.py:53-56 — `cond = apply_filters(_spec(op, value))` / `sql = _sql(cond)` / `assert \"X\" not in sql and \"'a'\" not in sql, f\"值泄漏进 SQL 文本：{sql}\"` / `assert cond is not None`  (the final assertion is vacuous: apply_filters either returns an expression or raises, so it can never fail)",
+        "pcs-backend/app/services/report/query_engine.py:165 — `        target: Any = container.op(\"->>\")(key)`",
+        "pcs-backend/app/services/report/datasource_registry.py:210 — `\"flow_rates_json.flow_m3_s\": _jf(\"flow_rates_json\", \"flow_m3_s\",` with type `\"number\"` on line 211",
+        "Runtime probe on the dev PG 18 cluster: `select ('{\"a\":1}'::jsonb)->>'a' > 5;` -> `ERROR:  operator does not exist: text > integer`",
+        "Runtime probe on SQLite 3.50.4 (the conftest engine): `select (j->>'flow_m3_s') > 5 from t` -> `[(1,)]` (no error, correctly typed) — the same expression diverges between the two engines the tests run on",
+        "Coverage grep: `grep -rn \"apply_filters\\|build_select\" tests/ --include=*.py | grep -v test_query_engine` returns nothing — no test outside the compile-only file ever reaches the compiled expression"
+      ],
+      "suggested_fix": "Add an execution-level test module (e.g. `tests/services/report/test_query_engine_exec.py`) that, for each of the 15 operators, seeds two rows via `tests/fixtures/report/seed.py`, compiles-and-runs through the real `build_select` + `apply_filters` + session against the `db` fixture, and asserts the returned row set. Include at least one numeric comparison (`GT`, `BETWEEN`) over `PUMP_RESULTS.flow_rates_json.flow_m3_s`. The test will immediately go red on PG for the JSONB case; if the intent is that PG works, the fix belongs in `_build_condition` (cast the `->>` result with `.as_numeric()` / `sa.cast(..., Numeric)` when `spec.type == 'number'`, and `.as_string()` for `LIKE` family), and the new execution test is what proves it. Assumption: numeric JSONB filtering is in scope — the registry already advertises those fields as `number`, so either the code must support it or the registry/API must stop offering them.",
+      "first_evidence": "pcs-backend/tests/services/report/test_query_engine.py:53 — `    cond = apply_filters(_spec(op, value))` (compiled to a string; never executed against any engine)"
+    },
+    {
+      "title": "Last-attempt retry assertion cannot distinguish Retry from the original error",
+      "severity": "P2",
+      "file": "pcs-backend/tests/workers/test_report_tasks.py",
+      "line": 691,
+      "why_it_matters": "Both task bodies end their failure handler with a contract the tests explicitly document: on the final attempt the task must re-raise the *original* exception so ARQ can mark the job dead, and only on earlier attempts may it raise `Retry`. The test asserting this uses `pytest.raises(RuntimeError)` — but `arq.Retry` is declared `class Retry(RuntimeError)` at arq/worker.py:97, so `pytest.raises(RuntimeError)` catches `Retry` too. The assertion therefore stays green if someone deletes the `if attempt_no < MAX_TRIES:` guard and raises `Retry` unconditionally, which is precisely the bug the docstring says it exists to prevent: ARQ re-enqueues forever, 'retries are exhausted' never reaches the job result, and the row is never given a terminal state. The first `pytest.raises(Retry)` assertion in the same test is fine; it is only the symmetric 'last attempt' half that is vacuous. Tighten both to distinguish the exception types.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/tests/workers/test_report_tasks.py:691-694 — `    with pytest.raises(RuntimeError):` / `        await generate_report_task(` / `            _job_ctx(db, job_try=MAX_TRIES), report_type=\"EQUIPMENT_LIST\",`",
+        "pcs-backend/tests/api/v1/test_report_builder.py:1519-1522 — the same shape on the builder side: `    with pytest.raises(RuntimeError):` … `            {**ctx, \"job_try\": MAX_TRIES}, def_id=d[\"def_id\"],`",
+        "pcs-backend/.venv/lib/python3.12/site-packages/arq/worker.py:97 — `class Retry(RuntimeError):` (so the assertion cannot fail on a Retry)",
+        "pcs-backend/app/workers/report_tasks.py:212-214 — `            if attempt_no < MAX_TRIES:` / `                raise Retry(defer=RETRY_DEFER_S) from e` / `            raise      # 次数用尽：抛原始异常，ARQ 据此判死并记下原因`",
+        "The tests currently pass (24 passed in tests/workers/test_report_tasks.py), so this is a latent gap, not a red suite"
+      ],
+      "suggested_fix": "In both `test_failure_asks_arq_to_retry_instead_of_just_dying` (tests/workers/test_report_tasks.py) and `test_builder_failure_asks_arq_to_retry` (tests/api/v1/test_report_builder.py), replace the final-attempt block with an exact-type assertion, e.g. `with pytest.raises(RuntimeError) as ei:` followed by `assert not isinstance(ei.value, Retry), \"最后一次仍在抛 Retry —— ARQ 会再排一次，重试耗尽永远传不出去\"`; or import `Retry` and use `pytest.raises(RuntimeError)` + the isinstance guard, which keeps the original-error message assertion while excluding Retry. Assumption: the underlying raise sites (`report_tasks.py:214`, `report_builder_tasks.py:131`) are correct as written — this change only makes the existing contract actually enforced.",
+      "first_evidence": "pcs-backend/tests/workers/test_report_tasks.py:691 — `    with pytest.raises(RuntimeError):`  (catches arq.Retry too, since arq/worker.py:97 declares `class Retry(RuntimeError)`)"
+    },
+    {
+      "title": "Pixel-level visual renderer tests never run in any gate",
+      "severity": "P2",
+      "file": "pcs-backend/pyproject.toml",
+      "line": 94,
+      "why_it_matters": "`tests/services/report/test_renderer_visual.py` exists for one stated reason: the footer-page-number class of bug where the PDF text layer contains the right characters but nothing is actually painted on the page, so every `extract_text()` assertion goes green. `pyproject.toml` sets `addopts = \"-m 'not visual'\"`, so those four tests are deselected in every default `pytest` invocation. The marker documentation and the module docstring both defer to CI (`CI 用 pytest -m visual 跑`), but the repository's only workflow, `.github/workflows/check-api-drift.yml`, runs alembic + OpenAPI drift + a migration idempotency guard and never invokes pytest — so the compensating control does not exist either. I ran them manually (`pytest -m visual`): 4 passed, so the tests are not broken — they are simply inert, and the renderer regression class they were built for has no automated gate. Either wire them into a gate that actually runs, or accept in writing that renderer layout regressions are caught only by a human remembering to type the flag.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/pyproject.toml:94 — `addopts = \"-m 'not visual'\"`",
+        "pcs-backend/pyproject.toml:96 — `    \"visual: 像素级渲染验证，需 poppler-utils(pdftoppm)。CI 用 `pytest -m visual` 单独跑。\",` (the named compensating control)",
+        ".github/workflows/check-api-drift.yml — the only workflow; its steps are alembic upgrade + export_openapi + check-api-drift + migration idempotency, with no pytest invocation",
+        "Manual run: `uv run pytest tests/services/report/test_renderer_visual.py -m visual -q` -> `4 passed` (the tests work; nothing runs them automatically)",
+        "pcs-backend/tests/services/report/test_renderer_visual.py:17-20 — the module docstring's stated rationale ('这正是「文本层有字、像素上空白」的 bug 会原样溜过去')"
+      ],
+      "suggested_fix": "Pick one and make it explicit. Cheapest durable option: add a fourth job to `.github/workflows/check-api-drift.yml` that installs `poppler-utils` via `sudo apt-get install -y poppler-utils` and runs `uv run pytest -m visual tests/services/report/test_renderer_visual.py` (the `-m` on the command line overrides the ini `addopts`, which the comment at pyproject.toml:90-93 already anticipates). If no pytest job is wanted, drop `addopts` to empty so the tests run in the default local suite — the module already `pytest.fail`s rather than skips when `pdftoppm` is absent, and the ~0.4s runtime measured locally makes that affordable. Assumption: adding a CI job is a project-level decision (CI scope was previously ruled on), which is why this is routed to human rather than auto-fix.",
+      "first_evidence": "pcs-backend/pyproject.toml:94 — `addopts = \"-m 'not visual'\"`"
+    },
+    {
+      "title": "SPEC source contract for 9 of 10 report types is unpacked and discarded",
+      "severity": "P3",
+      "file": "pcs-backend/tests/services/report/test_collector.py",
+      "line": 44,
+      "why_it_matters": "The module docstring states the rule it is enforcing — '每种的源与格式都来自 SPEC … 「泵数据表」必须出在 `PUMP_RESULTS`'. The test unpacks both halves of the hard-coded SPEC table but binds the source half to `_expected_source` and never asserts on it. Consequently only the format half is enforced for all ten types; the source half is enforced for exactly one (`test_energy_calc_book_source_matches_spec`). If `PUMP_DATA_TABLE.primary` were changed to `UTIL_RESULTS`, `test_each_type_declares_a_real_datasource` and `test_primary_source_is_among_sources` would both still pass, because they only check internal consistency, never the SPEC mapping — and a user would silently get utility data in a pump data table. Assert the source as well.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "pre_existing": false,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/tests/services/report/test_collector.py:44 — `    expected_formats, _expected_source = SPEC_TABLE[report_type]` (the source half is bound to a throwaway name)",
+        "pcs-backend/tests/services/report/test_collector.py:45-47 — `    spec = collector_for(report_type)` / `    assert spec.formats == expected_formats, \\` / `        f\"{report_type} 输出格式应为 {expected_formats}，实得 {spec.formats}\"` (only formats compared)",
+        "pcs-backend/tests/services/report/test_collector.py:60-64 — `test_each_type_declares_a_real_datasource` asserts only `src in DATASOURCES`, i.e. internal consistency, not the SPEC mapping",
+        "Only one source assertion exists: pcs-backend/tests/services/report/test_collector.py:87-89 — `def test_energy_calc_book_source_matches_spec():` / `    assert collector_for(\"ENERGY_CALC_BOOK\").primary == \"UTIL_RESULTS\"`"
+      ],
+      "suggested_fix": "In `test_sources_match_spec` (tests/services/report/test_collector.py:43-47), rename the binding and assert both halves:\n\n    expected_formats, expected_source = SPEC_TABLE[report_type]\n    spec = collector_for(report_type)\n    assert spec.formats == expected_formats, \\\n        f\"{report_type} 输出格式应为 {expected_formats}，实得 {spec.formats}\"\n    assert spec.primary == expected_source, \\\n        f\"{report_type} 主源应为 {expected_source}，实得 {spec.primary}\"\n\nThe `ENERGY_CALC_BOOK` special case in `test_energy_calc_book_source_matches_spec` then becomes redundant and can be dropped (or kept as documentation). Assumption: the SPEC table transcribed at test_collector.py:21-32 is the authoritative one; if any entry is stale, this assertion will surface it on first run rather than hide it.",
+      "first_evidence": "pcs-backend/tests/services/report/test_collector.py:44 — `    expected_formats, _expected_source = SPEC_TABLE[report_type]`"
+    }
+  ],
+  "residual_risks": [
+    "tests/benchmarks/test_report_perf.py asserts wall-clock thresholds (5s / 15s / 10s) calibrated on a 20-core box, and it runs in the default suite (testpaths = [\"tests\"]) on whatever machine the developer happens to be on. The docstring deliberately rejects relative thresholds, so this is an accepted trade-off rather than a defect — but on a slower laptop these three tests will flake, and repeated flakes are exactly how gates get disabled.",
+    "Golden fixtures under tests/fixtures/golden/report/ are compared with `got == target.read_text()`, so `--update-golden` makes the suite green by construction. The docstring documents the 'read the diff' discipline and `test_golden_contains_real_seed_values` guards against a hollow baseline for EQUIPMENT_LIST specifically, but no automated control prevents a regeneration that silently absorbs a regression across all ten types.",
+    "The in-memory-SQLite conftest masks PostgreSQL divergence generally, not just the JSONB case found here. `tests/db/test_server_generated_columns.py` shows the team already understands and has been bitten by this class (server-generated `onupdate=func.now()` columns, `expire_on_flush=False` differences); the same harness will hide the next dialect gap in the same way.",
+    "tests/mutation.py writes mutated source into the target file and restores it (lines 128/144/190) — it restores into the same path it read from. It is only exercised from tests/test_mutation_tool.py against a tmp sandbox, and nothing in the diff invokes it against the shared checkout, so this review found no mutation run that could have left the working tree dirty."
+  ],
+  "testing_gaps": [
+    "No test executes a filter on a JSONB sub-key field. `PUMP_RESULTS.flow_rates_json.flow_m3_s` is declared `number` and offered to the UI, but only the compile step (`_sql(...)`) is ever exercised for the `->>` branch at query_engine.py:163-165. See finding 1.",
+    "Only one operator (EQ on a plain text column, test_report_builder.py:696-698) is executed end-to-end against a database. GT/GTE/LT/LTE/BETWEEN/CONTAINS/STARTS_WITH/ENDS_WITH/LIKE/IN/NOT_IN/IS_NULL/IS_NOT_NULL have compile-only coverage, so NULL semantics in NEQ/NOT_IN, LIKE wildcard injection, and BETWEEN inclusivity are all unverified.",
+    "The golden anti-hollow guard (`test_golden_contains_real_seed_values`, test_golden.py:84-97) checks real seed values in exactly one of ten report types. The other nine baselines could in principle degenerate to 'headers + empty rows' and still satisfy `assert got.strip()`.",
+    "No test asserts that `--update-golden` is never passed by any automated or documented gate command, so the one control on golden regeneration is the docstring alone.",
+    "test_style_wiring.py / test_detail_level_styles.py cover the style scope-resolution matrix, but there is no test that a style resolved at the *project* scope is actually what the renderer receives end-to-end through generate() — the wiring tests stop at the resolution layer."
+  ]
+}

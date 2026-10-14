@@ -1,0 +1,250 @@
+{
+ "run_id": "20261014-005528-981d772a",
+ "run_dir": "/tmp/compound-engineering-1000/ce-code-review/20261014-005528-981d772a",
+ "skill_dir": "/home/pangzy/.claude/plugins/cache/compound-engineering-plugin/compound-engineering/3.28.2/skills/ce-code-review",
+ "docs_root": "docs",
+ "scope": {
+  "mode": "standalone",
+  "base": "cfc0f2e",
+  "diff_b": "a9ccb84",
+  "branch": "main",
+  "head_sha": "a9ccb84",
+  "files": "/tmp/compound-engineering-1000/ce-code-review/20261014-005528-981d772a/files.txt",
+  "diff": "/tmp/compound-engineering-1000/ce-code-review/20261014-005528-981d772a/full.diff",
+  "file_count": 48,
+  "tree_is_reviewed_head": true
+ },
+ "intent_summary": "Review the landed P8 (reports and output) code: 10 fixed report types generated directly via ReportLab plus a custom report builder executed asynchronously through ARQ. Both /report/generate and /report-builder/execute return 202 with a task_id; terminal state lives in report_files.status and report_execution_logs.status; a reclaimer judges dead tasks FAILED rather than deleting rows, because the log is an audit table. The review focus is async task lifecycle correctness (submit / retry / reclaim), project-level data isolation, and migration-to-ORM consistency.",
+ "roster": [
+  "correctness",
+  "api-contract",
+  "reliability",
+  "performance",
+  "security",
+  "testing",
+  "maintainability",
+  "julik-frontend-races",
+  "data-migration",
+  "project-standards",
+  "adversarial"
+ ],
+ "peer": {
+  "selected": false,
+  "outcome": "not-run",
+  "artifact": null,
+  "note": "No cross-model route exists on this host; the adversarial perspective is covered by the in-process adversarial reviewer."
+ },
+ "batch": {
+  "count": 8,
+  "ordering": "severity then stable #",
+  "cap_note": "8 P0/P1 survive, which is exactly the normal cap of eight; no expansion was needed and the batch is not split.",
+  "findings": [
+   {
+    "n": 1,
+    "severity": "P0",
+    "confidence": 100,
+    "file": "pcs-backend/app/services/report/report_service.py",
+    "line": 163,
+    "title": "Fixed-10 report export has no project isolation: join rows are unfiltered and record_ids ownership is never checked",
+    "why_it_matters": "Verified in source, three linked gaps on the fixed-10-types path only. (1) `_fetch_join_rows` (pcs-backend/app/services/report/report_service.py:163-177) takes no `scope` argument and adds no project predicate: it selects every row of the joined source whose join key matches, so a main-source row belonging to project A pulls in join-source rows belonging to project B. (2) `_filter_spec` (:139-160) builds the only predicate on the main source and it is an `IN` over `record_ids` -- the primary key list from the request body; nothing checks that those ids belong to `body.project_id`. (3) `POST /report/generate` (pcs-backend/app/api/v1/report.py:135-186) calls `check_project_access_or_404` on `body.project_id` (:143) and then hands `body.record_ids` straight to the queue (:186), so the access check validates a project id that never reaches the query. The intended pattern exists 40 lines away in `builder_service._fetch_join_rows_with_scope` (pcs-backend/app/services/report/builder_service.py:99-134), which takes `scope` and ANDs `_attr(source, \"project_id\") == scope` -- bug-162 fixed only that path. Consequence: an authenticated user who knows or guesses record UUIDs from another project exports another project's rows through a supported endpoint. Tests do not cover this: tests/services/report/test_join_project_scope.py exercises only `builder_service.execute_definition`.",
+    "first_evidence": "pcs-backend/app/services/report/report_service.py:107 — `rows_by_source[extra] = await _fetch_join_rows(db, source=extra, join_field=b_key, keys=[...])` with no `scope=` argument.",
+    "evidence": [
+     "pcs-backend/app/services/report/report_service.py:107 — `rows_by_source[extra] = await _fetch_join_rows(db, source=extra, join_field=b_key, keys=[...])` with no `scope=` argument.",
+     "pcs-backend/app/services/report/report_service.py:163 — `_fetch_join_rows` signature accepts only `source`, `join_field`, `keys`; no project scoping.",
+     "Compare: pcs-backend/app/services/report/builder_service.py:2239 — same join-source path explicitly ANDs `_attr(source, 'project_id') == scope` and justifies it as '越权边界, 不能与 user conditions 合并'.",
+     "Trigger: caller POSTs `/report/generate` with `project_id=A` and `record_ids=[<UUID from project B>]`; `/report/generate` only runs `check_project_access_or_404` on project_id, not on individual record ids.",
+     "pcs-backend/app/services/report/report_service.py:4819-4844 — `collect()` builds `stmt = build_select(...) .where(apply_filters(_filter_spec(spec, record_ids)))` with no project_id clause; `_filter_spec()` returns only the IN(record_ids) condition.",
+     "pcs-backend/app/services/report/builder_service.py:2310-2319 — by contrast, `execute_definition` adds an explicit `{\"operator\":\"EQ\",\"source\":primary,\"field\":_project_field(primary),\"value\":scope}` condition, with a docstring calling this a hard boundary: \"**不能默认全库查询** —— 那会把别的项目的数据一起导出去\".",
+     "pcs-backend/app/api/v1/report.py:628-631 — endpoint calls `check_project_access_or_404(body.project_id)` but never re-uses that project_id in the SQL path."
+    ],
+    "suggested_fix": "Add a `scope: uuid.UUID | None` parameter to `_fetch_join_rows` and to `collect`; thread `project_id` through from the endpoint. In the batched IN query, mirror builder_service's guard: if the source exposes a project_id column, AND `project_id == scope`; if not (e.g. SUPPLIERS), keep current behavior. Also validate at the endpoint that every UUID in `body.record_ids` resolves to a row whose `project_id` matches `body.project_id` (or NULL), with `check_project_access_or_404` per row.",
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver"
+   },
+   {
+    "n": 2,
+    "severity": "P0",
+    "confidence": 100,
+    "file": "pcs-backend/app/workers/report_tasks.py",
+    "line": 249,
+    "title": "Reclaim cron never commits -- the stale-task reclaimer is silently inert",
+    "why_it_matters": "Verified in source: `reclaim_stale_tasks` (pcs-backend/app/workers/report_tasks.py:217-251) and `reclaim_stale_execution_logs` (:263-308) end with `await db.flush()` (:249, :307) and no commit; the last `commit()` in the whole module is at :203, inside `generate_report_task`. The cron entry `reclaim_stale_report_tasks(ctx)` (:311-328) obtains its session through `_ctx_session(ctx)` (:323,:331-338), which calls the session factory and never commits or closes. The module docstring (:15-26) states every state change in this module must commit and explicitly exempts reclaim -- the exemption is the bug. Consequence: every FAILED rewrite and every REPORT_FAILED audit row the reclaimer writes is rolled back when the session is released, so a crashed ARQ worker leaves report_files stuck in PENDING and report_execution_logs stuck in QUEUED/RUNNING forever; the status endpoints the frontend polls report a hang that never resolves. The two reviewers describe the same defect from the same file and merge into one finding.",
+    "first_evidence": "pcs-backend/app/workers/report_tasks.py:249 — `await db.flush()` inside `reclaim_stale_tasks` (no commit before return).",
+    "evidence": [
+     "pcs-backend/app/workers/report_tasks.py:249 — `await db.flush()` inside `reclaim_stale_tasks` (no commit before return).",
+     "pcs-backend/app/workers/report_tasks.py:307 — `await db.flush()` inside `reclaim_stale_execution_logs` (no commit before return).",
+     "Module docstring at pcs-backend/app/workers/report_tasks.py:25-32: 每次状态变更必须 commit 与实际函数不符 — reclaim 是显豁。",
+     "Trigger: cron `reclaim-stale-report-tasks` fires at HH:03:00 and HH:33:00 via `WorkerSettings.cron_jobs`; each invocation calls `_ctx_session(ctx)` which only opens a session and never closes it.",
+     "pcs-backend/app/workers/report_tasks.py:323-328 — `db: AsyncSession = _ctx_session(ctx)` / `await reclaim_stale_tasks(db, older_than_minutes=STALE_MINUTES)` / `await reclaim_stale_execution_logs(db, older_than_minutes=STALE_MINUTES)` — no `commit()`, no `close()` anywhere in the function.",
+     "pcs-backend/app/workers/report_tasks.py:249 — `    await db.flush()` (end of reclaim_stale_tasks); pcs-backend/app/workers/report_tasks.py:307 — `    await db.flush()` (end of reclaim_stale_execution_logs). Both rely on a caller that never commits.",
+     "pcs-backend/app/db/session.py:71-85 — `get_async_session_factory` builds a plain `async_sessionmaker` with no autocommit; there is no ambient commit hook that could rescue the flush.",
+     "tests/workers/test_report_tasks.py:306 — `n = await reclaim_stale_tasks(db, older_than_minutes=15)` — the tests pass the fixture session directly and never exercise the cron wrapper, so the missing commit is invisible to CI.",
+     "Contrast with the task bodies, which do commit explicitly and are tested for it: report_tasks.py:172 `            await db.commit()`, and tests/workers/test_report_tasks.py:381 `test_failure_state_is_committed_not_just_left_in_the_session`."
+    ],
+    "suggested_fix": "Add `await db.commit()` at the end of `reclaim_stale_tasks` (line 249) and `reclaim_stale_execution_logs` (line 307), and switch the cron entry to use `session_scope(ctx)` (the helper added in worker.py) so the session is also guaranteed to close cleanly. Add a `test_reclaim_persists_after_session_close` that calls the function against one session, commits/closes, then re-opens a fresh session and asserts the row state (and audit row) actually landed in the DB.",
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver"
+   },
+   {
+    "n": 3,
+    "severity": "P1",
+    "confidence": 100,
+    "file": "pcs-backend/app/api/v1/report_builder.py",
+    "line": 328,
+    "title": "Builder enqueues the ARQ job before committing its execution-log row",
+    "why_it_matters": "Verified in source: `execute_definition_endpoint` calls `arq_queue.enqueue_definition_execution(...)` at :328, adds the `ReportExecutionLog` row at :348, and only commits at :368. Three windows: the worker can finish and call `_link_report_file` before the row exists, so the audit row's `report_file_id` backfill is lost and the polling endpoint `/report-builder/executions/{task_id}` answers 404 for a job that already produced a file; if the endpoint then fails before :368, the file exists with no audit row at all. The fixed-10 endpoint gets this right on purpose -- pcs-backend/app/api/v1/report.py:157-166 builds the PENDING row and commits before enqueueing -- so the two endpoints in the same feature contradict each other.",
+    "first_evidence": "pcs-backend/app/api/v1/report_builder.py:328: `    task_id = await arq_queue.enqueue_definition_execution(` (enqueue happens first)",
+    "evidence": [
+     "pcs-backend/app/api/v1/report_builder.py:328: `    task_id = await arq_queue.enqueue_definition_execution(` (enqueue happens first)",
+     "pcs-backend/app/api/v1/report_builder.py:348: `    db.add(ReportExecutionLog(` (row created second) with `:368: await db.commit()` after it.",
+     "pcs-backend/app/workers/report_builder_tasks.py:245-250: `    await db.execute(update(ReportExecutionLog).where(ReportExecutionLog.task_id == task_id).values(report_file_id=report_file_id))` -- UPDATE-only, no row-count check, no upsert.",
+     "pcs-backend/app/api/v1/report_builder.py:328 — `    task_id = await arq_queue.enqueue_definition_execution(` — the job is on the queue before the log row exists.",
+     "pcs-backend/app/api/v1/report_builder.py:368 — `    await db.commit()      # 端点负责 commit（与本仓其它写端点一致）` — the log row (added at line 348) is only durable here, after the enqueue.",
+     "pcs-backend/app/workers/report_builder_tasks.py:75-76 — `        task_row = (await db.execute(_sel(_Log).where(` / `            _Log.task_id == job_id))).scalar_one_or_none()` — a miss here makes both the RUNNING update and the later backfill no-ops.",
+     "pcs-backend/app/workers/report_builder_tasks.py:229 — `    await _link_report_file(db, task_id=task_id, report_file_id=row.report_file_id)` — the UPDATE at 247-250 silently affects 0 rows; there is no rowcount check.",
+     "Parallel pattern already in this diff: pcs-backend/app/api/v1/report.py:161 `    task_id = uuid.uuid4().hex` … :189 `_job_id=task_id,` — the generate endpoint commits the PENDING row *before* enqueueing.",
+     "`enqueue_definition_execution` (arq_queue.py:81-85) does not forward a `_job_id`, so the task id cannot currently be chosen by the caller on this path."
+    ],
+    "suggested_fix": "Reorder `execute_definition_endpoint` so the `db.add(ReportExecutionLog(...))` + `await db.commit()` precede `arq_queue.enqueue_definition_execution(...)`, and pass the endpoint-chosen task_id into the enqueue (mirroring what `/report/generate` already does at report.py:161-190 with `_job_id=task_id`). Additionally make `_link_report_file` raise or retry when its UPDATE matches zero rows, so this class of silent loss surfaces instead of degrading into a client-side timeout.",
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver"
+   },
+   {
+    "n": 4,
+    "severity": "P1",
+    "confidence": 100,
+    "file": "pcs-backend/app/services/report/qr.py",
+    "line": 43,
+    "title": "Printed QR codes carry no signature, so /report/verify rejects every scan with 403",
+    "why_it_matters": "Verified in source, and the gap is end-to-end: `build_qr_payload` (pcs-backend/app/services/report/qr.py:25-43) emits `{verify_base_url}/api/v1/report/verify/{report_id}#...` with no `sig` and no `exp` query parameter, and grepping the whole backend finds no other producer -- `hmac` appears only in the verifier. `_check_sig` (pcs-backend/app/api/v1/report.py:97-110) requires both: `sig` must equal HMAC-SHA256(secret, f\"{report_file_id}:{exp}\") and `exp` must be in the future, so with the signature absent it raises 403 '签名无效' on every request. The endpoint module docstring (:25) specifies the signature contract, and migration-side settings define `report_verify_secret`; only the producer is missing. Field verification -- scanning a printed report to confirm it against the stored hash -- cannot succeed today.",
+    "first_evidence": "pcs-backend/app/services/report/report_service.py:220 — `                          qr_payload=None, assumed_fields=[], context=ctx)` — the render call hardcodes None, so renderer_pdf.py:256 `    if qr_payload:` is never true.",
+    "evidence": [
+     "pcs-backend/app/services/report/report_service.py:220 — `                          qr_payload=None, assumed_fields=[], context=ctx)` — the render call hardcodes None, so renderer_pdf.py:256 `    if qr_payload:` is never true.",
+     "grep for `build_qr_payload` across the repo returns only its definition (qr.py:25) and tests/services/report/test_report_service.py — zero production callers.",
+     "grep for `report_verify_secret` returns app/api/v1/report.py:100 (verification), app/core/config.py:79/169/176 (config), tests/api/v1/test_report.py:49 (test-side signing) — no production signer.",
+     "pcs-backend/app/api/v1/report.py:107-110 — `    expect = hmac.new(secret.encode(), f\"{report_file_id}:{exp}\".encode(), hashlib.sha256).hexdigest()` / `    if not hmac.compare_digest(expect, sig or \"\"):` / `        raise HTTPException(status_code=403, detail=\"签名无效\")` — fail-closed, correct, and unsatisfiable for any URL a QR could carry.",
+     "pcs-backend/app/services/report/qr.py:43 — `    return (f\"{verify_base_url.rstrip('/')}/api/v1/report/verify/{report_id}#\"` — the payload builder emits no sig/exp query parameters."
+    ],
+    "suggested_fix": "Two coordinated changes, both in `report_service`. (1) Add a signer next to `qr.py` that mints the short-lived signature: `def sign_verify_url(*, report_file_id, exp) -> str` computing `hmac.new(settings.report_verify_secret.encode(), f\"{report_file_id}:{exp}\".encode(), hashlib.sha256).hexdigest()` — reuse the exact input format from `_check_sig` (report.py:107) rather than re-deriving it. (2) In `store_rendered`/`generate`, build `exp = int(now.timestamp()) + VERIFY_TTL_S` and pass a real payload through `_render_sync(..., qr_payload=build_qr_payload(..., verify_base_url=f\"{base}/api/v1/report/verify/{row_id}?sig={sig}&exp={exp}\"))` — note this requires the report_file_id, which today is only known *after* `_upsert_report_file`, so the ordering in `store_rendered` (render → hash → write → upsert) needs to become (upsert PENDING row → sign with its id → render → write). Because the signature is time-varying it must NOT feed `_content_hash`, or the determinism guarantee that `qr.py`'s docstring rests on (same content ⇒ same hash ⇒ dedup works) breaks; keep the hash over (blocks, style, output_format, ctx) as it is and let the QR vary. If signed URLs are genuinely deferred, delete `qr.py` and the `verify` route together rather than shipping a 403-by-construction endpoint.",
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver"
+   },
+   {
+    "n": 5,
+    "severity": "P1",
+    "confidence": 100,
+    "file": "pcs-backend/app/services/report/query_engine.py",
+    "line": 297,
+    "title": "assemble()'s fixed batch_size=10000 hard-fails every definition whose MaxRows exceeds it, contradicting the 100,000-row promise",
+    "why_it_matters": "Verified in source: `query_engine.assemble` (:293-318) defaults `batch_size: int = 10000` and raises PcsError `REPORT_JOIN_TOO_LARGE` when the primary row count exceeds it. Both callers pass no `batch_size`: pcs-backend/app/services/report/builder_service.py:233 and pcs-backend/app/services/report/report_service.py:111. Meanwhile 100,000 is the promised ceiling in four places -- schemas/report_builder.py:139 and :165, definition_service.py:53 (`MAX_ROWS_CEILING`), and api/v1/report_builder.py:239. A user who saves a definition with max_rows between 10,001 and 100,000 passes validation and gets a hard 400 at execution time, which is the same class of bug the format whitelist docstring warns about ('saved fine, fails only at execution').",
+    "first_evidence": "pcs-backend/app/services/report/query_engine.py:313 — `    if len(base_rows) > batch_size:` with `batch_size: int = 10000` declared at query_engine.py:297 and raised as `REPORT_JOIN_TOO_LARGE` (400) at :317.",
+    "evidence": [
+     "pcs-backend/app/services/report/query_engine.py:313 — `    if len(base_rows) > batch_size:` with `batch_size: int = 10000` declared at query_engine.py:297 and raised as `REPORT_JOIN_TOO_LARGE` (400) at :317.",
+     "pcs-backend/app/services/report/builder_service.py:233 — `    merged = qe.assemble(rows_by_source, join_keys, primary, fields_by_source)` — no `batch_size` argument, so the 10000 default applies.",
+     "pcs-backend/app/services/report/builder_service.py:193 — `    limit = temporary_max_rows or row.max_rows or 10000` and :222 `    main_rows = main_rows[:limit]` — `base_rows` reaching `assemble` has exactly `limit` rows, so `limit > 10000` deterministically trips the guard.",
+     "pcs-backend/app/schemas/report_builder.py:165 — `    max_rows: int = Field(default=10000, ge=1, le=100_000)` and pcs-backend/app/api/v1/report_builder.py:239 — `    max_rows: int | None = Field(default=None, ge=1, le=100_000)` both admit values the executor can never serve.",
+     "grep for `batch_size` across app/services/report and app/api/v1 returns only query_engine.py:297 (the default) and :313 (the check) — no caller anywhere raises or lowers it."
+    ],
+    "suggested_fix": "Thread the effective row limit into `assemble` from the one place that already knows it. In `builder_service.execute_definition`, the call at line 233 is `qe.assemble(rows_by_source, join_keys, primary, fields_by_source)`; change it to `qe.assemble(rows_by_source, join_keys, primary, fields_by_source, batch_size=limit)`, since `limit` (line 193) is `temporary_max_rows or row.max_rows or 10000` and `main_rows` has already been truncated to it at line 222 — so the check becomes unreachable-but-consistent instead of a contradiction with the 100k ceiling. Note the asymmetry this creates and decide it deliberately: `report_service._MAX_ROWS` stays 10000, so the fixed-10 path remains capped there, while the builder path honours the per-definition MaxRows. If the intent was actually to hard-cap ALL report generation at 10k for memory reasons, the cheaper and more honest fix is the opposite one: lower `le=100_000` to `le=10000` in both `schemas/report_builder.py:165` and `report_builder.py:239` and drop `MAX_ROWS_CEILING` to 10000, so the schema stops advertising a range that provably cannot execute. Verify with a test that executes a definition at `max_rows=10001` and asserts either success-with-10001-rows or a 400 at write time — not at render time.",
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver"
+   },
+   {
+    "n": 6,
+    "severity": "P1",
+    "confidence": 100,
+    "file": "pcs-backend/app/workers/report_builder_tasks.py",
+    "line": 83,
+    "title": "Successful builder executions never reach FINISHED; the reclaimer then rewrites a completed audit row to FAILED",
+    "why_it_matters": "Verified in source: `report_builder_tasks.py` writes status only at :83 (`task_row.status = \"RUNNING\"`) and :113 (`task_row.status = \"FAILED\"`). No code path writes `\"FINISHED\"`. Because `reclaim_stale_execution_logs` (pcs-backend/app/workers/report_tasks.py:263-308) selects rows whose status is in ('QUEUED','RUNNING') and older than the threshold, a builder execution that completed successfully and produced a report file is, 15 minutes later, relabelled FAILED with a `reclaimed_at` note in `condition_snapshot` -- on a table the module docstring calls an audit record that must not be tampered with. The polling endpoint therefore reports a failure for work that actually produced a file. (The reclaimer itself does not commit -- see the P0 -- so today this second corruption is masked; fixing the P0 without this fix turns the masked bug into a live one.)",
+    "first_evidence": "pcs-backend/app/workers/report_builder_tasks.py:83 — `task_row.status = \"RUNNING\"` (only assignment in success path).",
+    "evidence": [
+     "pcs-backend/app/workers/report_builder_tasks.py:83 — `task_row.status = \"RUNNING\"` (only assignment in success path).",
+     "pcs-backend/app/workers/report_builder_tasks.py:113 — `task_row.status = \"FAILED\"` (only assignment in failure arm).",
+     "Search confirms no `task_row.status = \"FINISHED\"` exists anywhere in the file or in `report_builder.py` / `builder_service.py`.",
+     "Trigger: a successful execute_definition run returns report_file_id, user sees FINISHED; 15 min later reclaim rewrites the row to FAILED with no upstream signal.",
+     "pcs-backend/app/workers/report_builder_tasks.py:93-96 — `            file_id = await _render_and_store(` / `                db, out=out, project_id=pid, job_id=job_id, task_id=job_id,` / `                output_format=out.snapshot.get(\"output_format\") or \"pdf\")` / `            await db.commit()` — the success path commits without ever setting `task_row.status = \"FINISHED\"`.",
+     "pcs-backend/app/workers/report_builder_tasks.py:112 — `            if attempt_no >= MAX_TRIES and task_row is not None:` — the only place `task_row.status` is assigned after the initial RUNNING, and it only ever assigns FAILED.",
+     "pcs-backend/app/api/v1/report_builder.py:296 — `    status = \"FINISHED\" if row.report_file_id else (row.status or \"QUEUED\")` — the DB column is never read as FINISHED, which is why the missing write is invisible.",
+     "pcs-backend/app/workers/report_tasks.py:284-285 — `            ReportExecutionLog.status.in_((\"QUEUED\", \"RUNNING\")),` / `            or_(ReportExecutionLog.updated_at < cutoff,` — the reclaim predicate a completed (still RUNNING) row satisfies.",
+     "pcs-backend/app/models/report.py:211 — comment=\"QUEUED 已入队 / RUNNING 执行中 / FINISHED 已出文件 / FAILED 已终结（含被回收）\" — FINISHED is a defined terminal state that is never produced."
+    ],
+    "suggested_fix": "Add `task_row.status = \"FINISHED\"` after the successful `db.commit()` in `execute_definition_task` and before the final return; second commit. Alternative: set `status = \"FINISHED\"` together with `report_file_id` via the same UPDATE in `_link_report_file`. Either fix also removes the need for the heuristic `report_file_id is not None -> FINISHED` fallback in `execution_status` (which itself is a sign the underlying state machine is broken).",
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver"
+   },
+   {
+    "n": 7,
+    "severity": "P1",
+    "confidence": 100,
+    "file": "pcs-frontend/src/pages/report/ReportExecutePage.tsx",
+    "line": 157,
+    "title": "Poll loop has no cancellation token: unmount or a new run resurrects an orphan loop that clobbers the new run's state",
+    "why_it_matters": "Verified in source. `poll(id)` (:151-179) re-arms itself with `poll(id)` at the end of its async callback and writes into a single shared `timer` ref; `stopPolling` (:86-88) only clears whatever is currently in that ref. `run()` calls `stopPolling()` (:121) then starts a new `poll(accepted.task_id)` -- but if the previous run's callback is already awaiting `reportBuilderApi.executionStatus`, it resumes afterwards, sets `statusText`, and calls `poll(oldId)` again, taking over `timer.current`. The page then has two live loops, and whichever resolves last wins `fileId`, so a download button can point at the previous run's file. The unmount cleanup `useEffect(() => stopPolling, [])` (:89) has the same hole: unmounting while a status request is in flight lets that callback re-arm a timer for a component that is gone. Both defects are the same missing generation guard and share one fix. The reviewer cited two separate lines; they merge.",
+    "first_evidence": "pcs-frontend/src/pages/report/ReportExecutePage.tsx:157 — \"    timer.current = setTimeout(() => {\" (one shared handle for every loop; the second loop overwrites the first's handle)",
+    "evidence": [
+     "pcs-frontend/src/pages/report/ReportExecutePage.tsx:157 — \"    timer.current = setTimeout(() => {\" (one shared handle for every loop; the second loop overwrites the first's handle)",
+     "pcs-frontend/src/pages/report/ReportExecutePage.tsx:160-166 — \"        const st = await reportBuilderApi.executionStatus(id);\\n        if (st.report_file_id) {\\n          setFileId(st.report_file_id);\\n          setStatusText('生成完成');\\n          setPhase('done');\\n          stopPolling();\" (an older loop can write the older fileId and cancel the newer loop)",
+     "pcs-frontend/src/pages/report/ReportExecutePage.tsx:205-208 — \"          <Button type=\\\"primary\\\" icon={<PlayCircleOutlined />}\\n            loading={phase === 'submitting'} onClick={() => void run()}>\" (button not disabled while polling — the trigger for the overlap)",
+     "pcs-frontend/src/pages/report/ReportExecutePage.tsx:122 — \"    startedAt.current = Date.now();\" (a single ref shared by both loops, so the older loop's timeout deadline is silently rebased onto the newer run)",
+     "pcs-frontend/src/pages/report/ReportExecutePage.tsx:175 — \"        poll(id);\"",
+     "pcs-frontend/src/pages/report/ReportExecutePage.tsx:157-158 — \"    timer.current = setTimeout(() => {\\n      void (async () => {\" (the callback is already running; clearTimeout on a fired handle is a no-op)",
+     "pcs-frontend/src/pages/report/ReportExecutePage.tsx:86-89 — \"  const stopPolling = () => {\\n    if (timer.current) { clearTimeout(timer.current); timer.current = null; }\\n  };\\n  useEffect(() => stopPolling, []);\" (single-shot cleanup, no in-flight cancellation)",
+     "pcs-frontend/src/pages/report/ReportExecutePage.tsx:133-135 — \"      setTaskId(accepted.task_id);\\n      setPhase('polling');\\n      poll(accepted.task_id);\" (post-unmount continuation of run() has no guard either)"
+    ],
+    "suggested_fix": "Apply the generation-token guard from the previous finding (it fixes this one too — the stale loop's token no longer matches, so it can neither write fileId nor cancel the new timer), and disable the button while a run is live: `disabled={phase === 'polling' || phase === 'submitting'}`. No new dependency or state machine needed.",
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver"
+   },
+   {
+    "n": 8,
+    "severity": "P1",
+    "confidence": 100,
+    "file": "pcs-frontend/src/pages/report/ReportExecutePage.tsx",
+    "line": 161,
+    "title": "Polling loop never reads the terminal FAILED status and spins until a false timeout",
+    "why_it_matters": "Verified in source: `poll` (:151-179) only tests `st.report_file_id`; it never looks at `st.status`. `ReportExecutionStatus` was given a real `status` column by migration p8_007 precisely so a failed execution is distinguishable from a running one, and the backend writes FAILED at pcs-backend/app/workers/report_builder_tasks.py:113. The frontend therefore keeps polling a job that has already failed, for the full `POLL_TIMEOUT_MS` (:60), and then shows the timeout message -- which asserts the file may still be generating. That is the exact false conclusion the p8_007 docstring was written to prevent.",
+    "first_evidence": "pcs-frontend/src/pages/report/ReportExecutePage.tsx:161: `          if (st.report_file_id) {`",
+    "evidence": [
+     "pcs-frontend/src/pages/report/ReportExecutePage.tsx:161: `          if (st.report_file_id) {`",
+     "pcs-frontend/src/pages/report/ReportExecutePage.tsx:165-169: on the non-file branch it only calls `setStatusText('已提交，正在后台生成…')` and recurses; `st.status` is never read anywhere in the file (grep for 'status' in the page returns only antd `Result status=` props).",
+     "pcs-backend/app/api/v1/report_builder.py:296: `    status = \"FINISHED\" if row.report_file_id else (row.status or \"QUEUED\")` -- FAILED is a reachable value of this field.",
+     "pcs-backend/app/workers/report_tasks.py:294: `        row.status = \"FAILED\"` (reclaim_stale_execution_logs), and pcs-backend/app/workers/report_builder_tasks.py:113: `                task_row.status = \"FAILED\"`"
+    ],
+    "suggested_fix": "In `poll()`, branch on status before the file check:\n```ts\nconst st = await reportBuilderApi.executionStatus(id);\nif (st.status === 'FAILED') {\n  stopPolling();\n  setError('执行失败（任务已终止，请查看执行记录）');\n  setPhase('failed');\n  return;\n}\nif (st.report_file_id) { ...existing done path... }\n```\nAssume 'FAILED' is the terminal failure literal; confirm against `p8_007_execution_log_status` and `ReportExecutionLog.status` before applying.",
+    "autofix_class": "gated_auto",
+    "owner": "downstream-resolver"
+   }
+  ]
+ },
+ "skipped_count": 0,
+ "skipped_evidence_basis": "None. The Stage 5b step 1 shortcut requires an adversarial-<provider> artifact recording independence_verified:true; peer.artifact is null because the cross-model route was not run. No finding qualified for a skip, so every surviving P0/P1 is in this batch.",
+ "not_selected_actionable": [
+  9,
+  10,
+  13,
+  14,
+  19,
+  20,
+  21,
+  22,
+  24,
+  26,
+  27,
+  28,
+  29,
+  30
+ ],
+ "not_selected_reason": "These are P2 findings owned by downstream-resolver. The single validator batch is capped at eight and is already filled by the eight surviving P0/P1 findings; the reference forbids splitting into a second batch and authorizes expanding past the cap only for P0/P1, so they are recorded here rather than silently dropped.",
+ "coverage": [
+  "Standards source was the instruction-file fallback: the repository has no CODING_STANDARDS.md, so the root CLAUDE.md (92 lines) and .claude/rules/openwolf.md were used as the standards criteria.",
+  "Cross-model adversarial review was not run. The host family reports as claude and the only peer CLI installed is also claude, so no different-provider route exists; the adversarial perspective was carried by the in-process `adversarial` reviewer, whose 5 findings were folded into the findings set.",
+  "Scope was narrowed from the full cfc0f2e..a9ccb84 window (which also contains P7 heat/calc work) to the 48 P8 files listed in files.txt. Untracked files were excluded; the working tree is the reviewed head.",
+  "Reviewer claims were verified against source before merging, and 6 claims were corrected or withdrawn. Corrected: (a) 'all 15 filter operators are never executed' is false -- all 15 appear in tests/; only the JSONB `->>` branch lacks end-to-end coverage (recorded in testing_gaps, not as a P1); (b) 'the JSONB path is a production 500 on Postgres' is unproven and is not asserted; (c) project-level style readability is a documented deliberate tradeoff, downgraded from P1 to P2 and framed as a design call; (d) the PDF renderer does not import the helper it duplicates, it defines a private copy; (e) the frontend operator taxonomy appears in 4 locations, not 6; (f) 'p8_001 drops legacy report tables' is the settled 2026-10-08 in-place-remodel ruling -- only the destructive `downgrade()` survives as a finding.",
+  "Confidence suppressed by anchor: 7 findings at anchor 50 in the first helper pass (the report_builder enqueue-order duplicate is now merged into #3 at anchor 100; the remaining 6 were demoted to residual_risks).",
+  "first_evidence_backfilled: 39 findings recovered from per-reviewer artifact evidence[0] before the first helper run; the reconciled pass backfilled 31 of its own. The initial count is preserved.",
+  "Pre-existing: 1 finding (the API drift gate script, outside this diff) is retained because the P8 contract expansion depends on that gate; it does not count toward the verdict.",
+  "The `pcs_test` database is at p8_005 while the development database is at p8_007 -- recorded as #16 and as the drift source CLAUDE.md names.",
+  "No peer job directory is outstanding: the cross-model route was never started."
+ ]
+}

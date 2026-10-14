@@ -1,20 +1,20 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-13T10:12:08.665Z
-> Files: 781 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-14T02:17:51.953Z
+> Files: 795 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
 - `.gitattributes` — Git attributes (~43 tok)
 - `.gitignore` — Git ignore rules (~46 tok)
 - `CHANGELOG.md` — Change log (~4191 tok)
-- `CLAUDE.md` — OpenWolf (~1029 tok)
+- `CLAUDE.md` — OpenWolf (~1141 tok)
 - `CONCEPTS.md` — Concepts (~1673 tok)
 - `CONTEXT.md` — PCS（工艺专用综合计算软件） (~1524 tok)
-- `docker-compose.yml` — Docker Compose services (~309 tok)
+- `docker-compose.yml` — Docker Compose services (~915 tok)
 - `pcs-p5-start-baseline.txt` — PCS P5 启动基线快照（2026-09-16） (~371 tok)
-- `README.md` — Project documentation (~3547 tok)
-- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~13092 tok)
+- `README.md` — Project documentation (~3771 tok)
+- `TODOS.md` — TODOS.md — PCS 延后工作清单 (~15979 tok)
 
 ## .claude/worktrees/s4-0-events/
 
@@ -141,9 +141,14 @@
 
 - `browse-audit.jsonl` (~37227 tok)
 - `browse.json` (~66 tok)
+- `qa_e2e_arq_chain.py` — QA：P8 真实异步链路端到端（Redis + ARQ worker 都真跑）。 (~1295 tok)
+- `qa_e2e_failure_injection.py` — QA：ARQ **失败注入**（TODO-016 剩下的 DLQ 部分）。 (~1727 tok)
+- `qa_e2e_fixed_types.py` — QA：固定 10 类报表的**真实异步链路**（Redis + ARQ worker）。 (~1282 tok)
+- `qa_failure_worker.py` — QA 专用 worker：只为失败注入验一个「必然失败」的任务函数。 (~177 tok)
 - `qa_filter_group_roundtrip.py` — QA 临时：过滤条件组在真后端的往返保真（TODO-060 的端到端证明）。 (~1066 tok)
 - `qa_report_builder_chain.py` — QA：P8 b10–b12 / c6 主链端到端验证（临时脚本，跑完即弃）。 (~1180 tok)
 - `qa_role_compare.py` — QA 临时：对比不同角色对 report-builder 端点的可见性。 (~304 tok)
+- `qa_seed_project.py` — QA 前置：种一个项目 + 两条设备行，打印 project_id。 (~534 tok)
 - `scan-p6-6a-6-spec-v12-candidates.md` — P6-6A-6 SPEC V1.12 修订前置扫描报告 (~1549 tok)
 - `spec-v12-implementer-report.md` — P6-6A-6 SPEC V1.12 修订实施报告 (~662 tok)
 - `spec-v12-review-report.md` — V1.12 wording-only micro-revision 评审报告 (~508 tok)
@@ -151,6 +156,7 @@
 ## .gstack/qa-reports/
 
 - `_dashboard-snapshot.txt` — - BEGIN UNTRUSTED EXTERNAL CONTENT (source: http://localhost:5173/) --- (~536 tok)
+- `qa-report-pcs-backend-2026-10-13-arq-chain.md` — QA 报告：P8 异步链路真跑（Redis + ARQ worker） (~774 tok)
 - `qa-report-pcs-frontend-2026-09-16.md` — PCS Frontend QA Report (~1153 tok)
 - `qa-report-pcs-frontend-2026-09-17-p5-4-frontend.md` — QA Report — pcs-frontend — P5-4 HEAT frontend UI 闭环 (~2385 tok)
 - `qa-report-pcs-frontend-2026-09-25-p6-2-batch.md` — QA Report — pcs-frontend — P6-2 batch 批末 (~2123 tok)
@@ -359,6 +365,12 @@
 - `security.json` (~11141 tok)
 - `stages.jsonl` (~68 tok)
 - `synthesized-findings.json` (~4946 tok)
+
+## docs/ce-code-review/20261014-005528-981d772a/
+
+- `deployment-verification.md` — Deployment Checklist: P8 报表与输出 — migrations p8_001..p8_007 (~2912 tok)
+- `README.md` — Project documentation (~562 tok)
+- `report.md` — 代码评审结果 (~9583 tok)
 
 ## docs/contracts/
 
@@ -1079,6 +1091,9 @@
 - `p8_002_report_file_doc_no_rev.py` — P8：report_files 加 doc_no / rev。 (~220 tok)
 - `p8_003_heat_spec_confirmed_fields.py` — P8c：heat_results 加用户 2026-12-12 裁决要进规格书的 3 组字段。 (~385 tok)
 - `p8_005_execution_task_link.py` — P8c：执行日志补 `task_id` / `report_file_id`（b11 前后端时序契约）。 (~536 tok)
+- `p8_006_report_files_task_id.py` — P8：report_files 补 `task_id`（固定 10 类报表的 202 → 文件桥）。 (~356 tok)
+- `p8_007_execution_log_status.py` — P8：report_execution_logs 补 `status` 列（TODO-064 的回收器需要它）。 (~390 tok)
+- `p8_008_future_dated_chk.py` — 补 `project_calculation_standard_profiles.future_dated_forbidden_chk`。 (~604 tok)
 
 ## pcs-backend/app/api/v1/
 
@@ -1099,7 +1114,7 @@
 - `psychro.py` — P6-2 PSYCHRO API：Task 26 6 calc endpoints + psychro_persist CRUD endpoints。 (~7320 tok)
 - `pump.py` — P4-4-4 PUMP 链 API。 (~2574 tok)
 - `records.py` — Records API（Sprint 2）。 (~3276 tok)
-- `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~1791 tok)
+- `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~3818 tok)
 - `report.py` — `/api/v1/report` 路由。 (~3993 tok)
 - `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1773 tok)
 - `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~4193 tok)
@@ -1124,7 +1139,7 @@
 - `equipment.py` — 设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。 (~3317 tok)
 - `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~7302 tok)
 - `psv_standards.py` — PSV 多标准配置 ORM（P5-0-5 Task 24a，SUP-P5-PSV-001 §3.1 + ADR-0028 V1.1）。 (~1824 tok)
-- `report.py` — P8 报表与输出 ORM（ADR-P8-001 全直接生成路线）。 (~2084 tok)
+- `report.py` — P8 报表与输出 ORM（ADR-P8-001 全直接生成路线）。 (~2556 tok)
 - `sim_unit_op.py` — P3.x SIM-15: sim_unit_op_results + 6 专用结果表（单元 SUMMARY 存档）。 (~2006 tok)
 - `system.py` — 系统支撑 ORM 模型（审计/血缘/导入历史）。 (~3301 tok)
 - `util.py` — S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。 (~8361 tok)
@@ -1158,18 +1173,18 @@
 
 - `arq_queue.py` — ARQ 入队 helper —— 把「怎么建 pool、传什么参数」收在一处。 (~667 tok)
 - `blocks.py` — 三个渲染器共用的中间表示（Block）。 (~600 tok)
-- `builder_service.py` — REPORT_BUILDER 执行引擎（P8b b7）。 (~2803 tok)
+- `builder_service.py` — REPORT_BUILDER 执行引擎（P8b b7）。 (~3078 tok)
 - `collector.py` — 10 类报表的**声明**（SPEC §3.2.1(2)）。 (~1502 tok)
 - `datasource_registry.py` — 数据源注册表 —— REPORT_BUILDER 可选数据源的**纯元数据**。 (~8146 tok)
-- `definition_service.py` — 报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。 (~3474 tok)
+- `definition_service.py` — 报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。 (~3781 tok)
 - `detail_level.py` — detail_level 分级（ADR-0028「detail_level 选择」）。 (~785 tok)
 - `paths.py` — 报表文件路径解析 —— **唯一**拼路径的地方。 (~414 tok)
 - `qr.py` — 二维码内容组装 —— SPEC §3.2.1(3)。 (~393 tok)
-- `query_engine.py` — 取数引擎 —— 过滤/排序/字段选择/NULL 处理的**唯一实现**。 (~2546 tok)
+- `query_engine.py` — 取数引擎 —— 过滤/排序/字段选择/NULL 处理的**唯一实现**。 (~3347 tok)
 - `renderer_docx.py` — DOCX 渲染器 —— python-docx 直接构建。 (~1533 tok)
 - `renderer_pdf.py` — PDF 渲染器 —— ReportLab Platypus 直接生成。 (~3712 tok)
 - `renderer_xlsx.py` — XLSX 渲染器 —— XlsxWriter 流式写入。 (~1142 tok)
-- `report_service.py` — 报表生成编排 —— 取数 → 渲染 → 落盘 → 记 `ReportFile` → 审计。 (~3608 tok)
+- `report_service.py` — 报表生成编排 —— 取数 → 渲染 → 落盘 → 记 `ReportFile` → 审计。 (~5558 tok)
 - `style_service.py` — c6：样式写入 —— 版本化 + 回滚 + 两档权限（用户 2026-10-13 裁决）。 (~2574 tok)
 - `style.py` — 报表样式配置 —— ADR-P8-001：样式驱动生成，替代 .dotx/.xltx 模板。 (~1176 tok)
 - `watermark.py` — 导出水印与格式分发（P8b b8）。 (~1301 tok)
@@ -1180,8 +1195,8 @@
 
 ## pcs-backend/app/workers/
 
-- `report_builder_tasks.py` — ARQ：自定义报表定义执行任务（b7）。 (~1349 tok)
-- `report_tasks.py` — ARQ 报表异步生成任务。 (~2045 tok)
+- `report_builder_tasks.py` — ARQ：自定义报表定义执行任务（b7）。 (~2890 tok)
+- `report_tasks.py` — ARQ 报表异步生成任务。 (~3693 tok)
 
 ## pcs-backend/scripts/
 
@@ -1216,9 +1231,9 @@
 - `test_gas_media_and_low_temp_heat_api.py` — 工艺气体 / 低温热 CRUD API 测试 (P7-6B 收尾). (~2562 tok)
 - `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3030 tok)
 - `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
-- `test_report_builder.py` — `/api/v1/report-builder` 路由契约（Phase 2）。 (~2883 tok)
+- `test_report_builder.py` — `/api/v1/report-builder` 路由契约（Phase 2）。 (~17878 tok)
 - `test_report_styles_write.py` — c6：样式写入端点契约。 (~2215 tok)
-- `test_report.py` — `/api/v1/report` 路由契约。 (~2381 tok)
+- `test_report.py` — `/api/v1/report` 路由契约。 (~3676 tok)
 - `test_subtable_duplicate_conflict.py` — 既有子表 POST 端点的 UNIQUE 冲突处理 (2026-10-05). (~1507 tok)
 
 ## pcs-backend/tests/benchmarks/
@@ -1262,7 +1277,7 @@
 - `test_collector.py` — 10 类报表 collector —— SPEC §3.2.1(2) 的类型表。 (~1095 tok)
 - `test_datasource_registry.py` — 数据源注册表契约（纯元数据）。 (~1167 tok)
 - `test_golden.py` — 10 类报表的 Golden 基线 —— 输出**稳定性**的回归闸。 (~948 tok)
-- `test_join_project_scope.py` — JOIN 的项目隔离 —— b6 遗漏（用户 2026-10-13 分析发现）。 (~2128 tok)
+- `test_join_project_scope.py` — JOIN 的项目隔离 —— b6 遗漏（用户 2026-10-13 分析发现）。 (~3086 tok)
 - `test_margins.py` — **页边距单位契约** —— 三个渲染器共用。 (~369 tok)
 - `test_query_engine.py` — 取数引擎契约 —— 过滤/排序/字段选择/NULL 处理的**唯一实现**。 (~1333 tok)
 - `test_renderer_pdf.py` — PDF 渲染器契约。 (~3143 tok)
@@ -1272,6 +1287,7 @@
 - `test_style_service.py` — c6：样式写入服务（版本 + 回滚 + 两档权限 + 审计）。 (~2796 tok)
 - `test_style_wiring.py` — `resolve()` 接进生成路径。 (~1684 tok)
 - `test_style.py` — ReportStyle 四级优先级合并的契约测试。 (~884 tok)
+- `test_zz_debug_scope.py` — test_debug_collect (~386 tok)
 
 ## pcs-backend/tests/services/util/
 
@@ -1283,7 +1299,8 @@
 
 ## pcs-backend/tests/workers/
 
-- `test_report_tasks.py` — ARQ 报表异步任务 —— 状态持久化 + 重试审计 + 僵死回收。 (~3343 tok)
+- `test_report_tasks.py` — ARQ 报表异步任务 —— 状态持久化 + 重试审计 + 僵死回收。 (~8192 tok)
+- `test_worker_registers_all_enqueued_tasks.py` — 每个入队的函数都必须在 ARQ worker 注册 —— 2026-10-13 实测发现。 (~1037 tok)
 
 ## pcs-frontend/.gstack/qa-reports/
 

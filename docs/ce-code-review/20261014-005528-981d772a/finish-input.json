@@ -1,0 +1,176 @@
+{
+  "run_id": "20261014-005528-981d772a",
+  "run_dir": "/tmp/compound-engineering-1000/ce-code-review/20261014-005528-981d772a",
+  "skill_dir": "/home/pangzy/.claude/plugins/cache/compound-engineering-plugin/compound-engineering/3.28.2/skills/ce-code-review",
+  "docs_root": "docs",
+  "mode": {
+    "agent": false,
+    "apply_local": false,
+    "grouping": "auto",
+    "depth": "full"
+  },
+  "invocation": {
+    "arguments": "审查 PCS 项目 P8（报表与输出）阶段的全部代码",
+    "constraints": [
+      "Report-only：本次调用未授权应用修复，mode.apply_local 为 false，Stage 5c 不得改任何文件。",
+      "禁止 worktree：本项目曾因 worktree 被删导致会话永久无法 Edit/Bash。",
+      "禁止 git checkout <commit> --detach：历史上在 agent 会话里切换 HEAD 曾把会话卡死。",
+      "不得手工编辑 .wolf/anatomy.md 与 .wolf/memory.md（OpenWolf hook 维护）。",
+      ".wolf/buglog.json 的 fix_commit 必填 7 位 git SHA。",
+      "不得把凭据写进源码或提交（CLAUDE.md 安全规则）。",
+      "本项目已裁决不做 CI/CD 流水线，不要建议补流水线。",
+      "不得使用 git checkout / switch / gh pr checkout 等改变工作树的命令。"
+    ]
+  },
+  "scope": {
+    "mode": "standalone",
+    "base": "cfc0f2e",
+    "diff_a": "cfc0f2e",
+    "diff_b": "a9ccb84",
+    "pr": {
+      "number": null,
+      "url": null,
+      "title": null,
+      "body": null,
+      "base_ref_name": null,
+      "head_ref_oid": null,
+      "head_ref": null,
+      "base_ref": null
+    },
+    "branch": "main",
+    "head_sha": "a9ccb84",
+    "files": "/tmp/compound-engineering-1000/ce-code-review/20261014-005528-981d772a/files.txt",
+    "diff": "/tmp/compound-engineering-1000/ce-code-review/20261014-005528-981d772a/full.diff",
+    "tree_is_reviewed_head": true,
+    "untracked_excluded": []
+  },
+  "intent": {
+    "summary": "审查 PCS 项目 P8（报表与输出）阶段已落地的全部代码。P8 按 ADR-P8-001 的「全直接生成」路线实现固定 10 类报表（ReportLab 直出 PDF/Excel，冻结样式版本保证可复现）+ 自定义报表构建器（用户定义数据源/字段/过滤/排序，ARQ 异步执行）。关键机制：/report/generate 与 /report-builder/execute 都是「入队即 202 + task_id」，worker 用 ARQ 执行，终态由 report_files.status 与 report_execution_logs.status 两列承载，回收器把僵死任务改判 FAILED（不删行，因为是审计表）。本轮关注面：异步任务的生命周期正确性（提交/重试/回收）、项目级数据隔离、迁移与 ORM 的一致性。",
+    "confidence": "explicit"
+  },
+  "plan": {
+    "path": "docs/superpowers/plans/2026-10-08-p8-report-and-report-builder.md",
+    "source": "explicit",
+    "requirements": [
+      "SPEC：spec/工艺专用综合计算软件需求规格说明书 Web版 P8.md（V1.3，与 ADR-P8-001 全直接生成路线对齐）",
+      "PLAN：docs/superpowers/plans/2026-10-08-p8-report-and-report-builder.md",
+      "UI 规范：docs/PCS-UI-SPEC.md（V1.0 冻结；字段/枚举/权限/错误码以 OpenAPI + meta API 为准，冲突时以 OpenAPI 为准并登记 SPEC 修订）"
+    ],
+    "implementation_units": [],
+    "settled_decisions": [
+      "ADR-P8-001：全直接生成路线，废止用户提供 .dotx/.xltx 模板，样式由 ReportStyle JSON 驱动",
+      "ADR-P8-004：删除采用三步删除（标 DELETING → 事务外删文件 → 删行），失败留下可恢复中间态",
+      "ADR-P8-004 裁决 3：重试上限 3 次（WorkerSettings.max_tries 是唯一入口）",
+      "用户 2026-10-09 裁决：JOIN 分批 IN 查询而非 N 次查询；REPORT_FAILED 每次失败尝试都写审计",
+      "用户 2026-10-08 裁决：就地改造遗留 report_definitions / report_execution_logs，不并存两套「报表定义」概念"
+    ]
+  },
+  "roster": {
+    "selected": [
+      {
+        "reviewer": "correctness",
+        "tier": "session",
+        "reason": "P8 风险面"
+      },
+      {
+        "reviewer": "api-contract",
+        "tier": "session",
+        "reason": "P8 风险面"
+      },
+      {
+        "reviewer": "reliability",
+        "tier": "session",
+        "reason": "P8 风险面"
+      },
+      {
+        "reviewer": "performance",
+        "tier": "session",
+        "reason": "P8 风险面"
+      },
+      {
+        "reviewer": "security",
+        "tier": "session",
+        "reason": "P8 风险面"
+      },
+      {
+        "reviewer": "testing",
+        "tier": "session",
+        "reason": "P8 风险面"
+      },
+      {
+        "reviewer": "maintainability",
+        "tier": "session",
+        "reason": "P8 风险面"
+      },
+      {
+        "reviewer": "julik-frontend-races",
+        "tier": "session",
+        "reason": "P8 风险面"
+      },
+      {
+        "reviewer": "data-migration",
+        "tier": "session",
+        "reason": "P8 风险面"
+      },
+      {
+        "reviewer": "project-standards",
+        "tier": "session",
+        "reason": "P8 风险面"
+      },
+      {
+        "reviewer": "adversarial",
+        "tier": "session",
+        "reason": "P8 风险面"
+      }
+    ],
+    "standards": {
+      "criteria": [
+        "CLAUDE.md (repo root, 92 lines)",
+        ".claude/rules/openwolf.md"
+      ],
+      "fallback_named": true,
+      "not_run_reason": "仓库内没有 CODING_STANDARDS.md 或同类标准文件，故按 instruction-file fallback 取根 CLAUDE.md 与 .claude/rules/openwolf.md 作为标准来源。"
+    },
+    "packs": {
+      "roots": [],
+      "errors": [],
+      "warnings": []
+    }
+  },
+  "collection": {
+    "returns": "/tmp/compound-engineering-1000/ce-code-review/20261014-005528-981d772a/raw-returns.json",
+    "unstructured_returns": [
+      {
+        "reviewer": "deployment-verification",
+        "path": "/tmp/compound-engineering-1000/ce-code-review/20261014-005528-981d772a/deployment-verification.md"
+      }
+    ],
+    "failed_reviewers": [],
+    "bound_exceeded": [],
+    "fast_pass": {
+      "emitted_preliminary": false,
+      "candidates": []
+    }
+  },
+  "peer": {
+    "selected": false,
+    "target": null,
+    "route": null,
+    "preference_source": null,
+    "outcome": "not-run",
+    "artifact": null,
+    "coverage": "跨模型对抗复核未运行：本机 host family 自报为 claude，而唯一已安装的同级 CLI 同样是 claude，不存在不同 provider 的对等通道，因此没有可用的跨模型路线。对抗视角由进程内的 adversarial reviewer 承担，其 5 条发现已全部并入本次评审。"
+  },
+  "coverage_notes": [
+    "标准来源为 instruction-file fallback（见 roster.standards.fallback_named）：仓库无 CODING_STANDARDS.md，取根 CLAUDE.md + .claude/rules/openwolf.md。",
+    "跨模型对抗复核未运行，原因见 peer.coverage；对抗视角由进程内 adversarial reviewer 覆盖。",
+    "范围收窄说明：base cfc0f2e..HEAD 的窗口内还含 P7 heat/calc 的工作，故审查集收窄到 48 个 P8 文件（files.txt），而不是该 commit 区间的全部改动。",
+    "未跟踪文件已排除；工作树即被审 head。",
+    "adversarial.json 初次落盘时有两处 why_it_matters 字符串内的裸双引号未转义，导致整文件JSON 解析失败。已按转义感知的方式修复后写回，5 条发现全部恢复，非丢弃。",
+    "重要：13 位 reviewer 是独立工作的，其结论存在夸大与行号不准。本轮 dispatch context 已逐条对照源码核验，下面 coverage_notes 的 validation 条目为**已核验事实**，与 reviewer 的措辞冲突时以核验结果为准，不得把未复现的断言当作事实报告。",
+    "validation —— 已在源码逐行确认（可复现，属实）：① report_tasks.py:249 reclaim_stale_tasks 与 :307 reclaim_stale_execution_logs 只 flush 不 commit；cron 入口 reclaim_stale_report_tasks(:311-328) 用 _ctx_session 取裸 session，既不 commit 也不 close。全模块最后一次 commit 在 :203，早于两个回收器 ⇒ 每次回收都回滚。② report_service.py:163 _fetch_join_rows 无 scope 参数、无项目过滤；对比 builder_service.py:98 同名函数带 scope 且有 _attr(source,\"project_id\")==scope 过滤（bug-162 只修了构建器那条路）。report.py:142-144 只校验 body.project_id 的访问权，record_ids 全程未校验归属，:186 直接入队。tests/services/report/test_join_project_scope.py 全部 4 个用例只调 builder_service.execute_definition，固定 10 类那条 collect 路径零覆盖。",
+    "③ report_builder_tasks.py 只写 status=RUNNING(:83) 与 FAILED(:113)，成功路径从不写 FINISHED。④ report_builder.py:328 先 enqueue，:348 才 add(ReportExecutionLog)，:368 才 commit。⑤ query_engine.assemble 默认 batch_size=10000 且 >阈值硬抛 REPORT_JOIN_TOO_LARGE；builder_service.py:233 调用时未传 batch_size，而 max_rows 上限 100_000 在 schemas/report_builder.py:139,:165、definition_service.py:53(MAX_ROWS_CEILING)、api/v1/report_builder.py:239 四处对外承诺。",
+    "validation —— 已核验为**不实/夸大**，报告时必须降级或撤回，不得照抄 reviewer 措辞：⑥ 「15 个过滤算子从未被执行」不成立。SUPPORTED_OPS 的 15 个算子在 tests/ 中均有出现（逐个 grep 计数：IN 26、GT 14、EQ 12、LT 6、IS_NULL 5、BETWEEN 3、IS_NOT_NULL 3、NEQ 2、NOT_IN 2、CONTAINS 2、LIKE 2、STARTS_WITH 1、ENDS_WITH 1、GTE 1、LTE 1）。⑦ 「JSONB ->> 路径在 PG 上是生产 500」**未证实**。tests/conftest.py:51,101 有 SQLite 垫片（visit_JSONB=visit_JSON、JSONB.__visit_name__=\"JSON\"），且 ->> 是合法 PG 语法。**可以保留的只有那条更窄的事实**：没有任何测试真正用 jsonb 字段跑过 apply_filters（grep apply_filters 在 test_heat_datasource.py / test_report_builder.py 中 0 命中）——即该分支的端到端执行确实无测试覆盖，但「在 PG 上会 500」是未经验证的断言。",
+    "验证时另记录一条对部署清单有用的事实：pcs_test 库停在 p8_005，而 pcs 开发库已在 p8_007（project-standards reviewer 实测）。这正是 CLAUDE.md 点名的漂移来源。"
+  ]
+}

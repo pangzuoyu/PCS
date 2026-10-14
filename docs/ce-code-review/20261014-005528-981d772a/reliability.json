@@ -1,0 +1,159 @@
+{
+  "reviewer": "reliability",
+  "findings": [
+    {
+      "title": "Reclaim cron never commits — reclaimer is a silent no-op",
+      "severity": "P0",
+      "file": "pcs-backend/app/workers/report_tasks.py",
+      "line": 323,
+      "why_it_matters": "The cron entrypoint opens a session with `_ctx_session(ctx)`, calls the two reclaimers, and returns. Both reclaimers only `flush()` (report_tasks.py:249, 307); nothing in this call chain ever calls `db.commit()`, and the session is never closed either. When the session object is garbage-collected, SQLAlchemy rolls the open transaction back, so every FAILED marking and every RECLAIMED audit row is discarded. Observable behavior: after an ARQ worker is OOM-killed mid-render, the report_files row stays PENDING and the frontend polls forever — exactly the scenario this cron was added to fix (its own docstring says so). Nothing errors, so no log line ever reveals it. The tests cannot catch it: tests/workers/test_report_tasks.py:306-345 and 511-557 call `reclaim_stale_tasks(db, ...)` / `reclaim_stale_execution_logs(db, ...)` directly with the test's own session, never through `reclaim_stale_report_tasks(ctx)` — a classic stand-in guard gap where the test's context is more forgiving than the thing it guards. The fix is to reuse `worker.session_scope` (the wrapper both task bodies already use for exactly this 'remembering to close is memory, not structure' reason) and commit after both reclaimers.",
+      "autofix_class": "gated_auto",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/workers/report_tasks.py:323-328 — `db: AsyncSession = _ctx_session(ctx)` / `await reclaim_stale_tasks(db, older_than_minutes=STALE_MINUTES)` / `await reclaim_stale_execution_logs(db, older_than_minutes=STALE_MINUTES)` — no `commit()`, no `close()` anywhere in the function.",
+        "pcs-backend/app/workers/report_tasks.py:249 — `    await db.flush()` (end of reclaim_stale_tasks); pcs-backend/app/workers/report_tasks.py:307 — `    await db.flush()` (end of reclaim_stale_execution_logs). Both rely on a caller that never commits.",
+        "pcs-backend/app/db/session.py:71-85 — `get_async_session_factory` builds a plain `async_sessionmaker` with no autocommit; there is no ambient commit hook that could rescue the flush.",
+        "tests/workers/test_report_tasks.py:306 — `n = await reclaim_stale_tasks(db, older_than_minutes=15)` — the tests pass the fixture session directly and never exercise the cron wrapper, so the missing commit is invisible to CI.",
+        "Contrast with the task bodies, which do commit explicitly and are tested for it: report_tasks.py:172 `            await db.commit()`, and tests/workers/test_report_tasks.py:381 `test_failure_state_is_committed_not_just_left_in_the_session`."
+      ],
+      "suggested_fix": "In `reclaim_stale_report_tasks`, use the existing `worker.session_scope` context manager and commit once after both reclaimers:\n\n```python\nasync def reclaim_stale_report_tasks(ctx) -> None:\n    from app.workers.worker import session_scope  # local import: circular (worker imports this module)\n    async with session_scope(ctx) as db:\n        await reclaim_stale_tasks(db, older_than_minutes=STALE_MINUTES)\n        await reclaim_stale_execution_logs(db, older_than_minutes=STALE_MINUTES)\n        await db.commit()\n```\nAlso add a test that calls `reclaim_stale_report_tasks(ctx)` with an injected `session_factory` and then reads `ReportFile.status` from a *separate* session — mirroring the two existing `_is_committed` tests — so the commit is covered by the same observation point the task bodies already use.",
+      "pre_existing": false
+    },
+    {
+      "title": "Successful executions never reach FINISHED; reclaimer corrupts their audit row",
+      "severity": "P1",
+      "file": "pcs-backend/app/workers/report_builder_tasks.py",
+      "line": 93,
+      "why_it_matters": "The task sets `task_row.status = \"RUNNING\"` at line 83, but no code path in `execute_definition_task` ever writes `\"FINISHED\"` — neither on the success path (lines 86-96) nor after the REPORT_EXECUTED audit (lines 133-142). So every completed execution is left in the DB with status RUNNING forever. The status endpoint papers over this by synthesizing FINISHED from `report_file_id` (report_builder.py:296), so the happy path looks fine and the bug hides. The damage lands on the reclaimer: `reclaim_stale_execution_logs` selects `status IN ('QUEUED','RUNNING')` with an `or_(updated_at < cutoff, created_at < cutoff)` arm, so 15 minutes after a *successful* run its row matches. It then sets status='FAILED', overwrites `condition_snapshot` with reclaim_reason — destroying the reproducible record of what was actually queried — and writes a REPORT_FAILED audit entry for a run that produced a file. That is precisely the audit tampering the function's own docstring says it avoids ('FINISHED / FAILED 已是终态，再动它们就是篡改审计记录'): the guard is dead code because the terminal state it protects is never written.",
+      "autofix_class": "gated_auto",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/workers/report_builder_tasks.py:93-96 — `            file_id = await _render_and_store(` / `                db, out=out, project_id=pid, job_id=job_id, task_id=job_id,` / `                output_format=out.snapshot.get(\"output_format\") or \"pdf\")` / `            await db.commit()` — the success path commits without ever setting `task_row.status = \"FINISHED\"`.",
+        "pcs-backend/app/workers/report_builder_tasks.py:112 — `            if attempt_no >= MAX_TRIES and task_row is not None:` — the only place `task_row.status` is assigned after the initial RUNNING, and it only ever assigns FAILED.",
+        "pcs-backend/app/api/v1/report_builder.py:296 — `    status = \"FINISHED\" if row.report_file_id else (row.status or \"QUEUED\")` — the DB column is never read as FINISHED, which is why the missing write is invisible.",
+        "pcs-backend/app/workers/report_tasks.py:284-285 — `            ReportExecutionLog.status.in_((\"QUEUED\", \"RUNNING\")),` / `            or_(ReportExecutionLog.updated_at < cutoff,` — the reclaim predicate a completed (still RUNNING) row satisfies.",
+        "pcs-backend/app/models/report.py:211 — comment=\"QUEUED 已入队 / RUNNING 执行中 / FINISHED 已出文件 / FAILED 已终结（含被回收）\" — FINISHED is a defined terminal state that is never produced."
+      ],
+      "suggested_fix": "Set the terminal state on the success path in `execute_definition_task`, immediately before the REPORT_EXECUTED commit (line 141):\n\n```python\n        if task_row is not None:\n            task_row.status = \"FINISHED\"\n        await audit.write(action=AuditAction.REPORT_EXECUTED, ...)\n        await db.commit()\n```\n`task_row` is still attached after the commit on line 96 (no rollback happened on that path), so no re-fetch is needed. After this, `reclaim_stale_execution_logs`'s `status IN ('QUEUED','RUNNING')` filter starts meaning what its docstring claims, and report_builder.py:296's synthesis becomes a redundant-but-harmless safety net. Add a test asserting a successful `execute_definition_task` leaves `status == 'FINISHED'` when read from a separate session, and that `reclaim_stale_execution_logs` skips it.",
+      "pre_existing": false
+    },
+    {
+      "title": "Printed QR carries no signature; verify endpoint always 403s",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/report/report_service.py",
+      "line": 220,
+      "why_it_matters": "The QR verification path is unwired end to end in this diff. First, no QR is ever rendered: `_render_sync` hardcodes `qr_payload=None`, so `renderer_pdf`'s `if qr_payload:` branch (renderer_pdf.py:256) never runs and no PDF contains a QR code. Second, even if it did, `build_qr_payload` emits `{base}/api/v1/report/verify/{report_id}#{json}` with no `?sig=…&exp=…`, and the only producer of that HMAC signature in the entire repository is tests/api/v1/test_report.py:49-51. `_check_sig` fail-closed, so every scan of every printed QR returns 403 '签名无效'. The tests are green because they hand-build a correct signature, which is a stand-in guard that does not mirror the production path. Field verification is a stated P8 deliverable; today a scanner at a plant gets a guaranteed 403.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/services/report/report_service.py:220 — `                          qr_payload=None, assumed_fields=[], context=ctx)` — the render call hardcodes None, so renderer_pdf.py:256 `    if qr_payload:` is never true.",
+        "grep for `build_qr_payload` across the repo returns only its definition (qr.py:25) and tests/services/report/test_report_service.py — zero production callers.",
+        "grep for `report_verify_secret` returns app/api/v1/report.py:100 (verification), app/core/config.py:79/169/176 (config), tests/api/v1/test_report.py:49 (test-side signing) — no production signer.",
+        "pcs-backend/app/api/v1/report.py:107-110 — `    expect = hmac.new(secret.encode(), f\"{report_file_id}:{exp}\".encode(), hashlib.sha256).hexdigest()` / `    if not hmac.compare_digest(expect, sig or \"\"):` / `        raise HTTPException(status_code=403, detail=\"签名无效\")` — fail-closed, correct, and unsatisfiable for any URL a QR could carry.",
+        "pcs-backend/app/services/report/qr.py:43 — `    return (f\"{verify_base_url.rstrip('/')}/api/v1/report/verify/{report_id}#\"` — the payload builder emits no sig/exp query parameters."
+      ],
+      "suggested_fix": "Two coordinated changes, both in `report_service`. (1) Add a signer next to `qr.py` that mints the short-lived signature: `def sign_verify_url(*, report_file_id, exp) -> str` computing `hmac.new(settings.report_verify_secret.encode(), f\"{report_file_id}:{exp}\".encode(), hashlib.sha256).hexdigest()` — reuse the exact input format from `_check_sig` (report.py:107) rather than re-deriving it. (2) In `store_rendered`/`generate`, build `exp = int(now.timestamp()) + VERIFY_TTL_S` and pass a real payload through `_render_sync(..., qr_payload=build_qr_payload(..., verify_base_url=f\"{base}/api/v1/report/verify/{row_id}?sig={sig}&exp={exp}\"))` — note this requires the report_file_id, which today is only known *after* `_upsert_report_file`, so the ordering in `store_rendered` (render → hash → write → upsert) needs to become (upsert PENDING row → sign with its id → render → write). Because the signature is time-varying it must NOT feed `_content_hash`, or the determinism guarantee that `qr.py`'s docstring rests on (same content ⇒ same hash ⇒ dedup works) breaks; keep the hash over (blocks, style, output_format, ctx) as it is and let the QR vary. If signed URLs are genuinely deferred, delete `qr.py` and the `verify` route together rather than shipping a 403-by-construction endpoint.",
+      "pre_existing": false
+    },
+    {
+      "title": "Builder enqueues before committing its log row — orphan file race",
+      "severity": "P1",
+      "file": "pcs-backend/app/api/v1/report_builder.py",
+      "line": 328,
+      "why_it_matters": "The execute endpoint enqueues the ARQ job first (line 328) and only afterwards inserts the ReportExecutionLog row and commits (lines 348-368). The worker can therefore pick the job up before that commit lands: `execute_definition_task` looks up the log by `task_id` (report_builder_tasks.py:75), gets None, skips setting RUNNING, and `_link_report_file`'s UPDATE (report_builder_tasks.py:247-250) matches zero rows. The job still succeeds and the file is registered, but nothing links it to the task_id. Observable behavior: the client polls `/executions/{task_id}`, the row now exists with status QUEUED and report_file_id NULL, and it never resolves — the frontend polls to timeout while a perfectly good file sits in the DB unreachable from this task. The window is small (one insert + commit after Redis has already been handed the job) but the worker is polling Redis continuously, so a busy worker can win it. The sibling endpoint in report.py already solves exactly this by choosing `task_id` first and passing `_job_id=task_id` so the row can be committed before the job exists.",
+      "autofix_class": "gated_auto",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/app/api/v1/report_builder.py:328 — `    task_id = await arq_queue.enqueue_definition_execution(` — the job is on the queue before the log row exists.",
+        "pcs-backend/app/api/v1/report_builder.py:368 — `    await db.commit()      # 端点负责 commit（与本仓其它写端点一致）` — the log row (added at line 348) is only durable here, after the enqueue.",
+        "pcs-backend/app/workers/report_builder_tasks.py:75-76 — `        task_row = (await db.execute(_sel(_Log).where(` / `            _Log.task_id == job_id))).scalar_one_or_none()` — a miss here makes both the RUNNING update and the later backfill no-ops.",
+        "pcs-backend/app/workers/report_builder_tasks.py:229 — `    await _link_report_file(db, task_id=task_id, report_file_id=row.report_file_id)` — the UPDATE at 247-250 silently affects 0 rows; there is no rowcount check.",
+        "Parallel pattern already in this diff: pcs-backend/app/api/v1/report.py:161 `    task_id = uuid.uuid4().hex` … :189 `_job_id=task_id,` — the generate endpoint commits the PENDING row *before* enqueueing.",
+        "`enqueue_definition_execution` (arq_queue.py:81-85) does not forward a `_job_id`, so the task id cannot currently be chosen by the caller on this path."
+      ],
+      "suggested_fix": "Mirror report.py's ordering. Add a `job_id` parameter to `enqueue_definition_execution` that is forwarded to `pool.enqueue_job` as `_job_id` (arq_queue.py:49), then in the endpoint:\n\n```python\ntask_id = uuid.uuid4().hex\ndb.add(ReportExecutionLog(..., task_id=task_id, ...))\nawait db.commit()          # row is durable before the job exists\ntry:\n    task_id = await arq_queue.enqueue_definition_execution(job_id=task_id, ...)\nexcept Exception:\n    ...  # mark the row FAILED rather than leaving an orphan QUEUED row\n    raise\n```\nThis also fixes the secondary issue that a 503 from `_enqueue` currently leaves a committed QUEUED log row with no task id the client ever received — the report.py endpoint already handles that with its `_fail_pending` helper; port that idea.",
+      "pre_existing": false
+    },
+    {
+      "title": "Verify rate limit is per-process on an unauthenticated endpoint",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/report.py",
+      "line": 269,
+      "why_it_matters": "`/verify/{id}` is the one unauthenticated route in the P8 surface (免登录), and its only brute-force/abuse protection is `check_rate_limit`, an in-process dict guarded by a module-level asyncio.Lock. With N uvicorn workers the effective limit is N × `report_verify_rate_limit`, and the states are not shared — so the protection is weakest exactly in the horizontally-scaled deployment it is most needed in. Separately, `_WINDOW_STATE.setdefault(key, deque())` never removes keys: eviction happens only inside a request for that same key, and the only other entry point is `clear_all_rate_limits()` (test/ops only). An unauthenticated attacker rotating source IPs grows the dict without bound for the process lifetime. The pre-existing implementation is documented as single-instance-only; the finding is that this new public endpoint inherits that limitation without a compensating control (no signature check happens before the limiter, so unauthenticated callers can consume the window).",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/report.py:269-271 — `    if not await check_rate_limit(f\"report_verify:{ip}\",` / `                                  limit=get_settings().report_verify_rate_limit,` / `                                  window_seconds=60):` — the unauthenticated route's only guard.",
+        "pcs-backend/app/services/_sliding_window_rate_limit.py:5-6 — module docstring: \"适用 single-instance 部署 … 多实例需换 Redis-backed 实现 (TODO: deploy multi-instance 时替换)\" — the limit is per-process by construction (`_WINDOW_STATE: Final[dict[str, deque[float]]]`).",
+        "pcs-backend/app/services/_sliding_window_rate_limit.py:37 — `        dq = _WINDOW_STATE.setdefault(key, deque())` — a key is created per client IP and is never deleted; the only removal path is `clear_all_rate_limits()`.",
+        "pcs-backend/app/api/v1/report.py:275 — `    _check_sig(report_file_id, sig, exp)` runs *after* the limiter, so an unauthenticated caller with no valid signature still occupies the window."
+      ],
+      "suggested_fix": "Since ARQ/Redis is already a hard dependency of this feature, back this one key with Redis rather than the in-process dict (the module docstring already names this migration). Minimal interim steps if that is deferred: (1) validate `_check_sig` *before* the rate-limit check so unsigned scans never consume a window, and (2) bound `_WINDOW_STATE` by evicting keys not seen within a few windows on each call (or cap total keys and reset wholesale when exceeded) so unauthenticated key churn cannot grow memory without limit.",
+      "pre_existing": false
+    },
+    {
+      "title": "IntegrityError recovery rolls back the whole transaction",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/report/report_service.py",
+      "line": 444,
+      "why_it_matters": "Both dedup-race handlers in `report_service` treat `IntegrityError` as if it only undid their own INSERT, but `Session.rollback()` rolls back the entire transaction, not a statement. In `execute_definition_task` the enclosing transaction also carries the `task_row.status='RUNNING'` update, the whole `builder_service.execute_definition` result set, and the `condition_snapshot`/`row_count` updates it flushed. If two projects render byte-identical custom reports concurrently (same rows, same style — the content hash is deterministic by design), the loser's `db.rollback()` at line 444 silently discards the execution-log snapshot it just computed; the caller then commits a half-done unit of work that looks successful. The same pattern in `ensure_pending_row:325` has the same shape. The correct primitive for 'my insert lost a race, retry as read' is `db.begin_nested()` (SAVEPOINT), which confines the damage to the failing INSERT.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/report/report_service.py:442-447 — `    except IntegrityError:` / `        # 并发下另一个请求刚插了同一 content_hash —— 回滚自己的插入，复用它的` / `        await db.rollback()` / `        return (await db.execute(` — the comment claims a statement-scoped undo; `Session.rollback()` is transaction-scoped.",
+        "pcs-backend/app/services/report/report_service.py:443 — `        # 并发下另一个请求刚插了同一 content_hash —— 回滚自己的插入，复用它的` — the intent is explicitly narrower than what the code does.",
+        "pcs-backend/app/services/report/report_service.py:277 — `    await db.flush()` (end of `builder_service.execute_definition`, which wrote the reproducible `condition_snapshot` into the same transaction) — collateral damage from the rollback at line 444.",
+        "Same shape at pcs-backend/app/services/report/report_service.py:325 — `        await db.rollback()` inside `ensure_pending_row`'s IntegrityError handler.",
+        "pcs-backend/app/workers/report_builder_tasks.py:96 — `            await db.commit()` — the task commits whatever survived, with no check that the log-row updates it expected are still present."
+      ],
+      "suggested_fix": "Wrap each dedup INSERT in a SAVEPOINT so the race-loser only undoes its own statement:\n\n```python\n    db.add(row)\n    try:\n        async with db.begin_nested():\n            await db.flush()\n    except IntegrityError:\n        return (await db.execute(\n            select(ReportFile).where(ReportFile.content_hash == kw[\"content_hash\"])\n        )).scalar_one()\n```\nApply the identical change in `ensure_pending_row` (line 321-328). Caveat to verify: with `begin_nested()` the outer transaction stays usable, so confirm the subsequent `select` runs on the restored savepoint rather than needing the re-issue of a connection.",
+      "pre_existing": false
+    },
+    {
+      "title": "Deterministic .part temp path collides on concurrent identical renders",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/report/report_service.py",
+      "line": 271,
+      "why_it_matters": "Files are content-addressed (`{hash[:16]}.{ext}`) and the temp file is derived deterministically from the destination, so every concurrent render of the same content targets the *same* `.part` path. `_write_file` runs in a thread via `asyncio.to_thread`, so two ARQ jobs can genuinely interleave: A writes `.part`, B opens `.part` with 'wb' (truncating), A calls `tmp.replace(abs_path)` removing the temp name, and B's `replace` then raises `FileNotFoundError`. That surfaces as an `OSError` → converted to `PcsError(code='REPORT_STORAGE_FAILED', status=500)`, the task is marked FAILED and audited as a report failure, even though the byte-identical file is already correctly published by A. The trigger is narrow (identical content across two projects/users rendering simultaneously) but the hashing-by-design makes it plausible, and a spurious FAILED is worse than a shared temp file. A unique temp name (uuid per call) removes it entirely.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/app/services/report/report_service.py:271-273 — `    tmp = abs_path.with_suffix(abs_path.suffix + \".part\")` / `    tmp.write_bytes(payload)` / `    tmp.replace(abs_path)` — the temp name is a pure function of the destination, so two writers of the same digest collide on it.",
+        "pcs-backend/app/services/report/report_service.py:390 — `    relpath = paths.new_file_path(digest, _EXT[output_format])` — and paths.py:58 `    return f\"{content_hash[:16]}.{ext}\"`, i.e. the destination is content-addressed, which is precisely the condition for two jobs to pick the same path.",
+        "pcs-backend/app/services/report/report_service.py:371 — `        payload = await asyncio.to_thread(` — the write runs in a worker thread, so the interleaving is real rather than hypothetical.",
+        "pcs-backend/app/services/report/report_service.py:393-404 — `    except OSError as e:` … `            code=\"REPORT_STORAGE_FAILED\", status=500,` — a lost rename race is reported as a storage failure and drives the task to FAILED."
+      ],
+      "suggested_fix": "Make the temp name unique per call so concurrent writers never share it:\n\n```python\nimport uuid\n...\n    abs_path.parent.mkdir(parents=True, exist_ok=True)\n    tmp = abs_path.with_name(f\"{abs_path.name}.{uuid.uuid4().hex}.part\")\n    try:\n        tmp.write_bytes(payload)\n        tmp.replace(abs_path)\n    except OSError:\n        tmp.unlink(missing_ok=True)\n        raise\n```\nThe `unlink` in the handler additionally fixes the leftover `.part` files that a failed rename currently leaves behind forever (nothing in the module cleans them up, and `resolve_path` does not filter `.part` — they sit inside the storage root).",
+      "pre_existing": false
+    }
+  ],
+  "residual_risks": [
+    "Renderers are CPU-bound and run via `asyncio.to_thread` with `WorkerSettings.max_jobs = 4`. ReportLab/python-docx/openpyxl hold the GIL for much of their work, so four concurrent 10k-row renders can stall the worker's event loop, delaying `job_timeout = 300` expiry handling, the reclaim cron, and job pickup simultaneously. No measurement or concurrency cap exists in this diff to bound it.",
+    "File-then-DB ordering in `store_rendered` (report_service.py:392 writes the file, :406 upserts the row) leaves an orphan file on disk whenever the subsequent commit fails. The code acknowledges this for the audit-write case (:419-421) but not for a commit failure in the enclosing task; nothing sweeps orphaned files whose content_hash has no report_files row.",
+    "`_write_file` leaves `.part` temporaries on disk whenever `write_bytes` succeeds but `replace` fails. Nothing enumerates or cleans them, so repeated render failures accumulate unattributable bytes in the storage root.",
+    "The reclaimer relies solely on a heartbeat threshold (`STALE_MINUTES = 15`) rather than an owner token. There is no way for a genuinely long-running render (large custom definition, slow DB) to signal liveness, so a legitimately slow job past 15 minutes is indistinguishable from a killed one. `execute_definition_task` sets RUNNING once and never refreshes `updated_at` during rendering.",
+    "`reclaim_stale_tasks` selects PENDING rows without `FOR UPDATE SKIP LOCKED`, and its transaction stays open across the audit writes in the loop. Two worker processes running the cron simultaneously (CronJob `unique=False`) can both select and both write the same rows; the audit table will show duplicate RECLAIMED entries for one task.",
+    "grep-only coverage note: `paths.py`, `renderer_pdf.py`, `renderer_docx.py`, `renderer_xlsx.py` and `collector.py` were reviewed by reading their changed surface, but the review did not exhaustively enumerate every exception handler in the three renderer modules (≈31 KB combined); error handling in the XLSX/DOCX cell-formatting branches is unverified."
+  ],
+  "testing_gaps": [
+    "No test drives the reclaim path through `reclaim_stale_report_tasks(ctx)` and then reads `ReportFile.status` / `ReportExecutionLog.status` from a separate session — the exact `_is_committed` pattern already used for the task bodies. Every reclaim test passes the fixture session directly, which is why the missing commit is invisible.",
+    "No test asserts that a successful `execute_definition_task` leaves the execution log in a state the reclaimer's `status IN ('QUEUED','RUNNING')` filter will not match, i.e. there is no test that a completed run survives a subsequent `reclaim_stale_execution_logs` call with `condition_snapshot` intact.",
+    "No end-to-end test goes from a rendered PDF's QR payload to the verify endpoint. tests/api/v1/test_report.py hand-builds the HMAC signature itself, so no test would fail if the QR stopped carrying one or if `qr_payload` stayed `None` in `report_service._render_sync`.",
+    "No test covers the builder execute endpoint's ordering under a fast worker: there is no scenario where the ARQ job is made to start (or a session hook to delay the commit) before the ReportExecutionLog insert commits, so the enqueue-before-commit race is unexercised.",
+    "No failure-injection test for `enqueue_job` raising on the builder path — the 503 path from `_enqueue` that would leave a committed orphan QUEUED log row is untested (the report.py path has `_fail_pending`, the builder path has no equivalent)."
+  ]
+}

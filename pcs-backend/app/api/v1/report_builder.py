@@ -40,7 +40,7 @@ from app.schemas.report_builder import (
 from app.services.exceptions import PcsError
 from app.services.report import watermark
 from app.services.report.datasource_registry import DATASOURCES, JOINS
-from app.services.report.definition_service import DefinitionService
+from app.services.report.definition_service import MAX_ROWS_CEILING, DefinitionService
 
 router = APIRouter(prefix="/report-builder", tags=["report-builder"])
 
@@ -236,7 +236,7 @@ class ReportExecuteRequest(BaseModel):
 
     # 联合类型：临时条件既可以是一整个 AND/OR 组，也可以是单个叶子条件
     filters: ReportDefFilterGroup | ReportDefCondition | None = None
-    max_rows: int | None = Field(default=None, ge=1, le=100_000)
+    max_rows: int | None = Field(default=None, ge=1, le=MAX_ROWS_CEILING)
     output_format: str | None = None
 
 

@@ -1,0 +1,200 @@
+{
+  "reviewer": "maintainability",
+  "findings": [
+    {
+      "title": "PDF renderer reimplements blocks.fill_placeholders it imports from",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/report/renderer_pdf.py",
+      "line": 225,
+      "why_it_matters": "blocks.py was created in this same diff specifically so that placeholder substitution has ONE implementation — its docstring says writing it three times is 'bug-153 的温床'. renderer_pdf.py already imports `_cell_text` and `assumed_header` from that module, then declares a private `_KNOWN_PLACEHOLDERS` copy and a private `_fill_placeholders` with a byte-identical body. The whitelist is therefore editable in two places: add a placeholder to blocks.KNOWN_PLACEHOLDERS and PDF silently keeps rejecting it while DOCX/XLSX accept it — a divergence that is invisible until a footer renders differently per format.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/services/report/renderer_pdf.py:225:def _fill_placeholders(text: str, ctx: dict) -> str:",
+        "pcs-backend/app/services/report/renderer_pdf.py:96:_KNOWN_PLACEHOLDERS = {\"project_no\", \"project_name\", \"doc_no\", \"rev\",",
+        "pcs-backend/app/services/report/renderer_pdf.py:230:        return str(ctx.get(key, \"\")) if key in _KNOWN_PLACEHOLDERS else m.group(0)",
+        "pcs-backend/app/services/report/blocks.py:70:def fill_placeholders(text: str, ctx: dict) -> str:",
+        "pcs-backend/app/services/report/blocks.py:22:KNOWN_PLACEHOLDERS = {\"project_no\", \"project_name\", \"doc_no\", \"rev\", \"report_name\"}",
+        "blocks.py:74-75 docstring: 「三个渲染器共用（各写一份就是 bug-153 的温床：同一语义三处实现，迟早有一处漏）」",
+        "renderer_pdf.py:60-68 already imports from app.services.report.blocks (_cell_text, assumed_header, ...)"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Delete renderer_pdf.py lines 93-98 (`_KNOWN_PLACEHOLDERS` + its comment) and lines 225-231 (`_fill_placeholders`), add `fill_placeholders` to the existing `from app.services.report.blocks import (...)` at line 60, and change the two call sites (lines 252, 255) to `fill_placeholders(...)`. Behavior is identical: `{{page}}` is not in KNOWN_PLACEHOLDERS, so it passes through verbatim and `_decorate`'s existing `.replace(\"{{page}}\", str(doc.page))` at line 255 still fires. Then repoint the 3 assertions in pcs-backend/tests/services/report/test_renderer_pdf.py:303-304 (and the stale comment at :310) at `blocks.fill_placeholders`."
+    },
+    {
+      "title": "Operator taxonomy hand-copied into six frontend locations",
+      "severity": "P1",
+      "file": "pcs-frontend/src/api/reportBuilder.ts",
+      "line": 48,
+      "why_it_matters": "The 15-operator taxonomy (SPEC §3.2.2(4)) is declared in the backend as query_engine.SUPPORTED_OPS plus _VALUELESS and _LIST_OPS, and re-declared in the frontend in six places across three files: FILTER_OPERATORS here, VALUELESS_OPERATORS here, BINARY_OPERATORS here, ALL_OPERATORS in FilterTreeEditor.tsx:43, VALUELESS_OPERATORS and LIST_OPERATORS in definitionBody.ts:246/250. BINARY_OPERATORS (IN/NOT_IN/BETWEEN) and LIST_OPERATORS are the same set under two names in two modules. FilterTreeEditor.tsx already imports VALUELESS/LIST from definitionBody while its own operator list lives one screen away in the same file — so the two halves of one table live in different layers. Adding or reclassifying an operator requires four edits and there is no compile-time link to the backend list; a miss produces a UI that offers a value shape the backend rejects with 400.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-frontend/src/api/reportBuilder.ts:48:export const FILTER_OPERATORS = [",
+        "pcs-frontend/src/api/reportBuilder.ts:64:export const VALUELESS_OPERATORS: ReadonlySet<FilterOperator> = new Set<FilterOperator>([",
+        "pcs-frontend/src/pages/report/definitionBody.ts:246:export const VALUELESS_OPERATORS: ReadonlySet<string> =",
+        "pcs-frontend/src/pages/report/FilterTreeEditor.tsx:43:export const ALL_OPERATORS = [",
+        "pcs-frontend/src/pages/report/definitionBody.ts:250:export const LIST_OPERATORS: ReadonlySet<string> =",
+        "pcs-frontend/src/api/reportBuilder.ts:59:export const BINARY_OPERATORS: ReadonlySet<FilterOperator> = new Set<FilterOperator>([",
+        "pcs-backend/app/services/report/query_engine.py:45:SUPPORTED_OPS = frozenset({",
+        "FilterTreeEditor.tsx:31-36 imports VALUELESS_OPERATORS/LIST_OPERATORS from './definitionBody' while ALL_OPERATORS is declared locally 10 lines later"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Make one module the owner. Keep `FILTER_OPERATORS` (the `as const` tuple) in src/api/reportBuilder.ts and derive the two classification sets from it so they cannot drift: `export const VALUELESS_OPERATORS = new Set<FilterOperator>(['IS_NULL','IS_NOT_NULL']); export const LIST_OPERATORS = new Set<FilterOperator>(['IN','NOT_IN','BETWEEN']);` beside it. Then in definitionBody.ts delete both local sets and re-export/import from '../../api/reportBuilder'; in FilterTreeEditor.tsx delete the local `ALL_OPERATORS` (lines 43-47) and import `FILTER_OPERATORS` at line 211. If a single source of truth is still wanted, add the operator list to the `/report-builder/datasources` meta payload the registry already serves, so the frontend reads it instead of hardcoding — that also removes the manual '顺序与后端 `_OPERATORS` 一致' claim, which names a backend constant that does not exist (the real name is SUPPORTED_OPS)."
+    },
+    {
+      "title": "Single-filter compatibility shim has zero remaining callers",
+      "severity": "P2",
+      "file": "pcs-frontend/src/pages/report/definitionBody.ts",
+      "line": 307,
+      "why_it_matters": "`asSingleFilter` is documented as '保留给只需要单条的旧调用点', but its only call site was replaced by the recursive `toFilterTree` in this diff — grep across src/ finds no consumers. It carries its own leaf-detection logic that is a second implementation of `toFilterTree`'s leaf branch (same `typeof n.field !== 'string'` and same `'EQUIP_LIST'` default), and its own docstring is an extended post-mortem of a bug it no longer participates in. `SingleFilter` is still threaded through `buildBody`'s input as `filter?: SingleFilter | null` with a `filterTree ?? filter` branch at line 185, yet the sole caller (ReportDefinitionEditorPage.tsx:195) passes only `filterTree`. Three dead concepts remain reachable from the module's public surface.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-frontend/src/pages/report/definitionBody.ts:307:export function asSingleFilter(node: unknown): SingleFilter | null {",
+        "pcs-frontend/src/pages/report/definitionBody.ts:57:export interface SingleFilter {",
+        "pcs-frontend/src/pages/report/definitionBody.ts:166:  filter?: SingleFilter | null;",
+        "pcs-frontend/src/pages/report/ReportDefinitionEditorPage.tsx:195:        rows, level, maxRows, outputFormat, filterTree,",
+        "grep of src/ for 'asSingleFilter' returns only its own docstring mention (definitionBody.ts:216) and its definition"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Delete `asSingleFilter` (lines 301-317), the `SingleFilter` interface (lines 56-62), `buildBody.input.filter` (line 166), and the `?? (input.filter ? [...] : [])` fallback in the `tree` computation (lines 185-190) so `tree = input.filterTree ?? []`. Delete `BINARY_OPERATORS` and `OPERATORS_BATCH_1` from api/reportBuilder.ts (lines 55-61) in the same pass — both are zero-consumer exports and BINARY_OPERATORS duplicates LIST_OPERATORS. Then update any test that imports these names and run `npm run typecheck` + `npm run lint`."
+    },
+    {
+      "title": "Two ARQ task bodies duplicate the failure-and-retry skeleton",
+      "severity": "P2",
+      "file": "pcs-backend/app/workers/report_builder_tasks.py",
+      "line": 97,
+      "why_it_matters": "The two task bodies are 90% identical around the failure path: rollback, mark terminal state only when `attempt_no >= MAX_TRIES`, write REPORT_FAILED audit with {task_id, attempt_no}, commit terminal state and audit in one commit, then `raise Retry(defer=RETRY_DEFER_S)` while attempts remain. The comment block explaining WHY ARQ 0.28 needs an explicit `Retry` is copied verbatim (10 lines, report_tasks.py:204-213 vs report_builder_tasks.py:121-130) — the two copies have already diverged once, in the surrounding prose about what each side observed. A third rule change (say, defer backoff or a per-action retry budget) has to be applied in two task bodies and two copies of the same 10-line rationale, and the copy that is missed fails silently because a non-Retry exception looks exactly like success-with-no-file.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/workers/report_builder_tasks.py:129:            if attempt_no < MAX_TRIES:\n                raise Retry(defer=RETRY_DEFER_S) from e",
+        "pcs-backend/app/workers/report_tasks.py:212:            if attempt_no < MAX_TRIES:\n                raise Retry(defer=RETRY_DEFER_S) from e",
+        "pcs-backend/app/workers/report_builder_tasks.py:120:            await db.commit()      # ⚠️ 终态与审计**同一次**提交",
+        "pcs-backend/app/workers/report_tasks.py:203:            await db.commit()",
+        "pcs-backend/app/workers/report_builder_tasks.py:117:                    \"task_id\": job_id, \"attempt_no\": attempt_no,",
+        "pcs-backend/app/workers/report_tasks.py:196:                        \"task_id\": job_id, \"attempt_no\": attempt_no,"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Extract the shared tail into one helper in a new `app/workers/_attempt.py` (both task modules already import MAX_TRIES/RETRY_DEFER_S from worker.py, so this adds no import edge): `def retry_or_raise(ctx, attempt_no, exc) -> NoReturn:` containing the ARQ-0.28 rule and its single copy of the comment, plus `async def fail_and_audit(db, audit, *, action, resource_type, resource_id, job_id, attempt_no, detail, on_terminal)` doing rollback → optional terminal-state mutation → audit → commit. Both bodies then reduce to `session_scope` + domain work + two helper calls. Keep the terminal-state mutation in the caller (report_files vs report_execution_logs are different models with different columns) so the helper takes a callback rather than a model."
+    },
+    {
+      "title": "PENDING_HASH_PREFIX triplicated, one copy unused",
+      "severity": "P2",
+      "file": "pcs-backend/app/workers/report_builder_tasks.py",
+      "line": 34,
+      "why_it_matters": "The placeholder-hash prefix is a wire-format constant: report_service writes `f\"{PENDING_HASH_PREFIX}{task_id}\"` into report_files.content_hash and report_tasks re-derives the task_id from it with `removeprefix(PENDING_HASH_PREFIX)` during reclaim. It is now declared three times — report_service.py:281, report_tasks.py:66, report_builder_tasks.py:34 — and the builder copy has zero references in its own module. Changing the prefix in report_service alone makes reclaim silently stop parsing task_id out of the placeholder (the audit detail gets the whole `pending:<id>` string), and nothing raises.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/workers/report_builder_tasks.py:34:PENDING_HASH_PREFIX = \"pending:\"",
+        "pcs-backend/app/workers/report_tasks.py:66:PENDING_HASH_PREFIX = \"pending:\"",
+        "pcs-backend/app/services/report/report_service.py:281:PENDING_HASH_PREFIX = \"pending:\"",
+        "pcs-backend/app/workers/report_tasks.py:247:                    \"task_id\": str(r.content_hash).removeprefix(PENDING_HASH_PREFIX)},"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Delete the declaration at report_builder_tasks.py:34 (unused there). In report_tasks.py delete line 66 and re-export the canonical one: add `from app.services.report.report_service import PENDING_HASH_PREFIX` at module scope — it is already imported lazily inside `_mark_pending` and inside `report_builder_tasks._render_and_store`, so a module-level import introduces no new cycle. Keep it in report_tasks' `__all__` since tests/workers/test_report_tasks.py:29 imports it from there."
+    },
+    {
+      "title": "_ctx_session duplicates worker.session_scope and leaks the session",
+      "severity": "P2",
+      "file": "pcs-backend/app/workers/report_tasks.py",
+      "line": 331,
+      "why_it_matters": "worker.py already owns 'ARQ ctx → AsyncSession' twice over (`session_scope`, which closes, and `_make_session`, which does not); report_tasks adds a third accessor that reads `ctx.get('session_factory')` itself and raises its own RuntimeError. Worse, `reclaim_stale_report_tasks` uses it and never closes the session — the exact leak `session_scope` was introduced to make structurally impossible (worker.py:74-84 records that both task bodies previously forgot). The cron therefore leaks one connection per fire, and the fix is a one-line deletion rather than an addition.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 100,
+      "evidence": [
+        "pcs-backend/app/workers/report_tasks.py:331:def _ctx_session(ctx) -> AsyncSession:",
+        "pcs-backend/app/workers/report_tasks.py:323:    db: AsyncSession = _ctx_session(ctx)",
+        "pcs-backend/app/workers/worker.py:71:async def session_scope(ctx: dict):",
+        "pcs-backend/app/workers/report_tasks.py:334:    factory = ctx.get(\"session_factory\")",
+        "pcs-backend/app/workers/worker.py:105:    factory = ctx[\"session_factory\"]"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Delete `_ctx_session` (report_tasks.py:331-338) and rewrite the cron body as `async with session_scope(ctx) as db:` followed by the two reclaim calls — `session_scope` is already imported inside the task bodies from `app.workers.worker`, so import it locally in `reclaim_stale_report_tasks` the same way to keep the worker import edge one-directional. Update the stale comment at tests/workers/test_worker_registers_all_enqueued_tasks.py:329 that says the other tasks use `_ctx_session`."
+    },
+    {
+      "title": "ORM-mapper lookup loop duplicated in three places",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/report/datasource_registry.py",
+      "line": 577,
+      "why_it_matters": "Resolving a datasource key to its ORM class is done by scanning `Base.registry.mappers` for a matching `local_table.name`, and that loop is written three times: query_engine._model_for (line 71), datasource_registry._add_primary_keys (line 577), and datasource_registry.primary_key_field (line 553). Two of the three live in the same file, 25 lines apart. The registry's two import-time mutation hooks (`_add_primary_keys()` at line 607, `_add_project_columns()` at line 634) exist so a new auto-registered column needs no per-source edit — but each hook re-implements the scan, so registering a third auto-column means writing a fourth loop rather than one more line.",
+      "autofix_class": "manual",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/report/datasource_registry.py:577:        for mapper in Base.registry.mappers:",
+        "pcs-backend/app/services/report/datasource_registry.py:553:    for mapper in Base.registry.mappers:",
+        "pcs-backend/app/services/report/query_engine.py:71:    for mapper in Base.registry.mappers:",
+        "pcs-backend/app/services/report/datasource_registry.py:607:_add_primary_keys()",
+        "pcs-backend/app/services/report/datasource_registry.py:634:_add_project_columns()"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Give datasource_registry one private resolver and make all three sites call it: `def orm_model(ds) -> type:` raising `REPORT_DATASOURCE_UNKNOWN` with the existing message. `primary_key_field` becomes `return list(orm_model(ds).mapper.primary_key)[0].name`, `_add_primary_keys` reuses it for the `pk_name is None` check, and query_engine._model_for becomes `return orm_model(ds)` behind its cache (or drops its cache — orm_model can carry it, since it already has the per-import registry). While there, move both `_add_primary_keys()` / `_add_project_columns()` calls into one `_augment_registry()` invoked once at the bottom of the module, so the import-time side effects are a single visible point instead of interleaved between the second helper's definition and its call."
+    },
+    {
+      "title": "builder_service._attr thin wrapper reaches into query_engine private",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/report/builder_service.py",
+      "line": 141,
+      "why_it_matters": "`_attr(source, field_name)` is `getattr(qe._model_for(ds), field_name)` — a pass-through that adds no behavior, needs a `# noqa: SLF001` because it calls another module's private helper, and skips the registry field validation that `query_engine._column` performs. It is called twice, for `join_field` and for the hardcoded `project_id`. The module already routes everything else through the public `qe.*` surface (build_select/apply_filters/apply_sort/paginate); this is the one path where a field name reaches `getattr` unchecked, so a typo in a join rule surfaces as an AttributeError instead of the registry's 400.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/report/builder_service.py:144:    model = qe._model_for(ds)          # noqa: SLF001 —— 同模块，刻意复用解析逻辑",
+        "pcs-backend/app/services/report/builder_service.py:141:def _attr(source: str, field_name: str):",
+        "pcs-backend/app/services/report/query_engine.py:79:def _column(source: str, field: str) -> InstrumentedAttribute:"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Delete `_attr` (builder_service.py:141-145) and route both call sites through the validating helper: `where = qe._column(source, join_field).in_(chunk)` at line 132 and `and_(where, qe._column(source, \"project_id\") == scope)` at line 134. Both fields are registry-registered (project_id is added by `_add_project_columns`), so the check passes and behaviour is unchanged, minus the SLF001. Rename `_column` to `column` in query_engine (3 call sites there: lines 167, 244, 254) so the cross-module use no longer reaches a private."
+    },
+    {
+      "title": "buildBody docstring orphaned above availableJoins, and stale",
+      "severity": "P3",
+      "file": "pcs-frontend/src/pages/report/definitionBody.ts",
+      "line": 119,
+      "why_it_matters": "Lines 119-127 are a docstring for `buildBody` ('编辑态 → 定义体 … 只发一条 EQ（2026-10-13 用户裁决的分批）。第二批补：15 操作符全集、AND/OR 嵌套、多条条件') that no longer sits above its function: `buildBody` is 40 lines further down at line 161, while these lines are immediately followed by `availableJoins`'s own docstring. A reader of availableJoins sees two docstrings, the first describing a different function, and its claim is stale anyway — batch 2 shipped, filterTree is live, and all 15 operators are already offered. The orphaned first half of the docstring also duplicates the placement warning that still correctly sits on buildBody at lines 125-127.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/report/definitionBody.ts:119: * 编辑态 → 定义体。",
+        "pcs-frontend/src/pages/report/definitionBody.ts:122: * ⚠️ **只发一条 EQ**（2026-10-13 用户裁决的分批）。",
+        "pcs-frontend/src/pages/report/definitionBody.ts:135:export function availableJoins(",
+        "pcs-frontend/src/pages/report/definitionBody.ts:161:export function buildBody(input: {"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Delete lines 119-127 and move the still-true half (the `label` / `level` are not sent because ReportDefSelectedField is extra=\"forbid\") up to sit directly above `export function buildBody` at line 161, replacing its current one-line docstring. Drop the '只发一条 EQ / 第二批补' sentences — they describe a stage that has shipped."
+    }
+  ],
+  "residual_risks": [
+    "The comment density in this diff is exceptional (both task modules carry 10-line duplicated rationales for the ARQ-0.28 Retry rule, and renderer_pdf.py's module docstring is 39 lines of font licensing/postscript-outline archaeology). The rationale is genuinely load-bearing — several entries record bugs that were found empirically — but prose that must be maintained in two places is prose that will drift; extracting the shared retry helper (finding 4) is the natural place to collapse the duplicated half.",
+    "blocks.py is a genuinely good shared representation and the three renderers have NOT drifted on block handling: all three dispatch over the same four block types, share _cell_text/assumed_header, and each implements only page-number substitution for its own medium (doc.page / Word PAGE field / &P). The one leak is the PDF's private fill_placeholders (finding 1); after that, the abstraction earns its keep.",
+    "query_engine is the strongest surface in this diff: all 15 operators, the join whitelist check, and the Python-side assembler live in one module with consumers that only state 'what to query'. Adding an operator touches exactly one file there. No finding raised against it.",
+    "The style system's four-level merge is thin: build_style is the single production entry point, resolve() owns the merge and locked fields, and detail_level is confined to HEAT_RESULTS. The one redundancy noted (style_service.active_for returns a documented priority-ordered [by_type, project] list that build_style immediately re-partitions by scope rather than consuming the order) is minor enough not to warrant a finding, but it means the '顺序即优先级' docstring at style_service.py:98-99 is not actually load-bearing.",
+    "No file in this diff approaches the 1000-line threshold — the largest is datasource_registry.py at 634 lines, and that is pure declarative metadata whose size tracks the 13 registered datasources rather than complexity."
+  ],
+  "testing_gaps": [
+    "No test asserts the three renderers agree on header/footer placeholder substitution. A single parametrized test that runs the same header/footer strings through blocks.fill_placeholders and checks each format's output contains the resolved doc_no would have caught the PDF copy (finding 1) the moment it was introduced.",
+    "No test pins that the frontend operator classification sets partition FILTER_OPERATORS. A vitest case asserting VALUELESS ∪ LIST ⊆ FILTER_OPERATORS and no overlap would make the duplication self-checking and would fail loudly when FilterTreeEditor's local copy drifts from api/reportBuilder's.",
+    "The two ARQ task bodies have separate failure-path tests (test_report_tasks.py and the builder intermediate-failure test) but no shared contract test for the retry/terminal-state rule; a test that both bodies satisfy 'no terminal state before the last attempt, exactly one audit per attempt, Retry raised while attempts remain' would let the duplicated skeleton be refactored without hand-auditing both.",
+    "The import-time registry mutation (_add_primary_keys / _add_project_columns) is exercised implicitly by the field-tree tests but there is no test asserting the invariant directly — i.e. that every registered datasource exposes its own primary key and, where the table has one, project_id as a selectable field."
+  ]
+}

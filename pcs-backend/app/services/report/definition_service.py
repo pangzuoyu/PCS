@@ -50,7 +50,23 @@ DEFINITION_STATUSES = frozenset({"DRAFT", "PUBLISHED", "OBSOLETE"})
 # 见模块 docstring 裁决 1
 SUPPORTED_SHARED_WITH = frozenset({"ALL_USERS", "CREATOR_ONLY"})
 
-MAX_ROWS_CEILING = 100_000
+# ⚠️ **这是实现上限，不是 SPEC 要求**（用户 2026-10-14 裁决）。
+#
+# SPEC 只规定默认值 10000，**没有**规定上限。原先这里是 100_000，
+# 而 `query_engine.assemble` 的 `batch_size` 默认 10000 且超限硬抛
+# `REPORT_JOIN_TOO_LARGE` —— 两处分家，差集（10001..100000）里的定义
+# 保存时校验通过、执行时确定性 400。那是「保存成功、执行时才炸」。
+#
+# 为什么是实现上限：ADR-P8-004 实测 10k 行 PDF = 9.6 秒 ⇒ 10 万行 = 96 秒，
+# 而 SPEC 复杂报表预算是 15 秒。XLSX 快 40 倍（10 万行 ≈ 2.3 秒）在预算内，
+# 所以「按输出格式定不同上限」是合理的未来形态 —— 但那是 P9 的范围，
+# P8 不做。当前只有一个上限，如实声明。
+#
+# ⚠️ `assemble` 的 `batch_size` 语义上**是「分批大小」而不是「上限」**
+# ——超了本该分批处理而不是抛错。两者被写成了同一个参数。
+# 补齐真分批（内存边界、跨批状态、进度上报）是独立工作量，不在 P8。
+# 有测试钉住两者相等，见 `test_every_advertised_max_rows_ceiling_equals_the_engine_limit`。
+MAX_ROWS_CEILING = 10000
 DEFAULT_VERSION = "0.1.0"
 
 

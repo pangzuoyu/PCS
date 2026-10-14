@@ -157,6 +157,11 @@ class ReportDefinition(TimestampMixin, Base):
     description: Mapped[str] = mapped_column(Text, default="", nullable=False)
     definition_json: Mapped[dict] = mapped_column(JSONB, nullable=False)
     output_format: Mapped[str] = mapped_column(String(10), nullable=False)
+    # ⚠️ **P8 引擎上限 10000**（`query_engine.assemble` 的 batch 边界）。
+    # **这是实现限制，不是 SPEC 要求** —— SPEC 只规定默认值 10000，未规定上限。
+    # 将来 `assemble` 引入真分批后此上限可提高，见
+    # `definition_service.MAX_ROWS_CEILING`（对外承诺与引擎边界相等，
+    # 有测试钉住）。曾短暂设为 100_000，那是「保存通过、执行期必然 400」。
     max_rows: Mapped[int] = mapped_column(Integer, default=10000, nullable=False)
     version: Mapped[str] = mapped_column(String(32), default="0.1.0", nullable=False)
     status: Mapped[str] = mapped_column(String(20), default="DRAFT", nullable=False)

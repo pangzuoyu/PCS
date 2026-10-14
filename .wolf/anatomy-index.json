@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-13T10:12:08.665Z",
-    "fileCount": 781,
+    "lastScanned": "2026-10-14T02:17:51.953Z",
+    "fileCount": 795,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "3df2aac14da482f48d4211f5f177db4119be135e6557d2dda886a48a7d199ed0",
-    "storeUpdatedAt": "2026-10-13T10:12:08.675Z",
-    "rootHash": "7a02270cec07ba61"
+    "renderedHash": "b3a040c53f09deb946fd9a431b2cc38ea98ba4d92bda60d7128d152e7486206e",
+    "storeUpdatedAt": "2026-10-14T02:17:51.963Z",
+    "rootHash": "e547838084ae25a7"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -772,11 +772,11 @@
     },
     "CLAUDE.md": {
       "description": "OpenWolf",
-      "tokens": 1029,
-      "hash": "4b8511ef424779e9",
-      "size": 6432,
-      "mtimeMs": 1791378850376.2686,
-      "updatedAt": "2026-10-07T13:14:10.423Z",
+      "tokens": 1141,
+      "hash": "cb6de1135ad728d9",
+      "size": 7279,
+      "mtimeMs": 1791943739921.9973,
+      "updatedAt": "2026-10-14T02:08:59.979Z",
       "source": "hook"
     },
     "CONTEXT.md": {
@@ -791,13 +791,12 @@
     },
     "docker-compose.yml": {
       "description": "Docker Compose services",
-      "tokens": 309,
-      "hash": "6f0daf2e08b148db",
-      "size": 1152,
-      "mtimeMs": 1788181870668.5085,
-      "updatedAt": "2026-10-02T12:43:34.547Z",
-      "source": "scan",
-      "importance": 0.1842
+      "tokens": 915,
+      "hash": "2f931f1e0c6fb1f1",
+      "size": 4134,
+      "mtimeMs": 1791899226078.1433,
+      "updatedAt": "2026-10-13T13:47:06.127Z",
+      "source": "hook"
     },
     "docs/adr/0001-two-layer-signing-model.md": {
       "description": "签署与版本采用两层模型：计算记录无 Rev，交付物承载全部发布语义",
@@ -12355,21 +12354,20 @@
     },
     "README.md": {
       "description": "Project documentation",
-      "tokens": 3547,
-      "hash": "b7a601da4d94c930",
-      "size": 18877,
-      "mtimeMs": 1790761254169.032,
-      "updatedAt": "2026-10-02T12:43:34.617Z",
-      "source": "scan",
-      "importance": 0.1842
+      "tokens": 3771,
+      "hash": "523e5c7801825568",
+      "size": 20172,
+      "mtimeMs": 1791899696310.11,
+      "updatedAt": "2026-10-13T13:54:56.364Z",
+      "source": "hook"
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 13092,
-      "hash": "f7f7f1ca41747bba",
-      "size": 84387,
-      "mtimeMs": 1791852815683.879,
-      "updatedAt": "2026-10-13T00:53:35.737Z",
+      "tokens": 15979,
+      "hash": "2d895fce702e7056",
+      "size": 104489,
+      "mtimeMs": 1791944271896.2334,
+      "updatedAt": "2026-10-14T02:17:51.953Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -21951,11 +21949,11 @@
     },
     "pcs-backend/app/models/report.py": {
       "description": "P8 报表与输出 ORM（ADR-P8-001 全直接生成路线）。",
-      "tokens": 2084,
-      "hash": "a4892ea21e94e523",
-      "size": 9102,
-      "mtimeMs": 1791773133362.4053,
-      "updatedAt": "2026-10-12T02:45:33.407Z",
+      "tokens": 2556,
+      "hash": "50608f0ec7361127",
+      "size": 11566,
+      "mtimeMs": 1791943672897.022,
+      "updatedAt": "2026-10-14T02:07:52.947Z",
       "source": "hook",
       "symbols": [
         {
@@ -21969,22 +21967,22 @@
           "name": "ReportFile",
           "kind": "class",
           "startLine": 82,
-          "endLine": 130,
-          "tokens": 645
+          "endLine": 135,
+          "tokens": 730
         },
         {
           "name": "ReportDefinition",
           "kind": "class",
-          "startLine": 131,
-          "endLine": 161,
-          "tokens": 427
+          "startLine": 136,
+          "endLine": 171,
+          "tokens": 501
         },
         {
           "name": "ReportExecutionLog",
           "kind": "class",
-          "startLine": 162,
-          "endLine": 183,
-          "tokens": 295
+          "startLine": 172,
+          "endLine": 217,
+          "tokens": 608
         }
       ]
     },
@@ -22947,96 +22945,103 @@
     },
     "pcs-backend/app/services/report/query_engine.py": {
       "description": "取数引擎 —— 过滤/排序/字段选择/NULL 处理的**唯一实现**。",
-      "tokens": 2546,
-      "hash": "a71ba81349f63577",
-      "size": 11138,
-      "mtimeMs": 1791767877885.943,
-      "updatedAt": "2026-10-12T01:17:57.934Z",
+      "tokens": 3347,
+      "hash": "e41d7b2fc5e9b68a",
+      "size": 15107,
+      "mtimeMs": 1791943680966.8958,
+      "updatedAt": "2026-10-14T02:08:01.015Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_datasource",
           "kind": "fn",
-          "startLine": 49,
-          "endLine": 56,
+          "startLine": 53,
+          "endLine": 60,
           "tokens": 57
+        },
+        {
+          "name": "_model_for",
+          "kind": "fn",
+          "startLine": 61,
+          "endLine": 78,
+          "tokens": 182
         },
         {
           "name": "_column",
           "kind": "fn",
-          "startLine": 57,
-          "endLine": 82,
-          "tokens": 281
+          "startLine": 79,
+          "endLine": 105,
+          "tokens": 270
         },
         {
           "name": "_jsonb_col",
           "kind": "fn",
-          "startLine": 83,
-          "endLine": 91,
-          "tokens": 81
+          "startLine": 106,
+          "endLine": 114,
+          "tokens": 74
         },
         {
           "name": "_need_value",
           "kind": "fn",
-          "startLine": 92,
-          "endLine": 109,
+          "startLine": 115,
+          "endLine": 132,
           "tokens": 200
         },
         {
           "name": "_build_condition",
           "kind": "fn",
-          "startLine": 110,
-          "endLine": 166,
-          "tokens": 484
+          "startLine": 133,
+          "endLine": 204,
+          "tokens": 646
         },
         {
           "name": "apply_filters",
           "kind": "fn",
-          "startLine": 167,
-          "endLine": 186,
+          "startLine": 205,
+          "endLine": 224,
           "tokens": 212
         },
         {
           "name": "build_select",
           "kind": "fn",
-          "startLine": 187,
-          "endLine": 212,
-          "tokens": 248
+          "startLine": 225,
+          "endLine": 250,
+          "tokens": 241
         },
         {
           "name": "apply_sort",
           "kind": "fn",
-          "startLine": 213,
-          "endLine": 219,
+          "startLine": 251,
+          "endLine": 257,
           "tokens": 53
         },
         {
           "name": "_column_from_label",
           "kind": "fn",
-          "startLine": 220,
-          "endLine": 233,
+          "startLine": 258,
+          "endLine": 271,
           "tokens": 110
         },
         {
           "name": "paginate",
           "kind": "fn",
-          "startLine": 234,
-          "endLine": 240,
+          "startLine": 272,
+          "endLine": 278,
           "tokens": 48
         },
         {
           "name": "check_joins",
           "kind": "fn",
-          "startLine": 241,
-          "endLine": 254,
+          "startLine": 279,
+          "endLine": 292,
           "tokens": 117
         },
         {
           "name": "assemble",
           "kind": "fn",
-          "startLine": 255,
-          "endLine": 276,
-          "tokens": 218
+          "startLine": 293,
+          "endLine": 357,
+          "tokens": 676
         }
       ]
     },
@@ -23148,430 +23153,626 @@
     },
     "pcs-backend/app/services/report/report_service.py": {
       "description": "报表生成编排 —— 取数 → 渲染 → 落盘 → 记 `ReportFile` → 审计。",
-      "tokens": 3608,
-      "hash": "de4e5c735baa8787",
-      "size": 15455,
-      "mtimeMs": 1791775460196.1038,
-      "updatedAt": "2026-10-12T03:24:20.250Z",
+      "tokens": 5558,
+      "hash": "5b6a8a606377f802",
+      "size": 25373,
+      "mtimeMs": 1791937009732.7183,
+      "updatedAt": "2026-10-14T00:16:49.784Z",
       "source": "hook",
       "symbols": [
         {
           "name": "collect",
           "kind": "fn",
-          "startLine": 62,
-          "endLine": 97,
-          "tokens": 442
+          "startLine": 75,
+          "endLine": 114,
+          "tokens": 514
         },
         {
           "name": "_to_blocks",
           "kind": "fn",
-          "startLine": 98,
-          "endLine": 111,
-          "tokens": 149
+          "startLine": 115,
+          "endLine": 138,
+          "tokens": 254
+        },
+        {
+          "name": "_scope_and_records",
+          "kind": "fn",
+          "startLine": 139,
+          "endLine": 189,
+          "tokens": 509
         },
         {
           "name": "_filter_spec",
           "kind": "fn",
-          "startLine": 112,
-          "endLine": 125,
-          "tokens": 126
+          "startLine": 190,
+          "endLine": 213,
+          "tokens": 247
         },
         {
           "name": "_fetch_join_rows",
           "kind": "fn",
-          "startLine": 126,
-          "endLine": 144,
-          "tokens": 216
+          "startLine": 214,
+          "endLine": 257,
+          "tokens": 498
         },
         {
           "name": "_join_column",
           "kind": "fn",
-          "startLine": 145,
-          "endLine": 153,
+          "startLine": 258,
+          "endLine": 266,
           "tokens": 87
         },
         {
           "name": "_record_hashes",
           "kind": "fn",
-          "startLine": 154,
-          "endLine": 158,
+          "startLine": 267,
+          "endLine": 271,
           "tokens": 54
         },
         {
           "name": "_assumed_fields",
           "kind": "fn",
-          "startLine": 159,
-          "endLine": 172,
+          "startLine": 272,
+          "endLine": 285,
           "tokens": 103
         },
         {
           "name": "_render_sync",
           "kind": "fn",
-          "startLine": 173,
-          "endLine": 190,
-          "tokens": 237
+          "startLine": 286,
+          "endLine": 307,
+          "tokens": 279
         },
         {
           "name": "_content_hash",
           "kind": "fn",
-          "startLine": 191,
-          "endLine": 218,
+          "startLine": 308,
+          "endLine": 335,
           "tokens": 296
         },
         {
           "name": "_block_canon",
           "kind": "fn",
-          "startLine": 219,
-          "endLine": 223,
+          "startLine": 336,
+          "endLine": 340,
           "tokens": 37
         },
         {
           "name": "_write_file",
           "kind": "fn",
-          "startLine": 224,
-          "endLine": 239,
-          "tokens": 142
+          "startLine": 341,
+          "endLine": 361,
+          "tokens": 178
+        },
+        {
+          "name": "ensure_pending_row",
+          "kind": "fn",
+          "startLine": 362,
+          "endLine": 409,
+          "tokens": 458
         },
         {
           "name": "generate",
           "kind": "fn",
-          "startLine": 240,
-          "endLine": 310,
-          "tokens": 887
+          "startLine": 410,
+          "endLine": 426,
+          "tokens": 214
+        },
+        {
+          "name": "store_rendered",
+          "kind": "fn",
+          "startLine": 427,
+          "endLine": 502,
+          "tokens": 941
         },
         {
           "name": "_upsert_report_file",
           "kind": "fn",
-          "startLine": 311,
-          "endLine": 337,
+          "startLine": 503,
+          "endLine": 529,
           "tokens": 272
         }
       ]
     },
     "pcs-backend/tests/workers/test_report_tasks.py": {
       "description": "ARQ 报表异步任务 —— 状态持久化 + 重试审计 + 僵死回收。",
-      "tokens": 3343,
-      "hash": "04020ea2bc4627cf",
-      "size": 13475,
-      "mtimeMs": 1791771608787.1196,
-      "updatedAt": "2026-10-12T02:20:08.834Z",
+      "tokens": 8192,
+      "hash": "1292a01939a035c1",
+      "size": 35638,
+      "mtimeMs": 1791936258085.0317,
+      "updatedAt": "2026-10-14T00:04:18.139Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_job_ctx",
           "kind": "fn",
-          "startLine": 33,
-          "endLine": 37,
-          "tokens": 52
+          "startLine": 39,
+          "endLine": 58,
+          "tokens": 167
         },
         {
           "name": "_make_row",
           "kind": "fn",
-          "startLine": 38,
-          "endLine": 54,
-          "tokens": 136
+          "startLine": 59,
+          "endLine": 76,
+          "tokens": 160
         },
         {
           "name": "test_task_persists_status_and_returns_file_id",
           "kind": "fn",
-          "startLine": 55,
-          "endLine": 64,
+          "startLine": 77,
+          "endLine": 86,
           "tokens": 117
         },
         {
           "name": "test_task_creates_pending_row_before_rendering",
           "kind": "fn",
-          "startLine": 65,
-          "endLine": 94,
+          "startLine": 87,
+          "endLine": 116,
           "tokens": 282
         },
         {
           "name": "test_task_marks_row_succeeded_with_real_path",
           "kind": "fn",
-          "startLine": 95,
-          "endLine": 114,
+          "startLine": 117,
+          "endLine": 136,
           "tokens": 230
         },
         {
           "name": "test_same_content_reuses_existing_file_across_async_boundary",
           "kind": "fn",
-          "startLine": 115,
-          "endLine": 136,
+          "startLine": 137,
+          "endLine": 158,
           "tokens": 244
         },
         {
           "name": "test_failure_sets_failed_status_and_writes_audit",
           "kind": "fn",
-          "startLine": 137,
-          "endLine": 151,
-          "tokens": 158
+          "startLine": 159,
+          "endLine": 196,
+          "tokens": 398
         },
         {
           "name": "test_each_failed_attempt_writes_one_audit_row",
           "kind": "fn",
-          "startLine": 152,
-          "endLine": 182,
+          "startLine": 197,
+          "endLine": 227,
           "tokens": 347
         },
         {
           "name": "test_failure_marks_row_failed_with_error_message",
           "kind": "fn",
-          "startLine": 183,
-          "endLine": 204,
-          "tokens": 232
+          "startLine": 228,
+          "endLine": 256,
+          "tokens": 304
+        },
+        {
+          "name": "test_retry_and_final_failure_are_distinguishable_exceptions",
+          "kind": "fn",
+          "startLine": 257,
+          "endLine": 302,
+          "tokens": 423
         },
         {
           "name": "test_retry_after_failure_reuses_same_row",
           "kind": "fn",
-          "startLine": 205,
-          "endLine": 240,
-          "tokens": 362
+          "startLine": 303,
+          "endLine": 344,
+          "tokens": 440
         },
         {
           "name": "test_stale_pending_task_is_reclaimed",
           "kind": "fn",
-          "startLine": 241,
-          "endLine": 255,
+          "startLine": 345,
+          "endLine": 359,
           "tokens": 149
+        },
+        {
+          "name": "test_cron_reclaim_commits_so_the_state_survives_its_own_session",
+          "kind": "fn",
+          "startLine": 360,
+          "endLine": 425,
+          "tokens": 681
         },
         {
           "name": "test_fresh_pending_task_is_not_reclaimed",
           "kind": "fn",
-          "startLine": 256,
-          "endLine": 265,
+          "startLine": 426,
+          "endLine": 435,
           "tokens": 117
         },
         {
           "name": "test_reclaim_does_not_touch_succeeded_or_deleting",
           "kind": "fn",
-          "startLine": 266,
-          "endLine": 280,
-          "tokens": 202
+          "startLine": 436,
+          "endLine": 450,
+          "tokens": 209
         },
         {
           "name": "test_reclaim_writes_audit_for_each_reclaimed_task",
           "kind": "fn",
-          "startLine": 281,
-          "endLine": 295,
+          "startLine": 451,
+          "endLine": 465,
           "tokens": 185
         },
         {
           "name": "test_audit_actions_exist_and_are_short",
           "kind": "fn",
-          "startLine": 296,
-          "endLine": 303,
+          "startLine": 466,
+          "endLine": 473,
           "tokens": 84
         },
         {
           "name": "test_pending_hash_prefix_cannot_collide_with_real_digest",
           "kind": "fn",
-          "startLine": 304,
-          "endLine": 312,
+          "startLine": 474,
+          "endLine": 482,
           "tokens": 90
         },
         {
           "name": "test_status_state_set_includes_pending_and_deleting",
           "kind": "fn",
-          "startLine": 313,
-          "endLine": 316,
+          "startLine": 483,
+          "endLine": 486,
           "tokens": 41
         },
         {
           "name": "test_style_json_roundtrips_through_report_style",
           "kind": "fn",
-          "startLine": 317,
-          "endLine": 320,
-          "tokens": 71
+          "startLine": 487,
+          "endLine": 492,
+          "tokens": 77
+        },
+        {
+          "name": "test_failure_state_is_committed_not_just_left_in_the_session",
+          "kind": "fn",
+          "startLine": 493,
+          "endLine": 537,
+          "tokens": 477
+        },
+        {
+          "name": "test_success_state_is_committed",
+          "kind": "fn",
+          "startLine": 538,
+          "endLine": 569,
+          "tokens": 329
+        },
+        {
+          "name": "_exec_log",
+          "kind": "fn",
+          "startLine": 570,
+          "endLine": 586,
+          "tokens": 162
+        },
+        {
+          "name": "_published_def",
+          "kind": "fn",
+          "startLine": 587,
+          "endLine": 603,
+          "tokens": 154
+        },
+        {
+          "name": "test_stale_queued_execution_log_is_reclaimed",
+          "kind": "fn",
+          "startLine": 604,
+          "endLine": 637,
+          "tokens": 371
+        },
+        {
+          "name": "test_reclaiming_writes_an_audit_row",
+          "kind": "fn",
+          "startLine": 638,
+          "endLine": 658,
+          "tokens": 192
+        },
+        {
+          "name": "test_fresh_execution_log_is_never_reclaimed",
+          "kind": "fn",
+          "startLine": 659,
+          "endLine": 675,
+          "tokens": 146
+        },
+        {
+          "name": "test_status_is_not_failed_until_the_last_attempt",
+          "kind": "fn",
+          "startLine": 676,
+          "endLine": 735,
+          "tokens": 612
+        },
+        {
+          "name": "test_last_attempt_marks_the_row_failed",
+          "kind": "fn",
+          "startLine": 736,
+          "endLine": 768,
+          "tokens": 306
+        },
+        {
+          "name": "test_failure_asks_arq_to_retry_instead_of_just_dying",
+          "kind": "fn",
+          "startLine": 769,
+          "endLine": 808,
+          "tokens": 408
         }
       ]
     },
     "pcs-backend/app/workers/report_tasks.py": {
       "description": "ARQ 报表异步生成任务。",
-      "tokens": 2045,
-      "hash": "3464e9ef5896661a",
-      "size": 9016,
-      "mtimeMs": 1791771707406.9973,
-      "updatedAt": "2026-10-12T02:21:47.451Z",
+      "tokens": 3693,
+      "hash": "a2e5975bce631285",
+      "size": 17679,
+      "mtimeMs": 1791936158452.1963,
+      "updatedAt": "2026-10-14T00:02:38.513Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_now",
           "kind": "fn",
-          "startLine": 61,
-          "endLine": 64,
+          "startLine": 73,
+          "endLine": 76,
           "tokens": 18
         },
         {
           "name": "_mark_pending",
           "kind": "fn",
-          "startLine": 65,
-          "endLine": 99,
-          "tokens": 326
+          "startLine": 77,
+          "endLine": 94,
+          "tokens": 182
         },
         {
           "name": "_finalize",
           "kind": "fn",
-          "startLine": 100,
-          "endLine": 128,
+          "startLine": 95,
+          "endLine": 123,
           "tokens": 243
         },
         {
           "name": "generate_report_task",
           "kind": "fn",
-          "startLine": 129,
-          "endLine": 175,
-          "tokens": 562
+          "startLine": 124,
+          "endLine": 216,
+          "tokens": 1174
         },
         {
           "name": "reclaim_stale_tasks",
           "kind": "fn",
-          "startLine": 176,
-          "endLine": 210,
-          "tokens": 336
+          "startLine": 217,
+          "endLine": 264,
+          "tokens": 489
         },
         {
           "name": "reclaim_stale_tasks_batch",
           "kind": "fn",
-          "startLine": 211,
-          "endLine": 217,
-          "tokens": 90
+          "startLine": 265,
+          "endLine": 273,
+          "tokens": 80
+        },
+        {
+          "name": "reclaim_stale_execution_logs",
+          "kind": "fn",
+          "startLine": 274,
+          "endLine": 323,
+          "tokens": 485
+        },
+        {
+          "name": "reclaim_stale_report_tasks",
+          "kind": "fn",
+          "startLine": 324,
+          "endLine": 352,
+          "tokens": 300
+        },
+        {
+          "name": "_ctx_session",
+          "kind": "fn",
+          "startLine": 353,
+          "endLine": 364,
+          "tokens": 138
         }
       ]
     },
     "pcs-backend/tests/api/v1/test_report.py": {
       "description": "`/api/v1/report` 路由契约。",
-      "tokens": 2381,
-      "hash": "eba52515d74aa8e6",
-      "size": 9666,
-      "mtimeMs": 1791772570867.2744,
-      "updatedAt": "2026-10-12T02:36:10.912Z",
+      "tokens": 3676,
+      "hash": "b2add6789ad94fa2",
+      "size": 15444,
+      "mtimeMs": 1791893834088.5994,
+      "updatedAt": "2026-10-13T12:17:14.140Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "_auth",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 34,
+          "tokens": 23
+        },
+        {
+          "name": "auth_pc",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 40,
+          "tokens": 42
+        },
+        {
+          "name": "auth_viewer",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 45,
+          "tokens": 43
+        },
+        {
           "name": "_sig",
           "kind": "fn",
-          "startLine": 28,
-          "endLine": 36,
+          "startLine": 46,
+          "endLine": 54,
           "tokens": 98
         },
         {
           "name": "valid_sig",
           "kind": "fn",
-          "startLine": 37,
-          "endLine": 44,
+          "startLine": 55,
+          "endLine": 62,
           "tokens": 58
         },
         {
           "name": "test_generate_returns_202_and_task_id",
           "kind": "fn",
-          "startLine": 45,
-          "endLine": 55,
-          "tokens": 126
+          "startLine": 63,
+          "endLine": 73,
+          "tokens": 129
         },
         {
           "name": "test_generate_rejects_unknown_format",
           "kind": "fn",
-          "startLine": 56,
-          "endLine": 66,
-          "tokens": 128
-        },
-        {
-          "name": "test_generate_requires_project_access",
-          "kind": "fn",
-          "startLine": 67,
-          "endLine": 79,
-          "tokens": 131
+          "startLine": 74,
+          "endLine": 96,
+          "tokens": 252
         },
         {
           "name": "test_status_endpoint_reports_state",
           "kind": "fn",
-          "startLine": 80,
-          "endLine": 86,
+          "startLine": 97,
+          "endLine": 103,
           "tokens": 81
         },
         {
-          "name": "test_download_without_project_access_is_403",
+          "name": "test_download_uses_404_not_403",
           "kind": "fn",
-          "startLine": 87,
-          "endLine": 92,
-          "tokens": 73
+          "startLine": 104,
+          "endLine": 115,
+          "tokens": 123
         },
         {
           "name": "test_download_streams_the_file",
           "kind": "fn",
-          "startLine": 93,
-          "endLine": 99,
+          "startLine": 116,
+          "endLine": 122,
           "tokens": 83
         },
         {
           "name": "test_download_writes_audit",
           "kind": "fn",
-          "startLine": 100,
-          "endLine": 117,
-          "tokens": 184
+          "startLine": 123,
+          "endLine": 140,
+          "tokens": 181
         },
         {
           "name": "test_verify_endpoint_returns_verdict_only",
           "kind": "fn",
-          "startLine": 118,
-          "endLine": 126,
+          "startLine": 141,
+          "endLine": 149,
           "tokens": 120
         },
         {
           "name": "test_verify_endpoint_is_unauthenticated",
           "kind": "fn",
-          "startLine": 127,
-          "endLine": 136,
+          "startLine": 150,
+          "endLine": 159,
           "tokens": 100
         },
         {
           "name": "test_verify_endpoint_rejects_unsigned_or_expired_sig",
           "kind": "fn",
-          "startLine": 137,
-          "endLine": 146,
+          "startLine": 160,
+          "endLine": 169,
           "tokens": 122
         },
         {
           "name": "test_verify_signature_is_bound_to_report_id",
           "kind": "fn",
-          "startLine": 147,
-          "endLine": 153,
+          "startLine": 170,
+          "endLine": 176,
           "tokens": 90
         },
         {
-          "name": "test_verify_reports_mismatch_as_match_false",
+          "name": "test_verify_reports_tampered_file_as_match_false",
           "kind": "fn",
-          "startLine": 154,
-          "endLine": 167,
-          "tokens": 140
+          "startLine": 177,
+          "endLine": 198,
+          "tokens": 220
+        },
+        {
+          "name": "test_verify_missing_file_is_not_a_pass",
+          "kind": "fn",
+          "startLine": 199,
+          "endLine": 209,
+          "tokens": 104
         },
         {
           "name": "test_authenticated_hash_endpoint_returns_full_hash",
           "kind": "fn",
-          "startLine": 168,
-          "endLine": 175,
+          "startLine": 210,
+          "endLine": 217,
           "tokens": 104
         },
         {
-          "name": "test_hash_endpoint_requires_project_access",
+          "name": "test_hash_endpoint_requires_auth",
           "kind": "fn",
-          "startLine": 176,
-          "endLine": 184,
-          "tokens": 94
+          "startLine": 218,
+          "endLine": 226,
+          "tokens": 99
         },
         {
           "name": "test_response_schemas_have_no_bare_object",
           "kind": "fn",
-          "startLine": 185,
-          "endLine": 216,
-          "tokens": 348
+          "startLine": 227,
+          "endLine": 261,
+          "tokens": 388
         },
         {
           "name": "test_all_planned_endpoints_exist",
           "kind": "fn",
-          "startLine": 217,
-          "endLine": 227,
-          "tokens": 132
+          "startLine": 262,
+          "endLine": 277,
+          "tokens": 160
+        },
+        {
+          "name": "fake_arq",
+          "kind": "fn",
+          "startLine": 278,
+          "endLine": 309,
+          "tokens": 215
+        },
+        {
+          "name": "test_enqueue_carries_task_and_arguments",
+          "kind": "fn",
+          "startLine": 310,
+          "endLine": 328,
+          "tokens": 244
+        },
+        {
+          "name": "_post",
+          "kind": "fn",
+          "startLine": 329,
+          "endLine": 335,
+          "tokens": 78
+        },
+        {
+          "name": "_mk_report_file",
+          "kind": "fn",
+          "startLine": 336,
+          "endLine": 351,
+          "tokens": 118
+        },
+        {
+          "name": "report_file",
+          "kind": "fn",
+          "startLine": 352,
+          "endLine": 357,
+          "tokens": 48
+        },
+        {
+          "name": "other_report_file",
+          "kind": "fn",
+          "startLine": 358,
+          "endLine": 362,
+          "tokens": 39
+        },
+        {
+          "name": "report_file_bytes",
+          "kind": "fn",
+          "startLine": 363,
+          "endLine": 377,
+          "tokens": 130
         }
       ]
     },
@@ -24108,138 +24309,222 @@
     },
     "pcs-backend/tests/api/v1/test_report_builder.py": {
       "description": "`/api/v1/report-builder` 路由契约（Phase 2）。",
-      "tokens": 2883,
-      "hash": "9c6a012166e5075e",
-      "size": 11914,
-      "mtimeMs": 1791802519343.0222,
-      "updatedAt": "2026-10-12T10:55:19.400Z",
+      "tokens": 17878,
+      "hash": "7f72f88f6e05c6cc",
+      "size": 74222,
+      "mtimeMs": 1791936185374.8792,
+      "updatedAt": "2026-10-14T00:03:05.426Z",
       "source": "hook",
       "symbols": [
         {
           "name": "auth_pc",
           "kind": "fn",
-          "startLine": 26,
-          "endLine": 33,
-          "tokens": 65
+          "startLine": 28,
+          "endLine": 36,
+          "tokens": 70
         },
         {
           "name": "test_datasources_returns_every_registered_source",
           "kind": "fn",
-          "startLine": 34,
-          "endLine": 41,
+          "startLine": 37,
+          "endLine": 44,
           "tokens": 92
         },
         {
           "name": "test_datasource_field_tree_matches_registry_exactly",
           "kind": "fn",
-          "startLine": 42,
-          "endLine": 64,
+          "startLine": 45,
+          "endLine": 67,
           "tokens": 275
         },
         {
           "name": "test_datasources_require_auth",
           "kind": "fn",
-          "startLine": 65,
-          "endLine": 74,
+          "startLine": 68,
+          "endLine": 77,
           "tokens": 72
         },
         {
           "name": "test_join_whitelist_is_published_with_exactly_the_registry_pairs",
           "kind": "fn",
-          "startLine": 75,
-          "endLine": 88,
+          "startLine": 78,
+          "endLine": 91,
           "tokens": 160
         },
         {
           "name": "test_jsonb_fields_are_marked_so_the_ui_can_warn",
           "kind": "fn",
-          "startLine": 89,
-          "endLine": 101,
+          "startLine": 92,
+          "endLine": 104,
           "tokens": 155
         },
         {
           "name": "test_response_has_no_bare_object_fields",
           "kind": "fn",
-          "startLine": 102,
-          "endLine": 116,
+          "startLine": 105,
+          "endLine": 119,
           "tokens": 183
         },
         {
           "name": "_auth",
           "kind": "fn",
-          "startLine": 117,
-          "endLine": 120,
+          "startLine": 120,
+          "endLine": 123,
           "tokens": 40
         },
         {
           "name": "_definition_body",
           "kind": "fn",
-          "startLine": 121,
-          "endLine": 143,
+          "startLine": 124,
+          "endLine": 146,
           "tokens": 195
         },
         {
           "name": "test_create_definition_starts_as_draft_owned_by_creator",
           "kind": "fn",
-          "startLine": 144,
-          "endLine": 154,
+          "startLine": 147,
+          "endLine": 157,
           "tokens": 129
         },
         {
           "name": "test_draft_is_invisible_to_others_but_visible_to_creator",
           "kind": "fn",
-          "startLine": 155,
-          "endLine": 180,
+          "startLine": 158,
+          "endLine": 183,
           "tokens": 316
         },
         {
           "name": "test_definition_endpoints_require_auth",
           "kind": "fn",
-          "startLine": 181,
-          "endLine": 187,
+          "startLine": 184,
+          "endLine": 190,
           "tokens": 89
         },
         {
           "name": "test_definition_rejects_datasource_not_in_registry",
           "kind": "fn",
-          "startLine": 188,
-          "endLine": 201,
+          "startLine": 191,
+          "endLine": 204,
           "tokens": 150
         },
         {
           "name": "test_definition_rejects_field_not_in_that_datasource",
           "kind": "fn",
-          "startLine": 202,
-          "endLine": 216,
+          "startLine": 205,
+          "endLine": 219,
           "tokens": 178
         },
         {
           "name": "test_definition_rejects_unsupported_output_format",
           "kind": "fn",
-          "startLine": 217,
-          "endLine": 225,
-          "tokens": 114
+          "startLine": 220,
+          "endLine": 234,
+          "tokens": 167
         },
         {
           "name": "test_update_draft_keeps_draft_and_version",
           "kind": "fn",
-          "startLine": 226,
-          "endLine": 240,
+          "startLine": 235,
+          "endLine": 249,
           "tokens": 200
         },
         {
           "name": "test_update_by_non_creator_gets_404",
           "kind": "fn",
-          "startLine": 241,
-          "endLine": 250,
+          "startLine": 250,
+          "endLine": 259,
           "tokens": 143
         },
         {
           "name": "test_duplicate_name_in_same_project_rejected",
           "kind": "fn",
-          "startLine": 251,
-          "endLine": 260,
-          "tokens": 166
+          "startLine": 260,
+          "endLine": 276,
+          "tokens": 223
+        },
+        {
+          "name": "_make",
+          "kind": "fn",
+          "startLine": 277,
+          "endLine": 284,
+          "tokens": 80
+        },
+        {
+          "name": "test_publish_requires_reviewer_role",
+          "kind": "fn",
+          "startLine": 285,
+          "endLine": 300,
+          "tokens": 162
+        },
+        {
+          "name": "test_published_all_users_is_visible_to_others",
+          "kind": "fn",
+          "startLine": 301,
+          "endLine": 310,
+          "tokens": 132
+        },
+        {
+          "name": "test_published_creator_only_stays_hidden",
+          "kind": "fn",
+          "startLine": 311,
+          "endLine": 320,
+          "tokens": 136
+        },
+        {
+          "name": "test_editing_published_definition_bumps_version_and_reverts_to_draft",
+          "kind": "fn",
+          "startLine": 321,
+          "endLine": 343,
+          "tokens": 292
+        },
+        {
+          "name": "test_republish_after_edit_needs_approval_again",
+          "kind": "fn",
+          "startLine": 344,
+          "endLine": 359,
+          "tokens": 237
+        },
+        {
+          "name": "test_publishing_twice_is_conflict",
+          "kind": "fn",
+          "startLine": 360,
+          "endLine": 368,
+          "tokens": 112
+        },
+        {
+          "name": "test_obsolete_requires_reviewer_and_leaves_default_list",
+          "kind": "fn",
+          "startLine": 369,
+          "endLine": 384,
+          "tokens": 230
+        },
+        {
+          "name": "test_obsoleted_definition_cannot_be_executed_or_republished",
+          "kind": "fn",
+          "startLine": 385,
+          "endLine": 394,
+          "tokens": 147
+        },
+        {
+          "name": "test_reviewer_cannot_edit_someone_elses_draft",
+          "kind": "fn",
+          "startLine": 395,
+          "endLine": 406,
+          "tokens": 130
+        },
+        {
+          "name": "test_selected_fields_alias_order_visible_round_trip",
+          "kind": "fn",
+          "startLine": 407,
+          "endLine": 443,
+          "tokens": 461
+        },
+        {
+          "name": "test_max_rows_survives_round_trip",
+          "kind": "fn",
+          "startLine": 444,
+          "endLine": 1573,
+          "tokens": 12759
         }
       ]
     },
@@ -24347,173 +24632,222 @@
     },
     "pcs-backend/app/api/v1/report_builder.py": {
       "description": "`/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。",
-      "tokens": 1791,
-      "hash": "5d1f2d5d96f0ec7d",
-      "size": 7423,
-      "mtimeMs": 1791802681047.2432,
-      "updatedAt": "2026-10-12T10:58:01.098Z",
+      "tokens": 3818,
+      "hash": "82b3b59dd53a89ed",
+      "size": 16903,
+      "mtimeMs": 1791943667850.1013,
+      "updatedAt": "2026-10-14T02:07:47.904Z",
       "source": "hook",
       "symbols": [
         {
           "name": "list_datasources",
           "kind": "fn",
-          "startLine": 44,
-          "endLine": 83,
-          "tokens": 387
+          "startLine": 53,
+          "endLine": 97,
+          "tokens": 463
         },
         {
           "name": "_reject_bad_format",
           "kind": "fn",
-          "startLine": 84,
-          "endLine": 100,
-          "tokens": 148
+          "startLine": 98,
+          "endLine": 111,
+          "tokens": 124
         },
         {
           "name": "create_definition",
           "kind": "fn",
-          "startLine": 101,
-          "endLine": 126,
-          "tokens": 314
+          "startLine": 112,
+          "endLine": 137,
+          "tokens": 318
         },
         {
           "name": "list_definitions",
           "kind": "fn",
-          "startLine": 127,
-          "endLine": 133,
+          "startLine": 138,
+          "endLine": 144,
           "tokens": 100
         },
         {
           "name": "get_definition",
           "kind": "fn",
-          "startLine": 134,
-          "endLine": 141,
+          "startLine": 145,
+          "endLine": 152,
           "tokens": 88
         },
         {
           "name": "update_definition",
           "kind": "fn",
-          "startLine": 142,
-          "endLine": 157,
-          "tokens": 191
+          "startLine": 153,
+          "endLine": 168,
+          "tokens": 195
         },
         {
           "name": "_as_dict",
           "kind": "fn",
-          "startLine": 158,
-          "endLine": 180,
-          "tokens": 195
+          "startLine": 169,
+          "endLine": 201,
+          "tokens": 295
+        },
+        {
+          "name": "publish_definition",
+          "kind": "fn",
+          "startLine": 202,
+          "endLine": 216,
+          "tokens": 133
+        },
+        {
+          "name": "obsolete_definition",
+          "kind": "fn",
+          "startLine": 217,
+          "endLine": 230,
+          "tokens": 125
+        },
+        {
+          "name": "ReportExecuteRequest",
+          "kind": "class",
+          "startLine": 231,
+          "endLine": 243,
+          "tokens": 109
+        },
+        {
+          "name": "ReportExecuteAccepted",
+          "kind": "class",
+          "startLine": 244,
+          "endLine": 250,
+          "tokens": 37
+        },
+        {
+          "name": "ReportExecutionStatus",
+          "kind": "class",
+          "startLine": 251,
+          "endLine": 273,
+          "tokens": 192
+        },
+        {
+          "name": "execution_status",
+          "kind": "fn",
+          "startLine": 274,
+          "endLine": 304,
+          "tokens": 376
+        },
+        {
+          "name": "execute_definition_endpoint",
+          "kind": "fn",
+          "startLine": 305,
+          "endLine": 372,
+          "tokens": 793
         }
       ]
     },
     "pcs-backend/app/services/report/definition_service.py": {
       "description": "报表定义管理（REPORT_BUILDER 的定义侧，Phase 2 b2/b3）。",
-      "tokens": 3474,
-      "hash": "632de2e644b40279",
-      "size": 15117,
-      "mtimeMs": 1791803668708.8682,
-      "updatedAt": "2026-10-12T11:14:28.776Z",
+      "tokens": 3781,
+      "hash": "f10ce19d9ad667ca",
+      "size": 16901,
+      "mtimeMs": 1791943623919.8066,
+      "updatedAt": "2026-10-14T02:07:03.973Z",
       "source": "hook",
       "symbols": [
         {
           "name": "bump_patch",
           "kind": "fn",
-          "startLine": 56,
-          "endLine": 73,
+          "startLine": 73,
+          "endLine": 90,
           "tokens": 128
         },
         {
           "name": "validate_definition_json",
           "kind": "fn",
-          "startLine": 74,
-          "endLine": 108,
-          "tokens": 378
+          "startLine": 91,
+          "endLine": 130,
+          "tokens": 421
         },
         {
           "name": "align_with_columns",
           "kind": "fn",
-          "startLine": 109,
-          "endLine": 137,
-          "tokens": 284
+          "startLine": 131,
+          "endLine": 147,
+          "tokens": 149
         },
         {
           "name": "_to_dict",
           "kind": "fn",
-          "startLine": 138,
-          "endLine": 156,
+          "startLine": 148,
+          "endLine": 166,
           "tokens": 168
         },
         {
           "name": "visible_clause",
           "kind": "fn",
-          "startLine": 157,
-          "endLine": 171,
+          "startLine": 167,
+          "endLine": 181,
           "tokens": 108
         },
         {
           "name": "DefinitionService",
           "kind": "class",
-          "startLine": 172,
-          "endLine": 324,
-          "tokens": 1972
+          "startLine": 182,
+          "endLine": 356,
+          "tokens": 2181
         }
       ]
     },
     "pcs-backend/app/services/report/builder_service.py": {
       "description": "REPORT_BUILDER 执行引擎（P8b b7）。",
-      "tokens": 2803,
-      "hash": "87039bcdb1849f55",
-      "size": 12917,
-      "mtimeMs": 1791886328615.493,
-      "updatedAt": "2026-10-13T10:12:08.665Z",
+      "tokens": 3078,
+      "hash": "a58850f928466097",
+      "size": 14189,
+      "mtimeMs": 1791897359305.9907,
+      "updatedAt": "2026-10-13T13:15:59.357Z",
       "source": "hook",
       "symbols": [
         {
           "name": "ExecutionResult",
           "kind": "class",
-          "startLine": 41,
-          "endLine": 55,
+          "startLine": 42,
+          "endLine": 56,
           "tokens": 88
         },
         {
           "name": "_visible_fields",
           "kind": "fn",
-          "startLine": 56,
-          "endLine": 77,
+          "startLine": 57,
+          "endLine": 78,
           "tokens": 243
         },
         {
           "name": "_fetch_source",
           "kind": "fn",
-          "startLine": 78,
-          "endLine": 96,
+          "startLine": 79,
+          "endLine": 97,
           "tokens": 214
         },
         {
           "name": "_fetch_join_rows",
           "kind": "fn",
-          "startLine": 97,
-          "endLine": 139,
+          "startLine": 98,
+          "endLine": 140,
           "tokens": 431
         },
         {
           "name": "_attr",
           "kind": "fn",
-          "startLine": 140,
-          "endLine": 146,
+          "startLine": 141,
+          "endLine": 147,
           "tokens": 63
         },
         {
           "name": "execute_definition",
           "kind": "fn",
-          "startLine": 147,
-          "endLine": 262,
-          "tokens": 1293
+          "startLine": 148,
+          "endLine": 284,
+          "tokens": 1560
         },
         {
           "name": "_project_field",
           "kind": "fn",
-          "startLine": 263,
-          "endLine": 280,
+          "startLine": 285,
+          "endLine": 302,
           "tokens": 147
         }
       ]
@@ -24552,26 +24886,47 @@
     },
     "pcs-backend/app/workers/report_builder_tasks.py": {
       "description": "ARQ：自定义报表定义执行任务（b7）。",
-      "tokens": 1349,
-      "hash": "1cc5ddd5ac11d8fe",
-      "size": 5233,
-      "mtimeMs": 1791804250243.708,
-      "updatedAt": "2026-10-12T11:24:10.293Z",
+      "tokens": 2890,
+      "hash": "38ed60411961e5f1",
+      "size": 13191,
+      "mtimeMs": 1791936199911.7087,
+      "updatedAt": "2026-10-14T00:03:19.959Z",
       "source": "hook",
       "symbols": [
         {
           "name": "execute_definition_task",
           "kind": "fn",
-          "startLine": 36,
-          "endLine": 87,
-          "tokens": 556
+          "startLine": 37,
+          "endLine": 155,
+          "tokens": 1474
+        },
+        {
+          "name": "_build_style",
+          "kind": "fn",
+          "startLine": 156,
+          "endLine": 176,
+          "tokens": 253
+        },
+        {
+          "name": "_exchanger_type",
+          "kind": "fn",
+          "startLine": 177,
+          "endLine": 198,
+          "tokens": 206
         },
         {
           "name": "_render_and_store",
           "kind": "fn",
-          "startLine": 88,
-          "endLine": 132,
-          "tokens": 553
+          "startLine": 199,
+          "endLine": 243,
+          "tokens": 539
+        },
+        {
+          "name": "_link_report_file",
+          "kind": "fn",
+          "startLine": 244,
+          "endLine": 265,
+          "tokens": 178
         }
       ]
     },
@@ -26277,11 +26632,11 @@
     },
     "pcs-backend/tests/services/report/test_join_project_scope.py": {
       "description": "JOIN 的项目隔离 —— b6 遗漏（用户 2026-10-13 分析发现）。",
-      "tokens": 2128,
-      "hash": "0a96b7799de27908",
-      "size": 9383,
-      "mtimeMs": 1791886272256.9846,
-      "updatedAt": "2026-10-13T10:11:12.305Z",
+      "tokens": 3086,
+      "hash": "d0f6bcac4bb9a32d",
+      "size": 14056,
+      "mtimeMs": 1791936945128.0212,
+      "updatedAt": "2026-10-14T00:15:45.175Z",
       "source": "hook",
       "symbols": [
         {
@@ -26302,50 +26657,328 @@
           "name": "_pump",
           "kind": "fn",
           "startLine": 93,
-          "endLine": 105,
-          "tokens": 126
+          "endLine": 109,
+          "tokens": 144
         },
         {
           "name": "_execute",
           "kind": "fn",
-          "startLine": 106,
-          "endLine": 121,
+          "startLine": 110,
+          "endLine": 125,
           "tokens": 167
         },
         {
           "name": "_definition",
           "kind": "fn",
-          "startLine": 122,
-          "endLine": 143,
+          "startLine": 126,
+          "endLine": 147,
           "tokens": 273
         },
         {
           "name": "test_two_projects_sharing_a_tag_do_not_bleed_into_each_other",
           "kind": "fn",
-          "startLine": 144,
-          "endLine": 170,
-          "tokens": 317
+          "startLine": 148,
+          "endLine": 181,
+          "tokens": 420
         },
         {
           "name": "test_the_missing_link_is_absent_not_null",
           "kind": "fn",
-          "startLine": 171,
-          "endLine": 191,
-          "tokens": 200
+          "startLine": 182,
+          "endLine": 202,
+          "tokens": 197
         },
         {
           "name": "test_same_project_join_still_works",
           "kind": "fn",
-          "startLine": 192,
-          "endLine": 212,
-          "tokens": 206
+          "startLine": 203,
+          "endLine": 223,
+          "tokens": 197
         },
         {
           "name": "test_company_level_sources_are_not_project_filtered",
           "kind": "fn",
-          "startLine": 213,
-          "endLine": 227,
-          "tokens": 157
+          "startLine": 224,
+          "endLine": 246,
+          "tokens": 214
+        },
+        {
+          "name": "_table_rows",
+          "kind": "fn",
+          "startLine": 247,
+          "endLine": 264,
+          "tokens": 154
+        },
+        {
+          "name": "test_fixed_10_types_refuse_record_ids_from_another_project",
+          "kind": "fn",
+          "startLine": 265,
+          "endLine": 302,
+          "tokens": 400
+        },
+        {
+          "name": "test_fixed_10_types_still_export_the_callers_own_records",
+          "kind": "fn",
+          "startLine": 303,
+          "endLine": 325,
+          "tokens": 240
+        }
+      ]
+    },
+    "pcs-backend/tests/workers/test_worker_registers_all_enqueued_tasks.py": {
+      "description": "每个入队的函数都必须在 ARQ worker 注册 —— 2026-10-13 实测发现。",
+      "tokens": 1037,
+      "hash": "45acf57610b2e0af",
+      "size": 5167,
+      "mtimeMs": 1791889232709.537,
+      "updatedAt": "2026-10-13T11:00:32.772Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_enqueued_func_names",
+          "kind": "fn",
+          "startLine": 45,
+          "endLine": 64,
+          "tokens": 192
+        },
+        {
+          "name": "_registered_names",
+          "kind": "fn",
+          "startLine": 65,
+          "endLine": 82,
+          "tokens": 188
+        },
+        {
+          "name": "test_enqueued_functions_are_all_registered_in_the_worker",
+          "kind": "fn",
+          "startLine": 83,
+          "endLine": 101,
+          "tokens": 170
+        },
+        {
+          "name": "test_the_scanner_actually_sees_the_known_enqueue_sites",
+          "kind": "fn",
+          "startLine": 102,
+          "endLine": 117,
+          "tokens": 149
+        },
+        {
+          "name": "test_both_report_task_entrypoints_exist",
+          "kind": "fn",
+          "startLine": 118,
+          "endLine": 123,
+          "tokens": 58
+        }
+      ]
+    },
+    ".gstack/qa_e2e_arq_chain.py": {
+      "description": "QA：P8 真实异步链路端到端（Redis + ARQ worker 都真跑）。",
+      "tokens": 1295,
+      "hash": "a094814e80832f06",
+      "size": 5264,
+      "mtimeMs": 1791890970666.064,
+      "updatedAt": "2026-10-13T11:29:30.714Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "check",
+          "kind": "fn",
+          "startLine": 18,
+          "endLine": 27,
+          "tokens": 54
+        },
+        {
+          "name": "call",
+          "kind": "fn",
+          "startLine": 28,
+          "endLine": 138,
+          "tokens": 1149
+        }
+      ]
+    },
+    ".gstack/qa_seed_project.py": {
+      "description": "QA 前置：种一个项目 + 两条设备行，打印 project_id。",
+      "tokens": 534,
+      "hash": "e28bd0c57b5c1d69",
+      "size": 2295,
+      "mtimeMs": 1791897143055.2754,
+      "updatedAt": "2026-10-13T13:12:23.104Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 26,
+          "endLine": 54,
+          "tokens": 346
+        }
+      ]
+    },
+    ".gstack/qa_e2e_fixed_types.py": {
+      "description": "QA：固定 10 类报表的**真实异步链路**（Redis + ARQ worker）。",
+      "tokens": 1282,
+      "hash": "e056fdb61bead41a",
+      "size": 5244,
+      "mtimeMs": 1791897736965.0662,
+      "updatedAt": "2026-10-13T13:22:17.014Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "check",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 39,
+          "tokens": 54
+        },
+        {
+          "name": "call",
+          "kind": "fn",
+          "startLine": 40,
+          "endLine": 53,
+          "tokens": 171
+        },
+        {
+          "name": "sql",
+          "kind": "fn",
+          "startLine": 54,
+          "endLine": 131,
+          "tokens": 837
+        }
+      ]
+    },
+    ".gstack/qa-reports/qa-report-pcs-backend-2026-10-13-arq-chain.md": {
+      "description": "QA 报告：P8 异步链路真跑（Redis + ARQ worker）",
+      "tokens": 774,
+      "hash": "f2602204cc6f0166",
+      "size": 5394,
+      "mtimeMs": 1791898669919.501,
+      "updatedAt": "2026-10-13T13:37:49.964Z",
+      "source": "hook"
+    },
+    "pcs-backend/alembic/versions/p8_006_report_files_task_id.py": {
+      "description": "P8：report_files 补 `task_id`（固定 10 类报表的 202 → 文件桥）。",
+      "tokens": 356,
+      "hash": "6035f23ad0beaa00",
+      "size": 1810,
+      "mtimeMs": 1791900051810.5486,
+      "updatedAt": "2026-10-13T14:00:51.863Z",
+      "source": "hook"
+    },
+    "pcs-backend/alembic/versions/p8_007_execution_log_status.py": {
+      "description": "P8：report_execution_logs 补 `status` 列（TODO-064 的回收器需要它）。",
+      "tokens": 390,
+      "hash": "68ecdc20ddded3a8",
+      "size": 1967,
+      "mtimeMs": 1791900511094.84,
+      "updatedAt": "2026-10-13T14:08:31.140Z",
+      "source": "hook"
+    },
+    ".gstack/qa_e2e_failure_injection.py": {
+      "description": "QA：ARQ **失败注入**（TODO-016 剩下的 DLQ 部分）。",
+      "tokens": 1727,
+      "hash": "b69f7c2f7900b6fa",
+      "size": 7571,
+      "mtimeMs": 1791903388629.285,
+      "updatedAt": "2026-10-13T14:56:28.684Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "check",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 61,
+          "tokens": 54
+        },
+        {
+          "name": "call",
+          "kind": "fn",
+          "startLine": 62,
+          "endLine": 74,
+          "tokens": 153
+        },
+        {
+          "name": "sql",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 82,
+          "tokens": 94
+        },
+        {
+          "name": "backend",
+          "kind": "fn",
+          "startLine": 83,
+          "endLine": 167,
+          "tokens": 1051
+        }
+      ]
+    },
+    ".gstack/qa_failure_worker.py": {
+      "description": "QA 专用 worker：只为失败注入验一个「必然失败」的任务函数。",
+      "tokens": 177,
+      "hash": "24c91bfa3f2b81a7",
+      "size": 921,
+      "mtimeMs": 1791902936222.5125,
+      "updatedAt": "2026-10-13T14:48:56.275Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261014-005528-981d772a/README.md": {
+      "description": "Project documentation",
+      "tokens": 562,
+      "hash": "51c49121176e00bb",
+      "size": 3682,
+      "mtimeMs": 1791935479413.2673,
+      "updatedAt": "2026-10-13T23:51:19.464Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261014-005528-981d772a/deployment-verification.md": {
+      "description": "Deployment Checklist: P8 报表与输出 — migrations p8_001..p8_007",
+      "tokens": 2912,
+      "hash": "b1e8b556bfeaf3d5",
+      "size": 11878,
+      "mtimeMs": 1791935984867.2947,
+      "updatedAt": "2026-10-13T23:59:44.917Z",
+      "source": "hook"
+    },
+    "docs/ce-code-review/20261014-005528-981d772a/report.md": {
+      "description": "代码评审结果",
+      "tokens": 9583,
+      "hash": "d02ce5f11fe9d4cf",
+      "size": 61406,
+      "mtimeMs": 1791935989798.2505,
+      "updatedAt": "2026-10-13T23:59:49.850Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/report/test_zz_debug_scope.py": {
+      "description": "test_debug_collect",
+      "tokens": 386,
+      "hash": "d05198c6f4975c7f",
+      "size": 1363,
+      "mtimeMs": 1791936849670.4006,
+      "updatedAt": "2026-10-14T00:14:09.716Z",
+      "source": "hook"
+    },
+    "pcs-backend/alembic/versions/p8_008_future_dated_chk.py": {
+      "description": "补 `project_calculation_standard_profiles.future_dated_forbidden_chk`。",
+      "tokens": 604,
+      "hash": "5981f1f2092373f9",
+      "size": 3008,
+      "mtimeMs": 1791943768787.5723,
+      "updatedAt": "2026-10-14T02:09:28.841Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 54,
+          "endLine": 69,
+          "tokens": 121
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 76,
+          "tokens": 85
         }
       ]
     }

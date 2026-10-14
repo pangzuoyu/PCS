@@ -736,7 +736,7 @@ exit 1）。P9A 收口时基线应**仍为 71**，不是下调到 0 —— 71 �
    DB 里叫 `uq_compound_api521_thresholds_type`。名字对不上会**同时**产生
    一条 remove 和一条 add。改显式 `UniqueConstraint(..., name=...)`。
 
-### 🔴 未修：`future_dated_forbidden_chk` 在 `pcs_test` 上不存在，且**没有任何迁移造它**
+### ✅ 已修：`future_dated_forbidden_chk` —— 迁移 `p8_008` 补建（2026-10-14）
 
 2026-10-14 把 `pcs_test` 对齐到 p8_007 后实测：
 
@@ -755,16 +755,25 @@ exit 1）。P9A 收口时基线应**仍为 71**，不是下调到 0 —— 71 �
 2026-10-07 的 43→0 处置把它当成了「DB 有安全网、ORM 漏声明」，补了 ORM 声明；
 在开发库上命令归零，在另一个库上归不了零 —— 因为另一个库从来没有过这条约束。
 
-**正确处置**（两条路，别选错）：
+**正确处置**（已按后者执行）：
 
 - ❌ **不要**照 CLAUDE.md 那条「`remove_constraint` 方向相反」的规则把它从 ORM 删掉 ——
   那条规则说的是 DB **有**、ORM 缺；这里是 DB **缺**、ORM 有，是另一回事。
-- ✅ 写一条新迁移，幂等地 `ADD CONSTRAINT ... NOT VALID` 再 `VALIDATE`
-  （或 `DROP CONSTRAINT IF EXISTS` + 重建），让两个库收敛到同一状态。
-  属 `psv_standards` 而非 P8，故**未在 P8 修复批次里动手**。
+- ✅ 迁移 `p8_008_future_dated_chk.py` 幂等补建：PG **没有**
+  `ADD CONSTRAINT IF NOT EXISTS`，所以走 `DO $$ … IF NOT EXISTS
+  (SELECT 1 FROM pg_constraint …) … $$`。
 
-**Owner：待认领。** 它让 `pcs_test` 上的 `alembic check` 长期 exit 255，
-而按 CLAUDE.md 255 必须当真实缺陷 —— 也就是说在这个库上守门要么被绕过、要么被误判。
+实测两个库都走到 head `p8_008`，`alembic check` 均 **exit 0**，
+`pg_constraint` 两侧 `contype=c / convalidated=true` 且定义逐字相同。
+迁移在 `pcs_test` 走 ADD 分支、在开发库走 skip 分支 —— **幂等性两边都验到了**。
+
+`downgrade()` 用 `DROP CONSTRAINT IF EXISTS`：无条件 drop 会在初始就有的库上
+删掉它，而 ORM 仍声明着 → `alembic check` 立刻报 `add_constraint`，
+把 downgrade 变成「制造漂移」。
+
+⚠️ **顺带记住**：单测从 ORM metadata 建表、**不跑迁移**，且 conftest:74 有
+一条 SQLite 改写把这个 PG 专有 `interval` 表达式换掉 —— 所以这条迁移
+无论写没写、写对不对，4400+ 测试一律绿。**迁移类缺陷靠单测抓不到。**
 
 ### 🔴 未修：`StaticPool` 让「开第二个 session 读」在本仓**全仓失效**
 
@@ -781,16 +790,49 @@ engine.pool.__class__.__name__  ->  StaticPool
 在本仓**静默失效**。这正是 2026-10-14 修掉的 P0 #2（回收器不 commit）
 能长期潜伏的直接原因。
 
-**未修的那一条**：`tests/workers/test_report_tasks.py` 里
+**最危险的形态**：正确的原则 + 错误的执行。
+`tests/workers/test_report_tasks.py` 里
 `test_failure_state_is_committed_not_just_left_in_the_session`
-—— 它的 docstring 明写「必须用**另一个 session** 读，替身比被测物更宽容」，
-**但它并没有真正证明 commit**。该测试目前通过，只是证明力为零。
+的 docstring 明写「必须用**另一个 session** 读，替身比被测物更宽容」——
+**写的人知道这个原则，但不知道 StaticPool 让它失效。**
 
 **修法**：需要观测「未提交」时用**文件库**（`sqlite+aiosqlite:///{tmp_path}/x.db`），
 文件库默认给每条连接独立事务。样板见同文件里
 `test_cron_reclaim_commits_so_the_state_survives_its_own_session`。
 
-**Owner：待认领，优先级低**（那条测试断言的行为本身是对的，只是证据不足）。
+**Owner：待认领。** 全仓审计见下。
+
+#### 全仓审计（2026-10-14，已跑）
+
+静态扫出 **11** 个「自建第二个 session / 用 `db_engine`」的测试，按**是否声明了
+自己受 StaticPool 影响**分类：
+
+| 分类 | 数量 | 测试 |
+|---|---|---|
+| ✅ **已声明局限**（诚实） | 3 | `test_numbering_service.py:83`、`equip_list/test_sync_service.py:283`、`test_mock_auth.py:53` |
+| ⚠️ **未见局限声明** | 8 | 见下 |
+
+已声明的那几个是**正确写法**，值得当样板：它们在临界区外面套了
+`asyncio.Lock`，并注明「sqlite 测试环境忽略 `FOR UPDATE`，生产 PG 上行锁
+才是真正保证」—— 即**不声称自己验了并发**，只声称验了唯一性。
+
+未见声明的 8 个里，**两个已确认无效**（就是本次 bug-171 的正主）：
+
+- `tests/workers/test_report_tasks.py:490`
+  `test_failure_state_is_committed_not_just_left_in_the_session`
+- `tests/workers/test_report_tasks.py:535` `test_success_state_is_committed`
+
+其余 6 个**尚未逐个确认**，其中值得先看的两个：
+
+- `tests/test_rbac_audit.py:163` `test_rbac_audit_row_real_db`
+  —— **名字里有 `real_db`**，实际用的是内存 `db_engine`。名字会误导下一个人
+  以为它验过真库行为。
+- `tests/services/test_pipe_code_generator.py:148`、
+  `tests/integration/test_e2e_template_to_pipe_code.py:192`
+  —— 名字叫 `concurrent_*`，但**没有**像上面 3 个那样声明串行化。
+
+**Owner：待认领。** 逐个复核 6 个未声明的，确认其断言是否依赖「未提交数据
+对另一 session 不可见」。
 
 ### 🟡 遗留：`drain_orifice_Cd_Y_cr` 上有**两个**功能重复的唯一索引
 

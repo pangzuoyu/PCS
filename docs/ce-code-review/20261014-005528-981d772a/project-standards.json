@@ -1,0 +1,58 @@
+{
+  "reviewer": "project-standards",
+  "findings": [
+    {
+      "title": "pcs_test left two P8 revisions unapplied",
+      "severity": "P2",
+      "file": "pcs-backend/alembic/versions/p8_007_execution_log_status.py",
+      "line": 30,
+      "why_it_matters": "CLAUDE.md names pcs_test as the second database used to confirm a migration also holds elsewhere, and explicitly warns that a second DB parked on an old revision is 'a common source of confusing drift results'. P8 added 7 migrations; pcs_test is still at p8_005, so p8_006 (report_files.task_id + index) and p8_007 (report_execution_logs.status + NOT NULL + index) were never applied there. The next session that follows the documented verification recipe will compare a stale schema against head ORM and either get a misleading drift verdict or hit an undefined-column error, which is precisely the confusion the rule was written to prevent. The dev DB itself is clean, so nothing is broken today - the risk is the next verification run reading a wrong answer.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "pre_existing": false,
+      "evidence": [
+        "pcs-backend/alembic/versions/p8_007_execution_log_status.py:30 — 'def upgrade() -> None:' (revision p8_007, applied to the dev DB only)",
+        "Measured: DATABASE_URL=<pcs_test DSN, credentials redacted> uv run alembic current → 'p8_005'; uv run alembic heads → 'p8_007 (p3.2-sim) (head)'",
+        "CLAUDE.md:23 — '改迁移后若要验证「迁移在另一个库上也成立」，显式指定它：DATABASE_URL=...@localhost:5432/pcs_test uv run alembic upgrade head。第二个库停在旧 revision 是产生困惑漂移结果的常见来源。'",
+        "CLAUDE.md:21-23 records the same trap firing before: pcs_test '曾长期停在 p7_s4_001（落后 3 个 revision）' and was hand-aligned with upgrade head",
+        "Provenance: p8_006 landed in 5d6f65e and p8_007 in c59a606, both within cfc0f2e..HEAD; no commit in that range runs upgrade head against pcs_test"
+      ],
+      "suggested_fix": "Run `DATABASE_URL=<pcs_test DSN> uv run alembic upgrade head` from pcs-backend to bring pcs_test to p8_007, then confirm it reports 'p8_007 (head)' under `alembic current`. This is a database-state action with no repo change, so it must be run by a human or an explicitly authorized agent, not applied as an autofix."
+    },
+    {
+      "title": "No docs/solutions writeback for 12 P8 fixes",
+      "severity": "P2",
+      "file": "docs/solutions/database-issues/alembic-create-table-silently-drops-schema-elements.md",
+      "line": 1,
+      "why_it_matters": "CLAUDE.md defines docs/solutions/ as the standing knowledge base and instructs that a newly found solution be written back rather than left in the commit record. The P8 range produced twelve bug fixes (bug-157 through bug-168) whose root causes are all non-obvious from code: ARQ 0.28 does not retry on an ordinary exception; enqueue must receive the function name string, not the function object; an ARQ task that never closes its session leaks a connection and surfaces the error on an unrelated command; a cron second field of None means 'every second', not 'unlimited'; and a prebuilt PENDING row defeats content-hash upsert de-duplication. Zero files were added under docs/solutions/ across 45 commits, so the single existing entry (the alembic create_table trap) remains the only durable writeup. A future session hitting the ARQ family again has no entry to consult and will rediscover it the hard way.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 75,
+      "pre_existing": false,
+      "evidence": [
+        "CLAUDE.md:9-11 — '`docs/solutions/` — 已记录的问题解法（缺陷、最佳实践、工作流模式），按 `problem_type` 分目录，带 YAML frontmatter（`module` / `tags` / `problem_type` / `severity`）。在已记录领域做实现或排障时相关；新增解法后回写一份，别只留在提交信息里。'",
+        "`git diff --stat cfc0f2e..HEAD -- docs/solutions/` → empty (no file added or modified under docs/solutions/ in the whole P8 range)",
+        "Commit cd1c0fb (2026-10-13): 'fix(report): 失败时向 ARQ 请求重试 —— ARQ 0.28 不因普通异常重试（TODO-016）' - non-obvious framework behaviour, no solutions entry",
+        "Commit dcd2041: 'fix(report): 入队必须传函数名字字符串，不是函数对象' - non-obvious API contract, no solutions entry",
+        "Commit 26933d4: 'fix(worker): cron 秒位 None 不是「不限」，是「每秒」（每分钟 59 次全表扫描）' - non-obvious ARQ cron semantics, no solutions entry",
+        "Commit 27cb4b0: 'fix(builder): 执行日志行在**入队时**建，消掉 202 之后的 404 窗口' - contract-design lesson, no solutions entry",
+        "Mitigating evidence (why this is not P0): the same solutions are recorded with all five required fields in .wolf/buglog.json (bug-157..bug-168, each with a resolving 7-char fix_commit) and in TODOS.md, so the knowledge is not confined to commit messages"
+      ],
+      "suggested_fix": "Add one file under docs/solutions/ for the ARQ/worker family, e.g. docs/solutions/worker-tasks/arq-silent-failure-modes.md, with YAML frontmatter (module: workers/report, tags: [arq, retry, session-leak, cron, silent-defect], problem_type: defect, severity: high), consolidating four reusable rules: (1) ARQ only retries on its own retryable exception types, not arbitrary exceptions - request retries explicitly at enqueue; (2) enqueue takes the task function *name* string; (3) every task must close its DB session in a finally block or the error surfaces on an unrelated command; (4) CronJob second=None means every second - always write an explicit 0. A second short entry for the report-execution timing contract (202 returns task_id; the execution-log row is created at enqueue time so the polling endpoint can never 404) is worth its own file."
+    }
+  ],
+  "residual_risks": [
+    "Rule verification that came back CLEAN, recorded so the caller does not re-do it: (a) `uv run alembic check` against the dev DB exits 0 with 'No new upgrade operations detected' after confirming `alembic current` == `alembic heads` == p8_007 - the CLAUDE.md migration-drift gate is satisfied for all seven p8_* migrations. (b) All twelve P8-range bugs (bug-157..bug-168) carry all five required buglog fields and a real 7-character fix_commit; every SHA was resolved with `git cat-file -t` and is a real commit. (c) .wolf/anatomy.md and .wolf/memory.md changes in the range are hook-generated bookkeeping (timestamped per-edit rows), not hand edits, so the 'do NOT manually update' rule is respected. (d) The per-batch QA gate was actually run twice for P8: .gstack/qa-reports/qa-report-pcs-backend-2026-10-13-arq-chain.md and qa-report-pcs-frontend-2026-10-13-report-builder.md (conclusion: CRITICAL/HIGH 0, MEDIUM 1 and LOW 2 registered).",
+    "CLAUDE.md's own report index is now stale: the '## 现有报告' list still ends at qa-report-pcs-frontend-2026-10-02-sprint2-batch.md and marks it '（最新）', while the two 2026-10-13 P8 reports exist on disk but are unregistered. That section was added specifically so the gate travels with the repo instead of living in one person's memory, so a reader following CLAUDE.md today would wrongly conclude the frontend gate has not run since 2026-10-02.",
+    "The P8 range adds six frontend screens (ReportDefinitionListPage, ReportDefinitionEditorPage, ReportExecutePage, ReportStylePage, FilterTreeEditor, JoinPicker) against a frozen docs/PCS-UI-SPEC.md that names only '报表' and '报表构建器' in its nav list and was not modified in this range. The UI-SPEC rule triggers on conflict with OpenAPI ('与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订'); if any of these screens diverges from what the frozen SPEC says, the required SPEC revision registration has not happened. Kept below reporting threshold because the rule only mandates registration on conflict, and no specific conflict was confirmed from the diff.",
+    "backend/frontend contract symmetry was checked only for the endpoints named in the range's own commits: e3ebc5d regenerated pcs-backend/docs/openapi.json, pcs-frontend/openapi.snapshot.json and src/types/api.d.ts after the /report/generate 202 shape change, and pcs-frontend/src/api/reportBuilder.ts is the matching client. No independent regeneration was run here to confirm the committed contract still matches the current route decorators."
+  ],
+  "testing_gaps": [
+    "No test exercises p8_007's backfill UPDATE against a pre-existing report_execution_logs row that already has report_file_id set - the migration's own docstring calls this out as the step that must not be skipped, but the assertion lives only in the migration comment. A migration-level test that seeds a legacy row, runs upgrade, and asserts status became FINISHED (not QUEUED) is the guard that would catch a future edit dropping the WHERE status IS NULL backfill.",
+    "The report_files.task_id uniqueness invariant is documented as 'ARQ retry leaves no second row because _job_id is unchanged', but no test enqueues the same task_id twice and asserts exactly one row survives - the non-unique index ix_report_files_task_id permits duplicates at the DB level, so the guarantee currently rests entirely on application code.",
+    "No coverage asserts that the execution-status endpoint and the reclaimer agree on terminal states end to end: a row reclaimed to FAILED (reclaim_stale_report_tasks) should read back as FAILED through GET /executions/{task_id}. Given that three separate P8 bugs (bug-167, bug-168, TODO-064) lived in this exact seam, a round-trip test would have caught at least the 404-window one."
+  ]
+}

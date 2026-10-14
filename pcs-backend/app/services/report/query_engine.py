@@ -307,6 +307,16 @@ def assemble(rows_by_source: dict[str, list[dict]],
     3. **dict lookup 关联，不写嵌套循环**
     4. 行数超 `batch_size` → `REPORT_JOIN_TOO_LARGE`（400），不是静默截断
 
+    ## ⚠️ `batch_size` 这个名字是错的（2026-10-14 记，未改）
+
+    它当前语义上是**硬上限**（超了抛错），而名字听起来是**分批大小**
+    （超了就分几批处理）。这是两件不同的事被写进了同一个参数 ——
+    改名会让所有调用方与文档一起动，而 P8 不做这个重构，先把话说清楚。
+
+    真正该有的形态是分批（内存边界、跨批状态保持、进度上报），
+    届时上限自然不再需要。**当前值 10000 就是 P8 的引擎上限**，
+    对外承诺必须与它相等 —— 见 `definition_service.MAX_ROWS_CEILING`。
+
     纯函数：不碰 DB，好测。真查在 `fetch_join_rows`。
     """
     base_rows = rows_by_source.get(primary, [])

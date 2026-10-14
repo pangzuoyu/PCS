@@ -1,0 +1,112 @@
+{
+  "reviewer": "adversarial",
+  "findings": [
+    {
+      "title": "Cascade: reclaim-stale cron is inert — guards claim to fix the unfixable but never commit",
+      "severity": "P0",
+      "file": "pcs-backend/app/workers/report_tasks.py",
+      "line": 249,
+      "confidence": 100,
+      "why_it_matters": "Both `reclaim_stale_tasks` and `reclaim_stale_execution_logs` end with `await db.flush()` instead of `await db.commit()`. The cron entry `reclaim_stale_report_tasks(ctx)` opens its session via `_ctx_session(ctx)` and returns without ever committing or closing. SQLAlchemy rolls back the implicit transaction when the session is eventually closed by the pool, so every FAILED-status rewrite and every audit-log INSERT is silently discarded. The module docstring at the top of `report_tasks.py` (`本模块的每个状态变更都必须 commit`) explicitly forbids this pattern; the only two functions in the file that violate it are the two cron reclaimers they were documented to defend against. Observable behavior: crashed ARQ workers leave rows in PENDING/RUNNING status indefinitely; users polling `/report/{id}/status` or `/report-builder/executions/{task_id}` see status spin forever; audit table never records why. Production rows pile up, but the green test suite (`test_reclaim_stale_*`) shares the same session as the reclaimer and therefore sees the unflushed changes — it never exercises an independent session to verify they were committed to Postgres.",
+      "autofix_class": "gated_auto",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "Add `await db.commit()` at the end of `reclaim_stale_tasks` (line 249) and `reclaim_stale_execution_logs` (line 307), and switch the cron entry to use `session_scope(ctx)` (the helper added in worker.py) so the session is also guaranteed to close cleanly. Add a `test_reclaim_persists_after_session_close` that calls the function against one session, commits/closes, then re-opens a fresh session and asserts the row state (and audit row) actually landed in the DB.",
+      "evidence": [
+        "pcs-backend/app/workers/report_tasks.py:249 — `await db.flush()` inside `reclaim_stale_tasks` (no commit before return).",
+        "pcs-backend/app/workers/report_tasks.py:307 — `await db.flush()` inside `reclaim_stale_execution_logs` (no commit before return).",
+        "Module docstring at pcs-backend/app/workers/report_tasks.py:25-32: 每次状态变更必须 commit 与实际函数不符 — reclaim 是显豁。",
+        "Trigger: cron `reclaim-stale-report-tasks` fires at HH:03:00 and HH:33:00 via `WorkerSettings.cron_jobs`; each invocation calls `_ctx_session(ctx)` which only opens a session and never closes it."
+      ]
+    },
+    {
+      "title": "Cascade: fixed-10-types export leaks cross-project rows via the join-source query",
+      "severity": "P0",
+      "file": "pcs-backend/app/services/report/report_service.py",
+      "line": 107,
+      "confidence": 75,
+      "why_it_matters": "`collect()` calls `_fetch_join_rows(db, source=extra, join_field=b_key, keys=...)` WITHOUT passing a project_id scope. The fixed-10-types endpoint `/report/generate` only guards `body.project_id` via `check_project_access_or_404` — it never validates that `body.record_ids` belong to that project. So a caller with valid access to project A can pass `record_ids` drawn from project B (and any other project whose record UUIDs the caller has obtained through any side channel): the main query loads those rows with no project filter, the join-source query then batches `WHERE join_field IN (<those keys>)` with no project filter, and `assemble()` joins both sides into the user's report. The from-source query lacks the `and project_id == scope` clause that builder_service added (and explicitly justified as 'auth boundary, not user condition'). Result: a PDF/XLSX/DOCX the user renders contains rows from a project they cannot otherwise see. The fix in builder_service was a deliberate tightening; the same tightening was never back-ported to the parallel code path.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "Add a `scope: uuid.UUID | None` parameter to `_fetch_join_rows` and to `collect`; thread `project_id` through from the endpoint. In the batched IN query, mirror builder_service's guard: if the source exposes a project_id column, AND `project_id == scope`; if not (e.g. SUPPLIERS), keep current behavior. Also validate at the endpoint that every UUID in `body.record_ids` resolves to a row whose `project_id` matches `body.project_id` (or NULL), with `check_project_access_or_404` per row.",
+      "evidence": [
+        "pcs-backend/app/services/report/report_service.py:107 — `rows_by_source[extra] = await _fetch_join_rows(db, source=extra, join_field=b_key, keys=[...])` with no `scope=` argument.",
+        "pcs-backend/app/services/report/report_service.py:163 — `_fetch_join_rows` signature accepts only `source`, `join_field`, `keys`; no project scoping.",
+        "Compare: pcs-backend/app/services/report/builder_service.py:2239 — same join-source path explicitly ANDs `_attr(source, 'project_id') == scope` and justifies it as '越权边界, 不能与 user conditions 合并'.",
+        "Trigger: caller POSTs `/report/generate` with `project_id=A` and `record_ids=[<UUID from project B>]`; `/report/generate` only runs `check_project_access_or_404` on project_id, not on individual record ids."
+      ]
+    },
+    {
+      "title": "Cascade: report_builder success leaves execution_log status RUNNING, reclaimer then overwrites to FAILED 15 min later",
+      "severity": "P1",
+      "file": "pcs-backend/app/workers/report_builder_tasks.py",
+      "line": 83,
+      "confidence": 100,
+      "why_it_matters": "`execute_definition_task` sets `task_row.status = \"RUNNING\"` (line 83) before the work block and only ever sets it to `\"FAILED\"` in the except arm (line 113). On the success path there is no assignment to a terminal-success value — the row commits with status still equal to `\"RUNNING\"`. The status endpoint `/report-builder/executions/{task_id}` papers over this with a fallback bridge (`status = \"FINISHED\" if row.report_file_id else (row.status or \"QUEUED\")`), so users see FINISHED. But the underlying row stays `\"RUNNING\"`, and `reclaim_stale_execution_logs` scans `status IN ('QUEUED', 'RUNNING')` with `updated_at < cutoff` — i.e. any successful execution older than 15 minutes is invisible to it the same way a stalled task is. The reclaimer flips it to `\"FAILED\"` and writes a misleading `AuditAction.REPORT_FAILED` audit with `detail.reclaimed=True`. Anyone reading the row directly later (audit exports, downstream reports) sees FAILED with no obvious trace that the run actually produced a file. Compounding: the reclaimer does not commit (finding #1), so the in-memory flip is rolled back — the row remains RUNNING indefinitely and the audit table never sees the reclaim event.",
+      "autofix_class": "gated_auto",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "Add `task_row.status = \"FINISHED\"` after the successful `db.commit()` in `execute_definition_task` and before the final return; second commit. Alternative: set `status = \"FINISHED\"` together with `report_file_id` via the same UPDATE in `_link_report_file`. Either fix also removes the need for the heuristic `report_file_id is not None -> FINISHED` fallback in `execution_status` (which itself is a sign the underlying state machine is broken).",
+      "evidence": [
+        "pcs-backend/app/workers/report_builder_tasks.py:83 — `task_row.status = \"RUNNING\"` (only assignment in success path).",
+        "pcs-backend/app/workers/report_builder_tasks.py:113 — `task_row.status = \"FAILED\"` (only assignment in failure arm).",
+        "Search confirms no `task_row.status = \"FINISHED\"` exists anywhere in the file or in `report_builder.py` / `builder_service.py`.",
+        "Trigger: a successful execute_definition run returns report_file_id, user sees FINISHED; 15 min later reclaim rewrites the row to FAILED with no upstream signal."
+      ]
+    },
+    {
+      "title": "Composition failure: content-hash dedup spans projects, downloads silently fail for the second project",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/report/report_service.py",
+      "line": 392,
+      "confidence": 75,
+      "why_it_matters": "`_upsert_report_file` keys dedup purely on `content_hash` (UQ on `content_hash` is the only constraint), ignoring `project_id`. If worker A in project A finishes an export first and inserts SUCCEEDED with `project_id=A, content_hash=H`, then worker B in project B renders the same content, `_finalize` finds the existing row (different `report_file_id`) and deletes worker B's PENDING line and returns worker A's file_id. Worker B's task_id gets `report_file_id = <A's row>`. When worker B's user polls `/report/{file_id}/status`, `_load_or_404` returns the row (success), then `_guard_project` runs `check_project_access_or_404` against the row's `project_id=A` — which the caller can't satisfy for project B, so the endpoint returns 404 even though the task SUCCEEDED. The user's UI sees a successful 202 -> inflight -> 404 sequence (\"File not found\" with no error message). The `/download` and `/{id}/hash` endpoints have the same asymmetry. There is no log line distinguishing this from \"file got cleaned up\". The mirror case (project_id NULL company-wide row colliding with a project row) is even simpler — `_guard_project` returns early on NULL project and grants the second caller access to a row that was supposed to belong to one tenant.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "Either widen the uniqueness to `(project_id, content_hash)` (and drop the cross-project dedup) so each project owns its own file row regardless of identical content, or keep global dedup but create thin per-project `report_files` shadow rows that mirror `content_hash -> canonical_file_id` and route the access check through the shadow row's project_id. The former is more conservative and matches SPEC's per-tenant isolation reading; the latter matches SPEC §2.5 \"file immutability\" semantics. Whichever is chosen, add a regression test that two users from two projects exporting the same logical report each receive a `report_file_id` they can actually download.",
+      "evidence": [
+        "pcs-backend/app/services/report/report_service.py:392 — `select(ReportFile).where(ReportFile.content_hash == kw[\"content_hash\"])` (no project filter).",
+        "pcs-backend/alembic/versions/p8_001_report_tables.py:92 — unique constraint `uq_report_files_content_hash` is single-column, not composite.",
+        "pcss-backend/app/services/report/report_service.py:660 — IntegrityError catch in `_finalize` reuses whoever owns the row, regardless of project.",
+        "Trigger: project A and project B have identical data rows; both users POST `/report/generate` concurrently; one wins the UQ, the other's report_file_id now points into project A's row."
+      ]
+    },
+    {
+      "title": "Race: identical concurrent exports via two ARQ workers collide at finalize, IntegrityError leaks disk file with no row",
+      "severity": "P2",
+      "file": "pcs-backend/app/workers/report_tasks.py",
+      "line": 102,
+      "confidence": 75,
+      "why_it_matters": "Scenario: worker A and worker B (separate processes) pick up two different task_ids that happen to compute the same content_hash `H`. Each calls `report_service.generate` -> `_upsert_report_file`. There is exactly one place that catches `IntegrityError`: inside `_upsert_report_file` it `db.rollback()` and re-fetches the winner row. But the `store_rendered` flow already wrote the file to disk (line 124) BEFORE calling `_upsert_report_file`. The losing worker's `_upsert_report_file` rollback discards the INSERT and returns the winner row. The losing worker then proceeds to `_finalize` which finds the winner row (`report_file_id != row.report_file_id`) and deletes its own PENDING line. So in this happy path the orphan file is the file `digest=H` that LOSING worker B wrote to disk under the same digest path. Now both workers wrote to the SAME `relpath` (same content_hash -> same path via `paths.new_file_path(digest, _EXT[...])`). Race on the filesystem write: each did `_write_file(abs, payload)` which is `tmp.write_bytes + tmp.replace(abs)`. Both writers race the `replace()` and the byte content is identical (deterministic content_hash), so the final on-disk state is correct. BUT — `_write_file` does `tmp.write_bytes(payload)` against a `.part` temp file in the SAME directory; if two writers compute the SAME abs path with the SAME `.part` suffix, the second `write_bytes` will fail with `FileExistsError` on certain filesystems or just overwrite silently on ext4 — and the first writer's `replace()` on `.part` may swap in second writer's content mid-read. The accepted race here is the file-system race acknowledged in the diff (no exclusive lock around write+rename). File-on-disk may end up shorter than recorded `size_bytes` if the `.replace()` truncates mid-write under concurrent interleaving; reader on `/download` sees a corrupt file with no signal.",
+      "autofix_class": "advisory",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "suggested_fix": "Wrap `_write_file` in `asyncio.to_thread(os.rename, src, dst, ...)` with an O_EXCL exclusive open of `tmp` (open with `os.O_CREAT | os.O_EXCL | os.O_WRONLY`) so the second writer fails fast and the dedup layer can decide whether to delete the second's tmp or simply reuse the existing file path. Together with compositing `digest -> relpath` uniquely, this eliminates the filesystem race entirely.",
+      "evidence": [
+        "pcs-backend/app/services/report/report_service.py:124 — `_write_file(...)` writes `tmp = abs_path.with_suffix(abs_path.suffix + \".part\")` then `tmp.replace(abs_path)`.",
+        "pcs-backend/app/services/report/report_service.py:392 — no exclusive temp file handling, two writers can race to the same `.part` path.",
+        "Trigger: ARQ parallel-worker concurrency on `max_jobs=4`; user submits two identical requests that resolve to the same content_hash; both workers serialize to `tmp.write_bytes` + `tmp.replace` on the same pair of paths."
+      ]
+    }
+  ],
+  "residual_risks": [
+    "ARQ cron at minute={3,33} with second=0 fires exactly at HH:03:00 / HH:33:00; combined with the existing minute={0,5,...} and minute={1,6,...} crons, the worker process experiences a sharp load spike at HH:00 (scan-stale-full + scan-stale-incremental) and at HH:03 / HH:33 (reclaim + system baseline). Not yet adversarial but worth watching under production load.",
+    "`/report-builder/executions/{task_id}` uses `DefinitionService.get` for visibility but never checks project_id on the execution log itself — so a user who once had access to a now-archived project's definition can still poll that project's task statuses. Adjacent to finding #4, not covered.",
+    "The `/report/generate` endpoint accepts `body.project_id = None` without any business validation. company-wide fixed-10-types reports run with the same unfiltered `collect()` path described in finding #2, amplified to all-data-all-projects when project_id is null.",
+    "`store_rendered` writes `REPORT_GENERATED` audit with `content_hash=H` even when the row returned is the dedup hit (not newly generated). A burst of identical exports from many users pollutes the audit log with 'generated' events for files that were not generated in response to those particular requests. Affects auditability, not correctness.",
+    "`session_scope` in worker.py does not handle the case where `_make_session(ctx)` raises (e.g. engine disposed during shutdown). The session_ctx manager would propagate the exception without ever running `db.close()` because the factory call happened outside the try. Edge case at shutdown; not covered by current tests."
+  ],
+  "testing_gaps": [
+    "No test opens a fresh SQLAlchemy session after `reclaim_stale_tasks` returns and asserts the row state actually landed in the DB. Today the test shares the reclaimer session, so flush-only changes look committed. This is exactly the gap that lets finding #1 ship.",
+    "No cross-project isolation test for the fixed-10-types `/report/generate` path. Only the builder-definition path was hardened against cross-project records (builder_service test_*, intentional per the commit message).",
+    "No test that drives a successful `execute_definition_task` end-to-end and asserts `report_execution_logs.status == 'FINISHED'` afterwards. The current test only checks the `ReportExecuteAccepted` response and the audit log, not the persisted row state — directly enabling finding #3.",
+    "No concurrency test for two simultaneous identical-content `/report/generate` requests against an actual Postgres instance (only via SQLite in-memory, where locking semantics differ). Finding #2 and #5 both rely on real Postgres row-level locking to surface."
+  ]
+}

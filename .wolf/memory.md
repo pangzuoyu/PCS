@@ -1559,3 +1559,55 @@
 | 18:08 | Created pcs-backend/tests/services/report/test_join_project_scope.py | — | ~1859 |
 | 18:11 | Edited pcs-backend/tests/services/report/test_join_project_scope.py | modified _execute() | ~186 |
 | 18:12 | Edited pcs-backend/app/services/report/builder_service.py | modified _fetch_join_rows() | ~431 |
+| 19:00 | Created pcs-backend/tests/workers/test_worker_registers_all_enqueued_tasks.py | — | ~1037 |
+| 19:07 | Created .gstack/qa_e2e_arq_chain.py | — | ~1102 |
+| 19:29 | Created .gstack/qa_seed_project.py | — | ~477 |
+| 19:29 | Edited .gstack/qa_e2e_arq_chain.py | reduced (-7 lines) | ~167 |
+| 19:29 | Edited .gstack/qa_e2e_arq_chain.py | 13→17 lines | ~195 |
+| 20:17 | Edited pcs-backend/tests/api/v1/test_report.py | expanded (+6 lines) | ~147 |
+| 21:12 | Edited .gstack/qa_seed_project.py | 1→4 lines | ~57 |
+| 21:15 | Edited pcs-backend/app/services/report/builder_service.py | expanded (+21 lines) | ~394 |
+| 21:22 | Created .gstack/qa_e2e_fixed_types.py | — | ~1282 |
+| 21:37 | Created .gstack/qa-reports/qa-report-pcs-backend-2026-10-13-arq-chain.md | — | ~826 |
+| 21:47 | Edited docker-compose.yml | expanded (+50 lines) | ~622 |
+| 21:54 | Edited README.md | expanded (+25 lines) | ~299 |
+| 22:00 | Created pcs-backend/alembic/versions/p8_006_report_files_task_id.py | — | ~356 |
+| 22:02 | Edited pcs-backend/app/models/report.py | 3→7 lines | ~127 |
+| 22:08 | Created pcs-backend/alembic/versions/p8_007_execution_log_status.py | — | ~390 |
+| 22:48 | Created .gstack/qa_e2e_failure_injection.py | — | ~1396 |
+| 22:48 | Created .gstack/qa_failure_worker.py | — | ~177 |
+| 22:56 | Created .gstack/qa_e2e_failure_injection.py | — | ~1727 |
+| 07:51 | Created docs/ce-code-review/20261014-005528-981d772a/README.md | — | ~599 |
+| 07:59 | Edited docs/ce-code-review/20261014-005528-981d772a/deployment-verification.md | 1→2 lines | ~40 |
+| 07:59 | Edited docs/ce-code-review/20261014-005528-981d772a/report.md | inline fix | ~57 |
+| 08:00 | Edited TODOS.md | expanded (+6 lines) | ~128 |
+| 08:00 | Edited TODOS.md | 4→5 lines | ~22 |
+| 08:00 | Edited TODOS.md | expanded (+30 lines) | ~299 |
+| 08:01 | Edited pcs-backend/tests/workers/test_report_tasks.py | modified test_cron_reclaim_commits_so_the_state_survives_its_own_session() | ~542 |
+| 08:02 | Edited pcs-backend/tests/workers/test_report_tasks.py | modified test_cron_reclaim_commits_so_the_state_survives_its_own_session() | ~681 |
+| 08:02 | Edited pcs-backend/app/workers/report_tasks.py | expanded (+11 lines) | ~170 |
+| 08:02 | Edited pcs-backend/app/workers/report_tasks.py | 2→4 lines | ~34 |
+| 08:02 | Edited pcs-backend/app/workers/report_tasks.py | expanded (+9 lines) | ~184 |
+| 08:03 | Edited pcs-backend/tests/api/v1/test_report_builder.py | modified test_successful_builder_execution_marks_the_log_row_FINISHED() | ~578 |
+| 08:03 | Edited pcs-backend/app/workers/report_builder_tasks.py | expanded (+11 lines) | ~147 |
+| 08:04 | Edited pcs-backend/tests/workers/test_report_tasks.py | modified test_retry_and_final_failure_are_distinguishable_exceptions() | ~468 |
+| 08:12 | Edited TODOS.md | expanded (+26 lines) | ~256 |
+| 08:14 | Created pcs-backend/tests/services/report/test_zz_debug_scope.py | — | ~386 |
+| 08:15 | Edited pcs-backend/tests/services/report/test_join_project_scope.py | 2→2 lines | ~18 |
+| 08:15 | Edited pcs-backend/tests/services/report/test_join_project_scope.py | 10→10 lines | ~128 |
+| 08:16 | Edited pcs-backend/app/services/report/report_service.py | _filter_spec() → _scope_and_records() | ~139 |
+| 08:16 | Edited pcs-backend/app/services/report/report_service.py | modified _scope_and_records() | ~504 |
+| 08:16 | Edited pcs-backend/app/services/report/report_service.py | 3→3 lines | ~58 |
+| 08:16 | Edited pcs-backend/app/services/report/report_service.py | modified _fetch_join_rows() | ~497 |
+| 08:16 | Edited pcs-backend/app/services/report/report_service.py | 3→3 lines | ~36 |
+| 08:16 | Edited pcs-backend/app/services/report/report_service.py | 5→6 lines | ~63 |
+| 10:07 | Edited pcs-backend/app/services/report/definition_service.py | expanded (+16 lines) | ~194 |
+| 10:07 | Edited pcs-backend/app/api/v1/report_builder.py | 1→2 lines | ~41 |
+| 10:07 | Edited pcs-backend/app/models/report.py | 1→6 lines | ~98 |
+| 10:08 | Edited pcs-backend/app/services/report/query_engine.py | expanded (+10 lines) | ~118 |
+| 10:08 | Edited CLAUDE.md | expanded (+9 lines) | ~294 |
+| 10:09 | Created pcs-backend/alembic/versions/p8_008_future_dated_chk.py | — | ~278 |
+| 10:09 | Created pcs-backend/alembic/versions/p8_008_future_dated_chk.py | — | ~604 |
+| 10:17 | Edited TODOS.md | inline fix | ~18 |
+| 10:17 | Edited TODOS.md | expanded (+10 lines) | ~432 |
+| 10:17 | Edited TODOS.md | expanded (+32 lines) | ~293 |

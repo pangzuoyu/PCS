@@ -1,0 +1,206 @@
+{
+  "reviewer": "api-contract",
+  "findings": [
+    {
+      "title": "Polling loop ignores status FAILED, spins to false timeout",
+      "severity": "P1",
+      "file": "pcs-frontend/src/pages/report/ReportExecutePage.tsx",
+      "line": 161,
+      "why_it_matters": "The polling loop branches only on `st.report_file_id`, never on `st.status`. `null` report_file_id is therefore overloaded for two semantically different states: 'still rendering' and 'terminally failed'. The backend writes FAILED both on a real task exception (report_builder_tasks.py:113) and on stale-reclaim (report_tasks.py:294, TODO-064 exists specifically so the poller can see it), but the page cannot observe either. A consumer watches the spinner for the full POLL_TIMEOUT_MS and then sees '等待超时 / 文件可能仍在生成' for a task the worker already killed -- a false statement that sends the user to investigate the queue instead of the failure. Fixing it means checking `st.status === 'FAILED'` before the report_file_id branch and surfacing the failure immediately.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/report/ReportExecutePage.tsx:161: `          if (st.report_file_id) {`",
+        "pcs-frontend/src/pages/report/ReportExecutePage.tsx:165-169: on the non-file branch it only calls `setStatusText('已提交，正在后台生成…')` and recurses; `st.status` is never read anywhere in the file (grep for 'status' in the page returns only antd `Result status=` props).",
+        "pcs-backend/app/api/v1/report_builder.py:296: `    status = \"FINISHED\" if row.report_file_id else (row.status or \"QUEUED\")` -- FAILED is a reachable value of this field.",
+        "pcs-backend/app/workers/report_tasks.py:294: `        row.status = \"FAILED\"` (reclaim_stale_execution_logs), and pcs-backend/app/workers/report_builder_tasks.py:113: `                task_row.status = \"FAILED\"`"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "In `poll()`, branch on status before the file check:\n```ts\nconst st = await reportBuilderApi.executionStatus(id);\nif (st.status === 'FAILED') {\n  stopPolling();\n  setError('执行失败（任务已终止，请查看执行记录）');\n  setPhase('failed');\n  return;\n}\nif (st.report_file_id) { ...existing done path... }\n```\nAssume 'FAILED' is the terminal failure literal; confirm against `p8_007_execution_log_status` and `ReportExecutionLog.status` before applying."
+    },
+    {
+      "title": "definition_json.OutputFormat silently overwritten by column",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/report/definition_service.py",
+      "line": 128,
+      "why_it_matters": "`ReportDefinitionBody` publishes `OutputFormat` (and `MaxRows`) as part of the documented definition body, and the frontend sends them there (definitionBody.ts:204-205). On every create/update the service overwrites those two keys with the top-level columns unconditionally, so a client that sets `definition_json.OutputFormat = \"xlsx\"` while leaving the top-level `output_format` at its `\"pdf\"` default gets HTTP 201 with the requested value silently discarded -- the response comes back showing `\"pdf\"`. This is precisely the failure class schemas/report_builder.py:133-137 says `extra=\"forbid\"` was added to prevent ('save succeeded but nothing changed'), except here the field is accepted, echoed, and then overwritten. Clients cannot tell which of the two locations is authoritative from the contract; SPEC §3.2.2(2) lists them as siblings in the definition body.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/report/definition_service.py:127-128: `    out[\"MaxRows\"] = max_rows` / `    out[\"OutputFormat\"] = output_format`",
+        "pcs-backend/app/schemas/report_builder.py:139-140: `    MaxRows: int = Field(default=10000, ge=1, le=100_000)` / `    OutputFormat: str = \"pdf\"` -- both published as part of the public definition body.",
+        "pcs-backend/app/schemas/report_builder.py:162: `    output_format: str = \"pdf\"` -- a second, independent carrier of the same value on the same request."
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Pick one authoritative carrier and reject disagreement instead of overwriting. Minimal version: in `align_with_columns`, raise PcsError (422, code `REPORT_DEFINITION_FIELD_CONFLICT`) when the incoming dict carries an `OutputFormat`/`MaxRows` that differs from the column value, so the client learns which field wins instead of discovering it after the fact. Longer term, drop the duplicated keys from `ReportDefinitionBody` or make them read-only aliases. This needs a design decision (SPEC says definition body, schema says column), so it is not a mechanical patch."
+    },
+    {
+      "title": "csv accepted by report-builder, rejected by report/generate",
+      "severity": "P1",
+      "file": "pcs-backend/app/api/v1/report_builder.py",
+      "line": 94,
+      "why_it_matters": "Two whitelists govern the same `output_format` value on the new surface: `/report-builder/*` validates against `watermark.EXPORT_FORMATS` (which includes `csv`), while `/report/generate` validates against `schemas.report.SUPPORTED_OUTPUT_FORMATS` (which does not). A client can therefore create a definition with `output_format: \"csv\"` (201), execute it (202), and have the worker render a csv, while sending `output_format: \"csv\"` to `/report/generate` gets a 400. The same input is valid and invalid depending on the endpoint, and the two rejections carry different error codes (`REPORT_OUTPUT_FORMAT_UNSUPPORTED` vs `REPORT_FORMAT_UNSUPPORTED`), so error-handling code cannot be shared. `/report/generate` is also the only endpoint that documents its format list, and it is now the narrower of the two. This is Hyrum's Law in the additive direction: the enum was widened in one place and not the other.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/report_builder.py:94: `_RENDERABLE_FORMATS = frozenset(watermark.EXPORT_FORMATS)`",
+        "pcs-backend/app/schemas/report.py:28: `SUPPORTED_OUTPUT_FORMATS = (\"pdf\", \"xlsx\", \"docx\")`",
+        "pcs-backend/app/services/report/watermark.py:43: `EXPORT_FORMATS = (\"pdf\", \"xlsx\", \"docx\", \"csv\")`",
+        "pcs-backend/app/api/v1/report.py:138-141: `    if body.output_format not in SUPPORTED_OUTPUT_FORMATS:` -> 400 REPORT_FORMAT_UNSUPPORTED."
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Make `SUPPORTED_OUTPUT_FORMATS` derive from `watermark.EXPORT_FORMATS` (as `report_service.SUPPORTED_FORMATS` already does at report_service.py:63-67), and/or declare both as `Literal[...]` on the request schemas so the enum is visible in the OpenAPI contract instead of being a runtime 400. Note `_MEDIA` in report.py:420-422 also lacks a `csv` entry, so a csv file downloads as application/octet-stream -- include that in the same fix."
+    },
+    {
+      "title": "definition list ignores status filter param frontend sends",
+      "severity": "P2",
+      "file": "pcs-frontend/src/pages/report/ReportDefinitionListPage.tsx",
+      "line": 70,
+      "why_it_matters": "`reportBuilderApi.list` accepts `{report_type?, status?}` and the page passes the selected status as a query param, but the backend `list_definitions` declares no query parameters. FastAPI silently ignores unknown query params, so the request succeeds (200) and returns every visible definition. A user who picks '已发布' in the status dropdown sees the table re-render through a loading state and still get DRAFT and OBSOLETE rows -- the filter looks broken with no error anywhere. The keyword box right next to it is documented as client-side filtering, so the page already establishes the 'some filters are local' convention; the status dropdown silently violates it. Either add the query params to the backend or filter client-side like the keyword is.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/report/ReportDefinitionListPage.tsx:70-71: `      const data = await reportBuilderApi.list(` / `        statusFilter ? { status: statusFilter } : undefined);`",
+        "pcs-frontend/src/api/reportBuilder.ts:75-77: `  list: (params?: { report_type?: string; status?: string }) =>` -- the param surface the backend does not accept.",
+        "pcs-backend/app/api/v1/report_builder.py:137: `async def list_definitions(actor: ActorDep, db: DbDep) -> ReportDefinitionList:` -- no `Query` parameters at all."
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Cheapest correct fix that matches the page's stated convention: drop `params` from `reportBuilderApi.list` and filter `data.items` by `r.status === statusFilter` in the existing `visible` useMemo, exactly as `keyword` is handled. The alternative (adding `status`/`report_type` Query params plus pagination to the endpoint) is a larger contract change and needs `total` to be re-specified."
+    },
+    {
+      "title": "MSW mocks predate the contract: joins, model, file status fields",
+      "severity": "P2",
+      "file": "pcs-frontend/src/mocks/reportBuilder.ts",
+      "line": 70,
+      "why_it_matters": "Three fixture shapes disagree with the committed contract. (1) `joins` uses `{left, right, left_key, right_key}` while `ReportBuilderJoin` is `{a, a_field, b, b_field, degrade_warn}`; `availableJoins` filters on `j.a`/`j.b`, which are undefined on the fixture, so the JOIN picker is permanently empty in dev and `JoinPicker.tsx:65` would render `(undefined = undefined)`. (2) Each datasource omits `model`, a required field of `ReportBuilderDatasource`. (3) The `/report/{id}/status` handler returns `content_hash`, `has_assumption_page` and `created_at`, none of which exist on `ReportFileStatusResponse` in the committed snapshot, and returns `status: 'SUCCEEDED'` with no consumer branch. Because dev login goes through MSW, these are the payloads the whole report UI is developed and QA'd against, so mock-contract drift hides real breakage and validates a contract that no longer exists.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/mocks/reportBuilder.ts:70-74: `  joins: [ { left: 'HEAT_RESULTS', right: 'EQUIP_LIST', left_key: 'tag_number', right_key: 'tag_number' }, ],`",
+        "pcs-backend/app/schemas/report_builder.py:40-45: `class ReportBuilderJoin(BaseModel): a: str; a_field: str; b: str; b_field: str; degrade_warn: str | None = None`",
+        "pcs-frontend/src/pages/report/definitionBody.ts:140: `  return joins.filter((j) => chosen.has(j.a) && chosen.has(j.b));`",
+        "pcs-frontend/src/mocks/reportBuilder.ts:232-234: `? HttpResponse.json({ report_file_id: FILE_ID, file_format: 'pdf', status: 'SUCCEEDED', size_bytes: 12345, content_hash: 'a'.repeat(64), has_assumption_page: false, created_at: '2026-10-13T00:00:00Z' })`",
+        "pcs-backend/app/schemas/report.py:53-59: `class ReportFileStatusResponse(BaseModel)` declares only report_file_id/status/file_format/size_bytes/error_message/heartbeat_at."
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Regenerate the fixture literals from the OpenAPI types: type `DATASOURCES` as `ReportBuilderDatasourceList` and type each definition/style/execution fixture as the generated `ReportDefinitionOut` / `ReportStyleSummary` / `ReportExecutionStatus`. TypeScript will then reject the `{left, right, ...}` join shape and the extra file-status fields at compile time, which is the durable fix -- a comment noting the mocks are hand-maintained will not survive the next contract change."
+    },
+    {
+      "title": "New report endpoints mix PcsError and HTTPException envelopes",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/report.py",
+      "line": 118,
+      "why_it_matters": "Within one new router, errors come back in two shapes: PcsError paths produce `{code, message}` while eleven HTTPException sites produce FastAPI's `{\"detail\": ...}`. The frontend's only error translator, `errorMessage()` in reportBuilder.ts, reads `data.message` then `data.code` and otherwise falls through to axios's default text. So a client hitting `GET /report/{id}/download` on a cleaned-up file, or `GET /report/styles/{id}` without permission, sees 'Request failed with status code 404' rather than '文件已被清理' or '无权读取该样式' -- the actionable text is on the server and never reaches the screen. Status codes are consistent (the codes are right); only the body shape differs, which is the harder half for a client to abstract over.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/report.py:118: `        raise HTTPException(status_code=404, detail=\"Report file not found\")`",
+        "pcs-backend/app/api/v1/report.py:343: `        raise HTTPException(status_code=403, detail=\"无权读取该样式\")`",
+        "pcs-backend/app/api/v1/report.py:415-417: `    except StylePermissionError as e:` / `        raise HTTPException(status_code=e.status_code, detail=e.message) from e`",
+        "pcs-frontend/src/api/reportBuilder.ts:176-182: `export function errorMessage(err: unknown)` reads only `data.message` / `data.code`.",
+        "pcs-backend/app/api/v1/report.py:139-141: the same router raises `PcsError(message=..., code=\"REPORT_FORMAT_UNSUPPORTED\", status=400)` for the adjacent case."
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Convert the HTTPException sites in report.py to PcsError with distinct codes (`REPORT_FILE_NOT_FOUND`, `REPORT_FILE_EVICTED`, `REPORT_STYLE_FORBIDDEN`, `REPORT_VERIFY_SIG_INVALID`) so the whole router speaks one envelope. A PcsError exception handler is presumably already registered app-wide (report_builder.py relies on it), so this is mechanical per site -- but it changes response bodies on already-merged endpoints, so it needs a deliberate release call rather than a silent patch."
+    },
+    {
+      "title": "Execution log row inserted after enqueue; report_file_id can be lost",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/report_builder.py",
+      "line": 328,
+      "why_it_matters": "The endpoint enqueues the ARQ job first and only then inserts the `ReportExecutionLog` row and commits. The worker's only linkage step, `_link_report_file`, is an UPDATE-by-task_id that affects zero rows when the row is not yet committed. If the worker gets scheduled and finishes its commit before the endpoint's commit lands, the update is silently lost: the execution row stays QUEUED/RUNNING with a NULL report_file_id forever, and the client polls until timeout even though the file was generated and is sitting in `report_files`. The whole point of moving the insert into the endpoint was to eliminate the enqueue/worker window (bug-167); the ordering still leaves one, just a much narrower one. The fix is to insert and commit the log row before enqueueing, and have the enqueue helper carry the task_id that the endpoint chose.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/report_builder.py:328: `    task_id = await arq_queue.enqueue_definition_execution(` (enqueue happens first)",
+        "pcs-backend/app/api/v1/report_builder.py:348: `    db.add(ReportExecutionLog(` (row created second) with `:368: await db.commit()` after it.",
+        "pcs-backend/app/workers/report_builder_tasks.py:245-250: `    await db.execute(update(ReportExecutionLog).where(ReportExecutionLog.task_id == task_id).values(report_file_id=report_file_id))` -- UPDATE-only, no row-count check, no upsert."
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Reorder `execute_definition_endpoint` so the `db.add(ReportExecutionLog(...))` + `await db.commit()` precede `arq_queue.enqueue_definition_execution(...)`, and pass the endpoint-chosen task_id into the enqueue (mirroring what `/report/generate` already does at report.py:161-190 with `_job_id=task_id`). Additionally make `_link_report_file` raise or retry when its UPDATE matches zero rows, so this class of silent loss surfaces instead of degrading into a client-side timeout."
+    },
+    {
+      "title": "API drift gate ignores property type and removal changes",
+      "severity": "P2",
+      "file": "pcs-frontend/scripts/check-api-drift.sh",
+      "line": 64,
+      "why_it_matters": "The gate's header claims it detects 'field type changed', 'field removed (BREAKING)' and 'enum value removed (BREAKING)', but the implementation only compares three things: added paths, removed paths, removed schema names, and the `required` array of each schema. A property that is deleted from an existing schema, has its type narrowed or widened, or loses an enum value passes the gate and CI goes green while `src/types/api.d.ts` still declares the old shape -- the frontend then compiles clean and reads `undefined` at runtime. This is the P8 surface where such drift already happened: `ReportFileStatusResponse` no longer carries `content_hash`/`has_assumption_page`/`created_at` (they are still in the MSW fixture, see the mocks finding) and the gate never flagged it. Added schemas are also echoed but not counted, unlike added paths.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/scripts/check-api-drift.sh:60-61: `# (c) schema 字段变化: 同一 schema 中 required 差异` / `schema_field_changes=()` -- only `required` is compared.",
+        "pcs-frontend/scripts/check-api-drift.sh:9: header comment claims `# 检测: path added/removed, schema added/removed, field type changed,` / `#   field removed (BREAKING), enum value removed (BREAKING)` -- three documented detections with no implementation.",
+        "pcs-frontend/scripts/check-api-drift.sh:87-91: the added_schemas branch only echoes; `drift_count` is bumped at lines 78, 84, 95 and 102 only."
+      ],
+      "pre_existing": true,
+      "suggested_fix": "In the per-schema loop, also diff the property maps, not just `required`: emit a BREAKING entry when a key exists in `$SNAPSHOT` but not in `$BACKEND_OPENAPI`, when a property's `type` differs, or when an enum member disappears -- and add each to `drift_count`. jq can do this with a keys-diff plus a per-key type comparison. Separately, add an `npm run api:gen && git diff --exit-code src/types/api.d.ts` step to the workflow so the generated types are proven to match the snapshot they claim to come from."
+    },
+    {
+      "title": "ReportExecutionStatus status typed str, docstring omits FAILED",
+      "severity": "P3",
+      "file": "pcs-backend/app/api/v1/report_builder.py",
+      "line": 268,
+      "why_it_matters": "The published status vocabulary is documented on the field as `QUEUED / RUNNING / FINISHED`, but FAILED is reachable and is the whole reason the column exists (TODO-064). Because the type is bare `str`, the OpenAPI schema carries no enum, so a generated client cannot enumerate the states and cannot tell a new terminal state from an unknown value. A client written against the documented three states will treat FAILED as 'still running' -- which is exactly the bug in the polling-loop finding, one layer up. Declaring it as a `Literal[\"QUEUED\", \"RUNNING\", \"FINISHED\", \"FAILED\"]` puts the vocabulary into the contract where generated clients and MSW fixtures can both read it.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/report_builder.py:268: `    status: str            # QUEUED / RUNNING / FINISHED`",
+        "pcs-backend/app/workers/report_builder_tasks.py:113: `                task_row.status = \"FAILED\"`",
+        "pcs-backend/app/workers/report_tasks.py:294: `        row.status = \"FAILED\"`"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Change to `status: Literal[\"QUEUED\", \"RUNNING\", \"FINISHED\", \"FAILED\"]` and update the comment. Note FINISHED is only ever synthesized by the endpoint (it is never written to the column), so also confirm with the worker whether the terminal success literal should be persisted rather than inferred from `report_file_id`."
+    },
+    {
+      "title": "toFilterTree silently rewrites missing condition source",
+      "severity": "P3",
+      "file": "pcs-frontend/src/pages/report/definitionBody.ts",
+      "line": 275,
+      "why_it_matters": "When a condition node arrives without a `source` (an older stored definition, a hand-edited payload, or a partially migrated record), the loader substitutes the literal datasource `'EQUIP_LIST'` rather than refusing or flagging it. The page then shows that condition as belonging to the equipment list, and saving writes `'EQUIP_LIST'` back into the definition body -- a silent semantic rewrite of stored query criteria, with the user having no idea the filter now targets a different table. `asSingleFilter` has the same fallback at line 312. Given the module's stated goal of lossless round-tripping ('与 `toFilterTree` 严格互逆'), a fabricated source breaks the invariant in the one direction that changes what the report means.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-frontend/src/pages/report/definitionBody.ts:275: `      source: typeof n.source === 'string' ? n.source : 'EQUIP_LIST',`",
+        "pcs-frontend/src/pages/report/definitionBody.ts:312: `    source: typeof n.source === 'string' ? n.source : 'EQUIP_LIST',`",
+        "pcs-frontend/src/pages/report/definitionBody.ts:285: `/** 可编辑条件树 → 定义体。**与 `toFilterTree` 严格互逆。**` -- the invariant this fallback violates."
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Drop the fabricated default: either drop the node (`return []`, matching how `toFilterTree` already discards non-object nodes at line 263 and leaves without `field`/`operator` at line 272), or surface it as an explicit invalid node the editor renders as an error. Dropping matches the surrounding defensive style and keeps the round-trip honest."
+    }
+  ],
+  "residual_risks": [
+    "Execution-log visibility is resolved through `DefinitionService.get(def_id, user_id)` (report_builder.py:289). If that helper stops returning a definition whose status is OBSOLETE, a client that starts an execution and whose definition is obsoleted mid-run will get a 404 from the polling endpoint -- indistinguishable from 'task does not exist' -- and the UI will report a terminal failure for a run that may still succeed. Not reproduced here (I did not read the status filter inside `DefinitionService.get`).",
+    "The worker's `attempt_no < MAX_TRIES` retry path (report_builder_tasks.py:130-133) leaves the execution row at RUNNING between attempts and only writes FAILED on the last attempt, so a job retrying can be reclaimed as stale by `reclaim_stale_execution_logs` if the retry defer plus run time exceeds STALE_MINUTES. Contract-wise the client sees a terminal FAILED with no failure detail, since `ReportExecutionStatus` carries no error field.",
+    "`ReportExecuteAccepted.status` (report_builder.py:247) is hardcoded to the literal `\"QUEUED\"` and never populated from a real transition, while `ReportGenerateResponse.status` hardcodes `\"PENDING\"`. Two different vocabularies (QUEUED vs PENDING) for the same 'accepted, not started' state across the two async surfaces of one feature.",
+    "The `definition_json` field-tree source of truth is the registry on both sides, but I verified frontend/backend agreement only for the shapes in `definitionBody.ts`; the per-datasource field list (13 datasources, HEAT_RESULTS BASIC 9 / DETAIL 39+) is duplicated in `datasource_registry.py` and the MSW fixture, and the fixture is explicitly non-authoritative by its own docstring. Field-level drift between registry and any client-side cache is not detectable by the drift gate (which only compares OpenAPI, and OpenAPI does not enumerate registry fields).",
+    "`_MEDIA` in report.py:420-422 has no `csv` entry, so if the csv format is genuinely reachable through the report-builder path, downloads of that file will be served as `application/octet-stream`."
+  ],
+  "testing_gaps": [
+    "No test asserts that the MSW fixtures are assignable to the generated OpenAPI types. Typing `DATASOURCES`, the definitions, and the file-status handler as their `components['schemas'][...]` counterparts would have caught the join-shape and removed-field drift at compile time.",
+    "No test covers `GET /report-builder/executions/{task_id}` returning `status: 'FAILED'` with `report_file_id: null`, nor the frontend branch that should act on it. The endpoint's own docstring explains the 404-vs-running distinction at length; the FAILED case is the one a client most needs and the one with no coverage.",
+    "No test covers the report-builder path rejecting or accepting `csv`, so the divergence between `watermark.EXPORT_FORMATS` and `SUPPORTED_OUTPUT_FORMATS` is invisible to the suite.",
+    "No test pins the `GET /report-builder/definitions` query-parameter surface (e.g. asserting that unknown params are rejected or documented), which is why the silently-ignored `status` param shipped unnoticed.",
+    "No race test covers 'worker commits before the endpoint commits the execution log row' -- `_link_report_file` matching zero rows is silent by construction, so a regression there cannot be caught without an explicit test that asserts the update matched exactly one row.",
+    "No contract test asserts that `definition_json.OutputFormat` round-trips: a test that writes `OutputFormat: 'xlsx'` in the body and reads it back would fail today, which is the cheapest available detector for the overwrite finding."
+  ]
+}

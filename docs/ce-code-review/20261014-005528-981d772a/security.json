@@ -1,0 +1,126 @@
+{
+  "reviewer": "security",
+  "findings": [
+    {
+      "title": "Project-level style rows readable cross-tenant",
+      "severity": "P1",
+      "file": "pcs-backend/app/api/v1/report.py",
+      "line": 833,
+      "why_it_matters": "The list/get style endpoints run every authenticated user through `_style_readable`, which returns `True` for any row with a non-null `project_id` without consulting `UserProject`. In a multi-tenant deployment where `project_id` is the tenant boundary (per review-context), a user scoped to project A can fetch the style configuration of every other project (B, C, …), including header/footer text, orientation, and brand colors that may encode project codenames. The author flagged the trade-off in the diff ('avoid N+1'), so this is intentional, but the leak is real and the comment does not record the cross-tenant consequence. An attacker with any valid login can enumerate project ids by scanning styles and infer project activity from version counts.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/report.py:833-842 — `if row.project_id is None: return 'SYSTEM_ADMIN' in actor_roles; return True`",
+        "pcs-backend/app/api/v1/report.py:806-813 — `list_styles` calls `_style_readable` for every row before returning",
+        "pcs-backend/app/services/report/style_service.py:5579-5604 — `_authorize` does check project access on WRITE; the asymmetry is by design"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Either (a) compute project_ids the actor can access once (SELECT project_id FROM user_projects WHERE user_id = …) and filter rows in SQL, then accept the one extra query in exchange for not leaking cross-tenant data; or (b) document explicitly that style config is non-sensitive across tenants and pin that decision with a test that asserts the leak. The current implementation silently crosses the boundary.",
+      "first_evidence": "pcs-backend/app/api/v1/report.py:840 — `return True`"
+    },
+    {
+      "title": "Audit-write failure silently swallowed after file write",
+      "severity": "P1",
+      "file": "pcs-backend/app/services/report/report_service.py",
+      "line": 5143,
+      "why_it_matters": "`store_rendered` writes the rendered file to disk first, then attempts to write `REPORT_GENERATED` to `audit_logs`. The audit call sits inside a bare `except Exception` that logs a WARNING and proceeds. If the audit table is unreachable, the DB role is revoked mid-flight, or an attacker has tampered with the audit_service import, the file is on disk and the user has the URL — but the only evidence in `audit_logs` is missing. The diff explicitly justifies this as 'don't roll back to avoid orphan files', but that justification applies to legitimate DB outages; it does not cover the case where the audit service itself is the target of an attack or silently misbehaving. This is the kind of catch that lets a privilege-escalation go unnoticed: an attacker who can break the audit channel can generate reports indefinitely with no record.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/services/report/report_service.py:5143-5154 — bare `except Exception` swallowing audit failure",
+        "pcs-backend/app/services/report/report_service.py:5122-5124 — file already on disk before audit write is attempted"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Mirror the file-write failure pattern: if audit fails, mark the just-written file as quarantined (move it aside) and surface the failure to the caller as a 5xx, so the caller retries against a healthy audit channel. The current design's stated rationale (avoid orphan files) is preserved by quarantining rather than rolling back; an attacker cannot get a usable file URL without an audit row. Pair with a startup-time canary write to the audit channel so the 'silent audit failure' scenario is caught early.",
+      "first_evidence": "pcs-backend/app/services/report/report_service.py:5151-5153 — `except Exception as e: logger.warning(\"REPORT_GENERATED 审计写入失败，文件记录保留：%s\", e)`"
+    },
+    {
+      "title": "HMAC signature does not bind to client IP",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/report.py",
+      "line": 583,
+      "why_it_matters": "`_check_sig` binds the signature to `(report_file_id, exp)` only. The IP rate-limit (`check_rate_limit`) is a best-effort throttle, not part of the signature. A signature extracted from one PDF is reusable from any IP for the full 15-minute TTL — the only gate is the per-IP throttle of 30/min, which is trivial to evade by spreading requests across many addresses (botnet, IPv6 /64 prefix rotation, VPN). The QR is printed on the PDF, so the signature is not a secret — but binding the client IP into the HMAC would force an attacker who stole a QR URL to also replay from the original scanning device, which raises the cost of QR phishing.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/app/api/v1/report.py:583-596 — signature payload is `f\"{report_file_id}:{exp}\"`; client_ip is consulted only for rate-limiting, not for the HMAC"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Either extend the HMAC payload to `f\"{report_file_id}:{exp}:{ip}\"` (problematic: clients move networks, the legitimate second scan would fail) or layer a one-time-use nonce (UUID) into the URL that the verify endpoint marks as consumed on first hit. The latter is the standard 'signed URL' pattern: attacker who scans a QR gets a URL that works exactly once, even if they share it.",
+      "first_evidence": "pcs-backend/app/api/v1/report.py:593 — `expect = hmac.new(secret.encode(), f\"{report_file_id}:{exp}\".encode(), hashlib.sha256).hexdigest()`"
+    },
+    {
+      "title": "IP rate-limit trusts unfiltered client.host",
+      "severity": "P2",
+      "file": "pcs-backend/app/api/v1/report.py",
+      "line": 567,
+      "why_it_matters": "`_client_ip` returns `request.client.host` directly. Behind a reverse proxy (the standard production deployment for FastAPI/uvicorn), `request.client` is the proxy's IP, not the caller's. The rate-limit key `report_verify:{ip}` collapses every site scan behind the same proxy into one bucket. Two consequences: (1) a single user can exceed the limit and cause legitimate scans of other users to 429, and (2) an attacker can flood from many IPs all sharing the same upstream, but those all funnel to the same bucket and a modest botnet still defeats the throttle. The diff's helper documents the httpx-vs-uvicorn shape mismatch but does not consider trusted-proxy header parsing.",
+      "autofix_class": "gated_auto",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/api/v1/report.py:567-580 — `_client_ip` returns `request.client.host` without consulting `X-Forwarded-For` or `Forwarded`"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "If the service is fronted by a known proxy, parse the leftmost untrusted entry from `X-Forwarded-For` (only after validating the immediate peer is in a configured proxy allowlist). Add a `trusted_proxies` setting; if the immediate peer is not in that list, fall back to `request.client.host`. Pair with a deployment-time assertion that the setting is non-empty in production.",
+      "first_evidence": "pcs-backend/app/api/v1/report.py:575 — `return getattr(c, \"host\", \"unknown\")`"
+    },
+    {
+      "title": "Report verify secret length not enforced",
+      "severity": "P3",
+      "file": "pcs-backend/app/core/config.py",
+      "line": 169,
+      "why_it_matters": "Startup validation (lines 169-176) only checks the secret is truthy. There is no minimum-length check. An operator who sets `REPORT_VERIFY_SECRET=x` will boot successfully, and the HMAC becomes brute-forceable. The dev auto-fill uses `secrets.token_urlsafe(48)` (≈384 bits), but a 1-byte secret passes the same check. The endpoint is fail-closed against missing config, but it is fail-OPEN against a weak one — the signature is just as valid as with a strong one.",
+      "autofix_class": "gated_auto",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 75,
+      "evidence": [
+        "pcs-backend/app/core/config.py:169-176 — only `if not s.report_verify_secret:` is checked",
+        "pcs-backend/app/core/config.py:176 — dev path uses 48 bytes, but production-supplied secrets are not length-checked"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "Add `if len(s.report_verify_secret.encode()) < 32: raise RuntimeError(...)` before the dev auto-fill. 32 bytes is the conventional HMAC-SHA256 floor (matches NIST SP 800-107).",
+      "first_evidence": "pcs-backend/app/core/config.py:169 — `if not s.report_verify_secret:`"
+    },
+    {
+      "title": "Style patch stored verbatim lets users write arbitrary JSON keys",
+      "severity": "P2",
+      "file": "pcs-backend/app/services/report/style_service.py",
+      "line": 5488,
+      "why_it_matters": "`create`/`revise` accept the user-supplied `patch: dict` and write it directly into `ReportStyleRow.style_json` (JSONB). The Pydantic schema (`StylePatch`) forbids two keys (`font_dir`, `locked_fields`) at the API boundary, but only those two. Any other unrecognized key would be rejected by `StylePatch.model_config = {'extra': 'forbid'}` — verified. **However**, the patch dictionary is then validated back into `ReportStyle(**row.style_json)` at read time (`_summary`), and Pydantic will silently drop extra keys on `ReportStyle.model_validate` unless `extra='allow'` is set (it isn't, but `.model_validate` on an unrelated `style_json` could still raise). The realistic risk is that future schema additions end up accepting more fields than intended, since the `STYLE_FIELDS_NOT_WRITABLE` allowlist lives in one place (the schema) and any reader that bypasses it (e.g., a future ad-hoc endpoint or background job reading `style_json` directly) sees the raw JSON.",
+      "autofix_class": "advisory",
+      "owner": "human",
+      "requires_verification": false,
+      "confidence": 50,
+      "evidence": [
+        "pcs-backend/app/services/report/style_service.py:5502-5505 — `style_json=patch` is stored with no JSONB-level validation that the keys are the subset ReportStyle accepts",
+        "pcs-backend/app/schemas/report.py:1639 — `STYLE_FIELDS_NOT_WRITABLE` is enforced only at the Pydantic layer"
+      ],
+      "pre_existing": false,
+      "suggested_fix": "At write time, round-trip the patch through `ReportStyle.model_validate({**current, **patch})` and persist only the resulting model's `model_dump(exclude_unset=True)` JSON. This guarantees the stored JSON is always a valid subset of ReportStyle's known fields, independent of any future schema drift. The current setup relies on every future consumer of `style_json` to also know about `STYLE_FIELDS_NOT_WRITABLE`.",
+      "first_evidence": "pcs-backend/app/services/report/style_service.py:5504 — `style_json=patch, version=DEFAULT_VERSION, status=\"ACTIVE\"`"
+    }
+  ],
+  "residual_risks": [
+    "The HMAC signer for QR payloads is not visible in this diff (`build_qr_payload` in `app/services/report/qr.py` does not produce `?sig=&exp=` query parameters). The verify endpoint will fail-closed against any QR produced by the current `build_qr_payload`, but a signer added later in another file could be implemented with weaker binding than this diff's verifier expects. Confirm the signer location and review it for the same anchors as `_check_sig`.",
+    "The diff introduces `_client_ip` but does not change how `request.client.host` is consumed by other endpoints. Any other unauthenticated IP-keyed limit in the codebase inherits the same proxy-blindness — search `request.client.host` repo-wide before relying on it for security.",
+    "The `report_verify_secret` rotation story is not in this diff. If a rotation procedure requires keeping the old key valid for a grace period, `_check_sig` only accepts the current `get_settings().report_verify_secret`. After rotation, any QR printed before the rotation stops verifying — a denial-of-service for site scans, not a security issue but worth knowing.",
+    "`ALEMBIC p8_001` drops and recreates four tables (`report_styles`, `report_files`, `report_definitions`, `report_execution_logs`). The diff documents that two of them are empty in legacy deployments, but the operator running this migration against a non-empty database will lose data. Out of scope for code-review but flag here so it is not silently accepted in deployment.",
+    "No tests for HMAC signature forgery were added in this diff — the safety here rests entirely on the implementation. A targeted forgery test (e.g., `sig=<hex of HMAC with attacker-chosen secret>`) would pin the fail-closed behavior against future refactors."
+  ],
+  "testing_gaps": [
+    "No test exercises `_check_sig` with a signature produced by an attacker (e.g., a guessed short secret, or a signature over a different `report_file_id`). The fail-closed branch is reachable only by `report_verify_secret` being unset, which is startup-validated separately.",
+    "No test asserts that a user from project A cannot fetch project B's style via `GET /report/styles/{style_id}` — only the comment at `app/api/v1/report.py:825` documents the intended behavior. A targeted test that attempts this and expects 403/200 would pin the cross-tenant leak.",
+    "No test asserts that the IP rate-limit is per-IP rather than per-proxy-IP — since the IP source is `request.client.host`, the test could pass behind a proxy while still collapsing all users into one bucket in production.",
+    "No test asserts that audit-write failures on `REPORT_GENERATED` produce a 5xx response rather than a successful 200. The current code returns success and a valid file URL even when audit is broken, so a regression to 'audit silently broken in production' would not be caught by current tests.",
+    "No SQL-injection test specifically targets the LIKE operator (`f\"%{value}%\"`) to confirm that LIKE wildcards in user-supplied values are still treated as bind-parameter text and not as SQL fragments — the SQLAlchemy Core API guarantees this but a regression test that supplies `value='%' OR 1=1 --'` and asserts the result is literal-match semantics would harden against future refactors."
+  ]
+}

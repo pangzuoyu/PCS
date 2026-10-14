@@ -1,0 +1,5 @@
+{
+  "outcome": "verdicts",
+  "reason": "8 条全部确认，编号与批次输入一一对应，无 malformed 项。",
+  "verdicts": "/tmp/compound-engineering-1000/ce-code-review/20261014-005528-981d772a/validator-verdicts.json"
+}

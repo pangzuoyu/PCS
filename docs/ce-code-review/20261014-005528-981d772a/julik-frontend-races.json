@@ -1,0 +1,166 @@
+{
+  "reviewer": "julik-frontend-races",
+  "findings": [
+    {
+      "title": "Unmount mid-poll resurrects an orphan polling loop",
+      "severity": "P1",
+      "file": "pcs-frontend/src/pages/report/ReportExecutePage.tsx",
+      "line": 175,
+      "why_it_matters": "The unmount cleanup (`useEffect(() => stopPolling, [])`, line 89) can only cancel a timer that is still *pending*. Once the setTimeout has fired and the `executionStatus` fetch is in flight, `timer.current` already holds a spent handle, so the cleanup clears nothing; when the fetch resolves it calls `poll(id)`, which assigns a brand-new timer that no cleanup will ever see. The user navigates away mid-poll and the page keeps hitting `GET /executions/{task_id}` every 2s and calling setState on a dead component for up to 3 minutes. The same hole exists one step earlier: unmounting during the `await reportBuilderApi.execute(...)` in `run()` still falls through to `setPhase('polling'); poll(...)` after unmount. A six-line generation/mounted guard removes the whole class.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 100,
+      "first_evidence": "pcs-frontend/src/pages/report/ReportExecutePage.tsx:175 — \"        poll(id);\"",
+      "evidence": [
+        "pcs-frontend/src/pages/report/ReportExecutePage.tsx:175 — \"        poll(id);\"",
+        "pcs-frontend/src/pages/report/ReportExecutePage.tsx:157-158 — \"    timer.current = setTimeout(() => {\\n      void (async () => {\" (the callback is already running; clearTimeout on a fired handle is a no-op)",
+        "pcs-frontend/src/pages/report/ReportExecutePage.tsx:86-89 — \"  const stopPolling = () => {\\n    if (timer.current) { clearTimeout(timer.current); timer.current = null; }\\n  };\\n  useEffect(() => stopPolling, []);\" (single-shot cleanup, no in-flight cancellation)",
+        "pcs-frontend/src/pages/report/ReportExecutePage.tsx:133-135 — \"      setTaskId(accepted.task_id);\\n      setPhase('polling');\\n      poll(accepted.task_id);\" (post-unmount continuation of run() has no guard either)"
+      ],
+      "suggested_fix": "Add a generation ref next to `timer`, bump it at the top of `run()` and in the unmount cleanup, and bail out of every async continuation whose generation is stale:\n\nconst gen = useRef(0);\nconst stopPolling = () => { gen.current += 1; if (timer.current) { clearTimeout(timer.current); timer.current = null; } };\nuseEffect(() => stopPolling, []);\n\n// in run(), after `const my = ++gen.current;`\nconst accepted = await reportBuilderApi.execute(selected, {...});\nif (gen.current !== my) return;\nsetTaskId(accepted.task_id); setPhase('polling'); poll(accepted.task_id, my);\n\n// in poll(), check the token both before scheduling and first thing inside the callback\nconst poll = (id: string, my: number) => {\n  if (gen.current !== my) return;\n  if (Date.now() - startedAt.current > POLL_TIMEOUT_MS) { setPhase('timeout'); stopPolling(); return; }\n  timer.current = setTimeout(() => {\n    void (async () => {\n      try {\n        const st = await reportBuilderApi.executionStatus(id);\n        if (gen.current !== my) return;\n        ...\n      } catch (err) {\n        if (gen.current !== my) return;\n        ...\n      }\n      poll(id, my);\n    })();\n  }, POLL_INTERVAL_MS);\n};",
+      "protected_subject": "concurrency"
+    },
+    {
+      "title": "Overlapping runs: stale poll clobbers new run's timer and file",
+      "severity": "P1",
+      "file": "pcs-frontend/src/pages/report/ReportExecutePage.tsx",
+      "line": 157,
+      "why_it_matters": "The 执行 button is only `loading` during `submitting` (line 206), so it stays clickable throughout `polling`. A second click calls `run()`, which calls `stopPolling()` — but if the first loop's fetch was already in flight, its continuation lands afterwards and (a) `stopPolling()`s `timer.current`, which now holds the *second* loop's timer, killing the run the user is actually waiting on, and (b) in the success branch calls `setFileId(oldFileId); setPhase('done')` with the *first* execution's file. The user is then shown 「生成完成」 and downloads the previous report believing it is the new one — a wrong-data outcome, not just a lost spinner. A single `timer.current` also cannot track two live loops: whichever loop ticks last overwrites the handle, so at most one of them is ever cancellable.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 100,
+      "first_evidence": "pcs-frontend/src/pages/report/ReportExecutePage.tsx:157 — \"    timer.current = setTimeout(() => {\"",
+      "evidence": [
+        "pcs-frontend/src/pages/report/ReportExecutePage.tsx:157 — \"    timer.current = setTimeout(() => {\" (one shared handle for every loop; the second loop overwrites the first's handle)",
+        "pcs-frontend/src/pages/report/ReportExecutePage.tsx:160-166 — \"        const st = await reportBuilderApi.executionStatus(id);\\n        if (st.report_file_id) {\\n          setFileId(st.report_file_id);\\n          setStatusText('生成完成');\\n          setPhase('done');\\n          stopPolling();\" (an older loop can write the older fileId and cancel the newer loop)",
+        "pcs-frontend/src/pages/report/ReportExecutePage.tsx:205-208 — \"          <Button type=\\\"primary\\\" icon={<PlayCircleOutlined />}\\n            loading={phase === 'submitting'} onClick={() => void run()}>\" (button not disabled while polling — the trigger for the overlap)",
+        "pcs-frontend/src/pages/report/ReportExecutePage.tsx:122 — \"    startedAt.current = Date.now();\" (a single ref shared by both loops, so the older loop's timeout deadline is silently rebased onto the newer run)"
+      ],
+      "suggested_fix": "Apply the generation-token guard from the previous finding (it fixes this one too — the stale loop's token no longer matches, so it can neither write fileId nor cancel the new timer), and disable the button while a run is live: `disabled={phase === 'polling' || phase === 'submitting'}`. No new dependency or state machine needed.",
+      "protected_subject": "concurrency"
+    },
+    {
+      "title": "Uncancelled definition fetch can show the wrong report",
+      "severity": "P2",
+      "file": "pcs-frontend/src/pages/report/ReportExecutePage.tsx",
+      "line": 110,
+      "why_it_matters": "The `[selected]` effect fires a fresh `reportBuilderApi.get(selected)` per selection change with nothing to cancel the previous one, so whichever response resolves *last* wins regardless of which selection is current. Selecting definition A then quickly switching to B leaves the 条件摘要 card describing A while the Execute button will submit B. The mismatch is not cosmetic: `download()` names the file `${def.name}_${def.version}` (line 183), so the downloaded report gets A's name, and the filter/max-row summary the user checked before pressing 执行 belongs to the wrong definition.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 100,
+      "first_evidence": "pcs-frontend/src/pages/report/ReportExecutePage.tsx:109-111 — \"    void (async () => {\\n      try { setDef(await reportBuilderApi.get(selected)); }\\n      catch (err) { setError(errorMessage(err)); }\"",
+      "evidence": [
+        "pcs-frontend/src/pages/report/ReportExecutePage.tsx:109-111 — \"    void (async () => {\\n      try { setDef(await reportBuilderApi.get(selected)); }\\n      catch (err) { setError(errorMessage(err)); }\"",
+        "pcs-frontend/src/pages/report/ReportExecutePage.tsx:130-132 — \"      const accepted = await reportBuilderApi.execute(selected, {\" (execution follows `selected`, not `def`, so the two can diverge)",
+        "pcs-frontend/src/pages/report/ReportExecutePage.tsx:183 — \"      await reportBuilderApi.download(fileId, `${def.name}_${def.version}`);\""
+      ],
+      "suggested_fix": "Same generation-ref pattern used for the poller, applied here:\n\nconst defGen = useRef(0);\nuseEffect(() => {\n  if (!selected) { setDef(null); return; }\n  const my = ++defGen.current;\n  void (async () => {\n    try {\n      const d = await reportBuilderApi.get(selected);\n      if (defGen.current === my) setDef(d);\n    } catch (err) {\n      if (defGen.current === my) setError(errorMessage(err));\n    }\n  })();\n  return () => { defGen.current += 1; };\n}, [selected]);",
+      "protected_subject": "concurrency"
+    },
+    {
+      "title": "Cleared temp filters silently reapply the definition's filters",
+      "severity": "P2",
+      "file": "pcs-frontend/src/pages/report/ReportExecutePage.tsx",
+      "line": 126,
+      "why_it_matters": "`null` (use the definition's conditions) and `[]` (the user deleted every condition) are collapsed by `!tempFilters?.length ? undefined : ...`, so an explicitly emptied tree falls back to the definition's filters. The UI actively lies about this: FilterTreeEditor renders 「无过滤条件 —— 执行时将导出全量」 for an empty node list, and the `tempFilters === null` hint at line 267 that would say 「当前使用定义里的原条件」 is suppressed for `[]`. A user who removes the last condition to get an unfiltered export gets a filtered one with no indication, and conversely a user who thinks no filter applies misreads the resulting row count. The round-trip test 「drops nothing when the tree is emptied deliberately」 pins `[]` as a meaningful, distinct state — the execute path throws that distinction away.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 100,
+      "first_evidence": "pcs-frontend/src/pages/report/ReportExecutePage.tsx:126 — \"      const filters: DefNode | undefined = !tempFilters?.length ? undefined\"",
+      "evidence": [
+        "pcs-frontend/src/pages/report/ReportExecutePage.tsx:126 — \"      const filters: DefNode | undefined = !tempFilters?.length ? undefined\"",
+        "pcs-frontend/src/pages/report/FilterTreeEditor.tsx:94-97 — \"      {nodes.length === 0 && (\\n        <Typography.Text type=\\\"secondary\\\">\\n          无过滤条件 —— 执行时将导出全量。\\n        </Typography.Text>\\n      )}\" (says full export for `[]`, which is not what happens)",
+        "pcs-frontend/src/pages/report/ReportExecutePage.tsx:267 — \"          {tempFilters === null && (\" (the clarifying hint is keyed on `null` only, so `[]` gets no warning at all)",
+        "pcs-frontend/tests/report/definitionBody.test.ts:195 — \"  it('drops nothing when the tree is emptied deliberately', ...\" (the suite treats `[]` as a distinct, deliberate state)"
+      ],
+      "suggested_fix": "Decide the intent explicitly and make all three sites agree. Recommended: `null` = inherit from the definition, `[]` = explicitly no filters (send `filters: undefined` only for `null`, and for `[]` send an explicit empty condition list the backend treats as 'no filtering'), and pass the distinction into the editor so it can render a different hint for `[]` than the inherited one. If instead `[]` must keep meaning 'inherit', then FilterTreeEditor's 「将导出全量」 text and the `tempFilters === null` hint are both wrong and must change instead. This needs a one-line ruling from the spec owner before coding.",
+      "protected_subject": null
+    },
+    {
+      "title": "toFilterTree silently drops nodes it cannot parse",
+      "severity": "P2",
+      "file": "pcs-frontend/src/pages/report/definitionBody.ts",
+      "line": 263,
+      "why_it_matters": "`toFilterTree` returns `[]` for any node that is not an object, has no `conditions` array, or whose `field`/`operator` are not strings — and `buildBody` then persists whatever survived. That is exactly the TODO-060 failure shape the module declares a hard requirement against (「往返无损是硬要求」, line 256): open a definition containing one condition whose shape the frontend does not recognise, touch an unrelated field, save, and that condition is gone with no warning. The neighbouring code is explicit that silently normalising is unacceptable — FilterTreeEditor deliberately ships empty values through so the backend raises `REPORT_FILTER_VALUE_MISSING` rather than quietly exporting everything. Dropping whole nodes is the same class of silence, one level up. Round-trip tests cover nested groups and empty lists but never a node the parser cannot classify.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 75,
+      "first_evidence": "pcs-frontend/src/pages/report/definitionBody.ts:263 — \"    if (!node || typeof node !== 'object') return [];\"",
+      "evidence": [
+        "pcs-frontend/src/pages/report/definitionBody.ts:263 — \"    if (!node || typeof node !== 'object') return [];\"",
+        "pcs-frontend/src/pages/report/definitionBody.ts:272 — \"    if (typeof n.field !== 'string' || typeof n.operator !== 'string') return [];\" (a group whose `conditions` key is missing also lands here and is dropped)",
+        "pcs-frontend/src/pages/report/definitionBody.ts:256-258 — \"   * 往返无损是硬要求（TODO-060）—— 第一批的单条 `filter` 模型读不了组，\\n   * 保存时把整棵子树丢掉，用户改个别字就把别人的筛选规则抹了。\"",
+        "pcs-frontend/src/pages/report/FilterTreeEditor.tsx:21-24 — \" * ⚠️ **空值不静默放过**：后端对「缺 value」抛\\n * `REPORT_FILTER_VALUE_MISSING` 而不是返回全表\" (the same no-silent-loss doctrine the drop violates)"
+      ],
+      "suggested_fix": "Make the drop visible rather than silent: have `toFilterTree` surface unparseable nodes (e.g. return them as `{kind:'leaf', ...}` passthroughs, or export a companion `unparsedFilterNodes(raw)` the editor page renders as a warning Alert such as 「本定义含 N 条本页无法识别的条件，保存时会丢弃 —— 请先升级前端」) and block/confirm the save when that list is non-empty. Whether the backend can actually emit such a node (e.g. a future operator or a group without `conditions`) should be confirmed against the current `ReportDefCondition` schema before choosing between 'warn' and 'fix'.",
+      "protected_subject": "data-loss"
+    },
+    {
+      "title": "FilterTreeEditor keys rows by index next to move buttons",
+      "severity": "P2",
+      "file": "pcs-frontend/src/pages/report/FilterTreeEditor.tsx",
+      "line": 100,
+      "why_it_matters": "Rows and nested conditions are rendered with `key={i}`, and this editor has ↑/↓ move buttons — the precise combination `definitionBody.ts` documents (lines 36-43) as having already caused a real bug in the sibling field table, which is why `FieldRow` carries a stable `key` and `toRows` mints `row-${i}-${source}.${field}`. Everything here is controlled, so the visible values stay correct; what is left uncontrolled is antd `Select mode=\"tags\"` internal search text and open state. Type 「ABC」 into row 0's tag input without pressing Enter, press ↑, and the component instance now rendering row 1 still holds the 「ABC」 search string. The same index keying applies to nested `conditions.map((c, i) => ...)`.",
+      "autofix_class": "gated_auto",
+      "owner": "downstream-resolver",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 75,
+      "first_evidence": "pcs-frontend/src/pages/report/FilterTreeEditor.tsx:100 — \"        <Space key={i} wrap align=\\\"start\\\">\"",
+      "evidence": [
+        "pcs-frontend/src/pages/report/FilterTreeEditor.tsx:100 — \"        <Space key={i} wrap align=\\\"start\\\">\"",
+        "pcs-frontend/src/pages/report/FilterTreeEditor.tsx:110-111 — \"            <Button size=\\\"small\\\" onClick={() => move(i, -1)}>↑</Button>\\n            <Button size=\\\"small\\\" onClick={() => move(i, 1)}>↓</Button>\" (reorder buttons directly above the index-keyed rows)",
+        "pcs-frontend/src/pages/report/FilterTreeEditor.tsx:154-155 — \"            {node.conditions.map((c, i) => (\\n              <Space key={i} wrap align=\\\"start\\\">\" (nested conditions use index keys too)",
+        "pcs-frontend/src/pages/report/definitionBody.ts:36-43 — \" * ⚠️ `key` 是**客户端行标识**，不进请求体。\\n * 用它而不是数组下标当 `rowKey`：… 下标在**上下移动行**时会跟着变 —— React 会认为那一行被替换\" (the same file documents this exact defect class for the field table)",
+        "pcs-frontend/src/pages/report/FilterTreeEditor.tsx:269-271 — \"    <Select mode=\\\"tags\\\" style={{ minWidth: 220 }} value={values.map(String)}\" (the only uncontrolled internal state in the row)"
+      ],
+      "suggested_fix": "Give every FilterNode a stable client id, mirroring FieldRow: add `id: string` to `FilterLeaf`/`FilterGroup`, mint it in `addLeaf`/`addGroup` (and in `toFilterTree` via a counter), and key on `node.id` at lines 100 and 155. Reuse the same counter-based approach as `toRows`. A module-level incrementing counter is enough — no dependency needed.",
+      "protected_subject": null
+    },
+    {
+      "title": "Existing report style can never be edited or revised",
+      "severity": "P2",
+      "file": "pcs-frontend/src/pages/report/ReportStylePage.tsx",
+      "line": 219,
+      "why_it_matters": "`startEdit` takes a `ReportStyleSummary | null` parameter but both call sites pass `null` (lines 213 and 219), so `editing` is permanently null. That makes the revise branch of `submit` (line 170-172) and the 「修订（基于 vX）」 card title dead code, and it collides with `disabled={!!active}` on 新建样式: once an ACTIVE style exists for the selected scope, the only entry point to editing is disabled and the revise path is unreachable, so the user cannot change a style that already exists. The version-history table compounds this — its only per-row action is 回滚, with no 「基于此版本修订」 button, which is the one control that would make the `row` parameter of `startEdit` meaningful.",
+      "autofix_class": "manual",
+      "owner": "human",
+      "requires_verification": true,
+      "pre_existing": false,
+      "confidence": 100,
+      "first_evidence": "pcs-frontend/src/pages/report/ReportStylePage.tsx:219 — \"            onClick={() => startEdit(null)}\"",
+      "evidence": [
+        "pcs-frontend/src/pages/report/ReportStylePage.tsx:219 — \"            onClick={() => startEdit(null)}\"",
+        "pcs-frontend/src/pages/report/ReportStylePage.tsx:217-218 — \"          <Button type=\\\"primary\\\" icon={<PlusOutlined />}\\n            disabled={!!active}\" (the only other entry point is disabled once a style exists)",
+        "pcs-frontend/src/pages/report/ReportStylePage.tsx:170-172 — \"      if (editing) {\\n        await reportBuilderApi.reviseStyle(editing.style_id, { style: patch });\\n        message.success(publish ? '已保存为新版本' : '已保存');\" (unreachable: `editing` is never assigned a non-null row)",
+        "pcs-frontend/src/pages/report/ReportStylePage.tsx:320-327 — \"              title: '', key: 'act', width: 130,\\n              render: (_: unknown, r) => (\\n                <Button size=\\\"small\\\" icon={<RollbackOutlined />}\" (history rows offer rollback only — no revise entry point)"
+      ],
+      "suggested_fix": "Add a 「基于此版本修订」 button to the history table that calls the already-existing `startEdit(r)`, and change the header button so it stays available: 「新建样式」 keeps `disabled={!!active}` (creating a second ACTIVE style for the same scope is the real constraint), while the history row's revise button covers the editing case. `renderEditor` already falls back to `draft ?? current`, so switching `current` from `active?.style` to `editing?.style` when `editing` is set makes the form prefill from the chosen historical version.",
+      "protected_subject": null
+    }
+  ],
+  "residual_risks": [
+    "ReportExecutePage treats every non-2xx as terminal (line 169-174). The review context describes a backend contract where a 404 can occur before the worker picks the job up, which would make the first poll fail every time — but I verified that contract no longer holds: pcs-backend/app/api/v1/report_builder.py:348-368 creates and commits the ReportExecutionLog row inside the execute endpoint before returning 202, and the endpoint comment at lines 335-347 records that this was done specifically so the frontend would not have to tolerate 404. So the current frontend contract is correct. Residual risk only: a single transient 5xx or a mid-poll network blip (or a 401 from an expiring token during the 3-minute poll, which also trips the axios auth interceptor) still lands in the same catch and is reported as 「执行失败」 for a job that may still be running server-side. No evidence this is common, so not filed as a finding.",
+    "The `[defId]` effect (ReportExecutePage.tsx:91-105) has the same uncancelled-fetch shape as the `[selected]` effect and runs two sequential awaits (datasources, then list). Racing defId changes would leave a stale definitions list. No route in the diff appears to change defId in place, so impact is currently low.",
+    "ReportDefinitionListPage's `load` (line 66-80) is re-created per statusFilter and has no cancellation either; two quick filter changes can land responses out of order and show rows for the previous filter. Same pattern, lower consequence than the definition-fetch case, and the rows are wholesale-replaced rather than merged.",
+    "ReportStylePage `rollback` (line 189-196) has no in-flight guard and no disabled state, so double-clicking 回滚 on two different versions fires two activateStyle calls whose winner depends on backend transaction ordering. I did not inspect StyleService.activate_style to confirm whether it supersedes the previous ACTIVE row atomically, so I am not filing this — but it is the next thing to check if two ACTIVE rows are ever observed.",
+    "None of the six component pages use AbortController; the two guards proposed above are per-component refs, which is sufficient for these call sites but will need repeating in every new page that polls or fetches on a changing key."
+  ],
+  "testing_gaps": [
+    "No test exercises the ReportExecutePage polling loop at all — the new test file covers only definitionBody's pure functions. A fake-timer test would mechanically pin every finding above: unmount while a fetch is in flight (assert no further API call), clicking 执行 twice during polling (assert the first loop cannot write fileId or cancel the second timer), and a slow response for definition A resolving after a switch to B.",
+    "definitionBody.test.ts covers toFilterTree round-trips for well-formed nested groups (lines 159-201) but has no case for a node the parser cannot classify — neither `{field: 1, operator: 'EQ'}` nor a group object missing its `conditions` key. Without one, the silent-drop behaviour can be changed silently later.",
+    "No test asserts the meaning of `tempFilters === []` versus `null` at the ReportExecutePage execute call site, which is where the two states are currently conflated. The existing test 「drops nothing when the tree is emptied deliberately」 covers buildBody but not the execute request body built from tempFilters.",
+    "No coverage for FilterTreeEditor's key stability across a move(), so the index-key regression risk is invisible to CI even though definitionBody's FieldRow key exists specifically to prevent it.",
+    "ReportStylePage has no test that a scope with an existing ACTIVE style exposes any editing entry point; a render-level assertion that the revise control is present and enabled would have caught the dead startEdit(null) path immediately."
+  ]
+}

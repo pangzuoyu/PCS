@@ -16,6 +16,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from app.services.report.definition_service import MAX_ROWS_CEILING
+
 
 class ReportBuilderField(BaseModel):
     name: str
@@ -136,7 +138,10 @@ class ReportDefinitionBody(BaseModel):
     # 报表照跑、只是内容少一大截，没有任何一层会说话。
     model_config = ConfigDict(extra="forbid")
 
-    MaxRows: int = Field(default=10000, ge=1, le=100_000)
+# ⚠️ 上限 10000 = P8 引擎的硬边界（`query_engine.assemble` 的 batch 边界）。
+#    **这是实现限制，不是 SPEC 要求** —— SPEC 只规定默认值 10000，未规定上限。
+#    未来引入真分批后此上限可提高。见 definition_service.MAX_ROWS_CEILING。
+    MaxRows: int = Field(default=10000, ge=1, le=MAX_ROWS_CEILING)
     OutputFormat: str = "pdf"
     # ADR-0028 的 detail_level 双分级（BASIC 9 字段 / DETAIL 39+）。
     # **放在定义体里而不是加一列**：SPEC §3.2.2(2) 的定义体字段清单里它与
@@ -162,7 +167,10 @@ class ReportDefinitionUpsert(BaseModel):
     output_format: str = "pdf"
     definition_json: ReportDefinitionBody
     shared_with: str = "CREATOR_ONLY"
-    max_rows: int = Field(default=10000, ge=1, le=100_000)
+# ⚠️ 上限 10000 = P8 引擎的硬边界（`query_engine.assemble` 的 batch 边界）。
+#    **这是实现限制，不是 SPEC 要求** —— SPEC 只规定默认值 10000，未规定上限。
+#    未来引入真分批后此上限可提高。见 definition_service.MAX_ROWS_CEILING。
+    max_rows: int = Field(default=10000, ge=1, le=MAX_ROWS_CEILING)
 
 
 class ReportDefinitionOut(BaseModel):

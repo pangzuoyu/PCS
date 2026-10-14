@@ -1,0 +1,1116 @@
+{
+ "run_id": "20261014-005528-981d772a",
+ "generated_by": "merge leaf (Stage 5 + Stage 5b steps 1-3)",
+ "primary_findings": [
+  {
+   "#": 1,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-backend/app/services/report/report_service.py:107 — `rows_by_source[extra] = await _fetch_join_rows(db, source=extra, join_field=b_key, keys=[...])` with no `scope=` argument.",
+    "pcs-backend/app/services/report/report_service.py:163 — `_fetch_join_rows` signature accepts only `source`, `join_field`, `keys`; no project scoping.",
+    "Compare: pcs-backend/app/services/report/builder_service.py:2239 — same join-source path explicitly ANDs `_attr(source, 'project_id') == scope` and justifies it as '越权边界, 不能与 user conditions 合并'.",
+    "Trigger: caller POSTs `/report/generate` with `project_id=A` and `record_ids=[<UUID from project B>]`; `/report/generate` only runs `check_project_access_or_404` on project_id, not on individual record ids.",
+    "pcs-backend/app/services/report/report_service.py:4819-4844 — `collect()` builds `stmt = build_select(...) .where(apply_filters(_filter_spec(spec, record_ids)))` with no project_id clause; `_filter_spec()` returns only the IN(record_ids) condition.",
+    "pcs-backend/app/services/report/builder_service.py:2310-2319 — by contrast, `execute_definition` adds an explicit `{\"operator\":\"EQ\",\"source\":primary,\"field\":_project_field(primary),\"value\":scope}` condition, with a docstring calling this a hard boundary: \"**不能默认全库查询** —— 那会把别的项目的数据一起导出去\".",
+    "pcs-backend/app/api/v1/report.py:628-631 — endpoint calls `check_project_access_or_404(body.project_id)` but never re-uses that project_id in the SQL path."
+   ],
+   "file": "pcs-backend/app/services/report/report_service.py",
+   "first_evidence": "pcs-backend/app/services/report/report_service.py:107 — `rows_by_source[extra] = await _fetch_join_rows(db, source=extra, join_field=b_key, keys=[...])` with no `scope=` argument.",
+   "independent_reviewers": [],
+   "line": 163,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "adversarial-correctness"
+   ],
+   "severity": "P0",
+   "suggested_fix": "Add a `scope: uuid.UUID | None` parameter to `_fetch_join_rows` and to `collect`; thread `project_id` through from the endpoint. In the batched IN query, mirror builder_service's guard: if the source exposes a project_id column, AND `project_id == scope`; if not (e.g. SUPPLIERS), keep current behavior. Also validate at the endpoint that every UUID in `body.record_ids` resolves to a row whose `project_id` matches `body.project_id` (or NULL), with `check_project_access_or_404` per row.",
+   "title": "Fixed-10 report export has no project isolation: join rows are unfiltered and record_ids ownership is never checked",
+   "why_it_matters": "Verified in source, three linked gaps on the fixed-10-types path only. (1) `_fetch_join_rows` (pcs-backend/app/services/report/report_service.py:163-177) takes no `scope` argument and adds no project predicate: it selects every row of the joined source whose join key matches, so a main-source row belonging to project A pulls in join-source rows belonging to project B. (2) `_filter_spec` (:139-160) builds the only predicate on the main source and it is an `IN` over `record_ids` -- the primary key list from the request body; nothing checks that those ids belong to `body.project_id`. (3) `POST /report/generate` (pcs-backend/app/api/v1/report.py:135-186) calls `check_project_access_or_404` on `body.project_id` (:143) and then hands `body.record_ids` straight to the queue (:186), so the access check validates a project id that never reaches the query. The intended pattern exists 40 lines away in `builder_service._fetch_join_rows_with_scope` (pcs-backend/app/services/report/builder_service.py:99-134), which takes `scope` and ANDs `_attr(source, \"project_id\") == scope` -- bug-162 fixed only that path. Consequence: an authenticated user who knows or guesses record UUIDs from another project exports another project's rows through a supported endpoint. Tests do not cover this: tests/services/report/test_join_project_scope.py exercises only `builder_service.execute_definition`."
+  },
+  {
+   "#": 2,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-backend/app/workers/report_tasks.py:249 — `await db.flush()` inside `reclaim_stale_tasks` (no commit before return).",
+    "pcs-backend/app/workers/report_tasks.py:307 — `await db.flush()` inside `reclaim_stale_execution_logs` (no commit before return).",
+    "Module docstring at pcs-backend/app/workers/report_tasks.py:25-32: 每次状态变更必须 commit 与实际函数不符 — reclaim 是显豁。",
+    "Trigger: cron `reclaim-stale-report-tasks` fires at HH:03:00 and HH:33:00 via `WorkerSettings.cron_jobs`; each invocation calls `_ctx_session(ctx)` which only opens a session and never closes it.",
+    "pcs-backend/app/workers/report_tasks.py:323-328 — `db: AsyncSession = _ctx_session(ctx)` / `await reclaim_stale_tasks(db, older_than_minutes=STALE_MINUTES)` / `await reclaim_stale_execution_logs(db, older_than_minutes=STALE_MINUTES)` — no `commit()`, no `close()` anywhere in the function.",
+    "pcs-backend/app/workers/report_tasks.py:249 — `    await db.flush()` (end of reclaim_stale_tasks); pcs-backend/app/workers/report_tasks.py:307 — `    await db.flush()` (end of reclaim_stale_execution_logs). Both rely on a caller that never commits.",
+    "pcs-backend/app/db/session.py:71-85 — `get_async_session_factory` builds a plain `async_sessionmaker` with no autocommit; there is no ambient commit hook that could rescue the flush.",
+    "tests/workers/test_report_tasks.py:306 — `n = await reclaim_stale_tasks(db, older_than_minutes=15)` — the tests pass the fixture session directly and never exercise the cron wrapper, so the missing commit is invisible to CI.",
+    "Contrast with the task bodies, which do commit explicitly and are tested for it: report_tasks.py:172 `            await db.commit()`, and tests/workers/test_report_tasks.py:381 `test_failure_state_is_committed_not_just_left_in_the_session`."
+   ],
+   "file": "pcs-backend/app/workers/report_tasks.py",
+   "first_evidence": "pcs-backend/app/workers/report_tasks.py:249 — `await db.flush()` inside `reclaim_stale_tasks` (no commit before return).",
+   "independent_reviewers": [],
+   "line": 249,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "adversarial-reliability"
+   ],
+   "severity": "P0",
+   "suggested_fix": "Add `await db.commit()` at the end of `reclaim_stale_tasks` (line 249) and `reclaim_stale_execution_logs` (line 307), and switch the cron entry to use `session_scope(ctx)` (the helper added in worker.py) so the session is also guaranteed to close cleanly. Add a `test_reclaim_persists_after_session_close` that calls the function against one session, commits/closes, then re-opens a fresh session and asserts the row state (and audit row) actually landed in the DB.",
+   "title": "Reclaim cron never commits -- the stale-task reclaimer is silently inert",
+   "why_it_matters": "Verified in source: `reclaim_stale_tasks` (pcs-backend/app/workers/report_tasks.py:217-251) and `reclaim_stale_execution_logs` (:263-308) end with `await db.flush()` (:249, :307) and no commit; the last `commit()` in the whole module is at :203, inside `generate_report_task`. The cron entry `reclaim_stale_report_tasks(ctx)` (:311-328) obtains its session through `_ctx_session(ctx)` (:323,:331-338), which calls the session factory and never commits or closes. The module docstring (:15-26) states every state change in this module must commit and explicitly exempts reclaim -- the exemption is the bug. Consequence: every FAILED rewrite and every REPORT_FAILED audit row the reclaimer writes is rolled back when the session is released, so a crashed ARQ worker leaves report_files stuck in PENDING and report_execution_logs stuck in QUEUED/RUNNING forever; the status endpoints the frontend polls report a hang that never resolves. The two reviewers describe the same defect from the same file and merge into one finding."
+  },
+  {
+   "#": 3,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-backend/app/api/v1/report_builder.py:328: `    task_id = await arq_queue.enqueue_definition_execution(` (enqueue happens first)",
+    "pcs-backend/app/api/v1/report_builder.py:348: `    db.add(ReportExecutionLog(` (row created second) with `:368: await db.commit()` after it.",
+    "pcs-backend/app/workers/report_builder_tasks.py:245-250: `    await db.execute(update(ReportExecutionLog).where(ReportExecutionLog.task_id == task_id).values(report_file_id=report_file_id))` -- UPDATE-only, no row-count check, no upsert.",
+    "pcs-backend/app/api/v1/report_builder.py:328 — `    task_id = await arq_queue.enqueue_definition_execution(` — the job is on the queue before the log row exists.",
+    "pcs-backend/app/api/v1/report_builder.py:368 — `    await db.commit()      # 端点负责 commit（与本仓其它写端点一致）` — the log row (added at line 348) is only durable here, after the enqueue.",
+    "pcs-backend/app/workers/report_builder_tasks.py:75-76 — `        task_row = (await db.execute(_sel(_Log).where(` / `            _Log.task_id == job_id))).scalar_one_or_none()` — a miss here makes both the RUNNING update and the later backfill no-ops.",
+    "pcs-backend/app/workers/report_builder_tasks.py:229 — `    await _link_report_file(db, task_id=task_id, report_file_id=row.report_file_id)` — the UPDATE at 247-250 silently affects 0 rows; there is no rowcount check.",
+    "Parallel pattern already in this diff: pcs-backend/app/api/v1/report.py:161 `    task_id = uuid.uuid4().hex` … :189 `_job_id=task_id,` — the generate endpoint commits the PENDING row *before* enqueueing.",
+    "`enqueue_definition_execution` (arq_queue.py:81-85) does not forward a `_job_id`, so the task id cannot currently be chosen by the caller on this path."
+   ],
+   "file": "pcs-backend/app/api/v1/report_builder.py",
+   "first_evidence": "pcs-backend/app/api/v1/report_builder.py:328: `    task_id = await arq_queue.enqueue_definition_execution(` (enqueue happens first)",
+   "independent_reviewers": [
+    "api-contract-reliability"
+   ],
+   "line": 328,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "api-contract-reliability"
+   ],
+   "severity": "P1",
+   "suggested_fix": "Reorder `execute_definition_endpoint` so the `db.add(ReportExecutionLog(...))` + `await db.commit()` precede `arq_queue.enqueue_definition_execution(...)`, and pass the endpoint-chosen task_id into the enqueue (mirroring what `/report/generate` already does at report.py:161-190 with `_job_id=task_id`). Additionally make `_link_report_file` raise or retry when its UPDATE matches zero rows, so this class of silent loss surfaces instead of degrading into a client-side timeout.",
+   "title": "Builder enqueues the ARQ job before committing its execution-log row",
+   "why_it_matters": "Verified in source: `execute_definition_endpoint` calls `arq_queue.enqueue_definition_execution(...)` at :328, adds the `ReportExecutionLog` row at :348, and only commits at :368. Three windows: the worker can finish and call `_link_report_file` before the row exists, so the audit row's `report_file_id` backfill is lost and the polling endpoint `/report-builder/executions/{task_id}` answers 404 for a job that already produced a file; if the endpoint then fails before :368, the file exists with no audit row at all. The fixed-10 endpoint gets this right on purpose -- pcs-backend/app/api/v1/report.py:157-166 builds the PENDING row and commits before enqueueing -- so the two endpoints in the same feature contradict each other."
+  },
+  {
+   "#": 4,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-backend/app/services/report/report_service.py:220 — `                          qr_payload=None, assumed_fields=[], context=ctx)` — the render call hardcodes None, so renderer_pdf.py:256 `    if qr_payload:` is never true.",
+    "grep for `build_qr_payload` across the repo returns only its definition (qr.py:25) and tests/services/report/test_report_service.py — zero production callers.",
+    "grep for `report_verify_secret` returns app/api/v1/report.py:100 (verification), app/core/config.py:79/169/176 (config), tests/api/v1/test_report.py:49 (test-side signing) — no production signer.",
+    "pcs-backend/app/api/v1/report.py:107-110 — `    expect = hmac.new(secret.encode(), f\"{report_file_id}:{exp}\".encode(), hashlib.sha256).hexdigest()` / `    if not hmac.compare_digest(expect, sig or \"\"):` / `        raise HTTPException(status_code=403, detail=\"签名无效\")` — fail-closed, correct, and unsatisfiable for any URL a QR could carry.",
+    "pcs-backend/app/services/report/qr.py:43 — `    return (f\"{verify_base_url.rstrip('/')}/api/v1/report/verify/{report_id}#\"` — the payload builder emits no sig/exp query parameters."
+   ],
+   "file": "pcs-backend/app/services/report/qr.py",
+   "first_evidence": "pcs-backend/app/services/report/report_service.py:220 — `                          qr_payload=None, assumed_fields=[], context=ctx)` — the render call hardcodes None, so renderer_pdf.py:256 `    if qr_payload:` is never true.",
+   "independent_reviewers": [
+    "reliability"
+   ],
+   "line": 43,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "reliability"
+   ],
+   "severity": "P1",
+   "suggested_fix": "Two coordinated changes, both in `report_service`. (1) Add a signer next to `qr.py` that mints the short-lived signature: `def sign_verify_url(*, report_file_id, exp) -> str` computing `hmac.new(settings.report_verify_secret.encode(), f\"{report_file_id}:{exp}\".encode(), hashlib.sha256).hexdigest()` — reuse the exact input format from `_check_sig` (report.py:107) rather than re-deriving it. (2) In `store_rendered`/`generate`, build `exp = int(now.timestamp()) + VERIFY_TTL_S` and pass a real payload through `_render_sync(..., qr_payload=build_qr_payload(..., verify_base_url=f\"{base}/api/v1/report/verify/{row_id}?sig={sig}&exp={exp}\"))` — note this requires the report_file_id, which today is only known *after* `_upsert_report_file`, so the ordering in `store_rendered` (render → hash → write → upsert) needs to become (upsert PENDING row → sign with its id → render → write). Because the signature is time-varying it must NOT feed `_content_hash`, or the determinism guarantee that `qr.py`'s docstring rests on (same content ⇒ same hash ⇒ dedup works) breaks; keep the hash over (blocks, style, output_format, ctx) as it is and let the QR vary. If signed URLs are genuinely deferred, delete `qr.py` and the `verify` route together rather than shipping a 403-by-construction endpoint.",
+   "title": "Printed QR codes carry no signature, so /report/verify rejects every scan with 403",
+   "why_it_matters": "Verified in source, and the gap is end-to-end: `build_qr_payload` (pcs-backend/app/services/report/qr.py:25-43) emits `{verify_base_url}/api/v1/report/verify/{report_id}#...` with no `sig` and no `exp` query parameter, and grepping the whole backend finds no other producer -- `hmac` appears only in the verifier. `_check_sig` (pcs-backend/app/api/v1/report.py:97-110) requires both: `sig` must equal HMAC-SHA256(secret, f\"{report_file_id}:{exp}\") and `exp` must be in the future, so with the signature absent it raises 403 '签名无效' on every request. The endpoint module docstring (:25) specifies the signature contract, and migration-side settings define `report_verify_secret`; only the producer is missing. Field verification -- scanning a printed report to confirm it against the stored hash -- cannot succeed today."
+  },
+  {
+   "#": 5,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-backend/app/services/report/query_engine.py:313 — `    if len(base_rows) > batch_size:` with `batch_size: int = 10000` declared at query_engine.py:297 and raised as `REPORT_JOIN_TOO_LARGE` (400) at :317.",
+    "pcs-backend/app/services/report/builder_service.py:233 — `    merged = qe.assemble(rows_by_source, join_keys, primary, fields_by_source)` — no `batch_size` argument, so the 10000 default applies.",
+    "pcs-backend/app/services/report/builder_service.py:193 — `    limit = temporary_max_rows or row.max_rows or 10000` and :222 `    main_rows = main_rows[:limit]` — `base_rows` reaching `assemble` has exactly `limit` rows, so `limit > 10000` deterministically trips the guard.",
+    "pcs-backend/app/schemas/report_builder.py:165 — `    max_rows: int = Field(default=10000, ge=1, le=100_000)` and pcs-backend/app/api/v1/report_builder.py:239 — `    max_rows: int | None = Field(default=None, ge=1, le=100_000)` both admit values the executor can never serve.",
+    "grep for `batch_size` across app/services/report and app/api/v1 returns only query_engine.py:297 (the default) and :313 (the check) — no caller anywhere raises or lowers it."
+   ],
+   "file": "pcs-backend/app/services/report/query_engine.py",
+   "first_evidence": "pcs-backend/app/services/report/query_engine.py:313 — `    if len(base_rows) > batch_size:` with `batch_size: int = 10000` declared at query_engine.py:297 and raised as `REPORT_JOIN_TOO_LARGE` (400) at :317.",
+   "independent_reviewers": [
+    "performance"
+   ],
+   "line": 297,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "performance"
+   ],
+   "severity": "P1",
+   "suggested_fix": "Thread the effective row limit into `assemble` from the one place that already knows it. In `builder_service.execute_definition`, the call at line 233 is `qe.assemble(rows_by_source, join_keys, primary, fields_by_source)`; change it to `qe.assemble(rows_by_source, join_keys, primary, fields_by_source, batch_size=limit)`, since `limit` (line 193) is `temporary_max_rows or row.max_rows or 10000` and `main_rows` has already been truncated to it at line 222 — so the check becomes unreachable-but-consistent instead of a contradiction with the 100k ceiling. Note the asymmetry this creates and decide it deliberately: `report_service._MAX_ROWS` stays 10000, so the fixed-10 path remains capped there, while the builder path honours the per-definition MaxRows. If the intent was actually to hard-cap ALL report generation at 10k for memory reasons, the cheaper and more honest fix is the opposite one: lower `le=100_000` to `le=10000` in both `schemas/report_builder.py:165` and `report_builder.py:239` and drop `MAX_ROWS_CEILING` to 10000, so the schema stops advertising a range that provably cannot execute. Verify with a test that executes a definition at `max_rows=10001` and asserts either success-with-10001-rows or a 400 at write time — not at render time.",
+   "title": "assemble()'s fixed batch_size=10000 hard-fails every definition whose MaxRows exceeds it, contradicting the 100,000-row promise",
+   "why_it_matters": "Verified in source: `query_engine.assemble` (:293-318) defaults `batch_size: int = 10000` and raises PcsError `REPORT_JOIN_TOO_LARGE` when the primary row count exceeds it. Both callers pass no `batch_size`: pcs-backend/app/services/report/builder_service.py:233 and pcs-backend/app/services/report/report_service.py:111. Meanwhile 100,000 is the promised ceiling in four places -- schemas/report_builder.py:139 and :165, definition_service.py:53 (`MAX_ROWS_CEILING`), and api/v1/report_builder.py:239. A user who saves a definition with max_rows between 10,001 and 100,000 passes validation and gets a hard 400 at execution time, which is the same class of bug the format whitelist docstring warns about ('saved fine, fails only at execution')."
+  },
+  {
+   "#": 6,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-backend/app/workers/report_builder_tasks.py:83 — `task_row.status = \"RUNNING\"` (only assignment in success path).",
+    "pcs-backend/app/workers/report_builder_tasks.py:113 — `task_row.status = \"FAILED\"` (only assignment in failure arm).",
+    "Search confirms no `task_row.status = \"FINISHED\"` exists anywhere in the file or in `report_builder.py` / `builder_service.py`.",
+    "Trigger: a successful execute_definition run returns report_file_id, user sees FINISHED; 15 min later reclaim rewrites the row to FAILED with no upstream signal.",
+    "pcs-backend/app/workers/report_builder_tasks.py:93-96 — `            file_id = await _render_and_store(` / `                db, out=out, project_id=pid, job_id=job_id, task_id=job_id,` / `                output_format=out.snapshot.get(\"output_format\") or \"pdf\")` / `            await db.commit()` — the success path commits without ever setting `task_row.status = \"FINISHED\"`.",
+    "pcs-backend/app/workers/report_builder_tasks.py:112 — `            if attempt_no >= MAX_TRIES and task_row is not None:` — the only place `task_row.status` is assigned after the initial RUNNING, and it only ever assigns FAILED.",
+    "pcs-backend/app/api/v1/report_builder.py:296 — `    status = \"FINISHED\" if row.report_file_id else (row.status or \"QUEUED\")` — the DB column is never read as FINISHED, which is why the missing write is invisible.",
+    "pcs-backend/app/workers/report_tasks.py:284-285 — `            ReportExecutionLog.status.in_((\"QUEUED\", \"RUNNING\")),` / `            or_(ReportExecutionLog.updated_at < cutoff,` — the reclaim predicate a completed (still RUNNING) row satisfies.",
+    "pcs-backend/app/models/report.py:211 — comment=\"QUEUED 已入队 / RUNNING 执行中 / FINISHED 已出文件 / FAILED 已终结（含被回收）\" — FINISHED is a defined terminal state that is never produced."
+   ],
+   "file": "pcs-backend/app/workers/report_builder_tasks.py",
+   "first_evidence": "pcs-backend/app/workers/report_builder_tasks.py:83 — `task_row.status = \"RUNNING\"` (only assignment in success path).",
+   "independent_reviewers": [],
+   "line": 83,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "adversarial-reliability"
+   ],
+   "severity": "P1",
+   "suggested_fix": "Add `task_row.status = \"FINISHED\"` after the successful `db.commit()` in `execute_definition_task` and before the final return; second commit. Alternative: set `status = \"FINISHED\"` together with `report_file_id` via the same UPDATE in `_link_report_file`. Either fix also removes the need for the heuristic `report_file_id is not None -> FINISHED` fallback in `execution_status` (which itself is a sign the underlying state machine is broken).",
+   "title": "Successful builder executions never reach FINISHED; the reclaimer then rewrites a completed audit row to FAILED",
+   "why_it_matters": "Verified in source: `report_builder_tasks.py` writes status only at :83 (`task_row.status = \"RUNNING\"`) and :113 (`task_row.status = \"FAILED\"`). No code path writes `\"FINISHED\"`. Because `reclaim_stale_execution_logs` (pcs-backend/app/workers/report_tasks.py:263-308) selects rows whose status is in ('QUEUED','RUNNING') and older than the threshold, a builder execution that completed successfully and produced a report file is, 15 minutes later, relabelled FAILED with a `reclaimed_at` note in `condition_snapshot` -- on a table the module docstring calls an audit record that must not be tampered with. The polling endpoint therefore reports a failure for work that actually produced a file. (The reclaimer itself does not commit -- see the P0 -- so today this second corruption is masked; fixing the P0 without this fix turns the masked bug into a live one.)"
+  },
+  {
+   "#": 7,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-frontend/src/pages/report/ReportExecutePage.tsx:157 — \"    timer.current = setTimeout(() => {\" (one shared handle for every loop; the second loop overwrites the first's handle)",
+    "pcs-frontend/src/pages/report/ReportExecutePage.tsx:160-166 — \"        const st = await reportBuilderApi.executionStatus(id);\\n        if (st.report_file_id) {\\n          setFileId(st.report_file_id);\\n          setStatusText('生成完成');\\n          setPhase('done');\\n          stopPolling();\" (an older loop can write the older fileId and cancel the newer loop)",
+    "pcs-frontend/src/pages/report/ReportExecutePage.tsx:205-208 — \"          <Button type=\\\"primary\\\" icon={<PlayCircleOutlined />}\\n            loading={phase === 'submitting'} onClick={() => void run()}>\" (button not disabled while polling — the trigger for the overlap)",
+    "pcs-frontend/src/pages/report/ReportExecutePage.tsx:122 — \"    startedAt.current = Date.now();\" (a single ref shared by both loops, so the older loop's timeout deadline is silently rebased onto the newer run)",
+    "pcs-frontend/src/pages/report/ReportExecutePage.tsx:175 — \"        poll(id);\"",
+    "pcs-frontend/src/pages/report/ReportExecutePage.tsx:157-158 — \"    timer.current = setTimeout(() => {\\n      void (async () => {\" (the callback is already running; clearTimeout on a fired handle is a no-op)",
+    "pcs-frontend/src/pages/report/ReportExecutePage.tsx:86-89 — \"  const stopPolling = () => {\\n    if (timer.current) { clearTimeout(timer.current); timer.current = null; }\\n  };\\n  useEffect(() => stopPolling, []);\" (single-shot cleanup, no in-flight cancellation)",
+    "pcs-frontend/src/pages/report/ReportExecutePage.tsx:133-135 — \"      setTaskId(accepted.task_id);\\n      setPhase('polling');\\n      poll(accepted.task_id);\" (post-unmount continuation of run() has no guard either)"
+   ],
+   "file": "pcs-frontend/src/pages/report/ReportExecutePage.tsx",
+   "first_evidence": "pcs-frontend/src/pages/report/ReportExecutePage.tsx:157 — \"    timer.current = setTimeout(() => {\" (one shared handle for every loop; the second loop overwrites the first's handle)",
+   "independent_reviewers": [
+    "julik-frontend-races"
+   ],
+   "line": 157,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "julik-frontend-races"
+   ],
+   "severity": "P1",
+   "suggested_fix": "Apply the generation-token guard from the previous finding (it fixes this one too — the stale loop's token no longer matches, so it can neither write fileId nor cancel the new timer), and disable the button while a run is live: `disabled={phase === 'polling' || phase === 'submitting'}`. No new dependency or state machine needed.",
+   "title": "Poll loop has no cancellation token: unmount or a new run resurrects an orphan loop that clobbers the new run's state",
+   "why_it_matters": "Verified in source. `poll(id)` (:151-179) re-arms itself with `poll(id)` at the end of its async callback and writes into a single shared `timer` ref; `stopPolling` (:86-88) only clears whatever is currently in that ref. `run()` calls `stopPolling()` (:121) then starts a new `poll(accepted.task_id)` -- but if the previous run's callback is already awaiting `reportBuilderApi.executionStatus`, it resumes afterwards, sets `statusText`, and calls `poll(oldId)` again, taking over `timer.current`. The page then has two live loops, and whichever resolves last wins `fileId`, so a download button can point at the previous run's file. The unmount cleanup `useEffect(() => stopPolling, [])` (:89) has the same hole: unmounting while a status request is in flight lets that callback re-arm a timer for a component that is gone. Both defects are the same missing generation guard and share one fix. The reviewer cited two separate lines; they merge."
+  },
+  {
+   "#": 8,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-frontend/src/pages/report/ReportExecutePage.tsx:161: `          if (st.report_file_id) {`",
+    "pcs-frontend/src/pages/report/ReportExecutePage.tsx:165-169: on the non-file branch it only calls `setStatusText('已提交，正在后台生成…')` and recurses; `st.status` is never read anywhere in the file (grep for 'status' in the page returns only antd `Result status=` props).",
+    "pcs-backend/app/api/v1/report_builder.py:296: `    status = \"FINISHED\" if row.report_file_id else (row.status or \"QUEUED\")` -- FAILED is a reachable value of this field.",
+    "pcs-backend/app/workers/report_tasks.py:294: `        row.status = \"FAILED\"` (reclaim_stale_execution_logs), and pcs-backend/app/workers/report_builder_tasks.py:113: `                task_row.status = \"FAILED\"`"
+   ],
+   "file": "pcs-frontend/src/pages/report/ReportExecutePage.tsx",
+   "first_evidence": "pcs-frontend/src/pages/report/ReportExecutePage.tsx:161: `          if (st.report_file_id) {`",
+   "independent_reviewers": [
+    "api-contract"
+   ],
+   "line": 161,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": true,
+   "reviewers": [
+    "api-contract"
+   ],
+   "severity": "P1",
+   "suggested_fix": "In `poll()`, branch on status before the file check:\n```ts\nconst st = await reportBuilderApi.executionStatus(id);\nif (st.status === 'FAILED') {\n  stopPolling();\n  setError('执行失败（任务已终止，请查看执行记录）');\n  setPhase('failed');\n  return;\n}\nif (st.report_file_id) { ...existing done path... }\n```\nAssume 'FAILED' is the terminal failure literal; confirm against `p8_007_execution_log_status` and `ReportExecutionLog.status` before applying.",
+   "title": "Polling loop never reads the terminal FAILED status and spins until a false timeout",
+   "why_it_matters": "Verified in source: `poll` (:151-179) only tests `st.report_file_id`; it never looks at `st.status`. `ReportExecutionStatus` was given a real `status` column by migration p8_007 precisely so a failed execution is distinguishable from a running one, and the backend writes FAILED at pcs-backend/app/workers/report_builder_tasks.py:113. The frontend therefore keeps polling a job that has already failed, for the full `POLL_TIMEOUT_MS` (:60), and then shows the timeout message -- which asserts the file may still be generating. That is the exact false conclusion the p8_007 docstring was written to prevent."
+  },
+  {
+   "#": 9,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-backend/app/services/report/builder_service.py:2321 — `sort_fields = [f[\"field\"] for f in (defn.get(\"SortBy\") or [])]` only reads `field`.",
+    "pcs-backend/app/services/report/query_engine.py:4007-4011 — `def apply_sort(stmt, sort_by: list[str]): ... stmt = stmt.order_by(_column_from_label(stmt, f))` — no ascending/descending.",
+    "pcs-backend/app/schemas/report_builder.py:1827-1830 — schema declares `direction: str = \"ASC\"  # ASC / DESC` so the contract promises it."
+   ],
+   "file": "pcs-backend/app/services/report/builder_service.py",
+   "first_evidence": "pcs-backend/app/services/report/builder_service.py:2321 — `sort_fields = [f[\"field\"] for f in (defn.get(\"SortBy\") or [])]` only reads `field`.",
+   "independent_reviewers": [
+    "correctness"
+   ],
+   "line": 216,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "correctness"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Thread direction through: change `sort_fields = [f[\"field\"] for f in (defn.get(\"SortBy\") or [])]` to `sort_specs = [(f[\"field\"], (f.get(\"direction\") or \"ASC\").upper() == \"DESC\") for f in (defn.get(\"SortBy\") or [])]`, change `apply_sort` signature to take `list[tuple[str, bool]]` (or two parallel lists), and inside the loop call `stmt.order_by(_column_from_label(stmt, field).desc() if is_desc else _column_from_label(stmt, field).asc())`. Reject any direction other than ASC/DESC at validate_definition time so users get a 400 at save, not silently-wrong ordering at execute.",
+   "title": "Builder silently drops SortBy direction and always sorts ascending",
+   "why_it_matters": "Verified in source: `builder_service.execute_definition` reads `sort_fields = [f[\"field\"] for f in (defn.get(\"SortBy\") or [])]` (pcs-backend/app/services/report/builder_service.py:216) -- the per-field `direction` is never read -- and `query_engine.apply_sort` (query_engine.py:251-253) takes only field names, so the SQL has no direction clause. A definition saved with a descending sort executes ascending with no warning and no error."
+  },
+  {
+   "#": 10,
+   "autofix_class": "gated_auto",
+   "confidence": 100,
+   "evidence": [
+    "pcs-frontend/src/pages/report/ReportExecutePage.tsx:109-111 — \"    void (async () => {\\n      try { setDef(await reportBuilderApi.get(selected)); }\\n      catch (err) { setError(errorMessage(err)); }\"",
+    "pcs-frontend/src/pages/report/ReportExecutePage.tsx:130-132 — \"      const accepted = await reportBuilderApi.execute(selected, {\" (execution follows `selected`, not `def`, so the two can diverge)",
+    "pcs-frontend/src/pages/report/ReportExecutePage.tsx:183 — \"      await reportBuilderApi.download(fileId, `${def.name}_${def.version}`);\""
+   ],
+   "file": "pcs-frontend/src/pages/report/ReportExecutePage.tsx",
+   "first_evidence": "pcs-frontend/src/pages/report/ReportExecutePage.tsx:109-111 — \"    void (async () => {\\n      try { setDef(await reportBuilderApi.get(selected)); }\\n      catch (err) { setError(errorMessage(err)); }\"",
+   "independent_reviewers": [
+    "julik-frontend-races"
+   ],
+   "line": 110,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "julik-frontend-races"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Same generation-ref pattern used for the poller, applied here:\n\nconst defGen = useRef(0);\nuseEffect(() => {\n  if (!selected) { setDef(null); return; }\n  const my = ++defGen.current;\n  void (async () => {\n    try {\n      const d = await reportBuilderApi.get(selected);\n      if (defGen.current === my) setDef(d);\n    } catch (err) {\n      if (defGen.current === my) setError(errorMessage(err));\n    }\n  })();\n  return () => { defGen.current += 1; };\n}, [selected]);",
+   "title": "Uncancelled definition fetch can render the wrong definition",
+   "why_it_matters": "The `[selected]` effect fires a fresh `reportBuilderApi.get(selected)` per selection change with nothing to cancel the previous one, so whichever response resolves *last* wins regardless of which selection is current. Selecting definition A then quickly switching to B leaves the 条件摘要 card describing A while the Execute button will submit B. The mismatch is not cosmetic: `download()` names the file `${def.name}_${def.version}` (line 183), so the downloaded report gets A's name, and the filter/max-row summary the user checked before pressing 执行 belongs to the wrong definition."
+  },
+  {
+   "#": 11,
+   "autofix_class": "manual",
+   "confidence": 100,
+   "evidence": [
+    "pcs-frontend/src/pages/report/ReportExecutePage.tsx:126 — \"      const filters: DefNode | undefined = !tempFilters?.length ? undefined\"",
+    "pcs-frontend/src/pages/report/FilterTreeEditor.tsx:94-97 — \"      {nodes.length === 0 && (\\n        <Typography.Text type=\\\"secondary\\\">\\n          无过滤条件 —— 执行时将导出全量。\\n        </Typography.Text>\\n      )}\" (says full export for `[]`, which is not what happens)",
+    "pcs-frontend/src/pages/report/ReportExecutePage.tsx:267 — \"          {tempFilters === null && (\" (the clarifying hint is keyed on `null` only, so `[]` gets no warning at all)",
+    "pcs-frontend/tests/report/definitionBody.test.ts:195 — \"  it('drops nothing when the tree is emptied deliberately', ...\" (the suite treats `[]` as a distinct, deliberate state)"
+   ],
+   "file": "pcs-frontend/src/pages/report/ReportExecutePage.tsx",
+   "first_evidence": "pcs-frontend/src/pages/report/ReportExecutePage.tsx:126 — \"      const filters: DefNode | undefined = !tempFilters?.length ? undefined\"",
+   "independent_reviewers": [
+    "julik-frontend-races"
+   ],
+   "line": 126,
+   "owner": "human",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "julik-frontend-races"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Decide the intent explicitly and make all three sites agree. Recommended: `null` = inherit from the definition, `[]` = explicitly no filters (send `filters: undefined` only for `null`, and for `[]` send an explicit empty condition list the backend treats as 'no filtering'), and pass the distinction into the editor so it can render a different hint for `[]` than the inherited one. If instead `[]` must keep meaning 'inherit', then FilterTreeEditor's 「将导出全量」 text and the `tempFilters === null` hint are both wrong and must change instead. This needs a one-line ruling from the spec owner before coding.",
+   "title": "Cleared temporary filters silently reapply the definition's saved filters",
+   "why_it_matters": "`null` (use the definition's conditions) and `[]` (the user deleted every condition) are collapsed by `!tempFilters?.length ? undefined : ...`, so an explicitly emptied tree falls back to the definition's filters. The UI actively lies about this: FilterTreeEditor renders 「无过滤条件 —— 执行时将导出全量」 for an empty node list, and the `tempFilters === null` hint at line 267 that would say 「当前使用定义里的原条件」 is suppressed for `[]`. A user who removes the last condition to get an unfiltered export gets a filtered one with no indication, and conversely a user who thinks no filter applies misreads the resulting row count. The round-trip test 「drops nothing when the tree is emptied deliberately」 pins `[]` as a meaningful, distinct state — the execute path throws that distinction away."
+  },
+  {
+   "#": 12,
+   "autofix_class": "manual",
+   "confidence": 100,
+   "evidence": [
+    "pcs-frontend/src/pages/report/ReportStylePage.tsx:219 — \"            onClick={() => startEdit(null)}\"",
+    "pcs-frontend/src/pages/report/ReportStylePage.tsx:217-218 — \"          <Button type=\\\"primary\\\" icon={<PlusOutlined />}\\n            disabled={!!active}\" (the only other entry point is disabled once a style exists)",
+    "pcs-frontend/src/pages/report/ReportStylePage.tsx:170-172 — \"      if (editing) {\\n        await reportBuilderApi.reviseStyle(editing.style_id, { style: patch });\\n        message.success(publish ? '已保存为新版本' : '已保存');\" (unreachable: `editing` is never assigned a non-null row)",
+    "pcs-frontend/src/pages/report/ReportStylePage.tsx:320-327 — \"              title: '', key: 'act', width: 130,\\n              render: (_: unknown, r) => (\\n                <Button size=\\\"small\\\" icon={<RollbackOutlined />}\" (history rows offer rollback only — no revise entry point)"
+   ],
+   "file": "pcs-frontend/src/pages/report/ReportStylePage.tsx",
+   "first_evidence": "pcs-frontend/src/pages/report/ReportStylePage.tsx:219 — \"            onClick={() => startEdit(null)}\"",
+   "independent_reviewers": [
+    "julik-frontend-races"
+   ],
+   "line": 219,
+   "owner": "human",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "julik-frontend-races"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Add a 「基于此版本修订」 button to the history table that calls the already-existing `startEdit(r)`, and change the header button so it stays available: 「新建样式」 keeps `disabled={!!active}` (creating a second ACTIVE style for the same scope is the real constraint), while the history row's revise button covers the editing case. `renderEditor` already falls back to `draft ?? current`, so switching `current` from `active?.style` to `editing?.style` when `editing` is set makes the form prefill from the chosen historical version.",
+   "title": "An existing report style can never be edited or revised from the UI",
+   "why_it_matters": "`startEdit` takes a `ReportStyleSummary | null` parameter but both call sites pass `null` (lines 213 and 219), so `editing` is permanently null. That makes the revise branch of `submit` (line 170-172) and the 「修订（基于 vX）」 card title dead code, and it collides with `disabled={!!active}` on 新建样式: once an ACTIVE style exists for the selected scope, the only entry point to editing is disabled and the revise path is unreachable, so the user cannot change a style that already exists. The version-history table compounds this — its only per-row action is 回滚, with no 「基于此版本修订」 button, which is the one control that would make the `row` parameter of `startEdit` meaningful."
+  },
+  {
+   "#": 13,
+   "autofix_class": "manual",
+   "confidence": 75,
+   "evidence": [
+    "CLAUDE.md:9-11 — '`docs/solutions/` — 已记录的问题解法（缺陷、最佳实践、工作流模式），按 `problem_type` 分目录，带 YAML frontmatter（`module` / `tags` / `problem_type` / `severity`）。在已记录领域做实现或排障时相关；新增解法后回写一份，别只留在提交信息里。'",
+    "`git diff --stat cfc0f2e..HEAD -- docs/solutions/` → empty (no file added or modified under docs/solutions/ in the whole P8 range)",
+    "Commit cd1c0fb (2026-10-13): 'fix(report): 失败时向 ARQ 请求重试 —— ARQ 0.28 不因普通异常重试（TODO-016）' - non-obvious framework behaviour, no solutions entry",
+    "Commit dcd2041: 'fix(report): 入队必须传函数名字字符串，不是函数对象' - non-obvious API contract, no solutions entry",
+    "Commit 26933d4: 'fix(worker): cron 秒位 None 不是「不限」，是「每秒」（每分钟 59 次全表扫描）' - non-obvious ARQ cron semantics, no solutions entry",
+    "Commit 27cb4b0: 'fix(builder): 执行日志行在**入队时**建，消掉 202 之后的 404 窗口' - contract-design lesson, no solutions entry",
+    "Mitigating evidence (why this is not P0): the same solutions are recorded with all five required fields in .wolf/buglog.json (bug-157..bug-168, each with a resolving 7-char fix_commit) and in TODOS.md, so the knowledge is not confined to commit messages"
+   ],
+   "file": "docs/solutions/database-issues/alembic-create-table-silently-drops-schema-elements.md",
+   "first_evidence": "CLAUDE.md:9-11 — '`docs/solutions/` — 已记录的问题解法（缺陷、最佳实践、工作流模式），按 `problem_type` 分目录，带 YAML frontmatter（`module` / `tags` / `problem_type` / `severity`）。在已记录领域做实现或排障时相关；新增解法后回写一份，别只留在提交信息里。'",
+   "independent_reviewers": [
+    "project-standards"
+   ],
+   "line": 1,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "project-standards"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Add one file under docs/solutions/ for the ARQ/worker family, e.g. docs/solutions/worker-tasks/arq-silent-failure-modes.md, with YAML frontmatter (module: workers/report, tags: [arq, retry, session-leak, cron, silent-defect], problem_type: defect, severity: high), consolidating four reusable rules: (1) ARQ only retries on its own retryable exception types, not arbitrary exceptions - request retries explicitly at enqueue; (2) enqueue takes the task function *name* string; (3) every task must close its DB session in a finally block or the error surfaces on an unrelated command; (4) CronJob second=None means every second - always write an explicit 0. A second short entry for the report-execution timing contract (202 returns task_id; the execution-log row is created at enqueue time so the polling endpoint can never 404) is worth its own file.",
+   "title": "No docs/solutions writeback for the 12 fixes landed in P8",
+   "why_it_matters": "The root CLAUDE.md states that new solutions should be written back to `docs/solutions/` and not left only in commit messages. P8 landed 12 bug fixes in this window (the recent commit subjects alone name bugs 150-168 and several TODO-016/TODO-063/TODO-064 items), including at least two non-obvious classes that are already documented as failure modes elsewhere in the repo: 'CRON handler signature assumed by the queue' (report_tasks.py:311-322) and 'an audit table must not have rows deleted from it' (report_tasks.py:270-275). Neither has a solutions/ entry. Cost is concrete: the next person hits the ARQ cron ctx-vs-session trap again."
+  },
+  {
+   "#": 14,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/alembic/versions/p8_001_report_tables.py:111 — `        sa.UniqueConstraint(\"project_id\", \"name\", name=\"uq_report_definitions_project_name\"),`",
+    "pcs-backend/alembic/versions/p8_001_report_tables.py:57-58 — `        sa.UniqueConstraint(\"report_type\", \"project_id\", \"version\",` / `                           name=\"uq_report_styles_scope_version\"),`",
+    "pcs-backend/alembic/versions/p8_001_report_tables.py:95-96 — `        sa.Column(\"project_id\", sa.Uuid(),` / `                  sa.ForeignKey(\"projects.project_id\", ondelete=\"CASCADE\"), nullable=True),`",
+    "pcs-backend/app/services/report/definition_service.py:320-321 — `            ReportDefinition.project_id == project_id,` (application-level check-then-insert, no ON CONFLICT)",
+    "pcs-backend/app/services/report/style_service.py:122 — `        if await self._current(report_type, project_id) is not None:` (same TOCTOU shape)"
+   ],
+   "file": "pcs-backend/alembic/versions/p8_001_report_tables.py",
+   "first_evidence": "pcs-backend/alembic/versions/p8_001_report_tables.py:111 — `        sa.UniqueConstraint(\"project_id\", \"name\", name=\"uq_report_definitions_project_name\"),`",
+   "independent_reviewers": [
+    "data-migration"
+   ],
+   "line": 111,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "data-migration"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Make the DB enforce what the columns are actually claiming to enforce. The repo runs PostgreSQL 18 (CLAUDE.md), and `NULLS NOT DISTINCT` has been available since PG 15, so the minimal change is a dialect option on both constraints in p8_001 and their mirrors in `app/models/report.py`:\n\n```python\nsa.UniqueConstraint(\n    \"project_id\", \"name\", name=\"uq_report_definitions_project_name\",\n    postgresql_nulls_not_distinct=True,\n),\n```\n\nand the same on `uq_report_styles_scope_version` (ORM: `UniqueConstraint(..., postgresql_nulls_not_distinct=True)` inside each `__table_args__`). **Assumption I am naming rather than verifying:** `tests/conftest.py` builds the schema from ORM metadata against SQLite via `SA_Base.metadata.create_all`, and `postgresql_nulls_not_distinct` is a PostgreSQL dialect option — SQLAlchemy stores it as a dialect kwarg and skips it when compiling for another dialect, but this must be confirmed by running the suite, since SQLite's own unique-constraint semantics are unchanged either way (SQLite does treat NULLs as distinct, so the test DB will not enforce it — the guard under test belongs at the service layer regardless).\n\nIf you would rather not take the dialect option, the equivalent that works on both engines is two partial unique indexes plus a `COALESCE` sentinel column; that is a larger change and I would not recommend it before the NULLS NOT DISTINCT route is tried. Verification SQL after the change:\n\n```sql\n-- both should now raise unique_violation for a company-level (project_id IS NULL) duplicate\nINSERT INTO report_definitions (def_id, project_id, name, category, description,\n    definition_json, output_format, max_rows, version, status, shared_with)\nVALUES (gen_random_uuid(), NULL, 'dup-probe', 'MANAGEMENT', '', '{}'::jsonb, 'pdf', 10, '0.1.0', 'DRAFT', 'ALL_USERS');\n```",
+   "title": "Nullable project_id defeats uq_report_definitions_project_name in Postgres",
+   "why_it_matters": "Verified in source: `report_definitions.project_id` is declared nullable and the table carries `sa.UniqueConstraint(\"project_id\", \"name\", name=\"uq_report_definitions_project_name\")` (pcs-backend/alembic/versions/p8_001_report_tables.py:111). Postgres treats NULLs as distinct in a unique index by default, so two company-level definitions (project_id IS NULL) with the same name both insert, even though builder_service.py:177-180 treats 'no project_id' as the company-level template scope. The reviewer's 'both constraints' is narrowed to this one: `uq_report_files_content_hash` (:86) is on a NOT NULL column and is unaffected. Fix needs `NULLS NOT DISTINCT` (PG 15+) or a partial unique index."
+  },
+  {
+   "#": 15,
+   "autofix_class": "manual",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/alembic/versions/p8_001_report_tables.py:39 — `        op.drop_table(t, if_exists=True)`",
+    "pcs-backend/alembic/versions/p8_001_report_tables.py:138-139 — downgrade: `    for t in _DROP_ORDER:` / `        op.drop_table(t, if_exists=True)`",
+    "pcs-backend/alembic/versions/dd47298c9c38_v3_1_full_schema_53_tables_adr_0023.py:474 — `    op.create_table('report_definitions',` (legacy table that p8_001 drops)",
+    "pcs-backend/alembic/versions/dd47298c9c38_v3_1_full_schema_53_tables_adr_0023.py:1117 — `    op.create_table('report_execution_logs',`",
+    "pcs-backend/alembic/versions/p8_001_report_tables.py:3-7 — \"但那两张表**从未被使用**（无 service / API / 前端引用，0 行）\" — the 0-row premise is asserted in prose, not verified in code"
+   ],
+   "file": "pcs-backend/alembic/versions/p8_001_report_tables.py",
+   "first_evidence": "pcs-backend/alembic/versions/p8_001_report_tables.py:39 — `        op.drop_table(t, if_exists=True)`",
+   "independent_reviewers": [
+    "data-migration"
+   ],
+   "line": 136,
+   "owner": "human",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "data-migration"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Two-part, both small. (1) Make the premise executable rather than asserted — before the drop loop, refuse to proceed on a non-empty legacy table, e.g. add a guard that raises with the offending row counts so a deploy against a populated database fails loudly instead of silently:\n\n```python\ndef upgrade() -> None:\n    for t in _DROP_ORDER:\n        conn = op.get_bind()\n        n = conn.execute(sa.text(f\"SELECT count(*) FROM {t}\")).scalar() if _exists(conn, t) else 0\n        if n:\n            raise RuntimeError(f\"p8_001 拒绝 drop 非空表 {t}（{n} 行）—— 先导出再重跑\")\n    for t in _DROP_ORDER:\n        op.drop_table(t, if_exists=True)\n```\n\n(2) Before running the upgrade against any non-fresh database, capture the legacy rows so the drop is recoverable:\n\n```sql\n-- read-only, run BEFORE `alembic upgrade p8_001`\nSELECT count(*) AS report_definitions_rows FROM report_definitions;\nSELECT count(*) AS report_execution_logs_rows FROM report_execution_logs;\n\\copy (SELECT * FROM report_definitions) TO '/tmp/p8_pre_report_definitions.csv' CSV HEADER\n\\copy (SELECT * FROM report_execution_logs) TO '/tmp/p8_pre_report_execution_logs.csv' CSV HEADER\n```\n\nNote that `pcs_test` is a known-stale second database (CLAUDE.md records it lagging revisions); if this migration is ever pointed at it, the same guard is what will catch the drift.",
+   "title": "p8_001 downgrade() drops all four P8 tables, destroying the audit history (the legacy drop itself is a settled decision)",
+   "why_it_matters": "Corrected on merge. Two claims arrived merged here; only one survives. (a) 'p8_001 drops the legacy report tables' is the 2026-10-08 user ruling to remodel report_definitions / report_execution_logs in place rather than keep two competing 'report definition' concepts -- a settled decision, not a defect, and it is not reported as one. (b) What survives: `downgrade()` (:136-139) drops all four tables unconditionally, including `report_execution_logs`, which the codebase itself calls an audit table (report_tasks.py:270-275: 'do not delete rows, then who ran what and under which conditions can never be reconstructed'). A downgrade therefore destroys the audit trail with no guard and no backup step. Severity P2 -- downgrades are rarely run, but this one is irreversible and touches the compliance record."
+  },
+  {
+   "#": 16,
+   "autofix_class": "manual",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/alembic/versions/p8_007_execution_log_status.py:30 — 'def upgrade() -> None:' (revision p8_007, applied to the dev DB only)",
+    "Measured: DATABASE_URL=<pcs_test DSN, credentials redacted> uv run alembic current → 'p8_005'; uv run alembic heads → 'p8_007 (p3.2-sim) (head)'",
+    "CLAUDE.md:23 — '改迁移后若要验证「迁移在另一个库上也成立」，显式指定它：DATABASE_URL=...@localhost:5432/pcs_test uv run alembic upgrade head。第二个库停在旧 revision 是产生困惑漂移结果的常见来源。'",
+    "CLAUDE.md:21-23 records the same trap firing before: pcs_test '曾长期停在 p7_s4_001（落后 3 个 revision）' and was hand-aligned with upgrade head",
+    "Provenance: p8_006 landed in 5d6f65e and p8_007 in c59a606, both within cfc0f2e..HEAD; no commit in that range runs upgrade head against pcs_test"
+   ],
+   "file": "pcs-backend/alembic/versions/p8_007_execution_log_status.py",
+   "first_evidence": "pcs-backend/alembic/versions/p8_007_execution_log_status.py:30 — 'def upgrade() -> None:' (revision p8_007, applied to the dev DB only)",
+   "independent_reviewers": [
+    "project-standards"
+   ],
+   "line": 30,
+   "owner": "human",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "project-standards"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Run `DATABASE_URL=<pcs_test DSN> uv run alembic upgrade head` from pcs-backend to bring pcs_test to p8_007, then confirm it reports 'p8_007 (head)' under `alembic current`. This is a database-state action with no repo change, so it must be run by a human or an explicitly authorized agent, not applied as an autofix.",
+   "title": "pcs_test is two P8 revisions behind the development database",
+   "why_it_matters": "Confirmed by the reviewer against the live databases: the development database `pcs` is at p8_007 while `pcs_test` is still at p8_005. CLAUDE.md names this exact situation as the standard source of drift confusion: the second database sitting at an old revision produces results that look like real bugs and are not. Since unit tests run on in-memory SQLite (tests/conftest.py builds tables from ORM metadata), `pcs_test` is only used when someone deliberately wants to verify a migration on a second database -- and then it lies to them. Fix: `DATABASE_URL=postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs_test uv run alembic upgrade head`."
+  },
+  {
+   "#": 17,
+   "autofix_class": "manual",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/api/v1/report.py:118: `        raise HTTPException(status_code=404, detail=\"Report file not found\")`",
+    "pcs-backend/app/api/v1/report.py:343: `        raise HTTPException(status_code=403, detail=\"无权读取该样式\")`",
+    "pcs-backend/app/api/v1/report.py:415-417: `    except StylePermissionError as e:` / `        raise HTTPException(status_code=e.status_code, detail=e.message) from e`",
+    "pcs-frontend/src/api/reportBuilder.ts:176-182: `export function errorMessage(err: unknown)` reads only `data.message` / `data.code`.",
+    "pcs-backend/app/api/v1/report.py:139-141: the same router raises `PcsError(message=..., code=\"REPORT_FORMAT_UNSUPPORTED\", status=400)` for the adjacent case."
+   ],
+   "file": "pcs-backend/app/api/v1/report.py",
+   "first_evidence": "pcs-backend/app/api/v1/report.py:118: `        raise HTTPException(status_code=404, detail=\"Report file not found\")`",
+   "independent_reviewers": [
+    "api-contract"
+   ],
+   "line": 118,
+   "owner": "human",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "api-contract"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Convert the HTTPException sites in report.py to PcsError with distinct codes (`REPORT_FILE_NOT_FOUND`, `REPORT_FILE_EVICTED`, `REPORT_STYLE_FORBIDDEN`, `REPORT_VERIFY_SIG_INVALID`) so the whole router speaks one envelope. A PcsError exception handler is presumably already registered app-wide (report_builder.py relies on it), so this is mechanical per site -- but it changes response bodies on already-merged endpoints, so it needs a deliberate release call rather than a silent patch.",
+   "title": "New report endpoints mix PcsError and HTTPException error envelopes",
+   "why_it_matters": "Within one new router, errors come back in two shapes: PcsError paths produce `{code, message}` while eleven HTTPException sites produce FastAPI's `{\"detail\": ...}`. The frontend's only error translator, `errorMessage()` in reportBuilder.ts, reads `data.message` then `data.code` and otherwise falls through to axios's default text. So a client hitting `GET /report/{id}/download` on a cleaned-up file, or `GET /report/styles/{id}` without permission, sees 'Request failed with status code 404' rather than '文件已被清理' or '无权读取该样式' -- the actionable text is on the server and never reaches the screen. Status codes are consistent (the codes are right); only the body shape differs, which is the harder half for a client to abstract over."
+  },
+  {
+   "#": 18,
+   "autofix_class": "manual",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/api/v1/report.py:833-842 — `if row.project_id is None: return 'SYSTEM_ADMIN' in actor_roles; return True`",
+    "pcs-backend/app/api/v1/report.py:806-813 — `list_styles` calls `_style_readable` for every row before returning",
+    "pcs-backend/app/services/report/style_service.py:5579-5604 — `_authorize` does check project access on WRITE; the asymmetry is by design"
+   ],
+   "file": "pcs-backend/app/api/v1/report.py",
+   "first_evidence": "pcs-backend/app/api/v1/report.py:833-842 — `if row.project_id is None: return 'SYSTEM_ADMIN' in actor_roles; return True`",
+   "independent_reviewers": [
+    "security"
+   ],
+   "line": 347,
+   "owner": "human",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "security"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Either (a) compute project_ids the actor can access once (SELECT project_id FROM user_projects WHERE user_id = …) and filter rows in SQL, then accept the one extra query in exchange for not leaking cross-tenant data; or (b) document explicitly that style config is non-sensitive across tenants and pin that decision with a test that asserts the leak. The current implementation silently crosses the boundary.",
+   "title": "Project-level report styles are readable by any authenticated user (documented tradeoff, needs a decision)",
+   "why_it_matters": "Verified in source, and the reviewer's severity is corrected. `_style_readable` (pcs-backend/app/api/v1/report.py:347-356) returns True for every row with a non-NULL `project_id` and gates only company-standard rows on SYSTEM_ADMIN. `list_styles` (:310-327) applies this filter in Python after loading all rows, and `get_style` (:330-344) applies it for a single id. So any logged-in user can read any project's style JSON. This is deliberate -- the docstring states the asymmetry with the write path is intentional, to avoid an N+1 `UserProject` lookup per row -- so it is a design call, not an oversight, and the severity is P2 rather than P1. What is exposed is style JSON (fonts, layout, detail level), not project business data. The decision to close it needs either a join or a cached project-access set."
+  },
+  {
+   "#": 19,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/api/v1/report_builder.py:94: `_RENDERABLE_FORMATS = frozenset(watermark.EXPORT_FORMATS)`",
+    "pcs-backend/app/schemas/report.py:28: `SUPPORTED_OUTPUT_FORMATS = (\"pdf\", \"xlsx\", \"docx\")`",
+    "pcs-backend/app/services/report/watermark.py:43: `EXPORT_FORMATS = (\"pdf\", \"xlsx\", \"docx\", \"csv\")`",
+    "pcs-backend/app/api/v1/report.py:138-141: `    if body.output_format not in SUPPORTED_OUTPUT_FORMATS:` -> 400 REPORT_FORMAT_UNSUPPORTED."
+   ],
+   "file": "pcs-backend/app/api/v1/report_builder.py",
+   "first_evidence": "pcs-backend/app/api/v1/report_builder.py:94: `_RENDERABLE_FORMATS = frozenset(watermark.EXPORT_FORMATS)`",
+   "independent_reviewers": [
+    "api-contract"
+   ],
+   "line": 94,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "api-contract"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Make `SUPPORTED_OUTPUT_FORMATS` derive from `watermark.EXPORT_FORMATS` (as `report_service.SUPPORTED_FORMATS` already does at report_service.py:63-67), and/or declare both as `Literal[...]` on the request schemas so the enum is visible in the OpenAPI contract instead of being a runtime 400. Note `_MEDIA` in report.py:420-422 also lacks a `csv` entry, so a csv file downloads as application/octet-stream -- include that in the same fix.",
+   "title": "Two output-format whitelists disagree: /report/generate rejects csv, /report-builder/execute accepts it",
+   "why_it_matters": "Verified in source. `app/schemas/report.py:28` defines `SUPPORTED_OUTPUT_FORMATS = (\"pdf\", \"xlsx\", \"docx\")` and `POST /report/generate` rejects anything else (pcs-backend/app/api/v1/report.py:139-141), while `_reject_bad_format` (pcs-backend/app/api/v1/report_builder.py:97-107) validates against `watermark.EXPORT_FORMATS = (\"pdf\", \"xlsx\", \"docx\", \"csv\")` (watermark.py:43). Both endpoints can render csv (`report_service._render_sync` dispatches to `watermark.render_csv`), so the rejection on the generate path is the outlier, not a missing renderer. A user who built a csv definition through the builder cannot produce the same report through the fixed-types endpoint. The severity is P2 rather than P1: each endpoint is internally consistent and nothing errors at runtime."
+  },
+  {
+   "#": 20,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/services/report/report_service.py:173 — `        stmt = stmt.where(_join_column(source, join_field).in_(chunk))` rebinds the loop-invariant statement; line 174 then executes the accumulated statement.",
+    "pcs-backend/app/services/report/report_service.py:171 — `    for i in range(0, len(keys), _BATCH_SIZE):` with `_BATCH_SIZE = 10000` at :69 and `paginate(stmt, limit=_MAX_ROWS)` where `_MAX_ROWS = 10000` at :96 — so `len(keys) <= 10000` and the loop body runs exactly once today.",
+    "pcs-backend/app/services/report/builder_service.py:135 — `        result = await db.execute(stmt.where(where))` — the correct sibling form, with `where` built as a local at :132-134 and `stmt` left untouched since :127.",
+    "Measured chunk counts for the current constants: `range(0, 10000, 10000)` yields 1 chunk; raising the row cap to 100000 yields 10 chunks, each executed against a statement carrying all prior chunks' `IN` predicates."
+   ],
+   "file": "pcs-backend/app/services/report/report_service.py",
+   "first_evidence": "pcs-backend/app/services/report/report_service.py:173 — `        stmt = stmt.where(_join_column(source, join_field).in_(chunk))` rebinds the loop-invariant statement; line 174 then executes the accumulated statement.",
+   "independent_reviewers": [
+    "performance"
+   ],
+   "line": 173,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "performance"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Do not rebind `stmt` inside the loop — pass the per-chunk predicate to `execute` directly, mirroring the working sibling at `builder_service.py:135`. Change line 173 from `stmt = stmt.where(_join_column(source, join_field).in_(chunk))` to `where = _join_column(source, join_field).in_(chunk)`, and line 174 from `result = await db.execute(stmt)` to `result = await db.execute(stmt.where(where))`. Verify by adding a unit test that calls `_fetch_join_rows` with more keys than `_BATCH_SIZE` (monkeypatch `_BATCH_SIZE` down to a small value rather than seeding tens of thousands of rows) and asserts the union of returned rows covers every key across all chunks; that test fails against the current code and passes after the change. As a follow-up, consider deleting `_BATCH_SIZE` from `report_service.py` or making both modules share one helper — as written the duplication is exactly what let the two implementations drift.",
+   "title": "Chunked IN loop reuses the mutated statement, ANDing every chunk into one query",
+   "why_it_matters": "Verified in source: `_fetch_join_rows` (pcs-backend/app/services/report/report_service.py:171-176) does `stmt = stmt.where(...)` inside the chunk loop, reassigning the accumulator. After chunk 1 the statement already carries `key IN (chunk1)`; chunk 2 ANDs `key IN (chunk2)` onto it. For more than one chunk the query returns the intersection of all chunks, which is empty, so a join across more than `_BATCH_SIZE` keys silently returns no join rows instead of erroring. Should build a fresh statement per chunk."
+  },
+  {
+   "#": 21,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/services/report/report_service.py:5143-5154 — bare `except Exception` swallowing audit failure",
+    "pcs-backend/app/services/report/report_service.py:5122-5124 — file already on disk before audit write is attempted"
+   ],
+   "file": "pcs-backend/app/services/report/report_service.py",
+   "first_evidence": "pcs-backend/app/services/report/report_service.py:5143-5154 — bare `except Exception` swallowing audit failure",
+   "independent_reviewers": [
+    "security"
+   ],
+   "line": 419,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "security"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Mirror the file-write failure pattern: if audit fails, mark the just-written file as quarantined (move it aside) and surface the failure to the caller as a 5xx, so the caller retries against a healthy audit channel. The current design's stated rationale (avoid orphan files) is preserved by quarantining rather than rolling back; an attacker cannot get a usable file URL without an audit row. Pair with a startup-time canary write to the audit channel so the 'silent audit failure' scenario is caught early.",
+   "title": "REPORT_GENERATED audit-write failure is swallowed, so a generated file can exist with no audit record",
+   "why_it_matters": "Verified in source: `store_rendered` writes the file, upserts the `ReportFile` row, then wraps the `REPORT_GENERATED` audit write in `try/except Exception` that only logs a warning (:411-421). The inline comment justifies not rolling back ('file is on disk, rolling back only leaves an unrecorded orphan file'), which is right about the rollback but leaves the other half unhandled: when the audit insert fails, the report exists in `report_files` with no `REPORT_GENERATED` audit row, and the caller gets a normal success. For a system whose audit trail is the compliance artifact, that gap should at least be queued for retry or escalated beyond a log warning."
+  },
+  {
+   "#": 22,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/services/report/report_service.py:124 — `_write_file(...)` writes `tmp = abs_path.with_suffix(abs_path.suffix + \".part\")` then `tmp.replace(abs_path)`.",
+    "pcs-backend/app/services/report/report_service.py:392 — no exclusive temp file handling, two writers can race to the same `.part` path.",
+    "Trigger: ARQ parallel-worker concurrency on `max_jobs=4`; user submits two identical requests that resolve to the same content_hash; both workers serialize to `tmp.write_bytes` + `tmp.replace` on the same pair of paths.",
+    "pcs-backend/app/services/report/report_service.py:442-447 — `    except IntegrityError:` / `        # 并发下另一个请求刚插了同一 content_hash —— 回滚自己的插入，复用它的` / `        await db.rollback()` / `        return (await db.execute(` — the comment claims a statement-scoped undo; `Session.rollback()` is transaction-scoped.",
+    "pcs-backend/app/services/report/report_service.py:443 — `        # 并发下另一个请求刚插了同一 content_hash —— 回滚自己的插入，复用它的` — the intent is explicitly narrower than what the code does.",
+    "pcs-backend/app/services/report/report_service.py:277 — `    await db.flush()` (end of `builder_service.execute_definition`, which wrote the reproducible `condition_snapshot` into the same transaction) — collateral damage from the rollback at line 444.",
+    "Same shape at pcs-backend/app/services/report/report_service.py:325 — `        await db.rollback()` inside `ensure_pending_row`'s IntegrityError handler.",
+    "pcs-backend/app/workers/report_builder_tasks.py:96 — `            await db.commit()` — the task commits whatever survived, with no check that the log-row updates it expected are still present.",
+    "pcs-backend/app/services/report/report_service.py:271-273 — `    tmp = abs_path.with_suffix(abs_path.suffix + \".part\")` / `    tmp.write_bytes(payload)` / `    tmp.replace(abs_path)` — the temp name is a pure function of the destination, so two writers of the same digest collide on it.",
+    "pcs-backend/app/services/report/report_service.py:390 — `    relpath = paths.new_file_path(digest, _EXT[output_format])` — and paths.py:58 `    return f\"{content_hash[:16]}.{ext}\"`, i.e. the destination is content-addressed, which is precisely the condition for two jobs to pick the same path.",
+    "pcs-backend/app/services/report/report_service.py:371 — `        payload = await asyncio.to_thread(` — the write runs in a worker thread, so the interleaving is real rather than hypothetical.",
+    "pcs-backend/app/services/report/report_service.py:393-404 — `    except OSError as e:` … `            code=\"REPORT_STORAGE_FAILED\", status=500,` — a lost rename race is reported as a storage failure and drives the task to FAILED."
+   ],
+   "file": "pcs-backend/app/services/report/report_service.py",
+   "first_evidence": "pcs-backend/app/services/report/report_service.py:124 — `_write_file(...)` writes `tmp = abs_path.with_suffix(abs_path.suffix + \".part\")` then `tmp.replace(abs_path)`.",
+   "independent_reviewers": [
+    "reliability-adversarial"
+   ],
+   "line": 444,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "reliability-adversarial"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Wrap `_write_file` in `asyncio.to_thread(os.rename, src, dst, ...)` with an O_EXCL exclusive open of `tmp` (open with `os.O_CREAT | os.O_EXCL | os.O_WRONLY`) so the second writer fails fast and the dedup layer can decide whether to delete the second's tmp or simply reuse the existing file path. Together with compositing `digest -> relpath` uniquely, this eliminates the filesystem race entirely.",
+   "title": "Concurrent identical exports collide at finalize; IntegrityError recovery rolls back the whole transaction",
+   "why_it_matters": "Verified in source, three coupled facts on the same path. (1) The file path is content-addressed (pcs-backend/app/services/report/report_service.py:388-392: `relpath = paths.new_file_path(digest, ...)`, `_write_file` to `paths.resolve_path(relpath)`), so two workers rendering identical content target the same path and the same temp file. (2) `_upsert_report_file` (:425-448) recovers a concurrent `IntegrityError` by calling `await db.rollback()` (:444) -- a rollback of the caller's whole transaction, not just this insert, so everything else the session had pending is discarded. (3) The recovery `select` then runs on a session whose transaction has been rolled back, and the disk file may already have been written. Net effect under concurrency: an orphan file on disk, a partially lost transaction, and an IntegrityError that can still surface. Severity is P2 rather than higher because it needs two simultaneous identical exports."
+  },
+  {
+   "#": 23,
+   "autofix_class": "manual",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/services/report/style_service.py:5512-5535 — `revise()` reads `current = await self._current(...)`, then `self.db.add(nxt)` (status=ACTIVE) and `if current is not None: current.status = 'SUPERSEDED'` without locking.",
+    "pcs-backend/app/services/report/style_service.py:5488-5510 — `create()` does enforce \"one ACTIVE per scope\" via `_current()` but `revise` and `activate` use the same TOCTOU pattern and can be raced.",
+    "pcs-backend/app/services/report/style_service.py:5568-5577 — `_current()` reads ACTIVE rows via plain SELECT; no SELECT ... FOR UPDATE, no unique partial index on (report_type, project_id) WHERE status='ACTIVE'.",
+    "pcs-backend/app/services/report/style_service.py:5537-5557 — `activate()` reuses the same pattern: read _current, mark superseded, set row.status = ACTIVE, no concurrency guard."
+   ],
+   "file": "pcs-backend/app/services/report/style_service.py",
+   "first_evidence": "pcs-backend/app/services/report/style_service.py:5512-5535 — `revise()` reads `current = await self._current(...)`, then `self.db.add(nxt)` (status=ACTIVE) and `if current is not None: current.status = 'SUPERSEDED'` without locking.",
+   "independent_reviewers": [
+    "correctness"
+   ],
+   "line": 151,
+   "owner": "human",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "correctness"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Either add a partial unique index `CREATE UNIQUE INDEX uq_report_styles_scope_active ON report_styles (report_type, COALESCE(project_id, '00000000-0000-0000-0000-000000000000')) WHERE status = 'ACTIVE'` and handle IntegrityError on insert/update, or wrap revise/activate in `SELECT ... FOR UPDATE` (use `with_for_update=True` on the `_current()` query). The partial unique index is the cleanest because it covers both `revise` and `activate` and doesn't require holding a row lock across the audit write.",
+   "title": "revise/activate check for an existing ACTIVE row in application code only, so concurrent calls can leave two ACTIVE rows",
+   "why_it_matters": "Verified in source: `create` (:114-134), `revise` (:136-158) and `activate` (:161-180) each read the current ACTIVE row with a plain `select` and then raise PcsError if one exists (:124, and the equivalent checks at :195-199). There is no database-level partial unique index enforcing 'at most one ACTIVE per scope' -- the only unique constraint is the scope+version one. Two concurrent requests for the same (report_type, project_id) both pass the check and both insert. The invariant the docstrings state as absolute is therefore only enforced when callers do not overlap."
+  },
+  {
+   "#": 24,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-frontend/src/mocks/reportBuilder.ts:70-74: `  joins: [ { left: 'HEAT_RESULTS', right: 'EQUIP_LIST', left_key: 'tag_number', right_key: 'tag_number' }, ],`",
+    "pcs-backend/app/schemas/report_builder.py:40-45: `class ReportBuilderJoin(BaseModel): a: str; a_field: str; b: str; b_field: str; degrade_warn: str | None = None`",
+    "pcs-frontend/src/pages/report/definitionBody.ts:140: `  return joins.filter((j) => chosen.has(j.a) && chosen.has(j.b));`",
+    "pcs-frontend/src/mocks/reportBuilder.ts:232-234: `? HttpResponse.json({ report_file_id: FILE_ID, file_format: 'pdf', status: 'SUCCEEDED', size_bytes: 12345, content_hash: 'a'.repeat(64), has_assumption_page: false, created_at: '2026-10-13T00:00:00Z' })`",
+    "pcs-backend/app/schemas/report.py:53-59: `class ReportFileStatusResponse(BaseModel)` declares only report_file_id/status/file_format/size_bytes/error_message/heartbeat_at."
+   ],
+   "file": "pcs-frontend/src/mocks/reportBuilder.ts",
+   "first_evidence": "pcs-frontend/src/mocks/reportBuilder.ts:70-74: `  joins: [ { left: 'HEAT_RESULTS', right: 'EQUIP_LIST', left_key: 'tag_number', right_key: 'tag_number' }, ],`",
+   "independent_reviewers": [
+    "api-contract"
+   ],
+   "line": 70,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "api-contract"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Regenerate the fixture literals from the OpenAPI types: type `DATASOURCES` as `ReportBuilderDatasourceList` and type each definition/style/execution fixture as the generated `ReportDefinitionOut` / `ReportStyleSummary` / `ReportExecutionStatus`. TypeScript will then reject the `{left, right, ...}` join shape and the extra file-status fields at compile time, which is the durable fix -- a comment noting the mocks are hand-maintained will not survive the next contract change.",
+   "title": "MSW mocks predate the contract: joins, model and file status fields are missing",
+   "why_it_matters": "Three fixture shapes disagree with the committed contract. (1) `joins` uses `{left, right, left_key, right_key}` while `ReportBuilderJoin` is `{a, a_field, b, b_field, degrade_warn}`; `availableJoins` filters on `j.a`/`j.b`, which are undefined on the fixture, so the JOIN picker is permanently empty in dev and `JoinPicker.tsx:65` would render `(undefined = undefined)`. (2) Each datasource omits `model`, a required field of `ReportBuilderDatasource`. (3) The `/report/{id}/status` handler returns `content_hash`, `has_assumption_page` and `created_at`, none of which exist on `ReportFileStatusResponse` in the committed snapshot, and returns `status: 'SUCCEEDED'` with no consumer branch. Because dev login goes through MSW, these are the payloads the whole report UI is developed and QA'd against, so mock-contract drift hides real breakage and validates a contract that no longer exists."
+  },
+  {
+   "#": 25,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-frontend/src/pages/report/definitionBody.ts:263 — \"    if (!node || typeof node !== 'object') return [];\"",
+    "pcs-frontend/src/pages/report/definitionBody.ts:272 — \"    if (typeof n.field !== 'string' || typeof n.operator !== 'string') return [];\" (a group whose `conditions` key is missing also lands here and is dropped)",
+    "pcs-frontend/src/pages/report/definitionBody.ts:256-258 — \"   * 往返无损是硬要求（TODO-060）—— 第一批的单条 `filter` 模型读不了组，\\n   * 保存时把整棵子树丢掉，用户改个别字就把别人的筛选规则抹了。\"",
+    "pcs-frontend/src/pages/report/FilterTreeEditor.tsx:21-24 — \" * ⚠️ **空值不静默放过**：后端对「缺 value」抛\\n * `REPORT_FILTER_VALUE_MISSING` 而不是返回全表\" (the same no-silent-loss doctrine the drop violates)"
+   ],
+   "file": "pcs-frontend/src/pages/report/definitionBody.ts",
+   "first_evidence": "pcs-frontend/src/pages/report/definitionBody.ts:263 — \"    if (!node || typeof node !== 'object') return [];\"",
+   "independent_reviewers": [
+    "julik-frontend-races"
+   ],
+   "line": 263,
+   "owner": "human",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "julik-frontend-races"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Make the drop visible rather than silent: have `toFilterTree` surface unparseable nodes (e.g. return them as `{kind:'leaf', ...}` passthroughs, or export a companion `unparsedFilterNodes(raw)` the editor page renders as a warning Alert such as 「本定义含 N 条本页无法识别的条件，保存时会丢弃 —— 请先升级前端」) and block/confirm the save when that list is non-empty. Whether the backend can actually emit such a node (e.g. a future operator or a group without `conditions`) should be confirmed against the current `ReportDefCondition` schema before choosing between 'warn' and 'fix'.",
+   "title": "toFilterTree silently drops filter nodes it cannot parse",
+   "why_it_matters": "`toFilterTree` returns `[]` for any node that is not an object, has no `conditions` array, or whose `field`/`operator` are not strings — and `buildBody` then persists whatever survived. That is exactly the TODO-060 failure shape the module declares a hard requirement against (「往返无损是硬要求」, line 256): open a definition containing one condition whose shape the frontend does not recognise, touch an unrelated field, save, and that condition is gone with no warning. The neighbouring code is explicit that silently normalising is unacceptable — FilterTreeEditor deliberately ships empty values through so the backend raises `REPORT_FILTER_VALUE_MISSING` rather than quietly exporting everything. Dropping whole nodes is the same class of silence, one level up. Round-trip tests cover nested groups and empty lists but never a node the parser cannot classify."
+  },
+  {
+   "#": 26,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-frontend/src/pages/report/FilterTreeEditor.tsx:100 — \"        <Space key={i} wrap align=\\\"start\\\">\"",
+    "pcs-frontend/src/pages/report/FilterTreeEditor.tsx:110-111 — \"            <Button size=\\\"small\\\" onClick={() => move(i, -1)}>↑</Button>\\n            <Button size=\\\"small\\\" onClick={() => move(i, 1)}>↓</Button>\" (reorder buttons directly above the index-keyed rows)",
+    "pcs-frontend/src/pages/report/FilterTreeEditor.tsx:154-155 — \"            {node.conditions.map((c, i) => (\\n              <Space key={i} wrap align=\\\"start\\\">\" (nested conditions use index keys too)",
+    "pcs-frontend/src/pages/report/definitionBody.ts:36-43 — \" * ⚠️ `key` 是**客户端行标识**，不进请求体。\\n * 用它而不是数组下标当 `rowKey`：… 下标在**上下移动行**时会跟着变 —— React 会认为那一行被替换\" (the same file documents this exact defect class for the field table)",
+    "pcs-frontend/src/pages/report/FilterTreeEditor.tsx:269-271 — \"    <Select mode=\\\"tags\\\" style={{ minWidth: 220 }} value={values.map(String)}\" (the only uncontrolled internal state in the row)"
+   ],
+   "file": "pcs-frontend/src/pages/report/FilterTreeEditor.tsx",
+   "first_evidence": "pcs-frontend/src/pages/report/FilterTreeEditor.tsx:100 — \"        <Space key={i} wrap align=\\\"start\\\">\"",
+   "independent_reviewers": [
+    "julik-frontend-races"
+   ],
+   "line": 100,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "julik-frontend-races"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Give every FilterNode a stable client id, mirroring FieldRow: add `id: string` to `FilterLeaf`/`FilterGroup`, mint it in `addLeaf`/`addGroup` (and in `toFilterTree` via a counter), and key on `node.id` at lines 100 and 155. Reuse the same counter-based approach as `toRows`. A module-level incrementing counter is enough — no dependency needed.",
+   "title": "FilterTreeEditor keys rows by array index next to move buttons",
+   "why_it_matters": "Rows and nested conditions are rendered with `key={i}`, and this editor has ↑/↓ move buttons — the precise combination `definitionBody.ts` documents (lines 36-43) as having already caused a real bug in the sibling field table, which is why `FieldRow` carries a stable `key` and `toRows` mints `row-${i}-${source}.${field}`. Everything here is controlled, so the visible values stay correct; what is left uncontrolled is antd `Select mode=\"tags\"` internal search text and open state. Type 「ABC」 into row 0's tag input without pressing Enter, press ↑, and the component instance now rendering row 1 still holds the 「ABC」 search string. The same index keying applies to nested `conditions.map((c, i) => ...)`."
+  },
+  {
+   "#": 27,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-frontend/src/pages/report/ReportDefinitionListPage.tsx:70-71: `      const data = await reportBuilderApi.list(` / `        statusFilter ? { status: statusFilter } : undefined);`",
+    "pcs-frontend/src/api/reportBuilder.ts:75-77: `  list: (params?: { report_type?: string; status?: string }) =>` -- the param surface the backend does not accept.",
+    "pcs-backend/app/api/v1/report_builder.py:137: `async def list_definitions(actor: ActorDep, db: DbDep) -> ReportDefinitionList:` -- no `Query` parameters at all."
+   ],
+   "file": "pcs-frontend/src/pages/report/ReportDefinitionListPage.tsx",
+   "first_evidence": "pcs-frontend/src/pages/report/ReportDefinitionListPage.tsx:70-71: `      const data = await reportBuilderApi.list(` / `        statusFilter ? { status: statusFilter } : undefined);`",
+   "independent_reviewers": [
+    "api-contract"
+   ],
+   "line": 70,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "api-contract"
+   ],
+   "severity": "P2",
+   "suggested_fix": "Cheapest correct fix that matches the page's stated convention: drop `params` from `reportBuilderApi.list` and filter `data.items` by `r.status === statusFilter` in the existing `visible` useMemo, exactly as `keyword` is handled. The alternative (adding `status`/`report_type` Query params plus pagination to the endpoint) is a larger contract change and needs `total` to be re-specified.",
+   "title": "Definition list ignores the status filter parameter the frontend sends",
+   "why_it_matters": "`reportBuilderApi.list` accepts `{report_type?, status?}` and the page passes the selected status as a query param, but the backend `list_definitions` declares no query parameters. FastAPI silently ignores unknown query params, so the request succeeds (200) and returns every visible definition. A user who picks '已发布' in the status dropdown sees the table re-render through a loading state and still get DRAFT and OBSOLETE rows -- the filter looks broken with no error anywhere. The keyword box right next to it is documented as client-side filtering, so the page already establishes the 'some filters are local' convention; the status dropdown silently violates it. Either add the query params to the backend or filter client-side like the keyword is."
+  },
+  {
+   "#": 28,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/api/v1/report_builder.py:268: `    status: str            # QUEUED / RUNNING / FINISHED`",
+    "pcs-backend/app/workers/report_builder_tasks.py:113: `                task_row.status = \"FAILED\"`",
+    "pcs-backend/app/workers/report_tasks.py:294: `        row.status = \"FAILED\"`"
+   ],
+   "file": "pcs-backend/app/api/v1/report_builder.py",
+   "first_evidence": "pcs-backend/app/api/v1/report_builder.py:268: `    status: str            # QUEUED / RUNNING / FINISHED`",
+   "independent_reviewers": [
+    "api-contract"
+   ],
+   "line": 268,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "api-contract"
+   ],
+   "severity": "P3",
+   "suggested_fix": "Change to `status: Literal[\"QUEUED\", \"RUNNING\", \"FINISHED\", \"FAILED\"]` and update the comment. Note FINISHED is only ever synthesized by the endpoint (it is never written to the column), so also confirm with the worker whether the terminal success literal should be persisted rather than inferred from `report_file_id`.",
+   "title": "ReportExecutionStatus.status is typed as str and its docstring omits FAILED",
+   "why_it_matters": "The published status vocabulary is documented on the field as `QUEUED / RUNNING / FINISHED`, but FAILED is reachable and is the whole reason the column exists (TODO-064). Because the type is bare `str`, the OpenAPI schema carries no enum, so a generated client cannot enumerate the states and cannot tell a new terminal state from an unknown value. A client written against the documented three states will treat FAILED as 'still running' -- which is exactly the bug in the polling-loop finding, one layer up. Declaring it as a `Literal[\"QUEUED\", \"RUNNING\", \"FINISHED\", \"FAILED\"]` puts the vocabulary into the contract where generated clients and MSW fixtures can both read it."
+  },
+  {
+   "#": 29,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-backend/app/core/config.py:169-176 — only `if not s.report_verify_secret:` is checked",
+    "pcs-backend/app/core/config.py:176 — dev path uses 48 bytes, but production-supplied secrets are not length-checked"
+   ],
+   "file": "pcs-backend/app/core/config.py",
+   "first_evidence": "pcs-backend/app/core/config.py:169-176 — only `if not s.report_verify_secret:` is checked",
+   "independent_reviewers": [
+    "security"
+   ],
+   "line": 169,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "security"
+   ],
+   "severity": "P3",
+   "suggested_fix": "Add `if len(s.report_verify_secret.encode()) < 32: raise RuntimeError(...)` before the dev auto-fill. 32 bytes is the conventional HMAC-SHA256 floor (matches NIST SP 800-107).",
+   "title": "report_verify_secret length is not enforced at config load",
+   "why_it_matters": "Startup validation (lines 169-176) only checks the secret is truthy. There is no minimum-length check. An operator who sets `REPORT_VERIFY_SECRET=x` will boot successfully, and the HMAC becomes brute-forceable. The dev auto-fill uses `secrets.token_urlsafe(48)` (≈384 bits), but a 1-byte secret passes the same check. The endpoint is fail-closed against missing config, but it is fail-OPEN against a weak one — the signature is just as valid as with a strong one."
+  },
+  {
+   "#": 30,
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-frontend/src/pages/report/definitionBody.ts:275: `      source: typeof n.source === 'string' ? n.source : 'EQUIP_LIST',`",
+    "pcs-frontend/src/pages/report/definitionBody.ts:312: `    source: typeof n.source === 'string' ? n.source : 'EQUIP_LIST',`",
+    "pcs-frontend/src/pages/report/definitionBody.ts:285: `/** 可编辑条件树 → 定义体。**与 `toFilterTree` 严格互逆。**` -- the invariant this fallback violates."
+   ],
+   "file": "pcs-frontend/src/pages/report/definitionBody.ts",
+   "first_evidence": "pcs-frontend/src/pages/report/definitionBody.ts:275: `      source: typeof n.source === 'string' ? n.source : 'EQUIP_LIST',`",
+   "independent_reviewers": [
+    "api-contract"
+   ],
+   "line": 275,
+   "owner": "downstream-resolver",
+   "pre_existing": false,
+   "requires_verification": false,
+   "reviewers": [
+    "api-contract"
+   ],
+   "severity": "P3",
+   "suggested_fix": "Drop the fabricated default: either drop the node (`return []`, matching how `toFilterTree` already discards non-object nodes at line 263 and leaves without `field`/`operator` at line 272), or surface it as an explicit invalid node the editor renders as an error. Dropping matches the surrounding defensive style and keeps the round-trip honest.",
+   "title": "toFilterTree silently rewrites a condition's missing source",
+   "why_it_matters": "When a condition node arrives without a `source` (an older stored definition, a hand-edited payload, or a partially migrated record), the loader substitutes the literal datasource `'EQUIP_LIST'` rather than refusing or flagging it. The page then shows that condition as belonging to the equipment list, and saving writes `'EQUIP_LIST'` back into the definition body -- a silent semantic rewrite of stored query criteria, with the user having no idea the filter now targets a different table. `asSingleFilter` has the same fallback at line 312. Given the module's stated goal of lossless round-tripping ('与 `toFilterTree` 严格互逆'), a fabricated source breaks the invariant in the one direction that changes what the report means."
+  }
+ ],
+ "pre_existing_findings": [
+  {
+   "autofix_class": "gated_auto",
+   "confidence": 75,
+   "evidence": [
+    "pcs-frontend/scripts/check-api-drift.sh:60-61: `# (c) schema 字段变化: 同一 schema 中 required 差异` / `schema_field_changes=()` -- only `required` is compared.",
+    "pcs-frontend/scripts/check-api-drift.sh:9: header comment claims `# 检测: path added/removed, schema added/removed, field type changed,` / `#   field removed (BREAKING), enum value removed (BREAKING)` -- three documented detections with no implementation.",
+    "pcs-frontend/scripts/check-api-drift.sh:87-91: the added_schemas branch only echoes; `drift_count` is bumped at lines 78, 84, 95 and 102 only."
+   ],
+   "file": "pcs-frontend/scripts/check-api-drift.sh",
+   "first_evidence": "pcs-frontend/scripts/check-api-drift.sh:60-61: `# (c) schema 字段变化: 同一 schema 中 required 差异` / `schema_field_changes=()` -- only `required` is compared.",
+   "independent_reviewers": [
+    "api-contract"
+   ],
+   "line": 64,
+   "owner": "downstream-resolver",
+   "pre_existing": true,
+   "requires_verification": true,
+   "reviewers": [
+    "api-contract"
+   ],
+   "severity": "P2",
+   "suggested_fix": "In the per-schema loop, also diff the property maps, not just `required`: emit a BREAKING entry when a key exists in `$SNAPSHOT` but not in `$BACKEND_OPENAPI`, when a property's `type` differs, or when an enum member disappears -- and add each to `drift_count`. jq can do this with a keys-diff plus a per-key type comparison. Separately, add an `npm run api:gen && git diff --exit-code src/types/api.d.ts` step to the workflow so the generated types are proven to match the snapshot they claim to come from.",
+   "title": "API drift gate ignores property type changes and removed properties",
+   "why_it_matters": "The gate's header claims it detects 'field type changed', 'field removed (BREAKING)' and 'enum value removed (BREAKING)', but the implementation only compares three things: added paths, removed paths, removed schema names, and the `required` array of each schema. A property that is deleted from an existing schema, has its type narrowed or widened, or loses an enum value passes the gate and CI goes green while `src/types/api.d.ts` still declares the old shape -- the frontend then compiles clean and reads `undefined` at runtime. This is the P8 surface where such drift already happened: `ReportFileStatusResponse` no longer carries `content_hash`/`has_assumption_page`/`created_at` (they are still in the MSW fixture, see the mocks finding) and the gate never flagged it. Added schemas are also echoed but not counted, unlike added paths. Pre-existing (the script is outside this diff), but this diff adds and reshapes a large P8 API surface, so the gate is now the only automated check between the regenerated OpenAPI contract and the frontend types. It cannot catch a property whose type changed or one that was removed, which is exactly the class of drift a P8-sized contract change produces."
+  }
+ ],
+ "soft_bucket": {
+  "residual_risks": [
+   {
+    "source": "correctness/definition_service.py:3271",
+    "note": "`validate_definition` does not validate FilterConditions/SortBy field names, so an invalid definition is saved and only fails at execution.",
+    "why_it_matters": "`validate_definition_json` validates `SelectedFields` against the registry but walks past `FilterConditions` and `SortBy`. A user who pastes a typo into the filter UI (`source: \"HEAT_RESULTS\", field: \"tube_count\"` vs `tube_countt`) saves the definition successfully, and only sees the 400 from `query_engine._build_condition` at execute time — after they hit Execute, the worker has already created a PENDING row, enqueued, and the user is back to the \"Execute\" button. This is a UX issue (delayed failure) rather than a correctness bug, but the docstring of `validate_definition_json` is explicit that SelectedFields is in scope, so the omission is intentional — flag it for confirmation that the user accepts the late validation."
+   },
+   {
+    "source": "maintainability/renderer_pdf.py:225",
+    "note": "`renderer_pdf._fill_placeholders` is a private re-implementation of `blocks.fill_placeholders`; the file imports several other names from `blocks` but not that one, so the reviewer's claim that it imports the helper it duplicates is inaccurate -- the duplication itself is real.",
+    "why_it_matters": "blocks.py was created in this same diff specifically so that placeholder substitution has ONE implementation — its docstring says writing it three times is 'bug-153 的温床'. renderer_pdf.py already imports `_cell_text` and `assumed_header` from that module, then declares a private `_KNOWN_PLACEHOLDERS` copy and a private `_fill_placeholders` with a byte-identical body. The whitelist is therefore editable in two places: add a placeholder to blocks.KNOWN_PLACEHOLDERS and PDF silently keeps rejecting it while DOCX/XLSX accept it — a divergence that is invisible until a footer renders differently per format."
+   },
+   {
+    "source": "maintainability/reportBuilder.ts:48",
+    "note": "The operator taxonomy is hand-copied in 4 locations, not the 6 the reviewer claimed: `src/api/reportBuilder.ts:50` and `:65`, `src/pages/report/FilterTreeEditor.tsx:45-46`, `src/pages/report/definitionBody.ts:247`.",
+    "why_it_matters": "The 15-operator taxonomy (SPEC §3.2.2(4)) is declared in the backend as query_engine.SUPPORTED_OPS plus _VALUELESS and _LIST_OPS, and re-declared in the frontend in six places across three files: FILTER_OPERATORS here, VALUELESS_OPERATORS here, BINARY_OPERATORS here, ALL_OPERATORS in FilterTreeEditor.tsx:43, VALUELESS_OPERATORS and LIST_OPERATORS in definitionBody.ts:246/250. BINARY_OPERATORS (IN/NOT_IN/BETWEEN) and LIST_OPERATORS are the same set under two names in two modules. FilterTreeEditor.tsx already imports VALUELESS/LIST from definitionBody while its own operator list lives one screen away in the same file — so the two halves of one table live in different layers. Adding or reclassifying an operator requires four edits and there is no compile-time link to the backend list; a miss produces a UI that offers a value shape the backend rejects with 400."
+   },
+   {
+    "source": "maintainability/workers/report_builder_tasks.py:97",
+    "note": "The two ARQ task bodies repeat the same failure-and-retry skeleton.",
+    "why_it_matters": "The two task bodies are 90% identical around the failure path: rollback, mark terminal state only when `attempt_no >= MAX_TRIES`, write REPORT_FAILED audit with {task_id, attempt_no}, commit terminal state and audit in one commit, then `raise Retry(defer=RETRY_DEFER_S)` while attempts remain. The comment block explaining WHY ARQ 0.28 needs an explicit `Retry` is copied verbatim (10 lines, report_tasks.py:204-213 vs report_builder_tasks.py:121-130) — the two copies have already diverged once, in the surrounding prose about what each side observed. A third rule change (say, defer backoff or a per-action retry budget) has to be applied in two task bodies and two copies of the same 10-line rationale, and the copy that is missed fails silently because a non-Retry exception looks exactly like success-with-no-file."
+   },
+   {
+    "source": "maintainability/workers/report_builder_tasks.py:34",
+    "note": "`PENDING_HASH_PREFIX` is defined three times, one copy unused.",
+    "why_it_matters": "The placeholder-hash prefix is a wire-format constant: report_service writes `f\"{PENDING_HASH_PREFIX}{task_id}\"` into report_files.content_hash and report_tasks re-derives the task_id from it with `removeprefix(PENDING_HASH_PREFIX)` during reclaim. It is now declared three times — report_service.py:281, report_tasks.py:66, report_builder_tasks.py:34 — and the builder copy has zero references in its own module. Changing the prefix in report_service alone makes reclaim silently stop parsing task_id out of the placeholder (the audit detail gets the whole `pending:<id>` string), and nothing raises."
+   },
+   {
+    "source": "maintainability/datasource_registry.py:577",
+    "note": "The ORM-mapper lookup loop is duplicated in three places.",
+    "why_it_matters": "Resolving a datasource key to its ORM class is done by scanning `Base.registry.mappers` for a matching `local_table.name`, and that loop is written three times: query_engine._model_for (line 71), datasource_registry._add_primary_keys (line 577), and datasource_registry.primary_key_field (line 553). Two of the three live in the same file, 25 lines apart. The registry's two import-time mutation hooks (`_add_primary_keys()` at line 607, `_add_project_columns()` at line 634) exist so a new auto-registered column needs no per-source edit — but each hook re-implements the scan, so registering a third auto-column means writing a fourth loop rather than one more line."
+   },
+   {
+    "source": "maintainability/builder_service.py:141",
+    "note": "`builder_service._attr` is a thin wrapper reaching into `query_engine` internals.",
+    "why_it_matters": "`_attr(source, field_name)` is `getattr(qe._model_for(ds), field_name)` — a pass-through that adds no behavior, needs a `# noqa: SLF001` because it calls another module's private helper, and skips the registry field validation that `query_engine._column` performs. It is called twice, for `join_field` and for the hardcoded `project_id`. The module already routes everything else through the public `qe.*` surface (build_select/apply_filters/apply_sort/paginate); this is the one path where a field name reaches `getattr` unchecked, so a typo in a join rule surfaces as an AttributeError instead of the registry's 400."
+   },
+   {
+    "source": "maintainability/definitionBody.ts:307",
+    "note": "A single-filter compatibility shim has zero remaining callers.",
+    "why_it_matters": "`asSingleFilter` is documented as '保留给只需要单条的旧调用点', but its only call site was replaced by the recursive `toFilterTree` in this diff — grep across src/ finds no consumers. It carries its own leaf-detection logic that is a second implementation of `toFilterTree`'s leaf branch (same `typeof n.field !== 'string'` and same `'EQUIP_LIST'` default), and its own docstring is an extended post-mortem of a bug it no longer participates in. `SingleFilter` is still threaded through `buildBody`'s input as `filter?: SingleFilter | null` with a `filterTree ?? filter` branch at line 185, yet the sole caller (ReportDefinitionEditorPage.tsx:195) passes only `filterTree`. Three dead concepts remain reachable from the module's public surface."
+   },
+   {
+    "source": "maintainability/definitionBody.ts:119",
+    "note": "A stale, orphaned docstring sits above `availableJoins`.",
+    "why_it_matters": "Lines 119-127 are a docstring for `buildBody` ('编辑态 → 定义体 … 只发一条 EQ（2026-10-13 用户裁决的分批）。第二批补：15 操作符全集、AND/OR 嵌套、多条条件') that no longer sits above its function: `buildBody` is 40 lines further down at line 161, while these lines are immediately followed by `availableJoins`'s own docstring. A reader of availableJoins sees two docstrings, the first describing a different function, and its claim is stale anyway — batch 2 shipped, filterTree is live, and all 15 operators are already offered. The orphaned first half of the docstring also duplicates the placement warning that still correctly sits on buildBody at lines 125-127."
+   },
+   {
+    "source": "maintainability/workers/report_tasks.py:331",
+    "note": "`_ctx_session` duplicates `worker.session_scope` and never closes the session it opens. Folded into the P0 at #2, which fixes the same function.",
+    "why_it_matters": "worker.py already owns 'ARQ ctx → AsyncSession' twice over (`session_scope`, which closes, and `_make_session`, which does not); report_tasks adds a third accessor that reads `ctx.get('session_factory')` itself and raises its own RuntimeError. Worse, `reclaim_stale_report_tasks` uses it and never closes the session — the exact leak `session_scope` was introduced to make structurally impossible (worker.py:74-84 records that both task bodies previously forgot). The cron therefore leaks one connection per fire, and the fix is a one-line deletion rather than an addition."
+   },
+   {
+    "source": "reliability/report.py:269",
+    "note": "The verify rate limit is an in-process counter. This is only a risk if the app is deployed with more than one process, and no repository evidence establishes the deployment topology (no uvicorn `--workers` setting found), so it is recorded rather than asserted.",
+    "why_it_matters": "`/verify/{id}` is the one unauthenticated route in the P8 surface (免登录), and its only brute-force/abuse protection is `check_rate_limit`, an in-process dict guarded by a module-level asyncio.Lock. With N uvicorn workers the effective limit is N × `report_verify_rate_limit`, and the states are not shared — so the protection is weakest exactly in the horizontally-scaled deployment it is most needed in. Separately, `_WINDOW_STATE.setdefault(key, deque())` never removes keys: eviction happens only inside a request for that same key, and the only other entry point is `clear_all_rate_limits()` (test/ops only). An unauthenticated attacker rotating source IPs grows the dict without bound for the process lifetime. The pre-existing implementation is documented as single-instance-only; the finding is that this new public endpoint inherits that limitation without a compensating control (no signature check happens before the limiter, so unauthenticated callers can consume the window)."
+   },
+   {
+    "source": "security/report.py:583",
+    "note": "The HMAC signature does not bind to the client IP. That is a deliberate consequence of the feature: the URL is printed on a QR code and scanned by field staff on a different network.",
+    "why_it_matters": "`_check_sig` binds the signature to `(report_file_id, exp)` only. The IP rate-limit (`check_rate_limit`) is a best-effort throttle, not part of the signature. A signature extracted from one PDF is reusable from any IP for the full 15-minute TTL — the only gate is the per-IP throttle of 30/min, which is trivial to evade by spreading requests across many addresses (botnet, IPv6 /64 prefix rotation, VPN). The QR is printed on the PDF, so the signature is not a secret — but binding the client IP into the HMAC would force an attacker who stole a QR URL to also replay from the original scanning device, which raises the cost of QR phishing."
+   },
+   {
+    "source": "security/report.py:567",
+    "note": "The IP rate limit trusts `client.host`, which behind a reverse proxy is the proxy's address. Depends on the same unestablished deployment topology as the item above.",
+    "why_it_matters": "`_client_ip` returns `request.client.host` directly. Behind a reverse proxy (the standard production deployment for FastAPI/uvicorn), `request.client` is the proxy's IP, not the caller's. The rate-limit key `report_verify:{ip}` collapses every site scan behind the same proxy into one bucket. Two consequences: (1) a single user can exceed the limit and cause legitimate scans of other users to 429, and (2) an attacker can flood from many IPs all sharing the same upstream, but those all funnel to the same bucket and a modest botnet still defeats the throttle. The diff's helper documents the httpx-vs-uvicorn shape mismatch but does not consider trusted-proxy header parsing."
+   },
+   {
+    "source": "security/style_service.py:5488",
+    "note": "Style patches are stored verbatim, so users can write arbitrary JSON keys into `style_json`. The renderer tolerates unknown keys, so this is a tidiness concern rather than a defect.",
+    "why_it_matters": "`create`/`revise` accept the user-supplied `patch: dict` and write it directly into `ReportStyleRow.style_json` (JSONB). The Pydantic schema (`StylePatch`) forbids two keys (`font_dir`, `locked_fields`) at the API boundary, but only those two. Any other unrecognized key would be rejected by `StylePatch.model_config = {'extra': 'forbid'}` — verified. **However**, the patch dictionary is then validated back into `ReportStyle(**row.style_json)` at read time (`_summary`), and Pydantic will silently drop extra keys on `ReportStyle.model_validate` unless `extra='allow'` is set (it isn't, but `.model_validate` on an unrelated `style_json` could still raise). The realistic risk is that future schema additions end up accepting more fields than intended, since the `STYLE_FIELDS_NOT_WRITABLE` allowlist lives in one place (the schema) and any reader that bypasses it (e.g., a future ad-hoc endpoint or background job reading `style_json` directly) sees the raw JSON."
+   },
+   {
+    "source": "api-contract/definition_service.py:128",
+    "note": "`definition_json.OutputFormat` is overwritten by the `output_format` column on every write. The docstring documents the column as authoritative, so this is a documented contract -- but it is surprising enough to note.",
+    "why_it_matters": "`ReportDefinitionBody` publishes `OutputFormat` (and `MaxRows`) as part of the documented definition body, and the frontend sends them there (definitionBody.ts:204-205). On every create/update the service overwrites those two keys with the top-level columns unconditionally, so a client that sets `definition_json.OutputFormat = \"xlsx\"` while leaving the top-level `output_format` at its `\"pdf\"` default gets HTTP 201 with the requested value silently discarded -- the response comes back showing `\"pdf\"`. This is precisely the failure class schemas/report_builder.py:133-137 says `extra=\"forbid\"` was added to prevent ('save succeeded but nothing changed'), except here the field is accepted, echoed, and then overwritten. Clients cannot tell which of the two locations is authoritative from the contract; SPEC §3.2.2(2) lists them as siblings in the definition body."
+   },
+   {
+    "source": "correctness/definition_service.py:3412",
+    "note": "`update_definition` allows silently changing a definition's `project_id`.",
+    "why_it_matters": "`update()` accepts `project_id` as a parameter and writes `row.project_id = project_id`. There's no check that the actor has access to the new project (only `_reject_duplicate` which is name-uniqueness within a project). A creator with access to project A and project B could move a definition from A to B by editing it. The endpoint `update_definition` in `report_builder.py` passes `body.project_id` straight through. Combined with the status rollback to DRAFT on edit, this can quietly relocate definitions across projects — and once re-published, anyone with access to B sees it."
+   },
+   {
+    "source": "correctness/definition_service.py:3500",
+    "note": "The demo limit counts OBSOLETE definitions toward the cap.",
+    "why_it_matters": "`_check_demo_limit` runs `select(ReportDefinition.def_id)` with no `WHERE` clause, so it counts DRAFT + PUBLISHED + OBSOLETE rows. After the user obsoletes some, the counter doesn't drop and they hit the 403 even though fewer visible defs exist. The docstring acknowledges this is intentional (\"全库\" not \"按用户\") but doesn't justify counting OBSOLETE, which by design is excluded from the default list. For demo deployments this caps the user at 3 lifetime definitions unless they get someone to manually delete rows."
+   },
+   {
+    "source": "correctness/report_tasks.py:6171",
+    "note": "A concurrent delete during finalize can lose the placeholder row. The cited line does not exist (the file is 341 lines); the claim is recorded without a verified anchor.",
+    "why_it_matters": "No reproducible anchor in the reviewed revision; not promoted to primary."
+   }
+  ],
+  "testing_gaps": [
+   {
+    "source": "testing/test_query_engine.py:49",
+    "note": "CORRECTED CLAIM. The reviewer's P1 -- 'all 15 filter operators are never executed' -- is false: all 15 appear in tests/ (per-operator grep counts: IN 26, GT 14, EQ 12, LT 6, IS_NULL 5, BETWEEN 3, IS_NOT_NULL 3, NEQ 2, NOT_IN 2, CONTAINS 2, LIKE 2, STARTS_WITH 1, ENDS_WITH 1, GTE 1, LTE 1). What survives is narrower: no test ever calls `apply_filters` against a JSONB-backed column, so the `->>` branch of the filter compiler has no end-to-end coverage. The reviewer's companion claim that this is a production 500 on Postgres is unproven -- `->>` is valid PG syntax, and tests/conftest.py:51,101 installs SQLite JSONB shims -- so it is not asserted here.",
+    "why_it_matters": "One SQL dialect branch in the filter compiler is unexercised; nothing else in the operator surface is untested."
+   },
+   {
+    "source": "testing/tests/services/report/test_join_project_scope.py",
+    "note": "All 4 cases call `builder_service.execute_definition`; the fixed-10-types `collect` path has no project-scope test at all, which is why the P0 at #1 was never caught.",
+    "why_it_matters": "Direct coverage gap behind finding #1."
+   },
+   {
+    "source": "testing/test_report_tasks.py:691",
+    "note": "The last-attempt retry assertion cannot distinguish an ARQ `Retry` from the original error being re-raised.",
+    "why_it_matters": "Both task bodies end their failure handler with a contract the tests explicitly document: on the final attempt the task must re-raise the *original* exception so ARQ can mark the job dead, and only on earlier attempts may it raise `Retry`. The test asserting this uses `pytest.raises(RuntimeError)` — but `arq.Retry` is declared `class Retry(RuntimeError)` at arq/worker.py:97, so `pytest.raises(RuntimeError)` catches `Retry` too. The assertion therefore stays green if someone deletes the `if attempt_no < MAX_TRIES:` guard and raises `Retry` unconditionally, which is precisely the bug the docstring says it exists to prevent: ARQ re-enqueues forever, 'retries are exhausted' never reaches the job result, and the row is never given a terminal state. The first `pytest.raises(Retry)` assertion in the same test is fine; it is only the symmetric 'last attempt' half that is vacuous. Tighten both to distinguish the exception types."
+   },
+   {
+    "source": "testing/pyproject.toml:94",
+    "note": "Pixel-level visual renderer tests never run in any gate.",
+    "why_it_matters": "`tests/services/report/test_renderer_visual.py` exists for one stated reason: the footer-page-number class of bug where the PDF text layer contains the right characters but nothing is actually painted on the page, so every `extract_text()` assertion goes green. `pyproject.toml` sets `addopts = \"-m 'not visual'\"`, so those four tests are deselected in every default `pytest` invocation. The marker documentation and the module docstring both defer to CI (`CI 用 pytest -m visual 跑`), but the repository's only workflow, `.github/workflows/check-api-drift.yml`, runs alembic + OpenAPI drift + a migration idempotency guard and never invokes pytest — so the compensating control does not exist either. I ran them manually (`pytest -m visual`): 4 passed, so the tests are not broken — they are simply inert, and the renderer regression class they were built for has no automated gate. Either wire them into a gate that actually runs, or accept in writing that renderer layout regressions are caught only by a human remembering to type the flag."
+   },
+   {
+    "source": "testing/test_collector.py:44",
+    "note": "The SPEC source contract for 9 of 10 report types is unpacked and discarded.",
+    "why_it_matters": "The module docstring states the rule it is enforcing — '每种的源与格式都来自 SPEC … 「泵数据表」必须出在 `PUMP_RESULTS`'. The test unpacks both halves of the hard-coded SPEC table but binds the source half to `_expected_source` and never asserts on it. Consequently only the format half is enforced for all ten types; the source half is enforced for exactly one (`test_energy_calc_book_source_matches_spec`). If `PUMP_DATA_TABLE.primary` were changed to `UTIL_RESULTS`, `test_each_type_declares_a_real_datasource` and `test_primary_source_is_among_sources` would both still pass, because they only check internal consistency, never the SPEC mapping — and a user would silently get utility data in a pump data table. Assert the source as well."
+   }
+  ]
+ },
+ "triage_groups": [
+  {
+   "title": "Async task lifecycle is not durable across the ARQ boundary",
+   "findings": [
+    2,
+    3,
+    6,
+    21
+   ],
+   "context": "Four defects on the same boundary: who commits, and who writes the terminal state. #2 masks the others -- while the reclaimer never commits, #6 and #21 stay invisible.",
+   "preferred_resolution": "One pass, #2 first. Add the commits, switch the cron entry to `session_scope`, then write FINISHED on the success path (#6), then reorder enqueue-after-commit (#3). #21 is independent and can land any time.",
+   "why": "Fixing #6 before #2 converts a masked bug into a live one: completed audit rows would start being relabelled FAILED.",
+   "type": "apply-queue"
+  },
+  {
+   "title": "Project isolation is missing on the fixed-10 export path",
+   "findings": [
+    1
+   ],
+   "context": "`builder_service` enforces project scope (bug-162 fixed it there); the fixed-10-types path never had it. Cross-project rows leave through a supported, authenticated endpoint.",
+   "preferred_resolution": "Mirror the builder pattern in `report_service._fetch_join_rows` and `_filter_spec`, and validate `record_ids` ownership in the endpoint.",
+   "why": "Sole P0 data-exposure path in this review; the fix pattern already exists in the same codebase.",
+   "type": "apply-queue"
+  },
+  {
+   "title": "Report query assembly breaks the row-limit contract and races on dedup",
+   "findings": [
+    5,
+    20,
+    22
+   ],
+   "context": "All three sit in the collect/store path: a hard batch ceiling that contradicts the advertised 100,000 rows (#5), a chunked IN loop that ANDs chunks into an empty intersection (#20), and a content-addressed finalize that collides and then rolls back the caller's whole transaction (#22).",
+   "preferred_resolution": "#5 first -- it is a user-visible contract break with a one-line fix. #20 next. #22 needs the recovery path reworked.",
+   "why": "Shared subsystem and overlapping fix path in `report_service`; #5 and #20 are each a few lines.",
+   "type": "apply-queue"
+  },
+  {
+   "title": "Execution page poll and fetch lifecycle",
+   "findings": [
+    7,
+    8,
+    10,
+    11
+   ],
+   "context": "One page, one shared timer ref, no cancellation token. #7 (no cancellation) and #8 (FAILED never read) are the two P1s; #10 and #11 are the fetch-side consequences.",
+   "preferred_resolution": "#7 then #8 -- both are localized to `poll()`. #11 needs a product decision (what 'cleared temporary filters' should mean) before the code changes.",
+   "why": "Same function, same file, one guard fixes the top two.",
+   "type": "apply-queue (except #11, which is a decision-gate)"
+  },
+  {
+   "title": "Definition semantics dropped between save and execution",
+   "findings": [
+    9,
+    19
+   ],
+   "context": "SortBy direction is stored in the definition and never read (#9); the two output-format whitelists disagree so csv works on one endpoint and not the other (#19).",
+   "preferred_resolution": "Pass `direction` through to the sort clause; make both endpoints read one whitelist constant.",
+   "why": "Both are 'saved successfully, ignored at run time' -- the exact failure the format-whitelist docstring already warns about.",
+   "type": "apply-queue"
+  },
+  {
+   "title": "Migration and database invariants",
+   "findings": [
+    14,
+    15
+   ],
+   "context": "`p8_001` creates a unique constraint that Postgres will not enforce for NULL `project_id` (#14) and a downgrade that drops the audit tables outright (#15).",
+   "preferred_resolution": "#14: `NULLS NOT DISTINCT` (PG 15+) or a partial unique index, in a new revision. #15: decide the downgrade policy (refuse, or archive first) -- that is a product decision.",
+   "why": "Both are irreversible once someone runs them; #15 changes what an operator is allowed to do.",
+   "type": "apply-queue for #14; decision-gate for #15"
+  },
+  {
+   "title": "Frontend style and filter editor gaps",
+   "findings": [
+    12,
+    25,
+    26,
+    30
+   ],
+   "context": "#12 says an existing style can never be revised from the UI although the backend endpoint exists; #25 and #30 silently mutate or drop filter nodes; #26 keys rows by index next to move buttons.",
+   "preferred_resolution": "#26 is mechanical (stable key). #25 and #30 need a decision: reject loudly or repair silently. #12 needs a design call on whether revising belongs on this page.",
+   "why": "Three of the four are one-file edits; the open question is intended behaviour, not code.",
+   "type": "apply-queue for #26; decision-gate for #12, #25, #30"
+  },
+  {
+   "title": "Environment and standards debt",
+   "findings": [
+    13,
+    16,
+    17,
+    23,
+    24,
+    27,
+    28,
+    29
+   ],
+   "context": "Mechanical, low-risk, and unrelated to each other: the `pcs_test` database is behind, no `docs/solutions/` writeback for 12 P8 fixes, two error envelopes in the same router, an application-only ACTIVE-style invariant, stale MSW mocks, an ignored status filter, and two small contract/type nits.",
+   "preferred_resolution": "Clear in one pass; none of them blocks anything.",
+   "why": "Grouped only because they are all 'do it and move on' work -- no shared root cause.",
+   "type": "apply-queue"
+  }
+ ],
+ "suppressed_by_confidence": {
+  "50": 7
+ },
+ "first_evidence_backfilled": 39,
+ "first_evidence_backfilled_note": "39 recovered before the first helper run; 31 more in the reconciled pass. Initial count preserved per the reference.",
+ "peer_fold_in": {
+  "outcome": "not-run",
+  "artifact": null,
+  "note": "adversarial reviewer ran in-process; its 5 findings were merged into primary findings #1, #2, #6 and #22."
+ },
+ "coverage": [
+  "Standards source was the instruction-file fallback: the repository has no CODING_STANDARDS.md, so the root CLAUDE.md (92 lines) and .claude/rules/openwolf.md were used as the standards criteria.",
+  "Cross-model adversarial review was not run. The host family reports as claude and the only peer CLI installed is also claude, so no different-provider route exists; the adversarial perspective was carried by the in-process `adversarial` reviewer, whose 5 findings were folded into the findings set.",
+  "Scope was narrowed from the full cfc0f2e..a9ccb84 window (which also contains P7 heat/calc work) to the 48 P8 files listed in files.txt. Untracked files were excluded; the working tree is the reviewed head.",
+  "Reviewer claims were verified against source before merging, and 6 claims were corrected or withdrawn. Corrected: (a) 'all 15 filter operators are never executed' is false -- all 15 appear in tests/; only the JSONB `->>` branch lacks end-to-end coverage (recorded in testing_gaps, not as a P1); (b) 'the JSONB path is a production 500 on Postgres' is unproven and is not asserted; (c) project-level style readability is a documented deliberate tradeoff, downgraded from P1 to P2 and framed as a design call; (d) the PDF renderer does not import the helper it duplicates, it defines a private copy; (e) the frontend operator taxonomy appears in 4 locations, not 6; (f) 'p8_001 drops legacy report tables' is the settled 2026-10-08 in-place-remodel ruling -- only the destructive `downgrade()` survives as a finding.",
+  "Confidence suppressed by anchor: 7 findings at anchor 50 in the first helper pass (the report_builder enqueue-order duplicate is now merged into #3 at anchor 100; the remaining 6 were demoted to residual_risks).",
+  "first_evidence_backfilled: 39 findings recovered from per-reviewer artifact evidence[0] before the first helper run; the reconciled pass backfilled 31 of its own. The initial count is preserved.",
+  "Pre-existing: 1 finding (the API drift gate script, outside this diff) is retained because the P8 contract expansion depends on that gate; it does not count toward the verdict.",
+  "The `pcs_test` database is at p8_005 while the development database is at p8_007 -- recorded as #16 and as the drift source CLAUDE.md names.",
+  "No peer job directory is outstanding: the cross-model route was never started."
+ ],
+ "demotions": {
+  "mode_aware_demotion_count": 17,
+  "detail": "17 single-reviewer items from maintainability/testing/security/correctness with no proven user-facing defect moved to the soft buckets rather than staying primary."
+ }
+}

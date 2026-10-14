@@ -1,0 +1,101 @@
+{
+  "actionable_findings": 22,
+  "applied_count": 0,
+  "branch": "main",
+  "completed_at": "2026-10-13T17:37:03.143598Z",
+  "cost": {
+    "dangling_stages": [
+      "dispatch",
+      "merge",
+      "scope"
+    ],
+    "host": "claude",
+    "stages": [
+      {
+        "stage": "scope",
+        "started_at": "2026-10-13T16:55:28.169899+00:00"
+      },
+      {
+        "ended_at": "2026-10-13T17:01:31.866324+00:00",
+        "facts": {
+          "changed_lines": 60256,
+          "depth": "full",
+          "exec_nontest_lines": 15701,
+          "size_band": "large",
+          "unclassified_lines": 30607
+        },
+        "reviewers": 13,
+        "stage": "select"
+      },
+      {
+        "stage": "dispatch",
+        "started_at": "2026-10-13T17:01:31.866324+00:00"
+      },
+      {
+        "candidates": 30,
+        "elapsed_seconds": 328.957,
+        "ended_at": "2026-10-13T17:16:52.975184+00:00",
+        "stage": "merge",
+        "started_at": "2026-10-13T17:16:52.975184+00:00"
+      },
+      {
+        "elapsed_seconds": 0.026,
+        "ended_at": "2026-10-13T17:31:43.351810+00:00",
+        "facts": {
+          "batch": 8,
+          "confirmed": 8,
+          "outcome": "verdicts",
+          "rejected": 0,
+          "unresolved": 0
+        },
+        "stage": "validate",
+        "started_at": "2026-10-13T17:31:43.325638+00:00"
+      },
+      {
+        "candidates": 30,
+        "elapsed_seconds": 251.03,
+        "ended_at": "2026-10-13T17:37:03.198467+00:00",
+        "reviewers": 11,
+        "stage": "report",
+        "started_at": "2026-10-13T17:32:52.168920+00:00"
+      }
+    ],
+    "status": "partial",
+    "totals": {
+      "artifact_bytes": 1502749,
+      "candidates": 0,
+      "elapsed_seconds": 580.013,
+      "reviewers": 24
+    },
+    "truncated_events": 0
+  },
+  "depth": "full",
+  "head_sha": "a9ccb84",
+  "human_owned_findings": 8,
+  "mode": {
+    "agent": false,
+    "apply_local": false,
+    "grouping": "auto"
+  },
+  "peer": {
+    "outcome": "not-run",
+    "selected": false
+  },
+  "pre_existing_findings": 1,
+  "primary_findings": 30,
+  "run_id": "20261014-005528-981d772a",
+  "validation": {
+    "confirmed": 8,
+    "failed": 0,
+    "malformed": 0,
+    "outcome": "verdicts",
+    "rejected": 0,
+    "shortcut_skipped": 0,
+    "unresolved": 0
+  },
+  "verdict": "Not ready",
+  "notes": [
+    "cost.status=partial: upstream bookkeeping gaps, not a review failure -- 'scope' was started but only 'select' was ended, 'dispatch' was started and never ended, and 'merge' was started twice. Read cost.elapsed / cost.totals with that in mind.",
+    "report-only run: mode.apply_local=false, no project file was modified and no fix was applied."
+  ]
+}

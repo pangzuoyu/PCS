@@ -31,18 +31,27 @@ For the full operating protocol (session handoff, memory discipline, bug logging
   漂移会绿（不可见）—— 后者没有自动化能抓。改任何 `alembic/versions/*` 时必须**手动核对
   ORM 列同步**（历史上 `config_energy_conversion_factors` 4 个 R1 分类列从未迁移，
   bug-137；见 `.wolf/cerebrum.md`）。
-- **人工守门动作**：`uv run alembic check`（检测 ORM vs 迁移漂移）。三条读法，缺一条就会误判：
+- **人工守门动作**：`uv run alembic check`（检测 ORM vs 迁移漂移）。四条读法，缺一条就会误判：
   1. **先确认它跑了**。DB revision 落后 code head 时它直接拒绝（"Target database is not up to
      date"）——那是**检查失败**，不是通过。先 `uv run alembic current` 对比 `uv run alembic heads`。
      2026-10-07 的 bug-143/144 藏了很久，直接原因就是有个已提交未应用的迁移把守门整个堵住了：
      **守门没报，是因为它根本没跑。**
   2. **退出码是 255，不是 1**。按 `== 1` 写的封装会把真实检出当通过。
      （`scripts/check_migration_idempotency.py` 才用 1 —— 两个工具别混。）
-  3. **"无输出"不等于"一致"**。反过来也一样：`remove_constraint` 的字面意思
+  3. **⚠️ 它只在「当前连接的那个库」上成立。** 命令比的是 ORM ↔ 你连上的
+     schema，**不是** ORM ↔ 迁移应该造出的 schema。任何跨库漂移（`pcs` 有、
+     `pcs_test` 没有的约束/列/索引）根本不在它的视野里。
+     2026-10-07 记的「43 条 → 0，exit 0」**只在开发库 `pcs` 上为真**：
+     那次是照着开发库补 ORM 声明，而开发库里那些约束本来就存在。
+     2026-10-14 把 `pcs_test` 对齐到 head 后，同一条命令在它上面是
+     **exit 255 + 1 条真实漂移**（`future_dated_forbidden_chk`）。
+     ⇒ **要声称「迁移在别处也成立」，必须在每个库上各跑一次。**
+     否则对着 `pcs` 看到 exit 0 就以为两个库都干净，是本仓最容易复现的假绿。
+  4. **"无输出"不等于"一致"**。反过来也一样：`remove_constraint` 的字面意思
      （「DB 多余、ORM 要删」）与正确处置**恰好相反** —— 实测那 39 条全是
      「DB 有安全网、ORM 漏声明」，照字面删会把 DB 保护删掉。
-     **`exit 0` 现在是真实状态**（2026-10-07 起 43 条全清），所以 exit 255
-     一律是真缺陷，不需要再对「已裁决残留」做豁免。
+     **`exit 0` 现在是真实状态**（2026-10-07 起 43 条全清，仅限开发库，见第 3 条），所以
+     exit 255 一律是真缺陷，不需要再对「已裁决残留」做豁免。
      ⚠️ ORM 里写 `ForeignKey(..., use_alter=True)` **不会自己生成迁移** ——
      那条延迟迁移得有人手写，否则 DB 上压根没这个约束（`projects` 曾整表零外键，
      bug-146）。
