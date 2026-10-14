@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-14T03:14:07.851Z",
-    "fileCount": 796,
+    "lastScanned": "2026-10-14T04:22:57.895Z",
+    "fileCount": 797,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "87ce959748b3d08a2110f7d5bf1dacbc808a9674a1267460eca200dc34d8eefd",
-    "storeUpdatedAt": "2026-10-14T03:14:07.861Z",
-    "rootHash": "00b64eacc826f50b"
+    "renderedHash": "ed4ac14058b3dc78398c1935e43b32b8a4f96ac95f3806d7d4e3f8a53412d181",
+    "storeUpdatedAt": "2026-10-14T04:22:57.905Z",
+    "rootHash": "784b19c705f4a780"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -23882,151 +23882,151 @@
     },
     "pcs-backend/app/api/v1/report.py": {
       "description": "`/api/v1/report` 路由。",
-      "tokens": 4709,
-      "hash": "8f3ce97002576788",
-      "size": 20286,
-      "mtimeMs": 1791944805423.179,
-      "updatedAt": "2026-10-14T02:26:45.469Z",
+      "tokens": 5099,
+      "hash": "96e34831588ff223",
+      "size": 22316,
+      "mtimeMs": 1791951777844.7583,
+      "updatedAt": "2026-10-14T04:22:57.895Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_client_ip",
           "kind": "fn",
-          "startLine": 81,
-          "endLine": 96,
+          "startLine": 82,
+          "endLine": 97,
           "tokens": 114
         },
         {
           "name": "_check_sig",
           "kind": "fn",
-          "startLine": 97,
-          "endLine": 111,
+          "startLine": 98,
+          "endLine": 112,
           "tokens": 197
         },
         {
           "name": "_load_or_404",
           "kind": "fn",
-          "startLine": 112,
-          "endLine": 120,
+          "startLine": 113,
+          "endLine": 121,
           "tokens": 95
         },
         {
           "name": "_guard_project",
           "kind": "fn",
-          "startLine": 121,
-          "endLine": 133,
+          "startLine": 122,
+          "endLine": 134,
           "tokens": 154
         },
         {
           "name": "generate_report",
           "kind": "fn",
-          "startLine": 134,
-          "endLine": 210,
+          "startLine": 135,
+          "endLine": 211,
           "tokens": 955
         },
         {
           "name": "_fail_pending",
           "kind": "fn",
-          "startLine": 211,
-          "endLine": 226,
+          "startLine": 212,
+          "endLine": 227,
           "tokens": 142
         },
         {
           "name": "report_status",
           "kind": "fn",
-          "startLine": 227,
-          "endLine": 236,
+          "startLine": 228,
+          "endLine": 237,
           "tokens": 128
         },
         {
           "name": "download",
           "kind": "fn",
-          "startLine": 237,
-          "endLine": 257,
+          "startLine": 238,
+          "endLine": 258,
           "tokens": 262
         },
         {
           "name": "verify",
           "kind": "fn",
-          "startLine": 258,
-          "endLine": 295,
+          "startLine": 259,
+          "endLine": 296,
           "tokens": 436
         },
         {
           "name": "report_hash",
           "kind": "fn",
-          "startLine": 296,
-          "endLine": 309,
+          "startLine": 297,
+          "endLine": 310,
           "tokens": 170
         },
         {
           "name": "list_styles",
           "kind": "fn",
-          "startLine": 310,
-          "endLine": 329,
+          "startLine": 311,
+          "endLine": 330,
           "tokens": 240
         },
         {
           "name": "get_style",
           "kind": "fn",
-          "startLine": 330,
-          "endLine": 345,
+          "startLine": 331,
+          "endLine": 346,
           "tokens": 174
         },
         {
           "name": "_style_readable",
           "kind": "fn",
-          "startLine": 346,
-          "endLine": 357,
+          "startLine": 347,
+          "endLine": 358,
           "tokens": 97
         },
         {
           "name": "_summary",
           "kind": "fn",
-          "startLine": 358,
-          "endLine": 367,
+          "startLine": 359,
+          "endLine": 368,
           "tokens": 130
         },
         {
           "name": "create_style",
           "kind": "fn",
-          "startLine": 368,
-          "endLine": 379,
+          "startLine": 369,
+          "endLine": 380,
           "tokens": 163
         },
         {
           "name": "revise_style",
           "kind": "fn",
-          "startLine": 380,
-          "endLine": 395,
+          "startLine": 381,
+          "endLine": 396,
           "tokens": 170
         },
         {
           "name": "activate_style",
           "kind": "fn",
-          "startLine": 396,
-          "endLine": 404,
-          "tokens": 91
+          "startLine": 397,
+          "endLine": 410,
+          "tokens": 132
         },
         {
           "name": "_style_call",
           "kind": "fn",
-          "startLine": 405,
-          "endLine": 423,
-          "tokens": 175
+          "startLine": 411,
+          "endLine": 457,
+          "tokens": 510
         },
         {
           "name": "_file_intact",
           "kind": "fn",
-          "startLine": 424,
-          "endLine": 438,
+          "startLine": 458,
+          "endLine": 472,
           "tokens": 115
         },
         {
           "name": "_expected_digest",
           "kind": "fn",
-          "startLine": 439,
-          "endLine": 444,
+          "startLine": 473,
+          "endLine": 478,
           "tokens": 46
         }
       ]
@@ -27027,6 +27027,31 @@
           "startLine": 83,
           "endLine": 99,
           "tokens": 162
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p8_010_one_active_style.py": {
+      "description": "`report_styles` 的「每个作用域至多一个 ACTIVE」下沉为数据库不变量（p8_010）。",
+      "tokens": 541,
+      "hash": "f565159e9bb8a4c2",
+      "size": 2775,
+      "mtimeMs": 1791951407107.559,
+      "updatedAt": "2026-10-14T04:16:47.155Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 65,
+          "tokens": 60
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 66,
+          "endLine": 70,
+          "tokens": 54
         }
       ]
     }

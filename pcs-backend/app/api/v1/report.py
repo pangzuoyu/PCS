@@ -38,6 +38,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import FileResponse
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1._guard import check_project_access_or_404
@@ -402,11 +403,17 @@ async def activate_style(style_id: uuid.UUID, db: DbDep,
     return _summary(row)
 
 
+#: 竞态被数据库拦下时的文案。与 `style_service.StyleConflict` 的措辞一致，
+#: 用户看到哪一条都该得出同一个结论：「该改用修订，不是系统坏了」。
+_STYLE_RACE_MSG = "该作用域已有 ACTIVE 样式，请改用修订（revise）。"
+
+
 async def _style_call(fn):
     """把服务层异常翻成 HTTP。
 
     ⚠️ 刻意**不**在这里 catch 一切 —— 未知异常仍应是 500。
-    只翻两种已定义的语义：权限（403/404）与作用域冲突（409）。
+    只翻三种已定义的语义：权限（403/404）、作用域冲突（409）、
+    以及**竞态导致的唯一约束冲突**（409）。
     """
     try:
         return await fn()
@@ -414,6 +421,33 @@ async def _style_call(fn):
         raise HTTPException(status_code=e.status_code, detail=e.message) from e
     except StyleConflict as e:
         raise HTTPException(status_code=409, detail=str(e)) from e
+    except IntegrityError as e:
+        # ⚠️ 「至多一个 ACTIVE」现在由**部分唯一索引**兜底
+        # （`uq_report_styles_one_active`，p8_010）。于是两个并发请求里，
+        # 失败的那一路**不再**走服务层的「先查有没有」，而是在 flush 时撞索引。
+        #
+        # 不翻译的后果：用户看到 500「系统错误」，而不是
+        # 「该作用域已有 ACTIVE 样式，请改用修订」。500 会被前端当成
+        # 故障、用户反复重试，而重试只会再撞一次。
+        #
+        # ⚠️ 只认这一条约束：其余 IntegrityError（如 content_hash 冲突）
+        # 有各自的处理路径，不该被吞成 409。
+        #
+        # ⚠️ **两种 dialect 的报错文本不一样**，实测：
+        #   PG      → `violates unique constraint "uq_report_styles_one_active"`
+        #   SQLite  → `UNIQUE constraint failed: report_styles.report_type,
+        #              report_styles.project_id`
+        # 所以只按索引名匹配的话，单测里会漏（SQLite 不带索引名），
+        # 症状是「竞态测试红、真库绿」—— 又一处测试与生产不一致。
+        msg = str(e.orig)
+        if ("uq_report_styles_one_active" in msg
+                or "report_styles.report_type, report_styles.project_id" in msg
+                or "report_styles.project_id, report_styles.report_type" in msg):
+            raise HTTPException(
+                status_code=409,
+                detail=f"{_STYLE_RACE_MSG}（并发写入，已由数据库唯一索引拦下）",
+            ) from e
+        raise
 
 
 _MEDIA = {"pdf": "application/pdf",

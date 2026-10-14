@@ -1630,3 +1630,6 @@
 | 11:10 | Edited pcs-backend/app/services/report/query_engine.py | modified apply_sort() | ~356 |
 | 11:11 | Edited pcs-backend/app/services/report/builder_service.py | expanded (+6 lines) | ~109 |
 | 11:14 | Created pcs-backend/alembic/versions/p8_009_nulls_distinct_unique.py | — | ~821 |
+| 12:16 | Created pcs-backend/alembic/versions/p8_010_one_active_style.py | — | ~541 |
+| 12:21 | Edited pcs-backend/app/api/v1/report.py | modified _style_call() | ~299 |
+| 12:22 | Edited pcs-backend/app/api/v1/report.py | added 1 condition(s) | ~237 |

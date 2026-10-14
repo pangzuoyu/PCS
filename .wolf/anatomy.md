@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-14T03:14:07.851Z
-> Files: 796 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-14T04:22:57.895Z
+> Files: 797 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1095,6 +1095,7 @@
 - `p8_007_execution_log_status.py` — P8：report_execution_logs 补 `status` 列（TODO-064 的回收器需要它）。 (~390 tok)
 - `p8_008_future_dated_chk.py` — 补 `project_calculation_standard_profiles.future_dated_forbidden_chk`。 (~604 tok)
 - `p8_009_nulls_distinct_unique.py` — 把两条含可空 `project_id` 的唯一约束改成 `NULLS NOT DISTINCT`（p8_009）。 (~821 tok)
+- `p8_010_one_active_style.py` — `report_styles` 的「每个作用域至多一个 ACTIVE」下沉为数据库不变量（p8_010）。 (~541 tok)
 
 ## pcs-backend/app/api/v1/
 
@@ -1116,7 +1117,7 @@
 - `pump.py` — P4-4-4 PUMP 链 API。 (~2574 tok)
 - `records.py` — Records API（Sprint 2）。 (~3276 tok)
 - `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~4269 tok)
-- `report.py` — `/api/v1/report` 路由。 (~4709 tok)
+- `report.py` — `/api/v1/report` 路由。 (~5099 tok)
 - `sep_equip.py` — P5-2-4 SEP_EQUIP API：POST /calculate 端点契约。 (~1773 tok)
 - `sim_imports_query.py` — P3.x SIM-27：sim_imports 9 类查询端点（spec §5.5）。 (~4193 tok)
 - `stream_symbols.py` — 物流符号表端点（SYM-3 / SUP-002 §8）。 (~4194 tok)

@@ -30,6 +30,7 @@ from sqlalchemy import (
     UniqueConstraint,
     Uuid,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
@@ -76,6 +77,41 @@ class ReportStyleRow(TimestampMixin, Base):
                          name="uq_report_styles_scope_version",
                          postgresql_nulls_not_distinct=True),
         Index("ix_report_styles_report_type", "report_type"),
+        # ⚠️ 「每个作用域至多一个 ACTIVE」的**数据库**不变量（2026-10-14，
+        # 用户裁决 #23：下沉 DB，不靠应用层加锁）。
+        #
+        # 原先 `create` / `revise` / `activate` 都是「先查当前 ACTIVE 再决定
+        # 报错」—— 那两个并发请求**都查得到「没有」**，于是各自插入，
+        # docstring 声明为绝对的不变量只在调用方不重叠时成立。
+        #
+        # 为什么用**部分唯一索引**而不是 `SELECT ... FOR UPDATE`：
+        # 后者要在跨审计写的路径上持行锁（这份表存的是合规产物），
+        # 而唯一索引是永久防护，且 `revise` 与 `activate` 两条路径一次覆盖。
+        #
+        # ⚠️ `NULLS NOT DISTINCT` 是必需的：公司级样式 `project_id IS NULL`，
+        # 而 PG 认为 NULL 互不相等 —— 不加它，公司级的 ACTIVE 唯一性形同虚设。
+        # ⚠️ **必须同时给 `sqlite_where`**（2026-10-14 实测发现）。
+        # 只写 `postgresql_where` 时，SQLite 上生成的是：
+        #
+        #     CREATE UNIQUE INDEX uq_report_styles_one_active
+        #         ON report_styles (report_type, project_id)     ← **没有谓词**
+        #
+        # 即单测库里这条约束**比真库严**：真库只约束 ACTIVE 行，SQLite
+        # 约束**所有**行。于是同一作用域里出现两个 SUPERSEDED 版本
+        # （`revise()` 连做两次就会）时，测试库报 IntegrityError 而真库正常 ——
+        # 一条「测试红、生产绿」的假故障，且只在有人写 revise 测试时才爆。
+        # SQLite 支持部分索引，补上 `sqlite_where` 后两者语义一致。
+        #
+        # 剩下 `NULLS NOT DISTINCT` 在 SQLite 上仍无对应语法（PG 专有），
+        # 所以公司级作用域的唯一性**在单测库里依然不生效** —— 那一半只能
+        # 在真库验，已写进迁移 docstring。
+        Index(
+            "uq_report_styles_one_active", "report_type", "project_id",
+            unique=True,
+            postgresql_nulls_not_distinct=True,
+            postgresql_where=text("status = 'ACTIVE'"),
+            sqlite_where=text("status = 'ACTIVE'"),
+        ),
     )
 
     style_id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=uuid.uuid4)
