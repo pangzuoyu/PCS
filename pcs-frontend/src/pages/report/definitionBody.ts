@@ -257,6 +257,40 @@ export const LIST_OPERATORS: ReadonlySet<string> =
  * 往返无损是硬要求（TODO-060）—— 第一批的单条 `filter` 模型读不了组，
  * 保存时把整棵子树丢掉，用户改个别字就把别人的筛选规则抹了。
  */
+/**
+ * 构造**临时过滤**的请求载荷（评审 #11，用户 2026-10-14 裁决）。
+ *
+ * ## `null` 与 `[]` 是两件事，绝不可合并
+ *
+ * - `null`（或 undefined）= 用户没做临时调整 ⇒ **继承定义里的原条件**，
+ *   于是**不下发** `filters` 字段。
+ * - `[]` = 用户进了编辑器、然后**把所有条件删光** ⇒ **不筛选**（导出全量）。
+ *
+ * 原实现是 `!tempFilters?.length ? undefined : ...`，两者被压成同一个值：
+ * 「显式删光」静默退化成「继承定义」。用户看着编辑器里一条条件都没有，
+ * 导出却仍带着定义的条件 —— **界面在骗人，且没有任何提示**。
+ *
+ * 「删光」必须能表达「不筛选」：临时调整的整个用意就是**能覆盖**定义
+ * （SPEC §3.2.2(5)）。一个只能加条件、不能减条件的临时面板是残废的。
+ *
+ * ## 为什么空数组映射成「空 AND 组」而不是别的
+ *
+ * 后端 `query_engine.apply_filters` 的 docstring 明写
+ * 「空条件组 → `sa.true()`（空过滤器 = 不筛，不是报错）」，
+ * 所以 `{operator:'AND', conditions: []}` 就是「不筛选」的正确表达，
+ * 且是**已有契约**，不需要后端配合。
+ */
+export function buildTempFilterPayload(
+  tempFilters: FilterNode[] | null | undefined,
+): DefNode | undefined {
+  if (tempFilters === null || tempFilters === undefined) return undefined;
+  if (tempFilters.length === 0) return { operator: 'AND', conditions: [] };
+  if (tempFilters.length === 1 && tempFilters[0].kind === 'leaf') {
+    return fromFilterTree(tempFilters)[0];
+  }
+  return { operator: 'AND', conditions: fromFilterTree(tempFilters) };
+}
+
 export function toFilterTree(raw: unknown): FilterNode[] {
   if (!Array.isArray(raw)) return [];
   return raw.flatMap((node): FilterNode[] => {

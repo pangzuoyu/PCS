@@ -58,10 +58,21 @@ interface Props {
   fields: FilterFieldOption[];
   /** 嵌套深度上限。防手滑点出几十层点不动的树。 */
   maxDepth?: number;
+  /**
+   * 当前是「继承定义里的原条件」而非「用户删光了条件」。
+   *
+   * ⚠️ 只影响**空态文案**（评审 #11）：两者在 `nodes` 上都是 `[]`，
+   * 而它们的含义完全相反 —— 前者执行时用定义的条件，后者导出全量。
+   * 文案不区分的话，继承状态下界面会显示「将导出全量」而实际不是。
+   *
+   * 默认 false（按「删光了」处理），因为**直接使用本组件**的调用方
+   * 若不传这个开关，宁可显示实际语义也不要显示一个无从证伪的承诺。
+   */
+  inherited?: boolean;
 }
 
 export function FilterTreeEditor(props: Props): JSX.Element {
-  const { nodes, onChange } = props;
+  const { nodes, onChange, inherited = false } = props;
   const addLeaf = useCallback(() => {
     const f = props.fields[0];
     if (!f) return;
@@ -91,9 +102,15 @@ export function FilterTreeEditor(props: Props): JSX.Element {
 
   return (
     <Space direction="vertical" style={{ width: '100%' }} size={8}>
+      {/* ⚠️ 空态文案必须随 `inherited` 变（评审 #11，用户裁决）。
+          inherited = 「没做临时调整，用定义里的原条件」；
+          非 inherited 且为空 = 「用户把条件删光了 = 不筛选，导出全量」。
+          原先两者都显示「导出全量」，于是继承状态下界面在骗人。 */}
       {nodes.length === 0 && (
         <Typography.Text type="secondary">
-          无过滤条件 —— 执行时将导出全量。
+          {inherited
+            ? '未做临时调整 —— 执行时使用定义里的原条件。'
+            : '无过滤条件 —— 执行时将导出全量（等于覆盖了定义里的原条件）。'}
         </Typography.Text>
       )}
       {nodes.map((node, i) => (

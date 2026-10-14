@@ -42,9 +42,8 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { PageHeader } from '../../components/common/PageHeader';
 import { errorMessage, reportBuilderApi } from '../../api/reportBuilder';
 import type { ReportDefinitionOut } from '../../api/reportBuilder';
-import { fromFilterTree, toFilterTree } from './definitionBody';
+import { buildTempFilterPayload, toFilterTree } from './definitionBody';
 import type {
-  DefNode,
   FieldNodeOption as ReportBuilderFieldOption,
   FilterNode,
 } from './definitionBody';
@@ -142,10 +141,10 @@ export function ReportExecutePage(): JSX.Element {
     try {
       // 临时条件是**单个节点**（组或叶子），不是数组 —— 后端
       // `ReportExecuteRequest.filters` 的类型是 `Group | Condition | None`。
-      const filters: DefNode | undefined = !tempFilters?.length ? undefined
-        : (tempFilters.length === 1 && tempFilters[0].kind === 'leaf'
-          ? fromFilterTree(tempFilters)[0]
-          : { operator: 'AND', conditions: fromFilterTree(tempFilters) });
+      // ⚠️ `null` 与 `[]` 不可合并（评审 #11，用户裁决）：
+      //   null = 没做临时调整 ⇒ 继承定义；[] = 显式删光 ⇒ 不筛选。
+      // 详见 `buildTempFilterPayload` 的 docstring。
+      const filters = buildTempFilterPayload(tempFilters);
       const accepted = await reportBuilderApi.execute(selected, {
         filters, max_rows: tempMaxRows ?? undefined,
       });
@@ -305,6 +304,10 @@ export function ReportExecutePage(): JSX.Element {
         <div style={{ marginTop: 12 }}>
           <FilterTreeEditor
             nodes={tempFilters ?? []}
+            // ⚠️ inherited：空态文案随它变（评审 #11）。
+            // 不传的话，继承状态下编辑器会显示「无过滤条件 —— 导出全量」，
+            // 而实际执行用的是定义里的条件 —— 界面在骗人。
+            inherited={tempFilters === null}
             onChange={(next) => setTempFilters(next)}
             fields={fields} />
           {tempFilters === null && (
