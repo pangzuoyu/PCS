@@ -185,6 +185,19 @@ describe('ReportExecutePage — 旧轮询循环不得复活（评审 P1 #7）', 
     expect(screen.getByRole('button', { name: /执行/ })).toBeDisabled();
   });
 
+  /**
+   * ⚠️ **本条是世代号的唯一证明**，请勿因为「看起来有点冗余」删掉它。
+   *
+   * 变异证据（2026-10-14 实测）：把 `stopPolling` 里的
+   * `generation.current += 1` 删掉（只留 `clearTimeout`），**本条立刻变红**，
+   * 其余 4 条仍绿。也就是说不变量就钉在这一条上：
+   *
+   *     卸载 → 回调在飞 → 回调 resolve → 若无世代号，它会为一个已经
+   *     销毁的组件再 `setTimeout` 一次，且再发一次 status 请求
+   *
+   * 而「重跑」那条入口已被 `disabled` 拦死（UI 上不可达，见 describe 注释），
+   * **所以卸载是世代号当前唯一可达的触发点** —— 删掉它，世代号就完全没有防线。
+   */
   it('卸载后旧回调不得再发请求', async () => {
     let releaseFirst!: (v: unknown) => void;
     const stuck = new Promise((res) => { releaseFirst = res; });
