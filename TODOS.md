@@ -703,6 +703,13 @@ exit 1）。P9A 收口时基线应**仍为 71**，不是下调到 0 —— 71 �
 
 > 本节保留为过程记录。当前 `uv run alembic check` 报
 > **「No new upgrade operations detected」**（exit 0）。
+>
+> ⚠️ **「0 条」只在开发库 `pcs` 上成立。** 2026-10-14 把 `pcs_test` 从 p8_005
+> 对齐到 p8_007 后，在 `pcs_test` 上跑同一条命令得到 **exit 255 + 1 条漂移**
+> （见下「🔴 未修」）。上面的处置方式是**照着开发库补 ORM 声明**，而开发库里那些
+> 约束本来就存在 —— 于是命令在开发库归零，在另一个库上并没有归零。
+> 这正是 CLAUDE.md 说的漂移盲区：**`alembic check` 比的是 ORM 与「你连的那个库」，
+> 不是与「迁移应该造出的 schema」。** 单库绿灯不构成「迁移在别处也成立」的证据。
 
 原 43 条的构成与处置：
 
@@ -728,6 +735,62 @@ exit 1）。P9A 收口时基线应**仍为 71**，不是下调到 0 —— 71 �
    `unique=True` → `uq_compound_api521_thresholds_threshold_type`，
    DB 里叫 `uq_compound_api521_thresholds_type`。名字对不上会**同时**产生
    一条 remove 和一条 add。改显式 `UniqueConstraint(..., name=...)`。
+
+### 🔴 未修：`future_dated_forbidden_chk` 在 `pcs_test` 上不存在，且**没有任何迁移造它**
+
+2026-10-14 把 `pcs_test` 对齐到 p8_007 后实测：
+
+| 库 | `alembic_version` | `future_dated_forbidden_chk` | `alembic check` |
+|---|---|---|---|
+| `pcs`（开发） | p8_007 | **存在** | exit 0 |
+| `pcs_test` | p8_007 | **不存在** | **exit 255**，报 `add_constraint` |
+
+事实链：
+
+- ORM 声明在 `app/models/psv_standards.py:202`（`CheckConstraint("effective_from <= created_at + interval '1 second'")`）
+- **全仓 `alembic/versions/` 下没有任何一处创建它**（grep 确认）
+- 开发库却有 —— 也就是说它的存在不来自迁移链
+
+所以这不是「pcs_test 落后」，而是**这条约束从未被迁移过，开发库那份是历史遗留**。
+2026-10-07 的 43→0 处置把它当成了「DB 有安全网、ORM 漏声明」，补了 ORM 声明；
+在开发库上命令归零，在另一个库上归不了零 —— 因为另一个库从来没有过这条约束。
+
+**正确处置**（两条路，别选错）：
+
+- ❌ **不要**照 CLAUDE.md 那条「`remove_constraint` 方向相反」的规则把它从 ORM 删掉 ——
+  那条规则说的是 DB **有**、ORM 缺；这里是 DB **缺**、ORM 有，是另一回事。
+- ✅ 写一条新迁移，幂等地 `ADD CONSTRAINT ... NOT VALID` 再 `VALIDATE`
+  （或 `DROP CONSTRAINT IF EXISTS` + 重建），让两个库收敛到同一状态。
+  属 `psv_standards` 而非 P8，故**未在 P8 修复批次里动手**。
+
+**Owner：待认领。** 它让 `pcs_test` 上的 `alembic check` 长期 exit 255，
+而按 CLAUDE.md 255 必须当真实缺陷 —— 也就是说在这个库上守门要么被绕过、要么被误判。
+
+### 🔴 未修：`StaticPool` 让「开第二个 session 读」在本仓**全仓失效**
+
+实测（`bug-171`，2026-10-14）：`sqlite+aiosqlite:///:memory:` 的连接池是
+**`StaticPool`** —— 所有 session 共享同一条连接：
+
+```
+engine.pool.__class__.__name__  ->  StaticPool
+会话 A: insert（不提交）
+会话 B: select count(*)  ->  1      ← 读到了 A 未提交的数据
+```
+
+所以「用另一个 session 读，用来证明状态真的落库了」这条**正确**的观测方法，
+在本仓**静默失效**。这正是 2026-10-14 修掉的 P0 #2（回收器不 commit）
+能长期潜伏的直接原因。
+
+**未修的那一条**：`tests/workers/test_report_tasks.py` 里
+`test_failure_state_is_committed_not_just_left_in_the_session`
+—— 它的 docstring 明写「必须用**另一个 session** 读，替身比被测物更宽容」，
+**但它并没有真正证明 commit**。该测试目前通过，只是证明力为零。
+
+**修法**：需要观测「未提交」时用**文件库**（`sqlite+aiosqlite:///{tmp_path}/x.db`），
+文件库默认给每条连接独立事务。样板见同文件里
+`test_cron_reclaim_commits_so_the_state_survives_its_own_session`。
+
+**Owner：待认领，优先级低**（那条测试断言的行为本身是对的，只是证据不足）。
 
 ### 🟡 遗留：`drain_orifice_Cd_Y_cr` 上有**两个**功能重复的唯一索引
 

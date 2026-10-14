@@ -3104,6 +3104,58 @@
         "todo-016",
         "failure-injection"
       ]
+    },
+    {
+      "id": "bug-169",
+      "timestamp": "2026-10-14T00:00:00+08:00",
+      "error_message": "僵死任务回收器**完全失效**：cron 每小时 :03/:33 跑两次，每次都把 PENDING 改成 FAILED、写 REPORT_FAILED 审计，然后全部回滚 —— 日志里看得到「回收僵死报表任务 1 个」，库里什么都没变",
+      "file": "pcs-backend/app/workers/report_tasks.py",
+      "root_cause": "两个回收器都以 `await db.flush()` 结尾、**没有 commit**，而 cron 入口\n`reclaim_stale_report_tasks` 用 `_ctx_session(ctx)` 取一个**独立 session**\n且从不 close。于是每一次改判都在 session 释放时回滚。\n\n全模块最后一次 `commit()` 在 :203（`generate_report_task` 体内），\n早于两个回收器 —— 所以它们拿到的永远是「没人提交过」的状态。\n\n**为什么单测全绿**（这才是关键）：\n  1. 回收测试把**测试自己的 session** 直接传进 `reclaim_stale_tasks`，\n     flush 之后同一个 session 当然读得到自己没提交的数据；\n  2. 更深一层 —— `sqlite+aiosqlite:///:memory:` 的连接池是 **`StaticPool`**，\n     **所有 session 共享同一条连接**。实测：会话 A insert 不提交，\n     会话 B select **读到那 1 行**。所以连「开第二个 session 读」\n     这条正确的方法在本仓都观测不到未提交。\n  结果是「回收器整体失效」这件事在 CI 上完全不可见。\n\n评审定位：ce-code-review 20261014-005528-981d772a 的 P0 #2，\n由 reliability 与 adversarial 两位 reviewer 独立发现。",
+      "fix": "1. `reclaim_stale_tasks` 与 `reclaim_stale_execution_logs` 末尾补 `await db.commit()`；\n2. cron 入口改用 `try/finally: await db.close()` 关掉它开的 session\n   （之前每跑一次 cron 泄漏一条连接，每天 48 次）；\n3. **新测试改用文件库**（`tmp_path/reclaim.db`）—— 只有文件库才能让\n   「另一个连接」真的是另一个连接，`:memory:` 的 StaticPool 做不到。\n\n同一批还修了 bug-170：两者必须同批，否则先修本条会把 bug-170 变成活跃损坏。",
+      "fix_commit": "211f3c6",
+      "tags": [
+        "arq",
+        "cron",
+        "transaction",
+        "commit",
+        "observability",
+        "staticpool",
+        "test-fixture",
+        "P0"
+      ]
+    },
+    {
+      "id": "bug-170",
+      "timestamp": "2026-10-14T00:00:00+08:00",
+      "error_message": "自定义报表**成功**执行后 `report_execution_logs.status` 停在 RUNNING，15 分钟后被回收器当成僵死的改判成 FAILED，并在 condition_snapshot 里写入 reclaimed_at —— 而那张表模块自己声明为审计表",
+      "file": "pcs-backend/app/workers/report_builder_tasks.py",
+      "root_cause": "`execute_definition_task` 只在两个地方写 status：\n  :83  `task_row.status = \"RUNNING\"`   （开始跑）\n  :113 `task_row.status = \"FAILED\"`   （except 分支）\n全 `app/` 没有任何地方写 **FINISHED**。\n\n而 `reclaim_stale_execution_logs` 扫的正是\n`status IN ('QUEUED','RUNNING')` 且超时 15 分钟的行 ——\n所以一次**已经出了文件**的成功执行，正好落进回收器的筛选项。\n轮询端点随后对一个真有文件的任务报失败。\n\n**注释早就写对了，代码一直没写**：`report_builder_tasks.py:69-71`\n原文「每次尝试都取，不只第一次：重试成功后同样要把行标成 FINISHED，\n否则它停在 RUNNING 上，15 分钟后被回收器当成僵死的收掉 ——\n而文件明明已经出来了」。这段注释描述的就是本 bug，\n说明意图明确、实现漏了。读代码的人会以为已经处理。\n\n**为什么单测全绿**：没有任何测试断言过成功后的 status；\n轮询端点用 `report_file_id is not None` 这个启发式倒推 FINISHED，\n把缺的那次赋值**掩盖**了。\n\n**为什么此前没有造成实际损坏**：回收器不 commit（bug-169），\n改判回滚了。**先修 bug-169 而不修本条，就是把潜伏缺陷变成活跃损坏。**\n\n评审定位：ce-code-review 20261014-005528-981d772a 的 P1 #6。",
+      "fix": "成功路径在 `await db.commit()` **之前**补 `task_row.status = \"FINISHED\"`，\n与 except 分支「终态与审计同一次提交」的处置保持一致。\n\n新增端到端测试 `test_successful_builder_execution_marks_the_log_row_FINISHED`，\n走完整的「端点入队建行 → worker 执行」链路后断言 status == 'FINISHED'。",
+      "fix_commit": "211f3c6",
+      "tags": [
+        "arq",
+        "state-machine",
+        "audit",
+        "reclaimer",
+        "missing-assignment",
+        "P1"
+      ]
+    },
+    {
+      "id": "bug-171",
+      "timestamp": "2026-10-14T00:00:00+08:00",
+      "error_message": "`sqlite+aiosqlite:///:memory:` 用的是 StaticPool —— **所有 session 共享同一条连接**，于是本仓「开第二个 session 读未提交数据」这条观测手段**全仓失效**",
+      "file": "pcs-backend/tests/conftest.py",
+      "root_cause": "实测（不是推断）：\n\n    engine = create_async_engine(\"sqlite+aiosqlite:///:memory:\")\n    engine.pool.__class__.__name__  ->  StaticPool\n    会话 A: insert（不提交）\n    会话 B: select count(*)        ->  1     ← 读到了 A 未提交的数据\n    会话 A: rollback()\n    会话 B: select count(*)        ->  0\n\n这让**一类正确的测试方法在本仓静默失效**：\n「任务体自己的 session 读」被「用第二个 session 读」替代，\n本是为了证明「状态真的落库了、不是只挂在任务的事务里」——\n但在 StaticPool 下第二个 session 就是同一条连接，读到的仍是未提交数据。\n\n**已确认的受害者**：`test_failure_state_is_committed_not_just_left_in_the_session`\n（2026-10-14 之前加的），其 docstring 明写「必须用**另一个 session** 读，\n替身比被测物更宽容」。**它并没有真正证明 commit。**\n\n这也是 bug-169 能长期潜伏的直接原因。\n\n**修法**：需要真正观测「未提交」时，用**文件库**\n（`sqlite+aiosqlite:///{tmp_path}/x.db`）—— 文件库的默认池给每条连接\n独立事务，B 读到的就是已提交状态。见\n`test_cron_reclaim_commits_so_the_state_survives_its_own_session`。",
+      "fix": "不改动共享 conftest（会让 4000+ 测试变慢且非本次范围），\n而是：\n1. 新增需要观测「未提交」的测试时用文件库，并在这类测试的 docstring 里写明原因；\n2. bug-169 的新测试即按此重写；\n3. bug-170 的测试不需要跨连接（验的是「有没有赋这个值」不是「有没有提交」），\n   沿用共享 fixture 并在 docstring 里说明这个区别。\n\n**留作后续**：既有那条 `test_failure_state_is_committed_...` 仍未改写，\n它现在**通过但证明力为零**。已登记进 TODOS.md。",
+      "fix_commit": "211f3c6",
+      "tags": [
+        "test-fixture",
+        "staticpool",
+        "observability",
+        "false-green",
+        "sqlite"
+      ]
     }
   ]
 }
