@@ -134,6 +134,29 @@ def upgrade() -> None:
 
 
 def downgrade() -> None:
-    """删除 4 张表，逆序同 upgrade."""
+    r"""删除 4 张表 —— **但先拒绝任何有数据的库**（用户 2026-10-14 裁决 #15）。
+
+    `report_execution_logs` 是审计表：无条件 drop 等于无守卫、无备份地销毁
+    合规记录。裁决：**拒绝**。归档是运维动作，不是迁移的职责 ——
+    运维想降级，先自己 `\copy` 导出，再来跑。
+
+    守卫抛的错要**报出行数**：空表放行、非空报数，运维才知道要导多少。
+    （连表都可能不存在的库 —— 全新库直接 stamp —— 计 0 行放行。）
+
+    ⚠️ 2026-10-14 在 pcs_test 上实测过两个方向：
+    空库 downgrade 走通；塞一行再 downgrade → 报错带行数、表原样保留。
+    """
+    counts: dict[str, int] = {}
+    for t in _DROP_ORDER:
+        exists = op.get_bind().execute(sa.text(
+            "SELECT to_regclass(:t) IS NOT NULL"), {"t": f"public.{t}"}).scalar()
+        counts[t] = (op.get_bind().execute(sa.text(
+            f"SELECT count(*) FROM {t}")).scalar() or 0) if exists else 0
+    nonempty = {t: n for t, n in counts.items() if n > 0}
+    if nonempty:
+        raise RuntimeError(
+            "拒绝降级：以下表非空，drop 会不可逆地销毁数据 —— "
+            f"{nonempty}。先把数据 \\copy 导出（运维动作），"
+            "或确认放弃后再手工 drop。空表时本迁移才会自动放行。")
     for t in _DROP_ORDER:
         op.drop_table(t, if_exists=True)
