@@ -3239,6 +3239,54 @@
         "P2",
         "sqlite-blindspot"
       ]
+    },
+    {
+      "id": "bug-177",
+      "timestamp": "2026-10-18T00:00:00+08:00",
+      "error_message": "清空临时过滤条件**静默退化成「继承定义」**：用户把编辑器里的条件删光，导出却仍带着定义里的条件，界面在骗人",
+      "file": "pcs-frontend/src/pages/report/ReportExecutePage.tsx",
+      "root_cause": "`run()` 里是 `!tempFilters?.length ? undefined : ...` —— `null`（没做临时调整）与 `[]`（用户删光）被**压成同一个值**。\n\n用户裁决：`null` = 继承定义；`[]` = 显式「不筛选」。\n\n「删光」必须能表达「不筛选」：临时调整的整个用意就是能**覆盖**定义（SPEC §3.2.2(5)），一个只能加条件不能减条件的面板是残废的。\n\n**三处一致性**，缺一处界面照样说谎：\n  1. 载荷构造 —— 内联表达式把两者合并；\n  2. `FilterTreeEditor` 空态文案 —— 两者 `nodes` 都是 `[]`，原先都显示「将导出全量」，而继承状态下实际不是；\n  3. 页面没把「是不是继承态」告诉编辑器。",
+      "fix": "1. 抽出纯函数 `buildTempFilterPayload`：`null/undefined -> undefined`；`[] -> {operator:'AND', conditions:[]}`。\n   后端 `apply_filters` 对空条件组返回 `sa.true()`（docstring 明写「空过滤器 = 不筛，不是报错」）⇒ **已有契约，后端零改动**。\n2. `FilterTreeEditor` 加 `inherited` prop，空态文案随之切换。\n3. 页面传 `inherited={tempFilters === null}`。\n\n测试 8 条，含一条单列的「`[]` 与 `null` 的结果**不同**」——\n整条裁决压在这一行，若有人简化回 `!tempFilters?.length` 立刻变红。",
+      "fix_commit": "82a4e3d",
+      "tags": [
+        "frontend",
+        "silent-degradation",
+        "null-vs-empty",
+        "todo-060",
+        "P2"
+      ]
+    },
+    {
+      "id": "bug-178",
+      "timestamp": "2026-10-18T00:00:00+08:00",
+      "error_message": "用户**无法修改已存在的报表样式**：修订入口不可达（revise 分支是死代码），而「新建样式」在已有 ACTIVE 时是禁用的",
+      "file": "pcs-frontend/src/pages/report/ReportStylePage.tsx",
+      "root_cause": "两层，第二层藏在入口修通之后：\n\n### 1. 入口不可达\n`startEdit` 两个调用点都传 `null` ⇒ `editing` 恒为 null ⇒\n`submit` 的 revise 分支与「修订（基于 X）」卡片标题全是**死代码**；\n又因「新建样式」`disabled={!!active}` ⇒ 用户根本无从改起。\n后端 `revise` 端点一直在 —— 纯前端实现遗漏。\n\n### 2. 修订只发 patch → 旧版本其余定制被静默丢掉\n后端 `revise` 是 `style_json=patch` **整存**。只发本次摸过的字段，\n意味着改了个字号、**行距悄悄回到默认**。\n\n**为什么单测全绿**：`tests/` 下无任何 ReportStylePage 组件测试。",
+      "fix": "1. 版本历史每行加「修订」按钮（含 ACTIVE —— 改当前样式就是修订它）；\n2. 表单回填改为 `(editing ?? active)?.style`：「基于 0.1.0 修订」要显示 0.1.0 的值，否则用户改之前看到的就是错的基线；\n3. revise 提交发**合并后**的完整样式 `{...editing.style, ...patch}`。\n\n测试 3 条，变异验证：把 merge 退回裸 patch → 恰好第三条红（`line_spacing` 丢失）。",
+      "fix_commit": "4df621d",
+      "tags": [
+        "frontend",
+        "dead-code-path",
+        "data-loss",
+        "unreachable-ui",
+        "P2"
+      ]
+    },
+    {
+      "id": "bug-179",
+      "timestamp": "2026-10-18T00:00:00+08:00",
+      "error_message": "`toFilterTree` 静默丢弃它不认识的过滤条件，保存后不可恢复，且界面无任何提示",
+      "file": "pcs-frontend/src/pages/report/definitionBody.ts",
+      "root_cause": "`toFilterTree` 对非法节点返回 `[]`，`buildBody` 随后把幸存者持久化。\n打开一个含无法识别条件（旧定义、手工改过的 payload、部分迁移记录）的定义，改一个无关字段，保存 —— 那条条件就没了。\n\n本模块 :256 自己声明「往返无损是硬要求」，而邻近的 `FilterTreeEditor` 刻意放行空值好让后端报 `REPORT_FILTER_VALUE_MISSING` —— **唯独这里静默**。\n\n用户裁决：**警告**（不是静默修复）。",
+      "fix": "1. `countUnparsedFilterNodes(raw)`：数出 `toFilterTree` 会丢多少。判据与 `toFilterTree` **逐字一致**（isGroup→递归；非对象/缺 field/缺 operator→丢）—— 判据分叉的话警告会说谎。\n2. 编辑器加载时计数，非零渲染 Alert「本定义含 N 条本页无法识别的过滤条件，保存会把它们丢弃」。\n3. 保存前 `Modal.confirm`（danger 确认键）—— 丢弃必须点头，不能顺手发生。\n\n测试 9 条：7 条纯函数（含一条**一致性根断言**：计数 + 保住的叶子 === 总节点数）+ 2 条走真实加载路径的组件测试。变异验证：删掉 load 里的计数 → 组件测试红。",
+      "fix_commit": "6cc7c53",
+      "tags": [
+        "frontend",
+        "silent-data-loss",
+        "todo-060",
+        "dropped-filter-nodes",
+        "P2"
+      ]
     }
   ]
 }
