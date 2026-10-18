@@ -8,8 +8,33 @@
  * seed 数据覆盖：QA 11 组件实例化所需的所有列表端点
  * （streams / assets / pipe-classes / pms / bedd / materials / pipe-line /
  *  workspaces / checklist 等）。详见 docs/qa-report-per-batch-2026-09-16.md。
+ *
+ * ## 哪些 fixture 有契约、哪些没有（2026-10-18，评审 #24）
+ *
+ * 30 个 mock 端点里只有 **24 个在 OpenAPI 里**，另外 6 个是刻意 mock-only
+ * （`auth/mock-login`、`pms`、`bedd`、`pipe-line-list`、`notifications`、
+ * `config/assets/{id}/revisions`）—— 它们**没有契约可漂移**，标注不了也不该标注。
+ * 那 6 个端点的数据归 `seed/` 或本文件的 `Notification[]`/`RevVersion[]`
+ * （来自组件自有类型，不来自 OpenAPI）。
+ *
+ * 有契约的 24 个里，可标注的响应体一律用**生成的 OpenAPI 类型**标注。
+ * 标注之前它们全是裸字面量：docstring 写着「OpenAPI drift 校验覆盖」，
+ * 可那个校验只比 `required` 数组（`scripts/check-api-drift.sh:64`），
+ * 字段**改名**与**改类型**都照过 —— 覆盖范围比那句话写的小得多。
  */
 import { http, HttpResponse } from "msw";
+
+import type { components } from "../types/api";
+
+type MeResponse = components["schemas"]["MeResponse"];
+type ChecklistCompleteness = components["schemas"]["ChecklistCompleteness"];
+type PsvCalculateResponse = components["schemas"]["app__api__v1__psv__CalculateResponse"];
+type StandardProfileResponse = components["schemas"]["StandardProfileResponse"];
+type VesselCalculateResponse = components["schemas"]["app__api__v1__vessel__CalculateResponse"];
+type SepEquipCalculateResponse = components["schemas"]["app__api__v1__sep_equip__CalculateResponse"];
+type HeatingValueCalcResponse = components["schemas"]["HeatingValueCalcResponse"];
+type SaturationWaterContentResponse = components["schemas"]["SaturationWaterContentResponse"];
+type CvCalculateResponse = components["schemas"]["CvCalculateResponse"];
 
 import { heatHandlers } from "./heat";
 import { metaSeed, MOCK_TOKEN } from "./seed/meta";
@@ -75,7 +100,8 @@ const devOnlyMockHandlers = [
     const username = "alice"; // 简化: dev mode 默认 alice
     const role = ROLE_BY_USER[username] ?? "DESIGNER";
     const user_id = MOCK_USER_IDS[username] ?? '00000000-0000-0000-0000-000000000001';
-    return HttpResponse.json({ username, role, user_id });
+    const body: MeResponse = { username, role, user_id };
+    return HttpResponse.json(body);
   }),
 
   // === 物流 SIM ===
@@ -145,13 +171,40 @@ const devOnlyMockHandlers = [
   }),
   http.get("/api/v1/checklist/projects/:project_id/completeness", ({ request, params }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    // ⚠️ 2026-10-18 契约修正：这里原本返 {total, completed, percent}，
+    // 契约的 ChecklistCompleteness 是 required_* 七字段 + completeness_pct。
+    // 字段名全对不上 ⇒ 真实后端下这个页面永远读不到数（undefined → 0%）。
+    // ⚠️ 2026-10-18 契约修正：这里原本返 {total, completed, percent}，
+    // 契约的 ChecklistCompleteness 是 required_* 三桶 + completeness_pct，
+    // 字段名全对不上 ⇒ 真后端下这个页面永远读不到数（undefined → 0%）。
+    //
+    // 判定规则照抄 `checklist_service.py` 的 completeness()（DICT V3.1）——
+    // mock 的意义就是「表现得像真端点」，规则不同就等于换了个 bug：
+    //   required = input_category=='REQUIRED' 或（旧数据）required 且无 category
+    //   blocked  = NOT_STARTED / IN_PROGRESS；assumed 视同通过
+    //   required_total=0 → 100%（后端防除零，不是 0）
     const items = seedChecklist.filter((c) => c.project_id === params.project_id);
-    const completed = items.filter((i) => i.status === "VERIFIED").length;
-    return HttpResponse.json({
+    const required = items.filter(
+      (i) => i.input_category === "REQUIRED" || (i.required && !i.input_category),
+    );
+    const verified = required.filter((i) => i.status === "VERIFIED").length;
+    const assumed = required.filter((i) => i.status === "ASSUMED").length;
+    const blocked = required.filter(
+      (i) => i.status === "NOT_STARTED" || i.status === "IN_PROGRESS",
+    ).length;
+    const body: ChecklistCompleteness = {
+      project_id: String(params.project_id),
       total: items.length,
-      completed,
-      percent: items.length > 0 ? Math.round((completed / items.length) * 100) : 0,
-    });
+      required_total: required.length,
+      required_verified: verified,
+      required_assumed: assumed,
+      required_blocked: blocked,
+      completeness_pct:
+        required.length > 0
+          ? Math.round((100 * (verified + assumed)) / required.length * 100) / 100
+          : 100,
+    };
+    return HttpResponse.json(body);
   }),
 
   // === 通知中心 ===
@@ -213,18 +266,20 @@ const devOnlyMockHandlers = [
       project_id?: string;
       tag_number?: string;
     };
-    return HttpResponse.json(
-      {
-        vessel_id: "00000000-0000-0000-0000-000000000000",
-        project_id: body.project_id ?? "00000000-0000-0000-0000-000000000000",
-        tag_number: body.tag_number ?? "V-001",
-        design_stage: "BASIC",
-        output_json: { mock: true, source: "msw" },
-        record_hash: "msw-vessel-hash",
-        created_at: new Date().toISOString(),
-      },
-      { status: 201 },
-    );
+    // ⚠️ 2026-10-18 契约修正：原来返 vessel_id/project_id/tag_number/
+    // design_stage/output_json/created_at —— 契约里**一个都没有**。
+    // 真后端返统一 CalculateResponse 形状（主键叫 calc_id）。
+    const res: VesselCalculateResponse = {
+      calc_id: "00000000-0000-0000-0000-000000000000",
+      calc_type: "VESSEL",
+      record_hash: "msw-vessel-hash",
+      stream_id: "00000000-0000-0000-0000-000000000001",
+      lineage_ids: [],
+      result: { mock: true, source: "msw", tag_number: body.tag_number ?? "V-001" },
+      outlet_stream_id: "00000000-0000-0000-0000-000000000088",
+      outlet_stream_name: `S-VESSEL-${body.tag_number ?? "V-001"}-MSW`,
+    };
+    return HttpResponse.json(res, { status: 201 });
   }),
 
   http.post("/api/v1/sep-equip/calculate", async ({ request }) => {
@@ -233,56 +288,55 @@ const devOnlyMockHandlers = [
       project_id?: string;
       tag_number?: string;
     };
-    return HttpResponse.json(
-      {
-        sep_id: "00000000-0000-0000-0000-000000000000",
-        project_id: body.project_id ?? "00000000-0000-0000-0000-000000000000",
-        tag_number: body.tag_number ?? "S-001",
-        output_json: { mock: true, source: "msw" },
-        record_hash: "msw-sep-hash",
-        created_at: new Date().toISOString(),
-      },
-      { status: 201 },
-    );
+    // ⚠️ 2026-10-18 契约修正：同 vessel —— 契约是统一 CalculateResponse 形状。
+    const res: SepEquipCalculateResponse = {
+      calc_id: "00000000-0000-0000-0000-000000000000",
+      calc_type: "SEP_EQUIP",
+      record_hash: "msw-sep-hash",
+      stream_id: "00000000-0000-0000-0000-000000000001",
+      lineage_ids: [],
+      result: { mock: true, source: "msw", tag_number: body.tag_number ?? "S-001" },
+      outlet_stream_id: "00000000-0000-0000-0000-000000000088",
+      outlet_stream_name: `S-SEP-${body.tag_number ?? "S-001"}-MSW`,
+    };
+    return HttpResponse.json(res, { status: 201 });
   }),
 
   // === P6-5 前端补课：3 计算端点（heating-value / saturation-water-content / cv）===
   //    固定 demo 输出（与 vessel/calculate 同模式），页面测试用 vi.mock 不走这里。
   http.post("/api/v1/common/heating-value/calculate", async ({ request }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    return HttpResponse.json(
-      {
-        feed_mw_kg_per_kmol: 17.4,
-        hhv_mj_per_sm3: 41.6,
-        hhv_btu_per_scf: 1116,
-        lhv_mj_per_sm3: 37.5,
-        lhv_btu_per_scf: 1006,
-        stoichiometric_air_sm3_per_sm3: 9.85,
-        flue_gas_sm3_per_sm3: 10.6,
-        flue_gas_composition: { CO2: 0.087, H2O: 0.173, N2: 0.73, O2: 0.0 },
-        flue_gas_mw_kg_per_kmol: 27.6,
-        formula_ref: { "74-82-8": "GPSA_23-2", mock: true },
-      },
-      { status: 200 },
-    );
+    const res: HeatingValueCalcResponse = {
+      feed_mw_kg_per_kmol: 17.4,
+      hhv_mj_per_sm3: 41.6,
+      hhv_btu_per_scf: 1116,
+      lhv_mj_per_sm3: 37.5,
+      lhv_btu_per_scf: 1006,
+      stoichiometric_air_sm3_per_sm3: 9.85,
+      flue_gas_sm3_per_sm3: 10.6,
+      flue_gas_composition: { CO2: 0.087, H2O: 0.173, N2: 0.73, O2: 0.0 },
+      flue_gas_mw_kg_per_kmol: 27.6,
+      // ⚠️ formula_ref 契约是 {[key: string]: string} —— 原来塞的 mock: true
+      // 是 boolean，真后端下同一个键是字符串。
+      formula_ref: { "74-82-8": "GPSA_23-2", mock: "true" },
+    };
+    return HttpResponse.json(res, { status: 200 });
   }),
 
   http.post("/api/v1/psychro/saturation-water-content/calculate", async ({ request }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    return HttpResponse.json(
-      {
-        saturation_w_kg_kg: 0.0201,
-        saturation_w_mg_sm3: 24700,
-        saturation_w_lb_per_mmscf: 1310,
-        saturation_T_c: 25.0,
-        temperature_out_of_range: false,
-        warning_message: null,
-        acidic_gas_correction_applied: false,
-        acidic_gas_correction_factor: 1.0,
-        formula_ref: "ASHRAE_RP-1845_CoolProp",
-      },
-      { status: 200 },
-    );
+    const res: SaturationWaterContentResponse = {
+      saturation_w_kg_kg: 0.0201,
+      saturation_w_mg_sm3: 24700,
+      saturation_w_lb_per_mmscf: 1310,
+      saturation_T_c: 25.0,
+      temperature_out_of_range: false,
+      warning_message: null,
+      acidic_gas_correction_applied: false,
+      acidic_gas_correction_factor: 1.0,
+      formula_ref: "ASHRAE_RP-1845_CoolProp",
+    };
+    return HttpResponse.json(res, { status: 200 });
   }),
 
   http.post("/api/v1/cv/calculate", async ({ request }) => {
@@ -291,33 +345,31 @@ const devOnlyMockHandlers = [
       fluid_phase?: string;
     };
     const isLiquid = body.fluid_phase === "LIQUID" || body.fluid_phase === "TWO_PHASE";
-    return HttpResponse.json(
-      {
-        cv_result_id: "00000000-0000-0000-0000-0000000000c7",
-        tag_number: "CV-0001",
-        fluid_phase: body.fluid_phase ?? "LIQUID",
-        Cv_calculated: 42.5,
-        Cv_selected: 50,
-        choked: false,
-        cavitation: false,
-        flashing: isLiquid,
-        noise_sil_db: 72.4,
-        // P6-4 C-24 三新字段：仅 LIQUID 路径填充（GAS 保持 null）
-        fl: isLiquid ? 0.85 : null,
-        flash_steam_rate_kg_s: isLiquid ? 0.0042 : null,
-        masonelian_model: isLiquid ? "MASONELIAN_1973" : null,
-        standard_profile_code: "IEC_60534",
-        design_stage: "BASIC",
-        record_hash: "msw-cv-hash",
-        outlet_stream_id: "00000000-0000-0000-0000-0000000000c8",
-      },
-      { status: 201 },
-    );
+    const res: CvCalculateResponse = {
+      cv_result_id: "00000000-0000-0000-0000-0000000000c7",
+      tag_number: "CV-0001",
+      fluid_phase: body.fluid_phase ?? "LIQUID",
+      Cv_calculated: 42.5,
+      Cv_selected: 50,
+      choked: false,
+      cavitation: false,
+      flashing: isLiquid,
+      noise_sil_db: 72.4,
+      // P6-4 C-24 三新字段：仅 LIQUID 路径填充（GAS 保持 null）
+      fl: isLiquid ? 0.85 : null,
+      flash_steam_rate_kg_s: isLiquid ? 0.0042 : null,
+      masonelian_model: isLiquid ? "MASONELIAN_1973" : null,
+      standard_profile_code: "IEC_60534",
+      design_stage: "BASIC",
+      record_hash: "msw-cv-hash",
+      outlet_stream_id: "00000000-0000-0000-0000-0000000000c8",
+    };
+    return HttpResponse.json(res, { status: 201 });
   }),
 ];
 
 /** P5-3 PSV 计算 mock 响应 — 固定 FIRE 场景输出（V1.2 SPEC §7.11.5 字段对齐） */
-const mockPsvCalculateResult = {
+const mockPsvCalculateResult: PsvCalculateResponse = {
   calc_id: '00000000-0000-0000-0000-000000000099',
   calc_type: 'PSV',
   record_hash: 'a1b2c3d4e5f60718',
@@ -357,7 +409,7 @@ const mockPsvCalculateResult = {
 };
 
 /** P5-3 PSV 项目标准配置 mock seed — API/7th 默认 */
-const mockPsvStandardProfile = {
+const mockPsvStandardProfile: StandardProfileResponse = {
   profile_id: '00000000-0000-0000-0000-000000000200',
   project_id: '00000000-0000-0000-0000-000000000001',
   discipline: 'PSV',

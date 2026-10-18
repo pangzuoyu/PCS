@@ -22,11 +22,24 @@
  * ## 与后端契约的关系
  *
  * 这份 fixture **不是**契约的副本，是让页面在 dev 里能点的东西。
- * 字段名/类型来自 `./api`（OpenAPI 生成），所以类型不会漂；
- * 但**字段内容**（有哪些数据源、多少字段）与真后端无关 ——
- * 真要验字段树请用 `pcs-backend` 的字段树一致性测试。
+ * **字段形状**用生成的 OpenAPI 类型标注（2026-10-18，评审 #24 / TODO-041）——
+ * 契约变了 `tsc` 立刻红，fixture 想漂都漂不动；但**字段内容**（有哪些数据源、
+ * 多少字段）与真后端无关 —— 真要验字段树请用 `pcs-backend` 的字段树一致性测试。
+ *
+ * ⚠️ 标注之前这里全是裸字面量，docstring 却写着「类型不会漂」——
+ * 那句话当时是**愿望不是事实**：joins 用了 `left/right` 形状、数据源缺
+ * `model`、file status 多了三个契约里没有的字段，`tsc` 一个都没报。
  */
 import { http, HttpResponse } from "msw";
+
+import type { components } from "../types/api";
+
+type DatasourceList = components['schemas']['ReportBuilderDatasourceList'];
+type DefinitionOut = components['schemas']['ReportDefinitionOut'];
+type ExecuteAccepted = components['schemas']['ReportExecuteAccepted'];
+type ExecutionStatus = components['schemas']['ReportExecutionStatus'];
+type FileStatus = components['schemas']['ReportFileStatusResponse'];
+type StyleSummary = components['schemas']['ReportStyleSummary'];
 
 const DEF_ID = '00000000-0000-0000-0000-0000000000b1';
 const FILE_ID = '00000000-0000-0000-0000-0000000000c1';
@@ -49,16 +62,18 @@ const HEAT_FIELDS = [
     is_jsonb_key: true, level: 'DETAIL', exchanger_type: 'AIR_COOLER' },
 ];
 
-const DATASOURCES = {
+const DATASOURCES: DatasourceList = {
   datasources: [
     {
       key: 'HEAT_RESULTS',
       label: '换热器结果',
+      model: 'heat_results',
       fields: HEAT_FIELDS,
     },
     {
       key: 'EQUIP_LIST',
       label: '设备一览',
+      model: 'equipment_list',
       fields: [
         { name: 'tag_number', label: '位号', type: 'string', is_jsonb_key: false,
           level: null, exchanger_type: null },
@@ -68,14 +83,16 @@ const DATASOURCES = {
     },
   ],
   joins: [
-    { left: 'HEAT_RESULTS', right: 'EQUIP_LIST', left_key: 'tag_number',
-      right_key: 'tag_number' },
+    // ⚠️ 形状来自 ReportBuilderJoin（a/a_field/b/b_field），
+    // 这一对在真白名单里存在（EQUIP_LIST ↔ HEAT_RESULTS，按位号）。
+    { a: 'EQUIP_LIST', a_field: 'tag_number',
+      b: 'HEAT_RESULTS', b_field: 'tag_number', degrade_warn: null },
   ],
 };
 
 /** 两条定义：一条 DRAFT、一条 PUBLISHED ——
  * 覆盖「执行」按钮的可用/禁用两种状态。 */
-const DEFINITION_BODY = {
+const DEFINITION_BODY: components['schemas']['ReportDefinitionBody-Output'] = {
   DataSources: [{ source: 'HEAT_RESULTS' }],
   SelectedFields: [
     { source: 'HEAT_RESULTS', field: 'tag_number', alias: '位号',
@@ -106,7 +123,7 @@ const DEFINITION_BODY = {
  *  而 PUBLISHED 那条带 AND 分组，覆盖嵌套。两个状态都验到。 */
 const DRAFT_BODY = { ...DEFINITION_BODY, FilterConditions: [] };
 
-const DRAFT = {
+const DRAFT: DefinitionOut = {
   def_id: DEF_ID,
   project_id: null,
   name: '换热器明细表',
@@ -123,7 +140,7 @@ const DRAFT = {
   updated_at: null,
 };
 
-const PUBLISHED = {
+const PUBLISHED: DefinitionOut = {
   ...DRAFT,
   definition_json: DEFINITION_BODY,
   def_id: '00000000-0000-0000-0000-0000000000b2',
@@ -135,22 +152,32 @@ const PUBLISHED = {
   version: '0.2.0',
 };
 
-const STYLE_V1 = {
+const STYLE_V1: StyleSummary = {
   style_id: '00000000-0000-0000-0000-0000000000d1',
   report_type: 'HEAT_DETAIL',
   project_id: null,
   version: '0.1.0',
   status: 'ACTIVE',
+  // ⚠️ 2026-10-18 补齐 8 个缺失字段（标注前 tsc 抓出来的第五处漂移：
+  // ReportStyle 长过而 fixture 没跟）。默认值对齐后端 style.py。
   style: {
-    page_size: 'A4', orientation: 'landscape', font_size_body: 9,
-    font_size_heading: 13, font_family_cn: 'Noto Sans CJK SC',
-    font_family_en: 'Arial', line_spacing: 1.5, qr_position: 'footer',
-    qr_size_mm: 20,
+    page_size: 'A4', orientation: 'landscape',
+    margins: { top: 20, bottom: 20, left: 18, right: 18 },
+    font_family_cn: 'Noto Sans CJK SC', font_family_en: 'Arial',
+    font_size_body: 9, font_size_heading: 13, line_spacing: 1.5,
+    header: { left: '', center: '', right: '' },
+    footer: { left: '', center: '', right: '' },
+    table: { header_bg: '#EEF2F7', header_bold: true, border_width: 0.5,
+      border_color: '#9CA3AF', cell_padding: 3, zebra_stripe: false,
+      max_cell_chars: 60 },
+    assumption_mark: '▲', assumption_color: '#FF8C00',
+    qr_position: 'footer', qr_size_mm: 20,
+    locked_fields: ['page_size', 'orientation'],
   },
 };
 
 /** 第二个版本 —— 覆盖「历史版本可回滚」与「同一作用域只有一行 ACTIVE」。 */
-const STYLE_V0 = {
+const STYLE_V0: StyleSummary = {
   ...STYLE_V1,
   style_id: '00000000-0000-0000-0000-0000000000d0',
   version: '0.0.9',
@@ -171,6 +198,15 @@ const requireAuth = (request: Request) =>
 
 const unauthorized = () =>
   HttpResponse.json({ code: 'MISSING_BEARER' }, { status: 401 });
+
+const EXECUTE_ACCEPTED: ExecuteAccepted = {
+  task_id: TASK_ID, def_id: DEF_ID, def_version: '0.1.0', status: 'QUEUED',
+};
+
+const FILE_STATUS: FileStatus = {
+  report_file_id: FILE_ID, status: 'SUCCEEDED', file_format: 'pdf',
+  size_bytes: 12345,
+};
 
 export const reportBuilderHandlers = [
   // --- 字段树 ---------------------------------------------------------------
@@ -209,8 +245,7 @@ export const reportBuilderHandlers = [
     ({ request }) => (requireAuth(request)
       // 202 + task_id，**不含文件** —— 与真后端一致（b7 决策）。
       // 页面若假设这里就有文件，会在真后端上白等一轮。
-      ? HttpResponse.json({ task_id: TASK_ID, def_id: DEF_ID,
-        def_version: '0.1.0', status: 'QUEUED' }, { status: 202 })
+      ? HttpResponse.json(EXECUTE_ACCEPTED, { status: 202 })
       : unauthorized())),
 
   // ⚠️ 第一次轮询回 RUNNING（无文件），之后回 FINISHED ——
@@ -220,18 +255,17 @@ export const reportBuilderHandlers = [
     if (!requireAuth(request)) return unauthorized();
     const seen = taskPollCount;
     taskPollCount += 1;
-    return HttpResponse.json({
+    const body: ExecutionStatus = {
       task_id: TASK_ID, def_id: DEF_ID,
       status: seen < 2 ? 'RUNNING' : 'FINISHED',
       report_file_id: seen < 2 ? null : FILE_ID,
-    });
+    };
+    return HttpResponse.json(body);
   }),
 
   http.get('/api/v1/report/:reportFileId/status', ({ request }) =>
     (requireAuth(request)
-      ? HttpResponse.json({ report_file_id: FILE_ID, file_format: 'pdf',
-        status: 'SUCCEEDED', size_bytes: 12345, content_hash: 'a'.repeat(64),
-        has_assumption_page: false, created_at: '2026-10-13T00:00:00Z' })
+      ? HttpResponse.json(FILE_STATUS)
       : unauthorized())),
 
   // --- 样式（c6）-----------------------------------------------------------

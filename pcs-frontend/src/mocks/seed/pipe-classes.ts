@@ -51,3 +51,19 @@ export const seedPipeClasses: PipeClass[] = [
     sign_status: 'OBSOLETE',
   },
 ];
+
+/* ⚠️ 已知契约不一致（2026-10-18 由评审 #24 的标注工作查出）——
+ *
+ * 本文件返 `{pipe_class_id, code, ...}`，而 `GET /api/v1/pipe-classes` 的
+ * 契约 `PipeClassResponse` 是 `{class_id, class_name, material_standard,
+ * corrosion_allowance, design_pressure, design_temperature, ...}`。
+ * **字段名整组不同。**
+ *
+ * 后果比 mock 漂移更重：`PipeClassListPage` 读 `record.pipe_class_id`
+ * （`rowKey` 也用它），`PipeComputePage` 的下拉用
+ * `{value: p.pipe_class_id, label: p.code}` —— 真后端下两者全是
+ * `undefined`。**管道等级页在生产上就是坏的，是这份 mock 一直在替它遮着。**
+ *
+ * 本轮不并（改它要动页面与 `types/pipeClass.ts` = TODO-039 前端类型唯一性）。
+ * 已登记为新发现，见 TODO 与本轮提交信息。
+ */

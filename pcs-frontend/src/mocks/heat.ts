@@ -6,13 +6,27 @@
  *   - heatHandlers：3 个 MSW handler（import-htri / detail / weight-estimate）
  *
  * 生产 handlers.ts 与测试 heat_handlers.test.ts 都从这里 import。
+ *
+ * ## 与后端契约的关系
+ *
+ * 三个 fixture 用**生成的 OpenAPI 类型**标注（2026-10-18，评审 #24 / TODO-041）——
+ * 契约一变 `tsc` 立刻红。与 `reportBuilder.ts` 同一处理。
+ * ⚠️ 标注之前这里是裸字面量，docstring 却写着「单一来源」：
+ * 「只有一份 fixture」防的是**两份 mock 之间**漂移，
+ * 而真正会漂的是 **fixture 与契约之间** —— 单一来源对此完全无感。
  */
 import { http, HttpResponse } from "msw";
 
+import type { components } from "../types/api";
+
+type ImportHtriResponse = components["schemas"]["ImportHtriResponse"];
+type HeatResultResponse = components["schemas"]["HeatResultResponse"];
+type WeightEstimateResponse = components["schemas"]["WeightEstimateResponse"];
+
 export const HEAT_MOCK_ID = "00000000-0000-0000-0000-000000000077";
 
-/** HEAT 导入 mock — 9 字段 ImportHtriResponse（V1.3 SPEC §7.11.6 字段对齐） */
-export const mockHeatImportResult = {
+/** HEAT 导入 mock — ImportHtriResponse（V1.3 SPEC §7.11.6 字段对齐） */
+export const mockHeatImportResult: ImportHtriResponse = {
   calc_id: HEAT_MOCK_ID,
   calc_type: "HEAT",
   record_hash: "b1c2d3e4f5061728",
@@ -26,7 +40,7 @@ export const mockHeatImportResult = {
 };
 
 /** HEAT 详情 mock — 详情 GET 200 响应 */
-export const mockHeatDetail = {
+export const mockHeatDetail: HeatResultResponse = {
   calc_id: HEAT_MOCK_ID,
   calc_type: "HEAT",
   project_id: "00000000-0000-0000-0000-000000000001",
@@ -56,7 +70,7 @@ export const mockHeatDetail = {
 };
 
 /** HEAT 重量估算 mock — weight-estimate POST 200 响应 */
-export const mockHeatWeightResult = {
+export const mockHeatWeightResult: WeightEstimateResponse = {
   calc_id: HEAT_MOCK_ID,
   total_weight_kg: 3056.75,
   shell_total_kg: 2037.49,

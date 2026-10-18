@@ -19,6 +19,9 @@ export interface Workspace {
   created_at: string;
   last_active_at: string | null;
   retention_days: number | null;
+  /** 工作区状态。契约 `WorkspaceOut.status` 是必填 —— 此前手写类型缺它，
+   *  真后端下工作区列表的状态列恒为 undefined（seed 断言查出来的）。 */
+  status: string;
 }
 
 /** 创建工作区请求：类型 + 名称 + 可选项目 ID + 可选保留天数。 */

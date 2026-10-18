@@ -5,7 +5,21 @@
  *
  * 与 backend meta_service.py 单一来源派生；前端 seed 在 MSW 离线开发时
  * 返同样的数据结构（前端能完全离线跑 13 组件 + SchemaForm）。
+ *
+ * ## 标注（2026-10-18，评审 #24 / TODO-041）
+ *
+ * 四个分片按**生成的 OpenAPI 类型**标注：`EnumsResponse` 的 19 个键是
+ * 全列举的 —— 后端加/删一组枚举，`tsc` 立刻红。这正是这份 fixture 最容易
+ * 漂的地方（19 组枚举 + 22 条迁移 + 20 行权限矩阵），而 docstring 里
+ * 「与 backend meta_service.py 单一来源派生」说的是**意图**，
+ * 本文件并不 import 任何后端代码 —— 意图对漂移无感。
  */
+import type { components } from "../../types/api";
+
+type EnumsResponse = components["schemas"]["EnumsResponse"];
+type StateMachineResponse = components["schemas"]["StateMachineResponse"];
+type PermissionItem = components["schemas"]["PermissionItem"];
+type ErrorCodeItem = components["schemas"]["ErrorCodeItem"];
 
 const STATE_META: Record<string, { color: string; icon: string }> = {
   DRAFT:              { color: "state-draft",           icon: "EditOutlined" },
@@ -59,7 +73,12 @@ const NINE_STATES = [
   "CHANGE_PENDING", "CHANGED", "REVERSAL_PENDING", "OBSOLETE",
 ];
 
-export const metaSeed = {
+export const metaSeed: {
+  enums: EnumsResponse;
+  stateMachine: StateMachineResponse;
+  permissions: PermissionItem[];
+  errorCodes: ErrorCodeItem[];
+} = {
   enums: {
     RecordSignStatus: enumToDict(NINE_STATES, true),
     StreamSignStatus: enumToDict(NINE_STATES, true),

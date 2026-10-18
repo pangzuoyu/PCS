@@ -6,6 +6,7 @@
  */
 import type { Workspace } from '../../types/workspace';
 import type { ChecklistItem } from '../../types/checklist';
+import type { components } from '../../types/api';
 
 export const seedWorkspaces: Workspace[] = [
   {
@@ -17,6 +18,9 @@ export const seedWorkspaces: Workspace[] = [
     created_at: '2026-08-01T09:00:00Z',
     last_active_at: '2026-09-16T03:00:00Z',
     retention_days: null,
+    // ⚠️ 2026-10-18 契约补齐：WorkspaceOut 要求 status，手写 Workspace
+    // 类型没有它 —— 真后端下工作区列表的状态列恒为 undefined。
+    status: 'ACTIVE',
   },
   {
     workspace_id: 'ws-personal-002',
@@ -27,6 +31,9 @@ export const seedWorkspaces: Workspace[] = [
     created_at: '2026-09-01T14:00:00Z',
     last_active_at: '2026-09-16T02:30:00Z',
     retention_days: null,
+    // ⚠️ 2026-10-18 契约补齐：WorkspaceOut 要求 status，手写 Workspace
+    // 类型没有它 —— 真后端下工作区列表的状态列恒为 undefined。
+    status: 'ACTIVE',
   },
   {
     workspace_id: 'ws-temp-003',
@@ -37,6 +44,8 @@ export const seedWorkspaces: Workspace[] = [
     created_at: '2026-09-16T01:00:00Z',
     last_active_at: '2026-09-16T02:55:00Z',
     retention_days: 7,
+    // ⚠️ 2026-10-18 契约补齐：同上（第三条是 TEMPORARY，另两条 retention_days 为 null）。
+    status: 'ACTIVE',
   },
 ];
 
@@ -61,3 +70,17 @@ export const seedChecklist: ChecklistItem[] = [
   // PROJECT_DOC 组（1 项）
   { checklist_id: 'cl-010', project_id: '00000000-0000-0000-0000-000000000001', item_key: 'DOC-001', item_label: 'BEDD 文档', module: 'PROJECT_DOC', input_category: 'REQUIRED', required: true, input_value_json: null, source_type: null, status: 'NOT_STARTED', verified_by: null, verified_at: null, assumption_reason: null, note: null },
 ];
+
+/* 契约一致性断言（2026-10-18，评审 #24）。
+ *
+ * 本文件的 seed 用**手写前端类型**标注，而端点响应是**生成的契约**。
+ * 两套类型并存是 TODO-039（前端类型唯一性），本轮不并。
+ * 这里先把两者绑上：seed 的每个取值都必须满足契约类型 ——
+ * 少一个必填字段 / 字段名对不上，`tsc` 立刻红。
+ * 方向只能是 seed → 契约；反向不成立（手写类型可多带页面私有字段）。
+ */
+type WorkspaceOut = components['schemas']['WorkspaceOut'];
+type ChecklistItemOut = components['schemas']['ChecklistItemOut'];
+const _ws: WorkspaceOut[] = seedWorkspaces;
+const _cl: ChecklistItemOut[] = seedChecklist;
+void _ws; void _cl;
