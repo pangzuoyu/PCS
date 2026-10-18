@@ -21,6 +21,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 #   - 已设环境变量 + 短于 32 字节 + 非 production → warnings.warn
 _DEFAULT_DEV_SECRET_PREFIX = "auto-generated:"  # 仅标记来源，不可见 API
 
+#: REPORT_VERIFY_SECRET（HMAC-SHA256）与 SECRET_KEY 共用的长度下限。
+#: 32 字节是 HMAC-SHA256 的常规门槛。两处同值是有意的：加第三个密钥时
+#: 照抄 SECRET_KEY 那一段即可，不必重新决定一个门槛（评审 #29）。
+_MIN_VERIFY_SECRET_BYTES = 32
+
 
 class Settings(BaseSettings):
     """应用全局配置（pydantic-settings，env 注入 + .env 兜底）。
@@ -186,6 +191,24 @@ def get_settings() -> Settings:
             RuntimeWarning,
             stacklevel=2,
         )
+    elif len(s.report_verify_secret.encode()) < _MIN_VERIFY_SECRET_BYTES:
+        # ⚠️ **长度下限**（2026-10-18 修，评审 #29）。此前只查非空，于是
+        # `REPORT_VERIFY_SECRET=x` 也能正常启动 —— HMAC 可被暴力穷举。
+        # 评审的说法很准：这个端点对「缺配置」fail-closed，对「弱配置」却
+        # fail-open，同一个变量两种相反的失败姿态。
+        #
+        # 下限 32 字节 = HMAC-SHA256 的常规门槛，**与 SECRET_KEY 同值**。
+        # 不发明新规则：加第三个密钥时照抄 SECRET_KEY 那一段即可。
+        # 形态也一致 —— production 抛错、dev 警告而不拦（拦了打断本地开发）。
+        n = len(s.report_verify_secret.encode())
+        msg = (
+            f"REPORT_VERIFY_SECRET 长度 {n} < {_MIN_VERIFY_SECRET_BYTES} 字节，"
+            "二维码 verify 端点的 HMAC 可被暴力穷举"
+        )
+        if s.is_production:
+            raise RuntimeError(msg + "，production 拒绝。")
+        warnings.warn(msg + "，仅开发用；production 前必须换成强随机值。",
+                      RuntimeWarning, stacklevel=2)
     return s
 
 

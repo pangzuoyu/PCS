@@ -525,8 +525,24 @@ async def store_rendered(db: AsyncSession, *, blocks: list, project_id,
                                   "content_hash": digest,
                                   "assumed_fields": assumed_fields})
     except Exception as e:  # noqa: BLE001
-        # ⚠️ **不回滚**。文件已落盘，回滚 DB 只留下无记录的孤儿文件。
-        logger.warning("REPORT_GENERATED 审计写入失败，文件记录保留：%s", e)
+        # ⚠️ **不回滚**，但**必须可被发现**（2026-10-18 修，评审 #21）。
+        #
+        # 不回滚是有意的，且已被 `test_audit_failure_does_not_rollback_the_file`
+        # 钉住：文件已落盘，回滚 DB 只留下无记录的孤儿文件 ——
+        # 孤儿比有记录更难排查（既没人知道它存在，也没人知道该删）。
+        #
+        # 评审 #21 指出的另一半成立：此前的写法是 `logger.warning`
+        # 且**不带 report_file_id**。于是一处合规缺口（文件在、审计记录不在）
+        # 混在告警海里，出了事定位不到是哪份报表，「哪些报表缺审计」
+        # 这个问题**无法被查询**，只能靠翻日志碰运气。
+        #
+        # 级别用 ERROR 不是 WARNING：缺的是审计记录，不是「有点问题」。
+        logger.error(
+            "REPORT_GENERATED 审计写入失败 —— 合规缺口：文件 %s 已登记但无审计记录"
+            "（project_id=%s, format=%s, content_hash=%s），原始错误：%s",
+            row.report_file_id, project_id, output_format, digest,
+            f"{type(e).__name__}: {e}",
+        )
     return row
 
 
@@ -600,12 +616,22 @@ async def _upsert_report_file(db: AsyncSession, **kw) -> ReportFile:
         size_bytes=kw["size"], status="SUCCEEDED",
         has_assumption_page=kw["has_assumption"],
     )
-    db.add(row)
+    # ⚠️ **SAVEPOINT，不是 `db.rollback()`**（2026-10-18 修，评审 #22）。
+    #
+    # 撞 `content_hash` 唯一约束时，**只能**撤掉自己这次失败的 INSERT。
+    # 原实现写的是 `await db.rollback()` —— `db` 是**共享 session**，
+    # 那一行丢掉的是调用方这一笔事务里**所有**未提交的写入：
+    # `report_builder_tasks` 里 `_build_style` 之前写的行、先前
+    # `audit.write` 留下的 pending AuditLog，全都没了，而且不报任何错
+    # —— 它们只是没被提交。
+    #
+    # `begin_nested()` 发一条 SAVEPOINT，回滚只回到那个点。
     try:
-        await db.flush()
+        async with db.begin_nested():
+            db.add(row)
+            await db.flush()
     except IntegrityError:
-        # 并发下另一个请求刚插了同一 content_hash —— 回滚自己的插入，复用它的
-        await db.rollback()
+        # 并发下另一个请求刚插了同一 content_hash —— 复用它的（去重语义不变）
         return (await db.execute(
             select(ReportFile).where(ReportFile.content_hash == kw["content_hash"])
         )).scalar_one()

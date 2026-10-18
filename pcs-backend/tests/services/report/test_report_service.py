@@ -158,6 +158,49 @@ async def test_audit_failure_does_not_rollback_the_file(db, project_id, monkeypa
 
 
 @pytest.mark.asyncio
+async def test_audit_failure_is_logged_at_error_and_names_the_file(
+    db, project_id, monkeypatch, caplog,
+):
+    """#21：审计缺口必须**可被发现**，否则「不吞」只是换了个说法。
+
+    上面那条测试钉住了「不回滚」——那是刻意的，理由是孤儿文件比有记录
+    的文件更难排查。这个裁决本身仍然成立。但评审 #21 指出的另一半是
+    **另一半真的没人看得见**：
+
+    - 记的是 `logger.warning` —— 一条合规缺口混在告警海里
+    - 日志里**没有 report_file_id** —— 出了事没法定位到是哪份报表
+    - 执行日志照旧标 FINISHED，DB 里没有任何字段说「这份没有审计记录」
+    - 于是「哪些报表缺审计」这个问题**无法被查询**，只能靠翻日志碰运气
+
+    本测试钉住可观测的那部分：不改回滚行为（上面那条已钉），
+    但要求缺口以 **ERROR** 级别出现，且**点名是哪份文件**。
+    """
+    import logging
+
+    from app.services.report import report_service
+
+    async def audit_boom(*a, **k):
+        raise RuntimeError("审计库挂了")
+
+    monkeypatch.setattr(report_service.AuditService, "write", audit_boom)
+    with caplog.at_level(logging.DEBUG, logger=report_service.__name__):
+        out = await generate(report_type="EQUIPMENT_LIST", project_id=project_id,
+                             record_ids=[], output_format="pdf",
+                             style=ReportStyle(), ctx=CTX, db=db)
+
+    errors = [r for r in caplog.records
+              if r.levelno >= logging.ERROR and "REPORT_GENERATED" in r.getMessage()]
+    assert errors, (
+        "审计写失败是**合规缺口**（文件在、审计记录不在），必须以 ERROR 记；"
+        f"实得 ERROR 级记录：{[r.getMessage() for r in caplog.records if r.levelno >= logging.ERROR]}"
+    )
+    assert str(out.report_file_id) in errors[0].getMessage(), (
+        f"ERROR 日志必须点名 report_file_id，否则出事定位不到是哪份报表；"
+        f"实得：{errors[0].getMessage()!r}"
+    )
+
+
+@pytest.mark.asyncio
 async def test_unsupported_output_format_rejected(db, project_id):
     """未知格式在**渲染前**就拒 —— 别渲染完再发现格式不认识，白烧 CPU。"""
     with pytest.raises(PcsError) as e:
