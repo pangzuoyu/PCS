@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-18T03:32:21.016Z",
-    "fileCount": 798,
+    "lastScanned": "2026-10-18T05:09:49.597Z",
+    "fileCount": 801,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "cc33ac004365744bc58fa5a290a05d5815d7fa0342920a4138d14cd1e22062ff",
-    "storeUpdatedAt": "2026-10-18T03:32:21.034Z",
-    "rootHash": "dfd694df2bb92272"
+    "renderedHash": "d03b4d93a9643061d135150803e19ecdbe6672e84a6099d1420ca1434f6d2b5b",
+    "storeUpdatedAt": "2026-10-18T05:09:49.607Z",
+    "rootHash": "19e51bbd4a9ab80f"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -27062,6 +27062,33 @@
       "size": 4009,
       "mtimeMs": 1792294340925.7185,
       "updatedAt": "2026-10-18T03:32:21.016Z",
+      "source": "hook"
+    },
+    "docs/solutions/framework-integration-issues/arq-028-worker-silent-failure-modes.md": {
+      "description": "ARQ 0.28 worker: five silent failure modes from misread framework semantics",
+      "tokens": 1515,
+      "hash": "8f79cc4a91bc7536",
+      "size": 6109,
+      "mtimeMs": 1792300146316.6401,
+      "updatedAt": "2026-10-18T05:09:06.370Z",
+      "source": "hook"
+    },
+    "docs/solutions/testing-issues/sqlite-staticpool-hides-uncommitted.md": {
+      "description": "`sqlite+aiosqlite:///:memory:` is StaticPool: \"read it from another session\" proves nothing",
+      "tokens": 1111,
+      "hash": "f30f10d30889150e",
+      "size": 4501,
+      "mtimeMs": 1792300167810.719,
+      "updatedAt": "2026-10-18T05:09:27.860Z",
+      "source": "hook"
+    },
+    "docs/solutions/database-issues/dialect-options-invisible-on-sqlite.md": {
+      "description": "Dialect-specific constraint options: three ways SQLite tests go blind (or lie)",
+      "tokens": 1224,
+      "hash": "4968132c838335c6",
+      "size": 4969,
+      "mtimeMs": 1792300189545.8967,
+      "updatedAt": "2026-10-18T05:09:49.597Z",
       "source": "hook"
     }
   }

@@ -831,8 +831,18 @@ engine.pool.__class__.__name__  ->  StaticPool
   `tests/integration/test_e2e_template_to_pipe_code.py:192`
   —— 名字叫 `concurrent_*`，但**没有**像上面 3 个那样声明串行化。
 
-**Owner：待认领。** 逐个复核 6 个未声明的，确认其断言是否依赖「未提交数据
-对另一 session 不可见」。
+**Owner：复核完毕（2026-10-18），结论如下。** 6 个未声明的逐个读码定性：
+
+| 测试 | 结论 |
+|---|---|
+| `test_server_generated_columns.py:73/:109` | **不受影响** —— 观测点是同 session 的 ORM 实例状态（`inspect(row).expired_attributes`），无跨 session 读 |
+| `test_pipe_code_generator.py:148` | **有效** —— 唯一性来自 `_next_sequence` 的**单语句 UPSERT+RETURNING**（语句级原子，与连接拓扑无关；真 PG 走行锁结论相同）。已补披露注释 |
+| `test_e2e_template_to_pipe_code.py:192` | 同上，**有效**，已补披露 |
+| `test_rbac_audit.py:163` | **今天成立但盲于 commit 移除** —— writer 确有 commit（`errors.py:58`），但断言与 writer 共享 StaticPool 连接，writer 忘了 commit 也会绿。原名 `..._real_db` 有误导（跑的是 `:memory:`），**已改名** `..._persists_via_own_session` 并在 docstring 写明局限 |
+
+**残留一个小项**：要钉死「writer 真的 commit」，需按
+`test_cron_reclaim_commits_...` 样板改文件库 —— 未做（该 writer 的 commit
+在 `errors.py` 里肉眼可证，风险低）。
 
 ### 🟡 遗留：`drain_orifice_Cd_Y_cr` 上有**两个**功能重复的唯一索引
 

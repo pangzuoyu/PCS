@@ -190,7 +190,12 @@ async def test_e2e_template_fork_pipe_code_generate(
 
 
 async def test_e2e_concurrent_generate_unique(db, db_engine, actor, ws, make_published_company_pc):
-    """INT-3 并发：5 并发同项目同符号全部唯一。"""
+    """INT-3 并发：5 并发同项目同符号全部唯一。
+
+    ⚠️ StaticPool 审计（2026-10-18）：`:memory:` 引擎所有 session 共享一条
+    连接，但唯一性由 `_next_sequence` 的单语句 UPSERT + RETURNING 保证
+    （语句级原子，真 PG 上走行锁，结论相同）—— 本条不受共享连接盲区影响。
+    """
     await make_published_company_pc("E2E-CON", "E2E Concurrent")
     sym = await StreamSymbolService.create_company(
         db, data={"symbol": "P", "name": "工艺"}, actor=actor,

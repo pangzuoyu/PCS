@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-18T03:32:21.016Z
-> Files: 798 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-18T05:09:49.597Z
+> Files: 801 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -390,6 +390,15 @@
 ## docs/solutions/database-issues/
 
 - `alembic-create-table-silently-drops-schema-elements.md` — Hand-written `op.create_table` silently drops inherited columns and foreign keys (~3714 tok)
+- `dialect-options-invisible-on-sqlite.md` — Dialect-specific constraint options: three ways SQLite tests go blind (or lie) (~1224 tok)
+
+## docs/solutions/framework-integration-issues/
+
+- `arq-028-worker-silent-failure-modes.md` — ARQ 0.28 worker: five silent failure modes from misread framework semantics (~1515 tok)
+
+## docs/solutions/testing-issues/
+
+- `sqlite-staticpool-hides-uncommitted.md` — `sqlite+aiosqlite:///:memory:` is StaticPool: "read it from another session" proves nothing (~1111 tok)
 
 ## docs/superpowers/plans/
 

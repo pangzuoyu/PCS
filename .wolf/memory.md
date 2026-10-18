@@ -1637,3 +1637,7 @@
 | 12:57 | Session end: 383 writes across 146 files (TODOS.md, p7_s5_001_drop_equipment_lib.py, equipment.py, test_schema.py, 0032-vessel-process-calculation.md) | 187 reads | ~458832 tok |
 | 11:20 | Session end: 383 writes across 146 files (TODOS.md, p7_s5_001_drop_equipment_lib.py, equipment.py, test_schema.py, 0032-vessel-process-calculation.md) | 187 reads | ~458832 tok |
 | 11:32 | Created docs/PCS-NOTE-P8-错误信封统一-2026-10-18.md | — | ~729 |
+| 13:08 | Session end: 384 writes across 147 files (TODOS.md, p7_s5_001_drop_equipment_lib.py, equipment.py, test_schema.py, 0032-vessel-process-calculation.md) | 187 reads | ~459613 tok |
+| 13:09 | Created docs/solutions/framework-integration-issues/arq-028-worker-silent-failure-modes.md | — | ~1616 |
+| 13:09 | Created docs/solutions/testing-issues/sqlite-staticpool-hides-uncommitted.md | — | ~1185 |
+| 13:09 | Created docs/solutions/database-issues/dialect-options-invisible-on-sqlite.md | — | ~1305 |

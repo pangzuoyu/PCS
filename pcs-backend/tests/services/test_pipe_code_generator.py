@@ -146,7 +146,15 @@ async def test_validate_invalid_symbol_flags(db, make_project):
 
 
 async def test_concurrent_generate_unique(db, db_engine, make_project):
-    """10 并发：每个生成器拿到独立 session；auto_increment 全部唯一。"""
+    """10 并发：每个生成器拿到独立 session；auto_increment 全部唯一。
+
+    ⚠️ StaticPool 审计（2026-10-18）：`db_engine` 是 `:memory:`，所有 session
+    共享**一条**连接 —— 但本条**不受**那个盲区影响，原因是唯一性来自
+    `_next_sequence` 的**单语句 UPSERT + RETURNING**（语句级原子，
+    与连接拓扑无关；真 PG 上走行锁，结论相同）。
+    这里并发跑的意义是验「拼号流程在交错 await 下不出重复」，
+    不是模拟生产连接级并发。
+    """
     proj = await make_project()
     await _seed_project_symbol(db, proj.project_id, "FOO")
     await _publish_fmt(db, proj.project_id)

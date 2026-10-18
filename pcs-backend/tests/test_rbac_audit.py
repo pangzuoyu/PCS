@@ -160,11 +160,20 @@ async def test_rate_limit_recovers_after_window(client, audit_recorder, monkeypa
 # ---------------------------------------------------------------------------
 
 
-async def test_write_rbac_audit_row_real_db(db_engine, db, monkeypatch):
-    """_write_rbac_audit_row 真实写入 audit_logs (SQLite).
+async def test_write_rbac_audit_row_persists_via_own_session(
+        db_engine, db, monkeypatch):
+    """`_write_rbac_audit_row` 自己开 session 写入 audit_logs 并提交。
 
     - monkeypatch get_async_session_factory → 测试 engine factory
     - 清 PYTEST_CURRENT_TEST (writer 在 pytest 下默认跳过防写真库)
+
+    ⚠️ 原名 `..._real_db` 有误导（2026-10-18 StaticPool 审计改）：跑的仍是
+    `:memory:` SQLite，不是真库。且「writer 与断言用的 `db` 共享同一条
+    StaticPool 连接」意味着本条**察觉不到 writer 忘了 commit** —— 断言
+    在未提交状态下也读得到。它今天成立是因为 `errors.py:58` 确有
+    `await session.commit()`；若要钉死 commit 行为，需按
+    `test_cron_reclaim_commits_...` 的样板改用文件库（未做，登记在
+    TODOS.md 的 StaticPool 审计条目里）。
     """
     from sqlalchemy.ext.asyncio import async_sessionmaker
 
