@@ -40,16 +40,18 @@ CORS、auth 三条、CATEGORY_6 设备库地基、CI 首次全绿。
 
 ## 🚀 Next quest
 
-P8 主体已闭环。候选（按价值排）：
+P8 主体已闭环（⚠️ 旧 handoff 的「43 条 alembic 旧账」是过时信息：
+TODOS.md:702 记录 43 条已于 2026-10-07 清零，唯一的跨库缺口
+`future_dated_forbidden_chk` 已由本会话 `p8_008` 补上，两库均 exit 0）。
+候选（按价值排）：
 
-1. **`TODOS.md` 的 43 条 alembic 旧账**（明细表在 TODOS.md）：
-   39 条补 ORM 声明零迁移成本；`utility_energy_summary.workspace_id`
-   CASCADE vs RESTRICT **需业务裁决**。
-2. **TODO-039/041**（前端类型唯一性、MSW 契约冻结，逾期 20+ 天；
-   评审 #24 MSW mock 落后契约三处也在此族）。
-3. **P9 起步**：`report_verify_base_url` 未配置 ⇒ 二维码当前默认不印
+1. **TODO-039/041 + 评审 #24**（前端类型唯一性、MSW 契约冻结，逾期 20+ 天；
+   MSW mock 落后契约三处：joins 形状、缺 model 字段、file status 字段）。
+2. **P9 起步**：`report_verify_base_url` 未配置 ⇒ 二维码当前默认不印
    （`#4` 的修复已就位，配置后生效）；`assemble` 真分批（P9 范围）；
    TODO-026（JSONB 子键平铺）。
+3. 低优先数据层遗留：TODO-028（10 表主键 rename）、TODO-032（27 个真库
+   测试迁 SQLite）、`drain_orifice_Cd_Y_cr` 重复唯一索引（TODOS.md）。
 
 ---
 
