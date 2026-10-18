@@ -8,7 +8,7 @@
  * Props：
  *   title: string
  *   status?: RecordSignStatus
- *   module?: StateBadgeModule
+ *   module?: SignModule
  *   version?: { hash: string; label?: string }
  *   actions: ReactNode
  *   extra?: ReactNode
@@ -17,7 +17,7 @@ import type { ReactNode } from 'react';
 import { Space, Typography } from 'antd';
 
 import { HashBadge } from './HashBadge';
-import { StateBadge, type StateBadgeModule } from './StateBadge';
+import { StateBadge, type SignModule } from './StateBadge';
 import type { RecordSignStatus } from '../../types/records';
 
 interface VersionSlot {
@@ -28,7 +28,15 @@ interface VersionSlot {
 interface Props {
   title: string;
   status?: RecordSignStatus;
-  module?: StateBadgeModule;
+  /**
+   * 标题栏是**签署**徽章位，所以只收签署模块。
+   *
+   * ⚠️ 刻意不是 `StateBadgeModule`（那含 `PIPE_CLASS`）：
+   * `module="PIPE_CLASS"` + `status: RecordSignStatus` 是个非法组合，
+   * 放宽后 `tsc` 就拦不住了（bug-180 的教训）。管子等级页
+   * 在自己的表格列里用 StateBadge，不过 PageHeader。
+   */
+  module?: SignModule;
   version?: VersionSlot;
   actions: ReactNode;
   extra?: ReactNode;

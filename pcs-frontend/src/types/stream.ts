@@ -16,6 +16,8 @@
  * §"P5 契约冻结点"
  */
 
+import type { RecordSignStatus } from './records';
+
 export type StreamPhase = 'LIQUID' | 'VAPOR' | 'MIXED' | 'AQUEOUS';
 /** 流子相态（饱和态细分）：过冷 SUBCOOLED / 饱和液 SAT_LIQUID / 饱和气 SAT_VAPOR / 过热 SUPERHEATED。 */
 export type StreamSubphase = 'SUBCOOLED' | 'SAT_LIQUID' | 'SAT_VAPOR' | 'SUPERHEATED';
@@ -33,7 +35,21 @@ export interface Stream {
   total_molar_flow_kmol_h: number;
   /** 组分名 → 摩尔分率（SPEC §7.7.2 组成 JSON）。 */
   composition_json: Record<string, number>;
-  sign_status: 'DRAFT' | 'IN_APPROVAL' | 'CHECKED' | 'CHECK_REJECTED' | 'STALE';
+  /**
+   * 签署状态。**九态全集**，与后端 `StreamSignStatus`（`app/models/enums.py:29`）
+   * 逐字相同 —— 物流记录走的就是记录层状态机。
+   *
+   * ⚠️ 此前这里只声明了 **5 态**（漏掉 CHANGE_PENDING / CHANGED /
+   * REVERSAL_PENDING / OBSOLETE），是**少声明**，不是「多了 STALE」。
+   * 证据：`stream_service.py:258` 的锁定检查逐个点名物流的终态 ——
+   * `CHECKED / STALE / CHANGED / OBSOLETE / CHECK_REJECTED / REVERSAL_PENDING`。
+   *
+   * 为什么会漏：当时按 `StateBadge` 的 `MODULE_ACTIVATED.SIM`
+   * （4 态「强调」子集）反推了词表。但那张表**只决定 opacity**，
+   * 从不做有效性检查 —— 把「渲染强调」当成「合法性约束」，
+   * 于是反过来把合法的 4 个态判成了不存在（bug-180 的元教训）。
+   */
+  sign_status: RecordSignStatus;
   approved_hash?: string;
   updated_by?: string;
   updated_at?: string;

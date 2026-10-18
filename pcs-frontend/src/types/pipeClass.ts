@@ -6,29 +6,33 @@
  * - 代码格式段（CodeFormatSegment）：管道号拼接规则
  * - 符号映射（SymbolMapping）：管路符号 ↔ 介质/服务/相态/毒性
  *
- * TODO(api-migration): PipeClassResponse 已在 api.d.ts 存在（§PipeClassResponse
- * 字段名 code/material/schedule 已对齐）；但 size_range_json /
- * design_pressure_mpa 等扩展字段由前端 V1 mock 注入。P5-1 完成 OpenAPI
- * 冻结后由 api.d.ts 替换本页 PipeClass / CodeFormatSegment / SymbolMapping。
+ * ## `PipeClass` = **契约类型**，不再是手写副本（2026-10-19，bug-180）
  *
- * 见 docs/superpowers/plans/2026-09-16-p45-frontend-sprint-batch3.md
- * §"P5 契约冻结点"
+ * 此前这里手写了一份 `pipe_class_id` / `code` / `material` / `schedule` /
+ * `size_range_json` / `sign_status`…，而契约 `PipeClassResponse` 返的是
+ * `class_id` / `class_name` / `material_standard` / `sch_series_json` /
+ * `dn_series_json` / `status`… —— **字段名整组不同**。
+ *
+ * `PipeClassListPage` 真连 `GET /api/v1/pipe-classes`，所以生产上
+ * `record.pipe_class_id`（连 `rowKey` 也用它）与 `row.code` 都是
+ * `undefined` —— **管道等级页在生产上是坏的**。而
+ * `src/mocks/seed/pipe-classes.ts` 返的是手写形状，
+ * 于是**这份 mock 一直在替页面遮着**，让缺陷在 dev 里不可见。
+ *
+ * 本文件原先的注释写着「PipeClassResponse 已在 api.d.ts 存在
+ * （字段名 code/material/schedule 已对齐）」—— **那句是错的**，
+ * 本仓「注释比代码乐观」的又一例。
+ *
+ * 现在直接 re-export 生成的类型：契约变 ⇒ `tsc` 立刻红，不会再有第二份。
+ *
+ * `CodeFormatSegment` / `SymbolMapping` **仍是手写**：
+ * `SymbolTableRoute` / `CodeFormatRoute` 目前传的是空数组，
+ * 既无契约也无数据来源，等接上 API 时再并。
  */
+import type { components } from './api';
 
-export type PipeClassStatus = 'DRAFT' | 'IN_APPROVAL' | 'CHECKED' | 'OBSOLETE';
-
-/** 管子等级条目：压力/温度/尺寸范围/腐蚀余量/设计阶段 + 5 态机签名状态（与 5 态机 DRAFT/IN_APPROVAL/CHECKED/OBSOLETE 对齐）。 */
-export interface PipeClass {
-  pipe_class_id: string;
-  code: string;                // 例如 "ASME B31.3"
-  material: string;            // 例如 "A106-B"
-  schedule: string;            // 例如 "Sch 40"
-  size_range_json: { min_dn: number; max_dn: number };
-  design_pressure_mpa: number;
-  design_temperature_c: number;
-  corrosion_allowance_mm: number;
-  sign_status: PipeClassStatus;
-}
+/** 管子等级出参。字段名以 `api.d.ts` 为准（见文件头）。 */
+export type PipeClass = components['schemas']['PipeClassResponse'];
 
 /** 管架代号片段字段（6 类）：material / schedule / size / service / insulation / custom。 */
 export type CodeSegmentField =
