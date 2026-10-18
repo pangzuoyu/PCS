@@ -13,6 +13,7 @@
     "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "api:gen": "bash scripts/gen-api-types.sh",
+    "api:audit-types": "node scripts/audit-handwritten-types.mjs",
     "api:check": "bash scripts/check-api-drift.sh",
     "e2e": "playwright test",
     "e2e:install": "playwright install chromium"
