@@ -3287,6 +3287,70 @@
         "dropped-filter-nodes",
         "P2"
       ]
+    },
+    {
+      "id": "bug-180",
+      "timestamp": "2026-10-19T00:00:00+08:00",
+      "error_message": "GET /api/v1/pipe-classes 返回 `class_id`/`class_name`/`material_standard`，而前端页面读 `record.pipe_class_id` 与 `p.code` —— 管道等级页在生产上是坏的",
+      "file": "pcs-frontend/src/mocks/seed/pipe-classes.ts",
+      "root_cause": "MSW fixture 用**手写前端类型**（`types/pipeClass.ts`）标注，与生成的契约 `PipeClassResponse` 字段名整组不同构。\n\n后果不是 mock 脏，是**生产缺陷**：`PipeClassListPage` 用 `record.pipe_class_id` 当 `rowKey`，`PipeComputePage` 下拉用 `{value: p.pipe_class_id, label: p.code}` —— 真后端下两者全是 `undefined`。\n\n**这份 mock 一直在替页面遮着。** 评审 #24 的原话是「mock 落后于契约」，做标注时才发现落后的是 mock、但漂移的后果不止于 mock。\n\n两层类型并存是 TODO-039（前端类型唯一性），本轮不并。",
+      "fix": "本轮不修（修它要动页面 + 手写类型 = TODO-039）。已在 `mocks/seed/pipe-classes.ts` 留注释指向该发现，并写进本轮提交信息与评审 README。\n\n发现路径记录在案：给 seed 加一条编译期一致性断言（`const _x: ContractType[] = seedX`）后 tsc 立刻报出 5 处真漂移 —— 断言是**探针**，本轮只在 workspaces 成立处保留，pipe-classes 处换成文档注释。",
+      "fix_commit": "346c257",
+      "tags": [
+        "frontend",
+        "contract-drift",
+        "msw",
+        "production-bug",
+        "todo-039"
+      ]
+    },
+    {
+      "id": "bug-181",
+      "timestamp": "2026-10-19T00:00:00+08:00",
+      "error_message": "并发同内容导出撞 content_hash 唯一约束时，`_upsert_report_file` 里的 `await db.rollback()` 回滚了**调用方整笔事务**",
+      "file": "pcs-backend/app/services/report/report_service.py",
+      "root_cause": "`db` 是**共享 session**。`rollback()` 丢掉的是这一笔事务里所有未提交的写入，不只是自己那次失败的 INSERT —— `report_builder_tasks` 里 `_build_style` 之前写的行、先前 `audit.write` 留下的 pending `AuditLog` 全没了，且不报任何错：它们只是没被提交。\n\n评审 #22。",
+      "fix": "改 `async with db.begin_nested()`（SAVEPOINT），只撤自己那次失败的 INSERT。\n\n测试第一版是**空洞的绿灯**：靠 `\"content_hash\" in str(stmt.whereclause)` 判断，SQLAlchemy 2.0 上该属性恒为空串 ⇒ 短路从未发生 ⇒ `existing` 被查到 ⇒ 走**早返回分支**，`except` 根本没执行 ⇒ 自然没有 rollback ⇒ 自然没有丢失。把「测试通过」读成「事务没被回滚」，实际是「回滚从未被触发」。改按调用序数短路。",
+      "fix_commit": "2a23d2e",
+      "tags": [
+        "backend",
+        "transaction",
+        "concurrency",
+        "false-green",
+        "review-22"
+      ]
+    },
+    {
+      "id": "bug-182",
+      "timestamp": "2026-10-19T00:00:00+08:00",
+      "error_message": "四份输出格式白名单互不一致：直连 generate 拒 csv、走定义的 execute 收 csv、下载端点无 csv 的 media type",
+      "file": "pcs-backend/app/schemas/report.py",
+      "root_cause": "评审 #19 说「两份」，数出来是**四份**，且其中 `report_service.SUPPORTED_FORMATS` 的注释写着「取自 `watermark.EXPORT_FORMATS`」而代码是**硬编码字面量** —— 注释是愿望不是事实。\n\n外加第五处漏网：`report.py` 的 `_MEDIA` 没有 csv，而 `_MEDIA.get(fmt, \"application/octet-stream\")` **静默兜底** —— 浏览器把 CSV 当二进制下载。",
+      "fix": "三份改成从 `watermark.EXPORT_FORMATS` 派生，`_MEDIA` 补 `text/csv`。\n\n守门测试设计踩两个坑：内容相等证明不了派生（加第 5 种格式时字面量不动）；字符串匹配证明不了派生，因为它被**说谎的注释**骗（`getsource` 里 `'EXPORT_FORMATS'` 命中的是注释文本）。最终用 AST 走 —— 注释进不了 AST。这是 StaticPool 那篇的第三级假绿变体：**这次被击穿的不是 fixture，是注释**。",
+      "fix_commit": "c142014",
+      "tags": [
+        "backend",
+        "contract",
+        "single-source-of-truth",
+        "false-green",
+        "review-19"
+      ]
+    },
+    {
+      "id": "bug-183",
+      "timestamp": "2026-10-19T00:00:00+08:00",
+      "error_message": "`REPORT_VERIFY_SECRET=x` 能正常启动 —— 对「缺配置」fail-closed，对「弱配置」fail-open",
+      "file": "pcs-backend/app/core/config.py",
+      "root_cause": "启动校验只查非空。HMAC-SHA256 用 1 字节密钥可被暴力穷举，而验签失败的症状是 403 —— 运维会把 403 归因到「配置漏了」而不是「密钥太弱」。评审 #29。",
+      "fix": "加长度下限 32 字节，**与 SECRET_KEY 同值**（不发明新规则：加第三个密钥时照抄 SECRET_KEY 那段即可）。形态一致：production 抛错、dev 警告而不拦。不改动既有的检查顺序 —— `tests/test_jwt_production.py` 按错误消息断言，顺序反了会让那些测试拿到本条的消息。",
+      "fix_commit": "2a23d2e",
+      "tags": [
+        "backend",
+        "security",
+        "config",
+        "fail-open",
+        "review-29"
+      ]
     }
   ]
 }
