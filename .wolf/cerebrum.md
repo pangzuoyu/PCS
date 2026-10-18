@@ -46,6 +46,39 @@
 ⚠️ **推理正确但前提错误的建议，比推理错误的建议更危险** —— 它读起来更可信。
 所以：把 finding 当「要修什么」读，**不要**当「怎么修」读。
 
+**报告说 N 份，实际可能是 N+1，且第 N+1 份的注释在说谎**（2026-10-19，评审 #19/#24/#27）：
+- 「两份输出格式白名单」→ 实际**四份**，且 `report_service` 那份注释写着「取自
+  `watermark.EXPORT_FORMATS`」而代码是硬编码字面量；另有第五处 `_MEDIA` 缺 csv
+  且**静默兜底**成 octet-stream。
+- 「后端不接 status 参数」→ 后端确实不接，但前端**还多发了一个虚构的
+  `report_type`**（模型无此列）。
+- 「mock 落后于契约」→ 落后的是 mock，但**后果不止于 mock**：管道等级页读
+  `pipe_class_id`、真后端返 `class_id` ⇒ **生产上是坏的，是 mock 一直遮着**
+  （bug-180）。
+
+⇒ 动手修之前先把「清单」数一遍；清单里每份的注释都当**待验证的代码事实**。
+
+### 守门测试会被它守护的那行注释骗过（2026-10-19）
+
+`inspect.getsource()` 找子串来证明「A 引用了 B」，会被 A 上面那句
+**说谎的注释**命中 —— 断言绿的，代码是硬编码字面量。
+本会话三次遇到「注释比代码乐观」（`report_service` 的「取自」、
+`report_builder` 的「两边不再各持一份」、`handlers.ts` 的「drift 校验覆盖」）。
+
+同理，`"x" in str(stmt.whereclause)` 这类**渲染产物**判据恒不命中
+（SQLAlchemy 2.0 上是空串），于是「功能从未执行」被读成「测试通过」。
+
+⇒ **凡是要证明「A 引用了 B / A 走了某分支」，断言必须打在引擎保证上**
+（AST 节点、对象身份、调用序数），不能打在文本或渲染产物上。
+全文见 `docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md`。
+
+### mock 契约一致性 = 正确性的一部分
+
+给 seed 加编译期断言 `const _x: ContractType[] = seedX; void _x;`
+一次跑出 5 处真漂移。方向只能 **seed → 契约**（反向不成立：手写类型可多带
+页面私有字段）。⚠️ 修不掉的（要动页面 = TODO-039）**换成文档注释指向发现** ——
+留一个红 `tsc` 等于把构建变红，留注释等于把原因留下。
+
 ### 数据库/迁移
 
 - 真库测试第二个起需 `_reset_async_engine` autouse fixture（单例引擎跨 event loop 炸）。
