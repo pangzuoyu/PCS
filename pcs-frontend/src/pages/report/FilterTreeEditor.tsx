@@ -31,6 +31,7 @@ import { DeleteOutlined, PlusOutlined } from '@ant-design/icons';
 import {
   LIST_OPERATORS,
   VALUELESS_OPERATORS,
+  newNodeId,
   type FilterLeaf,
   type FilterNode,
 } from './definitionBody';
@@ -77,12 +78,13 @@ export function FilterTreeEditor(props: Props): JSX.Element {
     const f = props.fields[0];
     if (!f) return;
     onChange([...nodes, {
-      kind: 'leaf', source: f.source, field: f.value, operator: 'EQ', value: '',
+      kind: 'leaf', id: newNodeId(),
+      source: f.source, field: f.value, operator: 'EQ', value: '',
     }]);
   }, [nodes, onChange, props.fields]);
 
   const addGroup = useCallback(() => {
-    onChange([...nodes, { kind: 'group', operator: 'AND', conditions: [] }]);
+    onChange([...nodes, { kind: 'group', id: newNodeId(), operator: 'AND', conditions: [] }]);
   }, [nodes, onChange]);
 
   const patch = useCallback((idx: number, next: FilterNode) =>
@@ -113,8 +115,13 @@ export function FilterTreeEditor(props: Props): JSX.Element {
             : '无过滤条件 —— 执行时将导出全量（等于覆盖了定义里的原条件）。'}
         </Typography.Text>
       )}
+      {/* ⚠️ key 用 `node.id`，**不是下标 `i`**（评审 #26）。
+          右侧就摆着 ↑↓：下标 key 会让 React 复用错位的实例 ——
+          焦点/选区/滚动/打开着的下拉留在原下标，而那一行显示的
+          已经是**别的条件**。用户在编辑 A，看到的却是 B 的字段、
+          值还粘在上面。 */}
       {nodes.map((node, i) => (
-        <Space key={i} wrap align="start">
+        <Space key={node.id} wrap align="start">
           {i > 0 && <Tag color="blue">且</Tag>}
           <NodeEditor
             node={node}
@@ -168,8 +175,12 @@ function NodeEditor({ node, depth, onChange, fields, maxDepth }: NodeProps) {
         {node.conditions.length === 0
           ? <Typography.Text type="secondary">空组</Typography.Text>
           : <Space direction="vertical" size={6}>
+            {/* ⚠️ key 用 `c.id`，**不是下标**（评审 #26）。
+                嵌套层只有删除按钮、没有 ↑↓，危害比顶层轻一档；
+                但同样有下标错位（删一条后实例复用），且 id 已存在，
+                没有理由在这里留一个不一致的例外。 */}
             {node.conditions.map((c, i) => (
-              <Space key={i} wrap align="start">
+              <Space key={c.id} wrap align="start">
                 {i > 0 && <Tag color={node.operator === 'AND' ? 'blue' : 'purple'}>
                   {node.operator === 'AND' ? '且' : '或'}
                 </Tag>}

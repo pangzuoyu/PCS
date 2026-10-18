@@ -107,27 +107,44 @@ export function ReportExecutePage(): JSX.Element {
   useEffect(() => stopPolling, []);
 
   useEffect(() => {
+    // ⚠️ `ignore` 旗标（2026-10-18 修，评审 #10）：**依赖变了就作废在飞响应**。
+    // 与 `generation` 守卫同源、同理由，只是这里要拦的是「effect 依赖变了」
+    // 而不只是「开始新一轮执行」。
+    //
+    // 没有它时的具体后果（`tests/pages/report/ReportExecutePageDefinitionRace.test.tsx` 实测）：
+    // 选 A → 请求 A 在飞 → 选 B → B 先回（页面显示 B）→ A 后回 → `setDef(A)`。
+    // 此后 Select 选中 **B**、页面「名称/版本/来源/过滤」显示的却是 **A** ——
+    // 用户点「执行」跑的是 B，屏幕上是 A 的内容。**界面在骗人，无任何提示。**
+    let ignore = false;
     void (async () => {
       try {
         const ds = await reportBuilderApi.datasources();
+        if (ignore) return;
         setFields(ds.datasources.flatMap((d) => d.fields.map((f) => ({
           value: f.name, source: d.key,
           label: `${d.label} · ${f.label ?? f.name}`,
         }))));
         const data = await reportBuilderApi.list({ status: 'PUBLISHED' });
+        if (ignore) return;
         setDefinitions(data.items);
         const pick = defId ?? data.items[0]?.def_id;
         if (pick) setSelected(pick);
-      } catch (err) { setError(errorMessage(err)); }
+      } catch (err) { if (!ignore) setError(errorMessage(err)); }
     })();
+    return () => { ignore = true; };
   }, [defId]);
 
   useEffect(() => {
     if (!selected) { setDef(null); return; }
+    // 同上：切换定义时，旧请求的响应不得覆盖新选择。
+    let ignore = false;
     void (async () => {
-      try { setDef(await reportBuilderApi.get(selected)); }
-      catch (err) { setError(errorMessage(err)); }
+      try {
+        const d = await reportBuilderApi.get(selected);
+        if (!ignore) setDef(d);
+      } catch (err) { if (!ignore) setError(errorMessage(err)); }
     })();
+    return () => { ignore = true; };
   }, [selected]);
 
   const run = async () => {

@@ -64,6 +64,8 @@ export interface SingleFilter {
 /** 可编辑条件的叶子节点。 */
 export interface FilterLeaf {
   kind: 'leaf';
+  /** 编辑态身份，仅供 React key；不写入定义体（见 newNodeId 的注释）。 */
+  id: string;
   source: string;
   field: string;
   operator: string;
@@ -82,11 +84,35 @@ export type FilterValue =
 /** AND/OR 分组，`conditions` 里可再放组（任意嵌套）。 */
 export interface FilterGroup {
   kind: 'group';
+  /** 编辑态身份，仅供 React key；不写入定义体（见 newNodeId 的注释）。 */
+  id: string;
   operator: 'AND' | 'OR';
   conditions: FilterNode[];
 }
 
 export type FilterNode = FilterLeaf | FilterGroup;
+
+/* ── 编辑态节点身份（评审 #26）─────────────────────────────────────────
+ *
+ * `FilterLeaf` / `FilterGroup` 带一个 `id`，**只用于 React key**。
+ * 它是客户端的编辑态身份，**不写进定义体** —— `fromFilterTree` 逐字段
+ * 显式构造输出对象，天然不会带上它。
+ *
+ * 为什么非要有：编辑器行右侧就摆着 ↑↓，而用数组下标当 key 时
+ * React 按下标复用实例 —— 移动后焦点/选区/滚动/打开着的下拉留在
+ * 原下标那一行，而那一行显示的是**别的条件**。
+ * 用户在编辑 A，看到的却是 B 的字段、值还粘在上面。
+ *
+ * 为什么不按内容派生 key：两行完全相同时 key 会重复，
+ * React 照样错认（`filterTreeNodeIdentity.test.tsx` 第二条钉住这点）。
+ */
+let _nodeSeq = 0;
+
+/** 新建一个编辑态节点身份。单调递增即可 —— 只在同一页面会话内唯一。 */
+export function newNodeId(): string {
+  _nodeSeq += 1;
+  return `fn-${_nodeSeq}`;
+}
 
 /** 字段选择项：多带一个 `source`，选中字段时能一并定下来源。 */
 export interface FieldNodeOption {
@@ -184,7 +210,8 @@ export function buildBody(input: {
   });
   const tree = input.filterTree
     ?? (input.filter
-      ? [{ kind: 'leaf' as const, source: input.filter.source,
+      ? [{ kind: 'leaf' as const, id: newNodeId(),
+        source: input.filter.source,
         field: input.filter.field, operator: input.filter.operator,
         value: input.filter.value } as FilterNode]
       : []);
@@ -316,7 +343,12 @@ export function countUnparsedFilterNodes(raw: unknown): number {
     if (!node || typeof node !== 'object') return acc + 1;
     const n = node as Record<string, unknown>;
     if (isGroup(n)) return acc + countUnparsedFilterNodes(n.conditions);
+    // ⚠️ `source` 缺失也算「本页无法识别」（2026-10-18，评审 #30）。
+    // 它与缺 `field` / 缺 `operator` 同等：都会被 `toFilterTree` 丢掉。
+    // 计数器漏数它 ⇒ 编辑器不显示提示 ⇒ 丢弃退化成**真正的静默丢失**，
+    // 那正是 #25 已经修掉的东西。
     if (typeof n.field !== 'string' || typeof n.operator !== 'string') return acc + 1;
+    if (typeof n.source !== 'string') return acc + 1;
     return acc;
   }, 0);
 }
@@ -329,14 +361,26 @@ export function toFilterTree(raw: unknown): FilterNode[] {
     if (isGroup(n)) {
       return [{
         kind: 'group',
+        id: newNodeId(),
         operator: n.operator === 'OR' ? 'OR' : 'AND',
         conditions: toFilterTree(n.conditions),
       }];
     }
     if (typeof n.field !== 'string' || typeof n.operator !== 'string') return [];
+    // ⚠️ **缺 `source` 就丢弃，不伪造**（2026-10-18，评审 #30）。
+    // 旧代码兜底成 `'EQUIP_LIST'` —— 那是比丢弃更坏的一档：
+    // 缺 `field` 的节点在页面上显示成「字段不存在」（很明显丢了），
+    // 而缺 `source` 的节点会显示成「属于设备清单」，一个看起来完全正常、
+    // 指向**另一张表**的条件。用户据此编辑并保存，伪造值被写回定义体 ——
+    // 一次**无声的语义改写**。
+    //
+    // 丢弃不是终点：`countUnparsedFilterNodes` 同步数它，
+    // 编辑器据此提示「本定义含 N 条本页无法识别的条件」（评审 #25 的机制）。
+    if (typeof n.source !== 'string') return [];
     return [{
       kind: 'leaf',
-      source: typeof n.source === 'string' ? n.source : 'EQUIP_LIST',
+      id: newNodeId(),
+      source: n.source,
       field: n.field,
       operator: n.operator,
       value: VALUELESS_OPERATORS.has(n.operator)
@@ -372,8 +416,11 @@ export function asSingleFilter(node: unknown): SingleFilter | null {
   if (!node || typeof node !== 'object' || isGroup(node)) return null;
   const n = node as Record<string, unknown>;
   if (typeof n.field !== 'string' || typeof n.operator !== 'string') return null;
+  // ⚠️ 同 `toFilterTree`：缺 `source` 返回 null，不伪造 'EQUIP_LIST'
+  // （评审 #30）。同一个兜底出现在两处，只改一处等于没改。
+  if (typeof n.source !== 'string') return null;
   return {
-    source: typeof n.source === 'string' ? n.source : 'EQUIP_LIST',
+    source: n.source,
     field: n.field,
     operator: n.operator,
     value: typeof n.value === 'string' ? n.value : '',

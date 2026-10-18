@@ -5106,7 +5106,20 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List Definitions */
+        /**
+         * List Definitions
+         * @description 列出可见定义。`status` 是**进一步收窄**，见 `DefinitionService.list`。
+         *
+         *     ⚠️ 此前签名里**没有任何查询参数**，而前端
+         *     `ReportDefinitionListPage` 的状态筛选一直把 `status` 发过来
+         *     （该文件 docstring 明写「它作为查询参数发给后端，不在本地裁剪」）。
+         *     参数被**静默丢弃** ⇒ 200 + 全量 ⇒ 用户选「已发布」列表纹丝不动，
+         *     **零报错**。症状是「筛选看起来坏了但没报错」。
+         *
+         *     未知状态词 400 而不是忽略：静默忽略正是本缺陷的病根 ——
+         *     参数拼错 / 状态词写错 / 契约改名，三种错都表现为「筛选不生效」，
+         *     用户无从分辨是哪一种。
+         */
         get: operations["list_definitions_api_v1_report_builder_definitions_get"];
         put?: never;
         /**
@@ -26593,7 +26606,10 @@ export interface operations {
     };
     list_definitions_api_v1_report_builder_definitions_get: {
         parameters: {
-            query?: never;
+            query?: {
+                /** @description 按状态收窄：DRAFT / PUBLISHED / OBSOLETE */
+                status?: string | null;
+            };
             header?: {
                 authorization?: string | null;
             };
