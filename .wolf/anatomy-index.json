@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-14T04:22:57.895Z",
-    "fileCount": 797,
+    "lastScanned": "2026-10-18T03:32:21.016Z",
+    "fileCount": 798,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "ed4ac14058b3dc78398c1935e43b32b8a4f96ac95f3806d7d4e3f8a53412d181",
-    "storeUpdatedAt": "2026-10-14T04:22:57.905Z",
-    "rootHash": "784b19c705f4a780"
+    "renderedHash": "cc33ac004365744bc58fa5a290a05d5815d7fa0342920a4138d14cd1e22062ff",
+    "storeUpdatedAt": "2026-10-18T03:32:21.034Z",
+    "rootHash": "dfd694df2bb92272"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -27054,6 +27054,15 @@
           "tokens": 54
         }
       ]
+    },
+    "docs/PCS-NOTE-P8-错误信封统一-2026-10-18.md": {
+      "description": "PCS-NOTE：P8 错误信封统一为 PcsError（发布说明）",
+      "tokens": 683,
+      "hash": "0eb14bbd50ed6dc6",
+      "size": 4009,
+      "mtimeMs": 1792294340925.7185,
+      "updatedAt": "2026-10-18T03:32:21.016Z",
+      "source": "hook"
     }
   }
 }

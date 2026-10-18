@@ -461,11 +461,9 @@ async def test_enqueue_failure_marks_the_pending_row_failed(
     知道，不能返回 202 + 空 task_id」。这一条是它的延续：**要让端点知道**，
     先得让**库**知道。
     """
-    import uuid
-
-    from sqlalchemy import select
 
     import arq
+    from sqlalchemy import select
 
     from app.models.report import ReportFile
 
@@ -489,3 +487,69 @@ async def test_enqueue_failure_marks_the_pending_row_failed(
         f"留下 {[x.status for x in rows]} 的行 —— 入队失败却停在 PENDING，"
         "状态端点会一直显示「生成中」直到回收器 15 分钟后纠正")
     assert all(x.error_message for x in rows), "FAILED 必须带原因，否则查不到为什么"
+
+
+# --- 评审 #17（用户裁决）：错误信封统一为 PcsError，code 必须语义化 ---------- #
+#
+# ⚠️ 先修正评审的一个前提：HTTPException 经过全局 handler（core/errors.py）
+# 后**本来就是**同一个信封 {code, message, detail, trace_id}，
+# 前端读 data.message 一直拿得到中文文案 —— 「用户只看到 axios 通用错误」
+# 不成立（2026-10-18 实测 verify 403 响应体确认）。
+#
+# 真正的不一致在 **code**：HTTPException 站点的 code 是 "HTTP_403"/"HTTP_404"
+# 这种「把状态码复读一遍」的占位符。两个不同的业务失败（签名无效 vs 文件
+# 不存在）机器侧无法区分 —— 前端想做「按 code 分支提示」时无从下手。
+#
+# 统一为 PcsError 后每条路径拿到语义化 code。⚠️ 这是**发布决策**：
+# 这些错误路径的 code 值从 HTTP_4xx 变成语义码，机器可见契约变了
+#（message 与 status 不变，前端显示零变化）。
+
+
+@pytest.mark.asyncio
+async def test_verify_errors_carry_semantic_codes(client):
+    """verify 端点的三类失败各自有可区分的 code。"""
+    import datetime as _dt
+
+    rid = "00000000-0000-0000-0000-000000000000"
+
+    # exp=0 → 过期分支
+    r1 = await client.get(f"/api/v1/report/verify/{rid}?sig=deadbeef&exp=0")
+    assert r1.status_code == 403
+    assert r1.json()["code"] == "REPORT_VERIFY_SIG_EXPIRED", r1.json()
+
+    # 合法 exp + 瞎签名 → 无效分支
+    exp = int(_dt.datetime.now(_dt.UTC).timestamp()) + 600
+    r2 = await client.get(f"/api/v1/report/verify/{rid}?sig=deadbeef&exp={exp}")
+    assert r2.status_code == 403
+    assert r2.json()["code"] == "REPORT_VERIFY_SIG_INVALID", r2.json()
+    assert r2.json()["message"] == "签名无效"
+
+
+@pytest.mark.asyncio
+async def test_download_not_found_carries_semantic_code(client, auth_viewer):
+    rid = "00000000-0000-0000-0000-000000000000"
+    r = await client.get(f"/api/v1/report/{rid}/download", headers=auth_viewer)
+    assert r.status_code == 404
+    assert r.json()["code"] == "REPORT_FILE_NOT_FOUND", r.json()
+
+
+@pytest.mark.asyncio
+async def test_style_not_found_carries_semantic_code(client, auth_viewer):
+    rid = "00000000-0000-0000-0000-000000000000"
+    r = await client.get(f"/api/v1/report/styles/{rid}", headers=auth_viewer)
+    assert r.status_code == 404
+    assert r.json()["code"] == "REPORT_STYLE_NOT_FOUND", r.json()
+
+
+@pytest.mark.asyncio
+async def test_style_conflict_carries_semantic_code(client):
+    """同作用域二连建：409 的 code 是语义码（并发竞态由同一 code 兜底）。"""
+    from app.core.security import create_access_token as _cat
+
+    h = {"Authorization": f"Bearer {_cat(subject='u17', role='SYSTEM_ADMIN')}"}
+    payload = {"report_type": "ENVELOPE_PROBE", "project_id": None, "style": {}}
+    assert (await client.post("/api/v1/report/styles", headers=h, json=payload)
+            ).status_code == 201
+    r = await client.post("/api/v1/report/styles", headers=h, json=payload)
+    assert r.status_code == 409
+    assert r.json()["code"] == "REPORT_STYLE_CONFLICT", r.json()

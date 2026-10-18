@@ -122,20 +122,24 @@ async def test_the_index_violation_reaches_the_client_as_409_not_500(db):
 
     500 会被前端当成「系统坏了」，用户反复重试 —— 而重试只会再撞一次。
     """
-    import fastapi
     from sqlalchemy.exc import IntegrityError
 
     from app.api.v1.report import _style_call
+    from app.services.exceptions import PcsError
 
     async def boom():
         raise IntegrityError("INSERT", {}, Exception("uq_report_styles_one_active"))
 
-    with pytest.raises(fastapi.HTTPException) as ei:
+    # ⚠️ 2026-10-18 起契约是 PcsError（评审 #17：信封统一、code 语义化），
+    # 不再是 HTTPException —— 全局 handler 会把它翻成同样的
+    # {code, message} 信封，code 从 HTTP_409 变成 REPORT_STYLE_CONFLICT。
+    with pytest.raises(PcsError) as ei:
         await _style_call(boom)
 
-    assert ei.value.status_code == 409, f"实得 {ei.value.status_code}"
-    assert "ACTIVE" in str(ei.value.detail)
-    assert "修订" in str(ei.value.detail), \
+    assert ei.value.status == 409, f"实得 {ei.value.status}"
+    assert ei.value.code == "REPORT_STYLE_CONFLICT"
+    assert "ACTIVE" in str(ei.value)
+    assert "修订" in str(ei.value), \
         "409 的文案要告诉用户下一步做什么（改用修订），而不是只说冲突"
 
 

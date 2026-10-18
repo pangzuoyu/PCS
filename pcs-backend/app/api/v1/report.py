@@ -35,7 +35,7 @@ import logging
 import uuid
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
+from fastapi import APIRouter, Depends, Query, Request, Response
 from fastapi.responses import FileResponse
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -102,12 +102,15 @@ def _check_sig(report_file_id: uuid.UUID, sig: str, exp: int) -> None:
     if not secret:
         # fail-closed：签名密钥没配 = 无法验证任何签名 = 全部拒绝。
         # fail-open 会让配置遗漏变成「二维码校验形同虚设」。
-        raise HTTPException(status_code=403, detail="verify 未配置签名密钥")
+        raise PcsError("verify 未配置签名密钥",
+                       code="REPORT_VERIFY_NOT_CONFIGURED", status=403)
     if exp < int(dt.datetime.now(dt.UTC).timestamp()):
-        raise HTTPException(status_code=403, detail="签名已过期")
+        raise PcsError("签名已过期",
+                       code="REPORT_VERIFY_SIG_EXPIRED", status=403)
     expect = qr.sign(report_file_id=report_file_id, exp=exp, secret=secret)
     if not hmac.compare_digest(expect, sig or ""):
-        raise HTTPException(status_code=403, detail="签名无效")
+        raise PcsError("签名无效",
+                       code="REPORT_VERIFY_SIG_INVALID", status=403)
 
 
 async def _load_or_404(db: AsyncSession, report_file_id: uuid.UUID) -> ReportFile:
@@ -115,7 +118,8 @@ async def _load_or_404(db: AsyncSession, report_file_id: uuid.UUID) -> ReportFil
         select(ReportFile).where(ReportFile.report_file_id == report_file_id)
     )).scalar_one_or_none()
     if row is None:
-        raise HTTPException(status_code=404, detail="Report file not found")
+        raise PcsError("报表文件不存在",
+                       code="REPORT_FILE_NOT_FOUND", status=404)
     return row
 
 
@@ -240,7 +244,8 @@ async def download(report_file_id: uuid.UUID, db: DbDep, actor: ActorDep):
     await _guard_project(db, row, actor)
     path = paths.resolve_path(row.file_path)
     if not path.exists():
-        raise HTTPException(status_code=404, detail="文件已被清理")
+        raise PcsError("文件已被清理（登记还在，磁盘文件没了）",
+                       code="REPORT_FILE_CLEANED", status=404)
     await AuditService(db).write(
         action="REPORT_DOWNLOADED", resource_type="report",
         resource_id=row.report_file_id, user_id=actor.user_id)
@@ -277,7 +282,8 @@ async def verify(request: Request, report_file_id: uuid.UUID, db: DbDep,
         select(ReportFile).where(ReportFile.report_file_id == report_file_id)
     )).scalar_one_or_none()
     if row is None:
-        raise HTTPException(status_code=404, detail="Report file not found")
+        raise PcsError("报表文件不存在",
+                       code="REPORT_FILE_NOT_FOUND", status=404)
 
     # `match` 的含义：**这份登记过的文件，在磁盘上还是原样吗**。
     #
@@ -335,12 +341,14 @@ async def get_style(style_id: uuid.UUID, db: DbDep, actor: ActorDep):
     """
     row = await StyleService(db).get(style_id=style_id)
     if row is None:
-        raise HTTPException(status_code=404, detail="Style not found")
+        raise PcsError("样式不存在",
+                       code="REPORT_STYLE_NOT_FOUND", status=404)
     if not _style_readable(row, actor_roles=actor.roles, user_id=actor.user_id):
         # 403 而非 404：调用方要区分「没权限」与「不存在」—— 这里
         # 回 404 会让「你无权」看起来像「样式没了」，用户会去建一条新的。
         # 项目级无权的情形仍由 guard 走 404（不泄漏项目存在性）。
-        raise HTTPException(status_code=403, detail="无权读取该样式")
+        raise PcsError("无权读取该样式",
+                       code="REPORT_STYLE_FORBIDDEN", status=403)
     return _summary(row)
 
 
@@ -418,9 +426,10 @@ async def _style_call(fn):
     try:
         return await fn()
     except StylePermissionError as e:
-        raise HTTPException(status_code=e.status_code, detail=e.message) from e
+        raise PcsError(e.message, code="REPORT_STYLE_PERMISSION",
+                       status=e.status_code) from e
     except StyleConflict as e:
-        raise HTTPException(status_code=409, detail=str(e)) from e
+        raise PcsError(str(e), code="REPORT_STYLE_CONFLICT", status=409) from e
     except IntegrityError as e:
         # ⚠️ 「至多一个 ACTIVE」现在由**部分唯一索引**兜底
         # （`uq_report_styles_one_active`，p8_010）。于是两个并发请求里，
@@ -443,9 +452,9 @@ async def _style_call(fn):
         if ("uq_report_styles_one_active" in msg
                 or "report_styles.report_type, report_styles.project_id" in msg
                 or "report_styles.project_id, report_styles.report_type" in msg):
-            raise HTTPException(
-                status_code=409,
-                detail=f"{_STYLE_RACE_MSG}（并发写入，已由数据库唯一索引拦下）",
+            raise PcsError(
+                f"{_STYLE_RACE_MSG}（并发写入，已由数据库唯一索引拦下）",
+                code="REPORT_STYLE_CONFLICT", status=409,
             ) from e
         raise
 

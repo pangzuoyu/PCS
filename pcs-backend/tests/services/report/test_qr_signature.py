@@ -76,9 +76,8 @@ def test_signed_payload_round_trips_through_the_real_check(secret):
 
 def test_a_payload_signed_with_a_different_secret_is_rejected(secret):
     """签名必须真的绑定密钥 —— 换密钥就该失效。"""
-    from fastapi import HTTPException
-
     from app.api.v1.report import _check_sig
+    from app.services.exceptions import PcsError
     from app.services.report.qr import build_qr_payload
 
     rid = uuid.uuid4()
@@ -88,16 +87,15 @@ def test_a_payload_signed_with_a_different_secret_is_rejected(secret):
         report_file_id=rid, secret="another-secret",   # ≠ secret
         ttl_seconds=900, now=dt.datetime(2026, 10, 14, tzinfo=dt.UTC))
     _p, q, _f = _parse(url)
-    with pytest.raises(HTTPException) as ei:
+    with pytest.raises(PcsError) as ei:
         _check_sig(rid, q["sig"], int(q["exp"]))
-    assert ei.value.status_code == 403
+    assert ei.value.status == 403
 
 
 def test_signature_is_bound_to_the_report_file_id(secret):
     """签名必须绑定 id —— 把 A 的签名挪到 B 的 URL 上就该失效。"""
-    from fastapi import HTTPException
-
     from app.api.v1.report import _check_sig
+    from app.services.exceptions import PcsError
     from app.services.report.qr import build_qr_payload
 
     a, b = uuid.uuid4(), uuid.uuid4()
@@ -106,15 +104,14 @@ def test_signature_is_bound_to_the_report_file_id(secret):
         record_hashes=["h"], verify_base_url="https://x",
         report_file_id=a, secret=SECRET, ttl_seconds=900)
     _p, q, _f = _parse(url_a)
-    with pytest.raises(HTTPException) as ei:
+    with pytest.raises(PcsError) as ei:
         _check_sig(b, q["sig"], int(q["exp"]))   # 签名是 A 的，却用来验 B
-    assert ei.value.status_code == 403
+    assert ei.value.status == 403
 
 
 def test_expired_signature_is_rejected(secret):
-    from fastapi import HTTPException
-
     from app.api.v1.report import _check_sig
+    from app.services.exceptions import PcsError
     from app.services.report.qr import build_qr_payload
 
     rid = uuid.uuid4()
@@ -125,9 +122,9 @@ def test_expired_signature_is_rejected(secret):
         report_file_id=rid, secret=SECRET, ttl_seconds=1,
         now=dt.datetime.now(dt.UTC) - dt.timedelta(hours=2))
     _p, q, _f = _parse(url)
-    with pytest.raises(HTTPException) as ei:
+    with pytest.raises(PcsError) as ei:
         _check_sig(rid, q["sig"], int(q["exp"]))
-    assert ei.value.status_code == 403
+    assert ei.value.status == 403
 
 
 def test_the_hmac_formula_has_exactly_one_implementation(secret):

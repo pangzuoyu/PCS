@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-14T04:22:57.895Z
-> Files: 797 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-18T03:32:21.016Z
+> Files: 798 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -262,6 +262,7 @@
 - `PCS-NOTE-catalyst_loading-取消-2026-10-05.md` — catalyst_loading 功能取消 — 该表不建，此功能先不做 (2026-10-05) (~925 tok)
 - `PCS-NOTE-CIA-反向恢复-推到P8-2026-10-05.md` — CIA 反向恢复推迟到 P8 — 落地路径 (2026-10-05) (~933 tok)
 - `PCS-NOTE-equipment_lib-废弃-2026-10-06.md` — PCS-NOTE: `equipment_lib` 表废弃裁决（2026-10-06） (~782 tok)
+- `PCS-NOTE-P8-错误信封统一-2026-10-18.md` — PCS-NOTE：P8 错误信封统一为 PcsError（发布说明） (~683 tok)
 - `PCS-NOTE-P8前置清单与3项修订-2026-10-07.md` — P8 前置清单与 3 项修订 —— 2026-10-07 裁决 (~1315 tok)
 - `PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md` — T5 综合能耗验收 — 电折标口径按 GB 30251-2024 修正，基准重建 (2026-10-05) (~3938 tok)
 - `PCS-NOTE-UI-SPEC-7.16-设备库检索延后-2026-10-07.md` — UI-SPEC §7.16 设备库检索 —— 本版本不实现，推迟到下一版本（2026-10-07） (~591 tok)
