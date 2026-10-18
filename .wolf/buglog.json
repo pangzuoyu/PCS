@@ -3290,19 +3290,22 @@
     },
     {
       "id": "bug-180",
-      "timestamp": "2026-10-19T00:00:00+08:00",
-      "error_message": "GET /api/v1/pipe-classes 返回 `class_id`/`class_name`/`material_standard`，而前端页面读 `record.pipe_class_id` 与 `p.code` —— 管道等级页在生产上是坏的",
+      "timestamp": "2026-10-19T07:30:00+08:00",
+      "error_message": "GET /api/v1/pipe-classes 返回 class_id/class_name/material_standard/sch_series_json/status，而前端页面读 pipe_class_id/code/material/schedule/size_range_json/sign_status —— 管道等级页在生产上整页空白（含 rowKey）",
       "file": "pcs-frontend/src/mocks/seed/pipe-classes.ts",
-      "root_cause": "MSW fixture 用**手写前端类型**（`types/pipeClass.ts`）标注，与生成的契约 `PipeClassResponse` 字段名整组不同构。\n\n后果不是 mock 脏，是**生产缺陷**：`PipeClassListPage` 用 `record.pipe_class_id` 当 `rowKey`，`PipeComputePage` 下拉用 `{value: p.pipe_class_id, label: p.code}` —— 真后端下两者全是 `undefined`。\n\n**这份 mock 一直在替页面遮着。** 评审 #24 的原话是「mock 落后于契约」，做标注时才发现落后的是 mock、但漂移的后果不止于 mock。\n\n两层类型并存是 TODO-039（前端类型唯一性），本轮不并。",
-      "fix": "本轮不修（修它要动页面 + 手写类型 = TODO-039）。已在 `mocks/seed/pipe-classes.ts` 留注释指向该发现，并写进本轮提交信息与评审 README。\n\n发现路径记录在案：给 seed 加一条编译期一致性断言（`const _x: ContractType[] = seedX`）后 tsc 立刻报出 5 处真漂移 —— 断言是**探针**，本轮只在 workspaces 成立处保留，pipe-classes 处换成文档注释。",
-      "fix_commit": "346c257",
+      "root_cause": "MSW fixture 用**手写前端类型**（`types/pipeClass.ts`）标注，与生成的契约\n`PipeClassResponse` 字段名整组不同构：`pipe_class_id`/`code`/`material`/\n`schedule`/`size_range_json`/`sign_status` vs\n`class_id`/`class_name`/`material_standard`/`sch_series_json`/`dn_series_json`/`status`。\n\n`PipeClassListPage` 真连 `GET /api/v1/pipe-classes`，所以页面每一处读取\n（含 `rowKey`）在真后端下都是 `undefined` ⇒ **整页空白**。\n而 `src/mocks/seed/pipe-classes.ts` 返的是手写形状，\n于是**这份 mock 一直在替页面遮着**，让缺陷在 dev 里不可见。\n\n评审 #24 的原话是「mock 落后于契约」，做标注时才发现落后的是 mock、\n但漂移的后果不止于 mock —— 这是本条与 #24 的区别。\n\n两层类型并存原本记为 TODO-039，已于本次并掉。\n\n`types/pipeClass.ts` 原注释写着「PipeClassResponse 已在 api.d.ts 存在\n（字段名 code/material/schedule 已对齐）」—— **那句是错的**，\n本仓「注释比代码乐观」的又一例（另两例：`report_service` 的「取自\nEXPORT_FORMATS」、`check-api-drift.sh` 的「检测 field type changed」）。\n\n发现路径：给 seed 加一条编译期一致性断言 `const _x: PipeClassResponse[] = seedX`\n后 tsc 立刻报错 —— 那条断言当时是**探针**（本仓无 api 类型与手写类型并存的先例），\n这次 bug 修完后它才首次成立、得以保留。",
+      "fix": "已修（commit 09a2a88）：\n1. `types/pipeClass.ts` 的 `PipeClass` 直接 re-export `components['schemas']['PipeClassResponse']` —— 不再有第二份。   该文件原注释写着「字段名 code/material/schedule 已对齐」，**那句是错的**。\n2. 页面与 `mocks/seed/pipe-classes.ts` 同步改契约字段，并加回编译期一致性断言。\n3. 壁厚列：契约给的是 DN→Sch 映射（函数，非可选集合）。用户裁决 —— 同值显示具体 Sch / 不统一显示「按 DN 分档」+ Tooltip 列区间 / 空映射显示 `—`；摘要逻辑抽到 `src/lib/pipeClassSch.ts`（EMPTY/UNIFORM/VARIED），刻意不归一化大小写。\n4. 状态列：`module=\"PIPE_CLASS\"` 独立词表；StateBadge props 改判别联合，非法 module/status 组合**编译期即拒**；未知状态 dev 抛错 / prod「未知状态: X」，不再静默兜底成草稿。\n5. `types/stream.ts` 的 sign_status 补齐成九态（此前**少声明** 4 态）。\n\n影响面经核实**只有 PipeClassListPage 一页**：`PipeRoute` 传硬编码 `pipeClasses={[]}`（未接 API），`SymbolTableRoute`/`CodeFormatRoute` 同理 —— 早先记录里多写的 PipeComputePage 是误记。\n\n⚠️ 旧的 6 条组件测试正是**掩盖**本 bug 的：fixture 用手写字段名造，页面读同一份手写类型 —— 「页面读什么」与「fixture 有什么」同源，永远对得上。",
+      "fix_commit": "09a2a88",
       "tags": [
         "frontend",
         "contract-drift",
         "msw",
         "production-bug",
-        "todo-039"
-      ]
+        "false-green",
+        "compile-time-guard",
+        "shared-fixture-type"
+      ],
+      "severity_hint": "production bug（非仅 mock 脏）"
     },
     {
       "id": "bug-181",
@@ -3350,6 +3353,24 @@
         "config",
         "fail-open",
         "review-29"
+      ]
+    },
+    {
+      "id": "bug-184",
+      "timestamp": "2026-10-19T08:10:00+08:00",
+      "error_message": "契约闸门 check-api-drift.sh 的 docstring 声称检测 field type changed / field removed / enum value removed，实现一项都没有",
+      "file": "pcs-frontend/scripts/check-api-drift.sh",
+      "root_cause": "实现只比了 `required` 数组，且是 `for schema in $(comm -12 ...)` 里\n每 schema 起 2 次 jq（291 个 schema = 582 次进程启动，占整脚本 98% 的 10s）。\n\n**改字段名、改类型、删 enum 值全部放行。** 代价有实例：bug-180 里\n`pipe_class_id` → `class_id` 的整组改名、`schedule: string` →\n`sch_series_json: {...}` 的改类型，都过了这道闸。\n\n本仓「注释比代码乐观」的第三例（另两例：`report_service` 的「取自\nEXPORT_FORMORTS」、「两边不再各持一份」）。\n\n⚠️ 守门自己的 docstring 也要被验 —— 写着「检测 X」不等于检测了 X。",
+      "fix": "三项检测补齐（字段删除 / 字段类型变化 / enum 值删除），与原有的 required 差异\n合并成**一次 `jq -s`** 比较两份文档。\n\n顺带修掉两个既有问题：\n1. **测试 1–4 本来就是红的**：zh_CN.UTF-8 下 `sort` 与 `comm` 排序规则不一致，\n   往 stderr 喷 `not in sorted order` 混在报告里。加 `export LC_ALL=C`。\n2. **10s → 0.145s**。\n\njq 踩了三处语法坑，都让检查**静默失效**而非报错，已写进脚本注释：\n1. `EXP as $x` **不收集成数组**（是「对每个输出各绑定一次」），\n   于是 `$names` 是字符串，`$names[]` 变成「迭代字符串」。要收集得显式 `[...]`。\n2. `as $x` 后必须跟 `|`，`... as $x , (branch)` 是语法错。\n3. `|` 后直接接 `,` 同样语法错。",
+      "fix_commit": "5b1174c",
+      "tags": [
+        "frontend",
+        "guard-test",
+        "docstring-vs-implementation",
+        "contract",
+        "false-green",
+        "jq",
+        "locale"
       ]
     }
   ]

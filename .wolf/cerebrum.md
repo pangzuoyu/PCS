@@ -72,6 +72,33 @@
 （AST 节点、对象身份、调用序数），不能打在文本或渲染产物上。
 全文见 `docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md`。
 
+### 「窄的类型声明」是约束还是遗漏（2026-10-19，用户元观察）
+
+**判别方法：看那份「窄」的数据有没有运行时消费者在依赖它做校验。**
+有校验逻辑（会**替换**/拒绝未知值）⇒ 约束；只是外观（喂 opacity/颜色）⇒ 强调表。
+
+| | 消费点 | 结论 |
+|---|---|---|
+| `MODULE_ACTIVATED.SIM`（4 态） | 只喂 `opacity: isActive ? 1 : 0.4` | **强调表**，物流实为 9 态 |
+| `STATUS_META` 兜底分支 | `?? STATUS_META.DRAFT` 会**替换**未知值 | **约束**，而且是错的约束 |
+
+本会话两次犯「用代码局部形态推断契约语义」：样式 UI 没写入端点 → 以为需求不存在；
+`MODULE_ACTIVATED` 4 态 → 以为物流只有 4 态。两次都合理、能自洽、且错。
+单人开发无第二人问「你确定吗」，更要主动做这一步。
+
+⚠️ 把强调表提升为编译期词表会把**假绿换成假红**（合法 `STALE` 被 `tsc` 拒）。
+真正的约束该用**判别联合**：`module` 分派到各自的 `status` 联合，
+非法组合编译期即拒 —— 但它拦不住后端返回的裸 string，运行时仍要显形兜底。
+
+全文见 `docs/solutions/testing-issues/narrow-declaration-is-not-a-constraint.md`。
+
+### 守门的 docstring 也要被验
+
+`check-api-drift.sh` 头部声称检测三项，实现一项都没有（bug-184）。
+`report_service` 的「取自 EXPORT_FORMATS」是硬编码字面量。
+**写着「检测 X」/「取自 X」不等于检测了 X / 取自了 X。**
+⇒ 凡是 docstring 声称的能力，逐条写一条测试钉住。
+
 ### mock 契约一致性 = 正确性的一部分
 
 给 seed 加编译期断言 `const _x: ContractType[] = seedX; void _x;`
