@@ -38,7 +38,7 @@ from app.core.config import get_settings
 from app.models.report import ReportFile
 from app.services.audit_service import AuditService
 from app.services.exceptions import PcsError
-from app.services.report import paths
+from app.services.report import paths, watermark
 from app.services.report.blocks import Block, HeadingBlock, TableBlock
 from app.services.report.collector import collector_for
 from app.services.report.datasource_registry import (
@@ -61,10 +61,13 @@ from app.services.report.style import ReportStyle
 
 logger = logging.getLogger(__name__)
 
-#: 支持的输出格式。**取自 `watermark.EXPORT_FORMATS`** —— b8 落地 CSV 后
-#: 曾经有三份清单（这里 / `schemas.report.SUPPORTED_OUTPUT_FORMATS` /
-#: API 的 `_RENDERABLE_FORMATS`），改漏一处就是「某个格式选得到但跑不了」。
-SUPPORTED_FORMATS = frozenset({"pdf", "xlsx", "docx", "csv"})
+#: 支持的输出格式。**真从 `watermark.EXPORT_FORMATS` 取**（2026-10-18，#19）。
+#:
+#: 此前这一行是 `frozenset({...})` 字面量，而上面的注释写着「取自
+#: `watermark.EXPORT_FORMATS`」—— 注释是愿望不是事实。四份清单里
+#: 只有 API 层那份是真派生的，于是「哪个格式选得到但跑不了」取决于
+#: 改的人改了几份。今天四份同源，加第 5 种格式只改 `watermark` 一处。
+SUPPORTED_FORMATS = frozenset(watermark.EXPORT_FORMATS)
 _EXT = {"pdf": "pdf", "xlsx": "xlsx", "docx": "docx", "csv": "csv"}
 _MAX_ROWS = 10000      # SPEC §3.2.2(2) MaxRows 默认值
 _BATCH_SIZE = 10000   # IN 列表分批，避免语句膨胀

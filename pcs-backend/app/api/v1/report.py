@@ -459,9 +459,13 @@ async def _style_call(fn):
         raise
 
 
+#: 下载端点的 Content-Type。**必须覆盖 `watermark.EXPORT_FORMATS` 全集**。
+#: csv 曾不在这里，而 `_MEDIA.get(fmt, "application/octet-stream")` 会静默兜底
+#: —— 不报错，浏览器把 CSV 当二进制下载而不是表格（2026-10-18，#19）。
 _MEDIA = {"pdf": "application/pdf",
           "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-          "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}
+          "docx": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "csv": "text/csv"}
 
 
 def _file_intact(row: ReportFile) -> bool:

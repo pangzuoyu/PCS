@@ -24,8 +24,16 @@ from app.services.report.style import (
     TableStyle,
 )
 
-# SPEC §3.2.2(2) 的 output_format 枚举；Excel/CSV 走 xlsx 渲染器
-SUPPORTED_OUTPUT_FORMATS = ("pdf", "xlsx", "docx")
+#: SPEC §3.2.2(2) 的 output_format 枚举。
+#:
+#: **从渲染层派生，不在本文件另抄一份**（2026-10-18，#19）。此前这里是
+#: 硬编码的 `("pdf", "xlsx", "docx")` —— 少了 csv，于是
+#: `POST /report/generate` 直连入口拒 csv，而走定义的 execute 端点收 csv。
+#: 同一个产品、同一个格式，两条路一个成一个不成，且两边都不报错。
+#: 权威副本在 `watermark.EXPORT_FORMATS`：它列什么就真的渲染得出什么。
+from app.services.report.watermark import EXPORT_FORMATS
+
+SUPPORTED_OUTPUT_FORMATS = EXPORT_FORMATS
 
 
 class ReportGenerateRequest(BaseModel):

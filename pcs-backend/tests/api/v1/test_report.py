@@ -82,6 +82,25 @@ async def test_generate_rejects_unknown_format(client, auth_pc, project_id, fake
     assert r.json()["code"] == "REPORT_FORMAT_UNSUPPORTED"
 
 
+@pytest.mark.parametrize("fmt", ["pdf", "xlsx", "docx", "csv"])
+async def test_generate_accepts_every_renderer_supported_format(
+    client, auth_pc, project_id, fake_arq, fmt,
+):
+    """#19：直连 generate 与走定义的 execute 接受**同一个集合**。
+
+    此前 csv 只在 execute 侧可导出，直连 generate 侧 400 ——
+    同一个产品、同一个格式，两条路一个成一个不成，且两边都不报错。
+    参数化而不是循环：四种格式在报告里各占一行，漏一种一眼看得见。
+    """
+    r = await client.post(
+        "/api/v1/report/generate",
+        json={"report_type": "EQUIPMENT_LIST", "project_id": str(project_id),
+              "record_ids": [], "output_format": fmt},
+        headers=auth_pc)
+    assert r.status_code == 202, f"{fmt} 被 generate 拒了：{r.text}"
+    assert fake_arq["kwargs"]["output_format"] == fmt
+
+
 # ⚠️ **共享 `client` fixture 会自动 bypass 项目访问守卫**
 # （tests/conftest.py:232 把 `check_user_project_access` monkeypatch 成恒 True）。
 # 所以**通过 client 测「无权访问 = 403/404」必然假绿** ——
