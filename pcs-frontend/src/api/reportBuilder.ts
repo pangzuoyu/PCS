@@ -72,7 +72,10 @@ export const reportBuilderApi = {
       .then((r) => r.data),
 
   // --- 定义 CRUD（b10 / b12）------------------------------------------------
-  list: (params?: { report_type?: string; status?: string }) =>
+  // ⚠️ 此前这里还声明了 `report_type?`，但 `ReportDefinition` **没有这一列**
+  // （分页筛选维度是 project_id / status / shared_with）。声明一个后端没有
+  // 的筛选维度 = 承诺一个不存在的能力。已删。
+  list: (params?: { status?: string }) =>
     api.get<ReportDefinitionList>('/report-builder/definitions', { params })
       .then((r) => r.data),
 

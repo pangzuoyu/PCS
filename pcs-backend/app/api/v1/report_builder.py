@@ -18,7 +18,7 @@ import datetime as dt
 import uuid
 from typing import Annotated, Literal
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,7 +40,11 @@ from app.schemas.report_builder import (
 from app.services.exceptions import PcsError
 from app.services.report import watermark
 from app.services.report.datasource_registry import DATASOURCES, JOINS
-from app.services.report.definition_service import MAX_ROWS_CEILING, DefinitionService
+from app.services.report.definition_service import (
+    DEFINITION_STATUSES,
+    MAX_ROWS_CEILING,
+    DefinitionService,
+)
 
 router = APIRouter(prefix="/report-builder", tags=["report-builder"])
 
@@ -134,8 +138,29 @@ async def create_definition(
 
 
 @router.get("/definitions", response_model=ReportDefinitionList)
-async def list_definitions(actor: ActorDep, db: DbDep) -> ReportDefinitionList:
-    rows = await DefinitionService(db).list(user_id=actor.user_id)
+async def list_definitions(
+    actor: ActorDep, db: DbDep,
+    status: str | None = Query(
+        None, description="按状态收窄：DRAFT / PUBLISHED / OBSOLETE"),
+) -> ReportDefinitionList:
+    """列出可见定义。`status` 是**进一步收窄**，见 `DefinitionService.list`。
+
+    ⚠️ 此前签名里**没有任何查询参数**，而前端
+    `ReportDefinitionListPage` 的状态筛选一直把 `status` 发过来
+    （该文件 docstring 明写「它作为查询参数发给后端，不在本地裁剪」）。
+    参数被**静默丢弃** ⇒ 200 + 全量 ⇒ 用户选「已发布」列表纹丝不动，
+    **零报错**。症状是「筛选看起来坏了但没报错」。
+
+    未知状态词 400 而不是忽略：静默忽略正是本缺陷的病根 ——
+    参数拼错 / 状态词写错 / 契约改名，三种错都表现为「筛选不生效」，
+    用户无从分辨是哪一种。
+    """
+    if status is not None and status not in DEFINITION_STATUSES:
+        raise PcsError(
+            f"未知的定义状态 {status!r}，支持 {sorted(DEFINITION_STATUSES)}。",
+            code="REPORT_DEFINITION_INVALID_STATUS", status=400,
+        )
+    rows = await DefinitionService(db).list(user_id=actor.user_id, status=status)
     items = [ReportDefinitionOut(**_as_dict(r)) for r in rows]
     return ReportDefinitionList(items=items, total=len(items))
 

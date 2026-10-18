@@ -216,10 +216,17 @@ export const reportBuilderHandlers = [
     (requireAuth(request) ? HttpResponse.json(DATASOURCES) : unauthorized())),
 
   // --- 定义 ----------------------------------------------------------------
-  http.get('/api/v1/report-builder/definitions', ({ request }) =>
-    (requireAuth(request)
-      ? HttpResponse.json({ items: [DRAFT, PUBLISHED], total: 2 })
-      : unauthorized())),
+  // ⚠️ **遵守 status 查询参数**（2026-10-18，配套后端 #27）。
+  // 后端此前静默丢弃 status；修复后它真的过滤。若 mock 继续无视该参数，
+  // dev 里「执行」页会列出 DRAFT、真后端下不会 —— 又一次漂移，
+  // 而且方向与 #24 相反：这次 mock 比后端**宽松**。
+  http.get('/api/v1/report-builder/definitions', ({ request }) => {
+    if (!requireAuth(request)) return unauthorized();
+    const status = new URL(request.url).searchParams.get('status');
+    const all = [DRAFT, PUBLISHED];
+    const items = status ? all.filter((d) => d.status === status) : all;
+    return HttpResponse.json({ items, total: items.length });
+  }),
 
   http.get('/api/v1/report-builder/definitions/:defId', ({ request, params }) =>
     (requireAuth(request)

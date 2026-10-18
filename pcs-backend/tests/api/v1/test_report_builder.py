@@ -1721,3 +1721,104 @@ async def test_the_task_id_in_the_row_is_the_one_the_worker_gets(
     assert row.task_id == accepted, (
         f"库里的 task_id={row.task_id!r} 而 202 返回的是 {accepted!r} —— "
         "任务体按 job_id 查这行会查不到，状态永远停在 QUEUED")
+
+
+# --- #27 status 查询参数 ----------------------------------------------------
+#
+# 前端 `ReportDefinitionListPage` 的状态筛选把 `status` 作为查询参数发给后端
+# （该文件 docstring 明写「它作为查询参数发给后端，不在本地裁剪」）。
+# 而 `list_definitions(actor, db)` 签名里根本没有查询参数 —— 参数被**静默丢弃**：
+# 200 + 全部行。用户选「已发布」，列表纹丝不动，**没有任何报错**。
+#
+# 同一函数签名还漏了 `DefinitionService.list()` 已支持的 `project_id`，
+# 以及前端 client 类型里声明的 `report_type`（而 ReportDefinition 表**没有**
+# 这一列 —— 那个参数是纯虚构的）。
+#
+# 可见性过滤**不在这里做**：`visible_clause()` 与「OBSOLETE 默认不列出」
+# 仍是后端的事，status 参数只是在那之上的**进一步收窄**。
+# ⚠️ 特别地，`status=OBSOLETE` 与「默认不列 OBSOLETE」会打架 ——
+# 见 test_status_filter_cannot_resurrect_obsoleted_definitions。
+
+
+@pytest.mark.asyncio
+async def test_status_query_parameter_actually_filters(client):
+    """前端发了 status，后端此前当没看见。现在必须真过滤。"""
+    await client.post("/api/v1/report-builder/definitions",
+                      headers=_auth("author-1"), json=_definition_body(name="草稿件"))
+    created = (await client.post("/api/v1/report-builder/definitions",
+                                 headers=_auth("author-1"),
+                                 json=_definition_body(name="发布件"))).json()
+    # ⚠️ publish 要 APPROVER —— `require_roles` 在**查行之前**就拒了 DESIGNER，
+    # 拿 author-1 去 publish 会静默 403，定义留在 DRAFT，测试照样「通过」。
+    pub = await client.post(f"/api/v1/report-builder/definitions/{created['def_id']}/publish",
+                            headers=_auth("approver-1", "APPROVER"))
+    assert pub.status_code == 200, f"publish 失败：{pub.status_code} {pub.text}"
+
+    r = await client.get("/api/v1/report-builder/definitions?status=DRAFT",
+                         headers=_auth("author-1"))
+    assert r.status_code == 200, r.text
+    statuses = {d["status"] for d in r.json()["items"]}
+    assert statuses == {"DRAFT"}, (
+        f"?status=DRAFT 返回了 {statuses} —— 参数被静默丢弃了。"
+        f"症状是「筛选看起来坏了但无报错」"
+    )
+
+
+@pytest.mark.asyncio
+async def test_status_filter_cannot_resurrect_obsoleted_definitions(client, db):
+    """`status=OBSOLETE` **不得**让已作废的定义重新出现在默认列表里。
+
+    OBSOLETE 默认不列出是**可见性裁决**（还能按 ID 取到，供审计追溯），
+    不是「过滤条件」。让 status 参数把它翻出来等于让任何已认证用户
+    枚举全库已作废的定义 —— 而它们本来的设计是退出日常视野的。
+    ⇒ status 只在 `visible_clause` 之上收窄，不能放宽。
+    """
+    created = (await client.post("/api/v1/report-builder/definitions",
+                                 headers=_auth("author-1"),
+                                 json=_definition_body(name="待作废"))).json()
+    # 直接置 OBSOLETE：这里要测的是 list 的过滤语义，走完整作废流程会
+    # 掺进审批/权限的噪声。`db` fixture 与 `client` 共用 db_engine。
+    from app.models.report import ReportDefinition  # noqa: PLC0415
+    from sqlalchemy import select  # noqa: PLC0415
+    import uuid as _uuid  # noqa: PLC0415
+    row = (await db.execute(
+        select(ReportDefinition).where(
+            ReportDefinition.def_id == _uuid.UUID(created["def_id"]))
+    )).scalar_one()
+    row.status = "OBSOLETE"
+    await db.commit()
+
+    r = await client.get("/api/v1/report-builder/definitions?status=OBSOLETE",
+                         headers=_auth("author-1"))
+    assert r.status_code == 200, r.text
+    assert created["def_id"] not in {d["def_id"] for d in r.json()["items"]}, \
+        "status=OBSOLETE 把已作废定义翻了出来 —— status 只能在可见性之上收窄"
+
+
+@pytest.mark.asyncio
+async def test_unknown_status_is_rejected_rather_than_silently_ignored(client):
+    """未知状态词 400，而不是「当没这个参数」返回全量。
+
+    静默忽略是 #27 的病根：参数拼错、状态词写错、契约改名，
+    三种错都表现为「筛选不生效」，用户无从判断是哪一种。
+    """
+    r = await client.get("/api/v1/report-builder/definitions?status=NOT_A_STATUS",
+                         headers=_auth("author-1"))
+    assert r.status_code == 400, f"未知 status 应 400，实得 {r.status_code}：{r.text}"
+    assert r.json()["code"]
+
+
+@pytest.mark.asyncio
+async def test_no_status_parameter_returns_everything(client):
+    """不带参数 = 不过滤。这是绝大多数调用的形态，别把它改坏。"""
+    await client.post("/api/v1/report-builder/definitions",
+                      headers=_auth("author-1"), json=_definition_body(name="a"))
+    created = (await client.post("/api/v1/report-builder/definitions",
+                                 headers=_auth("author-1"),
+                                 json=_definition_body(name="b"))).json()
+    pub = await client.post(f"/api/v1/report-builder/definitions/{created['def_id']}/publish",
+                            headers=_auth("approver-1", "APPROVER"))
+    assert pub.status_code == 200, f"publish 失败：{pub.status_code} {pub.text}"
+    assert pub.json()["status"] == "PUBLISHED"
+    r = await client.get("/api/v1/report-builder/definitions", headers=_auth("author-1"))
+    assert {d["status"] for d in r.json()["items"]} == {"DRAFT", "PUBLISHED"}

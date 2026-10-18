@@ -220,12 +220,25 @@ class DefinitionService:
         return row
 
     async def list(self, *, user_id: uuid.UUID,
-                   project_id: uuid.UUID | None = None) -> list[ReportDefinition]:
+                   project_id: uuid.UUID | None = None,
+                   status: str | None = None) -> list[ReportDefinition]:
+        """列出当前用户可见的定义。
+
+        `status` 是**收窄**，不是「过滤条件」（评审 #27，2026-10-18）：
+        它被加在「OBSOLETE 不进列表」**之后**，所以 `status=OBSOLETE`
+        得到的是**空列表**，而不是把已作废的定义翻出来。
+
+        顺序不能反。反了就等于给了任何已认证用户一个枚举全库已作废
+        定义的入口 —— 而它们退出日常视野是**可见性裁决**（仍可按 ID
+        取到，供审计追溯），不是用户可以随手筛回来的。
+        """
         stmt = select(ReportDefinition).where(visible_clause(user_id))
         if project_id is not None:
             stmt = stmt.where(ReportDefinition.project_id == project_id)
         # 已作废的不进默认列表（还能按 ID 取到，供审计追溯）
         stmt = stmt.where(ReportDefinition.status != "OBSOLETE")
+        if status is not None:
+            stmt = stmt.where(ReportDefinition.status == status)
         return list((await self.db.execute(stmt.order_by(
             ReportDefinition.created_at.desc()))).scalars())
 
