@@ -4,80 +4,84 @@ budget_tokens: 1500
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-18.
+> Read this FIRST when starting a session. Last updated: 2026-10-19.
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
 ## ✅ 本会话完成
 
-**P8 ce-code-review 评审 + 全部 6 步修复落地**（commit `211f3c6`..`c9d937f`）。
+**P8 评审的 30 条 findings 全部处理完毕**（`c9d937f` → `6448041`）。
 
-1. **评审**：13 reviewer、30 primary findings；8 条 P0/P1 全部 validator
-   confirmed。产物入库 `docs/ce-code-review/20261014-005528-981d772a/`
-   （**入口 `README.md`**，本体 `report.md`；两处已证伪断言标明勿从 reviewer
-   json 捡回：15 算子「从未执行」不实、JSONB「PG 500」未证实）。
-2. **修复**：2 P0（固定 10 类项目隔离 `6b5c756`、回收器不 commit `211f3c6`）
-   + 6 P1（`#3/4/5/6/7/8`）+ 8 条裁决 P2/P3（`#9/11/12/14/15/17/18/23/25`）。
-   迁移新增 `p8_008/009/010`（补 CHK、NULLS NOT DISTINCT、ACTIVE 部分唯一索引）。
-3. **三处评审前提被实测推翻**：#4 签名不在 `_content_hash`（qr_payload 根本
-   不参与哈希）；#7「重跑」被按钮 disabled 拦死（世代守卫只剩卸载可达，
-   变异证据已写进该测试 docstring）；#17 信封本就统一（真问题是 code 不语义，
-   已语义化 + 发布说明 `docs/PCS-NOTE-P8-错误信封统一-2026-10-18.md`）。
-4. **两类基础设施级假绿源**入 `docs/solutions/` 三篇：ARQ 0.28 静默失效族、
-   `:memory:` StaticPool 盲区（「第二个 session 读」全仓失效）、方言盲区族
-   （NULLS NOT DISTINCT / sqlite_where / alembic check 只审所连库）。
-   bug-169..179 入 buglog（均带 fix_commit）。
-5. **CLAUDE.md** 加 `alembic check` 第 4 条读法（跨库需各跑一次）。
-   bug-171 审计收尾：6 测试定性完毕（见 TODOS.md 结论表）。
+1. **#24 MSW 契约冻结**（`346c257`）：30 个 mock 端点里 **23 个有契约**、
+   7 个刻意 mock-only（方法级匹配，路径级会多算一个）。全部用生成的
+   OpenAPI 类型标注 → `tsc` 一次跑出 **5 处真漂移**（checklist
+   completeness 字段整组不同、vessel/sep-equip 返契约里一个都没有的字段、
+   `formula_ref` 塞 boolean、Workspace 手写类型缺必填 `status`）。
+2. **#19 输出格式白名单**（`c142014`）：报告说「两份」，实际**四份**，
+   且其中一份注释写着「取自 EXPORT_FORMATS」而代码是硬编码字面量；
+   另有第五处 `_MEDIA` 缺 csv 且**静默兜底**成 octet-stream。全部合到
+   `watermark.EXPORT_FORMATS` 一处。
+3. **#22 #21 #29**（`2a23d2e`）：并发冲突的 `db.rollback()` 改 SAVEPOINT；
+   审计缺口改 ERROR + 点名 file_id；验签密钥加 32 字节下限。
+4. **#27 状态筛选**（`81947bd`）：后端加 `status` 查询参数（未知词 400、
+   `status=OBSOLETE` **不翻出**已作废定义）+ 前端删虚构的 `report_type`
+   + MSW 同步遵守该参数。
+5. **#10 #30 #26**（`e35ecfc`）：定义拉换取消失效机制；缺 `source` 不再伪造
+   `EQUIP_LIST`（含计数器同步）；过滤条件行改用 `node.id` 当 key。
+6. **产物更新**（`e46caee` / `6448041`）：评审 README 补「修复落地状态」；
+   buglog 补 bug-180..183；新增 solutions 一篇 + cerebrum 两条。
 
-## ✅ 早前已完成（细节查 git log）
+### 🔴 #24 引出的**生产缺陷**（未修，bug-180）
 
-P7 迁移守门修复（幂等闸 AST 化、bug-143/144、COMMENT 比对关闭）、
-CORS、auth 三条、CATEGORY_6 设备库地基、CI 首次全绿。
+`mocks/seed/pipe-classes.ts` 返 `{pipe_class_id, code}`，契约
+`PipeClassResponse` 是 `{class_id, class_name, material_standard, ...}`
+—— **字段名整组不同**。`PipeClassListPage` 读 `record.pipe_class_id`
+（`rowKey` 也用它）、`PipeComputePage` 下拉用 `{value: p.pipe_class_id,
+label: p.code}` ⇒ 真后端下全是 `undefined`。
+**管道等级页在生产上就是坏的，是这份 mock 一直在替它遮着。**
+
+未修：改它要动页面 + `types/pipeClass.ts` = **TODO-039 前端类型唯一性**。
+已在 `mocks/seed/pipe-classes.ts` 留注释指向评审 README 的对应节。
 
 ---
 
 ## 🚀 Next quest
 
-P8 主体已闭环（⚠️ 旧 handoff 的「43 条 alembic 旧账」是过时信息：
-TODOS.md:702 记录 43 条已于 2026-10-07 清零，唯一的跨库缺口
-`future_dated_forbidden_chk` 已由本会话 `p8_008` 补上，两库均 exit 0）。
-候选（按价值排）：
-
-1. **TODO-039/041 + 评审 #24**（前端类型唯一性、MSW 契约冻结，逾期 20+ 天；
-   MSW mock 落后契约三处：joins 形状、缺 model 字段、file status 字段）。
-2. **P9 起步**：`report_verify_base_url` 未配置 ⇒ 二维码当前默认不印
-   （`#4` 的修复已就位，配置后生效）；`assemble` 真分批（P9 范围）；
-   TODO-026（JSONB 子键平铺）。
-3. 低优先数据层遗留：TODO-028（10 表主键 rename）、TODO-032（27 个真库
-   测试迁 SQLite）、`drain_orifice_Cd_Y_cr` 重复唯一索引（TODOS.md）。
+1. **管道等级页（bug-180）** —— 上条。这是本会话查出的唯一**生产级缺陷**，
+   而非仅 mock 脏。做法同 TODO-039：把手写 `types/pipeClass.ts` 并到
+   生成的契约类型，页面跟着改字段名。
+2. **`scripts/check-api-drift.sh:64`** —— docstring 声称能检出属性类型
+   变更/删除，实际只比 `required` 数组。本会话 5 处漂移里 4 处它看不见。
+3. **P9 起步**：`report_verify_base_url` 未配置 ⇒ 二维码当前默认不印
+   （`#4` 的修复已就位，配置后生效）；`assemble` 真分批；TODO-026（JSONB 子键平铺）。
+4. 低优先数据层：TODO-028（10 表主键 rename）、TODO-032（27 个真库测试迁 SQLite）。
 
 ---
 
 ## Context
 
 - main，工作区除 `.wolf/*`（钩子维护）外干净。**不要建 worktree**（历史事故）。
-- **两库均在 `p8_010`，`alembic check` 均 exit 0**。`pcs_test` 是行为验证库
-  （迁移 guard / 约束实测都在它上面做，用后恢复 head）。
-- 基线：后端 **4495 passed / 0 failed**，前端 **621 passed / 0 failed**，
-  两端 lint / typecheck clean。改 OpenAPI/schemas 的 commit 会自动触发
-  G-08 契约门禁并重生成 `api.d.ts`。
+- **两库均在 `p8_010`，`alembic check` 均 exit 0**。`pcs_test` 是行为验证库。
+- 基线：后端 **4516 passed / 0 failed**，前端 **637 passed / 0 failed**，
+  两端 lint / typecheck clean。本会话共 +21 条后端 / +12 条前端测试。
 - 改迁移的纪律：`alembic check` 退出码 **255**；先 `current` vs `heads`
-  确认它跑了；**每个库各跑一次**；行为验证上真库（单测对 dialect 选项
-  与约束语义全盲）。
+  确认它跑了；**每个库各跑一次**；行为验证上真库。
 - 无 CI/CD（单人开发裁决，勿再建议）。
 
 ---
 
-## 教训（本会话新增，全文见 docs/solutions/ 三篇）
+## 教训（本会话新增，全文见 solutions 一篇）
 
-- **三级假绿**：测错东西 → 观测方法被 fixture 击穿（StaticPool）→
-  **功能从未触发**（第三种不需要「测试写错」，空分支的绿灯是默认的）。
-  可选功能必须有「该触发时确实触发了」的测试。
-- **评审结论当「要修什么」读，不当「怎么修」读**：三处建议方向对、
-  前提在本仓不成立。推理正确但前提错误的建议比推理错误的更危险。
-- **方言选项要三处齐**：`postgresql_nulls_not_distinct` +
-  `postgresql_where` + `sqlite_where`，少一处就是测试/生产语义分叉。
-- 变异验证证明的是「测试**有效**」，不是「测试对」—— 新守卫测试必做。
-- 测试断言别写 `... or True`（恒真比不写更糟）；观测点先做最小探针。
+- **守门测试会被它守护的那行注释骗过**：`inspect.getsource()` 找子串证明
+  「A 引用了 B」，会被 A 上面那句**说谎的注释**命中。同类：用
+  `str(stmt.whereclause)` 当判据恒不命中 ⇒「功能从未执行」被读成
+  「测试通过」。⇒ 断言要打在 AST / 对象身份 / 调用序数上。
+- **mock 与契约一致是正确性的一部分**，不是开发体验问题 ——
+  mock 越宽松，它替页面扛的越多，而差异平时不可见（bug-180）。
+- **评审说的份数要重数**：本次 N → N+1，且新增的那份注释在说谎。
+- 注释里出现「已消除」「唯一来源」「覆盖」时，当成待验证的代码事实。
+- 断言在修复落地前可以只是**探针**：跑出发现，不成立处换成文档注释，
+  别留一个红 `tsc` 把构建变红。
+
+Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
