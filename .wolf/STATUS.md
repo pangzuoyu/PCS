@@ -4,88 +4,78 @@ budget_tokens: 1500
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-07.
+> Read this FIRST when starting a session. Last updated: 2026-10-18.
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
 ## ✅ 本会话完成
 
-**迁移守门从"坏"修到"能说真话"** —— 这是本会话的主线，其余都是它的产出。
+**P8 ce-code-review 评审 + 全部 6 步修复落地**（commit `211f3c6`..`c9d937f`）。
 
-1. **幂等闸门长期假绿**（`eb528ba`）：`check_migration.py` 用「行内子串 + 上下 8 行窗口」
-   判 guard，`p7_s3_005` 的 `downgrade()` docstring 里写着「删两张子表 (if_exists 幂等)」，
-   窗口里的 `if_exists` 掩盖了下面两行**实际没带** guard 的 `op.drop_table`。改 AST 判定。
-   另发现 `SAFE_OPS` 把 `create_unique_constraint` 映射为需 `if_not_exists` 是**错的**
-   ——alembic 1.19.1 该签名无此形参，传了被 `**kw` 静默吞掉。已移出检查范围。
-   补 guard 共 **49 处**，检查范围从 4 个前缀白名单收敛为全部 **30 个 `p7_*`**。
-2. **bug-143**（`89ae1b3` / `p7_s5_006`）：`user_projects.created_by` ORM 有 DB 无 →
-   真库上项目授权**必失败**（`UndefinedColumn`）。根因是手写 `op.create_table` 逐列抄写
-   漏了 mixin 继承列。已应用并复验（失败原因正确转为 `ForeignKeyViolation`）。
-3. **bug-144**（`29a30b8` / `p7_s5_007`）：`user_projects` **4 个外键从未建出** ——
-   建表迁移把裸 `sa.ForeignKey(...)` 当位置参数传给 `op.create_table`，被**静默丢弃**。
-   该表是 BLOCKER-3 IDOR 守卫读的表。已应用。
-   写 FK 时踩到 PG 的坑：未加引号的 `REFERENCES users.user_id` 报
-   `InvalidSchemaName: schema "users" does not exist`（临时表上也复现），
-   函数式 `REFERENCES users(user_id)` 正常 → 改走 `op.create_foreign_key`。
-4. **COMMENT 比对关闭**（`cca173a`，用户裁决）：`alembic check` **397 → 43 条**。
-   注释比对**不走 `include_object`**（先按它实现并实测确认无效），真正机制是 alembic
-   1.18+ plugin，最终从 `_all_plugins` 摘掉 `alembic.autogenerate.comments`。
-   代价：注释漂移不可见 + autogenerate 不再生成 COMMENT，已写进 env.py docstring。
-5. **漂移口径第三次修正**：真实 397 条（先前报的 84 / 350 都错）。
-   根因是**用关键词白名单过滤 `compare_metadata` 输出**，alembic 实际 op 名是
-   `add_fk`/`remove_fk` 而非 `add_foreign_key`，匹配不上的类别被静默丢弃而总数看着正常。
+1. **评审**：13 reviewer、30 primary findings；8 条 P0/P1 全部 validator
+   confirmed。产物入库 `docs/ce-code-review/20261014-005528-981d772a/`
+   （**入口 `README.md`**，本体 `report.md`；两处已证伪断言标明勿从 reviewer
+   json 捡回：15 算子「从未执行」不实、JSONB「PG 500」未证实）。
+2. **修复**：2 P0（固定 10 类项目隔离 `6b5c756`、回收器不 commit `211f3c6`）
+   + 6 P1（`#3/4/5/6/7/8`）+ 8 条裁决 P2/P3（`#9/11/12/14/15/17/18/23/25`）。
+   迁移新增 `p8_008/009/010`（补 CHK、NULLS NOT DISTINCT、ACTIVE 部分唯一索引）。
+3. **三处评审前提被实测推翻**：#4 签名不在 `_content_hash`（qr_payload 根本
+   不参与哈希）；#7「重跑」被按钮 disabled 拦死（世代守卫只剩卸载可达，
+   变异证据已写进该测试 docstring）；#17 信封本就统一（真问题是 code 不语义，
+   已语义化 + 发布说明 `docs/PCS-NOTE-P8-错误信封统一-2026-10-18.md`）。
+4. **两类基础设施级假绿源**入 `docs/solutions/` 三篇：ARQ 0.28 静默失效族、
+   `:memory:` StaticPool 盲区（「第二个 session 读」全仓失效）、方言盲区族
+   （NULLS NOT DISTINCT / sqlite_where / alembic check 只审所连库）。
+   bug-169..179 入 buglog（均带 fix_commit）。
+5. **CLAUDE.md** 加 `alembic check` 第 4 条读法（跨库需各跑一次）。
+   bug-171 审计收尾：6 测试定性完毕（见 TODOS.md 结论表）。
 
 ## ✅ 早前已完成（细节查 git log）
 
-CORS middleware、auth 安全三条（限流 + 审计 + JWT 过期细分）、`equipment_lib` 死表删除、
-`app/models/__init__.py` 漏 import util、CATEGORY_6 设备库地基 4 项、CI 首次全绿。
+P7 迁移守门修复（幂等闸 AST 化、bug-143/144、COMMENT 比对关闭）、
+CORS、auth 三条、CATEGORY_6 设备库地基、CI 首次全绿。
 
 ---
 
 ## 🚀 Next quest
 
-**`alembic check` 剩 43 条**（`TODOS.md` 有明细表）：
+P8 主体已闭环。候选（按价值排）：
 
-| 项 | 条数 | 性质 |
-|---|---|---|
-| `remove_constraint` | 39 | **28 CheckConstraint + 11 UniqueConstraint**，DB 有、ORM 未声明。DB 更安全，纯声明缺失。补 ORM `__table_args__` 零迁移成本 |
-| `add_constraint` | 1 | `uq_compound_api521_thresholds_threshold_type` ORM 有 DB 无 |
-| `add_fk`/`remove_fk` | 2 | 同名 `fk_utility_energy_summary_workspace_id_workspaces`：**DB=CASCADE vs ORM=RESTRICT** —— **需业务裁决**（删项目时是否连带删能耗汇总） |
-| `add_fk` | 1 | `fk_projects_workspace_id`（`use_alter=True` 延迟外键，通常后续迁移才建） |
-
-**其他开放项**：`TODOS.md` 的 TODO-028（10 表主键 rename）/ 032（27 个真库测试迁 SQLite）/
-039、041（前端类型唯一性、MSW 契约冻结，已逾期约 20 天）/ 014、015、023；
-CATEGORY_6 第 5 项（审批语义，需产品裁决）。
+1. **`TODOS.md` 的 43 条 alembic 旧账**（明细表在 TODOS.md）：
+   39 条补 ORM 声明零迁移成本；`utility_energy_summary.workspace_id`
+   CASCADE vs RESTRICT **需业务裁决**。
+2. **TODO-039/041**（前端类型唯一性、MSW 契约冻结，逾期 20+ 天；
+   评审 #24 MSW mock 落后契约三处也在此族）。
+3. **P9 起步**：`report_verify_base_url` 未配置 ⇒ 二维码当前默认不印
+   （`#4` 的修复已就位，配置后生效）；`assemble` 真分批（P9 范围）；
+   TODO-026（JSONB 子键平铺）。
 
 ---
 
 ## Context
 
-- main，工作区除 `.wolf/*`（钩子维护）外干净。**不要建 worktree** —— 历史事故见 git log。
-- 全量基线：**3954 passed / 77 skipped / 1 xfailed / 0 failed**（3m36s）。
-  单测跑内存 SQLite，**不需要** `alembic upgrade head` 前置；
-  但 `tests/test_schema.py` 连**真实 Postgres**，改迁移后必须真跑。
-- **守门现状**：幂等闸 `OK: 0 violations in 30 p7_* migrations`；
-  `alembic check` 退出码 **255**（不是 1）表示检出漂移。
-- ⚠️ **`grant_project_access` 在真库上仍会失败** —— 现在报 `ForeignKeyViolation`（正确行为），
-  因为 `users` 与 `projects` 都是 0 行。`users` 要等 P9 的 AD 同步才有行
-  （`P9-ADM-001`「同步后自动创建系统用户记录」）。**BLOCKER-3 IDOR 守卫在有真实数据
-  前无法端到端验证**，P7 收尾 / P9 联调时必须知道。
+- main，工作区除 `.wolf/*`（钩子维护）外干净。**不要建 worktree**（历史事故）。
+- **两库均在 `p8_010`，`alembic check` 均 exit 0**。`pcs_test` 是行为验证库
+  （迁移 guard / 约束实测都在它上面做，用后恢复 head）。
+- 基线：后端 **4495 passed / 0 failed**，前端 **621 passed / 0 failed**，
+  两端 lint / typecheck clean。改 OpenAPI/schemas 的 commit 会自动触发
+  G-08 契约门禁并重生成 `api.d.ts`。
+- 改迁移的纪律：`alembic check` 退出码 **255**；先 `current` vs `heads`
+  确认它跑了；**每个库各跑一次**；行为验证上真库（单测对 dialect 选项
+  与约束语义全盲）。
 - 无 CI/CD（单人开发裁决，勿再建议）。
 
 ---
 
-## 教训（已写入 `TODOS.md` / `buglog`）
+## 教训（本会话新增，全文见 docs/solutions/ 三篇）
 
-- **闸门恒绿与恒红一样可疑。** 本会话两次抓到闸门自己的 bug（字符串窗口判 guard、
-  `create_unique_constraint` 的 guard 根本不存在）。查 guard 是否可信，和用 guard 一样重要。
-- **过滤 `compare_metadata` 输出前，先打印真实的 op 名分布**，不要凭直觉写白名单 ——
-  匹配不上的会被静默丢弃，而总数看起来仍然「合理」。同一根因已犯三次。
-- **「守门没报」可能只是因为它根本没跑。** bug-143/144 藏了这么久，
-  直接原因是有一个已提交但未应用的迁移让 `alembic check` 整个拒跑。
-- **迁移里手写 `op.create_table` 必查两件事**：mixin 继承的列有没有漏（bug-143）、
-  外键是不是写成了裸 `sa.ForeignKey` 位置参数（bug-144，静默丢弃不报错）。
-- **登记缺陷前跑最小复现**，别从 code 注释或 ORM 声明推断真库状态。
-- docstring 首行用 ASCII `.`，全角 `。` 触发 ruff D400/D415。
-- 核验别用组合正则；`git status` 之类被 rtk 过滤层改写时，用 `rtk proxy` 拿原始输出。
+- **三级假绿**：测错东西 → 观测方法被 fixture 击穿（StaticPool）→
+  **功能从未触发**（第三种不需要「测试写错」，空分支的绿灯是默认的）。
+  可选功能必须有「该触发时确实触发了」的测试。
+- **评审结论当「要修什么」读，不当「怎么修」读**：三处建议方向对、
+  前提在本仓不成立。推理正确但前提错误的建议比推理错误的更危险。
+- **方言选项要三处齐**：`postgresql_nulls_not_distinct` +
+  `postgresql_where` + `sqlite_where`，少一处就是测试/生产语义分叉。
+- 变异验证证明的是「测试**有效**」，不是「测试对」—— 新守卫测试必做。
+- 测试断言别写 `... or True`（恒真比不写更糟）；观测点先做最小探针。
