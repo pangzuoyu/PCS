@@ -47,7 +47,7 @@ import {
   Typography,
   message,
 } from 'antd';
-import { HistoryOutlined, PlusOutlined, RollbackOutlined } from '@ant-design/icons';
+import { EditOutlined, HistoryOutlined, PlusOutlined, RollbackOutlined } from '@ant-design/icons';
 
 import { PageHeader } from '../../components/common/PageHeader';
 import { errorMessage, reportBuilderApi } from '../../api/reportBuilder';
@@ -168,7 +168,11 @@ export function ReportStylePage(): JSX.Element {
     setError(null);
     try {
       if (editing) {
-        await reportBuilderApi.reviseStyle(editing.style_id, { style: patch });
+        // ⚠️ 发**合并后**的完整样式，不是只发 patch（评审 #12）。
+        // 后端 `revise` 是 `style_json=patch` **整存**——只发本次摸过的字段，
+        // 旧版本其余定制会被静默丢掉：改了个字号，行距悄悄回到默认。
+        const merged = { ...(editing.style as Record<string, unknown>), ...patch };
+        await reportBuilderApi.reviseStyle(editing.style_id, { style: merged });
         message.success(publish ? '已保存为新版本' : '已保存');
       } else {
         await reportBuilderApi.createStyle({
@@ -263,7 +267,10 @@ export function ReportStylePage(): JSX.Element {
               {Object.entries(EDITABLE).map(([key, label]) => (
                 <Form.Item key={key} label={label} style={{ marginBottom: 8 }}>
                   {renderEditor(key, {
-                    current: (active?.style as Record<string, unknown>)?.[key],
+                    // ⚠️ 修订时回填 **editing** 那一版，不是 ACTIVE：
+                    // 「基于 0.1.0 修订」却显示 0.1.1 的值，用户改之前
+                    // 看到的就是错的基线。未在修订态才回落到 ACTIVE。
+                    current: ((editing ?? active)?.style as Record<string, unknown>)?.[key],
                     draft: patch[key],
                     onChange: (v: unknown) =>
                       setPatch((p) => ({ ...p, [key]: v })),
@@ -317,13 +324,24 @@ export function ReportStylePage(): JSX.Element {
                 String((r.style as Record<string, unknown>).font_size_body ?? '—'),
             },
             {
-              title: '', key: 'act', width: 130,
+              // ⚠️ 「修订」是**修改已存在样式的唯一入口**（评审 #12，用户裁决）。
+              // 此前 startEdit 两个调用点都传 null，revise 分支是死代码，
+              // 而「新建样式」在已有 ACTIVE 时 disabled —— 用户根本无从改起。
+              // 每行都放（含 ACTIVE：改当前样式就是修订它）。
+              title: '', key: 'act', width: 210,
               render: (_: unknown, r) => (
-                <Button size="small" icon={<RollbackOutlined />}
-                  disabled={r.status === 'ACTIVE'}
-                  onClick={() => void rollback(r)}>
-                  回滚到此版本
-                </Button>
+                <Space size={4}>
+                  <Button size="small" icon={<EditOutlined />}
+                    type={r.status === 'ACTIVE' ? 'primary' : 'default'}
+                    onClick={() => startEdit(r)}>
+                    修订
+                  </Button>
+                  <Button size="small" icon={<RollbackOutlined />}
+                    disabled={r.status === 'ACTIVE'}
+                    onClick={() => void rollback(r)}>
+                    回滚到此版本
+                  </Button>
+                </Space>
               ),
             },
           ]}
