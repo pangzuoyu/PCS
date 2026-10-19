@@ -174,7 +174,7 @@ P9A-DLV-010	**新端点响应 schema 零裸字段**（硬约束，阻塞 P9B）�
 	（基线 71 保持不变）	P9B 4.2 前端纪律
 	⚠️ 与 P9A-DLV-0XX 的区别：0XX 是**修既有 71 个**，本项是**新增的不许欠**。两者都做，P9A
 	才不会一边修旧账一边欠新账
-P9A-DLV-0XX	API 载荷结构债：全 OpenAPI 259 个 schema 中 141 个 object/array 字段有 71 个是裸类型（无 properties/items）。前端对这些只能继续手写类型 —— 即 TODO-039/041 想消灭的东西。已加覆盖率闸 `scripts/check_openapi_payload_coverage.py`（只拦倒退，当前 70/141 = 49.6%）。与 P9-Prep 引用的 §3.4 约束① 是同一笔债的两个观测面	TODOS.md TODO-039/041
+P9A-DLV-0XX	API 载荷结构债：全 OpenAPI 的 object/array 字段中有 71 个是裸类型（无 properties/items），覆盖率 87/158 = 55.1%。前端对这些只能继续手写类型 —— 即 TODO-039/041 想消灭的东西。已加覆盖率闸 `scripts/check_openapi_payload_coverage.py`（只拦倒退）。与 P9-Prep 引用的 §3.4 约束① 是同一笔债的两个观测面。**权威值在代码的 `BASELINE_BARE_FIELDS`，本文档不硬写 schema/字段总数**（它们随新增端点自然变化，抄进文档必漂）	TODOS.md TODO-039/041
 　　⚠️ 复核推翻了原记录两点：①「无任何测试」是错的（`tests/services/` 下有 5 个，但用假 DB，结构上观察不到 DB 层约束）；②`ChangeNoticeService` **无任何 API 路由调用**、真库 0 行，是未接线的死路径而非线上 500	TODOS.md
 验收：P9B 所需全部端点可用；alembic check 无新增漂移；bug-145 有回归测试。
 

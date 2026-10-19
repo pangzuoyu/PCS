@@ -26,9 +26,16 @@ description）都要人工声明对应关系；这里没有这个问题。
 
 ## 现状
 
-259 个 schema 中，141 个 object/array 字段里有 **71 个是裸类型**。
+**权威值是下面的 `BASELINE_BARE_FIELDS` 与本脚本的运行输出，不要在别处硬写数字。**
+（曾在本 docstring 与 SPEC §3.2.1 各抄一份 `259 schema / 141 字段`，两份都漂成了过期值 ——
+schema 数与字段总数会随新增端点自然变化，只有 `BASELINE_BARE_FIELDS` 是闸门真正比较的量。）
+
+跑一次看现状：
+
+    uv run python scripts/check_openapi_payload_coverage.py
+
 这与本体论 §3.4 约束① 是同一笔债的两个观测面：一个在 ORM 侧（JSONB 列无嵌套
-Pydantic 模型，0/25），一个在 API 侧（本闸量到的 71）。做完 §3.4 约束①，
+Pydantic 模型），一个在 API 侧（本闸量到的裸字段数）。做完 §3.4 约束①，
 这边自然下降。
 """
 from __future__ import annotations

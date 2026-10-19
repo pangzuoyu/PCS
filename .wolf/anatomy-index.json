@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T10:20:31.291Z",
+    "lastScanned": "2026-10-19T10:21:14.201Z",
     "fileCount": 846,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "c4a02b82ee7e96d6a2a6602654101bb9ad4b80e75a5704b0aaad63865bd6aeae",
-    "storeUpdatedAt": "2026-10-19T10:20:31.304Z",
-    "rootHash": "6362ad4fc5eddf0d"
+    "renderedHash": "8b295f8855dac68b1a479b3f46919f21e418c905bf66c6e68f9e1e5ae9130f3b",
+    "storeUpdatedAt": "2026-10-19T10:21:14.212Z",
+    "rootHash": "1265f8c88e1511fa"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -21625,46 +21625,46 @@
     },
     "pcs-backend/scripts/check_openapi_payload_coverage.py": {
       "description": "API 载荷结构覆盖率闸 —— 前端类型能不能自动生成，就看这里。",
-      "tokens": 1186,
-      "hash": "64d238072d80059e",
-      "size": 5482,
-      "mtimeMs": 1791390825162.5938,
-      "updatedAt": "2026-10-07T16:33:45.218Z",
+      "tokens": 1243,
+      "hash": "0aa89c27e67a5d09",
+      "size": 5836,
+      "mtimeMs": 1792405270232.564,
+      "updatedAt": "2026-10-19T10:21:10.281Z",
       "source": "hook",
       "symbols": [
         {
           "name": "Result",
           "kind": "class",
-          "startLine": 47,
-          "endLine": 59,
+          "startLine": 54,
+          "endLine": 66,
           "tokens": 85
         },
         {
           "name": "_is_bare",
           "kind": "fn",
-          "startLine": 60,
-          "endLine": 73,
+          "startLine": 67,
+          "endLine": 80,
           "tokens": 121
         },
         {
           "name": "check",
           "kind": "fn",
-          "startLine": 74,
-          "endLine": 92,
+          "startLine": 81,
+          "endLine": 99,
           "tokens": 194
         },
         {
           "name": "main",
           "kind": "fn",
-          "startLine": 93,
-          "endLine": 128,
+          "startLine": 100,
+          "endLine": 135,
           "tokens": 334
         },
         {
           "name": "_print_top",
           "kind": "fn",
-          "startLine": 129,
-          "endLine": 141,
+          "startLine": 136,
+          "endLine": 148,
           "tokens": 138
         }
       ]
@@ -28077,11 +28077,11 @@
     },
     "spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md": {
       "description": "变更\t原因",
-      "tokens": 4133,
-      "hash": "4d87af66997a3e1a",
-      "size": 27809,
-      "mtimeMs": 1792405011993.093,
-      "updatedAt": "2026-10-19T10:16:52.048Z",
+      "tokens": 4664,
+      "hash": "a2ffe1c31b54a9b7",
+      "size": 31168,
+      "mtimeMs": 1792405274153.495,
+      "updatedAt": "2026-10-19T10:21:14.201Z",
       "source": "hook"
     },
     "docs/adr/0046-user-identity-model-migration.md": {

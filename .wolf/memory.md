@@ -1787,3 +1787,5 @@
 | 18:18 | Created docs/adr/0048-edit-lock-storage.md | — | ~2042 |
 | 18:19 | Created docs/adr/0049-notification-and-todo-data-model.md | — | ~898 |
 | 18:20 | Created docs/PCS-NOTE-P9-Prep-MFA决议-2026-10-19.md | — | ~1184 |
+| 18:21 | Edited pcs-backend/scripts/check_openapi_payload_coverage.py | expanded (+7 lines) | ~106 |
+| 18:21 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | inline fix | ~87 |

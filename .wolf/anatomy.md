@@ -1,6 +1,6 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T10:20:31.291Z
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T10:21:14.201Z
 > Files: 846 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
@@ -1230,7 +1230,7 @@
 
 - `build_report_font.py` — 从 OFL 可变字体派生 reportlab 能用的静态 CJK 字体。 (~995 tok)
 - `check_migration_idempotency.py` — 检查 alembic migrations 是否用 if_exists / if_not_exists (F-P3-002 fix). (~1485 tok)
-- `check_openapi_payload_coverage.py` — API 载荷结构覆盖率闸 —— 前端类型能不能自动生成，就看这里。 (~1186 tok)
+- `check_openapi_payload_coverage.py` — API 载荷结构覆盖率闸 —— 前端类型能不能自动生成，就看这里。 (~1243 tok)
 - `check_payload_model_coverage.py` — 描述文本覆盖率闸 —— 本体论 §3.4 约束② 的可落地形态. (~1620 tok)
 - `check_report_font.py` — 部署侧报表字体自检（TODO-045）。 (~715 tok)
 - `gate_alembic_check.py` — alembic 漂移闸门（ORM ↔ 迁移漂移）—— P9-Prep PP-5。 (~638 tok)
@@ -1477,4 +1477,4 @@
 ## spec/
 
 - `工艺专用综合计算软件需求规格说明书 Web版 P8.md` (~5580 tok)
-- `PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md` — 变更	原因 (~4133 tok)
+- `PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md` — 变更	原因 (~4664 tok)
