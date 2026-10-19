@@ -15395,7 +15395,7 @@ export interface components {
             temp?: number | null;
             /**
              * Press
-             * @description 压力 kPa
+             * @description 压力 MPaG（⚠️ 原写 kPa 是错的，见 DICT-007-SUP-011 §4.4 `pressure_mpag → press`；后端其余压力字段一律 MPaG）
              */
             press?: number | null;
             /**
