@@ -217,16 +217,26 @@ P9A-USR-005	登录路径变更：登录时查 users 表判 status；停用用户
 　　　ORM `User.roles` 是 ACL 的权威输入，写入 mock 派生角色 = 让测试数据参与授权判定。
 　　　mock 走「临时签发、不持久化」，`tv` claim 写哨兵 `0`；真实 users 行出现后
 　　　（token_version 从 1 起）mock 存量令牌自动失效。
-　　(d) ⚠️ **`users.roles` 的列注释（`project.py:153`）写着 `SYSADMIN`，是陈旧的** ——
-　　　2026-10-04 已收敛为 `SYSTEM_ADMIN`（`_guard.py:37`）。惰性建行照注释写会产出
-　　　ACL 不认的字符串（bug-180~191 那类词表漂移）。以 `_guard.py` 现行词表为准。
+　　(d) 🔧 **带归属的待办 —— `users.roles` 的列注释（`project.py:153`）写着 `SYSADMIN`，
+　　　是 2026-10-04 收敛的遗漏**（现行值 `SYSTEM_ADMIN`，见 `_guard.py:37`）。
+　　　**P9A-USR-001 实施惰性建行时必须同时修正该注释**，否则实施者第一眼看到的是这条
+　　　过时注释而非权威词表，写出的值 ACL 不认 —— 即 P8 刚消灭过的 bug-180~191 那类
+　　　词表漂移，等于治理倒退。**不在 P9-Prep 修**（超出 ADR 范围，且会让「注释何时变的」
+　　　指向错误的 commit）。落库前另需对 `roles` 取值做契约枚举校验（同 `StrictColumns`）。
+　　(e) 🔒 **`token_version = 0` 是保留值，真实用户永不为 0。** §③b 的 mock 令牌用
+　　　`tv = 0` 哨兵；若 AD 同步把 `server_default` 或建行逻辑改成 0，机制会**静默反向** ——
+　　　mock 令牌与真实用户 tv 全等，变成任何 mock 令牌都能刷新任何真实用户的会话。
+　　　⇒ `users.token_version` **应有 CHECK 约束 `>= 1`**（P9A 迁移时加）。
+　　(f) ⚠️ **不得用内存黑名单缩短吊销窗口**（论证见 P9A-USR-007 📌 段，两处只写一处）。
 P9A-USR-006	历史 user_id 兼容：uuid5 派生 ID 与 DB 主键的等价性处理	ADR-A
 P9A-USR-007	token_version 机制：users 表加列；create_token 写 claim；refresh 端点校验（access token 保持无状态，吊销粒度 = access TTL 30 分钟）	TODO-002 修正后处方
 　　📌 **已知边界，P9A 计划必须原文引用（ADR-0046 §已知边界，不得表述为「已解决」）**：
 　　停用后**在手 access token 仍可用至多 30 分钟**（无状态，不查库）。这是本项明确接受的
 　　吊销粒度，**不是缺陷**。若业务要求秒级失效，唯一出路是把 access token 改为**有状态**
-　　（每次校验查库）—— 属独立裁决，**不接受「加个内存黑名单」这类半吊子方案**：
-　　多 worker 下内存黑名单与 §③b 的 mock 令牌哨兵一样跨进程失效，且重启即丢。
+　　（每次校验查库）—— 属独立裁决。
+　　🚫 **不接受「加个内存黑名单」** —— 与 ADR-0048 §⑤ 是同一个 concept：把必须跨进程
+　　共享的状态放进单进程内存（参见 TODO-047：`advisory_lock` 用进程内 `hash()` 做锁键，
+　　多 worker 下静默失效、失败无声）。内存名单不共享、重启即丢 —— 只是换一个更安静的坑。
 验收：AD 同步端到端跑通；停用用户 refresh 立即 401；历史数据外键不断裂。
 
 3.2.3 横切观测层

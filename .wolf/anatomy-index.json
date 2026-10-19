@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T11:04:27.131Z",
+    "lastScanned": "2026-10-19T11:16:03.145Z",
     "fileCount": 846,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "8f5b450b23bbfed3b294c09aa83557fd3ae9708f73b673e5bd441a906c379735",
-    "storeUpdatedAt": "2026-10-19T11:04:27.142Z",
-    "rootHash": "a92accc0cf2e429b"
+    "renderedHash": "90c97d564c9099bead30bd409d83b0508d67d381d7941b33d154adab87799a8d",
+    "storeUpdatedAt": "2026-10-19T11:16:03.156Z",
+    "rootHash": "e39d96009a71717a"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -28086,11 +28086,11 @@
     },
     "docs/adr/0046-user-identity-model-migration.md": {
       "description": "ADR-0046：用户身份模型迁移 —— uuid5(username) 派生改为 users 表持久化主键",
-      "tokens": 1993,
-      "hash": "8ba3bbad7d21b665",
-      "size": 13785,
-      "mtimeMs": 1792407867085.965,
-      "updatedAt": "2026-10-19T11:04:27.131Z",
+      "tokens": 2304,
+      "hash": "86b47859f89499b1",
+      "size": 16042,
+      "mtimeMs": 1792408563095.1836,
+      "updatedAt": "2026-10-19T11:16:03.145Z",
       "source": "hook"
     },
     "docs/adr/0047-workflow-progress-observation-layer.md": {
