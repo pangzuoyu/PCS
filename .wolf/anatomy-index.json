@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T02:06:53.835Z",
-    "fileCount": 823,
+    "lastScanned": "2026-10-19T02:20:02.444Z",
+    "fileCount": 827,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "7a105723744b643ff3fb82544da14191cfffc3fb06629fd09d4c96bbd0f8b33b",
-    "storeUpdatedAt": "2026-10-19T02:06:53.845Z",
-    "rootHash": "9a60812c9f014e18"
+    "renderedHash": "21a8b0c8a8a2fcb251563755b90574c06d5d6f3282252daccdcd8c17ef744ab5",
+    "storeUpdatedAt": "2026-10-19T02:20:02.454Z",
+    "rootHash": "0e7e09abd5f0cb87"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -27596,6 +27596,162 @@
           "startLine": 111,
           "endLine": 125,
           "tokens": 186
+        }
+      ]
+    },
+    "pcs-backend/app/schemas/pipe_class.py": {
+      "description": "PipeClass API schemas（Pydantic v2；Task 1.9.1 / P2-STD-001）。",
+      "tokens": 1366,
+      "hash": "a0587c2e29ea83f8",
+      "size": 6179,
+      "mtimeMs": 1792375914829.9155,
+      "updatedAt": "2026-10-19T02:11:54.882Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "PipeClassBase",
+          "kind": "class",
+          "startLine": 27,
+          "endLine": 96,
+          "tokens": 712
+        },
+        {
+          "name": "PipeClassCreate",
+          "kind": "class",
+          "startLine": 97,
+          "endLine": 103,
+          "tokens": 46
+        },
+        {
+          "name": "PipeClassUpdate",
+          "kind": "class",
+          "startLine": 104,
+          "endLine": 124,
+          "tokens": 173
+        },
+        {
+          "name": "PipeClassResponse",
+          "kind": "class",
+          "startLine": 125,
+          "endLine": 146,
+          "tokens": 192
+        }
+      ]
+    },
+    "pcs-backend/tests/schemas/test_pipe_class_schema.py": {
+      "description": "PipeClass schema 的 status 词表（2026-10-19，bug-187）。",
+      "tokens": 806,
+      "hash": "5293e1e55af4aa4f",
+      "size": 3767,
+      "mtimeMs": 1792375793904.5798,
+      "updatedAt": "2026-10-19T02:09:53.950Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "TestStatusVocabulary",
+          "kind": "class",
+          "startLine": 47,
+          "endLine": 67,
+          "tokens": 232
+        },
+        {
+          "name": "TestDocstringVocabulary",
+          "kind": "class",
+          "startLine": 68,
+          "endLine": 80,
+          "tokens": 122
+        },
+        {
+          "name": "TestNoLocalDuplicate",
+          "kind": "class",
+          "startLine": 81,
+          "endLine": 89,
+          "tokens": 103
+        }
+      ]
+    },
+    "pcs-backend/app/services/pipe_class_service.py": {
+      "description": "PipeClassService — 管道等级 CRUD + 项目分配（Task 1.9.1 / P2-STD-001）。",
+      "tokens": 8622,
+      "hash": "551fe6ab30b1be5b",
+      "size": 33913,
+      "mtimeMs": 1792375921791.9316,
+      "updatedAt": "2026-10-19T02:12:01.840Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_ActorLike",
+          "kind": "class",
+          "startLine": 43,
+          "endLine": 62,
+          "tokens": 179
+        },
+        {
+          "name": "_deep_merge",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 77,
+          "tokens": 118
+        },
+        {
+          "name": "_build_snapshot",
+          "kind": "fn",
+          "startLine": 78,
+          "endLine": 96,
+          "tokens": 237
+        },
+        {
+          "name": "ProjectPipeClassStateMachine",
+          "kind": "class",
+          "startLine": 97,
+          "endLine": 128,
+          "tokens": 282
+        },
+        {
+          "name": "PipeClassService",
+          "kind": "class",
+          "startLine": 129,
+          "endLine": 823,
+          "tokens": 7402
+        }
+      ]
+    },
+    "pcs-frontend/src/components/common/StateBadge.tsx": {
+      "description": "StateBadge — 9 态工程状态徽章组件（P45-1-1 / Task 6）。",
+      "tokens": 2752,
+      "hash": "6387cb8da0904fd2",
+      "size": 12245,
+      "mtimeMs": 1792376402387.6863,
+      "updatedAt": "2026-10-19T02:20:02.444Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "StatusMeta",
+          "kind": "section",
+          "startLine": 115,
+          "endLine": 178,
+          "tokens": 816
+        },
+        {
+          "name": "toKebab",
+          "kind": "fn",
+          "startLine": 179,
+          "endLine": 197,
+          "tokens": 123
+        },
+        {
+          "name": "unknownBadge",
+          "kind": "fn",
+          "startLine": 198,
+          "endLine": 229,
+          "tokens": 255
+        },
+        {
+          "name": "StateBadge",
+          "kind": "fn",
+          "startLine": 230,
+          "endLine": 300,
+          "tokens": 516
         }
       ]
     }

@@ -44,7 +44,7 @@ export const seedPipeClasses: PipeClass[] = [
     branch_table_json: undefined,
     source: 'COMPANY_STD',
     version: '1.0',
-    status: 'ACTIVE',
+    status: 'PUBLISHED',
   },
   {
     // ⚠️ 壁厚在 DN 范围内**不统一** —— 覆盖 VARIED 分支
@@ -64,7 +64,7 @@ export const seedPipeClasses: PipeClass[] = [
     branch_table_json: undefined,
     source: 'PROJECT',
     version: '1.0',
-    status: 'ACTIVE',
+    status: 'PUBLISHED',
   },
   {
     // ⚠️ 空映射 —— 覆盖 EMPTY 分支（不得显示成「按 DN 分档」）
@@ -84,7 +84,7 @@ export const seedPipeClasses: PipeClass[] = [
     branch_table_json: undefined,
     source: 'COMPANY_STD',
     version: '1.0',
-    status: 'DRAFT',
+    status: 'PENDING',
   },
   {
     class_id: 'pc-004',
@@ -103,7 +103,7 @@ export const seedPipeClasses: PipeClass[] = [
     branch_table_json: undefined,
     source: 'COMPANY_STD',
     version: '1.0',
-    status: 'OBSOLETE',
+    status: 'APPROVED',
   },
 ];
 

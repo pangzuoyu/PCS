@@ -44,12 +44,43 @@
 import type { CSSProperties, ReactNode } from 'react';
 
 import type { RecordSignStatus } from '../../types/records';
+import type { components } from '../../types/api';
 
 export type StateBadgeSize = 'sm' | 'md';
 
-/** 管子等级的生命周期：走发布态，**不走签署**（bug-180）。 */
-export const PIPE_CLASS_STATUSES = ['DRAFT', 'ACTIVE', 'OBSOLETE'] as const;
+/**
+ * 管子等级的生命周期：**5 态 `ConfigStatus`**，不走签署（bug-180 / bug-187）。
+ *
+ * ⚠️ 此前这里是 3 态 `DRAFT/ACTIVE/OBSOLETE` —— 那是抄自后端
+ * `app/schemas/pipe_class.py` docstring 里的一句**错误描述**。
+ * 真值：`pipe_classes.status` 与 `config_assets.status` 共用 `ConfigStatus`
+ * `DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE`，由 `ConfigStateMachine` 驱动，
+ * 且 `submit/approve/publish/obsolete` 四个端点各产一个。**没有任何一条
+ * 路径产生 ACTIVE**（bug-187）。
+ *
+ * 词表来源是**契约**（`ConfigStatus`），不是猜的 —— 见下面那条编译期断言。
+ * 改这个列表而不同步契约，`tsc` 立刻红。
+ */
+export const PIPE_CLASS_STATUSES = [
+  'DRAFT', 'PENDING', 'APPROVED', 'PUBLISHED', 'OBSOLETE',
+] as const;
 export type PipeClassStatus = typeof PIPE_CLASS_STATUSES[number];
+
+/** 契约里的 `ConfigStatus`（`components['schemas']['ConfigStatus']`）。 */
+export type ConfigStatus = components['schemas']['ConfigStatus'];
+
+/**
+ * 编译期守卫：本地词表必须**恰好**等于契约的 `ConfigStatus`。
+ *
+ * 少一个 → 后端真值落进「未知状态: X」兜底（不报错，只是没内容）；
+ * 多一个 → 契约里不存在的态被当成合法的。
+ * 两种方向都是 bug-187，所以这个断言是**双向**的（`extends` 双向检查）。
+ */
+type _AssertConfigStatusAligned = PipeClassStatus extends ConfigStatus
+  ? ConfigStatus extends PipeClassStatus ? true : never
+  : never;
+const _configStatusAligned: _AssertConfigStatusAligned = true;
+void _configStatusAligned;
 
 export type SignModule =
   | 'SIM' | 'PIPE' | 'PUMP' | 'PIPE_NET' | 'FLASH'
@@ -99,10 +130,17 @@ const STATUS_META: Record<AnyKnownStatus, StatusMeta> = {
   CHANGED:          { token: 'state-changed',         iconPlaceholder: '⇄', label: '已变更' },
   REVERSAL_PENDING: { token: 'state-reversal-pending', iconPlaceholder: '⟲', label: '撤销待批' },
   OBSOLETE:         { token: 'state-obsolete',        iconPlaceholder: '⊘', label: '已弃用' },
-  // 管子等级的 ACTIVE（bug-180）。复用已核验的绿色 token ——
-  // 语义不同（「已发布可被项目引用」≠「计算已校核」）但**观感**相同：
-  // 都是「这一项现在可用」。文案必须分开：写「已核验」是语义撒谎。
-  ACTIVE:           { token: 'state-checked',         iconPlaceholder: '✓', label: '已生效' },
+  // ConfigStatus 5 态的另外 3 个（bug-187）。此前前端只认 3 态且编了一个
+  // ACTIVE ⇒ 真实的 PUBLISHED 管号等级落进「未知状态: PUBLISHED」兜底。
+  PENDING:          { token: 'state-in-approval',     iconPlaceholder: '◷', label: '待审批' },
+  APPROVED:         { token: 'state-checked',         iconPlaceholder: '✓', label: '已批准' },
+  PUBLISHED:        { token: 'state-checked',         iconPlaceholder: '✓', label: '已发布' },
+  // ⚠️ `ACTIVE` 已从这张表**整条删除**（bug-187）。
+  // 它在自己那张表上是真词（workspace / 报表样式 / 快照），但那些地方走的是
+  // `<Tag>`，**不经 StateBadge**；StateBadge 里它唯一的消费者就是管号等级，
+  // 而那里它是编的。留着 = 一条无消费者的死条目，且会让人以为 ACTIVE
+  // 在这套徽章体系里合法。将来若有页面要用，给它自己的 module + 词表
+  // （判别联合要求成对加，不能单塞一个状态进来）。
 };
 
 const FOUR_STATE_SUBSET: ReadonlySet<RecordSignStatus> = new Set([

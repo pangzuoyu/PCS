@@ -65,9 +65,19 @@ async def test_crud_roundtrip(client, sample_pc_token):
     r = await client.get("/api/v1/pipe-classes/A1", headers=_auth(sample_pc_token))
     assert r.status_code == 200
 
+    # PUT 改字段可以，**改 status 不行** —— 状态归四个转移端点管。
+    r = await client.put("/api/v1/pipe-classes/A1",
+                         json={**_BODY, "class_name": "改名后", "status": "DRAFT"},
+                         headers=_auth(sample_pc_token))
+    assert r.status_code == 200 and r.json()["class_name"] == "改名后"
+
+    r = await client.put("/api/v1/pipe-classes/A1", json={**_BODY, "status": "PUBLISHED"},
+                         headers=_auth(sample_pc_token))
+    assert r.status_code == 409, "PUT 不得绕过状态机直接置 PUBLISHED"
+
     r = await client.put("/api/v1/pipe-classes/A1", json={**_BODY, "status": "ACTIVE"},
                          headers=_auth(sample_pc_token))
-    assert r.status_code == 200 and r.json()["status"] == "ACTIVE"
+    assert r.status_code == 422, "ACTIVE 不是合法状态（词表 = ConfigStatus 5 态）"
 
     r = await client.delete("/api/v1/pipe-classes/A1", headers=_auth(sample_pc_token))
     assert r.status_code == 204  # 未被引用 → 可删
@@ -81,7 +91,7 @@ async def test_update_class_id_mismatch_422(client, sample_pc_token):
     await client.post("/api/v1/pipe-classes", json=_BODY, headers=_auth(sample_pc_token))
     r = await client.put(
         "/api/v1/pipe-classes/A1",
-        json={**_BODY, "class_id": "B2", "status": "ACTIVE"},
+        json={**_BODY, "class_id": "B2", "status": "DRAFT"},
         headers=_auth(sample_pc_token),
     )
     assert r.status_code == 422

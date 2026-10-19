@@ -6348,6 +6348,15 @@ export interface components {
             obsolete: number;
         };
         /**
+         * ConfigStatus
+         * @description 配置资产状态（P2 Sprint 1.2 / SUP-001 §2.1 锁定）。
+         *
+         *     5 态：DRAFT → PENDING → APPROVED → PUBLISHED → OBSOLETE。
+         *     DRAFT 和 APPROVED 支持跳过审批的 OBSOLETE。
+         * @enum {string}
+         */
+        ConfigStatus: "DRAFT" | "PENDING" | "APPROVED" | "PUBLISHED" | "OBSOLETE";
+        /**
          * ConfirmRequest
          * @description 设计人提交校核（SPEC §3.2.4(4)）.
          */
@@ -11873,18 +11882,20 @@ export interface components {
              * @description 版本号（如 1.0、A1）
              */
             version: string;
-            /**
-             * Status
-             * @description 管号等级状态
-             */
-            status: string;
+            /** @description 管号等级状态（与 ConfigAsset 共用 ConfigStatus 5 态：DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）。此前是裸 `str` —— 词表进不了契约，客户端只能自己猜，于是猜错（bug-187）。**改这个字段名或加值就是契约破坏**，`check-api-drift.sh` 会检出 enum 值删除。 */
+            status: components["schemas"]["ConfigStatus"];
         };
         /**
          * PipeClassUpdate
          * @description 更新管号等级请求体（PUT /pipe-classes/{class_id}，含状态字段）。
          *
-         *     业务：在基类基础上加 status 字段（DRAFT/ACTIVE/OBSOLETE），支持
-         *     直接通过 PUT 触发管号等级发布/作废生命周期切换。
+         *     业务：在基类基础上加 status 字段。
+         *
+         *     ⚠️ 词表是 `ConfigStatus` 5 态，**不是** 1.9 时代遗留的三态。
+         *     status 在这里是**幂等回写**用的：提交与当前状态相同才接受；
+         *     真正的流转走 `POST /pipe-classes/{id}/{submit,approve,publish,obsolete}`
+         *     四个端点（它们走 `ConfigStateMachine.transition`）。
+         *     试图用 PUT 改状态 → 409，见 `PipeClassService.update`。
          */
         PipeClassUpdate: {
             /**
@@ -11977,12 +11988,10 @@ export interface components {
              */
             version: string;
             /**
-             * Status
-             * @description 管号等级状态：DRAFT/ACTIVE/OBSOLETE
+             * @description 管号等级状态（ConfigStatus 5 态）。PUT 只接受与当前状态相同的值；流转走 /submit /approve /publish /obsolete 端点。
              * @default DRAFT
-             * @enum {string}
              */
-            status: "DRAFT" | "ACTIVE" | "OBSOLETE";
+            status: components["schemas"]["ConfigStatus"];
         };
         /**
          * PipeNetSolveRequest

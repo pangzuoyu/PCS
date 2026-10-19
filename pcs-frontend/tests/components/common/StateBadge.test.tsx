@@ -179,12 +179,17 @@ describe('StateBadge — PIPE_CLASS 独立词表', () => {
     expect(screen.getByTestId('state-badge-label').textContent).toBeTruthy();
   });
 
-  it('ACTIVE 的文案是「已生效」，不是签署的「已核验」', () => {
-    render(<Badge module="PIPE_CLASS" status="ACTIVE" />);
-    expect(screen.getByTestId('state-badge-label').textContent).toBe('已生效');
+  it('五态都有中文文案（bug-187：曾漏 3 态 → 生产显示「未知状态」）', () => {
+    for (const s of PIPE_CLASS_STATUSES) {
+      const { unmount } = render(<Badge module="PIPE_CLASS" status={s} />);
+      const label = screen.getByTestId('state-badge-label').textContent ?? '';
+      expect(label, `${s} 不能是空标签`).not.toBe('');
+      expect(label, `${s} 不能落进未知兜底`).not.toMatch(/未知状态/);
+      unmount();
+    }
   });
 
-  it('三态都是 active（不像签署模块那样半透明）', () => {
+  it('五态都是 active（不像签署模块那样半透明）', () => {
     for (const s of PIPE_CLASS_STATUSES) {
       const { unmount } = render(<Badge module="PIPE_CLASS" status={s} />);
       const el = screen.getByTestId('state-badge');

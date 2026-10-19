@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T02:06:53.835Z
-> Files: 823 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T02:20:02.444Z
+> Files: 827 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1162,6 +1162,7 @@
 
 - `audit.py` — Audit Query Pydantic schemas (F-P2-009 Sprint 3 / Issue 5). (~769 tok)
 - `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~848 tok)
+- `pipe_class.py` — PipeClass API schemas（Pydantic v2；Task 1.9.1 / P2-STD-001）。 (~1366 tok)
 - `project.py` — 项目产品类别 schema (GB 30251-2024 §6.1.5 电折标口径判据). (~297 tok)
 - `report_builder.py` — `/api/v1/report-builder` 的请求/响应模型（Phase 2）。 (~1351 tok)
 - `report.py` — `/api/v1/report` 的请求/响应模型。 (~1410 tok)
@@ -1176,6 +1177,7 @@
 - `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~1404 tok)
 - `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
 - `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~1011 tok)
+- `pipe_class_service.py` — PipeClassService — 管道等级 CRUD + 项目分配（Task 1.9.1 / P2-STD-001）。 (~8622 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~6322 tok)
 
 ## pcs-backend/app/services/heat/
@@ -1268,6 +1270,10 @@
 
 - `test_report_models.py` — P8 报表 4 张表的 ORM 契约。 (~439 tok)
 
+## pcs-backend/tests/schemas/
+
+- `test_pipe_class_schema.py` — PipeClass schema 的 status 词表（2026-10-19，bug-187）。 (~806 tok)
+
 ## pcs-backend/tests/scripts/
 
 - `test_check_migration_idempotency.py` — F-P3-002 fix: 测试 check_migration_idempotency 脚本行为. (~1748 tok)
@@ -1346,6 +1352,10 @@
 
 - `audit.ts` — Audit Query API 客户端 (F-P2-009 Sprint 3 / Issue 7). (~720 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 前端客户端（b10–b12 + c6）。 (~1890 tok)
+
+## pcs-frontend/src/components/common/
+
+- `StateBadge.tsx` — StateBadge — 9 态工程状态徽章组件（P45-1-1 / Task 6）。 (~2752 tok)
 
 ## pcs-frontend/src/layouts/
 

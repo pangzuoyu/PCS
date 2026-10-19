@@ -46,7 +46,6 @@ class _ActorLike(Protocol):
     user_id: Any
     role: str | None
 
-_STATUS_OK = {"DRAFT", "ACTIVE", "OBSOLETE"}
 
 IMPORT_HEADERS = [
     "class_id", "class_name", "material_standard", "corrosion_allowance",
@@ -194,37 +193,39 @@ class PipeClassService:
     async def update(
         cls, session: AsyncSession, class_id: str, *, payload: PipeClassUpdate
     ) -> PipeClass:
-        """更新管号等级（状态流转校验 + 字段覆盖）。
+        """更新管号等级（**只改字段**，状态不由本端点流转）。
 
         步骤：
         1. 取行（不存在 → PIPE_CLASS_NOT_FOUND 404，由 get() 抛）
-        2. 状态流转校验：
-           - DRAFT → ACTIVE：允许
-           - 同状态写回：允许（幂等）
-           - 任何状态 → OBSOLETE：单向允许（DRAFT/ACTIVE → OBSOLETE）
-           - 其他组合（ACTIVE → DRAFT、PENDING → ACTIVE 等）→
-             PIPE_CLASS_BAD_TRANSITION（409）
+        2. 状态**幂等校验**：`payload.status` 必须等于当前状态，否则 409
+           并指向真正的转移端点
         3. 字段覆盖：payload.model_dump(exclude={"status"})
-           → 逐字段 setattr 写入（code/description/spec/corrosive_allowance 等）
+           → 逐字段 setattr 写入
         4. 提交由本函数负责（session.commit()）
 
-        注意：status 字段从 payload 中排除单独处理，避免 setattr 覆盖
-        上面计算好的 new_status。
+        ## 为什么不再在这里跑状态机（2026-10-19，bug-187）
+
+        本函数此前实现的是 **1.9 时代遗留的三态机** `DRAFT → ACTIVE →
+        OBSOLETE`。但同一份 API 里已有四个端点
+        （`submit` / `approve` / `publish` / `obsolete`）走
+        `ConfigStateMachine.transition`，用的是 5 态 `ConfigStatus`，
+        且**没有任何一条路径会产生 `ACTIVE`**。两套状态机并存在同一列上，
+        后果是词表无法进契约（bug-187 的起因），前端照猜。
+
+        ⇒ 保留第二套机器不是「兼容」，是**两个真相**。这里改成只做幂等回写，
+        状态一律经那四个端点流转。
         """
         pc = await cls.get(session, class_id)
-        if payload.status == "OBSOLETE" and pc.status != "OBSOLETE":
-            new_status = "OBSOLETE"  # 作废：单向，允许 DRAFT/ACTIVE → OBSOLETE
-        elif payload.status == pc.status or (pc.status == "DRAFT" and payload.status == "ACTIVE"):
-            new_status = payload.status
-        else:
+        if payload.status.value != pc.status:
             raise PcsError(
-                f"非法状态流转 {pc.status}→{payload.status}（OBSOLETE 单向）",
+                f"PUT 不改状态（当前 {pc.status}，请求 {payload.status.value}）；"
+                "状态流转请用 "
+                "/api/v1/pipe-classes/{class_id}/{submit,approve,publish,obsolete}",
                 code="PIPE_CLASS_BAD_TRANSITION", status=409,
             )
         data = payload.model_dump(exclude={"status"})
         for k, v in data.items():
             setattr(pc, k, v)
-        pc.status = new_status
         await session.commit()
         return pc
 

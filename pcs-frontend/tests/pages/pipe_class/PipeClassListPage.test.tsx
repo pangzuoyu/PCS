@@ -37,7 +37,7 @@ function pc(over: Partial<PipeClass> = {}): PipeClass {
     flange_class: '150#',
     source: 'COMPANY_STD',
     version: '1.0',
-    status: 'ACTIVE',
+    status: 'PUBLISHED',
     ...over,
   };
 }
@@ -116,22 +116,29 @@ describe('PipeClassListPage — 壁厚列（契约是 DN→Sch 映射，用户�
 });
 
 describe('PipeClassListPage — 状态列（PIPE_CLASS 独立词表，bug-180）', () => {
+  // ⚠️ 此前这张表钉的是 3 态且含 ACTIVE —— 与契约的 ConfigStatus 5 态不符，
+  // 于是「表里没列的态」没有任何测试覆盖，PUBLISHED 悄悄落进未知兜底。
+  // 现在**五个都逐个断言**，少一个就红。
   it.each([
     ['DRAFT', '草稿'],
-    ['ACTIVE', '已生效'],
+    ['PENDING', '待审批'],
+    ['APPROVED', '已批准'],
+    ['PUBLISHED', '已发布'],
     ['OBSOLETE', '已弃用'],
   ] as const)('%s → 文案「%s」', (status, label) => {
     render(<PipeClassListPage classes={[pc({ status })]} />);
     expect(screen.getByTestId('state-badge-label').textContent).toBe(label);
   });
 
-  it('ACTIVE 不再显示成「草稿」——那是 bug-180 的症状', () => {
-    render(<PipeClassListPage classes={[pc({ status: 'ACTIVE' })]} />);
-    expect(screen.getByTestId('state-badge-label').textContent).not.toBe('草稿');
+  it('PUBLISHED 不落进未知兜底 —— bug-187 的症状', () => {
+    render(<PipeClassListPage classes={[pc({ status: 'PUBLISHED' })]} />);
+    const label = screen.getByTestId('state-badge-label').textContent ?? '';
+    expect(label).not.toMatch(/未知状态/);
+    expect(label).not.toBe('');
   });
 
   it('走的是 PIPE_CLASS 模块，不是 PIPE', () => {
-    render(<PipeClassListPage classes={[pc({ status: 'ACTIVE' })]} />);
+    render(<PipeClassListPage classes={[pc({ status: 'PUBLISHED' })]} />);
     expect(screen.getByTestId('state-badge').getAttribute('data-module'))
       .toBe('PIPE_CLASS');
   });

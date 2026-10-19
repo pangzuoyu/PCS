@@ -88,18 +88,31 @@ async def test_create_invalid_dn_range_422():
     assert "dn_series_json" in str(e.value)
 
 
-async def test_update_and_obsolete_one_way(db):
+async def test_update_changes_fields_not_status(db):
+    """`update` 只改字段；状态不由它流转（2026-10-19，bug-187）。
+
+    此前本测试钉的是 1.9 遗留三态 `DRAFT → ACTIVE → OBSOLETE`，
+    而同一份 API 里另有四个走 `ConfigStateMachine` 的转移端点 ——
+    **没有任何一条路径会产生 ACTIVE**。两套机器并存 ⇒ 词表进不了契约。
+    """
     await PipeClassService.create(db, payload=_payload())
+    # 1) 同状态回写 = 幂等，字段照改
     up = await PipeClassService.update(db, "A1", payload=PipeClassUpdate(
-        **{**_payload().model_dump(), "design_pressure": 4.0, "status": "ACTIVE"}))
-    assert up.design_pressure == 4.0 and up.status == "ACTIVE"
-    dead = await PipeClassService.update(db, "A1", payload=PipeClassUpdate(
-        **{**_payload().model_dump(), "status": "OBSOLETE"}))
-    assert dead.status == "OBSOLETE"
-    with pytest.raises(PcsError) as e:  # OBSOLETE 不可改回
-        await PipeClassService.update(db, "A1", payload=PipeClassUpdate(
-            **{**_payload().model_dump(), "status": "ACTIVE"}))
-    assert e.value.status == 409
+        **{**_payload().model_dump(), "design_pressure": 4.0, "status": "DRAFT"}))
+    assert up.design_pressure == 4.0 and up.status == "DRAFT"
+
+    # 2) 试图改状态 → 409，且错误信息**指路**到真正的转移端点
+    for target in ("PUBLISHED", "OBSOLETE"):
+        with pytest.raises(PcsError) as e:
+            await PipeClassService.update(db, "A1", payload=PipeClassUpdate(
+                **{**_payload().model_dump(), "status": target}))
+        assert e.value.status == 409
+        assert "submit" in str(e.value) and "publish" in str(e.value), \
+            "409 必须告诉调用方该用哪个端点，而不是只说非法"
+
+    # 3) 409 之后行没有被改动
+    again = await PipeClassService.get(db, "A1")
+    assert again.status == "DRAFT" and again.design_pressure == 4.0
 
 
 async def test_delete_blocked_when_assigned(db, make_project, actor):

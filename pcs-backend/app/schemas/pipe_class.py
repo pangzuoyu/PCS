@@ -1,14 +1,27 @@
 """PipeClass API schemas（Pydantic v2；Task 1.9.1 / P2-STD-001）。
 
-公司级 PipeClass：3 态 DRAFT/ACTIVE/OBSOLETE。
+公司级 PipeClass：**5 态**，与 `ConfigAsset` 共用 `ConfigStatus`
+（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE），由 `ConfigStateMachine` 驱动。
+`ACTIVE` **不属于本表** —— 它只出现在 `formula_definitions` 等子表的
+`default=` 上（见 `.wolf/buglog.json` bug-187）。
+
 项目级 ProjectPipeClass：SUP-002 PC-4 schemas 集中在
 ``app/api/v1/pipe_classes.py``；本模块不再放已废止的 1.9 兼容 schema。
+
+⚠️ 改词表前先读这条：docstring 里的词表**会被前端照抄**。bug-187 就是
+docstring 写错 → 前端照抄 → 生产上每个真实值落进「未知状态」兜底。
+本文件 docstring 只陈述事实，错误的历史留在 buglog 里 ——
+因为守卫测试是 `assert <错误串> not in doc`，把错误串**引用**进 docstring
+会让守卫被自己的解释触发（同一个「被注释骗」的病，见
+`docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md`）。
 """
 from __future__ import annotations
 
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, model_validator
+
+from app.models.enums import ConfigStatus
 
 
 class PipeClassBase(BaseModel):
@@ -91,12 +104,21 @@ class PipeClassCreate(PipeClassBase):
 class PipeClassUpdate(PipeClassBase):
     """更新管号等级请求体（PUT /pipe-classes/{class_id}，含状态字段）。
 
-    业务：在基类基础上加 status 字段（DRAFT/ACTIVE/OBSOLETE），支持
-    直接通过 PUT 触发管号等级发布/作废生命周期切换。
+    业务：在基类基础上加 status 字段。
+
+    ⚠️ 词表是 `ConfigStatus` 5 态，**不是** 1.9 时代遗留的三态。
+    status 在这里是**幂等回写**用的：提交与当前状态相同才接受；
+    真正的流转走 `POST /pipe-classes/{id}/{submit,approve,publish,obsolete}`
+    四个端点（它们走 `ConfigStateMachine.transition`）。
+    试图用 PUT 改状态 → 409，见 `PipeClassService.update`。
     """
 
-    status: Literal["DRAFT", "ACTIVE", "OBSOLETE"] = Field(
-        "DRAFT", description="管号等级状态：DRAFT/ACTIVE/OBSOLETE"
+    status: ConfigStatus = Field(
+        ConfigStatus.DRAFT,
+        description=(
+            "管号等级状态（ConfigStatus 5 态）。PUT 只接受与当前状态相同的值；"
+            "流转走 /submit /approve /publish /obsolete 端点。"
+        ),
     )
 
 
@@ -107,7 +129,16 @@ class PipeClassResponse(PipeClassBase):
     from_attributes=True 直接绑 ORM 行（PipeClass）。
     """
 
-    status: str = Field(..., description="管号等级状态")
+    status: ConfigStatus = Field(
+        ...,
+        description=(
+            "管号等级状态（与 ConfigAsset 共用 ConfigStatus 5 态："
+            "DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）。"
+            "此前是裸 `str` —— 词表进不了契约，客户端只能自己猜，"
+            "于是猜错（bug-187）。**改这个字段名或加值就是契约破坏**，"
+            "`check-api-drift.sh` 会检出 enum 值删除。"
+        ),
+    )
     base_material: str | None = Field(
         None, description="材料牌号"
     )  # 重复声明：响应体明确返回

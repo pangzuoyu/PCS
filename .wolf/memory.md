@@ -1691,3 +1691,15 @@
 | 10:06 | Edited pcs-frontend/tests/pages/report/ReportStylePage.test.tsx | CSS: args | ~278 |
 | 10:06 | Edited pcs-frontend/tests/report/definitionBody.test.ts | expanded (+6 lines) | ~184 |
 | 10:06 | Edited pcs-frontend/tests/report/definitionBody.test.ts | added optional chaining | ~114 |
+| 10:09 | Edited pcs-backend/app/schemas/pipe_class.py | expanded (+11 lines) | ~220 |
+| 10:09 | Edited pcs-backend/app/schemas/pipe_class.py | expanded (+9 lines) | ~98 |
+| 10:09 | Created pcs-backend/tests/schemas/test_pipe_class_schema.py | — | ~784 |
+| 10:09 | Edited pcs-backend/tests/schemas/test_pipe_class_schema.py | modified test_() | ~70 |
+| 10:10 | Edited pcs-backend/app/schemas/pipe_class.py | 15→17 lines | ~196 |
+| 10:11 | Edited pcs-backend/app/schemas/pipe_class.py | modified PipeClassUpdate() | ~173 |
+| 10:12 | Edited pcs-backend/app/services/pipe_class_service.py | modified items() | ~364 |
+| 10:19 | Edited pcs-frontend/src/components/common/StateBadge.tsx | CSS: true, never, _configStatusAligned | ~302 |
+| 10:19 | Edited pcs-frontend/src/components/common/StateBadge.tsx | added 1 import(s) | ~32 |
+| 10:19 | Edited pcs-frontend/src/components/common/StateBadge.tsx | 4→7 lines | ~89 |
+| 10:19 | Edited pcs-frontend/src/components/common/StateBadge.tsx | CSS: PENDING, APPROVED, PUBLISHED | ~177 |
+| 10:20 | Edited pcs-frontend/src/components/common/StateBadge.tsx | 7→9 lines | ~154 |
