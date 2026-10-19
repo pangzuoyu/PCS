@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T12:08:24.262Z
-> Files: 847 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T22:34:22.410Z
+> Files: 863 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -245,6 +245,10 @@
 ## .superpowers/sdd/PCS-PLAN-P9-PREP/
 
 - `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9-PREP.md (~1857 tok)
+
+## .superpowers/sdd/PCS-PLAN-P9A-2-交付物写面/
+
+- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9A-2-交付物写面.md (~1020 tok)
 
 ## .vite/vitest/
 
@@ -1121,18 +1125,22 @@
 - `p8_009_nulls_distinct_unique.py` — 把两条含可空 `project_id` 的唯一约束改成 `NULLS NOT DISTINCT`（p8_009）。 (~821 tok)
 - `p8_010_one_active_style.py` — `report_styles` 的「每个作用域至多一个 ACTIVE」下沉为数据库不变量（p8_010）。 (~541 tok)
 - `p8_011_streams_vocab_constraints.py` — `streams` 的 phase / data_mode / source_type 加 CHECK + 新增 `raw_phase`。 (~1158 tok)
+- `p9_001_users_token_version.py` — P9A 身份迁移：users.token_version + CHECK >= 1。 (~289 tok)
+- `p9_002_workflow_progress.py` — P9A 观测层迁移：workflow_progress 表 + 2 个 PG enum（ADR-0047 观测层）。 (~1270 tok)
 
 ## pcs-backend/app/api/v1/
 
 - `__init__.py` (~1549 tok)
 - `_guard.py` — API endpoint 守卫 helper（BLOCKER-3 修复共享函数）。 (~602 tok)
+- `admin_users.py` — ADMIN 用户管理端点（SPEC P9A-ADM-001/002，ADR-0046 §⑤）。 (~819 tok)
 - `audit.py` — Audit Query API (F-P2-009 Sprint 3 / Issue 7 混合 RBAC). (~2535 tok)
+- `auth.py` — POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。 (~3570 tok)
 - `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~5196 tok)
 - `deliverables.py` — 交付物读端点（P1-7+ D 模块 / P8 前置）。 (~1574 tok)
 - `equip_lib.py` — equip-lib 端点（Task 1.9.5 / P2-EQL-001）。 (~724 tok)
 - `filtration.py` — P6-3 FILTRATION API（SPEC §3.2.7 + Task 34）。 (~5529 tok)
 - `flare.py` — P6-2 FLARE_SYS API：Task 20 header_sizing + Task 21 kod_sizing + (~5836 tok)
-- `mock_auth.py` — Mock 登录：仅 env != production 时挂载。固定 4 个角色账号，无 LDAP 依赖。 (~560 tok)
+- `mock_auth.py` — Mock 登录：仅 env != production 时挂载。固定 4 个角色账号，无 LDAP 依赖。 (~604 tok)
 - `pipe_classes.py` — 管道等级端点（Task 1.9.2 / P2-STD-001）。 (~6127 tok)
 - `pipe_codes.py` — 管道代码 API（FMT-4 / SUP-002 §11.5/§12）。 (~7298 tok)
 - `pipe_net.py` — P4-3-3 管网 Hardy-Cross 计算 + 落库 + outlet_stream API。 (~3646 tok)
@@ -1152,24 +1160,25 @@
 
 ## pcs-backend/app/core/
 
-- `config.py` — 应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。 (~2601 tok)
+- `config.py` — 应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。 (~2817 tok)
 - `errors.py` — FastAPI 全局异常处理器 + 统一 PcsError 信封。 (~2419 tok)
 - `security.py` — JWT 编解码 + 密码哈希 + JTI 吊销。HS256，密钥由 Settings.secret_key 提供。 (~1249 tok)
 
 ## pcs-backend/app/models/
 
-- `__init__.py` — 全部 ORM 模型。alembic/env.py 依赖本包导入即注册全部表。 (~269 tok)
+- `__init__.py` — 全部 ORM 模型。alembic/env.py 依赖本包导入即注册全部表。 (~301 tok)
 - `calc.py` — 计算结果 ORM 模型（P5-3 计算引擎持久化）。 (~16256 tok)
 - `config_domain.py` — 配置域 ORM 模型（公司/工程级共享配置）。 (~4191 tok)
 - `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~11754 tok)
-- `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~3800 tok)
+- `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~5010 tok)
 - `equipment.py` — 设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。 (~3317 tok)
-- `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~7302 tok)
+- `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~7858 tok)
 - `psv_standards.py` — PSV 多标准配置 ORM（P5-0-5 Task 24a，SUP-P5-PSV-001 §3.1 + ADR-0028 V1.1）。 (~1824 tok)
 - `report.py` — P8 报表与输出 ORM（ADR-P8-001 全直接生成路线）。 (~2556 tok)
 - `sim_unit_op.py` — P3.x SIM-15: sim_unit_op_results + 6 专用结果表（单元 SUMMARY 存档）。 (~2006 tok)
 - `system.py` — 系统支撑 ORM 模型（审计/血缘/导入历史）。 (~3301 tok)
 - `util.py` — S1-5 R1: UtilResults ORM (util_results 单表) + jsonb_deprecated marker。 (~8361 tok)
+- `workflow_progress.py` — workflow_progress ORM（ADR-0047 观测层 / SPEC P9A-OBS-001）。 (~1009 tok)
 
 ## pcs-backend/app/schemas/
 
@@ -1184,14 +1193,17 @@
 
 ## pcs-backend/app/services/
 
+- `ad_sync.py` — AD 同步（SPEC P9A-USR-001/002/003，ADR-0046 §⑤）。 (~1532 tok)
+- `admin_user_service.py` — ADMIN 用户管理的**写入层**（SPEC P9A-ADM-002，ADR-0046 §⑤）。 (~681 tok)
 - `advisory_lock.py` — Postgres advisory lock（事务级）防止并发状态转移。 (~862 tok)
 - `audit_service.py` — AuditService：审计统一入口（Issue 6 锁定）。 (~610 tok)
 - `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~3841 tok)
 - `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~1404 tok)
 - `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
-- `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~1011 tok)
+- `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~1910 tok)
 - `pipe_class_service.py` — PipeClassService — 管道等级 CRUD + 项目分配（Task 1.9.1 / P2-STD-001）。 (~8622 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~6322 tok)
+- `token_issuer.py` — 登录签发的**唯一**路径（ADR-0046 §③）。 (~1690 tok)
 
 ## pcs-backend/app/services/heat/
 
@@ -1224,6 +1236,7 @@
 
 ## pcs-backend/app/workers/
 
+- `ad_sync_tasks.py` — AD 同步的 ARQ 任务（SPEC P9A-USR-002 的「定时任务」）。 (~282 tok)
 - `report_builder_tasks.py` — ARQ：自定义报表定义执行任务（b7）。 (~2890 tok)
 - `report_tasks.py` — ARQ 报表异步生成任务。 (~3693 tok)
 
@@ -1251,16 +1264,21 @@
 - `test_deliverables_api.py` — 交付物读端点测试（P1-7+ D 模块 / P8 前置）。 (~3116 tok)
 - `test_jwt_production.py` — F-P3-001 Sprint 3: JWT production hardening + LDAP fail-closed 测试. (~2697 tok)
 - `test_rbac_audit.py` — F-P3-001 checklist #5: RBAC 401/403 audit log + per-IP rate limit 测试. (~1861 tok)
-- `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~3299 tok)
+- `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~3335 tok)
 - `test_sqlite_check_constraint_overrides.py` — conftest 里 SQLite CHECK 替身与 PostgreSQL 原式的**语义等价性**。 (~1675 tok)
+- `test_token_issuer_endpoints.py` — 两个签发端点 + refresh 的 tv 比对 —— service 层的断言不够，端点才是真实入口。 (~1009 tok)
+- `test_token_issuer.py` — `issue_tokens()` 的测试 —— ADR-0046 §③ 的三条断言在两条路径上都要成立。 (~1228 tok)
 - `test_workspace_archive.py` — F-P3-003 Sprint 3: Workspace archive PATCH 端点测试. (~1272 tok)
 
 ## pcs-backend/tests/alembic/
 
 - `test_p8_011_streams_vocab.py` — `streams` 词表 CHECK 的迁移（p8_011）的结构自检。 (~1220 tok)
+- `test_p9_001_users_token_version.py` — P9A 迁移基座的 schema 断言 —— 防「ORM 写了但没迁移」与「迁移写了但 ORM 没跟上」。 (~389 tok)
+- `test_p9_002_workflow_progress.py` — P9A 迁移基座的 schema 断言 —— workflow_progress（SPEC P9A-OBS-001 + ADR-0047）。 (~1500 tok)
 
 ## pcs-backend/tests/api/v1/
 
+- `test_admin_users.py` — ADMIN 用户端点（SPEC P9A-ADM-001/002，ADR-0046 §⑤）。 (~1181 tok)
 - `test_config_assets_list.py` — `GET /api/v1/config/assets` 列表端点（2026-10-19，TODO-040）。 (~1172 tok)
 - `test_execution_poll_contract.py` — b11：执行时序契约 —— `task_id` 必须能查到 `report_file_id`。 (~663 tok)
 - `test_gas_media_and_low_temp_heat_api.py` — 工艺气体 / 低温热 CRUD API 测试 (P7-6B 收尾). (~2562 tok)
@@ -1307,6 +1325,7 @@
 
 ## pcs-backend/tests/services/
 
+- `test_ad_sync.py` — AD 同步（SPEC P9A-USR-001/002/003，2026-10-19 用户裁决：加服务账号配置）。 (~2406 tok)
 - `test_stream_transition.py` — P3.2 SIM-13：StreamService.transition() 状态机集成测试（闭环审计 D-1）。 (~2982 tok)
 
 ## pcs-backend/tests/services/heat/

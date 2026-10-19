@@ -655,3 +655,66 @@ Python `str.__hash__` 默认按进程随机加盐（`PYTHONHASHSEED`），多 wo
 - **归属**：独立修复（与三条裁决无耦合，**不阻塞 P9A 开工**）
 - **严重度**：LOW（注释误导，但该表已登记且有列，无实际缺陷）
 - **关联**：TODO-048
+
+---
+
+## TODO-052: `workflow_progress` 表名在仓库里有**两个互不相容的定义**（🔴 未解决，需用户裁决）
+
+2026-10-20 P9A B0 开工前实测发现 —— 两份规格文档各有一张叫 `workflow_progress` 的表，
+**领域完全不同**，而 SPEC 与 ADR 都把对方的章节号当依据引用：
+
+| 出处 | 字段 | 语义 |
+|---|---|---|
+| `SUP-008 V1.1 §8.5`（CREATE TABLE 原文） | **14 个**：`progress_id / project_id / workspace_id / sequence_no / main_workflow_item / progress_percent / external_condition_1..5(+_progress) / start_date / completion_date`，`UNIQUE(project_id, sequence_no)` | **项目作业流程进度百分比表**（Excel Sheet 2「作业流程」导入用，Sprint 11 的 P9 项目管理前端） |
+| `SPEC-P9 P9-OPEN-007` / `P9A-OBS-001`（+ ADR-0047 采纳） | **8 个**：`workflow_id / step_no / step_name / step_status(5 态) / started_at / completed_at / assignee / result_hash` | **签署 / 变更单 / 代录批准的工作流步骤观测表**（ADR-0047 的 3 个写入点） |
+
+**引用链是断的**：SPEC P9-OPEN-007 写「详见 SUP-008 V1.1 §2.6 + §8.3.5」，
+ADR-0047 的 Related 字段也写「SUP-008 V1.1 §2.6」—— 但 SUP-008 的 §2.6 实际是
+「2.6 新模块：反应器计算」，§3.2.6 是「新增 reactor_results 表」。**8 字段的定义在
+SUP-008 里根本不存在**（实测 `grep workflow_progress` SUP-008 只有 §8.5 那一处）。
+
+### 本轮（B0）怎么处置的
+
+**只建 SPEC-P9 / ADR-0047 的观测表**（`p9_002_workflow_progress.py`）。
+理由：ADR-0047 §① 的三个写入点只有它能服务；建 SUP-008 那张则 B2/B5 的
+观测写入与读 API 全部落空。SUP-008 §8.5 的作业流程表属 Excel 导入 + 项目管理
+前端（Sprint 11），**不在 P9A 范围**，未建。
+
+### 未解决的部分
+
+1. **要不要建 SUP-008 §8.5 那张表？** 若要，需另议表名（不能默默发现「已有同名表」
+   就复用 —— 那会把两个领域塞进一张表），或裁决合并成一张宽表。
+2. **引用要不要回改**：SPEC P9-OPEN-007 与 ADR-0047 都指向不存在的 SUP-008 §2.6。
+   按 CLAUDE.md「SPEC 是绑定权威，改它要重走 §7.2 验收」的规矩，本轮**没改 SPEC**。
+
+- **发现**：2026-10-20，P9A B lane 开工前 pre-flight
+- **归属**：**交用户裁决**（表名 + 引用修正两件事都不是实施者能定的）
+- **严重度**：MEDIUM（当前**无功能缺陷** —— B lane 自洽；风险是日后有人按 SUP-008
+  §8.5 去改这张表，或反过来把观测数据写进作业流程语义）
+- **关联**：ADR-0047 · SPEC P9A-OBS-001 · `.superpowers/sdd/PCS-PLAN-P9A-2-交付物写面/progress.md` 的 `Ruling P1`
+
+---
+
+## TODO-053: `workflow_progress` 实际 10 个业务字段，比 SPEC 列的 8 个多 2（🟡 已知偏差）
+
+SPEC P9-OPEN-007 / P9A-OBS-001 列 8 字段，P9A B0 建了 **10 个**业务列。
+多出的两列**不是设计口味，是被 P9A 自己的需求强制的**：
+
+- `workflow_type` —— P9A-OBS-003 的读 API 路径是 `{workflow_type}/{workflow_id}`；
+  ADR-0047 §① 的三个写入点（签署 / 变更单 / 代录批准）也靠它区分。缺了它，
+  一次签署与一次代录的进度行无法分辨，甘特图会把两条工作流画成一条。
+- `project_id` —— 读 API 要按项目鉴权（越权 404），而 `workflow_id` 是多态的
+  （`SIGN`→版本 ID / 其余→交付物 ID），无法 join 回项目。
+
+另有 2 处改名：`step_no` → `step_order`、`step_name` → `step_role`，
+为与 `SignatureMatrix.steps_json` 的键（`step_order` / `sign_role`）逐字一致，
+写入时不需要翻译层。
+
+**未回改 SPEC** —— SPEC 是绑定权威，改它要重走 §7.2 验收；偏差登记在此，
+待 SPEC 下次修订时一并吸收。
+
+- **发现**：2026-10-20，P9A B0
+- **归属**：SPEC 下次修订（P9A 收口时一并处理）
+- **严重度**：LOW（多出的 2 列都被读 API 实际使用，删了会破项目鉴权；
+  不存在「文档说有、实现没有」的功能缺口）
+- **关联**：TODO-052 · ADR-0047 · P9A-OBS-001

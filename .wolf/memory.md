@@ -1823,3 +1823,63 @@
 | 20:01 | Edited docs/PCS-PLAN-P9A.md | expanded (+11 lines) | ~235 |
 | 20:01 | Edited docs/PCS-PLAN-P9A.md | modified record_step() | ~252 |
 | 20:08 | Edited docs/adr/0049-notification-and-todo-data-model.md | modified HealthResponse() | ~902 |
+| 22:23 | Created pcs-backend/tests/alembic/test_p9_001_users_token_version.py | — | ~366 |
+| 22:23 | Edited pcs-backend/app/models/project.py | expanded (+10 lines) | ~191 |
+| 22:23 | Edited pcs-backend/app/models/project.py | 7→8 lines | ~26 |
+| 22:24 | Edited pcs-backend/tests/alembic/test_p9_001_users_token_version.py | modified _cols() | ~186 |
+| 22:24 | Created pcs-backend/alembic/versions/p9_001_users_token_version.py | — | ~289 |
+| 22:35 | Created pcs-backend/tests/test_token_issuer.py | — | ~1228 |
+| 22:35 | Created pcs-backend/app/services/token_issuer.py | — | ~1366 |
+| 22:36 | Edited pcs-backend/app/models/enums.py | modified 5() | ~59 |
+| 22:36 | Edited pcs-backend/app/services/token_issuer.py | added 1 import(s) | ~56 |
+| 22:36 | Created pcs-backend/tests/test_token_issuer_endpoints.py | — | ~755 |
+| 22:36 | Edited pcs-backend/tests/test_token_issuer_endpoints.py | modified test_mock_login_endpoint_does_not_create_user_row() | ~381 |
+| 22:36 | Edited pcs-backend/app/services/token_issuer.py | modified issue_tokens() | ~232 |
+| 22:36 | Edited pcs-backend/app/api/v1/mock_auth.py | modified mock_login() | ~293 |
+| 22:37 | Edited pcs-backend/app/api/v1/mock_auth.py | 4→4 lines | ~37 |
+| 22:37 | Edited pcs-backend/app/api/v1/auth.py | 19→19 lines | ~178 |
+| 22:37 | Edited pcs-backend/app/api/v1/auth.py | modified refresh() | ~214 |
+| 22:37 | Edited pcs-backend/app/api/v1/auth.py | modified is_jti_revoked() | ~240 |
+| 22:37 | Edited pcs-backend/app/api/v1/auth.py | added 1 import(s) | ~53 |
+| 22:37 | Edited pcs-backend/tests/test_token_issuer_endpoints.py | 2→2 lines | ~12 |
+| 22:44 | Created pcs-backend/tests/api/v1/test_admin_users.py | — | ~1198 |
+| 22:44 | Edited pcs-backend/tests/api/v1/test_admin_users.py | 3→3 lines | ~11 |
+| 22:44 | Edited pcs-backend/tests/api/v1/test_admin_users.py | 3→4 lines | ~15 |
+| 22:44 | Edited pcs-backend/tests/api/v1/test_admin_users.py | 5→3 lines | ~16 |
+| 22:44 | Created pcs-backend/app/api/v1/admin_users.py | — | ~760 |
+| 22:44 | Edited pcs-backend/app/api/v1/admin_users.py | 3→3 lines | ~29 |
+| 22:44 | Edited pcs-backend/app/api/v1/admin_users.py | 7→4 lines | ~36 |
+| 22:45 | Created pcs-backend/app/services/admin_user_service.py | — | ~681 |
+| 22:45 | Edited pcs-backend/app/models/enums.py | modified P9A() | ~56 |
+| 23:07 | Created pcs-backend/tests/services/test_ad_sync.py | — | ~2306 |
+| 23:07 | Created pcs-backend/tests/services/test_ad_sync.py | — | ~2406 |
+| 23:08 | Edited pcs-backend/app/core/config.py | expanded (+11 lines) | ~216 |
+| 23:08 | Edited pcs-backend/app/services/ldap_client.py | added error handling | ~818 |
+| 23:08 | Edited pcs-backend/app/services/ldap_client.py | added 1 import(s) | ~23 |
+| 23:08 | Created pcs-backend/app/services/ad_sync.py | — | ~1556 |
+| 23:08 | Edited pcs-backend/app/services/ldap_client.py | expanded (+7 lines) | ~110 |
+| 23:09 | Edited pcs-backend/app/models/enums.py | modified P9A() | ~52 |
+| 23:09 | Created pcs-backend/app/workers/ad_sync_tasks.py | — | ~282 |
+| 23:10 | Edited pcs-backend/app/api/v1/admin_users.py | modified AdSyncResultOut() | ~116 |
+| 23:10 | Edited pcs-backend/app/services/ad_sync.py | 5→5 lines | ~43 |
+| 23:16 | Edited pcs-backend/app/services/ad_sync.py | 2→2 lines | ~24 |
+| 23:32 | Edited pcs-backend/app/services/token_issuer.py | _sign() → sign_with_tv() | ~236 |
+| 23:32 | Edited pcs-backend/app/api/v1/auth.py | modified verify_refresh_tv() | ~249 |
+| 23:32 | Edited pcs-backend/app/api/v1/auth.py | 20→19 lines | ~201 |
+| 23:32 | Edited pcs-backend/app/services/token_issuer.py | modified effective_token_version() | ~273 |
+| 06:23 | Session end: 150 writes across 35 files (PCS-PLAN-P9-PREP.md, progress.md, test_gate_alembic_check.py, run_gate.py, test_run_gate.py) | 35 reads | ~117530 tok |
+
+## Session: 2026-10-19 06:23
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 06:24 | Created .superpowers/sdd/PCS-PLAN-P9A-2-交付物写面/progress.md | — | ~1088 |
+| 06:25 | Created pcs-backend/tests/alembic/test_p9_002_workflow_progress.py | — | ~1454 |
+| 06:25 | Edited pcs-backend/app/models/enums.py | modified WorkflowProgressState() | ~210 |
+| 06:25 | Created pcs-backend/app/models/workflow_progress.py | — | ~1009 |
+| 06:25 | Edited pcs-backend/app/models/__init__.py | added 1 import(s) | ~32 |
+| 06:26 | Edited pcs-backend/tests/alembic/test_p9_002_workflow_progress.py | modified test_updated_at_is_nullable_and_has_onupdate() | ~156 |
+| 06:26 | Created pcs-backend/alembic/versions/p9_002_workflow_progress.py | — | ~1266 |
+| 06:33 | Edited pcs-backend/tests/test_schema.py | 4→6 lines | ~119 |
+| 06:33 | Edited pcs-backend/alembic/versions/p9_002_workflow_progress.py | inline fix | ~18 |
+| 06:34 | Edited pcs-backend/tests/alembic/test_p9_002_workflow_progress.py | 1→2 lines | ~31 |

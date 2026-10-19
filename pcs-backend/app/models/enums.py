@@ -538,6 +538,34 @@ class ReliefScenario(str, enum.Enum):
     UPSET = "UPSET"
 
 
+class WorkflowProgressState(str, enum.Enum):
+    """工作流步骤状态 5 态（SPEC P9A-OBS-001 / P9-OPEN-007）。
+
+    业务：观测层记录签署 / 变更单 / 代录批准三类工作流的节点实时进度（ADR-0047）。
+    PENDING 未开始 / IN_PROGRESS 进行中 / COMPLETED 完成 / SKIPPED 跳过 /
+    FAILED 失败（返工或异常终止）。甘特图按这 5 态上色，缺一态前端要自己猜。
+    """
+
+    PENDING = "PENDING"
+    IN_PROGRESS = "IN_PROGRESS"
+    COMPLETED = "COMPLETED"
+    SKIPPED = "SKIPPED"
+    FAILED = "FAILED"
+
+
+class WorkflowType(str, enum.Enum):
+    """受观测的工作流类型 3 类（ADR-0047 §① 写入点清单）。
+
+    ADR 明写「3 个写入点若将来超出这个数，说明有第四类工作流被漏登记 ——
+    届时回 ADR 修订，不要就地加写入点」。故做成 Enum 而非自由字符串：
+    加第四个工作流时先撞类型，再撞 ADR。
+    """
+
+    SIGN = "SIGN"
+    CHANGE_NOTICE = "CHANGE_NOTICE"
+    CUSTOMER_APPROVAL_PROXY = "CUSTOMER_APPROVAL_PROXY"
+
+
 
 # ---------------------------------------------------------------------------
 # M1 fix: 通用 helper — 跨 DB enum/str dual-format 兼容
