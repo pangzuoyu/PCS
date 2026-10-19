@@ -14,7 +14,6 @@
  */
 import { useEffect, useMemo, useState } from 'react';
 import { Card, Collapse, List, Progress, Select, Space, Table, Tag, Typography } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 
 import { checklistApi } from '../../api/sprint1';
 import { NumericCell } from './NumericCell';
@@ -24,6 +23,7 @@ import type {
   ChecklistItem,
   ChecklistStatus,
 } from '../../types/checklist';
+import type { StrictColumns } from '../../types/strictColumns';
 
 interface Props {
   projectId: string;
@@ -117,7 +117,7 @@ export function InputChecklistPanel({ projectId, onItemClick }: Props): JSX.Elem
   const completed = items.filter((it) => it.status === 'VERIFIED').length;
   const total = items.length;
 
-  const columns: ColumnsType<ChecklistItem> = [
+  const columns: StrictColumns<ChecklistItem> = [
     {
       title: '模块',
       dataIndex: 'module',

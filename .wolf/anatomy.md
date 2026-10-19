@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T03:21:56.683Z
-> Files: 831 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T03:43:34.844Z
+> Files: 833 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1413,6 +1413,7 @@
 ## pcs-frontend/src/types/
 
 - `stream.ts` — Stream 类型定义（P45-3-1 / Task 28）。 (~1025 tok)
+- `strictColumns.ts` — `dataIndex` 的编译期闸（2026-10-19，TODO-041）。 (~590 tok)
 
 ## pcs-frontend/tests/api/
 
@@ -1450,6 +1451,10 @@
 - `definitionBody.test.ts` — 定义体 ⇄ 编辑态转换的单测。 (~3334 tok)
 - `filterTreeNodeIdentity.test.ts` — 过滤条件行必须有**稳定身份**，不能拿数组下标当 React key（评审 #26）。 (~1034 tok)
 - `missingSourceNotFabricated.test.ts` — 缺 `source` 的条件**不得被伪造**成 `EQUIP_LIST` —— 评审 #30。 (~767 tok)
+
+## pcs-frontend/tests/types/
+
+- `strictColumns.test.ts` — `dataIndex` 闸的自检（2026-10-19，TODO-041）。 (~851 tok)
 
 ## spec/
 

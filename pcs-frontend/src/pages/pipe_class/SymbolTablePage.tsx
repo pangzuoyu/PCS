@@ -16,9 +16,9 @@
 import { useMemo } from 'react';
 import { Button, Collapse, Empty, Space, Table, Tag, Typography } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
 
 import type { SymbolMapping, SymbolCategory } from '../../types/pipeClass';
+import type { StrictColumns } from '../../types/strictColumns';
 
 interface Props {
   mappings: SymbolMapping[];
@@ -52,7 +52,7 @@ export function SymbolTablePage({ mappings, onDelete }: Props): JSX.Element {
 
   const items = (Object.keys(CATEGORY_LABEL) as SymbolCategory[]).map((cat) => {
     const list = grouped.get(cat) ?? [];
-    const columns: ColumnsType<SymbolMapping> = [
+    const columns: StrictColumns<SymbolMapping> = [
       {
         title: '符号',
         dataIndex: 'symbol',

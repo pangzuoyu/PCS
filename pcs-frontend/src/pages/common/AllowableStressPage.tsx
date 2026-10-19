@@ -12,10 +12,10 @@
  */
 import { useMemo, useState } from 'react';
 import { Empty, Input, Space, Table, Tag, Typography } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 
 import { NumericCell } from '../../components/common/NumericCell';
 import type { AllowableStress } from '../../types/common';
+import type { StrictColumns } from '../../types/strictColumns';
 
 interface Props {
   stresses: AllowableStress[];
@@ -48,7 +48,7 @@ export function AllowableStressPage({ stresses }: Props): JSX.Element {
     return stresses.filter((s) => s.material.toLowerCase().includes(q));
   }, [stresses, query]);
 
-  const columns: ColumnsType<AllowableStress> = [
+  const columns: StrictColumns<AllowableStress> = [
     {
       title: '材料',
       dataIndex: 'material',

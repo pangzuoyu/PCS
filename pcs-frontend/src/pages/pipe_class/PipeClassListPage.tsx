@@ -28,7 +28,6 @@
  */
 import { useMemo, useState } from 'react';
 import { Input, Space, Table, Tag, Tooltip, Typography } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 
 import { NumericCell } from '../../components/common/NumericCell';
 import {
@@ -42,6 +41,7 @@ import {
   summarizeSchSeries,
 } from '../../lib/pipeClassSch';
 import type { PipeClass } from '../../types/pipeClass';
+import type { StrictColumns } from '../../types/strictColumns';
 
 interface Props {
   classes: PipeClass[];
@@ -66,7 +66,7 @@ export function PipeClassListPage({ classes, onSelect }: Props): JSX.Element {
     );
   }, [classes, query]);
 
-  const columns: ColumnsType<PipeClass> = [
+  const columns: StrictColumns<PipeClass> = [
     {
       title: '等级号',
       dataIndex: 'class_name',

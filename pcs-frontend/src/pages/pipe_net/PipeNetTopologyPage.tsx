@@ -15,7 +15,6 @@
  */
 import { useMemo } from 'react';
 import { Alert, Button, Card, Empty, Space, Table, Tag, Typography } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 
 import { PageHeader } from '../../components/common/PageHeader';
 import type {
@@ -24,6 +23,7 @@ import type {
   PipeNetNode,
   PipeNetValidation,
 } from '../../types/pipeNet';
+import type { StrictColumns } from '../../types/strictColumns';
 
 interface Props {
   graph: PipeNetGraph;
@@ -78,7 +78,7 @@ export function PipeNetTopologyPage({ graph, onValidate, onExport }: Props): JSX
     [graph.nodes],
   );
 
-  const nodeColumns: ColumnsType<PipeNetNode> = [
+  const nodeColumns: StrictColumns<PipeNetNode> = [
     {
       title: 'tag',
       dataIndex: 'tag_number',
@@ -100,7 +100,7 @@ export function PipeNetTopologyPage({ graph, onValidate, onExport }: Props): JSX
     { title: 'y', dataIndex: 'y', width: 60 },
   ];
 
-  const edgeColumns: ColumnsType<PipeNetEdge> = [
+  const edgeColumns: StrictColumns<PipeNetEdge> = [
     {
       title: 'pipe_no',
       dataIndex: 'pipe_no',

@@ -28,7 +28,7 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import type { StrictColumns } from '../../types/strictColumns';
 
 /** 参数表行（SPEC §7.10.2）。 */
 export interface FormulaParam {
@@ -128,7 +128,7 @@ export function FormulaEditorPage({ formula, onChange, onSave }: Props): JSX.Ele
 
   const latex = useMemo(() => toLatex(draft.expression), [draft.expression]);
 
-  const paramColumns: ColumnsType<FormulaParam> = [
+  const paramColumns: StrictColumns<FormulaParam> = [
     {
       title: '名称',
       dataIndex: 'name',

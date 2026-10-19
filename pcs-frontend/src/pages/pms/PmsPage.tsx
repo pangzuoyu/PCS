@@ -8,11 +8,11 @@
  */
 import { useMemo, useState } from 'react';
 import { Segmented, Space, Table, Tag, Typography } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 
 import { PageHeader } from '../../components/common/PageHeader';
 import { StateBadge } from '../../components/common/StateBadge';
 import type { HazardLevel, PmsItem } from '../../types/pms';
+import type { StrictColumns } from '../../types/strictColumns';
 
 interface Props {
   items: PmsItem[];
@@ -46,7 +46,7 @@ export function PmsPage({ items, onSelect }: Props): JSX.Element {
     return items.filter((i) => i.hazard_level === filter);
   }, [items, filter]);
 
-  const columns: ColumnsType<PmsItem> = [
+  const columns: StrictColumns<PmsItem> = [
     {
       title: 'pms_no',
       dataIndex: 'pms_no',

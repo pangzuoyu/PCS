@@ -27,7 +27,6 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 
 import { RevTimeline, type RevVersion } from '../../components/common/RevTimeline';
 import {
@@ -38,6 +37,7 @@ import {
   type ConfigCategory,
 } from '../../types/configAsset';
 import { DEV_BEARER } from '../../constants/env';
+import type { StrictColumns } from '../../types/strictColumns';
 
 interface Props {
   assets: ConfigAsset[];
@@ -68,7 +68,7 @@ export function AssetListPage({ assets, onEdit, onApprove, onVersion }: Props): 
     return assets.filter((a) => a.category === activeCategory);
   }, [assets, activeCategory]);
 
-  const columns: ColumnsType<ConfigAsset> = [
+  const columns: StrictColumns<ConfigAsset> = [
     {
       title: '名称',
       dataIndex: 'name',

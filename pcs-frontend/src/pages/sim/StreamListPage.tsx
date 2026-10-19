@@ -12,7 +12,6 @@
  */
 import { useMemo, useState } from 'react';
 import { Empty, Space, Table, Tabs, Tag, Typography } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 
 import { NumericCell } from '../../components/common/NumericCell';
 import { StateBadge } from '../../components/common/StateBadge';
@@ -22,6 +21,7 @@ import {
   streamPhaseLabel,
   type Stream,
 } from '../../types/stream';
+import type { StrictColumns } from '../../types/strictColumns';
 
 interface Props {
   streams: Stream[];
@@ -48,7 +48,7 @@ export function StreamListPage({ streams, onSelect }: Props): JSX.Element {
     return streams.filter((s) => s.sign_status === statusFilter);
   }, [streams, statusFilter]);
 
-  const columns: ColumnsType<Stream> = [
+  const columns: StrictColumns<Stream> = [
     {
       // 首列是**标识**（用户裁决：不删首列，删了行就分不清）。原先用
       // `tag_number`，而物流根本没有位号 —— 真值恒为 undefined。

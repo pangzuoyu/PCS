@@ -27,7 +27,7 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
+import type { StrictColumns } from '../../types/strictColumns';
 
 /** 系数表行（SPEC §7.10.3）。 */
 export interface CoefficientRow {
@@ -138,7 +138,7 @@ export function CoefficientTableEditorPage({
     setSelected(new Set());
   }
 
-  const columns: ColumnsType<CoefficientRow> = [
+  const columns: StrictColumns<CoefficientRow> = [
     {
       title: (
         <input

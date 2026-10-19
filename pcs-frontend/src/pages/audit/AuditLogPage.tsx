@@ -22,11 +22,11 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 
 import { PageHeader } from '../../components/common/PageHeader';
 import { auditApi, type AuditLogItem } from '../../api/audit';
 import { useAuth } from '../../store/auth';
+import type { StrictColumns } from '../../types/strictColumns';
 
 type TabKey = 'config-audit' | 'equipment-deletion' | 'audit-logs';
 
@@ -137,7 +137,7 @@ export function AuditLogPage(): JSX.Element {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, assetId, projectId]);
 
-  const columns: ColumnsType<AuditLogItem> = [
+  const columns: StrictColumns<AuditLogItem> = [
     { title: '时间', dataIndex: 'occurred_at', width: 200 },
     { title: '动作', dataIndex: 'action', width: 180 },
     {

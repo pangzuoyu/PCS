@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T03:21:56.683Z",
-    "fileCount": 831,
+    "lastScanned": "2026-10-19T03:43:34.844Z",
+    "fileCount": 833,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "ed9980c12f3ca68922b985012924afb4691c1e9b5b2ca976336573edf8724866",
-    "storeUpdatedAt": "2026-10-19T03:21:56.693Z",
-    "rootHash": "760f25e524467225"
+    "renderedHash": "9aa7e2d033d8e3bb1ce0588f8f4417e160e507ba904e8f283ffb2b62385f53f0",
+    "storeUpdatedAt": "2026-10-19T03:43:34.854Z",
+    "rootHash": "b1467872fb56cfc3"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -27864,6 +27864,42 @@
           "startLine": 124,
           "endLine": 150,
           "tokens": 282
+        }
+      ]
+    },
+    "pcs-frontend/src/types/strictColumns.ts": {
+      "description": "`dataIndex` 的编译期闸（2026-10-19，TODO-041）。",
+      "tokens": 590,
+      "hash": "37c703b4d0804a68",
+      "size": 3149,
+      "mtimeMs": 1792381404040.2527,
+      "updatedAt": "2026-10-19T03:43:24.094Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "strictColumns",
+          "kind": "fn",
+          "startLine": 64,
+          "endLine": 67,
+          "tokens": 27
+        }
+      ]
+    },
+    "pcs-frontend/tests/types/strictColumns.test.ts": {
+      "description": "`dataIndex` 闸的自检（2026-10-19，TODO-041）。",
+      "tokens": 851,
+      "hash": "52a015545ba3deea",
+      "size": 4060,
+      "mtimeMs": 1792381414796.6704,
+      "updatedAt": "2026-10-19T03:43:34.844Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Row",
+          "kind": "section",
+          "startLine": 21,
+          "endLine": 98,
+          "tokens": 691
         }
       ]
     }

@@ -11,9 +11,9 @@
  */
 import { useMemo } from 'react';
 import { Card, Empty, Space, Table, Tag, Typography } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 
 import type { ToxicityClass, ToxicityClassLevel } from '../../types/common';
+import type { StrictColumns } from '../../types/strictColumns';
 
 interface Props {
   classes: ToxicityClass[];
@@ -60,7 +60,7 @@ export function ToxicityExplosivityPage({ classes }: Props): JSX.Element {
           // 都有数据，所以看不出来；加了后端真实词表里的 `NONE` 之后，
           // 没有 LOW 数据就会渲染出一张**空的「低毒」卡片**。
           if (list.length === 0) return null;
-          const columns: ColumnsType<ToxicityClass> = [
+          const columns: StrictColumns<ToxicityClass> = [
             {
               title: '组分',
               dataIndex: 'name',

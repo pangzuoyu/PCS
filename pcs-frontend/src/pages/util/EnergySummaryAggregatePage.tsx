@@ -31,12 +31,12 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 
 import { PageHeader } from '../../components/common/PageHeader';
 import { utilApi } from '../../api/util';
 import type { components } from '../../types/api';
 import { PROJECT_ID } from '../../constants/env';
+import type { StrictColumns } from '../../types/strictColumns';
 
 type UtilEnergySummaryAggregateRequest =
   components['schemas']['UtilEnergySummaryAggregateRequest'];
@@ -161,7 +161,7 @@ export function EnergySummaryAggregatePage({
     coerceNum(result?.steam_t_yr) + coerceNum(result?.fuel_gas_nm3_yr) + coerceNum(result?.water_t_yr),
   );
 
-  const r1Columns: ColumnsType<R1ClassRow> = [
+  const r1Columns: StrictColumns<R1ClassRow> = [
     {
       title: '分类键',
       dataIndex: 'key',

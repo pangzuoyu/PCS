@@ -30,12 +30,12 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 
 import { PageHeader } from '../../components/common/PageHeader';
 import { utilApi, WATER_TYPE_OPTIONS } from '../../api/util';
 import type { components } from '../../types/api';
 import { PROJECT_ID } from '../../constants/env';
+import type { StrictColumns } from '../../types/strictColumns';
 
 type UtilHeatExchangeCreateRequest = components['schemas']['UtilHeatExchangeCreateRequest'];
 type UtilHeatExchangeResponse = components['schemas']['UtilHeatExchangeResponse'];
@@ -183,7 +183,7 @@ export function CoolingWaterPage({
     }
   };
 
-  const columns: ColumnsType<UtilHeatExchangeResponse> = [
+  const columns: StrictColumns<UtilHeatExchangeResponse> = [
     {
       title: '设备位号',
       dataIndex: 'equipment_tag',

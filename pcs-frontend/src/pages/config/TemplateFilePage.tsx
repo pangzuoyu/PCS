@@ -23,7 +23,7 @@ import {
   Upload,
 } from 'antd';
 import { UploadOutlined } from '@ant-design/icons';
-import type { ColumnsType } from 'antd/es/table';
+import type { StrictColumns } from '../../types/strictColumns';
 
 /** 模板版本（SPEC §7.10.4）。 */
 export interface TemplateVersion {
@@ -130,7 +130,7 @@ export function TemplateFilePage({ templates, onUpload }: Props): JSX.Element {
         >
           {templates.map((t) => {
             const missing = findMissing(t);
-            const versionColumns: ColumnsType<TemplateVersion> = [
+            const versionColumns: StrictColumns<TemplateVersion> = [
               { title: '版本', dataIndex: 'version', width: 100 },
               { title: '上传人', dataIndex: 'uploaded_by', width: 120 },
               { title: '上传时间', dataIndex: 'uploaded_at', width: 140 },

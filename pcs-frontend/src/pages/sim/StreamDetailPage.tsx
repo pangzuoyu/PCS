@@ -24,7 +24,6 @@ import {
   Tag,
   Typography,
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 
 import { ModuleLayout } from '../../components/common/ModuleLayout';
 import { PageHeader } from '../../components/common/PageHeader';
@@ -36,6 +35,7 @@ import { ChangeImpactPanel, type ChangeSource, type AffectedRecord } from '../..
 import { SchemaForm, type UiSchemaResponse } from '../../components/common/SchemaForm';
 import { AssumedDataMarker } from '../../components/common/AssumedDataMarker';
 import { streamPhaseColor, streamPhaseLabel, type Stream } from '../../types/stream';
+import type { StrictColumns } from '../../types/strictColumns';
 
 interface Props {
   stream: Stream;
@@ -87,7 +87,7 @@ export function StreamDetailPage({
   // 契约里 composition_json 是 `Record<string, unknown>`（additionalProperties
   // 无约束）⇒ 值不保证是数字，`v.toFixed(4)` 会崩。显示层按「能当数字才格式化」
   // 处理，非法值原样展示 —— 不吞、不抛。
-  const compositionColumns: ColumnsType<{ component: string; mole_fraction: unknown }> = [
+  const compositionColumns: StrictColumns<{ component: string; mole_fraction: unknown }> = [
     {
       title: '组分',
       dataIndex: 'component',

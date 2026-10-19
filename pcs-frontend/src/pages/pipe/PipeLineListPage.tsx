@@ -13,11 +13,11 @@
  */
 import { useMemo, useState } from 'react';
 import { Input, Segmented, Space, Table, Tag, Typography } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 
 import { NumericCell } from '../../components/common/NumericCell';
 import { StateBadge } from '../../components/common/StateBadge';
 import type { PipeDesignStage, PipeLineListRow } from '../../types/pipe';
+import type { StrictColumns } from '../../types/strictColumns';
 
 interface Props {
   rows: PipeLineListRow[];
@@ -46,7 +46,7 @@ export function PipeLineListPage({ rows, onSelect }: Props): JSX.Element {
     });
   }, [rows, fluidFilter, classFilter]);
 
-  const basicColumns: ColumnsType<PipeLineListRow> = [
+  const basicColumns: StrictColumns<PipeLineListRow> = [
     { title: 'seq', dataIndex: 'seq', width: 60 },
     {
       title: 'pipe_no',
@@ -77,7 +77,7 @@ export function PipeLineListPage({ rows, onSelect }: Props): JSX.Element {
     },
   ];
 
-  const detailColumns: ColumnsType<PipeLineListRow> = [
+  const detailColumns: StrictColumns<PipeLineListRow> = [
     ...basicColumns,
     {
       title: '长度 (m)',

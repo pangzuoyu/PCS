@@ -29,10 +29,10 @@ import {
   Tabs,
   Typography,
 } from 'antd';
-import type { ColumnsType } from 'antd/es/table';
 
 import { PageHeader } from '../../components/common/PageHeader';
 import type { PumpDpSegment, PumpInput, PumpResult } from '../../types/pump';
+import type { StrictColumns } from '../../types/strictColumns';
 
 interface StreamLite {
   stream_id: string;
@@ -109,7 +109,7 @@ export function PumpComputePage({ streams, onCalculate, onCreateOutletStream }: 
     }
   };
 
-  const dpColumns: ColumnsType<PumpDpSegment> = [
+  const dpColumns: StrictColumns<PumpDpSegment> = [
     { title: '段', dataIndex: 'segment' },
     {
       title: '压降 (kPa)',
