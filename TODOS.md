@@ -507,3 +507,88 @@ exit 1）。P9A 收口时基线应**仍为 71**，不是下调到 0 —— 71 �
   —— 严格路径要 `as const`，而 `as const` 一旦为了「让闸闭嘴」而加，闸就没了；
 - `ConflictResolver._VALID_PHASES` 等**其它表**的裸串词表（如 `config_domain` 里
   5 张子表用 `default="ACTIVE"` 而 `ConfigAsset` 用 `ConfigStatus`）尚未系统排查。
+
+---
+
+## TODO-045: `StrictColumns` 的数组形式不校验「段间路径」（🟡 已知边界，2026-10-19）
+
+### 边界是什么
+
+`DeepKeys<T>` 的数组形式只校验**每一段都是行类型某层的 key**，不校验
+**这些段能串成一条真实的路径**：
+
+```ts
+// ✅ 通过（每段都是合法 key，但串不成一条路）
+{ dataIndex: ['class_id', 'class_name'] }   // 契约里两者都是 string，无子字段
+{ dataIndex: ['result', 'relief_scenario'] }  // 正确用法
+// ❌ 也会通过（真正的错误，但闸抓不住）
+{ dataIndex: ['result', 'orifice', 'nope'] } // 'nope' 若在别的层出现过
+```
+
+⇒ **词表内的拼写错误抓得住**（那正是 bug-180 的形态）；
+「段名合法但路径不存在」抓不住。
+
+### 为什么不修
+
+严格路径要求 `dataIndex: ['result','relief_scenario'] as const`（让 TS 推断成
+tuple 而非 `string[]`）。本仓只有 4 处嵌套 `dataIndex`（都在 `PsvComputePage`），
+加 `as const` 本身不贵 —— **贵的是它会成为一种「让闸闭嘴」的惯用写法**：
+下次有人为了让闸通过而加 `as`，闸就没了，而且看不出区别。
+
+### 补法（想收口时按此做）
+
+定义一个路径构造 helper，让类型在编译期就能表达「这条路径存在」：
+
+```ts
+// 只有 'result' 下真有 relief_scenario 时，这个调用才成立
+const p = path<Stream>('result', 'relief_scenario');
+// → 类型是 ['result','relief_scenario'] 而不是 string[]
+```
+然后 `dataIndex: p`。**helper 内部必须真的是逐层 `keyof` 推导**，
+不能内部 `as` —— 那样只是把洞从闸挪进 helper。
+
+### 什么时候值得做
+
+出现**第二处**嵌套 `dataIndex` 时。现在只有 4 处、都在一个文件，
+收益不抵「引入一个可能被误用的 helper」的成本。
+
+⚠️ 相关：`tests/types/strictColumns.test.ts` 里有一条
+`test_⚠️_已知边界_段间路径不存在时抓不住` 的**显式用例**记着这件事 ——
+别把它当重复而删掉。
+
+---
+
+## TODO-046: 其它表的裸串词表尚未系统排查（🟡，2026-10-19）
+
+### 已知的一处
+
+`app/models/config_domain.py` 里有**两套状态词表并存**：
+
+- `ConfigAsset.status` / `PipeClass.status` → `ConfigStatus`
+  （5 态：DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE，DB 侧无 CHECK，
+  契约侧已枚举化 —— bug-187/188 修的就是这个）
+- **5 张子表**的 `status` → `default="ACTIVE"`：
+  `formula_definitions` / `coefficient_tables` / `template_files` /
+  `project_templates` / `numbering_template`
+
+`ACTIVE` **不属于 `ConfigStatus`**。也就是说同一个 `config_domain` 模块里，
+父表走审批链、子表用一个审批链里根本没有的状态。
+
+### 为什么现在不动
+
+子表各自的业务语义没查清 —— 它们可能**确实**只需要「启用/停用」两态
+（那 `ACTIVE` 是对的，与父表的 5 态无关），也可能跟错了一直没人发现。
+**猜错方向会把一个能用的东西改坏**，而这类判断必须逐表读代码/问业务。
+
+### 开工前要做的三件事
+
+1. 逐个列出这 5 张表的 status **实际取值**（代码产地 + 真库 DISTINCT，
+   两个库各查一次）；
+2. 确认它们**是否真的经过审批链** —— 若没有，`ACTIVE` 可能是刻意简化，
+   该加的是 CHECK + 契约枚举，而不是换成 `ConfigStatus`；
+3. 与 `POST /config/assets/{id}/{submit,approve,publish,obsolete}` 的行为对照：
+   这四个端点**改不到子表的 status**（它们操作的是 `config_assets` 行）。
+
+⚠️ **教训（来自 bug-187）**：这类判断**必须靠证据，不能靠对称性直觉** ——
+上轮我就是看到「前端 3 态 / 后端注释 5 态」的矛盾就选了看起来更完整的那个，
+而真正该问的是「哪个状态机是活的」（哪些端点真的会产生它）。
