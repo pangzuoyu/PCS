@@ -23,8 +23,24 @@
 - [ ] **Step 1: 写失败测试**（ADR-0049 §① 的「不写空壳」要有可执行的守卫）
 
 ```python
-def test_no_email_channel_shell_in_repo():
-    """全仓 grep 'EmailChannel' 必须 0 命中 —— 空壳会假装邮件通道已就绪。"""
+def test_no_email_channel_class_in_repo():
+    """不存在 `EmailChannel` 类定义或导入（ADR-0049 §①：不写空壳）。
+
+    ⚠️ **用 AST 不用全仓 grep**（2026-10-19 委员会建议 4）：字符串 grep 测的是
+    「文本里没有这个词」，而**文档与注释里提到它是正常的**（本 ADR 就写了
+    「不写 `EmailChannel`」）。grep 会误报，长期会被人加 `# noqa` 绕过 ——
+    那就等于把守卫关掉了。
+    """
+    import ast, pathlib
+    for py in pathlib.Path("app").rglob("*.py"):
+        tree = ast.parse(py.read_text())
+        for node in ast.walk(tree):
+            if isinstance(node, ast.ClassDef) and node.name == "EmailChannel":
+                pytest.fail(f"EmailChannel 空壳出现在 {py}:{node.lineno}")
+            if isinstance(node, (ast.ImportFrom, ast.Import)):
+                for alias in node.names:
+                    if getattr(alias, "name", "") == "EmailChannel":
+                        pytest.fail(f"EmailChannel 被导入于 {py}:{node.lineno}")
 def test_no_channel_type_branch_in_service():
     """service 层不得出现 if 走邮件 / channel_type == ... —— 那是「临时 if」。"""
 async def test_in_app_writes_exactly_one_row(...): ...
@@ -125,9 +141,25 @@ class NotificationChannel(Protocol):
 - [ ] **Step 1: 写失败测试**（每条对应 ADR-0049 §⑤ 的一个约束）
 
 ```python
-async def test_push_crosses_process_boundary(broadcaster, fake_redis):
-    # 约束：跨进程。B 的广播必须能被 A 上连着的该用户收到
-    ...  # 订阅端与发布端用两个独立连接模拟两个 worker
+async def test_push_crosses_worker_boundary(redis_server):
+    """约束：跨进程。worker B 的广播必须能被 worker A 上连着的该用户收到。
+
+    ⚠️ **不要用「同一个 fake 实例的两个连接」**（2026-10-19 委员会建议 3）：
+    同一个 fake 共享同一份存储，测的是「fake 上的 pub/sub 能否工作」，
+    **不是跨进程**。这正是 TODO-047 的失败形状 —— 单进程全绿，多 worker 静默失效。
+
+    两种可用做法（择一，并在测试里注明用的是哪种）：
+    ```python
+    # (a) fakeredis 的 FakeServer 模式：多个 FakeAsyncRedis 共享一个 server
+    import fakeredis
+    server = fakeredis.FakeServer()
+    a_sub = fakeredis.FakeAsyncRedis(server=server)   # worker A 的订阅端
+    b_pub = fakeredis.FakeAsyncRedis(server=server)   # worker B 的发布端
+
+    # (b) [→E2E] 真 Redis（docker-compose up redis）：唯一能证明跨进程的方式
+    ```
+    """
+    ...
 
 async def test_messages_during_disconnect_are_recoverable_via_api(client):
     # 约束 1：pub/sub 不持久化，断线期间的消息由 notifications 表兜底

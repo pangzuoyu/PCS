@@ -37,10 +37,8 @@
 ⚠️ 迁移与 ORM 漂移时，**单测照绿、真库会炸**（CLAUDE.md 漂移盲区）。
 本文件断言的是**元数据与迁移产物一致**，不是运行时行为。
 """
-import pytest
 from app.db.base import Base
 import app.models  # noqa: F401  触发全部 model 注册
-from sqlalchemy import inspect
 
 
 def _cols(table: str) -> set[str]:
@@ -57,19 +55,6 @@ def test_token_version_is_checked_ge_1():
     checks = [str(c.sqltext) for c in t.constraints if c.__class__.__name__ == "CheckConstraint"]
     assert any("token_version" in c and ">= 1" in c.replace(" ", "") for c in checks), \
         f"users 缺 CHECK (token_version >= 1)，现有约束：{checks}"
-
-
-def test_cost_est_has_record_hash():
-    assert "record_hash" in _cols("cost_est_results")
-
-
-def test_workflow_progress_has_8_fields():
-    assert _cols("workflow_progress") == {
-        "progress_id", "project_id", "workflow_type", "workflow_id",
-        "step_order", "step_role", "state", "updated_by", "created_at", "updated_at",
-    }
-
-
 
 ```
 
@@ -105,7 +90,9 @@ uv run pytest tests/migrations/test_p9_001_schema.py -q
 ```bash
 uv run pytest tests/migrations/test_p9_001_schema.py -q
 ```
-预期：2 个测试全绿。
+预期：**恰好 2 个**测试全绿。若文件里还有别的测试，说明它们不属于 A1 ——
+`workflow_progress` 表归 lane B、`cost_est_results` 列归 lane D、`notifications` 归 lane C，
+把它们写进 A1 会在 A1 执行时**必然红**，且让 commit message 名不副实。
 
 - [ ] **Step 5: 写迁移**
 
@@ -169,7 +156,7 @@ asyncio.run(main())
 
 ```bash
 uv run pytest tests/ -q -x
-cd .. && git add -A && git commit -m "feat(P9A): 迁移基座 token_version/CHECK + cost_est.record_hash + workflow_progress + notifications"
+cd .. && git add -A && git commit -m "feat(P9A): 迁移基座 users.token_version + CHECK >= 1"
 ```
 
 ---

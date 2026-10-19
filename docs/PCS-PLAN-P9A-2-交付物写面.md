@@ -199,6 +199,31 @@ async def test_secondary_auth_is_not_exempt_for_mock_user():
 - Consumes: Task 1/2/5 已建；**已有的** `record_cancellation_service` / `reversal_approval_service` / `change_notice_service`
 - Produces: 7 个 records 写端点 + `GET /deliverables/{id}/actions`
 
+- [ ] **Step 0（🔒 阻塞，不得跳过）：核对 `approve_change_notice` 与 SPEC `abandon-change` 的语义**
+
+> **这是本计划里唯一可能造成数据语义错误的地方。**
+> `approve` 与 `abandon` 是**相反动作** —— 接错方向会让用户「批准」一个他以为在
+> 「放弃」的变更。**不得因为函数名叫 approve 就假设它是「批准」——先读实现。**
+
+```bash
+cd pcs-backend
+sed -n '260,360p' app/services/change_notice_service.py   # approve_change_notice 全文
+grep -rn "abandon" ../spec/PCS-REQ-2026-002-SPEC-P9*.md
+```
+
+**判定**：
+| 读到的语义 | 结论 |
+|---|---|
+| 「批准变更单、变更生效」 | **不等同** ⇒ `abandon-change` 需新建实现，**不要接线** |
+| 「放弃变更、变更作废」 | 等同 ⇒ 可接线 |
+| 读不出来 / 语义混合 | **停**，记入 ledger 并提请裁决，不许猜 |
+
+**产出要求**：核对结论写进 B4 的 commit message。**无结论则 B4 不得开工。**
+> ⚠️ 不要用「写个空测试占位」来代替这一步 —— 空测试永远绿，
+> 会把「唯一可能造成数据语义错误的地方」伪装成已覆盖。
+
+---
+
 - [ ] **Step 1: 先核对再接线**（不要假设已有 service 的语义等于 SPEC 端点）
 
 ```bash
@@ -225,9 +250,6 @@ async def test_request_reversal_requires_active_snapshot(...): ...
 async def test_reversal_decision_approve_and_reject_both_reachable(...):
     """**approve 与 reject 是相反动作** —— 两个分支都要端到端测，
     否则会出现「只接通 approve、reject 永远 500」的半成品。"""
-async def test_abandon_change_semantics_verified_first(...):
-    """⚠️ 见下方「开工前必须核对」—— 若 approve_change_notice ≠ abandon-change，
-    这个测试的名字就要改，且**不能接错方向**（approve 与 abandon 相反）。"""
 
 # ---- 3 个新建端点
 async def test_submit_approval_advances_step_and_respects_depth(...):

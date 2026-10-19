@@ -152,7 +152,7 @@ cd ../pcs-frontend && npm run typecheck && npm run lint && npm run test
 | 引入 `row_version` 并发令牌 | 会造第二套令牌，实施者每次都要判断用哪个（bug-180~191 同构） |
 | 内存吊销黑名单 | 与 TODO-047 同一个跨进程陷阱 |
 | `EmailChannel` 空壳 | ADR-0049 §①；会假装邮件通道已就绪 |
-| 修 `advisory_lock` 的 `hash()` 加盐 | TODO-047，改动面在 P7 已验收代码 |
+| 修 `advisory_lock` 的 `hash()` 加盐 | TODO-047，**唯一调用方是 `workspaces.py:129`（workspace 归档）**，P9A 0 处引用 ⇒ 与 P9A 无交集（2026-10-19 实测） |
 | P9B 前端 | 本计划只到 OpenAPI 冻结 |
 | 完整用户/授权管理后台 | 2026-10-19 裁决：单列，不塞 P9A |
 
@@ -175,10 +175,28 @@ cd ../pcs-frontend && npm run typecheck && npm run lint && npm run test
 **唯一的强制顺序**：`D1 编辑保存路径` 在 `B 交付物写面` 之后 —— 它要在 B 建好的
 保存端点上做 409 比对。
 
-**冲突旗标**（真并行时才会撞）：
-- `pcs-backend/app/api/v1/__init__.py` —— router 挂载，A/B/C/D 都改它 ⇒ 并行时需串行合并
-- `alembic/versions/` 的 revision 编号 —— 各自 head，但 `down_revision` 要按实际 head 串起来
-- `app/models/project.py`（A1 加列 + 修 `User.roles` 注释；C2 不碰它）—— 只有 A 碰，风险低
+**结构性解决冲突**（2026-10-19 委员会建议 5，选策略 A）——
+**每条 lane 一个独立 router 文件**，`__init__.py` 只多一行 `include_router`：
+
+```
+app/api/v1/lane_a_identity.py     # A: admin_users
+app/api/v1/lane_b_deliverable.py  # B: 挂到已有的 deliverables.py 或独立文件
+app/api/v1/lane_c_notification.py # C: ws + notifications
+app/api/v1/lane_d_lock.py         # D: locks
+app/api/v1/__init__.py            # 只改 4 行 include_router
+```
+
+**理由**：「并行时需串行合并」是**提醒**不是**策略** —— 冲突每次 merge 都出现，
+且解决要人工判断「这个 router 挂哪」。改成每 lane 只碰自己的文件 + `__init__.py`
+的一行 ⇒ 冲突面从「多处修改」降到「一行修改」。
+
+⚠️ 现有 `__init__.py` 有 **45 处 `include_router`** —— 这条改动要**追加**而不是重排，
+不动既有行，否则 45 个 router 的顺序变化会成为无关的回归面。
+
+**剩余冲突旗标**（真并行时才会撞）：
+- `alembic/versions/` 的 revision 编号 —— 各自 head，但 `down_revision` 要按**实际 head** 串起来
+  （开工时先 `uv run alembic heads`）
+- `app/models/project.py` —— 只有 A1 碰（加列 + 修 `User.roles` 注释），风险低
 
 ---
 
@@ -197,8 +215,15 @@ cd ../pcs-frontend && npm run typecheck && npm run lint && npm run test
    （ADR-0046 归属 P9A，**交用户裁决**）。
 5. **`audit_logs` 保留期未裁决**（P9-OPEN-003 只定了导出格式）。裁决 2 让写入量取决于
    编辑频率 —— 保留期不解决，这张表只增不减。
-6. **`advisory_lock.acquire_record_lock` 的 `hash()` 加盐（TODO-047）在 P9A 编辑锁开工前
-   应处理** —— 否则那条状态机锁在多 worker 下一直无效，而 P9A 会新增更多并发路径。
+6. ~~**TODO-047 应在 P9A 开工前处理**~~ —— **已核实并移出 P9A**（2026-10-19）：
+   `acquire_record_lock` 全仓**只有一个调用方** `app/api/v1/workspaces.py:129`
+   （workspace 归档）。P9A 会碰的 6 个文件（`state_machine` / `records` /
+   `deliverables` / `deliverable_service` / `cia_engine` / `change_notice_service`）
+   **0 处引用它** —— 状态机根本不走这条路。
+   ⇒ 它是 **P7/P8 的 workspace 归档并发缺陷**，与 P9A 无交集，
+   **不阻塞 P9A 开工**，也不该出现在本计划的开工前提里。
+   （此前写「P9A 会加剧它」是错的，已更正。）
+
 7. **SPEC §4.2 的 mock type 前提矛盾本阶段刻意不动** —— 处置口径归 TODO-039/041，
    改 SPEC 会产生第二个真相源。
 
@@ -214,8 +239,31 @@ cd ../pcs-frontend && npm run typecheck && npm run lint && npm run test
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | 无 UI 范围，不适用 |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | 不适用 |
 
-**UNRESOLVED:** 0
-**VERDICT:** ENG CLEARED — 7 条全部已落文档，可执行。
+**UNRESOLVED:** 0（决策委员会提出 1 条 TODO-047 归属 → 已裁决移出 P9A）
+**VERDICT:** ENG CLEARED → **CONDITIONAL CLEARED → CLEARED**（二轮）
+第一轮 7 条 issue 全部处置。第二轮决策委员会追加发现 **3 条执行前必修 + 5 条建议**，
+均已修复（见下），故最终仍为 CLEARED。
+
+#### 第二轮（决策委员会）追加处置
+
+| # | 类别 | 发现 | 处置 |
+|---|---|---|---|
+| 1 | P1 | A1 测试文件含 lane B/D 的表测试，且 commit message 名不副实（我的正则只删了一半） | 测试收窄到 2 个；commit 改 `users.token_version + CHECK >= 1` |
+| 2 | P1 | `test_abandon_change_semantics_verified_first` 是**永远绿的空测试**，却守着「唯一可能造成数据语义错误的地方」 | 删伪测试，升级为 **B4 Step 0（🔒 阻塞）**：读实现 → 三态判定 → 结论写进 commit，**无结论不开工** |
+| 3 | P1 | `test_lock_expires_after_30min...` 用「假时钟 / 查 TTL」—— Redis 的 TTL 是服务端算的，两者都测不了 | 改为**可注入 `ttl_seconds`**，配 `test_default_ttl_is_30_minutes` 防默认值被改 |
+| 4 | P3 | `String(16)` 长度未说明 | 已核实：`calc_lineage.py:102` `_HASH_PREFIX = 16`、`:153` `hexdigest()[:16]` ⇒ **恰好 16**；并写明换算法须同查此列 |
+| 5 | P2 | 6 张表的列未附核实命令 | 附上复跑命令；且注明不符时抛 `UnregisteredTableError` 是**期望行为** |
+| 6 | P2 | `fake_redis` 同一实例的两个连接测不出跨进程（**正是 TODO-047 的失败形状**） | 改 `fakeredis.FakeServer` 模式，或标 [→E2E] 用真 Redis |
+| 7 | P3 | 全仓 grep `EmailChannel` 会因注释/文档提及而误报，长期会被 `# noqa` 绕过 | 改 **AST 级**检查（`ClassDef` + `Import`），只测「类/导入不存在」 |
+| 8 | P3 | router 冲突只写「需串行合并」= 提醒不是策略 | **结构性解决**：每 lane 独立 `lane_x.py`，`__init__.py` 只追加 4 行（不动既有 45 处 `include_router`） |
+| 9 | 裁决 | TODO-047 是否 P9A 前修 | **移出 P9A** —— 实测唯一调用方是 `workspaces.py:129`（workspace 归档），P9A 6 个文件 0 处引用；委员会「P9A 会加剧」的判断**前提有误**，已更正 |
+
+#### 第二轮再次被实测推翻的前提
+
+| 断言 | 实测 |
+|---|---|
+| 「P9A 开工后状态机被更多路径调用，TODO-047 缺陷被放大」 | `state_machine.py` 等 **6 个 P9A 文件 0 处**引用 `acquire_record_lock`；唯一调用方是 `workspaces.py:129` |
+| 「TODO-047 在 P9A 开工前应处理」 | 它是 P7/P8 的 workspace 归档并发缺陷，**与 P9A 无交集** |
 
 ### 7 条 issue 的处置
 

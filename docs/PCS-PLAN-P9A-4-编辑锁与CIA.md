@@ -29,7 +29,15 @@
 > 补列后应改由代码保证（`finalize_calc_record` 显式校验）。
 
 - [ ] **Step 1: 写失败测试**
-- [ ] **Step 2: 跑测试确认红** → **Step 3: ORM + 迁移**（单列，无 CHECK）
+- [ ] **Step 2: 跑测试确认红**
+
+- [ ] **Step 3: ORM + 迁移**（单列，无 CHECK）
+
+> 📌 **`String(16)` 的长度依据已核实**（2026-10-19）：
+> `calc_lineage.py:102` `_HASH_PREFIX = 16`，`:153`
+> `return hashlib.sha256(...).hexdigest()[:_HASH_PREFIX]` ⇒ **恰好 16 字符**。
+> 若将来换成 `md5` 或 `blake2b` 而不同步改这一列，**截断后的 hash 与完整 hash 不等 ⇒
+> 比对永远失败**。改算法时必须同查这一列。
 
 - [ ] **Step 1b: 补齐测试清单**（评审补）
 
@@ -87,8 +95,26 @@ async def test_renew_extends_ttl_only_for_current_holder(...):
 async def test_renew_rejects_expired_lock(...): ...
 async def test_release_is_owner_only(...):
     """非持有者 release ⇒ 403，不得释放别人的锁。"""
-async def test_lock_expires_after_30min_without_heartbeat(...):
-    """TTL 自动清理（ADR-0048 §③）—— 用假时钟/直接查 TTL，不等 30 分钟。"""
+async def test_lock_expires_after_ttl_without_heartbeat(edit_lock):
+    """TTL 到期后锁自动释放（ADR-0048 §③）。
+
+    ⚠️ **不要用「假时钟」或「查 TTL」**（2026-10-19 委员会必修）：
+    - 假时钟：Redis 的 TTL 是**服务端**计算的，客户端无法 patch（freezegun 只管 Python 的 time）
+    - 查 TTL：`TTL key` 只返回剩余秒数（如 1799），证明的是「当前还剩多久」，
+      **不是**「到期后会释放」。要证明到期行为必须等它过期。
+
+    ⇒ **TTL 是可注入参数**（ADR-0048 §② 的 30min 是默认值，不是硬编码），
+    测试传短值。这不是为测试改实现 —— TTL 本来就该是配置项。
+    """
+    await edit_lock.acquire(..., ttl_seconds=2)
+    assert await edit_lock.is_held(...) is True
+    await asyncio.sleep(3)
+    assert await edit_lock.is_held(...) is False
+
+
+async def test_default_ttl_is_30_minutes(edit_lock):
+    """别为了测试把默认值也改了 —— 生产仍须是 30 分钟（ADR-0048 §②）。"""
+    assert edit_lock.DEFAULT_TTL_SECONDS == 30 * 60
 
 async def test_redis_down_warns_and_allows_not_503(...):
     """ADR-0048 §⑤ + ekris-redis-lock-degradation 的裁定：
@@ -152,6 +178,18 @@ grep -rn -A 2 '@router\.\(patch\|put\)(' app/api/v1/*.py | grep -B 1 '"/results'
 | `psychro.py:644` | `psychro_results` | ✅ | ✅ | — |
 | `cost_est.py:376` | `cost_est_results` | ❌ | ❌ | ✅ **D0** |
 
+> ✅ **列的核实命令**（执行时复跑一次，结果须与上表一致）：
+> ```bash
+> cd pcs-backend && uv run python -c "
+> from app.db.base import Base; import app.models
+> for n in ['cooling_tower_results','filtration_results','flare_system_results',
+>           'open_channel_results','psychro_results','cost_est_results']:
+>     c = Base.metadata.tables[n].columns
+>     print(n, 'record_hash' in c, 'updated_at' in c)"
+> ```
+> 若某张表与上表不符 ⇒ `TABLE_CAPABILITIES` 会漏登记，`check_conflict` 抛
+> `UnregisteredTableError`（这是**期望行为**，不是 bug —— 见约束 3）。
+> 
 > ⚠️ **从「有 PATCH/PUT 的端点」反查，不要从「所有 `*_persist_service.py`」正着数** ——
 > 后者有 23 个，其中 17 个没有编辑路径，guard 根本不会被调用，改了也是无用改动 + 风险。
 
