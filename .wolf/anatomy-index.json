@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T11:20:39.841Z",
+    "lastScanned": "2026-10-19T11:34:20.918Z",
     "fileCount": 846,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "41e013e001a6d94421db9ec118fd19aa4e208ea0e05dd1f8c016c8f5ce038ad6",
-    "storeUpdatedAt": "2026-10-19T11:20:39.851Z",
-    "rootHash": "c0983fa9bc8ef354"
+    "renderedHash": "e35c074344dded99321bf69a22a0c0b6a07f11750fb4d1444cee0c226dc4e2fb",
+    "storeUpdatedAt": "2026-10-19T11:34:20.929Z",
+    "rootHash": "ea3afc45e9536dcb"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -28104,11 +28104,11 @@
     },
     "docs/adr/0048-edit-lock-storage.md": {
       "description": "ADR-0048：编辑锁 —— Redis 为主 + DB 审计留痕",
-      "tokens": 2855,
-      "hash": "b2f7daea597d3de5",
-      "size": 18945,
-      "mtimeMs": 1792408839787.6755,
-      "updatedAt": "2026-10-19T11:20:39.840Z",
+      "tokens": 2813,
+      "hash": "eb789060d52aeb81",
+      "size": 18751,
+      "mtimeMs": 1792409660865.9155,
+      "updatedAt": "2026-10-19T11:34:20.918Z",
       "source": "hook"
     },
     "docs/adr/0049-notification-and-todo-data-model.md": {
