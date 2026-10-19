@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T10:14:06.985Z",
-    "fileCount": 841,
+    "lastScanned": "2026-10-19T10:16:08.523Z",
+    "fileCount": 842,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "87dbc15d330d3a19ff7d152f00c3940f4fda0238f7db44dbb00d81dafc627d7c",
-    "storeUpdatedAt": "2026-10-19T10:14:06.995Z",
-    "rootHash": "3779b0254b79742e"
+    "renderedHash": "0653a408320fe7eceb85935d743aff05d8c28ee9f81e6d544645fcf0f5024530",
+    "storeUpdatedAt": "2026-10-19T10:16:08.533Z",
+    "rootHash": "180ef8569aa1a374"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -28023,20 +28023,20 @@
     },
     "docs/PCS-PLAN-P9-PREP.md": {
       "description": "P9-Prep 实施计划（alembic 闸门 + 4 份 ADR + P1 端点清单 + MFA 决议）",
-      "tokens": 14277,
-      "hash": "2ed32642c5de4d81",
-      "size": 87300,
-      "mtimeMs": 1792404376393.2314,
-      "updatedAt": "2026-10-19T10:06:16.440Z",
+      "tokens": 14311,
+      "hash": "ce25aee0ffd7dcde",
+      "size": 87503,
+      "mtimeMs": 1792404913303.8772,
+      "updatedAt": "2026-10-19T10:15:13.351Z",
       "source": "hook"
     },
     ".superpowers/sdd/PCS-PLAN-P9-PREP/progress.md": {
       "description": "SDD ledger — plan: docs/PCS-PLAN-P9-PREP.md",
-      "tokens": 728,
-      "hash": "686c97b5dbb60f34",
-      "size": 4787,
-      "mtimeMs": 1792404690249.8533,
-      "updatedAt": "2026-10-19T10:11:30.296Z",
+      "tokens": 982,
+      "hash": "a0aefa7713846752",
+      "size": 6574,
+      "mtimeMs": 1792404869557.9758,
+      "updatedAt": "2026-10-19T10:14:29.605Z",
       "source": "hook"
     },
     "pcs-backend/tests/scripts/test_gate_alembic_check.py": {
@@ -28077,11 +28077,20 @@
     },
     "spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md": {
       "description": "变更\t原因",
-      "tokens": 3893,
-      "hash": "7847886ffe52e961",
-      "size": 26283,
-      "mtimeMs": 1792404846929.5916,
-      "updatedAt": "2026-10-19T10:14:06.985Z",
+      "tokens": 4061,
+      "hash": "1c46fd9b1f384206",
+      "size": 27315,
+      "mtimeMs": 1792404968473.6667,
+      "updatedAt": "2026-10-19T10:16:08.523Z",
+      "source": "hook"
+    },
+    "docs/adr/0046-user-identity-model-migration.md": {
+      "description": "ADR-0046：用户身份模型迁移 —— uuid5(username) 派生改为 users 表持久化主键",
+      "tokens": 1040,
+      "hash": "2ed543befd86efef",
+      "size": 6723,
+      "mtimeMs": 1792404924640.4233,
+      "updatedAt": "2026-10-19T10:15:24.693Z",
       "source": "hook"
     }
   }

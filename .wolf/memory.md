@@ -1774,3 +1774,10 @@
 | 18:13 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | expanded (+13 lines) | ~186 |
 | 18:14 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | 2→4 lines | ~51 |
 | 18:14 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | inline fix | ~16 |
+| 18:14 | Edited .superpowers/sdd/PCS-PLAN-P9-PREP/progress.md | expanded (+13 lines) | ~244 |
+| 18:14 | Edited .superpowers/sdd/PCS-PLAN-P9-PREP/progress.md | expanded (+6 lines) | ~161 |
+| 18:15 | Edited docs/PCS-PLAN-P9-PREP.md | 2→4 lines | ~75 |
+| 18:15 | Created docs/adr/0046-user-identity-model-migration.md | — | ~1110 |
+| 18:16 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | inline fix | ~34 |
+| 18:16 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | 1→2 lines | ~107 |
+| 18:16 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | expanded (+6 lines) | ~113 |

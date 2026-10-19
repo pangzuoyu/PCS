@@ -13,7 +13,9 @@
 ## Global Constraints
 
 - 本阶段**不写 `alembic/versions/*`、不写 `app/**` 生产代码**。Task 1 的探针迁移是临时文件，用完即删，不进 commit。
-- ADR 编号接现有最高**文件号 0041** → 本阶段产出 **0042 / 0043 / 0044 / 0045**。
+- ADR 编号**不接 0042**：ADR-0041 正文预留了 `ADR-0042 = 解冻机制`、`ADR-0043+ = 后续接口扩展`
+  （`docs/adr/0041-c-12-vessel-6-path-coverage.md:14-15`）。本阶段产出
+  **0046 / 0047 / 0048 / 0049**，把 0042 留给已写下的预留，避免两份文档占同一个号。
 - ADR 格式**统一用 0041 的行内列表式**（`- Status:` / `- Date:` / `- Deciders:` / `- Related:`），不用 0030 的 YAML frontmatter —— 0040/0041 是最新两份，取最新惯例。
 - ADR 交付判定：`Status: accepted` + SPEC §2.2.2 列举的每个问题都有明确裁决 + 全文无 `待定` / `TBD` / `待确认`。
 - 闸门脚本退出码：**0 放行 / 1 阻断**。内部对 `uv run alembic check` 的非 0 一律判失败（它的码是 **255** 不是 1，见 Global Constraints 下的 Review Focus ①）。
@@ -540,14 +542,14 @@ git commit -m "docs(P9-Prep): P1 端点交付面清单（修正 SPEC §2.2.3 的
 
 ---
 
-### Task 3: ADR-0042 用户身份模型迁移（uuid5 → users 表持久化）
+### Task 3: ADR-0046 用户身份模型迁移（uuid5 → users 表持久化）
 
 **Files:**
-- Create: `docs/adr/0042-user-identity-model-migration.md`
+- Create: `docs/adr/0046-user-identity-model-migration.md`
 
 **Interfaces:**
 - Consumes: 无（可与 Task 4~6 并行，互不依赖）
-- Produces: ADR-0042，裁决 ①~⑤。P9A-USR-001/005/006/007 的实现依据。Task 9 依它回写 P9-OPEN-008。
+- Produces: ADR-0046，裁决 ①~⑤。P9A-USR-001/005/006/007 的实现依据。Task 9 依它回写 P9-OPEN-008。
 
 - [ ] **Step 1: 采集证据（每条都要 file:line）**
 
@@ -562,12 +564,12 @@ grep -n "user_id" app/models/project.py | head -5   # user_projects.user_id FK �
 grep -rn "uuid5\|NAMESPACE" ../pcs-frontend/src/ || echo "前端：0 命中（已不从 /auth/me 之外派生）"
 ```
 
-- [ ] **Step 2: 写 ADR-0042**
+- [ ] **Step 2: 写 ADR-0046**
 
 格式取 0041 的行内列表式：
 
 ```markdown
-# ADR-0042：用户身份模型迁移 —— uuid5(username) 派生改为 users 表持久化主键
+# ADR-0046：用户身份模型迁移 —— uuid5(username) 派生改为 users 表持久化主键
 
 - Status: **accepted**
 - Date: 2026-10-19
@@ -668,15 +670,15 @@ AD 同步的角色来自同一批 AD 组 —— 同源，惰性建行不会与 A
 
 ```bash
 cd /home/pangzy/code_project/PCS
-grep -nE "待定|TBD|待确认|待补" docs/adr/0042-user-identity-model-migration.md; echo "RC=$?（预期 1 = 干净）"
-grep -c "^### " docs/adr/0042-user-identity-model-migration.md   # 预期 5（①~⑤）
+grep -nE "待定|TBD|待确认|待补" docs/adr/0046-user-identity-model-migration.md; echo "RC=$?（预期 1 = 干净）"
+grep -c "^### " docs/adr/0046-user-identity-model-migration.md   # 预期 5（①~⑤）
 ```
 
 - [ ] **Step 4: 回写 SPEC（Review Focus ④）**
 
-- §8 表 `P9-OPEN-008` 行：状态 `（无）` → `已裁决：ADR-0042 accepted（2026-10-19）`，归属列 `P9-Prep` → `~~P9-Prep~~ 已关闭`。
+- §8 表 `P9-OPEN-008` 行：状态 `（无）` → `已裁决：ADR-0046 accepted（2026-10-19）`，归属列 `P9-Prep` → `~~P9-Prep~~ 已关闭`。
 - §2.2.2 的 ADR-A 行状态标 ✅ 并注明落点文件。
-- **P9A 交接**：ADR-0042 §③ 给 P9A 增加一项 SPEC 原条目没有的工作 ——
+- **P9A 交接**：ADR-0046 §③ 给 P9A 增加一项 SPEC 原条目没有的工作 ——
   把签发逻辑抽成 `_issue_tokens()` 并让 `/mock-login` 共用（否则 §①/③/⑤ 对 mock 流量失效）。
   写进 SPEC §3.2.2 的 P9A-USR-005 条目。
 
@@ -684,21 +686,21 @@ grep -c "^### " docs/adr/0042-user-identity-model-migration.md   # 预期 5（�
 
 ```bash
 cd /home/pangzy/code_project/PCS
-git add docs/adr/0042-user-identity-model-migration.md
+git add docs/adr/0046-user-identity-model-migration.md
 git add "spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md"
-git commit -m "docs(adr): ADR-0042 用户身份模型迁移（uuid5 → users 表主键 + token_version）"
+git commit -m "docs(adr): ADR-0046 用户身份模型迁移（uuid5 → users 表主键 + token_version）"
 ```
 
 ---
 
-### Task 4: ADR-0043 workflow_progress 观测层
+### Task 4: ADR-0047 workflow_progress 观测层
 
 **Files:**
-- Create: `docs/adr/0043-workflow-progress-observation-layer.md`
+- Create: `docs/adr/0047-workflow-progress-observation-layer.md`
 
 **Interfaces:**
 - Consumes: 无（与 Task 3/5/6 并行）
-- Produces: ADR-0043，裁决 ①~④。P9A-OBS-001~004 的实现依据。Task 9 依它回写 P9-OPEN-007。
+- Produces: ADR-0047，裁决 ①~④。P9A-OBS-001~004 的实现依据。Task 9 依它回写 P9-OPEN-007。
 
 - [ ] **Step 1: 采集证据**
 
@@ -710,10 +712,10 @@ grep -n "def \|commit()\|rollback" app/core/commit_or_rollback.py
 sed -n '135,141p' app/models/mixins.py   # TimestampMixin 三列纪律参照
 ```
 
-- [ ] **Step 2: 写 ADR-0043**
+- [ ] **Step 2: 写 ADR-0047**
 
 ```markdown
-# ADR-0043：workflow_progress 观测层 —— 写入点、同步性与事务边界
+# ADR-0047：workflow_progress 观测层 —— 写入点、同步性与事务边界
 
 - Status: **accepted**
 - Date: 2026-10-19
@@ -751,7 +753,7 @@ SPEC 的 500ms 是**上界**不是目标。异步（ARQ）引入的是「已提�
 「已入队但队列挂了」的延迟不可控 —— 观测层恰恰是出问题时要信的东西，它不能自己变成
 不确定的。同步写的成本（多一次 INSERT）远低于观测层不可信的成本。
 
-（ARQ 仍留给通知清理任务，见 ADR-0044。）
+（ARQ 仍留给通知清理任务，见 ADR-0048。）
 
 ### ③ 与 P1 状态机事务的边界
 
@@ -778,34 +780,34 @@ SPEC 的 500ms 是**上界**不是目标。异步（ARQ）引入的是「已提�
 
 ```bash
 cd /home/pangzy/code_project/PCS
-grep -nE "待定|TBD|待确认|待补" docs/adr/0043-workflow-progress-observation-layer.md; echo "RC=$?（预期 1）"
-grep -c "^### " docs/adr/0043-workflow-progress-observation-layer.md   # 预期 4（①~④）
+grep -nE "待定|TBD|待确认|待补" docs/adr/0047-workflow-progress-observation-layer.md; echo "RC=$?（预期 1）"
+grep -c "^### " docs/adr/0047-workflow-progress-observation-layer.md   # 预期 4（①~④）
 ```
 
 - [ ] **Step 4: 回写 SPEC（Review Focus ④）**
 
-- §8 `P9-OPEN-007` 行：`待启动` → `已裁决：ADR-0043 accepted（2026-10-19），同步写 + 同事务`
+- §8 `P9-OPEN-007` 行：`待启动` → `已裁决：ADR-0047 accepted（2026-10-19），同步写 + 同事务`
 - §2.2.2 的 ADR-B 行标 ✅ 并注明落点。
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd /home/pangzy/code_project/PCS
-git add docs/adr/0043-workflow-progress-observation-layer.md
+git add docs/adr/0047-workflow-progress-observation-layer.md
 git add "spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md"
-git commit -m "docs(adr): ADR-0043 workflow_progress 观测层（同步写 + 与状态机同事务）"
+git commit -m "docs(adr): ADR-0047 workflow_progress 观测层（同步写 + 与状态机同事务）"
 ```
 
 ---
 
-### Task 5: ADR-0044 编辑锁存储与续期
+### Task 5: ADR-0048 编辑锁存储与续期
 
 **Files:**
-- Create: `docs/adr/0044-edit-lock-storage.md`
+- Create: `docs/adr/0048-edit-lock-storage.md`
 
 **Interfaces:**
 - Consumes: 无（与 Task 3/4/6 并行）
-- Produces: ADR-0044，裁决 ①~⑤。P9A-LCK-001~005 的实现依据。Task 9 依它回写 P9-OPEN-009。
+- Produces: ADR-0048，裁决 ①~⑤。P9A-LCK-001~005 的实现依据。Task 9 依它回写 P9-OPEN-009。
 - 额外产出：`TODOS.md` 新增一条**已发现的独立缺陷**（见 Step 2 末段），本阶段只登记不修。
 
 - [ ] **Step 1: 采集证据**
@@ -817,10 +819,10 @@ grep -rn "redis" app/core/config.py app/workers/worker.py | head
 grep -rn "class .*RedisSettings\|REDIS_URL" app/core/config.py
 ```
 
-- [ ] **Step 2: 写 ADR-0044**
+- [ ] **Step 2: 写 ADR-0048**
 
 ```markdown
-# ADR-0044：编辑锁 —— Redis 为主 + DB 审计留痕
+# ADR-0048：编辑锁 —— Redis 为主 + DB 审计留痕
 
 - Status: **accepted**
 - Date: 2026-10-19
@@ -1023,9 +1025,9 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 
 ```bash
 cd /home/pangzy/code_project/PCS
-grep -nE "待定|TBD|待确认|待补" docs/adr/0044-edit-lock-storage.md; echo "RC=$?（预期 1）"
-grep -c "^### " docs/adr/0044-edit-lock-storage.md   # 预期 7（①~⑤ 回答 SPEC ADR-C 五问 + ⑥⑦ 兜底粒度与 409 契约）
-grep -n "ekris-redis-lock-degradation" docs/adr/0044-edit-lock-storage.md   # 必须命中 ≥2（Related 行 + §⑤ 引用块）
+grep -nE "待定|TBD|待确认|待补" docs/adr/0048-edit-lock-storage.md; echo "RC=$?（预期 1）"
+grep -c "^### " docs/adr/0048-edit-lock-storage.md   # 预期 7（①~⑤ 回答 SPEC ADR-C 五问 + ⑥⑦ 兜底粒度与 409 契约）
+grep -n "ekris-redis-lock-degradation" docs/adr/0048-edit-lock-storage.md   # 必须命中 ≥2（Related 行 + §⑤ 引用块）
 ```
 
 > §⑥/§⑦ 是 SPEC ADR-C 五问之外的**新增内容**（兜底粒度 + 冲突契约）。
@@ -1045,17 +1047,17 @@ Python `str.__hash__` 默认按进程随机加盐（PYTHONHASHSEED），多 work
 同一 `(table, id)` 在不同进程算出不同 key ⇒ 锁静默失效、并发状态转移不被串行化。
 
 同文件 `acquire_equip_list_lock` 用 PG `hashtext()`，是正确的。
-裁定方向：统一到 `hashtext()`（ADR-0044 §背景 已登记）。
-- **发现**：2026-10-19，P9-Prep 编写 ADR-0044 时
+裁定方向：统一到 `hashtext()`（ADR-0048 §背景 已登记）。
+- **发现**：2026-10-19，P9-Prep 编写 ADR-0048 时
 - **归属**：P9A-LCK 或独立修复；**不在 P9-Prep 修**（改动面在 P7 已验收代码）
 - **严重度**：HIGH（并发正确性，且失败无声）
 ```
 
 - [ ] **Step 5: 回写 SPEC（Review Focus ④）**
 
-- §8 `P9-OPEN-009` 行：`（无）` → `已裁决：ADR-0044 accepted（2026-10-19），Redis + 30min TTL + DB record_hash 兜底`
+- §8 `P9-OPEN-009` 行：`（无）` → `已裁决：ADR-0048 accepted（2026-10-19），Redis + 30min TTL + DB record_hash 兜底`
 - §2.2.2 的 ADR-C 行标 ✅ 并注明落点。
-- **P9A 交接**：ADR-0044 §⑥/§⑦ 给 P9A 增加了三项 SPEC 原条目里没有的工作 ——
+- **P9A 交接**：ADR-0048 §⑥/§⑦ 给 P9A 增加了三项 SPEC 原条目里没有的工作 ——
   ① 编辑保存路径的 `expected_hash` 比对（`records.py` 现无 PUT/PATCH，该路径 P9A 全新建）
   ② `RECORD_EDIT_CONFLICT` 409 响应 schema（受 P9A-DLV-010 零裸字段约束）
   ③ `RECORD_EDIT_OVERWROTE_STALE_BASELINE` 审计 action 枚举
@@ -1066,21 +1068,21 @@ Python `str.__hash__` 默认按进程随机加盐（PYTHONHASHSEED），多 work
 
 ```bash
 cd /home/pangzy/code_project/PCS
-git add docs/adr/0044-edit-lock-storage.md TODOS.md
+git add docs/adr/0048-edit-lock-storage.md TODOS.md
 git add "spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md"
-git commit -m "docs(adr): ADR-0044 编辑锁（Redis 体验层 + record_hash 兜底层）+ 登记 TODO-047"
+git commit -m "docs(adr): ADR-0048 编辑锁（Redis 体验层 + record_hash 兜底层）+ 登记 TODO-047"
 ```
 
 ---
 
-### Task 6: ADR-0045 通知与待办数据模型
+### Task 6: ADR-0049 通知与待办数据模型
 
 **Files:**
-- Create: `docs/adr/0045-notification-and-todo-data-model.md`
+- Create: `docs/adr/0049-notification-and-todo-data-model.md`
 
 **Interfaces:**
 - Consumes: 无（与 Task 3/4/5 并行）
-- Produces: ADR-0045，裁决 ①~④。P9A-NOT-001~005 的实现依据。Task 9 依它回写 P9-OPEN-010。
+- Produces: ADR-0049，裁决 ①~④。P9A-NOT-001~005 的实现依据。Task 9 依它回写 P9-OPEN-010。
 
 - [ ] **Step 1: 采集证据**
 
@@ -1093,10 +1095,10 @@ grep -n "TODO-016" ../TODOS.md
 sed -n '135,141p' app/models/mixins.py
 ```
 
-- [ ] **Step 2: 写 ADR-0045**
+- [ ] **Step 2: 写 ADR-0049**
 
 ```markdown
-# ADR-0045：通知与待办数据模型 —— 通知建表 / 待办实时计算
+# ADR-0049：通知与待办数据模型 —— 通知建表 / 待办实时计算
 
 - Status: **accepted**
 - Date: 2026-10-19
@@ -1105,7 +1107,7 @@ sed -n '135,141p' app/models/mixins.py
 - Informed: P9A 实施者、P9B 通知中心 / 待办栏
 - Supersedes: —
 - Superseded by: —
-- Related: P9-OPEN-010、ADR-0043（观测层）、SPEC §3.2.4 P9A-NOT-001~005
+- Related: P9-OPEN-010、ADR-0047（观测层）、SPEC §3.2.4 P9A-NOT-001~005
 
 ## 背景
 
@@ -1162,23 +1164,23 @@ P9A-NOT-004 验收明确要求这条测试存在。
 
 ```bash
 cd /home/pangzy/code_project/PCS
-grep -nE "待定|TBD|待确认|待补" docs/adr/0045-notification-and-todo-data-model.md; echo "RC=$?（预期 1）"
-grep -c "^### " docs/adr/0045-notification-and-todo-data-model.md   # 预期 4（①~④）
+grep -nE "待定|TBD|待确认|待补" docs/adr/0049-notification-and-todo-data-model.md; echo "RC=$?（预期 1）"
+grep -c "^### " docs/adr/0049-notification-and-todo-data-model.md   # 预期 4（①~④）
 ```
 
 - [ ] **Step 4: 回写 SPEC（Review Focus ④）**
 
-- §8 `P9-OPEN-010` 行：`（无）` → `已裁决：ADR-0045 accepted（2026-10-19），通知建表 / 待办实时计算`
+- §8 `P9-OPEN-010` 行：`（无）` → `已裁决：ADR-0049 accepted（2026-10-19），通知建表 / 待办实时计算`
 - §2.2.2 的 ADR-D 行标 ✅ 并注明落点。
-- §3.2.4 的 P9A-NOT-002「todos 表」改为「**按 ADR-0045 走实时计算，不建表**」。
+- §3.2.4 的 P9A-NOT-002「todos 表」改为「**按 ADR-0049 走实时计算，不建表**」。
 
 - [ ] **Step 5: Commit**
 
 ```bash
 cd /home/pangzy/code_project/PCS
-git add docs/adr/0045-notification-and-todo-data-model.md
+git add docs/adr/0049-notification-and-todo-data-model.md
 git add "spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md"
-git commit -m "docs(adr): ADR-0045 通知建表 / 待办实时计算（混合方案）"
+git commit -m "docs(adr): ADR-0049 通知建表 / 待办实时计算（混合方案）"
 ```
 
 ---
@@ -1190,7 +1192,7 @@ git commit -m "docs(adr): ADR-0045 通知建表 / 待办实时计算（混合方
 - Modify: `spec/…P9…（修订版）.md` §2.2.4 + §8 `P9-OPEN-001`
 
 **Interfaces:**
-- Consumes: Task 3 的 ADR-0042（代录二次认证依赖登录/停用路径，结论②③决定 fallback 能否复用同一入口）
+- Consumes: Task 3 的 ADR-0046（代录二次认证依赖登录/停用路径，结论②③决定 fallback 能否复用同一入口）
 - Produces: MFA 路径裁决（A 或 B）+ 强制审计 action 名。P9A-DLV-008（代录后端）依赖此结论开工。
 
 > **本 task 含一个必须由人做的裁决。** Agent 不得代选 —— SPEC §2.2.4 要求「确认公司 MFA 方案」
@@ -1215,7 +1217,7 @@ grep -n "P9-ADM-001\|二次认证\|MFA" ../spec/PCS-REQ-2026-002-SPEC-P9*.md | h
 | 维度 | 路径 A：真 MFA（TOTP / 短信 / 硬件令牌） | 路径 B：Fallback（AD 密码二次输入） |
 |---|---|---|
 | 外部依赖 | 公司已有 MFA 服务或需采购 + 发放流程 | 无（复用既有 LDAP 通道） |
-| 与 ADR-0042 的关系 | 独立（不依赖 users 表） | 复用二次输入入口，需与 ADR-0042 §③ 的停用判定协同 |
+| 与 ADR-0046 的关系 | 独立（不依赖 users 表） | 复用二次输入入口，需与 ADR-0046 §③ 的停用判定协同 |
 | 代录场景（ADR-0007） | 需在 `customer-approval/proxy` 内嵌 TOTP 校验 | 复用 LDAP 再认证 |
 | 审计 | `SIGN_2FA_OK` | `SIGN_2FA_FALLBACK`（SPEC §2.2.4 路径 B 指定名） |
 | 失败处理 | 校验失败拒签 | 校验失败拒签 |
@@ -1308,7 +1310,7 @@ cd /home/pangzy/code_project/PCS && grep -n "P9-OPEN-002\|P9-OPEN-004\|P9-OPEN-0
 >
 > | 影响面 | 变化 |
 > |---|---|
-> | ADR-0045 §① | 通知写侧异步的理由变了 —— 原理由是「不阻塞主链路的外部投递」，本版**没有外部投递**，异步只剩「不阻塞写库」。ADR-0045 需补记：异步与否在本版不再由投递延迟决定 |
+> | ADR-0049 §① | 通知写侧异步的理由变了 —— 原理由是「不阻塞主链路的外部投递」，本版**没有外部投递**，异步只剩「不阻塞写库」。ADR-0049 需补记：异步与否在本版不再由投递延迟决定 |
 > | P9A-NOT-004（30 天清理） | **不变**。清理是本地定时任务，与有无邮件无关 |
 > | P9-OPEN-006 | **权重上升**。去掉邮件后，实时推送成了通知唯一的及时性来源 ——「WebSocket + 降级轮询」从「建议」升为**本版通知体验的关键路径** |
 > | ADR-0007（代录二次认证） | 不受影响（走 AD 密码，不走邮件） |
@@ -1322,7 +1324,7 @@ cd /home/pangzy/code_project/PCS && grep -n "P9-OPEN-002\|P9-OPEN-004\|P9-OPEN-0
 >
 > **P9-OPEN-006 的连带要求**：WebSocket 是本版通知体验的关键路径，不是可选增强。
 > 断线时降级到轮询；**不得**在 WebSocket 不可用时直接停止推送 —— 那等于通知静默失效，
-> 而通知系统失效无声正是 ADR-0043 立观测层要防的那类问题。
+> 而通知系统失效无声正是 ADR-0047 立观测层要防的那类问题。
 > 降级状态应可观测（健康端点或指标），不能只靠前端感觉。
 
 - [ ] **Step 4: 呈给用户裁决 ⏸**
@@ -1432,10 +1434,10 @@ git commit -m "docs(P9-Prep): PP-M 统一 SPEC 裸字段基线（70/71 二义 �
 | 交付物 | 目标状态 | 依据 |
 |---|---|---|
 | alembic check 闸门 / git hook | ✅ | Task 1，`.githooks/README.md` 有小节 |
-| ADR-A 身份模型 | ✅ | Task 3，ADR-0042 |
-| ADR-B 观测层 | ✅ | Task 4，ADR-0043 |
-| ADR-C 编辑锁 | ✅ | Task 5，ADR-0044 |
-| ADR-D 通知/待办 | ✅ | Task 6，ADR-0045 |
+| ADR-A 身份模型 | ✅ | Task 3，ADR-0046 |
+| ADR-B 观测层 | ✅ | Task 4，ADR-0047 |
+| ADR-C 编辑锁 | ✅ | Task 5，ADR-0048 |
+| ADR-D 通知/待办 | ✅ | Task 6，ADR-0049 |
 | 《P1 实际交付面清单》 | ✅ | Task 2，note 文件 |
 | MFA 决议 | ✅ | Task 7 —— **若用户选了路径 B，仍算已裁决**（SPEC 验收原文：「已确认」或「已 Fallback」） |
 
@@ -1512,9 +1514,9 @@ git commit -m "docs(P9-Prep): 收口 —— SPEC §2.3/§9 同步 + 开发计划
 | `tests/scripts/test_run_gate.py` | Task 1 的测试形状直接照抄；新测试追加进同一文件 |
 | `.githooks/pre-commit` + `core.hooksPath` | Task 1 加第二段，不改现有 A-08 段。框架未装也无需装 |
 | `check_openapi_payload_coverage.py` (`BASELINE_BARE_FIELDS = 71`) | Task 8 PP-M 的权威值来源（代码为准，SPEC 跟着改） |
-| `RecordMixin.record_hash` + `finalize_calc_record` + `cia_engine` 比对范式 | ADR-0044 §⑥ 的兜底令牌 —— **零迁移**，复用而非新建 version 列 |
-| `users` 表模型（`project.py:135`）+ `token_version` 缺列 | ADR-0042 的迁移只加一列 |
-| Redis + ARQ（`config.py:43`、`app/workers/`） | ADR-0044/0045 建在既有设施上，不引入新中间件 |
+| `RecordMixin.record_hash` + `finalize_calc_record` + `cia_engine` 比对范式 | ADR-0048 §⑥ 的兜底令牌 —— **零迁移**，复用而非新建 version 列 |
+| `users` 表模型（`project.py:135`）+ `token_version` 缺列 | ADR-0046 的迁移只加一列 |
+| Redis + ARQ（`config.py:43`、`app/workers/`） | ADR-0048/0045 建在既有设施上，不引入新中间件 |
 | ADR 编号空间与 0041 行内列表格式 | Task 3~6 接 0042~0045，格式统一 |
 | `deliverables.py` 4 个读端点（P8 前置已交付） | Task 2 判为 P1 已交付，不重复实现 |
 
@@ -1570,13 +1572,13 @@ Lane A 与 Lane B 无共享文件，可并行。
 
 ## 尚未解决的问题
 
-1. **P9A / P9B 的实施计划尚未编写。** 本计划只覆盖 SPEC §2。ADR-0042~0045 accepted 后，
+1. **P9A / P9B 的实施计划尚未编写。** 本计划只覆盖 SPEC §2。ADR-0046~0045 accepted 后，
    P9A（8–12 人周）才具备可写代码级计划的前提 —— 那时按本计划同样的格式另写
    `docs/PCS-PLAN-P9A.md`，不要在本文件里追加。
 
 2. **P9-OPEN-003（审计日志导出格式）归属 P9B**，本阶段未处理，SPEC §8 中仍为「已确认」，开工时直接用。
 
-3. **ADR-0042 §② 的存量孤儿清单未产出。** ADR 采纳了「惰性建行、不批量回填」，
+3. **ADR-0046 §② 的存量孤儿清单未产出。** ADR 采纳了「惰性建行、不批量回填」，
    但「导出 `user_projects` / `audit_logs.created_by` 中无对应 users 行的 uuid5 清单」
    这一步落在 P9A（需先有 users 表与登录路径才有判据）。**ADR 里没有写这一步的归属** ——
    P9A 开工时须补，否则会掉。
@@ -1599,10 +1601,10 @@ Lane A 与 Lane B 无共享文件，可并行。
    > ⚠️ 查现有编号别用 `grep "^### TODO-"`：条目混用 `##` 与 `###` 两种标题级别，会漏一半。
    > 用 `grep -oE "^#{2,3} TODO-[0-9]+" TODOS.md | grep -oE "TODO-[0-9]+" | sort -u`。
 
-7. **ADR-0044 §⑥ 的「兜底只覆盖设计参数」是已知取舍，不是遗漏。**
+7. **ADR-0048 §⑥ 的「兜底只覆盖设计参数」是已知取舍，不是遗漏。**
    `record_hash` 不检测 `sign_status` / `approval_step` 等批准状态字段的变化 ——
    那些由状态机事务 + `pg_advisory_xact_lock` 负责。若 P9A 实施时发现签署流程本身
-   也需要并发保护（而不只是编辑），**ADR-0044 不覆盖该场景**，需回本 ADR 修订。
+   也需要并发保护（而不只是编辑），**ADR-0048 不覆盖该场景**，需回本 ADR 修订。
 
 ---
 
@@ -1624,8 +1626,8 @@ Lane A 与 Lane B 无共享文件，可并行。
 
 | # | 问题 | 处置 |
 |---|---|---|
-| 1 | ADR-0044 §⑤「Redis 挂 → 无锁放行」静默覆盖 user-stated learning `ekris-redis-lock-degradation`，且会让 Redis 挂掉时静默丢用户编辑 | 改为**两层锁**（Redis 体验层 + `record_hash` 兜底层）；§⑤ 重写并显式声明与 learning 的关系；新增 §⑥ 粒度、§⑦ 409 契约 |
-| 2 | ADR-0042 §③ 的停用门只挂在 `/auth/login`，`/mock-login` 是独立签发路径（`mock_auth.py:58-68`），无 `tv` claim、不查 users、不写审计 | 裁定 `/mock-login` 走同一 `_issue_tokens()` 路径，差异仅凭据校验方式 |
+| 1 | ADR-0048 §⑤「Redis 挂 → 无锁放行」静默覆盖 user-stated learning `ekris-redis-lock-degradation`，且会让 Redis 挂掉时静默丢用户编辑 | 改为**两层锁**（Redis 体验层 + `record_hash` 兜底层）；§⑤ 重写并显式声明与 learning 的关系；新增 §⑥ 粒度、§⑦ 409 契约 |
+| 2 | ADR-0046 §③ 的停用门只挂在 `/auth/login`，`/mock-login` 是独立签发路径（`mock_auth.py:58-68`），无 `tv` claim、不查 users、不写审计 | 裁定 `/mock-login` 走同一 `_issue_tokens()` 路径，差异仅凭据校验方式 |
 | 3 | Issue 3 原判「两个 alembic 闸门退出码约定会漂移」—— **前提错误**：`check_migration_idempotency.py` 是静态解析迁移文件，从不跑 alembic | 撤销该判断。改为复用**已存在**的 `scripts/run_gate.py`（cerebrum TODO-050 已立法），只加 `run_capture()` |
 | 4 | Task 8 Step 4 混进两件范围外的 SPEC 编辑 | 拆：71/70 → Task 8（PP-M 独立步）；§4.2 mock type → 完全移出，归 TODO-039/041（避免第二个真相源） |
 
@@ -1638,7 +1640,7 @@ Lane A 与 Lane B 无共享文件，可并行。
 
 | # | 委员会意见 | 核实结果 | 处置 |
 |---|---|---|---|
-| 必修 1 | ADR-0044 §⑤ 措辞自相矛盾 | **部分成立** —— 非语义矛盾（裁定已作出 + 防未来误释是两件事），但确实给人「裁定可能还没发生」的错觉 | 已合并为「裁定已作出 + 可证伪条件」，并去掉「不得由作者单方面解释」 |
+| 必修 1 | ADR-0048 §⑤ 措辞自相矛盾 | **部分成立** —— 非语义矛盾（裁定已作出 + 防未来误释是两件事），但确实给人「裁定可能还没发生」的错觉 | 已合并为「裁定已作出 + 可证伪条件」，并去掉「不得由作者单方面解释」 |
 | 必修 2 | Task 1 Step 8 探针可能混入 commit | **成立** —— Step 13 的 `git add -A` 确实是泄漏窗口 | Step 8 加 `test ! -e ... \|\| exit 1` 硬闸；Step 13 加 `git status` 二次拦截 |
 | 建议 1 | 「唯一收口」是未验证断言 | **成立且实质性** —— `finalize_calc_record` **不是**唯一写入点 | ADR §⑥ 已更正：列出 6 条旁路，并说明 `updated_at` 分支是 pump/pipe/pipe_net 的**常态**而非边角 |
 | 建议 2 | Task 2 Step 4 缺偏差处理规则 | 成立 | 已加「先记录偏差再继续，不得直接改基线数字」 |
@@ -1655,7 +1657,7 @@ $ grep -n "TODO-045\|TODO-046" TODOS.md
 
 （注意这两个是 `##` 级标题。委员会很可能用 `^### TODO-` grep 查，因而误判为空闲号。）
 
-**建议 1 更正的实质**：ADR-0044 §⑥ 原本用「唯一收口」论证兜底便宜。
+**建议 1 更正的实质**：ADR-0048 §⑥ 原本用「唯一收口」论证兜底便宜。
 实测 6 条旁路后，论证改为「零迁移 + `updated_at` 带 `onupdate` 必然刷新」——
 结论不变，但 pump/pipe/pipe_net 三类记录的冲突检测**依赖 `updated_at` 而非 hash**，
 这个事实必须写明，否则实施者会以为 hash 覆盖全部 21 张表。

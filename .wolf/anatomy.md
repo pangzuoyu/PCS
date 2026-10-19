@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T10:14:06.985Z
-> Files: 841 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T10:16:08.523Z
+> Files: 842 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -244,7 +244,7 @@
 
 ## .superpowers/sdd/PCS-PLAN-P9-PREP/
 
-- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9-PREP.md (~728 tok)
+- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9-PREP.md (~982 tok)
 
 ## .vite/vitest/
 
@@ -284,7 +284,7 @@
 - `PCS-PLAN-P3.2-SIM.md` — PCS P3.2 SIM 实施 Writing-Plan（V1.0，2026-09-08） (~7883 tok)
 - `PCS-PLAN-P4-CORE-ENGINE.md` — P4 核心计算引擎（第一批）实施计划 V1.1 (~2992 tok)
 - `PCS-PLAN-P5-DEVICE-EQUIPMENT.md` — P5 设备计算模块（第二批）实施计划 V1.10 (~20491 tok)
-- `PCS-PLAN-P9-PREP.md` — P9-Prep 实施计划（alembic 闸门 + 4 份 ADR + P1 端点清单 + MFA 决议） (~14277 tok)
+- `PCS-PLAN-P9-PREP.md` — P9-Prep 实施计划（alembic 闸门 + 4 份 ADR + P1 端点清单 + MFA 决议） (~14311 tok)
 - `PCS-PLAN-SUP-002-SPRINT SUP-002 Sprint Writing-Plan.md` — p2_sup_sprint_pc1_pipe_class_upgrade.py (~17953 tok)
 - `PCS-SIGN-F-P0-001-2026-10-08-R1.md` — PCS 折标系数正式签字确认书（修订版） (~1470 tok)
 - `PCS-SIGN-F-P0-001-2026-10-08.md` — PCS 折标系数正式签字确认书 (~1611 tok)
@@ -326,6 +326,7 @@
 - `0032-vessel-process-calculation.md` — VESSEL 工艺计算架构（P5-1 容器计算） (~2158 tok)
 - `0040-c-12-vessel-geometry-service-interface-freeze.md` — ADR-0040：C-12 vessel_service 公共接口 6 个月冻结 (~3027 tok)
 - `0041-c-12-vessel-6-path-coverage.md` — ADR-0041：C-12 vessel_service 12 路径覆盖补全（Q4 2026） (~6559 tok)
+- `0046-user-identity-model-migration.md` — ADR-0046：用户身份模型迁移 —— uuid5(username) 派生改为 users 表持久化主键 (~1040 tok)
 - `ADR-0023：EquipmentTypeCode项目级可配置.md` (~927 tok)
 - `ADR-P8-004：报表任务队列与文件生命周期.md` — ADR-P8-004：报表任务队列隔离与文件生命周期 (~1231 tok)
 - `README.md` — Project documentation (~242 tok)
@@ -1472,4 +1473,4 @@
 ## spec/
 
 - `工艺专用综合计算软件需求规格说明书 Web版 P8.md` (~5580 tok)
-- `PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md` — 变更	原因 (~3893 tok)
+- `PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md` — 变更	原因 (~4061 tok)

@@ -78,6 +78,7 @@ PP-5 ❌	alembic check 闸门自动化：把"改完迁移必须跑 alembic check
 2.2.2 四份 ADR（阻塞级）
 ADR	标题	必须回答的问题
 ADR-A	用户身份模型迁移：uuid5(username) → users 表持久化	① ID 等价性：历史 uuid5 与新 DB 主键如何共存/迁移？② 是否回填历史 uuid5 为 users 行？③ 登录路径变更（现在不查 users，未来为判停用要查）④ token_version 引入时机 ⑤ 停用即刻作废 access/refresh token 的实现
+　　✅ 已裁决：`docs/adr/0046-user-identity-model-migration.md`（accepted 2026-10-19）。① DB 主键唯一权威，uuid5 降级为存量 JWT 解析；② 不批量回填，惰性建行；③ 登录与 mock 共用 `_issue_tokens()`；④ 只给 refresh 写 `tv`；⑤ 停用时 `token_version += 1`，refresh 比对
 ADR-B	workflow_progress 观测层	① 写入点清单（哪些状态变更要写）② 同步写 vs 异步写（500ms 延迟要求倾向同步）③ 与 P1 状态机事务的边界 ④ 与计算模块事务的关系
 ADR-C	编辑锁	① 存储：DB SELECT FOR UPDATE vs Redis ② 自动续期机制（前端心跳频率 + 后端续期接口）③ 超时清理（30 分钟）④ 与状态机事务的关系 ⑤ Redis 不可用时的降级
 ADR-D	通知与待办数据模型	① notifications 表 vs 实时计算 ② todos 表 vs 实时计算 ③ 若实时计算，≤500ms 加载指标靠什么索引支撑 ④ 通知保留 30 天清理任务归属（ARQ？但 TODO-016 显示 ARQ 失败路径覆盖为零）
@@ -187,7 +188,13 @@ P9A-USR-001	users 表启用：AD 同步创建系统用户记录	ADR-A + P9-ADM-0
 P9A-USR-002	AD 同步服务：手动触发 + 定时任务（每日凌晨）；用户基本信息（姓名/邮箱/部门）+ AD 安全组	P9 SPEC §3.2.3
 P9A-USR-003	角色映射：AD 安全组 → 系统角色（5 角色），支持手动覆盖 + 日志	P9 SPEC §3.2.3
 P9A-USR-004	离职处理：AD 删除后标记停用 + token_version 递增使在手令牌即刻失效	新增条目（V1.3 缺口）
-P9A-USR-005	登录路径变更：登录时查 users 表判 status；停用用户拒绝登录	ADR-A
+P9A-USR-005	登录路径变更：登录时查 users 表判 status；停用用户拒绝登录	ADR-0046
+　　⚠️ ADR-0046 §③ 增加两项 SPEC 原条目没有的工作，**不写进排期会掉**：
+　　(a) 把签发逻辑抽成单一 `_issue_tokens()`，并让 `/auth/mock-login`（`mock_auth.py:53-68`，
+　　　现无 user_id claim / 无 tv / 不查 users / 不写审计）**共用**；否则 ADR-0046 的
+　　　①②⑤ 三条断言对 mock 流量全部失效。
+　　(b) 导出 `user_projects.user_id` / `audit_logs.created_by` 中**无对应 users 行**的
+　　　uuid5 存量孤儿清单，交人工确认。**不删 users 行**（FK `ondelete="CASCADE"`，删即删授权）。
 P9A-USR-006	历史 user_id 兼容：uuid5 派生 ID 与 DB 主键的等价性处理	ADR-A
 P9A-USR-007	token_version 机制：users 表加列；create_token 写 claim；refresh 端点校验（access token 保持无状态，吊销粒度 = access TTL 30 分钟）	TODO-002 修正后处方
 验收：AD 同步端到端跑通；停用用户 refresh 立即 401；历史数据外键不断裂。
@@ -371,7 +378,7 @@ P9-OPEN-004	用户同步定时频率	待确认	P9-Prep 决议（建议每日凌�
 P9-OPEN-005	批注 @提及	已确认（不支持）	保持	—
 P9-OPEN-006	通知 WebSocket vs 轮询	待确认	P9-Prep 决议（建议 WebSocket + 降级轮询）	P9-Prep
 P9-OPEN-007	workflow_progress	待启动	升级为 P9A-OBS-001~004	P9A
-P9-OPEN-008	用户身份模型迁移	（无）	ADR-A	P9-Prep
+P9-OPEN-008	用户身份模型迁移	已裁决：ADR-0046 accepted（2026-10-19）	ADR-A → `docs/adr/0046-user-identity-model-migration.md`	~~P9-Prep~~ 已关闭
 P9-OPEN-009	编辑锁存储方案	（无）	ADR-C	P9-Prep
 P9-OPEN-010	通知/待办表 vs 实时计算	（无）	ADR-D	P9-Prep
 P9-OPEN-011	fk_utility_energy_summary ondelete CASCADE vs RESTRICT	（无）	**已裁决：CASCADE**（`fd0e8b9`）	~~P9-Prep~~ 已关闭
