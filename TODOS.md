@@ -418,3 +418,92 @@ exit 1）。P9A 收口时基线应**仍为 71**，不是下调到 0 —— 71 �
   而加，闸就没了。
 - 变异验证：在真实页面 `PipeClassListPage` 上把 `dataIndex` 改回
   `'pipe_class_id'` → 编译期报错并列出契约里的真实字段。
+
+---
+
+## TODO-042 遗留两项：✅ 已闭环（2026-10-19）
+
+### 1. `streams` 三条 CHECK（迁移 `p8_011`，已在两个库执行）
+
+契约已收紧成枚举，但 `streams` 表原本**只有** `ck_streams_case_type`
+⇒ 走 API 被 422 挡住、**直接 SQL / 脚本却能写进去**，直到下次 GET 的
+响应校验才 500（写入现场与报错现场分离）。
+
+新增 `ck_streams_phase` / `ck_streams_data_mode` / `ck_streams_source_type`，
+迁移**从枚举取值**而非硬编码（硬编码 = 与 `enums.py` 形成第二份定义，
+正是 bug-187~191 的根），ORM 同步声明，幂等（先查 `pg_constraint`）。
+
+⚠️ **这条 CHECK 当场抓出一处测试数据缺陷**：三个 heat/outlet 测试的 fixture
+写的 `data_mode="MEASURED"` / `source_type="MEASURED"` 不在任何词表里
+（`MEASURED` 是 `simulation_status` 的值，不是 `data_mode`）。
+已改成 `CHEMICAL` / `SIM_IMPORT`。**让 fixture 不能瞎填，就是 CHECK 的价值。**
+
+**执行结果**：
+
+| 库 | revision | CHECK | `raw_phase` | streams 行数 | `alembic check` |
+|---|---|---|---|---|---|
+| `pcs`（开发） | `p8_011` | 4 条 | 有 | 0 | **exit 0** |
+| `pcs_test`（行为验证） | `p8_011` | 4 条 | 有 | **202（未变）** | **exit 0** |
+
+⚠️ `alembic check` 退出码是 **255 不是 1**；且 DB 落后 code head 时它**直接拒绝跑**
+——「守门没报」有时是**它根本没跑**（bug-143/144 藏了很久就是这么来的）。
+两个库都先确认 `current == heads` 才看它的结论。
+
+**约束在真库上真的生效**（SAVEPOINT 回滚探针，`pcs_test`）：
+
+| 插入 | 结果 |
+|---|---|
+| `data_mode=CHEMICAL` / `source_type=SIM_IMPORT` / `phase=NULL` | ✅ 接受 |
+| `phase=SOLID` | ✅ 接受 |
+| `phase=NULL` + `raw_phase='SUPERHEATED'`（词表外原值可留） | ✅ 接受 |
+| `data_mode='MEASURED'` | ❌ `CheckViolation` |
+| `data_mode='GAS'`（PSV 的词，不是物流的） | ❌ `CheckViolation` |
+| `source_type='NOPE'` / `'PIPE_CALCULATED2'` | ❌ `CheckViolation` |
+| `phase='GAS'` | ❌ `CheckViolation` |
+
+### 2. `streams.raw_phase` —— 堵住一次静默的数据丢失
+
+词表外的相态字母此前一律置 None 且**原值被丢弃**：用户只看到「相态没填」，
+不知道丢了什么、为什么丢。
+
+- 新列 `raw_phase`（可空，**故意不加 CHECK** —— 它的用途就是装下词表外的值，
+  加 CHECK 就把用途删了）；
+- **只在归一失败时填**；认出来了就不填，否则它变成与 `phase` 恒等的冗余，
+  且失去「异常信号」语义；
+- `MIXED` 不填 —— 它是**已知**合法值（只是导入器不抽组成），
+  另有 `is_mixed_phase` 记录，那不是「丢失」；
+- 进了契约 ⇒ **`phase IS NULL && raw_phase 非空` = 「有个值没认出来」，可查**。
+
+### ⚠️ 探针本身犯了三次错（这一段比上面两张表更值得记）
+
+真库验证时，我的探针**连续三次**给出了误导性结论：
+
+1. `INSERT` 漏了 `workspace_id` ⇒ 五条探针全被 NOT NULL 挡掉，
+   「被拒」是假结论 —— **失败原因不是被测的那条约束，就等于没验**；
+2. 第一条探针**提交了**，后续全部撞 `uq_streams_project_stream_name`，
+   报的是 UniqueViolation 而非 CheckViolation；
+3. 改了探针的 label 但**没改实际插入值** —— 探针 4/5 插的仍是
+   `CHEMICAL`/`SIM_IMPORT`，什么都没验到，却输出「被接受」。
+
+同一天我在别处还犯过一次：python 批量替换字符串后**无条件打印 "ok"**，
+而替换其实静默失败了（目标串没匹配）⇒ 一段本该落进文件的文档其实没落。
+
+⇒ **「我做了 X」的结论只有在「X 的效果真的被观察到」时才成立。**
+写探针与写测试是同一门手艺：断言必须落在被测路径上。
+（同 `bug-174` 的空绿、`test_pipe_class_schema.py` 里被自己解释文字触发的 docstring 守卫。）
+
+---
+
+## 仍未解决（本会话结束时的状态）
+
+| 项 | 规模 |
+|---|---|
+| **P9** | `report_verify_base_url` 未配置 ⇒ 二维码默认不印；`assemble` 真分批 |
+| **TODO-026** | 9 张结果表里 8 张仍是 `input_json`/`output_json` 简化容器。照 `CoolingTowerResult` 的 14 子结构铺开 ≈ **100+ 个子结构** + 迁移 + 契约 + 测试 |
+| **TODO-032** | 条目写 4 个测试文件，**实测 29 个**用真 PG（`get_async_session_factory`），是全测试目录级别的工程 |
+
+**另有两项本轮明确留作已知边界，不阻塞**：
+- `StrictColumns` 的数组形式只校验「每段都是某层的 key」，不校验「这些段能串成一条路」
+  —— 严格路径要 `as const`，而 `as const` 一旦为了「让闸闭嘴」而加，闸就没了；
+- `ConflictResolver._VALID_PHASES` 等**其它表**的裸串词表（如 `config_domain` 里
+  5 张子表用 `default="ACTIVE"` 而 `ConfigAsset` 用 `ConfigStatus`）尚未系统排查。
