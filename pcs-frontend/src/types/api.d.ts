@@ -630,6 +630,88 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/records/{module}/{record_id}/submit-approval": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 提交送审（DRAFT / CHECK_REJECTED → IN_APPROVAL）
+         * @description 提交记录进入审批（DRAFT / CHECK_REJECTED → IN_APPROVAL）。
+         *
+         *     `approval_role` 由请求给出且**必须不等于提交人自己的角色**：`can_self_check`
+         *     在记录侧没有配置源，本轮取其**最强形式**（恒不允许自审）—— 宽松形式
+         *     （只在配置说 false 时才拒）在没有配置源时等于没有防护。
+         *
+         *     `approval_depth` 缺省 1。⚠️ 多级批准的**角色链**在本仓没有定义来源，
+         *     见 `records_actions.py` 顶注与 `TODOS.md`；本轮不发明角色链。
+         */
+        post: operations["submit_approval_api_v1_records__module___record_id__submit_approval_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/records/{module}/{record_id}/approval-step": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 推进/退回当前批准步骤
+         * @description 批当前这一步。
+         *
+         *     深度耗尽（`approval_step >= approval_depth`）时走 `PASS_CHECK` → CHECKED，
+         *     再往后批 409 —— 不静默继续，因为「第 4 级」在本仓没有依据。
+         *
+         *     只有记录上的 `approval_role` 那个角色能批：矩阵把待批角色写进行里就是为了
+         *     这个，不校验等于那列是装饰。
+         */
+        post: operations["approval_step_api_v1_records__module___record_id__approval_step_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/records/{module}/{record_id}/abandon-change": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 放弃变更（CHANGE_PENDING → CHECKED，恢复快照）
+         * @description 放弃一条待生效的变更。
+         *
+         *     ⚠️ **不接线** `change_notice_service.approve_change_notice` —— 那个方法做的是
+         *     「变更单 PENDING → APPROVED（批准、变更生效）」，与「放弃」**方向相反**，
+         *     作用对象也不同（交付物 vs 记录）。接线会让用户点「放弃」而系统把变更批准。
+         *     判定过程见 `docs/PCS-PLAN-P9A-2-交付物写面.md` B4 Step 0 与 B4a 的 commit。
+         *
+         *     本端点转发既有状态机事件 `ABANDON_CHANGE`：CHANGE_PENDING → CHECKED +
+         *     恢复最新 ACTIVE 快照（`SNAPSHOT_RESTORERS`）+ 写 `change_abandoned_at/reason`
+         *     + 审计 `CHANGE_ABANDONED`。
+         */
+        post: operations["abandon_change_api_v1_records__module___record_id__abandon_change_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/lineage/{record_type}/{record_id}/upstream": {
         parameters: {
             query?: never;
@@ -6062,6 +6144,43 @@ export interface components {
              * @description 适用介质（工艺物料类别）
              */
             medium?: string | null;
+        };
+        /**
+         * ApprovalStepRequest
+         * @description 推进/退回当前批准步骤。
+         */
+        ApprovalStepRequest: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "PASS" | "REJECT";
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
+        };
+        /**
+         * ApprovalStepResponse
+         * @description 推进结果。`approval_step` / `approval_depth` 是「Step n/N」进度条的数据源。
+         */
+        ApprovalStepResponse: {
+            /** Record Type */
+            record_type: string;
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /** From Status */
+            from_status: string;
+            /** To Status */
+            to_status: string;
+            /** Approval Step */
+            approval_step: number;
+            /** Approval Depth */
+            approval_depth: number;
         };
         /**
          * AssetResponse
@@ -16501,6 +16620,50 @@ export interface components {
             /** Heat Exchanger Type */
             heat_exchanger_type?: ("AIR_COOLER" | "SHELL_TUBE") | null;
         };
+        /**
+         * SubmitApprovalRequest
+         * @description 提交送审（DRAFT / CHECK_REJECTED → IN_APPROVAL）。
+         *
+         *     `approval_role` 由提交人指定：本仓**没有**批准角色链的定义来源
+         *     （`project_templates.default_config_json` 的 `record_approval_config`
+         *     只有一句注释、无消费方），所以待批角色是显式输入而不是推导出来的。
+         *     服务端只做两件事：校验它在 7 值词表内、且**不等于提交人自己的角色**。
+         */
+        SubmitApprovalRequest: {
+            /**
+             * Approval Role
+             * @enum {string}
+             */
+            approval_role: "DESIGNER" | "CHECKER" | "REVIEWER" | "APPROVER" | "SYSTEM_ADMIN" | "PROCESS_CONTROLLER" | "DATA_ADMIN";
+            /**
+             * Approval Depth
+             * @default 1
+             */
+            approval_depth: number;
+        };
+        /**
+         * SubmitApprovalResponse
+         * @description 提交结果。
+         */
+        SubmitApprovalResponse: {
+            /** Record Type */
+            record_type: string;
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /** From Status */
+            from_status: string;
+            /** To Status */
+            to_status: string;
+            /** Approval Step */
+            approval_step: number;
+            /** Approval Depth */
+            approval_depth: number;
+            /** Approval Role */
+            approval_role: string;
+        };
         /** TableStyle */
         TableStyle: {
             /**
@@ -19752,6 +19915,120 @@ export interface operations {
         requestBody: {
             content: {
                 "application/json": components["schemas"]["ReversalDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    submit_approval_api_v1_records__module___record_id__submit_approval_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                module: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SubmitApprovalRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SubmitApprovalResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    approval_step_api_v1_records__module___record_id__approval_step_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                module: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApprovalStepRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApprovalStepResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    abandon_change_api_v1_records__module___record_id__abandon_change_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                module: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObsoleteRequest"];
             };
         };
         responses: {

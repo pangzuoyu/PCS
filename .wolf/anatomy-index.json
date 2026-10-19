@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T23:21:55.223Z",
-    "fileCount": 874,
+    "lastScanned": "2026-10-19T23:31:42.637Z",
+    "fileCount": 875,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "39205e10e681c894d23b7796eda44fb99dbcee9c0b1115fa63905ab1196fdb7c",
-    "storeUpdatedAt": "2026-10-19T23:21:55.234Z",
-    "rootHash": "35f13a8c081618a2"
+    "renderedHash": "adca4e874955b43dc483c10d591e6dfa1986acb296586dd9e8ef572ce1bde03c",
+    "storeUpdatedAt": "2026-10-19T23:31:42.646Z",
+    "rootHash": "8fd26ab68c03a826"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -29639,77 +29639,223 @@
     },
     "pcs-backend/app/schemas/records_actions.py": {
       "description": "records 写端点的请求/响应 schema（P9A B4）。",
-      "tokens": 396,
-      "hash": "d8274806cbb22a7f",
-      "size": 1936,
-      "mtimeMs": 1792451865589.329,
-      "updatedAt": "2026-10-19T23:17:45.648Z",
-      "source": "hook"
+      "tokens": 803,
+      "hash": "c55baa50d60e0959",
+      "size": 3763,
+      "mtimeMs": 1792452564298.454,
+      "updatedAt": "2026-10-19T23:29:24.349Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "RecordActionResponse",
+          "kind": "class",
+          "startLine": 17,
+          "endLine": 29,
+          "tokens": 114
+        },
+        {
+          "name": "ObsoleteRequest",
+          "kind": "class",
+          "startLine": 30,
+          "endLine": 35,
+          "tokens": 41
+        },
+        {
+          "name": "RequestReversalRequest",
+          "kind": "class",
+          "startLine": 36,
+          "endLine": 46,
+          "tokens": 84
+        },
+        {
+          "name": "ReversalDecisionRequest",
+          "kind": "class",
+          "startLine": 47,
+          "endLine": 67,
+          "tokens": 136
+        },
+        {
+          "name": "SubmitApprovalRequest",
+          "kind": "class",
+          "startLine": 68,
+          "endLine": 80,
+          "tokens": 111
+        },
+        {
+          "name": "SubmitApprovalResponse",
+          "kind": "class",
+          "startLine": 81,
+          "endLine": 98,
+          "tokens": 100
+        },
+        {
+          "name": "ApprovalStepRequest",
+          "kind": "class",
+          "startLine": 99,
+          "endLine": 105,
+          "tokens": 42
+        },
+        {
+          "name": "ApprovalStepResponse",
+          "kind": "class",
+          "startLine": 106,
+          "endLine": 115,
+          "tokens": 70
+        }
+      ]
     },
     "pcs-backend/app/api/v1/records_actions.py": {
       "description": "records 写端点（P9A B4）—— `/records/{module}/{id}/<action>`。",
-      "tokens": 1896,
-      "hash": "95efa12f970a5d1c",
-      "size": 8015,
-      "mtimeMs": 1792451877033.15,
-      "updatedAt": "2026-10-19T23:17:57.080Z",
+      "tokens": 3955,
+      "hash": "3eee8bfd38a8fb8c",
+      "size": 16601,
+      "mtimeMs": 1792452702589.0322,
+      "updatedAt": "2026-10-19T23:31:42.636Z",
       "source": "hook",
       "symbols": [
         {
           "name": "resolve_record_model",
           "kind": "fn",
-          "startLine": 51,
-          "endLine": 69,
-          "tokens": 158
-        },
-        {
-          "name": "_pk_name",
-          "kind": "fn",
-          "startLine": 70,
-          "endLine": 74,
-          "tokens": 42
+          "startLine": 61,
+          "endLine": 79,
+          "tokens": 159
         },
         {
           "name": "_load_record",
           "kind": "fn",
-          "startLine": 75,
-          "endLine": 92,
+          "startLine": 80,
+          "endLine": 97,
           "tokens": 154
         },
         {
           "name": "_roles_for",
           "kind": "fn",
-          "startLine": 93,
-          "endLine": 100,
+          "startLine": 98,
+          "endLine": 105,
           "tokens": 74
+        },
+        {
+          "name": "_transition",
+          "kind": "fn",
+          "startLine": 106,
+          "endLine": 142,
+          "tokens": 292
         },
         {
           "name": "_response",
           "kind": "fn",
-          "startLine": 101,
-          "endLine": 114,
+          "startLine": 143,
+          "endLine": 156,
           "tokens": 121
         },
         {
           "name": "obsolete_record",
           "kind": "fn",
-          "startLine": 115,
-          "endLine": 147,
-          "tokens": 303
+          "startLine": 157,
+          "endLine": 189,
+          "tokens": 300
         },
         {
           "name": "request_reversal",
           "kind": "fn",
-          "startLine": 148,
-          "endLine": 177,
-          "tokens": 267
+          "startLine": 190,
+          "endLine": 219,
+          "tokens": 265
         },
         {
           "name": "reversal_decision",
           "kind": "fn",
-          "startLine": 178,
-          "endLine": 210,
-          "tokens": 314
+          "startLine": 220,
+          "endLine": 258,
+          "tokens": 360
+        },
+        {
+          "name": "submit_approval",
+          "kind": "fn",
+          "startLine": 259,
+          "endLine": 309,
+          "tokens": 505
+        },
+        {
+          "name": "approval_step",
+          "kind": "fn",
+          "startLine": 310,
+          "endLine": 398,
+          "tokens": 860
+        },
+        {
+          "name": "abandon_change",
+          "kind": "fn",
+          "startLine": 399,
+          "endLine": 428,
+          "tokens": 324
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_records_actions_statemachine.py": {
+      "description": "records 写端点 · 状态机面 3 个（P9A B4b）。",
+      "tokens": 3944,
+      "hash": "463f62b9c1aa69d6",
+      "size": 15603,
+      "mtimeMs": 1792452675481.5076,
+      "updatedAt": "2026-10-19T23:31:15.526Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "auth",
+          "kind": "fn",
+          "startLine": 33,
+          "endLine": 36,
+          "tokens": 33
+        },
+        {
+          "name": "_checker_auth",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 44,
+          "tokens": 58
+        },
+        {
+          "name": "_make_record",
+          "kind": "fn",
+          "startLine": 45,
+          "endLine": 62,
+          "tokens": 184
+        },
+        {
+          "name": "_url",
+          "kind": "fn",
+          "startLine": 63,
+          "endLine": 66,
+          "tokens": 30
+        },
+        {
+          "name": "TestSubmitApproval",
+          "kind": "class",
+          "startLine": 67,
+          "endLine": 134,
+          "tokens": 712
+        },
+        {
+          "name": "TestApprovalStep",
+          "kind": "class",
+          "startLine": 135,
+          "endLine": 307,
+          "tokens": 1770
+        },
+        {
+          "name": "TestAbandonChange",
+          "kind": "class",
+          "startLine": 308,
+          "endLine": 378,
+          "tokens": 737
+        },
+        {
+          "name": "TestResponseContract",
+          "kind": "class",
+          "startLine": 379,
+          "endLine": 394,
+          "tokens": 147
         }
       ]
     }

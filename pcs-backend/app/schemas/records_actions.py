@@ -49,3 +49,66 @@ class ReversalDecisionRequest(BaseModel):
 
     decision: ReversalDecision
     reason: str = Field(default="", max_length=500)
+
+
+#: ApprovalRole 7 值，逐字取自 `app/models/project.py:154` 的列注释。
+#: 该词表此前只存在于注释里 —— 与 P9A 交付物的 VersionPurpose 同一个形状
+#: （词表不在类型里 → 调用方猜 → 猜错静默）。
+ApprovalRole = Literal[
+    "DESIGNER",
+    "CHECKER",
+    "REVIEWER",
+    "APPROVER",
+    "SYSTEM_ADMIN",
+    "PROCESS_CONTROLLER",
+    "DATA_ADMIN",
+]
+
+
+class SubmitApprovalRequest(BaseModel):
+    """提交送审（DRAFT / CHECK_REJECTED → IN_APPROVAL）。
+
+    `approval_role` 由提交人指定：本仓**没有**批准角色链的定义来源
+    （`project_templates.default_config_json` 的 `record_approval_config`
+    只有一句注释、无消费方），所以待批角色是显式输入而不是推导出来的。
+    服务端只做两件事：校验它在 7 值词表内、且**不等于提交人自己的角色**。
+    """
+
+    approval_role: ApprovalRole
+    approval_depth: int = Field(default=1, ge=1, le=4)
+
+
+class SubmitApprovalResponse(BaseModel):
+    """提交结果。"""
+
+    model_config = {"from_attributes": True}
+
+    record_type: str
+    record_id: uuid.UUID
+    from_status: str
+    to_status: str
+    approval_step: int
+    approval_depth: int
+    approval_role: str
+
+
+#: 批准裁决 2 值。PASS 与 REJECT 相反，两个分支都要能走通。
+ApprovalDecision = Literal["PASS", "REJECT"]
+
+
+class ApprovalStepRequest(BaseModel):
+    """推进/退回当前批准步骤。"""
+
+    decision: ApprovalDecision
+    reason: str = Field(default="", max_length=500)
+
+
+class ApprovalStepResponse(BaseModel):
+    """推进结果。`approval_step` / `approval_depth` 是「Step n/N」进度条的数据源。"""
+
+    record_type: str
+    record_id: uuid.UUID
+    from_status: str
+    to_status: str
+    approval_step: int
+    approval_depth: int

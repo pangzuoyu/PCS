@@ -1949,3 +1949,8 @@
 | 07:21 | Edited pcs-backend/tests/api/v1/test_records_actions_wired.py | modified auth() | ~150 |
 | 07:21 | Edited pcs-backend/tests/api/v1/test_records_actions_wired.py | modified test_reversal_decision_requires_approver_role() | ~228 |
 | 07:21 | Edited pcs-backend/tests/api/v1/test_records_actions_wired.py | modified test_obsolete_row_is_still_in_db() | ~34 |
+| 07:28 | Created pcs-backend/tests/api/v1/test_records_actions_statemachine.py | — | ~3634 |
+| 07:29 | Edited pcs-backend/app/schemas/records_actions.py | modified ReversalDecisionRequest() | ~458 |
+| 07:30 | Edited pcs-backend/tests/api/v1/test_records_actions_statemachine.py | modified _submitted() | ~154 |
+| 07:31 | Edited pcs-backend/tests/api/v1/test_records_actions_statemachine.py | modified test_intermediate_step_is_audited() | ~296 |
+| 07:31 | Edited pcs-backend/app/api/v1/records_actions.py | modified _transition() | ~44 |

@@ -33,17 +33,27 @@ from app.api.v1._guard import check_record_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError
 from app.db.session import get_db
-from app.models.enums import StateTransition
+from app.models.enums import AuditAction, RecordSignStatus9, StateTransition, to_value
 from app.schemas.records_actions import (
+    ApprovalStepRequest,
+    ApprovalStepResponse,
     ObsoleteRequest,
     RecordActionResponse,
     RequestReversalRequest,
     ReversalDecisionRequest,
+    SubmitApprovalRequest,
+    SubmitApprovalResponse,
 )
+from app.services.audit_service import AuditService
 from app.services.calc_lineage import RECORD_TYPE_REGISTRY
 from app.services.record_cancellation_service import RecordCancellationService
 from app.services.reversal_approval_service import ReversalApprovalService
-from app.services.state_machine import TRANSITION_ROLES
+from app.services.state_machine import (
+    TRANSITION_ROLES,
+    InvalidTransition,
+    RoleForbidden,
+    StateMachineService,
+)
 
 router = APIRouter(tags=["records"])
 
@@ -91,6 +101,43 @@ def _roles_for(*transitions: StateTransition) -> tuple[str, ...]:
     for transition in transitions:
         allowed |= TRANSITION_ROLES[transition]
     return tuple(sorted(allowed))
+
+
+async def _transition(
+    db: AsyncSession,
+    *,
+    record: Any,
+    transition: StateTransition,
+    actor: _Actor,
+    reason: str = "",
+) -> None:
+    """走 9 态状态机并把它的两个异常映射成 HTTP 语义。
+
+    `RoleForbidden` → 403（角色不够）、`InvalidTransition` → 409（状态不对）。
+    不映射的话它们会落到 FastAPI 的 500 兜底 —— 而「状态不对」是用户
+    按错按钮的正常结果，不是系统故障；返回 500 会让前端弹「系统错误」
+    而不是「这一步现在不能批」。
+    """
+    try:
+        await StateMachineService(db).transition(
+            record=record,
+            transition=transition,
+            actor_user_id=actor.user_id,
+            actor_role=actor.role,
+            reason=reason or None,
+        )
+    except RoleForbidden as e:
+        raise PcsError(
+            code="RECORD_ROLE_FORBIDDEN",
+            message=f"角色 {actor.role} 不能执行 {transition.value}",
+            status=403,
+        ) from e
+    except InvalidTransition as e:
+        raise PcsError(
+            code="RECORD_INVALID_TRANSITION",
+            message=f"{e.from_status} 不能执行 {e.transition}",
+            status=409,
+        ) from e
 
 
 def _response(module: str, record_id: uuid.UUID, result: dict[str, Any]) -> RecordActionResponse:
@@ -202,3 +249,179 @@ async def reversal_decision(
         )
     await db.commit()
     return _response(module, record_id, result)
+
+
+@router.post(
+    "/records/{module}/{record_id}/submit-approval",
+    response_model=SubmitApprovalResponse,
+    summary="提交送审（DRAFT / CHECK_REJECTED → IN_APPROVAL）",
+)
+async def submit_approval(
+    module: str,
+    record_id: uuid.UUID,
+    body: SubmitApprovalRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> SubmitApprovalResponse:
+    """提交记录进入审批（DRAFT / CHECK_REJECTED → IN_APPROVAL）。
+
+    `approval_role` 由请求给出且**必须不等于提交人自己的角色**：`can_self_check`
+    在记录侧没有配置源，本轮取其**最强形式**（恒不允许自审）—— 宽松形式
+    （只在配置说 false 时才拒）在没有配置源时等于没有防护。
+
+    `approval_depth` 缺省 1。⚠️ 多级批准的**角色链**在本仓没有定义来源，
+    见 `records_actions.py` 顶注与 `TODOS.md`；本轮不发明角色链。
+    """
+    require_roles(actor, *_roles_for(StateTransition.SUBMIT_FOR_CHECK))
+    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    if body.approval_role == actor.role:
+        raise PcsError(
+            code="APPROVAL_SELF_REVIEW_FORBIDDEN",
+            message=(
+                f"待批角色不能是提交人自己的角色（{body.approval_role}）："
+                "记录侧没有 can_self_check 配置源，本端点一律不允许自审"
+            ),
+            status=403,
+        )
+    from_status = record.sign_status
+    record.approval_role = body.approval_role
+    record.approval_depth = body.approval_depth
+    record.approval_step = 1
+    await _transition(
+        db, record=record, transition=StateTransition.SUBMIT_FOR_CHECK, actor=actor
+    )
+    await db.commit()
+    return SubmitApprovalResponse(
+        record_type=module,
+        record_id=record_id,
+        from_status=to_value(from_status),
+        to_status=to_value(record.sign_status),
+        approval_step=record.approval_step or 1,
+        approval_depth=record.approval_depth,
+        approval_role=record.approval_role or "",
+    )
+
+
+@router.post(
+    "/records/{module}/{record_id}/approval-step",
+    response_model=ApprovalStepResponse,
+    summary="推进/退回当前批准步骤",
+)
+async def approval_step(
+    module: str,
+    record_id: uuid.UUID,
+    body: ApprovalStepRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> ApprovalStepResponse:
+    """批当前这一步。
+
+    深度耗尽（`approval_step >= approval_depth`）时走 `PASS_CHECK` → CHECKED，
+    再往后批 409 —— 不静默继续，因为「第 4 级」在本仓没有依据。
+
+    只有记录上的 `approval_role` 那个角色能批：矩阵把待批角色写进行里就是为了
+    这个，不校验等于那列是装饰。
+    """
+    require_roles(actor, *_roles_for(StateTransition.PASS_CHECK))
+    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    if to_value(record.sign_status) != RecordSignStatus9.IN_APPROVAL.value:
+        raise PcsError(
+            code="APPROVAL_NOT_ACTIVE",
+            message=(
+                f"记录当前 {record.sign_status}，不在审批中"
+                f"（只有 IN_APPROVAL 能批；DRAFT 请先 submit-approval）"
+            ),
+            status=409,
+        )
+    if record.approval_role and record.approval_role != actor.role:
+        raise PcsError(
+            code="APPROVAL_ROLE_MISMATCH",
+            message=f"待批角色是 {record.approval_role}，当前角色 {actor.role}",
+            status=403,
+        )
+
+    from_status = record.sign_status
+    current_step = record.approval_step or 1
+    depth = record.approval_depth or 1
+
+    if body.decision == "REJECT":
+        await _transition(
+            db, record=record, transition=StateTransition.REJECT_CHECK,
+            actor=actor, reason=body.reason,
+        )
+        final_step = current_step
+    elif current_step >= depth:
+        # 深度耗尽 ⇒ 整条记录 CHECKED。**先记 step 再转移**：
+        # PASS_CHECK 会把 approval_step 清空，事后取就是 None，进度条会少一格。
+        final_step = depth
+        await _transition(
+            db, record=record, transition=StateTransition.PASS_CHECK,
+            actor=actor, reason=body.reason,
+        )
+    else:
+        # 中间步骤：只推进计数器，不改 sign_status（仍是 IN_APPROVAL）。
+        # 这里**不发状态机事件** —— 9 态里没有「审批中→审批中」这个转移，
+        # 硬造一个会让 ALLOWED_TRANSITIONS 出现自环。审计另写一条。
+        final_step = current_step + 1
+        record.approval_step = final_step
+        await db.flush()
+        # 中间步骤不发状态机事件，但**必须留痕**：记录表上没有「第几步谁批的」列，
+        # 审计是唯一去处。漏了它，深度 > 1 时中间批准人彻底无从追溯。
+        await AuditService(db).write(
+            action=AuditAction.APPROVAL_STEP_PASSED,
+            resource_type="record",
+            resource_id=record_id,
+            user_id=actor.user_id,
+            detail={
+                "module": module,
+                "approval_step": final_step,
+                "approval_depth": depth,
+                "role": actor.role,
+            },
+        )
+
+    await db.commit()
+    return ApprovalStepResponse(
+        record_type=module,
+        record_id=record_id,
+        from_status=to_value(from_status),
+        to_status=to_value(record.sign_status),
+        approval_step=final_step,
+        approval_depth=depth,
+    )
+
+
+@router.post(
+    "/records/{module}/{record_id}/abandon-change",
+    response_model=RecordActionResponse,
+    summary="放弃变更（CHANGE_PENDING → CHECKED，恢复快照）",
+)
+async def abandon_change(
+    module: str,
+    record_id: uuid.UUID,
+    body: ObsoleteRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> RecordActionResponse:
+    """放弃一条待生效的变更。
+
+    ⚠️ **不接线** `change_notice_service.approve_change_notice` —— 那个方法做的是
+    「变更单 PENDING → APPROVED（批准、变更生效）」，与「放弃」**方向相反**，
+    作用对象也不同（交付物 vs 记录）。接线会让用户点「放弃」而系统把变更批准。
+    判定过程见 `docs/PCS-PLAN-P9A-2-交付物写面.md` B4 Step 0 与 B4a 的 commit。
+
+    本端点转发既有状态机事件 `ABANDON_CHANGE`：CHANGE_PENDING → CHECKED +
+    恢复最新 ACTIVE 快照（`SNAPSHOT_RESTORERS`）+ 写 `change_abandoned_at/reason`
+    + 审计 `CHANGE_ABANDONED`。
+    """
+    require_roles(actor, *_roles_for(StateTransition.ABANDON_CHANGE))
+    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    from_status = record.sign_status
+    await _transition(
+        db, record=record, transition=StateTransition.ABANDON_CHANGE,
+        actor=actor, reason=body.reason,
+    )
+    await db.commit()
+    return _response(
+        module, record_id, {"from": to_value(from_status), "to": to_value(record.sign_status)}
+    )

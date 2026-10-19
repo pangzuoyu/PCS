@@ -1503,6 +1503,243 @@
         }
       }
     },
+    "/api/v1/records/{module}/{record_id}/submit-approval": {
+      "post": {
+        "tags": [
+          "records"
+        ],
+        "summary": "提交送审（DRAFT / CHECK_REJECTED → IN_APPROVAL）",
+        "description": "提交记录进入审批（DRAFT / CHECK_REJECTED → IN_APPROVAL）。\n\n`approval_role` 由请求给出且**必须不等于提交人自己的角色**：`can_self_check`\n在记录侧没有配置源，本轮取其**最强形式**（恒不允许自审）—— 宽松形式\n（只在配置说 false 时才拒）在没有配置源时等于没有防护。\n\n`approval_depth` 缺省 1。⚠️ 多级批准的**角色链**在本仓没有定义来源，\n见 `records_actions.py` 顶注与 `TODOS.md`；本轮不发明角色链。",
+        "operationId": "submit_approval_api_v1_records__module___record_id__submit_approval_post",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SubmitApprovalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SubmitApprovalResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/records/{module}/{record_id}/approval-step": {
+      "post": {
+        "tags": [
+          "records"
+        ],
+        "summary": "推进/退回当前批准步骤",
+        "description": "批当前这一步。\n\n深度耗尽（`approval_step >= approval_depth`）时走 `PASS_CHECK` → CHECKED，\n再往后批 409 —— 不静默继续，因为「第 4 级」在本仓没有依据。\n\n只有记录上的 `approval_role` 那个角色能批：矩阵把待批角色写进行里就是为了\n这个，不校验等于那列是装饰。",
+        "operationId": "approval_step_api_v1_records__module___record_id__approval_step_post",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApprovalStepRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApprovalStepResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/records/{module}/{record_id}/abandon-change": {
+      "post": {
+        "tags": [
+          "records"
+        ],
+        "summary": "放弃变更（CHANGE_PENDING → CHECKED，恢复快照）",
+        "description": "放弃一条待生效的变更。\n\n⚠️ **不接线** `change_notice_service.approve_change_notice` —— 那个方法做的是\n「变更单 PENDING → APPROVED（批准、变更生效）」，与「放弃」**方向相反**，\n作用对象也不同（交付物 vs 记录）。接线会让用户点「放弃」而系统把变更批准。\n判定过程见 `docs/PCS-PLAN-P9A-2-交付物写面.md` B4 Step 0 与 B4a 的 commit。\n\n本端点转发既有状态机事件 `ABANDON_CHANGE`：CHANGE_PENDING → CHECKED +\n恢复最新 ACTIVE 快照（`SNAPSHOT_RESTORERS`）+ 写 `change_abandoned_at/reason`\n+ 审计 `CHANGE_ABANDONED`。",
+        "operationId": "abandon_change_api_v1_records__module___record_id__abandon_change_post",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObsoleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/lineage/{record_type}/{record_id}/upstream": {
       "get": {
         "tags": [
@@ -18744,6 +18981,70 @@
         "type": "object",
         "title": "ApplicableConditions",
         "description": "设备适用工况区间（equip_lib.applicable_conditions_json 内嵌段）。\n\n业务：标准化沉淀时记录设备适用的压力/温度/介质区间（自由文本格式如\n\"0.1~2.5 MPa\"/\"-20~200 °C\"）；便于后续项目选型快速匹配复用。"
+      },
+      "ApprovalStepRequest": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "PASS",
+              "REJECT"
+            ],
+            "title": "Decision"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision"
+        ],
+        "title": "ApprovalStepRequest",
+        "description": "推进/退回当前批准步骤。"
+      },
+      "ApprovalStepResponse": {
+        "properties": {
+          "record_type": {
+            "type": "string",
+            "title": "Record Type"
+          },
+          "record_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Record Id"
+          },
+          "from_status": {
+            "type": "string",
+            "title": "From Status"
+          },
+          "to_status": {
+            "type": "string",
+            "title": "To Status"
+          },
+          "approval_step": {
+            "type": "integer",
+            "title": "Approval Step"
+          },
+          "approval_depth": {
+            "type": "integer",
+            "title": "Approval Depth"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_type",
+          "record_id",
+          "from_status",
+          "to_status",
+          "approval_step",
+          "approval_depth"
+        ],
+        "title": "ApprovalStepResponse",
+        "description": "推进结果。`approval_step` / `approval_depth` 是「Step n/N」进度条的数据源。"
       },
       "AssetResponse": {
         "properties": {
@@ -36437,6 +36738,81 @@
         "type": "object",
         "title": "StylePatch",
         "description": "样式局部补丁。\n\n`extra=\"forbid\"`：拼错字段名必须报错。Pydantic 默认 `ignore` 会让\n`font_size_bodyy` 静默通过、返回 201、而样式毫无变化 ——\n「保存成功但什么都没变」是比报错更难查的故障。\n\n禁写字段用 `model_validator` 在**模型层**拦，而不是端点里逐个判断：\n少一个端点就少一处漏判。"
+      },
+      "SubmitApprovalRequest": {
+        "properties": {
+          "approval_role": {
+            "type": "string",
+            "enum": [
+              "DESIGNER",
+              "CHECKER",
+              "REVIEWER",
+              "APPROVER",
+              "SYSTEM_ADMIN",
+              "PROCESS_CONTROLLER",
+              "DATA_ADMIN"
+            ],
+            "title": "Approval Role"
+          },
+          "approval_depth": {
+            "type": "integer",
+            "maximum": 4.0,
+            "minimum": 1.0,
+            "title": "Approval Depth",
+            "default": 1
+          }
+        },
+        "type": "object",
+        "required": [
+          "approval_role"
+        ],
+        "title": "SubmitApprovalRequest",
+        "description": "提交送审（DRAFT / CHECK_REJECTED → IN_APPROVAL）。\n\n`approval_role` 由提交人指定：本仓**没有**批准角色链的定义来源\n（`project_templates.default_config_json` 的 `record_approval_config`\n只有一句注释、无消费方），所以待批角色是显式输入而不是推导出来的。\n服务端只做两件事：校验它在 7 值词表内、且**不等于提交人自己的角色**。"
+      },
+      "SubmitApprovalResponse": {
+        "properties": {
+          "record_type": {
+            "type": "string",
+            "title": "Record Type"
+          },
+          "record_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Record Id"
+          },
+          "from_status": {
+            "type": "string",
+            "title": "From Status"
+          },
+          "to_status": {
+            "type": "string",
+            "title": "To Status"
+          },
+          "approval_step": {
+            "type": "integer",
+            "title": "Approval Step"
+          },
+          "approval_depth": {
+            "type": "integer",
+            "title": "Approval Depth"
+          },
+          "approval_role": {
+            "type": "string",
+            "title": "Approval Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_type",
+          "record_id",
+          "from_status",
+          "to_status",
+          "approval_step",
+          "approval_depth",
+          "approval_role"
+        ],
+        "title": "SubmitApprovalResponse",
+        "description": "提交结果。"
       },
       "TableStyle": {
         "properties": {
