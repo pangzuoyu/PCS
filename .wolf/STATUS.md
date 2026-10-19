@@ -4,7 +4,7 @@ budget_tokens: 1500
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-19（第 4 轮）。
+> Read this FIRST when starting a session. Last updated: 2026-10-19（第 5 轮）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
@@ -66,6 +66,19 @@ Web 开发计划 P9 拆三段｜TODO-047 登记。
 （`_IncludedRouter` 不展开）—— 计划的「唯一可信来源」会产出空清单；
 ③ `record_hash` **不是**覆盖全部结果表 —— 29 张里只有 19 张有。
 
+### 第 5 轮（本会话后半）：P9A 实施计划（编写 + 两轮审查）
+
+产出 **`docs/PCS-PLAN-P9A.md` 总纲 + 4 份 lane**（1-身份 / 2-交付物写面 / 3-通知待办 / 4-编辑锁与CIA）。
+经 `/plan-eng-review` + 决策委员会**两轮**，共 16 条 issue 全部处置，`UNRESOLVED: 0`。
+明细见计划末尾 `## GSTACK REVIEW REPORT`。
+
+**开工前勘察推翻了 SPEC 的一个关键假设**：P9A 不是「从零建 34 件事」——
+实测 **8 张交付物 ORM 表 + 4 个 service（约 1900 行，各带约 450 行测试）已存在，
+但无任何 API 出口** ⇒ P9A 主要是接线，真正新建只有 2 表 + 2 列 + 约 16 端点。
+
+四条 lane **各自带自己的迁移**，可并行（卡不到同一个 alembic head 上）。
+唯一强制顺序：**D2 编辑保存路径在 B 之后**。
+
 ---
 
 ## ✅ 基线
@@ -78,16 +91,31 @@ Web 开发计划 P9 拆三段｜TODO-047 登记。
 
 ## 🚀 Next quest
 
-1. **写 `docs/PCS-PLAN-P9A.md`** —— P9-Prep 已闭环（9 个 task 全部完成，见「本会话完成」）。
-   P9A 的前提现在具备了：4 份 ADR 已 accepted。**先读 ADR 里各自的「尚未解决」段**，
-   那几段就是 P9A 必须先答的问题（尤其是 ADR-0048 的兜底令牌分表问题）。
+
+
+1. **执行 `docs/PCS-PLAN-P9A-1-身份.md`（A1→A3）** —— 计划已写好并审完两轮，**无前置，是整条线起点**。
+   ⚠️ **B4 有阻塞式 Step 0**：`change_notice_service.approve_change_notice` 是否等同
+   SPEC 的 `abandon-change` 必须先读实现判定（approve 与 abandon 是相反动作，
+   接错 = 数据语义错误），**结论写进 commit，无结论不开工**。
+   B/C/D 三条 lane 可与 A 并行；D2 必须在 B 之后。
+
+
 2. **两件多日工程，别当小任务排**：
    - **TODO-026**：9 张结果表里 8 张仍是 `input_json`/`output_json` 简化容器，
      照 `CoolingTowerResult` 的 14 子结构铺开 ≈ **100+ 个子结构** + 迁移 + 契约 + 测试；
    - **TODO-032**：条目写 4 个文件，**实测 29 个**用真 PG（`get_async_session_factory`）。
-3. **P9-Prep 顺带登记的**：
-   - **TODO-047**（已登记）：`advisory_lock.acquire_record_lock` 用 Python `hash()`，
-     跨进程不串行 —— 同文件的 `hashtext()` 才是对的。归 P9A-LCK 或独立修复。
+
+
+3. **P9A 计划里的未决项**（详见总纲 §尚未解决）：
+   ① 周期估算可能偏低 —— SPEC 给 4~6 周，但 WebSocket / ARQ 失败注入 / 编辑锁
+   不在原估算里；② `GET /deliverables/{id}/actions` 的数据源未定；
+   ③ `audit_logs` 保留期未裁决（裁决 2 让写入量取决于编辑频率）。
+
+
+4. **P9-Prep 顺带登记的**：
+   - **TODO-047**（已登记，**已移出 P9A**）：`acquire_record_lock` 全仓**唯一调用方**是
+     `workspaces.py:129`（workspace 归档），P9A 的 6 个文件 **0 处引用** ⇒ 与 P9A 无交集，
+     是 P7/P8 缺陷。（委员会原判「P9A 会加剧它」经实测前提有误。）
    - **ADR-0048 §⑥ 覆盖缺口**：29 张 `*_result(s)` 表里 **19 张**有 `record_hash`，
      `sim_*`(8) / `util_results` / `cost_est_results` **没有**，`two_phase_results`
      有 hash 但**无 `updated_at`** ⇒ 这 **11 张**要做编辑并发保护**需要新列**（其中 9 张两者都没有）。补哪列未裁决。
