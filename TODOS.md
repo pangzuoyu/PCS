@@ -1772,3 +1772,33 @@ A 类全补 → 48+6 = 54/74 = **73.0%**；B 类确认不做 → 仍 73.0%。
   `Stream`。
 
 两条都指向同一个病：**fixture 与被测对象不是同一份来源**（bug-180）。
+
+---
+
+## TODO-041: 类型闸已纳入 `tests`，但 antd `dataIndex` 是它的**洞**（2026-10-19 落地）
+
+`tsconfig.json` 的 `include` 已改为 `["src", "tests"]`。677 测试 / typecheck clean。
+
+### 这道闸实测能抓什么（探针验证，非推断）
+
+| 形态 | 结果 |
+|---|---|
+| `stream.<契约里没有的字段>` | ✅ TS2339 |
+| fixture 漏契约**必填**字段 | ✅ TS2741 |
+| 传给 typed prop 的类型不对 | ✅ TS2322 |
+| **`ColumnsType` 里 `dataIndex: '<拼错的字段名>'`** | ❌ **抓不到** |
+
+⚠️ 最后一行的原因：antd 把 `dataIndex` 定成 `string | string[]`，
+**不是 `keyof T`**。所以列定义里写一个不存在的字段名，类型检查完全沉默 ——
+而那正是 bug-180 的失效形态（`PipeClassListPage` 列定义读 `pipe_class_id`，
+整列在生产上是空的）。**纳入 tests ≠ 这个洞自动消失。**
+
+### 补法（按代价排序，都还没做）
+
+1. **本地封装一个 `typedColumns` helper**，把 `dataIndex` 收成 `keyof T`。
+   代价最小，但每个页面要改用法。
+2. **eslint 规则**：禁止 `dataIndex` 用字符串字面量（要求 `keyof` 表达式）。
+3. `scripts/audit-handwritten-types.mjs` 已能部分兜（它 grep 页面源码里的
+   字段名并与契约比对），但**要人跑**，不是闸。
+
+⇒ 在补法落地前，**改列定义后仍要人工核对 dataIndex 与契约字段名**。

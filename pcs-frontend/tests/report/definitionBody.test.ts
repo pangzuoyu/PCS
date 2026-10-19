@@ -18,10 +18,16 @@ import {
 } from '../../src/pages/report/definitionBody';
 import type { ReportBuilderDatasource } from '../../src/api/reportBuilder';
 
+// ⚠️ `model` 是契约 `ReportBuilderDatasource` 的**必填**字段
+// （openapi required: ['key','label','model','fields']）。此前这个 fixture
+// 漏了它 —— 因为 tests/ 不在类型检查内（tsconfig include=["src"]，
+// 2026-10-19 才纳入），漏了也没人知道。值取真实模型名，让 fixture 与
+// 后端真返的形状一致。
 const SOURCES: ReportBuilderDatasource[] = [
   {
     key: 'HEAT_RESULTS',
     label: '换热器结果',
+    model: 'HeatResult',
     fields: [
       { name: 'tag_number', label: '位号', type: 'string',
         is_jsonb_key: false, level: null, exchanger_type: null },
@@ -93,8 +99,11 @@ describe('buildBody', () => {
     // ⚠️ key 只用于 React 列表渲染。多发给后端会被 extra="forbid" 拒成 422。
     const body = buildBody({
       rows, level: 'BASIC', maxRows: 10, outputFormat: 'pdf', filter: null,
-    }) as unknown as Record<string, unknown[]>;
-    expect(body.SelectedFields[0]).not.toHaveProperty('key');
+    });
+    // 不用 `as unknown as Record<string, unknown[]>` —— 那个双重断言把
+    // 类型信息全丢了，于是 `toRows(body, ...)` 需要时又得再断一次。
+    // `buildBody` 本来就返回 `ReportDefinitionBody`，直接用即可。
+    expect(body.SelectedFields?.[0]).not.toHaveProperty('key');
     expect(toRows(body, SOURCES)[0].key).toBeTruthy();
   });
 

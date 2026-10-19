@@ -11,7 +11,7 @@
  *
  * Props：
  *   streams: { stream_id: string; tag_number: string; sign_status: Stream['sign_status'] }[]
- *   onCalculate?: (input: FlashInput) => FlashResult | undefined
+ *   onCalculate?: (input: FlashInput) => FlashResult | null | undefined
  *
  * V1：默认 in-memory 计算函数 mock（PR 简单分率恒等 / 其他留接口）。
  */
@@ -50,7 +50,12 @@ interface StreamLite {
 
 interface Props {
   streams: StreamLite[];
-  onCalculate?: (input: FlashInput) => FlashResult | undefined;
+  onCalculate?: (input: FlashInput) => FlashResult | null | undefined;
+  /** 失败时返回 `null` 或 `undefined` **都**表示「空」—— 页面里的守卫是
+   *  `if (!r)`，两者走同一条 `计算失败：返回空` 分支。真实调用方会是
+   *  fetch 包装器，失败时自然返回 null，所以类型必须收它；此前只写
+   *  `| undefined`，于是「返回 null 走失败分支」这件事被 `tsc` 禁止，
+   *  三个页面测试只能靠 `as` 或报错硬绕。 */
 }
 
 const THERMO_OPTIONS: { value: ThermoMethod; label: string }[] = [

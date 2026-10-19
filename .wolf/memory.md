@@ -1686,3 +1686,8 @@
 | 09:47 | Edited pcs-frontend/tests/pages/sim/StreamListPage.test.tsx | CSS: record_hash, record_hash | ~396 |
 | 09:47 | Edited pcs-frontend/tests/pages/sim/StreamDetailPage.test.tsx | 16→13 lines | ~87 |
 | 10:00 | Edited pcs-frontend/tests/pages/sim/StreamDetailPage.test.tsx | 4→3 lines | ~35 |
+| 10:05 | Edited pcs-frontend/tsconfig.json | 2→3 lines | ~52 |
+| 10:05 | Edited pcs-frontend/tsconfig.json | 2→2 lines | ~52 |
+| 10:06 | Edited pcs-frontend/tests/pages/report/ReportStylePage.test.tsx | CSS: args | ~278 |
+| 10:06 | Edited pcs-frontend/tests/report/definitionBody.test.ts | expanded (+6 lines) | ~184 |
+| 10:06 | Edited pcs-frontend/tests/report/definitionBody.test.ts | added optional chaining | ~114 |

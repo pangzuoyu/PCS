@@ -5,7 +5,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 import { PipeComputePage } from '../../../src/pages/pipe/PipeComputePage';
-import type { PipeResult } from '../../../src/types/pipe';
+import type { PipeInput, PipeResult } from '../../../src/types/pipe';
 
 const pipeClasses = [
   { pipe_class_id: 'pc-1', code: 'ASME B31.3 / A106-B / Sch 40' },
@@ -85,7 +85,7 @@ describe('PipeComputePage — 计算 (P45-3-5)', () => {
   });
 
   it('onCalculate 返回 null → 显示「计算失败」', () => {
-    const onCalculate = vi.fn(() => null);
+    const onCalculate = vi.fn((_input: PipeInput) => null);
     render(<PipeComputePage pipeClasses={pipeClasses} streams={streams} onCalculate={onCalculate} />);
     fireEvent.click(screen.getByTestId('pipe-calculate'));
     expect(screen.getByTestId('pipe-error')).toBeTruthy();

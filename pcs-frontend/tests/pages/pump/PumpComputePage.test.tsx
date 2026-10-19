@@ -5,6 +5,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 import { PumpComputePage } from '../../../src/pages/pump/PumpComputePage';
+import type { PumpInput } from '../../../src/types/pump';
 
 const streams = [
   { stream_id: 's-1', tag_number: 'FEED-101', sign_status: 'CHECKED' },
@@ -55,7 +56,7 @@ describe('PumpComputePage — 计算 (P45-3-7)', () => {
   });
 
   it('onCalculate 返回 null → 显示「计算失败」', () => {
-    const onCalculate = vi.fn(() => null);
+    const onCalculate = vi.fn((_input: PumpInput) => null);
     render(<PumpComputePage streams={streams} onCalculate={onCalculate} />);
     fireEvent.click(screen.getByTestId('pump-calculate'));
     expect(screen.getByTestId('pump-error')).toBeTruthy();

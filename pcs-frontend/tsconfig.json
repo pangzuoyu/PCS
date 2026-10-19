@@ -16,5 +16,6 @@
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
   },
-  "include": ["src"]
+  "//include": "tests 于 2026-10-19 纳入。此前只含 src ⇒ 675 条测试的类型标注全是装饰性的，fixture 可以携带已删/从未存在的字段而无人察觉（bug-180 的 6 条绿、bug-186）。这是目前唯一能自动抓住「代码用了契约里没有的字段」的闸。",
+  "include": ["src", "tests"]
 }

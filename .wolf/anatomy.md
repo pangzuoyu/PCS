@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T02:00:18.412Z
-> Files: 821 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T02:06:53.835Z
+> Files: 823 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1319,6 +1319,10 @@
 - `test_report_tasks.py` — ARQ 报表异步任务 —— 状态持久化 + 重试审计 + 僵死回收。 (~8192 tok)
 - `test_worker_registers_all_enqueued_tasks.py` — 每个入队的函数都必须在 ARQ worker 注册 —— 2026-10-13 实测发现。 (~1037 tok)
 
+## pcs-frontend/
+
+- `tsconfig.json` — TypeScript configuration (~191 tok)
+
 ## pcs-frontend/.gstack/qa-reports/
 
 - `qa-report-pcs-frontend-2026-10-03-sprint3-batch2.md` — PCS Frontend QA Report — Sprint 3 Batch 2 (2026-10-03) (~1424 tok)
@@ -1420,6 +1424,7 @@
 ## pcs-frontend/tests/pages/report/
 
 - `ReportExecutePageDefinitionRace.test.tsx` — ReportExecutePage 的**定义拉取**竞态 —— 评审 #10。 (~1318 tok)
+- `ReportStylePage.test.tsx` — 样式修订入口（评审 #12，用户裁决：**放** —— 后端端点已存在， (~1250 tok)
 
 ## pcs-frontend/tests/pages/sim/
 
@@ -1428,7 +1433,7 @@
 
 ## pcs-frontend/tests/report/
 
-- `definitionBody.test.ts` — 定义体 ⇄ 编辑态转换的单测。 (~1173 tok)
+- `definitionBody.test.ts` — 定义体 ⇄ 编辑态转换的单测。 (~3334 tok)
 - `filterTreeNodeIdentity.test.ts` — 过滤条件行必须有**稳定身份**，不能拿数组下标当 React key（评审 #26）。 (~1034 tok)
 - `missingSourceNotFabricated.test.ts` — 缺 `source` 的条件**不得被伪造**成 `EQUIP_LIST` —— 评审 #30。 (~767 tok)
 

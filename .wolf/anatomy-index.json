@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T02:00:18.412Z",
-    "fileCount": 821,
+    "lastScanned": "2026-10-19T02:06:53.835Z",
+    "fileCount": 823,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "1b0a65a965a7888c854243eb21194c8ef75ef4d66636f158abb990ed5b97ff32",
-    "storeUpdatedAt": "2026-10-19T02:00:18.423Z",
-    "rootHash": "064bd35c18b233d2"
+    "renderedHash": "7a105723744b643ff3fb82544da14191cfffc3fb06629fd09d4c96bbd0f8b33b",
+    "storeUpdatedAt": "2026-10-19T02:06:53.845Z",
+    "rootHash": "9a60812c9f014e18"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -26223,12 +26223,21 @@
     },
     "pcs-frontend/tests/report/definitionBody.test.ts": {
       "description": "定义体 ⇄ 编辑态转换的单测。",
-      "tokens": 1173,
-      "hash": "7ca7137c508ec6e7",
-      "size": 4778,
-      "mtimeMs": 1791858264478.8806,
-      "updatedAt": "2026-10-13T02:24:24.528Z",
-      "source": "hook"
+      "tokens": 3334,
+      "hash": "438f86805d311ba7",
+      "size": 13807,
+      "mtimeMs": 1792375613781.8328,
+      "updatedAt": "2026-10-19T02:06:53.835Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "rowOf",
+          "kind": "fn",
+          "startLine": 299,
+          "endLine": 317,
+          "tokens": 189
+        }
+      ]
     },
     "pcs-frontend/src/pages/report/ReportStylePage.tsx": {
       "description": "ReportStylePage — 样式管理（c6）。",
@@ -27555,6 +27564,40 @@
       "mtimeMs": 1792375218349.5254,
       "updatedAt": "2026-10-19T02:00:18.412Z",
       "source": "hook"
+    },
+    "pcs-frontend/tsconfig.json": {
+      "description": "TypeScript configuration",
+      "tokens": 191,
+      "hash": "41822df49d78a60f",
+      "size": 822,
+      "mtimeMs": 1792375541367.4263,
+      "updatedAt": "2026-10-19T02:05:41.415Z",
+      "source": "hook"
+    },
+    "pcs-frontend/tests/pages/report/ReportStylePage.test.tsx": {
+      "description": "样式修订入口（评审 #12，用户裁决：**放** —— 后端端点已存在，",
+      "tokens": 1250,
+      "hash": "19c3762e886cfb12",
+      "size": 5370,
+      "mtimeMs": 1792375607100.798,
+      "updatedAt": "2026-10-19T02:06:47.150Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "flush",
+          "kind": "fn",
+          "startLine": 45,
+          "endLine": 110,
+          "tokens": 658
+        },
+        {
+          "name": "withinRow",
+          "kind": "fn",
+          "startLine": 111,
+          "endLine": 125,
+          "tokens": 186
+        }
+      ]
     }
   }
 }

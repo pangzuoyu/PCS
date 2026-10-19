@@ -12,7 +12,7 @@ import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
 
 import { FlashComputePage } from '../../../src/pages/flash/FlashComputePage';
-import type { FlashResult } from '../../../src/types/flash';
+import type { FlashInput, FlashResult } from '../../../src/types/flash';
 
 const streams = [
   { stream_id: 's-1', tag_number: 'FEED-101', sign_status: 'CHECKED' },
@@ -82,7 +82,7 @@ describe('FlashComputePage — 错误路径 (P45-3-4)', () => {
   });
 
   it('onCalculate 返回 null → 显示「计算失败」', () => {
-    const onCalculate = vi.fn(() => null);
+    const onCalculate = vi.fn((_input: FlashInput) => null);
     // 先选好 stream_id（绕过：直接通过 select 设置 value）
     // 这里采用简化路径：让 onCalculate 被调用必须先选 stream。
     // 通过 wrapper 组件先设置：

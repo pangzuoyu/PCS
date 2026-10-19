@@ -9,7 +9,7 @@
  * Props：
  *   pipeClasses: { pipe_class_id: string; code: string }[]   // 等级下拉
  *   streams: { stream_id: string; tag_number: string; sign_status: string }[]
- *   onCalculate?: (input: PipeInput) => PipeResult | undefined
+ *   onCalculate?: (input: PipeInput) => PipeResult | null | undefined
  *   onWriteBack?: (input: PipeInput, result: PipeResult) => void
  *
  * V1：默认 in-memory mock 计算（恒等/常量）；P5-1 后由真实 calculate 端点替换。
@@ -57,7 +57,12 @@ interface StreamLite {
 interface Props {
   pipeClasses: PipeClassLite[];
   streams: StreamLite[];
-  onCalculate?: (input: PipeInput) => PipeResult | undefined;
+  onCalculate?: (input: PipeInput) => PipeResult | null | undefined;
+  /** 失败时返回 `null` 或 `undefined` **都**表示「空」—— 页面里的守卫是
+   *  `if (!r)`，两者走同一条 `计算失败：返回空` 分支。真实调用方会是
+   *  fetch 包装器，失败时自然返回 null，所以类型必须收它；此前只写
+   *  `| undefined`，于是「返回 null 走失败分支」这件事被 `tsc` 禁止，
+   *  三个页面测试只能靠 `as` 或报错硬绕。 */
   onWriteBack?: (input: PipeInput, result: PipeResult) => void;
 }
 

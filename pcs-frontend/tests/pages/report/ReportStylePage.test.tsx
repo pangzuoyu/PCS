@@ -98,19 +98,27 @@ describe('ReportStylePage — 修订入口（评审 #12）', () => {
   });
 });
 
-/** 按行内版本号文本定位该行的容器（td 级）。 */
-function withinRow(versionRe: RegExp): ReturnType<typeof screen> {
+/**
+ * 按行内版本号文本定位该行（td 级），返回**只在该行内查找**的查询器。
+ *
+ * ⚠️ 原签名写 `ReturnType<typeof screen>` 并 `as` 了一下 ——
+ * 那是**撒谎**：`screen` 是对象不是函数，`ReturnType<...>` 直接不满足
+ * `(...args:any)=>any` 约束（TS2344），而 `as` 让它一路混过去。
+ * 而且这里**只用到 `getByRole`**，把整个 `screen` 摊平进来纯属噪音
+ * （`getByText` 等仍查全表，只是个会误导人的字段）。
+ * 改成结构化类型：只有真正提供的东西，一不多一不少。
+ */
+function withinRow(versionRe: RegExp): { getByRole: (role: string, opts?: { name?: RegExp }) => HTMLElement } {
   const cells = Array.from(document.querySelectorAll('td'))
     .filter((td) => versionRe.test(td.textContent ?? ''));
   if (!cells.length) throw new Error(`没找到版本 ${versionRe} 的行`);
   const row = cells[0].closest('tr') as HTMLElement;
   return {
-    ...screen,
     getByRole: (role: string, opts?: { name?: RegExp }) => {
       const hit = Array.from(row.querySelectorAll('button'))
         .find((b) => (opts?.name ?? /.*/).test(b.textContent ?? ''));
       if (!hit) throw new Error(`行内没有 ${role} 按钮`);
       return hit as HTMLElement;
     },
-  } as ReturnType<typeof screen>;
+  };
 }
