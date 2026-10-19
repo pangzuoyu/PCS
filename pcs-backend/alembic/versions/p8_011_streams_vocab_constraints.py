@@ -48,6 +48,7 @@ description 本身就不可信，这是 bug-191 的实测结论：
 from __future__ import annotations
 
 from alembic import op
+import sqlalchemy as sa
 from sqlalchemy import inspect
 
 from app.models.project import Stream
@@ -87,13 +88,14 @@ def upgrade() -> None:
     if "raw_phase" not in cols:
         op.add_column(
             _TABLE,
-            op.Column("raw_phase", op.String(20), nullable=True),
+            sa.Column("raw_phase", sa.String(20), nullable=True),
         )
-        op.create_comment(
-            _TABLE,
-            "raw_phase",
-            "相态原始值（PRO/II 字母或原文）；词表外时保留原样，"
-            "phase 置 NULL 等待人工补录。不设 CHECK —— 它的用途就是装下词表外的值。",
+        # 本 alembic 版本没有 `create_column_comment`（只有 table 级），
+        # 用 PG 原生语句 —— 也更不依赖 alembic 版本的 API 面。
+        op.execute(
+            "COMMENT ON COLUMN streams.raw_phase IS "
+            "'相态原始值（PRO/II 字母或原文）；词表外时保留原样、phase 置 NULL "
+            "等待人工补录。不设 CHECK —— 它的用途就是装下词表外的值。'"
         )
 
     # 2) 三条 CHECK。PG 没有 `ADD CONSTRAINT IF NOT EXISTS`，先查 pg_constraint。
