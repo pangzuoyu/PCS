@@ -94,12 +94,12 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 两条已核实的事实支撑这个选择：
 
 1. `record_hash` 由 `RecordMixin` 提供，业务结果表多数已有
-   （实测：29 张 `*_result(s)` 表中 **18 张有** `record_hash`）⇒ 这 18 张**零迁移**。
+   （实测：29 张 `*_result(s)` 表中 **19 张有** `record_hash`）⇒ 这 19 张**零迁移**。
 2. **比对范式已存在**：`app/services/cia_engine.py:101` 已在做「当前 record_hash 与
    `data_lineage` 最新 hash 比对」（change-impact 用）。复用同一范式，不新造概念。
 
 > ⚠️ **「全部 21 张表零迁移覆盖」是错的，2026-10-19 实测更正。**
-> 实测 29 张业务结果表里 **11 张没有 `record_hash` 列**：
+> 实测 29 张业务结果表里 **10 张没有 `record_hash` 列**：
 >
 > | 表 | 有 record_hash | 有 updated_at | 属哪一类 |
 > |---|---|---|---|
@@ -111,9 +111,29 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 > 时间列只有 `created_at`）⇒ 它的退化阶梯里**没有第二档令牌**。
 >
 > ⇒ **结论**：兜底覆盖**按表而异，必须逐表声明**，不能笼统说「零迁移全覆盖」。
-> 上面 11 张 + `two_phase_results` 若 P9A 要对其做编辑并发保护，
+> 上面 10 张 + `two_phase_results`（合计 **11 张**）若 P9A 要对其做编辑并发保护，
 > **需要新列**（`record_hash` 或一个通用 `row_version`）—— 这是本 ADR 未消除的欠账，
 > 已在「尚未解决」登记。
+>
+> **复核命令（数字不要手数）**：
+>
+> ```bash
+> cd pcs-backend
+> uv run python -c "
+> from app.db.base import Base
+> import app.models
+> res=[(t.name,'record_hash' in t.columns,'updated_at' in t.columns)
+>      for t in Base.metadata.sorted_tables
+>      if t.name.endswith('_result') or '_results' in t.name]
+> print('总', len(res), '| 有 hash', sum(h for _,h,_ in res), '| 无 hash', sum(not h for _,h,_ in res))
+> print('有 hash 无 updated_at:', [n for n,h,u in res if h and not u])
+> print('两者都无:', [n for n,h,u in res if not h and not u])
+> "
+> ```
+>
+> 期望输出：`总 29 | 有 hash 19 | 无 hash 10` / 有 hash 无 updated_at: `['two_phase_results']`
+> / 两者都无: 9 张。
+> ⚠️ 本 ADR 初稿手数写成了「18 / 11 / 12」，三个数全错。**表覆盖率必须用脚本枚举。**
 
 > ⚠️ **「`finalize_calc_record` 是唯一收口」也是错的，2026-10-19 实测更正。**
 > `app/services/calc_lineage.py:156` 的 `finalize_calc_record` **不是** `record_hash`
@@ -151,7 +171,7 @@ DB      │ record_hash 比对（乐观，事后检测）            │
   └─ 当前 record_hash == ""                       ← pump/pipe/pipe_net 常态
        ├─ 有 updated_at 且 != expected_updated_at → 409 CONFLICT (basis=updated_at)
        ├─ 有 updated_at 且 == expected_updated_at → 放行
-       └─ 无 updated_at（two_phase_results 及上表 11 张）
+       └─ 无 updated_at（two_phase_results，及上表 9 张连 updated_at 也没有的）
            且客户端也没给基线                       → 409 (basis=no_baseline)
 ```
 
@@ -213,7 +233,10 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 
 ## 尚未解决
 
-1. **上表 11 张无 `record_hash` 的表 + `two_phase_results` 的兜底令牌未裁决。**
+1. **上表 10 张无 `record_hash` 的表 + `two_phase_results`（合计 11 张）的兜底令牌未裁决。**
+   > 计数由脚本枚举得出，不是手数（见 §⑥ 下方复核命令）：
+   > `29 张 *_result(s)｜19 有 record_hash｜10 无｜two_phase_results 有 hash 无 updated_at`。
+   > 其中 **9 张连 `updated_at` 也没有**（10 张无 hash 的里除 `util_results` 外全都没有）。
    §⑥ 的退化阶梯对它们只能落到 `no_baseline`（= 每次保存都 409，或需明确放行策略）。
    是给这 11 张补 `record_hash`、还是引入一个通用 `row_version` 整数列（所有表都加），
    属 P9A 的迁移决策，本 ADR 只声明覆盖缺口，不预选方案。

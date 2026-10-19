@@ -243,9 +243,9 @@ P9A-LCK-005	降级策略：Redis 不可用时（若选 Redis）	ADR-0048
 　　(a) 编辑保存路径的 `expected_hash` / `expected_updated_at` 比对 —— `records.py` 现无 PUT/PATCH，该路径 P9A 全新建
 　　(b) `RECORD_EDIT_CONFLICT` 409 响应 schema（受 P9A-DLV-010 零裸字段约束，`basis` 三值）
 　　(c) `RECORD_EDIT_OVERWROTE_STALE_BASELINE` 审计 action 枚举
-　　(d) **兜底令牌按表而异**：29 张 `*_result(s)` 表中 18 张有 `record_hash`（零迁移），
+　　(d) **兜底令牌按表而异**：29 张 `*_result(s)` 表中 19 张有 `record_hash`（零迁移），
 　　　但 `sim_*`(8) / `util_results` / `cost_est_results` 无 `record_hash`，`two_phase_results` 无 `updated_at`
-　　　⇒ 这 12 张要并发保护**需要新列**。补哪列（各自 record_hash vs 通用 row_version）未裁决，见 ADR-0048「尚未解决」1
+　　　⇒ 这 11 张要并发保护**需要新列**（其中 9 张连 `updated_at` 也没有）。补哪列（各自 record_hash vs 通用 row_version）未裁决，见 ADR-0048「尚未解决」1
 验收：并发编辑场景下锁正确；过期自动释放；与状态机事务无死锁。
 
 3.2.6 变更影响确认分流（若 P1 未交付）

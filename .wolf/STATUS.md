@@ -64,7 +64,7 @@ Web 开发计划 P9 拆三段｜TODO-047 登记。
 ① `alembic check` 比对 ORM ↔ **活库**，不读迁移源码 —— 按原计划往 `alembic/versions/`
 放探针会得到假绿；② `for r in app.routes` 在本仓 FastAPI 版本上枚举不到任何 API 路由
 （`_IncludedRouter` 不展开）—— 计划的「唯一可信来源」会产出空清单；
-③ `record_hash` **不是**覆盖全部结果表 —— 29 张里只有 18 张有。
+③ `record_hash` **不是**覆盖全部结果表 —— 29 张里只有 19 张有。
 
 ---
 
@@ -88,9 +88,9 @@ Web 开发计划 P9 拆三段｜TODO-047 登记。
 3. **P9-Prep 顺带登记的**：
    - **TODO-047**（已登记）：`advisory_lock.acquire_record_lock` 用 Python `hash()`，
      跨进程不串行 —— 同文件的 `hashtext()` 才是对的。归 P9A-LCK 或独立修复。
-   - **ADR-0048 §⑥ 覆盖缺口**：29 张 `*_result(s)` 表里 18 张有 `record_hash`，
+   - **ADR-0048 §⑥ 覆盖缺口**：29 张 `*_result(s)` 表里 **19 张**有 `record_hash`，
      `sim_*`(8) / `util_results` / `cost_est_results` **没有**，`two_phase_results`
-     有 hash 但**无 `updated_at`** ⇒ 这 12 张要做编辑并发保护**需要新列**。补哪列未裁决。
+     有 hash 但**无 `updated_at`** ⇒ 这 **11 张**要做编辑并发保护**需要新列**（其中 9 张两者都没有）。补哪列未裁决。
    - **ADR-0046 存量孤儿清单**：导出无对应 users 行的 uuid5，归属 P9A（已写进 SPEC §3.2.2）。
    - **ADR-0049 §① 通知写侧同步/异步未锁**：本版无邮件，原「异步以免阻塞外部投递」理由已失效。
 

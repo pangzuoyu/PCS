@@ -919,8 +919,8 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 
 1. `record_hash` 由 `RecordMixin` 共享 ⇒ 多数业务结果表**零迁移**。
    > ⚠️ **执行时实测更正（2026-10-19）**：不是「全部」。29 张 `*_result(s)` 表里只有
-   > **18 张**有 `record_hash`；`sim_*`(8) / `util_results` / `cost_est_results` 没有，
-   > `two_phase_results` 有 hash 但**无 `updated_at`** ⇒ 这 12 张要并发保护需要新列。
+   > **19 张**有 `record_hash`；`sim_*`(8) / `util_results` / `cost_est_results` 没有，
+   > `two_phase_results` 有 hash 但**无 `updated_at`** ⇒ 这 11 张要并发保护需要新列。
    > 已落进 ADR-0048 §⑥ 的覆盖表与其「尚未解决」1。
 2. **比对范式已存在**：`app/services/cia_engine.py:101` 已在做「当前 record_hash 与
    data_lineage 最新 hash 比对」（change-impact 用）。复用同一范式，不新造概念。
@@ -1064,7 +1064,7 @@ Python `str.__hash__` 默认按进程随机加盐（PYTHONHASHSEED），多 work
   ① 编辑保存路径的 `expected_hash` 比对（`records.py` 现无 PUT/PATCH，该路径 P9A 全新建）
   ② `RECORD_EDIT_CONFLICT` 409 响应 schema（受 P9A-DLV-010 零裸字段约束）
   ③ `RECORD_EDIT_OVERWROTE_STALE_BASELINE` 审计 action 枚举
-  这三项**在有 `record_hash` 的 18 张表上不新增迁移**（另 12 张需新列，见 ADR-0048 §⑥ 覆盖表）。
+  这三项**在有 `record_hash` 的 19 张表上不新增迁移**（另 11 张需新列，见 ADR-0048 §⑥ 覆盖表）。
   把它们写进 SPEC §3.2.5 的 P9A-LCK 条目，否则 P9A 排期时看不到这份欠账。
 
 - [ ] **Step 6: Commit**
@@ -1520,7 +1520,7 @@ git commit -m "docs(P9-Prep): 收口 —— SPEC §2.3/§9 同步 + 开发计划
 | `RecordMixin.record_hash` + `finalize_calc_record` + `cia_engine` 比对范式 | ADR-0048 §⑥ 的兜底令牌 —— **零迁移**，复用而非新建 version 列 |
 | `users` 表模型（`project.py:135`）+ `token_version` 缺列 | ADR-0046 的迁移只加一列 |
 | Redis + ARQ（`config.py:43`、`app/workers/`） | ADR-0048/0045 建在既有设施上，不引入新中间件 |
-| ADR 编号空间与 0041 行内列表格式 | Task 3~6 接 0042~0045，格式统一 |
+| ADR 编号空间与 0041 行内列表格式 | Task 3~6 接 **0046~0049**（**不接 0042** —— ADR-0041 预留了它），格式统一 |
 | `deliverables.py` 4 个读端点（P8 前置已交付） | Task 2 判为 P1 已交付，不重复实现 |
 
 ## NOT in scope（考虑过，明确不做）
@@ -1588,7 +1588,7 @@ ADR-0041 正文预留了「0042 = 解冻机制」「0043+ = 后续接口扩展�
 |---|---|---|
 | Task 1 Step 8 让探针落在 `alembic/versions/` | `alembic check` 比对 **ORM ↔ 活库**，不读迁移源码 | 加一条未 apply 的迁移 ⇒ 两侧都没那列 ⇒ 报 **✅ 假绿**；且推高 code head 使命中 stale 分支，**看着红过，其实验的不是漂移** |
 | Task 2 Step 2 用 `for r in app.routes` 枚举 | 本仓 FastAPI 版本把 `include_router` 包成 `_IncludedRouter` **不展开**，`app.routes` 只有 6 项 | 该步骤是计划自称的「唯一可信来源」，照做产出**空清单**。改用 `app.openapi()["paths"]` |
-| ADR-0048 §⑥ 称 `record_hash` 覆盖全部结果表 | 29 张 `*_result(s)` 表里只有 **18 张**有；`sim_*`(8) / `util_results` / `cost_est_results` 没有，`two_phase_results` 有 hash 但无 `updated_at` | 兜底覆盖比声称的小 **12 张表**，P9A 要多做一次迁移决策（ADR-0048「尚未解决」1） |
+| ADR-0048 §⑥ 称 `record_hash` 覆盖全部结果表 | 29 张 `*_result(s)` 表里只有 **19 张**有；`sim_*`(8) / `util_results` / `cost_est_results` 没有，`two_phase_results` 有 hash 但无 `updated_at` | 兜底覆盖比声称的小 **11 张表**，P9A 要多做一次迁移决策（ADR-0048「尚未解决」1） |
 
 另两处路径/锚点过期：Task 9 Step 2 的 `docs/Web版开发计划.md` 实际在
 `spec/工艺专用综合计算软件需求规格说明书 Web版开发计划.md`；Task 7 Step 5 要同步的
@@ -1696,7 +1696,7 @@ $ grep -n "TODO-045\|TODO-046" TODOS.md
 这个事实必须写明，否则实施者会以为 hash 覆盖全部结果表。
 
 > **执行时又发现更正的一半（2026-10-19）**：不仅「唯一收口」错，「全部覆盖」也错 ——
-> 实测 29 张 `*_result(s)` 表里只有 **18 张**有 `record_hash`。见 ADR-0048 §⑥ 覆盖表。
+> 实测 29 张 `*_result(s)` 表里只有 **19 张**有 `record_hash`。见 ADR-0048 §⑥ 覆盖表。
 > 两处断言各错一半，说明写 ADR 时的数量断言都得逐表验，不能从 mixin 结构推。
 
 ### 计划规模变化
