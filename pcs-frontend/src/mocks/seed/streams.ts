@@ -15,7 +15,6 @@ import type { UiSchemaResponse } from '../../components/common/SchemaForm';
 export const seedStreams: Stream[] = [
   {
     stream_id: 's-101',
-    tag_number: 'S-101',
     stream_name: '进料物流',
     phase: 'LIQUID',
     temp: 25.5,
@@ -31,7 +30,6 @@ export const seedStreams: Stream[] = [
     stream_id: 's-102',
     // 契约 record_hash 是 NOT NULL 的内容指纹
     record_hash: 'sha256-stream-s-102',
-    tag_number: 'S-102',
     stream_name: '塔顶蒸汽',
     phase: 'VAPOR',
     temp: 78.4,
@@ -46,7 +44,6 @@ export const seedStreams: Stream[] = [
     stream_id: 's-103',
     // 契约 record_hash 是 NOT NULL 的内容指纹
     record_hash: 'sha256-stream-s-103',
-    tag_number: 'S-103',
     stream_name: '塔釜液',
     phase: 'LIQUID',
     temp: 95.8,
@@ -59,7 +56,6 @@ export const seedStreams: Stream[] = [
   },
   {
     stream_id: 's-104',
-    tag_number: 'S-104',
     stream_name: '回流',
     phase: 'LIQUID',
     temp: 78.3,
@@ -73,7 +69,6 @@ export const seedStreams: Stream[] = [
   },
   {
     stream_id: 's-105',
-    tag_number: 'S-105',
     stream_name: '侧线采出',
     phase: 'MIXED',
     temp: 85.0,

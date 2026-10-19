@@ -1641,3 +1641,48 @@
 | 13:09 | Created docs/solutions/framework-integration-issues/arq-028-worker-silent-failure-modes.md | — | ~1616 |
 | 13:09 | Created docs/solutions/testing-issues/sqlite-staticpool-hides-uncommitted.md | — | ~1185 |
 | 13:09 | Created docs/solutions/database-issues/dialect-options-invisible-on-sqlite.md | — | ~1305 |
+| 19:58 | Session end: 387 writes across 150 files (TODOS.md, p7_s5_001_drop_equipment_lib.py, equipment.py, test_schema.py, 0032-vessel-process-calculation.md) | 187 reads | ~464011 tok |
+| 00:03 | Edited pcs-frontend/src/mocks/heat.ts | expanded (+14 lines) | ~235 |
+| 00:04 | Edited pcs-frontend/src/mocks/handlers.ts | expanded (+29 lines) | ~520 |
+| 00:10 | Created pcs-backend/tests/services/report/test_output_format_whitelists.py | — | ~680 |
+| 00:10 | Edited pcs-backend/tests/services/report/test_output_format_whitelists.py | modified test_service_whitelist_is_derived_not_copied() | ~239 |
+| 00:11 | Edited pcs-backend/tests/api/v1/test_report.py | modified test_generate_rejects_unknown_format() | ~330 |
+| 00:18 | Created pcs-backend/tests/services/report/test_concurrent_upsert_transaction.py | — | ~1682 |
+| 00:19 | Edited pcs-backend/app/services/report/report_service.py | modified begin_nested() | ~297 |
+| 00:21 | Edited pcs-backend/app/services/report/report_service.py | expanded (+16 lines) | ~226 |
+| 00:21 | Created pcs-backend/tests/services/report/test_verify_secret_strength.py | — | ~990 |
+| 00:21 | Edited pcs-backend/app/core/config.py | expanded (+18 lines) | ~397 |
+| 00:31 | Created pcs-frontend/tests/mocks/reportBuilderStatusFilter.test.ts | — | ~682 |
+| 00:31 | Created pcs-frontend/tests/mocks/reportBuilderStatusFilter.test.ts | — | ~782 |
+| 00:33 | Created pcs-frontend/tests/pages/report/ReportExecutePageDefinitionRace.test.tsx | — | ~1318 |
+| 00:34 | Edited pcs-frontend/src/pages/report/ReportExecutePage.tsx | added 5 condition(s) | ~421 |
+| 00:34 | Created pcs-frontend/tests/report/missingSourceNotFabricated.test.ts | — | ~767 |
+| 00:35 | Created pcs-frontend/tests/report/filterTreeNodeIdentity.test.ts | — | ~1034 |
+| 00:47 | Created docs/solutions/testing-issues/guard-test-fooled-by-lying-comment.md | — | ~987 |
+| 07:13 | Created pcs-frontend/tests/lib/pipeClassSch.test.ts | — | ~1021 |
+| 07:13 | Created pcs-frontend/src/lib/pipeClassSch.ts | — | ~1092 |
+| 07:13 | Edited pcs-frontend/src/lib/pipeClassSch.ts | added nullish coalescing | ~258 |
+| 07:14 | Edited pcs-frontend/src/lib/pipeClassSch.ts | added 1 condition(s) | ~197 |
+| 07:15 | Created pcs-frontend/src/mocks/seed/pipe-classes.ts | — | ~1043 |
+| 07:30 | Created pcs-frontend/tests/pages/pipe_class/PipeClassListPage.test.tsx | — | ~1893 |
+| 07:46 | Created docs/solutions/testing-issues/narrow-declaration-is-not-a-constraint.md | — | ~898 |
+| 07:54 | Created pcs-frontend/scripts/audit-handwritten-types.mjs | — | ~1937 |
+| 09:45 | Edited pcs-frontend/src/types/stream.ts | 4→3 lines | ~20 |
+| 09:45 | Edited pcs-frontend/src/types/stream.ts | expanded (+6 lines) | ~91 |
+| 09:45 | Edited pcs-frontend/src/types/stream.ts | 5→6 lines | ~72 |
+| 09:45 | Edited pcs-frontend/src/types/stream.ts | expanded (+16 lines) | ~169 |
+| 09:45 | Edited pcs-frontend/src/types/stream.ts | 6→6 lines | ~37 |
+| 09:45 | Edited pcs-frontend/src/pages/sim/StreamListPage.tsx | CSS: SOLID | ~38 |
+| 09:45 | Edited pcs-frontend/src/pages/sim/StreamListPage.tsx | reduced (-7 lines) | ~71 |
+| 09:45 | Edited pcs-frontend/src/pages/sim/StreamListPage.tsx | inline fix | ~11 |
+| 09:45 | Edited pcs-frontend/src/pages/sim/StreamDetailPage.tsx | inline fix | ~10 |
+| 09:45 | Edited pcs-frontend/src/pages/sim/StreamDetailPage.tsx | inline fix | ~20 |
+| 09:45 | Edited pcs-frontend/src/pages/sim/StreamDetailPage.tsx | 4→1 lines | ~24 |
+| 09:45 | Edited pcs-frontend/src/pages/sim/StreamDetailPage.tsx | 3→2 lines | ~22 |
+| 09:45 | Edited pcs-frontend/src/pages/sim/StreamDetailPage.tsx | inline fix | ~14 |
+| 09:45 | Edited pcs-frontend/src/pages/routeWrappers.tsx | modified AssetListRoute() | ~108 |
+| 09:46 | Edited pcs-frontend/src/mocks/handlers.ts | 5→6 lines | ~101 |
+| 09:46 | Edited pcs-frontend/src/pages/routeWrappers.tsx | added 1 import(s) | ~33 |
+| 09:47 | Edited pcs-frontend/tests/pages/sim/StreamListPage.test.tsx | CSS: record_hash, record_hash | ~396 |
+| 09:47 | Edited pcs-frontend/tests/pages/sim/StreamDetailPage.test.tsx | 16→13 lines | ~87 |
+| 10:00 | Edited pcs-frontend/tests/pages/sim/StreamDetailPage.test.tsx | 4→3 lines | ~35 |

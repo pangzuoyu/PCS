@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-18T05:09:49.597Z
-> Files: 801 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T02:00:18.412Z
+> Files: 821 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -398,6 +398,8 @@
 
 ## docs/solutions/testing-issues/
 
+- `guard-test-fooled-by-lying-comment.md` — 守门测试会被它所守护的那行注释骗过 (~926 tok)
+- `narrow-declaration-is-not-a-constraint.md` — 「窄的类型声明」是有意的约束，还是无意的遗漏？ (~842 tok)
 - `sqlite-staticpool-hides-uncommitted.md` — `sqlite+aiosqlite:///:memory:` is StaticPool: "read it from another session" proves nothing (~1111 tok)
 
 ## docs/superpowers/plans/
@@ -1137,7 +1139,7 @@
 
 ## pcs-backend/app/core/
 
-- `config.py` — 应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。 (~2366 tok)
+- `config.py` — 应用全局配置（pydantic-settings + 环境变量 + .env 兜底）。 (~2601 tok)
 - `errors.py` — FastAPI 全局异常处理器 + 统一 PcsError 信封。 (~2419 tok)
 - `security.py` — JWT 编解码 + 密码哈希 + JTI 吊销。HS256，密钥由 Settings.secret_key 提供。 (~1249 tok)
 
@@ -1196,7 +1198,7 @@
 - `renderer_docx.py` — DOCX 渲染器 —— python-docx 直接构建。 (~1533 tok)
 - `renderer_pdf.py` — PDF 渲染器 —— ReportLab Platypus 直接生成。 (~3712 tok)
 - `renderer_xlsx.py` — XLSX 渲染器 —— XlsxWriter 流式写入。 (~1142 tok)
-- `report_service.py` — 报表生成编排 —— 取数 → 渲染 → 落盘 → 记 `ReportFile` → 审计。 (~6440 tok)
+- `report_service.py` — 报表生成编排 —— 取数 → 渲染 → 落盘 → 记 `ReportFile` → 审计。 (~6760 tok)
 - `style_service.py` — c6：样式写入 —— 版本化 + 回滚 + 两档权限（用户 2026-10-13 裁决）。 (~2574 tok)
 - `style.py` — 报表样式配置 —— ADR-P8-001：样式驱动生成，替代 .dotx/.xltx 模板。 (~1176 tok)
 - `watermark.py` — 导出水印与格式分发（P8b b8）。 (~1301 tok)
@@ -1245,7 +1247,7 @@
 - `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
 - `test_report_builder.py` — `/api/v1/report-builder` 路由契约（Phase 2）。 (~17878 tok)
 - `test_report_styles_write.py` — c6：样式写入端点契约。 (~2215 tok)
-- `test_report.py` — `/api/v1/report` 路由契约。 (~3676 tok)
+- `test_report.py` — `/api/v1/report` 路由契约。 (~5783 tok)
 - `test_subtable_duplicate_conflict.py` — 既有子表 POST 端点的 UNIQUE 冲突处理 (2026-10-05). (~1507 tok)
 
 ## pcs-backend/tests/benchmarks/
@@ -1287,10 +1289,12 @@
 ## pcs-backend/tests/services/report/
 
 - `test_collector.py` — 10 类报表 collector —— SPEC §3.2.1(2) 的类型表。 (~1095 tok)
+- `test_concurrent_upsert_transaction.py` — 并发同内容导出不得连带回滚调用方的事务（评审 #22）。 (~1682 tok)
 - `test_datasource_registry.py` — 数据源注册表契约（纯元数据）。 (~1167 tok)
 - `test_golden.py` — 10 类报表的 Golden 基线 —— 输出**稳定性**的回归闸。 (~948 tok)
 - `test_join_project_scope.py` — JOIN 的项目隔离 —— b6 遗漏（用户 2026-10-13 分析发现）。 (~3086 tok)
 - `test_margins.py` — **页边距单位契约** —— 三个渲染器共用。 (~369 tok)
+- `test_output_format_whitelists.py` — 四份输出格式白名单必须是同一份（评审 #19）。 (~834 tok)
 - `test_query_engine.py` — 取数引擎契约 —— 过滤/排序/字段选择/NULL 处理的**唯一实现**。 (~1333 tok)
 - `test_renderer_pdf.py` — PDF 渲染器契约。 (~3143 tok)
 - `test_renderer_visual.py` — **像素级**验证：关键模板元素必须真的画在纸上。 (~1288 tok)
@@ -1299,6 +1303,7 @@
 - `test_style_service.py` — c6：样式写入服务（版本 + 回滚 + 两档权限 + 审计）。 (~2796 tok)
 - `test_style_wiring.py` — `resolve()` 接进生成路径。 (~1684 tok)
 - `test_style.py` — ReportStyle 四级优先级合并的契约测试。 (~884 tok)
+- `test_verify_secret_strength.py` — `REPORT_VERIFY_SECRET` 必须有长度下限（评审 #29）。 (~990 tok)
 - `test_zz_debug_scope.py` — test_debug_collect (~386 tok)
 
 ## pcs-backend/tests/services/util/
@@ -1325,6 +1330,10 @@
 - `energy_summary.spec.ts` — P7 Sprint 2 T5 EnergySummaryAggregatePage 端到端测试 (Playwright / R1 §7). (~1139 tok)
 - `fixtures.ts` — Playwright e2e fixtures (F-P2-009 Sprint 3 / Issue 7). (~306 tok)
 
+## pcs-frontend/scripts/
+
+- `audit-handwritten-types.mjs` — 手写类型 vs 生成契约的漂移审计（2026-10-19，TODO-039 审计） (~1937 tok)
+
 ## pcs-frontend/src/
 
 - `App.tsx` — router — renders form (~1070 tok)
@@ -1338,14 +1347,23 @@
 
 - `MainLayout.tsx` — 在 MENU_ITEMS 中找 path 命中的条目（含父 group）。找不到返回 []。 (~1538 tok)
 
+## pcs-frontend/src/lib/
+
+- `pipeClassSch.ts` — 管子等级 `sch_series_json`（DN → Sch 映射）的展示摘要。 (~1299 tok)
+
 ## pcs-frontend/src/mocks/
 
-- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~8100 tok)
+- `handlers.ts` — MSW handlers — 离线 mock server（P45-0-5 + QA 2026-09-16） (~9066 tok)
+- `heat.ts` — P5-4 HEAT MSW handlers + fixtures — 单一来源（防 P5c MEDIUM 双份维护漂移）。 (~1436 tok)
 - `reportBuilder.ts` — REPORT_BUILDER 的 MSW handlers + fixtures（b10–b12 / c6）。 (~2435 tok)
+
+## pcs-frontend/src/mocks/seed/
+
+- `pipe-classes.ts` — PipeClass seed — 4 条（QA 11 组件实例化 P1） (~1043 tok)
 
 ## pcs-frontend/src/pages/
 
-- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~3026 tok)
+- `routeWrappers.tsx` — 路由层默认 fixtures 包装器（QA fix / ISSUE-002 + 11 组件实例化） (~3319 tok)
 
 ## pcs-frontend/src/pages/audit/
 
@@ -1362,28 +1380,57 @@
 - `JoinPicker.tsx` — JOIN 白名单选择器（b6 第二批）。 (~724 tok)
 - `ReportDefinitionEditorPage.tsx` — ReportDefinitionEditorPage — 定义编辑器（b10）。 (~4376 tok)
 - `ReportDefinitionListPage.tsx` — ReportDefinitionListPage — REPORT_BUILDER 定义管理列表（b12）。 (~1595 tok)
-- `ReportExecutePage.tsx` — ReportExecutePage — 执行面板（b11）。 (~3627 tok)
+- `ReportExecutePage.tsx` — ReportExecutePage — 执行面板（b11）。 (~3851 tok)
 - `ReportStylePage.tsx` — ReportStylePage — 样式管理（c6）。 (~3019 tok)
+
+## pcs-frontend/src/pages/sim/
+
+- `StreamDetailPage.tsx` — StreamDetailPage — SIM 物流详情（P45-3-1 / Task 28）。 (~2378 tok)
+- `StreamListPage.tsx` — StreamListPage — SIM 物流列表（P45-3-1 / Task 28）。 (~1090 tok)
 
 ## pcs-frontend/src/pages/util/
 
 - `EnergySummaryAggregatePage.tsx` — EnergySummaryAggregatePage — 综合能耗聚合 UI（P7 Sprint 2 T5 / R1 §7）。 (~3359 tok)
 
+## pcs-frontend/src/types/
+
+- `stream.ts` — Stream 类型定义（P45-3-1 / Task 28）。 (~1025 tok)
+
 ## pcs-frontend/tests/api/
 
 - `audit_api.test.ts` — Audit API 客户端测试 (F-P2-009 Sprint 3 / Issue 7). (~512 tok)
 
+## pcs-frontend/tests/lib/
+
+- `pipeClassSch.test.ts` — `summarizeSchSeries` —— 把 `sch_series_json`（DN → Sch 映射）压成 (~1021 tok)
+
 ## pcs-frontend/tests/mocks/
 
 - `handlers.test.ts` — MSW seed + handler shape 验证 — 防 MSW ↔ OpenAPI drift (P45-0-5) (~1807 tok)
+- `reportBuilderStatusFilter.test.ts` — MSW 的 `/report-builder/definitions` 必须**遵守 `status` 查询参数**。 (~782 tok)
 
 ## pcs-frontend/tests/pages/audit/
 
 - `AuditLogPage.test.tsx` — AuditLogPage 组件测试 (F-P2-009 Sprint 3). (~598 tok)
 
+## pcs-frontend/tests/pages/pipe_class/
+
+- `PipeClassListPage.test.tsx` — PipeClassListPage 测试（P45-3-2 / Task 29；2026-10-19 按契约重写）。 (~1893 tok)
+
+## pcs-frontend/tests/pages/report/
+
+- `ReportExecutePageDefinitionRace.test.tsx` — ReportExecutePage 的**定义拉取**竞态 —— 评审 #10。 (~1318 tok)
+
+## pcs-frontend/tests/pages/sim/
+
+- `StreamDetailPage.test.tsx` — StreamDetailPage 测试（P45-3-1 / Task 28 下半）。 (~804 tok)
+- `StreamListPage.test.tsx` — StreamListPage 测试（P45-3-1 / Task 28）。 (~1108 tok)
+
 ## pcs-frontend/tests/report/
 
 - `definitionBody.test.ts` — 定义体 ⇄ 编辑态转换的单测。 (~1173 tok)
+- `filterTreeNodeIdentity.test.ts` — 过滤条件行必须有**稳定身份**，不能拿数组下标当 React key（评审 #26）。 (~1034 tok)
+- `missingSourceNotFabricated.test.ts` — 缺 `source` 的条件**不得被伪造**成 `EQUIP_LIST` —— 评审 #30。 (~767 tok)
 
 ## spec/
 

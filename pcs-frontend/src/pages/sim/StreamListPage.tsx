@@ -2,7 +2,7 @@
  * StreamListPage — SIM 物流列表（P45-3-1 / Task 28）。
  *
  * SPEC §7.7.1：
- * - 表格列：tag_number / 名称 / 相态 / 温压 / 流量 / 状态
+ * - 表格列：名称（标识，首列）/ 相态 / 温压 / 流量 / 状态
  * - 状态点 tabs：DRAFT / CHECKED / IN_APPROVAL / 全部
  * - 行点击 → onSelect（路由跳转由父组件负责）
  *
@@ -36,7 +36,7 @@ const PHASE_COLOR: Record<Stream['phase'], string> = {
   LIQUID: 'blue',
   VAPOR: 'orange',
   MIXED: 'purple',
-  AQUEOUS: 'cyan',
+  SOLID: 'default',
 };
 
 export function StreamListPage({ streams, onSelect }: Props): JSX.Element {
@@ -49,18 +49,11 @@ export function StreamListPage({ streams, onSelect }: Props): JSX.Element {
 
   const columns: ColumnsType<Stream> = [
     {
-      title: 'tag_number',
-      dataIndex: 'tag_number',
-      width: 140,
-      render: (v: string) => (
-        <span data-testid="stream-tag" style={{ fontFamily: 'var(--font-mono, monospace)' }}>
-          {v}
-        </span>
-      ),
-    },
-    {
+      // 首列是**标识**（用户裁决：不删首列，删了行就分不清）。原先用
+      // `tag_number`，而物流根本没有位号 —— 真值恒为 undefined。
       title: '名称',
       dataIndex: 'stream_name',
+      width: 200,
       render: (v: string) => <span data-testid="stream-name">{v}</span>,
     },
     {

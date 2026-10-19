@@ -1695,3 +1695,80 @@ A 类全补 → 48+6 = 54/74 = **73.0%**；B 类确认不做 → 仍 73.0%。
   **「替身比被测物更宽容」是本轮最贵的失效模式**：
   测试复用任务自己的 session，于是「从不 commit」在任何断言下都看不出来，
   修法是**换观测点**（任务返回后用另一个 session 读），不是加断言。
+
+---
+
+## TODO-040: `GET /api/v1/config/assets` 列表端点缺失（🟡 前端已止血，后端待补）
+
+**2026-10-19 裁决**：不在这轮做，先止血。
+
+### 现状
+
+契约 `api.d.ts:730` 的 `/api/v1/config/assets` **只有 post**，加上
+`/{asset_id}/{versions,fork,submit,approve,publish,obsolete,status-report,diff}`
+等按 id 的动作，**没有 `get` 列表**。
+
+`AssetListRoute` 此前 `useFetch('/api/v1/config/assets')` ⇒ 生产必然 404，
+而 404 会被监控记成故障（端点却是好的）。
+`git log -S` 确认：这条 GET **从未实现过**，不是回归 —— 页面跑在��端前面。
+
+### 本轮已做（止血）
+
+- `AssetListRoute` 显式传空数组，与 `PipeRoute` 同处理 ⇒ 不再发那个请求。
+- **同时删掉 `mocks/handlers.ts` 里那个 GET handler**。留着的危害是它
+  **替缺陷遮着**：dev 里有数据、真后端里 404，而两端长得一样 ——
+  bug-180 正是这么活下来的。
+
+### 触发条件（满足任一即可开工）
+
+1. CONFIG 资产页需要展示真实资产（用户提「配置里要能看到公式库」之类）；
+2. `AssetListPage` 改版需要分页/排序/按类别过滤（当前空数组撑不住）。
+
+### 补端点时要一并做的
+
+- 后端：列表查询 + 分页参数，照 `GET /api/v1/pipe-classes` 的形状（它有列表）。
+- 契约：跑 `npm run api:gen`，`check-api-drift.sh` 必须 exit 0。
+- 前端：`routeWrappers` 把空数组换回 `useFetch`；`mocks/handlers.ts` 补回 handler
+  —— **顺序必须是「先端点、后 mock」**，否则又是替缺陷遮着。
+- `src/types/configAsset.ts` 的 `ConfigAsset` 此时**可以并进契约类型**
+  （本轮审计结论：它现在还是手写副本，端点不存在所以没暴露）。
+
+### 相关：StreamDetailPayload（`src/types/stream.ts`）
+
+手写侧是「物流 + 矩阵 + 签署 + 审批 + 冲突 + 血缘 + UiSchema」的合成体，
+契约侧 `GET /api/v1/streams/{stream_id}` 是单个 `StreamResponse` ——
+**两边结构不同源**，不是改个字段名能解决的，需要先定后端响应形状。
+排在 TODO-039/040 之后。
+
+---
+
+## SPEC 修订登记：P3-SIM 相态词表缺 `SOLID`（2026-10-19）
+
+按 CLAUDE.md「与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订」。
+
+| 位置 | 值 | 结论 |
+|---|---|---|
+| 契约 `StreamResponse.phase`（`api.d.ts:15388`）| `VAPOR/LIQUID/MIXED/SOLID` | **权威** |
+| `conflict_resolver._VALID_PHASES:458` | 同上 4 值 | 与契约一致 |
+| `import_service._phase_norm:62` | `S`/`SOLID` → `SOLID` | 真的产出 |
+| SPEC P3-SIM「SIM 模块 输入」 | 3 值（无 SOLID） | **过时，须补** |
+| 前端 `StreamPhase`（改前） | `LIQUID/VAPOR/MIXED/AQUEOUS` | 两头都错 |
+
+- 砍 `AQUEOUS`：SPEC / `app/` / `openapi.json` **三处零命中**，前端凭空发明。
+- 加 `SOLID`：砍掉它，真实导入的固相在页面上渲染成**空标签**
+  （`STREAM_PHASE_LABEL[p]` 为 undefined，不报错、只是没内容）。
+
+⇒ **不要「承认三套词表各自成立」** —— 那等于把同一个概念分成三份。
+以契约为准修 SPEC 与前端。
+
+### 另：`tests/` 整体不在类型检查内
+
+`tsconfig.json` 的 `"include": ["src"]` ⇒ 675 条测试的类型标注全是装饰性的。
+2026-10-19 实测：纳入 `tests` 后 **9 条错 / 7 个文件**，一次性可修完，
+建议下一轮直接纳入。其中 **2 条是真信号**：
+
+- `StreamDetailPage.test.tsx` fixture 还带上一轮刚删的 `subphase`；
+- `StreamListPage.test.tsx` 从 `StreamListPage` import 一个它早就不导出的
+  `Stream`。
+
+两条都指向同一个病：**fixture 与被测对象不是同一份来源**（bug-180）。

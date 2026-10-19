@@ -2,7 +2,7 @@
  * StreamDetailPage — SIM 物流详情（P45-3-1 / Task 28）。
  *
  * SPEC §7.7.2：
- * - PageHeader（标题 = tag_number + 名称；状态徽章；版本 hash；操作）
+ * - PageHeader（标题 = stream_name；状态徽章；版本 hash；操作）
  * - 基础信息 Descriptions（相态/温压/流量/更新人/时间）
  * - 组成 JSON 表格（组分 + 摩尔分率）
  * - 复用 SignatureMatrix（签署矩阵）
@@ -100,12 +100,12 @@ export function StreamDetailPage({
   return (
     <div data-testid="stream-detail-page">
       <PageHeader
-        title={`${stream.tag_number} · ${stream.stream_name}`}
+        title={stream.stream_name}
         status={stream.sign_status}
         module="SIM"
         version={
           stream.record_hash
-            ? { hash: stream.record_hash, label: stream.tag_number }
+            ? { hash: stream.record_hash, label: stream.stream_name }
             : undefined
         }
         actions={
@@ -137,9 +137,6 @@ export function StreamDetailPage({
               size="small"
               data-testid="stream-detail-descriptions"
             >
-              <Descriptions.Item label="tag_number">
-                <span style={{ fontFamily: 'var(--font-mono, monospace)' }}>{stream.tag_number}</span>
-              </Descriptions.Item>
               <Descriptions.Item label="名称">{stream.stream_name}</Descriptions.Item>
               <Descriptions.Item label="相态">
                 <Tag color="blue">{STREAM_PHASE_LABEL[stream.phase]}</Tag>
@@ -226,7 +223,6 @@ export function StreamDetailPage({
               <SchemaForm
                 schema={uiSchema}
                 value={{
-                  tag_number: stream.tag_number,
                   stream_name: stream.stream_name,
                   phase: stream.phase,
                   // 键名随数据一起对齐契约 StreamResponse（SchemaForm 的 value

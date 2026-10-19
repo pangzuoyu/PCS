@@ -18,17 +18,39 @@
 
 import type { RecordSignStatus } from './records';
 
-export type StreamPhase = 'LIQUID' | 'VAPOR' | 'MIXED' | 'AQUEOUS';
+/**
+ * 相态。**四值，与契约逐字相同**（`api.d.ts` StreamResponse：
+ * 「相态：VAPOR/LIQUID/MIXED/SOLID」）。
+ *
+ * ⚠️ 2026-10-19 改过一次：前端原为 `LIQUID|VAPOR|MIXED|AQUEOUS`。
+ * 两头都错：
+ * - `AQUEOUS` 是前端**凭空发明**的 —— SPEC、`app/`、`openapi.json` 三处零命中。
+ *   砍掉。
+ * - `SOLID` 此前前端**没有**，但后端真的会产出（`import_service._phase_norm`
+ *   把 `S`/`SOLID` 归一成 SOLID，`conflict_resolver._VALID_PHASES` 收了它）。
+ *   砍掉它 ⇒ 真实导入的固相在页面上渲染成空标签。
+ *
+ * ⇒ **SPEC P3-SIM 的三值相态表已过时，须补 SOLID**（已登记 TODOS.md）。
+ * 按 CLAUDE.md「与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订」，
+ * 权威是 OpenAPI 的四值。
+ */
+export type StreamPhase = 'LIQUID' | 'VAPOR' | 'MIXED' | 'SOLID';
+
+// ⚠️ `tag_number` 已删（2026-10-19，用户裁决）。
+// 物流是**流量**不是设备，没有位号 —— `tag_number` 是 `TaggedRecordMixin`
+// 给**计算记录**（FlashResult / PipeResult …）的 NOT NULL 唯一字段。
+// 全仓 `spec/*.md` 里的 tag_number 也都指设备位号，`streams` 侧零命中；
+// 契约 `StreamResponse` 同样没有它。真值是页面此前在显示 `undefined`。
+// 首列改用 `stream_name`（用户裁决：不删首列 —— 它是标识，删了行就分不清）。
 
 // ⚠️ `StreamSubphase` 已删（2026-10-19，用户裁决「砍列」）。
 // 后端**根本没有子相态这个概念** —— `grep -rn subphase app/` 在
 // schemas / ORM / enums 里**零命中**。前端此前细化的是后端没细化的东西，
 // 页面读它永远是 `undefined`，于是那一栏恒不显示（静默失效）。
 
-/** SIM 物流条目：流号 + 业务 tag + 流名 + 主相态 + 温压 + 双流量 + 组成 + 9 态机签名状态。 */
+/** SIM 物流条目：流号 + 流名 + 主相态 + 温压 + 双流量 + 组成 + 9 态机签名状态。 */
 export interface Stream {
   stream_id: string;
-  tag_number: string;
   stream_name: string;
   phase: StreamPhase;
   /* ⚠️ 以下四个字段 2026-10-19 对齐契约 `StreamResponse`（TODO-039 审计）。
@@ -83,5 +105,5 @@ export const STREAM_PHASE_LABEL: Record<StreamPhase, string> = {
   LIQUID: '液相',
   VAPOR: '气相',
   MIXED: '混合',
-  AQUEOUS: '水相',
+  SOLID: '固相',
 };

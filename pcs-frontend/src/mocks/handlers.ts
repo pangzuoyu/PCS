@@ -38,7 +38,6 @@ type CvCalculateResponse = components["schemas"]["CvCalculateResponse"];
 
 import { heatHandlers } from "./heat";
 import { metaSeed, MOCK_TOKEN } from "./seed/meta";
-import { seedAssets } from "./seed/config";
 import { seedAllowableStress, seedMaterials, seedToxicityClasses } from "./seed/common";
 import { seedPipeClasses } from "./seed/pipe-classes";
 import { seedPipeLineRows } from "./seed/pipe-line";
@@ -118,11 +117,12 @@ const devOnlyMockHandlers = [
       : HttpResponse.json({ code: "NOT_FOUND", message: `stream ${params.stream_id} not found` }, { status: 404 });
   }),
 
-  // === CONFIG 资产 ===
-  http.get("/api/v1/config/assets", ({ request }) => {
-    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    return HttpResponse.json(seedAssets);
-  }),
+  // ⚠️ `GET /api/v1/config/assets` 的 mock 已删（2026-10-19）。
+  // 契约里该路径**没有 get**（只有 post / fork / submit / approve / publish /
+  // obsolete / status-report / diff / versions），页面那个 GET 是必然 404。
+  // 留着这个 handler 就等于**替缺陷遮着**：dev 里页面有数据、真后端里 404，
+  // 而 404 会被监控记成故障（bug-180 的教训：mock 宽松 = 替生产扛差异）。
+  // TODO-040 补上后端端点时，与 routeWrappers 的 useFetch 一起加回来。
 
   // === 管道等级 ===
   http.get("/api/v1/pipe-classes", ({ request }) => {

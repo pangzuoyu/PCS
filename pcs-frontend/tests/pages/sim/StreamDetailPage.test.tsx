@@ -16,10 +16,8 @@ import type { Stream } from '../../../src/types/stream';
 
 const stream: Stream = {
   stream_id: 's-1',
-  tag_number: 'FEED-101',
   stream_name: '新鲜进料',
   phase: 'LIQUID',
-  subphase: 'SUBCOOLED',
   temp: 25,
   press: 0.5,
   mass_flow: 10000,
@@ -27,7 +25,6 @@ const stream: Stream = {
   composition_json: { N2: 0.78, O2: 0.21, H2O: 0.01 },
   sign_status: 'CHECKED',
   record_hash: 'a3f9b2e1c21ed7a8',
-  updated_by: '张三',
   updated_at: '2026-09-15 14:32',
 };
 
@@ -36,10 +33,9 @@ describe('StreamDetailPage — 渲染 (P45-3-1)', () => {
     vi.clearAllMocks();
   });
 
-  it('渲染 PageHeader + tag + 名称', () => {
+  it('渲染 PageHeader + 名称（物流无位号，标题即 stream_name）', () => {
     render(<StreamDetailPage stream={stream} />);
     expect(screen.getByTestId('page-header')).toBeTruthy();
-    expect(document.body.textContent).toContain('FEED-101');
     expect(document.body.textContent).toContain('新鲜进料');
   });
 

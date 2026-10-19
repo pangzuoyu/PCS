@@ -15,11 +15,11 @@ import { Typography } from 'antd';
 import { useParams } from 'react-router-dom';
 
 import type { AllowableStress, ComponentProperty, ToxicityClass } from '../types/common';
-import type { ConfigAsset } from '../types/configAsset';
 import type { Stream } from '../types/stream';
 import type { CodeFormatSegment, PipeClass, SymbolMapping } from '../types/pipeClass';
 import type { PipeNetGraph } from '../types/pipeNet';
 import type { BeddSection, PmsItem } from '../types/pms';
+import type { ConfigAsset } from '../types/configAsset';
 import type { PipeInput, PipeLineListRow, PipeResult } from '../types/pipe';
 import type { FlashInput, FlashResult } from '../types/flash';
 import type { PumpInput, PumpResult } from '../types/pump';
@@ -93,8 +93,13 @@ export function ApprovalPanelRoute(): JSX.Element {
   return <ApprovalPanelPage items={[]} />;
 }
 export function AssetListRoute(): JSX.Element {
-  const assets = useFetch<ConfigAsset[]>('/api/v1/config/assets', []);
-  return <AssetListPage assets={assets} />;
+  // ⚠️ 显式传空数组，**不**请求 `/api/v1/config/assets`（2026-10-19 用户裁决）。
+  // 契约里该路径**只有 post/fork/submit/…，没有 get** —— 页面此前发的
+  // GET 是必然 404，而 404 会被监控记成故障，端点却是好的。
+  // 与 `PipeRoute` 同一处理。补端点后把这里换回 useFetch（见 TODOS.md
+  // TODO-040，附触发条件）。mock 侧那个 handler 已一并删除，
+  // 否则它会替这个缺陷遮着（bug-180 的教训）。
+  return <AssetListPage assets={[]} />;
 }
 export function CoefficientEditorRoute(): JSX.Element {
   return <CoefficientTableEditorPage rows={[]} />;
