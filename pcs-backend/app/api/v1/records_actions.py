@@ -26,17 +26,27 @@ from __future__ import annotations
 import uuid
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1._guard import check_record_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.core.errors import PcsError
 from app.db.session import get_db
-from app.models.enums import AuditAction, RecordSignStatus9, StateTransition, to_value
+from app.models.enums import (
+    AuditAction,
+    RecordSignStatus9,
+    StateTransition,
+    to_value,
+)
+from app.models.record_comment import RecordComment
 from app.schemas.records_actions import (
     ApprovalStepRequest,
     ApprovalStepResponse,
+    CommentCreateRequest,
+    CommentListResponse,
+    CommentResponse,
     ObsoleteRequest,
     RecordActionResponse,
     RequestReversalRequest,
@@ -56,6 +66,11 @@ from app.services.state_machine import (
 )
 
 router = APIRouter(tags=["records"])
+
+# 批注参与的角色 = 读记录的全部角色。批注是**任何能看这条记录的人**都能留的
+# （评审、设计、专业负责人都会留意见），收窄到作者侧会让「发现问题却不能说」
+# 变成绕过系统的私下沟通 —— 那正好是批注要解决的事。
+_COMMENT_ROLES = ("DESIGNER", "PROCESS_CONTROLLER", "REVIEWER", "APPROVER", "SYSTEM_ADMIN")
 
 
 def resolve_record_model(module: str) -> type[Any]:
@@ -424,4 +439,88 @@ async def abandon_change(
     await db.commit()
     return _response(
         module, record_id, {"from": to_value(from_status), "to": to_value(record.sign_status)}
+    )
+
+
+# ---------------------------------------------------------------------------
+# 批注（SPEC §2.2.3 的 comments 端点）
+# ---------------------------------------------------------------------------
+
+
+@router.post(
+    "/records/{module}/{record_id}/comments",
+    response_model=CommentResponse,
+    summary="新增记录批注",
+)
+async def create_comment(
+    module: str,
+    record_id: uuid.UUID,
+    body: CommentCreateRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> CommentResponse:
+    """给记录留一条批注。
+
+    ⚠️ **不写** `workflow_progress`（ADR-0047 §①）：观测层记的是流程进度，
+    「有人留言」不是流程活动。把它算进去会让甘特图上的活动看起来比实际多，
+    而观测层一旦不可信就没人再信它 —— 那正是 ADR-0047 立观测层要防的失败。
+    """
+    require_roles(actor, *_COMMENT_ROLES)
+    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    comment = RecordComment(
+        project_id=record.project_id,
+        record_type=module,
+        record_id=record_id,
+        body=body.body.strip(),
+        author_id=actor.user_id,
+        created_by=actor.user_id,
+    )
+    db.add(comment)
+    await db.commit()
+    await db.refresh(comment)
+    return CommentResponse.model_validate(comment)
+
+
+@router.get(
+    "/records/{module}/{record_id}/comments",
+    response_model=CommentListResponse,
+    summary="列记录批注（按时间正序，分页）",
+)
+async def list_comments(
+    module: str,
+    record_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+    limit: int = Query(50, ge=1, le=200),
+    offset: int = Query(0, ge=0),
+) -> CommentListResponse:
+    """列一条记录的批注，最早在前。
+
+    ⚠️ 排序必须带 `comment_id` 作 tiebreaker：`created_at` 是 `server_default=func.now()`，
+    SQLite 下 CURRENT_TIMESTAMP 只有**秒级**粒度 —— 同一批写入的批注时间戳必然相同，
+    只按 created_at 排序时并列行的返回顺序不确定 ⇒ 翻页会漏批注或重复。
+    """
+    require_roles(actor, *_COMMENT_ROLES)
+    record = await _load_record(db, module=module, record_id=record_id, actor=actor)
+    conditions = [
+        RecordComment.record_type == module,
+        RecordComment.record_id == record_id,
+        # 项目隔离：即使 (record_type, record_id) 撞了，不属于本项目的批注也不出。
+        RecordComment.project_id == record.project_id,
+    ]
+    total = await db.scalar(
+        select(func.count()).select_from(RecordComment).where(*conditions)
+    )
+    rows = (
+        await db.execute(
+            select(RecordComment)
+            .where(*conditions)
+            .order_by(RecordComment.created_at, RecordComment.comment_id)
+            .limit(limit)
+            .offset(offset)
+        )
+    ).scalars().all()
+    return CommentListResponse(
+        items=[CommentResponse.model_validate(r) for r in rows],
+        total=int(total or 0),
     )

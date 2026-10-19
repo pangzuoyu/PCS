@@ -82,7 +82,8 @@ def test_table_count(inspector):
     #   —— bootstrap 迁移 dd47298c9c38 起就在，只是 0 行空壳，本次就地改造）
     # 2026-10-20 P9A B0: p9_002 新增 workflow_progress（ADR-0047 观测层）= 106
     #   （⚠️ 勿与 SUP-008 V1.1 §8.5 的同名「作业流程」表混淆 —— 那张未建）
-    assert len(tables) == 106, f"expected 106 incl. alembic_version, got {len(tables)}"
+    # 2026-10-20 P9A B4c: p9_003 新增 record_comments（记录批注）= 107
+    assert len(tables) == 107, f"expected 107 incl. alembic_version, got {len(tables)}"
     # P5-0-1b T1 新增 thermosiphon_circulation_results（SUP-010 §3.5 热虹吸循环
     #   安装高度）= 93 incl. alembic_version。
     #   （2026-10-05 起该值改为 101, 见下方 8 张表的说明。）

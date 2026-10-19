@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T23:31:42.637Z",
-    "fileCount": 875,
+    "lastScanned": "2026-10-19T23:38:55.733Z",
+    "fileCount": 877,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "adca4e874955b43dc483c10d591e6dfa1986acb296586dd9e8ef572ce1bde03c",
-    "storeUpdatedAt": "2026-10-19T23:31:42.646Z",
-    "rootHash": "8fd26ab68c03a826"
+    "renderedHash": "3b512e290794ccab65969ff3c889cc5e3215744f6985fcb3acbeafe2b9fb6ca4",
+    "storeUpdatedAt": "2026-10-19T23:38:55.744Z",
+    "rootHash": "692a0efc18757d65"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -29856,6 +29856,91 @@
           "startLine": 379,
           "endLine": 394,
           "tokens": 147
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_records_comments.py": {
+      "description": "记录批注测试（P9A B4c）。",
+      "tokens": 2224,
+      "hash": "5f8a5e91190ed5a9",
+      "size": 8768,
+      "mtimeMs": 1792453108483.8892,
+      "updatedAt": "2026-10-19T23:38:28.532Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "auth",
+          "kind": "fn",
+          "startLine": 29,
+          "endLine": 32,
+          "tokens": 33
+        },
+        {
+          "name": "_make_record",
+          "kind": "fn",
+          "startLine": 33,
+          "endLine": 49,
+          "tokens": 173
+        },
+        {
+          "name": "_url",
+          "kind": "fn",
+          "startLine": 50,
+          "endLine": 53,
+          "tokens": 33
+        },
+        {
+          "name": "_post",
+          "kind": "fn",
+          "startLine": 54,
+          "endLine": 57,
+          "tokens": 40
+        },
+        {
+          "name": "TestWriteComment",
+          "kind": "class",
+          "startLine": 58,
+          "endLine": 117,
+          "tokens": 616
+        },
+        {
+          "name": "TestListComments",
+          "kind": "class",
+          "startLine": 118,
+          "endLine": 186,
+          "tokens": 758
+        },
+        {
+          "name": "TestCommentsAreNotObservation",
+          "kind": "class",
+          "startLine": 187,
+          "endLine": 204,
+          "tokens": 176
+        },
+        {
+          "name": "TestResponseContract",
+          "kind": "class",
+          "startLine": 205,
+          "endLine": 226,
+          "tokens": 221
+        }
+      ]
+    },
+    "pcs-backend/app/models/record_comment.py": {
+      "description": "record_comments ORM（P9A B4c）。",
+      "tokens": 631,
+      "hash": "33d35cc79a7a76f7",
+      "size": 3044,
+      "mtimeMs": 1792453135687.409,
+      "updatedAt": "2026-10-19T23:38:55.733Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "RecordComment",
+          "kind": "class",
+          "startLine": 35,
+          "endLine": 69,
+          "tokens": 372
         }
       ]
     }

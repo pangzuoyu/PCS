@@ -1954,3 +1954,6 @@
 | 07:30 | Edited pcs-backend/tests/api/v1/test_records_actions_statemachine.py | modified _submitted() | ~154 |
 | 07:31 | Edited pcs-backend/tests/api/v1/test_records_actions_statemachine.py | modified test_intermediate_step_is_audited() | ~296 |
 | 07:31 | Edited pcs-backend/app/api/v1/records_actions.py | modified _transition() | ~44 |
+| 07:38 | Created pcs-backend/tests/api/v1/test_records_comments.py | — | ~2224 |
+| 07:38 | Created pcs-backend/app/models/record_comment.py | — | ~638 |
+| 07:38 | Created pcs-backend/app/models/record_comment.py | — | ~631 |

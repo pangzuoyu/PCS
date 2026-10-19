@@ -9,9 +9,10 @@ P9A-DLV-010：每个响应模型**显式声明**，禁止 `dict` / `object`。
 from __future__ import annotations
 
 import uuid
+from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 
 class RecordActionResponse(BaseModel):
@@ -81,7 +82,7 @@ class SubmitApprovalRequest(BaseModel):
 class SubmitApprovalResponse(BaseModel):
     """提交结果。"""
 
-    model_config = {"from_attributes": True}
+    model_config = ConfigDict(from_attributes=True)
 
     record_type: str
     record_id: uuid.UUID
@@ -112,3 +113,44 @@ class ApprovalStepResponse(BaseModel):
     to_status: str
     approval_step: int
     approval_depth: int
+
+
+class CommentCreateRequest(BaseModel):
+    """新增批注。
+
+    `body` 额外拒纯空白（`"   "`）：`min_length=1` 拦不住它，
+    而一屏空行等于这一屏没内容 —— 却会让人以为「有人回过」。
+
+    用 `field_validator` 而不是正则约束：Pydantic 的 Rust regex **不支持
+    look-ahead**（`^(?!\s*$).+` 会直接 SchemaError），正着写又拦不住尾部空白。
+    """
+
+    body: str = Field(min_length=1, max_length=5000)
+
+    @field_validator("body")
+    @classmethod
+    def _reject_blank(cls, value: str) -> str:
+        stripped = value.strip()
+        if not stripped:
+            raise ValueError("批注内容不能为空白")
+        return stripped
+
+
+class CommentResponse(BaseModel):
+    """单条批注。字段集合被 `test_comment_response_has_no_bare_fields` 钉死。"""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    comment_id: uuid.UUID
+    record_type: str
+    record_id: uuid.UUID
+    body: str
+    author_id: uuid.UUID
+    created_at: datetime
+
+
+class CommentListResponse(BaseModel):
+    """批注列表 + 总数（总数单独查而不复用 len(items) —— 列表有 limit）。"""
+
+    items: list[CommentResponse]
+    total: int

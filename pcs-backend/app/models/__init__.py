@@ -7,6 +7,7 @@ from app.models.equipment import *  # noqa: F401,F403
 from app.models.htri_template import *  # noqa: F401,F403
 from app.models.pipe_code_template import *  # noqa: F401,F403
 from app.models.project import *  # noqa: F401,F403
+from app.models.record_comment import *  # noqa: F401,F403
 from app.models.report import *  # noqa: F401,F403
 from app.models.project_template_pipe_class import *  # noqa: F401,F403
 from app.models.psv_standards import *  # noqa: F401,F403

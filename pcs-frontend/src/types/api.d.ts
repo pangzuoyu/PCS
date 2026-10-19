@@ -712,6 +712,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/records/{module}/{record_id}/comments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 列记录批注（按时间正序，分页）
+         * @description 列一条记录的批注，最早在前。
+         *
+         *     ⚠️ 排序必须带 `comment_id` 作 tiebreaker：`created_at` 是 `server_default=func.now()`，
+         *     SQLite 下 CURRENT_TIMESTAMP 只有**秒级**粒度 —— 同一批写入的批注时间戳必然相同，
+         *     只按 created_at 排序时并列行的返回顺序不确定 ⇒ 翻页会漏批注或重复。
+         */
+        get: operations["list_comments_api_v1_records__module___record_id__comments_get"];
+        put?: never;
+        /**
+         * 新增记录批注
+         * @description 给记录留一条批注。
+         *
+         *     ⚠️ **不写** `workflow_progress`（ADR-0047 §①）：观测层记的是流程进度，
+         *     「有人留言」不是流程活动。把它算进去会让甘特图上的活动看起来比实际多，
+         *     而观测层一旦不可信就没人再信它 —— 那正是 ADR-0047 立观测层要防的失败。
+         */
+        post: operations["create_comment_api_v1_records__module___record_id__comments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/lineage/{record_type}/{record_id}/upstream": {
         parameters: {
             query?: never;
@@ -6719,6 +6751,60 @@ export interface components {
              * @description 假设原因（status=ASSUMED 时必填）
              */
             assumption_reason?: string | null;
+        };
+        /**
+         * CommentCreateRequest
+         * @description 新增批注。
+         *
+         *     `body` 额外拒纯空白（`"   "`）：`min_length=1` 拦不住它，
+         *     而一屏空行等于这一屏没内容 —— 却会让人以为「有人回过」。
+         *
+         *     用 `field_validator` 而不是正则约束：Pydantic 的 Rust regex **不支持
+         *     look-ahead**（`^(?!\s*$).+` 会直接 SchemaError），正着写又拦不住尾部空白。
+         */
+        CommentCreateRequest: {
+            /** Body */
+            body: string;
+        };
+        /**
+         * CommentListResponse
+         * @description 批注列表 + 总数（总数单独查而不复用 len(items) —— 列表有 limit）。
+         */
+        CommentListResponse: {
+            /** Items */
+            items: components["schemas"]["CommentResponse"][];
+            /** Total */
+            total: number;
+        };
+        /**
+         * CommentResponse
+         * @description 单条批注。字段集合被 `test_comment_response_has_no_bare_fields` 钉死。
+         */
+        CommentResponse: {
+            /**
+             * Comment Id
+             * Format: uuid
+             */
+            comment_id: string;
+            /** Record Type */
+            record_type: string;
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /** Body */
+            body: string;
+            /**
+             * Author Id
+             * Format: uuid
+             */
+            author_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /**
          * CommitByImportIdRequest
@@ -20039,6 +20125,81 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["RecordActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_comments_api_v1_records__module___record_id__comments_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                module: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentListResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_comment_api_v1_records__module___record_id__comments_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                module: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CommentCreateRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CommentResponse"];
                 };
             };
             /** @description Validation Error */

@@ -1740,6 +1740,175 @@
         }
       }
     },
+    "/api/v1/records/{module}/{record_id}/comments": {
+      "post": {
+        "tags": [
+          "records"
+        ],
+        "summary": "新增记录批注",
+        "description": "给记录留一条批注。\n\n⚠️ **不写** `workflow_progress`（ADR-0047 §①）：观测层记的是流程进度，\n「有人留言」不是流程活动。把它算进去会让甘特图上的活动看起来比实际多，\n而观测层一旦不可信就没人再信它 —— 那正是 ADR-0047 立观测层要防的失败。",
+        "operationId": "create_comment_api_v1_records__module___record_id__comments_post",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CommentCreateRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "get": {
+        "tags": [
+          "records"
+        ],
+        "summary": "列记录批注（按时间正序，分页）",
+        "description": "列一条记录的批注，最早在前。\n\n⚠️ 排序必须带 `comment_id` 作 tiebreaker：`created_at` 是 `server_default=func.now()`，\nSQLite 下 CURRENT_TIMESTAMP 只有**秒级**粒度 —— 同一批写入的批注时间戳必然相同，\n只按 created_at 排序时并列行的返回顺序不确定 ⇒ 翻页会漏批注或重复。",
+        "operationId": "list_comments_api_v1_records__module___record_id__comments_get",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 200,
+              "minimum": 1,
+              "default": 50,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CommentListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/lineage/{record_type}/{record_id}/upstream": {
       "get": {
         "tags": [
@@ -20015,6 +20184,87 @@
         ],
         "title": "ChecklistItemPut",
         "description": "PUT 校验一项（5态 + 元数据）。"
+      },
+      "CommentCreateRequest": {
+        "properties": {
+          "body": {
+            "type": "string",
+            "maxLength": 5000,
+            "minLength": 1,
+            "title": "Body"
+          }
+        },
+        "type": "object",
+        "required": [
+          "body"
+        ],
+        "title": "CommentCreateRequest",
+        "description": "新增批注。\n\n`body` 额外拒纯空白（`\"   \"`）：`min_length=1` 拦不住它，\n而一屏空行等于这一屏没内容 —— 却会让人以为「有人回过」。\n\n用 `field_validator` 而不是正则约束：Pydantic 的 Rust regex **不支持\nlook-ahead**（`^(?!\\s*$).+` 会直接 SchemaError），正着写又拦不住尾部空白。"
+      },
+      "CommentListResponse": {
+        "properties": {
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/CommentResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "items",
+          "total"
+        ],
+        "title": "CommentListResponse",
+        "description": "批注列表 + 总数（总数单独查而不复用 len(items) —— 列表有 limit）。"
+      },
+      "CommentResponse": {
+        "properties": {
+          "comment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Comment Id"
+          },
+          "record_type": {
+            "type": "string",
+            "title": "Record Type"
+          },
+          "record_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Record Id"
+          },
+          "body": {
+            "type": "string",
+            "title": "Body"
+          },
+          "author_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Author Id"
+          },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "comment_id",
+          "record_type",
+          "record_id",
+          "body",
+          "author_id",
+          "created_at"
+        ],
+        "title": "CommentResponse",
+        "description": "单条批注。字段集合被 `test_comment_response_has_no_bare_fields` 钉死。"
       },
       "CommitByImportIdRequest": {
         "properties": {

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T23:31:42.637Z
-> Files: 875 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T23:38:55.733Z
+> Files: 877 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1175,6 +1175,7 @@
 - `equipment.py` — 设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。 (~3317 tok)
 - `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~7858 tok)
 - `psv_standards.py` — PSV 多标准配置 ORM（P5-0-5 Task 24a，SUP-P5-PSV-001 §3.1 + ADR-0028 V1.1）。 (~1824 tok)
+- `record_comment.py` — record_comments ORM（P9A B4c）。 (~631 tok)
 - `report.py` — P8 报表与输出 ORM（ADR-P8-001 全直接生成路线）。 (~2556 tok)
 - `sim_unit_op.py` — P3.x SIM-15: sim_unit_op_results + 6 专用结果表（单元 SUMMARY 存档）。 (~2006 tok)
 - `system.py` — 系统支撑 ORM 模型（审计/血缘/导入历史）。 (~3301 tok)
@@ -1294,6 +1295,7 @@
 - `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
 - `test_records_actions_statemachine.py` — records 写端点 · 状态机面 3 个（P9A B4b）。 (~3944 tok)
 - `test_records_actions_wired.py` — records 写端点 · 接线面测试（P9A B4a）。 (~3206 tok)
+- `test_records_comments.py` — 记录批注测试（P9A B4c）。 (~2224 tok)
 - `test_report_builder.py` — `/api/v1/report-builder` 路由契约（Phase 2）。 (~17878 tok)
 - `test_report_styles_write.py` — c6：样式写入端点契约。 (~2215 tok)
 - `test_report.py` — `/api/v1/report` 路由契约。 (~5783 tok)
