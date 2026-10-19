@@ -4,7 +4,7 @@ budget_tokens: 1500
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-19（第 3 轮）。
+> Read this FIRST when starting a session. Last updated: 2026-10-19（第 4 轮）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
@@ -48,31 +48,51 @@ P9-OPEN-004 每日凌晨 / P9-OPEN-006 WebSocket+降级轮询。
 委员会建议 3（TODO-047 改 TODO-045）**驳回** —— TODO-045/046 已被占用，
 它们是 `##` 级标题，`grep "^### TODO-"` 会漏一半。根因已进 cerebrum。
 
+### 第 4 轮（本会话）：执行 P9-Prep 计划（9 个 task 全部完成）
+
+`docs/PCS-PLAN-P9-PREP.md` inline 执行完毕。产出：
+**闸门** `pcs-backend/scripts/gate_alembic_check.py`（接 `.githooks/pre-commit` 第二段）｜
+**ADR-0046~0049**（用户身份 / 观测层 / 编辑锁 / 通知待办）｜**2 份 note**（P1 端点清单、MFA 决议）｜
+SPEC §2.2.2/§2.2.3/§2.2.4/§2.3/§3.2.2/§3.2.4/§3.2.5/§8/§9 全面回写｜
+Web 开发计划 P9 拆三段｜TODO-047 登记。
+
+**ADR 编号不是 0042~0045** —— ADR-0041 正文预留了「0042 = 解冻机制」「0043+ = 后续接口扩展」，
+本轮从 **0046** 起。两份文档占同一个号就是第二个真相源。
+
+执行中发现并修正了计划/SPEC 的 6 处事实错误（详见 commit 说明与
+`.superpowers/sdd/PCS-PLAN-P9-PREP/progress.md` 的 `Ruling:` 行），其中三处是**会让人验错东西**的：
+① `alembic check` 比对 ORM ↔ **活库**，不读迁移源码 —— 按原计划往 `alembic/versions/`
+放探针会得到假绿；② `for r in app.routes` 在本仓 FastAPI 版本上枚举不到任何 API 路由
+（`_IncludedRouter` 不展开）—— 计划的「唯一可信来源」会产出空清单；
+③ `record_hash` **不是**覆盖全部结果表 —— 29 张里只有 18 张有。
+
 ---
 
 ## ✅ 基线
 
-后端 **4629 passed / 77 skipped / 0 failed**，前端 **704 passed / 0 failed**
-（2026-10-19 实测；此前 STATUS 里的 4516/677 是第 1~2 轮之前的旧值）。
+后端 **4643 passed / 77 skipped / 0 failed**（P9-Prep 落地后实测，+14 = PP-5 闸门的
+10 个用例 + `run_capture` 的 4 个），前端 **704 passed / 0 failed**。
 两端 lint/typecheck clean。`check-api-drift.sh` → OK / exit 0。
 
 ---
 
 ## 🚀 Next quest
 
-1. **执行 `docs/PCS-PLAN-P9-PREP.md`** —— 9 个 task，Task 1~6 与 8~9 可开工；
-   Task 7 裁决已全部作出，不阻塞。
-   建议 `superpowers:executing-plans`（Task 2~7 全争用同一 SPEC 文件，**串行更稳**），
-   而非 subagent-driven。
-2. **ADR-0042~0045 待落盘**（Task 3~6）—— 计划里是草稿，尚未成为
-   `docs/adr/0042-*.md` 等正式 ADR。**ADR-0044 §⑥ 必须写入核实出的 6 条旁路**。
-3. **两件多日工程，别当小任务排**：
+1. **写 `docs/PCS-PLAN-P9A.md`** —— P9-Prep 已闭环（9 个 task 全部完成，见「本会话完成」）。
+   P9A 的前提现在具备了：4 份 ADR 已 accepted。**先读 ADR 里各自的「尚未解决」段**，
+   那几段就是 P9A 必须先答的问题（尤其是 ADR-0048 的兜底令牌分表问题）。
+2. **两件多日工程，别当小任务排**：
    - **TODO-026**：9 张结果表里 8 张仍是 `input_json`/`output_json` 简化容器，
      照 `CoolingTowerResult` 的 14 子结构铺开 ≈ **100+ 个子结构** + 迁移 + 契约 + 测试；
    - **TODO-032**：条目写 4 个文件，**实测 29 个**用真 PG（`get_async_session_factory`）。
-4. **P9-Prep 计划外但已登记**：TODO-047（`advisory_lock.acquire_record_lock`
-   用 Python `hash()`，跨进程不串行 —— 同文件的 `hashtext()` 才是对的），
-   归 P9A-LCK 或独立修复，**不在 P9-Prep 修**。
+3. **P9-Prep 顺带登记的**：
+   - **TODO-047**（已登记）：`advisory_lock.acquire_record_lock` 用 Python `hash()`，
+     跨进程不串行 —— 同文件的 `hashtext()` 才是对的。归 P9A-LCK 或独立修复。
+   - **ADR-0048 §⑥ 覆盖缺口**：29 张 `*_result(s)` 表里 18 张有 `record_hash`，
+     `sim_*`(8) / `util_results` / `cost_est_results` **没有**，`two_phase_results`
+     有 hash 但**无 `updated_at`** ⇒ 这 12 张要做编辑并发保护**需要新列**。补哪列未裁决。
+   - **ADR-0046 存量孤儿清单**：导出无对应 users 行的 uuid5，归属 P9A（已写进 SPEC §3.2.2）。
+   - **ADR-0049 §① 通知写侧同步/异步未锁**：本版无邮件，原「异步以免阻塞外部投递」理由已失效。
 
 ✅ **TODO-028 已于 2026-10-08 核实关闭**（此前 STATUS 里的挂靠是陈旧引用）。
 
@@ -111,5 +131,18 @@ P9-OPEN-004 每日凌晨 / P9-OPEN-006 WebSocket+降级轮询。
   1 条基于我的误读（以为有两个 alembic 闸门）。**驳回也要带证据。**
 - **注释防不住已进过记录的 bug**（`alembic check` 的 255 已进 CLAUDE.md）⇒
   该由代码约束（共享函数 + 单测），不是每次改动补一句提醒。
+- **「验证手段」本身也会是错的，且错得很安静**。本轮三处：
+  ① `alembic check` 不读迁移源码 —— 按「加一条迁移造漂移」验收会拿到**假绿**；
+  ② `app.routes` 不展开 `_IncludedRouter` —— 枚举路由会拿到**空清单**；
+  ③ SPEC §2.2.3 的 `grep app/api/` 在仓库根是**命令没跑成功**，不是「搜过了没有」。
+  ⇒ 写验收步骤时先问「这条命令真的能看到我想看的东西吗」，并**实跑一次看输出**，
+  别照抄形状像对的命令。
+- **计划里的「唯一收口 / 全部覆盖」是断言不是事实**，且实测常比断言小。
+  本轮三处断言各错一半：record_hash 21 张（实 18/29）、唯一写入点（实 6 条旁路）、
+  11 张表有 `updated_at`（实 4 张）。写 ADR 前逐条 grep 验证。
+- **文档里不要硬写会自然变化的数字**。`259 schema / 141 字段` 抄在 SPEC 与脚本
+  docstring 两处，**两份都漂了**（实为 296/158）。权威值应在代码里，文档指向它。
+- **`.superpowers/` 未被 gitignore**，而计划里多个 Step 是 `git add -A` ⇒
+  执行脚手架会被提交。开工前先确认工作区已 ignore。
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>

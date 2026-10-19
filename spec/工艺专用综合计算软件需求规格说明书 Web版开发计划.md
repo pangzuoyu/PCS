@@ -15,7 +15,9 @@ P5	设备计算模块（第二批）	第12-16周	VESSEL、SEP_EQUIP、PSV、HEAT
 P6	高级计算模块（第三批）	第16-19周	CV、RESTRICTION、FLARE_SYS、COOL_TOWER、PSYCHRO、OPEN_CHANNEL	P4, P5
 P7	集成模块	第19-21周	EQUIP_LIST、UTIL、EQUIP_LIB、供应商数据	P4, P5, P6
 P8	报表与输出	第21-23周	REPORT、REPORT_BUILDER	P7
-P9	工作流与权限	第23-25周	签署流程、变更影响分析、ADMIN	P1, P7
+P9-Prep	P9 清账 + ADR	第23-24周	alembic 闸门、4 份 ADR、P1 端点清单、MFA 决议	P8
+P9A	P9 后端交付物	第25-30周	签署/变更单/代录/ADMIN 后端、身份模型、观测层、通知待办	P7 收口 + P9-Prep ADR
+P9B	P9 前端交互	第31-35周	签署流程、变更影响、ADMIN 前端	P9A OpenAPI 冻结
 P10	AI预留与测试部署	第25-28周	AI接口预留、全流程测试、部署文档	全部
 P0：项目初始化与基础设施（第1-3周）
 目标
@@ -750,9 +752,21 @@ ReportDefinitions模型
 
 前端报表定义编辑界面
 
-P9：工作流与权限（第23-25周）
+P9：工作流与权限（第23-35周，拆 P9-Prep / P9A / P9B 三段）
 目标
-实现签署流程、变更影响分析前端、ADMIN模块。
+实现签署流程、变更影响分析、ADMIN。
+
+⚠️ **2026-10-19 修订**：原计划把 P9 压成「第23-25周」且假定「P1 已交付后端状态机与
+变更影响分析 API」。实测不成立 —— P1 只交付了状态机骨架（`records.py` 的
+`POST /piping/{id}/transition`）与 deliverables 的**读面**（4 个 GET）。
+9 个 records 工作流端点、4 个 deliverables 写端点、CIA 哈希判定分流**均不存在**。
+详见 `docs/PCS-NOTE-P9-Prep-P1端点交付面清单-2026-10-19.md`。
+
+分段：
+- **P9-Prep（第23-24周）** ✅ 已完成 —— 清掉阻塞 P9A 的 4 项（alembic 闸门 / 4 份 ADR /
+  P1 端点清单 / MFA 决议），**不写业务代码**
+- **P9A（第25-30周）** —— 后端交付物全套 service + API + 迁移 + 身份模型 + 观测层 + 通知待办
+- **P9B（第31-35周）** —— 前端交互，消费 P9A 冻结的 OpenAPI
 
 任务分解
 9.1 签署工作流前端（V1.2：两层）
@@ -859,7 +873,9 @@ P0 (基础设施)
  │    │    │    │    │    ├─► P6 (CV/RESTRICTION/FLARE_SYS/COOL_TOWER/PSYCHRO/OPEN_CHANNEL)
  │    │    │    │    │    │    ├─► P7 (EQUIP_LIST/UTIL/EQUIP_LIB/供应商)
  │    │    │    │    │    │    │    ├─► P8 (REPORT/REPORT_BUILDER)
- │    │    │    │    │    │    │    │    ├─► P9 (签署/变更影响/ADMIN)
+ │    │    │    │    │    │    │    │    ├─► P9-Prep (清账/ADR)
+ │    │    │    │    │    │    │    │    │    ├─► P9A (后端交付物)
+ │    │    │    │    │    │    │    │    │    │    └─► P9B (前端交互)
  │    │    │    │    │    │    │    │    │    └─► P10 (AI预留/测试/部署)
 各阶段Claude Code使用要点
 场景	Claude Code使用方式	人工审查重点
@@ -880,7 +896,9 @@ P5完成	各设备计算与手算/商业软件偏差在SPEC要求范围内
 P6完成	高级模块计算功能验证通过
 P7完成	设备表正确汇聚各模块结果、UTIL能耗汇总正确
 P8完成	报表生成格式正确、自定义报表可用
-P9完成	签署流程完整走通、变更影响分析正确触发
+P9-Prep完成	alembic 闸门已接 hook；4 份 ADR accepted；P1 端点清单产出；MFA 决议落定
+P9A完成	后端交付物端点齐全（签署/变更单/代录/ADMIN/通知/待办/观测层），OpenAPI 冻结，响应 schema 零裸字段新增
+P9B完成	签署流程完整走通、变更影响分析正确触发
 P10完成	全流程E2E测试通过、性能达标、部署文档完整
 
 ---

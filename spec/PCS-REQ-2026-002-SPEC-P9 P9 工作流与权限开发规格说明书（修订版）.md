@@ -134,7 +134,7 @@ P9-OPEN-001 从"待确认"升级为硬阻塞。二选一：
 P9-OPEN-002 本版不设邮件服务器、预留 `NotificationChannel` 接口；P9-OPEN-004 每日凌晨；
 P9-OPEN-006 WebSocket + 降级轮询（降级状态必须可观测，不得直接停推）。
 
-2.3 P9-Prep 交付物（**2026-10-08 状态**）
+2.3 P9-Prep 交付物（**2026-10-19 状态**）
 
 | 交付物 | 状态 | 落点 |
 |---|---|---|
@@ -143,12 +143,16 @@ P9-OPEN-006 WebSocket + 降级轮询（降级状态必须可观测，不得直�
 | ondelete 裁决决议 | ✅ | CASCADE，`fd0e8b9` |
 | uq_user_projects_user_project ORM 声明 | ✅ | bug-147 |
 | `projects` 零外键修复 | ✅（计划外） | bug-146，`p7_s5_008` |
-| alembic check 闸门脚本 / git hook | ❌ | 见下注 |
-| ADR-A / B / C / D（4 份，accepted） | ❌ | 无 |
-| 《P1 实际交付面清单》 | ❌ | 无 |
-| MFA 决议 | ❌ | 无 |
+| alembic check 闸门脚本 / git hook | ✅ | `pcs-backend/scripts/gate_alembic_check.py` + `.githooks/pre-commit` 第二触发段，见 `.githooks/README.md` |
+| ADR-A / B / C / D（4 份，accepted） | ✅ | ADR-0046 / 0047 / 0048 / 0049。⚠️ 编号**不是** 0042~0045 —— ADR-0041 正文预留了 0042（解冻机制），故从 0046 起 |
+| 《P1 实际交付面清单》 | ✅ | `docs/PCS-NOTE-P9-Prep-P1端点交付面清单-2026-10-19.md`。结论：SPEC 点名的 12 个端点里 11 个确认不存在，`confirm` 不存在（存在的是不含哈希判定分流的 `confirm-recalc`）⇒ 交付物写面全归 P9A |
+| MFA 决议 | ✅ | `docs/PCS-NOTE-P9-Prep-MFA决议-2026-10-19.md`。路径 B（AD 密码二次输入 + `SIGN_2FA_FALLBACK`）。连带关闭 P9-OPEN-002（无邮件，预留 NotificationChannel）/ 004（每日凌晨）/ 006（WebSocket + 降级轮询） |
 
-**PP-5 注**：`alembic check` 现状为 exit 0（无漂移），但**闸门本身仍未自动化** —— `.pre-commit-config.yaml` 里没有 alembic 检查。TODOS.md 已裁决**不做**静态列覆盖检查器（一次性会报几百条没人能修的红，是「狼来了」）。可行的替代是把 `alembic check` （注意退出码 255）接进 pre-commit 的本地 hook，只在改动 `alembic/versions/*` 时触发。
+**PP-5 注（2026-10-19 已落地）**：闸门 = `pcs-backend/scripts/gate_alembic_check.py`，经 `scripts/run_gate.run_capture()` 观测退出码，只判 `rc == 0` / `rc != 0`，**不比较 255 或 1**。四个分支：无漂移放行 / DB revision 落后则阻断并提示 `upgrade head`（「守门没跑」不等于「通过」）/ DB 不可达则放行 + 告警（避免训练出 `--no-verify`）/ 其余非 0 阻断。
+
+⚠️ **已知盲区（无法自动化）**：闸门只对 `DATABASE_URL` 指向的那个库成立（开发库 `pcs`）。`pcs_test` 的漂移不在视野内 —— **「hook 绿」不得被读成「两库都干净」**，要声称两库都干净必须单独跑一次。另注：`alembic check` 比对的是 ORM ↔ **活库**，不读迁移源码 —— 加一条未 apply 的迁移不会被检出。
+
+沿用既有裁决：不做静态列覆盖检查器（「狼来了」）；不用 pre-commit 框架（与「CI/CD 不做」冲突），走 `.githooks/` + `core.hooksPath`。
 
 周期：**原估 2 周（1 人），剩余量按 4 项未完成项重估约 1.5 周**（ADR 4 份最重）。
 阻塞下游：P9A 全部
@@ -402,7 +406,10 @@ P9-OPEN-009	编辑锁存储方案	已裁决：ADR-0048 accepted（2026-10-19）�
 P9-OPEN-010	通知/待办表 vs 实时计算	已裁决：ADR-0049 accepted（2026-10-19），通知建表 / 待办实时计算	ADR-D → `docs/adr/0049-notification-and-todo-data-model.md`	~~P9-Prep~~ 已关闭
 P9-OPEN-011	fk_utility_energy_summary ondelete CASCADE vs RESTRICT	（无）	**已裁决：CASCADE**（`fd0e8b9`）	~~P9-Prep~~ 已关闭
 第九部分：修订后对开发计划文档的同步要求
-Web版开发计划.md 需同步修订：
+目标文件：`spec/工艺专用综合计算软件需求规格说明书 Web版开发计划.md`
+（⚠️ 不在 `docs/` 下 —— 2026-10-19 实测。写 `docs/Web版开发计划.md` 会找不到文件）
+
+✅ **已于 2026-10-19 全部同步完成**：
 
 P9 章节：
 
@@ -416,7 +423,10 @@ P9 章节：
 
 里程碑验收标准表：P9 行拆为 P9-Prep / P9A / P9B 三行
 
-未解决问题章节：新增"P9 后端交付物子系统实际未由 P1 交付"说明
+未解决问题章节：新增「P9 后端交付物子系统实际未由 P1 交付」说明
+　　✅ 已写入 Web开发计划 §P9 的「目标」段，注明 P1 只交付状态机骨架 + deliverables 读面，
+　　9 个 records 工作流端点 / 4 个 deliverables 写端点 / CIA 哈希判定分流均不存在，
+　　并指向 `docs/PCS-NOTE-P9-Prep-P1端点交付面清单-2026-10-19.md`
 
 版本历史（追加）
 版本	日期	修改内容	编制人
