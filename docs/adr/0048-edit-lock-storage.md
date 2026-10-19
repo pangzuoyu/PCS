@@ -7,9 +7,9 @@
 - Informed: P9A 实施者、P9B 并发控制前端
 - Supersedes: —
 - Superseded by: —
-- Related: P9-OPEN-009、SPEC §3.2.5 P9A-LCK-001~005、
+- Related: P9-OPEN-009、SPEC §3.2.5 P9A-LCK-001~005、SPEC §3.2.2 `P9A-ADM-001/002`（停用入口，2026-10-19 补）、
   **ekris-redis-lock-degradation（2026-04-09，user-stated）—— 见 §⑤ 的显式关系声明**、
-  ADR-0041 §编号预留（故取 0048）
+  ADR-0041 §编号预留（故取 0048）、`TODOS.md` TODO-048（`RECORD_TYPE_REGISTRY` 名不副实）
 
 ## 背景
 
@@ -87,14 +87,16 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 > 本段原读起来像全覆盖的保证，与 §⑥ 的实测缺口矛盾）。
 >
 > 实测：**10 张表没有 `record_hash`**（`sim_*`(8) / `util_results` / `cost_est_results`），
-> 其中 **9 张连 `updated_at` 也没有** ⇒ 对它们，Redis 降级后**DB 兜底不成立**，
-> 每次编辑保存都落 `no_baseline`。另有 `two_phase_results` 有 hash 但**无 `updated_at`**，
-> 退化阶梯缺第二档。
+> 其中 **9 张连 `updated_at` 也没有**；另有 `two_phase_results` 有 hash 但**无 `updated_at`**。
 >
-> ⇒ **这 11 张表的编辑并发保护是 P9A 的未决迁移决策**（见「尚未解决」1），
-> 在该决策落地前它们**没有 DB 兜底**。
+> 🔻 **但「有缺口」≠「需要补」。** 经 2026-10-19 裁决收窄（见 §⑥ 收窄表）：
+> **这 11 张里只有 1 张真的需要补** —— `cost_est_results`，因为它是**唯一**
+> 「可编辑（`PATCH /results/{id}`，且无 sign_status 门禁）∧ 无任何并发令牌」的表。
+> 其余 10 张**没有手动编辑端点**，保护一个不存在的并发是死代码。
 >
-> **前端要求**：Redis 降级横幅不能是全局一句话。对落在上述 11 张表的记录，
+> ⇒ **`cost_est_results` 在 P9A 补列之前没有 DB 兜底**，这是本 ADR 交给 P9A 的**唯一**实际缺口。
+>
+> **前端要求**：Redis 降级横幅不能是全局一句话。对 `cost_est_results` 的记录，
 > 横幅须额外提示「**本次编辑无冲突检测**」（而不是让用户以为有 DB 兜底）。
 > 这不是可选的措辞优化 —— 用户在无保护状态下编辑，**必须知道**。
 
@@ -129,6 +131,51 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 > 上面 10 张 + `two_phase_results`（合计 **11 张**）若 P9A 要对其做编辑并发保护，
 > **需要新列**（`record_hash` 或一个通用 `row_version`）—— 这是本 ADR 未消除的欠账，
 > 已在「尚未解决」登记。
+>
+> **🔻 2026-10-19 裁决收窄：「11 张」是计数口径，不是施工口径。**
+> 补列的**前提是有手动编辑路径** —— 没有编辑场景，并发保护保护的是一个不存在的并发。
+> 实测全部写端点（`grep -rnE '@router\.(put|patch)\([^)]*results' app/api/v1/*.py`）：
+>
+> | 表 | 手动编辑端点 | 需不需要兜底 |
+> |---|---|---|
+> | `flare_results` / `cooling_tower_results` / `psychro_results` | ✅ `PATCH /results/{id}` | ❌ 已有 hash + updated_at，**已全覆盖** |
+> | **`cost_est_results`** | ✅ `PATCH /results/{id}`（`cost_est.py:376`），**且无 sign_status 门禁** —— 注释原文「所有状态可 PATCH」 | 🔴 **唯一需要补的** |
+> | `util_results` | ❌ `util.py` 只有 GET + POST | 不需要 |
+> | `sim_*` 8 张 | ❌ `sim_imports_query.py` **全是 GET**（expired / detail / preview / warnings） | 不需要 |
+> | `two_phase_results` | ❌ 无编辑端点 | **不需要** —— 从覆盖缺口移除 |
+>
+> ⇒ **施工范围 = 1 张表：`cost_est_results` 补 `record_hash` + 接 `finalize_calc_record`。**
+> 它是**唯一「可编辑 ∧ 无任何并发令牌」**的表，且因为无签署态门禁，
+> 它恰恰是 Redis 降级时最容易被两人同时改的那张。
+>
+> 🔎 **`RECORD_TYPE_REGISTRY` 的语义澄清（2026-10-19 实测，影响本节的论证措辞）**：
+>
+> 有人会以为「`CostEstResult` 已在 `RECORD_TYPE_REGISTRY` 里，所以补 `record_hash` 列是
+> **补一个漏掉的必备列**」。**不是。** 实测三条：
+>
+> | 查什么 | 结果 |
+> |---|---|
+> | `RECORD_TYPE_REGISTRY` 是什么类型？ | `dict[str, type]` —— 纯「名称 → 类」映射 |
+> | `finalize_calc_record` 体内引用它几次？ | **0 次** —— 它靠鸭子类型（`record.record_hash = ...`），**从不查注册表** |
+> | `app/` 里除定义与 `__all__` 外的消费者？ | **0 个** —— 只有测试断言它的成员与数量 |
+>
+> ⇒ **登记与「必须有 `record_hash` 列」之间没有任何代码关系。**
+> 「登记 = 必须有列」和「登记 = 纯枚举」两个选项**都不对** —— 注册表根本不是那个意思。
+>
+> 两个后果：
+> 1. **`cost_est_results` 补 `record_hash` 是「补兜底」（并发保护需要），
+>    不是「补漏」（注册表完整性）。** 论证按前者写。
+> 2. **不要加「registry ⇒ 有 record_hash 列」的一致性测试** —— 那是个**不存在的不变式**，
+>    加了会立刻红在 `CostEstResult` 上，或反过来逼出不需要的列。
+>
+> ⚠️ **注册表名不副实，是一条真实的误导源**：`RECORD_TYPE_REGISTRY` 看起来像
+> 「finalize 支持的类型清单」，但 finalize 根本不查它。于是 `CostEstResult` 在表里
+> ⇒ 读者以为它被 finalize 支持 ⇒ 实际调了会抛 `AttributeError`（`cost_est_persist_service.py:15`
+> 正是靠这条注释挡住的）。**防线是注释不是代码。** 登记为 TODO-049。
+>
+> ⚠️ **「无编辑路径」是当前事实，不是永久属性。** 若 P9B 新增 SIM 导入结果的
+> 编辑入口（或 `util_results` 的可编辑字段），本节结论失效 ⇒ **回本 ADR 修订**，
+> 不得就地补列。触发条件写在「尚未解决」1。
 >
 > **复核命令（数字不要手数）**：
 >
@@ -253,22 +300,42 @@ INSERT 不触发 `onupdate`，那一瞬 `updated_at` 是 **NULL**，落的是 `n
 
 **`changed_by` / `changed_at` 的契约约束（三条，强制）**：
 
-1. **只在 `audit_logs` 中确实对应「本次编辑写入」的条目存在时才填**，否则置 `null`。
-   **不得**用「该记录最近一条审计」这种泛匹配去凑。
+1. 🔻 **2026-10-19 裁决（原「恒为 `null`」已废止）** —— 每次编辑保存写一条
+   `audit_logs`（`action = RECORD_EDITED`，与 `RECORD_EDIT_OVERWROTE_STALE_BASELINE` 并列）。
+   `changed_by` 从**本次编辑对应的那条**审计取，取不到才置 `null`。
+   **不得**用「该记录最近一条审计」泛匹配去凑。
 2. **不得**用 `updated_at` 冒充 `changed_at` —— `updated_at` 是行级时间戳，
-   只说明「这行被改过」，不说明「是谁改的」。用它填会让弹窗说
-   「该记录已被 X 于 **上一次别人修改的时间** 修改」，这是**精确性伪装，比 null 更有害**。
-3. 若产品要求 409 弹窗显示修改人，**P9A 必须为编辑保存补审计**。
-   这是产品需求 → 实现的单向依赖，**不要**在实现阶段才发现做不到而回退成「显示不出修改人」。
+   只说明「这行被改过」，不说明「是谁改的」。用它填是**精确性伪装，比 null 更有害**。
+3. **`audit_logs.detail_json` 的字段级摘要必须有显式 schema**
+   （受 P9A-DLV-010 零裸字段约束），**不得是自由 dict**。
+   `detail_json` 的 `changed_fields` 供 409 弹窗的「查看差异」动作 ——
+   **「不显示修改人」不能叠加「不显示改了哪」**，否则是双重降级。
 
-> **为什么第 1 条这么严（背景，非约束）**：编辑保存路径今天**不存在** ——
-> `records.py` 现有 6 个路由里没有改内容的 PUT/PATCH（`POST /piping/{id}/transition`
-> 与 `DELETE` 走的是 `StateMachineService.transition()`，那是**状态流转**，不是编辑保存）。
-> 所以「编辑保存写不写审计」是 **P9A 的新决策**，不是可查证的既有事实。
-> 若 P9A 不补这条审计，`audit_logs` 里只有状态流转与锁 acq/rel，
-> 「最近一条审计」很可能与本次编辑**无关** ⇒ **把冲突归因给错误的人** ——
-> 而这比 `null` 更糟：`null` 让用户知道「系统不知道是谁」，
-> 错误归因会让用户去质问一个无辜的人。
+> **为什么裁决从「不写编辑审计」改成「写」（决策委员会 2026-10-19，原建议 B，实测后翻转）**：
+>
+> 原论证是「409 是低频异常，编辑保存是高频主路径，别为低频弹窗给主路径加写入」。
+> 这条论证成立的前提是**不提供字段级 diff**。一旦要求 409 说得出「改了哪」，
+> 前提就没了 ——
+>
+> 实测：`change_diff_json` 只在**计算收口**（`calc_lineage`）/ `cia_engine` /
+> `change_impact` / `flash_persist` 里写，**编辑保存路径一个都不写**。
+> 而 `record_hash` 是哈希不是内容，**无法事后 diff**。
+>
+> ⇒ 要显示 diff，**主路径上就非写不可**。三选一：
+>
+> | | 谁改了 | 改了哪 | 主路径写入 |
+> |---|---|---|---|
+> | **A：写 `audit_logs`（本裁决）** | ✅ | ✅（`detail_json`） | 一行，**无迁移** |
+> | B2：写 `data_lineage` diff | ❌ | ✅ | 一行（更重，无 who） |
+> | B0：什么都不写 | ❌ | ❌ | 零 |
+>
+> **A 用一次写入同时给出「谁」和「改了哪」，B2 花同样的代价只给一半。**
+> 「保留策略未定」这个顾虑对 A 与 B2 **同等成立**，不能只用来否 A。
+> `audit_logs` 已有 `user_id` / `action` / `resource_type` / `resource_id` / `detail_json`
+> ⇒ **不需要迁移**。
+>
+> ⚠️ **A 的已知代价**：写侧增速取决于编辑频率，而 `audit_logs` 的**保留期尚未裁决**
+> （P9-OPEN-003 只定了导出格式）。P9A 须一并提出保留期方案，否则审计表只增不减。
 
 **审计**：409 本身**不写** `audit_logs`（读侧拒绝，非状态变更）。
 但**无锁期间保存成功且 `expected_hash` 与库中上一值不符**时，
@@ -295,17 +362,15 @@ INSERT 不触发 `onupdate`，那一瞬 `updated_at` 是 **NULL**，落的是 `n
 
 ## 尚未解决
 
-1. **上表 10 张无 `record_hash` 的表 + `two_phase_results`（合计 11 张）的兜底令牌未裁决。**
-   > 计数由脚本枚举得出，不是手数（见 §⑥ 下方复核命令）：
-   > `29 张 *_result(s)｜19 有 record_hash｜10 无｜two_phase_results 有 hash 无 updated_at`。
-   > 其中 **9 张连 `updated_at` 也没有**（10 张无 hash 的里除 `util_results` 外全都没有）。
-   §⑥ 的退化阶梯对它们只能落到 `no_baseline`（= 每次保存都 409，或需明确放行策略）。
-   是给这 11 张补 `record_hash`、还是引入一个通用 `row_version` 整数列（所有表都加），
-   属 P9A 的迁移决策，本 ADR 只声明覆盖缺口，不预选方案。
+1. 🔻 **已由 2026-10-19 裁决收窄为 1 张表**：`cost_est_results` 补 `record_hash` +
+   接 `finalize_calc_record`。**不引入 `row_version`** —— 那会在 `record_hash` 之外
+   叠加第二套并发令牌，P9A 实施者每写一个保存路径都要判断「这张表用哪个」，
+   正是 bug-180~191 词表分叉的同构问题。同一把钥匙。
+   **触发条件（结论可能失效）**：若 P9B 新增 SIM 导入结果的编辑入口，或
+   `util_results` 出现可编辑字段 ⇒ §⑥ 收窄表失效，**回本 ADR 修订**，不得就地补列。
 2. **`record_hash` 不检测批准状态字段**（`sign_status` / `approval_step`）。
    若 P9A 实施时发现签署流程本身也需要并发保护（而不只是编辑），
    **本 ADR 不覆盖该场景**，需回本 ADR 修订。
-3. **「编辑保存」是否写 `audit_logs` 未裁决**（契约约束见 §⑦ 三条，此处只记未决部分）。
-   编辑保存路径今天**不存在**（`records.py` 无改内容的 PUT/PATCH），所以这不是可查证的
-   既有事实，是 P9A 的新决策。**未决的是「要不要补这条审计」**；
-   补了之后怎么填是已定的 —— 严格按 §⑦ 三条，不满足就置 `null`。
+3. ~~**「编辑保存」是否写 `audit_logs` 未裁决**~~ —— **已裁决**：写（§⑦ 裁决 2）。
+   随之产生的**新**未决项：**`audit_logs` 的保留期**（P9-OPEN-003 只定了导出格式）。
+   编辑审计让这张表的增速取决于编辑频率，P9A 须一并提出保留期方案。

@@ -160,6 +160,18 @@ AD 同步的角色来自同一批 AD 组 —— 同源，惰性建行不会与 A
 `POST /auth/refresh` 比对 `claim.tv == users.token_version`，不等 → 401。
 停用操作（`PUT /admin/users/{id}/disable`）在同一事务里 `token_version += 1`。
 
+> 📌 **该端点今天不存在**（实测 `grep -rn "admin/users" app/` → 0 命中），
+> 且 SPEC 原本**没有 `P9A-ADM-*` 条目** —— 本 ADR 早期版本引用了一个不存在的端点。
+> **2026-10-19 已补**：`P9A-ADM-001`（`GET /admin/users`）与
+> `P9A-ADM-002`（`PUT /admin/users/{id}/disable`）进 SPEC §3.2.2。
+>
+> 为什么这不是可选项：P9A-USR-004 的验收标准是「停用用户 refresh 立即 401」，
+> 而**触发停用的入口必须存在** —— 不建 disable 端点，§⑤ 整段落不了地。
+> 演示还需要 `users` 表有行 ⇒ **最小 AD 同步（`P9A-USR-001/002`）是连带前置**，
+> 不是可选附带。
+> 范围界定：完整用户/授权管理后台**单列**，不塞 P9A；
+> 审计查询端点**已有**（`audit.py`）。
+
 ## 已知边界（**不得被表述为「已解决」**）
 
 停用后**在手 access token 仍可用至多 30 分钟**（无状态，不查库）。

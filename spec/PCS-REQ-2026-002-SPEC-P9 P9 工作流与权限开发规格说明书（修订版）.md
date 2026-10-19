@@ -229,6 +229,15 @@ P9A-USR-005	登录路径变更：登录时查 users 表判 status；停用用户
 　　　⇒ `users.token_version` **应有 CHECK 约束 `>= 1`**（P9A 迁移时加）。
 　　(f) ⚠️ **不得用内存黑名单缩短吊销窗口**（论证见 P9A-USR-007 📌 段，两处只写一处）。
 P9A-USR-006	历史 user_id 兼容：uuid5 派生 ID 与 DB 主键的等价性处理	ADR-A
+P9A-ADM-001	`GET /admin/users` —— 用户列表（演示 disable 前后状态）	ADR-0046 §③（惰性建行）
+P9A-ADM-002	`PUT /admin/users/{id}/disable` —— 停用用户，同事务 `token_version += 1`	ADR-0046 §⑤
+　　⚠️ **这两条不是可选项**：P9A-USR-004 的验收标准是「停用用户 refresh 立即 401」，
+　　而**触发停用的入口必须存在** —— 不建 disable 端点，ADR-0046 §⑤ 整段落不了地。
+　　**前置依赖**：演示需要 `users` 表有行，而行来自 `P9A-USR-001` 惰性建行与
+　　`P9A-USR-002` AD 同步 ⇒ **最小 AD 同步已在本节范围内**，不是可选附带。
+　　🚫 **范围界定**：完整用户/授权管理后台（角色编辑、授权增删、批量操作）**单列**，
+　　不塞 P9A。审计查询端点**已有**（`audit.py`：`/audit-logs`、`/equipment-deletion-audit`、
+　　`/config-audit`），不算新增。
 P9A-USR-007	token_version 机制：users 表加列；create_token 写 claim；refresh 端点校验（access token 保持无状态，吊销粒度 = access TTL 30 分钟）	TODO-002 修正后处方
 　　📌 **已知边界，P9A 计划必须原文引用（ADR-0046 §已知边界，不得表述为「已解决」）**：
 　　停用后**在手 access token 仍可用至多 30 分钟**（无状态，不查库）。这是本项明确接受的
@@ -299,16 +308,29 @@ P9A-LCK-005	降级策略：Redis 不可用时（若选 Redis）	ADR-0048
 　　(c) `RECORD_EDIT_OVERWROTE_STALE_BASELINE` 审计 action 枚举
 　　(d) **兜底令牌按表而异**：29 张 `*_result(s)` 表中 19 张有 `record_hash`（零迁移），
 　　　但 `sim_*`(8) / `util_results` / `cost_est_results` 无 `record_hash`，`two_phase_results` 无 `updated_at`
-　　　⇒ 这 11 张要并发保护**需要新列**（其中 9 张连 `updated_at` 也没有）。补哪列（各自 record_hash vs 通用 row_version）未裁决，见 ADR-0048「尚未解决」1
+　　　🔻 **已裁决收窄为 1 张**（ADR-0048 §⑥ 收窄表）：这 11 张里只有 `cost_est_results`
+　　　**真的需要补** —— 它是唯一「可编辑（PATCH /results/{id}，**无 sign_status 门禁**）
+　　　∧ 无任何并发令牌」的表。`util_results` / `sim_*`(8) / `two_phase_results`
+　　　**无手动编辑端点**，不需要兜底。
+　　　**不引入 `row_version`**（会在 record_hash 之外叠第二套令牌，实施者每次都要
+　　　判断用哪个 ⇒ bug-180~191 词表分叉的同构问题）。补 `cost_est_results.record_hash`
+　　　是**补兜底**不是补漏 —— `RECORD_TYPE_REGISTRY` 与「必须有 hash 列」无代码关系
+　　	（finalize 靠鸭子类型，从不查注册表）。
+　　　⚠️ 触发条件：若 P9B 新增 SIM 结果编辑入口 ⇒ 结论失效，回 ADR-0048 修订
 　　⚠️ **ADR-0048 §⑤「拦住并发的是 DB」只对这 19 张成立。** Redis 降级后另外 11 张
 　　　**没有 DB 兜底**，每次编辑保存都落 `no_baseline`。⇒ P9B 的降级横幅**不能**是
 　　　全局一句话：对这 11 张表的记录须额外提示「**本次编辑无冲突检测**」。
 　　　用户必须在无保护状态下知道自己在无保护状态下编辑。
-　　⚠️ **409 的 `changed_by` 依赖「编辑保存是否写审计」，该决策未裁决**（ADR-0048 §⑦）。
-　　　编辑保存路径今天不存在 ⇒ 这是 P9A 的新决策。不写审计时 `changed_by` 不仅常为 null，
-　　　更糟是**可能指错人**（拿无关的最近一条 audit 去凑）。要求：只在审计确实对应本次
-　　　编辑写入时才填，否则置 null；**不得**用 `updated_at` 冒充 `changed_at`。
-　　　若产品要求 409 弹窗显示修改人 ⇒ P9A 必须为编辑保存补审计。
+　　✅ **已裁决：每次编辑保存写一条 `audit_logs`**（action = `RECORD_EDITED`），
+　　　`changed_by` / `changed_at` 从本次编辑对应的那条取。理由：字段级 diff 要求
+　　　`detail_json` 有 schema（零裸字段约束），而实测**编辑保存路径今天不写任何 diff**
+　　	（`change_diff_json` 只在计算收口 / CIA 写），`record_hash` 是哈希无法事后 diff
+　　　⇒ 主路径上非写不可；一次 audit 同时给「谁」+「改了哪」。
+　　　三条约束：① 只取本次编辑对应的那条，**不得**用最近一条 audit 泛匹配凑
+　　	（会把冲突归因给错误的人）；② **不得**用 `updated_at` 冒充 `changed_at`；
+　　	③ `detail_json` 字段级摘要**必须有显式 schema**。
+　　　⚠️ **随之产生的新欠账**：`audit_logs` 保留期未裁决（P9-OPEN-003 只定导出格式），
+　　　而写侧增速现取决于编辑频率 ⇒ P9A 须一并提保留期方案。
 验收：并发编辑场景下锁正确；过期自动释放；与状态机事务无死锁。
 
 3.2.6 变更影响确认分流（若 P1 未交付）

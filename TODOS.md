@@ -610,3 +610,48 @@ Python `str.__hash__` 默认按进程随机加盐（`PYTHONHASHSEED`），多 wo
 - **发现**：2026-10-19，P9-Prep 编写 ADR-0048 时
 - **归属**：P9A-LCK 或独立修复；**不在 P9-Prep 修**（改动面在 P7 已验收代码）
 - **严重度**：HIGH（并发正确性，且失败无声 —— 单进程测试全绿）
+
+### TODO-048: RECORD_TYPE_REGISTRY 名不副实 —— 它不是 finalize 的支持清单
+
+`pcs-backend/app/services/calc_lineage.py:68` 的 `RECORD_TYPE_REGISTRY: dict[str, type]`
+看起来像「`finalize_calc_record` 支持哪些 record 类型」的清单。**它不是。** 2026-10-19 实测：
+
+| 查什么 | 结果 |
+|---|---|
+| `finalize_calc_record` 体内引用注册表几次？ | **0 次** —— 它靠鸭子类型（`record.record_hash = ...`），从不查注册表 |
+| `app/` 里除定义与 `__all__` 外的消费者？ | **0 个** —— 只有测试断言成员与数量 |
+
+**为什么有害**：`CostEstResult` 在注册表里 ⇒ 读者以为它被 finalize 支持 ⇒
+实际调用会抛 `AttributeError`（该表无 `record_hash` 列）。
+目前靠 `app/services/cost_est/cost_est_persist_service.py:15` 的一句注释挡着 ——
+**防线是注释不是代码**，而「注释防不住已进过记录的 bug」这条已进 cerebrum。
+
+**裁定方向**（待 P9A 或独立修复）：
+① `finalize_calc_record` 开头加显式校验：目标对象无 `record_hash` 列时抛带类型名的
+   明确异常，取代裸 `AttributeError`；② 在注册表 docstring 里写明它是「名称 → 类」映射，
+   **不表示 finalize 支持**。
+
+⚠️ **不要加「registry ⇒ 有 record_hash 列」的一致性测试** —— 那是**不存在的不变式**，
+加了会立刻红在 `CostEstResult` 上。
+
+- **发现**：2026-10-19，P9-Prep 裁决会澄清注册表语义时
+- **归属**：P9A（`cost_est_results` 补列时一并处理）或独立修复
+- **严重度**：MEDIUM（当前无 bug，但给出假安全感；首次误用会抛 AttributeError 而非静默）
+- **关联**：ADR-0048 §⑥ 语义澄清块
+
+### TODO-049: two_phase_persist.py 的两处注释与代码不符
+
+`pcs-backend/app/services/pipe/two_phase_persist.py:6-8` 写着：
+
+- 「TwoPhaseResult 模型无 record_hash 列」
+- 「finalize_calc_record 调用 RECORD_TYPE_REGISTRY，TwoPhaseResult 未注册」
+
+**两句都不成立**（2026-10-19 实测）：该表**有** `record_hash` 列
+（P4-TASK0 补的，模型注释自陈「接入 calc_lineage 收口」），且 `TwoPhaseResult`
+**在注册表的 21 条里**。第二句还叠了一个错误前提：`finalize_calc_record`
+**从不查注册表**（见 TODO-048）。
+
+- **发现**：2026-10-19，P9-Prep 裁决会核实「two_phase 是否需要补 updated_at」时
+- **归属**：独立修复（与三条裁决无耦合，**不阻塞 P9A 开工**）
+- **严重度**：LOW（注释误导，但该表已登记且有列，无实际缺陷）
+- **关联**：TODO-048
