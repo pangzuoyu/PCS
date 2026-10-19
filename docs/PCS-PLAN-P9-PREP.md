@@ -345,9 +345,19 @@ PYEOF
 grep -n "^down_revision" alembic/versions/zz_tmp_pp5_probe.py   # 空 ⇒ 回上一步换 head 取法
 
 uv run python scripts/gate_alembic_check.py; echo "RC=$?"     # 预期 ❌ + RC=1
+
+# ⚠️ 探针必须删干净。它躺在 alembic/versions/ 下，一旦被提交进仓库，
+#    下一个人跑 alembic 会把它当真实迁移 —— 后果不可预知。
 rm -f alembic/versions/zz_tmp_pp5_probe.py
+test ! -e alembic/versions/zz_tmp_pp5_probe.py \
+  && echo "探针已清除 ✓" \
+  || { echo "❌ 探针仍在，先手动删掉再继续"; exit 1; }
+
 uv run python scripts/gate_alembic_check.py; echo "RC=$?"     # 预期 ✅ + RC=0
 ```
+
+> 上面 `test ! -e ... || exit 1` 是**硬闸**：删不掉就停，不许继续往下走。
+> 不要依赖「后面还有别的步骤会清理」—— Step 13 的 `git add -A` 会把它一起提交。
 
 > 探针是 `add_column` 而 ORM 里没有 ⇒ `alembic check` 报待执行的 `remove_column` 操作，
 > 即真漂移。若 Step 7 就已报漂移，说明工作区本来有漂移 —— 先查清再继续，别把两件事混在一起。
@@ -419,6 +429,10 @@ ARQ 失败路径仍零覆盖，归 P9A-NOT-004」。
 
 ```bash
 cd /home/pangzy/code_project/PCS
+# 提交前硬闸：探针绝不能进仓库（Step 8 已删，这里是第二道）
+if git status --porcelain | grep -q zz_tmp_pp5_probe; then
+    echo "❌ 探针文件仍在暂存区/工作区，中止提交"; exit 1
+fi
 git add -A
 git commit -m "chore(backend): PP-5 alembic 漂移闸门自动化（run_gate 单点观测 + 255 不比较 + 单库盲区已注明）"
 ```
@@ -501,6 +515,11 @@ note 正文用这张表，12 行一行不少（SPEC §2.2.3 点名的 7 个 reco
   uv run python scripts/check_openapi_payload_coverage.py; echo "RC=$?"
   ```
   基线仍是 71（脚本 `BASELINE_BARE_FIELDS = 71`）—— 若上涨，说明 `dict` 已被计入，把实测数字写进 note，别猜。
+  > **偏差处理规则**：若实测值与 71 不符，**先记录偏差再继续，不得直接改基线数字**。
+  > 实测偏低 ⇒ `check_openapi_payload_coverage.py` 的扫描逻辑可能漏了某类字段，
+  > 那是脚本缺陷（登记 TODO），不是「基线本该是 70」。
+  > 实测偏高 ⇒ 先查清多出来的是什么，再决定归因。
+  > 两种情况下 Task 8（PP-M）都按实测值统一 SPEC，但要**在 note 里写明偏差原因**。
 
 - [ ] **Step 5: 回写 SPEC §2.2.3 与 §8**
 
@@ -857,14 +876,13 @@ Redis TTL 30 分钟自动清理，无需定时任务。
 > 该 learning 原文：「If Redis unavailable, must return 503 immediately.
 > **No lockless concurrent allowed.**」
 >
-> **本 ADR 不推翻它。** 用户已于 2026-10-19 裁定该 learning 的语义为
-> 「禁止**无保护**下的并发」而非「必须事前拒绝」——
-> 事后检测（乐观比对）同样构成并发保护，不是 lockless。
+> **裁定已作出（2026-10-19，用户）**：该 learning 的语义为「禁止**无保护**下的并发」
+> 而非「必须事前拒绝」—— 事后检测（乐观比对）同样构成并发保护，不是 lockless。
 > 故采纳下面的双层方案，而非 fail-closed。
 >
-> 若日后裁定该 learning 要求的是**事前拒绝**（事后检测不算），本条作废：
-> §⑤ 改写为 fail-closed（503），§⑥/§⑦ 随之作废。
-> **此依赖关系不得由 ADR 作者单方面解释。**
+> **本条的可证伪条件**：若用户日后把该 learning 改判为「必须事前拒绝」
+> （事后检测不算），则 §⑤ 作废、改为 fail-closed（503），§⑥/§⑦ 随之作废。
+> 此条件已由用户裁定，不留给后续 ADR 作者重新解释。
 
 ```
         ┌──────────────────────────────────────────────┐
@@ -896,10 +914,24 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 
 1. `record_hash` 由 `RecordMixin` 共享 ⇒ `app/models/calc.py` 的 **21 张业务结果表全部已有**，
    **零迁移**。
-2. 维护点是**唯一收口** `finalize_calc_record`（`app/services/calc_lineage.py:166`
-   自述「计算记录唯一收口」），不需要改 21 个 persist service。
-3. **比对范式已存在**：`app/services/cia_engine.py:101` 已在做「当前 record_hash 与
+2. **比对范式已存在**：`app/services/cia_engine.py:101` 已在做「当前 record_hash 与
    data_lineage 最新 hash 比对」（change-impact 用）。复用同一范式，不新造概念。
+3. `updated_at` 带 `onupdate=func.now()`（`app/models/mixins.py:38-40`）⇒ 每次 UPDATE 都会刷新，
+   可作第二档比对令牌（见下方退化处理）。
+
+> ⚠️ **「唯一收口」是错的，2026-10-19 核实后更正。**
+> `finalize_calc_record`（`app/services/calc_lineage.py:166`）**不是** `record_hash` 的唯一写入点。
+> 实证的旁路：
+>
+> | 路径 | 行为 |
+> |---|---|
+> | `cv/cv_persist.py:189`、`restriction/restriction_persist.py:184`、`heat/thermosiphon_persist_service.py:166` | 直接调 `compute_record_hash()`，不经 `finalize_calc_record` |
+> | `pump/pump_chain_persist.py:191`、`pipe/pipe_chain_persist.py:200`、`pipe_net/pipe_net_persist.py:113` | persist 时先 `record_hash = ""`，指望后续 finalize 填充 |
+>
+> **结论不变，但理由变了**：三类旁路里，前一类仍写入**正确**的 hash（兜底照常生效）；
+> 后一类把 hash 置空 ⇒ 落到下方退化的 `updated_at` 分支。
+> 也就是说 **`updated_at` 不是罕见边角，而是 pump / pipe / pipe_net 三类记录的常态路径**。
+> 实施时这三类记录的冲突检测依赖 `onupdate`，不是依赖 hash。
 
 **粒度 = per `{module}/{record_id}`**，与 Redis 锁粒度一致。
 不做「事务内多行独立 version」—— 交付物侧 `issue` 跨表事务
@@ -916,17 +948,22 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 负责，两者不重叠。
 
 **退化处理（必须实现，不得省略）**：`record_hash` 是 `nullable=False, default=""`，
-**未计算过的记录是空串**。两个空串相等 ⇒ 冲突检测失效。故：
+**未计算过的记录是空串**。两个空串相等 ⇒ 冲突检测失效。
+且如上所述，pump / pipe / pipe_net 三类记录**常态**就是空 hash。故：
 
 ```
 保存请求带 expected_hash（+ expected_updated_at）
   ├─ 当前 record_hash != "" 且 != expected_hash  → 409 CONFLICT (basis=record_hash)
   ├─ 当前 record_hash == expected_hash           → 放行（正常路径）
-  └─ 当前 record_hash == ""
+  └─ 当前 record_hash == ""                      ← pump/pipe/pipe_net 常态
        ├─ updated_at != expected_updated_at  → 409 CONFLICT (basis=updated_at)
        ├─ updated_at == expected_updated_at   → 放行
        └─ 两者都为空（记录从未被写）          → 409 (basis=no_baseline)
 ```
+
+⚠️ `updated_at` 是 `nullable` 且只在 UPDATE 时刷新（`mixins.py:38-40`，`onupdate=func.now()`）。
+新建后从未被 UPDATE 过的记录 `updated_at` 为 NULL ⇒ 必须走 `no_baseline` 分支，
+**不得**把 NULL 当「相等」放行 —— 那会让从未计算过的记录完全无保护。
 
 ### ⑦ 409 冲突响应契约
 
@@ -1028,7 +1065,7 @@ Python `str.__hash__` 默认按进程随机加盐（PYTHONHASHSEED），多 work
 cd /home/pangzy/code_project/PCS
 git add docs/adr/0044-edit-lock-storage.md TODOS.md
 git add "spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md"
-git commit -m "docs(adr): ADR-0044 编辑锁（Redis + TTL 30min + 降级放行）+ 登记 TODO-047"
+git commit -m "docs(adr): ADR-0044 编辑锁（Redis 体验层 + record_hash 兜底层）+ 登记 TODO-047"
 ```
 
 ---
@@ -1181,6 +1218,55 @@ grep -n "P9-ADM-001\|二次认证\|MFA" ../spec/PCS-REQ-2026-002-SPEC-P9*.md | h
 | 失败处理 | 校验失败拒签 | 校验失败拒签 |
 | 实施成本 | 高（采购/接入/前端 enrollment） | 低（一次再认证调用） |
 | 后续替换成本 | — | 需二次改造代录链路 |
+| **mock 下的二次认证** | 不适用（mock 本就不做二次认证） | **已裁决：mock 会话豁免**（见下） |
+
+> ### ✅ 裁决（2026-10-19，用户）：**路径 B —— AD 密码二次输入 + 强制审计**
+>
+> P9-OPEN-001 关闭。落地约束四条：
+>
+> 1. **审计 action = `SIGN_2FA_FALLBACK`**（SPEC §2.2.4 路径 B 指定名），
+>    写入 `audit_logs`。**不得**复用 `SIGN_2FA_OK` —— 后者会掩盖「我们没上真 MFA」这个事实，
+>    使日后审计读不出当前用的是降级方案。
+> 2. **二次输入验证的是操作者本人的 AD 密码**，走既有 `authenticate(username, password)`
+>    （`app/services/ldap_client.py`）—— 不新增凭据通道。
+> 3. **路径 B 是明确的过渡态，不是终态。** SPEC §2.2.4 原文即「MFA 后续替换」。
+>    替换时应新增 `SIGN_2FA_OK` 与真 MFA 校验，届时 `SIGN_2FA_FALLBACK` 转为历史值。
+>    **不得**在 Fallback 路径上直接改用 `SIGN_2FA_OK` 冒充已上 MFA。
+> 4. **mock 会话豁免**（已裁决，见下块）。豁免范围限定在登录层，
+>    `verify_secondary_auth()` 函数本身不得豁免。
+>
+> **P9A 交接**：P9A-DLV-008（代录客户批准后端）需新增
+> `SIGN_2FA_FALLBACK` 审计枚举 + 二次认证中间件；SPEC §3.2.1（5b）与 §3.2.1 的
+> 通过/退回两条链路都依赖它（SPEC §R7 把它升级为硬阻塞的理由）。
+>
+> **连带激活 P9-OPEN-002**：路径 B 下邮件成为通知主通道（原判断：路径 A 走短信则邮件
+> 非必需，路径 B 则必需）。邮件服务器未定 ⇒ P9A-NOT-001 的写侧无出口，
+> 这条从「可缓」变成 P9A 开工前必须有结论。见 Step 3。
+
+> **裁决（2026-10-19，用户）：mock 用户豁免二次认证。**
+>
+> `/mock-login` 不查 LDAP，只查硬编码 `MOCK_USERS`（`app/api/v1/mock_auth.py:14-19`），
+> mock 用户没有 AD 密码 —— 路径 B 的「AD 密码二次输入」在 mock 下本就无密码可输。
+>
+> **为什么豁免是安全的（不是「测试环境有豁免、生产没有」那种危险形态）**：
+> `app/main.py:118` 是 `if not settings.is_production: app.include_router(mock_auth_router)` ——
+> **mock 路由在生产环境根本不存在**。mock 会话在生产上无法产生，
+> 所以「豁免」没有生产面可绕，不构成绕过二次认证的后门。
+>
+> **⚠️ 但豁免的范围必须限定在登录层，不是二次认证函数本身。**
+>
+> | | 豁免 | 不豁免 |
+> |---|---|---|
+> | mock 会话**触发**二次认证 | ✅ 豁免（本裁决） | — |
+> | `verify_secondary_auth()` 函数本身 | — | ❌ **不得豁免** |
+>
+> 豁免只发生在「谁来登录」这一层。二次认证的**实现**照常存在、照常被要求。
+> 因此 P9A-DLV-008（代录客户批准后端）**必须**对二次认证函数做**直接单测**，
+> 绕开 mock 登录路径 —— 否则 mock 全绿会被读成「二次认证验证过了」，而它其实没跑过。
+>
+> **残留风险（写明，不掩盖）**：dev / QA / pytest 环境**永远**测不到
+> 「真实用户走完整二次认证流程」这条端到端链路。该链路的验证责任落在
+> P9A 的集成环境（需真 LDAP），不属于 mock 覆盖面。P9A 的测试计划须写明这一条。
 
 同时写明**两条路径都无法回避的事实**：SPEC §3.2.1 的「通过/退回操作」与 §3.2.1(5b) 代录批准
 两条链路都依赖它 —— 这就是 SPEC §R7 把它升级为硬阻塞的理由。
@@ -1199,19 +1285,69 @@ cd /home/pangzy/code_project/PCS && grep -n "P9-OPEN-002\|P9-OPEN-004\|P9-OPEN-0
 - P9-OPEN-004：SPEC 已给倾向「每日凌晨」，无新增依据，沿用。
 - P9-OPEN-006：SPEC 已给倾向「WebSocket + 降级轮询」，无新增依据，沿用。
 
+> ### ✅ 裁决（2026-10-19，用户）：P9-OPEN-002 —— **本版不设邮件服务器，预留接口**
+>
+> 邮件作为**下一版功能**，本开发版不实现投递。落地约束三条：
+>
+> 1. **本版通知主通道 = 站内信**（铃铛 + 待办列表）。这与 SPEC §3.1.1 的 UI 描述一致
+>    （「通知中心：顶部铃铛图标，下拉展示通知列表」），且 §3.1.1 待办列表本就「登录后首页展示」
+>    —— 站内信在登录模型下是自洽的，无需邮件补位。
+> 2. **预留通道接口，不预留具体实现。** P9A 的通知写侧须经一个通道抽象
+>    （如 `NotificationChannel` 协议 + `InAppChannel` 实现），邮件作为其未来的一个实现，
+>    **本版不写** `EmailChannel`（不写空壳实现 —— 空壳会假装有邮件通道已就绪，
+>    下一版接的时候才发现接口签名不对）。
+>    **不得**在 service 里直接 `if 走邮件: ...`，那会让「预留」变成「临时 if」。
+> 3. **用户不可达时无处可达。** 这是本决策的已知代价，写明不掩盖：
+>    站内信只在用户登录时可见。离线的用户不会收到任何主动提醒，
+>    直到他自己登录为止。开发版可接受；正式版上此行为前**必须**有邮件或推送通道。
+>
+> **连带影响（Step 5 必须写进备忘，不能只落在口头）**：
+>
+> | 影响面 | 变化 |
+> |---|---|
+> | ADR-0045 §① | 通知写侧异步的理由变了 —— 原理由是「不阻塞主链路的外部投递」，本版**没有外部投递**，异步只剩「不阻塞写库」。ADR-0045 需补记：异步与否在本版不再由投递延迟决定 |
+> | P9A-NOT-004（30 天清理） | **不变**。清理是本地定时任务，与有无邮件无关 |
+> | P9-OPEN-006 | **权重上升**。去掉邮件后，实时推送成了通知唯一的及时性来源 ——「WebSocket + 降级轮询」从「建议」升为**本版通知体验的关键路径** |
+> | ADR-0007（代录二次认证） | 不受影响（走 AD 密码，不走邮件） |
+
+> ### ✅ 裁决（2026-10-19，用户）：P9-OPEN-004 / P9-OPEN-006
+>
+> | 编号 | 裁决 | 依据 |
+> |---|---|---|
+> | P9-OPEN-004 用户同步定时频率 | **每日凌晨** | 沿用 SPEC 倾向，无新增依据 |
+> | P9-OPEN-006 通知推送方式 | **WebSocket + 降级轮询** | 沿用 SPEC 倾向；且因邮件已移除（见上），实时推送成为通知唯一及时性来源 ⇒ 从「建议」升为**明确确认** |
+>
+> **P9-OPEN-006 的连带要求**：WebSocket 是本版通知体验的关键路径，不是可选增强。
+> 断线时降级到轮询；**不得**在 WebSocket 不可用时直接停止推送 —— 那等于通知静默失效，
+> 而通知系统失效无声正是 ADR-0043 立观测层要防的那类问题。
+> 降级状态应可观测（健康端点或指标），不能只靠前端感觉。
+
 - [ ] **Step 4: 呈给用户裁决 ⏸**
 
-把 Step 2 的对照表 + Step 3 的三条建议交给用户，明确问：**路径 A 还是路径 B？**
-以及 P9-OPEN-002 / 004 / 006 是否按建议拍板。
+**已裁决（2026-10-19）**：mock 会话豁免二次认证 —— 见 Step 2 的裁决块。
 
-收到答复前**不要**继续 Step 5。
+**已裁决（2026-10-19，用户）**：
+- **路径 B —— AD 密码二次输入 + `SIGN_2FA_FALLBACK` 强制审计**（见 Step 2 的裁决块）
+- mock 会话豁免二次认证
+
+**已裁决（2026-10-19，用户）**：
+- **路径 B —— AD 密码二次输入 + `SIGN_2FA_FALLBACK` 强制审计**（见 Step 2 的裁决块）
+- mock 会话豁免二次认证
+- **P9-OPEN-002 —— 本版不设邮件服务器，预留 `NotificationChannel` 接口**（见 Step 3 的裁决块）
+- **P9-OPEN-004 每日凌晨** / **P9-OPEN-006 WebSocket + 降级轮询**（见 Step 3 的裁决块）
+
+**全部裁决已作出 —— 可以执行 Step 5。**
 
 - [ ] **Step 5: 记录裁决并回写 SPEC**
 
 备忘末尾写「## 裁决」段（日期 + 路径 + 审计 action 名 + 拍板人），然后：
-- SPEC §2.2.4 验收行改为「已完成：`<路径>`，见 `docs/PCS-NOTE-P9-Prep-MFA决议-2026-10-19.md`」
-- SPEC §8 `P9-OPEN-001` 状态：`待确认` → `已裁决（<路径>，2026-10-19）`，归属 `~~P9-Prep~~ 已关闭`
-- SPEC §8 `P9-OPEN-002` / `004` / `006` 按 Step 3 裁决逐条更新
+- SPEC §2.2.4 验收行改为「已完成：**路径 B（AD 密码二次输入 + `SIGN_2FA_FALLBACK` 强制审计）**，见 `docs/PCS-NOTE-P9-Prep-MFA决议-2026-10-19.md`」
+- SPEC §8 `P9-OPEN-001` 状态：`待确认` → `已裁决（路径 B，2026-10-19）`，归属 `~~P9-Prep~~ 已关闭`
+- SPEC §8 `P9-OPEN-002` 状态：`待确认` → `已裁决（本版不设邮件服务器，预留 NotificationChannel 接口；邮件为下一版功能，2026-10-19）`
+- SPEC §8 `P9-OPEN-004` 状态：`待确认` → `已裁决（每日凌晨，2026-10-19）`
+- SPEC §8 `P9-OPEN-006` 状态：`待确认` → `已裁决（WebSocket + 降级轮询，2026-10-19）`
+- SPEC §2.6 假设「通知渠道（站内信/邮件）已配置」需同步为「本版仅站内信；邮件为下一版功能」——
+  留着会与 P9-OPEN-002 的裁决矛盾
 
 - [ ] **Step 6: Commit**
 
@@ -1219,7 +1355,7 @@ cd /home/pangzy/code_project/PCS && grep -n "P9-OPEN-002\|P9-OPEN-004\|P9-OPEN-0
 cd /home/pangzy/code_project/PCS
 git add docs/PCS-NOTE-P9-Prep-MFA决议-2026-10-19.md
 git add "spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md"
-git commit -m "docs(P9-Prep): MFA 决议（<填路径>）+ P9-OPEN-002/004/006 连带裁决"
+git commit -m "docs(P9-Prep): MFA 决议（路径 B）+ P9-OPEN-002/004/006 连带裁决"
 ```
 
 ---
@@ -1455,8 +1591,10 @@ Lane A 与 Lane B 无共享文件，可并行。
    **TODO-039 + TODO-041**（前端类型来源唯一性 / MSW 契约冻结，逾期中）。
    在 P9 SPEC §4.2 改这份描述会与那两条产生**第二个真相源**：读者不知以哪份为准，
    两处独立演化必然漂移，且 TODO-039 的「冻结」口径与 §4.2 的「重写」口径可能直接矛盾。
-   > 注：审查中曾按「TODO-051」指代此事 —— 该编号在 `TODOS.md` 中不存在（现有编号止于
-   > TODO-044），mock type 的口径实际在 TODO-039 + TODO-041。
+   > 注：审查中曾按「TODO-051」指代此事 —— 该编号在 `TODOS.md` 中**不存在**（现有编号止于
+   > TODO-046），mock type 的口径实际在 TODO-039 + TODO-041。
+   > ⚠️ 查现有编号别用 `grep "^### TODO-"`：条目混用 `##` 与 `###` 两种标题级别，会漏一半。
+   > 用 `grep -oE "^#{2,3} TODO-[0-9]+" TODOS.md | grep -oE "TODO-[0-9]+" | sort -u`。
 
 7. **ADR-0044 §⑥ 的「兜底只覆盖设计参数」是已知取舍，不是遗漏。**
    `record_hash` 不检测 `sign_status` / `approval_step` 等批准状态字段的变化 ——
@@ -1471,12 +1609,13 @@ Lane A 与 Lane B 无共享文件，可并行。
 |--------|---------|-----|------|--------|----------|
 | CEO Review | `/plan-ceo-review` | Scope & strategy | 0 | — | — |
 | Codex Review | `/codex review` | Independent 2nd opinion | 0 | — | — |
-| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 9 | CLEAR | 4 issues, 0 critical gaps |
+| Eng Review | `/plan-eng-review` | Architecture & tests (required) | 10 | CLEAR | 6 issues (2 阻塞 + 3 建议 + 1 裁决) 全部处置，0 critical gaps |
 | Design Review | `/plan-design-review` | UI/UX gaps | 0 | — | 无 UI 范围，不适用 |
 | DX Review | `/plan-devex-review` | Developer experience gaps | 0 | — | 不适用 |
 
 **UNRESOLVED:** 0
-**VERDICT:** ENG CLEARED — ready to implement.
+**VERDICT:** ENG CLEARED — 2 条阻塞项已修入计划，4 项裁决全部作出，可执行。
+**已裁决**：① MFA 路径 B（AD 密码二次输入 + `SIGN_2FA_FALLBACK`）；② mock 会话豁免二次认证（限于登录层，函数本身不豁免）；③ P9-OPEN-002 本版不设邮件服务器，预留 `NotificationChannel` 接口；④ P9-OPEN-004 每日凌晨 / P9-OPEN-006 WebSocket + 降级轮询。
 
 ### 本轮审查改了计划的什么（4 处，均由用户裁决）
 
@@ -1490,7 +1629,34 @@ Lane A 与 Lane B 无共享文件，可并行。
 **未采纳的中间方案**：Issue 3 曾按「新增 `scripts/_alembic_gate.py` 共享常量」设计，
 后查明收敛点已存在（`run_gate.py` + 其测试 + cerebrum 立法），新建即造第二个真相源。
 
+### 第二轮：专家委员会审阅（2026-10-19）
+
+委员会提出 2 阻塞 + 3 建议 + 1 待裁决。逐条核实后：
+
+| # | 委员会意见 | 核实结果 | 处置 |
+|---|---|---|---|
+| 必修 1 | ADR-0044 §⑤ 措辞自相矛盾 | **部分成立** —— 非语义矛盾（裁定已作出 + 防未来误释是两件事），但确实给人「裁定可能还没发生」的错觉 | 已合并为「裁定已作出 + 可证伪条件」，并去掉「不得由作者单方面解释」 |
+| 必修 2 | Task 1 Step 8 探针可能混入 commit | **成立** —— Step 13 的 `git add -A` 确实是泄漏窗口 | Step 8 加 `test ! -e ... \|\| exit 1` 硬闸；Step 13 加 `git status` 二次拦截 |
+| 建议 1 | 「唯一收口」是未验证断言 | **成立且实质性** —— `finalize_calc_record` **不是**唯一写入点 | ADR §⑥ 已更正：列出 6 条旁路，并说明 `updated_at` 分支是 pump/pipe/pipe_net 的**常态**而非边角 |
+| 建议 2 | Task 2 Step 4 缺偏差处理规则 | 成立 | 已加「先记录偏差再继续，不得直接改基线数字」 |
+| 建议 3 | TODO-047 应改用 TODO-045（编号跳跃） | **不成立** —— TODO-045/046 **已被占用**（`##` 级标题，故 `^###` grep 漏掉） | 驳回，TODO-047 是正确的下一号 |
+| 裁决项 | 路径 B 在 mock 下怎么做二次认证 | **成立，是真实开放问题** | Task 7 Step 2 加三选一对照表；Step 4 改为三个问题 |
+
+**驳回建议 3 的证据**：
+
+```
+$ grep -n "TODO-045\|TODO-046" TODOS.md
+513: ## TODO-045: `StrictColumns` 的数组形式不校验「段间路径」
+561: ## TODO-046: 其它表的裸串词表尚未系统排查
+```
+
+（注意这两个是 `##` 级标题。委员会很可能用 `^### TODO-` grep 查，因而误判为空闲号。）
+
+**建议 1 更正的实质**：ADR-0044 §⑥ 原本用「唯一收口」论证兜底便宜。
+实测 6 条旁路后，论证改为「零迁移 + `updated_at` 带 `onupdate` 必然刷新」——
+结论不变，但 pump/pipe/pipe_net 三类记录的冲突检测**依赖 `updated_at` 而非 hash**，
+这个事实必须写明，否则实施者会以为 hash 覆盖全部 21 张表。
+
 ### 计划规模变化
 
-9 个 task / 1461 行（初版 8 task / ~700 行）。增量全部来自 ADR-0044 §⑥/§⑦
-（兜底粒度 + 409 契约）与 Issue 3 的 Python 闸门改造 + 测试。
+9 个 task。行数随 §⑥ 的旁路表与 Task 7 的 mock 对照表增长。
