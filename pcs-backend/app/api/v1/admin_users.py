@@ -66,12 +66,17 @@ class AdSyncResultOut(BaseModel):
     `ok=False` 表示**什么都没做**（目录连不上），不是「做了但有部分失败」。
     `skipped_empty=True` 表示枚举到 0 个用户，疑似 filter/base_dn 配错 ——
     此时同样不做任何写入，包括不做离职判定。
+
+    `unmapped` 是「组未映射到角色」的计数。这些用户**不会被授予任何角色**
+    （生产 fail-closed），已有角色也保持不动 —— 需要看这个数，运维才知道
+    有人拿不到权限。
     """
 
     ok: bool
     created: int
     updated: int
     departed: int
+    unmapped: int
     skipped_empty: bool
     error: str | None
 

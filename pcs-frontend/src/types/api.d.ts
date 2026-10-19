@@ -185,6 +185,29 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/users/sync": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Post Sync Ad Users
+         * @description POST /admin/users/sync：手动触发一次全量 AD 同步（P9A-USR-002）。
+         *
+         *     未配置服务账号时返 **503 `LDAP_SYNC_NOT_CONFIGURED`** ——
+         *     返 200 空结果会让运维以为「同步过了、没有变化」，那是更坏的失败。
+         */
+        post: operations["post_sync_ad_users_api_v1_admin_users_sync_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces": {
         parameters: {
             query?: never;
@@ -5772,6 +5795,28 @@ export interface components {
             actual_data_json?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * AdSyncResultOut
+         * @description AD 同步结果（P9A-USR-002 手动触发）。
+         *
+         *     `ok=False` 表示**什么都没做**（目录连不上），不是「做了但有部分失败」。
+         *     `skipped_empty=True` 表示枚举到 0 个用户，疑似 filter/base_dn 配错 ——
+         *     此时同样不做任何写入，包括不做离职判定。
+         */
+        AdSyncResultOut: {
+            /** Ok */
+            ok: boolean;
+            /** Created */
+            created: number;
+            /** Updated */
+            updated: number;
+            /** Departed */
+            departed: number;
+            /** Skipped Empty */
+            skipped_empty: boolean;
+            /** Error */
+            error: string | null;
         };
         /**
          * AdminUserOut
@@ -18638,6 +18683,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["UserDisabledOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    post_sync_ad_users_api_v1_admin_users_sync_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdSyncResultOut"];
                 };
             };
             /** @description Validation Error */

@@ -244,3 +244,54 @@ def test_ad_sync_task_registered_in_worker():
     from app.workers.worker import WorkerSettings
     assert sync_ad_users in WorkerSettings.functions
     assert any(j.coroutine is sync_ad_users for j in WorkerSettings.cron_jobs)
+
+
+@pytest.mark.asyncio
+async def test_sync_does_not_grant_designer_to_unmapped_user_in_production(
+    db_session, monkeypatch
+):
+    """⚠️ 生产里组映射不到时**不能**默认给 DESIGNER。
+
+    `resolve_role` 在生产是 fail-closed（抛 `LdapAuthError` 拒绝无角色登录）；
+    同步若把这个异常吞掉换成 `"DESIGNER"`，就把 fail-closed 翻成了 fail-open ——
+    新入职、外部人员、映射里的一个拼写错误，都会静默拿到 DESIGNER 权限。
+    """
+    from app.models.project import User
+    from app.services import ad_sync
+
+    _settings(monkeypatch, ldap_bind_dn="cn=svc,DC=test", env="production")
+    monkeypatch.setattr(ad_sync, "enumerate_users", lambda: iter([
+        _AdUser("newbie", "New Bie", "n@c", "P", ("CN=NEW_HIRE_GROUP,ou=G,dc=t",)),
+    ]))
+
+    result = await ad_sync.sync_users(db_session)
+    assert result.unmapped == 1, "未映射用户必须被计数，不是被悄悄发角色"
+
+    row = (await db_session.execute(
+        User.__table__.select().where(User.__table__.c.username == "newbie"))).mappings().one()
+    assert not row["roles"], f"未映射用户被授予了角色：{row['roles']}"
+
+
+@pytest.mark.asyncio
+async def test_sync_keeps_existing_roles_for_unmapped_user_in_production(
+    db_session, monkeypatch
+):
+    """已有的角色**不因本次映射失败而被清空或改写** —— 只跳过，不越权也不误伤。"""
+    from app.models.project import User
+    from app.services import ad_sync
+
+    _settings(monkeypatch, ldap_bind_dn="cn=svc,DC=test", env="production")
+    await _add_user(db_session, "kim")
+    row = (await db_session.execute(
+        User.__table__.select().where(User.__table__.c.username == "kim"))).mappings().one()
+    assert row["roles"] == ["DESIGNER"]
+
+    monkeypatch.setattr(ad_sync, "enumerate_users", lambda: iter([
+        _AdUser("kim", "Kim", "k@c", "P", ("CN=UNKNOWN_GROUP,ou=G,dc=t",)),
+    ]))
+    result = await ad_sync.sync_users(db_session)
+    assert result.unmapped == 1
+    row = (await db_session.execute(
+        User.__table__.select().where(User.__table__.c.username == "kim"))).mappings().one()
+    assert row["roles"] == ["DESIGNER"], "既有角色被改动了"
+    assert row["display_name"] == "Kim", "基本信息仍应更新"

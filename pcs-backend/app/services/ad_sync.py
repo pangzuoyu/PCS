@@ -52,6 +52,7 @@ class SyncResult:
     created: int = 0
     updated: int = 0
     departed: int = 0
+    unmapped: int = 0
     skipped_empty: bool = False
     error: str | None = None
 
@@ -61,6 +62,7 @@ class SyncResult:
             "created": self.created,
             "updated": self.updated,
             "departed": self.departed,
+            "unmapped": self.unmapped,
             "skipped_empty": self.skipped_empty,
             "error": self.error,
         }
@@ -105,28 +107,32 @@ async def sync_users(db: AsyncSession) -> SyncResult:
         for u in (await db.execute(select(User))).scalars().all()
     }
     seen: set[str] = set()
-    created = updated = departed = 0
+    created = updated = departed = unmapped = 0
 
     for entry in directory:
         seen.add(entry.username)
+        role = _role_of(entry)
         row = existing.get(entry.username)
         if row is None:
-            row = User(
-                user_id=derive_user_id(entry.username),
-                username=entry.username,
-                display_name=entry.display_name or entry.username,
-                email=entry.email,
-                department=entry.department,
-                ad_groups=list(entry.groups),
-                roles=[_role_of(entry)],
-                status=UserStatus.ACTIVE.value,
+            db.add(
+                User(
+                    user_id=derive_user_id(entry.username),
+                    username=entry.username,
+                    display_name=entry.display_name or entry.username,
+                    email=entry.email,
+                    department=entry.department,
+                    ad_groups=list(entry.groups),
+                    roles=[role] if role else [],
+                    status=UserStatus.ACTIVE.value,
+                )
             )
-            db.add(row)
             created += 1
+            unmapped += 0 if role else 1
             continue
-        changed = _apply(row, entry)
+        changed = _apply(row, entry, role)
         if changed:
             updated += 1
+        unmapped += 0 if role else 1
 
     for username, row in existing.items():
         if username in seen or row.status == UserStatus.DISABLED.value:
@@ -151,30 +157,50 @@ async def sync_users(db: AsyncSession) -> SyncResult:
         resource_type="USER",
         resource_id=None,
         user_id=None,
-        detail={"created": created, "updated": updated, "departed": departed},
+        detail={"created": created, "updated": updated, "departed": departed,
+                "unmapped": unmapped},
     )
     await db.commit()
-    return SyncResult(ok=True, created=created, updated=updated, departed=departed)
+    return SyncResult(ok=True, created=created, updated=updated,
+                      departed=departed, unmapped=unmapped)
 
 
-def _role_of(entry: DirectoryUser) -> str:
-    """组 → 角色。映射不到时 `resolve_role` 自行 fail-closed（production）。"""
+def _role_of(entry: DirectoryUser) -> str | None:
+    """组 → 角色。**映射不到时返回 None，绝不猜一个角色。**
+
+    `resolve_role` 在生产是 fail-closed（抛 `LdapAuthError` 拒绝无角色登录），
+    在 dev/test 才是 DESIGNER 兜底。这里**不吞**那个异常 ——
+    吞掉就等于把 fail-closed 翻成 fail-open：新入职、外部人员、
+    或者 `ldap_group_role_map` 里一个拼写错误，都会静默拿到 DESIGNER。
+
+    返回 None 的处置：新建用户 ⇒ `roles=[]`（无任何权限）；
+    已有用户 ⇒ **保持原角色不动**（既不越权，也不误伤已配好的权限）。
+    两种都计入 `SyncResult.unmapped` 并记 ERROR —— 静默才是问题。
+    """
+    from app.services.ldap_client import LdapAuthError
+
     try:
         return resolve_role(entry.groups)
-    except Exception as e:  # noqa: BLE001 — 映射不到不该让整次同步崩掉
-        logger.warning("用户 %s 的 LDAP 组未映射到角色: %s", entry.username, e)
-        return "DESIGNER"
+    except LdapAuthError as e:
+        logger.error("用户 %s 的 LDAP 组未映射到任何角色，本次不同步其角色: %s",
+                     entry.username, e)
+        return None
 
 
-def _apply(row: User, entry: DirectoryUser) -> bool:
-    """把目录条目写进行；返回是否有改动。"""
+def _apply(row: User, entry: DirectoryUser, role: str | None) -> bool:
+    """把目录条目写进行；返回是否有改动。
+
+    `email` / `department` 为 None（目录里没这个属性）时**保留原值**：
+    「目录里没有」与「被有意清空」在 LDAP 返回值上无法区分，
+    猜后者会静默抹掉可能仍有用的邮箱。保持现状是有意的选择，不是遗漏。
+    """
     changed = False
     for attr, value in (
         ("display_name", entry.display_name or row.display_name),
         ("email", entry.email),
         ("department", entry.department),
         ("ad_groups", list(entry.groups)),
-        ("roles", [_role_of(entry)]),
+        ("roles", [role] if role else None),
     ):
         if value is not None and getattr(row, attr) != value:
             setattr(row, attr, value)

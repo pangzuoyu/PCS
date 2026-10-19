@@ -16,7 +16,11 @@ async def _mk_user(db_session, *, username, token_version=1, status="ACTIVE"):
              roles=["DESIGNER"], ad_groups=[], status=status,
              token_version=token_version)
     db_session.add(u)
-    await db_session.flush()
+    await db_session.commit()
+    # ⚠️ 必须 commit，不能只 flush：`client` fixture 的 session 与 `db_session`
+    # 共用同一个 SQLite :memory: 连接，跨请求时未提交的行会随上一个请求结束
+    # 一起回滚 —— 症状是「第一个请求通过、第二个请求说用户不存在」，
+    # 与被测代码无关，纯属 fixture 制造的假故障。
 
 
 def _refresh_token(username: str, tv: int) -> str:
@@ -93,3 +97,44 @@ async def test_refresh_rejects_mock_tv_once_real_row_exists(client, db_session):
     r = await client.post("/api/v1/auth/refresh",
                           json={"refresh_token": _refresh_token("jack", 0)})
     assert r.status_code == 401, r.text
+
+
+@pytest.mark.asyncio
+async def test_refresh_twice_in_a_row_succeeds(client, db_session):
+    """⚠️ 回归：refresh 必须能**连续**做两次。
+
+    第一次 refresh 换出的新 refresh 若丢了 `tv` claim，第二次就会拿
+    `payload.get("tv", 0)` 去比对行内的 `token_version`（>= 1）⇒ 401。
+    症状是「所有真实用户第二次刷新必被登出」，而分段测试全都测不出来 ——
+    之前的用例全是手工造带 tv 的令牌，绕过了签发这一环。
+    """
+    from app.core.security import decode_token
+    await _mk_user(db_session, username="kate", token_version=1)
+    first = _refresh_token("kate", 1)
+
+    r1 = await client.post("/api/v1/auth/refresh", json={"refresh_token": first})
+    assert r1.status_code == 200, r1.text
+    second = r1.json()["refresh_token"]
+    assert decode_token(second)["tv"] == 1, "换出的 refresh 必须带 tv claim"
+
+    r2 = await client.post("/api/v1/auth/refresh", json={"refresh_token": second})
+    assert r2.status_code == 200, r2.text
+
+    r3 = await client.post("/api/v1/auth/refresh",
+                           json={"refresh_token": r2.json()["refresh_token"]})
+    assert r3.status_code == 200, r3.text
+
+
+@pytest.mark.asyncio
+async def test_access_token_does_not_carry_tv(db_session):
+    """ADR-0046 §④：access token **不写** tv（保持无状态，P9A-USR-007 接受该粒度）。
+
+    写成有 tv 不会更安全 —— 没有任何 access 校验路径读它，只会让
+    「在手 access 仍可用至过期」这条已知边界的表述与代码对不上。
+    """
+    from app.core.security import decode_token
+    from app.services.token_issuer import issue_tokens
+    pair = await issue_tokens(session=db_session, username="liam", role="DESIGNER",
+                              persist_user=True)
+    assert "tv" not in decode_token(pair.access_token)
+    assert decode_token(pair.refresh_token)["tv"] == pair.token_version

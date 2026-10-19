@@ -316,6 +316,56 @@
         }
       }
     },
+    "/api/v1/admin/users/sync": {
+      "post": {
+        "tags": [
+          "admin-users"
+        ],
+        "summary": "Post Sync Ad Users",
+        "description": "POST /admin/users/sync：手动触发一次全量 AD 同步（P9A-USR-002）。\n\n未配置服务账号时返 **503 `LDAP_SYNC_NOT_CONFIGURED`** ——\n返 200 空结果会让运维以为「同步过了、没有变化」，那是更坏的失败。",
+        "operationId": "post_sync_ad_users_api_v1_admin_users_sync_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AdSyncResultOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces": {
       "post": {
         "tags": [
@@ -18033,6 +18083,52 @@
         ],
         "title": "ActualDataResponse",
         "description": "设备实测值。`actual_data_json` 为 None 表示尚未录入。"
+      },
+      "AdSyncResultOut": {
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "title": "Ok"
+          },
+          "created": {
+            "type": "integer",
+            "title": "Created"
+          },
+          "updated": {
+            "type": "integer",
+            "title": "Updated"
+          },
+          "departed": {
+            "type": "integer",
+            "title": "Departed"
+          },
+          "skipped_empty": {
+            "type": "boolean",
+            "title": "Skipped Empty"
+          },
+          "error": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Error"
+          }
+        },
+        "type": "object",
+        "required": [
+          "ok",
+          "created",
+          "updated",
+          "departed",
+          "skipped_empty",
+          "error"
+        ],
+        "title": "AdSyncResultOut",
+        "description": "AD 同步结果（P9A-USR-002 手动触发）。\n\n`ok=False` 表示**什么都没做**（目录连不上），不是「做了但有部分失败」。\n`skipped_empty=True` 表示枚举到 0 个用户，疑似 filter/base_dn 配错 ——\n此时同样不做任何写入，包括不做离职判定。"
       },
       "AdminUserOut": {
         "properties": {

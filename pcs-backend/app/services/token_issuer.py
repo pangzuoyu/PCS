@@ -82,7 +82,7 @@ async def issue_tokens(
     if not persist_user:
         # mock 路径：一次 DB 往返都没有 —— 连 SELECT 都不能有，
         # 否则「不落库」的保证会退化成「不 INSERT 但会读」。
-        return _sign(username, role, user_id, tv=MOCK_TV_SENTINEL)
+        return sign_with_tv(username, role, user_id, tv=MOCK_TV_SENTINEL)
 
     if session is None:
         raise ValueError("persist_user=True 时 session 必填")
@@ -122,14 +122,18 @@ async def issue_tokens(
         ).first()
         assert row is not None, "惰性建行后仍查不到 —— session 状态异常"
 
-    return _sign(username, role, user_id, tv=row.token_version)
+    return sign_with_tv(username, role, user_id, tv=row.token_version)
 
 
-async def verify_refresh_tv(session: AsyncSession, *, username: str, tv: int) -> bool:
-    """refresh 时比对 claim 的 `tv` 与行内 `token_version`。
+async def effective_token_version(session: AsyncSession, *, username: str) -> int:
+    """该用户名**当前**应当匹配的 tv。
 
-    无 `users` 行 + `tv == 0` ⇒ 放行（mock 路径，按定义不落库）。
-    有行 ⇒ 必须相等；不等说明用户被停用过，已发的 refresh 全部作废。
+    无 `users` 行 ⇒ 保留值 0（mock 路径按定义不落库）。
+    有行 ⇒ 行内 `token_version`。
+
+    单独抽出来是因为 refresh 端点需要它**两次**：比对一次、重签时写进
+    新令牌一次。分成两个函数（一个返回 bool、一个再查一次）会多一次往返，
+    且「tv 到底以谁为准」在两处各写一遍 —— 那正是这个 bug 的形状。
     """
     from app.models.project import User
 
@@ -140,16 +144,38 @@ async def verify_refresh_tv(session: AsyncSession, *, username: str, tv: int) ->
             .where(User.username == username)
         )
     ).first()
-    if row is None:
-        return tv == MOCK_TV_SENTINEL
-    return tv == row.token_version
+    return MOCK_TV_SENTINEL if row is None else row.token_version
 
 
-def _sign(username: str, role: str, user_id: uuid.UUID, *, tv: int) -> IssuedTokens:
-    extra = {"user_id": str(user_id), "tv": tv}
+async def verify_refresh_tv(session: AsyncSession, *, username: str, tv: int) -> bool:
+    """refresh 时比对 claim 的 `tv` 与行内 `token_version`。
+
+    无 `users` 行 + `tv == 0` ⇒ 放行（mock 路径，按定义不落库）。
+    有行 ⇒ 必须相等；不等说明用户被停用过，已发的 refresh 全部作废。
+    """
+    return tv == await effective_token_version(session, username=username)
+
+
+def sign_with_tv(username: str, role: str, user_id: uuid.UUID, *, tv: int) -> IssuedTokens:
+    """按给定 `tv` 签发一对令牌。**`/auth/login` 与 `/auth/refresh` 都必须走它**。
+
+    两处若各签一次，refresh 那条迟早会漏掉 `tv` —— 而漏掉的症状是
+    「第二次刷新必 401」（`tv` 缺失被当作 0，与行内 `>= 1` 不等），
+    分段测试很容易全部漏过。
+
+    `tv` **只写进 refresh**（ADR-0046 §④）：access 保持无状态，
+    吊销粒度是「refresh 时生效」，不是秒级 —— SPEC P9A-USR-007 明确接受。
+    写进 access 不会更安全，只会让「在手 access 仍可用至过期」这条边界
+    的表述与代码对不上。
+    """
     return IssuedTokens(
-        access_token=create_access_token(subject=username, role=role, extra=extra),
-        refresh_token=create_refresh_token(subject=username, role=role, extra=extra),
+        access_token=create_access_token(
+            subject=username, role=role, extra={"user_id": str(user_id)}
+        ),
+        refresh_token=create_refresh_token(
+            subject=username, role=role,
+            extra={"user_id": str(user_id), "tv": tv},
+        ),
         token_version=tv,
         user_id=user_id,
     )

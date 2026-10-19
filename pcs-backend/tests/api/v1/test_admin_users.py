@@ -147,6 +147,7 @@ async def test_sync_endpoint_returns_counts(client, db_session, monkeypatch):
     r = await client.post("/api/v1/admin/users/sync", headers=ADMIN)
     assert r.status_code == 200, r.text
     assert r.json()["created"] == 1
+    assert r.json()["unmapped"] == 0
 
 
 @pytest.mark.asyncio

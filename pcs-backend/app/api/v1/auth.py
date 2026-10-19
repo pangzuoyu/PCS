@@ -17,15 +17,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import PcsError
 from app.core.security import (
-    create_access_token,
-    create_refresh_token,
     decode_token,
     is_jti_revoked,
     revoke_jti,
 )
 from app.db.session import get_db
 from app.services.ldap_client import LdapAuthError, authenticate, resolve_role
-from app.services.token_issuer import issue_tokens, verify_refresh_tv
+from app.services.token_issuer import (
+    derive_user_id,
+    effective_token_version,
+    issue_tokens,
+    sign_with_tv,
+)
 
 # 与 Depends(current_actor) 推导保持一致: 优先从 JWT user_id 声明读取, 缺省回退
 # uuid5(NAMESPACE_DNS, sub). 前端 /auth/me 拿到权威 actor id, 避免自行派生分叉.
@@ -355,7 +358,9 @@ async def refresh(
     # P9A（ADR-0046 §④）：停用后行内 tv 递增 ⇒ 存量 refresh 全部作废。
     # 放在 revoke 之前 —— 先比对再消耗 JTI，否则一次被拒的刷新会把
     # 用户手里仍然有效的令牌也一起烧掉。
-    if not await verify_refresh_tv(db, username=sub, tv=payload.get("tv", 0)):
+    claim_tv = payload.get("tv", 0)
+    current_tv = await effective_token_version(db, username=sub)
+    if claim_tv != current_tv:
         raise PcsError(
             code="REFRESH_REVOKED",
             message="refresh token superseded (user disabled or token version changed)",
@@ -363,9 +368,13 @@ async def refresh(
         )
     if old_jti:
         revoke_jti(old_jti)
+    # ⚠️ 必须经 `sign_with_tv` 重签 —— 直接调 create_*_token 会漏掉 `tv` claim，
+    # 而漏掉的症状是**第二次** refresh 必 401（`tv` 缺失按 0 比，行内 >= 1）。
+    # 换出的 refresh 必须能继续刷新自己。
+    pair = sign_with_tv(sub, role, derive_user_id(sub), tv=current_tv)
     return RefreshResponse(
-        access_token=create_access_token(subject=sub, role=role),
-        refresh_token=create_refresh_token(subject=sub, role=role),
+        access_token=pair.access_token,
+        refresh_token=pair.refresh_token,
     )
 
 
