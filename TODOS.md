@@ -371,3 +371,50 @@ exit 1）。P9A 收口时基线应**仍为 71**，不是下调到 0 —— 71 �
 | 6 | 复用设备库 | `equip_lib_service:64` |
 
 ---
+
+---
+
+## ✅ DONE —— TODO-041: antd `dataIndex` 是类型闸的洞（2026-10-19 修完）
+
+`tsconfig` 的 `include` 已含 `tests`（那次纳入带出 7 条噪声，清完）。
+但那道闸有个洞：**抓得住属性访问与漏必填，抓不住 `dataIndex`** ——
+而没有 `render` 的列，值的唯一来源就是 `dataIndex`，bug-180 正是死在这里。
+
+### 补法：选了「收窄类型」而不是 eslint 规则
+
+新增 `src/types/strictColumns.ts` 的 `StrictColumns<T>`：把 `dataIndex`
+从 antd 的 `string | string[]` 收成 `DeepKeys<T> | DeepKeys<T>[]`。
+**18 个页面的 `ColumnsType<X>` 标注全部替换**，`<Table columns={…}>` 照常工作
+（可赋值性已验证 —— 那是这套设计的前提，不是巧合）。
+
+选它不选 eslint 规则：**编译期闸比 lint 硬**，且替换是机械的（只改类型标注，
+不改任何列内容）。lint 规则只能报「你用了字符串字面量」，消掉它需要
+`as` / `satisfies` —— 而那正是把闸拆掉的动作。
+
+### 两个必须记下的设计约束（都踩过）
+
+1. **不能写 `readonly`**：antd 的 `dataIndex` 是可变数组，写成
+   `readonly DeepKeys<T>[]` 会让 `StrictColumns<T>` 不再可赋值给
+   `ColumnsType<T>`，`Table` 直接报错 —— 闸变成障碍，人就会去绕它。
+
+2. ⚠️ **`DeepKeys` 必须过滤索引签名容器**（`string extends keyof T ? never`）。
+   契约类型几乎每张表都有 JSONB 列，openapi-typescript 生成
+   `{ [key: string]: number }`；递归进去后 `keyof` 塌成 `string | number`，
+   **整个并集被污染 → `DeepKeys<T>` 变成 `string` → 任何 dataIndex 都合法**。
+   实测 `PipeClassResponse.allowable_stress_json` 一个字段就足以让
+   bug-180 的 `dataIndex: 'pipe_class_id'` 通过。
+
+   ⚠️ 这个坑**第一版就踩了**：自检用的是干净的 `interface Row`，探针全绿；
+   接到真页面上才发现闸根本没生效。⇒ **闸的自检必须用真实契约类型**，
+   干净的假接口比生产环境宽容得多（与「fixture 比被测物干净」同族）。
+
+### 闸的自检（`tests/types/strictColumns.test.ts`，11 条）
+
+- 用 `@ts-expect-error` 断言「该红的一定红」：闸失效时这些抑制变成
+  「未使用」，`tsc` 报 TS2578 ⇒ **闸的失效能被它自己抓到**（已变异验证三条全报）。
+- 含**已知边界**的显式用例：数组形式只校验「每段都是某层的 key」，
+  不校验「这些段能串成一条路」（`['class_id','class_name']` 会过）。
+  有意的取舍 —— 严格路径要 `as const`，而 `as const` 一旦为了「让闸闭嘴」
+  而加，闸就没了。
+- 变异验证：在真实页面 `PipeClassListPage` 上把 `dataIndex` 改回
+  `'pipe_class_id'` → 编译期报错并列出契约里的真实字段。
