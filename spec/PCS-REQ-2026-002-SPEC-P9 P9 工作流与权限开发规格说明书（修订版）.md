@@ -259,7 +259,24 @@ P9A-OBS-004	500ms 延迟验证：流程状态变更到持久化 ≤ 500ms	P9-OPE
 
 3.2.4 通知 / 待办后端
 编号	内容	依据
-P9A-NOT-001	notifications 表（或实时计算方案，按 ADR-D）	新增（P0 清单无）
+P9A-NOT-001	**notifications 建表**（按 ADR-0049 §①）	新增（P0 清单无）
+	　　📌 **通道抽象的最小接口已定**（ADR-0049 §①，勿自创签名）：
+	　　`async def deliver(self, payload: NotificationPayload) -> DeliveryResult`
+	　　- 入参是 **frozen dataclass DTO，不是 ORM**，**不传 `recipient: User`**
+	　	（收件人已在 `payload.recipient_id`；传 ORM 会让通道耦合会话，将来接邮件多一个失败面）
+	　　- **只有一个方法**，不预定义 `can_deliver` / `on_failure` / 批量接口 ——
+			预先猜测下一版需求就是空壳的另一种写法
+	　　- `DeliveryResult(delivered: bool, reason: str | None)`：**本版恒 `delivered=True`**。
+			字段存在是为了让将来的邮件通道有地方报告 SMTP 拒收；没有它，接邮件的人第一反应
+			就是在 service 里加 `try/except` —— 那正是 ADR-0049 §① 禁止的「临时 if」
+	　　- 🚫 **不写 `EmailChannel` 空壳**；🚫 **不得 `if 走邮件: ...`**
+	　　⚠️ **`InAppChannel.deliver()` 只写 `notifications` 行，不推 WebSocket**（通道不该知道
+	　　WebSocket 存在）。**但推送的接线义务在本版** —— P9-OPEN-006 已把 WebSocket 定为
+	　　通知的**关键路径**，而 WebSocket 是服务端推送，服务端不推就没有它。
+	　　⇒ 写侧在 `deliver()` 成功后须通知进程内 broadcaster 向该 `recipient_id` 的连接推送。
+	　　**「登录时轮询能看到」只是降级路径，不等于推送已实现。**
+	　　P9A 验收：① `deliver()` 写入 notifications 行；② WebSocket 在连接建立时可用。
+	　　**不要求**「离线用户在断线期间收到推送」—— 那是产品上线门禁，不占 P9A 验收。
 P9A-NOT-002	**按 ADR-0049 走实时计算，不建表** —— 从 `SignatureMatrix.steps_json` 当前步骤
 		的 `sign_role` × 当前用户角色重算	新增（P0 清单无）
 		⚠️ 待办查询需先按「当前用户有权的 project」缩小集合；`deliverables` 现有索引里

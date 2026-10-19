@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T11:34:20.918Z",
+    "lastScanned": "2026-10-19T11:36:02.406Z",
     "fileCount": 846,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "e35c074344dded99321bf69a22a0c0b6a07f11750fb4d1444cee0c226dc4e2fb",
-    "storeUpdatedAt": "2026-10-19T11:34:20.929Z",
-    "rootHash": "ea3afc45e9536dcb"
+    "renderedHash": "c8f4670123efa28704efa4eff628a385812aa3105cddead9b03bdcae1800cc88",
+    "storeUpdatedAt": "2026-10-19T11:36:02.416Z",
+    "rootHash": "6a7bc96752a3ad82"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -28095,11 +28095,11 @@
     },
     "docs/adr/0047-workflow-progress-observation-layer.md": {
       "description": "ADR-0047：workflow_progress 观测层 —— 写入点、同步性与事务边界",
-      "tokens": 1100,
-      "hash": "e62d2dda3e276927",
-      "size": 8176,
-      "mtimeMs": 1792408688431.9534,
-      "updatedAt": "2026-10-19T11:18:08.474Z",
+      "tokens": 1144,
+      "hash": "34825e77d0a92a80",
+      "size": 8503,
+      "mtimeMs": 1792409762358.2903,
+      "updatedAt": "2026-10-19T11:36:02.406Z",
       "source": "hook"
     },
     "docs/adr/0048-edit-lock-storage.md": {
@@ -28113,11 +28113,11 @@
     },
     "docs/adr/0049-notification-and-todo-data-model.md": {
       "description": "ADR-0049：通知与待办数据模型 —— 通知建表 / 待办实时计算",
-      "tokens": 884,
-      "hash": "3eb0817a159de051",
-      "size": 6644,
-      "mtimeMs": 1792408717921.0286,
-      "updatedAt": "2026-10-19T11:18:37.966Z",
+      "tokens": 1447,
+      "hash": "d58949140e4de0e6",
+      "size": 10785,
+      "mtimeMs": 1792409753342.2488,
+      "updatedAt": "2026-10-19T11:35:53.397Z",
       "source": "hook"
     },
     "docs/PCS-NOTE-P9-Prep-MFA决议-2026-10-19.md": {

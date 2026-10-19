@@ -1810,3 +1810,6 @@
 | 19:20 | Edited docs/adr/0048-edit-lock-storage.md | 3→8 lines | ~97 |
 | 19:34 | Edited docs/adr/0048-edit-lock-storage.md | 26→21 lines | ~224 |
 | 19:34 | Edited docs/adr/0048-edit-lock-storage.md | 5→4 lines | ~53 |
+| 19:35 | Edited docs/adr/0049-notification-and-todo-data-model.md | modified deliver() | ~528 |
+| 19:35 | Edited docs/adr/0049-notification-and-todo-data-model.md | expanded (+7 lines) | ~108 |
+| 19:36 | Edited docs/adr/0047-workflow-progress-observation-layer.md | 6→10 lines | ~101 |
