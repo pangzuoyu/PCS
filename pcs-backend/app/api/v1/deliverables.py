@@ -23,6 +23,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.api.v1._guard import check_project_access_or_404
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
+from app.models.deliverable import Deliverable
 from app.schemas.deliverable import (
     DeliverableListResponse,
     DeliverableResponse,
@@ -30,6 +31,7 @@ from app.schemas.deliverable import (
     DeliverableVersionResponse,
     RecordBindingResponse,
 )
+from app.schemas.deliverable_write import DeliverableIssueRequest, DeliverableIssueResponse
 from app.services.deliverable_service import DeliverableService
 
 router = APIRouter(tags=["deliverables"])
@@ -43,11 +45,20 @@ _READ_ROLES = (
     "SYSTEM_ADMIN",
 )
 
+# 签发（issue）需要的角色 —— **只有作者侧能签发**。
+# 签发 = 把这一版送进签署矩阵，若审方（REVIEWER/APPROVER）也能签发，
+# 就能自己签发自己审，签署矩阵的职责分离形同虚设。
+_ISSUE_ROLES = ("DESIGNER", "SYSTEM_ADMIN")
+
 
 async def _authorize(
     db: AsyncSession, actor: _Actor, deliverable_id: uuid.UUID
-) -> None:
-    """按交付物所属项目做访问权校验（无权 404）。"""
+) -> Deliverable:
+    """按交付物所属项目做访问权校验（无权 404），返回该交付物行。
+
+    返回行而不只是校验：写端点（`issue`）在鉴权后要拿同一行继续用，
+    再查一次既多一次查询，又让「鉴权用的行」和「改的行」可能不是同一行。
+    """
     deliverable = await DeliverableService.get_or_404(
         db, deliverable_id=deliverable_id
     )
@@ -57,6 +68,7 @@ async def _authorize(
         project_id=deliverable.project_id,
         actor_roles=actor.roles,
     )
+    return deliverable
 
 
 @router.get(
@@ -174,4 +186,44 @@ async def get_deliverable_snapshot(
         bindings=[
             RecordBindingResponse.model_validate(b) for b in data["bindings"]
         ],
+    )
+
+
+@router.post(
+    "/deliverables/{deliverable_id}/issue",
+    response_model=DeliverableIssueResponse,
+    summary="签发交付物版本（送审）",
+)
+async def issue_deliverable(
+    deliverable_id: uuid.UUID,
+    body: DeliverableIssueRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> DeliverableIssueResponse:
+    """签发一个新版本：建版本行 + 定 doc_no + DRAFT → PENDING。
+
+    只有签发出的版本才能进 sign-step（B2）—— `deliverable_versions` 是签署
+    流程唯一的进度载体，草稿态的交付物没有版本行可供推进。
+
+    重复签发同一版本目的返 409（不是静默产生第 2 个版本）：那会让签署矩阵
+    的步骤序号对不上，用户看到「已签发」却没有任何一版进入签署。
+    """
+    require_roles(actor, *_ISSUE_ROLES)
+    await _authorize(db, actor, deliverable_id)
+    version = await DeliverableService.issue(
+        db,
+        deliverable_id=deliverable_id,
+        version_purpose=body.version_purpose,
+        actor_user_id=actor.user_id,
+        description=body.description,
+    )
+    deliverable = await DeliverableService.get_or_404(db, deliverable_id=deliverable_id)
+    return DeliverableIssueResponse(
+        deliverable_id=deliverable.deliverable_id,
+        version_id=version.version_id,
+        rev=version.rev,
+        doc_no=deliverable.doc_no,
+        version_purpose=version.version_purpose,
+        sign_status=str(deliverable.sign_status.value),
+        issued_at=version.created_at,
     )

@@ -1883,3 +1883,19 @@
 | 06:33 | Edited pcs-backend/tests/test_schema.py | 4→6 lines | ~119 |
 | 06:33 | Edited pcs-backend/alembic/versions/p9_002_workflow_progress.py | inline fix | ~18 |
 | 06:34 | Edited pcs-backend/tests/alembic/test_p9_002_workflow_progress.py | 1→2 lines | ~31 |
+| 06:40 | Edited .superpowers/sdd/PCS-PLAN-P9A-2-交付物写面/progress.md | expanded (+25 lines) | ~294 |
+| 06:42 | Created pcs-backend/tests/api/v1/test_deliverable_issue.py | — | ~3977 |
+| 06:42 | Edited pcs-backend/tests/api/v1/test_deliverable_issue.py | modified _make_deliverable() | ~293 |
+| 06:42 | Edited pcs-backend/tests/api/v1/test_deliverable_issue.py | modified test_rejects_unbound_matrix() | ~111 |
+| 06:43 | Edited pcs-backend/tests/api/v1/test_deliverable_issue.py | modified test_unknown_deliverable_is_404() | ~114 |
+| 06:43 | Created pcs-backend/app/schemas/deliverable_write.py | — | ~529 |
+| 06:43 | Edited pcs-backend/app/models/enums.py | 1→6 lines | ~64 |
+| 06:43 | Edited pcs-backend/app/services/deliverable_service.py | expanded (+18 lines) | ~453 |
+| 06:44 | Edited pcs-backend/app/services/deliverable_service.py | modified issue() | ~2092 |
+| 06:44 | Edited pcs-backend/app/api/v1/deliverables.py | modified _authorize() | ~149 |
+| 06:44 | Edited pcs-backend/app/api/v1/deliverables.py | expanded (+7 lines) | ~256 |
+| 06:44 | Edited pcs-backend/app/api/v1/deliverables.py | modified issue_deliverable() | ~413 |
+| 06:44 | Edited pcs-backend/tests/api/v1/test_deliverable_issue.py | 9→11 lines | ~156 |
+| 06:45 | Edited pcs-backend/tests/api/v1/test_deliverable_issue.py | modified test_signature_summary_carries_matrix_steps() | ~34 |
+| 06:45 | Edited pcs-backend/app/services/deliverable_service.py | inline fix | ~16 |
+| 06:50 | Edited pcs-backend/app/services/deliverable_service.py | 1→5 lines | ~76 |

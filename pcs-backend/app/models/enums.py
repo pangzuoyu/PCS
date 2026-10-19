@@ -393,6 +393,11 @@ class AuditAction(str, enum.Enum):
     CONFIG_ASSET_REJECTED = "CONFIG_ASSET_REJECTED"
     CONFIG_VERSION_DIFF_VIEWED = "CONFIG_VERSION_DIFF_VIEWED"
 
+    # === P9A 交付物（签发面）===
+    # issue 是「谁把哪一版送审了」的唯一留痕点：doc_no 在这一步才最终确定，
+    # 而 doc_no 是交付物对外身份（报告封面、二维码溯源都用它）。
+    DELIVERABLE_ISSUED = "DELIVERABLE_ISSUED"
+
     # === P8 报表（ADR-P8-001 全直接生成路线）===
     REPORT_GENERATED = "REPORT_GENERATED"
     REPORT_DOWNLOADED = "REPORT_DOWNLOADED"

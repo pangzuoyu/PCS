@@ -3837,6 +3837,32 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deliverables/{deliverable_id}/issue": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 签发交付物版本（送审）
+         * @description 签发一个新版本：建版本行 + 定 doc_no + DRAFT → PENDING。
+         *
+         *     只有签发出的版本才能进 sign-step（B2）—— `deliverable_versions` 是签署
+         *     流程唯一的进度载体，草稿态的交付物没有版本行可供推进。
+         *
+         *     重复签发同一版本目的返 409（不是静默产生第 2 个版本）：那会让签署矩阵
+         *     的步骤序号对不上，用户看到「已签发」却没有任何一版进入签署。
+         */
+        post: operations["issue_deliverable_api_v1_deliverables__deliverable_id__issue_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/equipment/{equipment_id}/actual-data": {
         parameters: {
             query?: never;
@@ -7700,6 +7726,63 @@ export interface components {
              * @description 出口流 UUID（DEVICE_CALCULATED）
              */
             outlet_stream_id: string;
+        };
+        /**
+         * DeliverableIssueRequest
+         * @description 签发交付物版本的请求体。
+         */
+        DeliverableIssueRequest: {
+            /**
+             * Version Purpose
+             * @description 13 值词表之一（合并数据字典）
+             * @enum {string}
+             */
+            version_purpose: "INTER_DISCIPLINE_CHECK" | "INTERNAL_REVIEW" | "CUSTOMER_REVIEW" | "RE_CUSTOMER_REVIEW" | "ISSUED_FOR_DESIGN" | "ISSUED_FOR_PURCHASE" | "ISSUED_FOR_CONSTRUCTION" | "ISSUED_FOR_USE" | "ISSUED_FOR_BID" | "ISSUED_FOR_CHANGE" | "AS_BUILT" | "INFORMATION_ONLY" | "VOID";
+            /**
+             * Description
+             * @description 版本说明；留空则写默认文案
+             * @default
+             */
+            description: string;
+        };
+        /**
+         * DeliverableIssueResponse
+         * @description 签发结果（P9A-DLV-010 显式声明，零裸字段）。
+         *
+         *     字段集合被 `test_response_model_has_no_bare_fields` 钉死 ——
+         *     加字段要同时改那个测试，这是刻意的：契约变化必须是显式动作。
+         */
+        DeliverableIssueResponse: {
+            /**
+             * Deliverable Id
+             * Format: uuid
+             */
+            deliverable_id: string;
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+            /**
+             * Rev
+             * @description 版本号，字符串（'1'/'2'/…）
+             */
+            rev: string;
+            /** Doc No */
+            doc_no: string;
+            /** Version Purpose */
+            version_purpose: string;
+            /**
+             * Sign Status
+             * @description 签发后为 PENDING
+             */
+            sign_status: string;
+            /**
+             * Issued At
+             * Format: date-time
+             * @description 版本签发时刻（= 版本行 created_at）
+             */
+            issued_at: string;
         };
         /**
          * DeliverableListResponse
@@ -24778,6 +24861,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeliverableSnapshotResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    issue_deliverable_api_v1_deliverables__deliverable_id__issue_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                deliverable_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DeliverableIssueRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableIssueResponse"];
                 };
             };
             /** @description Validation Error */

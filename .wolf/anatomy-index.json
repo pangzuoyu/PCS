@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T22:34:22.410Z",
-    "fileCount": 863,
+    "lastScanned": "2026-10-19T22:50:58.060Z",
+    "fileCount": 865,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "2ef896cb5f9d853d514e7fe00bb171cbb2770fa2b8f2ce5e0e82c5a67de6804b",
-    "storeUpdatedAt": "2026-10-19T22:34:22.420Z",
-    "rootHash": "61c2036cc207006b"
+    "renderedHash": "4a0ab39940f6123b2a257cd9844908af8c2bb1d9f091df858dfe41f6f5d6b54f",
+    "storeUpdatedAt": "2026-10-19T22:50:58.070Z",
+    "rootHash": "dacc6662ab0421cd"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12767,11 +12767,11 @@
     },
     "pcs-backend/app/models/enums.py": {
       "description": "业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。",
-      "tokens": 5010,
-      "hash": "6831a6aecddc1bd6",
-      "size": 22236,
-      "mtimeMs": 1792448734336.5068,
-      "updatedAt": "2026-10-19T22:25:34.386Z",
+      "tokens": 5056,
+      "hash": "c76ae1444dd8743b",
+      "size": 22519,
+      "mtimeMs": 1792449824717.1948,
+      "updatedAt": "2026-10-19T22:43:44.769Z",
       "source": "hook",
       "symbols": [
         {
@@ -12890,91 +12890,91 @@
           "name": "AuditAction",
           "kind": "class",
           "startLine": 299,
-          "endLine": 417,
-          "tokens": 1266
+          "endLine": 422,
+          "tokens": 1312
         },
         {
           "name": "ConfigStatus",
           "kind": "class",
-          "startLine": 418,
-          "endLine": 431,
+          "startLine": 423,
+          "endLine": 436,
           "tokens": 91
         },
         {
           "name": "ConfigTransition",
           "kind": "class",
-          "startLine": 432,
-          "endLine": 445,
+          "startLine": 437,
+          "endLine": 450,
           "tokens": 98
         },
         {
           "name": "PipeType",
           "kind": "class",
-          "startLine": 446,
-          "endLine": 459,
+          "startLine": 451,
+          "endLine": 464,
           "tokens": 104
         },
         {
           "name": "CheckResult",
           "kind": "class",
-          "startLine": 460,
-          "endLine": 470,
+          "startLine": 465,
+          "endLine": 475,
           "tokens": 60
         },
         {
           "name": "PumpOperation",
           "kind": "class",
-          "startLine": 471,
-          "endLine": 481,
+          "startLine": 476,
+          "endLine": 486,
           "tokens": 60
         },
         {
           "name": "DesignStage",
           "kind": "class",
-          "startLine": 482,
-          "endLine": 491,
+          "startLine": 487,
+          "endLine": 496,
           "tokens": 62
         },
         {
           "name": "FlowPattern",
           "kind": "class",
-          "startLine": 492,
-          "endLine": 506,
+          "startLine": 497,
+          "endLine": 511,
           "tokens": 95
         },
         {
           "name": "TwoPhaseCheck",
           "kind": "class",
-          "startLine": 507,
-          "endLine": 517,
+          "startLine": 512,
+          "endLine": 522,
           "tokens": 61
         },
         {
           "name": "ReliefScenario",
           "kind": "class",
-          "startLine": 518,
-          "endLine": 540,
+          "startLine": 523,
+          "endLine": 545,
           "tokens": 200
         },
         {
           "name": "WorkflowProgressState",
           "kind": "class",
-          "startLine": 541,
-          "endLine": 555,
+          "startLine": 546,
+          "endLine": 560,
           "tokens": 114
         },
         {
           "name": "WorkflowType",
           "kind": "class",
-          "startLine": 556,
-          "endLine": 574,
+          "startLine": 561,
+          "endLine": 579,
           "tokens": 149
         },
         {
           "name": "to_value",
           "kind": "fn",
-          "startLine": 575,
-          "endLine": 595,
+          "startLine": 580,
+          "endLine": 600,
           "tokens": 184
         }
       ]
@@ -21292,65 +21292,72 @@
     },
     "pcs-backend/app/services/deliverable_service.py": {
       "description": "交付物读服务（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 1404,
-      "hash": "ef8dfacf770f214d",
-      "size": 5805,
-      "mtimeMs": 1791345278624.3987,
-      "updatedAt": "2026-10-07T03:54:38.676Z",
+      "tokens": 3838,
+      "hash": "13b52be0f3a7410c",
+      "size": 15963,
+      "mtimeMs": 1792450258011.0745,
+      "updatedAt": "2026-10-19T22:50:58.060Z",
       "source": "hook",
       "symbols": [
         {
           "name": "DeliverableService",
           "kind": "class",
-          "startLine": 33,
-          "endLine": 158,
-          "tokens": 1168
+          "startLine": 51,
+          "endLine": 390,
+          "tokens": 3410
         }
       ]
     },
     "pcs-backend/app/api/v1/deliverables.py": {
       "description": "交付物读端点（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 1574,
-      "hash": "6af377906fab6669",
-      "size": 6268,
-      "mtimeMs": 1791345292540.9841,
-      "updatedAt": "2026-10-07T03:54:52.595Z",
+      "tokens": 2072,
+      "hash": "93d39dfe45a2ccf4",
+      "size": 8550,
+      "mtimeMs": 1792449856856.0537,
+      "updatedAt": "2026-10-19T22:44:16.903Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_authorize",
           "kind": "fn",
-          "startLine": 47,
-          "endLine": 66,
-          "tokens": 144
+          "startLine": 54,
+          "endLine": 78,
+          "tokens": 179
         },
         {
           "name": "list_deliverables",
           "kind": "fn",
-          "startLine": 67,
-          "endLine": 105,
+          "startLine": 79,
+          "endLine": 117,
           "tokens": 346
         },
         {
           "name": "get_deliverable",
           "kind": "fn",
-          "startLine": 106,
-          "endLine": 124,
+          "startLine": 118,
+          "endLine": 136,
           "tokens": 170
         },
         {
           "name": "list_deliverable_versions",
           "kind": "fn",
-          "startLine": 125,
-          "endLine": 146,
+          "startLine": 137,
+          "endLine": 158,
           "tokens": 208
         },
         {
           "name": "get_deliverable_snapshot",
           "kind": "fn",
-          "startLine": 147,
-          "endLine": 177,
-          "tokens": 326
+          "startLine": 159,
+          "endLine": 196,
+          "tokens": 364
+        },
+        {
+          "name": "issue_deliverable",
+          "kind": "fn",
+          "startLine": 197,
+          "endLine": 229,
+          "tokens": 342
         }
       ]
     },
@@ -28847,11 +28854,11 @@
     },
     ".superpowers/sdd/PCS-PLAN-P9A-2-交付物写面/progress.md": {
       "description": "SDD ledger — plan: docs/PCS-PLAN-P9A-2-交付物写面.md",
-      "tokens": 1020,
-      "hash": "c557bd0bf242a742",
-      "size": 6095,
-      "mtimeMs": 1792448695040.0698,
-      "updatedAt": "2026-10-19T22:24:55.085Z",
+      "tokens": 1291,
+      "hash": "96f011f1f3cb05d2",
+      "size": 7681,
+      "mtimeMs": 1792449637232.5461,
+      "updatedAt": "2026-10-19T22:40:37.280Z",
       "source": "hook"
     },
     "pcs-backend/tests/alembic/test_p9_002_workflow_progress.py": {
@@ -29003,6 +29010,119 @@
           "startLine": 119,
           "endLine": 128,
           "tokens": 131
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_deliverable_issue.py": {
+      "description": "交付物 issue 端点测试（P9A B1 / SPEC P9A-DLV-001·002·003）。",
+      "tokens": 3920,
+      "hash": "139027afdf5b5e23",
+      "size": 15627,
+      "mtimeMs": 1792449917593.9614,
+      "updatedAt": "2026-10-19T22:45:17.640Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "auth",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 40,
+          "tokens": 57
+        },
+        {
+          "name": "reviewer_auth",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 49,
+          "tokens": 80
+        },
+        {
+          "name": "_make_matrix",
+          "kind": "fn",
+          "startLine": 50,
+          "endLine": 68,
+          "tokens": 166
+        },
+        {
+          "name": "_make_binding",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 84,
+          "tokens": 114
+        },
+        {
+          "name": "_make_template",
+          "kind": "fn",
+          "startLine": 85,
+          "endLine": 100,
+          "tokens": 108
+        },
+        {
+          "name": "_make_deliverable",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 132,
+          "tokens": 293
+        },
+        {
+          "name": "_issue",
+          "kind": "fn",
+          "startLine": 133,
+          "endLine": 139,
+          "tokens": 70
+        },
+        {
+          "name": "TestIssueCreatesVersion",
+          "kind": "class",
+          "startLine": 140,
+          "endLine": 212,
+          "tokens": 789
+        },
+        {
+          "name": "TestIssueValidation",
+          "kind": "class",
+          "startLine": 213,
+          "endLine": 277,
+          "tokens": 686
+        },
+        {
+          "name": "TestIssueDocNo",
+          "kind": "class",
+          "startLine": 278,
+          "endLine": 353,
+          "tokens": 832
+        },
+        {
+          "name": "TestIssueResponseContract",
+          "kind": "class",
+          "startLine": 354,
+          "endLine": 402,
+          "tokens": 466
+        }
+      ]
+    },
+    "pcs-backend/app/schemas/deliverable_write.py": {
+      "description": "交付物写面 schema（P9A B1 `issue` 端点）。",
+      "tokens": 529,
+      "hash": "1edad9854af19303",
+      "size": 2618,
+      "mtimeMs": 1792449820209.3572,
+      "updatedAt": "2026-10-19T22:43:40.261Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "DeliverableIssueRequest",
+          "kind": "class",
+          "startLine": 45,
+          "endLine": 57,
+          "tokens": 79
+        },
+        {
+          "name": "DeliverableIssueResponse",
+          "kind": "class",
+          "startLine": 58,
+          "endLine": 72,
+          "tokens": 132
         }
       ]
     }

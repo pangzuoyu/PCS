@@ -11836,6 +11836,76 @@
         }
       }
     },
+    "/api/v1/deliverables/{deliverable_id}/issue": {
+      "post": {
+        "tags": [
+          "deliverables"
+        ],
+        "summary": "签发交付物版本（送审）",
+        "description": "签发一个新版本：建版本行 + 定 doc_no + DRAFT → PENDING。\n\n只有签发出的版本才能进 sign-step（B2）—— `deliverable_versions` 是签署\n流程唯一的进度载体，草稿态的交付物没有版本行可供推进。\n\n重复签发同一版本目的返 409（不是静默产生第 2 个版本）：那会让签署矩阵\n的步骤序号对不上，用户看到「已签发」却没有任何一版进入签署。",
+        "operationId": "issue_deliverable_api_v1_deliverables__deliverable_id__issue_post",
+        "parameters": [
+          {
+            "name": "deliverable_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Deliverable Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DeliverableIssueRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableIssueResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/equipment/{equipment_id}/actual-data": {
       "get": {
         "tags": [
@@ -21446,6 +21516,93 @@
         ],
         "title": "CvCalculateResponse",
         "description": "调节阀 Cv 计算响应（POST /api/v1/cv/calculate 201）。\n\n回填 CvResult 主键 + 关键结果字段 + outlet stream 锚点。\n\nP6-4 Task 5（C-24 Masonelian fl）：V1.2 D3 严格 — fl / flash_steam_rate_kg_s\n走 JSONB 容器（output_json），masonelian_model 走 ORM 列。响应层 3 字段全部\nOptional（默认 None），保持 V1.0 兼容：仅 LIQUID 路径填充；GAS/VAPOR 路径\n闪蒸修正无强物理意义，保持 None。"
+      },
+      "DeliverableIssueRequest": {
+        "properties": {
+          "version_purpose": {
+            "type": "string",
+            "enum": [
+              "INTER_DISCIPLINE_CHECK",
+              "INTERNAL_REVIEW",
+              "CUSTOMER_REVIEW",
+              "RE_CUSTOMER_REVIEW",
+              "ISSUED_FOR_DESIGN",
+              "ISSUED_FOR_PURCHASE",
+              "ISSUED_FOR_CONSTRUCTION",
+              "ISSUED_FOR_USE",
+              "ISSUED_FOR_BID",
+              "ISSUED_FOR_CHANGE",
+              "AS_BUILT",
+              "INFORMATION_ONLY",
+              "VOID"
+            ],
+            "title": "Version Purpose",
+            "description": "13 值词表之一（合并数据字典）"
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "title": "Description",
+            "description": "版本说明；留空则写默认文案",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "version_purpose"
+        ],
+        "title": "DeliverableIssueRequest",
+        "description": "签发交付物版本的请求体。"
+      },
+      "DeliverableIssueResponse": {
+        "properties": {
+          "deliverable_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Deliverable Id"
+          },
+          "version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Version Id"
+          },
+          "rev": {
+            "type": "string",
+            "title": "Rev",
+            "description": "版本号，字符串（'1'/'2'/…）"
+          },
+          "doc_no": {
+            "type": "string",
+            "title": "Doc No"
+          },
+          "version_purpose": {
+            "type": "string",
+            "title": "Version Purpose"
+          },
+          "sign_status": {
+            "type": "string",
+            "title": "Sign Status",
+            "description": "签发后为 PENDING"
+          },
+          "issued_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Issued At",
+            "description": "版本签发时刻（= 版本行 created_at）"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deliverable_id",
+          "version_id",
+          "rev",
+          "doc_no",
+          "version_purpose",
+          "sign_status",
+          "issued_at"
+        ],
+        "title": "DeliverableIssueResponse",
+        "description": "签发结果（P9A-DLV-010 显式声明，零裸字段）。\n\n字段集合被 `test_response_model_has_no_bare_fields` 钉死 ——\n加字段要同时改那个测试，这是刻意的：契约变化必须是显式动作。"
       },
       "DeliverableListResponse": {
         "properties": {
