@@ -1189,3 +1189,37 @@ uv run python scripts/run_gate.py --tail 10 -- <要跑的命令>
 
 **推论**：任何「我跑了一个守门并报告结果」的时刻，都要问
 「我读到的是**谁**的退出码」。
+
+### 延伸（2026-10-19）：守门的「怎么观测」也只有一处 —— `scripts/run_gate.py`
+
+新增闸门时**不要**自己写 `subprocess.run` / `RC=$?`。用：
+
+```python
+from scripts.run_gate import run, run_capture
+rc = run(argv, tail=15)                 # 只要码
+rc, out = run_capture(argv, cwd=...)    # 还要看输出内容（如区分 255 的两种含义）
+```
+
+需要检查输出**内容**而不只是成败时用 `run_capture()` ——
+`alembic check` 的 255 既可能是「检出漂移」也可能是「DB revision 落后、闸门根本没跑」，
+只看码分不开。
+
+⚠️ 写 shell 闸门时这条用不上（shell 不能 import）—— 那种情况下闸门写成
+`scripts/*.py` 让 hook 调，别写成 `.sh` 自己管 `$?`。
+
+### 延伸（2026-10-19）：同一件事在两处描述 → 收敛到单点
+
+2026-10-19 审查 `docs/PCS-PLAN-P9-PREP.md` 时，用户裁决：
+
+**「同一件事在两处描述」不是文档问题，是「必须单点维护的东西」被当成了两份文档。**
+处置一律收敛到已有单点，不新建并行机制、不靠注释互相提醒。
+
+两条同型实例：
+
+| 同一件事 | 差点造出的第二份 | 收敛到 |
+|---|---|---|
+| 怎么看命令退出码 | 新 `gate_alembic_check.sh` 自己管 `RC=$?` | 已有的 `scripts/run_gate.py` |
+| mock type 口径 | 在 P9 SPEC §4.2 改写 | 已有的 `TODOS.md` TODO-039 + TODO-041 |
+
+**注释防不住已进过记录的 bug。** 退出码 255 已经进过 `CLAUDE.md`，
+它就该由代码约束（共享函数 + 单测），不是每次改动时补一句「注意 255」。
