@@ -1800,3 +1800,7 @@
 | 19:15 | Edited docs/adr/0046-user-identity-model-migration.md | expanded (+7 lines) | ~150 |
 | 19:15 | Edited docs/adr/0046-user-identity-model-migration.md | expanded (+11 lines) | ~178 |
 | 19:16 | Edited docs/adr/0046-user-identity-model-migration.md | expanded (+16 lines) | ~347 |
+| 19:17 | Edited docs/adr/0047-workflow-progress-observation-layer.md | expanded (+44 lines) | ~491 |
+| 19:17 | Edited docs/adr/0047-workflow-progress-observation-layer.md | 2→5 lines | ~50 |
+| 19:18 | Edited docs/adr/0047-workflow-progress-observation-layer.md | expanded (+12 lines) | ~163 |
+| 19:18 | Edited docs/adr/0049-notification-and-todo-data-model.md | 1→5 lines | ~54 |

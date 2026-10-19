@@ -242,9 +242,19 @@ P9A-USR-007	token_version 机制：users 表加列；create_token 写 claim；re
 3.2.3 横切观测层
 编号	内容	依据
 P9A-OBS-001	workflow_progress 表：8 字段 + 5 态枚举（PENDING/IN_PROGRESS/COMPLETED/SKIPPED/FAILED）	SUP-008 V1.1 §2.6
-P9A-OBS-002	写入层：签署 / 变更单 / 代录批准状态变更时同步写	ADR-B
+P9A-OBS-002	写入层：签署 / 变更单 / 代录批准状态变更时**同步写**，且写入点必须在 **service 层**	ADR-0047
+	　　⚠️ **不得写在 `app/api/v1/*` 路由处理函数里**（ADR-0047 §① 🔒）。实测依据：
+	　　`StateMachineService.transition()` 今天有 4 条入口，其中 `cia_engine.py:85`
+	　　（`cia_mark_stale` 事件处理者）由 **`app/workers/cia_tasks.py` 的 ARQ cron**
+	　	（1 分钟增量 / 5 分钟全量 CIA 扫描）驱动，**完全不经过 API 层**。
+	　　⇒ 写在 API 层会让**所有 cron 驱动的状态变更在观测层里系统性隐形**，
+	　　且不报错、不告警 —— 观测层看起来是通的，只是漏掉了最需要观测的部分。
 P9A-OBS-003	读 API：供前端甘特图/进度条/超时告警消费	SUP-008 §8.3.5
 P9A-OBS-004	500ms 延迟验证：流程状态变更到持久化 ≤ 500ms	P9-OPEN-007 验收标准
+	　　📌 通知的同步/异步**不由本节裁决**（ADR-0049 §① 明确未锁，本版无邮件服务器）。
+	　　若 P9A 最终把**通知发送**也做成异步，会出现「workflow_progress 已写 COMPLETED
+	　　但通知尚未入队/发送」的窗口 —— **这是已知行为不是错误**，但排障时不得反过来
+	　　当成观测层不可信。已确定属 ARQ 范围的只有**通知 30 天清理任务**（P9A-NOT-004）。
 验收：workflow_progress 在三条工作流上均有写入；延迟达标。
 
 3.2.4 通知 / 待办后端
