@@ -32,6 +32,8 @@ from app.schemas.deliverable import (
     RecordBindingResponse,
 )
 from app.schemas.deliverable_write import (
+    CustomerApprovalProxyRequest,
+    CustomerApprovalProxyResponse,
     DeliverableIssueRequest,
     DeliverableIssueResponse,
     SignStepRequest,
@@ -276,4 +278,59 @@ async def sign_step(
         state=outcome.state.value,
         deliverable_sign_status=outcome.deliverable.sign_status.value,
         signed_at=outcome.signed_at,
+    )
+
+
+@router.post(
+    "/deliverables/{deliverable_id}/customer-approval/proxy",
+    response_model=CustomerApprovalProxyResponse,
+    summary="代录客户批准（凭证 + 二次认证）",
+)
+async def proxy_customer_approval(
+    deliverable_id: uuid.UUID,
+    body: CustomerApprovalProxyRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> CustomerApprovalProxyResponse:
+    """代录客户在系统外的批准，闭合 CUSTOMER 签署步骤（ADR-0007）。
+
+    客户不会有公司 AD 账号，这一步物理上无人能在系统内执行，代录是唯一闭环。
+
+    两条前置由 service 层强制（顺序不可交换）：
+    ① **代录人不得是该交付物的设计人**（403）；
+    ② **代录人二次认证**（401，MFA 决议路径 B：AD 密码二次输入）。
+
+    凭证哈希由服务端从磁盘上的真实文件算，请求里不收哈希 —— 收了就是让
+    客户端自证物证，而物证是客户批准唯一的存在性证明。
+    """
+    require_roles(actor, *_ISSUE_ROLES)
+    await _authorize(db, actor, deliverable_id)
+    outcome = await DeliverableService.record_customer_approval_proxy(
+        db,
+        deliverable_id=deliverable_id,
+        version_id=body.version_id,
+        file_path=body.file_path,
+        file_name=body.file_name,
+        file_type=body.file_type,
+        approver_name=body.approver_name,
+        approval_date=body.approval_date,
+        approval_method=body.approval_method,
+        secondary_username=body.secondary_username,
+        secondary_password=body.secondary_password,
+        actor_user_id=actor.user_id,
+    )
+    deliverable = outcome.deliverable
+    # 响应字段取**请求体**的值而不是回读 ORM：`deliverable.customer_approval_*`
+    # 在模型上是可空的，回读就得写 `or ""` 或 type: ignore，两者都会把
+    # 「本该必填的代录结果」伪装成可选。落库是否真的成功由
+    # `test_records_approval_fields` 单独断言（它 refresh 后回读 DB）。
+    return CustomerApprovalProxyResponse(
+        deliverable_id=deliverable.deliverable_id,
+        version_id=outcome.version.version_id,
+        attachment_id=outcome.attachment.attachment_id,
+        customer_approver_name=body.approver_name,
+        approval_date=body.approval_date,
+        approval_method=body.approval_method,
+        is_proxy=True,
+        proxied_at=outcome.signed_at,
     )

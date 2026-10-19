@@ -3890,6 +3890,35 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deliverables/{deliverable_id}/customer-approval/proxy": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 代录客户批准（凭证 + 二次认证）
+         * @description 代录客户在系统外的批准，闭合 CUSTOMER 签署步骤（ADR-0007）。
+         *
+         *     客户不会有公司 AD 账号，这一步物理上无人能在系统内执行，代录是唯一闭环。
+         *
+         *     两条前置由 service 层强制（顺序不可交换）：
+         *     ① **代录人不得是该交付物的设计人**（403）；
+         *     ② **代录人二次认证**（401，MFA 决议路径 B：AD 密码二次输入）。
+         *
+         *     凭证哈希由服务端从磁盘上的真实文件算，请求里不收哈希 —— 收了就是让
+         *     客户端自证物证，而物证是客户批准唯一的存在性证明。
+         */
+        post: operations["proxy_customer_approval_api_v1_deliverables__deliverable_id__customer_approval_proxy_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/equipment/{equipment_id}/actual-data": {
         parameters: {
             query?: never;
@@ -7521,6 +7550,102 @@ export interface components {
             efficiency: number;
             /** Npshr M */
             npshr_m: number;
+        };
+        /**
+         * CustomerApprovalProxyRequest
+         * @description 代录客户批准（P9A B3 / ADR-0007）。
+         *
+         *     ⚠️ **刻意不收 `file_hash`** —— 收了就等于让客户端自证物证，
+         *     而物证是客户批准唯一的存在性证明。哈希由服务端从磁盘上的真实文件算。
+         *     ⚠️ `secondary_password` 出现在请求体里是路径 B 的固有形状（MFA 决议 §3），
+         *     它**绝不**进审计与日志（见 `secondary_auth` 模块）。
+         */
+        CustomerApprovalProxyRequest: {
+            /**
+             * Version Id
+             * Format: uuid
+             * @description 客户批准针对的版本行
+             */
+            version_id: string;
+            /**
+             * File Path
+             * @description 凭证相对存储根的路径；服务端据此读盘算哈希
+             */
+            file_path: string;
+            /** File Name */
+            file_name: string;
+            /**
+             * File Type
+             * @enum {string}
+             */
+            file_type: "PDF" | "JPG" | "PNG" | "EML";
+            /**
+             * Approver Name
+             * @description 客户方批准人姓名
+             */
+            approver_name: string;
+            /**
+             * Approval Date
+             * Format: date
+             * @description 客户批准日期
+             */
+            approval_date: string;
+            /**
+             * Approval Method
+             * @enum {string}
+             */
+            approval_method: "EMAIL" | "LETTER" | "EDMS" | "SIGNED_DOC";
+            /**
+             * Secondary Username
+             * @description 代录人 AD 用户名
+             */
+            secondary_username: string;
+            /** Secondary Password */
+            secondary_password: string;
+        };
+        /**
+         * CustomerApprovalProxyResponse
+         * @description 代录结果。字段集合被 `test_response_model_has_no_bare_fields` 钉死。
+         */
+        CustomerApprovalProxyResponse: {
+            /**
+             * Deliverable Id
+             * Format: uuid
+             */
+            deliverable_id: string;
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+            /**
+             * Attachment Id
+             * Format: uuid
+             */
+            attachment_id: string;
+            /** Customer Approver Name */
+            customer_approver_name: string;
+            /**
+             * Approval Date
+             * Format: date
+             */
+            approval_date: string;
+            /**
+             * Approval Method
+             * @enum {string}
+             */
+            approval_method: "EMAIL" | "LETTER" | "EDMS" | "SIGNED_DOC";
+            /**
+             * Is Proxy
+             * @description 恒为 True —— 本端点就是代录入口
+             */
+            is_proxy: boolean;
+            /**
+             * Proxied At
+             * Format: date-time
+             * @description 代录时刻
+             */
+            proxied_at: string;
         };
         /**
          * CvCalculateRequest
@@ -25029,6 +25154,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SignStepResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    proxy_customer_approval_api_v1_deliverables__deliverable_id__customer_approval_proxy_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                deliverable_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CustomerApprovalProxyRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CustomerApprovalProxyResponse"];
                 };
             };
             /** @description Validation Error */

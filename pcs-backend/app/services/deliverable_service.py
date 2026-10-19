@@ -21,10 +21,11 @@ P9A B lane 起本服务**同时承载写面**：`issue`（本轮）→ `sign_ste
 """
 from __future__ import annotations
 
+import hashlib
 import re
 import uuid
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import UTC, date, datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -33,6 +34,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.errors import PcsError
 from app.models.config_domain import NumberingTemplate
 from app.models.deliverable import (
+    CustomerApprovalAttachment,
     Deliverable,
     DeliverableRecordBinding,
     DeliverableVersion,
@@ -49,6 +51,7 @@ from app.models.project import Project
 from app.models.workflow_progress import WorkflowProgress
 from app.services.audit_service import AuditService
 from app.services.numbering_service import NumberingService
+from app.services.secondary_auth import verify_secondary_auth
 from app.services.workflow_progress_writer import record_step
 
 #: `segments_json` 里已登记的占位符（P2 计划设计 §3.5 的示例段名）。
@@ -59,6 +62,37 @@ _TOKEN_SHAPE = re.compile(r"^[a-z][a-z0-9_]*$")
 
 def _utcnow() -> datetime:
     return datetime.now(UTC)
+
+
+#: 凭证附件大小上限 20 MB（SPEC P9A-DLV-008 / ADR-0007）。
+#: 在**读进内存之前**判大小：先读后判的话，一个超大文件会先把进程打死。
+_MAX_CREDENTIAL_BYTES = 20 * 1024 * 1024
+
+
+def _read_credential(file_path: str) -> tuple[bytes, str]:
+    """读凭证文件并算 SHA-256。路径逃逸由 `resolve_path` 拦（400）。
+
+    Returns:
+        `(内容, sha256 十六进制)`。
+    """
+    from app.services.report import paths as report_paths
+
+    target = report_paths.resolve_path(file_path)  # 逃逸 ⇒ PcsError 400
+    if not target.is_file():
+        raise PcsError(
+            code="PROXY_ATTACHMENT_MISSING",
+            message=f"凭证文件不存在：{file_path}",
+            status=400,
+        )
+    size = target.stat().st_size
+    if size > _MAX_CREDENTIAL_BYTES:
+        raise PcsError(
+            code="PROXY_ATTACHMENT_TOO_LARGE",
+            message=f"凭证文件 {size} 字节，超过 {_MAX_CREDENTIAL_BYTES} 上限",
+            status=400,
+        )
+    payload = target.read_bytes()
+    return payload, hashlib.sha256(payload).hexdigest()
 
 
 @dataclass(frozen=True)
@@ -75,6 +109,16 @@ class SignStepOutcome:
     step_role: str
     decision: str
     state: WorkflowProgressState
+    signed_at: datetime
+
+
+@dataclass(frozen=True)
+class CustomerApprovalProxyOutcome:
+    """`record_customer_approval_proxy` 的返回值。"""
+
+    deliverable: Deliverable
+    version: DeliverableVersion
+    attachment: CustomerApprovalAttachment
     signed_at: datetime
 
 
@@ -641,3 +685,128 @@ class DeliverableService:
                 message=f"当前该签第 {expected} 步，收到第 {step.get('step_order')}",
                 status=409,
             )
+
+    # ------------------------------------------------------------------
+    # 写面（P9A B3：代录客户批准 + 观测写入点 ③）
+    # ------------------------------------------------------------------
+
+    @classmethod
+    async def record_customer_approval_proxy(
+        cls,
+        db: AsyncSession,
+        *,
+        deliverable_id: uuid.UUID,
+        version_id: uuid.UUID,
+        file_path: str,
+        file_name: str,
+        file_type: str,
+        approver_name: str,
+        approval_date: date,
+        approval_method: str,
+        secondary_username: str,
+        secondary_password: str,
+        actor_user_id: uuid.UUID,
+    ) -> CustomerApprovalProxyOutcome:
+        """代录客户批准（SPEC P9A-DLV-008 / ADR-0007）。
+
+        客户在系统外批准（邮件/信函/EDMS/签字文件），由内部授权人把凭证代录进系统
+        闭合 CUSTOMER 签署步骤 —— 客户不会有公司 AD 账号，这一步物理上无人能在
+        系统内执行，代录是唯一的闭环。
+
+        顺序上有两条不可交换的前置：
+
+        1. **代录人不得是该交付物的设计人**（ADR-0007）。先查这条再查二次认证 ——
+           设计人自录不该浪费一次 LDAP 往返，而且它给出的错误码更准。
+        2. **代录人二次认证**（MFA 决议路径 B：AD 密码二次输入 + `SIGN_2FA_FALLBACK`）。
+
+        凭证的 `file_hash` 由**服务端**从磁盘上的真实文件算 —— 请求里不收哈希，
+        收了就是让客户端自证物证。
+
+        Returns:
+            `CustomerApprovalProxyOutcome`。
+
+        Raises:
+            PcsError 404 `DELIVERABLE_NOT_FOUND` / 404 `PROXY_VERSION_NOT_FOUND` /
+                403 `PROXY_RECORDER_IS_DESIGNER` / 401 `SECONDARY_AUTH_FAILED` /
+                400 `PROXY_ATTACHMENT_MISSING` / 400 `PROXY_ATTACHMENT_TOO_LARGE`
+        """
+        deliverable = await cls.get_or_404(db, deliverable_id=deliverable_id)
+        version = await db.get(DeliverableVersion, version_id)
+        if version is None or version.deliverable_id != deliverable_id:
+            raise PcsError(
+                code="PROXY_VERSION_NOT_FOUND",
+                message=f"交付物 {deliverable_id} 下没有版本 {version_id}",
+                status=404,
+            )
+
+        if version.created_by is not None and version.created_by == actor_user_id:
+            raise PcsError(
+                code="PROXY_RECORDER_IS_DESIGNER",
+                message="ADR-0007：代录人不得是该交付物的设计人",
+                status=403,
+            )
+
+        await verify_secondary_auth(
+            session=db,
+            username=secondary_username,
+            password=secondary_password,
+        )
+
+        payload, file_hash = _read_credential(file_path)
+
+        now = _utcnow()
+        attachment = CustomerApprovalAttachment(
+            deliverable_version_id=version_id,
+            file_path=file_path,
+            file_name=file_name,
+            file_type=file_type,
+            file_size=len(payload),
+            uploaded_by=actor_user_id,
+            file_hash=file_hash,
+        )
+        db.add(attachment)
+        await db.flush()
+
+        deliverable.customer_approval_date = approval_date
+        deliverable.customer_approver_name = approver_name
+        deliverable.customer_approval_method = approval_method
+        deliverable.customer_approval_proxy_by = actor_user_id
+        deliverable.customer_approval_proxy_at = now
+        deliverable.customer_approval_attachment_id = attachment.attachment_id
+        deliverable.customer_approval_is_proxy = True
+
+        await AuditService(db).write(
+            action=AuditAction.CUSTOMER_APPROVAL_PROXIED,
+            resource_type="deliverable",
+            resource_id=deliverable_id,
+            user_id=actor_user_id,
+            detail={
+                "version_id": str(version_id),
+                "attachment_id": str(attachment.attachment_id),
+                "approver_name": approver_name,
+                "approval_method": approval_method,
+                "file_hash": file_hash,
+            },
+        )
+
+        # 观测写入点 ③（ADR-0047 §① 🔒：service 层，非 API 层）
+        await record_step(
+            session=db,
+            project_id=deliverable.project_id,
+            workflow_type=WorkflowType.CUSTOMER_APPROVAL_PROXY,
+            workflow_id=deliverable_id,
+            step_order=1,
+            step_role="CUSTOMER",
+            state=WorkflowProgressState.COMPLETED,
+            actor_user_id=actor_user_id,
+            result_hash=file_hash,
+        )
+
+        await db.commit()
+        await db.refresh(attachment)
+        return CustomerApprovalProxyOutcome(
+            deliverable=deliverable,
+            version=version,
+            attachment=attachment,
+            signed_at=now,
+        )

@@ -11976,6 +11976,76 @@
         }
       }
     },
+    "/api/v1/deliverables/{deliverable_id}/customer-approval/proxy": {
+      "post": {
+        "tags": [
+          "deliverables"
+        ],
+        "summary": "代录客户批准（凭证 + 二次认证）",
+        "description": "代录客户在系统外的批准，闭合 CUSTOMER 签署步骤（ADR-0007）。\n\n客户不会有公司 AD 账号，这一步物理上无人能在系统内执行，代录是唯一闭环。\n\n两条前置由 service 层强制（顺序不可交换）：\n① **代录人不得是该交付物的设计人**（403）；\n② **代录人二次认证**（401，MFA 决议路径 B：AD 密码二次输入）。\n\n凭证哈希由服务端从磁盘上的真实文件算，请求里不收哈希 —— 收了就是让\n客户端自证物证，而物证是客户批准唯一的存在性证明。",
+        "operationId": "proxy_customer_approval_api_v1_deliverables__deliverable_id__customer_approval_proxy_post",
+        "parameters": [
+          {
+            "name": "deliverable_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Deliverable Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CustomerApprovalProxyRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CustomerApprovalProxyResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/equipment/{equipment_id}/actual-data": {
       "get": {
         "tags": [
@@ -21208,6 +21278,145 @@
         ],
         "title": "CurvePointRequest",
         "description": "曲线单点请求。"
+      },
+      "CustomerApprovalProxyRequest": {
+        "properties": {
+          "version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Version Id",
+            "description": "客户批准针对的版本行"
+          },
+          "file_path": {
+            "type": "string",
+            "title": "File Path",
+            "description": "凭证相对存储根的路径；服务端据此读盘算哈希"
+          },
+          "file_name": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "File Name"
+          },
+          "file_type": {
+            "type": "string",
+            "enum": [
+              "PDF",
+              "JPG",
+              "PNG",
+              "EML"
+            ],
+            "title": "File Type"
+          },
+          "approver_name": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Approver Name",
+            "description": "客户方批准人姓名"
+          },
+          "approval_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Approval Date",
+            "description": "客户批准日期"
+          },
+          "approval_method": {
+            "type": "string",
+            "enum": [
+              "EMAIL",
+              "LETTER",
+              "EDMS",
+              "SIGNED_DOC"
+            ],
+            "title": "Approval Method"
+          },
+          "secondary_username": {
+            "type": "string",
+            "maxLength": 100,
+            "title": "Secondary Username",
+            "description": "代录人 AD 用户名"
+          },
+          "secondary_password": {
+            "type": "string",
+            "maxLength": 200,
+            "title": "Secondary Password"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version_id",
+          "file_path",
+          "file_name",
+          "file_type",
+          "approver_name",
+          "approval_date",
+          "approval_method",
+          "secondary_username",
+          "secondary_password"
+        ],
+        "title": "CustomerApprovalProxyRequest",
+        "description": "代录客户批准（P9A B3 / ADR-0007）。\n\n⚠️ **刻意不收 `file_hash`** —— 收了就等于让客户端自证物证，\n而物证是客户批准唯一的存在性证明。哈希由服务端从磁盘上的真实文件算。\n⚠️ `secondary_password` 出现在请求体里是路径 B 的固有形状（MFA 决议 §3），\n它**绝不**进审计与日志（见 `secondary_auth` 模块）。"
+      },
+      "CustomerApprovalProxyResponse": {
+        "properties": {
+          "deliverable_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Deliverable Id"
+          },
+          "version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Version Id"
+          },
+          "attachment_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Attachment Id"
+          },
+          "customer_approver_name": {
+            "type": "string",
+            "title": "Customer Approver Name"
+          },
+          "approval_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Approval Date"
+          },
+          "approval_method": {
+            "type": "string",
+            "enum": [
+              "EMAIL",
+              "LETTER",
+              "EDMS",
+              "SIGNED_DOC"
+            ],
+            "title": "Approval Method"
+          },
+          "is_proxy": {
+            "type": "boolean",
+            "title": "Is Proxy",
+            "description": "恒为 True —— 本端点就是代录入口"
+          },
+          "proxied_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Proxied At",
+            "description": "代录时刻"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deliverable_id",
+          "version_id",
+          "attachment_id",
+          "customer_approver_name",
+          "approval_date",
+          "approval_method",
+          "is_proxy",
+          "proxied_at"
+        ],
+        "title": "CustomerApprovalProxyResponse",
+        "description": "代录结果。字段集合被 `test_response_model_has_no_bare_fields` 钉死。"
       },
       "CvCalculateRequest": {
         "properties": {

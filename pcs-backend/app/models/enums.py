@@ -400,6 +400,10 @@ class AuditAction(str, enum.Enum):
     # 签署动作留痕。RETURN（退回）与 SIGN 是相反动作但同样要留痕 ——
     # 只记签过会让人以为「从没被退过」，而退回次数正是质量追溯的关键指标。
     DELIVERABLE_SIGNED = "DELIVERABLE_SIGNED"
+    # ⚠️ **不得**改用 `SIGN_2FA_OK`：那是真 MFA 的 action，复用它会掩盖
+    # 「我们没上真 MFA」这个事实，使日后审计读不出当前用的是降级方案
+    # （MFA 决议落地约束 1）。路径 B 是明确的过渡态，替换时才新增 SIGN_2FA_OK。
+    SIGN_2FA_FALLBACK = "SIGN_2FA_FALLBACK"
 
     # === P8 报表（ADR-P8-001 全直接生成路线）===
     REPORT_GENERATED = "REPORT_GENERATED"

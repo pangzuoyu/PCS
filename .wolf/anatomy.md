@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T22:56:53.077Z
-> Files: 868 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T23:07:34.319Z
+> Files: 871 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1136,7 +1136,7 @@
 - `audit.py` — Audit Query API (F-P2-009 Sprint 3 / Issue 7 混合 RBAC). (~2535 tok)
 - `auth.py` — POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。 (~3570 tok)
 - `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~5196 tok)
-- `deliverables.py` — 交付物读端点（P1-7+ D 模块 / P8 前置）。 (~2522 tok)
+- `deliverables.py` — 交付物读端点（P1-7+ D 模块 / P8 前置）。 (~3102 tok)
 - `equip_lib.py` — equip-lib 端点（Task 1.9.5 / P2-EQL-001）。 (~724 tok)
 - `filtration.py` — P6-3 FILTRATION API（SPEC §3.2.7 + Task 34）。 (~5529 tok)
 - `flare.py` — P6-2 FLARE_SYS API：Task 20 header_sizing + Task 21 kod_sizing + (~5836 tok)
@@ -1170,7 +1170,7 @@
 - `calc.py` — 计算结果 ORM 模型（P5-3 计算引擎持久化）。 (~16256 tok)
 - `config_domain.py` — 配置域 ORM 模型（公司/工程级共享配置）。 (~4191 tok)
 - `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~11754 tok)
-- `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~5094 tok)
+- `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~5149 tok)
 - `equipment.py` — 设备/器材库 ORM 模型（P5-2-4 / P5-3 选型库）。 (~3317 tok)
 - `project.py` — 项目/工作区/成员 ORM 模型（核心租户隔离维度）。 (~7858 tok)
 - `psv_standards.py` — PSV 多标准配置 ORM（P5-0-5 Task 24a，SUP-P5-PSV-001 §3.1 + ADR-0028 V1.1）。 (~1824 tok)
@@ -1183,7 +1183,7 @@
 ## pcs-backend/app/schemas/
 
 - `audit.py` — Audit Query Pydantic schemas (F-P2-009 Sprint 3 / Issue 5). (~769 tok)
-- `deliverable_write.py` — 交付物写面 schema（P9A B1 `issue` 端点）。 (~796 tok)
+- `deliverable_write.py` — 交付物写面 schema（P9A B1 `issue` 端点）。 (~1201 tok)
 - `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~848 tok)
 - `pipe_class.py` — PipeClass API schemas（Pydantic v2；Task 1.9.1 / P2-STD-001）。 (~1366 tok)
 - `project.py` — 项目产品类别 schema (GB 30251-2024 §6.1.5 电折标口径判据). (~297 tok)
@@ -1199,10 +1199,11 @@
 - `advisory_lock.py` — Postgres advisory lock（事务级）防止并发状态转移。 (~862 tok)
 - `audit_service.py` — AuditService：审计统一入口（Issue 6 锁定）。 (~610 tok)
 - `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~3841 tok)
-- `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~6310 tok)
+- `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~7914 tok)
 - `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
 - `ldap_client.py` — LDAP 简易封装。Task 9 用，Task 10 引入 mock 旁路。 (~1910 tok)
 - `pipe_class_service.py` — PipeClassService — 管道等级 CRUD + 项目分配（Task 1.9.1 / P2-STD-001）。 (~8622 tok)
+- `secondary_auth.py` — 二次认证（MFA 决议路径 B：AD 密码二次输入）。 (~632 tok)
 - `stream_service.py` — P3.2 SIM-4 + SIM-8 + SIM-13：StreamService 物流 / 状态点 CRUD + 状态机（spec V1.6 §3.2.3）。 (~6322 tok)
 - `token_issuer.py` — 登录签发的**唯一**路径（ADR-0046 §③）。 (~1690 tok)
 - `workflow_progress_writer.py` — workflow_progress 的**唯一**写入口（ADR-0047 §① 🔒 / P9A-OBS-002）。 (~1082 tok)
@@ -1282,6 +1283,7 @@
 
 - `test_admin_users.py` — ADMIN 用户端点（SPEC P9A-ADM-001/002，ADR-0046 §⑤）。 (~1181 tok)
 - `test_config_assets_list.py` — `GET /api/v1/config/assets` 列表端点（2026-10-19，TODO-040）。 (~1172 tok)
+- `test_deliverable_customer_approval_proxy.py` — 代录客户批准端点测试（P9A B3 / SPEC P9A-DLV-008 / ADR-0007）。 (~2878 tok)
 - `test_deliverable_issue.py` — 交付物 issue 端点测试（P9A B1 / SPEC P9A-DLV-001·002·003）。 (~3920 tok)
 - `test_deliverable_sign_step.py` — 交付物 sign-step 端点测试（P9A B2 / SPEC P9A-DLV-007）。 (~3816 tok)
 - `test_execution_poll_contract.py` — b11：执行时序契约 —— `task_id` 必须能查到 `report_file_id`。 (~663 tok)
@@ -1330,6 +1332,7 @@
 ## pcs-backend/tests/services/
 
 - `test_ad_sync.py` — AD 同步（SPEC P9A-USR-001/002/003，2026-10-19 用户裁决：加服务账号配置）。 (~2406 tok)
+- `test_secondary_auth.py` — 二次认证单测（MFA 决议 §4：路径 B = AD 密码二次输入 + `SIGN_2FA_FALLBACK`）。 (~1176 tok)
 - `test_stream_transition.py` — P3.2 SIM-13：StreamService.transition() 状态机集成测试（闭环审计 D-1）。 (~2982 tok)
 - `test_workflow_progress_writer.py` — workflow_progress_writer 测试（ADR-0047 观测层的**唯一写入口**）。 (~2094 tok)
 

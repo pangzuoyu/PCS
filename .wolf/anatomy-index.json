@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T22:56:53.077Z",
-    "fileCount": 868,
+    "lastScanned": "2026-10-19T23:07:34.319Z",
+    "fileCount": 871,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "42f28a803456d71f2a10c62a93d40b49e6baa86596e93fcc7cef488aca94de5a",
-    "storeUpdatedAt": "2026-10-19T22:56:53.087Z",
-    "rootHash": "12405d5b322f7ea8"
+    "renderedHash": "e37b84616d1c5c3d87d225032b409929932853450f3fa5a45bfb8c9d5955ace4",
+    "storeUpdatedAt": "2026-10-19T23:07:34.330Z",
+    "rootHash": "60ab1a224c6b3636"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12767,11 +12767,11 @@
     },
     "pcs-backend/app/models/enums.py": {
       "description": "业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。",
-      "tokens": 5094,
-      "hash": "49f8a73896dd8e9a",
-      "size": 22769,
-      "mtimeMs": 1792450451638.8237,
-      "updatedAt": "2026-10-19T22:54:11.687Z",
+      "tokens": 5149,
+      "hash": "cc44487ac74006db",
+      "size": 23109,
+      "mtimeMs": 1792451143275.711,
+      "updatedAt": "2026-10-19T23:05:43.326Z",
       "source": "hook",
       "symbols": [
         {
@@ -12890,91 +12890,91 @@
           "name": "AuditAction",
           "kind": "class",
           "startLine": 299,
-          "endLine": 425,
-          "tokens": 1350
+          "endLine": 429,
+          "tokens": 1405
         },
         {
           "name": "ConfigStatus",
           "kind": "class",
-          "startLine": 426,
-          "endLine": 439,
+          "startLine": 430,
+          "endLine": 443,
           "tokens": 91
         },
         {
           "name": "ConfigTransition",
           "kind": "class",
-          "startLine": 440,
-          "endLine": 453,
+          "startLine": 444,
+          "endLine": 457,
           "tokens": 98
         },
         {
           "name": "PipeType",
           "kind": "class",
-          "startLine": 454,
-          "endLine": 467,
+          "startLine": 458,
+          "endLine": 471,
           "tokens": 104
         },
         {
           "name": "CheckResult",
           "kind": "class",
-          "startLine": 468,
-          "endLine": 478,
+          "startLine": 472,
+          "endLine": 482,
           "tokens": 60
         },
         {
           "name": "PumpOperation",
           "kind": "class",
-          "startLine": 479,
-          "endLine": 489,
+          "startLine": 483,
+          "endLine": 493,
           "tokens": 60
         },
         {
           "name": "DesignStage",
           "kind": "class",
-          "startLine": 490,
-          "endLine": 499,
+          "startLine": 494,
+          "endLine": 503,
           "tokens": 62
         },
         {
           "name": "FlowPattern",
           "kind": "class",
-          "startLine": 500,
-          "endLine": 514,
+          "startLine": 504,
+          "endLine": 518,
           "tokens": 95
         },
         {
           "name": "TwoPhaseCheck",
           "kind": "class",
-          "startLine": 515,
-          "endLine": 525,
+          "startLine": 519,
+          "endLine": 529,
           "tokens": 61
         },
         {
           "name": "ReliefScenario",
           "kind": "class",
-          "startLine": 526,
-          "endLine": 548,
+          "startLine": 530,
+          "endLine": 552,
           "tokens": 200
         },
         {
           "name": "WorkflowProgressState",
           "kind": "class",
-          "startLine": 549,
-          "endLine": 563,
+          "startLine": 553,
+          "endLine": 567,
           "tokens": 114
         },
         {
           "name": "WorkflowType",
           "kind": "class",
-          "startLine": 564,
-          "endLine": 582,
+          "startLine": 568,
+          "endLine": 586,
           "tokens": 149
         },
         {
           "name": "to_value",
           "kind": "fn",
-          "startLine": 583,
-          "endLine": 603,
+          "startLine": 587,
+          "endLine": 607,
           "tokens": 184
         }
       ]
@@ -21292,93 +21292,114 @@
     },
     "pcs-backend/app/services/deliverable_service.py": {
       "description": "交付物读服务（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 6310,
-      "hash": "eb313d80fe85d321",
-      "size": 25667,
-      "mtimeMs": 1792450481793.3066,
-      "updatedAt": "2026-10-19T22:54:41.840Z",
+      "tokens": 7914,
+      "hash": "8d473429df88e113",
+      "size": 32011,
+      "mtimeMs": 1792451217912.0068,
+      "updatedAt": "2026-10-19T23:06:57.960Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_utcnow",
           "kind": "fn",
-          "startLine": 60,
-          "endLine": 64,
-          "tokens": 26
+          "startLine": 63,
+          "endLine": 71,
+          "tokens": 54
+        },
+        {
+          "name": "_read_credential",
+          "kind": "fn",
+          "startLine": 72,
+          "endLine": 98,
+          "tokens": 237
         },
         {
           "name": "SignStepOutcome",
           "kind": "class",
-          "startLine": 65,
-          "endLine": 81,
-          "tokens": 96
+          "startLine": 99,
+          "endLine": 115,
+          "tokens": 103
+        },
+        {
+          "name": "CustomerApprovalProxyOutcome",
+          "kind": "class",
+          "startLine": 116,
+          "endLine": 125,
+          "tokens": 62
         },
         {
           "name": "DeliverableService",
           "kind": "class",
-          "startLine": 82,
-          "endLine": 644,
-          "tokens": 5688
+          "startLine": 126,
+          "endLine": 813,
+          "tokens": 6927
         }
       ]
     },
     "pcs-backend/app/api/v1/deliverables.py": {
       "description": "交付物读端点（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 2522,
-      "hash": "9ff043e4deec1a94",
-      "size": 10534,
-      "mtimeMs": 1792450613022.7698,
-      "updatedAt": "2026-10-19T22:56:53.076Z",
+      "tokens": 3102,
+      "hash": "38c711541ff73b4e",
+      "size": 13081,
+      "mtimeMs": 1792451254268.6326,
+      "updatedAt": "2026-10-19T23:07:34.319Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_authorize",
           "kind": "fn",
-          "startLine": 59,
-          "endLine": 83,
+          "startLine": 61,
+          "endLine": 85,
           "tokens": 179
         },
         {
           "name": "list_deliverables",
           "kind": "fn",
-          "startLine": 84,
-          "endLine": 122,
+          "startLine": 86,
+          "endLine": 124,
           "tokens": 346
         },
         {
           "name": "get_deliverable",
           "kind": "fn",
-          "startLine": 123,
-          "endLine": 141,
+          "startLine": 125,
+          "endLine": 143,
           "tokens": 170
         },
         {
           "name": "list_deliverable_versions",
           "kind": "fn",
-          "startLine": 142,
-          "endLine": 163,
+          "startLine": 144,
+          "endLine": 165,
           "tokens": 208
         },
         {
           "name": "get_deliverable_snapshot",
           "kind": "fn",
-          "startLine": 164,
-          "endLine": 201,
+          "startLine": 166,
+          "endLine": 203,
           "tokens": 364
         },
         {
           "name": "issue_deliverable",
           "kind": "fn",
-          "startLine": 202,
-          "endLine": 241,
+          "startLine": 204,
+          "endLine": 243,
           "tokens": 382
         },
         {
           "name": "sign_step",
           "kind": "fn",
-          "startLine": 242,
-          "endLine": 279,
-          "tokens": 394
+          "startLine": 244,
+          "endLine": 288,
+          "tokens": 441
+        },
+        {
+          "name": "proxy_customer_approval",
+          "kind": "fn",
+          "startLine": 289,
+          "endLine": 336,
+          "tokens": 514
         }
       ]
     },
@@ -29124,11 +29145,11 @@
     },
     "pcs-backend/app/schemas/deliverable_write.py": {
       "description": "交付物写面 schema（P9A B1 `issue` 端点）。",
-      "tokens": 796,
-      "hash": "dcb15b2d4ee7066d",
-      "size": 3805,
-      "mtimeMs": 1792450457474.9219,
-      "updatedAt": "2026-10-19T22:54:17.525Z",
+      "tokens": 1201,
+      "hash": "28da21636ea5bc6d",
+      "size": 5664,
+      "mtimeMs": 1792451175823.415,
+      "updatedAt": "2026-10-19T23:06:15.871Z",
       "source": "hook",
       "symbols": [
         {
@@ -29156,8 +29177,22 @@
           "name": "SignStepResponse",
           "kind": "class",
           "startLine": 88,
-          "endLine": 101,
-          "tokens": 143
+          "endLine": 109,
+          "tokens": 205
+        },
+        {
+          "name": "CustomerApprovalProxyRequest",
+          "kind": "class",
+          "startLine": 110,
+          "endLine": 129,
+          "tokens": 223
+        },
+        {
+          "name": "CustomerApprovalProxyResponse",
+          "kind": "class",
+          "startLine": 130,
+          "endLine": 141,
+          "tokens": 119
         }
       ]
     },
@@ -29373,6 +29408,165 @@
           "startLine": 57,
           "endLine": 125,
           "tokens": 659
+        }
+      ]
+    },
+    "pcs-backend/tests/services/test_secondary_auth.py": {
+      "description": "二次认证单测（MFA 决议 §4：路径 B = AD 密码二次输入 + `SIGN_2FA_FALLBACK`）。",
+      "tokens": 1176,
+      "hash": "524e3c93befea288",
+      "size": 5034,
+      "mtimeMs": 1792451049703.4526,
+      "updatedAt": "2026-10-19T23:04:09.754Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_ok_authenticator",
+          "kind": "fn",
+          "startLine": 30,
+          "endLine": 43,
+          "tokens": 124
+        },
+        {
+          "name": "_failing_authenticator",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 50,
+          "tokens": 58
+        },
+        {
+          "name": "_actions",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 55,
+          "tokens": 40
+        },
+        {
+          "name": "TestSecondaryAuth",
+          "kind": "class",
+          "startLine": 56,
+          "endLine": 131,
+          "tokens": 747
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_deliverable_customer_approval_proxy.py": {
+      "description": "代录客户批准端点测试（P9A B3 / SPEC P9A-DLV-008 / ADR-0007）。",
+      "tokens": 2878,
+      "hash": "d7dde9d52a978785",
+      "size": 11121,
+      "mtimeMs": 1792451120423.9072,
+      "updatedAt": "2026-10-19T23:05:20.478Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "auth",
+          "kind": "fn",
+          "startLine": 48,
+          "endLine": 51,
+          "tokens": 33
+        },
+        {
+          "name": "_actor_id",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 56,
+          "tokens": 36
+        },
+        {
+          "name": "ldap_ok",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 66,
+          "tokens": 84
+        },
+        {
+          "name": "ldap_fail",
+          "kind": "fn",
+          "startLine": 67,
+          "endLine": 74,
+          "tokens": 59
+        },
+        {
+          "name": "storage",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 83,
+          "tokens": 72
+        },
+        {
+          "name": "credential",
+          "kind": "fn",
+          "startLine": 84,
+          "endLine": 88,
+          "tokens": 27
+        },
+        {
+          "name": "_pending",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 137,
+          "tokens": 449
+        },
+        {
+          "name": "_write_credential",
+          "kind": "fn",
+          "startLine": 138,
+          "endLine": 145,
+          "tokens": 56
+        },
+        {
+          "name": "_proxy",
+          "kind": "fn",
+          "startLine": 146,
+          "endLine": 165,
+          "tokens": 175
+        },
+        {
+          "name": "TestProxyRecordsApproval",
+          "kind": "class",
+          "startLine": 166,
+          "endLine": 258,
+          "tokens": 965
+        },
+        {
+          "name": "TestProxyAudit",
+          "kind": "class",
+          "startLine": 259,
+          "endLine": 272,
+          "tokens": 153
+        },
+        {
+          "name": "TestProxyObservation",
+          "kind": "class",
+          "startLine": 273,
+          "endLine": 293,
+          "tokens": 210
+        },
+        {
+          "name": "TestProxyResponseContract",
+          "kind": "class",
+          "startLine": 294,
+          "endLine": 321,
+          "tokens": 264
+        }
+      ]
+    },
+    "pcs-backend/app/services/secondary_auth.py": {
+      "description": "二次认证（MFA 决议路径 B：AD 密码二次输入）。",
+      "tokens": 632,
+      "hash": "375d22a513cf35af",
+      "size": 3315,
+      "mtimeMs": 1792451150315.6484,
+      "updatedAt": "2026-10-19T23:05:50.367Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "verify_secondary_auth",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 77,
+          "tokens": 337
         }
       ]
     }

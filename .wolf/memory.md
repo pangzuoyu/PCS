@@ -1920,3 +1920,24 @@
 | 06:56 | Edited pcs-backend/tests/api/v1/test_deliverable_sign_step.py | 9→14 lines | ~133 |
 | 06:56 | Edited pcs-backend/tests/api/v1/test_deliverable_sign_step.py | modified test_self_check_is_allowed_when_matrix_permits_it() | ~140 |
 | 06:56 | Edited pcs-backend/app/api/v1/deliverables.py | 3→5 lines | ~70 |
+| 07:04 | Created pcs-backend/tests/services/test_secondary_auth.py | — | ~1170 |
+| 07:04 | Edited pcs-backend/tests/services/test_secondary_auth.py | modified test_rejects_empty_credentials() | ~133 |
+| 07:04 | Created pcs-backend/tests/api/v1/test_deliverable_customer_approval_proxy.py | — | ~2974 |
+| 07:04 | Edited pcs-backend/tests/api/v1/test_deliverable_customer_approval_proxy.py | reduced (-9 lines) | ~62 |
+| 07:04 | Edited pcs-backend/tests/api/v1/test_deliverable_customer_approval_proxy.py | read_bytes() → _write_credential() | ~218 |
+| 07:04 | Edited pcs-backend/tests/api/v1/test_deliverable_customer_approval_proxy.py | modified _write_credential() | ~230 |
+| 07:05 | Edited pcs-backend/tests/api/v1/test_deliverable_customer_approval_proxy.py | modified test_path_escape_is_rejected() | ~86 |
+| 07:05 | Edited pcs-backend/app/models/enums.py | 1→5 lines | ~69 |
+| 07:05 | Created pcs-backend/app/services/secondary_auth.py | — | ~632 |
+| 07:06 | Edited pcs-backend/app/schemas/deliverable_write.py | modified SignStepResponse() | ~547 |
+| 07:06 | Edited pcs-backend/app/schemas/deliverable_write.py | 3→3 lines | ~22 |
+| 07:06 | Edited pcs-backend/app/services/deliverable_service.py | expanded (+10 lines) | ~119 |
+| 07:06 | Edited pcs-backend/app/services/deliverable_service.py | 7→8 lines | ~57 |
+| 07:06 | Edited pcs-backend/app/services/deliverable_service.py | modified record_customer_approval_proxy() | ~1309 |
+| 07:06 | Edited pcs-backend/app/services/deliverable_service.py | modified _utcnow() | ~283 |
+| 07:06 | Edited pcs-backend/app/services/deliverable_service.py | added 1 import(s) | ~39 |
+| 07:06 | Edited pcs-backend/app/services/deliverable_service.py | 3→3 lines | ~25 |
+| 07:06 | Edited pcs-backend/app/services/deliverable_service.py | added 1 import(s) | ~53 |
+| 07:07 | Edited pcs-backend/app/api/v1/deliverables.py | 6→8 lines | ~62 |
+| 07:07 | Edited pcs-backend/app/api/v1/deliverables.py | modified proxy_customer_approval() | ~566 |
+| 07:07 | Edited pcs-backend/app/api/v1/deliverables.py | 11→15 lines | ~185 |

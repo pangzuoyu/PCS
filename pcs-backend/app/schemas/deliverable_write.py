@@ -18,7 +18,7 @@ PG native enum 是一次带漂移风险的迁移，而 P9A 的写面并不需要
 from __future__ import annotations
 
 import uuid
-from datetime import datetime
+from datetime import date, datetime
 from typing import Literal
 
 from pydantic import BaseModel, Field
@@ -98,3 +98,43 @@ class SignStepResponse(BaseModel):
         description="推进后交付物的签署状态（DRAFT/PENDING/APPROVED）"
     )
     signed_at: datetime = Field(description="本步动作发生时刻")
+
+
+#: 客户批准方式 4 值（ADR-0007：客户在系统外以这四种方式之一批准）。
+CustomerApprovalMethod = Literal["EMAIL", "LETTER", "EDMS", "SIGNED_DOC"]
+
+#: 凭证附件类型 4 值（ADR-0007 + P9A-DLV-008）。
+CredentialFileType = Literal["PDF", "JPG", "PNG", "EML"]
+
+
+class CustomerApprovalProxyRequest(BaseModel):
+    """代录客户批准（P9A B3 / ADR-0007）。
+
+    ⚠️ **刻意不收 `file_hash`** —— 收了就等于让客户端自证物证，
+    而物证是客户批准唯一的存在性证明。哈希由服务端从磁盘上的真实文件算。
+    ⚠️ `secondary_password` 出现在请求体里是路径 B 的固有形状（MFA 决议 §3），
+    它**绝不**进审计与日志（见 `secondary_auth` 模块）。
+    """
+
+    version_id: uuid.UUID = Field(description="客户批准针对的版本行")
+    file_path: str = Field(description="凭证相对存储根的路径；服务端据此读盘算哈希")
+    file_name: str = Field(max_length=200)
+    file_type: CredentialFileType
+    approver_name: str = Field(max_length=100, description="客户方批准人姓名")
+    approval_date: date = Field(description="客户批准日期")
+    approval_method: CustomerApprovalMethod
+    secondary_username: str = Field(max_length=100, description="代录人 AD 用户名")
+    secondary_password: str = Field(max_length=200)
+
+
+class CustomerApprovalProxyResponse(BaseModel):
+    """代录结果。字段集合被 `test_response_model_has_no_bare_fields` 钉死。"""
+
+    deliverable_id: uuid.UUID
+    version_id: uuid.UUID
+    attachment_id: uuid.UUID
+    customer_approver_name: str
+    approval_date: date
+    approval_method: CustomerApprovalMethod
+    is_proxy: bool = Field(description="恒为 True —— 本端点就是代录入口")
+    proxied_at: datetime = Field(description="代录时刻")
