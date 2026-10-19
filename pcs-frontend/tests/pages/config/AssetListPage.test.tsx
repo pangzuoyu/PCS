@@ -36,7 +36,7 @@ const assets: ConfigAsset[] = [
     name: '换热器U值表',
     category: 'COEFFICIENT',
     current_version: 'v1.2',
-    status: 'IN_APPROVAL',
+    status: 'PENDING',
     updated_by: '李四',
     updated_at: '2026-09-15 13:00',
     hash: 'b7c2d3e4f5a60001',
@@ -61,6 +61,17 @@ const assets: ConfigAsset[] = [
     updated_at: '2026-09-10 09:00',
     hash: 'd4e5f6a7b8c90003',
   },
+  {   // ⚠️ APPROVED 是**后端真产、前端此前完全没有**的一态（bug-188）：
+      // 词表是手写 4 态时，它落进 `CONFIG_STATUS_LABEL[s]` 的 undefined ⇒ 空标签。
+      asset_id: 'a-5',
+      name: '焓值对照表',
+      category: 'STANDARD_DB',
+      current_version: 'v0.9',
+      status: 'APPROVED',
+      updated_by: '孙七',
+      updated_at: '2026-09-09 08:00',
+      hash: 'e5f6a7b8c9d00004',
+  },
 ];
 
 describe('AssetListPage — 渲染 (P45-2-3)', () => {
@@ -82,7 +93,7 @@ describe('AssetListPage — 渲染 (P45-2-3)', () => {
 
   it('默认显示「全部」+ 渲染所有资产', () => {
     render(<AssetListPage assets={assets} />);
-    expect(document.querySelectorAll('[data-testid="asset-row"]').length).toBe(4);
+    expect(document.querySelectorAll('[data-testid="asset-row"]').length).toBe(assets.length);
   });
 
   it('点击 FORMULA tab → 仅显示公式类', () => {
@@ -123,14 +134,16 @@ describe('AssetListPage — 表格列', () => {
     expect(row.textContent).toContain('2026-09-15 14:32');
   });
 
-  it('状态 4 态：草稿 / 审批中 / 已发布 / 已作废', () => {
+  // ⚠️ 此前钉的是「4 态」并含前端编造的 `审批中`(IN_APPROVAL)。
+  // 真值是契约的 ConfigStatus **5 态**（草稿/待审批/已批准/已发布/已作废），
+  // 且 `APPROVED` 此前**完全没有 fixture** ⇒ 它落进 undefined ⇒ 空标签。
+  it('状态 5 态逐个有中文标签 —— 少一态就空标签', () => {
     render(<AssetListPage assets={assets} />);
-    // 切到「全部」已默认显示；验证 4 种
     const allText = document.body.textContent ?? '';
-    expect(allText).toContain('草稿');
-    expect(allText).toContain('审批中');
-    expect(allText).toContain('已发布');
-    expect(allText).toContain('已作废');
+    for (const label of ['草稿', '待审批', '已批准', '已发布', '已作废']) {
+      expect(allText, `缺「${label}」—— 该状态落进了未知兜底`).toContain(label);
+    }
+    expect(allText).not.toContain('审批中'); // 旧的编造值不再出现
   });
 });
 

@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T02:20:02.444Z
-> Files: 827 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T02:24:15.338Z
+> Files: 829 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1272,6 +1272,7 @@
 
 ## pcs-backend/tests/schemas/
 
+- `test_config_asset_schema.py` — AssetResponse.status 的词表（2026-10-19，bug-188）。 (~376 tok)
 - `test_pipe_class_schema.py` — PipeClass schema 的 status 词表（2026-10-19，bug-187）。 (~806 tok)
 
 ## pcs-backend/tests/scripts/
@@ -1385,6 +1386,7 @@
 
 ## pcs-frontend/src/pages/config/
 
+- `AssetListPage.tsx` — AssetListPage — CONFIG 资产列表 + 详情（P45-2-3 / Task 21）。 (~2590 tok)
 - `FormulaEditorPage.tsx` — FormulaEditorPage — 公式编辑器（P45-2-4 / Task 22）。 (~3906 tok)
 
 ## pcs-frontend/src/pages/report/

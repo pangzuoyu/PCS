@@ -34,7 +34,7 @@ export const seedAssets: ConfigAsset[] = [
     category: 'TEMPLATE',
     name: '工艺数据表模板',
     description: '.dotx 工艺数据表模板',
-    status: 'IN_APPROVAL',
+    status: 'PENDING',
     hash: 'b2c3d4e5f67890ab',
     current_version: 'v1',
     updated_by: 'alice',

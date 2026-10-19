@@ -5783,11 +5783,8 @@ export interface components {
              * @description 资产名称
              */
             name: string;
-            /**
-             * Status
-             * @description 资产状态（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）
-             */
-            status: string;
+            /** @description 资产状态（ConfigStatus 5 态）。流转由 ConfigStateMachine 驱动，对应端点 submit/approve/publish/obsolete。 */
+            status: components["schemas"]["ConfigStatus"];
             /**
              * Current Version
              * @description 当前版本号
@@ -14645,11 +14642,8 @@ export interface components {
              * @description 资产名称
              */
             name: string;
-            /**
-             * Status
-             * @description 资产状态（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）
-             */
-            status: string;
+            /** @description 资产状态（ConfigStatus 5 态）。流转由 ConfigStateMachine 驱动，对应端点 submit/approve/publish/obsolete。 */
+            status: components["schemas"]["ConfigStatus"];
             /**
              * Current Version
              * @description 当前版本号

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T02:20:02.444Z",
-    "fileCount": 827,
+    "lastScanned": "2026-10-19T02:24:15.338Z",
+    "fileCount": 829,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "21a8b0c8a8a2fcb251563755b90574c06d5d6f3282252daccdcd8c17ef744ab5",
-    "storeUpdatedAt": "2026-10-19T02:20:02.454Z",
-    "rootHash": "0e7e09abd5f0cb87"
+    "renderedHash": "cc1b69b213b52cf067fc71c52d8aa9fc043c095a6b1d484da39ade65f6e2e6fb",
+    "storeUpdatedAt": "2026-10-19T02:24:15.350Z",
+    "rootHash": "3f1ebad28891b8ad"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -27752,6 +27752,40 @@
           "startLine": 230,
           "endLine": 300,
           "tokens": 516
+        }
+      ]
+    },
+    "pcs-backend/tests/schemas/test_config_asset_schema.py": {
+      "description": "AssetResponse.status 的词表（2026-10-19，bug-188）。",
+      "tokens": 376,
+      "hash": "9ea43ff1edf59b92",
+      "size": 1767,
+      "mtimeMs": 1792376531380.3342,
+      "updatedAt": "2026-10-19T02:22:11.427Z",
+      "source": "hook"
+    },
+    "pcs-frontend/src/pages/config/AssetListPage.tsx": {
+      "description": "AssetListPage — CONFIG 资产列表 + 详情（P45-2-3 / Task 21）。",
+      "tokens": 2590,
+      "hash": "e15cc158b557f703",
+      "size": 9713,
+      "mtimeMs": 1792376655276.8088,
+      "updatedAt": "2026-10-19T02:24:15.338Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "Props",
+          "kind": "section",
+          "startLine": 43,
+          "endLine": 59,
+          "tokens": 113
+        },
+        {
+          "name": "AssetListPage",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 305,
+          "tokens": 2180
         }
       ]
     }

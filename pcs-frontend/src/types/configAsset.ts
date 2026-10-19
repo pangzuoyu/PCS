@@ -4,8 +4,9 @@
  * SPEC §7.10.1：
  * - 6 类资产（CATEGORY_1~6）：公式 / 系数表 / 模板文件 / 标准数据库 /
  *   项目模板 / 复用设备库
- * - 状态：草稿 / 审批中 / 已发布 / 已作废（V1.1 简化为 4 态）
+ * - 状态：见下方 ConfigAssetStatus（**契约的 5 态**，不是本文档曾写的 4 态）
  */
+import type { components } from './api';
 
 /** 6 类资产分类（SPEC §7.10.1 / §7.10.2~6）。 */
 export type ConfigCategory =
@@ -16,12 +17,18 @@ export type ConfigCategory =
   | 'PROJECT_TEMPLATE'
   | 'EQUIPMENT_LIB';
 
-/** 资产列表 4 态（SPEC §7.10.1）。 */
-export type ConfigAssetStatus =
-  | 'DRAFT'
-  | 'IN_APPROVAL'
-  | 'PUBLISHED'
-  | 'OBSOLETE';
+/**
+ * 资产状态 —— **5 态，直接取契约的 `ConfigStatus`**（2026-10-19，bug-188）。
+ *
+ * ⚠️ 此前是手写 4 态且含 `IN_APPROVAL` —— 那是**前端凭空造的**：
+ * SPEC、`app/`、契约三处都没有 `IN_APPROVAL`。后果不是多一个标签：
+ * `AssetListPage` 的「审批」按钮只对 `IN_APPROVAL` 启用，而后端产的是
+ * `PENDING` ⇒ **那个按钮永远点不动**。
+ *
+ * 与 bug-187 同一族，判别标准也相同：**词表必须在类型里（且来自契约），
+ * 不能只在散文里**。这里的 description 当时写对了，但没有机器可读。
+ */
+export type ConfigAssetStatus = components['schemas']['ConfigStatus'];
 
 export const CONFIG_CATEGORY_LABEL: Record<ConfigCategory, string> = {
   FORMULA: '公式',
@@ -43,7 +50,8 @@ export const CONFIG_CATEGORY_ORDER: ConfigCategory[] = [
 
 export const CONFIG_STATUS_LABEL: Record<ConfigAssetStatus, string> = {
   DRAFT: '草稿',
-  IN_APPROVAL: '审批中',
+  PENDING: '待审批',
+  APPROVED: '已批准',
   PUBLISHED: '已发布',
   OBSOLETE: '已作废',
 };

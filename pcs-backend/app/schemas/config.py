@@ -12,6 +12,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.models.enums import ConfigStatus
+
 
 class CreateAssetRequest(BaseModel):
     """POST /assets 请求体。"""
@@ -33,7 +35,15 @@ class AssetResponse(BaseModel):
     asset_id: UUID = Field(..., description="资产唯一 ID")
     category: str = Field(..., description="资产类别")
     name: str = Field(..., description="资产名称")
-    status: str = Field(..., description="资产状态（DRAFT/PENDING/APPROVED/PUBLISHED/OBSOLETE）")
+    # 此前是裸 `str`，词表只写在 description 里 —— 机器读不到，于是前端
+    # 编了一个 `IN_APPROVAL`（bug-188，同 bug-187 一族）。
+    status: ConfigStatus = Field(
+        ...,
+        description=(
+            "资产状态（ConfigStatus 5 态）。流转由 ConfigStateMachine 驱动，"
+            "对应端点 submit/approve/publish/obsolete。"
+        ),
+    )
     current_version: str | None = Field(None, description="当前版本号")
 
     model_config = {"from_attributes": True}

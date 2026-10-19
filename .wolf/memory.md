@@ -1703,3 +1703,5 @@
 | 10:19 | Edited pcs-frontend/src/components/common/StateBadge.tsx | 4→7 lines | ~89 |
 | 10:19 | Edited pcs-frontend/src/components/common/StateBadge.tsx | CSS: PENDING, APPROVED, PUBLISHED | ~177 |
 | 10:20 | Edited pcs-frontend/src/components/common/StateBadge.tsx | 7→9 lines | ~154 |
+| 10:22 | Created pcs-backend/tests/schemas/test_config_asset_schema.py | — | ~376 |
+| 10:24 | Edited pcs-frontend/src/pages/config/AssetListPage.tsx | 4→7 lines | ~82 |

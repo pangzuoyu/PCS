@@ -38,7 +38,6 @@ import {
   type ConfigAsset,
   type ConfigCategory,
 } from '../../types/configAsset';
-import type { RecordSignStatus } from '../../types/records';
 import { DEV_BEARER } from '../../constants/env';
 
 interface Props {
@@ -48,17 +47,10 @@ interface Props {
   onVersion?: (asset: ConfigAsset) => void;
 }
 
-/** CONFIG 列表 4 态 → StateBadge 9 态全集映射（保留语义：草稿=未提交；已发布=已核验；已作废=已弃用）。 */
-const STATUS_TO_BADGE: Record<ConfigAsset['status'], RecordSignStatus> = {
-  DRAFT: 'DRAFT',
-  IN_APPROVAL: 'IN_APPROVAL',
-  PUBLISHED: 'CHECKED',
-  OBSOLETE: 'OBSOLETE',
-};
-
 const STATUS_TAG_COLOR: Record<ConfigAsset['status'], string> = {
   DRAFT: 'default',
-  IN_APPROVAL: 'blue',
+  APPROVED: 'cyan',
+  PENDING: 'blue',
   PUBLISHED: 'green',
   OBSOLETE: 'default',
 };
@@ -153,7 +145,7 @@ export function AssetListPage({ assets, onEdit, onApprove, onVersion }: Props): 
             type="link"
             size="small"
             data-testid="asset-action-approve"
-            disabled={row.status !== 'IN_APPROVAL'}
+            disabled={row.status !== 'PENDING'}
             onClick={(e) => {
               e.stopPropagation();
               onApprove?.(row);
@@ -306,5 +298,8 @@ export function AssetListPage({ assets, onEdit, onApprove, onVersion }: Props): 
 
 export default AssetListPage;
 
-// Re-export STATUS_TO_BADGE 仅供其他 CONFIG 页面复用（P45-2-4~8）
-export { STATUS_TO_BADGE };
+// ⚠️ 原先导出的 STATUS_TO_BADGE（ConfigAsset 4 态 → StateBadge 9 态）已删
+// （bug-188）：它把 `IN_APPROVAL` 当成资产状态，而后端产的是 `PENDING`；
+// 而这张表**零消费者**（`InputChecklistPanel` 有自己的同名局部常量）。
+// 为没人读的映射编一套语义等价 = 把猜测固化成代码。要复用的话，
+// 该页面直接用自己的 module + 词表渲染 StateBadge（判别联合要求成对加）。
