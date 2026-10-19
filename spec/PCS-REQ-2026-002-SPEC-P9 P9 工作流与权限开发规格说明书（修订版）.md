@@ -207,9 +207,26 @@ P9A-USR-005	登录路径变更：登录时查 users 表判 status；停用用户
 　　　现无 user_id claim / 无 tv / 不查 users / 不写审计）**共用**；否则 ADR-0046 的
 　　　①②⑤ 三条断言对 mock 流量全部失效。
 　　(b) 导出 `user_projects.user_id` / `audit_logs.created_by` 中**无对应 users 行**的
-　　　uuid5 存量孤儿清单，交人工确认。**不删 users 行**（FK `ondelete="CASCADE"`，删即删授权）。
+　　　uuid5 存量孤儿清单。**清单交用户裁决，实施者不得自行决定补行还是保留** ——
+　　　补行 = 授权恢复，保留 = 授权静默失效（用户只看到 404，不会看到原因），
+　　　方向相反，不是技术优劣问题。P9A 只出清单 + 补行 SQL 模板 + 影响面（孤儿数 /
+　　　每个孤儿名下 user_projects 行数 / 建议处置）。**不删 users 行**（FK CASCADE，删即删授权）。
+　　(c) ⚠️ **`/auth/mock-login` 不得写 `users` 表**（ADR-0046 §③b）。共用 `_issue_tokens()`
+　　　**不等于**共用「惰性建行」—— mock 的 username（alice/bob/carol/dan）与真实 AD
+　　　可能同名，uuid5 也以 username 为键 ⇒ 落进同一行。而 `app/core/acl.py:13` 明写
+　　　ORM `User.roles` 是 ACL 的权威输入，写入 mock 派生角色 = 让测试数据参与授权判定。
+　　　mock 走「临时签发、不持久化」，`tv` claim 写哨兵 `0`；真实 users 行出现后
+　　　（token_version 从 1 起）mock 存量令牌自动失效。
+　　(d) ⚠️ **`users.roles` 的列注释（`project.py:153`）写着 `SYSADMIN`，是陈旧的** ——
+　　　2026-10-04 已收敛为 `SYSTEM_ADMIN`（`_guard.py:37`）。惰性建行照注释写会产出
+　　　ACL 不认的字符串（bug-180~191 那类词表漂移）。以 `_guard.py` 现行词表为准。
 P9A-USR-006	历史 user_id 兼容：uuid5 派生 ID 与 DB 主键的等价性处理	ADR-A
 P9A-USR-007	token_version 机制：users 表加列；create_token 写 claim；refresh 端点校验（access token 保持无状态，吊销粒度 = access TTL 30 分钟）	TODO-002 修正后处方
+　　📌 **已知边界，P9A 计划必须原文引用（ADR-0046 §已知边界，不得表述为「已解决」）**：
+　　停用后**在手 access token 仍可用至多 30 分钟**（无状态，不查库）。这是本项明确接受的
+　　吊销粒度，**不是缺陷**。若业务要求秒级失效，唯一出路是把 access token 改为**有状态**
+　　（每次校验查库）—— 属独立裁决，**不接受「加个内存黑名单」这类半吊子方案**：
+　　多 worker 下内存黑名单与 §③b 的 mock 令牌哨兵一样跨进程失效，且重启即丢。
 验收：AD 同步端到端跑通；停用用户 refresh 立即 401；历史数据外键不断裂。
 
 3.2.3 横切观测层
