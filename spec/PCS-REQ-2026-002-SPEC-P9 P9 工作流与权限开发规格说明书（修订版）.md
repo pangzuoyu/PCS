@@ -128,6 +128,12 @@ P9-OPEN-001 从"待确认"升级为硬阻塞。二选一：
 
 验收：P9-OPEN-001 状态改为"已确认"或"已 Fallback"，且 SPEC §3.2.1 通过/退回操作、§3.2.1（5b）代录批准两条链路有明确实现依据。
 
+✅ 已完成（2026-10-19）：**路径 B —— AD 密码二次输入 + `SIGN_2FA_FALLBACK` 强制审计**，
+见 `docs/PCS-NOTE-P9-Prep-MFA决议-2026-10-19.md`。
+连带裁决：mock 会话豁免二次认证（**限于登录层**，`verify_secondary_auth()` 本身不得豁免）；
+P9-OPEN-002 本版不设邮件服务器、预留 `NotificationChannel` 接口；P9-OPEN-004 每日凌晨；
+P9-OPEN-006 WebSocket + 降级轮询（降级状态必须可观测，不得直接停推）。
+
 2.3 P9-Prep 交付物（**2026-10-08 状态**）
 
 | 交付物 | 状态 | 落点 |
@@ -384,12 +390,12 @@ P9B 完成	签署流程完整走通、变更影响分析正确触发	同左，�
 P9 整体完成	（原标准）	P9-Prep + P9A + P9B 三段验收全过
 第八部分：待确定问题（修订）
 编号	问题	V1.3 状态	V2.0 状态	归属
-P9-OPEN-001	MFA 实现方式	待确认	硬阻塞，P9-Prep 决议	P9-Prep
-P9-OPEN-002	通知邮件服务器	待确认	P9-Prep 决议	P9-Prep
+P9-OPEN-001	MFA 实现方式	已裁决（路径 B，2026-10-19）：AD 密码二次输入 + `SIGN_2FA_FALLBACK` 强制审计；mock 会话豁免（限登录层）	硬阻塞 → `docs/PCS-NOTE-P9-Prep-MFA决议-2026-10-19.md`	~~P9-Prep~~ 已关闭
+P9-OPEN-002	通知邮件服务器	已裁决（2026-10-19）：**本版不设邮件服务器**，仅站内信；预留 `NotificationChannel` 抽象，**不写 EmailChannel 空壳**	ADR-0049 §①	~~P9-Prep~~ 已关闭
 P9-OPEN-003	审计日志导出格式	已确认	保持	P9B
-P9-OPEN-004	用户同步定时频率	待确认	P9-Prep 决议（建议每日凌晨）	P9-Prep
+P9-OPEN-004	用户同步定时频率	已裁决（每日凌晨，2026-10-19）	沿用 SPEC 倾向，无新增依据	~~P9-Prep~~ 已关闭
 P9-OPEN-005	批注 @提及	已确认（不支持）	保持	—
-P9-OPEN-006	通知 WebSocket vs 轮询	待确认	P9-Prep 决议（建议 WebSocket + 降级轮询）	P9-Prep
+P9-OPEN-006	通知 WebSocket vs 轮询	已裁决（WebSocket + 降级轮询，2026-10-19）；邮件移除后实时推送为通知唯一及时性来源 ⇒ **关键路径**，降级状态必须可观测	ADR-0049 §后果	~~P9-Prep~~ 已关闭
 P9-OPEN-007	workflow_progress	已裁决：ADR-0047 accepted（2026-10-19），同步写 + 同事务 + 调用方写	升级为 P9A-OBS-001~004	P9A（ADR 侧已关闭）
 P9-OPEN-008	用户身份模型迁移	已裁决：ADR-0046 accepted（2026-10-19）	ADR-A → `docs/adr/0046-user-identity-model-migration.md`	~~P9-Prep~~ 已关闭
 P9-OPEN-009	编辑锁存储方案	已裁决：ADR-0048 accepted（2026-10-19），Redis + 30min TTL + DB record_hash 兜底	ADR-C → `docs/adr/0048-edit-lock-storage.md`	~~P9-Prep~~ 已关闭

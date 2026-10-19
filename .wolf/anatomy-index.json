@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T10:19:26.773Z",
-    "fileCount": 845,
+    "lastScanned": "2026-10-19T10:20:31.291Z",
+    "fileCount": 846,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "ae9e0a29fa1826a688d08d53c61ff3eed26e25b64983b3bd1f461f0db2a5a5a7",
-    "storeUpdatedAt": "2026-10-19T10:19:26.783Z",
-    "rootHash": "1bb084794dd2a8e7"
+    "renderedHash": "c4a02b82ee7e96d6a2a6602654101bb9ad4b80e75a5704b0aaad63865bd6aeae",
+    "storeUpdatedAt": "2026-10-19T10:20:31.304Z",
+    "rootHash": "6362ad4fc5eddf0d"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -28118,6 +28118,15 @@
       "size": 6253,
       "mtimeMs": 1792405166717.6753,
       "updatedAt": "2026-10-19T10:19:26.772Z",
+      "source": "hook"
+    },
+    "docs/PCS-NOTE-P9-Prep-MFA决议-2026-10-19.md": {
+      "description": "P9-Prep MFA 决议备忘",
+      "tokens": 1110,
+      "hash": "1da58fd1afd5c04a",
+      "size": 8242,
+      "mtimeMs": 1792405231234.2908,
+      "updatedAt": "2026-10-19T10:20:31.291Z",
       "source": "hook"
     }
   }
