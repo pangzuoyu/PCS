@@ -26,7 +26,7 @@ const stream: Stream = {
   molar_flow: 100,
   composition_json: { N2: 0.78, O2: 0.21, H2O: 0.01 },
   sign_status: 'CHECKED',
-  approved_hash: 'a3f9b2e1c21ed7a8',
+  record_hash: 'a3f9b2e1c21ed7a8',
   updated_by: '张三',
   updated_at: '2026-09-15 14:32',
 };

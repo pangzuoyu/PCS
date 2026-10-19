@@ -15,15 +15,24 @@
  * §"P5 契约冻结点"
  */
 
+/**
+ * 材料搜索结果（GET /common/materials/search → `MaterialSearchResult`）。
+ *
+ * ⚠️ 2026-10-19 对齐契约：契约只有 **5 个字段**（cas / name / formula /
+ * mw / source）。此前手写的是「搜索结果 + 物性详情」的**合并体**
+ * —— `component_id` 与 `cas_number` 契约里没有，临界参数 `tc_k`/`pc_mpa`/
+ * `omega` 属于另一个 schema `MaterialDetail`。
+ * 页面读它们 ⇒ 真后端下恒为 undefined。
+ *
+ * `cas_number` → `cas`；`component_id` 无对应，用 `cas` 当行标识。
+ * 临界参数按用户裁决**砍列**（不做 N+1；详见 PropertySearchPage 的注释）。
+ */
 export interface ComponentProperty {
-  component_id: string;
+  cas: string;
   name: string;
-  formula: string;
-  cas_number?: string;
-  mw: number;                  // 分子量
-  tc_k: number;                // 临界温度
-  pc_mpa: number;              // 临界压力
-  omega: number;               // 偏心因子
+  formula?: string | null;
+  mw?: number | null;
+  source?: string;
 }
 
 /** 许用应力表（材料 × 温度 × 标准）：指定材料在指定温度下的许用应力 MPa（ASME/GB/DIN 等）。 */
@@ -50,18 +59,36 @@ export interface AllowableStress {
   interpolated?: boolean;
 }
 
-/** 危险等级：LOW 低 / MEDIUM 中 / HIGH 高（用于介质/工艺综合分级）。 */
-export type HazardClass = 'LOW' | 'MEDIUM' | 'HIGH';
-
-/** 介质毒性分级：组分 ID + 名称 + 半致死量 LD50 + 允许暴露限 PEL + 爆炸极限（LEL/UEL）+ 危险等级。 */
+/**
+ * 介质毒性（GET /common/safety → `SafetyResult`）。
+ *
+ * ⚠️ 2026-10-19 对齐契约。
+ *
+ * 砍掉的字段与依据（用户裁决「先查后端有没有这些数据，���没有就砍列」）：
+ * 后端 `common_service.py::_SAFETY_DATA` 是**内置内存字典**（~15 种介质），
+ * 每条只有 `{name, tox, lfl, ufl}` —— **LD50 / PEL / 危险等级一律没有，
+ * 也没有对应的 DB 表**。页面此前读它们，读的是**幽灵数据**。
+ *
+ * `explosive_limit_json: {lel, uel}` → 契约拍平成 `lel_vol_pct` / `uel_vol_pct`。
+ * `component_id` 无对应 → 用 `cas` 当行标识。
+ */
 export interface ToxicityClass {
-  component_id: string;
-  name: string;
-  ld50_mg_kg?: number;
-  pel_ppm?: number;            // 允许暴露限值
-  explosive_limit_json?: { lel: number; uel: number };
-  hazard_class: HazardClass;
+  cas: string;
+  name?: string | null;
+  /** 毒性等级，后端 `tox` 字段：NONE / LOW / MEDIUM / HIGH。 */
+  toxicity_class: string;
+  /** 爆炸下限 %vol（后端 `lfl`）。 */
+  lel_vol_pct?: number | null;
+  /** 爆炸上限 %vol（后端 `ufl`）。 */
+  uel_vol_pct?: number | null;
+  source?: string;
 }
+
+/** 毒性等级词表（后端 `_SAFETY_DATA[...]["tox"]` 的取值）。
+ *  ⚠️ 与旧的 `HazardClass`（LOW/MEDIUM/HIGH）**不是一回事** ——
+ *  后端还有 `NONE`。分组用这个，别用旧的。 */
+export type ToxicityClassLevel = 'NONE' | 'LOW' | 'MEDIUM' | 'HIGH';
+
 // ---------------------------------------------------------------------------
 // 气体热值（C-06 / P6-4 T1；POST /common/heating-value/calculate）
 // ---------------------------------------------------------------------------

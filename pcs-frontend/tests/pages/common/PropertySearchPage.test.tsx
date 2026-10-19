@@ -7,10 +7,13 @@ import { render, screen, fireEvent } from '@testing-library/react';
 import { PropertySearchPage } from '../../../src/pages/common/PropertySearchPage';
 import type { ComponentProperty } from '../../../src/types/common';
 
+// ⚠️ 字段名对齐契约 `MaterialSearchResult`（2026-10-19）。
+// 契约只有 5 个字段；`component_id`/`cas_number` 不存在，临界参数属于
+// 另一个 schema（用户裁决：砍列，不做 N+1）。
 const components: ComponentProperty[] = [
-  { component_id: 'c-1', name: 'Methane', formula: 'CH4', cas_number: '74-82-8', mw: 16.04, tc_k: 190.6, pc_mpa: 4.6, omega: 0.011 },
-  { component_id: 'c-2', name: 'Water',   formula: 'H2O', cas_number: '7732-18-5', mw: 18.02, tc_k: 647.1, pc_mpa: 22.06, omega: 0.344 },
-  { component_id: 'c-3', name: 'Benzene', formula: 'C6H6', cas_number: '71-43-2', mw: 78.11, tc_k: 562.1, pc_mpa: 4.9, omega: 0.21 },
+  { cas: '74-82-8',   name: 'Methane', formula: 'CH4',  mw: 16.04, source: 'CHEMICALS_LIBRARY' },
+  { cas: '7732-18-5', name: 'Water',   formula: 'H2O',  mw: 18.02, source: 'CHEMICALS_LIBRARY' },
+  { cas: '71-43-2',   name: 'Benzene', formula: 'C6H6', mw: 78.11, source: 'CHEMICALS_LIBRARY' },
 ];
 
 describe('PropertySearchPage — 渲染 (P45-3-3)', () => {
@@ -50,6 +53,7 @@ describe('PropertySearchPage — 操作', () => {
     render(<PropertySearchPage components={components} onFavorite={onFavorite} />);
     const stars = document.querySelectorAll('[data-testid="property-favorite"]');
     fireEvent.click(stars[0]);
-    expect(onFavorite).toHaveBeenCalledWith('c-1');
+    // 契约里没有 component_id，回调收到的是 cas
+    expect(onFavorite).toHaveBeenCalledWith('74-82-8');
   });
 });

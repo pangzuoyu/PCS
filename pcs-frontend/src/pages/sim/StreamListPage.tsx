@@ -67,16 +67,11 @@ export function StreamListPage({ streams, onSelect }: Props): JSX.Element {
       title: '相态',
       dataIndex: 'phase',
       width: 100,
-      render: (p: Stream['phase'], row: Stream) => (
+      render: (p: Stream['phase']) => (
         <Space size={4}>
           <Tag color={PHASE_COLOR[p]} data-testid="stream-phase">
             {STREAM_PHASE_LABEL[p]}
           </Tag>
-          {row.subphase && (
-            <Tag color="default" data-testid="stream-subphase">
-              {row.subphase}
-            </Tag>
-          )}
         </Space>
       ),
     },
@@ -106,11 +101,6 @@ export function StreamListPage({ streams, onSelect }: Props): JSX.Element {
       dataIndex: 'sign_status',
       width: 100,
       render: (s: Stream['sign_status']) => <StateBadge status={s} module="SIM" />,
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updated_by',
-      width: 100,
     },
   ];
 

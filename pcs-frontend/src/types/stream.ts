@@ -19,16 +19,18 @@
 import type { RecordSignStatus } from './records';
 
 export type StreamPhase = 'LIQUID' | 'VAPOR' | 'MIXED' | 'AQUEOUS';
-/** 流子相态（饱和态细分）：过冷 SUBCOOLED / 饱和液 SAT_LIQUID / 饱和气 SAT_VAPOR / 过热 SUPERHEATED。 */
-export type StreamSubphase = 'SUBCOOLED' | 'SAT_LIQUID' | 'SAT_VAPOR' | 'SUPERHEATED';
 
-/** SIM 物流条目：流号 + 业务 tag + 流名 + 主相态/子相态 + 温压 + 双流量 + 组成 + 5 态机签名状态。 */
+// ⚠️ `StreamSubphase` 已删（2026-10-19，用户裁决「砍列」）。
+// 后端**根本没有子相态这个概念** —— `grep -rn subphase app/` 在
+// schemas / ORM / enums 里**零命中**。前端此前细化的是后端没细化的东西，
+// 页面读它永远是 `undefined`，于是那一栏恒不显示（静默失效）。
+
+/** SIM 物流条目：流号 + 业务 tag + 流名 + 主相态 + 温压 + 双流量 + 组成 + 9 态机签名状态。 */
 export interface Stream {
   stream_id: string;
   tag_number: string;
   stream_name: string;
   phase: StreamPhase;
-  subphase?: StreamSubphase;
   /* ⚠️ 以下四个字段 2026-10-19 对齐契约 `StreamResponse`（TODO-039 审计）。
    *
    * 方向依据 **DICT-007-SUP-011 §4.4「与 Streams 表的映射」**：
@@ -69,8 +71,11 @@ export interface Stream {
    * 于是反过来把合法的 4 个态判成了不存在（bug-180 的元教训）。
    */
   sign_status: RecordSignStatus;
-  approved_hash?: string;
-  updated_by?: string;
+  /** 内容指纹 SHA-256（契约 record_hash，NOT NULL）。
+   *  取代此前的 `approved_hash` —— 后端无「审批时哈希」这个字段，
+   *  契约里对应的是 `record_hash`（"SHA-256 实质变更判别"），
+   *  正是 `PageHeader` 的 version 槽（HashBadge）要的东西。 */
+  record_hash: string;
   updated_at?: string;
 }
 
@@ -79,11 +84,4 @@ export const STREAM_PHASE_LABEL: Record<StreamPhase, string> = {
   VAPOR: '气相',
   MIXED: '混合',
   AQUEOUS: '水相',
-};
-
-export const STREAM_SUBPHASE_LABEL: Record<StreamSubphase, string> = {
-  SUBCOOLED: '过冷',
-  SAT_LIQUID: '饱和液',
-  SAT_VAPOR: '饱和气',
-  SUPERHEATED: '过热',
 };

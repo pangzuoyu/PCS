@@ -35,7 +35,7 @@ import { LineageGraph, type LineageNode, type LineageEdge } from '../../componen
 import { ChangeImpactPanel, type ChangeSource, type AffectedRecord } from '../../components/common/ChangeImpactPanel';
 import { SchemaForm, type UiSchemaResponse } from '../../components/common/SchemaForm';
 import { AssumedDataMarker } from '../../components/common/AssumedDataMarker';
-import { STREAM_PHASE_LABEL, STREAM_SUBPHASE_LABEL, type Stream } from '../../types/stream';
+import { STREAM_PHASE_LABEL, type Stream } from '../../types/stream';
 
 interface Props {
   stream: Stream;
@@ -104,8 +104,8 @@ export function StreamDetailPage({
         status={stream.sign_status}
         module="SIM"
         version={
-          stream.approved_hash
-            ? { hash: stream.approved_hash, label: stream.tag_number }
+          stream.record_hash
+            ? { hash: stream.record_hash, label: stream.tag_number }
             : undefined
         }
         actions={
@@ -147,20 +147,10 @@ export function StreamDetailPage({
                   {stream.phase}
                 </Typography.Text>
               </Descriptions.Item>
-              <Descriptions.Item label="子相态">
-                {stream.subphase ? (
-                  <Tag>{STREAM_SUBPHASE_LABEL[stream.subphase]}</Tag>
-                ) : (
-                  <Typography.Text type="secondary">—</Typography.Text>
-                )}
-              </Descriptions.Item>
               <Descriptions.Item label="温度">{stream.temp} °C</Descriptions.Item>
               <Descriptions.Item label="压力">{stream.press} MPaG</Descriptions.Item>
               <Descriptions.Item label="质量流量">{stream.mass_flow} kg/h</Descriptions.Item>
               <Descriptions.Item label="摩尔流量">{stream.molar_flow} kmol/h</Descriptions.Item>
-              {stream.updated_by && (
-                <Descriptions.Item label="更新人">{stream.updated_by}</Descriptions.Item>
-              )}
               {stream.updated_at && (
                 <Descriptions.Item label="更新时间">{stream.updated_at}</Descriptions.Item>
               )}
