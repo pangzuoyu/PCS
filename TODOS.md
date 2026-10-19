@@ -136,6 +136,10 @@ access/refresh token」，并把 token_version 列为该条的实现手段。
 
 - **⚠️ 命名陷阱**: `tests/test_arq_failure.py` **存在**，但内容是 workspace 清理测试，
   与失败路径/DLQ 无关。`worker.py` 无 `max_tries` 配置。**失败路径覆盖为零。**
+- **⚠️ 与 P9-Prep PP-5 的边界**（2026-10-19 补）：PP-5 落地的 alembic 漂移闸门
+  （`.githooks/pre-commit` + `pcs-backend/scripts/gate_alembic_check.py`）管的是
+  **ORM ↔ 迁移漂移**，与 worker 失败路径**无关**，不要因为「闸门已自动化」把本条读成已覆盖。
+  ARQ 失败路径仍为零覆盖，归 P9A-NOT-004（通知 30 天清理任务的失败注入测试）。
 - **Owner**: 待认领
 
 ### TODO-017: P4 接入验收 e2e 从 1 扩到 4

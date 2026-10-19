@@ -1711,3 +1711,61 @@
 | 11:43 | Created pcs-frontend/tests/types/strictColumns.test.ts | — | ~851 |
 | 11:57 | Created pcs-backend/alembic/versions/p8_011_streams_vocab_constraints.py | — | ~1158 |
 | 12:01 | Created pcs-backend/tests/alembic/test_p8_011_streams_vocab.py | — | ~1220 |
+| 13:43 | Session end: 456 writes across 185 files (TODOS.md, p7_s5_001_drop_equipment_lib.py, equipment.py, test_schema.py, 0032-vessel-process-calculation.md) | 190 reads | ~500431 tok |
+
+## Session: 2026-10-19 13:43
+
+| Time | Action | File(s) | Outcome | ~Tokens |
+|------|--------|---------|---------|--------|
+| 13:52 | Created docs/PCS-PLAN-P9-PREP.md | — | ~8708 |
+| 13:52 | Edited docs/PCS-PLAN-P9-PREP.md | modified upgrade() | ~270 |
+| 13:53 | Edited docs/PCS-PLAN-P9-PREP.md | expanded (+24 lines) | ~403 |
+| 14:00 | Edited docs/PCS-PLAN-P9-PREP.md | 3→4 lines | ~43 |
+| 14:00 | Edited docs/PCS-PLAN-P9-PREP.md | expanded (+107 lines) | ~988 |
+| 14:00 | Edited docs/PCS-PLAN-P9-PREP.md | 2→7 lines | ~94 |
+| 14:01 | Edited docs/PCS-PLAN-P9-PREP.md | expanded (+6 lines) | ~131 |
+| 14:14 | Edited docs/PCS-PLAN-P9-PREP.md | expanded (+21 lines) | ~268 |
+| 14:14 | Edited docs/PCS-PLAN-P9-PREP.md | 2→5 lines | ~80 |
+| 14:23 | Edited docs/PCS-PLAN-P9-PREP.md | removed 11 lines | ~7 |
+| 14:23 | Edited docs/PCS-PLAN-P9-PREP.md | 10→14 lines | ~164 |
+| 14:23 | Edited docs/PCS-PLAN-P9-PREP.md | modified docs() | ~371 |
+| 16:02 | Edited docs/PCS-PLAN-P9-PREP.md | expanded (+14 lines) | ~233 |
+| 16:03 | Edited docs/PCS-PLAN-P9-PREP.md | modified test_run_capture_returns_code_and_merged_output() | ~308 |
+| 16:04 | Edited docs/PCS-PLAN-P9-PREP.md | expanded (+64 lines) | ~730 |
+| 16:05 | Edited docs/PCS-PLAN-P9-PREP.md | 5→8 lines | ~260 |
+| 17:21 | Edited docs/PCS-PLAN-P9-PREP.md | 13→12 lines | ~122 |
+| 17:22 | Edited docs/PCS-PLAN-P9-PREP.md | expanded (+14 lines) | ~277 |
+| 17:22 | Edited docs/PCS-PLAN-P9-PREP.md | 12→17 lines | ~211 |
+| 17:22 | Edited docs/PCS-PLAN-P9-PREP.md | expanded (+10 lines) | ~158 |
+| 17:22 | Edited docs/PCS-PLAN-P9-PREP.md | modified chore() | ~82 |
+| 17:22 | Edited docs/PCS-PLAN-P9-PREP.md | 1→6 lines | ~84 |
+| 17:22 | Edited docs/PCS-PLAN-P9-PREP.md | expanded (+17 lines) | ~170 |
+| 17:23 | Edited docs/PCS-PLAN-P9-PREP.md | 6→11 lines | ~66 |
+| 17:23 | Edited docs/PCS-PLAN-P9-PREP.md | 2→4 lines | ~71 |
+| 17:24 | Edited docs/PCS-PLAN-P9-PREP.md | "docs(adr): ADR-0044 编辑锁（R" → "docs(adr): ADR-0044 编辑锁（R" | ~22 |
+| 17:29 | Edited docs/PCS-PLAN-P9-PREP.md | expanded (+9 lines) | ~240 |
+| 17:29 | Edited docs/PCS-PLAN-P9-PREP.md | 11→10 lines | ~64 |
+| 17:31 | Edited docs/PCS-PLAN-P9-PREP.md | expanded (+23 lines) | ~256 |
+| 17:31 | Edited docs/PCS-PLAN-P9-PREP.md | expanded (+7 lines) | ~104 |
+| 17:35 | Edited docs/PCS-PLAN-P9-PREP.md | expanded (+25 lines) | ~317 |
+| 17:36 | Edited docs/PCS-PLAN-P9-PREP.md | 9→12 lines | ~108 |
+| 17:37 | Edited docs/PCS-PLAN-P9-PREP.md | expanded (+12 lines) | ~127 |
+| 17:37 | Edited docs/PCS-PLAN-P9-PREP.md | 12→7 lines | ~75 |
+| 17:38 | Edited docs/PCS-PLAN-P9-PREP.md | 4→8 lines | ~147 |
+| 17:38 | Edited docs/PCS-PLAN-P9-PREP.md | inline fix | ~11 |
+| 17:56 | Created .superpowers/sdd/PCS-PLAN-P9-PREP/progress.md | — | ~419 |
+| 17:56 | Created pcs-backend/tests/scripts/test_gate_alembic_check.py | — | ~469 |
+| 17:56 | Edited pcs-backend/scripts/run_gate.py | expanded (+6 lines) | ~74 |
+| 17:57 | Edited pcs-backend/scripts/run_gate.py | modified run_capture() | ~325 |
+| 17:57 | Edited pcs-backend/tests/scripts/test_run_gate.py | inline fix | ~15 |
+| 17:57 | Edited pcs-backend/tests/scripts/test_run_gate.py | modified test_cli_without_command_is_an_error() | ~286 |
+| 17:57 | Created pcs-backend/scripts/gate_alembic_check.py | — | ~638 |
+| 18:00 | Edited docs/PCS-PLAN-P9-PREP.md | 3→3 lines | ~118 |
+| 18:01 | Edited docs/PCS-PLAN-P9-PREP.md | 44→41 lines | ~432 |
+| 18:01 | Edited .githooks/pre-commit | expanded (+15 lines) | ~170 |
+| 18:01 | Edited .githooks/pre-commit | 5→6 lines | ~52 |
+| 18:01 | Edited .githooks/README.md | expanded (+28 lines) | ~268 |
+| 18:01 | Edited .githooks/README.md | inline fix | ~20 |
+| 18:02 | Edited TODOS.md | 3→7 lines | ~106 |
+| 18:06 | Edited .githooks/README.md | 8→10 lines | ~93 |
+| 18:06 | Edited docs/PCS-PLAN-P9-PREP.md | expanded (+6 lines) | ~84 |

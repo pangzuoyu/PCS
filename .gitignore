@@ -32,3 +32,6 @@ rdkit/
 # 不入库 —— 部署/CI 跑一次该脚本即可（见 renderer_pdf 模块 docstring）。
 pcs-backend/fonts/
 pcs-backend/var/
+
+# superpowers 计划执行工作区（ledger / briefs / review package）
+.superpowers/

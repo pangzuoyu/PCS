@@ -4,9 +4,9 @@
 
 **Goal:** 清掉阻塞 P9A 的 4 项：alembic 漂移闸门自动化、4 份 ADR 落地、《P1 实际交付面清单》、MFA 决议。本阶段不写业务代码。
 
-**Architecture:** 产物全是「文档 + 1 个 shell 闸」：① `.githooks/pre-commit` 增第二个触发段 + `pcs-backend/scripts/gate_alembic_check.sh`（沿用仓库既有 A-08 闸门模式）；② 1 份端点清单 note（`docs/`）；③ 4 份 ADR（`docs/adr/0042`~`0045`，接现有最高文件号 0041）；④ MFA 决议回写 SPEC。无 Python 生产代码、无迁移、无 pytest。
+**Architecture:** 产物是「4 份 ADR + 2 份 note + 1 个 Python 闸门」：① `.githooks/pre-commit` 增第二个触发段 + `pcs-backend/scripts/gate_alembic_check.py`（退出码观测走既有 `scripts/run_gate.py`，不另起一套）；② 1 份端点清单 note（`docs/`）；③ 4 份 ADR（`docs/adr/0042`~`0045`，接现有最高文件号 0041）；④ MFA 决议回写 SPEC。**无迁移、无 `app/**` 生产代码改动**；有 pytest（仅 `tests/scripts/` 两个文件的 21 个用例）。
 
-**Tech Stack:** POSIX sh / bash（hook + 闸门）、uv + alembic（漂移检测）、Markdown（ADR / note）。
+**Tech Stack:** Python 3.12 / uv（闸门本体）、POSIX sh（hook 触发层）、alembic（漂移检测）、pytest（闸门单测）、Markdown（ADR / note）。
 
 **Spec:** `spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md` §2（第二部分 P9-Prep）
 
@@ -317,50 +317,47 @@ uv run python scripts/gate_alembic_check.py; echo "RC=$?"
 若报 `[PP-5] ⚠️ DB revision 落后` —— 先 `uv run alembic current` 对比 `uv run alembic heads`
 （CLAUDE.md 读法①：守门没报可能是因为它根本没跑）。
 
-- [ ] **Step 8: 端到端验「真漂移 ⇒ 阻断」，并把探针删干净**
+- [ ] **Step 8: 端到端验「真漂移 ⇒ 阻断」，并把探针还原干净**
+
+> ⚠️ **探针必须加在 ORM 模型上，不是迁移文件里。**（2026-10-19 实测更正）
+> `alembic check` 比对的是 **ORM metadata ↔ 活库当前 schema**，它**不读迁移源码**。
+> 往 `alembic/versions/` 里加 `add_column` 迁移既不会被检出（迁移没 apply ⇒ DB 与 ORM
+> 都没有那列 ⇒ 两侧一致 ⇒ 报 ✅），还会顺带把 code head 推高一格让 DB 变成「revision 落后」，
+> 于是命中 stale 分支而非漂移分支 —— **看起来红过，其实验的不是这一条**。
+> 真正的漂移 = ORM 声明了 DB 里没有的列。
 
 ```bash
 cd /home/pangzy/code_project/PCS/pcs-backend
-HEAD_REV="$(uv run alembic heads | grep -oE '[0-9a-z]+_?' | head -1)"
 
-cat > alembic/versions/zz_tmp_pp5_probe.py <<PYEOF
-"""临时漂移探针（PP-5 验收用，验完即删，不得 commit）。"""
-from alembic import op
-import sqlalchemy as sa
-
-revision = "zz_tmp_pp5_probe"
-down_revision = "${HEAD_REV}"
-branch_labels = None
-depends_on = None
-
-
-def upgrade() -> None:
-    op.add_column("workspaces", sa.Column("pp5_probe_col", sa.Integer(), nullable=True))
-
-
-def downgrade() -> None:
-    op.drop_column("workspaces", "pp5_probe_col")
-PYEOF
-
-grep -n "^down_revision" alembic/versions/zz_tmp_pp5_probe.py   # 空 ⇒ 回上一步换 head 取法
+cp app/models/project.py /tmp/project.py.pp5bak
+python3 - <<'PY'
+import pathlib
+p = pathlib.Path("app/models/project.py"); s = p.read_text()
+anchor = ('    workspace_id: Mapped[uuid.UUID] = mapped_column(\n'
+          '        Uuid, primary_key=True, default=uuid.uuid4\n    )\n')
+assert anchor in s, "锚点没命中 —— 手工插入 pp5_probe_col"
+p.write_text(s.replace(anchor, anchor + "    pp5_probe_col = mapped_column(Integer, nullable=True)\n", 1))
+PY
+grep -n "pp5_probe_col" app/models/project.py   # 必须命中，否则中止
 
 uv run python scripts/gate_alembic_check.py; echo "RC=$?"     # 预期 ❌ + RC=1
+# 实测输出：
+#   [PP-5] ❌ 检出 ORM↔迁移漂移（rc=255），commit 阻断
+#   FAILED: New upgrade operations detected: [('add_column', None, 'workspaces', ...)]
 
-# ⚠️ 探针必须删干净。它躺在 alembic/versions/ 下，一旦被提交进仓库，
-#    下一个人跑 alembic 会把它当真实迁移 —— 后果不可预知。
-rm -f alembic/versions/zz_tmp_pp5_probe.py
-test ! -e alembic/versions/zz_tmp_pp5_probe.py \
-  && echo "探针已清除 ✓" \
-  || { echo "❌ 探针仍在，先手动删掉再继续"; exit 1; }
+# ⚠️ 探针必须还原干净。它躺在 ORM 里，一旦被提交，下一个人启动服务就会炸。
+cp /tmp/project.py.pp5bak app/models/project.py && rm -f /tmp/project.py.pp5bak
+git diff --quiet -- app/models/ \
+  && echo "探针已还原 ✓" \
+  || { echo "❌ app/models/ 仍有 diff，先手工还原再继续"; exit 1; }
 
 uv run python scripts/gate_alembic_check.py; echo "RC=$?"     # 预期 ✅ + RC=0
 ```
 
-> 上面 `test ! -e ... || exit 1` 是**硬闸**：删不掉就停，不许继续往下走。
+> 上面 `git diff --quiet || exit 1` 是**硬闸**：还原不掉就停，不许继续往下走。
 > 不要依赖「后面还有别的步骤会清理」—— Step 13 的 `git add -A` 会把它一起提交。
 
-> 探针是 `add_column` 而 ORM 里没有 ⇒ `alembic check` 报待执行的 `remove_column` 操作，
-> 即真漂移。若 Step 7 就已报漂移，说明工作区本来有漂移 —— 先查清再继续，别把两件事混在一起。
+> **Step 7 若已报漂移**，说明工作区本来有漂移 —— 先查清再继续，别把两件事混在一起。
 
 - [ ] **Step 9: 接进 `.githooks/pre-commit`**
 
@@ -403,7 +400,13 @@ fi
 
 **已知盲区**：本闸只对 `DATABASE_URL` 指向的那个库成立（开发库 `pcs`）。
 `pcs_test` 的漂移不在视野内 —— 要声称两库都干净，必须在 `pcs_test` 上单独跑一次：
-`DATABASE_URL=postgresql+psycopg://pcs:pcs_dev@localhost:5432/pcs_test uv run alembic check`
+
+```bash
+cd pcs-backend
+# 口令取本地 .env / pcs-backend/.env.example，**不要**把口令写进文档
+DATABASE_URL="postgresql+psycopg://<user>:<password>@localhost:5432/pcs_test" \
+  uv run python scripts/gate_alembic_check.py
+```
 
 **绕过**：`git commit --no-verify`，需登记到 backlog。
 ```

@@ -21,6 +21,12 @@
 
 **不要**拿本脚本的输出去接管道再 `$?` —— 那就又回到原问题了。
 要判断成败，直接看 `EXIT=` 那一行，或看本脚本自身的退出码。
+
+## 需要检查输出**内容**时
+
+用 `run_capture()`，**不要**自己 `subprocess.run` —— 它返回 `(退出码, 合并后的输出)`，
+让「码」与「码旁边的文案」只有一个观测来源。例如 `alembic check` 要区分
+「检出漂移」与「DB revision 落后、闸门根本没跑」，两者退出码都是 255。
 """
 from __future__ import annotations
 
@@ -29,26 +35,37 @@ import subprocess
 import sys
 
 
-def run(argv: list[str], *, tail: int, cwd: str | None = None) -> int:
-    """跑 `argv` 并返回**它自己**的退出码。"""
+def run_capture(argv: list[str], *, cwd: str | None = None,
+                timeout: int = 1800) -> tuple[int, str]:
+    """跑 `argv`，返回 (它自己的退出码, 合并后的 stdout+stderr)。
+
+    需要检查输出**内容**而不只是成败的闸门用这个 —— 例如 alembic check 要区分
+    「检出漂移」与「DB revision 落后、闸门根本没跑」，两者退出码都是 255。
+    """
     try:
         proc = subprocess.run(
-            argv, cwd=cwd, capture_output=True, text=True, timeout=1800,
+            argv, cwd=cwd, capture_output=True, text=True, timeout=timeout,
         )
     except FileNotFoundError:
-        print(f"命令不存在：{argv[0]}", file=sys.stderr)
-        return 127
+        msg = f"命令不存在：{argv[0]}"
+        print(msg, file=sys.stderr)
+        return 127, msg
     except subprocess.TimeoutExpired:
-        print(f"命令超时（>1800s）：{' '.join(argv)}", file=sys.stderr)
-        return 124
+        msg = f"命令超时（>{timeout}s）：{' '.join(argv)}"
+        print(msg, file=sys.stderr)
+        return 124, msg
+    return proc.returncode, (proc.stdout or "") + (proc.stderr or "")
 
-    out = (proc.stdout or "") + (proc.stderr or "")
+
+def run(argv: list[str], *, tail: int, cwd: str | None = None) -> int:
+    """跑 `argv` 并返回**它自己**的退出码（打印最后 N 行输出）。"""
+    code, out = run_capture(argv, cwd=cwd)
     lines = out.splitlines()
     if tail > 0 and len(lines) > tail:
         lines = [f"...（略去前 {len(lines) - tail} 行）"] + lines[-tail:]
     print("\n".join(lines))
-    print(f"\nEXIT={proc.returncode}  ← {argv[0]} 自己的退出码")
-    return proc.returncode
+    print(f"\nEXIT={code}  ← {argv[0]} 自己的退出码")
+    return code
 
 
 def main(argv: list[str] | None = None) -> int:

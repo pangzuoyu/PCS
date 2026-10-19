@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T04:01:18.906Z",
-    "fileCount": 835,
+    "lastScanned": "2026-10-19T10:06:16.440Z",
+    "fileCount": 839,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "2949279b40a5f00426727dfdfbde67c1f4c7e21fb7e862a40d1bc52a6724ce8c",
-    "storeUpdatedAt": "2026-10-19T04:01:18.918Z",
-    "rootHash": "f2e583364844d76c"
+    "renderedHash": "85de89f52c4b307b94bded4de87bbbc7e91045bcad862079862a90e5854acb7b",
+    "storeUpdatedAt": "2026-10-19T10:06:16.451Z",
+    "rootHash": "21c0cbb1405e3c69"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -32,23 +32,21 @@
     },
     ".githooks/pre-commit": {
       "description": "A-08 G-08 OpenAPI 契约自动化门禁（pre-commit hook）",
-      "tokens": 306,
-      "hash": "8b94427a44bc0a91",
-      "size": 1400,
-      "mtimeMs": 1790305512817.9773,
-      "updatedAt": "2026-10-02T12:43:34.536Z",
-      "source": "scan",
-      "importance": 0.1842
+      "tokens": 452,
+      "hash": "d3283f08de888aa0",
+      "size": 2145,
+      "mtimeMs": 1792404076852.8564,
+      "updatedAt": "2026-10-19T10:01:16.910Z",
+      "source": "hook"
     },
     ".githooks/README.md": {
       "description": "Project documentation",
-      "tokens": 332,
-      "hash": "95e6791bb46d1768",
-      "size": 1925,
-      "mtimeMs": 1790305512816.4268,
-      "updatedAt": "2026-10-02T12:43:34.537Z",
-      "source": "scan",
-      "importance": 0.1842
+      "tokens": 590,
+      "hash": "0a40205c8caa66b4",
+      "size": 3516,
+      "mtimeMs": 1792404370655.6833,
+      "updatedAt": "2026-10-19T10:06:10.704Z",
+      "source": "hook"
     },
     ".gitignore": {
       "description": "Git ignore rules",
@@ -12363,11 +12361,11 @@
     },
     "TODOS.md": {
       "description": "TODOS.md — PCS 延后工作清单",
-      "tokens": 15979,
-      "hash": "2d895fce702e7056",
-      "size": 104489,
-      "mtimeMs": 1791944271896.2334,
-      "updatedAt": "2026-10-14T02:17:51.953Z",
+      "tokens": 5264,
+      "hash": "9539709b56a2d247",
+      "size": 34406,
+      "mtimeMs": 1792404134102.3086,
+      "updatedAt": "2026-10-19T10:02:14.151Z",
       "source": "hook"
     },
     "pcs-frontend/src/pages/util/EnergySummaryAggregatePage.tsx": {
@@ -26529,36 +26527,43 @@
     },
     "pcs-backend/scripts/run_gate.py": {
       "description": "跑一条闸门命令并报告**它自己**的退出码（TODO-050）。",
-      "tokens": 592,
-      "hash": "8c5d68c88974df10",
-      "size": 2721,
-      "mtimeMs": 1791861542173.9507,
-      "updatedAt": "2026-10-13T03:19:02.227Z",
+      "tokens": 752,
+      "hash": "2497073cf0b612c8",
+      "size": 3606,
+      "mtimeMs": 1792403823809.4265,
+      "updatedAt": "2026-10-19T09:57:03.858Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "run_capture",
+          "kind": "fn",
+          "startLine": 38,
+          "endLine": 59,
+          "tokens": 214
+        },
+        {
           "name": "run",
           "kind": "fn",
-          "startLine": 32,
-          "endLine": 53,
-          "tokens": 216
+          "startLine": 60,
+          "endLine": 70,
+          "tokens": 112
         },
         {
           "name": "main",
           "kind": "fn",
-          "startLine": 54,
-          "endLine": 74,
+          "startLine": 71,
+          "endLine": 91,
           "tokens": 177
         }
       ]
     },
     "pcs-backend/tests/scripts/test_run_gate.py": {
       "description": "`scripts/run_gate.py` 的测试 —— 它唯一的产出是「一个退出码」。",
-      "tokens": 560,
-      "hash": "72b353b7b5089259",
-      "size": 2409,
-      "mtimeMs": 1791861551886.529,
-      "updatedAt": "2026-10-13T03:19:11.935Z",
+      "tokens": 817,
+      "hash": "701409a7e747ead6",
+      "size": 3492,
+      "mtimeMs": 1792403829546.6172,
+      "updatedAt": "2026-10-19T09:57:09.591Z",
       "source": "hook",
       "symbols": [
         {
@@ -26607,8 +26612,36 @@
           "name": "test_cli_without_command_is_an_error",
           "kind": "fn",
           "startLine": 69,
-          "endLine": 72,
-          "tokens": 34
+          "endLine": 78,
+          "tokens": 78
+        },
+        {
+          "name": "test_run_capture_returns_code_and_merged_output",
+          "kind": "fn",
+          "startLine": 79,
+          "endLine": 85,
+          "tokens": 72
+        },
+        {
+          "name": "test_run_capture_missing_command_is_127",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 91,
+          "tokens": 40
+        },
+        {
+          "name": "test_run_capture_timeout_is_124",
+          "kind": "fn",
+          "startLine": 92,
+          "endLine": 99,
+          "tokens": 55
+        },
+        {
+          "name": "test_run_still_forwards_127_after_refactor",
+          "kind": "fn",
+          "startLine": 100,
+          "endLine": 103,
+          "tokens": 42
         }
       ]
     },
@@ -27985,6 +28018,51 @@
           "startLine": 121,
           "endLine": 140,
           "tokens": 197
+        }
+      ]
+    },
+    "docs/PCS-PLAN-P9-PREP.md": {
+      "description": "P9-Prep 实施计划（alembic 闸门 + 4 份 ADR + P1 端点清单 + MFA 决议）",
+      "tokens": 14277,
+      "hash": "2ed32642c5de4d81",
+      "size": 87300,
+      "mtimeMs": 1792404376393.2314,
+      "updatedAt": "2026-10-19T10:06:16.440Z",
+      "source": "hook"
+    },
+    ".superpowers/sdd/PCS-PLAN-P9-PREP/progress.md": {
+      "description": "SDD ledger — plan: docs/PCS-PLAN-P9-PREP.md",
+      "tokens": 393,
+      "hash": "db3a5c205aa39473",
+      "size": 2465,
+      "mtimeMs": 1792403763695.353,
+      "updatedAt": "2026-10-19T09:56:03.743Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/scripts/test_gate_alembic_check.py": {
+      "description": "`scripts/gate_alembic_check.py` 的测试 —— 它唯一的产出是「一个退出码」。",
+      "tokens": 469,
+      "hash": "450d68c90d5cb272",
+      "size": 2006,
+      "mtimeMs": 1792403794010.4165,
+      "updatedAt": "2026-10-19T09:56:34.058Z",
+      "source": "hook"
+    },
+    "pcs-backend/scripts/gate_alembic_check.py": {
+      "description": "alembic 漂移闸门（ORM ↔ 迁移漂移）—— P9-Prep PP-5。",
+      "tokens": 638,
+      "hash": "498703d95ea6cf51",
+      "size": 3074,
+      "mtimeMs": 1792403844697.115,
+      "updatedAt": "2026-10-19T09:57:24.745Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "main",
+          "kind": "fn",
+          "startLine": 39,
+          "endLine": 74,
+          "tokens": 336
         }
       ]
     }

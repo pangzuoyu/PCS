@@ -14,7 +14,7 @@ import sys
 
 import pytest
 
-from scripts.run_gate import main, run
+from scripts.run_gate import main, run, run_capture
 
 
 def test_reports_the_commands_own_nonzero_exit_code(capsys):
@@ -69,3 +69,34 @@ def test_cli_strips_the_separator(capsys):
 def test_cli_without_command_is_an_error(capsys):
     with pytest.raises(SystemExit):
         main(["--tail", "3"])
+
+
+# ---- run_capture()（P9-Prep PP-5 新增）----
+# 既有 7 个测试覆盖的是 run()；run_capture() 是新函数，三条分支一条都不能少 ——
+# 其中 127 / 124 是 run() 改调后**透传**出来的，改错了 run() 的既有测试抓不到。
+
+
+def test_run_capture_returns_code_and_merged_output():
+    rc, out = run_capture([sys.executable, "-c",
+                           "import sys; print('o'); sys.stderr.write('e'); sys.exit(3)"])
+    assert rc == 3
+    assert "o" in out and "e" in out
+
+
+def test_run_capture_missing_command_is_127():
+    rc, out = run_capture(["这个命令不存在-abc"])
+    assert rc == 127
+    assert "命令不存在" in out
+
+
+def test_run_capture_timeout_is_124():
+    rc, out = run_capture(
+        [sys.executable, "-c", "import time; time.sleep(5)"], timeout=0.1
+    )
+    assert rc == 124
+    assert "超时" in out
+
+
+def test_run_still_forwards_127_after_refactor():
+    """回归：run() 改成转调 run_capture 后，127 必须仍然透传。"""
+    assert run(["这个命令不存在-def"], tail=3) == 127
