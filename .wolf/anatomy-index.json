@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T02:24:15.338Z",
-    "fileCount": 829,
+    "lastScanned": "2026-10-19T02:45:32.684Z",
+    "fileCount": 830,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "cc1b69b213b52cf067fc71c52d8aa9fc043c095a6b1d484da39ade65f6e2e6fb",
-    "storeUpdatedAt": "2026-10-19T02:24:15.350Z",
-    "rootHash": "3f1ebad28891b8ad"
+    "renderedHash": "a7ce691cb929dfb9780b1895d2d8c359843fb92ca555779b9797a796dd6958c9",
+    "storeUpdatedAt": "2026-10-19T02:45:32.694Z",
+    "rootHash": "200ea0167aeacd7d"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -27786,6 +27786,38 @@
           "startLine": 60,
           "endLine": 305,
           "tokens": 2180
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_config_assets_list.py": {
+      "description": "`GET /api/v1/config/assets` 列表端点（2026-10-19，TODO-040）。",
+      "tokens": 1172,
+      "hash": "d492ff8c67761738",
+      "size": 4863,
+      "mtimeMs": 1792377932634.6938,
+      "updatedAt": "2026-10-19T02:45:32.683Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_mk",
+          "kind": "fn",
+          "startLine": 35,
+          "endLine": 44,
+          "tokens": 80
+        },
+        {
+          "name": "TestListAssets",
+          "kind": "class",
+          "startLine": 45,
+          "endLine": 105,
+          "tokens": 675
+        },
+        {
+          "name": "TestResponseShape",
+          "kind": "class",
+          "startLine": 106,
+          "endLine": 119,
+          "tokens": 191
         }
       ]
     }

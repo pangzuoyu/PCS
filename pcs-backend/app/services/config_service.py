@@ -54,6 +54,26 @@ class ConfigService:
         self.audit = AuditService(session)
 
     # ------------------------------------------------------------------
+    # List
+    # ------------------------------------------------------------------
+
+    async def list_assets(
+        self, *, category: str | None = None
+    ) -> list[ConfigAsset]:
+        """列出配置资产（`GET /api/v1/config/assets?category=`）。
+
+        SPEC `…Web版 P2.md §3.1.2`「配置资产通用」第一行。
+        排序固定 **category 升序、name 升序** —— 不排序的话前端表格每次
+        刷新的行序可能不同，而分页一旦加上就必须有稳定序（见 TODOS.md）。
+        空库返回 ``[]``（前端走 Empty 分支，不是错误态）。
+        """
+        stmt = select(ConfigAsset)
+        if category is not None:
+            stmt = stmt.where(ConfigAsset.category == category)
+        stmt = stmt.order_by(ConfigAsset.category, ConfigAsset.name)
+        return list((await self.session.execute(stmt)).scalars().all())
+
+    # ------------------------------------------------------------------
     # Create
     # ------------------------------------------------------------------
 

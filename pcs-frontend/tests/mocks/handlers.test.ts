@@ -238,3 +238,36 @@ describe("endpoint seed fixture 响应体 ↔ OpenAPI", () => {
     expect(src).not.toMatch(/payload\??\.stream/);
   });
 });
+
+/**
+ * `GET /api/v1/config/assets` 端点存在性（TODO-040）。
+ *
+ * 这个端点**曾经从未实现**，而前端一直在请求它 ⇒ 生产必然 404。
+ * 现有的「handler 路径都在 OpenAPI 里」那条**抓不到这种方向的问题** ——
+ * 它只保证「有 mock 的路径有契约」，不管「页面请求的路径有没有端点」。
+ */
+describe("端点补齐（TODO-040）", () => {
+  it("GET /api/v1/config/assets 已在契约中（不再是前端跑在前面）", () => {
+    expect(openapi.paths["/api/v1/config/assets"]?.get).toBeDefined();
+  });
+
+  it("mock handler 注册了该路径", () => {
+    // ⚠️ 注意查的是 `devOnlyMockHandlers`：导出的 `handlers` 只有 5 个
+    // meta 端点，其余全在 devOnly 那个数组里 —— 既有那条
+    // 「handler 路径都在 OpenAPI 里」实际一直只覆盖 5 条路径。
+    const paths = new Set(devOnlyMockHandlers.map((h) =>
+      (h as { info?: { path?: string } }).info?.path));
+    expect(paths.has("/api/v1/config/assets")).toBe(true);
+  });
+
+  it("category 取值域与契约一致（CATEGORY_1~6，不是语义名）", () => {
+    const schema = openapi.components.schemas.AssetResponse.properties
+      .category as { enum?: string[]; $ref?: string };
+    if ("$ref" in schema && schema.$ref) {
+      throw new Error("category 是 $ref，需先解引用再断言 enum");
+    }
+    expect(schema.enum ?? [], "category 应在契约里是枚举").toEqual(
+      expect.arrayContaining(["CATEGORY_1", "CATEGORY_6"]),
+    );
+  });
+});

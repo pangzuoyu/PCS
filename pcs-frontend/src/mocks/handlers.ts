@@ -45,6 +45,7 @@ import { seedBeddSections, seedPmsItems } from "./seed/pms";
 import {
   seedStreams,
 } from "./seed/streams";
+import { seedAssets } from "./seed/config";
 import { seedChecklist, seedWorkspaces } from "./seed/workspaces";
 import type { RevVersion } from "../components/common/RevTimeline";
 import type { Notification } from "../components/common/NotificationCenter";
@@ -120,12 +121,18 @@ const devOnlyMockHandlers = [
       : HttpResponse.json({ code: "NOT_FOUND", message: `stream ${params.stream_id} not found` }, { status: 404 });
   }),
 
-  // ⚠️ `GET /api/v1/config/assets` 的 mock 已删（2026-10-19）。
-  // 契约里该路径**没有 get**（只有 post / fork / submit / approve / publish /
-  // obsolete / status-report / diff / versions），页面那个 GET 是必然 404。
-  // 留着这个 handler 就等于**替缺陷遮着**：dev 里页面有数据、真后端里 404，
-  // 而 404 会被监控记成故障（bug-180 的教训：mock 宽松 = 替生产扛差异）。
-  // TODO-040 补上后端端点时，与 routeWrappers 的 useFetch 一起加回来。
+  // `GET /api/v1/config/assets` 的 mock（2026-10-19，TODO-040 补齐）。
+  // 此前这个 handler **被删过**：那时契约里没有 get，返回它就是替缺陷遮着
+  // （dev 有数据、真后端 404，而 404 会被监控记成故障）。
+  // 现在端点已存在 —— mock 按契约形状返，顺序是「先端点、后 mock」。
+  http.get("/api/v1/config/assets", ({ request }) => {
+    if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
+    const category = new URL(request.url).searchParams.get("category");
+    const rows = category
+      ? seedAssets.filter((a) => a.category === category)
+      : seedAssets;
+    return HttpResponse.json(rows);
+  }),
 
   // === 管道等级 ===
   http.get("/api/v1/pipe-classes", ({ request }) => {

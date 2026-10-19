@@ -22,7 +22,7 @@ from app.schemas.config import AssetResponse
 
 _BASE = {
     "asset_id": uuid.uuid4(),
-    "category": "FORMULA",
+    "category": "CATEGORY_2",
     "name": "理想气体状态方程",
 }
 
@@ -38,6 +38,19 @@ class TestAssetStatusVocabulary:
         # 另 5 张子表的 default 值，不是 config_assets 的状态。
         with pytest.raises(ValidationError):
             AssetResponse(**_BASE, status=bad)
+
+    @pytest.mark.parametrize("bad", ["FORMULA", "COEFFICIENT", "EQUIPMENT_LIB", "CATEGORY_7"])
+    def test_语义名不是category的合法值(self, bad):
+        """⚠️ 前端曾把 category 写成 FORMULA/COEFFICIENT/… 六个语义名，
+        而 DB 的 CheckConstraint 只允许 CATEGORY_1~6 ⇒ 真实数据永远是
+        CATEGORY_N，按语义名过滤的 Tabs 在生产上一档都命中不了。
+        放进契约当枚举，这条猜法就再也编不出来。"""
+        base = {k: v for k, v in _BASE.items() if k != "category"}
+        with pytest.raises(ValidationError):
+            AssetResponse(**base, status="DRAFT", category=bad)
+
+    def test_category注解是枚举而非裸str(self):
+        assert AssetResponse.model_fields["category"].annotation is not str
 
     def test_注解是枚举而非裸str(self):
         """裸 `str` ⇒ 词表从契约消失 ⇒ 前端只能猜。"""

@@ -29,7 +29,6 @@ import {
 } from 'antd';
 import type { ColumnsType } from 'antd/es/table';
 
-import { HashBadge } from '../../components/common/HashBadge';
 import { RevTimeline, type RevVersion } from '../../components/common/RevTimeline';
 import {
   CONFIG_CATEGORY_LABEL,
@@ -99,18 +98,6 @@ export function AssetListPage({ assets, onEdit, onApprove, onVersion }: Props): 
           {CONFIG_STATUS_LABEL[s]}
         </Tag>
       ),
-    },
-    {
-      title: '更新人',
-      dataIndex: 'updated_by',
-      key: 'updated_by',
-      width: 100,
-    },
-    {
-      title: '更新时间',
-      dataIndex: 'updated_at',
-      key: 'updated_at',
-      width: 160,
     },
     {
       title: '操作',
@@ -250,27 +237,6 @@ export function AssetListPage({ assets, onEdit, onApprove, onVersion }: Props): 
                 {CONFIG_STATUS_LABEL[detailAsset.status]}
               </Tag>
             </Descriptions.Item>
-            <Descriptions.Item label="更新人">{detailAsset.updated_by}</Descriptions.Item>
-            <Descriptions.Item label="更新时间">{detailAsset.updated_at}</Descriptions.Item>
-            {detailAsset.hash && (
-              <Descriptions.Item label="哈希">
-                <HashBadge hash={detailAsset.hash} />
-              </Descriptions.Item>
-            )}
-            {detailAsset.tags && detailAsset.tags.length > 0 && (
-              <Descriptions.Item label="标签">
-                <Space>
-                  {detailAsset.tags.map((t) => (
-                    <Tag key={t} data-testid="asset-detail-tag">
-                      {t}
-                    </Tag>
-                  ))}
-                </Space>
-              </Descriptions.Item>
-            )}
-            {detailAsset.description && (
-              <Descriptions.Item label="描述">{detailAsset.description}</Descriptions.Item>
-            )}
           </Descriptions>
         )}
       </Drawer>

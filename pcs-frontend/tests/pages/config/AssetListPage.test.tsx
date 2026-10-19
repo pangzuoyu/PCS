@@ -4,8 +4,12 @@
  * 覆盖 SPEC §7.10.1 资产列表：
  * - 6 类分组的 Tabs（CATEGORY_1~6：FORMULA/COEFFICIENT/TEMPLATE/
  *   STANDARD_DB/PROJECT_TEMPLATE/EQUIPMENT_LIB）
- * - 表格列：名称 / 当前版本 / 状态 / 更新人 / 更新时间 / 操作
- * - 状态：草稿/审批中/已发布/已作废（4 态）
+ * - 表格列：名称 / 当前版本 / 状态 / 操作
+ *   （⚠️ 「更新人 / 更新时间」两列已删 —— `config_assets` 表**没有**这两列，
+ *    恒为空；2026-10-19 随 `ConfigAsset` 并进契约一起去掉，bug-188/190 同族）
+ * - 状态：契约的 5 态（草稿/待审批/已批准/已发布/已作废）
+ * - 类别：CATEGORY_1~6（此前前端用 FORMULA/COEFFICIENT/… 六个自造值，
+ *   而 DB 的 CheckConstraint 只允许 CATEGORY_N ⇒ 过滤 tab 生产上一档都不命中）
  * - 操作按钮：查看/编辑/审批/版本
  * - 行点击 → 详情 Drawer
  * - 详情展示元数据 + hash + tags
@@ -23,54 +27,38 @@ const assets: ConfigAsset[] = [
   {
     asset_id: 'a-1',
     name: '蒸汽压力公式',
-    category: 'FORMULA',
+    category: 'CATEGORY_2',
     current_version: 'v3.1',
     status: 'DRAFT',
-    updated_by: '张三',
-    updated_at: '2026-09-15 14:32',
-    hash: 'a3f9b2e1c21ed7a8',
-    tags: ['蒸汽', '压力'],
   },
   {
     asset_id: 'a-2',
     name: '换热器U值表',
-    category: 'COEFFICIENT',
+    category: 'CATEGORY_3',
     current_version: 'v1.2',
     status: 'PENDING',
-    updated_by: '李四',
-    updated_at: '2026-09-15 13:00',
-    hash: 'b7c2d3e4f5a60001',
   },
   {
     asset_id: 'a-3',
     name: 'PID模板',
-    category: 'TEMPLATE',
+    category: 'CATEGORY_4',
     current_version: 'v2.0',
     status: 'PUBLISHED',
-    updated_by: '王五',
-    updated_at: '2026-09-14 10:15',
-    hash: 'c1d2e3f4a5b60002',
   },
   {
     asset_id: 'a-4',
     name: 'ASTM 标准库',
-    category: 'STANDARD_DB',
+    category: 'CATEGORY_1',
     current_version: 'v5.0',
     status: 'OBSOLETE',
-    updated_by: '赵六',
-    updated_at: '2026-09-10 09:00',
-    hash: 'd4e5f6a7b8c90003',
   },
   {   // ⚠️ APPROVED 是**后端真产、前端此前完全没有**的一态（bug-188）：
       // 词表是手写 4 态时，它落进 `CONFIG_STATUS_LABEL[s]` 的 undefined ⇒ 空标签。
       asset_id: 'a-5',
       name: '焓值对照表',
-      category: 'STANDARD_DB',
+      category: 'CATEGORY_1',
       current_version: 'v0.9',
       status: 'APPROVED',
-      updated_by: '孙七',
-      updated_at: '2026-09-09 08:00',
-      hash: 'e5f6a7b8c9d00004',
   },
 ];
 
@@ -83,12 +71,10 @@ describe('AssetListPage — 渲染 (P45-2-3)', () => {
     render(<AssetListPage assets={assets} />);
     expect(screen.getByText('CONFIG 资产')).toBeTruthy();
     const tabs = screen.getByTestId('config-asset-tabs');
-    expect(tabs.textContent).toContain('公式');
-    expect(tabs.textContent).toContain('系数表');
-    expect(tabs.textContent).toContain('模板文件');
-    expect(tabs.textContent).toContain('标准数据库');
-    expect(tabs.textContent).toContain('项目模板');
-    expect(tabs.textContent).toContain('复用设备库');
+    // 标签取自 CATEGORY_N 的真实业务含义（依据见 types/configAsset.ts 的映射表）
+    for (const label of ['项目模板', '公式', '系数表', '模板文件', '管道等级/符号', '复用设备库']) {
+      expect(tabs.textContent, `缺「${label}」`).toContain(label);
+    }
   });
 
   it('默认显示「全部」+ 渲染所有资产', () => {
@@ -124,14 +110,21 @@ describe('AssetListPage — 表格列', () => {
     vi.clearAllMocks();
   });
 
-  it('每行展示：名称 / 版本 / 状态 / 更新人 / 更新时间 / 操作', () => {
+  it('每行展示：名称 / 版本 / 状态 / 操作', () => {
     render(<AssetListPage assets={assets} />);
     const row = document.querySelector('[data-testid="asset-row"]')!;
     expect(row.textContent).toContain('蒸汽压力公式');
     expect(row.textContent).toContain('v3.1');
     expect(row.textContent).toContain('草稿');
-    expect(row.textContent).toContain('张三');
-    expect(row.textContent).toContain('2026-09-15 14:32');
+    expect(row.textContent).toContain('查看');
+    expect(row.textContent).toContain('编辑');
+    expect(row.textContent).toContain('审批');
+    expect(row.textContent).toContain('版本');
+    // ⚠️ 反向断言：这两列曾存在但数据源字段（updated_by / updated_at）
+    // 在 config_assets 表上**根本不存在**，所以恒为空 —— 留着列只是
+    // 让人以为「这行没有更新人」。真值只有 created_by/created_at/updated_at，
+    // 而列表响应不带它们（见 AssetResponse）。要显示得先扩后端响应。
+    expect(row.textContent).not.toContain('张三');
   });
 
   // ⚠️ 此前钉的是「4 态」并含前端编造的 `审批中`(IN_APPROVAL)。
@@ -247,19 +240,24 @@ describe('AssetListPage — 详情 Drawer', () => {
     expect(document.body.textContent).toContain('蒸汽压力公式');
   });
 
-  it('详情 Drawer 显示：名称 / 类别 / 版本 / 状态 / 更新人 / 时间 / hash / tags', () => {
+  /**
+   * ⚠️ 此前这条断言的是「详情 = 名称/类别/版本/状态/更新人/时间/hash/tags」，
+   * 而其中 **hash / tags / updated_by 三个字段在 `config_assets` 表上
+   * 根本不存在** —— 断言全绿，生产上那三块恒不显示。
+   * 现在只断言契约里真实存在的字段，并反向断言旧字段不再出现。
+   */
+  it('详情 Drawer 显示契约里真实存在的字段', () => {
     render(<AssetListPage assets={assets} />);
     const row = document.querySelector('[data-testid="asset-row"]')!;
     fireEvent.click(row);
     const drawer = document.querySelector('.ant-drawer')!;
     expect(drawer.textContent).toContain('蒸汽压力公式');
-    expect(drawer.textContent).toContain('FORMULA');
+    expect(drawer.textContent).toContain('CATEGORY_2');   // 原始枚举值
+    expect(drawer.textContent).toContain('公式');          // 业务标签
     expect(drawer.textContent).toContain('v3.1');
     expect(drawer.textContent).toContain('草稿');
-    expect(drawer.textContent).toContain('张三');
-    expect(drawer.textContent).toContain('a3f9…d7a8');
-    expect(drawer.textContent).toContain('蒸汽');
-    expect(drawer.textContent).toContain('压力');
+    expect(drawer.textContent).not.toContain('FORMULA');   // 旧的自造值
+    expect(drawer.textContent).not.toContain('a3f9…d7a8'); // hash 字段不存在
   });
 
   it('详情 Drawer 关闭按钮 → 关闭', () => {

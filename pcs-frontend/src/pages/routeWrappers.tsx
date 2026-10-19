@@ -92,13 +92,12 @@ export function ApprovalPanelRoute(): JSX.Element {
   return <ApprovalPanelPage items={[]} />;
 }
 export function AssetListRoute(): JSX.Element {
-  // ⚠️ 显式传空数组，**不**请求 `/api/v1/config/assets`（2026-10-19 用户裁决）。
-  // 契约里该路径**只有 post/fork/submit/…，没有 get** —— 页面此前发的
-  // GET 是必然 404，而 404 会被监控记成故障，端点却是好的。
-  // 与 `PipeRoute` 同一处理。补端点后把这里换回 useFetch（见 TODOS.md
-  // TODO-040，附触发条件）。mock 侧那个 handler 已一并删除，
-  // 否则它会替这个缺陷遮着（bug-180 的教训）。
-  return <AssetListPage assets={[]} />;
+  // 端点已补上（2026-10-19，TODO-040）：SPEC `…Web版 P2.md §3.1.2` 第一行
+  // 就是这个 GET，此前**从未实现**（前端跑在前面）。
+  // 支持 `?category=CATEGORY_N` 过滤 —— 但 Tabs 已经在前端按 category 过滤了，
+  // 所以这里不带参数（少一次往返，且过滤逻辑只有一处）。
+  const assets = useFetch<ConfigAsset[]>('/api/v1/config/assets', []);
+  return <AssetListPage assets={assets} />;
 }
 export function CoefficientEditorRoute(): JSX.Element {
   return <CoefficientTableEditorPage rows={[]} />;

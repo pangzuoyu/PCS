@@ -41,11 +41,11 @@ from __future__ import annotations
 import uuid as _uuid
 from collections.abc import Iterable
 from dataclasses import dataclass
-from typing import Annotated, Any
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 import jwt as _jwt
-from fastapi import APIRouter, Depends, Header, HTTPException
+from fastapi import APIRouter, Depends, Header, HTTPException, Query
 from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -143,6 +143,48 @@ async def _load_current_version(
 # ---------------------------------------------------------------------------
 # Endpoints
 # ---------------------------------------------------------------------------
+
+
+#: `config_assets.category` 的合法取值。DB 侧有 CheckConstraint
+#: `config_assets_category_chk` 兜底，这里再做一层是为了**早失败**：
+#: 过滤值非法时 400 + 明确 code，而不是返回空数组让调用方以为「没有资产」。
+#: 取值域见 `合并数据字典.md:905`（`ConfigCategory`）。
+CATEGORIES: tuple[str, ...] = (
+    "CATEGORY_1", "CATEGORY_2", "CATEGORY_3",
+    "CATEGORY_4", "CATEGORY_5", "CATEGORY_6",
+)
+
+
+@router.get("/assets", response_model=list[AssetResponse])
+async def list_assets(
+    user: Annotated[_Actor, Depends(current_actor)],
+    db: Annotated[AsyncSession, Depends(get_db)],
+    # 用 `str | None` + 显式校验而不是 `Literal`：本模块有
+    # `from __future__ import annotations`，`Annotated[Literal[...], Query()]`
+    # 会变成未解析的 ForwardRef，Pydantic 直接报 "not fully defined"。
+    # 显式校验还能给出业务错误码（422 是框架的，不带 code）。
+    category: str | None = Query(None, description="按类别过滤（CATEGORY_1~6）"),
+) -> list[AssetResponse]:
+    """列出配置资产（可按 category 过滤）。
+
+    SPEC `…需求规格说明书 Web版 P2.md §3.1.2`「配置资产通用」第一行，
+    此前**从未实现**（前端跑在前面，TODO-040）。
+
+    非法 `category` 由 `Literal` 在 FastAPI 层直接 422 —— 不走本函数体。
+    ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN（与 POST /assets 一致）。
+    只读端点，不开事务。
+    """
+    require_roles(user, "DESIGNER", "PROCESS_CONTROLLER", "SYSTEM_ADMIN")
+    if category is not None and category not in CATEGORIES:
+        # 静默返回空数组 = 「过滤生效了且没有资产」，调用方分不出是哪种
+        # ⇒ 非法值必须 400。
+        raise PcsError(
+            "CONFIG_ASSET_INVALID_CATEGORY",
+            f"非法 category {category!r}（合法值 {', '.join(CATEGORIES)}）",
+            status=400,
+        )
+    rows = await ConfigService(db).list_assets(category=category)
+    return [AssetResponse.model_validate(r) for r in rows]
 
 
 @router.post("/assets", status_code=201, response_model=AssetResponse)

@@ -3403,6 +3403,53 @@
         "fixture-drift",
         "false-green"
       ]
+    },
+    {
+      "id": "bug-187",
+      "date": "2026-10-19",
+      "component": "backend+frontend",
+      "error_message": "生产上每个真实管号等级都显示「未知状态: PUBLISHED」（不报错，只是没内容）",
+      "root_cause": "三层叠加：(1) PipeClassResponse.status 是裸 str，词表进不了契约；(2) 前端只能猜，猜成 3 态 DRAFT/ACTIVE/OBSOLETE，而这个错误词表抄自后端 app/schemas/pipe_class.py 的 docstring —— docstring 说 3 态、ORM 列注释说 5 态 ConfigStatus，docstring 赢是因为更好抄；(3) 真因是后端**两套状态机并存**：submit/approve/publish/obsolete 四个端点走 ConfigStateMachine（5 态），而 PUT 的 update() 实现着 1.9 遗留的 DRAFT→ACTIVE→OBSOLETE，且没有任何路径会产生 ACTIVE；_STATUS_OK 常量更是只定义无引用的死代码。测试用同一份错词表造 fixture，于是全绿。",
+      "fix": "契约写 ConfigStatus（PipeClassResponse.status + PipeClassUpdate.status）；update() 不再自己跑状态机，只做同状态幂等回写，改状态 → 409 并指路到那四个端点；前端 PIPE_CLASS_STATUSES 改 5 态并加双向编译期断言与契约对齐；删死常量与前端编造的 ACTIVE。重写 tests/api/v1/test_pipe_classes.py 与 test_pipe_class_service.py。新增 tests/schemas/test_pipe_class_schema.py。",
+      "fix_commit": "b03155f",
+      "tags": [
+        "contract-drift",
+        "vocabulary",
+        "docstring-lies",
+        "two-sources-of-truth",
+        "false-green"
+      ]
+    },
+    {
+      "id": "bug-188",
+      "date": "2026-10-19",
+      "component": "backend+frontend",
+      "error_message": "资产列表「审批」按钮永远点不动；APPROVED 态渲染成空标签",
+      "root_cause": "AssetResponse.status 是裸 str，词表只写在 description 文字里（这次 description 写对了，但没有机器可读）。前端读不到机器可读的词表，编了一个 IN_APPROVAL（SPEC/app/契约三处零命中）。后果分两处：AssetListPage 的审批按钮只对 IN_APPROVAL 启用而后端产 PENDING ⇒ 永不启用；APPROVED 这态前端完全没有，落进 CONFIG_STATUS_LABEL[s] 的 undefined ⇒ 空标签。与 bug-187 同族，区别是「读文档的人是对的，读契约的代码是错的」，更隐蔽。",
+      "fix": "AssetResponse.status → ConfigStatus；前端 ConfigAssetStatus 直接 = components['schemas']['ConfigStatus']；seed/测试的 IN_APPROVAL → PENDING 并补 APPROVED fixture；状态列测试改成 5 态逐个断言；删除零消费者的 STATUS_TO_BADGE。新增 tests/schemas/test_config_asset_schema.py。",
+      "fix_commit": "77fceaf",
+      "tags": [
+        "contract-drift",
+        "vocabulary",
+        "dead-code",
+        "false-green"
+      ]
+    },
+    {
+      "id": "bug-189",
+      "date": "2026-10-19",
+      "component": "frontend",
+      "error_message": "物流详情页在生产上白屏（payload.stream 是 undefined）；另有 3 处可空字段崩溃",
+      "root_cause": "前端把 GET /api/v1/streams/{id} 的响应包装成自造的 StreamDetailPayload（stream+matrix+signatures+approvalSteps+conflicts+lineage+changeImpact+uiSchema），而后端 response_model=StreamResponse 是扁平的、且那 7 块**根本没有对应端点**（streams 下只有 /properties 与 /state-points）。路由读 payload.stream ⇒ 真后端下 undefined。mocks 的 buildStreamDetail 一直在替它遮着。并进契约后又暴露 3 处：composition_json 可空却直接 Object.entries；mass_flow 可空却 .toString()；组成值类型 unknown 却 .toFixed()。",
+      "fix": "路由直接取契约类型；删 buildStreamDetail/StreamDetailPayload；mock detail handler 改成返单个 stream；Stream 并成 components['schemas']['StreamResponse']；补 5 个契约必填字段到 seed 与全部 fixture；新增 streamPhaseLabel/streamPhaseColor 显式区分「未标注」与「未知相态」；修 3 处可空崩溃。新增「响应体 ↔ OpenAPI」ajv 守门组，并修 handlers.test.ts 里 inlineRefs 拿子树当 $ref 解析根的潜在 bug。",
+      "fix_commit": "24dc452",
+      "tags": [
+        "contract-drift",
+        "mock-masking",
+        "nullable",
+        "path-not-executed",
+        "false-green"
+      ]
     }
   ]
 }

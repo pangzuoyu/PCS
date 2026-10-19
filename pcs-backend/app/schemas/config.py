@@ -7,12 +7,25 @@ ForkVersionRequest / VersionResponse / DiffResponse。Pydantic v2 的
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, Field
 
 from app.models.enums import ConfigStatus
+
+#: `config_assets.category` 取值域。DB 侧有 CheckConstraint
+#: `config_assets_category_chk` 兜底；这里写出来是为了让**契约可枚举** ——
+#: 此前是裸 `str`（词表只在 DB 约束里），客户端只能猜，而前端确实猜错过
+#: （它猜成了 FORMULA/COEFFICIENT/…，真实数据永远是 CATEGORY_N ⇒
+#: 按类别过滤的 Tabs 在生产上一档都命中不了）。bug-188/189 同族。
+#:
+#: 取值域见 `合并数据字典.md:905`（`ConfigCategory`）；各值的业务含义见
+#: `src/types/configAsset.ts` 里那张带依据的映射表。
+ConfigCategory = Literal[
+    "CATEGORY_1", "CATEGORY_2", "CATEGORY_3",
+    "CATEGORY_4", "CATEGORY_5", "CATEGORY_6",
+]
 
 
 class CreateAssetRequest(BaseModel):
@@ -33,7 +46,9 @@ class AssetResponse(BaseModel):
     """GET /assets/{id} 与 POST /assets 返回结构。"""
 
     asset_id: UUID = Field(..., description="资产唯一 ID")
-    category: str = Field(..., description="资产类别")
+    category: ConfigCategory = Field(
+        ..., description="资产类别（CATEGORY_1~6；业务含义见合并数据字典）"
+    )
     name: str = Field(..., description="资产名称")
     # 此前是裸 `str`，词表只写在 description 里 —— 机器读不到，于是前端
     # 编了一个 `IN_APPROVAL`（bug-188，同 bug-187 一族）。

@@ -734,7 +734,18 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        get?: never;
+        /**
+         * List Assets
+         * @description 列出配置资产（可按 category 过滤）。
+         *
+         *     SPEC `…需求规格说明书 Web版 P2.md §3.1.2`「配置资产通用」第一行，
+         *     此前**从未实现**（前端跑在前面，TODO-040）。
+         *
+         *     非法 `category` 由 `Literal` 在 FastAPI 层直接 422 —— 不走本函数体。
+         *     ACL：DESIGNER / PROCESS_CONTROLLER / SYSTEM_ADMIN（与 POST /assets 一致）。
+         *     只读端点，不开事务。
+         */
+        get: operations["list_assets_api_v1_config_assets_get"];
         put?: never;
         /**
          * Create Asset
@@ -5775,9 +5786,10 @@ export interface components {
             asset_id: string;
             /**
              * Category
-             * @description 资产类别
+             * @description 资产类别（CATEGORY_1~6；业务含义见合并数据字典）
+             * @enum {string}
              */
-            category: string;
+            category: "CATEGORY_1" | "CATEGORY_2" | "CATEGORY_3" | "CATEGORY_4" | "CATEGORY_5" | "CATEGORY_6";
             /**
              * Name
              * @description 资产名称
@@ -14634,9 +14646,10 @@ export interface components {
             asset_id: string;
             /**
              * Category
-             * @description 资产类别
+             * @description 资产类别（CATEGORY_1~6；业务含义见合并数据字典）
+             * @enum {string}
              */
-            category: string;
+            category: "CATEGORY_1" | "CATEGORY_2" | "CATEGORY_3" | "CATEGORY_4" | "CATEGORY_5" | "CATEGORY_6";
             /**
              * Name
              * @description 资产名称
@@ -19233,6 +19246,40 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     };
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_assets_api_v1_config_assets_get: {
+        parameters: {
+            query?: {
+                /** @description 按类别过滤（CATEGORY_1~6） */
+                category?: string | null;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AssetResponse"][];
                 };
             };
             /** @description Validation Error */
