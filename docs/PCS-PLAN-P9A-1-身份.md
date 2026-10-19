@@ -7,7 +7,7 @@
 
 ---
 
-### A1：迁移基座（`users.token_version` + CHECK）
+### Task 1（A1）：迁移基座（`users.token_version` + CHECK）
 
 **Files:**
 - Create: `pcs-backend/alembic/versions/p9_001_users_token_version.py`
@@ -165,7 +165,7 @@ cd .. && git add -A && git commit -m "feat(P9A): 迁移基座 users.token_versio
 
 ---
 
-### A2：登录签发共用路径（`_issue_tokens()`）
+### Task 2（A2）：登录签发共用路径（`_issue_tokens()`）
 
 **Files:**
 - Modify: `pcs-backend/app/api/v1/auth.py:217-285`（login）、`app/api/v1/mock_auth.py:53-68`
@@ -303,7 +303,7 @@ git add -A && git commit -m "feat(P9A): 登录签发共用 _issue_tokens 路径�
 
 ---
 
-### A3：ADMIN 端点 + AD 同步最小实现
+### Task 3（A3）：ADMIN 端点 + AD 同步最小实现
 
 **Files:**
 - Create: `pcs-backend/app/api/v1/admin_users.py`
