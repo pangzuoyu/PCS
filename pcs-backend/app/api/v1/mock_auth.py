@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
 from app.core.errors import PcsError
-from app.core.security import create_access_token, create_refresh_token
+from app.services.token_issuer import issue_tokens
 
 router = APIRouter(prefix="/auth", tags=["mock-auth"])
 
@@ -46,8 +46,13 @@ class MockLoginResponse(BaseModel):
 
 
 @router.post("/mock-login", response_model=MockLoginResponse)
-def mock_login(body: MockLoginRequest) -> MockLoginResponse:
-    """任何密码都接受（mock）；生产环境此路由不会被 include。"""
+async def mock_login(body: MockLoginRequest) -> MockLoginResponse:
+    """任何密码都接受（mock）；生产环境此路由不会被 include。
+
+    ⚠️ `persist_user=False` ⇒ **不查不写 `users` 表**（ADR-0046 §③b）。
+    mock 的 alice 与真实 AD 的 alice 同名，落库会污染同一行的 `roles`，
+    而那是 ACL 的权威输入。tv 写保留值 0。
+    """
     if get_settings().is_production:
         # 双重保险：main.py 已不挂载，这里再 raise 防误用
         raise PcsError(
@@ -62,9 +67,10 @@ def mock_login(body: MockLoginRequest) -> MockLoginResponse:
             message=f"unknown mock user: {body.username}",
             status=404,
         )
+    pair = await issue_tokens(username=body.username, role=role, persist_user=False)
     return MockLoginResponse(
-        access_token=create_access_token(subject=body.username, role=role),
-        refresh_token=create_refresh_token(subject=body.username, role=role),
+        access_token=pair.access_token,
+        refresh_token=pair.refresh_token,
         role=role,
         username=body.username,
     )

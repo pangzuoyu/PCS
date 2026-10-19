@@ -311,6 +311,8 @@ class AuditAction(str, enum.Enum):
     TOKEN_REFRESHED = "TOKEN_REFRESHED"
     # F-P3-001 #5 (Sprint 3b): RBAC 401/403 拒绝事件 (含 429 限流命中)
     RBAC_DENIED = "RBAC_DENIED"
+    # P9A (ADR-0046 §③): 停用用户登录被拒。没有它，停用策略完全无痕。
+    USER_LOGIN_DENIED_DISABLED = "USER_LOGIN_DENIED_DISABLED"
 
     # === 记录层 CRUD（P4-P6） ===
     RECORD_CREATED = "RECORD_CREATED"

@@ -17,3 +17,7 @@ def test_config_audit_actions_exist():
     assert AuditAction.CONFIG_VERSION_DIFF_VIEWED.value == "CONFIG_VERSION_DIFF_VIEWED"
     # 既有 39 项 + 本次新增 8 项
     assert len(list(AuditAction)) >= 8 + 39
+
+def test_p9a_identity_audit_action_exists():
+    """P9A（ADR-0046 §③）：停用用户登录被拒必须留痕。"""
+    assert AuditAction.USER_LOGIN_DENIED_DISABLED.value == "USER_LOGIN_DENIED_DISABLED"

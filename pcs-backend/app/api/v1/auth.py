@@ -25,6 +25,7 @@ from app.core.security import (
 )
 from app.db.session import get_db
 from app.services.ldap_client import LdapAuthError, authenticate, resolve_role
+from app.services.token_issuer import issue_tokens, verify_refresh_tv
 
 # 与 Depends(current_actor) 推导保持一致: 优先从 JWT user_id 声明读取, 缺省回退
 # uuid5(NAMESPACE_DNS, sub). 前端 /auth/me 拿到权威 actor id, 避免自行派生分叉.
@@ -259,20 +260,20 @@ async def login(
         )
         raise PcsError(code="INVALID_CREDENTIALS", message=str(e), status=401) from e
     role = resolve_role(user.groups)
-    # P7-7+ actor 上下文一致: 在 JWT payload 嵌入 user_id 声明, 让
-    # Depends(current_actor) 直接取到权威 id (避免每次回退 uuid5 派生).
-    user_id = uuid.uuid5(_UUID5_NAMESPACE_DNS, user.username)
+    # P9A（ADR-0046 §③）：真实登录走共用签发路径 —— 惰性建 users 行、
+    # 停用用户拒绝、`tv` 取行内 token_version。角色来自 LDAP 组映射，
+    # **不能**被 mock 的值覆盖（否则会写进 users.roles）。
+    pair = await issue_tokens(
+        session=db, username=user.username, role=role, persist_user=True,
+    )
+    user_id = pair.user_id
     await _record_login_audit(
         db, action="LOGIN_SUCCESS", username=user.username, ip=client_ip,
         user_id=user_id,
     )
     return TokenResponse(
-        access_token=create_access_token(
-            subject=user.username, role=role, extra={"user_id": str(user_id)},
-        ),
-        refresh_token=create_refresh_token(
-            subject=user.username, role=role, extra={"user_id": str(user_id)},
-        ),
+        access_token=pair.access_token,
+        refresh_token=pair.refresh_token,
         role=role,
         username=user.username,
     )
@@ -292,6 +293,7 @@ def me(
 @router.post("/refresh", response_model=RefreshResponse)
 async def refresh(
     body: RefreshRequest, request: Request,
+    db: Annotated[AsyncSession, Depends(get_db)],
 ) -> RefreshResponse:
     """刷新 token：旧 refresh 一次性使用，签发新 access + 新 refresh。
 
@@ -301,6 +303,10 @@ async def refresh(
     3. 缺 role claim（P0-2 防回归）→ INVALID_REFRESH（401）
     4. JTI 已被吊销（重放/截获）→ INVALID_REFRESH（401，H-P0-2 防重放）
     5. 旧 JTI 一次性使用：成功签发后立即 revoke 旧 JTI，缩小泄露窗口
+    6. **P9A（ADR-0046 §④）**：`tv` claim 必须等于 `users.token_version`
+       ⇒ 停用用户（tv+1）之后，已发的 refresh 全部作废。
+       存量的 `is_jti_revoked` 是**进程内**集合，多 worker 下静默失效；
+       tv 是 DB 里的整数，跨进程一致 —— 这才是停用能真正生效的那一层。
     """
     # TODO-006: refresh 同样限流。refresh 本身不涉及口令，威胁模型弱于
     # login，但无限制仍可被用来打满签发路径（每次都要跑一次 JWT 校验）。
@@ -345,9 +351,18 @@ async def refresh(
             message="refresh token revoked",
             status=401,
         )
+    sub = payload["sub"]
+    # P9A（ADR-0046 §④）：停用后行内 tv 递增 ⇒ 存量 refresh 全部作废。
+    # 放在 revoke 之前 —— 先比对再消耗 JTI，否则一次被拒的刷新会把
+    # 用户手里仍然有效的令牌也一起烧掉。
+    if not await verify_refresh_tv(db, username=sub, tv=payload.get("tv", 0)):
+        raise PcsError(
+            code="REFRESH_REVOKED",
+            message="refresh token superseded (user disabled or token version changed)",
+            status=401,
+        )
     if old_jti:
         revoke_jti(old_jti)
-    sub = payload["sub"]
     return RefreshResponse(
         access_token=create_access_token(subject=sub, role=role),
         refresh_token=create_refresh_token(subject=sub, role=role),
