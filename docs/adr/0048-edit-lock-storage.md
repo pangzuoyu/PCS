@@ -83,6 +83,21 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 **Redis 不可用时：编辑锁降级**（前端横幅「锁服务不可用，保存时可能冲突」），
 **保存路径仍由 DB 层兜底**。不是无锁放行 —— 放行的是**体验**，拦住并发的是 DB。
 
+> ⚠️ **「拦住并发的是 DB」这一保证只对 §⑥ 表中的 19 张表成立**（决策委员会 2026-10-19 指出，
+> 本段原读起来像全覆盖的保证，与 §⑥ 的实测缺口矛盾）。
+>
+> 实测：**10 张表没有 `record_hash`**（`sim_*`(8) / `util_results` / `cost_est_results`），
+> 其中 **9 张连 `updated_at` 也没有** ⇒ 对它们，Redis 降级后**DB 兜底不成立**，
+> 每次编辑保存都落 `no_baseline`。另有 `two_phase_results` 有 hash 但**无 `updated_at`**，
+> 退化阶梯缺第二档。
+>
+> ⇒ **这 11 张表的编辑并发保护是 P9A 的未决迁移决策**（见「尚未解决」1），
+> 在该决策落地前它们**没有 DB 兜底**。
+>
+> **前端要求**：Redis 降级横幅不能是全局一句话。对落在上述 11 张表的记录，
+> 横幅须额外提示「**本次编辑无冲突检测**」（而不是让用户以为有 DB 兜底）。
+> 这不是可选的措辞优化 —— 用户在无保护状态下编辑，**必须知道**。
+
 告警走日志 ERROR + P9B 前端顶栏横幅。
 
 推论（对 §④ 的加强）：**不得**把「持有编辑锁」当作任何写入的前置条件；
@@ -147,6 +162,36 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 > 前一类无害，后一类意味着 **`updated_at` 不是罕见边角，而是 pump / pipe / pipe_net
 > 三类记录的常态路径**。实施时这三类记录的冲突检测依赖 `onupdate`，不是依赖 hash。
 
+#### 这三类在 persist → finalize 之间到底有没有保护窗口？（实测结论）
+
+先答一个必须答清的问题：这三类记录的 `record_hash = ""` 窗口，**是不是一个可观测的无保护期**？
+
+**实测：不是。** 窗口是**事务内**的，任何并发会话都看不到它：
+
+```
+pump_chain_persist.py:191   row.record_hash = ""
+                    :193     db.add(row); await db.flush()      ← INSERT，updated_at 仍为 NULL
+                    :195     await finalize_calc_record(...)    ← 同一事务内，无 commit
+calc_lineage.py:179          record.record_hash = compute_record_hash(record)
+                    :183     tracker.track(...) 内部 flush      ← UPDATE，onupdate 触发，updated_at 落值
+```
+
+`finalize_calc_record` 的 docstring 明写「本函数 **不 commit**（flush 由 LineageTracker
+内部完成），提交由调用方控制」。**两次 flush 之间没有 commit ⇒ 没有别的会话能读到
+`hash=""` 的行。** 三张表（`pump_results` / `piping_results` / `pipe_network_results`）
+也都在 §⑥ 表中的 19 张里，且**都有 `updated_at`**。
+
+⚠️ 顺带纠正一个容易顺手写下的说法：**不能说「窗口内走退化阶梯第二档」** ——
+INSERT 不触发 `onupdate`，那一瞬 `updated_at` 是 **NULL**，落的是 `no_baseline` 不是第二档。
+之所以不构成问题，是因为那个状态根本不可观测。
+
+> **真正的残留风险不是窗口，是「提交了但没 finalize」**：若某个调用方改了
+> `record_hash = ""` 却漏掉 `finalize_calc_record` 而直接 commit，该行就**永久**停在
+> `hash=""` + `updated_at=NULL`（若是全新 INSERT）⇒ 落 `no_baseline`。
+> P9A 加审计 `RECORD_EDIT_OVERWROTE_STALE_BASELINE` 时应能看见这类行；
+> 建议 P9A 顺带加一条**自检**：定期扫 `record_hash = ''` 的行并告警
+> （这是「计算结果已落库但哈希从未生成」的可靠信号）。
+
 **粒度 = per `{module}/{record_id}`**，与 Redis 锁粒度一致。
 不做「事务内多行独立 version」—— 交付物侧 `issue` 跨表事务
 （改 Deliverable + 写 DeliverableVersion + 写绑定 + 写 workflow_progress）
@@ -208,6 +253,28 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 - `changed_by` / `changed_at` 取自 `audit_logs` 该记录最近一条写入。
   取不到置 `null`，**不得**因此报错。
 
+> ⚠️ **`changed_by` 的可用性有一个前提，且它比「常为 null」更麻烦**（决策委员会 2026-10-19 指出，
+> 实测后加重）：
+>
+> **编辑保存路径今天不存在** —— `records.py` 现有 6 个路由里没有改内容的 PUT/PATCH
+> （`POST /piping/{id}/transition` 与 `DELETE` 走的是 `StateMachineService.transition()`，
+> 那是**状态流转**，不是编辑保存）。所以「编辑保存写不写审计」是 **P9A 的新决策**，
+> 不是可以查证的既有事实。
+>
+> **两种情形**：
+> - **P9A 不为编辑保存写审计** ⇒ `audit_logs` 里只有状态流转与锁 acq/rel，
+>   「该记录最近一条写入」很可能与本次编辑**无关** ⇒ `changed_by` 不仅常为 null，
+>   更糟的是**可能指错人** —— 把冲突归因给一个没碰过这条记录的用户。
+> - **P9A 为编辑保存写审计** ⇒ `changed_by` 可信，409 弹窗能说「被 X 于 Y 修改」。
+>
+> **要求**：
+> 1. 409 响应中 `changed_by` **只在审计条目确实对应本次编辑写入时**才填，
+>    否则置 `null` —— **不得**用「最近一条 audit」这种泛匹配去凑。
+> 2. 若产品要求 409 弹窗显示修改人，**P9A 必须为编辑保存补审计**。
+>    这是产品需求 → 实现的单向依赖，不要在实现阶段才发现做不到而回退成「显示不出修改人」。
+> 3. `changed_at` 同理：无对应审计时置 `null`，**不得**用 `updated_at` 冒充 ——
+>    `updated_at` 是行级时间戳，不指明是谁改的。
+
 **审计**：409 本身**不写** `audit_logs`（读侧拒绝，非状态变更）。
 但**无锁期间保存成功且 `expected_hash` 与库中上一值不符**时，
 必须写一条 `action = RECORD_EDIT_OVERWROTE_STALE_BASELINE`。
@@ -243,3 +310,8 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 2. **`record_hash` 不检测批准状态字段**（`sign_status` / `approval_step`）。
    若 P9A 实施时发现签署流程本身也需要并发保护（而不只是编辑），
    **本 ADR 不覆盖该场景**，需回本 ADR 修订。
+3. **「编辑保存」是否写 `audit_logs` 未裁决**（见 §⑦ ⚠️）。
+   编辑保存路径今天**不存在**（`records.py` 无改内容的 PUT/PATCH），所以这不是可查证的
+   既有事实，是 P9A 的新决策。它决定 409 的 `changed_by` 是「可信的名字」还是
+   「泛匹配的最近一条审计」—— 后者会把冲突**归因给错误的人**。
+   若产品要求 409 弹窗显示修改人 ⇒ P9A 必须补这条审计。

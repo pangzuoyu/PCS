@@ -1804,3 +1804,7 @@
 | 19:17 | Edited docs/adr/0047-workflow-progress-observation-layer.md | 2→5 lines | ~50 |
 | 19:18 | Edited docs/adr/0047-workflow-progress-observation-layer.md | expanded (+12 lines) | ~163 |
 | 19:18 | Edited docs/adr/0049-notification-and-todo-data-model.md | 1→5 lines | ~54 |
+| 19:20 | Edited docs/adr/0048-edit-lock-storage.md | expanded (+15 lines) | ~162 |
+| 19:20 | Edited docs/adr/0048-edit-lock-storage.md | modified compute_record_hash() | ~368 |
+| 19:20 | Edited docs/adr/0048-edit-lock-storage.md | expanded (+22 lines) | ~241 |
+| 19:20 | Edited docs/adr/0048-edit-lock-storage.md | 3→8 lines | ~97 |
