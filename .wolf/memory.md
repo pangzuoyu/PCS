@@ -1899,3 +1899,24 @@
 | 06:45 | Edited pcs-backend/tests/api/v1/test_deliverable_issue.py | modified test_signature_summary_carries_matrix_steps() | ~34 |
 | 06:45 | Edited pcs-backend/app/services/deliverable_service.py | inline fix | ~16 |
 | 06:50 | Edited pcs-backend/app/services/deliverable_service.py | 1→5 lines | ~76 |
+| 06:51 | Edited .superpowers/sdd/PCS-PLAN-P9A-2-交付物写面/progress.md | expanded (+44 lines) | ~534 |
+| 06:52 | Created pcs-backend/tests/services/test_workflow_progress_writer.py | — | ~2094 |
+| 06:52 | Created pcs-backend/tests/api/v1/test_deliverable_sign_step.py | — | ~3588 |
+| 06:53 | Edited pcs-backend/tests/api/v1/test_deliverable_sign_step.py | modified test_step_index_out_of_range_is_rejected() | ~144 |
+| 06:53 | Edited pcs-backend/tests/api/v1/test_deliverable_sign_step.py | 11→6 lines | ~66 |
+| 06:53 | Created pcs-backend/app/services/workflow_progress_writer.py | — | ~1082 |
+| 06:54 | Edited pcs-backend/app/models/enums.py | 1→4 lines | ~51 |
+| 06:54 | Edited pcs-backend/app/schemas/deliverable_write.py | modified DeliverableIssueResponse() | ~400 |
+| 06:54 | Edited pcs-backend/app/services/deliverable_service.py | modified sign_step() | ~2362 |
+| 06:54 | Edited pcs-backend/app/services/deliverable_service.py | 24→24 lines | ~234 |
+| 06:54 | Edited pcs-backend/app/services/deliverable_service.py | modified _utcnow() | ~426 |
+| 06:54 | Edited pcs-backend/app/api/v1/deliverables.py | 1→6 lines | ~42 |
+| 06:54 | Edited pcs-backend/app/api/v1/deliverables.py | modified sign_step() | ~424 |
+| 06:55 | Edited pcs-backend/tests/api/v1/test_deliverable_sign_step.py | 5→7 lines | ~115 |
+| 06:55 | Edited pcs-backend/tests/api/v1/test_deliverable_sign_step.py | modified test_self_check_is_rejected_when_matrix_forbids_it() | ~36 |
+| 06:55 | Edited pcs-backend/tests/api/v1/test_deliverable_sign_step.py | modified _token() | ~136 |
+| 06:55 | Edited pcs-backend/tests/api/v1/test_deliverable_sign_step.py | modified _issued() | ~68 |
+| 06:55 | Edited pcs-backend/tests/api/v1/test_deliverable_sign_step.py | 2→2 lines | ~24 |
+| 06:56 | Edited pcs-backend/tests/api/v1/test_deliverable_sign_step.py | 9→14 lines | ~133 |
+| 06:56 | Edited pcs-backend/tests/api/v1/test_deliverable_sign_step.py | modified test_self_check_is_allowed_when_matrix_permits_it() | ~140 |
+| 06:56 | Edited pcs-backend/app/api/v1/deliverables.py | 3→5 lines | ~70 |

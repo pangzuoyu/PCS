@@ -69,3 +69,32 @@ class DeliverableIssueResponse(BaseModel):
     version_purpose: str
     sign_status: str = Field(description="签发后为 PENDING")
     issued_at: datetime = Field(description="版本签发时刻（= 版本行 created_at）")
+
+
+#: 签署决策 3 值。`SIGN` 与 `RETURN` 是**相反动作**，`SKIP` 只在矩阵
+#: `can_skip=true` 时允许 —— 三者都要能走通，只接通 SIGN 的半成品会让
+#: 「退回」永远 500，而退回是签署流程里唯一能纠错的路径。
+SignDecision = Literal["SIGN", "RETURN", "SKIP"]
+
+
+class SignStepRequest(BaseModel):
+    """推进签署矩阵某一步的请求体。"""
+
+    version_id: uuid.UUID = Field(description="被签的版本行")
+    step_index: int = Field(ge=1, description="步骤序号，1 起")
+    decision: SignDecision = Field(description="SIGN / RETURN / SKIP")
+
+
+class SignStepResponse(BaseModel):
+    """推进结果。字段集合被 `test_response_model_has_no_bare_fields` 钉死。"""
+
+    deliverable_id: uuid.UUID
+    version_id: uuid.UUID
+    step_index: int
+    step_role: str = Field(description="矩阵 steps_json.sign_role")
+    decision: SignDecision
+    state: str = Field(description="COMPLETED / FAILED / SKIPPED")
+    deliverable_sign_status: str = Field(
+        description="推进后交付物的签署状态（DRAFT/PENDING/APPROVED）"
+    )
+    signed_at: datetime = Field(description="本步动作发生时刻")

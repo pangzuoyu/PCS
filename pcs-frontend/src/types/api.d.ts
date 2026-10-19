@@ -3863,6 +3863,33 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deliverables/{deliverable_id}/sign-step": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 推进签署矩阵的一步（签 / 退 / 跳）
+         * @description 按签署矩阵推进一步，并同步写一行观测（ADR-0047 §①）。
+         *
+         *     步骤只能顺序推进（越步 409）—— 否则矩阵的职责分离失效。
+         *     `SIGN` / `RETURN` / `SKIP` 三个分支**都要能走通**：只接通 SIGN 的半成品
+         *     会让「退回」永远 500，而退回是签署流程里唯一能纠错的路径。
+         *
+         *     观测写入在 service 层而非这里（ADR-0047 §① 🔒）：cron / 事件驱动的调用
+         *     路径完全不过 API 层，写在这一层会让它们在观测层里系统性隐形且不报错。
+         */
+        post: operations["sign_step_api_v1_deliverables__deliverable_id__sign_step_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/equipment/{equipment_id}/actual-data": {
         parameters: {
             query?: never;
@@ -14702,6 +14729,73 @@ export interface components {
             fittings?: components["schemas"]["Fitting"][];
         };
         /**
+         * SignStepRequest
+         * @description 推进签署矩阵某一步的请求体。
+         */
+        SignStepRequest: {
+            /**
+             * Version Id
+             * Format: uuid
+             * @description 被签的版本行
+             */
+            version_id: string;
+            /**
+             * Step Index
+             * @description 步骤序号，1 起
+             */
+            step_index: number;
+            /**
+             * Decision
+             * @description SIGN / RETURN / SKIP
+             * @enum {string}
+             */
+            decision: "SIGN" | "RETURN" | "SKIP";
+        };
+        /**
+         * SignStepResponse
+         * @description 推进结果。字段集合被 `test_response_model_has_no_bare_fields` 钉死。
+         */
+        SignStepResponse: {
+            /**
+             * Deliverable Id
+             * Format: uuid
+             */
+            deliverable_id: string;
+            /**
+             * Version Id
+             * Format: uuid
+             */
+            version_id: string;
+            /** Step Index */
+            step_index: number;
+            /**
+             * Step Role
+             * @description 矩阵 steps_json.sign_role
+             */
+            step_role: string;
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "SIGN" | "RETURN" | "SKIP";
+            /**
+             * State
+             * @description COMPLETED / FAILED / SKIPPED
+             */
+            state: string;
+            /**
+             * Deliverable Sign Status
+             * @description 推进后交付物的签署状态（DRAFT/PENDING/APPROVED）
+             */
+            deliverable_sign_status: string;
+            /**
+             * Signed At
+             * Format: date-time
+             * @description 本步动作发生时刻
+             */
+            signed_at: string;
+        };
+        /**
          * SimImportDetailResponse
          * @description 单条详情（完整字段）。
          */
@@ -24898,6 +24992,43 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DeliverableIssueResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    sign_step_api_v1_deliverables__deliverable_id__sign_step_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                deliverable_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SignStepRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SignStepResponse"];
                 };
             };
             /** @description Validation Error */

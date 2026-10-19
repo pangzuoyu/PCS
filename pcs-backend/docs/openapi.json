@@ -11906,6 +11906,76 @@
         }
       }
     },
+    "/api/v1/deliverables/{deliverable_id}/sign-step": {
+      "post": {
+        "tags": [
+          "deliverables"
+        ],
+        "summary": "推进签署矩阵的一步（签 / 退 / 跳）",
+        "description": "按签署矩阵推进一步，并同步写一行观测（ADR-0047 §①）。\n\n步骤只能顺序推进（越步 409）—— 否则矩阵的职责分离失效。\n`SIGN` / `RETURN` / `SKIP` 三个分支**都要能走通**：只接通 SIGN 的半成品\n会让「退回」永远 500，而退回是签署流程里唯一能纠错的路径。\n\n观测写入在 service 层而非这里（ADR-0047 §① 🔒）：cron / 事件驱动的调用\n路径完全不过 API 层，写在这一层会让它们在观测层里系统性隐形且不报错。",
+        "operationId": "sign_step_api_v1_deliverables__deliverable_id__sign_step_post",
+        "parameters": [
+          {
+            "name": "deliverable_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Deliverable Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SignStepRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SignStepResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/equipment/{equipment_id}/actual-data": {
       "get": {
         "tags": [
@@ -33066,6 +33136,101 @@
         ],
         "title": "SegmentRequest",
         "description": "单管段请求。"
+      },
+      "SignStepRequest": {
+        "properties": {
+          "version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Version Id",
+            "description": "被签的版本行"
+          },
+          "step_index": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Step Index",
+            "description": "步骤序号，1 起"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "SIGN",
+              "RETURN",
+              "SKIP"
+            ],
+            "title": "Decision",
+            "description": "SIGN / RETURN / SKIP"
+          }
+        },
+        "type": "object",
+        "required": [
+          "version_id",
+          "step_index",
+          "decision"
+        ],
+        "title": "SignStepRequest",
+        "description": "推进签署矩阵某一步的请求体。"
+      },
+      "SignStepResponse": {
+        "properties": {
+          "deliverable_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Deliverable Id"
+          },
+          "version_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Version Id"
+          },
+          "step_index": {
+            "type": "integer",
+            "title": "Step Index"
+          },
+          "step_role": {
+            "type": "string",
+            "title": "Step Role",
+            "description": "矩阵 steps_json.sign_role"
+          },
+          "decision": {
+            "type": "string",
+            "enum": [
+              "SIGN",
+              "RETURN",
+              "SKIP"
+            ],
+            "title": "Decision"
+          },
+          "state": {
+            "type": "string",
+            "title": "State",
+            "description": "COMPLETED / FAILED / SKIPPED"
+          },
+          "deliverable_sign_status": {
+            "type": "string",
+            "title": "Deliverable Sign Status",
+            "description": "推进后交付物的签署状态（DRAFT/PENDING/APPROVED）"
+          },
+          "signed_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Signed At",
+            "description": "本步动作发生时刻"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deliverable_id",
+          "version_id",
+          "step_index",
+          "step_role",
+          "decision",
+          "state",
+          "deliverable_sign_status",
+          "signed_at"
+        ],
+        "title": "SignStepResponse",
+        "description": "推进结果。字段集合被 `test_response_model_has_no_bare_fields` 钉死。"
       },
       "SimImportDetailResponse": {
         "properties": {

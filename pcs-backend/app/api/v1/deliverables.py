@@ -31,7 +31,12 @@ from app.schemas.deliverable import (
     DeliverableVersionResponse,
     RecordBindingResponse,
 )
-from app.schemas.deliverable_write import DeliverableIssueRequest, DeliverableIssueResponse
+from app.schemas.deliverable_write import (
+    DeliverableIssueRequest,
+    DeliverableIssueResponse,
+    SignStepRequest,
+    SignStepResponse,
+)
 from app.services.deliverable_service import DeliverableService
 
 router = APIRouter(tags=["deliverables"])
@@ -226,4 +231,49 @@ async def issue_deliverable(
         version_purpose=version.version_purpose,
         sign_status=str(deliverable.sign_status.value),
         issued_at=version.created_at,
+    )
+
+
+@router.post(
+    "/deliverables/{deliverable_id}/sign-step",
+    response_model=SignStepResponse,
+    summary="推进签署矩阵的一步（签 / 退 / 跳）",
+)
+async def sign_step(
+    deliverable_id: uuid.UUID,
+    body: SignStepRequest,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> SignStepResponse:
+    """按签署矩阵推进一步，并同步写一行观测（ADR-0047 §①）。
+
+    步骤只能顺序推进（越步 409）—— 否则矩阵的职责分离失效。
+    `SIGN` / `RETURN` / `SKIP` 三个分支**都要能走通**：只接通 SIGN 的半成品
+    会让「退回」永远 500，而退回是签署流程里唯一能纠错的路径。
+
+    观测写入在 service 层而非这里（ADR-0047 §① 🔒）：cron / 事件驱动的调用
+    路径完全不过 API 层，写在这一层会让它们在观测层里系统性隐形且不报错。
+    """
+    require_roles(actor, *_READ_ROLES)
+    await _authorize(db, actor, deliverable_id)
+    outcome = await DeliverableService.sign_step(
+        db,
+        deliverable_id=deliverable_id,
+        version_id=body.version_id,
+        step_index=body.step_index,
+        decision=body.decision,
+        actor_user_id=actor.user_id,
+        actor_role=actor.role,
+    )
+    return SignStepResponse(
+        deliverable_id=outcome.deliverable.deliverable_id,
+        version_id=outcome.version.version_id,
+        step_index=outcome.step_index,
+        step_role=outcome.step_role,
+        # 用 `body.decision`（请求侧的 Literal）而不是 `outcome.decision`（service 侧的 str）：
+        # service 不该知道 schema 层，响应模型的类型约束在请求侧已经保证了取值合法。
+        decision=body.decision,
+        state=outcome.state.value,
+        deliverable_sign_status=outcome.deliverable.sign_status.value,
+        signed_at=outcome.signed_at,
     )

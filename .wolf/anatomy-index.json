@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T22:50:58.060Z",
-    "fileCount": 865,
+    "lastScanned": "2026-10-19T22:56:53.077Z",
+    "fileCount": 868,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "4a0ab39940f6123b2a257cd9844908af8c2bb1d9f091df858dfe41f6f5d6b54f",
-    "storeUpdatedAt": "2026-10-19T22:50:58.070Z",
-    "rootHash": "dacc6662ab0421cd"
+    "renderedHash": "42f28a803456d71f2a10c62a93d40b49e6baa86596e93fcc7cef488aca94de5a",
+    "storeUpdatedAt": "2026-10-19T22:56:53.087Z",
+    "rootHash": "12405d5b322f7ea8"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -12767,11 +12767,11 @@
     },
     "pcs-backend/app/models/enums.py": {
       "description": "业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。",
-      "tokens": 5056,
-      "hash": "c76ae1444dd8743b",
-      "size": 22519,
-      "mtimeMs": 1792449824717.1948,
-      "updatedAt": "2026-10-19T22:43:44.769Z",
+      "tokens": 5094,
+      "hash": "49f8a73896dd8e9a",
+      "size": 22769,
+      "mtimeMs": 1792450451638.8237,
+      "updatedAt": "2026-10-19T22:54:11.687Z",
       "source": "hook",
       "symbols": [
         {
@@ -12890,91 +12890,91 @@
           "name": "AuditAction",
           "kind": "class",
           "startLine": 299,
-          "endLine": 422,
-          "tokens": 1312
+          "endLine": 425,
+          "tokens": 1350
         },
         {
           "name": "ConfigStatus",
           "kind": "class",
-          "startLine": 423,
-          "endLine": 436,
+          "startLine": 426,
+          "endLine": 439,
           "tokens": 91
         },
         {
           "name": "ConfigTransition",
           "kind": "class",
-          "startLine": 437,
-          "endLine": 450,
+          "startLine": 440,
+          "endLine": 453,
           "tokens": 98
         },
         {
           "name": "PipeType",
           "kind": "class",
-          "startLine": 451,
-          "endLine": 464,
+          "startLine": 454,
+          "endLine": 467,
           "tokens": 104
         },
         {
           "name": "CheckResult",
           "kind": "class",
-          "startLine": 465,
-          "endLine": 475,
+          "startLine": 468,
+          "endLine": 478,
           "tokens": 60
         },
         {
           "name": "PumpOperation",
           "kind": "class",
-          "startLine": 476,
-          "endLine": 486,
+          "startLine": 479,
+          "endLine": 489,
           "tokens": 60
         },
         {
           "name": "DesignStage",
           "kind": "class",
-          "startLine": 487,
-          "endLine": 496,
+          "startLine": 490,
+          "endLine": 499,
           "tokens": 62
         },
         {
           "name": "FlowPattern",
           "kind": "class",
-          "startLine": 497,
-          "endLine": 511,
+          "startLine": 500,
+          "endLine": 514,
           "tokens": 95
         },
         {
           "name": "TwoPhaseCheck",
           "kind": "class",
-          "startLine": 512,
-          "endLine": 522,
+          "startLine": 515,
+          "endLine": 525,
           "tokens": 61
         },
         {
           "name": "ReliefScenario",
           "kind": "class",
-          "startLine": 523,
-          "endLine": 545,
+          "startLine": 526,
+          "endLine": 548,
           "tokens": 200
         },
         {
           "name": "WorkflowProgressState",
           "kind": "class",
-          "startLine": 546,
-          "endLine": 560,
+          "startLine": 549,
+          "endLine": 563,
           "tokens": 114
         },
         {
           "name": "WorkflowType",
           "kind": "class",
-          "startLine": 561,
-          "endLine": 579,
+          "startLine": 564,
+          "endLine": 582,
           "tokens": 149
         },
         {
           "name": "to_value",
           "kind": "fn",
-          "startLine": 580,
-          "endLine": 600,
+          "startLine": 583,
+          "endLine": 603,
           "tokens": 184
         }
       ]
@@ -21292,72 +21292,93 @@
     },
     "pcs-backend/app/services/deliverable_service.py": {
       "description": "交付物读服务（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 3838,
-      "hash": "13b52be0f3a7410c",
-      "size": 15963,
-      "mtimeMs": 1792450258011.0745,
-      "updatedAt": "2026-10-19T22:50:58.060Z",
+      "tokens": 6310,
+      "hash": "eb313d80fe85d321",
+      "size": 25667,
+      "mtimeMs": 1792450481793.3066,
+      "updatedAt": "2026-10-19T22:54:41.840Z",
       "source": "hook",
       "symbols": [
         {
+          "name": "_utcnow",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 64,
+          "tokens": 26
+        },
+        {
+          "name": "SignStepOutcome",
+          "kind": "class",
+          "startLine": 65,
+          "endLine": 81,
+          "tokens": 96
+        },
+        {
           "name": "DeliverableService",
           "kind": "class",
-          "startLine": 51,
-          "endLine": 390,
-          "tokens": 3410
+          "startLine": 82,
+          "endLine": 644,
+          "tokens": 5688
         }
       ]
     },
     "pcs-backend/app/api/v1/deliverables.py": {
       "description": "交付物读端点（P1-7+ D 模块 / P8 前置）。",
-      "tokens": 2072,
-      "hash": "93d39dfe45a2ccf4",
-      "size": 8550,
-      "mtimeMs": 1792449856856.0537,
-      "updatedAt": "2026-10-19T22:44:16.903Z",
+      "tokens": 2522,
+      "hash": "9ff043e4deec1a94",
+      "size": 10534,
+      "mtimeMs": 1792450613022.7698,
+      "updatedAt": "2026-10-19T22:56:53.076Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_authorize",
           "kind": "fn",
-          "startLine": 54,
-          "endLine": 78,
+          "startLine": 59,
+          "endLine": 83,
           "tokens": 179
         },
         {
           "name": "list_deliverables",
           "kind": "fn",
-          "startLine": 79,
-          "endLine": 117,
+          "startLine": 84,
+          "endLine": 122,
           "tokens": 346
         },
         {
           "name": "get_deliverable",
           "kind": "fn",
-          "startLine": 118,
-          "endLine": 136,
+          "startLine": 123,
+          "endLine": 141,
           "tokens": 170
         },
         {
           "name": "list_deliverable_versions",
           "kind": "fn",
-          "startLine": 137,
-          "endLine": 158,
+          "startLine": 142,
+          "endLine": 163,
           "tokens": 208
         },
         {
           "name": "get_deliverable_snapshot",
           "kind": "fn",
-          "startLine": 159,
-          "endLine": 196,
+          "startLine": 164,
+          "endLine": 201,
           "tokens": 364
         },
         {
           "name": "issue_deliverable",
           "kind": "fn",
-          "startLine": 197,
-          "endLine": 229,
-          "tokens": 342
+          "startLine": 202,
+          "endLine": 241,
+          "tokens": 382
+        },
+        {
+          "name": "sign_step",
+          "kind": "fn",
+          "startLine": 242,
+          "endLine": 279,
+          "tokens": 394
         }
       ]
     },
@@ -28854,11 +28875,11 @@
     },
     ".superpowers/sdd/PCS-PLAN-P9A-2-交付物写面/progress.md": {
       "description": "SDD ledger — plan: docs/PCS-PLAN-P9A-2-交付物写面.md",
-      "tokens": 1291,
-      "hash": "96f011f1f3cb05d2",
-      "size": 7681,
-      "mtimeMs": 1792449637232.5461,
-      "updatedAt": "2026-10-19T22:40:37.280Z",
+      "tokens": 1733,
+      "hash": "b2144948a8d367ee",
+      "size": 10582,
+      "mtimeMs": 1792450309612.6516,
+      "updatedAt": "2026-10-19T22:51:49.662Z",
       "source": "hook"
     },
     "pcs-backend/tests/alembic/test_p9_002_workflow_progress.py": {
@@ -29103,11 +29124,11 @@
     },
     "pcs-backend/app/schemas/deliverable_write.py": {
       "description": "交付物写面 schema（P9A B1 `issue` 端点）。",
-      "tokens": 529,
-      "hash": "1edad9854af19303",
-      "size": 2618,
-      "mtimeMs": 1792449820209.3572,
-      "updatedAt": "2026-10-19T22:43:40.261Z",
+      "tokens": 796,
+      "hash": "dcb15b2d4ee7066d",
+      "size": 3805,
+      "mtimeMs": 1792450457474.9219,
+      "updatedAt": "2026-10-19T22:54:17.525Z",
       "source": "hook",
       "symbols": [
         {
@@ -29121,8 +29142,237 @@
           "name": "DeliverableIssueResponse",
           "kind": "class",
           "startLine": 58,
-          "endLine": 72,
-          "tokens": 132
+          "endLine": 79,
+          "tokens": 186
+        },
+        {
+          "name": "SignStepRequest",
+          "kind": "class",
+          "startLine": 80,
+          "endLine": 87,
+          "tokens": 71
+        },
+        {
+          "name": "SignStepResponse",
+          "kind": "class",
+          "startLine": 88,
+          "endLine": 101,
+          "tokens": 143
+        }
+      ]
+    },
+    "pcs-backend/tests/services/test_workflow_progress_writer.py": {
+      "description": "workflow_progress_writer 测试（ADR-0047 观测层的**唯一写入口**）。",
+      "tokens": 2094,
+      "hash": "b5e75588dec2b8ba",
+      "size": 8729,
+      "mtimeMs": 1792450327318.1365,
+      "updatedAt": "2026-10-19T22:52:07.370Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_rows",
+          "kind": "fn",
+          "startLine": 31,
+          "endLine": 36,
+          "tokens": 42
+        },
+        {
+          "name": "test_record_step_inserts_a_row",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 55,
+          "tokens": 151
+        },
+        {
+          "name": "test_record_step_upserts_rather_than_duplicating",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 82,
+          "tokens": 228
+        },
+        {
+          "name": "test_record_step_sets_assignee_from_actor",
+          "kind": "fn",
+          "startLine": 83,
+          "endLine": 100,
+          "tokens": 148
+        },
+        {
+          "name": "test_record_step_stamps_started_at_on_first_write",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 118,
+          "tokens": 166
+        },
+        {
+          "name": "test_record_step_stamps_completed_at_on_terminal_state",
+          "kind": "fn",
+          "startLine": 119,
+          "endLine": 151,
+          "tokens": 281
+        },
+        {
+          "name": "test_record_step_does_not_commit",
+          "kind": "fn",
+          "startLine": 152,
+          "endLine": 173,
+          "tokens": 170
+        },
+        {
+          "name": "test_record_step_records_result_hash_when_given",
+          "kind": "fn",
+          "startLine": 174,
+          "endLine": 191,
+          "tokens": 155
+        },
+        {
+          "name": "test_record_step_separates_workflows_by_type",
+          "kind": "fn",
+          "startLine": 192,
+          "endLine": 214,
+          "tokens": 202
+        },
+        {
+          "name": "test_writer_has_no_second_entry_point",
+          "kind": "fn",
+          "startLine": 215,
+          "endLine": 232,
+          "tokens": 158
+        },
+        {
+          "name": "test_row_count_is_one_per_step",
+          "kind": "fn",
+          "startLine": 233,
+          "endLine": 251,
+          "tokens": 182
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_deliverable_sign_step.py": {
+      "description": "交付物 sign-step 端点测试（P9A B2 / SPEC P9A-DLV-007）。",
+      "tokens": 3816,
+      "hash": "ef296961594c6623",
+      "size": 14888,
+      "mtimeMs": 1792450581896.509,
+      "updatedAt": "2026-10-19T22:56:21.946Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "auth",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 40,
+          "tokens": 33
+        },
+        {
+          "name": "_token",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 46,
+          "tokens": 59
+        },
+        {
+          "name": "_actor_id",
+          "kind": "fn",
+          "startLine": 47,
+          "endLine": 55,
+          "tokens": 78
+        },
+        {
+          "name": "_matrix",
+          "kind": "fn",
+          "startLine": 56,
+          "endLine": 70,
+          "tokens": 106
+        },
+        {
+          "name": "_steps",
+          "kind": "fn",
+          "startLine": 71,
+          "endLine": 90,
+          "tokens": 146
+        },
+        {
+          "name": "_issued",
+          "kind": "fn",
+          "startLine": 91,
+          "endLine": 136,
+          "tokens": 437
+        },
+        {
+          "name": "_sign",
+          "kind": "fn",
+          "startLine": 137,
+          "endLine": 143,
+          "tokens": 81
+        },
+        {
+          "name": "_progress",
+          "kind": "fn",
+          "startLine": 144,
+          "endLine": 153,
+          "tokens": 89
+        },
+        {
+          "name": "TestSignStepAdvances",
+          "kind": "class",
+          "startLine": 154,
+          "endLine": 200,
+          "tokens": 509
+        },
+        {
+          "name": "TestSignStepDecision",
+          "kind": "class",
+          "startLine": 201,
+          "endLine": 255,
+          "tokens": 530
+        },
+        {
+          "name": "TestSignStepGuards",
+          "kind": "class",
+          "startLine": 256,
+          "endLine": 332,
+          "tokens": 762
+        },
+        {
+          "name": "TestSignStepObservation",
+          "kind": "class",
+          "startLine": 333,
+          "endLine": 385,
+          "tokens": 542
+        },
+        {
+          "name": "TestSignStepResponseContract",
+          "kind": "class",
+          "startLine": 386,
+          "endLine": 404,
+          "tokens": 154
+        }
+      ]
+    },
+    "pcs-backend/app/services/workflow_progress_writer.py": {
+      "description": "workflow_progress 的**唯一**写入口（ADR-0047 §① 🔒 / P9A-OBS-002）。",
+      "tokens": 1082,
+      "hash": "53a24e75828332cc",
+      "size": 5111,
+      "mtimeMs": 1792450437297.5725,
+      "updatedAt": "2026-10-19T22:53:57.346Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_now",
+          "kind": "fn",
+          "startLine": 53,
+          "endLine": 56,
+          "tokens": 18
+        },
+        {
+          "name": "record_step",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 125,
+          "tokens": 659
         }
       ]
     }

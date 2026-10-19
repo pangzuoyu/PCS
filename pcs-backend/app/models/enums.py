@@ -397,6 +397,9 @@ class AuditAction(str, enum.Enum):
     # issue 是「谁把哪一版送审了」的唯一留痕点：doc_no 在这一步才最终确定，
     # 而 doc_no 是交付物对外身份（报告封面、二维码溯源都用它）。
     DELIVERABLE_ISSUED = "DELIVERABLE_ISSUED"
+    # 签署动作留痕。RETURN（退回）与 SIGN 是相反动作但同样要留痕 ——
+    # 只记签过会让人以为「从没被退过」，而退回次数正是质量追溯的关键指标。
+    DELIVERABLE_SIGNED = "DELIVERABLE_SIGNED"
 
     # === P8 报表（ADR-P8-001 全直接生成路线）===
     REPORT_GENERATED = "REPORT_GENERATED"

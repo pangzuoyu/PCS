@@ -23,6 +23,8 @@ from __future__ import annotations
 
 import re
 import uuid
+from dataclasses import dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from sqlalchemy import func, select
@@ -37,15 +39,44 @@ from app.models.deliverable import (
     ProjectSignatureMatrixBinding,
     SignatureMatrix,
 )
-from app.models.enums import AuditAction, DeliverableSignStatus
+from app.models.enums import (
+    AuditAction,
+    DeliverableSignStatus,
+    WorkflowProgressState,
+    WorkflowType,
+)
 from app.models.project import Project
+from app.models.workflow_progress import WorkflowProgress
 from app.services.audit_service import AuditService
 from app.services.numbering_service import NumberingService
+from app.services.workflow_progress_writer import record_step
 
 #: `segments_json` 里已登记的占位符（P2 计划设计 §3.5 的示例段名）。
 #: 匹配「标识符形状」（小写 + 下划线）的段一律按占位符解析，
 #: 解析不到 ⇒ 报错；其余（`-` / `/` 等）按字面量原样拼接。
 _TOKEN_SHAPE = re.compile(r"^[a-z][a-z0-9_]*$")
+
+
+def _utcnow() -> datetime:
+    return datetime.now(UTC)
+
+
+@dataclass(frozen=True)
+class SignStepOutcome:
+    """`sign_step` 的返回值 —— API 层据此组装响应。
+
+    刻意不返回 ORM 对象给 API 直接序列化：响应模型显式声明（P9A-DLV-010），
+    ORM 上多一列就会自动多一字段，那是零裸字段约束要防的事。
+    """
+
+    deliverable: Deliverable
+    version: DeliverableVersion
+    step_index: int
+    step_role: str
+    decision: str
+    state: WorkflowProgressState
+    signed_at: datetime
+
 
 
 class DeliverableService:
@@ -387,3 +418,226 @@ class DeliverableService:
         ).scalars().all()
         numeric = [int(r) for r in revs if r.isdigit()]
         return str(max(numeric, default=0) + 1)
+
+    # ------------------------------------------------------------------
+    # 写面（P9A B2：sign_step + 观测写入点 ①）
+    # ------------------------------------------------------------------
+
+    @classmethod
+    async def sign_step(
+        cls,
+        db: AsyncSession,
+        *,
+        deliverable_id: uuid.UUID,
+        version_id: uuid.UUID,
+        step_index: int,
+        decision: str,
+        actor_user_id: uuid.UUID,
+        actor_role: str,
+    ) -> SignStepOutcome:
+        """推进签署矩阵的一步（SPEC P9A-DLV-007）。
+
+        这是 `SignatureMatrix.steps_json` 的第一个消费方。步骤只能**顺序**推进：
+        越步签 409 —— 否则矩阵的职责分离失效（复核人能在设计人没签时先签复核）。
+
+        同时经 `workflow_progress_writer.record_step` 写观测行（ADR-0047 §① 🔒）：
+        ① 本步的终态（COMPLETED / FAILED / SKIPPED）
+        ② 下一步的 IN_PROGRESS（最后一步则不写）
+        甘特图就是这两行拼出来的。
+
+        Returns:
+            `SignStepOutcome`（供 API 层组装响应）。
+
+        Raises:
+            PcsError 404 `SIGN_STEP_NOT_FOUND` / 403 `SIGN_STEP_ROLE_MISMATCH` /
+                403 `SIGN_STEP_SELF_CHECK_FORBIDDEN` / 409 `SIGN_STEP_OUT_OF_ORDER` /
+                409 `SIGN_STEP_NOT_IN_APPROVAL` / 409 `SIGN_STEP_SKIP_FORBIDDEN`
+        """
+        deliverable = await cls.get_or_404(db, deliverable_id=deliverable_id)
+        version = await db.get(DeliverableVersion, version_id)
+        if version is None or version.deliverable_id != deliverable_id:
+            raise PcsError(
+                code="SIGN_STEP_NOT_FOUND",
+                message=f"交付物 {deliverable_id} 下没有版本 {version_id}",
+                status=404,
+            )
+        if deliverable.sign_status != DeliverableSignStatus.PENDING:
+            raise PcsError(
+                code="SIGN_STEP_NOT_IN_APPROVAL",
+                message=(
+                    f"交付物 {deliverable_id} 当前状态 "
+                    f"{deliverable.sign_status.value}，不在签署中"
+                ),
+                status=409,
+            )
+
+        matrix = await db.get(SignatureMatrix, deliverable.matrix_id)
+        steps = cls._matrix_steps(matrix)
+        if step_index > len(steps):
+            raise PcsError(
+                code="SIGN_STEP_NOT_FOUND",
+                message=f"签署矩阵只有 {len(steps)} 步，第 {step_index} 步不存在",
+                status=404,
+            )
+        step = steps[step_index - 1]
+
+        await cls._assert_step_order(db, workflow_id=version_id, step=step, steps=steps)
+
+        sign_role = str(step.get("sign_role", ""))
+        if sign_role != actor_role:
+            raise PcsError(
+                code="SIGN_STEP_ROLE_MISMATCH",
+                message=f"第 {step_index} 步要求角色 {sign_role}，当前角色 {actor_role}",
+                status=403,
+            )
+        if not step.get("can_self_check", True) and version.created_by == actor_user_id:
+            raise PcsError(
+                code="SIGN_STEP_SELF_CHECK_FORBIDDEN",
+                message=(
+                    f"第 {step_index} 步不允许自校（矩阵 can_self_check=false），"
+                    f"提交人不得签自己的版本"
+                ),
+                status=403,
+            )
+
+        if decision == "SKIP" and not step.get("can_skip", False):
+            raise PcsError(
+                code="SIGN_STEP_SKIP_FORBIDDEN",
+                message=f"签署矩阵未允许跳过第 {step_index} 步（can_skip=false）",
+                status=409,
+            )
+
+        now = _utcnow()
+        state = {
+            "SIGN": WorkflowProgressState.COMPLETED,
+            "RETURN": WorkflowProgressState.FAILED,
+            "SKIP": WorkflowProgressState.SKIPPED,
+        }[decision]
+
+        next_step = steps[step_index] if step_index < len(steps) else None
+        if decision == "SIGN" and next_step is None:
+            deliverable.sign_status = DeliverableSignStatus.APPROVED
+        elif decision == "RETURN":
+            # 退回 = 交付物整体回草稿。后续要改内容必须重新 issue 出新版本，
+            # 不能在原版本上继续推进 —— 否则退回的理由会挂在已签过的版本上。
+            deliverable.sign_status = DeliverableSignStatus.DRAFT
+
+        summary = dict(version.signature_summary_json or {})
+        signatures = list(summary.get("signatures", []))
+        signatures.append(
+            {
+                "step_order": step.get("step_order", step_index),
+                "step_role": sign_role,
+                "decision": decision,
+                "actor_user_id": str(actor_user_id),
+                "actor_role": actor_role,
+                "at": now.isoformat(),
+            }
+        )
+        summary["signatures"] = signatures
+        version.signature_summary_json = summary
+
+        # 观测写入点 ①（ADR-0047 §① 🔒：service 层，非 API 层）
+        await record_step(
+            session=db,
+            project_id=deliverable.project_id,
+            workflow_type=WorkflowType.SIGN,
+            workflow_id=version_id,
+            step_order=int(step.get("step_order", step_index)),
+            step_role=sign_role,
+            state=state,
+            actor_user_id=actor_user_id,
+        )
+        if next_step is not None and decision != "RETURN":
+            await record_step(
+                session=db,
+                project_id=deliverable.project_id,
+                workflow_type=WorkflowType.SIGN,
+                workflow_id=version_id,
+                step_order=int(next_step.get("step_order", step_index + 1)),
+                step_role=str(next_step.get("sign_role", "")),
+                state=WorkflowProgressState.IN_PROGRESS,
+                actor_user_id=actor_user_id,
+            )
+
+        await AuditService(db).write(
+            action=AuditAction.DELIVERABLE_SIGNED,
+            resource_type="deliverable_version",
+            resource_id=version_id,
+            user_id=actor_user_id,
+            detail={
+                "step_order": step.get("step_order", step_index),
+                "step_role": sign_role,
+                "decision": decision,
+            },
+        )
+
+        await db.commit()
+        return SignStepOutcome(
+            deliverable=deliverable,
+            version=version,
+            step_index=step_index,
+            step_role=sign_role,
+            decision=decision,
+            state=state,
+            signed_at=now,
+        )
+
+    @staticmethod
+    def _matrix_steps(matrix: SignatureMatrix | None) -> list[dict[str, Any]]:
+        """取矩阵步骤，按 `step_order` 升序。
+
+        `steps_json` 的键序不保证（它是一个 JSON 数组，写入方爱怎么排怎么排），
+        而签署推进完全依赖顺序 ⇒ 必须显式排序，不能靠数组下标。
+        矩阵缺失或步骤为空 ⇒ 空列表（调用方按越界处理）。
+        """
+        if matrix is None or not matrix.steps_json:
+            return []
+        steps = [s for s in matrix.steps_json if isinstance(s, dict)]
+        return sorted(steps, key=lambda s: s.get("step_order", 0))
+
+    @classmethod
+    async def _assert_step_order(
+        cls,
+        db: AsyncSession,
+        *,
+        workflow_id: uuid.UUID,
+        step: dict[str, Any],
+        steps: list[dict[str, Any]],
+    ) -> None:
+        """步骤必须顺序推进；越步 ⇒ 409。
+
+        「当前该签哪一步」由**已完成的观测行**决定，而不是由 `step_index` 自述 ——
+        自述的序号可以被客户端随意填，拿它当真相等于没有顺序约束。
+        """
+        rows = (
+            await db.execute(
+                select(WorkflowProgress).where(
+                    WorkflowProgress.workflow_id == workflow_id,
+                    WorkflowProgress.workflow_type == WorkflowType.SIGN,
+                )
+            )
+        ).scalars().all()
+        done_orders = {
+            r.step_order
+            for r in rows
+            if r.step_status
+            in (
+                WorkflowProgressState.COMPLETED,
+                WorkflowProgressState.SKIPPED,
+            )
+        }
+        expected: int | None = None
+        for candidate in steps:
+            if int(candidate.get("step_order", 0)) not in done_orders:
+                expected = int(candidate.get("step_order", 0))
+                break
+        if expected is None:  # 全部步骤已终态
+            expected = int(steps[-1].get("step_order", 0)) + 1
+
+        if int(step.get("step_order", 0)) != expected:
+            raise PcsError(
+                code="SIGN_STEP_OUT_OF_ORDER",
+                message=f"当前该签第 {expected} 步，收到第 {step.get('step_order')}",
+                status=409,
+            )
