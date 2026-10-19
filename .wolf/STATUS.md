@@ -4,94 +4,112 @@ budget_tokens: 1500
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-19（第 2 轮）。
+> Read this FIRST when starting a session. Last updated: 2026-10-19（第 3 轮）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
 ## ✅ 本会话完成
 
-### 第 1 轮：P8 评审闭环 + 类型唯一性起步
+### 第 1~2 轮（前序会话）：P8 契约词表治理 + 类型闸
 
-**P8 评审 30 条 findings 全部闭环**（`c9d937f` → `5b1174c`），顺带查出两个生产级缺陷：
-bug-180 管道等级页生产空白（`09a2a88`）、bug-184 契约闸门 docstring 声称三项检测
-实现零项（`5b1174c`，10s → 0.145s）。
+12 个同族缺陷 bug-180~191（词表不在类型里 → 客户端猜 → 猜错 → 生产静默错）已闭环；
+两道编译期闸（`StrictColumns<T>`、词表契约类型 + 双向断言）已补。
+明细见 `.wolf/buglog.json` + commit `c9d937f`→`5b1174c`。
+（该轮 handoff 另存 `/tmp/pcs-handoff-2026-10-19-P8词表治理(bug180-191).md`。）
 
-### 第 2 轮：一个病族，四个实例
+### 第 3 轮（本会话）：P9-Prep 实施计划（编写 + 两轮审查 + 4 项裁决）
 
-起因是「改一个类型前要先定位权威在哪」。查权威时挖出一条链：
+产出 **1 份计划**：`docs/PCS-PLAN-P9-PREP.md`（1662 行 / 9 task）。
+提交：`60b0d35`（计划）→ `a2744f0`（cerebrum）→ `39e162f`（审查修正 + 裁决）。
 
-**契约里词表没进类型 → 客户端只能猜 → 猜错 → 生产上静默错。** 本轮修了四处：
+**范围裁决**：SPEC（V2.0）覆盖 P9-Prep/P9A/P9B 三段共 17.5–24 人周。
+只写 P9-Prep —— 后者 4 份 ADR 未定（编辑锁存 DB 还是 Redis、通知建表还是实时算），
+此时写代码级步骤等于写 fiction。**P9A 计划待 ADR 落盘后另写 `docs/PCS-PLAN-P9A.md`。**
 
-| bug | 现象 | 根因 |
-|---|---|---|
-| 187 | 管号等级全显示「未知状态: PUBLISHED」 | 前端的 3 态词表**抄自后端 docstring 的一句错话**；真因是后端**两套状态机并存**（4 个端点走 `ConfigStatus` 5 态，`PUT` 里跑着 1.9 遗留的 `DRAFT→ACTIVE→OBSOLETE`，而 `ACTIVE` **没有任何路径会产生**） |
-| 188 | 资产「审批」按钮永远点不动 | `AssetResponse.status` 裸 `str`，词表**只写在 description 文字里** —— 「读文档的人是对的，读契约的代码是错的」 |
-| 189 | 物流详情页生产白屏 | 前端把响应包装成自造的 8 件套 payload，后端返的是扁平 `StreamResponse`，且那 7 块**根本没有端点** |
-| 190 | 类别过滤 tab 生产一档都不命中 | `category` 用了六个语义名，DB CheckConstraint 只允许 `CATEGORY_1~6`；`updated_by`/`hash`/`tags` **表里根本没有** |
-| 191 | Stream 四词表进契约 | 四个字段都是裸 `str`；且 description 本身不可信（`sign_status` 写 4 态实际 9 态、`source_type` 写 5 个实际 13 个） |
+**两轮审查**（`/plan-eng-review` + 专家委员会），共 6 个 issue：
+- ADR-0044 §⑤ 原写「Redis 挂 → 无锁放行」⇒ 静默覆盖 user-stated learning
+  `ekris-redis-lock-degradation`，且 Redis 挂掉会静默丢用户编辑
+  ⇒ 改**两层锁**（Redis 体验层 + `record_hash` 兜底层），§⑥ 粒度、§⑦ 409 契约
+- ADR-0042 §③ 停用门只挂 `/auth/login` ⇒ `/mock-login` 是独立签发路径，
+  无 `tv` claim、不查 users、不写审计 ⇒ 两者共用 `_issue_tokens()`
+- 闸门复用**已存在**的 `scripts/run_gate.py`（cerebrum TODO-050 已立法），
+  不新建 `_alembic_gate.py` —— 原提案的前提（两个 alembic 闸门）经核实是错的：
+  `check_migration_idempotency.py` 是静态解析迁移文件，从不跑 alembic
+- ADR-0044 §⑥「唯一收口」经核实**不成立**：`finalize_calc_record` 不是
+  `record_hash` 唯一写入点，实测 6 条旁路；`updated_at` 带 `onupdate=func.now()`，
+  空 hash 是 pump/pipe/pipe_net 的**常态**路径
 
-**ⓘ 两道编译期闸已补齐**：
-- `StrictColumns<T>`（`src/types/strictColumns.ts`）把 antd 的 `dataIndex`
-  收成行类型的 key，18 个页面全部替换 ⇒ bug-180 的形态现在编译期即拒。
-- `StreamPhase` 等词表改用契约类型 + **双向编译期断言**。
-- ⚠️ 两道闸都写了**自检**（`@ts-expect-error` + 真实契约类型）——
-  第一版 `DeepKeys` 因 JSONB 索引签名塌成 `string` 而**完全失效**，
-  探针用的是干净 interface 所以没发现。**闸的自检必须用真实类型。**
+**4 项裁决（用户）**：MFA 路径 B（AD 密码二次输入 + `SIGN_2FA_FALLBACK`）｜
+mock 会话豁免二次认证（安全依据：生产不挂 mock 路由）｜
+本版不设邮件服务器，预留 `NotificationChannel` 接口｜
+P9-OPEN-004 每日凌晨 / P9-OPEN-006 WebSocket+降级轮询。
 
-- **`tests` 已纳入 tsconfig**（此前 675 条测试的类型标注全是装饰性的）。
-  7 条噪声清完，**探针验证过边界**：抓得住属性访问与漏必填，
-  **抓不住 antd `dataIndex`**（TODO-041）。
-- **`Stream` 并进契约**后 tsc 立刻挖出 3 个真生产崩溃（可空字段被当非空用）。
-- **新增守门**：`handlers.test.ts` 的「响应体 ↔ OpenAPI」ajv 组 —— 既有那条只验
-  **路径**一致性，mock 多返一层 `.stream` 全绿通过。
-- **TODO-040 补完**：`GET /config/assets` 从未实现（前端跑在前面），已补并接回。
+委员会建议 3（TODO-047 改 TODO-045）**驳回** —— TODO-045/046 已被占用，
+它们是 `##` 级标题，`grep "^### TODO-"` 会漏一半。根因已进 cerebrum。
+
+---
 
 ## ✅ 基线
 
-后端 **4516 passed / 0 failed**，前端 **677 passed / 0 failed**，
-两端 lint/typecheck clean。`check-api-drift.sh` → OK / exit 0（test 1–9 全过）。
+后端 **4629 passed / 77 skipped / 0 failed**，前端 **704 passed / 0 failed**
+（2026-10-19 实测；此前 STATUS 里的 4516/677 是第 1~2 轮之前的旧值）。
+两端 lint/typecheck clean。`check-api-drift.sh` → OK / exit 0。
 
 ---
 
 ## 🚀 Next quest
 
-1. **P9 起步**：`report_verify_base_url` 未配置 ⇒ 二维码默认不印；`assemble` 真分批。
-2. **两件多日工程，别当小任务排**：
+1. **执行 `docs/PCS-PLAN-P9-PREP.md`** —— 9 个 task，Task 1~6 与 8~9 可开工；
+   Task 7 裁决已全部作出，不阻塞。
+   建议 `superpowers:executing-plans`（Task 2~7 全争用同一 SPEC 文件，**串行更稳**），
+   而非 subagent-driven。
+2. **ADR-0042~0045 待落盘**（Task 3~6）—— 计划里是草稿，尚未成为
+   `docs/adr/0042-*.md` 等正式 ADR。**ADR-0044 §⑥ 必须写入核实出的 6 条旁路**。
+3. **两件多日工程，别当小任务排**：
    - **TODO-026**：9 张结果表里 8 张仍是 `input_json`/`output_json` 简化容器，
      照 `CoolingTowerResult` 的 14 子结构铺开 ≈ **100+ 个子结构** + 迁移 + 契约 + 测试；
    - **TODO-032**：条目写 4 个文件，**实测 29 个**用真 PG（`get_async_session_factory`）。
+4. **P9-Prep 计划外但已登记**：TODO-047（`advisory_lock.acquire_record_lock`
+   用 Python `hash()`，跨进程不串行 —— 同文件的 `hashtext()` 才是对的），
+   归 P9A-LCK 或独立修复，**不在 P9-Prep 修**。
 
-✅ **TODO-028 已于 2026-10-08 核实关闭**（主键已是 DICT V3.3 短名，`*_calc_id`
-残留 0 个，`alembic check` exit 0）—— 此前 STATUS 里挂着是陈旧引用，已移除。
+✅ **TODO-028 已于 2026-10-08 核实关闭**（此前 STATUS 里的挂靠是陈旧引用）。
 
 ---
 
 ## Context
 
 - main，工作区除 `.wolf/*`（钩子维护）外干净。**不要建 worktree**（历史事故）。
-- **两库均在 `p8_010`，`alembic check` 均 exit 0**。`pcs_test` 是行为验证库。
+- **两库均在 `p8_011`（head）**，`alembic check` 均 exit 0。`pcs_test` 是行为验证库。
+  （此前 STATUS 写的 `p8_010` 是陈旧值。）
 - 改迁移的纪律：`alembic check` 退出码 **255**；先 `current` vs `heads`；
   **每个库各跑一次**；行为验证上真库。
 - 契约产物（`openapi.json` / `openapi.snapshot.json` / `api.d.ts`）由 G-08 钩子在
   **commit 之后**重生成，而 `git add` 在钩子之前 ⇒ 偶尔漏提交，
   手工 `git status` 看一眼。发现不同步时**不要** `git checkout --` 丢弃。
-- 无 CI/CD（单人开发裁决，勿再建议）。
+- 无 CI/CD（单人开发裁决，勿再建议）。本地 gate 走 `.githooks/`（`core.hooksPath`
+  已设），**不是** pre-commit 框架。
+- **提交约定**：本轮 3 个 commit 落在 main（仓库历史线性，且 CLAUDE.md 的 QA 闸门
+  按「main 就是批末」描述）。
 
 ---
 
 ## 教训（本会话新增）
 
-- **改类型前先定位权威**：契约 → **对应实体的**字典 → 后端实际行为
-  （含 parser）→ SPEC（可能过时）。查 tag_number 时必须按实体找字典文件，
-  否则会被「其他 spec 里到处都是它」误导。
-- **不要「承认多套词表各自成立」** —— 那是把同一个概念分成三份，比任一份错都糟。
-- **缺端点 ≠ 缺字段**。端点缺失时 `git log -S` 能确认是「从未实现」还是回归；
-  止血要**连 mock 一起删**，否则它继续替缺陷遮着。
-- **不在类型检查里的类型 = 没写的类型**。实测才知道代价（9 条而非 675）——
-  **先量再决定，别凭感觉评估**；但量出来的错里真信号常占二成，
-  那二成说明整批 fixture 不可信。
-- **fixture 与被测对象不是同一份来源 ⇒ 零信号**（bug-180 的 6 条绿）。本轮两个
-  SIM fixture 同样如此：带 `subphase`/`approved_hash`/`tag_number`，全绿。
+- **ADR 不得静默覆盖 user-stated learning**。要与既有裁决冲突，ADR 必须**显式引用**
+  并给出**可证伪的作废条件**（「若改判为 (b)，本条作废」）。
+  冲突不必然是错 —— 但**不写**就是错。
+- **裁决要连落地约束一起写**，不只写结论。MFA 路径 B 记四条：审计 action
+  **不得**复用 `SIGN_2FA_OK`（否则审计读成「已上真 MFA」）；路径 B 是过渡态；
+  mock 豁免范围限定**登录层**、函数本身不豁免；邮件预留**不写空壳实现**也不写临时 `if`。
+- **「唯一收口」是断言不是事实**，写进 ADR 前要 grep 验证。
+  本次核实发现 6 条旁路 ⇒ 结论虽不变，论证（与实施者的预期）必须改。
+- **引用编号前先验证编号存在**；断言一批编号空闲时先确认查询没漏级别
+  （`TODOS.md` 混用 `##`/`###` 两种标题级别）。
+- **评审意见要先核实再接受**。本次 6 条里 1 条基于误读（TODO-045 已被占用），
+  1 条基于我的误读（以为有两个 alembic 闸门）。**驳回也要带证据。**
+- **注释防不住已进过记录的 bug**（`alembic check` 的 255 已进 CLAUDE.md）⇒
+  该由代码约束（共享函数 + 单测），不是每次改动补一句提醒。
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>
