@@ -91,54 +91,34 @@ Web 开发计划 P9 拆三段｜TODO-047 登记。
 
 ## 🚀 Next quest
 
-
-
-1. **执行 `docs/PCS-PLAN-P9A-1-身份.md`（A1→A3）** —— 计划已写好并审完两轮，**无前置，是整条线起点**。
+1. **执行 `docs/PCS-PLAN-P9A-2-交付物写面.md`（B0→B5）** —— A lane（A1→A3）已于
+   2026-10-19 完成（4682 passed），B lane 是下一条。
    ⚠️ **B4 有阻塞式 Step 0**：`change_notice_service.approve_change_notice` 是否等同
    SPEC 的 `abandon-change` 必须先读实现判定（approve 与 abandon 是相反动作，
    接错 = 数据语义错误），**结论写进 commit，无结论不开工**。
-   B/C/D 三条 lane 可与 A 并行；D2 必须在 B 之后。
+   C/D 两条 lane 与 B 无前置；D2 必须在 B 之后。
 
+2. **P9A-1 的遗留项**：
+   - **access token 不带 `tv`** ⇒ 停用后在手 access 仍可用至过期（默认 30 分钟）。
+     ADR-0046 §⑤ 明写是**已知边界不是已解决**；真要解决需给 access 也加 tv 校验。
+   - **AD 同步需服务账号**：新增 `LDAP_BIND_DN` / `LDAP_BIND_PASSWORD` /
+     `LDAP_USER_FILTER` / `LDAP_USER_ATTRS`。留空 ⇒ 同步端点返 503、
+     cron 每晚记一条 WARN 后 no-op。**运维给账号之前，P9A-USR-002/003 只算代码就绪，
+     不算验收通过**（离���检测与每日全量都跑不起来）。
+   - **`User.roles` 列注释的「7 值」仍不准**：已把 `SYSADMIN` 改成 `SYSTEM_ADMIN`，
+     但清单漏了 `VIEWER`（代码里 `_READ_ROLES` 是 4 值含 VIEWER）。未扩写 ——
+     按「只改自己造成的」原则留待专门一轮。
 
-2. **两件多日工程，别当小任务排**：
+3. **两件多日工程，别当小任务排**：
    - **TODO-026**：9 张结果表里 8 张仍是 `input_json`/`output_json` 简化容器，
      照 `CoolingTowerResult` 的 14 子结构铺开 ≈ **100+ 个子结构** + 迁移 + 契约 + 测试；
    - **TODO-032**：条目写 4 个文件，**实测 29 个**用真 PG（`get_async_session_factory`）。
 
-
-3. **P9A 计划里的未决项**（详见总纲 §尚未解决）：
+4. **P9A 计划里的未决项**（详见总纲 §尚未解决）：
    ① 周期估算可能偏低 —— SPEC 给 4~6 周，但 WebSocket / ARQ 失败注入 / 编辑锁
    不在原估算里；② `GET /deliverables/{id}/actions` 的数据源未定；
    ③ `audit_logs` 保留期未裁决（裁决 2 让写入量取决于编辑频率）。
 
-
-4. **P9-Prep 顺带登记的**：
-   - **TODO-047**（已登记，**已移出 P9A**）：`acquire_record_lock` 全仓**唯一调用方**是
-     `workspaces.py:129`（workspace 归档），P9A 的 6 个文件 **0 处引用** ⇒ 与 P9A 无交集，
-     是 P7/P8 缺陷。（委员会原判「P9A 会加剧它」经实测前提有误。）
-   - **ADR-0048 §⑥ 覆盖缺口**：29 张 `*_result(s)` 表里 **19 张**有 `record_hash`，
-     `sim_*`(8) / `util_results` / `cost_est_results` **没有**，`two_phase_results`
-     有 hash 但**无 `updated_at`** ⇒ 这 **11 张**要做编辑并发保护**需要新列**（其中 9 张两者都没有）。补哪列未裁决。
-   - **ADR-0046 三项决策委员会裁决**（2026-10-19）：① **`/auth/mock-login` 不得写
-     `users` 表** —— 共用 `_issue_tokens()` ≠ 共用惰性建行；mock 的 alice 与真实 AD
-     alice 同名会落进同一行，而 `acl.py:13` 明写 `User.roles` 是 ACL 权威输入。
-     mock 走临时签发不持久化，`tv` 写哨兵 0；② **孤儿清单交用户裁决**，实施者只出
-     清单 + SQL 模板（补行=授权恢复 / 保留=授权静默失效，方向相反）；
-     ③ 编号 0043~0045 **是空的**，跳号因 ADR-0041 把 0043+ 划进兜底桶。
-     ⚠️ 另三条硬约束（委员会复审追加，同属 ADR-0046）：
-     **① 带归属的待办** —— `project.py:153` 的 `User.roles` 列注释写 `SYSADMIN`，
-     是 2026-10-04 收敛的遗漏（现行 `SYSTEM_ADMIN`）。它**挡在惰性建行的写入路径上**，
-     实施者第一眼看到的是它。**P9A-USR-001 实施时必须同时修**，
-     顺带对 `roles` 取值做契约枚举校验。**不在 P9-Prep 修**（会让「注释何时变的」
-     指向错误 commit）。
-     **② `token_version = 0` 是保留值** —— mock 令牌用 `tv=0` 哨兵；若 AD 同步把
-     `server_default` 改成 0，机制**静默反向**：mock 令牌与真实用户 tv 全等，
-     等于任何 mock 令牌都能刷新任何真实用户的会话。⇒ P9A 迁移加 `CHECK >= 1`。
-     **③ 不用内存黑名单缩短吊销窗口** —— 与 ADR-0048 §⑤ 同 concept（跨进程共享状态
-     塞进单进程内存），参见 TODO-047。要缩短就走有状态 token。
-   - **ADR-0049 §① 通知写侧同步/异步未锁**：本版无邮件，原「异步以免阻塞外部投递」理由已失效。
-
-✅ **TODO-028 已于 2026-10-08 核实关闭**（此前 STATUS 里的挂靠是陈旧引用）。
 
 ---
 
