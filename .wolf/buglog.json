@@ -3450,6 +3450,21 @@
         "path-not-executed",
         "false-green"
       ]
+    },
+    {
+      "id": "bug-190",
+      "date": "2026-10-19",
+      "component": "frontend",
+      "error_message": "按类别过滤的 Tabs 在生产上一档都命中不了；「更新人」列恒空；详情里的哈希/标签恒不显示",
+      "root_cause": "ConfigAsset 的数据模型整份是前端编的：category 用了六个语义名（FORMULA/COEFFICIENT/TEMPLATE/STANDARD_DB/PROJECT_TEMPLATE/EQUIPMENT_LIB），而 DB 的 CheckConstraint config_assets_category_chk 只允许 CATEGORY_1~6，真实数据永远是 CATEGORY_N；updated_by/hash/tags 三个字段在 config_assets 表上根本不存在（只有 created_by/created_at/updated_at）。测试 fixture 用同一份错误类型 + 同一套语义名，于是全绿。",
+      "fix": "ConfigAsset 并成 components['schemas']['AssetResponse']；ConfigCategory 改 CATEGORY_1~6 且每个值标注依据出处；AssetListPage 删「更新人」「更新时间」两列与详情里 hash/tags/描述三块；seed 与测试 fixture 同步；后端 AssetResponse.category 补枚举 + 4 条守卫测试。",
+      "fix_commit": "65d3fee",
+      "tags": [
+        "contract-drift",
+        "fabricated-vocabulary",
+        "false-green",
+        "fixture-drift"
+      ]
     }
   ]
 }

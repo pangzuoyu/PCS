@@ -4,30 +4,39 @@ budget_tokens: 1500
 ---
 # STATUS — PCS
 
-> Read this FIRST when starting a session. Last updated: 2026-10-19.
+> Read this FIRST when starting a session. Last updated: 2026-10-19（第 2 轮）。
 > 保持 <2k tokens。历史细节查 `git log` / `docs/` / `TODOS.md` / `.wolf/memory.md`。
 
 ---
 
 ## ✅ 本会话完成
 
-**TODO-039 前端类型唯一性** —— 把「手写副本 vs 契约」从一次性排查变成可复跑的
-`scripts/audit-handwritten-types.mjs`（`npm run api:audit-types`），随后按
-contracts 逐项收敛：
+### 第 1 轮：P8 评审闭环 + 类型唯一性起步
 
-1. **`PipeClass` 并进契约** —— bug-180，生产整页空白（`09a2a88`）。
-2. **`Stream` 三处漂移一次改掉**（`6a94109`）：
-   - 删 `tag_number`（物流无位号，那是 `TaggedRecordMixin` 给计算记录的字段），
-     首列与详情页标题改 `stream_name`；
-   - 相态收敛为契约四值：**砍 AQUEOUS**（前端发明，三处零命中）、
-     **补 SOLID**（`import_service._phase_norm` 真产出，砍掉则固相渲染成空标签）；
-   - `AssetListRoute` 停止请求**契约里不存在**的 `GET /api/v1/config/assets`，
-     并删掉那个替缺陷遮着的 mock handler。
-   两条相态回归测试**做了 mutation 验证**（标签改 undefined 即红）。
-3. **`press` 单位**：契约描述原写 kPa，DICT 源字段是 `pressure_mpag` ——
-   差 **1000 倍且看起来完全合理**。改后端 schema + ORM `comment="MPaG"`。
-4. **`check-api-drift.sh`**：docstring 声称三项检测、实现零项（bug-184）；
-   10s → **0.145s**；补字段删除/类型变更/enum 值删除三项检测。
+**P8 评审 30 条 findings 全部闭环**（`c9d937f` → `5b1174c`），顺带查出两个生产级缺陷：
+bug-180 管道等级页生产空白（`09a2a88`）、bug-184 契约闸门 docstring 声称三项检测
+实现零项（`5b1174c`，10s → 0.145s）。
+
+### 第 2 轮：一个病族，四个实例
+
+起因是「改一个类型前要先定位权威在哪」。查权威时挖出一条链：
+
+**契约里词表没进类型 → 客户端只能猜 → 猜错 → 生产上静默错。** 本轮修了四处：
+
+| bug | 现象 | 根因 |
+|---|---|---|
+| 187 | 管号等级全显示「未知状态: PUBLISHED」 | 前端的 3 态词表**抄自后端 docstring 的一句错话**；真因是后端**两套状态机并存**（4 个端点走 `ConfigStatus` 5 态，`PUT` 里跑着 1.9 遗留的 `DRAFT→ACTIVE→OBSOLETE`，而 `ACTIVE` **没有任何路径会产生**） |
+| 188 | 资产「审批」按钮永远点不动 | `AssetResponse.status` 裸 `str`，词表**只写在 description 文字里** —— 「读文档的人是对的，读契约的代码是错的」 |
+| 189 | 物流详情页生产白屏 | 前端把响应包装成自造的 8 件套 payload，后端返的是扁平 `StreamResponse`，且那 7 块**根本没有端点** |
+| 190 | 类别过滤 tab 生产一档都不命中 | `category` 用了六个语义名，DB CheckConstraint 只允许 `CATEGORY_1~6`；`updated_by`/`hash`/`tags` **表里根本没有** |
+
+- **`tests` 已纳入 tsconfig**（此前 675 条测试的类型标注全是装饰性的）。
+  7 条噪声清完，**探针验证过边界**：抓得住属性访问与漏必填，
+  **抓不住 antd `dataIndex`**（TODO-041）。
+- **`Stream` 并进契约**后 tsc 立刻挖出 3 个真生产崩溃（可空字段被当非空用）。
+- **新增守门**：`handlers.test.ts` 的「响应体 ↔ OpenAPI」ajv 组 —— 既有那条只验
+  **路径**一致性，mock 多返一层 `.stream` 全绿通过。
+- **TODO-040 补完**：`GET /config/assets` 从未实现（前端跑在前面），已补并接回。
 
 ## ✅ 基线
 
@@ -38,17 +47,21 @@ contracts 逐项收敛：
 
 ## 🚀 Next quest
 
-1. **把 `tests` 纳入 tsconfig**（已实测：**9 条错 / 7 个文件**，一次性可修）。
-   其中 2 条是真信号（fixture 与契约脱节）。本轮未修 —— 保持 main 绿。
-   修完这道闸才立得住：**「代码用了契约里没有的字段」目前无任何自动化**。
-2. **`StreamDetailPayload`（C 类，用户已批准单独排期）** —— 手写侧是 7 个东西的
-   合成体，契约侧是单个 `StreamResponse`，**结构不同源**，改字段名解决不了，
-   要先定后端响应形状。
-3. **契约侧缺口**：`PipeClassResponse.status` 是裸 `str`，没 `Literal` ——
-   词表没进契约，客户端无法枚举（与评审 #28 同类）。
-4. **P9 起步**：`report_verify_base_url` 未配置 ⇒ 二维码默认不印；
-   `assemble` 真分批；TODO-026（JSONB 子键平铺）。
-5. 低优先：TODO-040（`GET /api/v1/config/assets`）、TODO-028、TODO-032。
+1. **TODO-042：`StreamResponse` 的 4 个字段仍是裸 `str`** —— `phase` / `sign_status` /
+   `data_mode` / `source_type`。`sign_status` 最危险：前端 `StateBadge` 的判别联合
+   现在靠 `as RecordSignStatus` 硬转，正是「把契约缺口藏进断言」。
+   配方已写在 `TODOS.md`，照 bug-187 的做法走一遍即可。
+2. **TODO-041：antd `dataIndex` 是类型闸的洞** —— `ColumnsType` 把它定成 `string`
+   而非 `keyof T`，所以列定义里写错字段名抓不到，而那正是 bug-180 的失效形态。
+   三个补法（typedColumns helper / eslint 规则 / 靠审计脚本）都还没做。
+3. **P9 起步**：`report_verify_base_url` 未配置 ⇒ 二维码默认不印；`assemble` 真分批。
+4. **两件多日工程，别当小任务排**：
+   - **TODO-026**：9 张结果表里 8 张仍是 `input_json`/`output_json` 简化容器，
+     照 `CoolingTowerResult` 的 14 子结构铺开 ≈ **100+ 个子结构** + 迁移 + 契约 + 测试；
+   - **TODO-032**：条目写 4 个文件，**实测 29 个**用真 PG（`get_async_session_factory`）。
+
+✅ **TODO-028 已于 2026-10-08 核实关闭**（主键已是 DICT V3.3 短名，`*_calc_id`
+残留 0 个，`alembic check` exit 0）—— 此前 STATUS 里挂着是陈旧引用，已移除。
 
 ---
 
