@@ -13,8 +13,8 @@ const pipeClasses = [
 ];
 
 const streams = [
-  { stream_id: 's-1', tag_number: 'FEED-101', sign_status: 'CHECKED', phase: 'LIQUID' as const },
-  { stream_id: 's-2', tag_number: 'PROD-201', sign_status: 'DRAFT', phase: 'VAPOR' as const },
+  { stream_id: 's-1', stream_name: '新鲜进料', sign_status: 'CHECKED', phase: 'LIQUID' as const },
+  { stream_id: 's-2', stream_name: '产品出料', sign_status: 'DRAFT', phase: 'VAPOR' as const },
 ];
 
 describe('PipeComputePage — 渲染 (P45-3-5)', () => {

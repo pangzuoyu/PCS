@@ -23,7 +23,6 @@ import type { ConfigAsset } from '../types/configAsset';
 import type { PipeInput, PipeLineListRow, PipeResult } from '../types/pipe';
 import type { FlashInput, FlashResult } from '../types/flash';
 import type { PumpInput, PumpResult } from '../types/pump';
-import type { StreamDetailPayload } from '../mocks/seed/streams';
 import { DEV_BEARER, PROJECT_ID } from '../constants/env';
 
 // 页面本地的辅助类型，从源文件复制定义（路由层仅传空数组，不深耦合）
@@ -130,24 +129,24 @@ export function StreamListRoute(): JSX.Element {
   return <StreamListPage streams={streams} />;
 }
 export function StreamDetailRoute(): JSX.Element {
-  // P5-1 接 :stream_id；s-101 / s-104 都有详情 payload，s-104 sign_status=STALE 触发 ChangeImpactPanel
+  // ⚠️ 直接取契约 `StreamResponse`（2026-10-19，bug-189）。
+  // 此前取的是 `StreamDetailPayload` —— 一个**前端合成的**东西：
+  // {stream, matrix, signatures, approvalSteps, conflicts, lineage,
+  //  changeImpact, uiSchema}。而 `GET /api/v1/streams/{id}` 返的是
+  // 单个扁平 `StreamResponse`，**没有 `.stream` 这一层** ⇒ 真后端下
+  // `payload.stream` 是 undefined ⇒ 详情页生产上是坏的，
+  // 一直是 mocks 的 `buildStreamDetail` 在替它遮着（bug-180 同一形态）。
+  //
+  // 另外那 7 块**后端根本没有端点**（streams 下只有 `/properties`
+  // 与 `/state-points` 两个子资源），所以 props 全部留空 —— 页面用
+  // 自己的 DEFAULT_* 兜底。要显示真实数据得先补端点，见 TODOS.md。
   const { id } = useParams<{ id: string }>();
   const streamId = id ?? 's-101';
-  const payload = useFetch<StreamDetailPayload | null>(`/api/v1/streams/${streamId}`, null);
-  if (!payload) return <Typography.Text>加载中…</Typography.Text>;
-  return (
-    <StreamDetailPage
-      stream={payload.stream}
-      matrix={payload.matrix}
-      signatures={payload.signatures}
-      approvalSteps={payload.approvalSteps}
-      currentApprovalStep={payload.currentApprovalStep}
-      conflicts={payload.conflicts}
-      lineage={payload.lineage}
-      changeImpact={payload.changeImpact}
-      uiSchema={payload.uiSchema}
-    />
-  );
+  // initial 传 null（而不是一个空 Stream）—— 缺失的值要显式失败/显示加载态，
+  // 不要塞个形状完整的空对象：那会让「还没加载」和「加载完是空」长得一样。
+  const stream = useFetch<Stream | null>(`/api/v1/streams/${streamId}`, null);
+  if (!stream) return <Typography.Text>加载中…</Typography.Text>;
+  return <StreamDetailPage stream={stream} />;
 }
 export function ImportWizardRoute(): JSX.Element {
   return <ImportWizardPage />;

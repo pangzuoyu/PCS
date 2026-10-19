@@ -33,6 +33,12 @@ const streams: Stream[] = [
     composition_json: { N2: 0.78, O2: 0.22 },
     sign_status: 'CHECKED',
     record_hash: 'a3f9b2e1c21ed7a8',
+    // 契约 StreamResponse 的必填字段（缺了 tsc 直接红）
+    case_type: 'NORMAL',
+    data_mode: 'CHEMICAL',
+    source_type: 'MANUAL_ENTRY',
+    approval_depth: 2,
+    created_at: '2026-09-15 14:00',
     updated_at: '2026-09-15 14:32',
   },
   {
@@ -46,6 +52,12 @@ const streams: Stream[] = [
     composition_json: { H2O: 0.95, CO2: 0.05 },
     sign_status: 'DRAFT',
     record_hash: 'b4e8c3d2d32f8b9c',
+    // 契约 StreamResponse 的必填字段（缺了 tsc 直接红）
+    case_type: 'NORMAL',
+    data_mode: 'CHEMICAL',
+    source_type: 'MANUAL_ENTRY',
+    approval_depth: 2,
+    created_at: '2026-09-15 14:00',
     updated_at: '2026-09-15 13:00',
   },
 ];

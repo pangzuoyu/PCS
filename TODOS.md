@@ -1802,3 +1802,57 @@ A 类全补 → 48+6 = 54/74 = **73.0%**；B 类确认不做 → 仍 73.0%。
    字段名并与契约比对），但**要人跑**，不是闸。
 
 ⇒ 在补法落地前，**改列定义后仍要人工核对 dataIndex 与契约字段名**。
+
+---
+
+## TODO-042: `StreamResponse` 的 4 个字段仍是裸 `str`（词表只在 description）
+
+2026-10-19 把前端 `Stream` 并进契约后（bug-189），发现与 bug-187/188 **完全同型**
+的问题，只是还没人查：
+
+| 字段 | 契约现状 | 词表（只写在 description） |
+|---|---|---|
+| `phase` | `string \| null` | VAPOR/LIQUID/MIXED/SOLID |
+| `sign_status` | `string` | DRAFT/IN_APPROVAL/CHECKED/OBSOLETE |
+| `data_mode` | `string`（maxLength 20） | CHEMICAL/PETROLEUM/SOLID |
+| `source_type` | `string`（maxLength 30） | SIM_IMPORT/MANUAL_ENTRY/LAB_REPORT/FLASH_CALCULATED/DEVICE_CALCULATED |
+
+**为什么这条要紧**：这四个都是「机器读不到词表」，
+`sign_status` 尤其危险 —— 前端 `StateBadge` 的判别联合要求
+`RecordSignStatus`，现在靠 `as RecordSignStatus` 硬转，那正是
+「把契约缺口藏进断言」。
+
+**修法（照 bug-187 的样子做）**：
+1. 后端 `app/schemas/stream.py`：`phase` 用 `Literal["VAPOR","LIQUID","MIXED","SOLID"] | None`
+   （`Solid` 已在 `conflict_resolver._VALID_PHASES`，直接复用）；
+   `sign_status` 用 `StreamSignStatus`（`app/models/enums.py:29`，9 态）；
+   `data_mode` / `source_type` 视是否已有枚举，没有就建。
+2. 跑 G-08 重生成契约 + `check-api-drift.sh`。
+3. 前端删掉 `types/stream.ts` 里的 `StreamPhase` 手写词表与
+   `streamPhaseLabel` 的 `as` 断言，改用契约类型；
+   `PIPE_CLASS_STATUSES` 那样的**双向编译期断言**照抄一份。
+4. `api:audit-types` 与新增的「响应体 ↔ OpenAPI」ajv 测试会兜住回归。
+
+⚠️ 相态值已确认是 **4 值含 SOLID**（不是 SPEC P3 的 3 值），
+见本文档上一节的 SPEC 修订登记。
+
+---
+
+## 附：bug-189 顺带挖出的 3 个真生产缺陷（已修）
+
+把 `Stream` 并进契约（而非继续手写）之后，`tsc` 立刻暴露了
+「手写类型里是非空、契约里可空」的字段 —— 它们在生产上会崩：
+
+1. `Object.entries(stream.composition_json)` —— 契约 `| null | undefined`，
+   **没有组成的物流直接白屏**；
+2. `stream.mass_flow.toString()` —— 契约 `| null | undefined`，
+   在 `STALE` 分支里抛；
+3. 组成表 `v.toFixed(4)` —— 契约 `Record<string, unknown>`，
+   值不保证是数字。
+
+⇒ **这就是「并进契约」的全部收益**：手写类型会把可空性一起编掉。
+
+⚠️ 写第 2 条的测试时踩了 bug-174 那一类空绿：`STALE` 分支嵌在
+`{uiSchema && …}` 里，fixture 不传 `uiSchema` ⇒ 那段**从未执行**，
+去掉 null 守卫测试照样绿。补上 `uiSchema` 后变异验证才真的变红。
+**断言前先确认代码路径被执行过。**

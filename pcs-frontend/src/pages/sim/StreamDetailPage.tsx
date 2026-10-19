@@ -35,7 +35,8 @@ import { LineageGraph, type LineageNode, type LineageEdge } from '../../componen
 import { ChangeImpactPanel, type ChangeSource, type AffectedRecord } from '../../components/common/ChangeImpactPanel';
 import { SchemaForm, type UiSchemaResponse } from '../../components/common/SchemaForm';
 import { AssumedDataMarker } from '../../components/common/AssumedDataMarker';
-import { STREAM_PHASE_LABEL, type Stream } from '../../types/stream';
+import { streamPhaseColor, streamPhaseLabel, type Stream } from '../../types/stream';
+import type { RecordSignStatus } from '../../types/records';
 
 interface Props {
   stream: Stream;
@@ -78,12 +79,16 @@ export function StreamDetailPage({
   onSubmit,
   onObsolete,
 }: Props): JSX.Element {
-  const composition = Object.entries(stream.composition_json).map(([component, mole_fraction]) => ({
-    component,
-    mole_fraction,
-  }));
+  // 契约里 composition_json 是 `Record<string, unknown> | null | undefined` ——
+  // 直接 Object.entries(null) **会崩**（没有组成的物流在详情页白屏）。
+  const composition = Object.entries(stream.composition_json ?? {}).map(
+    ([component, mole_fraction]) => ({ component, mole_fraction }),
+  );
 
-  const compositionColumns: ColumnsType<{ component: string; mole_fraction: number }> = [
+  // 契约里 composition_json 是 `Record<string, unknown>`（additionalProperties
+  // 无约束）⇒ 值不保证是数字，`v.toFixed(4)` 会崩。显示层按「能当数字才格式化」
+  // 处理，非法值原样展示 —— 不吞、不抛。
+  const compositionColumns: ColumnsType<{ component: string; mole_fraction: unknown }> = [
     {
       title: '组分',
       dataIndex: 'component',
@@ -93,7 +98,7 @@ export function StreamDetailPage({
       title: '摩尔分率',
       dataIndex: 'mole_fraction',
       width: 160,
-      render: (v: number) => v.toFixed(4),
+      render: (v: unknown) => (typeof v === 'number' ? v.toFixed(4) : String(v ?? '—')),
     },
   ];
 
@@ -101,7 +106,7 @@ export function StreamDetailPage({
     <div data-testid="stream-detail-page">
       <PageHeader
         title={stream.stream_name}
-        status={stream.sign_status}
+        status={stream.sign_status as RecordSignStatus}
         module="SIM"
         version={
           stream.record_hash
@@ -139,9 +144,11 @@ export function StreamDetailPage({
             >
               <Descriptions.Item label="名称">{stream.stream_name}</Descriptions.Item>
               <Descriptions.Item label="相态">
-                <Tag color="blue">{STREAM_PHASE_LABEL[stream.phase]}</Tag>
+                <Tag color={streamPhaseColor(stream.phase)}>
+                  {streamPhaseLabel(stream.phase)}
+                </Tag>
                 <Typography.Text type="secondary" style={{ marginLeft: 8 }}>
-                  {stream.phase}
+                  {stream.phase ?? '—'}
                 </Typography.Text>
               </Descriptions.Item>
               <Descriptions.Item label="温度">{stream.temp} °C</Descriptions.Item>
@@ -234,7 +241,7 @@ export function StreamDetailPage({
               />
               {stream.sign_status === 'STALE' && (
                 <div style={{ marginTop: 8 }}>
-                  <AssumedDataMarker assumed={true} reason="上游工艺变更" source="S-102 流量调整" value={stream.mass_flow.toString()} />
+                  <AssumedDataMarker assumed={true} reason="上游工艺变更" source="S-102 流量调整" value={stream.mass_flow == null ? '—' : String(stream.mass_flow)} />
                   <span style={{ marginLeft: 8 }}>流量为假设值</span>
                 </div>
               )}

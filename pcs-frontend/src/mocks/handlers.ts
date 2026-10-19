@@ -43,7 +43,6 @@ import { seedPipeClasses } from "./seed/pipe-classes";
 import { seedPipeLineRows } from "./seed/pipe-line";
 import { seedBeddSections, seedPmsItems } from "./seed/pms";
 import {
-  buildStreamDetail,
   seedStreams,
 } from "./seed/streams";
 import { seedChecklist, seedWorkspaces } from "./seed/workspaces";
@@ -110,10 +109,14 @@ const devOnlyMockHandlers = [
   }),
   http.get("/api/v1/streams/:stream_id", ({ request, params }) => {
     if (!isAuthed(request)) return HttpResponse.json({ code: "MISSING_BEARER" }, { status: 401 });
-    // 返回详情页所需的完整 payload（stream + 矩阵 + 签署 + 审批 + 冲突 + 血缘 + 变更影响 + UiSchema）
-    const payload = buildStreamDetail(String(params.stream_id));
-    return payload
-      ? HttpResponse.json(payload)
+    // ⚠️ 返**单个 StreamResponse**，与契约一致（2026-10-19，bug-189）。
+    // 此前返前端合成的 payload（{stream, matrix, signatures, …}），而
+    // `response_model=StreamResponse` 是扁平的 —— mock 多返一个 `.stream`
+    // 层，于是**路由在真后端下拿不到东西，而 dev 完全看不出来**。
+    // mock 与契约一致是正确性的一部分（bug-180 的教训）。
+    const stream = seedStreams.find((s) => s.stream_id === String(params.stream_id));
+    return stream
+      ? HttpResponse.json(stream)
       : HttpResponse.json({ code: "NOT_FOUND", message: `stream ${params.stream_id} not found` }, { status: 404 });
   }),
 

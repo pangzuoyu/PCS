@@ -15,6 +15,12 @@ import type { UiSchemaResponse } from '../../components/common/SchemaForm';
 export const seedStreams: Stream[] = [
   {
     stream_id: 's-101',
+    // 契约 StreamResponse 的 5 个必填字段（此前 seed 缺，ajv 校验直接红）
+    case_type: 'NORMAL',
+    data_mode: 'CHEMICAL',
+    source_type: 'MANUAL_ENTRY',
+    approval_depth: 2,
+    created_at: '2026-09-15T08:00:00Z',
     stream_name: '进料物流',
     phase: 'LIQUID',
     temp: 25.5,
@@ -28,6 +34,12 @@ export const seedStreams: Stream[] = [
   },
   {
     stream_id: 's-102',
+    // 契约 StreamResponse 的 5 个必填字段（此前 seed 缺，ajv 校验直接红）
+    case_type: 'NORMAL',
+    data_mode: 'CHEMICAL',
+    source_type: 'SIM_IMPORT',
+    approval_depth: 2,
+    created_at: '2026-09-15T08:00:00Z',
     // 契约 record_hash 是 NOT NULL 的内容指纹
     record_hash: 'sha256-stream-s-102',
     stream_name: '塔顶蒸汽',
@@ -42,6 +54,12 @@ export const seedStreams: Stream[] = [
   },
   {
     stream_id: 's-103',
+    // 契约 StreamResponse 的 5 个必填字段（此前 seed 缺，ajv 校验直接红）
+    case_type: 'NORMAL',
+    data_mode: 'PETROLEUM',
+    source_type: 'SIM_IMPORT',
+    approval_depth: 3,
+    created_at: '2026-09-15T08:00:00Z',
     // 契约 record_hash 是 NOT NULL 的内容指纹
     record_hash: 'sha256-stream-s-103',
     stream_name: '塔釜液',
@@ -56,6 +74,12 @@ export const seedStreams: Stream[] = [
   },
   {
     stream_id: 's-104',
+    // 契约 StreamResponse 的 5 个必填字段（此前 seed 缺，ajv 校验直接红）
+    case_type: 'NORMAL',
+    data_mode: 'CHEMICAL',
+    source_type: 'LAB_REPORT',
+    approval_depth: 2,
+    created_at: '2026-09-15T08:00:00Z',
     stream_name: '回流',
     phase: 'LIQUID',
     temp: 78.3,
@@ -69,6 +93,12 @@ export const seedStreams: Stream[] = [
   },
   {
     stream_id: 's-105',
+    // 契约 StreamResponse 的 5 个必填字段（此前 seed 缺，ajv 校验直接红）
+    case_type: 'TURN_DOWN',
+    data_mode: 'CHEMICAL',
+    source_type: 'SIM_IMPORT',
+    approval_depth: 2,
+    created_at: '2026-09-15T08:00:00Z',
     stream_name: '侧线采出',
     phase: 'MIXED',
     temp: 85.0,
@@ -157,31 +187,3 @@ export const seedStreamUiSchema: UiSchemaResponse = {
 };
 
 /** GET /api/v1/streams/:id 返回的完整 payload（stream + 详情组件所需数据） */
-export interface StreamDetailPayload {
-  stream: Stream;
-  matrix: SignatureStep[];
-  signatures: SignatureRecord[];
-  approvalSteps: ApprovalStep[];
-  currentApprovalStep: number;
-  conflicts: Conflict[];
-  lineage: { center: string; nodes: LineageNode[]; edges: LineageEdge[] };
-  changeImpact: { source: ChangeSource; records: AffectedRecord[] } | null;
-  uiSchema: UiSchemaResponse;
-}
-
-/** 按 stream_id 组装流详情载荷（基础流 + 签名矩阵 + 受影响记录 + UI schema）。 */
-export function buildStreamDetail(streamId: string): StreamDetailPayload | null {
-  const stream = seedStreams.find((s) => s.stream_id === streamId);
-  if (!stream) return null;
-  return {
-    stream,
-    matrix: seedSignatureMatrix,
-    signatures: seedSignatures,
-    approvalSteps: seedApprovalSteps,
-    currentApprovalStep: 2,
-    conflicts: seedConflicts,
-    lineage: { center: seedLineageCenter, nodes: seedLineageNodes, edges: seedLineageEdges },
-    changeImpact: stream.sign_status === 'STALE' ? seedChangeImpact : null,
-    uiSchema: seedStreamUiSchema,
-  };
-}

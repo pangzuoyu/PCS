@@ -16,7 +16,7 @@
  * §"P5 契约冻结点"
  */
 
-import type { RecordSignStatus } from './records';
+import type { components } from './api';
 
 /**
  * 相态。**四值，与契约逐字相同**（`api.d.ts` StreamResponse：
@@ -49,61 +49,64 @@ export type StreamPhase = 'LIQUID' | 'VAPOR' | 'MIXED' | 'SOLID';
 // 页面读它永远是 `undefined`，于是那一栏恒不显示（静默失效）。
 
 /** SIM 物流条目：流号 + 流名 + 主相态 + 温压 + 双流量 + 组成 + 9 态机签名状态。 */
-export interface Stream {
-  stream_id: string;
-  stream_name: string;
-  phase: StreamPhase;
-  /* ⚠️ 以下四个字段 2026-10-19 对齐契约 `StreamResponse`（TODO-039 审计）。
-   *
-   * 方向依据 **DICT-007-SUP-011 §4.4「与 Streams 表的映射」**：
-   *     temperature_c  → temp
-   *     pressure_mpag  → press
-   *     mass_flow_kg_h → mass_flow
-   * 所以契约对、前端错，改前端。
-   *
-   * ⚠️ `press` 尤其不能只看字段名：schema 原写「压力 kPa」，而 DICT 的
-   * 源字段是 `pressure_mpag`（**MPaG**），后端其余压力字段也一律 MPaG
-   * —— 那句 kPa 是后端写错的，本轮已改（app/schemas/stream.py 4 处 +
-   * ORM 补 comment="MPaG"）。若只把 `pressure_mpa` 换成 `press` 而不
-   * 同步后端描述，页面会显示「0.50 MPa」而真值是 500 kPa，**差 1000 倍
-   * 且看起来完全合理**。
-   */
-  /** 温度 °C（契约 temp）。 */
-  temp: number;
-  /** 压力 */
-  press: number;
-  /** 质量流量 kg/h（契约 mass_flow）。 */
-  mass_flow: number;
-  /** 摩尔流量 kmol/h（契约 molar_flow）。 */
-  molar_flow: number;
-  /** 组分名 → 摩尔分率（SPEC §7.7.2 组成 JSON）。 */
-  composition_json: Record<string, number>;
-  /**
-   * 签署状态。**九态全集**，与后端 `StreamSignStatus`（`app/models/enums.py:29`）
-   * 逐字相同 —— 物流记录走的就是记录层状态机。
-   *
-   * ⚠️ 此前这里只声明了 **5 态**（漏掉 CHANGE_PENDING / CHANGED /
-   * REVERSAL_PENDING / OBSOLETE），是**少声明**，不是「多了 STALE」。
-   * 证据：`stream_service.py:258` 的锁定检查逐个点名物流的终态 ——
-   * `CHECKED / STALE / CHANGED / OBSOLETE / CHECK_REJECTED / REVERSAL_PENDING`。
-   *
-   * 为什么会漏：当时按 `StateBadge` 的 `MODULE_ACTIVATED.SIM`
-   * （4 态「强调」子集）反推了词表。但那张表**只决定 opacity**，
-   * 从不做有效性检查 —— 把「渲染强调」当成「合法性约束」，
-   * 于是反过来把合法的 4 个态判成了不存在（bug-180 的元教训）。
-   */
-  sign_status: RecordSignStatus;
-  /** 内容指纹 SHA-256（契约 record_hash，NOT NULL）。
-   *  取代此前的 `approved_hash` —— 后端无「审批时哈希」这个字段，
-   *  契约里对应的是 `record_hash`（"SHA-256 实质变更判别"），
-   *  正是 `PageHeader` 的 version 槽（HashBadge）要的东西。 */
-  record_hash: string;
-  updated_at?: string;
-}
+/**
+ * SIM 物流条目 —— **直接就是契约的 `StreamResponse`**，不再手写第二份。
+ *
+ * ⚠️ 手写副本缺 5 个契约**必填**字段（`case_type` / `data_mode` /
+ * `source_type` / `approval_depth` / `created_at`），于是：
+ * mock 的 seed 也不带它们 ⇒ 通过 ajv 的 seed 一旦被校验就红
+ * （`tests/mocks/handlers.test.ts` 的「响应体 ↔ OpenAPI」）。
+ * 与 bug-180/187/188 同一族：**手写副本不会自己变对**。
+ */
+export type Stream = components['schemas']['StreamResponse'];
 
+
+
+/**
+ * 相态词表 —— 4 值。
+ *
+ * ⚠️ 契约 `StreamResponse.phase` 目前是 `string | null`（裸串，词表只写在
+ * description 里），所以**这份词表在契约侧还没有对应物**。取值依据：
+ * 后端 `conflict_resolver._VALID_PHASES` + `import_service._phase_norm`
+ * （会产出 SOLID）。已登记 TODOS.md TODO-042：后端改成枚举后，
+ * 这里也应改成契约类型。
+ */
 export const STREAM_PHASE_LABEL: Record<StreamPhase, string> = {
   LIQUID: '液相',
   VAPOR: '气相',
   MIXED: '混合',
   SOLID: '固相',
 };
+
+/**
+ * 把契约的可空 `phase` 渲染成文案。
+ *
+ * ## 为什么需要这个函数
+ *
+ * 契约里 `phase?: string | null`，而 `STREAM_PHASE_LABEL` 是
+ * `Record<StreamPhase, string>`。直接 `LABEL[p.phase]` 有两个问题：
+ * 1. `null` 是合法值（后端可以不填相态），不是错误；
+ * 2. 遇到**词表之外**的未知值，会静默渲染成空标签 —— 不报错、只是没内容。
+ *
+ * 两种都不是「填个默认值」该解决的：**没填**显示「未标注相态」，
+ * **填错了**显示「未知相态: X」。两者都不丢信息（见 STATE_BADGE 那条同源教训）。
+ */
+export function streamPhaseLabel(phase: string | null | undefined): string {
+  if (phase == null || phase === '') return '未标注相态';
+  const label = STREAM_PHASE_LABEL[phase as StreamPhase];
+  return label ?? `未知相态: ${phase}`;
+}
+
+/** 同上，附带颜色。未知值给灰色，且**不吞掉原值**（调用方可自行展示）。 */
+export function streamPhaseColor(phase: string | null | undefined): string {
+  switch (phase) {
+    case 'LIQUID': return 'blue';
+    case 'VAPOR': return 'orange';
+    case 'MIXED': return 'purple';
+    case 'SOLID': return 'default';
+    case null:
+    case undefined:
+    case '': return 'default';
+    default: return 'default';
+  }
+}

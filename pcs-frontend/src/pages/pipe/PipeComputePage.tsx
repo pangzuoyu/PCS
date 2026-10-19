@@ -35,7 +35,7 @@ import {
 } from 'antd';
 
 import { PageHeader } from '../../components/common/PageHeader';
-import { STREAM_PHASE_LABEL, type Stream } from '../../types/stream';
+import { streamPhaseLabel, type Stream } from '../../types/stream';
 import type {
   PipeInput,
   PipeResult,
@@ -47,9 +47,16 @@ interface PipeClassLite {
   code: string;
 }
 
+/**
+ * 下拉里只需要这几列 —— 但**字段名必须来自契约**。
+ *
+ * ⚠️ 此前 `tag_number` 是前端编的（物流没有位号，契约 `StreamResponse`
+ * 无此字段），而真值 `stream_name` 恰好是同一个位置该有的东西 ⇒
+ * 下拉里所有项的标签都是 `undefined`。同 bug-189 一族。
+ */
 interface StreamLite {
   stream_id: string;
-  tag_number: string;
+  stream_name: string;
   sign_status: string;
   phase?: Stream['phase'];
 }
@@ -180,7 +187,7 @@ export function PipeComputePage({
                           onChange={(v) => setInput((s) => ({ ...s, stream_id: v }))}
                           options={checkedStreams.map((s) => ({
                             value: s.stream_id,
-                            label: `${s.tag_number}${s.phase ? ` (${STREAM_PHASE_LABEL[s.phase]})` : ''}`,
+                            label: `${s.stream_name}${s.phase ? ` (${streamPhaseLabel(s.phase)})` : ''}`,
                           }))}
                         />
                       </Form.Item>

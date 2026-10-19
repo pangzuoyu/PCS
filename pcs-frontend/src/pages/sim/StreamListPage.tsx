@@ -16,7 +16,13 @@ import type { ColumnsType } from 'antd/es/table';
 
 import { NumericCell } from '../../components/common/NumericCell';
 import { StateBadge } from '../../components/common/StateBadge';
-import { STREAM_PHASE_LABEL, type Stream } from '../../types/stream';
+import {
+  STREAM_PHASE_LABEL,
+  streamPhaseColor,
+  streamPhaseLabel,
+  type Stream,
+} from '../../types/stream';
+import type { RecordSignStatus } from '../../types/records';
 
 interface Props {
   streams: Stream[];
@@ -32,12 +38,8 @@ const STATUS_TABS: { key: StatusFilter; label: string }[] = [
   { key: 'CHECKED', label: 'CHECKED' },
 ];
 
-const PHASE_COLOR: Record<Stream['phase'], string> = {
-  LIQUID: 'blue',
-  VAPOR: 'orange',
-  MIXED: 'purple',
-  SOLID: 'default',
-};
+// 相态取自契约 `phase?: string | null` —— 可空且不保证在词表内，
+// 所以走 streamPhaseLabel/streamPhaseColor（显式区分「没填」与「填错」）。
 
 export function StreamListPage({ streams, onSelect }: Props): JSX.Element {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('ALL');
@@ -62,8 +64,13 @@ export function StreamListPage({ streams, onSelect }: Props): JSX.Element {
       width: 100,
       render: (p: Stream['phase']) => (
         <Space size={4}>
-          <Tag color={PHASE_COLOR[p]} data-testid="stream-phase">
-            {STREAM_PHASE_LABEL[p]}
+          <Tag
+            color={streamPhaseColor(p)}
+            data-testid="stream-phase"
+            data-phase={p ?? ''}
+            data-phase-known={String(!!p && p in STREAM_PHASE_LABEL)}
+          >
+            {streamPhaseLabel(p)}
           </Tag>
         </Space>
       ),
@@ -93,7 +100,12 @@ export function StreamListPage({ streams, onSelect }: Props): JSX.Element {
       title: '状态',
       dataIndex: 'sign_status',
       width: 100,
-      render: (s: Stream['sign_status']) => <StateBadge status={s} module="SIM" />,
+      // 契约的 sign_status 是裸 `string`（词表只在 description 里），
+      // 而 StateBadge 要 `RecordSignStatus`。不能 `as` 硬转 —— 那是把
+      // 契约缺口藏起来。走 StateBadge 的未知兜底：dev 抛错 / prod 明示。
+      render: (s: Stream['sign_status']) => (
+        <StateBadge status={s as RecordSignStatus} module="SIM" />
+      ),
     },
   ];
 
