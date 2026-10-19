@@ -7,7 +7,7 @@
 - Informed: P9A 实施者、P9B 通知中心 / 待办栏
 - Supersedes: —
 - Superseded by: —
-- Related: P9-OPEN-010、ADR-0047（观测层）、ADR-0046 §背景（通知语义由登录/签署事件驱动）、SPEC §3.2.4 P9A-NOT-001~005、ADR-0041 §编号预留（故取 0049）
+- Related: P9-OPEN-006（WebSocket + 降级轮询）、P9-OPEN-010、ADR-0047（观测层）、ADR-0046 §背景（通知语义由登录/签署事件驱动）、SPEC §3.2.4 `P9A-NOT-001~006`、`TODOS.md` TODO-047（跨进程陷阱同构，先例）、ADR-0041 §编号预留（故取 0049）
 
 ## 背景
 
@@ -125,7 +125,7 @@ class NotificationChannel(Protocol):
 - 通知（建表）：`ix_notifications_recipient_unread (recipient_id, read_at)`
   部分索引 `WHERE read_at IS NULL`。这是 500ms 指标的全部支撑 —— **该索引必须进迁移**。
 
-### ④ 通知保留 30 天清理：ARQ 任务 + 失败路径覆盖
+### ④ 🔻 通知保留 30 天清理：ARQ 任务 + 失败路径覆盖
 
 清理任务挂 ARQ（`app/workers/worker.py`，与既有 worker 同栈）。
 
@@ -147,6 +147,80 @@ P9A-NOT-004 验收明确要求这条测试存在。
 （`worker.py:136-140` 记录的踩坑）—— 清理任务漏注册的症状是
 「30 天后通知还在，且没人知道」。把清理任务纳入那条既有断言。
 
+### ⑤ 实时推送：Redis pub/sub（2026-10-19 决策委员会裁决）
+
+P9-OPEN-006 裁定「WebSocket + 降级轮询」为**关键路径**（去邮件后推送是通知唯一的
+及时性来源）。推送必须跨进程，否则**连接到 A worker 的用户收不到 B worker 产生的通知**，
+且**不报错**。
+
+> ⚠️ 这与 **TODO-047 是同一形状的陷阱**：`advisory_lock` 用进程内 `hash()` 做锁键，
+> 单进程全绿、多进程静默失效。**dev 环境单 uvicorn 进程（`README.md:64` 无 `--workers`）
+> 会掩盖这个问题**，而 P10 容量规格已按 4 workers 设计。
+> ⇒ **禁止用「文档限制单进程部署」替代跨进程正确性** —— 那等于制造一个新缺陷并复制
+> TODO-047 的教训。选型阶段就该选对。
+
+**裁决：Redis pub/sub**（`REDIS_URL` 已在 `app/core/config.py:43`，ARQ 就在用）。
+单 worker 与多 worker 行为一致 —— 这是与 TODO-047 的根本区别：
+TODO-047 是「单进程对、多进程错」，本条是「单多都对」。
+
+**四个必须写死的细节**：
+
+1. **pub/sub 不持久化 —— 断线期间的消息会丢失。这是定义，不是缺陷。**
+   兜底是 `notifications` 表（本 ADR §①）：前端重连后走
+   `GET /notifications?after=<last_seen>` 拉未读。
+   **不得**把「WS 推送成功」当作「通知已送达」的判据 —— 这是本 ADR 后果段
+   「观测层保证流程进度可信，不保证通知已送达」的延伸。
+
+2. **降级路径必须可观测。** broadcaster 发布失败 → 记 ERROR 日志 +
+   `GET /health` 的 `realtime` 字段转 `degraded`（见 §⑥）+ 前端切轮询（建议 30s）。
+   **不得静默降级** —— 用户不知道自己在轮询，会以为推送坏了。
+
+3. **订阅端必须独立连接。** 发布端可复用 ARQ 的连接池（发布是普通命令）；
+   **订阅会阻塞，不能与 ARQ 的 `BLPOP` 共用同一连接**。
+   订阅连接由 broadcaster 自身管理生命周期（startup 建立、shutdown 关闭）。
+
+4. **channel 按 `recipient_id` 分**：`ws:notify:{user_id}`。
+   每个 worker 只订阅「本 worker 上有连接的用户」的 channel，
+   避免 N 倍无效消息转发。单用户多设备 → 同 channel 多订阅者都收到。
+   > 📌 **分片决策点留在此处**：连接数超过约 5000 时再考虑按 hash 分片。
+   > 现在不做 —— 提前分片是 YAGNI，但**阈值与触发条件写下来**，免得将来无人记得。
+
+### ⑥ 降级信号：`/health` 扩展字段（不是新端点）
+
+`app/api/v1/health.py` **已存在**，语义正是「**始终 200，由调用方按字段判定**」，
+且已有 `status` + `database: up/down` —— 它**已经在混合 liveness 与依赖状态**。
+⇒ 扩字段，不新增端点。
+
+```python
+class HealthResponse(BaseModel):
+    status: str              # ok / degraded（既有）
+    database: str            # up / down（既有）
+    realtime: str            # 新增：ok / degraded
+    realtime_reason: str | None   # 新增：redis_unavailable / redis_timeout / pubsub_error / null
+```
+
+**三条硬约束**（不写死会返工）：
+
+1. **检测不得阻塞 `/health` 主路径。** `/health` 现在已同步 `check_database_async()`
+   （`app/db/session.py:108`，**无显式超时**，靠连接池）。不能再叠第二个阻塞依赖。
+   ⇒ **读 broadcaster 维护的状态标志**（它本就知道自己的 pub/sub 是否失败），
+   **零额外探测**。比加超时更好：既不占连接池，也不拖响应。
+2. **状态码语义不得改变。** `realtime = degraded` 时**仍然返回 200**。
+   **`realtime` 仅供观测，不得用于 liveness / readiness 判定** ——
+   若 K8s 把 `/health` 配成 liveness probe 并纳入 `realtime`，
+   Redis 挂了会触发**服务重启循环**。需要 readiness probe 时另建端点，不复用 `/health`。
+3. **`realtime_reason` 必须是枚举，不是自由字符串。**
+   自由字符串会让前端无法可靠判断（`"Redis is down"` / `"redis_down"` / `"unavailable"`
+   都是自由发挥）。枚举才是契约。`realtime = ok` ⇒ `realtime_reason = null`。
+
+**语义精确性**：`realtime` 检测的是 **pub/sub 通道可达性**，不是 **Redis 整体健康**。
+二者当前等价（同一个 Redis），但 `realtime` **只承诺「WS 推送能力」**。
+排障时**不得**把 `realtime = degraded` 当作「Redis 挂了」的唯一判据 ——
+应结合 ARQ 队列状态、`database` 字段综合判断。
+
+⇒ SPEC 记为 `P9A-NOT-006`：**`/health` 响应扩展 `realtime` / `realtime_reason`**
+（**不是**新增健康端点）。
+
 ## 后果
 
 - 迁移纪律：新表走 `TimestampMixin` 三列纪律（`app/models/mixins.py:34-41`：
@@ -154,6 +228,7 @@ P9A-NOT-004 验收明确要求这条测试存在。
   `drop_table` 只出现在 `downgrade()` 且带 `if_exists`。
 - `todos` 不建表 ⇒ SPEC §3.2.4 P9A-NOT-002 记为「按本 ADR 走实时计算，无迁移」。
 - 待办/通知的响应 schema 仍受 P9A-DLV-010 零裸字段约束。
+- **P9A 新增一个 Redis 依赖面**：WS 推送依赖 pub/sub（§⑤），与编辑锁共用同一个 Redis 实例。⇒ Redis 故障会同时影响**推送**与**编辑锁体验层**（DB 兜底层不受影响，见 ADR-0048 §⑤）。这不是重复依赖，是同一份基础设施承载两个正交能力；`/health` 的 `realtime` 字段只承诺推送能力，不承诺 Redis 整体健康（§⑥ 语义精确性）。
 - **P9-OPEN-006（WebSocket + 降级轮询）权重上升**：去掉邮件后，实时推送成了通知唯一的
   及时性来源。降级状态必须**可观测**（健康端点或指标），不能只靠前端感觉 ——
   通知静默失效正是 ADR-0047 立观测层要防的那类问题。

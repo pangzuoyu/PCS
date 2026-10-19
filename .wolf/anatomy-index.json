@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T11:57:00.635Z",
-    "fileCount": 846,
+    "lastScanned": "2026-10-19T12:08:24.262Z",
+    "fileCount": 847,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "5febbe2b38b1d286efb6e24efda543479f5b4acc636c62455263af3d25dfd4db",
-    "storeUpdatedAt": "2026-10-19T11:57:00.646Z",
-    "rootHash": "5898c616be9f455b"
+    "renderedHash": "f2f03de6c86deb75d7359576fb68d8efba5355b40e1f8257e77f9e377b4ac970",
+    "storeUpdatedAt": "2026-10-19T12:08:24.272Z",
+    "rootHash": "b690b7122d67f941"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -28113,11 +28113,11 @@
     },
     "docs/adr/0049-notification-and-todo-data-model.md": {
       "description": "ADR-0049：通知与待办数据模型 —— 通知建表 / 待办实时计算",
-      "tokens": 1447,
-      "hash": "d58949140e4de0e6",
-      "size": 10785,
-      "mtimeMs": 1792409753342.2488,
-      "updatedAt": "2026-10-19T11:35:53.397Z",
+      "tokens": 2128,
+      "hash": "7255be53f8634e8c",
+      "size": 15482,
+      "mtimeMs": 1792411704210.2866,
+      "updatedAt": "2026-10-19T12:08:24.261Z",
       "source": "hook"
     },
     "docs/PCS-NOTE-P9-Prep-MFA决议-2026-10-19.md": {
@@ -28127,6 +28127,15 @@
       "size": 8242,
       "mtimeMs": 1792405231234.2908,
       "updatedAt": "2026-10-19T10:20:31.291Z",
+      "source": "hook"
+    },
+    "docs/PCS-PLAN-P9A.md": {
+      "description": "P9A 实施计划（交付物写面 + 身份模型 + 观测层 + 通知待办 + 编辑锁）",
+      "tokens": 8417,
+      "hash": "4a2e23515ed8df71",
+      "size": 43129,
+      "mtimeMs": 1792411316593.9812,
+      "updatedAt": "2026-10-19T12:01:56.646Z",
       "source": "hook"
     }
   }

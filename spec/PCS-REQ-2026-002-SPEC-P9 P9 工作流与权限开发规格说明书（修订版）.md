@@ -292,6 +292,24 @@ P9A-NOT-002	**按 ADR-0049 走实时计算，不建表** —— 从 `SignatureMa
 		没有按用户/角色的索引，P9A 需确认 `user_projects` 侧有可用索引，否则 500ms 达不到
 P9A-NOT-003	GET /todos / GET /notifications / PUT /notifications/{id}/read	P9 SPEC §3.1.2
 P9A-NOT-004	通知保留 30 天清理：ARQ 任务 + 失败路径覆盖（补 TODO-016 缺口）	P9 SPEC §3.2.1（7）
+P9A-NOT-005	通知实时推送：`WS /ws/notifications` + **Redis pub/sub 跨进程广播**	ADR-0049 §⑤、P9-OPEN-006
+	　　⚠️ **必须跨进程**：进程内 broadcaster 在多 worker 下会让连接到 A 的用户收不到 B
+	　　产生的通知，**且不报错** —— 与 TODO-047 同形状（dev 单进程会掩盖它）。
+	　　禁止用「文档限制单进程部署」替代跨进程正确性。
+	　　四条硬约束：① **pub/sub 不持久化**，断线期间的消息由 `notifications` 表兜底，
+	　　重连走 `GET /notifications?after=<last_seen>`；**不得**把「WS 推送成功」当作
+	　　「通知已送达」；② 降级须可观测（见 P9A-NOT-006）+ 前端切轮询；
+	　　③ **订阅端独立连接**（订阅会阻塞，不能与 ARQ 的 BLPOP 共用）；
+	　　④ channel 按 `recipient_id` 分（`ws:notify:{user_id}`）；连接数 >5000 再考虑分片。
+P9A-NOT-006	**`/health` 响应扩展 `realtime` / `realtime_reason` 字段**（**不是**新增健康端点）	ADR-0049 §⑥
+	　　`realtime`: ok / degraded；`realtime_reason`: redis_unavailable / redis_timeout /
+	　　pubsub_error / null。**三条硬约束**：
+	　　① 检测**不得阻塞 `/health` 主路径** —— 读 broadcaster 维护的状态标志，零额外探测
+	　		（`/health` 现在已同步 `check_database_async()` 且无显式超时，不能再叠第二个依赖）；
+	　　② **状态码语义不变**，degraded 时仍 200；`realtime` 仅供观测，**不得用于 liveness/readiness 判定**
+				（否则 Redis 挂了会触发服务重启循环）；
+	　　③ `realtime_reason` **必须是枚举**，不是自由字符串。
+	　　📌 语义：`realtime` 检测的是 **pub/sub 可达性**，不是 Redis 整体健康 ——当前等价，但只承诺「WS 推送能力」。
 P9A-NOT-005	待办生成器：签署任务 / 退回通知 / 变更报警 / 系统公告 四类型	P9 SPEC §3.2.1（7）
 验收：待办列表 ≤500ms；通知列表 ≤500ms；清理任务有失败注入测试。
 
