@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T10:18:17.544Z",
-    "fileCount": 844,
+    "lastScanned": "2026-10-19T10:19:26.773Z",
+    "fileCount": 845,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "d1e87c2c4569e27d0c41b65aa953061532293640393c8eaa9ebd3ebb4b7f0b3b",
-    "storeUpdatedAt": "2026-10-19T10:18:17.555Z",
-    "rootHash": "cef6ad056c4f9311"
+    "renderedHash": "ae9e0a29fa1826a688d08d53c61ff3eed26e25b64983b3bd1f461f0db2a5a5a7",
+    "storeUpdatedAt": "2026-10-19T10:19:26.783Z",
+    "rootHash": "1bb084794dd2a8e7"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -28109,6 +28109,15 @@
       "size": 12723,
       "mtimeMs": 1792405097495.443,
       "updatedAt": "2026-10-19T10:18:17.544Z",
+      "source": "hook"
+    },
+    "docs/adr/0049-notification-and-todo-data-model.md": {
+      "description": "ADR-0049：通知与待办数据模型 —— 通知建表 / 待办实时计算",
+      "tokens": 842,
+      "hash": "8f9dc7646aa2367d",
+      "size": 6253,
+      "mtimeMs": 1792405166717.6753,
+      "updatedAt": "2026-10-19T10:19:26.772Z",
       "source": "hook"
     }
   }

@@ -84,6 +84,7 @@ ADR-B	workflow_progress 观测层	① 写入点清单（哪些状态变更要写
 ADR-C	编辑锁	① 存储：DB SELECT FOR UPDATE vs Redis ② 自动续期机制（前端心跳频率 + 后端续期接口）③ 超时清理（30 分钟）④ 与状态机事务的关系 ⑤ Redis 不可用时的降级
 　　✅ 已裁决：`docs/adr/0048-edit-lock-storage.md`（accepted 2026-10-19）。① Redis；② 心跳 60s / TTL 30min；③ Redis TTL 自动清理；④ 与状态机解耦，**不得**把持锁当写入前置条件；⑤ **两层锁**（Redis 体验层 + DB record_hash 正确性层），显式声明了与 user-stated learning `ekris-redis-lock-degradation` 的关系与可证伪条件
 ADR-D	通知与待办数据模型	① notifications 表 vs 实时计算 ② todos 表 vs 实时计算 ③ 若实时计算，≤500ms 加载指标靠什么索引支撑 ④ 通知保留 30 天清理任务归属（ARQ？但 TODO-016 显示 ARQ 失败路径覆盖为零）
+　　✅ 已裁决：`docs/adr/0049-notification-and-todo-data-model.md`（accepted 2026-10-19）。① **通知建表**；② **待办实时计算**（从 `SignatureMatrix.steps_json` 重算，不建表）；③ 部分索引 `ix_notifications_recipient_unread (recipient_id, read_at) WHERE read_at IS NULL` 必须进迁移；④ ARQ 清理任务 + 失败注入测试（TODO-016）+ 纳入既有「入队 ⊆ 已注册」断言
 验收：4 份 ADR 状态为 accepted，且被 P9A/P9B SPEC 引用。
 
 2.2.3 P1 端点可用性核实（阻塞级）
@@ -212,7 +213,10 @@ P9A-OBS-004	500ms 延迟验证：流程状态变更到持久化 ≤ 500ms	P9-OPE
 3.2.4 通知 / 待办后端
 编号	内容	依据
 P9A-NOT-001	notifications 表（或实时计算方案，按 ADR-D）	新增（P0 清单无）
-P9A-NOT-002	todos 表（或实时计算方案，按 ADR-D）	新增（P0 清单无）
+P9A-NOT-002	**按 ADR-0049 走实时计算，不建表** —— 从 `SignatureMatrix.steps_json` 当前步骤
+		的 `sign_role` × 当前用户角色重算	新增（P0 清单无）
+		⚠️ 待办查询需先按「当前用户有权的 project」缩小集合；`deliverables` 现有索引里
+		没有按用户/角色的索引，P9A 需确认 `user_projects` 侧有可用索引，否则 500ms 达不到
 P9A-NOT-003	GET /todos / GET /notifications / PUT /notifications/{id}/read	P9 SPEC §3.1.2
 P9A-NOT-004	通知保留 30 天清理：ARQ 任务 + 失败路径覆盖（补 TODO-016 缺口）	P9 SPEC §3.2.1（7）
 P9A-NOT-005	待办生成器：签署任务 / 退回通知 / 变更报警 / 系统公告 四类型	P9 SPEC §3.2.1（7）
@@ -328,7 +332,7 @@ system_settings	P0 已交付	复用
 data_lineage	P1 已交付	复用
 workspaces	P1 已交付	复用
 notifications	P0 清单无	P9A 新建
-todos	P0 清单无	P9A 新建（或实时计算，按 ADR-D）
+todos	P0 清单无	**不建表**，按 ADR-0049 实时计算
 workflow_progress	P0 清单无	P9A 新建
 deliverables / deliverable_versions / ...（P1 5 张表）	P1 ORM 骨架存在，无 service	P9A 补 service
 5.2 迁移纪律
@@ -389,7 +393,7 @@ P9-OPEN-006	通知 WebSocket vs 轮询	待确认	P9-Prep 决议（建议 WebSock
 P9-OPEN-007	workflow_progress	已裁决：ADR-0047 accepted（2026-10-19），同步写 + 同事务 + 调用方写	升级为 P9A-OBS-001~004	P9A（ADR 侧已关闭）
 P9-OPEN-008	用户身份模型迁移	已裁决：ADR-0046 accepted（2026-10-19）	ADR-A → `docs/adr/0046-user-identity-model-migration.md`	~~P9-Prep~~ 已关闭
 P9-OPEN-009	编辑锁存储方案	已裁决：ADR-0048 accepted（2026-10-19），Redis + 30min TTL + DB record_hash 兜底	ADR-C → `docs/adr/0048-edit-lock-storage.md`	~~P9-Prep~~ 已关闭
-P9-OPEN-010	通知/待办表 vs 实时计算	（无）	ADR-D	P9-Prep
+P9-OPEN-010	通知/待办表 vs 实时计算	已裁决：ADR-0049 accepted（2026-10-19），通知建表 / 待办实时计算	ADR-D → `docs/adr/0049-notification-and-todo-data-model.md`	~~P9-Prep~~ 已关闭
 P9-OPEN-011	fk_utility_energy_summary ondelete CASCADE vs RESTRICT	（无）	**已裁决：CASCADE**（`fd0e8b9`）	~~P9-Prep~~ 已关闭
 第九部分：修订后对开发计划文档的同步要求
 Web版开发计划.md 需同步修订：
