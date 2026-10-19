@@ -100,6 +100,19 @@ POST /deliverables/{id}/sign-step	同上	已知不存在 → P9A
 POST /deliverables/{id}/customer-approval/proxy	同上	已知不存在 → P9A
 POST /change-impact/{module}/{id}/confirm	grep -rn "change-impact" app/api/	待核实→P1 或 P9A
 POST /change-impact/{module}/{id}/manual-adjust	同上	待核实
+
+✅ 已完成（2026-10-19）。产出 `docs/PCS-NOTE-P9-Prep-P1端点交付面清单-2026-10-19.md`。
+
+⚠️ 上表的核实命令**全部有缺陷**，照抄会得到假结论，修正见清单 §0/§1：
+① `app/api/` 在 `pcs-backend/` 下，在仓库根跑是「目录不存在」，不是「搜过了没有」；
+② `for r in app.routes` 在本仓 FastAPI 版本上枚举不到任何 API 路由
+（`include_router` 包成 `_IncludedRouter` 不展开），须改用 `app.openapi()["paths"]`。
+
+结论：上表 11 个端点**确认不存在** ⇒ 归 P9A；
+`POST /change-impact/{module}/{id}/confirm` **不存在**，实际存在的是
+`POST /change-impact/{record_type}/{record_id}/confirm-recalc`
+（`app/api/v1/change_impact.py:27`），它**不含** P9A-CIA-001 的哈希判定分流。
+⇒ **P9A-CIA-001 / CIA-002 均归 P9A**。
 验收：清单完成，每条明确归属；凡归 P9A 的写入 P9A SPEC。
 
 2.2.4 MFA 决议（阻塞级）
@@ -206,7 +219,9 @@ P9A-LCK-005	降级策略：Redis 不可用时（若选 Redis）	ADR-C
 验收：并发编辑场景下锁正确；过期自动释放；与状态机事务无死锁。
 
 3.2.6 变更影响确认分流（若 P1 未交付）
-若 P9-Prep §2.2.3 核实 POST /change-impact/.../confirm 不存在，则归 P9A：
+✅ 已核实（2026-10-19，见 `docs/PCS-NOTE-P9-Prep-P1端点交付面清单-2026-10-19.md`）：
+`POST /change-impact/.../confirm` **不存在**；实际存在的 `confirm-recalc`
+**不含**哈希判定分流 ⇒ **本节两项均归 P9A**：
 
 编号	内容
 P9A-CIA-001	哈希判定分流：结果不变 → STALE_RESOLVED_NO_CHANGE（免凭证）；结果变化 → CHANGE_PENDING
@@ -239,7 +254,7 @@ V1.3 表述	V2.0 修订
 §3.2.1（1）"前端根据当前状态和用户角色，调用 GET /records/{id}/actions"	保持，但明确该端点归属（P1 或 P9A，按 P9-Prep 核实结果）
 全文对 /deliverables/* 端点的调用	保持，明确归属 P9A
 §3.2.1（5b）代录客户批准	保持，依赖 P9A-DLV-008
-§3.2.2 变更影响前端"确认并重新计算"	保持，依赖 P9A-CIA-001（或 P1，按核实）
+§3.2.2 变更影响前端"确认并重新计算"	保持，依赖 P9A-CIA-001（已核实归 P9A，见 §2.2.3）
 4.2 前端开发纪律（新增）
 强制约束（吸取 TODO-039/041 逾期教训）：
 

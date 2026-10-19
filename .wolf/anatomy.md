@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T10:06:16.440Z
-> Files: 839 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T10:14:06.985Z
+> Files: 841 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -244,7 +244,7 @@
 
 ## .superpowers/sdd/PCS-PLAN-P9-PREP/
 
-- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9-PREP.md (~393 tok)
+- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9-PREP.md (~728 tok)
 
 ## .vite/vitest/
 
@@ -268,6 +268,7 @@
 - `PCS-NOTE-equipment_lib-废弃-2026-10-06.md` — PCS-NOTE: `equipment_lib` 表废弃裁决（2026-10-06） (~782 tok)
 - `PCS-NOTE-P8-错误信封统一-2026-10-18.md` — PCS-NOTE：P8 错误信封统一为 PcsError（发布说明） (~683 tok)
 - `PCS-NOTE-P8前置清单与3项修订-2026-10-07.md` — P8 前置清单与 3 项修订 —— 2026-10-07 裁决 (~1315 tok)
+- `PCS-NOTE-P9-Prep-P1端点交付面清单-2026-10-19.md` — 《P1 实际交付面清单》—— P9-Prep 交付物 (~1604 tok)
 - `PCS-NOTE-T5-MJ-基准口径裁决-2026-10-05.md` — T5 综合能耗验收 — 电折标口径按 GB 30251-2024 修正，基准重建 (2026-10-05) (~3938 tok)
 - `PCS-NOTE-UI-SPEC-7.16-设备库检索延后-2026-10-07.md` — UI-SPEC §7.16 设备库检索 —— 本版本不实现，推迟到下一版本（2026-10-07） (~591 tok)
 - `PCS-P2-CLOSE-REPORT.md` — PCS P2 Sprint Close Report（2026-09-08） (~2039 tok)
@@ -1471,3 +1472,4 @@
 ## spec/
 
 - `工艺专用综合计算软件需求规格说明书 Web版 P8.md` (~5580 tok)
+- `PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md` — 变更	原因 (~3893 tok)

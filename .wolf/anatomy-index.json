@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T10:06:16.440Z",
-    "fileCount": 839,
+    "lastScanned": "2026-10-19T10:14:06.985Z",
+    "fileCount": 841,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "85de89f52c4b307b94bded4de87bbbc7e91045bcad862079862a90e5854acb7b",
-    "storeUpdatedAt": "2026-10-19T10:06:16.451Z",
-    "rootHash": "21c0cbb1405e3c69"
+    "renderedHash": "87dbc15d330d3a19ff7d152f00c3940f4fda0238f7db44dbb00d81dafc627d7c",
+    "storeUpdatedAt": "2026-10-19T10:14:06.995Z",
+    "rootHash": "3779b0254b79742e"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -28032,11 +28032,11 @@
     },
     ".superpowers/sdd/PCS-PLAN-P9-PREP/progress.md": {
       "description": "SDD ledger — plan: docs/PCS-PLAN-P9-PREP.md",
-      "tokens": 393,
-      "hash": "db3a5c205aa39473",
-      "size": 2465,
-      "mtimeMs": 1792403763695.353,
-      "updatedAt": "2026-10-19T09:56:03.743Z",
+      "tokens": 728,
+      "hash": "686c97b5dbb60f34",
+      "size": 4787,
+      "mtimeMs": 1792404690249.8533,
+      "updatedAt": "2026-10-19T10:11:30.296Z",
       "source": "hook"
     },
     "pcs-backend/tests/scripts/test_gate_alembic_check.py": {
@@ -28065,6 +28065,24 @@
           "tokens": 336
         }
       ]
+    },
+    "docs/PCS-NOTE-P9-Prep-P1端点交付面清单-2026-10-19.md": {
+      "description": "《P1 实际交付面清单》—— P9-Prep 交付物",
+      "tokens": 1604,
+      "hash": "e6e47e443ecc5ec5",
+      "size": 8320,
+      "mtimeMs": 1792404826851.2483,
+      "updatedAt": "2026-10-19T10:13:46.900Z",
+      "source": "hook"
+    },
+    "spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md": {
+      "description": "变更\t原因",
+      "tokens": 3893,
+      "hash": "7847886ffe52e961",
+      "size": 26283,
+      "mtimeMs": 1792404846929.5916,
+      "updatedAt": "2026-10-19T10:14:06.985Z",
+      "source": "hook"
     }
   }
 }
