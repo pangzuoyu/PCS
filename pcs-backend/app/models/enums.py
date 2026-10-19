@@ -313,6 +313,8 @@ class AuditAction(str, enum.Enum):
     RBAC_DENIED = "RBAC_DENIED"
     # P9A (ADR-0046 §③): 停用用户登录被拒。没有它，停用策略完全无痕。
     USER_LOGIN_DENIED_DISABLED = "USER_LOGIN_DENIED_DISABLED"
+    # P9A (ADR-0046 §⑤): 管理员停用某人。不留痕就无法追责「谁停的」。
+    USER_DISABLED = "USER_DISABLED"
 
     # === 记录层 CRUD（P4-P6） ===
     RECORD_CREATED = "RECORD_CREATED"

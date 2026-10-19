@@ -21,3 +21,8 @@ def test_config_audit_actions_exist():
 def test_p9a_identity_audit_action_exists():
     """P9A（ADR-0046 §③）：停用用户登录被拒必须留痕。"""
     assert AuditAction.USER_LOGIN_DENIED_DISABLED.value == "USER_LOGIN_DENIED_DISABLED"
+
+
+def test_p9a_admin_audit_actions_exist():
+    """P9A（ADR-0046 §⑤）：停用是人为操作，不留痕就无法追责「谁停的」。"""
+    assert AuditAction.USER_DISABLED.value == "USER_DISABLED"

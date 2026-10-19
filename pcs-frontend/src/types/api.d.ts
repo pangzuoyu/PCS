@@ -103,6 +103,10 @@ export interface paths {
          *     3. 缺 role claim（P0-2 防回归）→ INVALID_REFRESH（401）
          *     4. JTI 已被吊销（重放/截获）→ INVALID_REFRESH（401，H-P0-2 防重放）
          *     5. 旧 JTI 一次性使用：成功签发后立即 revoke 旧 JTI，缩小泄露窗口
+         *     6. **P9A（ADR-0046 §④）**：`tv` claim 必须等于 `users.token_version`
+         *        ⇒ 停用用户（tv+1）之后，已发的 refresh 全部作废。
+         *        存量的 `is_jti_revoked` 是**进程内**集合，多 worker 下静默失效；
+         *        tv 是 DB 里的整数，跨进程一致 —— 这才是停用能真正生效的那一层。
          */
         post: operations["refresh_api_v1_auth_refresh_post"];
         delete?: never;
@@ -5652,6 +5656,10 @@ export interface paths {
         /**
          * Mock Login
          * @description 任何密码都接受（mock）；生产环境此路由不会被 include。
+         *
+         *     ⚠️ `persist_user=False` ⇒ **不查不写 `users` 表**（ADR-0046 §③b）。
+         *     mock 的 alice 与真实 AD 的 alice 同名，落库会污染同一行的 `roles`，
+         *     而那是 ACL 的权威输入。tv 写保留值 0。
          */
         post: operations["mock_login_auth_mock_login_post"];
         delete?: never;

@@ -1,5 +1,6 @@
 from fastapi import APIRouter
 
+from app.api.v1.admin_users import router as admin_users_router  # P9A-ADM-001/002
 from app.api.v1.audit import router as audit_router  # F-P2-009 Sprint 3 / Issue 7
 from app.api.v1.auth import router as auth_router
 from app.api.v1.change_impact import router as change_impact_router
@@ -49,6 +50,7 @@ from app.api.v1.workspaces import router as workspaces_router
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(health_router)
 api_router.include_router(auth_router)
+api_router.include_router(admin_users_router)  # P9A：全环境挂载（见 admin_users.py 顶注）
 api_router.include_router(workspaces_router)
 api_router.include_router(checklist_router)
 api_router.include_router(records_router)

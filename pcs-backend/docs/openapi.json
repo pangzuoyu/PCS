@@ -124,7 +124,7 @@
           "auth"
         ],
         "summary": "Refresh",
-        "description": "刷新 token：旧 refresh 一次性使用，签发新 access + 新 refresh。\n\n安全约束：\n1. JWT 解码失败按成因分流 → 过期 EXPIRED_REFRESH / 无效 INVALID_REFRESH（均 401）\n2. type != 'refresh' → WRONG_TOKEN_TYPE（401）\n3. 缺 role claim（P0-2 防回归）→ INVALID_REFRESH（401）\n4. JTI 已被吊销（重放/截获）→ INVALID_REFRESH（401，H-P0-2 防重放）\n5. 旧 JTI 一次性使用：成功签发后立即 revoke 旧 JTI，缩小泄露窗口",
+        "description": "刷新 token：旧 refresh 一次性使用，签发新 access + 新 refresh。\n\n安全约束：\n1. JWT 解码失败按成因分流 → 过期 EXPIRED_REFRESH / 无效 INVALID_REFRESH（均 401）\n2. type != 'refresh' → WRONG_TOKEN_TYPE（401）\n3. 缺 role claim（P0-2 防回归）→ INVALID_REFRESH（401）\n4. JTI 已被吊销（重放/截获）→ INVALID_REFRESH（401，H-P0-2 防重放）\n5. 旧 JTI 一次性使用：成功签发后立即 revoke 旧 JTI，缩小泄露窗口\n6. **P9A（ADR-0046 §④）**：`tv` claim 必须等于 `users.token_version`\n   ⇒ 停用用户（tv+1）之后，已发的 refresh 全部作废。\n   存量的 `is_jti_revoked` 是**进程内**集合，多 worker 下静默失效；\n   tv 是 DB 里的整数，跨进程一致 —— 这才是停用能真正生效的那一层。",
         "operationId": "refresh_api_v1_auth_refresh_post",
         "requestBody": {
           "content": {
@@ -17794,7 +17794,7 @@
           "mock-auth"
         ],
         "summary": "Mock Login",
-        "description": "任何密码都接受（mock）；生产环境此路由不会被 include。",
+        "description": "任何密码都接受（mock）；生产环境此路由不会被 include。\n\n⚠️ `persist_user=False` ⇒ **不查不写 `users` 表**（ADR-0046 §③b）。\nmock 的 alice 与真实 AD 的 alice 同名，落库会污染同一行的 `roles`，\n而那是 ACL 的权威输入。tv 写保留值 0。",
         "operationId": "mock_login_auth_mock_login_post",
         "requestBody": {
           "content": {
