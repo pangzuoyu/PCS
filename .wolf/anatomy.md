@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T23:07:34.319Z
-> Files: 871 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T23:21:55.223Z
+> Files: 874 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1148,6 +1148,7 @@
 - `projects.py` — 项目产品类别 API (product_category — GB 30251-2024 §6.1.5 电折标口径判据). (~1184 tok)
 - `psychro.py` — P6-2 PSYCHRO API：Task 26 6 calc endpoints + psychro_persist CRUD endpoints。 (~7320 tok)
 - `pump.py` — P4-4-4 PUMP 链 API。 (~2574 tok)
+- `records_actions.py` — records 写端点（P9A B4）—— `/records/{module}/{id}/<action>`。 (~1896 tok)
 - `records.py` — Records API（Sprint 2）。 (~3276 tok)
 - `report_builder.py` — `/api/v1/report-builder` 路由（Phase 2，REPORT_BUILDER）。 (~4269 tok)
 - `report.py` — `/api/v1/report` 路由。 (~5099 tok)
@@ -1187,6 +1188,7 @@
 - `deliverable.py` — 交付物 API schema（P1-7+ D 模块 / P8 前置）。 (~848 tok)
 - `pipe_class.py` — PipeClass API schemas（Pydantic v2；Task 1.9.1 / P2-STD-001）。 (~1366 tok)
 - `project.py` — 项目产品类别 schema (GB 30251-2024 §6.1.5 电折标口径判据). (~297 tok)
+- `records_actions.py` — records 写端点的请求/响应 schema（P9A B4）。 (~396 tok)
 - `report_builder.py` — `/api/v1/report-builder` 的请求/响应模型（Phase 2）。 (~1351 tok)
 - `report.py` — `/api/v1/report` 的请求/响应模型。 (~1410 tok)
 - `util.py` — S1-5b UTIL API schemas。 (~3550 tok)
@@ -1260,7 +1262,7 @@
 
 ## pcs-backend/tests/
 
-- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~4721 tok)
+- `conftest.py` — Sprint 1 + P2 共享测试 fixtures。 (~5533 tok)
 - `mutation.py` — 变异测试的元断言工具（用户 2026-10-09 审查引入；2026-10-13 扩充）。 (~1499 tok)
 - `test_audit_guard.py` — P7-7+ BLOCKER-3 guard 集成测试 — /equipment-deletion-audit 端点. (~1256 tok)
 - `test_audit_query.py` — F-P2-009 Sprint 3: Audit Query 后端测试 (Issue 5 错误路径 + Issue 7 混合 RBAC). (~3389 tok)
@@ -1290,6 +1292,7 @@
 - `test_gas_media_and_low_temp_heat_api.py` — 工艺气体 / 低温热 CRUD API 测试 (P7-6B 收尾). (~2562 tok)
 - `test_meta.py` — Meta API 测试（P4.5 P45-0-4 / P45-0-4.5 V1.1）。 (~3030 tok)
 - `test_project_product_category.py` — 项目产品类别 API (product_category, GB 30251-2024 §6.1.5 电折标口径判据). (~2174 tok)
+- `test_records_actions_wired.py` — records 写端点 · 接线面测试（P9A B4a）。 (~3206 tok)
 - `test_report_builder.py` — `/api/v1/report-builder` 路由契约（Phase 2）。 (~17878 tok)
 - `test_report_styles_write.py` — c6：样式写入端点契约。 (~2215 tok)
 - `test_report.py` — `/api/v1/report` 路由契约。 (~5783 tok)

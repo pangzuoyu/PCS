@@ -1266,6 +1266,243 @@
         }
       }
     },
+    "/api/v1/records/{module}/{record_id}/obsolete": {
+      "post": {
+        "tags": [
+          "records"
+        ],
+        "summary": "弃用记录（已绑定者须走变更单）",
+        "description": "直接弃用记录（ADR-0009：未绑定免凭证 OBSOLETE）。\n\n已绑定记录（`locked_by_deliverable=True`）返 409 —— 它必须走\n`change_type=RECORD_CANCELLATION` 的变更单（ADR-0002）。\n弃用是状态迁移**不是删除**：行还在，只有 sign_status 变了 ——\n「这行曾经存在过、什么时候被谁作废的」要能查。",
+        "operationId": "obsolete_record_api_v1_records__module___record_id__obsolete_post",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObsoleteRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/records/{module}/{record_id}/request-reversal": {
+      "post": {
+        "tags": [
+          "records"
+        ],
+        "summary": "发起撤销申请（CHANGED → REVERSAL_PENDING）",
+        "description": "发起撤销（ADR-0002：仅 CHANGED 且未锁定可发起）。\n\n已对外生效（锁定）的记录只能走变更单，不能走撤销。",
+        "operationId": "request_reversal_api_v1_records__module___record_id__request_reversal_post",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestReversalRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/records/{module}/{record_id}/reversal-decision": {
+      "post": {
+        "tags": [
+          "records"
+        ],
+        "summary": "撤销裁决（批准 → CHECKED / 拒绝 → 维持 CHANGED）",
+        "description": "批准或拒绝撤销申请（ADR-0010）。\n\n两个分支都实现：只接通 approve 的半成品会让「拒绝撤销」永远 500，\n记录卡在 REVERSAL_PENDING 谁也动不了，而用户只看到「按了拒绝，什么都没发生」。",
+        "operationId": "reversal_decision_api_v1_records__module___record_id__reversal_decision_post",
+        "parameters": [
+          {
+            "name": "module",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Module"
+            }
+          },
+          {
+            "name": "record_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Record Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ReversalDecisionRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RecordActionResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/lineage/{record_type}/{record_id}/upstream": {
       "get": {
         "tags": [
@@ -27919,6 +28156,22 @@
         "title": "NodeReq",
         "description": "管网节点请求。"
       },
+      "ObsoleteRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "ObsoleteRequest",
+        "description": "弃用记录（ADR-0009）。理由必填 —— 空理由的弃用事后无从追溯为什么作废。"
+      },
       "OpenChannelCreateRequest": {
         "properties": {
           "project_id": {
@@ -30301,6 +30554,39 @@
         "title": "RadiationCheckInfo",
         "description": "Radiation Check 子结果（API 521 §7.4.2.3 + BEDD）。"
       },
+      "RecordActionResponse": {
+        "properties": {
+          "record_type": {
+            "type": "string",
+            "title": "Record Type",
+            "description": "RECORD_TYPE_REGISTRY 的键，如 PipingResult"
+          },
+          "record_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Record Id"
+          },
+          "from_status": {
+            "type": "string",
+            "title": "From Status",
+            "description": "动作前的 sign_status"
+          },
+          "to_status": {
+            "type": "string",
+            "title": "To Status",
+            "description": "动作后的 sign_status"
+          }
+        },
+        "type": "object",
+        "required": [
+          "record_type",
+          "record_id",
+          "from_status",
+          "to_status"
+        ],
+        "title": "RecordActionResponse",
+        "description": "记录写动作的统一结果。\n\n四个字段对三个端点够用：`record_type` 让前端不必回查就知道操作了哪类记录，\n`from_status` / `to_status` 让「为什么状态变了」在响应里自证。"
+      },
       "RecordBindingResponse": {
         "properties": {
           "record_type": {
@@ -31629,6 +31915,22 @@
         "title": "ReportVerifyResponse",
         "description": "校验结论。**不含任何哈希**（用户 2026-10-08 裁决）。\n\n字段集合被 `test_verify_endpoint_returns_verdict_only` 用 `set(body) ==` 钉死，\n加字段就要同步想清楚「现场人员看到这个字段有什么用」——没有就别加。"
       },
+      "RequestReversalRequest": {
+        "properties": {
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "minLength": 1,
+            "title": "Reason"
+          }
+        },
+        "type": "object",
+        "required": [
+          "reason"
+        ],
+        "title": "RequestReversalRequest",
+        "description": "发起撤销申请（ADR-0002）。理由必填，同上。"
+      },
       "RestrictionCalculateRequest": {
         "properties": {
           "project_id": {
@@ -31930,6 +32232,30 @@
         ],
         "title": "RestrictionCalculateResponse",
         "description": "限制装置计算响应（POST /api/v1/restriction/calculate 201）。\n\n回填 RestrictionResult 主键 orifice_id + 关键结果字段 + flash 元数据 +\noutlet stream 锚点。"
+      },
+      "ReversalDecisionRequest": {
+        "properties": {
+          "decision": {
+            "type": "string",
+            "enum": [
+              "APPROVE",
+              "REJECT"
+            ],
+            "title": "Decision"
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500,
+            "title": "Reason",
+            "default": ""
+          }
+        },
+        "type": "object",
+        "required": [
+          "decision"
+        ],
+        "title": "ReversalDecisionRequest",
+        "description": "撤销裁决（ADR-0010：3 级 REVIEWER / 4 级 APPROVER）。"
       },
       "RevokeRequest": {
         "properties": {

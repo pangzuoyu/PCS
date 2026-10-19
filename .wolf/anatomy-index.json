@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T23:07:34.319Z",
-    "fileCount": 871,
+    "lastScanned": "2026-10-19T23:21:55.223Z",
+    "fileCount": 874,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "e37b84616d1c5c3d87d225032b409929932853450f3fa5a45bfb8c9d5955ace4",
-    "storeUpdatedAt": "2026-10-19T23:07:34.330Z",
-    "rootHash": "60ab1a224c6b3636"
+    "renderedHash": "39205e10e681c894d23b7796eda44fb99dbcee9c0b1115fa63905ab1196fdb7c",
+    "storeUpdatedAt": "2026-10-19T23:21:55.234Z",
+    "rootHash": "35f13a8c081618a2"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -15811,222 +15811,222 @@
     },
     "pcs-backend/tests/conftest.py": {
       "description": "Sprint 1 + P2 共享测试 fixtures。",
-      "tokens": 4721,
-      "hash": "10ad6507217c0dfe",
-      "size": 17989,
-      "mtimeMs": 1791379433044.953,
-      "updatedAt": "2026-10-07T13:23:53.091Z",
+      "tokens": 5533,
+      "hash": "2120d8d54731a322",
+      "size": 22070,
+      "mtimeMs": 1792451817261.0786,
+      "updatedAt": "2026-10-19T23:16:57.310Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_visit_create_column",
           "kind": "fn",
-          "startLine": 56,
-          "endLine": 78,
+          "startLine": 58,
+          "endLine": 80,
           "tokens": 235
         },
         {
           "name": "_visit_check_constraint",
           "kind": "fn",
-          "startLine": 79,
-          "endLine": 88,
+          "startLine": 81,
+          "endLine": 90,
           "tokens": 112
         },
         {
           "name": "_visit_text_nolen",
           "kind": "fn",
-          "startLine": 89,
-          "endLine": 111,
+          "startLine": 91,
+          "endLine": 113,
           "tokens": 234
         },
         {
           "name": "db_engine",
           "kind": "fn",
-          "startLine": 112,
-          "endLine": 143,
+          "startLine": 114,
+          "endLine": 145,
           "tokens": 328
         },
         {
           "name": "db_session",
           "kind": "fn",
-          "startLine": 144,
-          "endLine": 152,
+          "startLine": 146,
+          "endLine": 154,
           "tokens": 100
         },
         {
           "name": "user_id",
           "kind": "fn",
-          "startLine": 153,
-          "endLine": 161,
+          "startLine": 155,
+          "endLine": 163,
           "tokens": 52
         },
         {
           "name": "owner_id",
           "kind": "fn",
-          "startLine": 162,
-          "endLine": 166,
+          "startLine": 164,
+          "endLine": 168,
           "tokens": 23
         },
         {
           "name": "project_id",
           "kind": "fn",
-          "startLine": 167,
-          "endLine": 187,
+          "startLine": 169,
+          "endLine": 189,
           "tokens": 176
         },
         {
           "name": "workspace_id",
           "kind": "fn",
-          "startLine": 188,
-          "endLine": 198,
+          "startLine": 190,
+          "endLine": 200,
           "tokens": 93
         },
         {
           "name": "workspace",
           "kind": "fn",
-          "startLine": 199,
-          "endLine": 220,
-          "tokens": 202
+          "startLine": 201,
+          "endLine": 230,
+          "tokens": 298
         },
         {
           "name": "client",
           "kind": "fn",
-          "startLine": 221,
-          "endLine": 260,
+          "startLine": 231,
+          "endLine": 270,
           "tokens": 360
         },
         {
           "name": "_avoid_real_db_probe",
           "kind": "fn",
-          "startLine": 261,
-          "endLine": 273,
+          "startLine": 271,
+          "endLine": 283,
           "tokens": 116
         },
         {
           "name": "_clear_rbac_rate_limits",
           "kind": "fn",
-          "startLine": 274,
-          "endLine": 288,
+          "startLine": 284,
+          "endLine": 298,
           "tokens": 129
         },
         {
           "name": "db",
           "kind": "fn",
-          "startLine": 289,
-          "endLine": 294,
+          "startLine": 299,
+          "endLine": 304,
           "tokens": 42
         },
         {
           "name": "actor",
           "kind": "fn",
-          "startLine": 295,
-          "endLine": 300,
+          "startLine": 305,
+          "endLine": 310,
           "tokens": 27
         },
         {
           "name": "pc_actor",
           "kind": "fn",
-          "startLine": 301,
-          "endLine": 306,
+          "startLine": 311,
+          "endLine": 316,
           "tokens": 31
         },
         {
           "name": "designer_actor",
           "kind": "fn",
-          "startLine": 307,
-          "endLine": 312,
+          "startLine": 317,
+          "endLine": 322,
           "tokens": 32
         },
         {
           "name": "make_asset",
           "kind": "fn",
-          "startLine": 313,
-          "endLine": 359,
+          "startLine": 323,
+          "endLine": 369,
           "tokens": 373
         },
         {
           "name": "_latest_version",
           "kind": "fn",
-          "startLine": 360,
-          "endLine": 370,
+          "startLine": 370,
+          "endLine": 380,
           "tokens": 107
         },
         {
           "name": "sample_draft_asset",
           "kind": "fn",
-          "startLine": 371,
-          "endLine": 375,
+          "startLine": 381,
+          "endLine": 385,
           "tokens": 42
         },
         {
           "name": "sample_pending_asset",
           "kind": "fn",
-          "startLine": 376,
-          "endLine": 380,
+          "startLine": 386,
+          "endLine": 390,
           "tokens": 44
         },
         {
           "name": "sample_pending_asset_c3",
           "kind": "fn",
-          "startLine": 381,
-          "endLine": 385,
+          "startLine": 391,
+          "endLine": 395,
           "tokens": 51
         },
         {
           "name": "sample_approved_formula_asset",
           "kind": "fn",
-          "startLine": 386,
-          "endLine": 403,
+          "startLine": 396,
+          "endLine": 413,
           "tokens": 178
         },
         {
           "name": "sample_approved_formula_with_preconditions",
           "kind": "fn",
-          "startLine": 404,
-          "endLine": 426,
+          "startLine": 414,
+          "endLine": 436,
           "tokens": 239
         },
         {
           "name": "sample_approved_formula_failing_precondition",
           "kind": "fn",
-          "startLine": 427,
-          "endLine": 449,
+          "startLine": 437,
+          "endLine": 459,
           "tokens": 239
         },
         {
           "name": "sample_approved_formula_with_failing_test",
           "kind": "fn",
-          "startLine": 450,
-          "endLine": 468,
+          "startLine": 460,
+          "endLine": 478,
           "tokens": 211
         },
         {
           "name": "sample_published_asset",
           "kind": "fn",
-          "startLine": 469,
-          "endLine": 473,
+          "startLine": 479,
+          "endLine": 483,
           "tokens": 45
         },
         {
           "name": "sample_two_version_asset",
           "kind": "fn",
-          "startLine": 474,
-          "endLine": 488,
+          "startLine": 484,
+          "endLine": 498,
           "tokens": 120
         },
         {
           "name": "sample_sequence",
           "kind": "fn",
-          "startLine": 489,
-          "endLine": 502,
+          "startLine": 499,
+          "endLine": 512,
           "tokens": 92
         },
         {
           "name": "sample_user_token",
           "kind": "fn",
-          "startLine": 503,
-          "endLine": 517,
-          "tokens": 136
+          "startLine": 513,
+          "endLine": 603,
+          "tokens": 842
         }
       ]
     },
@@ -29567,6 +29567,149 @@
           "startLine": 37,
           "endLine": 77,
           "tokens": 337
+        }
+      ]
+    },
+    "pcs-backend/tests/api/v1/test_records_actions_wired.py": {
+      "description": "records 写端点 · 接线面测试（P9A B4a）。",
+      "tokens": 3206,
+      "hash": "7052d87065fb20d0",
+      "size": 13224,
+      "mtimeMs": 1792452115176.2407,
+      "updatedAt": "2026-10-19T23:21:55.223Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "auth",
+          "kind": "fn",
+          "startLine": 37,
+          "endLine": 41,
+          "tokens": 37
+        },
+        {
+          "name": "approver_auth",
+          "kind": "fn",
+          "startLine": 42,
+          "endLine": 54,
+          "tokens": 109
+        },
+        {
+          "name": "_make_record",
+          "kind": "fn",
+          "startLine": 55,
+          "endLine": 78,
+          "tokens": 217
+        },
+        {
+          "name": "_url",
+          "kind": "fn",
+          "startLine": 79,
+          "endLine": 82,
+          "tokens": 34
+        },
+        {
+          "name": "TestObsoleteEndpoint",
+          "kind": "class",
+          "startLine": 83,
+          "endLine": 128,
+          "tokens": 482
+        },
+        {
+          "name": "TestReversalEndpoints",
+          "kind": "class",
+          "startLine": 129,
+          "endLine": 242,
+          "tokens": 1177
+        },
+        {
+          "name": "TestModuleResolution",
+          "kind": "class",
+          "startLine": 243,
+          "endLine": 283,
+          "tokens": 406
+        },
+        {
+          "name": "TestResponseContract",
+          "kind": "class",
+          "startLine": 284,
+          "endLine": 332,
+          "tokens": 472
+        }
+      ]
+    },
+    "pcs-backend/app/schemas/records_actions.py": {
+      "description": "records 写端点的请求/响应 schema（P9A B4）。",
+      "tokens": 396,
+      "hash": "d8274806cbb22a7f",
+      "size": 1936,
+      "mtimeMs": 1792451865589.329,
+      "updatedAt": "2026-10-19T23:17:45.648Z",
+      "source": "hook"
+    },
+    "pcs-backend/app/api/v1/records_actions.py": {
+      "description": "records 写端点（P9A B4）—— `/records/{module}/{id}/<action>`。",
+      "tokens": 1896,
+      "hash": "95efa12f970a5d1c",
+      "size": 8015,
+      "mtimeMs": 1792451877033.15,
+      "updatedAt": "2026-10-19T23:17:57.080Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "resolve_record_model",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 69,
+          "tokens": 158
+        },
+        {
+          "name": "_pk_name",
+          "kind": "fn",
+          "startLine": 70,
+          "endLine": 74,
+          "tokens": 42
+        },
+        {
+          "name": "_load_record",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 92,
+          "tokens": 154
+        },
+        {
+          "name": "_roles_for",
+          "kind": "fn",
+          "startLine": 93,
+          "endLine": 100,
+          "tokens": 74
+        },
+        {
+          "name": "_response",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 114,
+          "tokens": 121
+        },
+        {
+          "name": "obsolete_record",
+          "kind": "fn",
+          "startLine": 115,
+          "endLine": 147,
+          "tokens": 303
+        },
+        {
+          "name": "request_reversal",
+          "kind": "fn",
+          "startLine": 148,
+          "endLine": 177,
+          "tokens": 267
+        },
+        {
+          "name": "reversal_decision",
+          "kind": "fn",
+          "startLine": 178,
+          "endLine": 210,
+          "tokens": 314
         }
       ]
     }

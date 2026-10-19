@@ -32,6 +32,7 @@ from app.api.v1.psv_standard_profiles import router as psv_standard_profiles_rou
 from app.api.v1.psychro import router as psychro_router  # P6-2 Task 26
 from app.api.v1.pump import router as pump_router
 from app.api.v1.records import router as records_router
+from app.api.v1.records_actions import router as records_actions_router
 from app.api.v1.restriction import router as restriction_router  # P6-1 Task 14
 from app.api.v1.sep_equip import router as sep_equip_router  # P5-2-4
 from app.api.v1.sim_imports_query import project_router as sim_imports_query_router
@@ -54,6 +55,7 @@ api_router.include_router(admin_users_router)  # P9A：全环境挂载（见 adm
 api_router.include_router(workspaces_router)
 api_router.include_router(checklist_router)
 api_router.include_router(records_router)
+api_router.include_router(records_actions_router)
 api_router.include_router(lineage_router)
 api_router.include_router(meta_router)
 api_router.include_router(change_impact_router)

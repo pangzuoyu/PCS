@@ -560,6 +560,76 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/records/{module}/{record_id}/obsolete": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 弃用记录（已绑定者须走变更单）
+         * @description 直接弃用记录（ADR-0009：未绑定免凭证 OBSOLETE）。
+         *
+         *     已绑定记录（`locked_by_deliverable=True`）返 409 —— 它必须走
+         *     `change_type=RECORD_CANCELLATION` 的变更单（ADR-0002）。
+         *     弃用是状态迁移**不是删除**：行还在，只有 sign_status 变了 ——
+         *     「这行曾经存在过、什么时候被谁作废的」要能查。
+         */
+        post: operations["obsolete_record_api_v1_records__module___record_id__obsolete_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/records/{module}/{record_id}/request-reversal": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 发起撤销申请（CHANGED → REVERSAL_PENDING）
+         * @description 发起撤销（ADR-0002：仅 CHANGED 且未锁定可发起）。
+         *
+         *     已对外生效（锁定）的记录只能走变更单，不能走撤销。
+         */
+        post: operations["request_reversal_api_v1_records__module___record_id__request_reversal_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/records/{module}/{record_id}/reversal-decision": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * 撤销裁决（批准 → CHECKED / 拒绝 → 维持 CHANGED）
+         * @description 批准或拒绝撤销申请（ADR-0010）。
+         *
+         *     两个分支都实现：只接通 approve 的半成品会让「拒绝撤销」永远 500，
+         *     记录卡在 REVERSAL_PENDING 谁也动不了，而用户只看到「按了拒绝，什么都没发生」。
+         */
+        post: operations["reversal_decision_api_v1_records__module___record_id__reversal_decision_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/lineage/{record_type}/{record_id}/upstream": {
         parameters: {
             query?: never;
@@ -11731,6 +11801,14 @@ export interface components {
             upstream_equipment_type?: string | null;
         };
         /**
+         * ObsoleteRequest
+         * @description 弃用记录（ADR-0009）。理由必填 —— 空理由的弃用事后无从追溯为什么作废。
+         */
+        ObsoleteRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /**
          * OpenChannelCreateRequest
          * @description POST /open-channel/results 直接创建请求（不走 calc）。
          *
@@ -13119,6 +13197,35 @@ export interface components {
             formula_ref: string;
         };
         /**
+         * RecordActionResponse
+         * @description 记录写动作的统一结果。
+         *
+         *     四个字段对三个端点够用：`record_type` 让前端不必回查就知道操作了哪类记录，
+         *     `from_status` / `to_status` 让「为什么状态变了」在响应里自证。
+         */
+        RecordActionResponse: {
+            /**
+             * Record Type
+             * @description RECORD_TYPE_REGISTRY 的键，如 PipingResult
+             */
+            record_type: string;
+            /**
+             * Record Id
+             * Format: uuid
+             */
+            record_id: string;
+            /**
+             * From Status
+             * @description 动作前的 sign_status
+             */
+            from_status: string;
+            /**
+             * To Status
+             * @description 动作后的 sign_status
+             */
+            to_status: string;
+        };
+        /**
          * RecordBindingResponse
          * @description snapshot 端点里的单条记录绑定明细。
          *
@@ -13795,6 +13902,14 @@ export interface components {
             generated_at?: string | null;
         };
         /**
+         * RequestReversalRequest
+         * @description 发起撤销申请（ADR-0002）。理由必填，同上。
+         */
+        RequestReversalRequest: {
+            /** Reason */
+            reason: string;
+        };
+        /**
          * RestrictionCalculateRequest
          * @description 限制装置计算请求体（POST /api/v1/restriction/calculate）。
          *
@@ -14016,6 +14131,22 @@ export interface components {
              * @description 出口流 UUID（RESTRICTION_CALCULATED）
              */
             outlet_stream_id: string;
+        };
+        /**
+         * ReversalDecisionRequest
+         * @description 撤销裁决（ADR-0010：3 级 REVIEWER / 4 级 APPROVER）。
+         */
+        ReversalDecisionRequest: {
+            /**
+             * Decision
+             * @enum {string}
+             */
+            decision: "APPROVE" | "REJECT";
+            /**
+             * Reason
+             * @default
+             */
+            reason: string;
         };
         /**
          * RevokeRequest
@@ -19517,6 +19648,120 @@ export interface operations {
                     "application/json": {
                         [key: string]: unknown;
                     }[];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    obsolete_record_api_v1_records__module___record_id__obsolete_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                module: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ObsoleteRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    request_reversal_api_v1_records__module___record_id__request_reversal_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                module: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestReversalRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordActionResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reversal_decision_api_v1_records__module___record_id__reversal_decision_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                module: string;
+                record_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ReversalDecisionRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RecordActionResponse"];
                 };
             };
             /** @description Validation Error */

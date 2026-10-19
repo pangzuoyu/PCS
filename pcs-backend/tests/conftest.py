@@ -198,12 +198,18 @@ def workspace_id() -> uuid.UUID:
 
 
 @pytest_asyncio.fixture
-async def workspace(db_session, workspace_id):
+async def workspace(db_session, workspace_id, project_id):
     """HIGH P1-2 — 异步 fixture 中建一个 FORMAL Workspace 记录，workspace_id 可预测。
 
     用法：``async def test_x(client, workspace): ...`` —— ``get_workspace``
     依赖 ``workspace_id`` query/path/header 参数时，httpx ``client.get(
     f"/.../workspaces/{workspace.workspace_id}/...")`` 即可命中已建记录。
+
+    ⚠️ 2026-10-20 修复：原实现传 ``workspace_name=``，而 ``Workspace`` 的列叫
+    ``name`` ⇒ **任何用到本 fixture 的测试都会 TypeError**。之所以一直没被发现：
+    没有测试用它（fixture 写于 P1-2，之后的测试各自造 workspace）。
+    同时补 ``project_id`` —— ``check_project_access_or_404`` 依赖它，
+    否则 workspace 侧的项目归属恒为 None，项目守卫会被静默跳过。
     """
     from app.models.enums import WorkspaceType
     from app.models.project import Workspace
@@ -211,7 +217,9 @@ async def workspace(db_session, workspace_id):
     ws = Workspace(
         workspace_id=workspace_id,
         workspace_type=WorkspaceType.FORMAL.value,
-        workspace_name="Test Workspace",
+        name="Test Workspace",
+        project_id=project_id,
+        status="ACTIVE",
     )
     db_session.add(ws)
     await db_session.commit()

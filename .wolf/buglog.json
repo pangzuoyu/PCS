@@ -3480,6 +3480,25 @@
         "duplicate-definition",
         "latent-breakage"
       ]
+    },
+    {
+      "id": "bug-192",
+      "timestamp": "2026-10-20T00:00:00.000Z",
+      "error_message": "TypeError: 'workspace_name' is an invalid keyword argument for Workspace（任何请求 tests/conftest.py 的 workspace fixture 的测试）",
+      "file": "pcs-backend/tests/conftest.py",
+      "root_cause": "conftest 的 workspace fixture 传 workspace_name=，而 Workspace 模型的列叫 name；同时漏了 project_id，导致 check_project_access_or_404 在 workspace.project_id 为 None 时被静默跳过。该 fixture 自 P1-2 写下后**没有任何测试用过它**，所以从未被执行过 —— 未被执行的 fixture 与不存在的 fixture 在测试套件里是同一种东西：全绿。",
+      "fix": "改为 name= + 补 project_id/project status='ACTIVE'，并在 docstring 记下「fixture 没人用 ⇒ 错误不会暴露」这一形态",
+      "fix_commit": "PENDING",
+      "tags": [
+        "tests",
+        "fixture",
+        "silent-failure",
+        "guard-bypass"
+      ],
+      "related_bugs": [],
+      "occurrences": 1,
+      "last_seen": "2026-10-20",
+      "severity": "MEDIUM"
     }
   ]
 }

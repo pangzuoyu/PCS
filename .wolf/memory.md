@@ -1941,3 +1941,11 @@
 | 07:07 | Edited pcs-backend/app/api/v1/deliverables.py | 6→8 lines | ~62 |
 | 07:07 | Edited pcs-backend/app/api/v1/deliverables.py | modified proxy_customer_approval() | ~566 |
 | 07:07 | Edited pcs-backend/app/api/v1/deliverables.py | 11→15 lines | ~185 |
+| 07:16 | Created pcs-backend/tests/api/v1/test_records_actions_wired.py | — | ~2857 |
+| 07:16 | Edited pcs-backend/tests/conftest.py | modified test_x() | ~224 |
+| 07:16 | Edited pcs-backend/tests/conftest.py | inline fix | ~17 |
+| 07:17 | Created pcs-backend/app/schemas/records_actions.py | — | ~396 |
+| 07:17 | Created pcs-backend/app/api/v1/records_actions.py | — | ~1896 |
+| 07:21 | Edited pcs-backend/tests/api/v1/test_records_actions_wired.py | modified auth() | ~150 |
+| 07:21 | Edited pcs-backend/tests/api/v1/test_records_actions_wired.py | modified test_reversal_decision_requires_approver_role() | ~228 |
+| 07:21 | Edited pcs-backend/tests/api/v1/test_records_actions_wired.py | modified test_obsolete_row_is_still_in_db() | ~34 |
