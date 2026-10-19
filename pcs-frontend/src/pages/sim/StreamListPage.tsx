@@ -22,7 +22,6 @@ import {
   streamPhaseLabel,
   type Stream,
 } from '../../types/stream';
-import type { RecordSignStatus } from '../../types/records';
 
 interface Props {
   streams: Stream[];
@@ -100,12 +99,11 @@ export function StreamListPage({ streams, onSelect }: Props): JSX.Element {
       title: '状态',
       dataIndex: 'sign_status',
       width: 100,
-      // 契约的 sign_status 是裸 `string`（词表只在 description 里），
-      // 而 StateBadge 要 `RecordSignStatus`。不能 `as` 硬转 —— 那是把
-      // 契约缺口藏起来。走 StateBadge 的未知兜底：dev 抛错 / prod 明示。
-      render: (s: Stream['sign_status']) => (
-        <StateBadge status={s as RecordSignStatus} module="SIM" />
-      ),
+      // `as` 已删（2026-10-19，TODO-042）：契约的 sign_status 现在是
+      // `StreamSignStatus` 9 态枚举，而 `RecordSignStatus` 9 态与之逐字
+      // 相同（见 `models/enums.py` 的对齐注释），所以不再需要断言。
+      // 断言在编译期会「看起来能用」，实际是把契约缺口藏进一行 `as`。
+      render: (s: Stream['sign_status']) => <StateBadge status={s} module="SIM" />,
     },
   ];
 

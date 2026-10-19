@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T02:45:32.684Z
-> Files: 830 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T03:21:56.683Z
+> Files: 831 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1275,6 +1275,7 @@
 
 - `test_config_asset_schema.py` — AssetResponse.status 的词表（2026-10-19，bug-188）。 (~376 tok)
 - `test_pipe_class_schema.py` — PipeClass schema 的 status 词表（2026-10-19，bug-187）。 (~806 tok)
+- `test_stream_vocabulary.py` — `Stream` 四个词表字段必须在契约里（2026-10-19，TODO-042 / bug-191）。 (~1362 tok)
 
 ## pcs-backend/tests/scripts/
 

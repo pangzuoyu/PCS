@@ -20,6 +20,7 @@ from dataclasses import dataclass, field
 from enum import Enum
 from typing import Any, Protocol
 
+from app.models.enums import StreamPhase
 from app.services.proii_parser import ProiiParseResult
 from app.services.property_completion import (
     VALID_STATE_POINT_CASE_TYPES,
@@ -455,7 +456,10 @@ class ConflictResolver:
     # SIM-V04：相态枚举非法
     # -----------------------------------------------------------------
 
-    _VALID_PHASES = frozenset({"VAPOR", "LIQUID", "MIXED", "SOLID"})
+    # 单一来源：`StreamPhase`（app/models/enums.py）。
+    # 此前这里是一份独立的字面量集，而 schema 侧是裸 `str` ——
+    # 两份定义各改各的。有测试锁住两者一致。
+    _VALID_PHASES = frozenset(p.value for p in StreamPhase)
 
     def _check_sim_v04_phase(
         self, s: ParsedStream, report: ConflictReport

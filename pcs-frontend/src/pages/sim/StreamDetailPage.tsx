@@ -36,7 +36,6 @@ import { ChangeImpactPanel, type ChangeSource, type AffectedRecord } from '../..
 import { SchemaForm, type UiSchemaResponse } from '../../components/common/SchemaForm';
 import { AssumedDataMarker } from '../../components/common/AssumedDataMarker';
 import { streamPhaseColor, streamPhaseLabel, type Stream } from '../../types/stream';
-import type { RecordSignStatus } from '../../types/records';
 
 interface Props {
   stream: Stream;
@@ -106,7 +105,7 @@ export function StreamDetailPage({
     <div data-testid="stream-detail-page">
       <PageHeader
         title={stream.stream_name}
-        status={stream.sign_status as RecordSignStatus}
+        status={stream.sign_status}
         module="SIM"
         version={
           stream.record_hash

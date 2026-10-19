@@ -22,6 +22,13 @@ import uuid
 from enum import Enum
 from typing import Any
 
+from app.models.enums import (
+    StreamDataMode,
+    StreamPhase,
+    StreamSignStatus,
+    StreamSourceType,
+)
+
 from pydantic import BaseModel, Field
 
 
@@ -51,16 +58,26 @@ class StreamBase(BaseModel):
         ...,
         description="物流级工况：NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN",
     )
-    data_mode: str = Field(
+    # ⚠️ 以下四个字段 2026-10-19 从裸 `str` 改为枚举（TODO-042 / bug-191）。
+    # 词表只写在 description 里的代价：客户端读到的是 `"type": "string"`，
+    # 只能猜，而它已经因此错过 4 次（bug-187/188/189/190）。
+    # 其中 `sign_status` 的 description 甚至把 9 态写成了 4 态、
+    # `source_type` 把 13 个写成了 5 个 —— 散文既可能写少也可能写错。
+    data_mode: StreamDataMode = Field(
         ...,
-        min_length=1,
-        max_length=20,
-        description="数据模式：CHEMICAL/PETROLEUM/SOLID",
+        description="数据模式：CHEMICAL（化学组成）/ PETROLEUM（石油特征）/ SOLID（固体物料）",
     )
     description: str | None = Field(None, max_length=500, description="物流描述")
 
     # === 物流操作参数（spec V1.6 §3.2.3） ===
-    phase: str | None = Field(None, max_length=20, description="相态：VAPOR/LIQUID/MIXED/SOLID")
+    phase: StreamPhase | None = Field(
+        None,
+        description=(
+            "主相态：VAPOR/LIQUID/MIXED/SOLID。⚠️ SPEC P3-SIM 只列 3 值（漏 SOLID），"
+            "而 `import_service._phase_norm` 会产出 SOLID —— 以本枚举为准，SPEC 待修订。"
+            "MIXED 合法但导入路径暂不产出（会置 None 并用 is_mixed_phase 记混相事实）。"
+        ),
+    )
     temp: float | None = Field(None, description="温度 °C")
     press: float | None = Field(None, description="压力 MPaG（⚠️ 原写 kPa 是错的，见 DICT-007-SUP-011 §4.4 `pressure_mpag → press`；后端其余压力字段一律 MPaG）")
     mass_flow: float | None = Field(None, description="质量流量 kg/h")
@@ -209,10 +226,12 @@ class StreamBase(BaseModel):
         max_length=30,
         description="变化类型：ISOENTHALPIC/FRICTION_PRESSURE_DROP/HEAT_EXCHANGE/PUMP_WORK",
     )
-    source_type: str = Field(
+    source_type: StreamSourceType = Field(
         ...,
-        max_length=30,
-        description="来源类型：SIM_IMPORT/MANUAL_ENTRY/LAB_REPORT/FLASH_CALCULATED/DEVICE_CALCULATED",
+        description=(
+            "来源类型 13 值。⚠️ description 此前只列了 5 个，"
+            "漏掉全部 10 个 `*_CALCULATED` 出口流值 —— 照它收窄会把合法值砍光。"
+        ),
     )
     source_file: str | None = Field(None, max_length=200, description="源文件路径")
     lab_report_ref: str | None = Field(None, max_length=200, description="实验报告编号")
@@ -250,22 +269,27 @@ class StreamUpdate(BaseModel):
 
     stream_name: str | None = Field(None, min_length=1, max_length=100, description="管段物流号")
     case_type: StreamCaseType | None = Field(None, description="物流级工况")
-    data_mode: str | None = Field(None, min_length=1, max_length=20, description="数据模式")
+    # ⚠️ Patch 也必须是枚举：只收窄 Response 的话，PATCH 仍能把非法值写进库，
+    # 直到下一次 GET 响应校验才 500 —— 那时已经落库了，且错误现场与写入现场分离。
+    data_mode: StreamDataMode | None = Field(None, description="数据模式")
     description: str | None = Field(None, max_length=500, description="物流描述")
-    phase: str | None = Field(None, max_length=20, description="相态")
+    phase: StreamPhase | None = Field(None, description="主相态")
     temp: float | None = Field(None, description="温度 °C")
     press: float | None = Field(None, description="压力 MPaG（⚠️ 原写 kPa 是错的，见 DICT-007-SUP-011 §4.4 `pressure_mpag → press`；后端其余压力字段一律 MPaG）")
     mass_flow: float | None = Field(None, description="质量流量 kg/h")
     molar_flow: float | None = Field(None, description="摩尔流量 kmol/h")
     actual_vol_flow: float | None = Field(None, description="工况体积流量 m³/h")
-    source_type: str | None = Field(None, max_length=30, description="来源类型")
+    source_type: StreamSourceType | None = Field(None, description="来源类型")
 
 
 class StreamResponse(StreamBase):
     """完整响应：含 sign_status + 审计字段。"""
 
     stream_id: uuid.UUID = Field(..., description="物流 ID")
-    sign_status: str = Field(..., description="签署门禁：DRAFT/IN_APPROVAL/CHECKED/OBSOLETE")
+    # DB 侧是 PG enum `streamsignstatus`，9 值；description 此前写 4 个。
+    sign_status: StreamSignStatus = Field(
+        ..., description="签署门禁 9 态（与 PG enum streamsignstatus 逐字一致）"
+    )
     approval_step: int | None = Field(None, description="当前校对步骤")
     approval_depth: int = Field(..., description="校对深度 1~4")
     record_hash: str = Field(..., description="SHA-256 实质变更判别")
@@ -293,7 +317,7 @@ class StreamStatePointBase(BaseModel):
     )
     temp: float = Field(..., description="温度 °C")
     press: float = Field(..., description="压力 MPaG（⚠️ 原写 kPa 是错的，见 DICT-007-SUP-011 §4.4 `pressure_mpag → press`；后端其余压力字段一律 MPaG）")
-    phase: str = Field(..., min_length=1, max_length=20, description="相态")
+    phase: StreamPhase = Field(..., description="相态（与 Stream.phase 同一词表）")
     vapor_fraction: float | None = Field(None, ge=0.0, le=1.0, description="气相分率")
     mass_flow: float = Field(..., description="质量流量 kg/h")
     composition_json: dict[str, Any] = Field(..., description="组成 CAS→摩尔分率")
@@ -309,10 +333,8 @@ class StreamStatePointBase(BaseModel):
     profile_json: dict[str, Any] | None = Field(
         None, description="沿程剖面 distance/pressures/temperatures"
     )
-    source_type: str = Field(
-        ...,
-        max_length=30,
-        description="来源：SIM_IMPORT/MANUAL_ENTRY/FLASH_CALCULATED/DEVICE_CALCULATED",
+    source_type: StreamSourceType = Field(
+        ..., description="来源类型（与 Stream.source_type 同一词表）"
     )
 
 
@@ -330,7 +352,7 @@ class StreamStatePointUpdate(BaseModel):
     temp: float | None = Field(None, description="温度 °C")
     press: float | None = Field(None, description="压力 MPaG（⚠️ 原写 kPa 是错的，见 DICT-007-SUP-011 §4.4 `pressure_mpag → press`；后端其余压力字段一律 MPaG）")
     mass_flow: float | None = Field(None, description="质量流量 kg/h")
-    source_type: str | None = Field(None, max_length=30, description="来源类型")
+    source_type: StreamSourceType | None = Field(None, description="来源类型")
 
 
 class StreamStatePointResponse(StreamStatePointBase):

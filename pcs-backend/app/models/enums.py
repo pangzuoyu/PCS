@@ -44,6 +44,83 @@ class StreamSignStatus(str, enum.Enum):
     OBSOLETE = "OBSOLETE"
 
 
+class StreamPhase(str, enum.Enum):
+    """物流主相态 4 态（`streams.phase`，可空）。
+
+    ## 为什么是 4 值而不是 SPEC P3-SIM 写的 3 值
+
+    SPEC「SIM 模块 输入」只列 VAPOR/LIQUID/MIXED，**漏了 SOLID**，而后端
+    `import_service._phase_norm` 会把 P&ID/文件里的 `S`/`SOLID` 归一成
+    `SOLID`（实测存在于真实导入路径）。砍掉它 ⇒ 固相在客户端渲染成空标签。
+    按 CLAUDE.md「与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订」，本枚举
+    是权威；SPEC 的三值表登记为待修订（见 `TODOS.md`）。
+
+    与 `conflict_resolver._VALID_PHASES` 逐字一致（那处是校验侧的唯一来源，
+    本枚举是声明侧的 —— 已加一致性测试锁住两者）。
+
+    ⚠️ `import_service._phase_norm` 把 **MIXED 映射成 None**（避免 SIM-V01
+    BLOCK：MIXED 必填两相组成，而 PRO/II parser 不抽组成），另用
+    `is_mixed_phase` 布尔列保留「原始是混相」这一事实。所以 **MIXED 是
+    合法值但导入路径暂不产出**，两者不矛盾。
+    """
+
+    VAPOR = "VAPOR"
+    LIQUID = "LIQUID"
+    MIXED = "MIXED"
+    SOLID = "SOLID"
+
+
+class StreamDataMode(str, enum.Enum):
+    """物流数据模式 3 态（`streams.data_mode`，String(20)）。
+
+    前端按此值渲染不同字段集（化学组成 / 石油特征 / 固体物料）。
+
+    ⚠️ 2026-10-19 从 `app/services/meta_service.py` 搬到这里：原来它在
+    service 层，而 `schemas/stream.py` 用裸 `str`，于是「meta 端点返的
+    enum」与「响应 schema 接受的类型」是**两份互不引用的定义** ——
+    改一处不会带动另一处（bug-187/188/189/190 全是这个形态）。
+    现在只有一个来源。
+    """
+
+    CHEMICAL = "CHEMICAL"
+    PETROLEUM = "PETROLEUM"
+    SOLID = "SOLID"
+
+
+class StreamSourceType(str, enum.Enum):
+    """物流来源类型 13 值（`streams.source_type`，String(30)）。
+
+    3 类人工/导入来源 + 10 类设备计算出口流。
+
+    ⚠️ 契约的 description 此前只列了 5 个（SIM_IMPORT/MANUAL_ENTRY/
+    LAB_REPORT/FLASH_CALCULATED/DEVICE_CALCULATED），**漏掉其中 10 个
+    `*_CALCULATED`** —— 而 `outlet_stream.py` 的每个 persist 模块都在写它们。
+    若当初有人照 description「收窄」枚举，13 个合法值会只剩 3 个。
+    这正是「词表只写在散文里」的危害：散文既可能写少，也可能写错
+    （`StreamResponse.sign_status` 的 description 就把 9 态写成了 4 态）。
+
+    出口流那 10 个值由 `app/services/outlet_stream.py` 产出，引用本枚举而
+    非散落字面量 —— `DEVICE_CALCULATED` 曾因散落写法被 Literal 遗漏过一次
+    （A-03/C-05 LOW 修复记录在 outlet_stream 的注释里）。
+    """
+
+    # 人工/导入来源
+    SIM_IMPORT = "SIM_IMPORT"
+    MANUAL_ENTRY = "MANUAL_ENTRY"
+    LAB_REPORT = "LAB_REPORT"
+    # 设备计算出口流
+    FLASH_CALCULATED = "FLASH_CALCULATED"
+    PIPE_CALCULATED = "PIPE_CALCULATED"
+    PUMP_CALCULATED = "PUMP_CALCULATED"
+    PIPE_NET_CALCULATED = "PIPE_NET_CALCULATED"
+    VESSEL_CALCULATED = "VESSEL_CALCULATED"
+    SEP_EQUIP_CALCULATED = "SEP_EQUIP_CALCULATED"
+    PSV_CALCULATED = "PSV_CALCULATED"
+    HEAT_CALCULATED = "HEAT_CALCULATED"
+    RESTRICTION_CALCULATED = "RESTRICTION_CALCULATED"
+    DEVICE_CALCULATED = "DEVICE_CALCULATED"
+
+
 class DeliverableSignStatus(str, enum.Enum):
     """交付物签审状态 4 态（DRAFT/PENDING/APPROVED/OBSOLETE）。
 

@@ -19,22 +19,15 @@
 import type { components } from './api';
 
 /**
- * 相态。**四值，与契约逐字相同**（`api.d.ts` StreamResponse：
- * 「相态：VAPOR/LIQUID/MIXED/SOLID」）。
+ * 相态 —— **直接取契约的 `StreamPhase`**，不再手写。
  *
- * ⚠️ 2026-10-19 改过一次：前端原为 `LIQUID|VAPOR|MIXED|AQUEOUS`。
- * 两头都错：
- * - `AQUEOUS` 是前端**凭空发明**的 —— SPEC、`app/`、`openapi.json` 三处零命中。
- *   砍掉。
- * - `SOLID` 此前前端**没有**，但后端真的会产出（`import_service._phase_norm`
- *   把 `S`/`SOLID` 归一成 SOLID，`conflict_resolver._VALID_PHASES` 收了它）。
- *   砍掉它 ⇒ 真实导入的固相在页面上渲染成空标签。
+ * 这份手写词表改过两次（`LIQUID|VAPOR|MIXED|AQUEOUS` → 四值），
+ * 每次都是因为后端描述变了才知道。**手写副本不会自己变对**，所以现在
+ * 它就是契约类型，并配一条双向编译期断言（见 `streamPhaseLabel` 上方）。
  *
- * ⇒ **SPEC P3-SIM 的三值相态表已过时，须补 SOLID**（已登记 TODOS.md）。
- * 按 CLAUDE.md「与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订」，
- * 权威是 OpenAPI 的四值。
+ * ⚠️ SPEC P3-SIM 的相态表只列 3 值（漏 SOLID），而
+ * `import_service._phase_norm` 真的会产出 SOLID ⇒ SPEC 待修订。
  */
-export type StreamPhase = 'LIQUID' | 'VAPOR' | 'MIXED' | 'SOLID';
 
 // ⚠️ `tag_number` 已删（2026-10-19，用户裁决）。
 // 物流是**流量**不是设备，没有位号 —— `tag_number` 是 `TaggedRecordMixin`
@@ -59,6 +52,20 @@ export type StreamPhase = 'LIQUID' | 'VAPOR' | 'MIXED' | 'SOLID';
  * 与 bug-180/187/188 同一族：**手写副本不会自己变对**。
  */
 export type Stream = components['schemas']['StreamResponse'];
+
+/** 契约的 `StreamPhase`（后端 `app/models/enums.py` 是唯一来源）。 */
+export type StreamPhase = components['schemas']['StreamPhase'];
+
+/**
+ * 编译期守卫：本地词表必须**恰好**等于契约的。
+ * 少一个 → 后端真值落进「未知相态: X」；多一个 → 契约里不存在的态被当成合法的。
+ * 双向（`extends` 两个方向都查）。
+ */
+type _AssertPhaseAligned = StreamPhase extends NonNullable<Stream['phase']>
+  ? NonNullable<Stream['phase']> extends StreamPhase ? true : never
+  : never;
+const _phaseAligned: _AssertPhaseAligned = true;
+void _phaseAligned;
 
 
 
@@ -91,22 +98,25 @@ export const STREAM_PHASE_LABEL: Record<StreamPhase, string> = {
  * 两种都不是「填个默认值」该解决的：**没填**显示「未标注相态」，
  * **填错了**显示「未知相态: X」。两者都不丢信息（见 STATE_BADGE 那条同源教训）。
  */
-export function streamPhaseLabel(phase: string | null | undefined): string {
-  if (phase == null || phase === '') return '未标注相态';
-  const label = STREAM_PHASE_LABEL[phase as StreamPhase];
+export function streamPhaseLabel(phase: Stream['phase']): string {
+  if (phase == null) return '未标注相态';
+  const label = STREAM_PHASE_LABEL[phase];
+  // ⚠️ 类型说这里不可能越界，但**DB 侧的 `streams.phase` 仍无 CHECK 约束**
+  // （只有 `ck_streams_case_type`），且 `import_service._phase_norm` 对未知值
+  // `return p` 原样放行 ⇒ 历史行/直接 SQL 写入仍可能是词表外的值。
+  // 所以兜底保留：明示「未知相态: X」而不是静默空标签。
   return label ?? `未知相态: ${phase}`;
 }
 
 /** 同上，附带颜色。未知值给灰色，且**不吞掉原值**（调用方可自行展示）。 */
-export function streamPhaseColor(phase: string | null | undefined): string {
+export function streamPhaseColor(phase: Stream['phase']): string {
   switch (phase) {
     case 'LIQUID': return 'blue';
     case 'VAPOR': return 'orange';
     case 'MIXED': return 'purple';
     case 'SOLID': return 'default';
     case null:
-    case undefined:
-    case '': return 'default';
+    case undefined: return 'default';
     default: return 'default';
   }
 }

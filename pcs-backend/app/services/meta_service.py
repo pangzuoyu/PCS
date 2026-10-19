@@ -43,6 +43,7 @@ from app.models.enums import (
     TwoPhaseCheck,
     WorkspaceType,
 )
+from app.models.enums import StreamDataMode
 from app.schemas.stream import StatePointCaseType, StreamCaseType
 from app.services.state_machine import (
     ALLOWED_TRANSITIONS,
@@ -52,18 +53,13 @@ from app.services.state_machine import (
 )
 
 
-# StreamDataMode：DB 层 streams.data_mode 是 String(20) + 注释提示，
-# 此处提供 enum 以供前端统一消费（值与 model 注释一致）
-class StreamDataMode(str, Enum):
-    """流数据模式：CHEMICAL 化学组成 / PETROLEUM 石油特征 / SOLID 固体物料。
-
-    与 DB streams.data_mode String(20) 对齐（值字符串完全一致）；前端
-    统一消费此 enum 渲染不同字段集（组分/石油/固体）。
-    """
-
-    CHEMICAL = "CHEMICAL"
-    PETROLEUM = "PETROLEUM"
-    SOLID = "SOLID"
+# ⚠️ `StreamDataMode` 的定义 2026-10-19 从这里搬到 `app/models/enums.py`。
+# 原来它在这里，而 `schemas/stream.py` 用的是**裸 `str`** —— 于是
+# 「meta 端点返的 enum」与「响应 schema 接受的类型」是两份互不引用的定义，
+# 改一处不会带动另一处。这正是 bug-187/188/190 这一族的根：
+# **同一概念有多份定义，漂移只是时间问题。**
+# 现在这里是 re-export（保持 `from meta_service import StreamDataMode` 可用），
+# 且有测试锁住两者是**同一个对象**。
 
 
 # 状态色 + icon 与 pcs-frontend/src/styles/tokens.css + PCS-UI-SPEC §6.1 对齐

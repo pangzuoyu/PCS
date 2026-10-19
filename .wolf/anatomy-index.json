@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T02:45:32.684Z",
-    "fileCount": 830,
+    "lastScanned": "2026-10-19T03:21:56.683Z",
+    "fileCount": 831,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "a7ce691cb929dfb9780b1895d2d8c359843fb92ca555779b9797a796dd6958c9",
-    "storeUpdatedAt": "2026-10-19T02:45:32.694Z",
-    "rootHash": "200ea0167aeacd7d"
+    "renderedHash": "ed9980c12f3ca68922b985012924afb4691c1e9b5b2ca976336573edf8724866",
+    "storeUpdatedAt": "2026-10-19T03:21:56.693Z",
+    "rootHash": "760f25e524467225"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -27818,6 +27818,52 @@
           "startLine": 106,
           "endLine": 119,
           "tokens": 191
+        }
+      ]
+    },
+    "pcs-backend/tests/schemas/test_stream_vocabulary.py": {
+      "description": "`Stream` 四个词表字段必须在契约里（2026-10-19，TODO-042 / bug-191）。",
+      "tokens": 1362,
+      "hash": "d576fd3e324d97db",
+      "size": 5793,
+      "mtimeMs": 1792380116629.0012,
+      "updatedAt": "2026-10-19T03:21:56.683Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_resp",
+          "kind": "fn",
+          "startLine": 48,
+          "endLine": 53,
+          "tokens": 51
+        },
+        {
+          "name": "TestVocabularyIsTyped",
+          "kind": "class",
+          "startLine": 54,
+          "endLine": 76,
+          "tokens": 227
+        },
+        {
+          "name": "TestValuesAreAccepted",
+          "kind": "class",
+          "startLine": 77,
+          "endLine": 99,
+          "tokens": 231
+        },
+        {
+          "name": "TestOutOfVocabularyRejected",
+          "kind": "class",
+          "startLine": 100,
+          "endLine": 123,
+          "tokens": 247
+        },
+        {
+          "name": "TestSingleSourceOfTruth",
+          "kind": "class",
+          "startLine": 124,
+          "endLine": 150,
+          "tokens": 282
         }
       ]
     }

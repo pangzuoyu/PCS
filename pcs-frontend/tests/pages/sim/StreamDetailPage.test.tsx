@@ -148,7 +148,15 @@ describe('StreamDetailPage — 可空字段不得崩页', () => {
   });
 
   it('phase 是词表外的值 → 明示「未知相态: X」，不静默空标签', () => {
-    render(<StreamDetailPage stream={{ ...stream, phase: 'SUPERCRITICAL' }} />);
+    // ⚠️ 必须 `as`：契约里 phase 已是四值枚举，写别的编译期就红。
+    // 但**兜底分支不能删** —— `streams.phase` 在 DB 上没有 CHECK 约束，
+    // 且 `import_service._phase_norm` 对未知值原样放行 ⇒ 历史行与
+    // 直接 SQL 写入仍可能带词表外的值。类型比现实严，运行时那层要兜住。
+    render(
+      <StreamDetailPage
+        stream={{ ...stream, phase: 'SUPERCRITICAL' as Stream['phase'] }}
+      />,
+    );
     expect(document.body.textContent).toContain('未知相态: SUPERCRITICAL');
   });
 });

@@ -20,8 +20,11 @@ from io import BytesIO
 from pathlib import Path
 from typing import Any
 
+import logging
+
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.models.enums import StreamPhase
 from app.services.conflict_resolver import ConflictLevel, ConflictResolver
 from app.services.excel_parser import parse_excel_file
 from app.services.exceptions import PcsError
@@ -29,6 +32,8 @@ from app.services.proii_parser import (
     ConvergenceStatus,
     parse_proii_files,
 )
+
+logger = logging.getLogger(__name__)
 from app.services.property_completion import ParsedStream
 from app.services.stream_service import StreamService
 
@@ -43,25 +48,39 @@ _RELIABLE_STATUSES = frozenset(
 
 
 def _phase_norm(p: str | None) -> str | None:
-    """PRO/II 相态字母 → schema 完整词。
+    """PRO/II 相态字母 → 词表内的完整词。
 
-    V → VAPOR / L → LIQUID / M → None（避免 SIM-V01 BLOCK：
-    PRO/II parser 当前不提取 vapor/liquid 组成，MIXED 会触发 BLOCK；
-    留 None 让用户手工补；is_mixed_phase 字段保留 MIXED 事实） / S → SOLID
+    V → VAPOR / L → LIQUID / S → SOLID / M → None（见下）/ **词表外 → None**。
+
+    ## 词表外为什么也返回 None（2026-10-19，TODO-042）
+
+    此前兜底是 `return p` —— **原样放行**。而 `StreamBase.phase` 现在是
+    `StreamPhase` 枚举（此前是裸 `str`），于是一个拼错的相态
+    （`SUPERHEATED` / `VAPOUR`）会被写进 DB，直到下一次 GET 的**响应校验**
+    才 500：写入现场与报错现场分离，最难查的一类。
+
+    ⇒ 与 MIXED 同一处理：不认就不落库，留给用户手工补。
+
+    ⚠️ 代价：原始字母被丢弃，用户看不到「你的相态没认出来」。
+    根治要加一列 `raw_phase` 保留原值（登记在 TODOS.md，本轮不做）。
     """
     if not p:
         return None
     p = p.strip().upper()
     if p in ("V", "VAPOR"):
-        return "VAPOR"
+        return StreamPhase.VAPOR.value
     if p in ("L", "LIQUID"):
-        return "LIQUID"
+        return StreamPhase.LIQUID.value
     if p in ("M", "MIXED"):
         # 留 None 而非 MIXED，避免 SIM-V01 BLOCK（MIXED 必填两相组成）
         return None
     if p in ("S", "SOLID"):
-        return "SOLID"
-    return p
+        return StreamPhase.SOLID.value
+    # 词表外（含上面没覆盖的一切）：不落库。
+    logger.warning(
+        "PRO/II 相态 %r 不在 StreamPhase 词表内，已置 None 待人工补录", p,
+    )
+    return None
 
 
 def _is_mixed_phase_raw(p: str | None) -> bool:

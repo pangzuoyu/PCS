@@ -15341,6 +15341,20 @@ export interface components {
          */
         StreamCaseType: "NORMAL" | "END_OF_RUN" | "START_OF_RUN" | "TURN_DOWN";
         /**
+         * StreamDataMode
+         * @description 物流数据模式 3 态（`streams.data_mode`，String(20)）。
+         *
+         *     前端按此值渲染不同字段集（化学组成 / 石油特征 / 固体物料）。
+         *
+         *     ⚠️ 2026-10-19 从 `app/services/meta_service.py` 搬到这里：原来它在
+         *     service 层，而 `schemas/stream.py` 用裸 `str`，于是「meta 端点返的
+         *     enum」与「响应 schema 接受的类型」是**两份互不引用的定义** ——
+         *     改一处不会带动另一处（bug-187/188/189/190 全是这个形态）。
+         *     现在只有一个来源。
+         * @enum {string}
+         */
+        StreamDataMode: "CHEMICAL" | "PETROLEUM" | "SOLID";
+        /**
          * StreamImportResult
          * @description PRO/II / Excel 导入落库结果。
          */
@@ -15378,6 +15392,28 @@ export interface components {
             warnings?: string[];
         };
         /**
+         * StreamPhase
+         * @description 物流主相态 4 态（`streams.phase`，可空）。
+         *
+         *     ## 为什么是 4 值而不是 SPEC P3-SIM 写的 3 值
+         *
+         *     SPEC「SIM 模块 输入」只列 VAPOR/LIQUID/MIXED，**漏了 SOLID**，而后端
+         *     `import_service._phase_norm` 会把 P&ID/文件里的 `S`/`SOLID` 归一成
+         *     `SOLID`（实测存在于真实导入路径）。砍掉它 ⇒ 固相在客户端渲染成空标签。
+         *     按 CLAUDE.md「与 SPEC 冲突时以 OpenAPI 为准并登记 SPEC 修订」，本枚举
+         *     是权威；SPEC 的三值表登记为待修订（见 `TODOS.md`）。
+         *
+         *     与 `conflict_resolver._VALID_PHASES` 逐字一致（那处是校验侧的唯一来源，
+         *     本枚举是声明侧的 —— 已加一致性测试锁住两者）。
+         *
+         *     ⚠️ `import_service._phase_norm` 把 **MIXED 映射成 None**（避免 SIM-V01
+         *     BLOCK：MIXED 必填两相组成，而 PRO/II parser 不抽组成），另用
+         *     `is_mixed_phase` 布尔列保留「原始是混相」这一事实。所以 **MIXED 是
+         *     合法值但导入路径暂不产出**，两者不矛盾。
+         * @enum {string}
+         */
+        StreamPhase: "VAPOR" | "LIQUID" | "MIXED" | "SOLID";
+        /**
          * StreamResponse
          * @description 完整响应：含 sign_status + 审计字段。
          */
@@ -15389,21 +15425,15 @@ export interface components {
             stream_name: string;
             /** @description 物流级工况：NORMAL/END_OF_RUN/START_OF_RUN/TURN_DOWN */
             case_type: components["schemas"]["StreamCaseType"];
-            /**
-             * Data Mode
-             * @description 数据模式：CHEMICAL/PETROLEUM/SOLID
-             */
-            data_mode: string;
+            /** @description 数据模式：CHEMICAL（化学组成）/ PETROLEUM（石油特征）/ SOLID（固体物料） */
+            data_mode: components["schemas"]["StreamDataMode"];
             /**
              * Description
              * @description 物流描述
              */
             description?: string | null;
-            /**
-             * Phase
-             * @description 相态：VAPOR/LIQUID/MIXED/SOLID
-             */
-            phase?: string | null;
+            /** @description 主相态：VAPOR/LIQUID/MIXED/SOLID。⚠️ SPEC P3-SIM 只列 3 值（漏 SOLID），而 `import_service._phase_norm` 会产出 SOLID —— 以本枚举为准，SPEC 待修订。MIXED 合法但导入路径暂不产出（会置 None 并用 is_mixed_phase 记混相事实）。 */
+            phase?: components["schemas"]["StreamPhase"] | null;
             /**
              * Temp
              * @description 温度 °C
@@ -15750,11 +15780,8 @@ export interface components {
              * @description 变化类型：ISOENTHALPIC/FRICTION_PRESSURE_DROP/HEAT_EXCHANGE/PUMP_WORK
              */
             change_type?: string | null;
-            /**
-             * Source Type
-             * @description 来源类型：SIM_IMPORT/MANUAL_ENTRY/LAB_REPORT/FLASH_CALCULATED/DEVICE_CALCULATED
-             */
-            source_type: string;
+            /** @description 来源类型 13 值。⚠️ description 此前只列了 5 个，漏掉全部 10 个 `*_CALCULATED` 出口流值 —— 照它收窄会把合法值砍光。 */
+            source_type: components["schemas"]["StreamSourceType"];
             /**
              * Source File
              * @description 源文件路径
@@ -15791,11 +15818,8 @@ export interface components {
              * @description 物流 ID
              */
             stream_id: string;
-            /**
-             * Sign Status
-             * @description 签署门禁：DRAFT/IN_APPROVAL/CHECKED/OBSOLETE
-             */
-            sign_status: string;
+            /** @description 签署门禁 9 态（与 PG enum streamsignstatus 逐字一致） */
+            sign_status: components["schemas"]["StreamSignStatus"];
             /**
              * Approval Step
              * @description 当前校对步骤
@@ -15832,6 +15856,34 @@ export interface components {
              */
             updated_at?: string | null;
         };
+        /**
+         * StreamSignStatus
+         * @description SIM-13 扩展为 9 态全集（与 RecordSignStatus9 字面对齐）。
+         *
+         *     状态机迁移：P3 活跃 4 态 → 9 态全集（PG enum streamsignstatus ADD VALUE）。
+         *     cerebrum 2026-09-08 锁定：值与 RecordSignStatus9 完全一致，PG enum 扩展不可逆。
+         * @enum {string}
+         */
+        StreamSignStatus: "DRAFT" | "IN_APPROVAL" | "CHECKED" | "CHECK_REJECTED" | "STALE" | "CHANGE_PENDING" | "CHANGED" | "REVERSAL_PENDING" | "OBSOLETE";
+        /**
+         * StreamSourceType
+         * @description 物流来源类型 13 值（`streams.source_type`，String(30)）。
+         *
+         *     3 类人工/导入来源 + 10 类设备计算出口流。
+         *
+         *     ⚠️ 契约的 description 此前只列了 5 个（SIM_IMPORT/MANUAL_ENTRY/
+         *     LAB_REPORT/FLASH_CALCULATED/DEVICE_CALCULATED），**漏掉其中 10 个
+         *     `*_CALCULATED`** —— 而 `outlet_stream.py` 的每个 persist 模块都在写它们。
+         *     若当初有人照 description「收窄」枚举，13 个合法值会只剩 3 个。
+         *     这正是「词表只写在散文里」的危害：散文既可能写少，也可能写错
+         *     （`StreamResponse.sign_status` 的 description 就把 9 态写成了 4 态）。
+         *
+         *     出口流那 10 个值由 `app/services/outlet_stream.py` 产出，引用本枚举而
+         *     非散落字面量 —— `DEVICE_CALCULATED` 曾因散落写法被 Literal 遗漏过一次
+         *     （A-03/C-05 LOW 修复记录在 outlet_stream 的注释里）。
+         * @enum {string}
+         */
+        StreamSourceType: "SIM_IMPORT" | "MANUAL_ENTRY" | "LAB_REPORT" | "FLASH_CALCULATED" | "PIPE_CALCULATED" | "PUMP_CALCULATED" | "PIPE_NET_CALCULATED" | "VESSEL_CALCULATED" | "SEP_EQUIP_CALCULATED" | "PSV_CALCULATED" | "HEAT_CALCULATED" | "RESTRICTION_CALCULATED" | "DEVICE_CALCULATED";
         /**
          * StylePatch
          * @description 样式局部补丁。
