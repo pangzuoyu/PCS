@@ -80,6 +80,7 @@ ADR	标题	必须回答的问题
 ADR-A	用户身份模型迁移：uuid5(username) → users 表持久化	① ID 等价性：历史 uuid5 与新 DB 主键如何共存/迁移？② 是否回填历史 uuid5 为 users 行？③ 登录路径变更（现在不查 users，未来为判停用要查）④ token_version 引入时机 ⑤ 停用即刻作废 access/refresh token 的实现
 　　✅ 已裁决：`docs/adr/0046-user-identity-model-migration.md`（accepted 2026-10-19）。① DB 主键唯一权威，uuid5 降级为存量 JWT 解析；② 不批量回填，惰性建行；③ 登录与 mock 共用 `_issue_tokens()`；④ 只给 refresh 写 `tv`；⑤ 停用时 `token_version += 1`，refresh 比对
 ADR-B	workflow_progress 观测层	① 写入点清单（哪些状态变更要写）② 同步写 vs 异步写（500ms 延迟要求倾向同步）③ 与 P1 状态机事务的边界 ④ 与计算模块事务的关系
+　　✅ 已裁决：`docs/adr/0047-workflow-progress-observation-layer.md`（accepted 2026-10-19）。① 3 个写入点（签署推进/退回、变更单创建与自动关闭、代录批准）；② **同步写，与业务状态同事务**；③ **调用方写、不在 state_machine 埋点**（实测 `transition()` 只 flush，commit 在 `records.py:215`）；④ 与计算模块事务无关
 ADR-C	编辑锁	① 存储：DB SELECT FOR UPDATE vs Redis ② 自动续期机制（前端心跳频率 + 后端续期接口）③ 超时清理（30 分钟）④ 与状态机事务的关系 ⑤ Redis 不可用时的降级
 ADR-D	通知与待办数据模型	① notifications 表 vs 实时计算 ② todos 表 vs 实时计算 ③ 若实时计算，≤500ms 加载指标靠什么索引支撑 ④ 通知保留 30 天清理任务归属（ARQ？但 TODO-016 显示 ARQ 失败路径覆盖为零）
 验收：4 份 ADR 状态为 accepted，且被 P9A/P9B SPEC 引用。
@@ -377,7 +378,7 @@ P9-OPEN-003	审计日志导出格式	已确认	保持	P9B
 P9-OPEN-004	用户同步定时频率	待确认	P9-Prep 决议（建议每日凌晨）	P9-Prep
 P9-OPEN-005	批注 @提及	已确认（不支持）	保持	—
 P9-OPEN-006	通知 WebSocket vs 轮询	待确认	P9-Prep 决议（建议 WebSocket + 降级轮询）	P9-Prep
-P9-OPEN-007	workflow_progress	待启动	升级为 P9A-OBS-001~004	P9A
+P9-OPEN-007	workflow_progress	已裁决：ADR-0047 accepted（2026-10-19），同步写 + 同事务 + 调用方写	升级为 P9A-OBS-001~004	P9A（ADR 侧已关闭）
 P9-OPEN-008	用户身份模型迁移	已裁决：ADR-0046 accepted（2026-10-19）	ADR-A → `docs/adr/0046-user-identity-model-migration.md`	~~P9-Prep~~ 已关闭
 P9-OPEN-009	编辑锁存储方案	（无）	ADR-C	P9-Prep
 P9-OPEN-010	通知/待办表 vs 实时计算	（无）	ADR-D	P9-Prep

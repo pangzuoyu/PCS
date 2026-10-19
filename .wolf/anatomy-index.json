@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T10:16:08.523Z",
-    "fileCount": 842,
+    "lastScanned": "2026-10-19T10:16:52.048Z",
+    "fileCount": 843,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "0653a408320fe7eceb85935d743aff05d8c28ee9f81e6d544645fcf0f5024530",
-    "storeUpdatedAt": "2026-10-19T10:16:08.533Z",
-    "rootHash": "180ef8569aa1a374"
+    "renderedHash": "c4f40ba9890d945b8e3fc33f16c9ed5b2a68b01fe44895130541d0b6d21924fa",
+    "storeUpdatedAt": "2026-10-19T10:16:52.058Z",
+    "rootHash": "e5b4485b3e3d8386"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -28077,11 +28077,11 @@
     },
     "spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md": {
       "description": "变更\t原因",
-      "tokens": 4061,
-      "hash": "1c46fd9b1f384206",
-      "size": 27315,
-      "mtimeMs": 1792404968473.6667,
-      "updatedAt": "2026-10-19T10:16:08.523Z",
+      "tokens": 4133,
+      "hash": "4d87af66997a3e1a",
+      "size": 27809,
+      "mtimeMs": 1792405011993.093,
+      "updatedAt": "2026-10-19T10:16:52.048Z",
       "source": "hook"
     },
     "docs/adr/0046-user-identity-model-migration.md": {
@@ -28091,6 +28091,15 @@
       "size": 6723,
       "mtimeMs": 1792404924640.4233,
       "updatedAt": "2026-10-19T10:15:24.693Z",
+      "source": "hook"
+    },
+    "docs/adr/0047-workflow-progress-observation-layer.md": {
+      "description": "ADR-0047：workflow_progress 观测层 —— 写入点、同步性与事务边界",
+      "tokens": 599,
+      "hash": "97963a08f95e4ea4",
+      "size": 4267,
+      "mtimeMs": 1792404999476.529,
+      "updatedAt": "2026-10-19T10:16:39.521Z",
       "source": "hook"
     }
   }

@@ -1781,3 +1781,6 @@
 | 18:16 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | inline fix | ~34 |
 | 18:16 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | 1→2 lines | ~107 |
 | 18:16 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | expanded (+6 lines) | ~113 |
+| 18:16 | Created docs/adr/0047-workflow-progress-observation-layer.md | — | ~639 |
+| 18:16 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | 1→2 lines | ~90 |
+| 18:16 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | inline fix | ~31 |
