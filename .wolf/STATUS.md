@@ -11,42 +11,44 @@ budget_tokens: 1500
 
 ## ✅ 本会话完成
 
-**P8 评审 30 条 findings 全部闭环**（`c9d937f` → `5b1174c`），且**顺带查出并修掉
-两个生产级缺陷**。
+**TODO-039 前端类型唯一性** —— 把「手写副本 vs 契约」从一次性排查变成可复跑的
+`scripts/audit-handwritten-types.mjs`（`npm run api:audit-types`），随后按
+contracts 逐项收敛：
 
-1. **评审修复**：`#24` MSW 契约冻结（`346c257`，查出 5 处真漂移）、`#19` 白名单
-   （`c142014`，报告说两份实为**四份**）、`#22/#21/#29`（`2a23d2e`）、
-   `#27` 状态筛选（`81947bd`）、`#10/#30/#26`（`e35ecfc`）。
-2. **🔴 bug-180 管道等级页生产空白**（`09a2a88`）—— 评审 #24 引出的新发现。
-   `PipeClassListPage` 读的 6 个字段名与契约**整组不同**（`pipe_class_id` vs
-   `class_id`…），真后端下含 `rowKey` 全是 `undefined`。已把
-   `types/pipeClass.ts` 并到契约类型、页面/mock 同步、状态列走
-   `module="PIPE_CLASS"` 独立词表（非法组合**编译期即拒**）。
-3. **🔴 bug-184 契约闸门 docstring 声称三项检测、实现零项**（`5b1174c`）。
-   改字段名/改类型/删 enum 全放行 —— bug-180 就是这么过的闸。
-   顺带：`export LC_ALL=C`（zh_CN 下 `sort`/`comm` 规则不一致，测试 1–4 本来就是红的）、
-   **10s → 0.145s**。
+1. **`PipeClass` 并进契约** —— bug-180，生产整页空白（`09a2a88`）。
+2. **`Stream` 三处漂移一次改掉**（`6a94109`）：
+   - 删 `tag_number`（物流无位号，那是 `TaggedRecordMixin` 给计算记录的字段），
+     首列与详情页标题改 `stream_name`；
+   - 相态收敛为契约四值：**砍 AQUEOUS**（前端发明，三处零命中）、
+     **补 SOLID**（`import_service._phase_norm` 真产出，砍掉则固相渲染成空标签）；
+   - `AssetListRoute` 停止请求**契约里不存在**的 `GET /api/v1/config/assets`，
+     并删掉那个替缺陷遮着的 mock handler。
+   两条相态回归测试**做了 mutation 验证**（标签改 undefined 即红）。
+3. **`press` 单位**：契约描述原写 kPa，DICT 源字段是 `pressure_mpag` ——
+   差 **1000 倍且看起来完全合理**。改后端 schema + ORM `comment="MPaG"`。
+4. **`check-api-drift.sh`**：docstring 声称三项检测、实现零项（bug-184）；
+   10s → **0.145s**；补字段删除/类型变更/enum 值删除三项检测。
 
 ## ✅ 基线
 
-后端 **4516 passed / 0 failed**，前端 **675 passed / 0 failed**，两端 lint/typecheck clean。
-`bash scripts/check-api-drift.sh` → OK / exit 0（test 1–9 全过）。
+后端 **4516 passed / 0 failed**，前端 **677 passed / 0 failed**，
+两端 lint/typecheck clean。`check-api-drift.sh` → OK / exit 0（test 1–9 全过）。
 
 ---
 
 ## 🚀 Next quest
 
-1. **TODO-039 前端类型唯一性** —— bug-180 只并了 `PipeClass` 一个。
-   `src/types/` 下还有多少手写副本与 `api.d.ts` 平行？逐个查
-   「这份类型的字段名在契约里存在吗」比 #24 那次更彻底。
-2. **契约侧两个缺口**（本轮发现，未动）：
-   - `PipeClassResponse.status` 是裸 `str`，没 `Literal`
-     （与评审 #28 的执行状态同类：词表没进契约，客户端无法枚举）
-   - `check-api-drift.sh` 现在能检出**已提交的 snapshot 与新导出**的差异，
-     但**检不出「前端代码用了契约里没有的字段」** —— 那需要另一道闸
-3. **P9 起步**：`report_verify_base_url` 未配置 ⇒ 二维码默认不印（`#4` 修复已就位，
-   配置后生效）；`assemble` 真分批；TODO-026（JSONB 子键平铺）。
-4. 低优先：TODO-028（10 表主键 rename）、TODO-032（27 个真库测试迁 SQLite）。
+1. **把 `tests` 纳入 tsconfig**（已实测：**9 条错 / 7 个文件**，一次性可修）。
+   其中 2 条是真信号（fixture 与契约脱节）。本轮未修 —— 保持 main 绿。
+   修完这道闸才立得住：**「代码用了契约里没有的字段」目前无任何自动化**。
+2. **`StreamDetailPayload`（C 类，用户已批准单独排期）** —— 手写侧是 7 个东西的
+   合成体，契约侧是单个 `StreamResponse`，**结构不同源**，改字段名解决不了，
+   要先定后端响应形状。
+3. **契约侧缺口**：`PipeClassResponse.status` 是裸 `str`，没 `Literal` ——
+   词表没进契约，客户端无法枚举（与评审 #28 同类）。
+4. **P9 起步**：`report_verify_base_url` 未配置 ⇒ 二维码默认不印；
+   `assemble` 真分批；TODO-026（JSONB 子键平铺）。
+5. 低优先：TODO-040（`GET /api/v1/config/assets`）、TODO-028、TODO-032。
 
 ---
 
@@ -65,16 +67,16 @@ budget_tokens: 1500
 
 ## 教训（本会话新增）
 
-- **「窄的类型声明」是约束还是遗漏**：看它有没有运行时消费者在依赖它**做校验**。
-  `MODULE_ACTIVATED.SIM`（4 态）只喂 opacity ⇒ 是**强调表**，物流实为 9 态；
-  `STATUS_META` 的 `?? DRAFT` 兜底会**替换**未知值 ⇒ 是**约束**，而且是错的。
-  把强调表提升为编译期词表 = 把**假绿换成假红**。
-  全文 `docs/solutions/testing-issues/narrow-declaration-is-not-a-constraint.md`。
-- **fixture 与被测对象共用一份错误类型 ⇒ 测试再多也是零信号**
-  （bug-180 的 6 条组件测试全绿，页面生产上全空）。⇒ fixture 只能用契约类型构造。
-- **守门的 docstring 也要被验**（bug-184）。本仓「注释比代码乐观」已五例。
-- **缺失的值要显式失败，不要填默认值**：`?? STATUS_META.DRAFT` 让 ACTIVE 显示成草稿，
-  用户不报错、会基于错误信息做决策。同 `toFilterTree` 伪造 `'EQUIP_LIST'`。
-- 早期写 solutions/cerebrum 时**引用的常量名要核对**，别照抄上下文里的旧串。
+- **改类型前先定位权威**：契约 → **对应实体的**字典 → 后端实际行为
+  （含 parser）→ SPEC（可能过时）。查 tag_number 时必须按实体找字典文件，
+  否则会被「其他 spec 里到处都是它」误导。
+- **不要「承认多套词表各自成立」** —— 那是把同一个概念分成三份，比任一份错都糟。
+- **缺端点 ≠ 缺字段**。端点缺失时 `git log -S` 能确认是「从未实现」还是回归；
+  止血要**连 mock 一起删**，否则它继续替缺陷遮着。
+- **不在类型检查里的类型 = 没写的类型**。实测才知道代价（9 条而非 675）——
+  **先量再决定，别凭感觉评估**；但量出来的错里真信号常占二成，
+  那二成说明整批 fixture 不可信。
+- **fixture 与被测对象不是同一份来源 ⇒ 零信号**（bug-180 的 6 条绿）。本轮两个
+  SIM fixture 同样如此：带 `subphase`/`approved_hash`/`tag_number`，全绿。
 
 Co-Authored-By: Claude Opus 4.8 (1M context) <noreply@anthropic.com>

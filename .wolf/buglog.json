@@ -3372,6 +3372,37 @@
         "jq",
         "locale"
       ]
+    },
+    {
+      "id": "bug-185",
+      "date": "2026-10-19",
+      "component": "frontend",
+      "error_message": "StreamListPage 首列与 StreamDetailPage 标题恒为空 / 物流相态 tag 对固相渲染成空标签",
+      "root_cause": "Stream 类型是前端手写副本，三处与契约/后端不符：(a) tag_number 是 TaggedRecordMixin 给计算记录的字段，物流无位号，契约 StreamResponse 也没有，前端凭空加的且真值恒 undefined；(b) 相态词表前端写成 LIQUID/VAPOR/MIXED/AQUEOUS —— AQUEOUS 凭空发明，SOLID 漏掉而后端 import_service._phase_norm 真的产出它；STREAM_PHASE_LABEL[p] 于是 undefined，tag 空且不报错；(c) AssetListRoute 请求 GET /api/v1/config/assets，契约该路径只有 post，必然 404 且被监控记成故障，而 mocks 里那个 handler 一直在替它遮着。",
+      "fix": "types/stream.ts 删 tag_number、相态收敛为契约四值（补 SOLID 砍 AQUEOUS）；列表首列与详情页标题改 stream_name；AssetListRoute 显式传空数组并删除对应 mock handler；SPEC P3-SIM 三值表登记为待修订，ConfigAsset 端点落 TODO-040。",
+      "fix_commit": "6a94109",
+      "tags": [
+        "contract-drift",
+        "frontend",
+        "silent-undefined",
+        "mock-masking",
+        "false-green"
+      ]
+    },
+    {
+      "id": "bug-186",
+      "date": "2026-10-19",
+      "component": "testing",
+      "error_message": "tsconfig include=[src] 使 tests/ 全部 675 条测试的类型标注成为装饰性；两个 fixture 与真实契约脱节仍全绿",
+      "root_cause": "测试目录不在类型检查内，fixture 可以携带已删除/从未存在的字段而无人察觉。实测纳入 tests 后 9 条错，其中 StreamDetailPage.test.tsx 仍带上一轮刚删的 subphase，StreamListPage.test.tsx 从页面 import 一个页面不导出的 Stream。两者与 bug-180 同病：fixture 与被测对象不是同一份来源，于是互相验证、互不设防。",
+      "fix": "两个 fixture 重写为 types/stream.ts 的真实形状，Stream 从类型来源处 import。include 纳入 tests 的决定与实测数字记入 TODOS.md（9 条 / 7 文件，一次性可修）。",
+      "fix_commit": "6a94109",
+      "tags": [
+        "testing",
+        "type-safety",
+        "fixture-drift",
+        "false-green"
+      ]
     }
   ]
 }
