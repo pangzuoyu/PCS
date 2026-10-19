@@ -21,6 +21,7 @@ from sqlalchemy import (
     Uuid,
     false,
     func,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column, relationship
@@ -150,11 +151,21 @@ class User(Base):
     roles: Mapped[list[str]] = mapped_column(
         JSONB,
         default=list,
-        comment="ApprovalRole 7 值：DESIGNER/CHECKER/REVIEWER/APPROVER/SYSADMIN/PROCESS_CONTROLLER/DATA_ADMIN",  # noqa: E501
+        comment="ApprovalRole 7 值：DESIGNER/CHECKER/REVIEWER/APPROVER/SYSTEM_ADMIN/PROCESS_CONTROLLER/DATA_ADMIN",  # noqa: E501
     )
     ad_groups: Mapped[list[str]] = mapped_column(JSONB, default=list)
     status: Mapped[str] = mapped_column(String(20), default=UserStatus.ACTIVE.value)
     last_login_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    token_version: Mapped[int] = mapped_column(
+        Integer,
+        nullable=False,
+        server_default=text("'1'"),
+        comment="吊销版本；0 为保留值（mock 令牌哨兵），真实用户永不为 0",
+    )
+
+    __table_args__ = (
+        CheckConstraint("token_version >= 1", name="ck_users_token_version_ge_1"),
+    )
 
 
 class UserProject(TimestampMixin, Base):
