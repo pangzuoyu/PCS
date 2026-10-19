@@ -137,6 +137,54 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/admin/users": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get Users
+         * @description GET /admin/users：用户列表（供演示 disable 前后的状态对比）。
+         */
+        get: operations["get_users_api_v1_admin_users_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/admin/users/{user_id}/disable": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Put Disable User
+         * @description PUT /admin/users/{id}/disable：停用用户。
+         *
+         *     同事务做三件事（ADR-0046 §⑤）：
+         *     1. `status = DISABLED` —— 挡住后续登录
+         *     2. `token_version += 1` —— **已签发的 refresh 全部失效**（跨进程有效）
+         *     3. 写 `USER_DISABLED` 审计（谁停的）
+         *
+         *     ⚠️ 已知边界（不得表述为已解决）：`access` token 不带 `tv`，
+         *     在手 access 仍可用至过期（默认 30 分钟）。见 ADR-0046 §⑤。
+         */
+        put: operations["put_disable_user_api_v1_admin_users__user_id__disable_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/workspaces": {
         parameters: {
             query?: never;
@@ -5724,6 +5772,37 @@ export interface components {
             actual_data_json?: {
                 [key: string]: unknown;
             } | null;
+        };
+        /**
+         * AdminUserOut
+         * @description 用户列表条目（P9A-ADM-001）。
+         *
+         *     业务：显式声明全部字段（零裸字段约束 P9A-DLV-010）——
+         *     禁止 `response_model=dict`，那会让契约随 ORM 漂移。
+         *     `token_version` 对外可见：它是「已吊销了几轮」的运营视角。
+         */
+        AdminUserOut: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Username */
+            username: string;
+            /** Display Name */
+            display_name: string;
+            /** Email */
+            email: string | null;
+            /** Department */
+            department: string | null;
+            /** Roles */
+            roles: string[];
+            /** Status */
+            status: string;
+            /** Token Version */
+            token_version: number;
+            /** Last Login At */
+            last_login_at: string | null;
         };
         /**
          * AllowableStressResult
@@ -16299,6 +16378,23 @@ export interface components {
             approved_by?: string | null;
         };
         /**
+         * UserDisabledOut
+         * @description 停用结果（P9A-ADM-002）。回显新的 `token_version` 便于前端确认。
+         */
+        UserDisabledOut: {
+            /**
+             * User Id
+             * Format: uuid
+             */
+            user_id: string;
+            /** Username */
+            username: string;
+            /** Status */
+            status: string;
+            /** Token Version */
+            token_version: number;
+        };
+        /**
          * UserProjectResponse
          * @description UserProject 单条响应.
          */
@@ -18479,6 +18575,70 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_users_api_v1_admin_users_get: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    put_disable_user_api_v1_admin_users__user_id__disable_put: {
+        parameters: {
+            query?: never;
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                user_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["UserDisabledOut"];
+                };
             };
             /** @description Validation Error */
             422: {

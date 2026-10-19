@@ -315,6 +315,8 @@ class AuditAction(str, enum.Enum):
     USER_LOGIN_DENIED_DISABLED = "USER_LOGIN_DENIED_DISABLED"
     # P9A (ADR-0046 §⑤): 管理员停用某人。不留痕就无法追责「谁停的」。
     USER_DISABLED = "USER_DISABLED"
+    # P9A (SPEC P9A-USR-002): AD 同步汇总（created/updated/departed 计数）。
+    USER_SYNC = "USER_SYNC"
 
     # === 记录层 CRUD（P4-P6） ===
     RECORD_CREATED = "RECORD_CREATED"

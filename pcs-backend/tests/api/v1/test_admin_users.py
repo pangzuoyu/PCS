@@ -113,3 +113,37 @@ async def test_disabled_user_refresh_returns_401(client, db_session):
 
     r = await client.post("/api/v1/auth/refresh", json={"refresh_token": stale})
     assert r.status_code == 401, r.text
+
+
+# --- SPEC P9A-USR-002：手动触发 AD 同步 ---
+
+@pytest.mark.asyncio
+async def test_sync_endpoint_requires_system_admin(client):
+    r = await client.post("/api/v1/admin/users/sync", headers=DESIGNER)
+    assert r.status_code == 403, r.text
+
+
+@pytest.mark.asyncio
+async def test_sync_endpoint_503_when_service_account_absent(client, monkeypatch):
+    """未配置必须**明确 503**，不能返回 200 空结果 —— 那会让运维以为同步过了。"""
+    import app.core.config as cfg
+    monkeypatch.setattr(cfg.get_settings(), "ldap_bind_dn", "", raising=False)
+    r = await client.post("/api/v1/admin/users/sync", headers=ADMIN)
+    assert r.status_code == 503, r.text
+    assert r.json()["code"] == "LDAP_SYNC_NOT_CONFIGURED"
+
+
+@pytest.mark.asyncio
+async def test_sync_endpoint_returns_counts(client, db_session, monkeypatch):
+    import app.core.config as cfg
+    from app.services import ad_sync
+    from tests.services.test_ad_sync import _AdUser
+
+    monkeypatch.setattr(cfg.get_settings(), "ldap_bind_dn", "cn=svc,DC=test",
+                        raising=False)
+    monkeypatch.setattr(ad_sync, "enumerate_users", lambda: iter([
+        _AdUser("alice", "Alice", "a@c", "P", ("DESIGNER_GROUP",)),
+    ]))
+    r = await client.post("/api/v1/admin/users/sync", headers=ADMIN)
+    assert r.status_code == 200, r.text
+    assert r.json()["created"] == 1

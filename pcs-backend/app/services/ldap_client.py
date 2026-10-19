@@ -8,6 +8,7 @@ import ldap3
 from ldap3.core.exceptions import LDAPException
 
 from app.core.config import get_settings
+from app.core.errors import PcsError
 
 # RFC 4514 §2.4 DN 转义字符。反斜杠必须最先转义避免双重转义。
 _LDAP_DN_ESCAPE_MAP = {
@@ -94,6 +95,110 @@ def authenticate(username: str, password: str) -> LdapUser:
     return LdapUser(
         username=username, dn=user_dn, groups=tuple(groups), display_name=display_name
     )
+
+
+#: 目录里 username 的候选属性（OpenLDAP `uid` / AD `sAMAccountName`）。
+_USERNAME_ATTRS = ("uid", "sAMAccountName")
+
+
+@dataclass(frozen=True)
+class DirectoryUser:
+    """目录里的一条用户（AD 同步的输入，`enumerate_users` 的返回项）。
+
+    与 `LdapUser` 分开：那个是「某个人的 bind 结果」（含 dn），
+    这个是「扫目录得到的条目」（无 dn，且 username 可能来自 `uid`/`sAMAccountName`）。
+    """
+
+    username: str
+    display_name: str | None
+    email: str | None
+    department: str | None
+    groups: tuple[str, ...]
+
+
+def _first(entry: object, attr: str) -> str | None:
+    """ldap3 的多值属性取第一个；属性缺失或空 → None。"""
+    values = getattr(entry, attr, None)
+    if not values:
+        return None
+    return str(values[0])
+
+
+def enumerate_users() -> list[DirectoryUser]:
+    """用**服务账号**枚举目录用户（SPEC P9A-USR-002）。
+
+    为什么不能用 `authenticate()`：那条路是以终端用户身份 bind，
+    只能读到自己 —— 枚举、离职检测、每日全量都需要读别人的条目。
+
+    filter 与属性名走 `ldap_user_filter` / `ldap_user_attrs` 配置：
+    AD 与 OpenLDAP 的属性名不同，写死换目录就得改代码。
+
+    Raises:
+        PcsError: 配置缺失或 bind/search 失败。**必须抛，不能返回空列表** ——
+            调用方靠异常区分「目录连不上」与「目录里没人」，而这两者的
+            处置完全相反（前者 no-op，后者全员离职）。
+    """
+    settings = get_settings()
+    if not settings.ldap_bind_dn:
+        raise PcsError(
+            code="LDAP_SYNC_NOT_CONFIGURED",
+            message="LDAP_BIND_DN 未配置，无法枚举目录",
+            status=503,
+        )
+    attributes = [a.strip() for a in settings.ldap_user_attrs.split(",") if a.strip()]
+    # ldap3 **只返回请求过的属性**。username 是同步的主键，不能靠运维记得
+    # 把它写进 LDAP_USER_ATTRS —— 漏了会得到一批 username=None 的条目，
+    # 而那些行既建不出来也匹配不上，且**不报错**。两个候选都带上（OpenLDAP=uid，
+    # AD=sAMAccountName），取到哪个算哪个。
+    for attr in _USERNAME_ATTRS:
+        if attr not in attributes:
+            attributes.append(attr)
+    server = ldap3.Server(settings.ldap_url, get_info=ldap3.NONE)
+    try:
+        conn = ldap3.Connection(
+            server,
+            user=settings.ldap_bind_dn,
+            password=settings.ldap_bind_password,
+            auto_bind=True,
+            read_only=True,
+        )
+    except LDAPException as e:
+        raise PcsError(
+            code="LDAP_BIND_FAILED", message=str(e), status=503
+        ) from e
+
+    try:
+        conn.search(
+            search_base=settings.ldap_base_dn,
+            search_filter=settings.ldap_user_filter,
+            attributes=attributes,
+        )
+        users: list[DirectoryUser] = []
+        for entry in conn.entries:
+            # uid 在 OpenLDAP；sAMAccountName 在 AD。都没有就跳过该条目 ——
+            # 没有 username 的行无法与 users 表对应，写进去只会造垃圾行。
+            username = next(
+                (u for u in (_first(entry, a) for a in _USERNAME_ATTRS) if u), None
+            )
+            if not username:
+                continue
+            groups = getattr(entry, "memberOf", None)
+            users.append(
+                DirectoryUser(
+                    username=username,
+                    display_name=_first(entry, "displayName"),
+                    email=_first(entry, "mail"),
+                    department=_first(entry, "department"),
+                    groups=tuple(str(g) for g in groups) if groups else (),
+                )
+            )
+    except LDAPException as e:
+        raise PcsError(
+            code="LDAP_SEARCH_FAILED", message=str(e), status=503
+        ) from e
+    finally:
+        conn.unbind()
+    return users
 
 
 def resolve_role(groups: tuple[str, ...]) -> str:

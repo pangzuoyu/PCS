@@ -56,6 +56,17 @@ class Settings(BaseSettings):
         "DESIGNER_GROUP:DESIGNER,CHECKER_GROUP:CHECKER,REVIEWER_GROUP:REVIEWER,"
         "APPROVER_GROUP:APPROVER,ADMIN_GROUP:SYSTEM_ADMIN"
     )
+    # === AD 同步（SPEC P9A-USR-002，2026-10-19 用户裁决）===
+    # 同步需要**服务账号**：`authenticate()` 是以终端用户身份 bind，
+    # 枚举目录读不到别人的条目。没有服务账号就没有「每日凌晨全量」与离职检测。
+    # ⚠️ `ldap_bind_password` 是凭据 —— 只从 env 读，不入库、不写日志。
+    #    留空 = 未配置：同步端点返 503、cron 记一条 WARN 后 no-op（不静默成功）。
+    ldap_bind_dn: str = ""
+    ldap_bind_password: str = ""
+    # filter 与属性名**全部可配**：AD 用 `(objectClass=user)` + `mail`/`department`，
+    # OpenLDAP 常用 `(objectClass=person)` + `mail`/`o`。写死就换不动目录。
+    ldap_user_filter: str = "(objectClass=person)"
+    ldap_user_attrs: str = "displayName,mail,department,memberOf"
 
     # === P8 报表（ADR-P8-001 全直接生成路线）===
     # Noto CJK 字体目录。**绝对路径** —— ReportStyle.font_dir 的默认值取自这里，

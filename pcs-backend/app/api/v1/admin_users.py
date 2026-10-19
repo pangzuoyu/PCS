@@ -22,6 +22,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.config import _Actor, current_actor, require_roles
 from app.db.session import get_db
+from app.services.ad_sync import sync_users
 from app.services.admin_user_service import disable_user, list_users
 
 router = APIRouter(prefix="/admin/users", tags=["admin-users"])
@@ -59,6 +60,22 @@ class UserDisabledOut(BaseModel):
     token_version: int
 
 
+class AdSyncResultOut(BaseModel):
+    """AD 同步结果（P9A-USR-002 手动触发）。
+
+    `ok=False` 表示**什么都没做**（目录连不上），不是「做了但有部分失败」。
+    `skipped_empty=True` 表示枚举到 0 个用户，疑似 filter/base_dn 配错 ——
+    此时同样不做任何写入，包括不做离职判定。
+    """
+
+    ok: bool
+    created: int
+    updated: int
+    departed: int
+    skipped_empty: bool
+    error: str | None
+
+
 @router.get("", response_model=list[AdminUserOut])
 async def get_users(
     db: Annotated[AsyncSession, Depends(get_db)],
@@ -89,3 +106,17 @@ async def put_disable_user(
     return await disable_user(
         db, user_id=user_id, actor_user_id=actor.user_id, actor_username=actor.username,
     )
+
+
+@router.post("/sync", response_model=AdSyncResultOut)
+async def post_sync_ad_users(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> AdSyncResultOut:
+    """POST /admin/users/sync：手动触发一次全量 AD 同步（P9A-USR-002）。
+
+    未配置服务账号时返 **503 `LDAP_SYNC_NOT_CONFIGURED`** ——
+    返 200 空结果会让运维以为「同步过了、没有变化」，那是更坏的失败。
+    """
+    require_roles(actor, *_ADMIN_ROLES)
+    return AdSyncResultOut(**(await sync_users(db)).as_dict())

@@ -202,6 +202,120 @@
         }
       }
     },
+    "/api/v1/admin/users": {
+      "get": {
+        "tags": [
+          "admin-users"
+        ],
+        "summary": "Get Users",
+        "description": "GET /admin/users：用户列表（供演示 disable 前后的状态对比）。",
+        "operationId": "get_users_api_v1_admin_users_get",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/AdminUserOut"
+                  },
+                  "title": "Response Get Users Api V1 Admin Users Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/v1/admin/users/{user_id}/disable": {
+      "put": {
+        "tags": [
+          "admin-users"
+        ],
+        "summary": "Put Disable User",
+        "description": "PUT /admin/users/{id}/disable：停用用户。\n\n同事务做三件事（ADR-0046 §⑤）：\n1. `status = DISABLED` —— 挡住后续登录\n2. `token_version += 1` —— **已签发的 refresh 全部失效**（跨进程有效）\n3. 写 `USER_DISABLED` 审计（谁停的）\n\n⚠️ 已知边界（不得表述为已解决）：`access` token 不带 `tv`，\n在手 access 仍可用至过期（默认 30 分钟）。见 ADR-0046 §⑤。",
+        "operationId": "put_disable_user_api_v1_admin_users__user_id__disable_put",
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "User Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserDisabledOut"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/workspaces": {
       "post": {
         "tags": [
@@ -17919,6 +18033,86 @@
         ],
         "title": "ActualDataResponse",
         "description": "设备实测值。`actual_data_json` 为 None 表示尚未录入。"
+      },
+      "AdminUserOut": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "display_name": {
+            "type": "string",
+            "title": "Display Name"
+          },
+          "email": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Email"
+          },
+          "department": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Department"
+          },
+          "roles": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "title": "Roles"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "token_version": {
+            "type": "integer",
+            "title": "Token Version"
+          },
+          "last_login_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Last Login At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "username",
+          "display_name",
+          "email",
+          "department",
+          "roles",
+          "status",
+          "token_version",
+          "last_login_at"
+        ],
+        "title": "AdminUserOut",
+        "description": "用户列表条目（P9A-ADM-001）。\n\n业务：显式声明全部字段（零裸字段约束 P9A-DLV-010）——\n禁止 `response_model=dict`，那会让契约随 ORM 漂移。\n`token_version` 对外可见：它是「已吊销了几轮」的运营视角。"
       },
       "AllowableStressResult": {
         "properties": {
@@ -35890,6 +36084,36 @@
         ],
         "title": "UpsertStandardProfileRequest",
         "description": "POST /standard-profile 请求体。"
+      },
+      "UserDisabledOut": {
+        "properties": {
+          "user_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "User Id"
+          },
+          "username": {
+            "type": "string",
+            "title": "Username"
+          },
+          "status": {
+            "type": "string",
+            "title": "Status"
+          },
+          "token_version": {
+            "type": "integer",
+            "title": "Token Version"
+          }
+        },
+        "type": "object",
+        "required": [
+          "user_id",
+          "username",
+          "status",
+          "token_version"
+        ],
+        "title": "UserDisabledOut",
+        "description": "停用结果（P9A-ADM-002）。回显新的 `token_version` 便于前端确认。"
       },
       "UserProjectResponse": {
         "properties": {

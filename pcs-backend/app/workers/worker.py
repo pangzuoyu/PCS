@@ -17,6 +17,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.config import get_settings
 from app.db.session import dispose_engines_async, get_async_session_factory
+from app.workers.ad_sync_tasks import sync_ad_users  # P9A-USR-002
 from app.workers.cia_tasks import scan_stale_full, scan_stale_incremental
 from app.workers.report_builder_tasks import execute_definition_task
 from app.workers.report_tasks import (
@@ -142,6 +143,9 @@ class WorkerSettings:
         # 防复发：`tests/workers/test_worker_registers_all_enqueued_tasks.py`
         # 断言「入队的 ⊆ 已注册的」。
         execute_definition_task,
+        # P9A-USR-002：AD 同步每日凌晨。漏注册的症状是「同步从未发生」
+        # 且没有任何报错 —— ARQ 对未注册的函数名不报错。
+        sync_ad_users,
     ]
     # ⚠️ **必须是 `CronJob` 实例，不是 dict**（2026-10-13 修）。
     # arq 0.28 的 `Worker.__init__` 直接校验类型，dict 会让 worker
@@ -178,6 +182,16 @@ class WorkerSettings:
                 job_id=None, timeout_s=None, keep_result_s=3600,
                 keep_result_forever=False, max_tries=1,
                 minute={3, 33}),
+        # P9A-USR-002：AD 同步每日凌晨 02:17。
+        # ⚠️ 刻意避开 02:00 —— 那是全网备份/定时任务最挤的整点，
+        #    且多个部署常在同一分钟起进程。秒位写 0（同上，`None` 会变成每秒命中）。
+        # ⚠️ 未配置 LDAP_BIND_DN 时任务内 no-op（见 ad_sync_tasks.py 顶注），
+        #    不是让它每晚抛 —— 常态异常会把真告警淹掉。
+        CronJob(name="sync-ad-users", coroutine=sync_ad_users,
+                month=None, day=None, weekday=None, hour=2, minute=17, second=0,
+                microsecond=0, run_at_startup=False, unique=True,
+                job_id=None, timeout_s=None, keep_result_s=3600,
+                keep_result_forever=False, max_tries=1),
     ]
     # ⚠️ **ADR-P8-004 裁决的 `max_tries=3` 原先只写在注释里**，
     # 实际从没设过 —— 而 ARQ 的重试上限**只**从这里来
