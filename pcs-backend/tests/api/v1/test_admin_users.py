@@ -147,3 +147,53 @@ async def test_sync_endpoint_returns_counts(client, db_session, monkeypatch):
     r = await client.post("/api/v1/admin/users/sync", headers=ADMIN)
     assert r.status_code == 200, r.text
     assert r.json()["created"] == 1
+
+
+@pytest.mark.asyncio
+async def test_p9a_usr_004_acceptance_chain(client, db_session, monkeypatch):
+    """SPEC P9A-USR-004 的完整验收链（计划 A3 Step 4 要求的「演示脚本」变成测试）：
+
+        POST /auth/login 建行 → GET /admin/users 可见 → disable
+        → 该用户**登录时拿到的那个** refresh 立即 401
+
+    之前的三条测试各自只验一段；这条是唯一把它们串起来、且用真实登录令牌
+    （不是手工造的）的断言。手工造令牌会绕过「登录时 tv 是多少」这个环节，
+    而那正是要验的东西。
+    """
+    import app.api.v1.auth as auth_mod
+    import app.services.ldap_client as ldap_mod
+
+    monkeypatch.setattr(auth_mod, "authenticate", lambda u, p: ldap_mod.LdapUser(
+        username=u, dn=f"cn={u},CN=Users,DC=test,DC=local",
+        groups=("cn=DESIGNER_GROUP,ou=Groups,dc=test,dc=local",),
+        display_name=u.title(),
+    ))
+    monkeypatch.setattr(ldap_mod, "authenticate", auth_mod.authenticate)
+
+    # 1) 真实登录 —— 惰性建行 + 签发带 tv 的 refresh
+    r = await client.post("/api/v1/auth/login",
+                          json={"username": "grace", "password": "pw"})
+    assert r.status_code == 200, r.text
+    login_refresh = r.json()["refresh_token"]
+
+    # 2) ADMIN 列表里看得到
+    r = await client.get("/api/v1/admin/users", headers=ADMIN)
+    assert r.status_code == 200, r.text
+    assert "grace" in [u["username"] for u in r.json()]
+
+    # 3) 停用
+    row = next(u for u in r.json() if u["username"] == "grace")
+    assert row["status"] == "ACTIVE" and row["token_version"] == 1
+    r = await client.put(f"/api/v1/admin/users/{row['user_id']}/disable", headers=ADMIN)
+    assert r.status_code == 200, r.text
+    assert r.json()["token_version"] == 2
+
+    # 4) 登录时拿到的那个 refresh 立即失效
+    r = await client.post("/api/v1/auth/refresh",
+                          json={"refresh_token": login_refresh})
+    assert r.status_code == 401, r.text
+
+    # 5) 该用户也不能再登录
+    r = await client.post("/api/v1/auth/login",
+                          json={"username": "grace", "password": "pw"})
+    assert r.status_code == 401, r.text
