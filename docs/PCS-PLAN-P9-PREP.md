@@ -917,8 +917,11 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 
 三条已核实的事实支撑这个选择：
 
-1. `record_hash` 由 `RecordMixin` 共享 ⇒ `app/models/calc.py` 的 **21 张业务结果表全部已有**，
-   **零迁移**。
+1. `record_hash` 由 `RecordMixin` 共享 ⇒ 多数业务结果表**零迁移**。
+   > ⚠️ **执行时实测更正（2026-10-19）**：不是「全部」。29 张 `*_result(s)` 表里只有
+   > **18 张**有 `record_hash`；`sim_*`(8) / `util_results` / `cost_est_results` 没有，
+   > `two_phase_results` 有 hash 但**无 `updated_at`** ⇒ 这 12 张要并发保护需要新列。
+   > 已落进 ADR-0048 §⑥ 的覆盖表与其「尚未解决」1。
 2. **比对范式已存在**：`app/services/cia_engine.py:101` 已在做「当前 record_hash 与
    data_lineage 最新 hash 比对」（change-impact 用）。复用同一范式，不新造概念。
 3. `updated_at` 带 `onupdate=func.now()`（`app/models/mixins.py:38-40`）⇒ 每次 UPDATE 都会刷新，
@@ -1061,7 +1064,7 @@ Python `str.__hash__` 默认按进程随机加盐（PYTHONHASHSEED），多 work
   ① 编辑保存路径的 `expected_hash` 比对（`records.py` 现无 PUT/PATCH，该路径 P9A 全新建）
   ② `RECORD_EDIT_CONFLICT` 409 响应 schema（受 P9A-DLV-010 零裸字段约束）
   ③ `RECORD_EDIT_OVERWROTE_STALE_BASELINE` 审计 action 枚举
-  这三项**不新增迁移**（`record_hash` 已由 `RecordMixin` 覆盖 21 张结果表）。
+  这三项**在有 `record_hash` 的 18 张表上不新增迁移**（另 12 张需新列，见 ADR-0048 §⑥ 覆盖表）。
   把它们写进 SPEC §3.2.5 的 P9A-LCK 条目，否则 P9A 排期时看不到这份欠账。
 
 - [ ] **Step 6: Commit**
@@ -1570,21 +1573,51 @@ Lane A 与 Lane B 无共享文件，可并行。
 
 ---
 
+## 执行后记（2026-10-19，本计划已执行完毕）
+
+9 个 task 全部完成，提交 `8708e29` → `7aa691d`。执行中修正了计划与 SPEC 的若干**事实错误**，
+已就地改写本文件与 SPEC；完整决策记录见 ledger
+`.superpowers/sdd/PCS-PLAN-P9-PREP/progress.md`（该目录已 gitignore）。
+
+**ADR 编号与计划写的不同**：产出 **ADR-0046~0049**，不是 0042~0045 ——
+ADR-0041 正文预留了「0042 = 解冻机制」「0043+ = 后续接口扩展」。
+
+**三处会让验收验错东西的错误**（写下来是因为它们都很安静）：
+
+| 错误 | 真相 | 后果 |
+|---|---|---|
+| Task 1 Step 8 让探针落在 `alembic/versions/` | `alembic check` 比对 **ORM ↔ 活库**，不读迁移源码 | 加一条未 apply 的迁移 ⇒ 两侧都没那列 ⇒ 报 **✅ 假绿**；且推高 code head 使命中 stale 分支，**看着红过，其实验的不是漂移** |
+| Task 2 Step 2 用 `for r in app.routes` 枚举 | 本仓 FastAPI 版本把 `include_router` 包成 `_IncludedRouter` **不展开**，`app.routes` 只有 6 项 | 该步骤是计划自称的「唯一可信来源」，照做产出**空清单**。改用 `app.openapi()["paths"]` |
+| ADR-0048 §⑥ 称 `record_hash` 覆盖全部结果表 | 29 张 `*_result(s)` 表里只有 **18 张**有；`sim_*`(8) / `util_results` / `cost_est_results` 没有，`two_phase_results` 有 hash 但无 `updated_at` | 兜底覆盖比声称的小 **12 张表**，P9A 要多做一次迁移决策（ADR-0048「尚未解决」1） |
+
+另两处路径/锚点过期：Task 9 Step 2 的 `docs/Web版开发计划.md` 实际在
+`spec/工艺专用综合计算软件需求规格说明书 Web版开发计划.md`；Task 7 Step 5 要同步的
+SPEC §2.6「通知渠道假设」在 SPEC 里不存在。
+
+**实测基线（执行后）**：后端 **4643 passed / 77 skipped / 0 failed**（4629 + PP-5 的 14 个）；
+两库 `alembic check` 均 exit 0（**各跑一次**）；payload coverage RC=0。
+
+---
+
 ## 尚未解决的问题
 
-1. **P9A / P9B 的实施计划尚未编写。** 本计划只覆盖 SPEC §2。ADR-0046~0045 accepted 后，
-   P9A（8–12 人周）才具备可写代码级计划的前提 —— 那时按本计划同样的格式另写
+1. **P9A / P9B 的实施计划尚未编写。** 本计划只覆盖 SPEC §2。ADR-0046~0049 accepted 后，
+   P9A（4–6 周）才具备可写代码级计划的前提 —— 那时按本计划同样的格式另写
    `docs/PCS-PLAN-P9A.md`，不要在本文件里追加。
+   ⚠️ 写之前先读四份 ADR 各自的「尚未解决」段 —— 那几段就是 P9A 必须先答的问题。
 
 2. **P9-OPEN-003（审计日志导出格式）归属 P9B**，本阶段未处理，SPEC §8 中仍为「已确认」，开工时直接用。
 
-3. **ADR-0046 §② 的存量孤儿清单未产出。** ADR 采纳了「惰性建行、不批量回填」，
-   但「导出 `user_projects` / `audit_logs.created_by` 中无对应 users 行的 uuid5 清单」
-   这一步落在 P9A（需先有 users 表与登录路径才有判据）。**ADR 里没有写这一步的归属** ——
-   P9A 开工时须补，否则会掉。
+3. ~~**ADR-0046 §② 的存量孤儿清单未产出**~~ —— **执行时已补上归属**：
+   ADR-0046 的「尚未解决」段与 SPEC §3.2.2 `P9A-USR-005` 都写明
+   「导出 `user_projects` / `audit_logs.created_by` 中无对应 users 行的 uuid5 清单，
+   交人工确认，**不删 users 行**（FK CASCADE，删即删授权）」归 P9A。
+   **P9A 开工时仍需真正产出这份清单** —— 归属已定，动作未做。
 
-4. **`confirm_recalc` 的 `response_model=dict` 是否计入 71 基线，Task 2 Step 4 才实测。**
-   若计入，P9A 开工时该端点需改造；若不计，仍建议在 P9A 顺带显式化（否则 P9B 拿到 `object`）。
+4. **`confirm_recalc` 的 `response_model=dict` 占了 71 基线里的几个，无法区分。**
+   Task 2 实测总数 71 与 `BASELINE_BARE_FIELDS` 一致，但该脚本**只报总数、不按端点归因**，
+   所以「它算不算在里面」至今未知。建议 P9A 顺带把它显式化（P9B 拿到的是 `object`，
+   与 P9A-DLV-010 零裸字段冲突），但这不阻塞 P9A 开工。
 
 5. **pre-commit 框架未安装**（`which pre-commit` 无输出）。本计划刻意沿用仓库既有的
    `.githooks/` + `core.hooksPath` 模式而非引入 pre-commit 框架，与「CI/CD 不做」的用户裁决一致。
@@ -1660,7 +1693,11 @@ $ grep -n "TODO-045\|TODO-046" TODOS.md
 **建议 1 更正的实质**：ADR-0048 §⑥ 原本用「唯一收口」论证兜底便宜。
 实测 6 条旁路后，论证改为「零迁移 + `updated_at` 带 `onupdate` 必然刷新」——
 结论不变，但 pump/pipe/pipe_net 三类记录的冲突检测**依赖 `updated_at` 而非 hash**，
-这个事实必须写明，否则实施者会以为 hash 覆盖全部 21 张表。
+这个事实必须写明，否则实施者会以为 hash 覆盖全部结果表。
+
+> **执行时又发现更正的一半（2026-10-19）**：不仅「唯一收口」错，「全部覆盖」也错 ——
+> 实测 29 张 `*_result(s)` 表里只有 **18 张**有 `record_hash`。见 ADR-0048 §⑥ 覆盖表。
+> 两处断言各错一半，说明写 ADR 时的数量断言都得逐表验，不能从 mixin 结构推。
 
 ### 计划规模变化
 

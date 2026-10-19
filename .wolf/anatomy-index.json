@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T10:21:14.201Z",
+    "lastScanned": "2026-10-19T10:32:10.166Z",
     "fileCount": 846,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "8b295f8855dac68b1a479b3f46919f21e418c905bf66c6e68f9e1e5ae9130f3b",
-    "storeUpdatedAt": "2026-10-19T10:21:14.212Z",
-    "rootHash": "1265f8c88e1511fa"
+    "renderedHash": "74ce30354b45857dec511442fad87d4d5d2b614afcaef55382d84b99883b1b20",
+    "storeUpdatedAt": "2026-10-19T10:32:10.184Z",
+    "rootHash": "692e2eaf0bf98b2b"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -28023,20 +28023,20 @@
     },
     "docs/PCS-PLAN-P9-PREP.md": {
       "description": "P9-Prep 实施计划（alembic 闸门 + 4 份 ADR + P1 端点清单 + MFA 决议）",
-      "tokens": 14311,
-      "hash": "ce25aee0ffd7dcde",
-      "size": 87503,
-      "mtimeMs": 1792404913303.8772,
-      "updatedAt": "2026-10-19T10:15:13.351Z",
+      "tokens": 14616,
+      "hash": "5dbe9f555c052c35",
+      "size": 89490,
+      "mtimeMs": 1792405930096.0203,
+      "updatedAt": "2026-10-19T10:32:10.165Z",
       "source": "hook"
     },
     ".superpowers/sdd/PCS-PLAN-P9-PREP/progress.md": {
       "description": "SDD ledger — plan: docs/PCS-PLAN-P9-PREP.md",
-      "tokens": 982,
-      "hash": "a0aefa7713846752",
-      "size": 6574,
-      "mtimeMs": 1792404869557.9758,
-      "updatedAt": "2026-10-19T10:14:29.605Z",
+      "tokens": 1857,
+      "hash": "7413f44652606db2",
+      "size": 12038,
+      "mtimeMs": 1792405887887.2441,
+      "updatedAt": "2026-10-19T10:31:27.939Z",
       "source": "hook"
     },
     "pcs-backend/tests/scripts/test_gate_alembic_check.py": {

@@ -1789,3 +1789,5 @@
 | 18:20 | Created docs/PCS-NOTE-P9-Prep-MFA决议-2026-10-19.md | — | ~1184 |
 | 18:21 | Edited pcs-backend/scripts/check_openapi_payload_coverage.py | expanded (+7 lines) | ~106 |
 | 18:21 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | inline fix | ~87 |
+| 18:31 | Edited .superpowers/sdd/PCS-PLAN-P9-PREP/progress.md | expanded (+67 lines) | ~1098 |
+| 18:32 | Edited docs/PCS-PLAN-P9-PREP.md | expanded (+26 lines) | ~329 |
