@@ -12689,6 +12689,89 @@
         }
       }
     },
+    "/api/v1/deliverables/{deliverable_id}/actions": {
+      "get": {
+        "tags": [
+          "deliverables"
+        ],
+        "summary": "交付物动作时间线（数据源 = 审计日志）",
+        "description": "列这个交付物上发生过的动作，最早在前。\n\n数据源是 `audit_logs` 而**不是**新表：动作已经逐条写进审计了\n（签发 / 签署 / 代录批准 / 变更单批准），再建一张表就是**第二份动作历史** ——\n两份会漂移，而漂移的那份没人会去对。\n\n要并进**版本级**动作：`sign-step` 的审计记的是版本 ID\n（`resource_type=deliverable_version`），只按交付物 ID 查会把签署历史\n整段漏掉 —— 而签署历史恰恰是这个端点的主要用途。\n\n⚠️ 与 `workflow_progress` 是**两回事**：这里回答「谁做了什么」，\n观测层回答「流程到哪一步了」。拿 actions 当进度来源，\n甘特图会把「查过一眼」也算成活动。",
+        "operationId": "list_deliverable_actions_api_v1_deliverables__deliverable_id__actions_get",
+        "parameters": [
+          {
+            "name": "deliverable_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Deliverable Id"
+            }
+          },
+          {
+            "name": "limit",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "maximum": 500,
+              "minimum": 1,
+              "default": 200,
+              "title": "Limit"
+            }
+          },
+          {
+            "name": "offset",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0,
+              "title": "Offset"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeliverableActionsListResponse"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v1/equipment/{equipment_id}/actual-data": {
       "get": {
         "tags": [
@@ -22583,6 +22666,98 @@
         ],
         "title": "CvCalculateResponse",
         "description": "调节阀 Cv 计算响应（POST /api/v1/cv/calculate 201）。\n\n回填 CvResult 主键 + 关键结果字段 + outlet stream 锚点。\n\nP6-4 Task 5（C-24 Masonelian fl）：V1.2 D3 严格 — fl / flash_steam_rate_kg_s\n走 JSONB 容器（output_json），masonelian_model 走 ORM 列。响应层 3 字段全部\nOptional（默认 None），保持 V1.0 兼容：仅 LIQUID 路径填充；GAS/VAPOR 路径\n闪蒸修正无强物理意义，保持 None。"
+      },
+      "DeliverableActionResponse": {
+        "properties": {
+          "action": {
+            "type": "string",
+            "title": "Action",
+            "description": "AuditAction 值，如 DELIVERABLE_ISSUED"
+          },
+          "resource_type": {
+            "type": "string",
+            "title": "Resource Type",
+            "description": "deliverable（交付物级动作）/ deliverable_version（版本级动作）"
+          },
+          "resource_id": {
+            "type": "string",
+            "title": "Resource Id",
+            "description": "动作对象 ID（交付物 ID 或版本 ID）"
+          },
+          "actor_user_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "uuid"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Actor User Id",
+            "description": "操作人；系统动作为空"
+          },
+          "detail_json": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Detail Json",
+            "description": "审计 detail_json 的 JSON 文本；结构随 action 而变"
+          },
+          "created_at": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date-time"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Created At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "action",
+          "resource_type",
+          "resource_id"
+        ],
+        "title": "DeliverableActionResponse",
+        "description": "一条动作（= 一条审计记录）。\n\n字段集合被 `test_item_model_declares_every_field` 钉死 ——\n加字段要同时改那个测试，这是刻意的：契约变化必须是显式动作。"
+      },
+      "DeliverableActionsListResponse": {
+        "properties": {
+          "deliverable_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Deliverable Id"
+          },
+          "items": {
+            "items": {
+              "$ref": "#/components/schemas/DeliverableActionResponse"
+            },
+            "type": "array",
+            "title": "Items"
+          },
+          "total": {
+            "type": "integer",
+            "title": "Total"
+          }
+        },
+        "type": "object",
+        "required": [
+          "deliverable_id",
+          "items",
+          "total"
+        ],
+        "title": "DeliverableActionsListResponse",
+        "description": "动作时间线。"
       },
       "DeliverableIssueRequest": {
         "properties": {

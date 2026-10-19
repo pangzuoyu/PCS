@@ -1,4 +1,4 @@
-"""交付物读端点（P1-7+ D 模块 / P8 前置）。
+"""交付物读端点（P1-7+ D 模块 / P8 前置 / P9A B4d 动作时间线）。
 
 P8 REPORT 依赖「从 `deliverables` / `deliverable_versions` 读数据」，而此前该表族
 **无任何 HTTP 入口**（只有模型与 ChangeNoticeService）。本模块补上读面。
@@ -14,6 +14,7 @@ ACL：读 = DESIGNER + PROCESS_CONTROLLER + REVIEWER + APPROVER + SYSTEM_ADMIN
 """
 from __future__ import annotations
 
+import json
 import uuid
 from typing import Annotated
 
@@ -30,6 +31,10 @@ from app.schemas.deliverable import (
     DeliverableSnapshotResponse,
     DeliverableVersionResponse,
     RecordBindingResponse,
+)
+from app.schemas.deliverable_actions import (
+    DeliverableActionResponse,
+    DeliverableActionsListResponse,
 )
 from app.schemas.deliverable_write import (
     CustomerApprovalProxyRequest,
@@ -56,6 +61,11 @@ _READ_ROLES = (
 # 签发 = 把这一版送进签署矩阵，若审方（REVIEWER/APPROVER）也能签发，
 # 就能自己签发自己审，签署矩阵的职责分离形同虚设。
 _ISSUE_ROLES = ("DESIGNER", "SYSTEM_ADMIN")
+
+# 签署步骤的角色闸 = 读角色 + CHECKER。CHECKER 必须单列：它是 9 态机里唯一的
+# 「校核人」角色，而校核正是签署矩阵里的常见一步；漏了它，矩阵配 CHECKER 的
+# 项目**谁都签不了**。每一步到底该谁签由 service 按 `steps_json.sign_role` 判定。
+_SIGN_ROLES = (*_READ_ROLES, "CHECKER")
 
 
 async def _authorize(
@@ -256,7 +266,7 @@ async def sign_step(
     观测写入在 service 层而非这里（ADR-0047 §① 🔒）：cron / 事件驱动的调用
     路径完全不过 API 层，写在这一层会让它们在观测层里系统性隐形且不报错。
     """
-    require_roles(actor, *_READ_ROLES)
+    require_roles(actor, *_SIGN_ROLES)
     await _authorize(db, actor, deliverable_id)
     outcome = await DeliverableService.sign_step(
         db,
@@ -333,4 +343,57 @@ async def proxy_customer_approval(
         approval_method=body.approval_method,
         is_proxy=True,
         proxied_at=outcome.signed_at,
+    )
+
+@router.get(
+    "/deliverables/{deliverable_id}/actions",
+    response_model=DeliverableActionsListResponse,
+    summary="交付物动作时间线（数据源 = 审计日志）",
+)
+async def list_deliverable_actions(
+    deliverable_id: uuid.UUID,
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+    limit: int = Query(200, ge=1, le=500),
+    offset: int = Query(0, ge=0),
+) -> DeliverableActionsListResponse:
+    """列这个交付物上发生过的动作，最早在前。
+
+    数据源是 `audit_logs` 而**不是**新表：动作已经逐条写进审计了
+    （签发 / 签署 / 代录批准 / 变更单批准），再建一张表就是**第二份动作历史** ——
+    两份会漂移，而漂移的那份没人会去对。
+
+    要并进**版本级**动作：`sign-step` 的审计记的是版本 ID
+    （`resource_type=deliverable_version`），只按交付物 ID 查会把签署历史
+    整段漏掉 —— 而签署历史恰恰是这个端点的主要用途。
+
+    ⚠️ 与 `workflow_progress` 是**两回事**：这里回答「谁做了什么」，
+    观测层回答「流程到哪一步了」。拿 actions 当进度来源，
+    甘特图会把「查过一眼」也算成活动。
+    """
+    require_roles(actor, *_READ_ROLES)
+    await _authorize(db, actor, deliverable_id)
+    items, total = await DeliverableService.list_actions(
+        db, deliverable_id=deliverable_id, limit=limit, offset=offset
+    )
+    return DeliverableActionsListResponse(
+        deliverable_id=deliverable_id,
+        items=[
+            DeliverableActionResponse(
+                action=i.action,
+                resource_type=i.resource_type,
+                resource_id=i.resource_id,
+                actor_user_id=i.actor_user_id,
+                # detail_json 是 dict → 序列化成 JSON 文本再暴露。
+                # 铺平成 dict 会让 OpenAPI 多一个无属性 object（P9A-DLV-010 的
+                # 裸字段，基线 71 只拦倒退），也会把「结构随 action 变」
+                # 变成前端要自己猜的第二个真相源。
+                detail_json=json.dumps(i.detail, ensure_ascii=False)
+                if i.detail is not None
+                else None,
+                created_at=i.created_at,
+            )
+            for i in items
+        ],
+        total=total,
     )

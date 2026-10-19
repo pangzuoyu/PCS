@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T23:38:55.733Z
-> Files: 877 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T23:51:14.943Z
+> Files: 878 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1286,6 +1286,7 @@
 
 - `test_admin_users.py` — ADMIN 用户端点（SPEC P9A-ADM-001/002，ADR-0046 §⑤）。 (~1181 tok)
 - `test_config_assets_list.py` — `GET /api/v1/config/assets` 列表端点（2026-10-19，TODO-040）。 (~1172 tok)
+- `test_deliverable_actions.py` — `GET /deliverables/{id}/actions` 测试（P9A B4d）。 (~2733 tok)
 - `test_deliverable_customer_approval_proxy.py` — 代录客户批准端点测试（P9A B3 / SPEC P9A-DLV-008 / ADR-0007）。 (~2878 tok)
 - `test_deliverable_issue.py` — 交付物 issue 端点测试（P9A B1 / SPEC P9A-DLV-001·002·003）。 (~3920 tok)
 - `test_deliverable_sign_step.py` — 交付物 sign-step 端点测试（P9A B2 / SPEC P9A-DLV-007）。 (~3816 tok)

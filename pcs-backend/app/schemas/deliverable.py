@@ -104,3 +104,19 @@ class DeliverableSnapshotResponse(BaseModel):
     record_snapshot_json: dict[str, Any] = Field(default_factory=dict)
     signature_summary_json: dict[str, Any] = Field(default_factory=dict)
     bindings: list[RecordBindingResponse]
+
+class DeliverableActionRow(BaseModel):
+    """内部行模型：审计记录 → 动作条目（`detail_json` 仍是 dict）。
+
+    对外暴露的是 `schemas/deliverable_actions.DeliverableActionResponse`，
+    那里 `detail_json` 已是 JSON 文本 —— 本模型只在 service 层内部流转。
+    """
+
+    model_config = ConfigDict(from_attributes=True)
+
+    action: str
+    resource_type: str
+    resource_id: str
+    actor_user_id: uuid.UUID | None = None
+    detail: dict[str, Any] | None = None
+    created_at: datetime | None = None

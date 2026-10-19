@@ -4103,6 +4103,38 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/deliverables/{deliverable_id}/actions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * 交付物动作时间线（数据源 = 审计日志）
+         * @description 列这个交付物上发生过的动作，最早在前。
+         *
+         *     数据源是 `audit_logs` 而**不是**新表：动作已经逐条写进审计了
+         *     （签发 / 签署 / 代录批准 / 变更单批准），再建一张表就是**第二份动作历史** ——
+         *     两份会漂移，而漂移的那份没人会去对。
+         *
+         *     要并进**版本级**动作：`sign-step` 的审计记的是版本 ID
+         *     （`resource_type=deliverable_version`），只按交付物 ID 查会把签署历史
+         *     整段漏掉 —— 而签署历史恰恰是这个端点的主要用途。
+         *
+         *     ⚠️ 与 `workflow_progress` 是**两回事**：这里回答「谁做了什么」，
+         *     观测层回答「流程到哪一步了」。拿 actions 当进度来源，
+         *     甘特图会把「查过一眼」也算成活动。
+         */
+        get: operations["list_deliverable_actions_api_v1_deliverables__deliverable_id__actions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/equipment/{equipment_id}/actual-data": {
         parameters: {
             query?: never;
@@ -8153,6 +8185,57 @@ export interface components {
              * @description 出口流 UUID（DEVICE_CALCULATED）
              */
             outlet_stream_id: string;
+        };
+        /**
+         * DeliverableActionResponse
+         * @description 一条动作（= 一条审计记录）。
+         *
+         *     字段集合被 `test_item_model_declares_every_field` 钉死 ——
+         *     加字段要同时改那个测试，这是刻意的：契约变化必须是显式动作。
+         */
+        DeliverableActionResponse: {
+            /**
+             * Action
+             * @description AuditAction 值，如 DELIVERABLE_ISSUED
+             */
+            action: string;
+            /**
+             * Resource Type
+             * @description deliverable（交付物级动作）/ deliverable_version（版本级动作）
+             */
+            resource_type: string;
+            /**
+             * Resource Id
+             * @description 动作对象 ID（交付物 ID 或版本 ID）
+             */
+            resource_id: string;
+            /**
+             * Actor User Id
+             * @description 操作人；系统动作为空
+             */
+            actor_user_id?: string | null;
+            /**
+             * Detail Json
+             * @description 审计 detail_json 的 JSON 文本；结构随 action 而变
+             */
+            detail_json?: string | null;
+            /** Created At */
+            created_at?: string | null;
+        };
+        /**
+         * DeliverableActionsListResponse
+         * @description 动作时间线。
+         */
+        DeliverableActionsListResponse: {
+            /**
+             * Deliverable Id
+             * Format: uuid
+             */
+            deliverable_id: string;
+            /** Items */
+            items: components["schemas"]["DeliverableActionResponse"][];
+            /** Total */
+            total: number;
         };
         /**
          * DeliverableIssueRequest
@@ -25874,6 +25957,42 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["CustomerApprovalProxyResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_deliverable_actions_api_v1_deliverables__deliverable_id__actions_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: {
+                authorization?: string | null;
+            };
+            path: {
+                deliverable_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeliverableActionsListResponse"];
                 };
             };
             /** @description Validation Error */

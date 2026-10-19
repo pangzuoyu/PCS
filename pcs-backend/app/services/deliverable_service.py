@@ -28,7 +28,7 @@ from dataclasses import dataclass
 from datetime import UTC, date, datetime
 from typing import Any
 
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.core.errors import PcsError
@@ -48,6 +48,7 @@ from app.models.enums import (
     WorkflowType,
 )
 from app.models.project import Project
+from app.models.system import AuditLog
 from app.models.workflow_progress import WorkflowProgress
 from app.services.audit_service import AuditService
 from app.services.numbering_service import NumberingService
@@ -810,3 +811,81 @@ class DeliverableService:
             attachment=attachment,
             signed_at=now,
         )
+
+    # ------------------------------------------------------------------
+    # 读面（P9A B4d：动作时间线）
+    # ------------------------------------------------------------------
+
+    #: 动作时间线要并进来的审计 `resource_type`。
+    #: 交付物级动作记交付物 ID；版本级动作（sign-step）记**版本 ID** ——
+    #: 只按交付物 ID 查会把签署历史整段漏掉，而那正是这个端点的主要用途。
+    _ACTION_RESOURCE_TYPES = ("deliverable", "DELIVERABLE", "deliverable_version")
+
+    @classmethod
+    async def list_actions(
+        cls,
+        db: AsyncSession,
+        *,
+        deliverable_id: uuid.UUID,
+        limit: int = 200,
+        offset: int = 0,
+    ) -> tuple[list[Any], int]:
+        """列交付物的动作时间线（数据源 = `audit_logs`，**不建新表**）。
+
+        总纲「尚未解决」第 2 条到此关闭。理由：动作已经逐条写进审计了，
+        再建一张表就是**第二份动作历史** —— 两份会漂移，而漂移的那份没人会去对。
+
+        Returns:
+            (`DeliverableActionRow` 列表, 总数)。
+        """
+        await cls.get_or_404(db, deliverable_id=deliverable_id)
+
+        version_ids = (
+            await db.execute(
+                select(DeliverableVersion.version_id).where(
+                    DeliverableVersion.deliverable_id == deliverable_id
+                )
+            )
+        ).scalars().all()
+
+        conditions = [
+            or_(
+                and_(
+                    func.lower(AuditLog.resource_type) == "deliverable",
+                    AuditLog.resource_id == str(deliverable_id),
+                ),
+                and_(
+                    func.lower(AuditLog.resource_type) == "deliverable_version",
+                    AuditLog.resource_id.in_([str(v) for v in version_ids] or [""]),
+                ),
+            )
+        ]
+        total = await db.scalar(
+            select(func.count()).select_from(AuditLog).where(*conditions)
+        )
+        rows = (
+            await db.execute(
+                select(AuditLog)
+                .where(*conditions)
+                # occurred_at 秒级粒度 ⇒ 必须带 audit_id 兜底，否则同一秒内的
+                # 多条动作返回顺序不确定，翻页会漏或重（同本文件读面）。
+                .order_by(AuditLog.occurred_at, AuditLog.audit_id)
+                .limit(limit)
+                .offset(offset)
+            )
+        ).scalars().all()
+
+        from app.schemas.deliverable import DeliverableActionRow
+
+        items = [
+            DeliverableActionRow(
+                action=r.action,
+                resource_type=r.resource_type or "",
+                resource_id=r.resource_id or "",
+                actor_user_id=r.user_id,
+                detail=r.detail_json,
+                created_at=r.occurred_at,
+            )
+            for r in rows
+        ]
+        return items, int(total or 0)
