@@ -48,11 +48,18 @@ export const seedMaterials: ComponentProperty[] = [
   },
 ];
 
+// ⚠️ `source` 的取值照抄后端 `common_service.py` 的实现
+// （`ASME_B31.3_TABLE_A1`），不是前端自己编的 `'ASME'` ——
+// 契约里就是这一串，编个短名等于又造一份不一致。
 export const seedAllowableStress: AllowableStress[] = [
-  { material: 'A106-B', temperature_c: 38, allowable_stress_mpa: 137.9, standard: 'ASME' },
-  { material: 'A106-B', temperature_c: 200, allowable_stress_mpa: 117.2, standard: 'ASME' },
-  { material: 'A312-TP304', temperature_c: 38, allowable_stress_mpa: 137.9, standard: 'ASME' },
-  { material: 'A312-TP304', temperature_c: 400, allowable_stress_mpa: 103.4, standard: 'ASME' },
+  { material: 'A106-B', temp_c: 38, stress_mpa: 137.9,
+    source: 'ASME_B31.3_TABLE_A1', interpolated: false },
+  { material: 'A106-B', temp_c: 200, stress_mpa: 117.2,
+    source: 'ASME_B31.3_TABLE_A1', interpolated: true },
+  { material: 'A312-TP304', temp_c: 38, stress_mpa: 137.9,
+    source: 'ASME_B31.3_TABLE_A1', interpolated: false },
+  { material: 'A312-TP304', temp_c: 400, stress_mpa: 103.4,
+    source: 'ASME_B31.3_TABLE_A1', interpolated: true },
 ];
 
 export const seedToxicityClasses: ToxicityClass[] = [

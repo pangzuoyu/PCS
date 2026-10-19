@@ -80,21 +80,24 @@ export function StreamListPage({ streams, onSelect }: Props): JSX.Element {
         </Space>
       ),
     },
+    // ⚠️ 字段名对齐契约 `StreamResponse`（DICT-007-SUP-011 §4.4）。
+    // 压力列的单位是 **MPaG** 不是 MPa —— 契约原写 kPa 是后端写错的，
+    // 本轮已改后端描述与 ORM 注释（见 types/stream.ts 的说明）。
     {
       title: '温度 (°C)',
-      dataIndex: 'temperature_c',
+      dataIndex: 'temp',
       width: 110,
       render: (v: number) => <NumericCell value={v} precision={1} precisionType="decimal" unit="°C" />,
     },
     {
-      title: '压力 (MPa)',
-      dataIndex: 'pressure_mpa',
+      title: '压力 (MPaG)',
+      dataIndex: 'press',
       width: 110,
-      render: (v: number) => <NumericCell value={v} precision={2} precisionType="decimal" unit="MPa" />,
+      render: (v: number) => <NumericCell value={v} precision={2} precisionType="decimal" unit="MPaG" />,
     },
     {
       title: '流量 (kg/h)',
-      dataIndex: 'total_mass_flow_kg_h',
+      dataIndex: 'mass_flow',
       width: 130,
       render: (v: number) => <NumericCell value={v} precision={0} precisionType="decimal" unit="kg/h" />,
     },

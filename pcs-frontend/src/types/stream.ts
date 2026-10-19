@@ -29,10 +29,29 @@ export interface Stream {
   stream_name: string;
   phase: StreamPhase;
   subphase?: StreamSubphase;
-  temperature_c: number;
-  pressure_mpa: number;
-  total_mass_flow_kg_h: number;
-  total_molar_flow_kmol_h: number;
+  /* ⚠️ 以下四个字段 2026-10-19 对齐契约 `StreamResponse`（TODO-039 审计）。
+   *
+   * 方向依据 **DICT-007-SUP-011 §4.4「与 Streams 表的映射」**：
+   *     temperature_c  → temp
+   *     pressure_mpag  → press
+   *     mass_flow_kg_h → mass_flow
+   * 所以契约对、前端错，改前端。
+   *
+   * ⚠️ `press` 尤其不能只看字段名：schema 原写「压力 kPa」，而 DICT 的
+   * 源字段是 `pressure_mpag`（**MPaG**），后端其余压力字段也一律 MPaG
+   * —— 那句 kPa 是后端写错的，本轮已改（app/schemas/stream.py 4 处 +
+   * ORM 补 comment="MPaG"）。若只把 `pressure_mpa` 换成 `press` 而不
+   * 同步后端描述，页面会显示「0.50 MPa」而真值是 500 kPa，**差 1000 倍
+   * 且看起来完全合理**。
+   */
+  /** 温度 °C（契约 temp）。 */
+  temp: number;
+  /** 压力 */
+  press: number;
+  /** 质量流量 kg/h（契约 mass_flow）。 */
+  mass_flow: number;
+  /** 摩尔流量 kmol/h（契约 molar_flow）。 */
+  molar_flow: number;
   /** 组分名 → 摩尔分率（SPEC §7.7.2 组成 JSON）。 */
   composition_json: Record<string, number>;
   /**

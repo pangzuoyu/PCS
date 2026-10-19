@@ -2,7 +2,8 @@
  * AllowableStressPage — 许用应力（P45-3-3 / Task 30）。
  *
  * SPEC §7.8.2：
- * - 表格：material / temperature_c / allowable_stress_mpa / standard
+ * - 表格：material / temp_c / stress_mpa / source
+ *   （字段名 2026-10-19 对齐契约 `AllowableStressResult`，见 types/common.ts）
  * - 过滤：按 material 模糊查询
  * - 标准来源 Tag
  *
@@ -20,11 +21,23 @@ interface Props {
   stresses: AllowableStress[];
 }
 
-const STANDARD_COLOR: Record<string, string> = {
-  ASME: 'blue',
-  GB: 'green',
-  DIN: 'orange',
-};
+/**
+ * `source` 的实际取值形如 `ASME_B31.3_TABLE_A1` / `GB_T_20801…`，
+ * 而这张表按**前缀**着色。
+ *
+ * ⚠️ 2026-10-19 字段从 `standard`（值是 `ASME`/`GB`/`DIN`）改为契约的
+ * `source` 之后，若照抄旧键表，`STANDARD_COLOR['ASME_B31.3_TABLE_A1']`
+ * 是 undefined ⇒ **每一条标签都变灰**，看起来像「数据有问题」。
+ * 改成前缀匹配后观感与之前一致。
+ */
+const SOURCE_COLOR: { prefix: string; color: string }[] = [
+  { prefix: 'ASME', color: 'blue' },
+  { prefix: 'GB', color: 'green' },
+  { prefix: 'DIN', color: 'orange' },
+];
+
+const sourceColor = (src: string): string =>
+  SOURCE_COLOR.find((r) => src.startsWith(r.prefix))?.color ?? 'default';
 
 export function AllowableStressPage({ stresses }: Props): JSX.Element {
   const [query, setQuery] = useState('');
@@ -46,22 +59,22 @@ export function AllowableStressPage({ stresses }: Props): JSX.Element {
     },
     {
       title: '温度 (°C)',
-      dataIndex: 'temperature_c',
+      dataIndex: 'temp_c',
       width: 100,
       render: (v: number) => <NumericCell value={v} precision={0} precisionType="decimal" unit="°C" />,
     },
     {
       title: '许用应力 (MPa)',
-      dataIndex: 'allowable_stress_mpa',
+      dataIndex: 'stress_mpa',
       width: 130,
       render: (v: number) => <NumericCell value={v} precision={2} precisionType="decimal" unit="MPa" />,
     },
     {
-      title: '标准',
-      dataIndex: 'standard',
+      title: '数据来源',
+      dataIndex: 'source',
       width: 100,
       render: (s: string) => (
-        <Tag color={STANDARD_COLOR[s] ?? 'default'} data-testid="stress-standard">
+        <Tag color={sourceColor(s)} data-testid="stress-standard">
           {s}
         </Tag>
       ),
@@ -88,7 +101,7 @@ export function AllowableStressPage({ stresses }: Props): JSX.Element {
         <Empty description="无记录" />
       ) : (
         <Table<AllowableStress>
-          rowKey={(r) => `${r.material}-${r.temperature_c}-${r.standard}`}
+          rowKey={(r) => `${r.material}-${r.temp_c}-${r.source}`}
           columns={columns}
           dataSource={filtered}
           pagination={false}

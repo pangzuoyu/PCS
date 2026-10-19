@@ -27,11 +27,27 @@ export interface ComponentProperty {
 }
 
 /** 许用应力表（材料 × 温度 × 标准）：指定材料在指定温度下的许用应力 MPa（ASME/GB/DIN 等）。 */
+/**
+ * 材料许用应力（GET /common/allowable-stress → `AllowableStressResult`）。
+ *
+ * 字段名 2026-10-19 对齐契约（TODO-039 审计发现的三处漂移）：
+ * `temperature_c`→`temp_c`、`allowable_stress_mpa`→`stress_mpa`、
+ * `standard`→`source`。方向经 `common_service.py:213-231` 的实现确认 ——
+ * 契约对、前端错，所以改前端而不是把后端改名迁就前端。
+ *
+ * ⚠️ 这里**只**对齐了本类型自身的字段，整体仍是手写副本。
+ * 完整契约还有 `interpolated: boolean`（是否插值），本页暂不用。
+ */
 export interface AllowableStress {
   material: string;
-  temperature_c: number;
-  allowable_stress_mpa: number;
-  standard: string;            // ASME / GB / DIN
+  /** 温度 °C（契约 temp_c）。 */
+  temp_c: number;
+  /** 许用应力 MPa（契约 stress_mpa）。 */
+  stress_mpa: number;
+  /** 数据来源标记，如 `ASME_B31.3_TABLE_A1`（契约 source）。 */
+  source: string;
+  /** 是否插值（节点间取值而非正好命中表节点）。契约有，本页暂不用。 */
+  interpolated?: boolean;
 }
 
 /** 危险等级：LOW 低 / MEDIUM 中 / HIGH 高（用于介质/工艺综合分级）。 */

@@ -242,7 +242,10 @@ class Stream(TimestampMixin, Base):
     description: Mapped[str | None] = mapped_column(String(500))
     phase: Mapped[str | None] = mapped_column(String(20), comment="StreamPhase")
     temp: Mapped[float | None] = mapped_column(Float, comment="基准工况 °C")
-    press: Mapped[float | None] = mapped_column(Float)
+    # ⚠️ 此前**没有单位注释**（temp/mass_flow/molar_flow 都有），
+    # 于是 schema 一度把它写成 kPa。权威依据 DICT-007-SUP-011 §4.4：
+    # `pressure_mpag → press`，即 **MPaG**。
+    press: Mapped[float | None] = mapped_column(Float, comment="MPaG")
     mass_flow: Mapped[float | None] = mapped_column(Float, comment="kg/h")
     molar_flow: Mapped[float | None] = mapped_column(Float, comment="kmol/h")
     volumetric_flow: Mapped[float | None] = mapped_column(Float, comment="m³/h")

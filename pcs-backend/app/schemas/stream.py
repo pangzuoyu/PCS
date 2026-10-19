@@ -62,7 +62,7 @@ class StreamBase(BaseModel):
     # === 物流操作参数（spec V1.6 §3.2.3） ===
     phase: str | None = Field(None, max_length=20, description="相态：VAPOR/LIQUID/MIXED/SOLID")
     temp: float | None = Field(None, description="温度 °C")
-    press: float | None = Field(None, description="压力 kPa")
+    press: float | None = Field(None, description="压力 MPaG（⚠️ 原写 kPa 是错的，见 DICT-007-SUP-011 §4.4 `pressure_mpag → press`；后端其余压力字段一律 MPaG）")
     mass_flow: float | None = Field(None, description="质量流量 kg/h")
     molar_flow: float | None = Field(None, description="摩尔流量 kmol/h")
     volumetric_flow: float | None = Field(None, description="标准体积流量 m³/h")
@@ -254,7 +254,7 @@ class StreamUpdate(BaseModel):
     description: str | None = Field(None, max_length=500, description="物流描述")
     phase: str | None = Field(None, max_length=20, description="相态")
     temp: float | None = Field(None, description="温度 °C")
-    press: float | None = Field(None, description="压力 kPa")
+    press: float | None = Field(None, description="压力 MPaG（⚠️ 原写 kPa 是错的，见 DICT-007-SUP-011 §4.4 `pressure_mpag → press`；后端其余压力字段一律 MPaG）")
     mass_flow: float | None = Field(None, description="质量流量 kg/h")
     molar_flow: float | None = Field(None, description="摩尔流量 kmol/h")
     actual_vol_flow: float | None = Field(None, description="工况体积流量 m³/h")
@@ -292,7 +292,7 @@ class StreamStatePointBase(BaseModel):
         ..., description="状态点级工况：NORMAL/MIN/MAX/ALTERNATE"
     )
     temp: float = Field(..., description="温度 °C")
-    press: float = Field(..., description="压力 kPa")
+    press: float = Field(..., description="压力 MPaG（⚠️ 原写 kPa 是错的，见 DICT-007-SUP-011 §4.4 `pressure_mpag → press`；后端其余压力字段一律 MPaG）")
     phase: str = Field(..., min_length=1, max_length=20, description="相态")
     vapor_fraction: float | None = Field(None, ge=0.0, le=1.0, description="气相分率")
     mass_flow: float = Field(..., description="质量流量 kg/h")
@@ -328,7 +328,7 @@ class StreamStatePointUpdate(BaseModel):
     state_label: str | None = Field(None, min_length=1, max_length=50, description="状态点标签")
     case_type: StatePointCaseType | None = Field(None, description="状态点级工况")
     temp: float | None = Field(None, description="温度 °C")
-    press: float | None = Field(None, description="压力 kPa")
+    press: float | None = Field(None, description="压力 MPaG（⚠️ 原写 kPa 是错的，见 DICT-007-SUP-011 §4.4 `pressure_mpag → press`；后端其余压力字段一律 MPaG）")
     mass_flow: float | None = Field(None, description="质量流量 kg/h")
     source_type: str | None = Field(None, max_length=30, description="来源类型")
 

@@ -154,10 +154,10 @@ export function StreamDetailPage({
                   <Typography.Text type="secondary">—</Typography.Text>
                 )}
               </Descriptions.Item>
-              <Descriptions.Item label="温度">{stream.temperature_c} °C</Descriptions.Item>
-              <Descriptions.Item label="压力">{stream.pressure_mpa} MPa</Descriptions.Item>
-              <Descriptions.Item label="质量流量">{stream.total_mass_flow_kg_h} kg/h</Descriptions.Item>
-              <Descriptions.Item label="摩尔流量">{stream.total_molar_flow_kmol_h} kmol/h</Descriptions.Item>
+              <Descriptions.Item label="温度">{stream.temp} °C</Descriptions.Item>
+              <Descriptions.Item label="压力">{stream.press} MPaG</Descriptions.Item>
+              <Descriptions.Item label="质量流量">{stream.mass_flow} kg/h</Descriptions.Item>
+              <Descriptions.Item label="摩尔流量">{stream.molar_flow} kmol/h</Descriptions.Item>
               {stream.updated_by && (
                 <Descriptions.Item label="更新人">{stream.updated_by}</Descriptions.Item>
               )}
@@ -239,14 +239,16 @@ export function StreamDetailPage({
                   tag_number: stream.tag_number,
                   stream_name: stream.stream_name,
                   phase: stream.phase,
-                  temperature_c: stream.temperature_c,
-                  pressure_mpa: stream.pressure_mpa,
-                  total_mass_flow_kg_h: stream.total_mass_flow_kg_h,
+                  // 键名随数据一起对齐契约 StreamResponse（SchemaForm 的 value
+                  // 是自由键值对象，键名应与实际数据同源，否则表单显示空值）
+                  temp: stream.temp,
+                  press: stream.press,
+                  mass_flow: stream.mass_flow,
                 }}
               />
               {stream.sign_status === 'STALE' && (
                 <div style={{ marginTop: 8 }}>
-                  <AssumedDataMarker assumed={true} reason="上游工艺变更" source="S-102 流量调整" value={stream.total_mass_flow_kg_h.toString()} />
+                  <AssumedDataMarker assumed={true} reason="上游工艺变更" source="S-102 流量调整" value={stream.mass_flow.toString()} />
                   <span style={{ marginLeft: 8 }}>流量为假设值</span>
                 </div>
               )}
