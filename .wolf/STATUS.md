@@ -29,6 +29,15 @@ bug-180 管道等级页生产空白（`09a2a88`）、bug-184 契约闸门 docstr
 | 188 | 资产「审批」按钮永远点不动 | `AssetResponse.status` 裸 `str`，词表**只写在 description 文字里** —— 「读文档的人是对的，读契约的代码是错的」 |
 | 189 | 物流详情页生产白屏 | 前端把响应包装成自造的 8 件套 payload，后端返的是扁平 `StreamResponse`，且那 7 块**根本没有端点** |
 | 190 | 类别过滤 tab 生产一档都不命中 | `category` 用了六个语义名，DB CheckConstraint 只允许 `CATEGORY_1~6`；`updated_by`/`hash`/`tags` **表里根本没有** |
+| 191 | Stream 四词表进契约 | 四个字段都是裸 `str`；且 description 本身不可信（`sign_status` 写 4 态实际 9 态、`source_type` 写 5 个实际 13 个） |
+
+**ⓘ 两道编译期闸已补齐**：
+- `StrictColumns<T>`（`src/types/strictColumns.ts`）把 antd 的 `dataIndex`
+  收成行类型的 key，18 个页面全部替换 ⇒ bug-180 的形态现在编译期即拒。
+- `StreamPhase` 等词表改用契约类型 + **双向编译期断言**。
+- ⚠️ 两道闸都写了**自检**（`@ts-expect-error` + 真实契约类型）——
+  第一版 `DeepKeys` 因 JSONB 索引签名塌成 `string` 而**完全失效**，
+  探针用的是干净 interface 所以没发现。**闸的自检必须用真实类型。**
 
 - **`tests` 已纳入 tsconfig**（此前 675 条测试的类型标注全是装饰性的）。
   7 条噪声清完，**探针验证过边界**：抓得住属性访问与漏必填，
@@ -47,15 +56,8 @@ bug-180 管道等级页生产空白（`09a2a88`）、bug-184 契约闸门 docstr
 
 ## 🚀 Next quest
 
-1. **TODO-042：`StreamResponse` 的 4 个字段仍是裸 `str`** —— `phase` / `sign_status` /
-   `data_mode` / `source_type`。`sign_status` 最危险：前端 `StateBadge` 的判别联合
-   现在靠 `as RecordSignStatus` 硬转，正是「把契约缺口藏进断言」。
-   配方已写在 `TODOS.md`，照 bug-187 的做法走一遍即可。
-2. **TODO-041：antd `dataIndex` 是类型闸的洞** —— `ColumnsType` 把它定成 `string`
-   而非 `keyof T`，所以列定义里写错字段名抓不到，而那正是 bug-180 的失效形态。
-   三个补法（typedColumns helper / eslint 规则 / 靠审计脚本）都还没做。
-3. **P9 起步**：`report_verify_base_url` 未配置 ⇒ 二维码默认不印；`assemble` 真分批。
-4. **两件多日工程，别当小任务排**：
+1. **P9 起步**：`report_verify_base_url` 未配置 ⇒ 二维码默认不印；`assemble` 真分批。
+2. **两件多日工程，别当小任务排**：
    - **TODO-026**：9 张结果表里 8 张仍是 `input_json`/`output_json` 简化容器，
      照 `CoolingTowerResult` 的 14 子结构铺开 ≈ **100+ 个子结构** + 迁移 + 契约 + 测试；
    - **TODO-032**：条目写 4 个文件，**实测 29 个**用真 PG（`get_async_session_factory`）。
