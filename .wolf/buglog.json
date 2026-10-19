@@ -3465,6 +3465,21 @@
         "false-green",
         "fixture-drift"
       ]
+    },
+    {
+      "id": "bug-191",
+      "date": "2026-10-19",
+      "component": "backend+frontend",
+      "error_message": "Stream 的 phase/sign_status/data_mode/source_type 四处词表只写在 description 里；客户端只能猜（前端当时靠 as RecordSignStatus 硬转）",
+      "root_cause": "四个字段都是裸 str，契约表达不出词表。而 description 本身也不可信：sign_status 写了 4 态而 DB 的 PG enum streamsignstatus 有 9 态；source_type 写了 5 个而实际 13 个（漏掉全部 10 个 *_CALCULATED 出口流值）。另有三处重复定义：meta_service.StreamDataMode 与 schema 各一份、ConflictResolver._VALID_PHASES 一份字面量、outlet_stream 的散落字面量。",
+      "fix": "四个字段改枚举（新增 StreamPhase/StreamSourceType，StreamDataMode 从 meta_service 搬进 models/enums.py 并留 re-export）；ConflictResolver._VALID_PHASES 改为由枚举推导；新增 tests/schemas/test_stream_vocabulary.py 63 条锁住「是同一个对象/同一个集合」。顺带堵住本次改动引入的断裂：import_service._phase_norm 原本 return p 原样放行，收紧后会写进枚举列直到响应校验才 500，改为词表外置 None + warning。前端删掉两处 as RecordSignStatus，StreamPhase 改用契约类型 + 双向编译期断言。",
+      "fix_commit": "c49860a",
+      "tags": [
+        "contract-drift",
+        "vocabulary",
+        "duplicate-definition",
+        "latent-breakage"
+      ]
     }
   ]
 }
