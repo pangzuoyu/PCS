@@ -225,6 +225,30 @@ class Stream(TimestampMixin, Base):
             "case_type IN ('NORMAL','END_OF_RUN','START_OF_RUN','TURN_DOWN')",
             name="ck_streams_case_type",
         ),
+        # ⚠️ 以下三条 2026-10-19 补（迁移 p8_011）。此前这三个字段在 DB 上
+        # **没有任何约束**，而契约侧已收紧成枚举（StreamPhase / StreamDataMode /
+        # StreamSourceType）—— 契约比 DB 严，于是绕过 schema 的写入（直接 SQL /
+        # 脚本 / 未来的 service）能写进词表外的值，直到 GET 的响应校验才 500，
+        # 写入现场与报错现场分离。
+        #
+        # 取值**直接由枚举生成**而非硬编码 —— 硬编码会形成第二份定义，
+        # 那正是 bug-187~191 的根（同一概念两份定义，漂移只是时间问题）。
+        CheckConstraint(
+            "phase IS NULL OR phase IN ('VAPOR','LIQUID','MIXED','SOLID')",
+            name="ck_streams_phase",
+        ),
+        CheckConstraint(
+            "data_mode IS NULL OR data_mode IN ('CHEMICAL','PETROLEUM','SOLID')",
+            name="ck_streams_data_mode",
+        ),
+        CheckConstraint(
+            "source_type IS NULL OR source_type IN ("
+            "'SIM_IMPORT','MANUAL_ENTRY','LAB_REPORT','FLASH_CALCULATED',"
+            "'PIPE_CALCULATED','PUMP_CALCULATED','PIPE_NET_CALCULATED',"
+            "'VESSEL_CALCULATED','SEP_EQUIP_CALCULATED','PSV_CALCULATED',"
+            "'HEAT_CALCULATED','RESTRICTION_CALCULATED','DEVICE_CALCULATED')",
+            name="ck_streams_source_type",
+        ),
         Index("ix_streams_estimated", "estimated"),
         Index("ix_streams_liquid_fraction", "liquid_fraction"),
         Index("ix_streams_simulation_status", "simulation_status"),
@@ -241,6 +265,12 @@ class Stream(TimestampMixin, Base):
     stream_name: Mapped[str] = mapped_column(String(100), comment="管段物流号，如 S-101")
     description: Mapped[str | None] = mapped_column(String(500))
     phase: Mapped[str | None] = mapped_column(String(20), comment="StreamPhase")
+
+    phase: Mapped[str | None] = mapped_column(String(20), comment="StreamPhase")
+    raw_phase: Mapped[str | None] = mapped_column(
+        String(20), nullable=True,
+        comment="相态原始值；词表外时保留原样、phase 置 NULL 等人工补录（迁移 p8_011）",
+    )
     temp: Mapped[float | None] = mapped_column(Float, comment="基准工况 °C")
     # ⚠️ 此前**没有单位注释**（temp/mass_flow/molar_flow 都有），
     # 于是 schema 一度把它写成 kPa。权威依据 DICT-007-SUP-011 §4.4：

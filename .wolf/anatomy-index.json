@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T03:43:34.844Z",
-    "fileCount": 833,
+    "lastScanned": "2026-10-19T04:01:18.906Z",
+    "fileCount": 835,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "9aa7e2d033d8e3bb1ce0588f8f4417e160e507ba904e8f283ffb2b62385f53f0",
-    "storeUpdatedAt": "2026-10-19T03:43:34.854Z",
-    "rootHash": "b1467872fb56cfc3"
+    "renderedHash": "2949279b40a5f00426727dfdfbde67c1f4c7e21fb7e862a40d1bc52a6724ce8c",
+    "storeUpdatedAt": "2026-10-19T04:01:18.918Z",
+    "rootHash": "f2e583364844d76c"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -27900,6 +27900,91 @@
           "startLine": 21,
           "endLine": 98,
           "tokens": 691
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p8_011_streams_vocab_constraints.py": {
+      "description": "`streams` 的 phase / data_mode / source_type 加 CHECK + 新增 `raw_phase`。",
+      "tokens": 1158,
+      "hash": "6c747269dcd42482",
+      "size": 5614,
+      "mtimeMs": 1792382278112.9016,
+      "updatedAt": "2026-10-19T03:57:58.164Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_enum_values",
+          "kind": "fn",
+          "startLine": 61,
+          "endLine": 75,
+          "tokens": 140
+        },
+        {
+          "name": "_in_list",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 79,
+          "tokens": 27
+        },
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 80,
+          "endLine": 113,
+          "tokens": 289
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 114,
+          "endLine": 139,
+          "tokens": 248
+        }
+      ]
+    },
+    "pcs-backend/tests/alembic/test_p8_011_streams_vocab.py": {
+      "description": "`streams` 词表 CHECK 的迁移（p8_011）的结构自检。",
+      "tokens": 1220,
+      "hash": "f8aa5f2d7b6a5997",
+      "size": 5523,
+      "mtimeMs": 1792382478852.5645,
+      "updatedAt": "2026-10-19T04:01:18.906Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_orm_check_sql",
+          "kind": "fn",
+          "startLine": 41,
+          "endLine": 47,
+          "tokens": 54
+        },
+        {
+          "name": "TestMigrationFileShape",
+          "kind": "class",
+          "startLine": 48,
+          "endLine": 79,
+          "tokens": 321
+        },
+        {
+          "name": "TestOrmChecksMatchEnums",
+          "kind": "class",
+          "startLine": 80,
+          "endLine": 108,
+          "tokens": 262
+        },
+        {
+          "name": "TestRawPhaseHasNoCheck",
+          "kind": "class",
+          "startLine": 109,
+          "endLine": 120,
+          "tokens": 121
+        },
+        {
+          "name": "TestEnumVocabularyCounts",
+          "kind": "class",
+          "startLine": 121,
+          "endLine": 140,
+          "tokens": 197
         }
       ]
     }

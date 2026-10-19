@@ -44,7 +44,7 @@ async def test_create_outlet_stream_deep_copies_properties(monkeypatch):
             src.project_id = "proj-1"
             src.stream_name = "S-1"
             src.case_type = "LIQUID"
-            src.data_mode = "MEASURED"
+            src.data_mode = "CHEMICAL"
             src.composition_json = None
             src.temp = None
             src.press = None

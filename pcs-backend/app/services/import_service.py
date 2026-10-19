@@ -62,7 +62,7 @@ def _phase_norm(p: str | None) -> str | None:
     ⇒ 与 MIXED 同一处理：不认就不落库，留给用户手工补。
 
     ⚠️ 代价：原始字母被丢弃，用户看不到「你的相态没认出来」。
-    根治要加一列 `raw_phase` 保留原值（登记在 TODOS.md，本轮不做）。
+    原值保留在 `streams.raw_phase`（见 `_phase_and_raw`）。
     """
     if not p:
         return None
@@ -81,6 +81,30 @@ def _phase_norm(p: str | None) -> str | None:
         "PRO/II 相态 %r 不在 StreamPhase 词表内，已置 None 待人工补录", p,
     )
     return None
+
+
+def _phase_and_raw(p: str | None) -> tuple[str | None, str | None]:
+    """返回 `(phase, raw_phase)`。
+
+    `raw_phase` 保留**原始字母**（`streams.raw_phase`，迁移 p8_011）。
+
+    ## 为什么要留原值
+
+    词表外的相态（`SUPERHEATED` 等）一律置 None 后，用户在界面上只看到
+    「相态没填」—— 他完全不知道自己的值被丢了、为什么丢。
+    有了 `raw_phase`，「没认出来」变成**可查的**：谁丢的、丢的什么，一目了然。
+
+    ⚠️ 只在**归一失败**时填。认出来了就不填 —— 否则 `raw_phase` 会变成
+    一列与 `phase` 恒等的冗余（且 `raw_phase` 没有 CHECK，正是为了能装下
+    词表外的值；一旦让它装词表内的值，它就失去了「异常信号」的语义）。
+    """
+    norm = _phase_norm(p)
+    raw = (p or "").strip().upper() or None
+    if norm is None:
+        # 词表外（含 MIXED / 空）—— 但 MIXED 是**已知的**合法值，
+        # 它另有 `is_mixed_phase` 记录，不需要靠 raw_phase 表达「丢了」。
+        return None, raw if raw not in ("M", "MIXED") else None
+    return norm, None
 
 
 def _is_mixed_phase_raw(p: str | None) -> bool:
@@ -137,7 +161,9 @@ def _proii_preview_entry(
         "case_type": "NORMAL",  # PRO/II 默认设计工况
         "data_mode": "CHEMICAL",
         "source_type": "SIM_IMPORT",
-        "phase": s.phase,
+        # phase 归一 + 原值（词表外时留原样，phase 置 None）
+        "phase": _phase_norm(s.phase),
+        "raw_phase": _phase_and_raw(s.phase)[1],
         "temp": _k_to_c(s.temperature_k),
         "press": _pa_to_kpa(s.pressure_pa),
         "mass_flow": s.mass_flow_kg_h,
@@ -161,7 +187,9 @@ def _excel_preview_entry(s: ParsedStream) -> dict[str, Any]:
         "case_type": "NORMAL",
         "data_mode": "CHEMICAL",
         "source_type": "SIM_IMPORT",
-        "phase": _phase_norm(s.phase),  # L/V → LIQUID/VAPOR
+        # L/V → LIQUID/VAPOR；词表外 → None 且原值留 raw_phase
+        "phase": _phase_and_raw(s.phase)[0],
+        "raw_phase": _phase_and_raw(s.phase)[1],
         "temp": _k_to_c(s.temperature_k),
         "press": _pa_to_kpa(s.pressure_pa),
         "mass_flow": s.mass_flow_kg_h,

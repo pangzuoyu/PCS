@@ -73,8 +73,8 @@ async def source_stream(db: AsyncSession, make_project) -> Stream:
         workspace_id=proj.workspace_id,
         stream_name=f"S-HEAT-IN-{uuid.uuid4().hex[:6].upper()}",
         case_type="NORMAL",
-        data_mode="MEASURED",
-        source_type="MEASURED",
+        data_mode="CHEMICAL",
+        source_type="SIM_IMPORT",
         sign_status="CHECKED",  # outlet 模板不校验，CHECKED 较稳
         approval_depth=0,
         composition_json={},

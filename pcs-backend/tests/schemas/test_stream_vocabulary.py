@@ -198,3 +198,51 @@ class TestImportNormalizationAgreesWithVocabulary:
 
         got = _phase_norm(raw)
         assert got == (expected.value if expected else None), f"{raw!r} → {got!r}"
+
+
+class TestRawPhasePreserved:
+    """词表外的相态字母必须**留得下痕迹**（迁移 p8_011 新增 `streams.raw_phase`）。
+
+    ## 为什么
+
+    收紧词表后 `_phase_norm` 对词表外的值一律置 None。那是正确的（非法值
+    不该落进枚举列），但**用户会完全不知道自己的值被丢了** —— 界面上只显示
+    「相态没填」。于是这是一次**静默的数据丢失**。
+
+    ⇒ `raw_phase` 保留原值，「没认出来」变成可查的。
+
+    ## 断言「认出来了就不填」
+
+    否则 `raw_phase` 会变成一列与 `phase` 恒等的冗余。而它**故意没有 CHECK**
+    —— 它的用途就是能装下词表外的值；一旦让它装词表内的值，它就失去了
+    「异常信号」的语义。
+    """
+
+    @pytest.mark.parametrize(
+        "raw,expect_norm,expect_raw",
+        [
+            ("V", StreamPhase.VAPOR, None),      # 认出来了 → 不填
+            ("l", StreamPhase.LIQUID, None),
+            ("S", StreamPhase.SOLID, None),
+            ("SUPERHEATED", None, "SUPERHEATED"),  # 丢了 → 留原值
+            ("VAPOUR", None, "VAPOUR"),
+            ("  gas  ", None, "GAS"),
+            ("", None, None),                     # 本来就空 → 不算丢失
+            (None, None, None),
+        ],
+    )
+    def test_phase与raw_phase的组合(self, raw, expect_norm, expect_raw):
+        from app.services.import_service import _phase_and_raw
+
+        got_norm, got_raw = _phase_and_raw(raw)
+        assert got_norm == (expect_norm.value if expect_norm else None)
+        assert got_raw == expect_raw
+
+    def test_MIXED不填raw_phase(self):
+        from app.services.import_service import _phase_and_raw
+
+        assert _phase_and_raw("M") == (None, None)
+
+    def test_raw_phase在契约里(self):
+        assert "raw_phase" in StreamResponse.model_fields
+        assert StreamResponse.model_fields["raw_phase"].annotation == str | None

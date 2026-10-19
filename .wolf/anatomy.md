@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T03:43:34.844Z
-> Files: 833 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-19T04:01:18.906Z
+> Files: 835 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -1108,6 +1108,7 @@
 - `p8_008_future_dated_chk.py` — 补 `project_calculation_standard_profiles.future_dated_forbidden_chk`。 (~604 tok)
 - `p8_009_nulls_distinct_unique.py` — 把两条含可空 `project_id` 的唯一约束改成 `NULLS NOT DISTINCT`（p8_009）。 (~821 tok)
 - `p8_010_one_active_style.py` — `report_styles` 的「每个作用域至多一个 ACTIVE」下沉为数据库不变量（p8_010）。 (~541 tok)
+- `p8_011_streams_vocab_constraints.py` — `streams` 的 phase / data_mode / source_type 加 CHECK + 新增 `raw_phase`。 (~1158 tok)
 
 ## pcs-backend/app/api/v1/
 
@@ -1240,6 +1241,10 @@
 - `test_schema.py` — V3.1 Schema 层契约：表数量、关键约束、ADR-0023 复合键。 (~3299 tok)
 - `test_sqlite_check_constraint_overrides.py` — conftest 里 SQLite CHECK 替身与 PostgreSQL 原式的**语义等价性**。 (~1675 tok)
 - `test_workspace_archive.py` — F-P3-003 Sprint 3: Workspace archive PATCH 端点测试. (~1272 tok)
+
+## pcs-backend/tests/alembic/
+
+- `test_p8_011_streams_vocab.py` — `streams` 词表 CHECK 的迁移（p8_011）的结构自检。 (~1220 tok)
 
 ## pcs-backend/tests/api/v1/
 

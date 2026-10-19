@@ -15432,6 +15432,11 @@ export interface components {
              * @description 物流描述
              */
             description?: string | null;
+            /**
+             * Raw Phase
+             * @description 相态原始值；phase 为 NULL 且这里非空 = 该值不在相态词表内，待人工补录
+             */
+            raw_phase?: string | null;
             /** @description 主相态：VAPOR/LIQUID/MIXED/SOLID。⚠️ SPEC P3-SIM 只列 3 值（漏 SOLID），而 `import_service._phase_norm` 会产出 SOLID —— 以本枚举为准，SPEC 待修订。MIXED 合法但导入路径暂不产出（会置 None 并用 is_mixed_phase 记混相事实）。 */
             phase?: components["schemas"]["StreamPhase"] | null;
             /**

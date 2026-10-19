@@ -68,6 +68,14 @@ class StreamBase(BaseModel):
         description="数据模式：CHEMICAL（化学组成）/ PETROLEUM（石油特征）/ SOLID（固体物料）",
     )
     description: str | None = Field(None, max_length=500, description="物流描述")
+    # ⚠️ 词表外相态的原始字母。phase 置 NULL 时这里能看到「丢的是什么」。
+    # 放进契约是「让错误可见」的一部分：不暴露的话它只能靠直连 DB 查，
+    # 而那条路径没人会走。
+    raw_phase: str | None = Field(
+        None,
+        max_length=20,
+        description="相态原始值；phase 为 NULL 且这里非空 = 该值不在相态词表内，待人工补录",
+    )
 
     # === 物流操作参数（spec V1.6 §3.2.3） ===
     phase: StreamPhase | None = Field(

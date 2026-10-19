@@ -1709,3 +1709,5 @@
 | 11:21 | Created pcs-backend/tests/schemas/test_stream_vocabulary.py | — | ~1362 |
 | 11:43 | Created pcs-frontend/src/types/strictColumns.ts | — | ~590 |
 | 11:43 | Created pcs-frontend/tests/types/strictColumns.test.ts | — | ~851 |
+| 11:57 | Created pcs-backend/alembic/versions/p8_011_streams_vocab_constraints.py | — | ~1158 |
+| 12:01 | Created pcs-backend/tests/alembic/test_p8_011_streams_vocab.py | — | ~1220 |
