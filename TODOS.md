@@ -596,3 +596,17 @@ const p = path<Stream>('result', 'relief_scenario');
 ⚠️ **教训（来自 bug-187）**：这类判断**必须靠证据，不能靠对称性直觉** ——
 上轮我就是看到「前端 3 态 / 后端注释 5 态」的矛盾就选了看起来更完整的那个，
 而真正该问的是「哪个状态机是活的」（哪些端点真的会产生它）。
+
+### TODO-047: advisory_lock.acquire_record_lock 跨进程不串行（Python hash 加盐）
+
+`pcs-backend/app/services/advisory_lock.py:27-28` 用 `abs(hash(record_table))` /
+`abs(hash(record_id))` 作 `pg_advisory_xact_lock` 的 classid/objid。
+Python `str.__hash__` 默认按进程随机加盐（`PYTHONHASHSEED`），多 worker 部署下
+同一 `(table, id)` 在不同进程算出不同 key ⇒ 锁静默失效、并发状态转移不被串行化。
+
+同文件 `acquire_equip_list_lock`（`:67`）用 PG `hashtext(:key)`，是正确的。
+裁定方向：统一到 `hashtext()`。
+
+- **发现**：2026-10-19，P9-Prep 编写 ADR-0048 时
+- **归属**：P9A-LCK 或独立修复；**不在 P9-Prep 修**（改动面在 P7 已验收代码）
+- **严重度**：HIGH（并发正确性，且失败无声 —— 单进程测试全绿）

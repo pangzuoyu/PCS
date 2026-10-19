@@ -1,0 +1,222 @@
+# ADR-0048：编辑锁 —— Redis 为主 + DB 审计留痕
+
+- Status: **accepted**
+- Date: 2026-10-19
+- Deciders: PCS 架构组（单人开发，用户裁决）
+- Consulted: `app/services/advisory_lock.py`、`app/core/config.py`、`app/workers/`、`app/models/mixins.py`
+- Informed: P9A 实施者、P9B 并发控制前端
+- Supersedes: —
+- Superseded by: —
+- Related: P9-OPEN-009、SPEC §3.2.5 P9A-LCK-001~005、
+  **ekris-redis-lock-degradation（2026-04-09，user-stated）—— 见 §⑤ 的显式关系声明**、
+  ADR-0041 §编号预留（故取 0048）
+
+## 背景
+
+`app/services/advisory_lock.py` 提供两个 `pg_advisory_xact_lock` 封装，但它们
+**都不能直接当编辑锁**：事务结束即释放，无 TTL、无持有者身份、无心跳、无续期。
+编辑锁需要「跨请求存活 30 分钟并在超时后自动释放」。
+
+Redis 已在栈内（`app/core/config.py:43` `redis_url`、`app/workers/`、
+`app/services/report/arq_queue.py`），不是新引入的基础设施。
+
+## 决策
+
+### ① 存储：Redis
+
+Redis 存锁（`lock:edit:{record_type}:{record_id}`，value = 持有者 user_id + 获取时刻），
+**理由**是编辑锁的语义是「租约」，天然需要 TTL 与原子续期 —— 这正是 Redis 的形状。
+DB 表做不到「30 分钟后自动过期」而不写清理任务。
+
+**DB 保留审计留痕**：锁的 acquire/release 写 `audit_logs`，供 P9B 审计页与事后追溯。
+审计记录**不参与**锁判定（审计可延迟，锁不能）。
+
+### ② 自动续期
+
+前端心跳默认 60s 一次（SPEC §2.5），打 `POST /locks/{type}/{id}/renew`，
+后端 `SET key value EX 30 NX` 语义下的 compare-and-expire 重置 TTL。
+
+心跳频率取 60s 而非更短：TTL 30min 对 60s 心跳有 30 倍余量，网络抖一次不会失锁；
+而 10s 心跳在多人编辑时是白烧的往返。**心跳停止 = 30 分钟后自动释放**，不需客户端显式解锁。
+
+### ③ 超时清理
+
+Redis TTL 30 分钟自动清理，无需定时任务。
+
+### ④ 与状态机事务的关系
+
+**解耦。** 编辑锁是 UX 层的互斥（防两人同时改一版），不是业务正确性的保证。
+状态机转移的正确性由 `state_machine.py` + `audit_logs` 负责，**不依赖编辑锁存在**。
+
+因此：持有锁不提交状态变更 ⇒ 不阻塞他人；他人无锁提交状态变更 ⇒ 合法。
+推论：**不得**把「无编辑锁」当作状态转移的前置条件。
+
+### ⑤ Redis 不可用时的降级 —— 两层锁：Redis 是体验层，DB 是正确性层
+
+> **本条与 `ekris-redis-lock-degradation`（2026-04-09，user-stated，confidence 9/10）的关系**
+>
+> 该 learning 原文：「If Redis unavailable, must return 503 immediately.
+> **No lockless concurrent allowed.**」
+>
+> **裁定已作出（2026-10-19，用户）**：该 learning 的语义为「禁止**无保护**下的并发」
+> 而非「必须事前拒绝」—— 事后检测（乐观比对）同样构成并发保护，不是 lockless。
+> 故采纳下面的双层方案，而非 fail-closed。
+>
+> **本条的可证伪条件**：若用户日后把该 learning 改判为「必须事前拒绝」
+> （事后检测不算），则 §⑤ 作废、改为 fail-closed（503），§⑥/§⑦ 随之作废。
+> 此条件已由用户裁定，不留给后续 ADR 作者重新解释。
+
+```
+        ┌──────────────────────────────────────────────┐
+Redis   │ 编辑锁（悲观，事前拒绝）                      │
+层      │  体验：他人持锁时直接只读，看得到持锁人是谁     │
+        │  失效后果：无（仅体验降级）                   │
+        └──────────────────────────────────────────────┘
+                            ↓ Redis 不可用时才落到这层
+        ┌──────────────────────────────────────────────┐
+DB      │ record_hash 比对（乐观，事后检测）            │
+层      │  正确性：保存时发现已被他人改动 → 409          │
+        │  失效后果：见 §⑥ 的覆盖缺口（分表而异）        │
+        └──────────────────────────────────────────────┘
+```
+
+**Redis 不可用时：编辑锁降级**（前端横幅「锁服务不可用，保存时可能冲突」），
+**保存路径仍由 DB 层兜底**。不是无锁放行 —— 放行的是**体验**，拦住并发的是 DB。
+
+告警走日志 ERROR + P9B 前端顶栏横幅。
+
+推论（对 §④ 的加强）：**不得**把「持有编辑锁」当作任何写入的前置条件；
+正确性由 §⑥ 的比对保证，不由锁保证。
+
+### ⑥ 兜底粒度：per-record，复用 `record_hash`（多数表零迁移，但**不是全覆盖**）
+
+**首选令牌 = `RecordMixin.record_hash`**（`app/models/mixins.py`），**不新增列**。
+两条已核实的事实支撑这个选择：
+
+1. `record_hash` 由 `RecordMixin` 提供，业务结果表多数已有
+   （实测：29 张 `*_result(s)` 表中 **18 张有** `record_hash`）⇒ 这 18 张**零迁移**。
+2. **比对范式已存在**：`app/services/cia_engine.py:101` 已在做「当前 record_hash 与
+   `data_lineage` 最新 hash 比对」（change-impact 用）。复用同一范式，不新造概念。
+
+> ⚠️ **「全部 21 张表零迁移覆盖」是错的，2026-10-19 实测更正。**
+> 实测 29 张业务结果表里 **11 张没有 `record_hash` 列**：
+>
+> | 表 | 有 record_hash | 有 updated_at | 属哪一类 |
+> |---|---|---|---|
+> | `sim_tower_results` / `sim_unit_op_results` / `sim_calculator_results` / `sim_compressor_results` / `sim_cstr_results` / `sim_reactor_results` / `sim_splitter_results` / `sim_stca_results`（8 张） | ❌ | ❌ | SIM 导入结果（`created_at` 单列） |
+> | `util_results` | ❌ | ✅ | 公用工程消耗汇总 |
+> | `cost_est_results` | ❌ | ❌ | 造价估算 |
+>
+> **另有 1 张有 hash 但无 `updated_at`**：`two_phase_results`（有 `record_hash`，
+> 时间列只有 `created_at`）⇒ 它的退化阶梯里**没有第二档令牌**。
+>
+> ⇒ **结论**：兜底覆盖**按表而异，必须逐表声明**，不能笼统说「零迁移全覆盖」。
+> 上面 11 张 + `two_phase_results` 若 P9A 要对其做编辑并发保护，
+> **需要新列**（`record_hash` 或一个通用 `row_version`）—— 这是本 ADR 未消除的欠账，
+> 已在「尚未解决」登记。
+
+> ⚠️ **「`finalize_calc_record` 是唯一收口」也是错的，2026-10-19 实测更正。**
+> `app/services/calc_lineage.py:156` 的 `finalize_calc_record` **不是** `record_hash`
+> 的唯一写入点。实证旁路：
+>
+> | 路径 | 行为 | 对兜底的影响 |
+> |---|---|---|
+> | `heat/thermosiphon_persist_service.py:166`、`cv/cv_persist.py:189`、`restriction/restriction_persist.py:184` | 直接调 `compute_record_hash()`，不经 finalize | 写入**正确** hash ⇒ 兜底照常生效 |
+> | `pump/pump_chain_persist.py:191`、`pipe/pipe_chain_persist.py:200`、`pipe_net/pipe_net_persist.py:113` | persist 时先 `record_hash = ""`，指望后续 finalize 填充 | **空 hash ⇒ 落到下方退化分支** |
+>
+> 前一类无害，后一类意味着 **`updated_at` 不是罕见边角，而是 pump / pipe / pipe_net
+> 三类记录的常态路径**。实施时这三类记录的冲突检测依赖 `onupdate`，不是依赖 hash。
+
+**粒度 = per `{module}/{record_id}`**，与 Redis 锁粒度一致。
+不做「事务内多行独立 version」—— 交付物侧 `issue` 跨表事务
+（改 Deliverable + 写 DeliverableVersion + 写绑定 + 写 workflow_progress）
+的并发控制已由 **P9A-DLV-003 的 doc_no 原子序号分配**承担，
+不需要 record_hash 重复覆盖。
+
+**已知覆盖缺口（写明，不掩盖）**：`record_hash` 注释写明「仅设计参数参与」，
+且 `compute_record_hash` 排除自身与生命周期列（`created_at` / `created_by` / `updated_at`）。
+因此它**不检测** `sign_status` / `approval_step` 等批准状态字段的变化。
+
+这是**正确的职责切分**：编辑锁保护「设计内容正在被改」，不保护「批准状态」。
+批准状态的并发由状态机事务 + `pg_advisory_xact_lock`（`app/services/advisory_lock.py`）
+负责，两者不重叠。
+
+**退化处理（必须实现，不得省略）**：`record_hash` 是 `nullable=False, default=""`，
+**未计算过的记录是空串**。两个空串相等 ⇒ 冲突检测失效。故：
+
+```
+保存请求带 expected_hash（+ expected_updated_at）
+  ├─ 当前 record_hash != "" 且 != expected_hash  → 409 CONFLICT (basis=record_hash)
+  ├─ 当前 record_hash == expected_hash           → 放行（正常路径）
+  └─ 当前 record_hash == ""                       ← pump/pipe/pipe_net 常态
+       ├─ 有 updated_at 且 != expected_updated_at → 409 CONFLICT (basis=updated_at)
+       ├─ 有 updated_at 且 == expected_updated_at → 放行
+       └─ 无 updated_at（two_phase_results 及上表 11 张）
+           且客户端也没给基线                       → 409 (basis=no_baseline)
+```
+
+⚠️ `updated_at` 是 `nullable` 且只在 UPDATE 时刷新（`onupdate=func.now()`）。
+新建后从未被 UPDATE 过的记录 `updated_at` 为 NULL ⇒ 必须走 `no_baseline` 分支，
+**不得**把 NULL 当「相等」放行 —— 那会让从未计算过的记录完全无保护。
+
+### ⑦ 409 冲突响应契约
+
+冲突是**预期路径**，不是异常。契约必须让前端知道该做什么。
+
+**状态码** `409`。**不得** 500（用户无从下手），**不得** 200 + 空体。
+
+**响应体**（受 P9A-DLV-010 零裸字段约束，字段必须显式声明）：
+
+```json
+{
+  "error_code": "RECORD_EDIT_CONFLICT",
+  "message": "该记录已被他人修改，请刷新后重新编辑",
+  "conflict": {
+    "record_type": "PipingResult",
+    "record_id": "…uuid…",
+    "your_expected_hash": "…16 hex…",
+    "current_hash": "…16 hex…",
+    "changed_by": "…uuid… 或 null…",
+    "changed_at": "2026-10-19T10:22:31+08:00 或 null",
+    "basis": "record_hash | updated_at | no_baseline"
+  }
+}
+```
+
+- `basis` 三值对应 §⑥ 三条判定分支 —— 让前端能区分「别人改了」（刷新有用）
+  与「记录没基线」（刷新没用，应联系管理员）。
+- `changed_by` / `changed_at` 取自 `audit_logs` 该记录最近一条写入。
+  取不到置 `null`，**不得**因此报错。
+
+**审计**：409 本身**不写** `audit_logs`（读侧拒绝，非状态变更）。
+但**无锁期间保存成功且 `expected_hash` 与库中上一值不符**时，
+必须写一条 `action = RECORD_EDIT_OVERWROTE_STALE_BASELINE`。
+这条审计是事后能看见「谁在锁失效期间覆盖了别人」的**唯一**途径。
+
+**前端交互**：409 → 弹窗「该记录已被 X 于 Y 修改」，两个动作：
+「查看差异」/「放弃我的修改并刷新」。**不得自动重试**（会无限循环覆盖）。
+
+## 顺带发现的独立缺陷（本 ADR 只登记，不在 P9-Prep 修）
+
+`app/services/advisory_lock.py:27-28` 的 `acquire_record_lock` 用
+`abs(hash(record_table))` / `abs(hash(record_id))` 取 classid/objid。
+**Python 的 `str.__hash__` 默认按进程随机加盐（`PYTHONHASHSEED`）**，
+多 worker 部署下同一 `(table, id)` 在不同进程得到不同 key ⇒ **跨进程根本不串行**，
+`pg_advisory_xact_lock` 静默失效。
+
+同文件 `acquire_equip_list_lock` 用的是 PG 侧 `hashtext(:key)`（`:67`），
+跨进程一致 —— 是对的。
+
+**处置**：本 ADR 不改（属 P7 状态机范畴，且改动面在已验收代码里）。
+登记到 `TODOS.md`（TODO-047），归属 P9A-LCK 或独立修复。
+裁定方向：**统一到 `hashtext()`**。
+
+## 尚未解决
+
+1. **上表 11 张无 `record_hash` 的表 + `two_phase_results` 的兜底令牌未裁决。**
+   §⑥ 的退化阶梯对它们只能落到 `no_baseline`（= 每次保存都 409，或需明确放行策略）。
+   是给这 11 张补 `record_hash`、还是引入一个通用 `row_version` 整数列（所有表都加），
+   属 P9A 的迁移决策，本 ADR 只声明覆盖缺口，不预选方案。
+2. **`record_hash` 不检测批准状态字段**（`sign_status` / `approval_step`）。
+   若 P9A 实施时发现签署流程本身也需要并发保护（而不只是编辑），
+   **本 ADR 不覆盖该场景**，需回本 ADR 修订。

@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-19T10:16:52.048Z",
-    "fileCount": 843,
+    "lastScanned": "2026-10-19T10:18:17.544Z",
+    "fileCount": 844,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "c4f40ba9890d945b8e3fc33f16c9ed5b2a68b01fe44895130541d0b6d21924fa",
-    "storeUpdatedAt": "2026-10-19T10:16:52.058Z",
-    "rootHash": "e5b4485b3e3d8386"
+    "renderedHash": "d1e87c2c4569e27d0c41b65aa953061532293640393c8eaa9ebd3ebb4b7f0b3b",
+    "storeUpdatedAt": "2026-10-19T10:18:17.555Z",
+    "rootHash": "cef6ad056c4f9311"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -28100,6 +28100,15 @@
       "size": 4267,
       "mtimeMs": 1792404999476.529,
       "updatedAt": "2026-10-19T10:16:39.521Z",
+      "source": "hook"
+    },
+    "docs/adr/0048-edit-lock-storage.md": {
+      "description": "ADR-0048：编辑锁 —— Redis 为主 + DB 审计留痕",
+      "tokens": 1915,
+      "hash": "974922fd27a4630b",
+      "size": 12723,
+      "mtimeMs": 1792405097495.443,
+      "updatedAt": "2026-10-19T10:18:17.544Z",
       "source": "hook"
     }
   }

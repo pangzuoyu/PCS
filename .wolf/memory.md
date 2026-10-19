@@ -1784,3 +1784,4 @@
 | 18:16 | Created docs/adr/0047-workflow-progress-observation-layer.md | — | ~639 |
 | 18:16 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | 1→2 lines | ~90 |
 | 18:16 | Edited spec/PCS-REQ-2026-002-SPEC-P9 P9 工作流与权限开发规格说明书（修订版）.md | inline fix | ~31 |
+| 18:18 | Created docs/adr/0048-edit-lock-storage.md | — | ~2042 |
