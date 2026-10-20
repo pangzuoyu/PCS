@@ -27,6 +27,7 @@ if str(_BACKEND_ROOT) not in sys.path:
 
 from app.core.config import get_settings  # noqa: E402
 from app.db.session import dispose_engines_async  # noqa: E402
+from app.models.calc import FlareSystemResult  # noqa: E402
 from app.models.enums import RecordSignStatus9  # noqa: E402
 from app.services.flare import (  # noqa: E402
     FlarePersistInputError,
@@ -67,28 +68,28 @@ def _make_flare_row(
     stack_height_m: float | None = None,
     flare_tip_diameter_mm: float | None = None,
     radiation_at_grade_kw_m2: float | None = None,
-) -> Any:
-    """构造 ``FlareSystemResult`` 行-like 对象（Mock）。
+) -> FlareSystemResult:
+    """构造 ``FlareSystemResult`` 行对象（**真实 ORM 实例**，不是 Mock）。
 
-    返回 MagicMock（不带 spec）—— ``list_flare_results / get_flare_result`` 只
-    读几个字段；spec 在单元测试场景下引入不必要的 FlareSystemResult 依赖。
+    ⚠️ P9A-4 D0：update 路径现在会重算 record_hash（ADR-0048 §⑥ 的并发令牌），
+    而 `compute_record_hash` 读的是 **ORM 实例状态**（state.dict /
+    committed_state）⇒ MagicMock 行撑不住（会算出掺了 mock id 的垃圾 hash）。
     """
-    row = MagicMock()
-    row.flare_id = flare_id or uuid.uuid4()
-    row.project_id = project_id
-    row.workspace_id = uuid.uuid4()
-    row.tag_number = tag_number
-    row.standard_profile_code = standard_profile_code
-    row.calc_type = calc_type
-    row.sign_status = sign_status
-    row.record_hash = record_hash
-    row.pass_ = pass_
-    row.header_diameter_mm = header_diameter_mm
-    row.stack_height_m = stack_height_m
-    row.flare_tip_diameter_mm = flare_tip_diameter_mm
-    row.radiation_at_grade_kw_m2 = radiation_at_grade_kw_m2
-    row.created_at = MagicMock()
-    return row
+    return FlareSystemResult(
+        flare_id=flare_id or uuid.uuid4(),
+        project_id=project_id,
+        workspace_id=uuid.uuid4(),
+        tag_number=tag_number,
+        standard_profile_code=standard_profile_code,
+        calc_type=calc_type,
+        sign_status=sign_status,
+        record_hash=record_hash,
+        pass_=pass_,
+        header_diameter_mm=header_diameter_mm,
+        stack_height_m=stack_height_m,
+        flare_tip_diameter_mm=flare_tip_diameter_mm,
+        radiation_at_grade_kw_m2=radiation_at_grade_kw_m2,
+    )
 
 
 def _mock_session(rows: list[Any] | None = None) -> MagicMock:

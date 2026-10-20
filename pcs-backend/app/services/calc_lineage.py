@@ -31,9 +31,10 @@ import json as _json
 import math
 import uuid
 
-from sqlalchemy import Float
+from sqlalchemy import Float, select
 from sqlalchemy import inspect as _inspect
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm.base import LoaderCallableStatus
 
 from app.models.calc import (
     ColumnSizingResult,
@@ -149,6 +150,15 @@ def compute_record_hash(record) -> str:
 
     读取顺序：state.dict → committed_state（与 lineage._compute_hash 同约束：
     禁止 getattr fallback，防 expire 后 async lazy-load 抛 MissingGreenlet）。
+
+    ⚠️ **待 flush 的对象（transient）**：`committed_state` 里存的是
+    `LoaderCallableStatus.NO_VALUE` 哨兵（**不是 None**）⇒ 必须归一化成
+    None，否则显式置 None 的 Float 列会被当成数字去 round ⇒ TypeError
+    （P9A-4 D0 实测暴露的既有缺陷）。
+
+    ⚠️ **必须在 flush 之后调用**：Python 侧默认值（`record_hash=""` /
+    `approval_depth=1` 等）在 flush 时才落进 `state.dict` ⇒ flush 前算出来的
+    哈希覆盖的列集合与落库的不一致。
     """
     state = _inspect(record)
     committed = state.committed_state or {}
@@ -161,11 +171,67 @@ def compute_record_hash(record) -> str:
         v = state.dict.get(col.key)
         if v is None:
             v = committed.get(col.key)
+        if v is LoaderCallableStatus.NO_VALUE:
+            v = None
         if v is not None and isinstance(col.type, Float):
             v = _round_sig(v)
         payload[col.key] = v
     raw = _json.dumps(payload, default=str, sort_keys=True)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()[:_HASH_PREFIX]
+
+
+def apply_record_hash(records) -> int:
+    """按**当前内存内容**重算并写入 record_hash（幂等）。返回处理行数。
+
+    幂等性来自 `compute_record_hash` 排除 record_hash 自身
+    （`_EXCLUDED_KEYS`）⇒ 同一份内容重算多少次都是同一个值。
+
+    ⚠️ 调用点纪律（P9A-4 D0 裁决 R5）：只在**业务字段编辑路径**调用。
+    状态流转（sign_status / approval_step）**不得**触发重算 ——
+    `compute_record_hash` 的排除集里**没有**工作流状态列 ⇒ 重算会把
+    状态流转变成 hash 变化 ⇒ 客户端手里的基线失效 ⇒ 假 409。
+    """
+    n = 0
+    for record in records:
+        record.record_hash = compute_record_hash(record)
+        n += 1
+    return n
+
+
+async def backfill_record_hash(session: AsyncSession, model: type) -> int:
+    """把 model **全部行**的 record_hash 按当前内容重算（幂等）。返回处理行数。
+
+    用途：给「后补列」的结果表回填并发令牌（ADR-0048 §⑥）。
+    不回填 ⇒ 该表永远 `record_hash == ""` ⇒ 退化阶梯只能走 no_baseline
+    ⇒ 等于没有并发保护。
+    """
+    rows = (await session.execute(select(model))).scalars().all()
+    n = apply_record_hash(rows)
+    await session.flush()
+    return n
+
+
+def _require_record_hash_column(record) -> None:
+    """显式校验：模型必须带 record_hash 列，否则无法收口。
+
+    ⚠️ 为什么要显式校验（TODO-048）：`finalize_calc_record` 原先是**鸭子类型**
+    —— 缺列时抛 `AttributeError: 'X' object has no attribute 'record_hash'`，
+    读报错的人猜不到「这个模型不支持收口」。而 `cost_est_persist_service.py`
+    当年正是靠**一条注释**说明「本表不调用 finalize_calc_record（会因
+    record_hash 列缺失抛 AttributeError）」—— **防线是注释不是代码**。
+
+    ⇒ 缺列时抛带模型名的 TypeError，把「为什么不能收口」写在脸上。
+    """
+    try:
+        mapper = _inspect(type(record))
+    except Exception:  # noqa: BLE001 - 非 mapped 类一律判为「无此列」
+        mapper = None
+    cols = set(mapper.columns.keys()) if mapper is not None else set()
+    if "record_hash" not in cols:
+        raise TypeError(
+            f"{type(record).__name__} 缺少 record_hash 列，无法收口 —— "
+            "可编辑的结果表必须带并发令牌（ADR-0048 §⑥）"
+        )
 
 
 async def finalize_calc_record(
@@ -191,6 +257,7 @@ async def finalize_calc_record(
     提交由调用方控制——一个计算批次一个事务。
     """
     tracker = LineageTracker(db)
+    _require_record_hash_column(record)
     record.record_hash = compute_record_hash(record)
     for sid in source_stream_ids:
         entry = await tracker.track(
@@ -212,6 +279,8 @@ async def finalize_calc_record(
 
 __all__ = [
     "RECORD_TYPE_REGISTRY",
+    "apply_record_hash",
+    "backfill_record_hash",
     "compute_record_hash",
     "finalize_calc_record",
 ]

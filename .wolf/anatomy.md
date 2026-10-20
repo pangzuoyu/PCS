@@ -1,7 +1,7 @@
 # anatomy.md
 
-> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T08:21:22.483Z
-> Files: 911 tracked | Anatomy hits: 0 | Misses: 0
+> Auto-maintained by OpenWolf. Last scanned: 2026-10-20T09:02:16.686Z
+> Files: 929 tracked | Anatomy hits: 0 | Misses: 0
 
 ## ./
 
@@ -254,6 +254,10 @@
 
 - `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9A-3-通知待办.md (~1651 tok)
 
+## .superpowers/sdd/PCS-PLAN-P9A-4-编辑锁与CIA/
+
+- `progress.md` — SDD ledger — plan: docs/PCS-PLAN-P9A-4-编辑锁与CIA.md (~1399 tok)
+
 ## .vite/vitest/
 
 - `results.json` (~39 tok)
@@ -338,7 +342,7 @@
 - `0041-c-12-vessel-6-path-coverage.md` — ADR-0041：C-12 vessel_service 12 路径覆盖补全（Q4 2026） (~6559 tok)
 - `0046-user-identity-model-migration.md` — ADR-0046：用户身份模型迁移 —— uuid5(username) 派生改为 users 表持久化主键 (~2304 tok)
 - `0047-workflow-progress-observation-layer.md` — ADR-0047：workflow_progress 观测层 —— 写入点、同步性与事务边界 (~1660 tok)
-- `0048-edit-lock-storage.md` — ADR-0048：编辑锁 —— Redis 为主 + DB 审计留痕 (~3499 tok)
+- `0048-edit-lock-storage.md` — ADR-0048：编辑锁 —— Redis 为主 + DB 审计留痕 (~3962 tok)
 - `0049-notification-and-todo-data-model.md` — ADR-0049：通知与待办数据模型 —— 通知建表 / 待办实时计算 (~2557 tok)
 - `0050-sign-responsibility-and-task-participation.md` — ADR-0050：签署职责与任务参与 —— 词表分层、资格上限、项目生命周期 (~5015 tok)
 - `ADR-0023：EquipmentTypeCode项目级可配置.md` (~927 tok)
@@ -1133,6 +1137,7 @@
 - `p9_001_users_token_version.py` — P9A 身份迁移：users.token_version + CHECK >= 1。 (~289 tok)
 - `p9_002_workflow_progress.py` — P9A 观测层迁移：workflow_progress 表 + 2 个 PG enum（ADR-0047 观测层）。 (~1270 tok)
 - `p9_005_notifications.py` — P9A C0：notifications 表 + 部分索引（ADR-0049 §①/§③）。 (~918 tok)
+- `p9_006_cost_est_record_hash.py` — P9A-4 D0：cost_est_results 补 record_hash（并发令牌）+ 回填。 (~806 tok)
 
 ## pcs-backend/app/
 
@@ -1146,6 +1151,7 @@
 - `audit.py` — Audit Query API (F-P2-009 Sprint 3 / Issue 7 混合 RBAC). (~2535 tok)
 - `auth.py` — POST /api/v1/auth/login + GET /me + POST /refresh + POST /logout。 (~3570 tok)
 - `config.py` — Config API — 7 端点（Task 2.8 / P2 Sprint 1.7）。 (~5196 tok)
+- `cost_est.py` — P6-3 COST_EST API（SPEC §3.2.8 + Task 36）。 (~4448 tok)
 - `deliverables.py` — 交付物读端点（P1-7+ D 模块 / P8 前置）。 (~3102 tok)
 - `equip_lib.py` — equip-lib 端点（Task 1.9.5 / P2-EQL-001）。 (~724 tok)
 - `filtration.py` — P6-3 FILTRATION API（SPEC §3.2.7 + Task 34）。 (~5529 tok)
@@ -1181,7 +1187,7 @@
 ## pcs-backend/app/models/
 
 - `__init__.py` — 全部 ORM 模型。alembic/env.py 依赖本包导入即注册全部表。 (~334 tok)
-- `calc.py` — 计算结果 ORM 模型（P5-3 计算引擎持久化）。 (~16256 tok)
+- `calc.py` — 计算结果 ORM 模型（P5-3 计算引擎持久化）。 (~16949 tok)
 - `config_domain.py` — 配置域 ORM 模型（公司/工程级共享配置）。 (~4191 tok)
 - `config.py` — 成本指数 / 元数据型 CONFIG 表（与 config_domain 的业务配置域区分）。 (~11754 tok)
 - `enums.py` — 业务枚举（项目/角色/状态等数据库可空字符串字段的 Python 枚举映射）。 (~5149 tok)
@@ -1217,7 +1223,7 @@
 - `advisory_lock.py` — Postgres advisory lock（事务级）防止并发状态转移。 (~862 tok)
 - `audit_service.py` — AuditService：审计统一入口（Issue 6 锁定）。 (~610 tok)
 - `broadcaster.py` — Redis pub/sub 实时推送（ADR-0049 §⑤）。 (~3013 tok)
-- `calc_lineage.py` — P4-0-1 统一计算记录收口（ADR-0031）。 (~2138 tok)
+- `calc_lineage.py` — P4-0-1 统一计算记录收口（ADR-0031）。 (~2794 tok)
 - `change_notice_service.py` — ChangeNoticeService — 变更单（RECORD_CHANGE）闭环（ADR-0008）。 (~4204 tok)
 - `deliverable_service.py` — 交付物读服务（P1-7+ D 模块 / P8 前置）。 (~9647 tok)
 - `equip_lib_similarity.py` — 设备库相似度计算（UI-SPEC §7.16 / P7 S3-2）。 (~1485 tok)
@@ -1232,6 +1238,22 @@
 - `token_issuer.py` — 登录签发的**唯一**路径（ADR-0046 §③）。 (~1690 tok)
 - `workflow_progress_writer.py` — workflow_progress 的**唯一**写入口（ADR-0047 §① 🔒 / P9A-OBS-002）。 (~1082 tok)
 
+## pcs-backend/app/services/cool_tower/
+
+- `cool_tower_persist_service.py` — COOL_TOWER CoolingTowerResult ORM 落库 service。 (~2948 tok)
+
+## pcs-backend/app/services/cost_est/
+
+- `cost_est_persist_service.py` — COST_EST 计算结果持久化服务（SPEC §3.2.8，P6-3 Task 36）。 (~5734 tok)
+
+## pcs-backend/app/services/filtration/
+
+- `filtration_persist_service.py` — FILTRATION 计算结果持久化服务（SPEC §3.2.7）。 (~4123 tok)
+
+## pcs-backend/app/services/flare/
+
+- `flare_persist_service.py` — FLARE_SYS FlareSystemResult ORM 落库 service。 (~3029 tok)
+
 ## pcs-backend/app/services/heat/
 
 - `heat_data_service.py` — HeatResultsService 落库（P5-4-2 / Task 20）。 (~6229 tok)
@@ -1244,6 +1266,14 @@
 - `in_app.py` — `InAppChannel` —— 本版唯一的通知通道（ADR-0049 §①）。 (~556 tok)
 - `notify.py` — 通知的**唯一写侧入口**（ADR-0049 §① + 用户 2026-10-20 裁决）。 (~1217 tok)
 - `payload.py` — 通知载荷与 `detail_json` 的字段级 schema（ADR-0049 §① / P9A-DLV-010）。 (~722 tok)
+
+## pcs-backend/app/services/open_channel/
+
+- `open_channel_persist_service.py` — OPEN_CHANNEL 计算结果持久化服务（SPEC §3.2.6 P6-OPEN-001）。 (~4929 tok)
+
+## pcs-backend/app/services/psychro/
+
+- `psychro_persist_service.py` — PSYCHRO PsychroResult ORM 落库 service（P6-2 Task 26）。 (~3277 tok)
 
 ## pcs-backend/app/services/report/
 
@@ -1313,6 +1343,7 @@
 - `test_p9_001_users_token_version.py` — P9A 迁移基座的 schema 断言 —— 防「ORM 写了但没迁移」与「迁移写了但 ORM 没跟上」。 (~389 tok)
 - `test_p9_002_workflow_progress.py` — P9A 迁移基座的 schema 断言 —— workflow_progress（SPEC P9A-OBS-001 + ADR-0047）。 (~1500 tok)
 - `test_p9_005_notifications.py` — P9A C0 迁移基座的 schema 断言 —— notifications（ADR-0049 §①/§③）。 (~1611 tok)
+- `test_p9_006_cost_est_record_hash.py` — P9A-4 D0 迁移基座的 schema 断言 —— cost_est_results.record_hash（ADR-0048 §⑥）。 (~1558 tok)
 
 ## pcs-backend/tests/api/v1/
 
@@ -1336,6 +1367,10 @@
 - `test_todos.py` — P9A C4：待办实时计算（ADR-0049 §② / SPEC P9A-NOT-002）。 (~3325 tok)
 - `test_workflow_progress_api.py` — 观测层读 API 测试（P9A B5 / SPEC P9A-OBS-003）。 (~2564 tok)
 - `test_ws_notifications.py` — P9A C2：WebSocket 推送 + 断线兜底 API + `/health` 降级信号 (~3930 tok)
+
+## pcs-backend/tests/architecture/
+
+- `test_record_hash_invariant.py` — record_hash 不变式的**集合关系**契约（P9A-4 D0 · ADR-0048 §⑥）。 (~1536 tok)
 
 ## pcs-backend/tests/benchmarks/
 
@@ -1379,15 +1414,40 @@
 - `test_notification_triggers.py` — P9A C1b：通知**触发接线**（用户 2026-10-20 裁决的最小集合）。 (~1502 tok)
 - `test_notifications_channel.py` — P9A C1：通知通道抽象（ADR-0049 §①）。 (~2860 tok)
 - `test_record_capabilities.py` — `record_capabilities` 测试（TODO-058 裁决的落地契约）。 (~1308 tok)
+- `test_record_hash_invariant.py` — record_hash 不变式（P9A-4 D0 · ADR-0048 §⑥）。 (~3104 tok)
 - `test_secondary_auth.py` — 二次认证单测（MFA 决议 §4：路径 B = AD 密码二次输入 + `SIGN_2FA_FALLBACK`）。 (~1176 tok)
 - `test_stream_transition.py` — P3.2 SIM-13：StreamService.transition() 状态机集成测试（闭环审计 D-1）。 (~2982 tok)
 - `test_workflow_progress_acceptance.py` — P9A-OBS-004 验收：写入 → 可查的 p99 ≤ 500ms（ADR-0047 §②）。 (~1176 tok)
 - `test_workflow_progress_writer.py` — workflow_progress_writer 测试（ADR-0047 观测层的**唯一写入口**）。 (~2094 tok)
 
+## pcs-backend/tests/services/cool_tower/
+
+- `test_cool_tower_persist_service.py` — P6-2 Task 25 COOL_TOWER cool_tower_persist_service 测试 (~4921 tok)
+
+## pcs-backend/tests/services/cost_est/
+
+- `test_cost_est_persist_service.py` — P6-3 Task 36 COST_EST cost_est_persist_service 测试（SPEC §3.2.8）。 (~6111 tok)
+
+## pcs-backend/tests/services/filtration/
+
+- `test_filtration_persist_service.py` — P6-3 Task 34 FILTRATION filtration_persist_service 测试（SPEC §3.2.7）。 (~6151 tok)
+
+## pcs-backend/tests/services/flare/
+
+- `test_flare_persist_service.py` — P6-2 Task 23 FLARE_SYS flare_persist_service 测试（SPEC §3.2.3 P6-FLR-004）。 (~4885 tok)
+
 ## pcs-backend/tests/services/heat/
 
 - `test_ache_params_keys.py` — `ache_params` JSONB 的**唯一键名契约**。 (~1042 tok)
 - `test_htri_excel_parser.py` — htri 报表的 **Excel 版**解析。 (~2213 tok)
+
+## pcs-backend/tests/services/open_channel/
+
+- `test_open_channel_persist_service.py` — P6-3 Task 32 OPEN_CHANNEL open_channel_persist_service 测试（SPEC §3.2.6）。 (~6099 tok)
+
+## pcs-backend/tests/services/psychro/
+
+- `test_psychro_persist_service.py` — P6-2 Task 26 PSYCHRO psychro_persist_service + coolprop_version 测试 (~5876 tok)
 
 ## pcs-backend/tests/services/report/
 

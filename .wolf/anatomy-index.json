@@ -1,13 +1,13 @@
 {
   "version": 1,
   "meta": {
-    "lastScanned": "2026-10-20T08:21:22.483Z",
-    "fileCount": 911,
+    "lastScanned": "2026-10-20T09:02:16.686Z",
+    "fileCount": 929,
     "hits": 0,
     "misses": 0,
-    "renderedHash": "8fc21e6123d90f6a4230bafccaed41041916c0b52e0c9e9a528660f906054d12",
-    "storeUpdatedAt": "2026-10-20T08:21:22.494Z",
-    "rootHash": "adcaa7cc0f9d4ce9"
+    "renderedHash": "7141a4614963387f7f769bd46130bae9958ac9a2984a4f90fdb134e3a42b0b76",
+    "storeUpdatedAt": "2026-10-20T09:02:16.698Z",
+    "rootHash": "b5a18f80a6036e93"
   },
   "files": {
     ".code-review-graph/.gitignore": {
@@ -20641,11 +20641,11 @@
     },
     "pcs-backend/app/models/calc.py": {
       "description": "计算结果 ORM 模型（P5-3 计算引擎持久化）。",
-      "tokens": 16256,
-      "hash": "4a5677eee1a5d8f1",
-      "size": 64373,
-      "mtimeMs": 1791302451657.7927,
-      "updatedAt": "2026-10-06T16:00:51.709Z",
+      "tokens": 16949,
+      "hash": "394fcd8894aa2206",
+      "size": 67597,
+      "mtimeMs": 1792486059375.749,
+      "updatedAt": "2026-10-20T08:47:39.432Z",
       "source": "hook",
       "symbols": [
         {
@@ -20687,112 +20687,112 @@
           "name": "FlareSystemResult",
           "kind": "class",
           "startLine": 355,
-          "endLine": 407,
-          "tokens": 762
+          "endLine": 411,
+          "tokens": 801
         },
         {
           "name": "VesselResult",
           "kind": "class",
-          "startLine": 408,
-          "endLine": 449,
+          "startLine": 412,
+          "endLine": 453,
           "tokens": 489
         },
         {
           "name": "ReliefResult",
           "kind": "class",
-          "startLine": 450,
-          "endLine": 546,
+          "startLine": 454,
+          "endLine": 550,
           "tokens": 1099
         },
         {
           "name": "ColumnSizingResult",
           "kind": "class",
-          "startLine": 547,
-          "endLine": 590,
-          "tokens": 630
+          "startLine": 551,
+          "endLine": 601,
+          "tokens": 672
         },
         {
           "name": "MixerResult",
           "kind": "class",
-          "startLine": 591,
-          "endLine": 612,
-          "tokens": 317
+          "startLine": 602,
+          "endLine": 630,
+          "tokens": 359
         },
         {
           "name": "TwoPhaseResult",
           "kind": "class",
-          "startLine": 613,
-          "endLine": 649,
+          "startLine": 631,
+          "endLine": 667,
           "tokens": 485
         },
         {
           "name": "SepEquipResult",
           "kind": "class",
-          "startLine": 650,
-          "endLine": 662,
+          "startLine": 668,
+          "endLine": 680,
           "tokens": 134
         },
         {
           "name": "HeatResult",
           "kind": "class",
-          "startLine": 663,
-          "endLine": 767,
-          "tokens": 1711
+          "startLine": 681,
+          "endLine": 809,
+          "tokens": 2080
         },
         {
           "name": "CvResult",
           "kind": "class",
-          "startLine": 768,
-          "endLine": 882,
+          "startLine": 810,
+          "endLine": 924,
           "tokens": 1292
         },
         {
           "name": "RestrictionResult",
           "kind": "class",
-          "startLine": 883,
-          "endLine": 957,
+          "startLine": 925,
+          "endLine": 999,
           "tokens": 780
         },
         {
           "name": "CoolingTowerResult",
           "kind": "class",
-          "startLine": 958,
-          "endLine": 1003,
-          "tokens": 571
+          "startLine": 1000,
+          "endLine": 1049,
+          "tokens": 610
         },
         {
           "name": "PsychroResult",
           "kind": "class",
-          "startLine": 1004,
-          "endLine": 1067,
-          "tokens": 834
+          "startLine": 1050,
+          "endLine": 1117,
+          "tokens": 871
         },
         {
           "name": "OpenChannelResult",
           "kind": "class",
-          "startLine": 1068,
-          "endLine": 1103,
+          "startLine": 1118,
+          "endLine": 1153,
           "tokens": 520
         },
         {
           "name": "FiltrationResult",
           "kind": "class",
-          "startLine": 1104,
-          "endLine": 1142,
+          "startLine": 1154,
+          "endLine": 1192,
           "tokens": 444
         },
         {
           "name": "CostEstResult",
           "kind": "class",
-          "startLine": 1143,
-          "endLine": 1176,
-          "tokens": 433
+          "startLine": 1193,
+          "endLine": 1237,
+          "tokens": 556
         },
         {
           "name": "ThermosiphonCirculationResult",
           "kind": "class",
-          "startLine": 1177,
-          "endLine": 1303,
+          "startLine": 1238,
+          "endLine": 1364,
           "tokens": 1353
         }
       ]
@@ -28208,11 +28208,11 @@
     },
     "docs/adr/0048-edit-lock-storage.md": {
       "description": "ADR-0048：编辑锁 —— Redis 为主 + DB 审计留痕",
-      "tokens": 3499,
-      "hash": "c5dcc3db5da7e721",
-      "size": 23141,
-      "mtimeMs": 1792411020586.5762,
-      "updatedAt": "2026-10-19T11:57:00.635Z",
+      "tokens": 3962,
+      "hash": "ef2e6270b0694afe",
+      "size": 26340,
+      "mtimeMs": 1792486911650.4377,
+      "updatedAt": "2026-10-20T09:01:51.708Z",
       "source": "hook"
     },
     "docs/adr/0049-notification-and-todo-data-model.md": {
@@ -30147,33 +30147,54 @@
     },
     "pcs-backend/app/services/calc_lineage.py": {
       "description": "P4-0-1 统一计算记录收口（ADR-0031）。",
-      "tokens": 2138,
-      "hash": "f93ad5abcd4a0e60",
-      "size": 9281,
-      "mtimeMs": 1792457176062.7087,
-      "updatedAt": "2026-10-20T00:46:16.114Z",
+      "tokens": 2794,
+      "hash": "193a8b0268ac713a",
+      "size": 12523,
+      "mtimeMs": 1792486790818.146,
+      "updatedAt": "2026-10-20T08:59:50.864Z",
       "source": "hook",
       "symbols": [
         {
           "name": "_round_sig",
           "kind": "fn",
-          "startLine": 135,
-          "endLine": 141,
+          "startLine": 137,
+          "endLine": 143,
           "tokens": 58
         },
         {
           "name": "compute_record_hash",
           "kind": "fn",
-          "startLine": 142,
-          "endLine": 170,
-          "tokens": 286
+          "startLine": 144,
+          "endLine": 183,
+          "tokens": 404
+        },
+        {
+          "name": "apply_record_hash",
+          "kind": "fn",
+          "startLine": 184,
+          "endLine": 201,
+          "tokens": 144
+        },
+        {
+          "name": "backfill_record_hash",
+          "kind": "fn",
+          "startLine": 202,
+          "endLine": 214,
+          "tokens": 112
+        },
+        {
+          "name": "_require_record_hash_column",
+          "kind": "fn",
+          "startLine": 215,
+          "endLine": 237,
+          "tokens": 233
         },
         {
           "name": "finalize_calc_record",
           "kind": "fn",
-          "startLine": 171,
-          "endLine": 218,
-          "tokens": 452
+          "startLine": 238,
+          "endLine": 288,
+          "tokens": 479
         }
       ]
     },
@@ -31599,6 +31620,1721 @@
       "mtimeMs": 1792484447732.8308,
       "updatedAt": "2026-10-20T08:20:47.783Z",
       "source": "hook"
+    },
+    ".superpowers/sdd/PCS-PLAN-P9A-4-编辑锁与CIA/progress.md": {
+      "description": "SDD ledger — plan: docs/PCS-PLAN-P9A-4-编辑锁与CIA.md",
+      "tokens": 1399,
+      "hash": "3b9c17e5473cccf8",
+      "size": 8673,
+      "mtimeMs": 1792486936638.2942,
+      "updatedAt": "2026-10-20T09:02:16.686Z",
+      "source": "hook"
+    },
+    "pcs-backend/tests/services/test_record_hash_invariant.py": {
+      "description": "record_hash 不变式（P9A-4 D0 · ADR-0048 §⑥）。",
+      "tokens": 3104,
+      "hash": "fed210e385794809",
+      "size": 12532,
+      "mtimeMs": 1792486885021.4692,
+      "updatedAt": "2026-10-20T09:01:25.073Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_make_cost_est",
+          "kind": "fn",
+          "startLine": 52,
+          "endLine": 67,
+          "tokens": 156
+        },
+        {
+          "name": "_make_cool_tower",
+          "kind": "fn",
+          "startLine": 68,
+          "endLine": 88,
+          "tokens": 219
+        },
+        {
+          "name": "test_cost_est_update_recomputes_record_hash",
+          "kind": "fn",
+          "startLine": 89,
+          "endLine": 106,
+          "tokens": 165
+        },
+        {
+          "name": "test_cool_tower_update_recomputes_record_hash",
+          "kind": "fn",
+          "startLine": 107,
+          "endLine": 125,
+          "tokens": 177
+        },
+        {
+          "name": "test_update_recompute_is_idempotent_for_same_content",
+          "kind": "fn",
+          "startLine": 126,
+          "endLine": 151,
+          "tokens": 245
+        },
+        {
+          "name": "test_compute_record_hash_handles_a_pending_object_with_none_float",
+          "kind": "fn",
+          "startLine": 152,
+          "endLine": 171,
+          "tokens": 195
+        },
+        {
+          "name": "test_sign_status_participates_in_the_hash",
+          "kind": "fn",
+          "startLine": 172,
+          "endLine": 199,
+          "tokens": 252
+        },
+        {
+          "name": "test_status_transition_does_not_move_the_hash",
+          "kind": "fn",
+          "startLine": 200,
+          "endLine": 223,
+          "tokens": 198
+        },
+        {
+          "name": "test_backfill_covers_every_row",
+          "kind": "fn",
+          "startLine": 224,
+          "endLine": 237,
+          "tokens": 110
+        },
+        {
+          "name": "test_backfill_matches_live_computation",
+          "kind": "fn",
+          "startLine": 238,
+          "endLine": 250,
+          "tokens": 109
+        },
+        {
+          "name": "test_backfill_is_stable",
+          "kind": "fn",
+          "startLine": 251,
+          "endLine": 268,
+          "tokens": 139
+        },
+        {
+          "name": "test_backfill_leaves_other_rows_untouched",
+          "kind": "fn",
+          "startLine": 269,
+          "endLine": 290,
+          "tokens": 210
+        },
+        {
+          "name": "test_finalize_rejects_model_without_record_hash",
+          "kind": "fn",
+          "startLine": 291,
+          "endLine": 308,
+          "tokens": 138
+        },
+        {
+          "name": "test_cost_est_create_writes_non_empty_record_hash",
+          "kind": "fn",
+          "startLine": 309,
+          "endLine": 342,
+          "tokens": 301
+        },
+        {
+          "name": "test_cost_est_row_is_listed_by_backfill_scan",
+          "kind": "fn",
+          "startLine": 343,
+          "endLine": 350,
+          "tokens": 89
+        }
+      ]
+    },
+    "pcs-backend/tests/architecture/test_record_hash_invariant.py": {
+      "description": "record_hash 不变式的**集合关系**契约（P9A-4 D0 · ADR-0048 §⑥）。",
+      "tokens": 1536,
+      "hash": "2c4ce316aea502a4",
+      "size": 6334,
+      "mtimeMs": 1792486021829.3787,
+      "updatedAt": "2026-10-20T08:47:01.877Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_result_patch_modules",
+          "kind": "fn",
+          "startLine": 43,
+          "endLine": 68,
+          "tokens": 316
+        },
+        {
+          "name": "_update_function",
+          "kind": "fn",
+          "startLine": 69,
+          "endLine": 91,
+          "tokens": 219
+        },
+        {
+          "name": "_call_lineno",
+          "kind": "fn",
+          "startLine": 92,
+          "endLine": 108,
+          "tokens": 164
+        },
+        {
+          "name": "test_discovered_result_patch_endpoints_match_the_registry",
+          "kind": "fn",
+          "startLine": 109,
+          "endLine": 118,
+          "tokens": 120
+        },
+        {
+          "name": "test_update_service_recomputes_hash_after_mutation_before_commit",
+          "kind": "fn",
+          "startLine": 119,
+          "endLine": 151,
+          "tokens": 347
+        }
+      ]
+    },
+    "pcs-backend/tests/alembic/test_p9_006_cost_est_record_hash.py": {
+      "description": "P9A-4 D0 迁移基座的 schema 断言 —— cost_est_results.record_hash（ADR-0048 §⑥）。",
+      "tokens": 1558,
+      "hash": "0f177e1561dfc7df",
+      "size": 6635,
+      "mtimeMs": 1792486200899.4805,
+      "updatedAt": "2026-10-20T08:50:00.953Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_col",
+          "kind": "fn",
+          "startLine": 40,
+          "endLine": 43,
+          "tokens": 21
+        },
+        {
+          "name": "test_cost_est_has_record_hash_column",
+          "kind": "fn",
+          "startLine": 44,
+          "endLine": 48,
+          "tokens": 43
+        },
+        {
+          "name": "test_record_hash_shape_matches_the_other_tables",
+          "kind": "fn",
+          "startLine": 49,
+          "endLine": 58,
+          "tokens": 108
+        },
+        {
+          "name": "test_record_hash_declaration_matches_the_record_mixin_tables",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 74,
+          "tokens": 172
+        },
+        {
+          "name": "test_every_record_hash_column_in_the_repo_has_the_same_shape",
+          "kind": "fn",
+          "startLine": 75,
+          "endLine": 91,
+          "tokens": 200
+        },
+        {
+          "name": "test_cost_est_still_has_no_updated_at",
+          "kind": "fn",
+          "startLine": 92,
+          "endLine": 105,
+          "tokens": 126
+        },
+        {
+          "name": "_migration_tree",
+          "kind": "fn",
+          "startLine": 106,
+          "endLine": 110,
+          "tokens": 51
+        },
+        {
+          "name": "test_migration_revision_chain",
+          "kind": "fn",
+          "startLine": 111,
+          "endLine": 125,
+          "tokens": 150
+        },
+        {
+          "name": "test_migration_adds_a_single_string64_not_null_column",
+          "kind": "fn",
+          "startLine": 126,
+          "endLine": 149,
+          "tokens": 272
+        },
+        {
+          "name": "test_migration_backfills_using_the_single_hash_implementation",
+          "kind": "fn",
+          "startLine": 150,
+          "endLine": 158,
+          "tokens": 102
+        }
+      ]
+    },
+    "pcs-backend/app/services/cool_tower/cool_tower_persist_service.py": {
+      "description": "COOL_TOWER CoolingTowerResult ORM 落库 service。",
+      "tokens": 2948,
+      "hash": "db0dc26266b4c6cb",
+      "size": 11780,
+      "mtimeMs": 1792486094221.176,
+      "updatedAt": "2026-10-20T08:48:14.270Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "CoolTowerPersistInputError",
+          "kind": "class",
+          "startLine": 36,
+          "endLine": 85,
+          "tokens": 372
+        },
+        {
+          "name": "save_cool_tower_result",
+          "kind": "fn",
+          "startLine": 86,
+          "endLine": 164,
+          "tokens": 743
+        },
+        {
+          "name": "list_cool_tower_results",
+          "kind": "fn",
+          "startLine": 165,
+          "endLine": 213,
+          "tokens": 425
+        },
+        {
+          "name": "get_cool_tower_result",
+          "kind": "fn",
+          "startLine": 214,
+          "endLine": 238,
+          "tokens": 214
+        },
+        {
+          "name": "update_cool_tower_result",
+          "kind": "fn",
+          "startLine": 239,
+          "endLine": 295,
+          "tokens": 505
+        },
+        {
+          "name": "soft_delete_cool_tower_result",
+          "kind": "fn",
+          "startLine": 296,
+          "endLine": 335,
+          "tokens": 333
+        }
+      ]
+    },
+    "pcs-backend/app/services/flare/flare_persist_service.py": {
+      "description": "FLARE_SYS FlareSystemResult ORM 落库 service。",
+      "tokens": 3029,
+      "hash": "858d5c8279114fbc",
+      "size": 12002,
+      "mtimeMs": 1792486097474.123,
+      "updatedAt": "2026-10-20T08:48:17.524Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "FlarePersistInputError",
+          "kind": "class",
+          "startLine": 38,
+          "endLine": 98,
+          "tokens": 489
+        },
+        {
+          "name": "save_flare_result",
+          "kind": "fn",
+          "startLine": 99,
+          "endLine": 176,
+          "tokens": 727
+        },
+        {
+          "name": "list_flare_results",
+          "kind": "fn",
+          "startLine": 177,
+          "endLine": 223,
+          "tokens": 415
+        },
+        {
+          "name": "get_flare_result",
+          "kind": "fn",
+          "startLine": 224,
+          "endLine": 246,
+          "tokens": 202
+        },
+        {
+          "name": "update_flare_result",
+          "kind": "fn",
+          "startLine": 247,
+          "endLine": 301,
+          "tokens": 488
+        },
+        {
+          "name": "soft_delete_flare_result",
+          "kind": "fn",
+          "startLine": 302,
+          "endLine": 342,
+          "tokens": 317
+        }
+      ]
+    },
+    "pcs-backend/app/services/psychro/psychro_persist_service.py": {
+      "description": "PSYCHRO PsychroResult ORM 落库 service（P6-2 Task 26）。",
+      "tokens": 3277,
+      "hash": "2f4d679565db5121",
+      "size": 13198,
+      "mtimeMs": 1792486100952.0664,
+      "updatedAt": "2026-10-20T08:48:20.998Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "PsychroPersistInputError",
+          "kind": "class",
+          "startLine": 42,
+          "endLine": 102,
+          "tokens": 535
+        },
+        {
+          "name": "save_psychro_result",
+          "kind": "fn",
+          "startLine": 103,
+          "endLine": 192,
+          "tokens": 865
+        },
+        {
+          "name": "list_psychro_results",
+          "kind": "fn",
+          "startLine": 193,
+          "endLine": 241,
+          "tokens": 413
+        },
+        {
+          "name": "get_psychro_result",
+          "kind": "fn",
+          "startLine": 242,
+          "endLine": 264,
+          "tokens": 196
+        },
+        {
+          "name": "update_psychro_result",
+          "kind": "fn",
+          "startLine": 265,
+          "endLine": 321,
+          "tokens": 493
+        },
+        {
+          "name": "soft_delete_psychro_result",
+          "kind": "fn",
+          "startLine": 322,
+          "endLine": 362,
+          "tokens": 321
+        }
+      ]
+    },
+    "pcs-backend/app/services/filtration/filtration_persist_service.py": {
+      "description": "FILTRATION 计算结果持久化服务（SPEC §3.2.7）。",
+      "tokens": 4123,
+      "hash": "c30ff8659a8015a9",
+      "size": 15945,
+      "mtimeMs": 1792486106595.9749,
+      "updatedAt": "2026-10-20T08:48:26.646Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "FiltrationPersistInputError",
+          "kind": "class",
+          "startLine": 41,
+          "endLine": 86,
+          "tokens": 354
+        },
+        {
+          "name": "save_ruth_constant_pressure_result",
+          "kind": "fn",
+          "startLine": 87,
+          "endLine": 162,
+          "tokens": 699
+        },
+        {
+          "name": "save_ruth_constant_rate_result",
+          "kind": "fn",
+          "startLine": 163,
+          "endLine": 218,
+          "tokens": 478
+        },
+        {
+          "name": "save_ergun_result",
+          "kind": "fn",
+          "startLine": 219,
+          "endLine": 284,
+          "tokens": 576
+        },
+        {
+          "name": "list_filtration_results_service",
+          "kind": "fn",
+          "startLine": 285,
+          "endLine": 323,
+          "tokens": 304
+        },
+        {
+          "name": "get_filtration_result_service",
+          "kind": "fn",
+          "startLine": 324,
+          "endLine": 345,
+          "tokens": 158
+        },
+        {
+          "name": "update_filtration_result_service",
+          "kind": "fn",
+          "startLine": 346,
+          "endLine": 392,
+          "tokens": 404
+        },
+        {
+          "name": "soft_delete_filtration_result_service",
+          "kind": "fn",
+          "startLine": 393,
+          "endLine": 423,
+          "tokens": 260
+        },
+        {
+          "name": "create_filtration_result_direct",
+          "kind": "fn",
+          "startLine": 424,
+          "endLine": 488,
+          "tokens": 507
+        }
+      ]
+    },
+    "pcs-backend/app/services/open_channel/open_channel_persist_service.py": {
+      "description": "OPEN_CHANNEL 计算结果持久化服务（SPEC §3.2.6 P6-OPEN-001）。",
+      "tokens": 4929,
+      "hash": "8a82df81501a8175",
+      "size": 18912,
+      "mtimeMs": 1792486107735.9563,
+      "updatedAt": "2026-10-20T08:48:27.783Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "OpenChannelPersistInputError",
+          "kind": "class",
+          "startLine": 39,
+          "endLine": 87,
+          "tokens": 357
+        },
+        {
+          "name": "save_manning_result",
+          "kind": "fn",
+          "startLine": 88,
+          "endLine": 168,
+          "tokens": 745
+        },
+        {
+          "name": "save_section_result",
+          "kind": "fn",
+          "startLine": 169,
+          "endLine": 229,
+          "tokens": 509
+        },
+        {
+          "name": "save_critical_result",
+          "kind": "fn",
+          "startLine": 230,
+          "endLine": 297,
+          "tokens": 578
+        },
+        {
+          "name": "save_jump_result",
+          "kind": "fn",
+          "startLine": 298,
+          "endLine": 377,
+          "tokens": 712
+        },
+        {
+          "name": "list_open_channel_results_service",
+          "kind": "fn",
+          "startLine": 378,
+          "endLine": 416,
+          "tokens": 307
+        },
+        {
+          "name": "get_open_channel_result_service",
+          "kind": "fn",
+          "startLine": 417,
+          "endLine": 438,
+          "tokens": 164
+        },
+        {
+          "name": "update_open_channel_result_service",
+          "kind": "fn",
+          "startLine": 439,
+          "endLine": 485,
+          "tokens": 409
+        },
+        {
+          "name": "soft_delete_open_channel_result_service",
+          "kind": "fn",
+          "startLine": 486,
+          "endLine": 516,
+          "tokens": 263
+        },
+        {
+          "name": "create_open_channel_result_direct",
+          "kind": "fn",
+          "startLine": 517,
+          "endLine": 582,
+          "tokens": 514
+        }
+      ]
+    },
+    "pcs-backend/app/services/cost_est/cost_est_persist_service.py": {
+      "description": "COST_EST 计算结果持久化服务（SPEC §3.2.8，P6-3 Task 36）。",
+      "tokens": 5734,
+      "hash": "374190b0eb7c29aa",
+      "size": 22704,
+      "mtimeMs": 1792486127550.637,
+      "updatedAt": "2026-10-20T08:48:47.602Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "CostEstPersistInputError",
+          "kind": "class",
+          "startLine": 57,
+          "endLine": 98,
+          "tokens": 289
+        },
+        {
+          "name": "_ensure_equipment_exists",
+          "kind": "fn",
+          "startLine": 99,
+          "endLine": 125,
+          "tokens": 272
+        },
+        {
+          "name": "_ensure_created_at",
+          "kind": "fn",
+          "startLine": 126,
+          "endLine": 139,
+          "tokens": 138
+        },
+        {
+          "name": "_ensure_no_existing_cost_est",
+          "kind": "fn",
+          "startLine": 140,
+          "endLine": 158,
+          "tokens": 172
+        },
+        {
+          "name": "_validate_common_inputs",
+          "kind": "fn",
+          "startLine": 159,
+          "endLine": 175,
+          "tokens": 174
+        },
+        {
+          "name": "_validate_cepci_pair",
+          "kind": "fn",
+          "startLine": 176,
+          "endLine": 187,
+          "tokens": 118
+        },
+        {
+          "name": "_validate_scaling_exponent",
+          "kind": "fn",
+          "startLine": 188,
+          "endLine": 192,
+          "tokens": 55
+        },
+        {
+          "name": "_validate_base_cost",
+          "kind": "fn",
+          "startLine": 193,
+          "endLine": 202,
+          "tokens": 103
+        },
+        {
+          "name": "save_six_tenths_rule_result",
+          "kind": "fn",
+          "startLine": 203,
+          "endLine": 280,
+          "tokens": 665
+        },
+        {
+          "name": "save_cepci_adjustment_result",
+          "kind": "fn",
+          "startLine": 281,
+          "endLine": 339,
+          "tokens": 476
+        },
+        {
+          "name": "save_cost_correlation_result",
+          "kind": "fn",
+          "startLine": 340,
+          "endLine": 411,
+          "tokens": 710
+        },
+        {
+          "name": "list_cost_est_results_service",
+          "kind": "fn",
+          "startLine": 412,
+          "endLine": 445,
+          "tokens": 271
+        },
+        {
+          "name": "get_cost_est_result_service",
+          "kind": "fn",
+          "startLine": 446,
+          "endLine": 467,
+          "tokens": 151
+        },
+        {
+          "name": "update_cost_est_result_service",
+          "kind": "fn",
+          "startLine": 468,
+          "endLine": 520,
+          "tokens": 488
+        },
+        {
+          "name": "soft_delete_cost_est_result_service",
+          "kind": "fn",
+          "startLine": 521,
+          "endLine": 558,
+          "tokens": 354
+        },
+        {
+          "name": "create_cost_est_result_direct",
+          "kind": "fn",
+          "startLine": 559,
+          "endLine": 634,
+          "tokens": 676
+        }
+      ]
+    },
+    "pcs-backend/app/api/v1/cost_est.py": {
+      "description": "P6-3 COST_EST API（SPEC §3.2.8 + Task 36）。",
+      "tokens": 4448,
+      "hash": "1806d183fb53dd85",
+      "size": 16438,
+      "mtimeMs": 1792486130948.5825,
+      "updatedAt": "2026-10-20T08:48:50.994Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_to_http",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 98,
+          "tokens": 234
+        },
+        {
+          "name": "calculate_six_tenths_rule",
+          "kind": "fn",
+          "startLine": 99,
+          "endLine": 174,
+          "tokens": 808
+        },
+        {
+          "name": "calculate_cepci_adjustment",
+          "kind": "fn",
+          "startLine": 175,
+          "endLine": 232,
+          "tokens": 569
+        },
+        {
+          "name": "calculate_cost_correlation",
+          "kind": "fn",
+          "startLine": 233,
+          "endLine": 293,
+          "tokens": 614
+        },
+        {
+          "name": "create_cost_est_result",
+          "kind": "fn",
+          "startLine": 294,
+          "endLine": 319,
+          "tokens": 253
+        },
+        {
+          "name": "list_cost_est_results",
+          "kind": "fn",
+          "startLine": 320,
+          "endLine": 352,
+          "tokens": 296
+        },
+        {
+          "name": "get_cost_est_result",
+          "kind": "fn",
+          "startLine": 353,
+          "endLine": 379,
+          "tokens": 268
+        },
+        {
+          "name": "update_cost_est_result",
+          "kind": "fn",
+          "startLine": 380,
+          "endLine": 413,
+          "tokens": 326
+        },
+        {
+          "name": "soft_delete_cost_est_result",
+          "kind": "fn",
+          "startLine": 414,
+          "endLine": 447,
+          "tokens": 330
+        }
+      ]
+    },
+    "pcs-backend/alembic/versions/p9_006_cost_est_record_hash.py": {
+      "description": "P9A-4 D0：cost_est_results 补 record_hash（并发令牌）+ 回填。",
+      "tokens": 806,
+      "hash": "3761c165d9cecf09",
+      "size": 3899,
+      "mtimeMs": 1792486172029.9312,
+      "updatedAt": "2026-10-20T08:49:32.080Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_backfill_record_hash",
+          "kind": "fn",
+          "startLine": 51,
+          "endLine": 75,
+          "tokens": 221
+        },
+        {
+          "name": "upgrade",
+          "kind": "fn",
+          "startLine": 76,
+          "endLine": 95,
+          "tokens": 138
+        },
+        {
+          "name": "downgrade",
+          "kind": "fn",
+          "startLine": 96,
+          "endLine": 103,
+          "tokens": 51
+        }
+      ]
+    },
+    "pcs-backend/tests/services/psychro/test_psychro_persist_service.py": {
+      "description": "P6-2 Task 26 PSYCHRO psychro_persist_service + coolprop_version 测试",
+      "tokens": 5876,
+      "hash": "fd1cc0f79a91cb6d",
+      "size": 21924,
+      "mtimeMs": 1792486735220.882,
+      "updatedAt": "2026-10-20T08:58:55.269Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_make_psychro_row",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 100,
+          "tokens": 391
+        },
+        {
+          "name": "_mock_session",
+          "kind": "fn",
+          "startLine": 101,
+          "endLine": 112,
+          "tokens": 138
+        },
+        {
+          "name": "_mock_get_session",
+          "kind": "fn",
+          "startLine": 113,
+          "endLine": 129,
+          "tokens": 182
+        },
+        {
+          "name": "test_save_psychro_result_validates_tag_number",
+          "kind": "fn",
+          "startLine": 130,
+          "endLine": 145,
+          "tokens": 159
+        },
+        {
+          "name": "test_save_psychro_result_validates_standard_profile_code",
+          "kind": "fn",
+          "startLine": 146,
+          "endLine": 161,
+          "tokens": 166
+        },
+        {
+          "name": "test_save_psychro_result_validates_empty_payload",
+          "kind": "fn",
+          "startLine": 162,
+          "endLine": 181,
+          "tokens": 212
+        },
+        {
+          "name": "test_list_psychro_results_filters_project",
+          "kind": "fn",
+          "startLine": 182,
+          "endLine": 197,
+          "tokens": 152
+        },
+        {
+          "name": "test_list_psychro_results_filters_sign_status",
+          "kind": "fn",
+          "startLine": 198,
+          "endLine": 205,
+          "tokens": 84
+        },
+        {
+          "name": "test_list_psychro_results_passes_limit_offset",
+          "kind": "fn",
+          "startLine": 206,
+          "endLine": 220,
+          "tokens": 140
+        },
+        {
+          "name": "test_get_psychro_result_with_project_isolation_match",
+          "kind": "fn",
+          "startLine": 221,
+          "endLine": 233,
+          "tokens": 110
+        },
+        {
+          "name": "test_get_psychro_result_with_project_isolation_mismatch",
+          "kind": "fn",
+          "startLine": 234,
+          "endLine": 250,
+          "tokens": 162
+        },
+        {
+          "name": "test_update_psychro_result_draft_works",
+          "kind": "fn",
+          "startLine": 251,
+          "endLine": 271,
+          "tokens": 177
+        },
+        {
+          "name": "test_update_psychro_result_checked_locked",
+          "kind": "fn",
+          "startLine": 272,
+          "endLine": 293,
+          "tokens": 222
+        },
+        {
+          "name": "test_update_psychro_result_record_not_found",
+          "kind": "fn",
+          "startLine": 294,
+          "endLine": 312,
+          "tokens": 172
+        },
+        {
+          "name": "test_soft_delete_psychro_result_sets_obsolete",
+          "kind": "fn",
+          "startLine": 313,
+          "endLine": 334,
+          "tokens": 207
+        },
+        {
+          "name": "test_soft_delete_psychro_result_not_found",
+          "kind": "fn",
+          "startLine": 335,
+          "endLine": 350,
+          "tokens": 143
+        },
+        {
+          "name": "test_coolprop_version_returns_string",
+          "kind": "fn",
+          "startLine": 351,
+          "endLine": 358,
+          "tokens": 68
+        },
+        {
+          "name": "test_coolprop_version_handles_missing",
+          "kind": "fn",
+          "startLine": 359,
+          "endLine": 374,
+          "tokens": 157
+        },
+        {
+          "name": "test_save_psychro_result_auto_fills_coolprop_version",
+          "kind": "fn",
+          "startLine": 375,
+          "endLine": 435,
+          "tokens": 585
+        },
+        {
+          "name": "test_save_psychro_result_g07_real_pcs_test",
+          "kind": "fn",
+          "startLine": 436,
+          "endLine": 600,
+          "tokens": 1684
+        }
+      ]
+    },
+    "pcs-backend/tests/services/cool_tower/test_cool_tower_persist_service.py": {
+      "description": "P6-2 Task 25 COOL_TOWER cool_tower_persist_service 测试",
+      "tokens": 4921,
+      "hash": "b0b6d2faca7a93da",
+      "size": 18208,
+      "mtimeMs": 1792486813228.851,
+      "updatedAt": "2026-10-20T09:00:13.279Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_make_cool_tower_row",
+          "kind": "fn",
+          "startLine": 58,
+          "endLine": 97,
+          "tokens": 374
+        },
+        {
+          "name": "_mock_session",
+          "kind": "fn",
+          "startLine": 98,
+          "endLine": 109,
+          "tokens": 138
+        },
+        {
+          "name": "_mock_get_session",
+          "kind": "fn",
+          "startLine": 110,
+          "endLine": 126,
+          "tokens": 182
+        },
+        {
+          "name": "test_save_cool_tower_result_validates_tag_number",
+          "kind": "fn",
+          "startLine": 127,
+          "endLine": 142,
+          "tokens": 157
+        },
+        {
+          "name": "test_save_cool_tower_result_validates_standard_profile_code",
+          "kind": "fn",
+          "startLine": 143,
+          "endLine": 158,
+          "tokens": 165
+        },
+        {
+          "name": "test_save_cool_tower_result_validates_empty_payload",
+          "kind": "fn",
+          "startLine": 159,
+          "endLine": 178,
+          "tokens": 214
+        },
+        {
+          "name": "test_list_cool_tower_results_filters_project",
+          "kind": "fn",
+          "startLine": 179,
+          "endLine": 194,
+          "tokens": 156
+        },
+        {
+          "name": "test_list_cool_tower_results_filters_sign_status",
+          "kind": "fn",
+          "startLine": 195,
+          "endLine": 202,
+          "tokens": 86
+        },
+        {
+          "name": "test_list_cool_tower_results_passes_limit_offset",
+          "kind": "fn",
+          "startLine": 203,
+          "endLine": 217,
+          "tokens": 142
+        },
+        {
+          "name": "test_get_cool_tower_result_with_project_isolation_match",
+          "kind": "fn",
+          "startLine": 218,
+          "endLine": 230,
+          "tokens": 115
+        },
+        {
+          "name": "test_get_cool_tower_result_with_project_isolation_mismatch",
+          "kind": "fn",
+          "startLine": 231,
+          "endLine": 247,
+          "tokens": 165
+        },
+        {
+          "name": "test_update_cool_tower_result_draft_works",
+          "kind": "fn",
+          "startLine": 248,
+          "endLine": 268,
+          "tokens": 178
+        },
+        {
+          "name": "test_update_cool_tower_result_checked_locked",
+          "kind": "fn",
+          "startLine": 269,
+          "endLine": 290,
+          "tokens": 225
+        },
+        {
+          "name": "test_update_cool_tower_result_record_not_found",
+          "kind": "fn",
+          "startLine": 291,
+          "endLine": 309,
+          "tokens": 171
+        },
+        {
+          "name": "test_soft_delete_cool_tower_result_sets_obsolete",
+          "kind": "fn",
+          "startLine": 310,
+          "endLine": 331,
+          "tokens": 213
+        },
+        {
+          "name": "test_soft_delete_cool_tower_result_not_found",
+          "kind": "fn",
+          "startLine": 332,
+          "endLine": 349,
+          "tokens": 159
+        },
+        {
+          "name": "test_save_cool_tower_result_g07_real_pcs_test",
+          "kind": "fn",
+          "startLine": 350,
+          "endLine": 500,
+          "tokens": 1530
+        }
+      ]
+    },
+    "pcs-backend/tests/services/filtration/test_filtration_persist_service.py": {
+      "description": "P6-3 Task 34 FILTRATION filtration_persist_service 测试（SPEC §3.2.7）。",
+      "tokens": 6151,
+      "hash": "f149d6798dffe9f9",
+      "size": 22449,
+      "mtimeMs": 1792486818309.7844,
+      "updatedAt": "2026-10-20T09:00:18.361Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_make_filtration_row",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 95,
+          "tokens": 318
+        },
+        {
+          "name": "_mock_session",
+          "kind": "fn",
+          "startLine": 96,
+          "endLine": 107,
+          "tokens": 138
+        },
+        {
+          "name": "_mock_get_session",
+          "kind": "fn",
+          "startLine": 108,
+          "endLine": 125,
+          "tokens": 196
+        },
+        {
+          "name": "test_save_ruth_constant_pressure_validates_tag_number",
+          "kind": "fn",
+          "startLine": 126,
+          "endLine": 143,
+          "tokens": 169
+        },
+        {
+          "name": "test_save_ruth_constant_pressure_validates_area",
+          "kind": "fn",
+          "startLine": 144,
+          "endLine": 161,
+          "tokens": 166
+        },
+        {
+          "name": "test_save_ruth_constant_pressure_validates_negative_cycle_time",
+          "kind": "fn",
+          "startLine": 162,
+          "endLine": 184,
+          "tokens": 231
+        },
+        {
+          "name": "test_save_ruth_constant_rate_validates_tag_number",
+          "kind": "fn",
+          "startLine": 185,
+          "endLine": 201,
+          "tokens": 151
+        },
+        {
+          "name": "test_save_ruth_constant_rate_validates_pressure_drop",
+          "kind": "fn",
+          "startLine": 202,
+          "endLine": 224,
+          "tokens": 232
+        },
+        {
+          "name": "test_save_ergun_validates_tag_number",
+          "kind": "fn",
+          "startLine": 225,
+          "endLine": 241,
+          "tokens": 145
+        },
+        {
+          "name": "test_save_ergun_validates_porosity_eps_boundary",
+          "kind": "fn",
+          "startLine": 242,
+          "endLine": 265,
+          "tokens": 242
+        },
+        {
+          "name": "test_list_filtration_results_service_filters_project",
+          "kind": "fn",
+          "startLine": 266,
+          "endLine": 282,
+          "tokens": 160
+        },
+        {
+          "name": "test_list_filtration_results_service_excludes_obsolete_default",
+          "kind": "fn",
+          "startLine": 283,
+          "endLine": 292,
+          "tokens": 93
+        },
+        {
+          "name": "test_list_filtration_results_service_passes_skip_limit",
+          "kind": "fn",
+          "startLine": 293,
+          "endLine": 307,
+          "tokens": 143
+        },
+        {
+          "name": "test_get_filtration_result_service_found",
+          "kind": "fn",
+          "startLine": 308,
+          "endLine": 318,
+          "tokens": 96
+        },
+        {
+          "name": "test_get_filtration_result_service_not_found",
+          "kind": "fn",
+          "startLine": 319,
+          "endLine": 334,
+          "tokens": 181
+        },
+        {
+          "name": "test_update_filtration_result_service_draft_works",
+          "kind": "fn",
+          "startLine": 335,
+          "endLine": 355,
+          "tokens": 178
+        },
+        {
+          "name": "test_update_filtration_result_service_checked_locked",
+          "kind": "fn",
+          "startLine": 356,
+          "endLine": 374,
+          "tokens": 193
+        },
+        {
+          "name": "test_update_filtration_result_service_invalid_fields",
+          "kind": "fn",
+          "startLine": 375,
+          "endLine": 390,
+          "tokens": 176
+        },
+        {
+          "name": "test_update_filtration_result_service_not_found",
+          "kind": "fn",
+          "startLine": 391,
+          "endLine": 408,
+          "tokens": 194
+        },
+        {
+          "name": "test_soft_delete_filtration_result_service_sets_obsolete",
+          "kind": "fn",
+          "startLine": 409,
+          "endLine": 430,
+          "tokens": 217
+        },
+        {
+          "name": "test_soft_delete_filtration_result_service_not_found",
+          "kind": "fn",
+          "startLine": 431,
+          "endLine": 446,
+          "tokens": 182
+        },
+        {
+          "name": "test_create_filtration_result_direct_validates_tag_number",
+          "kind": "fn",
+          "startLine": 447,
+          "endLine": 464,
+          "tokens": 166
+        },
+        {
+          "name": "test_create_filtration_result_direct_invalid_fields",
+          "kind": "fn",
+          "startLine": 465,
+          "endLine": 485,
+          "tokens": 225
+        },
+        {
+          "name": "test_save_filtration_result_g07_real_pcs_test",
+          "kind": "fn",
+          "startLine": 486,
+          "endLine": 623,
+          "tokens": 1392
+        }
+      ]
+    },
+    "pcs-backend/tests/services/flare/test_flare_persist_service.py": {
+      "description": "P6-2 Task 23 FLARE_SYS flare_persist_service 测试（SPEC §3.2.3 P6-FLR-004）。",
+      "tokens": 4885,
+      "hash": "11eef283d702ac05",
+      "size": 18329,
+      "mtimeMs": 1792486822355.7312,
+      "updatedAt": "2026-10-20T09:00:22.405Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_make_flare_row",
+          "kind": "fn",
+          "startLine": 57,
+          "endLine": 94,
+          "tokens": 380
+        },
+        {
+          "name": "_mock_session",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 107,
+          "tokens": 151
+        },
+        {
+          "name": "_mock_get_session",
+          "kind": "fn",
+          "startLine": 108,
+          "endLine": 124,
+          "tokens": 181
+        },
+        {
+          "name": "test_save_flare_result_validates_tag_number",
+          "kind": "fn",
+          "startLine": 125,
+          "endLine": 140,
+          "tokens": 154
+        },
+        {
+          "name": "test_save_flare_result_validates_standard_profile_code",
+          "kind": "fn",
+          "startLine": 141,
+          "endLine": 156,
+          "tokens": 163
+        },
+        {
+          "name": "test_save_flare_result_validates_empty_payload",
+          "kind": "fn",
+          "startLine": 157,
+          "endLine": 176,
+          "tokens": 206
+        },
+        {
+          "name": "test_list_flare_results_filters_project",
+          "kind": "fn",
+          "startLine": 177,
+          "endLine": 197,
+          "tokens": 189
+        },
+        {
+          "name": "test_list_flare_results_filters_sign_status",
+          "kind": "fn",
+          "startLine": 198,
+          "endLine": 208,
+          "tokens": 103
+        },
+        {
+          "name": "test_list_flare_results_passes_limit_offset",
+          "kind": "fn",
+          "startLine": 209,
+          "endLine": 223,
+          "tokens": 138
+        },
+        {
+          "name": "test_get_flare_result_with_project_isolation_match",
+          "kind": "fn",
+          "startLine": 224,
+          "endLine": 234,
+          "tokens": 103
+        },
+        {
+          "name": "test_get_flare_result_with_project_isolation_mismatch",
+          "kind": "fn",
+          "startLine": 235,
+          "endLine": 251,
+          "tokens": 162
+        },
+        {
+          "name": "test_update_flare_result_draft_works",
+          "kind": "fn",
+          "startLine": 252,
+          "endLine": 274,
+          "tokens": 202
+        },
+        {
+          "name": "test_update_flare_result_checked_locked",
+          "kind": "fn",
+          "startLine": 275,
+          "endLine": 297,
+          "tokens": 232
+        },
+        {
+          "name": "test_update_flare_result_record_not_found",
+          "kind": "fn",
+          "startLine": 298,
+          "endLine": 315,
+          "tokens": 168
+        },
+        {
+          "name": "test_soft_delete_flare_result_sets_obsolete",
+          "kind": "fn",
+          "startLine": 316,
+          "endLine": 336,
+          "tokens": 214
+        },
+        {
+          "name": "test_soft_delete_flare_result_not_found",
+          "kind": "fn",
+          "startLine": 337,
+          "endLine": 352,
+          "tokens": 152
+        },
+        {
+          "name": "test_save_flare_result_g07_real_pcs_test",
+          "kind": "fn",
+          "startLine": 353,
+          "endLine": 491,
+          "tokens": 1459
+        }
+      ]
+    },
+    "pcs-backend/tests/services/open_channel/test_open_channel_persist_service.py": {
+      "description": "P6-3 Task 32 OPEN_CHANNEL open_channel_persist_service 测试（SPEC §3.2.6）。",
+      "tokens": 6099,
+      "hash": "dbca204b7566f994",
+      "size": 22231,
+      "mtimeMs": 1792486826012.6833,
+      "updatedAt": "2026-10-20T09:00:26.079Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_make_open_channel_row",
+          "kind": "fn",
+          "startLine": 60,
+          "endLine": 102,
+          "tokens": 383
+        },
+        {
+          "name": "_mock_session",
+          "kind": "fn",
+          "startLine": 103,
+          "endLine": 114,
+          "tokens": 138
+        },
+        {
+          "name": "_mock_get_session",
+          "kind": "fn",
+          "startLine": 115,
+          "endLine": 132,
+          "tokens": 192
+        },
+        {
+          "name": "test_save_manning_result_validates_tag_number",
+          "kind": "fn",
+          "startLine": 133,
+          "endLine": 152,
+          "tokens": 185
+        },
+        {
+          "name": "test_save_manning_result_validates_channel_type",
+          "kind": "fn",
+          "startLine": 153,
+          "endLine": 172,
+          "tokens": 184
+        },
+        {
+          "name": "test_save_manning_result_validates_negative_values",
+          "kind": "fn",
+          "startLine": 173,
+          "endLine": 192,
+          "tokens": 189
+        },
+        {
+          "name": "test_save_section_result_validates_channel_type",
+          "kind": "fn",
+          "startLine": 193,
+          "endLine": 211,
+          "tokens": 166
+        },
+        {
+          "name": "test_save_critical_result_validates_critical_depth",
+          "kind": "fn",
+          "startLine": 212,
+          "endLine": 233,
+          "tokens": 209
+        },
+        {
+          "name": "test_save_jump_result_validates_jump_type",
+          "kind": "fn",
+          "startLine": 234,
+          "endLine": 261,
+          "tokens": 273
+        },
+        {
+          "name": "test_list_open_channel_results_service_filters_project",
+          "kind": "fn",
+          "startLine": 262,
+          "endLine": 278,
+          "tokens": 162
+        },
+        {
+          "name": "test_list_open_channel_results_service_excludes_obsolete_default",
+          "kind": "fn",
+          "startLine": 279,
+          "endLine": 288,
+          "tokens": 94
+        },
+        {
+          "name": "test_list_open_channel_results_service_passes_skip_limit",
+          "kind": "fn",
+          "startLine": 289,
+          "endLine": 303,
+          "tokens": 145
+        },
+        {
+          "name": "test_get_open_channel_result_service_found",
+          "kind": "fn",
+          "startLine": 304,
+          "endLine": 314,
+          "tokens": 100
+        },
+        {
+          "name": "test_get_open_channel_result_service_not_found",
+          "kind": "fn",
+          "startLine": 315,
+          "endLine": 330,
+          "tokens": 184
+        },
+        {
+          "name": "test_update_open_channel_result_service_draft_works",
+          "kind": "fn",
+          "startLine": 331,
+          "endLine": 351,
+          "tokens": 179
+        },
+        {
+          "name": "test_update_open_channel_result_service_checked_locked",
+          "kind": "fn",
+          "startLine": 352,
+          "endLine": 370,
+          "tokens": 199
+        },
+        {
+          "name": "test_update_open_channel_result_service_invalid_fields",
+          "kind": "fn",
+          "startLine": 371,
+          "endLine": 386,
+          "tokens": 181
+        },
+        {
+          "name": "test_update_open_channel_result_service_not_found",
+          "kind": "fn",
+          "startLine": 387,
+          "endLine": 404,
+          "tokens": 198
+        },
+        {
+          "name": "test_soft_delete_open_channel_result_service_sets_obsolete",
+          "kind": "fn",
+          "startLine": 405,
+          "endLine": 426,
+          "tokens": 220
+        },
+        {
+          "name": "test_soft_delete_open_channel_result_service_not_found",
+          "kind": "fn",
+          "startLine": 427,
+          "endLine": 442,
+          "tokens": 184
+        },
+        {
+          "name": "test_create_open_channel_result_direct_validates_tag_number",
+          "kind": "fn",
+          "startLine": 443,
+          "endLine": 461,
+          "tokens": 170
+        },
+        {
+          "name": "test_create_open_channel_result_direct_invalid_fields",
+          "kind": "fn",
+          "startLine": 462,
+          "endLine": 482,
+          "tokens": 228
+        },
+        {
+          "name": "test_save_open_channel_result_g07_real_pcs_test",
+          "kind": "fn",
+          "startLine": 483,
+          "endLine": 618,
+          "tokens": 1362
+        }
+      ]
+    },
+    "pcs-backend/tests/services/cost_est/test_cost_est_persist_service.py": {
+      "description": "P6-3 Task 36 COST_EST cost_est_persist_service 测试（SPEC §3.2.8）。",
+      "tokens": 6111,
+      "hash": "d77263241bd0e439",
+      "size": 22387,
+      "mtimeMs": 1792486839048.5125,
+      "updatedAt": "2026-10-20T09:00:39.105Z",
+      "source": "hook",
+      "symbols": [
+        {
+          "name": "_make_cost_est_row",
+          "kind": "fn",
+          "startLine": 59,
+          "endLine": 94,
+          "tokens": 356
+        },
+        {
+          "name": "_mock_session_with_equipment",
+          "kind": "fn",
+          "startLine": 95,
+          "endLine": 120,
+          "tokens": 257
+        },
+        {
+          "name": "_mock_get_session",
+          "kind": "fn",
+          "startLine": 121,
+          "endLine": 139,
+          "tokens": 183
+        },
+        {
+          "name": "test_save_six_tenths_rule_equipment_not_found",
+          "kind": "fn",
+          "startLine": 140,
+          "endLine": 156,
+          "tokens": 188
+        },
+        {
+          "name": "test_save_six_tenths_rule_validates_negative_cost",
+          "kind": "fn",
+          "startLine": 157,
+          "endLine": 173,
+          "tokens": 169
+        },
+        {
+          "name": "test_save_six_tenths_rule_validates_invalid_cepci",
+          "kind": "fn",
+          "startLine": 174,
+          "endLine": 190,
+          "tokens": 184
+        },
+        {
+          "name": "test_save_six_tenths_rule_validates_scaling_exponent",
+          "kind": "fn",
+          "startLine": 191,
+          "endLine": 212,
+          "tokens": 233
+        },
+        {
+          "name": "test_save_cepci_adjustment_validates_currency",
+          "kind": "fn",
+          "startLine": 213,
+          "endLine": 229,
+          "tokens": 173
+        },
+        {
+          "name": "test_save_cepci_adjustment_validates_cost_index_year",
+          "kind": "fn",
+          "startLine": 230,
+          "endLine": 251,
+          "tokens": 232
+        },
+        {
+          "name": "test_save_cost_correlation_validates_scale_parameter",
+          "kind": "fn",
+          "startLine": 252,
+          "endLine": 267,
+          "tokens": 168
+        },
+        {
+          "name": "test_save_cost_correlation_validates_correlation_source_length",
+          "kind": "fn",
+          "startLine": 268,
+          "endLine": 289,
+          "tokens": 233
+        },
+        {
+          "name": "test_update_cost_est_result_service_invalid_fields",
+          "kind": "fn",
+          "startLine": 290,
+          "endLine": 303,
+          "tokens": 151
+        },
+        {
+          "name": "test_update_cost_est_result_service_not_found",
+          "kind": "fn",
+          "startLine": 304,
+          "endLine": 316,
+          "tokens": 135
+        },
+        {
+          "name": "test_update_cost_est_result_service_valid_patch",
+          "kind": "fn",
+          "startLine": 317,
+          "endLine": 336,
+          "tokens": 196
+        },
+        {
+          "name": "test_soft_delete_cost_est_result_service_not_found",
+          "kind": "fn",
+          "startLine": 337,
+          "endLine": 347,
+          "tokens": 116
+        },
+        {
+          "name": "test_soft_delete_cost_est_result_service_deletes_row",
+          "kind": "fn",
+          "startLine": 348,
+          "endLine": 368,
+          "tokens": 211
+        },
+        {
+          "name": "test_create_cost_est_result_direct_invalid_fields",
+          "kind": "fn",
+          "startLine": 369,
+          "endLine": 382,
+          "tokens": 146
+        },
+        {
+          "name": "test_create_cost_est_result_direct_valid",
+          "kind": "fn",
+          "startLine": 383,
+          "endLine": 403,
+          "tokens": 187
+        },
+        {
+          "name": "test_list_cost_est_results_service_empty",
+          "kind": "fn",
+          "startLine": 404,
+          "endLine": 417,
+          "tokens": 130
+        },
+        {
+          "name": "test_list_cost_est_results_service_with_filter",
+          "kind": "fn",
+          "startLine": 418,
+          "endLine": 438,
+          "tokens": 211
+        },
+        {
+          "name": "test_save_cost_est_result_g07_real_pcs_test",
+          "kind": "fn",
+          "startLine": 439,
+          "endLine": 606,
+          "tokens": 1702
+        }
+      ]
     }
   }
 }

@@ -1221,6 +1221,17 @@ class CostEstResult(Base):
     scaling_exponent: Mapped[float | None] = mapped_column(
         Float, comment="缩放指数 n（六十法则 0.6 典型）"
     )
+    # P9A-4 D0（ADR-0048 §⑥）：并发令牌。cost_est_results 是唯一
+    # 「可编辑 ∧ 无任何并发令牌」的结果表（PATCH 无 sign_status 门禁）⇒
+    # Redis 降级时它最容易两人同时改。列形状与全库另外 25 张表**完全同形**
+    # （String(64) NOT NULL default ''），空串 = 未计算。
+    # ⚠️ 16 是**值**的长度（calc_lineage._HASH_PREFIX），不是列宽。
+    record_hash: Mapped[str] = mapped_column(
+        String(64),
+        nullable=False,
+        default="",
+        comment="SHA-256，数值规范化舍入 6 位有效数字，仅设计参数参与；未计算时空串",
+    )
     created_at = mapped_column(DateTime(timezone=True))
 
 

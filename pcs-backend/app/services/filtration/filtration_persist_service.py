@@ -32,7 +32,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.calc import FiltrationResult
 from app.models.enums import RecordSignStatus9
-from app.services.calc_lineage import finalize_calc_record
+from app.services.calc_lineage import compute_record_hash, finalize_calc_record
 
 # P6-3 Task 34 — filtration_persist formula version
 _FORMULA_VERSION = "FILv1.0-p6-3-task34"
@@ -383,6 +383,8 @@ async def update_filtration_result_service(
         setattr(record, k, v)
     record.stale_resolution_path = "service_layer_update"
     record.updated_at = datetime.now(UTC)
+    # 并发令牌随内容重算（ADR-0048 §⑥ 的 record_hash 分支靠它才有意义）
+    record.record_hash = compute_record_hash(record)
     await session.commit()
     await session.refresh(record)
     return record

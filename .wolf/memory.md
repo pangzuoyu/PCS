@@ -2060,3 +2060,56 @@
 | 16:21 | Edited docs/PCS-UI-SPEC.md | 2→3 lines | ~293 |
 | 16:21 | Edited docs/PCS-UI-SPEC.md | 3→3 lines | ~15 |
 | 16:10 | **ADR-0050 + SPEC 增补（供评审）** —— 签署职责与任务参与模型。词表分层：全局角色(DB global_roles，含 can_create/can_review) → 资格集(DB) → 签署职责('Project-'前缀机械派生) → 工作集(DB,SIM 合成 1 个,23 项) → 项目内职责(user_project_sign_assignments,UNIQUE(user,project,work_set)=单一签署职责)。3 个判定函数(can_sign/can_participate/qualified_sign_roles)为唯一实现，通知/待办/签署/创建/审阅全部派生 | docs/adr/0050-*.md, docs/PCS-UI-SPEC.md §5.5, TODOS.md, docs/adr/0049 §尚未解决, docs/adr/README.md | 用户 7 条裁决全部落地；**30 处 file:line 引用逐条实测复核**（2 处行号已校正）；正面处理与 TODO-058 裁决的张力 | ~38000 |
+| 16:45 | Created .superpowers/sdd/PCS-PLAN-P9A-4-编辑锁与CIA/progress.md | — | ~820 |
+| 16:46 | Created pcs-backend/tests/services/test_record_hash_invariant.py | — | ~2868 |
+| 16:47 | Created pcs-backend/tests/architecture/test_record_hash_invariant.py | — | ~1536 |
+| 16:47 | Created pcs-backend/tests/alembic/test_p9_006_cost_est_record_hash.py | — | ~1468 |
+| 16:47 | Edited pcs-backend/app/models/calc.py | expanded (+11 lines) | ~171 |
+| 16:47 | Edited pcs-backend/app/services/calc_lineage.py | added 1 import(s) | ~43 |
+| 16:47 | Edited pcs-backend/app/services/calc_lineage.py | added error handling | ~527 |
+| 16:48 | Edited pcs-backend/app/services/calc_lineage.py | 2→3 lines | ~36 |
+| 16:48 | Edited pcs-backend/app/services/calc_lineage.py | 5→7 lines | ~43 |
+| 16:48 | Edited pcs-backend/app/services/cool_tower/cool_tower_persist_service.py | inline fix | ~23 |
+| 16:48 | Edited pcs-backend/app/services/cool_tower/cool_tower_persist_service.py | 2→4 lines | ~59 |
+| 16:48 | Edited pcs-backend/app/services/cool_tower/cool_tower_persist_service.py | modified items() | ~88 |
+| 16:48 | Edited pcs-backend/app/services/flare/flare_persist_service.py | inline fix | ~23 |
+| 16:48 | Edited pcs-backend/app/services/flare/flare_persist_service.py | 2→4 lines | ~59 |
+| 16:48 | Edited pcs-backend/app/services/flare/flare_persist_service.py | modified items() | ~89 |
+| 16:48 | Edited pcs-backend/app/services/psychro/psychro_persist_service.py | inline fix | ~23 |
+| 16:48 | Edited pcs-backend/app/services/psychro/psychro_persist_service.py | 2→4 lines | ~59 |
+| 16:48 | Edited pcs-backend/app/services/psychro/psychro_persist_service.py | modified items() | ~88 |
+| 16:48 | Edited pcs-backend/app/services/filtration/filtration_persist_service.py | inline fix | ~23 |
+| 16:48 | Edited pcs-backend/app/services/filtration/filtration_persist_service.py | modified items() | ~84 |
+| 16:48 | Edited pcs-backend/app/services/open_channel/open_channel_persist_service.py | inline fix | ~23 |
+| 16:48 | Edited pcs-backend/app/services/open_channel/open_channel_persist_service.py | modified items() | ~84 |
+| 16:48 | Edited pcs-backend/app/services/cost_est/cost_est_persist_service.py | added 1 import(s) | ~35 |
+| 16:48 | Edited pcs-backend/app/services/cost_est/cost_est_persist_service.py | expanded (+7 lines) | ~258 |
+| 16:48 | Edited pcs-backend/app/services/cost_est/cost_est_persist_service.py | expanded (+7 lines) | ~96 |
+| 16:48 | Edited pcs-backend/app/services/cost_est/cost_est_persist_service.py | 3→5 lines | ~59 |
+| 16:48 | Edited pcs-backend/app/api/v1/cost_est.py | 4→5 lines | ~81 |
+| 16:49 | Created pcs-backend/alembic/versions/p9_006_cost_est_record_hash.py | — | ~806 |
+| 16:49 | Edited pcs-backend/tests/alembic/test_p9_006_cost_est_record_hash.py | test_record_hash_declaration_matches_record_mixin() → test_record_hash_declaration_matches_the_record_mixin_tables() | ~171 |
+| 16:49 | Edited pcs-backend/tests/alembic/test_p9_006_cost_est_record_hash.py | 2→1 lines | ~18 |
+| 16:50 | Edited pcs-backend/tests/alembic/test_p9_006_cost_est_record_hash.py | 9→12 lines | ~155 |
+| 16:58 | Edited pcs-backend/tests/services/psychro/test_psychro_persist_service.py | MagicMock() → PsychroResult() | ~276 |
+| 16:58 | Edited pcs-backend/tests/services/psychro/test_psychro_persist_service.py | added 1 import(s) | ~67 |
+| 16:59 | Edited pcs-backend/tests/services/test_record_hash_invariant.py | modified test_sign_status_participates_in_the_hash() | ~16 |
+| 16:59 | Edited pcs-backend/tests/services/test_record_hash_invariant.py | modified test_compute_record_hash_handles_a_pending_object_with_none_float() | ~264 |
+| 16:59 | Edited pcs-backend/app/services/calc_lineage.py | modified isinstance() | ~290 |
+| 16:59 | Edited pcs-backend/app/services/calc_lineage.py | added 1 import(s) | ~58 |
+| 17:00 | Edited pcs-backend/tests/services/cool_tower/test_cool_tower_persist_service.py | MagicMock() → CoolingTowerResult() | ~265 |
+| 17:00 | Edited pcs-backend/tests/services/cool_tower/test_cool_tower_persist_service.py | added 1 import(s) | ~53 |
+| 17:00 | Edited pcs-backend/tests/services/filtration/test_filtration_persist_service.py | MagicMock() → FiltrationResult() | ~248 |
+| 17:00 | Edited pcs-backend/tests/services/filtration/test_filtration_persist_service.py | added 1 import(s) | ~52 |
+| 17:00 | Edited pcs-backend/tests/services/flare/test_flare_persist_service.py | MagicMock() → FlareSystemResult() | ~249 |
+| 17:00 | Edited pcs-backend/tests/services/flare/test_flare_persist_service.py | added 1 import(s) | ~53 |
+| 17:00 | Edited pcs-backend/tests/services/open_channel/test_open_channel_persist_service.py | MagicMock() → OpenChannelResult() | ~279 |
+| 17:00 | Edited pcs-backend/tests/services/open_channel/test_open_channel_persist_service.py | added 1 import(s) | ~53 |
+| 17:00 | Edited pcs-backend/tests/services/cost_est/test_cost_est_persist_service.py | 17→22 lines | ~236 |
+| 17:00 | Edited pcs-backend/tests/services/cost_est/test_cost_est_persist_service.py | added 1 import(s) | ~44 |
+| 17:00 | Edited pcs-backend/tests/services/cost_est/test_cost_est_persist_service.py | added 1 import(s) | ~71 |
+| 17:01 | Edited pcs-backend/tests/services/test_record_hash_invariant.py | modified test_backfill_leaves_other_rows_untouched() | ~152 |
+| 17:01 | Edited docs/adr/0048-edit-lock-storage.md | expanded (+28 lines) | ~408 |
+| 17:01 | Edited docs/adr/0048-edit-lock-storage.md | 3→6 lines | ~70 |
+| 17:01 | Edited docs/adr/0048-edit-lock-storage.md | expanded (+12 lines) | ~174 |
+| 17:02 | Edited .superpowers/sdd/PCS-PLAN-P9A-4-编辑锁与CIA/progress.md | expanded (+49 lines) | ~755 |

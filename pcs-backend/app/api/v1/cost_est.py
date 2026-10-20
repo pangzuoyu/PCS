@@ -17,8 +17,9 @@
 - 3 calc 端点：endpoint 调 calc_* → save_*_result service 层构造 record，
   禁止 endpoint 直构 CostEstResult（红线 #1）
 - CostEstResult 不继承 TaggedRecordMixin / RecordMixin → 无 sign_status /
-  record_hash / tag_number / project_id 列；service 层不调用
-  ``finalize_calc_record``（会因 record_hash 列缺失抛 AttributeError）；
+  tag_number / project_id 列；**有 record_hash**（P9A-4 D0 新增，ADR-0048 §⑥
+  的并发令牌 —— cost_est 是唯一「可编辑 ∧ 无任何并发令牌」的结果表），
+  service 层调 ``finalize_calc_record`` 收口；
   以 ``equipment_id`` 为 FK 入口（FK → equipment_list，unique）
 
 依据：Task 35（3 calc 模块）+ Task 30（CostEstResult ORM 11 业务列）

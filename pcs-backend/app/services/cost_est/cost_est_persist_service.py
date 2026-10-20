@@ -9,11 +9,18 @@ cepci_index_target/correlation_source/scaling_exponent + created_at）。
 与 filtration/open_channel 持久化的关键差异（CostEstResult 不继承任何
 mixin；1:1 跟随 equipment_list）：
 
-- **无 project_id / workspace_id / tag_number / sign_status / record_hash
+- **无 project_id / workspace_id / tag_number / sign_status
   / stale_resolution_path / created_by / updated_at 列** —— CostEstResult
   仅承载 cost_est_id + equipment_id（FK unique） + 10 业务列 +
-  created_at。service 层不调用 ``finalize_calc_record``（会因 record_hash
-  列缺失而抛 AttributeError），不写 RecordSignStatus9。
+  created_at + **record_hash**（P9A-4 D0 新增）。
+- **record_hash 是并发令牌**（P9A-4 D0 / ADR-0048 §⑥）：cost_est_results
+  是唯一「可编辑 ∧ 无任何并发令牌」的结果表（PATCH 无 sign_status 门禁）
+  ⇒ Redis 降级时它最容易两人同时改。故创建路径调 ``finalize_calc_record``
+  收口（source_stream_ids=[]，本表无源流），更新路径重算 hash。
+  ⚠️ 此前「不调 finalize（会因 record_hash 列缺失抛 AttributeError）」那条
+  注释**已作废** —— 防线是注释不是代码（TODO-048）；现在由
+  ``finalize_calc_record`` 的显式校验兜底。
+- 不写 RecordSignStatus9（本表无签署态）。
 - **equipment_id 是天然隔离键**：CostEstResult.equipment_id UNIQUE → 每
   个 equipment 至多 1 条 cost_est；service 层在落库前校验 equipment_id
   存在。
@@ -41,6 +48,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.calc import CostEstResult
+from app.services.calc_lineage import compute_record_hash, finalize_calc_record
 
 # P6-3 Task 36 — cost_est_persist formula version
 _FORMULA_VERSION = "CEv1.0-p6-3-task36"
@@ -258,6 +266,13 @@ async def save_six_tenths_rule_result(
     _ensure_created_at(record)
     session.add(record)
     await session.flush()
+    # 并发令牌收口（ADR-0048 §⑥）：cost_est 无源流 ⇒ source_stream_ids=[]
+    await finalize_calc_record(
+        session,
+        record,
+        source_stream_ids=[],
+        formula_version=_FORMULA_VERSION,
+    )
     await session.commit()
     await session.refresh(record)
     return record
@@ -310,6 +325,13 @@ async def save_cepci_adjustment_result(
     _ensure_created_at(record)
     session.add(record)
     await session.flush()
+    # 并发令牌收口（ADR-0048 §⑥）：cost_est 无源流 ⇒ source_stream_ids=[]
+    await finalize_calc_record(
+        session,
+        record,
+        source_stream_ids=[],
+        formula_version=_FORMULA_VERSION,
+    )
     await session.commit()
     await session.refresh(record)
     return record
@@ -370,6 +392,13 @@ async def save_cost_correlation_result(
     _ensure_created_at(record)
     session.add(record)
     await session.flush()
+    # 并发令牌收口（ADR-0048 §⑥）：cost_est 无源流 ⇒ source_stream_ids=[]
+    await finalize_calc_record(
+        session,
+        record,
+        source_stream_ids=[],
+        formula_version=_FORMULA_VERSION,
+    )
     await session.commit()
     await session.refresh(record)
     return record
@@ -482,6 +511,8 @@ async def update_cost_est_result_service(
         _validate_scaling_exponent(record.scaling_exponent)
     if "base_cost" in patch:
         _validate_base_cost(record.base_cost)
+    # 并发令牌随内容重算（ADR-0048 §⑥ 的 record_hash 分支靠它才有意义）
+    record.record_hash = compute_record_hash(record)
     await session.commit()
     await session.refresh(record)
     return record
@@ -576,6 +607,13 @@ async def create_cost_est_result_direct(
     _ensure_created_at(record)
     session.add(record)
     await session.flush()
+    # 并发令牌收口（ADR-0048 §⑥）：cost_est 无源流 ⇒ source_stream_ids=[]
+    await finalize_calc_record(
+        session,
+        record,
+        source_stream_ids=[],
+        formula_version=_FORMULA_VERSION,
+    )
     await session.commit()
     await session.refresh(record)
     return record

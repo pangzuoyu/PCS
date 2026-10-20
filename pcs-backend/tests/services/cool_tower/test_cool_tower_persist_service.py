@@ -28,6 +28,7 @@ if str(_BACKEND_ROOT) not in sys.path:
 
 from app.core.config import get_settings  # noqa: E402
 from app.db.session import dispose_engines_async  # noqa: E402
+from app.models.calc import CoolingTowerResult  # noqa: E402
 from app.models.enums import RecordSignStatus9  # noqa: E402
 from app.services.cool_tower import (  # noqa: E402
     CoolTowerPersistInputError,
@@ -66,29 +67,32 @@ def _make_cool_tower_row(
     duty_kw: float | None = None,
     fan_power_kw: float | None = None,
     merkel_integral: float | None = None,
-) -> Any:
-    """构造 ``CoolingTowerResult`` 行-like 对象（Mock）。"""
-    row = MagicMock()
-    row.cooling_tower_id = cooling_tower_id or uuid.uuid4()
-    row.project_id = project_id
-    row.workspace_id = uuid.uuid4()
-    row.tag_number = tag_number
-    row.standard_profile_code = standard_profile_code
-    row.calc_type = calc_type
-    row.sign_status = sign_status
-    row.record_hash = record_hash
-    row.tower_type = None
-    row.duty_kw = duty_kw
-    row.water_flow_m3h = None
-    row.makeup_water_m3h = None
-    row.fan_power_kw = fan_power_kw
-    row.merkel_integral = merkel_integral
-    row.data_sheet_json = None
-    row.input_json = None
-    row.output_json = None
-    row.created_at = MagicMock()
-    row.updated_at = MagicMock()
-    return row
+) -> CoolingTowerResult:
+    """构造 ``CoolingTowerResult`` 行对象（**真实 ORM 实例**，不是 Mock）。
+
+    ⚠️ P9A-4 D0：update 路径现在会重算 record_hash（ADR-0048 §⑥ 的并发令牌），
+    而 `compute_record_hash` 读的是 **ORM 实例状态**（state.dict /
+    committed_state）⇒ MagicMock 行撑不住（会算出掺了 mock id 的垃圾 hash）。
+    """
+    return CoolingTowerResult(
+        cooling_tower_id=cooling_tower_id or uuid.uuid4(),
+        project_id=project_id,
+        workspace_id=uuid.uuid4(),
+        tag_number=tag_number,
+        standard_profile_code=standard_profile_code,
+        calc_type=calc_type,
+        sign_status=sign_status,
+        record_hash=record_hash,
+        tower_type=None,
+        duty_kw=duty_kw,
+        water_flow_m3h=None,
+        makeup_water_m3h=None,
+        fan_power_kw=fan_power_kw,
+        merkel_integral=merkel_integral,
+        data_sheet_json=None,
+        input_json=None,
+        output_json=None,
+    )
 
 
 def _mock_session(rows: list[Any] | None = None) -> MagicMock:

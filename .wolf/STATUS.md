@@ -45,12 +45,11 @@ budget_tokens: 1500
 
 ## 🚀 Next quest
 
-1. **ADR-0050 待评审**（`docs/adr/0050-sign-responsibility-and-task-participation.md`，
-   状态 proposed）—— 用户 2026-10-20 给出的完整目标模型（全局角色 → 资格集 →
-   (用户,项目,工作集) 的单一签署职责）+ 7 条裁决的落地文档。
-   SPEC 增补同步在 `docs/PCS-UI-SPEC.md` §5.5（V1.4 → V1.6）。
-   ⇒ **评审通过后**按 ADR-0050 的分期 P1~P6 实施，**P1 是纯增量**（6 张表 +
-   迁移 `p9_006` + 3 个判定函数 + 契约测试，零行为变更）。
+1. **ADR-0050 暂缓**（`docs/adr/0050-sign-responsibility-and-task-participation.md`，
+   状态 proposed）—— 文档已写完（用户 2026-10-20 的完整目标模型 + 7 条裁决），
+   SPEC 增补在 `docs/PCS-UI-SPEC.md` §5.5（V1.4 → V1.6）。
+   ⚠️ **用户 2026-10-20 裁决「先不做」** ⇒ 本轮**不实施**。
+   ⇒ 再开工时按 ADR-0050 的分期 P1~P6，P1 是纯增量。
 2. **P9A-4「编辑锁与 CIA」lane（D0→D3）** —— **D1 必须在 B 之后**（B 已完成，可开工）。
    读 `docs/PCS-PLAN-P9A-4-编辑锁与CIA.md`。D0 迁移与 A/B/C 并行不冲突；
    注意 `RECORD_TYPE_REGISTRY` 里 `CostEstResult` **没有 `record_hash` 列**（TODO-048）。

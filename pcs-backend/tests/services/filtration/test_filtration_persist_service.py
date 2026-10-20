@@ -28,6 +28,7 @@ if str(_BACKEND_ROOT) not in sys.path:
 
 from app.core.config import get_settings  # noqa: E402
 from app.db.session import dispose_engines_async  # noqa: E402
+from app.models.calc import FiltrationResult  # noqa: E402
 from app.models.enums import RecordSignStatus9  # noqa: E402
 from app.services.filtration import (  # noqa: E402
     FiltrationPersistInputError,
@@ -64,29 +65,32 @@ def _make_filtration_row(
     filter_type: str = "RUTH_CONST_PRESSURE",
     sign_status: RecordSignStatus9 = RecordSignStatus9.DRAFT,
     record_hash: str = "",
-) -> Any:
-    """构造 ``FiltrationResult`` 行-like 对象（Mock）。"""
-    row = MagicMock()
-    row.filter_id = filter_id or uuid.uuid4()
-    row.project_id = project_id
-    row.workspace_id = uuid.uuid4()
-    row.tag_number = tag_number
-    row.filter_type = filter_type
-    row.media_type = "SAND"
-    row.area = 1.0
-    row.cycle_time = 1.0
-    row.pressure_drop = 1e5
-    row.cake_resistance_alpha = None
-    row.specific_resistance_r0 = None
-    row.permeability_k = None
-    row.porosity_eps = None
-    row.filter_velocity = None
-    row.sign_status = sign_status
-    row.record_hash = record_hash
-    row.stale_resolution_path = None
-    row.created_at = MagicMock()
-    row.updated_at = MagicMock()
-    return row
+) -> FiltrationResult:
+    """构造 ``FiltrationResult`` 行对象（**真实 ORM 实例**，不是 Mock）。
+
+    ⚠️ P9A-4 D0：update 路径现在会重算 record_hash（ADR-0048 §⑥ 的并发令牌），
+    而 `compute_record_hash` 读的是 **ORM 实例状态**（state.dict /
+    committed_state）⇒ MagicMock 行撑不住（会算出掺了 mock id 的垃圾 hash）。
+    """
+    return FiltrationResult(
+        filter_id=filter_id or uuid.uuid4(),
+        project_id=project_id,
+        workspace_id=uuid.uuid4(),
+        tag_number=tag_number,
+        filter_type=filter_type,
+        media_type="SAND",
+        area=1.0,
+        cycle_time=1.0,
+        pressure_drop=1e5,
+        cake_resistance_alpha=None,
+        specific_resistance_r0=None,
+        permeability_k=None,
+        porosity_eps=None,
+        filter_velocity=None,
+        sign_status=sign_status,
+        record_hash=record_hash,
+        stale_resolution_path=None,
+    )
 
 
 def _mock_session(rows: list[Any] | None = None) -> MagicMock:

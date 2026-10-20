@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import sys
 import uuid
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
@@ -27,6 +28,7 @@ if str(_BACKEND_ROOT) not in sys.path:
 
 from app.core.config import get_settings  # noqa: E402
 from app.db.session import dispose_engines_async  # noqa: E402
+from app.models.calc import CostEstResult  # noqa: E402
 from app.services.cost_est.cost_est_persist_service import (  # noqa: E402
     CostEstPersistInputError,
     create_cost_est_result_direct,
@@ -67,22 +69,27 @@ def _make_cost_est_row(
     cepci_index_target: float | None = 600.0,
     correlation_source: str | None = None,
     scaling_exponent: float | None = 0.6,
-) -> Any:
-    """构造 ``CostEstResult`` 行-like 对象（Mock）。"""
-    row = MagicMock()
-    row.cost_est_id = cost_est_id or uuid.uuid4()
-    row.equipment_id = equipment_id or uuid.uuid4()
-    row.estimated_cost = estimated_cost
-    row.currency = currency
-    row.cost_index_year = cost_index_year
-    row.base_cost = base_cost
-    row.base_year = base_year
-    row.cepci_index_base = cepci_index_base
-    row.cepci_index_target = cepci_index_target
-    row.correlation_source = correlation_source
-    row.scaling_exponent = scaling_exponent
-    row.created_at = MagicMock()
-    return row
+) -> CostEstResult:
+    """构造 ``CostEstResult`` 行对象（**真实 ORM 实例**，不是 Mock）。
+
+    ⚠️ P9A-4 D0：update 路径现在会重算 record_hash（ADR-0048 §⑥ 的并发令牌），
+    而 `compute_record_hash` 读的是 **ORM 实例状态**（state.dict /
+    committed_state）⇒ MagicMock 行撑不住（会算出掺了 mock id 的垃圾 hash）。
+    """
+    return CostEstResult(
+        cost_est_id=cost_est_id or uuid.uuid4(),
+        equipment_id=equipment_id or uuid.uuid4(),
+        estimated_cost=estimated_cost,
+        currency=currency,
+        cost_index_year=cost_index_year,
+        base_cost=base_cost,
+        base_year=base_year,
+        cepci_index_base=cepci_index_base,
+        cepci_index_target=cepci_index_target,
+        correlation_source=correlation_source,
+        scaling_exponent=scaling_exponent,
+        created_at=datetime.now(UTC),
+    )
 
 
 def _mock_session_with_equipment(equipment_exists: bool = True) -> MagicMock:

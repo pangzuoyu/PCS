@@ -27,7 +27,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.calc import CoolingTowerResult
 from app.models.enums import RecordSignStatus9
-from app.services.calc_lineage import finalize_calc_record
+from app.services.calc_lineage import compute_record_hash, finalize_calc_record
 
 # P6-2 Task 25 — cool_tower_persist formula version（与 Task 18 ORM 一致锚点）
 _FORMULA_VERSION = "CTPv1.0-p6-2-task25"
@@ -248,8 +248,10 @@ async def update_cool_tower_result(
     仅 DRAFT / CHANGE_PENDING 状态可改（CHECKED / IN_APPROVAL /
     REVERSAL_PENDING 等锁定态拒绝更新，避免评审中数据漂移）。
 
-    注：不重新触发 record_hash 计算；sign_status 流由专用的
-    change_pending_flow / state_machine 服务接管。
+    注：**重算 record_hash**（P9A-4 D0 裁决 R4）—— 不重算的话
+    ADR-0048 §⑥ 的 record_hash 分支永远走「放行」⇒ 丢失更新检测不到。
+    sign_status 流由专用的 change_pending_flow / state_machine 服务接管，
+    **那条路径不得重算**（状态流转会让客户端基线失效 ⇒ 假 409）。
 
     Args:
         session: async SQLAlchemy session。
@@ -284,6 +286,8 @@ async def update_cool_tower_result(
         if k in _COOLTOWER_UPDATE_FIELDS:
             setattr(record, k, v)
     record.updated_at = datetime.now(UTC)
+    # 并发令牌随内容重算（ADR-0048 §⑥ 的 record_hash 分支靠它才有意义）
+    record.record_hash = compute_record_hash(record)
     await session.commit()
     await session.refresh(record)
     return record

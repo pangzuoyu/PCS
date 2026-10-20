@@ -145,6 +145,18 @@ DB      │ record_hash 比对（乐观，事后检测）            │
 > | `two_phase_results` | ❌ 无编辑端点 | **不需要** —— 从覆盖缺口移除 |
 >
 > ⇒ **施工范围 = 1 张表：`cost_est_results` 补 `record_hash` + 接 `finalize_calc_record`。**
+
+> **🔻 2026-10-20 D0 落地时的两条形状裁决**（P9A-4 D0）：
+> 1. **列形状 = `String(64)` NOT NULL default `''`**，与全库另外 **25 张**
+>    `record_hash` 表**完全同形**。计划原文写的 `String(16)` + nullable 被否决：
+>    16 是**值**的长度（`calc_lineage._HASH_PREFIX`）不是列宽；空串是「未计算」
+>    的唯一哨兵（本节下面的退化阶梯就是按 `record_hash == ""` 写的），
+>    用 NULL 会让阶梯漏判。守卫：
+>    `tests/alembic/test_p9_006_cost_est_record_hash.py`
+>    `test_every_record_hash_column_in_the_repo_has_the_same_shape`。
+> 2. **回填做进迁移**，不留「记得手工跑一次脚本」的后门（本仓吃过
+>    「守门没跑却看着是绿的」亏）。回填复用 app 侧唯一的哈希实现
+>    （`calc_lineage.compute_record_hash`），**不在迁移里复制第二份算法**。
 > 它是**唯一「可编辑 ∧ 无任何并发令牌」**的表，且因为无签署态门禁，
 > 它恰恰是 Redis 降级时最容易被两人同时改的那张。
 >
@@ -245,13 +257,41 @@ INSERT 不触发 `onupdate`，那一瞬 `updated_at` 是 **NULL**，落的是 `n
 的并发控制已由 **P9A-DLV-003 的 doc_no 原子序号分配**承担，
 不需要 record_hash 重复覆盖。
 
-**已知覆盖缺口（写明，不掩盖）**：`record_hash` 注释写明「仅设计参数参与」，
-且 `compute_record_hash` 排除自身与生命周期列（`created_at` / `created_by` / `updated_at`）。
-因此它**不检测** `sign_status` / `approval_step` 等批准状态字段的变化。
+**🔻 2026-10-20 实施期更正（本句原文与代码不符）**：原文写「`compute_record_hash`
+排除自身与生命周期列 ⇒ **不检测** `sign_status` / `approval_step` 等批准状态
+字段的变化」。**实测不成立** —— `calc_lineage._EXCLUDED_KEYS` 只排除
+`record_hash` 自身 + `created_at` / `created_by` / `updated_at` / `updated_by`
+**五个**生命周期列，**工作流状态列参与哈希**。
 
-这是**正确的职责切分**：编辑锁保护「设计内容正在被改」，不保护「批准状态」。
-批准状态的并发由状态机事务 + `pg_advisory_xact_lock`（`app/services/advisory_lock.py`）
-负责，两者不重叠。
+⇒ 两条后果：
+
+1. **职责切分要靠「重算时机」实现，不能靠「哈希不覆盖状态列」**。
+   若在状态流转时也重算 hash，状态流转就会改掉 stored hash ⇒ 客户端手里的
+   基线失效 ⇒ 用户在**没跟任何人冲突**的情况下收到假 409。
+   ⇒ **重算只允许发生在「业务字段编辑路径」**（6 个 update service），
+   **不得**用全局 flush 钩子（那会把状态流转也算进去）。
+   守卫：`tests/services/test_record_hash_invariant.py`
+   `test_status_transition_does_not_move_the_hash` +
+   `test_sign_status_participates_in_the_hash`（后者钉住「状态列参与哈希」
+   这个**事实**，好让将来想改的人知道自己在改什么）。
+2. 批准状态的并发**仍然**由状态机事务 + `pg_advisory_xact_lock`
+   （`app/services/advisory_lock.py`）负责 —— 职责切分不变，只是**实现位置**
+   从「哈希的排除集」搬到了「重算的时机」。
+
+**🔻 2026-10-20 实施期更正（更严重的一条）：阶梯的前提是「hash 会被更新」。**
+原文的阶梯隐含假设「`record_hash` 反映记录当前内容」。**实测：它不反映** ——
+6 条 PATCH 路径的 update service **一律不重算** hash
+（`cool_tower_persist_service.py:251` 明写「不重新触发 record_hash 计算」；
+flare / psychro 同款注释；filtration / open_channel / cost_est 连注释都没有）。
+
+⇒ 若不重算，阶梯会**永远走「放行」分支**（`当前 record_hash == expected_hash`
+恒成立，因为 stored hash 冻结在创建那一刻）⇒ **D2 的 guard 对 6 张表中的 5 张
+是彻底的空操作** ⇒ 丢失更新（B 静默覆盖 A）检测不到。
+⇒ 本 ADR 新增**硬前提**（P9A-4 D0 落地）：**业务字段编辑路径必须重算
+`record_hash`**，否则 record_hash 这层「正确性保护」名存实亡。
+守卫：`tests/architecture/test_record_hash_contract.py`（集合关系契约：
+新加的 PATCH /results 端点必须登记，且重算调用必须在 setattr 之后、
+commit 之前）。
 
 **退化处理（必须实现，不得省略）**：`record_hash` 是 `nullable=False, default=""`，
 **未计算过的记录是空串**。两个空串相等 ⇒ 冲突检测失效。故：
@@ -368,7 +408,10 @@ INSERT 不触发 `onupdate`，那一瞬 `updated_at` 是 **NULL**，落的是 `n
    正是 bug-180~191 词表分叉的同构问题。同一把钥匙。
    **触发条件（结论可能失效）**：若 P9B 新增 SIM 导入结果的编辑入口，或
    `util_results` 出现可编辑字段 ⇒ §⑥ 收窄表失效，**回本 ADR 修订**，不得就地补列。
-2. **`record_hash` 不检测批准状态字段**（`sign_status` / `approval_step`）。
+2. 🔻 **2026-10-20 更正**：`record_hash` **确实覆盖**批准状态字段
+   （`sign_status` / `approval_step`）—— 原写「不检测」与代码不符（见 §⑥ 的
+   实施期更正）。「编辑保护不覆盖批准状态」这个**职责切分仍然成立**，
+   但实现位置从「哈希的排除集」搬到了「重算的时机」（只重算业务字段编辑路径）。
    若 P9A 实施时发现签署流程本身也需要并发保护（而不只是编辑），
    **本 ADR 不覆盖该场景**，需回本 ADR 修订。
 3. ~~**「编辑保存」是否写 `audit_logs` 未裁决**~~ —— **已裁决**：写（§⑦ 裁决 2）。
