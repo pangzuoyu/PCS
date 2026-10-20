@@ -120,3 +120,21 @@ class DeliverableActionRow(BaseModel):
     actor_user_id: uuid.UUID | None = None
     detail: dict[str, Any] | None = None
     created_at: datetime | None = None
+
+
+class TodoResponse(BaseModel):
+    """一条待办（实时计算的结果，不落库）。字段集合被契约测试钉死。"""
+
+    deliverable_id: uuid.UUID
+    version_id: uuid.UUID
+    project_id: uuid.UUID = Field(description="越权过滤在 service 层按此列完成")
+    step_order: int
+    step_role: str = Field(description="当前该签这一步要求的角色")
+    title: str
+
+
+class TodoListResponse(BaseModel):
+    """待办列表。`total` = `len(items)` —— 没有分页，因为没有可分页的表。"""
+
+    items: list[TodoResponse]
+    total: int

@@ -31,6 +31,8 @@ from app.schemas.deliverable import (
     DeliverableSnapshotResponse,
     DeliverableVersionResponse,
     RecordBindingResponse,
+    TodoListResponse,
+    TodoResponse,
 )
 from app.schemas.deliverable_actions import (
     DeliverableActionResponse,
@@ -45,6 +47,7 @@ from app.schemas.deliverable_write import (
     SignStepResponse,
 )
 from app.services.deliverable_service import DeliverableService
+from app.services.todo_service import compute_todos
 
 router = APIRouter(tags=["deliverables"])
 
@@ -396,4 +399,39 @@ async def list_deliverable_actions(
             for i in items
         ],
         total=total,
+    )
+
+
+# ---------------------------------------------------------------------------
+# 待办（实时计算，ADR-0049 §② / SPEC P9A-NOT-002）
+# ---------------------------------------------------------------------------
+
+
+@router.get("/todos", response_model=TodoListResponse, summary="我的待办（实时计算）")
+async def list_todos(
+    db: Annotated[AsyncSession, Depends(get_db)],
+    actor: Annotated[_Actor, Depends(current_actor)],
+) -> TodoListResponse:
+    """当前用户该签什么 —— **每次查询现算，不建表**。
+
+    真值是签署矩阵的当前步骤 × 当前用户角色，随每次签署推进自动改变。
+    建表意味着每次推进都要 UPDATE 全部下游步骤的 todo 行，并引入
+    「todo 表与 matrix 表不一致」的窗口（ADR-0049 §②）。
+    """
+    items = await compute_todos(
+        db, actor_user_id=actor.user_id, global_role=actor.role
+    )
+    return TodoListResponse(
+        items=[
+            TodoResponse(
+                deliverable_id=t.deliverable_id,
+                version_id=t.version_id,
+                project_id=t.project_id,
+                step_order=t.step_order,
+                step_role=t.step_role,
+                title=t.title,
+            )
+            for t in items
+        ],
+        total=len(items),
     )
