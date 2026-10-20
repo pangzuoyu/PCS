@@ -52,18 +52,29 @@ def _p99(samples: list[float]) -> float:
 
 
 async def _write_then_read(
-    db: AsyncSession, *, project_id: uuid.UUID, workflow_id: uuid.UUID, step_order: int
+    db: AsyncSession,
+    *,
+    project_id: uuid.UUID,
+    workflow_id: uuid.UUID,
+    step_order: int,
+    workflow_type: WorkflowType,
 ) -> float:
     """写一行观测 + 立刻读回，返回「写入调用 → 读得到」的毫秒数。
 
     **计时含 commit**：SPEC 的口径是「流程状态变更到持久化」，
     只量 flush 会漏掉真正的持久化等待。
+
+    ⚠️ **`workflow_type` 必须传进来**（2026-10-21 修）：原实现把
+    `WorkflowType.SIGN` 写死在写入与查询两处 ⇒ 上面的 `@parametrize`
+    三个用例**测的都是 SIGN** —— 用例名说「三类工作流逐类」，代码只跑一类。
+    这正是本仓反复付过代价的形状：**参数化装饰了一个从未生效的变量**
+    （见 `.wolf/cerebrum.md`「守卫测试会被它守护的那行注释骗过」）。
     """
     started = time.perf_counter()
     await record_step(
         session=db,
         project_id=project_id,
-        workflow_type=WorkflowType.SIGN,
+        workflow_type=workflow_type,
         workflow_id=workflow_id,
         step_order=step_order,
         step_role="CHECKER",
@@ -75,7 +86,7 @@ async def _write_then_read(
     rows = (
         await db.execute(
             select(WorkflowProgress).where(
-                WorkflowProgress.workflow_type == WorkflowType.SIGN,
+                WorkflowProgress.workflow_type == workflow_type,
                 WorkflowProgress.workflow_id == workflow_id,
                 WorkflowProgress.step_order == step_order,
             )
@@ -102,6 +113,7 @@ async def test_observed_p99_under_500ms(db_session, workflow_type):
                 project_id=project_id,
                 workflow_id=workflow_id,
                 step_order=i + 1,
+                workflow_type=workflow_type,
             )
         )
 
