@@ -1162,3 +1162,56 @@ typecheck）。优先迁「零消费方」的（它们连棘轮都判死，会�
 
 - **严重度**：MEDIUM（当前无功能故障；有消费方的那些仍在工作，但少字段时会静默）
 - **关联**：P9B-1 Task F0 · `scripts/audit-handwritten-types.mjs`（清单式审计的盲区）
+
+## TODO-065: `GET /deliverables/{id}/progress` 聚合端点（缺失 · P9B-2 前置）
+
+**What:** 后端加一个聚合端点，一次返回某交付物**三类**工作流的进度：
+`GET /api/v1/deliverables/{deliverable_id}/progress`。
+
+**Why:** `GET /workflow-progress/{workflow_type}/{workflow_id}` 是**单条**查询，
+而三类工作流的 `workflow_id` 语义**各不相同**（实测 2026-10-21）：
+
+| 工作流 | workflow_id | 前端怎么拿 |
+|---|---|---|
+| `SIGN` | 版本 ID | `DeliverableResponse.current_version_id`（P9B-1 本批加） |
+| `CUSTOMER_APPROVAL_PROXY` | 版本 ID | 同上 |
+| `CHANGE_NOTICE` | **变更单自身的 deliverable_id**（变更单是独立交付物，`deliverable_type=CHANGE_NOTICE`） | ⛔ 前端**拿不到** —— 需要查「当前交付物 → 它的变更单」的关联 |
+
+⇒ 前端要凑齐三类 ⇒ 4~5 个请求/行，且「变更单的 workflow_id 怎么拿」这段逻辑
+会落在**前端** ⇒ 错误的位置（关联规则在后端：`change_notice_details` 与
+`deliverables` 的关系不是简单外键）。
+
+**Pros:** 前端 1 次请求拿全；关联解析归后端；P9B-2 加新工作流类型时前端不动。
+
+**Cons:** 新端点 + 契约 + 测试；需定义「一个交付物有多个变更单时取哪个」的口径。
+
+**Context:** P9B-1（2026-10-21 裁决）**本批不做** —— 本批范围收窄为「只展示
+SIGN 工作流」，SIGN 用既有 `GET /workflow-progress/SIGN/{version_id}` 即可，
+聚合端点此时「退化成一个没有收益的新端点」。
+**触发条件：P9B-2 开始实现 `CUSTOMER_APPROVAL_PROXY` / `CHANGE_NOTICE` 面板时，
+先做聚合端点，再做面板** —— 否则前端要自己解析变更单关联（P9B-2 会重走一遍
+「三个选项」的讨论）。
+**归属：** P9B-2，与两个新面板同批。
+
+## TODO-066: 编辑审计缺**按项目守卫**的读端点（普通用户看不到「查看差异」）
+
+**What:** 后端加 `GET /records/{module}/{record_id}/edits`（只回 `changed_fields`
+字段名列表 + 操作人 + 时间），带**项目守卫**（`check_record_access_or_404`）。
+
+**Why:** SPEC §6.21 P9A-LCK-006 要求 409 弹窗提供「查看差异」，而差异内容在
+**编辑审计**里（`audit_logs` 的 `RECORD_EDITED` action）。但唯一的读端点
+`GET /audit-logs` **限 SYSTEM_ADMIN**（实测：`app/api/v1/audit.py:58`
+`require_roles(user, "SYSTEM_ADMIN")`，且 `audit_logs` 表**无 project_id**）
+⇒ 普通 DESIGNER 拿到 409 弹窗却**点不开差异**。
+
+**Pros:** 普通用户能看差异（409 弹窗的第二个出口才有意义）；不泄露跨项目数据。
+
+**Cons:** 新端点 + 契约 + 测试；`audit_logs` 无 `project_id` ⇒ 授权只能靠
+`resource_type + resource_id` 反查所属项目（`records` 表有 project_id）。
+
+**Context:** P9B-1（2026-10-21 裁决）**本批不做** —— 前端优雅降级：
+「查看差异」遇 403 ⇒ 显示「无权查看差异（需系统管理员）」并**保留**
+「放弃我的修改并刷新」出口。
+**触发条件：P9B-2 做签署流程前端（批注/状态时间线）时一并做** —— 那时编辑审计
+的展示面更大。
+**归属：** P9B-2。**关联：** SPEC §6.21 P9A-LCK-006 · ADR-0048 §⑦。
